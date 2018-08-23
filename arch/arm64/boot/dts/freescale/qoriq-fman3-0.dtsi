@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * QorIQ FMan v3 device tree
  *
  * Copyright 2012-2015 Freescale Semiconductor Inc.
  *
- * SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
  */
 
 fman0: fman@1a00000 {

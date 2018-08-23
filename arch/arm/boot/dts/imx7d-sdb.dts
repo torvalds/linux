@@ -10,6 +10,10 @@
 	model = "Freescale i.MX7 SabreSD Board";
 	compatible = "fsl,imx7d-sdb", "fsl,imx7d";
 
+	chosen {
+		stdout-path = &uart1;
+	};
+
 	memory@80000000 {
 		reg = <0x80000000 0x80000000>;
 	};
@@ -71,14 +75,6 @@
 		enable-active-high;
 	};
 
-	reg_can2_3v3: regulator-can2-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "can2-3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio1 7 GPIO_ACTIVE_LOW>;
-	};
-
 	reg_vref_1v8: regulator-vref-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vref-1v8";
@@ -116,10 +112,17 @@
 		gpio = <&gpio2 14 GPIO_ACTIVE_LOW>;
 	};
 
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 5000000 0>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+		status = "okay";
+	};
+
 	panel {
 		compatible = "innolux,at043tn24";
-		pinctrl-0 = <&pinctrl_backlight>;
-		enable-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+		backlight = <&backlight>;
 		power-supply = <&reg_lcd_3v3>;
 
 		port {
@@ -712,6 +715,12 @@
 	};
 };
 
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
 &iomuxc_lpsr {
 	pinctrl_wdog: wdoggrp {
 		fsl,pins = <
@@ -719,9 +728,9 @@
 		>;
 	};
 
-	pinctrl_backlight: backlightgrp {
+	pinctrl_pwm1: pwm1grp {
 		fsl,pins = <
-			MX7D_PAD_LPSR_GPIO1_IO01__GPIO1_IO1		0x110b0
+			MX7D_PAD_LPSR_GPIO1_IO01__PWM1_OUT		0x30
 		>;
 	};
 };

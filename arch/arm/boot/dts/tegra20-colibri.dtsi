@@ -2,7 +2,7 @@
 #include "tegra20.dtsi"
 
 / {
-	model = "Toradex Colibri T20 512MB";
+	model = "Toradex Colibri T20 256/512 MB";
 	compatible = "toradex,colibri_t20-512", "nvidia,tegra20";
 
 	aliases {
@@ -10,8 +10,13 @@
 		rtc1 = "/rtc@7000e000";
 	};
 
-	memory {
-		reg = <0x00000000 0x20000000>;
+	memory@0 {
+		/*
+		 * Set memory to 256 MB to be safe as this could be used on
+		 * 256 or 512 MB module. It is expected from bootloader
+		 * to fix this up for 512 MB version.
+		 */
+		reg = <0x00000000 0x10000000>;
 	};
 
 	host1x@50000000 {
@@ -211,6 +216,22 @@
 			GPIO_ACTIVE_HIGH>;
 		nvidia,codec-sync-gpio = <&gpio TEGRA_GPIO(P, 0)
 			GPIO_ACTIVE_HIGH>;
+	};
+
+	nand-controller@70008000 {
+		status = "okay";
+
+		nand@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			nand-bus-width = <8>;
+			nand-on-flash-bbt;
+			nand-ecc-algo = "bch";
+			nand-is-boot-medium;
+			nand-ecc-maximize;
+			wp-gpios = <&gpio TEGRA_GPIO(S, 0) GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	/*

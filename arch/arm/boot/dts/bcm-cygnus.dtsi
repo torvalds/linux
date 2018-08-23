@@ -41,6 +41,10 @@
 	model = "Broadcom Cygnus SoC";
 	interrupt-parent = <&gic>;
 
+	aliases {
+		ethernet0 = &eth0;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -415,6 +419,11 @@
 			clocks = <&axi81_clk>;
 			clock-names = "apb_pclk";
 			status = "disabled";
+		};
+
+		rng: rng@18032000 {
+			compatible = "brcm,iproc-rng200";
+			reg = <0x18032000 0x28>;
 		};
 
 		sdhci0: sdhci@18041000 {

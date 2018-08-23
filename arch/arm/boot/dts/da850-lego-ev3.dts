@@ -173,6 +173,15 @@
 		rechargeable-gpios = <&gpio 136 GPIO_ACTIVE_LOW>;
 	};
 
+	bt_slow_clk: bt-clock {
+		pinctrl-names = "default";
+		pinctrl-0 = <&ecap2_pins>, <&bt_clock_bias>;
+		compatible = "pwm-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		pwms = <&ecap2 0 30518 0>;
+	};
+
 	/* ARM local RAM */
 	memory@ffff0000 {
 		compatible = "syscon", "simple-mfd";
@@ -189,6 +198,10 @@
 			mode-loader = <0x5555aaaa>;
 		};
 	};
+};
+
+&ref_clk {
+	clock-frequency = <24000000>;
 };
 
 &pmx_core {
@@ -212,6 +225,20 @@
 			bias-disable;
 		};
 	};
+
+	bt_clock_bias: bt-clock-bias-groups {
+		disable {
+			groups = "cp2";
+			bias-disable;
+		};
+	};
+
+	bt_pic_bias: bt-pic-bias-groups {
+		disable {
+			groups = "cp20";
+			bias-disable;
+		};
+	};
 };
 
 /* Input port 1 */
@@ -219,6 +246,22 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&serial1_rxtx_pins>;
+};
+
+&serial2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&serial2_rxtx_pins>, <&serial2_rtscts_pins>, <&bt_pic_bias>;
+	status = "okay";
+
+	bluetooth {
+		compatible = "ti,cc2560";
+		clocks = <&bt_slow_clk>;
+		clock-names = "ext_clock";
+		enable-gpios = <&gpio 73 GPIO_ACTIVE_HIGH>;
+		max-speed = <2000000>;
+		nvmem-cells = <&bdaddr>;
+		nvmem-cell-names = "bd-address";
+	};
 };
 
 &rtc0 {
@@ -239,6 +282,12 @@
 		pagesize = <64>;
 		read-only;
 		reg = <0x50>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		bdaddr: bdaddr@3f06 {
+			reg = <0x3f06 0x06>;
+		};
 	};
 };
 
@@ -323,6 +372,10 @@
 	};
 };
 
+&ecap2 {
+	status = "okay";
+};
+
 &ehrpwm0 {
 	status = "okay";
 };
@@ -335,6 +388,39 @@
 		gpio-hog;
 		gpios = <6 GPIO_ACTIVE_HIGH>;
 		output-high;
+	};
+
+	/* Don't impede Bluetooth clock signal */
+	bt_clock_en {
+		gpio-hog;
+		gpios = <5 GPIO_ACTIVE_HIGH>;
+		input;
+	};
+
+	/*
+	 * There is a PIC microcontroller for interfacing with an Apple MFi
+	 * chip. This interferes with normal Bluetooth operation, so we need
+	 * to make sure it is turned off. Note: The publicly available
+	 * schematics from LEGO don't show that these pins are connected to
+	 * anything, but they are present in the source code from LEGO.
+	 */
+
+	bt_pic_en {
+		gpio-hog;
+		gpios = <51 GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+
+	bt_pic_rst {
+		gpio-hog;
+		gpios = <78 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+
+	bt_pic_cts {
+		gpio-hog;
+		gpios = <87 GPIO_ACTIVE_HIGH>;
+		input;
 	};
 };
 

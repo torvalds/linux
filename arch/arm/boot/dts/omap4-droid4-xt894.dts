@@ -128,6 +128,8 @@
 			gpios = <&gpio5 26 GPIO_ACTIVE_LOW>; /* gpio154 */
 			linux,code = <KEY_VOLUMEDOWN>;
 			linux,can-disable;
+			/* Value above 7.95ms for no GPIO hardware debounce */
+			debounce-interval = <10>;
 		};
 
 		slider {
@@ -136,7 +138,8 @@
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_KEYPAD_SLIDE>;
 			linux,can-disable;
-
+			/* Value above 7.95ms for no GPIO hardware debounce */
+			debounce-interval = <10>;
 		};
 	};
 
@@ -369,7 +372,7 @@
 		compatible = "ti,wl1285", "ti,wl1283";
 		reg = <2>;
 		interrupt-parent = <&gpio4>;
-		interrupts = <4 IRQ_TYPE_LEVEL_HIGH>; /* gpio100 */
+		interrupts = <4 IRQ_TYPE_EDGE_RISING>; /* gpio100 */
 		ref-clock-frequency = <26000000>;
 		tcxo-clock-frequency = <26000000>;
 	};
