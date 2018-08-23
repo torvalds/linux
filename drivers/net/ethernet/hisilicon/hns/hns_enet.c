@@ -512,7 +512,8 @@ static void hns_nic_reuse_page(struct sk_buff *skb, int i,
 			       struct hnae_desc_cb *desc_cb)
 {
 	struct hnae_desc *desc;
-	int truesize, size;
+	u32 truesize;
+	int size;
 	int last_offset;
 	bool twobufs;
 
