@@ -538,11 +538,11 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 
 	ret = nouveau_cli_init(drm, "DRM-master", &drm->master);
 	if (ret)
-		return ret;
+		goto fail_alloc;
 
 	ret = nouveau_cli_init(drm, "DRM", &drm->client);
 	if (ret)
-		return ret;
+		goto fail_master;
 
 	dev->irq_enabled = true;
 
@@ -605,7 +605,9 @@ fail_bios:
 fail_ttm:
 	nouveau_vga_fini(drm);
 	nouveau_cli_fini(&drm->client);
+fail_master:
 	nouveau_cli_fini(&drm->master);
+fail_alloc:
 	kfree(drm);
 	return ret;
 }
