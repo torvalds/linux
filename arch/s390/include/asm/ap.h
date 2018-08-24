@@ -49,23 +49,23 @@ struct ap_queue_status {
 /**
  * ap_intructions_available() - Test if AP instructions are available.
  *
- * Returns 0 if the AP instructions are installed.
+ * Returns true if the AP instructions are installed, otherwise false.
  */
-static inline int ap_instructions_available(void)
+static inline bool ap_instructions_available(void)
 {
 	register unsigned long reg0 asm ("0") = AP_MKQID(0, 0);
-	register unsigned long reg1 asm ("1") = -ENODEV;
-	register unsigned long reg2 asm ("2");
+	register unsigned long reg1 asm ("1") = 0;
+	register unsigned long reg2 asm ("2") = 0;
 
 	asm volatile(
 		"   .long 0xb2af0000\n"		/* PQAP(TAPQ) */
-		"0: la    %0,0\n"
+		"0: la    %0,1\n"
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: "+d" (reg1), "=d" (reg2)
+		: "+d" (reg1), "+d" (reg2)
 		: "d" (reg0)
 		: "cc");
-	return reg1;
+	return reg1 != 0;
 }
 
 /**

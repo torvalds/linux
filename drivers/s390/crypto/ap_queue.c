@@ -462,9 +462,9 @@ EXPORT_SYMBOL(ap_queue_resume);
 /*
  * AP queue related attributes.
  */
-static ssize_t ap_req_count_show(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
+static ssize_t request_count_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	unsigned int req_cnt;
@@ -475,9 +475,9 @@ static ssize_t ap_req_count_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", req_cnt);
 }
 
-static ssize_t ap_req_count_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t request_count_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 
@@ -488,10 +488,10 @@ static ssize_t ap_req_count_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(request_count, 0644, ap_req_count_show, ap_req_count_store);
+static DEVICE_ATTR_RW(request_count);
 
-static ssize_t ap_requestq_count_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t requestq_count_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	unsigned int reqq_cnt = 0;
@@ -502,10 +502,10 @@ static ssize_t ap_requestq_count_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", reqq_cnt);
 }
 
-static DEVICE_ATTR(requestq_count, 0444, ap_requestq_count_show, NULL);
+static DEVICE_ATTR_RO(requestq_count);
 
-static ssize_t ap_pendingq_count_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t pendingq_count_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	unsigned int penq_cnt = 0;
@@ -516,10 +516,10 @@ static ssize_t ap_pendingq_count_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", penq_cnt);
 }
 
-static DEVICE_ATTR(pendingq_count, 0444, ap_pendingq_count_show, NULL);
+static DEVICE_ATTR_RO(pendingq_count);
 
-static ssize_t ap_reset_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t reset_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	int rc = 0;
@@ -541,10 +541,10 @@ static ssize_t ap_reset_show(struct device *dev,
 	return rc;
 }
 
-static DEVICE_ATTR(reset, 0444, ap_reset_show, NULL);
+static DEVICE_ATTR_RO(reset);
 
-static ssize_t ap_interrupt_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t interrupt_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	int rc = 0;
@@ -560,7 +560,7 @@ static ssize_t ap_interrupt_show(struct device *dev,
 	return rc;
 }
 
-static DEVICE_ATTR(interrupt, 0444, ap_interrupt_show, NULL);
+static DEVICE_ATTR_RO(interrupt);
 
 static struct attribute *ap_queue_dev_attrs[] = {
 	&dev_attr_request_count.attr,

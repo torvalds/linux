@@ -421,8 +421,10 @@ static int XCRB_msg_to_type6CPRB_msgX(struct ap_message *ap_msg,
 	if (ap_msg->length > MSGTYPE06_MAX_MSG_SIZE)
 		return -EINVAL;
 
-	/* Overflow check
-	   sum must be greater (or equal) than the largest operand */
+	/*
+	 * Overflow check
+	 * sum must be greater (or equal) than the largest operand
+	 */
 	req_sumlen = CEIL4(xcRB->request_control_blk_length) +
 			xcRB->request_data_length;
 	if ((CEIL4(xcRB->request_control_blk_length) <=
@@ -442,8 +444,10 @@ static int XCRB_msg_to_type6CPRB_msgX(struct ap_message *ap_msg,
 	if (replylen > MSGTYPE06_MAX_MSG_SIZE)
 		return -EINVAL;
 
-	/* Overflow check
-	   sum must be greater (or equal) than the largest operand */
+	/*
+	 * Overflow check
+	 * sum must be greater (or equal) than the largest operand
+	 */
 	resp_sumlen = CEIL4(xcRB->reply_control_blk_length) +
 			xcRB->reply_data_length;
 	if ((CEIL4(xcRB->reply_control_blk_length) <= xcRB->reply_data_length) ?
@@ -454,7 +458,7 @@ static int XCRB_msg_to_type6CPRB_msgX(struct ap_message *ap_msg,
 
 	/* prepare type6 header */
 	msg->hdr = static_type6_hdrX;
-	memcpy(msg->hdr.agent_id , &(xcRB->agent_ID), sizeof(xcRB->agent_ID));
+	memcpy(msg->hdr.agent_id, &(xcRB->agent_ID), sizeof(xcRB->agent_ID));
 	msg->hdr.ToCardLen1 = xcRB->request_control_blk_length;
 	if (xcRB->request_data_length) {
 		msg->hdr.offset2 = msg->hdr.offset1 + rcblen;
@@ -806,8 +810,10 @@ static int convert_response_ica(struct zcrypt_queue *zq,
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_ica(zq, reply,
 						  outputdata, outputdatalength);
-		/* Fall through, no break, incorrect cprb version is an unknown
-		 * response */
+		/*
+		 * Fall through, no break, incorrect cprb version is an unknown
+		 * response
+		 */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zq->online = 0;
 		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
@@ -840,8 +846,10 @@ static int convert_response_xcrb(struct zcrypt_queue *zq,
 		}
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_xcrb(zq, reply, xcRB);
-		/* Fall through, no break, incorrect cprb version is an unknown
-		 * response */
+		/*
+		 * Fall through, no break, incorrect cprb version is an unknown
+		 * response
+		 */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		xcRB->status = 0x0008044DL; /* HDD_InvalidParm */
 		zq->online = 0;
@@ -901,8 +909,10 @@ static int convert_response_rng(struct zcrypt_queue *zq,
 			return -EINVAL;
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_rng(zq, reply, data);
-		/* Fall through, no break, incorrect cprb version is an unknown
-		 * response */
+		/*
+		 * Fall through, no break, incorrect cprb version is an unknown
+		 * response
+		 */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zq->online = 0;
 		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
@@ -1004,7 +1014,7 @@ static void zcrypt_msgtype6_receive_ep11(struct ap_queue *aq,
 		}
 	} else {
 		memcpy(msg->message, reply->message, sizeof(error_reply));
-	  }
+	}
 out:
 	complete(&(resp_type->work));
 }
