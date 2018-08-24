@@ -1341,18 +1341,13 @@ static inline int _loop(struct pl330_dmac *pl330, unsigned dry_run, u8 buf[],
 	return off;
 }
 
-/* Returns bytes consumed */
-static inline int _loop_cyclic(struct pl330_dmac *pl330, unsigned dry_run,
-		u8 buf[], unsigned long bursts, const struct _xfer_spec *pxs, int ev)
+static int _period(struct pl330_dmac *pl330, unsigned int dry_run, u8 buf[],
+		   unsigned long bursts, const struct _xfer_spec *pxs, int ev)
 {
-	int cyc, off;
-	unsigned lcnt0, lcnt1, ljmp0, ljmp1, ljmpfe;
+	unsigned int lcnt1, ljmp1;
+	int cyc, off = 0;
 	struct _arg_LPEND lpend;
 	struct pl330_xfer *x = &pxs->desc->px;
-
-	off = 0;
-	ljmpfe = off;
-	lcnt0 = pxs->desc->num_periods;
 
 	if (bursts > 256) {
 		lcnt1 = 256;
@@ -1361,18 +1356,6 @@ static inline int _loop_cyclic(struct pl330_dmac *pl330, unsigned dry_run,
 		lcnt1 = bursts;
 		cyc = 1;
 	}
-
-	/* forever loop */
-	off += _emit_MOV(dry_run, &buf[off], SAR, x->src_addr);
-	off += _emit_MOV(dry_run, &buf[off], DAR, x->dst_addr);
-#ifdef CONFIG_ARCH_ROCKCHIP
-	if (!(pl330->quirks & PL330_QUIRK_BROKEN_NO_FLUSHP))
-		off += _emit_FLUSHP(dry_run, &buf[off],
-					pxs->desc->peri);
-#endif
-	/* loop0 */
-	off += _emit_LP(dry_run, &buf[off], 0,  lcnt0);
-	ljmp0 = off;
 
 	/* loop1 */
 	off += _emit_LP(dry_run, &buf[off], 1, lcnt1);
@@ -1424,11 +1407,53 @@ static inline int _loop_cyclic(struct pl330_dmac *pl330, unsigned dry_run,
 
 	off += _emit_SEV(dry_run, &buf[off], ev);
 
+	return off;
+}
+
+/* Returns bytes consumed */
+static inline int _loop_cyclic(struct pl330_dmac *pl330, unsigned int dry_run,
+		u8 buf[], unsigned long bursts, const struct _xfer_spec *pxs, int ev)
+{
+	int off, periods, residue, i;
+	unsigned int lcnt0, ljmp0, ljmpfe;
+	struct _arg_LPEND lpend;
+	struct pl330_xfer *x = &pxs->desc->px;
+
+	off = 0;
+	ljmpfe = off;
+	lcnt0 = pxs->desc->num_periods;
+	periods = 1;
+
+	while (lcnt0 > 256) {
+		periods++;
+		lcnt0 = pxs->desc->num_periods / periods;
+	}
+
+	residue = pxs->desc->num_periods % periods;
+
+	/* forever loop */
+	off += _emit_MOV(dry_run, &buf[off], SAR, x->src_addr);
+	off += _emit_MOV(dry_run, &buf[off], DAR, x->dst_addr);
+#ifdef CONFIG_ARCH_ROCKCHIP
+	if (!(pl330->quirks & PL330_QUIRK_BROKEN_NO_FLUSHP))
+		off += _emit_FLUSHP(dry_run, &buf[off],
+					pxs->desc->peri);
+#endif
+	/* loop0 */
+	off += _emit_LP(dry_run, &buf[off], 0,  lcnt0);
+	ljmp0 = off;
+
+	for (i = 0; i < periods; i++)
+		off += _period(pl330, dry_run, &buf[off], bursts, pxs, ev);
+
 	lpend.cond = ALWAYS;
 	lpend.forever = false;
 	lpend.loop = 0;
 	lpend.bjump = off - ljmp0;
 	off += _emit_LPEND(dry_run, &buf[off], &lpend);
+
+	for (i = 0; i < residue; i++)
+		off += _period(pl330, dry_run, &buf[off], bursts, pxs, ev);
 
 	lpend.cond = ALWAYS;
 	lpend.forever = true;
