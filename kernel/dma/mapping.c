@@ -328,16 +328,6 @@ void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
 }
 #endif
 
-/*
- * enables DMA API use for a device
- */
-int dma_configure(struct device *dev)
-{
-	if (dev->bus->dma_configure)
-		return dev->bus->dma_configure(dev);
-	return 0;
-}
-
 void dma_deconfigure(struct device *dev)
 {
 	of_dma_deconfigure(dev);
