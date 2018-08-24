@@ -377,7 +377,6 @@ static const struct iommu_ops gart_iommu_ops = {
 	.remove_device	= gart_iommu_remove_device,
 	.device_group	= generic_device_group,
 	.map		= gart_iommu_map,
-	.map_sg		= default_iommu_map_sg,
 	.unmap		= gart_iommu_unmap,
 	.iova_to_phys	= gart_iommu_iova_to_phys,
 	.pgsize_bitmap	= GART_IOMMU_PGSIZES,
