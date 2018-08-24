@@ -749,10 +749,13 @@ static int create_trace_kprobe(int argc, char **argv)
 	}
 
 	if (event) {
-		if (strchr(event, '/')) {
+		char *slash;
+
+		slash = strchr(event, '/');
+		if (slash) {
 			group = event;
-			event = strchr(group, '/') + 1;
-			event[-1] = '\0';
+			event = slash + 1;
+			slash[0] = '\0';
 			if (strlen(group) == 0) {
 				pr_info("Group name is not specified\n");
 				return -EINVAL;
