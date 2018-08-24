@@ -14,6 +14,30 @@
 
 static void btrfs_assert_tree_read_locked(struct extent_buffer *eb);
 
+#ifdef CONFIG_BTRFS_DEBUG
+static void btrfs_assert_spinning_writers_get(struct extent_buffer *eb)
+{
+	WARN_ON(atomic_read(&eb->spinning_writers));
+	atomic_inc(&eb->spinning_writers);
+}
+
+static void btrfs_assert_spinning_writers_put(struct extent_buffer *eb)
+{
+	WARN_ON(atomic_read(&eb->spinning_writers) != 1);
+	atomic_dec(&eb->spinning_writers);
+}
+
+static void btrfs_assert_no_spinning_writers(struct extent_buffer *eb)
+{
+	WARN_ON(atomic_read(&eb->spinning_writers));
+}
+
+#else
+static void btrfs_assert_spinning_writers_get(struct extent_buffer *eb) { }
+static void btrfs_assert_spinning_writers_put(struct extent_buffer *eb) { }
+static void btrfs_assert_no_spinning_writers(struct extent_buffer *eb) { }
+#endif
+
 void btrfs_set_lock_blocking_read(struct extent_buffer *eb)
 {
 	/*
