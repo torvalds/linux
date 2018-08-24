@@ -764,7 +764,6 @@ class DebugfsProvider(Provider):
         else:
             self.paths = []
             self.do_read = True
-        self.reset()
 
     def _verify_paths(self):
         """Remove invalid paths"""
