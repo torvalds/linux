@@ -536,6 +536,18 @@ config HW_RANDOM_XIPHERA
 	  To compile this driver as a module, choose M here: the
 	  module will be called xiphera-trng.
 
+config HW_RANDOM_ROCKCHIP
+	tristate "Rockchip Random Number Generator support"
+	depends on ARCH_ROCKCHIP
+	help
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Rockchip cpus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rockchip-rng.
+
+	  If unsure, say Y.
+
 endif # HW_RANDOM
 
 config UML_RANDOM
