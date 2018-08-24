@@ -912,6 +912,8 @@ static int bpf_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 
 	if (unlikely(flags & MSG_ERRQUEUE))
 		return inet_recv_error(sk, msg, len, addr_len);
+	if (!skb_queue_empty(&sk->sk_receive_queue))
+		return tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
 
 	rcu_read_lock();
 	psock = smap_psock_sk(sk);
@@ -921,9 +923,6 @@ static int bpf_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	if (unlikely(!refcount_inc_not_zero(&psock->refcnt)))
 		goto out;
 	rcu_read_unlock();
-
-	if (!skb_queue_empty(&sk->sk_receive_queue))
-		return tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
 
 	lock_sock(sk);
 bytes_ready:
