@@ -4681,7 +4681,6 @@ __alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
 	atomic_set(&eb->read_locks, 0);
 	atomic_set(&eb->blocking_readers, 0);
 	atomic_set(&eb->blocking_writers, 0);
-	atomic_set(&eb->spinning_readers, 0);
 	eb->lock_nested = 0;
 	init_waitqueue_head(&eb->write_lock_wq);
 	init_waitqueue_head(&eb->read_lock_wq);
@@ -4701,6 +4700,7 @@ __alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
 
 #ifdef CONFIG_BTRFS_DEBUG
 	atomic_set(&eb->spinning_writers, 0);
+	atomic_set(&eb->spinning_readers, 0);
 #endif
 
 	return eb;
