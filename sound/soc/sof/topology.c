@@ -1999,7 +1999,22 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 			goto err;
 		}
 
-		sroute->route = route;
+		sroute->route.source = kstrdup(route->source, GFP_KERNEL);
+		if (!sroute->route.source)
+			goto err;
+
+		sroute->route.sink = kstrdup(route->sink, GFP_KERNEL);
+		if (!sroute->route.sink) {
+			kfree(sroute->route.source);
+			goto err;
+		}
+
+		sroute->route.control = kstrdup(route->control, GFP_KERNEL);
+		if (!sroute->route.control) {
+			kfree(sroute->route.source);
+			kfree(sroute->route.sink);
+			goto err;
+		}
 		sroute->private = connect;
 
 		/* add route to route list */
@@ -2175,7 +2190,7 @@ void snd_sof_free_topology(struct snd_sof_dev *sdev)
 	list_for_each_entry_safe(sroute, temp, &sdev->route_list, list) {
 
 		/* delete dapm route */
-		snd_soc_dapm_del_routes(dapm, sroute->route, 1);
+		snd_soc_dapm_del_routes(dapm, &sroute->route, 1);
 
 		/* free sroute and its private data */
 		kfree(sroute->private);
