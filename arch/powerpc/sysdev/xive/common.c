@@ -266,7 +266,7 @@ static unsigned int xive_get_irq(void)
 	 * of pending priorities. This will also have the effect of
 	 * updating the CPPR to the most favored pending interrupts.
 	 *
-	 * In the future, if we have a way to differenciate a first
+	 * In the future, if we have a way to differentiate a first
 	 * entry (on HW interrupt) from a replay triggered by EOI,
 	 * we could skip this on replays unless we soft-mask tells us
 	 * that a new HW interrupt occurred.
