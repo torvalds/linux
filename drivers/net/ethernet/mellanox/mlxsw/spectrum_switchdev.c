@@ -140,6 +140,24 @@ bool mlxsw_sp_bridge_device_is_offloaded(const struct mlxsw_sp *mlxsw_sp,
 	return !!mlxsw_sp_bridge_device_find(mlxsw_sp->bridge, br_dev);
 }
 
+static int mlxsw_sp_bridge_device_upper_rif_destroy(struct net_device *dev,
+						    void *data)
+{
+	struct mlxsw_sp *mlxsw_sp = data;
+
+	mlxsw_sp_rif_destroy_by_dev(mlxsw_sp, dev);
+	return 0;
+}
+
+static void mlxsw_sp_bridge_device_rifs_destroy(struct mlxsw_sp *mlxsw_sp,
+						struct net_device *dev)
+{
+	mlxsw_sp_rif_destroy_by_dev(mlxsw_sp, dev);
+	netdev_walk_all_upper_dev_rcu(dev,
+				      mlxsw_sp_bridge_device_upper_rif_destroy,
+				      mlxsw_sp);
+}
+
 static struct mlxsw_sp_bridge_device *
 mlxsw_sp_bridge_device_create(struct mlxsw_sp_bridge *bridge,
 			      struct net_device *br_dev)
@@ -176,6 +194,8 @@ static void
 mlxsw_sp_bridge_device_destroy(struct mlxsw_sp_bridge *bridge,
 			       struct mlxsw_sp_bridge_device *bridge_device)
 {
+	mlxsw_sp_bridge_device_rifs_destroy(bridge->mlxsw_sp,
+					    bridge_device->dev);
 	list_del(&bridge_device->list);
 	if (bridge_device->vlan_enabled)
 		bridge->vlan_enabled_exists = false;
