@@ -1141,21 +1141,32 @@ skl_dram_get_channel_info(struct dram_channel_info *ch, u32 val)
 	return 0;
 }
 
+static bool
+intel_is_dram_symmetric(u32 val_ch0, u32 val_ch1,
+			struct dram_channel_info *ch0)
+{
+	return (val_ch0 == val_ch1 &&
+		(ch0->s_info.size == 0 ||
+		 (ch0->l_info.size == ch0->s_info.size &&
+		  ch0->l_info.width == ch0->s_info.width &&
+		  ch0->l_info.rank == ch0->s_info.rank)));
+}
+
 static int
 skl_dram_get_channels_info(struct drm_i915_private *dev_priv)
 {
 	struct dram_info *dram_info = &dev_priv->dram_info;
 	struct dram_channel_info ch0, ch1;
-	u32 val;
+	u32 val_ch0, val_ch1;
 	int ret;
 
-	val = I915_READ(SKL_MAD_DIMM_CH0_0_0_0_MCHBAR_MCMAIN);
-	ret = skl_dram_get_channel_info(&ch0, val);
+	val_ch0 = I915_READ(SKL_MAD_DIMM_CH0_0_0_0_MCHBAR_MCMAIN);
+	ret = skl_dram_get_channel_info(&ch0, val_ch0);
 	if (ret == 0)
 		dram_info->num_channels++;
 
-	val = I915_READ(SKL_MAD_DIMM_CH1_0_0_0_MCHBAR_MCMAIN);
-	ret = skl_dram_get_channel_info(&ch1, val);
+	val_ch1 = I915_READ(SKL_MAD_DIMM_CH1_0_0_0_MCHBAR_MCMAIN);
+	ret = skl_dram_get_channel_info(&ch1, val_ch1);
 	if (ret == 0)
 		dram_info->num_channels++;
 
@@ -1185,6 +1196,12 @@ skl_dram_get_channels_info(struct drm_i915_private *dev_priv)
 	if (ch0.is_16gb_dimm || ch1.is_16gb_dimm)
 		dram_info->is_16gb_dimm = true;
 
+	dev_priv->dram_info.symmetric_memory = intel_is_dram_symmetric(val_ch0,
+								       val_ch1,
+								       &ch0);
+
+	DRM_DEBUG_KMS("memory configuration is %sSymmetric memory\n",
+		      dev_priv->dram_info.symmetric_memory ? "" : "not ");
 	return 0;
 }
 

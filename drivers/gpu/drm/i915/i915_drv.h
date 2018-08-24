@@ -1956,6 +1956,7 @@ struct drm_i915_private {
 			I915_DRAM_RANK_DUAL
 		} rank;
 		u32 bandwidth_kbps;
+		bool symmetric_memory;
 	} dram_info;
 
 	struct i915_runtime_pm runtime_pm;
