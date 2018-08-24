@@ -172,7 +172,7 @@ again:
 		 * called on a partly (write-)locked tree.
 		 */
 		BUG_ON(eb->lock_nested);
-		eb->lock_nested = 1;
+		eb->lock_nested = true;
 		read_unlock(&eb->lock);
 		return;
 	}
@@ -261,7 +261,7 @@ void btrfs_tree_read_unlock(struct extent_buffer *eb)
 	 * field only matters to the lock owner.
 	 */
 	if (eb->lock_nested && current->pid == eb->lock_owner) {
-		eb->lock_nested = 0;
+		eb->lock_nested = false;
 		return;
 	}
 	btrfs_assert_tree_read_locked(eb);
@@ -282,7 +282,7 @@ void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb)
 	 * field only matters to the lock owner.
 	 */
 	if (eb->lock_nested && current->pid == eb->lock_owner) {
-		eb->lock_nested = 0;
+		eb->lock_nested = false;
 		return;
 	}
 	btrfs_assert_tree_read_locked(eb);
