@@ -178,7 +178,7 @@ enum imx274_binning {
  * @nocpiop: Number of clocks per internal offset period (see "Integration Time
  *           in Each Readout Drive Mode (CSI-2)" in the datasheet)
  */
-struct imx274_frmfmt {
+struct imx274_mode {
 	const struct reg_8 *init_regs;
 	unsigned int bin_ratio;
 	int min_frame_len;
@@ -453,7 +453,7 @@ static const struct reg_8 imx274_tp_regs[] = {
 };
 
 /* nocpiop happens to be the same number for the implemented modes */
-static const struct imx274_frmfmt imx274_formats[] = {
+static const struct imx274_mode imx274_modes[] = {
 	{
 		/* mode 1, 4K */
 		.bin_ratio = 1,
@@ -526,7 +526,7 @@ struct stimx274 {
 	struct regmap *regmap;
 	struct gpio_desc *reset_gpio;
 	struct mutex lock; /* mutex lock for operations */
-	const struct imx274_frmfmt *mode;
+	const struct imx274_mode *mode;
 };
 
 #define IMX274_ROUND(dim, step, flags)			\
@@ -871,7 +871,7 @@ static int __imx274_change_compose(struct stimx274 *imx274,
 	const struct v4l2_rect *cur_crop;
 	struct v4l2_mbus_framefmt *tgt_fmt;
 	unsigned int i;
-	const struct imx274_frmfmt *best_mode = &imx274_formats[0];
+	const struct imx274_mode *best_mode = &imx274_modes[0];
 	int best_goodness = INT_MIN;
 
 	if (which == V4L2_SUBDEV_FORMAT_TRY) {
@@ -882,8 +882,8 @@ static int __imx274_change_compose(struct stimx274 *imx274,
 		tgt_fmt = &imx274->format;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(imx274_formats); i++) {
-		unsigned int ratio = imx274_formats[i].bin_ratio;
+	for (i = 0; i < ARRAY_SIZE(imx274_modes); i++) {
+		unsigned int ratio = imx274_modes[i].bin_ratio;
 
 		int goodness = imx274_binning_goodness(
 			imx274,
@@ -893,7 +893,7 @@ static int __imx274_change_compose(struct stimx274 *imx274,
 
 		if (goodness >= best_goodness) {
 			best_goodness = goodness;
-			best_mode = &imx274_formats[i];
+			best_mode = &imx274_modes[i];
 		}
 	}
 
@@ -1313,7 +1313,7 @@ static int imx274_s_stream(struct v4l2_subdev *sd, int on)
 
 	dev_dbg(&imx274->client->dev, "%s : %s, mode index = %td\n", __func__,
 		on ? "Stream Start" : "Stream Stop",
-		imx274->mode - &imx274_formats[0]);
+		imx274->mode - &imx274_modes[0]);
 
 	mutex_lock(&imx274->lock);
 
@@ -1861,7 +1861,7 @@ static int imx274_probe(struct i2c_client *client,
 	mutex_init(&imx274->lock);
 
 	/* initialize format */
-	imx274->mode = &imx274_formats[IMX274_DEFAULT_BINNING];
+	imx274->mode = &imx274_modes[IMX274_DEFAULT_BINNING];
 	imx274->crop.width = IMX274_MAX_WIDTH;
 	imx274->crop.height = IMX274_MAX_HEIGHT;
 	imx274->format.width = imx274->crop.width / imx274->mode->bin_ratio;
