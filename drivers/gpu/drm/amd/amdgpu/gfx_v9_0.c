@@ -908,6 +908,50 @@ static void gfx_v9_0_get_csb_buffer(struct amdgpu_device *adev,
 	buffer[count++] = cpu_to_le32(0);
 }
 
+static void gfx_v9_0_init_always_on_cu_mask(struct amdgpu_device *adev)
+{
+	struct amdgpu_cu_info *cu_info = &adev->gfx.cu_info;
+	uint32_t pg_always_on_cu_num = 2;
+	uint32_t always_on_cu_num;
+	uint32_t i, j, k;
+	uint32_t mask, cu_bitmap, counter;
+
+	if (adev->flags & AMD_IS_APU)
+		always_on_cu_num = 4;
+	else if (adev->asic_type == CHIP_VEGA12)
+		always_on_cu_num = 8;
+	else
+		always_on_cu_num = 12;
+
+	mutex_lock(&adev->grbm_idx_mutex);
+	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
+		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
+			mask = 1;
+			cu_bitmap = 0;
+			counter = 0;
+			gfx_v9_0_select_se_sh(adev, i, j, 0xffffffff);
+
+			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k ++) {
+				if (cu_info->bitmap[i][j] & mask) {
+					if (counter == pg_always_on_cu_num)
+						WREG32_SOC15(GC, 0, mmRLC_PG_ALWAYS_ON_CU_MASK, cu_bitmap);
+					if (counter < always_on_cu_num)
+						cu_bitmap |= mask;
+					else
+						break;
+					counter++;
+				}
+				mask <<= 1;
+			}
+
+			WREG32_SOC15(GC, 0, mmRLC_LB_ALWAYS_ACTIVE_CU_MASK, cu_bitmap);
+			cu_info->ao_cu_bitmap[i][j] = cu_bitmap;
+		}
+	}
+	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	mutex_unlock(&adev->grbm_idx_mutex);
+}
+
 static void gfx_v9_0_init_lbpw(struct amdgpu_device *adev)
 {
 	uint32_t data;
@@ -951,6 +995,55 @@ static void gfx_v9_0_init_lbpw(struct amdgpu_device *adev)
 	data |= REG_SET_FIELD(data, RLC_LB_CNTL, RESERVED, 0x80000);
 	WREG32_SOC15(GC, 0, mmRLC_LB_CNTL, data);
 	mutex_unlock(&adev->grbm_idx_mutex);
+}
+
+static void gfx_v9_4_init_lbpw(struct amdgpu_device *adev)
+{
+	uint32_t data;
+
+	/* set mmRLC_LB_THR_CONFIG_1/2/3/4 */
+	WREG32_SOC15(GC, 0, mmRLC_LB_THR_CONFIG_1, 0x0000007F);
+	WREG32_SOC15(GC, 0, mmRLC_LB_THR_CONFIG_2, 0x033388F8);
+	WREG32_SOC15(GC, 0, mmRLC_LB_THR_CONFIG_3, 0x00000077);
+	WREG32_SOC15(GC, 0, mmRLC_LB_THR_CONFIG_4, (0x10 | 0x27 << 8 | 0x02FA << 16));
+
+	/* set mmRLC_LB_CNTR_INIT = 0x0000_0000 */
+	WREG32_SOC15(GC, 0, mmRLC_LB_CNTR_INIT, 0x00000000);
+
+	/* set mmRLC_LB_CNTR_MAX = 0x0000_0500 */
+	WREG32_SOC15(GC, 0, mmRLC_LB_CNTR_MAX, 0x00000800);
+
+	mutex_lock(&adev->grbm_idx_mutex);
+	/* set mmRLC_LB_INIT_CU_MASK thru broadcast mode to enable all SE/SH*/
+	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	WREG32_SOC15(GC, 0, mmRLC_LB_INIT_CU_MASK, 0xffffffff);
+
+	/* set mmRLC_LB_PARAMS = 0x003F_1006 */
+	data = REG_SET_FIELD(0, RLC_LB_PARAMS, FIFO_SAMPLES, 0x0003);
+	data |= REG_SET_FIELD(data, RLC_LB_PARAMS, PG_IDLE_SAMPLES, 0x0010);
+	data |= REG_SET_FIELD(data, RLC_LB_PARAMS, PG_IDLE_SAMPLE_INTERVAL, 0x033F);
+	WREG32_SOC15(GC, 0, mmRLC_LB_PARAMS, data);
+
+	/* set mmRLC_GPM_GENERAL_7[31-16] = 0x00C0 */
+	data = RREG32_SOC15(GC, 0, mmRLC_GPM_GENERAL_7);
+	data &= 0x0000FFFF;
+	data |= 0x00C00000;
+	WREG32_SOC15(GC, 0, mmRLC_GPM_GENERAL_7, data);
+
+	/*
+	 * RLC_LB_ALWAYS_ACTIVE_CU_MASK = 0xFFF (12 CUs AON),
+	 * programmed in gfx_v9_0_init_always_on_cu_mask()
+	 */
+
+	/* set RLC_LB_CNTL = 0x8000_0095, 31 bit is reserved,
+	 * but used for RLC_LB_CNTL configuration */
+	data = RLC_LB_CNTL__LB_CNT_SPIM_ACTIVE_MASK;
+	data |= REG_SET_FIELD(data, RLC_LB_CNTL, CU_MASK_USED_OFF_HYST, 0x09);
+	data |= REG_SET_FIELD(data, RLC_LB_CNTL, RESERVED, 0x80000);
+	WREG32_SOC15(GC, 0, mmRLC_LB_CNTL, data);
+	mutex_unlock(&adev->grbm_idx_mutex);
+
+	gfx_v9_0_init_always_on_cu_mask(adev);
 }
 
 static void gfx_v9_0_enable_lbpw(struct amdgpu_device *adev, bool enable)
@@ -1084,8 +1177,17 @@ static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 		rv_init_cp_jump_table(adev);
 		amdgpu_bo_kunmap(adev->gfx.rlc.cp_table_obj);
 		amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
+	}
 
+	switch (adev->asic_type) {
+	case CHIP_RAVEN:
 		gfx_v9_0_init_lbpw(adev);
+		break;
+	case CHIP_VEGA20:
+		gfx_v9_4_init_lbpw(adev);
+		break;
+	default:
+		break;
 	}
 
 	return 0;
@@ -2403,7 +2505,8 @@ static int gfx_v9_0_rlc_resume(struct amdgpu_device *adev)
 			return r;
 	}
 
-	if (adev->asic_type == CHIP_RAVEN) {
+	if (adev->asic_type == CHIP_RAVEN ||
+	    adev->asic_type == CHIP_VEGA20) {
 		if (amdgpu_lbpw != 0)
 			gfx_v9_0_enable_lbpw(adev, true);
 		else
