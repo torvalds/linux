@@ -766,6 +766,16 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 	cancel_work_sync(&dev_priv->psr.work);
 }
 
+/**
+ * intel_psr_wait_for_idle - wait for PSR1 to idle
+ * @new_crtc_state: new CRTC state
+ * @out_value: PSR status in case of failure
+ *
+ * This function is expected to be called from pipe_update_start() where it is
+ * not expected to race with PSR enable or disable.
+ *
+ * Returns: 0 on success or -ETIMEOUT if PSR status does not idle.
+ */
 int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
 			    u32 *out_value)
 {
@@ -775,25 +785,15 @@ int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
 	if (!dev_priv->psr.enabled || !new_crtc_state->has_psr)
 		return 0;
 
-	/*
-	 * The sole user right now is intel_pipe_update_start(),
-	 * which won't race with psr_enable/disable, which is
-	 * where psr2_enabled is written to. So, we don't need
-	 * to acquire the psr.lock. More importantly, we want the
-	 * latency inside intel_pipe_update_start() to be as low
-	 * as possible, so no need to acquire psr.lock when it is
-	 * not needed and will induce latencies in the atomic
-	 * update path.
-	 */
-
 	/* FIXME: Update this for PSR2 if we need to wait for idle */
 	if (READ_ONCE(dev_priv->psr.psr2_enabled))
 		return 0;
 
 	/*
-	 * Max time for PSR to idle = Inverse of the refresh rate +
-	 * 6 ms of exit training time + 1.5 ms of aux channel
-	 * handshake. 50 msec is defesive enough to cover everything.
+	 * From bspec: Panel Self Refresh (BDW+)
+	 * Max. time for PSR to idle = Inverse of the refresh rate + 6 ms of
+	 * exit training time + 1.5 ms of aux channel handshake. 50 ms is
+	 * defensive enough to cover everything.
 	 */
 
 	return __intel_wait_for_register(dev_priv, EDP_PSR_STATUS,
