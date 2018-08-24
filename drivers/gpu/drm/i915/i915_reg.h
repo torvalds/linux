@@ -10422,7 +10422,7 @@ enum skl_power_gate {
 							   _ICL_DSC0_PICTURE_PARAMETER_SET_4_PB, \
 							   _ICL_DSC0_PICTURE_PARAMETER_SET_4_PC)
 #define ICL_DSC1_PICTURE_PARAMETER_SET_4(pipe)	_MMIO_PIPE((pipe) - PIPE_B, \
-							   _ICL_DSC0_PICTURE_PARAMETER_SET_4_PB, \
+							   _ICL_DSC1_PICTURE_PARAMETER_SET_4_PB, \
 							   _ICL_DSC1_PICTURE_PARAMETER_SET_4_PC)
 #define  DSC_INITIAL_DEC_DELAY(dec_delay)       ((dec_delay) << 16)
 #define  DSC_INITIAL_XMIT_DELAY(xmit_delay)     ((xmit_delay) << 0)
@@ -10437,7 +10437,7 @@ enum skl_power_gate {
 							   _ICL_DSC0_PICTURE_PARAMETER_SET_5_PB, \
 							   _ICL_DSC0_PICTURE_PARAMETER_SET_5_PC)
 #define ICL_DSC1_PICTURE_PARAMETER_SET_5(pipe)	_MMIO_PIPE((pipe) - PIPE_B, \
-							   _ICL_DSC1_PICTURE_PARAMETER_SET_5_PC, \
+							   _ICL_DSC1_PICTURE_PARAMETER_SET_5_PB, \
 							   _ICL_DSC1_PICTURE_PARAMETER_SET_5_PC)
 #define  DSC_SCALE_DEC_INTINT(scale_dec)	((scale_dec) << 16)
 #define  DSC_SCALE_INC_INT(scale_inc)		((scale_inc) << 0)
