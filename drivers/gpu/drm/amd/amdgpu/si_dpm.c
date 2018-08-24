@@ -6884,7 +6884,6 @@ static int si_dpm_enable(struct amdgpu_device *adev)
 
 	si_enable_auto_throttle_source(adev, AMDGPU_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 	si_thermal_start_thermal_controller(adev);
-	ni_update_current_ps(adev, boot_ps);
 
 	return 0;
 }
@@ -7758,7 +7757,7 @@ static int si_dpm_hw_init(void *handle)
 	else
 		adev->pm.dpm_enabled = true;
 	mutex_unlock(&adev->pm.mutex);
-
+	amdgpu_pm_compute_clocks(adev);
 	return ret;
 }
 
