@@ -237,7 +237,3 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 
 	set_dma_ops(dev, dma_ops);
 }
-
-void arch_teardown_dma_ops(struct device *dev)
-{
-}
