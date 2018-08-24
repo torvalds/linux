@@ -94,6 +94,9 @@ struct amdgpu_gmc {
 	 * about vram size near mc fb location */
 	u64			mc_vram_size;
 	u64			visible_vram_size;
+	u64			agp_size;
+	u64			agp_start;
+	u64			agp_end;
 	u64			gart_size;
 	u64			gart_start;
 	u64			gart_end;
@@ -166,5 +169,7 @@ void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
 			      u64 base);
 void amdgpu_gmc_gart_location(struct amdgpu_device *adev,
 			      struct amdgpu_gmc *mc);
+void amdgpu_gmc_agp_location(struct amdgpu_device *adev,
+			     struct amdgpu_gmc *mc);
 
 #endif

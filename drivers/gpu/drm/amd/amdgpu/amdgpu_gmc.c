@@ -143,3 +143,46 @@ void amdgpu_gmc_gart_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	dev_info(adev->dev, "GART: %lluM 0x%016llX - 0x%016llX\n",
 			mc->gart_size >> 20, mc->gart_start, mc->gart_end);
 }
+
+/**
+ * amdgpu_gmc_agp_location - try to find AGP location
+ * @adev: amdgpu device structure holding all necessary informations
+ * @mc: memory controller structure holding memory informations
+ *
+ * Function will place try to find a place for the AGP BAR in the MC address
+ * space.
+ *
+ * AGP BAR will be assigned the largest available hole in the address space.
+ * Should be called after VRAM and GART locations are setup.
+ */
+void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
+{
+	const uint64_t sixteen_gb = 1ULL << 34;
+	const uint64_t sixteen_gb_mask = ~(sixteen_gb - 1);
+	u64 size_af, size_bf;
+
+	if (mc->vram_start > mc->gart_start) {
+		size_bf = (mc->vram_start & sixteen_gb_mask) -
+			ALIGN(mc->gart_end + 1, sixteen_gb);
+		size_af = mc->mc_mask + 1 - ALIGN(mc->vram_end + 1, sixteen_gb);
+	} else {
+		size_bf = mc->vram_start & sixteen_gb_mask;
+		size_af = (mc->gart_start & sixteen_gb_mask) -
+			ALIGN(mc->vram_end + 1, sixteen_gb);
+	}
+
+	if (size_bf > size_af) {
+		mc->agp_start = mc->vram_start > mc->gart_start ?
+			mc->gart_end + 1 : 0;
+		mc->agp_size = size_bf;
+	} else {
+		mc->agp_start = (mc->vram_start > mc->gart_start ?
+			mc->vram_end : mc->gart_end) + 1,
+		mc->agp_size = size_af;
+	}
+
+	mc->agp_start = ALIGN(mc->agp_start, sixteen_gb);
+	mc->agp_end = mc->agp_start + mc->agp_size - 1;
+	dev_info(adev->dev, "AGP: %lluM 0x%016llX - 0x%016llX\n",
+			mc->agp_size >> 20, mc->agp_start, mc->agp_end);
+}
