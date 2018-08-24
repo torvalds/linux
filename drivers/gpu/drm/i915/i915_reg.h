@@ -9613,6 +9613,24 @@ enum skl_power_gate {
 #define  BXT_DRAM_SIZE_12GB			(0x3 << 6)
 #define  BXT_DRAM_SIZE_16GB			(0x4 << 6)
 
+#define SKL_MEMORY_FREQ_MULTIPLIER_HZ		266666666
+#define SKL_MC_BIOS_DATA_0_0_0_MCHBAR_PCU	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5E04)
+#define  SKL_REQ_DATA_MASK			(0xF << 0)
+
+#define SKL_MAD_DIMM_CH0_0_0_0_MCHBAR_MCMAIN	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x500C)
+#define SKL_MAD_DIMM_CH1_0_0_0_MCHBAR_MCMAIN	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5010)
+#define  SKL_DRAM_S_SHIFT			16
+#define  SKL_DRAM_SIZE_MASK			0x3F
+#define  SKL_DRAM_WIDTH_MASK			(0x3 << 8)
+#define  SKL_DRAM_WIDTH_SHIFT			8
+#define  SKL_DRAM_WIDTH_X8			(0x0 << 8)
+#define  SKL_DRAM_WIDTH_X16			(0x1 << 8)
+#define  SKL_DRAM_WIDTH_X32			(0x2 << 8)
+#define  SKL_DRAM_RANK_MASK			(0x1 << 10)
+#define  SKL_DRAM_RANK_SHIFT			10
+#define  SKL_DRAM_RANK_SINGLE			(0x0 << 10)
+#define  SKL_DRAM_RANK_DUAL			(0x1 << 10)
+
 /* Please see hsw_read_dcomp() and hsw_write_dcomp() before using this register,
  * since on HSW we can't write to it using I915_WRITE. */
 #define D_COMP_HSW			_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5F0C)

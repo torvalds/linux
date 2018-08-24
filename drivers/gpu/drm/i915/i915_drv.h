@@ -2169,6 +2169,14 @@ struct drm_i915_private {
 	 */
 };
 
+struct dram_channel_info {
+	struct info {
+		u8 size, width;
+		enum dram_rank rank;
+	} l_info, s_info;
+	enum dram_rank rank;
+};
+
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 {
 	return container_of(dev, struct drm_i915_private, drm);
