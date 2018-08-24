@@ -166,7 +166,6 @@ struct extent_buffer {
 	atomic_t blocking_writers;
 	atomic_t blocking_readers;
 	atomic_t spinning_readers;
-	atomic_t spinning_writers;
 	short lock_nested;
 	/* >= 0 if eb belongs to a log tree, -1 otherwise */
 	short log_index;
@@ -185,6 +184,7 @@ struct extent_buffer {
 	wait_queue_head_t read_lock_wq;
 	struct page *pages[INLINE_EXTENT_BUFFER_PAGES];
 #ifdef CONFIG_BTRFS_DEBUG
+	atomic_t spinning_writers;
 	struct list_head leak_list;
 #endif
 };

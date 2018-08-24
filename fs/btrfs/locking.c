@@ -64,8 +64,7 @@ void btrfs_set_lock_blocking_write(struct extent_buffer *eb)
 	if (eb->lock_nested && current->pid == eb->lock_owner)
 		return;
 	if (atomic_read(&eb->blocking_writers) == 0) {
-		WARN_ON(atomic_read(&eb->spinning_writers) != 1);
-		atomic_dec(&eb->spinning_writers);
+		btrfs_assert_spinning_writers_put(eb);
 		btrfs_assert_tree_locked(eb);
 		atomic_inc(&eb->blocking_writers);
 		write_unlock(&eb->lock);
@@ -101,8 +100,7 @@ void btrfs_clear_lock_blocking_write(struct extent_buffer *eb)
 		return;
 	BUG_ON(atomic_read(&eb->blocking_writers) != 1);
 	write_lock(&eb->lock);
-	WARN_ON(atomic_read(&eb->spinning_writers));
-	atomic_inc(&eb->spinning_writers);
+	btrfs_assert_spinning_writers_get(eb);
 	/* atomic_dec_and_test implies a barrier */
 	if (atomic_dec_and_test(&eb->blocking_writers))
 		cond_wake_up_nomb(&eb->write_lock_wq);
@@ -200,7 +198,7 @@ int btrfs_try_tree_write_lock(struct extent_buffer *eb)
 		return 0;
 	}
 	atomic_inc(&eb->write_locks);
-	atomic_inc(&eb->spinning_writers);
+	btrfs_assert_spinning_writers_get(eb);
 	eb->lock_owner = current->pid;
 	return 1;
 }
@@ -266,8 +264,7 @@ again:
 		write_unlock(&eb->lock);
 		goto again;
 	}
-	WARN_ON(atomic_read(&eb->spinning_writers));
-	atomic_inc(&eb->spinning_writers);
+	btrfs_assert_spinning_writers_get(eb);
 	atomic_inc(&eb->write_locks);
 	eb->lock_owner = current->pid;
 }
@@ -286,14 +283,13 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
 	atomic_dec(&eb->write_locks);
 
 	if (blockers) {
-		WARN_ON(atomic_read(&eb->spinning_writers));
+		btrfs_assert_no_spinning_writers(eb);
 		atomic_dec(&eb->blocking_writers);
 		/* Use the lighter barrier after atomic */
 		smp_mb__after_atomic();
 		cond_wake_up_nomb(&eb->write_lock_wq);
 	} else {
-		WARN_ON(atomic_read(&eb->spinning_writers) != 1);
-		atomic_dec(&eb->spinning_writers);
+		btrfs_assert_spinning_writers_put(eb);
 		write_unlock(&eb->lock);
 	}
 }
