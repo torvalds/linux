@@ -521,10 +521,11 @@ static irqreturn_t rk_iommu_irq(int irq, void *dev_id)
 	u32 int_status;
 	dma_addr_t iova;
 	irqreturn_t ret = IRQ_NONE;
-	int i;
+	int i, err;
 
-	if (WARN_ON(!pm_runtime_get_if_in_use(iommu->dev)))
-		return 0;
+	err = pm_runtime_get_if_in_use(iommu->dev);
+	if (WARN_ON_ONCE(err <= 0))
+		return ret;
 
 	if (WARN_ON(clk_bulk_enable(iommu->num_clocks, iommu->clocks)))
 		goto out;
@@ -620,11 +621,15 @@ static void rk_iommu_zap_iova(struct rk_iommu_domain *rk_domain,
 	spin_lock_irqsave(&rk_domain->iommus_lock, flags);
 	list_for_each(pos, &rk_domain->iommus) {
 		struct rk_iommu *iommu;
+		int ret;
 
 		iommu = list_entry(pos, struct rk_iommu, node);
 
 		/* Only zap TLBs of IOMMUs that are powered on. */
-		if (pm_runtime_get_if_in_use(iommu->dev)) {
+		ret = pm_runtime_get_if_in_use(iommu->dev);
+		if (WARN_ON_ONCE(ret < 0))
+			continue;
+		if (ret) {
 			WARN_ON(clk_bulk_enable(iommu->num_clocks,
 						iommu->clocks));
 			rk_iommu_zap_lines(iommu, iova, size);
@@ -891,6 +896,7 @@ static void rk_iommu_detach_device(struct iommu_domain *domain,
 	struct rk_iommu *iommu;
 	struct rk_iommu_domain *rk_domain = to_rk_domain(domain);
 	unsigned long flags;
+	int ret;
 
 	/* Allow 'virtual devices' (eg drm) to detach from domain */
 	iommu = rk_iommu_from_dev(dev);
@@ -909,7 +915,9 @@ static void rk_iommu_detach_device(struct iommu_domain *domain,
 	list_del_init(&iommu->node);
 	spin_unlock_irqrestore(&rk_domain->iommus_lock, flags);
 
-	if (pm_runtime_get_if_in_use(iommu->dev)) {
+	ret = pm_runtime_get_if_in_use(iommu->dev);
+	WARN_ON_ONCE(ret < 0);
+	if (ret > 0) {
 		rk_iommu_disable(iommu);
 		pm_runtime_put(iommu->dev);
 	}
@@ -946,7 +954,8 @@ static int rk_iommu_attach_device(struct iommu_domain *domain,
 	list_add_tail(&iommu->node, &rk_domain->iommus);
 	spin_unlock_irqrestore(&rk_domain->iommus_lock, flags);
 
-	if (!pm_runtime_get_if_in_use(iommu->dev))
+	ret = pm_runtime_get_if_in_use(iommu->dev);
+	if (!ret || WARN_ON_ONCE(ret < 0))
 		return 0;
 
 	ret = rk_iommu_enable(iommu);
