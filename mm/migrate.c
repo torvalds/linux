@@ -1212,7 +1212,7 @@ out:
 			 * intentionally. Although it's rather weird,
 			 * it's how HWPoison flag works at the moment.
 			 */
-			if (!test_set_page_hwpoison(page))
+			if (set_hwpoison_free_buddy_page(page))
 				num_poisoned_pages_inc();
 		}
 	} else {
@@ -1331,8 +1331,6 @@ put_anon:
 out:
 	if (rc != -EAGAIN)
 		putback_active_hugepage(hpage);
-	if (reason == MR_MEMORY_FAILURE && !test_set_page_hwpoison(hpage))
-		num_poisoned_pages_inc();
 
 	/*
 	 * If migration was not successful and there's a freeing callback, use

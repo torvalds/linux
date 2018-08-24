@@ -8096,3 +8096,33 @@ bool is_free_buddy_page(struct page *page)
 
 	return order < MAX_ORDER;
 }
+
+#ifdef CONFIG_MEMORY_FAILURE
+/*
+ * Set PG_hwpoison flag if a given page is confirmed to be a free page.  This
+ * test is performed under the zone lock to prevent a race against page
+ * allocation.
+ */
+bool set_hwpoison_free_buddy_page(struct page *page)
+{
+	struct zone *zone = page_zone(page);
+	unsigned long pfn = page_to_pfn(page);
+	unsigned long flags;
+	unsigned int order;
+	bool hwpoisoned = false;
+
+	spin_lock_irqsave(&zone->lock, flags);
+	for (order = 0; order < MAX_ORDER; order++) {
+		struct page *page_head = page - (pfn & ((1 << order) - 1));
+
+		if (PageBuddy(page_head) && page_order(page_head) >= order) {
+			if (!TestSetPageHWPoison(page))
+				hwpoisoned = true;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&zone->lock, flags);
+
+	return hwpoisoned;
+}
+#endif

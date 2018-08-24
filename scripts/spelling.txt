@@ -423,6 +423,7 @@ didnt||didn't
 diferent||different
 differrence||difference
 diffrent||different
+differenciate||differentiate
 diffrentiate||differentiate
 difinition||definition
 dimesions||dimensions
@@ -667,6 +668,7 @@ inofficial||unofficial
 inrerface||interface
 insititute||institute
 instal||install
+instanciate||instantiate
 instanciated||instantiated
 inteface||interface
 integreated||integrated

@@ -38,7 +38,7 @@
  * Virtual mode variants of the hcalls for use on radix/radix
  * with AIL. They require the VCPU's VP to be "pushed"
  *
- * We still instanciate them here because we use some of the
+ * We still instantiate them here because we use some of the
  * generated utility functions as well in this file.
  */
 #define XIVE_RUNTIME_CHECKS
