@@ -365,6 +365,7 @@ static int sof_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_sof_pcm *spcm = rtd->private;
 	struct snd_soc_tplg_stream_caps *caps =
 		&spcm->pcm.caps[substream->stream];
+	int ret;
 
 	/* nothing todo for BE */
 	if (rtd->dai_link->no_pcm)
@@ -375,7 +376,13 @@ static int sof_pcm_open(struct snd_pcm_substream *substream)
 
 	mutex_lock(&spcm->mutex);
 
-	pm_runtime_get_sync(sdev->dev);
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: pcm open failed to resume %d\n",
+			ret);
+		mutex_unlock(&spcm->mutex);
+		return ret;
+	}
 
 	/* set any runtime constraints based on topology */
 	snd_pcm_hw_constraint_step(substream->runtime, 0,
@@ -429,6 +436,7 @@ static int sof_pcm_close(struct snd_pcm_substream *substream)
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm = rtd->private;
+	int err;
 
 	/* nothing todo for BE */
 	if (rtd->dai_link->no_pcm)
@@ -441,7 +449,12 @@ static int sof_pcm_close(struct snd_pcm_substream *substream)
 
 	mutex_lock(&spcm->mutex);
 	pm_runtime_mark_last_busy(sdev->dev);
-	pm_runtime_put_autosuspend(sdev->dev);
+
+	err = pm_runtime_put_autosuspend(sdev->dev);
+	if (err < 0)
+		dev_err(sdev->dev, "error: pcm close failed to idle %d\n",
+			err);
+
 	mutex_unlock(&spcm->mutex);
 	return 0;
 }
@@ -667,7 +680,7 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
 	struct snd_sof_pdata *plat_data = dev_get_platdata(component->dev);
-	int ret;
+	int ret, err;
 
 	/* load the default topology */
 	sdev->component = component;
@@ -684,7 +697,9 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 					 SND_SOF_SUSPEND_DELAY);
 	pm_runtime_use_autosuspend(component->dev);
 	pm_runtime_enable(component->dev);
-	pm_runtime_idle(component->dev);
+	err = pm_runtime_idle(component->dev);
+	if (err < 0)
+		dev_err(sdev->dev, "error: failed to enter PM idle %d\n", err);
 
 err:
 	return ret;
