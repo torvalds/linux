@@ -52,53 +52,6 @@
 
 #include <linux/sort.h>
 
-#ifdef CONFIG_BLOCK
-static int do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	int err;
-
-	err = security_file_ioctl(file, cmd, arg);
-	if (err)
-		return err;
-
-	return vfs_ioctl(file, cmd, arg);
-}
-
-struct compat_sg_req_info { /* used by SG_GET_REQUEST_TABLE ioctl() */
-	char req_state;
-	char orphan;
-	char sg_io_owned;
-	char problem;
-	int pack_id;
-	compat_uptr_t usr_ptr;
-	unsigned int duration;
-	int unused;
-};
-
-static int sg_grt_trans(struct file *file,
-		unsigned int cmd, struct compat_sg_req_info __user *o)
-{
-	int err, i;
-	sg_req_info_t __user *r;
-	r = compat_alloc_user_space(sizeof(sg_req_info_t)*SG_MAX_QUEUE);
-	err = do_ioctl(file, cmd, (unsigned long)r);
-	if (err < 0)
-		return err;
-	for (i = 0; i < SG_MAX_QUEUE; i++) {
-		void __user *ptr;
-		int d;
-
-		if (copy_in_user(o + i, r + i, offsetof(sg_req_info_t, usr_ptr)) ||
-		    get_user(ptr, &r[i].usr_ptr) ||
-		    get_user(d, &r[i].duration) ||
-		    put_user((u32)(unsigned long)(ptr), &o[i].usr_ptr) ||
-		    put_user(d, &o[i].duration))
-			return -EFAULT;
-	}
-	return err;
-}
-#endif /* CONFIG_BLOCK */
-
 /*
  * simple reversible transform to make our table more evenly
  * distributed after sorting.
@@ -121,6 +74,7 @@ COMPATIBLE_IOCTL(SCSI_IOCTL_GET_PCI)
 #ifdef CONFIG_BLOCK
 /* SG stuff */
 COMPATIBLE_IOCTL(SG_IO)
+COMPATIBLE_IOCTL(SG_GET_REQUEST_TABLE)
 COMPATIBLE_IOCTL(SG_SET_TIMEOUT)
 COMPATIBLE_IOCTL(SG_GET_TIMEOUT)
 COMPATIBLE_IOCTL(SG_EMULATED_HOST)
@@ -156,15 +110,6 @@ COMPATIBLE_IOCTL(SG_GET_KEEP_ORPHAN)
 static long do_ioctl_trans(unsigned int cmd,
 		 unsigned long arg, struct file *file)
 {
-#ifdef CONFIG_BLOCK
-	void __user *argp = compat_ptr(arg);
-
-	switch (cmd) {
-	case SG_GET_REQUEST_TABLE:
-		return sg_grt_trans(file, cmd, argp);
-	}
-#endif
-
 	return -ENOIOCTLCMD;
 }
 
