@@ -81,6 +81,10 @@ static int rockchip_vad_stop(struct rockchip_vad *vad)
 	struct vad_buf *vbuf = &vad->vbuf;
 	struct vad_params *params = &vad->params;
 
+	regmap_read(vad->regmap, VAD_CTRL, &val);
+	if ((val & VAD_EN_MASK) == VAD_DISABLE)
+		return 0;
+
 	regmap_update_bits(vad->regmap, VAD_CTRL, VAD_EN_MASK, VAD_DISABLE);
 	regmap_read(vad->regmap, VAD_RAM_END_ADDR, &val);
 	vbuf->end = vbuf->begin + (val - vad->memphy) + 0x8;
