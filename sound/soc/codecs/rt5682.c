@@ -2454,27 +2454,15 @@ static void rt5682_calibrate(struct rt5682_priv *rt5682)
 	regmap_write(rt5682->regmap, RT5682_PWR_ANLG_1, 0xa2bf);
 	usleep_range(15000, 20000);
 	regmap_write(rt5682->regmap, RT5682_PWR_ANLG_1, 0xf2bf);
-	regmap_write(rt5682->regmap, RT5682_MICBIAS_2, 0x0380);
-	regmap_write(rt5682->regmap, RT5682_PWR_DIG_1, 0x8001);
-	regmap_write(rt5682->regmap, RT5682_TEST_MODE_CTRL_1, 0x0000);
-	regmap_write(rt5682->regmap, RT5682_STO1_DAC_MIXER, 0x2080);
-	regmap_write(rt5682->regmap, RT5682_STO1_ADC_MIXER, 0x4040);
-	regmap_write(rt5682->regmap, RT5682_DEPOP_1, 0x0069);
+	regmap_write(rt5682->regmap, RT5682_MICBIAS_2, 0x0300);
+	regmap_write(rt5682->regmap, RT5682_GLB_CLK, 0x8000);
+	regmap_write(rt5682->regmap, RT5682_PWR_DIG_1, 0x0100);
 	regmap_write(rt5682->regmap, RT5682_CHOP_DAC, 0x3000);
-	regmap_write(rt5682->regmap, RT5682_HP_CTRL_2, 0x6000);
-	regmap_write(rt5682->regmap, RT5682_HP_CHARGE_PUMP_1, 0x0f26);
-	regmap_write(rt5682->regmap, RT5682_CALIB_ADC_CTRL, 0x7f05);
-	regmap_write(rt5682->regmap, RT5682_STO1_ADC_MIXER, 0x686c);
-	regmap_write(rt5682->regmap, RT5682_CAL_REC, 0x0d0d);
-	regmap_write(rt5682->regmap, RT5682_HP_CALIB_CTRL_9, 0x000f);
-	regmap_write(rt5682->regmap, RT5682_PWR_DIG_1, 0x8d01);
 	regmap_write(rt5682->regmap, RT5682_HP_CALIB_CTRL_2, 0x0321);
 	regmap_write(rt5682->regmap, RT5682_HP_LOGIC_CTRL_2, 0x0004);
 	regmap_write(rt5682->regmap, RT5682_HP_CALIB_CTRL_1, 0x7c00);
 	regmap_write(rt5682->regmap, RT5682_HP_CALIB_CTRL_3, 0x06a1);
-	regmap_write(rt5682->regmap, RT5682_A_DAC1_MUX, 0x0311);
-	regmap_write(rt5682->regmap, RT5682_RESET_HPF_CTRL, 0x0000);
-	regmap_write(rt5682->regmap, RT5682_ADC_STO1_HP_CTRL_1, 0x3320);
+	regmap_write(rt5682->regmap, RT5682_HP_CALIB_CTRL_1, 0x7c00);
 
 	regmap_write(rt5682->regmap, RT5682_HP_CALIB_CTRL_1, 0xfc00);
 
@@ -2490,7 +2478,7 @@ static void rt5682_calibrate(struct rt5682_priv *rt5682)
 		pr_err("HP Calibration Failure\n");
 
 	/* restore settings */
-	regmap_write(rt5682->regmap, RT5682_STO1_ADC_MIXER, 0xc0c4);
+	regmap_write(rt5682->regmap, RT5682_GLB_CLK, 0x0000);
 	regmap_write(rt5682->regmap, RT5682_PWR_DIG_1, 0x0000);
 
 	mutex_unlock(&rt5682->calibrate_mutex);
