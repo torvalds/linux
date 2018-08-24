@@ -507,8 +507,6 @@ static void sh_mobile_i2c_dma_callback(void *data)
 	pd->pos = pd->msg->len;
 	pd->stop_after_dma = true;
 
-	i2c_put_dma_safe_msg_buf(pd->dma_buf, pd->msg, true);
-
 	iic_set_clr(pd, ICIC, 0, ICIC_TDMAE | ICIC_RDMAE);
 }
 
@@ -706,6 +704,10 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 		timeout = wait_event_timeout(pd->wait,
 				       pd->sr & (ICSR_TACK | SW_DONE),
 				       adapter->timeout);
+
+		/* 'stop_after_dma' tells if DMA transfer was complete */
+		i2c_put_dma_safe_msg_buf(pd->dma_buf, pd->msg, pd->stop_after_dma);
+
 		if (!timeout) {
 			dev_err(pd->dev, "Transfer request timed out\n");
 			if (pd->dma_direction != DMA_NONE)
