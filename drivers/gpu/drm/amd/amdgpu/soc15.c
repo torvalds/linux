@@ -740,7 +740,9 @@ static int soc15_common_early_init(void *handle)
 			AMD_CG_SUPPORT_SDMA_MGCG |
 			AMD_CG_SUPPORT_SDMA_LS;
 
-		adev->pg_flags = AMD_PG_SUPPORT_SDMA | AMD_PG_SUPPORT_MMHUB;
+		adev->pg_flags = AMD_PG_SUPPORT_SDMA |
+						AMD_PG_SUPPORT_MMHUB |
+						AMD_PG_SUPPORT_VCN;
 
 		if (adev->powerplay.pp_feature & PP_GFXOFF_MASK)
 			adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
