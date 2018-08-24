@@ -10787,7 +10787,7 @@ F:	arch/*/boot/dts/
 F:	include/dt-bindings/
 
 OPENCORES I2C BUS DRIVER
-M:	Peter Korsgaard <jacmet@sunsite.dk>
+M:	Peter Korsgaard <peter@korsgaard.com>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	Documentation/i2c/busses/i2c-ocores

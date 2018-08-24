@@ -62,7 +62,7 @@
 
 /*
  * core_lock protects i2c_adapter_idr, and guarantees that device detection,
- * deletion of detected devices, and attach_adapter calls are serialized
+ * deletion of detected devices are serialized
  */
 static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
@@ -1124,15 +1124,6 @@ static int i2c_do_add_adapter(struct i2c_driver *driver,
 	/* Detect supported devices on that bus, and instantiate them */
 	i2c_detect(adap, driver);
 
-	/* Let legacy drivers scan this bus for matching devices */
-	if (driver->attach_adapter) {
-		dev_warn(&adap->dev, "%s: attach_adapter method is deprecated\n",
-			 driver->driver.name);
-		dev_warn(&adap->dev,
-			 "Please use another way to instantiate your i2c_client\n");
-		/* We ignore the return code; if it fails, too bad */
-		driver->attach_adapter(adap);
-	}
 	return 0;
 }
 
