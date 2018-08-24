@@ -132,7 +132,8 @@ void amdgpu_gmc_gart_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 		mc->gart_size = max(size_bf, size_af);
 	}
 
-	if (size_bf > size_af)
+	if ((size_bf >= mc->gart_size && size_bf < size_af) ||
+	    (size_af < mc->gart_size))
 		mc->gart_start = 0;
 	else
 		mc->gart_start = ALIGN(mc->vram_end + 1, 0x100000000ULL);
