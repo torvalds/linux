@@ -6,7 +6,7 @@
 
 / {
 	chosen {
-		bootargs = "earlyprintk=uart8250-32bit,0xff130000 swiotlb=1";
+		bootargs = "earlyprintk=uart8250-32bit,0xff130000 swiotlb=1 kpti=0";
 	};
 
 	fiq-debugger {
