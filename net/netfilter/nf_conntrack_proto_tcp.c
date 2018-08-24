@@ -1301,6 +1301,7 @@ static int tcp_timeout_nlattr_to_obj(struct nlattr *tb[],
 		timeouts[TCP_CONNTRACK_SYN_SENT] =
 			ntohl(nla_get_be32(tb[CTA_TIMEOUT_TCP_SYN_SENT]))*HZ;
 	}
+
 	if (tb[CTA_TIMEOUT_TCP_SYN_RECV]) {
 		timeouts[TCP_CONNTRACK_SYN_RECV] =
 			ntohl(nla_get_be32(tb[CTA_TIMEOUT_TCP_SYN_RECV]))*HZ;
@@ -1341,6 +1342,8 @@ static int tcp_timeout_nlattr_to_obj(struct nlattr *tb[],
 		timeouts[TCP_CONNTRACK_UNACK] =
 			ntohl(nla_get_be32(tb[CTA_TIMEOUT_TCP_UNACK]))*HZ;
 	}
+
+	timeouts[CTA_TIMEOUT_TCP_UNSPEC] = timeouts[CTA_TIMEOUT_TCP_SYN_SENT];
 	return 0;
 }
 
@@ -1518,6 +1521,10 @@ static int tcp_init_net(struct net *net, u_int16_t proto)
 		for (i = 0; i < TCP_CONNTRACK_TIMEOUT_MAX; i++)
 			tn->timeouts[i] = tcp_timeouts[i];
 
+		/* timeouts[0] is unused, make it same as SYN_SENT so
+		 * ->timeouts[0] contains 'new' timeout, like udp or icmp.
+		 */
+		tn->timeouts[0] = tcp_timeouts[TCP_CONNTRACK_SYN_SENT];
 		tn->tcp_loose = nf_ct_tcp_loose;
 		tn->tcp_be_liberal = nf_ct_tcp_be_liberal;
 		tn->tcp_max_retrans = nf_ct_tcp_max_retrans;

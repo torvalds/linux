@@ -613,6 +613,8 @@ static int sctp_timeout_nlattr_to_obj(struct nlattr *tb[],
 			timeouts[i] = ntohl(nla_get_be32(tb[i])) * HZ;
 		}
 	}
+
+	timeouts[CTA_TIMEOUT_SCTP_UNSPEC] = timeouts[CTA_TIMEOUT_SCTP_CLOSED];
 	return 0;
 }
 
@@ -743,6 +745,11 @@ static int sctp_init_net(struct net *net, u_int16_t proto)
 
 		for (i = 0; i < SCTP_CONNTRACK_MAX; i++)
 			sn->timeouts[i] = sctp_timeouts[i];
+
+		/* timeouts[0] is unused, init it so ->timeouts[0] contains
+		 * 'new' timeout, like udp or icmp.
+		 */
+		sn->timeouts[0] = sctp_timeouts[SCTP_CONNTRACK_CLOSED];
 	}
 
 	return sctp_kmemdup_sysctl_table(pn, sn);

@@ -697,6 +697,8 @@ static int dccp_timeout_nlattr_to_obj(struct nlattr *tb[],
 			timeouts[i] = ntohl(nla_get_be32(tb[i])) * HZ;
 		}
 	}
+
+	timeouts[CTA_TIMEOUT_DCCP_UNSPEC] = timeouts[CTA_TIMEOUT_DCCP_REQUEST];
 	return 0;
 }
 
@@ -827,6 +829,11 @@ static int dccp_init_net(struct net *net, u_int16_t proto)
 		dn->dccp_timeout[CT_DCCP_CLOSEREQ]	= 64 * HZ;
 		dn->dccp_timeout[CT_DCCP_CLOSING]	= 64 * HZ;
 		dn->dccp_timeout[CT_DCCP_TIMEWAIT]	= 2 * DCCP_MSL;
+
+		/* timeouts[0] is unused, make it same as SYN_SENT so
+		 * ->timeouts[0] contains 'new' timeout, like udp or icmp.
+		 */
+		dn->dccp_timeout[CT_DCCP_NONE] = dn->dccp_timeout[CT_DCCP_REQUEST];
 	}
 
 	return dccp_kmemdup_sysctl_table(net, pn, dn);
