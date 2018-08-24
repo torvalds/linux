@@ -6118,10 +6118,8 @@ void intel_enable_ipc(struct drm_i915_private *dev_priv)
 	u32 val;
 
 	/* Display WA #0477 WaDisableIPC: skl */
-	if (IS_SKYLAKE(dev_priv)) {
+	if (IS_SKYLAKE(dev_priv))
 		dev_priv->ipc_enabled = false;
-		return;
-	}
 
 	val = I915_READ(DISP_ARB_CTL2);
 
