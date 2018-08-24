@@ -73,7 +73,8 @@ static int mt76u_mcu_wait_resp(struct mt76_dev *dev, u8 seq)
 		if (ret)
 			return ret;
 
-		if (seq == FIELD_GET(MT_RX_FCE_INFO_CMD_SEQ, rxfce))
+		if (seq == FIELD_GET(MT_RX_FCE_INFO_CMD_SEQ, rxfce) &&
+		    FIELD_GET(MT_RX_FCE_INFO_EVT_TYPE, rxfce) == EVT_CMD_DONE)
 			return 0;
 
 		dev_err(dev->dev, "error: MCU resp evt:%lx seq:%hhx-%lx\n",

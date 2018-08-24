@@ -75,6 +75,16 @@ enum dma_msg_port {
 	DISCARD,
 };
 
+enum mt76_mcu_evt_type {
+	EVT_CMD_DONE,
+	EVT_CMD_ERROR,
+	EVT_CMD_RETRY,
+	EVT_EVENT_PWR_RSP,
+	EVT_EVENT_WOW_RSP,
+	EVT_EVENT_CARRIER_DETECT_RSP,
+	EVT_EVENT_DFS_DETECT_RSP,
+};
+
 int mt76_dma_attach(struct mt76_dev *dev);
 void mt76_dma_cleanup(struct mt76_dev *dev);
 
