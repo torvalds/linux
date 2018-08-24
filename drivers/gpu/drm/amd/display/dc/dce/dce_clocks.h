@@ -111,7 +111,7 @@ struct dccg *dce112_dccg_create(
 
 struct dccg *dce120_dccg_create(struct dc_context *ctx);
 
-#ifdef CONFIG_X86
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 struct dccg *dcn1_dccg_create(struct dc_context *ctx);
 #endif
 
