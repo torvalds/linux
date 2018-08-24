@@ -59,9 +59,19 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 		return -ENOMEM;
 
 	/* copy from DSP MMIO */
-	pm_runtime_get(sdev->dev);
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: debugFS failed to resume %zd\n",
+			ret);
+		return ret;
+	}
+
 	memcpy_fromio(buf,  dfse->buf + pos, size);
-	pm_runtime_put(sdev->dev);
+
+	ret = pm_runtime_put(sdev->dev);
+	if (ret < 0)
+		dev_err(sdev->dev, "error: debugFS failed to idle %zd\n",
+			ret);
 
 	/* copy to userspace */
 	ret = copy_to_user(buffer, buf, count);
