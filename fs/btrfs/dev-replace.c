@@ -964,13 +964,10 @@ int btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace)
 void btrfs_dev_replace_read_lock(struct btrfs_dev_replace *dev_replace)
 {
 	read_lock(&dev_replace->lock);
-	atomic_inc(&dev_replace->read_locks);
 }
 
 void btrfs_dev_replace_read_unlock(struct btrfs_dev_replace *dev_replace)
 {
-	ASSERT(atomic_read(&dev_replace->read_locks) > 0);
-	atomic_dec(&dev_replace->read_locks);
 	read_unlock(&dev_replace->lock);
 }
 
@@ -997,7 +994,6 @@ void btrfs_dev_replace_set_lock_blocking(
 					struct btrfs_dev_replace *dev_replace)
 {
 	/* only set blocking for read lock */
-	ASSERT(atomic_read(&dev_replace->read_locks) > 0);
 	atomic_inc(&dev_replace->blocking_readers);
 	read_unlock(&dev_replace->lock);
 }
@@ -1007,7 +1003,6 @@ void btrfs_dev_replace_clear_lock_blocking(
 					struct btrfs_dev_replace *dev_replace)
 {
 	/* only set blocking for read lock */
-	ASSERT(atomic_read(&dev_replace->read_locks) > 0);
 	ASSERT(atomic_read(&dev_replace->blocking_readers) > 0);
 	read_lock(&dev_replace->lock);
 	/* Barrier implied by atomic_dec_and_test */

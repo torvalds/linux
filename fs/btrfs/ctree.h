@@ -361,7 +361,6 @@ struct btrfs_dev_replace {
 
 	struct mutex lock_finishing_cancel_unmount;
 	rwlock_t lock;
-	atomic_t read_locks;
 	atomic_t blocking_readers;
 	wait_queue_head_t read_lock_wq;
 

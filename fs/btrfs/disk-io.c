@@ -2155,7 +2155,6 @@ static void btrfs_init_dev_replace_locks(struct btrfs_fs_info *fs_info)
 {
 	mutex_init(&fs_info->dev_replace.lock_finishing_cancel_unmount);
 	rwlock_init(&fs_info->dev_replace.lock);
-	atomic_set(&fs_info->dev_replace.read_locks, 0);
 	atomic_set(&fs_info->dev_replace.blocking_readers, 0);
 	init_waitqueue_head(&fs_info->replace_wait);
 	init_waitqueue_head(&fs_info->dev_replace.read_lock_wq);
