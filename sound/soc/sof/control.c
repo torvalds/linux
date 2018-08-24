@@ -49,8 +49,14 @@ int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	unsigned int i, channels = scontrol->num_channels;
+	int err, ret;
 
-	pm_runtime_get_sync(sdev->dev);
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: volume get failed to resume %d\n",
+			ret);
+		return ret;
+	}
 
 	/* get all the mixer data from DSP */
 	snd_sof_ipc_get_comp_data(sdev->ipc, scontrol, SOF_IPC_COMP_GET_VALUE,
@@ -64,7 +70,10 @@ int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 				     scontrol->volume_table, sm->max + 1);
 
 	pm_runtime_mark_last_busy(sdev->dev);
-	pm_runtime_put_autosuspend(sdev->dev);
+	err = pm_runtime_put_autosuspend(sdev->dev);
+	if (err < 0)
+		dev_err(sdev->dev, "error: volume get failed to idle %d\n",
+			err);
 	return 0;
 }
 
@@ -77,8 +86,14 @@ int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	unsigned int i, channels = scontrol->num_channels;
+	int ret, err;
 
-	pm_runtime_get_sync(sdev->dev);
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: volume put failed to resume %d\n",
+			ret);
+		return ret;
+	}
 
 	/* update each channel */
 	for (i = 0; i < channels; i++) {
@@ -94,7 +109,10 @@ int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 				  SOF_CTRL_CMD_VOLUME);
 
 	pm_runtime_mark_last_busy(sdev->dev);
-	pm_runtime_put_autosuspend(sdev->dev);
+	err = pm_runtime_put_autosuspend(sdev->dev);
+	if (err < 0)
+		dev_err(sdev->dev, "error: volume put failed to idle %d\n",
+			err);
 	return 0;
 }
 
@@ -107,8 +125,14 @@ int snd_sof_enum_get(struct snd_kcontrol *kcontrol,
 	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	unsigned int i, channels = scontrol->num_channels;
+	int err, ret;
 
-	pm_runtime_get_sync(sdev->dev);
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: enum get failed to resume %d\n",
+			ret);
+		return ret;
+	}
 
 	/* get all the mixer data from DSP */
 	snd_sof_ipc_get_comp_data(sdev->ipc, scontrol, SOF_IPC_COMP_GET_VALUE,
@@ -120,7 +144,10 @@ int snd_sof_enum_get(struct snd_kcontrol *kcontrol,
 		ucontrol->value.integer.value[i] = cdata->chanv[i].value;
 
 	pm_runtime_mark_last_busy(sdev->dev);
-	pm_runtime_put_autosuspend(sdev->dev);
+	err = pm_runtime_put_autosuspend(sdev->dev);
+	if (err < 0)
+		dev_err(sdev->dev, "error: enum get failed to idle %d\n",
+			ret);
 	return 0;
 }
 
@@ -133,8 +160,14 @@ int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	unsigned int i, channels = scontrol->num_channels;
+	int ret, err;
 
-	pm_runtime_get_sync(sdev->dev);
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: enum put failed to resume %d\n",
+			ret);
+		return ret;
+	}
 
 	/* update each channel */
 	for (i = 0; i < channels; i++)
@@ -146,7 +179,10 @@ int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 				  SOF_CTRL_CMD_ENUM);
 
 	pm_runtime_mark_last_busy(sdev->dev);
-	pm_runtime_put_autosuspend(sdev->dev);
+	err = pm_runtime_put_autosuspend(sdev->dev);
+	if (err < 0)
+		dev_err(sdev->dev, "error: enum put failed to idle %d\n",
+			err);
 	return 0;
 }
 
@@ -160,9 +196,14 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	struct sof_abi_hdr *data = cdata->data;
 	size_t size;
-	int ret = 0;
+	int ret, err;
 
-	pm_runtime_get_sync(sdev->dev);
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: bytes get failed to resume %d\n",
+			ret);
+		return ret;
+	}
 
 	/* get all the mixer data from DSP */
 	snd_sof_ipc_get_comp_data(sdev->ipc, scontrol, SOF_IPC_COMP_GET_DATA,
@@ -180,7 +221,10 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 
 out:
 	pm_runtime_mark_last_busy(sdev->dev);
-	pm_runtime_put_autosuspend(sdev->dev);
+	err = pm_runtime_put_autosuspend(sdev->dev);
+	if (err < 0)
+		dev_err(sdev->dev, "error: bytes get failed to idle %d\n",
+			err);
 	return ret;
 }
 
@@ -193,9 +237,14 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	struct sof_abi_hdr *data = cdata->data;
-	int ret = 0;
+	int ret, err;
 
-	pm_runtime_get_sync(sdev->dev);
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: bytes put failed to resume %d\n",
+			ret);
+		return ret;
+	}
 
 	if (data->size > be->max) {
 		dev_err(sdev->dev, "error: size too big %d bytes max is %d\n",
@@ -213,6 +262,9 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 
 out:
 	pm_runtime_mark_last_busy(sdev->dev);
-	pm_runtime_put_autosuspend(sdev->dev);
+	err = pm_runtime_put_autosuspend(sdev->dev);
+	if (err < 0)
+		dev_err(sdev->dev, "error: volume get failed to idle %d\n",
+			err);
 	return ret;
 }
