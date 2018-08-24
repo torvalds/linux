@@ -1194,6 +1194,7 @@ class Tui(object):
         # print events
         tavg = 0
         tcur = 0
+        guest_removed = False
         for key, values in get_sorted_events(self, stats):
             if row >= self.screen.getmaxyx()[0] - 1 or values == (0, 0):
                 break
@@ -1201,7 +1202,10 @@ class Tui(object):
                 key = self.get_gname_from_pid(key)
                 if not key:
                     continue
-            cur = int(round(values.delta / sleeptime)) if values.delta else ''
+            cur = int(round(values.delta / sleeptime)) if values.delta else 0
+            if cur < 0:
+                guest_removed = True
+                continue
             if key[0] != ' ':
                 if values.delta:
                     tcur += values.delta
@@ -1214,7 +1218,10 @@ class Tui(object):
                                values.value * 100 / float(ltotal), cur))
             row += 1
         if row == 3:
-            self.screen.addstr(4, 1, 'No matching events reported yet')
+            if guest_removed:
+                self.screen.addstr(4, 1, 'Guest removed, updating...')
+            else:
+                self.screen.addstr(4, 1, 'No matching events reported yet')
         if row > 4:
             tavg = int(round(tcur / sleeptime)) if tcur > 0 else ''
             self.screen.addstr(row, 1, '%-40s %10d        %8s' %
