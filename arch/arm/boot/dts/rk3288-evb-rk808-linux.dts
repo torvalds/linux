@@ -129,6 +129,17 @@
 
 	/delete-node/ sdmmc-regulator;
 
+	vcc18_dvp: vcc18-dvp {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc18_dvp";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+		vin-supply = <&vcc_io>;
+	};
+
 	vdd_log: vdd-logic {
 		compatible = "pwm-regulator";
 		rockchip,pwm_id = <1>;
@@ -428,7 +439,7 @@
 	status = "okay";
 	audio-supply = <&vcc_io>;
 	bb-supply = <&vcc_io>;
-	dvp-supply = <&vcc_io>;
+	dvp-supply = <&vcc18_dvp>;
 	flash0-supply = <&vcc_18>;
 	flash1-supply = <&vcc_io>;
 	gpio30-supply = <&vcc_io>;
