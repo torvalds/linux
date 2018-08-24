@@ -35,26 +35,9 @@ static void tvc_disconnect(struct omap_dss_device *src,
 {
 }
 
-static int tvc_enable(struct omap_dss_device *dssdev)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->enable(src);
-}
-
-static void tvc_disable(struct omap_dss_device *dssdev)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	src->ops->disable(src);
-}
-
 static const struct omap_dss_device_ops tvc_ops = {
 	.connect		= tvc_connect,
 	.disconnect		= tvc_disconnect,
-
-	.enable			= tvc_enable,
-	.disable		= tvc_disable,
 };
 
 static int tvc_probe(struct platform_device *pdev)
@@ -85,12 +68,8 @@ static int tvc_probe(struct platform_device *pdev)
 static int __exit tvc_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct omap_dss_device *dssdev = &ddata->dssdev;
 
 	omapdss_device_unregister(&ddata->dssdev);
-
-	if (omapdss_device_is_enabled(dssdev))
-		tvc_disable(dssdev);
 
 	return 0;
 }

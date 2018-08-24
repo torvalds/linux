@@ -45,39 +45,27 @@ static void panel_dpi_disconnect(struct omap_dss_device *src,
 {
 }
 
-static int panel_dpi_enable(struct omap_dss_device *dssdev)
+static void panel_dpi_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
 	int r;
 
-	r = src->ops->enable(src);
-	if (r)
-		return r;
-
 	r = regulator_enable(ddata->vcc_supply);
-	if (r) {
-		src->ops->disable(src);
-		return r;
-	}
+	if (r)
+		return;
 
 	gpiod_set_value_cansleep(ddata->enable_gpio, 1);
 	backlight_enable(ddata->backlight);
-
-	return 0;
 }
 
 static void panel_dpi_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
 
 	backlight_disable(ddata->backlight);
 
 	gpiod_set_value_cansleep(ddata->enable_gpio, 0);
 	regulator_disable(ddata->vcc_supply);
-
-	src->ops->disable(src);
 }
 
 static void panel_dpi_get_timings(struct omap_dss_device *dssdev,

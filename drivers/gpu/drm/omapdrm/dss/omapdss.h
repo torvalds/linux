@@ -359,8 +359,10 @@ struct omap_dss_device_ops {
 	void (*disconnect)(struct omap_dss_device *dssdev,
 			struct omap_dss_device *dst);
 
-	int (*enable)(struct omap_dss_device *dssdev);
+	void (*pre_enable)(struct omap_dss_device *dssdev);
+	void (*enable)(struct omap_dss_device *dssdev);
 	void (*disable)(struct omap_dss_device *dssdev);
+	void (*post_disable)(struct omap_dss_device *dssdev);
 
 	int (*check_timings)(struct omap_dss_device *dssdev,
 			     struct videomode *vm);
@@ -395,11 +397,6 @@ enum omap_dss_device_ops_flag {
 	OMAP_DSS_DEVICE_OP_DETECT = BIT(0),
 	OMAP_DSS_DEVICE_OP_HPD = BIT(1),
 	OMAP_DSS_DEVICE_OP_EDID = BIT(2),
-};
-
-enum omap_dss_device_type {
-	OMAP_DSS_DEVICE_TYPE_OUTPUT = (1 << 0),
-	OMAP_DSS_DEVICE_TYPE_DISPLAY = (1 << 1),
 };
 
 struct omap_dss_device {
@@ -471,8 +468,6 @@ static inline bool omapdss_is_initialized(void)
 	return !!omapdss_get_dss();
 }
 
-#define for_each_dss_display(d) \
-	while ((d = omapdss_device_get_next(d, OMAP_DSS_DEVICE_TYPE_DISPLAY)) != NULL)
 void omapdss_display_init(struct omap_dss_device *dssdev);
 struct omap_dss_device *omapdss_display_get(struct omap_dss_device *output);
 
@@ -482,20 +477,23 @@ struct omap_dss_device *omapdss_device_get(struct omap_dss_device *dssdev);
 void omapdss_device_put(struct omap_dss_device *dssdev);
 struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
 						    unsigned int port);
-struct omap_dss_device *omapdss_device_get_next(struct omap_dss_device *from,
-						enum omap_dss_device_type type);
 int omapdss_device_connect(struct dss_device *dss,
 			   struct omap_dss_device *src,
 			   struct omap_dss_device *dst);
 void omapdss_device_disconnect(struct omap_dss_device *src,
 			       struct omap_dss_device *dst);
+void omapdss_device_pre_enable(struct omap_dss_device *dssdev);
+void omapdss_device_enable(struct omap_dss_device *dssdev);
+void omapdss_device_disable(struct omap_dss_device *dssdev);
+void omapdss_device_post_disable(struct omap_dss_device *dssdev);
 
 int omap_dss_get_num_overlay_managers(void);
 
 int omap_dss_get_num_overlays(void);
 
 #define for_each_dss_output(d) \
-	while ((d = omapdss_device_get_next(d, OMAP_DSS_DEVICE_TYPE_OUTPUT)) != NULL)
+	while ((d = omapdss_device_next_output(d)) != NULL)
+struct omap_dss_device *omapdss_device_next_output(struct omap_dss_device *from);
 int omapdss_output_validate(struct omap_dss_device *out);
 
 typedef void (*omap_dispc_isr_t) (void *arg, u32 mask);

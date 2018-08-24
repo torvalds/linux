@@ -516,16 +516,8 @@ static void acx565akm_disconnect(struct omap_dss_device *src,
 static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-	int r;
 
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
-
-	r = src->ops->enable(src);
-	if (r) {
-		pr_err("%s sdi enable failed\n", __func__);
-		return r;
-	}
 
 	/*FIXME tweak me */
 	msleep(50);
@@ -562,7 +554,6 @@ static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
 static void acx565akm_panel_power_off(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
 
 	dev_dbg(dssdev->dev, "%s\n", __func__);
 
@@ -585,20 +576,15 @@ static void acx565akm_panel_power_off(struct omap_dss_device *dssdev)
 
 	/* FIXME need to tweak this delay */
 	msleep(100);
-
-	src->ops->disable(src);
 }
 
-static int acx565akm_enable(struct omap_dss_device *dssdev)
+static void acx565akm_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	int r;
 
 	mutex_lock(&ddata->mutex);
-	r = acx565akm_panel_power_on(dssdev);
+	acx565akm_panel_power_on(dssdev);
 	mutex_unlock(&ddata->mutex);
-
-	return r;
 }
 
 static void acx565akm_disable(struct omap_dss_device *dssdev)

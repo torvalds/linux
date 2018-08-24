@@ -41,20 +41,6 @@ static void hdmic_disconnect(struct omap_dss_device *src,
 {
 }
 
-static int hdmic_enable(struct omap_dss_device *dssdev)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->enable(src);
-}
-
-static void hdmic_disable(struct omap_dss_device *dssdev)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	src->ops->disable(src);
-}
-
 static bool hdmic_detect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
@@ -88,9 +74,6 @@ static void hdmic_unregister_hpd_cb(struct omap_dss_device *dssdev)
 static const struct omap_dss_device_ops hdmic_ops = {
 	.connect		= hdmic_connect,
 	.disconnect		= hdmic_disconnect,
-
-	.enable			= hdmic_enable,
-	.disable		= hdmic_disable,
 
 	.detect			= hdmic_detect,
 	.register_hpd_cb	= hdmic_register_hpd_cb,
@@ -172,12 +155,8 @@ static int hdmic_probe(struct platform_device *pdev)
 static int __exit hdmic_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct omap_dss_device *dssdev = &ddata->dssdev;
 
 	omapdss_device_unregister(&ddata->dssdev);
-
-	if (omapdss_device_is_enabled(dssdev))
-		hdmic_disable(dssdev);
 
 	return 0;
 }

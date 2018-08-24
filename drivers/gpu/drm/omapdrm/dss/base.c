@@ -126,13 +126,10 @@ struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
 }
 
 /*
- * Search for the next device starting at @from. The type argument specfies
- * which device types to consider when searching. Searching for multiple types
- * is supported by and'ing their type flags. Release the reference to the @from
- * device, and acquire a reference to the returned device if found.
+ * Search for the next output device starting at @from. Release the reference to
+ * the @from device, and acquire a reference to the returned device if found.
  */
-struct omap_dss_device *omapdss_device_get_next(struct omap_dss_device *from,
-						enum omap_dss_device_type type)
+struct omap_dss_device *omapdss_device_next_output(struct omap_dss_device *from)
 {
 	struct omap_dss_device *dssdev;
 	struct list_head *list;
@@ -160,15 +157,7 @@ struct omap_dss_device *omapdss_device_get_next(struct omap_dss_device *from,
 			goto done;
 		}
 
-		/*
-		 * Accept display entities if the display type is requested,
-		 * and output entities if the output type is requested.
-		 */
-		if ((type & OMAP_DSS_DEVICE_TYPE_DISPLAY) &&
-		    !dssdev->output_type)
-			goto done;
-		if ((type & OMAP_DSS_DEVICE_TYPE_OUTPUT) && dssdev->id &&
-		    dssdev->next)
+		if (dssdev->id && dssdev->next)
 			goto done;
 	}
 
@@ -183,7 +172,7 @@ done:
 	mutex_unlock(&omapdss_devices_lock);
 	return dssdev;
 }
-EXPORT_SYMBOL(omapdss_device_get_next);
+EXPORT_SYMBOL(omapdss_device_next_output);
 
 static bool omapdss_device_is_connected(struct omap_dss_device *dssdev)
 {
@@ -243,6 +232,58 @@ void omapdss_device_disconnect(struct omap_dss_device *src,
 	dst->dss = NULL;
 }
 EXPORT_SYMBOL_GPL(omapdss_device_disconnect);
+
+void omapdss_device_pre_enable(struct omap_dss_device *dssdev)
+{
+	if (!dssdev)
+		return;
+
+	omapdss_device_pre_enable(dssdev->next);
+
+	if (dssdev->ops->pre_enable)
+		dssdev->ops->pre_enable(dssdev);
+}
+EXPORT_SYMBOL_GPL(omapdss_device_pre_enable);
+
+void omapdss_device_enable(struct omap_dss_device *dssdev)
+{
+	if (!dssdev)
+		return;
+
+	if (dssdev->ops->enable)
+		dssdev->ops->enable(dssdev);
+
+	omapdss_device_enable(dssdev->next);
+
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+}
+EXPORT_SYMBOL_GPL(omapdss_device_enable);
+
+void omapdss_device_disable(struct omap_dss_device *dssdev)
+{
+	if (!dssdev)
+		return;
+
+	omapdss_device_disable(dssdev->next);
+
+	if (dssdev->ops->disable)
+		dssdev->ops->disable(dssdev);
+}
+EXPORT_SYMBOL_GPL(omapdss_device_disable);
+
+void omapdss_device_post_disable(struct omap_dss_device *dssdev)
+{
+	if (!dssdev)
+		return;
+
+	if (dssdev->ops->post_disable)
+		dssdev->ops->post_disable(dssdev);
+
+	omapdss_device_post_disable(dssdev->next);
+
+	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
+}
+EXPORT_SYMBOL_GPL(omapdss_device_post_disable);
 
 /* -----------------------------------------------------------------------------
  * Components Handling

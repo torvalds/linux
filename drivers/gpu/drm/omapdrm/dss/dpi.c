@@ -378,7 +378,7 @@ static void dpi_config_lcd_manager(struct dpi_data *dpi)
 	dss_mgr_set_lcd_config(&dpi->output, &dpi->mgr_config);
 }
 
-static int dpi_display_enable(struct omap_dss_device *dssdev)
+static void dpi_display_enable(struct omap_dss_device *dssdev)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 	struct omap_dss_device *out = &dpi->output;
@@ -420,7 +420,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 
 	mutex_unlock(&dpi->lock);
 
-	return 0;
+	return;
 
 err_mgr_enable:
 err_set_mode:
@@ -434,7 +434,6 @@ err_get_dispc:
 		regulator_disable(dpi->vdds_dsi_reg);
 err_reg_enable:
 	mutex_unlock(&dpi->lock);
-	return r;
 }
 
 static void dpi_display_disable(struct omap_dss_device *dssdev)

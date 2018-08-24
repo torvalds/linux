@@ -129,7 +129,7 @@ static void sdi_config_lcd_manager(struct sdi_device *sdi)
 	dss_mgr_set_lcd_config(&sdi->output, &sdi->mgr_config);
 }
 
-static int sdi_display_enable(struct omap_dss_device *dssdev)
+static void sdi_display_enable(struct omap_dss_device *dssdev)
 {
 	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
 	struct dispc_clock_info dispc_cinfo;
@@ -138,7 +138,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 
 	r = regulator_enable(sdi->vdds_sdi_reg);
 	if (r)
-		goto err_reg_enable;
+		return;
 
 	r = dispc_runtime_get(sdi->dss->dispc);
 	if (r)
@@ -180,7 +180,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_mgr_enable;
 
-	return 0;
+	return;
 
 err_mgr_enable:
 	dss_sdi_disable(sdi->dss);
@@ -190,8 +190,6 @@ err_calc_clock_div:
 	dispc_runtime_put(sdi->dss->dispc);
 err_get_dispc:
 	regulator_disable(sdi->vdds_sdi_reg);
-err_reg_enable:
-	return r;
 }
 
 static void sdi_display_disable(struct omap_dss_device *dssdev)

@@ -118,29 +118,18 @@ static void nec_8048_disconnect(struct omap_dss_device *src,
 {
 }
 
-static int nec_8048_enable(struct omap_dss_device *dssdev)
+static void nec_8048_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-	int r;
-
-	r = src->ops->enable(src);
-	if (r)
-		return r;
 
 	gpiod_set_value_cansleep(ddata->res_gpio, 1);
-
-	return 0;
 }
 
 static void nec_8048_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
 
 	gpiod_set_value_cansleep(ddata->res_gpio, 0);
-
-	src->ops->disable(src);
 }
 
 static void nec_8048_get_timings(struct omap_dss_device *dssdev,
@@ -223,8 +212,7 @@ static int nec_8048_remove(struct spi_device *spi)
 
 	omapdss_device_unregister(dssdev);
 
-	if (omapdss_device_is_enabled(dssdev))
-		nec_8048_disable(dssdev);
+	nec_8048_disable(dssdev);
 
 	return 0;
 }

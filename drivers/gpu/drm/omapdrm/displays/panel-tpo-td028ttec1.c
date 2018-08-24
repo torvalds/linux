@@ -169,18 +169,12 @@ static void td028ttec1_panel_disconnect(struct omap_dss_device *src,
 {
 }
 
-static int td028ttec1_panel_enable(struct omap_dss_device *dssdev)
+static void td028ttec1_panel_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-	int r;
+	int r = 0;
 
-	r = src->ops->enable(src);
-	if (r)
-		return r;
-
-	dev_dbg(dssdev->dev, "td028ttec1_panel_enable() - state %d\n",
-		dssdev->state);
+	dev_dbg(dssdev->dev, "%s: state %d\n", __func__, dssdev->state);
 
 	/* three times command zero */
 	r |= jbt_ret_write_0(ddata, 0x00);
@@ -191,8 +185,8 @@ static int td028ttec1_panel_enable(struct omap_dss_device *dssdev)
 	usleep_range(1000, 2000);
 
 	if (r) {
-		dev_warn(dssdev->dev, "transfer error\n");
-		return -EIO;
+		dev_warn(dssdev->dev, "%s: transfer error\n", __func__);
+		return;
 	}
 
 	/* deep standby out */
@@ -262,13 +256,13 @@ static int td028ttec1_panel_enable(struct omap_dss_device *dssdev)
 
 	r |= jbt_ret_write_0(ddata, JBT_REG_DISPLAY_ON);
 
-	return r ? -EIO : 0;
+	if (r)
+		dev_err(dssdev->dev, "%s: write error\n", __func__);
 }
 
 static void td028ttec1_panel_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
 
 	dev_dbg(dssdev->dev, "td028ttec1_panel_disable()\n");
 
@@ -276,8 +270,6 @@ static void td028ttec1_panel_disable(struct omap_dss_device *dssdev)
 	jbt_reg_write_2(ddata, JBT_REG_OUTPUT_CONTROL, 0x8002);
 	jbt_ret_write_0(ddata, JBT_REG_SLEEP_IN);
 	jbt_reg_write_1(ddata, JBT_REG_POWER_ON_OFF, 0x00);
-
-	src->ops->disable(src);
 }
 
 static void td028ttec1_panel_get_timings(struct omap_dss_device *dssdev,
@@ -354,8 +346,7 @@ static int td028ttec1_panel_remove(struct spi_device *spi)
 
 	omapdss_device_unregister(dssdev);
 
-	if (omapdss_device_is_enabled(dssdev))
-		td028ttec1_panel_disable(dssdev);
+	td028ttec1_panel_disable(dssdev);
 
 	return 0;
 }

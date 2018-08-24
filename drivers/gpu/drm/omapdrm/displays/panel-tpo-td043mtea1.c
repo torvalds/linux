@@ -320,15 +320,10 @@ static void tpo_td043_disconnect(struct omap_dss_device *src,
 {
 }
 
-static int tpo_td043_enable(struct omap_dss_device *dssdev)
+static void tpo_td043_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
 	int r;
-
-	r = src->ops->enable(src);
-	if (r)
-		return r;
 
 	/*
 	 * If we are resuming from system suspend, SPI clocks might not be
@@ -337,20 +332,16 @@ static int tpo_td043_enable(struct omap_dss_device *dssdev)
 	if (!ddata->spi_suspended) {
 		r = tpo_td043_power_on(ddata);
 		if (r) {
-			src->ops->disable(src);
-			return r;
+			dev_err(&ddata->spi->dev, "%s: power on failed (%d)\n",
+				__func__, r);
+			return;
 		}
 	}
-
-	return 0;
 }
 
 static void tpo_td043_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-
-	src->ops->disable(src);
 
 	if (!ddata->spi_suspended)
 		tpo_td043_power_off(ddata);

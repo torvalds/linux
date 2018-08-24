@@ -62,35 +62,6 @@ static void tpd_disconnect(struct omap_dss_device *src,
 	omapdss_device_disconnect(dst, dst->next);
 }
 
-static int tpd_enable(struct omap_dss_device *dssdev)
-{
-	struct omap_dss_device *src = dssdev->src;
-	int r;
-
-	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
-		return 0;
-
-	r = src->ops->enable(src);
-	if (r)
-		return r;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return r;
-}
-
-static void tpd_disable(struct omap_dss_device *dssdev)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
-		return;
-
-	src->ops->disable(src);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
-}
-
 static bool tpd_detect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
@@ -124,8 +95,6 @@ static void tpd_unregister_hpd_cb(struct omap_dss_device *dssdev)
 static const struct omap_dss_device_ops tpd_ops = {
 	.connect		= tpd_connect,
 	.disconnect		= tpd_disconnect,
-	.enable			= tpd_enable,
-	.disable		= tpd_disable,
 	.detect			= tpd_detect,
 	.register_hpd_cb	= tpd_register_hpd_cb,
 	.unregister_hpd_cb	= tpd_unregister_hpd_cb,
@@ -224,10 +193,6 @@ static int __exit tpd_remove(struct platform_device *pdev)
 	if (dssdev->next)
 		omapdss_device_put(dssdev->next);
 	omapdss_device_unregister(&ddata->dssdev);
-
-	WARN_ON(omapdss_device_is_enabled(dssdev));
-	if (omapdss_device_is_enabled(dssdev))
-		tpd_disable(dssdev);
 
 	return 0;
 }

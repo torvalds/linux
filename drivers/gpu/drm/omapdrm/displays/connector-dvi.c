@@ -46,20 +46,6 @@ static void dvic_disconnect(struct omap_dss_device *src,
 {
 }
 
-static int dvic_enable(struct omap_dss_device *dssdev)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->enable(src);
-}
-
-static void dvic_disable(struct omap_dss_device *dssdev)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	src->ops->disable(src);
-}
-
 static int dvic_ddc_read(struct i2c_adapter *adapter,
 		unsigned char *buf, u16 count, u8 offset)
 {
@@ -162,9 +148,6 @@ static void dvic_unregister_hpd_cb(struct omap_dss_device *dssdev)
 static const struct omap_dss_device_ops dvic_ops = {
 	.connect	= dvic_connect,
 	.disconnect	= dvic_disconnect,
-
-	.enable		= dvic_enable,
-	.disable	= dvic_disable,
 
 	.read_edid	= dvic_read_edid,
 	.detect		= dvic_detect,
@@ -275,12 +258,8 @@ static int dvic_probe(struct platform_device *pdev)
 static int __exit dvic_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct omap_dss_device *dssdev = &ddata->dssdev;
 
 	omapdss_device_unregister(&ddata->dssdev);
-
-	if (omapdss_device_is_enabled(dssdev))
-		dvic_disable(dssdev);
 
 	i2c_put_adapter(ddata->i2c_adapter);
 

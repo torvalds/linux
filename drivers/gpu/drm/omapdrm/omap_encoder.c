@@ -146,33 +146,60 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 static void omap_encoder_disable(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *dssdev = omap_encoder->display;
+	struct omap_dss_device *dssdev = omap_encoder->output;
 	struct drm_device *dev = encoder->dev;
 
 	dev_dbg(dev->dev, "disable(%s)\n", dssdev->name);
 
-	dssdev->ops->disable(dssdev);
+	/*
+	 * Disable the chain of external devices, starting at the one at the
+	 * internal encoder's output.
+	 */
+	omapdss_device_disable(dssdev->next);
 
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
+	/*
+	 * Disable the internal encoder. This will disable the DSS output. The
+	 * DSI is treated as an exception as DSI pipelines still use the legacy
+	 * flow where the pipeline output controls the encoder.
+	 */
+	if (dssdev->output_type != OMAP_DISPLAY_TYPE_DSI) {
+		dssdev->ops->disable(dssdev);
+		dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
+	}
+
+	/*
+	 * Perform the post-disable operations on the chain of external devices
+	 * to complete the display pipeline disable.
+	 */
+	omapdss_device_post_disable(dssdev->next);
 }
 
 static void omap_encoder_enable(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *dssdev = omap_encoder->display;
+	struct omap_dss_device *dssdev = omap_encoder->output;
 	struct drm_device *dev = encoder->dev;
-	int r;
 
 	dev_dbg(dev->dev, "enable(%s)\n", dssdev->name);
 
-	r = dssdev->ops->enable(dssdev);
-	if (r) {
-		dev_err(dev->dev, "Failed to enable display '%s': %d\n",
-			dssdev->name, r);
-		return;
+	/* Prepare the chain of external devices for pipeline enable. */
+	omapdss_device_pre_enable(dssdev->next);
+
+	/*
+	 * Enable the internal encoder. This will enable the DSS output. The
+	 * DSI is treated as an exception as DSI pipelines still use the legacy
+	 * flow where the pipeline output controls the encoder.
+	 */
+	if (dssdev->output_type != OMAP_DISPLAY_TYPE_DSI) {
+		dssdev->ops->enable(dssdev);
+		dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 	}
 
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+	/*
+	 * Enable the chain of external devices, starting at the one at the
+	 * internal encoder's output.
+	 */
+	omapdss_device_enable(dssdev->next);
 }
 
 static int omap_encoder_atomic_check(struct drm_encoder *encoder,

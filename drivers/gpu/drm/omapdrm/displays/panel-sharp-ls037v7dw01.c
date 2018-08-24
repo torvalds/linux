@@ -62,23 +62,22 @@ static void sharp_ls_disconnect(struct omap_dss_device *src,
 {
 }
 
-static int sharp_ls_enable(struct omap_dss_device *dssdev)
+static void sharp_ls_pre_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
 	int r;
 
 	if (ddata->vcc) {
 		r = regulator_enable(ddata->vcc);
-		if (r != 0)
-			return r;
+		if (r)
+			dev_err(dssdev->dev, "%s: failed to enable regulator\n",
+				__func__);
 	}
+}
 
-	r = src->ops->enable(src);
-	if (r) {
-		regulator_disable(ddata->vcc);
-		return r;
-	}
+static void sharp_ls_enable(struct omap_dss_device *dssdev)
+{
+	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
 	/* wait couple of vsyncs until enabling the LCD */
 	msleep(50);
@@ -88,14 +87,11 @@ static int sharp_ls_enable(struct omap_dss_device *dssdev)
 
 	if (ddata->ini_gpio)
 		gpiod_set_value_cansleep(ddata->ini_gpio, 1);
-
-	return 0;
 }
 
 static void sharp_ls_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
 
 	if (ddata->ini_gpio)
 		gpiod_set_value_cansleep(ddata->ini_gpio, 0);
@@ -104,10 +100,12 @@ static void sharp_ls_disable(struct omap_dss_device *dssdev)
 		gpiod_set_value_cansleep(ddata->resb_gpio, 0);
 
 	/* wait at least 5 vsyncs after disabling the LCD */
-
 	msleep(100);
+}
 
-	src->ops->disable(src);
+static void sharp_ls_post_disable(struct omap_dss_device *dssdev)
+{
+	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
 	if (ddata->vcc)
 		regulator_disable(ddata->vcc);
@@ -125,8 +123,10 @@ static const struct omap_dss_device_ops sharp_ls_ops = {
 	.connect	= sharp_ls_connect,
 	.disconnect	= sharp_ls_disconnect,
 
+	.pre_enable	= sharp_ls_pre_enable,
 	.enable		= sharp_ls_enable,
 	.disable	= sharp_ls_disable,
+	.post_disable	= sharp_ls_post_disable,
 
 	.get_timings	= sharp_ls_get_timings,
 };
@@ -230,8 +230,10 @@ static int __exit sharp_ls_remove(struct platform_device *pdev)
 
 	omapdss_device_unregister(dssdev);
 
-	if (omapdss_device_is_enabled(dssdev))
+	if (omapdss_device_is_enabled(dssdev)) {
 		sharp_ls_disable(dssdev);
+		sharp_ls_post_disable(dssdev);
+	}
 
 	return 0;
 }

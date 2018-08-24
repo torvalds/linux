@@ -123,31 +123,20 @@ static void lb035q02_disconnect(struct omap_dss_device *src,
 {
 }
 
-static int lb035q02_enable(struct omap_dss_device *dssdev)
+static void lb035q02_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-	int r;
-
-	r = src->ops->enable(src);
-	if (r)
-		return r;
 
 	if (ddata->enable_gpio)
 		gpiod_set_value_cansleep(ddata->enable_gpio, 1);
-
-	return 0;
 }
 
 static void lb035q02_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
 
 	if (ddata->enable_gpio)
 		gpiod_set_value_cansleep(ddata->enable_gpio, 0);
-
-	src->ops->disable(src);
 }
 
 static void lb035q02_get_timings(struct omap_dss_device *dssdev,
@@ -232,8 +221,7 @@ static int lb035q02_panel_spi_remove(struct spi_device *spi)
 
 	omapdss_device_unregister(dssdev);
 
-	if (omapdss_device_is_enabled(dssdev))
-		lb035q02_disable(dssdev);
+	lb035q02_disable(dssdev);
 
 	return 0;
 }

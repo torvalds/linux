@@ -522,25 +522,17 @@ static void venc_power_off(struct venc_device *venc)
 	venc_runtime_put(venc);
 }
 
-static int venc_display_enable(struct omap_dss_device *dssdev)
+static void venc_display_enable(struct omap_dss_device *dssdev)
 {
 	struct venc_device *venc = dssdev_to_venc(dssdev);
-	int r;
 
 	DSSDBG("venc_display_enable\n");
 
 	mutex_lock(&venc->venc_lock);
 
-	r = venc_power_on(venc);
-	if (r)
-		goto err0;
+	venc_power_on(venc);
 
 	mutex_unlock(&venc->venc_lock);
-
-	return 0;
-err0:
-	mutex_unlock(&venc->venc_lock);
-	return r;
 }
 
 static void venc_display_disable(struct omap_dss_device *dssdev)

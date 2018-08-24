@@ -312,11 +312,11 @@ static void hdmi_stop_audio_stream(struct omap_hdmi *hd)
 	hdmi_wp_audio_enable(&hd->wp, false);
 }
 
-static int hdmi_display_enable(struct omap_dss_device *dssdev)
+static void hdmi_display_enable(struct omap_dss_device *dssdev)
 {
 	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
 	unsigned long flags;
-	int r = 0;
+	int r;
 
 	DSSDBG("ENTER hdmi_display_enable\n");
 
@@ -325,7 +325,7 @@ static int hdmi_display_enable(struct omap_dss_device *dssdev)
 	r = hdmi_power_on_full(hdmi);
 	if (r) {
 		DSSERR("failed to power on device\n");
-		goto err0;
+		goto done;
 	}
 
 	if (hdmi->audio_configured) {
@@ -345,12 +345,8 @@ static int hdmi_display_enable(struct omap_dss_device *dssdev)
 	hdmi->display_enabled = true;
 	spin_unlock_irqrestore(&hdmi->audio_playing_lock, flags);
 
+done:
 	mutex_unlock(&hdmi->lock);
-	return 0;
-
-err0:
-	mutex_unlock(&hdmi->lock);
-	return r;
 }
 
 static void hdmi_display_disable(struct omap_dss_device *dssdev)

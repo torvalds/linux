@@ -36,35 +36,20 @@ static void tfp410_disconnect(struct omap_dss_device *src,
 	omapdss_device_disconnect(dst, dst->next);
 }
 
-static int tfp410_enable(struct omap_dss_device *dssdev)
+static void tfp410_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-	int r;
-
-	r = src->ops->enable(src);
-	if (r)
-		return r;
 
 	if (ddata->pd_gpio)
 		gpiod_set_value_cansleep(ddata->pd_gpio, 0);
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return 0;
 }
 
 static void tfp410_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
 
 	if (ddata->pd_gpio)
 		gpiod_set_value_cansleep(ddata->pd_gpio, 0);
-
-	src->ops->disable(src);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static const struct omap_dss_device_ops tfp410_ops = {
@@ -126,9 +111,7 @@ static int __exit tfp410_remove(struct platform_device *pdev)
 		omapdss_device_put(dssdev->next);
 	omapdss_device_unregister(&ddata->dssdev);
 
-	WARN_ON(omapdss_device_is_enabled(dssdev));
-	if (omapdss_device_is_enabled(dssdev))
-		tfp410_disable(dssdev);
+	tfp410_disable(dssdev);
 
 	return 0;
 }

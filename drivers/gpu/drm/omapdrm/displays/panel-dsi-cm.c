@@ -315,12 +315,7 @@ static int dsicm_exit_ulps(struct panel_drv_data *ddata)
 	if (!ddata->ulps_enabled)
 		return 0;
 
-	r = src->ops->enable(src);
-	if (r) {
-		dev_err(&ddata->pdev->dev, "failed to enable DSI\n");
-		goto err1;
-	}
-
+	src->ops->enable(src);
 	src->ops->dsi.enable_hs(src, ddata->channel, true);
 
 	r = _dsicm_enable_te(ddata, true);
@@ -347,7 +342,7 @@ err2:
 			enable_irq(gpiod_to_irq(ddata->ext_te_gpio));
 		ddata->ulps_enabled = false;
 	}
-err1:
+
 	dsicm_queue_ulps_work(ddata);
 
 	return r;
@@ -649,11 +644,7 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 		goto err_vddi;
 	}
 
-	r = src->ops->enable(src);
-	if (r) {
-		dev_err(&ddata->pdev->dev, "failed to enable DSI\n");
-		goto err_vddi;
-	}
+	src->ops->enable(src);
 
 	dsicm_hw_reset(ddata);
 
@@ -787,7 +778,7 @@ static void dsicm_disconnect(struct omap_dss_device *src,
 	src->ops->dsi.release_vc(src, ddata->channel);
 }
 
-static int dsicm_enable(struct omap_dss_device *dssdev)
+static void dsicm_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
@@ -808,11 +799,10 @@ static int dsicm_enable(struct omap_dss_device *dssdev)
 
 	dsicm_bl_power(ddata, true);
 
-	return 0;
+	return;
 err:
-	dev_dbg(&ddata->pdev->dev, "enable failed\n");
+	dev_dbg(&ddata->pdev->dev, "enable failed (%d)\n", r);
 	mutex_unlock(&ddata->lock);
-	return r;
 }
 
 static void dsicm_disable(struct omap_dss_device *dssdev)
