@@ -52,7 +52,6 @@
 		enable-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 		enable-delay-ms = <20>;
 		reset-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
-		reset-value = <0>;
 		reset-delay-ms = <10>;
 		prepare-delay-ms = <20>;
 		unprepare-delay-ms = <20>;
@@ -63,10 +62,6 @@
 		spi-cs-gpios = <&gpio1 RK_PD1 GPIO_ACTIVE_HIGH>;
 		width-mm = <217>;
 		height-mm = <136>;
-		rockchip,data-mapping = "vesa";
-		rockchip,data-width = <24>;
-		rockchip,output = "rgb";
-		rgb-mode = "p666";
 		status = "okay";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi_init_cmd>;
