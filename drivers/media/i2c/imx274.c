@@ -349,20 +349,14 @@ static const struct reg_8 imx274_mode5_1280x720_raw10[] = {
  */
 static const struct reg_8 imx274_start_1[] = {
 	{IMX274_STANDBY_REG, 0x12},
-	{IMX274_TABLE_END, 0x00}
-};
 
-/*
- * imx274 second step register configuration for
- * starting stream
- */
-static const struct reg_8 imx274_start_2[] = {
-	{0x3120, 0xF0}, /* clock settings */
-	{0x3121, 0x00}, /* clock settings */
-	{0x3122, 0x02}, /* clock settings */
-	{0x3129, 0x9C}, /* clock settings */
-	{0x312A, 0x02}, /* clock settings */
-	{0x312D, 0x02}, /* clock settings */
+	/* PLRD: clock settings */
+	{0x3120, 0xF0},
+	{0x3121, 0x00},
+	{0x3122, 0x02},
+	{0x3129, 0x9C},
+	{0x312A, 0x02},
+	{0x312D, 0x02},
 
 	{0x310B, 0x00},
 
@@ -407,20 +401,20 @@ static const struct reg_8 imx274_start_2[] = {
 };
 
 /*
- * imx274 third step register configuration for
+ * imx274 second step register configuration for
  * starting stream
  */
-static const struct reg_8 imx274_start_3[] = {
+static const struct reg_8 imx274_start_2[] = {
 	{IMX274_STANDBY_REG, 0x00},
 	{0x303E, 0x02}, /* SYS_MODE = 2 */
 	{IMX274_TABLE_END, 0x00}
 };
 
 /*
- * imx274 forth step register configuration for
+ * imx274 third step register configuration for
  * starting stream
  */
-static const struct reg_8 imx274_start_4[] = {
+static const struct reg_8 imx274_start_3[] = {
 	{0x30F4, 0x00},
 	{0x3018, 0xA2}, /* XHS VHS OUTUPT */
 	{IMX274_TABLE_END, 0x00}
@@ -708,10 +702,6 @@ static int imx274_mode_regs(struct stimx274 *priv)
 	if (err)
 		return err;
 
-	err = imx274_write_table(priv, imx274_start_2);
-	if (err)
-		return err;
-
 	err = imx274_write_table(priv, priv->mode->init_regs);
 
 	return err;
@@ -733,7 +723,7 @@ static int imx274_start_stream(struct stimx274 *priv)
 	 * give it 1 extra ms for margin
 	 */
 	msleep_range(11);
-	err = imx274_write_table(priv, imx274_start_3);
+	err = imx274_write_table(priv, imx274_start_2);
 	if (err)
 		return err;
 
@@ -743,7 +733,7 @@ static int imx274_start_stream(struct stimx274 *priv)
 	 * give it 1 extra ms for margin
 	 */
 	msleep_range(8);
-	err = imx274_write_table(priv, imx274_start_4);
+	err = imx274_write_table(priv, imx274_start_3);
 	if (err)
 		return err;
 
