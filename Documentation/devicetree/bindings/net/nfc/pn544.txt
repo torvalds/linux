@@ -2,7 +2,7 @@
 
 Required properties:
 - compatible: Should be "nxp,pn544-i2c".
-- clock-frequency: I²C work frequency.
+- clock-frequency: IÂ²C work frequency.
 - reg: address on the bus
 - interrupts: GPIO interrupt to which the chip is connected
 - enable-gpios: Output GPIO pin used for enabling/disabling the PN544

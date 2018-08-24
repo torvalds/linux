@@ -1,7 +1,7 @@
 /*
  * LTC2632 Digital to analog convertors spi driver
  *
- * Copyright 2017 Maxime Roussin-Bélanger
+ * Copyright 2017 Maxime Roussin-BÃ©langer
  * expanded by Silvan Murer <silvan.murer@gmail.com>
  *
  * Licensed under the GPL-2.
