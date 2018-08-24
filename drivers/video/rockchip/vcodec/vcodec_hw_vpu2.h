@@ -58,6 +58,10 @@
 					| VPU2_DEC_STREAM_ERROR_BIT \
 					| VPU2_DEC_TIMEOUT_BIT)
 
+/*enable and soft reset register*/
+#define VPU2_REG_DEC_RESET		58
+#define VPU2_REG_DEC_RESET_BIT		BIT(0)
+
 #define VPU2_PP_INTERRUPT_REGISTER	40
 #define VPU2_PP_INTERRUPT_BIT		BIT(0)
 #define VPU2_PP_READY_BIT		BIT(2)
@@ -131,6 +135,7 @@ static struct vpu_task_info task_vpu2[TASK_TYPE_BUTT] = {
 		.reg_len = -1,
 		.reg_dir_mv = -1,
 		.reg_pps = -1,
+		.reg_reset = -1,
 		.reg_pipe = -1,
 		.enable_mask = 0x30,
 		.gating_mask = VPU2_REG_ENC_GATE_BIT,
@@ -138,6 +143,7 @@ static struct vpu_task_info task_vpu2[TASK_TYPE_BUTT] = {
 		.irq_mask = VPU2_ENC_INTERRUPT_BIT,
 		.ready_mask = VPU2_ENC_READY_BIT,
 		.error_mask = VPU2_ENC_ERR_MASK,
+		.reset_mask = 0,
 		.get_fmt = vpu2_enc_get_fmt,
 	},
 	{
@@ -148,6 +154,7 @@ static struct vpu_task_info task_vpu2[TASK_TYPE_BUTT] = {
 		.reg_len = 64,
 		.reg_dir_mv = 62,
 		.reg_pps = -1,
+		.reg_reset = VPU2_REG_DEC_RESET,
 		.reg_pipe = VPU2_PP_PIPELINE_REGISTER,
 		.enable_mask = 0,
 		.gating_mask = VPU2_REG_DEC_GATE_BIT,
@@ -155,6 +162,7 @@ static struct vpu_task_info task_vpu2[TASK_TYPE_BUTT] = {
 		.irq_mask = VPU2_DEC_INTERRUPT_BIT,
 		.ready_mask = VPU2_DEC_READY_BIT,
 		.error_mask = VPU2_DEC_ERR_MASK,
+		.reset_mask = VPU2_REG_DEC_RESET_BIT,
 		.get_fmt = vpu2_dec_get_fmt,
 	},
 	{
@@ -171,6 +179,7 @@ static struct vpu_task_info task_vpu2[TASK_TYPE_BUTT] = {
 		.irq_mask = VPU2_PP_INTERRUPT_BIT,
 		.ready_mask = VPU2_PP_READY_BIT,
 		.error_mask = VPU2_PP_ERR_MASK,
+		.reset_mask = 0,
 		.get_fmt = vpu2_pp_get_fmt,
 	},
 	{
@@ -188,6 +197,7 @@ static struct vpu_task_info task_vpu2[TASK_TYPE_BUTT] = {
 		.irq_mask = VPU2_DEC_INTERRUPT_BIT,
 		.ready_mask = VPU2_DEC_READY_BIT,
 		.error_mask = VPU2_DEC_ERR_MASK,
+		.reset_mask = 0,
 		.get_fmt = vpu2_dec_get_fmt,
 	},
 };

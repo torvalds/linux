@@ -461,14 +461,12 @@ struct compat_vpu_request {
 };
 #endif
 
-#define VDPU_SOFT_RESET_REG	101
 #define VDPU_CLEAN_CACHE_REG	516
 #define VEPU_CLEAN_CACHE_REG	772
 #define HEVC_CLEAN_CACHE_REG	260
 
 #define VPU_REG_ENABLE(base, reg)	writel_relaxed(1, base + reg)
 
-#define VDPU_SOFT_RESET(base)	VPU_REG_ENABLE(base, VDPU_SOFT_RESET_REG)
 #define VDPU_CLEAN_CACHE(base)	VPU_REG_ENABLE(base, VDPU_CLEAN_CACHE_REG)
 #define VEPU_CLEAN_CACHE(base)	VPU_REG_ENABLE(base, VEPU_CLEAN_CACHE_REG)
 #define HEVC_CLEAN_CACHE(base)	VPU_REG_ENABLE(base, HEVC_CLEAN_CACHE_REG)
@@ -753,6 +751,27 @@ static void vpu_reset(struct vpu_subdev_data *data)
 
 	atomic_set(&pservice->reset_request, 0);
 	dev_info(pservice->dev, "reset done\n");
+}
+
+static void vpu_soft_reset(struct vpu_subdev_data *data)
+{
+	struct vpu_device *dev = &data->dec_dev;
+	struct vpu_service_info *pservice = data->pservice;
+	struct vpu_task_info *task = &data->task_info[TASK_DEC];
+
+	if (task->reg_reset < 0)
+		return;
+
+	writel(task->reset_mask, dev->regs + task->reg_reset);
+	if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
+		clear_bit(MMU_ACTIVATED, &data->state);
+		clear_bit(MMU_PAGEFAULT, &data->state);
+		if (atomic_read(&pservice->enabled))
+			/* Need to reset iommu */
+			vcodec_iommu_detach(data->iommu_info);
+		else
+			WARN_ON(!atomic_read(&pservice->enabled));
+	}
 }
 
 static void reg_deinit(struct vpu_subdev_data *data, struct vpu_reg *reg);
@@ -3798,8 +3817,7 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 			}
 			reg_from_run_to_done(data, pservice->reg_codec);
 			/* avoid vpu timeout and can't recover problem */
-			if (data->mode == VCODEC_RUNNING_MODE_VPU)
-				VDPU_SOFT_RESET(data->regs);
+			vpu_soft_reset(data);
 		}
 	}
 

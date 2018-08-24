@@ -61,6 +61,10 @@
 					| VPU_DEC_STREAM_ERROR_BIT \
 					| VPU_DEC_TIMEOUT_BIT)
 
+/* enable and soft reset register*/
+#define VPU_REG_DEC_RESET		101
+#define VPU_REG_DEC_RESET_BIT		BIT(0)
+
 #define VPU_PP_INTERRUPT_REGISTER	60
 #define VPU_PP_PIPELINE_MODE_BIT	BIT(1)
 #define VPU_PP_INTERRUPT_BIT		BIT(8)
@@ -132,6 +136,7 @@ static struct vpu_task_info task_vpu[TASK_TYPE_BUTT] = {
 		.reg_len = -1,
 		.reg_dir_mv = -1,
 		.reg_pps = -1,
+		.reg_reset = -1,
 		.reg_pipe = -1,
 		.enable_mask = 0x6,
 		.gating_mask = 0,
@@ -139,6 +144,7 @@ static struct vpu_task_info task_vpu[TASK_TYPE_BUTT] = {
 		.irq_mask = VPU_ENC_INTERRUPT_BIT,
 		.ready_mask = VPU_ENC_READY_BIT,
 		.error_mask = VPU_ENC_ERR_MASK,
+		.reset_mask = 0,
 		.get_fmt = vpu_enc_get_fmt,
 	},
 	{
@@ -149,6 +155,7 @@ static struct vpu_task_info task_vpu[TASK_TYPE_BUTT] = {
 		.reg_len = 12,
 		.reg_dir_mv = 41,
 		.reg_pps = -1,
+		.reg_reset = VPU_REG_DEC_RESET,
 		.reg_pipe = VPU_PP_INTERRUPT_REGISTER,
 		.enable_mask = 0,
 		.gating_mask = 0,
@@ -156,6 +163,7 @@ static struct vpu_task_info task_vpu[TASK_TYPE_BUTT] = {
 		.irq_mask = VPU_DEC_INTERRUPT_BIT,
 		.ready_mask = VPU_DEC_READY_BIT,
 		.error_mask = VPU_DEC_ERR_MASK,
+		.reset_mask = VPU_REG_DEC_RESET_BIT,
 		.get_fmt = vpu_dec_get_fmt,
 	},
 	{
@@ -165,6 +173,7 @@ static struct vpu_task_info task_vpu[TASK_TYPE_BUTT] = {
 		.reg_len = -1,
 		.reg_dir_mv = -1,
 		.reg_pps = -1,
+		.reg_reset = -1,
 		.reg_pipe = VPU_PP_INTERRUPT_REGISTER,
 		.enable_mask = 0,
 		.gating_mask = 0,
@@ -172,6 +181,7 @@ static struct vpu_task_info task_vpu[TASK_TYPE_BUTT] = {
 		.irq_mask = VPU_PP_INTERRUPT_BIT,
 		.ready_mask = VPU_PP_READY_BIT,
 		.error_mask = VPU_PP_ERR_MASK,
+		.reset_mask = 0,
 		.get_fmt = vpu_pp_get_fmt,
 	},
 	{
@@ -182,6 +192,7 @@ static struct vpu_task_info task_vpu[TASK_TYPE_BUTT] = {
 		.reg_len = 12,
 		.reg_dir_mv = 41,
 		.reg_pps = -1,
+		.reg_reset = -1,
 		.reg_pipe = VPU_PP_INTERRUPT_REGISTER,
 		.enable_mask = 0,
 		.gating_mask = 0,
@@ -189,6 +200,7 @@ static struct vpu_task_info task_vpu[TASK_TYPE_BUTT] = {
 		.irq_mask = VPU_DEC_INTERRUPT_BIT,
 		.ready_mask = VPU_DEC_READY_BIT,
 		.error_mask = VPU_DEC_ERR_MASK,
+		.reset_mask = 0,
 		.get_fmt = vpu_dec_get_fmt,
 	},
 };
