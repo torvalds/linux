@@ -434,9 +434,9 @@ int amdgpu_ctx_put(struct amdgpu_ctx *ctx)
 	return 0;
 }
 
-int amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx,
-			 struct drm_sched_entity *entity,
-			 struct dma_fence *fence, uint64_t* handle)
+void amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx,
+			  struct drm_sched_entity *entity,
+			  struct dma_fence *fence, uint64_t* handle)
 {
 	struct amdgpu_ctx_entity *centity = to_amdgpu_ctx_entity(entity);
 	uint64_t seq = centity->sequence;
@@ -458,8 +458,6 @@ int amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx,
 	dma_fence_put(other);
 	if (handle)
 		*handle = seq;
-
-	return 0;
 }
 
 struct dma_fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,

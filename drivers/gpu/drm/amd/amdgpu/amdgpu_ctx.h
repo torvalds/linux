@@ -65,9 +65,9 @@ int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
 
 int amdgpu_ctx_get_entity(struct amdgpu_ctx *ctx, u32 hw_ip, u32 instance,
 			  u32 ring, struct drm_sched_entity **entity);
-int amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx,
-			 struct drm_sched_entity *entity,
-			 struct dma_fence *fence, uint64_t *seq);
+void amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx,
+			  struct drm_sched_entity *entity,
+			  struct dma_fence *fence, uint64_t *seq);
 struct dma_fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 				       struct drm_sched_entity *entity,
 				       uint64_t seq);
