@@ -1198,7 +1198,10 @@ again:
 
 	list_add_tail(&fs_info->extent_root->dirty_list,
 		      &trans->transaction->switch_commits);
-	btrfs_after_dev_replace_commit(fs_info);
+
+	/* Update dev-replace pointer once everything is committed */
+	fs_info->dev_replace.committed_cursor_left =
+		fs_info->dev_replace.cursor_left_last_write_of_item;
 
 	return 0;
 }

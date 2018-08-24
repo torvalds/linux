@@ -382,14 +382,6 @@ out:
 	return ret;
 }
 
-void btrfs_after_dev_replace_commit(struct btrfs_fs_info *fs_info)
-{
-	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
-
-	dev_replace->committed_cursor_left =
-		dev_replace->cursor_left_last_write_of_item;
-}
-
 static char* btrfs_dev_name(struct btrfs_device *device)
 {
 	if (!device || test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
