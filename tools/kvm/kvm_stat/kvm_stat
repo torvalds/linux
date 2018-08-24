@@ -766,6 +766,13 @@ class DebugfsProvider(Provider):
             self.do_read = True
         self.reset()
 
+    def _verify_paths(self):
+        """Remove invalid paths"""
+        for path in self.paths:
+            if not os.path.exists(os.path.join(PATH_DEBUGFS_KVM, path)):
+                self.paths.remove(path)
+                continue
+
     def read(self, reset=0, by_guest=0):
         """Returns a dict with format:'file name / field -> current value'.
 
@@ -780,6 +787,7 @@ class DebugfsProvider(Provider):
         # If no debugfs filtering support is available, then don't read.
         if not self.do_read:
             return results
+        self._verify_paths()
 
         paths = self.paths
         if self._pid == 0:
