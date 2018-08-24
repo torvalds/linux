@@ -1103,6 +1103,7 @@ class Tui(object):
             pid = self.stats.pid_filter
         self.screen.erase()
         gname = self.get_gname_from_pid(pid)
+        self._gname = gname
         if gname:
             gname = ('({})'.format(gname[:MAX_GUEST_NAME_LEN] + '...'
                                    if len(gname) > MAX_GUEST_NAME_LEN
@@ -1170,6 +1171,15 @@ class Tui(object):
             return sorted_items
 
         if not self._is_running_guest(self.stats.pid_filter):
+            if self._gname:
+                try: # ...to identify the guest by name in case it's back
+                    pids = self.get_pid_from_gname(self._gname)
+                    if len(pids) == 1:
+                        self._refresh_header(pids[0])
+                        self._update_pid(pids[0])
+                        return
+                except:
+                    pass
             self._display_guest_dead()
             # leave final data on screen
             return
