@@ -1108,10 +1108,10 @@ class Tui(object):
                                    if len(gname) > MAX_GUEST_NAME_LEN
                                    else gname))
         if pid > 0:
-            self.screen.addstr(0, 0, 'kvm statistics - pid {0} {1}'
-                               .format(pid, gname), curses.A_BOLD)
+            self._headline = 'kvm statistics - pid {0} {1}'.format(pid, gname)
         else:
-            self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
+            self._headline = 'kvm statistics - summary'
+        self.screen.addstr(0, 0, self._headline, curses.A_BOLD)
         if self.stats.fields_filter:
             regex = self.stats.fields_filter
             if len(regex) > MAX_REGEX_LEN:
@@ -1170,6 +1170,7 @@ class Tui(object):
             return sorted_items
 
         if not self._is_running_guest(self.stats.pid_filter):
+            self._display_guest_dead()
             # leave final data on screen
             return
         row = 3
@@ -1227,6 +1228,11 @@ class Tui(object):
             self.screen.addstr(row, 1, '%-40s %10d        %8s' %
                                ('Total', total, tavg), curses.A_BOLD)
         self.screen.refresh()
+
+    def _display_guest_dead(self):
+        marker = '   Guest is DEAD   '
+        y = min(len(self._headline), 80 - len(marker))
+        self.screen.addstr(0, y, marker, curses.A_BLINK | curses.A_STANDOUT)
 
     def _show_msg(self, text):
         """Display message centered text and exit on key press"""
