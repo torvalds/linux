@@ -45,8 +45,6 @@ enum hqd_dequeue_request_type {
 	RESET_WAVES
 };
 
-struct vi_sdma_mqd;
-
 /*
  * Register access functions
  */
