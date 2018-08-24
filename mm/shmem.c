@@ -124,7 +124,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
 static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
 		struct page **pagep, enum sgp_type sgp,
 		gfp_t gfp, struct vm_area_struct *vma,
-		struct vm_fault *vmf, int *fault_type);
+		struct vm_fault *vmf, vm_fault_t *fault_type);
 
 int shmem_getpage(struct inode *inode, pgoff_t index,
 		struct page **pagep, enum sgp_type sgp)
@@ -1620,7 +1620,8 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
  */
 static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
 	struct page **pagep, enum sgp_type sgp, gfp_t gfp,
-	struct vm_area_struct *vma, struct vm_fault *vmf, int *fault_type)
+	struct vm_area_struct *vma, struct vm_fault *vmf,
+			vm_fault_t *fault_type)
 {
 	struct address_space *mapping = inode->i_mapping;
 	struct shmem_inode_info *info = SHMEM_I(inode);

@@ -880,7 +880,8 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
 					unsigned long address, pmd_t *pmd,
 					int referenced)
 {
-	int swapped_in = 0, ret = 0;
+	int swapped_in = 0;
+	vm_fault_t ret = 0;
 	struct vm_fault vmf = {
 		.vma = vma,
 		.address = address,

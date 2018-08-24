@@ -340,16 +340,14 @@ out:
  * fatal_signal_pending()s, and the mmap_sem must be released before
  * returning it.
  */
-int handle_userfault(struct vm_fault *vmf, unsigned long reason)
+vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 {
 	struct mm_struct *mm = vmf->vma->vm_mm;
 	struct userfaultfd_ctx *ctx;
 	struct userfaultfd_wait_queue uwq;
-	int ret;
+	vm_fault_t ret = VM_FAULT_SIGBUS;
 	bool must_wait, return_to_userland;
 	long blocking_state;
-
-	ret = VM_FAULT_SIGBUS;
 
 	/*
 	 * We don't do userfault handling for the final child pid update.
