@@ -101,18 +101,22 @@ static void atmel_hlcdc_crtc_mode_set_nofb(struct drm_crtc *c)
 		     (adj->crtc_hdisplay - 1) |
 		     ((adj->crtc_vdisplay - 1) << 16));
 
-	cfg = 0;
+	cfg = ATMEL_HLCDC_CLKSEL;
 
-	prate = clk_get_rate(crtc->dc->hlcdc->sys_clk);
+	prate = 2 * clk_get_rate(crtc->dc->hlcdc->sys_clk);
 	mode_rate = adj->crtc_clock * 1000;
-	if ((prate / 2) < mode_rate) {
-		prate *= 2;
-		cfg |= ATMEL_HLCDC_CLKSEL;
-	}
 
 	div = DIV_ROUND_UP(prate, mode_rate);
-	if (div < 2)
+	if (div < 2) {
 		div = 2;
+	} else if (ATMEL_HLCDC_CLKDIV(div) & ~ATMEL_HLCDC_CLKDIV_MASK) {
+		/* The divider ended up too big, try a lower base rate. */
+		cfg &= ~ATMEL_HLCDC_CLKSEL;
+		prate /= 2;
+		div = DIV_ROUND_UP(prate, mode_rate);
+		if (ATMEL_HLCDC_CLKDIV(div) & ~ATMEL_HLCDC_CLKDIV_MASK)
+			div = ATMEL_HLCDC_CLKDIV_MASK;
+	}
 
 	cfg |= ATMEL_HLCDC_CLKDIV(div);
 
