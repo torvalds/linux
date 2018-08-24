@@ -1375,8 +1375,112 @@ static struct attribute_group protkey_attr_group = {
 	.bin_attrs = protkey_attrs,
 };
 
+/*
+ * Sysfs attribute read function for all secure key ccadata binary attributes.
+ * The implementation can not deal with partial reads, because a new random
+ * protected key blob is generated with each read. In case of partial reads
+ * (i.e. off != 0 or count < key blob size) -EINVAL is returned.
+ */
+static ssize_t pkey_ccadata_aes_attr_read(u32 keytype, bool is_xts, char *buf,
+					  loff_t off, size_t count)
+{
+	int rc;
+
+	if (off != 0 || count < sizeof(struct secaeskeytoken))
+		return -EINVAL;
+	if (is_xts)
+		if (count < 2 * sizeof(struct secaeskeytoken))
+			return -EINVAL;
+
+	rc = pkey_genseckey(-1, -1, keytype, (struct pkey_seckey *)buf);
+	if (rc)
+		return rc;
+
+	if (is_xts) {
+		buf += sizeof(struct pkey_seckey);
+		rc = pkey_genseckey(-1, -1, keytype, (struct pkey_seckey *)buf);
+		if (rc)
+			return rc;
+
+		return 2 * sizeof(struct secaeskeytoken);
+	}
+
+	return sizeof(struct secaeskeytoken);
+}
+
+static ssize_t ccadata_aes_128_read(struct file *filp,
+				    struct kobject *kobj,
+				    struct bin_attribute *attr,
+				    char *buf, loff_t off,
+				    size_t count)
+{
+	return pkey_ccadata_aes_attr_read(PKEY_KEYTYPE_AES_128, false, buf,
+					  off, count);
+}
+
+static ssize_t ccadata_aes_192_read(struct file *filp,
+				    struct kobject *kobj,
+				    struct bin_attribute *attr,
+				    char *buf, loff_t off,
+				    size_t count)
+{
+	return pkey_ccadata_aes_attr_read(PKEY_KEYTYPE_AES_192, false, buf,
+					  off, count);
+}
+
+static ssize_t ccadata_aes_256_read(struct file *filp,
+				    struct kobject *kobj,
+				    struct bin_attribute *attr,
+				    char *buf, loff_t off,
+				    size_t count)
+{
+	return pkey_ccadata_aes_attr_read(PKEY_KEYTYPE_AES_256, false, buf,
+					  off, count);
+}
+
+static ssize_t ccadata_aes_128_xts_read(struct file *filp,
+					struct kobject *kobj,
+					struct bin_attribute *attr,
+					char *buf, loff_t off,
+					size_t count)
+{
+	return pkey_ccadata_aes_attr_read(PKEY_KEYTYPE_AES_128, true, buf,
+					  off, count);
+}
+
+static ssize_t ccadata_aes_256_xts_read(struct file *filp,
+					struct kobject *kobj,
+					struct bin_attribute *attr,
+					char *buf, loff_t off,
+					size_t count)
+{
+	return pkey_ccadata_aes_attr_read(PKEY_KEYTYPE_AES_256, true, buf,
+					  off, count);
+}
+
+static BIN_ATTR_RO(ccadata_aes_128, sizeof(struct secaeskeytoken));
+static BIN_ATTR_RO(ccadata_aes_192, sizeof(struct secaeskeytoken));
+static BIN_ATTR_RO(ccadata_aes_256, sizeof(struct secaeskeytoken));
+static BIN_ATTR_RO(ccadata_aes_128_xts, 2 * sizeof(struct secaeskeytoken));
+static BIN_ATTR_RO(ccadata_aes_256_xts, 2 * sizeof(struct secaeskeytoken));
+
+static struct bin_attribute *ccadata_attrs[] = {
+	&bin_attr_ccadata_aes_128,
+	&bin_attr_ccadata_aes_192,
+	&bin_attr_ccadata_aes_256,
+	&bin_attr_ccadata_aes_128_xts,
+	&bin_attr_ccadata_aes_256_xts,
+	NULL
+};
+
+static struct attribute_group ccadata_attr_group = {
+	.name	   = "ccadata",
+	.bin_attrs = ccadata_attrs,
+};
+
 static const struct attribute_group *pkey_attr_groups[] = {
 	&protkey_attr_group,
+	&ccadata_attr_group,
 	NULL,
 };
 
