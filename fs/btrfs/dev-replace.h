@@ -28,8 +28,6 @@ void btrfs_dev_replace_read_unlock(struct btrfs_dev_replace *dev_replace);
 void btrfs_dev_replace_write_lock(struct btrfs_dev_replace *dev_replace);
 void btrfs_dev_replace_write_unlock(struct btrfs_dev_replace *dev_replace);
 void btrfs_dev_replace_set_lock_blocking(struct btrfs_dev_replace *dev_replace);
-void btrfs_dev_replace_clear_lock_blocking(
-					struct btrfs_dev_replace *dev_replace);
 
 static inline void btrfs_dev_replace_stats_inc(atomic64_t *stat_value)
 {

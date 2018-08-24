@@ -998,18 +998,6 @@ void btrfs_dev_replace_set_lock_blocking(
 	read_unlock(&dev_replace->lock);
 }
 
-/* acquire read lock and dec blocking cnt */
-void btrfs_dev_replace_clear_lock_blocking(
-					struct btrfs_dev_replace *dev_replace)
-{
-	/* only set blocking for read lock */
-	ASSERT(atomic_read(&dev_replace->blocking_readers) > 0);
-	read_lock(&dev_replace->lock);
-	/* Barrier implied by atomic_dec_and_test */
-	if (atomic_dec_and_test(&dev_replace->blocking_readers))
-		cond_wake_up_nomb(&dev_replace->read_lock_wq);
-}
-
 void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info)
 {
 	percpu_counter_inc(&fs_info->bio_counter);

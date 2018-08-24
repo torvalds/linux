@@ -5904,7 +5904,11 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 	}
 out:
 	if (dev_replace_is_ongoing) {
-		btrfs_dev_replace_clear_lock_blocking(dev_replace);
+		ASSERT(atomic_read(&dev_replace->blocking_readers) > 0);
+		btrfs_dev_replace_read_lock(dev_replace);
+		/* Barrier implied by atomic_dec_and_test */
+		if (atomic_dec_and_test(&dev_replace->blocking_readers))
+			cond_wake_up_nomb(&dev_replace->read_lock_wq);
 		btrfs_dev_replace_read_unlock(dev_replace);
 	}
 	free_extent_map(em);
