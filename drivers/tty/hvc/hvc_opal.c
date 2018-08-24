@@ -52,6 +52,7 @@ static u32 hvc_opal_boot_termno;
 static const struct hv_ops hvc_opal_raw_ops = {
 	.get_chars = opal_get_chars,
 	.put_chars = opal_put_chars,
+	.flush = opal_flush_chars,
 	.notifier_add = notifier_add_irq,
 	.notifier_del = notifier_del_irq,
 	.notifier_hangup = notifier_hangup_irq,
@@ -141,6 +142,7 @@ static int hvc_opal_hvsi_tiocmset(struct hvc_struct *hp, unsigned int set,
 static const struct hv_ops hvc_opal_hvsi_ops = {
 	.get_chars = hvc_opal_hvsi_get_chars,
 	.put_chars = hvc_opal_hvsi_put_chars,
+	.flush = opal_flush_chars,
 	.notifier_add = hvc_opal_hvsi_open,
 	.notifier_del = hvc_opal_hvsi_close,
 	.notifier_hangup = hvc_opal_hvsi_hangup,
