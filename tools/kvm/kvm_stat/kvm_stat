@@ -1170,6 +1170,9 @@ class Tui(object):
 
             return sorted_items
 
+        if not self._is_running_guest(self.stats.pid_filter):
+            # leave final data on screen
+            return
         row = 3
         self.screen.move(row, 0)
         self.screen.clrtobot()
@@ -1327,6 +1330,12 @@ class Tui(object):
                 msg = '"' + str(val) + '": Invalid value'
         self._refresh_header()
 
+    def _is_running_guest(self, pid):
+        """Check if pid is still a running process."""
+        if not pid:
+            return True
+        return os.path.isdir(os.path.join('/proc/', str(pid)))
+
     def _show_vm_selection_by_guest(self):
         """Draws guest selection mask.
 
@@ -1354,7 +1363,7 @@ class Tui(object):
             if not guest or guest == '0':
                 break
             if guest.isdigit():
-                if not os.path.isdir(os.path.join('/proc/', guest)):
+                if not self._is_running_guest(guest):
                     msg = '"' + guest + '": Not a running process'
                     continue
                 pid = int(guest)
