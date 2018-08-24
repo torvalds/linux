@@ -668,7 +668,7 @@ static inline int imx274_write_reg(struct stimx274 *priv, u16 addr, u8 val)
  * @addr: Address of the LSB register.  Other registers must be
  *        consecutive, least-to-most significant.
  * @val: Value to be written to the register (cpu endianness)
- * @nbytes: Number of bits to write (range: [1..3])
+ * @nbytes: Number of bytes to write (range: [1..3])
  */
 static int imx274_write_mbreg(struct stimx274 *priv, u16 addr, u32 val,
 			      size_t nbytes)
