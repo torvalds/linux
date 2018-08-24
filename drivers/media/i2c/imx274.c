@@ -76,7 +76,7 @@
  */
 #define IMX274_MIN_EXPOSURE_TIME		(4 * 260 / 72)
 
-#define IMX274_DEFAULT_MODE			IMX274_BINNING_OFF
+#define IMX274_DEFAULT_BINNING			IMX274_BINNING_OFF
 #define IMX274_MAX_WIDTH			(3840)
 #define IMX274_MAX_HEIGHT			(2160)
 #define IMX274_MAX_FRAME_RATE			(120)
@@ -1871,7 +1871,7 @@ static int imx274_probe(struct i2c_client *client,
 	mutex_init(&imx274->lock);
 
 	/* initialize format */
-	imx274->mode = &imx274_formats[IMX274_DEFAULT_MODE];
+	imx274->mode = &imx274_formats[IMX274_DEFAULT_BINNING];
 	imx274->crop.width = IMX274_MAX_WIDTH;
 	imx274->crop.height = IMX274_MAX_HEIGHT;
 	imx274->format.width = imx274->crop.width / imx274->mode->bin_ratio;
