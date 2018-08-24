@@ -164,7 +164,7 @@ again:
 			   atomic_read(&eb->blocking_writers) == 0);
 		goto again;
 	}
-	atomic_inc(&eb->read_locks);
+	btrfs_assert_tree_read_locks_get(eb);
 	btrfs_assert_spinning_readers_get(eb);
 }
 
@@ -183,7 +183,7 @@ int btrfs_tree_read_lock_atomic(struct extent_buffer *eb)
 		read_unlock(&eb->lock);
 		return 0;
 	}
-	atomic_inc(&eb->read_locks);
+	btrfs_assert_tree_read_locks_get(eb);
 	btrfs_assert_spinning_readers_get(eb);
 	return 1;
 }
@@ -204,7 +204,7 @@ int btrfs_try_tree_read_lock(struct extent_buffer *eb)
 		read_unlock(&eb->lock);
 		return 0;
 	}
-	atomic_inc(&eb->read_locks);
+	btrfs_assert_tree_read_locks_get(eb);
 	btrfs_assert_spinning_readers_get(eb);
 	return 1;
 }
@@ -248,7 +248,7 @@ void btrfs_tree_read_unlock(struct extent_buffer *eb)
 	}
 	btrfs_assert_tree_read_locked(eb);
 	btrfs_assert_spinning_readers_put(eb);
-	atomic_dec(&eb->read_locks);
+	btrfs_assert_tree_read_locks_put(eb);
 	read_unlock(&eb->lock);
 }
 
@@ -272,7 +272,7 @@ void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb)
 	/* atomic_dec_and_test implies a barrier */
 	if (atomic_dec_and_test(&eb->blocking_readers))
 		cond_wake_up_nomb(&eb->read_lock_wq);
-	atomic_dec(&eb->read_locks);
+	btrfs_assert_tree_read_locks_put(eb);
 }
 
 /*
