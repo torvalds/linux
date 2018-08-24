@@ -243,7 +243,7 @@ int btrfs_try_tree_write_lock(struct extent_buffer *eb)
 		write_unlock(&eb->lock);
 		return 0;
 	}
-	atomic_inc(&eb->write_locks);
+	btrfs_assert_tree_write_locks_get(eb);
 	btrfs_assert_spinning_writers_get(eb);
 	eb->lock_owner = current->pid;
 	return 1;
@@ -310,7 +310,7 @@ again:
 		goto again;
 	}
 	btrfs_assert_spinning_writers_get(eb);
-	atomic_inc(&eb->write_locks);
+	btrfs_assert_tree_write_locks_get(eb);
 	eb->lock_owner = current->pid;
 }
 
@@ -325,7 +325,7 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
 
 	btrfs_assert_tree_locked(eb);
 	eb->lock_owner = 0;
-	atomic_dec(&eb->write_locks);
+	btrfs_assert_tree_write_locks_put(eb);
 
 	if (blockers) {
 		btrfs_assert_no_spinning_writers(eb);
