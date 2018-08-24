@@ -13619,6 +13619,13 @@ static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
 bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, enum plane_id plane_id)
 {
+	/*
+	 * FIXME: ICL requires two hardware planes for scanning out NV12
+	 * framebuffers. Do not advertize support until this is implemented.
+	 */
+	if (INTEL_GEN(dev_priv) >= 11)
+		return false;
+
 	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
 		return false;
 
@@ -14540,7 +14547,7 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		break;
 	case DRM_FORMAT_NV12:
 		if (INTEL_GEN(dev_priv) < 9 || IS_SKYLAKE(dev_priv) ||
-		    IS_BROXTON(dev_priv)) {
+		    IS_BROXTON(dev_priv) || INTEL_GEN(dev_priv) >= 11) {
 			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
 				      drm_get_format_name(mode_cmd->pixel_format,
 							  &format_name));
