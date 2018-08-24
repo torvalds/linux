@@ -24,6 +24,7 @@
  */
 
 #include "dm_services.h"
+#include "dm_event_log.h"
 
 /*
  * Pre-requisites: headers required by header of this unit
@@ -169,6 +170,23 @@ bool dal_i2c_hw_engine_submit_request(
 		hw_engine->base.funcs->
 			process_channel_reply(&hw_engine->base, &reply);
 	}
+
+	if (i2caux_request->operation == I2CAUX_TRANSACTION_READ) {
+		EVENT_LOG_I2CAUX_READ(i2caux_request->payload.address_space,
+							engine->ddc->pin_data->en,
+							i2caux_request->payload.address,
+							i2caux_request->status,
+							i2caux_request->payload.length,
+							i2caux_request->payload.data);
+	} else if (i2caux_request->operation == I2CAUX_TRANSACTION_WRITE) {
+		EVENT_LOG_I2CAUX_WRITE(i2caux_request->payload.address_space,
+							engine->ddc->pin_data->en,
+							i2caux_request->payload.address,
+							i2caux_request->status,
+							i2caux_request->payload.length,
+							i2caux_request->payload.data);
+	}
+
 
 	return result;
 }
