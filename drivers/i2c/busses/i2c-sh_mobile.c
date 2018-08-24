@@ -507,7 +507,7 @@ static void sh_mobile_i2c_dma_callback(void *data)
 	pd->pos = pd->msg->len;
 	pd->stop_after_dma = true;
 
-	i2c_release_dma_safe_msg_buf(pd->msg, pd->dma_buf);
+	i2c_put_dma_safe_msg_buf(pd->dma_buf, pd->msg, true);
 
 	iic_set_clr(pd, ICIC, 0, ICIC_TDMAE | ICIC_RDMAE);
 }
