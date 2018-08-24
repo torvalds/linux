@@ -21,8 +21,12 @@
 #define PKEY_IOCTL_MAGIC 'p'
 
 #define SECKEYBLOBSIZE	64     /* secure key blob size is always 64 bytes */
+#define PROTKEYBLOBSIZE 80  /* protected key blob size is always 80 bytes */
 #define MAXPROTKEYSIZE	64  /* a protected key blob may be up to 64 bytes */
 #define MAXCLRKEYSIZE	32     /* a clear key value may be up to 32 bytes */
+
+#define MINKEYBLOBSIZE	SECKEYBLOBSIZE	    /* Minimum size of a key blob */
+#define MAXKEYBLOBSIZE	PROTKEYBLOBSIZE     /* Maximum size of a key blob */
 
 /* defines for the type field within the pkey_protkey struct */
 #define PKEY_KEYTYPE_AES_128  1
@@ -147,5 +151,16 @@ struct pkey_verifyprotk {
 };
 
 #define PKEY_VERIFYPROTK _IOW(PKEY_IOCTL_MAGIC, 0x09, struct pkey_verifyprotk)
+
+/*
+ * Transform an key blob (of any type) into a protected key
+ */
+struct pkey_kblob2pkey {
+	__u8 __user *key;		/* in: the key blob	   */
+	__u32 keylen;			/* in: the key blob length */
+	struct pkey_protkey protkey;	/* out: the protected key  */
+};
+
+#define PKEY_KBLOB2PROTK _IOWR(PKEY_IOCTL_MAGIC, 0x0A, struct pkey_kblob2pkey)
 
 #endif /* _UAPI_PKEY_H */

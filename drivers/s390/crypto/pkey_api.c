@@ -67,6 +67,14 @@ static void __exit pkey_debug_exit(void)
 /* For TOKTYPE_CCA_INTERNAL: */
 #define TOKVER_CCA_AES		0x04 /* CCA AES key token */
 
+/* header part of a key token */
+struct keytoken_header {
+	u8  type;     /* one of the TOKTYPE values */
+	u8  res0[3];
+	u8  version;  /* one of the TOKVER values */
+	u8  res1[3];
+} __packed;
+
 /* inside view of a secure key token (only type 0x01 version 0x04) */
 struct secaeskeytoken {
 	u8  type;     /* 0x01 for internal key token */
@@ -1161,6 +1169,80 @@ int pkey_verifyprotkey(const struct pkey_protkey *protkey)
 EXPORT_SYMBOL(pkey_verifyprotkey);
 
 /*
+ * Transform a non-CCA key token into a protected key
+ */
+static int pkey_nonccatok2pkey(const __u8 *key, __u32 keylen,
+			       struct pkey_protkey *protkey)
+{
+	struct keytoken_header *hdr = (struct keytoken_header *)key;
+	struct protaeskeytoken *t;
+
+	switch (hdr->version) {
+	case TOKVER_PROTECTED_KEY:
+		if (keylen != sizeof(struct protaeskeytoken))
+			return -EINVAL;
+
+		t = (struct protaeskeytoken *)key;
+		protkey->len = t->len;
+		protkey->type = t->keytype;
+		memcpy(protkey->protkey, t->protkey,
+		       sizeof(protkey->protkey));
+
+		return pkey_verifyprotkey(protkey);
+	default:
+		DEBUG_ERR("%s unknown/unsupported non-CCA token version %d\n",
+			  __func__, hdr->version);
+		return -EINVAL;
+	}
+}
+
+/*
+ * Transform a CCA internal key token into a protected key
+ */
+static int pkey_ccainttok2pkey(const __u8 *key, __u32 keylen,
+			       struct pkey_protkey *protkey)
+{
+	struct keytoken_header *hdr = (struct keytoken_header *)key;
+
+	switch (hdr->version) {
+	case TOKVER_CCA_AES:
+		if (keylen != sizeof(struct secaeskeytoken))
+			return -EINVAL;
+
+		return pkey_skey2pkey((struct pkey_seckey *)key,
+				      protkey);
+	default:
+		DEBUG_ERR("%s unknown/unsupported CCA internal token version %d\n",
+			  __func__, hdr->version);
+		return -EINVAL;
+	}
+}
+
+/*
+ * Transform a key blob (of any type) into a protected key
+ */
+int pkey_keyblob2pkey(const __u8 *key, __u32 keylen,
+		      struct pkey_protkey *protkey)
+{
+	struct keytoken_header *hdr = (struct keytoken_header *)key;
+
+	if (keylen < sizeof(struct keytoken_header))
+		return -EINVAL;
+
+	switch (hdr->type) {
+	case TOKTYPE_NON_CCA:
+		return pkey_nonccatok2pkey(key, keylen, protkey);
+	case TOKTYPE_CCA_INTERNAL:
+		return pkey_ccainttok2pkey(key, keylen, protkey);
+	default:
+		DEBUG_ERR("%s unknown/unsupported blob type %d\n", __func__,
+			  hdr->type);
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL(pkey_keyblob2pkey);
+
+/*
  * File io functions
  */
 
@@ -1298,6 +1380,34 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			return -EFAULT;
 		rc = pkey_verifyprotkey(&kvp.protkey);
 		DEBUG_DBG("%s pkey_verifyprotkey()=%d\n", __func__, rc);
+		break;
+	}
+	case PKEY_KBLOB2PROTK: {
+		struct pkey_kblob2pkey __user *utp = (void __user *) arg;
+		struct pkey_kblob2pkey ktp;
+		__u8 __user *ukey;
+		__u8 *kkey;
+
+		if (copy_from_user(&ktp, utp, sizeof(ktp)))
+			return -EFAULT;
+		if (ktp.keylen < MINKEYBLOBSIZE ||
+		    ktp.keylen > MAXKEYBLOBSIZE)
+			return -EINVAL;
+		ukey = ktp.key;
+		kkey = kmalloc(ktp.keylen, GFP_KERNEL);
+		if (kkey == NULL)
+			return -ENOMEM;
+		if (copy_from_user(kkey, ukey, ktp.keylen)) {
+			kfree(kkey);
+			return -EFAULT;
+		}
+		rc = pkey_keyblob2pkey(kkey, ktp.keylen, &ktp.protkey);
+		DEBUG_DBG("%s pkey_keyblob2pkey()=%d\n", __func__, rc);
+		kfree(kkey);
+		if (rc)
+			break;
+		if (copy_to_user(utp, &ktp, sizeof(ktp)))
+			return -EFAULT;
 		break;
 	}
 	default:
