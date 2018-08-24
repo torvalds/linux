@@ -1762,7 +1762,7 @@ static struct stream_encoder *find_first_free_match_stream_enc_for_link(
 	 * required for non DP connectors.
 	 */
 
-	if (j >= 0 && dc_is_dp_signal(stream->signal))
+	if (j >= 0 && link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT)
 		return pool->stream_enc[j];
 
 	return NULL;
