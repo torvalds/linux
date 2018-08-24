@@ -116,6 +116,7 @@ void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
  */
 void amdgpu_gmc_gart_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 {
+	const uint64_t four_gb = 0x100000000ULL;
 	u64 size_af, size_bf;
 
 	mc->gart_size += adev->pm.smu_prv_buffer_size;
@@ -124,8 +125,7 @@ void amdgpu_gmc_gart_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	 * the GART base on a 4GB boundary as well.
 	 */
 	size_bf = mc->vram_start;
-	size_af = adev->gmc.mc_mask + 1 -
-		ALIGN(mc->vram_end + 1, 0x100000000ULL);
+	size_af = adev->gmc.mc_mask + 1 - ALIGN(mc->vram_end + 1, four_gb);
 
 	if (mc->gart_size > max(size_bf, size_af)) {
 		dev_warn(adev->dev, "limiting GART\n");
@@ -136,7 +136,9 @@ void amdgpu_gmc_gart_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	    (size_af < mc->gart_size))
 		mc->gart_start = 0;
 	else
-		mc->gart_start = ALIGN(mc->vram_end + 1, 0x100000000ULL);
+		mc->gart_start = mc->mc_mask - mc->gart_size + 1;
+
+	mc->gart_start &= four_gb - 1;
 	mc->gart_end = mc->gart_start + mc->gart_size - 1;
 	dev_info(adev->dev, "GART: %lluM 0x%016llX - 0x%016llX\n",
 			mc->gart_size >> 20, mc->gart_start, mc->gart_end);
