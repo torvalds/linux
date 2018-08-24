@@ -11698,11 +11698,15 @@ static int nested_vmx_check_apicv_controls(struct kvm_vcpu *vcpu,
 	 * bits 15:8 should be zero in posted_intr_nv,
 	 * the descriptor address has been already checked
 	 * in nested_get_vmcs12_pages.
+	 *
+	 * bits 5:0 of posted_intr_desc_addr should be zero.
 	 */
 	if (nested_cpu_has_posted_intr(vmcs12) &&
 	   (!nested_cpu_has_vid(vmcs12) ||
 	    !nested_exit_intr_ack_set(vcpu) ||
-	    vmcs12->posted_intr_nv & 0xff00))
+	    (vmcs12->posted_intr_nv & 0xff00) ||
+	    (vmcs12->posted_intr_desc_addr & 0x3f) ||
+	    (!page_address_valid(vcpu, vmcs12->posted_intr_desc_addr))))
 		return -EINVAL;
 
 	/* tpr shadow is needed by all apicv features. */
