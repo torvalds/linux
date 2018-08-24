@@ -1890,6 +1890,17 @@ static int spcm_bind(struct snd_soc_component *scomp, struct snd_sof_pcm *spcm,
 	return 0;
 }
 
+/* Used for free route in topology free stage */
+static void sof_route_remove(struct snd_soc_dapm_route *route)
+{
+	if (!route)
+		return;
+
+	kfree(route->source);
+	kfree(route->sink);
+	kfree(route->control);
+}
+
 /* DAI link - used for any driver specific init */
 static int sof_route_load(struct snd_soc_component *scomp, int index,
 			  struct snd_soc_dapm_route *route)
@@ -1999,7 +2010,22 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 			goto err;
 		}
 
-		sroute->route = route;
+		sroute->route.source = kstrdup(route->source, GFP_KERNEL);
+		if (!sroute->route.source)
+			goto err;
+
+		sroute->route.sink = kstrdup(route->sink, GFP_KERNEL);
+		if (!sroute->route.sink) {
+			kfree(sroute->route.source);
+			goto err;
+		}
+
+		sroute->route.control = kstrdup(route->control, GFP_KERNEL);
+		if (!sroute->route.control) {
+			kfree(sroute->route.source);
+			kfree(sroute->route.sink);
+			goto err;
+		}
 		sroute->private = connect;
 
 		/* add route to route list */
@@ -2175,7 +2201,9 @@ void snd_sof_free_topology(struct snd_sof_dev *sdev)
 	list_for_each_entry_safe(sroute, temp, &sdev->route_list, list) {
 
 		/* delete dapm route */
-		snd_soc_dapm_del_routes(dapm, sroute->route, 1);
+		snd_soc_dapm_del_routes(dapm, &sroute->route, 1);
+
+		sof_route_remove(&sroute->route);
 
 		/* free sroute and its private data */
 		kfree(sroute->private);
