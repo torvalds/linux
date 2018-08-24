@@ -1059,17 +1059,9 @@ void xprt_request_wait_receive(struct rpc_task *task)
 }
 
 static bool
-xprt_request_need_transmit(struct rpc_task *task)
-{
-	return !(task->tk_flags & RPC_TASK_NO_RETRANS_TIMEOUT) ||
-		xprt_request_retransmit_after_disconnect(task);
-}
-
-static bool
 xprt_request_need_enqueue_transmit(struct rpc_task *task, struct rpc_rqst *req)
 {
-	return xprt_request_need_transmit(task) &&
-		!test_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate);
+	return !test_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate);
 }
 
 /**
@@ -1122,6 +1114,18 @@ xprt_request_dequeue_transmit(struct rpc_task *task)
 	spin_lock(&xprt->queue_lock);
 	xprt_request_dequeue_transmit_locked(task);
 	spin_unlock(&xprt->queue_lock);
+}
+
+/**
+ * xprt_request_need_retransmit - Test if a task needs retransmission
+ * @task: pointer to rpc_task
+ *
+ * Test for whether a connection breakage requires the task to retransmit
+ */
+bool
+xprt_request_need_retransmit(struct rpc_task *task)
+{
+	return xprt_request_retransmit_after_disconnect(task);
 }
 
 /**
