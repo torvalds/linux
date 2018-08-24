@@ -1063,6 +1063,117 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 	intel_gvt_sanitize_options(dev_priv);
 }
 
+static int
+bxt_get_dram_info(struct drm_i915_private *dev_priv)
+{
+	struct dram_info *dram_info = &dev_priv->dram_info;
+	u32 dram_channels;
+	u32 mem_freq_khz, val;
+	u8 num_active_channels;
+	int i;
+
+	val = I915_READ(BXT_P_CR_MC_BIOS_REQ_0_0_0);
+	mem_freq_khz = DIV_ROUND_UP((val & BXT_REQ_DATA_MASK) *
+				    BXT_MEMORY_FREQ_MULTIPLIER_HZ, 1000);
+
+	dram_channels = val & BXT_DRAM_CHANNEL_ACTIVE_MASK;
+	num_active_channels = hweight32(dram_channels);
+
+	/* Each active bit represents 4-byte channel */
+	dram_info->bandwidth_kbps = (mem_freq_khz * num_active_channels * 4);
+
+	if (dram_info->bandwidth_kbps == 0) {
+		DRM_INFO("Couldn't get system memory bandwidth\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Now read each DUNIT8/9/10/11 to check the rank of each dimms.
+	 */
+	for (i = BXT_D_CR_DRP0_DUNIT_START; i <= BXT_D_CR_DRP0_DUNIT_END; i++) {
+		u8 size, width;
+		enum dram_rank rank;
+		u32 tmp;
+
+		val = I915_READ(BXT_D_CR_DRP0_DUNIT(i));
+		if (val == 0xFFFFFFFF)
+			continue;
+
+		dram_info->num_channels++;
+		tmp = val & BXT_DRAM_RANK_MASK;
+
+		if (tmp == BXT_DRAM_RANK_SINGLE)
+			rank = I915_DRAM_RANK_SINGLE;
+		else if (tmp == BXT_DRAM_RANK_DUAL)
+			rank = I915_DRAM_RANK_DUAL;
+		else
+			rank = I915_DRAM_RANK_INVALID;
+
+		tmp = val & BXT_DRAM_SIZE_MASK;
+		if (tmp == BXT_DRAM_SIZE_4GB)
+			size = 4;
+		else if (tmp == BXT_DRAM_SIZE_6GB)
+			size = 6;
+		else if (tmp == BXT_DRAM_SIZE_8GB)
+			size = 8;
+		else if (tmp == BXT_DRAM_SIZE_12GB)
+			size = 12;
+		else if (tmp == BXT_DRAM_SIZE_16GB)
+			size = 16;
+		else
+			size = 0;
+
+		tmp = (val & BXT_DRAM_WIDTH_MASK) >> BXT_DRAM_WIDTH_SHIFT;
+		width = (1 << tmp) * 8;
+		DRM_DEBUG_KMS("dram size:%dGB width:X%d rank:%s\n", size,
+			      width, rank == I915_DRAM_RANK_SINGLE ? "single" :
+			      rank == I915_DRAM_RANK_DUAL ? "dual" : "unknown");
+
+		/*
+		 * If any of the channel is single rank channel,
+		 * worst case output will be same as if single rank
+		 * memory, so consider single rank memory.
+		 */
+		if (dram_info->rank == I915_DRAM_RANK_INVALID)
+			dram_info->rank = rank;
+		else if (rank == I915_DRAM_RANK_SINGLE)
+			dram_info->rank = I915_DRAM_RANK_SINGLE;
+	}
+
+	if (dram_info->rank == I915_DRAM_RANK_INVALID) {
+		DRM_INFO("couldn't get memory rank information\n");
+		return -EINVAL;
+	}
+
+	dram_info->valid = true;
+	return 0;
+}
+
+static void
+intel_get_dram_info(struct drm_i915_private *dev_priv)
+{
+	struct dram_info *dram_info = &dev_priv->dram_info;
+	int ret;
+
+	dram_info->valid = false;
+	dram_info->rank = I915_DRAM_RANK_INVALID;
+	dram_info->bandwidth_kbps = 0;
+	dram_info->num_channels = 0;
+
+	if (!IS_BROXTON(dev_priv))
+		return;
+
+	ret = bxt_get_dram_info(dev_priv);
+	if (ret)
+		return;
+
+	DRM_DEBUG_KMS("DRAM bandwidth:%d KBps, total-channels: %u\n",
+		      dram_info->bandwidth_kbps, dram_info->num_channels);
+	DRM_DEBUG_KMS("DRAM rank: %s rank\n",
+		      (dram_info->rank == I915_DRAM_RANK_DUAL) ?
+		      "dual" : "single");
+}
+
 /**
  * i915_driver_init_hw - setup state requiring device access
  * @dev_priv: device private
@@ -1180,6 +1291,12 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 		goto err_msi;
 
 	intel_opregion_setup(dev_priv);
+	/*
+	 * Fill the dram structure to get the system raw bandwidth and
+	 * dram info. This will be used for memory latency calculation.
+	 */
+	intel_get_dram_info(dev_priv);
+
 
 	return 0;
 

@@ -9583,6 +9583,36 @@ enum skl_power_gate {
 #define  DC_STATE_DEBUG_MASK_CORES	(1 << 0)
 #define  DC_STATE_DEBUG_MASK_MEMORY_UP	(1 << 1)
 
+#define BXT_P_CR_MC_BIOS_REQ_0_0_0	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x7114)
+#define  BXT_REQ_DATA_MASK			0x3F
+#define  BXT_DRAM_CHANNEL_ACTIVE_SHIFT		12
+#define  BXT_DRAM_CHANNEL_ACTIVE_MASK		(0xF << 12)
+#define  BXT_MEMORY_FREQ_MULTIPLIER_HZ		133333333
+
+#define BXT_D_CR_DRP0_DUNIT8			0x1000
+#define BXT_D_CR_DRP0_DUNIT9			0x1200
+#define  BXT_D_CR_DRP0_DUNIT_START		8
+#define  BXT_D_CR_DRP0_DUNIT_END		11
+#define BXT_D_CR_DRP0_DUNIT(x)	_MMIO(MCHBAR_MIRROR_BASE_SNB + \
+				      _PICK_EVEN((x) - 8, BXT_D_CR_DRP0_DUNIT8,\
+						 BXT_D_CR_DRP0_DUNIT9))
+#define  BXT_DRAM_RANK_MASK			0x3
+#define  BXT_DRAM_RANK_SINGLE			0x1
+#define  BXT_DRAM_RANK_DUAL			0x3
+#define  BXT_DRAM_WIDTH_MASK			(0x3 << 4)
+#define  BXT_DRAM_WIDTH_SHIFT			4
+#define  BXT_DRAM_WIDTH_X8			(0x0 << 4)
+#define  BXT_DRAM_WIDTH_X16			(0x1 << 4)
+#define  BXT_DRAM_WIDTH_X32			(0x2 << 4)
+#define  BXT_DRAM_WIDTH_X64			(0x3 << 4)
+#define  BXT_DRAM_SIZE_MASK			(0x7 << 6)
+#define  BXT_DRAM_SIZE_SHIFT			6
+#define  BXT_DRAM_SIZE_4GB			(0x0 << 6)
+#define  BXT_DRAM_SIZE_6GB			(0x1 << 6)
+#define  BXT_DRAM_SIZE_8GB			(0x2 << 6)
+#define  BXT_DRAM_SIZE_12GB			(0x3 << 6)
+#define  BXT_DRAM_SIZE_16GB			(0x4 << 6)
+
 /* Please see hsw_read_dcomp() and hsw_write_dcomp() before using this register,
  * since on HSW we can't write to it using I915_WRITE. */
 #define D_COMP_HSW			_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5F0C)

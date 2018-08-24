@@ -1945,6 +1945,17 @@ struct drm_i915_private {
 		bool distrust_bios_wm;
 	} wm;
 
+	struct dram_info {
+		bool valid;
+		u8 num_channels;
+		enum dram_rank {
+			I915_DRAM_RANK_INVALID = 0,
+			I915_DRAM_RANK_SINGLE,
+			I915_DRAM_RANK_DUAL
+		} rank;
+		u32 bandwidth_kbps;
+	} dram_info;
+
 	struct i915_runtime_pm runtime_pm;
 
 	struct {
