@@ -1353,8 +1353,6 @@ static int kv_dpm_enable(struct amdgpu_device *adev)
 		return ret;
 	}
 
-	kv_update_current_ps(adev, adev->pm.dpm.boot_ps);
-
 	if (adev->irq.installed &&
 	    amdgpu_is_internal_thermal_sensor(adev->pm.int_thermal_type)) {
 		ret = kv_set_thermal_temperature_range(adev, KV_TEMP_RANGE_MIN, KV_TEMP_RANGE_MAX);
@@ -3069,7 +3067,7 @@ static int kv_dpm_hw_init(void *handle)
 	else
 		adev->pm.dpm_enabled = true;
 	mutex_unlock(&adev->pm.mutex);
-
+	amdgpu_pm_compute_clocks(adev);
 	return ret;
 }
 
