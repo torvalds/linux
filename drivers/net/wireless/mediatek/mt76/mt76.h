@@ -312,6 +312,12 @@ struct mt76_usb {
 		struct completion cmpl;
 		struct mt76u_buf res;
 		u32 msg_seq;
+
+		/* multiple reads */
+		struct mt76_reg_pair *rp;
+		int rp_len;
+		u32 base;
+		bool burst;
 	} mcu;
 };
 

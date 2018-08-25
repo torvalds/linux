@@ -49,12 +49,44 @@ void mt76u_mcu_complete_urb(struct urb *urb)
 }
 EXPORT_SYMBOL_GPL(mt76u_mcu_complete_urb);
 
+static void
+mt76u_multiple_mcu_reads(struct mt76_dev *dev, u8 *data,
+			 int len)
+{
+	struct mt76_usb *usb = &dev->usb;
+	u32 reg, val;
+	int i;
+
+	if (usb->mcu.burst) {
+		WARN_ON_ONCE(len / 4 != usb->mcu.rp_len);
+
+		reg = usb->mcu.rp[0].reg - usb->mcu.base;
+		for (i = 0; i < usb->mcu.rp_len; i++) {
+			val = get_unaligned_le32(data + 4 * i);
+			usb->mcu.rp[i].reg = reg++;
+			usb->mcu.rp[i].value = val;
+		}
+	} else {
+		WARN_ON_ONCE(len / 8 != usb->mcu.rp_len);
+
+		for (i = 0; i < usb->mcu.rp_len; i++) {
+			reg = get_unaligned_le32(data + 8 * i) -
+			      usb->mcu.base;
+			val = get_unaligned_le32(data + 8 * i + 4);
+
+			WARN_ON_ONCE(usb->mcu.rp[i].reg != reg);
+			usb->mcu.rp[i].value = val;
+		}
+	}
+}
+
 static int mt76u_mcu_wait_resp(struct mt76_dev *dev, u8 seq)
 {
 	struct mt76_usb *usb = &dev->usb;
 	struct mt76u_buf *buf = &usb->mcu.res;
 	int i, ret;
 	u32 rxfce;
+	u8 *data;
 
 	for (i = 0; i < 5; i++) {
 		if (!wait_for_completion_timeout(&usb->mcu.cmpl,
@@ -64,7 +96,12 @@ static int mt76u_mcu_wait_resp(struct mt76_dev *dev, u8 seq)
 		if (buf->urb->status)
 			return -EIO;
 
-		rxfce = get_unaligned_le32(sg_virt(&buf->urb->sg[0]));
+		data = sg_virt(&buf->urb->sg[0]);
+		if (usb->mcu.rp)
+			mt76u_multiple_mcu_reads(dev, data + 4,
+						 buf->urb->actual_length - 8);
+
+		rxfce = get_unaligned_le32(data);
 		ret = mt76u_submit_buf(dev, USB_DIR_IN,
 				       MT_EP_IN_CMD_RESP,
 				       buf, GFP_KERNEL,
