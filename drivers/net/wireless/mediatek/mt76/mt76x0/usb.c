@@ -93,37 +93,6 @@ int mt76x0_usb_submit_buf(struct mt76x0_dev *dev, int dir, int ep_idx,
 	return ret;
 }
 
-int mt76x0_vendor_request(struct mt76x0_dev *dev, const u8 req,
-			   const u8 direction, const u16 val, const u16 offset,
-			   void *buf, const size_t buflen)
-{
-	int i, ret;
-	struct usb_device *usb_dev = mt76x0_to_usb_dev(dev);
-	const u8 req_type = direction | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
-	const unsigned int pipe = (direction == USB_DIR_IN) ?
-		usb_rcvctrlpipe(usb_dev, 0) : usb_sndctrlpipe(usb_dev, 0);
-
-	for (i = 0; i < MT_VEND_REQ_MAX_RETRY; i++) {
-		ret = usb_control_msg(usb_dev, pipe, req, req_type,
-				      val, offset, buf, buflen,
-				      MT_VEND_REQ_TOUT_MS);
-		trace_mt76x0_vend_req(&dev->mt76, pipe, req, req_type, val, offset,
-				  buf, buflen, ret);
-
-		if (ret == -ENODEV)
-			set_bit(MT76_REMOVED, &dev->mt76.state);
-		if (ret >= 0 || ret == -ENODEV)
-			return ret;
-
-		msleep(5);
-	}
-
-	dev_err(dev->mt76.dev, "Vendor request req:%02x off:%04x failed:%d\n",
-		req, offset, ret);
-
-	return ret;
-}
-
 void mt76x0_addr_wr(struct mt76x0_dev *dev, const u32 offset, const u8 *addr)
 {
 	mt76_wr(dev, offset, get_unaligned_le32(addr));

@@ -488,8 +488,9 @@ mt76x0_upload_firmware(struct mt76x0_dev *dev, const struct mt76_fw *fw)
 	if (ret)
 		goto error;
 
-	ret = mt76x0_vendor_request(dev, MT_VEND_DEV_MODE, USB_DIR_OUT,
-				     0x12, 0, ivb, sizeof(fw->ivb));
+	ret = mt76u_vendor_request(&dev->mt76, MT_VEND_DEV_MODE,
+				   USB_DIR_OUT | USB_TYPE_VENDOR,
+				   0x12, 0, ivb, sizeof(fw->ivb));
 	if (ret < 0)
 		goto error;
 	ret = 0;
