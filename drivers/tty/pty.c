@@ -625,7 +625,7 @@ int ptm_open_peer(struct file *master, struct tty_struct *tty, int flags)
 	if (tty->driver != ptm_driver)
 		return -EIO;
 
-	fd = get_unused_fd_flags(0);
+	fd = get_unused_fd_flags(flags);
 	if (fd < 0) {
 		retval = fd;
 		goto err;

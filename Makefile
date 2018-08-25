@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 4
 PATCHLEVEL = 14
-SUBLEVEL = 66
+SUBLEVEL = 67
 EXTRAVERSION =
 NAME = Petit Gorille
 
@@ -357,9 +357,9 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
 	  else echo sh; fi ; fi)
 
-HOST_LFS_CFLAGS := $(shell getconf LFS_CFLAGS)
-HOST_LFS_LDFLAGS := $(shell getconf LFS_LDFLAGS)
-HOST_LFS_LIBS := $(shell getconf LFS_LIBS)
+HOST_LFS_CFLAGS := $(shell getconf LFS_CFLAGS 2>/dev/null)
+HOST_LFS_LDFLAGS := $(shell getconf LFS_LDFLAGS 2>/dev/null)
+HOST_LFS_LIBS := $(shell getconf LFS_LIBS 2>/dev/null)
 
 HOSTCC       = gcc
 HOSTCXX      = g++

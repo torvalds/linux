@@ -788,6 +788,7 @@ static void sii8620_burst_rx_all(struct sii8620 *ctx)
 static void sii8620_fetch_edid(struct sii8620 *ctx)
 {
 	u8 lm_ddc, ddc_cmd, int3, cbus;
+	unsigned long timeout;
 	int fetched, i;
 	int edid_len = EDID_LENGTH;
 	u8 *edid;
@@ -837,23 +838,31 @@ static void sii8620_fetch_edid(struct sii8620 *ctx)
 			REG_DDC_CMD, ddc_cmd | VAL_DDC_CMD_ENH_DDC_READ_NO_ACK
 		);
 
-		do {
-			int3 = sii8620_readb(ctx, REG_INTR3);
+		int3 = 0;
+		timeout = jiffies + msecs_to_jiffies(200);
+		for (;;) {
 			cbus = sii8620_readb(ctx, REG_CBUS_STATUS);
-
-			if (int3 & BIT_DDC_CMD_DONE)
-				break;
-
-			if (!(cbus & BIT_CBUS_STATUS_CBUS_CONNECTED)) {
+			if (~cbus & BIT_CBUS_STATUS_CBUS_CONNECTED) {
 				kfree(edid);
 				edid = NULL;
 				goto end;
 			}
-		} while (1);
-
-		sii8620_readb(ctx, REG_DDC_STATUS);
-		while (sii8620_readb(ctx, REG_DDC_DOUT_CNT) < FETCH_SIZE)
+			if (int3 & BIT_DDC_CMD_DONE) {
+				if (sii8620_readb(ctx, REG_DDC_DOUT_CNT)
+				    >= FETCH_SIZE)
+					break;
+			} else {
+				int3 = sii8620_readb(ctx, REG_INTR3);
+			}
+			if (time_is_before_jiffies(timeout)) {
+				ctx->error = -ETIMEDOUT;
+				dev_err(ctx->dev, "timeout during EDID read\n");
+				kfree(edid);
+				edid = NULL;
+				goto end;
+			}
 			usleep_range(10, 20);
+		}
 
 		sii8620_read_buf(ctx, REG_DDC_DATA, edid + fetched, FETCH_SIZE);
 		if (fetched + FETCH_SIZE == EDID_LENGTH) {
@@ -1036,23 +1045,23 @@ static void sii8620_set_format(struct sii8620 *ctx)
 				BIT_M3_P0CTRL_MHL3_P0_PIXEL_MODE_PACKED,
 				ctx->use_packed_pixel ? ~0 : 0);
 	} else {
-		if (ctx->use_packed_pixel)
+		if (ctx->use_packed_pixel) {
 			sii8620_write_seq_static(ctx,
 				REG_VID_MODE, BIT_VID_MODE_M1080P,
 				REG_MHL_TOP_CTL, BIT_MHL_TOP_CTL_MHL_PP_SEL | 1,
 				REG_MHLTX_CTL6, 0x60
 			);
-		else
+		} else {
 			sii8620_write_seq_static(ctx,
 				REG_VID_MODE, 0,
 				REG_MHL_TOP_CTL, 1,
 				REG_MHLTX_CTL6, 0xa0
 			);
+		}
 	}
 
 	if (ctx->use_packed_pixel)
-		out_fmt = VAL_TPI_FORMAT(YCBCR422, FULL) |
-			BIT_TPI_OUTPUT_CSCMODE709;
+		out_fmt = VAL_TPI_FORMAT(YCBCR422, FULL);
 	else
 		out_fmt = VAL_TPI_FORMAT(RGB, FULL);
 
@@ -1187,7 +1196,7 @@ static void sii8620_start_hdmi(struct sii8620 *ctx)
 		int clk = ctx->pixel_clock * (ctx->use_packed_pixel ? 2 : 3);
 		int i;
 
-		for (i = 0; i < ARRAY_SIZE(clk_spec); ++i)
+		for (i = 0; i < ARRAY_SIZE(clk_spec) - 1; ++i)
 			if (clk < clk_spec[i].max_clk)
 				break;
 

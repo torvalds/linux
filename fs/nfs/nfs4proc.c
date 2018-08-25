@@ -8429,6 +8429,8 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 
 	dprintk("--> %s tk_status => %d\n", __func__, -task->tk_status);
 
+	nfs4_sequence_free_slot(&lgp->res.seq_res);
+
 	switch (nfs4err) {
 	case 0:
 		goto out;
@@ -8493,7 +8495,6 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 		goto out;
 	}
 
-	nfs4_sequence_free_slot(&lgp->res.seq_res);
 	err = nfs4_handle_exception(server, nfs4err, exception);
 	if (!status) {
 		if (exception->retry)
@@ -8619,20 +8620,22 @@ nfs4_proc_layoutget(struct nfs4_layoutget *lgp, long *timeout, gfp_t gfp_flags)
 	if (IS_ERR(task))
 		return ERR_CAST(task);
 	status = rpc_wait_for_completion_task(task);
-	if (status == 0) {
+	if (status != 0)
+		goto out;
+
+	/* if layoutp->len is 0, nfs4_layoutget_prepare called rpc_exit */
+	if (task->tk_status < 0 || lgp->res.layoutp->len == 0) {
 		status = nfs4_layoutget_handle_exception(task, lgp, &exception);
 		*timeout = exception.timeout;
-	}
-
+	} else
+		lseg = pnfs_layout_process(lgp);
+out:
 	trace_nfs4_layoutget(lgp->args.ctx,
 			&lgp->args.range,
 			&lgp->res.range,
 			&lgp->res.stateid,
 			status);
 
-	/* if layoutp->len is 0, nfs4_layoutget_prepare called rpc_exit */
-	if (status == 0 && lgp->res.layoutp->len)
-		lseg = pnfs_layout_process(lgp);
 	rpc_put_task(task);
 	dprintk("<-- %s status=%d\n", __func__, status);
 	if (status)

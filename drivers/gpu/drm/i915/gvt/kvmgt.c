@@ -42,6 +42,8 @@
 #include <linux/vfio.h>
 #include <linux/mdev.h>
 
+#include <linux/nospec.h>
+
 #include "i915_drv.h"
 #include "gvt.h"
 
@@ -953,7 +955,8 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 	} else if (cmd == VFIO_DEVICE_GET_REGION_INFO) {
 		struct vfio_region_info info;
 		struct vfio_info_cap caps = { .buf = NULL, .size = 0 };
-		int i, ret;
+		unsigned int i;
+		int ret;
 		struct vfio_region_info_cap_sparse_mmap *sparse = NULL;
 		size_t size;
 		int nr_areas = 1;
@@ -1030,6 +1033,10 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 				if (info.index >= VFIO_PCI_NUM_REGIONS +
 						vgpu->vdev.num_regions)
 					return -EINVAL;
+				info.index =
+					array_index_nospec(info.index,
+							VFIO_PCI_NUM_REGIONS +
+							vgpu->vdev.num_regions);
 
 				i = info.index - VFIO_PCI_NUM_REGIONS;
 

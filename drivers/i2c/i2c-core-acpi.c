@@ -475,11 +475,16 @@ static int acpi_gsb_i2c_write_bytes(struct i2c_client *client,
 	msgs[0].buf = buffer;
 
 	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
-	if (ret < 0)
-		dev_err(&client->adapter->dev, "i2c write failed\n");
 
 	kfree(buffer);
-	return ret;
+
+	if (ret < 0) {
+		dev_err(&client->adapter->dev, "i2c write failed: %d\n", ret);
+		return ret;
+	}
+
+	/* 1 transfer must have completed successfully */
+	return (ret == 1) ? 0 : -EIO;
 }
 
 static acpi_status

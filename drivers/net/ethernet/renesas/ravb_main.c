@@ -959,6 +959,13 @@ static void ravb_adjust_link(struct net_device *ndev)
 	struct ravb_private *priv = netdev_priv(ndev);
 	struct phy_device *phydev = ndev->phydev;
 	bool new_state = false;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	/* Disable TX and RX right over here, if E-MAC change is ignored */
+	if (priv->no_avb_link)
+		ravb_rcv_snd_disable(ndev);
 
 	if (phydev->link) {
 		if (phydev->duplex != priv->duplex) {
@@ -976,17 +983,20 @@ static void ravb_adjust_link(struct net_device *ndev)
 			ravb_modify(ndev, ECMR, ECMR_TXF, 0);
 			new_state = true;
 			priv->link = phydev->link;
-			if (priv->no_avb_link)
-				ravb_rcv_snd_enable(ndev);
 		}
 	} else if (priv->link) {
 		new_state = true;
 		priv->link = 0;
 		priv->speed = 0;
 		priv->duplex = -1;
-		if (priv->no_avb_link)
-			ravb_rcv_snd_disable(ndev);
 	}
+
+	/* Enable TX and RX right over here, if E-MAC change is ignored */
+	if (priv->no_avb_link && phydev->link)
+		ravb_rcv_snd_enable(ndev);
+
+	mmiowb();
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (new_state && netif_msg_link(priv))
 		phy_print_status(phydev);
@@ -1094,52 +1104,18 @@ static int ravb_get_link_ksettings(struct net_device *ndev,
 static int ravb_set_link_ksettings(struct net_device *ndev,
 				   const struct ethtool_link_ksettings *cmd)
 {
-	struct ravb_private *priv = netdev_priv(ndev);
-	unsigned long flags;
-	int error;
-
 	if (!ndev->phydev)
 		return -ENODEV;
 
-	spin_lock_irqsave(&priv->lock, flags);
-
-	/* Disable TX and RX */
-	ravb_rcv_snd_disable(ndev);
-
-	error = phy_ethtool_ksettings_set(ndev->phydev, cmd);
-	if (error)
-		goto error_exit;
-
-	if (cmd->base.duplex == DUPLEX_FULL)
-		priv->duplex = 1;
-	else
-		priv->duplex = 0;
-
-	ravb_set_duplex(ndev);
-
-error_exit:
-	mdelay(1);
-
-	/* Enable TX and RX */
-	ravb_rcv_snd_enable(ndev);
-
-	mmiowb();
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return error;
+	return phy_ethtool_ksettings_set(ndev->phydev, cmd);
 }
 
 static int ravb_nway_reset(struct net_device *ndev)
 {
-	struct ravb_private *priv = netdev_priv(ndev);
 	int error = -ENODEV;
-	unsigned long flags;
 
-	if (ndev->phydev) {
-		spin_lock_irqsave(&priv->lock, flags);
+	if (ndev->phydev)
 		error = phy_start_aneg(ndev->phydev);
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
 
 	return error;
 }

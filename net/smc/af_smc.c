@@ -1180,8 +1180,7 @@ static int smc_shutdown(struct socket *sock, int how)
 	lock_sock(sk);
 
 	rc = -ENOTCONN;
-	if ((sk->sk_state != SMC_LISTEN) &&
-	    (sk->sk_state != SMC_ACTIVE) &&
+	if ((sk->sk_state != SMC_ACTIVE) &&
 	    (sk->sk_state != SMC_PEERCLOSEWAIT1) &&
 	    (sk->sk_state != SMC_PEERCLOSEWAIT2) &&
 	    (sk->sk_state != SMC_APPCLOSEWAIT1) &&
