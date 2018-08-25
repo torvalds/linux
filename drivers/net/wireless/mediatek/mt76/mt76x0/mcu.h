@@ -90,7 +90,6 @@ enum mcu_calibrate {
 
 int mt76x0_mcu_init(struct mt76x0_dev *dev);
 int mt76x0_mcu_cmd_init(struct mt76x0_dev *dev);
-void mt76x0_mcu_cmd_deinit(struct mt76x0_dev *dev);
 
 int
 mt76x0_mcu_calibrate(struct mt76x0_dev *dev, enum mcu_calibrate cal, u32 val);

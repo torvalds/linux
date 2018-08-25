@@ -465,7 +465,7 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 err_rx:
 	mt76x0_dma_cleanup(dev);
 err_mcu:
-	mt76x0_mcu_cmd_deinit(dev);
+	mt76u_mcu_deinit(&dev->mt76);
 err:
 	mt76x0_chip_onoff(dev, false, false);
 	return ret;
@@ -478,7 +478,7 @@ void mt76x0_cleanup(struct mt76x0_dev *dev)
 
 	mt76x0_stop_hardware(dev);
 	mt76x0_dma_cleanup(dev);
-	mt76x0_mcu_cmd_deinit(dev);
+	mt76u_mcu_deinit(&dev->mt76);
 }
 
 struct mt76x0_dev *mt76x0_alloc_device(struct device *pdev)
