@@ -10,13 +10,6 @@
  * hackers place grumpy comments in header files.
  */
 
-#define __VMLINUX_SYMBOL(x) x
-#define __VMLINUX_SYMBOL_STR(x) #x
-
-/* Indirect, so macros are expanded before pasting. */
-#define VMLINUX_SYMBOL(x) __VMLINUX_SYMBOL(x)
-#define VMLINUX_SYMBOL_STR(x) __VMLINUX_SYMBOL_STR(x)
-
 #ifndef __ASSEMBLY__
 #ifdef MODULE
 extern struct module __this_module;

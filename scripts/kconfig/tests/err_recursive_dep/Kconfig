@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 # depends on itself
 
 config A
@@ -31,7 +33,6 @@ config D2
 	bool
 
 # depends on and imply
-# This is not recursive dependency
 
 config E1
 	bool "E1"
