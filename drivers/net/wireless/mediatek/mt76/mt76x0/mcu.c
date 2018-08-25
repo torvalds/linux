@@ -93,11 +93,12 @@ static void mt76x0_read_resp_regs(struct mt76x0_dev *dev, int len)
 static int mt76x0_mcu_wait_resp(struct mt76x0_dev *dev, u8 seq)
 {
 	struct urb *urb = dev->mcu.resp.urb;
+	struct mt76_usb *usb = &dev->mt76.usb;
 	u32 rxfce;
 	int urb_status, ret, try = 5;
 
 	while (try--) {
-		if (!wait_for_completion_timeout(&dev->mcu.resp_cmpl,
+		if (!wait_for_completion_timeout(&usb->mcu.cmpl,
 						 msecs_to_jiffies(300))) {
 			dev_warn(dev->mt76.dev, "Warning: %s retrying\n", __func__);
 			continue;
@@ -113,7 +114,7 @@ static int mt76x0_mcu_wait_resp(struct mt76x0_dev *dev, u8 seq)
 		ret = mt76x0_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_CMD_RESP,
 					     &dev->mcu.resp, GFP_KERNEL,
 					     mt76x0_complete_urb,
-					     &dev->mcu.resp_cmpl);
+					     &usb->mcu.cmpl);
 		if (ret)
 			return ret;
 
@@ -151,7 +152,7 @@ __mt76x0_mcu_msg_send(struct mt76x0_dev *dev, struct sk_buff *skb,
 
 	mt76x0_dma_skb_wrap_cmd(skb, seq, cmd);
 
-	if (dev->mcu.resp_cmpl.done)
+	if (&usb->mcu.cmpl.done)
 		dev_err(dev->mt76.dev, "Error: MCU response pre-completed!\n");
 
 	trace_mt76x0_mcu_msg_send_cs(&dev->mt76, skb, wait_resp);
@@ -609,13 +610,13 @@ int mt76x0_mcu_init(struct mt76x0_dev *dev)
 
 int mt76x0_mcu_cmd_init(struct mt76x0_dev *dev)
 {
+	struct mt76_usb *usb = &dev->mt76.usb;
 	int ret;
 
 	ret = mt76x0_mcu_function_select(dev, Q_SELECT, 1);
 	if (ret)
 		return ret;
 
-	init_completion(&dev->mcu.resp_cmpl);
 	if (mt76x0_usb_alloc_buf(dev, MCU_RESP_URB_SIZE, &dev->mcu.resp)) {
 		mt76x0_usb_free_buf(dev, &dev->mcu.resp);
 		return -ENOMEM;
@@ -623,7 +624,7 @@ int mt76x0_mcu_cmd_init(struct mt76x0_dev *dev)
 
 	ret = mt76x0_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_CMD_RESP,
 				     &dev->mcu.resp, GFP_KERNEL,
-				     mt76x0_complete_urb, &dev->mcu.resp_cmpl);
+				     mt76x0_complete_urb, &usb->mcu.cmpl);
 	if (ret) {
 		mt76x0_usb_free_buf(dev, &dev->mcu.resp);
 		return ret;

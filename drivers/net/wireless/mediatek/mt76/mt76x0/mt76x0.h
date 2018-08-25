@@ -55,7 +55,6 @@ struct mt76x0_mcu {
 	u8 msg_seq;
 
 	struct mt76x0_dma_buf resp;
-	struct completion resp_cmpl;
 
 	struct mt76_reg_pair *reg_pairs;
 	unsigned int reg_pairs_len;
