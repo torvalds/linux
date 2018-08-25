@@ -452,8 +452,6 @@ int mt76x0_mcu_init(struct mt76x0_dev *dev)
 {
 	int ret;
 
-	mutex_init(&dev->mcu.mutex);
-
 	ret = mt76x0_load_firmware(dev);
 	if (ret)
 		return ret;

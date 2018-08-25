@@ -49,19 +49,6 @@ struct mt76x0_dma_buf {
 	size_t len;
 };
 
-struct mt76x0_mcu {
-	struct mutex mutex;
-
-	u8 msg_seq;
-
-	struct mt76x0_dma_buf resp;
-
-	struct mt76_reg_pair *reg_pairs;
-	unsigned int reg_pairs_len;
-	u32 reg_base;
-	bool burst_read;
-};
-
 struct mac_stats {
 	u64 rx_stat[6];
 	u64 tx_stat[6];
@@ -159,8 +146,6 @@ struct mt76x0_dev {
 
 	unsigned long wcid_mask[DIV_ROUND_UP(N_WCIDS, BITS_PER_LONG)];
 	unsigned long vif_mask;
-
-	struct mt76x0_mcu mcu;
 
 	struct delayed_work cal_work;
 	struct delayed_work mac_work;
