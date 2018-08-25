@@ -113,7 +113,7 @@ static int mt76x0_mcu_wait_resp(struct mt76x0_dev *dev, u8 seq)
 
 		ret = mt76x0_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_CMD_RESP,
 					     &dev->mcu.resp, GFP_KERNEL,
-					     mt76x0_complete_urb,
+					     mt76u_mcu_complete_urb,
 					     &usb->mcu.cmpl);
 		if (ret)
 			return ret;
@@ -412,7 +412,7 @@ static int __mt76x0_dma_fw(struct mt76x0_dev *dev,
 	buf.len = MT_DMA_HDR_LEN + len + 4;
 	ret = mt76x0_usb_submit_buf(dev, USB_DIR_OUT, MT_EP_OUT_INBAND_CMD,
 				     &buf, GFP_KERNEL,
-				     mt76x0_complete_urb, &cmpl);
+				     mt76u_mcu_complete_urb, &cmpl);
 	if (ret)
 		return ret;
 
@@ -624,7 +624,7 @@ int mt76x0_mcu_cmd_init(struct mt76x0_dev *dev)
 
 	ret = mt76x0_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_CMD_RESP,
 				     &dev->mcu.resp, GFP_KERNEL,
-				     mt76x0_complete_urb, &usb->mcu.cmpl);
+				     mt76u_mcu_complete_urb, &usb->mcu.cmpl);
 	if (ret) {
 		mt76x0_usb_free_buf(dev, &dev->mcu.resp);
 		return ret;

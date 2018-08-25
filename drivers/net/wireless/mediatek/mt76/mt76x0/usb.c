@@ -93,13 +93,6 @@ int mt76x0_usb_submit_buf(struct mt76x0_dev *dev, int dir, int ep_idx,
 	return ret;
 }
 
-void mt76x0_complete_urb(struct urb *urb)
-{
-	struct completion *cmpl = urb->context;
-
-	complete(cmpl);
-}
-
 int mt76x0_vendor_request(struct mt76x0_dev *dev, const u8 req,
 			   const u8 direction, const u16 val, const u16 offset,
 			   void *buf, const size_t buflen)
