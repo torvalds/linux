@@ -59,21 +59,6 @@ static inline void trace_mt76x0_mcu_msg_send_cs(struct mt76_dev *dev,
 	trace_mt76x0_mcu_msg_send(dev, skb, csum, need_resp);
 }
 
-static struct sk_buff *
-mt76x0_mcu_msg_alloc(struct mt76x0_dev *dev, const void *data, int len)
-{
-	struct sk_buff *skb;
-
-	WARN_ON(len % 4); /* if length is not divisible by 4 we need to pad */
-
-	skb = alloc_skb(len + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
-	if (skb) {
-		skb_reserve(skb, MT_DMA_HDR_LEN);
-		memcpy(skb_put(skb, len), data, len);
-	}
-	return skb;
-}
-
 static void mt76x0_read_resp_regs(struct mt76x0_dev *dev, int len)
 {
 	int i;
@@ -217,7 +202,7 @@ int mt76x0_mcu_function_select(struct mt76x0_dev *dev,
 		.value = cpu_to_le32(val),
 	};
 
-	skb = mt76x0_mcu_msg_alloc(dev, &msg, sizeof(msg));
+	skb = mt76u_mcu_msg_alloc(&msg, sizeof(msg));
 	if (!skb)
 		return -ENOMEM;
 	return mt76x0_mcu_msg_send(dev, skb, CMD_FUN_SET_OP, func == 5);
@@ -235,7 +220,7 @@ mt76x0_mcu_calibrate(struct mt76x0_dev *dev, enum mcu_calibrate cal, u32 val)
 		.value = cpu_to_le32(val),
 	};
 
-	skb = mt76x0_mcu_msg_alloc(dev, &msg, sizeof(msg));
+	skb = mt76u_mcu_msg_alloc(&msg, sizeof(msg));
 	if (!skb)
 		return -ENOMEM;
 	return mt76x0_mcu_msg_send(dev, skb, CMD_CALIBRATION_OP, true);
