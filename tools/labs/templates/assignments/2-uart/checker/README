@@ -7,8 +7,8 @@ Test suite for UART16550
 README
 	* this file
 
-Makefile.checker
-	* Makefile for automating the build process
+Makefile
+	* Makefile to build the test suite executable
 
 _checker
 	* script to run all tests defined in _test/test.c
@@ -24,7 +24,7 @@ _test/solution.ko
 
 Use the Makefile to properly build the test executable:
 
-	make -f Makefile.checker
+	make
 
 == RUNNING ==
 
@@ -36,4 +36,3 @@ In order to run the test suite you can use the _checker script.
 The _checker script runs all tests and computes assignment grade:
 
 	./_checker
-
