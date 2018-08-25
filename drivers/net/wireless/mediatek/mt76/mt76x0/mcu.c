@@ -571,7 +571,7 @@ static int mt76x0_load_firmware(struct mt76x0_dev *dev)
 	mt76_set(dev, MT_USB_DMA_CFG, (MT_USB_DMA_CFG_RX_BULK_EN |
 				       MT_USB_DMA_CFG_TX_BULK_EN) |
 				       FIELD_PREP(MT_USB_DMA_CFG_RX_BULK_AGG_TOUT, 0x20));
-	mt76x0_vendor_reset(dev);
+	mt76u_mcu_fw_reset(&dev->mt76);
 	msleep(5);
 /*
 	mt76x0_rmw(dev, MT_PBF_CFG, 0, (MT_PBF_CFG_TX0Q_EN |

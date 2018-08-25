@@ -131,12 +131,6 @@ int mt76x0_vendor_request(struct mt76x0_dev *dev, const u8 req,
 	return ret;
 }
 
-void mt76x0_vendor_reset(struct mt76x0_dev *dev)
-{
-	mt76x0_vendor_request(dev, MT_VEND_DEV_MODE, USB_DIR_OUT,
-			      MT_VEND_DEV_MODE_RESET, 0, NULL, 0);
-}
-
 int mt76x0_vendor_single_wr(struct mt76x0_dev *dev, const u8 req,
 			     const u16 offset, const u32 val)
 {

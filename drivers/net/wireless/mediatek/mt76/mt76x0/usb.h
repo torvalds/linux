@@ -54,7 +54,6 @@ void mt76x0_complete_urb(struct urb *urb);
 int mt76x0_vendor_request(struct mt76x0_dev *dev, const u8 req,
 			   const u8 direction, const u16 val, const u16 offset,
 			   void *buf, const size_t buflen);
-void mt76x0_vendor_reset(struct mt76x0_dev *dev);
 int mt76x0_vendor_single_wr(struct mt76x0_dev *dev, const u8 req,
 			     const u16 offset, const u32 val);
 
