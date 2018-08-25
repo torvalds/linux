@@ -118,7 +118,7 @@ static void rwb_wake_all(struct rq_wb *rwb)
 	for (i = 0; i < WBT_NUM_RWQ; i++) {
 		struct rq_wait *rqw = &rwb->rq_wait[i];
 
-		if (waitqueue_active(&rqw->wait))
+		if (wq_has_sleeper(&rqw->wait))
 			wake_up_all(&rqw->wait);
 	}
 }
@@ -162,7 +162,7 @@ static void __wbt_done(struct rq_qos *rqos, enum wbt_flags wb_acct)
 	if (inflight && inflight >= limit)
 		return;
 
-	if (waitqueue_active(&rqw->wait)) {
+	if (wq_has_sleeper(&rqw->wait)) {
 		int diff = limit - inflight;
 
 		if (!inflight || diff >= rwb->wb_background / 2)
@@ -449,6 +449,13 @@ static inline unsigned int get_limit(struct rq_wb *rwb, unsigned long rw)
 {
 	unsigned int limit;
 
+	/*
+	 * If we got disabled, just return UINT_MAX. This ensures that
+	 * we'll properly inc a new IO, and dec+wakeup at the end.
+	 */
+	if (!rwb_enabled(rwb))
+		return UINT_MAX;
+
 	if ((rw & REQ_OP_MASK) == REQ_OP_DISCARD)
 		return rwb->wb_background;
 
@@ -485,31 +492,17 @@ static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
 {
 	struct rq_wait *rqw = get_rq_wait(rwb, wb_acct);
 	DECLARE_WAITQUEUE(wait, current);
+	bool has_sleeper;
 
-	/*
-	* inc it here even if disabled, since we'll dec it at completion.
-	* this only happens if the task was sleeping in __wbt_wait(),
-	* and someone turned it off at the same time.
-	*/
-	if (!rwb_enabled(rwb)) {
-		atomic_inc(&rqw->inflight);
-		return;
-	}
-
-	if (!waitqueue_active(&rqw->wait)
-		&& rq_wait_inc_below(rqw, get_limit(rwb, rw)))
+	has_sleeper = wq_has_sleeper(&rqw->wait);
+	if (!has_sleeper && rq_wait_inc_below(rqw, get_limit(rwb, rw)))
 		return;
 
 	add_wait_queue_exclusive(&rqw->wait, &wait);
 	do {
 		set_current_state(TASK_UNINTERRUPTIBLE);
 
-		if (!rwb_enabled(rwb)) {
-			atomic_inc(&rqw->inflight);
-			break;
-		}
-
-		if (rq_wait_inc_below(rqw, get_limit(rwb, rw)))
+		if (!has_sleeper && rq_wait_inc_below(rqw, get_limit(rwb, rw)))
 			break;
 
 		if (lock) {
@@ -518,6 +511,7 @@ static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
 			spin_lock_irq(lock);
 		} else
 			io_schedule();
+		has_sleeper = false;
 	} while (1);
 
 	__set_current_state(TASK_RUNNING);
@@ -545,6 +539,9 @@ static inline bool wbt_should_throttle(struct rq_wb *rwb, struct bio *bio)
 static enum wbt_flags bio_to_wbt_flags(struct rq_wb *rwb, struct bio *bio)
 {
 	enum wbt_flags flags = 0;
+
+	if (!rwb_enabled(rwb))
+		return 0;
 
 	if (bio_op(bio) == REQ_OP_READ) {
 		flags = WBT_READ;
