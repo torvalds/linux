@@ -416,15 +416,12 @@ static int __mt76x0_dma_fw(struct mt76x0_dev *dev,
 	memcpy(buf.buf + sizeof(reg), data, len);
 	memset(buf.buf + sizeof(reg) + len, 0, 8);
 
-	ret = mt76x0_vendor_single_wr(dev, MT_VEND_WRITE_FCE,
-				       MT_FCE_DMA_ADDR, dst_addr);
-	if (ret)
-		return ret;
+	mt76u_single_wr(&dev->mt76, MT_VEND_WRITE_FCE, MT_FCE_DMA_ADDR,
+			dst_addr);
+
 	len = roundup(len, 4);
-	ret = mt76x0_vendor_single_wr(dev, MT_VEND_WRITE_FCE,
-				       MT_FCE_DMA_LEN, len << 16);
-	if (ret)
-		return ret;
+	mt76u_single_wr(&dev->mt76, MT_VEND_WRITE_FCE, MT_FCE_DMA_LEN,
+			len << 16);
 
 	buf.len = MT_DMA_HDR_LEN + len + 4;
 	ret = mt76x0_usb_submit_buf(dev, USB_DIR_OUT, MT_EP_OUT_INBAND_CMD,

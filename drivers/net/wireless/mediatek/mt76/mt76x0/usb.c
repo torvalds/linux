@@ -131,25 +131,6 @@ int mt76x0_vendor_request(struct mt76x0_dev *dev, const u8 req,
 	return ret;
 }
 
-int mt76x0_vendor_single_wr(struct mt76x0_dev *dev, const u8 req,
-			     const u16 offset, const u32 val)
-{
-	struct mt76x0_dev *mdev = dev;
-	int ret;
-
-	mutex_lock(&mdev->usb_ctrl_mtx);
-
-	ret = mt76x0_vendor_request(dev, req, USB_DIR_OUT,
-				    val & 0xffff, offset, NULL, 0);
-	if (!ret)
-		ret = mt76x0_vendor_request(dev, req, USB_DIR_OUT,
-					    val >> 16, offset + 2, NULL, 0);
-
-	mutex_unlock(&mdev->usb_ctrl_mtx);
-
-	return ret;
-}
-
 void mt76x0_addr_wr(struct mt76x0_dev *dev, const u32 offset, const u8 *addr)
 {
 	mt76_wr(dev, offset, get_unaligned_le32(addr));
