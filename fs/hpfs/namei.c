@@ -565,7 +565,7 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			err = -EFSERROR;
 			goto end1;
 		}
-		err = r == 2 ? -ENOSPC : r == 1 ? -EFSERROR : 0;
+		err = -ENOSPC;
 		goto end1;
 	}
 
