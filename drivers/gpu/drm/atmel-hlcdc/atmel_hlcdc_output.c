@@ -78,12 +78,23 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev, int endpoint)
 int atmel_hlcdc_create_outputs(struct drm_device *dev)
 {
 	int endpoint, ret = 0;
+	int attached = 0;
 
-	for (endpoint = 0; !ret; endpoint++)
+	/*
+	 * Always scan the first few endpoints even if we get -ENODEV,
+	 * but keep going after that as long as we keep getting hits.
+	 */
+	for (endpoint = 0; !ret || endpoint < 4; endpoint++) {
 		ret = atmel_hlcdc_attach_endpoint(dev, endpoint);
+		if (ret == -ENODEV)
+			continue;
+		if (ret)
+			break;
+		attached++;
+	}
 
 	/* At least one device was successfully attached.*/
-	if (ret == -ENODEV && endpoint)
+	if (ret == -ENODEV && attached)
 		return 0;
 
 	return ret;
