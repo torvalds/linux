@@ -53,6 +53,11 @@ enum mt76_txq_id {
 	__MT_TXQ_MAX
 };
 
+struct mt76_reg_pair {
+	u32 reg;
+	u32 value;
+};
+
 enum mt76_rxq_id {
 	MT_RXQ_MAIN,
 	MT_RXQ_MCU,

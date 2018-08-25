@@ -47,11 +47,6 @@ struct ieee80211_rate mt76x2_rates[] = {
 };
 EXPORT_SYMBOL_GPL(mt76x2_rates);
 
-struct mt76x2_reg_pair {
-	u32 reg;
-	u32 value;
-};
-
 static void
 mt76x2_set_wlan_state(struct mt76x2_dev *dev, bool enable)
 {
@@ -93,7 +88,7 @@ EXPORT_SYMBOL_GPL(mt76x2_reset_wlan);
 
 static void
 mt76x2_write_reg_pairs(struct mt76x2_dev *dev,
-		       const struct mt76x2_reg_pair *data, int len)
+		       const struct mt76_reg_pair *data, int len)
 {
 	while (len > 0) {
 		mt76_wr(dev, data->reg, data->value);
@@ -128,7 +123,7 @@ void mt76_write_mac_initvals(struct mt76x2_dev *dev)
 	 FIELD_PREP(MT_PROT_CFG_NAV, 1) |			\
 	 FIELD_PREP(MT_PROT_CFG_TXOP_ALLOW, 0x3f))
 
-	static const struct mt76x2_reg_pair vals[] = {
+	static const struct mt76_reg_pair vals[] = {
 		/* Copied from MediaTek reference source */
 		{ MT_PBF_SYS_CTRL,		0x00080c00 },
 		{ MT_PBF_CFG,			0x1efebcff },
@@ -184,7 +179,7 @@ void mt76_write_mac_initvals(struct mt76x2_dev *dev)
 		{ MT_PROT_AUTO_TX_CFG,		0x00830083 },
 		{ MT_HT_CTRL_CFG,		0x000001ff },
 	};
-	struct mt76x2_reg_pair prot_vals[] = {
+	struct mt76_reg_pair prot_vals[] = {
 		{ MT_CCK_PROT_CFG,		DEFAULT_PROT_CFG_CCK },
 		{ MT_OFDM_PROT_CFG,		DEFAULT_PROT_CFG_OFDM },
 		{ MT_MM20_PROT_CFG,		DEFAULT_PROT_CFG_20 },
