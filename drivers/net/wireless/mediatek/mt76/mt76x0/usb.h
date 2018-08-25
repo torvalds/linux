@@ -43,11 +43,4 @@ static inline bool mt76x0_urb_has_error(struct urb *urb)
 		urb->status != -ESHUTDOWN;
 }
 
-bool mt76x0_usb_alloc_buf(struct mt76x0_dev *dev, size_t len,
-			   struct mt76x0_dma_buf *buf);
-void mt76x0_usb_free_buf(struct mt76x0_dev *dev, struct mt76x0_dma_buf *buf);
-int mt76x0_usb_submit_buf(struct mt76x0_dev *dev, int dir, int ep_idx,
-			   struct mt76x0_dma_buf *buf, gfp_t gfp,
-			   usb_complete_t complete_fn, void *context);
-
 #endif

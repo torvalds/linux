@@ -46,53 +46,6 @@ static struct usb_device_id mt76x0_device_table[] = {
 	{ 0, }
 };
 
-bool mt76x0_usb_alloc_buf(struct mt76x0_dev *dev, size_t len,
-			   struct mt76x0_dma_buf *buf)
-{
-	struct usb_device *usb_dev = mt76x0_to_usb_dev(dev);
-
-	buf->len = len;
-	buf->urb = usb_alloc_urb(0, GFP_KERNEL);
-	buf->buf = usb_alloc_coherent(usb_dev, buf->len, GFP_KERNEL, &buf->dma);
-
-	return !buf->urb || !buf->buf;
-}
-
-void mt76x0_usb_free_buf(struct mt76x0_dev *dev, struct mt76x0_dma_buf *buf)
-{
-	struct usb_device *usb_dev = mt76x0_to_usb_dev(dev);
-
-	usb_free_coherent(usb_dev, buf->len, buf->buf, buf->dma);
-	usb_free_urb(buf->urb);
-}
-
-int mt76x0_usb_submit_buf(struct mt76x0_dev *dev, int dir, int ep_idx,
-			   struct mt76x0_dma_buf *buf, gfp_t gfp,
-			   usb_complete_t complete_fn, void *context)
-{
-	struct usb_device *usb_dev = mt76x0_to_usb_dev(dev);
-	struct mt76_usb *usb = &dev->mt76.usb;
-	unsigned pipe;
-	int ret;
-
-	if (dir == USB_DIR_IN)
-		pipe = usb_rcvbulkpipe(usb_dev, usb->in_ep[ep_idx]);
-	else
-		pipe = usb_sndbulkpipe(usb_dev, usb->out_ep[ep_idx]);
-
-	usb_fill_bulk_urb(buf->urb, usb_dev, pipe, buf->buf, buf->len,
-			  complete_fn, context);
-	buf->urb->transfer_dma = buf->dma;
-	buf->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-
-	trace_mt76x0_submit_urb(&dev->mt76, buf->urb);
-	ret = usb_submit_urb(buf->urb, gfp);
-	if (ret)
-		dev_err(dev->mt76.dev, "Error: submit URB dir:%d ep:%d failed:%d\n",
-			dir, ep_idx, ret);
-	return ret;
-}
-
 void mt76x0_addr_wr(struct mt76x0_dev *dev, const u32 offset, const u8 *addr)
 {
 	mt76_wr(dev, offset, get_unaligned_le32(addr));
