@@ -1582,7 +1582,7 @@ smb2_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 	struct smb_rqst rqst[3];
 	int resp_buftype[3];
 	struct kvec rsp_iov[3];
-	struct kvec open_iov[5]; /* 4 + potential padding. */
+	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
 	struct kvec qi_iov[1];
 	struct kvec close_iov[1];
 	struct cifs_ses *ses = tcon->ses;
@@ -1603,7 +1603,7 @@ smb2_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 
 	memset(&open_iov, 0, sizeof(open_iov));
 	rqst[0].rq_iov = open_iov;
-	rqst[0].rq_nvec = 4;
+	rqst[0].rq_nvec = SMB2_CREATE_IOV_SIZE;
 
 	oparms.tcon = tcon;
 	oparms.desired_access = FILE_READ_ATTRIBUTES;
