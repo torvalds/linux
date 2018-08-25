@@ -453,11 +453,3 @@ int mt76x2u_mcu_init(struct mt76x2_dev *dev)
 
 	return mt76x2u_mcu_set_radio_state(dev, true);
 }
-
-void mt76x2u_mcu_deinit(struct mt76x2_dev *dev)
-{
-	struct mt76_usb *usb = &dev->mt76.usb;
-
-	usb_kill_urb(usb->mcu.res.urb);
-	mt76u_buf_free(&usb->mcu.res);
-}

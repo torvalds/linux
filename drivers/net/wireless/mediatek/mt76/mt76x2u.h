@@ -65,7 +65,6 @@ int mt76x2u_mcu_load_cr(struct mt76x2_dev *dev, u8 type,
 			u8 temp_level, u8 channel);
 int mt76x2u_mcu_init(struct mt76x2_dev *dev);
 int mt76x2u_mcu_fw_init(struct mt76x2_dev *dev);
-void mt76x2u_mcu_deinit(struct mt76x2_dev *dev);
 
 int mt76x2u_alloc_queues(struct mt76x2_dev *dev);
 void mt76x2u_queues_deinit(struct mt76x2_dev *dev);

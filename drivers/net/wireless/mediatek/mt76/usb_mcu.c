@@ -250,3 +250,12 @@ int mt76u_mcu_init_rx(struct mt76_dev *dev)
 	return err;
 }
 EXPORT_SYMBOL_GPL(mt76u_mcu_init_rx);
+
+void mt76u_mcu_deinit(struct mt76_dev *dev)
+{
+	struct mt76_usb *usb = &dev->usb;
+
+	usb_kill_urb(usb->mcu.res.urb);
+	mt76u_buf_free(&usb->mcu.res);
+}
+EXPORT_SYMBOL_GPL(mt76u_mcu_deinit);
