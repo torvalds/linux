@@ -864,6 +864,9 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c, first_prio, mask->vlan_priority);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v, first_prio, key->vlan_priority);
 		}
+	} else {
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, svlan_tag, 1);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, cvlan_tag, 1);
 	}
 
 	if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
