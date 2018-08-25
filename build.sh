@@ -357,24 +357,24 @@ if [ -n "$kernver" ]; then
 			git pull
 			;;
 
-                "updatesrc")
-                        echo "Update kernel source"
-                        update_kernel_source
-                        ;;
+		"updatesrc")
+			echo "Update kernel source"
+			update_kernel_source
+			;;
 
  		"umount")
-			echo "Umount SD Media"
+			echo "umount SD Media"
 			umount /media/$USER/BPI-BOOT
 			umount /media/$USER/BPI-ROOT
 			;;
 
  		"uenv")
-			echo "edit uEnv.txt"
+			echo "edit uEnv.txt on sd-card"
 			nano /media/$USER/BPI-BOOT/bananapi/bpi-r2/linux/uEnv.txt
 			;;
 
 		"defconfig")
-			echo "Edit def config"
+			echo "edit def config"
 			nano arch/arm/configs/mt7623n_evb_fwu_defconfig
 			;;
 		"deb")
@@ -382,22 +382,23 @@ if [ -n "$kernver" ]; then
 			deb
 			;;
 		"dtsi")
-			echo "Edit mt7623.dtsi"
+			echo "edit mt7623.dtsi"
 			nano arch/arm/boot/dts/mt7623.dtsi
 			;;
 
 		"dts")
-			echo "Edit mt7623n-bpi.dts"
+			echo "edit mt7623n-bpi.dts"
 			nano arch/arm/boot/dts/mt7623n-bananapi-bpi-r2.dts
 			;;
 
 		"importmylconfig")
-			echo "Import myl config"
+			echo "import myl config"
 			make mt7623n_myl_defconfig
 			;;
 
 
 		"importconfig")
+			echo "import a defconfig file"
 			if [[ -z "$file" ]];then
 				echo "Import fwu config"
 				make mt7623n_evb_fwu_defconfig
@@ -429,6 +430,7 @@ if [ -n "$kernver" ]; then
 			set +x
 		;;
 	  	"config")
+			echo "change kernel-configuration (menuconfig)"
 			make menuconfig
 			;;
 
@@ -467,10 +469,11 @@ if [ -n "$kernver" ]; then
 			;;
 
 		"release")
+			echo "create release tag for travis-ci build"
 			release
 			;;
 		"all-pack")
-			echo "Update Repo, Create Kernel & Build Archive"
+			echo "update repo, create kernel & build archive"
 			$0 update
 			$0 importconfig
 			$0 build
@@ -478,6 +481,10 @@ if [ -n "$kernver" ]; then
 			$0 pack
 			;;
 
+		"help")
+			echo "print help"
+			sed -n -e '/case "$action" in/,/esac/{//!p}'  $0 | grep -A1 '")$' | sed -e 's/echo "\(.*\)"/\1/'
+			;;
 		*)
 			if [[ -n "$action" ]];then
 				echo "unknown command $action";
