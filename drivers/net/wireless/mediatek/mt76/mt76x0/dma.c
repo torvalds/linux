@@ -279,7 +279,8 @@ static int mt76x0_dma_submit_tx(struct mt76x0_dev *dev,
 				 struct sk_buff *skb, u8 ep)
 {
 	struct usb_device *usb_dev = mt76x0_to_usb_dev(dev);
-	unsigned snd_pipe = usb_sndbulkpipe(usb_dev, dev->out_ep[ep]);
+	struct mt76_usb *usb = &dev->mt76.usb;
+	unsigned snd_pipe = usb_sndbulkpipe(usb_dev, usb->out_ep[ep]);
 	struct mt76x0_dma_buf_tx *e;
 	struct mt76x0_tx_queue *q = &dev->tx_q[ep];
 	unsigned long flags;
@@ -375,11 +376,12 @@ static int mt76x0_submit_rx_buf(struct mt76x0_dev *dev,
 				 struct mt76x0_dma_buf_rx *e, gfp_t gfp)
 {
 	struct usb_device *usb_dev = mt76x0_to_usb_dev(dev);
+	struct mt76_usb *usb = &dev->mt76.usb;
 	u8 *buf = page_address(e->p);
 	unsigned pipe;
 	int ret;
 
-	pipe = usb_rcvbulkpipe(usb_dev, dev->in_ep[MT_EP_IN_PKT_RX]);
+	pipe = usb_rcvbulkpipe(usb_dev, usb->in_ep[MT_EP_IN_PKT_RX]);
 
 	usb_fill_bulk_urb(e->urb, usb_dev, pipe, buf, MT_RX_URB_SIZE,
 			  mt76x0_complete_rx, dev);

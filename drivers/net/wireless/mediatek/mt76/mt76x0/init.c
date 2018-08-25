@@ -109,6 +109,7 @@ static void mt76x0_reset_csr_bbp(struct mt76x0_dev *dev)
 
 static void mt76x0_init_usb_dma(struct mt76x0_dev *dev)
 {
+	struct mt76_usb *usb = &dev->mt76.usb;
 	u32 val;
 
 	val = mt76_rr(dev, MT_USB_DMA_CFG);
@@ -117,7 +118,7 @@ static void mt76x0_init_usb_dma(struct mt76x0_dev *dev)
 	       FIELD_PREP(MT_USB_DMA_CFG_RX_BULK_AGG_LMT, MT_USB_AGGR_SIZE_LIMIT) |
 	       MT_USB_DMA_CFG_RX_BULK_EN |
 	       MT_USB_DMA_CFG_TX_BULK_EN;
-	if (dev->in_max_packet == 512)
+	if (usb->in_max_packet == 512)
 		val |= MT_USB_DMA_CFG_RX_BULK_AGG_EN;
 	mt76_wr(dev, MT_USB_DMA_CFG, val);
 

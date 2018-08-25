@@ -154,8 +154,9 @@ __mt76x0_mcu_msg_send(struct mt76x0_dev *dev, struct sk_buff *skb,
 		      enum mcu_cmd cmd, bool wait_resp)
 {
 	struct usb_device *usb_dev = mt76x0_to_usb_dev(dev);
+	struct mt76_usb *usb = &dev->mt76.usb;
 	unsigned cmd_pipe = usb_sndbulkpipe(usb_dev,
-					    dev->out_ep[MT_EP_OUT_INBAND_CMD]);
+					    usb->out_ep[MT_EP_OUT_INBAND_CMD]);
 	int sent, ret;
 	u8 seq = 0;
 
