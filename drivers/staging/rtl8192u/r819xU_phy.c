@@ -511,7 +511,7 @@ void rtl8192_phy_configmac(struct net_device *dev)
  * notice:    BB parameters may change all the time, so please make
  *            sure it has been synced with the newest.
  *****************************************************************************/
-void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
+static void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
 {
 	u32 i;
 

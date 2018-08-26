@@ -52,7 +52,6 @@ u32 rtl8192_phy_QueryRFReg(struct net_device *dev,
 			   enum rf90_radio_path_e e_rfpath,
 			   u32 reg_addr, u32 bitmask);
 void rtl8192_phy_configmac(struct net_device *dev);
-void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType);
 u8 rtl8192_phy_checkBBAndRF(struct net_device *dev,
 			    enum hw90_block_e CheckBlock,
 			    enum rf90_radio_path_e e_rfpath);
