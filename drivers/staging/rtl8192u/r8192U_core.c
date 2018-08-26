@@ -2483,10 +2483,10 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 			RT_TRACE(COMP_EPROM, "CCK Tx Power Levl: 0x%02x\n", priv->EEPROMTxPowerLevelCCK);
 			for (i = 0; i < 3; i++) {
 				if (bLoad_From_EEPOM) {
-					ret = eprom_read(dev, (EEPROM_TxPwIndex_OFDM_24G + i) >> 1);
+					ret = eprom_read(dev, (EEPROM_TX_PW_INDEX_OFDM_24G + i) >> 1);
 					if (ret < 0)
 						return ret;
-					if (((EEPROM_TxPwIndex_OFDM_24G + i) % 2) == 0)
+					if (((EEPROM_TX_PW_INDEX_OFDM_24G + i) % 2) == 0)
 						tmpValue = (u16)ret & 0x00ff;
 					else
 						tmpValue = ((u16)ret & 0xff00) >> 8;
