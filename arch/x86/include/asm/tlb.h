@@ -6,15 +6,22 @@
 #define tlb_end_vma(tlb, vma) do { } while (0)
 #define __tlb_remove_tlb_entry(tlb, ptep, address) do { } while (0)
 
-#define tlb_flush(tlb)							\
-{									\
-	if (!tlb->fullmm && !tlb->need_flush_all) 			\
-		flush_tlb_mm_range(tlb->mm, tlb->start, tlb->end, 0UL);	\
-	else								\
-		flush_tlb_mm_range(tlb->mm, 0UL, TLB_FLUSH_ALL, 0UL);	\
-}
+static inline void tlb_flush(struct mmu_gather *tlb);
 
 #include <asm-generic/tlb.h>
+
+static inline void tlb_flush(struct mmu_gather *tlb)
+{
+	unsigned long start = 0UL, end = TLB_FLUSH_ALL;
+	unsigned int stride_shift = tlb_get_unmap_shift(tlb);
+
+	if (!tlb->fullmm && !tlb->need_flush_all) {
+		start = tlb->start;
+		end = tlb->end;
+	}
+
+	flush_tlb_mm_range(tlb->mm, start, end, stride_shift);
+}
 
 /*
  * While x86 architecture in general requires an IPI to perform TLB
