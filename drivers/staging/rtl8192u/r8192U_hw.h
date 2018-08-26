@@ -38,7 +38,7 @@
 #define EEPROM_NODE_ADDRESS_BYTE_0	0x0C
 
 #define EEPROM_TX_POWER_DIFF	0x1F
-#define EEPROM_ThermalMeter	0x20
+#define EEPROM_THERMAL_METER	0x20
 #define EEPROM_PwDiff		0x21	//0x21
 #define EEPROM_CrystalCap	0x22	//0x22
 

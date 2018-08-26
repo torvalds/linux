@@ -2434,7 +2434,7 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 		RT_TRACE(COMP_EPROM, "TxPowerDiff:%d\n", priv->EEPROMTxPowerDiff);
 		/* read ThermalMeter from EEPROM */
 		if (bLoad_From_EEPOM) {
-			ret = eprom_read(dev, (EEPROM_ThermalMeter >> 1));
+			ret = eprom_read(dev, (EEPROM_THERMAL_METER >> 1));
 			if (ret < 0)
 				return ret;
 			priv->EEPROMThermalMeter = (u8)((u16)ret & 0x00ff);
