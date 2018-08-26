@@ -14,6 +14,11 @@
 #include "r819xU_phy.h"
 #include "r8190_rtl8256.h"
 
+/*
+ * Forward declaration of local functions
+ */
+static void phy_rf8256_config_para_file(struct net_device *dev);
+
 /*--------------------------------------------------------------------------
  * Overview:	set RF band width (20M or 40M)
  * Input:       struct net_device*	dev
@@ -94,7 +99,7 @@ void phy_rf8256_config(struct net_device *dev)
 	 */
 	priv->NumTotalRFPath = RTL819X_TOTAL_RF_PATH;
 	/* Config BB and RF */
-	phy_RF8256_Config_ParaFile(dev);
+	phy_rf8256_config_para_file(dev);
 }
 /*--------------------------------------------------------------------------
  * Overview:    Interface to config 8256
@@ -103,7 +108,7 @@ void phy_rf8256_config(struct net_device *dev)
  * Return:      NONE
  *--------------------------------------------------------------------------
  */
-void phy_RF8256_Config_ParaFile(struct net_device *dev)
+static void phy_rf8256_config_para_file(struct net_device *dev)
 {
 	u32	u4RegValue = 0;
 	u8	eRFPath;
@@ -207,7 +212,7 @@ void phy_RF8256_Config_ParaFile(struct net_device *dev)
 		}
 
 		if (ret) {
-			RT_TRACE(COMP_ERR, "phy_RF8256_Config_ParaFile():Radio[%d] Fail!!", eRFPath);
+			RT_TRACE(COMP_ERR, "phy_rf8256_config_para_file():Radio[%d] Fail!!", eRFPath);
 			goto phy_RF8256_Config_ParaFile_Fail;
 		}
 
