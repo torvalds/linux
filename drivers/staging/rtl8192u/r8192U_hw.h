@@ -49,7 +49,7 @@
 #define EEPROM_TX_PW_INDEX_VER		0x27	//0x27
 
 #define EEPROM_DEFAULT_THERNAL_METER		0x7
-#define EEPROM_Default_PwDiff			0x4
+#define EEPROM_DEFAULT_PW_DIFF			0x4
 #define EEPROM_Default_CrystalCap		0x5
 #define EEPROM_Default_TxPower			0x1010
 #define EEPROM_Customer_ID			0x7B	//0x7B:CustomerID
