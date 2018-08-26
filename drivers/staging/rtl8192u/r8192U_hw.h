@@ -20,11 +20,6 @@
 #ifndef R8192_HW
 #define R8192_HW
 
-typedef enum _VERSION_819xU {
-	VERSION_819xU_A, // A-cut
-	VERSION_819xU_B, // B-cut
-	VERSION_819xU_C,// C-cut
-} VERSION_819xU, *PVERSION_819xU;
 //added for different RF type
 typedef enum _RT_RF_TYPE_DEF {
 	RF_1T2R = 0,

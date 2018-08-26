@@ -798,6 +798,12 @@ typedef enum _tag_TxCmd_Config_Index {
 	TXCMD_XXXX_CTRL,
 } DCMD_TXCMD_OP;
 
+enum version_819xu {
+	VERSION_819XU_A, // A-cut
+	VERSION_819XU_B, // B-cut
+	VERSION_819XU_C,// C-cut
+};
+
 typedef struct r8192_priv {
 	struct usb_device *udev;
 	/* For maintain info from eeprom */
@@ -815,7 +821,7 @@ typedef struct r8192_priv {
 	/* O: rtl8192, 1: rtl8185 V B/C, 2: rtl8185 V D */
 	short card_8192;
 	/* If TCR reports card V B/C, this discriminates */
-	u8 card_8192_version;
+	enum version_819xu card_8192_version;
 	short enable_gpio0;
 	enum card_type {
 		PCI, MINIPCI, CARDBUS, USB
