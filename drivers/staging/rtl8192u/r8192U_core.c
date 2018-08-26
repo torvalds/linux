@@ -2454,7 +2454,7 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 		RT_TRACE(COMP_EPROM, "TxPwDiff:%d\n", priv->EEPROMPwDiff);
 		/* Read CrystalCap from EEPROM */
 		if (bLoad_From_EEPOM) {
-			ret = eprom_read(dev, (EEPROM_CrystalCap >> 1));
+			ret = eprom_read(dev, (EEPROM_CRYSTAL_CAP >> 1));
 			if (ret < 0)
 				return ret;
 			priv->EEPROMCrystalCap = (u16)ret & 0x0f;

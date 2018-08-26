@@ -40,7 +40,7 @@
 #define EEPROM_TX_POWER_DIFF	0x1F
 #define EEPROM_THERMAL_METER	0x20
 #define EEPROM_PW_DIFF		0x21	//0x21
-#define EEPROM_CrystalCap	0x22	//0x22
+#define EEPROM_CRYSTAL_CAP	0x22	//0x22
 
 #define EEPROM_TxPwIndex_CCK	0x23	//0x23
 #define EEPROM_TxPwIndex_OFDM_24G	0x24	//0x24~0x26
