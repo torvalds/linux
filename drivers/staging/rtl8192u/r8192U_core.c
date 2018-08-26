@@ -2439,7 +2439,7 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 				return ret;
 			priv->EEPROMThermalMeter = (u8)((u16)ret & 0x00ff);
 		} else
-			priv->EEPROMThermalMeter = EEPROM_Default_ThermalMeter;
+			priv->EEPROMThermalMeter = EEPROM_DEFAULT_THERNAL_METER;
 		RT_TRACE(COMP_EPROM, "ThermalMeter:%d\n", priv->EEPROMThermalMeter);
 		/* for tx power track */
 		priv->TSSI_13dBm = priv->EEPROMThermalMeter * 100;

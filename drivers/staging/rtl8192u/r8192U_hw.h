@@ -48,7 +48,7 @@
 #define EEPROM_TX_PW_INDEX_OFDM_24G_V1	0x2C	//0x2C~0x2E
 #define EEPROM_TX_PW_INDEX_VER		0x27	//0x27
 
-#define EEPROM_Default_ThermalMeter		0x7
+#define EEPROM_DEFAULT_THERNAL_METER		0x7
 #define EEPROM_Default_PwDiff			0x4
 #define EEPROM_Default_CrystalCap		0x5
 #define EEPROM_Default_TxPower			0x1010
