@@ -50,7 +50,7 @@
 
 #define EEPROM_DEFAULT_THERNAL_METER		0x7
 #define EEPROM_DEFAULT_PW_DIFF			0x4
-#define EEPROM_Default_CrystalCap		0x5
+#define EEPROM_DEFAULT_CRYSTAL_CAP		0x5
 #define EEPROM_Default_TxPower			0x1010
 #define EEPROM_Customer_ID			0x7B	//0x7B:CustomerID
 #define EEPROM_ChannelPlan			0x16	//0x7C
