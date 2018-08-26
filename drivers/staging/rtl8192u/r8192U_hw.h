@@ -65,6 +65,8 @@
 
 //#endif
 enum _RTL8192Usb_HW {
+	MAC0			= 0x000,
+	MAC4			= 0x004,
 
 #define	BB_GLOBAL_RESET_BIT	0x1
 	BB_GLOBAL_RESET		= 0x020, // BasebandGlobal Reset Register
@@ -180,8 +182,8 @@ enum _RTL8192Usb_HW {
 #define RRSR_48M					BIT(10)
 #define RRSR_54M					BIT(11)
 #define BRSR_AckShortPmb			BIT(23)		// CCK ACK: use Short Preamble or not.
-	RATR0			= 0x320, // Rate Adaptive Table register1
 	UFWP			= 0x318,
+	RATR0			= 0x320, // Rate Adaptive Table register1
 	DRIVER_RSSI		= 0x32c,					// Driver tell Firmware current RSSI
 //----------------------------------------------------------------------------
 //       8190 Rate Adaptive Table Register	(offset 0x320, 4 byte)
@@ -236,9 +238,6 @@ enum _RTL8192Usb_HW {
 #define EPROM_CK_BIT BIT(2)
 #define EPROM_W_BIT  BIT(1)
 #define EPROM_R_BIT  BIT(0)
-
-	MAC0			= 0x000,
-	MAC4			= 0x004,
 };
 //----------------------------------------------------------------------------
 //       818xB AnaParm & AnaParm2 Register
