@@ -2474,7 +2474,7 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 			int i;
 
 			if (bLoad_From_EEPOM) {
-				ret = eprom_read(dev, (EEPROM_TxPwIndex_CCK >> 1));
+				ret = eprom_read(dev, (EEPROM_TX_PW_INDEX_CCK >> 1));
 				if (ret < 0)
 					return ret;
 				priv->EEPROMTxPowerLevelCCK = ((u16)ret & 0xff) >> 8;

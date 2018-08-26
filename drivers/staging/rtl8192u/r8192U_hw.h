@@ -42,7 +42,7 @@
 #define EEPROM_PW_DIFF		0x21	//0x21
 #define EEPROM_CRYSTAL_CAP	0x22	//0x22
 
-#define EEPROM_TxPwIndex_CCK	0x23	//0x23
+#define EEPROM_TX_PW_INDEX_CCK	0x23	//0x23
 #define EEPROM_TxPwIndex_OFDM_24G	0x24	//0x24~0x26
 #define EEPROM_TxPwIndex_CCK_V1		0x29	//0x29~0x2B
 #define EEPROM_TxPwIndex_OFDM_24G_V1	0x2C	//0x2C~0x2E
