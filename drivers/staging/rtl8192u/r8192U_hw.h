@@ -53,7 +53,7 @@
 #define EEPROM_DEFAULT_CRYSTAL_CAP		0x5
 #define EEPROM_DEFAULT_TX_POWER		0x1010
 #define EEPROM_CUSTOMER_ID			0x7B	//0x7B:CustomerID
-#define EEPROM_ChannelPlan			0x16	//0x7C
+#define EEPROM_CHANNEL_PLAN			0x16	//0x7C
 
 #define EEPROM_CID_RUNTOP				0x2
 #define EEPROM_CID_DLINK				0x8

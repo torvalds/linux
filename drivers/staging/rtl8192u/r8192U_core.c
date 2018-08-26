@@ -2382,7 +2382,7 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 		if (ret < 0)
 			return ret;
 		priv->eeprom_pid = (u16)ret;
-		ret = eprom_read(dev, EEPROM_ChannelPlan >> 1);
+		ret = eprom_read(dev, EEPROM_CHANNEL_PLAN >> 1);
 		if (ret < 0)
 			return ret;
 		tmpValue = (u16)ret;
