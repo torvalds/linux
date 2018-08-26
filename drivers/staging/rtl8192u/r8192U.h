@@ -804,6 +804,12 @@ enum version_819xu {
 	VERSION_819XU_C,// C-cut
 };
 
+//added for different RF type
+enum rt_rf_type {
+	RF_1T2R = 0,
+	RF_2T4R,
+};
+
 typedef struct r8192_priv {
 	struct usb_device *udev;
 	/* For maintain info from eeprom */
@@ -844,7 +850,7 @@ typedef struct r8192_priv {
 
 	struct mutex wx_mutex;
 
-	u8 rf_type;			/* 0: 1T2R, 1: 2T4R */
+	enum rt_rf_type   rf_type;	    /* 0: 1T2R, 1: 2T4R */
 	RT_RF_TYPE_819xU rf_chip;
 
 	short (*rf_set_sens)(struct net_device *dev, short sens);

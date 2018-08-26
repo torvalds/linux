@@ -20,15 +20,6 @@
 #ifndef R8192_HW
 #define R8192_HW
 
-//added for different RF type
-typedef enum _RT_RF_TYPE_DEF {
-	RF_1T2R = 0,
-	RF_2T4R,
-
-	RF_819X_MAX_TYPE
-} RT_RF_TYPE_DEF;
-
-
 typedef enum _BaseBand_Config_Type {
 	BaseBand_Config_PHY_REG = 0,			//Radio Path A
 	BaseBand_Config_AGC_TAB = 1,			//Radio Path B
