@@ -2445,7 +2445,7 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 		priv->TSSI_13dBm = priv->EEPROMThermalMeter * 100;
 		/* read antenna tx power offset of B/C/D to A from EEPROM */
 		if (bLoad_From_EEPOM) {
-			ret = eprom_read(dev, (EEPROM_PwDiff >> 1));
+			ret = eprom_read(dev, (EEPROM_PW_DIFF >> 1));
 			if (ret < 0)
 				return ret;
 			priv->EEPROMPwDiff = ((u16)ret & 0x0f00) >> 8;
