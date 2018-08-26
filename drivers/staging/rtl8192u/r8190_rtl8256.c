@@ -245,7 +245,7 @@ void phy_set_rf8256_cck_tx_power(struct net_device *dev, u8 powerlevel)
 }
 
 
-void PHY_SetRF8256OFDMTxPower(struct net_device *dev, u8 powerlevel)
+void phy_set_rf8256_ofdm_tx_power(struct net_device *dev, u8 powerlevel)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	/* Joseph TxPower for 8192 testing */

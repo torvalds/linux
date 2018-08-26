@@ -919,7 +919,7 @@ void rtl8192_phy_setTxPower(struct net_device *dev, u8 channel)
 	case RF_8256:
 		/* need further implement */
 		phy_set_rf8256_cck_tx_power(dev, powerlevel);
-		PHY_SetRF8256OFDMTxPower(dev, powerlevelOFDM24G);
+		phy_set_rf8256_ofdm_tx_power(dev, powerlevelOFDM24G);
 		break;
 	default:
 		RT_TRACE((COMP_PHY|COMP_ERR),
@@ -1067,7 +1067,7 @@ static void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
 
 	case RF_8256:
 		phy_set_rf8256_cck_tx_power(dev, powerlevel);
-		PHY_SetRF8256OFDMTxPower(dev, powerlevelOFDM24G);
+		phy_set_rf8256_ofdm_tx_power(dev, powerlevelOFDM24G);
 		break;
 
 	case RF_8258:
