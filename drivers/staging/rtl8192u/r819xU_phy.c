@@ -918,7 +918,7 @@ void rtl8192_phy_setTxPower(struct net_device *dev, u8 channel)
 	switch (priv->rf_chip) {
 	case RF_8256:
 		/* need further implement */
-		PHY_SetRF8256CCKTxPower(dev, powerlevel);
+		phy_set_rf8256_cck_tx_power(dev, powerlevel);
 		PHY_SetRF8256OFDMTxPower(dev, powerlevelOFDM24G);
 		break;
 	default:
@@ -1066,7 +1066,7 @@ static void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
 		break;
 
 	case RF_8256:
-		PHY_SetRF8256CCKTxPower(dev, powerlevel);
+		phy_set_rf8256_cck_tx_power(dev, powerlevel);
 		PHY_SetRF8256OFDMTxPower(dev, powerlevelOFDM24G);
 		break;
 

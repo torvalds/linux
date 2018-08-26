@@ -17,7 +17,7 @@
 void phy_set_rf8256_bandwidth(struct net_device *dev,
 			      enum ht_channel_width bandwidth);
 void phy_rf8256_config(struct net_device *dev);
-void PHY_SetRF8256CCKTxPower(struct net_device *dev, u8	powerlevel);
+void phy_set_rf8256_cck_tx_power(struct net_device *dev, u8 powerlevel);
 void PHY_SetRF8256OFDMTxPower(struct net_device *dev, u8 powerlevel);
 
 #endif

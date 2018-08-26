@@ -226,7 +226,7 @@ phy_RF8256_Config_ParaFile_Fail:
 }
 
 
-void PHY_SetRF8256CCKTxPower(struct net_device *dev, u8 powerlevel)
+void phy_set_rf8256_cck_tx_power(struct net_device *dev, u8 powerlevel)
 {
 	u32	TxAGC = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
