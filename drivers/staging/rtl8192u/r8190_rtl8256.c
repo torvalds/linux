@@ -85,7 +85,7 @@ void phy_set_rf8256_bandwidth(struct net_device *dev, enum ht_channel_width Band
  * Return:      NONE
  *--------------------------------------------------------------------------
  */
-void PHY_RF8256_Config(struct net_device *dev)
+void phy_rf8256_config(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	/* Initialize general global value
@@ -152,7 +152,7 @@ void phy_RF8256_Config_ParaFile(struct net_device *dev)
 		 * TODO: this function should be removed on ASIC , Emily 2007.2.2
 		 */
 		if (rtl8192_phy_checkBBAndRF(dev, HW90_BLOCK_RF, (enum rf90_radio_path_e)eRFPath)) {
-			RT_TRACE(COMP_ERR, "PHY_RF8256_Config():Check Radio[%d] Fail!!\n", eRFPath);
+			RT_TRACE(COMP_ERR, "phy_rf8256_config():Check Radio[%d] Fail!!\n", eRFPath);
 			goto phy_RF8256_Config_ParaFile_Fail;
 		}
 

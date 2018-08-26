@@ -794,7 +794,7 @@ static void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 						  (enum rf90_radio_path_e)0);
 		if (status != 0) {
 			RT_TRACE((COMP_ERR | COMP_PHY),
-				 "PHY_RF8256_Config(): Check PHY%d Fail!!\n",
+				 "phy_rf8256_config(): Check PHY%d Fail!!\n",
 				 eCheckItem-1);
 			return;
 		}
@@ -941,7 +941,7 @@ void rtl8192_phy_RFConfig(struct net_device *dev)
 
 	switch (priv->rf_chip) {
 	case RF_8256:
-		PHY_RF8256_Config(dev);
+		phy_rf8256_config(dev);
 		break;
 	default:
 		RT_TRACE(COMP_ERR, "error chip id\n");
