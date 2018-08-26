@@ -2498,7 +2498,7 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 			}
 		} else if (priv->EEPROM_Def_Ver == 1) {
 			if (bLoad_From_EEPOM) {
-				ret = eprom_read(dev, EEPROM_TxPwIndex_CCK_V1 >> 1);
+				ret = eprom_read(dev, EEPROM_TX_PW_INDEX_CCK_V1 >> 1);
 				if (ret < 0)
 					return ret;
 				tmpValue = ((u16)ret & 0xff00) >> 8;
@@ -2508,7 +2508,7 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 			priv->EEPROMTxPowerLevelCCK_V1[0] = (u8)tmpValue;
 
 			if (bLoad_From_EEPOM) {
-				ret = eprom_read(dev, (EEPROM_TxPwIndex_CCK_V1 + 2) >> 1);
+				ret = eprom_read(dev, (EEPROM_TX_PW_INDEX_CCK_V1 + 2) >> 1);
 				if (ret < 0)
 					return ret;
 				tmpValue = (u16)ret;
