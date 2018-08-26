@@ -859,16 +859,28 @@ out:
 	return err;
 }
 
+u32 mlx5e_ethtool_get_rxfh_key_size(struct mlx5e_priv *priv)
+{
+	return sizeof(priv->channels.params.toeplitz_hash_key);
+}
+
 static u32 mlx5e_get_rxfh_key_size(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
-	return sizeof(priv->channels.params.toeplitz_hash_key);
+	return mlx5e_ethtool_get_rxfh_key_size(priv);
+}
+
+u32 mlx5e_ethtool_get_rxfh_indir_size(struct mlx5e_priv *priv)
+{
+	return MLX5E_INDIR_RQT_SIZE;
 }
 
 static u32 mlx5e_get_rxfh_indir_size(struct net_device *netdev)
 {
-	return MLX5E_INDIR_RQT_SIZE;
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	return mlx5e_ethtool_get_rxfh_indir_size(priv);
 }
 
 static int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
