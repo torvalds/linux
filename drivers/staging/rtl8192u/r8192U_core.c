@@ -2388,7 +2388,7 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 		tmpValue = (u16)ret;
 		priv->eeprom_ChannelPlan = (tmpValue & 0xff00) >> 8;
 		priv->btxpowerdata_readfromEEPORM = true;
-		ret = eprom_read(dev, (EEPROM_Customer_ID >> 1)) >> 8;
+		ret = eprom_read(dev, (EEPROM_CUSTOMER_ID >> 1)) >> 8;
 		if (ret < 0)
 			return ret;
 		priv->eeprom_CustomerID = (u16)ret;
