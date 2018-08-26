@@ -585,18 +585,12 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 	entity->num_links = 0;
 	entity->num_backlinks = 0;
 
-	if (!ida_pre_get(&mdev->entity_internal_idx, GFP_KERNEL))
-		return -ENOMEM;
+	ret = ida_alloc_min(&mdev->entity_internal_idx, 1, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
+	entity->internal_idx = ret;
 
 	mutex_lock(&mdev->graph_mutex);
-
-	ret = ida_get_new_above(&mdev->entity_internal_idx, 1,
-				&entity->internal_idx);
-	if (ret < 0) {
-		mutex_unlock(&mdev->graph_mutex);
-		return ret;
-	}
-
 	mdev->entity_internal_idx_max =
 		max(mdev->entity_internal_idx_max, entity->internal_idx);
 
@@ -642,7 +636,7 @@ static void __media_device_unregister_entity(struct media_entity *entity)
 	struct media_interface *intf;
 	unsigned int i;
 
-	ida_simple_remove(&mdev->entity_internal_idx, entity->internal_idx);
+	ida_free(&mdev->entity_internal_idx, entity->internal_idx);
 
 	/* Remove all interface links pointing to this entity */
 	list_for_each_entry(intf, &mdev->interfaces, graph_obj.list) {
