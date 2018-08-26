@@ -20,10 +20,6 @@
 #ifndef R8192_HW
 #define R8192_HW
 
-typedef enum _BaseBand_Config_Type {
-	BaseBand_Config_PHY_REG = 0,			//Radio Path A
-	BaseBand_Config_AGC_TAB = 1,			//Radio Path B
-} BaseBand_Config_Type, *PBaseBand_Config_Type;
 #define	RTL8187_REQT_READ	0xc0
 #define	RTL8187_REQT_WRITE	0x40
 #define	RTL8187_REQ_GET_REGS	0x05

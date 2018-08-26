@@ -511,7 +511,8 @@ void rtl8192_phy_configmac(struct net_device *dev)
  * notice:    BB parameters may change all the time, so please make
  *            sure it has been synced with the newest.
  *****************************************************************************/
-static void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
+static void rtl8192_phyConfigBB(struct net_device *dev,
+				enum baseband_config_type ConfigType)
 {
 	u32 i;
 
@@ -525,7 +526,7 @@ static void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
 		Rtl8190AGCTAB_Array_Table = Rtl819XAGCTAB_ArrayDTM;
 	}
 #endif
-	if (ConfigType == BaseBand_Config_PHY_REG) {
+	if (ConfigType == BASEBAND_CONFIG_PHY_REG) {
 		for (i = 0; i < PHY_REG_1T2RArrayLength; i += 2) {
 			rtl8192_setBBreg(dev, Rtl8192UsbPHY_REG_1T2RArray[i],
 					 bMaskDWord,
@@ -535,7 +536,7 @@ static void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
 				 i, Rtl8192UsbPHY_REG_1T2RArray[i],
 				 Rtl8192UsbPHY_REG_1T2RArray[i+1]);
 		}
-	} else if (ConfigType == BaseBand_Config_AGC_TAB) {
+	} else if (ConfigType == BASEBAND_CONFIG_AGC_TAB) {
 		for (i = 0; i < AGCTAB_ArrayLength; i += 2) {
 			rtl8192_setBBreg(dev, Rtl8192UsbAGCTAB_Array[i],
 					 bMaskDWord, Rtl8192UsbAGCTAB_Array[i+1]);
@@ -802,7 +803,7 @@ static void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	rtl8192_setBBreg(dev, rFPGA0_RFMOD, bCCKEn|bOFDMEn, 0x0);
 	/* ----BB Register Initilazation---- */
 	/* ==m==>Set PHY REG From Header<==m== */
-	rtl8192_phyConfigBB(dev, BaseBand_Config_PHY_REG);
+	rtl8192_phyConfigBB(dev, BASEBAND_CONFIG_PHY_REG);
 
 	/* ----Set BB reset de-Active---- */
 	read_nic_dword(dev, CPU_GEN, &reg_u32);
@@ -810,7 +811,7 @@ static void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 
 	/* ----BB AGC table Initialization---- */
 	/* ==m==>Set PHY REG From Header<==m== */
-	rtl8192_phyConfigBB(dev, BaseBand_Config_AGC_TAB);
+	rtl8192_phyConfigBB(dev, BASEBAND_CONFIG_AGC_TAB);
 
 	/* ----Enable XSTAL ---- */
 	write_nic_byte_E(dev, 0x5e, 0x00);

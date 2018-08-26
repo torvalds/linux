@@ -7,6 +7,11 @@
 #define MAX_RFDEPENDCMD_CNT 16
 #define MAX_POSTCMD_CNT 16
 
+enum baseband_config_type {
+	BASEBAND_CONFIG_PHY_REG = 0,			//Radio Path A
+	BASEBAND_CONFIG_AGC_TAB = 1,			//Radio Path B
+};
+
 enum switch_chan_cmd_id {
 	CMD_ID_END,
 	CMD_ID_SET_TX_PWR_LEVEL,
