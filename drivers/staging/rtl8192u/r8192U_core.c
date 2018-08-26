@@ -2425,7 +2425,7 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 	if (priv->card_8192_version == VERSION_819XU_A) {
 		/* read Tx power gain offset of legacy OFDM to HT rate */
 		if (bLoad_From_EEPOM) {
-			ret = eprom_read(dev, (EEPROM_TxPowerDiff >> 1));
+			ret = eprom_read(dev, (EEPROM_TX_POWER_DIFF >> 1));
 			if (ret < 0)
 				return ret;
 			priv->EEPROMTxPowerDiff = ((u16)ret & 0xff00) >> 8;
