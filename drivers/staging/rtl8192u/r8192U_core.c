@@ -2463,7 +2463,7 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 		RT_TRACE(COMP_EPROM, "CrystalCap = %d\n", priv->EEPROMCrystalCap);
 		/* get per-channel Tx power level */
 		if (bLoad_From_EEPOM) {
-			ret = eprom_read(dev, (EEPROM_TxPwIndex_Ver >> 1));
+			ret = eprom_read(dev, (EEPROM_TX_PW_INDEX_VER >> 1));
 			if (ret < 0)
 				return ret;
 			priv->EEPROM_Def_Ver = ((u16)ret & 0xff00) >> 8;
