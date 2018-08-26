@@ -1,6 +1,6 @@
 # Kernel 4.14 for BPI-R2
 
-[![Build Status](https://travis-ci.com/frank-w/BPI-R2-4.14.svg)](https://travis-ci.com/frank-w/BPI-R2-4.14)
+[![Build Status](https://travis-ci.com/frank-w/BPI-R2-4.14.svg?branch=4.14-main)](https://travis-ci.com/frank-w/BPI-R2-4.14?branch=4.14-main)
 
 ## Requirements
 
