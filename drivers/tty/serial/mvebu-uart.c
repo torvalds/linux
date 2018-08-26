@@ -327,8 +327,10 @@ static void mvebu_uart_set_termios(struct uart_port *port,
 	if ((termios->c_cflag & CREAD) == 0)
 		port->ignore_status_mask |= STAT_RX_RDY | STAT_BRK_ERR;
 
-	if (old)
+	if (old) {
 		tty_termios_copy_hw(termios, old);
+		termios->c_cflag |= CS8;
+	}
 
 	baud = uart_get_baud_rate(port, termios, old, 0, 460800);
 	uart_update_timeout(port, termios->c_cflag, baud);
