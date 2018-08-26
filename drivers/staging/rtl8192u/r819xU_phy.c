@@ -1634,7 +1634,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 		break;
 
 	case RF_8256:
-		PHY_SetRF8256Bandwidth(dev, priv->CurrentChannelBW);
+		phy_set_rf8256_bandwidth(dev, priv->CurrentChannelBW);
 		break;
 
 	case RF_8258:
