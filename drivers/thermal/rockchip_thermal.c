@@ -257,6 +257,45 @@ struct tsadc_table {
 	int temp;
 };
 
+static const struct tsadc_table rk1808_code_table[] = {
+	{TSADCV2_DATA_MASK, -40000},
+	{641, -40000},
+	{633, -35000},
+	{625, -30000},
+	{617, -25000},
+	{609, -20000},
+	{601, -15000},
+	{593, -10000},
+	{585, -5000},
+	{577, 0},
+	{569, 5000},
+	{561, 10000},
+	{553, 15000},
+	{545, 20000},
+	{537, 25000},
+	{529, 30000},
+	{520, 35000},
+	{512, 40000},
+	{504, 45000},
+	{496, 50000},
+	{487, 55000},
+	{479, 60000},
+	{471, 65000},
+	{463, 70000},
+	{454, 75000},
+	{446, 80000},
+	{437, 85000},
+	{429, 90000},
+	{421, 95000},
+	{412, 100000},
+	{404, 105000},
+	{395, 110000},
+	{387, 115000},
+	{378, 120000},
+	{370, 125000},
+	{0, 125000},
+};
+
 static const struct tsadc_table rk3228_code_table[] = {
 	{0, -40000},
 	{588, -40000},
@@ -845,6 +884,30 @@ static void rk_tsadcv2_tshut_mode(int chn, void __iomem *regs,
 	writel_relaxed(val, regs + TSADCV2_INT_EN);
 }
 
+static const struct rockchip_tsadc_chip rk1808_tsadc_data = {
+	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
+	.chn_num = 1, /* one channel for tsadc */
+
+	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
+	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
+	.tshut_temp = 95000,
+
+	.initialize = rk_tsadcv2_initialize,
+	.irq_ack = rk_tsadcv3_irq_ack,
+	.control = rk_tsadcv3_control,
+	.get_temp = rk_tsadcv2_get_temp,
+	.set_alarm_temp = rk_tsadcv2_alarm_temp,
+	.set_tshut_temp = rk_tsadcv2_tshut_temp,
+	.set_tshut_mode = rk_tsadcv2_tshut_mode,
+
+	.table = {
+		.id = rk1808_code_table,
+		.length = ARRAY_SIZE(rk1808_code_table),
+		.data_mask = TSADCV2_DATA_MASK,
+		.mode = ADC_DECREMENT,
+	},
+};
+
 static const struct rockchip_tsadc_chip rk3228_tsadc_data = {
 	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
 	.chn_num = 1, /* one channel for tsadc */
@@ -1044,6 +1107,10 @@ static const struct of_device_id of_rockchip_thermal_match[] = {
 	{
 		.compatible = "rockchip,px30-tsadc",
 		.data = (void *)&px30_tsadc_data,
+	},
+	{
+		.compatible = "rockchip,rk1808-tsadc",
+		.data = (void *)&rk1808_tsadc_data,
 	},
 	{
 		.compatible = "rockchip,rk3228-tsadc",
