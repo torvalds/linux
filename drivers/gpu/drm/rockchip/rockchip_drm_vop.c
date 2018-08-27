@@ -4316,8 +4316,6 @@ static int vop_win_init(struct vop *vop)
 		}
 	}
 
-	vop->num_wins = num_wins;
-
 	prop = drm_property_create_range(vop->drm_dev, DRM_MODE_PROP_ATOMIC,
 					 "ZPOS", 0, vop->data->win_size);
 	if (!prop) {
@@ -4445,6 +4443,9 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 
 	for (i = 0; i < vop_data->win_size; i++) {
 		const struct vop_win_data *win_data = &vop_data->win[i];
+
+		if (!win_data->phy)
+			continue;
 
 		num_wins += win_data->area_size + 1;
 	}
