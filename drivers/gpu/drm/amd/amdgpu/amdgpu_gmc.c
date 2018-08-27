@@ -80,6 +80,29 @@ uint64_t amdgpu_gmc_pd_addr(struct amdgpu_bo *bo)
 }
 
 /**
+ * amdgpu_gmc_agp_addr - return the address in the AGP address space
+ *
+ * @tbo: TTM BO which needs the address, must be in GTT domain
+ *
+ * Tries to figure out how to access the BO through the AGP aperture. Returns
+ * AMDGPU_BO_INVALID_OFFSET if that is not possible.
+ */
+uint64_t amdgpu_gmc_agp_addr(struct ttm_buffer_object *bo)
+{
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
+	struct ttm_dma_tt *ttm;
+
+	if (bo->num_pages != 1 || bo->ttm->caching_state == tt_cached)
+		return AMDGPU_BO_INVALID_OFFSET;
+
+	ttm = container_of(bo->ttm, struct ttm_dma_tt, ttm);
+	if (ttm->dma_address[0] + PAGE_SIZE >= adev->gmc.agp_size)
+		return AMDGPU_BO_INVALID_OFFSET;
+
+	return adev->gmc.agp_start + ttm->dma_address[0];
+}
+
+/**
  * amdgpu_gmc_vram_location - try to find VRAM location
  *
  * @adev: amdgpu device structure holding all necessary informations
