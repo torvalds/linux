@@ -16,7 +16,9 @@
  * here. Quite a few active (mini-)DP-to-HDMI or USB-C-to-HDMI adapters
  * have a converter chip that supports CEC-Tunneling-over-AUX (usually the
  * Parade PS176), but they do not wire up the CEC pin, thus making CEC
- * useless.
+ * useless. Note that MegaChips 2900-based adapters appear to have good
+ * support for CEC tunneling. Those adapters that I have tested using
+ * this chipset all have the CEC line connected.
  *
  * Sadly there is no way for this driver to know this. What happens is
  * that a /dev/cecX device is created that is isolated and unable to see
