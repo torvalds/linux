@@ -2295,8 +2295,7 @@ int fc_setup_fcp(void)
 
 void fc_destroy_fcp(void)
 {
-	if (scsi_pkt_cachep)
-		kmem_cache_destroy(scsi_pkt_cachep);
+	kmem_cache_destroy(scsi_pkt_cachep);
 }
 
 /**
