@@ -130,11 +130,13 @@ struct goldfish_pipe_dev_buffers {
 struct goldfish_pipe {
 	/* pipe ID - index into goldfish_pipe_dev::pipes array */
 	u32 id;
+
 	/* The wake flags pipe is waiting for
 	 * Note: not protected with any lock, uses atomic operations
 	 *  and barriers to make it thread-safe.
 	 */
 	unsigned long flags;
+
 	/* wake flags host have signalled,
 	 *  - protected by goldfish_pipe_dev::lock
 	 */
@@ -158,6 +160,7 @@ struct goldfish_pipe {
 
 	/* A wake queue for sleeping until host signals an event */
 	wait_queue_head_t wake_queue;
+
 	/* Pointer to the parent goldfish_pipe_dev instance */
 	struct goldfish_pipe_dev *dev;
 };
