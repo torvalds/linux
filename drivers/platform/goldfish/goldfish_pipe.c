@@ -199,6 +199,9 @@ struct goldfish_pipe_dev {
 	/* Head of a doubly linked list of signalled pipes */
 	struct goldfish_pipe *first_signalled_pipe;
 
+	/* ptr to platform device's device struct */
+	struct device *pdev_dev;
+
 	/* Some device-specific data */
 	int irq;
 	int version;
@@ -434,7 +437,8 @@ static ssize_t goldfish_pipe_read_write(struct file *filp,
 			 * err.
 			 */
 			if (status != PIPE_ERROR_AGAIN)
-				pr_info_ratelimited("goldfish_pipe: backend error %d on %s\n",
+				dev_err_ratelimited(pipe->dev->pdev_dev,
+					"backend error %d on %s\n",
 					status, is_write ? "write" : "read");
 			break;
 		}
@@ -787,6 +791,7 @@ static int goldfish_pipe_device_init(struct platform_device *pdev)
 		return err;
 	}
 
+	dev->pdev_dev = &pdev->dev;
 	dev->first_signalled_pipe = NULL;
 	dev->pipes_capacity = INITIAL_PIPES_CAPACITY;
 	dev->pipes = kcalloc(dev->pipes_capacity, sizeof(*dev->pipes),
