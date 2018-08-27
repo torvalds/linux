@@ -66,11 +66,6 @@ config CRYPTO_CRCT10DIF_ARM64_CE
 	depends on KERNEL_MODE_NEON && CRC_T10DIF
 	select CRYPTO_HASH
 
-config CRYPTO_CRC32_ARM64_CE
-	tristate "CRC32 and CRC32C digest algorithms using ARMv8 extensions"
-	depends on CRC32
-	select CRYPTO_HASH
-
 config CRYPTO_AES_ARM64
 	tristate "AES core cipher using scalar instructions"
 	select CRYPTO_AES
