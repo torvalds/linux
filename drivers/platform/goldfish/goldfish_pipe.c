@@ -588,7 +588,8 @@ static void signalled_pipes_add_locked(struct goldfish_pipe_dev *dev,
 }
 
 static void signalled_pipes_remove_locked(struct goldfish_pipe_dev *dev,
-	struct goldfish_pipe *pipe) {
+	struct goldfish_pipe *pipe)
+{
 	if (pipe->prev_signalled)
 		pipe->prev_signalled->next_signalled = pipe->next_signalled;
 	if (pipe->next_signalled)
