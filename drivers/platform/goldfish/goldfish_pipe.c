@@ -252,10 +252,12 @@ static int goldfish_pipe_error_convert(int status)
 	}
 }
 
-static int pin_user_pages(unsigned long first_page, unsigned long last_page,
-	unsigned int last_page_size, int is_write,
-	struct page *pages[MAX_BUFFERS_PER_COMMAND],
-	unsigned int *iter_last_page_size)
+static int pin_user_pages(unsigned long first_page,
+			  unsigned long last_page,
+			  unsigned int last_page_size,
+			  int is_write,
+			  struct page *pages[MAX_BUFFERS_PER_COMMAND],
+			  unsigned int *iter_last_page_size)
 {
 	int ret;
 	int requested_pages = ((last_page - first_page) >> PAGE_SHIFT) + 1;
@@ -267,8 +269,8 @@ static int pin_user_pages(unsigned long first_page, unsigned long last_page,
 		*iter_last_page_size = last_page_size;
 	}
 
-	ret = get_user_pages_fast(
-			first_page, requested_pages, !is_write, pages);
+	ret = get_user_pages_fast(first_page, requested_pages, !is_write,
+				  pages);
 	if (ret <= 0)
 		return -EFAULT;
 	if (ret < requested_pages)
@@ -278,7 +280,7 @@ static int pin_user_pages(unsigned long first_page, unsigned long last_page,
 }
 
 static void release_user_pages(struct page **pages, int pages_count,
-	int is_write, s32 consumed_size)
+			       int is_write, s32 consumed_size)
 {
 	int i;
 
@@ -290,12 +292,15 @@ static void release_user_pages(struct page **pages, int pages_count,
 }
 
 /* Populate the call parameters, merging adjacent pages together */
-static void populate_rw_params(
-	struct page **pages, int pages_count,
-	unsigned long address, unsigned long address_end,
-	unsigned long first_page, unsigned long last_page,
-	unsigned int iter_last_page_size, int is_write,
-	struct goldfish_pipe_command *command)
+static void populate_rw_params(struct page **pages,
+			       int pages_count,
+			       unsigned long address,
+			       unsigned long address_end,
+			       unsigned long first_page,
+			       unsigned long last_page,
+			       unsigned int iter_last_page_size,
+			       int is_write,
+			       struct goldfish_pipe_command *command)
 {
 	/*
 	 * Process the first page separately - it's the only page that
@@ -327,16 +332,20 @@ static void populate_rw_params(
 }
 
 static int transfer_max_buffers(struct goldfish_pipe *pipe,
-	unsigned long address, unsigned long address_end, int is_write,
-	unsigned long last_page, unsigned int last_page_size,
-	s32 *consumed_size, int *status)
+				unsigned long address,
+				unsigned long address_end,
+				int is_write,
+				unsigned long last_page,
+				unsigned int last_page_size,
+				s32 *consumed_size,
+				int *status)
 {
 	static struct page *pages[MAX_BUFFERS_PER_COMMAND];
 	unsigned long first_page = address & PAGE_MASK;
 	unsigned int iter_last_page_size;
 	int pages_count = pin_user_pages(first_page, last_page,
-			last_page_size, is_write,
-			pages, &iter_last_page_size);
+					 last_page_size, is_write,
+					 pages, &iter_last_page_size);
 
 	if (pages_count < 0)
 		return pages_count;
@@ -346,8 +355,8 @@ static int transfer_max_buffers(struct goldfish_pipe *pipe,
 		return -ERESTARTSYS;
 
 	populate_rw_params(pages, pages_count, address, address_end,
-		first_page, last_page, iter_last_page_size, is_write,
-		pipe->command_buffer);
+			   first_page, last_page, iter_last_page_size, is_write,
+			   pipe->command_buffer);
 
 	/* Transfer the data */
 	*status = goldfish_pipe_cmd_locked(pipe,
@@ -374,7 +383,7 @@ static int wait_for_host_signal(struct goldfish_pipe *pipe, int is_write)
 
 	while (test_bit(wake_bit, &pipe->flags)) {
 		if (wait_event_interruptible(pipe->wake_queue,
-				!test_bit(wake_bit, &pipe->flags)))
+					     !test_bit(wake_bit, &pipe->flags)))
 			return -ERESTARTSYS;
 
 		if (test_bit(BIT_CLOSED_ON_HOST, &pipe->flags))
@@ -385,7 +394,9 @@ static int wait_for_host_signal(struct goldfish_pipe *pipe, int is_write)
 }
 
 static ssize_t goldfish_pipe_read_write(struct file *filp,
-	char __user *buffer, size_t bufflen, int is_write)
+					char __user *buffer,
+					size_t bufflen,
+					int is_write)
 {
 	struct goldfish_pipe *pipe = filp->private_data;
 	int count = 0, ret = -EINVAL;
@@ -400,7 +411,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp,
 		return 0;
 	/* Check the buffer range for access */
 	if (unlikely(!access_ok(is_write ? VERIFY_WRITE : VERIFY_READ,
-			buffer, bufflen)))
+				buffer, bufflen)))
 		return -EFAULT;
 
 	address = (unsigned long)buffer;
@@ -413,8 +424,8 @@ static ssize_t goldfish_pipe_read_write(struct file *filp,
 		int status;
 
 		ret = transfer_max_buffers(pipe, address, address_end, is_write,
-				last_page, last_page_size, &consumed_size,
-				&status);
+					   last_page, last_page_size,
+					   &consumed_size, &status);
 		if (ret < 0)
 			break;
 
@@ -467,19 +478,21 @@ static ssize_t goldfish_pipe_read_write(struct file *filp,
 }
 
 static ssize_t goldfish_pipe_read(struct file *filp, char __user *buffer,
-				size_t bufflen, loff_t *ppos)
+				  size_t bufflen, loff_t *ppos)
 {
 	return goldfish_pipe_read_write(filp, buffer, bufflen,
-			/* is_write */ 0);
+					/* is_write */ 0);
 }
 
 static ssize_t goldfish_pipe_write(struct file *filp,
-				const char __user *buffer, size_t bufflen,
-				loff_t *ppos)
+				   const char __user *buffer, size_t bufflen,
+				   loff_t *ppos)
 {
-	return goldfish_pipe_read_write(filp,
-			/* cast away the const */(char __user *)buffer, bufflen,
-			/* is_write */ 1);
+	/* cast away the const */
+	char __user *no_const_buffer = (char __user *)buffer;
+
+	return goldfish_pipe_read_write(filp, no_const_buffer, bufflen,
+					/* is_write */ 1);
 }
 
 static __poll_t goldfish_pipe_poll(struct file *filp, poll_table *wait)
@@ -507,7 +520,7 @@ static __poll_t goldfish_pipe_poll(struct file *filp, poll_table *wait)
 }
 
 static void signalled_pipes_add_locked(struct goldfish_pipe_dev *dev,
-	u32 id, u32 flags)
+				       u32 id, u32 flags)
 {
 	struct goldfish_pipe *pipe;
 
@@ -529,7 +542,7 @@ static void signalled_pipes_add_locked(struct goldfish_pipe_dev *dev,
 }
 
 static void signalled_pipes_remove_locked(struct goldfish_pipe_dev *dev,
-	struct goldfish_pipe *pipe)
+					  struct goldfish_pipe *pipe)
 {
 	if (pipe->prev_signalled)
 		pipe->prev_signalled->next_signalled = pipe->next_signalled;
@@ -805,7 +818,7 @@ static int goldfish_pipe_device_init(struct platform_device *pdev)
 	dev->first_signalled_pipe = NULL;
 	dev->pipes_capacity = INITIAL_PIPES_CAPACITY;
 	dev->pipes = kcalloc(dev->pipes_capacity, sizeof(*dev->pipes),
-					GFP_KERNEL);
+			     GFP_KERNEL);
 	if (!dev->pipes)
 		return -ENOMEM;
 
