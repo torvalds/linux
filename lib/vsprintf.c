@@ -1596,6 +1596,7 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 		fmt = "f";
 
 	for (pass = false; strspn(fmt,"fnpPFcC"); fmt++, pass = true) {
+		int precision;
 		if (pass) {
 			if (buf < end)
 				*buf = ':';
@@ -1607,7 +1608,11 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 			buf = device_node_gen_full_name(dn, buf, end);
 			break;
 		case 'n':	/* name */
-			buf = string(buf, end, dn->name, str_spec);
+			p = kbasename(of_node_full_name(dn));
+			precision = str_spec.precision;
+			str_spec.precision = strchrnul(p, '@') - p;
+			buf = string(buf, end, p, str_spec);
+			str_spec.precision = precision;
 			break;
 		case 'p':	/* phandle */
 			buf = number(buf, end, (unsigned int)dn->phandle, num_spec);
