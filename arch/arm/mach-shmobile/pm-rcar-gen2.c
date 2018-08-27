@@ -50,7 +50,7 @@ void __init rcar_gen2_pm_init(void)
 	void __iomem *p;
 	u32 bar;
 	static int once;
-	struct device_node *np, *cpus;
+	struct device_node *np;
 	bool has_a7 = false;
 	bool has_a15 = false;
 	struct resource res;
@@ -59,11 +59,7 @@ void __init rcar_gen2_pm_init(void)
 	if (once++)
 		return;
 
-	cpus = of_find_node_by_path("/cpus");
-	if (!cpus)
-		return;
-
-	for_each_child_of_node(cpus, np) {
+	for_each_of_cpu_node(np) {
 		if (of_device_is_compatible(np, "arm,cortex-a15"))
 			has_a15 = true;
 		else if (of_device_is_compatible(np, "arm,cortex-a7"))
