@@ -779,7 +779,6 @@ static struct miscdevice goldfish_pipe_miscdev = {
 static int goldfish_pipe_device_init(struct platform_device *pdev)
 {
 	struct goldfish_pipe_dev *dev = &goldfish_pipe_dev;
-	char *page;
 	int err = devm_request_irq(&pdev->dev, dev->irq,
 				goldfish_pipe_interrupt,
 				IRQF_SHARED, "goldfish_pipe", dev);
@@ -809,12 +808,12 @@ static int goldfish_pipe_device_init(struct platform_device *pdev)
 	 * is to just allocate a page and place the buffers in it.
 	 */
 	BUILD_BUG_ON(sizeof(struct goldfish_pipe_dev_buffers) > PAGE_SIZE);
-	page = (char *)__get_free_page(GFP_KERNEL);
-	if (!page) {
+	dev->buffers = (struct goldfish_pipe_dev_buffers *)
+		__get_free_page(GFP_KERNEL);
+	if (!dev->buffers) {
 		kfree(dev->pipes);
 		return -ENOMEM;
 	}
-	dev->buffers = (struct goldfish_pipe_dev_buffers *)page;
 
 	/* Send the buffer addresses to the host */
 	{
