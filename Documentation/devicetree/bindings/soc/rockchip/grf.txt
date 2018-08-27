@@ -10,6 +10,7 @@ From RK3368 SoCs, the GRF is divided into two sections,
 Required Properties:
 
 - compatible: GRF should be one of the followings
+   - "rockchip,rk1808-grf", "syscon": for rk1808
    - "rockchip,rk3066-grf", "syscon": for rk3066
    - "rockchip,rk3188-grf", "syscon": for rk3188
    - "rockchip,rk3228-grf", "syscon": for rk3228
@@ -18,6 +19,7 @@ Required Properties:
    - "rockchip,rk3368-grf", "syscon": for rk3368
    - "rockchip,rk3399-grf", "syscon": for rk3399
 - compatible: PMUGRF should be one of the followings
+   - "rockchip,rk1808-pmugrf", "syscon": for rk1808
    - "rockchip,rk3368-pmugrf", "syscon": for rk3368
    - "rockchip,rk3399-pmugrf", "syscon": for rk3399
 - reg: physical base address of the controller and length of memory mapped
