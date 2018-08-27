@@ -636,11 +636,6 @@ static void wbt_wait(struct rq_qos *rqos, struct bio *bio, spinlock_t *lock)
 		return;
 	}
 
-	if (current_is_kswapd())
-		flags |= WBT_KSWAPD;
-	if (bio_op(bio) == REQ_OP_DISCARD)
-		flags |= WBT_DISCARD;
-
 	__wbt_wait(rwb, flags, bio->bi_opf, lock);
 
 	if (!blk_stat_is_active(rwb->cb))
