@@ -24,11 +24,11 @@
 #include <linux/rtnetlink.h>
 #include <linux/pm_runtime.h>
 
-static bool use_msi = true;
-module_param(use_msi, bool, 0444);
-MODULE_PARM_DESC(use_msi, " Use MSI interrupt, default - true");
+static int n_msi = 3;
+module_param(n_msi, int, 0444);
+MODULE_PARM_DESC(n_msi, " Use MSI interrupt: 0 - use INTx, 1 - single, or 3 - (default) ");
 
-static bool ftm_mode;
+bool ftm_mode;
 module_param(ftm_mode, bool, 0444);
 MODULE_PARM_DESC(ftm_mode, " Set factory test mode, default - false");
 
@@ -85,7 +85,7 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 		wil->rgf_ucode_assert_code_addr = SPARROW_RGF_UCODE_ASSERT_CODE;
 		break;
 	case JTAG_DEV_ID_TALYN:
-		wil->hw_name = "Talyn";
+		wil->hw_name = "Talyn-MA";
 		wil->hw_version = HW_VER_TALYN;
 		memcpy(fw_mapping, talyn_fw_mapping, sizeof(talyn_fw_mapping));
 		wil->rgf_fw_assert_code_addr = TALYN_RGF_FW_ASSERT_CODE;
@@ -93,6 +93,25 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 		if (wil_r(wil, RGF_USER_OTP_HW_RD_MACHINE_1) &
 		    BIT_NO_FLASH_INDICATION)
 			set_bit(hw_capa_no_flash, wil->hw_capa);
+		wil_fw_name = ftm_mode ? WIL_FW_NAME_FTM_TALYN :
+			      WIL_FW_NAME_TALYN;
+		if (wil_fw_verify_file_exists(wil, wil_fw_name))
+			wil->wil_fw_name = wil_fw_name;
+		break;
+	case JTAG_DEV_ID_TALYN_MB:
+		wil->hw_name = "Talyn-MB";
+		wil->hw_version = HW_VER_TALYN_MB;
+		memcpy(fw_mapping, talyn_mb_fw_mapping,
+		       sizeof(talyn_mb_fw_mapping));
+		wil->rgf_fw_assert_code_addr = TALYN_RGF_FW_ASSERT_CODE;
+		wil->rgf_ucode_assert_code_addr = TALYN_RGF_UCODE_ASSERT_CODE;
+		set_bit(hw_capa_no_flash, wil->hw_capa);
+		wil->use_enhanced_dma_hw = true;
+		wil->use_rx_hw_reordering = true;
+		wil_fw_name = ftm_mode ? WIL_FW_NAME_FTM_TALYN :
+			      WIL_FW_NAME_TALYN;
+		if (wil_fw_verify_file_exists(wil, wil_fw_name))
+			wil->wil_fw_name = wil_fw_name;
 		break;
 	default:
 		wil_err(wil, "Unknown board hardware, chip_id 0x%08x, chip_revision 0x%08x\n",
@@ -101,6 +120,8 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 		wil->hw_version = HW_VER_UNKNOWN;
 		return -EINVAL;
 	}
+
+	wil_init_txrx_ops(wil);
 
 	iccm_section = wil_find_fw_mapping("fw_code");
 	if (!iccm_section) {
@@ -129,12 +150,24 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 
 void wil_disable_irq(struct wil6210_priv *wil)
 {
-	disable_irq(wil->pdev->irq);
+	int irq = wil->pdev->irq;
+
+	disable_irq(irq);
+	if (wil->n_msi == 3) {
+		disable_irq(irq + 1);
+		disable_irq(irq + 2);
+	}
 }
 
 void wil_enable_irq(struct wil6210_priv *wil)
 {
-	enable_irq(wil->pdev->irq);
+	int irq = wil->pdev->irq;
+
+	enable_irq(irq);
+	if (wil->n_msi == 3) {
+		enable_irq(irq + 1);
+		enable_irq(irq + 2);
+	}
 }
 
 static void wil_remove_all_additional_vifs(struct wil6210_priv *wil)
@@ -161,28 +194,47 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 	 * and only MSI should be used
 	 */
 	int msi_only = pdev->msi_enabled;
-	bool _use_msi = use_msi;
 
 	wil_dbg_misc(wil, "if_pcie_enable\n");
 
 	pci_set_master(pdev);
 
-	wil_dbg_misc(wil, "Setup %s interrupt\n", use_msi ? "MSI" : "INTx");
-
-	if (use_msi && pci_enable_msi(pdev)) {
-		wil_err(wil, "pci_enable_msi failed, use INTx\n");
-		_use_msi = false;
+	/* how many MSI interrupts to request? */
+	switch (n_msi) {
+	case 3:
+	case 1:
+		wil_dbg_misc(wil, "Setup %d MSI interrupts\n", n_msi);
+		break;
+	case 0:
+		wil_dbg_misc(wil, "MSI interrupts disabled, use INTx\n");
+		break;
+	default:
+		wil_err(wil, "Invalid n_msi=%d, default to 1\n", n_msi);
+		n_msi = 1;
 	}
 
-	if (!_use_msi && msi_only) {
+	if (n_msi == 3 &&
+	    pci_alloc_irq_vectors(pdev, n_msi, n_msi, PCI_IRQ_MSI) < n_msi) {
+		wil_err(wil, "3 MSI mode failed, try 1 MSI\n");
+		n_msi = 1;
+	}
+
+	if (n_msi == 1 && pci_enable_msi(pdev)) {
+		wil_err(wil, "pci_enable_msi failed, use INTx\n");
+		n_msi = 0;
+	}
+
+	wil->n_msi = n_msi;
+
+	if (wil->n_msi == 0 && msi_only) {
 		wil_err(wil, "Interrupt pin not routed, unable to use INTx\n");
 		rc = -ENODEV;
 		goto stop_master;
 	}
 
-	rc = wil6210_init_irq(wil, pdev->irq, _use_msi);
+	rc = wil6210_init_irq(wil, pdev->irq);
 	if (rc)
-		goto stop_master;
+		goto release_vectors;
 
 	/* need reset here to obtain MAC */
 	mutex_lock(&wil->mutex);
@@ -195,8 +247,9 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 
  release_irq:
 	wil6210_fini_irq(wil, pdev->irq);
-	/* safe to call if no MSI */
-	pci_disable_msi(pdev);
+ release_vectors:
+	/* safe to call if no allocation */
+	pci_free_irq_vectors(pdev);
  stop_master:
 	pci_clear_master(pdev);
 	return rc;
@@ -257,8 +310,8 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		.fw_recovery = wil_platform_rop_fw_recovery,
 	};
 	u32 bar_size = pci_resource_len(pdev, 0);
-	int dma_addr_size[] = {48, 40, 32}; /* keep descending order */
-	int i;
+	int dma_addr_size[] = {64, 48, 40, 32}; /* keep descending order */
+	int i, start_idx;
 
 	/* check HW */
 	dev_info(&pdev->dev, WIL_NAME
@@ -293,24 +346,6 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto if_free;
 	}
 	/* rollback to err_plat */
-
-	/* device supports >32bit addresses */
-	for (i = 0; i < ARRAY_SIZE(dma_addr_size); i++) {
-		rc = dma_set_mask_and_coherent(dev,
-					       DMA_BIT_MASK(dma_addr_size[i]));
-		if (rc) {
-			dev_err(dev, "dma_set_mask_and_coherent(%d) failed: %d\n",
-				dma_addr_size[i], rc);
-			continue;
-		}
-		dev_info(dev, "using dma mask %d", dma_addr_size[i]);
-		wil->dma_addr_size = dma_addr_size[i];
-		break;
-	}
-
-	if (wil->dma_addr_size == 0)
-		goto err_plat;
-
 	rc = pci_enable_device(pdev);
 	if (rc && pdev->msi_enabled == 0) {
 		wil_err(wil,
@@ -350,6 +385,28 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		wil_err(wil, "wil_set_capabilities failed, rc %d\n", rc);
 		goto err_iounmap;
 	}
+
+	/* device supports >32bit addresses.
+	 * for legacy DMA start from 48 bit.
+	 */
+	start_idx = wil->use_enhanced_dma_hw ? 0 : 1;
+
+	for (i = start_idx; i < ARRAY_SIZE(dma_addr_size); i++) {
+		rc = dma_set_mask_and_coherent(dev,
+					       DMA_BIT_MASK(dma_addr_size[i]));
+		if (rc) {
+			dev_err(dev, "dma_set_mask_and_coherent(%d) failed: %d\n",
+				dma_addr_size[i], rc);
+			continue;
+		}
+		dev_info(dev, "using dma mask %d", dma_addr_size[i]);
+		wil->dma_addr_size = dma_addr_size[i];
+		break;
+	}
+
+	if (wil->dma_addr_size == 0)
+		goto err_iounmap;
+
 	wil6210_clear_irq(wil);
 
 	/* FW should raise IRQ when ready */

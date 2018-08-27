@@ -36,7 +36,7 @@ _GLOBAL(\name)
 	 */
 	lbz	r3,PACAIRQHAPPENED(r13)
 	cmpwi	cr0,r3,0
-	bnelr
+	bne	2f
 
 	/* Now we are going to mark ourselves as soft and hard enabled in
 	 * order to be able to take interrupts while asleep. We inform lockdep
@@ -72,6 +72,11 @@ _GLOBAL(\name)
 	wrteei	1
 	\loop
 
+2:
+	lbz	r10,PACAIRQHAPPENED(r13)
+	ori	r10,r10,PACA_IRQ_HARD_DIS
+	stb	r10,PACAIRQHAPPENED(r13)
+	blr
 .endm
 
 .macro BOOK3E_IDLE_LOOP

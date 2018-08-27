@@ -171,24 +171,11 @@ void intel_uc_init_early(struct drm_i915_private *i915)
 	intel_huc_init_early(huc);
 
 	sanitize_options_early(i915);
-
-	if (USES_GUC(i915))
-		intel_uc_fw_fetch(i915, &guc->fw);
-
-	if (USES_HUC(i915))
-		intel_uc_fw_fetch(i915, &huc->fw);
 }
 
 void intel_uc_cleanup_early(struct drm_i915_private *i915)
 {
 	struct intel_guc *guc = &i915->guc;
-	struct intel_huc *huc = &i915->huc;
-
-	if (USES_HUC(i915))
-		intel_uc_fw_fini(&huc->fw);
-
-	if (USES_GUC(i915))
-		intel_uc_fw_fini(&guc->fw);
 
 	guc_free_load_err_log(guc);
 }
@@ -252,28 +239,41 @@ static void guc_disable_communication(struct intel_guc *guc)
 int intel_uc_init_misc(struct drm_i915_private *i915)
 {
 	struct intel_guc *guc = &i915->guc;
+	struct intel_huc *huc = &i915->huc;
 	int ret;
 
 	if (!USES_GUC(i915))
 		return 0;
 
-	intel_guc_init_ggtt_pin_bias(guc);
-
-	ret = intel_guc_init_wq(guc);
+	ret = intel_guc_init_misc(guc);
 	if (ret)
 		return ret;
 
+	if (USES_HUC(i915)) {
+		ret = intel_huc_init_misc(huc);
+		if (ret)
+			goto err_guc;
+	}
+
 	return 0;
+
+err_guc:
+	intel_guc_fini_misc(guc);
+	return ret;
 }
 
 void intel_uc_fini_misc(struct drm_i915_private *i915)
 {
 	struct intel_guc *guc = &i915->guc;
+	struct intel_huc *huc = &i915->huc;
 
 	if (!USES_GUC(i915))
 		return;
 
-	intel_guc_fini_wq(guc);
+	if (USES_HUC(i915))
+		intel_huc_fini_misc(huc);
+
+	intel_guc_fini_misc(guc);
 }
 
 int intel_uc_init(struct drm_i915_private *i915)

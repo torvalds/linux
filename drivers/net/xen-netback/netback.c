@@ -1603,9 +1603,9 @@ static void xenvif_ctrl_action(struct xenvif *vif)
 static bool xenvif_ctrl_work_todo(struct xenvif *vif)
 {
 	if (likely(RING_HAS_UNCONSUMED_REQUESTS(&vif->ctrl)))
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 irqreturn_t xenvif_ctrl_irq_fn(int irq, void *data)

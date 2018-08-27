@@ -23,6 +23,7 @@
  */
 
 #include <linux/oom.h>
+#include <linux/sched/mm.h>
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
@@ -172,7 +173,9 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	 * we will free as much as we can and hope to get a second chance.
 	 */
 	if (flags & I915_SHRINK_ACTIVE)
-		i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED);
+		i915_gem_wait_for_idle(i915,
+				       I915_WAIT_LOCKED,
+				       MAX_SCHEDULE_TIMEOUT);
 
 	trace_i915_gem_shrink(i915, target, flags);
 	i915_retire_requests(i915);
@@ -392,7 +395,8 @@ shrinker_lock_uninterruptible(struct drm_i915_private *i915, bool *unlock,
 	unsigned long timeout = jiffies + msecs_to_jiffies_timeout(timeout_ms);
 
 	do {
-		if (i915_gem_wait_for_idle(i915, 0) == 0 &&
+		if (i915_gem_wait_for_idle(i915,
+					   0, MAX_SCHEDULE_TIMEOUT) == 0 &&
 		    shrinker_lock(i915, unlock))
 			break;
 
@@ -466,7 +470,9 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 		return NOTIFY_DONE;
 
 	/* Force everything onto the inactive lists */
-	ret = i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED);
+	ret = i915_gem_wait_for_idle(i915,
+				     I915_WAIT_LOCKED,
+				     MAX_SCHEDULE_TIMEOUT);
 	if (ret)
 		goto out;
 
@@ -525,4 +531,15 @@ void i915_gem_shrinker_unregister(struct drm_i915_private *i915)
 	WARN_ON(unregister_vmap_purge_notifier(&i915->mm.vmap_notifier));
 	WARN_ON(unregister_oom_notifier(&i915->mm.oom_notifier));
 	unregister_shrinker(&i915->mm.shrinker);
+}
+
+void i915_gem_shrinker_taints_mutex(struct mutex *mutex)
+{
+	if (!IS_ENABLED(CONFIG_LOCKDEP))
+		return;
+
+	fs_reclaim_acquire(GFP_KERNEL);
+	mutex_lock(mutex);
+	mutex_unlock(mutex);
+	fs_reclaim_release(GFP_KERNEL);
 }

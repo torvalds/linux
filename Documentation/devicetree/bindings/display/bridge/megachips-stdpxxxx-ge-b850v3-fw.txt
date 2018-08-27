@@ -19,8 +19,6 @@ hardware are EDID, HPD, and interrupts.
 stdp4028-ge-b850v3-fw required properties:
   - compatible : "megachips,stdp4028-ge-b850v3-fw"
   - reg : I2C bus address
-  - interrupt-parent : phandle of the interrupt controller that services
-    interrupts to the device
   - interrupts : one interrupt should be described here, as in
     <0 IRQ_TYPE_LEVEL_HIGH>
   - ports : One input port(reg = <0>) and one output port(reg = <1>)

@@ -44,6 +44,7 @@ struct dce_hwseq_wa {
 	bool blnd_crtc_trigger;
 	bool DEGVIDCN10_253;
 	bool false_optc_underflow;
+	bool DEGVIDCN10_254;
 };
 
 struct hwseq_wa_state {
@@ -101,9 +102,17 @@ struct hw_sequencer_funcs {
 		const struct dc *dc,
 		struct pipe_ctx *pipe_ctx);
 
+	void (*plane_atomic_disconnect)(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx);
+
 	void (*update_dchub)(
 		struct dce_hwseq *hws,
 		struct dchub_init_data *dh_data);
+
+	void (*update_mpcc)(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx);
 
 	void (*update_pending_status)(
 			struct pipe_ctx *pipe_ctx);
@@ -171,7 +180,7 @@ struct hw_sequencer_funcs {
 	void (*set_bandwidth)(
 			struct dc *dc,
 			struct dc_state *context,
-			bool decrease_allowed);
+			bool safe_to_lower);
 
 	void (*set_drr)(struct pipe_ctx **pipe_ctx, int num_pipes,
 			int vmin, int vmax);
@@ -214,6 +223,7 @@ struct hw_sequencer_funcs {
 
 	void (*set_cursor_position)(struct pipe_ctx *pipe);
 	void (*set_cursor_attribute)(struct pipe_ctx *pipe);
+	void (*set_cursor_sdr_white_level)(struct pipe_ctx *pipe);
 
 };
 

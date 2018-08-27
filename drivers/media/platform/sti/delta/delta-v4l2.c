@@ -339,22 +339,6 @@ static void register_decoders(struct delta_dev *delta)
 	}
 }
 
-static void delta_lock(void *priv)
-{
-	struct delta_ctx *ctx = priv;
-	struct delta_dev *delta = ctx->dev;
-
-	mutex_lock(&delta->lock);
-}
-
-static void delta_unlock(void *priv)
-{
-	struct delta_ctx *ctx = priv;
-	struct delta_dev *delta = ctx->dev;
-
-	mutex_unlock(&delta->lock);
-}
-
 static int delta_open_decoder(struct delta_ctx *ctx, u32 streamformat,
 			      u32 pixelformat, const struct delta_dec **pdec)
 {
@@ -1099,8 +1083,6 @@ static const struct v4l2_m2m_ops delta_m2m_ops = {
 	.device_run     = delta_device_run,
 	.job_ready	= delta_job_ready,
 	.job_abort      = delta_job_abort,
-	.lock		= delta_lock,
-	.unlock		= delta_unlock,
 };
 
 /*

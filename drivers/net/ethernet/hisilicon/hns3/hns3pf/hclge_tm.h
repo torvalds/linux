@@ -1,11 +1,5 @@
-/*
- * Copyright (c) 2016~2017 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2016-2017 Hisilicon Limited.
 
 #ifndef __HCLGE_TM_H
 #define __HCLGE_TM_H
@@ -123,10 +117,11 @@ struct hclge_port_shapping_cmd {
 };
 
 #define hclge_tm_set_field(dest, string, val) \
-			hnae_set_field((dest), (HCLGE_TM_SHAP_##string##_MSK), \
-				       (HCLGE_TM_SHAP_##string##_LSH), val)
+			   hnae3_set_field((dest), \
+			   (HCLGE_TM_SHAP_##string##_MSK), \
+			   (HCLGE_TM_SHAP_##string##_LSH), val)
 #define hclge_tm_get_field(src, string) \
-			hnae_get_field((src), (HCLGE_TM_SHAP_##string##_MSK), \
+			hnae3_get_field((src), (HCLGE_TM_SHAP_##string##_MSK), \
 				       (HCLGE_TM_SHAP_##string##_LSH))
 
 int hclge_tm_schd_init(struct hclge_dev *hdev);

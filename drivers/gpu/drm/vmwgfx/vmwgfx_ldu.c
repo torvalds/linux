@@ -547,11 +547,11 @@ int vmw_kms_ldu_close_display(struct vmw_private *dev_priv)
 }
 
 
-int vmw_kms_ldu_do_dmabuf_dirty(struct vmw_private *dev_priv,
-				struct vmw_framebuffer *framebuffer,
-				unsigned flags, unsigned color,
-				struct drm_clip_rect *clips,
-				unsigned num_clips, int increment)
+int vmw_kms_ldu_do_bo_dirty(struct vmw_private *dev_priv,
+			    struct vmw_framebuffer *framebuffer,
+			    unsigned int flags, unsigned int color,
+			    struct drm_clip_rect *clips,
+			    unsigned int num_clips, int increment)
 {
 	size_t fifo_size;
 	int i;

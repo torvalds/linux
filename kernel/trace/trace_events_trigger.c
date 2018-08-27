@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * trace_events_trigger - trace event triggers
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) 2013 Tom Zanussi <tom.zanussi@linux.intel.com>
  */
@@ -34,7 +21,9 @@ void trigger_data_free(struct event_trigger_data *data)
 	if (data->cmd_ops->set_filter)
 		data->cmd_ops->set_filter(NULL, data, NULL);
 
-	synchronize_sched(); /* make sure current triggers exit before free */
+	/* make sure current triggers exit before free */
+	tracepoint_synchronize_unregister();
+
 	kfree(data);
 }
 
@@ -579,9 +568,9 @@ out:
  * Usually used directly as the @unreg method in event command
  * implementations.
  */
-void unregister_trigger(char *glob, struct event_trigger_ops *ops,
-			struct event_trigger_data *test,
-			struct trace_event_file *file)
+static void unregister_trigger(char *glob, struct event_trigger_ops *ops,
+			       struct event_trigger_data *test,
+			       struct trace_event_file *file)
 {
 	struct event_trigger_data *data;
 	bool unregistered = false;
@@ -679,6 +668,8 @@ event_trigger_callback(struct event_command *cmd_ops,
 		goto out_free;
 
  out_reg:
+	/* Up the trigger_data count to make sure reg doesn't free it on failure */
+	event_trigger_init(trigger_ops, trigger_data);
 	ret = cmd_ops->reg(glob, trigger_ops, trigger_data, file);
 	/*
 	 * The above returns on success the # of functions enabled,
@@ -686,11 +677,13 @@ event_trigger_callback(struct event_command *cmd_ops,
 	 * Consider no functions a failure too.
 	 */
 	if (!ret) {
+		cmd_ops->unreg(glob, trigger_ops, trigger_data, file);
 		ret = -ENOENT;
-		goto out_free;
-	} else if (ret < 0)
-		goto out_free;
-	ret = 0;
+	} else if (ret > 0)
+		ret = 0;
+
+	/* Down the counter of trigger_data or free it if not used anymore */
+	event_trigger_free(trigger_ops, trigger_data);
  out:
 	return ret;
 
@@ -748,7 +741,7 @@ int set_trigger_filter(char *filter_str,
 
 	if (tmp) {
 		/* Make sure the call is done with the filter */
-		synchronize_sched();
+		tracepoint_synchronize_unregister();
 		free_event_filter(tmp);
 	}
 
@@ -1416,6 +1409,9 @@ int event_enable_trigger_func(struct event_command *cmd_ops,
 		goto out;
 	}
 
+	/* Up the trigger_data count to make sure nothing frees it on failure */
+	event_trigger_init(trigger_ops, trigger_data);
+
 	if (trigger) {
 		number = strsep(&trigger, ":");
 
@@ -1466,6 +1462,7 @@ int event_enable_trigger_func(struct event_command *cmd_ops,
 		goto out_disable;
 	/* Just return zero, not the number of enabled functions */
 	ret = 0;
+	event_trigger_free(trigger_ops, trigger_data);
  out:
 	return ret;
 
@@ -1476,7 +1473,7 @@ int event_enable_trigger_func(struct event_command *cmd_ops,
  out_free:
 	if (cmd_ops->set_filter)
 		cmd_ops->set_filter(NULL, trigger_data, NULL);
-	kfree(trigger_data);
+	event_trigger_free(trigger_ops, trigger_data);
 	kfree(enable_data);
 	goto out;
 }

@@ -7,12 +7,13 @@
 #include "zynq-7000.dtsi"
 
 / {
-	model = "Zynq Zed Development Board";
-	compatible = "xlnx,zynq-zed", "xlnx,zynq-7000";
+	model = "Avnet ZedBoard board";
+	compatible = "avnet,zynq-zed", "xlnx,zynq-zed", "xlnx,zynq-7000";
 
 	aliases {
 		ethernet0 = &gem0;
 		serial0 = &uart1;
+		mmc0 = &sdhci0;
 	};
 
 	memory@0 {

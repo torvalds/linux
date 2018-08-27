@@ -38,7 +38,9 @@ show up in /proc/sys/kernel:
 - hung_task_panic
 - hung_task_check_count
 - hung_task_timeout_secs
+- hung_task_check_interval_secs
 - hung_task_warnings
+- hyperv_record_panic_msg
 - kexec_load_disabled
 - kptr_restrict
 - l2cr                        [ PPC only ]
@@ -354,11 +356,23 @@ This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
 
 hung_task_timeout_secs:
 
-Check interval. When a task in D state did not get scheduled
+When a task in D state did not get scheduled
 for more than this value report a warning.
 This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
 
 0: means infinite timeout - no checking done.
+Possible values to set are in range {0..LONG_MAX/HZ}.
+
+==============================================================
+
+hung_task_check_interval_secs:
+
+Hung task check interval. If hung task checking is enabled
+(see hung_task_timeout_secs), the check is done every
+hung_task_check_interval_secs seconds.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+0 (default): means use hung_task_timeout_secs as checking interval.
 Possible values to set are in range {0..LONG_MAX/HZ}.
 
 ==============================================================
@@ -371,6 +385,16 @@ When this value reaches 0, no more warnings will be reported.
 This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
 
 -1: report an infinite number of warnings.
+
+==============================================================
+
+hyperv_record_panic_msg:
+
+Controls whether the panic kmsg data should be reported to Hyper-V.
+
+0: do not report panic kmsg data.
+
+1: report the panic kmsg data. This is the default behavior.
 
 ==============================================================
 
@@ -440,7 +464,8 @@ Notes:
 1) kernel doesn't guarantee, that new object will have desired id. So,
 it's up to userspace, how to handle an object with "wrong" id.
 2) Toggle with non-default value will be set back to -1 by kernel after
-successful IPC object allocation.
+successful IPC object allocation. If an IPC object allocation syscall
+fails, it is undefined if the value remains unmodified or is reset to -1.
 
 ==============================================================
 

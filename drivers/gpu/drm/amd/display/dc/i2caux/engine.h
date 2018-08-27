@@ -96,6 +96,7 @@ struct engine_funcs {
 
 struct engine {
 	const struct engine_funcs *funcs;
+	uint32_t inst;
 	struct ddc *ddc;
 	struct dc_context *ctx;
 };

@@ -41,7 +41,7 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 	int rc;
 	__le16 *smb2_path;
 	struct smb2_file_all_info *smb2_data = NULL;
-	__u8 smb2_oplock[17];
+	__u8 smb2_oplock;
 	struct cifs_fid *fid = oparms->fid;
 	struct network_resiliency_req nr_ioctl_req;
 
@@ -59,12 +59,9 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 	}
 
 	oparms->desired_access |= FILE_READ_ATTRIBUTES;
-	*smb2_oplock = SMB2_OPLOCK_LEVEL_BATCH;
+	smb2_oplock = SMB2_OPLOCK_LEVEL_BATCH;
 
-	if (oparms->tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LEASING)
-		memcpy(smb2_oplock + 1, fid->lease_key, SMB2_LEASE_KEY_SIZE);
-
-	rc = SMB2_open(xid, oparms, smb2_path, smb2_oplock, smb2_data, NULL,
+	rc = SMB2_open(xid, oparms, smb2_path, &smb2_oplock, smb2_data, NULL,
 		       NULL);
 	if (rc)
 		goto out;
@@ -101,7 +98,7 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 		move_smb2_info_to_cifs(buf, smb2_data);
 	}
 
-	*oplock = *smb2_oplock;
+	*oplock = smb2_oplock;
 out:
 	kfree(smb2_data);
 	kfree(smb2_path);

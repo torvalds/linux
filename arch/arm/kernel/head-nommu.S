@@ -53,7 +53,11 @@ ENTRY(stext)
  THUMB(1:			)
 #endif
 
-	setmode	PSR_F_BIT | PSR_I_BIT | SVC_MODE, r9 @ ensure svc mode
+#ifdef CONFIG_ARM_VIRT_EXT
+	bl	__hyp_stub_install
+#endif
+	@ ensure svc mode and all interrupts masked
+	safe_svcmode_maskall r9
 						@ and irqs disabled
 #if defined(CONFIG_CPU_CP15)
 	mrc	p15, 0, r9, c0, c0		@ get processor id
@@ -89,7 +93,11 @@ ENTRY(secondary_startup)
 	 * the processor type - there is no need to check the machine type
 	 * as it has already been validated by the primary processor.
 	 */
-	setmode	PSR_F_BIT | PSR_I_BIT | SVC_MODE, r9
+#ifdef CONFIG_ARM_VIRT_EXT
+	bl	__hyp_stub_install_secondary
+#endif
+	safe_svcmode_maskall r9
+
 #ifndef CONFIG_CPU_CP15
 	ldr	r9, =CONFIG_PROCESSOR_ID
 #else
@@ -177,7 +185,7 @@ M_CLASS(streq	r3, [r12, #PMSAv8_MAIR1])
 	bic	r0, r0, #CR_I
 #endif
 	mcr	p15, 0, r0, c1, c0, 0		@ write control reg
-	isb
+	instr_sync
 #elif defined (CONFIG_CPU_V7M)
 #ifdef CONFIG_ARM_MPU
 	ldreq	r3, [r12, MPU_CTRL]

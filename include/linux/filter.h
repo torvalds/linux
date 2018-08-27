@@ -32,6 +32,7 @@ struct seccomp_data;
 struct bpf_prog_aux;
 struct xdp_rxq_info;
 struct xdp_buff;
+struct sock_reuseport;
 
 /* ArgX, context and stack frame pointer register positions. Note,
  * Arg1, Arg2, Arg3, etc are used as argument mappings of function
@@ -470,9 +471,7 @@ struct sock_fprog_kern {
 };
 
 struct bpf_binary_header {
-	u16 pages;
-	u16 locked:1;
-
+	u32 pages;
 	/* Some arches need word alignment for their instructions */
 	u8 image[] __aligned(4);
 };
@@ -481,7 +480,7 @@ struct bpf_prog {
 	u16			pages;		/* Number of allocated pages */
 	u16			jited:1,	/* Is our filter JIT'ed? */
 				jit_requested:1,/* archs need to JIT the prog */
-				locked:1,	/* Program image locked? */
+				undo_set_mem:1,	/* Passed set_memory_ro() checkpoint */
 				gpl_compatible:1, /* Is filter GPL compatible? */
 				cb_access:1,	/* Is control block accessed? */
 				dst_needed:1,	/* Do we need dst entry? */
@@ -538,6 +537,19 @@ struct sk_msg_buff {
 	struct sk_buff *skb;
 	struct list_head list;
 };
+
+struct bpf_redirect_info {
+	u32 ifindex;
+	u32 flags;
+	struct bpf_map *map;
+	struct bpf_map *map_to_flush;
+	u32 kern_flags;
+};
+
+DECLARE_PER_CPU(struct bpf_redirect_info, bpf_redirect_info);
+
+/* flags for bpf_redirect_info kern_flags */
+#define BPF_RI_F_RF_NO_DIRECT	BIT(0)	/* no napi_direct on return_frame */
 
 /* Compute the linear packet data range [data, data_end) which
  * will be accessed by various program types (cls_bpf, act_bpf,
@@ -677,46 +689,24 @@ bpf_ctx_narrow_access_ok(u32 off, u32 size, u32 size_default)
 
 static inline void bpf_prog_lock_ro(struct bpf_prog *fp)
 {
-#ifdef CONFIG_ARCH_HAS_SET_MEMORY
-	fp->locked = 1;
-	if (set_memory_ro((unsigned long)fp, fp->pages))
-		fp->locked = 0;
-#endif
+	fp->undo_set_mem = 1;
+	set_memory_ro((unsigned long)fp, fp->pages);
 }
 
 static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
 {
-#ifdef CONFIG_ARCH_HAS_SET_MEMORY
-	if (fp->locked) {
-		WARN_ON_ONCE(set_memory_rw((unsigned long)fp, fp->pages));
-		/* In case set_memory_rw() fails, we want to be the first
-		 * to crash here instead of some random place later on.
-		 */
-		fp->locked = 0;
-	}
-#endif
+	if (fp->undo_set_mem)
+		set_memory_rw((unsigned long)fp, fp->pages);
 }
 
 static inline void bpf_jit_binary_lock_ro(struct bpf_binary_header *hdr)
 {
-#ifdef CONFIG_ARCH_HAS_SET_MEMORY
-	hdr->locked = 1;
-	if (set_memory_ro((unsigned long)hdr, hdr->pages))
-		hdr->locked = 0;
-#endif
+	set_memory_ro((unsigned long)hdr, hdr->pages);
 }
 
 static inline void bpf_jit_binary_unlock_ro(struct bpf_binary_header *hdr)
 {
-#ifdef CONFIG_ARCH_HAS_SET_MEMORY
-	if (hdr->locked) {
-		WARN_ON_ONCE(set_memory_rw((unsigned long)hdr, hdr->pages));
-		/* In case set_memory_rw() fails, we want to be the first
-		 * to crash here instead of some random place later on.
-		 */
-		hdr->locked = 0;
-	}
-#endif
+	set_memory_rw((unsigned long)hdr, hdr->pages);
 }
 
 static inline struct bpf_binary_header *
@@ -727,22 +717,6 @@ bpf_jit_binary_hdr(const struct bpf_prog *fp)
 
 	return (void *)addr;
 }
-
-#ifdef CONFIG_ARCH_HAS_SET_MEMORY
-static inline int bpf_prog_check_pages_ro_single(const struct bpf_prog *fp)
-{
-	if (!fp->locked)
-		return -ENOLCK;
-	if (fp->jited) {
-		const struct bpf_binary_header *hdr = bpf_jit_binary_hdr(fp);
-
-		if (!hdr->locked)
-			return -ENOLCK;
-	}
-
-	return 0;
-}
-#endif
 
 int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb, unsigned int cap);
 static inline int sk_filter(struct sock *sk, struct sk_buff *skb)
@@ -778,6 +752,7 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
 int sk_attach_bpf(u32 ufd, struct sock *sk);
 int sk_reuseport_attach_filter(struct sock_fprog *fprog, struct sock *sk);
 int sk_reuseport_attach_bpf(u32 ufd, struct sock *sk);
+void sk_reuseport_prog_free(struct bpf_prog *prog);
 int sk_detach_filter(struct sock *sk);
 int sk_get_filter(struct sock *sk, struct sock_filter __user *filter,
 		  unsigned int len);
@@ -805,8 +780,31 @@ static inline bool bpf_dump_raw_ok(void)
 struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 				       const struct bpf_insn *patch, u32 len);
 
-static inline int __xdp_generic_ok_fwd_dev(struct sk_buff *skb,
-					   struct net_device *fwd)
+void bpf_clear_redirect_map(struct bpf_map *map);
+
+static inline bool xdp_return_frame_no_direct(void)
+{
+	struct bpf_redirect_info *ri = this_cpu_ptr(&bpf_redirect_info);
+
+	return ri->kern_flags & BPF_RI_F_RF_NO_DIRECT;
+}
+
+static inline void xdp_set_return_frame_no_direct(void)
+{
+	struct bpf_redirect_info *ri = this_cpu_ptr(&bpf_redirect_info);
+
+	ri->kern_flags |= BPF_RI_F_RF_NO_DIRECT;
+}
+
+static inline void xdp_clear_return_frame_no_direct(void)
+{
+	struct bpf_redirect_info *ri = this_cpu_ptr(&bpf_redirect_info);
+
+	ri->kern_flags &= ~BPF_RI_F_RF_NO_DIRECT;
+}
+
+static inline int xdp_ok_fwd_dev(const struct net_device *fwd,
+				 unsigned int pktlen)
 {
 	unsigned int len;
 
@@ -814,7 +812,7 @@ static inline int __xdp_generic_ok_fwd_dev(struct sk_buff *skb,
 		return -ENETDOWN;
 
 	len = fwd->mtu + fwd->hard_header_len + VLAN_HLEN;
-	if (skb->len > len)
+	if (pktlen > len)
 		return -EMSGSIZE;
 
 	return 0;
@@ -837,6 +835,20 @@ void bpf_warn_invalid_xdp_action(u32 act);
 
 struct sock *do_sk_redirect_map(struct sk_buff *skb);
 struct sock *do_msg_redirect_map(struct sk_msg_buff *md);
+
+#ifdef CONFIG_INET
+struct sock *bpf_run_sk_reuseport(struct sock_reuseport *reuse, struct sock *sk,
+				  struct bpf_prog *prog, struct sk_buff *skb,
+				  u32 hash);
+#else
+static inline struct sock *
+bpf_run_sk_reuseport(struct sock_reuseport *reuse, struct sock *sk,
+		     struct bpf_prog *prog, struct sk_buff *skb,
+		     u32 hash)
+{
+	return NULL;
+}
+#endif
 
 #ifdef CONFIG_BPF_JIT
 extern int bpf_jit_enable;

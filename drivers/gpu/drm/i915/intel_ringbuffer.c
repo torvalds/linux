@@ -387,8 +387,18 @@ static void intel_ring_setup_status_page(struct intel_engine_cs *engine)
 		mmio = RING_HWS_PGA(engine->mmio_base);
 	}
 
-	if (INTEL_GEN(dev_priv) >= 6)
-		I915_WRITE(RING_HWSTAM(engine->mmio_base), 0xffffffff);
+	if (INTEL_GEN(dev_priv) >= 6) {
+		u32 mask = ~0u;
+
+		/*
+		 * Keep the render interrupt unmasked as this papers over
+		 * lost interrupts following a reset.
+		 */
+		if (engine->id == RCS)
+			mask &= ~BIT(0);
+
+		I915_WRITE(RING_HWSTAM(engine->mmio_base), mask);
+	}
 
 	I915_WRITE(mmio, engine->status_page.ggtt_offset);
 	POSTING_READ(mmio);
@@ -523,8 +533,6 @@ static int init_ring_common(struct intel_engine_cs *engine)
 		ret = -EIO;
 		goto out;
 	}
-
-	intel_engine_init_hangcheck(engine);
 
 	if (INTEL_GEN(dev_priv) > 2)
 		I915_WRITE_MODE(engine, _MASKED_BIT_DISABLE(STOP_RING));
@@ -1089,6 +1097,7 @@ void intel_ring_unpin(struct intel_ring *ring)
 static struct i915_vma *
 intel_ring_create_vma(struct drm_i915_private *dev_priv, int size)
 {
+	struct i915_address_space *vm = &dev_priv->ggtt.vm;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 
@@ -1098,10 +1107,14 @@ intel_ring_create_vma(struct drm_i915_private *dev_priv, int size)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	/* mark ring buffers as read-only from GPU side by default */
-	obj->gt_ro = 1;
+	/*
+	 * Mark ring buffers as read-only from GPU side (so no stray overwrites)
+	 * if supported by the platform's GGTT.
+	 */
+	if (vm->has_read_only)
+		i915_gem_object_set_readonly(obj);
 
-	vma = i915_vma_instance(obj, &dev_priv->ggtt.vm, NULL);
+	vma = i915_vma_instance(obj, vm, NULL);
 	if (IS_ERR(vma))
 		goto err;
 
@@ -1169,8 +1182,11 @@ static void intel_ring_context_destroy(struct intel_context *ce)
 {
 	GEM_BUG_ON(ce->pin_count);
 
-	if (ce->state)
-		__i915_gem_object_release_unless_active(ce->state->obj);
+	if (!ce->state)
+		return;
+
+	GEM_BUG_ON(i915_gem_object_is_active(ce->state->obj));
+	i915_gem_object_put(ce->state->obj);
 }
 
 static int __context_pin_ppgtt(struct i915_gem_context *ctx)

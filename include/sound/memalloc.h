@@ -24,6 +24,8 @@
 #ifndef __SOUND_MEMALLOC_H
 #define __SOUND_MEMALLOC_H
 
+#include <asm/page.h>
+
 struct device;
 
 /*
@@ -67,6 +69,14 @@ struct snd_dma_buffer {
 	void *private_data;	/* private for allocator; don't touch */
 };
 
+/*
+ * return the pages matching with the given byte size
+ */
+static inline unsigned int snd_sgbuf_aligned_pages(size_t size)
+{
+	return (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+}
+
 #ifdef CONFIG_SND_DMA_SGBUF
 /*
  * Scatter-Gather generic device pages
@@ -89,14 +99,6 @@ struct snd_sg_buf {
 	struct page **page_table;	/* page table (for vmap/vunmap) */
 	struct device *dev;
 };
-
-/*
- * return the pages matching with the given byte size
- */
-static inline unsigned int snd_sgbuf_aligned_pages(size_t size)
-{
-	return (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-}
 
 /*
  * return the physical address at the corresponding offset

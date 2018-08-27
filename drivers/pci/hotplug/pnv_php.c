@@ -538,9 +538,8 @@ static struct hotplug_slot_ops php_slot_ops = {
 	.disable_slot		= pnv_php_disable_slot,
 };
 
-static void pnv_php_release(struct hotplug_slot *slot)
+static void pnv_php_release(struct pnv_php_slot *php_slot)
 {
-	struct pnv_php_slot *php_slot = slot->private;
 	unsigned long flags;
 
 	/* Remove from global or child list */
@@ -596,7 +595,6 @@ static struct pnv_php_slot *pnv_php_alloc_slot(struct device_node *dn)
 	php_slot->power_state_check     = false;
 	php_slot->slot.ops              = &php_slot_ops;
 	php_slot->slot.info             = &php_slot->slot_info;
-	php_slot->slot.release          = pnv_php_release;
 	php_slot->slot.private          = php_slot;
 
 	INIT_LIST_HEAD(&php_slot->children);
@@ -924,6 +922,7 @@ static void pnv_php_unregister_one(struct device_node *dn)
 
 	php_slot->state = PNV_PHP_STATE_OFFLINE;
 	pci_hp_deregister(&php_slot->slot);
+	pnv_php_release(php_slot);
 	pnv_php_put_slot(php_slot);
 }
 

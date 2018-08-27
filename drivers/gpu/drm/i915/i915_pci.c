@@ -674,10 +674,16 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static void i915_pci_remove(struct pci_dev *pdev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_device *dev;
+
+	dev = pci_get_drvdata(pdev);
+	if (!dev) /* driver load aborted, nothing to cleanup */
+		return;
 
 	i915_driver_unload(dev);
 	drm_dev_put(dev);
+
+	pci_set_drvdata(pdev, NULL);
 }
 
 static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -711,6 +717,11 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = i915_driver_load(pdev, ent);
 	if (err)
 		return err;
+
+	if (i915_inject_load_failure()) {
+		i915_pci_remove(pdev);
+		return -ENODEV;
+	}
 
 	err = i915_live_selftests(pdev);
 	if (err) {

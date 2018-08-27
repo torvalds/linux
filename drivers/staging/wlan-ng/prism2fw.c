@@ -1189,9 +1189,10 @@ static int validate_identity(void)
 			/* PRI compat range */
 			if ((s3info[i].info.compat.role == 1) &&
 			    (s3info[i].info.compat.id == 3)) {
-				if ((s3info[i].info.compat.bottom > priid.top)
-				    || (s3info[i].info.compat.top <
-					priid.bottom)) {
+				if ((s3info[i].info.compat.bottom >
+				     priid.top) ||
+				    (s3info[i].info.compat.top <
+				     priid.bottom)) {
 					result = 3;
 				}
 			}

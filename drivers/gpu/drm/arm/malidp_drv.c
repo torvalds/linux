@@ -616,6 +616,7 @@ static int malidp_bind(struct device *dev)
 	struct malidp_hw_device *hwdev;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct of_device_id const *dev_id;
+	struct drm_encoder *encoder;
 	/* number of lines for the R, G and B output */
 	u8 output_width[MAX_OUTPUT_CHANNELS];
 	int ret = 0, i;
@@ -735,6 +736,15 @@ static int malidp_bind(struct device *dev)
 	if (ret) {
 		DRM_ERROR("Failed to bind all components\n");
 		goto bind_fail;
+	}
+
+	/* We expect to have a maximum of two encoders one for the actual
+	 * display and a virtual one for the writeback connector
+	 */
+	WARN_ON(drm->mode_config.num_encoder > 2);
+	list_for_each_entry(encoder, &drm->mode_config.encoder_list, head) {
+		encoder->possible_clones =
+				(1 << drm->mode_config.num_encoder) -  1;
 	}
 
 	ret = malidp_irq_init(pdev);

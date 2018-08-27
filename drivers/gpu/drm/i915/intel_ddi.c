@@ -1069,6 +1069,7 @@ static uint32_t icl_pll_to_ddi_pll_sel(struct intel_encoder *encoder,
 	switch (id) {
 	default:
 		MISSING_CASE(id);
+		/* fall through */
 	case DPLL_ID_ICL_DPLL0:
 	case DPLL_ID_ICL_DPLL1:
 		return DDI_CLK_SEL_NONE;
@@ -1684,6 +1685,10 @@ void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
 	WARN_ON(transcoder_is_dsi(cpu_transcoder));
 
 	temp = TRANS_MSA_SYNC_CLK;
+
+	if (crtc_state->limited_color_range)
+		temp |= TRANS_MSA_CEA_RANGE;
+
 	switch (crtc_state->pipe_bpp) {
 	case 18:
 		temp |= TRANS_MSA_6_BPC;
@@ -1807,15 +1812,24 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 	I915_WRITE(TRANS_DDI_FUNC_CTL(cpu_transcoder), temp);
 }
 
-void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
-				       enum transcoder cpu_transcoder)
+void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	i915_reg_t reg = TRANS_DDI_FUNC_CTL(cpu_transcoder);
 	uint32_t val = I915_READ(reg);
 
 	val &= ~(TRANS_DDI_FUNC_ENABLE | TRANS_DDI_PORT_MASK | TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
 	val |= TRANS_DDI_PORT_NONE;
 	I915_WRITE(reg, val);
+
+	if (dev_priv->quirks & QUIRK_INCREASE_DDI_DISABLED_TIME &&
+	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
+		DRM_DEBUG_KMS("Quirk Increase DDI disabled time\n");
+		/* Quirk time at 100ms for reliable operation */
+		msleep(100);
+	}
 }
 
 int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
@@ -1983,15 +1997,50 @@ out:
 	return ret;
 }
 
-static u64 intel_ddi_get_power_domains(struct intel_encoder *encoder)
+static inline enum intel_display_power_domain
+intel_ddi_main_link_aux_domain(struct intel_dp *intel_dp)
 {
-	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
-	enum pipe pipe;
+	/* CNL HW requires corresponding AUX IOs to be powered up for PSR with
+	 * DC states enabled at the same time, while for driver initiated AUX
+	 * transfers we need the same AUX IOs to be powered but with DC states
+	 * disabled. Accordingly use the AUX power domain here which leaves DC
+	 * states enabled.
+	 * However, for non-A AUX ports the corresponding non-EDP transcoders
+	 * would have already enabled power well 2 and DC_OFF. This means we can
+	 * acquire a wider POWER_DOMAIN_AUX_{B,C,D,F} reference instead of a
+	 * specific AUX_IO reference without powering up any extra wells.
+	 * Note that PSR is enabled only on Port A even though this function
+	 * returns the correct domain for other ports too.
+	 */
+	return intel_dp->aux_ch == AUX_CH_A ? POWER_DOMAIN_AUX_IO_A :
+					      intel_dp->aux_power_domain;
+}
 
-	if (intel_ddi_get_hw_state(encoder, &pipe))
-		return BIT_ULL(dig_port->ddi_io_power_domain);
+static u64 intel_ddi_get_power_domains(struct intel_encoder *encoder,
+				       struct intel_crtc_state *crtc_state)
+{
+	struct intel_digital_port *dig_port;
+	u64 domains;
 
-	return 0;
+	/*
+	 * TODO: Add support for MST encoders. Atm, the following should never
+	 * happen since fake-MST encoders don't set their get_power_domains()
+	 * hook.
+	 */
+	if (WARN_ON(intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST)))
+		return 0;
+
+	dig_port = enc_to_dig_port(&encoder->base);
+	domains = BIT_ULL(dig_port->ddi_io_power_domain);
+
+	/* AUX power is only needed for (e)DP mode, not for HDMI. */
+	if (intel_crtc_has_dp_encoder(crtc_state)) {
+		struct intel_dp *intel_dp = &dig_port->dp;
+
+		domains |= BIT_ULL(intel_ddi_main_link_aux_domain(intel_dp));
+	}
+
+	return domains;
 }
 
 void intel_ddi_enable_pipe_clock(const struct intel_crtc_state *crtc_state)
@@ -2631,6 +2680,9 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 
 	WARN_ON(is_mst && (port == PORT_A || port == PORT_E));
 
+	intel_display_power_get(dev_priv,
+				intel_ddi_main_link_aux_domain(intel_dp));
+
 	intel_dp_set_link_params(intel_dp, crtc_state->port_clock,
 				 crtc_state->lane_count, is_mst);
 
@@ -2775,6 +2827,9 @@ static void intel_ddi_post_disable_dp(struct intel_encoder *encoder,
 	intel_display_power_put(dev_priv, dig_port->ddi_io_power_domain);
 
 	intel_ddi_clk_disable(encoder);
+
+	intel_display_power_put(dev_priv,
+				intel_ddi_main_link_aux_domain(intel_dp));
 }
 
 static void intel_ddi_post_disable_hdmi(struct intel_encoder *encoder,
@@ -3588,7 +3643,6 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 			goto err;
 
 		intel_dig_port->hpd_pulse = intel_dp_hpd_pulse;
-		dev_priv->hotplug.irq_port[port] = intel_dig_port;
 	}
 
 	/* In theory we don't need the encoder->type check, but leave it just in

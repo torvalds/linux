@@ -317,7 +317,7 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 	payload.dst_ipv4 = flow->daddr;
 
 	/* If entry has expired send dst IP with all other fields 0. */
-	if (!(neigh->nud_state & NUD_VALID)) {
+	if (!(neigh->nud_state & NUD_VALID) || neigh->dead) {
 		nfp_tun_del_route_from_cache(app, payload.dst_ipv4);
 		/* Trigger ARP to verify invalid neighbour state. */
 		neigh_event_send(neigh, NULL);

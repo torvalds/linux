@@ -52,7 +52,6 @@ enum drm_sched_priority {
  *        runqueue.
  * @rq: runqueue to which this entity belongs.
  * @rq_lock: lock to modify the runqueue to which this entity belongs.
- * @sched: the scheduler instance to which this entity is enqueued.
  * @job_queue: the list of jobs of this entity.
  * @fence_seq: a linearly increasing seqno incremented with each
  *             new &drm_sched_fence which is part of the entity.
@@ -67,6 +66,7 @@ enum drm_sched_priority {
  * @guilty: points to ctx's guilty.
  * @fini_status: contains the exit status in case the process was signalled.
  * @last_scheduled: points to the finished fence of the last scheduled job.
+ * @last_user: last group leader pushing a job into the entity.
  *
  * Entities will emit jobs in order to their corresponding hardware
  * ring, and the scheduler will alternate between entities based on
@@ -76,7 +76,6 @@ struct drm_sched_entity {
 	struct list_head		list;
 	struct drm_sched_rq		*rq;
 	spinlock_t			rq_lock;
-	struct drm_gpu_scheduler	*sched;
 
 	struct spsc_queue		job_queue;
 
@@ -87,12 +86,14 @@ struct drm_sched_entity {
 	struct dma_fence_cb		cb;
 	atomic_t			*guilty;
 	struct dma_fence                *last_scheduled;
+	struct task_struct		*last_user;
 };
 
 /**
  * struct drm_sched_rq - queue of entities to be scheduled.
  *
  * @lock: to modify the entities list.
+ * @sched: the scheduler to which this rq belongs to.
  * @entities: list of the entities to be scheduled.
  * @current_entity: the entity which is to be scheduled.
  *
@@ -102,6 +103,7 @@ struct drm_sched_entity {
  */
 struct drm_sched_rq {
 	spinlock_t			lock;
+	struct drm_gpu_scheduler	*sched;
 	struct list_head		entities;
 	struct drm_sched_entity		*current_entity;
 };
@@ -280,16 +282,13 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 		   const char *name);
 void drm_sched_fini(struct drm_gpu_scheduler *sched);
 
-int drm_sched_entity_init(struct drm_gpu_scheduler *sched,
-			  struct drm_sched_entity *entity,
-			  struct drm_sched_rq *rq,
+int drm_sched_entity_init(struct drm_sched_entity *entity,
+			  struct drm_sched_rq **rq_list,
+			  unsigned int num_rq_list,
 			  atomic_t *guilty);
-long drm_sched_entity_do_release(struct drm_gpu_scheduler *sched,
-			   struct drm_sched_entity *entity, long timeout);
-void drm_sched_entity_cleanup(struct drm_gpu_scheduler *sched,
-			   struct drm_sched_entity *entity);
-void drm_sched_entity_fini(struct drm_gpu_scheduler *sched,
-			   struct drm_sched_entity *entity);
+long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout);
+void drm_sched_entity_fini(struct drm_sched_entity *entity);
+void drm_sched_entity_destroy(struct drm_sched_entity *entity);
 void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 			       struct drm_sched_entity *entity);
 void drm_sched_entity_set_rq(struct drm_sched_entity *entity,
@@ -300,7 +299,6 @@ struct drm_sched_fence *drm_sched_fence_create(
 void drm_sched_fence_scheduled(struct drm_sched_fence *fence);
 void drm_sched_fence_finished(struct drm_sched_fence *fence);
 int drm_sched_job_init(struct drm_sched_job *job,
-		       struct drm_gpu_scheduler *sched,
 		       struct drm_sched_entity *entity,
 		       void *owner);
 void drm_sched_hw_job_reset(struct drm_gpu_scheduler *sched,

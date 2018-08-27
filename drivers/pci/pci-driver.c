@@ -445,6 +445,7 @@ static int pci_device_remove(struct device *dev)
 		}
 		pcibios_free_irq(pci_dev);
 		pci_dev->driver = NULL;
+		pci_iov_remove(pci_dev);
 	}
 
 	/* Undo the runtime PM settings in local_pci_probe() */
@@ -1667,7 +1668,7 @@ static int __init pci_driver_init(void)
 	if (ret)
 		return ret;
 #endif
-
+	dma_debug_add_bus(&pci_bus_type);
 	return 0;
 }
 postcore_initcall(pci_driver_init);

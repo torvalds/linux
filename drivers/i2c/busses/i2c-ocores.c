@@ -2,7 +2,7 @@
  * i2c-ocores.c: I2C bus driver for OpenCores I2C controller
  * (https://opencores.org/project/i2c/overview)
  *
- * Peter Korsgaard <jacmet@sunsite.dk>
+ * Peter Korsgaard <peter@korsgaard.com>
  *
  * Support for the GRLIB port of the controller by
  * Andreas Larsson <andreas@gaisler.com>
@@ -576,7 +576,7 @@ static struct platform_driver ocores_i2c_driver = {
 
 module_platform_driver(ocores_i2c_driver);
 
-MODULE_AUTHOR("Peter Korsgaard <jacmet@sunsite.dk>");
+MODULE_AUTHOR("Peter Korsgaard <peter@korsgaard.com>");
 MODULE_DESCRIPTION("OpenCores I2C bus driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:ocores-i2c");

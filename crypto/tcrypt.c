@@ -415,12 +415,14 @@ static void test_mb_aead_speed(const char *algo, int enc, int secs,
 
 			}
 
-			if (secs)
+			if (secs) {
 				ret = test_mb_aead_jiffies(data, enc, *b_size,
 							   secs, num_mb);
-			else
+				cond_resched();
+			} else {
 				ret = test_mb_aead_cycles(data, enc, *b_size,
 							  num_mb);
+			}
 
 			if (ret) {
 				pr_err("%s() failed return code=%d\n", e, ret);
@@ -660,11 +662,13 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 					       *b_size + (enc ? 0 : authsize),
 					       iv);
 
-			if (secs)
+			if (secs) {
 				ret = test_aead_jiffies(req, enc, *b_size,
 							secs);
-			else
+				cond_resched();
+			} else {
 				ret = test_aead_cycles(req, enc, *b_size);
+			}
 
 			if (ret) {
 				pr_err("%s() failed return code=%d\n", e, ret);
@@ -876,11 +880,13 @@ static void test_mb_ahash_speed(const char *algo, unsigned int secs,
 			i, speed[i].blen, speed[i].plen,
 			speed[i].blen / speed[i].plen);
 
-		if (secs)
+		if (secs) {
 			ret = test_mb_ahash_jiffies(data, speed[i].blen, secs,
 						    num_mb);
-		else
+			cond_resched();
+		} else {
 			ret = test_mb_ahash_cycles(data, speed[i].blen, num_mb);
+		}
 
 
 		if (ret) {
@@ -1103,12 +1109,14 @@ static void test_ahash_speed_common(const char *algo, unsigned int secs,
 
 		ahash_request_set_crypt(req, sg, output, speed[i].plen);
 
-		if (secs)
+		if (secs) {
 			ret = test_ahash_jiffies(req, speed[i].blen,
 						 speed[i].plen, output, secs);
-		else
+			cond_resched();
+		} else {
 			ret = test_ahash_cycles(req, speed[i].blen,
 						speed[i].plen, output);
+		}
 
 		if (ret) {
 			pr_err("hashing failed ret=%d\n", ret);
@@ -1367,13 +1375,15 @@ static void test_mb_skcipher_speed(const char *algo, int enc, int secs,
 							   iv);
 			}
 
-			if (secs)
+			if (secs) {
 				ret = test_mb_acipher_jiffies(data, enc,
 							      *b_size, secs,
 							      num_mb);
-			else
+				cond_resched();
+			} else {
 				ret = test_mb_acipher_cycles(data, enc,
 							     *b_size, num_mb);
+			}
 
 			if (ret) {
 				pr_err("%s() failed flags=%x\n", e,
@@ -1581,12 +1591,14 @@ static void test_skcipher_speed(const char *algo, int enc, unsigned int secs,
 
 			skcipher_request_set_crypt(req, sg, sg, *b_size, iv);
 
-			if (secs)
+			if (secs) {
 				ret = test_acipher_jiffies(req, enc,
 							   *b_size, secs);
-			else
+				cond_resched();
+			} else {
 				ret = test_acipher_cycles(req, enc,
 							  *b_size);
+			}
 
 			if (ret) {
 				pr_err("%s() failed flags=%x\n", e,
@@ -1939,7 +1951,7 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		break;
 
 	case 109:
-		ret += tcrypt_test("vmac(aes)");
+		ret += tcrypt_test("vmac64(aes)");
 		break;
 
 	case 111:

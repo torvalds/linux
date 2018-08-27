@@ -159,6 +159,7 @@ config BT_HCIUART_LL
 config BT_HCIUART_3WIRE
 	bool "Three-wire UART (H5) protocol support"
 	depends on BT_HCIUART
+	depends on BT_HCIUART_SERDEV
 	help
 	  The HCI Three-wire UART Transport Layer makes it possible to
 	  user the Bluetooth HCI over a serial port interface. The HCI
@@ -193,6 +194,19 @@ config BT_HCIUART_BCM
 	  port interface for Broadcom Bluetooth controllers.
 
 	  Say Y here to compile support for Broadcom protocol.
+
+config BT_HCIUART_RTL
+	bool "Realtek protocol support"
+	depends on BT_HCIUART
+	depends on BT_HCIUART_SERDEV
+	depends on GPIOLIB
+	select BT_HCIUART_3WIRE
+	select BT_RTL
+	help
+	  The Realtek protocol support enables Bluetooth HCI over 3-Wire
+	  serial port internface for Realtek Bluetooth controllers.
+
+	  Say Y here to compile support for Realtek protocol.
 
 config BT_HCIUART_QCA
 	bool "Qualcomm Atheros protocol support"
@@ -363,6 +377,17 @@ config BT_WILINK
 
 	  Say Y here to compile support for Texas Instrument's WiLink7 driver
 	  into the kernel or say M to compile it as module (btwilink).
+
+config BT_MTKUART
+	tristate "MediaTek HCI UART driver"
+	depends on SERIAL_DEV_BUS
+	help
+	  MediaTek Bluetooth HCI UART driver.
+	  This driver is required if you want to use MediaTek Bluetooth
+	  with serial interface.
+
+	  Say Y here to compile support for MediaTek Bluetooth UART devices
+	  into the kernel or say M to compile it as module (btmtkuart).
 
 config BT_QCOMSMD
 	tristate "Qualcomm SMD based HCI support"

@@ -374,7 +374,7 @@ i915_gem_create_context(struct drm_i915_private *dev_priv,
 	if (USES_FULL_PPGTT(dev_priv)) {
 		struct i915_hw_ppgtt *ppgtt;
 
-		ppgtt = i915_ppgtt_create(dev_priv, file_priv, ctx->name);
+		ppgtt = i915_ppgtt_create(dev_priv, file_priv);
 		if (IS_ERR(ppgtt)) {
 			DRM_DEBUG_DRIVER("PPGTT setup failed (%ld)\n",
 					 PTR_ERR(ppgtt));
@@ -512,8 +512,8 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 	}
 
 	DRM_DEBUG_DRIVER("%s context support initialized\n",
-			 dev_priv->engine[RCS]->context_size ? "logical" :
-			 "fake");
+			 DRIVER_CAPS(dev_priv)->has_logical_contexts ?
+			 "logical" : "fake");
 	return 0;
 }
 
@@ -720,7 +720,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	struct i915_gem_context *ctx;
 	int ret;
 
-	if (!dev_priv->engine[RCS]->context_size)
+	if (!DRIVER_CAPS(dev_priv)->has_logical_contexts)
 		return -ENODEV;
 
 	if (args->pad != 0)

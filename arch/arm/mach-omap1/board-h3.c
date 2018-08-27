@@ -326,7 +326,7 @@ static struct spi_board_info h3_spi_board_info[] __initdata = {
 	},
 };
 
-static struct gpio_led h3_gpio_led_pins[] = {
+static const struct gpio_led h3_gpio_led_pins[] = {
 	{
 		.name		= "h3:red",
 		.default_trigger = "heartbeat",

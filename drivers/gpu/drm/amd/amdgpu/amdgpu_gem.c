@@ -265,7 +265,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	r = amdgpu_gem_object_create(adev, size, args->in.alignment,
 				     (u32)(0xffffffff & args->in.domains),
-				     flags, false, resv, &gobj);
+				     flags, ttm_bo_type_device, resv, &gobj);
 	if (flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID) {
 		if (!r) {
 			struct amdgpu_bo *abo = gem_to_amdgpu_bo(gobj);
@@ -317,7 +317,7 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 
 	/* create a gem object to contain this object in */
 	r = amdgpu_gem_object_create(adev, args->size, 0, AMDGPU_GEM_DOMAIN_CPU,
-				     0, 0, NULL, &gobj);
+				     0, ttm_bo_type_device, NULL, &gobj);
 	if (r)
 		return r;
 
@@ -344,7 +344,7 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 		if (r)
 			goto free_pages;
 
-		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
+		amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
 		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		amdgpu_bo_unreserve(bo);
 		if (r)
@@ -766,7 +766,7 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 				amdgpu_display_supported_domains(adev));
 	r = amdgpu_gem_object_create(adev, args->size, 0, domain,
 				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-				     false, NULL, &gobj);
+				     ttm_bo_type_device, NULL, &gobj);
 	if (r)
 		return -ENOMEM;
 

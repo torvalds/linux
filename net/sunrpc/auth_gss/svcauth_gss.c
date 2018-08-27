@@ -1389,7 +1389,7 @@ static void destroy_use_gss_proxy_proc_entry(struct net *net)
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 
 	if (sn->use_gssp_proc) {
-		remove_proc_entry("use-gss-proxy", sn->proc_net_rpc); 
+		remove_proc_entry("use-gss-proxy", sn->proc_net_rpc);
 		clear_gssp_clnt(sn);
 	}
 }

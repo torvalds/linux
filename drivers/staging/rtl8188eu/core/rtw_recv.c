@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _RTW_RECV_C_
@@ -23,7 +15,6 @@
 #include <mon.h>
 #include <wifi.h>
 #include <linux/vmalloc.h>
-#include <net/lib80211.h>
 
 #define ETHERNET_HEADER_SIZE	14	/*  Ethernet Header Length */
 #define LLC_HEADER_SIZE			6	/*  LLC Header Length */
@@ -44,13 +35,11 @@ static void rtw_signal_stat_timer_hdl(struct timer_list *t);
 
 void _rtw_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv)
 {
-
 	memset((u8 *)psta_recvpriv, 0, sizeof(struct sta_recv_priv));
 
 	spin_lock_init(&psta_recvpriv->lock);
 
 	_rtw_init_queue(&psta_recvpriv->defrag_q);
-
 }
 
 int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
@@ -106,7 +95,6 @@ void _rtw_free_recv_priv(struct recv_priv *precvpriv)
 	vfree(precvpriv->pallocated_frame_buf);
 
 	rtw_hal_free_recv_priv(padapter);
-
 }
 
 struct recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue)
@@ -201,7 +189,6 @@ void rtw_free_recvframe_queue(struct __queue *pframequeue,  struct __queue *pfre
 	}
 
 	spin_unlock(&pframequeue->lock);
-
 }
 
 u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter)
@@ -221,20 +208,31 @@ u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter)
 static int recvframe_chkmic(struct adapter *adapter,
 			    struct recv_frame *precvframe)
 {
-	int res = _SUCCESS;
-	struct rx_pkt_attrib *prxattrib = &precvframe->attrib;
-	struct sta_info *stainfo = rtw_get_stainfo(&adapter->stapriv, prxattrib->ta);
+	int	i, res = _SUCCESS;
+	u32	datalen;
+	u8	miccode[8];
+	u8	bmic_err = false, brpt_micerror = true;
+	u8	*pframe, *payload, *pframemic;
+	u8	*mickey;
+	struct	sta_info		*stainfo;
+	struct	rx_pkt_attrib	*prxattrib = &precvframe->attrib;
+	struct	security_priv	*psecuritypriv = &adapter->securitypriv;
+
+	struct mlme_ext_priv	*pmlmeext = &adapter->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+
+	stainfo = rtw_get_stainfo(&adapter->stapriv, &prxattrib->ta[0]);
 
 	if (prxattrib->encrypt == _TKIP_) {
-		if (stainfo) {
-			int key_idx;
-			const int iv_len = 8, icv_len = 4, key_length = 32;
-			struct sk_buff *skb = precvframe->pkt;
-			u8 key[32], iv[8], icv[4], *pframe = skb->data;
-			void *crypto_private = NULL;
-			struct lib80211_crypto_ops *crypto_ops = try_then_request_module(lib80211_get_crypto_ops("TKIP"), "lib80211_crypt_tkip");
-			struct security_priv *psecuritypriv = &adapter->securitypriv;
+		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
+			 ("\n %s: prxattrib->encrypt==_TKIP_\n", __func__));
+		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
+			 ("\n %s: da=0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x\n",
+			  __func__, prxattrib->ra[0], prxattrib->ra[1], prxattrib->ra[2],
+			  prxattrib->ra[3], prxattrib->ra[4], prxattrib->ra[5]));
 
+		/* calculate mic code */
+		if (stainfo) {
 			if (IS_MCAST(prxattrib->ra)) {
 				if (!psecuritypriv) {
 					res = _FAIL;
@@ -243,58 +241,115 @@ static int recvframe_chkmic(struct adapter *adapter,
 					DBG_88E("\n %s: didn't install group key!!!!!!!!!!\n", __func__);
 					goto exit;
 				}
-				key_idx = prxattrib->key_index;
-				memcpy(key, psecuritypriv->dot118021XGrpKey[key_idx].skey, 16);
-				memcpy(key + 16, psecuritypriv->dot118021XGrprxmickey[key_idx].skey, 16);
+				mickey = &psecuritypriv->dot118021XGrprxmickey[prxattrib->key_index].skey[0];
+
+				RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
+					 ("\n %s: bcmc key\n", __func__));
 			} else {
-				key_idx = 0;
-				memcpy(key, stainfo->dot118021x_UncstKey.skey, 16);
-				memcpy(key + 16, stainfo->dot11tkiprxmickey.skey, 16);
+				mickey = &stainfo->dot11tkiprxmickey.skey[0];
+				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
+					 ("\n %s: unicast key\n", __func__));
 			}
 
-			if (!crypto_ops) {
+			/* icv_len included the mic code */
+			datalen = precvframe->pkt->len-prxattrib->hdrlen -
+				  prxattrib->iv_len-prxattrib->icv_len-8;
+			pframe = precvframe->pkt->data;
+			payload = pframe+prxattrib->hdrlen+prxattrib->iv_len;
+
+			RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("\n prxattrib->iv_len=%d prxattrib->icv_len=%d\n", prxattrib->iv_len, prxattrib->icv_len));
+			rtw_seccalctkipmic(mickey, pframe, payload, datalen, &miccode[0],
+					   (unsigned char)prxattrib->priority); /* care the length of the data */
+
+			pframemic = payload+datalen;
+
+			bmic_err = false;
+
+			for (i = 0; i < 8; i++) {
+				if (miccode[i] != *(pframemic+i)) {
+					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
+						 ("%s: miccode[%d](%02x)!=*(pframemic+%d)(%02x) ",
+						  __func__, i, miccode[i], i, *(pframemic + i)));
+					bmic_err = true;
+				}
+			}
+
+			if (bmic_err) {
+				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
+					 ("\n *(pframemic-8)-*(pframemic-1)=0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x\n",
+					 *(pframemic-8), *(pframemic-7), *(pframemic-6),
+					 *(pframemic-5), *(pframemic-4), *(pframemic-3),
+					 *(pframemic-2), *(pframemic-1)));
+				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
+					 ("\n *(pframemic-16)-*(pframemic-9)=0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x\n",
+					 *(pframemic-16), *(pframemic-15), *(pframemic-14),
+					 *(pframemic-13), *(pframemic-12), *(pframemic-11),
+					 *(pframemic-10), *(pframemic-9)));
+				{
+					uint i;
+
+					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
+						 ("\n ======demp packet (len=%d)======\n",
+						 precvframe->pkt->len));
+					for (i = 0; i < precvframe->pkt->len; i += 8) {
+						RT_TRACE(_module_rtl871x_recv_c_,
+							 _drv_err_,
+							 ("0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x",
+							 *(precvframe->pkt->data+i),
+							 *(precvframe->pkt->data+i+1),
+							 *(precvframe->pkt->data+i+2),
+							 *(precvframe->pkt->data+i+3),
+							 *(precvframe->pkt->data+i+4),
+							 *(precvframe->pkt->data+i+5),
+							 *(precvframe->pkt->data+i+6),
+							 *(precvframe->pkt->data+i+7)));
+					}
+					RT_TRACE(_module_rtl871x_recv_c_,
+						 _drv_err_,
+						 ("\n ====== demp packet end [len=%d]======\n",
+						 precvframe->pkt->len));
+					RT_TRACE(_module_rtl871x_recv_c_,
+						 _drv_err_,
+						 ("\n hrdlen=%d,\n",
+						 prxattrib->hdrlen));
+				}
+
+				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
+					 ("ra=0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x psecuritypriv->binstallGrpkey=%d ",
+					 prxattrib->ra[0], prxattrib->ra[1], prxattrib->ra[2],
+					 prxattrib->ra[3], prxattrib->ra[4], prxattrib->ra[5], psecuritypriv->binstallGrpkey));
+
+				/*  double check key_index for some timing issue , */
+				/*  cannot compare with psecuritypriv->dot118021XGrpKeyid also cause timing issue */
+				if ((IS_MCAST(prxattrib->ra) == true)  && (prxattrib->key_index != pmlmeinfo->key_index))
+					brpt_micerror = false;
+
+				if ((prxattrib->bdecrypted) && (brpt_micerror)) {
+					rtw_handle_tkip_mic_err(adapter, (u8)IS_MCAST(prxattrib->ra));
+					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, (" mic error :prxattrib->bdecrypted=%d ", prxattrib->bdecrypted));
+					DBG_88E(" mic error :prxattrib->bdecrypted=%d\n", prxattrib->bdecrypted);
+				} else {
+					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, (" mic error :prxattrib->bdecrypted=%d ", prxattrib->bdecrypted));
+					DBG_88E(" mic error :prxattrib->bdecrypted=%d\n", prxattrib->bdecrypted);
+				}
 				res = _FAIL;
-				goto exit_lib80211_tkip;
+			} else {
+				/* mic checked ok */
+				if ((!psecuritypriv->bcheck_grpkey) && (IS_MCAST(prxattrib->ra))) {
+					psecuritypriv->bcheck_grpkey = true;
+					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("psecuritypriv->bcheck_grpkey = true"));
+				}
 			}
-
-			memcpy(iv, pframe + prxattrib->hdrlen, iv_len);
-			memcpy(icv, pframe + skb->len - icv_len, icv_len);
-			memmove(pframe + iv_len, pframe, prxattrib->hdrlen);
-
-			skb_pull(skb, iv_len);
-			skb_trim(skb, skb->len - icv_len);
-
-			crypto_private = crypto_ops->init(key_idx);
-			if (!crypto_private) {
-				res = _FAIL;
-				goto exit_lib80211_tkip;
-			}
-			if (crypto_ops->set_key(key, key_length, NULL, crypto_private) < 0) {
-				res = _FAIL;
-				goto exit_lib80211_tkip;
-			}
-			if (crypto_ops->decrypt_msdu(skb, key_idx, prxattrib->hdrlen, crypto_private)) {
-				res = _FAIL;
-				goto exit_lib80211_tkip;
-			}
-
-			memmove(pframe, pframe + iv_len, prxattrib->hdrlen);
-			skb_push(skb, iv_len);
-			skb_put(skb, icv_len);
-
-			memcpy(pframe + prxattrib->hdrlen, iv, iv_len);
-			memcpy(pframe + skb->len - icv_len, icv, icv_len);
-
-exit_lib80211_tkip:
-			if (crypto_ops && crypto_private)
-				crypto_ops->deinit(crypto_private);
 		} else {
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 				 ("%s: rtw_get_stainfo==NULL!!!\n", __func__));
 		}
+
+		skb_trim(precvframe->pkt, precvframe->pkt->len - 8);
 	}
 
 exit:
+
 	return res;
 }
 
@@ -561,7 +616,7 @@ static void count_rx_stats(struct adapter *padapter,
 
 	padapter->mlmepriv.LinkDetectInfo.NumRxOkInPeriod++;
 
-	if ((!MacAddr_isBcst(pattrib->dst)) && (!IS_MCAST(pattrib->dst)))
+	if (!is_multicast_ether_addr(pattrib->dst))
 		padapter->mlmepriv.LinkDetectInfo.NumRxUnicastOkInPeriod++;
 
 	if (sta)
@@ -964,8 +1019,7 @@ static int validate_recv_mgnt_frame(struct adapter *padapter,
 			if (!memcmp(padapter->eeprompriv.mac_addr,
 				    GetAddr1Ptr(precv_frame->pkt->data), ETH_ALEN))
 				psta->sta_stats.rx_probersp_pkts++;
-			else if (is_broadcast_mac_addr(GetAddr1Ptr(precv_frame->pkt->data)) ||
-				 is_multicast_mac_addr(GetAddr1Ptr(precv_frame->pkt->data)))
+			else if (is_multicast_ether_addr(GetAddr1Ptr(precv_frame->pkt->data)))
 				psta->sta_stats.rx_probersp_bm_pkts++;
 			else
 				psta->sta_stats.rx_probersp_uo_pkts++;

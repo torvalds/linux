@@ -279,7 +279,7 @@ struct ib_uverbs_query_port {
 };
 
 struct ib_uverbs_query_port_resp {
-	__u32 port_cap_flags;
+	__u32 port_cap_flags;		/* see ib_uverbs_query_port_cap_flags */
 	__u32 max_msg_sz;
 	__u32 bad_pkey_cntr;
 	__u32 qkey_viol_cntr;
@@ -299,7 +299,8 @@ struct ib_uverbs_query_port_resp {
 	__u8  active_speed;
 	__u8  phys_state;
 	__u8  link_layer;
-	__u8  reserved[2];
+	__u8  flags;			/* see ib_uverbs_query_port_flags */
+	__u8  reserved;
 };
 
 struct ib_uverbs_alloc_pd {

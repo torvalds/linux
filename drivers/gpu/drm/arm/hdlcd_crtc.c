@@ -229,6 +229,8 @@ static const struct drm_crtc_helper_funcs hdlcd_crtc_helper_funcs = {
 static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
+	int i;
+	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	u32 src_h = state->src_h >> 16;
 
@@ -238,20 +240,17 @@ static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	if (!state->fb || !state->crtc)
-		return 0;
-
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
-							state->crtc);
-	if (!crtc_state) {
-		DRM_DEBUG_KMS("Invalid crtc state\n");
-		return -EINVAL;
+	for_each_new_crtc_in_state(state->state, crtc, crtc_state, i) {
+		/* we cannot disable the plane while the CRTC is active */
+		if (!state->fb && crtc_state->active)
+			return -EINVAL;
+		return drm_atomic_helper_check_plane_state(state, crtc_state,
+						DRM_PLANE_HELPER_NO_SCALING,
+						DRM_PLANE_HELPER_NO_SCALING,
+						false, true);
 	}
 
-	return drm_atomic_helper_check_plane_state(state, crtc_state,
-						   DRM_PLANE_HELPER_NO_SCALING,
-						   DRM_PLANE_HELPER_NO_SCALING,
-						   false, true);
+	return 0;
 }
 
 static void hdlcd_plane_atomic_update(struct drm_plane *plane,
@@ -280,16 +279,10 @@ static const struct drm_plane_helper_funcs hdlcd_plane_helper_funcs = {
 	.atomic_update = hdlcd_plane_atomic_update,
 };
 
-static void hdlcd_plane_destroy(struct drm_plane *plane)
-{
-	drm_plane_helper_disable(plane, NULL);
-	drm_plane_cleanup(plane);
-}
-
 static const struct drm_plane_funcs hdlcd_plane_funcs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
-	.destroy		= hdlcd_plane_destroy,
+	.destroy		= drm_plane_cleanup,
 	.reset			= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
@@ -334,10 +327,8 @@ int hdlcd_setup_crtc(struct drm_device *drm)
 
 	ret = drm_crtc_init_with_planes(drm, &hdlcd->crtc, primary, NULL,
 					&hdlcd_crtc_funcs, NULL);
-	if (ret) {
-		hdlcd_plane_destroy(primary);
+	if (ret)
 		return ret;
-	}
 
 	drm_crtc_helper_add(&hdlcd->crtc, &hdlcd_crtc_helper_funcs);
 	return 0;

@@ -171,7 +171,7 @@ static void nvmet_execute_identify_disc_ctrl(struct nvmet_req *req)
 	id->sgls = cpu_to_le32(1 << 0);	/* we always support SGLs */
 	if (ctrl->ops->has_keyed_sgls)
 		id->sgls |= cpu_to_le32(1 << 2);
-	if (ctrl->ops->sqe_inline_size)
+	if (req->port->inline_data_size)
 		id->sgls |= cpu_to_le32(1 << 20);
 
 	strcpy(id->subnqn, ctrl->subsys->subsysnqn);

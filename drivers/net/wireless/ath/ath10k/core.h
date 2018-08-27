@@ -48,7 +48,8 @@
 #define WMI_READY_TIMEOUT (5 * HZ)
 #define ATH10K_FLUSH_TIMEOUT_HZ (5 * HZ)
 #define ATH10K_CONNECTION_LOSS_HZ (3 * HZ)
-#define ATH10K_NUM_CHANS 40
+#define ATH10K_NUM_CHANS 41
+#define ATH10K_MAX_5G_CHAN 173
 
 /* Antenna noise floor */
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
@@ -184,6 +185,11 @@ struct ath10k_wmi {
 	struct wmi_pdev_param_map *pdev_param;
 	const struct wmi_ops *ops;
 	const struct wmi_peer_flags_map *peer_flags;
+
+	u32 mgmt_max_num_pending_tx;
+
+	/* Protected by data_lock */
+	struct idr mgmt_pending_tx;
 
 	u32 num_mem_chunks;
 	u32 rx_decap_mode;

@@ -2566,6 +2566,7 @@ int icl_calc_dp_combo_pll_link(struct drm_i915_private *dev_priv,
 	switch (index) {
 	default:
 		MISSING_CASE(index);
+		/* fall through */
 	case 0:
 		link_clock = 540000;
 		break;
@@ -2639,6 +2640,7 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 			switch (div1) {
 			default:
 				MISSING_CASE(div1);
+				/* fall through */
 			case 2:
 				hsdiv = 0;
 				break;
@@ -2812,24 +2814,30 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 				MG_PLL_SSC_FLLEN |
 				MG_PLL_SSC_STEPSIZE(ssc_stepsize);
 
-	pll_state->mg_pll_tdc_coldst_bias = MG_PLL_TDC_COLDST_COLDSTART;
+	pll_state->mg_pll_tdc_coldst_bias = MG_PLL_TDC_COLDST_COLDSTART |
+					    MG_PLL_TDC_COLDST_IREFINT_EN |
+					    MG_PLL_TDC_COLDST_REFBIAS_START_PULSE_W(iref_pulse_w) |
+					    MG_PLL_TDC_TDCOVCCORR_EN |
+					    MG_PLL_TDC_TDCSEL(3);
 
-	if (refclk_khz != 38400) {
-		pll_state->mg_pll_tdc_coldst_bias |=
-			MG_PLL_TDC_COLDST_IREFINT_EN |
-			MG_PLL_TDC_COLDST_REFBIAS_START_PULSE_W(iref_pulse_w) |
-			MG_PLL_TDC_COLDST_COLDSTART |
-			MG_PLL_TDC_TDCOVCCORR_EN |
-			MG_PLL_TDC_TDCSEL(3);
+	pll_state->mg_pll_bias = MG_PLL_BIAS_BIAS_GB_SEL(3) |
+				 MG_PLL_BIAS_INIT_DCOAMP(0x3F) |
+				 MG_PLL_BIAS_BIAS_BONUS(10) |
+				 MG_PLL_BIAS_BIASCAL_EN |
+				 MG_PLL_BIAS_CTRIM(12) |
+				 MG_PLL_BIAS_VREF_RDAC(4) |
+				 MG_PLL_BIAS_IREFTRIM(iref_trim);
 
-		pll_state->mg_pll_bias = MG_PLL_BIAS_BIAS_GB_SEL(3) |
-					 MG_PLL_BIAS_INIT_DCOAMP(0x3F) |
-					 MG_PLL_BIAS_BIAS_BONUS(10) |
-					 MG_PLL_BIAS_BIASCAL_EN |
-					 MG_PLL_BIAS_CTRIM(12) |
-					 MG_PLL_BIAS_VREF_RDAC(4) |
-					 MG_PLL_BIAS_IREFTRIM(iref_trim);
+	if (refclk_khz == 38400) {
+		pll_state->mg_pll_tdc_coldst_bias_mask = MG_PLL_TDC_COLDST_COLDSTART;
+		pll_state->mg_pll_bias_mask = 0;
+	} else {
+		pll_state->mg_pll_tdc_coldst_bias_mask = -1U;
+		pll_state->mg_pll_bias_mask = -1U;
 	}
+
+	pll_state->mg_pll_tdc_coldst_bias &= pll_state->mg_pll_tdc_coldst_bias_mask;
+	pll_state->mg_pll_bias &= pll_state->mg_pll_bias_mask;
 
 	return true;
 }
@@ -2897,6 +2905,7 @@ static i915_reg_t icl_pll_id_to_enable_reg(enum intel_dpll_id id)
 	switch (id) {
 	default:
 		MISSING_CASE(id);
+		/* fall through */
 	case DPLL_ID_ICL_DPLL0:
 	case DPLL_ID_ICL_DPLL1:
 		return CNL_DPLL_ENABLE(id);
@@ -2939,18 +2948,41 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	case DPLL_ID_ICL_MGPLL4:
 		port = icl_mg_pll_id_to_port(id);
 		hw_state->mg_refclkin_ctl = I915_READ(MG_REFCLKIN_CTL(port));
+		hw_state->mg_refclkin_ctl &= MG_REFCLKIN_CTL_OD_2_MUX_MASK;
+
 		hw_state->mg_clktop2_coreclkctl1 =
 			I915_READ(MG_CLKTOP2_CORECLKCTL1(port));
+		hw_state->mg_clktop2_coreclkctl1 &=
+			MG_CLKTOP2_CORECLKCTL1_A_DIVRATIO_MASK;
+
 		hw_state->mg_clktop2_hsclkctl =
 			I915_READ(MG_CLKTOP2_HSCLKCTL(port));
+		hw_state->mg_clktop2_hsclkctl &=
+			MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL_MASK |
+			MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL_MASK |
+			MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK |
+			MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK;
+
 		hw_state->mg_pll_div0 = I915_READ(MG_PLL_DIV0(port));
 		hw_state->mg_pll_div1 = I915_READ(MG_PLL_DIV1(port));
 		hw_state->mg_pll_lf = I915_READ(MG_PLL_LF(port));
 		hw_state->mg_pll_frac_lock = I915_READ(MG_PLL_FRAC_LOCK(port));
 		hw_state->mg_pll_ssc = I915_READ(MG_PLL_SSC(port));
+
 		hw_state->mg_pll_bias = I915_READ(MG_PLL_BIAS(port));
 		hw_state->mg_pll_tdc_coldst_bias =
 			I915_READ(MG_PLL_TDC_COLDST_BIAS(port));
+
+		if (dev_priv->cdclk.hw.ref == 38400) {
+			hw_state->mg_pll_tdc_coldst_bias_mask = MG_PLL_TDC_COLDST_COLDSTART;
+			hw_state->mg_pll_bias_mask = 0;
+		} else {
+			hw_state->mg_pll_tdc_coldst_bias_mask = -1U;
+			hw_state->mg_pll_bias_mask = -1U;
+		}
+
+		hw_state->mg_pll_tdc_coldst_bias &= hw_state->mg_pll_tdc_coldst_bias_mask;
+		hw_state->mg_pll_bias &= hw_state->mg_pll_bias_mask;
 		break;
 	default:
 		MISSING_CASE(id);
@@ -2978,19 +3010,48 @@ static void icl_mg_pll_write(struct drm_i915_private *dev_priv,
 {
 	struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
 	enum port port = icl_mg_pll_id_to_port(pll->info->id);
+	u32 val;
 
-	I915_WRITE(MG_REFCLKIN_CTL(port), hw_state->mg_refclkin_ctl);
-	I915_WRITE(MG_CLKTOP2_CORECLKCTL1(port),
-		   hw_state->mg_clktop2_coreclkctl1);
-	I915_WRITE(MG_CLKTOP2_HSCLKCTL(port), hw_state->mg_clktop2_hsclkctl);
+	/*
+	 * Some of the following registers have reserved fields, so program
+	 * these with RMW based on a mask. The mask can be fixed or generated
+	 * during the calc/readout phase if the mask depends on some other HW
+	 * state like refclk, see icl_calc_mg_pll_state().
+	 */
+	val = I915_READ(MG_REFCLKIN_CTL(port));
+	val &= ~MG_REFCLKIN_CTL_OD_2_MUX_MASK;
+	val |= hw_state->mg_refclkin_ctl;
+	I915_WRITE(MG_REFCLKIN_CTL(port), val);
+
+	val = I915_READ(MG_CLKTOP2_CORECLKCTL1(port));
+	val &= ~MG_CLKTOP2_CORECLKCTL1_A_DIVRATIO_MASK;
+	val |= hw_state->mg_clktop2_coreclkctl1;
+	I915_WRITE(MG_CLKTOP2_CORECLKCTL1(port), val);
+
+	val = I915_READ(MG_CLKTOP2_HSCLKCTL(port));
+	val &= ~(MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL_MASK |
+		 MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL_MASK |
+		 MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK |
+		 MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK);
+	val |= hw_state->mg_clktop2_hsclkctl;
+	I915_WRITE(MG_CLKTOP2_HSCLKCTL(port), val);
+
 	I915_WRITE(MG_PLL_DIV0(port), hw_state->mg_pll_div0);
 	I915_WRITE(MG_PLL_DIV1(port), hw_state->mg_pll_div1);
 	I915_WRITE(MG_PLL_LF(port), hw_state->mg_pll_lf);
 	I915_WRITE(MG_PLL_FRAC_LOCK(port), hw_state->mg_pll_frac_lock);
 	I915_WRITE(MG_PLL_SSC(port), hw_state->mg_pll_ssc);
-	I915_WRITE(MG_PLL_BIAS(port), hw_state->mg_pll_bias);
-	I915_WRITE(MG_PLL_TDC_COLDST_BIAS(port),
-		   hw_state->mg_pll_tdc_coldst_bias);
+
+	val = I915_READ(MG_PLL_BIAS(port));
+	val &= ~hw_state->mg_pll_bias_mask;
+	val |= hw_state->mg_pll_bias;
+	I915_WRITE(MG_PLL_BIAS(port), val);
+
+	val = I915_READ(MG_PLL_TDC_COLDST_BIAS(port));
+	val &= ~hw_state->mg_pll_tdc_coldst_bias_mask;
+	val |= hw_state->mg_pll_tdc_coldst_bias;
+	I915_WRITE(MG_PLL_TDC_COLDST_BIAS(port), val);
+
 	POSTING_READ(MG_PLL_TDC_COLDST_BIAS(port));
 }
 

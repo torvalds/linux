@@ -367,12 +367,13 @@ static bool toneport_has_source_select(struct usb_line6_toneport *toneport)
 */
 static void toneport_setup(struct usb_line6_toneport *toneport)
 {
-	int ticks;
+	u32 ticks;
 	struct usb_line6 *line6 = &toneport->line6;
 	struct usb_device *usbdev = line6->usbdev;
 
 	/* sync time on device with host: */
-	ticks = (int)get_seconds();
+	/* note: 32-bit timestamps overflow in year 2106 */
+	ticks = (u32)ktime_get_real_seconds();
 	line6_write_data(line6, 0x80c6, &ticks, 4);
 
 	/* enable device: */

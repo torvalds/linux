@@ -48,6 +48,8 @@
 #include "processpptables.h"
 #include "pp_thermal.h"
 
+#include "ivsrcid/ivsrcid_vislands30.h"
+
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
 #define MC_CG_ARB_FREQ_F2           0x0c
@@ -1578,7 +1580,7 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->current_profile_setting.sclk_up_hyst = 0;
 	data->current_profile_setting.sclk_down_hyst = 100;
 	data->current_profile_setting.sclk_activity = SMU7_SCLK_TARGETACTIVITY_DFLT;
-	data->current_profile_setting.bupdate_sclk = 1;
+	data->current_profile_setting.bupdate_mclk = 1;
 	data->current_profile_setting.mclk_up_hyst = 0;
 	data->current_profile_setting.mclk_down_hyst = 100;
 	data->current_profile_setting.mclk_activity = SMU7_MCLK_TARGETACTIVITY_DFLT;
@@ -3183,7 +3185,7 @@ static int smu7_get_pp_table_entry_callback_func_v1(struct pp_hwmgr *hwmgr,
 	performance_level->pcie_gen = get_pcie_gen_support(data->pcie_gen_cap,
 			state_entry->ucPCIEGenLow);
 	performance_level->pcie_lane = get_pcie_lane_support(data->pcie_lane_cap,
-			state_entry->ucPCIELaneHigh);
+			state_entry->ucPCIELaneLow);
 
 	performance_level = &(smu7_power_state->performance_levels
 			[smu7_power_state->performance_level_count++]);
@@ -4105,17 +4107,17 @@ static int smu7_register_irq_handlers(struct pp_hwmgr *hwmgr)
 
 	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
 			AMDGPU_IH_CLIENTID_LEGACY,
-			230,
+			VISLANDS30_IV_SRCID_CG_TSS_THERMAL_LOW_TO_HIGH,
 			source);
 	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
 			AMDGPU_IH_CLIENTID_LEGACY,
-			231,
+			VISLANDS30_IV_SRCID_CG_TSS_THERMAL_HIGH_TO_LOW,
 			source);
 
 	/* Register CTF(GPIO_19) interrupt */
 	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
 			AMDGPU_IH_CLIENTID_LEGACY,
-			83,
+			VISLANDS30_IV_SRCID_GPIO_19,
 			source);
 
 	return 0;
@@ -4610,12 +4612,12 @@ static int smu7_get_sclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 			return -EINVAL;
 		dep_sclk_table = table_info->vdd_dep_on_sclk;
 		for (i = 0; i < dep_sclk_table->count; i++)
-			clocks->clock[i] = dep_sclk_table->entries[i].clk;
+			clocks->clock[i] = dep_sclk_table->entries[i].clk * 10;
 		clocks->count = dep_sclk_table->count;
 	} else if (hwmgr->pp_table_version == PP_TABLE_V0) {
 		sclk_table = hwmgr->dyn_state.vddc_dependency_on_sclk;
 		for (i = 0; i < sclk_table->count; i++)
-			clocks->clock[i] = sclk_table->entries[i].clk;
+			clocks->clock[i] = sclk_table->entries[i].clk * 10;
 		clocks->count = sclk_table->count;
 	}
 
@@ -4647,7 +4649,7 @@ static int smu7_get_mclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 			return -EINVAL;
 		dep_mclk_table = table_info->vdd_dep_on_mclk;
 		for (i = 0; i < dep_mclk_table->count; i++) {
-			clocks->clock[i] = dep_mclk_table->entries[i].clk;
+			clocks->clock[i] = dep_mclk_table->entries[i].clk * 10;
 			clocks->latency[i] = smu7_get_mem_latency(hwmgr,
 						dep_mclk_table->entries[i].clk);
 		}
@@ -4655,7 +4657,7 @@ static int smu7_get_mclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 	} else if (hwmgr->pp_table_version == PP_TABLE_V0) {
 		mclk_table = hwmgr->dyn_state.vddc_dependency_on_mclk;
 		for (i = 0; i < mclk_table->count; i++)
-			clocks->clock[i] = mclk_table->entries[i].clk;
+			clocks->clock[i] = mclk_table->entries[i].clk * 10;
 		clocks->count = mclk_table->count;
 	}
 	return 0;
@@ -5044,7 +5046,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_fan_control_mode = smu7_get_fan_control_mode,
 	.force_clock_level = smu7_force_clock_level,
 	.print_clock_levels = smu7_print_clock_levels,
-	.enable_per_cu_power_gating = smu7_enable_per_cu_power_gating,
+	.powergate_gfx = smu7_powergate_gfx,
 	.get_sclk_od = smu7_get_sclk_od,
 	.set_sclk_od = smu7_set_sclk_od,
 	.get_mclk_od = smu7_get_mclk_od,

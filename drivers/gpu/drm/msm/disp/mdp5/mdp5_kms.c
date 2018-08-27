@@ -170,6 +170,8 @@ static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *s
 	struct device *dev = &mdp5_kms->pdev->dev;
 	struct mdp5_global_state *global_state;
 
+	drm_atomic_helper_wait_for_vblanks(mdp5_kms->dev, state);
+
 	global_state = mdp5_get_existing_global_state(mdp5_kms);
 
 	if (mdp5_kms->smp)

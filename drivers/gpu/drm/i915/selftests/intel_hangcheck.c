@@ -27,6 +27,7 @@
 #include "../i915_selftest.h"
 #include "i915_random.h"
 #include "igt_flush_test.h"
+#include "igt_wedge_me.h"
 
 #include "mock_context.h"
 #include "mock_drm.h"
@@ -130,13 +131,19 @@ static int emit_recurse_batch(struct hang *h,
 	if (err)
 		goto unpin_vma;
 
-	i915_vma_move_to_active(vma, rq, 0);
+	err = i915_vma_move_to_active(vma, rq, 0);
+	if (err)
+		goto unpin_hws;
+
 	if (!i915_gem_object_has_active_reference(vma->obj)) {
 		i915_gem_object_get(vma->obj);
 		i915_gem_object_set_active_reference(vma->obj);
 	}
 
-	i915_vma_move_to_active(hws, rq, 0);
+	err = i915_vma_move_to_active(hws, rq, 0);
+	if (err)
+		goto unpin_hws;
+
 	if (!i915_gem_object_has_active_reference(hws->obj)) {
 		i915_gem_object_get(hws->obj);
 		i915_gem_object_set_active_reference(hws->obj);
@@ -171,7 +178,7 @@ static int emit_recurse_batch(struct hang *h,
 		*batch++ = MI_BATCH_BUFFER_START | 1 << 8;
 		*batch++ = lower_32_bits(vma->node.start);
 	} else if (INTEL_GEN(i915) >= 4) {
-		*batch++ = MI_STORE_DWORD_IMM_GEN4 | 1 << 22;
+		*batch++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*batch++ = 0;
 		*batch++ = lower_32_bits(hws_address(hws, rq));
 		*batch++ = rq->fence.seqno;
@@ -184,7 +191,7 @@ static int emit_recurse_batch(struct hang *h,
 		*batch++ = MI_BATCH_BUFFER_START | 2 << 6;
 		*batch++ = lower_32_bits(vma->node.start);
 	} else {
-		*batch++ = MI_STORE_DWORD_IMM;
+		*batch++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
 		*batch++ = lower_32_bits(hws_address(hws, rq));
 		*batch++ = rq->fence.seqno;
 		*batch++ = MI_ARB_CHECK;
@@ -193,7 +200,7 @@ static int emit_recurse_batch(struct hang *h,
 		batch += 1024 / sizeof(*batch);
 
 		*batch++ = MI_ARB_CHECK;
-		*batch++ = MI_BATCH_BUFFER_START | 2 << 6 | 1;
+		*batch++ = MI_BATCH_BUFFER_START | 2 << 6;
 		*batch++ = lower_32_bits(vma->node.start);
 	}
 	*batch++ = MI_BATCH_BUFFER_END; /* not reached */
@@ -205,6 +212,7 @@ static int emit_recurse_batch(struct hang *h,
 
 	err = rq->engine->emit_bb_start(rq, vma->node.start, PAGE_SIZE, flags);
 
+unpin_hws:
 	i915_vma_unpin(hws);
 unpin_vma:
 	i915_vma_unpin(vma);
@@ -914,7 +922,7 @@ static u32 fake_hangcheck(struct i915_request *rq, u32 mask)
 	return reset_count;
 }
 
-static int igt_wait_reset(void *arg)
+static int igt_reset_wait(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct i915_request *rq;
@@ -985,6 +993,170 @@ unlock:
 	if (i915_terminally_wedged(&i915->gpu_error))
 		return -EIO;
 
+	return err;
+}
+
+struct evict_vma {
+	struct completion completion;
+	struct i915_vma *vma;
+};
+
+static int evict_vma(void *data)
+{
+	struct evict_vma *arg = data;
+	struct i915_address_space *vm = arg->vma->vm;
+	struct drm_i915_private *i915 = vm->i915;
+	struct drm_mm_node evict = arg->vma->node;
+	int err;
+
+	complete(&arg->completion);
+
+	mutex_lock(&i915->drm.struct_mutex);
+	err = i915_gem_evict_for_node(vm, &evict, 0);
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	return err;
+}
+
+static int __igt_reset_evict_vma(struct drm_i915_private *i915,
+				 struct i915_address_space *vm)
+{
+	struct drm_i915_gem_object *obj;
+	struct task_struct *tsk = NULL;
+	struct i915_request *rq;
+	struct evict_vma arg;
+	struct hang h;
+	int err;
+
+	if (!intel_engine_can_store_dword(i915->engine[RCS]))
+		return 0;
+
+	/* Check that we can recover an unbind stuck on a hanging request */
+
+	global_reset_lock(i915);
+
+	mutex_lock(&i915->drm.struct_mutex);
+	err = hang_init(&h, i915);
+	if (err)
+		goto unlock;
+
+	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		goto fini;
+	}
+
+	arg.vma = i915_vma_instance(obj, vm, NULL);
+	if (IS_ERR(arg.vma)) {
+		err = PTR_ERR(arg.vma);
+		goto out_obj;
+	}
+
+	rq = hang_create_request(&h, i915->engine[RCS]);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto out_obj;
+	}
+
+	err = i915_vma_pin(arg.vma, 0, 0,
+			   i915_vma_is_ggtt(arg.vma) ? PIN_GLOBAL : PIN_USER);
+	if (err)
+		goto out_obj;
+
+	err = i915_vma_move_to_active(arg.vma, rq, EXEC_OBJECT_WRITE);
+	i915_vma_unpin(arg.vma);
+
+	i915_request_get(rq);
+	i915_request_add(rq);
+	if (err)
+		goto out_rq;
+
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	if (!wait_until_running(&h, rq)) {
+		struct drm_printer p = drm_info_printer(i915->drm.dev);
+
+		pr_err("%s: Failed to start request %x, at %x\n",
+		       __func__, rq->fence.seqno, hws_seqno(&h, rq));
+		intel_engine_dump(rq->engine, &p, "%s\n", rq->engine->name);
+
+		i915_gem_set_wedged(i915);
+		goto out_reset;
+	}
+
+	init_completion(&arg.completion);
+
+	tsk = kthread_run(evict_vma, &arg, "igt/evict_vma");
+	if (IS_ERR(tsk)) {
+		err = PTR_ERR(tsk);
+		tsk = NULL;
+		goto out_reset;
+	}
+
+	wait_for_completion(&arg.completion);
+
+	if (wait_for(waitqueue_active(&rq->execute), 10)) {
+		struct drm_printer p = drm_info_printer(i915->drm.dev);
+
+		pr_err("igt/evict_vma kthread did not wait\n");
+		intel_engine_dump(rq->engine, &p, "%s\n", rq->engine->name);
+
+		i915_gem_set_wedged(i915);
+		goto out_reset;
+	}
+
+out_reset:
+	fake_hangcheck(rq, intel_engine_flag(rq->engine));
+
+	if (tsk) {
+		struct igt_wedge_me w;
+
+		/* The reset, even indirectly, should take less than 10ms. */
+		igt_wedge_on_timeout(&w, i915, HZ / 10 /* 100ms timeout*/)
+			err = kthread_stop(tsk);
+	}
+
+	mutex_lock(&i915->drm.struct_mutex);
+out_rq:
+	i915_request_put(rq);
+out_obj:
+	i915_gem_object_put(obj);
+fini:
+	hang_fini(&h);
+unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
+	global_reset_unlock(i915);
+
+	if (i915_terminally_wedged(&i915->gpu_error))
+		return -EIO;
+
+	return err;
+}
+
+static int igt_reset_evict_ggtt(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+
+	return __igt_reset_evict_vma(i915, &i915->ggtt.vm);
+}
+
+static int igt_reset_evict_ppgtt(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct i915_gem_context *ctx;
+	int err;
+
+	mutex_lock(&i915->drm.struct_mutex);
+	ctx = kernel_context(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
+
+	err = 0;
+	if (ctx->ppgtt) /* aliasing == global gtt locking, covered above */
+		err = __igt_reset_evict_vma(i915, &ctx->ppgtt->vm);
+
+	kernel_context_close(ctx);
 	return err;
 }
 
@@ -1233,8 +1405,10 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_reset_idle_engine),
 		SUBTEST(igt_reset_active_engine),
 		SUBTEST(igt_reset_engines),
-		SUBTEST(igt_wait_reset),
 		SUBTEST(igt_reset_queue),
+		SUBTEST(igt_reset_wait),
+		SUBTEST(igt_reset_evict_ggtt),
+		SUBTEST(igt_reset_evict_ppgtt),
 		SUBTEST(igt_handle_error),
 	};
 	bool saved_hangcheck;
@@ -1242,6 +1416,9 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 
 	if (!intel_has_gpu_reset(i915))
 		return 0;
+
+	if (i915_terminally_wedged(&i915->gpu_error))
+		return -EIO; /* we're long past hope of a successful reset */
 
 	intel_runtime_pm_get(i915);
 	saved_hangcheck = fetch_and_zero(&i915_modparams.enable_hangcheck);

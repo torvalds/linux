@@ -59,8 +59,8 @@ enum x86_register {
 struct desc64 {
 	uint16_t limit0;
 	uint16_t base0;
-	unsigned base1:8, type:5, dpl:2, p:1;
-	unsigned limit1:4, zero0:3, g:1, base2:8;
+	unsigned base1:8, s:1, type:4, dpl:2, p:1;
+	unsigned limit1:4, avl:1, l:1, db:1, g:1, base2:8;
 	uint32_t base3;
 	uint32_t zero1;
 } __attribute__((packed));
@@ -302,6 +302,10 @@ static inline unsigned long get_xmm(int n)
 	}
 	return 0;
 }
+
+struct kvm_x86_state;
+struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid);
+void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *state);
 
 /*
  * Basic CPU control in CR0

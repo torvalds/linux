@@ -135,8 +135,8 @@ static int ix2505v_set_params(struct dvb_frontend *fe)
 	u8 gain, cc, ref, psc, local_osc, lpf;
 	u8 data[4] = {0};
 
-	if ((frequency < fe->ops.info.frequency_min)
-	||  (frequency > fe->ops.info.frequency_max))
+	if ((frequency < fe->ops.info.frequency_min_hz / kHz)
+	||  (frequency > fe->ops.info.frequency_max_hz / kHz))
 		return -EINVAL;
 
 	if (state->config->tuner_gain)
@@ -256,8 +256,8 @@ static int ix2505v_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 static const struct dvb_tuner_ops ix2505v_tuner_ops = {
 	.info = {
 		.name = "Sharp IX2505V (B0017)",
-		.frequency_min = 950000,
-		.frequency_max = 2175000
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2175 * MHz
 	},
 	.release = ix2505v_release,
 	.set_params = ix2505v_set_params,

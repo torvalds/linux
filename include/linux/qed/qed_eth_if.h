@@ -39,6 +39,10 @@
 #include <linux/qed/qed_if.h>
 #include <linux/qed/qed_iov_if.h>
 
+/* 64 max queues * (1 rx + 4 tx-cos + 1 xdp) */
+#define QED_MIN_L2_CONS (2 + NUM_PHYS_TCS_4PORT_K2)
+#define QED_MAX_L2_CONS (64 * (QED_MIN_L2_CONS))
+
 struct qed_queue_start_common_params {
 	/* Should always be relative to entity sending this. */
 	u8 vport_id;
@@ -49,6 +53,8 @@ struct qed_queue_start_common_params {
 
 	struct qed_sb_info *p_sb;
 	u8 sb_idx;
+
+	u8 tc;
 };
 
 struct qed_rxq_start_ret_params {

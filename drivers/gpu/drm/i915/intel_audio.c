@@ -649,11 +649,12 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 	dev_priv->av_enc_map[pipe] = encoder;
 	mutex_unlock(&dev_priv->av_mutex);
 
-	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify) {
+	if (acomp && acomp->base.audio_ops &&
+	    acomp->base.audio_ops->pin_eld_notify) {
 		/* audio drivers expect pipe = -1 to indicate Non-MST cases */
 		if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST))
 			pipe = -1;
-		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr,
+		acomp->base.audio_ops->pin_eld_notify(acomp->base.audio_ops->audio_ptr,
 						 (int) port, (int) pipe);
 	}
 
@@ -691,11 +692,12 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 	dev_priv->av_enc_map[pipe] = NULL;
 	mutex_unlock(&dev_priv->av_mutex);
 
-	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify) {
+	if (acomp && acomp->base.audio_ops &&
+	    acomp->base.audio_ops->pin_eld_notify) {
 		/* audio drivers expect pipe = -1 to indicate Non-MST cases */
 		if (!intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DP_MST))
 			pipe = -1;
-		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr,
+		acomp->base.audio_ops->pin_eld_notify(acomp->base.audio_ops->audio_ptr,
 						 (int) port, (int) pipe);
 	}
 
@@ -890,7 +892,7 @@ static int i915_audio_component_get_eld(struct device *kdev, int port,
 	return ret;
 }
 
-static const struct i915_audio_component_ops i915_audio_component_ops = {
+static const struct drm_audio_component_ops i915_audio_component_ops = {
 	.owner		= THIS_MODULE,
 	.get_power	= i915_audio_component_get_power,
 	.put_power	= i915_audio_component_put_power,
@@ -907,12 +909,12 @@ static int i915_audio_component_bind(struct device *i915_kdev,
 	struct drm_i915_private *dev_priv = kdev_to_i915(i915_kdev);
 	int i;
 
-	if (WARN_ON(acomp->ops || acomp->dev))
+	if (WARN_ON(acomp->base.ops || acomp->base.dev))
 		return -EEXIST;
 
 	drm_modeset_lock_all(&dev_priv->drm);
-	acomp->ops = &i915_audio_component_ops;
-	acomp->dev = i915_kdev;
+	acomp->base.ops = &i915_audio_component_ops;
+	acomp->base.dev = i915_kdev;
 	BUILD_BUG_ON(MAX_PORTS != I915_MAX_PORTS);
 	for (i = 0; i < ARRAY_SIZE(acomp->aud_sample_rate); i++)
 		acomp->aud_sample_rate[i] = 0;
@@ -929,8 +931,8 @@ static void i915_audio_component_unbind(struct device *i915_kdev,
 	struct drm_i915_private *dev_priv = kdev_to_i915(i915_kdev);
 
 	drm_modeset_lock_all(&dev_priv->drm);
-	acomp->ops = NULL;
-	acomp->dev = NULL;
+	acomp->base.ops = NULL;
+	acomp->base.dev = NULL;
 	dev_priv->audio_component = NULL;
 	drm_modeset_unlock_all(&dev_priv->drm);
 }

@@ -7,7 +7,6 @@ Required properties:
 
 - compatible: must be "ti,c64x+timer64"
 - reg: base address and size of register region
-- interrupt-parent: interrupt controller
 - interrupts: interrupt id
 
 Optional properties:

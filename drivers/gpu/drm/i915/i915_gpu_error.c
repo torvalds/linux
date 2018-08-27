@@ -31,6 +31,7 @@
 #include <linux/stop_machine.h>
 #include <linux/zlib.h>
 #include <drm/drm_print.h>
+#include <linux/ascii85.h>
 
 #include "i915_gpu_error.h"
 #include "i915_drv.h"
@@ -335,21 +336,16 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 				struct drm_i915_error_buffer *err,
 				int count)
 {
-	int i;
-
 	err_printf(m, "%s [%d]:\n", name, count);
 
 	while (count--) {
-		err_printf(m, "    %08x_%08x %8u %02x %02x [ ",
+		err_printf(m, "    %08x_%08x %8u %02x %02x %02x",
 			   upper_32_bits(err->gtt_offset),
 			   lower_32_bits(err->gtt_offset),
 			   err->size,
 			   err->read_domains,
-			   err->write_domain);
-		for (i = 0; i < I915_NUM_ENGINES; i++)
-			err_printf(m, "%02x ", err->rseqno[i]);
-
-		err_printf(m, "] %02x", err->wseqno);
+			   err->write_domain,
+			   err->wseqno);
 		err_puts(m, tiling_flag(err->tiling));
 		err_puts(m, dirty_flag(err->dirty));
 		err_puts(m, purgeable_flag(err->purgeable));
@@ -522,35 +518,12 @@ void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...)
 	va_end(args);
 }
 
-static int
-ascii85_encode_len(int len)
-{
-	return DIV_ROUND_UP(len, 4);
-}
-
-static bool
-ascii85_encode(u32 in, char *out)
-{
-	int i;
-
-	if (in == 0)
-		return false;
-
-	out[5] = '\0';
-	for (i = 5; i--; ) {
-		out[i] = '!' + in % 85;
-		in /= 85;
-	}
-
-	return true;
-}
-
 static void print_error_obj(struct drm_i915_error_state_buf *m,
 			    struct intel_engine_cs *engine,
 			    const char *name,
 			    struct drm_i915_error_object *obj)
 {
-	char out[6];
+	char out[ASCII85_BUFSZ];
 	int page;
 
 	if (!obj)
@@ -572,12 +545,8 @@ static void print_error_obj(struct drm_i915_error_state_buf *m,
 			len -= obj->unused;
 		len = ascii85_encode_len(len);
 
-		for (i = 0; i < len; i++) {
-			if (ascii85_encode(obj->pages[page][i], out))
-				err_puts(m, out);
-			else
-				err_puts(m, "z");
-		}
+		for (i = 0; i < len; i++)
+			err_puts(m, ascii85_encode(obj->pages[page][i], out));
 	}
 	err_puts(m, "\n");
 }
@@ -1021,13 +990,10 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 		       struct i915_vma *vma)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
-	int i;
 
 	err->size = obj->base.size;
 	err->name = obj->base.name;
 
-	for (i = 0; i < I915_NUM_ENGINES; i++)
-		err->rseqno[i] = __active_get_seqno(&vma->last_read[i]);
 	err->wseqno = __active_get_seqno(&obj->frontbuffer_write);
 	err->engine = __active_get_engine_id(&obj->frontbuffer_write);
 

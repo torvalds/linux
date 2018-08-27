@@ -3,8 +3,6 @@
 Required properties:
 - compatible: Should be "st,spear600-adc"
 - reg: Address and length of the register set for the device
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupts: Should contain the ADC interrupt
 - sampling-frequency: Default sampling frequency
 

@@ -357,9 +357,6 @@ EXPORT_SYMBOL_GPL(dma_get_required_mask);
 
 static int __init dma_init(void)
 {
-#ifdef CONFIG_PCI
-	dma_debug_add_bus(&pci_bus_type);
-#endif
 #ifdef CONFIG_IBMVIO
 	dma_debug_add_bus(&vio_bus_type);
 #endif

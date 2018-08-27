@@ -14,39 +14,77 @@
 #include <asm/isa-rev.h>
 #include <cpu-feature-overrides.h>
 
+#define __ase(ase)			(cpu_data[0].ases & (ase))
+#define __opt(opt)			(cpu_data[0].options & (opt))
+
+/*
+ * Check if MIPS_ISA_REV is >= isa *and* an option or ASE is detected during
+ * boot (typically by cpu_probe()).
+ *
+ * Note that these should only be used in cases where a kernel built for an
+ * older ISA *cannot* run on a CPU which supports the feature in question. For
+ * example this may be used for features introduced with MIPSr6, since a kernel
+ * built for an older ISA cannot run on a MIPSr6 CPU. This should not be used
+ * for MIPSr2 features however, since a MIPSr1 or earlier kernel might run on a
+ * MIPSr2 CPU.
+ */
+#define __isa_ge_and_ase(isa, ase)	((MIPS_ISA_REV >= (isa)) && __ase(ase))
+#define __isa_ge_and_opt(isa, opt)	((MIPS_ISA_REV >= (isa)) && __opt(opt))
+
+/*
+ * Check if MIPS_ISA_REV is >= isa *or* an option or ASE is detected during
+ * boot (typically by cpu_probe()).
+ *
+ * These are for use with features that are optional up until a particular ISA
+ * revision & then become required.
+ */
+#define __isa_ge_or_ase(isa, ase)	((MIPS_ISA_REV >= (isa)) || __ase(ase))
+#define __isa_ge_or_opt(isa, opt)	((MIPS_ISA_REV >= (isa)) || __opt(opt))
+
+/*
+ * Check if MIPS_ISA_REV is < isa *and* an option or ASE is detected during
+ * boot (typically by cpu_probe()).
+ *
+ * These are for use with features that are optional up until a particular ISA
+ * revision & are then removed - ie. no longer present in any CPU implementing
+ * the given ISA revision.
+ */
+#define __isa_lt_and_ase(isa, ase)	((MIPS_ISA_REV < (isa)) && __ase(ase))
+#define __isa_lt_and_opt(isa, opt)	((MIPS_ISA_REV < (isa)) && __opt(opt))
+
 /*
  * SMP assumption: Options of CPU 0 are a superset of all processors.
  * This is true for all known MIPS systems.
  */
 #ifndef cpu_has_tlb
-#define cpu_has_tlb		(cpu_data[0].options & MIPS_CPU_TLB)
+#define cpu_has_tlb		__opt(MIPS_CPU_TLB)
 #endif
 #ifndef cpu_has_ftlb
-#define cpu_has_ftlb		(cpu_data[0].options & MIPS_CPU_FTLB)
+#define cpu_has_ftlb		__opt(MIPS_CPU_FTLB)
 #endif
 #ifndef cpu_has_tlbinv
-#define cpu_has_tlbinv		(cpu_data[0].options & MIPS_CPU_TLBINV)
+#define cpu_has_tlbinv		__opt(MIPS_CPU_TLBINV)
 #endif
 #ifndef cpu_has_segments
-#define cpu_has_segments	(cpu_data[0].options & MIPS_CPU_SEGMENTS)
+#define cpu_has_segments	__opt(MIPS_CPU_SEGMENTS)
 #endif
 #ifndef cpu_has_eva
-#define cpu_has_eva		(cpu_data[0].options & MIPS_CPU_EVA)
+#define cpu_has_eva		__opt(MIPS_CPU_EVA)
 #endif
 #ifndef cpu_has_htw
-#define cpu_has_htw		(cpu_data[0].options & MIPS_CPU_HTW)
+#define cpu_has_htw		__opt(MIPS_CPU_HTW)
 #endif
 #ifndef cpu_has_ldpte
-#define cpu_has_ldpte		(cpu_data[0].options & MIPS_CPU_LDPTE)
+#define cpu_has_ldpte		__opt(MIPS_CPU_LDPTE)
 #endif
 #ifndef cpu_has_rixiex
-#define cpu_has_rixiex		(cpu_data[0].options & MIPS_CPU_RIXIEX)
+#define cpu_has_rixiex		__isa_ge_or_opt(6, MIPS_CPU_RIXIEX)
 #endif
 #ifndef cpu_has_maar
-#define cpu_has_maar		(cpu_data[0].options & MIPS_CPU_MAAR)
+#define cpu_has_maar		__opt(MIPS_CPU_MAAR)
 #endif
 #ifndef cpu_has_rw_llb
-#define cpu_has_rw_llb		(cpu_data[0].options & MIPS_CPU_RW_LLB)
+#define cpu_has_rw_llb		__isa_ge_or_opt(6, MIPS_CPU_RW_LLB)
 #endif
 
 /*
@@ -59,18 +97,18 @@
 #define cpu_has_3kex		(!cpu_has_4kex)
 #endif
 #ifndef cpu_has_4kex
-#define cpu_has_4kex		(cpu_data[0].options & MIPS_CPU_4KEX)
+#define cpu_has_4kex		__isa_ge_or_opt(1, MIPS_CPU_4KEX)
 #endif
 #ifndef cpu_has_3k_cache
-#define cpu_has_3k_cache	(cpu_data[0].options & MIPS_CPU_3K_CACHE)
+#define cpu_has_3k_cache	__isa_lt_and_opt(1, MIPS_CPU_3K_CACHE)
 #endif
 #define cpu_has_6k_cache	0
 #define cpu_has_8k_cache	0
 #ifndef cpu_has_4k_cache
-#define cpu_has_4k_cache	(cpu_data[0].options & MIPS_CPU_4K_CACHE)
+#define cpu_has_4k_cache	__isa_ge_or_opt(1, MIPS_CPU_4K_CACHE)
 #endif
 #ifndef cpu_has_tx39_cache
-#define cpu_has_tx39_cache	(cpu_data[0].options & MIPS_CPU_TX39_CACHE)
+#define cpu_has_tx39_cache	__opt(MIPS_CPU_TX39_CACHE)
 #endif
 #ifndef cpu_has_octeon_cache
 #define cpu_has_octeon_cache	0
@@ -83,92 +121,92 @@
 #define raw_cpu_has_fpu		cpu_has_fpu
 #endif
 #ifndef cpu_has_32fpr
-#define cpu_has_32fpr		(cpu_data[0].options & MIPS_CPU_32FPR)
+#define cpu_has_32fpr		__isa_ge_or_opt(1, MIPS_CPU_32FPR)
 #endif
 #ifndef cpu_has_counter
-#define cpu_has_counter		(cpu_data[0].options & MIPS_CPU_COUNTER)
+#define cpu_has_counter		__opt(MIPS_CPU_COUNTER)
 #endif
 #ifndef cpu_has_watch
-#define cpu_has_watch		(cpu_data[0].options & MIPS_CPU_WATCH)
+#define cpu_has_watch		__opt(MIPS_CPU_WATCH)
 #endif
 #ifndef cpu_has_divec
-#define cpu_has_divec		(cpu_data[0].options & MIPS_CPU_DIVEC)
+#define cpu_has_divec		__isa_ge_or_opt(1, MIPS_CPU_DIVEC)
 #endif
 #ifndef cpu_has_vce
-#define cpu_has_vce		(cpu_data[0].options & MIPS_CPU_VCE)
+#define cpu_has_vce		__opt(MIPS_CPU_VCE)
 #endif
 #ifndef cpu_has_cache_cdex_p
-#define cpu_has_cache_cdex_p	(cpu_data[0].options & MIPS_CPU_CACHE_CDEX_P)
+#define cpu_has_cache_cdex_p	__opt(MIPS_CPU_CACHE_CDEX_P)
 #endif
 #ifndef cpu_has_cache_cdex_s
-#define cpu_has_cache_cdex_s	(cpu_data[0].options & MIPS_CPU_CACHE_CDEX_S)
+#define cpu_has_cache_cdex_s	__opt(MIPS_CPU_CACHE_CDEX_S)
 #endif
 #ifndef cpu_has_prefetch
-#define cpu_has_prefetch	(cpu_data[0].options & MIPS_CPU_PREFETCH)
+#define cpu_has_prefetch	__isa_ge_or_opt(1, MIPS_CPU_PREFETCH)
 #endif
 #ifndef cpu_has_mcheck
-#define cpu_has_mcheck		(cpu_data[0].options & MIPS_CPU_MCHECK)
+#define cpu_has_mcheck		__isa_ge_or_opt(1, MIPS_CPU_MCHECK)
 #endif
 #ifndef cpu_has_ejtag
-#define cpu_has_ejtag		(cpu_data[0].options & MIPS_CPU_EJTAG)
+#define cpu_has_ejtag		__opt(MIPS_CPU_EJTAG)
 #endif
 #ifndef cpu_has_llsc
-#define cpu_has_llsc		(cpu_data[0].options & MIPS_CPU_LLSC)
+#define cpu_has_llsc		__isa_ge_or_opt(1, MIPS_CPU_LLSC)
 #endif
 #ifndef cpu_has_bp_ghist
-#define cpu_has_bp_ghist	(cpu_data[0].options & MIPS_CPU_BP_GHIST)
+#define cpu_has_bp_ghist	__opt(MIPS_CPU_BP_GHIST)
 #endif
 #ifndef kernel_uses_llsc
 #define kernel_uses_llsc	cpu_has_llsc
 #endif
 #ifndef cpu_has_guestctl0ext
-#define cpu_has_guestctl0ext	(cpu_data[0].options & MIPS_CPU_GUESTCTL0EXT)
+#define cpu_has_guestctl0ext	__opt(MIPS_CPU_GUESTCTL0EXT)
 #endif
 #ifndef cpu_has_guestctl1
-#define cpu_has_guestctl1	(cpu_data[0].options & MIPS_CPU_GUESTCTL1)
+#define cpu_has_guestctl1	__opt(MIPS_CPU_GUESTCTL1)
 #endif
 #ifndef cpu_has_guestctl2
-#define cpu_has_guestctl2	(cpu_data[0].options & MIPS_CPU_GUESTCTL2)
+#define cpu_has_guestctl2	__opt(MIPS_CPU_GUESTCTL2)
 #endif
 #ifndef cpu_has_guestid
-#define cpu_has_guestid		(cpu_data[0].options & MIPS_CPU_GUESTID)
+#define cpu_has_guestid		__opt(MIPS_CPU_GUESTID)
 #endif
 #ifndef cpu_has_drg
-#define cpu_has_drg		(cpu_data[0].options & MIPS_CPU_DRG)
+#define cpu_has_drg		__opt(MIPS_CPU_DRG)
 #endif
 #ifndef cpu_has_mips16
-#define cpu_has_mips16		(cpu_data[0].ases & MIPS_ASE_MIPS16)
+#define cpu_has_mips16		__isa_lt_and_ase(6, MIPS_ASE_MIPS16)
 #endif
 #ifndef cpu_has_mips16e2
-#define cpu_has_mips16e2	(cpu_data[0].ases & MIPS_ASE_MIPS16E2)
+#define cpu_has_mips16e2	__isa_lt_and_ase(6, MIPS_ASE_MIPS16E2)
 #endif
 #ifndef cpu_has_mdmx
-#define cpu_has_mdmx		(cpu_data[0].ases & MIPS_ASE_MDMX)
+#define cpu_has_mdmx		__isa_lt_and_ase(6, MIPS_ASE_MDMX)
 #endif
 #ifndef cpu_has_mips3d
-#define cpu_has_mips3d		(cpu_data[0].ases & MIPS_ASE_MIPS3D)
+#define cpu_has_mips3d		__isa_lt_and_ase(6, MIPS_ASE_MIPS3D)
 #endif
 #ifndef cpu_has_smartmips
-#define cpu_has_smartmips	(cpu_data[0].ases & MIPS_ASE_SMARTMIPS)
+#define cpu_has_smartmips	__isa_lt_and_ase(6, MIPS_ASE_SMARTMIPS)
 #endif
 
 #ifndef cpu_has_rixi
-#define cpu_has_rixi		(cpu_data[0].options & MIPS_CPU_RIXI)
+#define cpu_has_rixi		__isa_ge_or_opt(6, MIPS_CPU_RIXI)
 #endif
 
 #ifndef cpu_has_mmips
 # ifdef CONFIG_SYS_SUPPORTS_MICROMIPS
-#  define cpu_has_mmips		(cpu_data[0].options & MIPS_CPU_MICROMIPS)
+#  define cpu_has_mmips		__opt(MIPS_CPU_MICROMIPS)
 # else
 #  define cpu_has_mmips		0
 # endif
 #endif
 
 #ifndef cpu_has_lpa
-#define cpu_has_lpa		(cpu_data[0].options & MIPS_CPU_LPA)
+#define cpu_has_lpa		__opt(MIPS_CPU_LPA)
 #endif
 #ifndef cpu_has_mvh
-#define cpu_has_mvh		(cpu_data[0].options & MIPS_CPU_MVH)
+#define cpu_has_mvh		__opt(MIPS_CPU_MVH)
 #endif
 #ifndef cpu_has_xpa
 #define cpu_has_xpa		(cpu_has_lpa && cpu_has_mvh)
@@ -338,32 +376,32 @@
 #endif
 
 #ifndef cpu_has_dsp
-#define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
+#define cpu_has_dsp		__ase(MIPS_ASE_DSP)
 #endif
 
 #ifndef cpu_has_dsp2
-#define cpu_has_dsp2		(cpu_data[0].ases & MIPS_ASE_DSP2P)
+#define cpu_has_dsp2		__ase(MIPS_ASE_DSP2P)
 #endif
 
 #ifndef cpu_has_dsp3
-#define cpu_has_dsp3		(cpu_data[0].ases & MIPS_ASE_DSP3)
+#define cpu_has_dsp3		__ase(MIPS_ASE_DSP3)
 #endif
 
 #ifndef cpu_has_mipsmt
-#define cpu_has_mipsmt		(cpu_data[0].ases & MIPS_ASE_MIPSMT)
+#define cpu_has_mipsmt		__isa_lt_and_ase(6, MIPS_ASE_MIPSMT)
 #endif
 
 #ifndef cpu_has_vp
-#define cpu_has_vp		(cpu_data[0].options & MIPS_CPU_VP)
+#define cpu_has_vp		__isa_ge_and_opt(6, MIPS_CPU_VP)
 #endif
 
 #ifndef cpu_has_userlocal
-#define cpu_has_userlocal	(cpu_data[0].options & MIPS_CPU_ULRI)
+#define cpu_has_userlocal	__isa_ge_or_opt(6, MIPS_CPU_ULRI)
 #endif
 
 #ifdef CONFIG_32BIT
 # ifndef cpu_has_nofpuex
-# define cpu_has_nofpuex	(cpu_data[0].options & MIPS_CPU_NOFPUEX)
+# define cpu_has_nofpuex	__isa_lt_and_opt(1, MIPS_CPU_NOFPUEX)
 # endif
 # ifndef cpu_has_64bits
 # define cpu_has_64bits		(cpu_data[0].isa_level & MIPS_CPU_ISA_64BIT)
@@ -405,19 +443,19 @@
 #endif
 
 #if defined(CONFIG_CPU_MIPSR2_IRQ_VI) && !defined(cpu_has_vint)
-# define cpu_has_vint		(cpu_data[0].options & MIPS_CPU_VINT)
+# define cpu_has_vint		__opt(MIPS_CPU_VINT)
 #elif !defined(cpu_has_vint)
 # define cpu_has_vint			0
 #endif
 
 #if defined(CONFIG_CPU_MIPSR2_IRQ_EI) && !defined(cpu_has_veic)
-# define cpu_has_veic		(cpu_data[0].options & MIPS_CPU_VEIC)
+# define cpu_has_veic		__opt(MIPS_CPU_VEIC)
 #elif !defined(cpu_has_veic)
 # define cpu_has_veic			0
 #endif
 
 #ifndef cpu_has_inclusive_pcaches
-#define cpu_has_inclusive_pcaches	(cpu_data[0].options & MIPS_CPU_INCLUSIVE_CACHES)
+#define cpu_has_inclusive_pcaches	__opt(MIPS_CPU_INCLUSIVE_CACHES)
 #endif
 
 #ifndef cpu_dcache_line_size
@@ -438,63 +476,63 @@
 #endif
 
 #ifndef cpu_has_perf_cntr_intr_bit
-#define cpu_has_perf_cntr_intr_bit	(cpu_data[0].options & MIPS_CPU_PCI)
+#define cpu_has_perf_cntr_intr_bit	__opt(MIPS_CPU_PCI)
 #endif
 
 #ifndef cpu_has_vz
-#define cpu_has_vz		(cpu_data[0].ases & MIPS_ASE_VZ)
+#define cpu_has_vz		__ase(MIPS_ASE_VZ)
 #endif
 
 #if defined(CONFIG_CPU_HAS_MSA) && !defined(cpu_has_msa)
-# define cpu_has_msa		(cpu_data[0].ases & MIPS_ASE_MSA)
+# define cpu_has_msa		__ase(MIPS_ASE_MSA)
 #elif !defined(cpu_has_msa)
 # define cpu_has_msa		0
 #endif
 
 #ifndef cpu_has_ufr
-# define cpu_has_ufr		(cpu_data[0].options & MIPS_CPU_UFR)
+# define cpu_has_ufr		__opt(MIPS_CPU_UFR)
 #endif
 
 #ifndef cpu_has_fre
-# define cpu_has_fre		(cpu_data[0].options & MIPS_CPU_FRE)
+# define cpu_has_fre		__opt(MIPS_CPU_FRE)
 #endif
 
 #ifndef cpu_has_cdmm
-# define cpu_has_cdmm		(cpu_data[0].options & MIPS_CPU_CDMM)
+# define cpu_has_cdmm		__opt(MIPS_CPU_CDMM)
 #endif
 
 #ifndef cpu_has_small_pages
-# define cpu_has_small_pages	(cpu_data[0].options & MIPS_CPU_SP)
+# define cpu_has_small_pages	__opt(MIPS_CPU_SP)
 #endif
 
 #ifndef cpu_has_nan_legacy
-#define cpu_has_nan_legacy	(cpu_data[0].options & MIPS_CPU_NAN_LEGACY)
+#define cpu_has_nan_legacy	__isa_lt_and_opt(6, MIPS_CPU_NAN_LEGACY)
 #endif
 #ifndef cpu_has_nan_2008
-#define cpu_has_nan_2008	(cpu_data[0].options & MIPS_CPU_NAN_2008)
+#define cpu_has_nan_2008	__isa_ge_or_opt(6, MIPS_CPU_NAN_2008)
 #endif
 
 #ifndef cpu_has_ebase_wg
-# define cpu_has_ebase_wg	(cpu_data[0].options & MIPS_CPU_EBASE_WG)
+# define cpu_has_ebase_wg	__opt(MIPS_CPU_EBASE_WG)
 #endif
 
 #ifndef cpu_has_badinstr
-# define cpu_has_badinstr	(cpu_data[0].options & MIPS_CPU_BADINSTR)
+# define cpu_has_badinstr	__isa_ge_or_opt(6, MIPS_CPU_BADINSTR)
 #endif
 
 #ifndef cpu_has_badinstrp
-# define cpu_has_badinstrp	(cpu_data[0].options & MIPS_CPU_BADINSTRP)
+# define cpu_has_badinstrp	__isa_ge_or_opt(6, MIPS_CPU_BADINSTRP)
 #endif
 
 #ifndef cpu_has_contextconfig
-# define cpu_has_contextconfig	(cpu_data[0].options & MIPS_CPU_CTXTC)
+# define cpu_has_contextconfig	__opt(MIPS_CPU_CTXTC)
 #endif
 
 #ifndef cpu_has_perf
-# define cpu_has_perf		(cpu_data[0].options & MIPS_CPU_PERF)
+# define cpu_has_perf		__opt(MIPS_CPU_PERF)
 #endif
 
-#if defined(CONFIG_SMP) && (MIPS_ISA_REV >= 6)
+#ifdef CONFIG_SMP
 /*
  * Some systems share FTLB RAMs between threads within a core (siblings in
  * kernel parlance). This means that FTLB entries may become invalid at almost
@@ -507,7 +545,7 @@
  */
 # ifndef cpu_has_shared_ftlb_ram
 #  define cpu_has_shared_ftlb_ram \
-	(current_cpu_data.options & MIPS_CPU_SHARED_FTLB_RAM)
+	__isa_ge_and_opt(6, MIPS_CPU_SHARED_FTLB_RAM)
 # endif
 
 /*
@@ -524,9 +562,9 @@
  */
 # ifndef cpu_has_shared_ftlb_entries
 #  define cpu_has_shared_ftlb_entries \
-	(current_cpu_data.options & MIPS_CPU_SHARED_FTLB_ENTRIES)
+	__isa_ge_and_opt(6, MIPS_CPU_SHARED_FTLB_ENTRIES)
 # endif
-#endif /* SMP && MIPS_ISA_REV >= 6 */
+#endif /* SMP */
 
 #ifndef cpu_has_shared_ftlb_ram
 # define cpu_has_shared_ftlb_ram 0
@@ -537,7 +575,7 @@
 
 #ifdef CONFIG_MIPS_MT_SMP
 # define cpu_has_mipsmt_pertccounters \
-	(cpu_data[0].options & MIPS_CPU_MT_PER_TC_PERF_COUNTERS)
+	__isa_lt_and_opt(6, MIPS_CPU_MT_PER_TC_PERF_COUNTERS)
 #else
 # define cpu_has_mipsmt_pertccounters 0
 #endif /* CONFIG_MIPS_MT_SMP */

@@ -631,6 +631,9 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 	unsigned long	flags;
 	fc_port_t	*fcport = NULL;
 
+	if (!vha->hw->flags.fw_started)
+		return;
+
 	/* Setup to process RIO completion. */
 	handle_cnt = 0;
 	if (IS_CNA_CAPABLE(ha))
@@ -908,7 +911,8 @@ skip_rio:
 			if (!atomic_read(&vha->loop_down_timer))
 				atomic_set(&vha->loop_down_timer,
 				    LOOP_DOWN_TIME);
-			qla2x00_mark_all_devices_lost(vha, 1);
+			if (!N2N_TOPO(ha))
+				qla2x00_mark_all_devices_lost(vha, 1);
 		}
 
 		if (vha->vp_idx) {

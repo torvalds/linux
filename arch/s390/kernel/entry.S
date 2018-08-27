@@ -357,6 +357,10 @@ ENTRY(system_call)
 	stg	%r2,__PT_R2(%r11)		# store return value
 
 .Lsysc_return:
+#ifdef CONFIG_DEBUG_RSEQ
+	lgr	%r2,%r11
+	brasl	%r14,rseq_syscall
+#endif
 	LOCKDEP_SYS_EXIT
 .Lsysc_tif:
 	TSTMSK	__PT_FLAGS(%r11),_PIF_WORK
@@ -1265,7 +1269,7 @@ cleanup_critical:
 	jl	0f
 	clg	%r9,BASED(.Lcleanup_table+104)	# .Lload_fpu_regs_end
 	jl	.Lcleanup_load_fpu_regs
-0:	BR_EX	%r14
+0:	BR_EX	%r14,%r11
 
 	.align	8
 .Lcleanup_table:
@@ -1301,7 +1305,7 @@ cleanup_critical:
 	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	larl	%r9,sie_exit			# skip forward to sie_exit
-	BR_EX	%r14
+	BR_EX	%r14,%r11
 #endif
 
 .Lcleanup_system_call:

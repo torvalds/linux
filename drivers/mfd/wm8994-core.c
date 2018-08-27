@@ -302,6 +302,10 @@ static int wm8994_set_pdata_from_of(struct wm8994 *wm8994)
 	if (of_find_property(np, "wlf,ldoena-always-driven", NULL))
 		pdata->lineout2fb = true;
 
+	pdata->spkmode_pu = of_property_read_bool(np, "wlf,spkmode-pu");
+
+	pdata->csnaddr_pd = of_property_read_bool(np, "wlf,csnaddr-pd");
+
 	pdata->ldo[0].enable = of_get_named_gpio(np, "wlf,ldo1ena", 0);
 	if (pdata->ldo[0].enable < 0)
 		pdata->ldo[0].enable = 0;
@@ -513,14 +517,15 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		break;
 	default:
 		dev_err(wm8994->dev, "Unknown device type %d\n", wm8994->type);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_enable;
 	}
 
 	ret = regmap_reinit_cache(wm8994->regmap, regmap_config);
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to reinit register cache: %d\n",
 			ret);
-		return ret;
+		goto err_enable;
 	}
 
 	/* Explicitly put the device into reset in case regulators
@@ -531,7 +536,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 			       wm8994_reg_read(wm8994, WM8994_SOFTWARE_RESET));
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to reset device: %d\n", ret);
-		return ret;
+		goto err_enable;
 	}
 
 	if (regmap_patch) {
@@ -540,7 +545,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		if (ret != 0) {
 			dev_err(wm8994->dev, "Failed to register patch: %d\n",
 				ret);
-			goto err;
+			goto err_enable;
 		}
 	}
 
@@ -559,6 +564,8 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 
 	if (pdata->spkmode_pu)
 		pulls |= WM8994_SPKMODE_PU;
+	if (pdata->csnaddr_pd)
+		pulls |= WM8994_CSNADDR_PD;
 
 	/* Disable unneeded pulls */
 	wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,

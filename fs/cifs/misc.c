@@ -122,9 +122,7 @@ tconInfoAlloc(void)
 		mutex_init(&ret_buf->crfid.fid_mutex);
 		ret_buf->crfid.fid = kzalloc(sizeof(struct cifs_fid),
 					     GFP_KERNEL);
-#ifdef CONFIG_CIFS_STATS
 		spin_lock_init(&ret_buf->stat_lock);
-#endif
 	}
 	return ret_buf;
 }

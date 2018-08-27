@@ -25,7 +25,6 @@
 #include <drm/drm_print.h>
 
 #include "i915_drv.h"
-#include "i915_vgpu.h"
 #include "intel_ringbuffer.h"
 #include "intel_lrc.h"
 
@@ -230,6 +229,7 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 		break;
 	default:
 		MISSING_CASE(class);
+		/* fall through */
 	case VIDEO_DECODE_CLASS:
 	case VIDEO_ENHANCEMENT_CLASS:
 	case COPY_ENGINE_CLASS:
@@ -302,6 +302,8 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 							   engine->class);
 	if (WARN_ON(engine->context_size > BIT(20)))
 		engine->context_size = 0;
+	if (engine->context_size)
+		DRIVER_CAPS(dev_priv)->has_logical_contexts = true;
 
 	/* Nothing to do here, execute in order of dependencies */
 	engine->schedule = NULL;
@@ -456,28 +458,16 @@ static void intel_engine_init_batch_pool(struct intel_engine_cs *engine)
 	i915_gem_batch_pool_init(&engine->batch_pool, engine);
 }
 
-static bool csb_force_mmio(struct drm_i915_private *i915)
-{
-	/* Older GVT emulation depends upon intercepting CSB mmio */
-	if (intel_vgpu_active(i915) && !intel_vgpu_has_hwsp_emulation(i915))
-		return true;
-
-	return false;
-}
-
 static void intel_engine_init_execlist(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
-
-	execlists->csb_use_mmio = csb_force_mmio(engine->i915);
 
 	execlists->port_mask = 1;
 	BUILD_BUG_ON_NOT_POWER_OF_2(execlists_num_ports(execlists));
 	GEM_BUG_ON(execlists_num_ports(execlists) > EXECLIST_MAX_PORTS);
 
 	execlists->queue_priority = INT_MIN;
-	execlists->queue = RB_ROOT;
-	execlists->first = NULL;
+	execlists->queue = RB_ROOT_CACHED;
 }
 
 /**
@@ -492,6 +482,7 @@ static void intel_engine_init_execlist(struct intel_engine_cs *engine)
 void intel_engine_setup_common(struct intel_engine_cs *engine)
 {
 	i915_timeline_init(engine->i915, &engine->timeline, engine->name);
+	lockdep_set_subclass(&engine->timeline.lock, TIMELINE_ENGINE);
 
 	intel_engine_init_execlist(engine);
 	intel_engine_init_hangcheck(engine);
@@ -998,19 +989,23 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 
 	/* Waiting to drain ELSP? */
 	if (READ_ONCE(engine->execlists.active)) {
-		struct intel_engine_execlists *execlists = &engine->execlists;
+		struct tasklet_struct *t = &engine->execlists.tasklet;
 
-		if (tasklet_trylock(&execlists->tasklet)) {
-			execlists->tasklet.func(execlists->tasklet.data);
-			tasklet_unlock(&execlists->tasklet);
+		local_bh_disable();
+		if (tasklet_trylock(t)) {
+			/* Must wait for any GPU reset in progress. */
+			if (__tasklet_is_enabled(t))
+				t->func(t->data);
+			tasklet_unlock(t);
 		}
+		local_bh_enable();
 
-		if (READ_ONCE(execlists->active))
+		if (READ_ONCE(engine->execlists.active))
 			return false;
 	}
 
 	/* ELSP is empty, but there are ready requests? E.g. after reset */
-	if (READ_ONCE(engine->execlists.first))
+	if (!RB_EMPTY_ROOT(&engine->execlists.queue.rb_root))
 		return false;
 
 	/* Ring stopped? */
@@ -1363,12 +1358,10 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 		ptr = I915_READ(RING_CONTEXT_STATUS_PTR(engine));
 		read = GEN8_CSB_READ_PTR(ptr);
 		write = GEN8_CSB_WRITE_PTR(ptr);
-		drm_printf(m, "\tExeclist CSB read %d [%d cached], write %d [%d from hws], interrupt posted? %s, tasklet queued? %s (%s)\n",
+		drm_printf(m, "\tExeclist CSB read %d [%d cached], write %d [%d from hws], tasklet queued? %s (%s)\n",
 			   read, execlists->csb_head,
 			   write,
 			   intel_read_status_page(engine, intel_hws_csb_write_index(engine->i915)),
-			   yesno(test_bit(ENGINE_IRQ_EXECLIST,
-					  &engine->irq_posted)),
 			   yesno(test_bit(TASKLET_STATE_SCHED,
 					  &engine->execlists.tasklet.state)),
 			   enableddisabled(!atomic_read(&engine->execlists.tasklet.count)));
@@ -1548,7 +1541,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	last = NULL;
 	count = 0;
 	drm_printf(m, "\t\tQueue priority: %d\n", execlists->queue_priority);
-	for (rb = execlists->first; rb; rb = rb_next(rb)) {
+	for (rb = rb_first_cached(&execlists->queue); rb; rb = rb_next(rb)) {
 		struct i915_priolist *p =
 			rb_entry(rb, typeof(*p), node);
 
@@ -1580,11 +1573,9 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	spin_unlock(&b->rb_lock);
 	local_irq_restore(flags);
 
-	drm_printf(m, "IRQ? 0x%lx (breadcrumbs? %s) (execlists? %s)\n",
+	drm_printf(m, "IRQ? 0x%lx (breadcrumbs? %s)\n",
 		   engine->irq_posted,
 		   yesno(test_bit(ENGINE_IRQ_BREADCRUMB,
-				  &engine->irq_posted)),
-		   yesno(test_bit(ENGINE_IRQ_EXECLIST,
 				  &engine->irq_posted)));
 
 	drm_printf(m, "HWSP:\n");
@@ -1633,8 +1624,8 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 	if (!intel_engine_supports_stats(engine))
 		return -ENODEV;
 
-	tasklet_disable(&execlists->tasklet);
-	write_seqlock_irqsave(&engine->stats.lock, flags);
+	spin_lock_irqsave(&engine->timeline.lock, flags);
+	write_seqlock(&engine->stats.lock);
 
 	if (unlikely(engine->stats.enabled == ~0)) {
 		err = -EBUSY;
@@ -1658,8 +1649,8 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 	}
 
 unlock:
-	write_sequnlock_irqrestore(&engine->stats.lock, flags);
-	tasklet_enable(&execlists->tasklet);
+	write_sequnlock(&engine->stats.lock);
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 
 	return err;
 }

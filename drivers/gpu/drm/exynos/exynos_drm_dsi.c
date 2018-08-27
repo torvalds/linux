@@ -1863,6 +1863,8 @@ err_clk:
 
 static const struct dev_pm_ops exynos_dsi_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos_dsi_suspend, exynos_dsi_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 struct platform_driver dsi_driver = {

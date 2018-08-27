@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SuperH Mobile I2C Controller
  *
@@ -7,15 +8,6 @@
  *
  * Portions of the code based on out-of-tree driver i2c-sh7343.c
  * Copyright (c) 2006 Carlos Munoz <carlos@kenati.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -613,11 +605,6 @@ static void sh_mobile_i2c_xfer_dma(struct sh_mobile_i2c_data *pd)
 static int start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg,
 		    bool do_init)
 {
-	if (usr_msg->len == 0 && (usr_msg->flags & I2C_M_RD)) {
-		dev_err(pd->dev, "Unsupported zero length i2c read\n");
-		return -EOPNOTSUPP;
-	}
-
 	if (do_init) {
 		/* Initialize channel registers */
 		iic_wr(pd, ICCR, ICCR_SCP);
@@ -756,6 +743,10 @@ static u32 sh_mobile_i2c_func(struct i2c_adapter *adapter)
 static const struct i2c_algorithm sh_mobile_i2c_algorithm = {
 	.functionality	= sh_mobile_i2c_func,
 	.master_xfer	= sh_mobile_i2c_xfer,
+};
+
+static const struct i2c_adapter_quirks sh_mobile_i2c_quirks = {
+	.flags = I2C_AQ_NO_ZERO_LEN_READ,
 };
 
 /*
@@ -925,6 +916,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 
 	adap->owner = THIS_MODULE;
 	adap->algo = &sh_mobile_i2c_algorithm;
+	adap->quirks = &sh_mobile_i2c_quirks;
 	adap->dev.parent = &dev->dev;
 	adap->retries = 5;
 	adap->nr = dev->id;

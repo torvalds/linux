@@ -1552,7 +1552,6 @@ int i2400m_dev_bootstrap(struct i2400m *i2400m, enum i2400m_bri flags)
 	int ret, itr;
 	struct device *dev = i2400m_dev(i2400m);
 	struct i2400m_fw *i2400m_fw;
-	const struct i2400m_bcf_hdr *bcf;	/* Firmware data */
 	const struct firmware *fw;
 	const char *fw_name;
 
@@ -1574,7 +1573,7 @@ int i2400m_dev_bootstrap(struct i2400m *i2400m, enum i2400m_bri flags)
 	}
 
 	/* Load firmware files to memory. */
-	for (itr = 0, bcf = NULL, ret = -ENOENT; ; itr++) {
+	for (itr = 0, ret = -ENOENT; ; itr++) {
 		fw_name = i2400m->bus_fw_names[itr];
 		if (fw_name == NULL) {
 			dev_err(dev, "Could not find a usable firmware image\n");

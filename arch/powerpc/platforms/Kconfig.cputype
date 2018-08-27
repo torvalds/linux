@@ -74,7 +74,6 @@ config PPC_BOOK3S_64
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select IRQ_WORK
-	select HAVE_KERNEL_XZ
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
@@ -86,7 +85,6 @@ endchoice
 
 choice
 	prompt "CPU selection"
-	depends on PPC64
 	default GENERIC_CPU
 	help
 	  This will create a kernel which is optimised for a particular CPU.
@@ -96,12 +94,16 @@ choice
 
 config GENERIC_CPU
 	bool "Generic (POWER4 and above)"
-	depends on !CPU_LITTLE_ENDIAN
+	depends on PPC64 && !CPU_LITTLE_ENDIAN
 
 config GENERIC_CPU
 	bool "Generic (POWER8 and above)"
-	depends on CPU_LITTLE_ENDIAN
+	depends on PPC64 && CPU_LITTLE_ENDIAN
 	select ARCH_HAS_FAST_MULTIPLIER
+
+config GENERIC_CPU
+	bool "Generic 32 bits powerpc"
+	depends on PPC32 && !PPC_8xx
 
 config CELL_CPU
 	bool "Cell Broadband Engine"
@@ -138,7 +140,36 @@ config E6500_CPU
 	bool "Freescale e6500"
 	depends on E500
 
+config 860_CPU
+	bool "8xx family"
+	depends on PPC_8xx
+
+config E300C2_CPU
+	bool "e300c2 (832x)"
+	depends on PPC_BOOK3S_32
+
+config E300C3_CPU
+	bool "e300c3 (831x)"
+	depends on PPC_BOOK3S_32
+
 endchoice
+
+config TARGET_CPU_BOOL
+	bool
+	default !GENERIC_CPU
+
+config TARGET_CPU
+	string
+	depends on TARGET_CPU_BOOL
+	default "cell" if CELL_CPU
+	default "power5" if POWER5_CPU
+	default "power6" if POWER6_CPU
+	default "power7" if POWER7_CPU
+	default "power8" if POWER8_CPU
+	default "power9" if POWER9_CPU
+	default "860" if 860_CPU
+	default "e300c2" if E300C2_CPU
+	default "e300c3" if E300C3_CPU
 
 config PPC_BOOK3S
 	def_bool y

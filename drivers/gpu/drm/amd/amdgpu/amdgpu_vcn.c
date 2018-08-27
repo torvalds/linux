@@ -111,9 +111,10 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 			version_major, version_minor, family_id);
 	}
 
-	bo_size = AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8)
-		  +  AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_HEAP_SIZE
+	bo_size = AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_HEAP_SIZE
 		  +  AMDGPU_VCN_SESSION_SIZE * 40;
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
+		bo_size += AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
 	r = amdgpu_bo_create_kernel(adev, bo_size, PAGE_SIZE,
 				    AMDGPU_GEM_DOMAIN_VRAM, &adev->vcn.vcpu_bo,
 				    &adev->vcn.gpu_addr, &adev->vcn.cpu_addr);
@@ -129,7 +130,7 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 {
 	int i;
 
-	kfree(adev->vcn.saved_bo);
+	kvfree(adev->vcn.saved_bo);
 
 	amdgpu_bo_free_kernel(&adev->vcn.vcpu_bo,
 			      &adev->vcn.gpu_addr,
@@ -160,7 +161,7 @@ int amdgpu_vcn_suspend(struct amdgpu_device *adev)
 	size = amdgpu_bo_size(adev->vcn.vcpu_bo);
 	ptr = adev->vcn.cpu_addr;
 
-	adev->vcn.saved_bo = kmalloc(size, GFP_KERNEL);
+	adev->vcn.saved_bo = kvmalloc(size, GFP_KERNEL);
 	if (!adev->vcn.saved_bo)
 		return -ENOMEM;
 
@@ -182,18 +183,20 @@ int amdgpu_vcn_resume(struct amdgpu_device *adev)
 
 	if (adev->vcn.saved_bo != NULL) {
 		memcpy_toio(ptr, adev->vcn.saved_bo, size);
-		kfree(adev->vcn.saved_bo);
+		kvfree(adev->vcn.saved_bo);
 		adev->vcn.saved_bo = NULL;
 	} else {
 		const struct common_firmware_header *hdr;
 		unsigned offset;
 
 		hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
-		offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
-		memcpy_toio(adev->vcn.cpu_addr, adev->vcn.fw->data + offset,
-			    le32_to_cpu(hdr->ucode_size_bytes));
-		size -= le32_to_cpu(hdr->ucode_size_bytes);
-		ptr += le32_to_cpu(hdr->ucode_size_bytes);
+		if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
+			offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
+			memcpy_toio(adev->vcn.cpu_addr, adev->vcn.fw->data + offset,
+				    le32_to_cpu(hdr->ucode_size_bytes));
+			size -= le32_to_cpu(hdr->ucode_size_bytes);
+			ptr += le32_to_cpu(hdr->ucode_size_bytes);
+		}
 		memset_io(ptr, 0, size);
 	}
 
@@ -211,6 +214,8 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 		fences += amdgpu_fence_count_emitted(&adev->vcn.ring_enc[i]);
 	}
 
+	fences += amdgpu_fence_count_emitted(&adev->vcn.ring_jpeg);
+
 	if (fences == 0) {
 		if (adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, false);
@@ -227,7 +232,7 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	bool set_clocks = !cancel_delayed_work_sync(&adev->vcn.idle_work);
 
-	if (set_clocks && adev->pm.dpm_enabled) {
+	if (set_clocks) {
 		if (adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, true);
 		else
@@ -306,12 +311,9 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
 	}
 	ib->length_dw = 16;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-	job->fence = dma_fence_get(f);
+	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
 		goto err_free;
-
-	amdgpu_job_free(job);
 
 	amdgpu_bo_fence(bo, f, false);
 	amdgpu_bo_unreserve(bo);
@@ -497,12 +499,10 @@ static int amdgpu_vcn_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t hand
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-	job->fence = dma_fence_get(f);
+	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
 		goto err;
 
-	amdgpu_job_free(job);
 	if (fence)
 		*fence = dma_fence_get(f);
 	dma_fence_put(f);
@@ -551,12 +551,10 @@ static int amdgpu_vcn_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t han
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-	job->fence = dma_fence_get(f);
+	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
 		goto err;
 
-	amdgpu_job_free(job);
 	if (fence)
 		*fence = dma_fence_get(f);
 	dma_fence_put(f);
@@ -664,12 +662,10 @@ static int amdgpu_vcn_jpeg_set_reg(struct amdgpu_ring *ring, uint32_t handle,
 	}
 	ib->length_dw = 16;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-	job->fence = dma_fence_get(f);
+	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
 		goto err;
 
-	amdgpu_job_free(job);
 	if (fence)
 		*fence = dma_fence_get(f);
 	dma_fence_put(f);

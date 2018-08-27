@@ -1821,22 +1821,27 @@ static struct owl_padinfo s900_padinfo[NUM_PADS] = {
 	[SGPIO3] = PAD_INFO_PULLCTL_ST(SGPIO3)
 };
 
-#define OWL_GPIO_PORT(port, base, count, _outen, _inen, _dat)	\
-	[OWL_GPIO_PORT_##port] = {				\
-		.offset = base,					\
-		.pins = count,					\
-		.outen = _outen,				\
-		.inen = _inen,					\
-		.dat = _dat,					\
+#define OWL_GPIO_PORT(port, base, count, _outen, _inen, _dat,		\
+			_intc_ctl, _intc_pd, _intc_msk, _intc_type)	\
+	[OWL_GPIO_PORT_##port] = {					\
+		.offset = base,						\
+		.pins = count,						\
+		.outen = _outen,					\
+		.inen = _inen,						\
+		.dat = _dat,						\
+		.intc_ctl = _intc_ctl,					\
+		.intc_pd = _intc_pd,					\
+		.intc_msk = _intc_msk,					\
+		.intc_type = _intc_type,				\
 	}
 
 static const struct owl_gpio_port s900_gpio_ports[] = {
-	OWL_GPIO_PORT(A, 0x0000, 32, 0x0, 0x4, 0x8),
-	OWL_GPIO_PORT(B, 0x000C, 32, 0x0, 0x4, 0x8),
-	OWL_GPIO_PORT(C, 0x0018, 12, 0x0, 0x4, 0x8),
-	OWL_GPIO_PORT(D, 0x0024, 30, 0x0, 0x4, 0x8),
-	OWL_GPIO_PORT(E, 0x0030, 32, 0x0, 0x4, 0x8),
-	OWL_GPIO_PORT(F, 0x00F0, 8, 0x0, 0x4, 0x8)
+	OWL_GPIO_PORT(A, 0x0000, 32, 0x0, 0x4, 0x8, 0x204, 0x208, 0x20C, 0x240),
+	OWL_GPIO_PORT(B, 0x000C, 32, 0x0, 0x4, 0x8, 0x534, 0x204, 0x208, 0x23C),
+	OWL_GPIO_PORT(C, 0x0018, 12, 0x0, 0x4, 0x8, 0x52C, 0x200, 0x204, 0x238),
+	OWL_GPIO_PORT(D, 0x0024, 30, 0x0, 0x4, 0x8, 0x524, 0x1FC, 0x200, 0x234),
+	OWL_GPIO_PORT(E, 0x0030, 32, 0x0, 0x4, 0x8, 0x51C, 0x1F8, 0x1FC, 0x230),
+	OWL_GPIO_PORT(F, 0x00F0, 8, 0x0, 0x4, 0x8, 0x460, 0x140, 0x144, 0x178)
 };
 
 static struct owl_pinctrl_soc_data s900_pinctrl_data = {

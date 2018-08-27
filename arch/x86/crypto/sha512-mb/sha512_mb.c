@@ -778,9 +778,8 @@ static struct ahash_alg sha512_mb_areq_alg = {
 			 * algo may not have completed before hashing thread
 			 * sleep
 			 */
-			.cra_flags	= CRYPTO_ALG_TYPE_AHASH |
-						CRYPTO_ALG_ASYNC |
-						CRYPTO_ALG_INTERNAL,
+			.cra_flags	= CRYPTO_ALG_ASYNC |
+					  CRYPTO_ALG_INTERNAL,
 			.cra_blocksize	= SHA512_BLOCK_SIZE,
 			.cra_module	= THIS_MODULE,
 			.cra_list	= LIST_HEAD_INIT
@@ -904,11 +903,16 @@ static struct ahash_alg sha512_mb_async_alg = {
 		.base = {
 			.cra_name               = "sha512",
 			.cra_driver_name        = "sha512_mb",
-			.cra_priority           = 200,
-			.cra_flags              = CRYPTO_ALG_TYPE_AHASH |
-							CRYPTO_ALG_ASYNC,
+			/*
+			 * Low priority, since with few concurrent hash requests
+			 * this is extremely slow due to the flush delay.  Users
+			 * whose workloads would benefit from this can request
+			 * it explicitly by driver name, or can increase its
+			 * priority at runtime using NETLINK_CRYPTO.
+			 */
+			.cra_priority           = 50,
+			.cra_flags              = CRYPTO_ALG_ASYNC,
 			.cra_blocksize          = SHA512_BLOCK_SIZE,
-			.cra_type               = &crypto_ahash_type,
 			.cra_module             = THIS_MODULE,
 			.cra_list               = LIST_HEAD_INIT
 				(sha512_mb_async_alg.halg.base.cra_list),

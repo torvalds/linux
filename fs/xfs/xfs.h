@@ -8,7 +8,6 @@
 
 #ifdef CONFIG_XFS_DEBUG
 #define DEBUG 1
-#define XFS_BUF_LOCK_TRACKING 1
 #endif
 
 #ifdef CONFIG_XFS_ASSERT_FATAL

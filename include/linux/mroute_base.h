@@ -2,7 +2,7 @@
 #define __LINUX_MROUTE_BASE_H
 
 #include <linux/netdevice.h>
-#include <linux/rhashtable.h>
+#include <linux/rhashtable-types.h>
 #include <linux/spinlock.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -254,6 +254,7 @@ struct mr_table {
 	atomic_t		cache_resolve_queue_len;
 	bool			mroute_do_assert;
 	bool			mroute_do_pim;
+	bool			mroute_do_wrvifwhole;
 	int			mroute_reg_vif_num;
 };
 

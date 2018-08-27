@@ -123,6 +123,10 @@ static int uvd_v4_2_sw_init(void *handle)
 	ring = &adev->uvd.inst->ring;
 	sprintf(ring->name, "uvd");
 	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.inst->irq, 0);
+	if (r)
+		return r;
+
+	r = amdgpu_uvd_entity_init(adev);
 
 	return r;
 }

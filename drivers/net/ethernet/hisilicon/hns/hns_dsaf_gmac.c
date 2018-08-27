@@ -339,7 +339,7 @@ static void hns_gmac_init(void *mac_drv)
 			   GMAC_TX_WATER_LINE_SHIFT, 8);
 }
 
-void hns_gmac_update_stats(void *mac_drv)
+static void hns_gmac_update_stats(void *mac_drv)
 {
 	struct mac_hw_stats *hw_stats = NULL;
 	struct mac_driver *drv = (struct mac_driver *)mac_drv;

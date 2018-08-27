@@ -74,12 +74,12 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DA7219 if I2C
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
-	select SND_SOC_DIO2125
 	select SND_SOC_DMIC if GPIOLIB
 	select SND_SOC_ES8316 if I2C
 	select SND_SOC_ES8328_SPI if SPI_MASTER
 	select SND_SOC_ES8328_I2C if I2C
 	select SND_SOC_ES7134
+	select SND_SOC_ES7241
 	select SND_SOC_GTM601
 	select SND_SOC_HDAC_HDMI
 	select SND_SOC_ICS43432
@@ -141,8 +141,10 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT5668 if I2C
 	select SND_SOC_RT5670 if I2C
 	select SND_SOC_RT5677 if I2C && SPI_MASTER
+	select SND_SOC_RT5682 if I2C
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SI476X if MFD_SI476X_CORE
+	select SND_SOC_SIMPLE_AMPLIFIER
 	select SND_SOC_SIRF_AUDIO_CODEC
 	select SND_SOC_SPDIF
 	select SND_SOC_SSM2305
@@ -572,10 +574,6 @@ config SND_SOC_DA732X
 config SND_SOC_DA9055
 	tristate
 
-config SND_SOC_DIO2125
-	tristate "Dioo DIO2125 Amplifier"
-	select GPIOLIB
-
 config SND_SOC_DMIC
 	tristate
 
@@ -587,6 +585,9 @@ config SND_SOC_HDMI_CODEC
 
 config SND_SOC_ES7134
        tristate "Everest Semi ES7134 CODEC"
+
+config SND_SOC_ES7241
+       tristate "Everest Semi ES7241 CODEC"
 
 config SND_SOC_ES8316
 	tristate "Everest Semi ES8316 CODEC"
@@ -778,6 +779,7 @@ config SND_SOC_RL6231
 	default y if SND_SOC_RT5668=y
 	default y if SND_SOC_RT5670=y
 	default y if SND_SOC_RT5677=y
+	default y if SND_SOC_RT5682=y
 	default y if SND_SOC_RT1305=y
 	default m if SND_SOC_RT5514=m
 	default m if SND_SOC_RT5616=m
@@ -791,6 +793,7 @@ config SND_SOC_RL6231
 	default m if SND_SOC_RT5668=m
 	default m if SND_SOC_RT5670=m
 	default m if SND_SOC_RT5677=m
+	default m if SND_SOC_RT5682=m
 	default m if SND_SOC_RT1305=m
 
 config SND_SOC_RL6347A
@@ -871,6 +874,9 @@ config SND_SOC_RT5677_SPI
 	tristate
 	default SND_SOC_RT5677 && SPI
 
+config SND_SOC_RT5682
+	tristate
+
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
 	tristate "Freescale SGTL5000 CODEC"
@@ -890,6 +896,10 @@ config SND_SOC_SIGMADSP_I2C
 config SND_SOC_SIGMADSP_REGMAP
 	tristate
 	select SND_SOC_SIGMADSP
+
+config SND_SOC_SIMPLE_AMPLIFIER
+	tristate "Simple Audio Amplifier"
+	select GPIOLIB
 
 config SND_SOC_SIRF_AUDIO_CODEC
 	tristate "SiRF SoC internal audio codec"
@@ -953,8 +963,11 @@ config SND_SOC_TAS5086
 	depends on I2C
 
 config SND_SOC_TAS571X
-	tristate "Texas Instruments TAS5711/TAS5717/TAS5719/TAS5721 power amplifiers"
+	tristate "Texas Instruments TAS571x power amplifiers"
 	depends on I2C
+	help
+	  Enable support for Texas Instruments TAS5707, TAS5711, TAS5717,
+	  TAS5719 and TAS5721 power amplifiers
 
 config SND_SOC_TAS5720
 	tristate "Texas Instruments TAS5720 Mono Audio amplifier"

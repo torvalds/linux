@@ -488,7 +488,7 @@ void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 
 	down_read(&ctx->umem_rwsem);
 	rbt_ib_umem_for_each_in_range(&ctx->umem_tree, 0, ULLONG_MAX,
-				      mr_leaf_free, imr);
+				      mr_leaf_free, true, imr);
 	up_read(&ctx->umem_rwsem);
 
 	wait_event(imr->q_leaf_free, !atomic_read(&imr->num_leaf_free));

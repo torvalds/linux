@@ -73,12 +73,6 @@ enum msdc_dbg {
 	SD_TOOL_SDIO_PROFILE = 3,
 };
 
-enum msdc_mode {
-	MODE_PIO = 0,
-	MODE_DMA = 1,
-	MODE_SIZE_DEP = 2,
-};
-
 /* Debug message event */
 #define DBG_EVT_NONE        (0)       /* No event */
 #define DBG_EVT_DMA         (1 << 0)  /* DMA related event */

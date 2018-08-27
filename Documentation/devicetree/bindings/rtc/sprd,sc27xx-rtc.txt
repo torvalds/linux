@@ -3,7 +3,6 @@ Spreadtrum SC27xx Real Time Clock
 Required properties:
 - compatible: should be "sprd,sc2731-rtc".
 - reg: address offset of rtc register.
-- interrupt-parent: phandle for the interrupt controller.
 - interrupts: rtc alarm interrupt.
 
 Example:

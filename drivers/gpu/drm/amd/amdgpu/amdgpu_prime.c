@@ -191,7 +191,6 @@ error:
 /**
  * amdgpu_gem_map_attach - &dma_buf_ops.attach implementation
  * @dma_buf: shared DMA buffer
- * @target_dev: target device
  * @attach: DMA-buf attachment
  *
  * Makes sure that the shared DMA buffer can be accessed by the target device.
@@ -233,7 +232,7 @@ static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
 	}
 
 	/* pin buffer into GTT */
-	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT, NULL);
+	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT);
 	if (r)
 		goto error_unreserve;
 
@@ -324,7 +323,7 @@ static int amdgpu_gem_begin_cpu_access(struct dma_buf *dma_buf,
 		return ret;
 
 	if (!bo->pin_count && (bo->allowed_domains & AMDGPU_GEM_DOMAIN_GTT)) {
-		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
+		amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
 		ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	}
 

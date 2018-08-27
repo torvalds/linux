@@ -3051,6 +3051,7 @@ static void xhci_endpoint_reset(struct usb_hcd *hcd,
 	if (!list_empty(&ep->ring->td_list)) {
 		dev_err(&udev->dev, "EP not empty, refuse reset\n");
 		spin_unlock_irqrestore(&xhci->lock, flags);
+		xhci_free_command(xhci, cfg_cmd);
 		goto cleanup;
 	}
 	xhci_queue_stop_endpoint(xhci, stop_cmd, udev->slot_id, ep_index, 0);
@@ -5120,6 +5121,7 @@ static const struct hc_driver xhci_hc_driver = {
 	.hub_status_data =	xhci_hub_status_data,
 	.bus_suspend =		xhci_bus_suspend,
 	.bus_resume =		xhci_bus_resume,
+	.get_resuming_ports =	xhci_get_resuming_ports,
 
 	/*
 	 * call back when device connected and addressed

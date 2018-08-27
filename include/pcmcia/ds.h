@@ -206,16 +206,6 @@ int pcmcia_write_config_byte(struct pcmcia_device *p_dev, off_t where, u8 val);
 /* device configuration */
 int pcmcia_request_io(struct pcmcia_device *p_dev);
 
-int __must_check
-__pcmcia_request_exclusive_irq(struct pcmcia_device *p_dev,
-				irq_handler_t handler);
-static inline __must_check __deprecated int
-pcmcia_request_exclusive_irq(struct pcmcia_device *p_dev,
-				irq_handler_t handler)
-{
-	return __pcmcia_request_exclusive_irq(p_dev, handler);
-}
-
 int __must_check pcmcia_request_irq(struct pcmcia_device *p_dev,
 				irq_handler_t handler);
 

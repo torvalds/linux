@@ -461,6 +461,8 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 				cp->flags &= ~IP_VS_CONN_F_INACTIVE;
 			}
 		}
+		if (next_state == IP_VS_SCTP_S_ESTABLISHED)
+			ip_vs_control_assure_ct(cp);
 	}
 	if (likely(pd))
 		cp->timeout = pd->timeout_table[cp->state = next_state];

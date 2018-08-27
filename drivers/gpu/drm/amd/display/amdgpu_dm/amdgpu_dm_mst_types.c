@@ -80,55 +80,72 @@ static void log_dpcd(uint8_t type,
 static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 				  struct drm_dp_aux_msg *msg)
 {
-	enum i2c_mot_mode mot = (msg->request & DP_AUX_I2C_MOT) ?
-		I2C_MOT_TRUE : I2C_MOT_FALSE;
-	enum ddc_result res;
-	uint32_t read_bytes = msg->size;
+	ssize_t result = 0;
+	enum i2caux_transaction_action action;
+	enum aux_transaction_type type;
 
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
 
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_NATIVE_READ:
-		res = dal_ddc_service_read_dpcd_data(
-				TO_DM_AUX(aux)->ddc_service,
-				false,
-				I2C_MOT_UNDEF,
-				msg->address,
-				msg->buffer,
-				msg->size,
-				&read_bytes);
+		type = AUX_TRANSACTION_TYPE_DP;
+		action = I2CAUX_TRANSACTION_ACTION_DP_READ;
+
+		result = dc_link_aux_transfer(TO_DM_AUX(aux)->ddc_service,
+					      msg->address,
+					      &msg->reply,
+					      msg->buffer,
+					      msg->size,
+					      type,
+					      action);
 		break;
 	case DP_AUX_NATIVE_WRITE:
-		res = dal_ddc_service_write_dpcd_data(
-				TO_DM_AUX(aux)->ddc_service,
-				false,
-				I2C_MOT_UNDEF,
-				msg->address,
-				msg->buffer,
-				msg->size);
+		type = AUX_TRANSACTION_TYPE_DP;
+		action = I2CAUX_TRANSACTION_ACTION_DP_WRITE;
+
+		dc_link_aux_transfer(TO_DM_AUX(aux)->ddc_service,
+				     msg->address,
+				     &msg->reply,
+				     msg->buffer,
+				     msg->size,
+				     type,
+				     action);
+		result = msg->size;
 		break;
 	case DP_AUX_I2C_READ:
-		res = dal_ddc_service_read_dpcd_data(
-				TO_DM_AUX(aux)->ddc_service,
-				true,
-				mot,
-				msg->address,
-				msg->buffer,
-				msg->size,
-				&read_bytes);
+		type = AUX_TRANSACTION_TYPE_I2C;
+		if (msg->request & DP_AUX_I2C_MOT)
+			action = I2CAUX_TRANSACTION_ACTION_I2C_READ_MOT;
+		else
+			action = I2CAUX_TRANSACTION_ACTION_I2C_READ;
+
+		result = dc_link_aux_transfer(TO_DM_AUX(aux)->ddc_service,
+					      msg->address,
+					      &msg->reply,
+					      msg->buffer,
+					      msg->size,
+					      type,
+					      action);
 		break;
 	case DP_AUX_I2C_WRITE:
-		res = dal_ddc_service_write_dpcd_data(
-				TO_DM_AUX(aux)->ddc_service,
-				true,
-				mot,
-				msg->address,
-				msg->buffer,
-				msg->size);
+		type = AUX_TRANSACTION_TYPE_I2C;
+		if (msg->request & DP_AUX_I2C_MOT)
+			action = I2CAUX_TRANSACTION_ACTION_I2C_WRITE_MOT;
+		else
+			action = I2CAUX_TRANSACTION_ACTION_I2C_WRITE;
+
+		dc_link_aux_transfer(TO_DM_AUX(aux)->ddc_service,
+				     msg->address,
+				     &msg->reply,
+				     msg->buffer,
+				     msg->size,
+				     type,
+				     action);
+		result = msg->size;
 		break;
 	default:
-		return 0;
+		return -EINVAL;
 	}
 
 #ifdef TRACE_DPCD
@@ -139,9 +156,10 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 		 r == DDC_RESULT_SUCESSFULL);
 #endif
 
-	if (res != DDC_RESULT_SUCESSFULL)
-		return -EIO;
-	return read_bytes;
+	if (result < 0) /* DC doesn't know about kernel error codes */
+		result = -EIO;
+
+	return result;
 }
 
 static enum drm_connector_status

@@ -256,7 +256,7 @@ static int gpio_mdio_probe(struct platform_device *ofdev)
 	err = of_mdiobus_register(new_bus, np);
 
 	if (err != 0) {
-		printk(KERN_ERR "%s: Cannot register as MDIO bus, err %d\n",
+		pr_err("%s: Cannot register as MDIO bus, err %d\n",
 				new_bus->name, err);
 		goto out_free_irq;
 	}

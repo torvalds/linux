@@ -167,7 +167,7 @@ oh_my_gawd:
 static int pci_read_config(struct pci_bus *bus, unsigned int devfn,
 			   int where, int size, u32 * value)
 {
-	if (bus->number > 0)
+	if (!pci_is_root_bus(bus))
 		return pci_conf1_read_config(bus, devfn, where, size, value);
 
 	return pci_conf0_read_config(bus, devfn, where, size, value);
@@ -310,7 +310,7 @@ oh_my_gawd:
 static int pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	int where, int size, u32 value)
 {
-	if (bus->number > 0)
+	if (!pci_is_root_bus(bus))
 		return pci_conf1_write_config(bus, devfn, where, size, value);
 
 	return pci_conf0_write_config(bus, devfn, where, size, value);

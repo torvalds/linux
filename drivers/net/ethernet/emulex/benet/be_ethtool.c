@@ -575,6 +575,7 @@ static u32 convert_to_et_setting(struct be_adapter *adapter, u32 if_speeds)
 				break;
 			}
 		}
+		/* fall through */
 	case PHY_TYPE_SFP_PLUS_10GB:
 	case PHY_TYPE_XFP_10GB:
 	case PHY_TYPE_SFP_1GB:

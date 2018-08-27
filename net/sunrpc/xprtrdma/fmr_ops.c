@@ -279,9 +279,7 @@ out_maperr:
 static int
 fmr_op_send(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
 {
-	struct ib_send_wr *bad_wr;
-
-	return ib_post_send(ia->ri_id->qp, &req->rl_sendctx->sc_wr, &bad_wr);
+	return ib_post_send(ia->ri_id->qp, &req->rl_sendctx->sc_wr, NULL);
 }
 
 /* Invalidate all memory regions that were registered for "req".

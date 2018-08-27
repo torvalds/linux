@@ -66,6 +66,15 @@ enum {
 #define __I915_EXEC_ILLEGAL_FLAGS \
 	(__I915_EXEC_UNKNOWN_FLAGS | I915_EXEC_CONSTANTS_MASK)
 
+/* Catch emission of unexpected errors for CI! */
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+#undef EINVAL
+#define EINVAL ({ \
+	DRM_DEBUG_DRIVER("EINVAL at %s:%d\n", __func__, __LINE__); \
+	22; \
+})
+#endif
+
 /**
  * DOC: User command execution
  *
@@ -534,7 +543,8 @@ eb_add_vma(struct i915_execbuffer *eb,
 	 * paranoia do it everywhere.
 	 */
 	if (i == batch_idx) {
-		if (!(eb->flags[i] & EXEC_OBJECT_PINNED))
+		if (entry->relocation_count &&
+		    !(eb->flags[i] & EXEC_OBJECT_PINNED))
 			eb->flags[i] |= __EXEC_OBJECT_NEEDS_BIAS;
 		if (eb->reloc_cache.has_fence)
 			eb->flags[i] |= EXEC_OBJECT_NEEDS_FENCE;
@@ -1155,18 +1165,16 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 		goto err_request;
 
 	GEM_BUG_ON(!reservation_object_test_signaled_rcu(batch->resv, true));
-	i915_vma_move_to_active(batch, rq, 0);
-	reservation_object_lock(batch->resv, NULL);
-	reservation_object_add_excl_fence(batch->resv, &rq->fence);
-	reservation_object_unlock(batch->resv);
-	i915_vma_unpin(batch);
+	err = i915_vma_move_to_active(batch, rq, 0);
+	if (err)
+		goto skip_request;
 
-	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
-	reservation_object_lock(vma->resv, NULL);
-	reservation_object_add_excl_fence(vma->resv, &rq->fence);
-	reservation_object_unlock(vma->resv);
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	if (err)
+		goto skip_request;
 
 	rq->batch = batch;
+	i915_vma_unpin(batch);
 
 	cache->rq = rq;
 	cache->rq_cmd = cmd;
@@ -1175,6 +1183,8 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	/* Return with batch mapping (cmd) still pinned */
 	return 0;
 
+skip_request:
+	i915_request_skip(rq, err);
 err_request:
 	i915_request_add(rq);
 err_unpin:
@@ -1761,25 +1771,6 @@ slow:
 	return eb_relocate_slow(eb);
 }
 
-static void eb_export_fence(struct i915_vma *vma,
-			    struct i915_request *rq,
-			    unsigned int flags)
-{
-	struct reservation_object *resv = vma->resv;
-
-	/*
-	 * Ignore errors from failing to allocate the new fence, we can't
-	 * handle an error right now. Worst case should be missed
-	 * synchronisation leading to rendering corruption.
-	 */
-	reservation_object_lock(resv, NULL);
-	if (flags & EXEC_OBJECT_WRITE)
-		reservation_object_add_excl_fence(resv, &rq->fence);
-	else if (reservation_object_reserve_shared(resv) == 0)
-		reservation_object_add_shared_fence(resv, &rq->fence);
-	reservation_object_unlock(resv);
-}
-
 static int eb_move_to_gpu(struct i915_execbuffer *eb)
 {
 	const unsigned int count = eb->buffer_count;
@@ -1833,8 +1824,11 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 		unsigned int flags = eb->flags[i];
 		struct i915_vma *vma = eb->vma[i];
 
-		i915_vma_move_to_active(vma, eb->request, flags);
-		eb_export_fence(vma, eb->request, flags);
+		err = i915_vma_move_to_active(vma, eb->request, flags);
+		if (unlikely(err)) {
+			i915_request_skip(eb->request, err);
+			return err;
+		}
 
 		__eb_unreserve_vma(vma, flags);
 		vma->exec_flags = NULL;
@@ -1872,45 +1866,6 @@ static bool i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
 		return false;
 
 	return true;
-}
-
-void i915_vma_move_to_active(struct i915_vma *vma,
-			     struct i915_request *rq,
-			     unsigned int flags)
-{
-	struct drm_i915_gem_object *obj = vma->obj;
-	const unsigned int idx = rq->engine->id;
-
-	lockdep_assert_held(&rq->i915->drm.struct_mutex);
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-
-	/*
-	 * Add a reference if we're newly entering the active list.
-	 * The order in which we add operations to the retirement queue is
-	 * vital here: mark_active adds to the start of the callback list,
-	 * such that subsequent callbacks are called first. Therefore we
-	 * add the active reference first and queue for it to be dropped
-	 * *last*.
-	 */
-	if (!i915_vma_is_active(vma))
-		obj->active_count++;
-	i915_vma_set_active(vma, idx);
-	i915_gem_active_set(&vma->last_read[idx], rq);
-	list_move_tail(&vma->vm_link, &vma->vm->active_list);
-
-	obj->write_domain = 0;
-	if (flags & EXEC_OBJECT_WRITE) {
-		obj->write_domain = I915_GEM_DOMAIN_RENDER;
-
-		if (intel_fb_obj_invalidate(obj, ORIGIN_CS))
-			i915_gem_active_set(&obj->frontbuffer_write, rq);
-
-		obj->read_domains = 0;
-	}
-	obj->read_domains |= I915_GEM_GPU_DOMAINS;
-
-	if (flags & EXEC_OBJECT_NEEDS_FENCE)
-		i915_gem_active_set(&vma->last_fence, rq);
 }
 
 static int i915_reset_gen7_sol_offsets(struct i915_request *rq)

@@ -52,4 +52,8 @@ void snd_opl3_free_seq_oss(struct snd_opl3 *opl3);
 #define snd_opl3_free_seq_oss(opl3) /* NOP */
 #endif
 
+extern char snd_opl3_regmap[MAX_OPL2_VOICES][4];
+extern bool use_internal_drums;
+extern struct snd_midi_op opl3_ops;
+
 #endif

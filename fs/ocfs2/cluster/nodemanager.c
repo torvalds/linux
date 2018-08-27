@@ -35,9 +35,9 @@
  * cluster references throughout where nodes are looked up */
 struct o2nm_cluster *o2nm_single_cluster = NULL;
 
-char *o2nm_fence_method_desc[O2NM_FENCE_METHODS] = {
-		"reset",	/* O2NM_FENCE_RESET */
-		"panic",	/* O2NM_FENCE_PANIC */
+static const char *o2nm_fence_method_desc[O2NM_FENCE_METHODS] = {
+	"reset",	/* O2NM_FENCE_RESET */
+	"panic",	/* O2NM_FENCE_PANIC */
 };
 
 static inline void o2nm_lock_subsystem(void);

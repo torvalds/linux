@@ -113,7 +113,7 @@ ENDPROC(__morus640_update_zero)
  *   %r9
  */
 __load_partial:
-	xor %r9, %r9
+	xor %r9d, %r9d
 	pxor MSG, MSG
 
 	mov %rcx, %r8
@@ -437,6 +437,7 @@ ENTRY(crypto_morus640_sse2_enc_tail)
 	movdqu STATE4, (4 * 16)(%rdi)
 
 	FRAME_END
+	ret
 ENDPROC(crypto_morus640_sse2_enc_tail)
 
 /*

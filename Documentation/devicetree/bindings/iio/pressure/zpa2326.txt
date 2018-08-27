@@ -15,8 +15,6 @@ Optional properties:
   power to the sensor
 - vdd-supply: an optional regulator that needs to be on to provide VDD
   power to the sensor
-- interrupt-parent: phandle to the parent interrupt controller as documented in
-  Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 - interrupts: interrupt mapping for IRQ as documented in
   Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 

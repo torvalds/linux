@@ -692,12 +692,12 @@ static struct mfc_control controls[] = {
 		.default_value = 10,
 	},
 	{
-		.id = V4L2_CID_MPEG_VIDEO_VPX_PROFILE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.minimum = 0,
-		.maximum = 3,
-		.step = 1,
-		.default_value = 0,
+		.id = V4L2_CID_MPEG_VIDEO_VP8_PROFILE,
+		.type = V4L2_CTRL_TYPE_MENU,
+		.minimum = V4L2_MPEG_VIDEO_VP8_PROFILE_0,
+		.maximum = V4L2_MPEG_VIDEO_VP8_PROFILE_3,
+		.default_value = V4L2_MPEG_VIDEO_VP8_PROFILE_0,
+		.menu_skip_mask = 0,
 	},
 	{
 		.id = V4L2_CID_MPEG_VIDEO_HEVC_I_FRAME_QP,
@@ -2057,7 +2057,7 @@ static int s5p_mfc_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_VPX_P_FRAME_QP:
 		p->codec.vp8.rc_p_frame_qp = ctrl->val;
 		break;
-	case V4L2_CID_MPEG_VIDEO_VPX_PROFILE:
+	case V4L2_CID_MPEG_VIDEO_VP8_PROFILE:
 		p->codec.vp8.profile = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_HEVC_I_FRAME_QP:
@@ -2711,4 +2711,3 @@ void s5p_mfc_enc_init(struct s5p_mfc_ctx *ctx)
 	f.fmt.pix_mp.pixelformat = DEF_DST_FMT_ENC;
 	ctx->dst_fmt = find_format(&f, MFC_FMT_ENC);
 }
-

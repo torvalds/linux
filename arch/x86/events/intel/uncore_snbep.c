@@ -1029,6 +1029,7 @@ void snbep_uncore_cpu_init(void)
 enum {
 	SNBEP_PCI_QPI_PORT0_FILTER,
 	SNBEP_PCI_QPI_PORT1_FILTER,
+	BDX_PCI_QPI_PORT2_FILTER,
 	HSWEP_PCI_PCU_3,
 };
 
@@ -3286,15 +3287,18 @@ static const struct pci_device_id bdx_uncore_pci_ids[] = {
 	},
 	{ /* QPI Port 0 filter  */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f86),
-		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV, 0),
+		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV,
+						   SNBEP_PCI_QPI_PORT0_FILTER),
 	},
 	{ /* QPI Port 1 filter  */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f96),
-		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV, 1),
+		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV,
+						   SNBEP_PCI_QPI_PORT1_FILTER),
 	},
 	{ /* QPI Port 2 filter  */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f46),
-		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV, 2),
+		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV,
+						   BDX_PCI_QPI_PORT2_FILTER),
 	},
 	{ /* PCU.3 (for Capability registers) */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fc0),

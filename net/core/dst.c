@@ -307,6 +307,7 @@ void metadata_dst_free(struct metadata_dst *md_dst)
 #endif
 	kfree(md_dst);
 }
+EXPORT_SYMBOL_GPL(metadata_dst_free);
 
 struct metadata_dst __percpu *
 metadata_dst_alloc_percpu(u8 optslen, enum metadata_type type, gfp_t flags)

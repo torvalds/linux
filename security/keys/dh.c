@@ -317,7 +317,7 @@ long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
 	if (ret)
 		goto out3;
 
-	tfm = crypto_alloc_kpp("dh", CRYPTO_ALG_TYPE_KPP, 0);
+	tfm = crypto_alloc_kpp("dh", 0, 0);
 	if (IS_ERR(tfm)) {
 		ret = PTR_ERR(tfm);
 		goto out3;

@@ -799,6 +799,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 
 free_buffer:
 	etnaviv_cmdbuf_free(&gpu->buffer);
+	gpu->buffer.suballoc = NULL;
 destroy_iommu:
 	etnaviv_iommu_destroy(gpu->mmu);
 	gpu->mmu = NULL;
@@ -1726,7 +1727,7 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 
 	gpu->dev = &pdev->dev;
 	mutex_init(&gpu->lock);
-	mutex_init(&gpu->fence_idr_lock);
+	mutex_init(&gpu->fence_lock);
 
 	/* Map registers: */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

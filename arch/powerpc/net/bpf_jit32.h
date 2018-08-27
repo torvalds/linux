@@ -13,6 +13,7 @@
 #ifndef _BPF_JIT32_H
 #define _BPF_JIT32_H
 
+#include <asm/asm-compat.h>
 #include "bpf_jit.h"
 
 #ifdef CONFIG_PPC64

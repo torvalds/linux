@@ -553,7 +553,6 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	mutex_lock(&v3d->sched_lock);
 	if (exec->bin.start != exec->bin.end) {
 		ret = drm_sched_job_init(&exec->bin.base,
-					 &v3d->queue[V3D_BIN].sched,
 					 &v3d_priv->sched_entity[V3D_BIN],
 					 v3d_priv);
 		if (ret)
@@ -568,7 +567,6 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	}
 
 	ret = drm_sched_job_init(&exec->render.base,
-				 &v3d->queue[V3D_RENDER].sched,
 				 &v3d_priv->sched_entity[V3D_RENDER],
 				 v3d_priv);
 	if (ret)

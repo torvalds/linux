@@ -33,8 +33,6 @@ Recommended properties :
    information for the interrupt.  This should be encoded based on
    the information in section 2) depending on the type of interrupt
    controller you have.
- - interrupt-parent : the phandle for the interrupt controller that
-   services interrupts for this device.
 
 Optional properties :
  - fsl,invert-drvvbus : boolean; for MPC5121 USB0 only. Indicates the

@@ -268,23 +268,29 @@ bool resource_construct(
 
 	return true;
 }
+static int find_matching_clock_source(
+		const struct resource_pool *pool,
+		struct clock_source *clock_source)
+{
 
+	int i;
+
+	for (i = 0; i < pool->clk_src_count; i++) {
+		if (pool->clock_sources[i] == clock_source)
+			return i;
+	}
+	return -1;
+}
 
 void resource_unreference_clock_source(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct clock_source *clock_source)
 {
-	int i;
+	int i = find_matching_clock_source(pool, clock_source);
 
-	for (i = 0; i < pool->clk_src_count; i++) {
-		if (pool->clock_sources[i] != clock_source)
-			continue;
-
+	if (i > -1)
 		res_ctx->clock_source_ref_count[i]--;
-
-		break;
-	}
 
 	if (pool->dp_clock_source == clock_source)
 		res_ctx->dp_clock_source_ref_count--;
@@ -295,17 +301,29 @@ void resource_reference_clock_source(
 		const struct resource_pool *pool,
 		struct clock_source *clock_source)
 {
-	int i;
-	for (i = 0; i < pool->clk_src_count; i++) {
-		if (pool->clock_sources[i] != clock_source)
-			continue;
+	int i = find_matching_clock_source(pool, clock_source);
 
+	if (i > -1)
 		res_ctx->clock_source_ref_count[i]++;
-		break;
-	}
 
 	if (pool->dp_clock_source == clock_source)
 		res_ctx->dp_clock_source_ref_count++;
+}
+
+int resource_get_clock_source_reference(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct clock_source *clock_source)
+{
+	int i = find_matching_clock_source(pool, clock_source);
+
+	if (i > -1)
+		return res_ctx->clock_source_ref_count[i];
+
+	if (pool->dp_clock_source == clock_source)
+		return res_ctx->dp_clock_source_ref_count;
+
+	return -1;
 }
 
 bool resource_are_streams_timing_synchronizable(
@@ -330,12 +348,29 @@ bool resource_are_streams_timing_synchronizable(
 				!= stream2->timing.pix_clk_khz)
 		return false;
 
+	if (stream1->clamping.c_depth != stream2->clamping.c_depth)
+		return false;
+
 	if (stream1->phy_pix_clk != stream2->phy_pix_clk
 			&& (!dc_is_dp_signal(stream1->signal)
 			|| !dc_is_dp_signal(stream2->signal)))
 		return false;
 
 	return true;
+}
+static bool is_dp_and_hdmi_sharable(
+		struct dc_stream_state *stream1,
+		struct dc_stream_state *stream2)
+{
+	if (stream1->ctx->dc->caps.disable_dp_clk_share)
+		return false;
+
+	if (stream1->clamping.c_depth != COLOR_DEPTH_888 ||
+	    stream2->clamping.c_depth != COLOR_DEPTH_888)
+	return false;
+
+	return true;
+
 }
 
 static bool is_sharable_clk_src(
@@ -348,15 +383,18 @@ static bool is_sharable_clk_src(
 	if (pipe_with_clk_src->stream->signal == SIGNAL_TYPE_VIRTUAL)
 		return false;
 
-	if (dc_is_dp_signal(pipe_with_clk_src->stream->signal))
+	if (dc_is_dp_signal(pipe_with_clk_src->stream->signal) ||
+		(dc_is_dp_signal(pipe->stream->signal) &&
+		!is_dp_and_hdmi_sharable(pipe_with_clk_src->stream,
+				     pipe->stream)))
 		return false;
 
 	if (dc_is_hdmi_signal(pipe_with_clk_src->stream->signal)
-			&& dc_is_dvi_signal(pipe->stream->signal))
+			&& dc_is_dual_link_signal(pipe->stream->signal))
 		return false;
 
 	if (dc_is_hdmi_signal(pipe->stream->signal)
-			&& dc_is_dvi_signal(pipe_with_clk_src->stream->signal))
+			&& dc_is_dual_link_signal(pipe_with_clk_src->stream->signal))
 		return false;
 
 	if (!resource_are_streams_timing_synchronizable(
@@ -1705,8 +1743,8 @@ enum dc_status dc_add_stream_to_ctx(
 	struct dc_context *dc_ctx = dc->ctx;
 	enum dc_status res;
 
-	if (new_ctx->stream_count >= dc->res_pool->pipe_count) {
-		DC_ERROR("Max streams reached, can add stream %p !\n", stream);
+	if (new_ctx->stream_count >= dc->res_pool->timing_generator_count) {
+		DC_ERROR("Max streams reached, can't add stream %p !\n", stream);
 		return DC_ERROR_UNEXPECTED;
 	}
 
@@ -1948,7 +1986,7 @@ void dc_resource_state_construct(
 		const struct dc *dc,
 		struct dc_state *dst_ctx)
 {
-	dst_ctx->dis_clk = dc->res_pool->display_clock;
+	dst_ctx->dis_clk = dc->res_pool->dccg;
 }
 
 enum dc_status dc_validate_global_state(

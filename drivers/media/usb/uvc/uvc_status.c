@@ -78,7 +78,24 @@ static void uvc_input_report_key(struct uvc_device *dev, unsigned int code,
 /* --------------------------------------------------------------------------
  * Status interrupt endpoint
  */
-static void uvc_event_streaming(struct uvc_device *dev, u8 *data, int len)
+struct uvc_streaming_status {
+	u8	bStatusType;
+	u8	bOriginator;
+	u8	bEvent;
+	u8	bValue[];
+} __packed;
+
+struct uvc_control_status {
+	u8	bStatusType;
+	u8	bOriginator;
+	u8	bEvent;
+	u8	bSelector;
+	u8	bAttribute;
+	u8	bValue[];
+} __packed;
+
+static void uvc_event_streaming(struct uvc_device *dev,
+				struct uvc_streaming_status *status, int len)
 {
 	if (len < 3) {
 		uvc_trace(UVC_TRACE_STATUS, "Invalid streaming status event "
@@ -86,31 +103,97 @@ static void uvc_event_streaming(struct uvc_device *dev, u8 *data, int len)
 		return;
 	}
 
-	if (data[2] == 0) {
+	if (status->bEvent == 0) {
 		if (len < 4)
 			return;
 		uvc_trace(UVC_TRACE_STATUS, "Button (intf %u) %s len %d\n",
-			data[1], data[3] ? "pressed" : "released", len);
-		uvc_input_report_key(dev, KEY_CAMERA, data[3]);
+			  status->bOriginator,
+			  status->bValue[0] ? "pressed" : "released", len);
+		uvc_input_report_key(dev, KEY_CAMERA, status->bValue[0]);
 	} else {
 		uvc_trace(UVC_TRACE_STATUS,
 			  "Stream %u error event %02x len %d.\n",
-			  data[1], data[2], len);
+			  status->bOriginator, status->bEvent, len);
 	}
 }
 
-static void uvc_event_control(struct uvc_device *dev, u8 *data, int len)
-{
-	char *attrs[3] = { "value", "info", "failure" };
+#define UVC_CTRL_VALUE_CHANGE	0
+#define UVC_CTRL_INFO_CHANGE	1
+#define UVC_CTRL_FAILURE_CHANGE	2
+#define UVC_CTRL_MIN_CHANGE	3
+#define UVC_CTRL_MAX_CHANGE	4
 
-	if (len < 6 || data[2] != 0 || data[4] > 2) {
+static struct uvc_control *uvc_event_entity_find_ctrl(struct uvc_entity *entity,
+						      u8 selector)
+{
+	struct uvc_control *ctrl;
+	unsigned int i;
+
+	for (i = 0, ctrl = entity->controls; i < entity->ncontrols; i++, ctrl++)
+		if (ctrl->info.selector == selector)
+			return ctrl;
+
+	return NULL;
+}
+
+static struct uvc_control *uvc_event_find_ctrl(struct uvc_device *dev,
+					const struct uvc_control_status *status,
+					struct uvc_video_chain **chain)
+{
+	list_for_each_entry((*chain), &dev->chains, list) {
+		struct uvc_entity *entity;
+		struct uvc_control *ctrl;
+
+		list_for_each_entry(entity, &(*chain)->entities, chain) {
+			if (entity->id != status->bOriginator)
+				continue;
+
+			ctrl = uvc_event_entity_find_ctrl(entity,
+							  status->bSelector);
+			if (ctrl)
+				return ctrl;
+		}
+	}
+
+	return NULL;
+}
+
+static bool uvc_event_control(struct urb *urb,
+			      const struct uvc_control_status *status, int len)
+{
+	static const char *attrs[] = { "value", "info", "failure", "min", "max" };
+	struct uvc_device *dev = urb->context;
+	struct uvc_video_chain *chain;
+	struct uvc_control *ctrl;
+
+	if (len < 6 || status->bEvent != 0 ||
+	    status->bAttribute >= ARRAY_SIZE(attrs)) {
 		uvc_trace(UVC_TRACE_STATUS, "Invalid control status event "
 				"received.\n");
-		return;
+		return false;
 	}
 
 	uvc_trace(UVC_TRACE_STATUS, "Control %u/%u %s change len %d.\n",
-		data[1], data[3], attrs[data[4]], len);
+		  status->bOriginator, status->bSelector,
+		  attrs[status->bAttribute], len);
+
+	/* Find the control. */
+	ctrl = uvc_event_find_ctrl(dev, status, &chain);
+	if (!ctrl)
+		return false;
+
+	switch (status->bAttribute) {
+	case UVC_CTRL_VALUE_CHANGE:
+		return uvc_ctrl_status_event(urb, chain, ctrl, status->bValue);
+
+	case UVC_CTRL_INFO_CHANGE:
+	case UVC_CTRL_FAILURE_CHANGE:
+	case UVC_CTRL_MIN_CHANGE:
+	case UVC_CTRL_MAX_CHANGE:
+		break;
+	}
+
+	return false;
 }
 
 static void uvc_status_complete(struct urb *urb)
@@ -138,13 +221,23 @@ static void uvc_status_complete(struct urb *urb)
 	len = urb->actual_length;
 	if (len > 0) {
 		switch (dev->status[0] & 0x0f) {
-		case UVC_STATUS_TYPE_CONTROL:
-			uvc_event_control(dev, dev->status, len);
-			break;
+		case UVC_STATUS_TYPE_CONTROL: {
+			struct uvc_control_status *status =
+				(struct uvc_control_status *)dev->status;
 
-		case UVC_STATUS_TYPE_STREAMING:
-			uvc_event_streaming(dev, dev->status, len);
+			if (uvc_event_control(urb, status, len))
+				/* The URB will be resubmitted in work context. */
+				return;
 			break;
+		}
+
+		case UVC_STATUS_TYPE_STREAMING: {
+			struct uvc_streaming_status *status =
+				(struct uvc_streaming_status *)dev->status;
+
+			uvc_event_streaming(dev, status, len);
+			break;
+		}
 
 		default:
 			uvc_trace(UVC_TRACE_STATUS, "Unknown status event "

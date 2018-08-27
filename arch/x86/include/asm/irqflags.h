@@ -13,7 +13,9 @@
  * Interrupt control:
  */
 
-static inline unsigned long native_save_fl(void)
+/* Declaration required for gcc < 4.9 to prevent -Werror=missing-prototypes */
+extern inline unsigned long native_save_fl(void);
+extern inline unsigned long native_save_fl(void)
 {
 	unsigned long flags;
 
