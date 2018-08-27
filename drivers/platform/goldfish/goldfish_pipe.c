@@ -532,8 +532,8 @@ static void signalled_pipes_add_locked(struct goldfish_pipe_dev *dev,
 		return;
 	pipe->signalled_flags |= flags;
 
-	if (pipe->prev_signalled || pipe->next_signalled
-		|| dev->first_signalled_pipe == pipe)
+	if (pipe->prev_signalled || pipe->next_signalled ||
+		dev->first_signalled_pipe == pipe)
 		return;	/* already in the list */
 	pipe->next_signalled = dev->first_signalled_pipe;
 	if (dev->first_signalled_pipe)
