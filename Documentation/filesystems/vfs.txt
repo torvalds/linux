@@ -885,6 +885,7 @@ struct file_operations {
 	ssize_t (*copy_file_range)(struct file *, loff_t, struct file *, loff_t, size_t, unsigned int);
 	int (*clone_file_range)(struct file *, loff_t, struct file *, loff_t, u64);
 	int (*dedupe_file_range)(struct file *, loff_t, struct file *, loff_t, u64);
+	int (*fadvise)(struct file *, loff_t, loff_t, int);
 };
 
 Again, all methods are called without any locks being held, unless
@@ -964,6 +965,8 @@ otherwise noted.
 
   dedupe_file_range: called by the ioctl(2) system call for FIDEDUPERANGE
 	command.
+
+  fadvise: possibly called by the fadvise64() system call.
 
 Note that the file operations are implemented by the specific
 filesystem in which the inode resides. When opening a device node
