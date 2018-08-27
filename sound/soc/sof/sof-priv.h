@@ -516,4 +516,9 @@ static inline void sof_oops(struct snd_sof_dev *sdev, void *oops)
 }
 
 extern const struct sof_arch_ops sof_xtensa_arch_ops;
+
+/*
+ * Utilities
+ */
+int sof_create_platform_device(struct sof_platform_priv *priv);
 #endif
