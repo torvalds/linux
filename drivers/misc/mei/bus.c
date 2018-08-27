@@ -616,9 +616,8 @@ int mei_cldev_disable(struct mei_cl_device *cldev)
 	if (err < 0)
 		dev_err(bus->dev, "Could not disconnect from the ME client\n");
 
-out:
 	mei_cl_bus_module_put(cldev);
-
+out:
 	/* Flush queues and remove any pending read */
 	mei_cl_flush_queues(cl, NULL);
 	mei_cl_unlink(cl);
