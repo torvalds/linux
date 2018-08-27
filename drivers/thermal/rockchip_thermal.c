@@ -210,8 +210,11 @@ struct rockchip_thermal_data {
 #define TSADCV2_AUTO_PERIOD_HT_TIME		50  /* 50ms */
 #define TSADCV3_AUTO_PERIOD_TIME		1875 /* 2.5ms */
 #define TSADCV3_AUTO_PERIOD_HT_TIME		1875 /* 2.5ms */
+#define TSADCV5_AUTO_PERIOD_TIME		1622 /* 2.5ms */
+#define TSADCV5_AUTO_PERIOD_HT_TIME		1622 /* 2.5ms */
 
 #define TSADCV2_USER_INTER_PD_SOC		0x340 /* 13 clocks */
+#define TSADCV5_USER_INTER_PD_SOC		0xfc0 /* 97us, at least 90us */
 
 #define GRF_SARADC_TESTBIT			0x0e644
 #define GRF_TSADC_TESTBIT_L			0x0e648
@@ -219,8 +222,11 @@ struct rockchip_thermal_data {
 
 #define PX30_GRF_SOC_CON2			0x0408
 
+#define RK1808_BUS_GRF_SOC_CON0			0x0400
+
 #define GRF_SARADC_TESTBIT_ON			(0x10001 << 2)
 #define GRF_TSADC_TESTBIT_H_ON			(0x10001 << 2)
+#define GRF_TSADC_BANDGAP_CHOPPER_EN		(0x10001 << 2)
 #define GRF_TSADC_VCM_EN_L			(0x10001 << 7)
 #define GRF_TSADC_VCM_EN_H			(0x10001 << 7)
 
@@ -240,6 +246,7 @@ struct tsadc_table {
 	u32 code;
 	int temp;
 };
+
 
 static const struct tsadc_table rv1108_table[] = {
 	{0, -40000},
@@ -277,6 +284,45 @@ static const struct tsadc_table rv1108_table[] = {
 	{618, 115000},
 	{626, 120000},
 	{634, 125000},
+	{TSADCV2_DATA_MASK, 125000},
+};
+
+static const struct tsadc_table rk1808_code_table[] = {
+	{0, -40000},
+	{3455, -40000},
+	{3463, -35000},
+	{3471, -30000},
+	{3479, -25000},
+	{3487, -20000},
+	{3495, -15000},
+	{3503, -10000},
+	{3511, -5000},
+	{3519, 0},
+	{3527, 5000},
+	{3535, 10000},
+	{3543, 15000},
+	{3551, 20000},
+	{3559, 25000},
+	{3567, 30000},
+	{3576, 35000},
+	{3584, 40000},
+	{3592, 45000},
+	{3600, 50000},
+	{3609, 55000},
+	{3617, 60000},
+	{3625, 65000},
+	{3633, 70000},
+	{3642, 75000},
+	{3650, 80000},
+	{3659, 85000},
+	{3667, 90000},
+	{3675, 95000},
+	{3684, 100000},
+	{3692, 105000},
+	{3701, 110000},
+	{3709, 115000},
+	{3718, 120000},
+	{3726, 125000},
 	{TSADCV2_DATA_MASK, 125000},
 };
 
@@ -701,6 +747,31 @@ static void rk_tsadcv4_initialize(struct regmap *grf, void __iomem *regs,
 	regmap_write(grf, PX30_GRF_SOC_CON2, GRF_CON_TSADC_CH_INV);
 }
 
+static void rk_tsadcv5_initialize(struct regmap *grf, void __iomem *regs,
+				  enum tshut_polarity tshut_polarity)
+{
+	if (tshut_polarity == TSHUT_HIGH_ACTIVE)
+		writel_relaxed(0U | TSADCV2_AUTO_TSHUT_POLARITY_HIGH,
+			       regs + TSADCV2_AUTO_CON);
+	else
+		writel_relaxed(0U & ~TSADCV2_AUTO_TSHUT_POLARITY_HIGH,
+			       regs + TSADCV2_AUTO_CON);
+
+	writel_relaxed(TSADCV5_USER_INTER_PD_SOC, regs + TSADCV2_USER_CON);
+
+	writel_relaxed(TSADCV5_AUTO_PERIOD_TIME, regs + TSADCV2_AUTO_PERIOD);
+	writel_relaxed(TSADCV2_HIGHT_INT_DEBOUNCE_COUNT,
+		       regs + TSADCV2_HIGHT_INT_DEBOUNCE);
+	writel_relaxed(TSADCV5_AUTO_PERIOD_HT_TIME,
+		       regs + TSADCV2_AUTO_PERIOD_HT);
+	writel_relaxed(TSADCV2_HIGHT_TSHUT_DEBOUNCE_COUNT,
+		       regs + TSADCV2_HIGHT_TSHUT_DEBOUNCE);
+
+	if (!IS_ERR(grf))
+		regmap_write(grf, RK1808_BUS_GRF_SOC_CON0,
+			     GRF_TSADC_BANDGAP_CHOPPER_EN);
+}
+
 static void rk_tsadcv2_irq_ack(void __iomem *regs)
 {
 	u32 val;
@@ -880,6 +951,30 @@ static const struct rockchip_tsadc_chip rv1108_tsadc_data = {
 	},
 };
 
+static const struct rockchip_tsadc_chip rk1808_tsadc_data = {
+	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
+	.chn_num = 1, /* one channel for tsadc */
+
+	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
+	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
+	.tshut_temp = 95000,
+
+	.initialize = rk_tsadcv5_initialize,
+	.irq_ack = rk_tsadcv3_irq_ack,
+	.control = rk_tsadcv3_control,
+	.get_temp = rk_tsadcv2_get_temp,
+	.set_alarm_temp = rk_tsadcv2_alarm_temp,
+	.set_tshut_temp = rk_tsadcv2_tshut_temp,
+	.set_tshut_mode = rk_tsadcv2_tshut_mode,
+
+	.table = {
+		.id = rk1808_code_table,
+		.length = ARRAY_SIZE(rk1808_code_table),
+		.data_mask = TSADCV2_DATA_MASK,
+		.mode = ADC_INCREMENT,
+	},
+};
+
 static const struct rockchip_tsadc_chip rk3228_tsadc_data = {
 	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
 	.chn_num = 1, /* one channel for tsadc */
@@ -1034,6 +1129,10 @@ static const struct of_device_id of_rockchip_thermal_match[] = {
 	{
 		.compatible = "rockchip,rv1108-tsadc",
 		.data = (void *)&rv1108_tsadc_data,
+	},
+	{
+		.compatible = "rockchip,rk1808-tsadc",
+		.data = (void *)&rk1808_tsadc_data,
 	},
 	{
 		.compatible = "rockchip,rk3228-tsadc",
