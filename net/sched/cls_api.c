@@ -1252,7 +1252,7 @@ replay:
 	}
 	chain = tcf_chain_get(block, chain_index, true);
 	if (!chain) {
-		NL_SET_ERR_MSG(extack, "Cannot find specified filter chain");
+		NL_SET_ERR_MSG(extack, "Cannot create specified filter chain");
 		err = -ENOMEM;
 		goto errout;
 	}
