@@ -21,6 +21,9 @@
 		i2c4 = &i2c4;
 		i2c5 = &i2c5;
 		serial2 = &uart2;
+		spi0 = &spi0;
+		spi1 = &spi1;
+		spi2 = &spi2;
 	};
 
 	cpus {
@@ -315,6 +318,54 @@
 		pinctrl-0 = <&i2c5_xfer>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	spi0: spi@ff520000 {
+		compatible = "rockchip,rk1808-spi", "rockchip,rk3066-spi";
+		reg = <0x0 0xff520000 0x0 0x1000>;
+		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&cru SCLK_SPI0>, <&cru PCLK_SPI0>;
+		clock-names = "spiclk", "apb_pclk";
+		dmas = <&dmac 10>, <&dmac 11>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default", "high_speed";
+		pinctrl-0 = <&spi0_clk &spi0_csn &spi0_miso &spi0_mosi>;
+		pinctrl-1 = <&spi0_clk_hs &spi0_csn &spi0_miso_hs &spi0_mosi_hs>;
+		status = "disabled";
+	};
+
+	spi1: spi@ff530000 {
+		compatible = "rockchip,rk1808-spi", "rockchip,rk3066-spi";
+		reg = <0x0 0xff530000 0x0 0x1000>;
+		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&cru SCLK_SPI1>, <&cru PCLK_SPI1>;
+		clock-names = "spiclk", "apb_pclk";
+		dmas = <&dmac 12>, <&dmac 13>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default", "high_speed";
+		pinctrl-0 = <&spi1_clk &spi1_csn0 &spi1_csn1 &spi1_miso &spi1_mosi>;
+		pinctrl-1 = <&spi1_clk_hs &spi1_csn0 &spi1_csn1 &spi1_miso_hs &spi1_mosi_hs>;
+		status = "disabled";
+	};
+
+	spi2: spi@ff580000 {
+		compatible = "rockchip,rk1808-spi", "rockchip,rk3066-spi";
+		reg = <0x0 0xff580000 0x0 0x1000>;
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&cru SCLK_SPI2>, <&cru PCLK_SPI2>;
+		clock-names = "spiclk", "apb_pclk";
+		dmas = <&dmac 14>, <&dmac 15>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default", "high_speed";
+		pinctrl-0 = <&spi2_clk &spi2_csn0 &spi2_csn1 &spi2_miso &spi2_mosi>;
+		pinctrl-1 = <&spi2_clk_hs &spi2_csn0 &spi2_csn1 &spi2_miso_hs &spi2_mosi_hs>;
 		status = "disabled";
 	};
 
@@ -926,74 +977,144 @@
 		spi0 {
 			spi0_mosi: spi0-mosi {
 				rockchip,pins =
-					<1 RK_PB4 1 &pcfg_pull_none>;
+					<1 RK_PB4 1 &pcfg_pull_up_4ma>;
 			};
 
 			spi0_miso: spi0-miso {
 				rockchip,pins =
-					<1 RK_PB5 1 &pcfg_pull_none>;
+					<1 RK_PB5 1 &pcfg_pull_up_4ma>;
 			};
 
 			spi0_csn: spi0-csn {
 				rockchip,pins =
-					<1 RK_PB6 1 &pcfg_pull_none>;
+					<1 RK_PB6 1 &pcfg_pull_up_4ma>;
 			};
 
 			spi0_clk: spi0-clk {
 				rockchip,pins =
-					<1 RK_PB7 1 &pcfg_pull_none>;
+					<1 RK_PB7 1 &pcfg_pull_up_4ma>;
+			};
+
+			spi0_mosi_hs: spi0-mosi-hs {
+				rockchip,pins =
+					<1 RK_PB4 1 &pcfg_pull_up_8ma>;
+			};
+
+			spi0_miso_hs: spi0-miso-hs {
+				rockchip,pins =
+					<1 RK_PB5 1 &pcfg_pull_up_8ma>;
+			};
+
+			spi0_csn_hs: spi0-csn-hs {
+				rockchip,pins =
+					<1 RK_PB6 1 &pcfg_pull_up_8ma>;
+			};
+
+			spi0_clk_hs: spi0-clk-hs {
+				rockchip,pins =
+					<1 RK_PB7 1 &pcfg_pull_up_8ma>;
 			};
 		};
 
 		spi1 {
 			spi1_clk: spi1-clk {
 				rockchip,pins =
-					<4 RK_PB4 2 &pcfg_pull_none>;
+					<4 RK_PB4 2 &pcfg_pull_up_4ma>;
 			};
 
 			spi1_mosi: spi1-mosi {
 				rockchip,pins =
-					<4 RK_PB5 2 &pcfg_pull_none>;
+					<4 RK_PB5 2 &pcfg_pull_up_4ma>;
 			};
 
 			spi1_csn0: spi1-csn0 {
 				rockchip,pins =
-					<4 RK_PB6 2 &pcfg_pull_none>;
+					<4 RK_PB6 2 &pcfg_pull_up_4ma>;
 			};
 
 			spi1_miso: spi1-miso {
 				rockchip,pins =
-					<4 RK_PB7 2 &pcfg_pull_none>;
+					<4 RK_PB7 2 &pcfg_pull_up_4ma>;
 			};
 
 			spi1_csn1: spi1-csn1 {
 				rockchip,pins =
-					<4 RK_PC0 2 &pcfg_pull_none>;
+					<4 RK_PC0 2 &pcfg_pull_up_4ma>;
+			};
+
+			spi1_clk_hs: spi1-clk-hs {
+				rockchip,pins =
+					<4 RK_PB4 2 &pcfg_pull_up_8ma>;
+			};
+
+			spi1_mosi_hs: spi1-mosi-hs {
+				rockchip,pins =
+					<4 RK_PB5 2 &pcfg_pull_up_8ma>;
+			};
+
+			spi1_csn0_hs: spi1-csn0-hs {
+				rockchip,pins =
+					<4 RK_PB6 2 &pcfg_pull_up_8ma>;
+			};
+
+			spi1_miso_hs: spi1-miso-hs {
+				rockchip,pins =
+					<4 RK_PB7 2 &pcfg_pull_up_8ma>;
+			};
+
+			spi1_csn1_hs: spi1-csn1-hs {
+				rockchip,pins =
+					<4 RK_PC0 2 &pcfg_pull_up_8ma>;
 			};
 		};
 
 		spi1m1 {
 			spi1m1_clk: spi1m1-clk {
 				rockchip,pins =
-					<3 RK_PC7 3 &pcfg_pull_none>;
+					<3 RK_PC7 3 &pcfg_pull_up_4ma>;
 			};
 
 			spi1m1_mosi: spi1m1-mosi {
 				rockchip,pins =
-					<3 RK_PD0 3 &pcfg_pull_none>;
+					<3 RK_PD0 3 &pcfg_pull_up_4ma>;
 			};
 
 			spi1m1_csn0: spi1m1-csn0 {
 				rockchip,pins =
-					<3 RK_PD1 3 &pcfg_pull_none>;
+					<3 RK_PD1 3 &pcfg_pull_up_4ma>;
 			};
 
 			spi1m1_miso: spi1m1-miso {
 				rockchip,pins =
-					<3 RK_PD2 3 &pcfg_pull_none>;
+					<3 RK_PD2 3 &pcfg_pull_up_4ma>;
 			};
 
 			spi1m1_csn1: spi1m1-csn1 {
+				rockchip,pins =
+					<3 RK_PD3 3 &pcfg_pull_up_4ma>;
+			};
+
+			spi1m1_clk_hs: spi1m1-clk-hs {
+				rockchip,pins =
+					<3 RK_PC7 3 &pcfg_pull_none>;
+			};
+
+			spi1m1_mosi_hs: spi1m1-mosi-hs {
+				rockchip,pins =
+					<3 RK_PD0 3 &pcfg_pull_none>;
+			};
+
+			spi1m1_csn0_hs: spi1m1-csn0-hs {
+				rockchip,pins =
+					<3 RK_PD1 3 &pcfg_pull_none>;
+			};
+
+			spi1m1_miso_hs: spi1m1-miso-hs {
+				rockchip,pins =
+					<3 RK_PD2 3 &pcfg_pull_none>;
+			};
+
+			spi1m1_csn1_hs: spi1m1-csn1-hs {
 				rockchip,pins =
 					<3 RK_PD3 3 &pcfg_pull_none>;
 			};
@@ -1002,20 +1123,40 @@
 		spi2m0 {
 			spi2m0_miso: spi2m0-miso {
 				rockchip,pins =
-					<1 RK_PA6 2 &pcfg_pull_none>;
+					<1 RK_PA6 2 &pcfg_pull_up_4ma>;
 			};
 
 			spi2m0_clk: spi2m0-clk {
 				rockchip,pins =
-					<1 RK_PA7 2 &pcfg_pull_none>;
+					<1 RK_PA7 2 &pcfg_pull_up_4ma>;
 			};
 
 			spi2m0_mosi: spi2m0-mosi {
 				rockchip,pins =
-					<1 RK_PB0 2 &pcfg_pull_none>;
+					<1 RK_PB0 2 &pcfg_pull_up_4ma>;
 			};
 
 			spi2m0_csn: spi2m0-csn {
+				rockchip,pins =
+					<1 RK_PB1 2 &pcfg_pull_up_4ma>;
+			};
+
+			spi2m0_miso_hs: spi2m0-miso-hs {
+				rockchip,pins =
+					<1 RK_PA6 2 &pcfg_pull_none>;
+			};
+
+			spi2m0_clk_hs: spi2m0-clk-hs {
+				rockchip,pins =
+					<1 RK_PA7 2 &pcfg_pull_none>;
+			};
+
+			spi2m0_mosi_hs: spi2m0-mosi-hs {
+				rockchip,pins =
+					<1 RK_PB0 2 &pcfg_pull_none>;
+			};
+
+			spi2m0_csn_hs: spi2m0-csn-hs {
 				rockchip,pins =
 					<1 RK_PB1 2 &pcfg_pull_none>;
 			};
@@ -1024,20 +1165,40 @@
 		spi2m1 {
 			spi2m1_miso: spi2m1-miso {
 				rockchip,pins =
-					<2 RK_PA4 3 &pcfg_pull_none>;
+					<2 RK_PA4 3 &pcfg_pull_up_4ma>;
 			};
 
 			spi2m1_clk: spi2m1-clk {
 				rockchip,pins =
-					<2 RK_PA5 3 &pcfg_pull_none>;
+					<2 RK_PA5 3 &pcfg_pull_up_4ma>;
 			};
 
 			spi2m1_mosi: spi2m1-mosi {
 				rockchip,pins =
-					<2 RK_PA6 3 &pcfg_pull_none>;
+					<2 RK_PA6 3 &pcfg_pull_up_4ma>;
 			};
 
 			spi2m1_csn: spi2m1-csn {
+				rockchip,pins =
+					<2 RK_PA7 3 &pcfg_pull_up_4ma>;
+			};
+
+			spi2m1_miso_hs: spi2m1-miso-hs {
+				rockchip,pins =
+					<2 RK_PA4 3 &pcfg_pull_none>;
+			};
+
+			spi2m1_clk_hs: spi2m1-clk-hs {
+				rockchip,pins =
+					<2 RK_PA5 3 &pcfg_pull_none>;
+			};
+
+			spi2m1_mosi_hs: spi2m1-mosi-hs {
+				rockchip,pins =
+					<2 RK_PA6 3 &pcfg_pull_none>;
+			};
+
+			spi2m1_csn_hs: spi2m1-csn-hs {
 				rockchip,pins =
 					<2 RK_PA7 3 &pcfg_pull_none>;
 			};
