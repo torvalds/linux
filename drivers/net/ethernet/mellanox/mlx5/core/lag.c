@@ -241,26 +241,52 @@ static int mlx5_create_lag(struct mlx5_lag *ldev,
 	return err;
 }
 
-static void mlx5_activate_lag(struct mlx5_lag *ldev,
-			      struct lag_tracker *tracker,
-			      u8 flags)
+static int mlx5_activate_lag(struct mlx5_lag *ldev,
+			     struct lag_tracker *tracker,
+			     u8 flags)
 {
+	bool roce_lag = !!(flags & MLX5_LAG_FLAG_ROCE);
+	struct mlx5_core_dev *dev0 = ldev->pf[0].dev;
+	int err;
+
+	err = mlx5_create_lag(ldev, tracker);
+	if (err) {
+		if (roce_lag) {
+			mlx5_core_err(dev0,
+				      "Failed to activate RoCE LAG\n");
+		} else {
+			mlx5_core_err(dev0,
+				      "Failed to activate VF LAG\n"
+				      "Make sure all VFs are unbound prior to VF LAG activation or deactivation\n");
+		}
+		return err;
+	}
+
 	ldev->flags |= flags;
-	mlx5_create_lag(ldev, tracker);
+	return 0;
 }
 
-static void mlx5_deactivate_lag(struct mlx5_lag *ldev)
+static int mlx5_deactivate_lag(struct mlx5_lag *ldev)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[0].dev;
+	bool roce_lag = __mlx5_lag_is_roce(ldev);
 	int err;
 
 	ldev->flags &= ~MLX5_LAG_MODE_FLAGS;
 
 	err = mlx5_cmd_destroy_lag(dev0);
-	if (err)
-		mlx5_core_err(dev0,
-			      "Failed to destroy LAG (%d)\n",
-			      err);
+	if (err) {
+		if (roce_lag) {
+			mlx5_core_err(dev0,
+				      "Failed to deactivate RoCE LAG; driver restart required\n");
+		} else {
+			mlx5_core_err(dev0,
+				      "Failed to deactivate VF LAG; driver restart required\n"
+				      "Make sure all VFs are unbound prior to VF LAG activation or deactivation\n");
+		}
+	}
+
+	return err;
 }
 
 static bool mlx5_lag_check_prereq(struct mlx5_lag *ldev)
@@ -273,13 +299,33 @@ static bool mlx5_lag_check_prereq(struct mlx5_lag *ldev)
 		return false;
 }
 
+static void mlx5_lag_add_ib_devices(struct mlx5_lag *ldev)
+{
+	int i;
+
+	for (i = 0; i < MLX5_MAX_PORTS; i++)
+		if (ldev->pf[i].dev)
+			mlx5_add_dev_by_protocol(ldev->pf[i].dev,
+						 MLX5_INTERFACE_PROTOCOL_IB);
+}
+
+static void mlx5_lag_remove_ib_devices(struct mlx5_lag *ldev)
+{
+	int i;
+
+	for (i = 0; i < MLX5_MAX_PORTS; i++)
+		if (ldev->pf[i].dev)
+			mlx5_remove_dev_by_protocol(ldev->pf[i].dev,
+						    MLX5_INTERFACE_PROTOCOL_IB);
+}
+
 static void mlx5_do_bond(struct mlx5_lag *ldev)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[0].dev;
 	struct mlx5_core_dev *dev1 = ldev->pf[1].dev;
 	struct lag_tracker tracker;
 	bool do_bond, roce_lag;
-	int i;
+	int err;
 
 	if (!dev0 || !dev1)
 		return;
@@ -295,13 +341,17 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 			   !mlx5_sriov_is_enabled(dev1);
 
 		if (roce_lag)
-			for (i = 0; i < MLX5_MAX_PORTS; i++)
-				mlx5_remove_dev_by_protocol(ldev->pf[i].dev,
-							    MLX5_INTERFACE_PROTOCOL_IB);
+			mlx5_lag_remove_ib_devices(ldev);
 
-		mlx5_activate_lag(ldev, &tracker,
-				  roce_lag ? MLX5_LAG_FLAG_ROCE :
-				  MLX5_LAG_FLAG_SRIOV);
+		err = mlx5_activate_lag(ldev, &tracker,
+					roce_lag ? MLX5_LAG_FLAG_ROCE :
+					MLX5_LAG_FLAG_SRIOV);
+		if (err) {
+			if (roce_lag)
+				mlx5_lag_add_ib_devices(ldev);
+
+			return;
+		}
 
 		if (roce_lag) {
 			mlx5_add_dev_by_protocol(dev0, MLX5_INTERFACE_PROTOCOL_IB);
@@ -317,13 +367,12 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 			mlx5_nic_vport_disable_roce(dev1);
 		}
 
-		mlx5_deactivate_lag(ldev);
+		err = mlx5_deactivate_lag(ldev);
+		if (err)
+			return;
 
 		if (roce_lag)
-			for (i = 0; i < MLX5_MAX_PORTS; i++)
-				if (ldev->pf[i].dev)
-					mlx5_add_dev_by_protocol(ldev->pf[i].dev,
-								 MLX5_INTERFACE_PROTOCOL_IB);
+			mlx5_lag_add_ib_devices(ldev);
 	}
 }
 
