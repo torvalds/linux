@@ -400,8 +400,10 @@ nouveau_connector_destroy(struct drm_connector *connector)
 	kfree(nv_connector->edid);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-	if (nv_connector->aux.transfer)
+	if (nv_connector->aux.transfer) {
+		drm_dp_cec_unregister_connector(&nv_connector->aux);
 		drm_dp_aux_unregister(&nv_connector->aux);
+	}
 	kfree(connector);
 }
 
@@ -608,6 +610,7 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 
 		nouveau_connector_set_encoder(connector, nv_encoder);
 		conn_status = connector_status_connected;
+		drm_dp_cec_set_edid(&nv_connector->aux, nv_connector->edid);
 		goto out;
 	}
 
@@ -1108,11 +1111,14 @@ nouveau_connector_hotplug(struct nvif_notify *notify)
 
 	if (rep->mask & NVIF_NOTIFY_CONN_V0_IRQ) {
 		NV_DEBUG(drm, "service %s\n", name);
+		drm_dp_cec_irq(&nv_connector->aux);
 		if ((nv_encoder = find_encoder(connector, DCB_OUTPUT_DP)))
 			nv50_mstm_service(nv_encoder->dp.mstm);
 	} else {
 		bool plugged = (rep->mask != NVIF_NOTIFY_CONN_V0_UNPLUG);
 
+		if (!plugged)
+			drm_dp_cec_unset_edid(&nv_connector->aux);
 		NV_DEBUG(drm, "%splugged %s\n", plugged ? "" : "un", name);
 		if ((nv_encoder = find_encoder(connector, DCB_OUTPUT_DP))) {
 			if (!plugged)
@@ -1302,7 +1308,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 			kfree(nv_connector);
 			return ERR_PTR(ret);
 		}
-
 		funcs = &nouveau_connector_funcs;
 		break;
 	default:
@@ -1353,6 +1358,14 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		break;
 	default:
 		nv_connector->dithering_mode = DITHERING_MODE_AUTO;
+		break;
+	}
+
+	switch (type) {
+	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_eDP:
+		drm_dp_cec_register_connector(&nv_connector->aux,
+					      connector->name, dev->dev);
 		break;
 	}
 
