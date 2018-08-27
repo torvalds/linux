@@ -89,6 +89,13 @@ static void flush_and_reload_slb(void)
 
 static void flush_erat(void)
 {
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (!early_cpu_has_feature(CPU_FTR_ARCH_300)) {
+		flush_and_reload_slb();
+		return;
+	}
+#endif
+	/* PPC_INVALIDATE_ERAT can only be used on ISA v3 and newer */
 	asm volatile(PPC_INVALIDATE_ERAT : : :"memory");
 }
 
