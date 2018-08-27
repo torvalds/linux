@@ -980,6 +980,8 @@ static void get_pixel_clock_parameters(
 
 	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		pixel_clk_params->requested_pix_clk  /= 2;
+	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
+		pixel_clk_params->requested_pix_clk *= 2;
 
 }
 

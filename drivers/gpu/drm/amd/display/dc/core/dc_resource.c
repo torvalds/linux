@@ -363,6 +363,9 @@ bool resource_are_streams_timing_synchronizable(
 			|| !dc_is_dp_signal(stream2->signal)))
 		return false;
 
+	if (stream1->view_format != stream2->view_format)
+		return false;
+
 	return true;
 }
 static bool is_dp_and_hdmi_sharable(
@@ -373,7 +376,7 @@ static bool is_dp_and_hdmi_sharable(
 		return false;
 
 	if (stream1->clamping.c_depth != COLOR_DEPTH_888 ||
-	    stream2->clamping.c_depth != COLOR_DEPTH_888)
+		stream2->clamping.c_depth != COLOR_DEPTH_888)
 		return false;
 
 	return true;
