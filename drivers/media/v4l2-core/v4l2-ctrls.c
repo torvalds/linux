@@ -3289,11 +3289,10 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct media_device *mdev,
 		     struct v4l2_ext_controls *cs)
 {
 	struct media_request_object *obj = NULL;
+	struct media_request *req = NULL;
 	int ret;
 
 	if (cs->which == V4L2_CTRL_WHICH_REQUEST_VAL) {
-		struct media_request *req;
-
 		if (!mdev || cs->request_fd < 0)
 			return -EINVAL;
 
@@ -3306,11 +3305,18 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct media_device *mdev,
 			return -EACCES;
 		}
 
+		ret = media_request_lock_for_access(req);
+		if (ret) {
+			media_request_put(req);
+			return ret;
+		}
+
 		obj = v4l2_ctrls_find_req_obj(hdl, req, false);
-		/* Reference to the request held through obj */
-		media_request_put(req);
-		if (IS_ERR(obj))
+		if (IS_ERR(obj)) {
+			media_request_unlock_for_access(req);
+			media_request_put(req);
 			return PTR_ERR(obj);
+		}
 
 		hdl = container_of(obj, struct v4l2_ctrl_handler,
 				   req_obj);
@@ -3318,8 +3324,11 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct media_device *mdev,
 
 	ret = v4l2_g_ext_ctrls_common(hdl, cs);
 
-	if (obj)
+	if (obj) {
+		media_request_unlock_for_access(req);
 		media_request_object_put(obj);
+		media_request_put(req);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(v4l2_g_ext_ctrls);
