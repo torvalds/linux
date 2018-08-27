@@ -238,6 +238,10 @@ void drm_dp_cec_irq(struct drm_dp_aux *aux)
 	u8 cec_irq;
 	int ret;
 
+	/* No transfer function was set, so not a DP connector */
+	if (!aux->transfer)
+		return;
+
 	mutex_lock(&aux->cec.lock);
 	if (!aux->cec.adap)
 		goto unlock;
@@ -292,6 +296,10 @@ void drm_dp_cec_set_edid(struct drm_dp_aux *aux, const struct edid *edid)
 	u32 cec_caps = CEC_CAP_DEFAULTS | CEC_CAP_NEEDS_HPD;
 	unsigned int num_las = 1;
 	u8 cap;
+
+	/* No transfer function was set, so not a DP connector */
+	if (!aux->transfer)
+		return;
 
 #ifndef CONFIG_MEDIA_CEC_RC
 	/*
@@ -361,6 +369,10 @@ EXPORT_SYMBOL(drm_dp_cec_set_edid);
  */
 void drm_dp_cec_unset_edid(struct drm_dp_aux *aux)
 {
+	/* No transfer function was set, so not a DP connector */
+	if (!aux->transfer)
+		return;
+
 	cancel_delayed_work_sync(&aux->cec.unregister_work);
 
 	mutex_lock(&aux->cec.lock);
@@ -404,6 +416,8 @@ void drm_dp_cec_register_connector(struct drm_dp_aux *aux, const char *name,
 				   struct device *parent)
 {
 	WARN_ON(aux->cec.adap);
+	if (WARN_ON(!aux->transfer))
+		return;
 	aux->cec.name = name;
 	aux->cec.parent = parent;
 	INIT_DELAYED_WORK(&aux->cec.unregister_work,
