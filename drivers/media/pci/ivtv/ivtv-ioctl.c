@@ -36,6 +36,7 @@
 #include <media/tveeprom.h>
 #include <media/v4l2-event.h>
 #ifdef CONFIG_VIDEO_IVTV_DEPRECATED_IOCTLS
+#include <linux/compat.h>
 #include <linux/dvb/audio.h>
 #include <linux/dvb/video.h>
 #endif
@@ -1627,6 +1628,21 @@ static __inline__ void warn_deprecated_ioctl(const char *name)
 	pr_warn_once("warning: the %s ioctl is deprecated. Don't use it, as it will be removed soon\n",
 		     name);
 }
+
+#ifdef CONFIG_COMPAT
+struct compat_video_event {
+	__s32 type;
+	/* unused, make sure to use atomic time for y2038 if it ever gets used */
+	compat_long_t timestamp;
+	union {
+		video_size_t size;
+		unsigned int frame_rate;        /* in frames per 1000sec */
+		unsigned char vsync_field;      /* unknown/odd/even/progressive */
+	} u;
+};
+#define VIDEO_GET_EVENT32 _IOR('o', 28, struct compat_video_event)
+#endif
+
 #endif
 
 static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
@@ -1749,7 +1765,13 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		return ivtv_video_command(itv, id, dc, try);
 	}
 
+#ifdef CONFIG_COMPAT
+	case VIDEO_GET_EVENT32:
+#endif
 	case VIDEO_GET_EVENT: {
+#ifdef CONFIG_COMPAT
+		struct compat_video_event *ev32 = arg;
+#endif
 		struct video_event *ev = arg;
 		DEFINE_WAIT(wait);
 
@@ -1763,14 +1785,22 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 			if (test_and_clear_bit(IVTV_F_I_EV_DEC_STOPPED, &itv->i_flags))
 				ev->type = VIDEO_EVENT_DECODER_STOPPED;
 			else if (test_and_clear_bit(IVTV_F_I_EV_VSYNC, &itv->i_flags)) {
+				unsigned char vsync_field;
+
 				ev->type = VIDEO_EVENT_VSYNC;
-				ev->u.vsync_field = test_bit(IVTV_F_I_EV_VSYNC_FIELD, &itv->i_flags) ?
+				vsync_field = test_bit(IVTV_F_I_EV_VSYNC_FIELD, &itv->i_flags) ?
 					VIDEO_VSYNC_FIELD_ODD : VIDEO_VSYNC_FIELD_EVEN;
 				if (itv->output_mode == OUT_UDMA_YUV &&
 					(itv->yuv_info.lace_mode & IVTV_YUV_MODE_MASK) ==
 								IVTV_YUV_MODE_PROGRESSIVE) {
-					ev->u.vsync_field = VIDEO_VSYNC_FIELD_PROGRESSIVE;
+					vsync_field = VIDEO_VSYNC_FIELD_PROGRESSIVE;
 				}
+#ifdef CONFIG_COMPAT
+				if (cmd == VIDEO_GET_EVENT32)
+					ev32->u.vsync_field = vsync_field;
+				else
+#endif
+					ev->u.vsync_field = vsync_field;
 			}
 			if (ev->type)
 				return 0;

@@ -103,11 +103,6 @@
 
 #include <linux/hiddev.h>
 
-#define __DVB_CORE__
-#include <linux/dvb/audio.h>
-#include <linux/dvb/dmx.h>
-#include <linux/dvb/frontend.h>
-#include <linux/dvb/video.h>
 
 #include <linux/sort.h>
 
@@ -131,73 +126,6 @@ static int do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return err;
 
 	return vfs_ioctl(file, cmd, arg);
-}
-
-struct compat_video_event {
-	int32_t		type;
-	compat_time_t	timestamp;
-	union {
-	        video_size_t size;
-		unsigned int frame_rate;
-	} u;
-};
-#define VIDEO_GET_EVENT32 _IOR('o', 28, struct compat_video_event)
-
-static int do_video_get_event(struct file *file,
-		unsigned int cmd, struct compat_video_event __user *up)
-{
-	struct video_event __user *kevent =
-		compat_alloc_user_space(sizeof(*kevent));
-	int err;
-
-	if (kevent == NULL)
-		return -EFAULT;
-
-	err = do_ioctl(file, VIDEO_GET_EVENT, (unsigned long)kevent);
-	if (!err) {
-		err  = convert_in_user(&kevent->type, &up->type);
-		err |= convert_in_user(&kevent->timestamp, &up->timestamp);
-		err |= convert_in_user(&kevent->u.size.w, &up->u.size.w);
-		err |= convert_in_user(&kevent->u.size.h, &up->u.size.h);
-		err |= convert_in_user(&kevent->u.size.aspect_ratio,
-				&up->u.size.aspect_ratio);
-		if (err)
-			err = -EFAULT;
-	}
-
-	return err;
-}
-
-struct compat_video_still_picture {
-        compat_uptr_t iFrame;
-        int32_t size;
-};
-#define VIDEO_STILLPICTURE32 _IOW('o', 30, struct compat_video_still_picture)
-
-static int do_video_stillpicture(struct file *file,
-		unsigned int cmd, struct compat_video_still_picture __user *up)
-{
-	struct video_still_picture __user *up_native;
-	compat_uptr_t fp;
-	int32_t size;
-	int err;
-
-	err  = get_user(fp, &up->iFrame);
-	err |= get_user(size, &up->size);
-	if (err)
-		return -EFAULT;
-
-	up_native =
-		compat_alloc_user_space(sizeof(struct video_still_picture));
-
-	err =  put_user(compat_ptr(fp), &up_native->iFrame);
-	err |= put_user(size, &up_native->size);
-	if (err)
-		return -EFAULT;
-
-	err = do_ioctl(file, VIDEO_STILLPICTURE, (unsigned long) up_native);
-
-	return err;
 }
 
 #ifdef CONFIG_BLOCK
@@ -1250,12 +1178,6 @@ static long do_ioctl_trans(unsigned int cmd,
 	case RTC_EPOCH_READ32:
 	case RTC_EPOCH_SET32:
 		return rtc_ioctl(file, cmd, argp);
-
-	/* dvb */
-	case VIDEO_GET_EVENT32:
-		return do_video_get_event(file, cmd, argp);
-	case VIDEO_STILLPICTURE32:
-		return do_video_stillpicture(file, cmd, argp);
 	}
 
 	/*
