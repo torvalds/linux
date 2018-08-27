@@ -1611,7 +1611,7 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 	else
 		busy = 0;
 	if (atomic_read(&shost->host_blocked) > 0) {
-		if (busy)
+		if (busy || scsi_host_busy(shost))
 			goto starved;
 
 		/*
