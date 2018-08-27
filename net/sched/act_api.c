@@ -300,21 +300,17 @@ int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(tcf_generic_walker);
 
-static bool __tcf_idr_check(struct tc_action_net *tn, u32 index,
-			    struct tc_action **a, int bind)
+int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index)
 {
 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
 	struct tc_action *p;
 
 	spin_lock(&idrinfo->lock);
 	p = idr_find(&idrinfo->action_idr, index);
-	if (IS_ERR(p)) {
+	if (IS_ERR(p))
 		p = NULL;
-	} else if (p) {
+	else if (p)
 		refcount_inc(&p->tcfa_refcnt);
-		if (bind)
-			atomic_inc(&p->tcfa_bindcnt);
-	}
 	spin_unlock(&idrinfo->lock);
 
 	if (p) {
@@ -323,23 +319,10 @@ static bool __tcf_idr_check(struct tc_action_net *tn, u32 index,
 	}
 	return false;
 }
-
-int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index)
-{
-	return __tcf_idr_check(tn, index, a, 0);
-}
 EXPORT_SYMBOL(tcf_idr_search);
 
-bool tcf_idr_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
-		   int bind)
+static int tcf_idr_delete_index(struct tcf_idrinfo *idrinfo, u32 index)
 {
-	return __tcf_idr_check(tn, index, a, bind);
-}
-EXPORT_SYMBOL(tcf_idr_check);
-
-int tcf_idr_delete_index(struct tc_action_net *tn, u32 index)
-{
-	struct tcf_idrinfo *idrinfo = tn->idrinfo;
 	struct tc_action *p;
 	int ret = 0;
 
@@ -370,7 +353,6 @@ int tcf_idr_delete_index(struct tc_action_net *tn, u32 index)
 	spin_unlock(&idrinfo->lock);
 	return ret;
 }
-EXPORT_SYMBOL(tcf_idr_delete_index);
 
 int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		   struct tc_action **a, const struct tc_action_ops *ops,
@@ -409,7 +391,6 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 
 	p->idrinfo = idrinfo;
 	p->ops = ops;
-	INIT_LIST_HEAD(&p->list);
 	*a = p;
 	return 0;
 err3:
@@ -686,14 +667,18 @@ static int tcf_action_put(struct tc_action *p)
 	return __tcf_action_put(p, false);
 }
 
+/* Put all actions in this array, skip those NULL's. */
 static void tcf_action_put_many(struct tc_action *actions[])
 {
 	int i;
 
-	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
+	for (i = 0; i < TCA_ACT_MAX_PRIO; i++) {
 		struct tc_action *a = actions[i];
-		const struct tc_action_ops *ops = a->ops;
+		const struct tc_action_ops *ops;
 
+		if (!a)
+			continue;
+		ops = a->ops;
 		if (tcf_action_put(a))
 			module_put(ops->owner);
 	}
@@ -1175,41 +1160,38 @@ err_out:
 	return err;
 }
 
-static int tcf_action_delete(struct net *net, struct tc_action *actions[],
-			     int *acts_deleted, struct netlink_ext_ack *extack)
+static int tcf_action_delete(struct net *net, struct tc_action *actions[])
 {
-	u32 act_index;
-	int ret, i;
+	int i;
 
 	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
 		struct tc_action *a = actions[i];
 		const struct tc_action_ops *ops = a->ops;
-
 		/* Actions can be deleted concurrently so we must save their
 		 * type and id to search again after reference is released.
 		 */
-		act_index = a->tcfa_index;
+		struct tcf_idrinfo *idrinfo = a->idrinfo;
+		u32 act_index = a->tcfa_index;
 
 		if (tcf_action_put(a)) {
 			/* last reference, action was deleted concurrently */
 			module_put(ops->owner);
 		} else  {
+			int ret;
+
 			/* now do the delete */
-			ret = ops->delete(net, act_index);
-			if (ret < 0) {
-				*acts_deleted = i + 1;
+			ret = tcf_idr_delete_index(idrinfo, act_index);
+			if (ret < 0)
 				return ret;
-			}
 		}
+		actions[i] = NULL;
 	}
-	*acts_deleted = i;
 	return 0;
 }
 
 static int
 tcf_del_notify(struct net *net, struct nlmsghdr *n, struct tc_action *actions[],
-	       int *acts_deleted, u32 portid, size_t attr_size,
-	       struct netlink_ext_ack *extack)
+	       u32 portid, size_t attr_size, struct netlink_ext_ack *extack)
 {
 	int ret;
 	struct sk_buff *skb;
@@ -1227,7 +1209,7 @@ tcf_del_notify(struct net *net, struct nlmsghdr *n, struct tc_action *actions[],
 	}
 
 	/* now do the delete */
-	ret = tcf_action_delete(net, actions, acts_deleted, extack);
+	ret = tcf_action_delete(net, actions);
 	if (ret < 0) {
 		NL_SET_ERR_MSG(extack, "Failed to delete TC action");
 		kfree_skb(skb);
@@ -1249,8 +1231,7 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *act;
 	size_t attr_size = 0;
-	struct tc_action *actions[TCA_ACT_MAX_PRIO + 1] = {};
-	int acts_deleted = 0;
+	struct tc_action *actions[TCA_ACT_MAX_PRIO] = {};
 
 	ret = nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL, extack);
 	if (ret < 0)
@@ -1280,14 +1261,13 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	if (event == RTM_GETACTION)
 		ret = tcf_get_notify(net, portid, n, actions, event, extack);
 	else { /* delete */
-		ret = tcf_del_notify(net, n, actions, &acts_deleted, portid,
-				     attr_size, extack);
+		ret = tcf_del_notify(net, n, actions, portid, attr_size, extack);
 		if (ret)
 			goto err;
-		return ret;
+		return 0;
 	}
 err:
-	tcf_action_put_many(&actions[acts_deleted]);
+	tcf_action_put_many(actions);
 	return ret;
 }
 

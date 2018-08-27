@@ -1576,8 +1576,7 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_id, u8 tc,
 			return status;
 	}
 
-	if (owner == ICE_SCHED_NODE_OWNER_LAN)
-		vsi->max_lanq[tc] = new_numqs;
+	vsi->max_lanq[tc] = new_numqs;
 
 	return status;
 }

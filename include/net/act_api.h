@@ -23,13 +23,11 @@ struct tc_action {
 	const struct tc_action_ops	*ops;
 	__u32				type; /* for backward compat(TCA_OLD_COMPAT) */
 	__u32				order;
-	struct list_head		list;
 	struct tcf_idrinfo		*idrinfo;
 
 	u32				tcfa_index;
 	refcount_t			tcfa_refcnt;
 	atomic_t			tcfa_bindcnt;
-	u32				tcfa_capab;
 	int				tcfa_action;
 	struct tcf_t			tcfa_tm;
 	struct gnet_stats_basic_packed	tcfa_bstats;
@@ -44,7 +42,6 @@ struct tc_action {
 #define tcf_index	common.tcfa_index
 #define tcf_refcnt	common.tcfa_refcnt
 #define tcf_bindcnt	common.tcfa_bindcnt
-#define tcf_capab	common.tcfa_capab
 #define tcf_action	common.tcfa_action
 #define tcf_tm		common.tcfa_tm
 #define tcf_bstats	common.tcfa_bstats
@@ -102,7 +99,6 @@ struct tc_action_ops {
 	size_t  (*get_fill_size)(const struct tc_action *act);
 	struct net_device *(*get_dev)(const struct tc_action *a);
 	void	(*put_dev)(struct net_device *dev);
-	int     (*delete)(struct net *net, u32 index);
 };
 
 struct tc_action_net {
@@ -148,8 +144,6 @@ int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 		       const struct tc_action_ops *ops,
 		       struct netlink_ext_ack *extack);
 int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index);
-bool tcf_idr_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
-		    int bind);
 int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		   struct tc_action **a, const struct tc_action_ops *ops,
 		   int bind, bool cpustats);
@@ -158,7 +152,6 @@ void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a);
 void tcf_idr_cleanup(struct tc_action_net *tn, u32 index);
 int tcf_idr_check_alloc(struct tc_action_net *tn, u32 *index,
 			struct tc_action **a, int bind);
-int tcf_idr_delete_index(struct tc_action_net *tn, u32 index);
 int __tcf_idr_release(struct tc_action *a, bool bind, bool strict);
 
 static inline int tcf_idr_release(struct tc_action *a, bool bind)
