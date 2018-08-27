@@ -863,9 +863,7 @@ ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args);
  * Send a request in the background
  */
 void fuse_request_send_background(struct fuse_conn *fc, struct fuse_req *req);
-
-void fuse_request_send_background_nocheck(struct fuse_conn *fc,
-					  struct fuse_req *req);
+bool fuse_request_queue_background(struct fuse_conn *fc, struct fuse_req *req);
 
 /* Abort all requests */
 void fuse_abort_conn(struct fuse_conn *fc, bool is_abort);

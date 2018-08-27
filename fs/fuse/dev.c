@@ -581,42 +581,38 @@ ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args)
 	return ret;
 }
 
-/*
- * Called under fc->lock
- *
- * fc->connected must have been checked previously
- */
-void fuse_request_send_background_nocheck(struct fuse_conn *fc,
-					  struct fuse_req *req)
+bool fuse_request_queue_background(struct fuse_conn *fc, struct fuse_req *req)
 {
-	BUG_ON(!test_bit(FR_BACKGROUND, &req->flags));
+	bool queued = false;
+
+	WARN_ON(!test_bit(FR_BACKGROUND, &req->flags));
 	if (!test_bit(FR_WAITING, &req->flags)) {
 		__set_bit(FR_WAITING, &req->flags);
 		atomic_inc(&fc->num_waiting);
 	}
 	__set_bit(FR_ISREPLY, &req->flags);
 	spin_lock(&fc->bg_lock);
-	fc->num_background++;
-	if (fc->num_background == fc->max_background)
-		fc->blocked = 1;
-	if (fc->num_background == fc->congestion_threshold && fc->sb) {
-		set_bdi_congested(fc->sb->s_bdi, BLK_RW_SYNC);
-		set_bdi_congested(fc->sb->s_bdi, BLK_RW_ASYNC);
+	if (likely(fc->connected)) {
+		fc->num_background++;
+		if (fc->num_background == fc->max_background)
+			fc->blocked = 1;
+		if (fc->num_background == fc->congestion_threshold && fc->sb) {
+			set_bdi_congested(fc->sb->s_bdi, BLK_RW_SYNC);
+			set_bdi_congested(fc->sb->s_bdi, BLK_RW_ASYNC);
+		}
+		list_add_tail(&req->list, &fc->bg_queue);
+		flush_bg_queue(fc);
+		queued = true;
 	}
-	list_add_tail(&req->list, &fc->bg_queue);
-	flush_bg_queue(fc);
 	spin_unlock(&fc->bg_lock);
+
+	return queued;
 }
 
 void fuse_request_send_background(struct fuse_conn *fc, struct fuse_req *req)
 {
-	BUG_ON(!req->end);
-	spin_lock(&fc->lock);
-	if (fc->connected) {
-		fuse_request_send_background_nocheck(fc, req);
-		spin_unlock(&fc->lock);
-	} else {
-		spin_unlock(&fc->lock);
+	WARN_ON(!req->end);
+	if (!fuse_request_queue_background(fc, req)) {
 		req->out.h.error = -ENOTCONN;
 		req->end(fc, req);
 		fuse_put_request(fc, req);
@@ -2119,7 +2115,11 @@ void fuse_abort_conn(struct fuse_conn *fc, bool is_abort)
 		struct fuse_req *req, *next;
 		LIST_HEAD(to_end);
 
+		/* Background queuing checks fc->connected under bg_lock */
+		spin_lock(&fc->bg_lock);
 		fc->connected = 0;
+		spin_unlock(&fc->bg_lock);
+
 		fc->aborted = is_abort;
 		fuse_set_initialized(fc);
 		list_for_each_entry(fud, &fc->devices, entry) {
