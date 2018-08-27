@@ -22,7 +22,9 @@
 
 #define CRC_T10DIF_PMULL_CHUNK_SIZE	16U
 
-asmlinkage u16 crc_t10dif_pmull(u16 init_crc, const u8 buf[], u64 len);
+asmlinkage u16 crc_t10dif_pmull_p64(u16 init_crc, const u8 buf[], u64 len);
+
+static u16 (*crc_t10dif_pmull)(u16 init_crc, const u8 buf[], u64 len);
 
 static int crct10dif_init(struct shash_desc *desc)
 {
@@ -85,6 +87,8 @@ static struct shash_alg crc_t10dif_alg = {
 
 static int __init crc_t10dif_mod_init(void)
 {
+	crc_t10dif_pmull = crc_t10dif_pmull_p64;
+
 	return crypto_register_shash(&crc_t10dif_alg);
 }
 
