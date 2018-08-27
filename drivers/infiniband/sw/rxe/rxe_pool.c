@@ -450,12 +450,11 @@ void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 			node = node->rb_left;
 		else if (elem->index < index)
 			node = node->rb_right;
-		else
+		else {
+			kref_get(&elem->ref_cnt);
 			break;
+		}
 	}
-
-	if (node)
-		kref_get(&elem->ref_cnt);
 
 out:
 	read_unlock_irqrestore(&pool->pool_lock, flags);
