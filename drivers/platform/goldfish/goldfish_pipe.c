@@ -85,7 +85,10 @@ enum PipePollFlags {
 	PIPE_POLL_HUP	= 1 << 2
 };
 
-/* Possible status values used to signal errors - see goldfish_pipe_error_convert */
+/*
+ * Possible status values used to signal errors
+ * see: goldfish_pipe_error_convert
+ */
 enum PipeErrors {
 	PIPE_ERROR_INVAL  = -1,
 	PIPE_ERROR_AGAIN  = -2,
@@ -150,9 +153,9 @@ struct goldfish_pipe_command;
 
 /* A per-pipe command structure, shared with the host */
 struct goldfish_pipe_command {
-	s32 cmd;		/* PipeCmdCode, guest -> host */
-	s32 id;			/* pipe id, guest -> host */
-	s32 status;		/* command execution status, host -> guest */
+	s32 cmd;	/* PipeCmdCode, guest -> host */
+	s32 id;		/* pipe id, guest -> host */
+	s32 status;	/* command execution status, host -> guest */
 	s32 reserved;	/* to pad to 64-bit boundary */
 	union {
 		/* Parameters for PIPE_CMD_{READ,WRITE} */
