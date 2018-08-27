@@ -363,18 +363,18 @@ static int transfer_max_buffers(struct goldfish_pipe *pipe,
 
 static int wait_for_host_signal(struct goldfish_pipe *pipe, int is_write)
 {
-	u32 wakeBit = is_write ? BIT_WAKE_ON_WRITE : BIT_WAKE_ON_READ;
+	u32 wake_bit = is_write ? BIT_WAKE_ON_WRITE : BIT_WAKE_ON_READ;
 
-	set_bit(wakeBit, &pipe->flags);
+	set_bit(wake_bit, &pipe->flags);
 
 	/* Tell the emulator we're going to wait for a wake event */
 	(void)goldfish_cmd(pipe,
 		is_write ? PIPE_CMD_WAKE_ON_WRITE : PIPE_CMD_WAKE_ON_READ);
 
-	while (test_bit(wakeBit, &pipe->flags)) {
+	while (test_bit(wake_bit, &pipe->flags)) {
 		if (wait_event_interruptible(
 				pipe->wake_queue,
-				!test_bit(wakeBit, &pipe->flags)))
+				!test_bit(wake_bit, &pipe->flags)))
 			return -ERESTARTSYS;
 
 		if (test_bit(BIT_CLOSED_ON_HOST, &pipe->flags))
