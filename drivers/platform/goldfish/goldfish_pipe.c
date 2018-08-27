@@ -699,7 +699,7 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 
 	/* Allocate new pipe kernel object */
 	struct goldfish_pipe *pipe = kzalloc(sizeof(*pipe), GFP_KERNEL);
-	if (pipe == NULL)
+	if (!pipe)
 		return -ENOMEM;
 
 	pipe->dev = dev;
@@ -865,23 +865,23 @@ static int goldfish_pipe_probe(struct platform_device *pdev)
 	struct goldfish_pipe_dev *dev = &goldfish_pipe_dev;
 
 	/* not thread safe, but this should not happen */
-	WARN_ON(dev->base != NULL);
+	WARN_ON(dev->base);
 
 	spin_lock_init(&dev->lock);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (r == NULL || resource_size(r) < PAGE_SIZE) {
+	if (!r || resource_size(r) < PAGE_SIZE) {
 		dev_err(&pdev->dev, "can't allocate i/o page\n");
 		return -EINVAL;
 	}
 	dev->base = devm_ioremap(&pdev->dev, r->start, PAGE_SIZE);
-	if (dev->base == NULL) {
+	if (!dev->base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		return -EINVAL;
 	}
 
 	r = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (r == NULL) {
+	if (!r) {
 		err = -EINVAL;
 		goto error;
 	}
