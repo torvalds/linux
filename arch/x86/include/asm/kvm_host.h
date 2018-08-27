@@ -1055,6 +1055,7 @@ struct kvm_x86_ops {
 	bool (*umip_emulated)(void);
 
 	int (*check_nested_events)(struct kvm_vcpu *vcpu, bool external_intr);
+	void (*request_immediate_exit)(struct kvm_vcpu *vcpu);
 
 	void (*sched_in)(struct kvm_vcpu *kvm, int cpu);
 
@@ -1482,6 +1483,7 @@ extern bool kvm_find_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn);
 
 int kvm_skip_emulated_instruction(struct kvm_vcpu *vcpu);
 int kvm_complete_insn_gp(struct kvm_vcpu *vcpu, int err);
+void __kvm_request_immediate_exit(struct kvm_vcpu *vcpu);
 
 int kvm_is_in_guest(void);
 

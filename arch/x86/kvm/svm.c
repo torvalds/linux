@@ -7148,6 +7148,8 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.check_intercept = svm_check_intercept,
 	.handle_external_intr = svm_handle_external_intr,
 
+	.request_immediate_exit = __kvm_request_immediate_exit,
+
 	.sched_in = svm_sched_in,
 
 	.pmu_ops = &amd_pmu_ops,

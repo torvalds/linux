@@ -1020,6 +1020,8 @@ struct vcpu_vmx {
 	int ple_window;
 	bool ple_window_dirty;
 
+	bool req_immediate_exit;
+
 	/* Support for PML */
 #define PML_ENTITY_NUM		512
 	struct page *pml_pg;
@@ -2864,6 +2866,8 @@ static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	unsigned long fs_base, gs_base;
 	u16 fs_sel, gs_sel;
 	int i;
+
+	vmx->req_immediate_exit = false;
 
 	if (vmx->loaded_cpu_state)
 		return;
@@ -7967,6 +7971,9 @@ static __init int hardware_setup(void)
 		kvm_x86_ops->enable_log_dirty_pt_masked = NULL;
 	}
 
+	if (!cpu_has_vmx_preemption_timer())
+		kvm_x86_ops->request_immediate_exit = __kvm_request_immediate_exit;
+
 	if (cpu_has_vmx_preemption_timer() && enable_preemption_timer) {
 		u64 vmx_msr;
 
@@ -9209,7 +9216,8 @@ static int handle_pml_full(struct kvm_vcpu *vcpu)
 
 static int handle_preemption_timer(struct kvm_vcpu *vcpu)
 {
-	kvm_lapic_expired_hv_timer(vcpu);
+	if (!to_vmx(vcpu)->req_immediate_exit)
+		kvm_lapic_expired_hv_timer(vcpu);
 	return 1;
 }
 
@@ -10610,6 +10618,11 @@ static void vmx_update_hv_timer(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u64 tscl;
 	u32 delta_tsc;
+
+	if (vmx->req_immediate_exit) {
+		vmx_arm_hv_timer(vmx, 0);
+		return;
+	}
 
 	if (vmx->hv_deadline_tsc != -1) {
 		tscl = rdtsc();
@@ -12879,6 +12892,11 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu, bool external_intr)
 	return 0;
 }
 
+static void vmx_request_immediate_exit(struct kvm_vcpu *vcpu)
+{
+	to_vmx(vcpu)->req_immediate_exit = true;
+}
+
 static u32 vmx_get_preemption_timer_value(struct kvm_vcpu *vcpu)
 {
 	ktime_t remaining =
@@ -14135,6 +14153,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.umip_emulated = vmx_umip_emulated,
 
 	.check_nested_events = vmx_check_nested_events,
+	.request_immediate_exit = vmx_request_immediate_exit,
 
 	.sched_in = vmx_sched_in,
 
