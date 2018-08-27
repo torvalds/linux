@@ -368,7 +368,7 @@ static int wait_for_host_signal(struct goldfish_pipe *pipe, int is_write)
 	set_bit(wake_bit, &pipe->flags);
 
 	/* Tell the emulator we're going to wait for a wake event */
-	(void)goldfish_cmd(pipe,
+	goldfish_cmd(pipe,
 		is_write ? PIPE_CMD_WAKE_ON_WRITE : PIPE_CMD_WAKE_ON_READ);
 
 	while (test_bit(wake_bit, &pipe->flags)) {
@@ -748,7 +748,7 @@ static int goldfish_pipe_release(struct inode *inode, struct file *filp)
 	struct goldfish_pipe_dev *dev = pipe->dev;
 
 	/* The guest is closing the channel, so tell the emulator right now */
-	(void)goldfish_cmd(pipe, PIPE_CMD_CLOSE);
+	goldfish_cmd(pipe, PIPE_CMD_CLOSE);
 
 	spin_lock_irqsave(&dev->lock, flags);
 	dev->pipes[pipe->id] = NULL;
