@@ -468,6 +468,32 @@ error:
 }
 
 /**
+ * amdgpu_vm_bo_param - fill in parameters for PD/PT allocation
+ *
+ * @adev: amdgpu_device pointer
+ * @vm: requesting vm
+ * @bp: resulting BO allocation parameters
+ */
+static void amdgpu_vm_bo_param(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+			       int level, struct amdgpu_bo_param *bp)
+{
+	memset(bp, 0, sizeof(*bp));
+
+	bp->size = amdgpu_vm_bo_size(adev, level);
+	bp->byte_align = AMDGPU_GPU_PAGE_SIZE;
+	bp->domain = AMDGPU_GEM_DOMAIN_VRAM;
+	bp->flags = AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
+	if (vm->use_cpu_for_update)
+		bp->flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+	else
+		bp->flags |= AMDGPU_GEM_CREATE_SHADOW |
+			AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
+	bp->type = ttm_bo_type_kernel;
+	if (vm->root.base.bo)
+		bp->resv = vm->root.base.bo->tbo.resv;
+}
+
+/**
  * amdgpu_vm_alloc_levels - allocate the PD/PT levels
  *
  * @adev: amdgpu_device pointer
@@ -490,8 +516,8 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 				  unsigned level, bool ats)
 {
 	unsigned shift = amdgpu_vm_level_shift(adev, level);
+	struct amdgpu_bo_param bp;
 	unsigned pt_idx, from, to;
-	u64 flags;
 	int r;
 
 	if (!parent->entries) {
@@ -515,30 +541,14 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 	saddr = saddr & ((1 << shift) - 1);
 	eaddr = eaddr & ((1 << shift) - 1);
 
-	flags = AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
-	if (vm->root.base.bo->shadow)
-		flags |= AMDGPU_GEM_CREATE_SHADOW;
-	if (vm->use_cpu_for_update)
-		flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
-	else
-		flags |= AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
+	amdgpu_vm_bo_param(adev, vm, level, &bp);
 
 	/* walk over the address space and allocate the page tables */
 	for (pt_idx = from; pt_idx <= to; ++pt_idx) {
-		struct reservation_object *resv = vm->root.base.bo->tbo.resv;
 		struct amdgpu_vm_pt *entry = &parent->entries[pt_idx];
 		struct amdgpu_bo *pt;
 
 		if (!entry->base.bo) {
-			struct amdgpu_bo_param bp;
-
-			memset(&bp, 0, sizeof(bp));
-			bp.size = amdgpu_vm_bo_size(adev, level);
-			bp.byte_align = AMDGPU_GPU_PAGE_SIZE;
-			bp.domain = AMDGPU_GEM_DOMAIN_VRAM;
-			bp.flags = flags;
-			bp.type = ttm_bo_type_kernel;
-			bp.resv = resv;
 			r = amdgpu_bo_create(adev, &bp, &pt);
 			if (r)
 				return r;
@@ -2612,8 +2622,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 {
 	struct amdgpu_bo_param bp;
 	struct amdgpu_bo *root;
-	unsigned long size;
-	uint64_t flags;
 	int r, i;
 
 	vm->va = RB_ROOT_CACHED;
@@ -2651,20 +2659,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		  "CPU update of VM recommended only for large BAR system\n");
 	vm->last_update = NULL;
 
-	flags = AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
-	if (vm->use_cpu_for_update)
-		flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
-	else if (vm_context != AMDGPU_VM_CONTEXT_COMPUTE)
-		flags |= AMDGPU_GEM_CREATE_SHADOW;
-
-	size = amdgpu_vm_bo_size(adev, adev->vm_manager.root_level);
-	memset(&bp, 0, sizeof(bp));
-	bp.size = size;
-	bp.byte_align = AMDGPU_GPU_PAGE_SIZE;
-	bp.domain = AMDGPU_GEM_DOMAIN_VRAM;
-	bp.flags = flags;
-	bp.type = ttm_bo_type_kernel;
-	bp.resv = NULL;
+	amdgpu_vm_bo_param(adev, vm, adev->vm_manager.root_level, &bp);
 	r = amdgpu_bo_create(adev, &bp, &root);
 	if (r)
 		goto error_free_sched_entity;
