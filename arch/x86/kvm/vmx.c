@@ -397,6 +397,7 @@ struct loaded_vmcs {
 	int cpu;
 	bool launched;
 	bool nmi_known_unmasked;
+	bool hv_timer_armed;
 	/* Support for vnmi-less CPUs */
 	int soft_vnmi_blocked;
 	ktime_t entry_time;
@@ -10595,24 +10596,38 @@ static void atomic_switch_perf_msrs(struct vcpu_vmx *vmx)
 					msrs[i].host, false);
 }
 
-static void vmx_arm_hv_timer(struct kvm_vcpu *vcpu)
+static void vmx_arm_hv_timer(struct vcpu_vmx *vmx, u32 val)
+{
+	vmcs_write32(VMX_PREEMPTION_TIMER_VALUE, val);
+	if (!vmx->loaded_vmcs->hv_timer_armed)
+		vmcs_set_bits(PIN_BASED_VM_EXEC_CONTROL,
+			      PIN_BASED_VMX_PREEMPTION_TIMER);
+	vmx->loaded_vmcs->hv_timer_armed = true;
+}
+
+static void vmx_update_hv_timer(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u64 tscl;
 	u32 delta_tsc;
 
-	if (vmx->hv_deadline_tsc == -1)
+	if (vmx->hv_deadline_tsc != -1) {
+		tscl = rdtsc();
+		if (vmx->hv_deadline_tsc > tscl)
+			/* set_hv_timer ensures the delta fits in 32-bits */
+			delta_tsc = (u32)((vmx->hv_deadline_tsc - tscl) >>
+				cpu_preemption_timer_multi);
+		else
+			delta_tsc = 0;
+
+		vmx_arm_hv_timer(vmx, delta_tsc);
 		return;
+	}
 
-	tscl = rdtsc();
-	if (vmx->hv_deadline_tsc > tscl)
-		/* sure to be 32 bit only because checked on set_hv_timer */
-		delta_tsc = (u32)((vmx->hv_deadline_tsc - tscl) >>
-			cpu_preemption_timer_multi);
-	else
-		delta_tsc = 0;
-
-	vmcs_write32(VMX_PREEMPTION_TIMER_VALUE, delta_tsc);
+	if (vmx->loaded_vmcs->hv_timer_armed)
+		vmcs_clear_bits(PIN_BASED_VM_EXEC_CONTROL,
+				PIN_BASED_VMX_PREEMPTION_TIMER);
+	vmx->loaded_vmcs->hv_timer_armed = false;
 }
 
 static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
@@ -10672,7 +10687,7 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 	atomic_switch_perf_msrs(vmx);
 
-	vmx_arm_hv_timer(vcpu);
+	vmx_update_hv_timer(vcpu);
 
 	/*
 	 * If this vCPU has touched SPEC_CTRL, restore the guest's value if
@@ -12078,11 +12093,10 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 
 	exec_control = vmcs12->pin_based_vm_exec_control;
 
-	/* Preemption timer setting is only taken from vmcs01.  */
-	exec_control &= ~PIN_BASED_VMX_PREEMPTION_TIMER;
+	/* Preemption timer setting is computed directly in vmx_vcpu_run.  */
 	exec_control |= vmcs_config.pin_based_exec_ctrl;
-	if (vmx->hv_deadline_tsc == -1)
-		exec_control &= ~PIN_BASED_VMX_PREEMPTION_TIMER;
+	exec_control &= ~PIN_BASED_VMX_PREEMPTION_TIMER;
+	vmx->loaded_vmcs->hv_timer_armed = false;
 
 	/* Posted interrupts setting is only taken from vmcs12.  */
 	if (nested_cpu_has_posted_intr(vmcs12)) {
@@ -13255,12 +13269,7 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, vmx->msr_autoload.host.nr);
 	vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, vmx->msr_autoload.guest.nr);
 	vmcs_write64(TSC_OFFSET, vcpu->arch.tsc_offset);
-	if (vmx->hv_deadline_tsc == -1)
-		vmcs_clear_bits(PIN_BASED_VM_EXEC_CONTROL,
-				PIN_BASED_VMX_PREEMPTION_TIMER);
-	else
-		vmcs_set_bits(PIN_BASED_VM_EXEC_CONTROL,
-			      PIN_BASED_VMX_PREEMPTION_TIMER);
+
 	if (kvm_has_tsc_control)
 		decache_tsc_multiplier(vmx);
 
@@ -13464,18 +13473,12 @@ static int vmx_set_hv_timer(struct kvm_vcpu *vcpu, u64 guest_deadline_tsc)
 		return -ERANGE;
 
 	vmx->hv_deadline_tsc = tscl + delta_tsc;
-	vmcs_set_bits(PIN_BASED_VM_EXEC_CONTROL,
-			PIN_BASED_VMX_PREEMPTION_TIMER);
-
 	return delta_tsc == 0;
 }
 
 static void vmx_cancel_hv_timer(struct kvm_vcpu *vcpu)
 {
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	vmx->hv_deadline_tsc = -1;
-	vmcs_clear_bits(PIN_BASED_VM_EXEC_CONTROL,
-			PIN_BASED_VMX_PREEMPTION_TIMER);
+	to_vmx(vcpu)->hv_deadline_tsc = -1;
 }
 #endif
 
