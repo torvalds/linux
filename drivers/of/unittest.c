@@ -299,6 +299,10 @@ static void __init of_unittest_printf(void)
 
 	of_unittest_printf_one(np, "%pOF",  full_name);
 	of_unittest_printf_one(np, "%pOFf", full_name);
+	of_unittest_printf_one(np, "%pOFn", "dev");
+	of_unittest_printf_one(np, "%2pOFn", "dev");
+	of_unittest_printf_one(np, "%5pOFn", "  dev");
+	of_unittest_printf_one(np, "%pOFnc", "dev:test-sub-device");
 	of_unittest_printf_one(np, "%pOFp", phandle_str);
 	of_unittest_printf_one(np, "%pOFP", "dev@100");
 	of_unittest_printf_one(np, "ABC %pOFP ABC", "ABC dev@100 ABC");
