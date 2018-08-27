@@ -322,8 +322,10 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 		pr_debug("Releasing pdd (topology id %d) for process (pasid %d)\n",
 				pdd->dev->id, p->pasid);
 
-		if (pdd->drm_file)
+		if (pdd->drm_file) {
+			pdd->dev->kfd2kgd->release_process_vm(pdd->dev->kgd, pdd->vm);
 			fput(pdd->drm_file);
+		}
 		else if (pdd->vm)
 			pdd->dev->kfd2kgd->destroy_process_vm(
 				pdd->dev->kgd, pdd->vm);

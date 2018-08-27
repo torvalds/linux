@@ -2824,6 +2824,26 @@ unreserve_bo:
 }
 
 /**
+ * amdgpu_vm_release_compute - release a compute vm
+ * @adev: amdgpu_device pointer
+ * @vm: a vm turned into compute vm by calling amdgpu_vm_make_compute
+ *
+ * This is a correspondant of amdgpu_vm_make_compute. It decouples compute
+ * pasid from vm. Compute should stop use of vm after this call.
+ */
+void amdgpu_vm_release_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
+{
+	if (vm->pasid) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&adev->vm_manager.pasid_lock, flags);
+		idr_remove(&adev->vm_manager.pasid_idr, vm->pasid);
+		spin_unlock_irqrestore(&adev->vm_manager.pasid_lock, flags);
+	}
+	vm->pasid = 0;
+}
+
+/**
  * amdgpu_vm_free_levels - free PD/PT levels
  *
  * @adev: amdgpu device structure
