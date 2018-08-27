@@ -1203,6 +1203,8 @@ vlv_sprite_check(struct intel_crtc_state *crtc_state,
 static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state)
 {
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	unsigned int rotation = plane_state->base.rotation;
 	struct drm_format_name_buf format_name;
@@ -1231,13 +1233,17 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 		}
 
 		/*
-		 * 90/270 is not allowed with RGB64 16:16:16:16,
-		 * RGB 16-bit 5:6:5, and Indexed 8-bit.
-		 * TBD: Add RGB64 case once its added in supported format list.
+		 * 90/270 is not allowed with RGB64 16:16:16:16 and
+		 * Indexed 8-bit. RGB 16-bit 5:6:5 is allowed gen11 onwards.
+		 * TBD: Add RGB64 case once its added in supported format
+		 * list.
 		 */
 		switch (fb->format->format) {
-		case DRM_FORMAT_C8:
 		case DRM_FORMAT_RGB565:
+			if (INTEL_GEN(dev_priv) >= 11)
+				break;
+			/* fall through */
+		case DRM_FORMAT_C8:
 			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n",
 				      drm_get_format_name(fb->format->format,
 							  &format_name));
