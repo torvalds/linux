@@ -166,6 +166,11 @@
 #define DWC3_DESCFETCHQ		13
 #define DWC3_EVENTQ		15
 
+/* Global TX Threshold Configuration Register */
+#define DWC3_GTXTHRCFG_MAXRXBURSTSIZE(n) (((n) & 0xff) << 16)
+#define DWC3_GTXTHRCFG_TXPKTCNT(n) (((n) & 0xf) << 24)
+#define DWC3_GTXTHRCFG_PKTCNTSEL BIT(29)
+
 /* Global RX Threshold Configuration Register */
 #define DWC3_GRXTHRCFG_MAXRXBURSTSIZE(n) (((n) & 0x1f) << 19)
 #define DWC3_GRXTHRCFG_RXPKTCNT(n) (((n) & 0xf) << 24)
@@ -785,6 +790,8 @@ struct dwc3_scratchpad_array {
  * @test_mode_nr: test feature selector
  * @lpm_nyet_threshold: LPM NYET response threshold
  * @hird_threshold: HIRD threshold
+ * @grxthrcfg: global Tx threshold config
+ * @gtxthrcfg: global Rx threshold config
  * @hsphy_interface: "utmi" or "ulpi"
  * @connected: true when we're connected to a host, false otherwise
  * @delayed_status: true when gadget driver asks for delayed status
@@ -943,6 +950,8 @@ struct dwc3 {
 	u8			test_mode_nr;
 	u8			lpm_nyet_threshold;
 	u8			hird_threshold;
+	u32			grxthrcfg[2];
+	u32			gtxthrcfg[2];
 
 	const char		*hsphy_interface;
 
