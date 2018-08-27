@@ -31,6 +31,11 @@
 			reg = <0x5ee00000 0x00200000>;
 			no-map;
 		};
+
+		flash_memory: region@98000000 {
+			no-map;
+			reg = <0x98000000 0x01000000>; /* 16MB */
+		};
 	};
 
 	leds {
@@ -188,6 +193,12 @@
 
 &ibt {
 	status = "okay";
+};
+
+&lpc_ctrl {
+	status = "okay";
+	memory-region = <&flash_memory>;
+	flash = <&spi>;
 };
 
 &gpio {
