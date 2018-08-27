@@ -84,11 +84,11 @@ struct rk_priv_data {
 	(((tx) ? soc##_GMAC_TXCLK_DLY_ENABLE : soc##_GMAC_TXCLK_DLY_DISABLE) | \
 	 ((rx) ? soc##_GMAC_RXCLK_DLY_ENABLE : soc##_GMAC_RXCLK_DLY_DISABLE))
 
-#define PX30_GRF_GMAC_CON1		0X0904
+#define PX30_GRF_GMAC_CON1		0x0904
 
 /* PX30_GRF_GMAC_CON1 */
 #define PX30_GMAC_PHY_INTF_SEL_RMII	(GRF_CLR_BIT(4) | GRF_CLR_BIT(5) | \
-					GRF_BIT(6))
+					 GRF_BIT(6))
 #define PX30_GMAC_SPEED_10M		GRF_CLR_BIT(2)
 #define PX30_GMAC_SPEED_100M		GRF_BIT(2)
 
@@ -1215,6 +1215,9 @@ static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
 			if (!IS_ERR(bsp_priv->mac_clk_tx))
 				clk_prepare_enable(bsp_priv->mac_clk_tx);
 
+			if (!IS_ERR(bsp_priv->clk_mac_speed))
+				clk_prepare_enable(bsp_priv->clk_mac_speed);
+
 			/**
 			 * if (!IS_ERR(bsp_priv->clk_mac))
 			 *	clk_prepare_enable(bsp_priv->clk_mac);
@@ -1239,6 +1242,8 @@ static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
 			clk_disable_unprepare(bsp_priv->pclk_mac);
 
 			clk_disable_unprepare(bsp_priv->mac_clk_tx);
+
+			clk_disable_unprepare(bsp_priv->clk_mac_speed);
 			/**
 			 * if (!IS_ERR(bsp_priv->clk_mac))
 			 *	clk_disable_unprepare(bsp_priv->clk_mac);
