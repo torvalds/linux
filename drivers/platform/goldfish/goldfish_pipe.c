@@ -122,8 +122,8 @@ struct open_command_param {
 /* Device-level set of buffers shared with the host */
 struct goldfish_pipe_dev_buffers {
 	struct open_command_param open_command_params;
-	struct signalled_pipe_buffer signalled_pipe_buffers[
-		MAX_SIGNALLED_PIPES];
+	struct signalled_pipe_buffer
+		signalled_pipe_buffers[MAX_SIGNALLED_PIPES];
 };
 
 /* This data type models a given pipe instance */
@@ -373,8 +373,7 @@ static int wait_for_host_signal(struct goldfish_pipe *pipe, int is_write)
 		is_write ? PIPE_CMD_WAKE_ON_WRITE : PIPE_CMD_WAKE_ON_READ);
 
 	while (test_bit(wake_bit, &pipe->flags)) {
-		if (wait_event_interruptible(
-				pipe->wake_queue,
+		if (wait_event_interruptible(pipe->wake_queue,
 				!test_bit(wake_bit, &pipe->flags)))
 			return -ERESTARTSYS;
 
