@@ -62,8 +62,11 @@
 #define CHT_WC_PWRSRC_VBUS		BIT(0)
 #define CHT_WC_PWRSRC_DC		BIT(1)
 #define CHT_WC_PWRSRC_BATT		BIT(2)
-#define CHT_WC_PWRSRC_ID_GND		BIT(3)
-#define CHT_WC_PWRSRC_ID_FLOAT		BIT(4)
+#define CHT_WC_PWRSRC_USBID_MASK	GENMASK(4, 3)
+#define CHT_WC_PWRSRC_USBID_SHIFT	3
+#define CHT_WC_PWRSRC_RID_ACA		0
+#define CHT_WC_PWRSRC_RID_GND		1
+#define CHT_WC_PWRSRC_RID_FLOAT		2
 
 #define CHT_WC_VBUS_GPIO_CTLO		0x6e2d
 #define CHT_WC_VBUS_GPIO_CTLO_OUTPUT	BIT(0)
@@ -104,16 +107,20 @@ struct cht_wc_extcon_data {
 
 static int cht_wc_extcon_get_id(struct cht_wc_extcon_data *ext, int pwrsrc_sts)
 {
-	if (pwrsrc_sts & CHT_WC_PWRSRC_ID_GND)
+	switch ((pwrsrc_sts & CHT_WC_PWRSRC_USBID_MASK) >> CHT_WC_PWRSRC_USBID_SHIFT) {
+	case CHT_WC_PWRSRC_RID_GND:
 		return USB_ID_GND;
-	if (pwrsrc_sts & CHT_WC_PWRSRC_ID_FLOAT)
+	case CHT_WC_PWRSRC_RID_FLOAT:
 		return USB_ID_FLOAT;
-
-	/*
-	 * Once we have iio support for the gpadc we should read the USBID
-	 * gpadc channel here and determine ACA role based on that.
-	 */
-	return USB_ID_FLOAT;
+	case CHT_WC_PWRSRC_RID_ACA:
+	default:
+		/*
+		 * Once we have IIO support for the GPADC we should read
+		 * the USBID GPADC channel here and determine ACA role
+		 * based on that.
+		 */
+		return USB_ID_FLOAT;
+	}
 }
 
 static int cht_wc_extcon_get_charger(struct cht_wc_extcon_data *ext,
@@ -292,6 +299,7 @@ static int cht_wc_extcon_probe(struct platform_device *pdev)
 {
 	struct intel_soc_pmic *pmic = dev_get_drvdata(pdev->dev.parent);
 	struct cht_wc_extcon_data *ext;
+	unsigned long mask = ~(CHT_WC_PWRSRC_VBUS | CHT_WC_PWRSRC_USBID_MASK);
 	int irq, ret;
 
 	irq = platform_get_irq(pdev, 0);
@@ -352,9 +360,7 @@ static int cht_wc_extcon_probe(struct platform_device *pdev)
 	}
 
 	/* Unmask irqs */
-	ret = regmap_write(ext->regmap, CHT_WC_PWRSRC_IRQ_MASK,
-			   (int)~(CHT_WC_PWRSRC_VBUS | CHT_WC_PWRSRC_ID_GND |
-				  CHT_WC_PWRSRC_ID_FLOAT));
+	ret = regmap_write(ext->regmap, CHT_WC_PWRSRC_IRQ_MASK, mask);
 	if (ret) {
 		dev_err(ext->dev, "Error writing irq-mask: %d\n", ret);
 		goto disable_sw_control;
