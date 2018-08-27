@@ -13619,24 +13619,15 @@ static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
 bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, enum plane_id plane_id)
 {
-	if (plane_id == PLANE_PRIMARY) {
-		if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
-			return false;
-		else if ((INTEL_GEN(dev_priv) == 9 && pipe == PIPE_C) &&
-			 !IS_GEMINILAKE(dev_priv))
-			return false;
-	} else if (plane_id >= PLANE_SPRITE0) {
-		if (plane_id == PLANE_CURSOR)
-			return false;
-		if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) == 10) {
-			if (plane_id != PLANE_SPRITE0)
-				return false;
-		} else {
-			if (plane_id != PLANE_SPRITE0 || pipe == PIPE_C ||
-			    IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
-				return false;
-		}
-	}
+	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
+		return false;
+
+	if (INTEL_GEN(dev_priv) == 9 && !IS_GEMINILAKE(dev_priv) && pipe == PIPE_C)
+		return false;
+
+	if (plane_id != PLANE_PRIMARY && plane_id != PLANE_SPRITE0)
+		return false;
+
 	return true;
 }
 
