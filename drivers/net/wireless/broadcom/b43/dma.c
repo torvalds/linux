@@ -1518,13 +1518,15 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			}
 		} else {
 			/* More than a single header/data pair were missed.
-			 * Report this error, and reset the controller to
+			 * Report this error. If running with open-source
+			 * firmware, then reset the controller to
 			 * revive operation.
 			 */
 			b43dbg(dev->wl,
 			       "Out of order TX status report on DMA ring %d. Expected %d, but got %d\n",
 			       ring->index, firstused, slot);
-			b43_controller_restart(dev, "Out of order TX");
+			if (dev->fw.opensource)
+				b43_controller_restart(dev, "Out of order TX");
 			return;
 		}
 	}
