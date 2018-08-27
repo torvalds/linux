@@ -2347,11 +2347,14 @@ static __init void of_unittest_overlay_high_level(void)
 		}
 	}
 
-	for (np = overlay_base_root->child; np; np = np->sibling) {
-		if (of_get_child_by_name(of_root, np->name)) {
-			unittest(0, "illegal node name in overlay_base %s",
-				np->name);
-			return;
+	for_each_child_of_node(overlay_base_root, np) {
+		struct device_node *base_child;
+		for_each_child_of_node(of_root, base_child) {
+			if (!strcmp(np->full_name, base_child->full_name)) {
+				unittest(0, "illegal node name in overlay_base %pOFn",
+					 np);
+				return;
+			}
 		}
 	}
 
