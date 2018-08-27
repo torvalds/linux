@@ -53,6 +53,7 @@ struct media_request_object;
  * @debug_str: Prefix for debug messages (process name:fd)
  * @state: The state of the request
  * @updating_count: count the number of request updates that are in progress
+ * @access_count: count the number of request accesses that are in progress
  * @objects: List of @struct media_request_object request objects
  * @num_incomplete_objects: The number of incomplete objects in the request
  * @poll_wait: Wait queue for poll
@@ -64,6 +65,7 @@ struct media_request {
 	char debug_str[TASK_COMM_LEN + 11];
 	enum media_request_state state;
 	unsigned int updating_count;
+	unsigned int access_count;
 	struct list_head objects;
 	unsigned int num_incomplete_objects;
 	struct wait_queue_head poll_wait;
@@ -71,6 +73,50 @@ struct media_request {
 };
 
 #ifdef CONFIG_MEDIA_CONTROLLER
+
+/**
+ * media_request_lock_for_access - Lock the request to access its objects
+ *
+ * @req: The media request
+ *
+ * Use before accessing a completed request. A reference to the request must
+ * be held during the access. This usually takes place automatically through
+ * a file handle. Use @media_request_unlock_for_access when done.
+ */
+static inline int __must_check
+media_request_lock_for_access(struct media_request *req)
+{
+	unsigned long flags;
+	int ret = -EBUSY;
+
+	spin_lock_irqsave(&req->lock, flags);
+	if (req->state == MEDIA_REQUEST_STATE_COMPLETE) {
+		req->access_count++;
+		ret = 0;
+	}
+	spin_unlock_irqrestore(&req->lock, flags);
+
+	return ret;
+}
+
+/**
+ * media_request_unlock_for_access - Unlock a request previously locked for
+ *				     access
+ *
+ * @req: The media request
+ *
+ * Unlock a request that has previously been locked using
+ * @media_request_lock_for_access.
+ */
+static inline void media_request_unlock_for_access(struct media_request *req)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&req->lock, flags);
+	if (!WARN_ON(!req->access_count))
+		req->access_count--;
+	spin_unlock_irqrestore(&req->lock, flags);
+}
 
 /**
  * media_request_lock_for_update - Lock the request for updating its objects
@@ -332,6 +378,16 @@ void media_request_object_unbind(struct media_request_object *obj);
 void media_request_object_complete(struct media_request_object *obj);
 
 #else
+
+static inline int __must_check
+media_request_lock_for_access(struct media_request *req)
+{
+	return -EINVAL;
+}
+
+static inline void media_request_unlock_for_access(struct media_request *req)
+{
+}
 
 static inline int __must_check
 media_request_lock_for_update(struct media_request *req)

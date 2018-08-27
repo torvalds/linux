@@ -43,6 +43,7 @@ static void media_request_clean(struct media_request *req)
 	/* Just a sanity check. No other code path is allowed to change this. */
 	WARN_ON(req->state != MEDIA_REQUEST_STATE_CLEANING);
 	WARN_ON(req->updating_count);
+	WARN_ON(req->access_count);
 
 	list_for_each_entry_safe(obj, obj_safe, &req->objects, list) {
 		media_request_object_unbind(obj);
@@ -50,6 +51,7 @@ static void media_request_clean(struct media_request *req)
 	}
 
 	req->updating_count = 0;
+	req->access_count = 0;
 	WARN_ON(req->num_incomplete_objects);
 	req->num_incomplete_objects = 0;
 	wake_up_interruptible_all(&req->poll_wait);
@@ -198,6 +200,13 @@ static long media_request_ioctl_reinit(struct media_request *req)
 		spin_unlock_irqrestore(&req->lock, flags);
 		return -EBUSY;
 	}
+	if (req->access_count) {
+		dev_dbg(mdev->dev,
+			"request: %s is being accessed, cannot reinit\n",
+			req->debug_str);
+		spin_unlock_irqrestore(&req->lock, flags);
+		return -EBUSY;
+	}
 	req->state = MEDIA_REQUEST_STATE_CLEANING;
 	spin_unlock_irqrestore(&req->lock, flags);
 
@@ -313,6 +322,7 @@ int media_request_alloc(struct media_device *mdev, int *alloc_fd)
 	spin_lock_init(&req->lock);
 	init_waitqueue_head(&req->poll_wait);
 	req->updating_count = 0;
+	req->access_count = 0;
 
 	*alloc_fd = fd;
 
