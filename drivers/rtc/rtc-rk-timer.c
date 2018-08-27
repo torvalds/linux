@@ -105,7 +105,26 @@ static inline int rk_timer_rtc_write64(struct rk_timer_rtc *rk_timer_rtc,
 static inline int rk_timer_rtc_read64(struct rk_timer_rtc *rk_timer_rtc,
 				      u32 reg, u64 *val)
 {
-	return regmap_bulk_read(rk_timer_rtc->regmap, reg, val, 2);
+	u32 val_lo, val_hi, tmp_hi;
+	int ret;
+
+	do {
+		ret = regmap_read(rk_timer_rtc->regmap, reg + 4, &val_hi);
+		if (ret)
+			return ret;
+
+		ret = regmap_read(rk_timer_rtc->regmap, reg, &val_lo);
+		if (ret)
+			return ret;
+
+		ret = regmap_read(rk_timer_rtc->regmap, reg + 4, &tmp_hi);
+		if (ret)
+			return ret;
+	} while (val_hi != tmp_hi);
+
+	*val = ((u64) val_hi << 32) | val_lo;
+
+	return 0;
 }
 
 static inline int rk_timer_rtc_irq_clear(struct rk_timer_rtc *rk_timer_rtc)
