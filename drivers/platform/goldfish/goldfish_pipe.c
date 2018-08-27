@@ -64,6 +64,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/acpi.h>
+#include "goldfish_pipe_qemu.h"
 
 /*
  * Update this when something changes in the driver's behavior so the host
@@ -72,74 +73,6 @@
 enum {
 	PIPE_DRIVER_VERSION = 2,
 	PIPE_CURRENT_DEVICE_VERSION = 2
-};
-
-/*
- * IMPORTANT: The following constants must match the ones used and defined
- * in external/qemu/hw/goldfish_pipe.c in the Android source tree.
- */
-
-/* List of bitflags returned in status of CMD_POLL command */
-enum PipePollFlags {
-	PIPE_POLL_IN	= 1 << 0,
-	PIPE_POLL_OUT	= 1 << 1,
-	PIPE_POLL_HUP	= 1 << 2
-};
-
-/*
- * Possible status values used to signal errors
- * see: goldfish_pipe_error_convert
- */
-enum PipeErrors {
-	PIPE_ERROR_INVAL  = -1,
-	PIPE_ERROR_AGAIN  = -2,
-	PIPE_ERROR_NOMEM  = -3,
-	PIPE_ERROR_IO     = -4
-};
-
-/* Bit-flags used to signal events from the emulator */
-enum PipeWakeFlags {
-	PIPE_WAKE_CLOSED = 1 << 0,  /* emulator closed pipe */
-	PIPE_WAKE_READ   = 1 << 1,  /* pipe can now be read from */
-	PIPE_WAKE_WRITE  = 1 << 2  /* pipe can now be written to */
-};
-
-/* Bit flags for the 'flags' field */
-enum PipeFlagsBits {
-	BIT_CLOSED_ON_HOST = 0,  /* pipe closed by host */
-	BIT_WAKE_ON_WRITE  = 1,  /* want to be woken on writes */
-	BIT_WAKE_ON_READ   = 2,  /* want to be woken on reads */
-};
-
-enum PipeRegs {
-	PIPE_REG_CMD = 0,
-
-	PIPE_REG_SIGNAL_BUFFER_HIGH = 4,
-	PIPE_REG_SIGNAL_BUFFER = 8,
-	PIPE_REG_SIGNAL_BUFFER_COUNT = 12,
-
-	PIPE_REG_OPEN_BUFFER_HIGH = 20,
-	PIPE_REG_OPEN_BUFFER = 24,
-
-	PIPE_REG_VERSION = 36,
-
-	PIPE_REG_GET_SIGNALLED = 48,
-};
-
-enum PipeCmdCode {
-	PIPE_CMD_OPEN = 1,	/* to be used by the pipe device itself */
-	PIPE_CMD_CLOSE,
-	PIPE_CMD_POLL,
-	PIPE_CMD_WRITE,
-	PIPE_CMD_WAKE_ON_WRITE,
-	PIPE_CMD_READ,
-	PIPE_CMD_WAKE_ON_READ,
-
-	/*
-	 * TODO(zyy): implement a deferred read/write execution to allow
-	 * parallel processing of pipe operations on the host.
-	 */
-	PIPE_CMD_WAKE_ON_DONE_IO,
 };
 
 enum {
