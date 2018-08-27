@@ -64,6 +64,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/acpi.h>
+#include <linux/bug.h>
 #include "goldfish_pipe_qemu.h"
 
 /*
@@ -689,6 +690,7 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 	 * Command buffer needs to be allocated on its own page to make sure
 	 * it is physically contiguous in host's address space.
 	 */
+	BUILD_BUG_ON(sizeof(struct goldfish_pipe_command) > PAGE_SIZE);
 	pipe->command_buffer =
 		(struct goldfish_pipe_command *)__get_free_page(GFP_KERNEL);
 	if (!pipe->command_buffer) {
@@ -798,9 +800,7 @@ static int goldfish_pipe_device_init(struct platform_device *pdev)
 	 * needs to be contained in a single physical page. The easiest choice
 	 * is to just allocate a page and place the buffers in it.
 	 */
-	if (WARN_ON(sizeof(*dev->buffers) > PAGE_SIZE))
-		return -ENOMEM;
-
+	BUILD_BUG_ON(sizeof(struct goldfish_pipe_dev_buffers) > PAGE_SIZE);
 	page = (char *)__get_free_page(GFP_KERNEL);
 	if (!page) {
 		kfree(dev->pipes);
@@ -842,9 +842,6 @@ static int goldfish_pipe_probe(struct platform_device *pdev)
 	int err;
 	struct resource *r;
 	struct goldfish_pipe_dev *dev = pipe_dev;
-
-	if (WARN_ON(sizeof(struct goldfish_pipe_command) > PAGE_SIZE))
-		return -ENOMEM;
 
 	/* not thread safe, but this should not happen */
 	WARN_ON(dev->base != NULL);
