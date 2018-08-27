@@ -96,7 +96,7 @@ static void __init get_cpuinfo(void)
 	unsigned long core_khz;
 	u64 tmp;
 	struct cpuinfo_c6x *p;
-	struct device_node *node, *np;
+	struct device_node *node;
 
 	p = &per_cpu(cpu_data, smp_processor_id());
 
@@ -190,13 +190,8 @@ static void __init get_cpuinfo(void)
 
 	p->core_id = get_coreid();
 
-	node = of_find_node_by_name(NULL, "cpus");
-	if (node) {
-		for_each_child_of_node(node, np)
-			if (!strcmp("cpu", np->name))
-				++c6x_num_cores;
-		of_node_put(node);
-	}
+	for_each_of_cpu_node(node)
+		++c6x_num_cores;
 
 	node = of_find_node_by_name(NULL, "soc");
 	if (node) {
