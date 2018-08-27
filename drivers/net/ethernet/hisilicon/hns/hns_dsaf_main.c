@@ -2720,6 +2720,35 @@ void hns_dsaf_set_promisc_tcam(struct dsaf_device *dsaf_dev,
 	soft_mac_entry->index = enable ? entry_index : DSAF_INVALID_ENTRY_IDX;
 }
 
+int hns_dsaf_wait_pkt_clean(struct dsaf_device *dsaf_dev, int port)
+{
+	u32 val, val_tmp;
+	int wait_cnt;
+
+	if (port >= DSAF_SERVICE_NW_NUM)
+		return 0;
+
+	wait_cnt = 0;
+	while (wait_cnt++ < HNS_MAX_WAIT_CNT) {
+		val = dsaf_read_dev(dsaf_dev, DSAF_VOQ_IN_PKT_NUM_0_REG +
+			(port + DSAF_XGE_NUM) * 0x40);
+		val_tmp = dsaf_read_dev(dsaf_dev, DSAF_VOQ_OUT_PKT_NUM_0_REG +
+			(port + DSAF_XGE_NUM) * 0x40);
+		if (val == val_tmp)
+			break;
+
+		usleep_range(100, 200);
+	}
+
+	if (wait_cnt >= HNS_MAX_WAIT_CNT) {
+		dev_err(dsaf_dev->dev, "hns dsaf clean wait timeout(%u - %u).\n",
+			val, val_tmp);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
 /**
  * dsaf_probe - probo dsaf dev
  * @pdev: dasf platform device

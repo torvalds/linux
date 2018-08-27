@@ -274,6 +274,29 @@ static void hns_ppe_exc_irq_en(struct hns_ppe_cb *ppe_cb, int en)
 	dsaf_write_dev(ppe_cb, PPE_INTEN_REG, msk_vlue & vld_msk);
 }
 
+int hns_ppe_wait_tx_fifo_clean(struct hns_ppe_cb *ppe_cb)
+{
+	int wait_cnt;
+	u32 val;
+
+	wait_cnt = 0;
+	while (wait_cnt++ < HNS_MAX_WAIT_CNT) {
+		val = dsaf_read_dev(ppe_cb, PPE_CURR_TX_FIFO0_REG) & 0x3ffU;
+		if (!val)
+			break;
+
+		usleep_range(100, 200);
+	}
+
+	if (wait_cnt >= HNS_MAX_WAIT_CNT) {
+		dev_err(ppe_cb->dev, "hns ppe tx fifo clean wait timeout, still has %u pkt.\n",
+			val);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
 /**
  * ppe_init_hw - init ppe
  * @ppe_cb: ppe device
