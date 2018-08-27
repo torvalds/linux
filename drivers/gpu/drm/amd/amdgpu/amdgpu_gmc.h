@@ -30,6 +30,19 @@
 
 #include "amdgpu_irq.h"
 
+/* VA hole for 48bit addresses on Vega10 */
+#define AMDGPU_GMC_HOLE_START	0x0000800000000000ULL
+#define AMDGPU_GMC_HOLE_END	0xffff800000000000ULL
+
+/*
+ * Hardware is programmed as if the hole doesn't exists with start and end
+ * address values.
+ *
+ * This mask is used to remove the upper 16bits of the VA and so come up with
+ * the linear addr value.
+ */
+#define AMDGPU_GMC_HOLE_MASK	0x0000ffffffffffffULL
+
 struct firmware;
 
 /*
@@ -131,6 +144,19 @@ static inline bool amdgpu_gmc_vram_full_visible(struct amdgpu_gmc *gmc)
 	WARN_ON(gmc->real_vram_size < gmc->visible_vram_size);
 
 	return (gmc->real_vram_size == gmc->visible_vram_size);
+}
+
+/**
+ * amdgpu_gmc_sign_extend - sign extend the given gmc address
+ *
+ * @addr: address to extend
+ */
+static inline uint64_t amdgpu_gmc_sign_extend(uint64_t addr)
+{
+	if (addr >= AMDGPU_GMC_HOLE_START)
+		addr |= AMDGPU_GMC_HOLE_END;
+
+	return addr;
 }
 
 void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,

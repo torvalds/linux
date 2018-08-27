@@ -492,7 +492,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 		if (level == adev->vm_manager.root_level) {
 			ats_entries = amdgpu_vm_level_shift(adev, level);
 			ats_entries += AMDGPU_GPU_PAGE_SHIFT;
-			ats_entries = AMDGPU_VA_HOLE_START >> ats_entries;
+			ats_entries = AMDGPU_GMC_HOLE_START >> ats_entries;
 			ats_entries = min(ats_entries, entries);
 			entries -= ats_entries;
 		} else {
@@ -722,7 +722,7 @@ int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 	eaddr = saddr + size - 1;
 
 	if (vm->pte_support_ats)
-		ats = saddr < AMDGPU_VA_HOLE_START;
+		ats = saddr < AMDGPU_GMC_HOLE_START;
 
 	saddr /= AMDGPU_GPU_PAGE_SIZE;
 	eaddr /= AMDGPU_GPU_PAGE_SIZE;
@@ -2016,7 +2016,8 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 			struct amdgpu_bo_va_mapping, list);
 		list_del(&mapping->list);
 
-		if (vm->pte_support_ats && mapping->start < AMDGPU_VA_HOLE_START)
+		if (vm->pte_support_ats &&
+		    mapping->start < AMDGPU_GMC_HOLE_START)
 			init_pte_value = AMDGPU_PTE_DEFAULT_ATC;
 
 		r = amdgpu_vm_bo_update_mapping(adev, NULL, NULL, vm,

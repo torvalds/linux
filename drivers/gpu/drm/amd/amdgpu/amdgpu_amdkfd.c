@@ -135,7 +135,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 			.num_queue_per_pipe = adev->gfx.mec.num_queue_per_pipe,
 			.gpuvm_size = min(adev->vm_manager.max_pfn
 					  << AMDGPU_GPU_PAGE_SHIFT,
-					  AMDGPU_VA_HOLE_START),
+					  AMDGPU_GMC_HOLE_START),
 			.drm_render_minor = adev->ddev->render->index
 		};
 

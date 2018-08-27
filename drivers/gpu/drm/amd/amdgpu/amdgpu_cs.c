@@ -835,7 +835,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 			if (chunk->chunk_id != AMDGPU_CHUNK_ID_IB)
 				continue;
 
-			va_start = chunk_ib->va_start & AMDGPU_VA_HOLE_MASK;
+			va_start = chunk_ib->va_start & AMDGPU_GMC_HOLE_MASK;
 			r = amdgpu_cs_find_mapping(p, va_start, &aobj, &m);
 			if (r) {
 				DRM_ERROR("IB va_start is invalid\n");

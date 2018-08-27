@@ -1368,7 +1368,7 @@ u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo)
 	WARN_ON_ONCE(bo->tbo.mem.mem_type == TTM_PL_VRAM &&
 		     !(bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS));
 
-	return bo->tbo.offset;
+	return amdgpu_gmc_sign_extend(bo->tbo.offset);
 }
 
 /**
