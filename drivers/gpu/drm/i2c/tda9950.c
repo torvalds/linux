@@ -188,7 +188,8 @@ static irqreturn_t tda9950_irq(int irq, void *data)
 			break;
 		}
 		/* TDA9950 executes all retries for us */
-		tx_status |= CEC_TX_STATUS_MAX_RETRIES;
+		if (tx_status != CEC_TX_STATUS_OK)
+			tx_status |= CEC_TX_STATUS_MAX_RETRIES;
 		cec_transmit_done(priv->adap, tx_status, arb_lost_cnt,
 				  nack_cnt, 0, err_cnt);
 		break;
