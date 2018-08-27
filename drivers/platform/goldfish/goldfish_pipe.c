@@ -828,7 +828,7 @@ static int goldfish_pipe_device_init(struct platform_device *pdev)
 		      dev->base + PIPE_REG_SIGNAL_BUFFER,
 		      dev->base + PIPE_REG_SIGNAL_BUFFER_HIGH);
 
-	writel((u32)MAX_SIGNALLED_PIPES,
+	writel(MAX_SIGNALLED_PIPES,
 	       dev->base + PIPE_REG_SIGNAL_BUFFER_COUNT);
 
 	write_pa_addr(&dev->buffers->open_command_params,
