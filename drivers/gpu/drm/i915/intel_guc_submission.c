@@ -456,6 +456,9 @@ static void guc_wq_item_append(struct intel_guc_client *client,
 	 */
 	BUILD_BUG_ON(wqi_size != 16);
 
+	/* We expect the WQ to be active if we're appending items to it */
+	GEM_BUG_ON(desc->wq_status != WQ_STATUS_ACTIVE);
+
 	/* Free space is guaranteed. */
 	wq_off = READ_ONCE(desc->tail);
 	GEM_BUG_ON(CIRC_SPACE(wq_off, READ_ONCE(desc->head),
@@ -465,15 +468,19 @@ static void guc_wq_item_append(struct intel_guc_client *client,
 	/* WQ starts from the page after doorbell / process_desc */
 	wqi = client->vaddr + wq_off + GUC_DB_SIZE;
 
-	/* Now fill in the 4-word work queue item */
-	wqi->header = WQ_TYPE_INORDER |
-		      (wqi_len << WQ_LEN_SHIFT) |
-		      (target_engine << WQ_TARGET_SHIFT) |
-		      WQ_NO_WCFLUSH_WAIT;
-	wqi->context_desc = context_desc;
-	wqi->submit_element_info = ring_tail << WQ_RING_TAIL_SHIFT;
-	GEM_BUG_ON(ring_tail > WQ_RING_TAIL_MAX);
-	wqi->fence_id = fence_id;
+	if (I915_SELFTEST_ONLY(client->use_nop_wqi)) {
+		wqi->header = WQ_TYPE_NOOP | (wqi_len << WQ_LEN_SHIFT);
+	} else {
+		/* Now fill in the 4-word work queue item */
+		wqi->header = WQ_TYPE_INORDER |
+			      (wqi_len << WQ_LEN_SHIFT) |
+			      (target_engine << WQ_TARGET_SHIFT) |
+			      WQ_NO_WCFLUSH_WAIT;
+		wqi->context_desc = context_desc;
+		wqi->submit_element_info = ring_tail << WQ_RING_TAIL_SHIFT;
+		GEM_BUG_ON(ring_tail > WQ_RING_TAIL_MAX);
+		wqi->fence_id = fence_id;
+	}
 
 	/* Make the update visible to GuC */
 	WRITE_ONCE(desc->tail, (wq_off + wqi_size) & (GUC_WQ_SIZE - 1));
