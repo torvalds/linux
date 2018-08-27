@@ -1502,7 +1502,7 @@ __acquires(fc->lock)
 
 	req->in.args[1].size = inarg->size;
 	fi->writectr++;
-	fuse_request_send_background_locked(fc, req);
+	fuse_request_send_background_nocheck(fc, req);
 	return;
 
  out_free:

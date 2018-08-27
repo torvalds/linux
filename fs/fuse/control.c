@@ -125,12 +125,12 @@ static ssize_t fuse_conn_max_background_write(struct file *file,
 	if (ret > 0) {
 		struct fuse_conn *fc = fuse_ctl_file_conn_get(file);
 		if (fc) {
-			spin_lock(&fc->lock);
+			spin_lock(&fc->bg_lock);
 			fc->max_background = val;
 			fc->blocked = fc->num_background >= fc->max_background;
 			if (!fc->blocked)
 				wake_up(&fc->blocked_waitq);
-			spin_unlock(&fc->lock);
+			spin_unlock(&fc->bg_lock);
 			fuse_conn_put(fc);
 		}
 	}
@@ -171,7 +171,7 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
 	if (!fc)
 		goto out;
 
-	spin_lock(&fc->lock);
+	spin_lock(&fc->bg_lock);
 	fc->congestion_threshold = val;
 	if (fc->sb) {
 		if (fc->num_background < fc->congestion_threshold) {
@@ -182,7 +182,7 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
 			set_bdi_congested(fc->sb->s_bdi, BLK_RW_ASYNC);
 		}
 	}
-	spin_unlock(&fc->lock);
+	spin_unlock(&fc->bg_lock);
 	fuse_conn_put(fc);
 out:
 	return ret;

@@ -500,6 +500,10 @@ struct fuse_conn {
 	/** The list of background requests set aside for later queuing */
 	struct list_head bg_queue;
 
+	/** Protects: max_background, congestion_threshold, num_background,
+	 * active_background, bg_queue, blocked */
+	spinlock_t bg_lock;
+
 	/** Flag indicating that INIT reply has been received. Allocating
 	 * any fuse request will be suspended until the flag is set */
 	int initialized;
@@ -860,8 +864,8 @@ ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args);
  */
 void fuse_request_send_background(struct fuse_conn *fc, struct fuse_req *req);
 
-void fuse_request_send_background_locked(struct fuse_conn *fc,
-					 struct fuse_req *req);
+void fuse_request_send_background_nocheck(struct fuse_conn *fc,
+					  struct fuse_req *req);
 
 /* Abort all requests */
 void fuse_abort_conn(struct fuse_conn *fc, bool is_abort);
