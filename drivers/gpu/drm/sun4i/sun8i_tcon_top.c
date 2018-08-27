@@ -253,7 +253,6 @@ static int sun8i_tcon_top_remove(struct platform_device *pdev)
 
 /* sun4i_drv uses this list to check if a device node is a TCON TOP */
 const struct of_device_id sun8i_tcon_top_of_table[] = {
-	{ .compatible = "allwinner,sun8i-r40-tcon-top" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sun8i_tcon_top_of_table);
