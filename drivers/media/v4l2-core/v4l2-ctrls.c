@@ -3657,10 +3657,9 @@ static int try_set_ext_ctrls(struct v4l2_fh *fh,
 		}
 
 		obj = v4l2_ctrls_find_req_obj(hdl, req, set);
-		/* Reference to the request held through obj */
-		media_request_put(req);
 		if (IS_ERR(obj)) {
 			media_request_unlock_for_update(req);
+			media_request_put(req);
 			return PTR_ERR(obj);
 		}
 		hdl = container_of(obj, struct v4l2_ctrl_handler,
@@ -3670,8 +3669,9 @@ static int try_set_ext_ctrls(struct v4l2_fh *fh,
 	ret = try_set_ext_ctrls_common(fh, hdl, cs, set);
 
 	if (obj) {
-		media_request_unlock_for_update(obj->req);
+		media_request_unlock_for_update(req);
 		media_request_object_put(obj);
+		media_request_put(req);
 	}
 
 	return ret;
