@@ -222,7 +222,7 @@ int rxe_pool_init(
 		pool->key_size = rxe_type_info[type].key_size;
 	}
 
-	pool->state = rxe_pool_valid;
+	pool->state = RXE_POOL_STATE_VALID;
 
 out:
 	return err;
@@ -232,7 +232,7 @@ static void rxe_pool_release(struct kref *kref)
 {
 	struct rxe_pool *pool = container_of(kref, struct rxe_pool, ref_cnt);
 
-	pool->state = rxe_pool_invalid;
+	pool->state = RXE_POOL_STATE_INVALID;
 	kfree(pool->table);
 }
 
@@ -246,7 +246,7 @@ int rxe_pool_cleanup(struct rxe_pool *pool)
 	unsigned long flags;
 
 	write_lock_irqsave(&pool->pool_lock, flags);
-	pool->state = rxe_pool_invalid;
+	pool->state = RXE_POOL_STATE_INVALID;
 	if (atomic_read(&pool->num_elem) > 0)
 		pr_warn("%s pool destroyed with unfree'd elem\n",
 			pool_name(pool));
@@ -385,7 +385,7 @@ void *rxe_alloc(struct rxe_pool *pool)
 	might_sleep_if(!(pool->flags & RXE_POOL_ATOMIC));
 
 	read_lock_irqsave(&pool->pool_lock, flags);
-	if (pool->state != rxe_pool_valid) {
+	if (pool->state != RXE_POOL_STATE_VALID) {
 		read_unlock_irqrestore(&pool->pool_lock, flags);
 		return NULL;
 	}
@@ -438,7 +438,7 @@ void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 
 	read_lock_irqsave(&pool->pool_lock, flags);
 
-	if (pool->state != rxe_pool_valid)
+	if (pool->state != RXE_POOL_STATE_VALID)
 		goto out;
 
 	node = pool->tree.rb_node;
@@ -471,7 +471,7 @@ void *rxe_pool_get_key(struct rxe_pool *pool, void *key)
 
 	read_lock_irqsave(&pool->pool_lock, flags);
 
-	if (pool->state != rxe_pool_valid)
+	if (pool->state != RXE_POOL_STATE_VALID)
 		goto out;
 
 	node = pool->tree.rb_node;
