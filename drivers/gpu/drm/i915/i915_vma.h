@@ -26,6 +26,7 @@
 #define __I915_VMA_H__
 
 #include <linux/io-mapping.h>
+#include <linux/rbtree.h>
 
 #include <drm/drm_mm.h>
 
@@ -49,10 +50,12 @@ struct i915_vma {
 	struct drm_mm_node node;
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
+	const struct i915_vma_ops *ops;
 	struct drm_i915_fence_reg *fence;
 	struct reservation_object *resv; /** Alias of obj->resv */
 	struct sg_table *pages;
 	void __iomem *iomap;
+	void *private; /* owned by creator */
 	u64 size;
 	u64 display_alignment;
 	struct i915_page_sizes page_sizes;
@@ -92,8 +95,9 @@ struct i915_vma {
 #define I915_VMA_USERFAULT	BIT(I915_VMA_USERFAULT_BIT)
 #define I915_VMA_GGTT_WRITE	BIT(12)
 
-	unsigned int active;
-	struct i915_gem_active last_read[I915_NUM_ENGINES];
+	unsigned int active_count;
+	struct rb_root active;
+	struct i915_gem_active last_active;
 	struct i915_gem_active last_fence;
 
 	/**
@@ -135,6 +139,15 @@ i915_vma_instance(struct drm_i915_gem_object *obj,
 		  const struct i915_ggtt_view *view);
 
 void i915_vma_unpin_and_release(struct i915_vma **p_vma);
+
+static inline bool i915_vma_is_active(struct i915_vma *vma)
+{
+	return vma->active_count;
+}
+
+int __must_check i915_vma_move_to_active(struct i915_vma *vma,
+					 struct i915_request *rq,
+					 unsigned int flags);
 
 static inline bool i915_vma_is_ggtt(const struct i915_vma *vma)
 {
@@ -183,34 +196,6 @@ static inline void i915_vma_unset_userfault(struct i915_vma *vma)
 static inline bool i915_vma_has_userfault(const struct i915_vma *vma)
 {
 	return test_bit(I915_VMA_USERFAULT_BIT, &vma->flags);
-}
-
-static inline unsigned int i915_vma_get_active(const struct i915_vma *vma)
-{
-	return vma->active;
-}
-
-static inline bool i915_vma_is_active(const struct i915_vma *vma)
-{
-	return i915_vma_get_active(vma);
-}
-
-static inline void i915_vma_set_active(struct i915_vma *vma,
-				       unsigned int engine)
-{
-	vma->active |= BIT(engine);
-}
-
-static inline void i915_vma_clear_active(struct i915_vma *vma,
-					 unsigned int engine)
-{
-	vma->active &= ~BIT(engine);
-}
-
-static inline bool i915_vma_has_active_engine(const struct i915_vma *vma,
-					      unsigned int engine)
-{
-	return vma->active & BIT(engine);
 }
 
 static inline u32 i915_ggtt_offset(const struct i915_vma *vma)
@@ -339,6 +324,12 @@ static inline void i915_vma_unpin(struct i915_vma *vma)
 	__i915_vma_unpin(vma);
 }
 
+static inline bool i915_vma_is_bound(const struct i915_vma *vma,
+				     unsigned int where)
+{
+	return vma->flags & where;
+}
+
 /**
  * i915_vma_pin_iomap - calls ioremap_wc to map the GGTT VMA via the aperture
  * @vma: VMA to iomap
@@ -407,7 +398,7 @@ static inline void __i915_vma_unpin_fence(struct i915_vma *vma)
 static inline void
 i915_vma_unpin_fence(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->obj->base.dev->struct_mutex);
+	/* lockdep_assert_held(&vma->vm->i915->drm.struct_mutex); */
 	if (vma->fence)
 		__i915_vma_unpin_fence(vma);
 }

@@ -1,0 +1,25 @@
+Generic devicetree bindings for onewire (w1) busses
+===================================================
+
+Onewire busses are described through nodes of their master bus controller.
+Slave devices are listed as sub-nodes of such master devices. For now, only
+one slave is allowed per bus master.
+
+
+Example:
+
+	charger: charger {
+		compatible = "gpio-charger";
+		charger-type = "mains";
+		gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
+	};
+
+	onewire {
+		compatible = "w1-gpio";
+		gpios = <&gpio 100 0>, <&gpio 101 0>;
+
+		battery {
+			compatible = "maxim,ds2760";
+			power-supplies = <&charger>;
+		};
+	};

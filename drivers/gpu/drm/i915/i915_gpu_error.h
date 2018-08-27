@@ -58,7 +58,7 @@ struct i915_gpu_state {
 	u32 eir;
 	u32 pgtbl_er;
 	u32 ier;
-	u32 gtier[4], ngtier;
+	u32 gtier[6], ngtier;
 	u32 ccid;
 	u32 derrmr;
 	u32 forcewake;
@@ -177,7 +177,7 @@ struct i915_gpu_state {
 	struct drm_i915_error_buffer {
 		u32 size;
 		u32 name;
-		u32 rseqno[I915_NUM_ENGINES], wseqno;
+		u32 wseqno;
 		u64 gtt_offset;
 		u32 read_domains;
 		u32 write_domain;

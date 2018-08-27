@@ -15,7 +15,7 @@
 #include "sizes.h"
 
 __HEAD
-ENTRY(startup_continue)
+ENTRY(startup_decompressor)
 	basr	%r13,0			# get base
 .LPG1:
 	# setup stack
@@ -23,7 +23,7 @@ ENTRY(startup_continue)
 	aghi	%r15,-160
 	brasl	%r14,decompress_kernel
 	# Set up registers for memory mover. We move the decompressed image to
-	# 0x11000, where startup_continue of the decompressed image is supposed
+	# 0x100000, where startup_continue of the decompressed image is supposed
 	# to be.
 	lgr	%r4,%r2
 	lg	%r2,.Loffset-.LPG1(%r13)
@@ -33,7 +33,7 @@ ENTRY(startup_continue)
 	la	%r1,0x200
 	mvc	0(mover_end-mover,%r1),mover-.LPG1(%r13)
 	# When the memory mover is done we pass control to
-	# arch/s390/kernel/head64.S:startup_continue which lives at 0x11000 in
+	# arch/s390/kernel/head64.S:startup_continue which lives at 0x100000 in
 	# the decompressed image.
 	lgr	%r6,%r2
 	br	%r1
@@ -47,6 +47,6 @@ mover_end:
 .Lstack:
 	.quad	0x8000 + (1<<(PAGE_SHIFT+THREAD_SIZE_ORDER))
 .Loffset:
-	.quad	0x11000
+	.quad	0x100000
 .Lmvsize:
 	.quad	SZ__bss_start

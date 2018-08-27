@@ -17,7 +17,7 @@ bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,
 	 * XXX: Add support for merging bio_vec when using different page
 	 * size in Xen and Linux.
 	 */
-	return 0;
+	return false;
 #endif
 }
 EXPORT_SYMBOL(xen_biovec_phys_mergeable);

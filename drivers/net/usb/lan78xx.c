@@ -1649,7 +1649,7 @@ lan78xx_get_regs(struct net_device *netdev, struct ethtool_regs *regs,
 	struct lan78xx_net *dev = netdev_priv(netdev);
 
 	/* Read Device/MAC registers */
-	for (i = 0; i < (sizeof(lan78xx_regs) / sizeof(u32)); i++)
+	for (i = 0; i < ARRAY_SIZE(lan78xx_regs); i++)
 		lan78xx_read_reg(dev, lan78xx_regs[i], &data[i]);
 
 	if (!netdev->phydev)
@@ -1723,7 +1723,7 @@ static void lan78xx_init_mac_address(struct lan78xx_net *dev)
 				  "MAC address read from EEPROM");
 		} else {
 			/* generate random MAC */
-			random_ether_addr(addr);
+			eth_random_addr(addr);
 			netif_dbg(dev, ifup, dev->net,
 				  "MAC address set to random addr");
 		}

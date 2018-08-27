@@ -234,6 +234,8 @@ static __init void dm355_leopard_init(void)
 	struct clk *aemif;
 	int ret;
 
+	dm355_register_clocks();
+
 	ret = dm355_gpio_register();
 	if (ret)
 		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);

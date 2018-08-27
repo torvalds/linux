@@ -310,81 +310,9 @@ static struct fs_prio *find_prio(struct mlx5_flow_namespace *ns,
 	return NULL;
 }
 
-static bool check_last_reserved(const u32 *match_criteria)
-{
-	char *match_criteria_reserved =
-		MLX5_ADDR_OF(fte_match_param, match_criteria, MLX5_FTE_MATCH_PARAM_RESERVED);
-
-	return	!match_criteria_reserved[0] &&
-		!memcmp(match_criteria_reserved, match_criteria_reserved + 1,
-			MLX5_FLD_SZ_BYTES(fte_match_param,
-					  MLX5_FTE_MATCH_PARAM_RESERVED) - 1);
-}
-
-static bool check_valid_mask(u8 match_criteria_enable, const u32 *match_criteria)
-{
-	if (match_criteria_enable & ~(
-		(1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_OUTER_HEADERS)   |
-		(1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS) |
-		(1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_INNER_HEADERS) |
-		(1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS_2)))
-		return false;
-
-	if (!(match_criteria_enable &
-	      1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_OUTER_HEADERS)) {
-		char *fg_type_mask = MLX5_ADDR_OF(fte_match_param,
-						  match_criteria, outer_headers);
-
-		if (fg_type_mask[0] ||
-		    memcmp(fg_type_mask, fg_type_mask + 1,
-			   MLX5_ST_SZ_BYTES(fte_match_set_lyr_2_4) - 1))
-			return false;
-	}
-
-	if (!(match_criteria_enable &
-	      1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS)) {
-		char *fg_type_mask = MLX5_ADDR_OF(fte_match_param,
-						  match_criteria, misc_parameters);
-
-		if (fg_type_mask[0] ||
-		    memcmp(fg_type_mask, fg_type_mask + 1,
-			   MLX5_ST_SZ_BYTES(fte_match_set_misc) - 1))
-			return false;
-	}
-
-	if (!(match_criteria_enable &
-	      1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_INNER_HEADERS)) {
-		char *fg_type_mask = MLX5_ADDR_OF(fte_match_param,
-						  match_criteria, inner_headers);
-
-		if (fg_type_mask[0] ||
-		    memcmp(fg_type_mask, fg_type_mask + 1,
-			   MLX5_ST_SZ_BYTES(fte_match_set_lyr_2_4) - 1))
-			return false;
-	}
-
-	if (!(match_criteria_enable &
-	      1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS_2)) {
-		char *fg_type_mask = MLX5_ADDR_OF(fte_match_param,
-						  match_criteria, misc_parameters_2);
-
-		if (fg_type_mask[0] ||
-		    memcmp(fg_type_mask, fg_type_mask + 1,
-			   MLX5_ST_SZ_BYTES(fte_match_set_misc2) - 1))
-			return false;
-	}
-
-	return check_last_reserved(match_criteria);
-}
-
 static bool check_valid_spec(const struct mlx5_flow_spec *spec)
 {
 	int i;
-
-	if (!check_valid_mask(spec->match_criteria_enable, spec->match_criteria)) {
-		pr_warn("mlx5_core: Match criteria given mismatches match_criteria_enable\n");
-		return false;
-	}
 
 	for (i = 0; i < MLX5_ST_SZ_DW_MATCH_PARAM; i++)
 		if (spec->match_value[i] & ~spec->match_criteria[i]) {
@@ -392,7 +320,7 @@ static bool check_valid_spec(const struct mlx5_flow_spec *spec)
 			return false;
 		}
 
-	return check_last_reserved(spec->match_value);
+	return true;
 }
 
 static struct mlx5_flow_root_namespace *find_root(struct fs_node *node)
@@ -1159,9 +1087,6 @@ struct mlx5_flow_group *mlx5_create_flow_group(struct mlx5_flow_table *ft,
 	struct mlx5_flow_group *fg;
 	int err;
 
-	if (!check_valid_mask(match_criteria_enable, match_criteria))
-		return ERR_PTR(-EINVAL);
-
 	if (ft->autogroup.active)
 		return ERR_PTR(-EPERM);
 
@@ -1432,7 +1357,9 @@ static bool mlx5_flow_dests_cmp(struct mlx5_flow_destination *d1,
 		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE &&
 		     d1->ft == d2->ft) ||
 		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_TIR &&
-		     d1->tir_num == d2->tir_num))
+		     d1->tir_num == d2->tir_num) ||
+		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM &&
+		     d1->ft_num == d2->ft_num))
 			return true;
 	}
 
@@ -1465,7 +1392,9 @@ static bool check_conflicting_actions(u32 action1, u32 action2)
 			     MLX5_FLOW_CONTEXT_ACTION_DECAP |
 			     MLX5_FLOW_CONTEXT_ACTION_MOD_HDR  |
 			     MLX5_FLOW_CONTEXT_ACTION_VLAN_POP |
-			     MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH))
+			     MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH |
+			     MLX5_FLOW_CONTEXT_ACTION_VLAN_POP_2 |
+			     MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2))
 		return true;
 
 	return false;
@@ -1824,7 +1753,7 @@ search_again_locked:
 
 	g = alloc_auto_flow_group(ft, spec);
 	if (IS_ERR(g)) {
-		rule = (void *)g;
+		rule = ERR_CAST(g);
 		up_write_ref_node(&ft->node);
 		return rule;
 	}
@@ -1874,7 +1803,7 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 		    struct mlx5_flow_spec *spec,
 		    struct mlx5_flow_act *flow_act,
 		    struct mlx5_flow_destination *dest,
-		    int dest_num)
+		    int num_dest)
 {
 	struct mlx5_flow_root_namespace *root = find_root(&ft->node);
 	struct mlx5_flow_destination gen_dest = {};
@@ -1887,7 +1816,7 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 	if (flow_act->action == MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO) {
 		if (!fwd_next_prio_supported(ft))
 			return ERR_PTR(-EOPNOTSUPP);
-		if (dest_num)
+		if (num_dest)
 			return ERR_PTR(-EINVAL);
 		mutex_lock(&root->chain_lock);
 		next_ft = find_next_chained_ft(prio);
@@ -1895,7 +1824,7 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 			gen_dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 			gen_dest.ft = next_ft;
 			dest = &gen_dest;
-			dest_num = 1;
+			num_dest = 1;
 			flow_act->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 		} else {
 			mutex_unlock(&root->chain_lock);
@@ -1903,7 +1832,7 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 		}
 	}
 
-	handle = _mlx5_add_flow_rules(ft, spec, flow_act, dest, dest_num);
+	handle = _mlx5_add_flow_rules(ft, spec, flow_act, dest, num_dest);
 
 	if (sw_action == MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO) {
 		if (!IS_ERR_OR_NULL(handle) &&

@@ -183,7 +183,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 
 	serial = atomic_inc_return(&conn->serial);
 	pkt->whdr.serial = htonl(serial);
-	trace_rxrpc_tx_ack(call, serial,
+	trace_rxrpc_tx_ack(call->debug_id, serial,
 			   ntohl(pkt->ack.firstPacket),
 			   ntohl(pkt->ack.serial),
 			   pkt->ack.reason, pkt->ack.nAcks);
@@ -209,10 +209,13 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 	now = ktime_get_real();
 	if (ping)
 		call->ping_time = now;
-	conn->params.peer->last_tx_at = ktime_get_real();
+	conn->params.peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
-				    rxrpc_tx_fail_call_ack);
+				    rxrpc_tx_point_call_ack);
+	else
+		trace_rxrpc_tx_packet(call->debug_id, &pkt->whdr,
+				      rxrpc_tx_point_call_ack);
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
 		if (ret < 0) {
@@ -296,10 +299,13 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 
 	ret = kernel_sendmsg(conn->params.local->socket,
 			     &msg, iov, 1, sizeof(pkt));
-	conn->params.peer->last_tx_at = ktime_get_real();
+	conn->params.peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
-				    rxrpc_tx_fail_call_abort);
+				    rxrpc_tx_point_call_abort);
+	else
+		trace_rxrpc_tx_packet(call->debug_id, &pkt.whdr,
+				      rxrpc_tx_point_call_abort);
 
 
 	rxrpc_put_connection(conn);
@@ -391,12 +397,15 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	 *     message and update the peer record
 	 */
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
-	conn->params.peer->last_tx_at = ktime_get_real();
+	conn->params.peer->last_tx_at = ktime_get_seconds();
 
 	up_read(&conn->params.local->defrag_sem);
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
-				    rxrpc_tx_fail_call_data_nofrag);
+				    rxrpc_tx_point_call_data_nofrag);
+	else
+		trace_rxrpc_tx_packet(call->debug_id, &whdr,
+				      rxrpc_tx_point_call_data_nofrag);
 	if (ret == -EMSGSIZE)
 		goto send_fragmentable;
 
@@ -457,7 +466,7 @@ send_fragmentable:
 		if (ret == 0) {
 			ret = kernel_sendmsg(conn->params.local->socket, &msg,
 					     iov, 2, len);
-			conn->params.peer->last_tx_at = ktime_get_real();
+			conn->params.peer->last_tx_at = ktime_get_seconds();
 
 			opt = IP_PMTUDISC_DO;
 			kernel_setsockopt(conn->params.local->socket, SOL_IP,
@@ -475,7 +484,7 @@ send_fragmentable:
 		if (ret == 0) {
 			ret = kernel_sendmsg(conn->params.local->socket, &msg,
 					     iov, 2, len);
-			conn->params.peer->last_tx_at = ktime_get_real();
+			conn->params.peer->last_tx_at = ktime_get_seconds();
 
 			opt = IPV6_PMTUDISC_DO;
 			kernel_setsockopt(conn->params.local->socket,
@@ -488,7 +497,10 @@ send_fragmentable:
 
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
-				    rxrpc_tx_fail_call_data_frag);
+				    rxrpc_tx_point_call_data_frag);
+	else
+		trace_rxrpc_tx_packet(call->debug_id, &whdr,
+				      rxrpc_tx_point_call_data_frag);
 
 	up_write(&conn->params.local->defrag_sem);
 	goto done;
@@ -545,7 +557,10 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 			ret = kernel_sendmsg(local->socket, &msg, iov, 2, size);
 			if (ret < 0)
 				trace_rxrpc_tx_fail(local->debug_id, 0, ret,
-						    rxrpc_tx_fail_reject);
+						    rxrpc_tx_point_reject);
+			else
+				trace_rxrpc_tx_packet(local->debug_id, &whdr,
+						      rxrpc_tx_point_reject);
 		}
 
 		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
@@ -597,8 +612,11 @@ void rxrpc_send_keepalive(struct rxrpc_peer *peer)
 	ret = kernel_sendmsg(peer->local->socket, &msg, iov, 2, len);
 	if (ret < 0)
 		trace_rxrpc_tx_fail(peer->debug_id, 0, ret,
-				    rxrpc_tx_fail_version_keepalive);
+				    rxrpc_tx_point_version_keepalive);
+	else
+		trace_rxrpc_tx_packet(peer->debug_id, &whdr,
+				      rxrpc_tx_point_version_keepalive);
 
-	peer->last_tx_at = ktime_get_real();
+	peer->last_tx_at = ktime_get_seconds();
 	_leave("");
 }

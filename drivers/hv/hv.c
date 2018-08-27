@@ -64,7 +64,7 @@ int hv_init(void)
 		return -ENOMEM;
 
 	direct_mode_enabled = ms_hyperv.misc_features &
-			HV_X64_STIMER_DIRECT_MODE_AVAILABLE;
+			HV_STIMER_DIRECT_MODE_AVAILABLE;
 	return 0;
 }
 
@@ -127,14 +127,14 @@ static int hv_ce_set_next_event(unsigned long delta,
 
 	current_tick = hyperv_cs->read(NULL);
 	current_tick += delta;
-	hv_init_timer(HV_X64_MSR_STIMER0_COUNT, current_tick);
+	hv_init_timer(0, current_tick);
 	return 0;
 }
 
 static int hv_ce_shutdown(struct clock_event_device *evt)
 {
-	hv_init_timer(HV_X64_MSR_STIMER0_COUNT, 0);
-	hv_init_timer_config(HV_X64_MSR_STIMER0_CONFIG, 0);
+	hv_init_timer(0, 0);
+	hv_init_timer_config(0, 0);
 	if (direct_mode_enabled)
 		hv_disable_stimer0_percpu_irq(stimer0_irq);
 
@@ -164,7 +164,7 @@ static int hv_ce_set_oneshot(struct clock_event_device *evt)
 		timer_cfg.direct_mode = 0;
 		timer_cfg.sintx = VMBUS_MESSAGE_SINT;
 	}
-	hv_init_timer_config(HV_X64_MSR_STIMER0_CONFIG, timer_cfg.as_uint64);
+	hv_init_timer_config(0, timer_cfg.as_uint64);
 	return 0;
 }
 
@@ -242,6 +242,10 @@ int hv_synic_alloc(void)
 
 	return 0;
 err:
+	/*
+	 * Any memory allocations that succeeded will be freed when
+	 * the caller cleans up by calling hv_synic_free()
+	 */
 	return -ENOMEM;
 }
 
@@ -254,12 +258,10 @@ void hv_synic_free(void)
 		struct hv_per_cpu_context *hv_cpu
 			= per_cpu_ptr(hv_context.cpu_context, cpu);
 
-		if (hv_cpu->synic_event_page)
-			free_page((unsigned long)hv_cpu->synic_event_page);
-		if (hv_cpu->synic_message_page)
-			free_page((unsigned long)hv_cpu->synic_message_page);
-		if (hv_cpu->post_msg_page)
-			free_page((unsigned long)hv_cpu->post_msg_page);
+		kfree(hv_cpu->clk_evt);
+		free_page((unsigned long)hv_cpu->synic_event_page);
+		free_page((unsigned long)hv_cpu->synic_message_page);
+		free_page((unsigned long)hv_cpu->post_msg_page);
 	}
 
 	kfree(hv_context.hv_numa_map);
@@ -298,18 +300,16 @@ int hv_synic_init(unsigned int cpu)
 	hv_set_siefp(siefp.as_uint64);
 
 	/* Setup the shared SINT. */
-	hv_get_synint_state(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT,
-			    shared_sint.as_uint64);
+	hv_get_synint_state(VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
 
 	shared_sint.vector = HYPERVISOR_CALLBACK_VECTOR;
 	shared_sint.masked = false;
-	if (ms_hyperv.hints & HV_X64_DEPRECATING_AEOI_RECOMMENDED)
+	if (ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED)
 		shared_sint.auto_eoi = false;
 	else
 		shared_sint.auto_eoi = true;
 
-	hv_set_synint_state(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT,
-			    shared_sint.as_uint64);
+	hv_set_synint_state(VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
 
 	/* Enable the global synic bit */
 	hv_get_synic_state(sctrl.as_uint64);
@@ -322,7 +322,7 @@ int hv_synic_init(unsigned int cpu)
 	/*
 	 * Register the per-cpu clockevent source.
 	 */
-	if (ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE)
+	if (ms_hyperv.features & HV_MSR_SYNTIMER_AVAILABLE)
 		clockevents_config_and_register(hv_cpu->clk_evt,
 						HV_TIMER_FREQUENCY,
 						HV_MIN_DELTA_TICKS,
@@ -337,7 +337,7 @@ void hv_synic_clockevents_cleanup(void)
 {
 	int cpu;
 
-	if (!(ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE))
+	if (!(ms_hyperv.features & HV_MSR_SYNTIMER_AVAILABLE))
 		return;
 
 	if (direct_mode_enabled)
@@ -396,7 +396,7 @@ int hv_synic_cleanup(unsigned int cpu)
 		return -EBUSY;
 
 	/* Turn off clockevent device */
-	if (ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE) {
+	if (ms_hyperv.features & HV_MSR_SYNTIMER_AVAILABLE) {
 		struct hv_per_cpu_context *hv_cpu
 			= this_cpu_ptr(hv_context.cpu_context);
 
@@ -405,15 +405,13 @@ int hv_synic_cleanup(unsigned int cpu)
 		put_cpu_ptr(hv_cpu);
 	}
 
-	hv_get_synint_state(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT,
-			    shared_sint.as_uint64);
+	hv_get_synint_state(VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
 
 	shared_sint.masked = 1;
 
 	/* Need to correctly cleanup in the case of SMP!!! */
 	/* Disable the interrupt */
-	hv_set_synint_state(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT,
-			    shared_sint.as_uint64);
+	hv_set_synint_state(VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
 
 	hv_get_simp(simp.as_uint64);
 	simp.simp_enabled = 0;

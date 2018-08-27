@@ -486,6 +486,12 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		plat->force_sf_dma_mode = 1;
 	}
 
+	if (of_device_is_compatible(np, "snps,dwxgmac")) {
+		plat->has_xgmac = 1;
+		plat->pmt = 1;
+		plat->tso_en = of_property_read_bool(np, "snps,tso");
+	}
+
 	dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg),
 			       GFP_KERNEL);
 	if (!dma_cfg) {

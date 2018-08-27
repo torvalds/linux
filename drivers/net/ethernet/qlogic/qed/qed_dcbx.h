@@ -123,4 +123,7 @@ void qed_dcbx_info_free(struct qed_hwfn *p_hwfn);
 void qed_dcbx_set_pf_update_params(struct qed_dcbx_results *p_src,
 				   struct pf_update_ramrod_data *p_dest);
 
+#define QED_DCBX_DEFAULT_TC	0
+
+u8 qed_dcbx_get_priority_tc(struct qed_hwfn *p_hwfn, u8 pri);
 #endif

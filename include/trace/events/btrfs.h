@@ -374,7 +374,7 @@ DECLARE_EVENT_CLASS(
 		__entry->extent_type	= btrfs_file_extent_type(l, fi);
 		__entry->compression	= btrfs_file_extent_compression(l, fi);
 		__entry->extent_start	= start;
-		__entry->extent_end	= (start + btrfs_file_extent_inline_len(l, slot, fi));
+		__entry->extent_end	= (start + btrfs_file_extent_ram_bytes(l, fi));
 	),
 
 	TP_printk_btrfs(
@@ -433,7 +433,6 @@ DEFINE_EVENT(
 		{ (1 << BTRFS_ORDERED_DIRECT),	 	"DIRECT" 	}, \
 		{ (1 << BTRFS_ORDERED_IOERR), 		"IOERR" 	}, \
 		{ (1 << BTRFS_ORDERED_UPDATED_ISIZE), 	"UPDATED_ISIZE"	}, \
-		{ (1 << BTRFS_ORDERED_LOGGED_CSUM), 	"LOGGED_CSUM"	}, \
 		{ (1 << BTRFS_ORDERED_TRUNCATED), 	"TRUNCATED"	})
 
 

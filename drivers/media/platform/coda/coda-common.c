@@ -569,8 +569,6 @@ static int coda_try_fmt(struct coda_ctx *ctx, const struct coda_codec *codec,
 					f->fmt.pix.height * 2;
 		break;
 	case V4L2_PIX_FMT_JPEG:
-		f->fmt.pix.colorspace = V4L2_COLORSPACE_JPEG;
-		/* fallthrough */
 	case V4L2_PIX_FMT_H264:
 	case V4L2_PIX_FMT_MPEG4:
 	case V4L2_PIX_FMT_MPEG2:
@@ -935,6 +933,40 @@ static int coda_g_selection(struct file *file, void *fh,
 	return 0;
 }
 
+static int coda_s_selection(struct file *file, void *fh,
+			    struct v4l2_selection *s)
+{
+	struct coda_ctx *ctx = fh_to_ctx(fh);
+	struct coda_q_data *q_data;
+
+	if (ctx->inst_type == CODA_INST_ENCODER &&
+	    s->type == V4L2_BUF_TYPE_VIDEO_OUTPUT &&
+	    s->target == V4L2_SEL_TGT_CROP) {
+		q_data = get_q_data(ctx, s->type);
+		if (!q_data)
+			return -EINVAL;
+
+		s->r.left = 0;
+		s->r.top = 0;
+		s->r.width = clamp(s->r.width, 2U, q_data->width);
+		s->r.height = clamp(s->r.height, 2U, q_data->height);
+
+		if (s->flags & V4L2_SEL_FLAG_LE) {
+			s->r.width = round_up(s->r.width, 2);
+			s->r.height = round_up(s->r.height, 2);
+		} else {
+			s->r.width = round_down(s->r.width, 2);
+			s->r.height = round_down(s->r.height, 2);
+		}
+
+		q_data->rect = s->r;
+
+		return 0;
+	}
+
+	return coda_g_selection(file, fh, s);
+}
+
 static int coda_try_encoder_cmd(struct file *file, void *fh,
 				struct v4l2_encoder_cmd *ec)
 {
@@ -1148,6 +1180,7 @@ static const struct v4l2_ioctl_ops coda_ioctl_ops = {
 	.vidioc_streamoff	= v4l2_m2m_ioctl_streamoff,
 
 	.vidioc_g_selection	= coda_g_selection,
+	.vidioc_s_selection	= coda_s_selection,
 
 	.vidioc_try_encoder_cmd	= coda_try_encoder_cmd,
 	.vidioc_encoder_cmd	= coda_encoder_cmd,
@@ -1297,28 +1330,10 @@ static void coda_job_abort(void *priv)
 		 "Aborting task\n");
 }
 
-static void coda_lock(void *m2m_priv)
-{
-	struct coda_ctx *ctx = m2m_priv;
-	struct coda_dev *pcdev = ctx->dev;
-
-	mutex_lock(&pcdev->dev_mutex);
-}
-
-static void coda_unlock(void *m2m_priv)
-{
-	struct coda_ctx *ctx = m2m_priv;
-	struct coda_dev *pcdev = ctx->dev;
-
-	mutex_unlock(&pcdev->dev_mutex);
-}
-
 static const struct v4l2_m2m_ops coda_m2m_ops = {
 	.device_run	= coda_device_run,
 	.job_ready	= coda_job_ready,
 	.job_abort	= coda_job_abort,
-	.lock		= coda_lock,
-	.unlock		= coda_unlock,
 };
 
 static void set_default_params(struct coda_ctx *ctx)
@@ -1413,6 +1428,72 @@ static int coda_buf_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
+static void coda_update_menu_ctrl(struct v4l2_ctrl *ctrl, int value)
+{
+	if (!ctrl)
+		return;
+
+	v4l2_ctrl_lock(ctrl);
+
+	/*
+	 * Extend the control range if the parsed stream contains a known but
+	 * unsupported value or level.
+	 */
+	if (value > ctrl->maximum) {
+		__v4l2_ctrl_modify_range(ctrl, ctrl->minimum, value,
+			ctrl->menu_skip_mask & ~(1 << value),
+			ctrl->default_value);
+	} else if (value < ctrl->minimum) {
+		__v4l2_ctrl_modify_range(ctrl, value, ctrl->maximum,
+			ctrl->menu_skip_mask & ~(1 << value),
+			ctrl->default_value);
+	}
+
+	__v4l2_ctrl_s_ctrl(ctrl, value);
+
+	v4l2_ctrl_unlock(ctrl);
+}
+
+static void coda_update_h264_profile_ctrl(struct coda_ctx *ctx)
+{
+	const char * const *profile_names;
+	int profile;
+
+	profile = coda_h264_profile(ctx->params.h264_profile_idc);
+	if (profile < 0) {
+		v4l2_warn(&ctx->dev->v4l2_dev, "Invalid H264 Profile: %u\n",
+			  ctx->params.h264_profile_idc);
+		return;
+	}
+
+	coda_update_menu_ctrl(ctx->h264_profile_ctrl, profile);
+
+	profile_names = v4l2_ctrl_get_menu(V4L2_CID_MPEG_VIDEO_H264_PROFILE);
+
+	v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev, "Parsed H264 Profile: %s\n",
+		 profile_names[profile]);
+}
+
+static void coda_update_h264_level_ctrl(struct coda_ctx *ctx)
+{
+	const char * const *level_names;
+	int level;
+
+	level = coda_h264_level(ctx->params.h264_level_idc);
+	if (level < 0) {
+		v4l2_warn(&ctx->dev->v4l2_dev, "Invalid H264 Level: %u\n",
+			  ctx->params.h264_level_idc);
+		return;
+	}
+
+	coda_update_menu_ctrl(ctx->h264_level_ctrl, level);
+
+	level_names = v4l2_ctrl_get_menu(V4L2_CID_MPEG_VIDEO_H264_LEVEL);
+
+	v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev, "Parsed H264 Level: %s\n",
+		 level_names[level]);
+}
+
 static void coda_buf_queue(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
@@ -1441,8 +1522,11 @@ static void coda_buf_queue(struct vb2_buffer *vb)
 			 * whether to enable reordering during sequence
 			 * initialization.
 			 */
-			if (!ctx->params.h264_profile_idc)
+			if (!ctx->params.h264_profile_idc) {
 				coda_sps_parse_profile(ctx, vb);
+				coda_update_h264_profile_ctrl(ctx);
+				coda_update_h264_level_ctrl(ctx);
+			}
 		}
 
 		mutex_lock(&ctx->bitstream_mutex);
@@ -1538,12 +1622,12 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 		goto out;
 
 	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
-	if ((q_data_src->width != q_data_dst->width &&
-	     round_up(q_data_src->width, 16) != q_data_dst->width) ||
-	    (q_data_src->height != q_data_dst->height &&
-	     round_up(q_data_src->height, 16) != q_data_dst->height)) {
+	if ((q_data_src->rect.width != q_data_dst->width &&
+	     round_up(q_data_src->rect.width, 16) != q_data_dst->width) ||
+	    (q_data_src->rect.height != q_data_dst->height &&
+	     round_up(q_data_src->rect.height, 16) != q_data_dst->height)) {
 		v4l2_err(v4l2_dev, "can't convert %dx%d to %dx%d\n",
-			 q_data_src->width, q_data_src->height,
+			 q_data_src->rect.width, q_data_src->rect.height,
 			 q_data_dst->width, q_data_dst->height);
 		ret = -EINVAL;
 		goto err;
@@ -1652,6 +1736,7 @@ static void coda_stop_streaming(struct vb2_queue *q)
 			ctx->bitstream.vaddr, ctx->bitstream.size);
 		ctx->runcounter = 0;
 		ctx->aborting = 0;
+		ctx->hold = false;
 	}
 
 	if (!ctx->streamon_out && !ctx->streamon_cap)
@@ -1880,6 +1965,47 @@ static void coda_jpeg_encode_ctrls(struct coda_ctx *ctx)
 		V4L2_CID_JPEG_RESTART_INTERVAL, 0, 100, 1, 0);
 }
 
+static void coda_decode_ctrls(struct coda_ctx *ctx)
+{
+	u64 mask;
+	u8 max;
+
+	ctx->h264_profile_ctrl = v4l2_ctrl_new_std_menu(&ctx->ctrls,
+		&coda_ctrl_ops, V4L2_CID_MPEG_VIDEO_H264_PROFILE,
+		V4L2_MPEG_VIDEO_H264_PROFILE_HIGH,
+		~((1 << V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE) |
+		  (1 << V4L2_MPEG_VIDEO_H264_PROFILE_MAIN) |
+		  (1 << V4L2_MPEG_VIDEO_H264_PROFILE_HIGH)),
+		V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
+	if (ctx->h264_profile_ctrl)
+		ctx->h264_profile_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	if (ctx->dev->devtype->product == CODA_HX4 ||
+	    ctx->dev->devtype->product == CODA_7541) {
+		max = V4L2_MPEG_VIDEO_H264_LEVEL_4_0;
+		mask = ~((1 << V4L2_MPEG_VIDEO_H264_LEVEL_2_0) |
+			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_0) |
+			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_1) |
+			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_2) |
+			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_4_0));
+	} else if (ctx->dev->devtype->product == CODA_960) {
+		max = V4L2_MPEG_VIDEO_H264_LEVEL_4_1;
+		mask = ~((1 << V4L2_MPEG_VIDEO_H264_LEVEL_2_0) |
+			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_0) |
+			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_1) |
+			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_2) |
+			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_4_0) |
+			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_4_1));
+	} else {
+		return;
+	}
+	ctx->h264_level_ctrl = v4l2_ctrl_new_std_menu(&ctx->ctrls,
+		&coda_ctrl_ops, V4L2_CID_MPEG_VIDEO_H264_LEVEL, max, mask,
+		max);
+	if (ctx->h264_level_ctrl)
+		ctx->h264_level_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+}
+
 static int coda_ctrls_setup(struct coda_ctx *ctx)
 {
 	v4l2_ctrl_handler_init(&ctx->ctrls, 2);
@@ -1893,6 +2019,9 @@ static int coda_ctrls_setup(struct coda_ctx *ctx)
 			coda_jpeg_encode_ctrls(ctx);
 		else
 			coda_encode_ctrls(ctx);
+	} else {
+		if (ctx->cvd->src_formats[0] == V4L2_PIX_FMT_H264)
+			coda_decode_ctrls(ctx);
 	}
 
 	if (ctx->ctrls.error) {
@@ -2092,9 +2221,9 @@ static int coda_open(struct file *file)
 	INIT_LIST_HEAD(&ctx->buffer_meta_list);
 	spin_lock_init(&ctx->buffer_meta_lock);
 
-	coda_lock(ctx);
+	mutex_lock(&dev->dev_mutex);
 	list_add(&ctx->list, &dev->instances);
-	coda_unlock(ctx);
+	mutex_unlock(&dev->dev_mutex);
 
 	v4l2_dbg(1, coda_debug, &dev->v4l2_dev, "Created instance %d (%p)\n",
 		 ctx->idx, ctx);
@@ -2142,9 +2271,9 @@ static int coda_release(struct file *file)
 		flush_work(&ctx->seq_end_work);
 	}
 
-	coda_lock(ctx);
+	mutex_lock(&dev->dev_mutex);
 	list_del(&ctx->list);
-	coda_unlock(ctx);
+	mutex_unlock(&dev->dev_mutex);
 
 	if (ctx->dev->devtype->product == CODA_DX6)
 		coda_free_aux_buf(dev, &ctx->workbuf);

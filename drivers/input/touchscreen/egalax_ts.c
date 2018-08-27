@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for EETI eGalax Multiple Touch Controller
  *
  * Copyright (C) 2011 Freescale Semiconductor, Inc.
  *
  * based on max11801_ts.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /* EETI eGalax serial touch screen controller is a I2C based multiple

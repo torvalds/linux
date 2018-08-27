@@ -850,6 +850,13 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 				ev->memory_exception_data = *ev_data;
 		}
 
+	if (type == KFD_EVENT_TYPE_MEMORY) {
+		dev_warn(kfd_device,
+			"Sending SIGSEGV to HSA Process with PID %d ",
+				p->lead_thread->pid);
+		send_sig(SIGSEGV, p->lead_thread, 0);
+	}
+
 	/* Send SIGTERM no event of type "type" has been found*/
 	if (send_signal) {
 		if (send_sigterm) {
@@ -904,34 +911,41 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 	memory_exception_data.failure.NotPresent = 1;
 	memory_exception_data.failure.NoExecute = 0;
 	memory_exception_data.failure.ReadOnly = 0;
-	if (vma) {
-		if (vma->vm_start > address) {
-			memory_exception_data.failure.NotPresent = 1;
-			memory_exception_data.failure.NoExecute = 0;
+	if (vma && address >= vma->vm_start) {
+		memory_exception_data.failure.NotPresent = 0;
+
+		if (is_write_requested && !(vma->vm_flags & VM_WRITE))
+			memory_exception_data.failure.ReadOnly = 1;
+		else
 			memory_exception_data.failure.ReadOnly = 0;
-		} else {
-			memory_exception_data.failure.NotPresent = 0;
-			if (is_write_requested && !(vma->vm_flags & VM_WRITE))
-				memory_exception_data.failure.ReadOnly = 1;
-			else
-				memory_exception_data.failure.ReadOnly = 0;
-			if (is_execute_requested && !(vma->vm_flags & VM_EXEC))
-				memory_exception_data.failure.NoExecute = 1;
-			else
-				memory_exception_data.failure.NoExecute = 0;
-		}
+
+		if (is_execute_requested && !(vma->vm_flags & VM_EXEC))
+			memory_exception_data.failure.NoExecute = 1;
+		else
+			memory_exception_data.failure.NoExecute = 0;
 	}
 
 	up_read(&mm->mmap_sem);
 	mmput(mm);
 
-	mutex_lock(&p->event_mutex);
+	pr_debug("notpresent %d, noexecute %d, readonly %d\n",
+			memory_exception_data.failure.NotPresent,
+			memory_exception_data.failure.NoExecute,
+			memory_exception_data.failure.ReadOnly);
 
-	/* Lookup events by type and signal them */
-	lookup_events_by_type_and_signal(p, KFD_EVENT_TYPE_MEMORY,
-			&memory_exception_data);
+	/* Workaround on Raven to not kill the process when memory is freed
+	 * before IOMMU is able to finish processing all the excessive PPRs
+	 */
+	if (dev->device_info->asic_family != CHIP_RAVEN) {
+		mutex_lock(&p->event_mutex);
 
-	mutex_unlock(&p->event_mutex);
+		/* Lookup events by type and signal them */
+		lookup_events_by_type_and_signal(p, KFD_EVENT_TYPE_MEMORY,
+				&memory_exception_data);
+
+		mutex_unlock(&p->event_mutex);
+	}
+
 	kfd_unref_process(p);
 }
 #endif /* KFD_SUPPORT_IOMMU_V2 */
@@ -955,4 +969,68 @@ void kfd_signal_hw_exception_event(unsigned int pasid)
 
 	mutex_unlock(&p->event_mutex);
 	kfd_unref_process(p);
+}
+
+void kfd_signal_vm_fault_event(struct kfd_dev *dev, unsigned int pasid,
+				struct kfd_vm_fault_info *info)
+{
+	struct kfd_event *ev;
+	uint32_t id;
+	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
+	struct kfd_hsa_memory_exception_data memory_exception_data;
+
+	if (!p)
+		return; /* Presumably process exited. */
+	memset(&memory_exception_data, 0, sizeof(memory_exception_data));
+	memory_exception_data.gpu_id = dev->id;
+	memory_exception_data.failure.imprecise = 1;
+	/* Set failure reason */
+	if (info) {
+		memory_exception_data.va = (info->page_addr) << PAGE_SHIFT;
+		memory_exception_data.failure.NotPresent =
+			info->prot_valid ? 1 : 0;
+		memory_exception_data.failure.NoExecute =
+			info->prot_exec ? 1 : 0;
+		memory_exception_data.failure.ReadOnly =
+			info->prot_write ? 1 : 0;
+		memory_exception_data.failure.imprecise = 0;
+	}
+	mutex_lock(&p->event_mutex);
+
+	id = KFD_FIRST_NONSIGNAL_EVENT_ID;
+	idr_for_each_entry_continue(&p->event_idr, ev, id)
+		if (ev->type == KFD_EVENT_TYPE_MEMORY) {
+			ev->memory_exception_data = memory_exception_data;
+			set_event(ev);
+		}
+
+	mutex_unlock(&p->event_mutex);
+	kfd_unref_process(p);
+}
+
+void kfd_signal_reset_event(struct kfd_dev *dev)
+{
+	struct kfd_hsa_hw_exception_data hw_exception_data;
+	struct kfd_process *p;
+	struct kfd_event *ev;
+	unsigned int temp;
+	uint32_t id, idx;
+
+	/* Whole gpu reset caused by GPU hang and memory is lost */
+	memset(&hw_exception_data, 0, sizeof(hw_exception_data));
+	hw_exception_data.gpu_id = dev->id;
+	hw_exception_data.memory_lost = 1;
+
+	idx = srcu_read_lock(&kfd_processes_srcu);
+	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
+		mutex_lock(&p->event_mutex);
+		id = KFD_FIRST_NONSIGNAL_EVENT_ID;
+		idr_for_each_entry_continue(&p->event_idr, ev, id)
+			if (ev->type == KFD_EVENT_TYPE_HW_EXCEPTION) {
+				ev->hw_exception_data = hw_exception_data;
+				set_event(ev);
+			}
+		mutex_unlock(&p->event_mutex);
+	}
+	srcu_read_unlock(&kfd_processes_srcu, idx);
 }

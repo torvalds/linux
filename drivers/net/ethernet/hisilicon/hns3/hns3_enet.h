@@ -1,11 +1,5 @@
-/*
- * Copyright (c) 2016 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2016-2017 Hisilicon Limited.
 
 #ifndef __HNS3_ENET_H
 #define __HNS3_ENET_H
@@ -43,7 +37,7 @@ enum hns3_nic_state {
 #define HNS3_RING_TX_RING_BASEADDR_L_REG	0x00040
 #define HNS3_RING_TX_RING_BASEADDR_H_REG	0x00044
 #define HNS3_RING_TX_RING_BD_NUM_REG		0x00048
-#define HNS3_RING_TX_RING_BD_LEN_REG		0x0004C
+#define HNS3_RING_TX_RING_TC_REG		0x00050
 #define HNS3_RING_TX_RING_TAIL_REG		0x00058
 #define HNS3_RING_TX_RING_HEAD_REG		0x0005C
 #define HNS3_RING_TX_RING_FBDNUM_REG		0x00060
@@ -499,7 +493,6 @@ struct hns3_enet_tqp_vector {
 
 	u16 num_tqps;	/* total number of tqps in TQP vector */
 
-	cpumask_t affinity_mask;
 	char name[HNAE3_INT_NAME_LEN];
 
 	/* when 0 should adjust interrupt coalesce parameter */
@@ -591,7 +584,7 @@ static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 #define hns3_write_dev(a, reg, value) \
 	hns3_write_reg((a)->io_base, (reg), (value))
 
-#define hnae_queue_xmit(tqp, buf_num) writel_relaxed(buf_num, \
+#define hnae3_queue_xmit(tqp, buf_num) writel_relaxed(buf_num, \
 		(tqp)->io_base + HNS3_RING_TX_RING_TAIL_REG)
 
 #define ring_to_dev(ring) (&(ring)->tqp->handle->pdev->dev)
@@ -601,9 +594,9 @@ static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 
 #define tx_ring_data(priv, idx) ((priv)->ring_data[idx])
 
-#define hnae_buf_size(_ring) ((_ring)->buf_size)
-#define hnae_page_order(_ring) (get_order(hnae_buf_size(_ring)))
-#define hnae_page_size(_ring) (PAGE_SIZE << hnae_page_order(_ring))
+#define hnae3_buf_size(_ring) ((_ring)->buf_size)
+#define hnae3_page_order(_ring) (get_order(hnae3_buf_size(_ring)))
+#define hnae3_page_size(_ring) (PAGE_SIZE << hnae3_page_order(_ring))
 
 /* iterator for handling rings in ring group */
 #define hns3_for_each_ring(pos, head) \

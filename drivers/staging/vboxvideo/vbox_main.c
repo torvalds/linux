@@ -350,7 +350,7 @@ static void vbox_hw_fini(struct vbox_private *vbox)
 	pci_iounmap(vbox->dev->pdev, vbox->guest_heap);
 }
 
-int vbox_driver_load(struct drm_device *dev, unsigned long flags)
+int vbox_driver_load(struct drm_device *dev)
 {
 	struct vbox_private *vbox;
 	int ret = 0;

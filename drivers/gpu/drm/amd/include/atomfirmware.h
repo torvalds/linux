@@ -1074,7 +1074,7 @@ struct atom_integrated_system_info_v1_11
   uint16_t  dpphy_override;                   // bit vector, enum of atom_sysinfo_dpphy_override_def
   uint16_t  lvds_misc;                        // enum of atom_sys_info_lvds_misc_def
   uint16_t  backlight_pwm_hz;                 // pwm frequency in hz
-  uint8_t   memorytype;                       // enum of atom_sys_mem_type
+  uint8_t   memorytype;                       // enum of atom_dmi_t17_mem_type_def, APU memory type indication.
   uint8_t   umachannelnumber;                 // number of memory channels
   uint8_t   pwr_on_digon_to_de;               /* all pwr sequence numbers below are in uint of 4ms */
   uint8_t   pwr_on_de_to_vary_bl;
@@ -1084,18 +1084,25 @@ struct atom_integrated_system_info_v1_11
   uint8_t   pwr_on_vary_bl_to_blon;
   uint8_t   pwr_down_bloff_to_vary_bloff;
   uint8_t   min_allowed_bl_level;
+  uint8_t   htc_hyst_limit;
+  uint8_t   htc_tmp_limit;
+  uint8_t   reserved1;
+  uint8_t   reserved2;
   struct atom_external_display_connection_info extdispconninfo;
   struct atom_14nm_dpphy_dvihdmi_tuningset dvi_tuningset;
   struct atom_14nm_dpphy_dvihdmi_tuningset hdmi_tuningset;
   struct atom_14nm_dpphy_dvihdmi_tuningset hdmi6g_tuningset;
-  struct atom_14nm_dpphy_dp_tuningset dp_tuningset;
-  struct atom_14nm_dpphy_dp_tuningset dp_hbr3_tuningset;
+  struct atom_14nm_dpphy_dp_tuningset dp_tuningset;        // rbr 1.62G dp tuning set
+  struct atom_14nm_dpphy_dp_tuningset dp_hbr3_tuningset;   // HBR3 dp tuning set
   struct atom_camera_data  camera_info;
   struct atom_hdmi_retimer_redriver_set dp0_retimer_set;   //for DP0
   struct atom_hdmi_retimer_redriver_set dp1_retimer_set;   //for DP1
   struct atom_hdmi_retimer_redriver_set dp2_retimer_set;   //for DP2
   struct atom_hdmi_retimer_redriver_set dp3_retimer_set;   //for DP3
-  uint32_t  reserved[108];
+  struct atom_14nm_dpphy_dp_tuningset dp_hbr_tuningset;    //hbr 2.7G dp tuning set
+  struct atom_14nm_dpphy_dp_tuningset dp_hbr2_tuningset;   //hbr2 5.4G dp turnig set
+  struct atom_14nm_dpphy_dp_tuningset edp_tuningset;       //edp tuning set
+  uint32_t  reserved[66];
 };
 
 

@@ -179,15 +179,11 @@ static inline void exynos_drm_pipe_clk_enable(struct exynos_drm_crtc *crtc,
 		crtc->pipe_clk->enable(crtc->pipe_clk, enable);
 }
 
-struct exynos_drm_g2d_private {
-	struct device		*dev;
+struct drm_exynos_file_private {
+	/* for g2d api */
 	struct list_head	inuse_cmdlist;
 	struct list_head	event_list;
 	struct list_head	userptr_list;
-};
-
-struct drm_exynos_file_private {
-	struct exynos_drm_g2d_private	*g2d_priv;
 };
 
 /*
@@ -201,6 +197,7 @@ struct exynos_drm_private {
 	struct drm_fb_helper *fb_helper;
 	struct drm_atomic_state *suspend_state;
 
+	struct device *g2d_dev;
 	struct device *dma_dev;
 	void *mapping;
 
@@ -216,44 +213,6 @@ static inline struct device *to_dma_dev(struct drm_device *dev)
 
 	return priv->dma_dev;
 }
-
-/*
- * Exynos drm sub driver structure.
- *
- * @list: sub driver has its own list object to register to exynos drm driver.
- * @dev: pointer to device object for subdrv device driver.
- * @drm_dev: pointer to drm_device and this pointer would be set
- *	when sub driver calls exynos_drm_subdrv_register().
- * @probe: this callback would be called by exynos drm driver after
- *     subdrv is registered to it.
- * @remove: this callback is used to release resources created
- *     by probe callback.
- * @open: this would be called with drm device file open.
- * @close: this would be called with drm device file close.
- */
-struct exynos_drm_subdrv {
-	struct list_head list;
-	struct device *dev;
-	struct drm_device *drm_dev;
-
-	int (*probe)(struct drm_device *drm_dev, struct device *dev);
-	void (*remove)(struct drm_device *drm_dev, struct device *dev);
-	int (*open)(struct drm_device *drm_dev, struct device *dev,
-			struct drm_file *file);
-	void (*close)(struct drm_device *drm_dev, struct device *dev,
-			struct drm_file *file);
-};
-
- /* This function would be called by non kms drivers such as g2d and ipp. */
-int exynos_drm_subdrv_register(struct exynos_drm_subdrv *drm_subdrv);
-
-/* this function removes subdrv list from exynos drm driver */
-int exynos_drm_subdrv_unregister(struct exynos_drm_subdrv *drm_subdrv);
-
-int exynos_drm_device_subdrv_probe(struct drm_device *dev);
-int exynos_drm_device_subdrv_remove(struct drm_device *dev);
-int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file);
-void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file);
 
 #ifdef CONFIG_DRM_EXYNOS_DPI
 struct drm_encoder *exynos_dpi_probe(struct device *dev);

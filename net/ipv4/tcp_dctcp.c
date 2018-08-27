@@ -136,7 +136,7 @@ static void dctcp_ce_state_0_to_1(struct sock *sk)
 		 */
 		if (inet_csk(sk)->icsk_ack.pending & ICSK_ACK_TIMER)
 			__tcp_send_ack(sk, ca->prior_rcv_nxt);
-		tcp_enter_quickack_mode(sk, 1);
+		inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_NOW;
 	}
 
 	ca->prior_rcv_nxt = tp->rcv_nxt;
@@ -157,7 +157,7 @@ static void dctcp_ce_state_1_to_0(struct sock *sk)
 		 */
 		if (inet_csk(sk)->icsk_ack.pending & ICSK_ACK_TIMER)
 			__tcp_send_ack(sk, ca->prior_rcv_nxt);
-		tcp_enter_quickack_mode(sk, 1);
+		inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_NOW;
 	}
 
 	ca->prior_rcv_nxt = tp->rcv_nxt;

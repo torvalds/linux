@@ -202,13 +202,6 @@ void __init device_tree_init(void)
 	of_node_put(np);
 }
 
-int __init plat_of_setup(void)
-{
-	return __dt_register_buses("simple-bus", NULL);
-}
-
-arch_initcall(plat_of_setup);
-
 static int __init plat_dev_init(void)
 {
 	of_clk_init(NULL);

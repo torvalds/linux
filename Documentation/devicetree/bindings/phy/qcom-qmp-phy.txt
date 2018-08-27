@@ -12,7 +12,14 @@ Required properties:
 	       "qcom,sdm845-qmp-usb3-phy" for USB3 QMP V3 phy on sdm845,
 	       "qcom,sdm845-qmp-usb3-uni-phy" for USB3 QMP V3 UNI phy on sdm845.
 
- - reg: offset and length of register set for PHY's common serdes block.
+ - reg:
+   - For "qcom,sdm845-qmp-usb3-phy":
+     - index 0: address and length of register set for PHY's common serdes
+       block.
+     - named register "dp_com" (using reg-names): address and length of the
+       DP_COM control block.
+   - For all others:
+     - offset and length of register set for PHY's common serdes block.
 
  - #clock-cells: must be 1
     - Phy pll outputs a bunch of clocks for Tx, Rx and Pipe
@@ -60,7 +67,10 @@ Required nodes:
 
 Required properties for child node:
  - reg: list of offset and length pairs of register sets for PHY blocks -
-	tx, rx and pcs.
+	- index 0: tx
+	- index 1: rx
+	- index 2: pcs
+	- index 3: pcs_misc (optional)
 
  - #phy-cells: must be 0
 

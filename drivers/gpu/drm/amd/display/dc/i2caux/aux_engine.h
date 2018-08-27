@@ -26,46 +26,7 @@
 #ifndef __DAL_AUX_ENGINE_H__
 #define __DAL_AUX_ENGINE_H__
 
-enum aux_transaction_type {
-	AUX_TRANSACTION_TYPE_DP,
-	AUX_TRANSACTION_TYPE_I2C
-};
-
-struct aux_request_transaction_data {
-	enum aux_transaction_type type;
-	enum i2caux_transaction_action action;
-	/* 20-bit AUX channel transaction address */
-	uint32_t address;
-	/* delay, in 100-microsecond units */
-	uint8_t delay;
-	uint32_t length;
-	uint8_t *data;
-};
-
-enum aux_transaction_reply {
-	AUX_TRANSACTION_REPLY_AUX_ACK = 0x00,
-	AUX_TRANSACTION_REPLY_AUX_NACK = 0x01,
-	AUX_TRANSACTION_REPLY_AUX_DEFER = 0x02,
-
-	AUX_TRANSACTION_REPLY_I2C_ACK = 0x00,
-	AUX_TRANSACTION_REPLY_I2C_NACK = 0x10,
-	AUX_TRANSACTION_REPLY_I2C_DEFER = 0x20,
-
-	AUX_TRANSACTION_REPLY_INVALID = 0xFF
-};
-
-struct aux_reply_transaction_data {
-	enum aux_transaction_reply status;
-	uint32_t length;
-	uint8_t *data;
-};
-
-enum aux_channel_operation_result {
-	AUX_CHANNEL_OPERATION_SUCCEEDED,
-	AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN,
-	AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY,
-	AUX_CHANNEL_OPERATION_FAILED_TIMEOUT
-};
+#include "dc_ddc_types.h"
 
 struct aux_engine;
 
@@ -83,6 +44,12 @@ struct aux_engine_funcs {
 	void (*process_channel_reply)(
 		struct aux_engine *engine,
 		struct aux_reply_transaction_data *reply);
+	int (*read_channel_reply)(
+		struct aux_engine *engine,
+		uint32_t size,
+		uint8_t *buffer,
+		uint8_t *reply_result,
+		uint32_t *sw_status);
 	enum aux_channel_operation_result (*get_channel_status)(
 		struct aux_engine *engine,
 		uint8_t *returned_bytes);

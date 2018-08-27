@@ -34,14 +34,15 @@ static void smc_cdc_tx_handler(struct smc_wr_tx_pend_priv *pnd_snd,
 			       enum ib_wc_status wc_status)
 {
 	struct smc_cdc_tx_pend *cdcpend = (struct smc_cdc_tx_pend *)pnd_snd;
+	struct smc_connection *conn = cdcpend->conn;
 	struct smc_sock *smc;
 	int diff;
 
-	if (!cdcpend->conn)
+	if (!conn)
 		/* already dismissed */
 		return;
 
-	smc = container_of(cdcpend->conn, struct smc_sock, conn);
+	smc = container_of(conn, struct smc_sock, conn);
 	bh_lock_sock(&smc->sk);
 	if (!wc_status) {
 		diff = smc_curs_diff(cdcpend->conn->sndbuf_desc->len,
@@ -52,9 +53,7 @@ static void smc_cdc_tx_handler(struct smc_wr_tx_pend_priv *pnd_snd,
 		atomic_add(diff, &cdcpend->conn->sndbuf_space);
 		/* guarantee 0 <= sndbuf_space <= sndbuf_desc->len */
 		smp_mb__after_atomic();
-		smc_curs_write(&cdcpend->conn->tx_curs_fin,
-			       smc_curs_read(&cdcpend->cursor, cdcpend->conn),
-			       cdcpend->conn);
+		smc_curs_copy(&conn->tx_curs_fin, &cdcpend->cursor, conn);
 	}
 	smc_tx_sndbuf_nonfull(smc);
 	bh_unlock_sock(&smc->sk);
@@ -110,14 +109,13 @@ int smc_cdc_msg_send(struct smc_connection *conn,
 			    &conn->local_tx_ctrl, conn);
 	rc = smc_wr_tx_send(link, (struct smc_wr_tx_pend_priv *)pend);
 	if (!rc)
-		smc_curs_write(&conn->rx_curs_confirmed,
-			       smc_curs_read(&conn->local_tx_ctrl.cons, conn),
-			       conn);
+		smc_curs_copy(&conn->rx_curs_confirmed,
+			      &conn->local_tx_ctrl.cons, conn);
 
 	return rc;
 }
 
-int smc_cdc_get_slot_and_msg_send(struct smc_connection *conn)
+static int smcr_cdc_get_slot_and_msg_send(struct smc_connection *conn)
 {
 	struct smc_cdc_tx_pend *pend;
 	struct smc_wr_buf *wr_buf;
@@ -128,6 +126,21 @@ int smc_cdc_get_slot_and_msg_send(struct smc_connection *conn)
 		return rc;
 
 	return smc_cdc_msg_send(conn, wr_buf, pend);
+}
+
+int smc_cdc_get_slot_and_msg_send(struct smc_connection *conn)
+{
+	int rc;
+
+	if (conn->lgr->is_smcd) {
+		spin_lock_bh(&conn->send_lock);
+		rc = smcd_cdc_msg_send(conn);
+		spin_unlock_bh(&conn->send_lock);
+	} else {
+		rc = smcr_cdc_get_slot_and_msg_send(conn);
+	}
+
+	return rc;
 }
 
 static bool smc_cdc_tx_filter(struct smc_wr_tx_pend_priv *tx_pend,
@@ -157,6 +170,44 @@ void smc_cdc_tx_dismiss_slots(struct smc_connection *conn)
 				(unsigned long)conn);
 }
 
+/* Send a SMC-D CDC header.
+ * This increments the free space available in our send buffer.
+ * Also update the confirmed receive buffer with what was sent to the peer.
+ */
+int smcd_cdc_msg_send(struct smc_connection *conn)
+{
+	struct smc_sock *smc = container_of(conn, struct smc_sock, conn);
+	struct smcd_cdc_msg cdc;
+	int rc, diff;
+
+	memset(&cdc, 0, sizeof(cdc));
+	cdc.common.type = SMC_CDC_MSG_TYPE;
+	cdc.prod_wrap = conn->local_tx_ctrl.prod.wrap;
+	cdc.prod_count = conn->local_tx_ctrl.prod.count;
+
+	cdc.cons_wrap = conn->local_tx_ctrl.cons.wrap;
+	cdc.cons_count = conn->local_tx_ctrl.cons.count;
+	cdc.prod_flags = conn->local_tx_ctrl.prod_flags;
+	cdc.conn_state_flags = conn->local_tx_ctrl.conn_state_flags;
+	rc = smcd_tx_ism_write(conn, &cdc, sizeof(cdc), 0, 1);
+	if (rc)
+		return rc;
+	smc_curs_copy(&conn->rx_curs_confirmed, &conn->local_tx_ctrl.cons,
+		      conn);
+	/* Calculate transmitted data and increment free send buffer space */
+	diff = smc_curs_diff(conn->sndbuf_desc->len, &conn->tx_curs_fin,
+			     &conn->tx_curs_sent);
+	/* increased by confirmed number of bytes */
+	smp_mb__before_atomic();
+	atomic_add(diff, &conn->sndbuf_space);
+	/* guarantee 0 <= sndbuf_space <= sndbuf_desc->len */
+	smp_mb__after_atomic();
+	smc_curs_copy(&conn->tx_curs_fin, &conn->tx_curs_sent, conn);
+
+	smc_tx_sndbuf_nonfull(smc);
+	return rc;
+}
+
 /********************************* receive ***********************************/
 
 static inline bool smc_cdc_before(u16 seq1, u16 seq2)
@@ -171,14 +222,12 @@ static void smc_cdc_handle_urg_data_arrival(struct smc_sock *smc,
 	char *base;
 
 	/* new data included urgent business */
-	smc_curs_write(&conn->urg_curs,
-		       smc_curs_read(&conn->local_rx_ctrl.prod, conn),
-		       conn);
+	smc_curs_copy(&conn->urg_curs, &conn->local_rx_ctrl.prod, conn);
 	conn->urg_state = SMC_URG_VALID;
 	if (!sock_flag(&smc->sk, SOCK_URGINLINE))
 		/* we'll skip the urgent byte, so don't account for it */
 		(*diff_prod)--;
-	base = (char *)conn->rmb_desc->cpu_addr;
+	base = (char *)conn->rmb_desc->cpu_addr + conn->rx_off;
 	if (conn->urg_curs.count)
 		conn->urg_rx_byte = *(base + conn->urg_curs.count - 1);
 	else
@@ -193,12 +242,8 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 	struct smc_connection *conn = &smc->conn;
 	int diff_cons, diff_prod;
 
-	smc_curs_write(&prod_old,
-		       smc_curs_read(&conn->local_rx_ctrl.prod, conn),
-		       conn);
-	smc_curs_write(&cons_old,
-		       smc_curs_read(&conn->local_rx_ctrl.cons, conn),
-		       conn);
+	smc_curs_copy(&prod_old, &conn->local_rx_ctrl.prod, conn);
+	smc_curs_copy(&cons_old, &conn->local_rx_ctrl.cons, conn);
 	smc_cdc_msg_to_host(&conn->local_rx_ctrl, cdc, conn);
 
 	diff_cons = smc_curs_diff(conn->peer_rmbe_size, &cons_old,
@@ -277,6 +322,34 @@ static void smc_cdc_msg_recv(struct smc_sock *smc, struct smc_cdc_msg *cdc)
 	sock_put(&smc->sk); /* no free sk in softirq-context */
 }
 
+/* Schedule a tasklet for this connection. Triggered from the ISM device IRQ
+ * handler to indicate update in the DMBE.
+ *
+ * Context:
+ * - tasklet context
+ */
+static void smcd_cdc_rx_tsklet(unsigned long data)
+{
+	struct smc_connection *conn = (struct smc_connection *)data;
+	struct smcd_cdc_msg cdc;
+	struct smc_sock *smc;
+
+	if (!conn)
+		return;
+
+	memcpy(&cdc, conn->rmb_desc->cpu_addr, sizeof(cdc));
+	smc = container_of(conn, struct smc_sock, conn);
+	smc_cdc_msg_recv(smc, (struct smc_cdc_msg *)&cdc);
+}
+
+/* Initialize receive tasklet. Called from ISM device IRQ handler to start
+ * receiver side.
+ */
+void smcd_cdc_rx_init(struct smc_connection *conn)
+{
+	tasklet_init(&conn->rx_tsklet, smcd_cdc_rx_tsklet, (unsigned long)conn);
+}
+
 /***************************** init, exit, misc ******************************/
 
 static void smc_cdc_rx_handler(struct ib_wc *wc, void *buf)
@@ -293,7 +366,7 @@ static void smc_cdc_rx_handler(struct ib_wc *wc, void *buf)
 		return; /* invalid message */
 
 	/* lookup connection */
-	lgr = container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
+	lgr = smc_get_lgr(link);
 	read_lock_bh(&lgr->conns_lock);
 	conn = smc_lgr_find_conn(ntohl(cdc->token), lgr);
 	read_unlock_bh(&lgr->conns_lock);

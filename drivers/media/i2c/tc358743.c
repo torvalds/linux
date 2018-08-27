@@ -1918,7 +1918,8 @@ static int tc358743_probe_of(struct tc358743_state *state)
 	endpoint = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(ep));
 	if (IS_ERR(endpoint)) {
 		dev_err(dev, "failed to parse endpoint\n");
-		return PTR_ERR(endpoint);
+		ret = PTR_ERR(endpoint);
+		goto put_node;
 	}
 
 	if (endpoint->bus_type != V4L2_MBUS_CSI2 ||
@@ -2013,6 +2014,8 @@ disable_clk:
 	clk_disable_unprepare(refclk);
 free_endpoint:
 	v4l2_fwnode_endpoint_free(endpoint);
+put_node:
+	of_node_put(ep);
 	return ret;
 }
 #else

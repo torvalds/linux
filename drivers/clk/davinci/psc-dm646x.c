@@ -18,7 +18,8 @@
 LPSC_CLKDEV1(ide_clkdev,	NULL,		"palm_bk3710");
 LPSC_CLKDEV2(emac_clkdev,	NULL,		"davinci_emac.1",
 				"fck",		"davinci_mdio.0");
-LPSC_CLKDEV1(aemif_clkdev,	"aemif",	NULL);
+LPSC_CLKDEV2(aemif_clkdev,	"aemif",	NULL,
+				NULL,		"ti-aemif");
 LPSC_CLKDEV1(mcasp0_clkdev,	NULL,		"davinci-mcasp.0");
 LPSC_CLKDEV1(mcasp1_clkdev,	NULL,		"davinci-mcasp.1");
 LPSC_CLKDEV1(uart0_clkdev,	NULL,		"serial8250.0");

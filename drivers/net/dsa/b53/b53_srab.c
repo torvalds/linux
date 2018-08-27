@@ -374,6 +374,7 @@ static const struct of_device_id b53_srab_of_match[] = {
 	{ .compatible = "brcm,bcm88312-srab", .data = (void *)BCM58XX_DEVICE_ID },
 	{ .compatible = "brcm,cygnus-srab", .data = (void *)BCM583XX_DEVICE_ID },
 	{ .compatible = "brcm,nsp-srab", .data = (void *)BCM58XX_DEVICE_ID },
+	{ .compatible = "brcm,omega-srab", .data = (void *)BCM583XX_DEVICE_ID },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, b53_srab_of_match);

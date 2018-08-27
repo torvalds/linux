@@ -299,7 +299,6 @@ static int wuxga_nt_panel_remove(struct mipi_dsi_device *dsi)
 	if (ret < 0)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", ret);
 
-	drm_panel_detach(&wuxga_nt->base);
 	wuxga_nt_panel_del(wuxga_nt);
 
 	return 0;

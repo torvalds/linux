@@ -12,9 +12,9 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <asm/asm-compat.h>
 #include <asm/page.h>
 #include <asm/bug.h>
+#include <asm/asm-const.h>
 
 /*
  * This is necessary to get the definition of PGTABLE_RANGE which we
@@ -364,6 +364,16 @@ static inline unsigned long hpte_new_to_old_r(unsigned long r)
 	return r & ~HPTE_R_3_0_SSIZE_MASK;
 }
 
+static inline unsigned long hpte_get_old_v(struct hash_pte *hptep)
+{
+	unsigned long hpte_v;
+
+	hpte_v = be64_to_cpu(hptep->v);
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
+	return hpte_v;
+}
+
 /*
  * This function sets the AVPN and L fields of the HPTE  appropriately
  * using the base page size and actual page size.
@@ -487,6 +497,9 @@ extern void hpte_init_native(void);
 
 extern void slb_initialize(void);
 extern void slb_flush_and_rebolt(void);
+void slb_flush_all_realmode(void);
+void __slb_restore_bolted_realmode(void);
+void slb_restore_bolted_realmode(void);
 
 extern void slb_vmalloc_update(void);
 extern void slb_set_size(u16 size);

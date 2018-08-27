@@ -9,6 +9,6 @@ static __init int add_pcspkr(void)
 
 	pd = platform_device_register_simple("pcspkr", -1, NULL, 0);
 
-	return IS_ERR(pd) ? PTR_ERR(pd) : 0;
+	return PTR_ERR_OR_ZERO(pd);
 }
 device_initcall(add_pcspkr);

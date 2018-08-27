@@ -123,15 +123,13 @@ void tipc_net_finalize(struct net *net, u32 addr)
 {
 	struct tipc_net *tn = tipc_net(net);
 
-	spin_lock_bh(&tn->node_list_lock);
-	if (!tipc_own_addr(net)) {
+	if (!cmpxchg(&tn->node_addr, 0, addr)) {
 		tipc_set_node_addr(net, addr);
 		tipc_named_reinit(net);
 		tipc_sk_reinit(net);
 		tipc_nametbl_publish(net, TIPC_CFG_SRV, addr, addr,
 				     TIPC_CLUSTER_SCOPE, 0, addr);
 	}
-	spin_unlock_bh(&tn->node_list_lock);
 }
 
 void tipc_net_stop(struct net *net)

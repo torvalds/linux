@@ -32,7 +32,7 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	struct ieee80211_rx_status rx_status = { 0 };
 	struct ieee80211_hdr *hdr;
 	__le16 fc;
-	u8 *rsr, *new_rsr, *rssi, *frame;
+	u8 *rsr, *new_rsr, *rssi;
 	__le64 *tsf_time;
 	u32 frame_size;
 	int ii, r;
@@ -132,8 +132,6 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 
 	priv->bb_pre_ed_rssi = (u8)rx_dbm + 1;
 	priv->current_rssi = priv->bb_pre_ed_rssi;
-
-	frame = skb_data + 8;
 
 	skb_pull(skb, 8);
 	skb_trim(skb, frame_size);

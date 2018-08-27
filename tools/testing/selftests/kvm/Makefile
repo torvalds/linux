@@ -9,13 +9,18 @@ LIBKVM_x86_64 = lib/x86.c lib/vmx.c
 TEST_GEN_PROGS_x86_64 = set_sregs_test
 TEST_GEN_PROGS_x86_64 += sync_regs_test
 TEST_GEN_PROGS_x86_64 += vmx_tsc_adjust_test
+TEST_GEN_PROGS_x86_64 += cr4_cpuid_sync_test
+TEST_GEN_PROGS_x86_64 += state_test
+TEST_GEN_PROGS_x86_64 += dirty_log_test
 
 TEST_GEN_PROGS += $(TEST_GEN_PROGS_$(UNAME_M))
 LIBKVM += $(LIBKVM_$(UNAME_M))
 
 INSTALL_HDR_PATH = $(top_srcdir)/usr
 LINUX_HDR_PATH = $(INSTALL_HDR_PATH)/include/
-CFLAGS += -O2 -g -std=gnu99 -I$(LINUX_HDR_PATH) -Iinclude -I$(<D) -I..
+LINUX_TOOL_INCLUDE = $(top_srcdir)tools/include
+CFLAGS += -O2 -g -std=gnu99 -I$(LINUX_TOOL_INCLUDE) -I$(LINUX_HDR_PATH) -Iinclude -I$(<D) -I..
+LDFLAGS += -lpthread
 
 # After inclusion, $(OUTPUT) is defined and
 # $(TEST_GEN_PROGS) starts with $(OUTPUT)/

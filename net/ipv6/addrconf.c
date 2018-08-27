@@ -385,8 +385,6 @@ static struct inet6_dev *ipv6_add_dev(struct net_device *dev)
 
 	if (ndev->cnf.stable_secret.initialized)
 		ndev->cnf.addr_gen_mode = IN6_ADDR_GEN_MODE_STABLE_PRIVACY;
-	else
-		ndev->cnf.addr_gen_mode = ipv6_devconf_dflt.addr_gen_mode;
 
 	ndev->cnf.mtu6 = dev->mtu;
 	ndev->nd_parms = neigh_parms_alloc(dev, &nd_tbl);
@@ -5211,7 +5209,9 @@ static inline size_t inet6_ifla6_size(void)
 	     + nla_total_size(DEVCONF_MAX * 4) /* IFLA_INET6_CONF */
 	     + nla_total_size(IPSTATS_MIB_MAX * 8) /* IFLA_INET6_STATS */
 	     + nla_total_size(ICMP6_MIB_MAX * 8) /* IFLA_INET6_ICMP6STATS */
-	     + nla_total_size(sizeof(struct in6_addr)); /* IFLA_INET6_TOKEN */
+	     + nla_total_size(sizeof(struct in6_addr)) /* IFLA_INET6_TOKEN */
+	     + nla_total_size(1) /* IFLA_INET6_ADDR_GEN_MODE */
+	     + 0;
 }
 
 static inline size_t inet6_if_nlmsg_size(void)
@@ -5893,32 +5893,31 @@ static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
 					 loff_t *ppos)
 {
 	int ret = 0;
-	int new_val;
+	u32 new_val;
 	struct inet6_dev *idev = (struct inet6_dev *)ctl->extra1;
 	struct net *net = (struct net *)ctl->extra2;
+	struct ctl_table tmp = {
+		.data = &new_val,
+		.maxlen = sizeof(new_val),
+		.mode = ctl->mode,
+	};
 
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	new_val = *((u32 *)ctl->data);
+
+	ret = proc_douintvec(&tmp, write, buffer, lenp, ppos);
+	if (ret != 0)
+		goto out;
 
 	if (write) {
-		new_val = *((int *)ctl->data);
-
 		if (check_addr_gen_mode(new_val) < 0) {
 			ret = -EINVAL;
 			goto out;
 		}
 
-		/* request for default */
-		if (&net->ipv6.devconf_dflt->addr_gen_mode == ctl->data) {
-			ipv6_devconf_dflt.addr_gen_mode = new_val;
-
-		/* request for individual net device */
-		} else {
-			if (!idev)
-				goto out;
-
+		if (idev) {
 			if (check_stable_privacy(idev, net, new_val) < 0) {
 				ret = -EINVAL;
 				goto out;
@@ -5928,7 +5927,21 @@ static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
 				idev->cnf.addr_gen_mode = new_val;
 				addrconf_dev_config(idev->dev);
 			}
+		} else if (&net->ipv6.devconf_all->addr_gen_mode == ctl->data) {
+			struct net_device *dev;
+
+			net->ipv6.devconf_dflt->addr_gen_mode = new_val;
+			for_each_netdev(net, dev) {
+				idev = __in6_dev_get(dev);
+				if (idev &&
+				    idev->cnf.addr_gen_mode != new_val) {
+					idev->cnf.addr_gen_mode = new_val;
+					addrconf_dev_config(idev->dev);
+				}
+			}
 		}
+
+		*((u32 *)ctl->data) = new_val;
 	}
 
 out:

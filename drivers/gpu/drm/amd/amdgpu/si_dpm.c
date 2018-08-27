@@ -56,16 +56,16 @@
 
 #define BIOS_SCRATCH_4                                    0x5cd
 
-MODULE_FIRMWARE("radeon/tahiti_smc.bin");
-MODULE_FIRMWARE("radeon/pitcairn_smc.bin");
-MODULE_FIRMWARE("radeon/pitcairn_k_smc.bin");
-MODULE_FIRMWARE("radeon/verde_smc.bin");
-MODULE_FIRMWARE("radeon/verde_k_smc.bin");
-MODULE_FIRMWARE("radeon/oland_smc.bin");
-MODULE_FIRMWARE("radeon/oland_k_smc.bin");
-MODULE_FIRMWARE("radeon/hainan_smc.bin");
-MODULE_FIRMWARE("radeon/hainan_k_smc.bin");
-MODULE_FIRMWARE("radeon/banks_k_2_smc.bin");
+MODULE_FIRMWARE("amdgpu/tahiti_smc.bin");
+MODULE_FIRMWARE("amdgpu/pitcairn_smc.bin");
+MODULE_FIRMWARE("amdgpu/pitcairn_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/verde_smc.bin");
+MODULE_FIRMWARE("amdgpu/verde_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/oland_smc.bin");
+MODULE_FIRMWARE("amdgpu/oland_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/hainan_smc.bin");
+MODULE_FIRMWARE("amdgpu/hainan_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/banks_k_2_smc.bin");
 
 static const struct amd_pm_funcs si_dpm_funcs;
 
@@ -3480,7 +3480,7 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 		disable_sclk_switching = true;
 	}
 
-	if (adev->pm.dpm.ac_power)
+	if (adev->pm.ac_power)
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 	else
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_dc;
@@ -3489,7 +3489,7 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 		if (ps->performance_levels[i].vddc > ps->performance_levels[i+1].vddc)
 			ps->performance_levels[i].vddc = ps->performance_levels[i+1].vddc;
 	}
-	if (adev->pm.dpm.ac_power == false) {
+	if (adev->pm.ac_power == false) {
 		for (i = 0; i < ps->performance_level_count; i++) {
 			if (ps->performance_levels[i].mclk > max_limits->mclk)
 				ps->performance_levels[i].mclk = max_limits->mclk;
@@ -7318,8 +7318,7 @@ static int si_dpm_init(struct amdgpu_device *adev)
 	pi = &eg_pi->rv7xx;
 
 	si_pi->sys_pcie_mask =
-		(adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_MASK) >>
-		CAIL_PCIE_LINK_SPEED_SUPPORT_SHIFT;
+		adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_MASK;
 	si_pi->force_pcie_gen = AMDGPU_PCIE_GEN_INVALID;
 	si_pi->boot_pcie_gen = si_get_current_pcie_speed(adev);
 
@@ -7667,7 +7666,7 @@ static int si_dpm_init_microcode(struct amdgpu_device *adev)
 	default: BUG();
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_smc.bin", chip_name);
 	err = request_firmware(&adev->pm.fw, fw_name, adev->dev);
 	if (err)
 		goto out;

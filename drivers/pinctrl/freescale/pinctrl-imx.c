@@ -383,7 +383,7 @@ static void imx_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 	const char *name;
 	int i, ret;
 
-	if (group > pctldev->num_groups)
+	if (group >= pctldev->num_groups)
 		return;
 
 	seq_puts(s, "\n");

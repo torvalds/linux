@@ -512,24 +512,6 @@ struct ibmvnic_error_indication {
 	u8 reserved2[2];
 } __packed __aligned(8);
 
-struct ibmvnic_request_error_info {
-	u8 first;
-	u8 cmd;
-	u8 reserved[2];
-	__be32 ioba;
-	__be32 len;
-	__be32 error_id;
-} __packed __aligned(8);
-
-struct ibmvnic_request_error_rsp {
-	u8 first;
-	u8 cmd;
-	u8 reserved[2];
-	__be32 error_id;
-	__be32 len;
-	struct ibmvnic_rc rc;
-} __packed __aligned(8);
-
 struct ibmvnic_link_state_indication {
 	u8 first;
 	u8 cmd;
@@ -709,8 +691,6 @@ union ibmvnic_crq {
 	struct ibmvnic_request_debug_stats request_debug_stats;
 	struct ibmvnic_request_debug_stats request_debug_stats_rsp;
 	struct ibmvnic_error_indication error_indication;
-	struct ibmvnic_request_error_info request_error_info;
-	struct ibmvnic_request_error_rsp request_error_rsp;
 	struct ibmvnic_link_state_indication link_state_indication;
 	struct ibmvnic_change_mac_addr change_mac_addr;
 	struct ibmvnic_change_mac_addr change_mac_addr_rsp;
@@ -809,8 +789,6 @@ enum ibmvnic_commands {
 	SET_PHYS_PARMS = 0x07,
 	SET_PHYS_PARMS_RSP = 0x87,
 	ERROR_INDICATION = 0x08,
-	REQUEST_ERROR_INFO = 0x09,
-	REQUEST_ERROR_RSP = 0x89,
 	LOGICAL_LINK_STATE = 0x0C,
 	LOGICAL_LINK_STATE_RSP = 0x8C,
 	REQUEST_STATISTICS = 0x0D,
@@ -945,14 +923,6 @@ struct ibmvnic_rx_pool {
 	struct ibmvnic_long_term_buff long_term_buff;
 };
 
-struct ibmvnic_error_buff {
-	char *buff;
-	dma_addr_t dma;
-	int len;
-	struct list_head list;
-	__be32 error_id;
-};
-
 struct ibmvnic_vpd {
 	unsigned char *buff;
 	dma_addr_t dma_addr;
@@ -1046,9 +1016,6 @@ struct ibmvnic_adapter {
 	struct ibmvnic_tx_pool *tso_pool;
 	struct completion init_done;
 	int init_done_rc;
-
-	struct list_head errors;
-	spinlock_t error_list_lock;
 
 	struct completion fw_done;
 	int fw_done_rc;

@@ -199,7 +199,7 @@ struct ceph_osd_request {
 	/* set by submitter */
 	u64 r_snapid;                         /* for reads, CEPH_NOSNAP o/w */
 	struct ceph_snap_context *r_snapc;    /* for writes */
-	struct timespec r_mtime;              /* ditto */
+	struct timespec64 r_mtime;            /* ditto */
 	u64 r_data_offset;                    /* ditto */
 	bool r_linger;                        /* don't resend on failure */
 
@@ -253,7 +253,7 @@ struct ceph_osd_linger_request {
 	struct ceph_osd_request_target t;
 	u32 map_dne_bound;
 
-	struct timespec mtime;
+	struct timespec64 mtime;
 
 	struct kref kref;
 	struct mutex lock;
@@ -508,7 +508,7 @@ extern int ceph_osdc_writepages(struct ceph_osd_client *osdc,
 				struct ceph_snap_context *sc,
 				u64 off, u64 len,
 				u32 truncate_seq, u64 truncate_size,
-				struct timespec *mtime,
+				struct timespec64 *mtime,
 				struct page **pages, int nr_pages);
 
 /* watch/notify */
@@ -528,12 +528,12 @@ int ceph_osdc_notify_ack(struct ceph_osd_client *osdc,
 			 u64 notify_id,
 			 u64 cookie,
 			 void *payload,
-			 size_t payload_len);
+			 u32 payload_len);
 int ceph_osdc_notify(struct ceph_osd_client *osdc,
 		     struct ceph_object_id *oid,
 		     struct ceph_object_locator *oloc,
 		     void *payload,
-		     size_t payload_len,
+		     u32 payload_len,
 		     u32 timeout,
 		     struct page ***preply_pages,
 		     size_t *preply_len);

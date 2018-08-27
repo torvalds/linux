@@ -188,7 +188,7 @@ enum v4l2_colorfx {
 
 /* The base for the imx driver controls.
  * We reserve 16 controls for this driver. */
-#define V4L2_CID_USER_IMX_BASE			(V4L2_CID_USER_BASE + 0x1090)
+#define V4L2_CID_USER_IMX_BASE			(V4L2_CID_USER_BASE + 0x10b0)
 
 /* MPEG-class control IDs */
 /* The MPEG controls are applicable to all codec controls
@@ -587,7 +587,23 @@ enum v4l2_vp8_golden_frame_sel {
 #define V4L2_CID_MPEG_VIDEO_VPX_MAX_QP			(V4L2_CID_MPEG_BASE+508)
 #define V4L2_CID_MPEG_VIDEO_VPX_I_FRAME_QP		(V4L2_CID_MPEG_BASE+509)
 #define V4L2_CID_MPEG_VIDEO_VPX_P_FRAME_QP		(V4L2_CID_MPEG_BASE+510)
-#define V4L2_CID_MPEG_VIDEO_VPX_PROFILE			(V4L2_CID_MPEG_BASE+511)
+
+#define V4L2_CID_MPEG_VIDEO_VP8_PROFILE			(V4L2_CID_MPEG_BASE+511)
+enum v4l2_mpeg_video_vp8_profile {
+	V4L2_MPEG_VIDEO_VP8_PROFILE_0				= 0,
+	V4L2_MPEG_VIDEO_VP8_PROFILE_1				= 1,
+	V4L2_MPEG_VIDEO_VP8_PROFILE_2				= 2,
+	V4L2_MPEG_VIDEO_VP8_PROFILE_3				= 3,
+};
+/* Deprecated alias for compatibility reasons. */
+#define V4L2_CID_MPEG_VIDEO_VPX_PROFILE	V4L2_CID_MPEG_VIDEO_VP8_PROFILE
+#define V4L2_CID_MPEG_VIDEO_VP9_PROFILE			(V4L2_CID_MPEG_BASE+512)
+enum v4l2_mpeg_video_vp9_profile {
+	V4L2_MPEG_VIDEO_VP9_PROFILE_0				= 0,
+	V4L2_MPEG_VIDEO_VP9_PROFILE_1				= 1,
+	V4L2_MPEG_VIDEO_VP9_PROFILE_2				= 2,
+	V4L2_MPEG_VIDEO_VP9_PROFILE_3				= 3,
+};
 
 /* CIDs for HEVC encoding. */
 

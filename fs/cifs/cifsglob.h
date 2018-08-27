@@ -76,6 +76,9 @@
 #define SMB_ECHO_INTERVAL_MAX 600
 #define SMB_ECHO_INTERVAL_DEFAULT 60
 
+/* maximum number of PDUs in one compound */
+#define MAX_COMPOUND 5
+
 /*
  * Default number of credits to keep available for SMB3.
  * This value is chosen somewhat arbitrarily. The Windows client
@@ -191,9 +194,7 @@ enum smb_version {
 	Smb_21,
 	Smb_30,
 	Smb_302,
-#ifdef CONFIG_CIFS_SMB311
 	Smb_311,
-#endif /* SMB311 */
 	Smb_3any,
 	Smb_default,
 	Smb_version_err
@@ -456,13 +457,11 @@ struct smb_version_operations {
 	long (*fallocate)(struct file *, struct cifs_tcon *, int, loff_t,
 			  loff_t);
 	/* init transform request - used for encryption for now */
-	int (*init_transform_rq)(struct TCP_Server_Info *, struct smb_rqst *,
-				 struct smb_rqst *);
-	/* free transform request */
-	void (*free_transform_rq)(struct smb_rqst *);
+	int (*init_transform_rq)(struct TCP_Server_Info *, int num_rqst,
+				 struct smb_rqst *, struct smb_rqst *);
 	int (*is_transform_hdr)(void *buf);
 	int (*receive_transform)(struct TCP_Server_Info *,
-				 struct mid_q_entry **);
+				 struct mid_q_entry **, char **, int *);
 	enum securityEnum (*select_sectype)(struct TCP_Server_Info *,
 			    enum securityEnum);
 	int (*next_header)(char *);
@@ -684,15 +683,14 @@ struct TCP_Server_Info {
 #ifdef CONFIG_CIFS_STATS2
 	atomic_t in_send; /* requests trying to send */
 	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
-#endif
+	atomic_t smb2slowcmd[NUMBER_OF_SMB2_COMMANDS]; /* count resps > 1 sec */
+#endif /* STATS2 */
 	unsigned int	max_read;
 	unsigned int	max_write;
-#ifdef CONFIG_CIFS_SMB311
 	__le16	cipher_type;
 	 /* save initital negprot hash */
 	__u8	preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
 	bool	posix_ext_supported;
-#endif /* 3.1.1 */
 	struct delayed_work reconnect; /* reconnect workqueue job */
 	struct mutex reconnect_mutex; /* prevent simultaneous reconnects */
 	unsigned long echo_interval;
@@ -886,9 +884,7 @@ struct cifs_ses {
 	__u8 smb3signingkey[SMB3_SIGN_KEY_SIZE];
 	__u8 smb3encryptionkey[SMB3_SIGN_KEY_SIZE];
 	__u8 smb3decryptionkey[SMB3_SIGN_KEY_SIZE];
-#ifdef CONFIG_CIFS_SMB311
 	__u8 preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
-#endif /* 3.1.1 */
 
 	/*
 	 * Network interfaces available on the server this session is
@@ -913,6 +909,7 @@ cap_unix(struct cifs_ses *ses)
 
 struct cached_fid {
 	bool is_valid:1;	/* Do we have a useable root fid */
+	struct kref refcount;
 	struct cifs_fid *fid;
 	struct mutex fid_mutex;
 	struct cifs_tcon *tcon;
@@ -936,7 +933,6 @@ struct cifs_tcon {
 	__u32 tid;		/* The 4 byte tree id */
 	__u16 Flags;		/* optional support bits */
 	enum statusEnum tidStatus;
-#ifdef CONFIG_CIFS_STATS
 	atomic_t num_smbs_sent;
 	union {
 		struct {
@@ -967,24 +963,9 @@ struct cifs_tcon {
 			atomic_t smb2_com_failed[NUMBER_OF_SMB2_COMMANDS];
 		} smb2_stats;
 	} stats;
-#ifdef CONFIG_CIFS_STATS2
-	unsigned long long time_writes;
-	unsigned long long time_reads;
-	unsigned long long time_opens;
-	unsigned long long time_deletes;
-	unsigned long long time_closes;
-	unsigned long long time_mkdirs;
-	unsigned long long time_rmdirs;
-	unsigned long long time_renames;
-	unsigned long long time_t2renames;
-	unsigned long long time_ffirst;
-	unsigned long long time_fnext;
-	unsigned long long time_fclose;
-#endif /* CONFIG_CIFS_STATS2 */
 	__u64    bytes_read;
 	__u64    bytes_written;
 	spinlock_t stat_lock;  /* protects the two fields above */
-#endif /* CONFIG_CIFS_STATS */
 	FILE_SYSTEM_DEVICE_INFO fsDevInfo;
 	FILE_SYSTEM_ATTRIBUTE_INFO fsAttrInfo; /* ok if fs name truncated */
 	FILE_SYSTEM_UNIX_INFO fsUnixInfo;
@@ -997,9 +978,7 @@ struct cifs_tcon {
 	bool seal:1;      /* transport encryption for this mounted share */
 	bool unix_ext:1;  /* if false disable Linux extensions to CIFS protocol
 				for this mount even if server would support */
-#ifdef CONFIG_CIFS_SMB311
 	bool posix_extensions; /* if true SMB3.11 posix extensions enabled */
-#endif /* CIFS_311 */
 	bool local_lease:1; /* check leases (only) on local system not remote */
 	bool broken_posix_open; /* e.g. Samba server versions < 3.3.2, 3.2.9 */
 	bool broken_sparse_sup; /* if server or share does not support sparse */
@@ -1046,6 +1025,7 @@ struct tcon_link {
 };
 
 extern struct tcon_link *cifs_sb_tlink(struct cifs_sb_info *cifs_sb);
+extern void smb3_free_compound_rqst(int num_rqst, struct smb_rqst *rqst);
 
 static inline struct cifs_tcon *
 tlink_tcon(struct tcon_link *tlink)
@@ -1352,7 +1332,6 @@ convert_delimiter(char *path, char delim)
 		*pos = delim;
 }
 
-#ifdef CONFIG_CIFS_STATS
 #define cifs_stats_inc atomic_inc
 
 static inline void cifs_stats_bytes_written(struct cifs_tcon *tcon,
@@ -1372,13 +1351,6 @@ static inline void cifs_stats_bytes_read(struct cifs_tcon *tcon,
 	tcon->bytes_read += bytes;
 	spin_unlock(&tcon->stat_lock);
 }
-#else
-
-#define  cifs_stats_inc(field) do {} while (0)
-#define  cifs_stats_bytes_written(tcon, bytes) do {} while (0)
-#define  cifs_stats_bytes_read(tcon, bytes) do {} while (0)
-
-#endif
 
 
 /*
@@ -1544,9 +1516,9 @@ struct cifs_fattr {
 	dev_t		cf_rdev;
 	unsigned int	cf_nlink;
 	unsigned int	cf_dtype;
-	struct timespec	cf_atime;
-	struct timespec	cf_mtime;
-	struct timespec	cf_ctime;
+	struct timespec64 cf_atime;
+	struct timespec64 cf_mtime;
+	struct timespec64 cf_ctime;
 };
 
 static inline void free_dfs_info_param(struct dfs_info3_param *param)

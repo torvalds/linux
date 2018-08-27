@@ -118,6 +118,8 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 	u64 timeout;
 	int err;
 
+	lockdep_assert_held(&ctx->net->nft.commit_mutex);
+
 	if (tb[NFTA_DYNSET_SET_NAME] == NULL ||
 	    tb[NFTA_DYNSET_OP] == NULL ||
 	    tb[NFTA_DYNSET_SREG_KEY] == NULL)
@@ -185,8 +187,6 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 	if (tb[NFTA_DYNSET_EXPR] != NULL) {
 		if (!(set->flags & NFT_SET_EVAL))
 			return -EINVAL;
-		if (!nft_set_is_anonymous(set))
-			return -EOPNOTSUPP;
 
 		priv->expr = nft_expr_init(ctx, tb[NFTA_DYNSET_EXPR]);
 		if (IS_ERR(priv->expr))

@@ -136,12 +136,24 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
 	struct nv50_disp_core_channel_dma_v0 *args = data;
+	u8 type = NVIF_MEM_COHERENT;
 	int ret;
 
 	mutex_init(&dmac->lock);
 
-	ret = nvif_mem_init_map(&cli->mmu, NVIF_MEM_COHERENT, 0x1000,
-				&dmac->push);
+	/* Pascal added support for 47-bit physical addresses, but some
+	 * parts of EVO still only accept 40-bit PAs.
+	 *
+	 * To avoid issues on systems with large amounts of RAM, and on
+	 * systems where an IOMMU maps pages at a high address, we need
+	 * to allocate push buffers in VRAM instead.
+	 *
+	 * This appears to match NVIDIA's behaviour on Pascal.
+	 */
+	if (device->info.family == NV_DEVICE_INFO_V0_PASCAL)
+		type |= NVIF_MEM_VRAM;
+
+	ret = nvif_mem_init_map(&cli->mmu, type, 0x1000, &dmac->push);
 	if (ret)
 		return ret;
 
@@ -216,6 +228,19 @@ void
 evo_kick(u32 *push, struct nv50_dmac *evoc)
 {
 	struct nv50_dmac *dmac = evoc;
+
+	/* Push buffer fetches are not coherent with BAR1, we need to ensure
+	 * writes have been flushed right through to VRAM before writing PUT.
+	 */
+	if (dmac->push.type & NVIF_MEM_VRAM) {
+		struct nvif_device *device = dmac->base.device;
+		nvif_wr32(&device->object, 0x070000, 0x00000001);
+		nvif_msec(device, 2000,
+			if (!(nvif_rd32(&device->object, 0x070000) & 0x00000002))
+				break;
+		);
+	}
+
 	nvif_wr32(&dmac->base.user, 0x0000, (push - dmac->ptr) << 2);
 	mutex_unlock(&dmac->lock);
 }
@@ -424,7 +449,7 @@ nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 			 "dac-%04x-%04x", dcbe->hasht, dcbe->hashm);
 	drm_encoder_helper_add(encoder, &nv50_dac_help);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	return 0;
 }
 
@@ -850,7 +875,7 @@ nv50_mstc_get_modes(struct drm_connector *connector)
 	int ret = 0;
 
 	mstc->edid = drm_dp_mst_get_edid(&mstc->connector, mstc->port->mgr, mstc->port);
-	drm_mode_connector_update_edid_property(&mstc->connector, mstc->edid);
+	drm_connector_update_edid_property(&mstc->connector, mstc->edid);
 	if (mstc->edid)
 		ret = drm_add_edid_modes(&mstc->connector, mstc->edid);
 
@@ -927,11 +952,11 @@ nv50_mstc_new(struct nv50_mstm *mstm, struct drm_dp_mst_port *port,
 	nouveau_conn_attach_properties(&mstc->connector);
 
 	for (i = 0; i < ARRAY_SIZE(mstm->msto) && mstm->msto[i]; i++)
-		drm_mode_connector_attach_encoder(&mstc->connector, &mstm->msto[i]->encoder);
+		drm_connector_attach_encoder(&mstc->connector, &mstm->msto[i]->encoder);
 
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.path_property, 0);
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.tile_property, 0);
-	drm_mode_connector_set_path_property(&mstc->connector, path);
+	drm_connector_set_path_property(&mstc->connector, path);
 	return 0;
 }
 
@@ -1007,7 +1032,7 @@ nv50_mstm_destroy_connector(struct drm_dp_mst_topology_mgr *mgr,
 	mstc->port = NULL;
 	drm_modeset_unlock(&drm->dev->mode_config.connection_mutex);
 
-	drm_connector_unreference(&mstc->connector);
+	drm_connector_put(&mstc->connector);
 }
 
 static void
@@ -1418,7 +1443,7 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 			 "sor-%04x-%04x", dcbe->hasht, dcbe->hashm);
 	drm_encoder_helper_add(encoder, &nv50_sor_help);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	if (dcbe->type == DCB_OUTPUT_DP) {
 		struct nv50_disp *disp = nv50_disp(encoder->dev);
@@ -1576,7 +1601,7 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 			 "pior-%04x-%04x", dcbe->hasht, dcbe->hashm);
 	drm_encoder_helper_add(encoder, &nv50_pior_help);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	return 0;
 }
 
@@ -2231,6 +2256,9 @@ nv50_display_create(struct drm_device *dev)
 			connector->name);
 		connector->funcs->destroy(connector);
 	}
+
+	/* Disable vblank irqs aggressively for power-saving, safe on nv50+ */
+	dev->vblank_disable_immediate = true;
 
 out:
 	if (ret)

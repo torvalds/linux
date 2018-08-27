@@ -43,7 +43,7 @@ struct jfs_inode_info {
 	pxd_t	ixpxd;		/* inode extent descriptor	*/
 	dxd_t	acl;		/* dxd describing acl	*/
 	dxd_t	ea;		/* dxd describing ea	*/
-	time_t	otime;		/* time created	*/
+	time64_t otime;		/* time created	*/
 	uint	next_index;	/* next available directory entry index */
 	int	acltype;	/* Type of ACL	*/
 	short	btorder;	/* access order	*/

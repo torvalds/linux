@@ -12,8 +12,6 @@ Required properties :
 
 Optional properties
  - interrupts : the interrupt number
- - interrupt-parent : the phandle for the interrupt controller.
-   If an interrupt is not specified polling will be used.
  - reset-gpios : gpio specifier for gpio connected to RESET_N pin. As the line
    is active low, it should be marked GPIO_ACTIVE_LOW.
  - clock-frequency : I2C bus frequency.

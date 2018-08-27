@@ -368,7 +368,6 @@ static struct drm_driver ili9225_driver = {
 				  DRIVER_ATOMIC,
 	.fops			= &ili9225_fops,
 	TINYDRM_GEM_DRIVER_OPS,
-	.lastclose		= drm_fb_helper_lastclose,
 	.name			= "ili9225",
 	.desc			= "Ilitek ILI9225",
 	.date			= "20171106",

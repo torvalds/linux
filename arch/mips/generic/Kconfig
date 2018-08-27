@@ -35,13 +35,13 @@ config LEGACY_BOARD_OCELOT
 	depends on LEGACY_BOARD_SEAD3=n
 	select LEGACY_BOARDS
 	select MSCC_OCELOT
+	select SYS_HAS_EARLY_PRINTK
+	select USE_GENERIC_EARLY_PRINTK_8250
 
 config MSCC_OCELOT
 	bool
 	select GPIOLIB
 	select MSCC_OCELOT_IRQ
-	select SYS_HAS_EARLY_PRINTK
-	select USE_GENERIC_EARLY_PRINTK_8250
 
 comment "FIT/UHI Boards"
 
@@ -64,6 +64,14 @@ config FIT_IMAGE_FDT_XILFPGA
 	help
 	  Enable this to include the FDT for the MIPSfpga platform
 	  from Imagination Technologies in the FIT kernel image.
+
+config FIT_IMAGE_FDT_OCELOT_PCB123
+	bool "Include FDT for Microsemi Ocelot PCB123"
+	select MSCC_OCELOT
+	help
+	  Enable this to include the FDT for the Ocelot PCB123 platform
+	  from Microsemi in the FIT kernel image.
+	  This requires u-boot on the platform.
 
 config VIRT_BOARD_RANCHU
 	bool "Support Ranchu platform for Android emulator"

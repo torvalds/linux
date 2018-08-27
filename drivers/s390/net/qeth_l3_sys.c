@@ -299,8 +299,7 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 	if (strlen(tmp) == 0) {
 		/* delete ip address only */
 		card->options.hsuid[0] = '\0';
-		if (card->dev)
-			memcpy(card->dev->perm_addr, card->options.hsuid, 9);
+		memcpy(card->dev->perm_addr, card->options.hsuid, 9);
 		qeth_configure_cq(card, QETH_CQ_DISABLED);
 		return count;
 	}
@@ -311,8 +310,7 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 	snprintf(card->options.hsuid, sizeof(card->options.hsuid),
 		 "%-8s", tmp);
 	ASCEBC(card->options.hsuid, 8);
-	if (card->dev)
-		memcpy(card->dev->perm_addr, card->options.hsuid, 9);
+	memcpy(card->dev->perm_addr, card->options.hsuid, 9);
 
 	rc = qeth_l3_modify_hsuid(card, true);
 

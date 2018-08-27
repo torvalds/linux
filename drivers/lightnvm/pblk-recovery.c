@@ -77,7 +77,7 @@ static int pblk_recov_l2p_from_emeta(struct pblk *pblk, struct pblk_line *line)
 	}
 
 	if (nr_valid_lbas != nr_lbas)
-		pr_err("pblk: line %d - inconsistent lba list(%llu/%llu)\n",
+		pblk_err(pblk, "line %d - inconsistent lba list(%llu/%llu)\n",
 				line->id, nr_valid_lbas, nr_lbas);
 
 	line->left_msecs = 0;
@@ -184,7 +184,7 @@ next_read_rq:
 	/* If read fails, more padding is needed */
 	ret = pblk_submit_io_sync(pblk, rqd);
 	if (ret) {
-		pr_err("pblk: I/O submission failed: %d\n", ret);
+		pblk_err(pblk, "I/O submission failed: %d\n", ret);
 		return ret;
 	}
 
@@ -194,7 +194,7 @@ next_read_rq:
 	 * we cannot recover from here. Need FTL log.
 	 */
 	if (rqd->error && rqd->error != NVM_RSP_WARN_HIGHECC) {
-		pr_err("pblk: L2P recovery failed (%d)\n", rqd->error);
+		pblk_err(pblk, "L2P recovery failed (%d)\n", rqd->error);
 		return -EINTR;
 	}
 
@@ -273,7 +273,7 @@ static int pblk_recov_pad_oob(struct pblk *pblk, struct pblk_line *line,
 next_pad_rq:
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0);
 	if (rq_ppas < pblk->min_write_pgs) {
-		pr_err("pblk: corrupted pad line %d\n", line->id);
+		pblk_err(pblk, "corrupted pad line %d\n", line->id);
 		goto fail_free_pad;
 	}
 
@@ -342,7 +342,7 @@ next_pad_rq:
 
 	ret = pblk_submit_io(pblk, rqd);
 	if (ret) {
-		pr_err("pblk: I/O submission failed: %d\n", ret);
+		pblk_err(pblk, "I/O submission failed: %d\n", ret);
 		pblk_up_page(pblk, rqd->ppa_list, rqd->nr_ppas);
 		goto fail_free_bio;
 	}
@@ -356,12 +356,12 @@ next_pad_rq:
 
 	if (!wait_for_completion_io_timeout(&pad_rq->wait,
 				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
-		pr_err("pblk: pad write timed out\n");
+		pblk_err(pblk, "pad write timed out\n");
 		ret = -ETIME;
 	}
 
 	if (!pblk_line_is_full(line))
-		pr_err("pblk: corrupted padded line: %d\n", line->id);
+		pblk_err(pblk, "corrupted padded line: %d\n", line->id);
 
 	vfree(data);
 free_rq:
@@ -461,7 +461,7 @@ next_rq:
 
 	ret = pblk_submit_io_sync(pblk, rqd);
 	if (ret) {
-		pr_err("pblk: I/O submission failed: %d\n", ret);
+		pblk_err(pblk, "I/O submission failed: %d\n", ret);
 		return ret;
 	}
 
@@ -501,11 +501,11 @@ next_rq:
 
 		ret = pblk_recov_pad_oob(pblk, line, pad_secs);
 		if (ret)
-			pr_err("pblk: OOB padding failed (err:%d)\n", ret);
+			pblk_err(pblk, "OOB padding failed (err:%d)\n", ret);
 
 		ret = pblk_recov_read_oob(pblk, line, p, r_ptr);
 		if (ret)
-			pr_err("pblk: OOB read failed (err:%d)\n", ret);
+			pblk_err(pblk, "OOB read failed (err:%d)\n", ret);
 
 		left_ppas = 0;
 	}
@@ -592,7 +592,7 @@ next_rq:
 
 	ret = pblk_submit_io_sync(pblk, rqd);
 	if (ret) {
-		pr_err("pblk: I/O submission failed: %d\n", ret);
+		pblk_err(pblk, "I/O submission failed: %d\n", ret);
 		bio_put(bio);
 		return ret;
 	}
@@ -671,14 +671,14 @@ static int pblk_recov_l2p_from_oob(struct pblk *pblk, struct pblk_line *line)
 
 	ret = pblk_recov_scan_oob(pblk, line, p, &done);
 	if (ret) {
-		pr_err("pblk: could not recover L2P from OOB\n");
+		pblk_err(pblk, "could not recover L2P from OOB\n");
 		goto out;
 	}
 
 	if (!done) {
 		ret = pblk_recov_scan_all_oob(pblk, line, p);
 		if (ret) {
-			pr_err("pblk: could not recover L2P from OOB\n");
+			pblk_err(pblk, "could not recover L2P from OOB\n");
 			goto out;
 		}
 	}
@@ -737,14 +737,15 @@ static int pblk_recov_check_line_version(struct pblk *pblk,
 	struct line_header *header = &emeta->header;
 
 	if (header->version_major != EMETA_VERSION_MAJOR) {
-		pr_err("pblk: line major version mismatch: %d, expected: %d\n",
-		       header->version_major, EMETA_VERSION_MAJOR);
+		pblk_err(pblk, "line major version mismatch: %d, expected: %d\n",
+			 header->version_major, EMETA_VERSION_MAJOR);
 		return 1;
 	}
 
-#ifdef NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	if (header->version_minor > EMETA_VERSION_MINOR)
-		pr_info("pblk: newer line minor version found: %d\n", line_v);
+		pblk_info(pblk, "newer line minor version found: %d\n",
+				header->version_minor);
 #endif
 
 	return 0;
@@ -851,7 +852,7 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 			continue;
 
 		if (smeta_buf->header.version_major != SMETA_VERSION_MAJOR) {
-			pr_err("pblk: found incompatible line version %u\n",
+			pblk_err(pblk, "found incompatible line version %u\n",
 					smeta_buf->header.version_major);
 			return ERR_PTR(-EINVAL);
 		}
@@ -863,7 +864,7 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 		}
 
 		if (memcmp(pblk->instance_uuid, smeta_buf->header.uuid, 16)) {
-			pr_debug("pblk: ignore line %u due to uuid mismatch\n",
+			pblk_debug(pblk, "ignore line %u due to uuid mismatch\n",
 					i);
 			continue;
 		}
@@ -887,7 +888,7 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 
 		pblk_recov_line_add_ordered(&recov_list, line);
 		found_lines++;
-		pr_debug("pblk: recovering data line %d, seq:%llu\n",
+		pblk_debug(pblk, "recovering data line %d, seq:%llu\n",
 						line->id, smeta_buf->seq_nr);
 	}
 
@@ -947,7 +948,7 @@ next:
 			line->emeta = NULL;
 		} else {
 			if (open_lines > 1)
-				pr_err("pblk: failed to recover L2P\n");
+				pblk_err(pblk, "failed to recover L2P\n");
 
 			open_lines++;
 			line->meta_line = meta_line;
@@ -976,7 +977,7 @@ next:
 
 out:
 	if (found_lines != recovered_lines)
-		pr_err("pblk: failed to recover all found lines %d/%d\n",
+		pblk_err(pblk, "failed to recover all found lines %d/%d\n",
 						found_lines, recovered_lines);
 
 	return data_line;
@@ -999,7 +1000,7 @@ int pblk_recov_pad(struct pblk *pblk)
 
 	ret = pblk_recov_pad_oob(pblk, line, left_msecs);
 	if (ret) {
-		pr_err("pblk: Tear down padding failed (%d)\n", ret);
+		pblk_err(pblk, "tear down padding failed (%d)\n", ret);
 		return ret;
 	}
 

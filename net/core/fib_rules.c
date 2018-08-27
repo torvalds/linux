@@ -924,8 +924,7 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return 0;
 
 errout:
-	if (nlrule)
-		kfree(nlrule);
+	kfree(nlrule);
 	rules_ops_put(ops);
 	return err;
 }

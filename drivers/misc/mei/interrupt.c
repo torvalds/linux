@@ -173,10 +173,12 @@ static int mei_cl_irq_disconnect_rsp(struct mei_cl *cl, struct mei_cl_cb *cb,
 	int slots;
 	int ret;
 
+	msg_slots = mei_hbm2slots(sizeof(struct hbm_client_connect_response));
 	slots = mei_hbuf_empty_slots(dev);
-	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_response));
+	if (slots < 0)
+		return -EOVERFLOW;
 
-	if (slots < msg_slots)
+	if ((u32)slots < msg_slots)
 		return -EMSGSIZE;
 
 	ret = mei_hbm_cl_disconnect_rsp(dev, cl);
@@ -206,10 +208,12 @@ static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
 	if (!list_empty(&cl->rd_pending))
 		return 0;
 
-	msg_slots = mei_data2slots(sizeof(struct hbm_flow_control));
+	msg_slots = mei_hbm2slots(sizeof(struct hbm_flow_control));
 	slots = mei_hbuf_empty_slots(dev);
+	if (slots < 0)
+		return -EOVERFLOW;
 
-	if (slots < msg_slots)
+	if ((u32)slots < msg_slots)
 		return -EMSGSIZE;
 
 	ret = mei_hbm_cl_flow_control_req(dev, cl);
@@ -368,7 +372,10 @@ int mei_irq_write_handler(struct mei_device *dev, struct list_head *cmpl_list)
 		return 0;
 
 	slots = mei_hbuf_empty_slots(dev);
-	if (slots <= 0)
+	if (slots < 0)
+		return -EOVERFLOW;
+
+	if (slots == 0)
 		return -EMSGSIZE;
 
 	/* complete all waiting for write CB */

@@ -117,6 +117,13 @@ config PINCTRL_IMX7ULP
 	help
 	  Say Y here to enable the imx7ulp pinctrl driver
 
+config PINCTRL_IMX8MQ
+	bool "IMX8MQ pinctrl driver"
+	depends on SOC_IMX8MQ
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx8mq pinctrl driver
+
 config PINCTRL_VF610
 	bool "Freescale Vybrid VF610 pinctrl driver"
 	depends on SOC_VF610

@@ -8143,8 +8143,15 @@ static void is_sdma_eng_int(struct hfi1_devdata *dd, unsigned int source)
 	}
 }
 
-/*
+/**
+ * is_rcv_avail_int() - User receive context available IRQ handler
+ * @dd: valid dd
+ * @source: logical IRQ source (offset from IS_RCVAVAIL_START)
+ *
  * RX block receive available interrupt.  Source is < 160.
+ *
+ * This is the general interrupt handler for user (PSM) receive contexts,
+ * and can only be used for non-threaded IRQs.
  */
 static void is_rcv_avail_int(struct hfi1_devdata *dd, unsigned int source)
 {
@@ -8154,12 +8161,7 @@ static void is_rcv_avail_int(struct hfi1_devdata *dd, unsigned int source)
 	if (likely(source < dd->num_rcv_contexts)) {
 		rcd = hfi1_rcd_get_by_index(dd, source);
 		if (rcd) {
-			/* Check for non-user contexts, including vnic */
-			if (source < dd->first_dyn_alloc_ctxt || rcd->is_vnic)
-				rcd->do_interrupt(rcd, 0);
-			else
-				handle_user_interrupt(rcd);
-
+			handle_user_interrupt(rcd);
 			hfi1_rcd_put(rcd);
 			return;	/* OK */
 		}
@@ -8173,8 +8175,14 @@ static void is_rcv_avail_int(struct hfi1_devdata *dd, unsigned int source)
 		   err_detail, source);
 }
 
-/*
+/**
+ * is_rcv_urgent_int() - User receive context urgent IRQ handler
+ * @dd: valid dd
+ * @source: logical IRQ source (ofse from IS_RCVURGENT_START)
+ *
  * RX block receive urgent interrupt.  Source is < 160.
+ *
+ * NOTE: kernel receive contexts specifically do NOT enable this IRQ.
  */
 static void is_rcv_urgent_int(struct hfi1_devdata *dd, unsigned int source)
 {
@@ -8184,11 +8192,7 @@ static void is_rcv_urgent_int(struct hfi1_devdata *dd, unsigned int source)
 	if (likely(source < dd->num_rcv_contexts)) {
 		rcd = hfi1_rcd_get_by_index(dd, source);
 		if (rcd) {
-			/* only pay attention to user urgent interrupts */
-			if (source >= dd->first_dyn_alloc_ctxt &&
-			    !rcd->is_vnic)
-				handle_user_interrupt(rcd);
-
+			handle_user_interrupt(rcd);
 			hfi1_rcd_put(rcd);
 			return;	/* OK */
 		}
@@ -8260,9 +8264,14 @@ static void is_interrupt(struct hfi1_devdata *dd, unsigned int source)
 	dd_dev_err(dd, "invalid interrupt source %u\n", source);
 }
 
-/*
- * General interrupt handler.  This is able to correctly handle
- * all interrupts in case INTx is used.
+/**
+ * gerneral_interrupt() -  General interrupt handler
+ * @irq: MSIx IRQ vector
+ * @data: hfi1 devdata
+ *
+ * This is able to correctly handle all non-threaded interrupts.  Receive
+ * context DATA IRQs are threaded and are not supported by this handler.
+ *
  */
 static irqreturn_t general_interrupt(int irq, void *data)
 {
@@ -10130,7 +10139,7 @@ static void set_lidlmc(struct hfi1_pportdata *ppd)
 	       (((lid & mask) & SEND_CTXT_CHECK_SLID_VALUE_MASK) <<
 			SEND_CTXT_CHECK_SLID_VALUE_SHIFT);
 
-	for (i = 0; i < dd->chip_send_contexts; i++) {
+	for (i = 0; i < chip_send_contexts(dd); i++) {
 		hfi1_cdbg(LINKVERB, "SendContext[%d].SLID_CHECK = 0x%x",
 			  i, (u32)sreg);
 		write_kctxt_csr(dd, i, SEND_CTXT_CHECK_SLID, sreg);
@@ -11857,7 +11866,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 		 * sequence numbers could land exactly on the same spot.
 		 * E.g. a rcd restart before the receive header wrapped.
 		 */
-		memset(rcd->rcvhdrq, 0, rcd->rcvhdrq_size);
+		memset(rcd->rcvhdrq, 0, rcvhdrq_size(rcd));
 
 		/* starting timeout */
 		rcd->rcvavail_timeout = dd->rcv_intr_timeout_csr;
@@ -11952,9 +11961,8 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 		rcvctrl |= RCV_CTXT_CTRL_DONT_DROP_EGR_FULL_SMASK;
 	if (op & HFI1_RCVCTRL_NO_EGR_DROP_DIS)
 		rcvctrl &= ~RCV_CTXT_CTRL_DONT_DROP_EGR_FULL_SMASK;
-	rcd->rcvctrl = rcvctrl;
 	hfi1_cdbg(RCVCTRL, "ctxt %d rcvctrl 0x%llx\n", ctxt, rcvctrl);
-	write_kctxt_csr(dd, ctxt, RCV_CTXT_CTRL, rcd->rcvctrl);
+	write_kctxt_csr(dd, ctxt, RCV_CTXT_CTRL, rcvctrl);
 
 	/* work around sticky RcvCtxtStatus.BlockedRHQFull */
 	if (did_enable &&
@@ -12042,7 +12050,7 @@ u32 hfi1_read_cntrs(struct hfi1_devdata *dd, char **namep, u64 **cntrp)
 				} else if (entry->flags & CNTR_SDMA) {
 					hfi1_cdbg(CNTR,
 						  "\t Per SDMA Engine\n");
-					for (j = 0; j < dd->chip_sdma_engines;
+					for (j = 0; j < chip_sdma_engines(dd);
 					     j++) {
 						val =
 						entry->rw_cntr(entry, dd, j,
@@ -12418,6 +12426,7 @@ static int init_cntrs(struct hfi1_devdata *dd)
 	struct hfi1_pportdata *ppd;
 	const char *bit_type_32 = ",32";
 	const int bit_type_32_sz = strlen(bit_type_32);
+	u32 sdma_engines = chip_sdma_engines(dd);
 
 	/* set up the stats timer; the add_timer is done at the end */
 	timer_setup(&dd->synth_stats_timer, update_synth_timer, 0);
@@ -12450,7 +12459,7 @@ static int init_cntrs(struct hfi1_devdata *dd)
 			}
 		} else if (dev_cntrs[i].flags & CNTR_SDMA) {
 			dev_cntrs[i].offset = dd->ndevcntrs;
-			for (j = 0; j < dd->chip_sdma_engines; j++) {
+			for (j = 0; j < sdma_engines; j++) {
 				snprintf(name, C_MAX_NAME, "%s%d",
 					 dev_cntrs[i].name, j);
 				sz += strlen(name);
@@ -12507,7 +12516,7 @@ static int init_cntrs(struct hfi1_devdata *dd)
 				*p++ = '\n';
 			}
 		} else if (dev_cntrs[i].flags & CNTR_SDMA) {
-			for (j = 0; j < dd->chip_sdma_engines; j++) {
+			for (j = 0; j < sdma_engines; j++) {
 				snprintf(name, C_MAX_NAME, "%s%d",
 					 dev_cntrs[i].name, j);
 				memcpy(p, name, strlen(name));
@@ -13020,9 +13029,9 @@ static void clear_all_interrupts(struct hfi1_devdata *dd)
 	write_csr(dd, SEND_PIO_ERR_CLEAR, ~(u64)0);
 	write_csr(dd, SEND_DMA_ERR_CLEAR, ~(u64)0);
 	write_csr(dd, SEND_EGRESS_ERR_CLEAR, ~(u64)0);
-	for (i = 0; i < dd->chip_send_contexts; i++)
+	for (i = 0; i < chip_send_contexts(dd); i++)
 		write_kctxt_csr(dd, i, SEND_CTXT_ERR_CLEAR, ~(u64)0);
-	for (i = 0; i < dd->chip_sdma_engines; i++)
+	for (i = 0; i < chip_sdma_engines(dd); i++)
 		write_kctxt_csr(dd, i, SEND_DMA_ENG_ERR_CLEAR, ~(u64)0);
 
 	write_csr(dd, DCC_ERR_FLG_CLR, ~(u64)0);
@@ -13030,47 +13039,29 @@ static void clear_all_interrupts(struct hfi1_devdata *dd)
 	write_csr(dd, DC_DC8051_ERR_CLR, ~(u64)0);
 }
 
-/* Move to pcie.c? */
-static void disable_intx(struct pci_dev *pdev)
-{
-	pci_intx(pdev, 0);
-}
-
 /**
  * hfi1_clean_up_interrupts() - Free all IRQ resources
  * @dd: valid device data data structure
  *
- * Free the MSI or INTx IRQs and assoicated PCI resources,
- * if they have been allocated.
+ * Free the MSIx and assoicated PCI resources, if they have been allocated.
  */
 void hfi1_clean_up_interrupts(struct hfi1_devdata *dd)
 {
 	int i;
+	struct hfi1_msix_entry *me = dd->msix_entries;
 
 	/* remove irqs - must happen before disabling/turning off */
-	if (dd->num_msix_entries) {
-		/* MSI-X */
-		struct hfi1_msix_entry *me = dd->msix_entries;
-
-		for (i = 0; i < dd->num_msix_entries; i++, me++) {
-			if (!me->arg) /* => no irq, no affinity */
-				continue;
-			hfi1_put_irq_affinity(dd, me);
-			pci_free_irq(dd->pcidev, i, me->arg);
-		}
-
-		/* clean structures */
-		kfree(dd->msix_entries);
-		dd->msix_entries = NULL;
-		dd->num_msix_entries = 0;
-	} else {
-		/* INTx */
-		if (dd->requested_intx_irq) {
-			pci_free_irq(dd->pcidev, 0, dd);
-			dd->requested_intx_irq = 0;
-		}
-		disable_intx(dd->pcidev);
+	for (i = 0; i < dd->num_msix_entries; i++, me++) {
+		if (!me->arg) /* => no irq, no affinity */
+			continue;
+		hfi1_put_irq_affinity(dd, me);
+		pci_free_irq(dd->pcidev, i, me->arg);
 	}
+
+	/* clean structures */
+	kfree(dd->msix_entries);
+	dd->msix_entries = NULL;
+	dd->num_msix_entries = 0;
 
 	pci_free_irq_vectors(dd->pcidev);
 }
@@ -13119,20 +13110,6 @@ static void remap_sdma_interrupts(struct hfi1_devdata *dd,
 		   msix_intr);
 	remap_intr(dd, IS_SDMA_START + 2 * TXE_NUM_SDMA_ENGINES + engine,
 		   msix_intr);
-}
-
-static int request_intx_irq(struct hfi1_devdata *dd)
-{
-	int ret;
-
-	ret = pci_request_irq(dd->pcidev, 0, general_interrupt, NULL, dd,
-			      DRIVER_NAME "_%d", dd->unit);
-	if (ret)
-		dd_dev_err(dd, "unable to request INTx interrupt, err %d\n",
-			   ret);
-	else
-		dd->requested_intx_irq = 1;
-	return ret;
 }
 
 static int request_msix_irqs(struct hfi1_devdata *dd)
@@ -13253,11 +13230,6 @@ void hfi1_vnic_synchronize_irq(struct hfi1_devdata *dd)
 {
 	int i;
 
-	if (!dd->num_msix_entries) {
-		synchronize_irq(pci_irq_vector(dd->pcidev, 0));
-		return;
-	}
-
 	for (i = 0; i < dd->vnic.num_ctxt; i++) {
 		struct hfi1_ctxtdata *rcd = dd->vnic.ctxt[i];
 		struct hfi1_msix_entry *me = &dd->msix_entries[rcd->msix_intr];
@@ -13346,7 +13318,6 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 {
 	u32 total;
 	int ret, request;
-	int single_interrupt = 0; /* we expect to have all the interrupts */
 
 	/*
 	 * Interrupt count:
@@ -13362,17 +13333,6 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 	request = request_msix(dd, total);
 	if (request < 0) {
 		ret = request;
-		goto fail;
-	} else if (request == 0) {
-		/* using INTx */
-		/* dd->num_msix_entries already zero */
-		single_interrupt = 1;
-		dd_dev_err(dd, "MSI-X failed, using INTx interrupts\n");
-	} else if (request < total) {
-		/* using MSI-X, with reduced interrupts */
-		dd_dev_err(dd, "reduced interrupt found, wanted %u, got %u\n",
-			   total, request);
-		ret = -EINVAL;
 		goto fail;
 	} else {
 		dd->msix_entries = kcalloc(total, sizeof(*dd->msix_entries),
@@ -13394,10 +13354,7 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 	/* reset general handler mask, chip MSI-X mappings */
 	reset_interrupts(dd);
 
-	if (single_interrupt)
-		ret = request_intx_irq(dd);
-	else
-		ret = request_msix_irqs(dd);
+	ret = request_msix_irqs(dd);
 	if (ret)
 		goto fail;
 
@@ -13429,6 +13386,8 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	int qos_rmt_count;
 	int user_rmt_reduced;
 	u32 n_usr_ctxts;
+	u32 send_contexts = chip_send_contexts(dd);
+	u32 rcv_contexts = chip_rcv_contexts(dd);
 
 	/*
 	 * Kernel receive contexts:
@@ -13450,16 +13409,16 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	 * Every kernel receive context needs an ACK send context.
 	 * one send context is allocated for each VL{0-7} and VL15
 	 */
-	if (num_kernel_contexts > (dd->chip_send_contexts - num_vls - 1)) {
+	if (num_kernel_contexts > (send_contexts - num_vls - 1)) {
 		dd_dev_err(dd,
 			   "Reducing # kernel rcv contexts to: %d, from %lu\n",
-			   (int)(dd->chip_send_contexts - num_vls - 1),
+			   send_contexts - num_vls - 1,
 			   num_kernel_contexts);
-		num_kernel_contexts = dd->chip_send_contexts - num_vls - 1;
+		num_kernel_contexts = send_contexts - num_vls - 1;
 	}
 
 	/* Accommodate VNIC contexts if possible */
-	if ((num_kernel_contexts + num_vnic_contexts) > dd->chip_rcv_contexts) {
+	if ((num_kernel_contexts + num_vnic_contexts) > rcv_contexts) {
 		dd_dev_err(dd, "No receive contexts available for VNIC\n");
 		num_vnic_contexts = 0;
 	}
@@ -13477,13 +13436,13 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	/*
 	 * Adjust the counts given a global max.
 	 */
-	if (total_contexts + n_usr_ctxts > dd->chip_rcv_contexts) {
+	if (total_contexts + n_usr_ctxts > rcv_contexts) {
 		dd_dev_err(dd,
 			   "Reducing # user receive contexts to: %d, from %u\n",
-			   (int)(dd->chip_rcv_contexts - total_contexts),
+			   rcv_contexts - total_contexts,
 			   n_usr_ctxts);
 		/* recalculate */
-		n_usr_ctxts = dd->chip_rcv_contexts - total_contexts;
+		n_usr_ctxts = rcv_contexts - total_contexts;
 	}
 
 	/* each user context requires an entry in the RMT */
@@ -13509,7 +13468,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	dd->freectxts = n_usr_ctxts;
 	dd_dev_info(dd,
 		    "rcv contexts: chip %d, used %d (kernel %d, vnic %u, user %u)\n",
-		    (int)dd->chip_rcv_contexts,
+		    rcv_contexts,
 		    (int)dd->num_rcv_contexts,
 		    (int)dd->n_krcv_queues,
 		    dd->num_vnic_contexts,
@@ -13527,7 +13486,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	 *   contexts.
 	 */
 	dd->rcv_entries.group_size = RCV_INCREMENT;
-	ngroups = dd->chip_rcv_array_count / dd->rcv_entries.group_size;
+	ngroups = chip_rcv_array_count(dd) / dd->rcv_entries.group_size;
 	dd->rcv_entries.ngroups = ngroups / dd->num_rcv_contexts;
 	dd->rcv_entries.nctxt_extra = ngroups -
 		(dd->num_rcv_contexts * dd->rcv_entries.ngroups);
@@ -13552,7 +13511,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 		dd_dev_info(
 			dd,
 			"send contexts: chip %d, used %d (kernel %d, ack %d, user %d, vl15 %d)\n",
-			dd->chip_send_contexts,
+			send_contexts,
 			dd->num_send_contexts,
 			dd->sc_sizes[SC_KERNEL].count,
 			dd->sc_sizes[SC_ACK].count,
@@ -13610,7 +13569,7 @@ static void write_uninitialized_csrs_and_memories(struct hfi1_devdata *dd)
 		write_csr(dd, CCE_INT_MAP + (8 * i), 0);
 
 	/* SendCtxtCreditReturnAddr */
-	for (i = 0; i < dd->chip_send_contexts; i++)
+	for (i = 0; i < chip_send_contexts(dd); i++)
 		write_kctxt_csr(dd, i, SEND_CTXT_CREDIT_RETURN_ADDR, 0);
 
 	/* PIO Send buffers */
@@ -13623,7 +13582,7 @@ static void write_uninitialized_csrs_and_memories(struct hfi1_devdata *dd)
 	/* RcvHdrAddr */
 	/* RcvHdrTailAddr */
 	/* RcvTidFlowTable */
-	for (i = 0; i < dd->chip_rcv_contexts; i++) {
+	for (i = 0; i < chip_rcv_contexts(dd); i++) {
 		write_kctxt_csr(dd, i, RCV_HDR_ADDR, 0);
 		write_kctxt_csr(dd, i, RCV_HDR_TAIL_ADDR, 0);
 		for (j = 0; j < RXE_NUM_TID_FLOWS; j++)
@@ -13631,7 +13590,7 @@ static void write_uninitialized_csrs_and_memories(struct hfi1_devdata *dd)
 	}
 
 	/* RcvArray */
-	for (i = 0; i < dd->chip_rcv_array_count; i++)
+	for (i = 0; i < chip_rcv_array_count(dd); i++)
 		hfi1_put_tid(dd, i, PT_INVALID_FLUSH, 0, 0);
 
 	/* RcvQPMapTable */
@@ -13789,7 +13748,7 @@ static void reset_txe_csrs(struct hfi1_devdata *dd)
 		write_csr(dd, SEND_LOW_PRIORITY_LIST + (8 * i), 0);
 	for (i = 0; i < VL_ARB_HIGH_PRIO_TABLE_SIZE; i++)
 		write_csr(dd, SEND_HIGH_PRIORITY_LIST + (8 * i), 0);
-	for (i = 0; i < dd->chip_send_contexts / NUM_CONTEXTS_PER_SET; i++)
+	for (i = 0; i < chip_send_contexts(dd) / NUM_CONTEXTS_PER_SET; i++)
 		write_csr(dd, SEND_CONTEXT_SET_CTRL + (8 * i), 0);
 	for (i = 0; i < TXE_NUM_32_BIT_COUNTER; i++)
 		write_csr(dd, SEND_COUNTER_ARRAY32 + (8 * i), 0);
@@ -13817,7 +13776,7 @@ static void reset_txe_csrs(struct hfi1_devdata *dd)
 	/*
 	 * TXE Per-Context CSRs
 	 */
-	for (i = 0; i < dd->chip_send_contexts; i++) {
+	for (i = 0; i < chip_send_contexts(dd); i++) {
 		write_kctxt_csr(dd, i, SEND_CTXT_CTRL, 0);
 		write_kctxt_csr(dd, i, SEND_CTXT_CREDIT_CTRL, 0);
 		write_kctxt_csr(dd, i, SEND_CTXT_CREDIT_RETURN_ADDR, 0);
@@ -13835,7 +13794,7 @@ static void reset_txe_csrs(struct hfi1_devdata *dd)
 	/*
 	 * TXE Per-SDMA CSRs
 	 */
-	for (i = 0; i < dd->chip_sdma_engines; i++) {
+	for (i = 0; i < chip_sdma_engines(dd); i++) {
 		write_kctxt_csr(dd, i, SEND_DMA_CTRL, 0);
 		/* SEND_DMA_STATUS read-only */
 		write_kctxt_csr(dd, i, SEND_DMA_BASE_ADDR, 0);
@@ -13968,7 +13927,7 @@ static void reset_rxe_csrs(struct hfi1_devdata *dd)
 	/*
 	 * RXE Kernel and User Per-Context CSRs
 	 */
-	for (i = 0; i < dd->chip_rcv_contexts; i++) {
+	for (i = 0; i < chip_rcv_contexts(dd); i++) {
 		/* kernel */
 		write_kctxt_csr(dd, i, RCV_CTXT_CTRL, 0);
 		/* RCV_CTXT_STATUS read-only */
@@ -14084,13 +14043,13 @@ static int init_chip(struct hfi1_devdata *dd)
 
 	/* disable send contexts and SDMA engines */
 	write_csr(dd, SEND_CTRL, 0);
-	for (i = 0; i < dd->chip_send_contexts; i++)
+	for (i = 0; i < chip_send_contexts(dd); i++)
 		write_kctxt_csr(dd, i, SEND_CTXT_CTRL, 0);
-	for (i = 0; i < dd->chip_sdma_engines; i++)
+	for (i = 0; i < chip_sdma_engines(dd); i++)
 		write_kctxt_csr(dd, i, SEND_DMA_CTRL, 0);
 	/* disable port (turn off RXE inbound traffic) and contexts */
 	write_csr(dd, RCV_CTRL, 0);
-	for (i = 0; i < dd->chip_rcv_contexts; i++)
+	for (i = 0; i < chip_rcv_contexts(dd); i++)
 		write_csr(dd, RCV_CTXT_CTRL, 0);
 	/* mask all interrupt sources */
 	for (i = 0; i < CCE_NUM_INT_CSRS; i++)
@@ -14709,9 +14668,9 @@ static void init_txe(struct hfi1_devdata *dd)
 	write_csr(dd, SEND_EGRESS_ERR_MASK, ~0ull);
 
 	/* enable all per-context and per-SDMA engine errors */
-	for (i = 0; i < dd->chip_send_contexts; i++)
+	for (i = 0; i < chip_send_contexts(dd); i++)
 		write_kctxt_csr(dd, i, SEND_CTXT_ERR_MASK, ~0ull);
-	for (i = 0; i < dd->chip_sdma_engines; i++)
+	for (i = 0; i < chip_sdma_engines(dd); i++)
 		write_kctxt_csr(dd, i, SEND_DMA_ENG_ERR_MASK, ~0ull);
 
 	/* set the local CU to AU mapping */
@@ -14979,11 +14938,13 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		"Functional simulator"
 	};
 	struct pci_dev *parent = pdev->bus->self;
+	u32 sdma_engines;
 
 	dd = hfi1_alloc_devdata(pdev, NUM_IB_PORTS *
 				sizeof(struct hfi1_pportdata));
 	if (IS_ERR(dd))
 		goto bail;
+	sdma_engines = chip_sdma_engines(dd);
 	ppd = dd->pport;
 	for (i = 0; i < dd->num_pports; i++, ppd++) {
 		int vl;
@@ -15081,11 +15042,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	/* give a reasonable active value, will be set on link up */
 	dd->pport->link_speed_active = OPA_LINK_SPEED_25G;
 
-	dd->chip_rcv_contexts = read_csr(dd, RCV_CONTEXTS);
-	dd->chip_send_contexts = read_csr(dd, SEND_CONTEXTS);
-	dd->chip_sdma_engines = read_csr(dd, SEND_DMA_ENGINES);
-	dd->chip_pio_mem_size = read_csr(dd, SEND_PIO_MEM_SIZE);
-	dd->chip_sdma_mem_size = read_csr(dd, SEND_DMA_MEM_SIZE);
 	/* fix up link widths for emulation _p */
 	ppd = dd->pport;
 	if (dd->icode == ICODE_FPGA_EMULATION && is_emulator_p(dd)) {
@@ -15096,11 +15052,11 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 				OPA_LINK_WIDTH_1X;
 	}
 	/* insure num_vls isn't larger than number of sdma engines */
-	if (HFI1_CAP_IS_KSET(SDMA) && num_vls > dd->chip_sdma_engines) {
+	if (HFI1_CAP_IS_KSET(SDMA) && num_vls > sdma_engines) {
 		dd_dev_err(dd, "num_vls %u too large, using %u VLs\n",
-			   num_vls, dd->chip_sdma_engines);
-		num_vls = dd->chip_sdma_engines;
-		ppd->vls_supported = dd->chip_sdma_engines;
+			   num_vls, sdma_engines);
+		num_vls = sdma_engines;
+		ppd->vls_supported = sdma_engines;
 		ppd->vls_operational = ppd->vls_supported;
 	}
 
@@ -15215,13 +15171,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	 * contexts and before enabling interrupts
 	 */
 	aspm_init(dd);
-
-	dd->rcvhdrsize = DEFAULT_RCVHDRSIZE;
-	/*
-	 * rcd[0] is guaranteed to be valid by this point. Also, all
-	 * context are using the same value, as per the module parameter.
-	 */
-	dd->rhf_offset = dd->rcd[0]->rcvhdrqentsize - sizeof(u64) / sizeof(u32);
 
 	ret = init_pervl_scs(dd);
 	if (ret)

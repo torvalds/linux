@@ -49,12 +49,12 @@ static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 
 	for (i = 0; i < ETNA_MAX_PIPES; i++) {
 		struct etnaviv_gpu *gpu = priv->gpu[i];
+		struct drm_sched_rq *rq;
 
 		if (gpu) {
-			drm_sched_entity_init(&gpu->sched,
-				&ctx->sched_entity[i],
-				&gpu->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL],
-				NULL);
+			rq = &gpu->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+			drm_sched_entity_init(&ctx->sched_entity[i],
+					      &rq, 1, NULL);
 			}
 	}
 
@@ -78,8 +78,7 @@ static void etnaviv_postclose(struct drm_device *dev, struct drm_file *file)
 				gpu->lastctx = NULL;
 			mutex_unlock(&gpu->lock);
 
-			drm_sched_entity_fini(&gpu->sched,
-					      &ctx->sched_entity[i]);
+			drm_sched_entity_destroy(&ctx->sched_entity[i]);
 		}
 	}
 

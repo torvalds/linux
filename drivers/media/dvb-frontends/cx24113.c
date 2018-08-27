@@ -533,10 +533,10 @@ static void cx24113_release(struct dvb_frontend *fe)
 
 static const struct dvb_tuner_ops cx24113_tuner_ops = {
 	.info = {
-		.name           = "Conexant CX24113",
-		.frequency_min  = 950000,
-		.frequency_max  = 2150000,
-		.frequency_step = 125,
+		.name              = "Conexant CX24113",
+		.frequency_min_hz  =  950 * MHz,
+		.frequency_max_hz  = 2150 * MHz,
+		.frequency_step_hz =  125 * kHz,
 	},
 
 	.release       = cx24113_release,

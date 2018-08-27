@@ -212,7 +212,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 			vp->max_tx_bw = MAX_BW;
 			vp->min_tx_bw = MIN_BW;
 			vp->spoofchk = false;
-			random_ether_addr(vp->mac);
+			eth_random_addr(vp->mac);
 			dev_info(&adapter->pdev->dev,
 				 "MAC Address %pM is configured for VF %d\n",
 				 vp->mac, i);

@@ -22,7 +22,7 @@
 #include "rsi_main.h"
 
 #define MAX_MGMT_PKT_SIZE               512
-#define RSI_NEEDED_HEADROOM             80
+#define RSI_NEEDED_HEADROOM             84
 #define RSI_RCV_BUFFER_LEN              2000
 
 #define RSI_11B_MODE                    0

@@ -340,7 +340,7 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 		 */
 		if (packet[3] & 0x80)
 			fingers = 4;
-		/* pass through... */
+		/* fall through */
 	case 1:
 		/*
 		 * byte 1:  .   .   .   .  x11 x10 x9  x8

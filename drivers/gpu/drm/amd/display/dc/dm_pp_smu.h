@@ -40,7 +40,7 @@ enum wm_set_id {
 	WM_B,
 	WM_C,
 	WM_D,
-	WM_COUNT,
+	WM_SET_COUNT,
 };
 
 struct pp_smu_wm_set_range {
@@ -53,10 +53,10 @@ struct pp_smu_wm_set_range {
 
 struct pp_smu_wm_range_sets {
 	uint32_t num_reader_wm_sets;
-	struct pp_smu_wm_set_range reader_wm_sets[WM_COUNT];
+	struct pp_smu_wm_set_range reader_wm_sets[WM_SET_COUNT];
 
 	uint32_t num_writer_wm_sets;
-	struct pp_smu_wm_set_range writer_wm_sets[WM_COUNT];
+	struct pp_smu_wm_set_range writer_wm_sets[WM_SET_COUNT];
 };
 
 struct pp_smu_display_requirement_rv {

@@ -42,7 +42,14 @@
 #define KVM_USER_MEM_SLOTS	512
 
 #include <asm/cputhreads.h>
-#define KVM_MAX_VCPU_ID                (threads_per_subcore * KVM_MAX_VCORES)
+
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+#include <asm/kvm_book3s_asm.h>		/* for MAX_SMT_THREADS */
+#define KVM_MAX_VCPU_ID		(MAX_SMT_THREADS * KVM_MAX_VCORES)
+
+#else
+#define KVM_MAX_VCPU_ID		KVM_MAX_VCPUS
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
 
@@ -672,7 +679,7 @@ struct kvm_vcpu_arch {
 	gva_t vaddr_accessed;
 	pgd_t *pgdir;
 
-	u8 io_gpr; /* GPR used as IO source/target */
+	u16 io_gpr; /* GPR used as IO source/target */
 	u8 mmio_host_swabbed;
 	u8 mmio_sign_extend;
 	/* conversion between single and double precision */
@@ -688,7 +695,6 @@ struct kvm_vcpu_arch {
 	 */
 	u8 mmio_vsx_copy_nums;
 	u8 mmio_vsx_offset;
-	u8 mmio_vsx_tx_sx_enabled;
 	u8 mmio_vmx_copy_nums;
 	u8 mmio_vmx_offset;
 	u8 mmio_copy_type;
@@ -801,14 +807,14 @@ struct kvm_vcpu_arch {
 #define KVMPPC_VCPU_BUSY_IN_HOST	2
 
 /* Values for vcpu->arch.io_gpr */
-#define KVM_MMIO_REG_MASK	0x001f
-#define KVM_MMIO_REG_EXT_MASK	0xffe0
+#define KVM_MMIO_REG_MASK	0x003f
+#define KVM_MMIO_REG_EXT_MASK	0xffc0
 #define KVM_MMIO_REG_GPR	0x0000
-#define KVM_MMIO_REG_FPR	0x0020
-#define KVM_MMIO_REG_QPR	0x0040
-#define KVM_MMIO_REG_FQPR	0x0060
-#define KVM_MMIO_REG_VSX	0x0080
-#define KVM_MMIO_REG_VMX	0x00c0
+#define KVM_MMIO_REG_FPR	0x0040
+#define KVM_MMIO_REG_QPR	0x0080
+#define KVM_MMIO_REG_FQPR	0x00c0
+#define KVM_MMIO_REG_VSX	0x0100
+#define KVM_MMIO_REG_VMX	0x0180
 
 #define __KVM_HAVE_ARCH_WQP
 #define __KVM_HAVE_CREATE_DEVICE

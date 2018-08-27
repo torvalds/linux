@@ -15,7 +15,7 @@ struct foo {
 	unsigned int bar;
 };
 
-struct foo *foo;
+static struct foo *foo;
 
 static int __init test_debug_virtual_init(void)
 {

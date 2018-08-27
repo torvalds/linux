@@ -171,13 +171,11 @@ void v9fs_put_trans(struct p9_trans_module *m)
  */
 static int __init init_p9(void)
 {
-	int ret = 0;
-
 	p9_error_init();
 	pr_info("Installing 9P2000 support\n");
 	p9_trans_fd_init();
 
-	return ret;
+	return 0;
 }
 
 /**

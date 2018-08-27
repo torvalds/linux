@@ -141,7 +141,7 @@ static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, int ulp_id,
 	if (avail_msix > num_msix)
 		avail_msix = num_msix;
 
-	if (bp->flags & BNXT_FLAG_NEW_RM) {
+	if (BNXT_NEW_RM(bp)) {
 		idx = bp->cp_nr_rings;
 	} else {
 		max_idx = min_t(int, bp->total_irqs, max_cp_rings);
@@ -162,7 +162,7 @@ static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, int ulp_id,
 		return -EAGAIN;
 	}
 
-	if (bp->flags & BNXT_FLAG_NEW_RM) {
+	if (BNXT_NEW_RM(bp)) {
 		struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 
 		avail_msix = hw_resc->resv_cp_rings - bp->cp_nr_rings;

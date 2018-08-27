@@ -283,7 +283,7 @@ out:
  *		in index form
  *  @prim:	primitive element to generate polynomial roots
  *  @nroots:	RS code generator polynomial degree (number of roots)
- *  @gfp:	GFP_ flags for allocations
+ *  @gfp:	Memory allocation flags.
  */
 struct rs_control *init_rs_gfp(int symsize, int gfpoly, int fcr, int prim,
 			       int nroots, gfp_t gfp)

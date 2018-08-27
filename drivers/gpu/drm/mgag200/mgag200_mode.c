@@ -1553,7 +1553,7 @@ static int mga_vga_get_modes(struct drm_connector *connector)
 
 	edid = drm_get_edid(connector, &mga_connector->i2c->adapter);
 	if (edid) {
-		drm_mode_connector_update_edid_property(connector, edid);
+		drm_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 	}
@@ -1747,7 +1747,7 @@ int mgag200_modeset_init(struct mga_device *mdev)
 		return -1;
 	}
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	ret = mgag200_fbdev_init(mdev);
 	if (ret) {

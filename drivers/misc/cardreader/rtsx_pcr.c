@@ -80,7 +80,7 @@ static inline void rtsx_pci_disable_aspm(struct rtsx_pcr *pcr)
 		0xFC, 0);
 }
 
-int rtsx_comm_set_ltr_latency(struct rtsx_pcr *pcr, u32 latency)
+static int rtsx_comm_set_ltr_latency(struct rtsx_pcr *pcr, u32 latency)
 {
 	rtsx_pci_write_register(pcr, MSGTXDATA0,
 				MASK_8_BIT_DEF, (u8) (latency & 0xFF));
@@ -143,7 +143,7 @@ int rtsx_set_l1off_sub(struct rtsx_pcr *pcr, u8 val)
 	return 0;
 }
 
-void rtsx_set_l1off_sub_cfg_d0(struct rtsx_pcr *pcr, int active)
+static void rtsx_set_l1off_sub_cfg_d0(struct rtsx_pcr *pcr, int active)
 {
 	if (pcr->ops->set_l1off_cfg_sub_d0)
 		pcr->ops->set_l1off_cfg_sub_d0(pcr, active);
@@ -162,7 +162,7 @@ static void rtsx_comm_pm_full_on(struct rtsx_pcr *pcr)
 		rtsx_set_l1off_sub_cfg_d0(pcr, 1);
 }
 
-void rtsx_pm_full_on(struct rtsx_pcr *pcr)
+static void rtsx_pm_full_on(struct rtsx_pcr *pcr)
 {
 	if (pcr->ops->full_on)
 		pcr->ops->full_on(pcr);
@@ -967,13 +967,13 @@ static void rtsx_pci_card_detect(struct work_struct *work)
 				pcr->slots[RTSX_MS_CARD].p_dev);
 }
 
-void rtsx_pci_process_ocp(struct rtsx_pcr *pcr)
+static void rtsx_pci_process_ocp(struct rtsx_pcr *pcr)
 {
 	if (pcr->ops->process_ocp)
 		pcr->ops->process_ocp(pcr);
 }
 
-int rtsx_pci_process_ocp_interrupt(struct rtsx_pcr *pcr)
+static int rtsx_pci_process_ocp_interrupt(struct rtsx_pcr *pcr)
 {
 	if (pcr->option.ocp_en)
 		rtsx_pci_process_ocp(pcr);
@@ -1094,7 +1094,7 @@ static void rtsx_comm_pm_power_saving(struct rtsx_pcr *pcr)
 	rtsx_enable_aspm(pcr);
 }
 
-void rtsx_pm_power_saving(struct rtsx_pcr *pcr)
+static void rtsx_pm_power_saving(struct rtsx_pcr *pcr)
 {
 	if (pcr->ops->power_saving)
 		pcr->ops->power_saving(pcr);
