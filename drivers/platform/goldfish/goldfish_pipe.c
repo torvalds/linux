@@ -272,8 +272,8 @@ static int pin_user_pages(unsigned long first_page, unsigned long last_page,
 		return -EFAULT;
 	if (ret < requested_pages)
 		*iter_last_page_size = PAGE_SIZE;
-	return ret;
 
+	return ret;
 }
 
 static void release_user_pages(struct page **pages, int pages_count,
