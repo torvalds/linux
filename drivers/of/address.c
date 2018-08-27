@@ -371,7 +371,7 @@ EXPORT_SYMBOL(of_pci_range_to_resource);
 
 static int of_bus_isa_match(struct device_node *np)
 {
-	return !strcmp(np->name, "isa");
+	return of_node_name_eq(np, "isa");
 }
 
 static void of_bus_isa_count_cells(struct device_node *child,

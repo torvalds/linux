@@ -2393,7 +2393,7 @@ static __init void of_unittest_overlay_high_level(void)
 	 */
 	pprev = &overlay_base_root->child;
 	for (np = overlay_base_root->child; np; np = np->sibling) {
-		if (!of_node_cmp(np->name, "__local_fixups__")) {
+		if (of_node_name_eq(np, "__local_fixups__")) {
 			*pprev = np->sibling;
 			break;
 		}
@@ -2406,7 +2406,7 @@ static __init void of_unittest_overlay_high_level(void)
 		/* will have to graft properties from node into live tree */
 		pprev = &overlay_base_root->child;
 		for (np = overlay_base_root->child; np; np = np->sibling) {
-			if (!of_node_cmp(np->name, "__symbols__")) {
+			if (of_node_name_eq(np, "__symbols__")) {
 				overlay_base_symbols = np;
 				*pprev = np->sibling;
 				break;

@@ -496,7 +496,7 @@ static int __of_device_is_compatible(const struct device_node *device,
 
 	/* Matching name is a bit better than not */
 	if (name && name[0]) {
-		if (!device->name || of_node_cmp(name, device->name))
+		if (!of_node_name_eq(device, name))
 			return 0;
 		score++;
 	}
@@ -835,7 +835,7 @@ struct device_node *of_get_child_by_name(const struct device_node *node,
 	struct device_node *child;
 
 	for_each_child_of_node(node, child)
-		if (child->name && (of_node_cmp(child->name, name) == 0))
+		if (of_node_name_eq(child, name))
 			break;
 	return child;
 }
@@ -961,8 +961,7 @@ struct device_node *of_find_node_by_name(struct device_node *from,
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	for_each_of_allnodes_from(from, np)
-		if (np->name && (of_node_cmp(np->name, name) == 0)
-		    && of_node_get(np))
+		if (of_node_name_eq(np, name) && of_node_get(np))
 			break;
 	of_node_put(from);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
