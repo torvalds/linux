@@ -345,7 +345,7 @@ static uint64_t amdgpu_mm_node_addr(struct ttm_buffer_object *bo,
 {
 	uint64_t addr = 0;
 
-	if (mem->mem_type != TTM_PL_TT || amdgpu_gtt_mgr_has_gart_addr(mem)) {
+	if (mm_node->start != AMDGPU_BO_INVALID_OFFSET) {
 		addr = mm_node->start << PAGE_SHIFT;
 		addr += bo->bdev->man[mem->mem_type].gpu_offset;
 	}
@@ -433,8 +433,7 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 		/* Map only what needs to be accessed. Map src to window 0 and
 		 * dst to window 1
 		 */
-		if (src->mem->mem_type == TTM_PL_TT &&
-		    !amdgpu_gtt_mgr_has_gart_addr(src->mem)) {
+		if (src->mem->start == AMDGPU_BO_INVALID_OFFSET) {
 			r = amdgpu_map_buffer(src->bo, src->mem,
 					PFN_UP(cur_size + src_page_offset),
 					src_node_start, 0, ring,
@@ -447,8 +446,7 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 			from += src_page_offset;
 		}
 
-		if (dst->mem->mem_type == TTM_PL_TT &&
-		    !amdgpu_gtt_mgr_has_gart_addr(dst->mem)) {
+		if (dst->mem->start == AMDGPU_BO_INVALID_OFFSET) {
 			r = amdgpu_map_buffer(dst->bo, dst->mem,
 					PFN_UP(cur_size + dst_page_offset),
 					dst_node_start, 1, ring,
@@ -1086,11 +1084,10 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 	uint64_t flags;
 	int r;
 
-	if (bo->mem.mem_type != TTM_PL_TT ||
-	    amdgpu_gtt_mgr_has_gart_addr(&bo->mem))
+	if (bo->mem.start != AMDGPU_BO_INVALID_OFFSET)
 		return 0;
 
-	/* allocate GTT space */
+	/* allocate GART space */
 	tmp = bo->mem;
 	tmp.mm_node = NULL;
 	placement.num_placement = 1;
