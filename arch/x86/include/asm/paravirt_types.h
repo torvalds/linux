@@ -681,7 +681,6 @@ struct paravirt_patch_site {
 	u8 *instr; 		/* original instructions */
 	u8 instrtype;		/* type of this instruction */
 	u8 len;			/* length of original instruction */
-	u16 clobbers;		/* what registers you may clobber */
 };
 
 extern struct paravirt_patch_site __parainstructions[],
