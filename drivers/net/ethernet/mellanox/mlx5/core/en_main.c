@@ -3175,7 +3175,7 @@ static void mlx5e_build_direct_tir_ctx(struct mlx5e_priv *priv, u32 rqtn, u32 *t
 	MLX5_SET(tirc, tirc, rx_hash_fn, MLX5_RX_HASH_FN_INVERTED_XOR8);
 }
 
-int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv)
+int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
 {
 	struct mlx5e_tir *tir;
 	void *tirc;
@@ -3202,7 +3202,7 @@ int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv)
 		}
 	}
 
-	if (!mlx5e_tunnel_inner_ft_supported(priv->mdev))
+	if (!inner_ttc || !mlx5e_tunnel_inner_ft_supported(priv->mdev))
 		goto out;
 
 	for (i = 0; i < MLX5E_NUM_INDIR_TIRS; i++) {
@@ -3273,14 +3273,14 @@ err_destroy_ch_tirs:
 	return err;
 }
 
-void mlx5e_destroy_indirect_tirs(struct mlx5e_priv *priv)
+void mlx5e_destroy_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
 {
 	int i;
 
 	for (i = 0; i < MLX5E_NUM_INDIR_TIRS; i++)
 		mlx5e_destroy_tir(priv->mdev, &priv->indir_tir[i]);
 
-	if (!mlx5e_tunnel_inner_ft_supported(priv->mdev))
+	if (!inner_ttc || !mlx5e_tunnel_inner_ft_supported(priv->mdev))
 		return;
 
 	for (i = 0; i < MLX5E_NUM_INDIR_TIRS; i++)
@@ -4786,7 +4786,7 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 	if (err)
 		goto err_destroy_indirect_rqts;
 
-	err = mlx5e_create_indirect_tirs(priv);
+	err = mlx5e_create_indirect_tirs(priv, true);
 	if (err)
 		goto err_destroy_direct_rqts;
 
@@ -4811,7 +4811,7 @@ err_destroy_flow_steering:
 err_destroy_direct_tirs:
 	mlx5e_destroy_direct_tirs(priv);
 err_destroy_indirect_tirs:
-	mlx5e_destroy_indirect_tirs(priv);
+	mlx5e_destroy_indirect_tirs(priv, true);
 err_destroy_direct_rqts:
 	mlx5e_destroy_direct_rqts(priv);
 err_destroy_indirect_rqts:
@@ -4828,7 +4828,7 @@ static void mlx5e_cleanup_nic_rx(struct mlx5e_priv *priv)
 	mlx5e_tc_nic_cleanup(priv);
 	mlx5e_destroy_flow_steering(priv);
 	mlx5e_destroy_direct_tirs(priv);
-	mlx5e_destroy_indirect_tirs(priv);
+	mlx5e_destroy_indirect_tirs(priv, true);
 	mlx5e_destroy_direct_rqts(priv);
 	mlx5e_destroy_rqt(priv, &priv->indir_rqt);
 	mlx5e_close_drop_rq(&priv->drop_rq);

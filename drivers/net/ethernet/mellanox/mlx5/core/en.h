@@ -906,8 +906,8 @@ void mlx5e_close_drop_rq(struct mlx5e_rq *drop_rq);
 
 int mlx5e_create_indirect_rqt(struct mlx5e_priv *priv);
 
-int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv);
-void mlx5e_destroy_indirect_tirs(struct mlx5e_priv *priv);
+int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc);
+void mlx5e_destroy_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc);
 
 int mlx5e_create_direct_rqts(struct mlx5e_priv *priv);
 void mlx5e_destroy_direct_rqts(struct mlx5e_priv *priv);
