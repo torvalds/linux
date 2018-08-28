@@ -651,6 +651,7 @@ int mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
 	kfree(in);
 	return err;
 }
+EXPORT_SYMBOL(mlx5_packet_reformat_alloc);
 
 void mlx5_packet_reformat_dealloc(struct mlx5_core_dev *dev,
 				  u32 packet_reformat_id)
@@ -666,6 +667,7 @@ void mlx5_packet_reformat_dealloc(struct mlx5_core_dev *dev,
 
 	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
+EXPORT_SYMBOL(mlx5_packet_reformat_dealloc);
 
 int mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
 			     u8 namespace, u8 num_actions,
