@@ -1815,6 +1815,7 @@ void hidinput_disconnect(struct hid_device *hid)
 			input_unregister_device(hidinput->input);
 		else
 			input_free_device(hidinput->input);
+		kfree(hidinput->name);
 		kfree(hidinput);
 	}
 
