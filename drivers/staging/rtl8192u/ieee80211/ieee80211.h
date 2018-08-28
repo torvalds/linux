@@ -1772,7 +1772,7 @@ struct ieee80211_device {
 
 	/* map of allowed channels. 0 is dummy */
 	// FIXME: remember to default to a basic channel plan depending of the PHY type
-	void *pDot11dInfo;
+	void *dot11d_info;
 	bool bGlobalDomain;
 	int rate;       /* current rate */
 	int basic_rate;
