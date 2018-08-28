@@ -581,6 +581,8 @@ static int mipi_dphy_power_on(struct dw_mipi_dsi *dsi)
 
 static void mipi_dphy_power_off(struct dw_mipi_dsi *dsi)
 {
+	regmap_write(dsi->regmap, DSI_PHY_RSTZ, 0);
+
 	if (dsi->dphy.phy)
 		phy_power_off(dsi->dphy.phy);
 }
