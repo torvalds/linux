@@ -233,6 +233,152 @@ nfp_rtsym_lookup(struct nfp_rtsym_table *rtbl, const char *name)
 	return NULL;
 }
 
+static int
+nfp_rtsym_to_dest(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		  u8 action, u8 token, u64 off, u32 *cpp_id, u64 *addr)
+{
+	*addr = sym->addr + off;
+
+	if (sym->target == NFP_RTSYM_TARGET_EMU_CACHE) {
+		int locality_off = nfp_cpp_mu_locality_lsb(cpp);
+
+		*addr &= ~(NFP_MU_ADDR_ACCESS_TYPE_MASK << locality_off);
+		*addr |= NFP_MU_ADDR_ACCESS_TYPE_DIRECT << locality_off;
+
+		*cpp_id = NFP_CPP_ISLAND_ID(NFP_CPP_TARGET_MU, action, token,
+					    sym->domain);
+	} else if (sym->target < 0) {
+		nfp_err(cpp, "Unhandled RTsym target encoding: %d\n",
+			sym->target);
+		return -EINVAL;
+	} else {
+		*cpp_id = NFP_CPP_ISLAND_ID(sym->target, action, token,
+					    sym->domain);
+	}
+
+	return 0;
+}
+
+int __nfp_rtsym_read(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		     u8 action, u8 token, u64 off, void *buf, size_t len)
+{
+	u32 cpp_id;
+	u64 addr;
+	int err;
+
+	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
+	if (err)
+		return err;
+
+	return nfp_cpp_read(cpp, cpp_id, addr, buf, len);
+}
+
+int nfp_rtsym_read(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		   void *buf, size_t len)
+{
+	return __nfp_rtsym_read(cpp, sym, NFP_CPP_ACTION_RW, 0, off, buf, len);
+}
+
+int __nfp_rtsym_readl(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		      u8 action, u8 token, u64 off, u32 *value)
+{
+	u32 cpp_id;
+	u64 addr;
+	int err;
+
+	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
+	if (err)
+		return err;
+
+	return nfp_cpp_readl(cpp, cpp_id, addr, value);
+}
+
+int nfp_rtsym_readl(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		    u32 *value)
+{
+	return __nfp_rtsym_readl(cpp, sym, NFP_CPP_ACTION_RW, 0, off, value);
+}
+
+int __nfp_rtsym_readq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		      u8 action, u8 token, u64 off, u64 *value)
+{
+	u32 cpp_id;
+	u64 addr;
+	int err;
+
+	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
+	if (err)
+		return err;
+
+	return nfp_cpp_readq(cpp, cpp_id, addr, value);
+}
+
+int nfp_rtsym_readq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		    u64 *value)
+{
+	return __nfp_rtsym_readq(cpp, sym, NFP_CPP_ACTION_RW, 0, off, value);
+}
+
+int __nfp_rtsym_write(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		      u8 action, u8 token, u64 off, void *buf, size_t len)
+{
+	u32 cpp_id;
+	u64 addr;
+	int err;
+
+	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
+	if (err)
+		return err;
+
+	return nfp_cpp_write(cpp, cpp_id, addr, buf, len);
+}
+
+int nfp_rtsym_write(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		    void *buf, size_t len)
+{
+	return __nfp_rtsym_write(cpp, sym, NFP_CPP_ACTION_RW, 0, off, buf, len);
+}
+
+int __nfp_rtsym_writel(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		       u8 action, u8 token, u64 off, u32 value)
+{
+	u32 cpp_id;
+	u64 addr;
+	int err;
+
+	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
+	if (err)
+		return err;
+
+	return nfp_cpp_writel(cpp, cpp_id, addr, value);
+}
+
+int nfp_rtsym_writel(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		     u32 value)
+{
+	return __nfp_rtsym_writel(cpp, sym, NFP_CPP_ACTION_RW, 0, off, value);
+}
+
+int __nfp_rtsym_writeq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		       u8 action, u8 token, u64 off, u64 value)
+{
+	u32 cpp_id;
+	u64 addr;
+	int err;
+
+	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
+	if (err)
+		return err;
+
+	return nfp_cpp_writeq(cpp, cpp_id, addr, value);
+}
+
+int nfp_rtsym_writeq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		     u64 value)
+{
+	return __nfp_rtsym_writeq(cpp, sym, NFP_CPP_ACTION_RW, 0, off, value);
+}
+
 /**
  * nfp_rtsym_read_le() - Read a simple unsigned scalar value from symbol
  * @rtbl:	NFP RTsym table

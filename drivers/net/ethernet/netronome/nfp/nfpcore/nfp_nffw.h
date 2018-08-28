@@ -98,6 +98,31 @@ const struct nfp_rtsym *nfp_rtsym_get(struct nfp_rtsym_table *rtbl, int idx);
 const struct nfp_rtsym *
 nfp_rtsym_lookup(struct nfp_rtsym_table *rtbl, const char *name);
 
+int __nfp_rtsym_read(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		     u8 action, u8 token, u64 off, void *buf, size_t len);
+int nfp_rtsym_read(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		   void *buf, size_t len);
+int __nfp_rtsym_readl(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		      u8 action, u8 token, u64 off, u32 *value);
+int nfp_rtsym_readl(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		    u32 *value);
+int __nfp_rtsym_readq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		      u8 action, u8 token, u64 off, u64 *value);
+int nfp_rtsym_readq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		    u64 *value);
+int __nfp_rtsym_write(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		      u8 action, u8 token, u64 off, void *buf, size_t len);
+int nfp_rtsym_write(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		    void *buf, size_t len);
+int __nfp_rtsym_writel(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		       u8 action, u8 token, u64 off, u32 value);
+int nfp_rtsym_writel(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		     u32 value);
+int __nfp_rtsym_writeq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		       u8 action, u8 token, u64 off, u64 value);
+int nfp_rtsym_writeq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		     u64 value);
+
 u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
 		      int *error);
 int nfp_rtsym_write_le(struct nfp_rtsym_table *rtbl, const char *name,
