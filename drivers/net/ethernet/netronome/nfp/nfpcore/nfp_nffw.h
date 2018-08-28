@@ -61,10 +61,12 @@ void nfp_mip_strtab(const struct nfp_mip *mip, u32 *addr, u32 *size);
 
 /* Implemented in nfp_rtsym.c */
 
-#define NFP_RTSYM_TYPE_NONE		0
-#define NFP_RTSYM_TYPE_OBJECT		1
-#define NFP_RTSYM_TYPE_FUNCTION		2
-#define NFP_RTSYM_TYPE_ABS		3
+enum nfp_rtsym_type {
+	NFP_RTSYM_TYPE_NONE	= 0,
+	NFP_RTSYM_TYPE_OBJECT	= 1,
+	NFP_RTSYM_TYPE_FUNCTION	= 2,
+	NFP_RTSYM_TYPE_ABS	= 3,
+};
 
 #define NFP_RTSYM_TARGET_NONE		0
 #define NFP_RTSYM_TARGET_LMEM		-1
@@ -83,7 +85,7 @@ struct nfp_rtsym {
 	const char *name;
 	u64 addr;
 	u64 size;
-	int type;
+	enum nfp_rtsym_type type;
 	int target;
 	int domain;
 };
@@ -98,6 +100,7 @@ const struct nfp_rtsym *nfp_rtsym_get(struct nfp_rtsym_table *rtbl, int idx);
 const struct nfp_rtsym *
 nfp_rtsym_lookup(struct nfp_rtsym_table *rtbl, const char *name);
 
+u64 nfp_rtsym_size(const struct nfp_rtsym *rtsym);
 int __nfp_rtsym_read(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 		     u8 action, u8 token, u64 off, void *buf, size_t len);
 int nfp_rtsym_read(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,

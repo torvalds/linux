@@ -233,10 +233,32 @@ nfp_rtsym_lookup(struct nfp_rtsym_table *rtbl, const char *name)
 	return NULL;
 }
 
+u64 nfp_rtsym_size(const struct nfp_rtsym *sym)
+{
+	switch (sym->type) {
+	case NFP_RTSYM_TYPE_NONE:
+		pr_err("rtsym type NONE\n");
+		return 0;
+	default:
+		pr_warn("Unknown rtsym type: %d\n", sym->type);
+		/* fall through */
+	case NFP_RTSYM_TYPE_OBJECT:
+	case NFP_RTSYM_TYPE_FUNCTION:
+		return sym->size;
+	case NFP_RTSYM_TYPE_ABS:
+		return sizeof(u64);
+	}
+}
+
 static int
 nfp_rtsym_to_dest(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 		  u8 action, u8 token, u64 off, u32 *cpp_id, u64 *addr)
 {
+	if (sym->type != NFP_RTSYM_TYPE_OBJECT) {
+		nfp_err(cpp, "Direct access attempt to non-object rtsym\n");
+		return -EINVAL;
+	}
+
 	*addr = sym->addr + off;
 
 	if (sym->target == NFP_RTSYM_TARGET_EMU_CACHE) {
@@ -265,6 +287,15 @@ int __nfp_rtsym_read(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 	u32 cpp_id;
 	u64 addr;
 	int err;
+
+	if (sym->type == NFP_RTSYM_TYPE_ABS) {
+		__le64 tmp = cpu_to_le64(sym->addr);
+
+		len = min(len, sizeof(tmp));
+		memcpy(buf, &tmp, len);
+
+		return len;
+	}
 
 	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
 	if (err)
@@ -305,6 +336,9 @@ int __nfp_rtsym_readq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 	u32 cpp_id;
 	u64 addr;
 	int err;
+
+	if (sym->type == NFP_RTSYM_TYPE_ABS)
+		return sym->addr;
 
 	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
 	if (err)
@@ -405,7 +439,7 @@ u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
 		goto exit;
 	}
 
-	switch (sym->size) {
+	switch (nfp_rtsym_size(sym)) {
 	case 4:
 		err = nfp_rtsym_readl(rtbl->cpp, sym, 0, &val32);
 		val = val32;
@@ -416,7 +450,7 @@ u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
 	default:
 		nfp_err(rtbl->cpp,
 			"rtsym '%s' unsupported or non-scalar size: %lld\n",
-			name, sym->size);
+			name, nfp_rtsym_size(sym));
 		err = -EINVAL;
 		break;
 	}
@@ -452,7 +486,7 @@ int nfp_rtsym_write_le(struct nfp_rtsym_table *rtbl, const char *name,
 	if (!sym)
 		return -ENOENT;
 
-	switch (sym->size) {
+	switch (nfp_rtsym_size(sym)) {
 	case 4:
 		err = nfp_rtsym_writel(rtbl->cpp, sym, 0, value);
 		break;
@@ -462,7 +496,7 @@ int nfp_rtsym_write_le(struct nfp_rtsym_table *rtbl, const char *name,
 	default:
 		nfp_err(rtbl->cpp,
 			"rtsym '%s' unsupported or non-scalar size: %lld\n",
-			name, sym->size);
+			name, nfp_rtsym_size(sym));
 		err = -EINVAL;
 		break;
 	}
