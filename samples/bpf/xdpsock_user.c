@@ -649,6 +649,8 @@ static struct option long_options[] = {
 	{"xdp-skb", no_argument, 0, 'S'},
 	{"xdp-native", no_argument, 0, 'N'},
 	{"interval", required_argument, 0, 'n'},
+	{"zero-copy", no_argument, 0, 'z'},
+	{"copy", no_argument, 0, 'c'},
 	{0, 0, 0, 0}
 };
 
@@ -667,6 +669,8 @@ static void usage(const char *prog)
 		"  -S, --xdp-skb=n	Use XDP skb-mod\n"
 		"  -N, --xdp-native=n	Enfore XDP native mode\n"
 		"  -n, --interval=n	Specify statistics update interval (default 1 sec).\n"
+		"  -z, --zero-copy      Force zero-copy mode.\n"
+		"  -c, --copy           Force copy mode.\n"
 		"\n";
 	fprintf(stderr, str, prog);
 	exit(EXIT_FAILURE);
@@ -679,7 +683,7 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "rtli:q:psSNn:", long_options,
+		c = getopt_long(argc, argv, "rtli:q:psSNn:cz", long_options,
 				&option_index);
 		if (c == -1)
 			break;
@@ -715,6 +719,12 @@ static void parse_command_line(int argc, char **argv)
 			break;
 		case 'n':
 			opt_interval = atoi(optarg);
+			break;
+		case 'z':
+			opt_xdp_bind_flags |= XDP_ZEROCOPY;
+			break;
+		case 'c':
+			opt_xdp_bind_flags |= XDP_COPY;
 			break;
 		default:
 			usage(basename(argv[0]));
