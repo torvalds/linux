@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * PCM3060 codec driver
- *
- * Copyright (C) 2018 Kirill Marinushkin <kmarinushkin@birdec.tech>
- */
+//
+// PCM3060 codec driver
+//
+// Copyright (C) 2018 Kirill Marinushkin <kmarinushkin@birdec.tech>
 
 #include <linux/module.h>
 #include <sound/pcm_params.h>
