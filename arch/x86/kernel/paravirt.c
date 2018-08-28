@@ -373,7 +373,6 @@ struct paravirt_patch_template pv_ops = {
 
 	.cpu.start_context_switch	= paravirt_nop,
 	.cpu.end_context_switch		= paravirt_nop,
-#endif /* CONFIG_PARAVIRT_XXL */
 
 	/* Irq ops. */
 	.irq.save_fl		= __PV_IS_CALLEE_SAVE(native_save_fl),
@@ -382,6 +381,7 @@ struct paravirt_patch_template pv_ops = {
 	.irq.irq_enable		= __PV_IS_CALLEE_SAVE(native_irq_enable),
 	.irq.safe_halt		= native_safe_halt,
 	.irq.halt		= native_halt,
+#endif /* CONFIG_PARAVIRT_XXL */
 
 	/* Mmu ops. */
 	.mmu.read_cr2		= native_read_cr2,

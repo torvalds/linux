@@ -184,6 +184,7 @@ struct pv_cpu_ops {
 } __no_randomize_layout;
 
 struct pv_irq_ops {
+#ifdef CONFIG_PARAVIRT_XXL
 	/*
 	 * Get/set interrupt state.  save_fl and restore_fl are only
 	 * expected to use X86_EFLAGS_IF; all other bits
@@ -200,7 +201,7 @@ struct pv_irq_ops {
 
 	void (*safe_halt)(void);
 	void (*halt)(void);
-
+#endif
 } __no_randomize_layout;
 
 struct pv_mmu_ops {

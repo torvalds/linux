@@ -3,10 +3,12 @@
 #include <asm/asm-offsets.h>
 #include <linux/stringify.h>
 
+#ifdef CONFIG_PARAVIRT_XXL
 DEF_NATIVE(irq, irq_disable, "cli");
 DEF_NATIVE(irq, irq_enable, "sti");
 DEF_NATIVE(irq, restore_fl, "pushq %rdi; popfq");
 DEF_NATIVE(irq, save_fl, "pushfq; popq %rax");
+#endif
 DEF_NATIVE(mmu, read_cr2, "movq %cr2, %rax");
 DEF_NATIVE(mmu, read_cr3, "movq %cr3, %rax");
 DEF_NATIVE(mmu, write_cr3, "movq %rdi, %cr3");
@@ -51,11 +53,11 @@ unsigned native_patch(u8 type, void *ibuf, unsigned long addr, unsigned len)
 			end = end_##ops##_##x;			\
 			goto patch_site
 	switch(type) {
+#ifdef CONFIG_PARAVIRT_XXL
 		PATCH_SITE(irq, restore_fl);
 		PATCH_SITE(irq, save_fl);
 		PATCH_SITE(irq, irq_enable);
 		PATCH_SITE(irq, irq_disable);
-#ifdef CONFIG_PARAVIRT_XXL
 		PATCH_SITE(cpu, usergs_sysret64);
 		PATCH_SITE(cpu, swapgs);
 		PATCH_SITE(cpu, wbinvd);

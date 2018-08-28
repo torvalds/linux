@@ -64,7 +64,7 @@ static inline __cpuidle void native_halt(void)
 
 #endif
 
-#ifdef CONFIG_PARAVIRT
+#ifdef CONFIG_PARAVIRT_XXL
 #include <asm/paravirt.h>
 #else
 #ifndef __ASSEMBLY__
@@ -126,13 +126,7 @@ static inline notrace unsigned long arch_local_irq_save(void)
 #ifdef CONFIG_DEBUG_ENTRY
 #define SAVE_FLAGS(x)		pushfq; popq %rax
 #endif
-#endif
-#endif /* __ASSEMBLY__ */
-#endif /* CONFIG_PARAVIRT */
 
-#ifndef CONFIG_PARAVIRT_XXL
-#ifdef __ASSEMBLY__
-#ifdef CONFIG_X86_64
 #define SWAPGS	swapgs
 /*
  * Currently paravirt can't handle swapgs nicely when we
