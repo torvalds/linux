@@ -988,6 +988,18 @@ static inline struct device_node *of_find_matching_node(
 	return of_find_matching_node_and_match(from, matches, NULL);
 }
 
+static inline const char *of_node_get_device_type(const struct device_node *np)
+{
+	return of_get_property(np, "type", NULL);
+}
+
+static inline bool of_node_is_type(const struct device_node *np, const char *type)
+{
+	const char *match = of_node_get_device_type(np);
+
+	return np && match && type && !strcmp(match, type);
+}
+
 /**
  * of_property_count_u8_elems - Count the number of u8 elements in a property
  *
