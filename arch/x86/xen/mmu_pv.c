@@ -2059,7 +2059,6 @@ void __init xen_relocate_p2m(void)
 	pud_t *pud;
 	pgd_t *pgd;
 	unsigned long *new_p2m;
-	int save_pud;
 
 	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
 	n_pte = roundup(size, PAGE_SIZE) >> PAGE_SHIFT;
@@ -2089,7 +2088,6 @@ void __init xen_relocate_p2m(void)
 
 	pgd = __va(read_cr3_pa());
 	new_p2m = (unsigned long *)(2 * PGDIR_SIZE);
-	save_pud = n_pud;
 	for (idx_pud = 0; idx_pud < n_pud; idx_pud++) {
 		pud = early_memremap(pud_phys, PAGE_SIZE);
 		clear_page(pud);
