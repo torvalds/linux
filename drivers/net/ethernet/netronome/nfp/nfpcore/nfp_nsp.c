@@ -127,6 +127,38 @@ struct nfp_nsp {
 	void *entries;
 };
 
+/**
+ * struct nfp_nsp_command_arg - NFP command argument structure
+ * @code:	NFP SP Command Code
+ * @timeout_sec:Timeout value to wait for completion in seconds
+ * @option:	NFP SP Command Argument
+ * @buff_cpp:	NFP SP Buffer CPP Address info
+ * @buff_addr:	NFP SP Buffer Host address
+ */
+struct nfp_nsp_command_arg {
+	u16 code;
+	unsigned int timeout_sec;
+	u32 option;
+	u32 buff_cpp;
+	u64 buff_addr;
+};
+
+/**
+ * struct nfp_nsp_command_buf_arg - NFP command with buffer argument structure
+ * @arg:	NFP command argument structure
+ * @in_buf:	Buffer with data for input
+ * @in_size:	Size of @in_buf
+ * @out_buf:	Buffer for output data
+ * @out_size:	Size of @out_buf
+ */
+struct nfp_nsp_command_buf_arg {
+	struct nfp_nsp_command_arg arg;
+	const void *in_buf;
+	unsigned int in_size;
+	void *out_buf;
+	unsigned int out_size;
+};
+
 struct nfp_cpp *nfp_nsp_cpp(struct nfp_nsp *state)
 {
 	return state->cpp;
@@ -291,11 +323,7 @@ nfp_nsp_wait_reg(struct nfp_cpp *cpp, u64 *reg, u32 nsp_cpp, u64 addr,
 /**
  * __nfp_nsp_command() - Execute a command on the NFP Service Processor
  * @state:	NFP SP state
- * @code:	NFP SP Command Code
- * @option:	NFP SP Command Argument
- * @buff_cpp:	NFP SP Buffer CPP Address info
- * @buff_addr:	NFP SP Buffer Host address
- * @timeout_sec:Timeout value to wait for completion in seconds
+ * @arg:	NFP command argument structure
  *
  * Return: 0 for success with no result
  *
@@ -308,8 +336,7 @@ nfp_nsp_wait_reg(struct nfp_cpp *cpp, u64 *reg, u32 nsp_cpp, u64 addr,
  *	-ETIMEDOUT if the NSP took longer than @timeout_sec seconds to complete
  */
 static int
-__nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option, u32 buff_cpp,
-		  u64 buff_addr, u32 timeout_sec)
+__nfp_nsp_command(struct nfp_nsp *state, const struct nfp_nsp_command_arg *arg)
 {
 	u64 reg, ret_val, nsp_base, nsp_buffer, nsp_status, nsp_command;
 	struct nfp_cpp *cpp = state->cpp;
@@ -326,22 +353,22 @@ __nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option, u32 buff_cpp,
 	if (err)
 		return err;
 
-	if (!FIELD_FIT(NSP_BUFFER_CPP, buff_cpp >> 8) ||
-	    !FIELD_FIT(NSP_BUFFER_ADDRESS, buff_addr)) {
+	if (!FIELD_FIT(NSP_BUFFER_CPP, arg->buff_cpp >> 8) ||
+	    !FIELD_FIT(NSP_BUFFER_ADDRESS, arg->buff_addr)) {
 		nfp_err(cpp, "Host buffer out of reach %08x %016llx\n",
-			buff_cpp, buff_addr);
+			arg->buff_cpp, arg->buff_addr);
 		return -EINVAL;
 	}
 
 	err = nfp_cpp_writeq(cpp, nsp_cpp, nsp_buffer,
-			     FIELD_PREP(NSP_BUFFER_CPP, buff_cpp >> 8) |
-			     FIELD_PREP(NSP_BUFFER_ADDRESS, buff_addr));
+			     FIELD_PREP(NSP_BUFFER_CPP, arg->buff_cpp >> 8) |
+			     FIELD_PREP(NSP_BUFFER_ADDRESS, arg->buff_addr));
 	if (err < 0)
 		return err;
 
 	err = nfp_cpp_writeq(cpp, nsp_cpp, nsp_command,
-			     FIELD_PREP(NSP_COMMAND_OPTION, option) |
-			     FIELD_PREP(NSP_COMMAND_CODE, code) |
+			     FIELD_PREP(NSP_COMMAND_OPTION, arg->option) |
+			     FIELD_PREP(NSP_COMMAND_CODE, arg->code) |
 			     FIELD_PREP(NSP_COMMAND_START, 1));
 	if (err < 0)
 		return err;
@@ -351,16 +378,16 @@ __nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option, u32 buff_cpp,
 			       NSP_COMMAND_START, 0, NFP_NSP_TIMEOUT_DEFAULT);
 	if (err) {
 		nfp_err(cpp, "Error %d waiting for code 0x%04x to start\n",
-			err, code);
+			err, arg->code);
 		return err;
 	}
 
 	/* Wait for NSP_STATUS_BUSY to go to 0 */
 	err = nfp_nsp_wait_reg(cpp, &reg, nsp_cpp, nsp_status, NSP_STATUS_BUSY,
-			       0, timeout_sec);
+			       0, arg->timeout_sec ?: NFP_NSP_TIMEOUT_DEFAULT);
 	if (err) {
 		nfp_err(cpp, "Error %d waiting for code 0x%04x to complete\n",
-			err, code);
+			err, arg->code);
 		return err;
 	}
 
@@ -372,7 +399,7 @@ __nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option, u32 buff_cpp,
 	err = FIELD_GET(NSP_STATUS_RESULT, reg);
 	if (err) {
 		nfp_warn(cpp, "Result (error) code set: %d (%d) command: %d\n",
-			 -err, (int)ret_val, code);
+			 -err, (int)ret_val, arg->code);
 		nfp_nsp_print_extended_error(state, ret_val);
 		return -err;
 	}
@@ -380,18 +407,17 @@ __nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option, u32 buff_cpp,
 	return ret_val;
 }
 
-static int
-nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option, u32 buff_cpp,
-		u64 buff_addr)
+static int nfp_nsp_command(struct nfp_nsp *state, u16 code)
 {
-	return __nfp_nsp_command(state, code, option, buff_cpp, buff_addr,
-				 NFP_NSP_TIMEOUT_DEFAULT);
+	const struct nfp_nsp_command_arg arg = {
+		.code		= code,
+	};
+
+	return __nfp_nsp_command(state, &arg);
 }
 
 static int
-__nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
-		      const void *in_buf, unsigned int in_size, void *out_buf,
-		      unsigned int out_size, u32 timeout_sec)
+nfp_nsp_command_buf(struct nfp_nsp *nsp, struct nfp_nsp_command_buf_arg *arg)
 {
 	struct nfp_cpp *cpp = nsp->cpp;
 	unsigned int max_size;
@@ -401,7 +427,7 @@ __nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
 
 	if (nsp->ver.minor < 13) {
 		nfp_err(cpp, "NSP: Code 0x%04x with buffer not supported (ABI %hu.%hu)\n",
-			code, nsp->ver.major, nsp->ver.minor);
+			arg->arg.code, nsp->ver.major, nsp->ver.minor);
 		return -EOPNOTSUPP;
 	}
 
@@ -412,10 +438,11 @@ __nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
 	if (err < 0)
 		return err;
 
-	max_size = max(in_size, out_size);
+	max_size = max(arg->in_size, arg->out_size);
 	if (FIELD_GET(NSP_DFLT_BUFFER_SIZE_MB, reg) * SZ_1M < max_size) {
 		nfp_err(cpp, "NSP: default buffer too small for command 0x%04x (%llu < %u)\n",
-			code, FIELD_GET(NSP_DFLT_BUFFER_SIZE_MB, reg) * SZ_1M,
+			arg->arg.code,
+			FIELD_GET(NSP_DFLT_BUFFER_SIZE_MB, reg) * SZ_1M,
 			max_size);
 		return -EINVAL;
 	}
@@ -430,42 +457,35 @@ __nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
 	cpp_id = FIELD_GET(NSP_DFLT_BUFFER_CPP, reg) << 8;
 	cpp_buf = FIELD_GET(NSP_DFLT_BUFFER_ADDRESS, reg);
 
-	if (in_buf && in_size) {
-		err = nfp_cpp_write(cpp, cpp_id, cpp_buf, in_buf, in_size);
+	if (arg->in_buf && arg->in_size) {
+		err = nfp_cpp_write(cpp, cpp_id, cpp_buf,
+				    arg->in_buf, arg->in_size);
 		if (err < 0)
 			return err;
 	}
 	/* Zero out remaining part of the buffer */
-	if (out_buf && out_size && out_size > in_size) {
-		memset(out_buf, 0, out_size - in_size);
-		err = nfp_cpp_write(cpp, cpp_id, cpp_buf + in_size,
-				    out_buf, out_size - in_size);
+	if (arg->out_buf && arg->out_size && arg->out_size > arg->in_size) {
+		memset(arg->out_buf, 0, arg->out_size - arg->in_size);
+		err = nfp_cpp_write(cpp, cpp_id, cpp_buf + arg->in_size,
+				    arg->out_buf, arg->out_size - arg->in_size);
 		if (err < 0)
 			return err;
 	}
 
-	ret = __nfp_nsp_command(nsp, code, option, cpp_id, cpp_buf,
-				timeout_sec);
+	arg->arg.buff_cpp = cpp_id;
+	arg->arg.buff_addr = cpp_buf;
+	ret = __nfp_nsp_command(nsp, &arg->arg);
 	if (ret < 0)
 		return ret;
 
-	if (out_buf && out_size) {
-		err = nfp_cpp_read(cpp, cpp_id, cpp_buf, out_buf, out_size);
+	if (arg->out_buf && arg->out_size) {
+		err = nfp_cpp_read(cpp, cpp_id, cpp_buf,
+				   arg->out_buf, arg->out_size);
 		if (err < 0)
 			return err;
 	}
 
 	return ret;
-}
-
-static int
-nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
-		    const void *in_buf, unsigned int in_size, void *out_buf,
-		    unsigned int out_size)
-{
-	return __nfp_nsp_command_buf(nsp, code, option, in_buf, in_size,
-				     out_buf, out_size,
-				     NFP_NSP_TIMEOUT_DEFAULT);
 }
 
 int nfp_nsp_wait(struct nfp_nsp *state)
@@ -479,7 +499,7 @@ int nfp_nsp_wait(struct nfp_nsp *state)
 	for (;;) {
 		const unsigned long start_time = jiffies;
 
-		err = nfp_nsp_command(state, SPCODE_NOOP, 0, 0, 0);
+		err = nfp_nsp_command(state, SPCODE_NOOP);
 		if (err != -EAGAIN)
 			break;
 
@@ -501,53 +521,100 @@ int nfp_nsp_wait(struct nfp_nsp *state)
 
 int nfp_nsp_device_soft_reset(struct nfp_nsp *state)
 {
-	return nfp_nsp_command(state, SPCODE_SOFT_RESET, 0, 0, 0);
+	return nfp_nsp_command(state, SPCODE_SOFT_RESET);
 }
 
 int nfp_nsp_mac_reinit(struct nfp_nsp *state)
 {
-	return nfp_nsp_command(state, SPCODE_MAC_INIT, 0, 0, 0);
+	return nfp_nsp_command(state, SPCODE_MAC_INIT);
 }
 
 int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw)
 {
-	return nfp_nsp_command_buf(state, SPCODE_FW_LOAD, fw->size, fw->data,
-				   fw->size, NULL, 0);
+	struct nfp_nsp_command_buf_arg load_fw = {
+		{
+			.code		= SPCODE_FW_LOAD,
+			.option		= fw->size,
+		},
+		.in_buf		= fw->data,
+		.in_size	= fw->size,
+	};
+
+	return nfp_nsp_command_buf(state, &load_fw);
 }
 
 int nfp_nsp_write_flash(struct nfp_nsp *state, const struct firmware *fw)
 {
-	/* The flash time is specified to take a maximum of 70s so we add an
-	 * additional factor to this spec time.
-	 */
-	u32 timeout_sec = 2.5 * 70;
+	struct nfp_nsp_command_buf_arg write_flash = {
+		{
+			.code		= SPCODE_NSP_WRITE_FLASH,
+			.option		= fw->size,
+			/* The flash time is specified to take a maximum of 70s
+			 * so we add an additional factor to this spec time.
+			 */
+			.timeout_sec	= 2.5 * 70,
+		},
+		.in_buf		= fw->data,
+		.in_size	= fw->size,
+	};
 
-	return __nfp_nsp_command_buf(state, SPCODE_NSP_WRITE_FLASH, fw->size,
-				     fw->data, fw->size, NULL, 0, timeout_sec);
+	return nfp_nsp_command_buf(state, &write_flash);
 }
 
 int nfp_nsp_read_eth_table(struct nfp_nsp *state, void *buf, unsigned int size)
 {
-	return nfp_nsp_command_buf(state, SPCODE_ETH_RESCAN, size, NULL, 0,
-				   buf, size);
+	struct nfp_nsp_command_buf_arg eth_rescan = {
+		{
+			.code		= SPCODE_ETH_RESCAN,
+			.option		= size,
+		},
+		.out_buf	= buf,
+		.out_size	= size,
+	};
+
+	return nfp_nsp_command_buf(state, &eth_rescan);
 }
 
 int nfp_nsp_write_eth_table(struct nfp_nsp *state,
 			    const void *buf, unsigned int size)
 {
-	return nfp_nsp_command_buf(state, SPCODE_ETH_CONTROL, size, buf, size,
-				   NULL, 0);
+	struct nfp_nsp_command_buf_arg eth_ctrl = {
+		{
+			.code		= SPCODE_ETH_CONTROL,
+			.option		= size,
+		},
+		.in_buf		= buf,
+		.in_size	= size,
+	};
+
+	return nfp_nsp_command_buf(state, &eth_ctrl);
 }
 
 int nfp_nsp_read_identify(struct nfp_nsp *state, void *buf, unsigned int size)
 {
-	return nfp_nsp_command_buf(state, SPCODE_NSP_IDENTIFY, size, NULL, 0,
-				   buf, size);
+	struct nfp_nsp_command_buf_arg identify = {
+		{
+			.code		= SPCODE_NSP_IDENTIFY,
+			.option		= size,
+		},
+		.out_buf	= buf,
+		.out_size	= size,
+	};
+
+	return nfp_nsp_command_buf(state, &identify);
 }
 
 int nfp_nsp_read_sensors(struct nfp_nsp *state, unsigned int sensor_mask,
 			 void *buf, unsigned int size)
 {
-	return nfp_nsp_command_buf(state, SPCODE_NSP_SENSORS, sensor_mask,
-				   NULL, 0, buf, size);
+	struct nfp_nsp_command_buf_arg sensors = {
+		{
+			.code		= SPCODE_NSP_SENSORS,
+			.option		= sensor_mask,
+		},
+		.out_buf	= buf,
+		.out_size	= size,
+	};
+
+	return nfp_nsp_command_buf(state, &sensors);
 }
