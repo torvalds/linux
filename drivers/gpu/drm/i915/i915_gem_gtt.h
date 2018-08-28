@@ -167,20 +167,10 @@ struct intel_rotation_info {
 	} plane[2];
 } __packed;
 
-static inline void assert_intel_rotation_info_is_packed(void)
-{
-	BUILD_BUG_ON(sizeof(struct intel_rotation_info) != 8*sizeof(unsigned int));
-}
-
 struct intel_partial_info {
 	u64 offset;
 	unsigned int size;
 } __packed;
-
-static inline void assert_intel_partial_info_is_packed(void)
-{
-	BUILD_BUG_ON(sizeof(struct intel_partial_info) != sizeof(u64) + sizeof(unsigned int));
-}
 
 enum i915_ggtt_view_type {
 	I915_GGTT_VIEW_NORMAL = 0,
@@ -188,8 +178,11 @@ enum i915_ggtt_view_type {
 	I915_GGTT_VIEW_PARTIAL = sizeof(struct intel_partial_info),
 };
 
-static inline void assert_i915_ggtt_view_type_is_unique(void)
+static inline void assert_i915_gem_gtt_types(void)
 {
+	BUILD_BUG_ON(sizeof(struct intel_rotation_info) != 8*sizeof(unsigned int));
+	BUILD_BUG_ON(sizeof(struct intel_partial_info) != sizeof(u64) + sizeof(unsigned int));
+
 	/* As we encode the size of each branch inside the union into its type,
 	 * we have to be careful that each branch has a unique size.
 	 */

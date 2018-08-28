@@ -251,6 +251,8 @@ i915_vma_compare(struct i915_vma *vma,
 	if (cmp)
 		return cmp;
 
+	assert_i915_gem_gtt_types();
+
 	/* ggtt_view.type also encodes its size so that we both distinguish
 	 * different views using it as a "type" and also use a compact (no
 	 * accessing of uninitialised padding bytes) memcmp without storing
