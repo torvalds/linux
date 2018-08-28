@@ -1019,6 +1019,37 @@ static noinline void check_workingset(struct xarray *xa, unsigned long index)
 	XA_BUG_ON(xa, !xa_empty(xa));
 }
 
+/*
+ * Check that the pointer / value / sibling entries are accounted the
+ * way we expect them to be.
+ */
+static noinline void check_account(struct xarray *xa)
+{
+#ifdef CONFIG_XARRAY_MULTI
+	unsigned int order;
+
+	for (order = 1; order < 12; order++) {
+		XA_STATE(xas, xa, 1 << order);
+
+		xa_store_order(xa, 0, order, xa, GFP_KERNEL);
+		xas_load(&xas);
+		XA_BUG_ON(xa, xas.xa_node->count == 0);
+		XA_BUG_ON(xa, xas.xa_node->count > (1 << order));
+		XA_BUG_ON(xa, xas.xa_node->nr_values != 0);
+
+		xa_store_order(xa, 1 << order, order, xa_mk_value(1 << order),
+				GFP_KERNEL);
+		XA_BUG_ON(xa, xas.xa_node->count != xas.xa_node->nr_values * 2);
+
+		xa_erase(xa, 1 << order);
+		XA_BUG_ON(xa, xas.xa_node->nr_values != 0);
+
+		xa_erase(xa, 0);
+		XA_BUG_ON(xa, !xa_empty(xa));
+	}
+#endif
+}
+
 static noinline void check_destroy(struct xarray *xa)
 {
 	unsigned long index;
@@ -1068,6 +1099,7 @@ static int xarray_checks(void)
 	check_xa_alloc();
 	check_find(&array);
 	check_find_entry(&array);
+	check_account(&array);
 	check_destroy(&array);
 	check_move(&array);
 	check_create_range(&array);
