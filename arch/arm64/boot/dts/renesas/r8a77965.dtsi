@@ -111,7 +111,7 @@
 			power-domains = <&sysc R8A77965_PD_CA57_CPU0>;
 			next-level-cache = <&L2_CA57>;
 			enable-method = "psci";
-			clocks =<&cpg CPG_CORE R8A77965_CLK_Z>;
+			clocks = <&cpg CPG_CORE R8A77965_CLK_Z>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -122,7 +122,7 @@
 			power-domains = <&sysc R8A77965_PD_CA57_CPU1>;
 			next-level-cache = <&L2_CA57>;
 			enable-method = "psci";
-			clocks =<&cpg CPG_CORE R8A77965_CLK_Z>;
+			clocks = <&cpg CPG_CORE R8A77965_CLK_Z>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -1167,11 +1167,11 @@
 
 					vin0csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin0>;
+						remote-endpoint = <&csi20vin0>;
 					};
 					vin0csi40: endpoint@2 {
 						reg = <2>;
-						remote-endpoint= <&csi40vin0>;
+						remote-endpoint = <&csi40vin0>;
 					};
 				};
 			};
@@ -1199,11 +1199,11 @@
 
 					vin1csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin1>;
+						remote-endpoint = <&csi20vin1>;
 					};
 					vin1csi40: endpoint@2 {
 						reg = <2>;
-						remote-endpoint= <&csi40vin1>;
+						remote-endpoint = <&csi40vin1>;
 					};
 				};
 			};
@@ -1231,11 +1231,11 @@
 
 					vin2csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin2>;
+						remote-endpoint = <&csi20vin2>;
 					};
 					vin2csi40: endpoint@2 {
 						reg = <2>;
-						remote-endpoint= <&csi40vin2>;
+						remote-endpoint = <&csi40vin2>;
 					};
 				};
 			};
@@ -1263,11 +1263,11 @@
 
 					vin3csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin3>;
+						remote-endpoint = <&csi20vin3>;
 					};
 					vin3csi40: endpoint@2 {
 						reg = <2>;
-						remote-endpoint= <&csi40vin3>;
+						remote-endpoint = <&csi40vin3>;
 					};
 				};
 			};
@@ -1295,11 +1295,11 @@
 
 					vin4csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin4>;
+						remote-endpoint = <&csi20vin4>;
 					};
 					vin4csi40: endpoint@2 {
 						reg = <2>;
-						remote-endpoint= <&csi40vin4>;
+						remote-endpoint = <&csi40vin4>;
 					};
 				};
 			};
@@ -1327,11 +1327,11 @@
 
 					vin5csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin5>;
+						remote-endpoint = <&csi20vin5>;
 					};
 					vin5csi40: endpoint@2 {
 						reg = <2>;
-						remote-endpoint= <&csi40vin5>;
+						remote-endpoint = <&csi40vin5>;
 					};
 				};
 			};
@@ -1359,11 +1359,11 @@
 
 					vin6csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin6>;
+						remote-endpoint = <&csi20vin6>;
 					};
 					vin6csi40: endpoint@2 {
 						reg = <2>;
-						remote-endpoint= <&csi40vin6>;
+						remote-endpoint = <&csi40vin6>;
 					};
 				};
 			};
@@ -1391,11 +1391,11 @@
 
 					vin7csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin7>;
+						remote-endpoint = <&csi20vin7>;
 					};
 					vin7csi40: endpoint@2 {
 						reg = <2>;
-						remote-endpoint= <&csi40vin7>;
+						remote-endpoint = <&csi40vin7>;
 					};
 				};
 			};

@@ -66,7 +66,7 @@
 			power-domains = <&sysc 0>;
 			next-level-cache = <&L2_CA57>;
 			enable-method = "psci";
-			clocks =<&cpg CPG_CORE 0>;
+			clocks = <&cpg CPG_CORE 0>;
 		};
 
 		a57_1: cpu@1 {
@@ -76,7 +76,7 @@
 			power-domains = <&sysc 1>;
 			next-level-cache = <&L2_CA57>;
 			enable-method = "psci";
-			clocks =<&cpg CPG_CORE 0>;
+			clocks = <&cpg CPG_CORE 0>;
 		};
 
 		a53_0: cpu@100 {
@@ -1431,7 +1431,7 @@
 			clocks = <&cpg CPG_MOD 703>;
 			phys = <&usb2_phy0>;
 			phy-names = "usb";
-			companion= <&ohci0>;
+			companion = <&ohci0>;
 			power-domains = <&sysc 32>;
 			resets = <&cpg 703>;
 			status = "disabled";
@@ -1444,7 +1444,7 @@
 			clocks = <&cpg CPG_MOD 702>;
 			phys = <&usb2_phy1>;
 			phy-names = "usb";
-			companion= <&ohci1>;
+			companion = <&ohci1>;
 			power-domains = <&sysc 32>;
 			resets = <&cpg 702>;
 			status = "disabled";
