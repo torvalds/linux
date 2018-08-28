@@ -1051,7 +1051,7 @@ static struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 
 	gpio_pdev = of_find_device_by_node(np);
 	if (!gpio_pdev) {
-		pr_err("populate \"%s\": device not found\n", np->name);
+		pr_err("populate \"%pOFn\": device not found\n", np);
 		return ERR_PTR(-ENODEV);
 	}
 	if (of_property_read_u32(np, "gpio-bank", &id)) {
@@ -1904,8 +1904,8 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 		gpio_np = of_parse_phandle(np, "nomadik-gpio-chips", i);
 		if (gpio_np) {
 			dev_info(&pdev->dev,
-				 "populate NMK GPIO %d \"%s\"\n",
-				 i, gpio_np->name);
+				 "populate NMK GPIO %d \"%pOFn\"\n",
+				 i, gpio_np);
 			nmk_chip = nmk_gpio_populate_chip(gpio_np, pdev);
 			if (IS_ERR(nmk_chip))
 				dev_err(&pdev->dev,

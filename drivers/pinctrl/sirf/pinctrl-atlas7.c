@@ -6058,8 +6058,8 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 	ret = gpiochip_add_data(chip, a7gc);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"%s: error in probe function with status %d\n",
-			np->name, ret);
+			"%pOF: error in probe function with status %d\n",
+			np, ret);
 		goto failed;
 	}
 

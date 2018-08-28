@@ -263,8 +263,8 @@ static int at91_dt_node_to_map(struct pinctrl_dev *pctldev,
 	 */
 	grp = at91_pinctrl_find_group_by_name(info, np->name);
 	if (!grp) {
-		dev_err(info->dev, "unable to find group for node %s\n",
-			np->name);
+		dev_err(info->dev, "unable to find group for node %pOFn\n",
+			np);
 		return -EINVAL;
 	}
 
@@ -1071,7 +1071,7 @@ static int at91_pinctrl_parse_groups(struct device_node *np,
 	const __be32 *list;
 	int i, j;
 
-	dev_dbg(info->dev, "group(%d): %s\n", index, np->name);
+	dev_dbg(info->dev, "group(%d): %pOFn\n", index, np);
 
 	/* Initialise group */
 	grp->name = np->name;
@@ -1122,7 +1122,7 @@ static int at91_pinctrl_parse_functions(struct device_node *np,
 	static u32 grp_index;
 	u32 i = 0;
 
-	dev_dbg(info->dev, "parse function(%d): %s\n", index, np->name);
+	dev_dbg(info->dev, "parse function(%d): %pOFn\n", index, np);
 
 	func = &info->functions[index];
 

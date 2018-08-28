@@ -332,15 +332,15 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	function = sunxi_pctrl_parse_function_prop(node);
 	if (!function) {
-		dev_err(pctl->dev, "missing function property in node %s\n",
-			node->name);
+		dev_err(pctl->dev, "missing function property in node %pOFn\n",
+			node);
 		return -EINVAL;
 	}
 
 	pin_prop = sunxi_pctrl_find_pins_prop(node, &npins);
 	if (!pin_prop) {
-		dev_err(pctl->dev, "missing pins property in node %s\n",
-			node->name);
+		dev_err(pctl->dev, "missing pins property in node %pOFn\n",
+			node);
 		return -EINVAL;
 	}
 

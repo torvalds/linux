@@ -452,8 +452,8 @@ static int ti_iodelay_node_iterator(struct pinctrl_dev *pctldev,
 
 	pin = ti_iodelay_offset_to_pin(iod, cfg[pin_index].offset);
 	if (pin < 0) {
-		dev_err(iod->dev, "could not add functions for %s %ux\n",
-			np->name, cfg[pin_index].offset);
+		dev_err(iod->dev, "could not add functions for %pOFn %ux\n",
+			np, cfg[pin_index].offset);
 		return -ENODEV;
 	}
 	pins[pin_index] = pin;
@@ -461,8 +461,8 @@ static int ti_iodelay_node_iterator(struct pinctrl_dev *pctldev,
 	pd = &iod->pa[pin];
 	pd->drv_data = &cfg[pin_index];
 
-	dev_dbg(iod->dev, "%s offset=%x a_delay = %d g_delay = %d\n",
-		np->name, cfg[pin_index].offset, cfg[pin_index].a_delay,
+	dev_dbg(iod->dev, "%pOFn offset=%x a_delay = %d g_delay = %d\n",
+		np, cfg[pin_index].offset, cfg[pin_index].a_delay,
 		cfg[pin_index].g_delay);
 
 	return 0;
