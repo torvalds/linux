@@ -95,6 +95,31 @@ struct syscall_enter_newstat_args {
 
 augmented_filename_syscall_enter(newstat);
 
+#ifndef _K_SS_MAXSIZE
+#define _K_SS_MAXSIZE 128
+#endif
+
+#define augmented_sockaddr_syscall_enter(syscall)						\
+struct augmented_enter_##syscall##_args {			 				\
+	struct syscall_enter_##syscall##_args	args;				 		\
+	struct sockaddr_storage			addr;						\
+};												\
+int syscall_enter(syscall)(struct syscall_enter_##syscall##_args *args)				\
+{												\
+	struct augmented_enter_##syscall##_args augmented_args;				 	\
+	unsigned long addrlen = sizeof(augmented_args.addr);					\
+	probe_read(&augmented_args.args, sizeof(augmented_args.args), args);			\
+/* FIXME_CLANG_OPTIMIZATION_THAT_ACCESSES_USER_CONTROLLED_ADDRLEN_DESPITE_THIS_CHECK */		\
+/*	if (addrlen > augmented_args.args.addrlen)				     */		\
+/*		addrlen = augmented_args.args.addrlen;				     */		\
+/*										     */		\
+	probe_read(&augmented_args.addr, addrlen, args->addr_ptr); 				\
+	perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, 			\
+			  &augmented_args, 							\
+			  sizeof(augmented_args) - sizeof(augmented_args.addr) + addrlen);	\
+	return 0;										\
+}
+
 struct sockaddr;
 
 struct syscall_enter_connect_args {
@@ -105,25 +130,6 @@ struct syscall_enter_connect_args {
 	unsigned long	   addrlen;
 };
 
-struct augmented_enter_connect_args {
-	struct syscall_enter_connect_args args;
-	struct sockaddr_storage		  addr;
-};
-
-int syscall_enter(connect)(struct syscall_enter_connect_args *args)
-{
-	struct augmented_enter_connect_args augmented_args;
-	unsigned long addrlen = sizeof(augmented_args.addr);
-
-	probe_read(&augmented_args.args, sizeof(augmented_args.args), args);
-#ifdef FIXME_CLANG_OPTIMIZATION_THAT_ACCESSES_USER_CONTROLLED_ADDRLEN_DESPITE_THIS_CHECK
-	if (addrlen > augmented_args.args.addrlen)
-		addrlen = augmented_args.args.addrlen;
-#endif
-	probe_read(&augmented_args.addr, addrlen, args->addr_ptr); 
-	perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, &augmented_args, 
-			  sizeof(augmented_args) - sizeof(augmented_args.addr) + addrlen);
-	return 0;
-}
+augmented_sockaddr_syscall_enter(connect);
 
 license(GPL);
