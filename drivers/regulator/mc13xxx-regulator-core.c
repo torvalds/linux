@@ -203,7 +203,7 @@ struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 
 		if (!found)
 			dev_warn(&pdev->dev,
-				 "Unknown regulator: %s\n", child->name);
+				 "Unknown regulator: %pOFn\n", child);
 	}
 	of_node_put(parent);
 
