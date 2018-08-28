@@ -659,3 +659,176 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 	return failure ? budget : (int)total_rx_packets;
 }
 
+/**
+ * i40e_xmit_zc - Performs zero-copy Tx AF_XDP
+ * @xdp_ring: XDP Tx ring
+ * @budget: NAPI budget
+ *
+ * Returns true if the work is finished.
+ **/
+static bool i40e_xmit_zc(struct i40e_ring *xdp_ring, unsigned int budget)
+{
+	unsigned int total_packets = 0;
+	struct i40e_tx_buffer *tx_bi;
+	struct i40e_tx_desc *tx_desc;
+	bool work_done = true;
+	dma_addr_t dma;
+	u32 len;
+
+	while (budget-- > 0) {
+		if (!unlikely(I40E_DESC_UNUSED(xdp_ring))) {
+			xdp_ring->tx_stats.tx_busy++;
+			work_done = false;
+			break;
+		}
+
+		if (!xsk_umem_consume_tx(xdp_ring->xsk_umem, &dma, &len))
+			break;
+
+		dma_sync_single_for_device(xdp_ring->dev, dma, len,
+					   DMA_BIDIRECTIONAL);
+
+		tx_bi = &xdp_ring->tx_bi[xdp_ring->next_to_use];
+		tx_bi->bytecount = len;
+
+		tx_desc = I40E_TX_DESC(xdp_ring, xdp_ring->next_to_use);
+		tx_desc->buffer_addr = cpu_to_le64(dma);
+		tx_desc->cmd_type_offset_bsz =
+			build_ctob(I40E_TX_DESC_CMD_ICRC
+				   | I40E_TX_DESC_CMD_EOP,
+				   0, len, 0);
+		total_packets++;
+
+		xdp_ring->next_to_use++;
+		if (xdp_ring->next_to_use == xdp_ring->count)
+			xdp_ring->next_to_use = 0;
+	}
+
+	if (total_packets > 0) {
+		/* Request an interrupt for the last frame and bump tail ptr. */
+		tx_desc->cmd_type_offset_bsz |= (I40E_TX_DESC_CMD_RS <<
+						 I40E_TXD_QW1_CMD_SHIFT);
+		i40e_xdp_ring_update_tail(xdp_ring);
+
+		xsk_umem_consume_tx_done(xdp_ring->xsk_umem);
+	}
+
+	return !!budget && work_done;
+}
+
+/**
+ * i40e_clean_xdp_tx_buffer - Frees and unmaps an XDP Tx entry
+ * @tx_ring: XDP Tx ring
+ * @tx_bi: Tx buffer info to clean
+ **/
+static void i40e_clean_xdp_tx_buffer(struct i40e_ring *tx_ring,
+				     struct i40e_tx_buffer *tx_bi)
+{
+	xdp_return_frame(tx_bi->xdpf);
+	dma_unmap_single(tx_ring->dev,
+			 dma_unmap_addr(tx_bi, dma),
+			 dma_unmap_len(tx_bi, len), DMA_TO_DEVICE);
+	dma_unmap_len_set(tx_bi, len, 0);
+}
+
+/**
+ * i40e_clean_xdp_tx_irq - Completes AF_XDP entries, and cleans XDP entries
+ * @tx_ring: XDP Tx ring
+ * @tx_bi: Tx buffer info to clean
+ *
+ * Returns true if cleanup/tranmission is done.
+ **/
+bool i40e_clean_xdp_tx_irq(struct i40e_vsi *vsi,
+			   struct i40e_ring *tx_ring, int napi_budget)
+{
+	unsigned int ntc, total_bytes = 0, budget = vsi->work_limit;
+	u32 i, completed_frames, frames_ready, xsk_frames = 0;
+	struct xdp_umem *umem = tx_ring->xsk_umem;
+	u32 head_idx = i40e_get_head(tx_ring);
+	bool work_done = true, xmit_done;
+	struct i40e_tx_buffer *tx_bi;
+
+	if (head_idx < tx_ring->next_to_clean)
+		head_idx += tx_ring->count;
+	frames_ready = head_idx - tx_ring->next_to_clean;
+
+	if (frames_ready == 0) {
+		goto out_xmit;
+	} else if (frames_ready > budget) {
+		completed_frames = budget;
+		work_done = false;
+	} else {
+		completed_frames = frames_ready;
+	}
+
+	ntc = tx_ring->next_to_clean;
+
+	for (i = 0; i < completed_frames; i++) {
+		tx_bi = &tx_ring->tx_bi[ntc];
+
+		if (tx_bi->xdpf)
+			i40e_clean_xdp_tx_buffer(tx_ring, tx_bi);
+		else
+			xsk_frames++;
+
+		tx_bi->xdpf = NULL;
+		total_bytes += tx_bi->bytecount;
+
+		if (++ntc >= tx_ring->count)
+			ntc = 0;
+	}
+
+	tx_ring->next_to_clean += completed_frames;
+	if (unlikely(tx_ring->next_to_clean >= tx_ring->count))
+		tx_ring->next_to_clean -= tx_ring->count;
+
+	if (xsk_frames)
+		xsk_umem_complete_tx(umem, xsk_frames);
+
+	i40e_arm_wb(tx_ring, vsi, budget);
+	i40e_update_tx_stats(tx_ring, completed_frames, total_bytes);
+
+out_xmit:
+	xmit_done = i40e_xmit_zc(tx_ring, budget);
+
+	return work_done && xmit_done;
+}
+
+/**
+ * i40e_xsk_async_xmit - Implements the ndo_xsk_async_xmit
+ * @dev: the netdevice
+ * @queue_id: queue id to wake up
+ *
+ * Returns <0 for errors, 0 otherwise.
+ **/
+int i40e_xsk_async_xmit(struct net_device *dev, u32 queue_id)
+{
+	struct i40e_netdev_priv *np = netdev_priv(dev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_ring *ring;
+
+	if (test_bit(__I40E_VSI_DOWN, vsi->state))
+		return -ENETDOWN;
+
+	if (!i40e_enabled_xdp_vsi(vsi))
+		return -ENXIO;
+
+	if (queue_id >= vsi->num_queue_pairs)
+		return -ENXIO;
+
+	if (!vsi->xdp_rings[queue_id]->xsk_umem)
+		return -ENXIO;
+
+	ring = vsi->xdp_rings[queue_id];
+
+	/* The idea here is that if NAPI is running, mark a miss, so
+	 * it will run again. If not, trigger an interrupt and
+	 * schedule the NAPI from interrupt context. If NAPI would be
+	 * scheduled here, the interrupt affinity would not be
+	 * honored.
+	 */
+	if (!napi_if_scheduled_mark_missed(&ring->q_vector->napi))
+		i40e_force_wb(vsi, ring->q_vector);
+
+	return 0;
+}

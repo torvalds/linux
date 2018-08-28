@@ -2597,7 +2597,11 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
 	i40e_for_each_ring(ring, q_vector->tx) {
-		if (!i40e_clean_tx_irq(vsi, ring, budget)) {
+		bool wd = ring->xsk_umem ?
+			  i40e_clean_xdp_tx_irq(vsi, ring, budget) :
+			  i40e_clean_tx_irq(vsi, ring, budget);
+
+		if (!wd) {
 			clean_complete = false;
 			continue;
 		}
