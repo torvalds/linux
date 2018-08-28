@@ -828,6 +828,7 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 			sizeof(dump_info->dev_human_readable) - 1);
 		strncpy(dump_info->bus_human_readable, fwrt->dev->bus->name,
 			sizeof(dump_info->bus_human_readable) - 1);
+		dump_info->rt_status = cpu_to_le32(fwrt->dump.rt_status);
 
 		dump_data = iwl_fw_error_next_data(dump_data);
 	}

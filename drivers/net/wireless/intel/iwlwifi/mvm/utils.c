@@ -540,6 +540,9 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 
 	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
 
+	if (table.valid)
+		mvm->fwrt.dump.rt_status = table.error_id;
+
 	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
 		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
 		IWL_ERR(trans, "Status: 0x%08lX, count: %d\n",

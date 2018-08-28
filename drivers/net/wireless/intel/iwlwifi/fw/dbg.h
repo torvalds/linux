@@ -102,6 +102,7 @@ static inline void iwl_fw_free_dump_desc(struct iwl_fw_runtime *fwrt)
 	if (fwrt->dump.desc != &iwl_dump_desc_assert)
 		kfree(fwrt->dump.desc);
 	fwrt->dump.desc = NULL;
+	fwrt->dump.rt_status = 0;
 }
 
 void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt);
