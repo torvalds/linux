@@ -1095,8 +1095,8 @@ static struct dma_chan *nbpf_of_xlate(struct of_phandle_args *dma_spec,
 	if (!dchan)
 		return NULL;
 
-	dev_dbg(dchan->device->dev, "Entry %s(%s)\n", __func__,
-		dma_spec->np->name);
+	dev_dbg(dchan->device->dev, "Entry %s(%pOFn)\n", __func__,
+		dma_spec->np);
 
 	chan = nbpf_to_chan(dchan);
 
