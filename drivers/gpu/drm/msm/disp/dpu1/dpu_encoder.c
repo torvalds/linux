@@ -525,7 +525,7 @@ void dpu_encoder_helper_split_config(
 	hw_mdptop = phys_enc->hw_mdptop;
 	disp_info = &dpu_enc->disp_info;
 
-	if (disp_info->intf_type != DRM_MODE_CONNECTOR_DSI)
+	if (disp_info->intf_type != DRM_MODE_ENCODER_DSI)
 		return;
 
 	/**
@@ -1873,7 +1873,7 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc)
 			phys->ops.handle_post_kickoff(phys);
 	}
 
-	if (dpu_enc->disp_info.intf_type == DRM_MODE_CONNECTOR_DSI &&
+	if (dpu_enc->disp_info.intf_type == DRM_MODE_ENCODER_DSI &&
 			!_dpu_encoder_wakeup_time(drm_enc, &wakeup_time)) {
 		trace_dpu_enc_early_kickoff(DRMID(drm_enc),
 					    ktime_to_ms(wakeup_time));
@@ -2222,7 +2222,7 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 	DPU_DEBUG("\n");
 
 	switch (disp_info->intf_type) {
-	case DRM_MODE_CONNECTOR_DSI:
+	case DRM_MODE_ENCODER_DSI:
 		intf_type = INTF_DSI;
 		break;
 	default:
@@ -2362,7 +2362,7 @@ int dpu_encoder_setup(struct drm_device *dev, struct drm_encoder *enc,
 	timer_setup(&dpu_enc->frame_done_timer,
 			dpu_encoder_frame_done_timeout, 0);
 
-	if (disp_info->intf_type == DRM_MODE_CONNECTOR_DSI)
+	if (disp_info->intf_type == DRM_MODE_ENCODER_DSI)
 		timer_setup(&dpu_enc->vsync_event_timer,
 				dpu_encoder_vsync_event_handler,
 				0);
