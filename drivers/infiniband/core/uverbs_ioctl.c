@@ -611,3 +611,26 @@ int uverbs_copy_to(const struct uverbs_attr_bundle *bundle, size_t idx,
 	return 0;
 }
 EXPORT_SYMBOL(uverbs_copy_to);
+
+int _uverbs_get_const(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
+		      size_t idx, s64 lower_bound, u64 upper_bound,
+		      s64  *def_val)
+{
+	const struct uverbs_attr *attr;
+
+	attr = uverbs_attr_get(attrs_bundle, idx);
+	if (IS_ERR(attr)) {
+		if ((PTR_ERR(attr) != -ENOENT) || !def_val)
+			return PTR_ERR(attr);
+
+		*to = *def_val;
+	} else {
+		*to = attr->ptr_attr.data;
+	}
+
+	if (*to < lower_bound || (*to > 0 && (u64)*to > upper_bound))
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(_uverbs_get_const);
