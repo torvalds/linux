@@ -148,12 +148,12 @@ static int __init zevio_timer_add(struct device_node *node)
 
 	of_address_to_resource(node, 0, &res);
 	scnprintf(timer->clocksource_name, sizeof(timer->clocksource_name),
-			"%llx.%s_clocksource",
-			(unsigned long long)res.start, node->name);
+			"%llx.%pOFn_clocksource",
+			(unsigned long long)res.start, node);
 
 	scnprintf(timer->clockevent_name, sizeof(timer->clockevent_name),
-			"%llx.%s_clockevent",
-			(unsigned long long)res.start, node->name);
+			"%llx.%pOFn_clockevent",
+			(unsigned long long)res.start, node);
 
 	if (timer->interrupt_regs && irqnr) {
 		timer->clkevt.name		= timer->clockevent_name;
