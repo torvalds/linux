@@ -202,6 +202,10 @@ void mlx5_ib_destroy_flow_action_raw(struct mlx5_ib_flow_action *maction)
 		mlx5_modify_header_dealloc(maction->flow_action_raw.dev->mdev,
 					   maction->flow_action_raw.action_id);
 		break;
+	case MLX5_IB_FLOW_ACTION_PACKET_REFORMAT:
+		mlx5_packet_reformat_dealloc(maction->flow_action_raw.dev->mdev,
+			maction->flow_action_raw.action_id);
+		break;
 	case MLX5_IB_FLOW_ACTION_DECAP:
 		break;
 	default:
@@ -293,6 +297,21 @@ static bool mlx5_ib_flow_action_packet_reformat_valid(struct mlx5_ib_dev *ibdev,
 						      u8 ft_type)
 {
 	switch (packet_reformat_type) {
+	case MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L2_TO_L2_TUNNEL:
+		if (ft_type == MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_TX)
+			return MLX5_CAP_FLOWTABLE(ibdev->mdev,
+						  encap_general_header);
+		break;
+	case MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L2_TO_L3_TUNNEL:
+		if (ft_type == MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_TX)
+			return MLX5_CAP_FLOWTABLE_NIC_TX(ibdev->mdev,
+				reformat_l2_to_l3_tunnel);
+		break;
+	case MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L3_TUNNEL_TO_L2:
+		if (ft_type == MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_RX)
+			return MLX5_CAP_FLOWTABLE_NIC_RX(ibdev->mdev,
+				reformat_l3_tunnel_to_l2);
+		break;
 	case MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L2_TUNNEL_TO_L2:
 		if (ft_type == MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_RX)
 			return MLX5_CAP_FLOWTABLE_NIC_RX(ibdev->mdev, decap);
@@ -302,6 +321,56 @@ static bool mlx5_ib_flow_action_packet_reformat_valid(struct mlx5_ib_dev *ibdev,
 	}
 
 	return false;
+}
+
+static int mlx5_ib_dv_to_prm_packet_reforamt_type(u8 dv_prt, u8 *prm_prt)
+{
+	switch (dv_prt) {
+	case MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L2_TO_L2_TUNNEL:
+		*prm_prt = MLX5_REFORMAT_TYPE_L2_TO_L2_TUNNEL;
+		break;
+	case MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L3_TUNNEL_TO_L2:
+		*prm_prt = MLX5_REFORMAT_TYPE_L3_TUNNEL_TO_L2;
+		break;
+	case MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L2_TO_L3_TUNNEL:
+		*prm_prt = MLX5_REFORMAT_TYPE_L2_TO_L3_TUNNEL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int mlx5_ib_flow_action_create_packet_reformat_ctx(
+	struct mlx5_ib_dev *dev,
+	struct mlx5_ib_flow_action *maction,
+	u8 ft_type, u8 dv_prt,
+	void *in, size_t len)
+{
+	enum mlx5_flow_namespace_type namespace;
+	u8 prm_prt;
+	int ret;
+
+	ret = mlx5_ib_ft_type_to_namespace(ft_type, &namespace);
+	if (ret)
+		return ret;
+
+	ret = mlx5_ib_dv_to_prm_packet_reforamt_type(dv_prt, &prm_prt);
+	if (ret)
+		return ret;
+
+	ret = mlx5_packet_reformat_alloc(dev->mdev, prm_prt, len,
+					 in, namespace,
+					 &maction->flow_action_raw.action_id);
+	if (ret)
+		return ret;
+
+	maction->flow_action_raw.sub_type =
+		MLX5_IB_FLOW_ACTION_PACKET_REFORMAT;
+	maction->flow_action_raw.dev = dev;
+
+	return 0;
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_PACKET_REFORMAT)(
@@ -338,12 +407,34 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_PACKET_REFORMAT)(
 		maction->flow_action_raw.sub_type =
 			MLX5_IB_FLOW_ACTION_DECAP;
 		maction->flow_action_raw.dev = mdev;
+	} else {
+		void *in;
+		int len;
+
+		in = uverbs_attr_get_alloced_ptr(attrs,
+			MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_DATA_BUF);
+		if (IS_ERR(in)) {
+			ret = PTR_ERR(in);
+			goto free_maction;
+		}
+
+		len = uverbs_attr_get_len(attrs,
+			MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_DATA_BUF);
+
+		ret = mlx5_ib_flow_action_create_packet_reformat_ctx(mdev,
+			maction, ft_type, dv_prt, in, len);
+		if (ret)
+			goto free_maction;
 	}
 
 	uverbs_flow_action_fill_action(&maction->ib_action, uobj,
 				       uobj->context->device,
 				       IB_FLOW_ACTION_UNSPECIFIED);
 	return 0;
+
+free_maction:
+	kfree(maction);
+	return ret;
 }
 
 DECLARE_UVERBS_NAMED_METHOD(
@@ -401,6 +492,10 @@ DECLARE_UVERBS_NAMED_METHOD(
 			UVERBS_OBJECT_FLOW_ACTION,
 			UVERBS_ACCESS_NEW,
 			UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_DATA_BUF,
+			   UVERBS_ATTR_MIN_SIZE(1),
+			   UA_ALLOC_AND_COPY,
+			   UA_OPTIONAL),
 	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_TYPE,
 			     enum mlx5_ib_uapi_flow_action_packet_reformat_type,
 			     UA_MANDATORY),
