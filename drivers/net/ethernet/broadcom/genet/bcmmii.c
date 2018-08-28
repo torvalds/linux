@@ -167,8 +167,14 @@ void bcmgenet_mii_setup(struct net_device *dev)
 static int bcmgenet_fixed_phy_link_update(struct net_device *dev,
 					  struct fixed_phy_status *status)
 {
-	if (dev && dev->phydev && status)
-		status->link = dev->phydev->link;
+	struct bcmgenet_priv *priv;
+	u32 reg;
+
+	if (dev && dev->phydev && status) {
+		priv = netdev_priv(dev);
+		reg = bcmgenet_umac_readl(priv, UMAC_MODE);
+		status->link = !!(reg & MODE_LINK_STATUS);
+	}
 
 	return 0;
 }
