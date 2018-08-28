@@ -441,8 +441,11 @@ nfp_fw_load(struct pci_dev *pdev, struct nfp_pf *pf, struct nfp_nsp *nsp)
 	}
 
 	fw = nfp_net_fw_find(pdev, pf);
-	if (!fw)
+	if (!fw) {
+		if (nfp_nsp_has_stored_fw_load(nsp))
+			nfp_nsp_load_stored_fw(nsp);
 		return 0;
+	}
 
 	dev_info(&pdev->dev, "Soft-reset, loading FW image\n");
 	err = nfp_nsp_device_soft_reset(nsp);
@@ -453,7 +456,6 @@ nfp_fw_load(struct pci_dev *pdev, struct nfp_pf *pf, struct nfp_nsp *nsp)
 	}
 
 	err = nfp_nsp_load_fw(nsp, fw);
-
 	if (err < 0) {
 		dev_err(&pdev->dev, "FW loading failed: %d\n", err);
 		goto exit_release_fw;
