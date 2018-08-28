@@ -245,12 +245,6 @@ DEFINE_GUEST_HANDLE_STRUCT(xen_memory_map);
 
 
 /*
- * Prevent the balloon driver from changing the memory reservation
- * during a driver critical region.
- */
-extern spinlock_t xen_reservation_lock;
-
-/*
  * Unmaps the page appearing at a particular GPFN from the specified guest's
  * pseudophysical address space.
  * arg == addr of xen_remove_from_physmap_t.

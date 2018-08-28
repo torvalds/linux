@@ -15,7 +15,6 @@ CFLAGS_enlighten_pv.o		:= $(nostackp)
 CFLAGS_mmu_pv.o			:= $(nostackp)
 
 obj-y				+= enlighten.o
-obj-y				+= multicalls.o
 obj-y				+= mmu.o
 obj-y				+= time.o
 obj-y				+= grant-table.o
@@ -34,6 +33,7 @@ obj-$(CONFIG_XEN_PV)		+= p2m.o
 obj-$(CONFIG_XEN_PV)		+= enlighten_pv.o
 obj-$(CONFIG_XEN_PV)		+= mmu_pv.o
 obj-$(CONFIG_XEN_PV)		+= irq.o
+obj-$(CONFIG_XEN_PV)		+= multicalls.o
 obj-$(CONFIG_XEN_PV)		+= xen-asm.o
 obj-$(CONFIG_XEN_PV)		+= xen-asm_$(BITS).o
 
