@@ -10,6 +10,8 @@ on the Qualcomm ADSP Hexagon core.
 		    "qcom,msm8974-adsp-pil"
 		    "qcom,msm8996-adsp-pil"
 		    "qcom,msm8996-slpi-pil"
+		    "qcom,sdm845-adsp-pas"
+		    "qcom,sdm845-cdsp-pas"
 
 - interrupts-extended:
 	Usage: required
