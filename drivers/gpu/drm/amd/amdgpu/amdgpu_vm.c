@@ -172,6 +172,7 @@ static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 	 * is validated on next vm use to avoid fault.
 	 * */
 	list_move_tail(&base->vm_status, &vm->evicted);
+	base->moved = true;
 }
 
 /**
