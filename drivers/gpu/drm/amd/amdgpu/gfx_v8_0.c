@@ -3835,7 +3835,7 @@ static void gfx_v8_0_config_init(struct amdgpu_device *adev)
 	}
 }
 
-static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
+static void gfx_v8_0_constants_init(struct amdgpu_device *adev)
 {
 	u32 tmp, sh_static_mem_cfg;
 	int i;
@@ -5039,7 +5039,7 @@ static int gfx_v8_0_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gfx_v8_0_init_golden_registers(adev);
-	gfx_v8_0_gpu_init(adev);
+	gfx_v8_0_constants_init(adev);
 
 	r = gfx_v8_0_rlc_resume(adev);
 	if (r)
