@@ -544,15 +544,15 @@ static void __iomem *pktdma_get_regs(struct knav_dma_device *dma,
 
 	ret = of_address_to_resource(node, index, &res);
 	if (ret) {
-		dev_err(dev, "Can't translate of node(%s) address for index(%d)\n",
-			node->name, index);
+		dev_err(dev, "Can't translate of node(%pOFn) address for index(%d)\n",
+			node, index);
 		return ERR_PTR(ret);
 	}
 
 	regs = devm_ioremap_resource(kdev->dev, &res);
 	if (IS_ERR(regs))
-		dev_err(dev, "Failed to map register base for index(%d) node(%s)\n",
-			index, node->name);
+		dev_err(dev, "Failed to map register base for index(%d) node(%pOFn)\n",
+			index, node);
 	if (_size)
 		*_size = resource_size(&res);
 
