@@ -540,8 +540,9 @@ nfp_abm_vnic_set_mac(struct nfp_pf *pf, struct nfp_abm *abm, struct nfp_net *nn,
 {
 	struct nfp_eth_table_port *eth_port = &pf->eth_tbl->ports[id];
 	u8 mac_addr[ETH_ALEN];
-	const char *mac_str;
-	char name[32];
+	struct nfp_nsp *nsp;
+	char hwinfo[32];
+	int err;
 
 	if (id > pf->eth_tbl->count) {
 		nfp_warn(pf->cpp, "No entry for persistent MAC address\n");
@@ -549,22 +550,37 @@ nfp_abm_vnic_set_mac(struct nfp_pf *pf, struct nfp_abm *abm, struct nfp_net *nn,
 		return;
 	}
 
-	snprintf(name, sizeof(name), "eth%u.mac.pf%u",
+	snprintf(hwinfo, sizeof(hwinfo), "eth%u.mac.pf%u",
 		 eth_port->eth_index, abm->pf_id);
 
-	mac_str = nfp_hwinfo_lookup(pf->hwinfo, name);
-	if (!mac_str) {
-		nfp_warn(pf->cpp, "Can't lookup persistent MAC address (%s)\n",
-			 name);
+	nsp = nfp_nsp_open(pf->cpp);
+	if (IS_ERR(nsp)) {
+		nfp_warn(pf->cpp, "Failed to access the NSP for persistent MAC address: %ld\n",
+			 PTR_ERR(nsp));
 		eth_hw_addr_random(nn->dp.netdev);
 		return;
 	}
 
-	if (sscanf(mac_str, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+	if (!nfp_nsp_has_hwinfo_lookup(nsp)) {
+		nfp_warn(pf->cpp, "NSP doesn't support PF MAC generation\n");
+		eth_hw_addr_random(nn->dp.netdev);
+		return;
+	}
+
+	err = nfp_nsp_hwinfo_lookup(nsp, hwinfo, sizeof(hwinfo));
+	nfp_nsp_close(nsp);
+	if (err) {
+		nfp_warn(pf->cpp, "Reading persistent MAC address failed: %d\n",
+			 err);
+		eth_hw_addr_random(nn->dp.netdev);
+		return;
+	}
+
+	if (sscanf(hwinfo, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
 		   &mac_addr[0], &mac_addr[1], &mac_addr[2],
 		   &mac_addr[3], &mac_addr[4], &mac_addr[5]) != 6) {
 		nfp_warn(pf->cpp, "Can't parse persistent MAC address (%s)\n",
-			 mac_str);
+			 hwinfo);
 		eth_hw_addr_random(nn->dp.netdev);
 		return;
 	}
