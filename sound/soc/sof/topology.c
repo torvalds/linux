@@ -2020,12 +2020,15 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 			goto err;
 		}
 
-		sroute->route.control = kstrdup(route->control, GFP_KERNEL);
-		if (!sroute->route.control) {
-			kfree(sroute->route.source);
-			kfree(sroute->route.sink);
-			goto err;
+		if (route->control) {
+			sroute->route.control = kstrdup(route->control, GFP_KERNEL);
+			if (!sroute->route.control) {
+				kfree(sroute->route.source);
+				kfree(sroute->route.sink);
+				goto err;
+			}
 		}
+
 		sroute->private = connect;
 
 		/* add route to route list */
