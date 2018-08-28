@@ -2145,8 +2145,8 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 			gpmc_s.device_width = GPMC_DEVWIDTH_16BIT;
 			break;
 		default:
-			dev_err(&pdev->dev, "%s: invalid 'nand-bus-width'\n",
-				child->name);
+			dev_err(&pdev->dev, "%pOFn: invalid 'nand-bus-width'\n",
+				child);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -2186,8 +2186,8 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 
 	ret = gpmc_cs_set_timings(cs, &gpmc_t, &gpmc_s);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to set gpmc timings for: %s\n",
-			child->name);
+		dev_err(&pdev->dev, "failed to set gpmc timings for: %pOFn\n",
+			child);
 		goto err_cs;
 	}
 
@@ -2215,7 +2215,7 @@ no_timings:
 
 err_child_fail:
 
-	dev_err(&pdev->dev, "failed to create gpmc child %s\n", child->name);
+	dev_err(&pdev->dev, "failed to create gpmc child %pOFn\n", child);
 	ret = -ENODEV;
 
 err_cs:
@@ -2265,14 +2265,10 @@ static void gpmc_probe_dt_children(struct platform_device *pdev)
 	struct device_node *child;
 
 	for_each_available_child_of_node(pdev->dev.of_node, child) {
-
-		if (!child->name)
-			continue;
-
 		ret = gpmc_probe_generic_child(pdev, child);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to probe DT child '%s': %d\n",
-				child->name, ret);
+			dev_err(&pdev->dev, "failed to probe DT child '%pOFn': %d\n",
+				child, ret);
 		}
 	}
 }
