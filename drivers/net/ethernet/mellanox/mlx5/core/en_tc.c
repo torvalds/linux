@@ -925,6 +925,7 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 
 	err = mlx5_packet_reformat_alloc(priv->mdev, e->tunnel_type,
 					 e->encap_size, e->encap_header,
+					 MLX5_FLOW_NAMESPACE_FDB,
 					 &e->encap_id);
 	if (err) {
 		mlx5_core_warn(priv->mdev, "Failed to offload cached encapsulation header, %d\n",
@@ -2389,6 +2390,7 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 
 	err = mlx5_packet_reformat_alloc(priv->mdev, e->tunnel_type,
 					 ipv4_encap_size, encap_header,
+					 MLX5_FLOW_NAMESPACE_FDB,
 					 &e->encap_id);
 	if (err)
 		goto destroy_neigh_entry;
@@ -2500,6 +2502,7 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 
 	err = mlx5_packet_reformat_alloc(priv->mdev, e->tunnel_type,
 					 ipv6_encap_size, encap_header,
+					 MLX5_FLOW_NAMESPACE_FDB,
 					 &e->encap_id);
 	if (err)
 		goto destroy_neigh_entry;

@@ -600,15 +600,21 @@ int mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
 			       int reformat_type,
 			       size_t size,
 			       void *reformat_data,
+			       enum mlx5_flow_namespace_type namespace,
 			       u32 *packet_reformat_id)
 {
-	int max_encap_size = MLX5_CAP_ESW(dev, max_encap_header_size);
 	u32 out[MLX5_ST_SZ_DW(alloc_packet_reformat_context_out)];
 	void *packet_reformat_context_in;
+	int max_encap_size;
 	void *reformat;
 	int inlen;
 	int err;
 	u32 *in;
+
+	if (namespace == MLX5_FLOW_NAMESPACE_FDB)
+		max_encap_size = MLX5_CAP_ESW(dev, max_encap_header_size);
+	else
+		max_encap_size = MLX5_CAP_FLOWTABLE(dev, max_encap_header_size);
 
 	if (size > max_encap_size) {
 		mlx5_core_warn(dev, "encap size %zd too big, max supported is %d\n",

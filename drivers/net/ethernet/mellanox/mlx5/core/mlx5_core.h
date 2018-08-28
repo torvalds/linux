@@ -39,6 +39,7 @@
 #include <linux/if_link.h>
 #include <linux/firmware.h>
 #include <linux/mlx5/cq.h>
+#include <linux/mlx5/fs.h>
 
 #define DRIVER_NAME "mlx5_core"
 #define DRIVER_VERSION "5.0-0"
@@ -173,6 +174,7 @@ int mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
 			       int reformat_type,
 			       size_t size,
 			       void *reformat_data,
+			       enum mlx5_flow_namespace_type namespace,
 			       u32 *packet_reformat_id);
 void mlx5_packet_reformat_dealloc(struct mlx5_core_dev *dev,
 				  u32 packet_reformat_id);
