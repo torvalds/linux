@@ -90,6 +90,8 @@
 #define NFP_FW_LOAD_RET_MAJOR	GENMASK(15, 8)
 #define NFP_FW_LOAD_RET_MINOR	GENMASK(23, 16)
 
+#define NFP_HWINFO_LOOKUP_SIZE	GENMASK(11, 0)
+
 enum nfp_nsp_cmd {
 	SPCODE_NOOP		= 0, /* No operation */
 	SPCODE_SOFT_RESET	= 1, /* Soft reset the NFP */
@@ -104,6 +106,7 @@ enum nfp_nsp_cmd {
 	SPCODE_NSP_SENSORS	= 12, /* Read NSP sensor(s) */
 	SPCODE_NSP_IDENTIFY	= 13, /* Read NSP version */
 	SPCODE_FW_STORED	= 16, /* If no FW loaded, load flash app FW */
+	SPCODE_HWINFO_LOOKUP	= 17, /* Lookup HWinfo with overwrites etc. */
 };
 
 static const struct {
@@ -701,5 +704,40 @@ int nfp_nsp_load_stored_fw(struct nfp_nsp *state)
 		return ret;
 
 	nfp_nsp_load_fw_extended_msg(state, ret);
+	return 0;
+}
+
+static int
+__nfp_nsp_hwinfo_lookup(struct nfp_nsp *state, void *buf, unsigned int size)
+{
+	struct nfp_nsp_command_buf_arg hwinfo_lookup = {
+		{
+			.code		= SPCODE_HWINFO_LOOKUP,
+			.option		= size,
+		},
+		.in_buf		= buf,
+		.in_size	= size,
+		.out_buf	= buf,
+		.out_size	= size,
+	};
+
+	return nfp_nsp_command_buf(state, &hwinfo_lookup);
+}
+
+int nfp_nsp_hwinfo_lookup(struct nfp_nsp *state, void *buf, unsigned int size)
+{
+	int err;
+
+	size = min_t(u32, size, NFP_HWINFO_LOOKUP_SIZE);
+
+	err = __nfp_nsp_hwinfo_lookup(state, buf, size);
+	if (err)
+		return err;
+
+	if (strnlen(buf, size) == size) {
+		nfp_err(state->cpp, "NSP HWinfo value not NULL-terminated\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
