@@ -2260,6 +2260,11 @@ call_decode(struct rpc_task *task)
 
 	dprint_status(task);
 
+	if (!decode) {
+		task->tk_action = rpc_exit_task;
+		return;
+	}
+
 	if (task->tk_flags & RPC_CALL_MAJORSEEN) {
 		if (clnt->cl_chatty) {
 			printk(KERN_NOTICE "%s: server %s OK\n",
@@ -2297,13 +2302,11 @@ call_decode(struct rpc_task *task)
 			goto out_retry;
 		return;
 	}
-
 	task->tk_action = rpc_exit_task;
 
-	if (decode) {
-		task->tk_status = rpcauth_unwrap_resp(task, decode, req, p,
-						      task->tk_msg.rpc_resp);
-	}
+	task->tk_status = rpcauth_unwrap_resp(task, decode, req, p,
+					      task->tk_msg.rpc_resp);
+
 	dprintk("RPC: %5u call_decode result %d\n", task->tk_pid,
 			task->tk_status);
 	return;
