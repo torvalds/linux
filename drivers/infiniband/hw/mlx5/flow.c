@@ -7,6 +7,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/uverbs_types.h>
 #include <rdma/uverbs_ioctl.h>
+#include <rdma/uverbs_std_types.h>
 #include <rdma/mlx5_user_ioctl_cmds.h>
 #include <rdma/mlx5_user_ioctl_verbs.h>
 #include <rdma/ib_umem.h>
@@ -279,11 +280,8 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER)(
 	if (IS_ERR(action))
 		return PTR_ERR(action);
 
-	atomic_set(&action->usecnt, 0);
-	action->device = uobj->context->device;
-	action->type = IB_FLOW_ACTION_UNSPECIFIED;
-	action->uobject = uobj;
-	uobj->object = action;
+	uverbs_flow_action_fill_action(action, uobj, uobj->context->device,
+				       IB_FLOW_ACTION_UNSPECIFIED);
 
 	return 0;
 }
