@@ -43,6 +43,82 @@
 
 #define MAX_IV_SIZE	TLS_CIPHER_AES_GCM_128_IV_SIZE
 
+static int __skb_nsg(struct sk_buff *skb, int offset, int len,
+                     unsigned int recursion_level)
+{
+        int start = skb_headlen(skb);
+        int i, chunk = start - offset;
+        struct sk_buff *frag_iter;
+        int elt = 0;
+
+        if (unlikely(recursion_level >= 24))
+                return -EMSGSIZE;
+
+        if (chunk > 0) {
+                if (chunk > len)
+                        chunk = len;
+                elt++;
+                len -= chunk;
+                if (len == 0)
+                        return elt;
+                offset += chunk;
+        }
+
+        for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+                int end;
+
+                WARN_ON(start > offset + len);
+
+                end = start + skb_frag_size(&skb_shinfo(skb)->frags[i]);
+                chunk = end - offset;
+                if (chunk > 0) {
+                        if (chunk > len)
+                                chunk = len;
+                        elt++;
+                        len -= chunk;
+                        if (len == 0)
+                                return elt;
+                        offset += chunk;
+                }
+                start = end;
+        }
+
+        if (unlikely(skb_has_frag_list(skb))) {
+                skb_walk_frags(skb, frag_iter) {
+                        int end, ret;
+
+                        WARN_ON(start > offset + len);
+
+                        end = start + frag_iter->len;
+                        chunk = end - offset;
+                        if (chunk > 0) {
+                                if (chunk > len)
+                                        chunk = len;
+                                ret = __skb_nsg(frag_iter, offset - start, chunk,
+                                                recursion_level + 1);
+                                if (unlikely(ret < 0))
+                                        return ret;
+                                elt += ret;
+                                len -= chunk;
+                                if (len == 0)
+                                        return elt;
+                                offset += chunk;
+                        }
+                        start = end;
+                }
+        }
+        BUG_ON(len);
+        return elt;
+}
+
+/* Return the number of scatterlist elements required to completely map the
+ * skb, or -EMSGSIZE if the recursion depth is exceeded.
+ */
+static int skb_nsg(struct sk_buff *skb, int offset, int len)
+{
+        return __skb_nsg(skb, offset, len, 0);
+}
+
 static int tls_do_decryption(struct sock *sk,
 			     struct scatterlist *sgin,
 			     struct scatterlist *sgout,
@@ -678,12 +754,14 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 			n_sgout = iov_iter_npages(out_iov, INT_MAX) + 1;
 		else
 			n_sgout = sg_nents(out_sg);
+		n_sgin = skb_nsg(skb, rxm->offset + tls_ctx->rx.prepend_size,
+				 rxm->full_len - tls_ctx->rx.prepend_size);
 	} else {
 		n_sgout = 0;
 		*zc = false;
+		n_sgin = skb_cow_data(skb, 0, &unused);
 	}
 
-	n_sgin = skb_cow_data(skb, 0, &unused);
 	if (n_sgin < 1)
 		return -EBADMSG;
 
