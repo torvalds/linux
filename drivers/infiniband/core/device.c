@@ -587,13 +587,12 @@ void ib_unregister_device(struct ib_device *device)
 	down_write(&lists_rwsem);
 	list_del(&device->core_list);
 	spin_lock_irqsave(&device->client_data_lock, flags);
-	list_for_each_entry_safe(context, tmp, &device->client_data_list, list)
+	list_for_each_entry(context, &device->client_data_list, list)
 		context->going_down = true;
 	spin_unlock_irqrestore(&device->client_data_lock, flags);
 	downgrade_write(&lists_rwsem);
 
-	list_for_each_entry_safe(context, tmp, &device->client_data_list,
-				 list) {
+	list_for_each_entry(context, &device->client_data_list, list) {
 		if (context->client->remove)
 			context->client->remove(device, context->data);
 	}
@@ -663,7 +662,7 @@ EXPORT_SYMBOL(ib_register_client);
  */
 void ib_unregister_client(struct ib_client *client)
 {
-	struct ib_client_data *context, *tmp;
+	struct ib_client_data *context;
 	struct ib_device *device;
 	unsigned long flags;
 
@@ -678,7 +677,7 @@ void ib_unregister_client(struct ib_client *client)
 
 		down_write(&lists_rwsem);
 		spin_lock_irqsave(&device->client_data_lock, flags);
-		list_for_each_entry_safe(context, tmp, &device->client_data_list, list)
+		list_for_each_entry(context, &device->client_data_list, list)
 			if (context->client == client) {
 				context->going_down = true;
 				found_context = context;
