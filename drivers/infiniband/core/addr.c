@@ -660,6 +660,13 @@ int rdma_resolve_ip_route(struct sockaddr *src_addr,
 	return addr_resolve(src_in, dst_addr, addr, false, 0);
 }
 
+/**
+ * rdma_addr_cancel - Cancel resolve ip request
+ * @addr:	Pointer to address structure given previously
+ *		during rdma_resolve_ip().
+ * rdma_addr_cancel() is synchronous function which cancels any pending
+ * request if there is any.
+ */
 void rdma_addr_cancel(struct rdma_dev_addr *addr)
 {
 	struct addr_req *req, *temp_req;
@@ -687,11 +694,6 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 	 * guarentees no work is running and none will be started.
 	 */
 	cancel_delayed_work_sync(&found->work);
-
-	if (found->callback)
-		found->callback(-ECANCELED, (struct sockaddr *)&found->src_addr,
-			      found->addr, found->context);
-
 	kfree(found);
 }
 EXPORT_SYMBOL(rdma_addr_cancel);
