@@ -188,7 +188,6 @@ nfp_net_dump_load_dumpspec(struct nfp_cpp *cpp, struct nfp_rtsym_table *rtbl)
 	const struct nfp_rtsym *specsym;
 	struct nfp_dumpspec *dumpspec;
 	int bytes_read;
-	u32 cpp_id;
 
 	specsym = nfp_rtsym_lookup(rtbl, NFP_DUMP_SPEC_RTSYM);
 	if (!specsym)
@@ -201,11 +200,8 @@ nfp_net_dump_load_dumpspec(struct nfp_cpp *cpp, struct nfp_rtsym_table *rtbl)
 
 	dumpspec->size = specsym->size;
 
-	cpp_id = NFP_CPP_ISLAND_ID(specsym->target, NFP_CPP_ACTION_RW, 0,
-				   specsym->domain);
-
-	bytes_read = nfp_cpp_read(cpp, cpp_id, specsym->addr, dumpspec->data,
-				  specsym->size);
+	bytes_read = nfp_rtsym_read(cpp, specsym, 0, dumpspec->data,
+				    specsym->size);
 	if (bytes_read != specsym->size) {
 		vfree(dumpspec);
 		nfp_warn(cpp, "Debug dump specification read failed.\n");
@@ -644,7 +640,6 @@ nfp_dump_single_rtsym(struct nfp_pf *pf, struct nfp_dumpspec_rtsym *spec,
 	const struct nfp_rtsym *sym;
 	u32 tl_len, key_len;
 	int bytes_read;
-	u32 cpp_id;
 	void *dest;
 	int err;
 
@@ -683,11 +678,9 @@ nfp_dump_single_rtsym(struct nfp_pf *pf, struct nfp_dumpspec_rtsym *spec,
 		cpp_params.action = NFP_CPP_ACTION_RW;
 		cpp_params.token  = 0;
 		cpp_params.island = sym->domain;
-		cpp_id = nfp_get_numeric_cpp_id(&cpp_params);
 		dump_header->cpp.cpp_id = cpp_params;
 		dump_header->cpp.offset = cpu_to_be32(sym->addr);
-		bytes_read = nfp_cpp_read(pf->cpp, cpp_id, sym->addr, dest,
-					  sym_size);
+		bytes_read = nfp_rtsym_read(pf->cpp, sym, 0, dest, sym_size);
 		if (bytes_read != sym_size) {
 			if (bytes_read >= 0)
 				bytes_read = -EIO;
