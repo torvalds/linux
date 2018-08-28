@@ -8,6 +8,7 @@
 #include "i40e.h"
 #include "i40e_trace.h"
 #include "i40e_prototype.h"
+#include "i40e_txrx_common.h"
 
 static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
 				u32 td_tag)
@@ -536,8 +537,8 @@ int i40e_add_del_fdir(struct i40e_vsi *vsi,
  * This is used to verify if the FD programming or invalidation
  * requested by SW to the HW is successful or not and take actions accordingly.
  **/
-static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
-				  union i40e_rx_desc *rx_desc, u8 prog_id)
+void i40e_fd_handle_status(struct i40e_ring *rx_ring,
+			   union i40e_rx_desc *rx_desc, u8 prog_id)
 {
 	struct i40e_pf *pf = rx_ring->vsi->back;
 	struct pci_dev *pdev = pf->pdev;
@@ -1282,7 +1283,7 @@ static inline bool i40e_rx_is_programming_status(u64 qw)
  *
  * Returns an i40e_rx_buffer to reuse if the cleanup occurred, otherwise NULL.
  **/
-static struct i40e_rx_buffer *i40e_clean_programming_status(
+struct i40e_rx_buffer *i40e_clean_programming_status(
 	struct i40e_ring *rx_ring,
 	union i40e_rx_desc *rx_desc,
 	u64 qw)
@@ -1499,7 +1500,7 @@ err:
  * @rx_ring: ring to bump
  * @val: new head index
  **/
-static inline void i40e_release_rx_desc(struct i40e_ring *rx_ring, u32 val)
+void i40e_release_rx_desc(struct i40e_ring *rx_ring, u32 val)
 {
 	rx_ring->next_to_use = val;
 
@@ -1583,8 +1584,8 @@ static bool i40e_alloc_mapped_page(struct i40e_ring *rx_ring,
  * @skb: packet to send up
  * @vlan_tag: vlan tag for packet
  **/
-static void i40e_receive_skb(struct i40e_ring *rx_ring,
-			     struct sk_buff *skb, u16 vlan_tag)
+void i40e_receive_skb(struct i40e_ring *rx_ring,
+		      struct sk_buff *skb, u16 vlan_tag)
 {
 	struct i40e_q_vector *q_vector = rx_ring->q_vector;
 
@@ -1811,7 +1812,6 @@ static inline void i40e_rx_hash(struct i40e_ring *ring,
  * order to populate the hash, checksum, VLAN, protocol, and
  * other fields within the skb.
  **/
-static inline
 void i40e_process_skb_fields(struct i40e_ring *rx_ring,
 			     union i40e_rx_desc *rx_desc, struct sk_buff *skb,
 			     u8 rx_ptype)
@@ -2204,16 +2204,10 @@ static bool i40e_is_non_eop(struct i40e_ring *rx_ring,
 	return true;
 }
 
-#define I40E_XDP_PASS		0
-#define I40E_XDP_CONSUMED	BIT(0)
-#define I40E_XDP_TX		BIT(1)
-#define I40E_XDP_REDIR		BIT(2)
-
 static int i40e_xmit_xdp_ring(struct xdp_frame *xdpf,
 			      struct i40e_ring *xdp_ring);
 
-static int i40e_xmit_xdp_tx_ring(struct xdp_buff *xdp,
-				 struct i40e_ring *xdp_ring)
+int i40e_xmit_xdp_tx_ring(struct xdp_buff *xdp, struct i40e_ring *xdp_ring)
 {
 	struct xdp_frame *xdpf = convert_to_xdp_frame(xdp);
 
@@ -2298,7 +2292,7 @@ static void i40e_rx_buffer_flip(struct i40e_ring *rx_ring,
  *
  * This function updates the XDP Tx ring tail register.
  **/
-static inline void i40e_xdp_ring_update_tail(struct i40e_ring *xdp_ring)
+void i40e_xdp_ring_update_tail(struct i40e_ring *xdp_ring)
 {
 	/* Force memory writes to complete before letting h/w
 	 * know there are new descriptors to fetch.
@@ -2315,9 +2309,9 @@ static inline void i40e_xdp_ring_update_tail(struct i40e_ring *xdp_ring)
  *
  * This function updates the Rx ring statistics.
  **/
-static void i40e_update_rx_stats(struct i40e_ring *rx_ring,
-				 unsigned int total_rx_bytes,
-				 unsigned int total_rx_packets)
+void i40e_update_rx_stats(struct i40e_ring *rx_ring,
+			  unsigned int total_rx_bytes,
+			  unsigned int total_rx_packets)
 {
 	u64_stats_update_begin(&rx_ring->syncp);
 	rx_ring->stats.packets += total_rx_packets;
@@ -2336,8 +2330,7 @@ static void i40e_update_rx_stats(struct i40e_ring *rx_ring,
  * should be called when a batch of packets has been processed in the
  * napi loop.
  **/
-static void i40e_finalize_xdp_rx(struct i40e_ring *rx_ring,
-				 unsigned int xdp_res)
+void i40e_finalize_xdp_rx(struct i40e_ring *rx_ring, unsigned int xdp_res)
 {
 	if (xdp_res & I40E_XDP_REDIR)
 		xdp_do_flush_map();
