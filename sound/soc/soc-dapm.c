@@ -1320,14 +1320,13 @@ int dapm_clock_event(struct snd_soc_dapm_widget *w,
 
 	soc_dapm_async_complete(w->dapm);
 
-#ifdef CONFIG_HAVE_CLK
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		return clk_prepare_enable(w->clk);
 	} else {
 		clk_disable_unprepare(w->clk);
 		return 0;
 	}
-#endif
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dapm_clock_event);
@@ -3498,7 +3497,6 @@ snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 		}
 		break;
 	case snd_soc_dapm_clock_supply:
-#ifdef CONFIG_CLKDEV_LOOKUP
 		w->clk = devm_clk_get(dapm->dev, w->name);
 		if (IS_ERR(w->clk)) {
 			ret = PTR_ERR(w->clk);
@@ -3508,9 +3506,6 @@ snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 				w->name, ret);
 			return NULL;
 		}
-#else
-		return NULL;
-#endif
 		break;
 	default:
 		break;
