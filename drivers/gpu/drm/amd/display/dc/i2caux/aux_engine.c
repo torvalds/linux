@@ -297,12 +297,6 @@ static bool read_command(
 
 	if (request->payload.address_space ==
 		I2CAUX_TRANSACTION_ADDRESS_SPACE_DPCD) {
-		EVENT_LOG_I2CAUX_READ(request->payload.address_space,
-				engine->base.ddc->pin_data->en,
-				request->payload.address,
-				request->status,
-				request->payload.length,
-				request->payload.data);
 		DC_LOG_I2C_AUX("READ: addr:0x%x  value:0x%x Result:%d",
 				request->payload.address,
 				request->payload.data[0],
@@ -519,12 +513,6 @@ static bool write_command(
 
 	if (request->payload.address_space ==
 		I2CAUX_TRANSACTION_ADDRESS_SPACE_DPCD) {
-		EVENT_LOG_I2CAUX_WRITE(request->payload.address_space,
-				engine->base.ddc->pin_data->en,
-				request->payload.address,
-				request->status,
-				request->payload.length,
-				request->payload.data);
 		DC_LOG_I2C_AUX("WRITE: addr:0x%x  value:0x%x Result:%d",
 				request->payload.address,
 				request->payload.data[0],

@@ -31,8 +31,6 @@
 
 #define __DM_EVENT_LOG_H__
 
-#define EVENT_LOG_I2CAUX_READ(transType, dcc, address, status, len, data)
-#define EVENT_LOG_I2CAUX_WRITE(transType, dcc, address, status, len, data)
 #define EVENT_LOG_AUX_REQ(dcc, type, action, address, len, data)
 #define EVENT_LOG_AUX_Reply(dcc, type, swStatus, replyStatus, len, data)
 
