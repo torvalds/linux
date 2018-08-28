@@ -382,7 +382,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		 */
 		if (end < qp->q.len ||
 		    ((qp->q.flags & INET_FRAG_LAST_IN) && end != qp->q.len))
-			goto err;
+			goto discard_qp;
 		qp->q.flags |= INET_FRAG_LAST_IN;
 		qp->q.len = end;
 	} else {
@@ -394,20 +394,20 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		if (end > qp->q.len) {
 			/* Some bits beyond end -> corruption. */
 			if (qp->q.flags & INET_FRAG_LAST_IN)
-				goto err;
+				goto discard_qp;
 			qp->q.len = end;
 		}
 	}
 	if (end == offset)
-		goto err;
+		goto discard_qp;
 
 	err = -ENOMEM;
 	if (!pskb_pull(skb, skb_network_offset(skb) + ihl))
-		goto err;
+		goto discard_qp;
 
 	err = pskb_trim_rcsum(skb, end - offset);
 	if (err)
-		goto err;
+		goto discard_qp;
 
 	/* Note : skb->rbnode and skb->dev share the same location. */
 	dev = skb->dev;
@@ -423,6 +423,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	 * We do the same here for IPv4 (and increment an snmp counter).
 	 */
 
+	err = -EINVAL;
 	/* Find out where to put this fragment.  */
 	prev_tail = qp->q.fragments_tail;
 	if (!prev_tail)
@@ -431,7 +432,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		/* This is the common case: skb goes to the end. */
 		/* Detect and discard overlaps. */
 		if (offset < prev_tail->ip_defrag_offset + prev_tail->len)
-			goto discard_qp;
+			goto overlap;
 		if (offset == prev_tail->ip_defrag_offset + prev_tail->len)
 			ip4_frag_append_to_last_run(&qp->q, skb);
 		else
@@ -450,7 +451,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 						FRAG_CB(skb1)->frag_run_len)
 				rbn = &parent->rb_right;
 			else /* Found an overlap with skb1. */
-				goto discard_qp;
+				goto overlap;
 		} while (*rbn);
 		/* Here we have parent properly set, and rbn pointing to
 		 * one of its NULL left/right children. Insert skb.
@@ -487,16 +488,18 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		skb->_skb_refdst = 0UL;
 		err = ip_frag_reasm(qp, skb, prev_tail, dev);
 		skb->_skb_refdst = orefdst;
+		if (err)
+			inet_frag_kill(&qp->q);
 		return err;
 	}
 
 	skb_dst_drop(skb);
 	return -EINPROGRESS;
 
+overlap:
+	__IP_INC_STATS(net, IPSTATS_MIB_REASM_OVERLAPS);
 discard_qp:
 	inet_frag_kill(&qp->q);
-	err = -EINVAL;
-	__IP_INC_STATS(net, IPSTATS_MIB_REASM_OVERLAPS);
 err:
 	kfree_skb(skb);
 	return err;
