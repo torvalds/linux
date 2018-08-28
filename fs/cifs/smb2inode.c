@@ -83,6 +83,8 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.desired_access = desired_access;
 	oparms.disposition = create_disposition;
 	oparms.create_options = create_options;
+	if (backup_cred(cifs_sb))
+		oparms.create_options |= CREATE_OPEN_BACKUP_INTENT;
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
