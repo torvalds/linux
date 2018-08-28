@@ -190,10 +190,10 @@ static const int px30_vop_intrs[] = {
 static const struct vop_intr px30_intr = {
 	.intrs = px30_vop_intrs,
 	.nintrs = ARRAY_SIZE(px30_vop_intrs),
-	.line_flag_num[0] = VOP_REG(PX30_LINE_FLAG, 0xfff, 12),
-	.status = VOP_REG_SYNC(PX30_INTR_STATUS, 0xf, 0),
-	.enable = VOP_REG_SYNC(PX30_INTR_EN, 0xf, 4),
-	.clear = VOP_REG_SYNC(PX30_INTR_CLEAR, 0xf, 8),
+	.line_flag_num[0] = VOP_REG(PX30_LINE_FLAG, 0xfff, 0),
+	.status = VOP_REG_MASK_SYNC(PX30_INTR_STATUS, 0xffff, 0),
+	.enable = VOP_REG_MASK_SYNC(PX30_INTR_EN, 0xffff, 0),
+	.clear = VOP_REG_MASK_SYNC(PX30_INTR_CLEAR, 0xffff, 0),
 };
 
 static const struct vop_common px30_common = {
@@ -212,10 +212,8 @@ static const struct vop_modeset px30_modeset = {
 
 static const struct vop_output px30_output = {
 	.rgb_pin_pol = VOP_REG(PX30_DSP_CTRL0, 0xf, 1),
-	.hdmi_pin_pol = VOP_REG(PX30_DSP_CTRL0, 0xf, 9),
 	.mipi_pin_pol = VOP_REG(PX30_DSP_CTRL0, 0xf, 25),
 	.rgb_en = VOP_REG(PX30_DSP_CTRL0, 0x1, 0),
-	.hdmi_en = VOP_REG(PX30_DSP_CTRL0, 0x1, 8),
 	.mipi_en = VOP_REG(PX30_DSP_CTRL0, 0x1, 24),
 };
 
@@ -257,8 +255,8 @@ static const struct vop_win_phy px30_win1_data = {
 static const struct vop_win_phy px30_win2_data = {
 	.data_formats = formats_win_lite,
 	.nformats = ARRAY_SIZE(formats_win_lite),
-	.gate = VOP_REG(PX30_WIN2_CTRL0, 0x1, 0),
-	.enable = VOP_REG(PX30_WIN2_CTRL0, 0x1, 4),
+	.gate = VOP_REG(PX30_WIN2_CTRL0, 0x1, 4),
+	.enable = VOP_REG(PX30_WIN2_CTRL0, 0x1, 0),
 	.format = VOP_REG(PX30_WIN2_CTRL0, 0x3, 5),
 	.rb_swap = VOP_REG(PX30_WIN2_CTRL0, 0x1, 20),
 	.dsp_info = VOP_REG(PX30_WIN2_DSP_INFO0, 0x0fff0fff, 0),
