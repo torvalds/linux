@@ -230,7 +230,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 		mutex_unlock(&drm->master.lock);
 	}
 	if (ret) {
-		NV_ERROR(drm, "Client allocation failed: %d\n", ret);
+		NV_PRINTK(err, cli, "Client allocation failed: %d\n", ret);
 		goto done;
 	}
 
@@ -240,37 +240,37 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 			       }, sizeof(struct nv_device_v0),
 			       &cli->device);
 	if (ret) {
-		NV_ERROR(drm, "Device allocation failed: %d\n", ret);
+		NV_PRINTK(err, cli, "Device allocation failed: %d\n", ret);
 		goto done;
 	}
 
 	ret = nvif_mclass(&cli->device.object, mmus);
 	if (ret < 0) {
-		NV_ERROR(drm, "No supported MMU class\n");
+		NV_PRINTK(err, cli, "No supported MMU class\n");
 		goto done;
 	}
 
 	ret = nvif_mmu_init(&cli->device.object, mmus[ret].oclass, &cli->mmu);
 	if (ret) {
-		NV_ERROR(drm, "MMU allocation failed: %d\n", ret);
+		NV_PRINTK(err, cli, "MMU allocation failed: %d\n", ret);
 		goto done;
 	}
 
 	ret = nvif_mclass(&cli->mmu.object, vmms);
 	if (ret < 0) {
-		NV_ERROR(drm, "No supported VMM class\n");
+		NV_PRINTK(err, cli, "No supported VMM class\n");
 		goto done;
 	}
 
 	ret = nouveau_vmm_init(cli, vmms[ret].oclass, &cli->vmm);
 	if (ret) {
-		NV_ERROR(drm, "VMM allocation failed: %d\n", ret);
+		NV_PRINTK(err, cli, "VMM allocation failed: %d\n", ret);
 		goto done;
 	}
 
 	ret = nvif_mclass(&cli->mmu.object, mems);
 	if (ret < 0) {
-		NV_ERROR(drm, "No supported MEM class\n");
+		NV_PRINTK(err, cli, "No supported MEM class\n");
 		goto done;
 	}
 
