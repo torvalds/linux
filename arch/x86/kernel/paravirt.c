@@ -384,17 +384,20 @@ struct paravirt_patch_template pv_ops = {
 #endif /* CONFIG_PARAVIRT_XXL */
 
 	/* Mmu ops. */
-	.mmu.read_cr2		= native_read_cr2,
-	.mmu.write_cr2		= native_write_cr2,
-	.mmu.read_cr3		= __native_read_cr3,
-	.mmu.write_cr3		= native_write_cr3,
-
 	.mmu.flush_tlb_user	= native_flush_tlb,
 	.mmu.flush_tlb_kernel	= native_flush_tlb_global,
 	.mmu.flush_tlb_one_user	= native_flush_tlb_one_user,
 	.mmu.flush_tlb_others	= native_flush_tlb_others,
 	.mmu.tlb_remove_table	=
 			(void (*)(struct mmu_gather *, void *))tlb_remove_page,
+
+	.mmu.exit_mmap		= paravirt_nop,
+
+#ifdef CONFIG_PARAVIRT_XXL
+	.mmu.read_cr2		= native_read_cr2,
+	.mmu.write_cr2		= native_write_cr2,
+	.mmu.read_cr3		= __native_read_cr3,
+	.mmu.write_cr3		= native_write_cr3,
 
 	.mmu.pgd_alloc		= __paravirt_pgd_alloc,
 	.mmu.pgd_free		= paravirt_nop,
@@ -448,7 +451,6 @@ struct paravirt_patch_template pv_ops = {
 	.mmu.make_pgd		= PTE_IDENT,
 
 	.mmu.dup_mmap		= paravirt_nop,
-	.mmu.exit_mmap		= paravirt_nop,
 	.mmu.activate_mm	= paravirt_nop,
 
 	.mmu.lazy_mode = {
@@ -458,6 +460,7 @@ struct paravirt_patch_template pv_ops = {
 	},
 
 	.mmu.set_fixmap		= native_set_fixmap,
+#endif /* CONFIG_PARAVIRT_XXL */
 
 #if defined(CONFIG_PARAVIRT_SPINLOCKS)
 	/* Lock ops. */

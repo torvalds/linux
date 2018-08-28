@@ -91,13 +91,14 @@ struct pv_init_ops {
 			  unsigned long addr, unsigned len);
 } __no_randomize_layout;
 
-
+#ifdef CONFIG_PARAVIRT_XXL
 struct pv_lazy_ops {
 	/* Set deferred update mode, used for batching operations. */
 	void (*enter)(void);
 	void (*leave)(void);
 	void (*flush)(void);
 } __no_randomize_layout;
+#endif
 
 struct pv_time_ops {
 	unsigned long long (*sched_clock)(void);
@@ -205,23 +206,6 @@ struct pv_irq_ops {
 } __no_randomize_layout;
 
 struct pv_mmu_ops {
-	unsigned long (*read_cr2)(void);
-	void (*write_cr2)(unsigned long);
-
-	unsigned long (*read_cr3)(void);
-	void (*write_cr3)(unsigned long);
-
-	/*
-	 * Hooks for intercepting the creation/use/destruction of an
-	 * mm_struct.
-	 */
-	void (*activate_mm)(struct mm_struct *prev,
-			    struct mm_struct *next);
-	void (*dup_mmap)(struct mm_struct *oldmm,
-			 struct mm_struct *mm);
-	void (*exit_mmap)(struct mm_struct *mm);
-
-
 	/* TLB operations */
 	void (*flush_tlb_user)(void);
 	void (*flush_tlb_kernel)(void);
@@ -230,6 +214,22 @@ struct pv_mmu_ops {
 				 const struct flush_tlb_info *info);
 
 	void (*tlb_remove_table)(struct mmu_gather *tlb, void *table);
+
+	/* Hook for intercepting the destruction of an mm_struct. */
+	void (*exit_mmap)(struct mm_struct *mm);
+
+#ifdef CONFIG_PARAVIRT_XXL
+	unsigned long (*read_cr2)(void);
+	void (*write_cr2)(unsigned long);
+
+	unsigned long (*read_cr3)(void);
+	void (*write_cr3)(unsigned long);
+
+	/* Hooks for intercepting the creation/use of an mm_struct. */
+	void (*activate_mm)(struct mm_struct *prev,
+			    struct mm_struct *next);
+	void (*dup_mmap)(struct mm_struct *oldmm,
+			 struct mm_struct *mm);
 
 	/* Hooks for allocating and freeing a pagetable top-level */
 	int  (*pgd_alloc)(struct mm_struct *mm);
@@ -304,6 +304,7 @@ struct pv_mmu_ops {
 	   an mfn.  We can tell which is which from the index. */
 	void (*set_fixmap)(unsigned /* enum fixed_addresses */ idx,
 			   phys_addr_t phys, pgprot_t flags);
+#endif
 } __no_randomize_layout;
 
 struct arch_spinlock;

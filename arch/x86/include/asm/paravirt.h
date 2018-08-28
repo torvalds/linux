@@ -17,6 +17,62 @@
 #include <linux/cpumask.h>
 #include <asm/frame.h>
 
+static inline unsigned long long paravirt_sched_clock(void)
+{
+	return PVOP_CALL0(unsigned long long, time.sched_clock);
+}
+
+struct static_key;
+extern struct static_key paravirt_steal_enabled;
+extern struct static_key paravirt_steal_rq_enabled;
+
+static inline u64 paravirt_steal_clock(int cpu)
+{
+	return PVOP_CALL1(u64, time.steal_clock, cpu);
+}
+
+/* The paravirtualized I/O functions */
+static inline void slow_down_io(void)
+{
+	pv_ops.cpu.io_delay();
+#ifdef REALLY_SLOW_IO
+	pv_ops.cpu.io_delay();
+	pv_ops.cpu.io_delay();
+	pv_ops.cpu.io_delay();
+#endif
+}
+
+static inline void __flush_tlb(void)
+{
+	PVOP_VCALL0(mmu.flush_tlb_user);
+}
+
+static inline void __flush_tlb_global(void)
+{
+	PVOP_VCALL0(mmu.flush_tlb_kernel);
+}
+
+static inline void __flush_tlb_one_user(unsigned long addr)
+{
+	PVOP_VCALL1(mmu.flush_tlb_one_user, addr);
+}
+
+static inline void flush_tlb_others(const struct cpumask *cpumask,
+				    const struct flush_tlb_info *info)
+{
+	PVOP_VCALL2(mmu.flush_tlb_others, cpumask, info);
+}
+
+static inline void paravirt_tlb_remove_table(struct mmu_gather *tlb, void *table)
+{
+	PVOP_VCALL2(mmu.tlb_remove_table, tlb, table);
+}
+
+static inline void paravirt_arch_exit_mmap(struct mm_struct *mm)
+{
+	PVOP_VCALL1(mmu.exit_mmap, mm);
+}
+
 #ifdef CONFIG_PARAVIRT_XXL
 static inline void load_sp0(unsigned long sp0)
 {
@@ -52,7 +108,6 @@ static inline void write_cr0(unsigned long x)
 {
 	PVOP_VCALL1(cpu.write_cr0, x);
 }
-#endif
 
 static inline unsigned long read_cr2(void)
 {
@@ -74,7 +129,6 @@ static inline void write_cr3(unsigned long x)
 	PVOP_VCALL1(mmu.write_cr3, x);
 }
 
-#ifdef CONFIG_PARAVIRT_XXL
 static inline void __write_cr4(unsigned long x)
 {
 	PVOP_VCALL1(cpu.write_cr4, x);
@@ -172,23 +226,7 @@ static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
 	*p = paravirt_read_msr_safe(msr, &err);
 	return err;
 }
-#endif
 
-static inline unsigned long long paravirt_sched_clock(void)
-{
-	return PVOP_CALL0(unsigned long long, time.sched_clock);
-}
-
-struct static_key;
-extern struct static_key paravirt_steal_enabled;
-extern struct static_key paravirt_steal_rq_enabled;
-
-static inline u64 paravirt_steal_clock(int cpu)
-{
-	return PVOP_CALL1(u64, time.steal_clock, cpu);
-}
-
-#ifdef CONFIG_PARAVIRT_XXL
 static inline unsigned long long paravirt_read_pmc(int counter)
 {
 	return PVOP_CALL1(u64, cpu.read_pmc, counter);
@@ -267,18 +305,6 @@ static inline void set_iopl_mask(unsigned mask)
 {
 	PVOP_VCALL1(cpu.set_iopl_mask, mask);
 }
-#endif
-
-/* The paravirtualized I/O functions */
-static inline void slow_down_io(void)
-{
-	pv_ops.cpu.io_delay();
-#ifdef REALLY_SLOW_IO
-	pv_ops.cpu.io_delay();
-	pv_ops.cpu.io_delay();
-	pv_ops.cpu.io_delay();
-#endif
-}
 
 static inline void paravirt_activate_mm(struct mm_struct *prev,
 					struct mm_struct *next)
@@ -290,35 +316,6 @@ static inline void paravirt_arch_dup_mmap(struct mm_struct *oldmm,
 					  struct mm_struct *mm)
 {
 	PVOP_VCALL2(mmu.dup_mmap, oldmm, mm);
-}
-
-static inline void paravirt_arch_exit_mmap(struct mm_struct *mm)
-{
-	PVOP_VCALL1(mmu.exit_mmap, mm);
-}
-
-static inline void __flush_tlb(void)
-{
-	PVOP_VCALL0(mmu.flush_tlb_user);
-}
-static inline void __flush_tlb_global(void)
-{
-	PVOP_VCALL0(mmu.flush_tlb_kernel);
-}
-static inline void __flush_tlb_one_user(unsigned long addr)
-{
-	PVOP_VCALL1(mmu.flush_tlb_one_user, addr);
-}
-
-static inline void flush_tlb_others(const struct cpumask *cpumask,
-				    const struct flush_tlb_info *info)
-{
-	PVOP_VCALL2(mmu.flush_tlb_others, cpumask, info);
-}
-
-static inline void paravirt_tlb_remove_table(struct mmu_gather *tlb, void *table)
-{
-	PVOP_VCALL2(mmu.tlb_remove_table, tlb, table);
 }
 
 static inline int paravirt_pgd_alloc(struct mm_struct *mm)
@@ -623,7 +620,6 @@ static inline void pmd_clear(pmd_t *pmdp)
 }
 #endif	/* CONFIG_X86_PAE */
 
-#ifdef CONFIG_PARAVIRT_XXL
 #define  __HAVE_ARCH_START_CONTEXT_SWITCH
 static inline void arch_start_context_switch(struct task_struct *prev)
 {
@@ -634,7 +630,6 @@ static inline void arch_end_context_switch(struct task_struct *next)
 {
 	PVOP_VCALL1(cpu.end_context_switch, next);
 }
-#endif
 
 #define  __HAVE_ARCH_ENTER_LAZY_MMU_MODE
 static inline void arch_enter_lazy_mmu_mode(void)
@@ -657,6 +652,7 @@ static inline void __set_fixmap(unsigned /* enum fixed_addresses */ idx,
 {
 	pv_ops.mmu.set_fixmap(idx, phys, flags);
 }
+#endif
 
 #if defined(CONFIG_SMP) && defined(CONFIG_PARAVIRT_SPINLOCKS)
 
@@ -948,15 +944,20 @@ extern void default_banner(void);
 #endif /* __ASSEMBLY__ */
 #else  /* CONFIG_PARAVIRT */
 # define default_banner x86_init_noop
+#endif /* !CONFIG_PARAVIRT */
+
 #ifndef __ASSEMBLY__
+#ifndef CONFIG_PARAVIRT_XXL
 static inline void paravirt_arch_dup_mmap(struct mm_struct *oldmm,
 					  struct mm_struct *mm)
 {
 }
+#endif
 
+#ifndef CONFIG_PARAVIRT
 static inline void paravirt_arch_exit_mmap(struct mm_struct *mm)
 {
 }
+#endif
 #endif /* __ASSEMBLY__ */
-#endif /* !CONFIG_PARAVIRT */
 #endif /* _ASM_X86_PARAVIRT_H */
