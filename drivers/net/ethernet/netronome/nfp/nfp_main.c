@@ -124,7 +124,7 @@ int nfp_mbox_cmd(struct nfp_pf *pf, u32 cmd, void *in_data, u64 in_length,
 	if (!pf->mbox)
 		return -EOPNOTSUPP;
 
-	max_data_sz = pf->mbox->size - NFP_MBOX_SYM_MIN_SIZE;
+	max_data_sz = nfp_rtsym_size(pf->mbox) - NFP_MBOX_SYM_MIN_SIZE;
 
 	/* Check if cmd field is clear */
 	err = nfp_rtsym_readl(pf->cpp, pf->mbox, NFP_MBOX_CMD, &val);
@@ -566,9 +566,9 @@ static int nfp_pf_find_rtsyms(struct nfp_pf *pf)
 	/* Optional per-PCI PF mailbox */
 	snprintf(pf_symbol, sizeof(pf_symbol), NFP_MBOX_SYM_NAME, pf_id);
 	pf->mbox = nfp_rtsym_lookup(pf->rtbl, pf_symbol);
-	if (pf->mbox && pf->mbox->size < NFP_MBOX_SYM_MIN_SIZE) {
+	if (pf->mbox && nfp_rtsym_size(pf->mbox) < NFP_MBOX_SYM_MIN_SIZE) {
 		nfp_err(pf->cpp, "PF mailbox symbol too small: %llu < %d\n",
-			pf->mbox->size, NFP_MBOX_SYM_MIN_SIZE);
+			nfp_rtsym_size(pf->mbox), NFP_MBOX_SYM_MIN_SIZE);
 		return -EINVAL;
 	}
 

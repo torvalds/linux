@@ -280,10 +280,10 @@ nfp_abm_ctrl_find_rtsym(struct nfp_pf *pf, const char *name, unsigned int size)
 		nfp_err(pf->cpp, "Symbol '%s' not found\n", name);
 		return ERR_PTR(-ENOENT);
 	}
-	if (sym->size != size) {
+	if (nfp_rtsym_size(sym) != size) {
 		nfp_err(pf->cpp,
 			"Symbol '%s' wrong size: expected %u got %llu\n",
-			name, size, sym->size);
+			name, size, nfp_rtsym_size(sym));
 		return ERR_PTR(-EINVAL);
 	}
 
