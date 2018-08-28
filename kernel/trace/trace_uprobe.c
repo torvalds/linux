@@ -105,7 +105,7 @@ probe_mem_read(void *dest, void *src, size_t size)
 {
 	void __user *vaddr = (void __force __user *)src;
 
-	return copy_from_user(dest, vaddr, size);
+	return copy_from_user(dest, vaddr, size) ? -EFAULT : 0;
 }
 /*
  * Fetch a null-terminated string. Caller MUST set *(u32 *)dest with max
