@@ -2121,8 +2121,8 @@ static int of_dev_find_hwmod(struct device_node *np,
 		if (res)
 			continue;
 		if (!strcmp(p, oh->name)) {
-			pr_debug("omap_hwmod: dt %s[%i] uses hwmod %s\n",
-				 np->name, i, oh->name);
+			pr_debug("omap_hwmod: dt %pOFn[%i] uses hwmod %s\n",
+				 np, i, oh->name);
 			return i;
 		}
 	}
@@ -2255,8 +2255,8 @@ int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 		return -ENOENT;
 
 	if (nr_addr != 1 || nr_size != 1) {
-		pr_err("%s: invalid range for %s->%s\n", __func__,
-		       oh->name, np->name);
+		pr_err("%s: invalid range for %s->%pOFn\n", __func__,
+		       oh->name, np);
 		return -EINVAL;
 	}
 
@@ -2264,8 +2264,8 @@ int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 	base = of_translate_address(np, ranges++);
 	size = be32_to_cpup(ranges);
 
-	pr_debug("omap_hwmod: %s %s at 0x%llx size 0x%llx\n",
-		 oh ? oh->name : "", np->name, base, size);
+	pr_debug("omap_hwmod: %s %pOFn at 0x%llx size 0x%llx\n",
+		 oh->name, np, base, size);
 
 	if (oh && oh->mpu_rt_idx) {
 		omap_hwmod_fix_mpu_rt_idx(oh, np, res);
@@ -2373,8 +2373,8 @@ static int __init _init(struct omap_hwmod *oh, void *data)
 	if (r)
 		pr_debug("omap_hwmod: %s missing dt data\n", oh->name);
 	else if (np && index)
-		pr_warn("omap_hwmod: %s using broken dt data from %s\n",
-			oh->name, np->name);
+		pr_warn("omap_hwmod: %s using broken dt data from %pOFn\n",
+			oh->name, np);
 
 	r = _init_mpu_rt_base(oh, NULL, index, np);
 	if (r < 0) {
