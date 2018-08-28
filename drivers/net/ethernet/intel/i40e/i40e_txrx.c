@@ -11,16 +11,6 @@
 #include "i40e_txrx_common.h"
 #include "i40e_xsk.h"
 
-static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
-				u32 td_tag)
-{
-	return cpu_to_le64(I40E_TX_DESC_DTYPE_DATA |
-			   ((u64)td_cmd  << I40E_TXD_QW1_CMD_SHIFT) |
-			   ((u64)td_offset << I40E_TXD_QW1_OFFSET_SHIFT) |
-			   ((u64)size  << I40E_TXD_QW1_TX_BUF_SZ_SHIFT) |
-			   ((u64)td_tag  << I40E_TXD_QW1_L2TAG1_SHIFT));
-}
-
 #define I40E_TXD_CMD (I40E_TX_DESC_CMD_EOP | I40E_TX_DESC_CMD_RS)
 /**
  * i40e_fdir - Generate a Flow Director descriptor based on fdata
@@ -769,8 +759,6 @@ void i40e_detect_recover_hung(struct i40e_vsi *vsi)
 	}
 }
 
-#define WB_STRIDE 4
-
 /**
  * i40e_clean_tx_irq - Reclaim resources after transmit completes
  * @vsi: the VSI we care about
@@ -875,27 +863,8 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 
 	i += tx_ring->count;
 	tx_ring->next_to_clean = i;
-	u64_stats_update_begin(&tx_ring->syncp);
-	tx_ring->stats.bytes += total_bytes;
-	tx_ring->stats.packets += total_packets;
-	u64_stats_update_end(&tx_ring->syncp);
-	tx_ring->q_vector->tx.total_bytes += total_bytes;
-	tx_ring->q_vector->tx.total_packets += total_packets;
-
-	if (tx_ring->flags & I40E_TXR_FLAGS_WB_ON_ITR) {
-		/* check to see if there are < 4 descriptors
-		 * waiting to be written back, then kick the hardware to force
-		 * them to be written back in case we stay in NAPI.
-		 * In this mode on X722 we do not enable Interrupt.
-		 */
-		unsigned int j = i40e_get_tx_pending(tx_ring, false);
-
-		if (budget &&
-		    ((j / WB_STRIDE) == 0) && (j > 0) &&
-		    !test_bit(__I40E_VSI_DOWN, vsi->state) &&
-		    (I40E_DESC_UNUSED(tx_ring) != tx_ring->count))
-			tx_ring->arm_wb = true;
-	}
+	i40e_update_tx_stats(tx_ring, total_packets, total_bytes);
+	i40e_arm_wb(tx_ring, vsi, budget);
 
 	if (ring_is_xdp(tx_ring))
 		return !!budget;
