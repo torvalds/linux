@@ -1986,40 +1986,28 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 		return NULL;
 
 	switch (type) {
-	case MLX5_FLOW_NAMESPACE_BYPASS:
-	case MLX5_FLOW_NAMESPACE_LAG:
-	case MLX5_FLOW_NAMESPACE_OFFLOADS:
-	case MLX5_FLOW_NAMESPACE_ETHTOOL:
-	case MLX5_FLOW_NAMESPACE_KERNEL:
-	case MLX5_FLOW_NAMESPACE_LEFTOVERS:
-	case MLX5_FLOW_NAMESPACE_ANCHOR:
-		prio = type;
-		break;
 	case MLX5_FLOW_NAMESPACE_FDB:
 		if (steering->fdb_root_ns)
 			return &steering->fdb_root_ns->ns;
-		else
-			return NULL;
+		return NULL;
 	case MLX5_FLOW_NAMESPACE_SNIFFER_RX:
 		if (steering->sniffer_rx_root_ns)
 			return &steering->sniffer_rx_root_ns->ns;
-		else
-			return NULL;
+		return NULL;
 	case MLX5_FLOW_NAMESPACE_SNIFFER_TX:
 		if (steering->sniffer_tx_root_ns)
 			return &steering->sniffer_tx_root_ns->ns;
-		else
-			return NULL;
+		return NULL;
 	case MLX5_FLOW_NAMESPACE_EGRESS:
 		if (steering->egress_root_ns)
 			return &steering->egress_root_ns->ns;
-		else
-			return NULL;
-	default:
 		return NULL;
+	default:
+		break;
 	}
 
 	root_ns = steering->root_ns;
+	prio = type;
 	if (!root_ns)
 		return NULL;
 
