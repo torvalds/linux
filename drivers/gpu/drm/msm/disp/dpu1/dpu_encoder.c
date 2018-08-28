@@ -2200,8 +2200,7 @@ static const struct dpu_encoder_virt_ops dpu_encoder_parent_ops = {
 
 static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 				 struct dpu_kms *dpu_kms,
-				 struct msm_display_info *disp_info,
-				 int *drm_enc_mode)
+				 struct msm_display_info *disp_info)
 {
 	int ret = 0;
 	int i = 0;
@@ -2222,16 +2221,11 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 
 	DPU_DEBUG("\n");
 
-	if (disp_info->intf_type == DRM_MODE_CONNECTOR_DSI) {
-		*drm_enc_mode = DRM_MODE_ENCODER_DSI;
+	switch (disp_info->intf_type) {
+	case DRM_MODE_CONNECTOR_DSI:
 		intf_type = INTF_DSI;
-	} else if (disp_info->intf_type == DRM_MODE_CONNECTOR_HDMIA) {
-		*drm_enc_mode = DRM_MODE_ENCODER_TMDS;
-		intf_type = INTF_HDMI;
-	} else if (disp_info->intf_type == DRM_MODE_CONNECTOR_DisplayPort) {
-		*drm_enc_mode = DRM_MODE_ENCODER_TMDS;
-		intf_type = INTF_DP;
-	} else {
+		break;
+	default:
 		DPU_ERROR_ENC(dpu_enc, "unsupported display interface type\n");
 		return -EINVAL;
 	}
@@ -2352,14 +2346,12 @@ int dpu_encoder_setup(struct drm_device *dev, struct drm_encoder *enc,
 	struct dpu_kms *dpu_kms = to_dpu_kms(priv->kms);
 	struct drm_encoder *drm_enc = NULL;
 	struct dpu_encoder_virt *dpu_enc = NULL;
-	int drm_enc_mode = DRM_MODE_ENCODER_NONE;
 	int ret = 0;
 
 	dpu_enc = to_dpu_encoder_virt(enc);
 
 	mutex_init(&dpu_enc->enc_lock);
-	ret = dpu_encoder_setup_display(dpu_enc, dpu_kms, disp_info,
-			&drm_enc_mode);
+	ret = dpu_encoder_setup_display(dpu_enc, dpu_kms, disp_info);
 	if (ret)
 		goto fail;
 
