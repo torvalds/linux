@@ -476,7 +476,7 @@ static int fill_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 	u32 *p;
 	int err;
 
-	err = rxe_prepare(rxe, pkt, skb, &crc);
+	err = rxe_prepare(pkt, skb, &crc);
 	if (err)
 		return err;
 

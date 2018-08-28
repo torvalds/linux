@@ -637,7 +637,7 @@ static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
 	if (ack->mask & RXE_ATMACK_MASK)
 		atmack_set_orig(ack, qp->resp.atomic_orig);
 
-	err = rxe_prepare(rxe, ack, skb, &crc);
+	err = rxe_prepare(ack, skb, &crc);
 	if (err) {
 		kfree_skb(skb);
 		return NULL;
