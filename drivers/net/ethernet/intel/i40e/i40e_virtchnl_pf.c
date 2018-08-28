@@ -3843,6 +3843,35 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 }
 
 /**
+ * i40e_validate_vf
+ * @pf: the physical function
+ * @vf_id: VF identifier
+ *
+ * Check that the VF is enabled and the VSI exists.
+ *
+ * Returns 0 on success, negative on failure
+ **/
+static int i40e_validate_vf(struct i40e_pf *pf, int vf_id)
+{
+	struct i40e_vsi *vsi;
+	struct i40e_vf *vf;
+	int ret = 0;
+
+	if (vf_id >= pf->num_alloc_vfs) {
+		dev_err(&pf->pdev->dev,
+			"Invalid VF Identifier %d\n", vf_id);
+		ret = -EINVAL;
+		goto err_out;
+	}
+	vf = &pf->vf[vf_id];
+	vsi = i40e_find_vsi_from_id(pf, vf->lan_vsi_id);
+	if (!vsi)
+		ret = -EINVAL;
+err_out:
+	return ret;
+}
+
+/**
  * i40e_ndo_set_vf_mac
  * @netdev: network interface device structure
  * @vf_id: VF identifier
@@ -3863,14 +3892,11 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	u8 i;
 
 	/* validate the request */
-	if (vf_id >= pf->num_alloc_vfs) {
-		dev_err(&pf->pdev->dev,
-			"Invalid VF Identifier %d\n", vf_id);
-		ret = -EINVAL;
+	ret = i40e_validate_vf(pf, vf_id);
+	if (ret)
 		goto error_param;
-	}
 
-	vf = &(pf->vf[vf_id]);
+	vf = &pf->vf[vf_id];
 	vsi = pf->vsi[vf->lan_vsi_idx];
 
 	/* When the VF is resetting wait until it is done.
@@ -3989,11 +4015,9 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 	int ret = 0;
 
 	/* validate the request */
-	if (vf_id >= pf->num_alloc_vfs) {
-		dev_err(&pf->pdev->dev, "Invalid VF Identifier %d\n", vf_id);
-		ret = -EINVAL;
+	ret = i40e_validate_vf(pf, vf_id);
+	if (ret)
 		goto error_pvid;
-	}
 
 	if ((vlan_id > I40E_MAX_VLANID) || (qos > 7)) {
 		dev_err(&pf->pdev->dev, "Invalid VF Parameters\n");
@@ -4007,7 +4031,7 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 		goto error_pvid;
 	}
 
-	vf = &(pf->vf[vf_id]);
+	vf = &pf->vf[vf_id];
 	vsi = pf->vsi[vf->lan_vsi_idx];
 	if (!test_bit(I40E_VF_STATE_INIT, &vf->vf_states)) {
 		dev_err(&pf->pdev->dev, "VF %d still in reset. Try again.\n",
@@ -4127,11 +4151,9 @@ int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 	int ret = 0;
 
 	/* validate the request */
-	if (vf_id >= pf->num_alloc_vfs) {
-		dev_err(&pf->pdev->dev, "Invalid VF Identifier %d.\n", vf_id);
-		ret = -EINVAL;
+	ret = i40e_validate_vf(pf, vf_id);
+	if (ret)
 		goto error;
-	}
 
 	if (min_tx_rate) {
 		dev_err(&pf->pdev->dev, "Invalid min tx rate (%d) (greater than 0) specified for VF %d.\n",
@@ -4139,7 +4161,7 @@ int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 		return -EINVAL;
 	}
 
-	vf = &(pf->vf[vf_id]);
+	vf = &pf->vf[vf_id];
 	vsi = pf->vsi[vf->lan_vsi_idx];
 	if (!test_bit(I40E_VF_STATE_INIT, &vf->vf_states)) {
 		dev_err(&pf->pdev->dev, "VF %d still in reset. Try again.\n",
@@ -4175,13 +4197,11 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 	int ret = 0;
 
 	/* validate the request */
-	if (vf_id >= pf->num_alloc_vfs) {
-		dev_err(&pf->pdev->dev, "Invalid VF Identifier %d\n", vf_id);
-		ret = -EINVAL;
+	ret = i40e_validate_vf(pf, vf_id);
+	if (ret)
 		goto error_param;
-	}
 
-	vf = &(pf->vf[vf_id]);
+	vf = &pf->vf[vf_id];
 	/* first vsi is always the LAN vsi */
 	vsi = pf->vsi[vf->lan_vsi_idx];
 	if (!test_bit(I40E_VF_STATE_INIT, &vf->vf_states)) {
