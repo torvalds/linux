@@ -312,8 +312,8 @@ static void __init cpg_div6_clock_init(struct device_node *np)
 
 	num_parents = of_clk_get_parent_count(np);
 	if (num_parents < 1) {
-		pr_err("%s: no parent found for %s DIV6 clock\n",
-		       __func__, np->name);
+		pr_err("%s: no parent found for %pOFn DIV6 clock\n",
+		       __func__, np);
 		return;
 	}
 
@@ -324,8 +324,8 @@ static void __init cpg_div6_clock_init(struct device_node *np)
 
 	reg = of_iomap(np, 0);
 	if (reg == NULL) {
-		pr_err("%s: failed to map %s DIV6 clock register\n",
-		       __func__, np->name);
+		pr_err("%s: failed to map %pOFn DIV6 clock register\n",
+		       __func__, np);
 		goto error;
 	}
 
@@ -337,8 +337,8 @@ static void __init cpg_div6_clock_init(struct device_node *np)
 
 	clk = cpg_div6_register(clk_name, num_parents, parent_names, reg, NULL);
 	if (IS_ERR(clk)) {
-		pr_err("%s: failed to register %s DIV6 clock (%ld)\n",
-		       __func__, np->name, PTR_ERR(clk));
+		pr_err("%s: failed to register %pOFn DIV6 clock (%ld)\n",
+		       __func__, np, PTR_ERR(clk));
 		goto error;
 	}
 

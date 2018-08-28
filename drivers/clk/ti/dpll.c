@@ -162,8 +162,8 @@ static void __init _register_dpll(void *user,
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
-		pr_debug("clk-ref missing for %s, retry later\n",
-			 node->name);
+		pr_debug("clk-ref missing for %pOFn, retry later\n",
+			 node);
 		if (!ti_clk_retry_init(node, hw, _register_dpll))
 			return;
 
@@ -175,8 +175,8 @@ static void __init _register_dpll(void *user,
 	clk = of_clk_get(node, 1);
 
 	if (IS_ERR(clk)) {
-		pr_debug("clk-bypass missing for %s, retry later\n",
-			 node->name);
+		pr_debug("clk-bypass missing for %pOFn, retry later\n",
+			 node);
 		if (!ti_clk_retry_init(node, hw, _register_dpll))
 			return;
 
@@ -226,7 +226,7 @@ static void _register_dpll_x2(struct device_node *node,
 
 	parent_name = of_clk_get_parent_name(node, 0);
 	if (!parent_name) {
-		pr_err("%s must have parent\n", node->name);
+		pr_err("%pOFn must have parent\n", node);
 		return;
 	}
 
@@ -305,7 +305,7 @@ static void __init of_ti_dpll_setup(struct device_node *node,
 
 	init->num_parents = of_clk_get_parent_count(node);
 	if (!init->num_parents) {
-		pr_err("%s must have parent(s)\n", node->name);
+		pr_err("%pOFn must have parent(s)\n", node);
 		goto cleanup;
 	}
 

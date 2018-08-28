@@ -132,7 +132,7 @@ static int scmi_clocks_probe(struct scmi_device *sdev)
 
 	count = handle->clk_ops->count_get(handle);
 	if (count < 0) {
-		dev_err(dev, "%s: invalid clock output count\n", np->name);
+		dev_err(dev, "%pOFn: invalid clock output count\n", np);
 		return -EINVAL;
 	}
 

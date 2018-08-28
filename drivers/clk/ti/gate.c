@@ -179,7 +179,7 @@ static void __init _of_ti_gate_clk_setup(struct device_node *node,
 	}
 
 	if (of_clk_get_parent_count(node) != 1) {
-		pr_err("%s must have 1 parent\n", node->name);
+		pr_err("%pOFn must have 1 parent\n", node);
 		return;
 	}
 

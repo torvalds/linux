@@ -445,8 +445,8 @@ static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
 
 		clk = rcar_gen2_cpg_register_clock(np, cpg, config, name);
 		if (IS_ERR(clk))
-			pr_err("%s: failed to register %s %s clock (%ld)\n",
-			       __func__, np->name, name, PTR_ERR(clk));
+			pr_err("%s: failed to register %pOFn %s clock (%ld)\n",
+			       __func__, np, name, PTR_ERR(clk));
 		else
 			cpg->data.clks[i] = clk;
 	}

@@ -164,8 +164,8 @@ static void __init r8a7779_cpg_clocks_init(struct device_node *np)
 		clk = r8a7779_cpg_register_clock(np, cpg, config,
 						 plla_mult, name);
 		if (IS_ERR(clk))
-			pr_err("%s: failed to register %s %s clock (%ld)\n",
-			       __func__, np->name, name, PTR_ERR(clk));
+			pr_err("%s: failed to register %pOFn %s clock (%ld)\n",
+			       __func__, np, name, PTR_ERR(clk));
 		else
 			cpg->data.clks[i] = clk;
 	}

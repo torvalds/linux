@@ -245,7 +245,7 @@ static void __init of_psc_clk_init(struct device_node *node, spinlock_t *lock)
 		return;
 	}
 
-	pr_err("%s: error registering clk %s\n", __func__, node->name);
+	pr_err("%s: error registering clk %pOFn\n", __func__, node);
 
 unmap_domain:
 	iounmap(data->domain_base);
