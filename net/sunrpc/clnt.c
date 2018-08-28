@@ -1156,6 +1156,7 @@ struct rpc_task *rpc_run_bc_task(struct rpc_rqst *req)
 	 */
 	xbufp->len = xbufp->head[0].iov_len + xbufp->page_len +
 			xbufp->tail[0].iov_len;
+	set_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate);
 
 	task->tk_action = call_bc_transmit;
 	atomic_inc(&task->tk_count);
@@ -1720,17 +1721,10 @@ call_allocate(struct rpc_task *task)
 	rpc_exit(task, -ERESTARTSYS);
 }
 
-static inline int
+static int
 rpc_task_need_encode(struct rpc_task *task)
 {
-	return task->tk_rqstp->rq_snd_buf.len == 0;
-}
-
-static inline void
-rpc_task_force_reencode(struct rpc_task *task)
-{
-	task->tk_rqstp->rq_snd_buf.len = 0;
-	task->tk_rqstp->rq_bytes_sent = 0;
+	return test_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate) == 0;
 }
 
 /*
@@ -1765,6 +1759,8 @@ rpc_xdr_encode(struct rpc_task *task)
 
 	task->tk_status = rpcauth_wrap_req(task, encode, req, p,
 			task->tk_msg.rpc_argp);
+	if (task->tk_status == 0)
+		set_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate);
 }
 
 /*
@@ -1999,7 +1995,6 @@ call_transmit_status(struct rpc_task *task)
 	 */
 	if (task->tk_status == 0) {
 		xprt_end_transmit(task);
-		rpc_task_force_reencode(task);
 		return;
 	}
 
@@ -2010,7 +2005,6 @@ call_transmit_status(struct rpc_task *task)
 	default:
 		dprint_status(task);
 		xprt_end_transmit(task);
-		rpc_task_force_reencode(task);
 		break;
 		/*
 		 * Special cases: if we've been waiting on the
@@ -2038,7 +2032,7 @@ call_transmit_status(struct rpc_task *task)
 	case -EADDRINUSE:
 	case -ENOTCONN:
 	case -EPIPE:
-		rpc_task_force_reencode(task);
+		break;
 	}
 }
 
@@ -2185,6 +2179,7 @@ call_status(struct rpc_task *task)
 		rpc_exit(task, status);
 		break;
 	case -EBADMSG:
+		clear_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate);
 		task->tk_action = call_transmit;
 		break;
 	default:

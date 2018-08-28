@@ -936,9 +936,17 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 	/* req->rq_reply_bytes_recvd */
 	smp_wmb();
 	req->rq_reply_bytes_recvd = copied;
+	clear_bit(RPC_TASK_NEED_RECV, &task->tk_runstate);
 	rpc_wake_up_queued_task(&xprt->pending, task);
 }
 EXPORT_SYMBOL_GPL(xprt_complete_rqst);
+
+static bool
+xprt_request_data_received(struct rpc_task *task)
+{
+	return !test_bit(RPC_TASK_NEED_RECV, &task->tk_runstate) &&
+		task->tk_rqstp->rq_reply_bytes_recvd != 0;
+}
 
 static void xprt_timer(struct rpc_task *task)
 {
@@ -1031,12 +1039,13 @@ void xprt_transmit(struct rpc_task *task)
 			/* Add request to the receive list */
 			spin_lock(&xprt->recv_lock);
 			list_add_tail(&req->rq_list, &xprt->recv);
+			set_bit(RPC_TASK_NEED_RECV, &task->tk_runstate);
 			spin_unlock(&xprt->recv_lock);
 			xprt_reset_majortimeo(req);
 			/* Turn off autodisconnect */
 			del_singleshot_timer_sync(&xprt->timer);
 		}
-	} else if (!req->rq_bytes_sent)
+	} else if (xprt_request_data_received(task) && !req->rq_bytes_sent)
 		return;
 
 	connect_cookie = xprt->connect_cookie;
@@ -1046,9 +1055,11 @@ void xprt_transmit(struct rpc_task *task)
 		task->tk_status = status;
 		return;
 	}
+
 	xprt_inject_disconnect(xprt);
 
 	dprintk("RPC: %5u xmit complete\n", task->tk_pid);
+	clear_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate);
 	task->tk_flags |= RPC_TASK_SENT;
 	spin_lock_bh(&xprt->transport_lock);
 
@@ -1062,14 +1073,14 @@ void xprt_transmit(struct rpc_task *task)
 	spin_unlock_bh(&xprt->transport_lock);
 
 	req->rq_connect_cookie = connect_cookie;
-	if (rpc_reply_expected(task) && !READ_ONCE(req->rq_reply_bytes_recvd)) {
+	if (test_bit(RPC_TASK_NEED_RECV, &task->tk_runstate)) {
 		/*
 		 * Sleep on the pending queue if we're expecting a reply.
 		 * The spinlock ensures atomicity between the test of
 		 * req->rq_reply_bytes_recvd, and the call to rpc_sleep_on().
 		 */
 		spin_lock(&xprt->recv_lock);
-		if (!req->rq_reply_bytes_recvd) {
+		if (test_bit(RPC_TASK_NEED_RECV, &task->tk_runstate)) {
 			rpc_sleep_on(&xprt->pending, task, xprt_timer);
 			/*
 			 * Send an extra queue wakeup call if the
