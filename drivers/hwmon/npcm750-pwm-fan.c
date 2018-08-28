@@ -861,7 +861,7 @@ static int npcm7xx_create_pwm_cooling(struct device *dev,
 		dev_err(dev, "Property 'cooling-levels' cannot be read.\n");
 		return ret;
 	}
-	snprintf(cdev->name, THERMAL_NAME_LENGTH, "%s%d", child->name,
+	snprintf(cdev->name, THERMAL_NAME_LENGTH, "%pOFn%d", child,
 		 pwm_port);
 
 	cdev->tcdev = thermal_of_cooling_device_register(child,

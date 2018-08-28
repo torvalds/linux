@@ -603,8 +603,8 @@ static int create_device_attrs(struct platform_device *pdev)
 		if (of_property_read_u32(np, "sensor-id", &sensor_id) &&
 		    of_property_read_u32(np, "sensor-data", &sensor_id)) {
 			dev_info(&pdev->dev,
-				 "'sensor-id' missing in the node '%s'\n",
-				 np->name);
+				 "'sensor-id' missing in the node '%pOFn'\n",
+				 np);
 			continue;
 		}
 
