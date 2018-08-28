@@ -11828,6 +11828,256 @@ static int i40e_xdp_setup(struct i40e_vsi *vsi,
 }
 
 /**
+ * i40e_enter_busy_conf - Enters busy config state
+ * @vsi: vsi
+ *
+ * Returns 0 on success, <0 for failure.
+ **/
+static int i40e_enter_busy_conf(struct i40e_vsi *vsi)
+{
+	struct i40e_pf *pf = vsi->back;
+	int timeout = 50;
+
+	while (test_and_set_bit(__I40E_CONFIG_BUSY, pf->state)) {
+		timeout--;
+		if (!timeout)
+			return -EBUSY;
+		usleep_range(1000, 2000);
+	}
+
+	return 0;
+}
+
+/**
+ * i40e_exit_busy_conf - Exits busy config state
+ * @vsi: vsi
+ **/
+static void i40e_exit_busy_conf(struct i40e_vsi *vsi)
+{
+	struct i40e_pf *pf = vsi->back;
+
+	clear_bit(__I40E_CONFIG_BUSY, pf->state);
+}
+
+/**
+ * i40e_queue_pair_reset_stats - Resets all statistics for a queue pair
+ * @vsi: vsi
+ * @queue_pair: queue pair
+ **/
+static void i40e_queue_pair_reset_stats(struct i40e_vsi *vsi, int queue_pair)
+{
+	memset(&vsi->rx_rings[queue_pair]->rx_stats, 0,
+	       sizeof(vsi->rx_rings[queue_pair]->rx_stats));
+	memset(&vsi->tx_rings[queue_pair]->stats, 0,
+	       sizeof(vsi->tx_rings[queue_pair]->stats));
+	if (i40e_enabled_xdp_vsi(vsi)) {
+		memset(&vsi->xdp_rings[queue_pair]->stats, 0,
+		       sizeof(vsi->xdp_rings[queue_pair]->stats));
+	}
+}
+
+/**
+ * i40e_queue_pair_clean_rings - Cleans all the rings of a queue pair
+ * @vsi: vsi
+ * @queue_pair: queue pair
+ **/
+static void i40e_queue_pair_clean_rings(struct i40e_vsi *vsi, int queue_pair)
+{
+	i40e_clean_tx_ring(vsi->tx_rings[queue_pair]);
+	if (i40e_enabled_xdp_vsi(vsi))
+		i40e_clean_tx_ring(vsi->xdp_rings[queue_pair]);
+	i40e_clean_rx_ring(vsi->rx_rings[queue_pair]);
+}
+
+/**
+ * i40e_queue_pair_toggle_napi - Enables/disables NAPI for a queue pair
+ * @vsi: vsi
+ * @queue_pair: queue pair
+ * @enable: true for enable, false for disable
+ **/
+static void i40e_queue_pair_toggle_napi(struct i40e_vsi *vsi, int queue_pair,
+					bool enable)
+{
+	struct i40e_ring *rxr = vsi->rx_rings[queue_pair];
+	struct i40e_q_vector *q_vector = rxr->q_vector;
+
+	if (!vsi->netdev)
+		return;
+
+	/* All rings in a qp belong to the same qvector. */
+	if (q_vector->rx.ring || q_vector->tx.ring) {
+		if (enable)
+			napi_enable(&q_vector->napi);
+		else
+			napi_disable(&q_vector->napi);
+	}
+}
+
+/**
+ * i40e_queue_pair_toggle_rings - Enables/disables all rings for a queue pair
+ * @vsi: vsi
+ * @queue_pair: queue pair
+ * @enable: true for enable, false for disable
+ *
+ * Returns 0 on success, <0 on failure.
+ **/
+static int i40e_queue_pair_toggle_rings(struct i40e_vsi *vsi, int queue_pair,
+					bool enable)
+{
+	struct i40e_pf *pf = vsi->back;
+	int pf_q, ret = 0;
+
+	pf_q = vsi->base_queue + queue_pair;
+	ret = i40e_control_wait_tx_q(vsi->seid, pf, pf_q,
+				     false /*is xdp*/, enable);
+	if (ret) {
+		dev_info(&pf->pdev->dev,
+			 "VSI seid %d Tx ring %d %sable timeout\n",
+			 vsi->seid, pf_q, (enable ? "en" : "dis"));
+		return ret;
+	}
+
+	i40e_control_rx_q(pf, pf_q, enable);
+	ret = i40e_pf_rxq_wait(pf, pf_q, enable);
+	if (ret) {
+		dev_info(&pf->pdev->dev,
+			 "VSI seid %d Rx ring %d %sable timeout\n",
+			 vsi->seid, pf_q, (enable ? "en" : "dis"));
+		return ret;
+	}
+
+	/* Due to HW errata, on Rx disable only, the register can
+	 * indicate done before it really is. Needs 50ms to be sure
+	 */
+	if (!enable)
+		mdelay(50);
+
+	if (!i40e_enabled_xdp_vsi(vsi))
+		return ret;
+
+	ret = i40e_control_wait_tx_q(vsi->seid, pf,
+				     pf_q + vsi->alloc_queue_pairs,
+				     true /*is xdp*/, enable);
+	if (ret) {
+		dev_info(&pf->pdev->dev,
+			 "VSI seid %d XDP Tx ring %d %sable timeout\n",
+			 vsi->seid, pf_q, (enable ? "en" : "dis"));
+	}
+
+	return ret;
+}
+
+/**
+ * i40e_queue_pair_enable_irq - Enables interrupts for a queue pair
+ * @vsi: vsi
+ * @queue_pair: queue_pair
+ **/
+static void i40e_queue_pair_enable_irq(struct i40e_vsi *vsi, int queue_pair)
+{
+	struct i40e_ring *rxr = vsi->rx_rings[queue_pair];
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+
+	/* All rings in a qp belong to the same qvector. */
+	if (pf->flags & I40E_FLAG_MSIX_ENABLED)
+		i40e_irq_dynamic_enable(vsi, rxr->q_vector->v_idx);
+	else
+		i40e_irq_dynamic_enable_icr0(pf);
+
+	i40e_flush(hw);
+}
+
+/**
+ * i40e_queue_pair_disable_irq - Disables interrupts for a queue pair
+ * @vsi: vsi
+ * @queue_pair: queue_pair
+ **/
+static void i40e_queue_pair_disable_irq(struct i40e_vsi *vsi, int queue_pair)
+{
+	struct i40e_ring *rxr = vsi->rx_rings[queue_pair];
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+
+	/* For simplicity, instead of removing the qp interrupt causes
+	 * from the interrupt linked list, we simply disable the interrupt, and
+	 * leave the list intact.
+	 *
+	 * All rings in a qp belong to the same qvector.
+	 */
+	if (pf->flags & I40E_FLAG_MSIX_ENABLED) {
+		u32 intpf = vsi->base_vector + rxr->q_vector->v_idx;
+
+		wr32(hw, I40E_PFINT_DYN_CTLN(intpf - 1), 0);
+		i40e_flush(hw);
+		synchronize_irq(pf->msix_entries[intpf].vector);
+	} else {
+		/* Legacy and MSI mode - this stops all interrupt handling */
+		wr32(hw, I40E_PFINT_ICR0_ENA, 0);
+		wr32(hw, I40E_PFINT_DYN_CTL0, 0);
+		i40e_flush(hw);
+		synchronize_irq(pf->pdev->irq);
+	}
+}
+
+/**
+ * i40e_queue_pair_disable - Disables a queue pair
+ * @vsi: vsi
+ * @queue_pair: queue pair
+ *
+ * Returns 0 on success, <0 on failure.
+ **/
+int i40e_queue_pair_disable(struct i40e_vsi *vsi, int queue_pair)
+{
+	int err;
+
+	err = i40e_enter_busy_conf(vsi);
+	if (err)
+		return err;
+
+	i40e_queue_pair_disable_irq(vsi, queue_pair);
+	err = i40e_queue_pair_toggle_rings(vsi, queue_pair, false /* off */);
+	i40e_queue_pair_toggle_napi(vsi, queue_pair, false /* off */);
+	i40e_queue_pair_clean_rings(vsi, queue_pair);
+	i40e_queue_pair_reset_stats(vsi, queue_pair);
+
+	return err;
+}
+
+/**
+ * i40e_queue_pair_enable - Enables a queue pair
+ * @vsi: vsi
+ * @queue_pair: queue pair
+ *
+ * Returns 0 on success, <0 on failure.
+ **/
+int i40e_queue_pair_enable(struct i40e_vsi *vsi, int queue_pair)
+{
+	int err;
+
+	err = i40e_configure_tx_ring(vsi->tx_rings[queue_pair]);
+	if (err)
+		return err;
+
+	if (i40e_enabled_xdp_vsi(vsi)) {
+		err = i40e_configure_tx_ring(vsi->xdp_rings[queue_pair]);
+		if (err)
+			return err;
+	}
+
+	err = i40e_configure_rx_ring(vsi->rx_rings[queue_pair]);
+	if (err)
+		return err;
+
+	err = i40e_queue_pair_toggle_rings(vsi, queue_pair, true /* on */);
+	i40e_queue_pair_toggle_napi(vsi, queue_pair, true /* on */);
+	i40e_queue_pair_enable_irq(vsi, queue_pair);
+
+	i40e_exit_busy_conf(vsi);
+
+	return err;
+}
+
+/**
  * i40e_xdp - implements ndo_bpf for i40e
  * @dev: netdevice
  * @xdp: XDP command
