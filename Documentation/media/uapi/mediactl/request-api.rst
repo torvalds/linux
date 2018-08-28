@@ -12,6 +12,9 @@ the same pipeline to reconfigure and collaborate closely on a per-frame basis.
 Another is support of stateless codecs, which require controls to be applied
 to specific frames (aka 'per-frame controls') in order to be used efficiently.
 
+While the initial use-case was V4L2, it can be extended to other subsystems
+as well, as long as they use the media controller.
+
 Supporting these features without the Request API is not always possible and if
 it is, it is terribly inefficient: user-space would have to flush all activity
 on the media pipeline, reconfigure it for the next frame, queue the buffers to
@@ -20,19 +23,23 @@ dequeuing before considering the next frame. This defeats the purpose of having
 buffer queues since in practice only one buffer would be queued at a time.
 
 The Request API allows a specific configuration of the pipeline (media
-controller topology + controls for each media entity) to be associated with
-specific buffers. The parameters are applied by each participating device as
-buffers associated to a request flow in. This allows user-space to schedule
-several tasks ("requests") with different parameters in advance, knowing that
-the parameters will be applied when needed to get the expected result. Control
-values at the time of request completion are also available for reading.
+controller topology + configuration for each media entity) to be associated with
+specific buffers. This allows user-space to schedule several tasks ("requests")
+with different configurations in advance, knowing that the configuration will be
+applied when needed to get the expected result. Configuration values at the time
+of request completion are also available for reading.
 
 Usage
 =====
 
-The Request API is used on top of standard media controller and V4L2 calls,
-which are augmented with an extra ``request_fd`` parameter. Requests themselves
-are allocated from the supporting media controller node.
+The Request API extends the Media Controller API and cooperates with
+subsystem-specific APIs to support request usage. At the Media Controller
+level, requests are allocated from the supporting Media Controller device
+node. Their life cycle is then managed through the request file descriptors in
+an opaque way. Configuration data, buffer handles and processing results
+stored in requests are accessed through subsystem-specific APIs extended for
+request support, such as V4L2 APIs that take an explicit ``request_fd``
+parameter.
 
 Request Allocation
 ------------------
@@ -47,29 +54,27 @@ Request Preparation
 Standard V4L2 ioctls can then receive a request file descriptor to express the
 fact that the ioctl is part of said request, and is not to be applied
 immediately. See :ref:`MEDIA_IOC_REQUEST_ALLOC` for a list of ioctls that
-support this. Controls set with a ``request_fd`` parameter are stored instead
-of being immediately applied, and buffers queued to a request do not enter the
-regular buffer queue until the request itself is queued.
+support this. Configurations set with a ``request_fd`` parameter are stored
+instead of being immediately applied, and buffers queued to a request do not
+enter the regular buffer queue until the request itself is queued.
 
 Request Submission
 ------------------
 
-Once the parameters and buffers of the request are specified, it can be
+Once the configuration and buffers of the request are specified, it can be
 queued by calling :ref:`MEDIA_REQUEST_IOC_QUEUE` on the request file descriptor.
 A request must contain at least one buffer, otherwise ``ENOENT`` is returned.
-This will make the buffers associated to the request available to their driver,
-which can then apply the associated controls as buffers are processed. A queued
-request cannot be modified anymore.
+A queued request cannot be modified anymore.
 
 .. caution::
    For :ref:`memory-to-memory devices <codec>` you can use requests only for
    output buffers, not for capture buffers. Attempting to add a capture buffer
    to a request will result in an ``EACCES`` error.
 
-If the request contains parameters for multiple entities, individual drivers may
-synchronize so the requested pipeline's topology is applied before the buffers
-are processed. Media controller drivers do a best effort implementation since
-perfect atomicity may not be possible due to hardware limitations.
+If the request contains configurations for multiple entities, individual drivers
+may synchronize so the requested pipeline's topology is applied before the
+buffers are processed. Media controller drivers do a best effort implementation
+since perfect atomicity may not be possible due to hardware limitations.
 
 .. caution::
 
@@ -96,13 +101,15 @@ Note that user-space does not need to wait for the request to complete to
 dequeue its buffers: buffers that are available halfway through a request can
 be dequeued independently of the request's state.
 
-A completed request contains the state of the request at the time of the
-request completion. User-space can query that state by calling
+A completed request contains the state of the device after the request was
+executed. User-space can query that state by calling
 :ref:`ioctl VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` with the request file
 descriptor. Calling :ref:`ioctl VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` for a
 request that has been queued but not yet completed will return ``EBUSY``
 since the control values might be changed at any time by the driver while the
 request is in flight.
+
+.. _media-request-life-time:
 
 Recycling and Destruction
 -------------------------

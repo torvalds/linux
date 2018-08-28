@@ -111,7 +111,10 @@ then ``EINVAL`` will be returned.
 .. caution::
    It is not allowed to mix queuing requests with queuing buffers directly.
    ``EBUSY`` will be returned if the first buffer was queued directly and
-   then the application tries to queue a request, or vice versa.
+   then the application tries to queue a request, or vice versa. After
+   closing the file descriptor, calling
+   :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` or calling :ref:`VIDIOC_REQBUFS`
+   the check for this will be reset.
 
    For :ref:`memory-to-memory devices <codec>` you can specify the
    ``request_fd`` only for output buffers, not for capture buffers. Attempting

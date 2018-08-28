@@ -52,7 +52,8 @@ for the request to complete.
 
 The request will remain allocated until all the file descriptors associated
 with it are closed by :ref:`close() <request-func-close>` and the driver no
-longer uses the request internally.
+longer uses the request internally. See also
+:ref:`here <media-request-life-time>` for more information.
 
 Return Value
 ============

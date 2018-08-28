@@ -50,7 +50,7 @@ when the request was completed.  When the function times out it returns
 a value of zero, on failure it returns -1 and the ``errno`` variable is
 set appropriately.
 
-Attempting to poll for a request that is completed or not yet queued will
+Attempting to poll for a request that is not yet queued will
 set the ``POLLERR`` flag in ``revents``.
 
 

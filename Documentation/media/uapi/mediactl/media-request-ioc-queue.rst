@@ -40,9 +40,6 @@ Other errors can be returned if the contents of the request contained
 invalid or inconsistent data, see the next section for a list of
 common error codes. On error both the request and driver state are unchanged.
 
-Typically if you get an error here, then that means that the application
-did something wrong and you have to fix the application.
-
 Once a request is queued, then the driver is required to gracefully handle
 errors that occur when the request is applied to the hardware. The
 exception is the ``EIO`` error which signals a fatal error that requires
@@ -68,8 +65,8 @@ EBUSY
     to mix the two APIs.
 ENOENT
     The request did not contain any buffers. All requests are required
-    to have at least one buffer. This can also be returned if required
-    controls are missing.
+    to have at least one buffer. This can also be returned if some required
+    configuration is missing in the request.
 ENOMEM
     Out of memory when allocating internal data structures for this
     request.

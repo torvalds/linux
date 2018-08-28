@@ -36,6 +36,7 @@ Description
 Closes the request file descriptor. Resources associated with the request
 are freed once all file descriptors associated with the request are closed
 and the driver has completed the request.
+See :ref:`here <media-request-life-time>` for more information.
 
 
 Return Value

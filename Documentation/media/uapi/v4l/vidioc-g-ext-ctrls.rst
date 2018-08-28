@@ -237,7 +237,7 @@ still cause this situation.
 
 	.. note::
 
-	   When using ``V4L2_CTRL_WHICH_DEF_VAL`` note that You can only
+	   When using ``V4L2_CTRL_WHICH_DEF_VAL`` be aware that you can only
 	   get the default value of the control, you cannot set or try it.
 
 	For backwards compatibility you can also use a control class here
@@ -382,7 +382,8 @@ EINVAL
     :c:type:`v4l2_ext_control` ``value`` was
     inappropriate (e.g. the given menu index is not supported by the
     driver), or the ``which`` field was set to ``V4L2_CTRL_WHICH_REQUEST_VAL``
-    but the given ``request_fd`` was invalid.
+    but the given ``request_fd`` was invalid or ``V4L2_CTRL_WHICH_REQUEST_VAL``
+    is not supported by the kernel.
     This error code is also returned by the
     :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` and :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` ioctls if two or
     more control values are in conflict.
