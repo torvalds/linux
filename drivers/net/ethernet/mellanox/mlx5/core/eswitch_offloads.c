@@ -529,7 +529,8 @@ static int esw_create_offloads_fast_fdb_table(struct mlx5_eswitch *esw)
 		esw_size >>= 1;
 
 	if (esw->offloads.encap != DEVLINK_ESWITCH_ENCAP_MODE_NONE)
-		flags |= MLX5_FLOW_TABLE_TUNNEL_EN;
+		flags |= (MLX5_FLOW_TABLE_TUNNEL_EN_ENCAP |
+			  MLX5_FLOW_TABLE_TUNNEL_EN_DECAP);
 
 	fdb = mlx5_create_auto_grouped_flow_table(root_ns, FDB_FAST_PATH,
 						  esw_size,

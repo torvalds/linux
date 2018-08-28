@@ -152,7 +152,8 @@ static int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
 				      struct mlx5_flow_table *next_ft,
 				      unsigned int *table_id, u32 flags)
 {
-	int en_encap_decap = !!(flags & MLX5_FLOW_TABLE_TUNNEL_EN);
+	int en_encap = !!(flags & MLX5_FLOW_TABLE_TUNNEL_EN_ENCAP);
+	int en_decap = !!(flags & MLX5_FLOW_TABLE_TUNNEL_EN_DECAP);
 	u32 out[MLX5_ST_SZ_DW(create_flow_table_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(create_flow_table_in)]   = {0};
 	int err;
@@ -169,9 +170,9 @@ static int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
 	}
 
 	MLX5_SET(create_flow_table_in, in, flow_table_context.decap_en,
-		 en_encap_decap);
+		 en_decap);
 	MLX5_SET(create_flow_table_in, in, flow_table_context.encap_en,
-		 en_encap_decap);
+		 en_encap);
 
 	switch (op_mod) {
 	case FS_FT_OP_MOD_NORMAL:
