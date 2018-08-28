@@ -286,6 +286,7 @@ EXPORT_SYMBOL(ib_alloc_device);
  */
 void ib_dealloc_device(struct ib_device *device)
 {
+	WARN_ON(!list_empty(&device->client_data_list));
 	WARN_ON(device->reg_state != IB_DEV_UNREGISTERED &&
 		device->reg_state != IB_DEV_UNINITIALIZED);
 	rdma_restrack_clean(&device->res);
@@ -610,8 +611,11 @@ void ib_unregister_device(struct ib_device *device)
 
 	down_write(&lists_rwsem);
 	spin_lock_irqsave(&device->client_data_lock, flags);
-	list_for_each_entry_safe(context, tmp, &device->client_data_list, list)
+	list_for_each_entry_safe(context, tmp, &device->client_data_list,
+				 list) {
+		list_del(&context->list);
 		kfree(context);
+	}
 	spin_unlock_irqrestore(&device->client_data_lock, flags);
 	up_write(&lists_rwsem);
 
