@@ -2396,12 +2396,11 @@ static void dapm_free_path(struct snd_soc_dapm_path *path)
 	kfree(path);
 }
 
-void snd_soc_dapm_free_widget(struct snd_soc_dapm_widget *w)
+static void snd_soc_dapm_free_widget_data(struct snd_soc_dapm_widget *w)
 {
 	struct snd_soc_dapm_path *p, *next_p;
 	enum snd_soc_dapm_direction dir;
 
-	list_del(&w->list);
 	/*
 	 * remove source and sink paths associated to this widget.
 	 * While removing the path, remove reference to it from both
@@ -2414,6 +2413,12 @@ void snd_soc_dapm_free_widget(struct snd_soc_dapm_widget *w)
 
 	kfree(w->kcontrols);
 	kfree_const(w->name);
+}
+
+void snd_soc_dapm_free_widget(struct snd_soc_dapm_widget *w)
+{
+	list_del(&w->list);
+	snd_soc_dapm_free_widget_data(w);
 	kfree(w);
 }
 
@@ -3032,11 +3037,16 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_weak_routes);
  */
 int snd_soc_dapm_new_widgets(struct snd_soc_card *card)
 {
-	struct snd_soc_dapm_widget *w;
+	struct snd_soc_dapm_widget *w, *last;
 	unsigned int val;
+	int ret = 0;
 
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_INIT);
 
+	/*
+	 * widgets with the snd_soc_dapm_kcontrol ID and .num_controls = 0 can
+	 * be appended to the list while scanning it, this is safe.
+	 */
 	list_for_each_entry(w, &card->widgets, list)
 	{
 		if (w->new)
@@ -3047,8 +3057,8 @@ int snd_soc_dapm_new_widgets(struct snd_soc_card *card)
 						sizeof(struct snd_kcontrol *),
 						GFP_KERNEL);
 			if (!w->kcontrols) {
-				mutex_unlock(&card->dapm_mutex);
-				return -ENOMEM;
+				ret = -ENOMEM;
+				goto out_free;
 			}
 		}
 
@@ -3056,22 +3066,28 @@ int snd_soc_dapm_new_widgets(struct snd_soc_card *card)
 		case snd_soc_dapm_switch:
 		case snd_soc_dapm_mixer:
 		case snd_soc_dapm_mixer_named_ctl:
-			dapm_new_mixer(w);
+			ret = dapm_new_mixer(w);
 			break;
 		case snd_soc_dapm_mux:
 		case snd_soc_dapm_demux:
-			dapm_new_mux(w);
+			ret = dapm_new_mux(w);
 			break;
 		case snd_soc_dapm_pga:
 		case snd_soc_dapm_effect:
 		case snd_soc_dapm_out_drv:
-			dapm_new_pga(w);
+			ret = dapm_new_pga(w);
 			break;
 		case snd_soc_dapm_dai_link:
-			dapm_new_dai_link(w);
+			ret = dapm_new_dai_link(w);
 			break;
 		default:
 			break;
+		}
+
+		if (ret < 0) {
+			kfree(w->kcontrols);
+			w->kcontrols = NULL;
+			goto out_free;
 		}
 
 		/* Read the initial power state from the device */
@@ -3082,6 +3098,11 @@ int snd_soc_dapm_new_widgets(struct snd_soc_card *card)
 			if (val == w->on_val)
 				w->power = 1;
 		}
+	}
+
+	list_for_each_entry(w, &card->widgets, list) {
+		if (w->new)
+			continue;
 
 		w->new = 1;
 
@@ -3092,6 +3113,66 @@ int snd_soc_dapm_new_widgets(struct snd_soc_card *card)
 	dapm_power_widgets(card, SND_SOC_DAPM_STREAM_NOP);
 	mutex_unlock(&card->dapm_mutex);
 	return 0;
+
+out_free:
+	last = w;
+
+	/*
+	 * If any new widgets have been created above for .autodisable = 1
+	 * controls, they are also on this list, but at its very end. We're
+	 * processing an error case, so the loop above was interrupted before
+	 * reaching dynamically added widgets, since the latter cannot fail -
+	 * their .num_controls = 0, so allocation cannot fail, and their type is
+	 * snd_soc_dapm_kcontrol, those cannot fail either. Therefore "last"
+	 * points to a widget before the first dynamic one.
+	 */
+	list_for_each_entry(w, &card->widgets, list) {
+		unsigned int i;
+
+		if (w->new)
+			continue;
+
+		if (w == last)
+			break;
+
+		switch (w->id) {
+		case snd_soc_dapm_switch:
+		case snd_soc_dapm_mixer:
+		case snd_soc_dapm_mixer_named_ctl:
+			for (i = 0; i < w->num_kcontrols; i++) {
+				struct snd_kcontrol *kcontrol = w->kcontrols[i];
+				struct dapm_kcontrol_data *data =
+					kcontrol->private_data;
+				struct soc_mixer_control *mc =
+					(struct soc_mixer_control *)
+					kcontrol->private_value;
+
+				if (mc->autodisable)
+					snd_soc_dapm_free_widget(data->widget);
+			}
+			break;
+		case snd_soc_dapm_demux:
+		case snd_soc_dapm_mux:
+			for (i = 0; i < w->num_kcontrols; i++) {
+				struct snd_kcontrol *kcontrol = w->kcontrols[i];
+				struct dapm_kcontrol_data *data =
+					kcontrol->private_data;
+				struct soc_enum *e = (struct soc_enum *)
+					kcontrol->private_value;
+
+				if (e->autodisable)
+					snd_soc_dapm_free_widget(data->widget);
+			}
+			break;
+		default:
+			break;
+		}
+
+		snd_soc_dapm_free_widget_data(w);
+	}
+
+	mutex_unlock(&card->dapm_mutex);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_new_widgets);
 
