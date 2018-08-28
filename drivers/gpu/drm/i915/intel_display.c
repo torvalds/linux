@@ -9694,8 +9694,7 @@ static bool i845_cursor_size_ok(const struct intel_plane_state *plane_state)
 	return intel_cursor_size_ok(plane_state) && IS_ALIGNED(width, 64);
 }
 
-static int i845_check_cursor(struct intel_plane *plane,
-			     struct intel_crtc_state *crtc_state,
+static int i845_check_cursor(struct intel_crtc_state *crtc_state,
 			     struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->base.fb;
@@ -9885,10 +9884,10 @@ static bool i9xx_cursor_size_ok(const struct intel_plane_state *plane_state)
 	return true;
 }
 
-static int i9xx_check_cursor(struct intel_plane *plane,
-			     struct intel_crtc_state *crtc_state,
+static int i9xx_check_cursor(struct intel_crtc_state *crtc_state,
 			     struct intel_plane_state *plane_state)
 {
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	enum pipe pipe = plane->pipe;
@@ -13190,10 +13189,10 @@ skl_max_scale(struct intel_crtc *intel_crtc,
 }
 
 static int
-intel_check_primary_plane(struct intel_plane *plane,
-			  struct intel_crtc_state *crtc_state,
+intel_check_primary_plane(struct intel_crtc_state *crtc_state,
 			  struct intel_plane_state *state)
 {
+	struct intel_plane *plane = to_intel_plane(state->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	struct drm_crtc *crtc = state->base.crtc;
 	int min_scale = DRM_PLANE_HELPER_NO_SCALING;

@@ -959,10 +959,10 @@ g4x_plane_get_hw_state(struct intel_plane *plane,
 }
 
 static int
-intel_check_sprite_plane(struct intel_plane *plane,
-			 struct intel_crtc_state *crtc_state,
+intel_check_sprite_plane(struct intel_crtc_state *crtc_state,
 			 struct intel_plane_state *state)
 {
+	struct intel_plane *plane = to_intel_plane(state->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_framebuffer *fb = state->base.fb;

@@ -971,9 +971,8 @@ struct intel_plane {
 	void (*disable_plane)(struct intel_plane *plane,
 			      struct intel_crtc *crtc);
 	bool (*get_hw_state)(struct intel_plane *plane, enum pipe *pipe);
-	int (*check_plane)(struct intel_plane *plane,
-			   struct intel_crtc_state *crtc_state,
-			   struct intel_plane_state *state);
+	int (*check_plane)(struct intel_crtc_state *crtc_state,
+			   struct intel_plane_state *plane_state);
 };
 
 struct intel_watermark_params {
