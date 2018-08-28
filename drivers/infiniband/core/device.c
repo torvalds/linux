@@ -700,9 +700,9 @@ void ib_unregister_client(struct ib_client *client)
 		down_write(&lists_rwsem);
 		spin_lock_irqsave(&device->client_data_lock, flags);
 		list_del(&found_context->list);
-		kfree(found_context);
 		spin_unlock_irqrestore(&device->client_data_lock, flags);
 		up_write(&lists_rwsem);
+		kfree(found_context);
 	}
 
 	mutex_unlock(&device_mutex);
