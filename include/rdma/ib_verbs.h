@@ -2256,10 +2256,11 @@ struct ib_device {
 	struct list_head              event_handler_list;
 	spinlock_t                    event_handler_lock;
 
-	spinlock_t                    client_data_lock;
+	rwlock_t			client_data_lock;
 	struct list_head              core_list;
 	/* Access to the client_data_list is protected by the client_data_lock
-	 * spinlock and the lists_rwsem read-write semaphore */
+	 * rwlock and the lists_rwsem read-write semaphore
+	 */
 	struct list_head              client_data_list;
 
 	struct ib_cache               cache;
