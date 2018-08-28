@@ -927,10 +927,6 @@ static int p80211_rx_typedrop(struct wlandevice *wlandev, u16 fc)
 	/* Classify frame, increment counter */
 	ftype = WLAN_GET_FC_FTYPE(fc);
 	fstype = WLAN_GET_FC_FSTYPE(fc);
-#if 0
-	netdev_dbg(wlandev->netdev, "rx_typedrop : ftype=%d fstype=%d.\n",
-		   ftype, fstype);
-#endif
 	switch (ftype) {
 	case WLAN_FTYPE_MGMT:
 		if ((wlandev->netdev->flags & IFF_PROMISC) ||
