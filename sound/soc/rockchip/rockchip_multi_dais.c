@@ -284,7 +284,7 @@ static void mdais_parse_daifmt(struct device_node *node, struct rk_dai *dais,
 			break;
 		}
 
-		dais[i].fmt = format;
+		dais[i].fmt = format & format_mask;
 		dais[i].fmt_msk = format_mask;
 	}
 }
