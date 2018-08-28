@@ -100,6 +100,7 @@ enum fetch_op {
 	// Stage 5 (loop) op
 	FETCH_OP_LP_ARRAY,	/* Array: .param = loop count */
 	FETCH_OP_END,
+	FETCH_NOP_SYMBOL,	/* Unresolved Symbol holder */
 };
 
 struct fetch_insn {
@@ -116,6 +117,7 @@ struct fetch_insn {
 			unsigned char rshift;
 		};
 		unsigned long immediate;
+		void *data;
 	};
 };
 
@@ -276,7 +278,7 @@ extern int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
 extern int traceprobe_conflict_field_name(const char *name,
 			       struct probe_arg *args, int narg);
 
-extern void traceprobe_update_arg(struct probe_arg *arg);
+extern int traceprobe_update_arg(struct probe_arg *arg);
 extern void traceprobe_free_probe_arg(struct probe_arg *arg);
 
 extern int traceprobe_split_symbol_offset(char *symbol, long *offset);

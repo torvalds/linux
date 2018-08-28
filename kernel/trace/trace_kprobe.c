@@ -366,7 +366,7 @@ static bool within_notrace_func(struct trace_kprobe *tk)
 /* Internal register function - just handle k*probes and flags */
 static int __register_trace_kprobe(struct trace_kprobe *tk)
 {
-	int ret;
+	int i, ret;
 
 	if (trace_probe_is_registered(&tk->tp))
 		return -EINVAL;
@@ -375,6 +375,12 @@ static int __register_trace_kprobe(struct trace_kprobe *tk)
 		pr_warn("Could not probe notrace function %s\n",
 			trace_kprobe_symbol(tk));
 		return -EINVAL;
+	}
+
+	for (i = 0; i < tk->tp.nr_args; i++) {
+		ret = traceprobe_update_arg(&tk->tp.args[i]);
+		if (ret)
+			return ret;
 	}
 
 	/* Set/clear disabled flag according to tp->flag */
@@ -928,6 +934,7 @@ process_fetch_insn(struct fetch_insn *code, struct pt_regs *regs, void *dest,
 {
 	unsigned long val;
 
+retry:
 	/* 1st stage: get value from context */
 	switch (code->op) {
 	case FETCH_OP_REG:
@@ -953,6 +960,9 @@ process_fetch_insn(struct fetch_insn *code, struct pt_regs *regs, void *dest,
 		val = regs_get_kernel_argument(regs, code->param);
 		break;
 #endif
+	case FETCH_NOP_SYMBOL:	/* Ignore a place holder */
+		code++;
+		goto retry;
 	default:
 		return -EILSEQ;
 	}

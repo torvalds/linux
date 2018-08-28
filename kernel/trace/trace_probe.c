@@ -251,16 +251,16 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 			if (!(flags & TPARG_FL_KERNEL))
 				return -EINVAL;
 
-			ret = traceprobe_split_symbol_offset(arg + 1, &offset);
-			if (ret)
-				break;
+			/* Preserve symbol for updating */
+			code->op = FETCH_NOP_SYMBOL;
+			code->data = kstrdup(arg + 1, GFP_KERNEL);
+			if (!code->data)
+				return -ENOMEM;
+			if (++code == end)
+				return -E2BIG;
 
 			code->op = FETCH_OP_IMM;
-			code->immediate =
-				(unsigned long)kallsyms_lookup_name(arg + 1);
-			if (!code->immediate)
-				return -ENOENT;
-			code->immediate += offset;
+			code->immediate = 0;
 		}
 		/* These are fetching from memory */
 		if (++code == end)
@@ -480,6 +480,11 @@ int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
 		memcpy(parg->code, tmp, sizeof(*code) * (code - tmp + 1));
 
 fail:
+	if (ret) {
+		for (code = tmp; code < tmp + FETCH_INSN_MAX; code++)
+			if (code->op == FETCH_NOP_SYMBOL)
+				kfree(code->data);
+	}
 	kfree(tmp);
 
 	return ret;
@@ -504,10 +509,51 @@ int traceprobe_conflict_field_name(const char *name,
 
 void traceprobe_free_probe_arg(struct probe_arg *arg)
 {
+	struct fetch_insn *code = arg->code;
+
+	while (code && code->op != FETCH_OP_END) {
+		if (code->op == FETCH_NOP_SYMBOL)
+			kfree(code->data);
+		code++;
+	}
 	kfree(arg->code);
 	kfree(arg->name);
 	kfree(arg->comm);
 	kfree(arg->fmt);
+}
+
+int traceprobe_update_arg(struct probe_arg *arg)
+{
+	struct fetch_insn *code = arg->code;
+	long offset;
+	char *tmp;
+	char c;
+	int ret = 0;
+
+	while (code && code->op != FETCH_OP_END) {
+		if (code->op == FETCH_NOP_SYMBOL) {
+			if (code[1].op != FETCH_OP_IMM)
+				return -EINVAL;
+
+			tmp = strpbrk("+-", code->data);
+			if (tmp)
+				c = *tmp;
+			ret = traceprobe_split_symbol_offset(code->data,
+							     &offset);
+			if (ret)
+				return ret;
+
+			code[1].immediate =
+				(unsigned long)kallsyms_lookup_name(code->data);
+			if (tmp)
+				*tmp = c;
+			if (!code[1].immediate)
+				return -ENOENT;
+			code[1].immediate += offset;
+		}
+		code++;
+	}
+	return 0;
 }
 
 /* When len=0, we just calculate the needed length */
