@@ -158,7 +158,8 @@ PNAME(mux_mac_rmii_sel_p)	= { "clk_mac_rx_tx_div20", "clk_mac_rx_tx_div2" };
 PNAME(mux_ddrstdby_p)		= { "clk_ddrphy1x_out", "clk_ddr_stdby_div4" };
 PNAME(mux_rtc32k_p)		= { "xin32k", "clk_pvtm_32k", "clk_rtc32k_frac", "clk_rtc32k_div" };
 PNAME(mux_usbphy_ref_p)		= { "xin24m", "clk_usbphy_ref_src" };
-PNAME(mux_wifi_p)		= { "xin24m", "clk_wifi_src" };
+PNAME(mux_wifi_src_p)		= { "clk_wifi_dpll", "clk_wifi_vpll0" };
+PNAME(mux_wifi_p)		= { "clk_wifi_osc", "clk_wifi_src" };
 PNAME(mux_pdm_p)		= { "clk_pdm_src", "clk_pdm_frac" };
 PNAME(mux_i2s0_8ch_tx_p)	= { "clk_i2s0_8ch_tx_src", "clk_i2s0_8ch_tx_frac", "mclk_i2s0_8ch_in" };
 PNAME(mux_i2s0_8ch_tx_rx_p)	= { "clk_i2s0_8ch_tx_mux", "clk_i2s0_8ch_rx_mux"};
@@ -613,7 +614,13 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 			RK3308_CLKSEL_CON(72), 7, 1, MFLAGS,
 			RK3308_CLKGATE_CON(4), 8, GFLAGS),
 
-	COMPOSITE(0, "clk_wifi_src", mux_dpll_vpll0_p, 0,
+	GATE(0, "clk_wifi_dpll", "dpll", 0,
+			RK3308_CLKGATE_CON(15), 2, GFLAGS),
+	GATE(0, "clk_wifi_vpll0", "vpll0", 0,
+			RK3308_CLKGATE_CON(15), 3, GFLAGS),
+	GATE(0, "clk_wifi_osc", "xin24m", 0,
+			RK3308_CLKGATE_CON(15), 4, GFLAGS),
+	COMPOSITE(0, "clk_wifi_src", mux_wifi_src_p, 0,
 			RK3308_CLKSEL_CON(44), 6, 1, MFLAGS, 0, 6, DFLAGS,
 			RK3308_CLKGATE_CON(4), 0, GFLAGS),
 	COMPOSITE_NODIV(SCLK_WIFI, "clk_wifi", mux_wifi_p, CLK_SET_RATE_PARENT,
