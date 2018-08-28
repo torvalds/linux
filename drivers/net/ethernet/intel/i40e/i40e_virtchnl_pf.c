@@ -1973,13 +1973,11 @@ static inline int i40e_getnum_vf_vsi_vlan_filters(struct i40e_vsi *vsi)
  * i40e_vc_config_promiscuous_mode_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * called from the VF to configure the promiscuous mode of
  * VF vsis
  **/
-static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
-					       u8 *msg, u16 msglen)
+static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_promisc_info *info =
 	    (struct virtchnl_promisc_info *)msg;
@@ -2034,12 +2032,11 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
  * i40e_vc_config_queues_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * called from the VF to configure the rx/tx
  * queues
  **/
-static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
+static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_vsi_queue_config_info *qci =
 	    (struct virtchnl_vsi_queue_config_info *)msg;
@@ -2152,12 +2149,11 @@ static int i40e_validate_queue_map(struct i40e_vf *vf, u16 vsi_id,
  * i40e_vc_config_irq_map_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * called from the VF to configure the irq to
  * queue map
  **/
-static int i40e_vc_config_irq_map_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
+static int i40e_vc_config_irq_map_msg(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_irq_map_info *irqmap_info =
 	    (struct virtchnl_irq_map_info *)msg;
@@ -2249,11 +2245,10 @@ static int i40e_ctrl_vf_rx_rings(struct i40e_vsi *vsi, unsigned long q_map,
  * i40e_vc_enable_queues_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * called from the VF to enable all or specific queue(s)
  **/
-static int i40e_vc_enable_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
+static int i40e_vc_enable_queues_msg(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_queue_select *vqs =
 	    (struct virtchnl_queue_select *)msg;
@@ -2308,12 +2303,11 @@ error_param:
  * i40e_vc_disable_queues_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * called from the VF to disable all or specific
  * queue(s)
  **/
-static int i40e_vc_disable_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
+static int i40e_vc_disable_queues_msg(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_queue_select *vqs =
 	    (struct virtchnl_queue_select *)msg;
@@ -2356,14 +2350,13 @@ error_param:
  * i40e_vc_request_queues_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * VFs get a default number of queues but can use this message to request a
  * different number.  If the request is successful, PF will reset the VF and
  * return 0.  If unsuccessful, PF will send message informing VF of number of
  * available queues and return result of sending VF a message.
  **/
-static int i40e_vc_request_queues_msg(struct i40e_vf *vf, u8 *msg, int msglen)
+static int i40e_vc_request_queues_msg(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_vf_res_request *vfres =
 		(struct virtchnl_vf_res_request *)msg;
@@ -2407,11 +2400,10 @@ static int i40e_vc_request_queues_msg(struct i40e_vf *vf, u8 *msg, int msglen)
  * i40e_vc_get_stats_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * called from the VF to get vsi stats
  **/
-static int i40e_vc_get_stats_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
+static int i40e_vc_get_stats_msg(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_queue_select *vqs =
 	    (struct virtchnl_queue_select *)msg;
@@ -2517,11 +2509,10 @@ static inline int i40e_check_vf_permission(struct i40e_vf *vf,
  * i40e_vc_add_mac_addr_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * add guest mac address filter
  **/
-static int i40e_vc_add_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
+static int i40e_vc_add_mac_addr_msg(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_ether_addr_list *al =
 	    (struct virtchnl_ether_addr_list *)msg;
@@ -2588,11 +2579,10 @@ error_param:
  * i40e_vc_del_mac_addr_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * remove guest mac address filter
  **/
-static int i40e_vc_del_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
+static int i40e_vc_del_mac_addr_msg(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_ether_addr_list *al =
 	    (struct virtchnl_ether_addr_list *)msg;
@@ -2658,11 +2648,10 @@ error_param:
  * i40e_vc_add_vlan_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * program guest vlan id
  **/
-static int i40e_vc_add_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
+static int i40e_vc_add_vlan_msg(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_vlan_filter_list *vfl =
 	    (struct virtchnl_vlan_filter_list *)msg;
@@ -2731,11 +2720,10 @@ error_param:
  * i40e_vc_remove_vlan_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * remove programmed guest vlan id
  **/
-static int i40e_vc_remove_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
+static int i40e_vc_remove_vlan_msg(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_vlan_filter_list *vfl =
 	    (struct virtchnl_vlan_filter_list *)msg;
@@ -2818,13 +2806,11 @@ error_param:
  * i40e_vc_iwarp_qvmap_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  * @config: config qvmap or release it
  *
  * called from the VF for the iwarp msgs
  **/
-static int i40e_vc_iwarp_qvmap_msg(struct i40e_vf *vf, u8 *msg, u16 msglen,
-				   bool config)
+static int i40e_vc_iwarp_qvmap_msg(struct i40e_vf *vf, u8 *msg, bool config)
 {
 	struct virtchnl_iwarp_qvlist_info *qvlist_info =
 				(struct virtchnl_iwarp_qvlist_info *)msg;
@@ -2855,11 +2841,10 @@ error_param:
  * i40e_vc_config_rss_key
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * Configure the VF's RSS key
  **/
-static int i40e_vc_config_rss_key(struct i40e_vf *vf, u8 *msg, u16 msglen)
+static int i40e_vc_config_rss_key(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_rss_key *vrk =
 		(struct virtchnl_rss_key *)msg;
@@ -2887,11 +2872,10 @@ err:
  * i40e_vc_config_rss_lut
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * Configure the VF's RSS LUT
  **/
-static int i40e_vc_config_rss_lut(struct i40e_vf *vf, u8 *msg, u16 msglen)
+static int i40e_vc_config_rss_lut(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_rss_lut *vrl =
 		(struct virtchnl_rss_lut *)msg;
@@ -2919,11 +2903,10 @@ err:
  * i40e_vc_get_rss_hena
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * Return the RSS HENA bits allowed by the hardware
  **/
-static int i40e_vc_get_rss_hena(struct i40e_vf *vf, u8 *msg, u16 msglen)
+static int i40e_vc_get_rss_hena(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_rss_hena *vrh = NULL;
 	struct i40e_pf *pf = vf->pf;
@@ -2955,11 +2938,10 @@ err:
  * i40e_vc_set_rss_hena
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * Set the RSS HENA bits for the VF
  **/
-static int i40e_vc_set_rss_hena(struct i40e_vf *vf, u8 *msg, u16 msglen)
+static int i40e_vc_set_rss_hena(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_rss_hena *vrh =
 		(struct virtchnl_rss_hena *)msg;
@@ -2984,12 +2966,10 @@ err:
  * i40e_vc_enable_vlan_stripping
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * Enable vlan header stripping for the VF
  **/
-static int i40e_vc_enable_vlan_stripping(struct i40e_vf *vf, u8 *msg,
-					 u16 msglen)
+static int i40e_vc_enable_vlan_stripping(struct i40e_vf *vf, u8 *msg)
 {
 	struct i40e_vsi *vsi = vf->pf->vsi[vf->lan_vsi_idx];
 	i40e_status aq_ret = 0;
@@ -3011,12 +2991,10 @@ err:
  * i40e_vc_disable_vlan_stripping
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @msglen: msg length
  *
  * Disable vlan header stripping for the VF
  **/
-static int i40e_vc_disable_vlan_stripping(struct i40e_vf *vf, u8 *msg,
-					  u16 msglen)
+static int i40e_vc_disable_vlan_stripping(struct i40e_vf *vf, u8 *msg)
 {
 	struct i40e_vsi *vsi = vf->pf->vsi[vf->lan_vsi_idx];
 	i40e_status aq_ret = 0;
@@ -3716,65 +3694,65 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 		ret = 0;
 		break;
 	case VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE:
-		ret = i40e_vc_config_promiscuous_mode_msg(vf, msg, msglen);
+		ret = i40e_vc_config_promiscuous_mode_msg(vf, msg);
 		break;
 	case VIRTCHNL_OP_CONFIG_VSI_QUEUES:
-		ret = i40e_vc_config_queues_msg(vf, msg, msglen);
+		ret = i40e_vc_config_queues_msg(vf, msg);
 		break;
 	case VIRTCHNL_OP_CONFIG_IRQ_MAP:
-		ret = i40e_vc_config_irq_map_msg(vf, msg, msglen);
+		ret = i40e_vc_config_irq_map_msg(vf, msg);
 		break;
 	case VIRTCHNL_OP_ENABLE_QUEUES:
-		ret = i40e_vc_enable_queues_msg(vf, msg, msglen);
+		ret = i40e_vc_enable_queues_msg(vf, msg);
 		i40e_vc_notify_vf_link_state(vf);
 		break;
 	case VIRTCHNL_OP_DISABLE_QUEUES:
-		ret = i40e_vc_disable_queues_msg(vf, msg, msglen);
+		ret = i40e_vc_disable_queues_msg(vf, msg);
 		break;
 	case VIRTCHNL_OP_ADD_ETH_ADDR:
-		ret = i40e_vc_add_mac_addr_msg(vf, msg, msglen);
+		ret = i40e_vc_add_mac_addr_msg(vf, msg);
 		break;
 	case VIRTCHNL_OP_DEL_ETH_ADDR:
-		ret = i40e_vc_del_mac_addr_msg(vf, msg, msglen);
+		ret = i40e_vc_del_mac_addr_msg(vf, msg);
 		break;
 	case VIRTCHNL_OP_ADD_VLAN:
-		ret = i40e_vc_add_vlan_msg(vf, msg, msglen);
+		ret = i40e_vc_add_vlan_msg(vf, msg);
 		break;
 	case VIRTCHNL_OP_DEL_VLAN:
-		ret = i40e_vc_remove_vlan_msg(vf, msg, msglen);
+		ret = i40e_vc_remove_vlan_msg(vf, msg);
 		break;
 	case VIRTCHNL_OP_GET_STATS:
-		ret = i40e_vc_get_stats_msg(vf, msg, msglen);
+		ret = i40e_vc_get_stats_msg(vf, msg);
 		break;
 	case VIRTCHNL_OP_IWARP:
 		ret = i40e_vc_iwarp_msg(vf, msg, msglen);
 		break;
 	case VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP:
-		ret = i40e_vc_iwarp_qvmap_msg(vf, msg, msglen, true);
+		ret = i40e_vc_iwarp_qvmap_msg(vf, msg, true);
 		break;
 	case VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP:
-		ret = i40e_vc_iwarp_qvmap_msg(vf, msg, msglen, false);
+		ret = i40e_vc_iwarp_qvmap_msg(vf, msg, false);
 		break;
 	case VIRTCHNL_OP_CONFIG_RSS_KEY:
-		ret = i40e_vc_config_rss_key(vf, msg, msglen);
+		ret = i40e_vc_config_rss_key(vf, msg);
 		break;
 	case VIRTCHNL_OP_CONFIG_RSS_LUT:
-		ret = i40e_vc_config_rss_lut(vf, msg, msglen);
+		ret = i40e_vc_config_rss_lut(vf, msg);
 		break;
 	case VIRTCHNL_OP_GET_RSS_HENA_CAPS:
-		ret = i40e_vc_get_rss_hena(vf, msg, msglen);
+		ret = i40e_vc_get_rss_hena(vf, msg);
 		break;
 	case VIRTCHNL_OP_SET_RSS_HENA:
-		ret = i40e_vc_set_rss_hena(vf, msg, msglen);
+		ret = i40e_vc_set_rss_hena(vf, msg);
 		break;
 	case VIRTCHNL_OP_ENABLE_VLAN_STRIPPING:
-		ret = i40e_vc_enable_vlan_stripping(vf, msg, msglen);
+		ret = i40e_vc_enable_vlan_stripping(vf, msg);
 		break;
 	case VIRTCHNL_OP_DISABLE_VLAN_STRIPPING:
-		ret = i40e_vc_disable_vlan_stripping(vf, msg, msglen);
+		ret = i40e_vc_disable_vlan_stripping(vf, msg);
 		break;
 	case VIRTCHNL_OP_REQUEST_QUEUES:
-		ret = i40e_vc_request_queues_msg(vf, msg, msglen);
+		ret = i40e_vc_request_queues_msg(vf, msg);
 		break;
 	case VIRTCHNL_OP_ENABLE_CHANNELS:
 		ret = i40e_vc_add_qch_msg(vf, msg);
