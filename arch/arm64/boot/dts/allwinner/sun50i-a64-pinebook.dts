@@ -142,7 +142,7 @@
 &r_i2c {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&r_i2c_pins_a>;
+	pinctrl-0 = <&r_i2c_pl89_pins>;
 	status = "okay";
 };
 

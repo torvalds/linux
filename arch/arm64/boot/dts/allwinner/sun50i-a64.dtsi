@@ -770,7 +770,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 
-			r_i2c_pins_a: i2c-a {
+			r_i2c_pl89_pins: r-i2c-pl89-pins {
 				pins = "PL8", "PL9";
 				function = "s_i2c";
 			};
