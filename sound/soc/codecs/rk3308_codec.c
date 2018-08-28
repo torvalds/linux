@@ -163,6 +163,9 @@ struct rk3308_codec_priv {
 
 	int pm_state;
 
+	/* For the high pass filter */
+	unsigned int hpf_cutoff[ADC_LR_GROUP_MAX];
+
 	/* Only hpout do fade-in and fade-out */
 	unsigned int hpout_l_dgain;
 	unsigned int hpout_r_dgain;
@@ -215,6 +218,43 @@ static int rk3308_codec_hpout_r_get_tlv(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol);
 static int rk3308_codec_hpout_r_put_tlv(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol);
+static int rk3308_codec_hpf_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol);
+static int rk3308_codec_hpf_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol);
+
+#define HPF_NUM				4
+
+#define HPF_CUTOFF_20HZ			0
+#define HPF_CUTOFF_245HZ		1
+#define HPF_CUTOFF_612HZ		2
+#define HPF_OFF				3
+
+static const char *hpf_text[HPF_NUM] = {
+	[HPF_CUTOFF_20HZ] = "20Hz",
+	[HPF_CUTOFF_245HZ] = "245Hz",
+	[HPF_CUTOFF_612HZ] = "612Hz",
+	[HPF_OFF] = "Off",
+};
+
+static const struct soc_enum rk3308_hpf_enum_array[] = {
+	SOC_ENUM_SINGLE(RK3308_ADC_DIG_CON04(0),
+			0,
+			ARRAY_SIZE(hpf_text),
+			hpf_text),
+	SOC_ENUM_SINGLE(RK3308_ADC_DIG_CON04(1),
+			1,
+			ARRAY_SIZE(hpf_text),
+			hpf_text),
+	SOC_ENUM_SINGLE(RK3308_ADC_DIG_CON04(2),
+			2,
+			ARRAY_SIZE(hpf_text),
+			hpf_text),
+	SOC_ENUM_SINGLE(RK3308_ADC_DIG_CON04(3),
+			3,
+			ARRAY_SIZE(hpf_text),
+			hpf_text),
+};
 
 static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
 	/* ALC AGC Group */
@@ -476,6 +516,16 @@ static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
 			     RK3308_ADC_CH2_ALC_GAIN_MAX,
 			     0, rk3308_codec_adc_alc_gain_tlv),
 
+	/* ADC High Pass Filter */
+	SOC_ENUM_EXT("ADC Group 0 HPF Cut-off", rk3308_hpf_enum_array[0],
+		     rk3308_codec_hpf_get, rk3308_codec_hpf_put),
+	SOC_ENUM_EXT("ADC Group 1 HPF Cut-off", rk3308_hpf_enum_array[1],
+		     rk3308_codec_hpf_get, rk3308_codec_hpf_put),
+	SOC_ENUM_EXT("ADC Group 2 HPF Cut-off", rk3308_hpf_enum_array[2],
+		     rk3308_codec_hpf_get, rk3308_codec_hpf_put),
+	SOC_ENUM_EXT("ADC Group 3 HPF Cut-off", rk3308_hpf_enum_array[3],
+		     rk3308_codec_hpf_get, rk3308_codec_hpf_put),
+
 	/* DAC LINEOUT */
 	SOC_SINGLE_TLV("DAC LINEOUT Left Volume",
 		       RK3308_DAC_ANA_CON04,
@@ -520,6 +570,57 @@ static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
 			     RK3308_DAC_R_HPMIX_GAIN_MAX,
 			     0, rk3308_codec_dac_hpmix_gain_tlv),
 };
+
+static int rk3308_codec_hpf_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+
+	ucontrol->value.integer.value[0] = rk3308->hpf_cutoff[e->shift_l];
+
+	return 0;
+}
+
+static int rk3308_codec_hpf_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int value = ucontrol->value.integer.value[0];
+	unsigned int cutoff[3] = {
+		RK3308_ADC_HPF_CUTOFF_20HZ,
+		RK3308_ADC_HPF_CUTOFF_245HZ,
+		RK3308_ADC_HPF_CUTOFF_612HZ,
+	};
+
+	switch (value) {
+	case HPF_CUTOFF_20HZ:
+	case HPF_CUTOFF_245HZ:
+	case HPF_CUTOFF_612HZ:
+		/* Enable high pass filter for ADCs */
+		regmap_update_bits(rk3308->regmap, e->reg,
+				   RK3308_ADC_HPF_PATH_MSK,
+				   RK3308_ADC_HPF_PATH_EN);
+		udelay(10);
+		regmap_update_bits(rk3308->regmap, e->reg,
+				   RK3308_ADC_HPF_CUTOFF_MSK,
+				   cutoff[value]);
+		break;
+	default:
+		/* Disable high pass filter for ADCs. */
+		regmap_update_bits(rk3308->regmap, e->reg,
+				   RK3308_ADC_HPF_PATH_MSK,
+				   RK3308_ADC_HPF_PATH_DIS);
+		break;
+	}
+
+	rk3308->hpf_cutoff[e->shift_l] = value;
+
+	return 0;
+}
 
 static int rk3308_codec_hpout_l_get_tlv(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
@@ -857,20 +958,6 @@ static int rk3308_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
 				   RK3308_ADC_DIG_WORK,
 				   RK3308_ADC_DIG_WORK);
-
-	/* Enable high pass filter and cut-off 20Hz for ADCs */
-	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
-		if (grp < 0 || grp > ADC_LR_GROUP_MAX - 1)
-			continue;
-
-		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON04(grp),
-				   RK3308_ADC_HPF_PATH_MSK,
-				   RK3308_ADC_HPF_PATH_EN);
-		udelay(10);
-		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON04(grp),
-				   RK3308_ADC_HPF_CUTOFF_MSK,
-				   RK3308_ADC_HPF_CUTOFF_20HZ);
-	}
 
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_DIG_CON01,
 			   RK3308_DAC_I2S_LRC_POL_MSK |
@@ -4009,6 +4096,10 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	rk3308->dac_output = DAC_LINEOUT;
 	rk3308->adc_zerocross = 1;
 	rk3308->pm_state = PM_NORMAL;
+	rk3308->hpf_cutoff[0] = HPF_OFF;
+	rk3308->hpf_cutoff[1] = HPF_OFF;
+	rk3308->hpf_cutoff[2] = HPF_OFF;
+	rk3308->hpf_cutoff[3] = HPF_OFF;
 
 	platform_set_drvdata(pdev, rk3308);
 
