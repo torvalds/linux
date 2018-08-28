@@ -660,8 +660,8 @@ static int get_dt_pad_ctrl_data(struct sdhci_host *host,
 		return 0;
 
 	if (of_address_to_resource(np, 1, &iomem)) {
-		dev_err(mmc_dev(host->mmc), "Unable to find SoC PAD ctrl register address for %s\n",
-			np->name);
+		dev_err(mmc_dev(host->mmc), "Unable to find SoC PAD ctrl register address for %pOFn\n",
+			np);
 		return -EINVAL;
 	}
 
