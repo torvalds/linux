@@ -395,7 +395,7 @@ u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
 		      int *error)
 {
 	const struct nfp_rtsym *sym;
-	u32 val32, id;
+	u32 val32;
 	u64 val;
 	int err;
 
@@ -405,15 +405,13 @@ u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
 		goto exit;
 	}
 
-	id = NFP_CPP_ISLAND_ID(sym->target, NFP_CPP_ACTION_RW, 0, sym->domain);
-
 	switch (sym->size) {
 	case 4:
-		err = nfp_cpp_readl(rtbl->cpp, id, sym->addr, &val32);
+		err = nfp_rtsym_readl(rtbl->cpp, sym, 0, &val32);
 		val = val32;
 		break;
 	case 8:
-		err = nfp_cpp_readq(rtbl->cpp, id, sym->addr, &val);
+		err = nfp_rtsym_readq(rtbl->cpp, sym, 0, &val);
 		break;
 	default:
 		nfp_err(rtbl->cpp,
@@ -449,20 +447,17 @@ int nfp_rtsym_write_le(struct nfp_rtsym_table *rtbl, const char *name,
 {
 	const struct nfp_rtsym *sym;
 	int err;
-	u32 id;
 
 	sym = nfp_rtsym_lookup(rtbl, name);
 	if (!sym)
 		return -ENOENT;
 
-	id = NFP_CPP_ISLAND_ID(sym->target, NFP_CPP_ACTION_RW, 0, sym->domain);
-
 	switch (sym->size) {
 	case 4:
-		err = nfp_cpp_writel(rtbl->cpp, id, sym->addr, value);
+		err = nfp_rtsym_writel(rtbl->cpp, sym, 0, value);
 		break;
 	case 8:
-		err = nfp_cpp_writeq(rtbl->cpp, id, sym->addr, value);
+		err = nfp_rtsym_writeq(rtbl->cpp, sym, 0, value);
 		break;
 	default:
 		nfp_err(rtbl->cpp,
@@ -482,21 +477,26 @@ nfp_rtsym_map(struct nfp_rtsym_table *rtbl, const char *name, const char *id,
 	const struct nfp_rtsym *sym;
 	u8 __iomem *mem;
 	u32 cpp_id;
+	u64 addr;
+	int err;
 
 	sym = nfp_rtsym_lookup(rtbl, name);
 	if (!sym)
 		return (u8 __iomem *)ERR_PTR(-ENOENT);
 
-	cpp_id = NFP_CPP_ISLAND_ID(sym->target, NFP_CPP_ACTION_RW, 0,
-				   sym->domain);
+	err = nfp_rtsym_to_dest(rtbl->cpp, sym, NFP_CPP_ACTION_RW, 0, 0,
+				&cpp_id, &addr);
+	if (err) {
+		nfp_err(rtbl->cpp, "Symbol %s mapping failed\n", name);
+		return (u8 __iomem *)ERR_PTR(err);
+	}
 
 	if (sym->size < min_size) {
 		nfp_err(rtbl->cpp, "Symbol %s too small\n", name);
 		return (u8 __iomem *)ERR_PTR(-EINVAL);
 	}
 
-	mem = nfp_cpp_map_area(rtbl->cpp, id, cpp_id, sym->addr,
-			       sym->size, area);
+	mem = nfp_cpp_map_area(rtbl->cpp, id, cpp_id, addr, sym->size, area);
 	if (IS_ERR(mem)) {
 		nfp_err(rtbl->cpp, "Failed to map symbol %s: %ld\n",
 			name, PTR_ERR(mem));
