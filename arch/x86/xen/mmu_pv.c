@@ -2213,7 +2213,7 @@ static void __init xen_write_cr3_init(unsigned long cr3)
 	set_page_prot(initial_page_table, PAGE_KERNEL);
 	set_page_prot(initial_kernel_pmd, PAGE_KERNEL);
 
-	pv_mmu_ops.write_cr3 = &xen_write_cr3;
+	pv_ops.mmu.write_cr3 = &xen_write_cr3;
 }
 
 /*
@@ -2362,27 +2362,27 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 
 static void __init xen_post_allocator_init(void)
 {
-	pv_mmu_ops.set_pte = xen_set_pte;
-	pv_mmu_ops.set_pmd = xen_set_pmd;
-	pv_mmu_ops.set_pud = xen_set_pud;
+	pv_ops.mmu.set_pte = xen_set_pte;
+	pv_ops.mmu.set_pmd = xen_set_pmd;
+	pv_ops.mmu.set_pud = xen_set_pud;
 #ifdef CONFIG_X86_64
-	pv_mmu_ops.set_p4d = xen_set_p4d;
+	pv_ops.mmu.set_p4d = xen_set_p4d;
 #endif
 
 	/* This will work as long as patching hasn't happened yet
 	   (which it hasn't) */
-	pv_mmu_ops.alloc_pte = xen_alloc_pte;
-	pv_mmu_ops.alloc_pmd = xen_alloc_pmd;
-	pv_mmu_ops.release_pte = xen_release_pte;
-	pv_mmu_ops.release_pmd = xen_release_pmd;
+	pv_ops.mmu.alloc_pte = xen_alloc_pte;
+	pv_ops.mmu.alloc_pmd = xen_alloc_pmd;
+	pv_ops.mmu.release_pte = xen_release_pte;
+	pv_ops.mmu.release_pmd = xen_release_pmd;
 #ifdef CONFIG_X86_64
-	pv_mmu_ops.alloc_pud = xen_alloc_pud;
-	pv_mmu_ops.release_pud = xen_release_pud;
+	pv_ops.mmu.alloc_pud = xen_alloc_pud;
+	pv_ops.mmu.release_pud = xen_release_pud;
 #endif
-	pv_mmu_ops.make_pte = PV_CALLEE_SAVE(xen_make_pte);
+	pv_ops.mmu.make_pte = PV_CALLEE_SAVE(xen_make_pte);
 
 #ifdef CONFIG_X86_64
-	pv_mmu_ops.write_cr3 = &xen_write_cr3;
+	pv_ops.mmu.write_cr3 = &xen_write_cr3;
 #endif
 }
 
@@ -2470,7 +2470,7 @@ void __init xen_init_mmu_ops(void)
 	x86_init.paging.pagetable_init = xen_pagetable_init;
 	x86_init.hyper.init_after_bootmem = xen_after_bootmem;
 
-	pv_mmu_ops = xen_mmu_ops;
+	pv_ops.mmu = xen_mmu_ops;
 
 	memset(dummy_mapping, 0xff, PAGE_SIZE);
 }

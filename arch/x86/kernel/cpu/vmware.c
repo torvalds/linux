@@ -97,14 +97,14 @@ static void __init vmware_sched_clock_setup(void)
 	d->cyc2ns_offset = mul_u64_u32_shr(tsc_now, d->cyc2ns_mul,
 					   d->cyc2ns_shift);
 
-	pv_time_ops.sched_clock = vmware_sched_clock;
+	pv_ops.time.sched_clock = vmware_sched_clock;
 	pr_info("using sched offset of %llu ns\n", d->cyc2ns_offset);
 }
 
 static void __init vmware_paravirt_ops_setup(void)
 {
 	pv_info.name = "VMware hypervisor";
-	pv_cpu_ops.io_delay = paravirt_nop;
+	pv_ops.cpu.io_delay = paravirt_nop;
 
 	if (vmware_tsc_khz && vmw_sched_clock)
 		vmware_sched_clock_setup();

@@ -321,28 +321,23 @@ struct pv_lock_ops {
  * number for each function using the offset which we use to indicate
  * what to patch. */
 struct paravirt_patch_template {
-	struct pv_init_ops pv_init_ops;
-	struct pv_time_ops pv_time_ops;
-	struct pv_cpu_ops pv_cpu_ops;
-	struct pv_irq_ops pv_irq_ops;
-	struct pv_mmu_ops pv_mmu_ops;
-	struct pv_lock_ops pv_lock_ops;
+	struct pv_init_ops	init;
+	struct pv_time_ops	time;
+	struct pv_cpu_ops	cpu;
+	struct pv_irq_ops	irq;
+	struct pv_mmu_ops	mmu;
+	struct pv_lock_ops	lock;
 } __no_randomize_layout;
 
 extern struct pv_info pv_info;
-extern struct pv_init_ops pv_init_ops;
-extern struct pv_time_ops pv_time_ops;
-extern struct pv_cpu_ops pv_cpu_ops;
-extern struct pv_irq_ops pv_irq_ops;
-extern struct pv_mmu_ops pv_mmu_ops;
-extern struct pv_lock_ops pv_lock_ops;
+extern struct paravirt_patch_template pv_ops;
 
 #define PARAVIRT_PATCH(x)					\
 	(offsetof(struct paravirt_patch_template, x) / sizeof(void *))
 
 #define paravirt_type(op)				\
 	[paravirt_typenum] "i" (PARAVIRT_PATCH(op)),	\
-	[paravirt_opptr] "i" (&(op))
+	[paravirt_opptr] "i" (&(pv_ops.op))
 #define paravirt_clobber(clobber)		\
 	[paravirt_clobber] "i" (clobber)
 
@@ -503,9 +498,9 @@ int paravirt_disable_iospace(void);
 #endif	/* CONFIG_X86_32 */
 
 #ifdef CONFIG_PARAVIRT_DEBUG
-#define PVOP_TEST_NULL(op)	BUG_ON(op == NULL)
+#define PVOP_TEST_NULL(op)	BUG_ON(pv_ops.op == NULL)
 #else
-#define PVOP_TEST_NULL(op)	((void)op)
+#define PVOP_TEST_NULL(op)	((void)pv_ops.op)
 #endif
 
 #define PVOP_RETMASK(rettype)						\

@@ -513,7 +513,7 @@ static void __init xen_time_init(void)
 void __init xen_init_time_ops(void)
 {
 	xen_sched_clock_offset = xen_clocksource_read();
-	pv_time_ops = xen_time_ops;
+	pv_ops.time = xen_time_ops;
 
 	x86_init.timers.timer_init = xen_time_init;
 	x86_init.timers.setup_percpu_clockev = x86_init_noop;
@@ -555,7 +555,7 @@ void __init xen_hvm_init_time_ops(void)
 	}
 
 	xen_sched_clock_offset = xen_clocksource_read();
-	pv_time_ops = xen_time_ops;
+	pv_ops.time = xen_time_ops;
 	x86_init.timers.setup_percpu_clockev = xen_time_init;
 	x86_cpuinit.setup_percpu_clockev = xen_hvm_setup_cpu_clockevents;
 

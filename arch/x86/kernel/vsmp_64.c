@@ -73,10 +73,10 @@ static unsigned __init vsmp_patch(u8 type, void *ibuf,
 				  unsigned long addr, unsigned len)
 {
 	switch (type) {
-	case PARAVIRT_PATCH(pv_irq_ops.irq_enable):
-	case PARAVIRT_PATCH(pv_irq_ops.irq_disable):
-	case PARAVIRT_PATCH(pv_irq_ops.save_fl):
-	case PARAVIRT_PATCH(pv_irq_ops.restore_fl):
+	case PARAVIRT_PATCH(irq.irq_enable):
+	case PARAVIRT_PATCH(irq.irq_disable):
+	case PARAVIRT_PATCH(irq.save_fl):
+	case PARAVIRT_PATCH(irq.restore_fl):
 		return paravirt_patch_default(type, ibuf, addr, len);
 	default:
 		return native_patch(type, ibuf, addr, len);
@@ -111,11 +111,11 @@ static void __init set_vsmp_pv_ops(void)
 
 	if (cap & ctl & (1 << 4)) {
 		/* Setup irq ops and turn on vSMP  IRQ fastpath handling */
-		pv_irq_ops.irq_disable = PV_CALLEE_SAVE(vsmp_irq_disable);
-		pv_irq_ops.irq_enable  = PV_CALLEE_SAVE(vsmp_irq_enable);
-		pv_irq_ops.save_fl  = PV_CALLEE_SAVE(vsmp_save_fl);
-		pv_irq_ops.restore_fl  = PV_CALLEE_SAVE(vsmp_restore_fl);
-		pv_init_ops.patch = vsmp_patch;
+		pv_ops.irq.irq_disable = PV_CALLEE_SAVE(vsmp_irq_disable);
+		pv_ops.irq.irq_enable = PV_CALLEE_SAVE(vsmp_irq_enable);
+		pv_ops.irq.save_fl = PV_CALLEE_SAVE(vsmp_save_fl);
+		pv_ops.irq.restore_fl = PV_CALLEE_SAVE(vsmp_restore_fl);
+		pv_ops.init.patch = vsmp_patch;
 		ctl &= ~(1 << 4);
 	}
 	writel(ctl, address + 4);
