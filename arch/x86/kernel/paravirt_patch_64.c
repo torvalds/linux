@@ -38,8 +38,7 @@ unsigned paravirt_patch_ident_64(void *insnbuf, unsigned len)
 extern bool pv_is_native_spin_unlock(void);
 extern bool pv_is_native_vcpu_is_preempted(void);
 
-unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
-		      unsigned long addr, unsigned len)
+unsigned native_patch(u8 type, void *ibuf, unsigned long addr, unsigned len)
 {
 	const unsigned char *start, *end;
 	unsigned ret;
@@ -80,7 +79,7 @@ unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
 
 	default:
 patch_default: __maybe_unused
-		ret = paravirt_patch_default(type, clobbers, ibuf, addr, len);
+		ret = paravirt_patch_default(type, ibuf, addr, len);
 		break;
 
 patch_site:
