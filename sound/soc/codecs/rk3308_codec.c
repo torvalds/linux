@@ -1973,10 +1973,12 @@ static bool has_en_always_grps(struct rk3308_codec_priv *rk3308)
 {
 	int idx;
 
-	for (idx = 0; idx < ADC_LR_GROUP_MAX; idx++) {
-		if (rk3308->en_always_grps[idx] >= 0 &&
-		    rk3308->en_always_grps[idx] <= ADC_LR_GROUP_MAX - 1)
-			return true;
+	if (rk3308->en_always_grps_num) {
+		for (idx = 0; idx < ADC_LR_GROUP_MAX; idx++) {
+			if (rk3308->en_always_grps[idx] >= 0 &&
+			    rk3308->en_always_grps[idx] <= ADC_LR_GROUP_MAX - 1)
+				return true;
+		}
 	}
 
 	return false;
