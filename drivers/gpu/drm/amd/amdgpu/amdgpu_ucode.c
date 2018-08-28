@@ -277,6 +277,7 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	case CHIP_PITCAIRN:
 	case CHIP_VERDE:
 	case CHIP_OLAND:
+	case CHIP_HAINAN:
 		return AMDGPU_FW_LOAD_DIRECT;
 #endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
