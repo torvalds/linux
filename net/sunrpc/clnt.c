@@ -1946,9 +1946,7 @@ call_transmit(struct rpc_task *task)
 
 	dprint_status(task);
 
-	task->tk_action = call_status;
-	if (task->tk_status < 0)
-		return;
+	task->tk_action = call_transmit_status;
 	/* Encode here so that rpcsec_gss can use correct sequence number. */
 	if (rpc_task_need_encode(task)) {
 		rpc_xdr_encode(task);
@@ -1969,7 +1967,6 @@ call_transmit(struct rpc_task *task)
 
 	if (!xprt_prepare_transmit(task))
 		return;
-	task->tk_action = call_transmit_status;
 	xprt_transmit(task);
 	if (task->tk_status < 0)
 		return;
@@ -1996,11 +1993,14 @@ call_transmit_status(struct rpc_task *task)
 	}
 
 	switch (task->tk_status) {
-	case -EAGAIN:
-	case -ENOBUFS:
-		break;
 	default:
 		dprint_status(task);
+		xprt_end_transmit(task);
+		break;
+	case -EBADMSG:
+		clear_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate);
+		task->tk_action = call_transmit;
+		task->tk_status = 0;
 		xprt_end_transmit(task);
 		break;
 		/*
@@ -2009,6 +2009,13 @@ call_transmit_status(struct rpc_task *task)
 		 * socket just returned a connection error,
 		 * then hold onto the transport lock.
 		 */
+	case -ENOBUFS:
+		rpc_delay(task, HZ>>2);
+		/* fall through */
+	case -EAGAIN:
+		task->tk_action = call_transmit;
+		task->tk_status = 0;
+		break;
 	case -ECONNREFUSED:
 	case -EHOSTDOWN:
 	case -ENETDOWN:
@@ -2163,21 +2170,12 @@ call_status(struct rpc_task *task)
 		/* fall through */
 	case -EPIPE:
 	case -ENOTCONN:
-		task->tk_action = call_bind;
-		break;
-	case -ENOBUFS:
-		rpc_delay(task, HZ>>2);
-		/* fall through */
 	case -EAGAIN:
-		task->tk_action = call_transmit;
+		task->tk_action = call_bind;
 		break;
 	case -EIO:
 		/* shutdown or soft timeout */
 		rpc_exit(task, status);
-		break;
-	case -EBADMSG:
-		clear_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate);
-		task->tk_action = call_transmit;
 		break;
 	default:
 		if (clnt->cl_chatty)
