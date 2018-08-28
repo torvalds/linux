@@ -129,8 +129,8 @@ static int qoriq_tmu_get_sensor_id(void)
 	if (sensor_specs.args_count >= 1) {
 		id = sensor_specs.args[0];
 		WARN(sensor_specs.args_count > 1,
-				"%s: too many cells in sensor specifier %d\n",
-				sensor_specs.np->name, sensor_specs.args_count);
+				"%pOFn: too many cells in sensor specifier %d\n",
+				sensor_specs.np, sensor_specs.args_count);
 	} else {
 		id = 0;
 	}
