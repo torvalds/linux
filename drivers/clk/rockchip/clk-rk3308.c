@@ -403,9 +403,15 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 			RK3308_CLKSEL_CON(28), 14, 2, MFLAGS, 0, 7, DFLAGS,
 			RK3308_CLKGATE_CON(3), 0, GFLAGS),
 
-	COMPOSITE(SCLK_PWM, "clk_pwm", mux_dpll_vpll0_xin24m_p, 0,
+	COMPOSITE(SCLK_PWM0, "clk_pwm0", mux_dpll_vpll0_xin24m_p, 0,
 			RK3308_CLKSEL_CON(29), 14, 2, MFLAGS, 0, 7, DFLAGS,
 			RK3308_CLKGATE_CON(3), 1, GFLAGS),
+	COMPOSITE(SCLK_PWM1, "clk_pwm1", mux_dpll_vpll0_xin24m_p, 0,
+			RK3308_CLKSEL_CON(74), 14, 2, MFLAGS, 0, 7, DFLAGS,
+			RK3308_CLKGATE_CON(15), 0, GFLAGS),
+	COMPOSITE(SCLK_PWM2, "clk_pwm2", mux_dpll_vpll0_xin24m_p, 0,
+			RK3308_CLKSEL_CON(75), 14, 2, MFLAGS, 0, 7, DFLAGS,
+			RK3308_CLKGATE_CON(15), 1, GFLAGS),
 
 	COMPOSITE(SCLK_SPI0, "clk_isp0", mux_dpll_vpll0_xin24m_p, 0,
 			RK3308_CLKSEL_CON(30), 14, 2, MFLAGS, 0, 7, DFLAGS,
@@ -547,6 +553,10 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 	FACTOR(0, "clk_mac_rx_tx_div20", "clk_mac_rx_tx", 0, 1, 20),
 	MUX(SCLK_MAC_RMII, "clk_mac_rmii_sel", mux_mac_rmii_sel_p,  CLK_SET_RATE_PARENT,
 			RK3308_CLKSEL_CON(43), 15, 1, MFLAGS),
+
+	COMPOSITE(SCLK_OWIRE, "clk_owire", mux_dpll_vpll0_xin24m_p, 0,
+			RK3308_CLKSEL_CON(44), 14, 2, MFLAGS, 8, 6, DFLAGS,
+			RK3308_CLKGATE_CON(8), 15, GFLAGS),
 
 	/*
 	 * Clock-Architecture Diagram 5
@@ -864,7 +874,7 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 	GATE(PCLK_I2C1, "pclk_i2c1", "pclk_bus", 0, RK3308_CLKGATE_CON(6), 0, GFLAGS),
 	GATE(PCLK_I2C2, "pclk_i2c2", "pclk_bus", 0, RK3308_CLKGATE_CON(6), 1, GFLAGS),
 	GATE(PCLK_I2C3, "pclk_i2c3", "pclk_bus", 0, RK3308_CLKGATE_CON(6), 2, GFLAGS),
-	GATE(PCLK_PWM, "pclk_pwm", "pclk_bus", 0, RK3308_CLKGATE_CON(6), 3, GFLAGS),
+	GATE(PCLK_PWM0, "pclk_pwm0", "pclk_bus", 0, RK3308_CLKGATE_CON(6), 3, GFLAGS),
 	GATE(PCLK_SPI0, "pclk_spi0", "pclk_bus", 0, RK3308_CLKGATE_CON(6), 4, GFLAGS),
 	GATE(PCLK_SPI1, "pclk_spi1", "pclk_bus", 0, RK3308_CLKGATE_CON(6), 5, GFLAGS),
 	GATE(PCLK_SPI2, "pclk_spi2", "pclk_bus", 0, RK3308_CLKGATE_CON(6), 6, GFLAGS),
@@ -888,6 +898,10 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 	GATE(PCLK_CRU, "pclk_cru", "pclk_bus", CLK_IGNORE_UNUSED, RK3308_CLKGATE_CON(7), 9, GFLAGS),
 	GATE(PCLK_OTP_PHY, "pclk_otp_phy", "pclk_bus", 0, RK3308_CLKGATE_CON(7), 10, GFLAGS),
 	GATE(PCLK_CPU_BOOST, "pclk_cpu_boost", "pclk_bus", CLK_IGNORE_UNUSED, RK3308_CLKGATE_CON(7), 11, GFLAGS),
+	GATE(PCLK_PWM1, "pclk_pwm1", "pclk_bus", CLK_IGNORE_UNUSED, RK3308_CLKGATE_CON(7), 12, GFLAGS),
+	GATE(PCLK_PWM2, "pclk_pwm2", "pclk_bus", CLK_IGNORE_UNUSED, RK3308_CLKGATE_CON(7), 13, GFLAGS),
+	GATE(PCLK_CAN, "pclk_can", "pclk_bus", CLK_IGNORE_UNUSED, RK3308_CLKGATE_CON(7), 14, GFLAGS),
+	GATE(PCLK_OWIRE, "pclk_owire", "pclk_bus", CLK_IGNORE_UNUSED, RK3308_CLKGATE_CON(7), 15, GFLAGS),
 };
 
 static const char *const rk3308_critical_clocks[] __initconst = {
