@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "event-parse.h"
+#include "trace-seq.h"
 
 static int timer_expire_handler(struct trace_seq *s,
 				struct tep_record *record,

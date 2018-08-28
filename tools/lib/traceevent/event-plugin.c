@@ -15,6 +15,7 @@
 #include <dirent.h>
 #include "event-parse.h"
 #include "event-utils.h"
+#include "trace-seq.h"
 
 #define LOCAL_PLUGIN_DIR ".traceevent/plugins"
 
