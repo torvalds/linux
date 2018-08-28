@@ -652,6 +652,7 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 		nfp->expl.data = bar->iomem + NFP_PCIE_SRAM + 0x1000;
 
 		if (nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP4000 ||
+		    nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP5000 ||
 		    nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP6000) {
 			nfp->iomem.csr = bar->iomem + NFP_PCIE_BAR(0);
 		} else {
@@ -663,6 +664,7 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 	}
 
 	if (nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP4000 ||
+	    nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP5000 ||
 	    nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP6000)
 		expl_groups = 4;
 	else
@@ -1327,7 +1329,7 @@ struct nfp_cpp *nfp_cpp_from_nfp6000_pcie(struct pci_dev *pdev)
 
 	/*  Finished with card initialization. */
 	dev_info(&pdev->dev,
-		 "Netronome Flow Processor NFP4000/NFP6000 PCIe Card Probe\n");
+		 "Netronome Flow Processor NFP4000/NFP5000/NFP6000 PCIe Card Probe\n");
 	pcie_print_link_status(pdev);
 
 	nfp = kzalloc(sizeof(*nfp), GFP_KERNEL);
