@@ -7,7 +7,7 @@ void rtl8192u_dot11d_init(struct ieee80211_device *ieee)
 {
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(ieee);
 
-	pDot11dInfo->enabled = false;
+	pDot11dInfo->dot11d_enabled = false;
 
 	pDot11dInfo->state = DOT11D_STATE_NONE;
 	pDot11dInfo->country_ie_len = 0;
