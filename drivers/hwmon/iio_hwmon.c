@@ -137,14 +137,15 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	st->attr_group.attrs = st->attrs;
 	st->groups[0] = &st->attr_group;
 
-	if (dev->of_node)
+	if (dev->of_node) {
 		sname = devm_kasprintf(dev, GFP_KERNEL, "%pOFn", dev->of_node);
-	else
-		sname = devm_kstrdup(dev, "iio_hwmon", GFP_KERNEL);
-	if (!sname)
-		return -ENOMEM;
+		if (!sname)
+			return -ENOMEM;
+		strreplace(sname, '-', '_');
+	} else {
+		sname = "iio_hwmon";
+	}
 
-	strreplace(sname, '-', '_');
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, sname, st,
 							   st->groups);
 	return PTR_ERR_OR_ZERO(hwmon_dev);
