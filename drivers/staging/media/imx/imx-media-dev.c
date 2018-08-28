@@ -89,8 +89,12 @@ int imx_media_add_async_subdev(struct imx_media_dev *imxmd,
 
 	/* return -EEXIST if this asd already added */
 	if (find_async_subdev(imxmd, fwnode, devname)) {
-		dev_dbg(imxmd->md.dev, "%s: already added %s\n",
-			__func__, np ? np->name : devname);
+		if (np)
+			dev_dbg(imxmd->md.dev, "%s: already added %pOFn\n",
+			__func__, np);
+		else
+			dev_dbg(imxmd->md.dev, "%s: already added %s\n",
+			__func__, devname);
 		ret = -EEXIST;
 		goto out;
 	}
@@ -105,18 +109,19 @@ int imx_media_add_async_subdev(struct imx_media_dev *imxmd,
 	if (fwnode) {
 		asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
 		asd->match.fwnode = fwnode;
+		dev_dbg(imxmd->md.dev, "%s: added %pOFn, match type FWNODE\n",
+			__func__, np);
 	} else {
 		asd->match_type = V4L2_ASYNC_MATCH_DEVNAME;
 		asd->match.device_name = devname;
 		imxasd->pdev = pdev;
+		dev_dbg(imxmd->md.dev, "%s: added %s, match type DEVNAME\n",
+			__func__, devname);
 	}
 
 	list_add_tail(&imxasd->list, &imxmd->asd_list);
 
 	imxmd->subdev_notifier.num_subdevs++;
-
-	dev_dbg(imxmd->md.dev, "%s: added %s, match type %s\n",
-		__func__, np ? np->name : devname, np ? "FWNODE" : "DEVNAME");
 
 out:
 	mutex_unlock(&imxmd->mutex);
