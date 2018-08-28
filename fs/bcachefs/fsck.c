@@ -375,17 +375,15 @@ fsck_err:
 	kfree(d);
 	return ret;
 err_redo:
-	bch_err(c, "cannot fix dirent by removing trailing garbage %s (%zu)",
-		buf, strlen(buf));
-
 	hash = bch2_dirent_hash_desc.hash_bkey(&h->info, *k);
 
-	if (fsck_err(c, "hash table key at wrong offset: btree %u, offset %llu, "
-			"hashed to %llu chain starts at %llu\n%s",
-			BTREE_ID_DIRENTS,
-			k->k->p.offset, hash, h->chain->pos.offset,
-			(bch2_bkey_val_to_text(c, bkey_type(0, BTREE_ID_DIRENTS),
-					       buf, sizeof(buf), *k), buf))) {
+	if (fsck_err(c, "cannot fix dirent by removing trailing garbage %s (%zu)\n"
+		     "hash table key at wrong offset: btree %u, offset %llu, "
+		     "hashed to %llu chain starts at %llu\n%s",
+		     buf, strlen(buf), BTREE_ID_DIRENTS,
+		     k->k->p.offset, hash, h->chain->pos.offset,
+		     (bch2_bkey_val_to_text(c, bkey_type(0, BTREE_ID_DIRENTS),
+					    buf, sizeof(buf), *k), buf))) {
 		ret = hash_redo_key(bch2_dirent_hash_desc,
 				    h, c, iter, *k, hash);
 		if (ret)
