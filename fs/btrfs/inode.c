@@ -2750,11 +2750,8 @@ static void relink_file_extents(struct new_sa_defrag_extent *new)
 	struct btrfs_path *path;
 	struct sa_defrag_extent_backref *backref;
 	struct sa_defrag_extent_backref *prev = NULL;
-	struct inode *inode;
 	struct rb_node *node;
 	int ret;
-
-	inode = new->inode;
 
 	path = btrfs_alloc_path();
 	if (!path)
