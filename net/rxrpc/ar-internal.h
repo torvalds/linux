@@ -420,6 +420,7 @@ struct rxrpc_connection {
 	struct rxrpc_channel {
 		unsigned long		final_ack_at;	/* Time at which to issue final ACK */
 		struct rxrpc_call __rcu	*call;		/* Active call */
+		unsigned int		call_debug_id;	/* call->debug_id */
 		u32			call_id;	/* ID of current call */
 		u32			call_counter;	/* Call ID counter */
 		u32			last_call;	/* ID of last call */
@@ -478,6 +479,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_RETRANS_TIMEOUT,	/* Retransmission due to timeout occurred */
 	RXRPC_CALL_BEGAN_RX_TIMER,	/* We began the expect_rx_by timer */
 	RXRPC_CALL_RX_HEARD,		/* The peer responded at least once to this call */
+	RXRPC_CALL_RX_UNDERRUN,		/* Got data underrun */
 };
 
 /*
@@ -588,7 +590,7 @@ struct rxrpc_call {
 	 */
 #define RXRPC_RXTX_BUFF_SIZE	64
 #define RXRPC_RXTX_BUFF_MASK	(RXRPC_RXTX_BUFF_SIZE - 1)
-#define RXRPC_INIT_RX_WINDOW_SIZE 32
+#define RXRPC_INIT_RX_WINDOW_SIZE 63
 	struct sk_buff		**rxtx_buffer;
 	u8			*rxtx_annotations;
 #define RXRPC_TX_ANNO_ACK	0

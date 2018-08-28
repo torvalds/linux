@@ -48,11 +48,23 @@ ENTRY(startup_continue)
 # Early machine initialization and detection functions.
 #
 	brasl	%r14,startup_init
-	lpswe	.Lentry-.LPG1(13)	# jump to _stext in primary-space,
-					# virtual and never return ...
+
+# check control registers
+	stctg	%c0,%c15,0(%r15)
+	oi	6(%r15),0x60		# enable sigp emergency & external call
+	oi	4(%r15),0x10		# switch on low address proctection
+	lctlg	%c0,%c15,0(%r15)
+
+	lam	0,15,.Laregs-.LPG1(%r13)	# load acrs needed by uaccess
+	brasl	%r14,start_kernel		# go to C code
+#
+# We returned from start_kernel ?!? PANIK
+#
+	basr	%r13,0
+	lpswe	.Ldw-.(%r13)		# load disabled wait psw
+
 	.align	16
 .LPG1:
-.Lentry:.quad	0x0000000180000000,_stext
 .Lctl:	.quad	0x04040000		# cr0: AFP registers & secondary space
 	.quad	0			# cr1: primary space segment table
 	.quad	.Lduct			# cr2: dispatchable unit control table
@@ -85,30 +97,5 @@ ENTRY(startup_continue)
 	.endr
 .Llinkage_stack:
 	.long	0,0,0x89000000,0,0,0,0x8a000000,0
-
-ENTRY(_ehead)
-
-	.org	0x100000 - 0x11000	# head.o ends at 0x11000
-#
-# startup-code, running in absolute addressing mode
-#
-ENTRY(_stext)
-	basr	%r13,0			# get base
-.LPG3:
-# check control registers
-	stctg	%c0,%c15,0(%r15)
-	oi	6(%r15),0x60		# enable sigp emergency & external call
-	oi	4(%r15),0x10		# switch on low address proctection
-	lctlg	%c0,%c15,0(%r15)
-
-	lam	0,15,.Laregs-.LPG3(%r13)	# load acrs needed by uaccess
-	brasl	%r14,start_kernel	# go to C code
-#
-# We returned from start_kernel ?!? PANIK
-#
-	basr	%r13,0
-	lpswe	.Ldw-.(%r13)		# load disabled wait psw
-
-	.align	8
 .Ldw:	.quad	0x0002000180000000,0x0000000000000000
 .Laregs:.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

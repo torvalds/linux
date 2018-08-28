@@ -121,6 +121,7 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 		.encrypted_page = NULL,
 		.io_type = FS_DATA_IO,
 	};
+	struct node_info ni;
 	int dirty, err;
 
 	if (!f2fs_exist_data(dn->inode))
@@ -129,6 +130,24 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 	err = f2fs_reserve_block(dn, 0);
 	if (err)
 		return err;
+
+	err = f2fs_get_node_info(fio.sbi, dn->nid, &ni);
+	if (err) {
+		f2fs_put_dnode(dn);
+		return err;
+	}
+
+	fio.version = ni.version;
+
+	if (unlikely(dn->data_blkaddr != NEW_ADDR)) {
+		f2fs_put_dnode(dn);
+		set_sbi_flag(fio.sbi, SBI_NEED_FSCK);
+		f2fs_msg(fio.sbi->sb, KERN_WARNING,
+			"%s: corrupted inline inode ino=%lx, i_addr[0]:0x%x, "
+			"run fsck to fix.",
+			__func__, dn->inode->i_ino, dn->data_blkaddr);
+		return -EINVAL;
+	}
 
 	f2fs_bug_on(F2FS_P_SB(page), PageWriteback(page));
 
@@ -363,6 +382,17 @@ static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
 	if (err)
 		goto out;
 
+	if (unlikely(dn.data_blkaddr != NEW_ADDR)) {
+		f2fs_put_dnode(&dn);
+		set_sbi_flag(F2FS_P_SB(page), SBI_NEED_FSCK);
+		f2fs_msg(F2FS_P_SB(page)->sb, KERN_WARNING,
+			"%s: corrupted inline inode ino=%lx, i_addr[0]:0x%x, "
+			"run fsck to fix.",
+			__func__, dir->i_ino, dn.data_blkaddr);
+		err = -EINVAL;
+		goto out;
+	}
+
 	f2fs_wait_on_page_writeback(page, DATA, true);
 
 	dentry_blk = page_address(page);
@@ -477,6 +507,7 @@ static int f2fs_move_rehashed_dirents(struct inode *dir, struct page *ipage,
 	return 0;
 recover:
 	lock_page(ipage);
+	f2fs_wait_on_page_writeback(ipage, NODE, true);
 	memcpy(inline_dentry, backup_dentry, MAX_INLINE_DATA(dir));
 	f2fs_i_depth_write(dir, 0);
 	f2fs_i_size_write(dir, MAX_INLINE_DATA(dir));
@@ -668,7 +699,10 @@ int f2fs_inline_data_fiemap(struct inode *inode,
 		ilen = start + len;
 	ilen -= start;
 
-	f2fs_get_node_info(F2FS_I_SB(inode), inode->i_ino, &ni);
+	err = f2fs_get_node_info(F2FS_I_SB(inode), inode->i_ino, &ni);
+	if (err)
+		goto out;
+
 	byteaddr = (__u64)ni.blk_addr << inode->i_sb->s_blocksize_bits;
 	byteaddr += (char *)inline_data_addr(inode, ipage) -
 					(char *)F2FS_INODE(ipage);

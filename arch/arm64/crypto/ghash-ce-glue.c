@@ -1,7 +1,7 @@
 /*
  * Accelerated GHASH implementation with ARMv8 PMULL instructions.
  *
- * Copyright (C) 2014 - 2017 Linaro Ltd. <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2014 - 2018 Linaro Ltd. <ard.biesheuvel@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -33,9 +33,12 @@ MODULE_ALIAS_CRYPTO("ghash");
 #define GCM_IV_SIZE		12
 
 struct ghash_key {
-	u64 a;
-	u64 b;
-	be128 k;
+	u64			h[2];
+	u64			h2[2];
+	u64			h3[2];
+	u64			h4[2];
+
+	be128			k;
 };
 
 struct ghash_desc_ctx {
@@ -113,6 +116,9 @@ static void ghash_do_update(int blocks, u64 dg[], const char *src,
 	}
 }
 
+/* avoid hogging the CPU for too long */
+#define MAX_BLOCKS	(SZ_64K / GHASH_BLOCK_SIZE)
+
 static int ghash_update(struct shash_desc *desc, const u8 *src,
 			unsigned int len)
 {
@@ -136,11 +142,16 @@ static int ghash_update(struct shash_desc *desc, const u8 *src,
 		blocks = len / GHASH_BLOCK_SIZE;
 		len %= GHASH_BLOCK_SIZE;
 
-		ghash_do_update(blocks, ctx->digest, src, key,
-				partial ? ctx->buf : NULL);
+		do {
+			int chunk = min(blocks, MAX_BLOCKS);
 
-		src += blocks * GHASH_BLOCK_SIZE;
-		partial = 0;
+			ghash_do_update(chunk, ctx->digest, src, key,
+					partial ? ctx->buf : NULL);
+
+			blocks -= chunk;
+			src += chunk * GHASH_BLOCK_SIZE;
+			partial = 0;
+		} while (unlikely(blocks > 0));
 	}
 	if (len)
 		memcpy(ctx->buf + partial, src, len);
@@ -166,23 +177,36 @@ static int ghash_final(struct shash_desc *desc, u8 *dst)
 	return 0;
 }
 
+static void ghash_reflect(u64 h[], const be128 *k)
+{
+	u64 carry = be64_to_cpu(k->a) & BIT(63) ? 1 : 0;
+
+	h[0] = (be64_to_cpu(k->b) << 1) | carry;
+	h[1] = (be64_to_cpu(k->a) << 1) | (be64_to_cpu(k->b) >> 63);
+
+	if (carry)
+		h[1] ^= 0xc200000000000000UL;
+}
+
 static int __ghash_setkey(struct ghash_key *key,
 			  const u8 *inkey, unsigned int keylen)
 {
-	u64 a, b;
+	be128 h;
 
 	/* needed for the fallback */
 	memcpy(&key->k, inkey, GHASH_BLOCK_SIZE);
 
-	/* perform multiplication by 'x' in GF(2^128) */
-	b = get_unaligned_be64(inkey);
-	a = get_unaligned_be64(inkey + 8);
+	ghash_reflect(key->h, &key->k);
 
-	key->a = (a << 1) | (b >> 63);
-	key->b = (b << 1) | (a >> 63);
+	h = key->k;
+	gf128mul_lle(&h, &key->k);
+	ghash_reflect(key->h2, &h);
 
-	if (b >> 63)
-		key->b ^= 0xc200000000000000UL;
+	gf128mul_lle(&h, &key->k);
+	ghash_reflect(key->h3, &h);
+
+	gf128mul_lle(&h, &key->k);
+	ghash_reflect(key->h4, &h);
 
 	return 0;
 }
@@ -204,7 +228,6 @@ static struct shash_alg ghash_alg = {
 	.base.cra_name		= "ghash",
 	.base.cra_driver_name	= "ghash-ce",
 	.base.cra_priority	= 200,
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= GHASH_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct ghash_key),
 	.base.cra_module	= THIS_MODULE,
@@ -245,7 +268,7 @@ static int gcm_setkey(struct crypto_aead *tfm, const u8 *inkey,
 	__aes_arm64_encrypt(ctx->aes_key.key_enc, key, (u8[AES_BLOCK_SIZE]){},
 			    num_rounds(&ctx->aes_key));
 
-	return __ghash_setkey(&ctx->ghash_key, key, sizeof(key));
+	return __ghash_setkey(&ctx->ghash_key, key, sizeof(be128));
 }
 
 static int gcm_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
@@ -349,9 +372,10 @@ static int gcm_encrypt(struct aead_request *req)
 	struct gcm_aes_ctx *ctx = crypto_aead_ctx(aead);
 	struct skcipher_walk walk;
 	u8 iv[AES_BLOCK_SIZE];
-	u8 ks[AES_BLOCK_SIZE];
+	u8 ks[2 * AES_BLOCK_SIZE];
 	u8 tag[AES_BLOCK_SIZE];
 	u64 dg[2] = {};
+	int nrounds = num_rounds(&ctx->aes_key);
 	int err;
 
 	if (req->assoclen)
@@ -360,38 +384,38 @@ static int gcm_encrypt(struct aead_request *req)
 	memcpy(iv, req->iv, GCM_IV_SIZE);
 	put_unaligned_be32(1, iv + GCM_IV_SIZE);
 
-	if (likely(may_use_simd())) {
+	err = skcipher_walk_aead_encrypt(&walk, req, false);
+
+	if (likely(may_use_simd() && walk.total >= 2 * AES_BLOCK_SIZE)) {
+		u32 const *rk = NULL;
+
 		kernel_neon_begin();
-
-		pmull_gcm_encrypt_block(tag, iv, ctx->aes_key.key_enc,
-					num_rounds(&ctx->aes_key));
+		pmull_gcm_encrypt_block(tag, iv, ctx->aes_key.key_enc, nrounds);
 		put_unaligned_be32(2, iv + GCM_IV_SIZE);
-		pmull_gcm_encrypt_block(ks, iv, NULL,
-					num_rounds(&ctx->aes_key));
+		pmull_gcm_encrypt_block(ks, iv, NULL, nrounds);
 		put_unaligned_be32(3, iv + GCM_IV_SIZE);
-		kernel_neon_end();
+		pmull_gcm_encrypt_block(ks + AES_BLOCK_SIZE, iv, NULL, nrounds);
+		put_unaligned_be32(4, iv + GCM_IV_SIZE);
 
-		err = skcipher_walk_aead_encrypt(&walk, req, false);
+		do {
+			int blocks = walk.nbytes / (2 * AES_BLOCK_SIZE) * 2;
 
-		while (walk.nbytes >= AES_BLOCK_SIZE) {
-			int blocks = walk.nbytes / AES_BLOCK_SIZE;
+			if (rk)
+				kernel_neon_begin();
 
-			kernel_neon_begin();
 			pmull_gcm_encrypt(blocks, dg, walk.dst.virt.addr,
 					  walk.src.virt.addr, &ctx->ghash_key,
-					  iv, ctx->aes_key.key_enc,
-					  num_rounds(&ctx->aes_key), ks);
+					  iv, rk, nrounds, ks);
 			kernel_neon_end();
 
 			err = skcipher_walk_done(&walk,
-						 walk.nbytes % AES_BLOCK_SIZE);
-		}
-	} else {
-		__aes_arm64_encrypt(ctx->aes_key.key_enc, tag, iv,
-				    num_rounds(&ctx->aes_key));
-		put_unaligned_be32(2, iv + GCM_IV_SIZE);
+					walk.nbytes % (2 * AES_BLOCK_SIZE));
 
-		err = skcipher_walk_aead_encrypt(&walk, req, false);
+			rk = ctx->aes_key.key_enc;
+		} while (walk.nbytes >= 2 * AES_BLOCK_SIZE);
+	} else {
+		__aes_arm64_encrypt(ctx->aes_key.key_enc, tag, iv, nrounds);
+		put_unaligned_be32(2, iv + GCM_IV_SIZE);
 
 		while (walk.nbytes >= AES_BLOCK_SIZE) {
 			int blocks = walk.nbytes / AES_BLOCK_SIZE;
@@ -400,8 +424,7 @@ static int gcm_encrypt(struct aead_request *req)
 
 			do {
 				__aes_arm64_encrypt(ctx->aes_key.key_enc,
-						    ks, iv,
-						    num_rounds(&ctx->aes_key));
+						    ks, iv, nrounds);
 				crypto_xor_cpy(dst, src, ks, AES_BLOCK_SIZE);
 				crypto_inc(iv, AES_BLOCK_SIZE);
 
@@ -418,19 +441,28 @@ static int gcm_encrypt(struct aead_request *req)
 		}
 		if (walk.nbytes)
 			__aes_arm64_encrypt(ctx->aes_key.key_enc, ks, iv,
-					    num_rounds(&ctx->aes_key));
+					    nrounds);
 	}
 
 	/* handle the tail */
 	if (walk.nbytes) {
 		u8 buf[GHASH_BLOCK_SIZE];
+		unsigned int nbytes = walk.nbytes;
+		u8 *dst = walk.dst.virt.addr;
+		u8 *head = NULL;
 
 		crypto_xor_cpy(walk.dst.virt.addr, walk.src.virt.addr, ks,
 			       walk.nbytes);
 
-		memcpy(buf, walk.dst.virt.addr, walk.nbytes);
-		memset(buf + walk.nbytes, 0, GHASH_BLOCK_SIZE - walk.nbytes);
-		ghash_do_update(1, dg, buf, &ctx->ghash_key, NULL);
+		if (walk.nbytes > GHASH_BLOCK_SIZE) {
+			head = dst;
+			dst += GHASH_BLOCK_SIZE;
+			nbytes %= GHASH_BLOCK_SIZE;
+		}
+
+		memcpy(buf, dst, nbytes);
+		memset(buf + nbytes, 0, GHASH_BLOCK_SIZE - nbytes);
+		ghash_do_update(!!nbytes, dg, buf, &ctx->ghash_key, head);
 
 		err = skcipher_walk_done(&walk, 0);
 	}
@@ -453,10 +485,11 @@ static int gcm_decrypt(struct aead_request *req)
 	struct gcm_aes_ctx *ctx = crypto_aead_ctx(aead);
 	unsigned int authsize = crypto_aead_authsize(aead);
 	struct skcipher_walk walk;
-	u8 iv[AES_BLOCK_SIZE];
+	u8 iv[2 * AES_BLOCK_SIZE];
 	u8 tag[AES_BLOCK_SIZE];
-	u8 buf[GHASH_BLOCK_SIZE];
+	u8 buf[2 * GHASH_BLOCK_SIZE];
 	u64 dg[2] = {};
+	int nrounds = num_rounds(&ctx->aes_key);
 	int err;
 
 	if (req->assoclen)
@@ -465,42 +498,52 @@ static int gcm_decrypt(struct aead_request *req)
 	memcpy(iv, req->iv, GCM_IV_SIZE);
 	put_unaligned_be32(1, iv + GCM_IV_SIZE);
 
-	if (likely(may_use_simd())) {
+	err = skcipher_walk_aead_decrypt(&walk, req, false);
+
+	if (likely(may_use_simd() && walk.total >= 2 * AES_BLOCK_SIZE)) {
+		u32 const *rk = NULL;
+
 		kernel_neon_begin();
-
-		pmull_gcm_encrypt_block(tag, iv, ctx->aes_key.key_enc,
-					num_rounds(&ctx->aes_key));
+		pmull_gcm_encrypt_block(tag, iv, ctx->aes_key.key_enc, nrounds);
 		put_unaligned_be32(2, iv + GCM_IV_SIZE);
-		kernel_neon_end();
 
-		err = skcipher_walk_aead_decrypt(&walk, req, false);
+		do {
+			int blocks = walk.nbytes / (2 * AES_BLOCK_SIZE) * 2;
+			int rem = walk.total - blocks * AES_BLOCK_SIZE;
 
-		while (walk.nbytes >= AES_BLOCK_SIZE) {
-			int blocks = walk.nbytes / AES_BLOCK_SIZE;
+			if (rk)
+				kernel_neon_begin();
 
-			kernel_neon_begin();
 			pmull_gcm_decrypt(blocks, dg, walk.dst.virt.addr,
 					  walk.src.virt.addr, &ctx->ghash_key,
-					  iv, ctx->aes_key.key_enc,
-					  num_rounds(&ctx->aes_key));
+					  iv, rk, nrounds);
+
+			/* check if this is the final iteration of the loop */
+			if (rem < (2 * AES_BLOCK_SIZE)) {
+				u8 *iv2 = iv + AES_BLOCK_SIZE;
+
+				if (rem > AES_BLOCK_SIZE) {
+					memcpy(iv2, iv, AES_BLOCK_SIZE);
+					crypto_inc(iv2, AES_BLOCK_SIZE);
+				}
+
+				pmull_gcm_encrypt_block(iv, iv, NULL, nrounds);
+
+				if (rem > AES_BLOCK_SIZE)
+					pmull_gcm_encrypt_block(iv2, iv2, NULL,
+								nrounds);
+			}
+
 			kernel_neon_end();
 
 			err = skcipher_walk_done(&walk,
-						 walk.nbytes % AES_BLOCK_SIZE);
-		}
-		if (walk.nbytes) {
-			kernel_neon_begin();
-			pmull_gcm_encrypt_block(iv, iv, ctx->aes_key.key_enc,
-						num_rounds(&ctx->aes_key));
-			kernel_neon_end();
-		}
+					walk.nbytes % (2 * AES_BLOCK_SIZE));
 
+			rk = ctx->aes_key.key_enc;
+		} while (walk.nbytes >= 2 * AES_BLOCK_SIZE);
 	} else {
-		__aes_arm64_encrypt(ctx->aes_key.key_enc, tag, iv,
-				    num_rounds(&ctx->aes_key));
+		__aes_arm64_encrypt(ctx->aes_key.key_enc, tag, iv, nrounds);
 		put_unaligned_be32(2, iv + GCM_IV_SIZE);
-
-		err = skcipher_walk_aead_decrypt(&walk, req, false);
 
 		while (walk.nbytes >= AES_BLOCK_SIZE) {
 			int blocks = walk.nbytes / AES_BLOCK_SIZE;
@@ -512,8 +555,7 @@ static int gcm_decrypt(struct aead_request *req)
 
 			do {
 				__aes_arm64_encrypt(ctx->aes_key.key_enc,
-						    buf, iv,
-						    num_rounds(&ctx->aes_key));
+						    buf, iv, nrounds);
 				crypto_xor_cpy(dst, src, buf, AES_BLOCK_SIZE);
 				crypto_inc(iv, AES_BLOCK_SIZE);
 
@@ -526,14 +568,24 @@ static int gcm_decrypt(struct aead_request *req)
 		}
 		if (walk.nbytes)
 			__aes_arm64_encrypt(ctx->aes_key.key_enc, iv, iv,
-					    num_rounds(&ctx->aes_key));
+					    nrounds);
 	}
 
 	/* handle the tail */
 	if (walk.nbytes) {
-		memcpy(buf, walk.src.virt.addr, walk.nbytes);
-		memset(buf + walk.nbytes, 0, GHASH_BLOCK_SIZE - walk.nbytes);
-		ghash_do_update(1, dg, buf, &ctx->ghash_key, NULL);
+		const u8 *src = walk.src.virt.addr;
+		const u8 *head = NULL;
+		unsigned int nbytes = walk.nbytes;
+
+		if (walk.nbytes > GHASH_BLOCK_SIZE) {
+			head = src;
+			src += GHASH_BLOCK_SIZE;
+			nbytes %= GHASH_BLOCK_SIZE;
+		}
+
+		memcpy(buf, src, nbytes);
+		memset(buf + nbytes, 0, GHASH_BLOCK_SIZE - nbytes);
+		ghash_do_update(!!nbytes, dg, buf, &ctx->ghash_key, head);
 
 		crypto_xor_cpy(walk.dst.virt.addr, walk.src.virt.addr, iv,
 			       walk.nbytes);
@@ -558,7 +610,7 @@ static int gcm_decrypt(struct aead_request *req)
 
 static struct aead_alg gcm_aes_alg = {
 	.ivsize			= GCM_IV_SIZE,
-	.chunksize		= AES_BLOCK_SIZE,
+	.chunksize		= 2 * AES_BLOCK_SIZE,
 	.maxauthsize		= AES_BLOCK_SIZE,
 	.setkey			= gcm_setkey,
 	.setauthsize		= gcm_setauthsize,

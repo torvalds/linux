@@ -99,10 +99,7 @@ static atomic_t charlcd_available = ATOMIC_INIT(1);
 /* sleeps that many milliseconds with a reschedule */
 static void long_sleep(int ms)
 {
-	if (in_interrupt())
-		mdelay(ms);
-	else
-		schedule_timeout_interruptible(msecs_to_jiffies(ms));
+	schedule_timeout_interruptible(msecs_to_jiffies(ms));
 }
 
 /* turn the backlight on or off */

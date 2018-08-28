@@ -98,12 +98,14 @@ static void intel_breadcrumbs_hangcheck(struct timer_list *t)
 	struct intel_engine_cs *engine =
 		from_timer(engine, t, breadcrumbs.hangcheck);
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	unsigned int irq_count;
 
 	if (!b->irq_armed)
 		return;
 
-	if (b->hangcheck_interrupts != atomic_read(&engine->irq_count)) {
-		b->hangcheck_interrupts = atomic_read(&engine->irq_count);
+	irq_count = READ_ONCE(b->irq_count);
+	if (b->hangcheck_interrupts != irq_count) {
+		b->hangcheck_interrupts = irq_count;
 		mod_timer(&b->hangcheck, wait_timeout());
 		return;
 	}
@@ -272,13 +274,14 @@ static bool use_fake_irq(const struct intel_breadcrumbs *b)
 	if (!test_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings))
 		return false;
 
-	/* Only start with the heavy weight fake irq timer if we have not
+	/*
+	 * Only start with the heavy weight fake irq timer if we have not
 	 * seen any interrupts since enabling it the first time. If the
 	 * interrupts are still arriving, it means we made a mistake in our
 	 * engine->seqno_barrier(), a timing error that should be transient
 	 * and unlikely to reoccur.
 	 */
-	return atomic_read(&engine->irq_count) == b->hangcheck_interrupts;
+	return READ_ONCE(b->irq_count) == b->hangcheck_interrupts;
 }
 
 static void enable_fake_irq(struct intel_breadcrumbs *b)
@@ -846,8 +849,9 @@ static void cancel_fake_irq(struct intel_engine_cs *engine)
 void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	unsigned long flags;
 
-	spin_lock_irq(&b->irq_lock);
+	spin_lock_irqsave(&b->irq_lock, flags);
 
 	/*
 	 * Leave the fake_irq timer enabled (if it is running), but clear the
@@ -871,7 +875,7 @@ void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 	 */
 	clear_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
 
-	spin_unlock_irq(&b->irq_lock);
+	spin_unlock_irqrestore(&b->irq_lock, flags);
 }
 
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)

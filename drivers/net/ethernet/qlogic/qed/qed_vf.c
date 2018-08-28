@@ -169,7 +169,7 @@ static void qed_vf_pf_add_qid(struct qed_hwfn *p_hwfn,
 	p_qid_tlv->qid = p_cid->qid_usage_idx;
 }
 
-int _qed_vf_pf_release(struct qed_hwfn *p_hwfn, bool b_final)
+static int _qed_vf_pf_release(struct qed_hwfn *p_hwfn, bool b_final)
 {
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
 	struct pfvf_def_resp_tlv *resp;

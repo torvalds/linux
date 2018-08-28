@@ -3,7 +3,6 @@
 Required properties:
 - compatible: Should be "ti,trf7970a".
 - spi-max-frequency: Maximum SPI frequency (<= 2000000).
-- interrupt-parent: phandle of parent interrupt handler.
 - interrupts: A single interrupt specifier.
 - ti,enable-gpios: One or two GPIO entries used for 'EN' and 'EN2' pins on the
   TRF7970A. EN2 is optional.

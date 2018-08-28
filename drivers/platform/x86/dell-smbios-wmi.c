@@ -82,7 +82,7 @@ static int run_smbios_call(struct wmi_device *wdev)
 	return 0;
 }
 
-int dell_smbios_wmi_call(struct calling_interface_buffer *buffer)
+static int dell_smbios_wmi_call(struct calling_interface_buffer *buffer)
 {
 	struct wmi_smbios_priv *priv;
 	size_t difference;

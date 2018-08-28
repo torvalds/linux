@@ -27,6 +27,9 @@
 #define __DAL_DPCD_DEFS_H__
 
 #include <drm/drm_dp_helper.h>
+#ifndef DP_SINK_HW_REVISION_START // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_SINK_HW_REVISION_START 0x409
+#endif
 
 enum dpcd_revision {
 	DPCD_REV_10 = 0x10,

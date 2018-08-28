@@ -3,7 +3,6 @@
 Required properties:
 - compatible: must be "semtech,sx8654"
 - reg: i2c slave address
-- interrupt-parent: the phandle for the interrupt controller
 - interrupts: touch controller interrupt
 
 Example:

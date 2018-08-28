@@ -35,6 +35,10 @@
 	};
 };
 
+&ref_clk {
+	clock-frequency = <24000000>;
+};
+
 &edma0 {
 	ti,edma-reserved-slot-ranges = <32 50>;
 };

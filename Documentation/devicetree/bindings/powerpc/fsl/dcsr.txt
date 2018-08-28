@@ -84,13 +84,6 @@ PROPERTIES
 
 	Interrupt numbers are listed in order (perfmon, event0, event1).
 
-	- interrupt-parent
-	Usage: required
-	Value type: <phandle>
-	Definition: A single <phandle> value that points
-	to the interrupt parent to which the child domain
-	is being mapped. Value must be "&mpic"
-
 	- reg
 	Usage: required
 	Value type: <prop-encoded-array>

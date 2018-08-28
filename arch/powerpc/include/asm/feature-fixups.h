@@ -1,6 +1,8 @@
 #ifndef __ASM_POWERPC_FEATURE_FIXUPS_H
 #define __ASM_POWERPC_FEATURE_FIXUPS_H
 
+#include <asm/asm-const.h>
+
 /*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

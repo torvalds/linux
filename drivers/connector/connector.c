@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/list.h>
@@ -239,7 +240,7 @@ void cn_del_callback(struct cb_id *id)
 }
 EXPORT_SYMBOL_GPL(cn_del_callback);
 
-static int cn_proc_show(struct seq_file *m, void *v)
+static int __maybe_unused cn_proc_show(struct seq_file *m, void *v)
 {
 	struct cn_queue_dev *dev = cdev.cbdev;
 	struct cn_callback_entry *cbq;

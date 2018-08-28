@@ -789,17 +789,16 @@ struct move_extent {
  * affected filesystem before 2242.
  */
 
-static inline __le32 ext4_encode_extra_time(struct timespec *time)
+static inline __le32 ext4_encode_extra_time(struct timespec64 *time)
 {
-	u32 extra = sizeof(time->tv_sec) > 4 ?
-		((time->tv_sec - (s32)time->tv_sec) >> 32) & EXT4_EPOCH_MASK : 0;
+	u32 extra =((time->tv_sec - (s32)time->tv_sec) >> 32) & EXT4_EPOCH_MASK;
 	return cpu_to_le32(extra | (time->tv_nsec << EXT4_EPOCH_BITS));
 }
 
-static inline void ext4_decode_extra_time(struct timespec *time, __le32 extra)
+static inline void ext4_decode_extra_time(struct timespec64 *time,
+					  __le32 extra)
 {
-	if (unlikely(sizeof(time->tv_sec) > 4 &&
-			(extra & cpu_to_le32(EXT4_EPOCH_MASK)))) {
+	if (unlikely(extra & cpu_to_le32(EXT4_EPOCH_MASK))) {
 
 #if 1
 		/* Handle legacy encoding of pre-1970 dates with epoch
@@ -821,9 +820,8 @@ static inline void ext4_decode_extra_time(struct timespec *time, __le32 extra)
 do {										\
 	(raw_inode)->xtime = cpu_to_le32((inode)->xtime.tv_sec);		\
 	if (EXT4_FITS_IN_INODE(raw_inode, EXT4_I(inode), xtime ## _extra))     {\
-		struct timespec ts = timespec64_to_timespec((inode)->xtime);	\
 		(raw_inode)->xtime ## _extra =					\
-				ext4_encode_extra_time(&ts);			\
+				ext4_encode_extra_time(&(inode)->xtime);	\
 		}								\
 } while (0)
 
@@ -840,10 +838,8 @@ do {									       \
 do {										\
 	(inode)->xtime.tv_sec = (signed)le32_to_cpu((raw_inode)->xtime);	\
 	if (EXT4_FITS_IN_INODE(raw_inode, EXT4_I(inode), xtime ## _extra)) {	\
-		struct timespec ts = timespec64_to_timespec((inode)->xtime);	\
-		ext4_decode_extra_time(&ts,					\
+		ext4_decode_extra_time(&(inode)->xtime,				\
 				       raw_inode->xtime ## _extra);		\
-		(inode)->xtime = timespec_to_timespec64(ts);			\
 		}								\
 	else									\
 		(inode)->xtime.tv_nsec = 0;					\
@@ -993,9 +989,9 @@ struct ext4_inode_info {
 
 	/*
 	 * File creation time. Its function is same as that of
-	 * struct timespec i_{a,c,m}time in the generic inode.
+	 * struct timespec64 i_{a,c,m}time in the generic inode.
 	 */
-	struct timespec i_crtime;
+	struct timespec64 i_crtime;
 
 	/* mballoc */
 	struct list_head i_prealloc_list;
@@ -1299,7 +1295,14 @@ struct ext4_super_block {
 	__le32	s_lpf_ino;		/* Location of the lost+found inode */
 	__le32	s_prj_quota_inum;	/* inode for tracking project quota */
 	__le32	s_checksum_seed;	/* crc32c(uuid) if csum_seed set */
-	__le32	s_reserved[98];		/* Padding to the end of the block */
+	__u8	s_wtime_hi;
+	__u8	s_mtime_hi;
+	__u8	s_mkfs_time_hi;
+	__u8	s_lastcheck_hi;
+	__u8	s_first_error_time_hi;
+	__u8	s_last_error_time_hi;
+	__u8	s_pad[2];
+	__le32	s_reserved[96];		/* Padding to the end of the block */
 	__le32	s_checksum;		/* crc32c(superblock) */
 };
 
@@ -2456,6 +2459,7 @@ extern int ext4_get_inode_loc(struct inode *, struct ext4_iloc *);
 extern int ext4_inode_attach_jinode(struct inode *inode);
 extern int ext4_can_truncate(struct inode *inode);
 extern int ext4_truncate(struct inode *);
+extern int ext4_break_layouts(struct inode *);
 extern int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length);
 extern int ext4_truncate_restart_trans(handle_t *, struct inode *, int nblocks);
 extern void ext4_set_inode_flags(struct inode *);
@@ -3058,7 +3062,7 @@ static inline void ext4_set_de_type(struct super_block *sb,
 /* readpages.c */
 extern int ext4_mpage_readpages(struct address_space *mapping,
 				struct list_head *pages, struct page *page,
-				unsigned nr_pages);
+				unsigned nr_pages, bool is_readahead);
 
 /* symlink.c */
 extern const struct inode_operations ext4_encrypted_symlink_inode_operations;

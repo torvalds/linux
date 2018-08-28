@@ -5676,19 +5676,29 @@ int ci_dpm_init(struct radeon_device *rdev)
 	u16 data_offset, size;
 	u8 frev, crev;
 	struct ci_power_info *pi;
+	enum pci_bus_speed speed_cap;
+	struct pci_dev *root = rdev->pdev->bus->self;
 	int ret;
-	u32 mask;
 
 	pi = kzalloc(sizeof(struct ci_power_info), GFP_KERNEL);
 	if (pi == NULL)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = pi;
 
-	ret = drm_pcie_get_speed_cap_mask(rdev->ddev, &mask);
-	if (ret)
+	speed_cap = pcie_get_speed_cap(root);
+	if (speed_cap == PCI_SPEED_UNKNOWN) {
 		pi->sys_pcie_mask = 0;
-	else
-		pi->sys_pcie_mask = mask;
+	} else {
+		if (speed_cap == PCIE_SPEED_8_0GT)
+			pi->sys_pcie_mask = RADEON_PCIE_SPEED_25 |
+				RADEON_PCIE_SPEED_50 |
+				RADEON_PCIE_SPEED_80;
+		else if (speed_cap == PCIE_SPEED_5_0GT)
+			pi->sys_pcie_mask = RADEON_PCIE_SPEED_25 |
+				RADEON_PCIE_SPEED_50;
+		else
+			pi->sys_pcie_mask = RADEON_PCIE_SPEED_25;
+	}
 	pi->force_pcie_gen = RADEON_PCIE_GEN_INVALID;
 
 	pi->pcie_gen_performance.max = RADEON_PCIE_GEN1;

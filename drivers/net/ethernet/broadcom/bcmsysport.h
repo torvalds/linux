@@ -11,6 +11,7 @@
 #ifndef __BCM_SYSPORT_H
 #define __BCM_SYSPORT_H
 
+#include <linux/bitmap.h>
 #include <linux/if_vlan.h>
 #include <linux/net_dim.h>
 
@@ -155,13 +156,17 @@ struct bcm_rsb {
 #define  RXCHK_PARSE_AUTH		(1 << 22)
 
 #define RXCHK_BRCM_TAG0			0x04
-#define RXCHK_BRCM_TAG(i)		((i) * RXCHK_BRCM_TAG0)
+#define RXCHK_BRCM_TAG(i)		((i) * 0x4 + RXCHK_BRCM_TAG0)
 #define RXCHK_BRCM_TAG0_MASK		0x24
-#define RXCHK_BRCM_TAG_MASK(i)		((i) * RXCHK_BRCM_TAG0_MASK)
+#define RXCHK_BRCM_TAG_MASK(i)		((i) * 0x4 + RXCHK_BRCM_TAG0_MASK)
 #define RXCHK_BRCM_TAG_MATCH_STATUS	0x44
 #define RXCHK_ETHERTYPE			0x48
 #define RXCHK_BAD_CSUM_CNTR		0x4C
 #define RXCHK_OTHER_DISC_CNTR		0x50
+
+#define RXCHK_BRCM_TAG_MAX		8
+#define RXCHK_BRCM_TAG_CID_SHIFT	16
+#define RXCHK_BRCM_TAG_CID_MASK		0xff
 
 /* TXCHCK offsets and defines */
 #define SYS_PORT_TXCHK_OFFSET		0x380
@@ -185,6 +190,7 @@ struct bcm_rsb {
 #define  RBUF_RSB_SWAP0			(1 << 22)
 #define  RBUF_RSB_SWAP1			(1 << 23)
 #define  RBUF_ACPI_EN			(1 << 23)
+#define  RBUF_ACPI_EN_LITE		(1 << 24)
 
 #define RBUF_PKT_RDY_THRESH		0x04
 
@@ -777,6 +783,7 @@ struct bcm_sysport_priv {
 
 	/* Ethtool */
 	u32			msg_enable;
+	DECLARE_BITMAP(filters, RXCHK_BRCM_TAG_MAX);
 
 	struct bcm_sysport_stats64	stats64;
 

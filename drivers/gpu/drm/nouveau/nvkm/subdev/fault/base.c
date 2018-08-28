@@ -133,8 +133,14 @@ nvkm_fault_oneinit(struct nvkm_subdev *subdev)
 		}
 	}
 
-	return nvkm_event_init(&nvkm_fault_ntfy, 1, fault->buffer_nr,
-			       &fault->event);
+	ret = nvkm_event_init(&nvkm_fault_ntfy, 1, fault->buffer_nr,
+			      &fault->event);
+	if (ret)
+		return ret;
+
+	if (fault->func->oneinit)
+		ret = fault->func->oneinit(fault);
+	return ret;
 }
 
 static void *

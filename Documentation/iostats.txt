@@ -31,6 +31,9 @@ Here are examples of these different formats::
       3    0   hda 446216 784926 9550688 4382310 424847 312726 5922052 19310380 0 3376340 23705160
       3    1   hda1 35486 38030 38030 38030
 
+   4.18+ diskstats:
+      3    0   hda 446216 784926 9550688 4382310 424847 312726 5922052 19310380 0 3376340 23705160 0 0 0 0
+
 On 2.4 you might execute ``grep 'hda ' /proc/partitions``. On 2.6+, you have
 a choice of ``cat /sys/block/hda/stat`` or ``grep 'hda ' /proc/diskstats``.
 
@@ -101,6 +104,18 @@ Field 11 -- weighted # of milliseconds spent doing I/Os
     last update of this field.  This can provide an easy measure of both
     I/O completion time and the backlog that may be accumulating.
 
+Field 12 -- # of discards completed
+    This is the total number of discards completed successfully.
+
+Field 13 -- # of discards merged
+    See the description of field 2
+
+Field 14 -- # of sectors discarded
+    This is the total number of sectors discarded successfully.
+
+Field 15 -- # of milliseconds spent discarding
+    This is the total number of milliseconds spent by all discards (as
+    measured from __make_request() to end_that_request_last()).
 
 To avoid introducing performance bottlenecks, no locks are held while
 modifying these counters.  This implies that minor inaccuracies may be

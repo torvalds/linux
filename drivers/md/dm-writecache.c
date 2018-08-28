@@ -268,9 +268,8 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 		i = 0;
 		do {
 			long daa;
-			void *dummy_addr;
 			daa = dax_direct_access(wc->ssd_dev->dax_dev, i, p - i,
-						&dummy_addr, &pfn);
+						NULL, &pfn);
 			if (daa <= 0) {
 				r = daa ? daa : -EINVAL;
 				goto err3;
@@ -457,7 +456,7 @@ static void ssd_commit_flushed(struct dm_writecache *wc)
 		COMPLETION_INITIALIZER_ONSTACK(endio.c),
 		ATOMIC_INIT(1),
 	};
-	unsigned bitmap_bits = wc->dirty_bitmap_size * BITS_PER_LONG;
+	unsigned bitmap_bits = wc->dirty_bitmap_size * 8;
 	unsigned i = 0;
 
 	while (1) {
@@ -2240,6 +2239,8 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 		DMEMIT("%c %s %s %u ", WC_MODE_PMEM(wc) ? 'p' : 's',
 				wc->dev->name, wc->ssd_dev->name, wc->block_size);
 		extra_args = 0;
+		if (wc->start_sector)
+			extra_args += 2;
 		if (wc->high_wm_percent_set)
 			extra_args += 2;
 		if (wc->low_wm_percent_set)
@@ -2254,6 +2255,8 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 			extra_args++;
 
 		DMEMIT("%u", extra_args);
+		if (wc->start_sector)
+			DMEMIT(" start_sector %llu", (unsigned long long)wc->start_sector);
 		if (wc->high_wm_percent_set) {
 			x = (uint64_t)wc->freelist_high_watermark * 100;
 			x += wc->n_blocks / 2;
@@ -2280,7 +2283,7 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 
 static struct target_type writecache_target = {
 	.name			= "writecache",
-	.version		= {1, 1, 0},
+	.version		= {1, 1, 1},
 	.module			= THIS_MODULE,
 	.ctr			= writecache_ctr,
 	.dtr			= writecache_dtr,

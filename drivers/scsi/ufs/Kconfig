@@ -100,3 +100,12 @@ config SCSI_UFS_QCOM
 
 	  Select this if you have UFS controller on QCOM chipset.
 	  If unsure, say N.
+
+config SCSI_UFS_HISI
+	tristate "Hisilicon specific hooks to UFS controller platform driver"
+	depends on (ARCH_HISI || COMPILE_TEST) && SCSI_UFSHCD_PLATFORM
+	---help---
+	  This selects the Hisilicon specific additions to UFSHCD platform driver.
+
+	  Select this if you have UFS controller on Hisilicon chipset.
+	  If unsure, say N.

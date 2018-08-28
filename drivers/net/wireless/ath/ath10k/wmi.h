@@ -462,6 +462,7 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS);
 	SVCSTR(WMI_SERVICE_HOST_DFS_CHECK_SUPPORT);
 	SVCSTR(WMI_SERVICE_TPC_STATS_FINAL);
+	SVCSTR(WMI_SERVICE_RESET_CHIP);
 	default:
 		return NULL;
 	}
@@ -3934,7 +3935,11 @@ enum wmi_10x_pdev_param {
 	WMI_10X_PDEV_PARAM_REMOVE_MCAST2UCAST_BUFFER,
 	WMI_10X_PDEV_PARAM_PEER_STA_PS_STATECHG_ENABLE,
 	WMI_10X_PDEV_PARAM_RTS_FIXED_RATE,
-	WMI_10X_PDEV_PARAM_CAL_PERIOD
+	WMI_10X_PDEV_PARAM_CAL_PERIOD,
+	WMI_10X_PDEV_PARAM_ATF_STRICT_SCH,
+	WMI_10X_PDEV_PARAM_ATF_SCHED_DURATION,
+	WMI_10X_PDEV_PARAM_SET_PROMISC_MODE_CMDID,
+	WMI_10X_PDEV_PARAM_PDEV_RESET
 };
 
 enum wmi_10_4_pdev_param {
@@ -6501,6 +6506,15 @@ struct wmi_force_fw_hang_cmd {
 	__le32 delay_ms;
 } __packed;
 
+enum wmi_pdev_reset_mode_type {
+	WMI_RST_MODE_TX_FLUSH = 1,
+	WMI_RST_MODE_WARM_RESET,
+	WMI_RST_MODE_COLD_RESET,
+	WMI_RST_MODE_WARM_RESET_RESTORE_CAL,
+	WMI_RST_MODE_COLD_RESET_RESTORE_CAL,
+	WMI_RST_MODE_MAX,
+};
+
 enum ath10k_dbglog_level {
 	ATH10K_DBGLOG_LEVEL_VERBOSE = 0,
 	ATH10K_DBGLOG_LEVEL_INFO = 1,
@@ -6598,6 +6612,12 @@ struct wmi_scan_ev_arg {
 	__le32 scan_req_id;
 	__le32 scan_id;
 	__le32 vdev_id;
+};
+
+struct wmi_tlv_mgmt_tx_compl_ev_arg {
+	__le32 desc_id;
+	__le32 status;
+	__le32 pdev_id;
 };
 
 struct wmi_mgmt_rx_ev_arg {
@@ -7071,6 +7091,7 @@ int ath10k_wmi_start_scan_verify(const struct wmi_start_scan_arg *arg);
 
 int ath10k_wmi_event_scan(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb);
+int ath10k_wmi_event_mgmt_tx_compl(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_echo(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb);

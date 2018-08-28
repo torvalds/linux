@@ -609,7 +609,8 @@ static void start_io_acct(struct dm_io *io)
 
 	io->start_time = jiffies;
 
-	generic_start_io_acct(md->queue, rw, bio_sectors(bio), &dm_disk(md)->part0);
+	generic_start_io_acct(md->queue, bio_op(bio), bio_sectors(bio),
+			      &dm_disk(md)->part0);
 
 	atomic_set(&dm_disk(md)->part0.in_flight[rw],
 		   atomic_inc_return(&md->pending[rw]));
@@ -628,7 +629,8 @@ static void end_io_acct(struct dm_io *io)
 	int pending;
 	int rw = bio_data_dir(bio);
 
-	generic_end_io_acct(md->queue, rw, &dm_disk(md)->part0, io->start_time);
+	generic_end_io_acct(md->queue, bio_op(bio), &dm_disk(md)->part0,
+			    io->start_time);
 
 	if (unlikely(dm_stats_used(&md->stats)))
 		dm_stats_account_io(&md->stats, bio_data_dir(bio),

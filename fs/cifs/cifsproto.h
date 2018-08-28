@@ -94,6 +94,10 @@ extern int cifs_call_async(struct TCP_Server_Info *server,
 extern int cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 			  struct smb_rqst *rqst, int *resp_buf_type,
 			  const int flags, struct kvec *resp_iov);
+extern int compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
+			      const int flags, const int num_rqst,
+			      struct smb_rqst *rqst, int *resp_buf_type,
+			      struct kvec *resp_iov);
 extern int SendReceive(const unsigned int /* xid */ , struct cifs_ses *,
 			struct smb_hdr * /* input */ ,
 			struct smb_hdr * /* out */ ,
@@ -143,9 +147,9 @@ extern enum securityEnum select_sectype(struct TCP_Server_Info *server,
 				enum securityEnum requested);
 extern int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 			  const struct nls_table *nls_cp);
-extern struct timespec cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
-extern u64 cifs_UnixTimeToNT(struct timespec);
-extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
+extern struct timespec64 cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
+extern u64 cifs_UnixTimeToNT(struct timespec64);
+extern struct timespec64 cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
 				      int offset);
 extern void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock);
 extern int cifs_get_writer(struct cifsInodeInfo *cinode);

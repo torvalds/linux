@@ -1,16 +1,12 @@
-/*
- * Fifo-attached Serial Interface (FSI) support for SH7724
- *
- * Copyright (C) 2009 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
- *
- * Based on ssi.c
- * Copyright (c) 2007 Manuel Lauss <mano@roarinelk.homelinux.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Fifo-attached Serial Interface (FSI) support for SH7724
+//
+// Copyright (C) 2009 Renesas Solutions Corp.
+// Kuninori Morimoto <morimoto.kuninori@renesas.com>
+//
+// Based on ssi.c
+// Copyright (c) 2007 Manuel Lauss <mano@roarinelk.homelinux.net>
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>

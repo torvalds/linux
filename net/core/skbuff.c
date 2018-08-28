@@ -1291,7 +1291,7 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 }
 EXPORT_SYMBOL(skb_clone);
 
-static void skb_headers_offset_update(struct sk_buff *skb, int off)
+void skb_headers_offset_update(struct sk_buff *skb, int off)
 {
 	/* Only adjust this if it actually is csum_start rather than csum */
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
@@ -1305,6 +1305,7 @@ static void skb_headers_offset_update(struct sk_buff *skb, int off)
 	skb->inner_network_header += off;
 	skb->inner_mac_header += off;
 }
+EXPORT_SYMBOL(skb_headers_offset_update);
 
 void skb_copy_header(struct sk_buff *new, const struct sk_buff *old)
 {
@@ -1715,7 +1716,7 @@ void *skb_push(struct sk_buff *skb, unsigned int len)
 {
 	skb->data -= len;
 	skb->len  += len;
-	if (unlikely(skb->data<skb->head))
+	if (unlikely(skb->data < skb->head))
 		skb_under_panic(skb, len, __builtin_return_address(0));
 	return skb->data;
 }
@@ -2858,23 +2859,27 @@ EXPORT_SYMBOL(skb_queue_purge);
 /**
  *	skb_rbtree_purge - empty a skb rbtree
  *	@root: root of the rbtree to empty
+ *	Return value: the sum of truesizes of all purged skbs.
  *
  *	Delete all buffers on an &sk_buff rbtree. Each buffer is removed from
  *	the list and one reference dropped. This function does not take
  *	any lock. Synchronization should be handled by the caller (e.g., TCP
  *	out-of-order queue is protected by the socket lock).
  */
-void skb_rbtree_purge(struct rb_root *root)
+unsigned int skb_rbtree_purge(struct rb_root *root)
 {
 	struct rb_node *p = rb_first(root);
+	unsigned int sum = 0;
 
 	while (p) {
 		struct sk_buff *skb = rb_entry(p, struct sk_buff, rbnode);
 
 		p = rb_next(p);
 		rb_erase(&skb->rbnode, root);
+		sum += skb->truesize;
 		kfree_skb(skb);
 	}
+	return sum;
 }
 
 /**
@@ -3816,14 +3821,14 @@ err:
 }
 EXPORT_SYMBOL_GPL(skb_segment);
 
-int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
+int skb_gro_receive(struct sk_buff *p, struct sk_buff *skb)
 {
 	struct skb_shared_info *pinfo, *skbinfo = skb_shinfo(skb);
 	unsigned int offset = skb_gro_offset(skb);
 	unsigned int headlen = skb_headlen(skb);
 	unsigned int len = skb_gro_len(skb);
-	struct sk_buff *lp, *p = *head;
 	unsigned int delta_truesize;
+	struct sk_buff *lp;
 
 	if (unlikely(p->len + len >= 65536))
 		return -E2BIG;
@@ -4899,7 +4904,6 @@ EXPORT_SYMBOL(skb_try_coalesce);
  */
 void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 {
-	skb->tstamp = 0;
 	skb->pkt_type = PACKET_HOST;
 	skb->skb_iif = 0;
 	skb->ignore_df = 0;
@@ -4912,8 +4916,8 @@ void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 		return;
 
 	ipvs_reset(skb);
-	skb_orphan(skb);
 	skb->mark = 0;
+	skb->tstamp = 0;
 }
 EXPORT_SYMBOL_GPL(skb_scrub_packet);
 

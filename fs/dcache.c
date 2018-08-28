@@ -292,7 +292,8 @@ void take_dentry_name_snapshot(struct name_snapshot *name, struct dentry *dentry
 		spin_unlock(&dentry->d_lock);
 		name->name = p->name;
 	} else {
-		memcpy(name->inline_name, dentry->d_iname, DNAME_INLINE_LEN);
+		memcpy(name->inline_name, dentry->d_iname,
+		       dentry->d_name.len + 1);
 		spin_unlock(&dentry->d_lock);
 		name->name = name->inline_name;
 	}
@@ -729,16 +730,16 @@ static inline bool fast_dput(struct dentry *dentry)
 		if (dentry->d_lockref.count > 1) {
 			dentry->d_lockref.count--;
 			spin_unlock(&dentry->d_lock);
-			return 1;
+			return true;
 		}
-		return 0;
+		return false;
 	}
 
 	/*
 	 * If we weren't the last ref, we're done.
 	 */
 	if (ret)
-		return 1;
+		return true;
 
 	/*
 	 * Careful, careful. The reference count went down
@@ -767,7 +768,7 @@ static inline bool fast_dput(struct dentry *dentry)
 
 	/* Nothing to do? Dropping the reference was all we needed? */
 	if (d_flags == (DCACHE_REFERENCED | DCACHE_LRU_LIST) && !d_unhashed(dentry))
-		return 1;
+		return true;
 
 	/*
 	 * Not the fast normal case? Get the lock. We've already decremented
@@ -784,7 +785,7 @@ static inline bool fast_dput(struct dentry *dentry)
 	 */
 	if (dentry->d_lockref.count) {
 		spin_unlock(&dentry->d_lock);
-		return 1;
+		return true;
 	}
 
 	/*
@@ -793,7 +794,7 @@ static inline bool fast_dput(struct dentry *dentry)
 	 * set it to 1.
 	 */
 	dentry->d_lockref.count = 1;
-	return 0;
+	return false;
 }
 
 
@@ -1889,39 +1890,12 @@ void d_instantiate_new(struct dentry *entry, struct inode *inode)
 	spin_lock(&inode->i_lock);
 	__d_instantiate(entry, inode);
 	WARN_ON(!(inode->i_state & I_NEW));
-	inode->i_state &= ~I_NEW;
+	inode->i_state &= ~I_NEW & ~I_CREATING;
 	smp_mb();
 	wake_up_bit(&inode->i_state, __I_NEW);
 	spin_unlock(&inode->i_lock);
 }
 EXPORT_SYMBOL(d_instantiate_new);
-
-/**
- * d_instantiate_no_diralias - instantiate a non-aliased dentry
- * @entry: dentry to complete
- * @inode: inode to attach to this dentry
- *
- * Fill in inode information in the entry.  If a directory alias is found, then
- * return an error (and drop inode).  Together with d_materialise_unique() this
- * guarantees that a directory inode may never have more than one alias.
- */
-int d_instantiate_no_diralias(struct dentry *entry, struct inode *inode)
-{
-	BUG_ON(!hlist_unhashed(&entry->d_u.d_alias));
-
-	security_d_instantiate(entry, inode);
-	spin_lock(&inode->i_lock);
-	if (S_ISDIR(inode->i_mode) && !hlist_empty(&inode->i_dentry)) {
-		spin_unlock(&inode->i_lock);
-		iput(inode);
-		return -EBUSY;
-	}
-	__d_instantiate(entry, inode);
-	spin_unlock(&inode->i_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL(d_instantiate_no_diralias);
 
 struct dentry *d_make_root(struct inode *root_inode)
 {
@@ -2674,33 +2648,6 @@ struct dentry *d_exact_alias(struct dentry *entry, struct inode *inode)
 	return NULL;
 }
 EXPORT_SYMBOL(d_exact_alias);
-
-/**
- * dentry_update_name_case - update case insensitive dentry with a new name
- * @dentry: dentry to be updated
- * @name: new name
- *
- * Update a case insensitive dentry with new case of name.
- *
- * dentry must have been returned by d_lookup with name @name. Old and new
- * name lengths must match (ie. no d_compare which allows mismatched name
- * lengths).
- *
- * Parent inode i_mutex must be held over d_lookup and into this call (to
- * keep renames and concurrent inserts, and readdir(2) away).
- */
-void dentry_update_name_case(struct dentry *dentry, const struct qstr *name)
-{
-	BUG_ON(!inode_is_locked(dentry->d_parent->d_inode));
-	BUG_ON(dentry->d_name.len != name->len); /* d_lookup gives this */
-
-	spin_lock(&dentry->d_lock);
-	write_seqcount_begin(&dentry->d_seq);
-	memcpy((unsigned char *)dentry->d_name.name, name->name, name->len);
-	write_seqcount_end(&dentry->d_seq);
-	spin_unlock(&dentry->d_lock);
-}
-EXPORT_SYMBOL(dentry_update_name_case);
 
 static void swap_names(struct dentry *dentry, struct dentry *target)
 {

@@ -68,61 +68,39 @@ static struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
 	.reset	= pxa2xx_ac97_cold_reset,
 };
 
-static struct pxad_param pxa2xx_ac97_pcm_stereo_in_req = {
-	.prio = PXAD_PRIO_LOWEST,
-	.drcmr = 11,
-};
-
 static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_stereo_in = {
 	.addr		= __PREG(PCDR),
 	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
+	.chan_name	= "pcm_pcm_stereo_in",
 	.maxburst	= 32,
-	.filter_data	= &pxa2xx_ac97_pcm_stereo_in_req,
-};
-
-static struct pxad_param pxa2xx_ac97_pcm_stereo_out_req = {
-	.prio = PXAD_PRIO_LOWEST,
-	.drcmr = 12,
 };
 
 static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_stereo_out = {
 	.addr		= __PREG(PCDR),
 	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
+	.chan_name	= "pcm_pcm_stereo_out",
 	.maxburst	= 32,
-	.filter_data	= &pxa2xx_ac97_pcm_stereo_out_req,
 };
 
-static struct pxad_param pxa2xx_ac97_pcm_aux_mono_out_req = {
-	.prio = PXAD_PRIO_LOWEST,
-	.drcmr = 10,
-};
 static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_aux_mono_out = {
 	.addr		= __PREG(MODR),
 	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
+	.chan_name	= "pcm_aux_mono_out",
 	.maxburst	= 16,
-	.filter_data	= &pxa2xx_ac97_pcm_aux_mono_out_req,
 };
 
-static struct pxad_param pxa2xx_ac97_pcm_aux_mono_in_req = {
-	.prio = PXAD_PRIO_LOWEST,
-	.drcmr = 9,
-};
 static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_aux_mono_in = {
 	.addr		= __PREG(MODR),
 	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
+	.chan_name	= "pcm_aux_mono_in",
 	.maxburst	= 16,
-	.filter_data	= &pxa2xx_ac97_pcm_aux_mono_in_req,
 };
 
-static struct pxad_param pxa2xx_ac97_pcm_aux_mic_mono_req = {
-	.prio = PXAD_PRIO_LOWEST,
-	.drcmr = 8,
-};
 static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_mic_mono_in = {
 	.addr		= __PREG(MCDR),
 	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
+	.chan_name	= "pcm_aux_mic_mono",
 	.maxburst	= 16,
-	.filter_data	= &pxa2xx_ac97_pcm_aux_mic_mono_req,
 };
 
 static int pxa2xx_ac97_hifi_startup(struct snd_pcm_substream *substream,
@@ -236,7 +214,21 @@ static struct snd_soc_dai_driver pxa_ac97_dai_driver[] = {
 
 static const struct snd_soc_component_driver pxa_ac97_component = {
 	.name		= "pxa-ac97",
+	.ops		= &pxa2xx_pcm_ops,
+	.pcm_new	= pxa2xx_soc_pcm_new,
+	.pcm_free	= pxa2xx_pcm_free_dma_buffers,
 };
+
+#ifdef CONFIG_OF
+static const struct of_device_id pxa2xx_ac97_dt_ids[] = {
+	{ .compatible = "marvell,pxa250-ac97", },
+	{ .compatible = "marvell,pxa270-ac97", },
+	{ .compatible = "marvell,pxa300-ac97", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, pxa2xx_ac97_dt_ids);
+
+#endif
 
 static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 {
@@ -296,6 +288,7 @@ static struct platform_driver pxa2xx_ac97_driver = {
 #ifdef CONFIG_PM_SLEEP
 		.pm	= &pxa2xx_ac97_pm_ops,
 #endif
+		.of_match_table = of_match_ptr(pxa2xx_ac97_dt_ids),
 	},
 };
 

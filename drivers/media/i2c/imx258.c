@@ -1221,6 +1221,14 @@ static int imx258_probe(struct i2c_client *client)
 	if (val != 19200000)
 		return -EINVAL;
 
+	/*
+	 * Check that the device is mounted upside down. The driver only
+	 * supports a single pixel order right now.
+	 */
+	ret = device_property_read_u32(&client->dev, "rotation", &val);
+	if (ret || val != 180)
+		return -EINVAL;
+
 	imx258 = devm_kzalloc(&client->dev, sizeof(*imx258), GFP_KERNEL);
 	if (!imx258)
 		return -ENOMEM;

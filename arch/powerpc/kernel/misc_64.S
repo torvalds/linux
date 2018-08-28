@@ -28,6 +28,7 @@
 #include <asm/ptrace.h>
 #include <asm/mmu.h>
 #include <asm/export.h>
+#include <asm/feature-fixups.h>
 
 	.text
 

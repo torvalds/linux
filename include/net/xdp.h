@@ -84,6 +84,13 @@ struct xdp_frame {
 	struct net_device *dev_rx; /* used by cpumap */
 };
 
+/* Clear kernel pointers in xdp_frame */
+static inline void xdp_scrub_frame(struct xdp_frame *frame)
+{
+	frame->data = NULL;
+	frame->dev_rx = NULL;
+}
+
 /* Convert xdp_buff to xdp_frame */
 static inline
 struct xdp_frame *convert_to_xdp_frame(struct xdp_buff *xdp)
@@ -143,5 +150,18 @@ xdp_data_meta_unsupported(const struct xdp_buff *xdp)
 {
 	return unlikely(xdp->data_meta > xdp->data);
 }
+
+struct xdp_attachment_info {
+	struct bpf_prog *prog;
+	u32 flags;
+};
+
+struct netdev_bpf;
+int xdp_attachment_query(struct xdp_attachment_info *info,
+			 struct netdev_bpf *bpf);
+bool xdp_attachment_flags_ok(struct xdp_attachment_info *info,
+			     struct netdev_bpf *bpf);
+void xdp_attachment_setup(struct xdp_attachment_info *info,
+			  struct netdev_bpf *bpf);
 
 #endif /* __LINUX_NET_XDP_H__ */

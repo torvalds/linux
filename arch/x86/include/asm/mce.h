@@ -148,6 +148,7 @@ enum mce_notifier_prios {
 	MCE_PRIO_LOWEST		= 0,
 };
 
+struct notifier_block;
 extern void mce_register_decode_chain(struct notifier_block *nb);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);
 

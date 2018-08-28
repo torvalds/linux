@@ -139,7 +139,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	/* ring tests don't use a job */
 	if (job) {
 		vm = job->vm;
-		fence_ctx = job->fence_ctx;
+		fence_ctx = job->base.s_fence->scheduled.context;
 	} else {
 		vm = NULL;
 		fence_ctx = 0;
@@ -353,7 +353,8 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 			ring->funcs->type == AMDGPU_RING_TYPE_VCE ||
 			ring->funcs->type == AMDGPU_RING_TYPE_UVD_ENC ||
 			ring->funcs->type == AMDGPU_RING_TYPE_VCN_DEC ||
-			ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC)
+			ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC ||
+			ring->funcs->type == AMDGPU_RING_TYPE_VCN_JPEG)
 			tmo = tmo_mm;
 		else
 			tmo = tmo_gfx;

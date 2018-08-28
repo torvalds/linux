@@ -27,6 +27,7 @@
 
 #include <asm/bootinfo.h>
 #include <asm/reboot.h>
+#include <asm/setup.h>
 #include <asm/sibyte/board.h>
 #include <asm/smp-ops.h>
 

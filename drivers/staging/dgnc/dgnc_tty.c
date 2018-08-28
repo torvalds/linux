@@ -883,10 +883,9 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 	 * touched safely, the close routine will signal the
 	 * ch_flags_wait to wake us back up.
 	 */
-	rc = wait_event_interruptible(
-				ch->ch_flags_wait,
-				(((ch->ch_tun.un_flags |
-				ch->ch_pun.un_flags) & UN_CLOSING) == 0));
+	rc = wait_event_interruptible(ch->ch_flags_wait,
+				      !((ch->ch_tun.un_flags |
+				      ch->ch_pun.un_flags) & UN_CLOSING));
 	/* If ret is non-zero, user ctrl-c'ed us */
 	if (rc)
 		return -EINTR;

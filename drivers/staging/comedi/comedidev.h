@@ -542,8 +542,8 @@ struct comedi_device {
 
 	const char *board_name;
 	const void *board_ptr;
-	bool attached:1;
-	bool ioenabled:1;
+	unsigned int attached:1;
+	unsigned int ioenabled:1;
 	spinlock_t spinlock;	/* generic spin-lock for low-level driver */
 	struct mutex mutex;	/* generic mutex for COMEDI core */
 	struct rw_semaphore attach_lock;

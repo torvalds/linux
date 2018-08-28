@@ -275,9 +275,10 @@ static bool packet_use_direct_xmit(const struct packet_sock *po)
 	return po->xmit == packet_direct_xmit;
 }
 
-static u16 __packet_pick_tx_queue(struct net_device *dev, struct sk_buff *skb)
+static u16 __packet_pick_tx_queue(struct net_device *dev, struct sk_buff *skb,
+				  struct net_device *sb_dev)
 {
-	return (u16) raw_smp_processor_id() % dev->real_num_tx_queues;
+	return dev_pick_tx_cpu_id(dev, skb, sb_dev, NULL);
 }
 
 static u16 packet_pick_tx_queue(struct sk_buff *skb)
@@ -291,7 +292,7 @@ static u16 packet_pick_tx_queue(struct sk_buff *skb)
 						    __packet_pick_tx_queue);
 		queue_index = netdev_cap_txqueue(dev, queue_index);
 	} else {
-		queue_index = __packet_pick_tx_queue(dev, skb);
+		queue_index = __packet_pick_tx_queue(dev, skb, NULL);
 	}
 
 	return queue_index;
@@ -1581,7 +1582,7 @@ static int fanout_set_data(struct packet_sock *po, char __user *data,
 		return fanout_set_data_ebpf(po, data, len);
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 static void fanout_release_data(struct packet_fanout *f)
@@ -1590,7 +1591,7 @@ static void fanout_release_data(struct packet_fanout *f)
 	case PACKET_FANOUT_CBPF:
 	case PACKET_FANOUT_EBPF:
 		__fanout_set_data_bpf(f, NULL);
-	};
+	}
 }
 
 static bool __fanout_id_is_free(struct sock *sk, u16 candidate_id)
@@ -1951,7 +1952,7 @@ retry:
 		goto out_unlock;
 	}
 
-	sockc.tsflags = sk->sk_tsflags;
+	sockcm_init(&sockc, sk);
 	if (msg->msg_controllen) {
 		err = sock_cmsg_send(sk, msg, &sockc);
 		if (unlikely(err))
@@ -1962,6 +1963,7 @@ retry:
 	skb->dev = dev;
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
+	skb->tstamp = sockc.transmit_time;
 
 	sock_tx_timestamp(sk, sockc.tsflags, &skb_shinfo(skb)->tx_flags);
 
@@ -2457,6 +2459,7 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	skb->dev = dev;
 	skb->priority = po->sk.sk_priority;
 	skb->mark = po->sk.sk_mark;
+	skb->tstamp = sockc->transmit_time;
 	sock_tx_timestamp(&po->sk, sockc->tsflags, &skb_shinfo(skb)->tx_flags);
 	skb_shinfo(skb)->destructor_arg = ph.raw;
 
@@ -2633,7 +2636,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	if (unlikely(!(dev->flags & IFF_UP)))
 		goto out_put;
 
-	sockc.tsflags = po->sk.sk_tsflags;
+	sockcm_init(&sockc, &po->sk);
 	if (msg->msg_controllen) {
 		err = sock_cmsg_send(&po->sk, msg, &sockc);
 		if (unlikely(err))
@@ -2829,7 +2832,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	if (unlikely(!(dev->flags & IFF_UP)))
 		goto out_unlock;
 
-	sockc.tsflags = sk->sk_tsflags;
+	sockcm_init(&sockc, sk);
 	sockc.mark = sk->sk_mark;
 	if (msg->msg_controllen) {
 		err = sock_cmsg_send(sk, msg, &sockc);
@@ -2905,6 +2908,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	skb->dev = dev;
 	skb->priority = sk->sk_priority;
 	skb->mark = sockc.mark;
+	skb->tstamp = sockc.transmit_time;
 
 	if (has_vnet_hdr) {
 		err = virtio_net_hdr_to_skb(skb, &vnet_hdr, vio_le());
@@ -4133,52 +4137,36 @@ static const struct vm_operations_struct packet_mmap_ops = {
 	.close	=	packet_mm_close,
 };
 
-static void free_pg_vec(struct pgv *pg_vec, unsigned int order,
-			unsigned int len)
+static void free_pg_vec(struct pgv *pg_vec, unsigned int len)
 {
 	int i;
 
 	for (i = 0; i < len; i++) {
 		if (likely(pg_vec[i].buffer)) {
-			if (is_vmalloc_addr(pg_vec[i].buffer))
-				vfree(pg_vec[i].buffer);
-			else
-				free_pages((unsigned long)pg_vec[i].buffer,
-					   order);
+			kvfree(pg_vec[i].buffer);
 			pg_vec[i].buffer = NULL;
 		}
 	}
 	kfree(pg_vec);
 }
 
-static char *alloc_one_pg_vec_page(unsigned long order)
+static char *alloc_one_pg_vec_page(unsigned long size)
 {
 	char *buffer;
-	gfp_t gfp_flags = GFP_KERNEL | __GFP_COMP |
-			  __GFP_ZERO | __GFP_NOWARN | __GFP_NORETRY;
 
-	buffer = (char *) __get_free_pages(gfp_flags, order);
+	buffer = kvzalloc(size, GFP_KERNEL);
 	if (buffer)
 		return buffer;
 
-	/* __get_free_pages failed, fall back to vmalloc */
-	buffer = vzalloc(array_size((1 << order), PAGE_SIZE));
-	if (buffer)
-		return buffer;
+	buffer = kvzalloc(size, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 
-	/* vmalloc failed, lets dig into swap here */
-	gfp_flags &= ~__GFP_NORETRY;
-	buffer = (char *) __get_free_pages(gfp_flags, order);
-	if (buffer)
-		return buffer;
-
-	/* complete and utter failure */
-	return NULL;
+	return buffer;
 }
 
-static struct pgv *alloc_pg_vec(struct tpacket_req *req, int order)
+static struct pgv *alloc_pg_vec(struct tpacket_req *req)
 {
 	unsigned int block_nr = req->tp_block_nr;
+	unsigned long size = req->tp_block_size;
 	struct pgv *pg_vec;
 	int i;
 
@@ -4187,7 +4175,7 @@ static struct pgv *alloc_pg_vec(struct tpacket_req *req, int order)
 		goto out;
 
 	for (i = 0; i < block_nr; i++) {
-		pg_vec[i].buffer = alloc_one_pg_vec_page(order);
+		pg_vec[i].buffer = alloc_one_pg_vec_page(size);
 		if (unlikely(!pg_vec[i].buffer))
 			goto out_free_pgvec;
 	}
@@ -4196,7 +4184,7 @@ out:
 	return pg_vec;
 
 out_free_pgvec:
-	free_pg_vec(pg_vec, order, block_nr);
+	free_pg_vec(pg_vec, block_nr);
 	pg_vec = NULL;
 	goto out;
 }
@@ -4206,9 +4194,9 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 {
 	struct pgv *pg_vec = NULL;
 	struct packet_sock *po = pkt_sk(sk);
-	int was_running, order = 0;
 	struct packet_ring_buffer *rb;
 	struct sk_buff_head *rb_queue;
+	int was_running;
 	__be16 num;
 	int err = -EINVAL;
 	/* Added to avoid minimal code churn */
@@ -4270,8 +4258,7 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 			goto out;
 
 		err = -ENOMEM;
-		order = get_order(req->tp_block_size);
-		pg_vec = alloc_pg_vec(req, order);
+		pg_vec = alloc_pg_vec(req);
 		if (unlikely(!pg_vec))
 			goto out;
 		switch (po->tp_version) {
@@ -4325,7 +4312,6 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 		rb->frame_size = req->tp_frame_size;
 		spin_unlock_bh(&rb_queue->lock);
 
-		swap(rb->pg_vec_order, order);
 		swap(rb->pg_vec_len, req->tp_block_nr);
 
 		rb->pg_vec_pages = req->tp_block_size/PAGE_SIZE;
@@ -4351,7 +4337,7 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 	}
 
 	if (pg_vec)
-		free_pg_vec(pg_vec, order, req->tp_block_nr);
+		free_pg_vec(pg_vec, req->tp_block_nr);
 out:
 	return err;
 }

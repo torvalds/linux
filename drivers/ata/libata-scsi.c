@@ -110,6 +110,7 @@ static const char *ata_lpm_policy_names[] = {
 	[ATA_LPM_MAX_POWER]		= "max_performance",
 	[ATA_LPM_MED_POWER]		= "medium_power",
 	[ATA_LPM_MED_POWER_WITH_DIPM]	= "med_power_with_dipm",
+	[ATA_LPM_MIN_POWER_WITH_PARTIAL] = "min_power_with_partial",
 	[ATA_LPM_MIN_POWER]		= "min_power",
 };
 
@@ -597,8 +598,9 @@ static int ata_get_identity(struct ata_port *ap, struct scsi_device *sdev,
 int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 {
 	int rc = 0;
+	u8 sensebuf[SCSI_SENSE_BUFFERSIZE];
 	u8 scsi_cmd[MAX_COMMAND_SIZE];
-	u8 args[4], *argbuf = NULL, *sensebuf = NULL;
+	u8 args[4], *argbuf = NULL;
 	int argsize = 0;
 	enum dma_data_direction data_dir;
 	struct scsi_sense_hdr sshdr;
@@ -610,10 +612,7 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	if (copy_from_user(args, arg, sizeof(args)))
 		return -EFAULT;
 
-	sensebuf = kzalloc(SCSI_SENSE_BUFFERSIZE, GFP_NOIO);
-	if (!sensebuf)
-		return -ENOMEM;
-
+	memset(sensebuf, 0, sizeof(sensebuf));
 	memset(scsi_cmd, 0, sizeof(scsi_cmd));
 
 	if (args[3]) {
@@ -685,7 +684,6 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	 && copy_to_user(arg + sizeof(args), argbuf, argsize))
 		rc = -EFAULT;
 error:
-	kfree(sensebuf);
 	kfree(argbuf);
 	return rc;
 }
@@ -704,8 +702,9 @@ error:
 int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 {
 	int rc = 0;
+	u8 sensebuf[SCSI_SENSE_BUFFERSIZE];
 	u8 scsi_cmd[MAX_COMMAND_SIZE];
-	u8 args[7], *sensebuf = NULL;
+	u8 args[7];
 	struct scsi_sense_hdr sshdr;
 	int cmd_result;
 
@@ -715,10 +714,7 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	if (copy_from_user(args, arg, sizeof(args)))
 		return -EFAULT;
 
-	sensebuf = kzalloc(SCSI_SENSE_BUFFERSIZE, GFP_NOIO);
-	if (!sensebuf)
-		return -ENOMEM;
-
+	memset(sensebuf, 0, sizeof(sensebuf));
 	memset(scsi_cmd, 0, sizeof(scsi_cmd));
 	scsi_cmd[0]  = ATA_16;
 	scsi_cmd[1]  = (3 << 1); /* Non-data */
@@ -769,7 +765,6 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	}
 
  error:
-	kfree(sensebuf);
 	return rc;
 }
 
@@ -4294,10 +4289,10 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 static inline void ata_scsi_dump_cdb(struct ata_port *ap,
 				     struct scsi_cmnd *cmd)
 {
-#ifdef ATA_DEBUG
+#ifdef ATA_VERBOSE_DEBUG
 	struct scsi_device *scsidev = cmd->device;
 
-	DPRINTK("CDB (%u:%d,%d,%lld) %9ph\n",
+	VPRINTK("CDB (%u:%d,%d,%lld) %9ph\n",
 		ap->print_id,
 		scsidev->channel, scsidev->id, scsidev->lun,
 		cmd->cmnd);

@@ -857,7 +857,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	dev->chip = kzalloc(sizeof(*dev->chip), GFP_KERNEL);
 	if (!dev->chip) {
 		err = -ENOMEM;
-		goto errout;
+		goto chip_alloc_fail;
 	}
 
 	spin_lock_init(&dev->reg_lock);
@@ -879,7 +879,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	if (!dev->remap_addr) {
 		dev_err(&pci->dev, "ioremap error\n");
 		err = -ENXIO;
-		goto errout;
+		goto ioremap_fail;
 	}
 
 	/*
@@ -894,7 +894,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	if (!dev->rtsx_resv_buf) {
 		dev_err(&pci->dev, "alloc dma buffer fail\n");
 		err = -ENXIO;
-		goto errout;
+		goto dma_alloc_fail;
 	}
 	dev->chip->host_cmds_ptr = dev->rtsx_resv_buf;
 	dev->chip->host_cmds_addr = dev->rtsx_resv_buf_addr;
@@ -915,7 +915,7 @@ static int rtsx_probe(struct pci_dev *pci,
 
 	if (rtsx_acquire_irq(dev) < 0) {
 		err = -EBUSY;
-		goto errout;
+		goto irq_acquire_fail;
 	}
 
 	pci_set_master(pci);
@@ -935,14 +935,14 @@ static int rtsx_probe(struct pci_dev *pci,
 	if (IS_ERR(th)) {
 		dev_err(&pci->dev, "Unable to start control thread\n");
 		err = PTR_ERR(th);
-		goto errout;
+		goto control_thread_fail;
 	}
 	dev->ctl_thread = th;
 
 	err = scsi_add_host(host, &pci->dev);
 	if (err) {
 		dev_err(&pci->dev, "Unable to add the scsi host\n");
-		goto errout;
+		goto scsi_add_host_fail;
 	}
 
 	/* Start up the thread for delayed SCSI-device scanning */
@@ -950,18 +950,16 @@ static int rtsx_probe(struct pci_dev *pci,
 	if (IS_ERR(th)) {
 		dev_err(&pci->dev, "Unable to start the device-scanning thread\n");
 		complete(&dev->scanning_done);
-		quiesce_and_remove_host(dev);
 		err = PTR_ERR(th);
-		goto errout;
+		goto scan_thread_fail;
 	}
 
 	/* Start up the thread for polling thread */
 	th = kthread_run(rtsx_polling_thread, dev, "rtsx-polling");
 	if (IS_ERR(th)) {
 		dev_err(&pci->dev, "Unable to start the device-polling thread\n");
-		quiesce_and_remove_host(dev);
 		err = PTR_ERR(th);
-		goto errout;
+		goto scan_thread_fail;
 	}
 	dev->polling_thread = th;
 
@@ -970,9 +968,25 @@ static int rtsx_probe(struct pci_dev *pci,
 	return 0;
 
 	/* We come here if there are any problems */
-errout:
+scan_thread_fail:
+	quiesce_and_remove_host(dev);
+scsi_add_host_fail:
+	complete(&dev->cmnd_ready);
+	wait_for_completion(&dev->control_exit);
+control_thread_fail:
+	free_irq(dev->irq, (void *)dev);
+	rtsx_release_chip(dev->chip);
+irq_acquire_fail:
+	dev->chip->host_cmds_ptr = NULL;
+	dev->chip->host_sg_tbl_ptr = NULL;
+	if (dev->chip->msi_en)
+		pci_disable_msi(dev->pci);
+dma_alloc_fail:
+	iounmap(dev->remap_addr);
+ioremap_fail:
+	kfree(dev->chip);
+chip_alloc_fail:
 	dev_err(&pci->dev, "%s failed\n", __func__);
-	release_everything(dev);
 
 	return err;
 }

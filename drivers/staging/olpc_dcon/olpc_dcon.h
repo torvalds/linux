@@ -91,10 +91,10 @@ struct dcon_priv {
 };
 
 struct dcon_platform_data {
-	int (*init)(struct dcon_priv *);
+	int (*init)(struct dcon_priv *dcon);
 	void (*bus_stabilize_wiggle)(void);
-	void (*set_dconload)(int);
-	int (*read_status)(u8 *);
+	void (*set_dconload)(int load);
+	int (*read_status)(u8 *status);
 };
 
 #include <linux/interrupt.h>

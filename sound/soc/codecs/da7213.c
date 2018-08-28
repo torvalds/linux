@@ -1140,9 +1140,9 @@ static bool da7213_volatile_register(struct device *dev, unsigned int reg)
 	case DA7213_ALC_OFFSET_AUTO_M_R:
 	case DA7213_ALC_OFFSET_AUTO_U_R:
 	case DA7213_ALC_CIC_OP_LVL_DATA:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 

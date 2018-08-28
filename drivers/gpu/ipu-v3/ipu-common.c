@@ -122,6 +122,8 @@ enum ipu_color_space ipu_pixelformat_to_colorspace(u32 pixelformat)
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
 		return IPUV3_COLORSPACE_YUV;
+	case V4L2_PIX_FMT_XRGB32:
+	case V4L2_PIX_FMT_XBGR32:
 	case V4L2_PIX_FMT_RGB32:
 	case V4L2_PIX_FMT_BGR32:
 	case V4L2_PIX_FMT_RGB24:
@@ -190,6 +192,8 @@ int ipu_stride_to_bytes(u32 pixel_stride, u32 pixelformat)
 		return (24 * pixel_stride) >> 3;
 	case V4L2_PIX_FMT_BGR32:
 	case V4L2_PIX_FMT_RGB32:
+	case V4L2_PIX_FMT_XBGR32:
+	case V4L2_PIX_FMT_XRGB32:
 		return (32 * pixel_stride) >> 3;
 	default:
 		break;
@@ -1401,6 +1405,8 @@ static int ipu_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	ipu->id = of_alias_get_id(np, "ipu");
+	if (ipu->id < 0)
+		ipu->id = 0;
 
 	if (of_device_is_compatible(np, "fsl,imx6qp-ipu") &&
 	    IS_ENABLED(CONFIG_DRM)) {

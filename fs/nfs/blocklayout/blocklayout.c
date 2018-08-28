@@ -753,6 +753,7 @@ out:
 	case -ENODEV:
 		/* Our extent block devices are unavailable */
 		set_bit(NFS_LSEG_UNAVAILABLE, &lseg->pls_flags);
+		/* Fall through */
 	case 0:
 		return lseg;
 	default:

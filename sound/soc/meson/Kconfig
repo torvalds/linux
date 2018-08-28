@@ -1,0 +1,65 @@
+menu "ASoC support for Amlogic platforms"
+	depends on ARCH_MESON || COMPILE_TEST
+
+config SND_MESON_AXG_FIFO
+	tristate
+	select REGMAP_MMIO
+
+config SND_MESON_AXG_FRDDR
+	tristate "Amlogic AXG Playback FIFO support"
+	select SND_MESON_AXG_FIFO
+	help
+	  Select Y or M to add support for the frontend playback interfaces
+	  embedded in the Amlogic AXG SoC family
+
+config SND_MESON_AXG_TODDR
+	tristate "Amlogic AXG Capture FIFO support"
+	select SND_MESON_AXG_FIFO
+	help
+	  Select Y or M to add support for the frontend capture interfaces
+	  embedded in the Amlogic AXG SoC family
+
+config SND_MESON_AXG_TDM_FORMATTER
+	tristate
+	select REGMAP_MMIO
+
+config SND_MESON_AXG_TDM_INTERFACE
+	tristate
+	select SND_MESON_AXG_TDM_FORMATTER
+
+config SND_MESON_AXG_TDMIN
+	tristate "Amlogic AXG TDM Input Support"
+	select SND_MESON_AXG_TDM_FORMATTER
+	select SND_MESON_AXG_TDM_INTERFACE
+	help
+	  Select Y or M to add support for TDM input formatter embedded
+	  in the Amlogic AXG SoC family
+
+config SND_MESON_AXG_TDMOUT
+	tristate "Amlogic AXG TDM Output Support"
+	select SND_MESON_AXG_TDM_FORMATTER
+	select SND_MESON_AXG_TDM_INTERFACE
+	help
+	  Select Y or M to add support for TDM output formatter embedded
+	  in the Amlogic AXG SoC family
+
+config SND_MESON_AXG_SOUND_CARD
+	tristate "Amlogic AXG Sound Card Support"
+	select SND_MESON_AXG_TDM_INTERFACE
+	imply SND_MESON_AXG_FRDDR
+	imply SND_MESON_AXG_TODDR
+	imply SND_MESON_AXG_TDMIN
+	imply SND_MESON_AXG_TDMOUT
+	imply SND_MESON_AXG_SPDIFOUT
+	help
+	  Select Y or M to add support for the AXG SoC sound card
+
+config SND_MESON_AXG_SPDIFOUT
+	tristate "Amlogic AXG SPDIF Output Support"
+	select SND_PCM_IEC958
+	imply SND_SOC_SPDIF
+	help
+	  Select Y or M to add support for SPDIF output serializer embedded
+	  in the Amlogic AXG SoC family
+
+endmenu

@@ -30,6 +30,9 @@ int qla_nvme_register_remote(struct scsi_qla_host *vha, struct fc_port *fcport)
 		return 0;
 	}
 
+	if (!vha->nvme_local_port && qla_nvme_register_hba(vha))
+		return 0;
+
 	if (!(fcport->nvme_prli_service_param &
 	    (NVME_PRLI_SP_TARGET | NVME_PRLI_SP_DISCOVERY)) ||
 		(fcport->nvme_flag & NVME_FLAG_REGISTERED))
@@ -676,15 +679,15 @@ void qla_nvme_delete(struct scsi_qla_host *vha)
 	}
 }
 
-void qla_nvme_register_hba(struct scsi_qla_host *vha)
+int qla_nvme_register_hba(struct scsi_qla_host *vha)
 {
 	struct nvme_fc_port_template *tmpl;
 	struct qla_hw_data *ha;
 	struct nvme_fc_port_info pinfo;
-	int ret;
+	int ret = EINVAL;
 
 	if (!IS_ENABLED(CONFIG_NVME_FC))
-		return;
+		return ret;
 
 	ha = vha->hw;
 	tmpl = &qla_nvme_fc_transport;
@@ -711,7 +714,9 @@ void qla_nvme_register_hba(struct scsi_qla_host *vha)
 	if (ret) {
 		ql_log(ql_log_warn, vha, 0xffff,
 		    "register_localport failed: ret=%x\n", ret);
-		return;
+	} else {
+		vha->nvme_local_port->private = vha;
 	}
-	vha->nvme_local_port->private = vha;
+
+	return ret;
 }

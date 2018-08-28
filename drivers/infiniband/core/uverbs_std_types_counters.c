@@ -38,20 +38,22 @@ static int uverbs_free_counters(struct ib_uobject *uobject,
 				enum rdma_remove_reason why)
 {
 	struct ib_counters *counters = uobject->object;
+	int ret;
 
-	if (why == RDMA_REMOVE_DESTROY &&
-	    atomic_read(&counters->usecnt))
-		return -EBUSY;
+	ret = ib_destroy_usecnt(&counters->usecnt, why, uobject);
+	if (ret)
+		return ret;
 
 	return counters->device->destroy_counters(counters);
 }
 
-static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_CREATE)(struct ib_device *ib_dev,
-							 struct ib_uverbs_file *file,
-							 struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_CREATE)(
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(
+		attrs, UVERBS_ATTR_CREATE_COUNTERS_HANDLE);
+	struct ib_device *ib_dev = uobj->context->device;
 	struct ib_counters *counters;
-	struct ib_uobject *uobj;
 	int ret;
 
 	/*
@@ -62,7 +64,6 @@ static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_CREATE)(struct ib_device *ib_de
 	if (!ib_dev->create_counters)
 		return -EOPNOTSUPP;
 
-	uobj = uverbs_attr_get_uobject(attrs, UVERBS_ATTR_CREATE_COUNTERS_HANDLE);
 	counters = ib_dev->create_counters(ib_dev, attrs);
 	if (IS_ERR(counters)) {
 		ret = PTR_ERR(counters);
@@ -80,9 +81,8 @@ err_create_counters:
 	return ret;
 }
 
-static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_READ)(struct ib_device *ib_dev,
-						       struct ib_uverbs_file *file,
-						       struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_READ)(
+	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
 	struct ib_counters_read_attr read_attr = {};
 	const struct uverbs_attr *uattr;
@@ -90,68 +90,62 @@ static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_READ)(struct ib_device *ib_dev,
 		uverbs_attr_get_obj(attrs, UVERBS_ATTR_READ_COUNTERS_HANDLE);
 	int ret;
 
-	if (!ib_dev->read_counters)
+	if (!counters->device->read_counters)
 		return -EOPNOTSUPP;
 
 	if (!atomic_read(&counters->usecnt))
 		return -EINVAL;
 
-	ret = uverbs_copy_from(&read_attr.flags, attrs,
-			       UVERBS_ATTR_READ_COUNTERS_FLAGS);
+	ret = uverbs_get_flags32(&read_attr.flags, attrs,
+				 UVERBS_ATTR_READ_COUNTERS_FLAGS,
+				 IB_UVERBS_READ_COUNTERS_PREFER_CACHED);
 	if (ret)
 		return ret;
 
 	uattr = uverbs_attr_get(attrs, UVERBS_ATTR_READ_COUNTERS_BUFF);
 	read_attr.ncounters = uattr->ptr_attr.len / sizeof(u64);
-	read_attr.counters_buff = kcalloc(read_attr.ncounters,
-					  sizeof(u64), GFP_KERNEL);
-	if (!read_attr.counters_buff)
-		return -ENOMEM;
+	read_attr.counters_buff = uverbs_zalloc(
+		attrs, array_size(read_attr.ncounters, sizeof(u64)));
+	if (IS_ERR(read_attr.counters_buff))
+		return PTR_ERR(read_attr.counters_buff);
 
-	ret = ib_dev->read_counters(counters,
-				    &read_attr,
-				    attrs);
+	ret = counters->device->read_counters(counters, &read_attr, attrs);
 	if (ret)
-		goto err_read;
+		return ret;
 
-	ret = uverbs_copy_to(attrs, UVERBS_ATTR_READ_COUNTERS_BUFF,
-			     read_attr.counters_buff,
-			     read_attr.ncounters * sizeof(u64));
-
-err_read:
-	kfree(read_attr.counters_buff);
-	return ret;
+	return uverbs_copy_to(attrs, UVERBS_ATTR_READ_COUNTERS_BUFF,
+			      read_attr.counters_buff,
+			      read_attr.ncounters * sizeof(u64));
 }
 
-static DECLARE_UVERBS_NAMED_METHOD(UVERBS_METHOD_COUNTERS_CREATE,
-	&UVERBS_ATTR_IDR(UVERBS_ATTR_CREATE_COUNTERS_HANDLE,
-			 UVERBS_OBJECT_COUNTERS,
-			 UVERBS_ACCESS_NEW,
-			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
+DECLARE_UVERBS_NAMED_METHOD(
+	UVERBS_METHOD_COUNTERS_CREATE,
+	UVERBS_ATTR_IDR(UVERBS_ATTR_CREATE_COUNTERS_HANDLE,
+			UVERBS_OBJECT_COUNTERS,
+			UVERBS_ACCESS_NEW,
+			UA_MANDATORY));
 
-static DECLARE_UVERBS_NAMED_METHOD_WITH_HANDLER(UVERBS_METHOD_COUNTERS_DESTROY,
-	uverbs_destroy_def_handler,
-	&UVERBS_ATTR_IDR(UVERBS_ATTR_DESTROY_COUNTERS_HANDLE,
-			 UVERBS_OBJECT_COUNTERS,
-			 UVERBS_ACCESS_DESTROY,
-			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
+DECLARE_UVERBS_NAMED_METHOD_DESTROY(
+	UVERBS_METHOD_COUNTERS_DESTROY,
+	UVERBS_ATTR_IDR(UVERBS_ATTR_DESTROY_COUNTERS_HANDLE,
+			UVERBS_OBJECT_COUNTERS,
+			UVERBS_ACCESS_DESTROY,
+			UA_MANDATORY));
 
-#define MAX_COUNTERS_BUFF_SIZE USHRT_MAX
-static DECLARE_UVERBS_NAMED_METHOD(UVERBS_METHOD_COUNTERS_READ,
-	&UVERBS_ATTR_IDR(UVERBS_ATTR_READ_COUNTERS_HANDLE,
-			 UVERBS_OBJECT_COUNTERS,
-			 UVERBS_ACCESS_READ,
-			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
-	&UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_READ_COUNTERS_BUFF,
-			     UVERBS_ATTR_SIZE(0, MAX_COUNTERS_BUFF_SIZE),
-			     UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
-	&UVERBS_ATTR_PTR_IN(UVERBS_ATTR_READ_COUNTERS_FLAGS,
-			    UVERBS_ATTR_TYPE(__u32),
-			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
+DECLARE_UVERBS_NAMED_METHOD(
+	UVERBS_METHOD_COUNTERS_READ,
+	UVERBS_ATTR_IDR(UVERBS_ATTR_READ_COUNTERS_HANDLE,
+			UVERBS_OBJECT_COUNTERS,
+			UVERBS_ACCESS_READ,
+			UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_READ_COUNTERS_BUFF,
+			    UVERBS_ATTR_MIN_SIZE(0),
+			    UA_MANDATORY),
+	UVERBS_ATTR_FLAGS_IN(UVERBS_ATTR_READ_COUNTERS_FLAGS,
+			     enum ib_uverbs_read_counters_flags));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_COUNTERS,
-			    &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_counters),
+			    UVERBS_TYPE_ALLOC_IDR(uverbs_free_counters),
 			    &UVERBS_METHOD(UVERBS_METHOD_COUNTERS_CREATE),
 			    &UVERBS_METHOD(UVERBS_METHOD_COUNTERS_DESTROY),
 			    &UVERBS_METHOD(UVERBS_METHOD_COUNTERS_READ));
-

@@ -6,6 +6,7 @@ snd-hda-core-objs += trace.o
 CFLAGS_trace.o := -I$(src)
 
 # for sync with i915 gfx driver
+snd-hda-core-$(CONFIG_SND_HDA_COMPONENT) += hdac_component.o
 snd-hda-core-$(CONFIG_SND_HDA_I915) += hdac_i915.o
 
 obj-$(CONFIG_SND_HDA_CORE) += snd-hda-core.o

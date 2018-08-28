@@ -329,9 +329,9 @@ of ftrace. Here is a list of some of the key files:
 	track of the time spent in those functions. The histogram
 	content can be displayed in the files:
 
-	trace_stats/function<cpu> ( function0, function1, etc).
+	trace_stat/function<cpu> ( function0, function1, etc).
 
-  trace_stats:
+  trace_stat:
 
 	A directory that holds different tracing stats.
 

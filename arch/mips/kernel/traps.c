@@ -67,14 +67,12 @@
 #include <asm/mmu_context.h>
 #include <asm/types.h>
 #include <asm/stacktrace.h>
+#include <asm/tlbex.h>
 #include <asm/uasm.h>
 
 extern void check_wait(void);
 extern asmlinkage void rollback_handle_int(void);
 extern asmlinkage void handle_int(void);
-extern u32 handle_tlbl[];
-extern u32 handle_tlbs[];
-extern u32 handle_tlbm[];
 extern asmlinkage void handle_adel(void);
 extern asmlinkage void handle_ades(void);
 extern asmlinkage void handle_ibe(void);
@@ -1220,13 +1218,6 @@ static int default_cu2_call(struct notifier_block *nfb, unsigned long action,
 static int enable_restore_fp_context(int msa)
 {
 	int err, was_fpu_owner, prior_msa;
-
-	/*
-	 * If an FP mode switch is currently underway, wait for it to
-	 * complete before proceeding.
-	 */
-	wait_var_event(&current->mm->context.fp_mode_switching,
-		       !atomic_read(&current->mm->context.fp_mode_switching));
 
 	if (!used_math()) {
 		/* First time FP context user. */

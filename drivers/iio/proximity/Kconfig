@@ -20,6 +20,19 @@ endmenu
 
 menu "Proximity and distance sensors"
 
+config ISL29501
+	tristate "Intersil ISL29501 Time Of Flight sensor"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select IIO_KFIFO_BUF
+	help
+	  Say Y here if you want to build a driver for the Intersil ISL29501
+	  Time of Flight sensor.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called isl29501.
+
 config LIDAR_LITE_V2
 	tristate "PulsedLight LIDAR sensor"
 	select IIO_BUFFER

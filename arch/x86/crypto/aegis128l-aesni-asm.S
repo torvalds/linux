@@ -66,7 +66,7 @@
  *   %r9
  */
 __load_partial:
-	xor %r9, %r9
+	xor %r9d, %r9d
 	pxor MSG0, MSG0
 	pxor MSG1, MSG1
 

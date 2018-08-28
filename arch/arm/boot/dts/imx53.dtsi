@@ -113,7 +113,7 @@
 		};
 	};
 
-	pmu {
+	pmu: pmu {
 		compatible = "arm,cortex-a8-pmu";
 		interrupt-parent = <&tzic>;
 		interrupts = <77>;
@@ -670,6 +670,11 @@
 				dmas = <&sdma 16 4 0>, <&sdma 17 4 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
+			};
+
+			tigerp: tigerp@63fa0000 {
+				compatible = "fsl,imx53-tigerp", "fsl,imx51-tigerp";
+				reg = <0x63fa0000 0x28>;
 			};
 
 			owire: owire@63fa4000 {

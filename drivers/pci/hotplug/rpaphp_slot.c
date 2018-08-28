@@ -19,12 +19,6 @@
 #include "rpaphp.h"
 
 /* free up the memory used by a slot */
-static void rpaphp_release_slot(struct hotplug_slot *hotplug_slot)
-{
-	struct slot *slot = (struct slot *) hotplug_slot->private;
-	dealloc_slot_struct(slot);
-}
-
 void dealloc_slot_struct(struct slot *slot)
 {
 	kfree(slot->hotplug_slot->info);
@@ -56,7 +50,6 @@ struct slot *alloc_slot_struct(struct device_node *dn,
 	slot->power_domain = power_domain;
 	slot->hotplug_slot->private = slot;
 	slot->hotplug_slot->ops = &rpaphp_hotplug_slot_ops;
-	slot->hotplug_slot->release = &rpaphp_release_slot;
 
 	return (slot);
 
@@ -90,10 +83,8 @@ int rpaphp_deregister_slot(struct slot *slot)
 		__func__, slot->name);
 
 	list_del(&slot->rpaphp_slot_list);
-
-	retval = pci_hp_deregister(php_slot);
-	if (retval)
-		err("Problem unregistering a slot %s\n", slot->name);
+	pci_hp_deregister(php_slot);
+	dealloc_slot_struct(slot);
 
 	dbg("%s - Exit: rc[%d]\n", __func__, retval);
 	return retval;

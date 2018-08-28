@@ -50,6 +50,22 @@ LDFLAGS_MODULE
 --------------------------------------------------
 Additional options used for $(LD) when linking modules.
 
+HOSTCFLAGS
+--------------------------------------------------
+Additional flags to be passed to $(HOSTCC) when building host programs.
+
+HOSTCXXFLAGS
+--------------------------------------------------
+Additional flags to be passed to $(HOSTCXX) when building host programs.
+
+HOSTLDFLAGS
+--------------------------------------------------
+Additional flags to be passed when linking host programs.
+
+HOSTLDLIBS
+--------------------------------------------------
+Additional libraries to link against when building host programs.
+
 KBUILD_KCONFIG
 --------------------------------------------------
 Set the top-level Kconfig file to the value of this environment

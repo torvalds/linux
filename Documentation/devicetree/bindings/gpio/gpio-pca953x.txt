@@ -37,6 +37,7 @@ Required properties:
  - #interrupt-cells: if to be used as interrupt expander.
 
 Optional properties:
+ - interrupts: interrupt specifier for the device's interrupt output.
  - reset-gpios: GPIO specification for the RESET input. This is an
 		active low signal to the PCA953x.
  - vcc-supply:	power supply regulator.
@@ -49,6 +50,8 @@ Example:
 		reg = <0x20>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pca9505>;
+		gpio-controller;
+		#gpio-cells = <2>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
 	};

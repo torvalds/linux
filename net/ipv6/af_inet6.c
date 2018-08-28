@@ -322,8 +322,7 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		/* Reproduce AF_INET checks to make the bindings consistent */
 		v4addr = addr->sin6_addr.s6_addr32[3];
 		chk_addr_ret = inet_addr_type(net, v4addr);
-		if (!net->ipv4.sysctl_ip_nonlocal_bind &&
-		    !(inet->freebind || inet->transparent) &&
+		if (!inet_can_nonlocal_bind(net, inet) &&
 		    v4addr != htonl(INADDR_ANY) &&
 		    chk_addr_ret != RTN_LOCAL &&
 		    chk_addr_ret != RTN_MULTICAST &&
@@ -362,8 +361,7 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 			 */
 			v4addr = LOOPBACK4_IPV6;
 			if (!(addr_type & IPV6_ADDR_MULTICAST))	{
-				if (!net->ipv6.sysctl.ip_nonlocal_bind &&
-				    !(inet->freebind || inet->transparent) &&
+				if (!ipv6_can_nonlocal_bind(net, inet) &&
 				    !ipv6_chk_addr(net, &addr->sin6_addr,
 						   dev, 0)) {
 					err = -EADDRNOTAVAIL;
@@ -764,6 +762,7 @@ EXPORT_SYMBOL_GPL(ipv6_opt_accepted);
 static struct packet_type ipv6_packet_type __read_mostly = {
 	.type = cpu_to_be16(ETH_P_IPV6),
 	.func = ipv6_rcv,
+	.list_func = ipv6_list_rcv,
 };
 
 static int __init ipv6_packet_init(void)
@@ -833,6 +832,7 @@ static int __net_init inet6_net_init(struct net *net)
 
 	net->ipv6.sysctl.bindv6only = 0;
 	net->ipv6.sysctl.icmpv6_time = 1*HZ;
+	net->ipv6.sysctl.icmpv6_echo_ignore_all = 0;
 	net->ipv6.sysctl.flowlabel_consistency = 1;
 	net->ipv6.sysctl.auto_flowlabels = IP6_DEFAULT_AUTO_FLOW_LABELS;
 	net->ipv6.sysctl.idgen_retries = 3;

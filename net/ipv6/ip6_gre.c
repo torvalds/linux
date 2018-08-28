@@ -989,6 +989,8 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 		fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
 
 		dsfield = key->tos;
+		if (!(tun_info->key.tun_flags & TUNNEL_ERSPAN_OPT))
+			goto tx_err;
 		md = ip_tunnel_info_opts(tun_info);
 		if (!md)
 			goto tx_err;
@@ -1127,7 +1129,7 @@ static void ip6gre_tnl_link_config_route(struct ip6_tnl *t, int set_mtu,
 			return;
 
 		if (rt->dst.dev) {
-			dev->hard_header_len = rt->dst.dev->hard_header_len +
+			dev->needed_headroom = rt->dst.dev->hard_header_len +
 					       t_hlen;
 
 			if (set_mtu) {
@@ -1153,7 +1155,7 @@ static int ip6gre_calc_hlen(struct ip6_tnl *tunnel)
 	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen;
 
 	t_hlen = tunnel->hlen + sizeof(struct ipv6hdr);
-	tunnel->dev->hard_header_len = LL_MAX_HEADER + t_hlen;
+	tunnel->dev->needed_headroom = LL_MAX_HEADER + t_hlen;
 	return t_hlen;
 }
 
@@ -1823,7 +1825,7 @@ static int ip6erspan_calc_hlen(struct ip6_tnl *tunnel)
 		       erspan_hdr_len(tunnel->parms.erspan_ver);
 
 	t_hlen = tunnel->hlen + sizeof(struct ipv6hdr);
-	tunnel->dev->hard_header_len = LL_MAX_HEADER + t_hlen;
+	tunnel->dev->needed_headroom = LL_MAX_HEADER + t_hlen;
 	return t_hlen;
 }
 

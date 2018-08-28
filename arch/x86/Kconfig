@@ -75,6 +75,7 @@ config X86
 	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
+	select ARCH_SUPPORTS_ACPI
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_NUMA_BALANCING	if X86_64
 	select ARCH_USE_BUILTIN_BSWAP
@@ -123,6 +124,7 @@ config X86
 	select HAVE_ARCH_MMAP_RND_BITS		if MMU
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
 	select HAVE_ARCH_COMPAT_MMAP_BASES	if MMU && COMPAT
+	select HAVE_ARCH_PREL32_RELOCATIONS
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	select HAVE_ARCH_TRACEHOOK
@@ -178,15 +180,17 @@ config X86
 	select HAVE_HARDLOCKUP_DETECTOR_PERF	if PERF_EVENTS && HAVE_PERF_EVENTS_NMI
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
-	select HAVE_RCU_TABLE_FREE
+	select HAVE_RCU_TABLE_FREE		if PARAVIRT
+	select HAVE_RCU_TABLE_INVALIDATE	if HAVE_RCU_TABLE_FREE
 	select HAVE_REGS_AND_STACK_ACCESS_API
-	select HAVE_RELIABLE_STACKTRACE		if X86_64 && UNWINDER_FRAME_POINTER && STACK_VALIDATION
+	select HAVE_RELIABLE_STACKTRACE		if X86_64 && (UNWINDER_FRAME_POINTER || UNWINDER_ORC) && STACK_VALIDATION
 	select HAVE_STACKPROTECTOR		if CC_HAS_SANE_STACKPROTECTOR
 	select HAVE_STACK_VALIDATION		if X86_64
 	select HAVE_RSEQ
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_USER_RETURN_NOTIFIER
+	select HOTPLUG_SMT			if SMP
 	select IRQ_FORCED_THREADING
 	select NEED_SG_DMA_LENGTH
 	select PCI_LOCKLESS_CONFIG
@@ -345,8 +349,6 @@ config PGTABLE_LEVELS
 	default 3 if X86_PAE
 	default 2
 
-source "init/Kconfig"
-
 config CC_HAS_SANE_STACKPROTECTOR
 	bool
 	default $(success,$(srctree)/scripts/gcc-x86_64-has-stack-protector.sh $(CC)) if 64BIT
@@ -354,8 +356,6 @@ config CC_HAS_SANE_STACKPROTECTOR
 	help
 	   We have to make sure stack protector is unconditionally disabled if
 	   the compiler produces broken code.
-
-source "kernel/Kconfig.freezer"
 
 menu "Processor type and features"
 
@@ -1043,8 +1043,6 @@ config SCHED_MC_PRIO
 
 	  If unsure say Y here.
 
-source "kernel/Kconfig.preempt"
-
 config UP_LATE_INIT
        def_bool y
        depends on !SMP && X86_LOCAL_APIC
@@ -1637,8 +1635,6 @@ config ILLEGAL_POINTER_VALUE
        hex
        default 0 if X86_32
        default 0xdead000000000000 if X86_64
-
-source "mm/Kconfig"
 
 config X86_PMEM_LEGACY_DEVICE
 	bool
@@ -2865,9 +2861,7 @@ config X86_SYSFB
 endmenu
 
 
-menu "Executable file formats / Emulations"
-
-source "fs/Kconfig.binfmt"
+menu "Binary Emulations"
 
 config IA32_EMULATION
 	bool "IA32 Emulation"
@@ -2937,20 +2931,6 @@ config X86_DMA_REMAP
 config HAVE_GENERIC_GUP
 	def_bool y
 
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
 source "drivers/firmware/Kconfig"
 
-source "fs/Kconfig"
-
-source "arch/x86/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
 source "arch/x86/kvm/Kconfig"
-
-source "lib/Kconfig"

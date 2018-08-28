@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *  zcrypt 2.1.0
  *
@@ -31,7 +31,7 @@ struct cca_token_hdr {
 	unsigned char  version;
 	unsigned short token_length;
 	unsigned char  reserved[4];
-} __attribute__((packed));
+} __packed;
 
 #define CCA_TKN_HDR_ID_EXT 0x1E
 
@@ -51,7 +51,7 @@ struct cca_public_sec {
 	unsigned short exponent_len;
 	unsigned short modulus_bit_len;
 	unsigned short modulus_byte_len;    /* In a private key, this is 0 */
-} __attribute__((packed));
+} __packed;
 
 /**
  * mapping for the cca private CRT key 'token'
@@ -85,7 +85,7 @@ struct cca_pvt_ext_CRT_sec {
 	unsigned short pad_len;
 	unsigned char  reserved4[52];
 	unsigned char  confounder[8];
-} __attribute__((packed));
+} __packed;
 
 #define CCA_PVT_EXT_CRT_SEC_ID_PVT 0x08
 #define CCA_PVT_EXT_CRT_SEC_FMT_CL 0x40
@@ -99,7 +99,7 @@ struct cca_pvt_ext_CRT_sec {
  * @mex: pointer to user input data
  * @p: pointer to memory area for the key
  *
- * Returns the size of the key area or -EFAULT
+ * Returns the size of the key area or negative errno value.
  */
 static inline int zcrypt_type6_mex_key_en(struct ica_rsa_modexpo *mex, void *p)
 {
@@ -114,9 +114,18 @@ static inline int zcrypt_type6_mex_key_en(struct ica_rsa_modexpo *mex, void *p)
 		struct cca_token_hdr pubHdr;
 		struct cca_public_sec pubSec;
 		char exponent[0];
-	} __attribute__((packed)) *key = p;
+	} __packed *key = p;
 	unsigned char *temp;
 	int i;
+
+	/*
+	 * The inputdatalength was a selection criteria in the dispatching
+	 * function zcrypt_rsa_modexpo(). However, do a plausibility check
+	 * here to make sure the following copy_from_user() can't be utilized
+	 * to compromise the system.
+	 */
+	if (WARN_ON_ONCE(mex->inputdatalength > 512))
+		return -EINVAL;
 
 	memset(key, 0, sizeof(*key));
 
@@ -174,9 +183,18 @@ static inline int zcrypt_type6_crt_key(struct ica_rsa_modexpo_crt *crt, void *p)
 		struct cca_token_hdr token;
 		struct cca_pvt_ext_CRT_sec pvt;
 		char key_parts[0];
-	} __attribute__((packed)) *key = p;
+	} __packed *key = p;
 	struct cca_public_sec *pub;
 	int short_len, long_len, pad_len, key_len, size;
+
+	/*
+	 * The inputdatalength was a selection criteria in the dispatching
+	 * function zcrypt_rsa_crt(). However, do a plausibility check
+	 * here to make sure the following copy_from_user() can't be utilized
+	 * to compromise the system.
+	 */
+	if (WARN_ON_ONCE(crt->inputdatalength > 512))
+		return -EINVAL;
 
 	memset(key, 0, sizeof(*key));
 

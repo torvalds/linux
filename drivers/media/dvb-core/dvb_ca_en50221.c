@@ -1391,7 +1391,7 @@ static int dvb_ca_en50221_io_do_ioctl(struct file *file,
 		struct dvb_ca_slot *sl;
 
 		slot = info->num;
-		if ((slot > ca->slot_count) || (slot < 0)) {
+		if ((slot >= ca->slot_count) || (slot < 0)) {
 			err = -EINVAL;
 			goto out_unlock;
 		}

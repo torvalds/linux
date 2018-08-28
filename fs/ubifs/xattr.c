@@ -152,6 +152,12 @@ static int create_xattr(struct ubifs_info *c, struct inode *host,
 	ui->data_len = size;
 
 	mutex_lock(&host_ui->ui_mutex);
+
+	if (!host->i_nlink) {
+		err = -ENOENT;
+		goto out_noent;
+	}
+
 	host->i_ctime = current_time(host);
 	host_ui->xattr_cnt += 1;
 	host_ui->xattr_size += CALC_DENT_SIZE(fname_len(nm));
@@ -184,6 +190,7 @@ out_cancel:
 	host_ui->xattr_size -= CALC_XATTR_BYTES(size);
 	host_ui->xattr_names -= fname_len(nm);
 	host_ui->flags &= ~UBIFS_CRYPT_FL;
+out_noent:
 	mutex_unlock(&host_ui->ui_mutex);
 out_free:
 	make_bad_inode(inode);
@@ -216,7 +223,7 @@ static int change_xattr(struct ubifs_info *c, struct inode *host,
 	struct ubifs_budget_req req = { .dirtied_ino = 2,
 		.dirtied_ino_d = ALIGN(size, 8) + ALIGN(host_ui->data_len, 8) };
 
-	ubifs_assert(ui->data_len == inode->i_size);
+	ubifs_assert(c, ui->data_len == inode->i_size);
 	err = ubifs_budget_space(c, &req);
 	if (err)
 		return err;
@@ -235,6 +242,12 @@ static int change_xattr(struct ubifs_info *c, struct inode *host,
 	mutex_unlock(&ui->ui_mutex);
 
 	mutex_lock(&host_ui->ui_mutex);
+
+	if (!host->i_nlink) {
+		err = -ENOENT;
+		goto out_noent;
+	}
+
 	host->i_ctime = current_time(host);
 	host_ui->xattr_size -= CALC_XATTR_BYTES(old_size);
 	host_ui->xattr_size += CALC_XATTR_BYTES(size);
@@ -256,6 +269,7 @@ static int change_xattr(struct ubifs_info *c, struct inode *host,
 out_cancel:
 	host_ui->xattr_size -= CALC_XATTR_BYTES(size);
 	host_ui->xattr_size += CALC_XATTR_BYTES(old_size);
+out_noent:
 	mutex_unlock(&host_ui->ui_mutex);
 	make_bad_inode(inode);
 out_free:
@@ -291,7 +305,7 @@ int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
 	int err;
 
 	if (check_lock)
-		ubifs_assert(inode_is_locked(host));
+		ubifs_assert(c, inode_is_locked(host));
 
 	if (size > UBIFS_MAX_INO_DATA)
 		return -ERANGE;
@@ -374,8 +388,8 @@ ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
 	}
 
 	ui = ubifs_inode(inode);
-	ubifs_assert(inode->i_size == ui->data_len);
-	ubifs_assert(ubifs_inode(host)->xattr_size > ui->data_len);
+	ubifs_assert(c, inode->i_size == ui->data_len);
+	ubifs_assert(c, ubifs_inode(host)->xattr_size > ui->data_len);
 
 	mutex_lock(&ui->ui_mutex);
 	if (buf) {
@@ -462,7 +476,7 @@ ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		return err;
 	}
 
-	ubifs_assert(written <= size);
+	ubifs_assert(c, written <= size);
 	return written;
 }
 
@@ -475,13 +489,19 @@ static int remove_xattr(struct ubifs_info *c, struct inode *host,
 	struct ubifs_budget_req req = { .dirtied_ino = 2, .mod_dent = 1,
 				.dirtied_ino_d = ALIGN(host_ui->data_len, 8) };
 
-	ubifs_assert(ui->data_len == inode->i_size);
+	ubifs_assert(c, ui->data_len == inode->i_size);
 
 	err = ubifs_budget_space(c, &req);
 	if (err)
 		return err;
 
 	mutex_lock(&host_ui->ui_mutex);
+
+	if (!host->i_nlink) {
+		err = -ENOENT;
+		goto out_noent;
+	}
+
 	host->i_ctime = current_time(host);
 	host_ui->xattr_cnt -= 1;
 	host_ui->xattr_size -= CALC_DENT_SIZE(fname_len(nm));
@@ -501,6 +521,7 @@ out_cancel:
 	host_ui->xattr_size += CALC_DENT_SIZE(fname_len(nm));
 	host_ui->xattr_size += CALC_XATTR_BYTES(ui->data_len);
 	host_ui->xattr_names += fname_len(nm);
+out_noent:
 	mutex_unlock(&host_ui->ui_mutex);
 	ubifs_release_budget(c, &req);
 	make_bad_inode(inode);
@@ -538,7 +559,10 @@ static int ubifs_xattr_remove(struct inode *host, const char *name)
 	union ubifs_key key;
 	int err;
 
-	ubifs_assert(inode_is_locked(host));
+	ubifs_assert(c, inode_is_locked(host));
+
+	if (!host->i_nlink)
+		return -ENOENT;
 
 	if (fname_len(&nm) > UBIFS_MAX_NLEN)
 		return -ENAMETOOLONG;
@@ -561,7 +585,7 @@ static int ubifs_xattr_remove(struct inode *host, const char *name)
 		goto out_free;
 	}
 
-	ubifs_assert(inode->i_nlink == 1);
+	ubifs_assert(c, inode->i_nlink == 1);
 	clear_nlink(inode);
 	err = remove_xattr(c, host, inode, &nm);
 	if (err)

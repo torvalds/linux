@@ -102,6 +102,7 @@ struct nfsd_net {
 
 	time_t nfsd4_lease;
 	time_t nfsd4_grace;
+	bool somebody_reclaimed;
 
 	bool nfsd_net_up;
 	bool lockd_up;

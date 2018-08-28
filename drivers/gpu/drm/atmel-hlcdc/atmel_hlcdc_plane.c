@@ -412,9 +412,10 @@ static void atmel_hlcdc_plane_update_format(struct atmel_hlcdc_plane *plane,
 				    ATMEL_HLCDC_LAYER_FORMAT_CFG, cfg);
 }
 
-static void atmel_hlcdc_plane_update_clut(struct atmel_hlcdc_plane *plane)
+static void atmel_hlcdc_plane_update_clut(struct atmel_hlcdc_plane *plane,
+					  struct atmel_hlcdc_plane_state *state)
 {
-	struct drm_crtc *crtc = plane->base.crtc;
+	struct drm_crtc *crtc = state->base.crtc;
 	struct drm_color_lut *lut;
 	int idx;
 
@@ -779,7 +780,7 @@ static void atmel_hlcdc_plane_atomic_update(struct drm_plane *p,
 	atmel_hlcdc_plane_update_pos_and_size(plane, state);
 	atmel_hlcdc_plane_update_general_settings(plane, state);
 	atmel_hlcdc_plane_update_format(plane, state);
-	atmel_hlcdc_plane_update_clut(plane);
+	atmel_hlcdc_plane_update_clut(plane, state);
 	atmel_hlcdc_plane_update_buffers(plane, state);
 	atmel_hlcdc_plane_update_disc_area(plane, state);
 
@@ -814,16 +815,6 @@ static void atmel_hlcdc_plane_atomic_disable(struct drm_plane *p,
 
 	/* Clear all pending interrupts */
 	atmel_hlcdc_layer_read_reg(&plane->layer, ATMEL_HLCDC_LAYER_ISR);
-}
-
-static void atmel_hlcdc_plane_destroy(struct drm_plane *p)
-{
-	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
-
-	if (plane->base.fb)
-		drm_framebuffer_put(plane->base.fb);
-
-	drm_plane_cleanup(p);
 }
 
 static int atmel_hlcdc_plane_init_properties(struct atmel_hlcdc_plane *plane)
@@ -1002,7 +993,7 @@ static void atmel_hlcdc_plane_atomic_destroy_state(struct drm_plane *p,
 static const struct drm_plane_funcs layer_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = atmel_hlcdc_plane_destroy,
+	.destroy = drm_plane_cleanup,
 	.reset = atmel_hlcdc_plane_reset,
 	.atomic_duplicate_state = atmel_hlcdc_plane_atomic_duplicate_state,
 	.atomic_destroy_state = atmel_hlcdc_plane_atomic_destroy_state,

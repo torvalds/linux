@@ -9,8 +9,6 @@ the host controller using an I2C interface.
 Required properties:
 - compatible: Should be "siliconmitus,sm5502-muic"
 - reg: Specifies the I2C slave address of the MUIC block. It should be 0x25
-- interrupt-parent: Specifies the phandle of the interrupt controller to which
-  the interrupts from sm5502 are delivered to.
 - interrupts: Interrupt specifiers for detection interrupt sources.
 
 Example:

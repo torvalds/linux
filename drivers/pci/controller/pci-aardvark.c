@@ -111,24 +111,6 @@
 #define PCIE_MSI_MASK_REG			(CONTROL_BASE_ADDR + 0x5C)
 #define PCIE_MSI_PAYLOAD_REG			(CONTROL_BASE_ADDR + 0x9C)
 
-/* PCIe window configuration */
-#define OB_WIN_BASE_ADDR			0x4c00
-#define OB_WIN_BLOCK_SIZE			0x20
-#define OB_WIN_REG_ADDR(win, offset)		(OB_WIN_BASE_ADDR + \
-						 OB_WIN_BLOCK_SIZE * (win) + \
-						 (offset))
-#define OB_WIN_MATCH_LS(win)			OB_WIN_REG_ADDR(win, 0x00)
-#define OB_WIN_MATCH_MS(win)			OB_WIN_REG_ADDR(win, 0x04)
-#define OB_WIN_REMAP_LS(win)			OB_WIN_REG_ADDR(win, 0x08)
-#define OB_WIN_REMAP_MS(win)			OB_WIN_REG_ADDR(win, 0x0c)
-#define OB_WIN_MASK_LS(win)			OB_WIN_REG_ADDR(win, 0x10)
-#define OB_WIN_MASK_MS(win)			OB_WIN_REG_ADDR(win, 0x14)
-#define OB_WIN_ACTIONS(win)			OB_WIN_REG_ADDR(win, 0x18)
-
-/* PCIe window types */
-#define OB_PCIE_MEM				0x0
-#define OB_PCIE_IO				0x4
-
 /* LMI registers base address and register offsets */
 #define LMI_BASE_ADDR				0x6000
 #define CFG_REG					(LMI_BASE_ADDR + 0x0)
@@ -247,34 +229,9 @@ static int advk_pcie_wait_for_link(struct advk_pcie *pcie)
 	return -ETIMEDOUT;
 }
 
-/*
- * Set PCIe address window register which could be used for memory
- * mapping.
- */
-static void advk_pcie_set_ob_win(struct advk_pcie *pcie,
-				 u32 win_num, u32 match_ms,
-				 u32 match_ls, u32 mask_ms,
-				 u32 mask_ls, u32 remap_ms,
-				 u32 remap_ls, u32 action)
-{
-	advk_writel(pcie, match_ls, OB_WIN_MATCH_LS(win_num));
-	advk_writel(pcie, match_ms, OB_WIN_MATCH_MS(win_num));
-	advk_writel(pcie, mask_ms, OB_WIN_MASK_MS(win_num));
-	advk_writel(pcie, mask_ls, OB_WIN_MASK_LS(win_num));
-	advk_writel(pcie, remap_ms, OB_WIN_REMAP_MS(win_num));
-	advk_writel(pcie, remap_ls, OB_WIN_REMAP_LS(win_num));
-	advk_writel(pcie, action, OB_WIN_ACTIONS(win_num));
-	advk_writel(pcie, match_ls | BIT(0), OB_WIN_MATCH_LS(win_num));
-}
-
 static void advk_pcie_setup_hw(struct advk_pcie *pcie)
 {
 	u32 reg;
-	int i;
-
-	/* Point PCIe unit MBUS decode windows to DRAM space */
-	for (i = 0; i < 8; i++)
-		advk_pcie_set_ob_win(pcie, i, 0, 0, 0, 0, 0, 0, 0);
 
 	/* Set to Direct mode */
 	reg = advk_readl(pcie, CTRL_CONFIG_REG);
@@ -433,6 +390,15 @@ static int advk_pcie_wait_pio(struct advk_pcie *pcie)
 	return -ETIMEDOUT;
 }
 
+static bool advk_pcie_valid_device(struct advk_pcie *pcie, struct pci_bus *bus,
+				  int devfn)
+{
+	if ((bus->number == pcie->root_bus_nr) && PCI_SLOT(devfn) != 0)
+		return false;
+
+	return true;
+}
+
 static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
 			     int where, int size, u32 *val)
 {
@@ -440,7 +406,7 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
 	u32 reg;
 	int ret;
 
-	if ((bus->number == pcie->root_bus_nr) && PCI_SLOT(devfn) != 0) {
+	if (!advk_pcie_valid_device(pcie, bus, devfn)) {
 		*val = 0xffffffff;
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
@@ -494,7 +460,7 @@ static int advk_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 	int offset;
 	int ret;
 
-	if ((bus->number == pcie->root_bus_nr) && PCI_SLOT(devfn) != 0)
+	if (!advk_pcie_valid_device(pcie, bus, devfn))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	if (where % size)
@@ -843,12 +809,6 @@ static int advk_pcie_parse_request_of_pci_ranges(struct advk_pcie *pcie)
 
 		switch (resource_type(res)) {
 		case IORESOURCE_IO:
-			advk_pcie_set_ob_win(pcie, 1,
-					     upper_32_bits(res->start),
-					     lower_32_bits(res->start),
-					     0,	0xF8000000, 0,
-					     lower_32_bits(res->start),
-					     OB_PCIE_IO);
 			err = devm_pci_remap_iospace(dev, res, iobase);
 			if (err) {
 				dev_warn(dev, "error %d: failed to map resource %pR\n",
@@ -857,12 +817,6 @@ static int advk_pcie_parse_request_of_pci_ranges(struct advk_pcie *pcie)
 			}
 			break;
 		case IORESOURCE_MEM:
-			advk_pcie_set_ob_win(pcie, 0,
-					     upper_32_bits(res->start),
-					     lower_32_bits(res->start),
-					     0x0, 0xF8000000, 0,
-					     lower_32_bits(res->start),
-					     (2 << 20) | OB_PCIE_MEM);
 			res_valid |= !(res->flags & IORESOURCE_PREFETCH);
 			break;
 		case IORESOURCE_BUS:
@@ -889,7 +843,6 @@ static int advk_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct advk_pcie *pcie;
 	struct resource *res;
-	struct pci_bus *bus, *child;
 	struct pci_host_bridge *bridge;
 	int ret, irq;
 
@@ -943,21 +896,13 @@ static int advk_pcie_probe(struct platform_device *pdev)
 	bridge->map_irq = of_irq_parse_and_map_pci;
 	bridge->swizzle_irq = pci_common_swizzle;
 
-	ret = pci_scan_root_bus_bridge(bridge);
+	ret = pci_host_probe(bridge);
 	if (ret < 0) {
 		advk_pcie_remove_msi_irq_domain(pcie);
 		advk_pcie_remove_irq_domain(pcie);
 		return ret;
 	}
 
-	bus = bridge->bus;
-
-	pci_bus_assign_resources(bus);
-
-	list_for_each_entry(child, &bus->children, node)
-		pcie_bus_configure_settings(child);
-
-	pci_bus_add_devices(bus);
 	return 0;
 }
 

@@ -48,7 +48,7 @@ static void handle_rpc_func_cmd_get_time(struct optee_msg_arg *arg)
 			OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT)
 		goto bad;
 
-	getnstimeofday64(&ts);
+	ktime_get_real_ts64(&ts);
 	arg->params[0].u.value.a = ts.tv_sec;
 	arg->params[0].u.value.b = ts.tv_nsec;
 

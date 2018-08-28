@@ -72,7 +72,6 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/pci.h>
-#include <linux/pci-aspm.h>
 #include <linux/acpi.h>
 
 #include "fw/acpi.h"
@@ -828,19 +827,32 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0xA370, 0x42A4, iwl9462_2ac_cfg_soc)},
 
 /* 22000 Series */
-	{IWL_PCI_DEVICE(0x2720, 0x0A10, iwl22000_2ac_cfg_hr_cdb)},
-	{IWL_PCI_DEVICE(0x34F0, 0x0310, iwl22000_2ac_cfg_jf)},
 	{IWL_PCI_DEVICE(0x2720, 0x0000, iwl22000_2ax_cfg_hr)},
-	{IWL_PCI_DEVICE(0x34F0, 0x0070, iwl22000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0x2720, 0x0040, iwl22000_2ax_cfg_hr)},
 	{IWL_PCI_DEVICE(0x2720, 0x0078, iwl22000_2ax_cfg_hr)},
 	{IWL_PCI_DEVICE(0x2720, 0x0070, iwl22000_2ac_cfg_hr_cdb)},
 	{IWL_PCI_DEVICE(0x2720, 0x0030, iwl22000_2ac_cfg_hr_cdb)},
 	{IWL_PCI_DEVICE(0x2720, 0x1080, iwl22000_2ax_cfg_hr)},
 	{IWL_PCI_DEVICE(0x2720, 0x0090, iwl22000_2ac_cfg_hr_cdb)},
 	{IWL_PCI_DEVICE(0x2720, 0x0310, iwl22000_2ac_cfg_hr_cdb)},
-	{IWL_PCI_DEVICE(0x40C0, 0x0000, iwl22000_2ax_cfg_hr)},
-	{IWL_PCI_DEVICE(0x40C0, 0x0A10, iwl22000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0x34F0, 0x0040, iwl22000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0x34F0, 0x0070, iwl22000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0x34F0, 0x0078, iwl22000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0x34F0, 0x0310, iwl22000_2ac_cfg_jf)},
+	{IWL_PCI_DEVICE(0x40C0, 0x0000, iwl22560_2ax_cfg_su_cdb)},
+	{IWL_PCI_DEVICE(0x40C0, 0x0010, iwl22560_2ax_cfg_su_cdb)},
+	{IWL_PCI_DEVICE(0x40c0, 0x0090, iwl22560_2ax_cfg_su_cdb)},
+	{IWL_PCI_DEVICE(0x40C0, 0x0310, iwl22560_2ax_cfg_su_cdb)},
+	{IWL_PCI_DEVICE(0x40C0, 0x0A10, iwl22560_2ax_cfg_su_cdb)},
+	{IWL_PCI_DEVICE(0x43F0, 0x0040, iwl22000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0x43F0, 0x0070, iwl22000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0x43F0, 0x0078, iwl22000_2ax_cfg_hr)},
 	{IWL_PCI_DEVICE(0xA0F0, 0x0000, iwl22000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0xA0F0, 0x0040, iwl22000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0xA0F0, 0x0070, iwl22000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0xA0F0, 0x0078, iwl22000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0xA0F0, 0x00B0, iwl22000_2ax_cfg_hr)},
+	{IWL_PCI_DEVICE(0xA0F0, 0x0A10, iwl22000_2ax_cfg_hr)},
 
 #endif /* CONFIG_IWLMVM */
 
@@ -1001,6 +1013,10 @@ static int iwl_pci_resume(struct device *device)
 	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
 
 	if (!trans->op_mode)
+		return 0;
+
+	/* In WOWLAN, let iwl_trans_pcie_d3_resume do the rest of the work */
+	if (test_bit(STATUS_DEVICE_ENABLED, &trans->status))
 		return 0;
 
 	/* reconfigure the MSI-X mapping to get the correct IRQ for rfkill */

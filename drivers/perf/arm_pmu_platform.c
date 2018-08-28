@@ -160,7 +160,7 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 static int armpmu_request_irqs(struct arm_pmu *armpmu)
 {
 	struct pmu_hw_events __percpu *hw_events = armpmu->hw_events;
-	int cpu, err;
+	int cpu, err = 0;
 
 	for_each_cpu(cpu, &armpmu->supported_cpus) {
 		int irq = per_cpu(hw_events->irq, cpu);

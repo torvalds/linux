@@ -46,7 +46,8 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 	struct vgic_v3_cpu_if *cpuif = &vgic_cpu->vgic_v3;
 	u32 model = vcpu->kvm->arch.vgic.vgic_model;
 	int lr;
-	unsigned long flags;
+
+	DEBUG_SPINLOCK_BUG_ON(!irqs_disabled());
 
 	cpuif->vgic_hcr &= ~ICH_HCR_UIE;
 
@@ -75,7 +76,7 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 		if (!irq)	/* An LPI could have been unmapped. */
 			continue;
 
-		spin_lock_irqsave(&irq->irq_lock, flags);
+		spin_lock(&irq->irq_lock);
 
 		/* Always preserve the active bit */
 		irq->active = !!(val & ICH_LR_ACTIVE_BIT);
@@ -118,7 +119,7 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 				vgic_irq_set_phys_active(irq, false);
 		}
 
-		spin_unlock_irqrestore(&irq->irq_lock, flags);
+		spin_unlock(&irq->irq_lock);
 		vgic_put_irq(vcpu->kvm, irq);
 	}
 
@@ -197,11 +198,7 @@ void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 	if (vgic_irq_is_mapped_level(irq) && (val & ICH_LR_PENDING_BIT))
 		irq->line_level = false;
 
-	/*
-	 * We currently only support Group1 interrupts, which is a
-	 * known defect. This needs to be addressed at some point.
-	 */
-	if (model == KVM_DEV_TYPE_ARM_VGIC_V3)
+	if (irq->group)
 		val |= ICH_LR_GROUP;
 
 	val |= (u64)irq->priority << ICH_LR_PRIORITY_SHIFT;

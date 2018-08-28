@@ -29,7 +29,7 @@
 #include "core_types.h"
 
 #define DAL_STATS_ENABLE_REGKEY			"DalStatsEnable"
-#define DAL_STATS_ENABLE_REGKEY_DEFAULT		0x00000001
+#define DAL_STATS_ENABLE_REGKEY_DEFAULT		0x00000000
 #define DAL_STATS_ENABLE_REGKEY_ENABLED		0x00000001
 
 #define DAL_STATS_ENTRIES_REGKEY		"DalStatsEntries"
@@ -238,7 +238,7 @@ void mod_stats_dump(struct mod_stats *mod_stats)
 	for (int i = 0; i < core_stats->entry_id; i++) {
 		if (event_index < core_stats->event_index &&
 				i == events[event_index].entry_id) {
-			DISPLAY_STATS("%s\n", events[event_index].event_string);
+			DISPLAY_STATS("==Event==%s\n", events[event_index].event_string);
 			event_index++;
 		} else if (time_index < core_stats->index &&
 				i == time[time_index].entry_id) {

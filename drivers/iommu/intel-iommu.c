@@ -52,6 +52,7 @@
 #include <asm/iommu.h>
 
 #include "irq_remapping.h"
+#include "intel-pasid.h"
 
 #define ROOT_SIZE		VTD_PAGE_SIZE
 #define CONTEXT_SIZE		VTD_PAGE_SIZE
@@ -379,60 +380,6 @@ static int hw_pass_through = 1;
 	for (idx = 0; idx < g_num_of_iommus; idx++)		\
 		if (domain->iommu_refcnt[idx])
 
-struct dmar_domain {
-	int	nid;			/* node id */
-
-	unsigned	iommu_refcnt[DMAR_UNITS_SUPPORTED];
-					/* Refcount of devices per iommu */
-
-
-	u16		iommu_did[DMAR_UNITS_SUPPORTED];
-					/* Domain ids per IOMMU. Use u16 since
-					 * domain ids are 16 bit wide according
-					 * to VT-d spec, section 9.3 */
-
-	bool has_iotlb_device;
-	struct list_head devices;	/* all devices' list */
-	struct iova_domain iovad;	/* iova's that belong to this domain */
-
-	struct dma_pte	*pgd;		/* virtual address */
-	int		gaw;		/* max guest address width */
-
-	/* adjusted guest address width, 0 is level 2 30-bit */
-	int		agaw;
-
-	int		flags;		/* flags to find out type of domain */
-
-	int		iommu_coherency;/* indicate coherency of iommu access */
-	int		iommu_snooping; /* indicate snooping control feature*/
-	int		iommu_count;	/* reference count of iommu */
-	int		iommu_superpage;/* Level of superpages supported:
-					   0 == 4KiB (no superpages), 1 == 2MiB,
-					   2 == 1GiB, 3 == 512GiB, 4 == 1TiB */
-	u64		max_addr;	/* maximum mapped address */
-
-	struct iommu_domain domain;	/* generic domain data structure for
-					   iommu core */
-};
-
-/* PCI domain-device relationship */
-struct device_domain_info {
-	struct list_head link;	/* link to domain siblings */
-	struct list_head global; /* link to global list */
-	u8 bus;			/* PCI bus number */
-	u8 devfn;		/* PCI devfn number */
-	u8 pasid_supported:3;
-	u8 pasid_enabled:1;
-	u8 pri_supported:1;
-	u8 pri_enabled:1;
-	u8 ats_supported:1;
-	u8 ats_enabled:1;
-	u8 ats_qdep;
-	struct device *dev; /* it's NULL for PCIe-to-PCI bridge */
-	struct intel_iommu *iommu; /* IOMMU used by this device */
-	struct dmar_domain *domain; /* pointer to domain */
-};
-
 struct dmar_rmrr_unit {
 	struct list_head list;		/* list of rmrr units	*/
 	struct acpi_dmar_header *hdr;	/* ACPI header		*/
@@ -522,6 +469,27 @@ EXPORT_SYMBOL_GPL(intel_iommu_gfx_mapped);
 #define DUMMY_DEVICE_DOMAIN_INFO ((struct device_domain_info *)(-1))
 static DEFINE_SPINLOCK(device_domain_lock);
 static LIST_HEAD(device_domain_list);
+
+/*
+ * Iterate over elements in device_domain_list and call the specified
+ * callback @fn against each element. This helper should only be used
+ * in the context where the device_domain_lock has already been holden.
+ */
+int for_each_device_domain(int (*fn)(struct device_domain_info *info,
+				     void *data), void *data)
+{
+	int ret = 0;
+	struct device_domain_info *info;
+
+	assert_spin_locked(&device_domain_lock);
+	list_for_each_entry(info, &device_domain_list, global) {
+		ret = fn(info, data);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
 
 const struct iommu_ops intel_iommu_ops;
 
@@ -629,7 +597,7 @@ static void set_iommu_domain(struct intel_iommu *iommu, u16 did,
 		domains[did & 0xff] = domain;
 }
 
-static inline void *alloc_pgtable_page(int node)
+void *alloc_pgtable_page(int node)
 {
 	struct page *page;
 	void *vaddr = NULL;
@@ -640,7 +608,7 @@ static inline void *alloc_pgtable_page(int node)
 	return vaddr;
 }
 
-static inline void free_pgtable_page(void *vaddr)
+void free_pgtable_page(void *vaddr)
 {
 	free_page((unsigned long)vaddr);
 }
@@ -723,7 +691,7 @@ int iommu_calculate_agaw(struct intel_iommu *iommu)
 }
 
 /* This functionin only returns single iommu in a domain */
-static struct intel_iommu *domain_get_iommu(struct dmar_domain *domain)
+struct intel_iommu *domain_get_iommu(struct dmar_domain *domain)
 {
 	int iommu_id;
 
@@ -1501,6 +1469,20 @@ static void iommu_enable_dev_iotlb(struct device_domain_info *info)
 		return;
 
 	pdev = to_pci_dev(info->dev);
+	/* For IOMMU that supports device IOTLB throttling (DIT), we assign
+	 * PFSID to the invalidation desc of a VF such that IOMMU HW can gauge
+	 * queue depth at PF level. If DIT is not set, PFSID will be treated as
+	 * reserved, which should be set to 0.
+	 */
+	if (!ecap_dit(info->iommu->ecap))
+		info->pfsid = 0;
+	else {
+		struct pci_dev *pf_pdev;
+
+		/* pdev will be returned if device is not a vf */
+		pf_pdev = pci_physfn(pdev);
+		info->pfsid = PCI_DEVID(pf_pdev->bus->number, pf_pdev->devfn);
+	}
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
 	/* The PCIe spec, in its wisdom, declares that the behaviour of
@@ -1566,7 +1548,8 @@ static void iommu_flush_dev_iotlb(struct dmar_domain *domain,
 
 		sid = info->bus << 8 | info->devfn;
 		qdep = info->ats_qdep;
-		qi_flush_dev_iotlb(info->iommu, sid, qdep, addr, mask);
+		qi_flush_dev_iotlb(info->iommu, sid, info->pfsid,
+				qdep, addr, mask);
 	}
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 }
@@ -1800,7 +1783,7 @@ static void free_dmar_iommu(struct intel_iommu *iommu)
 	if (pasid_enabled(iommu)) {
 		if (ecap_prs(iommu->ecap))
 			intel_svm_finish_prq(iommu);
-		intel_svm_free_pasid_tables(iommu);
+		intel_svm_exit(iommu);
 	}
 #endif
 }
@@ -2495,6 +2478,7 @@ static struct dmar_domain *dmar_insert_one_dev_info(struct intel_iommu *iommu,
 	info->dev = dev;
 	info->domain = domain;
 	info->iommu = iommu;
+	info->pasid_table = NULL;
 
 	if (dev && dev_is_pci(dev)) {
 		struct pci_dev *pdev = to_pci_dev(info->dev);
@@ -2552,6 +2536,15 @@ static struct dmar_domain *dmar_insert_one_dev_info(struct intel_iommu *iommu,
 	list_add(&info->global, &device_domain_list);
 	if (dev)
 		dev->archdata.iommu = info;
+
+	if (dev && dev_is_pci(dev) && info->pasid_supported) {
+		ret = intel_pasid_alloc_table(dev);
+		if (ret) {
+			__dmar_remove_one_dev_info(info);
+			spin_unlock_irqrestore(&device_domain_lock, flags);
+			return NULL;
+		}
+	}
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 
 	if (dev && domain_context_mapping(domain, dev)) {
@@ -3304,6 +3297,18 @@ static int __init init_dmars(void)
 	}
 
 	for_each_active_iommu(iommu, drhd) {
+		/*
+		 * Find the max pasid size of all IOMMU's in the system.
+		 * We need to ensure the system pasid table is no bigger
+		 * than the smallest supported.
+		 */
+		if (pasid_enabled(iommu)) {
+			u32 temp = 2 << ecap_pss(iommu->ecap);
+
+			intel_pasid_max_id = min_t(u32, temp,
+						   intel_pasid_max_id);
+		}
+
 		g_iommus[iommu->seq_id] = iommu;
 
 		intel_iommu_init_qi(iommu);
@@ -3359,7 +3364,7 @@ static int __init init_dmars(void)
 			hw_pass_through = 0;
 #ifdef CONFIG_INTEL_IOMMU_SVM
 		if (pasid_enabled(iommu))
-			intel_svm_alloc_pasid_tables(iommu);
+			intel_svm_init(iommu);
 #endif
 	}
 
@@ -3526,7 +3531,7 @@ static unsigned long intel_alloc_iova(struct device *dev,
 	return iova_pfn;
 }
 
-static struct dmar_domain *get_valid_domain_for_dev(struct device *dev)
+struct dmar_domain *get_valid_domain_for_dev(struct device *dev)
 {
 	struct dmar_domain *domain, *tmp;
 	struct dmar_rmrr_unit *rmrr;
@@ -3758,7 +3763,8 @@ static void *intel_alloc_coherent(struct device *dev, size_t size,
 	if (gfpflags_allow_blocking(flags)) {
 		unsigned int count = size >> PAGE_SHIFT;
 
-		page = dma_alloc_from_contiguous(dev, count, order, flags);
+		page = dma_alloc_from_contiguous(dev, count, order,
+						 flags & __GFP_NOWARN);
 		if (page && iommu_no_mapping(dev) &&
 		    page_to_phys(page) + size > dev->coherent_dma_mask) {
 			dma_release_from_contiguous(dev, page, count);
@@ -4353,7 +4359,7 @@ static int intel_iommu_add(struct dmar_drhd_unit *dmaru)
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
 	if (pasid_enabled(iommu))
-		intel_svm_alloc_pasid_tables(iommu);
+		intel_svm_init(iommu);
 #endif
 
 	if (dmaru->ignored) {
@@ -4905,6 +4911,7 @@ static void __dmar_remove_one_dev_info(struct device_domain_info *info)
 	if (info->dev) {
 		iommu_disable_dev_iotlb(info);
 		domain_context_clear(iommu, info->dev);
+		intel_pasid_free_table(info->dev);
 	}
 
 	unlink_domain_info(info);
@@ -5230,22 +5237,16 @@ static void intel_iommu_put_resv_regions(struct device *dev,
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
 #define MAX_NR_PASID_BITS (20)
-static inline unsigned long intel_iommu_get_pts(struct intel_iommu *iommu)
+static inline unsigned long intel_iommu_get_pts(struct device *dev)
 {
-	/*
-	 * Convert ecap_pss to extend context entry pts encoding, also
-	 * respect the soft pasid_max value set by the iommu.
-	 * - number of PASID bits = ecap_pss + 1
-	 * - number of PASID table entries = 2^(pts + 5)
-	 * Therefore, pts = ecap_pss - 4
-	 * e.g. KBL ecap_pss = 0x13, PASID has 20 bits, pts = 15
-	 */
-	if (ecap_pss(iommu->ecap) < 5)
+	int pts, max_pasid;
+
+	max_pasid = intel_pasid_get_dev_max_id(dev);
+	pts = find_first_bit((unsigned long *)&max_pasid, MAX_NR_PASID_BITS);
+	if (pts < 5)
 		return 0;
 
-	/* pasid_max is encoded as actual number of entries not the bits */
-	return find_first_bit((unsigned long *)&iommu->pasid_max,
-			MAX_NR_PASID_BITS) - 5;
+	return pts - 5;
 }
 
 int intel_iommu_enable_pasid(struct intel_iommu *iommu, struct intel_svm_dev *sdev)
@@ -5281,8 +5282,8 @@ int intel_iommu_enable_pasid(struct intel_iommu *iommu, struct intel_svm_dev *sd
 	if (!(ctx_lo & CONTEXT_PASIDE)) {
 		if (iommu->pasid_state_table)
 			context[1].hi = (u64)virt_to_phys(iommu->pasid_state_table);
-		context[1].lo = (u64)virt_to_phys(iommu->pasid_table) |
-			intel_iommu_get_pts(iommu);
+		context[1].lo = (u64)virt_to_phys(info->pasid_table->table) |
+			intel_iommu_get_pts(sdev->dev);
 
 		wmb();
 		/* CONTEXT_TT_MULTI_LEVEL and CONTEXT_TT_DEV_IOTLB are both
@@ -5349,11 +5350,6 @@ struct intel_iommu *intel_svm_device_to_iommu(struct device *dev)
 		return NULL;
 	}
 
-	if (!iommu->pasid_table) {
-		dev_err(dev, "PASID not enabled on IOMMU; cannot enable SVM\n");
-		return NULL;
-	}
-
 	return iommu;
 }
 #endif /* CONFIG_INTEL_IOMMU_SVM */
@@ -5366,7 +5362,6 @@ const struct iommu_ops intel_iommu_ops = {
 	.detach_dev		= intel_iommu_detach_device,
 	.map			= intel_iommu_map,
 	.unmap			= intel_iommu_unmap,
-	.map_sg			= default_iommu_map_sg,
 	.iova_to_phys		= intel_iommu_iova_to_phys,
 	.add_device		= intel_iommu_add_device,
 	.remove_device		= intel_iommu_remove_device,

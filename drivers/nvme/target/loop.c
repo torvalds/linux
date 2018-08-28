@@ -227,6 +227,7 @@ static int nvme_loop_init_request(struct blk_mq_tag_set *set,
 {
 	struct nvme_loop_ctrl *ctrl = set->driver_data;
 
+	nvme_req(req)->ctrl = &ctrl->ctrl;
 	return nvme_loop_init_iod(ctrl, blk_mq_rq_to_pdu(req),
 			(set == &ctrl->tag_set) ? hctx_idx + 1 : 0);
 }

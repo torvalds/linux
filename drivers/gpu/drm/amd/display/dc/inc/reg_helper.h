@@ -445,4 +445,50 @@ uint32_t generic_reg_get8(const struct dc_context *ctx, uint32_t addr,
 		uint8_t shift6, uint32_t mask6, uint32_t *field_value6,
 		uint8_t shift7, uint32_t mask7, uint32_t *field_value7,
 		uint8_t shift8, uint32_t mask8, uint32_t *field_value8);
+
+
+/* indirect register access */
+
+#define IX_REG_SET_N(index_reg_name, data_reg_name, index, n, initial_val, ...)	\
+		generic_indirect_reg_update_ex(CTX, \
+				REG(index_reg_name), REG(data_reg_name), IND_REG(index), \
+				initial_val, \
+				n, __VA_ARGS__)
+
+#define IX_REG_SET_2(index_reg_name, data_reg_name, index, init_value, f1, v1, f2, v2)	\
+		IX_REG_SET_N(index_reg_name, data_reg_name, index, 2, init_value, \
+				FN(reg, f1), v1,\
+				FN(reg, f2), v2)
+
+
+#define IX_REG_READ(index_reg_name, data_reg_name, index) \
+		generic_read_indirect_reg(CTX, REG(index_reg_name), REG(data_reg_name), IND_REG(index))
+
+
+
+#define IX_REG_UPDATE_N(index_reg_name, data_reg_name, index, n, ...)	\
+		generic_indirect_reg_update_ex(CTX, \
+				REG(index_reg_name), REG(data_reg_name), IND_REG(index), \
+				IX_REG_READ(index_reg_name, data_reg_name, index), \
+				n, __VA_ARGS__)
+
+#define IX_REG_UPDATE_2(index_reg_name, data_reg_name, index, f1, v1, f2, v2)	\
+		IX_REG_UPDATE_N(index_reg_name, data_reg_name, index, 2,\
+				FN(reg, f1), v1,\
+				FN(reg, f2), v2)
+
+void generic_write_indirect_reg(const struct dc_context *ctx,
+		uint32_t addr_index, uint32_t addr_data,
+		uint32_t index, uint32_t data);
+
+uint32_t generic_read_indirect_reg(const struct dc_context *ctx,
+		uint32_t addr_index, uint32_t addr_data,
+		uint32_t index);
+
+uint32_t generic_indirect_reg_update_ex(const struct dc_context *ctx,
+		uint32_t addr_index, uint32_t addr_data,
+		uint32_t index, uint32_t reg_val, int n,
+		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
+		...);
+
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_REG_HELPER_H_ */

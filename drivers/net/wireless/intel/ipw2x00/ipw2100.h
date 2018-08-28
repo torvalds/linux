@@ -491,7 +491,7 @@ struct ipw2100_priv {
 
 	/* Statistics */
 	int resets;
-	int reset_backoff;
+	time64_t reset_backoff;
 
 	/* Context */
 	u8 essid[IW_ESSID_MAX_SIZE];
@@ -500,8 +500,8 @@ struct ipw2100_priv {
 	u8 channel;
 	int last_mode;
 
-	unsigned long connect_start;
-	unsigned long last_reset;
+	time64_t connect_start;
+	time64_t last_reset;
 
 	u32 channel_mask;
 	u32 fatal_error;
@@ -581,9 +581,9 @@ struct ipw2100_priv {
 
 	int user_requested_scan;
 
-	/* Track time in suspend */
-	unsigned long suspend_at;
-	unsigned long suspend_time;
+	/* Track time in suspend, using CLOCK_BOOTTIME */
+	time64_t suspend_at;
+	time64_t suspend_time;
 
 	u32 interrupts;
 	int tx_interrupts;

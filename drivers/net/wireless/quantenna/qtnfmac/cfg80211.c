@@ -843,6 +843,88 @@ static int qtnf_set_mac_acl(struct wiphy *wiphy,
 	return ret;
 }
 
+static int qtnf_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
+			       bool enabled, int timeout)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	int ret;
+
+	ret = qtnf_cmd_send_pm_set(vif, enabled ? QLINK_PM_AUTO_STANDBY :
+				   QLINK_PM_OFF, timeout);
+	if (ret) {
+		pr_err("%s: failed to set PM mode ret=%d\n", dev->name, ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_PM
+static int qtnf_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wowlan)
+{
+	struct qtnf_wmac *mac = wiphy_priv(wiphy);
+	struct qtnf_vif *vif;
+	int ret = 0;
+
+	vif = qtnf_mac_get_base_vif(mac);
+	if (!vif) {
+		pr_err("MAC%u: primary VIF is not configured\n", mac->macid);
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	if (!wowlan) {
+		pr_debug("WoWLAN triggers are not enabled\n");
+		qtnf_virtual_intf_cleanup(vif->netdev);
+		goto exit;
+	}
+
+	qtnf_scan_done(vif->mac, true);
+
+	ret = qtnf_cmd_send_wowlan_set(vif, wowlan);
+	if (ret) {
+		pr_err("MAC%u: failed to set WoWLAN triggers\n",
+		       mac->macid);
+		goto exit;
+	}
+
+exit:
+	return ret;
+}
+
+static int qtnf_resume(struct wiphy *wiphy)
+{
+	struct qtnf_wmac *mac = wiphy_priv(wiphy);
+	struct qtnf_vif *vif;
+	int ret = 0;
+
+	vif = qtnf_mac_get_base_vif(mac);
+	if (!vif) {
+		pr_err("MAC%u: primary VIF is not configured\n", mac->macid);
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	ret = qtnf_cmd_send_wowlan_set(vif, NULL);
+	if (ret) {
+		pr_err("MAC%u: failed to reset WoWLAN triggers\n",
+		       mac->macid);
+		goto exit;
+	}
+
+exit:
+	return ret;
+}
+
+static void qtnf_set_wakeup(struct wiphy *wiphy, bool enabled)
+{
+	struct qtnf_wmac *mac = wiphy_priv(wiphy);
+	struct qtnf_bus *bus = mac->bus;
+
+	device_set_wakeup_enable(bus->dev, enabled);
+}
+#endif
+
 static struct cfg80211_ops qtn_cfg80211_ops = {
 	.add_virtual_intf	= qtnf_add_virtual_intf,
 	.change_virtual_intf	= qtnf_change_virtual_intf,
@@ -869,6 +951,12 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.channel_switch		= qtnf_channel_switch,
 	.start_radar_detection	= qtnf_start_radar_detection,
 	.set_mac_acl		= qtnf_set_mac_acl,
+	.set_power_mgmt		= qtnf_set_power_mgmt,
+#ifdef CONFIG_PM
+	.suspend		= qtnf_suspend,
+	.resume			= qtnf_resume,
+	.set_wakeup		= qtnf_set_wakeup,
+#endif
 };
 
 static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
@@ -920,6 +1008,9 @@ struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus)
 
 	if (bus->hw_info.hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
 		qtn_cfg80211_ops.start_radar_detection = NULL;
+
+	if (!(bus->hw_info.hw_capab & QLINK_HW_CAPAB_PWR_MGMT))
+		qtn_cfg80211_ops.set_power_mgmt	= NULL;
 
 	wiphy = wiphy_new(&qtn_cfg80211_ops, sizeof(struct qtnf_wmac));
 	if (!wiphy)
@@ -975,7 +1066,8 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	wiphy->retry_long = macinfo->lretry_limit;
 	wiphy->coverage_class = macinfo->coverage_class;
 
-	wiphy->max_scan_ssids = QTNF_MAX_SSID_LIST_LENGTH;
+	wiphy->max_scan_ssids =
+		(hw_info->max_scan_ssids) ? hw_info->max_scan_ssids : 1;
 	wiphy->max_scan_ie_len = QTNF_MAX_VSIE_LEN;
 	wiphy->mgmt_stypes = qtnf_mgmt_stypes;
 	wiphy->max_remain_on_channel_duration = 5000;
@@ -994,6 +1086,7 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
 			WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+	wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	if (hw_info->hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
 		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_DFS_OFFLOAD);
@@ -1012,6 +1105,14 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 
 	if (hw_info->hw_capab & QLINK_HW_CAPAB_STA_INACT_TIMEOUT)
 		wiphy->features |= NL80211_FEATURE_INACTIVITY_TIMER;
+
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_SCAN_RANDOM_MAC_ADDR)
+		wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
+
+#ifdef CONFIG_PM
+	if (macinfo->wowlan)
+		wiphy->wowlan = macinfo->wowlan;
+#endif
 
 	if (hw_info->hw_capab & QLINK_HW_CAPAB_REG_UPDATE) {
 		wiphy->regulatory_flags |= REGULATORY_STRICT_REG |

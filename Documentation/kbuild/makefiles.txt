@@ -661,7 +661,7 @@ Both possibilities are described in the following.
 
 	When compiling host programs, it is possible to set specific flags.
 	The programs will always be compiled utilising $(HOSTCC) passed
-	the options specified in $(HOSTCFLAGS).
+	the options specified in $(KBUILD_HOSTCFLAGS).
 	To set flags that will take effect for all host programs created
 	in that Makefile, use the variable HOST_EXTRACFLAGS.
 
@@ -680,7 +680,7 @@ Both possibilities are described in the following.
 
 	Example:
 		#scripts/kconfig/Makefile
-		HOSTLOADLIBES_qconf := -L$(QTDIR)/lib
+		HOSTLDLIBS_qconf := -L$(QTDIR)/lib
 
 	When linking qconf, it will be passed the extra option
 	"-L$(QTDIR)/lib".
@@ -1104,6 +1104,12 @@ When kbuild executes, the following steps are followed (roughly):
 	after the comma):
 		target: source(s) FORCE
 	#WRONG!#	$(call if_changed, ld/objcopy/gzip/...)
+
+        Note: if_changed should not be used more than once per target.
+              It stores the executed command in a corresponding .cmd
+        file and multiple calls would result in overwrites and
+        unwanted results when the target is up to date and only the
+        tests on changed commands trigger execution of commands.
 
     ld
 	Link target. Often, LDFLAGS_$@ is used to set specific options to ld.

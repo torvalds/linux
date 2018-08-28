@@ -904,23 +904,29 @@ static loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int whence)
 	dfprintk(FILE, "NFS: llseek dir(%pD2, %lld, %d)\n",
 			filp, offset, whence);
 
-	inode_lock(inode);
 	switch (whence) {
-		case 1:
-			offset += filp->f_pos;
-		case 0:
-			if (offset >= 0)
-				break;
-		default:
-			offset = -EINVAL;
-			goto out;
+	default:
+		return -EINVAL;
+	case SEEK_SET:
+		if (offset < 0)
+			return -EINVAL;
+		inode_lock(inode);
+		break;
+	case SEEK_CUR:
+		if (offset == 0)
+			return filp->f_pos;
+		inode_lock(inode);
+		offset += filp->f_pos;
+		if (offset < 0) {
+			inode_unlock(inode);
+			return -EINVAL;
+		}
 	}
 	if (offset != filp->f_pos) {
 		filp->f_pos = offset;
 		dir_ctx->dir_cookie = 0;
 		dir_ctx->duped = 0;
 	}
-out:
 	inode_unlock(inode);
 	return offset;
 }
@@ -1032,7 +1038,7 @@ int nfs_lookup_verify_inode(struct inode *inode, unsigned int flags)
 	if (flags & LOOKUP_REVAL)
 		goto out_force;
 out:
-	return (inode->i_nlink == 0) ? -ENOENT : 0;
+	return (inode->i_nlink == 0) ? -ESTALE : 0;
 out_force:
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
@@ -1434,12 +1440,11 @@ static int do_open(struct inode *inode, struct file *filp)
 
 static int nfs_finish_open(struct nfs_open_context *ctx,
 			   struct dentry *dentry,
-			   struct file *file, unsigned open_flags,
-			   int *opened)
+			   struct file *file, unsigned open_flags)
 {
 	int err;
 
-	err = finish_open(file, dentry, do_open, opened);
+	err = finish_open(file, dentry, do_open);
 	if (err)
 		goto out;
 	if (S_ISREG(file->f_path.dentry->d_inode->i_mode))
@@ -1452,7 +1457,7 @@ out:
 
 int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		    struct file *file, unsigned open_flags,
-		    umode_t mode, int *opened)
+		    umode_t mode)
 {
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 	struct nfs_open_context *ctx;
@@ -1461,6 +1466,7 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	struct inode *inode;
 	unsigned int lookup_flags = 0;
 	bool switched = false;
+	int created = 0;
 	int err;
 
 	/* Expect a negative dentry */
@@ -1521,7 +1527,9 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		goto out;
 
 	trace_nfs_atomic_open_enter(dir, ctx, open_flags);
-	inode = NFS_PROTO(dir)->open_context(dir, ctx, open_flags, &attr, opened);
+	inode = NFS_PROTO(dir)->open_context(dir, ctx, open_flags, &attr, &created);
+	if (created)
+		file->f_mode |= FMODE_CREATED;
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		trace_nfs_atomic_open_exit(dir, ctx, open_flags, err);
@@ -1546,7 +1554,7 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		goto out;
 	}
 
-	err = nfs_finish_open(ctx, ctx->dentry, file, open_flags, opened);
+	err = nfs_finish_open(ctx, ctx->dentry, file, open_flags);
 	trace_nfs_atomic_open_exit(dir, ctx, open_flags, err);
 	put_nfs_open_context(ctx);
 out:
@@ -1641,6 +1649,7 @@ int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fhandle,
 	struct dentry *parent = dget_parent(dentry);
 	struct inode *dir = d_inode(parent);
 	struct inode *inode;
+	struct dentry *d;
 	int error = -EACCES;
 
 	d_drop(dentry);
@@ -1662,10 +1671,12 @@ int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fhandle,
 			goto out_error;
 	}
 	inode = nfs_fhget(dentry->d_sb, fhandle, fattr, label);
-	error = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	d = d_splice_alias(inode, dentry);
+	if (IS_ERR(d)) {
+		error = PTR_ERR(d);
 		goto out_error;
-	d_add(dentry, inode);
+	}
+	dput(d);
 out:
 	dput(parent);
 	return 0;
@@ -2494,7 +2505,9 @@ static int nfs_execute_ok(struct inode *inode, int mask)
 	struct nfs_server *server = NFS_SERVER(inode);
 	int ret = 0;
 
-	if (nfs_check_cache_invalid(inode, NFS_INO_INVALID_ACCESS)) {
+	if (S_ISDIR(inode->i_mode))
+		return 0;
+	if (nfs_check_cache_invalid(inode, NFS_INO_INVALID_OTHER)) {
 		if (mask & MAY_NOT_BLOCK)
 			return -ECHILD;
 		ret = __nfs_revalidate_inode(server, inode);

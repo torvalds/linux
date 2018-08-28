@@ -29,8 +29,6 @@ Required properties:
 			 If two register sets are present, the first is to be
 			 used by the CPU, and the second is to be used by the
 			 DMA engine.
-- interrupt-parent     : The phandle for the interrupt controller that
-			 services interrupts for this device
 - interrupts           : Interrupt specifier
 - #address-cells       : Must be <1>
 - #size-cells          : Must be <0>

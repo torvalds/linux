@@ -31,8 +31,6 @@
  * SOFTWARE.
  */
 
-/* Author: Jakub Kicinski <kubakici@wp.pl> */
-
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>

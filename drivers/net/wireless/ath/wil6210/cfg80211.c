@@ -302,14 +302,14 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 
 	sinfo->generation = wil->sinfo_gen;
 
-	sinfo->filled = BIT(NL80211_STA_INFO_RX_BYTES) |
-			BIT(NL80211_STA_INFO_TX_BYTES) |
-			BIT(NL80211_STA_INFO_RX_PACKETS) |
-			BIT(NL80211_STA_INFO_TX_PACKETS) |
-			BIT(NL80211_STA_INFO_RX_BITRATE) |
-			BIT(NL80211_STA_INFO_TX_BITRATE) |
-			BIT(NL80211_STA_INFO_RX_DROP_MISC) |
-			BIT(NL80211_STA_INFO_TX_FAILED);
+	sinfo->filled = BIT_ULL(NL80211_STA_INFO_RX_BYTES) |
+			BIT_ULL(NL80211_STA_INFO_TX_BYTES) |
+			BIT_ULL(NL80211_STA_INFO_RX_PACKETS) |
+			BIT_ULL(NL80211_STA_INFO_TX_PACKETS) |
+			BIT_ULL(NL80211_STA_INFO_RX_BITRATE) |
+			BIT_ULL(NL80211_STA_INFO_TX_BITRATE) |
+			BIT_ULL(NL80211_STA_INFO_RX_DROP_MISC) |
+			BIT_ULL(NL80211_STA_INFO_TX_FAILED);
 
 	sinfo->txrate.flags = RATE_INFO_FLAGS_60G;
 	sinfo->txrate.mcs = le16_to_cpu(reply.evt.bf_mcs);
@@ -322,7 +322,7 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 	sinfo->tx_failed = stats->tx_errors;
 
 	if (test_bit(wil_vif_fwconnected, vif->status)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
 		if (test_bit(WMI_FW_CAPABILITY_RSSI_REPORTING,
 			     wil->fw_capabilities))
 			sinfo->signal = reply.evt.rssi;
@@ -689,11 +689,12 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 
 	wil_dbg_misc(wil, "scan: wdev=0x%p iftype=%d\n", wdev, wdev->iftype);
 
-	/* check we are client side */
+	/* scan is supported on client interfaces and on AP interface */
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_DEVICE:
+	case NL80211_IFTYPE_AP:
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1089,18 +1090,51 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	int rc;
 	bool tx_status;
 
-	/* Note, currently we do not support the "wait" parameter, user-space
-	 * must call remain_on_channel before mgmt_tx or listen on a channel
-	 * another way (AP/PCP or connected station)
-	 * in addition we need to check if specified "chan" argument is
-	 * different from currently "listened" channel and fail if it is.
+	wil_dbg_misc(wil, "mgmt_tx: channel %d offchan %d, wait %d\n",
+		     params->chan ? params->chan->hw_value : -1,
+		     params->offchan,
+		     params->wait);
+
+	/* Note, currently we support the "wait" parameter only on AP mode.
+	 * In other modes, user-space must call remain_on_channel before
+	 * mgmt_tx or listen on a channel other than active one.
 	 */
 
-	rc = wmi_mgmt_tx(vif, buf, len);
-	tx_status = (rc == 0);
+	if (params->chan && params->chan->hw_value == 0) {
+		wil_err(wil, "invalid channel\n");
+		return -EINVAL;
+	}
 
+	if (wdev->iftype != NL80211_IFTYPE_AP) {
+		wil_dbg_misc(wil,
+			     "send WMI_SW_TX_REQ_CMDID on non-AP interfaces\n");
+		rc = wmi_mgmt_tx(vif, buf, len);
+		goto out;
+	}
+
+	if (!params->chan || params->chan->hw_value == vif->channel) {
+		wil_dbg_misc(wil,
+			     "send WMI_SW_TX_REQ_CMDID for on-channel\n");
+		rc = wmi_mgmt_tx(vif, buf, len);
+		goto out;
+	}
+
+	if (params->offchan == 0) {
+		wil_err(wil,
+			"invalid channel params: current %d requested %d, off-channel not allowed\n",
+			vif->channel, params->chan->hw_value);
+		return -EBUSY;
+	}
+
+	/* use the wmi_mgmt_tx_ext only on AP mode and off-channel */
+	rc = wmi_mgmt_tx_ext(vif, buf, len, params->chan->hw_value,
+			     params->wait);
+
+out:
+	tx_status = (rc == 0);
 	cfg80211_mgmt_tx_status(wdev, cookie ? *cookie : 0, buf, len,
 				tx_status, GFP_KERNEL);
+
 	return rc;
 }
 
@@ -1726,7 +1760,7 @@ static int wil_cfg80211_change_station(struct wiphy *wiphy,
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	int authorize;
 	int cid, i;
-	struct vring_tx_data *txdata = NULL;
+	struct wil_ring_tx_data *txdata = NULL;
 
 	wil_dbg_misc(wil, "change station %pM mask 0x%x set 0x%x mid %d\n",
 		     mac, params->sta_flags_mask, params->sta_flags_set,
@@ -1746,20 +1780,20 @@ static int wil_cfg80211_change_station(struct wiphy *wiphy,
 		return -ENOLINK;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(wil->vring2cid_tid); i++)
-		if (wil->vring2cid_tid[i][0] == cid) {
-			txdata = &wil->vring_tx_data[i];
+	for (i = 0; i < ARRAY_SIZE(wil->ring2cid_tid); i++)
+		if (wil->ring2cid_tid[i][0] == cid) {
+			txdata = &wil->ring_tx_data[i];
 			break;
 		}
 
 	if (!txdata) {
-		wil_err(wil, "vring data not found\n");
+		wil_err(wil, "ring data not found\n");
 		return -ENOLINK;
 	}
 
 	authorize = params->sta_flags_set & BIT(NL80211_STA_FLAG_AUTHORIZED);
 	txdata->dot1x_open = authorize ? 1 : 0;
-	wil_dbg_misc(wil, "cid %d vring %d authorize %d\n", cid, i,
+	wil_dbg_misc(wil, "cid %d ring %d authorize %d\n", cid, i,
 		     txdata->dot1x_open);
 
 	return 0;

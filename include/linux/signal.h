@@ -254,18 +254,20 @@ static inline int valid_signal(unsigned long sig)
 
 struct timespec;
 struct pt_regs;
+enum pid_type;
 
 extern int next_signal(struct sigpending *pending, sigset_t *mask);
 extern int do_send_sig_info(int sig, struct siginfo *info,
-				struct task_struct *p, bool group);
-extern int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p);
+				struct task_struct *p, enum pid_type type);
+extern int group_send_sig_info(int sig, struct siginfo *info,
+			       struct task_struct *p, enum pid_type type);
 extern int __group_send_sig_info(int, struct siginfo *, struct task_struct *);
 extern int sigprocmask(int, sigset_t *, sigset_t *);
 extern void set_current_blocked(sigset_t *);
 extern void __set_current_blocked(const sigset_t *);
 extern int show_unhandled_signals;
 
-extern int get_signal(struct ksignal *ksig);
+extern bool get_signal(struct ksignal *ksig);
 extern void signal_setup_done(int failed, struct ksignal *ksig, int stepping);
 extern void exit_signals(struct task_struct *tsk);
 extern void kernel_sigaction(int, __sighandler_t);
@@ -287,7 +289,7 @@ static inline void disallow_signal(int sig)
 
 extern struct kmem_cache *sighand_cachep;
 
-int unhandled_signal(struct task_struct *tsk, int sig);
+extern bool unhandled_signal(struct task_struct *tsk, int sig);
 
 /*
  * In POSIX a signal is sent either to a specific thread (Linux task)

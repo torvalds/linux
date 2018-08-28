@@ -16,7 +16,6 @@ Required properties:
 - interrupt-controller : Since the twl support several interrupts internally,
   it is considered as an interrupt controller cascaded to the SoC one.
 - #interrupt-cells = <1>;
-- interrupt-parent : The parent interrupt controller.
 
 Optional node:
 - Child nodes contain in the twl. The twl family is made of several variants

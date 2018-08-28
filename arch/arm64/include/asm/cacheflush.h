@@ -19,6 +19,7 @@
 #ifndef __ASM_CACHEFLUSH_H
 #define __ASM_CACHEFLUSH_H
 
+#include <linux/kgdb.h>
 #include <linux/mm.h>
 
 /*
@@ -71,7 +72,7 @@
  *		- kaddr  - page address
  *		- size   - region size
  */
-extern void flush_icache_range(unsigned long start, unsigned long end);
+extern void __flush_icache_range(unsigned long start, unsigned long end);
 extern int  invalidate_icache_range(unsigned long start, unsigned long end);
 extern void __flush_dcache_area(void *addr, size_t len);
 extern void __inval_dcache_area(void *addr, size_t len);
@@ -80,6 +81,30 @@ extern void __clean_dcache_area_pop(void *addr, size_t len);
 extern void __clean_dcache_area_pou(void *addr, size_t len);
 extern long __flush_cache_user_range(unsigned long start, unsigned long end);
 extern void sync_icache_aliases(void *kaddr, unsigned long len);
+
+static inline void flush_icache_range(unsigned long start, unsigned long end)
+{
+	__flush_icache_range(start, end);
+
+	/*
+	 * IPI all online CPUs so that they undergo a context synchronization
+	 * event and are forced to refetch the new instructions.
+	 */
+#ifdef CONFIG_KGDB
+	/*
+	 * KGDB performs cache maintenance with interrupts disabled, so we
+	 * will deadlock trying to IPI the secondary CPUs. In theory, we can
+	 * set CACHE_FLUSH_IS_SAFE to 0 to avoid this known issue, but that
+	 * just means that KGDB will elide the maintenance altogether! As it
+	 * turns out, KGDB uses IPIs to round-up the secondary CPUs during
+	 * the patching operation, so we don't need extra IPIs here anyway.
+	 * In which case, add a KGDB-specific bodge and return early.
+	 */
+	if (kgdb_connected && irqs_disabled())
+		return;
+#endif
+	kick_all_cpus_sync();
+}
 
 static inline void flush_cache_mm(struct mm_struct *mm)
 {

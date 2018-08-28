@@ -1,14 +1,7 @@
-/*
- * Copyright (c) 2016-2017 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2016-2017 Hisilicon Limited.
 
 #include <linux/list.h>
-#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include "hnae3.h"
@@ -41,13 +34,13 @@ static void hnae3_set_client_init_flag(struct hnae3_client *client,
 {
 	switch (client->type) {
 	case HNAE3_CLIENT_KNIC:
-		hnae_set_bit(ae_dev->flag, HNAE3_KNIC_CLIENT_INITED_B, inited);
+		hnae3_set_bit(ae_dev->flag, HNAE3_KNIC_CLIENT_INITED_B, inited);
 		break;
 	case HNAE3_CLIENT_UNIC:
-		hnae_set_bit(ae_dev->flag, HNAE3_UNIC_CLIENT_INITED_B, inited);
+		hnae3_set_bit(ae_dev->flag, HNAE3_UNIC_CLIENT_INITED_B, inited);
 		break;
 	case HNAE3_CLIENT_ROCE:
-		hnae_set_bit(ae_dev->flag, HNAE3_ROCE_CLIENT_INITED_B, inited);
+		hnae3_set_bit(ae_dev->flag, HNAE3_ROCE_CLIENT_INITED_B, inited);
 		break;
 	default:
 		break;
@@ -61,16 +54,16 @@ static int hnae3_get_client_init_flag(struct hnae3_client *client,
 
 	switch (client->type) {
 	case HNAE3_CLIENT_KNIC:
-		inited = hnae_get_bit(ae_dev->flag,
+		inited = hnae3_get_bit(ae_dev->flag,
 				       HNAE3_KNIC_CLIENT_INITED_B);
 		break;
 	case HNAE3_CLIENT_UNIC:
-		inited = hnae_get_bit(ae_dev->flag,
+		inited = hnae3_get_bit(ae_dev->flag,
 				       HNAE3_UNIC_CLIENT_INITED_B);
 		break;
 	case HNAE3_CLIENT_ROCE:
-		inited = hnae_get_bit(ae_dev->flag,
-				      HNAE3_ROCE_CLIENT_INITED_B);
+		inited = hnae3_get_bit(ae_dev->flag,
+				       HNAE3_ROCE_CLIENT_INITED_B);
 		break;
 	default:
 		break;
@@ -86,7 +79,7 @@ static int hnae3_match_n_instantiate(struct hnae3_client *client,
 
 	/* check if this client matches the type of ae_dev */
 	if (!(hnae3_client_match(client->type, ae_dev->dev_type) &&
-	      hnae_get_bit(ae_dev->flag, HNAE3_DEV_INITED_B))) {
+	      hnae3_get_bit(ae_dev->flag, HNAE3_DEV_INITED_B))) {
 		return 0;
 	}
 
@@ -95,7 +88,7 @@ static int hnae3_match_n_instantiate(struct hnae3_client *client,
 		ret = ae_dev->ops->init_client_instance(client, ae_dev);
 		if (ret) {
 			dev_err(&ae_dev->pdev->dev,
-				"fail to instantiate client\n");
+				"fail to instantiate client, ret = %d\n", ret);
 			return ret;
 		}
 
@@ -135,7 +128,8 @@ int hnae3_register_client(struct hnae3_client *client)
 		ret = hnae3_match_n_instantiate(client, ae_dev, true);
 		if (ret)
 			dev_err(&ae_dev->pdev->dev,
-				"match and instantiation failed for port\n");
+				"match and instantiation failed for port, ret = %d\n",
+				ret);
 	}
 
 exit:
@@ -185,11 +179,12 @@ void hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo)
 		ae_dev->ops = ae_algo->ops;
 		ret = ae_algo->ops->init_ae_dev(ae_dev);
 		if (ret) {
-			dev_err(&ae_dev->pdev->dev, "init ae_dev error.\n");
+			dev_err(&ae_dev->pdev->dev,
+				"init ae_dev error, ret = %d\n", ret);
 			continue;
 		}
 
-		hnae_set_bit(ae_dev->flag, HNAE3_DEV_INITED_B, 1);
+		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_INITED_B, 1);
 
 		/* check the client list for the match with this ae_dev type and
 		 * initialize the figure out client instance
@@ -198,7 +193,8 @@ void hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo)
 			ret = hnae3_match_n_instantiate(client, ae_dev, true);
 			if (ret)
 				dev_err(&ae_dev->pdev->dev,
-					"match and instantiation failed\n");
+					"match and instantiation failed, ret = %d\n",
+					ret);
 		}
 	}
 
@@ -218,7 +214,7 @@ void hnae3_unregister_ae_algo(struct hnae3_ae_algo *ae_algo)
 	mutex_lock(&hnae3_common_lock);
 	/* Check if there are matched ae_dev */
 	list_for_each_entry(ae_dev, &hnae3_ae_dev_list, node) {
-		if (!hnae_get_bit(ae_dev->flag, HNAE3_DEV_INITED_B))
+		if (!hnae3_get_bit(ae_dev->flag, HNAE3_DEV_INITED_B))
 			continue;
 
 		id = pci_match_id(ae_algo->pdev_id_table, ae_dev->pdev);
@@ -232,7 +228,7 @@ void hnae3_unregister_ae_algo(struct hnae3_ae_algo *ae_algo)
 			hnae3_match_n_instantiate(client, ae_dev, false);
 
 		ae_algo->ops->uninit_ae_dev(ae_dev);
-		hnae_set_bit(ae_dev->flag, HNAE3_DEV_INITED_B, 0);
+		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_INITED_B, 0);
 	}
 
 	list_del(&ae_algo->node);
@@ -271,11 +267,12 @@ void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 		/* ae_dev init should set flag */
 		ret = ae_dev->ops->init_ae_dev(ae_dev);
 		if (ret) {
-			dev_err(&ae_dev->pdev->dev, "init ae_dev error\n");
+			dev_err(&ae_dev->pdev->dev,
+				"init ae_dev error, ret = %d\n", ret);
 			goto out_err;
 		}
 
-		hnae_set_bit(ae_dev->flag, HNAE3_DEV_INITED_B, 1);
+		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_INITED_B, 1);
 		break;
 	}
 
@@ -286,7 +283,8 @@ void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 		ret = hnae3_match_n_instantiate(client, ae_dev, true);
 		if (ret)
 			dev_err(&ae_dev->pdev->dev,
-				"match and instantiation failed\n");
+				"match and instantiation failed, ret = %d\n",
+				ret);
 	}
 
 out_err:
@@ -306,7 +304,7 @@ void hnae3_unregister_ae_dev(struct hnae3_ae_dev *ae_dev)
 	mutex_lock(&hnae3_common_lock);
 	/* Check if there are matched ae_algo */
 	list_for_each_entry(ae_algo, &hnae3_ae_algo_list, node) {
-		if (!hnae_get_bit(ae_dev->flag, HNAE3_DEV_INITED_B))
+		if (!hnae3_get_bit(ae_dev->flag, HNAE3_DEV_INITED_B))
 			continue;
 
 		id = pci_match_id(ae_algo->pdev_id_table, ae_dev->pdev);
@@ -317,7 +315,7 @@ void hnae3_unregister_ae_dev(struct hnae3_ae_dev *ae_dev)
 			hnae3_match_n_instantiate(client, ae_dev, false);
 
 		ae_algo->ops->uninit_ae_dev(ae_dev);
-		hnae_set_bit(ae_dev->flag, HNAE3_DEV_INITED_B, 0);
+		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_INITED_B, 0);
 	}
 
 	list_del(&ae_dev->node);

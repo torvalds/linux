@@ -188,6 +188,12 @@ static int v4l2_pix_fmt_to_drm_fourcc(u32 pixelformat)
 	case V4L2_PIX_FMT_RGB32:
 		/* R G B A <=> [32:0] A:B:G:R */
 		return DRM_FORMAT_XBGR8888;
+	case V4L2_PIX_FMT_XBGR32:
+		/* B G R X <=> [32:0] X:R:G:B */
+		return DRM_FORMAT_XRGB8888;
+	case V4L2_PIX_FMT_XRGB32:
+		/* X R G B <=> [32:0] B:G:R:X */
+		return DRM_FORMAT_BGRX8888;
 	case V4L2_PIX_FMT_UYVY:
 		return DRM_FORMAT_UYVY;
 	case V4L2_PIX_FMT_YUYV:
@@ -269,9 +275,20 @@ EXPORT_SYMBOL_GPL(ipu_cpmem_set_uv_offset);
 
 void ipu_cpmem_interlaced_scan(struct ipuv3_channel *ch, int stride)
 {
+	u32 ilo, sly;
+
+	if (stride < 0) {
+		stride = -stride;
+		ilo = 0x100000 - (stride / 8);
+	} else {
+		ilo = stride / 8;
+	}
+
+	sly = (stride * 2) - 1;
+
 	ipu_ch_param_write_field(ch, IPU_FIELD_SO, 1);
-	ipu_ch_param_write_field(ch, IPU_FIELD_ILO, stride / 8);
-	ipu_ch_param_write_field(ch, IPU_FIELD_SLY, (stride * 2) - 1);
+	ipu_ch_param_write_field(ch, IPU_FIELD_ILO, ilo);
+	ipu_ch_param_write_field(ch, IPU_FIELD_SLY, sly);
 };
 EXPORT_SYMBOL_GPL(ipu_cpmem_interlaced_scan);
 
@@ -530,17 +547,17 @@ static const struct ipu_rgb def_bgra_16 = {
 
 #define Y_OFFSET(pix, x, y)	((x) + pix->width * (y))
 #define U_OFFSET(pix, x, y)	((pix->width * pix->height) +		\
-				 (pix->width * (y) / 4) + (x) / 2)
+				 (pix->width * ((y) / 2) / 2) + (x) / 2)
 #define V_OFFSET(pix, x, y)	((pix->width * pix->height) +		\
 				 (pix->width * pix->height / 4) +	\
-				 (pix->width * (y) / 4) + (x) / 2)
+				 (pix->width * ((y) / 2) / 2) + (x) / 2)
 #define U2_OFFSET(pix, x, y)	((pix->width * pix->height) +		\
 				 (pix->width * (y) / 2) + (x) / 2)
 #define V2_OFFSET(pix, x, y)	((pix->width * pix->height) +		\
 				 (pix->width * pix->height / 2) +	\
 				 (pix->width * (y) / 2) + (x) / 2)
 #define UV_OFFSET(pix, x, y)	((pix->width * pix->height) +	\
-				 (pix->width * (y) / 2) + (x))
+				 (pix->width * ((y) / 2)) + (x))
 #define UV2_OFFSET(pix, x, y)	((pix->width * pix->height) +	\
 				 (pix->width * y) + (x))
 
@@ -776,6 +793,8 @@ int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 		break;
 	case V4L2_PIX_FMT_RGB32:
 	case V4L2_PIX_FMT_BGR32:
+	case V4L2_PIX_FMT_XRGB32:
+	case V4L2_PIX_FMT_XBGR32:
 		offset = image->rect.left * 4 +
 			image->rect.top * pix->bytesperline;
 		break;

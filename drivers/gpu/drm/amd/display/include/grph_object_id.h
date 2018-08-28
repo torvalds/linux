@@ -197,6 +197,11 @@ enum transmitter_color_depth {
 	TRANSMITTER_COLOR_DEPTH_48       /* 16 bits */
 };
 
+enum dp_alt_mode {
+	DP_Alt_mode__Unknown = 0,
+	DP_Alt_mode__Connect,
+	DP_Alt_mode__NoConnect,
+};
 /*
  *****************************************************************************
  * graphics_object_id struct
@@ -286,5 +291,16 @@ static inline enum engine_id dal_graphics_object_id_get_engine_id(
 	if (id.type == OBJECT_TYPE_ENGINE)
 		return (enum engine_id) id.id;
 	return ENGINE_ID_UNKNOWN;
+}
+
+static inline bool dal_graphics_object_id_equal(
+	struct graphics_object_id id_1,
+	struct graphics_object_id id_2)
+{
+	if ((id_1.id == id_2.id) && (id_1.enum_id == id_2.enum_id) &&
+		(id_1.type == id_2.type)) {
+		return true;
+	}
+	return false;
 }
 #endif

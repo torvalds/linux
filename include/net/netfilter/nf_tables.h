@@ -274,7 +274,7 @@ enum nft_set_class {
  *	@space: memory class
  */
 struct nft_set_estimate {
-	unsigned int		size;
+	u64			size;
 	enum nft_set_class	lookup;
 	enum nft_set_class	space;
 };
@@ -336,7 +336,7 @@ struct nft_set_ops {
 					       const struct nft_set_elem *elem,
 					       unsigned int flags);
 
-	unsigned int			(*privsize)(const struct nlattr * const nla[],
+	u64				(*privsize)(const struct nlattr * const nla[],
 						    const struct nft_set_desc *desc);
 	bool				(*estimate)(const struct nft_set_desc *desc,
 						    u32 features,
@@ -1374,6 +1374,6 @@ struct nft_trans_flowtable {
 	(((struct nft_trans_flowtable *)trans->data)->flowtable)
 
 int __init nft_chain_filter_init(void);
-void __exit nft_chain_filter_fini(void);
+void nft_chain_filter_fini(void);
 
 #endif /* _NET_NF_TABLES_H */

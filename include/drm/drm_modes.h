@@ -530,7 +530,7 @@ drm_mode_validate_ycbcr420(const struct drm_display_mode *mode,
 void drm_mode_prune_invalid(struct drm_device *dev,
 			    struct list_head *mode_list, bool verbose);
 void drm_mode_sort(struct list_head *mode_list);
-void drm_mode_connector_list_update(struct drm_connector *connector);
+void drm_connector_list_update(struct drm_connector *connector);
 
 /* parsing cmdline modes */
 bool

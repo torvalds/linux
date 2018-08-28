@@ -28,12 +28,6 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-#ifdef CONFIG_DEBUG_SPINLOCK
-#define DEBUG_SPINLOCK_BUG_ON(p) BUG_ON(p)
-#else
-#define DEBUG_SPINLOCK_BUG_ON(p)
-#endif
-
 struct vgic_global kvm_vgic_global_state __ro_after_init = {
 	.gicv3_cpuif = STATIC_KEY_FALSE_INIT,
 };
@@ -599,10 +593,11 @@ static void vgic_prune_ap_list(struct kvm_vcpu *vcpu)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_irq *irq, *tmp;
-	unsigned long flags;
+
+	DEBUG_SPINLOCK_BUG_ON(!irqs_disabled());
 
 retry:
-	spin_lock_irqsave(&vgic_cpu->ap_list_lock, flags);
+	spin_lock(&vgic_cpu->ap_list_lock);
 
 	list_for_each_entry_safe(irq, tmp, &vgic_cpu->ap_list_head, ap_list) {
 		struct kvm_vcpu *target_vcpu, *vcpuA, *vcpuB;
@@ -643,7 +638,7 @@ retry:
 		/* This interrupt looks like it has to be migrated. */
 
 		spin_unlock(&irq->irq_lock);
-		spin_unlock_irqrestore(&vgic_cpu->ap_list_lock, flags);
+		spin_unlock(&vgic_cpu->ap_list_lock);
 
 		/*
 		 * Ensure locking order by always locking the smallest
@@ -657,7 +652,7 @@ retry:
 			vcpuB = vcpu;
 		}
 
-		spin_lock_irqsave(&vcpuA->arch.vgic_cpu.ap_list_lock, flags);
+		spin_lock(&vcpuA->arch.vgic_cpu.ap_list_lock);
 		spin_lock_nested(&vcpuB->arch.vgic_cpu.ap_list_lock,
 				 SINGLE_DEPTH_NESTING);
 		spin_lock(&irq->irq_lock);
@@ -682,7 +677,7 @@ retry:
 
 		spin_unlock(&irq->irq_lock);
 		spin_unlock(&vcpuB->arch.vgic_cpu.ap_list_lock);
-		spin_unlock_irqrestore(&vcpuA->arch.vgic_cpu.ap_list_lock, flags);
+		spin_unlock(&vcpuA->arch.vgic_cpu.ap_list_lock);
 
 		if (target_vcpu_needs_kick) {
 			kvm_make_request(KVM_REQ_IRQ_PENDING, target_vcpu);
@@ -692,7 +687,7 @@ retry:
 		goto retry;
 	}
 
-	spin_unlock_irqrestore(&vgic_cpu->ap_list_lock, flags);
+	spin_unlock(&vgic_cpu->ap_list_lock);
 }
 
 static inline void vgic_fold_lr_state(struct kvm_vcpu *vcpu)

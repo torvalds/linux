@@ -902,7 +902,7 @@ int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
 	 *
 	 * Octeon always uses UTC time. so timezone information is not sent.
 	 */
-	getnstimeofday64(&ts);
+	ktime_get_real_ts64(&ts);
 	ret = snprintf(boottime, MAX_BOOTTIME_SIZE,
 		       " time_sec=%lld time_nsec=%ld",
 		       (s64)ts.tv_sec, ts.tv_nsec);

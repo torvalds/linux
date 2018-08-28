@@ -101,12 +101,14 @@ static void em_gio_irq_enable(struct irq_data *d)
 static int em_gio_irq_reqres(struct irq_data *d)
 {
 	struct em_gio_priv *p = irq_data_get_irq_chip_data(d);
+	int ret;
 
-	if (gpiochip_lock_as_irq(&p->gpio_chip, irqd_to_hwirq(d))) {
+	ret = gpiochip_lock_as_irq(&p->gpio_chip, irqd_to_hwirq(d));
+	if (ret) {
 		dev_err(p->gpio_chip.parent,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			irqd_to_hwirq(d));
-		return -EINVAL;
+		return ret;
 	}
 	return 0;
 }

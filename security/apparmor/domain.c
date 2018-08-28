@@ -1036,7 +1036,7 @@ static struct aa_label *build_change_hat(struct aa_profile *profile,
 audit:
 	aa_audit_file(profile, &nullperms, OP_CHANGE_HAT, AA_MAY_CHANGEHAT,
 		      name, hat ? hat->base.hname : NULL,
-		      hat ? &hat->label : NULL, GLOBAL_ROOT_UID, NULL,
+		      hat ? &hat->label : NULL, GLOBAL_ROOT_UID, info,
 		      error);
 	if (!hat || (error && error != -ENOENT))
 		return ERR_PTR(error);

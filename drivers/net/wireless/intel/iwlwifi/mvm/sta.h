@@ -412,7 +412,7 @@ struct iwl_mvm_sta {
 	u32 tfd_queue_msk;
 	u32 mac_id_n_color;
 	u16 tid_disable_agg;
-	u8 max_agg_bufsize;
+	u16 max_agg_bufsize;
 	enum iwl_sta_type sta_type;
 	enum ieee80211_sta_state sta_state;
 	bool bt_reduced_txpower;
@@ -518,11 +518,11 @@ void iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
 
 /* AMPDU */
 int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-		       int tid, u16 ssn, bool start, u8 buf_size, u16 timeout);
+		       int tid, u16 ssn, bool start, u16 buf_size, u16 timeout);
 int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			    struct ieee80211_sta *sta, u16 tid, u8 buf_size,
+			    struct ieee80211_sta *sta, u16 tid, u16 buf_size,
 			    bool amsdu);
 int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, u16 tid);

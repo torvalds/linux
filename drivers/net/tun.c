@@ -200,6 +200,7 @@ struct tun_flow_entry {
 };
 
 #define TUN_NUM_FLOW_ENTRIES 1024
+#define TUN_MASK_FLOW_ENTRIES (TUN_NUM_FLOW_ENTRIES - 1)
 
 struct tun_prog {
 	struct rcu_head rcu;
@@ -406,7 +407,7 @@ static inline __virtio16 cpu_to_tun16(struct tun_struct *tun, u16 val)
 
 static inline u32 tun_hashfn(u32 rxhash)
 {
-	return rxhash & 0x3ff;
+	return rxhash & TUN_MASK_FLOW_ENTRIES;
 }
 
 static struct tun_flow_entry *tun_flow_find(struct hlist_head *head, u32 rxhash)
@@ -607,7 +608,8 @@ static u16 tun_ebpf_select_queue(struct tun_struct *tun, struct sk_buff *skb)
 }
 
 static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb,
-			    void *accel_priv, select_queue_fallback_t fallback)
+			    struct net_device *sb_dev,
+			    select_queue_fallback_t fallback)
 {
 	struct tun_struct *tun = netdev_priv(dev);
 	u16 ret;
@@ -1268,7 +1270,6 @@ static int tun_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 		return tun_xdp_set(dev, xdp->prog, xdp->extack);
 	case XDP_QUERY_PROG:
 		xdp->prog_id = tun_xdp_query(dev);
-		xdp->prog_attached = !!xdp->prog_id;
 		return 0;
 	default:
 		return -EINVAL;
@@ -3216,7 +3217,7 @@ static int tun_chr_fasync(int fd, struct file *file, int on)
 		goto out;
 
 	if (on) {
-		__f_setown(file, task_pid(current), PIDTYPE_PID, 0);
+		__f_setown(file, task_pid(current), PIDTYPE_TGID, 0);
 		tfile->flags |= TUN_FASYNC;
 	} else
 		tfile->flags &= ~TUN_FASYNC;

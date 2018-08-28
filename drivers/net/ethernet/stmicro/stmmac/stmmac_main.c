@@ -51,6 +51,7 @@
 #include <linux/reset.h>
 #include <linux/of_mdio.h>
 #include "dwmac1000.h"
+#include "dwxgmac2.h"
 #include "hwif.h"
 
 #define	STMMAC_ALIGN(x)		__ALIGN_KERNEL(x, SMP_CACHE_BYTES)
@@ -261,6 +262,21 @@ static void stmmac_clk_csr_set(struct stmmac_priv *priv)
 			priv->clk_csr = 0x01;
 		else
 			priv->clk_csr = 0;
+	}
+
+	if (priv->plat->has_xgmac) {
+		if (clk_rate > 400000000)
+			priv->clk_csr = 0x5;
+		else if (clk_rate > 350000000)
+			priv->clk_csr = 0x4;
+		else if (clk_rate > 300000000)
+			priv->clk_csr = 0x3;
+		else if (clk_rate > 250000000)
+			priv->clk_csr = 0x2;
+		else if (clk_rate > 150000000)
+			priv->clk_csr = 0x1;
+		else
+			priv->clk_csr = 0x0;
 	}
 }
 
@@ -498,7 +514,7 @@ static void stmmac_get_rx_hwtstamp(struct stmmac_priv *priv, struct dma_desc *p,
 	if (!priv->hwts_rx_en)
 		return;
 	/* For GMAC4, the valid timestamp is from CTX next desc. */
-	if (priv->plat->has_gmac4)
+	if (priv->plat->has_gmac4 || priv->plat->has_xgmac)
 		desc = np;
 
 	/* Check if timestamp is available */
@@ -540,6 +556,9 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 	u32 ts_event_en = 0;
 	u32 value = 0;
 	u32 sec_inc;
+	bool xmac;
+
+	xmac = priv->plat->has_gmac4 || priv->plat->has_xgmac;
 
 	if (!(priv->dma_cap.time_stamp || priv->adv_ts)) {
 		netdev_alert(priv->dev, "No support for HW time stamping\n");
@@ -575,7 +594,7 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 			/* PTP v1, UDP, any kind of event packet */
 			config.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
 			/* take time stamp for all event messages */
-			if (priv->plat->has_gmac4)
+			if (xmac)
 				snap_type_sel = PTP_GMAC4_TCR_SNAPTYPSEL_1;
 			else
 				snap_type_sel = PTP_TCR_SNAPTYPSEL_1;
@@ -610,7 +629,7 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 			config.rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
 			ptp_v2 = PTP_TCR_TSVER2ENA;
 			/* take time stamp for all event messages */
-			if (priv->plat->has_gmac4)
+			if (xmac)
 				snap_type_sel = PTP_GMAC4_TCR_SNAPTYPSEL_1;
 			else
 				snap_type_sel = PTP_TCR_SNAPTYPSEL_1;
@@ -647,7 +666,7 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 			config.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 			ptp_v2 = PTP_TCR_TSVER2ENA;
 			/* take time stamp for all event messages */
-			if (priv->plat->has_gmac4)
+			if (xmac)
 				snap_type_sel = PTP_GMAC4_TCR_SNAPTYPSEL_1;
 			else
 				snap_type_sel = PTP_TCR_SNAPTYPSEL_1;
@@ -718,7 +737,7 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 		/* program Sub Second Increment reg */
 		stmmac_config_sub_second_increment(priv,
 				priv->ptpaddr, priv->plat->clk_ptp_rate,
-				priv->plat->has_gmac4, &sec_inc);
+				xmac, &sec_inc);
 		temp = div_u64(1000000000ULL, sec_inc);
 
 		/* Store sub second increment and flags for later use */
@@ -755,12 +774,14 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
  */
 static int stmmac_init_ptp(struct stmmac_priv *priv)
 {
+	bool xmac = priv->plat->has_gmac4 || priv->plat->has_xgmac;
+
 	if (!(priv->dma_cap.time_stamp || priv->dma_cap.atime_stamp))
 		return -EOPNOTSUPP;
 
 	priv->adv_ts = 0;
-	/* Check if adv_ts can be enabled for dwmac 4.x core */
-	if (priv->plat->has_gmac4 && priv->dma_cap.atime_stamp)
+	/* Check if adv_ts can be enabled for dwmac 4.x / xgmac core */
+	if (xmac && priv->dma_cap.atime_stamp)
 		priv->adv_ts = 1;
 	/* Dwmac 3.x core with extend_desc can support adv_ts */
 	else if (priv->extend_desc && priv->dma_cap.atime_stamp)
@@ -2173,6 +2194,12 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 		return ret;
 	}
 
+	/* DMA Configuration */
+	stmmac_dma_init(priv, priv->ioaddr, priv->plat->dma_cfg, atds);
+
+	if (priv->plat->axi)
+		stmmac_axi(priv, priv->ioaddr, priv->plat->axi);
+
 	/* DMA RX Channel Configuration */
 	for (chan = 0; chan < rx_channels_count; chan++) {
 		rx_q = &priv->rx_queue[chan];
@@ -2202,12 +2229,6 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 	/* DMA CSR Channel configuration */
 	for (chan = 0; chan < dma_csr_ch; chan++)
 		stmmac_init_chan(priv, priv->ioaddr, priv->plat->dma_cfg, chan);
-
-	/* DMA Configuration */
-	stmmac_dma_init(priv, priv->ioaddr, priv->plat->dma_cfg, atds);
-
-	if (priv->plat->axi)
-		stmmac_axi(priv, priv->ioaddr, priv->plat->axi);
 
 	return ret;
 }
@@ -2526,9 +2547,6 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 		netdev_warn(priv->dev, "%s: failed debugFS registration\n",
 			    __func__);
 #endif
-	/* Start the ball rolling... */
-	stmmac_start_all_dma(priv);
-
 	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS;
 
 	if (priv->use_riwt) {
@@ -2548,6 +2566,9 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 		for (chan = 0; chan < tx_cnt; chan++)
 			stmmac_enable_tso(priv, priv->ioaddr, 1, chan);
 	}
+
+	/* Start the ball rolling... */
+	stmmac_start_all_dma(priv);
 
 	return 0;
 }
@@ -3305,6 +3326,9 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 	int coe = priv->hw->rx_csum;
 	unsigned int next_entry;
 	unsigned int count = 0;
+	bool xmac;
+
+	xmac = priv->plat->has_gmac4 || priv->plat->has_xgmac;
 
 	if (netif_msg_rx_status(priv)) {
 		void *rx_head;
@@ -3406,7 +3430,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			 * in case of GMAC4 because it needs
 			 * to refill the used descriptors, always.
 			 */
-			if (unlikely(!priv->plat->has_gmac4 &&
+			if (unlikely(!xmac &&
 				     ((frame_len < priv->rx_copybreak) ||
 				     stmmac_rx_threshold_count(rx_q)))) {
 				skb = netdev_alloc_skb_ip_align(priv->dev,
@@ -3642,7 +3666,9 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 	u32 tx_cnt = priv->plat->tx_queues_to_use;
 	u32 queues_count;
 	u32 queue;
+	bool xmac;
 
+	xmac = priv->plat->has_gmac4 || priv->plat->has_xgmac;
 	queues_count = (rx_cnt > tx_cnt) ? rx_cnt : tx_cnt;
 
 	if (priv->irq_wake)
@@ -3661,7 +3687,7 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	/* To handle GMAC own interrupts */
-	if ((priv->plat->has_gmac) || (priv->plat->has_gmac4)) {
+	if ((priv->plat->has_gmac) || xmac) {
 		int status = stmmac_host_irq_status(priv, priv->hw, &priv->xstats);
 		int mtl_status;
 
@@ -3778,7 +3804,7 @@ static int stmmac_setup_tc_block(struct stmmac_priv *priv,
 	switch (f->command) {
 	case TC_BLOCK_BIND:
 		return tcf_block_cb_register(f->block, stmmac_setup_tc_block_cb,
-				priv, priv);
+				priv, priv, f->extack);
 	case TC_BLOCK_UNBIND:
 		tcf_block_cb_unregister(f->block, stmmac_setup_tc_block_cb, priv);
 		return 0;
@@ -3795,6 +3821,8 @@ static int stmmac_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 	switch (type) {
 	case TC_SETUP_BLOCK:
 		return stmmac_setup_tc_block(priv, type_data);
+	case TC_SETUP_QDISC_CBS:
+		return stmmac_tc_setup_cbs(priv, priv, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -4267,6 +4295,8 @@ int stmmac_dvr_probe(struct device *device,
 	ndev->min_mtu = ETH_ZLEN - ETH_HLEN;
 	if ((priv->plat->enh_desc) || (priv->synopsys_id >= DWMAC_CORE_4_00))
 		ndev->max_mtu = JUMBO_LEN;
+	else if (priv->plat->has_xgmac)
+		ndev->max_mtu = XGMAC_JUMBO_LEN;
 	else
 		ndev->max_mtu = SKB_MAX_HEAD(NET_SKB_PAD + NET_IP_ALIGN);
 	/* Will not overwrite ndev->max_mtu if plat->maxmtu > ndev->max_mtu
@@ -4288,7 +4318,8 @@ int stmmac_dvr_probe(struct device *device,
 	 * has to be disable and this can be done by passing the
 	 * riwt_off field from the platform.
 	 */
-	if ((priv->synopsys_id >= DWMAC_CORE_3_50) && (!priv->plat->riwt_off)) {
+	if (((priv->synopsys_id >= DWMAC_CORE_3_50) ||
+	    (priv->plat->has_xgmac)) && (!priv->plat->riwt_off)) {
 		priv->use_riwt = 1;
 		dev_info(priv->device,
 			 "Enable RX Mitigation via HW Watchdog Timer\n");

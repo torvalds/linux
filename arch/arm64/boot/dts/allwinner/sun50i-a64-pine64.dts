@@ -229,6 +229,10 @@
 	regulator-name = "vcc-rtc";
 };
 
+&simplefb_hdmi {
+	vcc-hdmi-supply = <&reg_dldo1>;
+};
+
 /* On Euler connector */
 &spdif {
 	status = "disabled";

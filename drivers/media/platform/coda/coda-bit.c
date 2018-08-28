@@ -261,11 +261,12 @@ void coda_fill_bitstream(struct coda_ctx *ctx, struct list_head *buffer_list)
 
 	while (v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) > 0) {
 		/*
-		 * Only queue a single JPEG into the bitstream buffer, except
-		 * to increase payload over 512 bytes or if in hold state.
+		 * Only queue two JPEGs into the bitstream buffer to keep
+		 * latency low. We need at least one complete buffer and the
+		 * header of another buffer (for prescan) in the bitstream.
 		 */
 		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG &&
-		    (coda_get_bitstream_payload(ctx) >= 512) && !ctx->hold)
+		    ctx->num_metas > 1)
 			break;
 
 		src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
@@ -389,32 +390,29 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 				   struct coda_q_data *q_data, u32 fourcc)
 {
 	struct coda_dev *dev = ctx->dev;
-	int width, height;
-	int ysize;
+	unsigned int ysize, ycbcr_size;
 	int ret;
 	int i;
 
 	if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 ||
 	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_H264 ||
 	    ctx->codec->src_fourcc == V4L2_PIX_FMT_MPEG4 ||
-	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_MPEG4) {
-		width = round_up(q_data->width, 16);
-		height = round_up(q_data->height, 16);
-	} else {
-		width = round_up(q_data->width, 8);
-		height = q_data->height;
-	}
-	ysize = width * height;
+	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_MPEG4)
+		ysize = round_up(q_data->rect.width, 16) *
+			round_up(q_data->rect.height, 16);
+	else
+		ysize = round_up(q_data->rect.width, 8) * q_data->rect.height;
+
+	if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP)
+		ycbcr_size = round_up(ysize, 4096) + ysize / 2;
+	else
+		ycbcr_size = ysize + ysize / 2;
 
 	/* Allocate frame buffers */
 	for (i = 0; i < ctx->num_internal_frames; i++) {
-		size_t size;
+		size_t size = ycbcr_size;
 		char *name;
 
-		if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP)
-			size = round_up(ysize, 4096) + ysize / 2;
-		else
-			size = ysize + ysize / 2;
 		/* Add space for mvcol buffers */
 		if (dev->devtype->product != CODA_DX6 &&
 		    (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 ||
@@ -499,8 +497,8 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 
 	if (!ctx->slicebuf.vaddr && q_data->fourcc == V4L2_PIX_FMT_H264) {
 		/* worst case slice size */
-		size = (DIV_ROUND_UP(q_data->width, 16) *
-			DIV_ROUND_UP(q_data->height, 16)) * 3200 / 8 + 512;
+		size = (DIV_ROUND_UP(q_data->rect.width, 16) *
+			DIV_ROUND_UP(q_data->rect.height, 16)) * 3200 / 8 + 512;
 		ret = coda_alloc_context_buf(ctx, &ctx->slicebuf, size,
 					     "slicebuf");
 		if (ret < 0)
@@ -538,6 +536,8 @@ static int coda_encode_header(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf,
 {
 	struct vb2_buffer *vb = &buf->vb2_buf;
 	struct coda_dev *dev = ctx->dev;
+	struct coda_q_data *q_data_src;
+	struct v4l2_rect *r;
 	size_t bufsize;
 	int ret;
 	int i;
@@ -551,6 +551,23 @@ static int coda_encode_header(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf,
 	if (dev->devtype->product == CODA_960)
 		bufsize /= 1024;
 	coda_write(dev, bufsize, CODA_CMD_ENC_HEADER_BB_SIZE);
+	if (dev->devtype->product == CODA_960 &&
+	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_H264 &&
+	    header_code == CODA_HEADER_H264_SPS) {
+		q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
+		r = &q_data_src->rect;
+
+		if (r->width % 16 || r->height % 16) {
+			u32 crop_right = round_up(r->width, 16) -  r->width;
+			u32 crop_bottom = round_up(r->height, 16) - r->height;
+
+			coda_write(dev, crop_right,
+				   CODA9_CMD_ENC_HEADER_FRAME_CROP_H);
+			coda_write(dev, crop_bottom,
+				   CODA9_CMD_ENC_HEADER_FRAME_CROP_V);
+			header_code |= CODA9_HEADER_FRAME_CROP;
+		}
+	}
 	coda_write(dev, header_code, CODA_CMD_ENC_HEADER_CODE);
 	ret = coda_command_sync(ctx, CODA_COMMAND_ENCODE_HEADER);
 	if (ret < 0) {
@@ -632,7 +649,7 @@ static void coda_setup_iram(struct coda_ctx *ctx)
 		struct coda_q_data *q_data_src;
 
 		q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
-		mb_width = DIV_ROUND_UP(q_data_src->width, 16);
+		mb_width = DIV_ROUND_UP(q_data_src->rect.width, 16);
 		w128 = mb_width * 128;
 		w64 = mb_width * 64;
 
@@ -721,6 +738,7 @@ static u32 coda_supported_firmwares[] = {
 	CODA_FIRMWARE_VERNUM(CODA_HX4, 1, 4, 50),
 	CODA_FIRMWARE_VERNUM(CODA_7541, 1, 4, 50),
 	CODA_FIRMWARE_VERNUM(CODA_960, 2, 1, 5),
+	CODA_FIRMWARE_VERNUM(CODA_960, 2, 1, 9),
 	CODA_FIRMWARE_VERNUM(CODA_960, 2, 3, 10),
 	CODA_FIRMWARE_VERNUM(CODA_960, 3, 1, 1),
 };
@@ -928,25 +946,25 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 	value = 0;
 	switch (dev->devtype->product) {
 	case CODA_DX6:
-		value = (q_data_src->width & CODADX6_PICWIDTH_MASK)
+		value = (q_data_src->rect.width & CODADX6_PICWIDTH_MASK)
 			<< CODADX6_PICWIDTH_OFFSET;
-		value |= (q_data_src->height & CODADX6_PICHEIGHT_MASK)
+		value |= (q_data_src->rect.height & CODADX6_PICHEIGHT_MASK)
 			 << CODA_PICHEIGHT_OFFSET;
 		break;
 	case CODA_HX4:
 	case CODA_7541:
 		if (dst_fourcc == V4L2_PIX_FMT_H264) {
-			value = (round_up(q_data_src->width, 16) &
+			value = (round_up(q_data_src->rect.width, 16) &
 				 CODA7_PICWIDTH_MASK) << CODA7_PICWIDTH_OFFSET;
-			value |= (round_up(q_data_src->height, 16) &
+			value |= (round_up(q_data_src->rect.height, 16) &
 				 CODA7_PICHEIGHT_MASK) << CODA_PICHEIGHT_OFFSET;
 			break;
 		}
 		/* fallthrough */
 	case CODA_960:
-		value = (q_data_src->width & CODA7_PICWIDTH_MASK)
+		value = (q_data_src->rect.width & CODA7_PICWIDTH_MASK)
 			<< CODA7_PICWIDTH_OFFSET;
-		value |= (q_data_src->height & CODA7_PICHEIGHT_MASK)
+		value |= (q_data_src->rect.height & CODA7_PICHEIGHT_MASK)
 			 << CODA_PICHEIGHT_OFFSET;
 	}
 	coda_write(dev, value, CODA_CMD_ENC_SEQ_SRC_SIZE);
@@ -1198,6 +1216,27 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 			goto out;
 
 		/*
+		 * If visible width or height are not aligned to macroblock
+		 * size, the crop_right and crop_bottom SPS fields must be set
+		 * to the difference between visible and coded size.  This is
+		 * only supported by CODA960 firmware. All others do not allow
+		 * writing frame cropping parameters, so we have to manually
+		 * fix up the SPS RBSP (Sequence Parameter Set Raw Byte
+		 * Sequence Payload) ourselves.
+		 */
+		if (ctx->dev->devtype->product != CODA_960 &&
+		    ((q_data_src->rect.width % 16) ||
+		     (q_data_src->rect.height % 16))) {
+			ret = coda_h264_sps_fixup(ctx, q_data_src->rect.width,
+						  q_data_src->rect.height,
+						  &ctx->vpu_header[0][0],
+						  &ctx->vpu_header_size[0],
+						  sizeof(ctx->vpu_header[0]));
+			if (ret < 0)
+				goto out;
+		}
+
+		/*
 		 * Get PPS in the first frame and copy it to an
 		 * intermediate buffer.
 		 */
@@ -1362,7 +1401,8 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 
 	if (dev->devtype->product == CODA_960) {
 		coda_write(dev, 4/*FIXME: 0*/, CODA9_CMD_ENC_PIC_SRC_INDEX);
-		coda_write(dev, q_data_src->width, CODA9_CMD_ENC_PIC_SRC_STRIDE);
+		coda_write(dev, q_data_src->bytesperline,
+			   CODA9_CMD_ENC_PIC_SRC_STRIDE);
 		coda_write(dev, 0, CODA9_CMD_ENC_PIC_SUB_FRAME_SYNC);
 
 		reg = CODA9_CMD_ENC_PIC_SRC_ADDR_Y;
@@ -1582,10 +1622,8 @@ static int coda_decoder_reqbufs(struct coda_ctx *ctx,
 
 static bool coda_reorder_enable(struct coda_ctx *ctx)
 {
-	const char * const *profile_names;
-	const char * const *level_names;
 	struct coda_dev *dev = ctx->dev;
-	int profile, level;
+	int profile;
 
 	if (dev->devtype->product != CODA_HX4 &&
 	    dev->devtype->product != CODA_7541 &&
@@ -1599,24 +1637,9 @@ static bool coda_reorder_enable(struct coda_ctx *ctx)
 		return true;
 
 	profile = coda_h264_profile(ctx->params.h264_profile_idc);
-	if (profile < 0) {
-		v4l2_warn(&dev->v4l2_dev, "Invalid H264 Profile: %d\n",
-			 ctx->params.h264_profile_idc);
-		return false;
-	}
-
-	level = coda_h264_level(ctx->params.h264_level_idc);
-	if (level < 0) {
-		v4l2_warn(&dev->v4l2_dev, "Invalid H264 Level: %d\n",
-			 ctx->params.h264_level_idc);
-		return false;
-	}
-
-	profile_names = v4l2_ctrl_get_menu(V4L2_CID_MPEG_VIDEO_H264_PROFILE);
-	level_names = v4l2_ctrl_get_menu(V4L2_CID_MPEG_VIDEO_H264_LEVEL);
-
-	v4l2_dbg(1, coda_debug, &dev->v4l2_dev, "H264 Profile/Level: %s L%s\n",
-		 profile_names[profile], level_names[level]);
+	if (profile < 0)
+		v4l2_warn(&dev->v4l2_dev, "Unknown H264 Profile: %u\n",
+			  ctx->params.h264_profile_idc);
 
 	/* Baseline profile does not support reordering */
 	return profile > V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE;
@@ -1694,6 +1717,8 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 			coda_write(dev, 512, CODA_CMD_DEC_SEQ_SPP_CHUNK_SIZE);
 		}
 	}
+	if (src_fourcc == V4L2_PIX_FMT_JPEG)
+		coda_write(dev, 0, CODA_CMD_DEC_SEQ_JPG_THUMB_EN);
 	if (dev->devtype->product != CODA_960)
 		coda_write(dev, 0, CODA_CMD_DEC_SEQ_SRC_SIZE);
 

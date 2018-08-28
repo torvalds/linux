@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -273,7 +273,7 @@ void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_PATH_MIG_STATE &&
 	    attr->path_mig_state == IB_MIG_MIGRATED &&
 	    qp->s_mig_state == IB_MIG_ARMED) {
-		qp->s_flags |= RVT_S_AHG_CLEAR;
+		qp->s_flags |= HFI1_S_AHG_CLEAR;
 		priv->s_sc = ah_to_sc(ibqp->device, &qp->remote_ah_attr);
 		priv->s_sde = qp_to_sdma_engine(qp, priv->s_sc);
 		priv->s_sendcontext = qp_to_send_context(qp, priv->s_sc);
@@ -717,7 +717,7 @@ void hfi1_migrate_qp(struct rvt_qp *qp)
 	qp->remote_ah_attr = qp->alt_ah_attr;
 	qp->port_num = rdma_ah_get_port_num(&qp->alt_ah_attr);
 	qp->s_pkey_index = qp->s_alt_pkey_index;
-	qp->s_flags |= RVT_S_AHG_CLEAR;
+	qp->s_flags |= HFI1_S_AHG_CLEAR;
 	priv->s_sc = ah_to_sc(qp->ibqp.device, &qp->remote_ah_attr);
 	priv->s_sde = qp_to_sdma_engine(qp, priv->s_sc);
 	qp_set_16b(qp);

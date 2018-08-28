@@ -8,8 +8,6 @@ Required properties:
  - reg: base address and size of the LCDC device
 
 Recommended properties:
- - interrupt-parent: the phandle for the interrupt controller that
-   services interrupts for this device.
  - ti,hwmods: Name of the hwmod associated to the LCDC
 
 Optional properties:

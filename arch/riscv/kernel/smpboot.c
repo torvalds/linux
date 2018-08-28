@@ -104,7 +104,6 @@ asmlinkage void __init smp_callin(void)
 	current->active_mm = mm;
 
 	trap_init();
-	init_clockevent();
 	notify_cpu_starting(smp_processor_id());
 	set_cpu_online(smp_processor_id(), 1);
 	local_flush_tlb_all();

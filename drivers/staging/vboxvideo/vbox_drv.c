@@ -51,14 +51,42 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	return drm_get_pci_dev(pdev, ent, &driver);
+	struct drm_device *dev = NULL;
+	int ret = 0;
+
+	dev = drm_dev_alloc(&driver, &pdev->dev);
+	if (IS_ERR(dev)) {
+		ret = PTR_ERR(dev);
+		goto err_drv_alloc;
+	}
+	dev->pdev = pdev;
+	pci_set_drvdata(pdev, dev);
+
+	ret = vbox_driver_load(dev);
+	if (ret)
+		goto err_vbox_driver_load;
+
+	ret = drm_dev_register(dev, 0);
+	if (ret)
+		goto err_drv_dev_register;
+
+	return ret;
+
+ err_drv_dev_register:
+	vbox_driver_unload(dev);
+ err_vbox_driver_load:
+	drm_dev_put(dev);
+ err_drv_alloc:
+	return ret;
 }
 
 static void vbox_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
-	drm_put_dev(dev);
+	drm_dev_unregister(dev);
+	vbox_driver_unload(dev);
+	drm_dev_put(dev);
 }
 
 static int vbox_drm_freeze(struct drm_device *dev)
@@ -227,8 +255,6 @@ static struct drm_driver driver = {
 	    DRIVER_PRIME,
 	.dev_priv_size = 0,
 
-	.load = vbox_driver_load,
-	.unload = vbox_driver_unload,
 	.lastclose = vbox_driver_lastclose,
 	.master_set = vbox_master_set,
 	.master_drop = vbox_master_drop,

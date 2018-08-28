@@ -13,7 +13,8 @@
 
 DECLARE_STATIC_KEY_TRUE(pkey_disabled);
 extern int pkeys_total; /* total pkeys as per device tree */
-extern u32 initial_allocation_mask; /* bits set for reserved keys */
+extern u32 initial_allocation_mask; /*  bits set for the initially allocated keys */
+extern u32 reserved_allocation_mask; /* bits set for reserved keys */
 
 #define ARCH_VM_PKEY_FLAGS (VM_PKEY_BIT0 | VM_PKEY_BIT1 | VM_PKEY_BIT2 | \
 			    VM_PKEY_BIT3 | VM_PKEY_BIT4)
@@ -83,19 +84,21 @@ static inline u16 pte_to_pkey_bits(u64 pteflags)
 #define __mm_pkey_is_allocated(mm, pkey)	\
 	(mm_pkey_allocation_map(mm) & pkey_alloc_mask(pkey))
 
-#define __mm_pkey_is_reserved(pkey) (initial_allocation_mask & \
+#define __mm_pkey_is_reserved(pkey) (reserved_allocation_mask & \
 				       pkey_alloc_mask(pkey))
 
 static inline bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
 {
-	/* A reserved key is never considered as 'explicitly allocated' */
-	return ((pkey < arch_max_pkey()) &&
-		!__mm_pkey_is_reserved(pkey) &&
-		__mm_pkey_is_allocated(mm, pkey));
+	if (pkey < 0 || pkey >= arch_max_pkey())
+		return false;
+
+	/* Reserved keys are never allocated. */
+	if (__mm_pkey_is_reserved(pkey))
+		return false;
+
+	return __mm_pkey_is_allocated(mm, pkey);
 }
 
-extern void __arch_activate_pkey(int pkey);
-extern void __arch_deactivate_pkey(int pkey);
 /*
  * Returns a positive, 5-bit key on success, or -1 on failure.
  * Relies on the mmap_sem to protect against concurrency in mm_pkey_alloc() and
@@ -124,11 +127,6 @@ static inline int mm_pkey_alloc(struct mm_struct *mm)
 	ret = ffz((u32)mm_pkey_allocation_map(mm));
 	__mm_pkey_allocated(mm, ret);
 
-	/*
-	 * Enable the key in the hardware
-	 */
-	if (ret > 0)
-		__arch_activate_pkey(ret);
 	return ret;
 }
 
@@ -140,10 +138,6 @@ static inline int mm_pkey_free(struct mm_struct *mm, int pkey)
 	if (!mm_pkey_is_allocated(mm, pkey))
 		return -EINVAL;
 
-	/*
-	 * Disable the key in the hardware
-	 */
-	__arch_deactivate_pkey(pkey);
 	__mm_pkey_free(mm, pkey);
 
 	return 0;
@@ -187,6 +181,16 @@ static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 {
 	if (static_branch_likely(&pkey_disabled))
 		return -EINVAL;
+
+	/*
+	 * userspace should not change pkey-0 permissions.
+	 * pkey-0 is associated with every page in the kernel.
+	 * If userspace denies any permission on pkey-0, the
+	 * kernel cannot operate.
+	 */
+	if (pkey == 0)
+		return init_val ? -EINVAL : 0;
+
 	return __arch_set_user_pkey_access(tsk, pkey, init_val);
 }
 

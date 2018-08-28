@@ -1155,21 +1155,29 @@ int mtd_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 {
 	int ret_code;
 	ops->retlen = ops->oobretlen = 0;
-	if (!mtd->_read_oob)
-		return -EOPNOTSUPP;
 
 	ret_code = mtd_check_oob_ops(mtd, from, ops);
 	if (ret_code)
 		return ret_code;
 
 	ledtrig_mtd_activity();
+
+	/* Check the validity of a potential fallback on mtd->_read */
+	if (!mtd->_read_oob && (!mtd->_read || ops->oobbuf))
+		return -EOPNOTSUPP;
+
+	if (mtd->_read_oob)
+		ret_code = mtd->_read_oob(mtd, from, ops);
+	else
+		ret_code = mtd->_read(mtd, from, ops->len, &ops->retlen,
+				      ops->datbuf);
+
 	/*
 	 * In cases where ops->datbuf != NULL, mtd->_read_oob() has semantics
 	 * similar to mtd->_read(), returning a non-negative integer
 	 * representing max bitflips. In other cases, mtd->_read_oob() may
 	 * return -EUCLEAN. In all cases, perform similar logic to mtd_read().
 	 */
-	ret_code = mtd->_read_oob(mtd, from, ops);
 	if (unlikely(ret_code < 0))
 		return ret_code;
 	if (mtd->ecc_strength == 0)
@@ -1184,8 +1192,7 @@ int mtd_write_oob(struct mtd_info *mtd, loff_t to,
 	int ret;
 
 	ops->retlen = ops->oobretlen = 0;
-	if (!mtd->_write_oob)
-		return -EOPNOTSUPP;
+
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
 
@@ -1194,7 +1201,16 @@ int mtd_write_oob(struct mtd_info *mtd, loff_t to,
 		return ret;
 
 	ledtrig_mtd_activity();
-	return mtd->_write_oob(mtd, to, ops);
+
+	/* Check the validity of a potential fallback on mtd->_write */
+	if (!mtd->_write_oob && (!mtd->_write || ops->oobbuf))
+		return -EOPNOTSUPP;
+
+	if (mtd->_write_oob)
+		return mtd->_write_oob(mtd, to, ops);
+	else
+		return mtd->_write(mtd, to, ops->len, &ops->retlen,
+				   ops->datbuf);
 }
 EXPORT_SYMBOL_GPL(mtd_write_oob);
 

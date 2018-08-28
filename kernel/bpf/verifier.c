@@ -1310,6 +1310,7 @@ static bool may_access_direct_pkt_data(struct bpf_verifier_env *env,
 	case BPF_PROG_TYPE_LWT_IN:
 	case BPF_PROG_TYPE_LWT_OUT:
 	case BPF_PROG_TYPE_LWT_SEG6LOCAL:
+	case BPF_PROG_TYPE_SK_REUSEPORT:
 		/* dst_input() and dst_output() can't write for now */
 		if (t == BPF_WRITE)
 			return false;
@@ -2127,6 +2128,10 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 		    func_id != BPF_FUNC_current_task_under_cgroup)
 			goto error;
 		break;
+	case BPF_MAP_TYPE_CGROUP_STORAGE:
+		if (func_id != BPF_FUNC_get_local_storage)
+			goto error;
+		break;
 	/* devmap returns a pointer to a live net_device ifindex that we cannot
 	 * allow to be modified from bpf side. So do not allow lookup elements
 	 * for now.
@@ -2160,6 +2165,10 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 		    func_id != BPF_FUNC_sock_hash_update &&
 		    func_id != BPF_FUNC_map_delete_elem &&
 		    func_id != BPF_FUNC_msg_redirect_hash)
+			goto error;
+		break;
+	case BPF_MAP_TYPE_REUSEPORT_SOCKARRAY:
+		if (func_id != BPF_FUNC_sk_select_reuseport)
 			goto error;
 		break;
 	default:
@@ -2207,6 +2216,14 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 	case BPF_FUNC_msg_redirect_hash:
 	case BPF_FUNC_sock_hash_update:
 		if (map->map_type != BPF_MAP_TYPE_SOCKHASH)
+			goto error;
+		break;
+	case BPF_FUNC_get_local_storage:
+		if (map->map_type != BPF_MAP_TYPE_CGROUP_STORAGE)
+			goto error;
+		break;
+	case BPF_FUNC_sk_select_reuseport:
+		if (map->map_type != BPF_MAP_TYPE_REUSEPORT_SOCKARRAY)
 			goto error;
 		break;
 	default:
@@ -2533,6 +2550,16 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 	}
 
 	regs = cur_regs(env);
+
+	/* check that flags argument in get_local_storage(map, flags) is 0,
+	 * this is required because get_local_storage() can't return an error.
+	 */
+	if (func_id == BPF_FUNC_get_local_storage &&
+	    !register_is_null(&regs[BPF_REG_2])) {
+		verbose(env, "get_local_storage() doesn't support non-zero flags\n");
+		return -EINVAL;
+	}
+
 	/* reset caller saved regs */
 	for (i = 0; i < CALLER_SAVED_REGS; i++) {
 		mark_reg_not_init(env, regs, caller_saved[i]);
@@ -2545,8 +2572,12 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 		mark_reg_unknown(env, regs, BPF_REG_0);
 	} else if (fn->ret_type == RET_VOID) {
 		regs[BPF_REG_0].type = NOT_INIT;
-	} else if (fn->ret_type == RET_PTR_TO_MAP_VALUE_OR_NULL) {
-		regs[BPF_REG_0].type = PTR_TO_MAP_VALUE_OR_NULL;
+	} else if (fn->ret_type == RET_PTR_TO_MAP_VALUE_OR_NULL ||
+		   fn->ret_type == RET_PTR_TO_MAP_VALUE) {
+		if (fn->ret_type == RET_PTR_TO_MAP_VALUE)
+			regs[BPF_REG_0].type = PTR_TO_MAP_VALUE;
+		else
+			regs[BPF_REG_0].type = PTR_TO_MAP_VALUE_OR_NULL;
 		/* There is no offset yet applied, variable or fixed */
 		mark_reg_known_zero(env, regs, BPF_REG_0);
 		regs[BPF_REG_0].off = 0;
@@ -3238,8 +3269,8 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 			}
 		}
 
-		/* check dest operand */
-		err = check_reg_arg(env, insn->dst_reg, DST_OP);
+		/* check dest operand, mark as required later */
+		err = check_reg_arg(env, insn->dst_reg, DST_OP_NO_MARK);
 		if (err)
 			return err;
 
@@ -3265,6 +3296,8 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 			/* case: R = imm
 			 * remember the value we stored into this reg
 			 */
+			/* clear any state __mark_reg_known doesn't set */
+			mark_reg_unknown(env, regs, insn->dst_reg);
 			regs[insn->dst_reg].type = SCALAR_VALUE;
 			if (BPF_CLASS(insn->code) == BPF_ALU64) {
 				__mark_reg_known(regs + insn->dst_reg,
@@ -5054,7 +5087,7 @@ static int check_map_prog_compatibility(struct bpf_verifier_env *env,
 	}
 
 	if ((bpf_prog_is_dev_bound(prog->aux) || bpf_map_is_dev_bound(map)) &&
-	    !bpf_offload_dev_match(prog, map)) {
+	    !bpf_offload_prog_map_match(prog, map)) {
 		verbose(env, "offload device mismatch between prog and map\n");
 		return -EINVAL;
 	}
@@ -5152,6 +5185,14 @@ static int replace_map_fd_with_map_ptr(struct bpf_verifier_env *env)
 			}
 			env->used_maps[env->used_map_cnt++] = map;
 
+			if (map->map_type == BPF_MAP_TYPE_CGROUP_STORAGE &&
+			    bpf_cgroup_storage_assign(env->prog, map)) {
+				verbose(env,
+					"only one cgroup storage is allowed\n");
+				fdput(f);
+				return -EBUSY;
+			}
+
 			fdput(f);
 next_insn:
 			insn++;
@@ -5177,6 +5218,10 @@ next_insn:
 static void release_maps(struct bpf_verifier_env *env)
 {
 	int i;
+
+	if (env->prog->aux->cgroup_storage)
+		bpf_cgroup_storage_release(env->prog,
+					   env->prog->aux->cgroup_storage);
 
 	for (i = 0; i < env->used_map_cnt; i++)
 		bpf_map_put(env->used_maps[i]);
@@ -5799,27 +5844,6 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			goto patch_call_imm;
 		}
 
-		if (insn->imm == BPF_FUNC_redirect_map) {
-			/* Note, we cannot use prog directly as imm as subsequent
-			 * rewrites would still change the prog pointer. The only
-			 * stable address we can use is aux, which also works with
-			 * prog clones during blinding.
-			 */
-			u64 addr = (unsigned long)prog->aux;
-			struct bpf_insn r4_ld[] = {
-				BPF_LD_IMM64(BPF_REG_4, addr),
-				*insn,
-			};
-			cnt = ARRAY_SIZE(r4_ld);
-
-			new_prog = bpf_patch_insn_data(env, i + delta, r4_ld, cnt);
-			if (!new_prog)
-				return -ENOMEM;
-
-			delta    += cnt - 1;
-			env->prog = prog = new_prog;
-			insn      = new_prog->insnsi + i + delta;
-		}
 patch_call_imm:
 		fn = env->ops->get_func_proto(insn->imm, env->prog);
 		/* all functions that have prototype and verifier allowed

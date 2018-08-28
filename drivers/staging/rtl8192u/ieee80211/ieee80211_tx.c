@@ -306,7 +306,7 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 				       struct sk_buff *skb, struct cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	PTX_TS_RECORD			pTxTs = NULL;
+	struct tx_ts_record        *pTxTs = NULL;
 	struct rtl_80211_hdr_1addr *hdr = (struct rtl_80211_hdr_1addr *)skb->data;
 
 	if (!pHTInfo->bCurrentHTSupport||!pHTInfo->bEnableHT)
@@ -330,20 +330,20 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 	}
 	if(pHTInfo->bCurrentAMPDUEnable)
 	{
-		if (!GetTs(ieee, (PTS_COMMON_INFO *)(&pTxTs), hdr->addr1, skb->priority, TX_DIR, true))
+		if (!GetTs(ieee, (struct ts_common_info **)(&pTxTs), hdr->addr1, skb->priority, TX_DIR, true))
 		{
 			printk("===>can't get TS\n");
 			return;
 		}
-		if (!pTxTs->TxAdmittedBARecord.bValid)
+		if (!pTxTs->tx_admitted_ba_record.bValid)
 		{
 			TsStartAddBaProcess(ieee, pTxTs);
 			goto FORCED_AGG_SETTING;
 		}
-		else if (!pTxTs->bUsingBa)
+		else if (!pTxTs->using_ba)
 		{
-			if (SN_LESS(pTxTs->TxAdmittedBARecord.BaStartSeqCtrl.field.SeqNum, (pTxTs->TxCurSeq+1)%4096))
-				pTxTs->bUsingBa = true;
+			if (SN_LESS(pTxTs->tx_admitted_ba_record.BaStartSeqCtrl.field.SeqNum, (pTxTs->tx_cur_seq + 1) % 4096))
+				pTxTs->using_ba = true;
 			else
 				goto FORCED_AGG_SETTING;
 		}
@@ -584,12 +584,12 @@ static void ieee80211_query_seqnum(struct ieee80211_device *ieee,
 		return;
 	if (IsQoSDataFrame(skb->data)) //we deal qos data only
 	{
-		PTX_TS_RECORD pTS = NULL;
-		if (!GetTs(ieee, (PTS_COMMON_INFO *)(&pTS), dst, skb->priority, TX_DIR, true))
+		struct tx_ts_record *pTS = NULL;
+		if (!GetTs(ieee, (struct ts_common_info **)(&pTS), dst, skb->priority, TX_DIR, true))
 		{
 			return;
 		}
-		pTS->TxCurSeq = (pTS->TxCurSeq+1)%4096;
+		pTS->tx_cur_seq = (pTS->tx_cur_seq + 1) % 4096;
 	}
 }
 

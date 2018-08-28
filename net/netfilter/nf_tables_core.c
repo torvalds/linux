@@ -120,6 +120,20 @@ struct nft_jumpstack {
 	struct nft_rule	*const *rules;
 };
 
+static void expr_call_ops_eval(const struct nft_expr *expr,
+			       struct nft_regs *regs,
+			       struct nft_pktinfo *pkt)
+{
+	unsigned long e = (unsigned long)expr->ops->eval;
+
+	if (e == (unsigned long)nft_meta_get_eval)
+		nft_meta_get_eval(expr, regs, pkt);
+	else if (e == (unsigned long)nft_lookup_eval)
+		nft_lookup_eval(expr, regs, pkt);
+	else
+		expr->ops->eval(expr, regs, pkt);
+}
+
 unsigned int
 nft_do_chain(struct nft_pktinfo *pkt, void *priv)
 {
@@ -153,7 +167,7 @@ next_rule:
 				nft_cmp_fast_eval(expr, &regs);
 			else if (expr->ops != &nft_payload_fast_ops ||
 				 !nft_payload_fast_eval(expr, &regs, pkt))
-				expr->ops->eval(expr, &regs, pkt);
+				expr_call_ops_eval(expr, &regs, pkt);
 
 			if (regs.verdict.code != NFT_CONTINUE)
 				break;

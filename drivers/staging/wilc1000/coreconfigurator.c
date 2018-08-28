@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * All rights reserved.
+ */
+
+#include <linux/ieee80211.h>
+
 #include "coreconfigurator.h"
 
 #define TAG_PARAM_OFFSET	(MAC_HDR_LEN + TIME_STAMP_LEN + \
 				 BEACON_INTERVAL_LEN + CAP_INFO_LEN)
-
-enum basic_frame_type {
-	FRAME_TYPE_CONTROL     = 0x04,
-	FRAME_TYPE_DATA        = 0x08,
-	FRAME_TYPE_MANAGEMENT  = 0x00,
-	FRAME_TYPE_RESERVED    = 0x0C,
-	FRAME_TYPE_FORCE_32BIT = 0xFFFFFFFF
-};
 
 enum sub_frame_type {
 	ASSOC_REQ             = 0x00,
@@ -49,49 +48,6 @@ enum sub_frame_type {
 	BLOCKACK_REQ          = 0x84,
 	BLOCKACK              = 0x94,
 	FRAME_SUBTYPE_FORCE_32BIT  = 0xFFFFFFFF
-};
-
-enum info_element_id {
-	ISSID               = 0,   /* Service Set Identifier         */
-	ISUPRATES           = 1,   /* Supported Rates                */
-	IFHPARMS            = 2,   /* FH parameter set               */
-	IDSPARMS            = 3,   /* DS parameter set               */
-	ICFPARMS            = 4,   /* CF parameter set               */
-	ITIM                = 5,   /* Traffic Information Map        */
-	IIBPARMS            = 6,   /* IBSS parameter set             */
-	ICOUNTRY            = 7,   /* Country element                */
-	IEDCAPARAMS         = 12,  /* EDCA parameter set             */
-	ITSPEC              = 13,  /* Traffic Specification          */
-	ITCLAS              = 14,  /* Traffic Classification         */
-	ISCHED              = 15,  /* Schedule                       */
-	ICTEXT              = 16,  /* Challenge Text                 */
-	IPOWERCONSTRAINT    = 32,  /* Power Constraint               */
-	IPOWERCAPABILITY    = 33,  /* Power Capability               */
-	ITPCREQUEST         = 34,  /* TPC Request                    */
-	ITPCREPORT          = 35,  /* TPC Report                     */
-	ISUPCHANNEL         = 36,  /* Supported channel list         */
-	ICHSWANNOUNC        = 37,  /* Channel Switch Announcement    */
-	IMEASUREMENTREQUEST = 38,  /* Measurement request            */
-	IMEASUREMENTREPORT  = 39,  /* Measurement report             */
-	IQUIET              = 40,  /* Quiet element Info             */
-	IIBSSDFS            = 41,  /* IBSS DFS                       */
-	IERPINFO            = 42,  /* ERP Information                */
-	ITSDELAY            = 43,  /* TS Delay                       */
-	ITCLASPROCESS       = 44,  /* TCLAS Processing               */
-	IHTCAP              = 45,  /* HT Capabilities                */
-	IQOSCAP             = 46,  /* QoS Capability                 */
-	IRSNELEMENT         = 48,  /* RSN Information Element        */
-	IEXSUPRATES         = 50,  /* Extended Supported Rates       */
-	IEXCHSWANNOUNC      = 60,  /* Extended Ch Switch Announcement*/
-	IHTOPERATION        = 61,  /* HT Information                 */
-	ISECCHOFF           = 62,  /* Secondary Channel Offeset      */
-	I2040COEX           = 72,  /* 20/40 Coexistence IE           */
-	I2040INTOLCHREPORT  = 73,  /* 20/40 Intolerant channel report*/
-	IOBSSSCAN           = 74,  /* OBSS Scan parameters           */
-	IEXTCAP             = 127, /* Extended capability            */
-	IWMM                = 221, /* WMM parameters                 */
-	IWPAELEMENT         = 221, /* WPA Information Element        */
-	INFOELEM_ID_FORCE_32BIT  = 0xFFFFFFFF
 };
 
 static inline u16 get_beacon_period(u8 *data)
@@ -172,9 +128,7 @@ static inline void get_BSSID(u8 *data, u8 *bssid)
 
 static inline void get_ssid(u8 *data, u8 *ssid, u8 *p_ssid_len)
 {
-	u8 len = 0;
-	u8 i   = 0;
-	u8 j   = 0;
+	u8 i, j, len;
 
 	len = data[TAG_PARAM_OFFSET + 1];
 	j   = TAG_PARAM_OFFSET + 2;
@@ -222,7 +176,7 @@ static u8 *get_tim_elm(u8 *msa, u16 rx_len, u16 tag_param_offset)
 	index = tag_param_offset;
 
 	while (index < (rx_len - FCS_LEN)) {
-		if (msa[index] == ITIM)
+		if (msa[index] == WLAN_EID_TIM)
 			return &msa[index];
 		index += (IE_HDR_LEN + msa[index + 1]);
 	}
@@ -236,7 +190,7 @@ static u8 get_current_channel_802_11n(u8 *msa, u16 rx_len)
 
 	index = TAG_PARAM_OFFSET;
 	while (index < (rx_len - FCS_LEN)) {
-		if (msa[index] == IDSPARMS)
+		if (msa[index] == WLAN_EID_DS_PARAMS)
 			return msa[index + 2];
 		index += msa[index + 1] + IE_HDR_LEN;
 	}
@@ -247,18 +201,11 @@ static u8 get_current_channel_802_11n(u8 *msa, u16 rx_len)
 s32 wilc_parse_network_info(u8 *msg_buffer,
 			    struct network_info **ret_network_info)
 {
-	struct network_info *network_info = NULL;
-	u8 msg_type = 0;
-	u16 wid_len  = 0;
-	u8 *wid_val = NULL;
-	u8 *msa = NULL;
-	u16 rx_len = 0;
-	u8 *tim_elm = NULL;
-	u8 *ies = NULL;
-	u16 ies_len = 0;
-	u8 index = 0;
-	u32 tsf_lo;
-	u32 tsf_hi;
+	struct network_info *network_info;
+	u8 *wid_val, *msa, *tim_elm, *ies;
+	u32 tsf_lo, tsf_hi;
+	u16 wid_len, rx_len, ies_len;
+	u8 msg_type, index;
 
 	msg_type = msg_buffer[0];
 
@@ -320,11 +267,11 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
 			       struct connect_info *ret_conn_info)
 {
-	u8 *ies = NULL;
-	u16 ies_len = 0;
+	u8 *ies;
+	u16 ies_len;
 
 	ret_conn_info->status = get_asoc_status(buffer);
-	if (ret_conn_info->status == SUCCESSFUL_STATUSCODE) {
+	if (ret_conn_info->status == WLAN_STATUS_SUCCESS) {
 		ies = &buffer[CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN];
 		ies_len = buffer_len - (CAP_INFO_LEN + STATUS_CODE_LEN +
 					AID_LEN);

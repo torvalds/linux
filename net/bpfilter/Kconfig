@@ -13,4 +13,3 @@ config BPFILTER_UMH
 	help
 	  This builds bpfilter kernel module with embedded user mode helper
 endif
-

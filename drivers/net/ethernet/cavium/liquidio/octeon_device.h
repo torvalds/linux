@@ -288,7 +288,16 @@ struct oct_fw_info {
 	 */
 	u32 app_mode;
 	char   liquidio_firmware_version[32];
+	/* Fields extracted from legacy string 'liquidio_firmware_version' */
+	struct {
+		u8  maj;
+		u8  min;
+		u8  rev;
+	} ver;
 };
+
+#define OCT_FW_VER(maj, min, rev) \
+	(((u32)(maj) << 16) | ((u32)(min) << 8) | ((u32)(rev)))
 
 /* wrappers around work structs */
 struct cavium_wk {

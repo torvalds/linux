@@ -871,8 +871,8 @@ static void python_process_tracepoint(struct perf_sample *sample,
 			offset = field->offset;
 			len    = field->size;
 			if (field->flags & FIELD_IS_DYNAMIC) {
-				val     = pevent_read_number(scripting_context->pevent,
-							     data + offset, len);
+				val     = tep_read_number(scripting_context->pevent,
+							  data + offset, len);
 				offset  = val;
 				len     = offset >> 16;
 				offset &= 0xffff;
@@ -1588,7 +1588,7 @@ static int python_stop_script(void)
 	return 0;
 }
 
-static int python_generate_script(struct pevent *pevent, const char *outfile)
+static int python_generate_script(struct tep_handle *pevent, const char *outfile)
 {
 	struct event_format *event = NULL;
 	struct format_field *f;

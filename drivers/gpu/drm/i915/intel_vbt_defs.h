@@ -318,6 +318,12 @@ enum vbt_gmbus_ddi {
 	DDC_BUS_DDI_C,
 	DDC_BUS_DDI_D,
 	DDC_BUS_DDI_F,
+	ICL_DDC_BUS_DDI_A = 0x1,
+	ICL_DDC_BUS_DDI_B,
+	ICL_DDC_BUS_PORT_1 = 0x4,
+	ICL_DDC_BUS_PORT_2,
+	ICL_DDC_BUS_PORT_3,
+	ICL_DDC_BUS_PORT_4,
 };
 
 #define VBT_DP_MAX_LINK_RATE_HBR3	0
@@ -414,7 +420,9 @@ struct child_device_config {
 	u16 extended_type;
 	u8 dvo_function;
 	u8 dp_usb_type_c:1;					/* 195 */
-	u8 flags2_reserved:7;					/* 195 */
+	u8 tbt:1;						/* 209 */
+	u8 flags2_reserved:2;					/* 195 */
+	u8 dp_port_trace_length:4;				/* 209 */
 	u8 dp_gpio_index;					/* 195 */
 	u16 dp_gpio_pin_num;					/* 195 */
 	u8 dp_iboost_level:4;					/* 196 */
@@ -448,7 +456,7 @@ struct bdb_general_definitions {
 	 * number = (block_size - sizeof(bdb_general_definitions))/
 	 *	     defs->child_dev_size;
 	 */
-	uint8_t devices[0];
+	u8 devices[0];
 } __packed;
 
 /* Mask for DRRS / Panel Channel / SSC / BLT control bits extraction */
@@ -635,7 +643,7 @@ struct bdb_sdvo_lvds_options {
 #define BDB_DRIVER_FEATURE_NO_LVDS		0
 #define BDB_DRIVER_FEATURE_INT_LVDS		1
 #define BDB_DRIVER_FEATURE_SDVO_LVDS		2
-#define BDB_DRIVER_FEATURE_EDP			3
+#define BDB_DRIVER_FEATURE_INT_SDVO_LVDS	3
 
 struct bdb_driver_features {
 	u8 boot_dev_algorithm:1;

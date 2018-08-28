@@ -4102,7 +4102,8 @@ static inline int bond_slave_override(struct bonding *bond,
 
 
 static u16 bond_select_queue(struct net_device *dev, struct sk_buff *skb,
-			     void *accel_priv, select_queue_fallback_t fallback)
+			     struct net_device *sb_dev,
+			     select_queue_fallback_t fallback)
 {
 	/* This helper function exists to help dev_pick_tx get the correct
 	 * destination queue.  Using a helper function skips a call to

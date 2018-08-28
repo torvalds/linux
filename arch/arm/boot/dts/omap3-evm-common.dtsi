@@ -133,7 +133,7 @@
 		compatible = "ti,wl1271";
 		reg = <2>;
 		interrupt-parent = <&gpio5>;
-		interrupts = <21 IRQ_TYPE_LEVEL_HIGH>; /* gpio 149 */
+		interrupts = <21 IRQ_TYPE_EDGE_RISING>; /* gpio 149 */
 		ref-clock-frequency = <38400000>;
 	};
 };

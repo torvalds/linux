@@ -1479,22 +1479,20 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
 /*
  * Dissolve a given free hugepage into free buddy pages. This function does
  * nothing for in-use (including surplus) hugepages. Returns -EBUSY if the
- * number of free hugepages would be reduced below the number of reserved
- * hugepages.
+ * dissolution fails because a give page is not a free hugepage, or because
+ * free hugepages are fully reserved.
  */
 int dissolve_free_huge_page(struct page *page)
 {
-	int rc = 0;
+	int rc = -EBUSY;
 
 	spin_lock(&hugetlb_lock);
 	if (PageHuge(page) && !page_count(page)) {
 		struct page *head = compound_head(page);
 		struct hstate *h = page_hstate(head);
 		int nid = page_to_nid(head);
-		if (h->free_huge_pages - h->resv_huge_pages == 0) {
-			rc = -EBUSY;
+		if (h->free_huge_pages - h->resv_huge_pages == 0)
 			goto out;
-		}
 		/*
 		 * Move PageHWPoison flag from head page to the raw error page,
 		 * which makes any subpages rather than the error page reusable.
@@ -1508,6 +1506,7 @@ int dissolve_free_huge_page(struct page *page)
 		h->free_huge_pages_node[nid]--;
 		h->max_huge_pages--;
 		update_and_free_page(h, head);
+		rc = 0;
 	}
 out:
 	spin_unlock(&hugetlb_lock);
@@ -2101,7 +2100,7 @@ int __alloc_bootmem_huge_page(struct hstate *h)
 	for_each_node_mask_to_alloc(h, nr_nodes, node, &node_states[N_MEMORY]) {
 		void *addr;
 
-		addr = memblock_virt_alloc_try_nid_nopanic(
+		addr = memblock_virt_alloc_try_nid_raw(
 				huge_page_size(h), huge_page_size(h),
 				0, BOOTMEM_ALLOC_ACCESSIBLE, node);
 		if (addr) {
@@ -2119,6 +2118,7 @@ int __alloc_bootmem_huge_page(struct hstate *h)
 found:
 	BUG_ON(!IS_ALIGNED(virt_to_phys(m), huge_page_size(h)));
 	/* Put them into a private list first because mem_map is not up yet */
+	INIT_LIST_HEAD(&m->list);
 	list_add(&m->list, &huge_boot_pages);
 	m->hstate = h;
 	return 1;
@@ -2139,16 +2139,9 @@ static void __init gather_bootmem_prealloc(void)
 	struct huge_bootmem_page *m;
 
 	list_for_each_entry(m, &huge_boot_pages, list) {
+		struct page *page = virt_to_page(m);
 		struct hstate *h = m->hstate;
-		struct page *page;
 
-#ifdef CONFIG_HIGHMEM
-		page = pfn_to_page(m->phys >> PAGE_SHIFT);
-		memblock_free_late(__pa(m),
-				   sizeof(struct huge_bootmem_page));
-#else
-		page = virt_to_page(m);
-#endif
 		WARN_ON(page_count(page) != 1);
 		prep_compound_huge_page(page, h->order);
 		WARN_ON(PageReserved(page));
@@ -3508,16 +3501,18 @@ static void unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
  * cannot race with other handlers or page migration.
  * Keep the pte_same checks anyway to make transition from the mutex easier.
  */
-static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+static vm_fault_t hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 		       unsigned long address, pte_t *ptep,
 		       struct page *pagecache_page, spinlock_t *ptl)
 {
 	pte_t pte;
 	struct hstate *h = hstate_vma(vma);
 	struct page *old_page, *new_page;
-	int ret = 0, outside_reserve = 0;
+	int outside_reserve = 0;
+	vm_fault_t ret = 0;
 	unsigned long mmun_start;	/* For mmu_notifiers */
 	unsigned long mmun_end;		/* For mmu_notifiers */
+	unsigned long haddr = address & huge_page_mask(h);
 
 	pte = huge_ptep_get(ptep);
 	old_page = pte_page(pte);
@@ -3527,7 +3522,7 @@ retry_avoidcopy:
 	 * and just make the page writable */
 	if (page_mapcount(old_page) == 1 && PageAnon(old_page)) {
 		page_move_anon_rmap(old_page, vma);
-		set_huge_ptep_writable(vma, address, ptep);
+		set_huge_ptep_writable(vma, haddr, ptep);
 		return 0;
 	}
 
@@ -3551,7 +3546,7 @@ retry_avoidcopy:
 	 * be acquired again before returning to the caller, as expected.
 	 */
 	spin_unlock(ptl);
-	new_page = alloc_huge_page(vma, address, outside_reserve);
+	new_page = alloc_huge_page(vma, haddr, outside_reserve);
 
 	if (IS_ERR(new_page)) {
 		/*
@@ -3564,11 +3559,10 @@ retry_avoidcopy:
 		if (outside_reserve) {
 			put_page(old_page);
 			BUG_ON(huge_pte_none(pte));
-			unmap_ref_private(mm, vma, old_page, address);
+			unmap_ref_private(mm, vma, old_page, haddr);
 			BUG_ON(huge_pte_none(pte));
 			spin_lock(ptl);
-			ptep = huge_pte_offset(mm, address & huge_page_mask(h),
-					       huge_page_size(h));
+			ptep = huge_pte_offset(mm, haddr, huge_page_size(h));
 			if (likely(ptep &&
 				   pte_same(huge_ptep_get(ptep), pte)))
 				goto retry_avoidcopy;
@@ -3579,8 +3573,7 @@ retry_avoidcopy:
 			return 0;
 		}
 
-		ret = (PTR_ERR(new_page) == -ENOMEM) ?
-			VM_FAULT_OOM : VM_FAULT_SIGBUS;
+		ret = vmf_error(PTR_ERR(new_page));
 		goto out_release_old;
 	}
 
@@ -3598,7 +3591,7 @@ retry_avoidcopy:
 	__SetPageUptodate(new_page);
 	set_page_huge_active(new_page);
 
-	mmun_start = address & huge_page_mask(h);
+	mmun_start = haddr;
 	mmun_end = mmun_start + huge_page_size(h);
 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
 
@@ -3607,25 +3600,24 @@ retry_avoidcopy:
 	 * before the page tables are altered
 	 */
 	spin_lock(ptl);
-	ptep = huge_pte_offset(mm, address & huge_page_mask(h),
-			       huge_page_size(h));
+	ptep = huge_pte_offset(mm, haddr, huge_page_size(h));
 	if (likely(ptep && pte_same(huge_ptep_get(ptep), pte))) {
 		ClearPagePrivate(new_page);
 
 		/* Break COW */
-		huge_ptep_clear_flush(vma, address, ptep);
+		huge_ptep_clear_flush(vma, haddr, ptep);
 		mmu_notifier_invalidate_range(mm, mmun_start, mmun_end);
-		set_huge_pte_at(mm, address, ptep,
+		set_huge_pte_at(mm, haddr, ptep,
 				make_huge_pte(vma, new_page, 1));
 		page_remove_rmap(old_page, true);
-		hugepage_add_new_anon_rmap(new_page, vma, address);
+		hugepage_add_new_anon_rmap(new_page, vma, haddr);
 		/* Make the old page be freed below */
 		new_page = old_page;
 	}
 	spin_unlock(ptl);
 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
 out_release_all:
-	restore_reserve_on_error(h, vma, address, new_page);
+	restore_reserve_on_error(h, vma, haddr, new_page);
 	put_page(new_page);
 out_release_old:
 	put_page(old_page);
@@ -3684,12 +3676,13 @@ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
 	return 0;
 }
 
-static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
-			   struct address_space *mapping, pgoff_t idx,
-			   unsigned long address, pte_t *ptep, unsigned int flags)
+static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
+			struct vm_area_struct *vma,
+			struct address_space *mapping, pgoff_t idx,
+			unsigned long address, pte_t *ptep, unsigned int flags)
 {
 	struct hstate *h = hstate_vma(vma);
-	int ret = VM_FAULT_SIGBUS;
+	vm_fault_t ret = VM_FAULT_SIGBUS;
 	int anon_rmap = 0;
 	unsigned long size;
 	struct page *page;
@@ -3752,11 +3745,7 @@ retry:
 
 		page = alloc_huge_page(vma, haddr, 0);
 		if (IS_ERR(page)) {
-			ret = PTR_ERR(page);
-			if (ret == -ENOMEM)
-				ret = VM_FAULT_OOM;
-			else
-				ret = VM_FAULT_SIGBUS;
+			ret = vmf_error(PTR_ERR(page));
 			goto out;
 		}
 		clear_huge_page(page, address, pages_per_huge_page(h));
@@ -3828,7 +3817,7 @@ retry:
 	hugetlb_count_add(pages_per_huge_page(h), mm);
 	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED)) {
 		/* Optimization, do the COW without a second fault */
-		ret = hugetlb_cow(mm, vma, haddr, ptep, page, ptl);
+		ret = hugetlb_cow(mm, vma, address, ptep, page, ptl);
 	}
 
 	spin_unlock(ptl);
@@ -3880,12 +3869,12 @@ u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
 }
 #endif
 
-int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, unsigned int flags)
 {
 	pte_t *ptep, entry;
 	spinlock_t *ptl;
-	int ret;
+	vm_fault_t ret;
 	u32 hash;
 	pgoff_t idx;
 	struct page *page = NULL;
@@ -3982,7 +3971,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	if (flags & FAULT_FLAG_WRITE) {
 		if (!huge_pte_write(entry)) {
-			ret = hugetlb_cow(mm, vma, haddr, ptep,
+			ret = hugetlb_cow(mm, vma, address, ptep,
 					  pagecache_page, ptl);
 			goto out_put_page;
 		}
@@ -4215,7 +4204,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		if (absent || is_swap_pte(huge_ptep_get(pte)) ||
 		    ((flags & FOLL_WRITE) &&
 		      !huge_pte_write(huge_ptep_get(pte)))) {
-			int ret;
+			vm_fault_t ret;
 			unsigned int fault_flags = 0;
 
 			if (pte)

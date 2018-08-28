@@ -14,6 +14,7 @@
  * GNU General Public License for more details.
  */
 
+#include <dt-bindings/pinctrl/at91.h>
 #include <linux/clk.h>
 #include <linux/gpio/driver.h>
 /* FIXME: needed for gpio_to_irq(), get rid of this */
@@ -49,6 +50,8 @@
 #define		ATMEL_PIO_IFSCEN_MASK		BIT(13)
 #define		ATMEL_PIO_OPD_MASK		BIT(14)
 #define		ATMEL_PIO_SCHMITT_MASK		BIT(15)
+#define		ATMEL_PIO_DRVSTR_MASK		GENMASK(17, 16)
+#define		ATMEL_PIO_DRVSTR_OFFSET		16
 #define		ATMEL_PIO_CFGR_EVTSEL_MASK	GENMASK(26, 24)
 #define		ATMEL_PIO_CFGR_EVTSEL_FALLING	(0 << 24)
 #define		ATMEL_PIO_CFGR_EVTSEL_RISING	(1 << 24)
@@ -74,6 +77,9 @@
 #define ATMEL_GET_PIN_NO(pinfunc)	((pinfunc) & 0xff)
 #define ATMEL_GET_PIN_FUNC(pinfunc)	((pinfunc >> 16) & 0xf)
 #define ATMEL_GET_PIN_IOSET(pinfunc)	((pinfunc >> 20) & 0xf)
+
+/* Custom pinconf parameters */
+#define ATMEL_PIN_CONFIG_DRIVE_STRENGTH	(PIN_CONFIG_END + 1)
 
 struct atmel_pioctrl_data {
 	unsigned nbanks;
@@ -137,6 +143,10 @@ struct atmel_pioctrl {
 
 static const char * const atmel_functions[] = {
 	"GPIO", "A", "B", "C", "D", "E", "F", "G"
+};
+
+static const struct pinconf_generic_params atmel_custom_bindings[] = {
+	{"atmel,drive-strength", ATMEL_PIN_CONFIG_DRIVE_STRENGTH, 0},
 };
 
 /* --- GPIO --- */
@@ -692,6 +702,11 @@ static int atmel_conf_pin_config_group_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		arg = 1;
 		break;
+	case ATMEL_PIN_CONFIG_DRIVE_STRENGTH:
+		if (!(res & ATMEL_PIO_DRVSTR_MASK))
+			return -EINVAL;
+		arg = (res & ATMEL_PIO_DRVSTR_MASK) >> ATMEL_PIO_DRVSTR_OFFSET;
+		break;
 	default:
 		return -ENOTSUPP;
 	}
@@ -777,6 +792,18 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 					ATMEL_PIO_SODR);
 			}
 			break;
+		case ATMEL_PIN_CONFIG_DRIVE_STRENGTH:
+			switch (arg) {
+			case ATMEL_PIO_DRVSTR_LO:
+			case ATMEL_PIO_DRVSTR_ME:
+			case ATMEL_PIO_DRVSTR_HI:
+				conf &= (~ATMEL_PIO_DRVSTR_MASK);
+				conf |= arg << ATMEL_PIO_DRVSTR_OFFSET;
+				break;
+			default:
+				dev_warn(pctldev->dev, "drive strength not updated (incorrect value)\n");
+			}
+			break;
 		default:
 			dev_warn(pctldev->dev,
 				 "unsupported configuration parameter: %u\n",
@@ -816,6 +843,19 @@ static void atmel_conf_pin_config_dbg_show(struct pinctrl_dev *pctldev,
 		seq_printf(s, "%s ", "open-drain");
 	if (conf & ATMEL_PIO_SCHMITT_MASK)
 		seq_printf(s, "%s ", "schmitt");
+	if (conf & ATMEL_PIO_DRVSTR_MASK) {
+		switch ((conf & ATMEL_PIO_DRVSTR_MASK) >> ATMEL_PIO_DRVSTR_OFFSET) {
+		case ATMEL_PIO_DRVSTR_ME:
+			seq_printf(s, "%s ", "medium-drive");
+			break;
+		case ATMEL_PIO_DRVSTR_HI:
+			seq_printf(s, "%s ", "high-drive");
+			break;
+		/* ATMEL_PIO_DRVSTR_LO and 0 which is the default value at reset */
+		default:
+			seq_printf(s, "%s ", "low-drive");
+		}
+	}
 }
 
 static const struct pinconf_ops atmel_confops = {
@@ -931,10 +971,6 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	atmel_pioctrl->npins = atmel_pioctrl->nbanks * ATMEL_PIO_NPINS_PER_BANK;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "unable to get atmel pinctrl resource\n");
-		return -EINVAL;
-	}
 	atmel_pioctrl->reg_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(atmel_pioctrl->reg_base))
 		return -EINVAL;
@@ -958,6 +994,8 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	atmel_pinctrl_desc.pins = pin_desc;
 	atmel_pinctrl_desc.npins = atmel_pioctrl->npins;
+	atmel_pinctrl_desc.num_custom_params = ARRAY_SIZE(atmel_custom_bindings);
+	atmel_pinctrl_desc.custom_params = atmel_custom_bindings;
 
 	/* One pin is one group since a pin can achieve all functions. */
 	group_names = devm_kcalloc(dev,

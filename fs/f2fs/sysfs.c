@@ -9,6 +9,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/compiler.h>
 #include <linux/proc_fs.h>
 #include <linux/f2fs_fs.h>
 #include <linux/seq_file.h>
@@ -252,6 +253,7 @@ out:
 		if (t >= 1) {
 			sbi->gc_mode = GC_URGENT;
 			if (sbi->gc_thread) {
+				sbi->gc_thread->gc_wake = 1;
 				wake_up_interruptible_all(
 					&sbi->gc_thread->gc_wait_queue_head);
 				wake_up_discard_thread(sbi, true);
@@ -286,8 +288,10 @@ static ssize_t f2fs_sbi_store(struct f2fs_attr *a,
 	bool gc_entry = (!strcmp(a->attr.name, "gc_urgent") ||
 					a->struct_type == GC_THREAD);
 
-	if (gc_entry)
-		down_read(&sbi->sb->s_umount);
+	if (gc_entry) {
+		if (!down_read_trylock(&sbi->sb->s_umount))
+			return -EAGAIN;
+	}
 	ret = __sbi_store(a, sbi, buf, count);
 	if (gc_entry)
 		up_read(&sbi->sb->s_umount);
@@ -393,6 +397,7 @@ F2FS_RW_ATTR(SM_INFO, f2fs_sm_info, batched_trim_sections, trim_sections);
 F2FS_RW_ATTR(SM_INFO, f2fs_sm_info, ipu_policy, ipu_policy);
 F2FS_RW_ATTR(SM_INFO, f2fs_sm_info, min_ipu_util, min_ipu_util);
 F2FS_RW_ATTR(SM_INFO, f2fs_sm_info, min_fsync_blocks, min_fsync_blocks);
+F2FS_RW_ATTR(SM_INFO, f2fs_sm_info, min_seq_blocks, min_seq_blocks);
 F2FS_RW_ATTR(SM_INFO, f2fs_sm_info, min_hot_blocks, min_hot_blocks);
 F2FS_RW_ATTR(SM_INFO, f2fs_sm_info, min_ssr_sections, min_ssr_sections);
 F2FS_RW_ATTR(NM_INFO, f2fs_nm_info, ram_thresh, ram_thresh);
@@ -445,6 +450,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(ipu_policy),
 	ATTR_LIST(min_ipu_util),
 	ATTR_LIST(min_fsync_blocks),
+	ATTR_LIST(min_seq_blocks),
 	ATTR_LIST(min_hot_blocks),
 	ATTR_LIST(min_ssr_sections),
 	ATTR_LIST(max_victim_search),
@@ -516,7 +522,8 @@ static struct kobject f2fs_feat = {
 	.kset	= &f2fs_kset,
 };
 
-static int segment_info_seq_show(struct seq_file *seq, void *offset)
+static int __maybe_unused segment_info_seq_show(struct seq_file *seq,
+						void *offset)
 {
 	struct super_block *sb = seq->private;
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
@@ -543,7 +550,8 @@ static int segment_info_seq_show(struct seq_file *seq, void *offset)
 	return 0;
 }
 
-static int segment_bits_seq_show(struct seq_file *seq, void *offset)
+static int __maybe_unused segment_bits_seq_show(struct seq_file *seq,
+						void *offset)
 {
 	struct super_block *sb = seq->private;
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
@@ -567,7 +575,8 @@ static int segment_bits_seq_show(struct seq_file *seq, void *offset)
 	return 0;
 }
 
-static int iostat_info_seq_show(struct seq_file *seq, void *offset)
+static int __maybe_unused iostat_info_seq_show(struct seq_file *seq,
+					       void *offset)
 {
 	struct super_block *sb = seq->private;
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
@@ -606,6 +615,28 @@ static int iostat_info_seq_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, "fs discard:	%-16llu\n",
 				sbi->write_iostat[FS_DISCARD]);
 
+	return 0;
+}
+
+static int __maybe_unused victim_bits_seq_show(struct seq_file *seq,
+						void *offset)
+{
+	struct super_block *sb = seq->private;
+	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
+	int i;
+
+	seq_puts(seq, "format: victim_secmap bitmaps\n");
+
+	for (i = 0; i < MAIN_SECS(sbi); i++) {
+		if ((i % 10) == 0)
+			seq_printf(seq, "%-10d", i);
+		seq_printf(seq, "%d", test_bit(i, dirty_i->victim_secmap) ? 1 : 0);
+		if ((i % 10) == 9 || i == (MAIN_SECS(sbi) - 1))
+			seq_putc(seq, '\n');
+		else
+			seq_putc(seq, ' ');
+	}
 	return 0;
 }
 
@@ -658,6 +689,8 @@ int f2fs_register_sysfs(struct f2fs_sb_info *sbi)
 				segment_bits_seq_show, sb);
 		proc_create_single_data("iostat_info", S_IRUGO, sbi->s_proc,
 				iostat_info_seq_show, sb);
+		proc_create_single_data("victim_bits", S_IRUGO, sbi->s_proc,
+				victim_bits_seq_show, sb);
 	}
 	return 0;
 }
@@ -668,6 +701,7 @@ void f2fs_unregister_sysfs(struct f2fs_sb_info *sbi)
 		remove_proc_entry("iostat_info", sbi->s_proc);
 		remove_proc_entry("segment_info", sbi->s_proc);
 		remove_proc_entry("segment_bits", sbi->s_proc);
+		remove_proc_entry("victim_bits", sbi->s_proc);
 		remove_proc_entry(sbi->sb->s_id, f2fs_proc_root);
 	}
 	kobject_del(&sbi->s_kobj);

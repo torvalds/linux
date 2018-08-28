@@ -234,10 +234,6 @@ extern void ftrace_stub(unsigned long a0, unsigned long a1,
  */
 #define register_ftrace_function(ops) ({ 0; })
 #define unregister_ftrace_function(ops) ({ 0; })
-static inline int ftrace_nr_registered_ops(void)
-{
-	return 0;
-}
 static inline void ftrace_kill(void) { }
 static inline void ftrace_free_init_mem(void) { }
 static inline void ftrace_free_mem(struct module *mod, void *start, void *end) { }
@@ -327,8 +323,6 @@ void ftrace_bug(int err, struct dyn_ftrace *rec);
 struct seq_file;
 
 extern int ftrace_text_reserved(const void *start, const void *end);
-
-extern int ftrace_nr_registered_ops(void);
 
 struct ftrace_ops *ftrace_ops_trampoline(unsigned long addr);
 
@@ -707,16 +701,7 @@ static inline unsigned long get_lock_parent_ip(void)
 	return CALLER_ADDR2;
 }
 
-#ifdef CONFIG_IRQSOFF_TRACER
-  extern void time_hardirqs_on(unsigned long a0, unsigned long a1);
-  extern void time_hardirqs_off(unsigned long a0, unsigned long a1);
-#else
-  static inline void time_hardirqs_on(unsigned long a0, unsigned long a1) { }
-  static inline void time_hardirqs_off(unsigned long a0, unsigned long a1) { }
-#endif
-
-#if defined(CONFIG_PREEMPT_TRACER) || \
-	(defined(CONFIG_DEBUG_PREEMPT) && defined(CONFIG_PREEMPTIRQ_EVENTS))
+#ifdef CONFIG_TRACE_PREEMPT_TOGGLE
   extern void trace_preempt_on(unsigned long a0, unsigned long a1);
   extern void trace_preempt_off(unsigned long a0, unsigned long a1);
 #else

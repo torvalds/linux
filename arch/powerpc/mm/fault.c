@@ -42,7 +42,6 @@
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
-#include <asm/tlbflush.h>
 #include <asm/siginfo.h>
 #include <asm/debug.h>
 
@@ -156,7 +155,7 @@ static noinline int bad_access(struct pt_regs *regs, unsigned long address)
 }
 
 static int do_sigbus(struct pt_regs *regs, unsigned long address,
-		     unsigned int fault)
+		     vm_fault_t fault)
 {
 	siginfo_t info;
 	unsigned int lsb = 0;
@@ -187,7 +186,8 @@ static int do_sigbus(struct pt_regs *regs, unsigned long address,
 	return 0;
 }
 
-static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
+static int mm_fault_error(struct pt_regs *regs, unsigned long addr,
+				vm_fault_t fault)
 {
 	/*
 	 * Kernel page fault interrupted by SIGKILL. We have no reason to
@@ -415,7 +415,7 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
  	int is_exec = TRAP(regs) == 0x400;
 	int is_user = user_mode(regs);
 	int is_write = page_fault_is_write(error_code);
-	int fault, major = 0;
+	vm_fault_t fault, major = 0;
 	bool must_retry = false;
 
 	if (notify_page_fault(regs))

@@ -148,12 +148,6 @@ int sd_zbc_setup_report_cmnd(struct scsi_cmnd *cmd)
 	cmd->transfersize = sdkp->device->sector_size;
 	cmd->allowed = 0;
 
-	/*
-	 * Report may return less bytes than requested. Make sure
-	 * to report completion on the entire initial request.
-	 */
-	rq->__data_len = nr_bytes;
-
 	return BLKPREP_OK;
 }
 

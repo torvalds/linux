@@ -993,7 +993,7 @@ static int smu10_get_clock_by_type_with_latency(struct pp_hwmgr *hwmgr,
 
 	clocks->num_levels = 0;
 	for (i = 0; i < pclk_vol_table->count; i++) {
-		clocks->data[i].clocks_in_khz = pclk_vol_table->entries[i].clk;
+		clocks->data[i].clocks_in_khz = pclk_vol_table->entries[i].clk * 10;
 		clocks->data[i].latency_in_us = latency_required ?
 						smu10_get_mem_latency(hwmgr,
 						pclk_vol_table->entries[i].clk) :
@@ -1044,7 +1044,7 @@ static int smu10_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 
 	clocks->num_levels = 0;
 	for (i = 0; i < pclk_vol_table->count; i++) {
-		clocks->data[i].clocks_in_khz = pclk_vol_table->entries[i].clk;
+		clocks->data[i].clocks_in_khz = pclk_vol_table->entries[i].clk  * 10;
 		clocks->data[i].voltage_in_mv = pclk_vol_table->entries[i].vol;
 		clocks->num_levels++;
 	}
@@ -1108,9 +1108,10 @@ static int smu10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 }
 
 static int smu10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
-		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+		void *clock_ranges)
 {
 	struct smu10_hwmgr *data = hwmgr->backend;
+	struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges = clock_ranges;
 	Watermarks_t *table = &(data->water_marks_table);
 	int result = 0;
 
@@ -1126,7 +1127,7 @@ static int smu10_smus_notify_pwe(struct pp_hwmgr *hwmgr)
 	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SetRccPfcPmeRestoreRegister);
 }
 
-static int smu10_set_mmhub_powergating_by_smu(struct pp_hwmgr *hwmgr)
+static int smu10_powergate_mmhub(struct pp_hwmgr *hwmgr)
 {
 	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_PowerGateMmHub);
 }
@@ -1182,10 +1183,11 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.asic_setup = smu10_setup_asic_task,
 	.power_state_set = smu10_set_power_state_tasks,
 	.dynamic_state_management_disable = smu10_disable_dpm_tasks,
-	.set_mmhub_powergating_by_smu = smu10_set_mmhub_powergating_by_smu,
+	.powergate_mmhub = smu10_powergate_mmhub,
 	.smus_notify_pwe = smu10_smus_notify_pwe,
 	.gfx_off_control = smu10_gfx_off_control,
 	.display_clock_voltage_request = smu10_display_clock_voltage_request,
+	.powergate_gfx = smu10_gfx_off_control,
 };
 
 int smu10_init_function_pointers(struct pp_hwmgr *hwmgr)

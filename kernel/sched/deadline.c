@@ -16,6 +16,7 @@
  *                    Fabio Checconi <fchecconi@gmail.com>
  */
 #include "sched.h"
+#include "pelt.h"
 
 struct dl_bandwidth def_dl_bandwidth;
 
@@ -1179,8 +1180,6 @@ static void update_curr_dl(struct rq *rq)
 	curr->se.exec_start = now;
 	cgroup_account_cputime(curr, delta_exec);
 
-	sched_rt_avg_update(rq, delta_exec);
-
 	if (dl_entity_is_special(dl_se))
 		return;
 
@@ -1761,6 +1760,9 @@ pick_next_task_dl(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 
 	deadline_queue_push_tasks(rq);
 
+	if (rq->curr->sched_class != &dl_sched_class)
+		update_dl_rq_load_avg(rq_clock_task(rq), rq, 0);
+
 	return p;
 }
 
@@ -1768,6 +1770,7 @@ static void put_prev_task_dl(struct rq *rq, struct task_struct *p)
 {
 	update_curr_dl(rq);
 
+	update_dl_rq_load_avg(rq_clock_task(rq), rq, 1);
 	if (on_dl_rq(&p->dl) && p->nr_cpus_allowed > 1)
 		enqueue_pushable_dl_task(rq, p);
 }
@@ -1784,6 +1787,7 @@ static void task_tick_dl(struct rq *rq, struct task_struct *p, int queued)
 {
 	update_curr_dl(rq);
 
+	update_dl_rq_load_avg(rq_clock_task(rq), rq, 1);
 	/*
 	 * Even when we have runtime, update_curr_dl() might have resulted in us
 	 * not being the leftmost task anymore. In that case NEED_RESCHED will

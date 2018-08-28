@@ -35,7 +35,7 @@
  * necessary invalidation by clearing out the 'ctx_id' which
  * forces a TLB flush when the context is loaded.
  */
-void clear_asid_other(void)
+static void clear_asid_other(void)
 {
 	u16 asid;
 
@@ -285,15 +285,22 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			sync_current_stack_to_mm(next);
 		}
 
-		/* Stop remote flushes for the previous mm */
-		VM_WARN_ON_ONCE(!cpumask_test_cpu(cpu, mm_cpumask(real_prev)) &&
-				real_prev != &init_mm);
-		cpumask_clear_cpu(cpu, mm_cpumask(real_prev));
+		/*
+		 * Stop remote flushes for the previous mm.
+		 * Skip kernel threads; we never send init_mm TLB flushing IPIs,
+		 * but the bitmap manipulation can cause cache line contention.
+		 */
+		if (real_prev != &init_mm) {
+			VM_WARN_ON_ONCE(!cpumask_test_cpu(cpu,
+						mm_cpumask(real_prev)));
+			cpumask_clear_cpu(cpu, mm_cpumask(real_prev));
+		}
 
 		/*
 		 * Start remote flushes and then read tlb_gen.
 		 */
-		cpumask_set_cpu(cpu, mm_cpumask(next));
+		if (next != &init_mm)
+			cpumask_set_cpu(cpu, mm_cpumask(next));
 		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
 
 		choose_new_asid(next, next_tlb_gen, &new_asid, &need_flush);

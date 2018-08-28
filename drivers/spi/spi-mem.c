@@ -311,6 +311,24 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 EXPORT_SYMBOL_GPL(spi_mem_exec_op);
 
 /**
+ * spi_mem_get_name() - Return the SPI mem device name to be used by the
+ *			upper layer if necessary
+ * @mem: the SPI memory
+ *
+ * This function allows SPI mem users to retrieve the SPI mem device name.
+ * It is useful if the upper layer needs to expose a custom name for
+ * compatibility reasons.
+ *
+ * Return: a string containing the name of the memory device to be used
+ *	   by the SPI mem user
+ */
+const char *spi_mem_get_name(struct spi_mem *mem)
+{
+	return mem->name;
+}
+EXPORT_SYMBOL_GPL(spi_mem_get_name);
+
+/**
  * spi_mem_adjust_op_size() - Adjust the data size of a SPI mem operation to
  *			      match controller limitations
  * @mem: the SPI memory
@@ -344,6 +362,7 @@ static inline struct spi_mem_driver *to_spi_mem_drv(struct device_driver *drv)
 static int spi_mem_probe(struct spi_device *spi)
 {
 	struct spi_mem_driver *memdrv = to_spi_mem_drv(spi->dev.driver);
+	struct spi_controller *ctlr = spi->controller;
 	struct spi_mem *mem;
 
 	mem = devm_kzalloc(&spi->dev, sizeof(*mem), GFP_KERNEL);
@@ -351,6 +370,15 @@ static int spi_mem_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	mem->spi = spi;
+
+	if (ctlr->mem_ops && ctlr->mem_ops->get_name)
+		mem->name = ctlr->mem_ops->get_name(mem);
+	else
+		mem->name = dev_name(&spi->dev);
+
+	if (IS_ERR_OR_NULL(mem->name))
+		return PTR_ERR(mem->name);
+
 	spi_set_drvdata(spi, mem);
 
 	return memdrv->probe(mem);

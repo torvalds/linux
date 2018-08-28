@@ -1839,6 +1839,7 @@ static const struct tegra_pingroup tegra114_groups[] = {
 
 static const struct tegra_pinctrl_soc_data tegra114_pinctrl = {
 	.ngpios = NUM_GPIOS,
+	.gpio_compatible = "nvidia,tegra30-gpio",
 	.pins = tegra114_pins,
 	.npins = ARRAY_SIZE(tegra114_pins),
 	.functions = tegra114_functions,
@@ -1867,4 +1868,9 @@ static struct platform_driver tegra114_pinctrl_driver = {
 	},
 	.probe = tegra114_pinctrl_probe,
 };
-builtin_platform_driver(tegra114_pinctrl_driver);
+
+static int __init tegra114_pinctrl_init(void)
+{
+	return platform_driver_register(&tegra114_pinctrl_driver);
+}
+arch_initcall(tegra114_pinctrl_init);

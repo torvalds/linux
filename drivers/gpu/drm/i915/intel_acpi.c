@@ -12,10 +12,6 @@
 #define INTEL_DSM_REVISION_ID 1 /* For Calpella anyway... */
 #define INTEL_DSM_FN_PLATFORM_MUX_INFO 1 /* No args */
 
-static struct intel_dsm_priv {
-	acpi_handle dhandle;
-} intel_dsm_priv;
-
 static const guid_t intel_dsm_guid =
 	GUID_INIT(0x7ed873d3, 0xc2d0, 0x4e4f,
 		  0xa8, 0x54, 0x0f, 0x13, 0x17, 0xb0, 0x1c, 0x2c);
@@ -72,12 +68,12 @@ static char *intel_dsm_mux_type(u8 type)
 	}
 }
 
-static void intel_dsm_platform_mux_info(void)
+static void intel_dsm_platform_mux_info(acpi_handle dhandle)
 {
 	int i;
 	union acpi_object *pkg, *connector_count;
 
-	pkg = acpi_evaluate_dsm_typed(intel_dsm_priv.dhandle, &intel_dsm_guid,
+	pkg = acpi_evaluate_dsm_typed(dhandle, &intel_dsm_guid,
 			INTEL_DSM_REVISION_ID, INTEL_DSM_FN_PLATFORM_MUX_INFO,
 			NULL, ACPI_TYPE_PACKAGE);
 	if (!pkg) {
@@ -107,41 +103,40 @@ static void intel_dsm_platform_mux_info(void)
 	ACPI_FREE(pkg);
 }
 
-static bool intel_dsm_pci_probe(struct pci_dev *pdev)
+static acpi_handle intel_dsm_pci_probe(struct pci_dev *pdev)
 {
 	acpi_handle dhandle;
 
 	dhandle = ACPI_HANDLE(&pdev->dev);
 	if (!dhandle)
-		return false;
+		return NULL;
 
 	if (!acpi_check_dsm(dhandle, &intel_dsm_guid, INTEL_DSM_REVISION_ID,
 			    1 << INTEL_DSM_FN_PLATFORM_MUX_INFO)) {
 		DRM_DEBUG_KMS("no _DSM method for intel device\n");
-		return false;
+		return NULL;
 	}
 
-	intel_dsm_priv.dhandle = dhandle;
-	intel_dsm_platform_mux_info();
+	intel_dsm_platform_mux_info(dhandle);
 
-	return true;
+	return dhandle;
 }
 
 static bool intel_dsm_detect(void)
 {
+	acpi_handle dhandle = NULL;
 	char acpi_method_name[255] = { 0 };
 	struct acpi_buffer buffer = {sizeof(acpi_method_name), acpi_method_name};
 	struct pci_dev *pdev = NULL;
-	bool has_dsm = false;
 	int vga_count = 0;
 
 	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
 		vga_count++;
-		has_dsm |= intel_dsm_pci_probe(pdev);
+		dhandle = intel_dsm_pci_probe(pdev) ?: dhandle;
 	}
 
-	if (vga_count == 2 && has_dsm) {
-		acpi_get_name(intel_dsm_priv.dhandle, ACPI_FULL_PATHNAME, &buffer);
+	if (vga_count == 2 && dhandle) {
+		acpi_get_name(dhandle, ACPI_FULL_PATHNAME, &buffer);
 		DRM_DEBUG_DRIVER("vga_switcheroo: detected DSM switching method %s handle\n",
 				 acpi_method_name);
 		return true;

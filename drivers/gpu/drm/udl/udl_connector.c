@@ -99,7 +99,7 @@ static int udl_get_modes(struct drm_connector *connector)
 					struct udl_drm_connector,
 					connector);
 
-	drm_mode_connector_update_edid_property(connector, udl_connector->edid);
+	drm_connector_update_edid_property(connector, udl_connector->edid);
 	if (udl_connector->edid)
 		return drm_add_edid_modes(connector, udl_connector->edid);
 	return 0;
@@ -200,7 +200,7 @@ int udl_connector_init(struct drm_device *dev, struct drm_encoder *encoder)
 	drm_connector_helper_add(connector, &udl_connector_helper_funcs);
 
 	drm_connector_register(connector);
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	connector->polled = DRM_CONNECTOR_POLL_HPD |
 		DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 
