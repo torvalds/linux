@@ -760,8 +760,8 @@ const struct mlx5_flow_cmds *mlx5_fs_cmd_get_default(enum fs_flow_table_type typ
 	case FS_FT_FDB:
 	case FS_FT_SNIFFER_RX:
 	case FS_FT_SNIFFER_TX:
-		return mlx5_fs_cmd_get_fw_cmds();
 	case FS_FT_NIC_TX:
+		return mlx5_fs_cmd_get_fw_cmds();
 	default:
 		return mlx5_fs_cmd_get_stub_cmds();
 	}
