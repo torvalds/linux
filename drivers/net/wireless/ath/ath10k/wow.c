@@ -374,6 +374,8 @@ int ath10k_wow_op_suspend(struct ieee80211_hw *hw,
 		goto cleanup;
 	}
 
+	ath10k_mac_wait_tx_complete(ar);
+
 	ret = ath10k_wow_enable(ar);
 	if (ret) {
 		ath10k_warn(ar, "failed to start wow: %d\n", ret);
