@@ -9,7 +9,9 @@
 /* Local includes */
 #include "i40e.h"
 #include "i40e_diag.h"
+#include "i40e_xsk.h"
 #include <net/udp_tunnel.h>
+#include <net/xdp_sock.h>
 /* All i40e tracepoints are defined by the include below, which
  * must be included exactly once across the whole kernel with
  * CREATE_TRACE_POINTS defined
@@ -3181,13 +3183,46 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	struct i40e_hw *hw = &vsi->back->hw;
 	struct i40e_hmc_obj_rxq rx_ctx;
 	i40e_status err = 0;
+	bool ok;
+	int ret;
 
 	bitmap_zero(ring->state, __I40E_RING_STATE_NBITS);
 
 	/* clear the context structure first */
 	memset(&rx_ctx, 0, sizeof(rx_ctx));
 
-	ring->rx_buf_len = vsi->rx_buf_len;
+	if (ring->vsi->type == I40E_VSI_MAIN)
+		xdp_rxq_info_unreg_mem_model(&ring->xdp_rxq);
+
+	ring->xsk_umem = i40e_xsk_umem(ring);
+	if (ring->xsk_umem) {
+		ring->rx_buf_len = ring->xsk_umem->chunk_size_nohr -
+				   XDP_PACKET_HEADROOM;
+		/* For AF_XDP ZC, we disallow packets to span on
+		 * multiple buffers, thus letting us skip that
+		 * handling in the fast-path.
+		 */
+		chain_len = 1;
+		ring->zca.free = i40e_zca_free;
+		ret = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
+						 MEM_TYPE_ZERO_COPY,
+						 &ring->zca);
+		if (ret)
+			return ret;
+		dev_info(&vsi->back->pdev->dev,
+			 "Registered XDP mem model MEM_TYPE_ZERO_COPY on Rx ring %d\n",
+			 ring->queue_index);
+
+	} else {
+		ring->rx_buf_len = vsi->rx_buf_len;
+		if (ring->vsi->type == I40E_VSI_MAIN) {
+			ret = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
+							 MEM_TYPE_PAGE_SHARED,
+							 NULL);
+			if (ret)
+				return ret;
+		}
+	}
 
 	rx_ctx.dbuff = DIV_ROUND_UP(ring->rx_buf_len,
 				    BIT_ULL(I40E_RXQ_CTX_DBUFF_SHIFT));
@@ -3243,7 +3278,15 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	ring->tail = hw->hw_addr + I40E_QRX_TAIL(pf_q);
 	writel(0, ring->tail);
 
-	i40e_alloc_rx_buffers(ring, I40E_DESC_UNUSED(ring));
+	ok = ring->xsk_umem ?
+	     i40e_alloc_rx_buffers_zc(ring, I40E_DESC_UNUSED(ring)) :
+	     !i40e_alloc_rx_buffers(ring, I40E_DESC_UNUSED(ring));
+	if (!ok) {
+		dev_info(&vsi->back->pdev->dev,
+			 "Failed allocate some buffers on %sRx ring %d (pf_q %d)\n",
+			 ring->xsk_umem ? "UMEM enabled " : "",
+			 ring->queue_index, pf_q);
+	}
 
 	return 0;
 }
@@ -12097,6 +12140,12 @@ static int i40e_xdp(struct net_device *dev,
 	case XDP_QUERY_PROG:
 		xdp->prog_id = vsi->xdp_prog ? vsi->xdp_prog->aux->id : 0;
 		return 0;
+	case XDP_QUERY_XSK_UMEM:
+		return i40e_xsk_umem_query(vsi, &xdp->xsk.umem,
+					   xdp->xsk.queue_id);
+	case XDP_SETUP_XSK_UMEM:
+		return i40e_xsk_umem_setup(vsi, xdp->xsk.umem,
+					   xdp->xsk.queue_id);
 	default:
 		return -EINVAL;
 	}
