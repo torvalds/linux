@@ -117,7 +117,7 @@
 	};
 
 	lvds-encoder {
-		compatible = "lvds-encoder";
+		compatible = "ti,ds90c185", "lvds-encoder";
 
 		ports {
 			#address-cells = <1>;
