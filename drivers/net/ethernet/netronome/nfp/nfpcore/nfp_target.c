@@ -39,7 +39,11 @@
  *          Francois H. Theron <francois.theron@netronome.com>
  */
 
+#define pr_fmt(fmt)       "NFP target: " fmt
+
 #include <linux/bitops.h>
+#include <linux/kernel.h>
+#include <linux/printk.h>
 
 #include "nfp_cpp.h"
 
@@ -733,8 +737,10 @@ int nfp_target_cpp(u32 cpp_island_id, u64 cpp_island_address,
 	u32 imb;
 	int err;
 
-	if (target < 0 || target >= 16)
+	if (target < 0 || target >= 16) {
+		pr_err("Invalid CPP target: %d\n", target);
 		return -EINVAL;
+	}
 
 	if (island == 0) {
 		/* Already translated */
@@ -753,8 +759,10 @@ int nfp_target_cpp(u32 cpp_island_id, u64 cpp_island_address,
 	err = nfp_cppat_addr_encode(cpp_target_address, island, target,
 				    ((imb >> 13) & 7), ((imb >> 12) & 1),
 				    ((imb >> 6)  & 0x3f), ((imb >> 0)  & 0x3f));
-	if (err)
+	if (err) {
+		pr_err("Can't encode CPP address: %d\n", err);
 		return err;
+	}
 
 	*cpp_target_id = NFP_CPP_ID(target,
 				    NFP_CPP_ID_ACTION_of(cpp_island_id),
