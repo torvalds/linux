@@ -101,6 +101,7 @@ static unsigned paravirt_patch_call(void *insnbuf, const void *target,
 	return 5;
 }
 
+#ifdef CONFIG_PARAVIRT_XXL
 static unsigned paravirt_patch_jmp(void *insnbuf, const void *target,
 				   unsigned long addr, unsigned len)
 {
@@ -119,6 +120,7 @@ static unsigned paravirt_patch_jmp(void *insnbuf, const void *target,
 
 	return 5;
 }
+#endif
 
 DEFINE_STATIC_KEY_TRUE(virt_spin_lock_key);
 
@@ -150,10 +152,12 @@ unsigned paravirt_patch_default(u8 type, void *insnbuf,
 	else if (opfunc == _paravirt_ident_64)
 		ret = paravirt_patch_ident_64(insnbuf, len);
 
+#ifdef CONFIG_PARAVIRT_XXL
 	else if (type == PARAVIRT_PATCH(cpu.iret) ||
 		 type == PARAVIRT_PATCH(cpu.usergs_sysret64))
 		/* If operation requires a jmp, then jmp */
 		ret = paravirt_patch_jmp(insnbuf, opfunc, addr, len);
+#endif
 	else
 		/* Otherwise call the function. */
 		ret = paravirt_patch_call(insnbuf, opfunc, addr, len);
@@ -262,6 +266,7 @@ void paravirt_flush_lazy_mmu(void)
 	preempt_enable();
 }
 
+#ifdef CONFIG_PARAVIRT_XXL
 void paravirt_start_context_switch(struct task_struct *prev)
 {
 	BUG_ON(preemptible());
@@ -282,6 +287,7 @@ void paravirt_end_context_switch(struct task_struct *next)
 	if (test_and_clear_ti_thread_flag(task_thread_info(next), TIF_LAZY_MMU_UPDATES))
 		arch_enter_lazy_mmu_mode();
 }
+#endif
 
 enum paravirt_lazy_mode paravirt_get_lazy_mode(void)
 {
@@ -320,6 +326,9 @@ struct paravirt_patch_template pv_ops = {
 	.time.steal_clock	= native_steal_clock,
 
 	/* Cpu ops. */
+	.cpu.io_delay		= native_io_delay,
+
+#ifdef CONFIG_PARAVIRT_XXL
 	.cpu.cpuid		= native_cpuid,
 	.cpu.get_debugreg	= native_get_debugreg,
 	.cpu.set_debugreg	= native_set_debugreg,
@@ -361,10 +370,10 @@ struct paravirt_patch_template pv_ops = {
 	.cpu.swapgs		= native_swapgs,
 
 	.cpu.set_iopl_mask	= native_set_iopl_mask,
-	.cpu.io_delay		= native_io_delay,
 
 	.cpu.start_context_switch	= paravirt_nop,
 	.cpu.end_context_switch		= paravirt_nop,
+#endif /* CONFIG_PARAVIRT_XXL */
 
 	/* Irq ops. */
 	.irq.save_fl		= __PV_IS_CALLEE_SAVE(native_save_fl),
@@ -464,10 +473,12 @@ struct paravirt_patch_template pv_ops = {
 #endif
 };
 
+#ifdef CONFIG_PARAVIRT_XXL
 /* At this point, native_get/set_debugreg has real function entries */
 NOKPROBE_SYMBOL(native_get_debugreg);
 NOKPROBE_SYMBOL(native_set_debugreg);
 NOKPROBE_SYMBOL(native_load_idt);
+#endif
 
 EXPORT_SYMBOL_GPL(pv_ops);
 EXPORT_SYMBOL_GPL(pv_info);

@@ -111,9 +111,11 @@ extern pmdval_t early_pmd_flags;
 #define pte_val(x)	native_pte_val(x)
 #define __pte(x)	native_make_pte(x)
 
-#define arch_end_context_switch(prev)	do {} while(0)
-
 #endif	/* CONFIG_PARAVIRT */
+
+#ifndef CONFIG_PARAVIRT_XXL
+#define arch_end_context_switch(prev)	do {} while(0)
+#endif	/* CONFIG_PARAVIRT_XXL */
 
 /*
  * The following only work if pte_present() is true.

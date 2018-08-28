@@ -578,7 +578,7 @@ static inline bool on_thread_stack(void)
 			       current_stack_pointer) < THREAD_SIZE;
 }
 
-#ifdef CONFIG_PARAVIRT
+#ifdef CONFIG_PARAVIRT_XXL
 #include <asm/paravirt.h>
 #else
 #define __cpuid			native_cpuid
@@ -589,7 +589,7 @@ static inline void load_sp0(unsigned long sp0)
 }
 
 #define set_iopl_mask native_set_iopl_mask
-#endif /* CONFIG_PARAVIRT */
+#endif /* CONFIG_PARAVIRT_XXL */
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);

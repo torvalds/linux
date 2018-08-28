@@ -17,6 +17,7 @@
 #include <linux/cpumask.h>
 #include <asm/frame.h>
 
+#ifdef CONFIG_PARAVIRT_XXL
 static inline void load_sp0(unsigned long sp0)
 {
 	PVOP_VCALL1(cpu.load_sp0, sp0);
@@ -51,6 +52,7 @@ static inline void write_cr0(unsigned long x)
 {
 	PVOP_VCALL1(cpu.write_cr0, x);
 }
+#endif
 
 static inline unsigned long read_cr2(void)
 {
@@ -72,6 +74,7 @@ static inline void write_cr3(unsigned long x)
 	PVOP_VCALL1(mmu.write_cr3, x);
 }
 
+#ifdef CONFIG_PARAVIRT_XXL
 static inline void __write_cr4(unsigned long x)
 {
 	PVOP_VCALL1(cpu.write_cr4, x);
@@ -88,6 +91,7 @@ static inline void write_cr8(unsigned long x)
 	PVOP_VCALL1(cpu.write_cr8, x);
 }
 #endif
+#endif
 
 static inline void arch_safe_halt(void)
 {
@@ -99,14 +103,13 @@ static inline void halt(void)
 	PVOP_VCALL0(irq.halt);
 }
 
+#ifdef CONFIG_PARAVIRT_XXL
 static inline void wbinvd(void)
 {
 	PVOP_VCALL0(cpu.wbinvd);
 }
 
-#ifdef CONFIG_PARAVIRT_XXL
 #define get_kernel_rpl()  (pv_info.kernel_rpl)
-#endif
 
 static inline u64 paravirt_read_msr(unsigned msr)
 {
@@ -171,6 +174,7 @@ static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
 	*p = paravirt_read_msr_safe(msr, &err);
 	return err;
 }
+#endif
 
 static inline unsigned long long paravirt_sched_clock(void)
 {
@@ -186,6 +190,7 @@ static inline u64 paravirt_steal_clock(int cpu)
 	return PVOP_CALL1(u64, time.steal_clock, cpu);
 }
 
+#ifdef CONFIG_PARAVIRT_XXL
 static inline unsigned long long paravirt_read_pmc(int counter)
 {
 	return PVOP_CALL1(u64, cpu.read_pmc, counter);
@@ -230,6 +235,7 @@ static inline unsigned long paravirt_store_tr(void)
 {
 	return PVOP_CALL0(unsigned long, cpu.store_tr);
 }
+
 #define store_tr(tr)	((tr) = paravirt_store_tr())
 static inline void load_TLS(struct thread_struct *t, unsigned cpu)
 {
@@ -263,6 +269,7 @@ static inline void set_iopl_mask(unsigned mask)
 {
 	PVOP_VCALL1(cpu.set_iopl_mask, mask);
 }
+#endif
 
 /* The paravirtualized I/O functions */
 static inline void slow_down_io(void)
@@ -618,6 +625,7 @@ static inline void pmd_clear(pmd_t *pmdp)
 }
 #endif	/* CONFIG_X86_PAE */
 
+#ifdef CONFIG_PARAVIRT_XXL
 #define  __HAVE_ARCH_START_CONTEXT_SWITCH
 static inline void arch_start_context_switch(struct task_struct *prev)
 {
@@ -628,6 +636,7 @@ static inline void arch_end_context_switch(struct task_struct *next)
 {
 	PVOP_VCALL1(cpu.end_context_switch, next);
 }
+#endif
 
 #define  __HAVE_ARCH_ENTER_LAZY_MMU_MODE
 static inline void arch_enter_lazy_mmu_mode(void)
@@ -870,10 +879,12 @@ extern void default_banner(void);
 #define PARA_INDIRECT(addr)	*%cs:addr
 #endif
 
+#ifdef CONFIG_PARAVIRT_XXL
 #define INTERRUPT_RETURN						\
 	PARA_SITE(PARA_PATCH(PV_CPU_iret),				\
 		  ANNOTATE_RETPOLINE_SAFE;				\
 		  jmp PARA_INDIRECT(pv_ops+PV_CPU_iret);)
+#endif
 
 #define DISABLE_INTERRUPTS(clobbers)					\
 	PARA_SITE(PARA_PATCH(PV_IRQ_irq_disable),			\
@@ -890,6 +901,7 @@ extern void default_banner(void);
 		  PV_RESTORE_REGS(clobbers | CLBR_CALLEE_SAVE);)
 
 #ifdef CONFIG_X86_64
+#ifdef CONFIG_PARAVIRT_XXL
 /*
  * If swapgs is used while the userspace stack is still current,
  * there's no way to call a pvop.  The PV replacement *must* be
@@ -909,15 +921,18 @@ extern void default_banner(void);
 		  ANNOTATE_RETPOLINE_SAFE;				\
 		  call PARA_INDIRECT(pv_ops+PV_CPU_swapgs);		\
 		 )
+#endif
 
 #define GET_CR2_INTO_RAX				\
 	ANNOTATE_RETPOLINE_SAFE;				\
 	call PARA_INDIRECT(pv_ops+PV_MMU_read_cr2);
 
+#ifdef CONFIG_PARAVIRT_XXL
 #define USERGS_SYSRET64							\
 	PARA_SITE(PARA_PATCH(PV_CPU_usergs_sysret64),			\
 		  ANNOTATE_RETPOLINE_SAFE;				\
 		  jmp PARA_INDIRECT(pv_ops+PV_CPU_usergs_sysret64);)
+#endif
 
 #ifdef CONFIG_DEBUG_ENTRY
 #define SAVE_FLAGS(clobbers)                                        \

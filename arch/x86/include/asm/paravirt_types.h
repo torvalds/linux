@@ -106,6 +106,9 @@ struct pv_time_ops {
 
 struct pv_cpu_ops {
 	/* hooks for various privileged instructions */
+	void (*io_delay)(void);
+
+#ifdef CONFIG_PARAVIRT_XXL
 	unsigned long (*get_debugreg)(int regno);
 	void (*set_debugreg)(int regno, unsigned long value);
 
@@ -143,7 +146,6 @@ struct pv_cpu_ops {
 	void (*set_iopl_mask)(unsigned mask);
 
 	void (*wbinvd)(void);
-	void (*io_delay)(void);
 
 	/* cpuid emulation, mostly so that caps bits can be disabled */
 	void (*cpuid)(unsigned int *eax, unsigned int *ebx,
@@ -178,6 +180,7 @@ struct pv_cpu_ops {
 
 	void (*start_context_switch)(struct task_struct *prev);
 	void (*end_context_switch)(struct task_struct *next);
+#endif
 } __no_randomize_layout;
 
 struct pv_irq_ops {
