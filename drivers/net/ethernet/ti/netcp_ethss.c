@@ -3137,15 +3137,15 @@ static void init_secondary_ports(struct gbe_priv *gbe_dev,
 	for_each_child_of_node(node, port) {
 		slave = devm_kzalloc(dev, sizeof(*slave), GFP_KERNEL);
 		if (!slave) {
-			dev_err(dev, "memory alloc failed for secondary port(%s), skipping...\n",
-				port->name);
+			dev_err(dev, "memory alloc failed for secondary port(%pOFn), skipping...\n",
+				port);
 			continue;
 		}
 
 		if (init_slave(gbe_dev, slave, port)) {
 			dev_err(dev,
-				"Failed to initialize secondary port(%s), skipping...\n",
-				port->name);
+				"Failed to initialize secondary port(%pOFn), skipping...\n",
+				port);
 			devm_kfree(dev, slave);
 			continue;
 		}
@@ -3239,8 +3239,8 @@ static int set_xgbe_ethss10_priv(struct gbe_priv *gbe_dev,
 	ret = of_address_to_resource(node, XGBE_SS_REG_INDEX, &res);
 	if (ret) {
 		dev_err(gbe_dev->dev,
-			"Can't xlate xgbe of node(%s) ss address at %d\n",
-			node->name, XGBE_SS_REG_INDEX);
+			"Can't xlate xgbe of node(%pOFn) ss address at %d\n",
+			node, XGBE_SS_REG_INDEX);
 		return ret;
 	}
 
@@ -3254,8 +3254,8 @@ static int set_xgbe_ethss10_priv(struct gbe_priv *gbe_dev,
 	ret = of_address_to_resource(node, XGBE_SM_REG_INDEX, &res);
 	if (ret) {
 		dev_err(gbe_dev->dev,
-			"Can't xlate xgbe of node(%s) sm address at %d\n",
-			node->name, XGBE_SM_REG_INDEX);
+			"Can't xlate xgbe of node(%pOFn) sm address at %d\n",
+			node, XGBE_SM_REG_INDEX);
 		return ret;
 	}
 
@@ -3269,8 +3269,8 @@ static int set_xgbe_ethss10_priv(struct gbe_priv *gbe_dev,
 	ret = of_address_to_resource(node, XGBE_SERDES_REG_INDEX, &res);
 	if (ret) {
 		dev_err(gbe_dev->dev,
-			"Can't xlate xgbe serdes of node(%s) address at %d\n",
-			node->name, XGBE_SERDES_REG_INDEX);
+			"Can't xlate xgbe serdes of node(%pOFn) address at %d\n",
+			node, XGBE_SERDES_REG_INDEX);
 		return ret;
 	}
 
@@ -3347,8 +3347,8 @@ static int get_gbe_resource_version(struct gbe_priv *gbe_dev,
 	ret = of_address_to_resource(node, GBE_SS_REG_INDEX, &res);
 	if (ret) {
 		dev_err(gbe_dev->dev,
-			"Can't translate of node(%s) of gbe ss address at %d\n",
-			node->name, GBE_SS_REG_INDEX);
+			"Can't translate of node(%pOFn) of gbe ss address at %d\n",
+			node, GBE_SS_REG_INDEX);
 		return ret;
 	}
 
@@ -3372,8 +3372,8 @@ static int set_gbe_ethss14_priv(struct gbe_priv *gbe_dev,
 	ret = of_address_to_resource(node, GBE_SGMII34_REG_INDEX, &res);
 	if (ret) {
 		dev_err(gbe_dev->dev,
-			"Can't translate of gbe node(%s) address at index %d\n",
-			node->name, GBE_SGMII34_REG_INDEX);
+			"Can't translate of gbe node(%pOFn) address at index %d\n",
+			node, GBE_SGMII34_REG_INDEX);
 		return ret;
 	}
 
@@ -3388,8 +3388,8 @@ static int set_gbe_ethss14_priv(struct gbe_priv *gbe_dev,
 	ret = of_address_to_resource(node, GBE_SM_REG_INDEX, &res);
 	if (ret) {
 		dev_err(gbe_dev->dev,
-			"Can't translate of gbe node(%s) address at index %d\n",
-			node->name, GBE_SM_REG_INDEX);
+			"Can't translate of gbe node(%pOFn) address at index %d\n",
+			node, GBE_SM_REG_INDEX);
 		return ret;
 	}
 
@@ -3498,8 +3498,8 @@ static int set_gbenu_ethss_priv(struct gbe_priv *gbe_dev,
 	ret = of_address_to_resource(node, GBENU_SM_REG_INDEX, &res);
 	if (ret) {
 		dev_err(gbe_dev->dev,
-			"Can't translate of gbenu node(%s) addr at index %d\n",
-			node->name, GBENU_SM_REG_INDEX);
+			"Can't translate of gbenu node(%pOFn) addr at index %d\n",
+			node, GBENU_SM_REG_INDEX);
 		return ret;
 	}
 
@@ -3642,7 +3642,7 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 		ret = netcp_xgbe_serdes_init(gbe_dev->xgbe_serdes_regs,
 					     gbe_dev->ss_regs);
 	} else {
-		dev_err(dev, "unknown GBE node(%s)\n", node->name);
+		dev_err(dev, "unknown GBE node(%pOFn)\n", node);
 		ret = -ENODEV;
 	}
 
@@ -3667,8 +3667,8 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	for_each_child_of_node(interfaces, interface) {
 		ret = of_property_read_u32(interface, "slave-port", &slave_num);
 		if (ret) {
-			dev_err(dev, "missing slave-port parameter, skipping interface configuration for %s\n",
-				interface->name);
+			dev_err(dev, "missing slave-port parameter, skipping interface configuration for %pOFn\n",
+				interface);
 			continue;
 		}
 		gbe_dev->num_slaves++;
