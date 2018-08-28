@@ -87,6 +87,9 @@
 #define NSP_CODE_MAJOR		GENMASK(15, 12)
 #define NSP_CODE_MINOR		GENMASK(11, 0)
 
+#define NFP_FW_LOAD_RET_MAJOR	GENMASK(15, 8)
+#define NFP_FW_LOAD_RET_MINOR	GENMASK(23, 16)
+
 enum nfp_nsp_cmd {
 	SPCODE_NOOP		= 0, /* No operation */
 	SPCODE_SOFT_RESET	= 1, /* Soft reset the NFP */
@@ -135,6 +138,7 @@ struct nfp_nsp {
  * @option:	NFP SP Command Argument
  * @buff_cpp:	NFP SP Buffer CPP Address info
  * @buff_addr:	NFP SP Buffer Host address
+ * @error_cb:	Callback for interpreting option if error occurred
  */
 struct nfp_nsp_command_arg {
 	u16 code;
@@ -142,6 +146,7 @@ struct nfp_nsp_command_arg {
 	u32 option;
 	u32 buff_cpp;
 	u64 buff_addr;
+	void (*error_cb)(struct nfp_nsp *state, u32 ret_val);
 };
 
 /**
@@ -401,7 +406,10 @@ __nfp_nsp_command(struct nfp_nsp *state, const struct nfp_nsp_command_arg *arg)
 	if (err) {
 		nfp_warn(cpp, "Result (error) code set: %d (%d) command: %d\n",
 			 -err, (int)ret_val, arg->code);
-		nfp_nsp_print_extended_error(state, ret_val);
+		if (arg->error_cb)
+			arg->error_cb(state, ret_val);
+		else
+			nfp_nsp_print_extended_error(state, ret_val);
 		return -err;
 	}
 
@@ -530,18 +538,78 @@ int nfp_nsp_mac_reinit(struct nfp_nsp *state)
 	return nfp_nsp_command(state, SPCODE_MAC_INIT);
 }
 
+static void nfp_nsp_load_fw_extended_msg(struct nfp_nsp *state, u32 ret_val)
+{
+	static const char * const major_msg[] = {
+		/* 0 */ "Firmware from driver loaded",
+		/* 1 */ "Firmware from flash loaded",
+		/* 2 */ "Firmware loading failure",
+	};
+	static const char * const minor_msg[] = {
+		/*  0 */ "",
+		/*  1 */ "no named partition on flash",
+		/*  2 */ "error reading from flash",
+		/*  3 */ "can not deflate",
+		/*  4 */ "not a trusted file",
+		/*  5 */ "can not parse FW file",
+		/*  6 */ "MIP not found in FW file",
+		/*  7 */ "null firmware name in MIP",
+		/*  8 */ "FW version none",
+		/*  9 */ "FW build number none",
+		/* 10 */ "no FW selection policy HWInfo key found",
+		/* 11 */ "static FW selection policy",
+		/* 12 */ "FW version has precedence",
+		/* 13 */ "different FW application load requested",
+		/* 14 */ "development build",
+	};
+	unsigned int major, minor;
+	const char *level;
+
+	major = FIELD_GET(NFP_FW_LOAD_RET_MAJOR, ret_val);
+	minor = FIELD_GET(NFP_FW_LOAD_RET_MINOR, ret_val);
+
+	if (!nfp_nsp_has_stored_fw_load(state))
+		return;
+
+	/* Lower the message level in legacy case */
+	if (major == 0 && (minor == 0 || minor == 10))
+		level = KERN_DEBUG;
+	else if (major == 2)
+		level = KERN_ERR;
+	else
+		level = KERN_INFO;
+
+	if (major >= ARRAY_SIZE(major_msg))
+		nfp_printk(level, state->cpp, "FW loading status: %x\n",
+			   ret_val);
+	else if (minor >= ARRAY_SIZE(minor_msg))
+		nfp_printk(level, state->cpp, "%s, reason code: %d\n",
+			   major_msg[major], minor);
+	else
+		nfp_printk(level, state->cpp, "%s%c %s\n",
+			   major_msg[major], minor ? ',' : '.',
+			   minor_msg[minor]);
+}
+
 int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw)
 {
 	struct nfp_nsp_command_buf_arg load_fw = {
 		{
 			.code		= SPCODE_FW_LOAD,
 			.option		= fw->size,
+			.error_cb	= nfp_nsp_load_fw_extended_msg,
 		},
 		.in_buf		= fw->data,
 		.in_size	= fw->size,
 	};
+	int ret;
 
-	return nfp_nsp_command_buf(state, &load_fw);
+	ret = nfp_nsp_command_buf(state, &load_fw);
+	if (ret < 0)
+		return ret;
+
+	nfp_nsp_load_fw_extended_msg(state, ret);
+	return 0;
 }
 
 int nfp_nsp_write_flash(struct nfp_nsp *state, const struct firmware *fw)
@@ -622,5 +690,16 @@ int nfp_nsp_read_sensors(struct nfp_nsp *state, unsigned int sensor_mask,
 
 int nfp_nsp_load_stored_fw(struct nfp_nsp *state)
 {
-	return nfp_nsp_command(state, SPCODE_FW_STORED);
+	const struct nfp_nsp_command_arg arg = {
+		.code		= SPCODE_FW_STORED,
+		.error_cb	= nfp_nsp_load_fw_extended_msg,
+	};
+	int ret;
+
+	ret = __nfp_nsp_command(state, &arg);
+	if (ret < 0)
+		return ret;
+
+	nfp_nsp_load_fw_extended_msg(state, ret);
+	return 0;
 }

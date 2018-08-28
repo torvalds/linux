@@ -56,6 +56,9 @@
 	dev_info(nfp_cpp_device(cpp)->parent, NFP_SUBSYS ": " fmt, ## args)
 #define nfp_dbg(cpp, fmt, args...) \
 	dev_dbg(nfp_cpp_device(cpp)->parent, NFP_SUBSYS ": " fmt, ## args)
+#define nfp_printk(level, cpp, fmt, args...) \
+	dev_printk(level, nfp_cpp_device(cpp)->parent,	\
+		   NFP_SUBSYS ": " fmt,	## args)
 
 #define PCI_64BIT_BAR_COUNT             3
 
