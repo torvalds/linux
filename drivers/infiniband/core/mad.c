@@ -220,6 +220,10 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	int ret2, qpn;
 	u8 mgmt_class, vclass;
 
+	if ((qp_type == IB_QPT_SMI && !rdma_cap_ib_smi(device, port_num)) ||
+	    (qp_type == IB_QPT_GSI && !rdma_cap_ib_cm(device, port_num)))
+		return ERR_PTR(-EPROTONOSUPPORT);
+
 	/* Validate parameters */
 	qpn = get_spl_qp_index(qp_type);
 	if (qpn == -1) {
