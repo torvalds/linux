@@ -282,8 +282,8 @@ static int __init of_enumerate_spus(int (*fn)(void *data))
 	for_each_node_by_type(node, "spe") {
 		ret = fn(node);
 		if (ret) {
-			printk(KERN_WARNING "%s: Error initializing %s\n",
-				__func__, node->name);
+			printk(KERN_WARNING "%s: Error initializing %pOFn\n",
+				__func__, node);
 			of_node_put(node);
 			break;
 		}
