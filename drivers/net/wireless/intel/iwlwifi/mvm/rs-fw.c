@@ -315,12 +315,26 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 
 	if (flags & IWL_TLC_NOTIF_FLAG_AMSDU) {
 		u16 size = le32_to_cpu(notif->amsdu_size);
+		int i;
 
 		if (WARN_ON(sta->max_amsdu_len < size))
 			goto out;
 
 		mvmsta->amsdu_enabled = le32_to_cpu(notif->amsdu_enabled);
 		mvmsta->max_amsdu_len = size;
+		sta->max_rc_amsdu_len = mvmsta->max_amsdu_len;
+
+		for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
+			if (mvmsta->amsdu_enabled & BIT(i))
+				sta->max_tid_amsdu_len[i] =
+					iwl_mvm_max_amsdu_size(mvm, sta, i);
+			else
+				/*
+				 * Not so elegant, but this will effectively
+				 * prevent AMSDU on this TID
+				 */
+				sta->max_tid_amsdu_len[i] = 1;
+		}
 
 		IWL_DEBUG_RATE(mvm,
 			       "AMSDU update. AMSDU size: %d, AMSDU selected size: %d, AMSDU TID bitmap 0x%X\n",

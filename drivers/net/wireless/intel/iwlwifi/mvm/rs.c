@@ -1744,6 +1744,7 @@ static void rs_set_amsdu_len(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			     enum rs_action scale_action)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	int i;
 
 	/*
 	 * In case TLC offload is not active amsdu_enabled is either 0xFFFF
@@ -1757,6 +1758,19 @@ static void rs_set_amsdu_len(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		mvmsta->amsdu_enabled = 0xFFFF;
 
 	mvmsta->max_amsdu_len = sta->max_amsdu_len;
+	sta->max_rc_amsdu_len = mvmsta->max_amsdu_len;
+
+	for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
+		if (mvmsta->amsdu_enabled)
+			sta->max_tid_amsdu_len[i] =
+				iwl_mvm_max_amsdu_size(mvm, sta, i);
+		else
+			/*
+			 * Not so elegant, but this will effectively
+			 * prevent AMSDU on this TID
+			 */
+			sta->max_tid_amsdu_len[i] = 1;
+	}
 }
 
 /*
