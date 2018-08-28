@@ -564,6 +564,9 @@ struct sdhci_host {
 	/* Host SDMA buffer boundary. */
 	u32			sdma_boundary;
 
+	/* Host ADMA table count */
+	u32			adma_table_cnt;
+
 	u64			data_timeout;
 
 	unsigned long private[0] ____cacheline_aligned;
