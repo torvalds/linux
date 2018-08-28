@@ -184,8 +184,8 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 		return -ENODEV;
 
 	nand_set_flash_node(&fun->chip, flash_np);
-	mtd->name = kasprintf(GFP_KERNEL, "0x%llx.%s", (u64)io_res->start,
-			      flash_np->name);
+	mtd->name = kasprintf(GFP_KERNEL, "0x%llx.%pOFn", (u64)io_res->start,
+			      flash_np);
 	if (!mtd->name) {
 		ret = -ENOMEM;
 		goto err;
