@@ -100,11 +100,6 @@ struct mlx5e_tc_flow_parse_attr {
 	int mirred_ifindex;
 };
 
-enum {
-	MLX5_HEADER_TYPE_VXLAN = 0x0,
-	MLX5_HEADER_TYPE_NVGRE = 0x1,
-};
-
 #define MLX5E_TC_TABLE_NUM_GROUPS 4
 #define MLX5E_TC_TABLE_MAX_GROUP_SIZE BIT(16)
 

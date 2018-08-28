@@ -4848,6 +4848,11 @@ struct mlx5_ifc_alloc_encap_header_out_bits {
 	u8         reserved_at_60[0x20];
 };
 
+enum {
+	MLX5_HEADER_TYPE_VXLAN = 0x0,
+	MLX5_HEADER_TYPE_NVGRE = 0x1,
+};
+
 struct mlx5_ifc_alloc_encap_header_in_bits {
 	u8         opcode[0x10];
 	u8         reserved_at_10[0x10];
