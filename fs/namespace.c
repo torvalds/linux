@@ -2642,6 +2642,7 @@ static long exact_copy_from_user(void *to, const void __user * from,
 	if (!access_ok(VERIFY_READ, from, n))
 		return n;
 
+	current->kernel_uaccess_faults_ok++;
 	while (n) {
 		if (__get_user(c, f)) {
 			memset(t, 0, n);
@@ -2651,6 +2652,7 @@ static long exact_copy_from_user(void *to, const void __user * from,
 		f++;
 		n--;
 	}
+	current->kernel_uaccess_faults_ok--;
 	return n;
 }
 
