@@ -1020,15 +1020,6 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		 */
 		if (cur->fault_handler && cur->fault_handler(cur, regs, trapnr))
 			return 1;
-
-		/*
-		 * In case the user-specified fault handler returned
-		 * zero, try to fix up.
-		 */
-		if (fixup_exception(regs, trapnr))
-			return 1;
-
-		/* fixup routine could not handle it. */
 	}
 
 	return 0;
