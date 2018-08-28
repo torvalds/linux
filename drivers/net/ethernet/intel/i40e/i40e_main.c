@@ -6431,7 +6431,10 @@ void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 	char *req_fec = "";
 	char *an = "";
 
-	new_speed = pf->hw.phy.link_info.link_speed;
+	if (isup)
+		new_speed = pf->hw.phy.link_info.link_speed;
+	else
+		new_speed = I40E_LINK_SPEED_UNKNOWN;
 
 	if ((vsi->current_isup == isup) && (vsi->current_speed == new_speed))
 		return;
