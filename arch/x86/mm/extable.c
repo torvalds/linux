@@ -108,6 +108,14 @@ __visible bool ex_handler_fprestore(const struct exception_table_entry *fixup,
 }
 EXPORT_SYMBOL_GPL(ex_handler_fprestore);
 
+__visible bool ex_handler_uaccess(const struct exception_table_entry *fixup,
+				  struct pt_regs *regs, int trapnr)
+{
+	regs->ip = ex_fixup_addr(fixup);
+	return true;
+}
+EXPORT_SYMBOL(ex_handler_uaccess);
+
 __visible bool ex_handler_ext(const struct exception_table_entry *fixup,
 			      struct pt_regs *regs, int trapnr)
 {
