@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Pinctrl GPIO driver for Intel Baytrail
- * Copyright (c) 2012-2013, Intel Corporation.
  *
+ * Copyright (c) 2012-2013, Intel Corporation
  * Author: Mathias Nyman <mathias.nyman@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/kernel.h>
@@ -1542,11 +1534,13 @@ static void byt_irq_unmask(struct irq_data *d)
 	switch (irqd_get_trigger_type(d)) {
 	case IRQ_TYPE_LEVEL_HIGH:
 		value |= BYT_TRIG_LVL;
+		/* fall through */
 	case IRQ_TYPE_EDGE_RISING:
 		value |= BYT_TRIG_POS;
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		value |= BYT_TRIG_LVL;
+		/* fall through */
 	case IRQ_TYPE_EDGE_FALLING:
 		value |= BYT_TRIG_NEG;
 		break;
@@ -1691,7 +1685,8 @@ static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
 		value = readl(reg);
 		if (value)
 			dev_err(&vg->pdev->dev,
-				"GPIO interrupt error, pins misconfigured\n");
+				"GPIO interrupt error, pins misconfigured. INT_STAT%u: 0x%08x\n",
+				base / 32, value);
 	}
 }
 

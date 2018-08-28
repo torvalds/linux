@@ -39,14 +39,14 @@ Required properties:
 
 Optional property:
 - clock-frequency:	Desired I2C bus clock frequency in Hz.
-			When missing default to 400000Hz.
+			When missing default to 100000Hz.
 
 Child nodes should conform to I2C bus binding as described in i2c.txt.
 
 Qualcomm Technologies Inc. GENI Serial Engine based UART Controller
 
 Required properties:
-- compatible:		Must be "qcom,geni-debug-uart".
+- compatible:		Must be "qcom,geni-debug-uart" or "qcom,geni-uart".
 - reg: 			Must contain UART register location and length.
 - interrupts: 		Must contain UART core interrupts.
 - clock-names:		Must contain "se".

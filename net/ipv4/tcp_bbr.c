@@ -205,7 +205,11 @@ static u32 bbr_bw(const struct sock *sk)
  */
 static u64 bbr_rate_bytes_per_sec(struct sock *sk, u64 rate, int gain)
 {
-	rate *= tcp_mss_to_mtu(sk, tcp_sk(sk)->mss_cache);
+	unsigned int mss = tcp_sk(sk)->mss_cache;
+
+	if (!tcp_needs_internal_pacing(sk))
+		mss = tcp_mss_to_mtu(sk, mss);
+	rate *= mss;
 	rate *= gain;
 	rate >>= BBR_SCALE;
 	rate *= USEC_PER_SEC;
@@ -353,6 +357,10 @@ static u32 bbr_target_cwnd(struct sock *sk, u32 bw, int gain)
 
 	/* Reduce delayed ACKs by rounding up cwnd to the next even number. */
 	cwnd = (cwnd + 1) & ~1U;
+
+	/* Ensure gain cycling gets inflight above BDP even for small BDPs. */
+	if (bbr->mode == BBR_PROBE_BW && gain > BBR_UNIT)
+		cwnd += 2;
 
 	return cwnd;
 }

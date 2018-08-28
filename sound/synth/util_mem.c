@@ -193,19 +193,3 @@ EXPORT_SYMBOL(snd_util_mem_avail);
 EXPORT_SYMBOL(__snd_util_mem_alloc);
 EXPORT_SYMBOL(__snd_util_mem_free);
 EXPORT_SYMBOL(__snd_util_memblk_new);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_util_mem_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_util_mem_exit(void)
-{
-}
-
-module_init(alsa_util_mem_init)
-module_exit(alsa_util_mem_exit)

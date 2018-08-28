@@ -254,6 +254,7 @@ static void vlv_get_stolen_reserved(struct drm_i915_private *dev_priv,
 	switch (reg_val & GEN7_STOLEN_RESERVED_SIZE_MASK) {
 	default:
 		MISSING_CASE(reg_val & GEN7_STOLEN_RESERVED_SIZE_MASK);
+		/* fall through */
 	case GEN7_STOLEN_RESERVED_1M:
 		*size = 1024 * 1024;
 		break;
@@ -343,6 +344,35 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 	*size = stolen_top - *base;
 }
 
+static void icl_get_stolen_reserved(struct drm_i915_private *dev_priv,
+				    resource_size_t *base,
+				    resource_size_t *size)
+{
+	u64 reg_val = I915_READ64(GEN6_STOLEN_RESERVED);
+
+	DRM_DEBUG_DRIVER("GEN6_STOLEN_RESERVED = 0x%016llx\n", reg_val);
+
+	*base = reg_val & GEN11_STOLEN_RESERVED_ADDR_MASK;
+
+	switch (reg_val & GEN8_STOLEN_RESERVED_SIZE_MASK) {
+	case GEN8_STOLEN_RESERVED_1M:
+		*size = 1024 * 1024;
+		break;
+	case GEN8_STOLEN_RESERVED_2M:
+		*size = 2 * 1024 * 1024;
+		break;
+	case GEN8_STOLEN_RESERVED_4M:
+		*size = 4 * 1024 * 1024;
+		break;
+	case GEN8_STOLEN_RESERVED_8M:
+		*size = 8 * 1024 * 1024;
+		break;
+	default:
+		*size = 8 * 1024 * 1024;
+		MISSING_CASE(reg_val & GEN8_STOLEN_RESERVED_SIZE_MASK);
+	}
+}
+
 int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 {
 	resource_size_t reserved_base, stolen_top;
@@ -399,13 +429,20 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 			gen7_get_stolen_reserved(dev_priv,
 						 &reserved_base, &reserved_size);
 		break;
-	default:
+	case 8:
+	case 9:
+	case 10:
 		if (IS_LP(dev_priv))
 			chv_get_stolen_reserved(dev_priv,
 						&reserved_base, &reserved_size);
 		else
 			bdw_get_stolen_reserved(dev_priv,
 						&reserved_base, &reserved_size);
+		break;
+	case 11:
+	default:
+		icl_get_stolen_reserved(dev_priv, &reserved_base,
+					&reserved_size);
 		break;
 	}
 
@@ -642,7 +679,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	if (ret)
 		goto err;
 
-	vma = i915_vma_instance(obj, &ggtt->base, NULL);
+	vma = i915_vma_instance(obj, &ggtt->vm, NULL);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto err_pages;
@@ -653,7 +690,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	 * setting up the GTT space. The actual reservation will occur
 	 * later.
 	 */
-	ret = i915_gem_gtt_reserve(&ggtt->base, &vma->node,
+	ret = i915_gem_gtt_reserve(&ggtt->vm, &vma->node,
 				   size, gtt_offset, obj->cache_level,
 				   0);
 	if (ret) {
@@ -666,7 +703,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	vma->pages = obj->mm.pages;
 	vma->flags |= I915_VMA_GLOBAL_BIND;
 	__i915_vma_set_map_and_fenceable(vma);
-	list_move_tail(&vma->vm_link, &ggtt->base.inactive_list);
+	list_move_tail(&vma->vm_link, &ggtt->vm.inactive_list);
 
 	spin_lock(&dev_priv->mm.obj_lock);
 	list_move_tail(&obj->mm.link, &dev_priv->mm.bound_list);

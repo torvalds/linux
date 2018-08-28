@@ -189,6 +189,21 @@ static int kfd_parse_subtype_cu(struct crat_subtype_computeunit *cu,
 	return 0;
 }
 
+static struct kfd_mem_properties *
+find_subtype_mem(uint32_t heap_type, uint32_t flags, uint32_t width,
+		struct kfd_topology_device *dev)
+{
+	struct kfd_mem_properties *props;
+
+	list_for_each_entry(props, &dev->mem_props, list) {
+		if (props->heap_type == heap_type
+				&& props->flags == flags
+				&& props->width == width)
+			return props;
+	}
+
+	return NULL;
+}
 /* kfd_parse_subtype_mem - parse memory subtypes and attach it to correct
  * topology device present in the device_list
  */
@@ -197,36 +212,56 @@ static int kfd_parse_subtype_mem(struct crat_subtype_memory *mem,
 {
 	struct kfd_mem_properties *props;
 	struct kfd_topology_device *dev;
+	uint32_t heap_type;
+	uint64_t size_in_bytes;
+	uint32_t flags = 0;
+	uint32_t width;
 
 	pr_debug("Found memory entry in CRAT table with proximity_domain=%d\n",
 			mem->proximity_domain);
 	list_for_each_entry(dev, device_list, list) {
 		if (mem->proximity_domain == dev->proximity_domain) {
-			props = kfd_alloc_struct(props);
-			if (!props)
-				return -ENOMEM;
-
 			/* We're on GPU node */
 			if (dev->node_props.cpu_cores_count == 0) {
 				/* APU */
 				if (mem->visibility_type == 0)
-					props->heap_type =
+					heap_type =
 						HSA_MEM_HEAP_TYPE_FB_PRIVATE;
 				/* dGPU */
 				else
-					props->heap_type = mem->visibility_type;
+					heap_type = mem->visibility_type;
 			} else
-				props->heap_type = HSA_MEM_HEAP_TYPE_SYSTEM;
+				heap_type = HSA_MEM_HEAP_TYPE_SYSTEM;
 
 			if (mem->flags & CRAT_MEM_FLAGS_HOT_PLUGGABLE)
-				props->flags |= HSA_MEM_FLAGS_HOT_PLUGGABLE;
+				flags |= HSA_MEM_FLAGS_HOT_PLUGGABLE;
 			if (mem->flags & CRAT_MEM_FLAGS_NON_VOLATILE)
-				props->flags |= HSA_MEM_FLAGS_NON_VOLATILE;
+				flags |= HSA_MEM_FLAGS_NON_VOLATILE;
 
-			props->size_in_bytes =
+			size_in_bytes =
 				((uint64_t)mem->length_high << 32) +
 							mem->length_low;
-			props->width = mem->width;
+			width = mem->width;
+
+			/* Multiple banks of the same type are aggregated into
+			 * one. User mode doesn't care about multiple physical
+			 * memory segments. It's managed as a single virtual
+			 * heap for user mode.
+			 */
+			props = find_subtype_mem(heap_type, flags, width, dev);
+			if (props) {
+				props->size_in_bytes += size_in_bytes;
+				break;
+			}
+
+			props = kfd_alloc_struct(props);
+			if (!props)
+				return -ENOMEM;
+
+			props->heap_type = heap_type;
+			props->flags = flags;
+			props->size_in_bytes = size_in_bytes;
+			props->width = width;
 
 			dev->node_props.mem_banks_count++;
 			list_add_tail(&props->list, &dev->mem_props);

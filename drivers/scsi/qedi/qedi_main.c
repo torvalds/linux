@@ -524,7 +524,7 @@ static int qedi_init_id_tbl(struct qedi_portid_tbl *id_tbl, u16 size,
 	id_tbl->max = size;
 	id_tbl->next = next;
 	spin_lock_init(&id_tbl->lock);
-	id_tbl->table = kcalloc(DIV_ROUND_UP(size, 32), 4, GFP_KERNEL);
+	id_tbl->table = kcalloc(BITS_TO_LONGS(size), sizeof(long), GFP_KERNEL);
 	if (!id_tbl->table)
 		return -ENOMEM;
 
@@ -888,7 +888,7 @@ static void qedi_get_boot_tgt_info(struct nvm_iscsi_block *block,
 	ipv6_en = !!(block->generic.ctrl_flags &
 		     NVM_ISCSI_CFG_GEN_IPV6_ENABLED);
 
-	snprintf(tgt->iscsi_name, NVM_ISCSI_CFG_ISCSI_NAME_MAX_LEN, "%s\n",
+	snprintf(tgt->iscsi_name, sizeof(tgt->iscsi_name), "%s\n",
 		 block->target[index].target_name.byte);
 
 	tgt->ipv6_en = ipv6_en;
@@ -2273,6 +2273,7 @@ kset_free:
 static void __qedi_remove(struct pci_dev *pdev, int mode)
 {
 	struct qedi_ctx *qedi = pci_get_drvdata(pdev);
+	int rval;
 
 	if (qedi->tmf_thread) {
 		flush_workqueue(qedi->tmf_thread);
@@ -2301,6 +2302,10 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 
 	if (mode == QEDI_MODE_NORMAL)
 		qedi_free_iscsi_pf_param(qedi);
+
+	rval = qedi_ops->common->update_drv_state(qedi->cdev, false);
+	if (rval)
+		QEDI_ERR(&qedi->dbg_ctx, "Failed to send drv state to MFW\n");
 
 	if (!test_bit(QEDI_IN_OFFLINE, &qedi->flags)) {
 		qedi_ops->common->slowpath_stop(qedi->cdev);
@@ -2576,6 +2581,12 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 		if (qedi_setup_boot_info(qedi))
 			QEDI_ERR(&qedi->dbg_ctx,
 				 "No iSCSI boot target configured\n");
+
+		rc = qedi_ops->common->update_drv_state(qedi->cdev, true);
+		if (rc)
+			QEDI_ERR(&qedi->dbg_ctx,
+				 "Failed to send drv state to MFW\n");
+
 	}
 
 	return 0;

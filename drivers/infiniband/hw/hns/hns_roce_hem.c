@@ -170,7 +170,7 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 	case 3:
 		mhop->l2_idx = table_idx & (chunk_ba_num - 1);
 		mhop->l1_idx = table_idx / chunk_ba_num & (chunk_ba_num - 1);
-		mhop->l0_idx = table_idx / chunk_ba_num / chunk_ba_num;
+		mhop->l0_idx = (table_idx / chunk_ba_num) / chunk_ba_num;
 		break;
 	case 2:
 		mhop->l1_idx = table_idx & (chunk_ba_num - 1);
@@ -342,7 +342,7 @@ static int hns_roce_set_hem(struct hns_roce_dev *hr_dev,
 			} else {
 				break;
 			}
-			msleep(HW_SYNC_SLEEP_TIME_INTERVAL);
+			mdelay(HW_SYNC_SLEEP_TIME_INTERVAL);
 		}
 
 		bt_cmd_l = (u32)bt_ba;
@@ -494,6 +494,9 @@ static int hns_roce_table_mhop_get(struct hns_roce_dev *hr_dev,
 			step_idx = 1;
 		} else if (hop_num == HNS_ROCE_HOP_NUM_0) {
 			step_idx = 0;
+		} else {
+			ret = -EINVAL;
+			goto err_dma_alloc_l1;
 		}
 
 		/* set HEM base address to hardware */

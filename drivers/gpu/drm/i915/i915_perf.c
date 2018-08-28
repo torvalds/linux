@@ -315,7 +315,7 @@ static u32 i915_oa_max_sample_rate = 100000;
  * code assumes all reports have a power-of-two size and ~(size - 1) can
  * be used as a mask to align the OA tail pointer.
  */
-static struct i915_oa_format hsw_oa_formats[I915_OA_FORMAT_MAX] = {
+static const struct i915_oa_format hsw_oa_formats[I915_OA_FORMAT_MAX] = {
 	[I915_OA_FORMAT_A13]	    = { 0, 64 },
 	[I915_OA_FORMAT_A29]	    = { 1, 128 },
 	[I915_OA_FORMAT_A13_B8_C8]  = { 2, 128 },
@@ -326,7 +326,7 @@ static struct i915_oa_format hsw_oa_formats[I915_OA_FORMAT_MAX] = {
 	[I915_OA_FORMAT_C4_B8]	    = { 7, 64 },
 };
 
-static struct i915_oa_format gen8_plus_oa_formats[I915_OA_FORMAT_MAX] = {
+static const struct i915_oa_format gen8_plus_oa_formats[I915_OA_FORMAT_MAX] = {
 	[I915_OA_FORMAT_A12]		    = { 0, 64 },
 	[I915_OA_FORMAT_A12_B8_C8]	    = { 2, 128 },
 	[I915_OA_FORMAT_A32u40_A4u32_B8_C8] = { 5, 256 },
@@ -737,12 +737,7 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 			continue;
 		}
 
-		/*
-		 * XXX: Just keep the lower 21 bits for now since I'm not
-		 * entirely sure if the HW touches any of the higher bits in
-		 * this field
-		 */
-		ctx_id = report32[2] & 0x1fffff;
+		ctx_id = report32[2] & dev_priv->perf.oa.specific_ctx_id_mask;
 
 		/*
 		 * Squash whatever is in the CTX_ID field if it's marked as
@@ -1203,6 +1198,33 @@ static int i915_oa_read(struct i915_perf_stream *stream,
 	return dev_priv->perf.oa.ops.read(stream, buf, count, offset);
 }
 
+static struct intel_context *oa_pin_context(struct drm_i915_private *i915,
+					    struct i915_gem_context *ctx)
+{
+	struct intel_engine_cs *engine = i915->engine[RCS];
+	struct intel_context *ce;
+	int ret;
+
+	ret = i915_mutex_lock_interruptible(&i915->drm);
+	if (ret)
+		return ERR_PTR(ret);
+
+	/*
+	 * As the ID is the gtt offset of the context's vma we
+	 * pin the vma to ensure the ID remains fixed.
+	 *
+	 * NB: implied RCS engine...
+	 */
+	ce = intel_context_pin(ctx, engine);
+	mutex_unlock(&i915->drm.struct_mutex);
+	if (IS_ERR(ce))
+		return ce;
+
+	i915->perf.oa.pinned_ctx = ce;
+
+	return ce;
+}
+
 /**
  * oa_get_render_ctx_id - determine and hold ctx hw id
  * @stream: An i915-perf stream opened for OA metrics
@@ -1215,39 +1237,75 @@ static int i915_oa_read(struct i915_perf_stream *stream,
  */
 static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 {
-	struct drm_i915_private *dev_priv = stream->dev_priv;
+	struct drm_i915_private *i915 = stream->dev_priv;
+	struct intel_context *ce;
 
-	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
-		dev_priv->perf.oa.specific_ctx_id = stream->ctx->hw_id;
-	} else {
-		struct intel_engine_cs *engine = dev_priv->engine[RCS];
-		struct intel_ring *ring;
-		int ret;
+	ce = oa_pin_context(i915, stream->ctx);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
 
-		ret = i915_mutex_lock_interruptible(&dev_priv->drm);
-		if (ret)
-			return ret;
-
+	switch (INTEL_GEN(i915)) {
+	case 7: {
 		/*
-		 * As the ID is the gtt offset of the context's vma we
-		 * pin the vma to ensure the ID remains fixed.
-		 *
-		 * NB: implied RCS engine...
+		 * On Haswell we don't do any post processing of the reports
+		 * and don't need to use the mask.
 		 */
-		ring = intel_context_pin(stream->ctx, engine);
-		mutex_unlock(&dev_priv->drm.struct_mutex);
-		if (IS_ERR(ring))
-			return PTR_ERR(ring);
-
-
-		/*
-		 * Explicitly track the ID (instead of calling
-		 * i915_ggtt_offset() on the fly) considering the difference
-		 * with gen8+ and execlists
-		 */
-		dev_priv->perf.oa.specific_ctx_id =
-			i915_ggtt_offset(to_intel_context(stream->ctx, engine)->state);
+		i915->perf.oa.specific_ctx_id = i915_ggtt_offset(ce->state);
+		i915->perf.oa.specific_ctx_id_mask = 0;
+		break;
 	}
+
+	case 8:
+	case 9:
+	case 10:
+		if (USES_GUC_SUBMISSION(i915)) {
+			/*
+			 * When using GuC, the context descriptor we write in
+			 * i915 is read by GuC and rewritten before it's
+			 * actually written into the hardware. The LRCA is
+			 * what is put into the context id field of the
+			 * context descriptor by GuC. Because it's aligned to
+			 * a page, the lower 12bits are always at 0 and
+			 * dropped by GuC. They won't be part of the context
+			 * ID in the OA reports, so squash those lower bits.
+			 */
+			i915->perf.oa.specific_ctx_id =
+				lower_32_bits(ce->lrc_desc) >> 12;
+
+			/*
+			 * GuC uses the top bit to signal proxy submission, so
+			 * ignore that bit.
+			 */
+			i915->perf.oa.specific_ctx_id_mask =
+				(1U << (GEN8_CTX_ID_WIDTH - 1)) - 1;
+		} else {
+			i915->perf.oa.specific_ctx_id_mask =
+				(1U << GEN8_CTX_ID_WIDTH) - 1;
+			i915->perf.oa.specific_ctx_id =
+				upper_32_bits(ce->lrc_desc);
+			i915->perf.oa.specific_ctx_id &=
+				i915->perf.oa.specific_ctx_id_mask;
+		}
+		break;
+
+	case 11: {
+		i915->perf.oa.specific_ctx_id_mask =
+			((1U << GEN11_SW_CTX_ID_WIDTH) - 1) << (GEN11_SW_CTX_ID_SHIFT - 32) |
+			((1U << GEN11_ENGINE_INSTANCE_WIDTH) - 1) << (GEN11_ENGINE_INSTANCE_SHIFT - 32) |
+			((1 << GEN11_ENGINE_CLASS_WIDTH) - 1) << (GEN11_ENGINE_CLASS_SHIFT - 32);
+		i915->perf.oa.specific_ctx_id = upper_32_bits(ce->lrc_desc);
+		i915->perf.oa.specific_ctx_id &=
+			i915->perf.oa.specific_ctx_id_mask;
+		break;
+	}
+
+	default:
+		MISSING_CASE(INTEL_GEN(i915));
+	}
+
+	DRM_DEBUG_DRIVER("filtering on ctx_id=0x%x ctx_id_mask=0x%x\n",
+			 i915->perf.oa.specific_ctx_id,
+			 i915->perf.oa.specific_ctx_id_mask);
 
 	return 0;
 }
@@ -1262,17 +1320,15 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 static void oa_put_render_ctx_id(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
+	struct intel_context *ce;
 
-	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
-		dev_priv->perf.oa.specific_ctx_id = INVALID_CTX_ID;
-	} else {
-		struct intel_engine_cs *engine = dev_priv->engine[RCS];
+	dev_priv->perf.oa.specific_ctx_id = INVALID_CTX_ID;
+	dev_priv->perf.oa.specific_ctx_id_mask = 0;
 
+	ce = fetch_and_zero(&dev_priv->perf.oa.pinned_ctx);
+	if (ce) {
 		mutex_lock(&dev_priv->drm.struct_mutex);
-
-		dev_priv->perf.oa.specific_ctx_id = INVALID_CTX_ID;
-		intel_context_unpin(stream->ctx, engine);
-
+		intel_context_unpin(ce);
 		mutex_unlock(&dev_priv->drm.struct_mutex);
 	}
 }
@@ -1780,7 +1836,9 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 	 * So far the best way to work around this issue seems to be draining
 	 * the GPU from any submitted work.
 	 */
-	ret = i915_gem_wait_for_idle(dev_priv, wait_flags);
+	ret = i915_gem_wait_for_idle(dev_priv,
+				     wait_flags,
+				     MAX_SCHEDULE_TIMEOUT);
 	if (ret)
 		goto out;
 

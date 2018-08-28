@@ -53,6 +53,9 @@ int kvm_check_cap(long cap);
 
 struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm);
 void kvm_vm_free(struct kvm_vm *vmp);
+void kvm_vm_restart(struct kvm_vm *vmp, int perm);
+void kvm_vm_release(struct kvm_vm *vmp);
+void kvm_vm_get_dirty_log(struct kvm_vm *vm, int slot, void *log);
 
 int kvm_memcmp_hva_gva(void *hva,
 	struct kvm_vm *vm, const vm_vaddr_t gva, size_t len);
@@ -75,9 +78,11 @@ void vcpu_ioctl(struct kvm_vm *vm,
 	uint32_t vcpuid, unsigned long ioctl, void *arg);
 void vm_ioctl(struct kvm_vm *vm, unsigned long ioctl, void *arg);
 void vm_mem_region_set_flags(struct kvm_vm *vm, uint32_t slot, uint32_t flags);
-void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid);
+void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid, int pgd_memslot, int gdt_memslot);
 vm_vaddr_t vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min,
 	uint32_t data_memslot, uint32_t pgd_memslot);
+void virt_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+	      size_t size, uint32_t pgd_memslot);
 void *addr_gpa2hva(struct kvm_vm *vm, vm_paddr_t gpa);
 void *addr_gva2hva(struct kvm_vm *vm, vm_vaddr_t gva);
 vm_paddr_t addr_hva2gpa(struct kvm_vm *vm, void *hva);
@@ -125,7 +130,8 @@ kvm_get_supported_cpuid_entry(uint32_t function)
 	return kvm_get_supported_cpuid_index(function, 0);
 }
 
-struct kvm_vm *vm_create_default(uint32_t vcpuid, void *guest_code);
+struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_size,
+				 void *guest_code);
 void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code);
 
 typedef void (*vmx_guest_code_t)(vm_vaddr_t vmxon_vaddr,
@@ -141,5 +147,44 @@ struct kvm_dirty_log *
 allocate_kvm_dirty_log(struct kvm_userspace_memory_region *region);
 
 int vm_create_device(struct kvm_vm *vm, struct kvm_create_device *cd);
+
+#define GUEST_PORT_SYNC         0x1000
+#define GUEST_PORT_ABORT        0x1001
+#define GUEST_PORT_DONE         0x1002
+
+static inline void __exit_to_l0(uint16_t port, uint64_t arg0, uint64_t arg1)
+{
+	__asm__ __volatile__("in %[port], %%al"
+			     :
+			     : [port]"d"(port), "D"(arg0), "S"(arg1)
+			     : "rax");
+}
+
+/*
+ * Allows to pass three arguments to the host: port is 16bit wide,
+ * arg0 & arg1 are 64bit wide
+ */
+#define GUEST_SYNC_ARGS(_port, _arg0, _arg1) \
+	__exit_to_l0(_port, (uint64_t) (_arg0), (uint64_t) (_arg1))
+
+#define GUEST_ASSERT(_condition) do {				\
+		if (!(_condition))				\
+			GUEST_SYNC_ARGS(GUEST_PORT_ABORT,	\
+					"Failed guest assert: "	\
+					#_condition, __LINE__);	\
+	} while (0)
+
+#define GUEST_SYNC(stage)  GUEST_SYNC_ARGS(GUEST_PORT_SYNC, "hello", stage)
+
+#define GUEST_DONE()  GUEST_SYNC_ARGS(GUEST_PORT_DONE, 0, 0)
+
+struct guest_args {
+	uint64_t arg0;
+	uint64_t arg1;
+	uint16_t port;
+} __attribute__ ((packed));
+
+void guest_args_read(struct kvm_vm *vm, uint32_t vcpu_id,
+		     struct guest_args *args);
 
 #endif /* SELFTEST_KVM_UTIL_H */

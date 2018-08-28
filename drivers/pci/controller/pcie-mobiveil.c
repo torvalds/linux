@@ -23,6 +23,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include "../pci.h"
+
 /* register offsets and bit positions */
 
 /*
@@ -107,7 +109,7 @@
 #define CFG_WINDOW_TYPE	0
 #define IO_WINDOW_TYPE		1
 #define MEM_WINDOW_TYPE	2
-#define IB_WIN_SIZE		(256 * 1024 * 1024 * 1024)
+#define IB_WIN_SIZE		((u64)256 * 1024 * 1024 * 1024)
 #define MAX_PIO_WINDOWS	8
 
 /* Parameters for the waiting for link up routine */
@@ -130,7 +132,7 @@ struct mobiveil_pcie {
 	void __iomem *config_axi_slave_base;	/* endpoint config base */
 	void __iomem *csr_axi_slave_base;	/* root port config base */
 	void __iomem *apb_csr_base;	/* MSI register base */
-	void __iomem *pcie_reg_base;	/* Physical PCIe Controller Base */
+	phys_addr_t pcie_reg_base;	/* Physical PCIe Controller Base */
 	struct irq_domain *intx_domain;
 	raw_spinlock_t intx_mask_lock;
 	int irq;

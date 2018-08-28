@@ -146,6 +146,10 @@ void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
 				    rs->prior_mstamp); /* ack phase */
 	rs->interval_us = max(snd_us, ack_us);
 
+	/* Record both segment send and ack receive intervals */
+	rs->snd_interval_us = snd_us;
+	rs->rcv_interval_us = ack_us;
+
 	/* Normally we expect interval_us >= min-rtt.
 	 * Note that rate may still be over-estimated when a spuriously
 	 * retransmistted skb was first (s)acked because "interval_us"

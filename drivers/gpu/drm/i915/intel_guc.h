@@ -151,11 +151,10 @@ static inline u32 intel_guc_ggtt_offset(struct intel_guc *guc,
 void intel_guc_init_early(struct intel_guc *guc);
 void intel_guc_init_send_regs(struct intel_guc *guc);
 void intel_guc_init_params(struct intel_guc *guc);
-void intel_guc_init_ggtt_pin_bias(struct intel_guc *guc);
-int intel_guc_init_wq(struct intel_guc *guc);
-void intel_guc_fini_wq(struct intel_guc *guc);
+int intel_guc_init_misc(struct intel_guc *guc);
 int intel_guc_init(struct intel_guc *guc);
 void intel_guc_fini(struct intel_guc *guc);
+void intel_guc_fini_misc(struct intel_guc *guc);
 int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len,
 		       u32 *response_buf, u32 response_buf_size);
 int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,

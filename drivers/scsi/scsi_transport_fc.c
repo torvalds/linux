@@ -567,7 +567,7 @@ fc_host_post_event(struct Scsi_Host *shost, u32 event_number,
 
 	INIT_SCSI_NL_HDR(&event->snlh, SCSI_NL_TRANSPORT_FC,
 				FC_NL_ASYNC_EVENT, len);
-	event->seconds = get_seconds();
+	event->seconds = ktime_get_real_seconds();
 	event->vendor_id = 0;
 	event->host_no = shost->host_no;
 	event->event_datalen = sizeof(u32);	/* bytes */
@@ -635,7 +635,7 @@ fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
 
 	INIT_SCSI_NL_HDR(&event->snlh, SCSI_NL_TRANSPORT_FC,
 				FC_NL_ASYNC_EVENT, len);
-	event->seconds = get_seconds();
+	event->seconds = ktime_get_real_seconds();
 	event->vendor_id = vendor_id;
 	event->host_no = shost->host_no;
 	event->event_datalen = data_len;	/* bytes */
@@ -3592,7 +3592,7 @@ fc_bsg_job_timeout(struct request *req)
 
 	/* the blk_end_sync_io() doesn't check the error */
 	if (inflight)
-		blk_mq_complete_request(req);
+		__blk_complete_request(req);
 	return BLK_EH_DONE;
 }
 

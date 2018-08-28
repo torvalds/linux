@@ -1,7 +1,7 @@
 /*
  * LTC2632 Digital to analog convertors spi driver
  *
- * Copyright 2017 Maxime Roussin-Bélanger
+ * Copyright 2017 Maxime Roussin-BÃ©langer
  * expanded by Silvan Murer <silvan.murer@gmail.com>
  *
  * Licensed under the GPL-2.
@@ -87,12 +87,7 @@ static int ltc2632_read_raw(struct iio_dev *indio_dev,
 			    int *val2,
 			    long m)
 {
-	struct ltc2632_chip_info *chip_info;
-
 	const struct ltc2632_state *st = iio_priv(indio_dev);
-	const struct spi_device_id *spi_dev_id = spi_get_device_id(st->spi_dev);
-
-	chip_info = (struct ltc2632_chip_info *)spi_dev_id->driver_data;
 
 	switch (m) {
 	case IIO_CHAN_INFO_SCALE:

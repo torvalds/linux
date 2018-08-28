@@ -53,10 +53,10 @@
  * a hardware-specific ioctl to allocate suitable buffer objects.
  */
 
-int drm_mode_create_dumb_ioctl(struct drm_device *dev,
-			       void *data, struct drm_file *file_priv)
+int drm_mode_create_dumb(struct drm_device *dev,
+			 struct drm_mode_create_dumb *args,
+			 struct drm_file *file_priv)
 {
-	struct drm_mode_create_dumb *args = data;
 	u32 cpp, stride, size;
 
 	if (!dev->driver->dumb_create)
@@ -92,6 +92,12 @@ int drm_mode_create_dumb_ioctl(struct drm_device *dev,
 	return dev->driver->dumb_create(file_priv, dev, args);
 }
 
+int drm_mode_create_dumb_ioctl(struct drm_device *dev,
+			       void *data, struct drm_file *file_priv)
+{
+	return drm_mode_create_dumb(dev, data, file_priv);
+}
+
 /**
  * drm_mode_mmap_dumb_ioctl - create an mmap offset for a dumb backing storage buffer
  * @dev: DRM device
@@ -123,17 +129,22 @@ int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
 					       &args->offset);
 }
 
+int drm_mode_destroy_dumb(struct drm_device *dev, u32 handle,
+			  struct drm_file *file_priv)
+{
+	if (!dev->driver->dumb_create)
+		return -ENOSYS;
+
+	if (dev->driver->dumb_destroy)
+		return dev->driver->dumb_destroy(file_priv, dev, handle);
+	else
+		return drm_gem_dumb_destroy(file_priv, dev, handle);
+}
+
 int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 				void *data, struct drm_file *file_priv)
 {
 	struct drm_mode_destroy_dumb *args = data;
 
-	if (!dev->driver->dumb_create)
-		return -ENOSYS;
-
-	if (dev->driver->dumb_destroy)
-		return dev->driver->dumb_destroy(file_priv, dev, args->handle);
-	else
-		return drm_gem_dumb_destroy(file_priv, dev, args->handle);
+	return drm_mode_destroy_dumb(dev, args->handle, file_priv);
 }
-

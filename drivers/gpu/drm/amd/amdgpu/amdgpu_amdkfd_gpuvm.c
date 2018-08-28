@@ -206,11 +206,9 @@ static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 					struct amdgpu_amdkfd_fence ***ef_list,
 					unsigned int *ef_count)
 {
-	struct reservation_object_list *fobj;
-	struct reservation_object *resv;
-	unsigned int i = 0, j = 0, k = 0, shared_count;
-	unsigned int count = 0;
-	struct amdgpu_amdkfd_fence **fence_list;
+	struct reservation_object *resv = bo->tbo.resv;
+	struct reservation_object_list *old, *new;
+	unsigned int i, j, k;
 
 	if (!ef && !ef_list)
 		return -EINVAL;
@@ -220,76 +218,67 @@ static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 		*ef_count = 0;
 	}
 
-	resv = bo->tbo.resv;
-	fobj = reservation_object_get_list(resv);
-
-	if (!fobj)
+	old = reservation_object_get_list(resv);
+	if (!old)
 		return 0;
 
-	preempt_disable();
-	write_seqcount_begin(&resv->seq);
-
-	/* Go through all the shared fences in the resevation object. If
-	 * ef is specified and it exists in the list, remove it and reduce the
-	 * count. If ef is not specified, then get the count of eviction fences
-	 * present.
-	 */
-	shared_count = fobj->shared_count;
-	for (i = 0; i < shared_count; ++i) {
-		struct dma_fence *f;
-
-		f = rcu_dereference_protected(fobj->shared[i],
-					      reservation_object_held(resv));
-
-		if (ef) {
-			if (f->context == ef->base.context) {
-				dma_fence_put(f);
-				fobj->shared_count--;
-			} else {
-				RCU_INIT_POINTER(fobj->shared[j++], f);
-			}
-		} else if (to_amdgpu_amdkfd_fence(f))
-			count++;
-	}
-	write_seqcount_end(&resv->seq);
-	preempt_enable();
-
-	if (ef || !count)
-		return 0;
-
-	/* Alloc memory for count number of eviction fence pointers. Fill the
-	 * ef_list array and ef_count
-	 */
-	fence_list = kcalloc(count, sizeof(struct amdgpu_amdkfd_fence *),
-			     GFP_KERNEL);
-	if (!fence_list)
+	new = kmalloc(offsetof(typeof(*new), shared[old->shared_max]),
+		      GFP_KERNEL);
+	if (!new)
 		return -ENOMEM;
 
-	preempt_disable();
-	write_seqcount_begin(&resv->seq);
-
-	j = 0;
-	for (i = 0; i < shared_count; ++i) {
+	/* Go through all the shared fences in the resevation object and sort
+	 * the interesting ones to the end of the list.
+	 */
+	for (i = 0, j = old->shared_count, k = 0; i < old->shared_count; ++i) {
 		struct dma_fence *f;
-		struct amdgpu_amdkfd_fence *efence;
 
-		f = rcu_dereference_protected(fobj->shared[i],
-			reservation_object_held(resv));
+		f = rcu_dereference_protected(old->shared[i],
+					      reservation_object_held(resv));
 
-		efence = to_amdgpu_amdkfd_fence(f);
-		if (efence) {
-			fence_list[k++] = efence;
-			fobj->shared_count--;
-		} else {
-			RCU_INIT_POINTER(fobj->shared[j++], f);
+		if ((ef && f->context == ef->base.context) ||
+		    (!ef && to_amdgpu_amdkfd_fence(f)))
+			RCU_INIT_POINTER(new->shared[--j], f);
+		else
+			RCU_INIT_POINTER(new->shared[k++], f);
+	}
+	new->shared_max = old->shared_max;
+	new->shared_count = k;
+
+	if (!ef) {
+		unsigned int count = old->shared_count - j;
+
+		/* Alloc memory for count number of eviction fence pointers.
+		 * Fill the ef_list array and ef_count
+		 */
+		*ef_list = kcalloc(count, sizeof(**ef_list), GFP_KERNEL);
+		*ef_count = count;
+
+		if (!*ef_list) {
+			kfree(new);
+			return -ENOMEM;
 		}
 	}
 
+	/* Install the new fence list, seqcount provides the barriers */
+	preempt_disable();
+	write_seqcount_begin(&resv->seq);
+	RCU_INIT_POINTER(resv->fence, new);
 	write_seqcount_end(&resv->seq);
 	preempt_enable();
 
-	*ef_list = fence_list;
-	*ef_count = k;
+	/* Drop the references to the removed fences or move them to ef_list */
+	for (i = j, k = 0; i < old->shared_count; ++i) {
+		struct dma_fence *f;
+
+		f = rcu_dereference_protected(new->shared[i],
+					      reservation_object_held(resv));
+		if (!ef)
+			(*ef_list)[k++] = to_amdgpu_amdkfd_fence(f);
+		else
+			dma_fence_put(f);
+	}
+	kfree_rcu(old, rcu);
 
 	return 0;
 }
@@ -334,7 +323,7 @@ static int amdgpu_amdkfd_bo_validate(struct amdgpu_bo *bo, uint32_t domain,
 		 "Called with userptr BO"))
 		return -EINVAL;
 
-	amdgpu_ttm_placement_from_domain(bo, domain);
+	amdgpu_bo_placement_from_domain(bo, domain);
 
 	ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (ret)
@@ -622,7 +611,7 @@ static int init_user_pages(struct kgd_mem *mem, struct mm_struct *mm,
 		pr_err("%s: Failed to reserve BO\n", __func__);
 		goto release_out;
 	}
-	amdgpu_ttm_placement_from_domain(bo, mem->domain);
+	amdgpu_bo_placement_from_domain(bo, mem->domain);
 	ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (ret)
 		pr_err("%s: failed to validate BO\n", __func__);
@@ -1587,7 +1576,7 @@ int amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(struct kgd_dev *kgd,
 		goto bo_reserve_failed;
 	}
 
-	ret = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT, NULL);
+	ret = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT);
 	if (ret) {
 		pr_err("Failed to pin bo. ret %d\n", ret);
 		goto pin_failed;
@@ -1619,6 +1608,20 @@ bo_reserve_failed:
 	mutex_unlock(&mem->process_info->lock);
 
 	return ret;
+}
+
+int amdgpu_amdkfd_gpuvm_get_vm_fault_info(struct kgd_dev *kgd,
+					      struct kfd_vm_fault_info *mem)
+{
+	struct amdgpu_device *adev;
+
+	adev = (struct amdgpu_device *)kgd;
+	if (atomic_read(&adev->gmc.vm_fault_info_updated) == 1) {
+		*mem = *adev->gmc.vm_fault_info;
+		mb();
+		atomic_set(&adev->gmc.vm_fault_info_updated, 0);
+	}
+	return 0;
 }
 
 /* Evict a userptr BO by stopping the queues if necessary
@@ -1680,7 +1683,7 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 
 		if (amdgpu_bo_reserve(bo, true))
 			return -EAGAIN;
-		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_CPU);
+		amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_CPU);
 		ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		amdgpu_bo_unreserve(bo);
 		if (ret) {
@@ -1824,7 +1827,7 @@ static int validate_invalid_user_pages(struct amdkfd_process_info *process_info)
 		if (mem->user_pages[0]) {
 			amdgpu_ttm_tt_set_user_pages(bo->tbo.ttm,
 						     mem->user_pages);
-			amdgpu_ttm_placement_from_domain(bo, mem->domain);
+			amdgpu_bo_placement_from_domain(bo, mem->domain);
 			ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 			if (ret) {
 				pr_err("%s: failed to validate BO\n", __func__);

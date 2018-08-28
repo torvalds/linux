@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -33,6 +34,7 @@
 #include <linux/of_graph.h>
 #include <linux/of_device.h>
 #include <asm/sizes.h>
+#include <linux/kthread.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
@@ -54,6 +56,12 @@ struct msm_fence_context;
 struct msm_gem_address_space;
 struct msm_gem_vma;
 
+#define MAX_CRTCS      8
+#define MAX_PLANES     20
+#define MAX_ENCODERS   8
+#define MAX_BRIDGES    8
+#define MAX_CONNECTORS 8
+
 struct msm_file_private {
 	rwlock_t queuelock;
 	struct list_head submitqueues;
@@ -68,12 +76,77 @@ enum msm_mdp_plane_property {
 };
 
 struct msm_vblank_ctrl {
-	struct work_struct work;
+	struct kthread_work work;
 	struct list_head event_list;
 	spinlock_t lock;
 };
 
 #define MSM_GPU_MAX_RINGS 4
+#define MAX_H_TILES_PER_DISPLAY 2
+
+/**
+ * enum msm_display_caps - features/capabilities supported by displays
+ * @MSM_DISPLAY_CAP_VID_MODE:           Video or "active" mode supported
+ * @MSM_DISPLAY_CAP_CMD_MODE:           Command mode supported
+ * @MSM_DISPLAY_CAP_HOT_PLUG:           Hot plug detection supported
+ * @MSM_DISPLAY_CAP_EDID:               EDID supported
+ */
+enum msm_display_caps {
+	MSM_DISPLAY_CAP_VID_MODE	= BIT(0),
+	MSM_DISPLAY_CAP_CMD_MODE	= BIT(1),
+	MSM_DISPLAY_CAP_HOT_PLUG	= BIT(2),
+	MSM_DISPLAY_CAP_EDID		= BIT(3),
+};
+
+/**
+ * enum msm_event_wait - type of HW events to wait for
+ * @MSM_ENC_COMMIT_DONE - wait for the driver to flush the registers to HW
+ * @MSM_ENC_TX_COMPLETE - wait for the HW to transfer the frame to panel
+ * @MSM_ENC_VBLANK - wait for the HW VBLANK event (for driver-internal waiters)
+ */
+enum msm_event_wait {
+	MSM_ENC_COMMIT_DONE = 0,
+	MSM_ENC_TX_COMPLETE,
+	MSM_ENC_VBLANK,
+};
+
+/**
+ * struct msm_display_topology - defines a display topology pipeline
+ * @num_lm:       number of layer mixers used
+ * @num_enc:      number of compression encoder blocks used
+ * @num_intf:     number of interfaces the panel is mounted on
+ */
+struct msm_display_topology {
+	u32 num_lm;
+	u32 num_enc;
+	u32 num_intf;
+};
+
+/**
+ * struct msm_display_info - defines display properties
+ * @intf_type:          DRM_MODE_CONNECTOR_ display type
+ * @capabilities:       Bitmask of display flags
+ * @num_of_h_tiles:     Number of horizontal tiles in case of split interface
+ * @h_tile_instance:    Controller instance used per tile. Number of elements is
+ *                      based on num_of_h_tiles
+ * @is_te_using_watchdog_timer:  Boolean to indicate watchdog TE is
+ *				 used instead of panel TE in cmd mode panels
+ */
+struct msm_display_info {
+	int intf_type;
+	uint32_t capabilities;
+	uint32_t num_of_h_tiles;
+	uint32_t h_tile_instance[MAX_H_TILES_PER_DISPLAY];
+	bool is_te_using_watchdog_timer;
+};
+
+/* Commit/Event thread specific structure */
+struct msm_drm_thread {
+	struct drm_device *dev;
+	struct task_struct *thread;
+	unsigned int crtc_id;
+	struct kthread_worker worker;
+};
 
 struct msm_drm_private {
 
@@ -84,7 +157,7 @@ struct msm_drm_private {
 	/* subordinate devices, if present: */
 	struct platform_device *gpu_pdev;
 
-	/* top level MDSS wrapper device (for MDP5 only) */
+	/* top level MDSS wrapper device (for MDP5/DPU only) */
 	struct msm_mdss *mdss;
 
 	/* possibly this should be in the kms component, but it is
@@ -115,22 +188,24 @@ struct msm_drm_private {
 	struct list_head inactive_list;
 
 	struct workqueue_struct *wq;
-	struct workqueue_struct *atomic_wq;
 
 	unsigned int num_planes;
-	struct drm_plane *planes[16];
+	struct drm_plane *planes[MAX_PLANES];
 
 	unsigned int num_crtcs;
-	struct drm_crtc *crtcs[8];
+	struct drm_crtc *crtcs[MAX_CRTCS];
+
+	struct msm_drm_thread disp_thread[MAX_CRTCS];
+	struct msm_drm_thread event_thread[MAX_CRTCS];
 
 	unsigned int num_encoders;
-	struct drm_encoder *encoders[8];
+	struct drm_encoder *encoders[MAX_ENCODERS];
 
 	unsigned int num_bridges;
-	struct drm_bridge *bridges[8];
+	struct drm_bridge *bridges[MAX_BRIDGES];
 
 	unsigned int num_connectors;
-	struct drm_connector *connectors[8];
+	struct drm_connector *connectors[MAX_CONNECTORS];
 
 	/* Properties */
 	struct drm_property *plane_property[PLANE_PROP_MAX_NUM];
@@ -150,6 +225,7 @@ struct msm_drm_private {
 	struct shrinker shrinker;
 
 	struct msm_vblank_ctrl vblank_ctrl;
+	struct drm_atomic_state *pm_state;
 };
 
 struct msm_format {
@@ -174,6 +250,9 @@ struct msm_gem_address_space *
 msm_gem_address_space_create(struct device *dev, struct iommu_domain *domain,
 		const char *name);
 
+int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
+void msm_unregister_mmu(struct drm_device *dev, struct msm_mmu *mmu);
+
 void msm_gem_submit_free(struct msm_gem_submit *submit);
 int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		struct drm_file *file);
@@ -184,7 +263,7 @@ void msm_gem_shrinker_cleanup(struct drm_device *dev);
 int msm_gem_mmap_obj(struct drm_gem_object *obj,
 			struct vm_area_struct *vma);
 int msm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
-int msm_gem_fault(struct vm_fault *vmf);
+vm_fault_t msm_gem_fault(struct vm_fault *vmf);
 uint64_t msm_gem_mmap_offset(struct drm_gem_object *obj);
 int msm_gem_get_iova(struct drm_gem_object *obj,
 		struct msm_gem_address_space *aspace, uint64_t *iova);
@@ -285,6 +364,8 @@ static inline int msm_dsi_modeset_init(struct msm_dsi *msm_dsi,
 
 void __init msm_mdp_register(void);
 void __exit msm_mdp_unregister(void);
+void __init msm_dpu_register(void);
+void __exit msm_dpu_unregister(void);
 
 #ifdef CONFIG_DEBUG_FS
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
@@ -306,6 +387,10 @@ static inline void msm_perf_debugfs_cleanup(struct msm_drm_private *priv) {}
 #endif
 
 struct clk *msm_clk_get(struct platform_device *pdev, const char *name);
+int msm_clk_bulk_get(struct device *dev, struct clk_bulk_data **bulk);
+
+struct clk *msm_clk_bulk_get_clock(struct clk_bulk_data *bulk, int count,
+	const char *name);
 void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 		const char *dbgname);
 void msm_writel(u32 data, void __iomem *addr);

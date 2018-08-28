@@ -269,7 +269,7 @@ static void __page_pool_empty_ring(struct page_pool *pool)
 	struct page *page;
 
 	/* Empty recycle ring */
-	while ((page = ptr_ring_consume(&pool->ring))) {
+	while ((page = ptr_ring_consume_bh(&pool->ring))) {
 		/* Verify the refcnt invariant of cached pages */
 		if (!(page_ref_count(page) == 1))
 			pr_crit("%s() page_pool refcnt %d violation\n",

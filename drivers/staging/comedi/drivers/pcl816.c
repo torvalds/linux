@@ -282,7 +282,7 @@ static int check_channel_list(struct comedi_device *dev,
 			      unsigned int chanlen)
 {
 	unsigned int chansegment[16];
-	unsigned int i, nowmustbechan, seglen, segpos;
+	unsigned int i, nowmustbechan, seglen;
 
 	/*  correct channel and range number check itself comedi/range.c */
 	if (chanlen < 1) {
@@ -312,7 +312,7 @@ static int check_channel_list(struct comedi_device *dev,
 		}
 
 		/*  check whole chanlist */
-		for (i = 0, segpos = 0; i < chanlen; i++) {
+		for (i = 0; i < chanlen; i++) {
 			if (chanlist[i] != chansegment[i % seglen]) {
 				dev_dbg(dev->class_dev,
 					"bad channel or range number! chanlist[%i]=%d,%d,%d and not %d,%d,%d!\n",

@@ -38,7 +38,7 @@
 #include "inc/compressor.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.1.44"
+#define DC_VER "3.1.59"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
@@ -68,6 +68,7 @@ struct dc_caps {
 	uint32_t max_planes;
 	uint32_t max_downscale_ratio;
 	uint32_t i2c_speed_in_khz;
+	uint32_t dmdata_alloc_size;
 	unsigned int max_cursor_size;
 	unsigned int max_video_width;
 	int linear_pitch_alignment;
@@ -76,6 +77,9 @@ struct dc_caps {
 	bool is_apu;
 	bool dual_link_dvi;
 	bool post_blend_color_processing;
+	bool force_dp_tps4_for_cp2520;
+	bool disable_dp_clk_share;
+	bool psp_setup_panel_mode;
 };
 
 struct dc_dcc_surface_param {
@@ -168,6 +172,12 @@ struct dc_config {
 	bool disable_disp_pll_sharing;
 };
 
+enum visual_confirm {
+	VISUAL_CONFIRM_DISABLE = 0,
+	VISUAL_CONFIRM_SURFACE = 1,
+	VISUAL_CONFIRM_HDR = 2,
+};
+
 enum dcc_option {
 	DCC_ENABLE = 0,
 	DCC_DISABLE = 1,
@@ -185,6 +195,10 @@ enum wm_report_mode {
 	WM_REPORT_OVERRIDE = 1,
 };
 
+/*
+ * For any clocks that may differ per pipe
+ * only the max is stored in this structure
+ */
 struct dc_clocks {
 	int dispclk_khz;
 	int max_supported_dppclk_khz;
@@ -193,10 +207,11 @@ struct dc_clocks {
 	int socclk_khz;
 	int dcfclk_deep_sleep_khz;
 	int fclk_khz;
+	int phyclk_khz;
 };
 
-struct dc_debug {
-	bool surface_visual_confirm;
+struct dc_debug_options {
+	enum visual_confirm visual_confirm;
 	bool sanity_checks;
 	bool max_disp_clk;
 	bool surface_trace;
@@ -227,6 +242,7 @@ struct dc_debug {
 	int urgent_latency_ns;
 	int percent_of_ideal_drambw;
 	int dram_clock_change_latency_ns;
+	bool optimized_watermark;
 	int always_scale;
 	bool disable_pplib_clock_request;
 	bool disable_clock_gate;
@@ -242,8 +258,19 @@ struct dc_debug {
 	bool always_use_regamma;
 	bool p010_mpo_support;
 	bool recovery_enabled;
-
+	bool avoid_vbios_exec_table;
+	bool scl_reset_length10;
+	bool hdmi20_disable;
+	bool skip_detection_link_training;
 };
+
+struct dc_debug_data {
+	uint32_t ltFailCount;
+	uint32_t i2cErrorCount;
+	uint32_t auxErrorCount;
+};
+
+
 struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
@@ -252,8 +279,7 @@ struct dc {
 	struct dc_caps caps;
 	struct dc_cap_funcs cap_funcs;
 	struct dc_config config;
-	struct dc_debug debug;
-
+	struct dc_debug_options debug;
 	struct dc_context *ctx;
 
 	uint8_t link_count;
@@ -288,9 +314,9 @@ struct dc {
 	bool apply_edp_fast_boot_optimization;
 
 	/* FBC compressor */
-#if defined(CONFIG_DRM_AMD_DC_FBC)
 	struct compressor *fbc_compressor;
-#endif
+
+	struct dc_debug_data debug_data;
 };
 
 enum frame_buffer_mode {
@@ -358,6 +384,7 @@ enum dc_transfer_func_type {
 	TF_TYPE_PREDEFINED,
 	TF_TYPE_DISTRIBUTED_POINTS,
 	TF_TYPE_BYPASS,
+	TF_TYPE_HWPWL
 };
 
 struct dc_transfer_func_distributed_points {
@@ -377,16 +404,22 @@ enum dc_transfer_func_predefined {
 	TRANSFER_FUNCTION_PQ,
 	TRANSFER_FUNCTION_LINEAR,
 	TRANSFER_FUNCTION_UNITY,
+	TRANSFER_FUNCTION_HLG,
+	TRANSFER_FUNCTION_HLG12,
+	TRANSFER_FUNCTION_GAMMA22
 };
 
 struct dc_transfer_func {
 	struct kref refcount;
-	struct dc_transfer_func_distributed_points tf_pts;
 	enum dc_transfer_func_type type;
 	enum dc_transfer_func_predefined tf;
 	/* FP16 1.0 reference level in nits, default is 80 nits, only for PQ*/
 	uint32_t sdr_ref_white_level;
 	struct dc_context *ctx;
+	union {
+		struct pwl_params pwl;
+		struct dc_transfer_func_distributed_points tf_pts;
+	};
 };
 
 /*
@@ -616,9 +649,14 @@ struct dpcd_caps {
 	struct dc_dongle_caps dongle_caps;
 
 	uint32_t sink_dev_id;
+	int8_t sink_dev_id_str[6];
+	int8_t sink_hw_revision;
+	int8_t sink_fw_revision[2];
+
 	uint32_t branch_dev_id;
 	int8_t branch_dev_name[6];
 	int8_t branch_hw_revision;
+	int8_t branch_fw_revision[2];
 
 	bool allow_invalid_MSA_timing_param;
 	bool panel_mode_edp;
@@ -661,9 +699,13 @@ struct dc_sink {
 	struct dc_link *link;
 	struct dc_context *ctx;
 
-	/* private to dc_sink.c */
-	struct kref refcount;
+	uint32_t sink_id;
 
+	/* private to dc_sink.c */
+	// refcount must be the last member in dc_sink, since we want the
+	// sink structure to be logically cloneable up to (but not including)
+	// refcount
+	struct kref refcount;
 };
 
 void dc_sink_retain(struct dc_sink *sink);

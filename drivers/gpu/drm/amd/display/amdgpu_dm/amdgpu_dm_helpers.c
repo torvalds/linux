@@ -169,6 +169,11 @@ static void get_payload_table(
 	mutex_unlock(&mst_mgr->payload_lock);
 }
 
+void dm_helpers_dp_update_branch_info(
+	struct dc_context *ctx,
+	const struct dc_link *link)
+{}
+
 /*
  * Writes payload allocation table in immediate downstream device.
  */
@@ -454,6 +459,22 @@ bool dm_helpers_submit_i2c(
 	return result;
 }
 
+bool dm_helpers_is_dp_sink_present(struct dc_link *link)
+{
+	bool dp_sink_present;
+	struct amdgpu_dm_connector *aconnector = link->priv;
+
+	if (!aconnector) {
+		BUG_ON("Failed to found connector for link!");
+		return true;
+	}
+
+	mutex_lock(&aconnector->dm_dp_aux.aux.hw_mutex);
+	dp_sink_present = dc_link_is_dp_sink_present(link);
+	mutex_unlock(&aconnector->dm_dp_aux.aux.hw_mutex);
+	return dp_sink_present;
+}
+
 enum dc_edid_status dm_helpers_read_local_edid(
 		struct dc_context *ctx,
 		struct dc_link *link,
@@ -497,6 +518,34 @@ enum dc_edid_status dm_helpers_read_local_edid(
 		DRM_ERROR("EDID err: %d, on connector: %s",
 				edid_status,
 				aconnector->base.name);
+	if (link->aux_mode) {
+		union test_request test_request = { {0} };
+		union test_response test_response = { {0} };
+
+		dm_helpers_dp_read_dpcd(ctx,
+					link,
+					DP_TEST_REQUEST,
+					&test_request.raw,
+					sizeof(union test_request));
+
+		if (!test_request.bits.EDID_READ)
+			return edid_status;
+
+		test_response.bits.EDID_CHECKSUM_WRITE = 1;
+
+		dm_helpers_dp_write_dpcd(ctx,
+					link,
+					DP_TEST_EDID_CHECKSUM,
+					&sink->dc_edid.raw_edid[sink->dc_edid.length-1],
+					1);
+
+		dm_helpers_dp_write_dpcd(ctx,
+					link,
+					DP_TEST_RESPONSE,
+					&test_response.raw,
+					sizeof(test_response));
+
+	}
 
 	return edid_status;
 }

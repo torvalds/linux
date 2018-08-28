@@ -60,6 +60,27 @@ config IOMMU_IO_PGTABLE_ARMV7S_SELFTEST
 
 endmenu
 
+config IOMMU_DEBUGFS
+	bool "Export IOMMU internals in DebugFS"
+	depends on DEBUG_FS
+	help
+	  Allows exposure of IOMMU device internals. This option enables
+	  the use of debugfs by IOMMU drivers as required. Devices can,
+	  at initialization time, cause the IOMMU code to create a top-level
+	  debug/iommu directory, and then populate a subdirectory with
+	  entries as required.
+
+config IOMMU_DEFAULT_PASSTHROUGH
+	bool "IOMMU passthrough by default"
+	depends on IOMMU_API
+        help
+	  Enable passthrough by default, removing the need to pass in
+	  iommu.passthrough=on or iommu=pt through command line. If this
+	  is enabled, you can still disable with iommu.passthrough=off
+	  or iommu=nopt depending on the architecture.
+
+	  If unsure, say N here.
+
 config IOMMU_IOVA
 	tristate
 
@@ -135,6 +156,18 @@ config AMD_IOMMU_V2
 	  hardware. Select this option if you want to use devices that support
 	  the PCI PRI and PASID interface.
 
+config AMD_IOMMU_DEBUGFS
+	bool "Enable AMD IOMMU internals in DebugFS"
+	depends on AMD_IOMMU && IOMMU_DEBUGFS
+	---help---
+	  !!!WARNING!!!  !!!WARNING!!!  !!!WARNING!!!  !!!WARNING!!!
+
+	  DO NOT ENABLE THIS OPTION UNLESS YOU REALLY, -REALLY- KNOW WHAT YOU ARE DOING!!!
+	  Exposes AMD IOMMU device internals in DebugFS.
+
+	  This option is -NOT- intended for production environments, and should
+	  not generally be enabled.
+
 # Intel IOMMU support
 config DMAR_TABLE
 	bool
@@ -142,7 +175,6 @@ config DMAR_TABLE
 config INTEL_IOMMU
 	bool "Support for Intel IOMMU using DMA Remapping Devices"
 	depends on PCI_MSI && ACPI && (X86 || IA64_GENERIC)
-	select DMA_DIRECT_OPS
 	select IOMMU_API
 	select IOMMU_IOVA
 	select NEED_DMA_MAP_STATE
@@ -285,8 +317,8 @@ config IPMMU_VMSA
 	select IOMMU_IO_PGTABLE_LPAE
 	select ARM_DMA_USE_IOMMU
 	help
-	  Support for the Renesas VMSA-compatible IPMMU Renesas found in the
-	  R-Mobile APE6 and R-Car H2/M2 SoCs.
+	  Support for the Renesas VMSA-compatible IPMMU found in the R-Mobile
+	  APE6, R-Car Gen2, and R-Car Gen3 SoCs.
 
 	  If unsure, say N.
 

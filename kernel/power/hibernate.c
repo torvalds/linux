@@ -338,7 +338,7 @@ static int create_image(int platform_mode)
  * hibernation_snapshot - Quiesce devices and create a hibernation image.
  * @platform_mode: If set, use platform driver to prepare for the transition.
  *
- * This routine must be called with pm_mutex held.
+ * This routine must be called with system_transition_mutex held.
  */
 int hibernation_snapshot(int platform_mode)
 {
@@ -500,8 +500,9 @@ static int resume_target_kernel(bool platform_mode)
  * hibernation_restore - Quiesce devices and restore from a hibernation image.
  * @platform_mode: If set, use platform driver to prepare for the transition.
  *
- * This routine must be called with pm_mutex held.  If it is successful, control
- * reappears in the restored target kernel in hibernation_snapshot().
+ * This routine must be called with system_transition_mutex held.  If it is
+ * successful, control reappears in the restored target kernel in
+ * hibernation_snapshot().
  */
 int hibernation_restore(int platform_mode)
 {
@@ -638,6 +639,7 @@ static void power_down(void)
 		break;
 	case HIBERNATION_PLATFORM:
 		hibernation_platform_enter();
+		/* Fall through */
 	case HIBERNATION_SHUTDOWN:
 		if (pm_power_off)
 			kernel_power_off();
@@ -805,13 +807,13 @@ static int software_resume(void)
 	 * name_to_dev_t() below takes a sysfs buffer mutex when sysfs
 	 * is configured into the kernel. Since the regular hibernate
 	 * trigger path is via sysfs which takes a buffer mutex before
-	 * calling hibernate functions (which take pm_mutex) this can
-	 * cause lockdep to complain about a possible ABBA deadlock
+	 * calling hibernate functions (which take system_transition_mutex)
+	 * this can cause lockdep to complain about a possible ABBA deadlock
 	 * which cannot happen since we're in the boot code here and
 	 * sysfs can't be invoked yet. Therefore, we use a subclass
 	 * here to avoid lockdep complaining.
 	 */
-	mutex_lock_nested(&pm_mutex, SINGLE_DEPTH_NESTING);
+	mutex_lock_nested(&system_transition_mutex, SINGLE_DEPTH_NESTING);
 
 	if (swsusp_resume_device)
 		goto Check_image;
@@ -899,7 +901,7 @@ static int software_resume(void)
 	atomic_inc(&snapshot_device_available);
 	/* For success case, the suspend path will release the lock */
  Unlock:
-	mutex_unlock(&pm_mutex);
+	mutex_unlock(&system_transition_mutex);
 	pm_pr_dbg("Hibernation image not present or could not be loaded.\n");
 	return error;
  Close_Finish:

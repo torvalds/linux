@@ -127,6 +127,7 @@
 		status = "okay";
 		pinctrl-names = "default";
 		enable-gpios = <&gpio6 16 GPIO_ACTIVE_HIGH>;	/* gpio176, lcd INI */
+		vcc-supply = <&vdd_io_reg>;
 
 		port {
 			lcd_in: endpoint {
@@ -154,6 +155,7 @@
 	bl: backlight {
 		compatible = "pwm-backlight";
 		pinctrl-names = "default";
+		power-supply = <&vdd_io_reg>;
 		pinctrl-0 = <&backlight_pins>;
 		pwms = <&pwm11 0 5000000 0>;
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
@@ -167,6 +169,13 @@
 		pinctrl-0 = <&pwm_pins>;
 		ti,timers = <&timer11>;
 		#pwm-cells = <3>;
+	};
+
+	/* HS USB Host PHY on PORT 1 */
+	hsusb1_phy: hsusb1_phy {
+		compatible = "usb-nop-xceiv";
+		reset-gpios = <&gpio2 25 GPIO_ACTIVE_LOW>; /* gpio_57 */
+		#phy-cells = <0>;
 	};
 };
 
@@ -203,6 +212,7 @@
 		reg = <0x21>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		vcc-supply = <&vdd_io_reg>;
 	};
 };
 
@@ -220,15 +230,21 @@
 	cd-gpios = <&gpio4 31 GPIO_ACTIVE_HIGH>; /* gpio_127 */
 };
 
-&mmc2 {
-      status = "disabled";
-};
-
 &mmc3 {
       status = "disabled";
 };
 
+&usbhshost {
+	port1-mode = "ehci-phy";
+};
+
+&usbhsehci {
+	phys = <&hsusb1_phy>;
+};
+
 &omap3_pmx_core {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hsusb1_rst_pins>;
 
 	leds_pins: pinmux_leds_pins {
 		pinctrl-single,pins = <
@@ -285,6 +301,34 @@
 			OMAP3_CORE1_IOPAD(0x20f6, PIN_OUTPUT | MUX_MODE0)       /* dss_data13.dss_data13 */
 			OMAP3_CORE1_IOPAD(0x20f8, PIN_OUTPUT | MUX_MODE0)       /* dss_data14.dss_data14 */
 			OMAP3_CORE1_IOPAD(0x20fa, PIN_OUTPUT | MUX_MODE0)       /* dss_data15.dss_data15 */
+		>;
+	};
+
+	hsusb1_rst_pins: pinmux_hsusb1_rst_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20ba, PIN_OUTPUT | MUX_MODE4)	/* gpmc_ncs6.gpio_57 */
+		>;
+	};
+};
+
+&omap3_pmx_core2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hsusb1_pins>;
+
+	hsusb1_pins: pinmux_hsusb1_pins {
+		pinctrl-single,pins = <
+			OMAP3430_CORE2_IOPAD(0x25d8, PIN_OUTPUT | MUX_MODE3)	/* etk_clk.hsusb1_stp */
+			OMAP3430_CORE2_IOPAD(0x25da, PIN_OUTPUT | MUX_MODE3)	/* etk_ctl.hsusb1_clk */
+			OMAP3430_CORE2_IOPAD(0x25ec, PIN_INPUT | MUX_MODE3)	/* etk_d8.hsusb1_dir */
+			OMAP3430_CORE2_IOPAD(0x25ee, PIN_INPUT | MUX_MODE3)	/* etk_d9.hsusb1_nxt */
+			OMAP3430_CORE2_IOPAD(0x25dc, PIN_INPUT | MUX_MODE3)	/* etk_d0.hsusb1_data0 */
+			OMAP3430_CORE2_IOPAD(0x25de, PIN_INPUT | MUX_MODE3)	/* etk_d1.hsusb1_data1 */
+			OMAP3430_CORE2_IOPAD(0x25e0, PIN_INPUT | MUX_MODE3)	/* etk_d2.hsusb1_data2 */
+			OMAP3430_CORE2_IOPAD(0x25ea, PIN_INPUT | MUX_MODE3)	/* etk_d7.hsusb1_data3 */
+			OMAP3430_CORE2_IOPAD(0x25e4, PIN_INPUT | MUX_MODE3)	/* etk_d4.hsusb1_data4 */
+			OMAP3430_CORE2_IOPAD(0x25e6, PIN_INPUT | MUX_MODE3)	/* etk_d5.hsusb1_data5 */
+			OMAP3430_CORE2_IOPAD(0x25e8, PIN_INPUT | MUX_MODE3)	/* etk_d6.hsusb1_data6 */
+			OMAP3430_CORE2_IOPAD(0x25e2, PIN_INPUT | MUX_MODE3)	/* etk_d3.hsusb1_data7 */
 		>;
 	};
 };

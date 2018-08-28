@@ -1207,11 +1207,11 @@ static int dn_getname(struct socket *sock, struct sockaddr *uaddr,int peer)
 }
 
 
-static __poll_t dn_poll_mask(struct socket *sock, __poll_t events)
+static __poll_t dn_poll(struct file *file, struct socket *sock, poll_table  *wait)
 {
 	struct sock *sk = sock->sk;
 	struct dn_scp *scp = DN_SK(sk);
-	__poll_t mask = datagram_poll_mask(sock, events);
+	__poll_t mask = datagram_poll(file, sock, wait);
 
 	if (!skb_queue_empty(&scp->other_receive_queue))
 		mask |= EPOLLRDBAND;
@@ -2331,7 +2331,7 @@ static const struct proto_ops dn_proto_ops = {
 	.socketpair =	sock_no_socketpair,
 	.accept =	dn_accept,
 	.getname =	dn_getname,
-	.poll_mask =	dn_poll_mask,
+	.poll =		dn_poll,
 	.ioctl =	dn_ioctl,
 	.listen =	dn_listen,
 	.shutdown =	dn_shutdown,

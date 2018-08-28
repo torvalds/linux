@@ -70,7 +70,6 @@ err:
 	return rc;
 }
 
-#ifdef CONFIG_CIFS_SMB311
 int
 smb311_crypto_shash_allocate(struct TCP_Server_Info *server)
 {
@@ -98,7 +97,6 @@ err:
 	cifs_free_hash(&p->hmacsha256, &p->sdeschmacsha256);
 	return rc;
 }
-#endif
 
 static struct cifs_ses *
 smb2_find_smb_ses_unlocked(struct TCP_Server_Info *server, __u64 ses_id)
@@ -171,10 +169,10 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	unsigned char smb2_signature[SMB2_HMACSHA256_SIZE];
 	unsigned char *sigptr = smb2_signature;
 	struct kvec *iov = rqst->rq_iov;
-	int iov_hdr_index = rqst->rq_nvec > 1 ? 1 : 0;
-	struct smb2_sync_hdr *shdr =
-		(struct smb2_sync_hdr *)iov[iov_hdr_index].iov_base;
+	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)iov[0].iov_base;
 	struct cifs_ses *ses;
+	struct shash_desc *shash;
+	struct smb_rqst drqst;
 
 	ses = smb2_find_smb_ses(server, shdr->SessionId);
 	if (!ses) {
@@ -187,26 +185,45 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 
 	rc = smb2_crypto_shash_allocate(server);
 	if (rc) {
-		cifs_dbg(VFS, "%s: shah256 alloc failed\n", __func__);
+		cifs_dbg(VFS, "%s: sha256 alloc failed\n", __func__);
 		return rc;
 	}
 
 	rc = crypto_shash_setkey(server->secmech.hmacsha256,
-		ses->auth_key.response, SMB2_NTLMV2_SESSKEY_SIZE);
+				 ses->auth_key.response, SMB2_NTLMV2_SESSKEY_SIZE);
 	if (rc) {
 		cifs_dbg(VFS, "%s: Could not update with response\n", __func__);
 		return rc;
 	}
 
-	rc = crypto_shash_init(&server->secmech.sdeschmacsha256->shash);
+	shash = &server->secmech.sdeschmacsha256->shash;
+	rc = crypto_shash_init(shash);
 	if (rc) {
 		cifs_dbg(VFS, "%s: Could not init sha256", __func__);
 		return rc;
 	}
 
-	rc = __cifs_calc_signature(rqst, iov_hdr_index,  server, sigptr,
-		&server->secmech.sdeschmacsha256->shash);
+	/*
+	 * For SMB2+, __cifs_calc_signature() expects to sign only the actual
+	 * data, that is, iov[0] should not contain a rfc1002 length.
+	 *
+	 * Sign the rfc1002 length prior to passing the data (iov[1-N]) down to
+	 * __cifs_calc_signature().
+	 */
+	drqst = *rqst;
+	if (drqst.rq_nvec >= 2 && iov[0].iov_len == 4) {
+		rc = crypto_shash_update(shash, iov[0].iov_base,
+					 iov[0].iov_len);
+		if (rc) {
+			cifs_dbg(VFS, "%s: Could not update with payload\n",
+				 __func__);
+			return rc;
+		}
+		drqst.rq_iov++;
+		drqst.rq_nvec--;
+	}
 
+	rc = __cifs_calc_signature(&drqst, server, sigptr, shash);
 	if (!rc)
 		memcpy(shdr->Signature, sigptr, SMB2_SIGNATURE_SIZE);
 
@@ -377,7 +394,6 @@ generate_smb30signingkey(struct cifs_ses *ses)
 	return generate_smb3signingkey(ses, &triplet);
 }
 
-#ifdef CONFIG_CIFS_SMB311
 int
 generate_smb311signingkey(struct cifs_ses *ses)
 
@@ -405,19 +421,18 @@ generate_smb311signingkey(struct cifs_ses *ses)
 
 	return generate_smb3signingkey(ses, &triplet);
 }
-#endif /* 311 */
 
 int
 smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 {
-	int rc = 0;
+	int rc;
 	unsigned char smb3_signature[SMB2_CMACAES_SIZE];
 	unsigned char *sigptr = smb3_signature;
 	struct kvec *iov = rqst->rq_iov;
-	int iov_hdr_index = rqst->rq_nvec > 1 ? 1 : 0;
-	struct smb2_sync_hdr *shdr =
-		(struct smb2_sync_hdr *)iov[iov_hdr_index].iov_base;
+	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)iov[0].iov_base;
 	struct cifs_ses *ses;
+	struct shash_desc *shash = &server->secmech.sdesccmacaes->shash;
+	struct smb_rqst drqst;
 
 	ses = smb2_find_smb_ses(server, shdr->SessionId);
 	if (!ses) {
@@ -429,8 +444,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	memset(shdr->Signature, 0x0, SMB2_SIGNATURE_SIZE);
 
 	rc = crypto_shash_setkey(server->secmech.cmacaes,
-		ses->smb3signingkey, SMB2_CMACAES_SIZE);
-
+				 ses->smb3signingkey, SMB2_CMACAES_SIZE);
 	if (rc) {
 		cifs_dbg(VFS, "%s: Could not set key for cmac aes\n", __func__);
 		return rc;
@@ -441,15 +455,33 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	 * so unlike smb2 case we do not have to check here if secmech are
 	 * initialized
 	 */
-	rc = crypto_shash_init(&server->secmech.sdesccmacaes->shash);
+	rc = crypto_shash_init(shash);
 	if (rc) {
 		cifs_dbg(VFS, "%s: Could not init cmac aes\n", __func__);
 		return rc;
 	}
 
-	rc = __cifs_calc_signature(rqst, iov_hdr_index, server, sigptr,
-				   &server->secmech.sdesccmacaes->shash);
+	/*
+	 * For SMB2+, __cifs_calc_signature() expects to sign only the actual
+	 * data, that is, iov[0] should not contain a rfc1002 length.
+	 *
+	 * Sign the rfc1002 length prior to passing the data (iov[1-N]) down to
+	 * __cifs_calc_signature().
+	 */
+	drqst = *rqst;
+	if (drqst.rq_nvec >= 2 && iov[0].iov_len == 4) {
+		rc = crypto_shash_update(shash, iov[0].iov_base,
+					 iov[0].iov_len);
+		if (rc) {
+			cifs_dbg(VFS, "%s: Could not update with payload\n",
+				 __func__);
+			return rc;
+		}
+		drqst.rq_iov++;
+		drqst.rq_nvec--;
+	}
 
+	rc = __cifs_calc_signature(&drqst, server, sigptr, shash);
 	if (!rc)
 		memcpy(shdr->Signature, sigptr, SMB2_SIGNATURE_SIZE);
 
@@ -462,7 +494,7 @@ smb2_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 {
 	int rc = 0;
 	struct smb2_sync_hdr *shdr =
-			(struct smb2_sync_hdr *)rqst->rq_iov[1].iov_base;
+			(struct smb2_sync_hdr *)rqst->rq_iov[0].iov_base;
 
 	if (!(shdr->Flags & SMB2_FLAGS_SIGNED) ||
 	    server->tcpStatus == CifsNeedNegotiate)
@@ -552,6 +584,7 @@ smb2_mid_entry_alloc(const struct smb2_sync_hdr *shdr,
 
 	temp = mempool_alloc(cifs_mid_poolp, GFP_NOFS);
 	memset(temp, 0, sizeof(struct mid_q_entry));
+	kref_init(&temp->refcount);
 	temp->mid = le64_to_cpu(shdr->MessageId);
 	temp->pid = current->pid;
 	temp->command = shdr->Command; /* Always LE */
@@ -635,7 +668,7 @@ smb2_setup_request(struct cifs_ses *ses, struct smb_rqst *rqst)
 {
 	int rc;
 	struct smb2_sync_hdr *shdr =
-			(struct smb2_sync_hdr *)rqst->rq_iov[1].iov_base;
+			(struct smb2_sync_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
 
 	smb2_seq_num_into_buf(ses->server, shdr);
@@ -656,7 +689,7 @@ smb2_setup_async_request(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 {
 	int rc;
 	struct smb2_sync_hdr *shdr =
-			(struct smb2_sync_hdr *)rqst->rq_iov[1].iov_base;
+			(struct smb2_sync_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
 
 	smb2_seq_num_into_buf(server, shdr);

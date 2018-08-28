@@ -77,8 +77,20 @@ gnet_stats_start_copy_compat(struct sk_buff *skb, int type, int tc_stats_type,
 		d->lock = lock;
 		spin_lock_bh(lock);
 	}
-	if (d->tail)
-		return gnet_stats_copy(d, type, NULL, 0, padattr);
+	if (d->tail) {
+		int ret = gnet_stats_copy(d, type, NULL, 0, padattr);
+
+		/* The initial attribute added in gnet_stats_copy() may be
+		 * preceded by a padding attribute, in which case d->tail will
+		 * end up pointing at the padding instead of the real attribute.
+		 * Fix this so gnet_stats_finish_copy() adjusts the length of
+		 * the right attribute.
+		 */
+		if (ret == 0 && d->tail->nla_type == padattr)
+			d->tail = (struct nlattr *)((char *)d->tail +
+						    NLA_ALIGN(d->tail->nla_len));
+		return ret;
+	}
 
 	return 0;
 }

@@ -87,11 +87,12 @@ nvkm_engine_info(struct nvkm_subdev *subdev, u64 mthd, u64 *data)
 {
 	struct nvkm_engine *engine = nvkm_engine(subdev);
 	if (engine->func->info) {
-		if ((engine = nvkm_engine_ref(engine))) {
+		if (!IS_ERR((engine = nvkm_engine_ref(engine)))) {
 			int ret = engine->func->info(engine, mthd, data);
 			nvkm_engine_unref(&engine);
 			return ret;
 		}
+		return PTR_ERR(engine);
 	}
 	return -ENOSYS;
 }

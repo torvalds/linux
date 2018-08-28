@@ -37,15 +37,8 @@
 #include "hda_jack.h"
 #include <sound/hda_hwdep.h>
 
-#ifdef CONFIG_PM
-#define codec_in_pm(codec)	atomic_read(&(codec)->core.in_pm)
-#define hda_codec_is_power_on(codec) \
-	(!pm_runtime_suspended(hda_codec_dev(codec)))
-#else
-#define codec_in_pm(codec)	0
-#define hda_codec_is_power_on(codec)	1
-#endif
-
+#define codec_in_pm(codec)		snd_hdac_is_in_pm(&codec->core)
+#define hda_codec_is_power_on(codec)	snd_hdac_is_power_on(&codec->core)
 #define codec_has_epss(codec) \
 	((codec)->core.power_caps & AC_PWRST_EPSS)
 #define codec_has_clkstop(codec) \
@@ -2878,14 +2871,13 @@ static unsigned int hda_call_codec_suspend(struct hda_codec *codec)
 {
 	unsigned int state;
 
-	atomic_inc(&codec->core.in_pm);
-
+	snd_hdac_enter_pm(&codec->core);
 	if (codec->patch_ops.suspend)
 		codec->patch_ops.suspend(codec);
 	hda_cleanup_all_streams(codec);
 	state = hda_set_power_state(codec, AC_PWRST_D3);
 	update_power_acct(codec, true);
-	atomic_dec(&codec->core.in_pm);
+	snd_hdac_leave_pm(&codec->core);
 	return state;
 }
 
@@ -2894,8 +2886,7 @@ static unsigned int hda_call_codec_suspend(struct hda_codec *codec)
  */
 static void hda_call_codec_resume(struct hda_codec *codec)
 {
-	atomic_inc(&codec->core.in_pm);
-
+	snd_hdac_enter_pm(&codec->core);
 	if (codec->core.regmap)
 		regcache_mark_dirty(codec->core.regmap);
 
@@ -2918,7 +2909,7 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 		hda_jackpoll_work(&codec->jackpoll_work.work);
 	else
 		snd_hda_jack_report_sync(codec);
-	atomic_dec(&codec->core.in_pm);
+	snd_hdac_leave_pm(&codec->core);
 }
 
 static int hda_codec_runtime_suspend(struct device *dev)
@@ -3286,8 +3277,8 @@ int snd_hda_add_new_ctls(struct hda_codec *codec,
 	for (; knew->name; knew++) {
 		struct snd_kcontrol *kctl;
 		int addr = 0, idx = 0;
-		if (knew->iface == -1)	/* skip this codec private value */
-			continue;
+		if (knew->iface == (__force snd_ctl_elem_iface_t)-1)
+			continue; /* skip this codec private value */
 		for (;;) {
 			kctl = snd_ctl_new1(knew, codec);
 			if (!kctl)
@@ -3877,7 +3868,7 @@ EXPORT_SYMBOL_GPL(snd_hda_correct_pin_ctl);
  * This function is a helper to set a pin ctl value more safely.
  * It corrects the pin ctl value via snd_hda_correct_pin_ctl(), stores the
  * value in pin target array via snd_hda_codec_set_pin_target(), then
- * actually writes the value via either snd_hda_codec_update_cache() or
+ * actually writes the value via either snd_hda_codec_write_cache() or
  * snd_hda_codec_write() depending on @cached flag.
  */
 int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
@@ -3886,7 +3877,7 @@ int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
 	val = snd_hda_correct_pin_ctl(codec, pin, val);
 	snd_hda_codec_set_pin_target(codec, pin, val);
 	if (cached)
-		return snd_hda_codec_update_cache(codec, pin, 0,
+		return snd_hda_codec_write_cache(codec, pin, 0,
 				AC_VERB_SET_PIN_WIDGET_CONTROL, val);
 	else
 		return snd_hda_codec_write(codec, pin, 0,

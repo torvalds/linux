@@ -218,7 +218,7 @@ u64 acpi_ut_implicit_strtoul64(char *string)
 	 * implicit conversions, and the "0x" prefix is "not allowed".
 	 * However, allow a "0x" prefix as an ACPI extension.
 	 */
-	acpi_ut_detect_hex_prefix(&string);
+	acpi_ut_remove_hex_prefix(&string);
 
 	if (!acpi_ut_remove_leading_zeros(&string)) {
 		return_VALUE(0);

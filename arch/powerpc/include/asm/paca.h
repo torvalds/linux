@@ -187,11 +187,6 @@ struct paca_struct {
 	u8 subcore_sibling_mask;
 	/* Flag to request this thread not to stop */
 	atomic_t dont_stop;
-	/*
-	 * Pointer to an array which contains pointer
-	 * to the sibling threads' paca.
-	 */
-	struct paca_struct **thread_sibling_pacas;
 	/* The PSSCR value that the kernel requested before going to stop */
 	u64 requested_psscr;
 
@@ -252,6 +247,9 @@ struct paca_struct {
 	void *rfi_flush_fallback_area;
 	u64 l1d_flush_size;
 #endif
+#ifdef CONFIG_PPC_PSERIES
+	u8 *mce_data_buf;		/* buffer to hold per cpu rtas errlog */
+#endif /* CONFIG_PPC_PSERIES */
 } ____cacheline_aligned;
 
 extern void copy_mm_to_paca(struct mm_struct *mm);

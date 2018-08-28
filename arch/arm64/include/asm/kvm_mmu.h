@@ -169,8 +169,12 @@ phys_addr_t kvm_get_idmap_vector(void);
 int kvm_mmu_init(void);
 void kvm_clear_hyp_idmap(void);
 
-#define	kvm_set_pte(ptep, pte)		set_pte(ptep, pte)
-#define	kvm_set_pmd(pmdp, pmd)		set_pmd(pmdp, pmd)
+#define kvm_mk_pmd(ptep)					\
+	__pmd(__phys_to_pmd_val(__pa(ptep)) | PMD_TYPE_TABLE)
+#define kvm_mk_pud(pmdp)					\
+	__pud(__phys_to_pud_val(__pa(pmdp)) | PMD_TYPE_TABLE)
+#define kvm_mk_pgd(pudp)					\
+	__pgd(__phys_to_pgd_val(__pa(pudp)) | PUD_TYPE_TABLE)
 
 static inline pte_t kvm_s2pte_mkwrite(pte_t pte)
 {
@@ -267,6 +271,15 @@ static inline void __clean_dcache_guest_page(kvm_pfn_t pfn, unsigned long size)
 {
 	void *va = page_address(pfn_to_page(pfn));
 
+	/*
+	 * With FWB, we ensure that the guest always accesses memory using
+	 * cacheable attributes, and we don't have to clean to PoC when
+	 * faulting in pages. Furthermore, FWB implies IDC, so cleaning to
+	 * PoU is not required either in this case.
+	 */
+	if (cpus_have_const_cap(ARM64_HAS_STAGE2_FWB))
+		return;
+
 	kvm_flush_dcache_to_poc(va, size);
 }
 
@@ -287,20 +300,26 @@ static inline void __invalidate_icache_guest_page(kvm_pfn_t pfn,
 
 static inline void __kvm_flush_dcache_pte(pte_t pte)
 {
-	struct page *page = pte_page(pte);
-	kvm_flush_dcache_to_poc(page_address(page), PAGE_SIZE);
+	if (!cpus_have_const_cap(ARM64_HAS_STAGE2_FWB)) {
+		struct page *page = pte_page(pte);
+		kvm_flush_dcache_to_poc(page_address(page), PAGE_SIZE);
+	}
 }
 
 static inline void __kvm_flush_dcache_pmd(pmd_t pmd)
 {
-	struct page *page = pmd_page(pmd);
-	kvm_flush_dcache_to_poc(page_address(page), PMD_SIZE);
+	if (!cpus_have_const_cap(ARM64_HAS_STAGE2_FWB)) {
+		struct page *page = pmd_page(pmd);
+		kvm_flush_dcache_to_poc(page_address(page), PMD_SIZE);
+	}
 }
 
 static inline void __kvm_flush_dcache_pud(pud_t pud)
 {
-	struct page *page = pud_page(pud);
-	kvm_flush_dcache_to_poc(page_address(page), PUD_SIZE);
+	if (!cpus_have_const_cap(ARM64_HAS_STAGE2_FWB)) {
+		struct page *page = pud_page(pud);
+		kvm_flush_dcache_to_poc(page_address(page), PUD_SIZE);
+	}
 }
 
 #define kvm_virt_to_phys(x)		__pa_symbol(x)

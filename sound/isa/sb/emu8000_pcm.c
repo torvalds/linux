@@ -470,7 +470,7 @@ static int emu8k_pcm_copy(struct snd_pcm_substream *subs,
 	/* convert to word unit */
 	pos = (pos << 1) + rec->loop_start[voice];
 	count <<= 1;
-	LOOP_WRITE(rec, pos, src, count, COPY_UESR);
+	LOOP_WRITE(rec, pos, src, count, COPY_USER);
 	return 0;
 }
 

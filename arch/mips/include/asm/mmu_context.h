@@ -32,6 +32,7 @@ do {									\
 } while (0)
 
 extern void tlbmiss_handler_setup_pgd(unsigned long);
+extern char tlbmiss_handler_setup_pgd_end[];
 
 /* Note: This is also implemented with uasm in arch/mips/kvm/entry.c */
 #define TLBMISS_HANDLER_SETUP_PGD(pgd)					\
@@ -125,8 +126,6 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 
 	for_each_possible_cpu(i)
 		cpu_context(i, mm) = 0;
-
-	atomic_set(&mm->context.fp_mode_switching, 0);
 
 	mm->context.bd_emupage_allocmap = NULL;
 	spin_lock_init(&mm->context.bd_emupage_lock);

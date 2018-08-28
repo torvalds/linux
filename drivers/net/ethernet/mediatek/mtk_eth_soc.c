@@ -605,10 +605,10 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	dma_addr_t dma_addr;
 	int i;
 
-	eth->scratch_ring = dma_alloc_coherent(eth->dev,
-					       cnt * sizeof(struct mtk_tx_dma),
-					       &eth->phy_scratch_ring,
-					       GFP_ATOMIC | __GFP_ZERO);
+	eth->scratch_ring = dma_zalloc_coherent(eth->dev,
+						cnt * sizeof(struct mtk_tx_dma),
+						&eth->phy_scratch_ring,
+						GFP_ATOMIC);
 	if (unlikely(!eth->scratch_ring))
 		return -ENOMEM;
 
@@ -623,7 +623,6 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	if (unlikely(dma_mapping_error(eth->dev, dma_addr)))
 		return -ENOMEM;
 
-	memset(eth->scratch_ring, 0x0, sizeof(struct mtk_tx_dma) * cnt);
 	phy_ring_tail = eth->phy_scratch_ring +
 			(sizeof(struct mtk_tx_dma) * (cnt - 1));
 
@@ -1221,14 +1220,11 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 	if (!ring->buf)
 		goto no_tx_mem;
 
-	ring->dma = dma_alloc_coherent(eth->dev,
-					  MTK_DMA_SIZE * sz,
-					  &ring->phys,
-					  GFP_ATOMIC | __GFP_ZERO);
+	ring->dma = dma_zalloc_coherent(eth->dev, MTK_DMA_SIZE * sz,
+					&ring->phys, GFP_ATOMIC);
 	if (!ring->dma)
 		goto no_tx_mem;
 
-	memset(ring->dma, 0, MTK_DMA_SIZE * sz);
 	for (i = 0; i < MTK_DMA_SIZE; i++) {
 		int next = (i + 1) % MTK_DMA_SIZE;
 		u32 next_ptr = ring->phys + next * sz;
@@ -1321,10 +1317,9 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 			return -ENOMEM;
 	}
 
-	ring->dma = dma_alloc_coherent(eth->dev,
-				       rx_dma_size * sizeof(*ring->dma),
-				       &ring->phys,
-				       GFP_ATOMIC | __GFP_ZERO);
+	ring->dma = dma_zalloc_coherent(eth->dev,
+					rx_dma_size * sizeof(*ring->dma),
+					&ring->phys, GFP_ATOMIC);
 	if (!ring->dma)
 		return -ENOMEM;
 
@@ -2463,42 +2458,6 @@ free_netdev:
 	return err;
 }
 
-static int mtk_get_chip_id(struct mtk_eth *eth, u32 *chip_id)
-{
-	u32 val[2], id[4];
-
-	regmap_read(eth->ethsys, ETHSYS_CHIPID0_3, &val[0]);
-	regmap_read(eth->ethsys, ETHSYS_CHIPID4_7, &val[1]);
-
-	id[3] = ((val[0] >> 16) & 0xff) - '0';
-	id[2] = ((val[0] >> 24) & 0xff) - '0';
-	id[1] = (val[1] & 0xff) - '0';
-	id[0] = ((val[1] >> 8) & 0xff) - '0';
-
-	*chip_id = (id[3] * 1000) + (id[2] * 100) +
-		   (id[1] * 10) + id[0];
-
-	if (!(*chip_id)) {
-		dev_err(eth->dev, "failed to get chip id\n");
-		return -ENODEV;
-	}
-
-	dev_info(eth->dev, "chip id = %d\n", *chip_id);
-
-	return 0;
-}
-
-static bool mtk_is_hwlro_supported(struct mtk_eth *eth)
-{
-	switch (eth->chip_id) {
-	case MT7622_ETH:
-	case MT7623_ETH:
-		return true;
-	}
-
-	return false;
-}
-
 static int mtk_probe(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2577,11 +2536,7 @@ static int mtk_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	err = mtk_get_chip_id(eth, &eth->chip_id);
-	if (err)
-		return err;
-
-	eth->hwlro = mtk_is_hwlro_supported(eth);
+	eth->hwlro = MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO);
 
 	for_each_child_of_node(pdev->dev.of_node, mac_np) {
 		if (!of_device_is_compatible(mac_np,
@@ -2670,19 +2625,19 @@ static int mtk_remove(struct platform_device *pdev)
 }
 
 static const struct mtk_soc_data mt2701_data = {
-	.caps = MTK_GMAC1_TRGMII,
+	.caps = MTK_GMAC1_TRGMII | MTK_HWLRO,
 	.required_clks = MT7623_CLKS_BITMAP,
 	.required_pctl = true,
 };
 
 static const struct mtk_soc_data mt7622_data = {
-	.caps = MTK_DUAL_GMAC_SHARED_SGMII | MTK_GMAC1_ESW,
+	.caps = MTK_DUAL_GMAC_SHARED_SGMII | MTK_GMAC1_ESW | MTK_HWLRO,
 	.required_clks = MT7622_CLKS_BITMAP,
 	.required_pctl = false,
 };
 
 static const struct mtk_soc_data mt7623_data = {
-	.caps = MTK_GMAC1_TRGMII,
+	.caps = MTK_GMAC1_TRGMII | MTK_HWLRO,
 	.required_clks = MT7623_CLKS_BITMAP,
 	.required_pctl = true,
 };

@@ -73,6 +73,13 @@ config RESET_MESON
 	help
 	  This enables the reset driver for Amlogic Meson SoCs.
 
+config RESET_MESON_AUDIO_ARB
+	tristate "Meson Audio Memory Arbiter Reset Driver"
+	depends on ARCH_MESON || COMPILE_TEST
+	help
+	  This enables the reset driver for Audio Memory Arbiter of
+	  Amlogic's A113 based SoCs
+
 config RESET_OXNAS
 	bool
 
@@ -81,6 +88,15 @@ config RESET_PISTACHIO
 	default MACH_PISTACHIO
 	help
 	  This enables the reset driver for ImgTec Pistachio SoCs.
+
+config RESET_QCOM_AOSS
+	bool "Qcom AOSS Reset Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  This enables the AOSS (always on subsystem) reset driver
+	  for Qualcomm SDM845 SoCs. Say Y if you want to control
+	  reset signals provided by AOSS for Modem, Venus, ADSP,
+	  GPU, Camera, Wireless, Display subsystem. Otherwise, say N.
 
 config RESET_SIMPLE
 	bool "Simple Reset Controller Driver" if COMPILE_TEST
@@ -137,6 +153,16 @@ config RESET_UNIPHIER
 	  Support for reset controllers on UniPhier SoCs.
 	  Say Y if you want to control reset signals provided by System Control
 	  block, Media I/O block, Peripheral Block.
+
+config RESET_UNIPHIER_USB3
+	tristate "USB3 reset driver for UniPhier SoCs"
+	depends on (ARCH_UNIPHIER || COMPILE_TEST) && OF
+	default ARCH_UNIPHIER
+	select RESET_SIMPLE
+	help
+	  Support for the USB3 core reset on UniPhier SoCs.
+	  Say Y if you want to control reset signals provided by
+	  USB3 glue layer.
 
 config RESET_ZYNQ
 	bool "ZYNQ Reset Driver" if COMPILE_TEST

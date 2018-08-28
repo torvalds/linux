@@ -36,6 +36,7 @@
 #include "dce_v10_0.h"
 #include "dce_v11_0.h"
 #include "dce_virtual.h"
+#include "ivsrcid/ivsrcid_vislands30.h"
 
 #define DCE_VIRTUAL_VBLANK_PERIOD 16666666
 
@@ -269,25 +270,18 @@ static int dce_virtual_early_init(void *handle)
 static struct drm_encoder *
 dce_virtual_encoder(struct drm_connector *connector)
 {
-	int enc_id = connector->encoder_ids[0];
 	struct drm_encoder *encoder;
 	int i;
 
-	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		if (connector->encoder_ids[i] == 0)
-			break;
-
-		encoder = drm_encoder_find(connector->dev, NULL, connector->encoder_ids[i]);
-		if (!encoder)
-			continue;
-
+	drm_connector_for_each_possible_encoder(connector, encoder, i) {
 		if (encoder->encoder_type == DRM_MODE_ENCODER_VIRTUAL)
 			return encoder;
 	}
 
 	/* pick the first one */
-	if (enc_id)
-		return drm_encoder_find(connector->dev, NULL, enc_id);
+	drm_connector_for_each_possible_encoder(connector, encoder, i)
+		return encoder;
+
 	return NULL;
 }
 
@@ -378,7 +372,7 @@ static int dce_virtual_sw_init(void *handle)
 	int r, i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 229, &adev->crtc_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_SMU_DISP_TIMER2_TRIGGER, &adev->crtc_irq);
 	if (r)
 		return r;
 
@@ -634,7 +628,7 @@ static int dce_virtual_connector_encoder_init(struct amdgpu_device *adev,
 	drm_connector_register(connector);
 
 	/* link them */
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
 }

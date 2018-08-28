@@ -13,7 +13,6 @@ Optional properties:
   when it is not active, whereas a pull-up one is needed when interrupt
   line is configured as IRQ_TYPE_LEVEL_LOW or IRQ_TYPE_EDGE_FALLING.
   Refer to pinctrl/pinctrl-bindings.txt for the property description.
-- interrupt-parent: should be the phandle for the interrupt controller
 - interrupts: interrupt mapping for IRQ. It should be configured with
   flags IRQ_TYPE_LEVEL_HIGH, IRQ_TYPE_EDGE_RISING, IRQ_TYPE_LEVEL_LOW or
   IRQ_TYPE_EDGE_FALLING.

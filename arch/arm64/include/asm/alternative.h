@@ -28,7 +28,12 @@ typedef void (*alternative_cb_t)(struct alt_instr *alt,
 				 __le32 *origptr, __le32 *updptr, int nr_inst);
 
 void __init apply_alternatives_all(void);
-void apply_alternatives(void *start, size_t length);
+
+#ifdef CONFIG_MODULES
+void apply_alternatives_module(void *start, size_t length);
+#else
+static inline void apply_alternatives_module(void *start, size_t length) { }
+#endif
 
 #define ALTINSTR_ENTRY(feature,cb)					      \
 	" .word 661b - .\n"				/* label           */ \

@@ -16,6 +16,7 @@ config MIPS
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
 	select CPU_PM if CPU_IDLE
+	select DMA_DIRECT_OPS
 	select GENERIC_ATOMIC64 if !64BIT
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE
@@ -32,6 +33,7 @@ config MIPS
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
 	select HANDLE_DOMAIN_IRQ
+	select HAVE_ARCH_COMPILER_H
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_MMAP_RND_BITS if MMU
@@ -65,6 +67,7 @@ config MIPS
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_RSEQ
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN if 64BIT || !SMP
@@ -96,6 +99,7 @@ config MIPS_GENERIC
 	select HW_HAS_PCI
 	select IRQ_MIPS_CPU
 	select LIBFDT
+	select MIPS_AUTO_PFN_OFFSET
 	select MIPS_CPU_SCACHE
 	select MIPS_GIC
 	select MIPS_L1_CACHE_SHIFT_7
@@ -192,6 +196,7 @@ config ATH79
 	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select GPIOLIB
+	select PINCTRL
 	select HAVE_CLK
 	select COMMON_CLK
 	select CLKDEV_LOOKUP
@@ -210,6 +215,8 @@ config ATH79
 
 config BMIPS_GENERIC
 	bool "Broadcom Generic BMIPS kernel"
+	select ARCH_HAS_SYNC_DMA_FOR_CPU_ALL
+	select ARCH_HAS_PHYS_TO_DMA
 	select BOOT_RAW
 	select NO_EXCEPT_FILL
 	select USE_OF
@@ -437,7 +444,6 @@ config MACH_LOONGSON32
 
 config MACH_LOONGSON64
 	bool "Loongson-2/3 family of machines"
-	select ARCH_HAS_PHYS_TO_DMA
 	select SYS_SUPPORTS_ZBOOT
 	help
 	  This enables the support of Loongson-2/3 family of machines.
@@ -661,11 +667,11 @@ config SGI_IP22
 
 config SGI_IP27
 	bool "SGI IP27 (Origin200/2000)"
+	select ARCH_HAS_PHYS_TO_DMA
 	select FW_ARC
 	select FW_ARC64
 	select BOOT_ELF64
 	select DEFAULT_SGI_PARTITION
-	select DMA_COHERENT
 	select SYS_HAS_EARLY_PRINTK
 	select HW_HAS_PCI
 	select NR_CPUS_DEFAULT_64
@@ -720,6 +726,7 @@ config SGI_IP28
 
 config SGI_IP32
 	bool "SGI IP32 (O2)"
+	select ARCH_HAS_PHYS_TO_DMA
 	select FW_ARC
 	select FW_ARC32
 	select BOOT_ELF32
@@ -742,7 +749,6 @@ config SGI_IP32
 config SIBYTE_CRHINE
 	bool "Sibyte BCM91120C-CRhine"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select SIBYTE_BCM1120
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
@@ -752,7 +758,6 @@ config SIBYTE_CRHINE
 config SIBYTE_CARMEL
 	bool "Sibyte BCM91120x-Carmel"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select SIBYTE_BCM1120
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
@@ -762,7 +767,6 @@ config SIBYTE_CARMEL
 config SIBYTE_CRHONE
 	bool "Sibyte BCM91125C-CRhone"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select SIBYTE_BCM1125
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
@@ -773,7 +777,6 @@ config SIBYTE_CRHONE
 config SIBYTE_RHONE
 	bool "Sibyte BCM91125E-Rhone"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select SIBYTE_BCM1125H
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
@@ -783,7 +786,6 @@ config SIBYTE_RHONE
 config SIBYTE_SWARM
 	bool "Sibyte BCM91250A-SWARM"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select HAVE_PATA_PLATFORM
 	select SIBYTE_SB1250
 	select SWAP_IO_SPACE
@@ -796,7 +798,6 @@ config SIBYTE_SWARM
 config SIBYTE_LITTLESUR
 	bool "Sibyte BCM91250C2-LittleSur"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select HAVE_PATA_PLATFORM
 	select SIBYTE_SB1250
 	select SWAP_IO_SPACE
@@ -808,7 +809,6 @@ config SIBYTE_LITTLESUR
 config SIBYTE_SENTOSA
 	bool "Sibyte BCM91250E-Sentosa"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select SIBYTE_SB1250
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
@@ -818,7 +818,6 @@ config SIBYTE_SENTOSA
 config SIBYTE_BIGSUR
 	bool "Sibyte BCM91480B-BigSur"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select NR_CPUS_DEFAULT_4
 	select SIBYTE_BCM1x80
 	select SWAP_IO_SPACE
@@ -894,8 +893,8 @@ config CAVIUM_OCTEON_SOC
 	bool "Cavium Networks Octeon SoC based boards"
 	select CEVT_R4K
 	select ARCH_HAS_PHYS_TO_DMA
+	select HAS_RAPIDIO
 	select PHYS_ADDR_T_64BIT
-	select DMA_COHERENT
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select EDAC_SUPPORT
@@ -944,7 +943,6 @@ config NLM_XLR_BOARD
 	select PHYS_ADDR_T_64BIT
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
-	select DMA_COHERENT
 	select NR_CPUS_DEFAULT_32
 	select CEVT_R4K
 	select CSRC_R4K
@@ -972,7 +970,6 @@ config NLM_XLP_BOARD
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
-	select DMA_COHERENT
 	select NR_CPUS_DEFAULT_32
 	select CEVT_R4K
 	select CSRC_R4K
@@ -991,7 +988,6 @@ config MIPS_PARAVIRT
 	bool "Para-Virtualized guest system"
 	select CEVT_R4K
 	select CSRC_R4K
-	select DMA_COHERENT
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -1117,12 +1113,14 @@ config DMA_PERDEV_COHERENT
 	bool
 	select DMA_MAYBE_COHERENT
 
-config DMA_COHERENT
-	bool
-
 config DMA_NONCOHERENT
 	bool
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select NEED_DMA_MAP_STATE
+	select DMA_NONCOHERENT_MMAP
+	select DMA_NONCOHERENT_CACHE_SYNC
+	select DMA_NONCOHERENT_OPS
 
 config SYS_HAS_EARLY_PRINTK
 	bool
@@ -1364,6 +1362,7 @@ choice
 config CPU_LOONGSON3
 	bool "Loongson 3 CPU"
 	depends on SYS_HAS_CPU_LOONGSON3
+	select ARCH_HAS_PHYS_TO_DMA
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
@@ -1426,7 +1425,8 @@ config CPU_LOONGSON1B
 	select LEDS_GPIO_REGISTER
 	help
 	  The Loongson 1B is a 32-bit SoC, which implements the MIPS32
-	  release 2 instruction set.
+	  Release 1 instruction set and part of the MIPS32 Release 2
+	  instruction set.
 
 config CPU_LOONGSON1C
 	bool "Loongson 1C"
@@ -1435,7 +1435,8 @@ config CPU_LOONGSON1C
 	select LEDS_GPIO_REGISTER
 	help
 	  The Loongson 1C is a 32-bit SoC, which implements the MIPS32
-	  release 2 instruction set.
+	  Release 1 instruction set and part of the MIPS32 Release 2
+	  instruction set.
 
 config CPU_MIPS32_R1
 	bool "MIPS32 Release 1"
@@ -1830,11 +1831,12 @@ config CPU_LOONGSON2
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
+	select ARCH_HAS_PHYS_TO_DMA
 
 config CPU_LOONGSON1
 	bool
 	select CPU_MIPS32
-	select CPU_MIPSR2
+	select CPU_MIPSR1
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1977,12 +1979,6 @@ config SYS_HAS_CPU_XLR
 
 config SYS_HAS_CPU_XLP
 	bool
-
-config MIPS_MALTA_PM
-	depends on MIPS_MALTA
-	depends on PCI
-	bool
-	default y
 
 #
 # CPU may reorder R->R, R->W, W->R, W->W
@@ -2640,8 +2636,6 @@ config HW_PERF_EVENTS
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
 
-source "mm/Kconfig"
-
 config SMP
 	bool "Multi-Processing support"
 	depends on SYS_SUPPORTS_SMP
@@ -2819,8 +2813,6 @@ config HZ
 config SCHED_HRTICK
 	def_bool HIGH_RES_TIMERS
 
-source "kernel/Kconfig.preempt"
-
 config KEXEC
 	bool "Kexec system call"
 	select KEXEC_CORE
@@ -2993,9 +2985,8 @@ config PGTABLE_LEVELS
 	default 3 if 64BIT && !PAGE_SIZE_64KB
 	default 2
 
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
+config MIPS_AUTO_PFN_OFFSET
+	bool
 
 menu "Bus options (PCI, PCMCIA, EISA, ISA, TC)"
 
@@ -3114,10 +3105,13 @@ config ZONE_DMA32
 
 source "drivers/pcmcia/Kconfig"
 
+config HAS_RAPIDIO
+	bool
+	default n
+
 config RAPIDIO
 	tristate "RapidIO support"
-	depends on PCI
-	default n
+	depends on HAS_RAPIDIO || PCI
 	help
 	  If you say Y here, the kernel will include drivers and
 	  infrastructure code to support RapidIO interconnect devices.
@@ -3125,10 +3119,6 @@ config RAPIDIO
 source "drivers/rapidio/Kconfig"
 
 endmenu
-
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
 
 config TRAD_SIGNALS
 	bool
@@ -3175,8 +3165,6 @@ config BINFMT_ELF32
 	default y if MIPS32_O32 || MIPS32_N32
 	select ELFCORE
 
-endmenu
-
 menu "Power management options"
 
 config ARCH_HIBERNATION_POSSIBLE
@@ -3204,20 +3192,6 @@ source "drivers/cpuidle/Kconfig"
 
 endmenu
 
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
 source "drivers/firmware/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/mips/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
 
 source "arch/mips/kvm/Kconfig"

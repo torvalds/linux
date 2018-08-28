@@ -238,7 +238,7 @@ static int cdns_pcie_ep_get_msi(struct pci_epc *epc, u8 fn)
 	struct cdns_pcie_ep *ep = epc_get_drvdata(epc);
 	struct cdns_pcie *pcie = &ep->pcie;
 	u32 cap = CDNS_PCIE_EP_FUNC_MSI_CAP_OFFSET;
-	u16 flags, mmc, mme;
+	u16 flags, mme;
 
 	/* Validate that the MSI feature is actually enabled. */
 	flags = cdns_pcie_ep_fn_readw(pcie, fn, cap + PCI_MSI_FLAGS);
@@ -249,7 +249,6 @@ static int cdns_pcie_ep_get_msi(struct pci_epc *epc, u8 fn)
 	 * Get the Multiple Message Enable bitfield from the Message Control
 	 * register.
 	 */
-	mmc = (flags & PCI_MSI_FLAGS_QMASK) >> 1;
 	mme = (flags & PCI_MSI_FLAGS_QSIZE) >> 4;
 
 	return mme;
@@ -363,7 +362,8 @@ static int cdns_pcie_ep_send_msi_irq(struct cdns_pcie_ep *ep, u8 fn,
 }
 
 static int cdns_pcie_ep_raise_irq(struct pci_epc *epc, u8 fn,
-				  enum pci_epc_irq_type type, u8 interrupt_num)
+				  enum pci_epc_irq_type type,
+				  u16 interrupt_num)
 {
 	struct cdns_pcie_ep *ep = epc_get_drvdata(epc);
 
@@ -439,6 +439,7 @@ static int cdns_pcie_ep_probe(struct platform_device *pdev)
 	struct pci_epc *epc;
 	struct resource *res;
 	int ret;
+	int phy_count;
 
 	ep = devm_kzalloc(dev, sizeof(*ep), GFP_KERNEL);
 	if (!ep)
@@ -473,6 +474,12 @@ static int cdns_pcie_ep_probe(struct platform_device *pdev)
 	if (!ep->ob_addr)
 		return -ENOMEM;
 
+	ret = cdns_pcie_init_phy(dev, pcie);
+	if (ret) {
+		dev_err(dev, "failed to init phy\n");
+		return ret;
+	}
+	platform_set_drvdata(pdev, pcie);
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
@@ -521,6 +528,10 @@ static int cdns_pcie_ep_probe(struct platform_device *pdev)
 
  err_get_sync:
 	pm_runtime_disable(dev);
+	cdns_pcie_disable_phy(pcie);
+	phy_count = pcie->phy_count;
+	while (phy_count--)
+		device_link_del(pcie->link[phy_count]);
 
 	return ret;
 }
@@ -528,6 +539,7 @@ static int cdns_pcie_ep_probe(struct platform_device *pdev)
 static void cdns_pcie_ep_shutdown(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct cdns_pcie *pcie = dev_get_drvdata(dev);
 	int ret;
 
 	ret = pm_runtime_put_sync(dev);
@@ -536,13 +548,14 @@ static void cdns_pcie_ep_shutdown(struct platform_device *pdev)
 
 	pm_runtime_disable(dev);
 
-	/* The PCIe controller can't be disabled. */
+	cdns_pcie_disable_phy(pcie);
 }
 
 static struct platform_driver cdns_pcie_ep_driver = {
 	.driver = {
 		.name = "cdns-pcie-ep",
 		.of_match_table = cdns_pcie_ep_of_match,
+		.pm	= &cdns_pcie_pm_ops,
 	},
 	.probe = cdns_pcie_ep_probe,
 	.shutdown = cdns_pcie_ep_shutdown,

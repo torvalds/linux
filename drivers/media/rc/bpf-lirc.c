@@ -174,6 +174,7 @@ static int lirc_bpf_detach(struct rc_dev *rcdev, struct bpf_prog *prog)
 
 	rcu_assign_pointer(raw->progs, new_array);
 	bpf_prog_array_free(old_array);
+	bpf_prog_put(prog);
 unlock:
 	mutex_unlock(&ir_raw_handler_lock);
 	return ret;
@@ -195,41 +196,33 @@ void lirc_bpf_run(struct rc_dev *rcdev, u32 sample)
  */
 void lirc_bpf_free(struct rc_dev *rcdev)
 {
-	struct bpf_prog **progs;
+	struct bpf_prog_array_item *item;
 
 	if (!rcdev->raw->progs)
 		return;
 
-	progs = rcu_dereference(rcdev->raw->progs)->progs;
-	while (*progs)
-		bpf_prog_put(*progs++);
+	item = rcu_dereference(rcdev->raw->progs)->items;
+	while (item->prog) {
+		bpf_prog_put(item->prog);
+		item++;
+	}
 
 	bpf_prog_array_free(rcdev->raw->progs);
 }
 
-int lirc_prog_attach(const union bpf_attr *attr)
+int lirc_prog_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 {
-	struct bpf_prog *prog;
 	struct rc_dev *rcdev;
 	int ret;
 
 	if (attr->attach_flags)
 		return -EINVAL;
 
-	prog = bpf_prog_get_type(attr->attach_bpf_fd,
-				 BPF_PROG_TYPE_LIRC_MODE2);
-	if (IS_ERR(prog))
-		return PTR_ERR(prog);
-
 	rcdev = rc_dev_get_from_fd(attr->target_fd);
-	if (IS_ERR(rcdev)) {
-		bpf_prog_put(prog);
+	if (IS_ERR(rcdev))
 		return PTR_ERR(rcdev);
-	}
 
 	ret = lirc_bpf_attach(rcdev, prog);
-	if (ret)
-		bpf_prog_put(prog);
 
 	put_device(&rcdev->dev);
 

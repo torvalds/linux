@@ -1050,8 +1050,8 @@ struct nct6775_data {
 	u64 beeps;
 
 	u8 pwm_num;	/* number of pwm */
-	u8 pwm_mode[NUM_FAN];	/* 1->DC variable voltage,
-				 * 0->PWM variable duty cycle
+	u8 pwm_mode[NUM_FAN];	/* 0->DC variable voltage,
+				 * 1->PWM variable duty cycle
 				 */
 	enum pwm_enable pwm_enable[NUM_FAN];
 			/* 0->off
@@ -2541,7 +2541,7 @@ static void pwm_update_registers(struct nct6775_data *data, int nr)
 	case thermal_cruise:
 		nct6775_write_value(data, data->REG_TARGET[nr],
 				    data->target_temp[nr]);
-		/* intentional */
+		/* fall through  */
 	default:
 		reg = nct6775_read_value(data, data->REG_FAN_MODE[nr]);
 		reg = (reg & ~data->tolerance_mask) |
@@ -4175,7 +4175,7 @@ static int nct6775_probe(struct platform_device *pdev)
 	 * The temperature is already monitored if the respective bit in <mask>
 	 * is set.
 	 */
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < 31; i++) {
 		if (!(data->temp_mask & BIT(i + 1)))
 			continue;
 		if (!reg_temp_alternate[i])

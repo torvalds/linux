@@ -1,11 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
-menu "Kernel hacking"
 
 config TRACE_IRQFLAGS_SUPPORT
 	bool
 	default y
-
-source "lib/Kconfig.debug"
 
 config DEBUG_DCFLUSH
 	bool "D-cache flush debugging"
@@ -21,5 +18,3 @@ config FRAME_POINTER
 	bool
 	depends on MCOUNT
 	default y
-
-endmenu

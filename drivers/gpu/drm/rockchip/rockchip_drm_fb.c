@@ -18,51 +18,12 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_fb.h"
 #include "rockchip_drm_gem.h"
 #include "rockchip_drm_psr.h"
-
-#define to_rockchip_fb(x) container_of(x, struct rockchip_drm_fb, fb)
-
-struct rockchip_drm_fb {
-	struct drm_framebuffer fb;
-	struct drm_gem_object *obj[ROCKCHIP_MAX_FB_BUFFER];
-};
-
-struct drm_gem_object *rockchip_fb_get_gem_obj(struct drm_framebuffer *fb,
-					       unsigned int plane)
-{
-	struct rockchip_drm_fb *rk_fb = to_rockchip_fb(fb);
-
-	if (plane >= ROCKCHIP_MAX_FB_BUFFER)
-		return NULL;
-
-	return rk_fb->obj[plane];
-}
-
-static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
-{
-	struct rockchip_drm_fb *rockchip_fb = to_rockchip_fb(fb);
-	int i;
-
-	for (i = 0; i < ROCKCHIP_MAX_FB_BUFFER; i++)
-		drm_gem_object_put_unlocked(rockchip_fb->obj[i]);
-
-	drm_framebuffer_cleanup(fb);
-	kfree(rockchip_fb);
-}
-
-static int rockchip_drm_fb_create_handle(struct drm_framebuffer *fb,
-					 struct drm_file *file_priv,
-					 unsigned int *handle)
-{
-	struct rockchip_drm_fb *rockchip_fb = to_rockchip_fb(fb);
-
-	return drm_gem_handle_create(file_priv,
-				     rockchip_fb->obj[0], handle);
-}
 
 static int rockchip_drm_fb_dirty(struct drm_framebuffer *fb,
 				 struct drm_file *file,
@@ -75,46 +36,45 @@ static int rockchip_drm_fb_dirty(struct drm_framebuffer *fb,
 }
 
 static const struct drm_framebuffer_funcs rockchip_drm_fb_funcs = {
-	.destroy	= rockchip_drm_fb_destroy,
-	.create_handle	= rockchip_drm_fb_create_handle,
-	.dirty		= rockchip_drm_fb_dirty,
+	.destroy       = drm_gem_fb_destroy,
+	.create_handle = drm_gem_fb_create_handle,
+	.dirty	       = rockchip_drm_fb_dirty,
 };
 
-static struct rockchip_drm_fb *
+static struct drm_framebuffer *
 rockchip_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2 *mode_cmd,
 		  struct drm_gem_object **obj, unsigned int num_planes)
 {
-	struct rockchip_drm_fb *rockchip_fb;
+	struct drm_framebuffer *fb;
 	int ret;
 	int i;
 
-	rockchip_fb = kzalloc(sizeof(*rockchip_fb), GFP_KERNEL);
-	if (!rockchip_fb)
+	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
+	if (!fb)
 		return ERR_PTR(-ENOMEM);
 
-	drm_helper_mode_fill_fb_struct(dev, &rockchip_fb->fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
 
 	for (i = 0; i < num_planes; i++)
-		rockchip_fb->obj[i] = obj[i];
+		fb->obj[i] = obj[i];
 
-	ret = drm_framebuffer_init(dev, &rockchip_fb->fb,
-				   &rockchip_drm_fb_funcs);
+	ret = drm_framebuffer_init(dev, fb, &rockchip_drm_fb_funcs);
 	if (ret) {
 		DRM_DEV_ERROR(dev->dev,
 			      "Failed to initialize framebuffer: %d\n",
 			      ret);
-		kfree(rockchip_fb);
+		kfree(fb);
 		return ERR_PTR(ret);
 	}
 
-	return rockchip_fb;
+	return fb;
 }
 
 static struct drm_framebuffer *
 rockchip_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 			const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	struct rockchip_drm_fb *rockchip_fb;
+	struct drm_framebuffer *fb;
 	struct drm_gem_object *objs[ROCKCHIP_MAX_FB_BUFFER];
 	struct drm_gem_object *obj;
 	unsigned int hsub;
@@ -153,13 +113,13 @@ rockchip_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		objs[i] = obj;
 	}
 
-	rockchip_fb = rockchip_fb_alloc(dev, mode_cmd, objs, i);
-	if (IS_ERR(rockchip_fb)) {
-		ret = PTR_ERR(rockchip_fb);
+	fb = rockchip_fb_alloc(dev, mode_cmd, objs, i);
+	if (IS_ERR(fb)) {
+		ret = PTR_ERR(fb);
 		goto err_gem_object_unreference;
 	}
 
-	return &rockchip_fb->fb;
+	return fb;
 
 err_gem_object_unreference:
 	for (i--; i >= 0; i--)
@@ -242,13 +202,13 @@ rockchip_drm_framebuffer_init(struct drm_device *dev,
 			      const struct drm_mode_fb_cmd2 *mode_cmd,
 			      struct drm_gem_object *obj)
 {
-	struct rockchip_drm_fb *rockchip_fb;
+	struct drm_framebuffer *fb;
 
-	rockchip_fb = rockchip_fb_alloc(dev, mode_cmd, &obj, 1);
-	if (IS_ERR(rockchip_fb))
-		return ERR_CAST(rockchip_fb);
+	fb = rockchip_fb_alloc(dev, mode_cmd, &obj, 1);
+	if (IS_ERR(fb))
+		return ERR_CAST(fb);
 
-	return &rockchip_fb->fb;
+	return fb;
 }
 
 void rockchip_drm_mode_config_init(struct drm_device *dev)

@@ -19,6 +19,7 @@
 
 #include "chip.h"
 #include "port.h"
+#include "serdes.h"
 
 int mv88e6xxx_port_read(struct mv88e6xxx_chip *chip, int port, int reg,
 			u16 *val)
@@ -34,6 +35,29 @@ int mv88e6xxx_port_write(struct mv88e6xxx_chip *chip, int port, int reg,
 	int addr = chip->info->port_base_addr + port;
 
 	return mv88e6xxx_write(chip, addr, reg, val);
+}
+
+/* Offset 0x00: MAC (or PCS or Physical) Status Register
+ *
+ * For most devices, this is read only. However the 6185 has the MyPause
+ * bit read/write.
+ */
+int mv88e6185_port_set_pause(struct mv88e6xxx_chip *chip, int port,
+			     int pause)
+{
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
+	if (err)
+		return err;
+
+	if (pause)
+		reg |= MV88E6XXX_PORT_STS_MY_PAUSE;
+	else
+		reg &= ~MV88E6XXX_PORT_STS_MY_PAUSE;
+
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_STS, reg);
 }
 
 /* Offset 0x01: MAC (or PCS or Physical) Control Register
@@ -318,8 +342,9 @@ int mv88e6390x_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
 int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			      phy_interface_t mode)
 {
-	u16 reg;
+	int lane;
 	u16 cmode;
+	u16 reg;
 	int err;
 
 	if (mode == PHY_INTERFACE_MODE_NA)
@@ -349,6 +374,20 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		cmode = 0;
 	}
 
+	lane = mv88e6390x_serdes_get_lane(chip, port);
+	if (lane < 0)
+		return lane;
+
+	if (chip->ports[port].serdes_irq) {
+		err = mv88e6390_serdes_irq_disable(chip, port, lane);
+		if (err)
+			return err;
+	}
+
+	err = mv88e6390_serdes_power(chip, port, false);
+	if (err)
+		return err;
+
 	if (cmode) {
 		err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
 		if (err)
@@ -360,12 +399,38 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_STS, reg);
 		if (err)
 			return err;
+
+		err = mv88e6390_serdes_power(chip, port, true);
+		if (err)
+			return err;
+
+		if (chip->ports[port].serdes_irq) {
+			err = mv88e6390_serdes_irq_enable(chip, port, lane);
+			if (err)
+				return err;
+		}
 	}
+
+	chip->ports[port].cmode = cmode;
 
 	return 0;
 }
 
-int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
+int mv88e6185_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
+	if (err)
+		return err;
+
+	*cmode = reg & MV88E6185_PORT_STS_CMODE_MASK;
+
+	return 0;
+}
+
+int mv88e6352_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
 {
 	int err;
 	u16 reg;
@@ -379,7 +444,7 @@ int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
 	return 0;
 }
 
-int mv88e6xxx_port_link_state(struct mv88e6xxx_chip *chip, int port,
+int mv88e6352_port_link_state(struct mv88e6xxx_chip *chip, int port,
 			      struct phylink_link_state *state)
 {
 	int err;
@@ -400,7 +465,7 @@ int mv88e6xxx_port_link_state(struct mv88e6xxx_chip *chip, int port,
 		state->speed = SPEED_1000;
 		break;
 	case MV88E6XXX_PORT_STS_SPEED_10000:
-		if ((reg &MV88E6XXX_PORT_STS_CMODE_MASK) ==
+		if ((reg & MV88E6XXX_PORT_STS_CMODE_MASK) ==
 		    MV88E6XXX_PORT_STS_CMODE_2500BASEX)
 			state->speed = SPEED_2500;
 		else
@@ -415,6 +480,42 @@ int mv88e6xxx_port_link_state(struct mv88e6xxx_chip *chip, int port,
 	state->an_complete = state->link;
 
 	return 0;
+}
+
+int mv88e6185_port_link_state(struct mv88e6xxx_chip *chip, int port,
+			      struct phylink_link_state *state)
+{
+	if (state->interface == PHY_INTERFACE_MODE_1000BASEX) {
+		u8 cmode = chip->ports[port].cmode;
+
+		/* When a port is in "Cross-chip serdes" mode, it uses
+		 * 1000Base-X full duplex mode, but there is no automatic
+		 * link detection. Use the sync OK status for link (as it
+		 * would do for 1000Base-X mode.)
+		 */
+		if (cmode == MV88E6185_PORT_STS_CMODE_SERDES) {
+			u16 mac;
+			int err;
+
+			err = mv88e6xxx_port_read(chip, port,
+						  MV88E6XXX_PORT_MAC_CTL, &mac);
+			if (err)
+				return err;
+
+			state->link = !!(mac & MV88E6185_PORT_MAC_CTL_SYNC_OK);
+			state->an_enabled = 1;
+			state->an_complete =
+				!!(mac & MV88E6185_PORT_MAC_CTL_AN_DONE);
+			state->duplex =
+				state->link ? DUPLEX_FULL : DUPLEX_UNKNOWN;
+			state->speed =
+				state->link ? SPEED_1000 : SPEED_UNKNOWN;
+
+			return 0;
+		}
+	}
+
+	return mv88e6352_port_link_state(chip, port, state);
 }
 
 /* Offset 0x02: Jamming Control

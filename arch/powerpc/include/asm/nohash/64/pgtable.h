@@ -3,11 +3,12 @@
 #define _ASM_POWERPC_NOHASH_64_PGTABLE_H
 /*
  * This file contains the functions and defines necessary to modify and use
- * the ppc64 hashed page table.
+ * the ppc64 non-hashed page table.
  */
 
 #include <asm/nohash/64/pgtable-4k.h>
 #include <asm/barrier.h>
+#include <asm/asm-const.h>
 
 #ifdef CONFIG_PPC_64K_PAGES
 #error "Page size not supported"
@@ -37,7 +38,7 @@
 
 /*
  * The vmalloc space starts at the beginning of that region, and
- * occupies half of it on hash CPUs and a quarter of it on Book3E
+ * occupies a quarter of it on Book3E
  * (we keep a quarter for the virtual memmap)
  */
 #define VMALLOC_START	KERN_VIRT_START
@@ -77,7 +78,7 @@
 
 /*
  * Defines the address of the vmemap area, in its own region on
- * hash table CPUs and after the vmalloc space on Book3E
+ * after the vmalloc space on Book3E
  */
 #define VMEMMAP_BASE		VMALLOC_END
 #define VMEMMAP_END		KERN_IO_START
@@ -247,14 +248,6 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 	pte_update(mm, addr, ptep, _PAGE_RW, 0, 1);
 }
 
-/*
- * We currently remove entries from the hashtable regardless of whether
- * the entry was young or dirty. The generic routines only flush if the
- * entry was young or dirty which is not good enough.
- *
- * We should be more intelligent about this but for the moment we override
- * these functions and force a tlb flush unconditionally
- */
 #define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
 #define ptep_clear_flush_young(__vma, __address, __ptep)		\
 ({									\
@@ -278,9 +271,7 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 }
 
 
-/* Set the dirty and/or accessed bits atomically in a linux PTE, this
- * function doesn't need to flush the hash entry
- */
+/* Set the dirty and/or accessed bits atomically in a linux PTE */
 static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 					   pte_t *ptep, pte_t entry,
 					   unsigned long address,

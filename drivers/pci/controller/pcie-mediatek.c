@@ -1109,7 +1109,7 @@ static int mtk_pcie_request_resources(struct mtk_pcie *pcie)
 	if (err < 0)
 		return err;
 
-	pci_remap_iospace(&pcie->pio, pcie->io.start);
+	devm_pci_remap_iospace(dev, &pcie->pio, pcie->io.start);
 
 	return 0;
 }

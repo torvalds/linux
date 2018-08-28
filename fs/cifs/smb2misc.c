@@ -93,7 +93,6 @@ static const __le16 smb2_rsp_struct_sizes[NUMBER_OF_SMB2_COMMANDS] = {
 	/* SMB2_OPLOCK_BREAK */ cpu_to_le16(24)
 };
 
-#ifdef CONFIG_CIFS_SMB311
 static __u32 get_neg_ctxt_len(struct smb2_sync_hdr *hdr, __u32 len,
 			      __u32 non_ctxlen)
 {
@@ -127,7 +126,6 @@ static __u32 get_neg_ctxt_len(struct smb2_sync_hdr *hdr, __u32 len,
 	/* length of negcontexts including pad from end of sec blob to them */
 	return (len - nc_offset) + size_of_pad_before_neg_ctxts;
 }
-#endif /* CIFS_SMB311 */
 
 int
 smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
@@ -222,10 +220,9 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 
 	clc_len = smb2_calc_size(buf, srvr);
 
-#ifdef CONFIG_CIFS_SMB311
 	if (shdr->Command == SMB2_NEGOTIATE)
 		clc_len += get_neg_ctxt_len(shdr, len, clc_len);
-#endif /* SMB311 */
+
 	if (len != clc_len) {
 		cifs_dbg(FYI, "Calculated size %u length %u mismatch mid %llu\n",
 			 clc_len, len, mid);
@@ -238,6 +235,13 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 			return 0;
 		/* server can return one byte more due to implied bcc[0] */
 		if (clc_len == len + 1)
+			return 0;
+
+		/*
+		 * Some windows servers (win2016) will pad also the final
+		 * PDU in a compound to 8 bytes.
+		 */
+		if (((clc_len + 7) & ~7) == len)
 			return 0;
 
 		/*
@@ -451,14 +455,13 @@ cifs_convert_path_to_utf16(const char *from, struct cifs_sb_info *cifs_sb)
 	/* Windows doesn't allow paths beginning with \ */
 	if (from[0] == '\\')
 		start_of_path = from + 1;
-#ifdef CONFIG_CIFS_SMB311
+
 	/* SMB311 POSIX extensions paths do not include leading slash */
 	else if (cifs_sb_master_tlink(cifs_sb) &&
-		 cifs_sb_master_tcon(cifs_sb)->posix_extensions) {
+		 cifs_sb_master_tcon(cifs_sb)->posix_extensions &&
+		 (from[0] == '/')) {
 		start_of_path = from + 1;
-	}
-#endif /* 311 */
-	else
+	} else
 		start_of_path = from;
 
 	to = cifs_strndup_to_utf16(start_of_path, PATH_MAX, &len,
@@ -492,10 +495,11 @@ cifs_ses_oplock_break(struct work_struct *work)
 {
 	struct smb2_lease_break_work *lw = container_of(work,
 				struct smb2_lease_break_work, lease_break);
-	int rc;
+	int rc = 0;
 
 	rc = SMB2_lease_break(0, tlink_tcon(lw->tlink), lw->lease_key,
 			      lw->lease_state);
+
 	cifs_dbg(FYI, "Lease release rc %d\n", rc);
 	cifs_put_tlink(lw->tlink);
 	kfree(lw);
@@ -561,6 +565,7 @@ smb2_tcon_has_lease(struct cifs_tcon *tcon, struct smb2_lease_break *rsp,
 
 		open->oplock = lease_state;
 	}
+
 	return found;
 }
 
@@ -603,6 +608,18 @@ smb2_is_valid_lease_break(char *buffer)
 					return true;
 				}
 				spin_unlock(&tcon->open_file_lock);
+
+				if (tcon->crfid.is_valid &&
+				    !memcmp(rsp->LeaseKey,
+					    tcon->crfid.fid->lease_key,
+					    SMB2_LEASE_KEY_SIZE)) {
+					INIT_WORK(&tcon->crfid.lease_break,
+						  smb2_cached_lease_break);
+					queue_work(cifsiod_wq,
+						   &tcon->crfid.lease_break);
+					spin_unlock(&cifs_tcp_ses_lock);
+					return true;
+				}
 			}
 		}
 	}
@@ -744,7 +761,6 @@ smb2_handle_cancelled_mid(char *buffer, struct TCP_Server_Info *server)
 	return 0;
 }
 
-#ifdef CONFIG_CIFS_SMB311
 /**
  * smb311_update_preauth_hash - update @ses hash with the packet data in @iov
  *
@@ -806,4 +822,3 @@ smb311_update_preauth_hash(struct cifs_ses *ses, struct kvec *iov, int nvec)
 
 	return 0;
 }
-#endif

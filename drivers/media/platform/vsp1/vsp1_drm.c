@@ -670,9 +670,11 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 
 	drm_pipe->width = cfg->width;
 	drm_pipe->height = cfg->height;
+	pipe->interlaced = cfg->interlaced;
 
-	dev_dbg(vsp1->dev, "%s: configuring LIF%u with format %ux%u\n",
-		__func__, pipe_index, cfg->width, cfg->height);
+	dev_dbg(vsp1->dev, "%s: configuring LIF%u with format %ux%u%s\n",
+		__func__, pipe_index, cfg->width, cfg->height,
+		pipe->interlaced ? "i" : "");
 
 	mutex_lock(&vsp1->drm->lock);
 
@@ -728,9 +730,6 @@ EXPORT_SYMBOL_GPL(vsp1_du_setup_lif);
  */
 void vsp1_du_atomic_begin(struct device *dev, unsigned int pipe_index)
 {
-	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
-
-	mutex_lock(&vsp1->drm->lock);
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
 
@@ -806,7 +805,7 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
 	 */
 	fmtinfo = vsp1_get_format_info(vsp1, cfg->pixelformat);
 	if (!fmtinfo) {
-		dev_dbg(vsp1->dev, "Unsupport pixel format %08x for RPF\n",
+		dev_dbg(vsp1->dev, "Unsupported pixel format %08x for RPF\n",
 			cfg->pixelformat);
 		return -EINVAL;
 	}
@@ -846,6 +845,7 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index,
 
 	drm_pipe->crc = cfg->crc;
 
+	mutex_lock(&vsp1->drm->lock);
 	vsp1_du_pipeline_setup_inputs(vsp1, pipe);
 	vsp1_du_pipeline_configure(pipe);
 	mutex_unlock(&vsp1->drm->lock);

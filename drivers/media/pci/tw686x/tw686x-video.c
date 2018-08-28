@@ -1190,6 +1190,14 @@ int tw686x_video_init(struct tw686x_dev *dev)
 			return err;
 	}
 
+	/* Initialize vc->dev and vc->ch for the error path */
+	for (ch = 0; ch < max_channels(dev); ch++) {
+		struct tw686x_video_channel *vc = &dev->video_channels[ch];
+
+		vc->dev = dev;
+		vc->ch = ch;
+	}
+
 	for (ch = 0; ch < max_channels(dev); ch++) {
 		struct tw686x_video_channel *vc = &dev->video_channels[ch];
 		struct video_device *vdev;
@@ -1197,9 +1205,6 @@ int tw686x_video_init(struct tw686x_dev *dev)
 		mutex_init(&vc->vb_mutex);
 		spin_lock_init(&vc->qlock);
 		INIT_LIST_HEAD(&vc->vidq_queued);
-
-		vc->dev = dev;
-		vc->ch = ch;
 
 		/* default settings */
 		err = tw686x_set_standard(vc, V4L2_STD_NTSC);

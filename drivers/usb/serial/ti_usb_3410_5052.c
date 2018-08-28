@@ -1215,6 +1215,7 @@ static void ti_bulk_in_callback(struct urb *urb)
 	struct usb_serial_port *port = tport->tp_port;
 	struct device *dev = &urb->dev->dev;
 	int status = urb->status;
+	unsigned long flags;
 	int retval = 0;
 
 	switch (status) {
@@ -1247,20 +1248,20 @@ static void ti_bulk_in_callback(struct urb *urb)
 				__func__);
 		else
 			ti_recv(port, urb->transfer_buffer, urb->actual_length);
-		spin_lock(&tport->tp_lock);
+		spin_lock_irqsave(&tport->tp_lock, flags);
 		port->icount.rx += urb->actual_length;
-		spin_unlock(&tport->tp_lock);
+		spin_unlock_irqrestore(&tport->tp_lock, flags);
 	}
 
 exit:
 	/* continue to read unless stopping */
-	spin_lock(&tport->tp_lock);
+	spin_lock_irqsave(&tport->tp_lock, flags);
 	if (tport->tp_read_urb_state == TI_READ_URB_RUNNING)
 		retval = usb_submit_urb(urb, GFP_ATOMIC);
 	else if (tport->tp_read_urb_state == TI_READ_URB_STOPPING)
 		tport->tp_read_urb_state = TI_READ_URB_STOPPED;
 
-	spin_unlock(&tport->tp_lock);
+	spin_unlock_irqrestore(&tport->tp_lock, flags);
 	if (retval)
 		dev_err(dev, "%s - resubmit read urb failed, %d\n",
 			__func__, retval);

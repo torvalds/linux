@@ -20,6 +20,7 @@
 #include <linux/clk.h>
 #include <linux/bitrev.h>
 #include <linux/crc32.h>
+#include <linux/crc32poly.h>
 #include <linux/dcbnl.h>
 
 #include "dwc-xlgmac.h"
@@ -193,7 +194,6 @@ static u32 xlgmac_vid_crc32_le(__le16 vid_le)
 {
 	unsigned char *data = (unsigned char *)&vid_le;
 	unsigned char data_byte = 0;
-	u32 poly = 0xedb88320;
 	u32 crc = ~0;
 	u32 temp = 0;
 	int i, bits;
@@ -208,7 +208,7 @@ static u32 xlgmac_vid_crc32_le(__le16 vid_le)
 		data_byte >>= 1;
 
 		if (temp)
-			crc ^= poly;
+			crc ^= CRC32_POLY_LE;
 	}
 
 	return crc;

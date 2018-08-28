@@ -623,7 +623,7 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 	struct qxl_cursor_cmd *cmd;
 	struct qxl_cursor *cursor;
 	struct drm_gem_object *obj;
-	struct qxl_bo *cursor_bo = NULL, *user_bo = NULL;
+	struct qxl_bo *cursor_bo = NULL, *user_bo = NULL, *old_cursor_bo = NULL;
 	int ret;
 	void *user_ptr;
 	int size = 64*64*4;
@@ -677,7 +677,7 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 							   cursor_bo, 0);
 		cmd->type = QXL_CURSOR_SET;
 
-		qxl_bo_unref(&qcrtc->cursor_bo);
+		old_cursor_bo = qcrtc->cursor_bo;
 		qcrtc->cursor_bo = cursor_bo;
 		cursor_bo = NULL;
 	} else {
@@ -696,6 +696,9 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 	qxl_release_unmap(qdev, release, &cmd->release_info);
 	qxl_push_cursor_ring_release(qdev, release, QXL_CMD_CURSOR, false);
 	qxl_release_fence_buffer_objects(release);
+
+	if (old_cursor_bo)
+		qxl_bo_unref(&old_cursor_bo);
 
 	qxl_bo_unref(&cursor_bo);
 
@@ -1083,7 +1086,7 @@ static int qdev_output_init(struct drm_device *dev, int num_output)
 	/* we get HPD via client monitors config */
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	encoder->possible_crtcs = 1 << num_output;
-	drm_mode_connector_attach_encoder(&qxl_output->base,
+	drm_connector_attach_encoder(&qxl_output->base,
 					  &qxl_output->enc);
 	drm_encoder_helper_add(encoder, &qxl_enc_helper_funcs);
 	drm_connector_helper_add(connector, &qxl_connector_helper_funcs);

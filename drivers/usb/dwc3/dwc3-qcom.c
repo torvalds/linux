@@ -490,6 +490,7 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	qcom->dwc3 = of_find_device_by_node(dwc3_np);
 	if (!qcom->dwc3) {
 		dev_err(&pdev->dev, "failed to get dwc3 platform device\n");
+		ret = -ENODEV;
 		goto depopulate;
 	}
 
@@ -547,8 +548,7 @@ static int dwc3_qcom_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int dwc3_qcom_pm_suspend(struct device *dev)
+static int __maybe_unused dwc3_qcom_pm_suspend(struct device *dev)
 {
 	struct dwc3_qcom *qcom = dev_get_drvdata(dev);
 	int ret = 0;
@@ -560,7 +560,7 @@ static int dwc3_qcom_pm_suspend(struct device *dev)
 	return ret;
 }
 
-static int dwc3_qcom_pm_resume(struct device *dev)
+static int __maybe_unused dwc3_qcom_pm_resume(struct device *dev)
 {
 	struct dwc3_qcom *qcom = dev_get_drvdata(dev);
 	int ret;
@@ -571,23 +571,20 @@ static int dwc3_qcom_pm_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
-#ifdef CONFIG_PM
-static int dwc3_qcom_runtime_suspend(struct device *dev)
+static int __maybe_unused dwc3_qcom_runtime_suspend(struct device *dev)
 {
 	struct dwc3_qcom *qcom = dev_get_drvdata(dev);
 
 	return dwc3_qcom_suspend(qcom);
 }
 
-static int dwc3_qcom_runtime_resume(struct device *dev)
+static int __maybe_unused dwc3_qcom_runtime_resume(struct device *dev)
 {
 	struct dwc3_qcom *qcom = dev_get_drvdata(dev);
 
 	return dwc3_qcom_resume(qcom);
 }
-#endif
 
 static const struct dev_pm_ops dwc3_qcom_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(dwc3_qcom_pm_suspend, dwc3_qcom_pm_resume)

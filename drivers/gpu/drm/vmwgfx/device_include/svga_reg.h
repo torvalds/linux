@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**********************************************************
- * Copyright 1998-2015 VMware, Inc.  All rights reserved.
+ * Copyright 1998-2015 VMware, Inc.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -63,16 +64,26 @@ typedef uint32 SVGAMobId;
 #define SVGA_MAX_BITS_PER_PIXEL         32
 #define SVGA_MAX_DEPTH                  24
 #define SVGA_MAX_DISPLAYS               10
+#define SVGA_MAX_SCREEN_SIZE            8192
+#define SVGA_SCREEN_ROOT_LIMIT (SVGA_MAX_SCREEN_SIZE * SVGA_MAX_DISPLAYS)
+
 
 /*
  * Legal values for the SVGA_REG_CURSOR_ON register in old-fashioned
  * cursor bypass mode. This is still supported, but no new guest
  * drivers should use it.
  */
-#define SVGA_CURSOR_ON_HIDE            0x0   /* Must be 0 to maintain backward compatibility */
-#define SVGA_CURSOR_ON_SHOW            0x1   /* Must be 1 to maintain backward compatibility */
-#define SVGA_CURSOR_ON_REMOVE_FROM_FB  0x2   /* Remove the cursor from the framebuffer because we need to see what's under it */
-#define SVGA_CURSOR_ON_RESTORE_TO_FB   0x3   /* Put the cursor back in the framebuffer so the user can see it */
+#define SVGA_CURSOR_ON_HIDE            0x0
+#define SVGA_CURSOR_ON_SHOW            0x1
+
+/*
+ * Remove the cursor from the framebuffer
+ * because we need to see what's under it
+ */
+#define SVGA_CURSOR_ON_REMOVE_FROM_FB  0x2
+
+/* Put the cursor back in the framebuffer so the user can see it */
+#define SVGA_CURSOR_ON_RESTORE_TO_FB   0x3
 
 /*
  * The maximum framebuffer size that can traced for guests unless the
@@ -101,7 +112,10 @@ typedef uint32 SVGAMobId;
 #define SVGA_VERSION_0     0
 #define SVGA_ID_0          SVGA_MAKE_ID(SVGA_VERSION_0)
 
-/* "Invalid" value for all SVGA IDs. (Version ID, screen object ID, surface ID...) */
+/*
+ * "Invalid" value for all SVGA IDs.
+ * (Version ID, screen object ID, surface ID...)
+ */
 #define SVGA_ID_INVALID    0xFFFFFFFF
 
 /* Port offsets, relative to BAR0 */
@@ -154,7 +168,7 @@ enum {
    SVGA_REG_CONFIG_DONE = 20,         /* Set when memory area configured */
    SVGA_REG_SYNC = 21,                /* See "FIFO Synchronization Registers" */
    SVGA_REG_BUSY = 22,                /* See "FIFO Synchronization Registers" */
-   SVGA_REG_GUEST_ID = 23,            /* Set guest OS identifier */
+   SVGA_REG_GUEST_ID = 23,            /* (Deprecated) */
    SVGA_REG_CURSOR_ID = 24,           /* (Deprecated) */
    SVGA_REG_CURSOR_X = 25,            /* (Deprecated) */
    SVGA_REG_CURSOR_Y = 26,            /* (Deprecated) */
@@ -186,7 +200,14 @@ enum {
    SVGA_REG_MEMORY_SIZE = 47,       /* Total dedicated device memory excluding FIFO */
    SVGA_REG_COMMAND_LOW = 48,       /* Lower 32 bits and submits commands */
    SVGA_REG_COMMAND_HIGH = 49,      /* Upper 32 bits of command buffer PA */
-   SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM = 50,   /* Max primary memory */
+
+   /*
+    * Max primary memory.
+    * See SVGA_CAP_NO_BB_RESTRICTION.
+    */
+   SVGA_REG_MAX_PRIMARY_MEM = 50,
+   SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM = 50,
+
    SVGA_REG_SUGGESTED_GBOBJECT_MEM_SIZE_KB = 51, /* Sugested limit on mob mem */
    SVGA_REG_DEV_CAP = 52,           /* Write dev cap index, read value */
    SVGA_REG_CMD_PREPEND_LOW = 53,
@@ -194,7 +215,10 @@ enum {
    SVGA_REG_SCREENTARGET_MAX_WIDTH = 55,
    SVGA_REG_SCREENTARGET_MAX_HEIGHT = 56,
    SVGA_REG_MOB_MAX_SIZE = 57,
-   SVGA_REG_TOP = 58,               /* Must be 1 more than the last register */
+   SVGA_REG_BLANK_SCREEN_TARGETS = 58,
+   SVGA_REG_CAP2 = 59,
+   SVGA_REG_DEVEL_CAP = 60,
+   SVGA_REG_TOP = 61,               /* Must be 1 more than the last register */
 
    SVGA_PALETTE_BASE = 1024,        /* Base of SVGA color map */
    /* Next 768 (== 256*3) registers exist for colormap */
@@ -392,6 +416,7 @@ typedef enum {
    SVGA_CB_CONTEXT_0      = 0x0,
    SVGA_CB_CONTEXT_1      = 0x1, /* Supported with SVGA_CAP_HP_CMD_QUEUE */
    SVGA_CB_CONTEXT_MAX    = 0x2,
+   SVGA_CB_CONTEXT_HP_MAX = 0x2,
 } SVGACBContext;
 
 
@@ -448,6 +473,18 @@ typedef enum {
     * due to an error.  No IRQ is raised.
     */
    SVGA_CB_STATUS_SUBMISSION_ERROR = 6,
+
+   /*
+    * Written by the host when the host finished a
+    * SVGA_DC_CMD_ASYNC_STOP_QUEUE request for this command buffer
+    * queue.  The offset of the first byte not processed is stored in
+    * the errorOffset field of the command buffer header.  All guest
+    * visible side effects of commands till that point are guaranteed
+    * to be finished before this is written.  The
+    * SVGA_IRQFLAG_COMMAND_BUFFER IRQ is raised as long as the
+    * SVGA_CB_FLAG_NO_IRQ is not set.
+    */
+   SVGA_CB_STATUS_PARTIAL_COMPLETE = 7,
 } SVGACBStatus;
 
 typedef enum {
@@ -460,8 +497,8 @@ typedef enum {
 typedef
 #include "vmware_pack_begin.h"
 struct {
-   volatile SVGACBStatus status;
-   volatile uint32 errorOffset;
+   volatile SVGACBStatus status; /* Modified by device. */
+   volatile uint32 errorOffset;  /* Modified by device. */
    uint64 id;
    SVGACBFlags flags;
    uint32 length;
@@ -472,7 +509,9 @@ struct {
          uint32 mobOffset;
       } mob;
    } ptr;
-   uint32 offset; /* Valid if CMD_BUFFERS_2 cap set, must be zero otherwise */
+   uint32 offset; /* Valid if CMD_BUFFERS_2 cap set, must be zero otherwise,
+                   * modified by device.
+                   */
    uint32 dxContext; /* Valid if DX_CONTEXT flag set, must be zero otherwise */
    uint32 mustBeZero[6];
 }
@@ -483,20 +522,26 @@ typedef enum {
    SVGA_DC_CMD_NOP                   = 0,
    SVGA_DC_CMD_START_STOP_CONTEXT    = 1,
    SVGA_DC_CMD_PREEMPT               = 2,
-   SVGA_DC_CMD_MAX                   = 3,
-   SVGA_DC_CMD_FORCE_UINT            = MAX_UINT32,
+   SVGA_DC_CMD_START_QUEUE           = 3, /* Requires SVGA_CAP_HP_CMD_QUEUE */
+   SVGA_DC_CMD_ASYNC_STOP_QUEUE      = 4, /* Requires SVGA_CAP_HP_CMD_QUEUE */
+   SVGA_DC_CMD_EMPTY_CONTEXT_QUEUE   = 5, /* Requires SVGA_CAP_HP_CMD_QUEUE */
+   SVGA_DC_CMD_MAX                   = 6,
 } SVGADeviceContextCmdId;
 
-typedef struct {
+/*
+ * Starts or stops both SVGA_CB_CONTEXT_0 and SVGA_CB_CONTEXT_1.
+ */
+
+typedef struct SVGADCCmdStartStop {
    uint32 enable;
-   SVGACBContext context;
+   SVGACBContext context; /* Must be zero */
 } SVGADCCmdStartStop;
 
 /*
  * SVGADCCmdPreempt --
  *
  * This command allows the guest to request that all command buffers
- * on the specified context be preempted that can be.  After execution
+ * on SVGA_CB_CONTEXT_0 be preempted that can be.  After execution
  * of this command all command buffers that were preempted will
  * already have SVGA_CB_STATUS_PREEMPTED written into the status
  * field.  The device might still be processing a command buffer,
@@ -506,10 +551,67 @@ typedef struct {
  * command buffer header set to zero.
  */
 
-typedef struct {
-   SVGACBContext context;
+typedef struct SVGADCCmdPreempt {
+   SVGACBContext context; /* Must be zero */
    uint32 ignoreIDZero;
 } SVGADCCmdPreempt;
+
+/*
+ * Starts the requested command buffer processing queue.  Valid only
+ * if the SVGA_CAP_HP_CMD_QUEUE cap is set.
+ *
+ * For a command queue to be considered runnable it must be enabled
+ * and any corresponding higher priority queues must also be enabled.
+ * For example in order for command buffers to be processed on
+ * SVGA_CB_CONTEXT_0 both SVGA_CB_CONTEXT_0 and SVGA_CB_CONTEXT_1 must
+ * be enabled.  But for commands to be runnable on SVGA_CB_CONTEXT_1
+ * only that queue must be enabled.
+ */
+
+typedef struct SVGADCCmdStartQueue {
+   SVGACBContext context;
+} SVGADCCmdStartQueue;
+
+/*
+ * Requests the SVGA device to stop processing the requested command
+ * buffer queue as soon as possible.  The guest knows the stop has
+ * completed when one of the following happens.
+ *
+ * 1) A command buffer status of SVGA_CB_STATUS_PARTIAL_COMPLETE is returned
+ * 2) A command buffer error is encountered with would stop the queue
+ *    regardless of the async stop request.
+ * 3) All command buffers that have been submitted complete successfully.
+ * 4) The stop completes synchronously if no command buffers are
+ *    active on the queue when it is issued.
+ *
+ * If the command queue is not in a runnable state there is no
+ * guarentee this async stop will finish.  For instance if the high
+ * priority queue is not enabled and a stop is requested on the low
+ * priority queue, the high priority queue must be reenabled to
+ * guarantee that the async stop will finish.
+ *
+ * This command along with SVGA_DC_CMD_EMPTY_CONTEXT_QUEUE can be used
+ * to implement mid command buffer preemption.
+ *
+ * Valid only if the SVGA_CAP_HP_CMD_QUEUE cap is set.
+ */
+
+typedef struct SVGADCCmdAsyncStopQueue {
+   SVGACBContext context;
+} SVGADCCmdAsyncStopQueue;
+
+/*
+ * Requests the SVGA device to throw away any full command buffers on
+ * the requested command queue that have not been started.  For a
+ * driver to know which command buffers were thrown away a driver
+ * should only issue this command when the queue is stopped, for
+ * whatever reason.
+ */
+
+typedef struct SVGADCCmdEmptyQueue {
+   SVGACBContext context;
+} SVGADCCmdEmptyQueue;
+
 
 /*
  * SVGAGMRImageFormat --
@@ -536,7 +638,7 @@ typedef struct SVGAGMRImageFormat {
       struct {
          uint32 bitsPerPixel : 8;
          uint32 colorDepth   : 8;
-	 uint32 reserved     : 16;  /* Must be zero */
+         uint32 reserved     : 16;  /* Must be zero */
       };
 
       uint32 value;
@@ -672,8 +774,36 @@ SVGASignedPoint;
  * SVGA_CAP_GBOBJECTS --
  *    Enable guest-backed objects and surfaces.
  *
- * SVGA_CAP_CMD_BUFFERS_3 --
- *    Enable support for command buffers in a mob.
+ * SVGA_CAP_DX --
+ *    Enable support for DX commands, and command buffers in a mob.
+ *
+ * SVGA_CAP_HP_CMD_QUEUE --
+ *    Enable support for the high priority command queue, and the
+ *    ScreenCopy command.
+ *
+ * SVGA_CAP_NO_BB_RESTRICTION --
+ *    Allow ScreenTargets to be defined without regard to the 32-bpp
+ *    bounding-box memory restrictions. ie:
+ *
+ *    The summed memory usage of all screens (assuming they were defined as
+ *    32-bpp) must always be less than the value of the
+ *    SVGA_REG_MAX_PRIMARY_MEM register.
+ *
+ *    If this cap is not present, the 32-bpp bounding box around all screens
+ *    must additionally be under the value of the SVGA_REG_MAX_PRIMARY_MEM
+ *    register.
+ *
+ *    If the cap is present, the bounding box restriction is lifted (and only
+ *    the screen-sum limit applies).
+ *
+ *    (Note that this is a slight lie... there is still a sanity limit on any
+ *     dimension of the topology to be less than SVGA_SCREEN_ROOT_LIMIT, even
+ *     when SVGA_CAP_NO_BB_RESTRICTION is present, but that should be
+ *     large enough to express any possible topology without holes between
+ *     monitors.)
+ *
+ * SVGA_CAP_CAP2_REGISTER --
+ *    If this cap is present, the SVGA_REG_CAP2 register is supported.
  */
 
 #define SVGA_CAP_NONE               0x00000000
@@ -699,8 +829,30 @@ SVGASignedPoint;
 #define SVGA_CAP_GBOBJECTS          0x08000000
 #define SVGA_CAP_DX                 0x10000000
 #define SVGA_CAP_HP_CMD_QUEUE       0x20000000
+#define SVGA_CAP_NO_BB_RESTRICTION  0x40000000
+#define SVGA_CAP_CAP2_REGISTER      0x80000000
 
-#define SVGA_CAP_CMD_RESERVED       0x80000000
+/*
+ * The SVGA_REG_CAP2 register is an additional set of SVGA capability bits.
+ *
+ * SVGA_CAP2_GROW_OTABLE --
+ *      Allow the GrowOTable/DXGrowCOTable commands.
+ *
+ * SVGA_CAP2_INTRA_SURFACE_COPY --
+ *      Allow the IntraSurfaceCopy command.
+ *
+ * SVGA_CAP2_DX2 --
+ *      Allow the DefineGBSurface_v3, WholeSurfaceCopy.
+ *
+ * SVGA_CAP2_RESERVED --
+ *      Reserve the last bit for extending the SVGA capabilities to some
+ *      future mechanisms.
+ */
+#define SVGA_CAP2_NONE               0x00000000
+#define SVGA_CAP2_GROW_OTABLE        0x00000001
+#define SVGA_CAP2_INTRA_SURFACE_COPY 0x00000002
+#define SVGA_CAP2_DX2                0x00000004
+#define SVGA_CAP2_RESERVED           0x80000000
 
 
 /*
@@ -722,7 +874,8 @@ typedef enum {
    SVGABackdoorCapDeviceCaps = 0,
    SVGABackdoorCapFifoCaps = 1,
    SVGABackdoorCap3dHWVersion = 2,
-   SVGABackdoorCapMax = 3,
+   SVGABackdoorCapDeviceCaps2 = 3,
+   SVGABackdoorCapMax = 4,
 } SVGABackdoorCapType;
 
 
@@ -1913,16 +2066,6 @@ SVGAFifoCmdRemapGMR2;
 #define SVGA_GRAPHICS_MEMORY_KB_DEFAULT   (256 * 1024)
 
 #define SVGA_VRAM_SIZE_W2K          (64 * 1024 * 1024) /* 64 MB */
-
-/*
- * To simplify autoDetect display configuration, support a minimum of
- * two 1920x1200 monitors, 32bpp, side-by-side, optionally rotated:
- *   numDisplays = 2
- *   maxWidth = numDisplay * 1920 = 3840
- *   maxHeight = rotated width of single monitor = 1920
- *   vramSize = maxWidth * maxHeight * 4 = 29491200
- */
-#define SVGA_VRAM_SIZE_AUTODETECT   (32 * 1024 * 1024)
 
 #if defined(VMX86_SERVER)
 #define SVGA_VRAM_SIZE               (4 * 1024 * 1024)

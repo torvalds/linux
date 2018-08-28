@@ -89,27 +89,6 @@ config SSB_HOST_SOC
 
 	  If unsure, say N
 
-config SSB_SILENT
-	bool "No SSB kernel messages"
-	depends on SSB && EXPERT
-	help
-	  This option turns off all Sonics Silicon Backplane printks.
-	  Note that you won't be able to identify problems, once
-	  messages are turned off.
-	  This might only be desired for production kernels on
-	  embedded devices to reduce the kernel size.
-
-	  Say N
-
-config SSB_DEBUG
-	bool "SSB debugging"
-	depends on SSB && !SSB_SILENT
-	help
-	  This turns on additional runtime checks and debugging
-	  messages. Turn this on for SSB troubleshooting.
-
-	  If unsure, say N
-
 config SSB_SERIAL
 	bool
 	depends on SSB

@@ -41,6 +41,11 @@ union nf_conntrack_expect_proto {
 	/* insert expect proto private data here */
 };
 
+struct nf_conntrack_net {
+	unsigned int users4;
+	unsigned int users6;
+};
+
 #include <linux/types.h>
 #include <linux/skbuff.h>
 
@@ -170,8 +175,6 @@ void nf_ct_netns_put(struct net *net, u8 nfproto);
  * or hlist_nulls_head (if nulls == 1)
  */
 void *nf_ct_alloc_hashtable(unsigned int *sizep, int nulls);
-
-void nf_ct_free_hashtable(void *hash, unsigned int size);
 
 int nf_conntrack_hash_check_insert(struct nf_conn *ct);
 bool nf_ct_delete(struct nf_conn *ct, u32 pid, int report);

@@ -316,6 +316,7 @@ static void pnv_get_cdclk(struct drm_i915_private *dev_priv,
 		break;
 	default:
 		DRM_ERROR("Unknown pnv display core clock 0x%04x\n", gcfgc);
+		/* fall through */
 	case GC_DISPLAY_CLOCK_133_MHZ_PNV:
 		cdclk_state->cdclk = 133333;
 		break;
@@ -990,6 +991,16 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 	int vco = cdclk_state->vco;
 	u32 freq_select, cdclk_ctl;
 	int ret;
+
+	/*
+	 * Based on WA#1183 CDCLK rates 308 and 617MHz CDCLK rates are
+	 * unsupported on SKL. In theory this should never happen since only
+	 * the eDP1.4 2.16 and 4.32Gbps rates require it, but eDP1.4 is not
+	 * supported on SKL either, see the above WA. WARN whenever trying to
+	 * use the corresponding VCO freq as that always leads to using the
+	 * minimum 308MHz CDCLK.
+	 */
+	WARN_ON_ONCE(IS_SKYLAKE(dev_priv) && vco == 8640000);
 
 	mutex_lock(&dev_priv->pcu_lock);
 	ret = skl_pcode_request(dev_priv, SKL_PCODE_CDCLK_CONTROL,
@@ -1787,6 +1798,7 @@ static int icl_calc_cdclk(int min_cdclk, unsigned int ref)
 	switch (ref) {
 	default:
 		MISSING_CASE(ref);
+		/* fall through */
 	case 24000:
 		ranges = ranges_24;
 		break;
@@ -1814,6 +1826,7 @@ static int icl_calc_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 	switch (cdclk) {
 	default:
 		MISSING_CASE(cdclk);
+		/* fall through */
 	case 307200:
 	case 556800:
 	case 652800:
@@ -1861,11 +1874,36 @@ static void icl_set_cdclk(struct drm_i915_private *dev_priv,
 			      skl_cdclk_decimal(cdclk));
 
 	mutex_lock(&dev_priv->pcu_lock);
-	/* TODO: add proper DVFS support. */
-	sandybridge_pcode_write(dev_priv, SKL_PCODE_CDCLK_CONTROL, 2);
+	sandybridge_pcode_write(dev_priv, SKL_PCODE_CDCLK_CONTROL,
+				cdclk_state->voltage_level);
 	mutex_unlock(&dev_priv->pcu_lock);
 
 	intel_update_cdclk(dev_priv);
+
+	/*
+	 * Can't read out the voltage level :(
+	 * Let's just assume everything is as expected.
+	 */
+	dev_priv->cdclk.hw.voltage_level = cdclk_state->voltage_level;
+}
+
+static u8 icl_calc_voltage_level(int cdclk)
+{
+	switch (cdclk) {
+	case 50000:
+	case 307200:
+	case 312000:
+		return 0;
+	case 556800:
+	case 552000:
+		return 1;
+	default:
+		MISSING_CASE(cdclk);
+		/* fall through */
+	case 652800:
+	case 648000:
+		return 2;
+	}
 }
 
 static void icl_get_cdclk(struct drm_i915_private *dev_priv,
@@ -1879,6 +1917,7 @@ static void icl_get_cdclk(struct drm_i915_private *dev_priv,
 	switch (val & ICL_DSSM_CDCLK_PLL_REFCLK_MASK) {
 	default:
 		MISSING_CASE(val);
+		/* fall through */
 	case ICL_DSSM_CDCLK_PLL_REFCLK_24MHz:
 		cdclk_state->ref = 24000;
 		break;
@@ -1899,7 +1938,7 @@ static void icl_get_cdclk(struct drm_i915_private *dev_priv,
 		 */
 		cdclk_state->vco = 0;
 		cdclk_state->cdclk = cdclk_state->bypass;
-		return;
+		goto out;
 	}
 
 	cdclk_state->vco = (val & BXT_DE_PLL_RATIO_MASK) * cdclk_state->ref;
@@ -1908,6 +1947,14 @@ static void icl_get_cdclk(struct drm_i915_private *dev_priv,
 	WARN_ON((val & BXT_CDCLK_CD2X_DIV_SEL_MASK) != 0);
 
 	cdclk_state->cdclk = cdclk_state->vco / 2;
+
+out:
+	/*
+	 * Can't read this out :( Let's assume it's
+	 * at least what the CDCLK frequency requires.
+	 */
+	cdclk_state->voltage_level =
+		icl_calc_voltage_level(cdclk_state->cdclk);
 }
 
 /**
@@ -1950,6 +1997,8 @@ sanitize:
 	sanitized_state.cdclk = icl_calc_cdclk(0, sanitized_state.ref);
 	sanitized_state.vco = icl_calc_cdclk_pll_vco(dev_priv,
 						     sanitized_state.cdclk);
+	sanitized_state.voltage_level =
+				icl_calc_voltage_level(sanitized_state.cdclk);
 
 	icl_set_cdclk(dev_priv, &sanitized_state);
 }
@@ -1967,6 +2016,7 @@ void icl_uninit_cdclk(struct drm_i915_private *dev_priv)
 
 	cdclk_state.cdclk = cdclk_state.bypass;
 	cdclk_state.vco = 0;
+	cdclk_state.voltage_level = icl_calc_voltage_level(cdclk_state.cdclk);
 
 	icl_set_cdclk(dev_priv, &cdclk_state);
 }
@@ -2470,6 +2520,9 @@ static int icl_modeset_calc_cdclk(struct drm_atomic_state *state)
 
 	intel_state->cdclk.logical.vco = vco;
 	intel_state->cdclk.logical.cdclk = cdclk;
+	intel_state->cdclk.logical.voltage_level =
+		max(icl_calc_voltage_level(cdclk),
+		    cnl_compute_min_voltage_level(intel_state));
 
 	if (!intel_state->active_crtcs) {
 		cdclk = icl_calc_cdclk(0, ref);
@@ -2477,6 +2530,8 @@ static int icl_modeset_calc_cdclk(struct drm_atomic_state *state)
 
 		intel_state->cdclk.actual.vco = vco;
 		intel_state->cdclk.actual.cdclk = cdclk;
+		intel_state->cdclk.actual.voltage_level =
+			icl_calc_voltage_level(cdclk);
 	} else {
 		intel_state->cdclk.actual = intel_state->cdclk.logical;
 	}

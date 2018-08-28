@@ -164,6 +164,7 @@ static int __dead_end_function(struct objtool_file *file, struct symbol *func,
 		"lbug_with_loc",
 		"fortify_panic",
 		"usercopy_abort",
+		"machine_real_restart",
 	};
 
 	if (func->bind == STB_WEAK)
@@ -1156,6 +1157,7 @@ static int read_unwind_hints(struct objtool_file *file)
 
 		cfa->offset = hint->sp_offset;
 		insn->state.type = hint->type;
+		insn->state.end = hint->end;
 	}
 
 	return 0;

@@ -2,7 +2,7 @@
 # Atmel device configuration
 #
 
-config NET_CADENCE
+config NET_VENDOR_CADENCE
 	bool "Cadence devices"
 	depends on HAS_IOMEM
 	default y
@@ -16,7 +16,7 @@ config NET_CADENCE
 	  the remaining Atmel network card questions. If you say Y, you will be
 	  asked for your specific card in the following questions.
 
-if NET_CADENCE
+if NET_VENDOR_CADENCE
 
 config MACB
 	tristate "Cadence MACB/GEM support"
@@ -48,4 +48,4 @@ config MACB_PCI
 	  To compile this driver as a module, choose M here: the module
 	  will be called macb_pci.
 
-endif # NET_CADENCE
+endif # NET_VENDOR_CADENCE

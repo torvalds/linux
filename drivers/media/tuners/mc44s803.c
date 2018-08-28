@@ -300,10 +300,10 @@ static int mc44s803_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static const struct dvb_tuner_ops mc44s803_tuner_ops = {
 	.info = {
-		.name           = "Freescale MC44S803",
-		.frequency_min  =   48000000,
-		.frequency_max  = 1000000000,
-		.frequency_step =     100000,
+		.name              = "Freescale MC44S803",
+		.frequency_min_hz  =   48 * MHz,
+		.frequency_max_hz  = 1000 * MHz,
+		.frequency_step_hz =  100 * kHz,
 	},
 
 	.release       = mc44s803_release,

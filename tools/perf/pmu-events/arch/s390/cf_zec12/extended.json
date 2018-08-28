@@ -1,209 +1,244 @@
 [
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "128",
 		"EventName": "DTLB1_MISSES",
 		"BriefDescription": "DTLB1 Misses",
 		"PublicDescription": "Level-1 Data TLB miss in progress. Incremented by one for every cycle a DTLB1 miss is in progress."
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "129",
 		"EventName": "ITLB1_MISSES",
 		"BriefDescription": "ITLB1 Misses",
 		"PublicDescription": "Level-1 Instruction TLB miss in progress. Incremented by one for every cycle a ITLB1 miss is in progress."
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "130",
 		"EventName": "L1D_L2I_SOURCED_WRITES",
 		"BriefDescription": "L1D L2I Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from the Level-2 Instruction cache"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "131",
 		"EventName": "L1I_L2I_SOURCED_WRITES",
 		"BriefDescription": "L1I L2I Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from the Level-2 Instruction cache"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "132",
 		"EventName": "L1D_L2D_SOURCED_WRITES",
 		"BriefDescription": "L1D L2D Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from the Level-2 Data cache"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "133",
 		"EventName": "DTLB1_WRITES",
 		"BriefDescription": "DTLB1 Writes",
 		"PublicDescription": "A translation entry has been written to the Level-1 Data Translation Lookaside Buffer"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "135",
 		"EventName": "L1D_LMEM_SOURCED_WRITES",
 		"BriefDescription": "L1D Local Memory Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Data cache where the installed cache line was sourced from memory that is attached to the same book as the Data cache (Local Memory)"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "137",
 		"EventName": "L1I_LMEM_SOURCED_WRITES",
 		"BriefDescription": "L1I Local Memory Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache where the installed cache line was sourced from memory that is attached to the same book as the Instruction cache (Local Memory)"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "138",
 		"EventName": "L1D_RO_EXCL_WRITES",
 		"BriefDescription": "L1D Read-only Exclusive Writes",
 		"PublicDescription": "A directory write to the Level-1 D-Cache where the line was originally in a Read-Only state in the cache but has been updated to be in the Exclusive state that allows stores to the cache line"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "139",
 		"EventName": "DTLB1_HPAGE_WRITES",
 		"BriefDescription": "DTLB1 One-Megabyte Page Writes",
 		"PublicDescription": "A translation entry has been written to the Level-1 Data Translation Lookaside Buffer for a one-megabyte page"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "140",
 		"EventName": "ITLB1_WRITES",
 		"BriefDescription": "ITLB1 Writes",
 		"PublicDescription": "A translation entry has been written to the Level-1 Instruction Translation Lookaside Buffer"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "141",
 		"EventName": "TLB2_PTE_WRITES",
 		"BriefDescription": "TLB2 PTE Writes",
 		"PublicDescription": "A translation entry has been written to the Level-2 TLB Page Table Entry arrays"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "142",
 		"EventName": "TLB2_CRSTE_HPAGE_WRITES",
 		"BriefDescription": "TLB2 CRSTE One-Megabyte Page Writes",
 		"PublicDescription": "A translation entry has been written to the Level-2 TLB Common Region Segment Table Entry arrays for a one-megabyte large page translation"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "143",
 		"EventName": "TLB2_CRSTE_WRITES",
 		"BriefDescription": "TLB2 CRSTE Writes",
 		"PublicDescription": "A translation entry has been written to the Level-2 TLB Common Region Segment Table Entry arrays"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "144",
 		"EventName": "L1D_ONCHIP_L3_SOURCED_WRITES",
 		"BriefDescription": "L1D On-Chip L3 Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from an On Chip Level-3 cache without intervention"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "145",
 		"EventName": "L1D_OFFCHIP_L3_SOURCED_WRITES",
 		"BriefDescription": "L1D Off-Chip L3 Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from an Off Chip/On Book Level-3 cache without intervention"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "146",
 		"EventName": "L1D_OFFBOOK_L3_SOURCED_WRITES",
 		"BriefDescription": "L1D Off-Book L3 Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from an Off Book Level-3 cache without intervention"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "147",
 		"EventName": "L1D_ONBOOK_L4_SOURCED_WRITES",
 		"BriefDescription": "L1D On-Book L4 Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from an On Book Level-4 cache"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "148",
 		"EventName": "L1D_OFFBOOK_L4_SOURCED_WRITES",
 		"BriefDescription": "L1D Off-Book L4 Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from an Off Book Level-4 cache"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "149",
 		"EventName": "TX_NC_TEND",
 		"BriefDescription": "Completed TEND instructions in non-constrained TX mode",
 		"PublicDescription": "A TEND instruction has completed in a nonconstrained transactional-execution mode"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "150",
 		"EventName": "L1D_ONCHIP_L3_SOURCED_WRITES_IV",
 		"BriefDescription": "L1D On-Chip L3 Sourced Writes with Intervention",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from a On Chip Level-3 cache with intervention"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "151",
 		"EventName": "L1D_OFFCHIP_L3_SOURCED_WRITES_IV",
 		"BriefDescription": "L1D Off-Chip L3 Sourced Writes with Intervention",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from an Off Chip/On Book Level-3 cache with intervention"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "152",
 		"EventName": "L1D_OFFBOOK_L3_SOURCED_WRITES_IV",
 		"BriefDescription": "L1D Off-Book L3 Sourced Writes with Intervention",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from an Off Book Level-3 cache with intervention"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "153",
 		"EventName": "L1I_ONCHIP_L3_SOURCED_WRITES",
 		"BriefDescription": "L1I On-Chip L3 Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from an On Chip Level-3 cache without intervention"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "154",
 		"EventName": "L1I_OFFCHIP_L3_SOURCED_WRITES",
 		"BriefDescription": "L1I Off-Chip L3 Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from an Off Chip/On Book Level-3 cache without intervention"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "155",
 		"EventName": "L1I_OFFBOOK_L3_SOURCED_WRITES",
 		"BriefDescription": "L1I Off-Book L3 Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from an Off Book Level-3 cache without intervention"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "156",
 		"EventName": "L1I_ONBOOK_L4_SOURCED_WRITES",
 		"BriefDescription": "L1I On-Book L4 Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from an On Book Level-4 cache"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "157",
 		"EventName": "L1I_OFFBOOK_L4_SOURCED_WRITES",
 		"BriefDescription": "L1I Off-Book L4 Sourced Writes",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from an Off Book Level-4 cache"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "158",
 		"EventName": "TX_C_TEND",
 		"BriefDescription": "Completed TEND instructions in constrained TX mode",
 		"PublicDescription": "A TEND instruction has completed in a constrained transactional-execution mode"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "159",
 		"EventName": "L1I_ONCHIP_L3_SOURCED_WRITES_IV",
 		"BriefDescription": "L1I On-Chip L3 Sourced Writes with Intervention",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from an On Chip Level-3 cache with intervention"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "160",
 		"EventName": "L1I_OFFCHIP_L3_SOURCED_WRITES_IV",
 		"BriefDescription": "L1I Off-Chip L3 Sourced Writes with Intervention",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from an Off Chip/On Book Level-3 cache with intervention"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "161",
 		"EventName": "L1I_OFFBOOK_L3_SOURCED_WRITES_IV",
 		"BriefDescription": "L1I Off-Book L3 Sourced Writes with Intervention",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from an Off Book Level-3 cache with intervention"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "177",
 		"EventName": "TX_NC_TABORT",
 		"BriefDescription": "Aborted transactions in non-constrained TX mode",
 		"PublicDescription": "A transaction abort has occurred in a nonconstrained transactional-execution mode"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "178",
 		"EventName": "TX_C_TABORT_NO_SPECIAL",
 		"BriefDescription": "Aborted transactions in constrained TX mode not using special completion logic",
 		"PublicDescription": "A transaction abort has occurred in a constrained transactional-execution mode and the CPU is not using any special logic to allow the transaction to complete"
 	},
 	{
+		"Unit": "CPU-M-CF",
 		"EventCode": "179",
 		"EventName": "TX_C_TABORT_SPECIAL",
 		"BriefDescription": "Aborted transactions in constrained TX mode using special completion logic",

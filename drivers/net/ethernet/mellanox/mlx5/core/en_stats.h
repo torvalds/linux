@@ -44,6 +44,8 @@
 #define MLX5E_DECLARE_STAT(type, fld) #fld, offsetof(type, fld)
 #define MLX5E_DECLARE_RX_STAT(type, fld) "rx%d_"#fld, offsetof(type, fld)
 #define MLX5E_DECLARE_TX_STAT(type, fld) "tx%d_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_XDPSQ_STAT(type, fld) "tx%d_xdp_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_RQ_XDPSQ_STAT(type, fld) "rx%d_xdp_tx_"#fld, offsetof(type, fld)
 #define MLX5E_DECLARE_CH_STAT(type, fld) "ch%d_"#fld, offsetof(type, fld)
 
 struct counter_desc {
@@ -61,6 +63,7 @@ struct mlx5e_sw_stats {
 	u64 tx_tso_inner_packets;
 	u64 tx_tso_inner_bytes;
 	u64 tx_added_vlan_packets;
+	u64 tx_nop;
 	u64 rx_lro_packets;
 	u64 rx_lro_bytes;
 	u64 rx_removed_vlan_packets;
@@ -69,8 +72,11 @@ struct mlx5e_sw_stats {
 	u64 rx_csum_complete;
 	u64 rx_csum_unnecessary_inner;
 	u64 rx_xdp_drop;
-	u64 rx_xdp_tx;
+	u64 rx_xdp_redirect;
+	u64 rx_xdp_tx_xmit;
 	u64 rx_xdp_tx_full;
+	u64 rx_xdp_tx_err;
+	u64 rx_xdp_tx_cqe;
 	u64 tx_csum_none;
 	u64 tx_csum_partial;
 	u64 tx_csum_partial_inner;
@@ -78,10 +84,17 @@ struct mlx5e_sw_stats {
 	u64 tx_queue_dropped;
 	u64 tx_xmit_more;
 	u64 tx_recover;
+	u64 tx_cqes;
 	u64 tx_queue_wake;
+	u64 tx_udp_seg_rem;
 	u64 tx_cqe_err;
+	u64 tx_xdp_xmit;
+	u64 tx_xdp_full;
+	u64 tx_xdp_err;
+	u64 tx_xdp_cqes;
 	u64 rx_wqe_err;
-	u64 rx_mpwqe_filler;
+	u64 rx_mpwqe_filler_cqes;
+	u64 rx_mpwqe_filler_strides;
 	u64 rx_buff_alloc_err;
 	u64 rx_cqe_compress_blks;
 	u64 rx_cqe_compress_pkts;
@@ -91,6 +104,11 @@ struct mlx5e_sw_stats {
 	u64 rx_cache_empty;
 	u64 rx_cache_busy;
 	u64 rx_cache_waive;
+	u64 rx_congst_umr;
+	u64 ch_events;
+	u64 ch_poll;
+	u64 ch_arm;
+	u64 ch_aff_change;
 	u64 ch_eq_rearm;
 
 #ifdef CONFIG_MLX5_EN_TLS
@@ -168,10 +186,10 @@ struct mlx5e_rq_stats {
 	u64 lro_bytes;
 	u64 removed_vlan_packets;
 	u64 xdp_drop;
-	u64 xdp_tx;
-	u64 xdp_tx_full;
+	u64 xdp_redirect;
 	u64 wqe_err;
-	u64 mpwqe_filler;
+	u64 mpwqe_filler_cqes;
+	u64 mpwqe_filler_strides;
 	u64 buff_alloc_err;
 	u64 cqe_compress_blks;
 	u64 cqe_compress_pkts;
@@ -181,6 +199,7 @@ struct mlx5e_rq_stats {
 	u64 cache_empty;
 	u64 cache_busy;
 	u64 cache_waive;
+	u64 congst_umr;
 };
 
 struct mlx5e_sq_stats {
@@ -196,6 +215,7 @@ struct mlx5e_sq_stats {
 	u64 csum_partial_inner;
 	u64 added_vlan_packets;
 	u64 nop;
+	u64 udp_seg_rem;
 #ifdef CONFIG_MLX5_EN_TLS
 	u64 tls_ooo;
 	u64 tls_resync_bytes;
@@ -206,11 +226,24 @@ struct mlx5e_sq_stats {
 	u64 dropped;
 	u64 recover;
 	/* dirtied @completion */
-	u64 wake ____cacheline_aligned_in_smp;
+	u64 cqes ____cacheline_aligned_in_smp;
+	u64 wake;
 	u64 cqe_err;
 };
 
+struct mlx5e_xdpsq_stats {
+	u64 xmit;
+	u64 full;
+	u64 err;
+	/* dirtied @completion */
+	u64 cqes ____cacheline_aligned_in_smp;
+};
+
 struct mlx5e_ch_stats {
+	u64 events;
+	u64 poll;
+	u64 arm;
+	u64 aff_change;
 	u64 eq_rearm;
 };
 

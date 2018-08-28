@@ -1300,7 +1300,7 @@ static int hns_nic_net_set_mac_address(struct net_device *ndev, void *p)
 	return 0;
 }
 
-void hns_nic_update_stats(struct net_device *netdev)
+static void hns_nic_update_stats(struct net_device *netdev)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 	struct hnae_handle *h = priv->ae_handle;
@@ -1582,7 +1582,7 @@ static int hns_nic_do_ioctl(struct net_device *netdev, struct ifreq *ifr,
 
 /* use only for netconsole to poll with the device without interrupt */
 #ifdef CONFIG_NET_POLL_CONTROLLER
-void hns_nic_poll_controller(struct net_device *ndev)
+static void hns_nic_poll_controller(struct net_device *ndev)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 	unsigned long flags;
@@ -1935,7 +1935,7 @@ static int hns_nic_uc_unsync(struct net_device *netdev,
  *
  * return void
  */
-void hns_set_multicast_list(struct net_device *ndev)
+static void hns_set_multicast_list(struct net_device *ndev)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 	struct hnae_handle *h = priv->ae_handle;
@@ -1957,7 +1957,7 @@ void hns_set_multicast_list(struct net_device *ndev)
 	}
 }
 
-void hns_nic_set_rx_mode(struct net_device *ndev)
+static void hns_nic_set_rx_mode(struct net_device *ndev)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 	struct hnae_handle *h = priv->ae_handle;
@@ -2022,7 +2022,8 @@ static void hns_nic_get_stats64(struct net_device *ndev,
 
 static u16
 hns_nic_select_queue(struct net_device *ndev, struct sk_buff *skb,
-		     void *accel_priv, select_queue_fallback_t fallback)
+		     struct net_device *sb_dev,
+		     select_queue_fallback_t fallback)
 {
 	struct ethhdr *eth_hdr = (struct ethhdr *)skb->data;
 	struct hns_nic_priv *priv = netdev_priv(ndev);
@@ -2032,7 +2033,7 @@ hns_nic_select_queue(struct net_device *ndev, struct sk_buff *skb,
 	    is_multicast_ether_addr(eth_hdr->h_dest))
 		return 0;
 	else
-		return fallback(ndev, skb);
+		return fallback(ndev, skb, NULL);
 }
 
 static const struct net_device_ops hns_nic_netdev_ops = {
@@ -2377,7 +2378,7 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 		}
 		priv->fwnode = &ae_node->fwnode;
 	} else if (is_acpi_node(dev->fwnode)) {
-		struct acpi_reference_args args;
+		struct fwnode_reference_args args;
 
 		if (acpi_dev_found(hns_enet_acpi_match[0].id))
 			priv->enet_ver = AE_VERSION_1;
@@ -2393,7 +2394,11 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 			dev_err(dev, "not find ae-handle\n");
 			goto out_read_prop_fail;
 		}
-		priv->fwnode = acpi_fwnode_handle(args.adev);
+		if (!is_acpi_device_node(args.fwnode)) {
+			ret = -EINVAL;
+			goto out_read_prop_fail;
+		}
+		priv->fwnode = args.fwnode;
 	} else {
 		dev_err(dev, "cannot read cfg data from OF or acpi\n");
 		return -ENXIO;

@@ -22,6 +22,21 @@
 		serial1 = &uart1;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/*
+		 * The PSCI firmware region depicted below is the default one
+		 * and should be updated by the bootloader.
+		 */
+		psci-area@4000000 {
+			reg = <0 0x4000000 0 0x200000>;
+			no-map;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -96,6 +111,12 @@
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
 				mrvl,i2c-fast-mode;
 				status = "disabled";
+			};
+
+			avs: avs@11500 {
+				compatible = "marvell,armada-3700-avs",
+					     "syscon";
+				reg = <0x11500 0x40>;
 			};
 
 			uart0: serial@12000 {
@@ -287,7 +308,7 @@
 			};
 
 			crypto: crypto@90000 {
-				compatible = "inside-secure,safexcel-eip97";
+				compatible = "inside-secure,safexcel-eip97ies";
 				reg = <0x90000 0x20000>;
 				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,

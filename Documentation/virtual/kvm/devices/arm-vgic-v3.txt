@@ -100,6 +100,14 @@ Groups:
     Note that distributor fields are not banked, but return the same value
     regardless of the mpidr used to access the register.
 
+    GICD_IIDR.Revision is updated when the KVM implementation is changed in a
+    way directly observable by the guest or userspace.  Userspace should read
+    GICD_IIDR from KVM and write back the read value to confirm its expected
+    behavior is aligned with the KVM implementation.  Userspace should set
+    GICD_IIDR before setting any other registers to ensure the expected
+    behavior.
+
+
     The GICD_STATUSR and GICR_STATUSR registers are architecturally defined such
     that a write of a clear bit has no effect, whereas a write with a set bit
     clears that value.  To allow userspace to freely set the values of these two

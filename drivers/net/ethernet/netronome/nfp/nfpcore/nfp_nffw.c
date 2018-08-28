@@ -207,7 +207,7 @@ nffw_res_fwinfos(struct nfp_nffw_info_data *fwinf, struct nffw_fwinfo **arr)
  * nfp_nffw_info_open() - Acquire the lock on the NFFW table
  * @cpp:	NFP CPP handle
  *
- * Return: 0, or -ERRNO
+ * Return: pointer to nfp_nffw_info object or ERR_PTR()
  */
 struct nfp_nffw_info *nfp_nffw_info_open(struct nfp_cpp *cpp)
 {
@@ -232,7 +232,7 @@ struct nfp_nffw_info *nfp_nffw_info_open(struct nfp_cpp *cpp)
 	err = nfp_cpp_read(cpp, nfp_resource_cpp_id(state->res),
 			   nfp_resource_address(state->res),
 			   fwinf, sizeof(*fwinf));
-	if (err < sizeof(*fwinf))
+	if (err < (int)sizeof(*fwinf))
 		goto err_release;
 
 	if (!nffw_res_flg_init_get(fwinf))
@@ -253,10 +253,8 @@ err_free:
 }
 
 /**
- * nfp_nffw_info_release() - Release the lock on the NFFW table
+ * nfp_nffw_info_close() - Release the lock on the NFFW table and free state
  * @state:	NFP FW info state
- *
- * Return: 0, or -ERRNO
  */
 void nfp_nffw_info_close(struct nfp_nffw_info *state)
 {

@@ -1,11 +1,5 @@
-/*
- * Copyright (c) 2016~2017 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2016-2017 Hisilicon Limited.
 
 #include <linux/etherdevice.h>
 
@@ -1184,10 +1178,10 @@ static int hclge_bp_setup_hw(struct hclge_dev *hdev, u8 tc)
 			u16 qs_id = vport->qs_offset + tc;
 			u8 grp, sub_grp;
 
-			grp = hnae_get_field(qs_id, HCLGE_BP_GRP_ID_M,
-					     HCLGE_BP_GRP_ID_S);
-			sub_grp = hnae_get_field(qs_id, HCLGE_BP_SUB_GRP_ID_M,
-						 HCLGE_BP_SUB_GRP_ID_S);
+			grp = hnae3_get_field(qs_id, HCLGE_BP_GRP_ID_M,
+					      HCLGE_BP_GRP_ID_S);
+			sub_grp = hnae3_get_field(qs_id, HCLGE_BP_SUB_GRP_ID_M,
+						  HCLGE_BP_SUB_GRP_ID_S);
 			if (i == grp)
 				qs_bitmap |= (1 << sub_grp);
 
@@ -1223,6 +1217,10 @@ static int hclge_mac_pause_setup_hw(struct hclge_dev *hdev)
 		tx_en = true;
 		rx_en = true;
 		break;
+	case HCLGE_FC_PFC:
+		tx_en = false;
+		rx_en = false;
+		break;
 	default:
 		tx_en = true;
 		rx_en = true;
@@ -1240,8 +1238,9 @@ int hclge_pause_setup_hw(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	if (hdev->tm_info.fc_mode != HCLGE_FC_PFC)
-		return hclge_mac_pause_setup_hw(hdev);
+	ret = hclge_mac_pause_setup_hw(hdev);
+	if (ret)
+		return ret;
 
 	/* Only DCB-supported dev supports qset back pressure and pfc cmd */
 	if (!hnae3_dev_dcb_supported(hdev))

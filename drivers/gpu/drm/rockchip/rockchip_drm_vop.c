@@ -243,18 +243,6 @@ static enum vop_data_format vop_convert_format(uint32_t format)
 	}
 }
 
-static bool is_yuv_support(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV24:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static uint16_t scl_vop_cal_scale(enum scale_mode mode, uint32_t src,
 				  uint32_t dst, bool is_horizontal,
 				  int vsu_mode, int *vskiplines)
@@ -298,13 +286,19 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 	uint16_t cbcr_ver_scl_mode = SCALE_NONE;
 	int hsub = drm_format_horz_chroma_subsampling(pixel_format);
 	int vsub = drm_format_vert_chroma_subsampling(pixel_format);
-	bool is_yuv = is_yuv_support(pixel_format);
+	const struct drm_format_info *info;
+	bool is_yuv = false;
 	uint16_t cbcr_src_w = src_w / hsub;
 	uint16_t cbcr_src_h = src_h / vsub;
 	uint16_t vsu_mode;
 	uint16_t lb_mode;
 	uint32_t val;
 	int vskiplines;
+
+	info = drm_format_info(pixel_format);
+
+	if (info->is_yuv)
+		is_yuv = true;
 
 	if (dst_w > 3840) {
 		DRM_DEV_ERROR(vop->dev, "Maximum dst width (3840) exceeded\n");
@@ -486,6 +480,31 @@ static void vop_line_flag_irq_disable(struct vop *vop)
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 }
 
+static int vop_core_clks_enable(struct vop *vop)
+{
+	int ret;
+
+	ret = clk_enable(vop->hclk);
+	if (ret < 0)
+		return ret;
+
+	ret = clk_enable(vop->aclk);
+	if (ret < 0)
+		goto err_disable_hclk;
+
+	return 0;
+
+err_disable_hclk:
+	clk_disable(vop->hclk);
+	return ret;
+}
+
+static void vop_core_clks_disable(struct vop *vop)
+{
+	clk_disable(vop->aclk);
+	clk_disable(vop->hclk);
+}
+
 static int vop_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
@@ -497,17 +516,13 @@ static int vop_enable(struct drm_crtc *crtc)
 		return ret;
 	}
 
-	ret = clk_enable(vop->hclk);
+	ret = vop_core_clks_enable(vop);
 	if (WARN_ON(ret < 0))
 		goto err_put_pm_runtime;
 
 	ret = clk_enable(vop->dclk);
 	if (WARN_ON(ret < 0))
-		goto err_disable_hclk;
-
-	ret = clk_enable(vop->aclk);
-	if (WARN_ON(ret < 0))
-		goto err_disable_dclk;
+		goto err_disable_core;
 
 	/*
 	 * Slave iommu shares power, irq and clock with vop.  It was associated
@@ -519,7 +534,7 @@ static int vop_enable(struct drm_crtc *crtc)
 	if (ret) {
 		DRM_DEV_ERROR(vop->dev,
 			      "failed to attach dma mapping, %d\n", ret);
-		goto err_disable_aclk;
+		goto err_disable_dclk;
 	}
 
 	spin_lock(&vop->reg_lock);
@@ -552,18 +567,14 @@ static int vop_enable(struct drm_crtc *crtc)
 
 	spin_unlock(&vop->reg_lock);
 
-	enable_irq(vop->irq);
-
 	drm_crtc_vblank_on(crtc);
 
 	return 0;
 
-err_disable_aclk:
-	clk_disable(vop->aclk);
 err_disable_dclk:
 	clk_disable(vop->dclk);
-err_disable_hclk:
-	clk_disable(vop->hclk);
+err_disable_core:
+	vop_core_clks_disable(vop);
 err_put_pm_runtime:
 	pm_runtime_put_sync(vop->dev);
 	return ret;
@@ -599,8 +610,6 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	vop_dsp_hold_valid_irq_disable(vop);
 
-	disable_irq(vop->irq);
-
 	vop->is_enabled = false;
 
 	/*
@@ -609,8 +618,7 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 	rockchip_drm_dma_detach_device(vop->drm_dev, vop->dev);
 
 	clk_disable(vop->dclk);
-	clk_disable(vop->aclk);
-	clk_disable(vop->hclk);
+	vop_core_clks_disable(vop);
 	pm_runtime_put(vop->dev);
 	mutex_unlock(&vop->vop_lock);
 
@@ -666,7 +674,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	 * Src.x1 can be odd when do clip, but yuv plane start point
 	 * need align with 2 pixel.
 	 */
-	if (is_yuv_support(fb->format->format) && ((state->src.x1 >> 16) % 2)) {
+	if (fb->format->is_yuv && ((state->src.x1 >> 16) % 2)) {
 		DRM_ERROR("Invalid Source: Yuv format not support odd xpos\n");
 		return -EINVAL;
 	}
@@ -728,7 +736,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
-	obj = rockchip_fb_get_gem_obj(fb, 0);
+	obj = fb->obj[0];
 	rk_obj = to_rockchip_obj(obj);
 
 	actual_w = drm_rect_width(src) >> 16;
@@ -753,12 +761,12 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	VOP_WIN_SET(vop, win, format, format);
 	VOP_WIN_SET(vop, win, yrgb_vir, DIV_ROUND_UP(fb->pitches[0], 4));
 	VOP_WIN_SET(vop, win, yrgb_mst, dma_addr);
-	if (is_yuv_support(fb->format->format)) {
+	if (fb->format->is_yuv) {
 		int hsub = drm_format_horz_chroma_subsampling(fb->format->format);
 		int vsub = drm_format_vert_chroma_subsampling(fb->format->format);
 		int bpp = fb->format->cpp[1];
 
-		uv_obj = rockchip_fb_get_gem_obj(fb, 1);
+		uv_obj = fb->obj[1];
 		rk_uv_obj = to_rockchip_obj(uv_obj);
 
 		offset = (src->x1 >> 16) * bpp / hsub;
@@ -1178,6 +1186,18 @@ static irqreturn_t vop_isr(int irq, void *data)
 	int ret = IRQ_NONE;
 
 	/*
+	 * The irq is shared with the iommu. If the runtime-pm state of the
+	 * vop-device is disabled the irq has to be targeted at the iommu.
+	 */
+	if (!pm_runtime_get_if_in_use(vop->dev))
+		return IRQ_NONE;
+
+	if (vop_core_clks_enable(vop)) {
+		DRM_DEV_ERROR_RATELIMITED(vop->dev, "couldn't enable clocks\n");
+		goto out;
+	}
+
+	/*
 	 * interrupt register has interrupt status, enable and clear bits, we
 	 * must hold irq_lock to avoid a race with enable/disable_vblank().
 	*/
@@ -1192,7 +1212,7 @@ static irqreturn_t vop_isr(int irq, void *data)
 
 	/* This is expected for vop iommu irqs, since the irq is shared */
 	if (!active_irqs)
-		return IRQ_NONE;
+		goto out_disable;
 
 	if (active_irqs & DSP_HOLD_VALID_INTR) {
 		complete(&vop->dsp_hold_completion);
@@ -1218,6 +1238,10 @@ static irqreturn_t vop_isr(int irq, void *data)
 		DRM_DEV_ERROR(vop->dev, "Unknown VOP IRQs: %#02x\n",
 			      active_irqs);
 
+out_disable:
+	vop_core_clks_disable(vop);
+out:
+	pm_runtime_put(vop->dev);
 	return ret;
 }
 
@@ -1278,7 +1302,7 @@ static int vop_create_crtc(struct vop *vop)
 	for (i = 0; i < vop_data->win_size; i++) {
 		struct vop_win *vop_win = &vop->win[i];
 		const struct vop_win_data *win_data = vop_win->data;
-		unsigned long possible_crtcs = 1 << drm_crtc_index(crtc);
+		unsigned long possible_crtcs = drm_crtc_mask(crtc);
 
 		if (win_data->type != DRM_PLANE_TYPE_OVERLAY)
 			continue;
@@ -1595,9 +1619,6 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 			       IRQF_SHARED, dev_name(dev), vop);
 	if (ret)
 		goto err_disable_pm_runtime;
-
-	/* IRQ is initially disabled; it gets enabled in power_on */
-	disable_irq(vop->irq);
 
 	return 0;
 

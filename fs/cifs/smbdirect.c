@@ -18,6 +18,7 @@
 #include "smbdirect.h"
 #include "cifs_debug.h"
 #include "cifsproto.h"
+#include "smb2proto.h"
 
 static struct smbd_response *get_empty_queue_buffer(
 		struct smbd_connection *info);
@@ -801,7 +802,7 @@ out1:
  */
 static int smbd_post_send_negotiate_req(struct smbd_connection *info)
 {
-	struct ib_send_wr send_wr, *send_wr_fail;
+	struct ib_send_wr send_wr;
 	int rc = -ENOMEM;
 	struct smbd_request *request;
 	struct smbd_negotiate_req *packet;
@@ -853,7 +854,7 @@ static int smbd_post_send_negotiate_req(struct smbd_connection *info)
 
 	request->has_payload = false;
 	atomic_inc(&info->send_pending);
-	rc = ib_post_send(info->id->qp, &send_wr, &send_wr_fail);
+	rc = ib_post_send(info->id->qp, &send_wr, NULL);
 	if (!rc)
 		return 0;
 
@@ -1023,7 +1024,7 @@ static void smbd_destroy_header(struct smbd_connection *info,
 static int smbd_post_send(struct smbd_connection *info,
 		struct smbd_request *request, bool has_payload)
 {
-	struct ib_send_wr send_wr, *send_wr_fail;
+	struct ib_send_wr send_wr;
 	int rc, i;
 
 	for (i = 0; i < request->num_sge; i++) {
@@ -1054,7 +1055,7 @@ static int smbd_post_send(struct smbd_connection *info,
 		atomic_inc(&info->send_pending);
 	}
 
-	rc = ib_post_send(info->id->qp, &send_wr, &send_wr_fail);
+	rc = ib_post_send(info->id->qp, &send_wr, NULL);
 	if (rc) {
 		log_rdma_send(ERR, "ib_post_send failed rc=%d\n", rc);
 		if (has_payload) {
@@ -1183,7 +1184,7 @@ static int smbd_post_send_data(
 static int smbd_post_recv(
 		struct smbd_connection *info, struct smbd_response *response)
 {
-	struct ib_recv_wr recv_wr, *recv_wr_fail = NULL;
+	struct ib_recv_wr recv_wr;
 	int rc = -EIO;
 
 	response->sge.addr = ib_dma_map_single(
@@ -1202,7 +1203,7 @@ static int smbd_post_recv(
 	recv_wr.sg_list = &response->sge;
 	recv_wr.num_sge = 1;
 
-	rc = ib_post_recv(info->id->qp, &recv_wr, &recv_wr_fail);
+	rc = ib_post_recv(info->id->qp, &recv_wr, NULL);
 	if (rc) {
 		ib_dma_unmap_single(info->id->device, response->sge.addr,
 				    response->sge.length, DMA_FROM_DEVICE);
@@ -1661,9 +1662,16 @@ static struct smbd_connection *_smbd_get_connection(
 	info->max_receive_size = smbd_max_receive_size;
 	info->keep_alive_interval = smbd_keep_alive_interval;
 
-	if (info->id->device->attrs.max_sge < SMBDIRECT_MAX_SGE) {
-		log_rdma_event(ERR, "warning: device max_sge = %d too small\n",
-			info->id->device->attrs.max_sge);
+	if (info->id->device->attrs.max_send_sge < SMBDIRECT_MAX_SGE) {
+		log_rdma_event(ERR,
+			"warning: device max_send_sge = %d too small\n",
+			info->id->device->attrs.max_send_sge);
+		log_rdma_event(ERR, "Queue Pair creation may fail\n");
+	}
+	if (info->id->device->attrs.max_recv_sge < SMBDIRECT_MAX_SGE) {
+		log_rdma_event(ERR,
+			"warning: device max_recv_sge = %d too small\n",
+			info->id->device->attrs.max_recv_sge);
 		log_rdma_event(ERR, "Queue Pair creation may fail\n");
 	}
 
@@ -2082,12 +2090,13 @@ int smbd_recv(struct smbd_connection *info, struct msghdr *msg)
  * rqst: the data to write
  * return value: 0 if successfully write, otherwise error code
  */
-int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst)
+int smbd_send(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 {
+	struct smbd_connection *info = server->smbd_conn;
 	struct kvec vec;
 	int nvecs;
 	int size;
-	unsigned int buflen = 0, remaining_data_length;
+	unsigned int buflen, remaining_data_length;
 	int start, i, j;
 	int max_iov_size =
 		info->max_send_size - sizeof(struct smbd_data_transfer);
@@ -2111,25 +2120,13 @@ int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst)
 		log_write(ERR, "expected the pdu length in 1st iov, but got %zu\n", rqst->rq_iov[0].iov_len);
 		return -EINVAL;
 	}
-	iov = &rqst->rq_iov[1];
-
-	/* total up iov array first */
-	for (i = 0; i < rqst->rq_nvec-1; i++) {
-		buflen += iov[i].iov_len;
-	}
 
 	/*
 	 * Add in the page array if there is one. The caller needs to set
 	 * rq_tailsz to PAGE_SIZE when the buffer has multiple pages and
 	 * ends at page boundary
 	 */
-	if (rqst->rq_npages) {
-		if (rqst->rq_npages == 1)
-			buflen += rqst->rq_tailsz;
-		else
-			buflen += rqst->rq_pagesz * (rqst->rq_npages - 1) -
-					rqst->rq_offset + rqst->rq_tailsz;
-	}
+	buflen = smb_rqst_len(server, rqst);
 
 	if (buflen + sizeof(struct smbd_data_transfer) >
 		info->max_fragmented_send_size) {
@@ -2138,6 +2135,8 @@ int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst)
 		rc = -EINVAL;
 		goto done;
 	}
+
+	iov = &rqst->rq_iov[1];
 
 	cifs_dbg(FYI, "Sending smb (RDMA): smb_len=%u\n", buflen);
 	for (i = 0; i < rqst->rq_nvec-1; i++)
@@ -2481,7 +2480,6 @@ struct smbd_mr *smbd_register_mr(
 	int rc, i;
 	enum dma_data_direction dir;
 	struct ib_reg_wr *reg_wr;
-	struct ib_send_wr *bad_wr;
 
 	if (num_pages > info->max_frmr_depth) {
 		log_rdma_mr(ERR, "num_pages=%d max_frmr_depth=%d\n",
@@ -2555,7 +2553,7 @@ skip_multiple_pages:
 	 * on IB_WR_REG_MR. Hardware enforces a barrier and order of execution
 	 * on the next ib_post_send when we actaully send I/O to remote peer
 	 */
-	rc = ib_post_send(info->id->qp, &reg_wr->wr, &bad_wr);
+	rc = ib_post_send(info->id->qp, &reg_wr->wr, NULL);
 	if (!rc)
 		return smbdirect_mr;
 
@@ -2600,7 +2598,7 @@ static void local_inv_done(struct ib_cq *cq, struct ib_wc *wc)
  */
 int smbd_deregister_mr(struct smbd_mr *smbdirect_mr)
 {
-	struct ib_send_wr *wr, *bad_wr;
+	struct ib_send_wr *wr;
 	struct smbd_connection *info = smbdirect_mr->conn;
 	int rc = 0;
 
@@ -2615,7 +2613,7 @@ int smbd_deregister_mr(struct smbd_mr *smbdirect_mr)
 		wr->send_flags = IB_SEND_SIGNALED;
 
 		init_completion(&smbdirect_mr->invalidate_done);
-		rc = ib_post_send(info->id->qp, wr, &bad_wr);
+		rc = ib_post_send(info->id->qp, wr, NULL);
 		if (rc) {
 			log_rdma_mr(ERR, "ib_post_send failed rc=%x\n", rc);
 			smbd_disconnect_rdma_connection(info);

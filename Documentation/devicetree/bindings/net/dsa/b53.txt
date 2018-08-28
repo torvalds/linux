@@ -24,6 +24,14 @@ Required properties:
       "brcm,bcm53018-srab"
       "brcm,bcm53019-srab" and the mandatory "brcm,bcm5301x-srab" string
 
+  For the BCM5831X/BCM1140x SoCs with an integrated switch, must be one of:
+      "brcm,bcm11404-srab"
+      "brcm,bcm11407-srab"
+      "brcm,bcm11409-srab"
+      "brcm,bcm58310-srab"
+      "brcm,bcm58311-srab"
+      "brcm,bcm58313-srab" and the mandatory "brcm,omega-srab" string
+
   For the BCM585xx/586XX/88312 SoCs with an integrated switch, must be one of:
       "brcm,bcm58522-srab"
       "brcm,bcm58523-srab"

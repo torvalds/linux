@@ -106,7 +106,6 @@ config S390
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
-	select ARCH_WANTS_UBSAN_NO_NULL
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS2
@@ -136,6 +135,7 @@ config S390
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
+	select HAVE_FENTRY
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
@@ -146,6 +146,7 @@ config S390
 	select HAVE_KERNEL_LZ4
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_UNCOMPRESSED
 	select HAVE_KERNEL_XZ
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
@@ -157,9 +158,11 @@ config S390
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MEMBLOCK_PHYS_MAP
 	select HAVE_MOD_ARCH_SPECIFIC
+	select HAVE_NOP_MCOUNT
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_RSEQ
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING
 	select MODULES_USE_ELF_RELA
@@ -182,10 +185,6 @@ config SCHED_OMIT_FRAME_POINTER
 config PGTABLE_LEVELS
 	int
 	default 5
-
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
 
 source "kernel/livepatch/Kconfig"
 
@@ -514,8 +513,6 @@ config SCHED_TOPOLOGY
 	  making when dealing with machines that have multi-threading,
 	  multiple cores or multiple books.
 
-source kernel/Kconfig.preempt
-
 source kernel/Kconfig.hz
 
 config KEXEC
@@ -625,8 +622,6 @@ config ARCH_ENABLE_SPLIT_PMD_PTLOCK
 config FORCE_MAX_ZONEORDER
 	int
 	default "9"
-
-source "mm/Kconfig"
 
 config MAX_PHYSMEM_BITS
 	int "Maximum size of supported physical memory in bits (42-53)"
@@ -797,10 +792,6 @@ config CRASH_DUMP
 
 endmenu
 
-menu "Executable file formats / Emulations"
-
-source "fs/Kconfig.binfmt"
-
 config SECCOMP
 	def_bool y
 	prompt "Enable seccomp to safely compute untrusted bytecode"
@@ -818,8 +809,6 @@ config SECCOMP
 
 	  If unsure, say Y.
 
-endmenu
-
 menu "Power Management"
 
 config ARCH_HIBERNATION_POSSIBLE
@@ -829,29 +818,15 @@ source "kernel/power/Kconfig"
 
 endmenu
 
-source "net/Kconfig"
-
 config PCMCIA
 	def_bool n
 
 config CCW
 	def_bool y
 
-source "drivers/Kconfig"
-
 config HAVE_PNETID
 	tristate
 	default (SMC || CCWGROUP)
-
-source "fs/Kconfig"
-
-source "arch/s390/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
 
 menu "Virtualization"
 

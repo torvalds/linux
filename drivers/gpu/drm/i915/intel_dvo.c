@@ -137,19 +137,15 @@ static bool intel_dvo_connector_get_hw_state(struct intel_connector *connector)
 static bool intel_dvo_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	u32 tmp;
 
 	tmp = I915_READ(intel_dvo->dev.dvo_reg);
 
-	if (!(tmp & DVO_ENABLE))
-		return false;
+	*pipe = (tmp & DVO_PIPE_SEL_MASK) >> DVO_PIPE_SEL_SHIFT;
 
-	*pipe = PORT_TO_PIPE(tmp);
-
-	return true;
+	return tmp & DVO_ENABLE;
 }
 
 static void intel_dvo_get_config(struct intel_encoder *encoder,
@@ -219,6 +215,9 @@ intel_dvo_mode_valid(struct drm_connector *connector,
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
 	int target_clock = mode->clock;
 
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
 	/* XXX: Validate clock range */
 
 	if (fixed_mode) {
@@ -254,6 +253,9 @@ static bool intel_dvo_compute_config(struct intel_encoder *encoder,
 	if (fixed_mode)
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
 
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
 	return true;
 }
 
@@ -276,8 +278,7 @@ static void intel_dvo_pre_enable(struct intel_encoder *encoder,
 	dvo_val |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE |
 		   DVO_BLANK_ACTIVE_HIGH;
 
-	if (pipe == 1)
-		dvo_val |= DVO_PIPE_B_SELECT;
+	dvo_val |= DVO_PIPE_SEL(pipe);
 	dvo_val |= DVO_PIPE_STALL;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		dvo_val |= DVO_HSYNC_ACTIVE_HIGH;
@@ -437,7 +438,7 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 		int gpio;
 		bool dvoinit;
 		enum pipe pipe;
-		uint32_t dpll[I915_MAX_PIPES];
+		u32 dpll[I915_MAX_PIPES];
 		enum port port;
 
 		/*

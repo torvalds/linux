@@ -3,8 +3,6 @@
 Required properties:
 - compatible: Should be "amd,ccp-seattle-v1a"
 - reg: Address and length of the register set for the device
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupts: Should contain the CCP interrupt
 
 Optional properties:

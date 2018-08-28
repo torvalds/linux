@@ -58,6 +58,7 @@
  * @bound_dev_if:	An optional device interface index.
  * @transport:		The transport type used.
  * @net:		Network namespace containing the bound_dev_if net_dev.
+ * @sgid_attr:		GID attribute to use for identified SGID
  */
 struct rdma_dev_addr {
 	unsigned char src_dev_addr[MAX_ADDR_LEN];
@@ -67,6 +68,7 @@ struct rdma_dev_addr {
 	int bound_dev_if;
 	enum rdma_transport_type transport;
 	struct net *net;
+	const struct ib_gid_attr *sgid_attr;
 	enum rdma_network_type network;
 	int hoplimit;
 };
@@ -95,7 +97,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
  *   or been canceled.  A status of 0 indicates success.
  * @context: User-specified context associated with the call.
  */
-int rdma_resolve_ip(struct sockaddr *src_addr, struct sockaddr *dst_addr,
+int rdma_resolve_ip(struct sockaddr *src_addr, const struct sockaddr *dst_addr,
 		    struct rdma_dev_addr *addr, int timeout_ms,
 		    void (*callback)(int status, struct sockaddr *src_addr,
 				     struct rdma_dev_addr *addr, void *context),
@@ -107,7 +109,7 @@ void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
 		    const struct net_device *dev,
 		    const unsigned char *dst_dev_addr);
 
-int rdma_addr_size(struct sockaddr *addr);
+int rdma_addr_size(const struct sockaddr *addr);
 int rdma_addr_size_in6(struct sockaddr_in6 *addr);
 int rdma_addr_size_kss(struct __kernel_sockaddr_storage *addr);
 

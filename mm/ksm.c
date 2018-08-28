@@ -470,7 +470,7 @@ static inline bool ksm_test_exit(struct mm_struct *mm)
 static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
 {
 	struct page *page;
-	int ret = 0;
+	vm_fault_t ret = 0;
 
 	do {
 		cond_resched();
@@ -652,9 +652,9 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
 	 * list_head to stay clear from the rb_parent_color union
 	 * (aligned and different than any node) and also different
 	 * from &migrate_nodes. This will verify that future list.h changes
-	 * don't break STABLE_NODE_DUP_HEAD.
+	 * don't break STABLE_NODE_DUP_HEAD. Only recent gcc can handle it.
 	 */
-#if GCC_VERSION >= 40903 /* only recent gcc can handle it */
+#if defined(GCC_VERSION) && GCC_VERSION >= 40903
 	BUILD_BUG_ON(STABLE_NODE_DUP_HEAD <= &migrate_nodes);
 	BUILD_BUG_ON(STABLE_NODE_DUP_HEAD >= &migrate_nodes + 1);
 #endif
@@ -703,7 +703,7 @@ again:
 	 * We cannot do anything with the page while its refcount is 0.
 	 * Usually 0 means free, or tail of a higher-order page: in which
 	 * case this node is no longer referenced, and should be freed;
-	 * however, it might mean that the page is under page_freeze_refs().
+	 * however, it might mean that the page is under page_ref_freeze().
 	 * The __remove_mapping() case is easy, again the node is now stale;
 	 * but if page is swapcache in migrate_page_move_mapping(), it might
 	 * still be our page, in which case it's essential to keep the node.
@@ -714,7 +714,7 @@ again:
 		 * work here too.  We have chosen the !PageSwapCache test to
 		 * optimize the common case, when the page is or is about to
 		 * be freed: PageSwapCache is cleared (under spin_lock_irq)
-		 * in the freeze_refs section of __remove_mapping(); but Anon
+		 * in the ref_freeze section of __remove_mapping(); but Anon
 		 * page->mapping reset to NULL later, in free_pages_prepare().
 		 */
 		if (!PageSwapCache(page))
@@ -2429,6 +2429,9 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
 				 VM_PFNMAP    | VM_IO      | VM_DONTEXPAND |
 				 VM_HUGETLB | VM_MIXEDMAP))
 			return 0;		/* just ignore the advice */
+
+		if (vma_is_dax(vma))
+			return 0;
 
 #ifdef VM_SAO
 		if (*vm_flags & VM_SAO)

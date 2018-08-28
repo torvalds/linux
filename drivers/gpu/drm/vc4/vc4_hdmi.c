@@ -285,7 +285,7 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 			drm_rgb_quant_range_selectable(edid);
 	}
 
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);
 	kfree(edid);
 
@@ -329,7 +329,7 @@ static struct drm_connector *vc4_hdmi_connector_init(struct drm_device *dev,
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return connector;
 }

@@ -47,8 +47,6 @@
 #include "mixer_us16x08.h"
 #include "helper.h"
 
-extern struct snd_kcontrol_new *snd_usb_feature_unit_ctl;
-
 struct std_mono_table {
 	unsigned int unitid, control, cmask;
 	int val_type;

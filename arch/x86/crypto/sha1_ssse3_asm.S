@@ -96,7 +96,7 @@
 	# cleanup workspace
 	mov	$8, %ecx
 	mov	%rsp, %rdi
-	xor	%rax, %rax
+	xor	%eax, %eax
 	rep stosq
 
 	mov	%rbp, %rsp		# deallocate workspace

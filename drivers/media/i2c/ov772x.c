@@ -419,11 +419,18 @@ struct ov772x_priv {
 	struct gpio_desc		 *rstb_gpio;
 	const struct ov772x_color_format *cfmt;
 	const struct ov772x_win_size     *win;
-	unsigned short                    flag_vflip:1;
-	unsigned short                    flag_hflip:1;
+	struct v4l2_ctrl		 *vflip_ctrl;
+	struct v4l2_ctrl		 *hflip_ctrl;
 	/* band_filter = COM8[5] ? 256 - BDBASE : 0 */
-	unsigned short                    band_filter;
+	struct v4l2_ctrl		 *band_filter_ctrl;
 	unsigned int			  fps;
+	/* lock to protect power_count and streaming */
+	struct mutex			  lock;
+	int				  power_count;
+	int				  streaming;
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_pad pad;
+#endif
 };
 
 /*
@@ -542,9 +549,19 @@ static struct ov772x_priv *to_ov772x(struct v4l2_subdev *sd)
 	return container_of(sd, struct ov772x_priv, subdev);
 }
 
-static inline int ov772x_read(struct i2c_client *client, u8 addr)
+static int ov772x_read(struct i2c_client *client, u8 addr)
 {
-	return i2c_smbus_read_byte_data(client, addr);
+	int ret;
+	u8 val;
+
+	ret = i2c_master_send(client, &addr, 1);
+	if (ret < 0)
+		return ret;
+	ret = i2c_master_recv(client, &val, 1);
+	if (ret < 0)
+		return ret;
+
+	return val;
 }
 
 static inline int ov772x_write(struct i2c_client *client, u8 addr, u8 value)
@@ -587,39 +604,40 @@ static int ov772x_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov772x_priv *priv = to_ov772x(sd);
+	int ret = 0;
 
-	if (!enable) {
-		ov772x_mask_set(client, COM2, SOFT_SLEEP_MODE, SOFT_SLEEP_MODE);
-		return 0;
+	mutex_lock(&priv->lock);
+
+	if (priv->streaming == enable)
+		goto done;
+
+	ret = ov772x_mask_set(client, COM2, SOFT_SLEEP_MODE,
+			      enable ? 0 : SOFT_SLEEP_MODE);
+	if (ret)
+		goto done;
+
+	if (enable) {
+		dev_dbg(&client->dev, "format %d, win %s\n",
+			priv->cfmt->code, priv->win->name);
 	}
+	priv->streaming = enable;
 
-	ov772x_mask_set(client, COM2, SOFT_SLEEP_MODE, 0);
+done:
+	mutex_unlock(&priv->lock);
 
-	dev_dbg(&client->dev, "format %d, win %s\n",
-		priv->cfmt->code, priv->win->name);
-
-	return 0;
+	return ret;
 }
 
-static int ov772x_set_frame_rate(struct ov772x_priv *priv,
-				 struct v4l2_fract *tpf,
-				 const struct ov772x_color_format *cfmt,
-				 const struct ov772x_win_size *win)
+static unsigned int ov772x_select_fps(struct ov772x_priv *priv,
+				      struct v4l2_fract *tpf)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&priv->subdev);
-	unsigned long fin = clk_get_rate(priv->clk);
 	unsigned int fps = tpf->numerator ?
 			   tpf->denominator / tpf->numerator :
 			   tpf->denominator;
 	unsigned int best_diff;
-	unsigned int fsize;
-	unsigned int pclk;
 	unsigned int diff;
 	unsigned int idx;
 	unsigned int i;
-	u8 clkrc = 0;
-	u8 com4 = 0;
-	int ret;
 
 	/* Approximate to the closest supported frame interval. */
 	best_diff = ~0L;
@@ -630,7 +648,25 @@ static int ov772x_set_frame_rate(struct ov772x_priv *priv,
 			best_diff = diff;
 		}
 	}
-	fps = ov772x_frame_intervals[idx];
+
+	return ov772x_frame_intervals[idx];
+}
+
+static int ov772x_set_frame_rate(struct ov772x_priv *priv,
+				 unsigned int fps,
+				 const struct ov772x_color_format *cfmt,
+				 const struct ov772x_win_size *win)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&priv->subdev);
+	unsigned long fin = clk_get_rate(priv->clk);
+	unsigned int best_diff;
+	unsigned int fsize;
+	unsigned int pclk;
+	unsigned int diff;
+	unsigned int i;
+	u8 clkrc = 0;
+	u8 com4 = 0;
+	int ret;
 
 	/* Use image size (with blankings) to calculate desired pixel clock. */
 	switch (cfmt->com7 & OFMT_MASK) {
@@ -695,10 +731,6 @@ static int ov772x_set_frame_rate(struct ov772x_priv *priv,
 	if (ret < 0)
 		return ret;
 
-	tpf->numerator = 1;
-	tpf->denominator = fps;
-	priv->fps = tpf->denominator;
-
 	return 0;
 }
 
@@ -719,8 +751,37 @@ static int ov772x_s_frame_interval(struct v4l2_subdev *sd,
 {
 	struct ov772x_priv *priv = to_ov772x(sd);
 	struct v4l2_fract *tpf = &ival->interval;
+	unsigned int fps;
+	int ret = 0;
 
-	return ov772x_set_frame_rate(priv, tpf, priv->cfmt, priv->win);
+	mutex_lock(&priv->lock);
+
+	if (priv->streaming) {
+		ret = -EBUSY;
+		goto error;
+	}
+
+	fps = ov772x_select_fps(priv, tpf);
+
+	/*
+	 * If the device is not powered up by the host driver do
+	 * not apply any changes to H/W at this time. Instead
+	 * the frame rate will be restored right after power-up.
+	 */
+	if (priv->power_count > 0) {
+		ret = ov772x_set_frame_rate(priv, fps, priv->cfmt, priv->win);
+		if (ret)
+			goto error;
+	}
+
+	tpf->numerator = 1;
+	tpf->denominator = fps;
+	priv->fps = fps;
+
+error:
+	mutex_unlock(&priv->lock);
+
+	return ret;
 }
 
 static int ov772x_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -732,17 +793,25 @@ static int ov772x_s_ctrl(struct v4l2_ctrl *ctrl)
 	int ret = 0;
 	u8 val;
 
+	/* v4l2_ctrl_lock() locks our own mutex */
+
+	/*
+	 * If the device is not powered up by the host driver do
+	 * not apply any controls to H/W at this time. Instead
+	 * the controls will be restored right after power-up.
+	 */
+	if (priv->power_count == 0)
+		return 0;
+
 	switch (ctrl->id) {
 	case V4L2_CID_VFLIP:
 		val = ctrl->val ? VFLIP_IMG : 0x00;
-		priv->flag_vflip = ctrl->val;
-		if (priv->info->flags & OV772X_FLAG_VFLIP)
+		if (priv->info && (priv->info->flags & OV772X_FLAG_VFLIP))
 			val ^= VFLIP_IMG;
 		return ov772x_mask_set(client, COM3, VFLIP_IMG, val);
 	case V4L2_CID_HFLIP:
 		val = ctrl->val ? HFLIP_IMG : 0x00;
-		priv->flag_hflip = ctrl->val;
-		if (priv->info->flags & OV772X_FLAG_HFLIP)
+		if (priv->info && (priv->info->flags & OV772X_FLAG_HFLIP))
 			val ^= HFLIP_IMG;
 		return ov772x_mask_set(client, COM3, HFLIP_IMG, val);
 	case V4L2_CID_BAND_STOP_FILTER:
@@ -761,8 +830,7 @@ static int ov772x_s_ctrl(struct v4l2_ctrl *ctrl)
 				ret = ov772x_mask_set(client, BDBASE,
 						      0xff, val);
 		}
-		if (!ret)
-			priv->band_filter = ctrl->val;
+
 		return ret;
 	}
 
@@ -824,10 +892,10 @@ static int ov772x_power_on(struct ov772x_priv *priv)
 	 * available to handle this cleanly, request the GPIO temporarily
 	 * to avoid conflicts.
 	 */
-	priv->rstb_gpio = gpiod_get_optional(&client->dev, "rstb",
+	priv->rstb_gpio = gpiod_get_optional(&client->dev, "reset",
 					     GPIOD_OUT_LOW);
 	if (IS_ERR(priv->rstb_gpio)) {
-		dev_info(&client->dev, "Unable to get GPIO \"rstb\"");
+		dev_info(&client->dev, "Unable to get GPIO \"reset\"");
 		return PTR_ERR(priv->rstb_gpio);
 	}
 
@@ -855,12 +923,45 @@ static int ov772x_power_off(struct ov772x_priv *priv)
 	return 0;
 }
 
+static int ov772x_set_params(struct ov772x_priv *priv,
+			     const struct ov772x_color_format *cfmt,
+			     const struct ov772x_win_size *win);
+
 static int ov772x_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct ov772x_priv *priv = to_ov772x(sd);
+	int ret = 0;
 
-	return on ? ov772x_power_on(priv) :
-		    ov772x_power_off(priv);
+	mutex_lock(&priv->lock);
+
+	/* If the power count is modified from 0 to != 0 or from != 0 to 0,
+	 * update the power state.
+	 */
+	if (priv->power_count == !on) {
+		if (on) {
+			ret = ov772x_power_on(priv);
+			/*
+			 * Restore the format, the frame rate, and
+			 * the controls
+			 */
+			if (!ret)
+				ret = ov772x_set_params(priv, priv->cfmt,
+							priv->win);
+		} else {
+			ret = ov772x_power_off(priv);
+		}
+	}
+
+	if (!ret) {
+		/* Update the power count. */
+		priv->power_count += on ? 1 : -1;
+		WARN(priv->power_count < 0, "Unbalanced power count\n");
+		WARN(priv->power_count > 1, "Duplicated s_power call\n");
+	}
+
+	mutex_unlock(&priv->lock);
+
+	return ret;
 }
 
 static const struct ov772x_win_size *ov772x_select_win(u32 width, u32 height)
@@ -901,19 +1002,14 @@ static void ov772x_select_params(const struct v4l2_mbus_framefmt *mf,
 	*win = ov772x_select_win(mf->width, mf->height);
 }
 
-static int ov772x_set_params(struct ov772x_priv *priv,
-			     const struct ov772x_color_format *cfmt,
-			     const struct ov772x_win_size *win)
+static int ov772x_edgectrl(struct ov772x_priv *priv)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&priv->subdev);
-	struct v4l2_fract tpf;
 	int ret;
-	u8  val;
 
-	/* Reset hardware. */
-	ov772x_reset(client);
+	if (!priv->info)
+		return 0;
 
-	/* Edge Ctrl. */
 	if (priv->info->edgectrl.strength & OV772X_MANUAL_EDGE_CTRL) {
 		/*
 		 * Manual Edge Control Mode.
@@ -924,19 +1020,19 @@ static int ov772x_set_params(struct ov772x_priv *priv,
 
 		ret = ov772x_mask_set(client, DSPAUTO, EDGE_ACTRL, 0x00);
 		if (ret < 0)
-			goto ov772x_set_fmt_error;
+			return ret;
 
 		ret = ov772x_mask_set(client,
 				      EDGE_TRSHLD, OV772X_EDGE_THRESHOLD_MASK,
 				      priv->info->edgectrl.threshold);
 		if (ret < 0)
-			goto ov772x_set_fmt_error;
+			return ret;
 
 		ret = ov772x_mask_set(client,
 				      EDGE_STRNGT, OV772X_EDGE_STRENGTH_MASK,
 				      priv->info->edgectrl.strength);
 		if (ret < 0)
-			goto ov772x_set_fmt_error;
+			return ret;
 
 	} else if (priv->info->edgectrl.upper > priv->info->edgectrl.lower) {
 		/*
@@ -948,14 +1044,33 @@ static int ov772x_set_params(struct ov772x_priv *priv,
 				      EDGE_UPPER, OV772X_EDGE_UPPER_MASK,
 				      priv->info->edgectrl.upper);
 		if (ret < 0)
-			goto ov772x_set_fmt_error;
+			return ret;
 
 		ret = ov772x_mask_set(client,
 				      EDGE_LOWER, OV772X_EDGE_LOWER_MASK,
 				      priv->info->edgectrl.lower);
 		if (ret < 0)
-			goto ov772x_set_fmt_error;
+			return ret;
 	}
+
+	return 0;
+}
+
+static int ov772x_set_params(struct ov772x_priv *priv,
+			     const struct ov772x_color_format *cfmt,
+			     const struct ov772x_win_size *win)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&priv->subdev);
+	int ret;
+	u8  val;
+
+	/* Reset hardware. */
+	ov772x_reset(client);
+
+	/* Edge Ctrl. */
+	ret = ov772x_edgectrl(priv);
+	if (ret < 0)
+		return ret;
 
 	/* Format and window size. */
 	ret = ov772x_write(client, HSTART, win->rect.left >> 2);
@@ -1007,13 +1122,13 @@ static int ov772x_set_params(struct ov772x_priv *priv,
 
 	/* Set COM3. */
 	val = cfmt->com3;
-	if (priv->info->flags & OV772X_FLAG_VFLIP)
+	if (priv->info && (priv->info->flags & OV772X_FLAG_VFLIP))
 		val |= VFLIP_IMG;
-	if (priv->info->flags & OV772X_FLAG_HFLIP)
+	if (priv->info && (priv->info->flags & OV772X_FLAG_HFLIP))
 		val |= HFLIP_IMG;
-	if (priv->flag_vflip)
+	if (priv->vflip_ctrl->val)
 		val ^= VFLIP_IMG;
-	if (priv->flag_hflip)
+	if (priv->hflip_ctrl->val)
 		val ^= HFLIP_IMG;
 
 	ret = ov772x_mask_set(client,
@@ -1027,18 +1142,18 @@ static int ov772x_set_params(struct ov772x_priv *priv,
 		goto ov772x_set_fmt_error;
 
 	/* COM4, CLKRC: Set pixel clock and framerate. */
-	tpf.numerator = 1;
-	tpf.denominator = priv->fps;
-	ret = ov772x_set_frame_rate(priv, &tpf, cfmt, win);
+	ret = ov772x_set_frame_rate(priv, priv->fps, cfmt, win);
 	if (ret < 0)
 		goto ov772x_set_fmt_error;
 
 	/* Set COM8. */
-	if (priv->band_filter) {
+	if (priv->band_filter_ctrl->val) {
+		unsigned short band_filter = priv->band_filter_ctrl->val;
+
 		ret = ov772x_mask_set(client, COM8, BNDF_ON_OFF, BNDF_ON_OFF);
 		if (!ret)
 			ret = ov772x_mask_set(client, BDBASE,
-					      0xff, 256 - priv->band_filter);
+					      0xff, 256 - band_filter);
 		if (ret < 0)
 			goto ov772x_set_fmt_error;
 	}
@@ -1102,7 +1217,7 @@ static int ov772x_set_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mf = &format->format;
 	const struct ov772x_color_format *cfmt;
 	const struct ov772x_win_size *win;
-	int ret;
+	int ret = 0;
 
 	if (format->pad)
 		return -EINVAL;
@@ -1123,30 +1238,50 @@ static int ov772x_set_fmt(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	ret = ov772x_set_params(priv, cfmt, win);
-	if (ret < 0)
-		return ret;
+	mutex_lock(&priv->lock);
 
+	if (priv->streaming) {
+		ret = -EBUSY;
+		goto error;
+	}
+
+	/*
+	 * If the device is not powered up by the host driver do
+	 * not apply any changes to H/W at this time. Instead
+	 * the format will be restored right after power-up.
+	 */
+	if (priv->power_count > 0) {
+		ret = ov772x_set_params(priv, cfmt, win);
+		if (ret < 0)
+			goto error;
+	}
 	priv->win = win;
 	priv->cfmt = cfmt;
 
-	return 0;
+error:
+	mutex_unlock(&priv->lock);
+
+	return ret;
 }
 
 static int ov772x_video_probe(struct ov772x_priv *priv)
 {
 	struct i2c_client  *client = v4l2_get_subdevdata(&priv->subdev);
-	u8                  pid, ver;
+	int		    pid, ver, midh, midl;
 	const char         *devname;
 	int		    ret;
 
-	ret = ov772x_s_power(&priv->subdev, 1);
+	ret = ov772x_power_on(priv);
 	if (ret < 0)
 		return ret;
 
 	/* Check and show product ID and manufacturer ID. */
 	pid = ov772x_read(client, PID);
+	if (pid < 0)
+		return pid;
 	ver = ov772x_read(client, VER);
+	if (ver < 0)
+		return ver;
 
 	switch (VERSION(pid, ver)) {
 	case OV7720:
@@ -1162,17 +1297,21 @@ static int ov772x_video_probe(struct ov772x_priv *priv)
 		goto done;
 	}
 
+	midh = ov772x_read(client, MIDH);
+	if (midh < 0)
+		return midh;
+	midl = ov772x_read(client, MIDL);
+	if (midl < 0)
+		return midl;
+
 	dev_info(&client->dev,
 		 "%s Product ID %0x:%0x Manufacturer ID %x:%x\n",
-		 devname,
-		 pid,
-		 ver,
-		 ov772x_read(client, MIDH),
-		 ov772x_read(client, MIDL));
+		 devname, pid, ver, midh, midl);
+
 	ret = v4l2_ctrl_handler_setup(&priv->hdl);
 
 done:
-	ov772x_s_power(&priv->subdev, 0);
+	ov772x_power_off(priv);
 
 	return ret;
 }
@@ -1250,48 +1389,54 @@ static int ov772x_probe(struct i2c_client *client,
 	struct i2c_adapter	*adapter = client->adapter;
 	int			ret;
 
-	if (!client->dev.platform_data) {
-		dev_err(&client->dev, "Missing ov772x platform data\n");
+	if (!client->dev.of_node && !client->dev.platform_data) {
+		dev_err(&client->dev,
+			"Missing ov772x platform data for non-DT device\n");
 		return -EINVAL;
 	}
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
-					      I2C_FUNC_PROTOCOL_MANGLING)) {
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&adapter->dev,
-			"I2C-Adapter doesn't support SMBUS_BYTE_DATA or PROTOCOL_MANGLING\n");
+			"I2C-Adapter doesn't support SMBUS_BYTE_DATA\n");
 		return -EIO;
 	}
-	client->flags |= I2C_CLIENT_SCCB;
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	priv->info = client->dev.platform_data;
+	mutex_init(&priv->lock);
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov772x_subdev_ops);
+	priv->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	v4l2_ctrl_handler_init(&priv->hdl, 3);
-	v4l2_ctrl_new_std(&priv->hdl, &ov772x_ctrl_ops,
-			  V4L2_CID_VFLIP, 0, 1, 1, 0);
-	v4l2_ctrl_new_std(&priv->hdl, &ov772x_ctrl_ops,
-			  V4L2_CID_HFLIP, 0, 1, 1, 0);
-	v4l2_ctrl_new_std(&priv->hdl, &ov772x_ctrl_ops,
-			  V4L2_CID_BAND_STOP_FILTER, 0, 256, 1, 0);
+	/* Use our mutex for the controls */
+	priv->hdl.lock = &priv->lock;
+	priv->vflip_ctrl = v4l2_ctrl_new_std(&priv->hdl, &ov772x_ctrl_ops,
+					     V4L2_CID_VFLIP, 0, 1, 1, 0);
+	priv->hflip_ctrl = v4l2_ctrl_new_std(&priv->hdl, &ov772x_ctrl_ops,
+					     V4L2_CID_HFLIP, 0, 1, 1, 0);
+	priv->band_filter_ctrl = v4l2_ctrl_new_std(&priv->hdl, &ov772x_ctrl_ops,
+						   V4L2_CID_BAND_STOP_FILTER,
+						   0, 256, 1, 0);
 	priv->subdev.ctrl_handler = &priv->hdl;
-	if (priv->hdl.error)
-		return priv->hdl.error;
+	if (priv->hdl.error) {
+		ret = priv->hdl.error;
+		goto error_mutex_destroy;
+	}
 
-	priv->clk = clk_get(&client->dev, "xclk");
+	priv->clk = clk_get(&client->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		dev_err(&client->dev, "Unable to get xclk clock\n");
 		ret = PTR_ERR(priv->clk);
 		goto error_ctrl_free;
 	}
 
-	priv->pwdn_gpio = gpiod_get_optional(&client->dev, "pwdn",
+	priv->pwdn_gpio = gpiod_get_optional(&client->dev, "powerdown",
 					     GPIOD_OUT_LOW);
 	if (IS_ERR(priv->pwdn_gpio)) {
-		dev_info(&client->dev, "Unable to get GPIO \"pwdn\"");
+		dev_info(&client->dev, "Unable to get GPIO \"powerdown\"");
 		ret = PTR_ERR(priv->pwdn_gpio);
 		goto error_clk_put;
 	}
@@ -1300,16 +1445,26 @@ static int ov772x_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto error_gpio_put;
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+	priv->pad.flags = MEDIA_PAD_FL_SOURCE;
+	priv->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&priv->subdev.entity, 1, &priv->pad);
+	if (ret < 0)
+		goto error_gpio_put;
+#endif
+
 	priv->cfmt = &ov772x_cfmts[0];
 	priv->win = &ov772x_win_sizes[0];
 	priv->fps = 15;
 
 	ret = v4l2_async_register_subdev(&priv->subdev);
 	if (ret)
-		goto error_gpio_put;
+		goto error_entity_cleanup;
 
 	return 0;
 
+error_entity_cleanup:
+	media_entity_cleanup(&priv->subdev.entity);
 error_gpio_put:
 	if (priv->pwdn_gpio)
 		gpiod_put(priv->pwdn_gpio);
@@ -1317,6 +1472,8 @@ error_clk_put:
 	clk_put(priv->clk);
 error_ctrl_free:
 	v4l2_ctrl_handler_free(&priv->hdl);
+error_mutex_destroy:
+	mutex_destroy(&priv->lock);
 
 	return ret;
 }
@@ -1325,11 +1482,13 @@ static int ov772x_remove(struct i2c_client *client)
 {
 	struct ov772x_priv *priv = to_ov772x(i2c_get_clientdata(client));
 
+	media_entity_cleanup(&priv->subdev.entity);
 	clk_put(priv->clk);
 	if (priv->pwdn_gpio)
 		gpiod_put(priv->pwdn_gpio);
 	v4l2_async_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
+	mutex_destroy(&priv->lock);
 
 	return 0;
 }
@@ -1340,9 +1499,17 @@ static const struct i2c_device_id ov772x_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ov772x_id);
 
+static const struct of_device_id ov772x_of_match[] = {
+	{ .compatible = "ovti,ov7725", },
+	{ .compatible = "ovti,ov7720", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, ov772x_of_match);
+
 static struct i2c_driver ov772x_i2c_driver = {
 	.driver = {
 		.name = "ov772x",
+		.of_match_table = ov772x_of_match,
 	},
 	.probe    = ov772x_probe,
 	.remove   = ov772x_remove,

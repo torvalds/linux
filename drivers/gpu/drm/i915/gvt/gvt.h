@@ -170,12 +170,18 @@ struct intel_vgpu_submission {
 
 struct intel_vgpu {
 	struct intel_gvt *gvt;
+	struct mutex vgpu_lock;
 	int id;
 	unsigned long handle; /* vGPU handle used by hypervisor MPT modules */
 	bool active;
 	bool pv_notified;
 	bool failsafe;
 	unsigned int resetting_eng;
+
+	/* Both sched_data and sched_ctl can be seen a part of the global gvt
+	 * scheduler structure. So below 2 vgpu data are protected
+	 * by sched_lock, not vgpu_lock.
+	 */
 	void *sched_data;
 	struct vgpu_sched_ctl sched_ctl;
 
@@ -268,6 +274,8 @@ struct intel_gvt_mmio {
 #define F_CMD_ACCESSED	(1 << 5)
 /* This reg could be accessed by unaligned address */
 #define F_UNALIGN	(1 << 6)
+/* This reg is saved/restored in context */
+#define F_IN_CTX	(1 << 7)
 
 	struct gvt_mmio_block *mmio_block;
 	unsigned int num_mmio_block;
@@ -294,7 +302,13 @@ struct intel_vgpu_type {
 };
 
 struct intel_gvt {
+	/* GVT scope lock, protect GVT itself, and all resource currently
+	 * not yet protected by special locks(vgpu and scheduler lock).
+	 */
 	struct mutex lock;
+	/* scheduler scope lock, protect gvt and vgpu schedule related data */
+	struct mutex sched_lock;
+
 	struct drm_i915_private *dev_priv;
 	struct idr vgpu_idr;	/* vGPU IDR pool */
 
@@ -314,6 +328,10 @@ struct intel_gvt {
 
 	struct task_struct *service_thread;
 	wait_queue_head_t service_thread_wq;
+
+	/* service_request is always used in bit operation, we should always
+	 * use it with atomic bit ops so that no need to use gvt big lock.
+	 */
 	unsigned long service_request;
 
 	struct {
@@ -361,9 +379,9 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt);
 #define gvt_aperture_sz(gvt)	  (gvt->dev_priv->ggtt.mappable_end)
 #define gvt_aperture_pa_base(gvt) (gvt->dev_priv->ggtt.gmadr.start)
 
-#define gvt_ggtt_gm_sz(gvt)	  (gvt->dev_priv->ggtt.base.total)
+#define gvt_ggtt_gm_sz(gvt)	  (gvt->dev_priv->ggtt.vm.total)
 #define gvt_ggtt_sz(gvt) \
-	((gvt->dev_priv->ggtt.base.total >> PAGE_SHIFT) << 3)
+	((gvt->dev_priv->ggtt.vm.total >> PAGE_SHIFT) << 3)
 #define gvt_hidden_sz(gvt)	  (gvt_ggtt_gm_sz(gvt) - gvt_aperture_sz(gvt))
 
 #define gvt_aperture_gmadr_base(gvt) (0)
@@ -468,6 +486,7 @@ void intel_gvt_destroy_idle_vgpu(struct intel_vgpu *vgpu);
 struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 					 struct intel_vgpu_type *type);
 void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu);
+void intel_gvt_release_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 				 unsigned int engine_mask);
 void intel_gvt_reset_vgpu(struct intel_vgpu *vgpu);
@@ -545,7 +564,8 @@ struct intel_gvt_ops {
 				unsigned int);
 	struct intel_vgpu *(*vgpu_create)(struct intel_gvt *,
 				struct intel_vgpu_type *);
-	void (*vgpu_destroy)(struct intel_vgpu *);
+	void (*vgpu_destroy)(struct intel_vgpu *vgpu);
+	void (*vgpu_release)(struct intel_vgpu *vgpu);
 	void (*vgpu_reset)(struct intel_vgpu *);
 	void (*vgpu_activate)(struct intel_vgpu *);
 	void (*vgpu_deactivate)(struct intel_vgpu *);
@@ -637,6 +657,33 @@ static inline bool intel_gvt_mmio_has_mode_mask(
 			struct intel_gvt *gvt, unsigned int offset)
 {
 	return gvt->mmio.mmio_attribute[offset >> 2] & F_MODE_MASK;
+}
+
+/**
+ * intel_gvt_mmio_is_in_ctx - check if a MMIO has in-ctx mask
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ * Returns:
+ * True if a MMIO has a in-context mask, false if it isn't.
+ *
+ */
+static inline bool intel_gvt_mmio_is_in_ctx(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	return gvt->mmio.mmio_attribute[offset >> 2] & F_IN_CTX;
+}
+
+/**
+ * intel_gvt_mmio_set_in_ctx - mask a MMIO in logical context
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ */
+static inline void intel_gvt_mmio_set_in_ctx(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	gvt->mmio.mmio_attribute[offset >> 2] |= F_IN_CTX;
 }
 
 int intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu);

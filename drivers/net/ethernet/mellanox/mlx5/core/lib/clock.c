@@ -488,6 +488,7 @@ void mlx5_pps_event(struct mlx5_core_dev *mdev,
 void mlx5_init_clock(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_clock *clock = &mdev->clock;
+	u64 overflow_cycles;
 	u64 ns;
 	u64 frac = 0;
 	u32 dev_freq;
@@ -511,10 +512,17 @@ void mlx5_init_clock(struct mlx5_core_dev *mdev)
 
 	/* Calculate period in seconds to call the overflow watchdog - to make
 	 * sure counter is checked at least once every wrap around.
+	 * The period is calculated as the minimum between max HW cycles count
+	 * (The clock source mask) and max amount of cycles that can be
+	 * multiplied by clock multiplier where the result doesn't exceed
+	 * 64bits.
 	 */
-	ns = cyclecounter_cyc2ns(&clock->cycles, clock->cycles.mask,
+	overflow_cycles = div64_u64(~0ULL >> 1, clock->cycles.mult);
+	overflow_cycles = min(overflow_cycles, clock->cycles.mask >> 1);
+
+	ns = cyclecounter_cyc2ns(&clock->cycles, overflow_cycles,
 				 frac, &frac);
-	do_div(ns, NSEC_PER_SEC / 2 / HZ);
+	do_div(ns, NSEC_PER_SEC / HZ);
 	clock->overflow_period = ns;
 
 	mdev->clock_info_page = alloc_page(GFP_KERNEL);

@@ -1,46 +1,12 @@
-/*
- * drivers/net/ethernet/mellanox/mlxsw/spectrum_acl_flex_actions.c
- * Copyright (c) 2017, 2018 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Jiri Pirko <jiri@mellanox.com>
- * Copyright (c) 2017 Yotam Gigi <yotamg@mellanox.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
 
 #include "spectrum_acl_flex_actions.h"
 #include "core_acl_flex_actions.h"
 #include "spectrum_span.h"
 
-#define MLXSW_SP_KVDL_ACT_EXT_SIZE 1
-
 static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
-				     char *enc_actions, bool is_first)
+				     char *enc_actions, bool is_first, bool ca)
 {
 	struct mlxsw_sp *mlxsw_sp = priv;
 	char pefa_pl[MLXSW_REG_PEFA_LEN];
@@ -53,11 +19,11 @@ static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
 	if (is_first)
 		return 0;
 
-	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ACT_EXT_SIZE,
-				  &kvdl_index);
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
+				  1, &kvdl_index);
 	if (err)
 		return err;
-	mlxsw_reg_pefa_pack(pefa_pl, kvdl_index, enc_actions);
+	mlxsw_reg_pefa_pack(pefa_pl, kvdl_index, ca, enc_actions);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pefa), pefa_pl);
 	if (err)
 		goto err_pefa_write;
@@ -65,8 +31,23 @@ static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
 	return 0;
 
 err_pefa_write:
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
+			   1, kvdl_index);
 	return err;
+}
+
+static int mlxsw_sp1_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
+				      char *enc_actions, bool is_first)
+{
+	return mlxsw_sp_act_kvdl_set_add(priv, p_kvdl_index, enc_actions,
+					 is_first, false);
+}
+
+static int mlxsw_sp2_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
+				      char *enc_actions, bool is_first)
+{
+	return mlxsw_sp_act_kvdl_set_add(priv, p_kvdl_index, enc_actions,
+					 is_first, true);
 }
 
 static void mlxsw_sp_act_kvdl_set_del(void *priv, u32 kvdl_index,
@@ -76,7 +57,29 @@ static void mlxsw_sp_act_kvdl_set_del(void *priv, u32 kvdl_index,
 
 	if (is_first)
 		return;
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
+			   1, kvdl_index);
+}
+
+static int mlxsw_sp1_act_kvdl_set_activity_get(void *priv, u32 kvdl_index,
+					       bool *activity)
+{
+	return -EOPNOTSUPP;
+}
+
+static int mlxsw_sp2_act_kvdl_set_activity_get(void *priv, u32 kvdl_index,
+					       bool *activity)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+	char pefa_pl[MLXSW_REG_PEFA_LEN];
+	int err;
+
+	mlxsw_reg_pefa_pack(pefa_pl, kvdl_index, true, NULL);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pefa), pefa_pl);
+	if (err)
+		return err;
+	mlxsw_reg_pefa_unpack(pefa_pl, activity);
+	return 0;
 }
 
 static int mlxsw_sp_act_kvdl_fwd_entry_add(void *priv, u32 *p_kvdl_index,
@@ -87,7 +90,8 @@ static int mlxsw_sp_act_kvdl_fwd_entry_add(void *priv, u32 *p_kvdl_index,
 	u32 kvdl_index;
 	int err;
 
-	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, 1, &kvdl_index);
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_PBS,
+				  1, &kvdl_index);
 	if (err)
 		return err;
 	mlxsw_reg_ppbs_pack(ppbs_pl, kvdl_index, local_port);
@@ -98,7 +102,8 @@ static int mlxsw_sp_act_kvdl_fwd_entry_add(void *priv, u32 *p_kvdl_index,
 	return 0;
 
 err_ppbs_write:
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_PBS,
+			   1, kvdl_index);
 	return err;
 }
 
@@ -106,7 +111,8 @@ static void mlxsw_sp_act_kvdl_fwd_entry_del(void *priv, u32 kvdl_index)
 {
 	struct mlxsw_sp *mlxsw_sp = priv;
 
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_PBS,
+			   1, kvdl_index);
 }
 
 static int
@@ -154,9 +160,10 @@ mlxsw_sp_act_mirror_del(void *priv, u8 local_in_port, int span_id, bool ingress)
 	mlxsw_sp_span_mirror_del(in_port, span_id, type, false);
 }
 
-static const struct mlxsw_afa_ops mlxsw_sp_act_afa_ops = {
-	.kvdl_set_add		= mlxsw_sp_act_kvdl_set_add,
+const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops = {
+	.kvdl_set_add		= mlxsw_sp1_act_kvdl_set_add,
 	.kvdl_set_del		= mlxsw_sp_act_kvdl_set_del,
+	.kvdl_set_activity_get	= mlxsw_sp1_act_kvdl_set_activity_get,
 	.kvdl_fwd_entry_add	= mlxsw_sp_act_kvdl_fwd_entry_add,
 	.kvdl_fwd_entry_del	= mlxsw_sp_act_kvdl_fwd_entry_del,
 	.counter_index_get	= mlxsw_sp_act_counter_index_get,
@@ -165,11 +172,24 @@ static const struct mlxsw_afa_ops mlxsw_sp_act_afa_ops = {
 	.mirror_del		= mlxsw_sp_act_mirror_del,
 };
 
+const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops = {
+	.kvdl_set_add		= mlxsw_sp2_act_kvdl_set_add,
+	.kvdl_set_del		= mlxsw_sp_act_kvdl_set_del,
+	.kvdl_set_activity_get	= mlxsw_sp2_act_kvdl_set_activity_get,
+	.kvdl_fwd_entry_add	= mlxsw_sp_act_kvdl_fwd_entry_add,
+	.kvdl_fwd_entry_del	= mlxsw_sp_act_kvdl_fwd_entry_del,
+	.counter_index_get	= mlxsw_sp_act_counter_index_get,
+	.counter_index_put	= mlxsw_sp_act_counter_index_put,
+	.mirror_add		= mlxsw_sp_act_mirror_add,
+	.mirror_del		= mlxsw_sp_act_mirror_del,
+	.dummy_first_set	= true,
+};
+
 int mlxsw_sp_afa_init(struct mlxsw_sp *mlxsw_sp)
 {
 	mlxsw_sp->afa = mlxsw_afa_create(MLXSW_CORE_RES_GET(mlxsw_sp->core,
 							    ACL_ACTIONS_PER_SET),
-					 &mlxsw_sp_act_afa_ops, mlxsw_sp);
+					 mlxsw_sp->afa_ops, mlxsw_sp);
 	return PTR_ERR_OR_ZERO(mlxsw_sp->afa);
 }
 

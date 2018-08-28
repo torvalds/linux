@@ -84,6 +84,7 @@ struct hda_bus {
  */
 typedef int (*hda_codec_patch_t)(struct hda_codec *);
 	
+#define HDA_CODEC_ID_SKIP_PROBE		0x00000001
 #define HDA_CODEC_ID_GENERIC_HDMI	0x00000101
 #define HDA_CODEC_ID_GENERIC		0x00000201
 
@@ -383,9 +384,6 @@ snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 {
 	return snd_hdac_regmap_write(&codec->core, nid, verb, parm);
 }
-
-#define snd_hda_codec_update_cache(codec, nid, flags, verb, parm) \
-	snd_hda_codec_write_cache(codec, nid, flags, verb, parm)
 
 /* the struct for codec->pin_configs */
 struct hda_pincfg {

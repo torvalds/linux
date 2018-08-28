@@ -21,10 +21,10 @@ enum coherent_io_user_state {
 extern enum coherent_io_user_state coherentio;
 extern int hw_coherentio;
 #else
-#ifdef CONFIG_DMA_COHERENT
-#define coherentio	IO_COHERENCE_ENABLED
-#else
+#ifdef CONFIG_DMA_NONCOHERENT
 #define coherentio	IO_COHERENCE_DISABLED
+#else
+#define coherentio	IO_COHERENCE_ENABLED
 #endif
 #define hw_coherentio	0
 #endif /* CONFIG_DMA_MAYBE_COHERENT */

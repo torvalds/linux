@@ -119,8 +119,7 @@ static size_t etnaviv_iommuv2_unmap(struct etnaviv_iommu_domain *domain,
 
 static int etnaviv_iommuv2_init(struct etnaviv_iommuv2_domain *etnaviv_domain)
 {
-	u32 *p;
-	int ret, i;
+	int ret;
 
 	/* allocate scratch page */
 	etnaviv_domain->base.bad_page_cpu =
@@ -131,9 +130,9 @@ static int etnaviv_iommuv2_init(struct etnaviv_iommuv2_domain *etnaviv_domain)
 		ret = -ENOMEM;
 		goto fail_mem;
 	}
-	p = etnaviv_domain->base.bad_page_cpu;
-	for (i = 0; i < SZ_4K / 4; i++)
-		*p++ = 0xdead55aa;
+
+	memset32(etnaviv_domain->base.bad_page_cpu, 0xdead55aa,
+		 SZ_4K / sizeof(u32));
 
 	etnaviv_domain->pta_cpu = dma_alloc_wc(etnaviv_domain->base.dev,
 					       SZ_4K, &etnaviv_domain->pta_dma,

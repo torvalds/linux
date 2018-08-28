@@ -821,6 +821,6 @@ nv17_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 	encoder->possible_clones = 0;
 
 	nv17_tv_create_resources(encoder, connector);
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	return 0;
 }

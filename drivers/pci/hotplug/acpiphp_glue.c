@@ -509,7 +509,7 @@ static void enable_slot(struct acpiphp_slot *slot)
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		/* Assume that newly added devices are powered on already. */
-		if (!dev->is_added)
+		if (!pci_dev_is_added(dev))
 			dev->current_state = PCI_D0;
 	}
 

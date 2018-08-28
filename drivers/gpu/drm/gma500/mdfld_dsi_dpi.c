@@ -999,7 +999,7 @@ struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev,
 				p_funcs->encoder_helper_funcs);
 
 	/*attach to given connector*/
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	/*set possible crtcs and clones*/
 	if (dsi_connector->pipe) {

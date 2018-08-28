@@ -16904,7 +16904,7 @@ static void wlc_phy_workarounds_nphy_rev3(struct brcms_phy *pi)
 	}
 }
 
-void wlc_phy_workarounds_nphy_rev1(struct brcms_phy *pi)
+static void wlc_phy_workarounds_nphy_rev1(struct brcms_phy *pi)
 {
 	static const u8 rfseq_rx2tx_events[] = {
 		NPHY_RFSEQ_CMD_NOP,

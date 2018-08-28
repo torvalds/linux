@@ -490,7 +490,7 @@ struct perf_addr_filters_head {
 };
 
 /**
- * enum perf_event_state - the states of a event
+ * enum perf_event_state - the states of an event:
  */
 enum perf_event_state {
 	PERF_EVENT_STATE_DEAD		= -4,
@@ -1130,6 +1130,7 @@ extern void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct
 extern struct perf_callchain_entry *
 get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 		   u32 max_stack, bool crosstask, bool add_mark);
+extern struct perf_callchain_entry *perf_callchain(struct perf_event *event, struct pt_regs *regs);
 extern int get_callchain_buffers(int max_stack);
 extern void put_callchain_buffers(void);
 

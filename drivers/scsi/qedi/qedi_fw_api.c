@@ -126,22 +126,24 @@ static void init_sqe(struct iscsi_task_params *task_params,
 						     sgl_task_params,
 						     dif_task_params);
 
-		if (scsi_is_slow_sgl(sgl_task_params->num_sges,
-				     sgl_task_params->small_mid_sge))
-			num_sges = ISCSI_WQE_NUM_SGES_SLOWIO;
-		else
-			num_sges = min(sgl_task_params->num_sges,
-				       (u16)SCSI_NUM_SGES_SLOW_SGL_THR);
-	}
+			if (scsi_is_slow_sgl(sgl_task_params->num_sges,
+					     sgl_task_params->small_mid_sge))
+				num_sges = ISCSI_WQE_NUM_SGES_SLOWIO;
+			else
+				num_sges = min(sgl_task_params->num_sges,
+					       (u16)SCSI_NUM_SGES_SLOW_SGL_THR);
+		}
 
-	SET_FIELD(task_params->sqe->flags, ISCSI_WQE_NUM_SGES, num_sges);
-	SET_FIELD(task_params->sqe->contlen_cdbsize, ISCSI_WQE_CONT_LEN,
-		  buf_size);
+		SET_FIELD(task_params->sqe->flags, ISCSI_WQE_NUM_SGES,
+			  num_sges);
+		SET_FIELD(task_params->sqe->contlen_cdbsize, ISCSI_WQE_CONT_LEN,
+			  buf_size);
 
-	if (GET_FIELD(pdu_header->hdr_second_dword,
-		      ISCSI_CMD_HDR_TOTAL_AHS_LEN))
-		SET_FIELD(task_params->sqe->contlen_cdbsize, ISCSI_WQE_CDB_SIZE,
-			  cmd_params->extended_cdb_sge.sge_len);
+		if (GET_FIELD(pdu_header->hdr_second_dword,
+			      ISCSI_CMD_HDR_TOTAL_AHS_LEN))
+			SET_FIELD(task_params->sqe->contlen_cdbsize,
+				  ISCSI_WQE_CDB_SIZE,
+				  cmd_params->extended_cdb_sge.sge_len);
 	}
 		break;
 	case ISCSI_TASK_TYPE_INITIATOR_READ:

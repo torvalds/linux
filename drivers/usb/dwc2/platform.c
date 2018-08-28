@@ -353,6 +353,23 @@ static void dwc2_driver_shutdown(struct platform_device *dev)
 }
 
 /**
+ * dwc2_check_core_endianness() - Returns true if core and AHB have
+ * opposite endianness.
+ * @hsotg:	Programming view of the DWC_otg controller.
+ */
+static bool dwc2_check_core_endianness(struct dwc2_hsotg *hsotg)
+{
+	u32 snpsid;
+
+	snpsid = ioread32(hsotg->regs + GSNPSID);
+	if ((snpsid & GSNPSID_ID_MASK) == DWC2_OTG_ID ||
+	    (snpsid & GSNPSID_ID_MASK) == DWC2_FS_IOT_ID ||
+	    (snpsid & GSNPSID_ID_MASK) == DWC2_HS_IOT_ID)
+		return false;
+	return true;
+}
+
+/**
  * dwc2_driver_probe() - Called when the DWC_otg core is bound to the DWC_otg
  * driver
  *
@@ -394,6 +411,8 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	dev_dbg(&dev->dev, "mapped PA %08lx to VA %p\n",
 		(unsigned long)res->start, hsotg->regs);
+
+	hsotg->needs_byte_swap = dwc2_check_core_endianness(hsotg);
 
 	retval = dwc2_lowlevel_hw_init(hsotg);
 	if (retval)

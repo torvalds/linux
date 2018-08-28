@@ -6,7 +6,6 @@ of a virtual sensor device.
 Required properties:
 - compatible: "samsung,sensorhub-rinato" or "samsung,sensorhub-thermostat"
 - spi-max-frequency: max SPI clock frequency
-- interrupt-parent: interrupt parent
 - interrupts: communication interrupt
 - ap-mcu-gpios: [out] ap to sensorhub line - used during communication
 - mcu-ap-gpios: [in] sensorhub to ap - used during communication

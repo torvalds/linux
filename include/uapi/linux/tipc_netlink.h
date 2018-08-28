@@ -121,6 +121,7 @@ enum {
 	TIPC_NLA_SOCK_TIPC_STATE,	/* u32 */
 	TIPC_NLA_SOCK_COOKIE,		/* u64 */
 	TIPC_NLA_SOCK_PAD,		/* flag */
+	TIPC_NLA_SOCK_GROUP,		/* nest */
 
 	__TIPC_NLA_SOCK_MAX,
 	TIPC_NLA_SOCK_MAX = __TIPC_NLA_SOCK_MAX - 1
@@ -231,6 +232,19 @@ enum {
 
 	__TIPC_NLA_MON_PEER_MAX,
 	TIPC_NLA_MON_PEER_MAX = __TIPC_NLA_MON_PEER_MAX - 1
+};
+
+/* Nest, socket group info */
+enum {
+	TIPC_NLA_SOCK_GROUP_ID,			/* u32 */
+	TIPC_NLA_SOCK_GROUP_OPEN,		/* flag */
+	TIPC_NLA_SOCK_GROUP_NODE_SCOPE,		/* flag */
+	TIPC_NLA_SOCK_GROUP_CLUSTER_SCOPE,	/* flag */
+	TIPC_NLA_SOCK_GROUP_INSTANCE,		/* u32 */
+	TIPC_NLA_SOCK_GROUP_BC_SEND_NEXT,	/* u32 */
+
+	__TIPC_NLA_SOCK_GROUP_MAX,
+	TIPC_NLA_SOCK_GROUP_MAX = __TIPC_NLA_SOCK_GROUP_MAX - 1
 };
 
 /* Nest, connection info */

@@ -20,8 +20,6 @@ Required properties:
  - interrupts : specifies attributes for the out-of-band interrupt.
 
 Optional properties:
- - interrupt-parent : the phandle for the interrupt controller to which the
-	device interrupts are connected.
  - ref-clock-frequency : ref clock frequency in Hz
  - tcxo-clock-frequency : tcxo clock frequency in Hz
 

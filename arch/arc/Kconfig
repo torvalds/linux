@@ -50,6 +50,9 @@ config ARC
 	select HAVE_KERNEL_LZMA
 	select ARCH_HAS_PTE_SPECIAL
 
+config ARCH_HAS_CACHE_LINE_SIZE
+	def_bool y
+
 config MIGHT_HAVE_PCI
 	bool
 
@@ -93,9 +96,6 @@ config STACKTRACE_SUPPORT
 config HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	def_bool y
 	depends on ARC_MMU_V4
-
-source "init/Kconfig"
-source "kernel/Kconfig.freezer"
 
 menu "ARC Architecture Configuration"
 
@@ -413,7 +413,7 @@ config ARC_HAS_DIV_REM
 
 config ARC_HAS_ACCL_REGS
 	bool "Reg Pair ACCL:ACCH (FPU and/or MPY > 6)"
-	default n
+	default y
 	help
 	  Depending on the configuration, CPU can contain accumulator reg-pair
 	  (also referred to as r58:r59). These can also be used by gcc as GPR so
@@ -548,23 +548,12 @@ config ARC_BUILTIN_DTB_NAME
 	  Set the name of the DTB to embed in the vmlinux binary
 	  Leaving it blank selects the minimal "skeleton" dtb
 
-source "kernel/Kconfig.preempt"
-
-menu "Executable file formats"
-source "fs/Kconfig.binfmt"
-endmenu
-
 endmenu	 # "ARC Architecture Configuration"
-
-source "mm/Kconfig"
 
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
 	default "12" if ARC_HUGEPAGE_16M
 	default "11"
-
-source "net/Kconfig"
-source "drivers/Kconfig"
 
 menu "Bus Support"
 
@@ -586,9 +575,4 @@ source "drivers/pci/Kconfig"
 
 endmenu
 
-source "fs/Kconfig"
-source "arch/arc/Kconfig.debug"
-source "security/Kconfig"
-source "crypto/Kconfig"
-source "lib/Kconfig"
 source "kernel/power/Kconfig"

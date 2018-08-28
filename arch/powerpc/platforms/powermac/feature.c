@@ -2889,10 +2889,8 @@ set_initial_features(void)
 	/* On all machines, switch modem & serial ports off */
 	for_each_node_by_name(np, "ch-a")
 		initial_serial_shutdown(np);
-	of_node_put(np);
 	for_each_node_by_name(np, "ch-b")
 		initial_serial_shutdown(np);
-	of_node_put(np);
 }
 
 void __init

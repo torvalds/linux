@@ -286,9 +286,9 @@ int proc_readdir_de(struct file *file, struct dir_context *ctx,
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
+	i = ctx->pos - 2;
 	read_lock(&proc_subdir_lock);
 	de = pde_subdir_first(de);
-	i = ctx->pos - 2;
 	for (;;) {
 		if (!de) {
 			read_unlock(&proc_subdir_lock);
@@ -309,8 +309,8 @@ int proc_readdir_de(struct file *file, struct dir_context *ctx,
 			pde_put(de);
 			return 0;
 		}
-		read_lock(&proc_subdir_lock);
 		ctx->pos++;
+		read_lock(&proc_subdir_lock);
 		next = pde_subdir_next(de);
 		pde_put(de);
 		de = next;
@@ -564,11 +564,20 @@ static int proc_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, de->seq_ops);
 }
 
+static int proc_seq_release(struct inode *inode, struct file *file)
+{
+	struct proc_dir_entry *de = PDE(inode);
+
+	if (de->state_size)
+		return seq_release_private(inode, file);
+	return seq_release(inode, file);
+}
+
 static const struct file_operations proc_seq_fops = {
 	.open		= proc_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= proc_seq_release,
 };
 
 struct proc_dir_entry *proc_create_seq_private(const char *name, umode_t mode,

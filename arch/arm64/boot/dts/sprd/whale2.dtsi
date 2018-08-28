@@ -146,6 +146,12 @@
 				clocks = <&ext_32k>;
 			};
 
+			timer@40050020 {
+				compatible = "sprd,sc9860-suspend-timer";
+				reg = <0 0x40050020 0 0x20>;
+				clocks = <&ext_32k>;
+			};
+
 			hwlock: hwspinlock@40500000 {
 				compatible = "sprd,hwspinlock-r3p0";
 				reg = <0 0x40500000 0 0x1000>;

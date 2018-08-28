@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 
 #include <crypto/engine.h>
@@ -120,6 +121,8 @@ enum stm32_hash_data_format {
 #define HASH_MAX_KEY_SIZE		(SHA256_BLOCK_SIZE * 8)
 #define HASH_QUEUE_LENGTH		16
 #define HASH_DMA_THRESHOLD		50
+
+#define HASH_AUTOSUSPEND_DELAY		50
 
 struct stm32_hash_ctx {
 	struct crypto_engine_ctx enginectx;
@@ -814,12 +817,17 @@ static void stm32_hash_finish_req(struct ahash_request *req, int err)
 		rctx->flags |= HASH_FLAGS_ERRORS;
 	}
 
+	pm_runtime_mark_last_busy(hdev->dev);
+	pm_runtime_put_autosuspend(hdev->dev);
+
 	crypto_finalize_hash_request(hdev->engine, req, err);
 }
 
 static int stm32_hash_hw_init(struct stm32_hash_dev *hdev,
 			      struct stm32_hash_request_ctx *rctx)
 {
+	pm_runtime_get_sync(hdev->dev);
+
 	if (!(HASH_FLAGS_INIT & hdev->flags)) {
 		stm32_hash_write(hdev, HASH_CR, HASH_CR_INIT);
 		stm32_hash_write(hdev, HASH_STR, 0);
@@ -967,6 +975,8 @@ static int stm32_hash_export(struct ahash_request *req, void *out)
 	u32 *preg;
 	unsigned int i;
 
+	pm_runtime_get_sync(hdev->dev);
+
 	while (!(stm32_hash_read(hdev, HASH_SR) & HASH_SR_DATA_INPUT_READY))
 		cpu_relax();
 
@@ -981,6 +991,9 @@ static int stm32_hash_export(struct ahash_request *req, void *out)
 	*preg++ = stm32_hash_read(hdev, HASH_CR);
 	for (i = 0; i < HASH_CSR_REGISTER_NUMBER; i++)
 		*preg++ = stm32_hash_read(hdev, HASH_CSR(i));
+
+	pm_runtime_mark_last_busy(hdev->dev);
+	pm_runtime_put_autosuspend(hdev->dev);
 
 	memcpy(out, rctx, sizeof(*rctx));
 
@@ -1000,6 +1013,8 @@ static int stm32_hash_import(struct ahash_request *req, const void *in)
 
 	preg = rctx->hw_context;
 
+	pm_runtime_get_sync(hdev->dev);
+
 	stm32_hash_write(hdev, HASH_IMR, *preg++);
 	stm32_hash_write(hdev, HASH_STR, *preg++);
 	stm32_hash_write(hdev, HASH_CR, *preg);
@@ -1008,6 +1023,9 @@ static int stm32_hash_import(struct ahash_request *req, const void *in)
 
 	for (i = 0; i < HASH_CSR_REGISTER_NUMBER; i++)
 		stm32_hash_write(hdev, HASH_CSR(i), *preg++);
+
+	pm_runtime_mark_last_busy(hdev->dev);
+	pm_runtime_put_autosuspend(hdev->dev);
 
 	kfree(rctx->hw_context);
 
@@ -1132,8 +1150,7 @@ static struct ahash_alg algs_md5_sha1[] = {
 				.cra_name = "md5",
 				.cra_driver_name = "stm32-md5",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1159,8 +1176,7 @@ static struct ahash_alg algs_md5_sha1[] = {
 				.cra_name = "hmac(md5)",
 				.cra_driver_name = "stm32-hmac-md5",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1185,8 +1201,7 @@ static struct ahash_alg algs_md5_sha1[] = {
 				.cra_name = "sha1",
 				.cra_driver_name = "stm32-sha1",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA1_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1212,8 +1227,7 @@ static struct ahash_alg algs_md5_sha1[] = {
 				.cra_name = "hmac(sha1)",
 				.cra_driver_name = "stm32-hmac-sha1",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA1_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1241,8 +1255,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 				.cra_name = "sha224",
 				.cra_driver_name = "stm32-sha224",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA224_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1268,8 +1281,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 				.cra_name = "hmac(sha224)",
 				.cra_driver_name = "stm32-hmac-sha224",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA224_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1294,8 +1306,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 				.cra_name = "sha256",
 				.cra_driver_name = "stm32-sha256",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA256_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1321,8 +1332,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 				.cra_name = "hmac(sha256)",
 				.cra_driver_name = "stm32-hmac-sha256",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA256_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1482,6 +1492,13 @@ static int stm32_hash_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	pm_runtime_set_autosuspend_delay(dev, HASH_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(dev);
+
+	pm_runtime_get_noresume(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
 	hdev->rst = devm_reset_control_get(&pdev->dev, NULL);
 	if (!IS_ERR(hdev->rst)) {
 		reset_control_assert(hdev->rst);
@@ -1522,6 +1539,8 @@ static int stm32_hash_probe(struct platform_device *pdev)
 	dev_info(dev, "Init HASH done HW ver %x DMA mode %u\n",
 		 stm32_hash_read(hdev, HASH_VER), hdev->dma_mode);
 
+	pm_runtime_put_sync(dev);
+
 	return 0;
 
 err_algs:
@@ -1535,6 +1554,9 @@ err_engine:
 	if (hdev->dma_lch)
 		dma_release_channel(hdev->dma_lch);
 
+	pm_runtime_disable(dev);
+	pm_runtime_put_noidle(dev);
+
 	clk_disable_unprepare(hdev->clk);
 
 	return ret;
@@ -1543,10 +1565,15 @@ err_engine:
 static int stm32_hash_remove(struct platform_device *pdev)
 {
 	static struct stm32_hash_dev *hdev;
+	int ret;
 
 	hdev = platform_get_drvdata(pdev);
 	if (!hdev)
 		return -ENODEV;
+
+	ret = pm_runtime_get_sync(hdev->dev);
+	if (ret < 0)
+		return ret;
 
 	stm32_hash_unregister_algs(hdev);
 
@@ -1559,16 +1586,52 @@ static int stm32_hash_remove(struct platform_device *pdev)
 	if (hdev->dma_lch)
 		dma_release_channel(hdev->dma_lch);
 
+	pm_runtime_disable(hdev->dev);
+	pm_runtime_put_noidle(hdev->dev);
+
 	clk_disable_unprepare(hdev->clk);
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int stm32_hash_runtime_suspend(struct device *dev)
+{
+	struct stm32_hash_dev *hdev = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(hdev->clk);
+
+	return 0;
+}
+
+static int stm32_hash_runtime_resume(struct device *dev)
+{
+	struct stm32_hash_dev *hdev = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(hdev->clk);
+	if (ret) {
+		dev_err(hdev->dev, "Failed to prepare_enable clock\n");
+		return ret;
+	}
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops stm32_hash_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(stm32_hash_runtime_suspend,
+			   stm32_hash_runtime_resume, NULL)
+};
 
 static struct platform_driver stm32_hash_driver = {
 	.probe		= stm32_hash_probe,
 	.remove		= stm32_hash_remove,
 	.driver		= {
 		.name	= "stm32-hash",
+		.pm = &stm32_hash_pm_ops,
 		.of_match_table	= stm32_hash_of_match,
 	}
 };

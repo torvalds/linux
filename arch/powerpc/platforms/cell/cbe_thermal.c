@@ -49,6 +49,7 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/cpu.h>
+#include <linux/stringify.h>
 #include <asm/spu.h>
 #include <asm/io.h>
 #include <asm/prom.h>

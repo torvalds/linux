@@ -159,7 +159,7 @@ void bt_accept_enqueue(struct sock *parent, struct sock *sk)
 	BT_DBG("parent %p, sk %p", parent, sk);
 
 	sock_hold(sk);
-	lock_sock(sk);
+	lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
 	list_add_tail(&bt_sk(sk)->accept_q, &bt_sk(parent)->accept_q);
 	bt_sk(sk)->parent = parent;
 	release_sock(sk);
@@ -437,12 +437,15 @@ static inline __poll_t bt_accept_poll(struct sock *parent)
 	return 0;
 }
 
-__poll_t bt_sock_poll_mask(struct socket *sock, __poll_t events)
+__poll_t bt_sock_poll(struct file *file, struct socket *sock,
+			  poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	__poll_t mask = 0;
 
 	BT_DBG("sock %p, sk %p", sock, sk);
+
+	poll_wait(file, sk_sleep(sk), wait);
 
 	if (sk->sk_state == BT_LISTEN)
 		return bt_accept_poll(sk);
@@ -475,7 +478,7 @@ __poll_t bt_sock_poll_mask(struct socket *sock, __poll_t events)
 
 	return mask;
 }
-EXPORT_SYMBOL(bt_sock_poll_mask);
+EXPORT_SYMBOL(bt_sock_poll);
 
 int bt_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {

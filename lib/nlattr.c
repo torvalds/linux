@@ -253,8 +253,8 @@ int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
 			if (policy) {
 				err = validate_nla(nla, maxtype, policy);
 				if (err < 0) {
-					if (extack)
-						extack->bad_attr = nla;
+					NL_SET_ERR_MSG_ATTR(extack, nla,
+							    "Attribute failed policy validation");
 					goto errout;
 				}
 			}
