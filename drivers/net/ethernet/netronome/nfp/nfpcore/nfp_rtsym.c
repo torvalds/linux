@@ -233,6 +233,186 @@ nfp_rtsym_lookup(struct nfp_rtsym_table *rtbl, const char *name)
 	return NULL;
 }
 
+u64 nfp_rtsym_size(const struct nfp_rtsym *sym)
+{
+	switch (sym->type) {
+	case NFP_RTSYM_TYPE_NONE:
+		pr_err("rtsym type NONE\n");
+		return 0;
+	default:
+		pr_warn("Unknown rtsym type: %d\n", sym->type);
+		/* fall through */
+	case NFP_RTSYM_TYPE_OBJECT:
+	case NFP_RTSYM_TYPE_FUNCTION:
+		return sym->size;
+	case NFP_RTSYM_TYPE_ABS:
+		return sizeof(u64);
+	}
+}
+
+static int
+nfp_rtsym_to_dest(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		  u8 action, u8 token, u64 off, u32 *cpp_id, u64 *addr)
+{
+	if (sym->type != NFP_RTSYM_TYPE_OBJECT) {
+		nfp_err(cpp, "Direct access attempt to non-object rtsym\n");
+		return -EINVAL;
+	}
+
+	*addr = sym->addr + off;
+
+	if (sym->target == NFP_RTSYM_TARGET_EMU_CACHE) {
+		int locality_off = nfp_cpp_mu_locality_lsb(cpp);
+
+		*addr &= ~(NFP_MU_ADDR_ACCESS_TYPE_MASK << locality_off);
+		*addr |= NFP_MU_ADDR_ACCESS_TYPE_DIRECT << locality_off;
+
+		*cpp_id = NFP_CPP_ISLAND_ID(NFP_CPP_TARGET_MU, action, token,
+					    sym->domain);
+	} else if (sym->target < 0) {
+		nfp_err(cpp, "Unhandled RTsym target encoding: %d\n",
+			sym->target);
+		return -EINVAL;
+	} else {
+		*cpp_id = NFP_CPP_ISLAND_ID(sym->target, action, token,
+					    sym->domain);
+	}
+
+	return 0;
+}
+
+int __nfp_rtsym_read(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		     u8 action, u8 token, u64 off, void *buf, size_t len)
+{
+	u32 cpp_id;
+	u64 addr;
+	int err;
+
+	if (sym->type == NFP_RTSYM_TYPE_ABS) {
+		__le64 tmp = cpu_to_le64(sym->addr);
+
+		len = min(len, sizeof(tmp));
+		memcpy(buf, &tmp, len);
+
+		return len;
+	}
+
+	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
+	if (err)
+		return err;
+
+	return nfp_cpp_read(cpp, cpp_id, addr, buf, len);
+}
+
+int nfp_rtsym_read(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		   void *buf, size_t len)
+{
+	return __nfp_rtsym_read(cpp, sym, NFP_CPP_ACTION_RW, 0, off, buf, len);
+}
+
+int __nfp_rtsym_readl(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		      u8 action, u8 token, u64 off, u32 *value)
+{
+	u32 cpp_id;
+	u64 addr;
+	int err;
+
+	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
+	if (err)
+		return err;
+
+	return nfp_cpp_readl(cpp, cpp_id, addr, value);
+}
+
+int nfp_rtsym_readl(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		    u32 *value)
+{
+	return __nfp_rtsym_readl(cpp, sym, NFP_CPP_ACTION_RW, 0, off, value);
+}
+
+int __nfp_rtsym_readq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		      u8 action, u8 token, u64 off, u64 *value)
+{
+	u32 cpp_id;
+	u64 addr;
+	int err;
+
+	if (sym->type == NFP_RTSYM_TYPE_ABS)
+		return sym->addr;
+
+	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
+	if (err)
+		return err;
+
+	return nfp_cpp_readq(cpp, cpp_id, addr, value);
+}
+
+int nfp_rtsym_readq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		    u64 *value)
+{
+	return __nfp_rtsym_readq(cpp, sym, NFP_CPP_ACTION_RW, 0, off, value);
+}
+
+int __nfp_rtsym_write(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		      u8 action, u8 token, u64 off, void *buf, size_t len)
+{
+	u32 cpp_id;
+	u64 addr;
+	int err;
+
+	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
+	if (err)
+		return err;
+
+	return nfp_cpp_write(cpp, cpp_id, addr, buf, len);
+}
+
+int nfp_rtsym_write(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		    void *buf, size_t len)
+{
+	return __nfp_rtsym_write(cpp, sym, NFP_CPP_ACTION_RW, 0, off, buf, len);
+}
+
+int __nfp_rtsym_writel(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		       u8 action, u8 token, u64 off, u32 value)
+{
+	u32 cpp_id;
+	u64 addr;
+	int err;
+
+	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
+	if (err)
+		return err;
+
+	return nfp_cpp_writel(cpp, cpp_id, addr, value);
+}
+
+int nfp_rtsym_writel(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		     u32 value)
+{
+	return __nfp_rtsym_writel(cpp, sym, NFP_CPP_ACTION_RW, 0, off, value);
+}
+
+int __nfp_rtsym_writeq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
+		       u8 action, u8 token, u64 off, u64 value)
+{
+	u32 cpp_id;
+	u64 addr;
+	int err;
+
+	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
+	if (err)
+		return err;
+
+	return nfp_cpp_writeq(cpp, cpp_id, addr, value);
+}
+
+int nfp_rtsym_writeq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
+		     u64 value)
+{
+	return __nfp_rtsym_writeq(cpp, sym, NFP_CPP_ACTION_RW, 0, off, value);
+}
+
 /**
  * nfp_rtsym_read_le() - Read a simple unsigned scalar value from symbol
  * @rtbl:	NFP RTsym table
@@ -249,7 +429,7 @@ u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
 		      int *error)
 {
 	const struct nfp_rtsym *sym;
-	u32 val32, id;
+	u32 val32;
 	u64 val;
 	int err;
 
@@ -259,20 +439,18 @@ u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
 		goto exit;
 	}
 
-	id = NFP_CPP_ISLAND_ID(sym->target, NFP_CPP_ACTION_RW, 0, sym->domain);
-
-	switch (sym->size) {
+	switch (nfp_rtsym_size(sym)) {
 	case 4:
-		err = nfp_cpp_readl(rtbl->cpp, id, sym->addr, &val32);
+		err = nfp_rtsym_readl(rtbl->cpp, sym, 0, &val32);
 		val = val32;
 		break;
 	case 8:
-		err = nfp_cpp_readq(rtbl->cpp, id, sym->addr, &val);
+		err = nfp_rtsym_readq(rtbl->cpp, sym, 0, &val);
 		break;
 	default:
 		nfp_err(rtbl->cpp,
 			"rtsym '%s' unsupported or non-scalar size: %lld\n",
-			name, sym->size);
+			name, nfp_rtsym_size(sym));
 		err = -EINVAL;
 		break;
 	}
@@ -303,25 +481,22 @@ int nfp_rtsym_write_le(struct nfp_rtsym_table *rtbl, const char *name,
 {
 	const struct nfp_rtsym *sym;
 	int err;
-	u32 id;
 
 	sym = nfp_rtsym_lookup(rtbl, name);
 	if (!sym)
 		return -ENOENT;
 
-	id = NFP_CPP_ISLAND_ID(sym->target, NFP_CPP_ACTION_RW, 0, sym->domain);
-
-	switch (sym->size) {
+	switch (nfp_rtsym_size(sym)) {
 	case 4:
-		err = nfp_cpp_writel(rtbl->cpp, id, sym->addr, value);
+		err = nfp_rtsym_writel(rtbl->cpp, sym, 0, value);
 		break;
 	case 8:
-		err = nfp_cpp_writeq(rtbl->cpp, id, sym->addr, value);
+		err = nfp_rtsym_writeq(rtbl->cpp, sym, 0, value);
 		break;
 	default:
 		nfp_err(rtbl->cpp,
 			"rtsym '%s' unsupported or non-scalar size: %lld\n",
-			name, sym->size);
+			name, nfp_rtsym_size(sym));
 		err = -EINVAL;
 		break;
 	}
@@ -335,18 +510,27 @@ nfp_rtsym_map(struct nfp_rtsym_table *rtbl, const char *name, const char *id,
 {
 	const struct nfp_rtsym *sym;
 	u8 __iomem *mem;
+	u32 cpp_id;
+	u64 addr;
+	int err;
 
 	sym = nfp_rtsym_lookup(rtbl, name);
 	if (!sym)
 		return (u8 __iomem *)ERR_PTR(-ENOENT);
+
+	err = nfp_rtsym_to_dest(rtbl->cpp, sym, NFP_CPP_ACTION_RW, 0, 0,
+				&cpp_id, &addr);
+	if (err) {
+		nfp_err(rtbl->cpp, "Symbol %s mapping failed\n", name);
+		return (u8 __iomem *)ERR_PTR(err);
+	}
 
 	if (sym->size < min_size) {
 		nfp_err(rtbl->cpp, "Symbol %s too small\n", name);
 		return (u8 __iomem *)ERR_PTR(-EINVAL);
 	}
 
-	mem = nfp_cpp_map_area(rtbl->cpp, id, sym->domain, sym->target,
-			       sym->addr, sym->size, area);
+	mem = nfp_cpp_map_area(rtbl->cpp, id, cpp_id, addr, sym->size, area);
 	if (IS_ERR(mem)) {
 		nfp_err(rtbl->cpp, "Failed to map symbol %s: %ld\n",
 			name, PTR_ERR(mem));
