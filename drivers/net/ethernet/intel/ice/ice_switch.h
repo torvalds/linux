@@ -39,6 +39,7 @@ enum ice_sw_lkup_type {
 	ICE_SW_LKUP_DFLT = 5,
 	ICE_SW_LKUP_ETHERTYPE_MAC = 8,
 	ICE_SW_LKUP_PROMISC_VLAN = 9,
+	ICE_SW_LKUP_LAST
 };
 
 struct ice_fltr_info {
@@ -98,6 +99,31 @@ struct ice_fltr_info {
 	u8 lan_en;	/* Indicate if packet can be forwarded to the uplink */
 };
 
+struct ice_sw_recipe {
+	struct list_head l_entry;
+
+	/* To protect modification of filt_rule list
+	 * defined below
+	 */
+	struct mutex filt_rule_lock;
+
+	/* List of type ice_fltr_mgmt_list_entry */
+	struct list_head filt_rules;
+
+	/* linked list of type recipe_list_entry */
+	struct list_head rg_list;
+	/* linked list of type ice_sw_fv_list_entry*/
+	struct list_head fv_list;
+	struct ice_aqc_recipe_data_elem *r_buf;
+	u8 recp_count;
+	u8 root_rid;
+	u8 num_profs;
+	u8 *prof_ids;
+
+	/* recipe bitmap: what all recipes makes this recipe */
+	DECLARE_BITMAP(r_bitmap, ICE_MAX_NUM_RECIPES);
+};
+
 /* Bookkeeping structure to hold bitmap of VSIs corresponding to VSI list id */
 struct ice_vsi_list_map_info {
 	struct list_head list_entry;
@@ -105,15 +131,9 @@ struct ice_vsi_list_map_info {
 	u16 vsi_list_id;
 };
 
-enum ice_sw_fltr_status {
-	ICE_FLTR_STATUS_NEW = 0,
-	ICE_FLTR_STATUS_FW_SUCCESS,
-	ICE_FLTR_STATUS_FW_FAIL,
-};
-
 struct ice_fltr_list_entry {
 	struct list_head list_entry;
-	enum ice_sw_fltr_status status;
+	enum ice_status status;
 	struct ice_fltr_info fltr_info;
 };
 
@@ -138,18 +158,18 @@ struct ice_fltr_mgmt_list_entry {
 
 /* VSI related commands */
 enum ice_status
-ice_aq_add_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
-	       struct ice_sq_cd *cd);
-enum ice_status
 ice_aq_update_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
 		  struct ice_sq_cd *cd);
 enum ice_status
-ice_aq_free_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
-		bool keep_vsi_alloc, struct ice_sq_cd *cd);
-
+ice_add_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
+	    struct ice_sq_cd *cd);
+enum ice_status
+ice_free_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
+	     bool keep_vsi_alloc, struct ice_sq_cd *cd);
 enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw);
 
 /* Switch/bridge related commands */
+enum ice_status ice_update_sw_rule_bridge_mode(struct ice_hw *hw);
 enum ice_status ice_add_mac(struct ice_hw *hw, struct list_head *m_lst);
 enum ice_status ice_remove_mac(struct ice_hw *hw, struct list_head *m_lst);
 void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_id);
@@ -157,5 +177,9 @@ enum ice_status ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);
 enum ice_status ice_remove_vlan(struct ice_hw *hw, struct list_head *v_list);
 enum ice_status
 ice_cfg_dflt_vsi(struct ice_hw *hw, u16 vsi_id, bool set, u8 direction);
+
+enum ice_status ice_replay_all_fltr(struct ice_hw *hw);
+
+enum ice_status ice_init_def_sw_recp(struct ice_hw *hw);
 
 #endif /* _ICE_SWITCH_H_ */

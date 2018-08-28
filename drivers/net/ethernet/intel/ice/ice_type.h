@@ -34,9 +34,14 @@ static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
 enum ice_aq_res_ids {
 	ICE_NVM_RES_ID = 1,
 	ICE_SPD_RES_ID,
-	ICE_GLOBAL_CFG_LOCK_RES_ID,
-	ICE_CHANGE_LOCK_RES_ID
+	ICE_CHANGE_LOCK_RES_ID,
+	ICE_GLOBAL_CFG_LOCK_RES_ID
 };
+
+/* FW update timeout definitions are in milliseconds */
+#define ICE_NVM_TIMEOUT			180000
+#define ICE_CHANGE_LOCK_TIMEOUT		1000
+#define ICE_GLOBAL_CFG_LOCK_TIMEOUT	3000
 
 enum ice_aq_res_access_type {
 	ICE_RES_READ = 1,
@@ -144,9 +149,10 @@ struct ice_mac_info {
 
 /* Various RESET request, These are not tied with HW reset types */
 enum ice_reset_req {
-	ICE_RESET_PFR	= 0,
-	ICE_RESET_CORER	= 1,
-	ICE_RESET_GLOBR	= 2,
+	ICE_RESET_INVAL	= 0,
+	ICE_RESET_PFR	= 1,
+	ICE_RESET_CORER	= 2,
+	ICE_RESET_GLOBR	= 3,
 };
 
 /* Bus parameters */
@@ -204,6 +210,7 @@ enum ice_agg_type {
 };
 
 #define ICE_SCHED_DFLT_RL_PROF_ID	0
+#define ICE_SCHED_DFLT_BW_WT		1
 
 /* vsi type list entry to locate corresponding vsi/ag nodes */
 struct ice_sched_vsi_info {
@@ -247,19 +254,26 @@ struct ice_port_info {
 };
 
 struct ice_switch_info {
-	/* Switch VSI lists to MAC/VLAN translation */
-	struct mutex mac_list_lock;		/* protect MAC list */
-	struct list_head mac_list_head;
-	struct mutex vlan_list_lock;		/* protect VLAN list */
-	struct list_head vlan_list_head;
-	struct mutex eth_m_list_lock;	/* protect ethtype list */
-	struct list_head eth_m_list_head;
-	struct mutex promisc_list_lock;	/* protect promisc mode list */
-	struct list_head promisc_list_head;
-	struct mutex mac_vlan_list_lock;	/* protect MAC-VLAN list */
-	struct list_head mac_vlan_list_head;
-
 	struct list_head vsi_list_map_head;
+	struct ice_sw_recipe *recp_list;
+};
+
+/* FW logging configuration */
+struct ice_fw_log_evnt {
+	u8 cfg : 4;	/* New event enables to configure */
+	u8 cur : 4;	/* Current/active event enables */
+};
+
+struct ice_fw_log_cfg {
+	u8 cq_en : 1;    /* FW logging is enabled via the control queue */
+	u8 uart_en : 1;  /* FW logging is enabled via UART for all PFs */
+	u8 actv_evnts;   /* Cumulation of currently enabled log events */
+
+#define ICE_FW_LOG_EVNT_INFO	(ICE_AQC_FW_LOG_INFO_EN >> ICE_AQC_FW_LOG_EN_S)
+#define ICE_FW_LOG_EVNT_INIT	(ICE_AQC_FW_LOG_INIT_EN >> ICE_AQC_FW_LOG_EN_S)
+#define ICE_FW_LOG_EVNT_FLOW	(ICE_AQC_FW_LOG_FLOW_EN >> ICE_AQC_FW_LOG_EN_S)
+#define ICE_FW_LOG_EVNT_ERR	(ICE_AQC_FW_LOG_ERR_EN >> ICE_AQC_FW_LOG_EN_S)
+	struct ice_fw_log_evnt evnts[ICE_AQC_FW_LOG_ID_MAX];
 };
 
 /* Port hardware description */
@@ -286,8 +300,11 @@ struct ice_hw {
 	u8 flattened_layers;
 	u8 max_cgds;
 	u8 sw_entry_point_layer;
+	u16 max_children[ICE_AQC_TOPO_MAX_LEVEL_NUM];
 
+	struct ice_vsi_ctx *vsi_ctx[ICE_MAX_VSI];
 	u8 evb_veb;		/* true for VEB, false for VEPA */
+	u8 reset_ongoing;	/* true if hw is in reset, false otherwise */
 	struct ice_bus_info bus;
 	struct ice_nvm_info nvm;
 	struct ice_hw_dev_caps dev_caps;	/* device capabilities */
@@ -308,6 +325,7 @@ struct ice_hw {
 	u8 fw_patch;		/* firmware patch version */
 	u32 fw_build;		/* firmware build number */
 
+	struct ice_fw_log_cfg fw_log;
 	/* minimum allowed value for different speeds */
 #define ICE_ITR_GRAN_MIN_200	1
 #define ICE_ITR_GRAN_MIN_100	1
