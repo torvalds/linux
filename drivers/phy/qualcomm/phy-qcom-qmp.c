@@ -1400,7 +1400,7 @@ static int phy_pipe_clk_register(struct qcom_qmp *qmp, struct device_node *np)
 
 	ret = of_property_read_string(np, "clock-output-names", &init.name);
 	if (ret) {
-		dev_err(qmp->dev, "%s: No clock-output-names\n", np->name);
+		dev_err(qmp->dev, "%pOFn: No clock-output-names\n", np);
 		return ret;
 	}
 

@@ -600,8 +600,8 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 		struct brcm_sata_port *port;
 
 		if (of_property_read_u32(child, "reg", &id)) {
-			dev_err(dev, "missing reg property in node %s\n",
-					child->name);
+			dev_err(dev, "missing reg property in node %pOFn\n",
+					child);
 			ret = -EINVAL;
 			goto put_child;
 		}

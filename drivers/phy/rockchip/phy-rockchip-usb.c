@@ -208,8 +208,8 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 	rk_phy->np = child;
 
 	if (of_property_read_u32(child, "reg", &reg_offset)) {
-		dev_err(base->dev, "missing reg property in node %s\n",
-			child->name);
+		dev_err(base->dev, "missing reg property in node %pOFn\n",
+			child);
 		return -EINVAL;
 	}
 
