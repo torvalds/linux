@@ -3724,9 +3724,10 @@ static void intel_power_domains_verify_state(struct drm_i915_private *dev_priv);
  *
  * This function initializes the hardware power domain state and enables all
  * power wells belonging to the INIT power domain. Power wells in other
- * domains (and not in the INIT domain) are referenced or disabled during the
- * modeset state HW readout. After that the reference count of each power well
- * must match its HW enabled state, see intel_power_domains_verify_state().
+ * domains (and not in the INIT domain) are referenced or disabled by
+ * intel_modeset_readout_hw_state(). After that the reference count of each
+ * power well must match its HW enabled state, see
+ * intel_power_domains_verify_state().
  *
  * It will return with power domains disabled (to be enabled later by
  * intel_power_domains_enable()) and must be paired with
@@ -3767,9 +3768,8 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 	if (!i915_modparams.disable_power_well)
 		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 	intel_power_domains_sync_hw(dev_priv);
-	power_domains->initializing = false;
 
-	intel_power_domains_verify_state(dev_priv);
+	power_domains->initializing = false;
 }
 
 /**
