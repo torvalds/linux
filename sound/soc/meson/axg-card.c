@@ -478,7 +478,7 @@ static int axg_card_set_be_link(struct snd_soc_card *card,
 
 	ret = axg_card_set_link_name(card, link, "be");
 	if (ret)
-		dev_err(card->dev, "error setting %s link name\n", np->name);
+		dev_err(card->dev, "error setting %pOFn link name\n", np);
 
 	return ret;
 }

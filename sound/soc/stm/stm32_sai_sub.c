@@ -1124,16 +1124,15 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 	sai->sync = SAI_SYNC_NONE;
 	if (args.np) {
 		if (args.np == np) {
-			dev_err(&pdev->dev, "%s sync own reference\n",
-				np->name);
+			dev_err(&pdev->dev, "%pOFn sync own reference\n", np);
 			of_node_put(args.np);
 			return -EINVAL;
 		}
 
 		sai->np_sync_provider  = of_get_parent(args.np);
 		if (!sai->np_sync_provider) {
-			dev_err(&pdev->dev, "%s parent node not found\n",
-				np->name);
+			dev_err(&pdev->dev, "%pOFn parent node not found\n",
+				np);
 			of_node_put(args.np);
 			return -ENODEV;
 		}
