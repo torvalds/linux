@@ -1650,15 +1650,70 @@ static void rcu_torture_fwd_cb_cr(struct rcu_head *rhp)
 	spin_unlock(&rcu_fwd_lock);
 }
 
-/* Carry out grace-period forward-progress testing. */
-static int rcu_torture_fwd_prog(void *args)
+/* Carry out need_resched()/cond_resched() forward-progress testing. */
+static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 {
 	unsigned long cver;
 	unsigned long dur;
 	struct fwd_cb_state fcs;
 	unsigned long gps;
-	int i;
 	int idx;
+	int sd;
+	int sd4;
+	bool selfpropcb = false;
+	unsigned long stopat;
+	static DEFINE_TORTURE_RANDOM(trs);
+
+	if  (cur_ops->call && cur_ops->sync && cur_ops->cb_barrier) {
+		init_rcu_head_on_stack(&fcs.rh);
+		selfpropcb = true;
+	}
+
+	/* Tight loop containing cond_resched(). */
+	if  (selfpropcb) {
+		WRITE_ONCE(fcs.stop, 0);
+		cur_ops->call(&fcs.rh, rcu_torture_fwd_prog_cb);
+	}
+	cver = READ_ONCE(rcu_torture_current_version);
+	gps = cur_ops->get_gp_seq();
+	sd = cur_ops->stall_dur() + 1;
+	sd4 = (sd + fwd_progress_div - 1) / fwd_progress_div;
+	dur = sd4 + torture_random(&trs) % (sd - sd4);
+	rcu_fwd_startat = jiffies;
+	stopat = rcu_fwd_startat + dur;
+	while (time_before(jiffies, stopat) && !torture_must_stop()) {
+		idx = cur_ops->readlock();
+		udelay(10);
+		cur_ops->readunlock(idx);
+		if (!fwd_progress_need_resched || need_resched())
+			cond_resched();
+	}
+	(*tested_tries)++;
+	if (!time_before(jiffies, stopat) && !torture_must_stop()) {
+		(*tested)++;
+		cver = READ_ONCE(rcu_torture_current_version) - cver;
+		gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
+		WARN_ON(!cver && gps < 2);
+		pr_alert("%s: Duration %ld cver %ld gps %ld\n", __func__, dur, cver, gps);
+	}
+	if (selfpropcb) {
+		WRITE_ONCE(fcs.stop, 1);
+		cur_ops->sync(); /* Wait for running CB to complete. */
+		cur_ops->cb_barrier(); /* Wait for queued callbacks. */
+	}
+
+	if (selfpropcb) {
+		WARN_ON(READ_ONCE(fcs.stop) != 2);
+		destroy_rcu_head_on_stack(&fcs.rh);
+	}
+}
+
+/* Carry out call_rcu() forward-progress testing. */
+static void rcu_torture_fwd_prog_cr(void)
+{
+	unsigned long cver;
+	unsigned long gps;
+	int i;
 	int j;
 	long n_launders;
 	long n_launders_cb_snap;
@@ -1667,136 +1722,97 @@ static int rcu_torture_fwd_prog(void *args)
 	long n_max_gps;
 	struct rcu_fwd_cb *rfcp;
 	struct rcu_fwd_cb *rfcpn;
-	int sd;
-	int sd4;
-	bool selfpropcb = false;
 	unsigned long stopat;
 	unsigned long stoppedat;
+
+	/* Loop continuously posting RCU callbacks. */
+	WRITE_ONCE(rcu_fwd_cb_nodelay, true);
+	cur_ops->sync(); /* Later readers see above write. */
+	rcu_fwd_startat = jiffies;
+	stopat = rcu_fwd_startat + MAX_FWD_CB_JIFFIES;
+	n_launders = 0;
+	n_launders_cb = 0;
+	n_launders_sa = 0;
+	n_max_cbs = 0;
+	n_max_gps = 0;
+	for (i = 0; i < ARRAY_SIZE(n_launders_hist); i++)
+		n_launders_hist[i] = 0;
+	cver = READ_ONCE(rcu_torture_current_version);
+	gps = cur_ops->get_gp_seq();
+	while (time_before(jiffies, stopat) && !torture_must_stop()) {
+		rfcp = READ_ONCE(rcu_fwd_cb_head);
+		rfcpn = NULL;
+		if (rfcp)
+			rfcpn = READ_ONCE(rfcp->rfc_next);
+		if (rfcpn) {
+			if (rfcp->rfc_gps >= MIN_FWD_CB_LAUNDERS &&
+			    ++n_max_gps >= MIN_FWD_CBS_LAUNDERED)
+				break;
+			rcu_fwd_cb_head = rfcpn;
+			n_launders++;
+			n_launders_sa++;
+		} else {
+			rfcp = kmalloc(sizeof(*rfcp), GFP_KERNEL);
+			if (WARN_ON_ONCE(!rfcp)) {
+				schedule_timeout_interruptible(1);
+				continue;
+			}
+			n_max_cbs++;
+			n_launders_sa = 0;
+			rfcp->rfc_gps = 0;
+		}
+		cur_ops->call(&rfcp->rh, rcu_torture_fwd_cb_cr);
+		cond_resched();
+	}
+	stoppedat = jiffies;
+	n_launders_cb_snap = READ_ONCE(n_launders_cb);
+	cver = READ_ONCE(rcu_torture_current_version) - cver;
+	gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
+	cur_ops->cb_barrier(); /* Wait for callbacks to be invoked. */
+	for (;;) {
+		rfcp = rcu_fwd_cb_head;
+		if (!rfcp)
+			break;
+		rcu_fwd_cb_head = rfcp->rfc_next;
+		kfree(rfcp);
+	}
+	rcu_fwd_cb_tail = &rcu_fwd_cb_head;
+	WRITE_ONCE(rcu_fwd_cb_nodelay, false);
+	if (!torture_must_stop()) {
+		WARN_ON(n_max_gps < MIN_FWD_CBS_LAUNDERED);
+		pr_alert("%s Duration %lu barrier: %lu pending %ld n_launders: %ld n_launders_sa: %ld n_max_gps: %ld n_max_cbs: %ld cver %ld gps %ld\n",
+			 __func__,
+			 stoppedat - rcu_fwd_startat, jiffies - stoppedat,
+			 n_launders + n_max_cbs - n_launders_cb_snap,
+			 n_launders, n_launders_sa,
+			 n_max_gps, n_max_cbs, cver, gps);
+		for (i = ARRAY_SIZE(n_launders_hist) - 1; i > 0; i--)
+			if (n_launders_hist[i] > 0)
+				break;
+		pr_alert("Callback-invocation histogram:");
+		for (j = 0; j <= i; j++)
+			pr_cont(" %ds: %ld", j + 1, n_launders_hist[j]);
+		pr_cont("\n");
+	}
+}
+
+/* Carry out grace-period forward-progress testing. */
+static int rcu_torture_fwd_prog(void *args)
+{
 	int tested = 0;
 	int tested_tries = 0;
-	static DEFINE_TORTURE_RANDOM(trs);
 
 	VERBOSE_TOROUT_STRING("rcu_torture_fwd_progress task started");
 	if (!IS_ENABLED(CONFIG_SMP) || !IS_ENABLED(CONFIG_RCU_BOOST))
 		set_user_nice(current, MAX_NICE);
-	if  (cur_ops->call && cur_ops->sync && cur_ops->cb_barrier) {
-		init_rcu_head_on_stack(&fcs.rh);
-		selfpropcb = true;
-	}
 	do {
 		schedule_timeout_interruptible(fwd_progress_holdoff * HZ);
-
-		/* Tight loop containing cond_resched(). */
-		if  (selfpropcb) {
-			WRITE_ONCE(fcs.stop, 0);
-			cur_ops->call(&fcs.rh, rcu_torture_fwd_prog_cb);
-		}
-		cver = READ_ONCE(rcu_torture_current_version);
-		gps = cur_ops->get_gp_seq();
-		sd = cur_ops->stall_dur() + 1;
-		sd4 = (sd + fwd_progress_div - 1) / fwd_progress_div;
-		dur = sd4 + torture_random(&trs) % (sd - sd4);
-		rcu_fwd_startat = jiffies;
-		stopat = rcu_fwd_startat + dur;
-		while (time_before(jiffies, stopat) && !torture_must_stop()) {
-			idx = cur_ops->readlock();
-			udelay(10);
-			cur_ops->readunlock(idx);
-			if (!fwd_progress_need_resched || need_resched())
-				cond_resched();
-		}
-		tested_tries++;
-		if (!time_before(jiffies, stopat) && !torture_must_stop()) {
-			tested++;
-			cver = READ_ONCE(rcu_torture_current_version) - cver;
-			gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
-			WARN_ON(!cver && gps < 2);
-			pr_alert("%s: Duration %ld cver %ld gps %ld\n", __func__, dur, cver, gps);
-		}
-		if (selfpropcb) {
-			WRITE_ONCE(fcs.stop, 1);
-			cur_ops->sync(); /* Wait for running CB to complete. */
-			cur_ops->cb_barrier(); /* Wait for queued callbacks. */
-		}
-
-		/* Loop continuously posting RCU callbacks. */
-		WRITE_ONCE(rcu_fwd_cb_nodelay, true);
-		cur_ops->sync(); /* Later readers see above write. */
-		rcu_fwd_startat = jiffies;
-		stopat = rcu_fwd_startat + MAX_FWD_CB_JIFFIES;
-		n_launders = 0;
-		n_launders_cb = 0;
-		n_launders_sa = 0;
-		n_max_cbs = 0;
-		n_max_gps = 0;
-		for (i = 0; i < ARRAY_SIZE(n_launders_hist); i++)
-			n_launders_hist[i] = 0;
-		cver = READ_ONCE(rcu_torture_current_version);
-		gps = cur_ops->get_gp_seq();
-		while (time_before(jiffies, stopat) && !torture_must_stop()) {
-			rfcp = READ_ONCE(rcu_fwd_cb_head);
-			rfcpn = NULL;
-			if (rfcp)
-				rfcpn = READ_ONCE(rfcp->rfc_next);
-			if (rfcpn) {
-				if (rfcp->rfc_gps >= MIN_FWD_CB_LAUNDERS &&
-				    ++n_max_gps >= MIN_FWD_CBS_LAUNDERED)
-					break;
-				rcu_fwd_cb_head = rfcpn;
-				n_launders++;
-				n_launders_sa++;
-			} else {
-				rfcp = kmalloc(sizeof(*rfcp), GFP_KERNEL);
-				if (WARN_ON_ONCE(!rfcp)) {
-					schedule_timeout_interruptible(1);
-					continue;
-				}
-				n_max_cbs++;
-				n_launders_sa = 0;
-				rfcp->rfc_gps = 0;
-			}
-			cur_ops->call(&rfcp->rh, rcu_torture_fwd_cb_cr);
-			cond_resched();
-		}
-		stoppedat = jiffies;
-		n_launders_cb_snap = READ_ONCE(n_launders_cb);
-		cver = READ_ONCE(rcu_torture_current_version) - cver;
-		gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
-		cur_ops->cb_barrier(); /* Wait for callbacks to be invoked. */
-		for (;;) {
-			rfcp = rcu_fwd_cb_head;
-			if (!rfcp)
-				break;
-			rcu_fwd_cb_head = rfcp->rfc_next;
-			kfree(rfcp);
-		}
-		rcu_fwd_cb_tail = &rcu_fwd_cb_head;
-		WRITE_ONCE(rcu_fwd_cb_nodelay, false);
-		if (!torture_must_stop()) {
-			WARN_ON(n_max_gps < MIN_FWD_CBS_LAUNDERED);
-			pr_alert("%s Duration %lu barrier: %lu pending %ld n_launders: %ld n_launders_sa: %ld n_max_gps: %ld n_max_cbs: %ld cver %ld gps %ld\n",
-				 __func__,
-				 stoppedat - rcu_fwd_startat,
-				 jiffies - stoppedat,
-				 n_launders + n_max_cbs - n_launders_cb_snap,
-				 n_launders, n_launders_sa,
-				 n_max_gps, n_max_cbs, cver, gps);
-			for (i = ARRAY_SIZE(n_launders_hist) - 1; i > 0; i--)
-				if (n_launders_hist[i] > 0)
-					break;
-			pr_alert("Callback-invocation histogram:");
-			for (j = 0; j <= i; j++)
-				pr_cont(" %ds: %ld", j + 1, n_launders_hist[j]);
-			pr_cont("\n");
-		}
+		rcu_torture_fwd_prog_nr(&tested, &tested_tries);
+		rcu_torture_fwd_prog_cr();
 
 		/* Avoid slow periods, better to test when busy. */
 		stutter_wait("rcu_torture_fwd_prog");
 	} while (!torture_must_stop());
-	if (selfpropcb) {
-		WARN_ON(READ_ONCE(fcs.stop) != 2);
-		destroy_rcu_head_on_stack(&fcs.rh);
-	}
 	/* Short runs might not contain a valid forward-progress attempt. */
 	WARN_ON(!tested && tested_tries >= 5);
 	pr_alert("%s: tested %d tested_tries %d\n", __func__, tested, tested_tries);
