@@ -34,7 +34,7 @@
 							 AT91_PINCTRL_PULL_UP_DEGLITCH>;
 					};
 
-					pinctrl_lcd_prlud0: lcd_prlud0 {
+					pinctrl_lvds_prlud0: lvds_prlud0 {
 						atmel,pins =
 							<AT91_PIOA 21
 							 AT91_PERIPH_GPIO
@@ -42,7 +42,7 @@
 							  AT91_PINCTRL_OUTPUT_VAL(0))>;
 					};
 
-					pinctrl_lcd_hipow0: lcd_hipow0 {
+					pinctrl_lvds_hipow0: lvds_hipow0 {
 						atmel,pins =
 							<AT91_PIOA 23
 							 AT91_PERIPH_GPIO
@@ -118,6 +118,9 @@
 
 	lvds-encoder {
 		compatible = "ti,ds90c185", "lvds-encoder";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_lvds_prlud0 &pinctrl_lvds_hipow0>;
 
 		ports {
 			#address-cells = <1>;
@@ -197,10 +200,7 @@
 
 	hlcdc-display-controller {
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_lcd_base
-			     &pinctrl_lcd_rgb565
-			     &pinctrl_lcd_prlud0
-			     &pinctrl_lcd_hipow0>;
+		pinctrl-0 = <&pinctrl_lcd_base &pinctrl_lcd_rgb565>;
 
 		port@0 {
 			hlcdc_output: endpoint {
