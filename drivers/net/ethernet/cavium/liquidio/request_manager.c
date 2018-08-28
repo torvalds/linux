@@ -459,7 +459,7 @@ lio_process_iq_request_list(struct octeon_device *oct,
 
 	if (atomic_read(&oct->response_list
 			[OCTEON_ORDERED_SC_LIST].pending_req_count))
-		queue_delayed_work(cwq->wq, &cwq->wk.work, msecs_to_jiffies(1));
+		queue_work(cwq->wq, &cwq->wk.work.work);
 
 	return inst_count;
 }
