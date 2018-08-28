@@ -134,6 +134,10 @@ int __init snd_seq_system_client_init(void)
 
 	/* register client */
 	sysclient = snd_seq_create_kernel_client(NULL, 0, "System");
+	if (sysclient < 0) {
+		kfree(port);
+		return sysclient;
+	}
 
 	/* register timer */
 	strcpy(port->name, "Timer");
