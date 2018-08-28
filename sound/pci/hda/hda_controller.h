@@ -76,7 +76,6 @@ struct azx_dev {
 	 *  when link position is not greater than FIFO size
 	 */
 	unsigned int insufficient:1;
-	unsigned int wc_marked:1;
 };
 
 #define azx_stream(dev)		(&(dev)->core)
@@ -88,11 +87,6 @@ struct azx;
 struct hda_controller_ops {
 	/* Disable msi if supported, PCI only */
 	int (*disable_msi_reset_irq)(struct azx *);
-	int (*substream_alloc_pages)(struct azx *chip,
-				     struct snd_pcm_substream *substream,
-				     size_t size);
-	int (*substream_free_pages)(struct azx *chip,
-				    struct snd_pcm_substream *substream);
 	void (*pcm_mmap_prepare)(struct snd_pcm_substream *substream,
 				 struct vm_area_struct *area);
 	/* Check if current position is acceptable */
@@ -160,6 +154,7 @@ struct azx {
 	unsigned int msi:1;
 	unsigned int probing:1; /* codec probing phase */
 	unsigned int snoop:1;
+	unsigned int uc_buffer:1; /* non-cached pages for stream buffers */
 	unsigned int align_buffer_size:1;
 	unsigned int region_requested:1;
 	unsigned int disabled:1; /* disabled by vga_switcheroo */
