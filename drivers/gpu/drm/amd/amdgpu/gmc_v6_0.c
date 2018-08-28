@@ -494,7 +494,7 @@ static void gmc_v6_0_set_prt(struct amdgpu_device *adev, bool enable)
 
 static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 {
-	uint64_t table_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
+	uint64_t table_addr;
 	int r, i;
 	u32 field;
 
@@ -505,6 +505,9 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	r = amdgpu_gart_table_vram_pin(adev);
 	if (r)
 		return r;
+
+	table_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
+
 	/* Setup TLB control */
 	WREG32(mmMC_VM_MX_L1_TLB_CNTL,
 	       (0xA << 7) |

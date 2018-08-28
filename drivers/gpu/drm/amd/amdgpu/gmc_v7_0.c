@@ -602,7 +602,7 @@ static void gmc_v7_0_set_prt(struct amdgpu_device *adev, bool enable)
  */
 static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 {
-	uint64_t table_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
+	uint64_t table_addr;
 	int r, i;
 	u32 tmp, field;
 
@@ -613,6 +613,9 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 	r = amdgpu_gart_table_vram_pin(adev);
 	if (r)
 		return r;
+
+	table_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
+
 	/* Setup TLB control */
 	tmp = RREG32(mmMC_VM_MX_L1_TLB_CNTL);
 	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL, ENABLE_L1_TLB, 1);
