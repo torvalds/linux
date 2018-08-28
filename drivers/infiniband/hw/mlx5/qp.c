@@ -2909,6 +2909,37 @@ static int modify_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	return 0;
 }
 
+static unsigned int get_tx_affinity(struct mlx5_ib_dev *dev,
+				    struct mlx5_ib_pd *pd,
+				    struct mlx5_ib_qp_base *qp_base,
+				    u8 port_num)
+{
+	struct mlx5_ib_ucontext *ucontext = NULL;
+	unsigned int tx_port_affinity;
+
+	if (pd && pd->ibpd.uobject && pd->ibpd.uobject->context)
+		ucontext = to_mucontext(pd->ibpd.uobject->context);
+
+	if (ucontext) {
+		tx_port_affinity = (unsigned int)atomic_add_return(
+					   1, &ucontext->tx_port_affinity) %
+					   MLX5_MAX_PORTS +
+				   1;
+		mlx5_ib_dbg(dev, "Set tx affinity 0x%x to qpn 0x%x ucontext %p\n",
+				tx_port_affinity, qp_base->mqp.qpn, ucontext);
+	} else {
+		tx_port_affinity =
+			(unsigned int)atomic_add_return(
+				1, &dev->roce[port_num].tx_port_affinity) %
+				MLX5_MAX_PORTS +
+			1;
+		mlx5_ib_dbg(dev, "Set tx affinity 0x%x to qpn 0x%x\n",
+				tx_port_affinity, qp_base->mqp.qpn);
+	}
+
+	return tx_port_affinity;
+}
+
 static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 			       const struct ib_qp_attr *attr, int attr_mask,
 			       enum ib_qp_state cur_state, enum ib_qp_state new_state,
@@ -2974,6 +3005,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	if (!context)
 		return -ENOMEM;
 
+	pd = get_pd(qp);
 	context->flags = cpu_to_be32(mlx5_st << 16);
 
 	if (!(attr_mask & IB_QP_PATH_MIG_STATE)) {
@@ -3002,9 +3034,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 		    (ibqp->qp_type == IB_QPT_XRC_TGT)) {
 			if (mlx5_lag_is_active(dev->mdev)) {
 				u8 p = mlx5_core_native_port_num(dev->mdev);
-				tx_affinity = (unsigned int)atomic_add_return(1,
-						&dev->roce[p].next_port) %
-						MLX5_MAX_PORTS + 1;
+				tx_affinity = get_tx_affinity(dev, pd, base, p);
 				context->flags |= cpu_to_be32(tx_affinity << 24);
 			}
 		}
@@ -3062,7 +3092,6 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 			goto out;
 	}
 
-	pd = get_pd(qp);
 	get_cqs(qp->ibqp.qp_type, qp->ibqp.send_cq, qp->ibqp.recv_cq,
 		&send_cq, &recv_cq);
 
