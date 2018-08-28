@@ -470,8 +470,8 @@ static void nfp_net_pci_unmap_mem(struct nfp_pf *pf)
 
 static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 {
+	u32 min_size, cpp_id;
 	u8 __iomem *mem;
-	u32 min_size;
 	int err;
 
 	min_size = pf->max_data_vnics * NFP_PF_CSR_SLICE_SIZE;
@@ -519,9 +519,9 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 		pf->vfcfg_tbl2 = NULL;
 	}
 
-	mem = nfp_cpp_map_area(pf->cpp, "net.qc", 0, 0,
-			       NFP_PCIE_QUEUE(0), NFP_QCP_QUEUE_AREA_SZ,
-			       &pf->qc_area);
+	cpp_id = NFP_CPP_ISLAND_ID(0, NFP_CPP_ACTION_RW, 0, 0);
+	mem = nfp_cpp_map_area(pf->cpp, "net.qc", cpp_id, NFP_PCIE_QUEUE(0),
+			       NFP_QCP_QUEUE_AREA_SZ, &pf->qc_area);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to map Queue Controller area.\n");
 		err = PTR_ERR(mem);

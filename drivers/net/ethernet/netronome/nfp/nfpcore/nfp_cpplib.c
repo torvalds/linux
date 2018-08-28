@@ -294,8 +294,7 @@ exit_release:
  * nfp_cpp_map_area() - Helper function to map an area
  * @cpp:    NFP CPP handler
  * @name:   Name for the area
- * @domain: CPP domain
- * @target: CPP target
+ * @cpp_id: CPP ID for operation
  * @addr:   CPP address
  * @size:   Size of the area
  * @area:   Area handle (output)
@@ -306,15 +305,12 @@ exit_release:
  * Return: Pointer to memory mapped area or ERR_PTR
  */
 u8 __iomem *
-nfp_cpp_map_area(struct nfp_cpp *cpp, const char *name, int domain, int target,
-		 u64 addr, unsigned long size, struct nfp_cpp_area **area)
+nfp_cpp_map_area(struct nfp_cpp *cpp, const char *name, u32 cpp_id, u64 addr,
+		 unsigned long size, struct nfp_cpp_area **area)
 {
 	u8 __iomem *res;
-	u32 dest;
 
-	dest = NFP_CPP_ISLAND_ID(target, NFP_CPP_ACTION_RW, 0, domain);
-
-	*area = nfp_cpp_area_alloc_acquire(cpp, name, dest, addr, size);
+	*area = nfp_cpp_area_alloc_acquire(cpp, name, cpp_id, addr, size);
 	if (!*area)
 		goto err_eio;
 

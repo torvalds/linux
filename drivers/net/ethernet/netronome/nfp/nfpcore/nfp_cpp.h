@@ -294,8 +294,8 @@ int nfp_cpp_writeq(struct nfp_cpp *cpp, u32 cpp_id,
 		   unsigned long long address, u64 value);
 
 u8 __iomem *
-nfp_cpp_map_area(struct nfp_cpp *cpp, const char *name, int domain, int target,
-		 u64 addr, unsigned long size, struct nfp_cpp_area **area);
+nfp_cpp_map_area(struct nfp_cpp *cpp, const char *name, u32 cpp_id, u64 addr,
+		 unsigned long size, struct nfp_cpp_area **area);
 
 struct nfp_cpp_mutex;
 
