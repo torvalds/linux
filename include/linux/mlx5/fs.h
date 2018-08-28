@@ -45,7 +45,7 @@ enum {
 };
 
 enum {
-	MLX5_FLOW_TABLE_TUNNEL_EN_ENCAP = BIT(0),
+	MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT = BIT(0),
 	MLX5_FLOW_TABLE_TUNNEL_EN_DECAP = BIT(1),
 };
 
@@ -160,7 +160,7 @@ struct mlx5_flow_act {
 	u32 action;
 	bool has_flow_tag;
 	u32 flow_tag;
-	u32 encap_id;
+	u32 reformat_id;
 	u32 modify_id;
 	uintptr_t esp_id;
 	struct mlx5_fs_vlan vlan[MLX5_FS_VLAN_DEPTH];
