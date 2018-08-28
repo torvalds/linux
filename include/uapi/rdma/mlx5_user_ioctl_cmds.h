@@ -166,4 +166,14 @@ enum mlx5_ib_flow_methods {
 	MLX5_IB_METHOD_DESTROY_FLOW,
 };
 
+enum mlx5_ib_flow_action_methods {
+	MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER = (1U << UVERBS_ID_NS_SHIFT),
+};
+
+enum mlx5_ib_create_flow_action_create_modify_header_attrs {
+	MLX5_IB_ATTR_CREATE_MODIFY_HEADER_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_ATTR_CREATE_MODIFY_HEADER_ACTIONS_PRM,
+	MLX5_IB_ATTR_CREATE_MODIFY_HEADER_FT_TYPE,
+};
+
 #endif

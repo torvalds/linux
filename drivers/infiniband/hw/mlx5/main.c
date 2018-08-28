@@ -3995,6 +3995,9 @@ static int mlx5_ib_destroy_flow_action(struct ib_flow_action *action)
 		 */
 		mlx5_accel_esp_destroy_xfrm(maction->esp_aes_gcm.ctx);
 		break;
+	case IB_FLOW_ACTION_UNSPECIFIED:
+		mlx5_ib_destroy_flow_action_raw(maction);
+		break;
 	default:
 		WARN_ON(true);
 		break;
