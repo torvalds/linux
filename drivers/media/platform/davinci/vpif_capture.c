@@ -1585,8 +1585,7 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 			goto done;
 		}
 
-		dev_dbg(&pdev->dev, "Remote device %s, %pOF found\n",
-			rem->name, rem);
+		dev_dbg(&pdev->dev, "Remote device %pOF found\n", rem);
 		sdinfo->name = rem->full_name;
 
 		pdata->asd[i] = devm_kzalloc(&pdev->dev,

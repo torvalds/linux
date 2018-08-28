@@ -333,7 +333,7 @@ static int video_mux_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, vmux);
 
 	v4l2_subdev_init(&vmux->subdev, &video_mux_subdev_ops);
-	snprintf(vmux->subdev.name, sizeof(vmux->subdev.name), "%s", np->name);
+	snprintf(vmux->subdev.name, sizeof(vmux->subdev.name), "%pOFn", np);
 	vmux->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	vmux->subdev.dev = dev;
 

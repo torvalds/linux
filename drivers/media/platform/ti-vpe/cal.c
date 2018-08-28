@@ -1712,8 +1712,8 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	v4l2_fwnode_endpoint_parse(of_fwnode_handle(remote_ep), endpoint);
 
 	if (endpoint->bus_type != V4L2_MBUS_CSI2) {
-		ctx_err(ctx, "Port:%d sub-device %s is not a CSI2 device\n",
-			inst, sensor_node->name);
+		ctx_err(ctx, "Port:%d sub-device %pOFn is not a CSI2 device\n",
+			inst, sensor_node);
 		goto cleanup_exit;
 	}
 
@@ -1732,8 +1732,8 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 			endpoint->bus.mipi_csi2.data_lanes[lane]);
 	ctx_dbg(3, ctx, "\t>\n");
 
-	ctx_dbg(1, ctx, "Port: %d found sub-device %s\n",
-		inst, sensor_node->name);
+	ctx_dbg(1, ctx, "Port: %d found sub-device %pOFn\n",
+		inst, sensor_node);
 
 	ctx->asd_list[0] = asd;
 	ctx->notifier.subdevs = ctx->asd_list;

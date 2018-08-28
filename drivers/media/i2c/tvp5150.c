@@ -1403,8 +1403,8 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 		ret = of_property_read_u32(child, "input", &input_type);
 		if (ret) {
 			dev_err(decoder->sd.dev,
-				 "missing type property in node %s\n",
-				 child->name);
+				 "missing type property in node %pOFn\n",
+				 child);
 			goto err_connector;
 		}
 
@@ -1439,8 +1439,8 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 		ret = of_property_read_string(child, "label", &name);
 		if (ret < 0) {
 			dev_err(decoder->sd.dev,
-				 "missing label property in node %s\n",
-				 child->name);
+				 "missing label property in node %pOFn\n",
+				 child);
 			goto err_connector;
 		}
 
