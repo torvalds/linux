@@ -702,6 +702,7 @@ int mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
 	kfree(in);
 	return err;
 }
+EXPORT_SYMBOL(mlx5_modify_header_alloc);
 
 void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev, u32 modify_header_id)
 {
@@ -716,6 +717,7 @@ void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev, u32 modify_header_id)
 
 	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
+EXPORT_SYMBOL(mlx5_modify_header_dealloc);
 
 static const struct mlx5_flow_cmds mlx5_flow_cmds = {
 	.create_flow_table = mlx5_cmd_create_flow_table,
