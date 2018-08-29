@@ -73,6 +73,7 @@ struct sensor_register {
 struct gc2145_framesize {
 	u16 width;
 	u16 height;
+	u16 fps;
 	u16 max_exp_lines;
 	const struct sensor_register *regs;
 };
@@ -106,6 +107,7 @@ struct gc2145 {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_mbus_framefmt format;
+	unsigned int fps;
 	unsigned int xvclk_frequency;
 	struct clk *xvclk;
 	struct gpio_desc *pwdn_gpio;
@@ -887,7 +889,7 @@ static const struct sensor_register gc2145_full_regs[] = {
 };
 
 /* Preview resolution setting*/
-static const struct sensor_register gc2145_svga_regs[] = {
+static const struct sensor_register gc2145_svga_regs_30fps[] = {
 	{0xfe, 0x00},
 	{0x05, 0x02},
 	{0x06, 0x20},
@@ -956,17 +958,74 @@ static const struct sensor_register gc2145_svga_regs[] = {
 	{REG_NULL, 0x00},
 };
 
+/* Preview resolution setting*/
+static const struct sensor_register gc2145_svga_regs_20fps[] = {
+	{0xfe, 0x00},
+	{0x05, 0x02},
+	{0x06, 0x20},
+	{0x07, 0x03},
+	{0x08, 0x80},
+	{0xb6, 0x01},
+	{0xfd, 0x03},
+	{0xfa, 0x00},
+	{0x18, 0x42},
+	/*crop window*/
+	{0xfe, 0x00},
+	{0x90, 0x01},
+	{0x91, 0x00},
+	{0x92, 0x00},
+	{0x93, 0x00},
+	{0x94, 0x00},
+	{0x95, 0x02},
+	{0x96, 0x58},
+	{0x97, 0x03},
+	{0x98, 0x20},
+	{0x99, 0x11},
+	{0x9a, 0x06},
+	/*AWB*/
+	{0xfe, 0x00},
+	{0xec, 0x02},
+	{0xed, 0x02},
+	{0xee, 0x30},
+	{0xef, 0x48},
+	{0xfe, 0x02},
+	{0x9d, 0x08},
+	{0xfe, 0x01},
+	{0x74, 0x00},
+	/*AEC*/
+	{0xfe, 0x01},
+	{0x01, 0x04},
+	{0x02, 0x60},
+	{0x03, 0x02},
+	{0x04, 0x48},
+	{0x05, 0x18},
+	{0x06, 0x50},
+	{0x07, 0x10},
+	{0x08, 0x38},
+	{0x0a, 0x80},
+	{0x21, 0x04},
+	{0xfe, 0x00},
+	{0x20, 0x03},
+	{0xfe, 0x00},
+	{REG_NULL, 0x00},
+};
+
 static const struct gc2145_framesize gc2145_framesizes[] = {
 	{ /* SVGA */
 		.width		= 800,
 		.height		= 600,
-		.regs		= gc2145_svga_regs,
-		.max_exp_lines	= 608,
+		.fps		= 20,
+		.regs		= gc2145_svga_regs_20fps,
+	}, { /* SVGA */
+		.width		= 800,
+		.height		= 600,
+		.fps		= 30,
+		.regs		= gc2145_svga_regs_30fps,
 	}, { /* FULL */
 		.width		= 1600,
 		.height		= 1200,
+		.fps		= 20,
 		.regs		= gc2145_full_regs,
-		.max_exp_lines	= 1208,
 	}
 };
 
@@ -1157,8 +1216,9 @@ static int gc2145_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static void __gc2145_try_frame_size(struct v4l2_mbus_framefmt *mf,
-				    const struct gc2145_framesize **size)
+static void __gc2145_try_frame_size_fps(struct v4l2_mbus_framefmt *mf,
+					const struct gc2145_framesize **size,
+					unsigned int fps)
 {
 	const struct gc2145_framesize *fsize = &gc2145_framesizes[0];
 	const struct gc2145_framesize *match = NULL;
@@ -1175,8 +1235,19 @@ static void __gc2145_try_frame_size(struct v4l2_mbus_framefmt *mf,
 		fsize++;
 	}
 
-	if (!match)
+	if (!match) {
 		match = &gc2145_framesizes[0];
+	} else {
+		fsize = &gc2145_framesizes[0];
+		for (i = 0; i < ARRAY_SIZE(gc2145_framesizes); i++) {
+			if (fsize->width == match->width &&
+			    fsize->height == match->height &&
+			    fps >= fsize->fps)
+				match = fsize;
+
+			fsize++;
+		}
+	}
 
 	mf->width  = match->width;
 	mf->height = match->height;
@@ -1198,7 +1269,7 @@ static int gc2145_set_fmt(struct v4l2_subdev *sd,
 
 	dev_dbg(&client->dev, "%s enter\n", __func__);
 
-	__gc2145_try_frame_size(mf, &size);
+	__gc2145_try_frame_size_fps(mf, &size, gc2145->fps);
 
 	while (--index >= 0)
 		if (gc2145_formats[index].code == mf->code)
@@ -1228,6 +1299,7 @@ static int gc2145_set_fmt(struct v4l2_subdev *sd,
 
 		gc2145->frame_size = size;
 		gc2145->format = fmt->format;
+
 	}
 
 	mutex_unlock(&gc2145->lock);
@@ -1329,6 +1401,52 @@ static int gc2145_g_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int gc2145_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct gc2145 *gc2145 = to_gc2145(sd);
+
+	mutex_lock(&gc2145->lock);
+	fi->interval.numerator = 10000;
+	fi->interval.denominator = gc2145->fps * 10000;
+	mutex_unlock(&gc2145->lock);
+
+	return 0;
+}
+
+static int gc2145_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct gc2145 *gc2145 = to_gc2145(sd);
+	const struct gc2145_framesize *size = NULL;
+	struct v4l2_mbus_framefmt mf;
+	unsigned int fps;
+	int ret = 0;
+
+	dev_dbg(&client->dev, "Setting %d/%d frame interval\n",
+		 fi->interval.numerator, fi->interval.denominator);
+
+	mutex_lock(&gc2145->lock);
+	if (gc2145->format.width == 1600)
+		goto unlock;
+	fps = DIV_ROUND_CLOSEST(fi->interval.denominator,
+				fi->interval.numerator);
+	mf = gc2145->format;
+	__gc2145_try_frame_size_fps(&mf, &size, fps);
+	if (gc2145->frame_size != size) {
+		ret = gc2145_write_array(client, size->regs);
+		if (ret)
+			goto unlock;
+		gc2145->frame_size = size;
+		gc2145->fps = fps;
+	}
+unlock:
+	mutex_unlock(&gc2145->lock);
+
+	return ret;
+}
+
 static const struct v4l2_subdev_core_ops gc2145_subdev_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
@@ -1338,6 +1456,8 @@ static const struct v4l2_subdev_core_ops gc2145_subdev_core_ops = {
 static const struct v4l2_subdev_video_ops gc2145_subdev_video_ops = {
 	.s_stream = gc2145_s_stream,
 	.g_mbus_config = gc2145_g_mbus_config,
+	.g_frame_interval = gc2145_g_frame_interval,
+	.s_frame_interval = gc2145_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc2145_subdev_pad_ops = {
@@ -1524,6 +1644,9 @@ static int gc2145_probe(struct i2c_client *client,
 
 	gc2145_get_default_format(&gc2145->format);
 	gc2145->frame_size = &gc2145_framesizes[0];
+	gc2145->format.width = gc2145_framesizes[0].width;
+	gc2145->format.height = gc2145_framesizes[0].height;
+	gc2145->fps = 0;
 
 	ret = gc2145_detect(sd);
 	if (ret < 0)
