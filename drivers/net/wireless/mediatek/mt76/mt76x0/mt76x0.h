@@ -219,25 +219,6 @@ struct mt76x0_wcid {
 	u8 tx_rate_nss;
 };
 
-struct mt76_tx_status {
-	u8 valid:1;
-	u8 success:1;
-	u8 aggr:1;
-	u8 ack_req:1;
-	u8 is_probe:1;
-	u8 wcid;
-	u8 pktid;
-	u8 retry;
-	u16 rate;
-} __packed __aligned(2);
-
-struct mt76_sta {
-	struct mt76_wcid wcid;
-	struct mt76_tx_status status;
-	int n_frames;
-	u16 agg_ssn[IEEE80211_NUM_TIDS];
-};
-
 struct mt76_reg_pair {
 	u32 reg;
 	u32 value;

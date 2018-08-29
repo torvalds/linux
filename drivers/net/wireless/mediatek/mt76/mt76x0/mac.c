@@ -76,7 +76,7 @@ mt76_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 
 static void
 mt76_mac_fill_tx_status(struct mt76x0_dev *dev, struct ieee80211_tx_info *info,
-			struct mt76_tx_status *st, int n_frames)
+			struct mt76x02_tx_status *st, int n_frames)
 {
 	struct ieee80211_tx_rate *rate = info->status.rates;
 	int cur_idx, last_rate;
@@ -177,9 +177,9 @@ void mt76x0_mac_wcid_set_rate(struct mt76x0_dev *dev, struct mt76_wcid *wcid,
 	spin_unlock_irqrestore(&dev->mt76.lock, flags);
 }
 
-struct mt76_tx_status mt76x0_mac_fetch_tx_status(struct mt76x0_dev *dev)
+struct mt76x02_tx_status mt76x0_mac_fetch_tx_status(struct mt76x0_dev *dev)
 {
-	struct mt76_tx_status stat = {};
+	struct mt76x02_tx_status stat = {};
 	u32 stat2, stat1;
 
 	stat2 = mt76_rr(dev, MT_TX_STAT_FIFO_EXT);
@@ -198,12 +198,12 @@ struct mt76_tx_status mt76x0_mac_fetch_tx_status(struct mt76x0_dev *dev)
 	return stat;
 }
 
-void mt76x0_send_tx_status(struct mt76x0_dev *dev, struct mt76_tx_status *stat, u8 *update)
+void mt76x0_send_tx_status(struct mt76x0_dev *dev, struct mt76x02_tx_status *stat, u8 *update)
 {
 	struct ieee80211_tx_info info = {};
 	struct ieee80211_sta *sta = NULL;
 	struct mt76_wcid *wcid = NULL;
-	struct mt76_sta *msta = NULL;
+	struct mt76x02_sta *msta = NULL;
 
 	rcu_read_lock();
 	if (stat->wcid < ARRAY_SIZE(dev->wcid))
@@ -211,7 +211,7 @@ void mt76x0_send_tx_status(struct mt76x0_dev *dev, struct mt76_tx_status *stat, 
 
 	if (wcid) {
 		void *priv;
-		priv = msta = container_of(wcid, struct mt76_sta, wcid);
+		priv = msta = container_of(wcid, struct mt76x02_sta, wcid);
 		sta = container_of(priv, struct ieee80211_sta, drv_priv);
 	}
 
@@ -413,7 +413,7 @@ void mt76x0_mac_set_ampdu_factor(struct mt76x0_dev *dev)
 		if (!wcid)
 			continue;
 
-		msta = container_of(wcid, struct mt76_sta, wcid);
+		msta = container_of(wcid, struct mt76x02_sta, wcid);
 		sta = container_of(msta, struct ieee80211_sta, drv_priv);
 
 		min_factor = min(min_factor, sta->ht_cap.ampdu_factor);

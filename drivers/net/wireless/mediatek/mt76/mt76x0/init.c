@@ -688,7 +688,7 @@ int mt76x0_register_device(struct mt76x0_dev *dev)
 	hw->max_report_rates = 7;
 	hw->max_rate_tries = 1;
 
-	hw->sta_data_size = sizeof(struct mt76_sta);
+	hw->sta_data_size = sizeof(struct mt76x02_sta);
 	hw->vif_data_size = sizeof(struct mt76x02_vif);
 
 	SET_IEEE80211_PERM_ADDR(hw, dev->macaddr);

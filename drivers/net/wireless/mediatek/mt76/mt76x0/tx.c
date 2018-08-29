@@ -149,7 +149,7 @@ void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	struct mt76x0_dev *dev = hw->priv;
 	struct ieee80211_vif *vif = info->control.vif;
 	struct ieee80211_sta *sta = control->sta;
-	struct mt76_sta *msta = NULL;
+	struct mt76x02_sta *msta = NULL;
 	struct mt76_wcid *wcid = dev->mon_wcid;
 	struct mt76_txwi *txwi;
 	int pkt_len = skb->len;
@@ -164,7 +164,7 @@ void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	}
 
 	if (sta) {
-		msta = (struct mt76_sta *) sta->drv_priv;
+		msta = (struct mt76x02_sta *) sta->drv_priv;
 		wcid = &msta->wcid;
 	} else if (vif && (!info->control.hw_key && wcid->hw_key_idx != 0xff)) {
 		struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
@@ -184,7 +184,7 @@ void mt76x0_tx_stat(struct work_struct *work)
 {
 	struct mt76x0_dev *dev = container_of(work, struct mt76x0_dev,
 					       stat_work.work);
-	struct mt76_tx_status stat;
+	struct mt76x02_tx_status stat;
 	unsigned long flags;
 	int cleaned = 0;
 	u8 update = 1;
