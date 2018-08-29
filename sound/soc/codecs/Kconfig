@@ -578,7 +578,11 @@ config SND_SOC_DA9055
 	tristate
 
 config SND_SOC_DMIC
-	tristate
+	tristate "Generic Digital Microphone CODEC"
+	depends on GPIOLIB
+	help
+	  Enable support for the Generic Digital Microphone CODEC.
+	  Select this if your sound card has DMICs.
 
 config SND_SOC_HDMI_CODEC
 	tristate
