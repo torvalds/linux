@@ -278,7 +278,7 @@ struct rds_incoming {
 	struct in6_addr		i_saddr;
 
 	rds_rdma_cookie_t	i_rdma_cookie;
-	struct timeval		i_rx_tstamp;
+	ktime_t			i_rx_tstamp;
 	u64			i_rx_lat_trace[RDS_RX_MAX_TRACES];
 };
 
