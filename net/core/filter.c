@@ -2282,6 +2282,13 @@ static const struct bpf_func_proto bpf_msg_cork_bytes_proto = {
 	.arg2_type      = ARG_ANYTHING,
 };
 
+#define sk_msg_iter_var(var)			\
+	do {					\
+		var++;				\
+		if (var == MAX_SKB_FRAGS)	\
+			var = 0;		\
+	} while (0)
+
 BPF_CALL_4(bpf_msg_pull_data,
 	   struct sk_msg_buff *, msg, u32, start, u32, end, u64, flags)
 {
@@ -2302,22 +2309,19 @@ BPF_CALL_4(bpf_msg_pull_data,
 		if (start < offset + len)
 			break;
 		offset += len;
-		i++;
-		if (i == MAX_SKB_FRAGS)
-			i = 0;
+		sk_msg_iter_var(i);
 	} while (i != msg->sg_end);
 
 	if (unlikely(start >= offset + len))
 		return -EINVAL;
 
+	first_sg = i;
 	/* The start may point into the sg element so we need to also
 	 * account for the headroom.
 	 */
 	bytes_sg_total = start - offset + bytes;
 	if (!msg->sg_copy[i] && bytes_sg_total <= len)
 		goto out;
-
-	first_sg = i;
 
 	/* At this point we need to linearize multiple scatterlist
 	 * elements or a single shared page. Either way we need to
@@ -2331,9 +2335,7 @@ BPF_CALL_4(bpf_msg_pull_data,
 	 */
 	do {
 		copy += sg[i].length;
-		i++;
-		if (i == MAX_SKB_FRAGS)
-			i = 0;
+		sk_msg_iter_var(i);
 		if (bytes_sg_total <= copy)
 			break;
 	} while (i != msg->sg_end);
@@ -2359,9 +2361,7 @@ BPF_CALL_4(bpf_msg_pull_data,
 		sg[i].length = 0;
 		put_page(sg_page(&sg[i]));
 
-		i++;
-		if (i == MAX_SKB_FRAGS)
-			i = 0;
+		sk_msg_iter_var(i);
 	} while (i != last_sg);
 
 	sg[first_sg].length = copy;
@@ -2371,11 +2371,15 @@ BPF_CALL_4(bpf_msg_pull_data,
 	 * had a single entry though we can just replace it and
 	 * be done. Otherwise walk the ring and shift the entries.
 	 */
-	shift = last_sg - first_sg - 1;
+	WARN_ON_ONCE(last_sg == first_sg);
+	shift = last_sg > first_sg ?
+		last_sg - first_sg - 1 :
+		MAX_SKB_FRAGS - first_sg + last_sg - 1;
 	if (!shift)
 		goto out;
 
-	i = first_sg + 1;
+	i = first_sg;
+	sk_msg_iter_var(i);
 	do {
 		int move_from;
 
@@ -2392,15 +2396,13 @@ BPF_CALL_4(bpf_msg_pull_data,
 		sg[move_from].page_link = 0;
 		sg[move_from].offset = 0;
 
-		i++;
-		if (i == MAX_SKB_FRAGS)
-			i = 0;
+		sk_msg_iter_var(i);
 	} while (1);
 	msg->sg_end -= shift;
 	if (msg->sg_end < 0)
 		msg->sg_end += MAX_SKB_FRAGS;
 out:
-	msg->data = sg_virt(&sg[i]) + start - offset;
+	msg->data = sg_virt(&sg[first_sg]) + start - offset;
 	msg->data_end = msg->data + bytes;
 
 	return 0;
