@@ -1306,12 +1306,14 @@ static void cif_isp10_v4l2_requeue_bufs(
 	dev = to_cif_isp10_device(q);
 
 	list_for_each_entry(buf, &q->queued_list, queued_entry) {
+		if (buf->state == VB2_BUF_STATE_DONE)
+			continue;
+
 		ispbuf = to_cif_isp10_vb(to_vb2_v4l2_buffer(buf));
 		if (!IS_ERR_VALUE(cif_isp10_qbuf(
 			to_cif_isp10_device(q), stream_id, ispbuf))) {
 			spin_lock(&dev->vbreq_lock);
-			if ((buf->state == VB2_BUF_STATE_QUEUED) ||
-			    (buf->state == VB2_BUF_STATE_DONE)) {
+			if (buf->state == VB2_BUF_STATE_QUEUED) {
 				buf->state = VB2_BUF_STATE_ACTIVE;
 				atomic_inc(&q->owned_by_drv_count);
 			} else if (buf->state == VB2_BUF_STATE_ACTIVE) {
