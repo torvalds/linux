@@ -15,31 +15,32 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef __MT76X02_MAC_H
-#define __MT76X02_MAC_H
-
-static inline bool mt76x02_wait_for_mac(struct mt76_dev *dev)
-{
-	const u32 MAC_CSR0 = 0x1000;
-	int i;
-
-	for (i = 0; i < 500; i++) {
-		if (test_bit(MT76_REMOVED, &dev->state))
-			return -EIO;
-
-		switch (dev->bus->rr(dev, MAC_CSR0)) {
-		case 0:
-		case ~0:
-			break;
-		default:
-			return true;
-		}
-		usleep_range(5000, 10000);
-	}
-	return false;
-}
+#include "mt76.h"
+#include "mt76x02_regs.h"
 
 enum mt76x02_cipher_type
-mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data);
+mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
+{
+	memset(key_data, 0, 32);
+	if (!key)
+		return MT_CIPHER_NONE;
 
-#endif
+	if (key->keylen > 32)
+		return MT_CIPHER_NONE;
+
+	memcpy(key_data, key->key, key->keylen);
+
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+		return MT_CIPHER_WEP40;
+	case WLAN_CIPHER_SUITE_WEP104:
+		return MT_CIPHER_WEP104;
+	case WLAN_CIPHER_SUITE_TKIP:
+		return MT_CIPHER_TKIP;
+	case WLAN_CIPHER_SUITE_CCMP:
+		return MT_CIPHER_AES_CCMP;
+	default:
+		return MT_CIPHER_NONE;
+	}
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_get_key_info);

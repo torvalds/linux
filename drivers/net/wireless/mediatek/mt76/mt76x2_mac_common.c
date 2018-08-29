@@ -229,32 +229,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(mt76x2_send_tx_status);
 
-static enum mt76x02_cipher_type
-mt76x2_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
-{
-	memset(key_data, 0, 32);
-	if (!key)
-		return MT_CIPHER_NONE;
-
-	if (key->keylen > 32)
-		return MT_CIPHER_NONE;
-
-	memcpy(key_data, key->key, key->keylen);
-
-	switch (key->cipher) {
-	case WLAN_CIPHER_SUITE_WEP40:
-		return MT_CIPHER_WEP40;
-	case WLAN_CIPHER_SUITE_WEP104:
-		return MT_CIPHER_WEP104;
-	case WLAN_CIPHER_SUITE_TKIP:
-		return MT_CIPHER_TKIP;
-	case WLAN_CIPHER_SUITE_CCMP:
-		return MT_CIPHER_AES_CCMP;
-	default:
-		return MT_CIPHER_NONE;
-	}
-}
-
 int mt76x2_mac_shared_key_setup(struct mt76x2_dev *dev, u8 vif_idx, u8 key_idx,
 				struct ieee80211_key_conf *key)
 {
@@ -262,7 +236,7 @@ int mt76x2_mac_shared_key_setup(struct mt76x2_dev *dev, u8 vif_idx, u8 key_idx,
 	u8 key_data[32];
 	u32 val;
 
-	cipher = mt76x2_mac_get_key_info(key, key_data);
+	cipher = mt76x02_mac_get_key_info(key, key_data);
 	if (cipher == MT_CIPHER_NONE && key)
 		return -EOPNOTSUPP;
 
@@ -285,7 +259,7 @@ int mt76x2_mac_wcid_set_key(struct mt76x2_dev *dev, u8 idx,
 	u8 key_data[32];
 	u8 iv_data[8];
 
-	cipher = mt76x2_mac_get_key_info(key, key_data);
+	cipher = mt76x02_mac_get_key_info(key, key_data);
 	if (cipher == MT_CIPHER_NONE && key)
 		return -EOPNOTSUPP;
 
