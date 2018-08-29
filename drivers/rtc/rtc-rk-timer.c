@@ -76,11 +76,6 @@ static inline u64 tick_to_sec(struct rk_timer_rtc *rk_timer_rtc, u64 tick)
 	return tick;
 }
 
-static inline u64 sec_to_tick(struct rk_timer_rtc *rk_timer_rtc, int sec)
-{
-	return sec * rk_timer_rtc->freq;
-}
-
 static inline u64 ms_to_tick(struct rk_timer_rtc *rk_timer_rtc, int ms)
 {
 	return ms * rk_timer_rtc->freq / 1000;
@@ -93,7 +88,7 @@ static inline u64 tick_to_time64(struct rk_timer_rtc *rk_timer_rtc, u64 tick)
 
 static inline u64 time64_to_tick(struct rk_timer_rtc *rk_timer_rtc, u64 time)
 {
-	return sec_to_tick(rk_timer_rtc, time - rk_timer_rtc->timebase);
+	return (time - rk_timer_rtc->timebase) * rk_timer_rtc->freq;
 }
 
 static inline int rk_timer_rtc_write64(struct rk_timer_rtc *rk_timer_rtc,
