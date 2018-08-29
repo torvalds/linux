@@ -119,3 +119,14 @@ void mt76x02_mac_wcid_setup(struct mt76_dev *dev, u8 idx, u8 vif_idx, u8 *mac)
 	__mt76_wr_copy(dev, MT_WCID_ADDR(idx), &addr, sizeof(addr));
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_wcid_setup);
+
+void mt76x02_mac_wcid_set_drop(struct mt76_dev *dev, u8 idx, bool drop)
+{
+	u32 val = __mt76_rr(dev, MT_WCID_DROP(idx));
+	u32 bit = MT_WCID_DROP_MASK(idx);
+
+	/* prevent unnecessary writes */
+	if ((val & bit) != (bit * drop))
+		__mt76_wr(dev, MT_WCID_DROP(idx), (val & ~bit) | (bit * drop));
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_wcid_set_drop);

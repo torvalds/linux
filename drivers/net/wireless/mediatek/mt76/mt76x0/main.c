@@ -175,6 +175,7 @@ mt76x0_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	msta->wcid.idx = idx;
 	msta->wcid.hw_key_idx = -1;
 	mt76x02_mac_wcid_setup(&dev->mt76, idx, mvif->idx, sta->addr);
+	mt76x02_mac_wcid_set_drop(&dev->mt76, idx, false);
 	mt76_clear(dev, MT_WCID_DROP(idx), MT_WCID_DROP_MASK(idx));
 	rcu_assign_pointer(dev->wcid[idx], &msta->wcid);
 	mt76x0_mac_set_ampdu_factor(dev);
@@ -195,7 +196,7 @@ mt76x0_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_lock(&dev->mt76.mutex);
 	rcu_assign_pointer(dev->wcid[idx], NULL);
-	mt76_set(dev, MT_WCID_DROP(idx), MT_WCID_DROP_MASK(idx));
+	mt76x02_mac_wcid_set_drop(&dev->mt76, idx, true);
 	dev->wcid_mask[idx / BITS_PER_LONG] &= ~BIT(idx % BITS_PER_LONG);
 	mt76x02_mac_wcid_setup(&dev->mt76, idx, 0, NULL);
 	mt76x0_mac_set_ampdu_factor(dev);
