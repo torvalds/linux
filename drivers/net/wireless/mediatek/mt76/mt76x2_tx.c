@@ -58,7 +58,7 @@ static void
 mt76x2_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct mt76x2_dev *dev = (struct mt76x2_dev *) priv;
-	struct mt76x2_vif *mvif = (struct mt76x2_vif *) vif->drv_priv;
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
 	struct sk_buff *skb = NULL;
 
 	if (!(dev->beacon_mask & BIT(mvif->idx)))
@@ -76,7 +76,7 @@ mt76x2_add_buffered_bc(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct beacon_bc_data *data = priv;
 	struct mt76x2_dev *dev = data->dev;
-	struct mt76x2_vif *mvif = (struct mt76x2_vif *) vif->drv_priv;
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb;
 
@@ -164,7 +164,7 @@ void mt76x2_pre_tbtt_tasklet(unsigned long arg)
 	while ((skb = __skb_dequeue(&data.q)) != NULL) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 		struct ieee80211_vif *vif = info->control.vif;
-		struct mt76x2_vif *mvif = (struct mt76x2_vif *) vif->drv_priv;
+		struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
 
 		mt76_dma_tx_queue_skb(&dev->mt76, q, skb, &mvif->group_wcid,
 				      NULL);

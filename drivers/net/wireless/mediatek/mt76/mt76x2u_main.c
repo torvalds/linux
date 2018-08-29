@@ -49,7 +49,7 @@ static int mt76x2u_add_interface(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif)
 {
 	struct mt76x2_dev *dev = hw->priv;
-	struct mt76x2_vif *mvif = (struct mt76x2_vif *)vif->drv_priv;
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 	unsigned int idx = 0;
 
 	if (!ether_addr_equal(dev->mt76.macaddr, vif->addr))

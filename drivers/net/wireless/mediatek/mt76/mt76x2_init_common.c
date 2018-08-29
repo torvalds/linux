@@ -209,7 +209,7 @@ void mt76x2_init_device(struct mt76x2_dev *dev)
 	hw->extra_tx_headroom = 2;
 
 	hw->sta_data_size = sizeof(struct mt76x2_sta);
-	hw->vif_data_size = sizeof(struct mt76x2_vif);
+	hw->vif_data_size = sizeof(struct mt76x02_vif);
 
 	ieee80211_hw_set(hw, SUPPORTS_HT_CCK_RATES);
 	ieee80211_hw_set(hw, SUPPORTS_REORDERING_BUFFER);

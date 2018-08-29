@@ -37,9 +37,9 @@ void mt76x2_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	}
 
 	if (vif && !control->sta) {
-		struct mt76x2_vif *mvif;
+		struct mt76x02_vif *mvif;
 
-		mvif = (struct mt76x2_vif *)vif->drv_priv;
+		mvif = (struct mt76x02_vif *)vif->drv_priv;
 		wcid = &mvif->group_wcid;
 	}
 

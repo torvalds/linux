@@ -144,16 +144,10 @@ struct mt76x2_dev {
 	struct mt76x2_dfs_pattern_detector dfs_pd;
 };
 
-struct mt76x2_vif {
-	u8 idx;
-
-	struct mt76_wcid group_wcid;
-};
-
 struct mt76x2_sta {
 	struct mt76_wcid wcid; /* must be first */
 
-	struct mt76x2_vif *vif;
+	struct mt76x02_vif *vif;
 	struct mt76x2_tx_status status;
 	int n_frames;
 

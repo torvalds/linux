@@ -18,6 +18,12 @@
 #ifndef __MT76X02_MAC_H
 #define __MT76X02_MAC_H
 
+struct mt76x02_vif {
+	u8 idx;
+
+	struct mt76_wcid group_wcid;
+};
+
 static inline bool mt76x02_wait_for_mac(struct mt76_dev *dev)
 {
 	const u32 MAC_CSR0 = 0x1000;

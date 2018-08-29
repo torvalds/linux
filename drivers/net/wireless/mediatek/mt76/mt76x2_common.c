@@ -32,9 +32,9 @@ void mt76x2_txq_init(struct mt76x2_dev *dev, struct ieee80211_txq *txq)
 		sta = (struct mt76x2_sta *) txq->sta->drv_priv;
 		mtxq->wcid = &sta->wcid;
 	} else {
-		struct mt76x2_vif *mvif;
+		struct mt76x02_vif *mvif;
 
-		mvif = (struct mt76x2_vif *) txq->vif->drv_priv;
+		mvif = (struct mt76x02_vif *) txq->vif->drv_priv;
 		mtxq->wcid = &mvif->group_wcid;
 	}
 
@@ -98,7 +98,7 @@ int mt76x2_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct mt76x2_dev *dev = hw->priv;
 	struct mt76x2_sta *msta = (struct mt76x2_sta *) sta->drv_priv;
-	struct mt76x2_vif *mvif = (struct mt76x2_vif *) vif->drv_priv;
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
 	int ret = 0;
 	int idx = 0;
 	int i;
@@ -169,7 +169,7 @@ int mt76x2_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		   struct ieee80211_key_conf *key)
 {
 	struct mt76x2_dev *dev = hw->priv;
-	struct mt76x2_vif *mvif = (struct mt76x2_vif *) vif->drv_priv;
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
 	struct mt76x2_sta *msta;
 	struct mt76_wcid *wcid;
 	int idx = key->keyidx;

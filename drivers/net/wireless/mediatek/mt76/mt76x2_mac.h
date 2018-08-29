@@ -22,7 +22,7 @@
 
 struct mt76x2_dev;
 struct mt76x2_sta;
-struct mt76x2_vif;
+struct mt76x02_vif;
 struct mt76x2_txwi;
 
 struct mt76x2_tx_status {

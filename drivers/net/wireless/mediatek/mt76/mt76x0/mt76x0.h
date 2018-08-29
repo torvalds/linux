@@ -219,12 +219,6 @@ struct mt76x0_wcid {
 	u8 tx_rate_nss;
 };
 
-struct mt76_vif {
-	u8 idx;
-
-	struct mt76_wcid group_wcid;
-};
-
 struct mt76_tx_status {
 	u8 valid:1;
 	u8 success:1;
