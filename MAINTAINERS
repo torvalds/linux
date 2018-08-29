@@ -2483,12 +2483,6 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/input/atmel,maxtouch.txt
 F:	drivers/input/touchscreen/atmel_mxt_ts.c
 
-ATMEL SDMMC DRIVER
-M:	Ludovic Desroches <ludovic.desroches@microchip.com>
-L:	linux-mmc@vger.kernel.org
-S:	Supported
-F:	drivers/mmc/host/sdhci-of-at91.c
-
 ATMEL WIRELESS DRIVER
 M:	Simon Kelley <simon@thekelleys.org.uk>
 L:	linux-wireless@vger.kernel.org
@@ -13005,6 +12999,12 @@ M:	Manjunath M B <manjumb@synopsys.com>
 L:	linux-mmc@vger.kernel.org
 S:	Maintained
 F:	drivers/mmc/host/sdhci-pci-dwc-mshc.c
+
+SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) MICROCHIP DRIVER
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
+L:	linux-mmc@vger.kernel.org
+S:	Supported
+F:	drivers/mmc/host/sdhci-of-at91.c
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) SAMSUNG DRIVER
 M:	Ben Dooks <ben-linux@fluff.org>
