@@ -23,7 +23,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_data/gpio-ts5500.h>
