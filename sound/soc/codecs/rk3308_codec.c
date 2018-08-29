@@ -2366,6 +2366,14 @@ static int rk3308_codec_adc_ana_enable(struct rk3308_codec_priv *rk3308,
 				   RK3308_ADC_CURRENT_EN);
 	}
 
+	/*
+	 * This is mainly used for BIST mode that wait ADCs are stable.
+	 *
+	 * By tested results, the type delay is >40us, but we need to leave
+	 * enough delay margin.
+	 */
+	usleep_range(400, 500);
+
 	/* vendor step 4*/
 	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
 		if (grp < 0 || grp > ADC_LR_GROUP_MAX - 1)
