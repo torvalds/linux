@@ -3,6 +3,6 @@
 
 meson-vdec-objs = esparser.o vdec.o vdec_ctrls.o vdec_helpers.o vdec_platform.o
 meson-vdec-objs += vdec_1.o
-meson-vdec-objs += codec_mpeg12.o
+meson-vdec-objs += codec_mpeg12.o codec_h264.o
 
 obj-$(CONFIG_VIDEO_MESON_VDEC) += meson-vdec.o
