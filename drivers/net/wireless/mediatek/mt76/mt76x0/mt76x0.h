@@ -26,6 +26,7 @@
 #include <linux/debugfs.h>
 
 #include "../mt76.h"
+#include "../mt76x02_mac.h"
 #include "regs.h"
 
 #define MT_CALIBRATE_INTERVAL		(4 * HZ)
@@ -262,8 +263,6 @@ static inline bool is_mt7610e(struct mt76x0_dev *dev)
 }
 
 void mt76x0_init_debugfs(struct mt76x0_dev *dev);
-
-int mt76x0_wait_asic_ready(struct mt76x0_dev *dev);
 
 /* Compatibility with mt76 */
 #define mt76_rmw_field(_dev, _reg, _field, _val)	\

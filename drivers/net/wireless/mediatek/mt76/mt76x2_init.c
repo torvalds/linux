@@ -101,7 +101,7 @@ static int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
 	u32 val;
 	int i, k;
 
-	if (!mt76x2_wait_for_mac(dev))
+	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
 
 	val = mt76_rr(dev, MT_WPDMA_GLO_CFG);

@@ -18,6 +18,7 @@
 #define __MT76x2_MAC_H
 
 #include "mt76.h"
+#include "mt76x02_mac.h"
 
 struct mt76x2_dev;
 struct mt76x2_sta;

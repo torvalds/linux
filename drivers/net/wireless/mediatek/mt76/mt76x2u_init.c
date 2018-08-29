@@ -184,7 +184,7 @@ int mt76x2u_init_hardware(struct mt76x2_dev *dev)
 	mt76x2_reset_wlan(dev, true);
 	mt76x2u_power_on(dev);
 
-	if (!mt76x2_wait_for_mac(dev))
+	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
 
 	err = mt76x2u_mcu_fw_init(dev);
@@ -197,7 +197,7 @@ int mt76x2u_init_hardware(struct mt76x2_dev *dev)
 		return -EIO;
 
 	/* wait for asic ready after fw load. */
-	if (!mt76x2_wait_for_mac(dev))
+	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
 
 	mt76_wr(dev, MT_HEADER_TRANS_CTRL_REG, 0);

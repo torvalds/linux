@@ -384,9 +384,11 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 
 	mt76x0_chip_onoff(dev, true, true);
 
-	ret = mt76x0_wait_asic_ready(dev);
-	if (ret)
+	if (!mt76x02_wait_for_mac(&dev->mt76)) {
+		ret = -ETIMEDOUT;
 		goto err;
+	}
+
 	ret = mt76x0_mcu_init(dev);
 	if (ret)
 		goto err;
@@ -399,9 +401,10 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 	}
 
 	/* Wait for ASIC ready after FW load. */
-	ret = mt76x0_wait_asic_ready(dev);
-	if (ret)
+	if (!mt76x02_wait_for_mac(&dev->mt76)) {
+		ret = -ETIMEDOUT;
 		goto err;
+	}
 
 	mt76x0_reset_csr_bbp(dev);
 	mt76x0_init_usb_dma(dev);

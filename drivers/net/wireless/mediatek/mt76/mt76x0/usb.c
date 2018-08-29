@@ -287,9 +287,10 @@ static int mt76x0_probe(struct usb_interface *usb_intf,
 	/* Disable the HW, otherwise MCU fail to initalize on hot reboot */
 	mt76x0_chip_onoff(dev, false, false);
 
-	ret = mt76x0_wait_asic_ready(dev);
-	if (ret)
+	if (!mt76x02_wait_for_mac(&dev->mt76)) {
+		ret = -ETIMEDOUT;
 		goto err;
+	}
 
 	asic_rev = mt76_rr(dev, MT_ASIC_VERSION);
 	mac_rev = mt76_rr(dev, MT_MAC_CSR0);
