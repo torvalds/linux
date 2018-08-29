@@ -2004,7 +2004,6 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 						    struct usba_udc *udc)
 {
 	u32 val;
-	const char *name;
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
 	struct device_node *pp;
@@ -2096,11 +2095,6 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 		ep->can_dma = of_property_read_bool(pp, "atmel,can-dma");
 		ep->can_isoc = of_property_read_bool(pp, "atmel,can-isoc");
 
-		ret = of_property_read_string(pp, "name", &name);
-		if (ret) {
-			dev_err(&pdev->dev, "of_probe: name error(%d)\n", ret);
-			goto err;
-		}
 		sprintf(ep->name, "ep%d", ep->index);
 		ep->ep.name = ep->name;
 
