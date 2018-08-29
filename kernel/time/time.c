@@ -863,7 +863,7 @@ int put_timespec64(const struct timespec64 *ts,
 }
 EXPORT_SYMBOL_GPL(put_timespec64);
 
-int __get_old_timespec32(struct timespec64 *ts64,
+static int __get_old_timespec32(struct timespec64 *ts64,
 				   const struct old_timespec32 __user *cts)
 {
 	struct old_timespec32 ts;
@@ -879,7 +879,7 @@ int __get_old_timespec32(struct timespec64 *ts64,
 	return 0;
 }
 
-int __put_old_timespec32(const struct timespec64 *ts64,
+static int __put_old_timespec32(const struct timespec64 *ts64,
 				   struct old_timespec32 __user *cts)
 {
 	struct old_timespec32 ts = {
