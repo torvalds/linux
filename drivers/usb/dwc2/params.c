@@ -303,6 +303,8 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	p->max_packet_count = hw->max_packet_count;
 	p->max_transfer_size = hw->max_transfer_size;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR << GAHBCFG_HBSTLEN_SHIFT;
+	p->ref_clk_per = 33333;
+	p->sof_cnt_wkup_alert = 100;
 
 	if ((hsotg->dr_mode == USB_DR_MODE_HOST) ||
 	    (hsotg->dr_mode == USB_DR_MODE_OTG)) {
