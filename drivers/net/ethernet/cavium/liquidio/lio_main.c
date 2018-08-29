@@ -2969,30 +2969,15 @@ static int liquidio_get_vf_config(struct net_device *netdev, int vfidx,
 	return 0;
 }
 
-static void trusted_vf_callback(struct octeon_device *oct_dev,
-				u32 status, void *ptr)
-{
-	struct octeon_soft_command *sc = (struct octeon_soft_command *)ptr;
-	struct lio_trusted_vf_ctx *ctx;
-
-	ctx = (struct lio_trusted_vf_ctx *)sc->ctxptr;
-	ctx->status = status;
-
-	complete(&ctx->complete);
-}
-
 static int liquidio_send_vf_trust_cmd(struct lio *lio, int vfidx, bool trusted)
 {
 	struct octeon_device *oct = lio->oct_dev;
-	struct lio_trusted_vf_ctx *ctx;
 	struct octeon_soft_command *sc;
-	int ctx_size, retval;
+	int retval;
 
-	ctx_size = sizeof(struct lio_trusted_vf_ctx);
-	sc = octeon_alloc_soft_command(oct, 0, 0, ctx_size);
-
-	ctx  = (struct lio_trusted_vf_ctx *)sc->ctxptr;
-	init_completion(&ctx->complete);
+	sc = octeon_alloc_soft_command(oct, 0, 16, 0);
+	if (!sc)
+		return -ENOMEM;
 
 	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
 
@@ -3001,23 +2986,21 @@ static int liquidio_send_vf_trust_cmd(struct lio *lio, int vfidx, bool trusted)
 				    OPCODE_NIC_SET_TRUSTED_VF, 0, vfidx + 1,
 				    trusted);
 
-	sc->callback = trusted_vf_callback;
-	sc->callback_arg = sc;
-	sc->wait_time = 1000;
+	init_completion(&sc->complete);
+	sc->sc_status = OCTEON_REQUEST_PENDING;
 
 	retval = octeon_send_soft_command(oct, sc);
 	if (retval == IQ_SEND_FAILED) {
+		octeon_free_soft_command(oct, sc);
 		retval = -1;
 	} else {
 		/* Wait for response or timeout */
-		if (wait_for_completion_timeout(&ctx->complete,
-						msecs_to_jiffies(2000)))
-			retval = ctx->status;
-		else
-			retval = -1;
-	}
+		retval = wait_for_sc_completion_timeout(oct, sc, 0);
+		if (retval)
+			return (retval);
 
-	octeon_free_soft_command(oct, sc);
+		WRITE_ONCE(sc->caller_is_done, true);
+	}
 
 	return retval;
 }
@@ -3733,7 +3716,6 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 			octeon_dev->speed_setting = 10;
 		}
 		octeon_dev->speed_boot = octeon_dev->speed_setting;
-
 	}
 
 	devlink = devlink_alloc(&liquidio_devlink_ops,

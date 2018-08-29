@@ -87,12 +87,6 @@ struct oct_nic_seapi_resp {
 	u64 status;
 };
 
-struct liquidio_nic_seapi_ctl_context {
-	int octeon_id;
-	u32 status;
-	struct completion complete;
-};
-
 /** LiquidIO per-interface network private data */
 struct lio {
 	/** State of the interface. Rx/Tx happens only in the RUNNING state.  */
