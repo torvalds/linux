@@ -378,12 +378,10 @@ static int cros_usbpd_charger_ec_event(struct notifier_block *nb,
 {
 	struct cros_ec_device *ec_device;
 	struct charger_data *charger;
-	struct device *dev;
 	u32 host_event;
 
 	charger = container_of(nb, struct charger_data, notifier);
 	ec_device = charger->ec_device;
-	dev = charger->dev;
 
 	host_event = cros_ec_get_host_event(ec_device);
 	if (host_event & EC_HOST_EVENT_MASK(EC_HOST_EVENT_PD_MCU)) {
