@@ -1054,6 +1054,26 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			sb->s_flags |= MS_RDONLY;
 			ufs->workdir = NULL;
 		}
+
+		/*
+		 * Upper should support d_type, else whiteouts are visible.
+		 * Given workdir and upper are on same fs, we can do
+		 * iterate_dir() on workdir. This check requires successful
+		 * creation of workdir in previous step.
+		 */
+		if (ufs->workdir) {
+			err = ovl_check_d_type_supported(&workpath);
+			if (err < 0)
+				goto out_put_workdir;
+
+			/*
+			 * We allowed this configuration and don't want to
+			 * break users over kernel upgrade. So warn instead
+			 * of erroring out.
+			 */
+			if (!err)
+				pr_warn("overlayfs: upper fs needs to support d_type.\n");
+		}
 	}
 
 	err = -ENOMEM;
