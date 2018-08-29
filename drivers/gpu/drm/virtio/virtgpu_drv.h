@@ -57,6 +57,7 @@ struct virtio_gpu_object {
 	uint32_t hw_res_handle;
 
 	struct sg_table *pages;
+	uint32_t mapped;
 	void *vmap;
 	bool dumb;
 	struct ttm_place                placement_code;
