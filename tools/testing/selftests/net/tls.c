@@ -502,6 +502,28 @@ TEST_F(tls, recv_peek_multiple)
 	EXPECT_EQ(memcmp(test_str, buf, send_len), 0);
 }
 
+TEST_F(tls, recv_peek_large_buf_mult_recs)
+{
+	char const *test_str = "test_read_peek_mult_recs";
+	char const *test_str_first = "test_read_peek";
+	char const *test_str_second = "_mult_recs";
+	int len;
+	char buf[64];
+
+	len = strlen(test_str_first);
+	EXPECT_EQ(send(self->fd, test_str_first, len, 0), len);
+
+	len = strlen(test_str_second) + 1;
+	EXPECT_EQ(send(self->fd, test_str_second, len, 0), len);
+
+	len = sizeof(buf);
+	memset(buf, 0, len);
+	EXPECT_NE(recv(self->cfd, buf, len, MSG_PEEK), -1);
+
+	len = strlen(test_str) + 1;
+	EXPECT_EQ(memcmp(test_str, buf, len), 0);
+}
+
 TEST_F(tls, pollin)
 {
 	char const *test_str = "test_poll";
