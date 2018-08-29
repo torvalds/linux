@@ -58,8 +58,8 @@ on the Qualcomm Hexagon core.
 	Usage: required
 	Value type: <stringlist>
 	Definition: must be "mss_restart" for the modem sub-system
-	Definition: must be "wcss_aon_reset", "wcss_reset", "wcss_q6_reset"
-		    for the wcss syb-system
+		    must be "wcss_aon_reset", "wcss_reset", "wcss_q6_reset"
+		    for the wcss sub-system
 
 - cx-supply:
 - mss-supply:
