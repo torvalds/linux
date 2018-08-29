@@ -1145,63 +1145,63 @@ static struct rockchip_mux_route_data rk3308_mux_route_data[] = {
 		.pin = 12,
 		.func = 2,
 		.route_offset = 0x314,
-		.route_val =  BIT(16 + 4) | BIT(4),
+		.route_val = BIT(16 + 4) | BIT(4),
 	}, {
 		/* i2s-8ch-1-sclktxm0 */
 		.bank_num = 1,
 		.pin = 3,
 		.func = 2,
 		.route_offset = 0x308,
-		.route_val =  BIT(16 + 3),
+		.route_val = BIT(16 + 3),
 	}, {
 		/* i2s-8ch-1-sclkrxm0 */
 		.bank_num = 1,
 		.pin = 4,
 		.func = 2,
 		.route_offset = 0x308,
-		.route_val =  BIT(16 + 3),
+		.route_val = BIT(16 + 3),
 	}, {
 		/* i2s-8ch-1-sclktxm1 */
 		.bank_num = 1,
 		.pin = 13,
 		.func = 2,
 		.route_offset = 0x308,
-		.route_val =  BIT(16 + 3) | BIT(3),
+		.route_val = BIT(16 + 3) | BIT(3),
 	}, {
 		/* i2s-8ch-1-sclkrxm1 */
 		.bank_num = 1,
 		.pin = 14,
 		.func = 2,
 		.route_offset = 0x308,
-		.route_val =  BIT(16 + 3) | BIT(3),
+		.route_val = BIT(16 + 3) | BIT(3),
 	}, {
 		/* pdm-clkm0 */
 		.bank_num = 1,
 		.pin = 4,
 		.func = 3,
 		.route_offset = 0x308,
-		.route_val =  BIT(16 + 12) | BIT(16 + 13),
+		.route_val = BIT(16 + 12) | BIT(16 + 13),
 	}, {
 		/* pdm-clkm1 */
 		.bank_num = 1,
 		.pin = 14,
 		.func = 4,
 		.route_offset = 0x308,
-		.route_val =  BIT(16 + 12) | BIT(16 + 13) | BIT(12),
+		.route_val = BIT(16 + 12) | BIT(16 + 13) | BIT(12),
 	}, {
 		/* pdm-clkm2 */
 		.bank_num = 2,
 		.pin = 6,
 		.func = 2,
 		.route_offset = 0x308,
-		.route_val =  BIT(16 + 12) | BIT(16 + 13) | BIT(13),
+		.route_val = BIT(16 + 12) | BIT(16 + 13) | BIT(13),
 	}, {
 		/* pdm-clkm-m2 */
 		.bank_num = 2,
 		.pin = 4,
 		.func = 2,
 		.route_offset = 0x600,
-		.route_val =  BIT(16 + 2) | BIT(2),
+		.route_val = BIT(16 + 2) | BIT(2),
 	},
 };
 
