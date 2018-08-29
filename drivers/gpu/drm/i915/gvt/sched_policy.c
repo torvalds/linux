@@ -426,6 +426,7 @@ void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
 		&vgpu->gvt->scheduler;
 	int ring_id;
 	struct vgpu_sched_data *vgpu_data = vgpu->sched_data;
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 
 	if (!vgpu_data->active)
 		return;
@@ -444,6 +445,7 @@ void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
 		scheduler->current_vgpu = NULL;
 	}
 
+	intel_runtime_pm_get(dev_priv);
 	spin_lock_bh(&scheduler->mmio_context_lock);
 	for (ring_id = 0; ring_id < I915_NUM_ENGINES; ring_id++) {
 		if (scheduler->engine_owner[ring_id] == vgpu) {
@@ -452,5 +454,6 @@ void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
 		}
 	}
 	spin_unlock_bh(&scheduler->mmio_context_lock);
+	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&vgpu->gvt->sched_lock);
 }
