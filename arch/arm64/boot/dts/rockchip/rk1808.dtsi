@@ -5,6 +5,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/power/rk1808-power.h>
 
 / {
 	compatible = "rockchip,rk1808";
@@ -168,6 +169,51 @@
 		#size-cells = <1>;
 	};
 
+	qos_npu: qos@fe850000 {
+		compatible = "syscon";
+		reg = <0x0 0xfe850000 0x0 0x20>;
+	};
+
+	qos_pcie: qos@fe880000 {
+		compatible = "syscon";
+		reg = <0x0 0xfe880000 0x0 0x20>;
+	};
+
+	qos_isp: qos@fe8a0000 {
+		compatible = "syscon";
+		reg = <0x0 0xfe8a0000 0x0 0x20>;
+	};
+
+	qos_rga_rd: qos@fe8a0080 {
+		compatible = "syscon";
+		reg = <0x0 0xfe8a0080 0x0 0x20>;
+	};
+
+	qos_rga_wr: qos@fe8a0100 {
+		compatible = "syscon";
+		reg = <0x0 0xfe8a0100 0x0 0x20>;
+	};
+
+	qos_vip: qos@fe8a0180 {
+		compatible = "syscon";
+		reg = <0x0 0xfe8a0180 0x0 0x20>;
+	};
+
+	qos_vop_dma: qos@fe8b0000 {
+		compatible = "syscon";
+		reg = <0x0 0xfe8b0000 0x0 0x20>;
+	};
+
+	qos_vop_lite: qos@fe8b0080 {
+		compatible = "syscon";
+		reg = <0x0 0xfe8b0080 0x0 0x20>;
+	};
+
+	qos_vpu: qos@fe8cc000 {
+		compatible = "syscon";
+		reg = <0x0 0xfe8c000 0x0 0x20>;
+	};
+
 	gic: interrupt-controller@ff100000 {
 		compatible = "arm,gic-v3";
 		#interrupt-cells = <3>;
@@ -312,6 +358,70 @@
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		status = "disabled";
+	};
+
+	pmu: power-management@ff3e0000 {
+		compatible = "rockchip,rk1808-pmu", "syscon", "simple-mfd";
+		reg = <0x0 0xff3e0000 0x0 0x1000>;
+
+		power: power-controller {
+			compatible = "rockchip,rk1808-power-controller";
+			#power-domain-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			/* These power domains are grouped by VD_NPU */
+			pd_npu@RK1808_VD_NPU {
+				reg = <RK1808_VD_NPU>;
+				clocks = <&cru SCLK_NPU>,
+					 <&cru ACLK_NPU>,
+					 <&cru HCLK_NPU>;
+				pm_qos = <&qos_npu>;
+			};
+
+			/* These power domains are grouped by VD_LOGIC */
+			pd_pcie@RK1808_PD_PCIE {
+				reg = <RK1808_PD_PCIE>;
+				clocks = <&cru HSCLK_PCIE>,
+					 <&cru LSCLK_PCIE>,
+					 <&cru ACLK_PCIE>,
+					 <&cru ACLK_PCIE_MST>,
+					 <&cru ACLK_PCIE_SLV>,
+					 <&cru PCLK_PCIE>,
+					 <&cru SCLK_PCIE_AUX>;
+				pm_qos = <&qos_pcie>;
+			};
+			pd_vpu@RK1808_PD_VPU {
+				reg = <RK1808_PD_VPU>;
+				clocks = <&cru ACLK_VPU>,
+					 <&cru HCLK_VPU>;
+				pm_qos = <&qos_vpu>;
+			};
+			pd_vio@RK1808_PD_VIO {
+				reg = <RK1808_PD_VIO>;
+				clocks = <&cru HSCLK_VIO>,
+					 <&cru LSCLK_VIO>,
+					 <&cru ACLK_VOPRAW>,
+					 <&cru HCLK_VOPRAW>,
+					 <&cru ACLK_VOPLITE>,
+					 <&cru HCLK_VOPLITE>,
+					 <&cru PCLK_DSI_TX>,
+					 <&cru PCLK_CSI_TX>,
+					 <&cru ACLK_RGA>,
+					 <&cru HCLK_RGA>,
+					 <&cru ACLK_ISP>,
+					 <&cru HCLK_ISP>,
+					 <&cru ACLK_CIF>,
+					 <&cru HCLK_CIF>,
+					 <&cru PCLK_CSI2HOST>,
+					 <&cru DCLK_VOPRAW>,
+					 <&cru DCLK_VOPLITE>;
+				pm_qos = <&qos_rga_rd>, <&qos_rga_wr>,
+					 <&qos_isp>, <&qos_vip>,
+					 <&qos_vop_dma>, <&qos_vop_lite>;
+			};
+		};
 	};
 
 	i2c0: i2c@ff410000 {
