@@ -386,7 +386,7 @@ lio_vf_rep_pkt_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	sc = (struct octeon_soft_command *)
-		octeon_alloc_soft_command(oct, 0, 0, 0);
+		octeon_alloc_soft_command(oct, 0, 16, 0);
 	if (!sc) {
 		dev_err(&oct->pci_dev->dev, "VF rep: Soft command alloc failed\n");
 		goto xmit_failed;
@@ -395,6 +395,7 @@ lio_vf_rep_pkt_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* Multiple buffers are not used for vf_rep packets. */
 	if (skb_shinfo(skb)->nr_frags != 0) {
 		dev_err(&oct->pci_dev->dev, "VF rep: nr_frags != 0. Dropping packet\n");
+		octeon_free_soft_command(oct, sc);
 		goto xmit_failed;
 	}
 
@@ -402,6 +403,7 @@ lio_vf_rep_pkt_xmit(struct sk_buff *skb, struct net_device *ndev)
 				     skb->data, skb->len, DMA_TO_DEVICE);
 	if (dma_mapping_error(&oct->pci_dev->dev, sc->dmadptr)) {
 		dev_err(&oct->pci_dev->dev, "VF rep: DMA mapping failed\n");
+		octeon_free_soft_command(oct, sc);
 		goto xmit_failed;
 	}
 
@@ -422,6 +424,7 @@ lio_vf_rep_pkt_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (status == IQ_SEND_FAILED) {
 		dma_unmap_single(&oct->pci_dev->dev, sc->dmadptr,
 				 sc->datasize, DMA_TO_DEVICE);
+		octeon_free_soft_command(oct, sc);
 		goto xmit_failed;
 	}
 

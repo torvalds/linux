@@ -32,38 +32,6 @@
 #define OCTNIC_MAX_SG  MAX_SKB_FRAGS
 
 /**
- * \brief Callback for getting interface configuration
- * @param status status of request
- * @param buf pointer to resp structure
- */
-void lio_if_cfg_callback(struct octeon_device *oct,
-			 u32 status __attribute__((unused)), void *buf)
-{
-	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
-	struct liquidio_if_cfg_context *ctx;
-	struct liquidio_if_cfg_resp *resp;
-
-	resp = (struct liquidio_if_cfg_resp *)sc->virtrptr;
-	ctx = (struct liquidio_if_cfg_context *)sc->ctxptr;
-
-	oct = lio_get_device(ctx->octeon_id);
-	if (resp->status)
-		dev_err(&oct->pci_dev->dev, "nic if cfg instruction failed. Status: %llx\n",
-			CVM_CAST64(resp->status));
-	WRITE_ONCE(ctx->cond, 1);
-
-	snprintf(oct->fw_info.liquidio_firmware_version, 32, "%s",
-		 resp->cfg_info.liquidio_firmware_version);
-
-	/* This barrier is required to be sure that the response has been
-	 * written fully before waking up the handler
-	 */
-	wmb();
-
-	wake_up_interruptible(&ctx->wc);
-}
-
-/**
  * \brief Delete gather lists
  * @param lio per-network private data
  */
@@ -1211,30 +1179,6 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 	return 0;
 }
 
-static void liquidio_change_mtu_completion(struct octeon_device *oct,
-					   u32 status, void *buf)
-{
-	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
-	struct liquidio_if_cfg_context *ctx;
-
-	ctx  = (struct liquidio_if_cfg_context *)sc->ctxptr;
-
-	if (status) {
-		dev_err(&oct->pci_dev->dev, "MTU change failed. Status: %llx\n",
-			CVM_CAST64(status));
-		WRITE_ONCE(ctx->cond, LIO_CHANGE_MTU_FAIL);
-	} else {
-		WRITE_ONCE(ctx->cond, LIO_CHANGE_MTU_SUCCESS);
-	}
-
-	/* This barrier is required to be sure that the response has been
-	 * written fully before waking up the handler
-	 */
-	wmb();
-
-	wake_up_interruptible(&ctx->wc);
-}
-
 /**
  * \brief Net device change_mtu
  * @param netdev network device
@@ -1243,22 +1187,17 @@ int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
-	struct liquidio_if_cfg_context *ctx;
 	struct octeon_soft_command *sc;
 	union octnet_cmd *ncmd;
-	int ctx_size;
 	int ret = 0;
 
-	ctx_size = sizeof(struct liquidio_if_cfg_context);
 	sc = (struct octeon_soft_command *)
-		octeon_alloc_soft_command(oct, OCTNET_CMD_SIZE, 16, ctx_size);
+		octeon_alloc_soft_command(oct, OCTNET_CMD_SIZE, 16, 0);
 
 	ncmd = (union octnet_cmd *)sc->virtdptr;
-	ctx  = (struct liquidio_if_cfg_context *)sc->ctxptr;
 
-	WRITE_ONCE(ctx->cond, 0);
-	ctx->octeon_id = lio_get_device_id(oct);
-	init_waitqueue_head(&ctx->wc);
+	init_completion(&sc->complete);
+	sc->sc_status = OCTEON_REQUEST_PENDING;
 
 	ncmd->u64 = 0;
 	ncmd->s.cmd = OCTNET_CMD_CHANGE_MTU;
@@ -1271,28 +1210,28 @@ int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
 				    OPCODE_NIC_CMD, 0, 0, 0);
 
-	sc->callback = liquidio_change_mtu_completion;
-	sc->callback_arg = sc;
-	sc->wait_time = 100;
-
 	ret = octeon_send_soft_command(oct, sc);
 	if (ret == IQ_SEND_FAILED) {
 		netif_info(lio, rx_err, lio->netdev, "Failed to change MTU\n");
+		octeon_free_soft_command(oct, sc);
 		return -EINVAL;
 	}
 	/* Sleep on a wait queue till the cond flag indicates that the
 	 * response arrived or timed-out.
 	 */
-	if (sleep_cond(&ctx->wc, &ctx->cond) == -EINTR ||
-	    ctx->cond == LIO_CHANGE_MTU_FAIL) {
-		octeon_free_soft_command(oct, sc);
+	ret = wait_for_sc_completion_timeout(oct, sc, 0);
+	if (ret)
+		return ret;
+
+	if (sc->sc_status) {
+		WRITE_ONCE(sc->caller_is_done, true);
 		return -EINVAL;
 	}
 
 	netdev->mtu = new_mtu;
 	lio->mtu = new_mtu;
 
-	octeon_free_soft_command(oct, sc);
+	WRITE_ONCE(sc->caller_is_done, true);
 	return 0;
 }
 

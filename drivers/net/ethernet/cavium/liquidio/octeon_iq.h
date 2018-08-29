@@ -292,10 +292,7 @@ struct octeon_soft_command {
 	u32  ctxsize;
 
 	/** Time out and callback */
-	size_t wait_time;
-	size_t timeout;
 	size_t expiry_time;
-
 	u32 iq_no;
 	void (*callback)(struct octeon_device *, u32, void *);
 	void *callback_arg;

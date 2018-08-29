@@ -146,48 +146,6 @@ err_release_region:
 	return 1;
 }
 
-static inline int
-sleep_cond(wait_queue_head_t *wait_queue, int *condition)
-{
-	int errno = 0;
-	wait_queue_entry_t we;
-
-	init_waitqueue_entry(&we, current);
-	add_wait_queue(wait_queue, &we);
-	while (!(READ_ONCE(*condition))) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (signal_pending(current)) {
-			errno = -EINTR;
-			goto out;
-		}
-		schedule();
-	}
-out:
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(wait_queue, &we);
-	return errno;
-}
-
-/* Gives up the CPU for a timeout period.
- * Check that the condition is not true before we go to sleep for a
- * timeout period.
- */
-static inline void
-sleep_timeout_cond(wait_queue_head_t *wait_queue,
-		   int *condition,
-		   int timeout)
-{
-	wait_queue_entry_t we;
-
-	init_waitqueue_entry(&we, current);
-	add_wait_queue(wait_queue, &we);
-	set_current_state(TASK_INTERRUPTIBLE);
-	if (!(*condition))
-		schedule_timeout(timeout);
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(wait_queue, &we);
-}
-
 /* input parameter:
  * sc: pointer to a soft request
  * timeout: milli sec which an application wants to wait for the

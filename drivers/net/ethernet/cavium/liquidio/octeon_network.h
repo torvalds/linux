@@ -35,12 +35,6 @@
 #define   LIO_IFSTATE_RX_TIMESTAMP_ENABLED 0x08
 #define   LIO_IFSTATE_RESETTING		   0x10
 
-struct liquidio_if_cfg_context {
-	u32 octeon_id;
-	wait_queue_head_t wc;
-	int cond;
-};
-
 struct liquidio_if_cfg_resp {
 	u64 rh;
 	struct liquidio_if_cfg_info cfg_info;
@@ -227,10 +221,6 @@ int lio_wait_for_clean_oq(struct octeon_device *oct);
  * @param netdev    pointer to network device
  */
 void liquidio_set_ethtool_ops(struct net_device *netdev);
-
-void lio_if_cfg_callback(struct octeon_device *oct,
-			 u32 status __attribute__((unused)),
-			 void *buf);
 
 void lio_delete_glists(struct lio *lio);
 
