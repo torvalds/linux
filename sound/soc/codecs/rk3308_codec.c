@@ -2639,6 +2639,7 @@ static int rk3308_codec_open_capture(struct rk3308_codec_priv *rk3308)
 	} else {
 		for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
 			if (has_loopback(rk3308->loopback_grp) &&
+			    idx == rk3308->loopback_grp &&
 			    grp == ADC_GRP_SKIP_MAGIC) {
 				/*
 				 * Switch to dummy BIST mode (BIST keep reset
