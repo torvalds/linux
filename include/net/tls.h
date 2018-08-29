@@ -124,6 +124,12 @@ struct tls_sw_context_rx {
 	struct sk_buff *recv_pkt;
 	u8 control;
 	bool decrypted;
+	atomic_t decrypt_pending;
+	bool async_notify;
+};
+
+struct decrypt_req_ctx {
+	struct sock *sk;
 };
 
 struct tls_record_info {
