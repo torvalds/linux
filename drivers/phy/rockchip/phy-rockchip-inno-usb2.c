@@ -383,7 +383,7 @@ static int
 rockchip_usb2phy_clk480m_register(struct rockchip_usb2phy *rphy)
 {
 	struct device_node *node = rphy->dev->of_node;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *clk_name;
 	int ret;
 
@@ -1808,12 +1808,6 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 		rphy->clk = NULL;
 	}
 
-	ret = rockchip_usb2phy_clk480m_register(rphy);
-	if (ret) {
-		dev_err(dev, "failed to register 480m output clock\n");
-		goto disable_clks;
-	}
-
 	if (rphy->phy_cfg->phy_tuning) {
 		ret = rphy->phy_cfg->phy_tuning(rphy);
 		if (ret)
@@ -1870,6 +1864,12 @@ next_child:
 	ret = sysfs_create_group(&dev->kobj, &usb2_phy_attr_group);
 	if (ret) {
 		dev_err(dev, "Cannot create sysfs group: %d\n", ret);
+		goto put_child;
+	}
+
+	ret = rockchip_usb2phy_clk480m_register(rphy);
+	if (ret) {
+		dev_err(dev, "failed to register 480m output clock\n");
 		goto put_child;
 	}
 
