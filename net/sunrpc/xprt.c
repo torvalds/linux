@@ -1079,13 +1079,10 @@ void xprt_transmit(struct rpc_task *task)
 		spin_lock(&xprt->recv_lock);
 		if (test_bit(RPC_TASK_NEED_RECV, &task->tk_runstate)) {
 			rpc_sleep_on(&xprt->pending, task, xprt_timer);
-			/*
-			 * Send an extra queue wakeup call if the
-			 * connection was dropped in case the call to
-			 * rpc_sleep_on() raced.
-			 */
+			/* Wake up immediately if the connection was dropped */
 			if (!xprt_connected(xprt))
-				xprt_wake_pending_tasks(xprt, -ENOTCONN);
+				rpc_wake_up_queued_task_set_status(&xprt->pending,
+						task, -ENOTCONN);
 		}
 		spin_unlock(&xprt->recv_lock);
 	}
