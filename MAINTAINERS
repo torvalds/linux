@@ -5632,8 +5632,7 @@ F:	Documentation/fault-injection/
 F:	lib/fault-inject.c
 
 FBTFT Framebuffer drivers
-M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
-S:	Maintained
+S:	Orphan
 F:	drivers/staging/fbtft/
 
 FC0011 TUNER DRIVER
