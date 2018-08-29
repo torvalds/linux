@@ -1170,6 +1170,10 @@ bool __init early_init_dt_verify(void *params)
 	initial_boot_params = params;
 	of_fdt_crc32 = crc32_be(~0, initial_boot_params,
 				fdt_totalsize(initial_boot_params));
+
+	/* Initialize {size,address}-cells info */
+	early_init_dt_scan_root();
+
 	return true;
 }
 
@@ -1177,9 +1181,6 @@ bool __init early_init_dt_verify(void *params)
 void __init early_init_dt_scan_nodes(void)
 {
 	int rc;
-
-	/* Initialize {size,address}-cells info */
-	early_init_dt_scan_root();
 
 	/* Retrieve various information from the /chosen node */
 	rc = early_init_dt_scan_chosen(boot_command_line);
