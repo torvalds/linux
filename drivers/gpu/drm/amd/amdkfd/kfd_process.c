@@ -687,11 +687,11 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 
 	if (drm_file)
 		ret = dev->kfd2kgd->acquire_process_vm(
-			dev->kgd, drm_file,
+			dev->kgd, drm_file, p->pasid,
 			&pdd->vm, &p->kgd_process_info, &p->ef);
 	else
 		ret = dev->kfd2kgd->create_process_vm(
-			dev->kgd, &pdd->vm, &p->kgd_process_info, &p->ef);
+			dev->kgd, p->pasid, &pdd->vm, &p->kgd_process_info, &p->ef);
 	if (ret) {
 		pr_err("Failed to create process VM object\n");
 		return ret;

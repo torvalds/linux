@@ -2740,7 +2740,7 @@ error_free_sched_entity:
  * Returns:
  * 0 for success, -errno for errors.
  */
-int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
+int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm, unsigned int pasid)
 {
 	bool pte_support_ats = (adev->asic_type == CHIP_RAVEN);
 	int r;
@@ -2752,7 +2752,20 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	/* Sanity checks */
 	if (!RB_EMPTY_ROOT(&vm->va.rb_root) || vm->root.entries) {
 		r = -EINVAL;
-		goto error;
+		goto unreserve_bo;
+	}
+
+	if (pasid) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&adev->vm_manager.pasid_lock, flags);
+		r = idr_alloc(&adev->vm_manager.pasid_idr, vm, pasid, pasid + 1,
+			      GFP_ATOMIC);
+		spin_unlock_irqrestore(&adev->vm_manager.pasid_lock, flags);
+
+		if (r == -ENOSPC)
+			goto unreserve_bo;
+		r = 0;
 	}
 
 	/* Check if PD needs to be reinitialized and do it before
@@ -2763,7 +2776,7 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 			       adev->vm_manager.root_level,
 			       pte_support_ats);
 		if (r)
-			goto error;
+			goto free_idr;
 	}
 
 	/* Update VM state */
@@ -2782,13 +2795,30 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		idr_remove(&adev->vm_manager.pasid_idr, vm->pasid);
 		spin_unlock_irqrestore(&adev->vm_manager.pasid_lock, flags);
 
+		/* Free the original amdgpu allocated pasid
+		 * Will be replaced with kfd allocated pasid
+		 */
+		amdgpu_pasid_free(vm->pasid);
 		vm->pasid = 0;
 	}
 
 	/* Free the shadow bo for compute VM */
 	amdgpu_bo_unref(&vm->root.base.bo->shadow);
 
-error:
+	if (pasid)
+		vm->pasid = pasid;
+
+	goto unreserve_bo;
+
+free_idr:
+	if (pasid) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&adev->vm_manager.pasid_lock, flags);
+		idr_remove(&adev->vm_manager.pasid_idr, pasid);
+		spin_unlock_irqrestore(&adev->vm_manager.pasid_lock, flags);
+	}
+unreserve_bo:
 	amdgpu_bo_unreserve(vm->root.base.bo);
 	return r;
 }

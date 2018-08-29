@@ -162,11 +162,11 @@ uint64_t amdgpu_amdkfd_get_vram_usage(struct kgd_dev *kgd);
 	})
 
 /* GPUVM API */
-int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, void **vm,
-					void **process_info,
+int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, unsigned int pasid,
+					void **vm, void **process_info,
 					struct dma_fence **ef);
 int amdgpu_amdkfd_gpuvm_acquire_process_vm(struct kgd_dev *kgd,
-					struct file *filp,
+					struct file *filp, unsigned int pasid,
 					void **vm, void **process_info,
 					struct dma_fence **ef);
 void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,

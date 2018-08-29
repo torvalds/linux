@@ -1000,8 +1000,8 @@ create_evict_fence_fail:
 	return ret;
 }
 
-int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, void **vm,
-					  void **process_info,
+int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, unsigned int pasid,
+					  void **vm, void **process_info,
 					  struct dma_fence **ef)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
@@ -1013,7 +1013,7 @@ int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, void **vm,
 		return -ENOMEM;
 
 	/* Initialize AMDGPU part of the VM */
-	ret = amdgpu_vm_init(adev, new_vm, AMDGPU_VM_CONTEXT_COMPUTE, 0);
+	ret = amdgpu_vm_init(adev, new_vm, AMDGPU_VM_CONTEXT_COMPUTE, pasid);
 	if (ret) {
 		pr_err("Failed init vm ret %d\n", ret);
 		goto amdgpu_vm_init_fail;
@@ -1036,7 +1036,7 @@ amdgpu_vm_init_fail:
 }
 
 int amdgpu_amdkfd_gpuvm_acquire_process_vm(struct kgd_dev *kgd,
-					   struct file *filp,
+					   struct file *filp, unsigned int pasid,
 					   void **vm, void **process_info,
 					   struct dma_fence **ef)
 {
@@ -1051,7 +1051,7 @@ int amdgpu_amdkfd_gpuvm_acquire_process_vm(struct kgd_dev *kgd,
 		return -EINVAL;
 
 	/* Convert VM into a compute VM */
-	ret = amdgpu_vm_make_compute(adev, avm);
+	ret = amdgpu_vm_make_compute(adev, avm, pasid);
 	if (ret)
 		return ret;
 
