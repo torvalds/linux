@@ -2039,10 +2039,9 @@ static void liquidio_set_mcast_list(struct net_device *netdev)
 	/* Apparently, any activity in this call from the kernel has to
 	 * be atomic. So we won't wait for response.
 	 */
-	nctrl.wait_time = 0;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "DEVFLAGS change failed in core (ret: 0x%x)\n",
 			ret);
 	}
@@ -2071,8 +2070,6 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 	nctrl.ncmd.s.more = 1;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
 	nctrl.netpndev = (u64)netdev;
-	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
-	nctrl.wait_time = 100;
 
 	nctrl.udd[0] = 0;
 	/* The MAC Address is presented in network byte order. */
@@ -2083,6 +2080,14 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 		dev_err(&oct->pci_dev->dev, "MAC Address change failed\n");
 		return -ENOMEM;
 	}
+
+	if (nctrl.sc_status) {
+		dev_err(&oct->pci_dev->dev,
+			"%s: MAC Address change failed. sc return=%x\n",
+			 __func__, nctrl.sc_status);
+		return -EIO;
+	}
+
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	memcpy(((u8 *)&lio->linfo.hw_addr) + 2, addr->sa_data, ETH_ALEN);
 
@@ -2623,14 +2628,15 @@ static int liquidio_vlan_rx_add_vid(struct net_device *netdev,
 	nctrl.ncmd.s.cmd = OCTNET_CMD_ADD_VLAN_FILTER;
 	nctrl.ncmd.s.param1 = vid;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "Add VLAN filter failed in core (ret: 0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 
 	return ret;
@@ -2651,14 +2657,15 @@ static int liquidio_vlan_rx_kill_vid(struct net_device *netdev,
 	nctrl.ncmd.s.cmd = OCTNET_CMD_DEL_VLAN_FILTER;
 	nctrl.ncmd.s.param1 = vid;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "Del VLAN filter failed in core (ret: 0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 	return ret;
 }
@@ -2684,15 +2691,16 @@ static int liquidio_set_rxcsum_command(struct net_device *netdev, int command,
 	nctrl.ncmd.s.cmd = command;
 	nctrl.ncmd.s.param1 = rx_cmd;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev,
 			"DEVFLAGS RXCSUM change failed in core(ret:0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 	return ret;
 }
@@ -2720,15 +2728,16 @@ static int liquidio_vxlan_port_command(struct net_device *netdev, int command,
 	nctrl.ncmd.s.more = vxlan_cmd_bit;
 	nctrl.ncmd.s.param1 = vxlan_port;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev,
 			"VxLAN port add/delete failed in core (ret:0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 	return ret;
 }
@@ -2851,6 +2860,7 @@ static int __liquidio_set_vf_mac(struct net_device *netdev, int vfidx,
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 	struct octnic_ctrl_pkt nctrl;
+	int ret = 0;
 
 	if (!is_valid_ether_addr(mac))
 		return -EINVAL;
@@ -2864,12 +2874,13 @@ static int __liquidio_set_vf_mac(struct net_device *netdev, int vfidx,
 	nctrl.ncmd.s.cmd = OCTNET_CMD_CHANGE_MACADDR;
 	/* vfidx is 0 based, but vf_num (param1) is 1 based */
 	nctrl.ncmd.s.param1 = vfidx + 1;
-	nctrl.ncmd.s.param2 = (is_admin_assigned ? 1 : 0);
 	nctrl.ncmd.s.more = 1;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
 	nctrl.netpndev = (u64)netdev;
-	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
-	nctrl.wait_time = LIO_CMD_WAIT_TM;
+	if (is_admin_assigned) {
+		nctrl.ncmd.s.param2 = true;
+		nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
+	}
 
 	nctrl.udd[0] = 0;
 	/* The MAC Address is presented in network byte order. */
@@ -2877,9 +2888,11 @@ static int __liquidio_set_vf_mac(struct net_device *netdev, int vfidx,
 
 	oct->sriov_info.vf_macaddr[vfidx] = nctrl.udd[0];
 
-	octnet_send_nic_ctrl_pkt(oct, &nctrl);
+	ret = octnet_send_nic_ctrl_pkt(oct, &nctrl);
+	if (ret > 0)
+		ret = -EIO;
 
-	return 0;
+	return ret;
 }
 
 static int liquidio_set_vf_mac(struct net_device *netdev, int vfidx, u8 *mac)
@@ -2905,6 +2918,7 @@ static int liquidio_set_vf_vlan(struct net_device *netdev, int vfidx,
 	struct octeon_device *oct = lio->oct_dev;
 	struct octnic_ctrl_pkt nctrl;
 	u16 vlantci;
+	int ret = 0;
 
 	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced)
 		return -EINVAL;
@@ -2936,13 +2950,17 @@ static int liquidio_set_vf_vlan(struct net_device *netdev, int vfidx,
 	nctrl.ncmd.s.more = 0;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
 	nctrl.cb_fn = NULL;
-	nctrl.wait_time = LIO_CMD_WAIT_TM;
 
-	octnet_send_nic_ctrl_pkt(oct, &nctrl);
+	ret = octnet_send_nic_ctrl_pkt(oct, &nctrl);
+	if (ret) {
+		if (ret > 0)
+			ret = -EIO;
+		return ret;
+	}
 
 	oct->sriov_info.vf_vlantci[vfidx] = vlantci;
 
-	return 0;
+	return ret;
 }
 
 static int liquidio_get_vf_config(struct net_device *netdev, int vfidx,
@@ -3063,6 +3081,7 @@ static int liquidio_set_vf_link_state(struct net_device *netdev, int vfidx,
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 	struct octnic_ctrl_pkt nctrl;
+	int ret = 0;
 
 	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced)
 		return -EINVAL;
@@ -3078,13 +3097,15 @@ static int liquidio_set_vf_link_state(struct net_device *netdev, int vfidx,
 	nctrl.ncmd.s.more = 0;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
 	nctrl.cb_fn = NULL;
-	nctrl.wait_time = LIO_CMD_WAIT_TM;
 
-	octnet_send_nic_ctrl_pkt(oct, &nctrl);
+	ret = octnet_send_nic_ctrl_pkt(oct, &nctrl);
 
-	oct->sriov_info.vf_linkstate[vfidx] = linkstate;
+	if (!ret)
+		oct->sriov_info.vf_linkstate[vfidx] = linkstate;
+	else if (ret > 0)
+		ret = -EIO;
 
-	return 0;
+	return ret;
 }
 
 static int

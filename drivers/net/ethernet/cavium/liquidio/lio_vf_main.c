@@ -1119,10 +1119,9 @@ static void liquidio_set_mcast_list(struct net_device *netdev)
 	/* Apparently, any activity in this call from the kernel has to
 	 * be atomic. So we won't wait for response.
 	 */
-	nctrl.wait_time = 0;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "DEVFLAGS change failed in core (ret: 0x%x)\n",
 			ret);
 	}
@@ -1159,8 +1158,6 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 	nctrl.ncmd.s.more = 1;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
 	nctrl.netpndev = (u64)netdev;
-	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
-	nctrl.wait_time = 100;
 
 	nctrl.udd[0] = 0;
 	/* The MAC Address is presented in network byte order. */
@@ -1171,6 +1168,7 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 		dev_err(&oct->pci_dev->dev, "MAC Address change failed\n");
 		return -ENOMEM;
 	}
+
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	ether_addr_copy(((u8 *)&lio->linfo.hw_addr) + 2, addr->sa_data);
 
@@ -1664,8 +1662,6 @@ liquidio_vlan_rx_add_vid(struct net_device *netdev,
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 	struct octnic_ctrl_pkt nctrl;
-	struct completion compl;
-	u16 response_code;
 	int ret = 0;
 
 	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
@@ -1674,26 +1670,15 @@ liquidio_vlan_rx_add_vid(struct net_device *netdev,
 	nctrl.ncmd.s.cmd = OCTNET_CMD_ADD_VLAN_FILTER;
 	nctrl.ncmd.s.param1 = vid;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
-	init_completion(&compl);
-	nctrl.completion = &compl;
-	nctrl.response_code = &response_code;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "Add VLAN filter failed in core (ret: 0x%x)\n",
 			ret);
-		return -EIO;
+		return -EPERM;
 	}
-
-	if (!wait_for_completion_timeout(&compl,
-					 msecs_to_jiffies(nctrl.wait_time)))
-		return -EPERM;
-
-	if (READ_ONCE(response_code))
-		return -EPERM;
 
 	return 0;
 }
@@ -1713,14 +1698,15 @@ liquidio_vlan_rx_kill_vid(struct net_device *netdev,
 	nctrl.ncmd.s.cmd = OCTNET_CMD_DEL_VLAN_FILTER;
 	nctrl.ncmd.s.param1 = vid;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "Del VLAN filter failed in core (ret: 0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 	return ret;
 }
@@ -1746,14 +1732,15 @@ static int liquidio_set_rxcsum_command(struct net_device *netdev, int command,
 	nctrl.ncmd.s.cmd = command;
 	nctrl.ncmd.s.param1 = rx_cmd;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "DEVFLAGS RXCSUM change failed in core (ret:0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 	return ret;
 }
@@ -1781,15 +1768,16 @@ static int liquidio_vxlan_port_command(struct net_device *netdev, int command,
 	nctrl.ncmd.s.more = vxlan_cmd_bit;
 	nctrl.ncmd.s.param1 = vxlan_port;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev,
 			"DEVFLAGS VxLAN port add/delete failed in core (ret : 0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 	return ret;
 }

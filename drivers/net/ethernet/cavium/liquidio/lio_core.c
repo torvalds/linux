@@ -198,14 +198,15 @@ int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1)
 	nctrl.ncmd.s.cmd = cmd;
 	nctrl.ncmd.s.param1 = param1;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "Feature change failed in core (ret: 0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 	return ret;
 }
@@ -285,15 +286,7 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 	struct octeon_device *oct = lio->oct_dev;
 	u8 *mac;
 
-	if (nctrl->completion && nctrl->response_code) {
-		/* Signal whoever is interested that the response code from the
-		 * firmware has arrived.
-		 */
-		WRITE_ONCE(*nctrl->response_code, nctrl->status);
-		complete(nctrl->completion);
-	}
-
-	if (nctrl->status)
+	if (nctrl->sc_status)
 		return;
 
 	switch (nctrl->ncmd.s.cmd) {

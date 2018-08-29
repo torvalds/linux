@@ -472,12 +472,11 @@ lio_send_queue_count_update(struct net_device *netdev, uint32_t num_queues)
 	nctrl.ncmd.s.param1 = num_queues;
 	nctrl.ncmd.s.param2 = num_queues;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "Failed to send Queue reset command (ret: 0x%x)\n",
 			ret);
 		return -1;
@@ -708,13 +707,13 @@ static int octnet_gpio_access(struct net_device *netdev, int addr, int val)
 	nctrl.ncmd.s.param1 = addr;
 	nctrl.ncmd.s.param2 = val;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
-		dev_err(&oct->pci_dev->dev, "Failed to configure gpio value\n");
+	if (ret) {
+		dev_err(&oct->pci_dev->dev,
+			"Failed to configure gpio value, ret=%d\n", ret);
 		return -EINVAL;
 	}
 
@@ -734,13 +733,13 @@ static int octnet_id_active(struct net_device *netdev, int val)
 	nctrl.ncmd.s.cmd = OCTNET_CMD_ID_ACTIVE;
 	nctrl.ncmd.s.param1 = val;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
-		dev_err(&oct->pci_dev->dev, "Failed to configure gpio value\n");
+	if (ret) {
+		dev_err(&oct->pci_dev->dev,
+			"Failed to configure gpio value, ret=%d\n", ret);
 		return -EINVAL;
 	}
 
@@ -1412,7 +1411,6 @@ lio_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 	nctrl.ncmd.u64 = 0;
 	nctrl.ncmd.s.cmd = OCTNET_CMD_SET_FLOW_CTL;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
@@ -1433,8 +1431,9 @@ lio_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 	}
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
-		dev_err(&oct->pci_dev->dev, "Failed to set pause parameter\n");
+	if (ret) {
+		dev_err(&oct->pci_dev->dev,
+			"Failed to set pause parameter, ret=%d\n", ret);
 		return -EINVAL;
 	}
 
