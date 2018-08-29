@@ -343,8 +343,7 @@ static void virtio_gpu_bo_move_notify(struct ttm_buffer_object *tbo,
 
 	if (!new_mem || (new_mem->placement & TTM_PL_FLAG_SYSTEM)) {
 		if (bo->hw_res_handle)
-			virtio_gpu_cmd_resource_inval_backing(vgdev,
-							   bo->hw_res_handle);
+			virtio_gpu_object_detach(vgdev, bo);
 
 	} else if (new_mem->placement & TTM_PL_FLAG_TT) {
 		if (bo->hw_res_handle) {

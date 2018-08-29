@@ -423,8 +423,8 @@ void virtio_gpu_cmd_unref_resource(struct virtio_gpu_device *vgdev,
 	virtio_gpu_queue_ctrl_buffer(vgdev, vbuf);
 }
 
-void virtio_gpu_cmd_resource_inval_backing(struct virtio_gpu_device *vgdev,
-					   uint32_t resource_id)
+static void virtio_gpu_cmd_resource_inval_backing(struct virtio_gpu_device *vgdev,
+						  uint32_t resource_id)
 {
 	struct virtio_gpu_resource_detach_backing *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
@@ -881,6 +881,12 @@ int virtio_gpu_object_attach(struct virtio_gpu_device *vgdev,
 					       fence);
 	obj->hw_res_handle = resource_id;
 	return 0;
+}
+
+void virtio_gpu_object_detach(struct virtio_gpu_device *vgdev,
+			      struct virtio_gpu_object *obj)
+{
+	virtio_gpu_cmd_resource_inval_backing(vgdev, obj->hw_res_handle);
 }
 
 void virtio_gpu_cursor_ping(struct virtio_gpu_device *vgdev,
