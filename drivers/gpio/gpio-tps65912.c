@@ -17,7 +17,7 @@
  * Margarita Olaya Cabrera <magi@slimlogic.co.uk>
  */
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -40,9 +40,9 @@ static int tps65912_gpio_get_direction(struct gpio_chip *gc,
 		return ret;
 
 	if (val & GPIO_CFG_MASK)
-		return GPIOF_DIR_OUT;
+		return 0;
 	else
-		return GPIOF_DIR_IN;
+		return 1;
 }
 
 static int tps65912_gpio_direction_input(struct gpio_chip *gc, unsigned offset)

@@ -22,7 +22,7 @@
  */
 
 #include <linux/errno.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mfd/tps6586x.h>
