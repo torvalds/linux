@@ -69,7 +69,7 @@ static void update_mt_scaling(void)
 	u64 delta, fac, mult, div;
 	int i;
 
-	stcctm5(smp_cpu_mtid + 1, cycles_new);
+	stcctm(MT_DIAG, smp_cpu_mtid + 1, cycles_new);
 	cycles_old = this_cpu_ptr(mt_cycles);
 	fac = 1;
 	mult = div = 0;
@@ -432,6 +432,6 @@ void vtime_init(void)
 		__this_cpu_write(mt_scaling_jiffies, jiffies);
 		__this_cpu_write(mt_scaling_mult, 1);
 		__this_cpu_write(mt_scaling_div, 1);
-		stcctm5(smp_cpu_mtid + 1, this_cpu_ptr(mt_cycles));
+		stcctm(MT_DIAG, smp_cpu_mtid + 1, this_cpu_ptr(mt_cycles));
 	}
 }

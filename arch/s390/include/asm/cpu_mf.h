@@ -212,7 +212,15 @@ static inline int ecctr(u64 ctr, u64 *val)
 }
 
 /* Store CPU counter multiple for a particular counter set */
-static inline int stcctm(u8 set, u64 range, u64 *dest)
+enum stcctm_ctr_set {
+	EXTENDED = 0,
+	BASIC = 1,
+	PROBLEM_STATE = 2,
+	CRYPTO_ACTIVITY = 3,
+	MT_DIAG = 5,
+	MT_DIAG_CLEARING = 9,	/* clears loss-of-MT-ctr-data alert */
+};
+static inline int stcctm(enum stcctm_ctr_set set, u64 range, u64 *dest)
 {
 	int cc;
 
@@ -222,21 +230,6 @@ static inline int stcctm(u8 set, u64 range, u64 *dest)
 		"	srl	%0,28\n"
 		: "=d" (cc)
 		: "Q" (*dest), "d" (range), "i" (set)
-		: "cc", "memory");
-	return cc;
-}
-
-/* Store CPU counter multiple for the MT utilization counter set */
-static inline int stcctm5(u64 num, u64 *val)
-{
-	int cc;
-
-	asm volatile (
-		"	.insn	rsy,0xeb0000000017,%2,5,%1\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (cc)
-		: "Q" (*val), "d" (num)
 		: "cc", "memory");
 	return cc;
 }
