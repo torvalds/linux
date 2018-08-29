@@ -2,7 +2,7 @@
 # Makefile for Amlogic meson video decoder driver
 
 meson-vdec-objs = esparser.o vdec.o vdec_ctrls.o vdec_helpers.o vdec_platform.o
-meson-vdec-objs += vdec_1.o
-meson-vdec-objs += codec_mpeg12.o codec_h264.o codec_mpeg4.o codec_mjpeg.o
+meson-vdec-objs += vdec_1.o vdec_hevc.o
+meson-vdec-objs += codec_mpeg12.o codec_h264.o codec_mpeg4.o codec_mjpeg.o codec_hevc.o
 
 obj-$(CONFIG_VIDEO_MESON_VDEC) += meson-vdec.o
