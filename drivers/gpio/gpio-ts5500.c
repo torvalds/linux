@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Digital I/O driver for Technologic Systems TS-5500
  *
@@ -16,10 +17,6 @@
  * TS-5600:
  *   Documentation: http://wiki.embeddedarm.com/wiki/TS-5600
  *   Blocks: LCD port (identical to TS-5500 LCD).
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/bitops.h>
