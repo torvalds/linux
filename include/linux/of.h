@@ -247,12 +247,6 @@ static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 #include <asm/prom.h>
 #endif
 
-/* Default #address and #size cells.  Allow arch asm/prom.h to override */
-#if !defined(OF_ROOT_NODE_ADDR_CELLS_DEFAULT)
-#define OF_ROOT_NODE_ADDR_CELLS_DEFAULT 1
-#define OF_ROOT_NODE_SIZE_CELLS_DEFAULT 1
-#endif
-
 #define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
 #define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
 
