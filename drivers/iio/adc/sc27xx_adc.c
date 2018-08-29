@@ -5,10 +5,12 @@
 #include <linux/iio/iio.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/slab.h>
 
 /* PMIC global registers definition */
 #define SC27XX_MODULE_EN		0xc08
@@ -87,15 +89,72 @@ struct sc27xx_adc_linear_graph {
  * should use the small-scale graph, and if more than 1.2v, we should use the
  * big-scale graph.
  */
-static const struct sc27xx_adc_linear_graph big_scale_graph = {
+static struct sc27xx_adc_linear_graph big_scale_graph = {
 	4200, 3310,
 	3600, 2832,
 };
 
-static const struct sc27xx_adc_linear_graph small_scale_graph = {
+static struct sc27xx_adc_linear_graph small_scale_graph = {
 	1000, 3413,
 	100, 341,
 };
+
+static const struct sc27xx_adc_linear_graph big_scale_graph_calib = {
+	4200, 856,
+	3600, 733,
+};
+
+static const struct sc27xx_adc_linear_graph small_scale_graph_calib = {
+	1000, 833,
+	100, 80,
+};
+
+static int sc27xx_adc_get_calib_data(u32 calib_data, int calib_adc)
+{
+	return ((calib_data & 0xff) + calib_adc - 128) * 4;
+}
+
+static int sc27xx_adc_scale_calibration(struct sc27xx_adc_data *data,
+					bool big_scale)
+{
+	const struct sc27xx_adc_linear_graph *calib_graph;
+	struct sc27xx_adc_linear_graph *graph;
+	struct nvmem_cell *cell;
+	const char *cell_name;
+	u32 calib_data = 0;
+	void *buf;
+	size_t len;
+
+	if (big_scale) {
+		calib_graph = &big_scale_graph_calib;
+		graph = &big_scale_graph;
+		cell_name = "big_scale_calib";
+	} else {
+		calib_graph = &small_scale_graph_calib;
+		graph = &small_scale_graph;
+		cell_name = "small_scale_calib";
+	}
+
+	cell = nvmem_cell_get(data->dev, cell_name);
+	if (IS_ERR(cell))
+		return PTR_ERR(cell);
+
+	buf = nvmem_cell_read(cell, &len);
+	nvmem_cell_put(cell);
+
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	memcpy(&calib_data, buf, min(len, sizeof(u32)));
+
+	/* Only need to calibrate the adc values in the linear graph. */
+	graph->adc0 = sc27xx_adc_get_calib_data(calib_data, calib_graph->adc0);
+	graph->adc1 = sc27xx_adc_get_calib_data(calib_data >> 8,
+						calib_graph->adc1);
+
+	kfree(buf);
+	return 0;
+}
 
 static int sc27xx_adc_get_ratio(int channel, int scale)
 {
@@ -209,7 +268,7 @@ static void sc27xx_adc_volt_ratio(struct sc27xx_adc_data *data,
 	*div_denominator = ratio & SC27XX_RATIO_DENOMINATOR_MASK;
 }
 
-static int sc27xx_adc_to_volt(const struct sc27xx_adc_linear_graph *graph,
+static int sc27xx_adc_to_volt(struct sc27xx_adc_linear_graph *graph,
 			      int raw_adc)
 {
 	int tmp;
@@ -387,6 +446,15 @@ static int sc27xx_adc_enable(struct sc27xx_adc_data *data)
 
 	ret = regmap_update_bits(data->regmap, data->base + SC27XX_ADC_INT_EN,
 				 SC27XX_ADC_IRQ_EN, SC27XX_ADC_IRQ_EN);
+	if (ret)
+		goto disable_clk;
+
+	/* ADC channel scales' calibration from nvmem device */
+	ret = sc27xx_adc_scale_calibration(data, true);
+	if (ret)
+		goto disable_clk;
+
+	ret = sc27xx_adc_scale_calibration(data, false);
 	if (ret)
 		goto disable_clk;
 
