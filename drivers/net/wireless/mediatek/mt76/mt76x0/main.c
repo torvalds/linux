@@ -69,6 +69,7 @@ static int mt76x0_add_interface(struct ieee80211_hw *hw,
 	mvif->idx = idx;
 	mvif->group_wcid.idx = GROUP_WCID(idx);
 	mvif->group_wcid.hw_key_idx = -1;
+	mt76x02_txq_init(&dev->mt76, vif->txq);
 
 	return 0;
 }
@@ -81,6 +82,7 @@ static void mt76x0_remove_interface(struct ieee80211_hw *hw,
 	unsigned int wcid = mvif->group_wcid.idx;
 
 	dev->wcid_mask[wcid / BITS_PER_LONG] &= ~BIT(wcid % BITS_PER_LONG);
+	mt76_txq_remove(&dev->mt76, vif->txq);
 }
 
 static int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
@@ -163,6 +165,7 @@ mt76x0_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
 	int ret = 0;
 	int idx = 0;
+	int i;
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -178,6 +181,8 @@ mt76x0_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mt76x02_mac_wcid_set_drop(&dev->mt76, idx, false);
 	mt76_clear(dev, MT_WCID_DROP(idx), MT_WCID_DROP_MASK(idx));
 	rcu_assign_pointer(dev->wcid[idx], &msta->wcid);
+	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
+		mt76x02_txq_init(&dev->mt76, sta->txq[i]);
 	mt76x0_mac_set_ampdu_factor(dev);
 
 out:
@@ -193,11 +198,14 @@ mt76x0_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76x0_dev *dev = hw->priv;
 	struct mt76_sta *msta = (struct mt76_sta *) sta->drv_priv;
 	int idx = msta->wcid.idx;
+	int i;
 
 	mutex_lock(&dev->mt76.mutex);
 	rcu_assign_pointer(dev->wcid[idx], NULL);
 	mt76x02_mac_wcid_set_drop(&dev->mt76, idx, true);
 	mt76_wcid_free(dev->wcid_mask, idx);
+	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
+		mt76_txq_remove(&dev->mt76, sta->txq[i]);
 	mt76x02_mac_wcid_setup(&dev->mt76, idx, 0, NULL);
 	mt76x0_mac_set_ampdu_factor(dev);
 	mutex_unlock(&dev->mt76.mutex);
