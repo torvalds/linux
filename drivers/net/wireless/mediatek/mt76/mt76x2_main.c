@@ -15,6 +15,7 @@
  */
 
 #include "mt76x2.h"
+#include "mt76x02_util.h"
 
 static int
 mt76x2_start(struct ieee80211_hw *hw)
@@ -22,7 +23,7 @@ mt76x2_start(struct ieee80211_hw *hw)
 	struct mt76x2_dev *dev = hw->priv;
 	int ret;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 
 	ret = mt76x2_mac_start(dev);
 	if (ret)
@@ -38,7 +39,7 @@ mt76x2_start(struct ieee80211_hw *hw)
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 
 out:
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 	return ret;
 }
 
@@ -47,10 +48,10 @@ mt76x2_stop(struct ieee80211_hw *hw)
 {
 	struct mt76x2_dev *dev = hw->priv;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	mt76x2_stop_hardware(dev);
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 static int
@@ -127,15 +128,15 @@ mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 	struct mt76x2_dev *dev = hw->priv;
 	int ret = 0;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		if (!(hw->conf.flags & IEEE80211_CONF_MONITOR))
-			dev->rxfilter |= MT_RX_FILTR_CFG_PROMISC;
+			dev->mt76.rxfilter |= MT_RX_FILTR_CFG_PROMISC;
 		else
-			dev->rxfilter &= ~MT_RX_FILTR_CFG_PROMISC;
+			dev->mt76.rxfilter &= ~MT_RX_FILTR_CFG_PROMISC;
 
-		mt76_wr(dev, MT_RX_FILTR_CFG, dev->rxfilter);
+		mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
@@ -156,7 +157,7 @@ mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 		ieee80211_wake_queues(hw);
 	}
 
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 
 	return ret;
 }
@@ -168,7 +169,7 @@ mt76x2_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76x2_dev *dev = hw->priv;
 	struct mt76x2_vif *mvif = (struct mt76x2_vif *) vif->drv_priv;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & BSS_CHANGED_BSSID)
 		mt76x2_mac_set_bssid(dev, mvif->idx, info->bssid);
@@ -195,7 +196,7 @@ mt76x2_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		mt76x2_set_tx_ackto(dev);
 	}
 
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 void
@@ -252,10 +253,10 @@ static void mt76x2_set_coverage_class(struct ieee80211_hw *hw,
 {
 	struct mt76x2_dev *dev = hw->priv;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 	dev->coverage_class = coverage_class;
 	mt76x2_set_tx_ackto(dev);
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 static int
@@ -272,7 +273,7 @@ static int mt76x2_set_antenna(struct ieee80211_hw *hw, u32 tx_ant,
 	if (!tx_ant || tx_ant > 3 || tx_ant != rx_ant)
 		return -EINVAL;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 
 	dev->chainmask = (tx_ant == 3) ? 0x202 : 0x101;
 	dev->mt76.antenna_mask = tx_ant;
@@ -280,7 +281,7 @@ static int mt76x2_set_antenna(struct ieee80211_hw *hw, u32 tx_ant,
 	mt76_set_stream_caps(&dev->mt76, true);
 	mt76x2_phy_set_antenna(dev);
 
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
 }
@@ -290,10 +291,10 @@ static int mt76x2_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant,
 {
 	struct mt76x2_dev *dev = hw->priv;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 	*tx_ant = dev->mt76.antenna_mask;
 	*rx_ant = dev->mt76.antenna_mask;
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
 }
@@ -320,7 +321,7 @@ const struct ieee80211_ops mt76x2_ops = {
 	.add_interface = mt76x2_add_interface,
 	.remove_interface = mt76x2_remove_interface,
 	.config = mt76x2_config,
-	.configure_filter = mt76x2_configure_filter,
+	.configure_filter = mt76x02_configure_filter,
 	.bss_info_changed = mt76x2_bss_info_changed,
 	.sta_add = mt76x2_sta_add,
 	.sta_remove = mt76x2_sta_remove,

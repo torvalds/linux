@@ -283,6 +283,7 @@ mt76_alloc_device(unsigned int size, const struct ieee80211_ops *ops)
 	spin_lock_init(&dev->rx_lock);
 	spin_lock_init(&dev->lock);
 	spin_lock_init(&dev->cc_lock);
+	mutex_init(&dev->mutex);
 	init_waitqueue_head(&dev->tx_wait);
 
 	return dev;

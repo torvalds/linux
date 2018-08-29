@@ -290,14 +290,14 @@ int mt76x0_mac_start(struct mt76x0_dev *dev)
 		       MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 200000))
 		return -ETIMEDOUT;
 
-	dev->rxfilter = MT_RX_FILTR_CFG_CRC_ERR |
+	dev->mt76.rxfilter = MT_RX_FILTR_CFG_CRC_ERR |
 		MT_RX_FILTR_CFG_PHY_ERR | MT_RX_FILTR_CFG_PROMISC |
 		MT_RX_FILTR_CFG_VER_ERR | MT_RX_FILTR_CFG_DUP |
 		MT_RX_FILTR_CFG_CFACK | MT_RX_FILTR_CFG_CFEND |
 		MT_RX_FILTR_CFG_ACK | MT_RX_FILTR_CFG_CTS |
 		MT_RX_FILTR_CFG_RTS | MT_RX_FILTR_CFG_PSPOLL |
 		MT_RX_FILTR_CFG_BA | MT_RX_FILTR_CFG_CTRL_RSV;
-	mt76_wr(dev, MT_RX_FILTR_CFG, dev->rxfilter);
+	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
 
 	mt76_wr(dev, MT_MAC_SYS_CTRL,
 		   MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
@@ -495,7 +495,7 @@ struct mt76x0_dev *mt76x0_alloc_device(struct device *pdev)
 	mutex_init(&dev->usb_ctrl_mtx);
 	mutex_init(&dev->reg_atomic_mutex);
 	mutex_init(&dev->hw_atomic_mutex);
-	mutex_init(&dev->mutex);
+	mutex_init(&dev->mt76.mutex);
 	spin_lock_init(&dev->tx_lock);
 	spin_lock_init(&dev->rx_lock);
 	spin_lock_init(&dev->mt76.lock);

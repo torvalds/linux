@@ -317,6 +317,9 @@ struct mt76_dev {
 
 	spinlock_t lock;
 	spinlock_t cc_lock;
+
+	struct mutex mutex;
+
 	const struct mt76_bus_ops *bus;
 	const struct mt76_driver_ops *drv;
 	void __iomem *regs;
@@ -352,6 +355,8 @@ struct mt76_dev {
 	char led_name[32];
 	bool led_al;
 	u8 led_pin;
+
+	u32 rxfilter;
 
 	struct mt76_usb usb;
 };

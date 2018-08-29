@@ -131,8 +131,6 @@ struct mt76x2_dev {
 
 	u16 chainmask;
 
-	u32 rxfilter;
-
 	struct mt76x2_calibration cal;
 
 	s8 target_power;
@@ -293,9 +291,6 @@ int mt76x2_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		   struct ieee80211_key_conf *key);
 int mt76x2_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   u16 queue, const struct ieee80211_tx_queue_params *params);
-void mt76x2_configure_filter(struct ieee80211_hw *hw,
-			     unsigned int changed_flags,
-			     unsigned int *total_flags, u64 multicast);
 void mt76x2_txq_init(struct mt76x2_dev *dev, struct ieee80211_txq *txq);
 void mt76x2_sta_rate_tbl_update(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,

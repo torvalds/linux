@@ -214,7 +214,7 @@ int mt76x2_mac_start(struct mt76x2_dev *dev)
 
 	mt76_clear(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
 
-	mt76_wr(dev, MT_RX_FILTR_CFG, dev->rxfilter);
+	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
 
 	mt76_wr(dev, MT_MAC_SYS_CTRL,
 		MT_MAC_SYS_CTRL_ENABLE_TX |
@@ -377,7 +377,7 @@ int mt76x2_init_hardware(struct mt76x2_dev *dev)
 	if (ret)
 		return ret;
 
-	dev->rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
+	dev->mt76.rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
 
 	ret = mt76x2_dma_init(dev);
 	if (ret)
@@ -435,7 +435,6 @@ struct mt76x2_dev *mt76x2_alloc_device(struct device *pdev)
 	dev = container_of(mdev, struct mt76x2_dev, mt76);
 	mdev->dev = pdev;
 	mdev->drv = &drv_ops;
-	mutex_init(&dev->mutex);
 	spin_lock_init(&dev->irq_lock);
 
 	return dev;

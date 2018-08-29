@@ -147,8 +147,6 @@ enum mt_bw {
 struct mt76x0_dev {
 	struct mt76_dev mt76; /* must be first */
 
-	struct mutex mutex;
-
 	struct mutex usb_ctrl_mtx;
 	u8 data[32];
 
@@ -184,7 +182,6 @@ struct mt76x0_dev {
 	struct mutex reg_atomic_mutex;
 	struct mutex hw_atomic_mutex;
 
-	u32 rxfilter;
 	u32 debugfs_reg;
 
 	/* TX */

@@ -102,7 +102,7 @@ int mt76x2_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	int idx = 0;
 	int i;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 
 	idx = mt76_wcid_alloc(dev->wcid_mask, ARRAY_SIZE(dev->wcid));
 	if (idx < 0) {
@@ -127,7 +127,7 @@ int mt76x2_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	rcu_assign_pointer(dev->wcid[idx], &msta->wcid);
 
 out:
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 
 	return ret;
 }
@@ -141,14 +141,14 @@ int mt76x2_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	int idx = msta->wcid.idx;
 	int i;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 	rcu_assign_pointer(dev->wcid[idx], NULL);
 	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
 		mt76_txq_remove(&dev->mt76, sta->txq[i]);
 	mt76x2_mac_wcid_set_drop(dev, idx, true);
 	mt76_wcid_free(dev->wcid_mask, idx);
 	mt76x2_mac_wcid_setup(dev, idx, 0, NULL);
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
 }
@@ -273,40 +273,6 @@ int mt76x2_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x2_conf_tx);
-
-void mt76x2_configure_filter(struct ieee80211_hw *hw,
-			     unsigned int changed_flags,
-			     unsigned int *total_flags, u64 multicast)
-{
-	struct mt76x2_dev *dev = hw->priv;
-	u32 flags = 0;
-
-#define MT76_FILTER(_flag, _hw) do { \
-		flags |= *total_flags & FIF_##_flag;			\
-		dev->rxfilter &= ~(_hw);				\
-		dev->rxfilter |= !(flags & FIF_##_flag) * (_hw);	\
-	} while (0)
-
-	mutex_lock(&dev->mutex);
-
-	dev->rxfilter &= ~MT_RX_FILTR_CFG_OTHER_BSS;
-
-	MT76_FILTER(FCSFAIL, MT_RX_FILTR_CFG_CRC_ERR);
-	MT76_FILTER(PLCPFAIL, MT_RX_FILTR_CFG_PHY_ERR);
-	MT76_FILTER(CONTROL, MT_RX_FILTR_CFG_ACK |
-			     MT_RX_FILTR_CFG_CTS |
-			     MT_RX_FILTR_CFG_CFEND |
-			     MT_RX_FILTR_CFG_CFACK |
-			     MT_RX_FILTR_CFG_BA |
-			     MT_RX_FILTR_CFG_CTRL_RSV);
-	MT76_FILTER(PSPOLL, MT_RX_FILTR_CFG_PSPOLL);
-
-	*total_flags = flags;
-	mt76_wr(dev, MT_RX_FILTR_CFG, dev->rxfilter);
-
-	mutex_unlock(&dev->mutex);
-}
-EXPORT_SYMBOL_GPL(mt76x2_configure_filter);
 
 void mt76x2_sta_rate_tbl_update(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
