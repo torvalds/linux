@@ -440,7 +440,7 @@ struct octeon_config {
 /* Response lists - 1 ordered, 1 unordered-blocking, 1 unordered-nonblocking
  * NoResponse Lists are now maintained with each IQ. (Dec' 2007).
  */
-#define MAX_RESPONSE_LISTS           4
+#define MAX_RESPONSE_LISTS           6
 
 /* Opcode hash bits. The opcode is hashed on the lower 6-bits to lookup the
  * dispatch table.

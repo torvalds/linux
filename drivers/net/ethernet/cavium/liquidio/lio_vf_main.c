@@ -471,11 +471,11 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 	case OCT_DEV_HOST_OK:
 		/* fallthrough */
 	case OCT_DEV_IO_QUEUES_DONE:
-		if (wait_for_pending_requests(oct))
-			dev_err(&oct->pci_dev->dev, "There were pending requests\n");
-
 		if (lio_wait_for_instr_fetch(oct))
 			dev_err(&oct->pci_dev->dev, "IQ had pending instructions\n");
+
+		if (wait_for_pending_requests(oct))
+			dev_err(&oct->pci_dev->dev, "There were pending requests\n");
 
 		/* Disable the input and output queues now. No more packets will
 		 * arrive from Octeon, but we should wait for all packet
@@ -485,7 +485,33 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 
 		if (lio_wait_for_oq_pkts(oct))
 			dev_err(&oct->pci_dev->dev, "OQ had pending packets\n");
-		/* fall through */
+
+		/* Force all requests waiting to be fetched by OCTEON to
+		 * complete.
+		 */
+		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
+			struct octeon_instr_queue *iq;
+
+			if (!(oct->io_qmask.iq & BIT_ULL(i)))
+				continue;
+			iq = oct->instr_queue[i];
+
+			if (atomic_read(&iq->instr_pending)) {
+				spin_lock_bh(&iq->lock);
+				iq->fill_cnt = 0;
+				iq->octeon_read_index = iq->host_write_index;
+				iq->stats.instr_processed +=
+					atomic_read(&iq->instr_pending);
+				lio_process_iq_request_list(oct, iq, 0);
+				spin_unlock_bh(&iq->lock);
+			}
+		}
+
+		lio_process_ordered_list(oct, 1);
+		octeon_free_sc_done_list(oct);
+		octeon_free_sc_zombie_list(oct);
+
+	/* fall through */
 	case OCT_DEV_INTR_SET_DONE:
 		/* Disable interrupts  */
 		oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);

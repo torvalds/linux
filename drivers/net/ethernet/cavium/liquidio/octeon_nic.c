@@ -75,8 +75,7 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
 	else
 		sc->cmd.cmd2.rptr =  sc->dmarptr;
 
-	sc->wait_time = 1000;
-	sc->timeout = jiffies + sc->wait_time;
+	sc->expiry_time = jiffies + msecs_to_jiffies(LIO_SC_MAX_TMO_MS);
 
 	return sc;
 }

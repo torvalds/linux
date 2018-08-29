@@ -294,10 +294,19 @@ struct octeon_soft_command {
 	/** Time out and callback */
 	size_t wait_time;
 	size_t timeout;
+	size_t expiry_time;
+
 	u32 iq_no;
 	void (*callback)(struct octeon_device *, u32, void *);
 	void *callback_arg;
+
+	int caller_is_done;
+	u32 sc_status;
+	struct completion complete;
 };
+
+/* max timeout (in milli sec) for soft request */
+#define LIO_SC_MAX_TMO_MS       60000
 
 /** Maximum number of buffers to allocate into soft command buffer pool
  */
@@ -319,6 +328,8 @@ struct octeon_sc_buffer_pool {
 		(((octeon_dev_ptr)->instr_queue[iq_no]->stats.field) += count)
 
 int octeon_setup_sc_buffer_pool(struct octeon_device *oct);
+int octeon_free_sc_done_list(struct octeon_device *oct);
+int octeon_free_sc_zombie_list(struct octeon_device *oct);
 int octeon_free_sc_buffer_pool(struct octeon_device *oct);
 struct octeon_soft_command *
 	octeon_alloc_soft_command(struct octeon_device *oct,
