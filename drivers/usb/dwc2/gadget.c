@@ -3418,6 +3418,10 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	/* configure the core to support LPM */
 	dwc2_gadget_init_lpm(hsotg);
 
+	/* program GREFCLK register if needed */
+	if (using_desc_dma(hsotg) && hsotg->params.service_interval)
+		dwc2_gadget_program_ref_clk(hsotg);
+
 	/* must be at-least 3ms to allow bus to see disconnect */
 	mdelay(3);
 
@@ -4999,6 +5003,25 @@ void dwc2_gadget_init_lpm(struct dwc2_hsotg *hsotg)
 	val |= hsotg->params.besl ? GLPMCFG_ENBESL : 0;
 	dwc2_writel(hsotg, val, GLPMCFG);
 	dev_dbg(hsotg->dev, "GLPMCFG=0x%08x\n", dwc2_readl(hsotg, GLPMCFG));
+}
+
+/**
+ * dwc2_gadget_program_ref_clk - Program GREFCLK register in device mode
+ *
+ * @hsotg: Programming view of DWC_otg controller
+ *
+ */
+void dwc2_gadget_program_ref_clk(struct dwc2_hsotg *hsotg)
+{
+	u32 val = 0;
+
+	val |= GREFCLK_REF_CLK_MODE;
+	val |= hsotg->params.ref_clk_per << GREFCLK_REFCLKPER_SHIFT;
+	val |= hsotg->params.sof_cnt_wkup_alert <<
+	       GREFCLK_SOF_CNT_WKUP_ALERT_SHIFT;
+
+	dwc2_writel(hsotg, val, GREFCLK);
+	dev_dbg(hsotg->dev, "GREFCLK=0x%08x\n", dwc2_readl(hsotg, GREFCLK));
 }
 
 /**
