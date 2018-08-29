@@ -80,6 +80,16 @@ static inline void set_io_port_base(unsigned long base)
 }
 
 /*
+ * Provide the necessary definitions for generic iomap. We make use of
+ * mips_io_port_base for iomap(), but we don't reserve any low addresses for
+ * use with I/O ports.
+ */
+#define HAVE_ARCH_PIO_SIZE
+#define PIO_OFFSET	mips_io_port_base
+#define PIO_MASK	IO_SPACE_LIMIT
+#define PIO_RESERVED	0x0UL
+
+/*
  * Thanks to James van Artsdalen for a better timing-fix than
  * the two short jumps: using outb's to a nonexistent port seems
  * to guarantee better timings even on fast machines.
@@ -171,11 +181,6 @@ static inline void *isa_bus_to_virt(unsigned long address)
 
 extern void __iomem * __ioremap(phys_addr_t offset, phys_addr_t size, unsigned long flags);
 extern void __iounmap(const volatile void __iomem *addr);
-
-#ifndef CONFIG_PCI
-struct pci_dev;
-static inline void pci_iounmap(struct pci_dev *dev, void __iomem *addr) {}
-#endif
 
 static inline void __iomem * __ioremap_mode(phys_addr_t offset, unsigned long size,
 	unsigned long flags)
