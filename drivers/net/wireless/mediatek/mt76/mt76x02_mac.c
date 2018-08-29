@@ -44,3 +44,26 @@ mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 	}
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_get_key_info);
+
+int mt76x02_mac_shared_key_setup(struct mt76_dev *dev, u8 vif_idx, u8 key_idx,
+				struct ieee80211_key_conf *key)
+{
+	enum mt76x02_cipher_type cipher;
+	u8 key_data[32];
+	u32 val;
+
+	cipher = mt76x02_mac_get_key_info(key, key_data);
+	if (cipher == MT_CIPHER_NONE && key)
+		return -EOPNOTSUPP;
+
+	val = __mt76_rr(dev, MT_SKEY_MODE(vif_idx));
+	val &= ~(MT_SKEY_MODE_MASK << MT_SKEY_MODE_SHIFT(vif_idx, key_idx));
+	val |= cipher << MT_SKEY_MODE_SHIFT(vif_idx, key_idx);
+	__mt76_wr(dev, MT_SKEY_MODE(vif_idx), val);
+
+	__mt76_wr_copy(dev, MT_SKEY(vif_idx, key_idx), key_data,
+		       sizeof(key_data));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_shared_key_setup);

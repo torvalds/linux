@@ -167,7 +167,7 @@ static int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
 
 	for (i = 0; i < 16; i++)
 		for (k = 0; k < 4; k++)
-			mt76x2_mac_shared_key_setup(dev, i, k, NULL);
+			mt76x02_mac_shared_key_setup(&dev->mt76, i, k, NULL);
 
 	for (i = 0; i < 8; i++) {
 		mt76x2_mac_set_bssid(dev, i, null_addr);

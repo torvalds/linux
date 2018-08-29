@@ -264,7 +264,7 @@ mt76x0_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 				return ret;
 		}
 
-		return mt76x0_mac_shared_key_setup(dev, mvif->idx, idx, key);
+		return mt76x02_mac_shared_key_setup(&dev->mt76, mvif->idx, idx, key);
 	}
 
 	return mt76x0_mac_wcid_set_key(dev, msta->wcid.idx, key);

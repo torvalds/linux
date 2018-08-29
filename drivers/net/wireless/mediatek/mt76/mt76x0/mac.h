@@ -143,8 +143,6 @@ int mt76x0_mac_wcid_set_key(struct mt76x0_dev *dev, u8 idx,
 void mt76x0_mac_wcid_set_rate(struct mt76x0_dev *dev, struct mt76_wcid *wcid,
 			    const struct ieee80211_tx_rate *rate);
 
-int mt76x0_mac_shared_key_setup(struct mt76x0_dev *dev, u8 vif_idx, u8 key_idx,
-			      struct ieee80211_key_conf *key);
 u16 mt76x0_mac_tx_rate_val(struct mt76x0_dev *dev,
 			 const struct ieee80211_tx_rate *rate, u8 *nss_val);
 struct mt76_tx_status

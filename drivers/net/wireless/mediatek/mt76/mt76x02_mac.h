@@ -42,4 +42,6 @@ static inline bool mt76x02_wait_for_mac(struct mt76_dev *dev)
 enum mt76x02_cipher_type
 mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data);
 
+int mt76x02_mac_shared_key_setup(struct mt76_dev *dev, u8 vif_idx, u8 key_idx,
+				struct ieee80211_key_conf *key);
 #endif
