@@ -3073,25 +3073,16 @@ void ieee80211_clear_fast_xmit(struct sta_info *sta)
 }
 
 static bool ieee80211_amsdu_realloc_pad(struct ieee80211_local *local,
-					struct sk_buff *skb, int headroom,
-					int *subframe_len)
+					struct sk_buff *skb, int headroom)
 {
-	int amsdu_len = *subframe_len + sizeof(struct ethhdr);
-	int padding = (4 - amsdu_len) & 3;
-
-	if (skb_headroom(skb) < headroom || skb_tailroom(skb) < padding) {
+	if (skb_headroom(skb) < headroom) {
 		I802_DEBUG_INC(local->tx_expand_skb_head);
 
-		if (pskb_expand_head(skb, headroom, padding, GFP_ATOMIC)) {
+		if (pskb_expand_head(skb, headroom, 0, GFP_ATOMIC)) {
 			wiphy_debug(local->hw.wiphy,
 				    "failed to reallocate TX buffer\n");
 			return false;
 		}
-	}
-
-	if (padding) {
-		*subframe_len += padding;
-		skb_put_zero(skb, padding);
 	}
 
 	return true;
@@ -3117,8 +3108,7 @@ static bool ieee80211_amsdu_prepare_head(struct ieee80211_sub_if_data *sdata,
 	if (info->control.flags & IEEE80211_TX_CTRL_AMSDU)
 		return true;
 
-	if (!ieee80211_amsdu_realloc_pad(local, skb, sizeof(*amsdu_hdr),
-					 &subframe_len))
+	if (!ieee80211_amsdu_realloc_pad(local, skb, sizeof(*amsdu_hdr)))
 		return false;
 
 	data = skb_push(skb, sizeof(*amsdu_hdr));
@@ -3184,7 +3174,8 @@ static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 	void *data;
 	bool ret = false;
 	unsigned int orig_len;
-	int n = 1, nfrags;
+	int n = 1, nfrags, pad = 0;
+	u16 hdrlen;
 
 	if (!ieee80211_hw_check(&local->hw, TX_AMSDU))
 		return false;
@@ -3235,8 +3226,19 @@ static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 	if (max_frags && nfrags > max_frags)
 		goto out;
 
-	if (!ieee80211_amsdu_realloc_pad(local, skb, sizeof(rfc1042_header) + 2,
-					 &subframe_len))
+	/*
+	 * Pad out the previous subframe to a multiple of 4 by adding the
+	 * padding to the next one, that's being added. Note that head->len
+	 * is the length of the full A-MSDU, but that works since each time
+	 * we add a new subframe we pad out the previous one to a multiple
+	 * of 4 and thus it no longer matters in the next round.
+	 */
+	hdrlen = fast_tx->hdr_len - sizeof(rfc1042_header);
+	if ((head->len - hdrlen) & 3)
+		pad = 4 - ((head->len - hdrlen) & 3);
+
+	if (!ieee80211_amsdu_realloc_pad(local, skb, sizeof(rfc1042_header) +
+						     2 + pad))
 		goto out;
 
 	ret = true;
@@ -3247,6 +3249,8 @@ static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 	len = cpu_to_be16(subframe_len);
 	memcpy(data, &len, 2);
 	memcpy(data + 2, rfc1042_header, sizeof(rfc1042_header));
+
+	memset(skb_push(skb, pad), 0, pad);
 
 	head->len += skb->len;
 	head->data_len += skb->len;
