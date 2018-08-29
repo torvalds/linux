@@ -464,7 +464,7 @@ static struct vxlan_fdb *vxlan_find_mac(struct vxlan_dev *vxlan,
 	struct vxlan_fdb *f;
 
 	f = __vxlan_find_mac(vxlan, mac, vni);
-	if (f)
+	if (f && f->used != jiffies)
 		f->used = jiffies;
 
 	return f;
