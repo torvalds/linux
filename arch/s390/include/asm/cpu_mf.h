@@ -12,6 +12,8 @@
 #include <linux/errno.h>
 #include <asm/facility.h>
 
+asm(".include \"asm/cpu_mf-insn.h\"\n");
+
 #define CPU_MF_INT_SF_IAE	(1 << 31)	/* invalid entry address */
 #define CPU_MF_INT_SF_ISE	(1 << 30)	/* incorrect SDBT entry */
 #define CPU_MF_INT_SF_PRA	(1 << 29)	/* program request alert */
@@ -206,6 +208,21 @@ static inline int ecctr(u64 ctr, u64 *val)
 	cc = __ecctr(ctr, &content);
 	if (!cc)
 		*val = content;
+	return cc;
+}
+
+/* Store CPU counter multiple for a particular counter set */
+static inline int stcctm(u8 set, u64 range, u64 *dest)
+{
+	int cc;
+
+	asm volatile (
+		"	STCCTM	%2,%3,%1\n"
+		"	ipm	%0\n"
+		"	srl	%0,28\n"
+		: "=d" (cc)
+		: "Q" (*dest), "d" (range), "i" (set)
+		: "cc", "memory");
 	return cc;
 }
 
