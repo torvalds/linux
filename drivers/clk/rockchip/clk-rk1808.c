@@ -142,9 +142,9 @@ PNAME(mux_sdmmc_p)		= { "clk_sdmmc_div", "clk_sdmmc_div50" };
 PNAME(mux_emmc_p)		= { "clk_emmc_div", "clk_emmc_div50" };
 PNAME(mux_cpll_npll_ppll_p)	= { "cpll", "npll", "ppll" };
 PNAME(mux_gmac_p)	= { "clk_gmac_src", "gmac_clkin" };
-PNAME(mux_gmac_rgmi_speed_p)	= { "clk_gmac_tx_src", "clk_gmac_tx_src", "clk_gmac_tx_div50", "clk_gmac_tx_div5" };
+PNAME(mux_gmac_rgmii_speed_p)	= { "clk_gmac_tx_src", "clk_gmac_tx_src", "clk_gmac_tx_div50", "clk_gmac_tx_div5" };
 PNAME(mux_gmac_rmii_speed_p)	= { "clk_gmac_rx_div2", "clk_gmac_rx_div20" };
-PNAME(mux_gmac_rx_tx_p)	= { "clk_gmac_rgmi_speed", "clk_gmac_rmii_speed" };
+PNAME(mux_gmac_rx_tx_p)	= { "clk_gmac_rgmii_speed", "clk_gmac_rmii_speed" };
 PNAME(mux_gpll_usb480m_cpll_npll_p)	= { "gpll", "usb480m", "cpll", "npll" };
 PNAME(mux_uart1_p)		= { "clk_uart1_src", "clk_uart1_np5", "clk_uart1_frac", "xin24m" };
 PNAME(mux_uart2_p)		= { "clk_uart2_src", "clk_uart2_np5", "clk_uart2_frac", "xin24m" };
@@ -692,7 +692,7 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 	FACTOR(0, "clk_gmac_tx_div50", "clk_gmac_tx_src", 0, 1, 50),
 	FACTOR(0, "clk_gmac_rx_div2", "clk_gmac_rx_src", 0, 1, 2),
 	FACTOR(0, "clk_gmac_rx_div20", "clk_gmac_rx_src", 0, 1, 20),
-	MUX(SCLK_GMAC_RGMI_SPEED, "clk_gmac_rgmi_speed", mux_gmac_rgmi_speed_p,  CLK_SET_RATE_PARENT,
+	MUX(SCLK_GMAC_RGMII_SPEED, "clk_gmac_rgmii_speed", mux_gmac_rgmii_speed_p,  CLK_SET_RATE_PARENT,
 			RK1808_CLKSEL_CON(27), 2, 2, MFLAGS),
 	MUX(SCLK_GMAC_RMII_SPEED, "clk_gmac_rmii_speed", mux_gmac_rmii_speed_p,  CLK_SET_RATE_PARENT,
 			RK1808_CLKSEL_CON(27), 1, 1, MFLAGS),
