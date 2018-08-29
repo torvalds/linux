@@ -380,8 +380,8 @@
 		dmas = <&dmac 14>, <&dmac 15>;
 		dma-names = "tx", "rx";
 		pinctrl-names = "default", "high_speed";
-		pinctrl-0 = <&spi2_clk &spi2_csn0 &spi2_csn1 &spi2_miso &spi2_mosi>;
-		pinctrl-1 = <&spi2_clk_hs &spi2_csn0 &spi2_csn1 &spi2_miso_hs &spi2_mosi_hs>;
+		pinctrl-0 = <&spi2m0_clk &spi2m0_csn &spi2m0_miso &spi2m0_mosi>;
+		pinctrl-1 = <&spi2m0_clk_hs &spi2m0_csn &spi2m0_miso_hs &spi2m0_mosi_hs>;
 		status = "disabled";
 	};
 
@@ -472,8 +472,8 @@
 		interrupt-names = "macirq";
 		clocks = <&cru SCLK_GMAC>, <&cru SCLK_GMAC_RX_TX>,
 			 <&cru SCLK_GMAC_RX_TX>, <&cru SCLK_GMAC_REF>,
-			 <&cru SCLK_GMACREF_OUT>, <&cru ACLK_GMAC>,
-			 <&cru PCLK_GMAC>, <&cru SCLK_GMAC_RGMII>;
+			 <&cru SCLK_GMAC_REFOUT>, <&cru ACLK_GMAC>,
+			 <&cru PCLK_GMAC>, <&cru SCLK_GMAC_RGMII_SPEED>;
 		clock-names = "stmmaceth", "mac_clk_rx",
 			      "mac_clk_tx", "clk_mac_ref",
 			      "clk_mac_refout", "aclk_mac",
@@ -555,13 +555,83 @@
 			#interrupt-cells = <2>;
 		};
 
+		pcfg_pull_up: pcfg-pull-up {
+			bias-pull-up;
+		};
+
+		pcfg_pull_down: pcfg-pull-down {
+			bias-pull-down;
+		};
+
 		pcfg_pull_none: pcfg-pull-none {
 			bias-disable;
+		};
+
+		pcfg_pull_none_2ma: pcfg-pull-none-2ma {
+			bias-disable;
+			drive-strength = <2>;
+		};
+
+		pcfg_pull_up_2ma: pcfg-pull-up-2ma {
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+
+		pcfg_pull_up_4ma: pcfg-pull-up-4ma {
+			bias-pull-up;
+			drive-strength = <4>;
+		};
+
+		pcfg_pull_none_4ma: pcfg-pull-none-4ma {
+			bias-disable;
+			drive-strength = <4>;
+		};
+
+		pcfg_pull_down_4ma: pcfg-pull-down-4ma {
+			bias-pull-down;
+			drive-strength = <4>;
+		};
+
+		pcfg_pull_none_8ma: pcfg-pull-none-8ma {
+			bias-disable;
+			drive-strength = <8>;
+		};
+
+		pcfg_pull_up_8ma: pcfg-pull-up-8ma {
+			bias-pull-up;
+			drive-strength = <8>;
+		};
+
+		pcfg_pull_none_12ma: pcfg-pull-none-12ma {
+			bias-disable;
+			drive-strength = <12>;
+		};
+
+		pcfg_pull_up_12ma: pcfg-pull-up-12ma {
+			bias-pull-up;
+			drive-strength = <12>;
 		};
 
 		pcfg_pull_none_smt: pcfg-pull-none-smt {
 			bias-disable;
 			input-schmitt-enable;
+		};
+
+		pcfg_output_high: pcfg-output-high {
+			output-high;
+		};
+
+		pcfg_output_low: pcfg-output-low {
+			output-low;
+		};
+
+		pcfg_input_high: pcfg-input-high {
+			bias-pull-up;
+			input-enable;
+		};
+
+		pcfg_input: pcfg-input {
+			input-enable;
 		};
 
 		emmc {
@@ -664,7 +734,7 @@
 					/* rmii_mdc */
 					<2 RK_PB2 2 &pcfg_pull_none>,
 					/* rmii_clk */
-					<2 RK_PB7 2 &pcfg_pull_none>,
+					<2 RK_PB7 2 &pcfg_pull_none>;
 			};
 		};
 
