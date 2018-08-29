@@ -2310,14 +2310,13 @@ BPF_CALL_4(bpf_msg_pull_data,
 	if (unlikely(start >= offset + len))
 		return -EINVAL;
 
+	first_sg = i;
 	/* The start may point into the sg element so we need to also
 	 * account for the headroom.
 	 */
 	bytes_sg_total = start - offset + bytes;
 	if (!msg->sg_copy[i] && bytes_sg_total <= len)
 		goto out;
-
-	first_sg = i;
 
 	/* At this point we need to linearize multiple scatterlist
 	 * elements or a single shared page. Either way we need to
@@ -2400,7 +2399,7 @@ BPF_CALL_4(bpf_msg_pull_data,
 	if (msg->sg_end < 0)
 		msg->sg_end += MAX_SKB_FRAGS;
 out:
-	msg->data = sg_virt(&sg[i]) + start - offset;
+	msg->data = sg_virt(&sg[first_sg]) + start - offset;
 	msg->data_end = msg->data + bytes;
 
 	return 0;
