@@ -1000,7 +1000,7 @@ int hid_open_report(struct hid_device *device)
 	parser = vzalloc(sizeof(struct hid_parser));
 	if (!parser) {
 		ret = -ENOMEM;
-		goto err;
+		goto alloc_err;
 	}
 
 	parser->device = device;
@@ -1049,6 +1049,7 @@ int hid_open_report(struct hid_device *device)
 	hid_err(device, "item fetching failed at offset %d\n", (int)(end - start));
 err:
 	kfree(parser->collection_stack);
+alloc_err:
 	vfree(parser);
 	hid_close_report(device);
 	return ret;
