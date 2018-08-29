@@ -54,7 +54,7 @@ void mt76x2_mac_stop(struct mt76x2_dev *dev, bool force)
 EXPORT_SYMBOL_GPL(mt76x2_mac_stop);
 
 bool mt76x2_mac_load_tx_status(struct mt76x2_dev *dev,
-			       struct mt76x2_tx_status *stat)
+			       struct mt76x02_tx_status *stat)
 {
 	u32 stat1, stat2;
 
@@ -138,7 +138,7 @@ mt76x2_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 static void
 mt76x2_mac_fill_tx_status(struct mt76x2_dev *dev,
 			  struct ieee80211_tx_info *info,
-			  struct mt76x2_tx_status *st, int n_frames)
+			  struct mt76x02_tx_status *st, int n_frames)
 {
 	struct ieee80211_tx_rate *rate = info->status.rates;
 	int cur_idx, last_rate;
@@ -178,12 +178,12 @@ mt76x2_mac_fill_tx_status(struct mt76x2_dev *dev,
 }
 
 void mt76x2_send_tx_status(struct mt76x2_dev *dev,
-			   struct mt76x2_tx_status *stat, u8 *update)
+			   struct mt76x02_tx_status *stat, u8 *update)
 {
 	struct ieee80211_tx_info info = {};
 	struct ieee80211_sta *sta = NULL;
 	struct mt76_wcid *wcid = NULL;
-	struct mt76x2_sta *msta = NULL;
+	struct mt76x02_sta *msta = NULL;
 
 	rcu_read_lock();
 	if (stat->wcid < ARRAY_SIZE(dev->wcid))
@@ -192,7 +192,7 @@ void mt76x2_send_tx_status(struct mt76x2_dev *dev,
 	if (wcid) {
 		void *priv;
 
-		priv = msta = container_of(wcid, struct mt76x2_sta, wcid);
+		priv = msta = container_of(wcid, struct mt76x02_sta, wcid);
 		sta = container_of(priv, struct ieee80211_sta,
 				   drv_priv);
 	}
@@ -472,7 +472,7 @@ int mt76x2_mac_get_rssi(struct mt76x2_dev *dev, s8 rssi, int chain)
 	return rssi;
 }
 
-static struct mt76x2_sta *
+static struct mt76x02_sta *
 mt76x2_rx_get_sta(struct mt76x2_dev *dev, u8 idx)
 {
 	struct mt76_wcid *wcid;
@@ -484,11 +484,11 @@ mt76x2_rx_get_sta(struct mt76x2_dev *dev, u8 idx)
 	if (!wcid)
 		return NULL;
 
-	return container_of(wcid, struct mt76x2_sta, wcid);
+	return container_of(wcid, struct mt76x02_sta, wcid);
 }
 
 static struct mt76_wcid *
-mt76x2_rx_get_sta_wcid(struct mt76x2_dev *dev, struct mt76x2_sta *sta,
+mt76x2_rx_get_sta_wcid(struct mt76x2_dev *dev, struct mt76x02_sta *sta,
 		       bool unicast)
 {
 	if (!sta)
@@ -505,7 +505,7 @@ int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
 	struct mt76x2_rxwi *rxwi = rxi;
-	struct mt76x2_sta *sta;
+	struct mt76x02_sta *sta;
 	u32 rxinfo = le32_to_cpu(rxwi->rxinfo);
 	u32 ctl = le32_to_cpu(rxwi->ctl);
 	u16 rate = le16_to_cpu(rxwi->rate);

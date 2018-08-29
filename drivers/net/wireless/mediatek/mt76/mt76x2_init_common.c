@@ -208,7 +208,7 @@ void mt76x2_init_device(struct mt76x2_dev *dev)
 	hw->max_rate_tries = 1;
 	hw->extra_tx_headroom = 2;
 
-	hw->sta_data_size = sizeof(struct mt76x2_sta);
+	hw->sta_data_size = sizeof(struct mt76x02_sta);
 	hw->vif_data_size = sizeof(struct mt76x02_vif);
 
 	ieee80211_hw_set(hw, SUPPORTS_HT_CCK_RATES);

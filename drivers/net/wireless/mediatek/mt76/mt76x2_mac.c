@@ -30,7 +30,7 @@ void mt76x2_mac_set_bssid(struct mt76x2_dev *dev, u8 idx, const u8 *addr)
 
 void mt76x2_mac_poll_tx_status(struct mt76x2_dev *dev, bool irq)
 {
-	struct mt76x2_tx_status stat = {};
+	struct mt76x02_tx_status stat = {};
 	unsigned long flags;
 	u8 update = 1;
 	bool ret;
@@ -78,7 +78,7 @@ mt76x2_mac_queue_txdone(struct mt76x2_dev *dev, struct sk_buff *skb,
 
 void mt76x2_mac_process_tx_status_fifo(struct mt76x2_dev *dev)
 {
-	struct mt76x2_tx_status stat;
+	struct mt76x02_tx_status stat;
 	u8 update = 1;
 
 	while (kfifo_get(&dev->txstatus_fifo, &stat))

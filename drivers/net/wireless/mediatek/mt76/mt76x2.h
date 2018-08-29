@@ -27,7 +27,6 @@
 #include <linux/mutex.h>
 #include <linux/bitops.h>
 #include <linux/kfifo.h>
-#include <linux/average.h>
 
 #define MT7662_FIRMWARE		"mt7662.bin"
 #define MT7662_ROM_PATCH	"mt7662_rom_patch.bin"
@@ -50,8 +49,6 @@
 #include "mt76x02_regs.h"
 #include "mt76x2_mac.h"
 #include "mt76x2_dfs.h"
-
-DECLARE_EWMA(signal, 10, 8)
 
 struct mt76x2_mcu {
 	struct mutex mutex;
@@ -104,7 +101,7 @@ struct mt76x2_dev {
 	int txpower_cur;
 
 	u8 txdone_seq;
-	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x2_tx_status);
+	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);
 
 	struct mt76x2_mcu mcu;
 	struct sk_buff *rx_head;
@@ -142,17 +139,6 @@ struct mt76x2_dev {
 	u8 slottime;
 
 	struct mt76x2_dfs_pattern_detector dfs_pd;
-};
-
-struct mt76x2_sta {
-	struct mt76_wcid wcid; /* must be first */
-
-	struct mt76x02_vif *vif;
-	struct mt76x2_tx_status status;
-	int n_frames;
-
-	struct ewma_signal rssi;
-	int inactive_count;
 };
 
 static inline bool is_mt7612(struct mt76x2_dev *dev)
@@ -264,9 +250,9 @@ void mt76x2_tx_set_txpwr_auto(struct mt76x2_dev *dev, s8 txpwr);
 int mt76x2_insert_hdr_pad(struct sk_buff *skb);
 
 bool mt76x2_mac_load_tx_status(struct mt76x2_dev *dev,
-			       struct mt76x2_tx_status *stat);
+			       struct mt76x02_tx_status *stat);
 void mt76x2_send_tx_status(struct mt76x2_dev *dev,
-			   struct mt76x2_tx_status *stat, u8 *update);
+			   struct mt76x02_tx_status *stat, u8 *update);
 void mt76x2_reset_wlan(struct mt76x2_dev *dev, bool enable);
 void mt76x2_init_txpower(struct mt76x2_dev *dev,
 			 struct ieee80211_supported_band *sband);

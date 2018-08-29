@@ -533,7 +533,7 @@ int mt76x2_register_device(struct mt76x2_dev *dev)
 	int fifo_size;
 	int i, ret;
 
-	fifo_size = roundup_pow_of_two(32 * sizeof(struct mt76x2_tx_status));
+	fifo_size = roundup_pow_of_two(32 * sizeof(struct mt76x02_tx_status));
 	status_fifo = devm_kzalloc(dev->mt76.dev, fifo_size, GFP_KERNEL);
 	if (!status_fifo)
 		return -ENOMEM;

@@ -75,7 +75,7 @@ DEFINE_EVENT(dev_txid_evt, mac_txdone_add,
 
 TRACE_EVENT(mac_txstat_fetch,
 	TP_PROTO(struct mt76x2_dev *dev,
-		 struct mt76x2_tx_status *stat),
+		 struct mt76x02_tx_status *stat),
 
 	TP_ARGS(dev, stat),
 

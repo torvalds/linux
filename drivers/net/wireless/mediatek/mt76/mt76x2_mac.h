@@ -25,17 +25,6 @@ struct mt76x2_sta;
 struct mt76x02_vif;
 struct mt76x2_txwi;
 
-struct mt76x2_tx_status {
-	u8 valid:1;
-	u8 success:1;
-	u8 aggr:1;
-	u8 ack_req:1;
-	u8 wcid;
-	u8 pktid;
-	u8 retry;
-	u16 rate;
-} __packed __aligned(2);
-
 struct mt76x2_tx_info {
 	unsigned long jiffies;
 	u8 tries;

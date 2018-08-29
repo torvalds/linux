@@ -303,7 +303,7 @@ EXPORT_SYMBOL_GPL(mt76x2_phy_set_band);
 
 int mt76x2_phy_get_min_avg_rssi(struct mt76x2_dev *dev)
 {
-	struct mt76x2_sta *sta;
+	struct mt76x02_sta *sta;
 	struct mt76_wcid *wcid;
 	int i, j, min_rssi = 0;
 	s8 cur_rssi;
@@ -325,7 +325,7 @@ int mt76x2_phy_get_min_avg_rssi(struct mt76x2_dev *dev)
 			if (!wcid)
 				continue;
 
-			sta = container_of(wcid, struct mt76x2_sta, wcid);
+			sta = container_of(wcid, struct mt76x02_sta, wcid);
 			spin_lock(&dev->mt76.rx_lock);
 			if (sta->inactive_count++ < 5)
 				cur_rssi = ewma_signal_read(&sta->rssi);

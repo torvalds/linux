@@ -24,7 +24,7 @@ int mt76x2_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	enum ieee80211_ampdu_mlme_action action = params->action;
 	struct ieee80211_sta *sta = params->sta;
 	struct mt76x2_dev *dev = hw->priv;
-	struct mt76x2_sta *msta = (struct mt76x2_sta *) sta->drv_priv;
+	struct mt76x02_sta *msta = (struct mt76x02_sta *) sta->drv_priv;
 	struct ieee80211_txq *txq = sta->txq[params->tid];
 	u16 tid = params->tid;
 	u16 *ssn = &params->ssn;
@@ -73,7 +73,7 @@ int mt76x2_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta)
 {
 	struct mt76x2_dev *dev = hw->priv;
-	struct mt76x2_sta *msta = (struct mt76x2_sta *) sta->drv_priv;
+	struct mt76x02_sta *msta = (struct mt76x02_sta *) sta->drv_priv;
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
 	int ret = 0;
 	int idx = 0;
@@ -114,7 +114,7 @@ int mt76x2_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta)
 {
 	struct mt76x2_dev *dev = hw->priv;
-	struct mt76x2_sta *msta = (struct mt76x2_sta *) sta->drv_priv;
+	struct mt76x02_sta *msta = (struct mt76x02_sta *) sta->drv_priv;
 	int idx = msta->wcid.idx;
 	int i;
 
@@ -146,7 +146,7 @@ int mt76x2_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 {
 	struct mt76x2_dev *dev = hw->priv;
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
-	struct mt76x2_sta *msta;
+	struct mt76x02_sta *msta;
 	struct mt76_wcid *wcid;
 	int idx = key->keyidx;
 	int ret;
@@ -173,7 +173,7 @@ int mt76x2_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
 		return -EOPNOTSUPP;
 
-	msta = sta ? (struct mt76x2_sta *) sta->drv_priv : NULL;
+	msta = sta ? (struct mt76x02_sta *) sta->drv_priv : NULL;
 	wcid = msta ? &msta->wcid : &mvif->group_wcid;
 
 	if (cmd == SET_KEY) {
@@ -256,7 +256,7 @@ void mt76x2_sta_rate_tbl_update(struct ieee80211_hw *hw,
 				struct ieee80211_sta *sta)
 {
 	struct mt76x2_dev *dev = hw->priv;
-	struct mt76x2_sta *msta = (struct mt76x2_sta *) sta->drv_priv;
+	struct mt76x02_sta *msta = (struct mt76x02_sta *) sta->drv_priv;
 	struct ieee80211_sta_rates *rates = rcu_dereference(sta->rates);
 	struct ieee80211_tx_rate rate = {};
 

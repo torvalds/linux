@@ -18,6 +18,8 @@
 #ifndef __MT76X02_MAC_H
 #define __MT76X02_MAC_H
 
+#include <linux/average.h>
+
 struct mt76x02_tx_status {
 	u8 valid:1;
 	u8 success:1;
@@ -35,12 +37,17 @@ struct mt76x02_vif {
 	struct mt76_wcid group_wcid;
 };
 
+DECLARE_EWMA(signal, 10, 8);
+
 struct mt76x02_sta {
 	struct mt76_wcid wcid; /* must be first */
 
 	struct mt76x02_vif *vif;
 	struct mt76x02_tx_status status;
 	int n_frames;
+
+	struct ewma_signal rssi;
+	int inactive_count;
 };
 
 static inline bool mt76x02_wait_for_mac(struct mt76_dev *dev)
