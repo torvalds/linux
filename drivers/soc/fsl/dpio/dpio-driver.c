@@ -50,12 +50,9 @@ static void unregister_dpio_irq_handlers(struct fsl_mc_device *dpio_dev)
 
 static int register_dpio_irq_handlers(struct fsl_mc_device *dpio_dev, int cpu)
 {
-	struct dpio_priv *priv;
 	int error;
 	struct fsl_mc_device_irq *irq;
 	cpumask_t mask;
-
-	priv = dev_get_drvdata(&dpio_dev->dev);
 
 	irq = dpio_dev->irqs[0];
 	error = devm_request_irq(&dpio_dev->dev,
