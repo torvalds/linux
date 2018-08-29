@@ -35,10 +35,6 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 
-#include <linux/can.h>
-#include <linux/can/dev.h>
-#include <linux/can/error.h>
-
 #define UCAN_DRIVER_NAME "ucan"
 #define UCAN_MAX_RX_URBS 8
 /* the CAN controller needs a while to enable/disable the bus */
