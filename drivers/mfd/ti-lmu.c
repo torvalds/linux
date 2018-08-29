@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 
 struct ti_lmu_data {
-	struct mfd_cell *cells;
+	const struct mfd_cell *cells;
 	int num_cells;
 	unsigned int max_register;
 };
@@ -63,7 +63,7 @@ static void ti_lmu_disable_hw(struct ti_lmu *lmu)
 		gpio_set_value(lmu->en_gpio, 0);
 }
 
-static struct mfd_cell lm3532_devices[] = {
+static const struct mfd_cell lm3532_devices[] = {
 	{
 		.name          = "ti-lmu-backlight",
 		.id            = LM3532,
@@ -78,7 +78,7 @@ static struct mfd_cell lm3532_devices[] = {
 	.of_compatible = "ti,lm363x-regulator",	\
 }						\
 
-static struct mfd_cell lm3631_devices[] = {
+static const struct mfd_cell lm3631_devices[] = {
 	LM363X_REGULATOR(LM3631_BOOST),
 	LM363X_REGULATOR(LM3631_LDO_CONT),
 	LM363X_REGULATOR(LM3631_LDO_OREF),
@@ -91,7 +91,7 @@ static struct mfd_cell lm3631_devices[] = {
 	},
 };
 
-static struct mfd_cell lm3632_devices[] = {
+static const struct mfd_cell lm3632_devices[] = {
 	LM363X_REGULATOR(LM3632_BOOST),
 	LM363X_REGULATOR(LM3632_LDO_POS),
 	LM363X_REGULATOR(LM3632_LDO_NEG),
@@ -102,7 +102,7 @@ static struct mfd_cell lm3632_devices[] = {
 	},
 };
 
-static struct mfd_cell lm3633_devices[] = {
+static const struct mfd_cell lm3633_devices[] = {
 	{
 		.name          = "ti-lmu-backlight",
 		.id            = LM3633,
@@ -120,7 +120,7 @@ static struct mfd_cell lm3633_devices[] = {
 	},
 };
 
-static struct mfd_cell lm3695_devices[] = {
+static const struct mfd_cell lm3695_devices[] = {
 	{
 		.name          = "ti-lmu-backlight",
 		.id            = LM3695,
@@ -128,7 +128,7 @@ static struct mfd_cell lm3695_devices[] = {
 	},
 };
 
-static struct mfd_cell lm3697_devices[] = {
+static const struct mfd_cell lm3697_devices[] = {
 	{
 		.name          = "ti-lmu-backlight",
 		.id            = LM3697,
