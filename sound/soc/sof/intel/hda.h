@@ -496,6 +496,14 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev);
 int hda_dsp_ctrl_get_caps(struct snd_sof_dev *sdev);
 int hda_dsp_ctrl_link_reset(struct snd_sof_dev *sdev);
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+/*
+ * HDA Codec operations.
+ */
+int hda_codec_probe_bus(struct snd_sof_dev *sdev);
+int hda_codec_i915_init(struct snd_sof_dev *sdev);
+#endif
+
 /*
  * Trace Control.
  */
