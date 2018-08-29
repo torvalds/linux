@@ -797,8 +797,10 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_nh *nh,
 				return -EINVAL;
 			}
 			dev = __dev_get_by_index(net, nh->nh_oif);
-			if (!dev)
+			if (!dev) {
+				NL_SET_ERR_MSG(extack, "Nexthop device required for onlink");
 				return -ENODEV;
+			}
 			if (!(dev->flags & IFF_UP)) {
 				NL_SET_ERR_MSG(extack,
 					       "Nexthop device is not up");
