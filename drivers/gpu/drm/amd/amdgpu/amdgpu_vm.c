@@ -438,6 +438,11 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 				r = amdgpu_ttm_alloc_gart(&bo->tbo);
 			if (r)
 				break;
+			if (bo->shadow) {
+				r = amdgpu_ttm_alloc_gart(&bo->shadow->tbo);
+				if (r)
+					break;
+			}
 			amdgpu_vm_bo_relocated(bo_base);
 		}
 	}

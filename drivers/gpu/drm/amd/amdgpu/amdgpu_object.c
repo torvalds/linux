@@ -163,10 +163,7 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 
 	if (domain & AMDGPU_GEM_DOMAIN_GTT) {
 		places[c].fpfn = 0;
-		if (flags & AMDGPU_GEM_CREATE_SHADOW)
-			places[c].lpfn = adev->gmc.gart_size >> PAGE_SHIFT;
-		else
-			places[c].lpfn = 0;
+		places[c].lpfn = 0;
 		places[c].flags = TTM_PL_FLAG_TT;
 		if (flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
 			places[c].flags |= TTM_PL_FLAG_WC |
