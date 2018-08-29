@@ -458,9 +458,6 @@ static int populate_attr_groups(struct platform_device *pdev)
 	for_each_child_of_node(opal, np) {
 		const char *label;
 
-		if (np->name == NULL)
-			continue;
-
 		type = get_sensor_type(np);
 		if (type == MAX_SENSOR_TYPE)
 			continue;
@@ -588,9 +585,6 @@ static int create_device_attrs(struct platform_device *pdev)
 		u32 sensor_id;
 		const char *label;
 		enum sensors type;
-
-		if (np->name == NULL)
-			continue;
 
 		type = get_sensor_type(np);
 		if (type == MAX_SENSOR_TYPE)
