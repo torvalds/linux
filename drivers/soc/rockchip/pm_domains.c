@@ -21,6 +21,7 @@
 #include <soc/rockchip/pm_domains.h>
 #include <soc/rockchip/rockchip_dmc.h>
 #include <dt-bindings/power/px30-power.h>
+#include <dt-bindings/power/rk1808-power.h>
 #include <dt-bindings/power/rk3036-power.h>
 #include <dt-bindings/power/rk3128-power.h>
 #include <dt-bindings/power/rk3228-power.h>
@@ -895,6 +896,13 @@ static const struct rockchip_domain_info px30_pm_domains[] = {
 	[PX30_PD_GPU]		= DOMAIN_PX30(15, 15, 2, false),
 };
 
+static const struct rockchip_domain_info rk1808_pm_domains[] = {
+	[RK1808_VD_NPU]		= DOMAIN_PX30(15, 15, 2, false),
+	[RK1808_PD_PCIE]	= DOMAIN_PX30(9, 9, 4, false),
+	[RK1808_PD_VPU]		= DOMAIN_PX30(13, 13, 7, false),
+	[RK1808_PD_VIO]		= DOMAIN_PX30(14, 14, 8, false),
+};
+
 static const struct rockchip_domain_info rk3036_pm_domains[] = {
 	[RK3036_PD_MSCH]	= DOMAIN_RK3036(14, 23, 30, true),
 	[RK3036_PD_CORE]	= DOMAIN_RK3036(13, 17, 24, false),
@@ -1003,6 +1011,17 @@ static const struct rockchip_pmu_info px30_pmu = {
 
 	.num_domains = ARRAY_SIZE(px30_pm_domains),
 	.domain_info = px30_pm_domains,
+};
+
+static const struct rockchip_pmu_info rk1808_pmu = {
+	.pwr_offset = 0x14,
+	.status_offset = 0x20,
+	.req_offset = 0x64,
+	.idle_offset = 0x6c,
+	.ack_offset = 0x6c,
+
+	.num_domains = ARRAY_SIZE(rk1808_pm_domains),
+	.domain_info = rk1808_pm_domains,
 };
 
 static const struct rockchip_pmu_info rk3036_pmu = {
@@ -1115,6 +1134,10 @@ static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	{
 		.compatible = "rockchip,px30-power-controller",
 		.data = (void *)&px30_pmu,
+	},
+	{
+		.compatible = "rockchip,rk1808-power-controller",
+		.data = (void *)&rk1808_pmu,
 	},
 	{
 		.compatible = "rockchip,rk3036-power-controller",
