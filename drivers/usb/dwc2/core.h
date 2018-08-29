@@ -416,6 +416,9 @@ enum dwc2_ep0_state {
  *                      back to DWC2_SPEED_PARAM_HIGH while device is gone.
  *			0 - No (default)
  *			1 - Yes
+ * @service_interval:   Enable service interval based scheduling.
+ *                      0 - No
+ *                      1 - Yes
  *
  * The following parameters may be specified when starting the module. These
  * parameters define how the DWC_otg controller should be configured. A
@@ -461,6 +464,7 @@ struct dwc2_core_params {
 	bool lpm_clock_gating;
 	bool besl;
 	bool hird_threshold_en;
+	bool service_interval;
 	u8 hird_threshold;
 	bool activate_stm_fs_transceiver;
 	bool ipg_isoc_en;
@@ -605,6 +609,10 @@ struct dwc2_core_params {
  *			FIFO sizing is enabled 16 to 32768
  *			Actual maximum value is autodetected and also
  *			the default.
+ * @service_interval_mode: For enabling service interval based scheduling in the
+ *                         controller.
+ *                           0 - Disable
+ *                           1 - Enable
  */
 struct dwc2_hw_params {
 	unsigned op_mode:3;
@@ -635,6 +643,7 @@ struct dwc2_hw_params {
 	unsigned utmi_phy_data_width:2;
 	unsigned lpm_mode:1;
 	unsigned ipg_isoc_en:1;
+	unsigned service_interval_mode:1;
 	u32 snpsid;
 	u32 dev_ep_dirs;
 	u32 g_tx_fifo_size[MAX_EPS_CHANNELS];

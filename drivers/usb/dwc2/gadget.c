@@ -3323,6 +3323,10 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 		dwc2_set_bit(hsotg, DIEPMSK, DIEPMSK_BNAININTRMSK);
 	}
 
+	/* Enable Service Interval mode if supported */
+	if (using_desc_dma(hsotg) && hsotg->params.service_interval)
+		dwc2_set_bit(hsotg, DCTL, DCTL_SERVICE_INTERVAL_SUPPORTED);
+
 	dwc2_writel(hsotg, 0, DAINTMSK);
 
 	dev_dbg(hsotg->dev, "EP0: DIEPCTL0=0x%08x, DOEPCTL0=0x%08x\n",
