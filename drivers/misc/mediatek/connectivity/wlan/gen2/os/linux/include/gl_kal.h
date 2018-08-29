@@ -852,7 +852,7 @@ struct KAL_HALT_CTRL_T {
 
 /* string operation */
 #define kalStrCpy(dest, src)                         strcpy(dest, src)
-#define kalStrnCpy(dest, src, n)                      strncpy(dest, src, n)
+#define kalStrnCpy(dest, src, n)                      memcpy(dest, src, n)
 #define kalStrCmp(ct, cs)                            strcmp(ct, cs)
 #define kalStrnCmp(ct, cs, n)                         strncmp(ct, cs, n)
 #define kalStrChr(s, c)                              strchr(s, c)

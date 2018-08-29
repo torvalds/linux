@@ -5021,7 +5021,7 @@ VOID qmHandleRxArpPackets(P_ADAPTER_T prAdapter, P_SW_RFB_T prSwRfb)
 		if (prBssInfo && prBssInfo->prStaRecOfAP && prBssInfo->prStaRecOfAP->aucMacAddr) {
 			if (EQUAL_MAC_ADDR(&(pucData[ETH_TYPE_LEN_OFFSET + 10]), /* source hardware address */
 					prBssInfo->prStaRecOfAP->aucMacAddr)) {
-				strncpy(apIp, &(pucData[ETH_TYPE_LEN_OFFSET + 16]), sizeof(apIp)); /* src ip address */
+				memcpy(apIp, &(pucData[ETH_TYPE_LEN_OFFSET + 16]), sizeof(apIp)); /* src ip address */
 				DBGLOG(INIT, TRACE, "get arp response from AP %d.%d.%d.%d\n",
 					apIp[0], apIp[1], apIp[2], apIp[3]);
 			}

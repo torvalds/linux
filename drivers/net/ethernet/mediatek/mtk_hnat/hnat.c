@@ -253,7 +253,7 @@ static int hnat_probe(struct platform_device *pdev)
 	if (err < 0)
 		return -EINVAL;
 
-	strncpy(host->wan, (char *)name, IFNAMSIZ);
+	memcpy(host->wan, (char *)name, IFNAMSIZ);
 	dev_info(&pdev->dev, "wan = %s\n", host->wan);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
