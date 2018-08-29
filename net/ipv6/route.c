@@ -3138,8 +3138,6 @@ install_route:
 	rt->fib6_nh.nh_dev = dev;
 	rt->fib6_table = table;
 
-	cfg->fc_nlinfo.nl_net = dev_net(dev);
-
 	if (idev)
 		in6_dev_put(idev);
 
