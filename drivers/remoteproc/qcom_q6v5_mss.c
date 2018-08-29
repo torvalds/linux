@@ -1066,7 +1066,7 @@ static int q6v5_init_clocks(struct device *dev, struct clk **clks,
 static int q6v5_init_reset(struct q6v5 *qproc)
 {
 	qproc->mss_restart = devm_reset_control_get_exclusive(qproc->dev,
-							      NULL);
+							      "mss_restart");
 	if (IS_ERR(qproc->mss_restart)) {
 		dev_err(qproc->dev, "failed to acquire mss restart\n");
 		return PTR_ERR(qproc->mss_restart);
