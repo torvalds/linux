@@ -8778,7 +8778,7 @@ S:	Maintained
 F:	drivers/net/phy/marvell10g.c
 
 MARVELL MVNETA ETHERNET DRIVER
-M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+M:	Thomas Petazzoni <thomas.petazzoni@bootlin.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/marvell/mvneta.*
@@ -11027,7 +11027,7 @@ S:	Maintained
 F:	drivers/firmware/pcdp.*
 
 PCI DRIVER FOR AARDVARK (Marvell Armada 3700)
-M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+M:	Thomas Petazzoni <thomas.petazzoni@bootlin.com>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -11059,7 +11059,7 @@ F:	Documentation/devicetree/bindings/pci/versatile.txt
 F:	drivers/pci/controller/pci-versatile.c
 
 PCI DRIVER FOR ARMADA 8K
-M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+M:	Thomas Petazzoni <thomas.petazzoni@bootlin.com>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
@@ -11121,7 +11121,7 @@ F:	include/linux/switchtec.h
 F:	drivers/ntb/hw/mscc/
 
 PCI DRIVER FOR MVEBU (Marvell Armada 370 and Armada XP SOC support)
-M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+M:	Thomas Petazzoni <thomas.petazzoni@bootlin.com>
 M:	Jason Cooper <jason@lakedaemon.net>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
