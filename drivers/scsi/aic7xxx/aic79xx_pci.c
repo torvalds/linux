@@ -41,14 +41,8 @@
  * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#92 $
  */
 
-#ifdef __linux__
 #include "aic79xx_osm.h"
 #include "aic79xx_inline.h"
-#else
-#include <dev/aic7xxx/aic79xx_osm.h>
-#include <dev/aic7xxx/aic79xx_inline.h>
-#endif
-
 #include "aic79xx_pci.h"
 
 static inline uint64_t
