@@ -3158,6 +3158,17 @@ static int rk3308_codec_setup_en_always_adcs(struct rk3308_codec_priv *rk3308,
 		return ret;
 	}
 
+	/* The loopback grp should not be enabled always. */
+	for (num = 0; num < rk3308->en_always_grps_num; num++) {
+		if (rk3308->en_always_grps[num] == rk3308->loopback_grp) {
+			dev_err(rk3308->plat_dev,
+				"loopback_grp: %d should not be enabled always!\n",
+				rk3308->loopback_grp);
+			ret = -EINVAL;
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
