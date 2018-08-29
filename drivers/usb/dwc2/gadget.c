@@ -123,6 +123,24 @@ static inline void dwc2_gadget_incr_frame_num(struct dwc2_hsotg_ep *hs_ep)
 }
 
 /**
+ * dwc2_gadget_dec_frame_num_by_one - Decrements the targeted frame number
+ *                                    by one.
+ * @hs_ep: The endpoint.
+ *
+ * This function used in service interval based scheduling flow to calculate
+ * descriptor frame number filed value. For service interval mode frame
+ * number in descriptor should point to last (u)frame in the interval.
+ *
+ */
+static inline void dwc2_gadget_dec_frame_num_by_one(struct dwc2_hsotg_ep *hs_ep)
+{
+	if (hs_ep->target_frame)
+		hs_ep->target_frame -= 1;
+	else
+		hs_ep->target_frame = DSTS_SOFFN_LIMIT;
+}
+
+/**
  * dwc2_hsotg_en_gsint - enable one or more of the general interrupt
  * @hsotg: The device state
  * @ints: A bitmask of the interrupts to enable
