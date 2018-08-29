@@ -38,7 +38,8 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 			     unsigned int size, struct snd_dma_buffer *dmab,
 			     int direction)
 {
-	struct sof_intel_hda_stream *stream = NULL;
+	struct hdac_ext_stream *stream = NULL;
+	struct hdac_stream *hstream;
 	struct pci_dev *pci = sdev->pci;
 	int ret;
 
@@ -53,6 +54,7 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 		dev_err(sdev->dev, "error: no stream available\n");
 		return -ENODEV;
 	}
+	hstream = &stream->hstream;
 
 	/* allocate DMA buffer */
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV_SG, &pci->dev, size, dmab);
@@ -61,8 +63,8 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 		goto error;
 	}
 
-	stream->config = format;
-	stream->bufsize = size;
+	hstream->format_val = format;
+	hstream->bufsize = size;
 
 	ret = hda_dsp_stream_hw_params(sdev, stream, dmab, NULL);
 	if (ret < 0) {
@@ -72,10 +74,10 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 
 	hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_ENABLE, size);
 
-	return stream->tag;
+	return hstream->stream_tag;
 
 error:
-	hda_dsp_stream_put_pstream(sdev, stream->tag);
+	hda_dsp_stream_put_pstream(sdev, hstream->stream_tag);
 	snd_dma_free_pages(dmab);
 	return ret;
 }
@@ -188,8 +190,11 @@ out:
 }
 
 static int cl_trigger(struct snd_sof_dev *sdev,
-		      struct sof_intel_hda_stream *stream, int cmd)
+		      struct hdac_ext_stream *stream, int cmd)
 {
+	struct hdac_stream *hstream = &stream->hstream;
+	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
+
 	/* code loader is special case that reuses stream ops */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -197,16 +202,17 @@ static int cl_trigger(struct snd_sof_dev *sdev,
 				   HDA_DSP_CL_TRIGGER_TIMEOUT);
 
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
-					1 << stream->index, 1 << stream->index);
+					1 << hstream->index,
+					1 << hstream->index);
 
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
-					stream->sd_offset,
+					sd_offset,
 					SOF_HDA_SD_CTL_DMA_START |
 					SOF_HDA_CL_DMA_SD_INT_MASK,
 					SOF_HDA_SD_CTL_DMA_START |
 					SOF_HDA_CL_DMA_SD_INT_MASK);
 
-		stream->running = true;
+		hstream->running = true;
 		return 0;
 	default:
 		return hda_dsp_stream_trigger(sdev, stream, cmd);
@@ -214,45 +220,50 @@ static int cl_trigger(struct snd_sof_dev *sdev,
 }
 
 static int cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
-		      struct sof_intel_hda_stream *stream)
+		      struct hdac_ext_stream *stream)
 {
+	struct hdac_stream *hstream = &stream->hstream;
+	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
 	int ret;
 
 	ret = hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
 
 	/* TODO: spin lock ?*/
-	stream->open = 0;
-	stream->running = 0;
-	stream->substream = NULL;
+	hstream->opened = 0;
+	hstream->running = 0;
+	hstream->substream = NULL;
 
 	/* reset BDL address */
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  stream->sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPL, 0);
+			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPL, 0);
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  stream->sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU, 0);
+			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU, 0);
 
-	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, stream->sd_offset, 0);
+	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, sd_offset, 0);
 	snd_dma_free_pages(dmab);
 	dmab->area = NULL;
-	stream->bufsize = 0;
-	stream->config = 0;
+	hstream->bufsize = 0;
+	hstream->format_val = 0;
 
 	return ret;
 }
 
 static int cl_copy_fw(struct snd_sof_dev *sdev, int tag)
 {
-	struct sof_intel_hda_stream *stream = NULL;
-	struct sof_intel_hda_dev *hdev = sdev->hda;
-	int ret, status, i;
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct hdac_ext_stream *stream = NULL;
+	struct hdac_stream *s;
+	int ret, status;
 
 	/* get stream with tag */
-	for (i = 0; i < hdev->num_playback; i++) {
-		if (hdev->pstream[i].tag == tag) {
-			stream = &hdev->pstream[i];
+	list_for_each_entry(s, &bus->stream_list, list) {
+		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK
+			&& s->stream_tag == tag) {
+			stream = stream_to_hdac_ext_stream(s);
 			break;
 		}
 	}
+
 	if (!stream) {
 		dev_err(sdev->dev,
 			"error: could not get stream with stream tag%d\n",

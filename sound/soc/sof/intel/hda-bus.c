@@ -5,8 +5,7 @@
  *
  * Copyright(c) 2018 Intel Corporation. All rights reserved.
  *
- * Authors: Takashi Iwai <tiwai@suse.de>
- *	Jeeja KP <jeeja.kp@intel.com>
+ * Authors: Jeeja KP <jeeja.kp@intel.com>
  *	Keyon Jie <yang.jie@linux.intel.com>
  */
 
@@ -85,10 +84,10 @@ int sof_hda_bus_init(struct hdac_bus *bus, struct device *dev,
 
 	memset(bus, 0, sizeof(*bus));
 	bus->dev = dev;
-	bus->io_ops = &io_ops;
 
-	INIT_LIST_HEAD(&bus->codec_list);
+	bus->io_ops = &io_ops;
 	INIT_LIST_HEAD(&bus->stream_list);
+	INIT_LIST_HEAD(&bus->codec_list);
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	bus->ops = &bus_ops;

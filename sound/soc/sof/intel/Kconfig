@@ -104,6 +104,7 @@ config SND_SOC_SOF_HDA_COMMON
 config SND_SOC_SOF_HDA
 	tristate "SOF support for HDA Links(HDA/HDMI)"
 	depends on SND_SOC_SOF_HDA_COMMON
+	select SND_HDA_EXT_CORE
 	select SND_SOC_HDAC_HDA
 	select SND_SOC_HDAC_HDMI
 	help

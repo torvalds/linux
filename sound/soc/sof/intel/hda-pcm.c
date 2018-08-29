@@ -98,7 +98,8 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 			  struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params)
 {
-	struct sof_intel_hda_stream *stream = substream->runtime->private_data;
+	struct hdac_stream *hstream = substream->runtime->private_data;
+	struct hdac_ext_stream *stream = stream_to_hdac_ext_stream(hstream);
 	struct snd_dma_buffer *dmab;
 	int ret;
 	u32 size, rate, bits;
@@ -107,12 +108,12 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 	rate = get_mult_div(sdev, params_rate(params));
 	bits = get_bits(sdev, params_width(params));
 
-	stream->substream = substream;
+	hstream->substream = substream;
 
 	dmab = substream->runtime->dma_buffer_p;
 
-	stream->config = rate | bits | (params_channels(params) - 1);
-	stream->bufsize = size;
+	hstream->format_val = rate | bits | (params_channels(params) - 1);
+	hstream->bufsize = size;
 
 	ret = hda_dsp_stream_hw_params(sdev, stream, dmab, params);
 	if (ret < 0) {
@@ -123,13 +124,14 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 	/* disable SPIB, to enable buffer wrap for stream */
 	hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
 
-	return stream->tag;
+	return hstream->stream_tag;
 }
 
 int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 			struct snd_pcm_substream *substream, int cmd)
 {
-	struct sof_intel_hda_stream *stream = substream->runtime->private_data;
+	struct hdac_stream *hstream = substream->runtime->private_data;
+	struct hdac_ext_stream *stream = stream_to_hdac_ext_stream(hstream);
 
 	return hda_dsp_stream_trigger(sdev, stream, cmd);
 }
@@ -137,7 +139,7 @@ int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 		     struct snd_pcm_substream *substream)
 {
-	struct sof_intel_hda_stream *stream;
+	struct hdac_ext_stream *stream;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		stream = hda_dsp_stream_get_pstream(sdev);
@@ -150,20 +152,20 @@ int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 	}
 
 	/* binding pcm substream to hda stream */
-	substream->runtime->private_data = stream;
+	substream->runtime->private_data = &stream->hstream;
 	return 0;
 }
 
 int hda_dsp_pcm_close(struct snd_sof_dev *sdev,
 		      struct snd_pcm_substream *substream)
 {
-	struct sof_intel_hda_stream *stream = substream->runtime->private_data;
+	struct hdac_stream *hstream = substream->runtime->private_data;
 	int ret;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		ret = hda_dsp_stream_put_pstream(sdev, stream->tag);
+		ret = hda_dsp_stream_put_pstream(sdev, hstream->stream_tag);
 	else
-		ret = hda_dsp_stream_put_cstream(sdev, stream->tag);
+		ret = hda_dsp_stream_put_cstream(sdev, hstream->stream_tag);
 
 	if (ret) {
 		dev_dbg(sdev->dev, "stream %s not opened!\n", substream->name);
