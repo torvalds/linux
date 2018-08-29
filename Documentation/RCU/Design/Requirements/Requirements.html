@@ -1381,6 +1381,7 @@ Classes of quality-of-implementation requirements are as follows:
 <ol>
 <li>	<a href="#Specialization">Specialization</a>
 <li>	<a href="#Performance and Scalability">Performance and Scalability</a>
+<li>	<a href="#Forward Progress">Forward Progress</a>
 <li>	<a href="#Composability">Composability</a>
 <li>	<a href="#Corner Cases">Corner Cases</a>
 </ol>
@@ -1821,6 +1822,106 @@ so it is too early to tell whether they will stand the test of time.
 <p>
 RCU thus provides a range of tools to allow updaters to strike the
 required tradeoff between latency, flexibility and CPU overhead.
+
+<h3><a name="Forward Progress">Forward Progress</a></h3>
+
+<p>
+In theory, delaying grace-period completion and callback invocation
+is harmless.
+In practice, not only are memory sizes finite but also callbacks sometimes
+do wakeups, and sufficiently deferred wakeups can be difficult
+to distinguish from system hangs.
+Therefore, RCU must provide a number of mechanisms to promote forward
+progress.
+
+<p>
+These mechanisms are not foolproof, nor can they be.
+For one simple example, an infinite loop in an RCU read-side critical
+section must by definition prevent later grace periods from ever completing.
+For a more involved example, consider a 64-CPU system built with
+<tt>CONFIG_RCU_NOCB_CPU=y</tt> and booted with <tt>rcu_nocbs=1-63</tt>,
+where CPUs&nbsp;1 through&nbsp;63 spin in tight loops that invoke
+<tt>call_rcu()</tt>.
+Even if these tight loops also contain calls to <tt>cond_resched()</tt>
+(thus allowing grace periods to complete), CPU&nbsp;0 simply will
+not be able to invoke callbacks as fast as the other 63 CPUs can
+register them, at least not until the system runs out of memory.
+In both of these examples, the Spiderman principle applies:  With great
+power comes great responsibility.
+However, short of this level of abuse, RCU is required to
+ensure timely completion of grace periods and timely invocation of
+callbacks.
+
+<p>
+RCU takes the following steps to encourage timely completion of
+grace periods:
+
+<ol>
+<li>	If a grace period fails to complete within 100&nbsp;milliseconds,
+	RCU causes future invocations of <tt>cond_resched()</tt> on
+	the holdout CPUs to provide an RCU quiescent state.
+	RCU also causes those CPUs' <tt>need_resched()</tt> invocations
+	to return <tt>true</tt>, but only after the corresponding CPU's
+	next scheduling-clock.
+<li>	CPUs mentioned in the <tt>nohz_full</tt> kernel boot parameter
+	can run indefinitely in the kernel without scheduling-clock
+	interrupts, which defeats the above <tt>need_resched()</tt>
+	strategem.
+	RCU will therefore invoke <tt>resched_cpu()</tt> on any
+	<tt>nohz_full</tt> CPUs still holding out after
+	109&nbsp;milliseconds.
+<li>	In kernels built with <tt>CONFIG_RCU_BOOST=y</tt>, if a given
+	task that has been preempted within an RCU read-side critical
+	section is holding out for more than 500&nbsp;milliseconds,
+	RCU will resort to priority boosting.
+<li>	If a CPU is still holding out 10&nbsp;seconds into the grace
+	period, RCU will invoke <tt>resched_cpu()</tt> on it regardless
+	of its <tt>nohz_full</tt> state.
+</ol>
+
+<p>
+The above values are defaults for systems running with <tt>HZ=1000</tt>.
+They will vary as the value of <tt>HZ</tt> varies, and can also be
+changed using the relevant Kconfig options and kernel boot parameters.
+RCU currently does not do much sanity checking of these
+parameters, so please use caution when changing them.
+Note that these forward-progress measures are provided only for RCU,
+not for
+<a href="#Sleepable RCU">SRCU</a> or
+<a href="#Tasks RCU">Tasks RCU</a>.
+
+<p>
+RCU takes the following steps in <tt>call_rcu()</tt> to encourage timely
+invocation of callbacks when any given non-<tt>rcu_nocbs</tt> CPU has
+10,000 callbacks, or has 10,000 more callbacks than it had the last time
+encouragement was provided:
+
+<ol>
+<li>	Starts a grace period, if one is not already in progress.
+<li>	Forces immediate checking for quiescent states, rather than
+	waiting for three milliseconds to have elapsed since the
+	beginning of the grace period.
+<li>	Immediately tags the CPU's callbacks with their grace period
+	completion numbers, rather than waiting for the <tt>RCU_SOFTIRQ</tt>
+	handler to get around to it.
+<li>	Lifts callback-execution batch limits, which speeds up callback
+	invocation at the expense of degrading realtime response.
+</ol>
+
+<p>
+Again, these are default values when running at <tt>HZ=1000</tt>,
+and can be overridden.
+Again, these forward-progress measures are provided only for RCU,
+not for
+<a href="#Sleepable RCU">SRCU</a> or
+<a href="#Tasks RCU">Tasks RCU</a>.
+Even for RCU, callback-invocation forward progress for <tt>rcu_nocbs</tt>
+CPUs is much less well-developed, in part because workloads benefiting
+from <tt>rcu_nocbs</tt> CPUs tend to invoke <tt>call_rcu()</tt>
+relatively infrequently.
+If workloads emerge that need both <tt>rcu_nocbs</tt> CPUs and high
+<tt>call_rcu()</tt> invocation rates, then additional forward-progress
+work will be required.
 
 <h3><a name="Composability">Composability</a></h3>
 
@@ -2272,7 +2373,7 @@ that meets this requirement.
 Furthermore, NMI handlers can be interrupted by what appear to RCU
 to be normal interrupts.
 One way that this can happen is for code that directly invokes
-<tt>rcu_irq_enter()</tt> and </tt>rcu_irq_exit()</tt> to be called
+<tt>rcu_irq_enter()</tt> and <tt>rcu_irq_exit()</tt> to be called
 from an NMI handler.
 This astonishing fact of life prompted the current code structure,
 which has <tt>rcu_irq_enter()</tt> invoking <tt>rcu_nmi_enter()</tt>
@@ -2294,7 +2395,7 @@ via <tt>del_timer_sync()</tt> or similar.
 <p>
 Unfortunately, there is no way to cancel an RCU callback;
 once you invoke <tt>call_rcu()</tt>, the callback function is
-going to eventually be invoked, unless the system goes down first.
+eventually going to be invoked, unless the system goes down first.
 Because it is normally considered socially irresponsible to crash the system
 in response to a module unload request, we need some other way
 to deal with in-flight RCU callbacks.
@@ -3232,6 +3333,11 @@ CPU utilization.
 For example, RCU callback overhead might be charged back to the
 originating <tt>call_rcu()</tt> instance, though probably not
 in production kernels.
+
+<p>
+Additional work may be required to provide reasonable forward-progress
+guarantees under heavy load for grace periods and for callback
+invocation.
 
 <h2><a name="Summary">Summary</a></h2>
 
