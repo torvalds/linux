@@ -47,7 +47,7 @@
 #define MT_VIF_WCID(_n)		(254 - ((_n) & 7))
 
 #include "mt76.h"
-#include "mt76x2_regs.h"
+#include "mt76x02_regs.h"
 #include "mt76x2_mac.h"
 #include "mt76x2_dfs.h"
 
