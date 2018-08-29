@@ -219,7 +219,7 @@ int mt76x2_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (!msta) {
 		if (key || wcid->hw_key_idx == idx) {
-			ret = mt76x2_mac_wcid_set_key(dev, wcid->idx, key);
+			ret = mt76x02_mac_wcid_set_key(&dev->mt76, wcid->idx, key);
 			if (ret)
 				return ret;
 		}
@@ -227,7 +227,7 @@ int mt76x2_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		return mt76x02_mac_shared_key_setup(&dev->mt76, mvif->idx, idx, key);
 	}
 
-	return mt76x2_mac_wcid_set_key(dev, msta->wcid.idx, key);
+	return mt76x02_mac_wcid_set_key(&dev->mt76, msta->wcid.idx, key);
 }
 EXPORT_SYMBOL_GPL(mt76x2_set_key);
 

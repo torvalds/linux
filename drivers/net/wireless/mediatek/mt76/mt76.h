@@ -423,6 +423,9 @@ struct mt76_rx_status {
 #define mt76_rmw_field(_dev, _reg, _field, _val)	\
 	mt76_rmw(_dev, _reg, _field, FIELD_PREP(_field, _val))
 
+#define __mt76_rmw_field(_dev, _reg, _field, _val)	\
+	__mt76_rmw(_dev, _reg, _field, FIELD_PREP(_field, _val))
+
 #define mt76_hw(dev) (dev)->mt76.hw
 
 bool __mt76_poll(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,

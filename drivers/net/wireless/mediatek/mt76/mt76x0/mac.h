@@ -138,8 +138,6 @@ struct mt76_txwi {
 
 u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
 			u8 *data, void *rxi);
-int mt76x0_mac_wcid_set_key(struct mt76x0_dev *dev, u8 idx,
-			  struct ieee80211_key_conf *key);
 void mt76x0_mac_wcid_set_rate(struct mt76x0_dev *dev, struct mt76_wcid *wcid,
 			    const struct ieee80211_tx_rate *rate);
 
