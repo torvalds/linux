@@ -97,4 +97,12 @@ config GIANFAR
 
 source "drivers/net/ethernet/freescale/dpaa/Kconfig"
 
+config FSL_DPAA2_ETH
+	tristate "Freescale DPAA2 Ethernet"
+	depends on FSL_MC_BUS && FSL_MC_DPIO
+	depends on NETDEVICES && ETHERNET
+	---help---
+	  Ethernet driver for Freescale DPAA2 SoCs, using the
+	  Freescale MC bus driver
+
 endif # NET_VENDOR_FREESCALE
