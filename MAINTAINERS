@@ -1703,9 +1703,10 @@ S:	Odd Fixes
 ARM/Microchip (AT91) SoC support
 M:	Nicolas Ferre <nicolas.ferre@microchip.com>
 M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.linux4sam.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nferre/linux-at91.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/at91/linux.git
 S:	Supported
 N:	at91
 N:	atmel
