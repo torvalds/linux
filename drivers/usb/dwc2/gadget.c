@@ -246,6 +246,27 @@ int dwc2_hsotg_tx_fifo_total_depth(struct dwc2_hsotg *hsotg)
 }
 
 /**
+ * dwc2_gadget_wkup_alert_handler - Handler for WKUP_ALERT interrupt
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ *
+ */
+static void dwc2_gadget_wkup_alert_handler(struct dwc2_hsotg *hsotg)
+{
+	u32 gintsts2;
+	u32 gintmsk2;
+
+	gintsts2 = dwc2_readl(hsotg, GINTSTS2);
+	gintmsk2 = dwc2_readl(hsotg, GINTMSK2);
+
+	if (gintsts2 & GINTSTS2_WKUP_ALERT_INT) {
+		dev_dbg(hsotg->dev, "%s: Wkup_Alert_Int\n", __func__);
+		dwc2_clear_bit(hsotg, GINTSTS2, GINTSTS2_WKUP_ALERT_INT);
+		dwc2_set_bit(hsotg, DCFG, DCTL_RMTWKUPSIG);
+	}
+}
+
+/**
  * dwc2_hsotg_tx_fifo_average_depth - returns average depth of device mode
  * TX FIFOs
  *
@@ -3729,6 +3750,10 @@ irq_retry:
 
 	if (gintsts & IRQ_RETRY_MASK && --retry_count > 0)
 		goto irq_retry;
+
+	/* Check WKUP_ALERT interrupt*/
+	if (hsotg->params.service_interval)
+		dwc2_gadget_wkup_alert_handler(hsotg);
 
 	spin_unlock(&hsotg->lock);
 
