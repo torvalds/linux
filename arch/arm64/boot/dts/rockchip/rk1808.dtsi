@@ -272,6 +272,21 @@
 		};
 	};
 
+	uart0: serial@ff430000 {
+		compatible = "rockchip,rk1808-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xff430000 0x0 0x100>;
+		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART0_PMU>, <&cru PCLK_UART0_PMU>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac 0>, <&dmac 1>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
+		status = "disabled";
+	};
+
 	i2c1: i2c@ff500000 {
 		compatible = "rockchip,rk3399-i2c";
 		reg = <0x0 0xff500000 0x0 0x1000>;
@@ -369,6 +384,66 @@
 		status = "disabled";
 	};
 
+	uart1: serial@ff540000 {
+		compatible = "rockchip,rk1808-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xff540000 0x0 0x100>;
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART1>, <&cru PCLK_UART1>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac 2>, <&dmac 3>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart1m0_xfer &uart1_cts &uart1_rts>;
+		status = "disabled";
+	};
+
+	uart2: serial@ff550000 {
+		compatible = "rockchip,rk1808-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xff550000 0x0 0x100>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART2>, <&cru PCLK_UART2>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac 4>, <&dmac 5>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2m0_xfer>;
+		status = "disabled";
+	};
+
+	uart3: serial@ff560000 {
+		compatible = "rockchip,rk1808-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xff560000 0x0 0x100>;
+		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART3>, <&cru PCLK_UART3>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac 6>, <&dmac 7>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart3m0_xfer &uart3_ctsm0 &uart3_rtsm0>;
+		status = "disabled";
+	};
+
+	uart4: serial@ff570000 {
+		compatible = "rockchip,rk1808-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xff570000 0x0 0x100>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART4>, <&cru PCLK_UART4>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac 8>, <&dmac 9>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart4_xfer &uart4_cts &uart4_rts>;
+		status = "disabled";
+	};
+
 	spi2: spi@ff580000 {
 		compatible = "rockchip,rk1808-spi", "rockchip,rk3066-spi";
 		reg = <0x0 0xff580000 0x0 0x1000>;
@@ -385,12 +460,48 @@
 		status = "disabled";
 	};
 
-	uart2: serial@ff550000 {
+	uart5: serial@ff5a0000 {
 		compatible = "rockchip,rk1808-uart", "snps,dw-apb-uart";
-		reg = <0x0 0xff550000 0x0 0x100>;
-		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0x0 0xff5a0000 0x0 0x100>;
+		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART5>, <&cru PCLK_UART5>;
+		clock-names = "baudclk", "apb_pclk";
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		dmas = <&dmac 25>, <&dmac 26>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart5_xfer>;
+		status = "disabled";
+	};
+
+	uart6: serial@ff5b0000 {
+		compatible = "rockchip,rk1808-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xff5b0000 0x0 0x100>;
+		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART6>, <&cru PCLK_UART6>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac 27>, <&dmac 28>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart6_xfer>;
+		status = "disabled";
+	};
+
+	uart7: serial@ff5c0000 {
+		compatible = "rockchip,rk1808-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xff5c0000 0x0 0x100>;
+		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART7>, <&cru PCLK_UART7>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac 29>, <&dmac 30>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart7_xfer>;
 		status = "disabled";
 	};
 
@@ -1290,7 +1401,55 @@
 			};
 		};
 
-		uart2m0 {
+		uart0 {
+			uart0_xfer: uart0-xfer {
+				rockchip,pins =
+					/* uart0_rx */
+					<0 RK_PB3 1 &pcfg_pull_none>,
+					/* uart0_tx */
+					<0 RK_PB2 1 &pcfg_pull_none>;
+			};
+
+			uart0_cts: uart0-cts {
+				rockchip,pins =
+					<0 RK_PB4 1 &pcfg_pull_none>;
+			};
+
+			uart0_rts: uart0-rts {
+				rockchip,pins =
+					<0 RK_PB5 1 &pcfg_pull_none>;
+			};
+		};
+
+		uart1 {
+			uart1m0_xfer: uart1m0-xfer {
+				rockchip,pins =
+					/* uart1_rxm0 */
+					<4 RK_PB0 2 &pcfg_pull_none>,
+					/* uart1_txm0 */
+					<4 RK_PB1 2 &pcfg_pull_none>;
+			};
+
+			uart1m1_xfer: uart1m1-xfer {
+				rockchip,pins =
+					/* uart1_rxm1 */
+					<1 RK_PB4 3 &pcfg_pull_none>,
+					/* uart1_txm1 */
+					<1 RK_PB5 3 &pcfg_pull_none>;
+			};
+
+			uart1_cts: uart1-cts {
+				rockchip,pins =
+					<4 RK_PB2 2 &pcfg_pull_none>;
+			};
+
+			uart1_rts: uart1-rts {
+				rockchip,pins =
+					<4 RK_PB3 2 &pcfg_pull_none>;
+			};
+		};
+
+		uart2 {
 			uart2m0_xfer: uart2m0-xfer {
 				rockchip,pins =
 					/* uart2_rxm0 */
@@ -1298,9 +1457,7 @@
 					/* uart2_txm0 */
 					<4 RK_PA2 2 &pcfg_pull_none>;
 			};
-		};
 
-		uart2m1 {
 			uart2m1_xfer: uart2m1-xfer {
 				rockchip,pins =
 					/* uart2_rxm1 */
@@ -1308,9 +1465,7 @@
 					/* uart2_txm1 */
 					<2 RK_PD0 2 &pcfg_pull_none>;
 			};
-		};
 
-		uart2m2 {
 			uart2m2_xfer: uart2m2-xfer {
 				rockchip,pins =
 					/* uart2_rxm2 */
@@ -1319,6 +1474,77 @@
 					<3 RK_PA3 2 &pcfg_pull_none>;
 			};
 		};
+
+		uart3 {
+			uart3m0_xfer: uart3m0-xfer {
+				rockchip,pins =
+					/* uart3_rxm0 */
+					<0 RK_PC5 2 &pcfg_pull_none>,
+					/* uart3_txm0 */
+					<0 RK_PC4 2 &pcfg_pull_none>;
+			};
+
+			uart3_ctsm0: uart3-ctsm0 {
+				rockchip,pins =
+					<0 RK_PC7 2 &pcfg_pull_none>;
+			};
+
+			uart3_rtsm0: uart3-rtsm0 {
+				rockchip,pins =
+					<0 RK_PD0 2 &pcfg_pull_none>;
+			};
+		};
+
+		uart4 {
+			uart4_xfer: uart4-xfer {
+				rockchip,pins =
+					/* uart4_rx */
+					<4 RK_PB4 1 &pcfg_pull_none>,
+					/* uart4_tx */
+					<4 RK_PB5 1 &pcfg_pull_none>;
+			};
+
+			uart4_cts: uart4-cts {
+				rockchip,pins =
+					<4 RK_PB6 1 &pcfg_pull_none>;
+			};
+
+			uart4_rts: uart4-rts {
+				rockchip,pins =
+					<4 RK_PB7 1 &pcfg_pull_none>;
+			};
+		};
+
+		uart5 {
+			uart5_xfer: uart5-xfer {
+				rockchip,pins =
+					/* uart5_rx */
+					<3 RK_PC3 1 &pcfg_pull_none>,
+					/* uart5_tx */
+					<3 RK_PC2 1 &pcfg_pull_none>;
+			};
+		};
+
+		uart6 {
+			uart6_xfer: uart6-xfer {
+				rockchip,pins =
+					/* uart6_rx */
+					<3 RK_PC5 1 &pcfg_pull_none>,
+					/* uart6_tx */
+					<3 RK_PC4 1 &pcfg_pull_none>;
+			};
+		};
+
+		uart7 {
+			uart7_xfer: uart7-xfer {
+				rockchip,pins =
+					/* uart7_rx */
+					<3 RK_PC7 1 &pcfg_pull_none>,
+					/* uart7_tx */
+					<3 RK_PC6 1 &pcfg_pull_none>;
+			};
+		};
+
 		tsadc {
 			tsadc_otp_gpio: tsadc-otp-gpio {
 				rockchip,pins =
