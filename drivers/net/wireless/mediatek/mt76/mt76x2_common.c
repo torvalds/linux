@@ -18,30 +18,6 @@
 #include "mt76x2.h"
 #include "mt76x02_mac.h"
 
-void mt76x2_txq_init(struct mt76x2_dev *dev, struct ieee80211_txq *txq)
-{
-	struct mt76_txq *mtxq;
-
-	if (!txq)
-		return;
-
-	mtxq = (struct mt76_txq *) txq->drv_priv;
-	if (txq->sta) {
-		struct mt76x2_sta *sta;
-
-		sta = (struct mt76x2_sta *) txq->sta->drv_priv;
-		mtxq->wcid = &sta->wcid;
-	} else {
-		struct mt76x02_vif *mvif;
-
-		mvif = (struct mt76x02_vif *) txq->vif->drv_priv;
-		mtxq->wcid = &mvif->group_wcid;
-	}
-
-	mt76_txq_init(&dev->mt76, txq);
-}
-EXPORT_SYMBOL_GPL(mt76x2_txq_init);
-
 int mt76x2_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			struct ieee80211_ampdu_params *params)
 {
@@ -118,7 +94,7 @@ int mt76x2_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mt76x02_mac_wcid_setup(&dev->mt76, idx, mvif->idx, sta->addr);
 	mt76x02_mac_wcid_set_drop(&dev->mt76, idx, false);
 	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
-		mt76x2_txq_init(dev, sta->txq[i]);
+		mt76x02_txq_init(&dev->mt76, sta->txq[i]);
 
 	if (vif->type == NL80211_IFTYPE_AP)
 		set_bit(MT_WCID_FLAG_CHECK_PS, &msta->wcid.flags);

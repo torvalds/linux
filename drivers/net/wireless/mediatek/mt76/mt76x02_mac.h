@@ -18,10 +18,29 @@
 #ifndef __MT76X02_MAC_H
 #define __MT76X02_MAC_H
 
+struct mt76x02_tx_status {
+	u8 valid:1;
+	u8 success:1;
+	u8 aggr:1;
+	u8 ack_req:1;
+	u8 wcid;
+	u8 pktid;
+	u8 retry;
+	u16 rate;
+} __packed __aligned(2);
+
 struct mt76x02_vif {
 	u8 idx;
 
 	struct mt76_wcid group_wcid;
+};
+
+struct mt76x02_sta {
+	struct mt76_wcid wcid; /* must be first */
+
+	struct mt76x02_vif *vif;
+	struct mt76x02_tx_status status;
+	int n_frames;
 };
 
 static inline bool mt76x02_wait_for_mac(struct mt76_dev *dev)
@@ -44,6 +63,8 @@ static inline bool mt76x02_wait_for_mac(struct mt76_dev *dev)
 	}
 	return false;
 }
+
+void mt76x02_txq_init(struct mt76_dev *dev, struct ieee80211_txq *txq);
 
 enum mt76x02_cipher_type
 mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data);

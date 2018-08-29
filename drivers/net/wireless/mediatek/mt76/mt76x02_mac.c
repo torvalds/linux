@@ -17,6 +17,7 @@
 
 #include "mt76.h"
 #include "mt76x02_regs.h"
+#include "mt76x02_mac.h"
 
 enum mt76x02_cipher_type
 mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
@@ -130,3 +131,27 @@ void mt76x02_mac_wcid_set_drop(struct mt76_dev *dev, u8 idx, bool drop)
 		__mt76_wr(dev, MT_WCID_DROP(idx), (val & ~bit) | (bit * drop));
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_wcid_set_drop);
+
+void mt76x02_txq_init(struct mt76_dev *dev, struct ieee80211_txq *txq)
+{
+	struct mt76_txq *mtxq;
+
+	if (!txq)
+		return;
+
+	mtxq = (struct mt76_txq *) txq->drv_priv;
+	if (txq->sta) {
+		struct mt76x02_sta *sta;
+
+		sta = (struct mt76x02_sta *) txq->sta->drv_priv;
+		mtxq->wcid = &sta->wcid;
+	} else {
+		struct mt76x02_vif *mvif;
+
+		mvif = (struct mt76x02_vif *) txq->vif->drv_priv;
+		mtxq->wcid = &mvif->group_wcid;
+	}
+
+	mt76_txq_init(dev, txq);
+}
+EXPORT_SYMBOL_GPL(mt76x02_txq_init);

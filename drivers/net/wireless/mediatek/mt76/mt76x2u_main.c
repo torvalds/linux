@@ -58,7 +58,7 @@ static int mt76x2u_add_interface(struct ieee80211_hw *hw,
 	mvif->idx = idx;
 	mvif->group_wcid.idx = MT_VIF_WCID(idx);
 	mvif->group_wcid.hw_key_idx = -1;
-	mt76x2_txq_init(dev, vif->txq);
+	mt76x02_txq_init(&dev->mt76, vif->txq);
 
 	return 0;
 }
