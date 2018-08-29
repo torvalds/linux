@@ -109,6 +109,19 @@ EXPORT_SYMBOL(v4l2_ctrl_query_fill);
 
 #if IS_ENABLED(CONFIG_I2C)
 
+void v4l2_i2c_subdev_set_name(struct v4l2_subdev *sd, struct i2c_client *client,
+			      const char *devname, const char *postfix)
+{
+	if (!devname)
+		devname = client->dev.driver->name;
+	if (!postfix)
+		postfix = "";
+
+	snprintf(sd->name, sizeof(sd->name), "%s%s %d-%04x", devname, postfix,
+		 i2c_adapter_id(client->adapter), client->addr);
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_set_name);
+
 void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 		const struct v4l2_subdev_ops *ops)
 {
@@ -120,10 +133,7 @@ void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 	/* i2c_client and v4l2_subdev point to one another */
 	v4l2_set_subdevdata(sd, client);
 	i2c_set_clientdata(client, sd);
-	/* initialize name */
-	snprintf(sd->name, sizeof(sd->name), "%s %d-%04x",
-		client->dev.driver->name, i2c_adapter_id(client->adapter),
-		client->addr);
+	v4l2_i2c_subdev_set_name(sd, client, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_init);
 
