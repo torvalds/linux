@@ -157,6 +157,7 @@
 
 	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
+		ports = <&vopb_out>, <&vopl_out>;
 		status = "disabled";
 	};
 
@@ -795,10 +796,17 @@
 		clocks = <&cru ACLK_VOPB>, <&cru DCLK_VOPB>,
 			 <&cru HCLK_VOPB>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		resets = <&cru SRST_VOPB_A>, <&cru SRST_VOPB_H>, <&cru SRST_VOPB>;
+		reset-names = "axi", "ahb", "dclk";
 		iommus = <&vopb_mmu>;
 		power-domains = <&power PX30_PD_VO>;
 		rockchip,grf = <&grf>;
 		status = "disabled";
+
+		vopb_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
 	};
 
 	vopb_mmu: iommu@ff460f00 {
@@ -820,10 +828,17 @@
 		clocks = <&cru ACLK_VOPL>, <&cru DCLK_VOPL>,
 			 <&cru HCLK_VOPL>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		resets = <&cru SRST_VOPL_A>, <&cru SRST_VOPL_H>, <&cru SRST_VOPL>;
+		reset-names = "axi", "ahb", "dclk";
 		iommus = <&vopl_mmu>;
 		power-domains = <&power PX30_PD_VO>;
 		rockchip,grf = <&grf>;
 		status = "disabled";
+
+		vopl_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
 	};
 
 	vopl_mmu: iommu@ff470f00 {
