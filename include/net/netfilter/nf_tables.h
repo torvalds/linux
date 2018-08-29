@@ -1298,12 +1298,14 @@ static inline void nft_set_elem_clear_busy(struct nft_set_ext *ext)
  *
  *	@list: used internally
  *	@msg_type: message type
+ *	@put_net: ctx->net needs to be put
  *	@ctx: transaction context
  *	@data: internal information related to the transaction
  */
 struct nft_trans {
 	struct list_head		list;
 	int				msg_type;
+	bool				put_net;
 	struct nft_ctx			ctx;
 	char				data[0];
 };
