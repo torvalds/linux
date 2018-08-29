@@ -229,7 +229,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(mt76x2_send_tx_status);
 
-static enum mt76x2_cipher_type
+static enum mt76x02_cipher_type
 mt76x2_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 {
 	memset(key_data, 0, 32);
@@ -258,7 +258,7 @@ mt76x2_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 int mt76x2_mac_shared_key_setup(struct mt76x2_dev *dev, u8 vif_idx, u8 key_idx,
 				struct ieee80211_key_conf *key)
 {
-	enum mt76x2_cipher_type cipher;
+	enum mt76x02_cipher_type cipher;
 	u8 key_data[32];
 	u32 val;
 
@@ -281,7 +281,7 @@ EXPORT_SYMBOL_GPL(mt76x2_mac_shared_key_setup);
 int mt76x2_mac_wcid_set_key(struct mt76x2_dev *dev, u8 idx,
 			    struct ieee80211_key_conf *key)
 {
-	enum mt76x2_cipher_type cipher;
+	enum mt76x02_cipher_type cipher;
 	u8 key_data[32];
 	u8 iv_data[8];
 

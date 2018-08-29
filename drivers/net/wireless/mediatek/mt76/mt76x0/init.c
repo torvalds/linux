@@ -127,9 +127,9 @@ static void mt76x0_init_usb_dma(struct mt76x0_dev *dev)
 
 	val = mt76_rr(dev, MT_USB_DMA_CFG);
 
-	val |= MT_USB_DMA_CFG_RX_DROP_OR_PADDING;
+	val |= MT_USB_DMA_CFG_RX_DROP_OR_PAD;
 	mt76_wr(dev, MT_USB_DMA_CFG, val);
-	val &= ~MT_USB_DMA_CFG_RX_DROP_OR_PADDING;
+	val &= ~MT_USB_DMA_CFG_RX_DROP_OR_PAD;
 	mt76_wr(dev, MT_USB_DMA_CFG, val);
 }
 
@@ -274,12 +274,12 @@ static int mt76x0_init_wcid_attr_mem(struct mt76x0_dev *dev)
 
 static void mt76x0_reset_counters(struct mt76x0_dev *dev)
 {
-	mt76_rr(dev, MT_RX_STA_CNT0);
-	mt76_rr(dev, MT_RX_STA_CNT1);
-	mt76_rr(dev, MT_RX_STA_CNT2);
-	mt76_rr(dev, MT_TX_STA_CNT0);
-	mt76_rr(dev, MT_TX_STA_CNT1);
-	mt76_rr(dev, MT_TX_STA_CNT2);
+	mt76_rr(dev, MT_RX_STAT_0);
+	mt76_rr(dev, MT_RX_STAT_1);
+	mt76_rr(dev, MT_RX_STAT_2);
+	mt76_rr(dev, MT_TX_STA_0);
+	mt76_rr(dev, MT_TX_STA_1);
+	mt76_rr(dev, MT_TX_STA_2);
 }
 
 int mt76x0_mac_start(struct mt76x0_dev *dev)

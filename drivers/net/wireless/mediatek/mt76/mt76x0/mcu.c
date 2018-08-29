@@ -591,9 +591,9 @@ static int mt76x0_load_firmware(struct mt76x0_dev *dev)
 	mt76_wr(dev, MT_FCE_SKIP_FS, 3);
 
 	val = mt76_rr(dev, MT_USB_DMA_CFG);
-	val |= MT_USB_DMA_CFG_TX_WL_DROP;
+	val |= MT_USB_DMA_CFG_UDMA_TX_WL_DROP;
 	mt76_wr(dev, MT_USB_DMA_CFG, val);
-	val &= ~MT_USB_DMA_CFG_TX_WL_DROP;
+	val &= ~MT_USB_DMA_CFG_UDMA_TX_WL_DROP;
 	mt76_wr(dev, MT_USB_DMA_CFG, val);
 
 	ret = mt76x0_upload_firmware(dev, (const struct mt76_fw *)fw->data);

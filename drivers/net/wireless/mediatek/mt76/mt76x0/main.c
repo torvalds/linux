@@ -166,8 +166,8 @@ mt76x0_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {
 		mt76_wr(dev, MT_LEGACY_BASIC_RATE, info->basic_rates);
-		mt76_wr(dev, MT_HT_FBK_CFG0, 0x65432100);
-		mt76_wr(dev, MT_HT_FBK_CFG1, 0xedcba980);
+		mt76_wr(dev, MT_VHT_HT_FBK_CFG0, 0x65432100);
+		mt76_wr(dev, MT_VHT_HT_FBK_CFG1, 0xedcba980);
 		mt76_wr(dev, MT_LG_FBK_CFG0, 0xedcba988);
 		mt76_wr(dev, MT_LG_FBK_CFG1, 0x00002100);
 	}

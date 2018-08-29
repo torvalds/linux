@@ -355,8 +355,8 @@ void mt76x0_mac_work(struct work_struct *work)
 		u32 span;
 		u64 *stat_base;
 	} spans[] = {
-		{ MT_RX_STA_CNT0,	3,	dev->stats.rx_stat },
-		{ MT_TX_STA_CNT0,	3,	dev->stats.tx_stat },
+		{ MT_RX_STAT_0,	3,	dev->stats.rx_stat },
+		{ MT_TX_STA_0,	3,	dev->stats.tx_stat },
 		{ MT_TX_AGG_STAT,	1,	dev->stats.aggr_stat },
 		{ MT_MPDU_DENSITY_CNT,	1,	dev->stats.zero_len_del },
 		{ MT_TX_AGG_CNT_BASE0,	8,	&dev->stats.aggr_n[0] },
@@ -566,7 +566,7 @@ u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
 	return len;
 }
 
-static enum mt76_cipher_type
+static enum mt76x02_cipher_type
 mt76_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 {
 	memset(key_data, 0, 32);
@@ -595,7 +595,7 @@ mt76_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 int mt76x0_mac_wcid_set_key(struct mt76x0_dev *dev, u8 idx,
 			  struct ieee80211_key_conf *key)
 {
-	enum mt76_cipher_type cipher;
+	enum mt76x02_cipher_type cipher;
 	u8 key_data[32];
 	u8 iv_data[8];
 	u32 val;
@@ -636,7 +636,7 @@ int mt76x0_mac_wcid_set_key(struct mt76x0_dev *dev, u8 idx,
 int mt76x0_mac_shared_key_setup(struct mt76x0_dev *dev, u8 vif_idx, u8 key_idx,
 			      struct ieee80211_key_conf *key)
 {
-	enum mt76_cipher_type cipher;
+	enum mt76x02_cipher_type cipher;
 	u8 key_data[32];
 	u32 val;
 
