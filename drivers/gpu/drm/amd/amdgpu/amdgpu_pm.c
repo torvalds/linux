@@ -474,6 +474,8 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * in each power level within a power state.  The pp_od_clk_voltage is used for
  * this.
  *
+ * < For Vega10 and previous ASICs >
+ *
  * Reading the file will display:
  *
  * - a list of engine clock levels and voltages labeled OD_SCLK
@@ -490,6 +492,44 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * 810 mV.  When you have edited all of the states as needed, write
  * "c" (commit) to the file to commit your changes.  If you want to reset to the
  * default power levels, write "r" (reset) to the file to reset them.
+ *
+ *
+ * < For Vega20 >
+ *
+ * Reading the file will display:
+ *
+ * - minimum and maximum engine clock labeled OD_SCLK
+ *
+ * - maximum memory clock labeled OD_MCLK
+ *
+ * - three <frequency, voltage offset> points labeled OD_VDDC_CURVE.
+ *   They can be used to calibrate the sclk voltage curve.
+ *
+ * - a list of valid ranges for sclk, mclk, and voltage curve points
+ *   labeled OD_RANGE
+ *
+ * To manually adjust these settings:
+ *
+ * - First select manual using power_dpm_force_performance_level
+ *
+ * - For clock frequency setting, enter a new value by writing a
+ *   string that contains "s/m index clock" to the file. The index
+ *   should be 0 if to set minimum clock. And 1 if to set maximum
+ *   clock. E.g., "s 0 500" will update minimum sclk to be 500 MHz.
+ *   "m 1 800" will update maximum mclk to be 800Mhz.
+ *
+ *   For sclk voltage curve, enter the new values by writing a
+ *   string that contains "vc point clock voff" to the file. The
+ *   points are indexed by 0, 1 and 2. E.g., "vc 0 300 10" will
+ *   update point1 with clock set as 300Mhz and voltage increased
+ *   by 10mV. "vc 2 1000 -10" will update point3 with clock set
+ *   as 1000Mhz and voltage drop by 10mV.
+ *
+ * - When you have edited all of the states as needed, write "c" (commit)
+ *   to the file to commit your changes
+ *
+ * - If you want to reset to the default power levels, write "r" (reset)
+ *   to the file to reset them
  *
  */
 
@@ -520,6 +560,8 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 		type = PP_OD_RESTORE_DEFAULT_TABLE;
 	else if (*buf == 'c')
 		type = PP_OD_COMMIT_DPM_TABLE;
+	else if (!strncmp(buf, "vc", 2))
+		type = PP_OD_EDIT_VDDC_CURVE;
 	else
 		return -EINVAL;
 
@@ -527,6 +569,8 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 
 	tmp_str = buf_cpy;
 
+	if (type == PP_OD_EDIT_VDDC_CURVE)
+		tmp_str++;
 	while (isspace(*++tmp_str));
 
 	while (tmp_str[0]) {
@@ -570,6 +614,7 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 	if (adev->powerplay.pp_funcs->print_clock_levels) {
 		size = amdgpu_dpm_print_clock_levels(adev, OD_SCLK, buf);
 		size += amdgpu_dpm_print_clock_levels(adev, OD_MCLK, buf+size);
+		size += amdgpu_dpm_print_clock_levels(adev, OD_VDDC_CURVE, buf+size);
 		size += amdgpu_dpm_print_clock_levels(adev, OD_RANGE, buf+size);
 		return size;
 	} else {

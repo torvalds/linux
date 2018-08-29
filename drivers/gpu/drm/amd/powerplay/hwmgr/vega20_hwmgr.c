@@ -2325,11 +2325,207 @@ static int vega20_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int vega20_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
+					enum PP_OD_DPM_TABLE_COMMAND type,
+					long *input, uint32_t size)
+{
+	struct vega20_hwmgr *data =
+			(struct vega20_hwmgr *)(hwmgr->backend);
+	struct vega20_od8_single_setting *od8_settings =
+			data->od8_settings.od8_settings_array;
+	OverDriveTable_t *od_table =
+			&(data->smc_state_table.overdrive_table);
+	struct pp_clock_levels_with_latency clocks;
+	int32_t input_index, input_clk, input_vol, i;
+	int ret;
+
+	PP_ASSERT_WITH_CODE(input, "NULL user input for clock and voltage",
+				return -EINVAL);
+
+	switch (type) {
+	case PP_OD_EDIT_SCLK_VDDC_TABLE:
+		if (!(od8_settings[OD8_SETTING_GFXCLK_FMIN].feature_id &&
+		      od8_settings[OD8_SETTING_GFXCLK_FMAX].feature_id)) {
+			pr_info("Sclk min/max frequency overdrive not supported\n");
+			return -EOPNOTSUPP;
+		}
+
+		for (i = 0; i < size; i += 2) {
+			if (i + 2 > size) {
+				pr_info("invalid number of input parameters %d\n",
+					size);
+				return -EINVAL;
+			}
+
+			input_index = input[i];
+			input_clk = input[i + 1];
+
+			if (input_index != 0 && input_index != 1) {
+				pr_info("Invalid index %d\n", input_index);
+				pr_info("Support min/max sclk frequency setting only which index by 0/1\n");
+				return -EINVAL;
+			}
+
+			if (input_clk < od8_settings[OD8_SETTING_GFXCLK_FMIN].min_value ||
+			    input_clk > od8_settings[OD8_SETTING_GFXCLK_FMAX].max_value) {
+				pr_info("clock freq %d is not within allowed range [%d - %d]\n",
+					input_clk,
+					od8_settings[OD8_SETTING_GFXCLK_FMIN].min_value,
+					od8_settings[OD8_SETTING_GFXCLK_FMAX].max_value);
+				return -EINVAL;
+			}
+
+			if (input_index == 0)
+				od_table->GfxclkFmin = input_clk;
+			else
+				od_table->GfxclkFmax = input_clk;
+		}
+
+		break;
+
+	case PP_OD_EDIT_MCLK_VDDC_TABLE:
+		if (!od8_settings[OD8_SETTING_UCLK_FMAX].feature_id) {
+			pr_info("Mclk max frequency overdrive not supported\n");
+			return -EOPNOTSUPP;
+		}
+
+		ret = vega20_get_memclocks(hwmgr, &clocks);
+		PP_ASSERT_WITH_CODE(!ret,
+				"Attempt to get memory clk levels failed!",
+				return ret);
+
+		for (i = 0; i < size; i += 2) {
+			if (i + 2 > size) {
+				pr_info("invalid number of input parameters %d\n",
+					size);
+				return -EINVAL;
+			}
+
+			input_index = input[i];
+			input_clk = input[i + 1];
+
+			if (input_index != 1) {
+				pr_info("Invalid index %d\n", input_index);
+				pr_info("Support max Mclk frequency setting only which index by 1\n");
+				return -EINVAL;
+			}
+
+			if (input_clk < clocks.data[0].clocks_in_khz / 100 ||
+			    input_clk > od8_settings[OD8_SETTING_UCLK_FMAX].max_value) {
+				pr_info("clock freq %d is not within allowed range [%d - %d]\n",
+					input_clk,
+					clocks.data[0].clocks_in_khz / 100,
+					od8_settings[OD8_SETTING_UCLK_FMAX].max_value);
+				return -EINVAL;
+			}
+
+			od_table->UclkFmax = input_clk;
+		}
+
+		break;
+
+	case PP_OD_EDIT_VDDC_CURVE:
+		if (!(od8_settings[OD8_SETTING_GFXCLK_FREQ1].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_FREQ2].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_FREQ3].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_VOLTAGE1].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_VOLTAGE2].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_VOLTAGE3].feature_id)) {
+			pr_info("Voltage curve calibrate not supported\n");
+			return -EOPNOTSUPP;
+		}
+
+		for (i = 0; i < size; i += 3) {
+			if (i + 3 > size) {
+				pr_info("invalid number of input parameters %d\n",
+					size);
+				return -EINVAL;
+			}
+
+			input_index = input[i];
+			input_clk = input[i + 1];
+			input_vol = input[i + 2];
+
+			if (input_index > 2) {
+				pr_info("Setting for point %d is not supported\n",
+						input_index + 1);
+				pr_info("Three supported points index by 0, 1, 2\n");
+				return -EINVAL;
+			}
+
+			if (input_clk < od8_settings[OD8_SETTING_GFXCLK_FMIN].min_value ||
+			    input_clk > od8_settings[OD8_SETTING_GFXCLK_FMAX].max_value) {
+				pr_info("clock freq %d is not within allowed range [%d - %d]\n",
+					input_clk,
+					od8_settings[OD8_SETTING_GFXCLK_FMIN].min_value,
+					od8_settings[OD8_SETTING_GFXCLK_FMAX].max_value);
+				return -EINVAL;
+			}
+
+			/* TODO: suppose voltage1/2/3 has the same min/max value */
+			if (input_vol < od8_settings[OD8_SETTING_GFXCLK_VOLTAGE1].min_value ||
+			    input_vol > od8_settings[OD8_SETTING_GFXCLK_VOLTAGE1].max_value) {
+				pr_info("clock voltage offset %d is not within allowed range [%d - %d]\n",
+					input_vol,
+					od8_settings[OD8_SETTING_GFXCLK_VOLTAGE1].min_value,
+					od8_settings[OD8_SETTING_GFXCLK_VOLTAGE1].max_value);
+				return -EINVAL;
+			}
+
+			switch (input_index) {
+			case 0:
+				od_table->GfxclkFreq1 = input_clk;
+				od_table->GfxclkOffsetVolt1 = input_vol;
+				break;
+			case 1:
+				od_table->GfxclkFreq2 = input_clk;
+				od_table->GfxclkOffsetVolt2 = input_vol;
+				break;
+			case 2:
+				od_table->GfxclkFreq3 = input_clk;
+				od_table->GfxclkOffsetVolt3 = input_vol;
+				break;
+			}
+		}
+		break;
+
+	case PP_OD_RESTORE_DEFAULT_TABLE:
+		ret = vega20_copy_table_from_smc(hwmgr,
+				(uint8_t *)od_table,
+				TABLE_OVERDRIVE);
+		PP_ASSERT_WITH_CODE(!ret,
+				"Failed to export overdrive table!",
+				return ret);
+		break;
+
+	case PP_OD_COMMIT_DPM_TABLE:
+		ret = vega20_copy_table_to_smc(hwmgr,
+				(uint8_t *)od_table,
+				TABLE_OVERDRIVE);
+		PP_ASSERT_WITH_CODE(!ret,
+				"Failed to import overdrive table!",
+				return ret);
+
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, char *buf)
 {
-	int i, now, size = 0;
+	struct vega20_hwmgr *data =
+			(struct vega20_hwmgr *)(hwmgr->backend);
+	struct vega20_od8_single_setting *od8_settings =
+			data->od8_settings.od8_settings_array;
+	OverDriveTable_t *od_table =
+			&(data->smc_state_table.overdrive_table);
 	struct pp_clock_levels_with_latency clocks;
+	int i, now, size = 0;
 	int ret = 0;
 
 	switch (type) {
@@ -2370,6 +2566,95 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 	case PP_PCIE:
 		break;
 
+	case OD_SCLK:
+		if (od8_settings[OD8_SETTING_GFXCLK_FMIN].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_FMAX].feature_id) {
+			size = sprintf(buf, "%s:\n", "OD_SCLK");
+			size += sprintf(buf + size, "0: %10uMhz\n",
+				od_table->GfxclkFmin);
+			size += sprintf(buf + size, "1: %10uMhz\n",
+				od_table->GfxclkFmax);
+		}
+		break;
+
+	case OD_MCLK:
+		if (od8_settings[OD8_SETTING_UCLK_FMAX].feature_id) {
+			size = sprintf(buf, "%s:\n", "OD_MCLK");
+			size += sprintf(buf + size, "1: %10uMhz\n",
+				od_table->UclkFmax);
+		}
+
+		break;
+
+	case OD_VDDC_CURVE:
+		if (od8_settings[OD8_SETTING_GFXCLK_FREQ1].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_FREQ2].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_FREQ3].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_VOLTAGE1].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_VOLTAGE2].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_VOLTAGE3].feature_id) {
+			size = sprintf(buf, "%s:\n", "OD_VDDC_CURVE");
+			size += sprintf(buf + size, "0: %10uMhz %10dmV\n",
+				od_table->GfxclkFreq1,
+				od_table->GfxclkOffsetVolt1);
+			size += sprintf(buf + size, "1: %10uMhz %10dmV\n",
+				od_table->GfxclkFreq2,
+				od_table->GfxclkOffsetVolt2);
+			size += sprintf(buf + size, "2: %10uMhz %10dmV\n",
+				od_table->GfxclkFreq3,
+				od_table->GfxclkOffsetVolt3);
+		}
+
+		break;
+
+	case OD_RANGE:
+		size = sprintf(buf, "%s:\n", "OD_RANGE");
+
+		if (od8_settings[OD8_SETTING_GFXCLK_FMIN].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_FMAX].feature_id) {
+			size += sprintf(buf + size, "SCLK: %7uMhz %10uMhz\n",
+				od8_settings[OD8_SETTING_GFXCLK_FMIN].min_value,
+				od8_settings[OD8_SETTING_GFXCLK_FMAX].max_value);
+		}
+
+		if (od8_settings[OD8_SETTING_UCLK_FMAX].feature_id) {
+			ret = vega20_get_memclocks(hwmgr, &clocks);
+			PP_ASSERT_WITH_CODE(!ret,
+					"Fail to get memory clk levels!",
+					return ret);
+
+			size += sprintf(buf + size, "MCLK: %7uMhz %10uMhz\n",
+				clocks.data[0].clocks_in_khz / 100,
+				od8_settings[OD8_SETTING_UCLK_FMAX].max_value);
+		}
+
+		if (od8_settings[OD8_SETTING_GFXCLK_FREQ1].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_FREQ2].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_FREQ3].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_VOLTAGE1].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_VOLTAGE2].feature_id &&
+		    od8_settings[OD8_SETTING_GFXCLK_VOLTAGE3].feature_id) {
+			size += sprintf(buf + size, "VDDC_CURVE_SCLK[0]: %7uMhz %10uMhz\n",
+				od8_settings[OD8_SETTING_GFXCLK_FREQ1].min_value,
+				od8_settings[OD8_SETTING_GFXCLK_FREQ1].max_value);
+			size += sprintf(buf + size, "VDDC_CURVE_VOFF[0]: %7dmV %11dmV\n",
+				od8_settings[OD8_SETTING_GFXCLK_VOLTAGE1].min_value,
+				od8_settings[OD8_SETTING_GFXCLK_VOLTAGE1].max_value);
+			size += sprintf(buf + size, "VDDC_CURVE_SCLK[1]: %7uMhz %10uMhz\n",
+				od8_settings[OD8_SETTING_GFXCLK_FREQ2].min_value,
+				od8_settings[OD8_SETTING_GFXCLK_FREQ2].max_value);
+			size += sprintf(buf + size, "VDDC_CURVE_VOFF[1]: %7dmV %11dmV\n",
+				od8_settings[OD8_SETTING_GFXCLK_VOLTAGE2].min_value,
+				od8_settings[OD8_SETTING_GFXCLK_VOLTAGE2].max_value);
+			size += sprintf(buf + size, "VDDC_CURVE_SCLK[2]: %7uMhz %10uMhz\n",
+				od8_settings[OD8_SETTING_GFXCLK_FREQ3].min_value,
+				od8_settings[OD8_SETTING_GFXCLK_FREQ3].max_value);
+			size += sprintf(buf + size, "VDDC_CURVE_VOFF[2]: %7dmV %11dmV\n",
+				od8_settings[OD8_SETTING_GFXCLK_VOLTAGE3].min_value,
+				od8_settings[OD8_SETTING_GFXCLK_VOLTAGE3].max_value);
+		}
+
+		break;
 	default:
 		break;
 	}
@@ -2977,6 +3262,8 @@ static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 		vega20_get_mclk_od,
 	.set_mclk_od =
 		vega20_set_mclk_od,
+	.odn_edit_dpm_table =
+		vega20_odn_edit_dpm_table,
 	/* for sysfs to retrive/set gfxclk/memclk */
 	.force_clock_level =
 		vega20_force_clock_level,
