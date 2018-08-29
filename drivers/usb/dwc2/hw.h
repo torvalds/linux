@@ -405,6 +405,19 @@
 #define ADPCTL_PRB_DSCHRG_MASK		(0x3 << 0)
 #define ADPCTL_PRB_DSCHRG_SHIFT		0
 
+#define GREFCLK				    HSOTG_REG(0x0064)
+#define GREFCLK_REFCLKPER_MASK		    (0x1ffff << 15)
+#define GREFCLK_REFCLKPER_SHIFT		    15
+#define GREFCLK_REF_CLK_MODE		    BIT(14)
+#define GREFCLK_SOF_CNT_WKUP_ALERT_MASK	    (0x3ff)
+#define GREFCLK_SOF_CNT_WKUP_ALERT_SHIFT    0
+
+#define GINTMSK2			HSOTG_REG(0x0068)
+#define GINTMSK2_WKUP_ALERT_INT_MSK	BIT(0)
+
+#define GINTSTS2			HSOTG_REG(0x006c)
+#define GINTSTS2_WKUP_ALERT_INT		BIT(0)
+
 #define HPTXFSIZ			HSOTG_REG(0x100)
 /* Use FIFOSIZE_* constants to access this register */
 
