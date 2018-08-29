@@ -5003,6 +5003,10 @@ void dwc2_gadget_init_lpm(struct dwc2_hsotg *hsotg)
 	val |= hsotg->params.besl ? GLPMCFG_ENBESL : 0;
 	dwc2_writel(hsotg, val, GLPMCFG);
 	dev_dbg(hsotg->dev, "GLPMCFG=0x%08x\n", dwc2_readl(hsotg, GLPMCFG));
+
+	/* Unmask WKUP_ALERT Interrupt */
+	if (hsotg->params.service_interval)
+		dwc2_set_bit(hsotg, GINTMSK2, GINTMSK2_WKUP_ALERT_INT_MSK);
 }
 
 /**
