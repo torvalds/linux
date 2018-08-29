@@ -175,8 +175,8 @@ static int udf_bitmap_prealloc_blocks(struct super_block *sb,
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	int alloc_count = 0;
-	int bit, block, block_group, group_start;
-	int nr_groups, bitmap_nr;
+	int bit, block, block_group;
+	int bitmap_nr;
 	struct buffer_head *bh;
 	__u32 part_len;
 
@@ -189,10 +189,8 @@ static int udf_bitmap_prealloc_blocks(struct super_block *sb,
 		block_count = part_len - first_block;
 
 	do {
-		nr_groups = udf_compute_nr_groups(sb, partition);
 		block = first_block + (sizeof(struct spaceBitmapDesc) << 3);
 		block_group = block >> (sb->s_blocksize_bits + 3);
-		group_start = block_group ? 0 : sizeof(struct spaceBitmapDesc);
 
 		bitmap_nr = load_block_bitmap(sb, bitmap, block_group);
 		if (bitmap_nr < 0)
