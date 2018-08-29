@@ -2595,6 +2595,8 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->compressed_ack = 0;
 	tp->bytes_sent = 0;
 	tp->bytes_retrans = 0;
+	tp->duplicate_sack[0].start_seq = 0;
+	tp->duplicate_sack[0].end_seq = 0;
 	tp->dsack_dups = 0;
 	tp->reord_seen = 0;
 
