@@ -1432,7 +1432,7 @@ static int pxad_probe(struct platform_device *op)
 				 "#dma-requests set to default 32 as missing in OF: %d",
 				 ret);
 			nb_requestors = 32;
-		};
+		}
 	} else if (pdata && pdata->dma_channels) {
 		dma_channels = pdata->dma_channels;
 		nb_requestors = pdata->nb_requestors;
