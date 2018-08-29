@@ -2830,6 +2830,23 @@ static void dwc2_gadget_handle_nak(struct dwc2_hsotg_ep *hs_ep)
 		if (using_desc_dma(hsotg)) {
 			hs_ep->target_frame = hsotg->frame_number;
 			dwc2_gadget_incr_frame_num(hs_ep);
+
+			/* In service interval mode target_frame must
+			 * be set to last (u)frame of the service interval.
+			 */
+			if (hsotg->params.service_interval) {
+				/* Set target_frame to the first (u)frame of
+				 * the service interval
+				 */
+				hs_ep->target_frame &= ~hs_ep->interval + 1;
+
+				/* Set target_frame to the last (u)frame of
+				 * the service interval
+				 */
+				dwc2_gadget_incr_frame_num(hs_ep);
+				dwc2_gadget_dec_frame_num_by_one(hs_ep);
+			}
+
 			dwc2_gadget_start_isoc_ddma(hs_ep);
 			return;
 		}
