@@ -399,23 +399,6 @@ void mt76x0_mac_work(struct work_struct *work)
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->mac_work, 10 * HZ);
 }
 
-void
-mt76x0_mac_wcid_setup(struct mt76x0_dev *dev, u8 idx, u8 vif_idx, u8 *mac)
-{
-	u8 zmac[ETH_ALEN] = {};
-	u32 attr;
-
-	attr = FIELD_PREP(MT_WCID_ATTR_BSS_IDX, vif_idx & 7) |
-	       FIELD_PREP(MT_WCID_ATTR_BSS_IDX_EXT, !!(vif_idx & 8));
-
-	mt76_wr(dev, MT_WCID_ATTR(idx), attr);
-
-	if (mac)
-		memcpy(zmac, mac, sizeof(zmac));
-
-	mt76x0_addr_wr(dev, MT_WCID_ADDR(idx), zmac);
-}
-
 void mt76x0_mac_set_ampdu_factor(struct mt76x0_dev *dev)
 {
 	struct ieee80211_sta *sta;

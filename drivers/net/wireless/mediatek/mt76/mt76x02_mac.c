@@ -96,3 +96,26 @@ int mt76x02_mac_wcid_set_key(struct mt76_dev *dev, u8 idx,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_wcid_set_key);
+
+void mt76x02_mac_wcid_setup(struct mt76_dev *dev, u8 idx, u8 vif_idx, u8 *mac)
+{
+	struct mt76_wcid_addr addr = {};
+	u32 attr;
+
+	attr = FIELD_PREP(MT_WCID_ATTR_BSS_IDX, vif_idx & 7) |
+	       FIELD_PREP(MT_WCID_ATTR_BSS_IDX_EXT, !!(vif_idx & 8));
+
+	__mt76_wr(dev, MT_WCID_ATTR(idx), attr);
+
+	__mt76_wr(dev, MT_WCID_TX_RATE(idx), 0);
+	__mt76_wr(dev, MT_WCID_TX_RATE(idx) + 4, 0);
+
+	if (idx >= 128)
+		return;
+
+	if (mac)
+		memcpy(addr.macaddr, mac, ETH_ALEN);
+
+	__mt76_wr_copy(dev, MT_WCID_ADDR(idx), &addr, sizeof(addr));
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_wcid_setup);

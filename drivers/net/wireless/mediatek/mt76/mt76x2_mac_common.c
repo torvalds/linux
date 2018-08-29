@@ -394,29 +394,6 @@ void mt76x2_mac_wcid_set_drop(struct mt76x2_dev *dev, u8 idx, bool drop)
 }
 EXPORT_SYMBOL_GPL(mt76x2_mac_wcid_set_drop);
 
-void mt76x2_mac_wcid_setup(struct mt76x2_dev *dev, u8 idx, u8 vif_idx, u8 *mac)
-{
-	struct mt76_wcid_addr addr = {};
-	u32 attr;
-
-	attr = FIELD_PREP(MT_WCID_ATTR_BSS_IDX, vif_idx & 7) |
-	       FIELD_PREP(MT_WCID_ATTR_BSS_IDX_EXT, !!(vif_idx & 8));
-
-	mt76_wr(dev, MT_WCID_ATTR(idx), attr);
-
-	mt76_wr(dev, MT_WCID_TX_RATE(idx), 0);
-	mt76_wr(dev, MT_WCID_TX_RATE(idx) + 4, 0);
-
-	if (idx >= 128)
-		return;
-
-	if (mac)
-		memcpy(addr.macaddr, mac, ETH_ALEN);
-
-	mt76_wr_copy(dev, MT_WCID_ADDR(idx), &addr, sizeof(addr));
-}
-EXPORT_SYMBOL_GPL(mt76x2_mac_wcid_setup);
-
 static int
 mt76x2_mac_process_rate(struct mt76_rx_status *status, u16 rate)
 {

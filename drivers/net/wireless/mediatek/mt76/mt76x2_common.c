@@ -115,7 +115,7 @@ int mt76x2_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	msta->wcid.sta = 1;
 	msta->wcid.idx = idx;
 	msta->wcid.hw_key_idx = -1;
-	mt76x2_mac_wcid_setup(dev, idx, mvif->idx, sta->addr);
+	mt76x02_mac_wcid_setup(&dev->mt76, idx, mvif->idx, sta->addr);
 	mt76x2_mac_wcid_set_drop(dev, idx, false);
 	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
 		mt76x2_txq_init(dev, sta->txq[i]);
@@ -148,7 +148,7 @@ int mt76x2_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		mt76_txq_remove(&dev->mt76, sta->txq[i]);
 	mt76x2_mac_wcid_set_drop(dev, idx, true);
 	mt76_wcid_free(dev->wcid_mask, idx);
-	mt76x2_mac_wcid_setup(dev, idx, 0, NULL);
+	mt76x02_mac_wcid_setup(&dev->mt76, idx, 0, NULL);
 	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
