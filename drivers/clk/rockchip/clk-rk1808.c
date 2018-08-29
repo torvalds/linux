@@ -355,9 +355,9 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(0, "aclk_npu2mem", "aclk_npu_pre", CLK_IGNORE_UNUSED,
 			RK1808_CLKSEL_CON(2), 4, 4, DFLAGS,
 			RK1808_CLKGATE_CON(1), 15, GFLAGS),
-	GATE(0, "hclk_npu", "hclk_vpu_pre", 0,
+	GATE(HCLK_NPU, "hclk_npu", "hclk_npu_pre", 0,
 			RK1808_CLKGATE_CON(1), 12, GFLAGS),
-	GATE(0, "hclk_npu_niu", "hclk_vpu_pre", CLK_IGNORE_UNUSED,
+	GATE(0, "hclk_npu_niu", "hclk_npu_pre", CLK_IGNORE_UNUSED,
 			RK1808_CLKGATE_CON(1), 14, GFLAGS),
 
 	GATE(SCLK_PVTM_NPU, "clk_pvtm_npu", "xin24m", 0,

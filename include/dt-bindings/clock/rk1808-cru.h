@@ -139,6 +139,7 @@
 #define ACLK_DCF		173
 
 /* hclk gates */
+#define HCLK_NPU		199
 #define HCLK_VPU		200
 #define LSCLK_VIO		201
 #define HCLK_VOPRAW		202
