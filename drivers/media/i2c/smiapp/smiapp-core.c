@@ -2617,9 +2617,7 @@ static void smiapp_create_subdev(struct smiapp_sensor *sensor,
 	ssd->npads = num_pads;
 	ssd->source_pad = num_pads - 1;
 
-	snprintf(ssd->sd.name,
-		 sizeof(ssd->sd.name), "%s %s %d-%4.4x", sensor->minfo.name,
-		 name, i2c_adapter_id(client->adapter), client->addr);
+	v4l2_i2c_subdev_set_name(&ssd->sd, client, sensor->minfo.name, name);
 
 	smiapp_get_native_size(ssd, &ssd->sink_fmt);
 
@@ -3064,9 +3062,9 @@ static int smiapp_probe(struct i2c_client *client,
 	if (sensor->minfo.smiapp_profile == SMIAPP_PROFILE_0)
 		sensor->pll.flags |= SMIAPP_PLL_FLAG_NO_OP_CLOCKS;
 
-	smiapp_create_subdev(sensor, sensor->scaler, "scaler", 2);
-	smiapp_create_subdev(sensor, sensor->binner, "binner", 2);
-	smiapp_create_subdev(sensor, sensor->pixel_array, "pixel_array", 1);
+	smiapp_create_subdev(sensor, sensor->scaler, " scaler", 2);
+	smiapp_create_subdev(sensor, sensor->binner, " binner", 2);
+	smiapp_create_subdev(sensor, sensor->pixel_array, " pixel_array", 1);
 
 	dev_dbg(&client->dev, "profile %d\n", sensor->minfo.smiapp_profile);
 
