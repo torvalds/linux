@@ -1067,12 +1067,14 @@ static struct tc_action *tcf_action_get_1(struct net *net, struct nlattr *nla,
 	err = -EINVAL;
 	ops = tc_lookup_action(tb[TCA_ACT_KIND]);
 	if (!ops) { /* could happen in batch of actions */
-		NL_SET_ERR_MSG(extack, "Specified TC action not found");
+		NL_SET_ERR_MSG(extack, "Specified TC action kind not found");
 		goto err_out;
 	}
 	err = -ENOENT;
-	if (ops->lookup(net, &a, index, extack) == 0)
+	if (ops->lookup(net, &a, index) == 0) {
+		NL_SET_ERR_MSG(extack, "TC action with specified index not found");
 		goto err_mod;
+	}
 
 	module_put(ops->owner);
 	return a;

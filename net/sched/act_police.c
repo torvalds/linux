@@ -312,8 +312,7 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_police_search(struct net *net, struct tc_action **a, u32 index,
-			     struct netlink_ext_ack *extack)
+static int tcf_police_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, police_net_id);
 
