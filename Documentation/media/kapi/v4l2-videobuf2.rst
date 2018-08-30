@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 .. _vb2_framework:
 
 V4L2 videobuf2 functions and data structures

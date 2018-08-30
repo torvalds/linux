@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 # Rules to convert a .h file to inline RST documentation
 
 SRC_DIR=$(srctree)/Documentation/media

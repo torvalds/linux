@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 The Virtual Video Test Driver (vivid)
 =====================================
 
