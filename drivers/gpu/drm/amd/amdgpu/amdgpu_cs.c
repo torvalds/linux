@@ -1012,13 +1012,9 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		if (r)
 			return r;
 
-		if (chunk_ib->flags & AMDGPU_IB_FLAG_PREAMBLE) {
-			parser->job->preamble_status |= AMDGPU_PREAMBLE_IB_PRESENT;
-			if (!parser->ctx->preamble_presented) {
-				parser->job->preamble_status |= AMDGPU_PREAMBLE_IB_PRESENT_FIRST;
-				parser->ctx->preamble_presented = true;
-			}
-		}
+		if (chunk_ib->flags & AMDGPU_IB_FLAG_PREAMBLE)
+			parser->job->preamble_status |=
+				AMDGPU_PREAMBLE_IB_PRESENT;
 
 		if (parser->ring && parser->ring != ring)
 			return -EINVAL;
@@ -1207,24 +1203,22 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 
 	int r;
 
+	job = p->job;
+	p->job = NULL;
+
+	r = drm_sched_job_init(&job->base, entity, p->filp);
+	if (r)
+		goto error_unlock;
+
+	/* No memory allocation is allowed while holding the mn lock */
 	amdgpu_mn_lock(p->mn);
 	amdgpu_bo_list_for_each_userptr_entry(e, p->bo_list) {
 		struct amdgpu_bo *bo = e->robj;
 
 		if (amdgpu_ttm_tt_userptr_needs_pages(bo->tbo.ttm)) {
-			amdgpu_mn_unlock(p->mn);
-			return -ERESTARTSYS;
+			r = -ERESTARTSYS;
+			goto error_abort;
 		}
-	}
-
-	job = p->job;
-	p->job = NULL;
-
-	r = drm_sched_job_init(&job->base, entity, p->filp);
-	if (r) {
-		amdgpu_job_free(job);
-		amdgpu_mn_unlock(p->mn);
-		return r;
 	}
 
 	job->owner = p->filp;
@@ -1240,6 +1234,12 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	}
 
 	amdgpu_cs_post_dependencies(p);
+
+	if ((job->preamble_status & AMDGPU_PREAMBLE_IB_PRESENT) &&
+	    !p->ctx->preamble_presented) {
+		job->preamble_status |= AMDGPU_PREAMBLE_IB_PRESENT_FIRST;
+		p->ctx->preamble_presented = true;
+	}
 
 	cs->out.handle = seq;
 	job->uf_sequence = seq;
@@ -1258,6 +1258,15 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	amdgpu_mn_unlock(p->mn);
 
 	return 0;
+
+error_abort:
+	dma_fence_put(&job->base.s_fence->finished);
+	job->base.s_fence = NULL;
+
+error_unlock:
+	amdgpu_job_free(job);
+	amdgpu_mn_unlock(p->mn);
+	return r;
 }
 
 int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
