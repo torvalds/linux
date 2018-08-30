@@ -22,6 +22,8 @@
 		crypto = &crypto;
 		serial0 = &serial0;
 		serial1 = &serial1;
+		serial2 = &serial2;
+		serial3 = &serial3;
 	};
 
 	cpu: cpus {
@@ -219,6 +221,20 @@
 			reg = <0x0 0x21c0600 0x0 0x100>;
 			clocks = <&clockgen 4 3>;
 			interrupts = <0 32 0x4>; /* Level high type */
+		};
+
+		serial2: serial@21d0500 {
+			compatible = "fsl,ns16550", "ns16550a";
+			reg = <0x0 0x21d0500 0x0 0x100>;
+			clocks = <&clockgen 4 3>;
+			interrupts = <0 33 0x4>; /* Level high type */
+		};
+
+		serial3: serial@21d0600 {
+			compatible = "fsl,ns16550", "ns16550a";
+			reg = <0x0 0x21d0600 0x0 0x100>;
+			clocks = <&clockgen 4 3>;
+			interrupts = <0 33 0x4>; /* Level high type */
 		};
 
 		cluster1_core0_watchdog: wdt@c000000 {
