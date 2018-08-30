@@ -42,8 +42,8 @@ int z_erofs_vle_plain_copy(struct page **compressed_pages,
 		struct page *page = pages[i];
 		void *dst;
 
-		if (page == NULL) {
-			if (src != NULL) {
+		if (!page) {
+			if (src) {
 				if (!mirrored[j])
 					kunmap_atomic(src);
 				src = NULL;
@@ -64,7 +64,7 @@ int z_erofs_vle_plain_copy(struct page **compressed_pages,
 		}
 
 		if (i) {
-			if (src == NULL)
+			if (!src)
 				src = mirrored[i-1] ?
 					percpu_data + (i-1) * PAGE_SIZE :
 					kmap_atomic(compressed_pages[i-1]);
@@ -92,7 +92,7 @@ int z_erofs_vle_plain_copy(struct page **compressed_pages,
 		kunmap_atomic(dst);
 	}
 
-	if (src != NULL && !mirrored[j])
+	if (src && !mirrored[j])
 		kunmap_atomic(src);
 
 	preempt_enable();
@@ -136,7 +136,7 @@ int z_erofs_vle_unzip_fast_percpu(struct page **compressed_pages,
 	for (i = 0; i < nr_pages; ++i) {
 		j = min((unsigned int)PAGE_SIZE - pageofs, outlen);
 
-		if (pages[i] != NULL) {
+		if (pages[i]) {
 			if (ret < 0)
 				SetPageError(pages[i]);
 			else if (clusterpages == 1 && pages[i] == compressed_pages[0])
