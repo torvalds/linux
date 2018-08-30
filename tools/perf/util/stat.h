@@ -215,4 +215,10 @@ int perf_stat_synthesize_config(struct perf_stat_config *config,
 				struct perf_evlist *evlist,
 				perf_event__handler_t process,
 				bool attrs);
+void
+perf_evlist__print_counters(struct perf_evlist *evlist,
+			    struct perf_stat_config *config,
+			    struct target *_target,
+			    struct timespec *ts,
+			    int argc, const char **argv);
 #endif
