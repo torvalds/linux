@@ -32,7 +32,7 @@ struct augmented_filename {
 	char	value[256];
 };
 
-#define augmented_filename_syscall_enter(syscall)						\
+#define augmented_filename_syscall(syscall)							\
 struct augmented_enter_##syscall##_args {			 				\
 	struct syscall_enter_##syscall##_args	args;				 		\
 	struct augmented_filename		filename;				 	\
@@ -60,7 +60,7 @@ struct syscall_enter_openat_args {
 	long		   mode;
 };
 
-augmented_filename_syscall_enter(openat);
+augmented_filename_syscall(openat);
 
 struct syscall_enter_open_args {
 	unsigned long long common_tp_fields;
@@ -70,7 +70,7 @@ struct syscall_enter_open_args {
 	long		   mode;
 };
 
-augmented_filename_syscall_enter(open);
+augmented_filename_syscall(open);
 
 struct syscall_enter_inotify_add_watch_args {
 	unsigned long long common_tp_fields;
@@ -80,7 +80,7 @@ struct syscall_enter_inotify_add_watch_args {
 	long		   mask;
 };
 
-augmented_filename_syscall_enter(inotify_add_watch);
+augmented_filename_syscall(inotify_add_watch);
 
 struct statbuf;
 
@@ -91,13 +91,13 @@ struct syscall_enter_newstat_args {
 	struct stat	   *statbuf;
 };
 
-augmented_filename_syscall_enter(newstat);
+augmented_filename_syscall(newstat);
 
 #ifndef _K_SS_MAXSIZE
 #define _K_SS_MAXSIZE 128
 #endif
 
-#define augmented_sockaddr_syscall_enter(syscall)						\
+#define augmented_sockaddr_syscall(syscall)						\
 struct augmented_enter_##syscall##_args {			 				\
 	struct syscall_enter_##syscall##_args	args;				 		\
 	struct sockaddr_storage			addr;						\
@@ -128,7 +128,7 @@ struct syscall_enter_bind_args {
 	unsigned long	   addrlen;
 };
 
-augmented_sockaddr_syscall_enter(bind);
+augmented_sockaddr_syscall(bind);
 
 struct syscall_enter_connect_args {
 	unsigned long long common_tp_fields;
@@ -138,7 +138,7 @@ struct syscall_enter_connect_args {
 	unsigned long	   addrlen;
 };
 
-augmented_sockaddr_syscall_enter(connect);
+augmented_sockaddr_syscall(connect);
 
 struct syscall_enter_sendto_args {
 	unsigned long long common_tp_fields;
@@ -151,6 +151,6 @@ struct syscall_enter_sendto_args {
 	long		   addr_len;
 };
 
-augmented_sockaddr_syscall_enter(sendto);
+augmented_sockaddr_syscall(sendto);
 
 license(GPL);
