@@ -343,7 +343,10 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			list_move(&bo_base->vm_status, &vm->moved);
 			spin_unlock(&vm->moved_lock);
 		} else {
-			r = amdgpu_ttm_alloc_gart(&bo->tbo);
+			if (vm->use_cpu_for_update)
+				r = amdgpu_bo_kmap(bo, NULL);
+			else
+				r = amdgpu_ttm_alloc_gart(&bo->tbo);
 			if (r)
 				break;
 			list_move(&bo_base->vm_status, &vm->relocated);
@@ -1094,14 +1097,6 @@ restart:
 	params.adev = adev;
 
 	if (vm->use_cpu_for_update) {
-		struct amdgpu_vm_bo_base *bo_base;
-
-		list_for_each_entry(bo_base, &vm->relocated, vm_status) {
-			r = amdgpu_bo_kmap(bo_base->bo, NULL);
-			if (unlikely(r))
-				return r;
-		}
-
 		r = amdgpu_vm_wait_pd(adev, vm, AMDGPU_FENCE_OWNER_VM);
 		if (unlikely(r))
 			return r;
