@@ -276,6 +276,7 @@ static const struct vop_win_data px30_vop_big_win_data[] = {
 
 static const struct vop_data px30_vop_big = {
 	.intr = &px30_intr,
+	.feature = VOP_FEATURE_INTERNAL_RGB,
 	.common = &px30_common,
 	.modeset = &px30_modeset,
 	.output = &px30_output,
@@ -290,6 +291,7 @@ static const struct vop_win_data px30_vop_lit_win_data[] = {
 
 static const struct vop_data px30_vop_lit = {
 	.intr = &px30_intr,
+	.feature = VOP_FEATURE_INTERNAL_RGB,
 	.common = &px30_common,
 	.modeset = &px30_modeset,
 	.output = &px30_output,
