@@ -334,7 +334,7 @@ test_pmtu_vti4_link_add_mtu() {
 	fail=0
 
 	min=68
-	max=$((65528 - 20))
+	max=$((65535 - 20))
 	# Check invalid values first
 	for v in $((min - 1)) $((max + 1)); do
 		${ns_a} ip link add vti4_a mtu ${v} type vti local ${veth4_a_addr} remote ${veth4_b_addr} key 10 2>/dev/null
