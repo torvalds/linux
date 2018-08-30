@@ -105,6 +105,7 @@ struct perf_stat_config {
 	struct runtime_stat	*stats;
 	int			 stats_num;
 	const char		*csv_sep;
+	struct stats		*walltime_nsecs_stats;
 };
 
 void update_stats(struct stats *stats, u64 val);
