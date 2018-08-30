@@ -3637,13 +3637,13 @@ size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
 }
 
 int perf_event__synthesize_attrs(struct perf_tool *tool,
-				   struct perf_session *session,
-				   perf_event__handler_t process)
+				 struct perf_evlist *evlist,
+				 perf_event__handler_t process)
 {
 	struct perf_evsel *evsel;
 	int err = 0;
 
-	evlist__for_each_entry(session->evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		err = perf_event__synthesize_attr(tool, &evsel->attr, evsel->ids,
 						  evsel->id, process);
 		if (err) {

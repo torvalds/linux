@@ -459,7 +459,7 @@ static int perf_stat_synthesize_config(bool is_pipe)
 	int err;
 
 	if (is_pipe) {
-		err = perf_event__synthesize_attrs(NULL, perf_stat.session,
+		err = perf_event__synthesize_attrs(NULL, evsel_list,
 						   process_synthesized_event);
 		if (err < 0) {
 			pr_err("Couldn't synthesize attrs.\n");
