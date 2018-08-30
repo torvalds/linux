@@ -107,6 +107,9 @@ struct sdhci_tegra {
 	struct pinctrl_state *pinctrl_state_1v8;
 
 	struct sdhci_tegra_autocal_offsets autocal_offsets;
+
+	u32 default_tap;
+	u32 default_trim;
 };
 
 static u16 tegra_sdhci_readw(struct sdhci_host *host, int reg)
@@ -459,6 +462,23 @@ static void tegra_sdhci_parse_pad_autocal_dt(struct sdhci_host *host)
 			&autocal->pull_down_hs400);
 	if (err)
 		autocal->pull_down_hs400 = autocal->pull_down_1v8;
+}
+
+static void tegra_sdhci_parse_default_tap_and_trim(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_tegra *tegra_host = sdhci_pltfm_priv(pltfm_host);
+	int err;
+
+	err = device_property_read_u32(host->mmc->parent, "nvidia,default-tap",
+				       &tegra_host->default_tap);
+	if (err)
+		tegra_host->default_tap = 0;
+
+	err = device_property_read_u32(host->mmc->parent, "nvidia,default-trim",
+				       &tegra_host->default_trim);
+	if (err)
+		tegra_host->default_trim = 0;
 }
 
 static void tegra_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
@@ -880,6 +900,8 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 		host->mmc->caps |= MMC_CAP_1_8V_DDR;
 
 	tegra_sdhci_parse_pad_autocal_dt(host);
+
+	tegra_sdhci_parse_default_tap_and_trim(host);
 
 	tegra_host->power_gpio = devm_gpiod_get_optional(&pdev->dev, "power",
 							 GPIOD_OUT_HIGH);
