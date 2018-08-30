@@ -134,51 +134,6 @@ struct amdgpu_prt_cb {
 };
 
 /**
- * amdgpu_vm_bo_base_init - Adds bo to the list of bos associated with the vm
- *
- * @base: base structure for tracking BO usage in a VM
- * @vm: vm to which bo is to be added
- * @bo: amdgpu buffer object
- *
- * Initialize a bo_va_base structure and add it to the appropriate lists
- *
- */
-static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
-				   struct amdgpu_vm *vm,
-				   struct amdgpu_bo *bo)
-{
-	base->vm = vm;
-	base->bo = bo;
-	INIT_LIST_HEAD(&base->bo_list);
-	INIT_LIST_HEAD(&base->vm_status);
-
-	if (!bo)
-		return;
-	list_add_tail(&base->bo_list, &bo->va);
-
-	if (bo->tbo.resv != vm->root.base.bo->tbo.resv)
-		return;
-
-	vm->bulk_moveable = false;
-	if (bo->tbo.type == ttm_bo_type_kernel)
-		list_move(&base->vm_status, &vm->relocated);
-	else
-		list_move(&base->vm_status, &vm->idle);
-
-	if (bo->preferred_domains &
-	    amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type))
-		return;
-
-	/*
-	 * we checked all the prerequisites, but it looks like this per vm bo
-	 * is currently evicted. add the bo to the evicted list to make sure it
-	 * is validated on next vm use to avoid fault.
-	 * */
-	list_move_tail(&base->vm_status, &vm->evicted);
-	base->moved = true;
-}
-
-/**
  * amdgpu_vm_level_shift - return the addr shift for each level
  *
  * @adev: amdgpu_device pointer
@@ -247,6 +202,51 @@ static unsigned amdgpu_vm_num_entries(struct amdgpu_device *adev,
 static unsigned amdgpu_vm_bo_size(struct amdgpu_device *adev, unsigned level)
 {
 	return AMDGPU_GPU_PAGE_ALIGN(amdgpu_vm_num_entries(adev, level) * 8);
+}
+
+/**
+ * amdgpu_vm_bo_base_init - Adds bo to the list of bos associated with the vm
+ *
+ * @base: base structure for tracking BO usage in a VM
+ * @vm: vm to which bo is to be added
+ * @bo: amdgpu buffer object
+ *
+ * Initialize a bo_va_base structure and add it to the appropriate lists
+ *
+ */
+static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
+				   struct amdgpu_vm *vm,
+				   struct amdgpu_bo *bo)
+{
+	base->vm = vm;
+	base->bo = bo;
+	INIT_LIST_HEAD(&base->bo_list);
+	INIT_LIST_HEAD(&base->vm_status);
+
+	if (!bo)
+		return;
+	list_add_tail(&base->bo_list, &bo->va);
+
+	if (bo->tbo.resv != vm->root.base.bo->tbo.resv)
+		return;
+
+	vm->bulk_moveable = false;
+	if (bo->tbo.type == ttm_bo_type_kernel)
+		list_move(&base->vm_status, &vm->relocated);
+	else
+		list_move(&base->vm_status, &vm->idle);
+
+	if (bo->preferred_domains &
+	    amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type))
+		return;
+
+	/*
+	 * we checked all the prerequisites, but it looks like this per vm bo
+	 * is currently evicted. add the bo to the evicted list to make sure it
+	 * is validated on next vm use to avoid fault.
+	 * */
+	list_move_tail(&base->vm_status, &vm->evicted);
+	base->moved = true;
 }
 
 /**
