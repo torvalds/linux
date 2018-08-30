@@ -395,9 +395,9 @@ enum {
 struct tc_htb_xstats {
 	__u32 lends;
 	__u32 borrows;
-	__u32 giants;	/* too big packets (rate will not be accurate) */
-	__u32 tokens;
-	__u32 ctokens;
+	__u32 giants;	/* unused since 'Make HTB scheduler work with TSO.' */
+	__s32 tokens;
+	__s32 ctokens;
 };
 
 /* HFSC section */
