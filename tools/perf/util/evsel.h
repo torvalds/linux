@@ -481,4 +481,5 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 
 struct perf_env *perf_evsel__env(struct perf_evsel *evsel);
 
+int perf_evsel__store_ids(struct perf_evsel *evsel, struct perf_evlist *evlist);
 #endif /* __PERF_EVSEL_H */
