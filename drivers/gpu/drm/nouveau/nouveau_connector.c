@@ -412,9 +412,10 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvkm_gpio *gpio = nvxx_gpio(&drm->client.device);
-	struct nouveau_encoder *nv_encoder = NULL;
+	struct nouveau_encoder *nv_encoder = NULL, *found = NULL;
 	struct drm_encoder *encoder;
-	int i, panel = -ENODEV;
+	int i, ret, panel = -ENODEV;
+	bool switcheroo_ddc = false;
 
 	/* eDP panels need powering on by us (if the VBIOS doesn't default it
 	 * to on) before doing any AUX channel transactions.  LVDS panel power
@@ -431,37 +432,43 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 	drm_connector_for_each_possible_encoder(connector, encoder, i) {
 		nv_encoder = nouveau_encoder(encoder);
 
-		if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
-			int ret = nouveau_dp_detect(nv_encoder);
+		switch (nv_encoder->dcb->type) {
+		case DCB_OUTPUT_DP:
+			ret = nouveau_dp_detect(nv_encoder);
 			if (ret == NOUVEAU_DP_MST)
 				return NULL;
-			if (ret == NOUVEAU_DP_SST)
+			else if (ret == NOUVEAU_DP_SST)
+				found = nv_encoder;
+
+			break;
+		case DCB_OUTPUT_LVDS:
+			switcheroo_ddc = !!(vga_switcheroo_handler_flags() &
+					    VGA_SWITCHEROO_CAN_SWITCH_DDC);
+		/* fall-through */
+		default:
+			if (!nv_encoder->i2c)
 				break;
-		} else
-		if ((vga_switcheroo_handler_flags() &
-		     VGA_SWITCHEROO_CAN_SWITCH_DDC) &&
-		    nv_encoder->dcb->type == DCB_OUTPUT_LVDS &&
-		    nv_encoder->i2c) {
-			int ret;
-			vga_switcheroo_lock_ddc(dev->pdev);
-			ret = nvkm_probe_i2c(nv_encoder->i2c, 0x50);
-			vga_switcheroo_unlock_ddc(dev->pdev);
-			if (ret)
-				break;
-		} else
-		if (nv_encoder->i2c) {
+
+			if (switcheroo_ddc)
+				vga_switcheroo_lock_ddc(dev->pdev);
 			if (nvkm_probe_i2c(nv_encoder->i2c, 0x50))
-				break;
+				found = nv_encoder;
+			if (switcheroo_ddc)
+				vga_switcheroo_unlock_ddc(dev->pdev);
+
+			break;
 		}
+		if (found)
+			break;
 	}
 
 	/* eDP panel not detected, restore panel power GPIO to previous
 	 * state to avoid confusing the SOR for other output types.
 	 */
-	if (!nv_encoder && panel == 0)
+	if (!found && panel == 0)
 		nvkm_gpio_set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, panel);
 
-	return nv_encoder;
+	return found;
 }
 
 static struct nouveau_encoder *
