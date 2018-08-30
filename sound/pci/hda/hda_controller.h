@@ -20,7 +20,7 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
-#include "hda_codec.h"
+#include <sound/hda_codec.h>
 #include <sound/hda_register.h>
 
 #define AZX_MAX_CODECS		HDA_MAX_CODECS
@@ -121,7 +121,7 @@ struct azx {
 	int capture_streams;
 	int capture_index_offset;
 	int num_streams;
-	const int *jackpoll_ms; /* per-card jack poll interval */
+	int jackpoll_interval; /* jack poll interval in jiffies */
 
 	/* Register interaction. */
 	const struct hda_controller_ops *ops;

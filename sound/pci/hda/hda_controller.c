@@ -1223,27 +1223,6 @@ void snd_hda_bus_reset(struct hda_bus *bus)
 	bus->in_reset = 0;
 }
 
-static int get_jackpoll_interval(struct azx *chip)
-{
-	int i;
-	unsigned int j;
-
-	if (!chip->jackpoll_ms)
-		return 0;
-
-	i = chip->jackpoll_ms[chip->dev_index];
-	if (i == 0)
-		return 0;
-	if (i < 50 || i > 60000)
-		j = 0;
-	else
-		j = msecs_to_jiffies(i);
-	if (j == 0)
-		dev_warn(chip->card->dev,
-			 "jackpoll_ms value out of range: %d\n", i);
-	return j;
-}
-
 /* HD-audio bus initialization */
 int azx_bus_init(struct azx *chip, const char *model,
 		 const struct hdac_io_ops *io_ops)
@@ -1326,7 +1305,7 @@ int azx_probe_codecs(struct azx *chip, unsigned int max_slots)
 			err = snd_hda_codec_new(&chip->bus, chip->card, c, &codec);
 			if (err < 0)
 				continue;
-			codec->jackpoll_interval = get_jackpoll_interval(chip);
+			codec->jackpoll_interval = chip->jackpoll_interval;
 			codec->beep_mode = chip->beep_mode;
 			codecs++;
 		}
