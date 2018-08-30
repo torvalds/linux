@@ -403,12 +403,13 @@ static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *inf
 }
 
 static int perf_stat_synthesize_config(struct perf_stat_config *config,
+				       struct perf_tool *tool,
 				       bool attrs)
 {
 	int err;
 
 	if (attrs) {
-		err = perf_event__synthesize_attrs(NULL, evsel_list,
+		err = perf_event__synthesize_attrs(tool, evsel_list,
 						   process_synthesized_event);
 		if (err < 0) {
 			pr_err("Couldn't synthesize attrs.\n");
@@ -416,12 +417,12 @@ static int perf_stat_synthesize_config(struct perf_stat_config *config,
 		}
 	}
 
-	err = perf_event__synthesize_extra_attr(NULL,
+	err = perf_event__synthesize_extra_attr(tool,
 						evsel_list,
 						process_synthesized_event,
 						attrs);
 
-	err = perf_event__synthesize_thread_map2(NULL, evsel_list->threads,
+	err = perf_event__synthesize_thread_map2(tool, evsel_list->threads,
 						process_synthesized_event,
 						NULL);
 	if (err < 0) {
@@ -429,14 +430,14 @@ static int perf_stat_synthesize_config(struct perf_stat_config *config,
 		return err;
 	}
 
-	err = perf_event__synthesize_cpu_map(NULL, evsel_list->cpus,
+	err = perf_event__synthesize_cpu_map(tool, evsel_list->cpus,
 					     process_synthesized_event, NULL);
 	if (err < 0) {
 		pr_err("Couldn't synthesize thread map.\n");
 		return err;
 	}
 
-	err = perf_event__synthesize_stat_config(NULL, config,
+	err = perf_event__synthesize_stat_config(tool, config,
 						 process_synthesized_event, NULL);
 	if (err < 0) {
 		pr_err("Couldn't synthesize config.\n");
@@ -607,7 +608,7 @@ try_again:
 		if (err < 0)
 			return err;
 
-		err = perf_stat_synthesize_config(&stat_config, is_pipe);
+		err = perf_stat_synthesize_config(&stat_config, NULL, is_pipe);
 		if (err < 0)
 			return err;
 	}
