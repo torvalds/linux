@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include "xyarray.h"
 #include "rblist.h"
+#include "perf.h"
 
 struct stats {
 	double n, mean, M2;
@@ -85,14 +86,15 @@ struct runtime_stat {
 };
 
 struct perf_stat_config {
-	enum aggr_mode	aggr_mode;
-	bool		scale;
-	FILE		*output;
-	unsigned int	interval;
-	unsigned int	timeout;
-	int		times;
-	struct runtime_stat *stats;
-	int		stats_num;
+	enum aggr_mode		 aggr_mode;
+	bool			 scale;
+	FILE			*output;
+	unsigned int		 interval;
+	unsigned int		 timeout;
+	unsigned int		 initial_delay;
+	int			 times;
+	struct runtime_stat	*stats;
+	int			 stats_num;
 };
 
 void update_stats(struct stats *stats, u64 val);
