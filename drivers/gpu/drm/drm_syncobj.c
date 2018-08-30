@@ -56,6 +56,33 @@
 #include "drm_internal.h"
 #include <drm/drm_syncobj.h>
 
+struct drm_syncobj_stub_fence {
+	struct dma_fence base;
+	spinlock_t lock;
+};
+
+static const char *drm_syncobj_stub_fence_get_name(struct dma_fence *fence)
+{
+        return "syncobjstub";
+}
+
+static bool drm_syncobj_stub_fence_enable_signaling(struct dma_fence *fence)
+{
+    return !dma_fence_is_signaled(fence);
+}
+
+static void drm_syncobj_stub_fence_release(struct dma_fence *f)
+{
+	kfree(f);
+}
+static const struct dma_fence_ops drm_syncobj_stub_fence_ops = {
+	.get_driver_name = drm_syncobj_stub_fence_get_name,
+	.get_timeline_name = drm_syncobj_stub_fence_get_name,
+	.enable_signaling = drm_syncobj_stub_fence_enable_signaling,
+	.release = drm_syncobj_stub_fence_release,
+};
+
+
 /**
  * drm_syncobj_find - lookup and reference a sync object.
  * @file_private: drm file private pointer
@@ -172,37 +199,15 @@ void drm_syncobj_replace_fence(struct drm_syncobj *syncobj,
 }
 EXPORT_SYMBOL(drm_syncobj_replace_fence);
 
-struct drm_syncobj_null_fence {
-	struct dma_fence base;
-	spinlock_t lock;
-};
-
-static const char *drm_syncobj_null_fence_get_name(struct dma_fence *fence)
-{
-        return "syncobjnull";
-}
-
-static bool drm_syncobj_null_fence_enable_signaling(struct dma_fence *fence)
-{
-    return !dma_fence_is_signaled(fence);
-}
-
-static const struct dma_fence_ops drm_syncobj_null_fence_ops = {
-	.get_driver_name = drm_syncobj_null_fence_get_name,
-	.get_timeline_name = drm_syncobj_null_fence_get_name,
-	.enable_signaling = drm_syncobj_null_fence_enable_signaling,
-	.release = NULL,
-};
-
 static int drm_syncobj_assign_null_handle(struct drm_syncobj *syncobj)
 {
-	struct drm_syncobj_null_fence *fence;
+	struct drm_syncobj_stub_fence *fence;
 	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
 	if (fence == NULL)
 		return -ENOMEM;
 
 	spin_lock_init(&fence->lock);
-	dma_fence_init(&fence->base, &drm_syncobj_null_fence_ops,
+	dma_fence_init(&fence->base, &drm_syncobj_stub_fence_ops,
 		       &fence->lock, 0, 0);
 	dma_fence_signal(&fence->base);
 
