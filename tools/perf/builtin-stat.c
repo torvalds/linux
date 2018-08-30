@@ -161,7 +161,6 @@ static bool			group				= false;
 static const char		*pre_cmd			= NULL;
 static const char		*post_cmd			= NULL;
 static bool			sync_run			= false;
-static unsigned int		unit_width			= 4; /* strlen("unit") */
 static bool			forever				= false;
 static bool			force_metric_only		= false;
 static bool			no_merge			= false;
@@ -200,6 +199,7 @@ static volatile int done = 0;
 static struct perf_stat_config stat_config = {
 	.aggr_mode	= AGGR_GLOBAL,
 	.scale		= true,
+	.unit_width	= 4, /* strlen("unit") */
 };
 
 static bool is_duration_time(struct perf_evsel *evsel)
@@ -524,8 +524,8 @@ try_again:
 		counter->supported = true;
 
 		l = strlen(counter->unit);
-		if (l > unit_width)
-			unit_width = l;
+		if (l > stat_config.unit_width)
+			stat_config.unit_width = l;
 
 		if (perf_evsel__should_store_id(counter) &&
 		    perf_evsel__store_ids(counter, evsel_list))
@@ -963,7 +963,7 @@ static void abs_printout(struct perf_stat_config *config,
 
 	if (evsel->unit)
 		fprintf(output, "%-*s%s",
-			config->csv_output ? 0 : unit_width,
+			config->csv_output ? 0 : config->unit_width,
 			evsel->unit, config->csv_sep);
 
 	fprintf(output, "%-*s", config->csv_output ? 0 : 25, perf_evsel__name(evsel));
@@ -1056,7 +1056,7 @@ static void printout(struct perf_stat_config *config, int id, int nr,
 		}
 
 		fprintf(config->output, "%-*s%s",
-			config->csv_output ? 0 : unit_width,
+			config->csv_output ? 0 : config->unit_width,
 			counter->unit, config->csv_sep);
 
 		fprintf(config->output, "%*s",
@@ -1542,6 +1542,7 @@ static void print_interval(struct perf_stat_config *config,
 			   char *prefix, struct timespec *ts)
 {
 	bool metric_only = config->metric_only;
+	unsigned int unit_width = config->unit_width;
 	FILE *output = config->output;
 	static int num_print_interval;
 
