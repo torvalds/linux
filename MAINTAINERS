@@ -7480,6 +7480,14 @@ F:	drivers/platform/x86/intel_punit_ipc.c
 F:	arch/x86/include/asm/intel_pmc_ipc.h
 F:	arch/x86/include/asm/intel_punit_ipc.h
 
+INTEL MULTIFUNCTION PMIC DEVICE DRIVERS
+R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+S:	Maintained
+F:	drivers/mfd/intel_msic.c
+F:	drivers/mfd/intel_soc_pmic*
+F:	include/linux/mfd/intel_msic.h
+F:	include/linux/mfd/intel_soc_pmic*
+
 INTEL PRO/WIRELESS 2100, 2200BG, 2915ABG NETWORK CONNECTION SUPPORT
 M:	Stanislav Yakovlev <stas.yakovlev@gmail.com>
 L:	linux-wireless@vger.kernel.org
