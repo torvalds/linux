@@ -1565,7 +1565,7 @@ static void rg_mblk_search(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip,
 	if (S_ISDIR(inode->i_mode))
 		extlen = 1;
 	else {
-		extlen = max_t(u32, atomic_read(&rs->rs_sizehint), ap->target);
+		extlen = max_t(u32, atomic_read(&ip->i_sizehint), ap->target);
 		extlen = clamp(extlen, RGRP_RSRV_MINBLKS, free_blocks);
 	}
 	if ((rgd->rd_free_clone < rgd->rd_reserved) || (free_blocks < extlen))
@@ -2077,7 +2077,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 			}
 			error = gfs2_glock_nq_init(rs->rs_rbm.rgd->rd_gl,
 						   LM_ST_EXCLUSIVE, flags,
-						   &rs->rs_rgd_gh);
+						   &ip->i_rgd_gh);
 			if (unlikely(error))
 				return error;
 			if (!gfs2_rs_active(rs) && (loops < 2) &&
@@ -2086,7 +2086,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 			if (sdp->sd_args.ar_rgrplvb) {
 				error = update_rgrp_lvb(rs->rs_rbm.rgd);
 				if (unlikely(error)) {
-					gfs2_glock_dq_uninit(&rs->rs_rgd_gh);
+					gfs2_glock_dq_uninit(&ip->i_rgd_gh);
 					return error;
 				}
 			}
@@ -2129,7 +2129,7 @@ skip_rgrp:
 
 		/* Unlock rgrp if required */
 		if (!rg_locked)
-			gfs2_glock_dq_uninit(&rs->rs_rgd_gh);
+			gfs2_glock_dq_uninit(&ip->i_rgd_gh);
 next_rgrp:
 		/* Find the next rgrp, and continue looking */
 		if (gfs2_select_rgrp(&rs->rs_rbm.rgd, begin))
@@ -2166,10 +2166,8 @@ next_rgrp:
 
 void gfs2_inplace_release(struct gfs2_inode *ip)
 {
-	struct gfs2_blkreserv *rs = &ip->i_res;
-
-	if (gfs2_holder_initialized(&rs->rs_rgd_gh))
-		gfs2_glock_dq_uninit(&rs->rs_rgd_gh);
+	if (gfs2_holder_initialized(&ip->i_rgd_gh))
+		gfs2_glock_dq_uninit(&ip->i_rgd_gh);
 }
 
 /**
@@ -2328,7 +2326,7 @@ static void gfs2_adjust_reservation(struct gfs2_inode *ip,
 				goto out;
 			/* We used up our block reservation, so we should
 			   reserve more blocks next time. */
-			atomic_add(RGRP_RSRV_ADDBLKS, &rs->rs_sizehint);
+			atomic_add(RGRP_RSRV_ADDBLKS, &ip->i_sizehint);
 		}
 		__rs_deltree(rs);
 	}
