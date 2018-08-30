@@ -12,10 +12,6 @@ fail() { #msg
     exit_fail
 }
 
-yield() {
-    ping localhost -c 1 || sleep .001 || usleep 1 || sleep 1
-}
-
 if [ ! -f available_events -o ! -f set_event -o ! -d events ]; then
     echo "event tracing is not supported"
     exit_unsupported

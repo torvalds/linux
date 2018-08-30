@@ -103,3 +103,9 @@ initialize_ftrace() { # Reset ftrace to initial-state
     clear_trace
     enable_tracing
 }
+
+LOCALHOST=127.0.0.1
+
+yield() {
+    ping $LOCALHOST -c 1 || sleep .001 || usleep 1 || sleep 1
+}

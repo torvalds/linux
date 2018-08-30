@@ -48,10 +48,6 @@ fail() { # msg
     exit_fail
 }
 
-yield() {
-    ping localhost -c 1 || sleep .001 || usleep 1 || sleep 1
-}
-
 do_test() {
     disable_tracing
 
