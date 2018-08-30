@@ -692,6 +692,28 @@ static int gmc_v9_0_ecc_available(struct amdgpu_device *adev)
 	return lost_sheep == 0;
 }
 
+static bool gmc_v9_0_keep_stolen_memory(struct amdgpu_device *adev)
+{
+
+	/*
+	 * TODO:
+	 * Currently there is a bug where some memory client outside
+	 * of the driver writes to first 8M of VRAM on S3 resume,
+	 * this overrides GART which by default gets placed in first 8M and
+	 * causes VM_FAULTS once GTT is accessed.
+	 * Keep the stolen memory reservation until the while this is not solved.
+	 * Also check code in gmc_v9_0_get_vbios_fb_size and gmc_v9_0_late_init
+	 */
+	switch (adev->asic_type) {
+	case CHIP_RAVEN:
+	case CHIP_VEGA10:
+	case CHIP_VEGA12:
+	case CHIP_VEGA20:
+	default:
+		return true;
+	}
+}
+
 static int gmc_v9_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -708,10 +730,8 @@ static int gmc_v9_0_late_init(void *handle)
 	unsigned i;
 	int r;
 
-	/*
-	 * TODO - Uncomment once GART corruption issue is fixed.
-	 */
-	/* amdgpu_bo_late_init(adev); */
+	if (!gmc_v9_0_keep_stolen_memory(adev))
+		amdgpu_bo_late_init(adev);
 
 	for(i = 0; i < adev->num_rings; ++i) {
 		struct amdgpu_ring *ring = adev->rings[i];
@@ -848,18 +868,16 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 
 static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 {
-#if 0
 	u32 d1vga_control = RREG32_SOC15(DCE, 0, mmD1VGA_CONTROL);
-#endif
 	unsigned size;
 
 	/*
 	 * TODO Remove once GART corruption is resolved
 	 * Check related code in gmc_v9_0_sw_fini
 	 * */
-	size = 9 * 1024 * 1024;
+	if (gmc_v9_0_keep_stolen_memory(adev))
+		return 9 * 1024 * 1024;
 
-#if 0
 	if (REG_GET_FIELD(d1vga_control, D1VGA_CONTROL, D1VGA_MODE_ENABLE)) {
 		size = 9 * 1024 * 1024; /* reserve 8MB for vga emulator and 1 MB for FB */
 	} else {
@@ -876,6 +894,7 @@ static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 			break;
 		case CHIP_VEGA10:
 		case CHIP_VEGA12:
+		case CHIP_VEGA20:
 		default:
 			viewport = RREG32_SOC15(DCE, 0, mmSCL0_VIEWPORT_SIZE);
 			size = (REG_GET_FIELD(viewport, SCL0_VIEWPORT_SIZE, VIEWPORT_HEIGHT) *
@@ -888,7 +907,6 @@ static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 	if ((adev->gmc.real_vram_size - size) < (8 * 1024 * 1024))
 		return 0;
 
-#endif
 	return size;
 }
 
@@ -1000,16 +1018,8 @@ static int gmc_v9_0_sw_fini(void *handle)
 	amdgpu_gem_force_release(adev);
 	amdgpu_vm_manager_fini(adev);
 
-	/*
-	* TODO:
-	* Currently there is a bug where some memory client outside
-	* of the driver writes to first 8M of VRAM on S3 resume,
-	* this overrides GART which by default gets placed in first 8M and
-	* causes VM_FAULTS once GTT is accessed.
-	* Keep the stolen memory reservation until the while this is not solved.
-	* Also check code in gmc_v9_0_get_vbios_fb_size and gmc_v9_0_late_init
-	*/
-	amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, NULL);
+	if (gmc_v9_0_keep_stolen_memory(adev))
+		amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, NULL);
 
 	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_fini(adev);
