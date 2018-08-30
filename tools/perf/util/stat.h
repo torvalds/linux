@@ -105,6 +105,7 @@ struct perf_stat_config {
 	bool			 ru_display;
 	bool			 big_num;
 	bool			 no_merge;
+	bool			 walltime_run_table;
 	FILE			*output;
 	unsigned int		 interval;
 	unsigned int		 timeout;
@@ -123,6 +124,7 @@ struct perf_stat_config {
 	struct cpu_map		*aggr_map;
 	aggr_get_id_t		 aggr_get_id;
 	struct cpu_map		*cpus_aggr_map;
+	u64			*walltime_run;
 };
 
 void update_stats(struct stats *stats, u64 val);
