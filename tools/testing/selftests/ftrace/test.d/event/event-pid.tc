@@ -30,8 +30,7 @@ if [ ! -f set_event_pid ]; then
     exit_unsupported
 fi
 
-reset_tracer
-do_reset
+echo 0 > options/event-fork
 
 echo 1 > events/sched/sched_switch/enable
 

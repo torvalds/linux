@@ -2,14 +2,7 @@
 # description: event trigger - test extended error support
 
 
-do_reset() {
-    reset_trigger
-    echo > set_event
-    clear_trace
-}
-
 fail() { #msg
-    do_reset
     echo $1
     exit_fail
 }
@@ -24,16 +17,11 @@ if [ ! -f synthetic_events ]; then
     exit_unsupported
 fi
 
-reset_tracer
-do_reset
-
 echo "Test extended error support"
 echo 'hist:keys=pid:ts0=common_timestamp.usecs if comm=="ping"' > events/sched/sched_wakeup/trigger
 ! echo 'hist:keys=pid:ts0=common_timestamp.usecs if comm=="ping"' >> events/sched/sched_wakeup/trigger 2> /dev/null
 if ! grep -q "ERROR:" events/sched/sched_wakeup/hist; then
     fail "Failed to generate extended error in histogram"
 fi
-
-do_reset
 
 exit 0

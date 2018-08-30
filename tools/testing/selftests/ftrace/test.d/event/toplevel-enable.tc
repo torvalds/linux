@@ -8,7 +8,6 @@ do_reset() {
 }
 
 fail() { #msg
-    do_reset
     echo $1
     exit_fail
 }
@@ -21,9 +20,6 @@ if [ ! -f available_events -o ! -f set_event -o ! -d events ]; then
     echo "event tracing is not supported"
     exit_unsupported
 fi
-
-reset_tracer
-do_reset
 
 echo '*:*' > set_event
 
@@ -59,7 +55,5 @@ count=`cat trace | grep -v ^# | wc -l`
 if [ $count -ne 0 ]; then
     fail "any of events should not be recorded"
 fi
-
-do_reset
 
 exit 0

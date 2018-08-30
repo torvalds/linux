@@ -6,10 +6,6 @@
 
 grep "x8/16/32/64" README > /dev/null || exit_unsupported # version issue
 
-echo 0 > events/enable
-echo > kprobe_events
-enable_tracing
-
 echo 'p:testprobe _do_fork $stack0:s32 $stack0:u32 $stack0:x32 $stack0:b8@4/32' > kprobe_events
 grep testprobe kprobe_events
 test -d events/kprobes/testprobe

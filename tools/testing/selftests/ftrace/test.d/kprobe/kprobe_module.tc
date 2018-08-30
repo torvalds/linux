@@ -4,9 +4,6 @@
 
 [ -f kprobe_events ] || exit_unsupported # this is configurable
 
-disable_events
-echo > kprobe_events
-
 :;: "Add an event on a module function without specifying event name" ;:
 
 MOD=`lsmod | head -n 2 | tail -n 1 | cut -f1 -d" "`
@@ -25,5 +22,3 @@ test -d events/kprobes/event1 || exit_failure
 
 echo "p:kprobes1/event1 $MOD:$FUNC" > kprobe_events
 test -d events/kprobes1/event1 || exit_failure
-
-echo > kprobe_events

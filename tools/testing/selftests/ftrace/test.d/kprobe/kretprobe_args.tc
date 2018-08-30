@@ -4,8 +4,6 @@
 
 [ -f kprobe_events ] || exit_unsupported # this is configurable
 
-echo 0 > events/enable
-echo > kprobe_events
 echo 'r:testprobe2 _do_fork $retval' > kprobe_events
 grep testprobe2 kprobe_events
 test -d events/kprobes/testprobe2

@@ -6,9 +6,6 @@
 
 grep "x8/16/32/64" README > /dev/null || exit_unsupported # version issue
 
-echo 0 > events/enable
-echo > kprobe_events
-
 PROBEFUNC="vfs_read"
 GOODREG=
 BADREG=
@@ -100,5 +97,3 @@ test_badarg "${GOODREG}::${GOODTYPE}" "${GOODREG}:${BADTYPE}" \
 
 test_goodarg "\$comm:string" "+0(\$stack):string"
 test_badarg "\$comm:x64" "\$stack:string" "${GOODREG}:string"
-
-echo > kprobe_events
