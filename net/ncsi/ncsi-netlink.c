@@ -12,7 +12,6 @@
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/etherdevice.h>
-#include <linux/module.h>
 #include <net/genetlink.h>
 #include <net/ncsi.h>
 #include <linux/skbuff.h>
