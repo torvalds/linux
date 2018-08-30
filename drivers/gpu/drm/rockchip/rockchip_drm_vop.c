@@ -42,6 +42,7 @@
 #include "rockchip_drm_fb.h"
 #include "rockchip_drm_psr.h"
 #include "rockchip_drm_vop.h"
+#include "rockchip_rgb.h"
 
 #define VOP_WIN_SET(x, win, name, v) \
 		vop_reg_set(vop, &win->phy->name, win->base, ~0, v, #name)
@@ -93,6 +94,7 @@ struct vop_win {
 	struct vop *vop;
 };
 
+struct rockchip_rgb;
 struct vop {
 	struct drm_crtc crtc;
 	struct device *dev;
@@ -135,6 +137,9 @@ struct vop {
 
 	/* vop dclk reset */
 	struct reset_control *dclk_rst;
+
+	/* optional internal rgb encoder */
+	struct rockchip_rgb *rgb;
 
 	struct vop_win win[];
 };
@@ -1638,6 +1643,14 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		goto err_disable_pm_runtime;
 
+	if (vop->data->feature & VOP_FEATURE_INTERNAL_RGB) {
+		vop->rgb = rockchip_rgb_init(dev, &vop->crtc, vop->drm_dev);
+		if (IS_ERR(vop->rgb)) {
+			ret = PTR_ERR(vop->rgb);
+			goto err_disable_pm_runtime;
+		}
+	}
+
 	return 0;
 
 err_disable_pm_runtime:
@@ -1649,6 +1662,9 @@ err_disable_pm_runtime:
 static void vop_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct vop *vop = dev_get_drvdata(dev);
+
+	if (vop->rgb)
+		rockchip_rgb_fini(vop->rgb);
 
 	pm_runtime_disable(dev);
 	vop_destroy_crtc(vop);
