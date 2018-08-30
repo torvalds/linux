@@ -245,7 +245,7 @@ static void *mlx5_fpga_ipsec_cmd_exec(struct mlx5_core_dev *mdev,
 		return ERR_PTR(res);
 	}
 
-	/* Context will be freed by wait func after completion */
+	/* Context should be freed by the caller after completion. */
 	return context;
 }
 
@@ -418,10 +418,8 @@ static int mlx5_fpga_ipsec_set_caps(struct mlx5_core_dev *mdev, u32 flags)
 	cmd.cmd = htonl(MLX5_FPGA_IPSEC_CMD_OP_SET_CAP);
 	cmd.flags = htonl(flags);
 	context = mlx5_fpga_ipsec_cmd_exec(mdev, &cmd, sizeof(cmd));
-	if (IS_ERR(context)) {
-		err = PTR_ERR(context);
-		goto out;
-	}
+	if (IS_ERR(context))
+		return PTR_ERR(context);
 
 	err = mlx5_fpga_ipsec_cmd_wait(context);
 	if (err)
@@ -435,6 +433,7 @@ static int mlx5_fpga_ipsec_set_caps(struct mlx5_core_dev *mdev, u32 flags)
 	}
 
 out:
+	kfree(context);
 	return err;
 }
 
