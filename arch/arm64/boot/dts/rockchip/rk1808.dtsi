@@ -82,11 +82,76 @@
 		#clock-cells = <0>;
 	};
 
+	usbdrd3: usb@fd000000 {
+		compatible = "rockchip,rk1808-dwc3";
+		clocks = <&cru SCLK_USB3_OTG0_REF>, <&cru ACLK_USB3OTG>,
+			 <&cru SCLK_USB3_OTG0_SUSPEND>;
+		clock-names = "ref_clk", "bus_clk",
+			      "suspend_clk";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		status = "disabled";
+
+		usbdrd_dwc3: dwc3@fd000000 {
+			compatible = "snps,dwc3";
+			reg = <0x0 0xfd000000 0x0 0x200000>;
+			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+			dr_mode = "otg";
+			phys = <&u2phy_otg>;
+			phy-names = "usb2-phy";
+			phy_type = "utmi_wide";
+			snps,dis_enblslpm_quirk;
+			snps,dis-u2-freeclk-exists-quirk;
+			snps,dis_u2_susphy_quirk;
+			snps,dis-del-phy-power-chg-quirk;
+			snps,tx-ipgap-linecheck-dis-quirk;
+			status = "disabled";
+		};
+	};
+
 	grf: syscon@fe000000 {
 		compatible = "rockchip,rk1808-grf", "syscon", "simple-mfd";
 		reg = <0x0 0xfe000000 0x0 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+	};
+
+	usb2phy_grf: syscon@fe010000 {
+		compatible = "rockchip,rk1808-usb2phy-grf", "syscon",
+			     "simple-mfd";
+		reg = <0x0 0xfe010000 0x0 0x8000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		u2phy: usb2-phy@100 {
+			compatible = "rockchip,rk1808-usb2phy";
+			reg = <0x100 0x10>;
+			clocks = <&cru SCLK_USBPHY_REF>;
+			clock-names = "phyclk";
+			#clock-cells = <0>;
+			assigned-clocks = <&cru USB480M>;
+			assigned-clock-parents = <&u2phy>;
+			clock-output-names = "usb480m_phy";
+			status = "disabled";
+
+			u2phy_host: host-port {
+				#phy-cells = <0>;
+				interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "linestate";
+				status = "disabled";
+			};
+
+			u2phy_otg: otg-port {
+				#phy-cells = <0>;
+				interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "otg-bvalid", "otg-id",
+						  "linestate";
+				status = "disabled";
+			};
+		};
 	};
 
 	pmugrf: syscon@fe410000 {
@@ -572,6 +637,30 @@
 		max-frequency = <150000000>;
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	usb_host0_ehci: usb@ffd80000 {
+		compatible = "generic-ehci";
+		reg = <0x0 0xffd80000 0x0 0x10000>;
+		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_HOST>, <&cru HCLK_HOST_ARB>,
+			 <&u2phy>;
+		clock-names = "usbhost", "arbiter", "utmi";
+		phys = <&u2phy_host>;
+		phy-names = "usb";
+		status = "disabled";
+	};
+
+	usb_host0_ohci: usb@ffd90000 {
+		compatible = "generic-ohci";
+		reg = <0x0 0xffd90000 0x0 0x10000>;
+		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_HOST>, <&cru HCLK_HOST_ARB>,
+			 <&u2phy>;
+		clock-names = "usbhost", "arbiter", "utmi";
+		phys = <&u2phy_host>;
+		phy-names = "usb";
 		status = "disabled";
 	};
 
