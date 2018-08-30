@@ -372,6 +372,8 @@ static void crypto_wait_for_test(struct crypto_larval *larval)
 
 	err = wait_for_completion_killable(&larval->completion);
 	WARN_ON(err);
+	if (!err)
+		crypto_probing_notify(CRYPTO_MSG_ALG_LOADED, larval);
 
 out:
 	crypto_larval_kill(&larval->alg);
