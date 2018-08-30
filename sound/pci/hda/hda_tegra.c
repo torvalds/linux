@@ -35,7 +35,7 @@
 #include <sound/core.h>
 #include <sound/initval.h>
 
-#include "hda_codec.h"
+#include <sound/hda_codec.h>
 #include "hda_controller.h"
 
 /* Defines for Nvidia Tegra HDA support */
