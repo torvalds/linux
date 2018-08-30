@@ -13,11 +13,11 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/init.h>
 #include <linux/acpi.h>
+#include <linux/init.h>
 #include <linux/mfd/axp20x.h>
-#include <linux/regmap.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include "intel_pmic.h"
 
 #define XPOWER_GPADC_LOW	0x5b
