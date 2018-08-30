@@ -19,6 +19,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk/at91_pmc.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -70,6 +71,7 @@ struct shdwc_config {
 struct shdwc {
 	const struct shdwc_config *cfg;
 	void __iomem *at91_shdwc_base;
+	void __iomem *pmc_base;
 };
 
 /*
@@ -108,6 +110,12 @@ static void __init at91_wakeup_status(struct platform_device *pdev)
 
 static void at91_poweroff(void)
 {
+	/* Switch the master clock source to slow clock. */
+	writel(readl(at91_shdwc->pmc_base + AT91_PMC_MCKR) & ~AT91_PMC_CSS,
+	       at91_shdwc->pmc_base + AT91_PMC_MCKR);
+	while (!(readl(at91_shdwc->pmc_base + AT91_PMC_SR) & AT91_PMC_MCKRDY))
+		;
+
 	writel(AT91_SHDW_KEY | AT91_SHDW_SHDW,
 	       at91_shdwc->at91_shdwc_base + AT91_SHDW_CR);
 }
@@ -123,6 +131,16 @@ static void at91_lpddr_poweroff(void)
 
 		/* Power down SDRAM0 */
 		"	str	%1, [%0, #" __stringify(AT91_DDRSDRC_LPR) "]\n\t"
+
+		/* Switch the master clock source to slow clock. */
+		"	ldr	r6, [%4, #" __stringify(AT91_PMC_MCKR) "]\n\t"
+		"	bic	r6, r6,  #" __stringify(AT91_PMC_CSS) "\n\t"
+		"	str	r6, [%4, #" __stringify(AT91_PMC_MCKR) "]\n\t"
+		/* Wait for clock switch. */
+		"1:	ldr	r6, [%4, #" __stringify(AT91_PMC_SR) "]\n\t"
+		"	tst	r6, #"	    __stringify(AT91_PMC_MCKRDY) "\n\t"
+		"	beq	1b\n\t"
+
 		/* Shutdown CPU */
 		"	str	%3, [%2, #" __stringify(AT91_SHDW_CR) "]\n\t"
 
@@ -131,7 +149,8 @@ static void at91_lpddr_poweroff(void)
 		: "r" (mpddrc_base),
 		  "r" cpu_to_le32(AT91_DDRSDRC_LPDDR2_PWOFF),
 		  "r" (at91_shdwc->at91_shdwc_base),
-		  "r" cpu_to_le32(AT91_SHDW_KEY | AT91_SHDW_SHDW)
+		  "r" cpu_to_le32(AT91_SHDW_KEY | AT91_SHDW_SHDW),
+		  "r" (at91_shdwc->pmc_base)
 		: "r6");
 }
 
@@ -276,26 +295,53 @@ static int __init at91_shdwc_probe(struct platform_device *pdev)
 
 	at91_shdwc_dt_configure(pdev);
 
-	pm_power_off = at91_poweroff;
+	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-pmc");
+	if (!np) {
+		ret = -ENODEV;
+		goto clk_disable;
+	}
+
+	at91_shdwc->pmc_base = of_iomap(np, 0);
+	of_node_put(np);
+
+	if (!at91_shdwc->pmc_base) {
+		ret = -ENOMEM;
+		goto clk_disable;
+	}
 
 	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d3-ddramc");
-	if (!np)
-		return 0;
+	if (!np) {
+		ret = -ENODEV;
+		goto unmap;
+	}
 
 	mpddrc_base = of_iomap(np, 0);
 	of_node_put(np);
 
-	if (!mpddrc_base)
-		return 0;
+	if (!mpddrc_base) {
+		ret = -ENOMEM;
+		goto unmap;
+	}
+
+	pm_power_off = at91_poweroff;
 
 	ddr_type = readl(mpddrc_base + AT91_DDRSDRC_MDR) & AT91_DDRSDRC_MD;
 	if ((ddr_type == AT91_DDRSDRC_MD_LPDDR2) ||
-	    (ddr_type == AT91_DDRSDRC_MD_LPDDR3))
+	    (ddr_type == AT91_DDRSDRC_MD_LPDDR3)) {
 		pm_power_off = at91_lpddr_poweroff;
-	else
+	} else {
 		iounmap(mpddrc_base);
+		mpddrc_base = NULL;
+	}
 
 	return 0;
+
+unmap:
+	iounmap(at91_shdwc->pmc_base);
+clk_disable:
+	clk_disable_unprepare(sclk);
+
+	return ret;
 }
 
 static int __exit at91_shdwc_remove(struct platform_device *pdev)
@@ -309,6 +355,10 @@ static int __exit at91_shdwc_remove(struct platform_device *pdev)
 	/* Reset values to disable wake-up features  */
 	writel(0, shdw->at91_shdwc_base + AT91_SHDW_MR);
 	writel(0, shdw->at91_shdwc_base + AT91_SHDW_WUIR);
+
+	if (mpddrc_base)
+		iounmap(mpddrc_base);
+	iounmap(shdw->pmc_base);
 
 	clk_disable_unprepare(sclk);
 
