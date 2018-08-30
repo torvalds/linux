@@ -80,9 +80,9 @@ int z_erofs_vle_plain_copy(struct page **compressed_pages,
 			}
 		}
 
-		if (!righthalf)
+		if (!righthalf) {
 			src = NULL;
-		else {
+		} else {
 			src = mirrored[i] ? percpu_data + i * PAGE_SIZE :
 				kmap_atomic(compressed_pages[i]);
 
@@ -137,11 +137,12 @@ int z_erofs_vle_unzip_fast_percpu(struct page **compressed_pages,
 		j = min((unsigned int)PAGE_SIZE - pageofs, outlen);
 
 		if (pages[i]) {
-			if (ret < 0)
+			if (ret < 0) {
 				SetPageError(pages[i]);
-			else if (clusterpages == 1 && pages[i] == compressed_pages[0])
+			} else if (clusterpages == 1 &&
+				   pages[i] == compressed_pages[0]) {
 				memcpy(vin + pageofs, vout + pageofs, j);
-			else {
+			} else {
 				void *dst = kmap_atomic(pages[i]);
 
 				memcpy(dst + pageofs, vout + pageofs, j);
@@ -184,9 +185,9 @@ int z_erofs_vle_unzip_vmap(struct page **compressed_pages,
 			memcpy(vin + PAGE_SIZE * i, t, PAGE_SIZE);
 			kunmap_atomic(t);
 		}
-	} else if (clusterpages == 1)
+	} else if (clusterpages == 1) {
 		vin = kmap_atomic(compressed_pages[0]);
-	else {
+	} else {
 		vin = erofs_vmap(compressed_pages, clusterpages);
 	}
 
@@ -198,11 +199,10 @@ int z_erofs_vle_unzip_vmap(struct page **compressed_pages,
 	if (!overlapped) {
 		if (clusterpages == 1)
 			kunmap_atomic(vin);
-		else {
+		else
 			erofs_vunmap(vin, clusterpages);
-		}
-	} else
+	} else {
 		preempt_enable();
-
+	}
 	return ret;
 }
