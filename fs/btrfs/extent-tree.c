@@ -3139,7 +3139,6 @@ int btrfs_cross_ref_exist(struct btrfs_root *root, u64 objectid, u64 offset,
 {
 	struct btrfs_path *path;
 	int ret;
-	int ret2;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -3151,17 +3150,9 @@ int btrfs_cross_ref_exist(struct btrfs_root *root, u64 objectid, u64 offset,
 		if (ret && ret != -ENOENT)
 			goto out;
 
-		ret2 = check_delayed_ref(root, path, objectid,
-					 offset, bytenr);
-	} while (ret2 == -EAGAIN);
+		ret = check_delayed_ref(root, path, objectid, offset, bytenr);
+	} while (ret == -EAGAIN);
 
-	if (ret2 && ret2 != -ENOENT) {
-		ret = ret2;
-		goto out;
-	}
-
-	if (ret != -ENOENT || ret2 != -ENOENT)
-		ret = 0;
 out:
 	btrfs_free_path(path);
 	if (root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID)
