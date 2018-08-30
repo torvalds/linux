@@ -171,8 +171,6 @@ static bool			interval_count;
 static const char		*output_name;
 static int			output_fd;
 static u64			*walltime_run;
-static bool			ru_display			= false;
-static struct rusage		ru_data;
 
 struct perf_stat {
 	bool			 record;
@@ -583,7 +581,7 @@ try_again:
 					break;
 			}
 		}
-		wait4(child_pid, &status, 0, &ru_data);
+		wait4(child_pid, &status, 0, &stat_config.ru_data);
 
 		if (workload_exec_errno) {
 			const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
@@ -1679,9 +1677,9 @@ static void print_footer(struct perf_stat_config *config)
 	if (config->run_count == 1) {
 		fprintf(output, " %17.9f seconds time elapsed", avg);
 
-		if (ru_display) {
-			double ru_utime = timeval2double(&ru_data.ru_utime);
-			double ru_stime = timeval2double(&ru_data.ru_stime);
+		if (config->ru_display) {
+			double ru_utime = timeval2double(&config->ru_data.ru_utime);
+			double ru_stime = timeval2double(&config->ru_data.ru_stime);
 
 			fprintf(output, "\n\n");
 			fprintf(output, " %17.9f seconds user\n", ru_utime);
@@ -2855,7 +2853,7 @@ int cmd_stat(int argc, const char **argv)
 	 * run and when there's specified tracee.
 	 */
 	if ((stat_config.run_count == 1) && target__none(&target))
-		ru_display = true;
+		stat_config.ru_display = true;
 
 	if (stat_config.run_count < 0) {
 		pr_err("Run count must be a positive number\n");

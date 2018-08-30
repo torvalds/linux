@@ -4,6 +4,10 @@
 
 #include <linux/types.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <sys/wait.h>
 #include "xyarray.h"
 #include "rblist.h"
 #include "perf.h"
@@ -95,6 +99,7 @@ struct perf_stat_config {
 	bool			 interval_clear;
 	bool			 metric_only;
 	bool			 null_run;
+	bool			 ru_display;
 	FILE			*output;
 	unsigned int		 interval;
 	unsigned int		 timeout;
@@ -109,6 +114,7 @@ struct perf_stat_config {
 	int			 stats_num;
 	const char		*csv_sep;
 	struct stats		*walltime_nsecs_stats;
+	struct rusage		 ru_data;
 };
 
 void update_stats(struct stats *stats, u64 val);
