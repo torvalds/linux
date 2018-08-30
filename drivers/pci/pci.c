@@ -5690,8 +5690,7 @@ int pci_set_vga_state(struct pci_dev *dev, bool decode,
 void pci_add_dma_alias(struct pci_dev *dev, u8 devfn)
 {
 	if (!dev->dma_alias_mask)
-		dev->dma_alias_mask = kcalloc(BITS_TO_LONGS(U8_MAX),
-					      sizeof(long), GFP_KERNEL);
+		dev->dma_alias_mask = bitmap_zalloc(U8_MAX, GFP_KERNEL);
 	if (!dev->dma_alias_mask) {
 		pci_warn(dev, "Unable to allocate DMA alias mask\n");
 		return;
