@@ -103,6 +103,7 @@ struct perf_stat_config {
 	unsigned int		 metric_only_len;
 	int			 times;
 	int			 run_count;
+	int			 print_free_counters_hint;
 	struct runtime_stat	*stats;
 	int			 stats_num;
 	const char		*csv_sep;
