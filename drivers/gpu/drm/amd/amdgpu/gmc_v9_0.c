@@ -705,14 +705,13 @@ static bool gmc_v9_0_keep_stolen_memory(struct amdgpu_device *adev)
 	 * Also check code in gmc_v9_0_get_vbios_fb_size and gmc_v9_0_late_init
 	 */
 	switch (adev->asic_type) {
-	case CHIP_RAVEN:
-		return false;
-	case CHIP_VEGA12:
-		return false;
 	case CHIP_VEGA10:
+		return true;
+	case CHIP_RAVEN:
+	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	default:
-		return true;
+		return false;
 	}
 }
 
