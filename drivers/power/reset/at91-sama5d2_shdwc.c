@@ -110,18 +110,6 @@ static void __init at91_wakeup_status(struct platform_device *pdev)
 
 static void at91_poweroff(void)
 {
-	/* Switch the master clock source to slow clock. */
-	writel(readl(at91_shdwc->pmc_base + AT91_PMC_MCKR) & ~AT91_PMC_CSS,
-	       at91_shdwc->pmc_base + AT91_PMC_MCKR);
-	while (!(readl(at91_shdwc->pmc_base + AT91_PMC_SR) & AT91_PMC_MCKRDY))
-		;
-
-	writel(AT91_SHDW_KEY | AT91_SHDW_SHDW,
-	       at91_shdwc->at91_shdwc_base + AT91_SHDW_CR);
-}
-
-static void at91_lpddr_poweroff(void)
-{
 	asm volatile(
 		/* Align to cache lines */
 		".balign 32\n\t"
@@ -130,16 +118,18 @@ static void at91_lpddr_poweroff(void)
 		"	ldr	r6, [%2, #" __stringify(AT91_SHDW_CR) "]\n\t"
 
 		/* Power down SDRAM0 */
+		"	tst	%0, #0\n\t"
+		"	beq	1f\n\t"
 		"	str	%1, [%0, #" __stringify(AT91_DDRSDRC_LPR) "]\n\t"
 
 		/* Switch the master clock source to slow clock. */
-		"	ldr	r6, [%4, #" __stringify(AT91_PMC_MCKR) "]\n\t"
+		"1:	ldr	r6, [%4, #" __stringify(AT91_PMC_MCKR) "]\n\t"
 		"	bic	r6, r6,  #" __stringify(AT91_PMC_CSS) "\n\t"
 		"	str	r6, [%4, #" __stringify(AT91_PMC_MCKR) "]\n\t"
 		/* Wait for clock switch. */
-		"1:	ldr	r6, [%4, #" __stringify(AT91_PMC_SR) "]\n\t"
+		"2:	ldr	r6, [%4, #" __stringify(AT91_PMC_SR) "]\n\t"
 		"	tst	r6, #"	    __stringify(AT91_PMC_MCKRDY) "\n\t"
-		"	beq	1b\n\t"
+		"	beq	2b\n\t"
 
 		/* Shutdown CPU */
 		"	str	%3, [%2, #" __stringify(AT91_SHDW_CR) "]\n\t"
@@ -326,10 +316,8 @@ static int __init at91_shdwc_probe(struct platform_device *pdev)
 	pm_power_off = at91_poweroff;
 
 	ddr_type = readl(mpddrc_base + AT91_DDRSDRC_MDR) & AT91_DDRSDRC_MD;
-	if ((ddr_type == AT91_DDRSDRC_MD_LPDDR2) ||
-	    (ddr_type == AT91_DDRSDRC_MD_LPDDR3)) {
-		pm_power_off = at91_lpddr_poweroff;
-	} else {
+	if (ddr_type != AT91_DDRSDRC_MD_LPDDR2 &&
+	    ddr_type != AT91_DDRSDRC_MD_LPDDR3) {
 		iounmap(mpddrc_base);
 		mpddrc_base = NULL;
 	}
@@ -348,8 +336,7 @@ static int __exit at91_shdwc_remove(struct platform_device *pdev)
 {
 	struct shdwc *shdw = platform_get_drvdata(pdev);
 
-	if (pm_power_off == at91_poweroff ||
-	    pm_power_off == at91_lpddr_poweroff)
+	if (pm_power_off == at91_poweroff)
 		pm_power_off = NULL;
 
 	/* Reset values to disable wake-up features  */
