@@ -125,6 +125,7 @@ struct perf_stat_config {
 	aggr_get_id_t		 aggr_get_id;
 	struct cpu_map		*cpus_aggr_map;
 	u64			*walltime_run;
+	struct rblist		 metric_events;
 };
 
 void update_stats(struct stats *stats, u64 val);

@@ -137,8 +137,6 @@ static const char *smi_cost_attrs = {
 
 static struct perf_evlist	*evsel_list;
 
-static struct rblist		 metric_events;
-
 static struct target target = {
 	.uid	= UINT_MAX,
 };
@@ -1082,7 +1080,7 @@ static void printout(struct perf_stat_config *config, int id, int nr,
 
 	perf_stat__print_shadow_stats(config, counter, uval,
 				first_shadow_cpu(config, counter, id),
-				&out, &metric_events, st);
+				&out, &config->metric_events, st);
 	if (!config->csv_output && !config->metric_only) {
 		print_noise(config, counter, noise);
 		print_running(config, run, ena);
@@ -1533,7 +1531,7 @@ static void print_metric_headers(struct perf_stat_config *config,
 		perf_stat__print_shadow_stats(config, counter, 0,
 					      0,
 					      &out,
-					      &metric_events,
+					      &config->metric_events,
 					      &rt_stat);
 	}
 	fputc('\n', config->output);
@@ -1860,7 +1858,7 @@ static int parse_metric_groups(const struct option *opt,
 			       const char *str,
 			       int unset __maybe_unused)
 {
-	return metricgroup__parse_groups(opt, str, &metric_events);
+	return metricgroup__parse_groups(opt, str, &stat_config.metric_events);
 }
 
 static const struct option stat_options[] = {
@@ -2321,7 +2319,7 @@ static int add_default_attributes(void)
 			struct option opt = { .value = &evsel_list };
 
 			return metricgroup__parse_groups(&opt, "transaction",
-							 &metric_events);
+							 &stat_config.metric_events);
 		}
 
 		if (pmu_have_event("cpu", "cycles-ct") &&
