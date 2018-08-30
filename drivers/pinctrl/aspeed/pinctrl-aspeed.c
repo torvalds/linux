@@ -715,7 +715,7 @@ int aspeed_pin_config_set(struct pinctrl_dev *pctldev, unsigned int offset,
 
 		pmap = find_pinconf_map(param, MAP_TYPE_ARG, arg);
 
-		if (unlikely(WARN_ON(!pmap)))
+		if (WARN_ON(!pmap))
 			return -EINVAL;
 
 		val = pmap->val << pconf->bit;
