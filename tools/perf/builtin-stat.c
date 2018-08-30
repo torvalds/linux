@@ -170,7 +170,6 @@ static bool			append_file;
 static bool			interval_count;
 static const char		*output_name;
 static int			output_fd;
-static int			print_mixed_hw_group_error;
 static u64			*walltime_run;
 static bool			ru_display			= false;
 static struct rusage		ru_data;
@@ -1052,7 +1051,7 @@ static void printout(struct perf_stat_config *config, int id, int nr,
 		if (counter->supported) {
 			config->print_free_counters_hint = 1;
 			if (is_mixed_hw_group(counter))
-				print_mixed_hw_group_error = 1;
+				config->print_mixed_hw_group_error = 1;
 		}
 
 		fprintf(config->output, "%-*s%s",
@@ -1715,7 +1714,7 @@ static void print_footer(struct perf_stat_config *config)
 "	perf stat ...\n"
 "	echo 1 > /proc/sys/kernel/nmi_watchdog\n");
 
-	if (print_mixed_hw_group_error)
+	if (config->print_mixed_hw_group_error)
 		fprintf(output,
 			"The events in group usually have to be from "
 			"the same PMU. Try reorganizing the group.\n");
