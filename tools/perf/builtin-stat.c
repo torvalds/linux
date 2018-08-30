@@ -1701,10 +1701,6 @@ perf_evlist__print_counters(struct perf_evlist *evlist,
 	struct perf_evsel *counter;
 	char buf[64], *prefix = NULL;
 
-	/* Do not print anything if we record to the pipe. */
-	if (STAT_RECORD && perf_stat.data.is_pipe)
-		return;
-
 	if (interval)
 		print_interval(prefix = buf, ts);
 	else
@@ -1766,6 +1762,10 @@ perf_evlist__print_counters(struct perf_evlist *evlist,
 
 static void print_counters(struct timespec *ts, int argc, const char **argv)
 {
+	/* Do not print anything if we record to the pipe. */
+	if (STAT_RECORD && perf_stat.data.is_pipe)
+		return;
+
 	perf_evlist__print_counters(evsel_list, ts, argc, argv);
 }
 
