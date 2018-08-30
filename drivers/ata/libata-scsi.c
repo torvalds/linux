@@ -639,8 +639,8 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	if (args[0] == ATA_CMD_SMART) { /* hack -- ide driver does this too */
 		scsi_cmd[6]  = args[3];
 		scsi_cmd[8]  = args[1];
-		scsi_cmd[10] = 0x4f;
-		scsi_cmd[12] = 0xc2;
+		scsi_cmd[10] = ATA_SMART_LBAM_PASS;
+		scsi_cmd[12] = ATA_SMART_LBAH_PASS;
 	} else {
 		scsi_cmd[6]  = args[1];
 	}
