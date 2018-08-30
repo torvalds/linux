@@ -1590,6 +1590,7 @@ static void print_interval(struct perf_stat_config *config,
 }
 
 static void print_header(struct perf_stat_config *config,
+			 struct target *_target,
 			 int argc, const char **argv)
 {
 	FILE *output = config->output;
@@ -1600,18 +1601,18 @@ static void print_header(struct perf_stat_config *config,
 	if (!config->csv_output) {
 		fprintf(output, "\n");
 		fprintf(output, " Performance counter stats for ");
-		if (target.system_wide)
+		if (_target->system_wide)
 			fprintf(output, "\'system wide");
-		else if (target.cpu_list)
-			fprintf(output, "\'CPU(s) %s", target.cpu_list);
-		else if (!target__has_task(&target)) {
+		else if (_target->cpu_list)
+			fprintf(output, "\'CPU(s) %s", _target->cpu_list);
+		else if (!target__has_task(_target)) {
 			fprintf(output, "\'%s", argv ? argv[0] : "pipe");
 			for (i = 1; argv && (i < argc); i++)
 				fprintf(output, " %s", argv[i]);
-		} else if (target.pid)
-			fprintf(output, "process id \'%s", target.pid);
+		} else if (_target->pid)
+			fprintf(output, "process id \'%s", _target->pid);
 		else
-			fprintf(output, "thread id \'%s", target.tid);
+			fprintf(output, "thread id \'%s", _target->tid);
 
 		fprintf(output, "\'");
 		if (run_count > 1)
@@ -1716,6 +1717,7 @@ static void print_footer(struct perf_stat_config *config)
 static void
 perf_evlist__print_counters(struct perf_evlist *evlist,
 			    struct perf_stat_config *config,
+			    struct target *_target,
 			    struct timespec *ts,
 			    int argc, const char **argv)
 {
@@ -1727,7 +1729,7 @@ perf_evlist__print_counters(struct perf_evlist *evlist,
 	if (interval)
 		print_interval(config, prefix = buf, ts);
 	else
-		print_header(config, argc, argv);
+		print_header(config, _target, argc, argv);
 
 	if (metric_only) {
 		static int num_print_iv;
@@ -1789,7 +1791,7 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 	if (STAT_RECORD && perf_stat.data.is_pipe)
 		return;
 
-	perf_evlist__print_counters(evsel_list, &stat_config,
+	perf_evlist__print_counters(evsel_list, &stat_config, &target,
 				    ts, argc, argv);
 }
 
