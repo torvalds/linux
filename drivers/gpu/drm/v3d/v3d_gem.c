@@ -584,7 +584,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	/* Update the return sync object for the */
 	sync_out = drm_syncobj_find(file_priv, args->out_sync);
 	if (sync_out) {
-		drm_syncobj_replace_fence(sync_out,
+		drm_syncobj_replace_fence(sync_out, 0,
 					  &exec->render.base.s_fence->finished);
 		drm_syncobj_put(sync_out);
 	}
