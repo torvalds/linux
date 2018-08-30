@@ -36,48 +36,23 @@
 #define CRYSTAL_COVE_IRQ_VHDMIOCP	6
 
 static struct resource gpio_resources[] = {
-	{
-		.name	= "GPIO",
-		.start	= CRYSTAL_COVE_IRQ_GPIO,
-		.end	= CRYSTAL_COVE_IRQ_GPIO,
-		.flags	= IORESOURCE_IRQ,
-	},
+	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_GPIO, "GPIO"),
 };
 
 static struct resource pwrsrc_resources[] = {
-	{
-		.name  = "PWRSRC",
-		.start = CRYSTAL_COVE_IRQ_PWRSRC,
-		.end   = CRYSTAL_COVE_IRQ_PWRSRC,
-		.flags = IORESOURCE_IRQ,
-	},
+	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_PWRSRC, "PWRSRC"),
 };
 
 static struct resource adc_resources[] = {
-	{
-		.name  = "ADC",
-		.start = CRYSTAL_COVE_IRQ_ADC,
-		.end   = CRYSTAL_COVE_IRQ_ADC,
-		.flags = IORESOURCE_IRQ,
-	},
+	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_ADC, "ADC"),
 };
 
 static struct resource thermal_resources[] = {
-	{
-		.name  = "THERMAL",
-		.start = CRYSTAL_COVE_IRQ_THRM,
-		.end   = CRYSTAL_COVE_IRQ_THRM,
-		.flags = IORESOURCE_IRQ,
-	},
+	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_THRM, "THERMAL"),
 };
 
 static struct resource bcu_resources[] = {
-	{
-		.name  = "BCU",
-		.start = CRYSTAL_COVE_IRQ_BCU,
-		.end   = CRYSTAL_COVE_IRQ_BCU,
-		.flags = IORESOURCE_IRQ,
-	},
+	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_BCU, "BCU"),
 };
 
 static struct mfd_cell crystal_cove_byt_dev[] = {
