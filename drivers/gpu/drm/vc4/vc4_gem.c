@@ -1173,7 +1173,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 	if (args->in_sync) {
 		ret = drm_syncobj_find_fence(file_priv, args->in_sync,
-					     &in_fence);
+					     0, &in_fence);
 		if (ret)
 			goto fail;
 

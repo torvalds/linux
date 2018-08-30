@@ -521,12 +521,12 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	kref_init(&exec->refcount);
 
 	ret = drm_syncobj_find_fence(file_priv, args->in_sync_bcl,
-				     &exec->bin.in_fence);
+				     0, &exec->bin.in_fence);
 	if (ret == -EINVAL)
 		goto fail;
 
 	ret = drm_syncobj_find_fence(file_priv, args->in_sync_rcl,
-				     &exec->render.in_fence);
+				     0, &exec->render.in_fence);
 	if (ret == -EINVAL)
 		goto fail;
 

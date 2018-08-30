@@ -222,6 +222,7 @@ static int drm_syncobj_assign_null_handle(struct drm_syncobj *syncobj)
  * drm_syncobj_find_fence - lookup and reference the fence in a sync object
  * @file_private: drm file private pointer
  * @handle: sync object handle to lookup.
+ * @point: timeline point
  * @fence: out parameter for the fence
  *
  * This is just a convenience function that combines drm_syncobj_find() and
@@ -232,7 +233,7 @@ static int drm_syncobj_assign_null_handle(struct drm_syncobj *syncobj)
  * dma_fence_put().
  */
 int drm_syncobj_find_fence(struct drm_file *file_private,
-			   u32 handle,
+			   u32 handle, u64 point,
 			   struct dma_fence **fence)
 {
 	struct drm_syncobj *syncobj = drm_syncobj_find(file_private, handle);
@@ -503,7 +504,7 @@ static int drm_syncobj_export_sync_file(struct drm_file *file_private,
 	if (fd < 0)
 		return fd;
 
-	ret = drm_syncobj_find_fence(file_private, handle, &fence);
+	ret = drm_syncobj_find_fence(file_private, handle, 0, &fence);
 	if (ret)
 		goto err_put_fd;
 

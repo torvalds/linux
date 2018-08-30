@@ -1102,7 +1102,7 @@ static int amdgpu_syncobj_lookup_and_add_to_sync(struct amdgpu_cs_parser *p,
 {
 	int r;
 	struct dma_fence *fence;
-	r = drm_syncobj_find_fence(p->filp, handle, &fence);
+	r = drm_syncobj_find_fence(p->filp, handle, 0, &fence);
 	if (r)
 		return r;
 
