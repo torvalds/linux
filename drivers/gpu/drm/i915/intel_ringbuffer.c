@@ -1944,7 +1944,7 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
 
-static int gen6_bsd_ring_flush(struct i915_request *rq, u32 mode)
+static int emit_mi_flush_dw(struct i915_request *rq, u32 flags)
 {
 	u32 cmd, *cs;
 
@@ -1954,7 +1954,8 @@ static int gen6_bsd_ring_flush(struct i915_request *rq, u32 mode)
 
 	cmd = MI_FLUSH_DW;
 
-	/* We always require a command barrier so that subsequent
+	/*
+	 * We always require a command barrier so that subsequent
 	 * commands, such as breadcrumb interrupts, are strictly ordered
 	 * wrt the contents of the write cache being flushed to memory
 	 * (and thus being coherent from the CPU).
@@ -1962,20 +1963,47 @@ static int gen6_bsd_ring_flush(struct i915_request *rq, u32 mode)
 	cmd |= MI_FLUSH_DW_STORE_INDEX | MI_FLUSH_DW_OP_STOREDW;
 
 	/*
-	 * Bspec vol 1c.5 - video engine command streamer:
+	 * Bspec vol 1c.3 - blitter engine command streamer:
 	 * "If ENABLED, all TLBs will be invalidated once the flush
 	 * operation is complete. This bit is only valid when the
 	 * Post-Sync Operation field is a value of 1h or 3h."
 	 */
-	if (mode & EMIT_INVALIDATE)
-		cmd |= MI_INVALIDATE_TLB | MI_INVALIDATE_BSD;
+	cmd |= flags;
 
 	*cs++ = cmd;
 	*cs++ = I915_GEM_HWS_SCRATCH_ADDR | MI_FLUSH_DW_USE_GTT;
 	*cs++ = 0;
 	*cs++ = MI_NOOP;
+
 	intel_ring_advance(rq, cs);
+
 	return 0;
+}
+
+static int gen6_flush_dw(struct i915_request *rq, u32 mode, u32 invflags)
+{
+	int err;
+
+	/*
+	 * Not only do we need a full barrier (post-sync write) after
+	 * invalidating the TLBs, but we need to wait a little bit
+	 * longer. Whether this is merely delaying us, or the
+	 * subsequent flush is a key part of serialising with the
+	 * post-sync op, this extra pass appears vital before a
+	 * mm switch!
+	 */
+	if (mode & EMIT_INVALIDATE) {
+		err = emit_mi_flush_dw(rq, invflags);
+		if (err)
+			return err;
+	}
+
+	return emit_mi_flush_dw(rq, 0);
+}
+
+static int gen6_bsd_ring_flush(struct i915_request *rq, u32 mode)
+{
+	return gen6_flush_dw(rq, mode, MI_INVALIDATE_TLB | MI_INVALIDATE_BSD);
 }
 
 static int
@@ -2022,36 +2050,7 @@ gen6_emit_bb_start(struct i915_request *rq,
 
 static int gen6_ring_flush(struct i915_request *rq, u32 mode)
 {
-	u32 cmd, *cs;
-
-	cs = intel_ring_begin(rq, 4);
-	if (IS_ERR(cs))
-		return PTR_ERR(cs);
-
-	cmd = MI_FLUSH_DW;
-
-	/* We always require a command barrier so that subsequent
-	 * commands, such as breadcrumb interrupts, are strictly ordered
-	 * wrt the contents of the write cache being flushed to memory
-	 * (and thus being coherent from the CPU).
-	 */
-	cmd |= MI_FLUSH_DW_STORE_INDEX | MI_FLUSH_DW_OP_STOREDW;
-
-	/*
-	 * Bspec vol 1c.3 - blitter engine command streamer:
-	 * "If ENABLED, all TLBs will be invalidated once the flush
-	 * operation is complete. This bit is only valid when the
-	 * Post-Sync Operation field is a value of 1h or 3h."
-	 */
-	if (mode & EMIT_INVALIDATE)
-		cmd |= MI_INVALIDATE_TLB;
-	*cs++ = cmd;
-	*cs++ = I915_GEM_HWS_SCRATCH_ADDR | MI_FLUSH_DW_USE_GTT;
-	*cs++ = 0;
-	*cs++ = MI_NOOP;
-	intel_ring_advance(rq, cs);
-
-	return 0;
+	return gen6_flush_dw(rq, mode, MI_INVALIDATE_TLB);
 }
 
 static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
