@@ -92,6 +92,7 @@ struct perf_stat_config {
 	bool			 no_inherit;
 	bool			 identifier;
 	bool			 csv_output;
+	bool			 interval_clear;
 	FILE			*output;
 	unsigned int		 interval;
 	unsigned int		 timeout;
