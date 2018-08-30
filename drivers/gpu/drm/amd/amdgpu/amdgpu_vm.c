@@ -338,6 +338,24 @@ static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 }
 
 /**
+ * amdgpu_vm_pt_parent - get the parent page directory
+ *
+ * @pt: child page table
+ *
+ * Helper to get the parent entry for the child page table. NULL if we are at
+ * the root page directory.
+ */
+static struct amdgpu_vm_pt *amdgpu_vm_pt_parent(struct amdgpu_vm_pt *pt)
+{
+	struct amdgpu_bo *parent = pt->base.bo->parent;
+
+	if (!parent)
+		return NULL;
+
+	return list_first_entry(&parent->va, struct amdgpu_vm_pt, base.bo_list);
+}
+
+/**
  * amdgpu_vm_get_pd_bo - add the VM PD to a validation list
  *
  * @vm: vm providing the BOs
@@ -1206,23 +1224,15 @@ restart:
 	}
 
 	while (!list_empty(&vm->relocated)) {
-		struct amdgpu_vm_bo_base *bo_base, *parent;
 		struct amdgpu_vm_pt *pt, *entry;
-		struct amdgpu_bo *bo;
 
-		bo_base = list_first_entry(&vm->relocated,
-					   struct amdgpu_vm_bo_base,
-					   vm_status);
-		amdgpu_vm_bo_idle(bo_base);
+		entry = list_first_entry(&vm->relocated, struct amdgpu_vm_pt,
+					 base.vm_status);
+		amdgpu_vm_bo_idle(&entry->base);
 
-		bo = bo_base->bo->parent;
-		if (!bo)
+		pt = amdgpu_vm_pt_parent(entry);
+		if (!pt)
 			continue;
-
-		parent = list_first_entry(&bo->va, struct amdgpu_vm_bo_base,
-					  bo_list);
-		pt = container_of(parent, struct amdgpu_vm_pt, base);
-		entry = container_of(bo_base, struct amdgpu_vm_pt, base);
 
 		amdgpu_vm_update_pde(&params, vm, pt, entry);
 
