@@ -445,6 +445,7 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	const __be32 *addrp;
 	u32 addr;
 	int ret;
+	char *c;
 
 	if (!(ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT) &&
 	    !strcmp(node->name, "clk"))
@@ -531,6 +532,15 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	}
 
 	strcat(provider->clkdm_name, "clkdm");
+
+	/* Replace any dash from the clkdm name with underscore */
+	c = provider->clkdm_name;
+
+	while (*c) {
+		if (*c == '-')
+			*c = '_';
+		c++;
+	}
 
 	INIT_LIST_HEAD(&provider->clocks);
 
