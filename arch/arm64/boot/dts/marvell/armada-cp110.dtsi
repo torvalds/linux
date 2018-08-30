@@ -162,12 +162,6 @@
 			interrupts = <ICU_GRP_NSR 77 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		CP110_LABEL(thermal): thermal@400078 {
-			compatible = "marvell,armada-cp110-thermal";
-			reg = <0x400078 0x4>,
-			<0x400070 0x8>;
-		};
-
 		CP110_LABEL(syscon0): system-controller@440000 {
 			compatible = "syscon", "simple-mfd";
 			reg = <0x440000 0x2000>;
@@ -205,6 +199,18 @@
 					<ICU_GRP_NSR 80 IRQ_TYPE_LEVEL_HIGH>,
 					<ICU_GRP_NSR 79 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
+			};
+		};
+
+		CP110_LABEL(syscon1): system-controller@400000 {
+			compatible = "syscon", "simple-mfd";
+			reg = <0x400000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			CP110_LABEL(thermal): thermal-sensor@70 {
+				compatible = "marvell,armada-cp110-thermal";
+				reg = <0x70 0x10>;
 			};
 		};
 

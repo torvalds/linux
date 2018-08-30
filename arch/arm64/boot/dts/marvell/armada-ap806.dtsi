@@ -247,10 +247,16 @@
 				};
 			};
 
-			ap_thermal: thermal@6f808c {
-				compatible = "marvell,armada-ap806-thermal";
-				reg = <0x6f808c 0x4>,
-				      <0x6f8084 0x8>;
+			ap_syscon1: system-controller@6f8000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x6f8000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				ap_thermal: thermal-sensor@80 {
+					compatible = "marvell,armada-ap806-thermal";
+					reg = <0x80 0x10>;
+				};
 			};
 		};
 	};
