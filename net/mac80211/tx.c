@@ -3174,7 +3174,7 @@ static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 	void *data;
 	bool ret = false;
 	unsigned int orig_len;
-	int n = 1, nfrags, pad = 0;
+	int n = 2, nfrags, pad = 0;
 	u16 hdrlen;
 
 	if (!ieee80211_hw_check(&local->hw, TX_AMSDU))
