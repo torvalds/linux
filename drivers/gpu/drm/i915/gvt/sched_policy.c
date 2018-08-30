@@ -47,11 +47,15 @@ static bool vgpu_has_pending_workload(struct intel_vgpu *vgpu)
 	return false;
 }
 
+/* We give 2 seconds higher prio for vGPU during start */
+#define GVT_SCHED_VGPU_PRI_TIME  2
+
 struct vgpu_sched_data {
 	struct list_head lru_list;
 	struct intel_vgpu *vgpu;
 	bool active;
-
+	bool pri_sched;
+	ktime_t pri_time;
 	ktime_t sched_in_time;
 	ktime_t sched_time;
 	ktime_t left_ts;
@@ -183,6 +187,14 @@ static struct intel_vgpu *find_busy_vgpu(struct gvt_sched_data *sched_data)
 		if (!vgpu_has_pending_workload(vgpu_data->vgpu))
 			continue;
 
+		if (vgpu_data->pri_sched) {
+			if (ktime_before(ktime_get(), vgpu_data->pri_time)) {
+				vgpu = vgpu_data->vgpu;
+				break;
+			} else
+				vgpu_data->pri_sched = false;
+		}
+
 		/* Return the vGPU only if it has time slice left */
 		if (vgpu_data->left_ts > 0) {
 			vgpu = vgpu_data->vgpu;
@@ -202,6 +214,7 @@ static void tbs_sched_func(struct gvt_sched_data *sched_data)
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct vgpu_sched_data *vgpu_data;
 	struct intel_vgpu *vgpu = NULL;
+
 	/* no active vgpu or has already had a target */
 	if (list_empty(&sched_data->lru_runq_head) || scheduler->next_vgpu)
 		goto out;
@@ -209,12 +222,13 @@ static void tbs_sched_func(struct gvt_sched_data *sched_data)
 	vgpu = find_busy_vgpu(sched_data);
 	if (vgpu) {
 		scheduler->next_vgpu = vgpu;
-
-		/* Move the last used vGPU to the tail of lru_list */
 		vgpu_data = vgpu->sched_data;
-		list_del_init(&vgpu_data->lru_list);
-		list_add_tail(&vgpu_data->lru_list,
-				&sched_data->lru_runq_head);
+		if (!vgpu_data->pri_sched) {
+			/* Move the last used vGPU to the tail of lru_list */
+			list_del_init(&vgpu_data->lru_list);
+			list_add_tail(&vgpu_data->lru_list,
+				      &sched_data->lru_runq_head);
+		}
 	} else {
 		scheduler->next_vgpu = gvt->idle_vgpu;
 	}
@@ -328,11 +342,17 @@ static void tbs_sched_start_schedule(struct intel_vgpu *vgpu)
 {
 	struct gvt_sched_data *sched_data = vgpu->gvt->scheduler.sched_data;
 	struct vgpu_sched_data *vgpu_data = vgpu->sched_data;
+	ktime_t now;
 
 	if (!list_empty(&vgpu_data->lru_list))
 		return;
 
-	list_add_tail(&vgpu_data->lru_list, &sched_data->lru_runq_head);
+	now = ktime_get();
+	vgpu_data->pri_time = ktime_add(now,
+					ktime_set(GVT_SCHED_VGPU_PRI_TIME, 0));
+	vgpu_data->pri_sched = true;
+
+	list_add(&vgpu_data->lru_list, &sched_data->lru_runq_head);
 
 	if (!hrtimer_active(&sched_data->timer))
 		hrtimer_start(&sched_data->timer, ktime_add_ns(ktime_get(),
