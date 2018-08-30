@@ -1284,7 +1284,8 @@ static int cmp_val(const void *a, const void *b)
 static struct perf_aggr_thread_value *sort_aggr_thread(
 					struct perf_evsel *counter,
 					int nthreads, int ncpus,
-					int *ret)
+					int *ret,
+					struct target *_target)
 {
 	int cpu, thread, i = 0;
 	double uval;
@@ -1309,7 +1310,7 @@ static struct perf_aggr_thread_value *sort_aggr_thread(
 		 * Skip value 0 when enabling --per-thread globally,
 		 * otherwise too many 0 output.
 		 */
-		if (uval == 0.0 && target__has_per_thread(&target))
+		if (uval == 0.0 && target__has_per_thread(_target))
 			continue;
 
 		buf[i].counter = counter;
@@ -1330,6 +1331,7 @@ static struct perf_aggr_thread_value *sort_aggr_thread(
 }
 
 static void print_aggr_thread(struct perf_stat_config *config,
+			      struct target *_target,
 			      struct perf_evsel *counter, char *prefix)
 {
 	FILE *output = config->output;
@@ -1338,7 +1340,7 @@ static void print_aggr_thread(struct perf_stat_config *config,
 	int thread, sorted_threads, id;
 	struct perf_aggr_thread_value *buf;
 
-	buf = sort_aggr_thread(counter, nthreads, ncpus, &sorted_threads);
+	buf = sort_aggr_thread(counter, nthreads, ncpus, &sorted_threads, _target);
 	if (!buf) {
 		perror("cannot sort aggr thread");
 		return;
@@ -1754,7 +1756,7 @@ perf_evlist__print_counters(struct perf_evlist *evlist,
 		evlist__for_each_entry(evlist, counter) {
 			if (is_duration_time(counter))
 				continue;
-			print_aggr_thread(config, counter, prefix);
+			print_aggr_thread(config, _target, counter, prefix);
 		}
 		break;
 	case AGGR_GLOBAL:
