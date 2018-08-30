@@ -402,7 +402,8 @@ static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *inf
 	workload_exec_errno = info->si_value.sival_int;
 }
 
-static int perf_stat_synthesize_config(bool attrs)
+static int perf_stat_synthesize_config(struct perf_stat_config *config,
+				       bool attrs)
 {
 	int err;
 
@@ -435,7 +436,7 @@ static int perf_stat_synthesize_config(bool attrs)
 		return err;
 	}
 
-	err = perf_event__synthesize_stat_config(NULL, &stat_config,
+	err = perf_event__synthesize_stat_config(NULL, config,
 						 process_synthesized_event, NULL);
 	if (err < 0) {
 		pr_err("Couldn't synthesize config.\n");
@@ -606,7 +607,7 @@ try_again:
 		if (err < 0)
 			return err;
 
-		err = perf_stat_synthesize_config(is_pipe);
+		err = perf_stat_synthesize_config(&stat_config, is_pipe);
 		if (err < 0)
 			return err;
 	}
