@@ -1739,7 +1739,7 @@ static void free_ssif_clients(void)
 static unsigned short *ssif_address_list(void)
 {
 	struct ssif_addr_info *info;
-	unsigned int count = 0, i;
+	unsigned int count = 0, i = 0;
 	unsigned short *address_list;
 
 	list_for_each_entry(info, &ssif_infos, link)
@@ -1750,18 +1750,17 @@ static unsigned short *ssif_address_list(void)
 	if (!address_list)
 		return NULL;
 
-	i = 0;
 	list_for_each_entry(info, &ssif_infos, link) {
 		unsigned short addr = info->binfo.addr;
 		int j;
 
 		for (j = 0; j < i; j++) {
 			if (address_list[j] == addr)
-				goto skip_addr;
+				/* Found a dup. */
+				break;
 		}
-		address_list[i] = addr;
-skip_addr:
-		i++;
+		if (j == i) /* Didn't find it in the list. */
+			address_list[i++] = addr;
 	}
 	address_list[i] = I2C_CLIENT_END;
 
