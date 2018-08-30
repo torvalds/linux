@@ -103,6 +103,7 @@ struct perf_stat_config {
 	bool			 metric_only;
 	bool			 null_run;
 	bool			 ru_display;
+	bool			 big_num;
 	FILE			*output;
 	unsigned int		 interval;
 	unsigned int		 timeout;

@@ -151,7 +151,6 @@ static bool			transaction_run;
 static bool			topdown_run			= false;
 static bool			smi_cost			= false;
 static bool			smi_reset			= false;
-static bool			big_num				=  true;
 static int			big_num_opt			=  -1;
 static bool			group				= false;
 static const char		*pre_cmd			= NULL;
@@ -192,6 +191,7 @@ static struct perf_stat_config stat_config = {
 	.run_count		= 1,
 	.metric_only_len	= METRIC_ONLY_LEN,
 	.walltime_nsecs_stats	= &walltime_nsecs_stats,
+	.big_num		= true,
 };
 
 static bool is_duration_time(struct perf_evsel *evsel)
@@ -945,7 +945,7 @@ static void abs_printout(struct perf_stat_config *config,
 	if (config->csv_output) {
 		fmt = floor(sc) != sc ?  "%.2f%s" : "%.0f%s";
 	} else {
-		if (big_num)
+		if (config->big_num)
 			fmt = floor(sc) != sc ? "%'18.2f%s" : "%'18.0f%s";
 		else
 			fmt = floor(sc) != sc ? "%18.2f%s" : "%18.0f%s";
@@ -2847,9 +2847,9 @@ int cmd_stat(int argc, const char **argv)
 			parse_options_usage(NULL, stat_options, "x", 1);
 			goto out;
 		} else /* Nope, so disable big number formatting */
-			big_num = false;
+			stat_config.big_num = false;
 	} else if (big_num_opt == 0) /* User passed --no-big-num */
-		big_num = false;
+		stat_config.big_num = false;
 
 	setup_system_wide(argc);
 
