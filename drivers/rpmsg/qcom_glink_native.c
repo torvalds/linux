@@ -123,6 +123,7 @@ struct qcom_glink {
 
 	struct kthread_worker kworker;
 	struct task_struct *task;
+	struct cpumask cpu_mask;
 
 	struct work_struct rx_work;
 	spinlock_t rx_lock;
@@ -1945,6 +1946,22 @@ static int qcom_glink_create_chrdev(struct qcom_glink *glink)
 	return rpmsg_ctrldev_register_device(rpdev);
 }
 
+static void qcom_glink_set_affinity(struct qcom_glink *glink, u32 *arr,
+				    size_t size)
+{
+	int i;
+
+	cpumask_clear(&glink->cpu_mask);
+	for (i = 0; i < size; i++) {
+		if (arr[i] < num_possible_cpus())
+			cpumask_set_cpu(arr[i], &glink->cpu_mask);
+	}
+	if (irq_set_affinity_hint(glink->irq, &glink->cpu_mask))
+		dev_err(glink->dev, "failed to set irq affinity\n");
+	if (set_cpus_allowed_ptr(glink->task, &glink->cpu_mask))
+		dev_err(glink->dev, "failed to set task affinity\n");
+}
+
 struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 					   unsigned long features,
 					   struct qcom_glink_pipe *rx,
@@ -2013,6 +2030,8 @@ EXPORT_SYMBOL(qcom_glink_native_probe);
 int qcom_glink_native_start(struct qcom_glink *glink)
 {
 	struct device *dev = glink->dev;
+	u32 *arr;
+	int size;
 	int irq;
 	int ret;
 
@@ -2031,6 +2050,18 @@ int qcom_glink_native_start(struct qcom_glink *glink)
 	}
 
 	glink->irq = irq;
+
+	size = of_property_count_u32_elems(dev->of_node, "cpu-affinity");
+	if (size > 0) {
+		arr = kmalloc_array(size, sizeof(u32), GFP_KERNEL);
+		if (!arr)
+			return -ENOMEM;
+		ret = of_property_read_u32_array(dev->of_node, "cpu-affinity",
+						 arr, size);
+		if (!ret)
+			qcom_glink_set_affinity(glink, arr, size);
+		kfree(arr);
+	}
 
 	ret = qcom_glink_send_version(glink);
 	if (ret)
