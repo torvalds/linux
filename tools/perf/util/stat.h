@@ -91,6 +91,7 @@ struct perf_stat_config {
 	bool			 scale;
 	bool			 no_inherit;
 	bool			 identifier;
+	bool			 csv_output;
 	FILE			*output;
 	unsigned int		 interval;
 	unsigned int		 timeout;
@@ -98,6 +99,7 @@ struct perf_stat_config {
 	int			 times;
 	struct runtime_stat	*stats;
 	int			 stats_num;
+	const char		*csv_sep;
 };
 
 void update_stats(struct stats *stats, u64 val);
