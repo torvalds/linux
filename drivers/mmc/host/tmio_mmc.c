@@ -45,7 +45,7 @@ static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
 			       unsigned int new_clock)
 {
-	unsigned int clock, divisor;
+	unsigned int divisor;
 	u32 clk = 0;
 	int clk_sel;
 
