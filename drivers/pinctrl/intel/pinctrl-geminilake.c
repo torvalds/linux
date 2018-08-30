@@ -459,10 +459,7 @@ static int glk_pinctrl_probe(struct platform_device *pdev)
 	return intel_pinctrl_probe_by_uid(pdev);
 }
 
-static const struct dev_pm_ops glk_pinctrl_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(intel_pinctrl_suspend,
-				     intel_pinctrl_resume)
-};
+static INTEL_PINCTRL_PM_OPS(glk_pinctrl_pm_ops);
 
 static struct platform_driver glk_pinctrl_driver = {
 	.probe = glk_pinctrl_probe,
