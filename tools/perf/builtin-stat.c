@@ -1154,10 +1154,11 @@ static void collect_all_aliases(struct perf_evsel *counter,
 				       bool first),
 			    void *data)
 {
+	struct perf_evlist *evlist = counter->evlist;
 	struct perf_evsel *alias;
 
-	alias = list_prepare_entry(counter, &(evsel_list->entries), node);
-	list_for_each_entry_continue (alias, &evsel_list->entries, node) {
+	alias = list_prepare_entry(counter, &(evlist->entries), node);
+	list_for_each_entry_continue (alias, &evlist->entries, node) {
 		if (strcmp(perf_evsel__name(alias), perf_evsel__name(counter)) ||
 		    alias->scale != counter->scale ||
 		    alias->cgrp != counter->cgrp ||
