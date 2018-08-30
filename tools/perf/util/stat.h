@@ -94,6 +94,7 @@ struct perf_stat_config {
 	bool			 csv_output;
 	bool			 interval_clear;
 	bool			 metric_only;
+	bool			 null_run;
 	FILE			*output;
 	unsigned int		 interval;
 	unsigned int		 timeout;
