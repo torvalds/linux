@@ -402,11 +402,11 @@ static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *inf
 	workload_exec_errno = info->si_value.sival_int;
 }
 
-static int perf_stat_synthesize_config(bool is_pipe)
+static int perf_stat_synthesize_config(bool attrs)
 {
 	int err;
 
-	if (is_pipe) {
+	if (attrs) {
 		err = perf_event__synthesize_attrs(NULL, evsel_list,
 						   process_synthesized_event);
 		if (err < 0) {
@@ -418,7 +418,7 @@ static int perf_stat_synthesize_config(bool is_pipe)
 	err = perf_event__synthesize_extra_attr(NULL,
 						evsel_list,
 						process_synthesized_event,
-						is_pipe);
+						attrs);
 
 	err = perf_event__synthesize_thread_map2(NULL, evsel_list->threads,
 						process_synthesized_event,
