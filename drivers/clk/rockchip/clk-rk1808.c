@@ -535,7 +535,7 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 			RK1808_CLKGATE_CON(6), 6, GFLAGS),
 	GATE(HCLK_HOST, "hclk_host", "lsclk_pcie", 0,
 			RK1808_CLKGATE_CON(6), 7, GFLAGS),
-	GATE(0, "hclk_host_arb", "lsclk_pcie", CLK_IGNORE_UNUSED,
+	GATE(HCLK_HOST_ARB, "hclk_host_arb", "lsclk_pcie", CLK_IGNORE_UNUSED,
 			RK1808_CLKGATE_CON(6), 8, GFLAGS),
 
 	COMPOSITE(ACLK_PCIE, "aclk_pcie", mux_gpll_cpll_p, 0,
@@ -1052,7 +1052,7 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 	GATE(PCLK_MIPIDSIPHY, "pclk_mipidsiphy", "pclk_top_pre", 0, RK1808_CLKGATE_CON(19), 3, GFLAGS),
 	GATE(PCLK_MIPICSIPHY, "pclk_mipicsiphy", "pclk_top_pre", 0, RK1808_CLKGATE_CON(19), 4, GFLAGS),
 
-	GATE(0, "pclk_usb3phy_pipe", "pclk_top_pre", CLK_IGNORE_UNUSED, RK1808_CLKGATE_CON(19), 6, GFLAGS),
+	GATE(PCLK_USB3PHY_PIPE, "pclk_usb3phy_pipe", "pclk_top_pre", CLK_IGNORE_UNUSED, RK1808_CLKGATE_CON(19), 6, GFLAGS),
 	GATE(0, "pclk_usb3_grf", "pclk_top_pre", CLK_IGNORE_UNUSED, RK1808_CLKGATE_CON(19), 7, GFLAGS),
 	GATE(0, "pclk_usb_grf", "pclk_top_pre", CLK_IGNORE_UNUSED, RK1808_CLKGATE_CON(19), 8, GFLAGS),
 

@@ -162,6 +162,7 @@
 #define HCLK_I2S1_8CH		219
 #define MSCLK_CORE_NIU		220
 #define HSCLK_IMEM		221
+#define HCLK_HOST_ARB		222
 
 /* pclk gates */
 #define PCLK_DDR		250
@@ -208,7 +209,8 @@
 #define PCLK_GPIO0_PMU		292
 #define PCLK_UART0_PMU		293
 #define PCLK_I2C0_PMU		294
-#define PCLK_PMU_PRE		295
+#define PCLK_USB3PHY_PIPE	295
+#define PCLK_PMU_PRE		296
 
 #define CLK_NR_CLKS		(PCLK_PMU_PRE + 1)
 
