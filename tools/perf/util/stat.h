@@ -100,6 +100,7 @@ struct perf_stat_config {
 	unsigned int		 initial_delay;
 	unsigned int		 unit_width;
 	int			 times;
+	int			 run_count;
 	struct runtime_stat	*stats;
 	int			 stats_num;
 	const char		*csv_sep;
