@@ -71,6 +71,7 @@ struct shdwc_config {
 struct shdwc {
 	const struct shdwc_config *cfg;
 	void __iomem *at91_shdwc_base;
+	void __iomem *mpddrc_base;
 	void __iomem *pmc_base;
 };
 
@@ -80,7 +81,6 @@ struct shdwc {
  */
 static struct shdwc *at91_shdwc;
 static struct clk *sclk;
-static void __iomem *mpddrc_base;
 
 static const unsigned long long sdwc_dbc_period[] = {
 	0, 3, 32, 512, 4096, 32768,
@@ -136,7 +136,7 @@ static void at91_poweroff(void)
 
 		"	b	.\n\t"
 		:
-		: "r" (mpddrc_base),
+		: "r" (at91_shdwc->mpddrc_base),
 		  "r" cpu_to_le32(AT91_DDRSDRC_LPDDR2_PWOFF),
 		  "r" (at91_shdwc->at91_shdwc_base),
 		  "r" cpu_to_le32(AT91_SHDW_KEY | AT91_SHDW_SHDW),
@@ -305,21 +305,22 @@ static int __init at91_shdwc_probe(struct platform_device *pdev)
 		goto unmap;
 	}
 
-	mpddrc_base = of_iomap(np, 0);
+	at91_shdwc->mpddrc_base = of_iomap(np, 0);
 	of_node_put(np);
 
-	if (!mpddrc_base) {
+	if (!at91_shdwc->mpddrc_base) {
 		ret = -ENOMEM;
 		goto unmap;
 	}
 
 	pm_power_off = at91_poweroff;
 
-	ddr_type = readl(mpddrc_base + AT91_DDRSDRC_MDR) & AT91_DDRSDRC_MD;
+	ddr_type = readl(at91_shdwc->mpddrc_base + AT91_DDRSDRC_MDR) &
+			 AT91_DDRSDRC_MD;
 	if (ddr_type != AT91_DDRSDRC_MD_LPDDR2 &&
 	    ddr_type != AT91_DDRSDRC_MD_LPDDR3) {
-		iounmap(mpddrc_base);
-		mpddrc_base = NULL;
+		iounmap(at91_shdwc->mpddrc_base);
+		at91_shdwc->mpddrc_base = NULL;
 	}
 
 	return 0;
@@ -343,8 +344,8 @@ static int __exit at91_shdwc_remove(struct platform_device *pdev)
 	writel(0, shdw->at91_shdwc_base + AT91_SHDW_MR);
 	writel(0, shdw->at91_shdwc_base + AT91_SHDW_WUIR);
 
-	if (mpddrc_base)
-		iounmap(mpddrc_base);
+	if (shdw->mpddrc_base)
+		iounmap(shdw->mpddrc_base);
 	iounmap(shdw->pmc_base);
 
 	clk_disable_unprepare(sclk);
