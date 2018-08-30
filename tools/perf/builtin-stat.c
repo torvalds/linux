@@ -1099,7 +1099,8 @@ static void printout(struct perf_stat_config *config, int id, int nr,
 	}
 }
 
-static void aggr_update_shadow(struct perf_stat_config *config)
+static void aggr_update_shadow(struct perf_stat_config *config,
+			       struct perf_evlist *evlist)
 {
 	int cpu, s2, id, s;
 	u64 val;
@@ -1107,7 +1108,7 @@ static void aggr_update_shadow(struct perf_stat_config *config)
 
 	for (s = 0; s < aggr_map->nr; s++) {
 		id = aggr_map->map[s];
-		evlist__for_each_entry(evsel_list, counter) {
+		evlist__for_each_entry(evlist, counter) {
 			val = 0;
 			for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
 				s2 = aggr_get_id(evsel_list->cpus, cpu);
@@ -1238,7 +1239,7 @@ static void print_aggr(struct perf_stat_config *config,
 	if (!(aggr_map || aggr_get_id))
 		return;
 
-	aggr_update_shadow(config);
+	aggr_update_shadow(config, evlist);
 
 	/*
 	 * With metric_only everything is on a single line.
