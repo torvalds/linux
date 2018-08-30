@@ -1477,6 +1477,12 @@ static inline int _setup_loops(struct pl330_dmac *pl330,
 		off += _emit_FLUSHP(dry_run, &buf[off],
 					pxs->desc->peri);
 #endif
+	if (pxs->desc->rqtype == DMA_DEV_TO_MEM)
+		bursts = x->bytes / (BRST_SIZE(ccr) * BRST_LEN(ccr) +
+				     pxs->desc->dst_interlace_size);
+	else if (pxs->desc->rqtype == DMA_MEM_TO_DEV)
+		bursts = x->bytes / (BRST_SIZE(ccr) * BRST_LEN(ccr) +
+				     pxs->desc->src_interlace_size);
 	while (bursts) {
 		c = bursts;
 		off += _loop(pl330, dry_run, &buf[off], &c, pxs);
@@ -1501,7 +1507,9 @@ static inline int _setup_xfer(struct pl330_dmac *pl330,
 	/* Setup Loop(s) */
 	off += _setup_loops(pl330, dry_run, &buf[off], pxs);
 
-	if (pl330->peripherals_req_type == BURST) {
+	if (pxs->desc->src_interlace_size == 0 &&
+	    pxs->desc->dst_interlace_size == 0 &&
+	    pl330->peripherals_req_type == BURST) {
 		unsigned int ccr = pxs->ccr;
 		unsigned long c = 0;
 
