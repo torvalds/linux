@@ -55,20 +55,30 @@ EXPORT_SYMBOL(xsk_umem_discard_addr);
 
 static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 {
-	void *buffer;
+	void *to_buf, *from_buf;
+	u32 metalen;
 	u64 addr;
 	int err;
 
 	if (!xskq_peek_addr(xs->umem->fq, &addr) ||
-	    len > xs->umem->chunk_size_nohr) {
+	    len > xs->umem->chunk_size_nohr - XDP_PACKET_HEADROOM) {
 		xs->rx_dropped++;
 		return -ENOSPC;
 	}
 
 	addr += xs->umem->headroom;
 
-	buffer = xdp_umem_get_data(xs->umem, addr);
-	memcpy(buffer, xdp->data, len);
+	if (unlikely(xdp_data_meta_unsupported(xdp))) {
+		from_buf = xdp->data;
+		metalen = 0;
+	} else {
+		from_buf = xdp->data_meta;
+		metalen = xdp->data - xdp->data_meta;
+	}
+
+	to_buf = xdp_umem_get_data(xs->umem, addr);
+	memcpy(to_buf, from_buf, len + metalen);
+	addr += metalen;
 	err = xskq_produce_batch_desc(xs->rx, addr, len);
 	if (!err) {
 		xskq_discard_addr(xs->umem->fq);
@@ -111,6 +121,7 @@ void xsk_flush(struct xdp_sock *xs)
 
 int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
+	u32 metalen = xdp->data - xdp->data_meta;
 	u32 len = xdp->data_end - xdp->data;
 	void *buffer;
 	u64 addr;
@@ -120,7 +131,7 @@ int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 		return -EINVAL;
 
 	if (!xskq_peek_addr(xs->umem->fq, &addr) ||
-	    len > xs->umem->chunk_size_nohr) {
+	    len > xs->umem->chunk_size_nohr - XDP_PACKET_HEADROOM) {
 		xs->rx_dropped++;
 		return -ENOSPC;
 	}
@@ -128,7 +139,8 @@ int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 	addr += xs->umem->headroom;
 
 	buffer = xdp_umem_get_data(xs->umem, addr);
-	memcpy(buffer, xdp->data, len);
+	memcpy(buffer, xdp->data_meta, len + metalen);
+	addr += metalen;
 	err = xskq_produce_batch_desc(xs->rx, addr, len);
 	if (!err) {
 		xskq_discard_addr(xs->umem->fq);
