@@ -293,7 +293,7 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 	if (target__has_cpu(&target) && !target__has_per_thread(&target))
 		return perf_evsel__open_per_cpu(evsel, perf_evsel__cpus(evsel));
 
-	return perf_evsel__open_per_thread(evsel, evsel_list->threads);
+	return perf_evsel__open_per_thread(evsel, evsel->threads);
 }
 
 static int process_synthesized_event(struct perf_tool *tool __maybe_unused,
