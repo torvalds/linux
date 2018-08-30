@@ -184,7 +184,7 @@
 	};
 };
 
-/* MD12 (SW12-7) must be set 'Off' which is not the default! */
+/* SW12-7 must be set 'Off' (MD12 set to 1) which is not the default! */
 &sata {
 	status = "okay";
 };
