@@ -42,4 +42,4 @@
  * and may be redefined here because they should not be shared with other
  * compilers, like clang.
  */
-#define __visible	__attribute__((externally_visible))
+#define __visible	__attribute__((__externally_visible__))

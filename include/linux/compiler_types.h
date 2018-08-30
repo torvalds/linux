@@ -195,26 +195,26 @@ struct ftrace_likely_data {
  * would be.
  * [...]
  */
-#define __pure			__attribute__((pure))
-#define __aligned(x)		__attribute__((aligned(x)))
-#define __aligned_largest	__attribute__((aligned))
-#define __printf(a, b)		__attribute__((format(printf, a, b)))
-#define __scanf(a, b)		__attribute__((format(scanf, a, b)))
-#define __maybe_unused		__attribute__((unused))
-#define __always_unused		__attribute__((unused))
-#define __mode(x)		__attribute__((mode(x)))
+#define __pure			__attribute__((__pure__))
+#define __aligned(x)		__attribute__((__aligned__(x)))
+#define __aligned_largest	__attribute__((__aligned__))
+#define __printf(a, b)		__attribute__((__format__(printf, a, b)))
+#define __scanf(a, b)		__attribute__((__format__(scanf, a, b)))
+#define __maybe_unused		__attribute__((__unused__))
+#define __always_unused		__attribute__((__unused__))
+#define __mode(x)		__attribute__((__mode__(x)))
 #define __malloc		__attribute__((__malloc__))
 #define __used			__attribute__((__used__))
-#define __noreturn		__attribute__((noreturn))
-#define __packed		__attribute__((packed))
-#define __weak			__attribute__((weak))
-#define __alias(symbol)		__attribute__((alias(#symbol)))
-#define __cold			__attribute__((cold))
+#define __noreturn		__attribute__((__noreturn__))
+#define __packed		__attribute__((__packed__))
+#define __weak			__attribute__((__weak__))
+#define __alias(symbol)		__attribute__((__alias__(#symbol)))
+#define __cold			__attribute__((__cold__))
 #define __section(S)		__attribute__((__section__(#S)))
 
 
 #ifdef CONFIG_ENABLE_MUST_CHECK
-#define __must_check		__attribute__((warn_unused_result))
+#define __must_check		__attribute__((__warn_unused_result__))
 #else
 #define __must_check
 #endif
@@ -222,7 +222,7 @@ struct ftrace_likely_data {
 #if defined(CC_USING_HOTPATCH) && !defined(__CHECKER__)
 #define notrace			__attribute__((hotpatch(0, 0)))
 #else
-#define notrace			__attribute__((no_instrument_function))
+#define notrace			__attribute__((__no_instrument_function__))
 #endif
 
 /*
@@ -231,7 +231,7 @@ struct ftrace_likely_data {
  * stack and frame pointer being set up and there is no chance to
  * restore the lr register to the value before mcount was called.
  */
-#define __naked			__attribute__((naked)) notrace
+#define __naked			__attribute__((__naked__)) notrace
 
 #define __compiler_offsetof(a, b)	__builtin_offsetof(a, b)
 
@@ -242,7 +242,7 @@ struct ftrace_likely_data {
  * defined so the gnu89 semantics are the default.
  */
 #ifdef __GNUC_STDC_INLINE__
-# define __gnu_inline	__attribute__((gnu_inline))
+# define __gnu_inline	__attribute__((__gnu_inline__))
 #else
 # define __gnu_inline
 #endif
@@ -262,17 +262,17 @@ struct ftrace_likely_data {
 #if !defined(CONFIG_ARCH_SUPPORTS_OPTIMIZED_INLINING) || \
 	!defined(CONFIG_OPTIMIZE_INLINING)
 #define inline \
-	inline __attribute__((always_inline, unused)) notrace __gnu_inline
+	inline __attribute__((__always_inline__, __unused__)) notrace __gnu_inline
 #else
-#define inline inline	__attribute__((unused)) notrace __gnu_inline
+#define inline inline	__attribute__((__unused__)) notrace __gnu_inline
 #endif
 
 #define __inline__ inline
 #define __inline inline
-#define noinline	__attribute__((noinline))
+#define noinline	__attribute__((__noinline__))
 
 #ifndef __always_inline
-#define __always_inline inline __attribute__((always_inline))
+#define __always_inline inline __attribute__((__always_inline__))
 #endif
 
 /*

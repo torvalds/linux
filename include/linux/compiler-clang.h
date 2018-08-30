@@ -21,7 +21,7 @@
 #define __SANITIZE_ADDRESS__
 #endif
 
-#define __no_sanitize_address __attribute__((no_sanitize("address")))
+#define __no_sanitize_address __attribute__((__no_sanitize__("address")))
 
 /*
  * Not all versions of clang implement the the type-generic versions
