@@ -184,7 +184,6 @@ static const char *drm_syncobj_null_fence_get_name(struct dma_fence *fence)
 
 static bool drm_syncobj_null_fence_enable_signaling(struct dma_fence *fence)
 {
-    dma_fence_enable_sw_signaling(fence);
     return !dma_fence_is_signaled(fence);
 }
 
