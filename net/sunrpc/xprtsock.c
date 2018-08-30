@@ -449,12 +449,12 @@ static void xs_nospace_callback(struct rpc_task *task)
 
 /**
  * xs_nospace - place task on wait queue if transmit was incomplete
+ * @req: pointer to RPC request
  * @task: task to put to sleep
  *
  */
-static int xs_nospace(struct rpc_task *task)
+static int xs_nospace(struct rpc_rqst *req, struct rpc_task *task)
 {
-	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	struct sock *sk = transport->inet;
@@ -513,6 +513,7 @@ static inline void xs_encode_stream_record_marker(struct xdr_buf *buf)
 
 /**
  * xs_local_send_request - write an RPC request to an AF_LOCAL socket
+ * @req: pointer to RPC request
  * @task: RPC task that manages the state of an RPC request
  *
  * Return values:
@@ -522,9 +523,8 @@ static inline void xs_encode_stream_record_marker(struct xdr_buf *buf)
  * ENOTCONN:	Caller needs to invoke connect logic then call again
  *    other:	Some other error occured, the request was not sent
  */
-static int xs_local_send_request(struct rpc_task *task)
+static int xs_local_send_request(struct rpc_rqst *req, struct rpc_task *task)
 {
-	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport =
 				container_of(xprt, struct sock_xprt, xprt);
@@ -569,7 +569,7 @@ static int xs_local_send_request(struct rpc_task *task)
 	case -ENOBUFS:
 		break;
 	case -EAGAIN:
-		status = xs_nospace(task);
+		status = xs_nospace(req, task);
 		break;
 	default:
 		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
@@ -585,6 +585,7 @@ static int xs_local_send_request(struct rpc_task *task)
 
 /**
  * xs_udp_send_request - write an RPC request to a UDP socket
+ * @req: pointer to RPC request
  * @task: address of RPC task that manages the state of an RPC request
  *
  * Return values:
@@ -594,9 +595,8 @@ static int xs_local_send_request(struct rpc_task *task)
  * ENOTCONN:	Caller needs to invoke connect logic then call again
  *    other:	Some other error occurred, the request was not sent
  */
-static int xs_udp_send_request(struct rpc_task *task)
+static int xs_udp_send_request(struct rpc_rqst *req, struct rpc_task *task)
 {
-	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	struct xdr_buf *xdr = &req->rq_snd_buf;
@@ -638,7 +638,7 @@ process_status:
 		/* Should we call xs_close() here? */
 		break;
 	case -EAGAIN:
-		status = xs_nospace(task);
+		status = xs_nospace(req, task);
 		break;
 	case -ENETUNREACH:
 	case -ENOBUFS:
@@ -658,6 +658,7 @@ process_status:
 
 /**
  * xs_tcp_send_request - write an RPC request to a TCP socket
+ * @req: pointer to RPC request
  * @task: address of RPC task that manages the state of an RPC request
  *
  * Return values:
@@ -670,9 +671,8 @@ process_status:
  * XXX: In the case of soft timeouts, should we eventually give up
  *	if sendmsg is not able to make progress?
  */
-static int xs_tcp_send_request(struct rpc_task *task)
+static int xs_tcp_send_request(struct rpc_rqst *req, struct rpc_task *task)
 {
-	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	struct xdr_buf *xdr = &req->rq_snd_buf;
@@ -697,7 +697,7 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	 * completes while the socket holds a reference to the pages,
 	 * then we may end up resending corrupted data.
 	 */
-	if (task->tk_flags & RPC_TASK_SENT)
+	if (req->rq_task->tk_flags & RPC_TASK_SENT)
 		zerocopy = false;
 
 	if (test_bit(XPRT_SOCK_UPD_TIMEOUT, &transport->sock_state))
@@ -761,7 +761,7 @@ static int xs_tcp_send_request(struct rpc_task *task)
 		/* Should we call xs_close() here? */
 		break;
 	case -EAGAIN:
-		status = xs_nospace(task);
+		status = xs_nospace(req, task);
 		break;
 	case -ECONNRESET:
 	case -ECONNREFUSED:
@@ -2706,9 +2706,8 @@ static int bc_sendto(struct rpc_rqst *req)
 /*
  * The send routine. Borrows from svc_send
  */
-static int bc_send_request(struct rpc_task *task)
+static int bc_send_request(struct rpc_rqst *req, struct rpc_task *task)
 {
-	struct rpc_rqst *req = task->tk_rqstp;
 	struct svc_xprt	*xprt;
 	int len;
 

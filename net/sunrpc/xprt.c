@@ -1191,7 +1191,7 @@ void xprt_transmit(struct rpc_task *task)
 	}
 
 	connect_cookie = xprt->connect_cookie;
-	status = xprt->ops->send_request(task);
+	status = xprt->ops->send_request(req, task);
 	trace_xprt_transmit(xprt, req->rq_xid, status);
 	if (status != 0) {
 		task->tk_status = status;
