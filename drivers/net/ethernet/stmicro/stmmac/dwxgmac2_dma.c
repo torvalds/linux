@@ -182,6 +182,9 @@ static void dwxgmac2_dma_tx_mode(void __iomem *ioaddr, int mode,
 			value |= 0x7 << XGMAC_TTC_SHIFT;
 	}
 
+	/* Use static TC to Queue mapping */
+	value |= (channel << XGMAC_Q2TCMAP_SHIFT) & XGMAC_Q2TCMAP;
+
 	value &= ~XGMAC_TXQEN;
 	if (qmode != MTL_QUEUE_AVB)
 		value |= 0x2 << XGMAC_TXQEN_SHIFT;
@@ -374,6 +377,21 @@ static void dwxgmac2_enable_tso(void __iomem *ioaddr, bool en, u32 chan)
 	writel(value, ioaddr + XGMAC_DMA_CH_TX_CONTROL(chan));
 }
 
+static void dwxgmac2_qmode(void __iomem *ioaddr, u32 channel, u8 qmode)
+{
+	u32 value = readl(ioaddr + XGMAC_MTL_TXQ_OPMODE(channel));
+
+	value &= ~XGMAC_TXQEN;
+	if (qmode != MTL_QUEUE_AVB) {
+		value |= 0x2 << XGMAC_TXQEN_SHIFT;
+		writel(0, ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(channel));
+	} else {
+		value |= 0x1 << XGMAC_TXQEN_SHIFT;
+	}
+
+	writel(value, ioaddr +  XGMAC_MTL_TXQ_OPMODE(channel));
+}
+
 static void dwxgmac2_set_bfsize(void __iomem *ioaddr, int bfsize, u32 chan)
 {
 	u32 value;
@@ -407,5 +425,6 @@ const struct stmmac_dma_ops dwxgmac210_dma_ops = {
 	.set_rx_tail_ptr = dwxgmac2_set_rx_tail_ptr,
 	.set_tx_tail_ptr = dwxgmac2_set_tx_tail_ptr,
 	.enable_tso = dwxgmac2_enable_tso,
+	.qmode = dwxgmac2_qmode,
 	.set_bfsize = dwxgmac2_set_bfsize,
 };
