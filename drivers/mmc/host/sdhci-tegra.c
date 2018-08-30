@@ -834,7 +834,6 @@ static const struct sdhci_tegra_soc_data soc_data_tegra124 = {
 static const struct sdhci_ops tegra210_sdhci_ops = {
 	.get_ro     = tegra_sdhci_get_ro,
 	.read_w     = tegra_sdhci_readw,
-	.write_w    = tegra_sdhci_writew,
 	.write_l    = tegra_sdhci_writel,
 	.set_clock  = tegra_sdhci_set_clock,
 	.set_bus_width = sdhci_set_bus_width,
