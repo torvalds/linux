@@ -126,7 +126,7 @@ int z_erofs_vle_unzip_fast_percpu(struct page **compressed_pages,
 	vout = erofs_pcpubuf[smp_processor_id()].data;
 
 	ret = z_erofs_unzip_lz4(vin, vout + pageofs,
-		clusterpages * PAGE_SIZE, outlen);
+				clusterpages * PAGE_SIZE, outlen);
 
 	if (ret >= 0) {
 		outlen = ret;
@@ -191,7 +191,7 @@ int z_erofs_vle_unzip_vmap(struct page **compressed_pages,
 	}
 
 	ret = z_erofs_unzip_lz4(vin, vout + pageofs,
-		clusterpages * PAGE_SIZE, llen);
+				clusterpages * PAGE_SIZE, llen);
 	if (ret > 0)
 		ret = 0;
 
