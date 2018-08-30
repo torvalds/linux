@@ -254,18 +254,18 @@ static int st_lsm6dsx_reset_hw_ts(struct st_lsm6dsx_hw *hw)
  * Set max bulk read to ST_LSM6DSX_MAX_WORD_LEN in order to avoid
  * a kmalloc for each bus access
  */
-static inline int st_lsm6dsx_read_block(struct st_lsm6dsx_hw *hw, u8 *data,
-					unsigned int data_len)
+static inline int st_lsm6dsx_read_block(struct st_lsm6dsx_hw *hw, u8 addr,
+					u8 *data, unsigned int data_len,
+					unsigned int max_word_len)
 {
 	unsigned int word_len, read_len = 0;
 	int err;
 
 	while (read_len < data_len) {
 		word_len = min_t(unsigned int, data_len - read_len,
-				 ST_LSM6DSX_MAX_WORD_LEN);
-		err = regmap_bulk_read(hw->regmap,
-				       ST_LSM6DSX_REG_FIFO_OUTL_ADDR,
-				       data + read_len, word_len);
+				 max_word_len);
+		err = regmap_bulk_read(hw->regmap, addr, data + read_len,
+				       word_len);
 		if (err < 0)
 			return err;
 		read_len += word_len;
@@ -315,7 +315,9 @@ int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 	gyro_sensor = iio_priv(hw->iio_devs[ST_LSM6DSX_ID_GYRO]);
 
 	for (read_len = 0; read_len < fifo_len; read_len += pattern_len) {
-		err = st_lsm6dsx_read_block(hw, hw->buff, pattern_len);
+		err = st_lsm6dsx_read_block(hw, ST_LSM6DSX_REG_FIFO_OUTL_ADDR,
+					    hw->buff, pattern_len,
+					    ST_LSM6DSX_MAX_WORD_LEN);
 		if (err < 0) {
 			dev_err(hw->dev,
 				"failed to read pattern from fifo (err=%d)\n",
