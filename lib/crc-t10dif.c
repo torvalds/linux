@@ -107,6 +107,17 @@ static void __exit crc_t10dif_mod_fini(void)
 module_init(crc_t10dif_mod_init);
 module_exit(crc_t10dif_mod_fini);
 
+static int crc_t10dif_transform_show(char *buffer, const struct kernel_param *kp)
+{
+	if (static_key_false(&crct10dif_fallback))
+		return sprintf(buffer, "fallback\n");
+
+	return sprintf(buffer, "%s\n",
+		crypto_tfm_alg_driver_name(crypto_shash_tfm(crct10dif_tfm)));
+}
+
+module_param_call(transform, NULL, crc_t10dif_transform_show, NULL, 0644);
+
 MODULE_DESCRIPTION("T10 DIF CRC calculation");
 MODULE_LICENSE("GPL");
 MODULE_SOFTDEP("pre: crct10dif");
