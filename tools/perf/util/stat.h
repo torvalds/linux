@@ -104,6 +104,7 @@ struct perf_stat_config {
 	bool			 null_run;
 	bool			 ru_display;
 	bool			 big_num;
+	bool			 no_merge;
 	FILE			*output;
 	unsigned int		 interval;
 	unsigned int		 timeout;
