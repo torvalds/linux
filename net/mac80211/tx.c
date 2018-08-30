@@ -3466,12 +3466,18 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info;
 	struct ieee80211_tx_data tx;
 	ieee80211_tx_result r;
-	struct ieee80211_vif *vif;
+	struct ieee80211_vif *vif = txq->vif;
 
 	spin_lock_bh(&fq->lock);
 
-	if (test_bit(IEEE80211_TXQ_STOP, &txqi->flags))
+	if (test_bit(IEEE80211_TXQ_STOP, &txqi->flags) ||
+	    test_bit(IEEE80211_TXQ_STOP_NETIF_TX, &txqi->flags))
 		goto out;
+
+	if (vif->txqs_stopped[ieee80211_ac_from_tid(txq->tid)]) {
+		set_bit(IEEE80211_TXQ_STOP_NETIF_TX, &txqi->flags);
+		goto out;
+	}
 
 	/* Make sure fragments stay together. */
 	skb = __skb_dequeue(&txqi->frags);
@@ -3567,6 +3573,7 @@ begin:
 	}
 
 	IEEE80211_SKB_CB(skb)->control.vif = vif;
+
 out:
 	spin_unlock_bh(&fq->lock);
 

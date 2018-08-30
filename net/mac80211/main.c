@@ -668,6 +668,10 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	tasklet_init(&local->tx_pending_tasklet, ieee80211_tx_pending,
 		     (unsigned long)local);
 
+	if (ops->wake_tx_queue)
+		tasklet_init(&local->wake_txqs_tasklet, ieee80211_wake_txqs,
+			     (unsigned long)local);
+
 	tasklet_init(&local->tasklet,
 		     ieee80211_tasklet_handler,
 		     (unsigned long) local);
