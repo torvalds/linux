@@ -2234,8 +2234,10 @@ static void fsl_udc_release(struct device *dev)
 	Internal structure setup functions
 *******************************************************************/
 /*------------------------------------------------------------------
- * init resource for globle controller
- * Return the udc handle on success or NULL on failure
+ * init resource for global controller called by fsl_udc_probe()
+ * On success the udc handle is initialized, on failure it is
+ * unchanged (reset).
+ * Return 0 on success and -1 on allocation failure
  ------------------------------------------------------------------*/
 static int struct_udc_setup(struct fsl_udc *udc,
 		struct platform_device *pdev)
