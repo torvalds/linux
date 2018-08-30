@@ -56,14 +56,9 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
 
 	divisor = host->pdata->hclk / new_clock;
 
-	if (divisor <= 1) {
-		clk_sel = 1;
-		clk = 0;
-	} else {
-		clk_sel = 0;
-		/* bit7 set: 1/512, ... bit0 set:1/4, all bits clear: 1/2 */
-		clk = roundup_pow_of_two(divisor) >> 2;
-	}
+	/* bit7 set: 1/512, ... bit0 set: 1/4, all bits clear: 1/2 */
+	clk_sel = (divisor <= 1);
+	clk = clk_sel ? 0 : (roundup_pow_of_two(divisor) >> 2);
 
 	host->pdata->set_clk_div(host->pdev, clk_sel);
 
