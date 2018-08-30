@@ -914,6 +914,7 @@ static void print_metric_header(struct perf_stat_config *config,
 static int first_shadow_cpu(struct perf_stat_config *config,
 			    struct perf_evsel *evsel, int id)
 {
+	struct perf_evlist *evlist = evsel->evlist;
 	int i;
 
 	if (!config->aggr_get_id)
@@ -928,7 +929,7 @@ static int first_shadow_cpu(struct perf_stat_config *config,
 	for (i = 0; i < perf_evsel__nr_cpus(evsel); i++) {
 		int cpu2 = perf_evsel__cpus(evsel)->map[i];
 
-		if (config->aggr_get_id(config, evsel_list->cpus, cpu2) == id)
+		if (config->aggr_get_id(config, evlist->cpus, cpu2) == id)
 			return cpu2;
 	}
 	return 0;
@@ -1103,7 +1104,7 @@ static void aggr_update_shadow(struct perf_stat_config *config,
 		evlist__for_each_entry(evlist, counter) {
 			val = 0;
 			for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
-				s2 = config->aggr_get_id(config, evsel_list->cpus, cpu);
+				s2 = config->aggr_get_id(config, evlist->cpus, cpu);
 				if (s2 != id)
 					continue;
 				val += perf_counts(counter->counts, cpu, 0)->val;
