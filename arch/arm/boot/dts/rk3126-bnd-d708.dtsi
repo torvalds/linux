@@ -11,7 +11,6 @@
 #include <dt-bindings/sensor-dev.h>
 #include "rk3126.dtsi"
 #include "rk312x-android.dtsi"
-#include "rk3126-m708-cif-sensor.dtsi"
 
 / {
 	adc-keys {
@@ -155,12 +154,24 @@
 	status = "okay";
 };
 
-&cif {
+&cif_new {
 	status = "okay";
-};
 
-&cif_sensor {
-	status = "okay";
+	ports {
+		port@0 {
+			cif_in_fcam: endpoint@0 {
+				remote-endpoint =  <&gc0329_out>;
+				vsync-active = <1>;
+				hsync-active = <1>;
+			};
+
+			cif_in_bcam: endpoint@1 {
+				remote-endpoint = <&gc2145_out>;
+				vsync-active = <0>;
+				hsync-active = <1>;
+			};
+		};
+	};
 };
 
 &cpu0 {
@@ -248,6 +259,50 @@
 &i2c0 {
 	status = "okay";
 	clock-frequency = <400000>;
+
+	gc0329@31 {
+		compatible = "galaxycore,gc0329";
+		reg = <0x31>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fcam_pd>;
+
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+
+		avdd-supply = <&vcc28_cif>;
+		dovdd-supply = <&vcc18_cif>;
+		dvdd-supply = <&vcc18_cif>;
+
+		pwdn-gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_HIGH>;
+
+		port {
+			gc0329_out: endpoint {
+				remote-endpoint = <&cif_in_fcam>;
+			};
+		};
+	};
+
+	gc2145@3c {
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&bcam_pd>;
+
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+
+		avdd-supply = <&vcc28_cif>;
+		dovdd-supply = <&vcc18_cif>;
+		dvdd-supply = <&vcc18_cif>;
+
+		pwdn-gpios = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
+
+		port {
+			gc2145_out: endpoint {
+				remote-endpoint = <&cif_in_bcam>;
+			};
+		};
+	};
 
 	ts@40 {
 		compatible = "gslX680-d708";
@@ -467,6 +522,16 @@
 };
 
 &pinctrl {
+	camera {
+		fcam_pd: fcam-pd {
+			rockchip,pins = <3 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bcam_pd: bcam-pd {
+			rockchip,pins = <2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	lcdc {
 		lcdc_lcdc: lcdc-lcdc {
 			rockchip,pins =
