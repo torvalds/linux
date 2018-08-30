@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _media-controller-types:
 
 Types and flags used to represent the media graph elements

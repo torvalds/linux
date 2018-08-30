@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _FE_ENABLE_HIGH_LNB_VOLTAGE:
 
 ********************************

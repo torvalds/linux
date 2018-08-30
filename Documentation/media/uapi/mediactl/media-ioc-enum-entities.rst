@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _media_ioc_enum_entities:
 
 *****************************

@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _VIDEO_SET_DISPLAY_FORMAT:
 
 ========================

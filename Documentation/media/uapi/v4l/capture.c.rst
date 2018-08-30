@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 file: media/v4l/capture.c
 =========================
 

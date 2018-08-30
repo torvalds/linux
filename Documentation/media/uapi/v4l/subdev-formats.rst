@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _v4l2-mbus-format:
 
 Media Bus Formats

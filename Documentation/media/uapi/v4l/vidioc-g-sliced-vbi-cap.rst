@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _VIDIOC_G_SLICED_VBI_CAP:
 
 *****************************

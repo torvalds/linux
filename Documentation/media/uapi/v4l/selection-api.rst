@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _selection-api:
 
 Cropping, composing and scaling -- the SELECTION API

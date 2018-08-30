@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. include:: <isonum.txt>
 .. _v4l2spec:
 

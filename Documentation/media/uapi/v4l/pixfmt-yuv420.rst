@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _V4L2-PIX-FMT-YVU420:
 .. _V4L2-PIX-FMT-YUV420:
 

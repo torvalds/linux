@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _lirc_get_min_timeout:
 .. _lirc_get_max_timeout:
 

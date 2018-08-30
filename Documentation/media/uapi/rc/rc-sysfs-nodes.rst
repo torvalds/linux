@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _remote_controllers_sysfs_nodes:
 
 *******************************

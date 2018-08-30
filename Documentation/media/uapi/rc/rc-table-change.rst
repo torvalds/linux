@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _Remote_controllers_table_change:
 
 *******************************************

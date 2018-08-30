@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _VIDEO_TRY_COMMAND:
 
 =================

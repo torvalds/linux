@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. c:type:: dvb_frontend_event
 
 ***************

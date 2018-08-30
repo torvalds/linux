@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _frontend_legacy_types:
 
 Frontend Legacy Data Types

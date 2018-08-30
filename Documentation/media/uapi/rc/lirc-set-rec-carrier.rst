@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _lirc_set_rec_carrier:
 
 **************************

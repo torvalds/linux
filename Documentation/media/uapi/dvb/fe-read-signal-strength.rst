@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _FE_READ_SIGNAL_STRENGTH:
 
 ***********************

@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _AUDIO_SELECT_SOURCE:
 
 ===================

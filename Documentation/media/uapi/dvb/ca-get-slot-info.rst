@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _CA_GET_SLOT_INFO:
 
 ================

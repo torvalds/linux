@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _VIDIOC_QUERY_DV_TIMINGS:
 
 *****************************

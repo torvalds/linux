@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _AUDIO_GET_CAPABILITIES:
 
 ======================

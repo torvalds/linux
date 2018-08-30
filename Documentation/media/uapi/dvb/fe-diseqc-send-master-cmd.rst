@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _FE_DISEQC_SEND_MASTER_CMD:
 
 *******************************

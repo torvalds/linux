@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _FE_DISHNETWORK_SEND_LEGACY_CMD:
 
 ******************************

@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _CEC_MODE:
 .. _CEC_G_MODE:
 .. _CEC_S_MODE:

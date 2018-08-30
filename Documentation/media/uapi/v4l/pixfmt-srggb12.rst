@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _V4L2-PIX-FMT-SRGGB12:
 .. _v4l2-pix-fmt-sbggr12:
 .. _v4l2-pix-fmt-sgbrg12:

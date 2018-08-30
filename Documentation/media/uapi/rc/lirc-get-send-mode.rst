@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _lirc_get_send_mode:
 .. _lirc_set_send_mode:
 

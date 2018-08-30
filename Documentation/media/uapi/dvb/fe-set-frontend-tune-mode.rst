@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _FE_SET_FRONTEND_TUNE_MODE:
 
 *******************************

@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _VIDIOC_SUBDEV_ENUM_FRAME_SIZE:
 
 ***********************************

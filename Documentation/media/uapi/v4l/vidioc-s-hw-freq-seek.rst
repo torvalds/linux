@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 .. _VIDIOC_S_HW_FREQ_SEEK:
 
 ***************************

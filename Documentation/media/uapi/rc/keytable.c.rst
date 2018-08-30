@@ -1,5 +1,3 @@
-.. -*- coding: utf-8; mode: rst -*-
-
 file: uapi/v4l/keytable.c
 =========================
 
