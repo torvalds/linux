@@ -1226,8 +1226,7 @@ static __init int sev_hardware_setup(void)
 	min_sev_asid = cpuid_edx(0x8000001F);
 
 	/* Initialize SEV ASID bitmap */
-	sev_asid_bitmap = kcalloc(BITS_TO_LONGS(max_sev_asid),
-				sizeof(unsigned long), GFP_KERNEL);
+	sev_asid_bitmap = bitmap_zalloc(max_sev_asid, GFP_KERNEL);
 	if (!sev_asid_bitmap)
 		return 1;
 
@@ -1405,7 +1404,7 @@ static __exit void svm_hardware_unsetup(void)
 	int cpu;
 
 	if (svm_sev_enabled())
-		kfree(sev_asid_bitmap);
+		bitmap_free(sev_asid_bitmap);
 
 	for_each_possible_cpu(cpu)
 		svm_cpu_uninit(cpu);
