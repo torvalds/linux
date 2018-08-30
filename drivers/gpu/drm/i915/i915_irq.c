@@ -3215,7 +3215,7 @@ static void i915_reset_device(struct drm_i915_private *dev_priv,
 		kobject_uevent_env(kobj, KOBJ_CHANGE, reset_done_event);
 }
 
-static void i915_clear_error_registers(struct drm_i915_private *dev_priv)
+void i915_clear_error_registers(struct drm_i915_private *dev_priv)
 {
 	u32 eir;
 
@@ -3237,6 +3237,22 @@ static void i915_clear_error_registers(struct drm_i915_private *dev_priv)
 		DRM_DEBUG_DRIVER("EIR stuck: 0x%08x, masking\n", eir);
 		I915_WRITE(EMR, I915_READ(EMR) | eir);
 		I915_WRITE(IIR, I915_MASTER_ERROR_INTERRUPT);
+	}
+
+	if (INTEL_GEN(dev_priv) >= 8) {
+		I915_WRITE(GEN8_RING_FAULT_REG,
+			   I915_READ(GEN8_RING_FAULT_REG) & ~RING_FAULT_VALID);
+		POSTING_READ(GEN8_RING_FAULT_REG);
+	} else if (INTEL_GEN(dev_priv) >= 6) {
+		struct intel_engine_cs *engine;
+		enum intel_engine_id id;
+
+		for_each_engine(engine, dev_priv, id) {
+			I915_WRITE(RING_FAULT_REG(engine),
+				   I915_READ(RING_FAULT_REG(engine)) &
+				   ~RING_FAULT_VALID);
+		}
+		POSTING_READ(RING_FAULT_REG(dev_priv->engine[RCS]));
 	}
 }
 

@@ -2807,6 +2807,8 @@ extern void intel_irq_fini(struct drm_i915_private *dev_priv);
 int intel_irq_install(struct drm_i915_private *dev_priv);
 void intel_irq_uninstall(struct drm_i915_private *dev_priv);
 
+void i915_clear_error_registers(struct drm_i915_private *dev_priv);
+
 static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
 {
 	return dev_priv->gvt;
