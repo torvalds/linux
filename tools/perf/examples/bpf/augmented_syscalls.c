@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Augment the openat syscall with the contents of the filename pointer argument.
+ * Augment syscalls with the contents of the pointer arguments.
  *
  * Test it with:
  *
@@ -10,12 +10,10 @@
  * the last one should be the one for '/etc/passwd'.
  *
  * This matches what is marshalled into the raw_syscall:sys_enter payload
- * expected by the 'perf trace' beautifiers, and can be used by them unmodified,
- * which will be done as that feature is implemented in the next csets, for now
- * it will appear in a dump done by the default tracepoint handler in 'perf trace',
- * that uses bpf_output__fprintf() to just dump those contents, as done with
- * the bpf-output event associated with the __bpf_output__ map declared in
- * tools/perf/include/bpf/stdio.h.
+ * expected by the 'perf trace' beautifiers, and can be used by them, that will
+ * check if perf_sample->raw_data is more than what is expected for each
+ * syscalls:sys_{enter,exit}_SYSCALL tracepoint, uing the extra data as the
+ * contents of pointer arguments.
  */
 
 #include <stdio.h>
