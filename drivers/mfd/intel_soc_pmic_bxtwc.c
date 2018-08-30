@@ -13,15 +13,16 @@
  * more details.
  */
 
-#include <linux/module.h>
 #include <linux/acpi.h>
-#include <linux/err.h>
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/intel_soc_pmic.h>
 #include <linux/mfd/intel_soc_pmic_bxtwc.h>
+#include <linux/module.h>
+
 #include <asm/intel_pmc_ipc.h>
 
 /* PMIC device registers */

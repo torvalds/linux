@@ -16,10 +16,11 @@
  * Author: Zhu, Lejun <lejun.zhu@linux.intel.com>
  */
 
-#include <linux/mfd/core.h>
 #include <linux/interrupt.h>
 #include <linux/regmap.h>
+#include <linux/mfd/core.h>
 #include <linux/mfd/intel_soc_pmic.h>
+
 #include "intel_soc_pmic_core.h"
 
 #define CRYSTAL_COVE_MAX_REGISTER	0xC6
