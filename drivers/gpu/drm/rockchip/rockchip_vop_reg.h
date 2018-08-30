@@ -958,4 +958,29 @@
 #define PX30_GAMMA_LUT_ADDR			0x00a00
 /* px30 register definition end */
 
+/* rk3188 register definition */
+#define RK3188_SYS_CTRL			0x00
+#define RK3188_DSP_CTRL0		0x04
+#define RK3188_DSP_CTRL1		0x08
+#define RK3188_INT_STATUS		0x10
+#define RK3188_WIN0_YRGB_MST0		0x20
+#define RK3188_WIN0_CBR_MST0		0x24
+#define RK3188_WIN0_YRGB_MST1		0x28
+#define RK3188_WIN0_CBR_MST1		0x2c
+#define RK3188_WIN_VIR			0x30
+#define RK3188_WIN0_ACT_INFO		0x34
+#define RK3188_WIN0_DSP_INFO		0x38
+#define RK3188_WIN0_DSP_ST		0x3c
+#define RK3188_WIN0_SCL_FACTOR_YRGB	0x40
+#define RK3188_WIN0_SCL_FACTOR_CBR	0x44
+#define RK3188_WIN1_MST			0x4c
+#define RK3188_WIN1_DSP_INFO		0x50
+#define RK3188_WIN1_DSP_ST		0x54
+#define RK3188_DSP_HTOTAL_HS_END	0x6c
+#define RK3188_DSP_HACT_ST_END		0x70
+#define RK3188_DSP_VTOTAL_VS_END	0x74
+#define RK3188_DSP_VACT_ST_END		0x78
+#define RK3188_REG_CFG_DONE		0x90
+/* rk3188 register definition end */
+
 #endif /* _ROCKCHIP_VOP_REG_H */
