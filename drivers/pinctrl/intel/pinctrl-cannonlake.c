@@ -832,10 +832,7 @@ static int cnl_pinctrl_probe(struct platform_device *pdev)
 	return intel_pinctrl_probe_by_hid(pdev);
 }
 
-static const struct dev_pm_ops cnl_pinctrl_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(intel_pinctrl_suspend,
-				     intel_pinctrl_resume)
-};
+static INTEL_PINCTRL_PM_OPS(cnl_pinctrl_pm_ops);
 
 static struct platform_driver cnl_pinctrl_driver = {
 	.probe = cnl_pinctrl_probe,
