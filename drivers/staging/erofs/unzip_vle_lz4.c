@@ -65,13 +65,13 @@ int z_erofs_vle_plain_copy(struct page **compressed_pages,
 
 		if (i) {
 			if (!src)
-				src = mirrored[i-1] ?
-					percpu_data + (i-1) * PAGE_SIZE :
-					kmap_atomic(compressed_pages[i-1]);
+				src = mirrored[i - 1] ?
+					percpu_data + (i - 1) * PAGE_SIZE :
+					kmap_atomic(compressed_pages[i - 1]);
 
 			memcpy(dst, src + righthalf, pageofs);
 
-			if (!mirrored[i-1])
+			if (!mirrored[i - 1])
 				kunmap_atomic(src);
 
 			if (unlikely(i >= clusterpages)) {
