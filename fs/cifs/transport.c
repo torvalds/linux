@@ -142,7 +142,8 @@ void
 cifs_delete_mid(struct mid_q_entry *mid)
 {
 	spin_lock(&GlobalMid_Lock);
-	list_del(&mid->qhead);
+	list_del_init(&mid->qhead);
+	mid->mid_flags |= MID_DELETED;
 	spin_unlock(&GlobalMid_Lock);
 
 	DeleteMidQEntry(mid);
