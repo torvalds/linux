@@ -346,15 +346,15 @@ static const struct sci_port_params sci_port_params[SCIx_NR_REGTYPES] = {
 	[SCIx_SH4_SCIF_REGTYPE] = {
 		.regs = {
 			[SCSMR]		= { 0x00, 16 },
-			[SCBRR]		= { 0x02,  8 },
-			[SCSCR]		= { 0x04, 16 },
-			[SCxTDR]	= { 0x06,  8 },
-			[SCxSR]		= { 0x08, 16 },
-			[SCxRDR]	= { 0x0a,  8 },
-			[SCFCR]		= { 0x0c, 16 },
-			[SCFDR]		= { 0x0e, 16 },
-			[SCSPTR]	= { 0x10, 16 },
-			[SCLSR]		= { 0x12, 16 },
+			[SCBRR]		= { 0x04,  8 },
+			[SCSCR]		= { 0x08, 16 },
+			[SCxTDR]	= { 0x0c,  8 },
+			[SCxSR]		= { 0x10, 16 },
+			[SCxRDR]	= { 0x14,  8 },
+			[SCFCR]		= { 0x18, 16 },
+			[SCFDR]		= { 0x1c, 16 },
+			[SCSPTR]	= { 0x20, 16 },
+			[SCLSR]		= { 0x24, 16 },
 		},
 		.fifosize = 16,
 		.overrun_reg = SCLSR,
@@ -2837,7 +2837,7 @@ static int sci_init_single(struct platform_device *dev,
 {
 	struct uart_port *port = &sci_port->port;
 	const struct resource *res;
-	unsigned int i, regtype;
+	unsigned int i;
 	int ret;
 
 	sci_port->cfg	= p;
@@ -2874,7 +2874,6 @@ static int sci_init_single(struct platform_device *dev,
 	if (unlikely(sci_port->params == NULL))
 		return -EINVAL;
 
-	regtype = sci_port->params - sci_port_params;
 	switch (p->type) {
 	case PORT_SCIFB:
 		sci_port->rx_trigger = 48;
@@ -2928,10 +2927,6 @@ static int sci_init_single(struct platform_device *dev,
 		else
 			port->regshift = 1;
 	}
-
-	if (regtype == SCIx_SH4_SCIF_REGTYPE)
-		if (sci_port->reg_size >= 0x20)
-			port->regshift = 1;
 
 	/*
 	 * The UART port needs an IRQ value, so we peg this to the RX IRQ
