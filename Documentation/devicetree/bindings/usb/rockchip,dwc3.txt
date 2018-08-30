@@ -1,7 +1,9 @@
 Rockchip SuperSpeed DWC3 USB SoC controller
 
 Required properties:
-- compatible:	should contain "rockchip,rk3399-dwc3" for rk3399 SoC
+- compatible :	should be one of the listed compatibles:
+  - "rockchip,rk1808-dwc3": for rk1808 SoC;
+  - "rockchip,rk3399-dwc3": for rk3399 SoC;
 - clocks:	A list of phandle + clock-specifier pairs for the
 		clocks listed in clock-names
 - clock-names:	Should contain the following:
