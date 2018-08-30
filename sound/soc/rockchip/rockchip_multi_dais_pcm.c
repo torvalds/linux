@@ -34,6 +34,10 @@ struct dmaengine_mpcm_runtime_data {
 	unsigned int pos;
 	unsigned int master_chan;
 	bool start_flag;
+#ifdef CONFIG_SND_SOC_ROCKCHIP_VAD
+	unsigned int vpos;
+	unsigned int vresidue_bytes;
+#endif
 };
 
 static inline struct dmaengine_mpcm_runtime_data *substream_to_prtd(
@@ -198,6 +202,119 @@ static void mpcm_dmaengine_terminate_all(struct dmaengine_mpcm_runtime_data *prt
 	}
 }
 
+#ifdef CONFIG_SND_SOC_ROCKCHIP_VAD
+static void dmaengine_mpcm_single_dma_complete(void *arg)
+{
+	struct snd_pcm_substream *substream = arg;
+	struct dmaengine_mpcm_runtime_data *prtd = substream_to_prtd(substream);
+	unsigned int pos, size;
+	void *buf;
+
+	if (snd_pcm_vad_attached(substream) &&
+	    substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		buf = substream->runtime->dma_area + prtd->vpos;
+		pos = prtd->vpos + snd_pcm_lib_period_bytes(substream);
+
+		if (pos <= snd_pcm_lib_buffer_bytes(substream))
+			size = substream->runtime->period_size;
+		else
+			size = bytes_to_frames(substream->runtime,
+					       prtd->vresidue_bytes);
+		snd_pcm_vad_preprocess(substream, buf, size);
+	}
+
+	prtd->vpos += snd_pcm_lib_period_bytes(substream);
+	if (prtd->vpos >= snd_pcm_lib_buffer_bytes(substream))
+		prtd->vpos = 0;
+	snd_pcm_period_elapsed(substream);
+}
+
+static int __mpcm_prepare_single_and_submit(struct snd_pcm_substream *substream,
+					    dma_addr_t buf_start, int size)
+{
+	struct dmaengine_mpcm_runtime_data *prtd = substream_to_prtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct dma_async_tx_descriptor *desc;
+	enum dma_transfer_direction direction;
+	unsigned long flags = DMA_CTRL_ACK;
+	unsigned int *maps = prtd->channel_maps;
+	int offset, i;
+	bool callback = false;
+
+	direction = snd_pcm_substream_to_dma_direction(substream);
+
+	if (!substream->runtime->no_period_wakeup)
+		flags |= DMA_PREP_INTERRUPT;
+
+	offset = 0;
+	for (i = 0; i < prtd->num_chans; i++) {
+		if (!prtd->chans[i])
+			continue;
+		desc = dmaengine_prep_slave_single(prtd->chans[i],
+						   buf_start + offset,
+						   size,
+						   direction, flags);
+
+		if (!desc)
+			return -ENOMEM;
+		if (!callback) {
+			desc->callback = dmaengine_mpcm_single_dma_complete;
+			desc->callback_param = substream;
+			callback = true;
+		}
+		dmaengine_submit(desc);
+		offset += samples_to_bytes(runtime, maps[i]);
+	}
+
+	return 0;
+}
+
+static int dmaengine_mpcm_prepare_single_and_submit(struct snd_pcm_substream *substream)
+{
+	struct dmaengine_mpcm_runtime_data *prtd = substream_to_prtd(substream);
+	enum dma_transfer_direction direction;
+	unsigned long flags = DMA_CTRL_ACK;
+	snd_pcm_uframes_t avail;
+	dma_addr_t buf_start, buf_end;
+	int offset, i, count, ret;
+	int buffer_bytes, period_bytes, residue_bytes;
+
+	direction = snd_pcm_substream_to_dma_direction(substream);
+
+	if (!substream->runtime->no_period_wakeup)
+		flags |= DMA_PREP_INTERRUPT;
+
+	period_bytes = snd_pcm_lib_period_bytes(substream);
+	buffer_bytes = snd_pcm_lib_buffer_bytes(substream);
+	avail = snd_pcm_vad_avail(substream);
+	offset = frames_to_bytes(substream->runtime, avail);
+	prtd->vpos = offset;
+	buf_start = substream->runtime->dma_addr + offset;
+	buf_end = substream->runtime->dma_addr + snd_pcm_lib_buffer_bytes(substream);
+	count = (buf_end - buf_start) / period_bytes;
+	residue_bytes = (buf_end - buf_start) % period_bytes;
+	prtd->vresidue_bytes = residue_bytes;
+	pr_debug("%s: offset: %d, buffer_bytes: %d\n", __func__, offset, buffer_bytes);
+	pr_debug("%s: count: %d, residue_bytes: %d\n", __func__, count, residue_bytes);
+	for (i = 0; i < count; i++) {
+		ret = __mpcm_prepare_single_and_submit(substream, buf_start,
+						       period_bytes);
+		if (ret)
+			return ret;
+		buf_start += period_bytes;
+	}
+
+	if (residue_bytes) {
+		ret = __mpcm_prepare_single_and_submit(substream, buf_start,
+						       residue_bytes);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+#endif
+
 static int snd_dmaengine_mpcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct dmaengine_mpcm_runtime_data *prtd = substream_to_prtd(substream);
@@ -206,6 +323,14 @@ static int snd_dmaengine_mpcm_trigger(struct snd_pcm_substream *substream, int c
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+#ifdef CONFIG_SND_SOC_ROCKCHIP_VAD
+		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
+		    snd_pcm_vad_attached(substream) &&
+		    snd_pcm_vad_avail(substream)) {
+			dmaengine_mpcm_prepare_single_and_submit(substream);
+			mpcm_dma_async_issue_pending(prtd);
+		}
+#endif
 		ret = dmaengine_mpcm_prepare_and_submit(substream);
 		if (ret)
 			return ret;
@@ -452,6 +577,10 @@ static snd_pcm_uframes_t dmaengine_mpcm_pointer(struct snd_pcm_substream *substr
 		pos = buf_size - state.residue;
 
 	frames = bytes_to_frames(substream->runtime, pos);
+#ifdef CONFIG_SND_SOC_ROCKCHIP_VAD
+	if (prtd->vpos)
+		frames = bytes_to_frames(substream->runtime, prtd->vpos);
+#endif
 	if (!prtd->start_flag && frames >= MAX_FIFO_SIZE)
 		prtd->start_flag = true;
 
