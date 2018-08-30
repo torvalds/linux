@@ -412,7 +412,7 @@ EXPORT_SYMBOL_GPL(xdp_attachment_setup);
 
 struct xdp_frame *xdp_convert_zc_to_xdp_frame(struct xdp_buff *xdp)
 {
-	unsigned int metasize, headroom, totsize;
+	unsigned int metasize, totsize;
 	void *addr, *data_to_copy;
 	struct xdp_frame *xdpf;
 	struct page *page;
@@ -420,7 +420,6 @@ struct xdp_frame *xdp_convert_zc_to_xdp_frame(struct xdp_buff *xdp)
 	/* Clone into a MEM_TYPE_PAGE_ORDER0 xdp_frame. */
 	metasize = xdp_data_meta_unsupported(xdp) ? 0 :
 		   xdp->data - xdp->data_meta;
-	headroom = xdp->data - xdp->data_hard_start;
 	totsize = xdp->data_end - xdp->data + metasize;
 
 	if (sizeof(*xdpf) + totsize > PAGE_SIZE)
