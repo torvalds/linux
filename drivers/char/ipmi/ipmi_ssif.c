@@ -1844,12 +1844,18 @@ static int ssif_platform_remove(struct platform_device *dev)
 	return 0;
 }
 
+static const struct platform_device_id ssif_plat_ids[] = {
+    { "dmi-ipmi-ssif", 0 },
+    { }
+};
+
 static struct platform_driver ipmi_driver = {
 	.driver = {
 		.name = DEVICE_NAME,
 	},
 	.probe		= ssif_platform_probe,
 	.remove		= ssif_platform_remove,
+	.id_table       = ssif_plat_ids
 };
 
 static int init_ipmi_ssif(void)

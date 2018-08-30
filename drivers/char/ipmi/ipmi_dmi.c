@@ -44,7 +44,7 @@ static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 	unsigned int num_r = 1, size;
 	struct property_entry p[5];
 	unsigned int pidx = 0;
-	char *name, *override;
+	char *name;
 	int rv;
 	enum si_type si_type;
 	struct ipmi_dmi_info *info;
@@ -52,11 +52,9 @@ static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 	memset(p, 0, sizeof(p));
 
 	name = "dmi-ipmi-si";
-	override = "ipmi_si";
 	switch (type) {
 	case IPMI_DMI_TYPE_SSIF:
 		name = "dmi-ipmi-ssif";
-		override = "ipmi_ssif";
 		offset = 1;
 		size = 1;
 		si_type = SI_TYPE_INVALID;
@@ -101,10 +99,6 @@ static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 		pr_err("Error allocation IPMI platform device\n");
 		return;
 	}
-	pdev->driver_override = kasprintf(GFP_KERNEL, "%s",
-					  override);
-	if (!pdev->driver_override)
-		goto err;
 
 	if (type == IPMI_DMI_TYPE_SSIF) {
 		p[pidx++] = PROPERTY_ENTRY_U16("i2c-addr", base_addr);

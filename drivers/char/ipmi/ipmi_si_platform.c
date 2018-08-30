@@ -419,6 +419,11 @@ static int ipmi_remove(struct platform_device *pdev)
 	return ipmi_si_remove_by_dev(&pdev->dev);
 }
 
+static const struct platform_device_id si_plat_ids[] = {
+    { "dmi-ipmi-si", 0 },
+    { }
+};
+
 struct platform_driver ipmi_platform_driver = {
 	.driver = {
 		.name = DEVICE_NAME,
@@ -427,6 +432,7 @@ struct platform_driver ipmi_platform_driver = {
 	},
 	.probe		= ipmi_probe,
 	.remove		= ipmi_remove,
+	.id_table       = si_plat_ids
 };
 
 void ipmi_si_platform_init(void)
