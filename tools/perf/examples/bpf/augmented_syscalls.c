@@ -26,6 +26,12 @@ struct bpf_map SEC("maps") __augmented_syscalls__ = {
        .max_entries = __NR_CPUS__,
 };
 
+struct syscall_exit_args {
+	unsigned long long common_tp_fields;
+	long		   syscall_nr;
+	long		   ret;
+};
+
 struct augmented_filename {
 	int	size;
 	int	reserved;
@@ -49,6 +55,10 @@ int syscall_enter(syscall)(struct syscall_enter_##syscall##_args *args)				\
 			  (sizeof(augmented_args) - sizeof(augmented_args.filename.value) +	\
 			   augmented_args.filename.size));					\
 	return 0;										\
+}												\
+int syscall_exit(syscall)(struct syscall_exit_args *args)					\
+{												\
+       return 1; /* 0 as soon as we start copying data returned by the kernel, e.g. 'read' */	\
 }
 
 struct syscall_enter_openat_args {
@@ -116,6 +126,10 @@ int syscall_enter(syscall)(struct syscall_enter_##syscall##_args *args)				\
 			  &augmented_args, 							\
 			  sizeof(augmented_args) - sizeof(augmented_args.addr) + addrlen);	\
 	return 0;										\
+}												\
+int syscall_exit(syscall)(struct syscall_exit_args *args)					\
+{												\
+       return 1; /* 0 as soon as we start copying data returned by the kernel, e.g. 'read' */	\
 }
 
 struct sockaddr;
