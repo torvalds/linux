@@ -89,6 +89,7 @@ grf: syscon@ff770000 {
 Required properties (usb2phy grf node):
  - compatible : should be one of the listed compatibles:
 		"rockchip,px30-usb2phy-grf", "syscon", "simple-mfd";
+		"rockchip,rk1808-usb2phy-grf", "syscon", "simple-mfd";
 		"rockchip,rk3308-usb2phy-grf", "syscon", "simple-mfd";
 		"rockchip,rk3328-usb2phy-grf", "syscon", "simple-mfd";
  - reg : the address offset of grf for usb-phy configuration.
