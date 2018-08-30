@@ -1418,6 +1418,15 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 }
 EXPORT_SYMBOL_GPL(intel_pinctrl_probe);
 
+int intel_pinctrl_probe_by_hid(struct platform_device *pdev)
+{
+	const struct intel_pinctrl_soc_data *data;
+
+	data = device_get_match_data(&pdev->dev);
+	return intel_pinctrl_probe(pdev, data);
+}
+EXPORT_SYMBOL_GPL(intel_pinctrl_probe_by_hid);
+
 int intel_pinctrl_probe_by_uid(struct platform_device *pdev)
 {
 	const struct intel_pinctrl_soc_data *data = NULL;
