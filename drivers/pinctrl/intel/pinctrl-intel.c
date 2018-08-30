@@ -7,11 +7,14 @@
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/gpio/driver.h>
 #include <linux/log2.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
+
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf.h>
@@ -1414,6 +1417,41 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(intel_pinctrl_probe);
+
+int intel_pinctrl_probe_by_uid(struct platform_device *pdev)
+{
+	const struct intel_pinctrl_soc_data *data = NULL;
+	const struct intel_pinctrl_soc_data **table;
+	struct acpi_device *adev;
+	unsigned int i;
+
+	adev = ACPI_COMPANION(&pdev->dev);
+	if (adev) {
+		const void *match = device_get_match_data(&pdev->dev);
+
+		table = (const struct intel_pinctrl_soc_data **)match;
+		for (i = 0; table[i]; i++) {
+			if (!strcmp(adev->pnp.unique_id, table[i]->uid)) {
+				data = table[i];
+				break;
+			}
+		}
+	} else {
+		const struct platform_device_id *id;
+
+		id = platform_get_device_id(pdev);
+		if (!id)
+			return -ENODEV;
+
+		table = (const struct intel_pinctrl_soc_data **)id->driver_data;
+		data = table[pdev->id];
+	}
+	if (!data)
+		return -ENODEV;
+
+	return intel_pinctrl_probe(pdev, data);
+}
+EXPORT_SYMBOL_GPL(intel_pinctrl_probe_by_uid);
 
 #ifdef CONFIG_PM_SLEEP
 static bool intel_pinctrl_should_save(struct intel_pinctrl *pctrl, unsigned pin)
