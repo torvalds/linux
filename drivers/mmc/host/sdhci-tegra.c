@@ -587,6 +587,8 @@ static int sdhci_tegra_start_signal_voltage_switch(struct mmc_host *mmc,
 						   struct mmc_ios *ios)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_tegra *tegra_host = sdhci_pltfm_priv(pltfm_host);
 	int ret = 0;
 
 	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330) {
@@ -600,6 +602,9 @@ static int sdhci_tegra_start_signal_voltage_switch(struct mmc_host *mmc,
 			return ret;
 		ret = tegra_sdhci_set_padctrl(host, ios->signal_voltage);
 	}
+
+	if (tegra_host->pad_calib_required)
+		tegra_sdhci_pad_autocalib(host);
 
 	return ret;
 }
