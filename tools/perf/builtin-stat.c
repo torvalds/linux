@@ -1694,10 +1694,11 @@ static void print_footer(void)
 
 static void
 perf_evlist__print_counters(struct perf_evlist *evlist,
+			    struct perf_stat_config *config,
 			    struct timespec *ts,
 			    int argc, const char **argv)
 {
-	int interval = stat_config.interval;
+	int interval = config->interval;
 	struct perf_evsel *counter;
 	char buf[64], *prefix = NULL;
 
@@ -1713,11 +1714,11 @@ perf_evlist__print_counters(struct perf_evlist *evlist,
 			print_metric_headers(prefix, false);
 		if (num_print_iv++ == 25)
 			num_print_iv = 0;
-		if (stat_config.aggr_mode == AGGR_GLOBAL && prefix)
-			fprintf(stat_config.output, "%s", prefix);
+		if (config->aggr_mode == AGGR_GLOBAL && prefix)
+			fprintf(config->output, "%s", prefix);
 	}
 
-	switch (stat_config.aggr_mode) {
+	switch (config->aggr_mode) {
 	case AGGR_CORE:
 	case AGGR_SOCKET:
 		print_aggr(prefix);
@@ -1736,7 +1737,7 @@ perf_evlist__print_counters(struct perf_evlist *evlist,
 			print_counter_aggr(counter, prefix);
 		}
 		if (metric_only)
-			fputc('\n', stat_config.output);
+			fputc('\n', config->output);
 		break;
 	case AGGR_NONE:
 		if (metric_only)
@@ -1757,7 +1758,7 @@ perf_evlist__print_counters(struct perf_evlist *evlist,
 	if (!interval && !csv_output)
 		print_footer();
 
-	fflush(stat_config.output);
+	fflush(config->output);
 }
 
 static void print_counters(struct timespec *ts, int argc, const char **argv)
@@ -1766,7 +1767,8 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 	if (STAT_RECORD && perf_stat.data.is_pipe)
 		return;
 
-	perf_evlist__print_counters(evsel_list, ts, argc, argv);
+	perf_evlist__print_counters(evsel_list, &stat_config,
+				    ts, argc, argv);
 }
 
 static volatile int signr = -1;
