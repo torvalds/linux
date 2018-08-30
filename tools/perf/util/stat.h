@@ -135,9 +135,10 @@ bool __perf_evsel_stat__is(struct perf_evsel *evsel,
 extern struct runtime_stat rt_stat;
 extern struct stats walltime_nsecs_stats;
 
-typedef void (*print_metric_t)(void *ctx, const char *color, const char *unit,
+typedef void (*print_metric_t)(struct perf_stat_config *config,
+			       void *ctx, const char *color, const char *unit,
 			       const char *fmt, double val);
-typedef void (*new_line_t )(void *ctx);
+typedef void (*new_line_t)(struct perf_stat_config *config, void *ctx);
 
 void runtime_stat__init(struct runtime_stat *st);
 void runtime_stat__exit(struct runtime_stat *st);
@@ -153,7 +154,8 @@ struct perf_stat_output_ctx {
 	bool force_header;
 };
 
-void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
+void perf_stat__print_shadow_stats(struct perf_stat_config *config,
+				   struct perf_evsel *evsel,
 				   double avg, int cpu,
 				   struct perf_stat_output_ctx *out,
 				   struct rblist *metric_events,
