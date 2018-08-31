@@ -215,28 +215,6 @@
 		power-supply = <&reg_3v3>;
 	};
 
-	pwmleds {
-		compatible = "pwm-leds";
-
-		pwm1 {
-			label = "PWM1";
-			pwms = <&pwm 3 19600>;
-			max-brightness = <255>;
-		};
-
-		pwm2 {
-			label = "PWM2";
-			pwms = <&pwm 2 19600>;
-			max-brightness = <255>;
-		};
-
-		pwm3 {
-			label = "PWM3";
-			pwms = <&pwm 1 19600>;
-			max-brightness = <255>;
-		};
-	};
-
 	reg_3v3: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "3.3V_SW";
