@@ -333,7 +333,7 @@ static void sru_partition(struct vsp1_entity *entity,
 	output = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
 					    SRU_PAD_SOURCE);
 
-	/* Adapt if SRUx2 is enabled */
+	/* Adapt if SRUx2 is enabled. */
 	if (input->width != output->width) {
 		window->width /= 2;
 		window->left /= 2;

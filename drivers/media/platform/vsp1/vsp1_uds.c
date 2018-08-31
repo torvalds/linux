@@ -314,13 +314,13 @@ static void uds_configure_partition(struct vsp1_entity *entity,
 	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
 					    UDS_PAD_SOURCE);
 
-	/* Input size clipping */
+	/* Input size clipping. */
 	vsp1_uds_write(uds, dlb, VI6_UDS_HSZCLIP, VI6_UDS_HSZCLIP_HCEN |
 		       (0 << VI6_UDS_HSZCLIP_HCL_OFST_SHIFT) |
 		       (partition->uds_sink.width
 				<< VI6_UDS_HSZCLIP_HCL_SIZE_SHIFT));
 
-	/* Output size clipping */
+	/* Output size clipping. */
 	vsp1_uds_write(uds, dlb, VI6_UDS_CLIP_SIZE,
 		       (partition->uds_source.width
 				<< VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
@@ -366,7 +366,7 @@ static void uds_partition(struct vsp1_entity *entity,
 	const struct v4l2_mbus_framefmt *output;
 	const struct v4l2_mbus_framefmt *input;
 
-	/* Initialise the partition state */
+	/* Initialise the partition state. */
 	partition->uds_sink = *window;
 	partition->uds_source = *window;
 

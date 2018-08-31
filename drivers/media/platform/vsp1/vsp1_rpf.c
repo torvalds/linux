@@ -108,7 +108,7 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 	vsp1_rpf_write(rpf, dlb, VI6_RPF_INFMT, infmt);
 	vsp1_rpf_write(rpf, dlb, VI6_RPF_DSWAP, fmtinfo->swap);
 
-	/* Output location */
+	/* Output location. */
 	if (pipe->brx) {
 		const struct v4l2_rect *compose;
 
@@ -309,7 +309,7 @@ static void rpf_configure_partition(struct vsp1_entity *entity,
 
 	/*
 	 * Interlaced pipelines will use the extended pre-cmd to process
-	 * SRCM_ADDR_{Y,C0,C1}
+	 * SRCM_ADDR_{Y,C0,C1}.
 	 */
 	if (pipe->interlaced) {
 		vsp1_rpf_configure_autofld(rpf, dl);

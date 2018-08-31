@@ -864,7 +864,7 @@ static void vsp1_video_cleanup_pipeline(struct vsp1_pipeline *pipe)
 	pipe->stream_config = NULL;
 	pipe->configured = false;
 
-	/* Release our partition table allocation */
+	/* Release our partition table allocation. */
 	kfree(pipe->part_table);
 	pipe->part_table = NULL;
 }
