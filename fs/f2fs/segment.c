@@ -1564,6 +1564,8 @@ static int issue_discard_thread(void *data)
 	struct discard_policy dpolicy;
 	unsigned int wait_ms = DEF_MIN_DISCARD_ISSUE_TIME;
 	int issued;
+	unsigned long interval = sbi->interval_time[REQ_TIME] * HZ;
+	long delta;
 
 	set_freezable();
 
@@ -1600,7 +1602,11 @@ static int issue_discard_thread(void *data)
 			__wait_all_discard_cmd(sbi, &dpolicy);
 			wait_ms = dpolicy.min_interval;
 		} else if (issued == -1){
-			wait_ms = dpolicy.mid_interval;
+			delta = (sbi->last_time[REQ_TIME] + interval) - jiffies;
+			if (delta > 0)
+				wait_ms = jiffies_to_msecs(delta);
+			else
+				wait_ms = dpolicy.mid_interval;
 		} else {
 			wait_ms = dpolicy.max_interval;
 		}
