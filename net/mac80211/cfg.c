@@ -158,12 +158,10 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 	if (ret)
 		return ret;
 
-	if (type == NL80211_IFTYPE_AP_VLAN &&
-	    params && params->use_4addr == 0) {
+	if (type == NL80211_IFTYPE_AP_VLAN && params->use_4addr == 0) {
 		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
 		ieee80211_check_fast_rx_iface(sdata);
-	} else if (type == NL80211_IFTYPE_STATION &&
-		   params && params->use_4addr >= 0) {
+	} else if (type == NL80211_IFTYPE_STATION && params->use_4addr >= 0) {
 		sdata->u.mgd.use_4addr = params->use_4addr;
 	}
 
