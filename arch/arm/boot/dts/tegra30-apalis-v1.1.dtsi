@@ -1,9 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 #include "tegra30.dtsi"
 
 /*
  * Toradex Apalis T30 Module Device Tree
- * Compatible for Revisions 1GB: V1.0A; 2GB: V1.0B, V1.0C, V1.0E
+ * Compatible for Revisions 1GB: V1.1A, V1.1B; 1GB IT: V1.1A, V1.1B;
+ * 2GB: V1.1A, V1.1B
  */
 / {
 	memory@80000000 {
@@ -629,6 +630,15 @@
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 
+			/* EN_+3.3_SDMMC3 */
+			uart2-cts-n-pj5 {
+				nvidia,pins = "uart2_cts_n_pj5";
+				nvidia,function = "gmi";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+			};
+
 			/* LAN i210/i211 DEV_OFF_N, PE_RST_N (On-module) */
 			pex-l2-prsnt-n-pdd7 {
 				nvidia,pins = "pex_l2_prsnt_n_pdd7",
@@ -774,9 +784,8 @@
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
-			uart2-cts-n-pj5 {
-				nvidia,pins = "uart2_cts_n_pj5",
-					      "uart2_rts_n_pj6";
+			uart2-rts-n-pj6 {
+				nvidia,pins = "uart2_rts_n_pj6";
 				nvidia,function = "gmi";
 				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
@@ -902,7 +911,16 @@
 					regulator-always-on;
 				};
 
-				/* LDO1: unused */
+				/*
+				 * 1.8 volt +VDDIO_SDMMC3 in case EN_+3.3_SDMMC3
+				 * is off
+				 */
+				vddio_sdmmc_1v8_reg: ldo1 {
+					regulator-name = "+VDDIO_SDMMC3_1V8";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+				};
 
 				/*
 				 * EN_+V3.3 switching via FET:
