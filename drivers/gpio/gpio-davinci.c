@@ -9,6 +9,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
+
 #include <linux/gpio/driver.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -24,6 +25,12 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/gpio-davinci.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/spinlock.h>
+
+#include <asm-generic/gpio.h>
+
+#define MAX_REGS_BANKS 5
+#define MAX_INT_PER_BANK 32
 
 struct davinci_gpio_regs {
 	u32	dir;
@@ -44,6 +51,27 @@ typedef struct irq_chip *(*gpio_get_irq_chip_cb_t)(unsigned int irq);
 
 static void __iomem *gpio_base;
 static unsigned int offset_array[5] = {0x10, 0x38, 0x60, 0x88, 0xb0};
+
+struct davinci_gpio_irq_data {
+	void __iomem			*regs;
+	struct davinci_gpio_controller	*chip;
+	int				bank_num;
+};
+
+struct davinci_gpio_controller {
+	struct gpio_chip	chip;
+	struct irq_domain	*irq_domain;
+	/* Serialize access to GPIO registers */
+	spinlock_t		lock;
+	void __iomem		*regs[MAX_REGS_BANKS];
+	int			gpio_unbanked;
+	int			irqs[MAX_INT_PER_BANK];
+};
+
+static inline u32 __gpio_mask(unsigned gpio)
+{
+	return 1 << (gpio % 32);
+}
 
 static inline struct davinci_gpio_regs __iomem *irq2regs(struct irq_data *d)
 {
