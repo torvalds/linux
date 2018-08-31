@@ -165,7 +165,7 @@ of_err:
 
 static int davinci_gpio_probe(struct platform_device *pdev)
 {
-	int gpio, bank, i, ret = 0;
+	int bank, i, ret = 0;
 	unsigned int ngpio, nbank, nirq;
 	struct davinci_gpio_controller *chips;
 	struct davinci_gpio_platform_data *pdata;
@@ -204,10 +204,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	else
 		nirq = DIV_ROUND_UP(ngpio, 16);
 
-	nbank = DIV_ROUND_UP(ngpio, 32);
-	chips = devm_kcalloc(dev,
-			     nbank, sizeof(struct davinci_gpio_controller),
-			     GFP_KERNEL);
+	chips = devm_kzalloc(dev, sizeof(*chips), GFP_KERNEL);
 	if (!chips)
 		return -ENOMEM;
 
@@ -247,7 +244,8 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 #endif
 	spin_lock_init(&chips->lock);
 
-	for (gpio = 0, bank = 0; gpio < ngpio; gpio += 32, bank++)
+	nbank = DIV_ROUND_UP(ngpio, 32);
+	for (bank = 0; bank < nbank; bank++)
 		chips->regs[bank] = gpio_base + offset_array[bank];
 
 	ret = devm_gpiochip_add_data(dev, &chips->chip, chips);
