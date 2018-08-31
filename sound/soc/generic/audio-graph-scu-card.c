@@ -27,6 +27,7 @@ struct graph_card_data {
 	struct snd_soc_codec_conf codec_conf;
 	struct graph_dai_props {
 		struct asoc_simple_dai dai;
+		struct snd_soc_dai_link_component codecs;
 	} *dai_props;
 	struct snd_soc_dai_link *dai_link;
 	struct asoc_simple_card_data adata;
@@ -99,10 +100,13 @@ static int asoc_graph_card_dai_link_of(struct device_node *ep,
 	int ret;
 
 	if (is_fe) {
+		struct snd_soc_dai_link_component *codecs;
+
 		/* BE is dummy */
-		dai_link->codec_of_node		= NULL;
-		dai_link->codec_dai_name	= "snd-soc-dummy-dai";
-		dai_link->codec_name		= "snd-soc-dummy";
+		codecs			= dai_link->codecs;
+		codecs->of_node		= NULL;
+		codecs->dai_name	= "snd-soc-dummy-dai";
+		codecs->name		= "snd-soc-dummy";
 
 		/* FE settings */
 		dai_link->dynamic		= 1;
@@ -145,13 +149,13 @@ static int asoc_graph_card_dai_link_of(struct device_node *ep,
 
 		ret = asoc_simple_card_set_dailink_name(dev, dai_link,
 							"be.%s",
-							dai_link->codec_dai_name);
+							dai_link->codecs->dai_name);
 		if (ret < 0)
 			return ret;
 
 		snd_soc_of_parse_audio_prefix(card,
 					      &priv->codec_conf,
-					      dai_link->codec_of_node,
+					      dai_link->codecs->of_node,
 					      "prefix");
 	}
 
@@ -336,7 +340,7 @@ static int asoc_graph_card_probe(struct platform_device *pdev)
 	struct graph_dai_props *dai_props;
 	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card;
-	int num, ret;
+	int num, ret, i;
 
 	/* Allocate the private data and the DAI link array */
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -351,6 +355,17 @@ static int asoc_graph_card_probe(struct platform_device *pdev)
 	dai_link  = devm_kcalloc(dev, num, sizeof(*dai_link), GFP_KERNEL);
 	if (!dai_props || !dai_link)
 		return -ENOMEM;
+
+	/*
+	 * Use snd_soc_dai_link_component instead of legacy style
+	 * It is codec only. but cpu/platform will be supported in the future.
+	 * see
+	 *	soc-core.c :: snd_soc_init_multicodec()
+	 */
+	for (i = 0; i < num; i++) {
+		dai_link[i].codecs	= &dai_props[i].codecs;
+		dai_link[i].num_codecs	= 1;
+	}
 
 	priv->dai_props			= dai_props;
 	priv->dai_link			= dai_link;
