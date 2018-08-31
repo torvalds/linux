@@ -76,8 +76,6 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 	if (!dev->netdev_ops->ndo_bpf || !dev->netdev_ops->ndo_xsk_async_xmit)
 		return force_zc ? -EOPNOTSUPP : 0; /* fail or fallback */
 
-	bpf.command = XDP_QUERY_XSK_UMEM;
-
 	rtnl_lock();
 	err = xdp_umem_query(dev, queue_id);
 	if (err) {
