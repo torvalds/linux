@@ -1747,18 +1747,18 @@ int
 qla24xx_async_abort_cmd(srb_t *cmd_sp, bool wait)
 {
 	scsi_qla_host_t *vha = cmd_sp->vha;
-	fc_port_t *fcport = cmd_sp->fcport;
 	struct srb_iocb *abt_iocb;
 	srb_t *sp;
 	int rval = QLA_FUNCTION_FAILED;
 
-	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
+	sp = qla2xxx_get_qpair_sp(cmd_sp->qpair, cmd_sp->fcport, GFP_KERNEL);
 	if (!sp)
 		goto done;
 
 	abt_iocb = &sp->u.iocb_cmd;
 	sp->type = SRB_ABT_CMD;
 	sp->name = "abort";
+	sp->qpair = cmd_sp->qpair;
 	if (wait)
 		sp->flags = SRB_WAKEUP_ON_COMP;
 
@@ -1767,12 +1767,7 @@ qla24xx_async_abort_cmd(srb_t *cmd_sp, bool wait)
 	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha));
 
 	abt_iocb->u.abt.cmd_hndl = cmd_sp->handle;
-
-	if (vha->flags.qpairs_available && cmd_sp->qpair)
-		abt_iocb->u.abt.req_que_no =
-		    cpu_to_le16(cmd_sp->qpair->req->id);
-	else
-		abt_iocb->u.abt.req_que_no = cpu_to_le16(vha->req->id);
+	abt_iocb->u.abt.req_que_no = cpu_to_le16(cmd_sp->qpair->req->id);
 
 	sp->done = qla24xx_abort_sp_done;
 
@@ -1781,8 +1776,8 @@ qla24xx_async_abort_cmd(srb_t *cmd_sp, bool wait)
 		goto done_free_sp;
 
 	ql_dbg(ql_dbg_async, vha, 0x507c,
-	    "Abort command issued - hdl=%x, target_id=%x\n",
-	    cmd_sp->handle, fcport->tgt_id);
+	    "Abort command issued - hdl=%x, type=%x\n",
+	    cmd_sp->handle, cmd_sp->type);
 
 	if (wait) {
 		wait_for_completion(&abt_iocb->u.abt.comp);
