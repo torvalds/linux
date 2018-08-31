@@ -676,7 +676,7 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 	vga_arbiter_check_bridge_sharing(vgadev);
 
 	/* Add to the list */
-	list_add(&vgadev->list, &vga_list);
+	list_add_tail(&vgadev->list, &vga_list);
 	vga_count++;
 	vgaarb_info(&pdev->dev, "VGA device added: decodes=%s,owns=%s,locks=%s\n",
 		vga_iostate_to_str(vgadev->decodes),
