@@ -380,7 +380,6 @@ lio_process_iq_request_list(struct octeon_device *oct,
 	u32 inst_count = 0;
 	unsigned int pkts_compl = 0, bytes_compl = 0;
 	struct octeon_soft_command *sc;
-	struct octeon_instr_irh *irh;
 	unsigned long flags;
 
 	while (old != iq->octeon_read_index) {
@@ -402,14 +401,6 @@ lio_process_iq_request_list(struct octeon_device *oct,
 		case REQTYPE_RESP_NET:
 		case REQTYPE_SOFT_COMMAND:
 			sc = buf;
-
-			if (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct))
-				irh = (struct octeon_instr_irh *)
-					&sc->cmd.cmd3.irh;
-			else
-				irh = (struct octeon_instr_irh *)
-					&sc->cmd.cmd2.irh;
-
 			/* We're expecting a response from Octeon.
 			 * It's up to lio_process_ordered_list() to
 			 * process  sc. Add sc to the ordered soft
