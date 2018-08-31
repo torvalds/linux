@@ -830,13 +830,6 @@ void rtl8192_rx_enable(struct net_device *dev)
 	rtl8192_rx_initiate(dev);
 }
 
-
-void rtl8192_tx_enable(struct net_device *dev)
-{
-}
-
-
-
 void rtl8192_rtx_disable(struct net_device *dev)
 {
 	u8 cmd;

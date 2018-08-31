@@ -1103,22 +1103,12 @@ void force_pci_posting(struct net_device *dev);
 
 void rtl8192_rtx_disable(struct net_device *dev);
 void rtl8192_rx_enable(struct net_device *dev);
-void rtl8192_tx_enable(struct net_device *dev);
 
-void rtl8192_disassociate(struct net_device *dev);
-void rtl8185_set_rf_pins_enable(struct net_device *dev, u32 a);
-
-void rtl8192_set_anaparam(struct net_device *dev, u32 a);
-void rtl8185_set_anaparam2(struct net_device *dev, u32 a);
 void rtl8192_update_msr(struct net_device *dev);
 int rtl8192_down(struct net_device *dev);
 int rtl8192_up(struct net_device *dev);
 void rtl8192_commit(struct net_device *dev);
 void rtl8192_set_chan(struct net_device *dev, short ch);
-void write_phy(struct net_device *dev, u8 adr, u8 data);
-void write_phy_cck(struct net_device *dev, u8 adr, u32 data);
-void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
-void rtl8185_tx_antenna(struct net_device *dev, u8 ant);
 void rtl8192_set_rxconf(struct net_device *dev);
 void rtl819xusb_beacon_tx(struct net_device *dev, u16 tx_rate);
 
