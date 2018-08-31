@@ -112,7 +112,7 @@ extern u32 rt_global_debug_component;
 	do {								\
 		if ((rt_global_debug_component & (level)) == (level)) {	\
 			int i;						\
-			u8 *pdata = (u8 *) data;			\
+			u8 *pdata = (u8 *)data;				\
 			pr_debug("RTL8192U: %s()\n", __func__);		\
 			for (i = 0; i < (int)(datalen); i++) {		\
 				printk("%2x ", pdata[i]);               \
@@ -877,9 +877,9 @@ typedef struct r8192_priv {
 	int     rx_inx;
 #endif
 
-       struct sk_buff_head rx_queue;
-       struct sk_buff_head skb_queue;
-       struct work_struct qos_activate;
+	struct sk_buff_head rx_queue;
+	struct sk_buff_head skb_queue;
+	struct work_struct qos_activate;
 	short  tx_urb_index;
 	atomic_t tx_pending[0x10]; /* UART_PRIORITY + 1 */
 
@@ -1027,7 +1027,7 @@ typedef struct r8192_priv {
 	u8	nrxAMPDU_aggr_num;
 
 	/* For gpio */
-	 bool bHwRadioOff;
+	bool bHwRadioOff;
 
 	u32 reset_count;
 	bool bpbc_pressed;
