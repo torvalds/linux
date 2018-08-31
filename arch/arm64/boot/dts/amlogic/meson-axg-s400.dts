@@ -240,6 +240,9 @@
 				"TODDR_A IN 2", "TDMIN_C OUT",
 				"TODDR_B IN 2", "TDMIN_C OUT",
 				"TODDR_C IN 2", "TDMIN_C OUT",
+				"TODDR_A IN 4", "PDM Capture",
+				"TODDR_B IN 4", "PDM Capture",
+				"TODDR_C IN 4", "PDM Capture",
 				"TODDR_A IN 6", "TDMIN_LB OUT",
 				"TODDR_B IN 6", "TDMIN_LB OUT",
 				"TODDR_C IN 6", "TDMIN_LB OUT",
@@ -310,6 +313,14 @@
 
 			codec {
 				sound-dai = <&spdif_dit>;
+			};
+		};
+
+		dai-link@8 {
+			sound-dai = <&pdm>;
+
+			codec {
+				sound-dai = <&dmics>;
 			};
 		};
 	};
@@ -392,6 +403,13 @@
 		#gpio-cells = <2>;
 		vcc-supply = <&vddao_3v3>;
 	};
+};
+
+&pdm {
+	pinctrl-0 = <&pdm_dclk_a14_pins>, <&pdm_din0_pins>,
+		    <&pdm_din1_pins>, <&pdm_din2_pins>, <&pdm_din3_pins>;
+	pinctrl-names = "default";
+	status = "okay";
 };
 
 &pwm_ab {
