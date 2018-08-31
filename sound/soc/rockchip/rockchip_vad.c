@@ -69,6 +69,7 @@ struct rockchip_vad {
 	void *buf;
 	bool acodec_cfg;
 	bool vswitch;
+	bool h_16bit;
 };
 
 struct audio_src_addr_map {
@@ -87,6 +88,8 @@ static int rockchip_vad_stop(struct rockchip_vad *vad)
 		return 0;
 
 	regmap_update_bits(vad->regmap, VAD_CTRL, VAD_EN_MASK, VAD_DISABLE);
+	regmap_read(vad->regmap, VAD_CTRL, &val);
+	vad->h_16bit = (val & AUDIO_24BIT_SAT_MASK) == AUDIO_H16B;
 	regmap_read(vad->regmap, VAD_RAM_END_ADDR, &val);
 	vbuf->end = vbuf->begin + (val - vad->memphy) + 0x8;
 	regmap_read(vad->regmap, VAD_INT, &val);
@@ -291,6 +294,9 @@ int snd_pcm_vad_preprocess(struct snd_pcm_substream *substream,
 		return 0;
 
 	buf += samples_to_bytes(runtime, vad->audio_chnl);
+	/* retrieve the high 16bit data */
+	if (runtime->sample_bits == 32 && vad->h_16bit)
+		buf += 2;
 	for (i = 0; i < size; i++) {
 		data = buf;
 		if (vad_preprocess(*data))
