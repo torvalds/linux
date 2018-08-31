@@ -19,7 +19,6 @@
 #include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/netdevice.h>
 #include <linux/netpoll.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
