@@ -52,7 +52,7 @@
 extern u32 rt_global_debug_component;
 #define RT_TRACE(component, x, args...) \
 	do {							\
-		if (rt_global_debug_component & component)	\
+		if (rt_global_debug_component & (component))	\
 			pr_debug("RTL8192U: " x "\n", ##args);	\
 	} while (0)
 
