@@ -19,9 +19,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program;
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -458,28 +455,13 @@ static const struct iwl_prph_range iwl_prph_dump_addr_9000[] = {
 	{ .start = 0x00a02400, .end = 0x00a02758 },
 };
 
-static void _iwl_read_prph_block(struct iwl_trans *trans, u32 start,
-				 u32 len_bytes, __le32 *data)
+static void iwl_read_prph_block(struct iwl_trans *trans, u32 start,
+				u32 len_bytes, __le32 *data)
 {
 	u32 i;
 
 	for (i = 0; i < len_bytes; i += 4)
 		*data++ = cpu_to_le32(iwl_read_prph_no_grab(trans, start + i));
-}
-
-static bool iwl_read_prph_block(struct iwl_trans *trans, u32 start,
-				u32 len_bytes, __le32 *data)
-{
-	unsigned long flags;
-	bool success = false;
-
-	if (iwl_trans_grab_nic_access(trans, &flags)) {
-		success = true;
-		_iwl_read_prph_block(trans, start, len_bytes, data);
-		iwl_trans_release_nic_access(trans, &flags);
-	}
-
-	return success;
 }
 
 static void iwl_dump_prph(struct iwl_trans *trans,
@@ -507,11 +489,11 @@ static void iwl_dump_prph(struct iwl_trans *trans,
 		prph = (void *)(*data)->data;
 		prph->prph_start = cpu_to_le32(iwl_prph_dump_addr[i].start);
 
-		_iwl_read_prph_block(trans, iwl_prph_dump_addr[i].start,
-				     /* our range is inclusive, hence + 4 */
-				     iwl_prph_dump_addr[i].end -
-				     iwl_prph_dump_addr[i].start + 4,
-				     (void *)prph->data);
+		iwl_read_prph_block(trans, iwl_prph_dump_addr[i].start,
+				    /* our range is inclusive, hence + 4 */
+				    iwl_prph_dump_addr[i].end -
+				    iwl_prph_dump_addr[i].start + 4,
+				    (void *)prph->data);
 
 		*data = iwl_fw_error_next_data(*data);
 	}
@@ -746,6 +728,11 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 			 sizeof(struct iwl_fw_error_dump_paging) +
 			 PAGING_BLOCK_SIZE);
 
+	if (iwl_fw_dbg_is_d3_debug_enabled(fwrt) && fwrt->dump.d3_debug_data) {
+		file_len += sizeof(*dump_data) +
+			fwrt->trans->cfg->d3_debug_data_length * 2;
+	}
+
 	/* If we only want a monitor dump, reset the file length */
 	if (monitor_dump_only) {
 		file_len = sizeof(*dump_file) + sizeof(*dump_data) * 2 +
@@ -858,10 +845,29 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 		dump_data = iwl_fw_error_next_data(dump_data);
 	}
 
+	if (iwl_fw_dbg_is_d3_debug_enabled(fwrt) && fwrt->dump.d3_debug_data) {
+		u32 addr = fwrt->trans->cfg->d3_debug_data_base_addr;
+		size_t data_size = fwrt->trans->cfg->d3_debug_data_length;
+
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
+		dump_data->len = cpu_to_le32(data_size * 2);
+
+		memcpy(dump_data->data, fwrt->dump.d3_debug_data,
+		       data_size);
+
+		kfree(fwrt->dump.d3_debug_data);
+		fwrt->dump.d3_debug_data = NULL;
+
+		iwl_trans_read_mem_bytes(fwrt->trans, addr,
+					 dump_data->data + data_size,
+					 data_size);
+
+		dump_data = iwl_fw_error_next_data(dump_data);
+	}
+
 	for (i = 0; i < fwrt->fw->n_dbg_mem_tlv; i++) {
 		u32 len = le32_to_cpu(fw_dbg_mem[i].len);
 		u32 ofs = le32_to_cpu(fw_dbg_mem[i].ofs);
-		bool success;
 
 		if (!(fwrt->fw->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM)))
 			break;
@@ -875,28 +881,11 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 		IWL_DEBUG_INFO(fwrt, "WRT memory dump. Type=%u\n",
 			       dump_mem->type);
 
-		switch (dump_mem->type & cpu_to_le32(FW_DBG_MEM_TYPE_MASK)) {
-		case cpu_to_le32(FW_DBG_MEM_TYPE_REGULAR):
-			iwl_trans_read_mem_bytes(fwrt->trans, ofs,
-						 dump_mem->data,
-						 len);
-			success = true;
-			break;
-		case cpu_to_le32(FW_DBG_MEM_TYPE_PRPH):
-			success = iwl_read_prph_block(fwrt->trans, ofs, len,
-						      (void *)dump_mem->data);
-			break;
-		default:
-			/*
-			 * shouldn't get here, we ignored this kind
-			 * of TLV earlier during the TLV parsing?!
-			 */
-			WARN_ON(1);
-			success = false;
-		}
+		iwl_trans_read_mem_bytes(fwrt->trans, ofs,
+					 dump_mem->data,
+					 len);
 
-		if (success)
-			dump_data = iwl_fw_error_next_data(dump_data);
+		dump_data = iwl_fw_error_next_data(dump_data);
 	}
 
 	if (smem_len && fwrt->fw->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM)) {
@@ -1016,7 +1005,7 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	 * If the loading of the FW completed successfully, the next step is to
 	 * get the SMEM config data. Thus, if fwrt->smem_cfg.num_lmacs is non
 	 * zero, the FW was already loaded successully. If the state is "NO_FW"
-	 * in such a case - WARN and exit, since FW may be dead. Otherwise, we
+	 * in such a case - exit, since FW may be dead. Otherwise, we
 	 * can try to collect the data, since FW might just not be fully
 	 * loaded (no "ALIVE" yet), and the debug data is accessible.
 	 *
@@ -1024,9 +1013,8 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	 *	config. In such a case, due to HW access problems, we might
 	 *	collect garbage.
 	 */
-	if (WARN((fwrt->trans->state == IWL_TRANS_NO_FW) &&
-		 fwrt->smem_cfg.num_lmacs,
-		 "Can't collect dbg data when FW isn't alive\n"))
+	if (fwrt->trans->state == IWL_TRANS_NO_FW &&
+	    fwrt->smem_cfg.num_lmacs)
 		return -EIO;
 
 	if (test_and_set_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
@@ -1133,9 +1121,6 @@ int iwl_fw_start_dbg_conf(struct iwl_fw_runtime *fwrt, u8 conf_id)
 		IWL_WARN(fwrt, "FW already configured (%d) - re-configuring\n",
 			 fwrt->dump.conf);
 
-	/* start default config marker cmd for syncing logs */
-	iwl_fw_trigger_timestamp(fwrt, 1);
-
 	/* Send all HCMDs for configuring the FW debug */
 	ptr = (void *)&fwrt->fw->dbg_conf_tlv[conf_id]->hcmd;
 	for (i = 0; i < fwrt->fw->dbg_conf_tlv[conf_id]->num_of_hcmds; i++) {
@@ -1179,7 +1164,7 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 
 	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		/* stop recording */
-		iwl_fw_dbg_stop_recording(fwrt);
+		iwl_fw_dbg_stop_recording(fwrt->trans);
 
 		iwl_fw_error_dump(fwrt);
 
@@ -1197,7 +1182,7 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 		u32 in_sample = iwl_read_prph(fwrt->trans, DBGC_IN_SAMPLE);
 		u32 out_ctrl = iwl_read_prph(fwrt->trans, DBGC_OUT_CTRL);
 
-		iwl_fw_dbg_stop_recording(fwrt);
+		iwl_fw_dbg_stop_recording(fwrt->trans);
 		/* wait before we collect the data till the DBGC stop */
 		udelay(500);
 
@@ -1215,3 +1200,26 @@ out:
 		fwrt->ops->dump_end(fwrt->ops_ctx);
 }
 
+void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt)
+{
+	const struct iwl_cfg *cfg = fwrt->trans->cfg;
+
+	if (!iwl_fw_dbg_is_d3_debug_enabled(fwrt))
+		return;
+
+	if (!fwrt->dump.d3_debug_data) {
+		fwrt->dump.d3_debug_data = kmalloc(cfg->d3_debug_data_length,
+						   GFP_KERNEL);
+		if (!fwrt->dump.d3_debug_data) {
+			IWL_ERR(fwrt,
+				"failed to allocate memory for D3 debug data\n");
+			return;
+		}
+	}
+
+	/* if the buffer holds previous debug data it is overwritten */
+	iwl_trans_read_mem_bytes(fwrt->trans, cfg->d3_debug_data_base_addr,
+				 fwrt->dump.d3_debug_data,
+				 cfg->d3_debug_data_length);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_read_d3_debug_data);

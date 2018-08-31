@@ -1042,7 +1042,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	 * the recording automatically before entering D3.  This can
 	 * be removed once the FW starts doing that.
 	 */
-	iwl_fw_dbg_stop_recording(&mvm->fwrt);
+	iwl_fw_dbg_stop_recording(mvm->fwrt.trans);
 
 	/* must be last -- this switches firmware state */
 	ret = iwl_mvm_send_cmd(mvm, &d3_cfg_cmd);
@@ -1362,7 +1362,7 @@ static void iwl_mvm_set_key_rx_seq(struct iwl_mvm *mvm,
 				   struct ieee80211_key_conf *key,
 				   struct iwl_wowlan_status *status)
 {
-	union iwl_all_tsc_rsc *rsc = &status->gtk.rsc.all_tsc_rsc;
+	union iwl_all_tsc_rsc *rsc = &status->gtk[0].rsc.all_tsc_rsc;
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_CCMP:
@@ -1419,7 +1419,8 @@ static void iwl_mvm_d3_update_keys(struct ieee80211_hw *hw,
 	 */
 	if (sta) {
 		struct ieee80211_key_seq seq = {};
-		union iwl_all_tsc_rsc *sc = &data->status->gtk.rsc.all_tsc_rsc;
+		union iwl_all_tsc_rsc *sc =
+			&data->status->gtk[0].rsc.all_tsc_rsc;
 
 		if (data->find_phase)
 			return;
@@ -1501,22 +1502,24 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 			u8 key[32];
 		} conf = {
 			.conf.cipher = gtkdata.cipher,
-			.conf.keyidx = status->gtk.key_index,
+			.conf.keyidx =
+				iwlmvm_wowlan_gtk_idx(&status->gtk[0]),
 		};
+		__be64 replay_ctr;
 
 		switch (gtkdata.cipher) {
 		case WLAN_CIPHER_SUITE_CCMP:
 			conf.conf.keylen = WLAN_KEY_LEN_CCMP;
-			memcpy(conf.conf.key, status->gtk.decrypt_key,
+			memcpy(conf.conf.key, status->gtk[0].key,
 			       WLAN_KEY_LEN_CCMP);
 			break;
 		case WLAN_CIPHER_SUITE_TKIP:
 			conf.conf.keylen = WLAN_KEY_LEN_TKIP;
-			memcpy(conf.conf.key, status->gtk.decrypt_key, 16);
+			memcpy(conf.conf.key, status->gtk[0].key, 16);
 			/* leave TX MIC key zeroed, we don't use it anyway */
 			memcpy(conf.conf.key +
 			       NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY,
-			       status->gtk.tkip_mic_key, 8);
+			       status->gtk[0].tkip_mic_key, 8);
 			break;
 		}
 
@@ -1524,11 +1527,10 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 		if (IS_ERR(key))
 			return false;
 		iwl_mvm_set_key_rx_seq(mvm, key, status);
-	}
 
-	if (status->num_of_gtk_rekeys) {
-		__be64 replay_ctr =
+		replay_ctr =
 			cpu_to_be64(le64_to_cpu(status->replay_ctr));
+
 		ieee80211_gtk_rekey_notify(vif, vif->bss_conf.bssid,
 					   (void *)&replay_ctr, GFP_KERNEL);
 	}
@@ -1541,6 +1543,107 @@ out:
 	return true;
 }
 
+struct iwl_wowlan_status *iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm)
+{
+	struct iwl_wowlan_status *v7, *status;
+	struct iwl_host_cmd cmd = {
+		.id = WOWLAN_GET_STATUSES,
+		.flags = CMD_WANT_SKB,
+	};
+	int ret, len, status_size;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret) {
+		IWL_ERR(mvm, "failed to query wakeup status (%d)\n", ret);
+		return ERR_PTR(ret);
+	}
+
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_WOWLAN_KEY_MATERIAL)) {
+		struct iwl_wowlan_status_v6 *v6 = (void *)cmd.resp_pkt->data;
+		int data_size;
+
+		status_size = sizeof(*v6);
+		len = iwl_rx_packet_payload_len(cmd.resp_pkt);
+
+		if (len < status_size) {
+			IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
+			status = ERR_PTR(-EIO);
+			goto out_free_resp;
+		}
+
+		data_size = ALIGN(le32_to_cpu(v6->wake_packet_bufsize), 4);
+
+		if (len != (status_size + data_size)) {
+			IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
+			status = ERR_PTR(-EIO);
+			goto out_free_resp;
+		}
+
+		status = kzalloc(sizeof(*status) + data_size, GFP_KERNEL);
+		if (!status)
+			goto out_free_resp;
+
+		BUILD_BUG_ON(sizeof(v6->gtk.decrypt_key) >
+			     sizeof(status->gtk[0].key));
+		BUILD_BUG_ON(sizeof(v6->gtk.tkip_mic_key) >
+			     sizeof(status->gtk[0].tkip_mic_key));
+
+		/* copy GTK info to the right place */
+		memcpy(status->gtk[0].key, v6->gtk.decrypt_key,
+		       sizeof(v6->gtk.decrypt_key));
+		memcpy(status->gtk[0].tkip_mic_key, v6->gtk.tkip_mic_key,
+		       sizeof(v6->gtk.tkip_mic_key));
+		memcpy(&status->gtk[0].rsc, &v6->gtk.rsc,
+		       sizeof(status->gtk[0].rsc));
+
+		/* hardcode the key length to 16 since v6 only supports 16 */
+		status->gtk[0].key_len = 16;
+
+		/*
+		 * The key index only uses 2 bits (values 0 to 3) and
+		 * we always set bit 7 which means this is the
+		 * currently used key.
+		 */
+		status->gtk[0].key_flags = v6->gtk.key_index | BIT(7);
+
+		status->replay_ctr = v6->replay_ctr;
+
+		/* everything starting from pattern_number is identical */
+		memcpy(&status->pattern_number, &v6->pattern_number,
+		       offsetof(struct iwl_wowlan_status, wake_packet) -
+		       offsetof(struct iwl_wowlan_status, pattern_number) +
+		       data_size);
+
+		goto out_free_resp;
+	}
+
+	v7 = (void *)cmd.resp_pkt->data;
+	status_size = sizeof(*v7);
+	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
+
+	if (len < status_size) {
+		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
+		status = ERR_PTR(-EIO);
+		goto out_free_resp;
+	}
+
+	if (len != (status_size +
+		    ALIGN(le32_to_cpu(v7->wake_packet_bufsize), 4))) {
+		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
+		status = ERR_PTR(-EIO);
+		goto out_free_resp;
+	}
+
+	status = kmemdup(v7, len, GFP_KERNEL);
+
+out_free_resp:
+	iwl_free_resp(&cmd);
+	return status;
+}
+
 static struct iwl_wowlan_status *
 iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
@@ -1550,12 +1653,7 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		u32 valid;
 		u32 error_id;
 	} err_info;
-	struct iwl_host_cmd cmd = {
-		.id = WOWLAN_GET_STATUSES,
-		.flags = CMD_WANT_SKB,
-	};
-	struct iwl_wowlan_status *status, *fw_status;
-	int ret, len, status_size;
+	int ret;
 
 	iwl_trans_read_mem_bytes(mvm->trans, base,
 				 &err_info, sizeof(err_info));
@@ -1578,34 +1676,7 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (ret)
 		IWL_ERR(mvm, "failed to query offload statistics (%d)\n", ret);
 
-	ret = iwl_mvm_send_cmd(mvm, &cmd);
-	if (ret) {
-		IWL_ERR(mvm, "failed to query status (%d)\n", ret);
-		return ERR_PTR(ret);
-	}
-
-	status_size = sizeof(*fw_status);
-
-	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
-	if (len < status_size) {
-		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
-		fw_status = ERR_PTR(-EIO);
-		goto out_free_resp;
-	}
-
-	status = (void *)cmd.resp_pkt->data;
-	if (len != (status_size +
-		    ALIGN(le32_to_cpu(status->wake_packet_bufsize), 4))) {
-		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
-		fw_status = ERR_PTR(-EIO);
-		goto out_free_resp;
-	}
-
-	fw_status = kmemdup(status, len, GFP_KERNEL);
-
-out_free_resp:
-	iwl_free_resp(&cmd);
-	return fw_status;
+	return iwl_mvm_send_wowlan_get_status(mvm);
 }
 
 /* releases the MVM mutex */
@@ -1883,6 +1954,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 		goto err;
 	}
 
+	iwl_fw_dbg_read_d3_debug_data(&mvm->fwrt);
 	/* query SRAM first in case we want event logging */
 	iwl_mvm_read_d3_sram(mvm);
 
@@ -2116,6 +2188,8 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 
 	mvm->d3_test_active = false;
+
+	iwl_fw_dbg_read_d3_debug_data(&mvm->fwrt);
 
 	rtnl_lock();
 	__iwl_mvm_resume(mvm, true);

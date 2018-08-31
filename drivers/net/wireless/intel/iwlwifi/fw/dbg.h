@@ -19,9 +19,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program;
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -199,14 +196,14 @@ _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 					iwl_fw_dbg_get_trigger((fwrt)->fw,\
 							       (trig)))
 
-static inline void iwl_fw_dbg_stop_recording(struct iwl_fw_runtime *fwrt)
+static inline void iwl_fw_dbg_stop_recording(struct iwl_trans *trans)
 {
-	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		iwl_set_bits_prph(fwrt->trans, MON_BUFF_SAMPLE_CTL, 0x100);
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
 	} else {
-		iwl_write_prph(fwrt->trans, DBGC_IN_SAMPLE, 0);
+		iwl_write_prph(trans, DBGC_IN_SAMPLE, 0);
 		udelay(100);
-		iwl_write_prph(fwrt->trans, DBGC_OUT_CTRL, 0);
+		iwl_write_prph(trans, DBGC_OUT_CTRL, 0);
 	}
 }
 
@@ -216,6 +213,16 @@ static inline void iwl_fw_dump_conf_clear(struct iwl_fw_runtime *fwrt)
 }
 
 void iwl_fw_error_dump_wk(struct work_struct *work);
+
+static inline bool iwl_fw_dbg_is_d3_debug_enabled(struct iwl_fw_runtime *fwrt)
+{
+	return fw_has_capa(&fwrt->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_D3_DEBUG) &&
+		fwrt->trans->cfg->d3_debug_data_length &&
+		fwrt->fw->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
+}
+
+void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt);
 
 static inline void iwl_fw_flush_dump(struct iwl_fw_runtime *fwrt)
 {

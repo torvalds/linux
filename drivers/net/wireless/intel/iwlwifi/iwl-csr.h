@@ -19,11 +19,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -188,6 +183,7 @@
 #define CSR_HW_IF_CONFIG_REG_MSK_BOARD_VER	(0x000000C0)
 #define CSR_HW_IF_CONFIG_REG_BIT_MAC_SI		(0x00000100)
 #define CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI	(0x00000200)
+#define CSR_HW_IF_CONFIG_REG_D3_DEBUG		(0x00000200)
 #define CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE	(0x00000C00)
 #define CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH	(0x00003000)
 #define CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP	(0x0000C000)

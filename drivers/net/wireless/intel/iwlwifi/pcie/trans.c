@@ -19,11 +19,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -92,7 +87,7 @@
 #define IWL_FW_MEM_EXTENDED_START	0x40000
 #define IWL_FW_MEM_EXTENDED_END		0x57FFF
 
-static void iwl_trans_pcie_dump_regs(struct iwl_trans *trans)
+void iwl_trans_pcie_dump_regs(struct iwl_trans *trans)
 {
 #define PCI_DUMP_SIZE	64
 #define PREFIX_LEN	32
@@ -192,14 +187,13 @@ static void iwl_pcie_free_fw_monitor(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (!trans_pcie->fw_mon_page)
+	if (!trans_pcie->fw_mon_cpu_addr)
 		return;
 
-	dma_unmap_page(trans->dev, trans_pcie->fw_mon_phys,
-		       trans_pcie->fw_mon_size, DMA_FROM_DEVICE);
-	__free_pages(trans_pcie->fw_mon_page,
-		     get_order(trans_pcie->fw_mon_size));
-	trans_pcie->fw_mon_page = NULL;
+	dma_free_coherent(trans->dev, trans_pcie->fw_mon_size,
+			  trans_pcie->fw_mon_cpu_addr,
+			  trans_pcie->fw_mon_phys);
+	trans_pcie->fw_mon_cpu_addr = NULL;
 	trans_pcie->fw_mon_phys = 0;
 	trans_pcie->fw_mon_size = 0;
 }
@@ -207,7 +201,7 @@ static void iwl_pcie_free_fw_monitor(struct iwl_trans *trans)
 void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct page *page = NULL;
+	void *cpu_addr = NULL;
 	dma_addr_t phys;
 	u32 size = 0;
 	u8 power;
@@ -224,38 +218,25 @@ void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power)
 		 max_power))
 		return;
 
-	if (trans_pcie->fw_mon_page) {
-		dma_sync_single_for_device(trans->dev, trans_pcie->fw_mon_phys,
-					   trans_pcie->fw_mon_size,
-					   DMA_FROM_DEVICE);
+	if (trans_pcie->fw_mon_cpu_addr)
 		return;
-	}
 
 	phys = 0;
 	for (power = max_power; power >= 11; power--) {
-		int order;
-
 		size = BIT(power);
-		order = get_order(size);
-		page = alloc_pages(__GFP_COMP | __GFP_NOWARN | __GFP_ZERO,
-				   order);
-		if (!page)
+		cpu_addr = dma_alloc_coherent(trans->dev, size, &phys,
+					      GFP_KERNEL | __GFP_NOWARN |
+					      __GFP_ZERO | __GFP_COMP);
+		if (!cpu_addr)
 			continue;
 
-		phys = dma_map_page(trans->dev, page, 0, PAGE_SIZE << order,
-				    DMA_FROM_DEVICE);
-		if (dma_mapping_error(trans->dev, phys)) {
-			__free_pages(page, order);
-			page = NULL;
-			continue;
-		}
 		IWL_INFO(trans,
-			 "Allocated 0x%08x bytes (order %d) for firmware monitor.\n",
-			 size, order);
+			 "Allocated 0x%08x bytes for firmware monitor.\n",
+			 size);
 		break;
 	}
 
-	if (WARN_ON_ONCE(!page))
+	if (WARN_ON_ONCE(!cpu_addr))
 		return;
 
 	if (power != max_power)
@@ -264,7 +245,7 @@ void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power)
 			(unsigned long)BIT(power - 10),
 			(unsigned long)BIT(max_power - 10));
 
-	trans_pcie->fw_mon_page = page;
+	trans_pcie->fw_mon_cpu_addr = cpu_addr;
 	trans_pcie->fw_mon_phys = phys;
 	trans_pcie->fw_mon_size = size;
 }
@@ -1262,13 +1243,7 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 	trans_pcie->is_down = true;
 
 	/* Stop dbgc before stopping device */
-	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
-	} else {
-		iwl_write_prph(trans, DBGC_IN_SAMPLE, 0);
-		udelay(100);
-		iwl_write_prph(trans, DBGC_OUT_CTRL, 0);
-	}
+	iwl_fw_dbg_stop_recording(trans);
 
 	/* tell the device to stop sending interrupts */
 	iwl_disable_interrupts(trans);
@@ -2013,7 +1988,7 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans,
 		if (iwlwifi_mod_params.remove_when_gone && cntrl == ~0U) {
 			struct iwl_trans_pcie_removal *removal;
 
-			if (trans_pcie->scheduled_for_removal)
+			if (test_bit(STATUS_TRANS_DEAD, &trans->status))
 				goto err;
 
 			IWL_ERR(trans, "Device gone - scheduling removal!\n");
@@ -2039,7 +2014,7 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans,
 			 * we don't need to clear this flag, because
 			 * the trans will be freed and reallocated.
 			*/
-			trans_pcie->scheduled_for_removal = true;
+			set_bit(STATUS_TRANS_DEAD, &trans->status);
 
 			removal->pdev = to_pci_dev(trans->dev);
 			INIT_WORK(&removal->work, iwl_trans_pcie_removal_wk);
@@ -2265,6 +2240,10 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, int txq_idx)
 	struct iwl_txq *txq;
 	unsigned long now = jiffies;
 	u8 wr_ptr;
+
+	/* Make sure the NIC is still alive in the bus */
+	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
+		return -ENODEV;
 
 	if (!test_bit(txq_idx, trans_pcie->queue_used))
 		return -EINVAL;
@@ -2864,7 +2843,7 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 len = 0;
 
-	if ((trans_pcie->fw_mon_page &&
+	if ((trans_pcie->fw_mon_cpu_addr &&
 	     trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) ||
 	    trans->dbg_dest_tlv) {
 		struct iwl_fw_error_dump_fw_mon *fw_mon_data;
@@ -2892,19 +2871,9 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 			cpu_to_le32(iwl_read_prph(trans, base));
 
 		len += sizeof(**data) + sizeof(*fw_mon_data);
-		if (trans_pcie->fw_mon_page) {
-			/*
-			 * The firmware is now asserted, it won't write anything
-			 * to the buffer. CPU can take ownership to fetch the
-			 * data. The buffer will be handed back to the device
-			 * before the firmware will be restarted.
-			 */
-			dma_sync_single_for_cpu(trans->dev,
-						trans_pcie->fw_mon_phys,
-						trans_pcie->fw_mon_size,
-						DMA_FROM_DEVICE);
+		if (trans_pcie->fw_mon_cpu_addr) {
 			memcpy(fw_mon_data->data,
-			       page_address(trans_pcie->fw_mon_page),
+			       trans_pcie->fw_mon_cpu_addr,
 			       trans_pcie->fw_mon_size);
 
 			monitor_len = trans_pcie->fw_mon_size;
@@ -2967,7 +2936,7 @@ static struct iwl_trans_dump_data
 		cmdq->n_window * (sizeof(*txcmd) + TFD_MAX_PAYLOAD_SIZE);
 
 	/* FW monitor */
-	if (trans_pcie->fw_mon_page) {
+	if (trans_pcie->fw_mon_cpu_addr) {
 		len += sizeof(*data) + sizeof(struct iwl_fw_error_dump_fw_mon) +
 		       trans_pcie->fw_mon_size;
 		monitor_len = trans_pcie->fw_mon_size;
@@ -3175,7 +3144,6 @@ static void iwl_trans_pcie_resume(struct iwl_trans *trans)
 	.ref = iwl_trans_pcie_ref,					\
 	.unref = iwl_trans_pcie_unref,					\
 	.dump_data = iwl_trans_pcie_dump_data,				\
-	.dump_regs = iwl_trans_pcie_dump_regs,				\
 	.d3_suspend = iwl_trans_pcie_d3_suspend,			\
 	.d3_resume = iwl_trans_pcie_d3_resume
 
@@ -3276,6 +3244,8 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 				       PCIE_LINK_STATE_L1 |
 				       PCIE_LINK_STATE_CLKPM);
 	}
+
+	trans_pcie->def_rx_queue = 0;
 
 	if (cfg->use_tfh) {
 		addr_size = 64;

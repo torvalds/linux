@@ -18,11 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -269,6 +264,7 @@ struct iwl_rx_cmd_buffer {
 	bool _page_stolen;
 	u32 _rx_page_order;
 	unsigned int truesize;
+	u8 status;
 };
 
 static inline void *rxb_addr(struct iwl_rx_cmd_buffer *r)
@@ -538,9 +534,6 @@ struct iwl_trans_rxq_dma_data {
  * @dump_data: return a vmalloc'ed buffer with debug data, maybe containing last
  *	TX'ed commands and similar. The buffer will be vfree'd by the caller.
  *	Note that the transport must fill in the proper file headers.
- * @dump_regs: dump using IWL_ERR configuration space and memory mapped
- *	registers of the device to diagnose failure, e.g., when HW becomes
- *	inaccessible.
  */
 struct iwl_trans_ops {
 
@@ -569,7 +562,7 @@ struct iwl_trans_ops {
 			    bool configure_scd);
 	/* 22000 functions */
 	int (*txq_alloc)(struct iwl_trans *trans,
-			 struct iwl_tx_queue_cfg_cmd *cmd,
+			 __le16 flags, u8 sta_id, u8 tid,
 			 int cmd_id, int size,
 			 unsigned int queue_wdg_timeout);
 	void (*txq_free)(struct iwl_trans *trans, int queue);
@@ -611,8 +604,6 @@ struct iwl_trans_ops {
 	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
 						 const struct iwl_fw_dbg_trigger_tlv
 						 *trigger);
-
-	void (*dump_regs)(struct iwl_trans *trans);
 };
 
 /**
@@ -897,12 +888,6 @@ iwl_trans_dump_data(struct iwl_trans *trans,
 	return trans->ops->dump_data(trans, trigger);
 }
 
-static inline void iwl_trans_dump_regs(struct iwl_trans *trans)
-{
-	if (trans->ops->dump_regs)
-		trans->ops->dump_regs(trans);
-}
-
 static inline struct iwl_device_cmd *
 iwl_trans_alloc_tx_cmd(struct iwl_trans *trans)
 {
@@ -985,7 +970,7 @@ iwl_trans_txq_free(struct iwl_trans *trans, int queue)
 
 static inline int
 iwl_trans_txq_alloc(struct iwl_trans *trans,
-		    struct iwl_tx_queue_cfg_cmd *cmd,
+		    __le16 flags, u8 sta_id, u8 tid,
 		    int cmd_id, int size,
 		    unsigned int wdg_timeout)
 {
@@ -999,7 +984,8 @@ iwl_trans_txq_alloc(struct iwl_trans *trans,
 		return -EIO;
 	}
 
-	return trans->ops->txq_alloc(trans, cmd, cmd_id, size, wdg_timeout);
+	return trans->ops->txq_alloc(trans, flags, sta_id, tid,
+				     cmd_id, size, wdg_timeout);
 }
 
 static inline void iwl_trans_txq_set_shared_mode(struct iwl_trans *trans,
