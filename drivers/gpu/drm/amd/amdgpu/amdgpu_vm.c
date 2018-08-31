@@ -156,11 +156,14 @@ static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 		return;
 	list_add_tail(&base->bo_list, &bo->va);
 
-	if (bo->tbo.type == ttm_bo_type_kernel)
-		list_move(&base->vm_status, &vm->relocated);
-
 	if (bo->tbo.resv != vm->root.base.bo->tbo.resv)
 		return;
+
+	vm->bulk_moveable = false;
+	if (bo->tbo.type == ttm_bo_type_kernel)
+		list_move(&base->vm_status, &vm->relocated);
+	else
+		list_move(&base->vm_status, &vm->idle);
 
 	if (bo->preferred_domains &
 	    amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type))
@@ -1121,7 +1124,7 @@ restart:
 					   struct amdgpu_vm_bo_base,
 					   vm_status);
 		bo_base->moved = false;
-		list_del_init(&bo_base->vm_status);
+		list_move(&bo_base->vm_status, &vm->idle);
 
 		bo = bo_base->bo->parent;
 		if (!bo)
@@ -2646,7 +2649,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		return r;
 
 	vm->pte_support_ats = false;
-	vm->bulk_moveable = true;
 
 	if (vm_context == AMDGPU_VM_CONTEXT_COMPUTE) {
 		vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
