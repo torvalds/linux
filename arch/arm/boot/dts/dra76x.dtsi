@@ -24,7 +24,7 @@
 			ti,sysc-mask = <(SYSC_OMAP4_SOFTRESET |
 					 SYSC_DRA7_MCAN_ENAWAKEUP)>;
 			ti,syss-mask = <1>;
-			clocks = <&wkupaon_clkctrl DRA7_ADC_CLKCTRL 0>;
+			clocks = <&wkupaon_clkctrl DRA7_WKUPAON_ADC_CLKCTRL 0>;
 			clock-names = "fck";
 
 			m_can0: mcan@1a00 {
