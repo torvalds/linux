@@ -152,6 +152,18 @@
 			status = "disabled";
 		};
 
+		pdm: audio-controller@ff632000 {
+			compatible = "amlogic,axg-pdm";
+			reg = <0x0 0xff632000 0x0 0x34>;
+			#sound-dai-cells = <0>;
+			sound-name-prefix = "PDM";
+			clocks = <&clkc_audio AUD_CLKID_PDM>,
+				 <&clkc_audio AUD_CLKID_PDM_DCLK>,
+				 <&clkc_audio AUD_CLKID_PDM_SYSCLK>;
+			clock-names = "pclk", "dclk", "sysclk";
+			status = "disabled";
+		};
+
 		periphs: bus@ff634000 {
 			compatible = "simple-bus";
 			reg = <0x0 0xff634000 0x0 0x2000>;
