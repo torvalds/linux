@@ -1270,6 +1270,16 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 					 cbss->beacon_interval));
 	return;
  drop_connection:
+	/*
+	 * This is just so that the disconnect flow will know that
+	 * we were trying to switch channel and failed. In case the
+	 * mode is 1 (we are not allowed to Tx), we will know not to
+	 * send a deauthentication frame. Those two fields will be
+	 * reset when the disconnection worker runs.
+	 */
+	sdata->vif.csa_active = true;
+	sdata->csa_block_tx = csa_ie.mode;
+
 	ieee80211_queue_work(&local->hw, &ifmgd->csa_connection_drop_work);
 	mutex_unlock(&local->chanctx_mtx);
 	mutex_unlock(&local->mtx);
@@ -2453,12 +2463,15 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
+	bool tx;
 
 	sdata_lock(sdata);
 	if (!ifmgd->associated) {
 		sdata_unlock(sdata);
 		return;
 	}
+
+	tx = !sdata->csa_block_tx;
 
 	/* AP is probably out of range (or not reachable for another reason) so
 	 * remove the bss struct for that AP.
@@ -2467,7 +2480,7 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 
 	ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
 			       WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
-			       true, frame_buf);
+			       tx, frame_buf);
 	mutex_lock(&local->mtx);
 	sdata->vif.csa_active = false;
 	ifmgd->csa_waiting_bcn = false;
@@ -2478,7 +2491,7 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 	}
 	mutex_unlock(&local->mtx);
 
-	ieee80211_report_disconnect(sdata, frame_buf, sizeof(frame_buf), true,
+	ieee80211_report_disconnect(sdata, frame_buf, sizeof(frame_buf), tx,
 				    WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY);
 
 	sdata_unlock(sdata);
