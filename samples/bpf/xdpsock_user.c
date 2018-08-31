@@ -118,7 +118,6 @@ struct xdpsock {
 	unsigned long prev_tx_npkts;
 };
 
-#define MAX_SOCKS 4
 static int num_socks;
 struct xdpsock *xsks[MAX_SOCKS];
 
@@ -596,7 +595,7 @@ static void dump_stats(void)
 
 	prev_time = now;
 
-	for (i = 0; i < num_socks; i++) {
+	for (i = 0; i < num_socks && xsks[i]; i++) {
 		char *fmt = "%-15s %'-11.0f %'-11lu\n";
 		double rx_pps, tx_pps;
 
