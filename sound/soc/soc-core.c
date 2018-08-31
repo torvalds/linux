@@ -892,8 +892,8 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	rtd->codec_dai = codec_dais[0];
 
 	/* if there's no platform we match on the empty platform */
-	platform_name = dai_link->platform_name;
-	if (!platform_name && !dai_link->platform_of_node)
+	platform_name = dai_link->platform->name;
+	if (!platform_name && !dai_link->platform->of_node)
 		platform_name = "snd-soc-dummy";
 
 	/* find one from the set of registered platforms */
@@ -902,8 +902,8 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 		if (!platform_of_node && component->dev->parent->of_node)
 			platform_of_node = component->dev->parent->of_node;
 
-		if (dai_link->platform_of_node) {
-			if (platform_of_node != dai_link->platform_of_node)
+		if (dai_link->platform->of_node) {
+			if (platform_of_node != dai_link->platform->of_node)
 				continue;
 		} else {
 			if (strcmp(component->name, platform_name))
@@ -1015,6 +1015,31 @@ static void soc_remove_dai_links(struct snd_soc_card *card)
 	}
 }
 
+static int snd_soc_init_platform(struct snd_soc_card *card,
+				 struct snd_soc_dai_link *dai_link)
+{
+	/*
+	 * FIXME
+	 *
+	 * this function should be removed in the future
+	 */
+	/* convert Legacy platform link */
+	if (dai_link->platform)
+		return 0;
+
+	dai_link->platform = devm_kzalloc(card->dev,
+				sizeof(struct snd_soc_dai_link_component),
+				GFP_KERNEL);
+	if (!dai_link->platform)
+		return -ENOMEM;
+
+	dai_link->platform->name	= dai_link->platform_name;
+	dai_link->platform->of_node	= dai_link->platform_of_node;
+	dai_link->platform->dai_name	= NULL;
+
+	return 0;
+}
+
 static int snd_soc_init_multicodec(struct snd_soc_card *card,
 				   struct snd_soc_dai_link *dai_link)
 {
@@ -1047,6 +1072,12 @@ static int soc_init_dai_link(struct snd_soc_card *card,
 {
 	int i, ret;
 
+	ret = snd_soc_init_platform(card, link);
+	if (ret) {
+		dev_err(card->dev, "ASoC: failed to init multiplatform\n");
+		return ret;
+	}
+
 	ret = snd_soc_init_multicodec(card, link);
 	if (ret) {
 		dev_err(card->dev, "ASoC: failed to init multicodec\n");
@@ -1076,13 +1107,12 @@ static int soc_init_dai_link(struct snd_soc_card *card,
 	 * Platform may be specified by either name or OF node, but
 	 * can be left unspecified, and a dummy platform will be used.
 	 */
-	if (link->platform_name && link->platform_of_node) {
+	if (link->platform->name && link->platform->of_node) {
 		dev_err(card->dev,
 			"ASoC: Both platform name/of_node are set for %s\n",
 			link->name);
 		return -EINVAL;
 	}
-
 	/*
 	 * CPU device may be specified by either name or OF node, but
 	 * can be left unspecified, and will be matched based on DAI
@@ -1917,7 +1947,11 @@ static void soc_check_tplg_fes(struct snd_soc_card *card)
 				 card->dai_link[i].name);
 
 			/* override platform component */
-			dai_link->platform_name = component->name;
+			if (snd_soc_init_platform(card, dai_link) < 0) {
+				dev_err(card->dev, "init platform error");
+				continue;
+			}
+			dai_link->platform->name = component->name;
 
 			/* convert non BE into BE */
 			dai_link->no_pcm = 1;
