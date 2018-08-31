@@ -117,6 +117,13 @@ struct drm_plane_state {
 	 * details.
 	 */
 	u16 alpha;
+
+	/**
+	 * @pixel_blend_mode:
+	 * The alpha blending equation selection, describing how the pixels from
+	 * the current plane are composited with the background. Value can be
+	 * one of DRM_MODE_BLEND_*
+	 */
 	uint16_t pixel_blend_mode;
 
 	/**
