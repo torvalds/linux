@@ -826,7 +826,7 @@ static void xprt_connect_status(struct rpc_task *task)
  * @xprt: transport on which the original request was transmitted
  * @xid: RPC XID of incoming reply
  *
- * Caller holds xprt->recv_lock.
+ * Caller holds xprt->queue_lock.
  */
 struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid)
 {
@@ -892,7 +892,7 @@ static void xprt_wait_on_pinned_rqst(struct rpc_rqst *req)
  * xprt_update_rtt - Update RPC RTT statistics
  * @task: RPC request that recently completed
  *
- * Caller holds xprt->recv_lock.
+ * Caller holds xprt->queue_lock.
  */
 void xprt_update_rtt(struct rpc_task *task)
 {
@@ -914,7 +914,7 @@ EXPORT_SYMBOL_GPL(xprt_update_rtt);
  * @task: RPC request that recently completed
  * @copied: actual number of bytes received from the transport
  *
- * Caller holds xprt->recv_lock.
+ * Caller holds xprt->queue_lock.
  */
 void xprt_complete_rqst(struct rpc_task *task, int copied)
 {
@@ -1034,10 +1034,10 @@ void xprt_transmit(struct rpc_task *task)
 			memcpy(&req->rq_private_buf, &req->rq_rcv_buf,
 					sizeof(req->rq_private_buf));
 			/* Add request to the receive list */
-			spin_lock(&xprt->recv_lock);
+			spin_lock(&xprt->queue_lock);
 			list_add_tail(&req->rq_list, &xprt->recv);
 			set_bit(RPC_TASK_NEED_RECV, &task->tk_runstate);
-			spin_unlock(&xprt->recv_lock);
+			spin_unlock(&xprt->queue_lock);
 			xprt_reset_majortimeo(req);
 			/* Turn off autodisconnect */
 			del_singleshot_timer_sync(&xprt->timer);
@@ -1076,7 +1076,7 @@ void xprt_transmit(struct rpc_task *task)
 		 * The spinlock ensures atomicity between the test of
 		 * req->rq_reply_bytes_recvd, and the call to rpc_sleep_on().
 		 */
-		spin_lock(&xprt->recv_lock);
+		spin_lock(&xprt->queue_lock);
 		if (test_bit(RPC_TASK_NEED_RECV, &task->tk_runstate)) {
 			rpc_sleep_on(&xprt->pending, task, xprt_timer);
 			/* Wake up immediately if the connection was dropped */
@@ -1084,7 +1084,7 @@ void xprt_transmit(struct rpc_task *task)
 				rpc_wake_up_queued_task_set_status(&xprt->pending,
 						task, -ENOTCONN);
 		}
-		spin_unlock(&xprt->recv_lock);
+		spin_unlock(&xprt->queue_lock);
 	}
 }
 
@@ -1379,18 +1379,18 @@ void xprt_release(struct rpc_task *task)
 		task->tk_ops->rpc_count_stats(task, task->tk_calldata);
 	else if (task->tk_client)
 		rpc_count_iostats(task, task->tk_client->cl_metrics);
-	spin_lock(&xprt->recv_lock);
+	spin_lock(&xprt->queue_lock);
 	if (!list_empty(&req->rq_list)) {
 		list_del_init(&req->rq_list);
 		if (xprt_is_pinned_rqst(req)) {
 			set_bit(RPC_TASK_MSG_PIN_WAIT, &req->rq_task->tk_runstate);
-			spin_unlock(&xprt->recv_lock);
+			spin_unlock(&xprt->queue_lock);
 			xprt_wait_on_pinned_rqst(req);
-			spin_lock(&xprt->recv_lock);
+			spin_lock(&xprt->queue_lock);
 			clear_bit(RPC_TASK_MSG_PIN_WAIT, &req->rq_task->tk_runstate);
 		}
 	}
-	spin_unlock(&xprt->recv_lock);
+	spin_unlock(&xprt->queue_lock);
 	spin_lock_bh(&xprt->transport_lock);
 	xprt->ops->release_xprt(xprt, task);
 	if (xprt->ops->release_request)
@@ -1420,7 +1420,7 @@ static void xprt_init(struct rpc_xprt *xprt, struct net *net)
 
 	spin_lock_init(&xprt->transport_lock);
 	spin_lock_init(&xprt->reserve_lock);
-	spin_lock_init(&xprt->recv_lock);
+	spin_lock_init(&xprt->queue_lock);
 
 	INIT_LIST_HEAD(&xprt->free);
 	INIT_LIST_HEAD(&xprt->recv);
