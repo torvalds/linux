@@ -28,7 +28,6 @@
 #include <linux/module.h>
 
 const struct kgd2kfd_calls *kgd2kfd;
-bool (*kgd2kfd_init_p)(unsigned int, const struct kgd2kfd_calls**);
 
 static const unsigned int compute_vmid_bitmap = 0xFF00;
 
@@ -51,10 +50,8 @@ int amdgpu_amdkfd_init(void)
 
 void amdgpu_amdkfd_fini(void)
 {
-	if (kgd2kfd) {
+	if (kgd2kfd)
 		kgd2kfd->exit();
-		symbol_put(kgd2kfd_init);
-	}
 }
 
 void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
