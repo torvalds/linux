@@ -237,13 +237,6 @@ static void CamResetAllEntry(struct net_device *dev)
 	write_nic_dword(dev, RWCAM, ulcommand);
 }
 
-
-void write_cam(struct net_device *dev, u8 addr, u32 data)
-{
-	write_nic_dword(dev, WCAMI, data);
-	write_nic_dword(dev, RWCAM, BIT(31) | BIT(16) | (addr & 0xff));
-}
-
 u32 read_cam(struct net_device *dev, u8 addr)
 {
 	u32 data;
