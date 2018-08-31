@@ -5540,14 +5540,10 @@ static int atlas7_pinmux_resume_noirq(struct device *dev)
 {
 	struct atlas7_pmx *pmx = dev_get_drvdata(dev);
 	struct atlas7_pad_status *status;
-	struct atlas7_pad_config *conf;
 	int idx;
-	u32 bank;
 
 	for (idx = 0; idx < pmx->pctl_desc.npins; idx++) {
 		/* Get this Pad's descriptor from PINCTRL */
-		conf = &pmx->pctl_data->confs[idx];
-		bank = atlas7_pin_to_bank(idx);
 		status = &pmx->sleep_data[idx];
 
 		/* Restore Function selector */
