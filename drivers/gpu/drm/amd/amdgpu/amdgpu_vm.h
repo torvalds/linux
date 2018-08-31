@@ -100,9 +100,10 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_VM_FAULT_STOP_ALWAYS	2
 
 /* max number of VMHUB */
-#define AMDGPU_MAX_VMHUBS			2
+#define AMDGPU_MAX_VMHUBS			3
 #define AMDGPU_GFXHUB_0				0
 #define AMDGPU_MMHUB_0				1
+#define AMDGPU_MMHUB_1				2
 
 /* hardcode that limit for now */
 #define AMDGPU_VA_RESERVED_SIZE			(1ULL << 20)
