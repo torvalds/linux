@@ -23,6 +23,7 @@ config B53_MDIO_DRIVER
 config B53_MMAP_DRIVER
 	tristate "B53 MMAP connected switch driver"
 	depends on B53 && HAS_IOMEM
+	default BCM63XX || BMIPS_GENERIC
 	help
 	  Select to enable support for memory-mapped switches like the BCM63XX
 	  integrated switches.
@@ -30,6 +31,7 @@ config B53_MMAP_DRIVER
 config B53_SRAB_DRIVER
 	tristate "B53 SRAB connected switch driver"
 	depends on B53 && HAS_IOMEM
+	default ARCH_BCM_IPROC
 	help
 	  Select to enable support for memory-mapped Switch Register Access
 	  Bridge Registers (SRAB) like it is found on the BCM53010
