@@ -525,15 +525,6 @@
 			status = "disabled";
 		};
 
-		arm_cc630p: crypto@e6601000 {
-			compatible = "arm,cryptocell-630p-ree";
-			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-			reg = <0x0 0xe6601000 0 0x1000>;
-			clocks = <&cpg CPG_MOD 229>;
-			resets = <&cpg 229>;
-			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
-		};
-
 		i2c3: i2c@e66d0000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -803,6 +794,15 @@
 			resets = <&cpg 328>;
 			#phy-cells = <0>;
 			status = "disabled";
+		};
+
+		arm_cc630p: crypto@e6601000 {
+			compatible = "arm,cryptocell-630p-ree";
+			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x0 0xe6601000 0 0x1000>;
+			clocks = <&cpg CPG_MOD 229>;
+			resets = <&cpg 229>;
+			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
 		};
 
 		dmac0: dma-controller@e6700000 {
