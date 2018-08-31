@@ -45,7 +45,7 @@
 #define MAX_KEY_LEN     61
 #define KEY_BUF_SIZE    5
 
-#define	Rx_Smooth_Factor		20
+#define	RX_SMOOTH_FACTOR		20
 #define DMESG(x, a...)
 #define DMESGW(x, a...)
 #define DMESGE(x, a...)
