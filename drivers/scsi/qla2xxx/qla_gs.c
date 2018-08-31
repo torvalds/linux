@@ -3442,26 +3442,10 @@ void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
 	if (ea->rc) {
 		/* cable is disconnected */
 		list_for_each_entry_safe(fcport, t, &vha->vp_fcports, list) {
-			if (fcport->d_id.b24 == ea->id.b24) {
-				ql_dbg(ql_dbg_disc, vha, 0xffff,
-				    "%s %d %8phC DS %d\n",
-				    __func__, __LINE__,
-				    fcport->port_name,
-				    fcport->disc_state);
+			if (fcport->d_id.b24 == ea->id.b24)
 				fcport->scan_state = QLA_FCPORT_SCAN;
-				switch (fcport->disc_state) {
-				case DSC_DELETED:
-				case DSC_DELETE_PEND:
-					break;
-				default:
-					ql_dbg(ql_dbg_disc, vha, 0xffff,
-					    "%s %d %8phC post del sess\n",
-					    __func__, __LINE__,
-					    fcport->port_name);
-					qlt_schedule_sess_for_deletion(fcport);
-					break;
-				}
-			}
+
+			qlt_schedule_sess_for_deletion(fcport);
 		}
 	} else {
 		/* cable is connected */
@@ -3470,32 +3454,16 @@ void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
 			list_for_each_entry_safe(conflict, t, &vha->vp_fcports,
 			    list) {
 				if ((conflict->d_id.b24 == ea->id.b24) &&
-				    (fcport != conflict)) {
-					/* 2 fcports with conflict Nport ID or
+				    (fcport != conflict))
+					/*
+					 * 2 fcports with conflict Nport ID or
 					 * an existing fcport is having nport ID
 					 * conflict with new fcport.
 					 */
 
-					ql_dbg(ql_dbg_disc, vha, 0xffff,
-					    "%s %d %8phC DS %d\n",
-					    __func__, __LINE__,
-					    conflict->port_name,
-					    conflict->disc_state);
 					conflict->scan_state = QLA_FCPORT_SCAN;
-					switch (conflict->disc_state) {
-					case DSC_DELETED:
-					case DSC_DELETE_PEND:
-						break;
-					default:
-						ql_dbg(ql_dbg_disc, vha, 0xffff,
-						    "%s %d %8phC post del sess\n",
-						    __func__, __LINE__,
-						    conflict->port_name);
-						qlt_schedule_sess_for_deletion
-							(conflict);
-						break;
-					}
-				}
+
+				qlt_schedule_sess_for_deletion(conflict);
 			}
 
 			fcport->rscn_gen++;
@@ -3548,19 +3516,7 @@ void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
 					    conflict->disc_state);
 
 					conflict->scan_state = QLA_FCPORT_SCAN;
-					switch (conflict->disc_state) {
-					case DSC_DELETED:
-					case DSC_DELETE_PEND:
-						break;
-					default:
-						ql_dbg(ql_dbg_disc, vha, 0xffff,
-						    "%s %d %8phC post del sess\n",
-						    __func__, __LINE__,
-						    conflict->port_name);
-						qlt_schedule_sess_for_deletion
-							(conflict);
-						break;
-					}
+					qlt_schedule_sess_for_deletion(conflict);
 				}
 			}
 
