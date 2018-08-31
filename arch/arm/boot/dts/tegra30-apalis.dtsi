@@ -46,7 +46,7 @@
 
 	host1x@50000000 {
 		hdmi@54280000 {
-			nvidia,ddc-i2c-bus = <&hdmiddc>;
+			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
 			nvidia,hpd-gpio =
 				<&gpio TEGRA_GPIO(N, 7) GPIO_ACTIVE_HIGH>;
 			pll-supply = <&reg_1v8_avdd_hdmi_pll>;
@@ -831,7 +831,7 @@
 		compatible = "nvidia,tegra30-hsuart";
 	};
 
-	hdmiddc: i2c@7000c700 {
+	hdmi_ddc: i2c@7000c700 {
 		clock-frequency = <10000>;
 	};
 

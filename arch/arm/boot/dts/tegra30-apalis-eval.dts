@@ -103,7 +103,7 @@
 	};
 
 	/* DDC: I2C2_SDA/SCL on MXM3 pin 205/207 (e.g. display EDID) */
-	hdmiddc: i2c@7000c700 {
+	i2c@7000c700 {
 		status = "okay";
 	};
 
