@@ -318,24 +318,44 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
+
+			psu@59 {
+				compatible = "pmbus";
+				reg = <0x59>;
+			};
 		};
 
 		i2c_psu1: i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <1>;
+
+			psu@58 {
+				compatible = "pmbus";
+				reg = <0x58>;
+			};
 		};
 
 		i2c_psu3: i2c@2 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2>;
+
+			psu@58 {
+				compatible = "pmbus";
+				reg = <0x58>;
+			};
 		};
 
 		i2c_psu2: i2c@3 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <3>;
+
+			psu@59 {
+				compatible = "pmbus";
+				reg = <0x59>;
+			};
 		};
 	};
 
