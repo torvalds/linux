@@ -1002,6 +1002,7 @@
 			mmdc: mmdc@21b0000 {
 				compatible = "fsl,imx6sx-mmdc", "fsl,imx6q-mmdc";
 				reg = <0x021b0000 0x4000>;
+				clocks = <&clks IMX6SX_CLK_MMDC_P0_IPG>;
 			};
 
 			fec2: ethernet@21b4000 {

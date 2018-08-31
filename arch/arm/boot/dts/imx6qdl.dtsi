@@ -1115,6 +1115,7 @@
 			mmdc0: mmdc@21b0000 { /* MMDC0 */
 				compatible = "fsl,imx6q-mmdc";
 				reg = <0x021b0000 0x4000>;
+				clocks = <&clks IMX6QDL_CLK_MMDC_P0_IPG>;
 			};
 
 			mmdc1: mmdc@21b4000 { /* MMDC1 */

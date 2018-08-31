@@ -917,6 +917,7 @@
 			mmdc: mmdc@21b0000 {
 				compatible = "fsl,imx6ul-mmdc", "fsl,imx6q-mmdc";
 				reg = <0x021b0000 0x4000>;
+				clocks = <&clks IMX6UL_CLK_MMDC_P0_IPG>;
 			};
 
 			weim: weim@21b8000 {
