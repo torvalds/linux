@@ -3973,7 +3973,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 		list_for_each_entry(fcport, &vha->vp_fcports, list) {
 			if (memcmp(rp->port_name, fcport->port_name, WWN_SIZE))
 				continue;
-			fcport->rscn_rcvd = 0;
+			fcport->scan_needed = 0;
 			fcport->scan_state = QLA_FCPORT_FOUND;
 			found = true;
 			/*
@@ -4009,12 +4009,12 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 	 */
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
 		if ((fcport->flags & FCF_FABRIC_DEVICE) == 0) {
-			fcport->rscn_rcvd = 0;
+			fcport->scan_needed = 0;
 			continue;
 		}
 
 		if (fcport->scan_state != QLA_FCPORT_FOUND) {
-			fcport->rscn_rcvd = 0;
+			fcport->scan_needed = 0;
 			if ((qla_dual_mode_enabled(vha) ||
 				qla_ini_mode_enabled(vha)) &&
 			    atomic_read(&fcport->state) == FCS_ONLINE) {
@@ -4033,7 +4033,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 				}
 			}
 		} else {
-			if (fcport->rscn_rcvd ||
+			if (fcport->scan_needed ||
 			    fcport->disc_state != DSC_LOGIN_COMPLETE) {
 				if (fcport->login_retry == 0) {
 					fcport->login_retry =
@@ -4043,7 +4043,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 					    fcport->port_name, fcport->loop_id,
 					    fcport->login_retry);
 				}
-				fcport->rscn_rcvd = 0;
+				fcport->scan_needed = 0;
 				qla24xx_fcport_handle_login(vha, fcport);
 			}
 		}
@@ -4058,7 +4058,7 @@ out:
 
 	if (recheck) {
 		list_for_each_entry(fcport, &vha->vp_fcports, list) {
-			if (fcport->rscn_rcvd) {
+			if (fcport->scan_needed) {
 				set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 				break;
