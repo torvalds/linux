@@ -1141,6 +1141,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	from the RX info data, so leave those zeroed when building this data)
  * @RX_FLAG_RADIOTAP_HE_MU: HE MU radiotap data is present
  *	(&struct ieee80211_radiotap_he_mu)
+ * @RX_FLAG_RADIOTAP_LSIG: L-SIG radiotap data is present
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR		= BIT(0),
@@ -1171,6 +1172,7 @@ enum mac80211_rx_flags {
 	RX_FLAG_AMPDU_EOF_BIT_KNOWN	= BIT(25),
 	RX_FLAG_RADIOTAP_HE		= BIT(26),
 	RX_FLAG_RADIOTAP_HE_MU		= BIT(27),
+	RX_FLAG_RADIOTAP_LSIG		= BIT(28),
 };
 
 /**
