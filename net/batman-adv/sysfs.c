@@ -188,7 +188,8 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 									\
 	return __batadv_store_uint_attr(buff, count, _min, _max,	\
 					_post_func, attr,		\
-					&bat_priv->_var, net_dev);	\
+					&bat_priv->_var, net_dev,	\
+					NULL);	\
 }
 
 #define BATADV_ATTR_SIF_SHOW_UINT(_name, _var)				\
@@ -262,7 +263,9 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 									\
 	length = __batadv_store_uint_attr(buff, count, _min, _max,	\
 					  _post_func, attr,		\
-					  &hard_iface->_var, net_dev);	\
+					  &hard_iface->_var,		\
+					  hard_iface->soft_iface,	\
+					  net_dev);			\
 									\
 	batadv_hardif_put(hard_iface);				\
 	return length;							\
@@ -356,10 +359,12 @@ __batadv_store_bool_attr(char *buff, size_t count,
 
 static int batadv_store_uint_attr(const char *buff, size_t count,
 				  struct net_device *net_dev,
+				  struct net_device *slave_dev,
 				  const char *attr_name,
 				  unsigned int min, unsigned int max,
 				  atomic_t *attr)
 {
+	char ifname[IFNAMSIZ + 3] = "";
 	unsigned long uint_val;
 	int ret;
 
@@ -385,8 +390,11 @@ static int batadv_store_uint_attr(const char *buff, size_t count,
 	if (atomic_read(attr) == uint_val)
 		return count;
 
-	batadv_info(net_dev, "%s: Changing from: %i to: %lu\n",
-		    attr_name, atomic_read(attr), uint_val);
+	if (slave_dev)
+		snprintf(ifname, sizeof(ifname), "%s: ", slave_dev->name);
+
+	batadv_info(net_dev, "%s: %sChanging from: %i to: %lu\n",
+		    attr_name, ifname, atomic_read(attr), uint_val);
 
 	atomic_set(attr, uint_val);
 	return count;
@@ -397,12 +405,13 @@ static ssize_t __batadv_store_uint_attr(const char *buff, size_t count,
 					void (*post_func)(struct net_device *),
 					const struct attribute *attr,
 					atomic_t *attr_store,
-					struct net_device *net_dev)
+					struct net_device *net_dev,
+					struct net_device *slave_dev)
 {
 	int ret;
 
-	ret = batadv_store_uint_attr(buff, count, net_dev, attr->name, min, max,
-				     attr_store);
+	ret = batadv_store_uint_attr(buff, count, net_dev, slave_dev,
+				     attr->name, min, max, attr_store);
 	if (post_func && ret)
 		post_func(net_dev);
 
@@ -571,7 +580,7 @@ static ssize_t batadv_store_gw_sel_class(struct kobject *kobj,
 	return __batadv_store_uint_attr(buff, count, 1, BATADV_TQ_MAX_VALUE,
 					batadv_post_gw_reselect, attr,
 					&bat_priv->gw.sel_class,
-					bat_priv->soft_iface);
+					bat_priv->soft_iface, NULL);
 }
 
 static ssize_t batadv_show_gw_bwidth(struct kobject *kobj,
