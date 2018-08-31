@@ -3604,6 +3604,8 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	i915_address_space_init(&ggtt->vm, dev_priv);
 
+	ggtt->vm.is_ggtt = true;
+
 	/* Only VLV supports read-only GGTT mappings */
 	ggtt->vm.has_read_only = IS_VALLEYVIEW(dev_priv);
 
