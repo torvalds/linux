@@ -1276,7 +1276,8 @@ static void qla_chk_n2n_b4_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 		login = 1;
 	}
 
-	if (login) {
+	if (login && fcport->login_retry) {
+		fcport->login_retry--;
 		if (fcport->loop_id == FC_NO_LOOP_ID) {
 			fcport->fw_login_state = DSC_LS_PORT_UNAVAIL;
 			rc = qla2x00_find_new_loop_id(vha, fcport);
@@ -1302,13 +1303,12 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 	u64 wwn;
 	u16 sec;
 
-	ql_dbg(ql_dbg_disc, vha, 0x20d8,
-	    "%s %8phC DS %d LS %d P %d fl %x confl %p rscn %d|%d login %d retry %d lid %d scan %d\n",
+	ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0x20d8,
+	    "%s %8phC DS %d LS %d P %d fl %x confl %p rscn %d|%d login %d lid %d scan %d\n",
 	    __func__, fcport->port_name, fcport->disc_state,
 	    fcport->fw_login_state, fcport->login_pause, fcport->flags,
 	    fcport->conflict, fcport->last_rscn_gen, fcport->rscn_gen,
-	    fcport->login_gen, fcport->login_retry,
-	    fcport->loop_id, fcport->scan_state);
+	    fcport->login_gen, fcport->loop_id, fcport->scan_state);
 
 	if (fcport->scan_state != QLA_FCPORT_FOUND)
 		return 0;
@@ -1407,10 +1407,6 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 		break;
 
 	case DSC_LOGIN_FAILED:
-		fcport->login_retry--;
-		ql_dbg(ql_dbg_disc, vha, 0x20d0,
-		    "%s %d %8phC post gidpn\n",
-		    __func__, __LINE__, fcport->port_name);
 		if (N2N_TOPO(vha->hw))
 			qla_chk_n2n_b4_login(vha, fcport);
 		else
@@ -1419,10 +1415,6 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 
 	case DSC_LOGIN_COMPLETE:
 		/* recheck login state */
-		ql_dbg(ql_dbg_disc, vha, 0x20d1,
-		    "%s %d %8phC post adisc\n",
-		    __func__, __LINE__, fcport->port_name);
-		fcport->login_retry--;
 		data[0] = data[1] = 0;
 		qla2x00_post_async_adisc_work(vha, fcport, data);
 		break;
