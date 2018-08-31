@@ -668,9 +668,8 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
  **/
 static bool i40e_xmit_zc(struct i40e_ring *xdp_ring, unsigned int budget)
 {
-	unsigned int total_packets = 0;
+	struct i40e_tx_desc *tx_desc = NULL;
 	struct i40e_tx_buffer *tx_bi;
-	struct i40e_tx_desc *tx_desc;
 	bool work_done = true;
 	dma_addr_t dma;
 	u32 len;
@@ -697,14 +696,13 @@ static bool i40e_xmit_zc(struct i40e_ring *xdp_ring, unsigned int budget)
 			build_ctob(I40E_TX_DESC_CMD_ICRC
 				   | I40E_TX_DESC_CMD_EOP,
 				   0, len, 0);
-		total_packets++;
 
 		xdp_ring->next_to_use++;
 		if (xdp_ring->next_to_use == xdp_ring->count)
 			xdp_ring->next_to_use = 0;
 	}
 
-	if (total_packets > 0) {
+	if (tx_desc) {
 		/* Request an interrupt for the last frame and bump tail ptr. */
 		tx_desc->cmd_type_offset_bsz |= (I40E_TX_DESC_CMD_RS <<
 						 I40E_TXD_QW1_CMD_SHIFT);
