@@ -34,6 +34,10 @@
 
 		pci@3,0 {
 			nvidia,num-lanes = <1>;
+			pcie@0 {
+				reg = <0 0 0 0 0>;
+				local-mac-address = [00 00 00 00 00 00];
+			};
 		};
 	};
 
