@@ -312,8 +312,8 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 
 	umem->pid = get_task_pid(current, PIDTYPE_PID);
 	umem->address = (unsigned long)addr;
-	umem->props.chunk_mask = ~((u64)chunk_size - 1);
-	umem->props.size = size;
+	umem->chunk_mask = ~((u64)chunk_size - 1);
+	umem->size = size;
 	umem->headroom = headroom;
 	umem->chunk_size_nohr = chunk_size - headroom;
 	umem->npgs = size / PAGE_SIZE;

@@ -16,11 +16,6 @@
 struct net_device;
 struct xsk_queue;
 
-struct xdp_umem_props {
-	u64 chunk_mask;
-	u64 size;
-};
-
 struct xdp_umem_page {
 	void *addr;
 	dma_addr_t dma;
@@ -30,7 +25,8 @@ struct xdp_umem {
 	struct xsk_queue *fq;
 	struct xsk_queue *cq;
 	struct xdp_umem_page *pages;
-	struct xdp_umem_props props;
+	u64 chunk_mask;
+	u64 size;
 	u32 headroom;
 	u32 chunk_size_nohr;
 	struct user_struct *user;

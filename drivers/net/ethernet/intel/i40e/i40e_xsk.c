@@ -442,7 +442,7 @@ static void i40e_reuse_rx_buffer_zc(struct i40e_ring *rx_ring,
 				    struct i40e_rx_buffer *old_bi)
 {
 	struct i40e_rx_buffer *new_bi = &rx_ring->rx_bi[rx_ring->next_to_alloc];
-	unsigned long mask = (unsigned long)rx_ring->xsk_umem->props.chunk_mask;
+	unsigned long mask = (unsigned long)rx_ring->xsk_umem->chunk_mask;
 	u64 hr = rx_ring->xsk_umem->headroom + XDP_PACKET_HEADROOM;
 	u16 nta = rx_ring->next_to_alloc;
 
@@ -477,7 +477,7 @@ void i40e_zca_free(struct zero_copy_allocator *alloc, unsigned long handle)
 
 	rx_ring = container_of(alloc, struct i40e_ring, zca);
 	hr = rx_ring->xsk_umem->headroom + XDP_PACKET_HEADROOM;
-	mask = rx_ring->xsk_umem->props.chunk_mask;
+	mask = rx_ring->xsk_umem->chunk_mask;
 
 	nta = rx_ring->next_to_alloc;
 	bi = &rx_ring->rx_bi[nta];
