@@ -396,6 +396,9 @@ void qla24xx_handle_adisc_event(scsi_qla_host_t *vha, struct event_arg *ea)
 		ql_dbg(ql_dbg_disc, vha, 0x2066,
 		    "%s %8phC: adisc fail: post delete\n",
 		    __func__, ea->fcport->port_name);
+		/* deleted = 0 & logout_on_delete = force fw cleanup */
+		fcport->deleted = 0;
+		fcport->logout_on_delete = 1;
 		qlt_schedule_sess_for_deletion(ea->fcport);
 		return;
 	}
