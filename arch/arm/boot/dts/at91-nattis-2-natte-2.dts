@@ -16,48 +16,6 @@
 	compatible = "axentia,nattis-2", "axentia,natte-2", "axentia,linea",
 		     "atmel,sama5d31", "atmel,sama5d3", "atmel,sama5";
 
-	ahb {
-		apb {
-			pinctrl@fffff200 {
-				nattis {
-					pinctrl_usba_vbus: usba_vbus {
-						atmel,pins =
-							<AT91_PIOD 28
-							 AT91_PERIPH_GPIO
-							 AT91_PINCTRL_DEGLITCH>;
-					};
-
-					pinctrl_mmc0_cd: mmc0_cd {
-						atmel,pins =
-							<AT91_PIOD 5
-							 AT91_PERIPH_GPIO
-							 AT91_PINCTRL_PULL_UP_DEGLITCH>;
-					};
-
-					pinctrl_lvds_prlud0: lvds_prlud0 {
-						atmel,pins =
-							<AT91_PIOA 21
-							 AT91_PERIPH_GPIO
-							 (AT91_PINCTRL_OUTPUT |
-							  AT91_PINCTRL_OUTPUT_VAL(0))>;
-					};
-
-					pinctrl_lvds_hipow0: lvds_hipow0 {
-						atmel,pins =
-							<AT91_PIOA 23
-							 AT91_PERIPH_GPIO
-							 (AT91_PINCTRL_OUTPUT |
-							  AT91_PINCTRL_OUTPUT_VAL(0))>;
-					};
-				};
-			};
-
-			watchdog@fffffe40 {
-				status = "okay";
-			};
-		};
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -181,6 +139,36 @@
 			sound-dai = <&amp>;
 		};
 	};
+};
+
+&pinctrl {
+	nattis {
+		pinctrl_usba_vbus: usba_vbus {
+			atmel,pins = <AT91_PIOD 28 AT91_PERIPH_GPIO
+				      AT91_PINCTRL_DEGLITCH>;
+		};
+
+		pinctrl_mmc0_cd: mmc0_cd {
+			atmel,pins = <AT91_PIOD  5 AT91_PERIPH_GPIO
+				      AT91_PINCTRL_PULL_UP_DEGLITCH>;
+		};
+
+		pinctrl_lvds_prlud0: lvds_prlud0 {
+			atmel,pins = <AT91_PIOA 21 AT91_PERIPH_GPIO
+				      (AT91_PINCTRL_OUTPUT |
+				       AT91_PINCTRL_OUTPUT_VAL(0))>;
+		};
+
+		pinctrl_lvds_hipow0: lvds_hipow0 {
+			atmel,pins = <AT91_PIOA 23 AT91_PERIPH_GPIO
+				      (AT91_PINCTRL_OUTPUT |
+				       AT91_PINCTRL_OUTPUT_VAL(0))>;
+		};
+	};
+};
+
+&watchdog {
+	status = "okay";
 };
 
 &i2c0 {
