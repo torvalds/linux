@@ -600,14 +600,7 @@ void qla2x00_async_nack_sp_done(void *s, int res)
 			sp->fcport->login_succ = 1;
 
 			vha->fcport_count++;
-
-			ql_dbg(ql_dbg_disc, vha, 0x20f3,
-			    "%s %d %8phC post upd_fcport fcp_cnt %d\n",
-			    __func__, __LINE__,
-			    sp->fcport->port_name,
-			    vha->fcport_count);
-			sp->fcport->disc_state = DSC_UPD_FCPORT;
-			qla24xx_post_upd_fcport_work(vha, sp->fcport);
+			qla24xx_sched_upd_fcport(sp->fcport);
 		} else {
 			sp->fcport->login_retry = 0;
 			sp->fcport->disc_state = DSC_LOGIN_COMPLETE;
@@ -1227,11 +1220,12 @@ void qlt_schedule_sess_for_deletion(struct fc_port *sess)
 {
 	struct qla_tgt *tgt = sess->tgt;
 	unsigned long flags;
+	u16 sec;
 
-	if (sess->disc_state == DSC_DELETE_PEND)
+	switch (sess->disc_state) {
+	case DSC_DELETE_PEND:
 		return;
-
-	if (sess->disc_state == DSC_DELETED) {
+	case DSC_DELETED:
 		if (tgt && tgt->tgt_stop && (tgt->sess_count == 0))
 			wake_up_all(&tgt->waitQ);
 		if (sess->vha->fcport_count == 0)
@@ -1240,6 +1234,24 @@ void qlt_schedule_sess_for_deletion(struct fc_port *sess)
 		if (!sess->plogi_link[QLT_PLOGI_LINK_SAME_WWN] &&
 			!sess->plogi_link[QLT_PLOGI_LINK_CONFLICT])
 			return;
+		break;
+	case DSC_UPD_FCPORT:
+		/*
+		 * This port is not done reporting to upper layer.
+		 * let it finish
+		 */
+		sess->next_disc_state = DSC_DELETE_PEND;
+		sec = jiffies_to_msecs(jiffies -
+		    sess->jiffies_at_registration)/1000;
+		if (sess->sec_since_registration < sec && sec && !(sec % 5)) {
+			sess->sec_since_registration = sec;
+			ql_dbg(ql_dbg_disc, sess->vha, 0xffff,
+			    "%s %8phC : Slow Rport registration(%d Sec)\n",
+			    __func__, sess->port_name, sec);
+		}
+		return;
+	default:
+		break;
 	}
 
 	if (sess->deleted == QLA_SESS_DELETED)
@@ -4749,6 +4761,32 @@ static int qlt_handle_login(struct scsi_qla_host *vha,
 		goto out;
 	}
 
+	if (sess->disc_state == DSC_UPD_FCPORT) {
+		u16 sec;
+
+		/*
+		 * Remote port registration is still going on from
+		 * previous login. Allow it to finish before we
+		 * accept the new login.
+		 */
+		sess->next_disc_state = DSC_DELETE_PEND;
+		sec = jiffies_to_msecs(jiffies -
+		    sess->jiffies_at_registration) / 1000;
+		if (sess->sec_since_registration < sec && sec &&
+		    !(sec % 5)) {
+			sess->sec_since_registration = sec;
+			ql_dbg(ql_dbg_disc, vha, 0xffff,
+			    "%s %8phC - Slow Rport registration (%d Sec)\n",
+			    __func__, sess->port_name, sec);
+		}
+
+		if (!conflict_sess)
+			kmem_cache_free(qla_tgt_plogi_cachep, pla);
+
+		qlt_send_term_imm_notif(vha, iocb, 1);
+		goto out;
+	}
+
 	qlt_plogi_ack_link(vha, pla, sess, QLT_PLOGI_LINK_SAME_WWN);
 	sess->d_id = port_id;
 	sess->login_gen++;
@@ -4908,6 +4946,7 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 
 		if (sess != NULL) {
 			bool delete = false;
+			int sec;
 			spin_lock_irqsave(&tgt->ha->tgt.sess_lock, flags);
 			switch (sess->fw_login_state) {
 			case DSC_LS_PLOGI_PEND:
@@ -4920,9 +4959,24 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 			}
 
 			switch (sess->disc_state) {
+			case DSC_UPD_FCPORT:
+				spin_unlock_irqrestore(&tgt->ha->tgt.sess_lock,
+				    flags);
+
+				sec = jiffies_to_msecs(jiffies -
+				    sess->jiffies_at_registration)/1000;
+				if (sess->sec_since_registration < sec && sec &&
+				    !(sec % 5)) {
+					sess->sec_since_registration = sec;
+					ql_dbg(ql_dbg_disc, sess->vha, 0xffff,
+					    "%s %8phC : Slow Rport registration(%d Sec)\n",
+					    __func__, sess->port_name, sec);
+				}
+				qlt_send_term_imm_notif(vha, iocb, 1);
+				return 0;
+
 			case DSC_LOGIN_PEND:
 			case DSC_GPDB:
-			case DSC_UPD_FCPORT:
 			case DSC_LOGIN_COMPLETE:
 			case DSC_ADISC:
 				delete = false;
@@ -5959,10 +6013,7 @@ static fc_port_t *qlt_get_port_database(struct scsi_qla_host *vha,
 	case MODE_DUAL:
 		if (newfcport) {
 			if (!IS_IIDMA_CAPABLE(vha->hw) || !vha->hw->flags.gpsc_supported) {
-				ql_dbg(ql_dbg_disc, vha, 0x20fe,
-				   "%s %d %8phC post upd_fcport fcp_cnt %d\n",
-				   __func__, __LINE__, fcport->port_name, vha->fcport_count);
-				qla24xx_post_upd_fcport_work(vha, fcport);
+				qla24xx_sched_upd_fcport(fcport);
 			} else {
 				ql_dbg(ql_dbg_disc, vha, 0x20ff,
 				   "%s %d %8phC post gpsc fcp_cnt %d\n",
