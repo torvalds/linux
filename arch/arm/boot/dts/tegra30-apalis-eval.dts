@@ -119,10 +119,6 @@
 		spi-max-frequency = <25000000>;
 	};
 
-	hda@70030000 {
-		status = "okay";
-	};
-
 	/* Apalis SD1 */
 	sdhci@78000000 {
 		status = "okay";
