@@ -261,11 +261,10 @@ static int mrst_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 static int mrst_procfs(struct device *dev, struct seq_file *seq)
 {
-	unsigned char	rtc_control, valid;
+	unsigned char	rtc_control;
 
 	spin_lock_irq(&rtc_lock);
 	rtc_control = vrtc_cmos_read(RTC_CONTROL);
-	valid = vrtc_cmos_read(RTC_VALID);
 	spin_unlock_irq(&rtc_lock);
 
 	seq_printf(seq,
