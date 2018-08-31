@@ -771,9 +771,6 @@ source kernel/Kconfig.hz
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
-config ARCH_HAS_HOLES_MEMORYMODEL
-	def_bool y if SPARSEMEM
-
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
 	select SPARSEMEM_VMEMMAP_ENABLE
@@ -788,7 +785,7 @@ config ARCH_FLATMEM_ENABLE
 	def_bool !NUMA
 
 config HAVE_ARCH_PFN_VALID
-	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
+	def_bool y
 
 config HW_PERF_EVENTS
 	def_bool y
