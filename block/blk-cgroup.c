@@ -1042,21 +1042,59 @@ static struct cftype blkcg_legacy_files[] = {
 	{ }	/* terminate */
 };
 
+/*
+ * blkcg destruction is a three-stage process.
+ *
+ * 1. Destruction starts.  The blkcg_css_offline() callback is invoked
+ *    which offlines writeback.  Here we tie the next stage of blkg destruction
+ *    to the completion of writeback associated with the blkcg.  This lets us
+ *    avoid punting potentially large amounts of outstanding writeback to root
+ *    while maintaining any ongoing policies.  The next stage is triggered when
+ *    the nr_cgwbs count goes to zero.
+ *
+ * 2. When the nr_cgwbs count goes to zero, blkcg_destroy_blkgs() is called
+ *    and handles the destruction of blkgs.  Here the css reference held by
+ *    the blkg is put back eventually allowing blkcg_css_free() to be called.
+ *    This work may occur in cgwb_release_workfn() on the cgwb_release
+ *    workqueue.  Any submitted ios that fail to get the blkg ref will be
+ *    punted to the root_blkg.
+ *
+ * 3. Once the blkcg ref count goes to zero, blkcg_css_free() is called.
+ *    This finally frees the blkcg.
+ */
+
 /**
  * blkcg_css_offline - cgroup css_offline callback
  * @css: css of interest
  *
- * This function is called when @css is about to go away and responsible
- * for shooting down all blkgs associated with @css.  blkgs should be
- * removed while holding both q and blkcg locks.  As blkcg lock is nested
- * inside q lock, this function performs reverse double lock dancing.
- *
- * This is the blkcg counterpart of ioc_release_fn().
+ * This function is called when @css is about to go away.  Here the cgwbs are
+ * offlined first and only once writeback associated with the blkcg has
+ * finished do we start step 2 (see above).
  */
 static void blkcg_css_offline(struct cgroup_subsys_state *css)
 {
 	struct blkcg *blkcg = css_to_blkcg(css);
 
+	/* this prevents anyone from attaching or migrating to this blkcg */
+	wb_blkcg_offline(blkcg);
+
+	/* put the base cgwb reference allowing step 2 to be triggered */
+	blkcg_cgwb_put(blkcg);
+}
+
+/**
+ * blkcg_destroy_blkgs - responsible for shooting down blkgs
+ * @blkcg: blkcg of interest
+ *
+ * blkgs should be removed while holding both q and blkcg locks.  As blkcg lock
+ * is nested inside q lock, this function performs reverse double lock dancing.
+ * Destroying the blkgs releases the reference held on the blkcg's css allowing
+ * blkcg_css_free to eventually be called.
+ *
+ * This is the blkcg counterpart of ioc_release_fn().
+ */
+void blkcg_destroy_blkgs(struct blkcg *blkcg)
+{
 	spin_lock_irq(&blkcg->lock);
 
 	while (!hlist_empty(&blkcg->blkg_list)) {
@@ -1075,8 +1113,6 @@ static void blkcg_css_offline(struct cgroup_subsys_state *css)
 	}
 
 	spin_unlock_irq(&blkcg->lock);
-
-	wb_blkcg_offline(blkcg);
 }
 
 static void blkcg_css_free(struct cgroup_subsys_state *css)
@@ -1146,6 +1182,7 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 	INIT_HLIST_HEAD(&blkcg->blkg_list);
 #ifdef CONFIG_CGROUP_WRITEBACK
 	INIT_LIST_HEAD(&blkcg->cgwb_list);
+	refcount_set(&blkcg->cgwb_refcnt, 1);
 #endif
 	list_add_tail(&blkcg->all_blkcgs_node, &all_blkcgs);
 
