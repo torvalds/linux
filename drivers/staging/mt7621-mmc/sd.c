@@ -322,7 +322,6 @@ static void msdc_set_mclk(struct msdc_host *host, int ddr, unsigned int hz)
 	//u8  clksrc = hw->clk_src;
 
 	if (!hz) { // set mmc system clock to 0 ?
-		//ERR_MSG("set mclk to 0!!!");
 		msdc_reset_hw(host);
 		return;
 	}
@@ -373,7 +372,7 @@ static void msdc_abort_data(struct msdc_host *host)
 {
 	struct mmc_command *stop = host->mrq->stop;
 
-	ERR_MSG("Need to Abort.");
+	dev_err(mmc_dev(host->mmc), "%d -> Need to Abort.\n", host->id);
 
 	msdc_reset_hw(host);
 	msdc_clr_fifo(host);
@@ -382,7 +381,8 @@ static void msdc_abort_data(struct msdc_host *host)
 	// need to check FIFO count 0 ?
 
 	if (stop) {  /* try to stop, but may not success */
-		ERR_MSG("stop when abort CMD<%d>", stop->opcode);
+		dev_err(mmc_dev(host->mmc), "%d -> stop when abort CMD<%d>\n",
+			host->id, stop->opcode);
 		(void)msdc_do_command(host, stop, 0, CMD_TIMEOUT);
 	}
 
@@ -523,13 +523,14 @@ static void msdc_pm(pm_message_t state, void *data)
 
 	} else if (evt == PM_EVENT_RESUME || evt == PM_EVENT_USER_RESUME) {
 		if (!host->suspend) {
-			//ERR_MSG("warning: already resume");
 			return;
 		}
 
 		/* No PM resume when USR suspend */
 		if (evt == PM_EVENT_RESUME && host->pm_state.event == PM_EVENT_USER_SUSPEND) {
-			ERR_MSG("PM Resume when in USR Suspend");		/* won't happen. */
+			dev_err(mmc_dev(host->mmc),
+				"%d -> PM Resume when in USR Suspend\n",
+				host->id); /* won't happen. */
 			return;
 		}
 
@@ -645,7 +646,9 @@ static unsigned int msdc_command_start(struct msdc_host   *host,
 				break;
 
 			if (time_after(jiffies, tmo)) {
-				ERR_MSG("XXX cmd_busy timeout: before CMD<%d>", opcode);
+				dev_err(mmc_dev(host->mmc),
+					"%d -> XXX cmd_busy timeout: before CMD<%d>\n",
+					host->id, opcode);
 				cmd->error = -ETIMEDOUT;
 				msdc_reset_hw(host);
 				goto end;
@@ -656,7 +659,9 @@ static unsigned int msdc_command_start(struct msdc_host   *host,
 			if (!sdc_is_busy())
 				break;
 			if (time_after(jiffies, tmo)) {
-				ERR_MSG("XXX sdc_busy timeout: before CMD<%d>", opcode);
+				dev_err(mmc_dev(host->mmc),
+					"%d -> XXX sdc_busy timeout: before CMD<%d>\n",
+					host->id, opcode);
 				cmd->error = -ETIMEDOUT;
 				msdc_reset_hw(host);
 				goto end;
@@ -695,7 +700,9 @@ static unsigned int msdc_command_resp(struct msdc_host   *host,
 
 	spin_unlock(&host->lock);
 	if (!wait_for_completion_timeout(&host->cmd_done, 10 * timeout)) {
-		ERR_MSG("XXX CMD<%d> wait_for_completion timeout ARG<0x%.8x>", opcode, cmd->arg);
+		dev_err(mmc_dev(host->mmc),
+			"%d -> XXX CMD<%d> wait_for_completion timeout ARG<0x%.8x>\n",
+			host->id, opcode, cmd->arg);
 		cmd->error = -ETIMEDOUT;
 		msdc_reset_hw(host);
 	}
@@ -909,15 +916,22 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 		spin_unlock(&host->lock);
 		if (!wait_for_completion_timeout(&host->xfer_done, DAT_TIMEOUT)) {
-			ERR_MSG("XXX CMD<%d> wait xfer_done<%d> timeout!!", cmd->opcode, data->blocks * data->blksz);
-			ERR_MSG("    DMA_SA   = 0x%x",
-				readl(host->base + MSDC_DMA_SA));
-			ERR_MSG("    DMA_CA   = 0x%x",
-				readl(host->base + MSDC_DMA_CA));
-			ERR_MSG("    DMA_CTRL = 0x%x",
-				readl(host->base + MSDC_DMA_CTRL));
-			ERR_MSG("    DMA_CFG  = 0x%x",
-				readl(host->base + MSDC_DMA_CFG));
+			dev_err(mmc_dev(host->mmc),
+				"%d -> XXX CMD<%d> wait xfer_done<%d> timeout!!\n",
+				host->id, cmd->opcode,
+				data->blocks * data->blksz);
+			dev_err(mmc_dev(host->mmc),
+				"%d ->     DMA_SA   = 0x%x\n",
+				host->id, readl(host->base + MSDC_DMA_SA));
+			dev_err(mmc_dev(host->mmc),
+				"%d ->     DMA_CA   = 0x%x\n",
+				host->id, readl(host->base + MSDC_DMA_CA));
+			dev_err(mmc_dev(host->mmc),
+				"%d ->     DMA_CTRL = 0x%x\n",
+				host->id, readl(host->base + MSDC_DMA_CTRL));
+			dev_err(mmc_dev(host->mmc),
+				"%d ->     DMA_CFG  = 0x%x\n",
+				host->id, readl(host->base + MSDC_DMA_CFG));
 			data->error = -ETIMEDOUT;
 
 			msdc_reset_hw(host);
@@ -979,8 +993,6 @@ done:
 	if (mrq->stop && mrq->stop->error)
 		host->error |= 0x100;
 
-	//if (host->error) ERR_MSG("host->error<%d>", host->error);
-
 	return host->error;
 }
 
@@ -1039,19 +1051,27 @@ static int msdc_tune_cmdrsp(struct msdc_host *host, struct mmc_command *cmd)
 			if (host->app_cmd) {
 				result = msdc_app_cmd(host->mmc, host);
 				if (result) {
-					ERR_MSG("TUNE_CMD app_cmd<%d> failed: RESP_RXDLY<%d>,R_SMPL<%d>",
-						host->mrq->cmd->opcode, cur_rrdly, cur_rsmpl);
+					dev_err(mmc_dev(host->mmc),
+						"%d -> TUNE_CMD app_cmd<%d> failed: RESP_RXDLY<%d>,R_SMPL<%d>\n",
+						host->id,
+						host->mrq->cmd->opcode,
+						cur_rrdly, cur_rsmpl);
 					continue;
 				}
 			}
 			result = msdc_do_command(host, cmd, 0, CMD_TIMEOUT); // not tune.
-			ERR_MSG("TUNE_CMD<%d> %s PAD_CMD_RESP_RXDLY[26:22]<%d> R_SMPL[1]<%d>", cmd->opcode,
-				(result == 0) ? "PASS" : "FAIL", cur_rrdly, cur_rsmpl);
+			dev_err(mmc_dev(host->mmc),
+				"%d -> TUNE_CMD<%d> %s PAD_CMD_RESP_RXDLY[26:22]<%d> R_SMPL[1]<%d>\n",
+				host->id, cmd->opcode,
+				(result == 0) ? "PASS" : "FAIL", cur_rrdly,
+				cur_rsmpl);
 
 			if (result == 0)
 				return 0;
 			if (result != -EIO) {
-				ERR_MSG("TUNE_CMD<%d> Error<%d> not -EIO", cmd->opcode, result);
+				dev_err(mmc_dev(host->mmc),
+					"%d -> TUNE_CMD<%d> Error<%d> not -EIO\n",
+					host->id, cmd->opcode, result);
 				return result;
 			}
 
@@ -1104,7 +1124,10 @@ static int msdc_tune_bread(struct mmc_host *mmc, struct mmc_request *mrq)
 			if (host->app_cmd) {
 				result = msdc_app_cmd(host->mmc, host);
 				if (result) {
-					ERR_MSG("TUNE_BREAD app_cmd<%d> failed", host->mrq->cmd->opcode);
+					dev_err(mmc_dev(host->mmc),
+						"%d -> TUNE_BREAD app_cmd<%d> failed\n",
+						host->id,
+						host->mrq->cmd->opcode);
 					continue;
 				}
 			}
@@ -1115,10 +1138,13 @@ static int msdc_tune_bread(struct mmc_host *mmc, struct mmc_request *mrq)
 				      &dcrc); /* RO */
 			if (!ddr)
 				dcrc &= ~SDC_DCRC_STS_NEG;
-			ERR_MSG("TUNE_BREAD<%s> dcrc<0x%x> DATRDDLY0/1<0x%x><0x%x> dsmpl<0x%x>",
-				(result == 0 && dcrc == 0) ? "PASS" : "FAIL", dcrc,
-				readl(host->base + MSDC_DAT_RDDLY0),
-				readl(host->base + MSDC_DAT_RDDLY1), cur_dsmpl);
+			dev_err(mmc_dev(host->mmc),
+				"%d -> TUNE_BREAD<%s> dcrc<0x%x> DATRDDLY0/1<0x%x><0x%x> dsmpl<0x%x>\n",
+				host->id,
+				(result == 0 && dcrc == 0) ? "PASS" : "FAIL",
+				dcrc, readl(host->base + MSDC_DAT_RDDLY0),
+				readl(host->base + MSDC_DAT_RDDLY1),
+				cur_dsmpl);
 
 			/* Fix me: result is 0, but dcrc is still exist */
 			if (result == 0 && dcrc == 0) {
@@ -1127,8 +1153,11 @@ static int msdc_tune_bread(struct mmc_host *mmc, struct mmc_request *mrq)
 				/* there is a case: command timeout, and data phase not processed */
 				if (mrq->data->error != 0 &&
 				    mrq->data->error != -EIO) {
-					ERR_MSG("TUNE_READ: result<0x%x> cmd_error<%d> data_error<%d>",
-						result, mrq->cmd->error, mrq->data->error);
+					dev_err(mmc_dev(host->mmc),
+						"%d -> TUNE_READ: result<0x%x> cmd_error<%d> data_error<%d>\n",
+						host->id, result,
+						mrq->cmd->error,
+						mrq->data->error);
 					goto done;
 				}
 			}
@@ -1237,13 +1266,18 @@ static int msdc_tune_bwrite(struct mmc_host *mmc, struct mmc_request *mrq)
 				if (host->app_cmd) {
 					result = msdc_app_cmd(host->mmc, host);
 					if (result) {
-						ERR_MSG("TUNE_BWRITE app_cmd<%d> failed", host->mrq->cmd->opcode);
+						dev_err(mmc_dev(host->mmc),
+							"%d -> TUNE_BWRITE app_cmd<%d> failed\n",
+							host->id,
+							host->mrq->cmd->opcode);
 						continue;
 					}
 				}
 				result = msdc_do_request(mmc, mrq);
 
-				ERR_MSG("TUNE_BWRITE<%s> DSPL<%d> DATWRDLY<%d> MSDC_DAT_RDDLY0<0x%x>",
+				dev_err(mmc_dev(host->mmc),
+					"%d -> TUNE_BWRITE<%s> DSPL<%d> DATWRDLY<%d> MSDC_DAT_RDDLY0<0x%x>\n",
+					host->id,
 					result == 0 ? "PASS" : "FAIL",
 					cur_dsmpl, cur_wrrdly, cur_rxdly0);
 
@@ -1252,8 +1286,11 @@ static int msdc_tune_bwrite(struct mmc_host *mmc, struct mmc_request *mrq)
 				} else {
 					/* there is a case: command timeout, and data phase not processed */
 					if (mrq->data->error != -EIO) {
-						ERR_MSG("TUNE_READ: result<0x%x> cmd_error<%d> data_error<%d>",
-							result, mrq->cmd->error, mrq->data->error);
+						dev_err(mmc_dev(host->mmc),
+							"%d -> TUNE_READ: result<0x%x> cmd_error<%d> data_error<%d>\n",
+							host->id, result,
+							mrq->cmd->error,
+							mrq->data->error);
 						goto done;
 					}
 				}
@@ -1287,7 +1324,8 @@ static int msdc_get_card_status(struct mmc_host *mmc, struct msdc_host *host, u3
 	if (mmc->card) {
 		cmd.arg = mmc->card->rca << 16;
 	} else {
-		ERR_MSG("cmd13 mmc card is null");
+		dev_err(mmc_dev(host->mmc), "%d -> cmd13 mmc card is null\n",
+			host->id);
 		cmd.arg = host->app_cmd_arg;
 	}
 	cmd.flags = MMC_RSP_SPI_R2 | MMC_RSP_R1 | MMC_CMD_AC;
@@ -1314,7 +1352,8 @@ static int msdc_check_busy(struct mmc_host *mmc, struct msdc_host *host)
 		if (err)
 			return err;
 		/* need cmd12? */
-		ERR_MSG("cmd<13> resp<0x%x>", status);
+		dev_err(mmc_dev(host->mmc), "%d -> cmd<13> resp<0x%x>\n",
+			host->id, status);
 	} while (R1_CURRENT_STATE(status) == 7);
 
 	return err;
@@ -1338,7 +1377,9 @@ static int msdc_tune_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	} else {
 		ret = msdc_check_busy(mmc, host);
 		if (ret) {
-			ERR_MSG("XXX cmd13 wait program done failed");
+			dev_err(mmc_dev(host->mmc),
+				"%d -> XXX cmd13 wait program done failed\n",
+				host->id);
 			return ret;
 		}
 		/* CRC and TO */
@@ -2031,7 +2072,8 @@ static int msdc_drv_remove(struct platform_device *pdev)
 	host = mmc_priv(mmc);
 	BUG_ON(!host);
 
-	ERR_MSG("removed !!!");
+	dev_err(mmc_dev(host->mmc), "%d -> removed !!!\n",
+		host->id);
 
 	platform_set_drvdata(pdev, NULL);
 	mmc_remove_host(host->mmc);

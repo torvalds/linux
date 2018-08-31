@@ -102,12 +102,6 @@ do { \
 } while (0)
 #endif /* end of +++ */
 
-#define ERR_MSG(fmt, args...) \
-do { \
-	printk(KERN_ERR TAG"%d -> "fmt" <- %s() : L<%d> PID<%s><0x%x>\n", \
-	       host->id,  ##args, __FUNCTION__, __LINE__, current->comm, current->pid); \
-} while (0);
-
 #if 1
 //defined CONFIG_MTK_MMC_CD_POLL
 #define IRQ_MSG(fmt, args...)
