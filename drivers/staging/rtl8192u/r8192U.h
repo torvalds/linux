@@ -1091,8 +1091,6 @@ bool init_firmware(struct net_device *dev);
 short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 short rtl8192_tx(struct net_device *dev, struct sk_buff *skb);
 
-u32 read_cam(struct net_device *dev, u8 addr);
-
 int read_nic_byte(struct net_device *dev, int x, u8 *data);
 int read_nic_byte_E(struct net_device *dev, int x, u8 *data);
 int read_nic_dword(struct net_device *dev, int x, u32 *data);
