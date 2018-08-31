@@ -285,7 +285,7 @@ static void gre_destroy(struct nf_conn *ct)
 		nf_ct_gre_keymap_destroy(master);
 }
 
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
@@ -334,7 +334,7 @@ gre_timeout_nla_policy[CTA_TIMEOUT_GRE_MAX+1] = {
 	[CTA_TIMEOUT_GRE_UNREPLIED]	= { .type = NLA_U32 },
 	[CTA_TIMEOUT_GRE_REPLIED]	= { .type = NLA_U32 },
 };
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
 static int gre_init_net(struct net *net, u_int16_t proto)
 {
@@ -367,7 +367,7 @@ static const struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 = {
 	.nlattr_to_tuple = nf_ct_port_nlattr_to_tuple,
 	.nla_policy	 = nf_ct_port_nla_policy,
 #endif
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	.ctnl_timeout    = {
 		.nlattr_to_obj	= gre_timeout_nlattr_to_obj,
 		.obj_to_nlattr	= gre_timeout_obj_to_nlattr,
@@ -375,7 +375,7 @@ static const struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 = {
 		.obj_size	= sizeof(unsigned int) * GRE_CT_MAX,
 		.nla_policy	= gre_timeout_nla_policy,
 	},
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 	.net_id		= &proto_gre_net_id,
 	.init_net	= gre_init_net,
 };
