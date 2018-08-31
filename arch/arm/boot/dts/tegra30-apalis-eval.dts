@@ -45,22 +45,23 @@
 		};
 	};
 
+	/* Apalis UART1 */
 	serial@70006000 {
 		status = "okay";
 	};
 
+	/* Apalis UART2 */
 	serial@70006040 {
-		compatible = "nvidia,tegra30-hsuart";
 		status = "okay";
 	};
 
+	/* Apalis UART3 */
 	serial@70006200 {
-		compatible = "nvidia,tegra30-hsuart";
 		status = "okay";
 	};
 
+	/* Apalis UART4 */
 	serial@70006300 {
-		compatible = "nvidia,tegra30-hsuart";
 		status = "okay";
 	};
 
