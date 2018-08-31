@@ -376,10 +376,15 @@ EXPORT_SYMBOL_GPL(asoc_simple_card_init_dai);
 int asoc_simple_card_canonicalize_dailink(struct snd_soc_dai_link *dai_link)
 {
 	/* Assumes platform == cpu */
-	if (!dai_link->platform_of_node)
-		dai_link->platform_of_node = dai_link->cpu_of_node;
-
+	if (dai_link->platform) {
+		if (!dai_link->platform->of_node)
+			dai_link->platform->of_node = dai_link->cpu_of_node;
+	} else {
+		if (!dai_link->platform_of_node)
+			dai_link->platform_of_node = dai_link->cpu_of_node;
+	}
 	return 0;
+
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_canonicalize_dailink);
 
