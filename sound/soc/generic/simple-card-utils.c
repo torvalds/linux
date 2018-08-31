@@ -409,9 +409,7 @@ int asoc_simple_card_clean_reference(struct snd_soc_card *card)
 	     num_links < card->num_links;
 	     num_links++, dai_link++) {
 		of_node_put(dai_link->cpu_of_node);
-		of_node_put(dai_link->codec_of_node);
-		if (dai_link->codecs)
-			of_node_put(dai_link->codecs->of_node);
+		of_node_put(dai_link->codecs->of_node);
 	}
 	return 0;
 }
