@@ -40,7 +40,7 @@
 #include "ieee80211/ieee80211.h"
 
 #define RTL8192U
-#define RTL819xU_MODULE_NAME "rtl819xU"
+#define RTL819XU_MODULE_NAME "rtl819xU"
 /* HW security */
 #define MAX_KEY_LEN     61
 #define KEY_BUF_SIZE    5

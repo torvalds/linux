@@ -128,7 +128,7 @@ static void rtl8192_usb_disconnect(struct usb_interface *intf);
 
 
 static struct usb_driver rtl8192_usb_driver = {
-	.name		= RTL819xU_MODULE_NAME,		  /* Driver name   */
+	.name		= RTL819XU_MODULE_NAME,		  /* Driver name   */
 	.id_table	= rtl8192_usb_id_tbl,		  /* PCI_ID table  */
 	.probe		= rtl8192_usb_probe,		  /* probe fn      */
 	.disconnect	= rtl8192_usb_disconnect,	  /* remove fn     */
@@ -627,7 +627,7 @@ static int __maybe_unused proc_get_stats_rx(struct seq_file *m, void *v)
 static void rtl8192_proc_module_init(void)
 {
 	RT_TRACE(COMP_INIT, "Initializing proc filesystem");
-	rtl8192_proc = proc_mkdir(RTL819xU_MODULE_NAME, init_net.proc_net);
+	rtl8192_proc = proc_mkdir(RTL819XU_MODULE_NAME, init_net.proc_net);
 }
 
 static void rtl8192_proc_init_one(struct net_device *dev)
