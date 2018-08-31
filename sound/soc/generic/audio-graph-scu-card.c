@@ -28,6 +28,7 @@ struct graph_card_data {
 	struct graph_dai_props {
 		struct asoc_simple_dai dai;
 		struct snd_soc_dai_link_component codecs;
+		struct snd_soc_dai_link_component platform;
 	} *dai_props;
 	struct snd_soc_dai_link *dai_link;
 	struct asoc_simple_card_data adata;
@@ -365,6 +366,7 @@ static int asoc_graph_card_probe(struct platform_device *pdev)
 	for (i = 0; i < num; i++) {
 		dai_link[i].codecs	= &dai_props[i].codecs;
 		dai_link[i].num_codecs	= 1;
+		dai_link[i].platform	= &dai_props[i].platform;
 	}
 
 	priv->dai_props			= dai_props;
