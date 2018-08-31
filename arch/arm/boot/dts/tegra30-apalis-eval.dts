@@ -111,24 +111,12 @@
 	spi@7000d400 {
 		status = "okay";
 		spi-max-frequency = <25000000>;
-
-		spidev0: spidev@1 {
-			compatible = "spidev";
-			reg = <1>;
-			spi-max-frequency = <25000000>;
-		};
 	};
 
 	/* SPI5: Apalis SPI2 */
 	spi@7000dc00 {
 		status = "okay";
 		spi-max-frequency = <25000000>;
-
-		spidev1: spidev@2 {
-			compatible = "spidev";
-			reg = <2>;
-			spi-max-frequency = <25000000>;
-		};
 	};
 
 	hda@70030000 {
