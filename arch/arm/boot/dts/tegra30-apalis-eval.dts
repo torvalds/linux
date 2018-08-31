@@ -134,7 +134,7 @@
 		status = "okay";
 	};
 
-	sd1: sdhci@78000000 {
+	sdhci@78000000 {
 		status = "okay";
 		bus-width = <4>;
 		/* SD1_CD# */
@@ -142,7 +142,7 @@
 		no-1-8-v;
 	};
 
-	mmc1: sdhci@78000400 {
+	sdhci@78000400 {
 		status = "okay";
 		bus-width = <8>;
 		/* MMC1_CD# */
