@@ -23,17 +23,11 @@
 	};
 
 	pcie@3000 {
-		status = "okay";
-
 		pci@1,0 {
 			status = "okay";
 		};
 
 		pci@2,0 {
-			status = "okay";
-		};
-
-		pci@3,0 {
 			status = "okay";
 		};
 	};
