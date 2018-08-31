@@ -603,6 +603,7 @@ static int gmc_v10_0_sw_init(void *handle)
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
+		adev->num_vmhubs = 2;
 		/*
 		 * To fulfill 4-level page support,
 		 * vm size is 256TB (48bit), maximum size of Navi10/Navi14,

@@ -284,7 +284,7 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
-		for (j = 0; j < AMDGPU_MAX_VMHUBS; j++) {
+		for (j = 0; j < adev->num_vmhubs; j++) {
 			hub = &adev->vmhub[j];
 			for (i = 0; i < 16; i++) {
 				reg = hub->vm_context0_cntl + i;
@@ -295,7 +295,7 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 		}
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
-		for (j = 0; j < AMDGPU_MAX_VMHUBS; j++) {
+		for (j = 0; j < adev->num_vmhubs; j++) {
 			hub = &adev->vmhub[j];
 			for (i = 0; i < 16; i++) {
 				reg = hub->vm_context0_cntl + i;
@@ -419,7 +419,7 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev,
 	const unsigned eng = 17;
 	unsigned i, j;
 
-	for (i = 0; i < AMDGPU_MAX_VMHUBS; ++i) {
+	for (i = 0; i < adev->num_vmhubs; ++i) {
 		struct amdgpu_vmhub *hub = &adev->vmhub[i];
 		u32 tmp = gmc_v9_0_get_invalidate_req(vmid, flush_type);
 
@@ -980,6 +980,8 @@ static int gmc_v9_0_sw_init(void *handle)
 	adev->gmc.vram_type = amdgpu_atomfirmware_get_vram_type(adev);
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
+		adev->num_vmhubs = 2;
+
 		if (adev->rev_id == 0x0 || adev->rev_id == 0x1) {
 			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
 		} else {
@@ -992,6 +994,8 @@ static int gmc_v9_0_sw_init(void *handle)
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
+		adev->num_vmhubs = 2;
+
 		/*
 		 * To fulfill 4-level page support,
 		 * vm size is 256TB (48bit), maximum size of Vega10,
