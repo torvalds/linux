@@ -7142,7 +7142,6 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	}
 	icb->firmware_options_2 &= cpu_to_le32(
 	    ~(BIT_3 | BIT_2 | BIT_1 | BIT_0));
-	vha->flags.process_response_queue = 0;
 	if (ha->zio_mode != QLA_ZIO_DISABLED) {
 		ha->zio_mode = QLA_ZIO_MODE_6;
 
@@ -7153,7 +7152,6 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 		icb->firmware_options_2 |= cpu_to_le32(
 		    (uint32_t)ha->zio_mode);
 		icb->interrupt_delay_timer = cpu_to_le16(ha->zio_timer);
-		vha->flags.process_response_queue = 1;
 	}
 
 	if (rval) {
