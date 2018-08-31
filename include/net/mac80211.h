@@ -2137,6 +2137,12 @@ struct ieee80211_txq {
  * @IEEE80211_HW_BUFF_MMPDU_TXQ: use the TXQ for bufferable MMPDUs, this of
  *	course requires the driver to use TXQs to start with.
  *
+ * @IEEE80211_HW_SUPPORTS_VHT_EXT_NSS_BW: (Hardware) rate control supports VHT
+ *	extended NSS BW (dot11VHTExtendedNSSBWCapable). This flag will be set if
+ *	the selected rate control algorithm sets %RATE_CTRL_CAPA_VHT_EXT_NSS_BW
+ *	but if the rate control is built-in then it must be set by the driver.
+ *	See also the documentation for that flag.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -2183,6 +2189,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_DEAUTH_NEED_MGD_TX_PREP,
 	IEEE80211_HW_DOESNT_SUPPORT_QOS_NDP,
 	IEEE80211_HW_BUFF_MMPDU_TXQ,
+	IEEE80211_HW_SUPPORTS_VHT_EXT_NSS_BW,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
@@ -5655,7 +5662,22 @@ struct ieee80211_tx_rate_control {
 	bool bss;
 };
 
+/**
+ * enum rate_control_capabilities - rate control capabilities
+ */
+enum rate_control_capabilities {
+	/**
+	 * @RATE_CTRL_CAPA_VHT_EXT_NSS_BW:
+	 * Support for extended NSS BW support (dot11VHTExtendedNSSCapable)
+	 * Note that this is only looked at if the minimum number of chains
+	 * that the AP uses is < the number of TX chains the hardware has,
+	 * otherwise the NSS difference doesn't bother us.
+	 */
+	RATE_CTRL_CAPA_VHT_EXT_NSS_BW = BIT(0),
+};
+
 struct rate_control_ops {
+	unsigned long capa;
 	const char *name;
 	void *(*alloc)(struct ieee80211_hw *hw, struct dentry *debugfsdir);
 	void (*free)(void *priv);
