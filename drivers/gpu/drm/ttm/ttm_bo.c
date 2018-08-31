@@ -250,15 +250,18 @@ EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
 static void ttm_bo_bulk_move_helper(struct ttm_lru_bulk_move_pos *pos,
 				    struct list_head *lru, bool is_swap)
 {
+	struct list_head *list;
 	LIST_HEAD(entries);
 	LIST_HEAD(before);
-	struct list_head *list1, *list2;
 
-	list1 = is_swap ? &pos->last->swap : &pos->last->lru;
-	list2 = is_swap ? pos->first->swap.prev : pos->first->lru.prev;
+	reservation_object_assert_held(pos->last->resv);
+	list = is_swap ? &pos->last->swap : &pos->last->lru;
+	list_cut_position(&entries, lru, list);
 
-	list_cut_position(&entries, lru, list1);
-	list_cut_position(&before, &entries, list2);
+	reservation_object_assert_held(pos->first->resv);
+	list = is_swap ? pos->first->swap.prev : pos->first->lru.prev;
+	list_cut_position(&before, &entries, list);
+
 	list_splice(&before, lru);
 	list_splice_tail(&entries, lru);
 }
