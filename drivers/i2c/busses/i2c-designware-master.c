@@ -708,7 +708,6 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 	i2c_set_adapdata(adap, dev);
 
 	if (dev->pm_disabled) {
-		dev_pm_syscore_device(dev->dev, true);
 		irq_flags = IRQF_NO_SUSPEND;
 	} else {
 		irq_flags = IRQF_SHARED | IRQF_COND_SUSPEND;

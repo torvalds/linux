@@ -507,8 +507,6 @@ static void sh_mobile_i2c_dma_callback(void *data)
 	pd->pos = pd->msg->len;
 	pd->stop_after_dma = true;
 
-	i2c_release_dma_safe_msg_buf(pd->msg, pd->dma_buf);
-
 	iic_set_clr(pd, ICIC, 0, ICIC_TDMAE | ICIC_RDMAE);
 }
 
@@ -602,8 +600,8 @@ static void sh_mobile_i2c_xfer_dma(struct sh_mobile_i2c_data *pd)
 	dma_async_issue_pending(chan);
 }
 
-static int start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg,
-		    bool do_init)
+static void start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg,
+		     bool do_init)
 {
 	if (do_init) {
 		/* Initialize channel registers */
@@ -627,7 +625,6 @@ static int start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg,
 
 	/* Enable all interrupts to begin with */
 	iic_wr(pd, ICIC, ICIC_DTEE | ICIC_WAITE | ICIC_ALE | ICIC_TACKE);
-	return 0;
 }
 
 static int poll_dte(struct sh_mobile_i2c_data *pd)
@@ -698,9 +695,7 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 		pd->send_stop = i == num - 1 || msg->flags & I2C_M_STOP;
 		pd->stop_after_dma = false;
 
-		err = start_ch(pd, msg, do_start);
-		if (err)
-			break;
+		start_ch(pd, msg, do_start);
 
 		if (do_start)
 			i2c_op(pd, OP_START, 0);
@@ -709,6 +704,10 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 		timeout = wait_event_timeout(pd->wait,
 				       pd->sr & (ICSR_TACK | SW_DONE),
 				       adapter->timeout);
+
+		/* 'stop_after_dma' tells if DMA transfer was complete */
+		i2c_put_dma_safe_msg_buf(pd->dma_buf, pd->msg, pd->stop_after_dma);
+
 		if (!timeout) {
 			dev_err(pd->dev, "Transfer request timed out\n");
 			if (pd->dma_direction != DMA_NONE)

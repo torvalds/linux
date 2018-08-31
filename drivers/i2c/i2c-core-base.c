@@ -2293,21 +2293,22 @@ u8 *i2c_get_dma_safe_msg_buf(struct i2c_msg *msg, unsigned int threshold)
 EXPORT_SYMBOL_GPL(i2c_get_dma_safe_msg_buf);
 
 /**
- * i2c_release_dma_safe_msg_buf - release DMA safe buffer and sync with i2c_msg
- * @msg: the message to be synced with
+ * i2c_put_dma_safe_msg_buf - release DMA safe buffer and sync with i2c_msg
  * @buf: the buffer obtained from i2c_get_dma_safe_msg_buf(). May be NULL.
+ * @msg: the message which the buffer corresponds to
+ * @xferred: bool saying if the message was transferred
  */
-void i2c_release_dma_safe_msg_buf(struct i2c_msg *msg, u8 *buf)
+void i2c_put_dma_safe_msg_buf(u8 *buf, struct i2c_msg *msg, bool xferred)
 {
 	if (!buf || buf == msg->buf)
 		return;
 
-	if (msg->flags & I2C_M_RD)
+	if (xferred && msg->flags & I2C_M_RD)
 		memcpy(msg->buf, buf, msg->len);
 
 	kfree(buf);
 }
-EXPORT_SYMBOL_GPL(i2c_release_dma_safe_msg_buf);
+EXPORT_SYMBOL_GPL(i2c_put_dma_safe_msg_buf);
 
 MODULE_AUTHOR("Simon G. Vogl <simon@tk.uni-linz.ac.at>");
 MODULE_DESCRIPTION("I2C-Bus main module");
