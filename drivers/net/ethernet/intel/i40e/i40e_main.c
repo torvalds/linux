@@ -420,9 +420,9 @@ static void i40e_get_netdev_stats_struct(struct net_device *netdev,
 				  struct rtnl_link_stats64 *stats)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
-	struct i40e_ring *tx_ring, *rx_ring;
 	struct i40e_vsi *vsi = np->vsi;
 	struct rtnl_link_stats64 *vsi_stats = i40e_get_vsi_stats_struct(vsi);
+	struct i40e_ring *ring;
 	int i;
 
 	if (test_bit(__I40E_VSI_DOWN, vsi->state))
@@ -436,24 +436,26 @@ static void i40e_get_netdev_stats_struct(struct net_device *netdev,
 		u64 bytes, packets;
 		unsigned int start;
 
-		tx_ring = READ_ONCE(vsi->tx_rings[i]);
-		if (!tx_ring)
+		ring = READ_ONCE(vsi->tx_rings[i]);
+		if (!ring)
 			continue;
-		i40e_get_netdev_stats_struct_tx(tx_ring, stats);
+		i40e_get_netdev_stats_struct_tx(ring, stats);
 
-		rx_ring = &tx_ring[1];
+		if (i40e_enabled_xdp_vsi(vsi)) {
+			ring++;
+			i40e_get_netdev_stats_struct_tx(ring, stats);
+		}
 
+		ring++;
 		do {
-			start = u64_stats_fetch_begin_irq(&rx_ring->syncp);
-			packets = rx_ring->stats.packets;
-			bytes   = rx_ring->stats.bytes;
-		} while (u64_stats_fetch_retry_irq(&rx_ring->syncp, start));
+			start   = u64_stats_fetch_begin_irq(&ring->syncp);
+			packets = ring->stats.packets;
+			bytes   = ring->stats.bytes;
+		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 
 		stats->rx_packets += packets;
 		stats->rx_bytes   += bytes;
 
-		if (i40e_enabled_xdp_vsi(vsi))
-			i40e_get_netdev_stats_struct_tx(&rx_ring[1], stats);
 	}
 	rcu_read_unlock();
 
@@ -6568,6 +6570,24 @@ static i40e_status i40e_force_link_state(struct i40e_pf *pf, bool is_up)
 	struct i40e_hw *hw = &pf->hw;
 	i40e_status err;
 	u64 mask;
+	u8 speed;
+
+	/* Card might've been put in an unstable state by other drivers
+	 * and applications, which causes incorrect speed values being
+	 * set on startup. In order to clear speed registers, we call
+	 * get_phy_capabilities twice, once to get initial state of
+	 * available speeds, and once to get current PHY config.
+	 */
+	err = i40e_aq_get_phy_capabilities(hw, false, true, &abilities,
+					   NULL);
+	if (err) {
+		dev_err(&pf->pdev->dev,
+			"failed to get phy cap., ret =  %s last_status =  %s\n",
+			i40e_stat_str(hw, err),
+			i40e_aq_str(hw, hw->aq.asq_last_status));
+		return err;
+	}
+	speed = abilities.link_speed;
 
 	/* Get the current phy config */
 	err = i40e_aq_get_phy_capabilities(hw, false, false, &abilities,
@@ -6581,9 +6601,9 @@ static i40e_status i40e_force_link_state(struct i40e_pf *pf, bool is_up)
 	}
 
 	/* If link needs to go up, but was not forced to go down,
-	 * no need for a flap
+	 * and its speed values are OK, no need for a flap
 	 */
-	if (is_up && abilities.phy_type != 0)
+	if (is_up && abilities.phy_type != 0 && abilities.link_speed != 0)
 		return I40E_SUCCESS;
 
 	/* To force link we need to set bits for all supported PHY types,
@@ -6595,7 +6615,10 @@ static i40e_status i40e_force_link_state(struct i40e_pf *pf, bool is_up)
 	config.phy_type_ext = is_up ? (u8)((mask >> 32) & 0xff) : 0;
 	/* Copy the old settings, except of phy_type */
 	config.abilities = abilities.abilities;
-	config.link_speed = abilities.link_speed;
+	if (abilities.link_speed != 0)
+		config.link_speed = abilities.link_speed;
+	else
+		config.link_speed = speed;
 	config.eee_capability = abilities.eee_capability;
 	config.eeer = abilities.eeer_val;
 	config.low_power_ctrl = abilities.d3_lpan;
@@ -13033,7 +13056,7 @@ struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags,
 	for (vsi_idx = 0; vsi_idx < pf->num_alloc_vsi; vsi_idx++)
 		if (pf->vsi[vsi_idx] && pf->vsi[vsi_idx]->seid == vsi_seid)
 			break;
-	if (vsi_idx >= pf->num_alloc_vsi && vsi_seid != 0) {
+	if (vsi_idx == pf->num_alloc_vsi && vsi_seid != 0) {
 		dev_info(&pf->pdev->dev, "vsi seid %d not found\n",
 			 vsi_seid);
 		return NULL;
@@ -14159,6 +14182,7 @@ static void i40e_remove(struct pci_dev *pdev)
 	mutex_destroy(&hw->aq.asq_mutex);
 
 	/* Clear all dynamic memory lists of rings, q_vectors, and VSIs */
+	rtnl_lock();
 	i40e_clear_interrupt_scheme(pf);
 	for (i = 0; i < pf->num_alloc_vsi; i++) {
 		if (pf->vsi[i]) {
@@ -14167,6 +14191,7 @@ static void i40e_remove(struct pci_dev *pdev)
 			pf->vsi[i] = NULL;
 		}
 	}
+	rtnl_unlock();
 
 	for (i = 0; i < I40E_MAX_VEB; i++) {
 		kfree(pf->veb[i]);
@@ -14378,7 +14403,13 @@ static void i40e_shutdown(struct pci_dev *pdev)
 	wr32(hw, I40E_PFPM_WUFC,
 	     (pf->wol_en ? I40E_PFPM_WUFC_MAG_MASK : 0));
 
+	/* Since we're going to destroy queues during the
+	 * i40e_clear_interrupt_scheme() we should hold the RTNL lock for this
+	 * whole section
+	 */
+	rtnl_lock();
 	i40e_clear_interrupt_scheme(pf);
+	rtnl_unlock();
 
 	if (system_state == SYSTEM_POWER_OFF) {
 		pci_wake_from_d3(pdev, pf->wol_en);

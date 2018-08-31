@@ -6,18 +6,12 @@
 
 #include <linux/uaccess.h>
 
-struct i40evf_stats {
-	char stat_string[ETH_GSTRING_LEN];
-	int stat_offset;
-};
+#include "i40e_ethtool_stats.h"
 
-#define I40EVF_STAT(_name, _stat) { \
-	.stat_string = _name, \
-	.stat_offset = offsetof(struct i40evf_adapter, _stat) \
-}
+#define I40EVF_STAT(_name, _stat) \
+	I40E_STAT(struct i40evf_adapter, _name, _stat)
 
-/* All stats are u64, so we don't need to track the size of the field. */
-static const struct i40evf_stats i40evf_gstrings_stats[] = {
+static const struct i40e_stats i40evf_gstrings_stats[] = {
 	I40EVF_STAT("rx_bytes", current_stats.rx_bytes),
 	I40EVF_STAT("rx_unicast", current_stats.rx_unicast),
 	I40EVF_STAT("rx_multicast", current_stats.rx_multicast),
@@ -32,13 +26,9 @@ static const struct i40evf_stats i40evf_gstrings_stats[] = {
 	I40EVF_STAT("tx_errors", current_stats.tx_errors),
 };
 
-#define I40EVF_GLOBAL_STATS_LEN ARRAY_SIZE(i40evf_gstrings_stats)
-#define I40EVF_QUEUE_STATS_LEN(_dev) \
-	(((struct i40evf_adapter *)\
-		netdev_priv(_dev))->num_active_queues \
-		  * 2 * (sizeof(struct i40e_queue_stats) / sizeof(u64)))
-#define I40EVF_STATS_LEN(_dev) \
-	(I40EVF_GLOBAL_STATS_LEN + I40EVF_QUEUE_STATS_LEN(_dev))
+#define I40EVF_STATS_LEN	ARRAY_SIZE(i40evf_gstrings_stats)
+
+#define I40EVF_QUEUE_STATS_LEN	ARRAY_SIZE(i40e_gstrings_queue_stats)
 
 /* For now we have one and only one private flag and it is only defined
  * when we have support for the SKIP_CPU_SYNC DMA attribute.  Instead
@@ -117,13 +107,13 @@ static int i40evf_get_link_ksettings(struct net_device *netdev,
  * @netdev: network interface device structure
  * @sset: id of string set
  *
- * Reports size of string table. This driver only supports
- * strings for statistics.
+ * Reports size of various string tables.
  **/
 static int i40evf_get_sset_count(struct net_device *netdev, int sset)
 {
 	if (sset == ETH_SS_STATS)
-		return I40EVF_STATS_LEN(netdev);
+		return I40EVF_STATS_LEN +
+			(I40EVF_QUEUE_STATS_LEN * 2 * I40EVF_MAX_REQ_QUEUES);
 	else if (sset == ETH_SS_PRIV_FLAGS)
 		return I40EVF_PRIV_FLAGS_STR_LEN;
 	else
@@ -142,20 +132,66 @@ static void i40evf_get_ethtool_stats(struct net_device *netdev,
 				     struct ethtool_stats *stats, u64 *data)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	unsigned int i, j;
-	char *p;
+	unsigned int i;
 
-	for (i = 0; i < I40EVF_GLOBAL_STATS_LEN; i++) {
-		p = (char *)adapter + i40evf_gstrings_stats[i].stat_offset;
-		data[i] =  *(u64 *)p;
+	i40e_add_ethtool_stats(&data, adapter, i40evf_gstrings_stats);
+
+	rcu_read_lock();
+	for (i = 0; i < I40EVF_MAX_REQ_QUEUES; i++) {
+		struct i40e_ring *ring;
+
+		/* Avoid accessing un-allocated queues */
+		ring = (i < adapter->num_active_queues ?
+			&adapter->tx_rings[i] : NULL);
+		i40evf_add_queue_stats(&data, ring);
+
+		/* Avoid accessing un-allocated queues */
+		ring = (i < adapter->num_active_queues ?
+			&adapter->rx_rings[i] : NULL);
+		i40evf_add_queue_stats(&data, ring);
 	}
-	for (j = 0; j < adapter->num_active_queues; j++) {
-		data[i++] = adapter->tx_rings[j].stats.packets;
-		data[i++] = adapter->tx_rings[j].stats.bytes;
+	rcu_read_unlock();
+}
+
+/**
+ * i40evf_get_priv_flag_strings - Get private flag strings
+ * @netdev: network interface device structure
+ * @data: buffer for string data
+ *
+ * Builds the private flags string table
+ **/
+static void i40evf_get_priv_flag_strings(struct net_device *netdev, u8 *data)
+{
+	unsigned int i;
+
+	for (i = 0; i < I40EVF_PRIV_FLAGS_STR_LEN; i++) {
+		snprintf(data, ETH_GSTRING_LEN, "%s",
+			 i40evf_gstrings_priv_flags[i].flag_string);
+		data += ETH_GSTRING_LEN;
 	}
-	for (j = 0; j < adapter->num_active_queues; j++) {
-		data[i++] = adapter->rx_rings[j].stats.packets;
-		data[i++] = adapter->rx_rings[j].stats.bytes;
+}
+
+/**
+ * i40evf_get_stat_strings - Get stat strings
+ * @netdev: network interface device structure
+ * @data: buffer for string data
+ *
+ * Builds the statistics string table
+ **/
+static void i40evf_get_stat_strings(struct net_device *netdev, u8 *data)
+{
+	unsigned int i;
+
+	i40e_add_stat_strings(&data, i40evf_gstrings_stats);
+
+	/* Queues are always allocated in pairs, so we just use num_tx_queues
+	 * for both Tx and Rx queues.
+	 */
+	for (i = 0; i < netdev->num_tx_queues; i++) {
+		i40e_add_stat_strings(&data, i40e_gstrings_queue_stats,
+				      "tx", i);
+		i40e_add_stat_strings(&data, i40e_gstrings_queue_stats,
+				      "rx", i);
 	}
 }
 
@@ -165,38 +201,19 @@ static void i40evf_get_ethtool_stats(struct net_device *netdev,
  * @sset: id of string set
  * @data: buffer for string data
  *
- * Builds stats string table.
+ * Builds string tables for various string sets
  **/
 static void i40evf_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 {
-	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	u8 *p = data;
-	int i;
-
-	if (sset == ETH_SS_STATS) {
-		for (i = 0; i < (int)I40EVF_GLOBAL_STATS_LEN; i++) {
-			memcpy(p, i40evf_gstrings_stats[i].stat_string,
-			       ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < adapter->num_active_queues; i++) {
-			snprintf(p, ETH_GSTRING_LEN, "tx-%u.packets", i);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN, "tx-%u.bytes", i);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < adapter->num_active_queues; i++) {
-			snprintf(p, ETH_GSTRING_LEN, "rx-%u.packets", i);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN, "rx-%u.bytes", i);
-			p += ETH_GSTRING_LEN;
-		}
-	} else if (sset == ETH_SS_PRIV_FLAGS) {
-		for (i = 0; i < I40EVF_PRIV_FLAGS_STR_LEN; i++) {
-			snprintf(p, ETH_GSTRING_LEN, "%s",
-				 i40evf_gstrings_priv_flags[i].flag_string);
-			p += ETH_GSTRING_LEN;
-		}
+	switch (sset) {
+	case ETH_SS_STATS:
+		i40evf_get_stat_strings(netdev, data);
+		break;
+	case ETH_SS_PRIV_FLAGS:
+		i40evf_get_priv_flag_strings(netdev, data);
+		break;
+	default:
+		break;
 	}
 }
 

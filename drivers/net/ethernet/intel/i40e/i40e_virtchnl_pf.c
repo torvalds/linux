@@ -2458,7 +2458,7 @@ static inline int i40e_check_vf_permission(struct i40e_vf *vf,
 		    !is_multicast_ether_addr(addr) && vf->pf_set_mac &&
 		    !ether_addr_equal(addr, vf->default_lan_addr.addr)) {
 			dev_err(&pf->pdev->dev,
-				"VF attempting to override administratively set MAC address, reload the VF driver to resume normal operation\n");
+				"VF attempting to override administratively set MAC address, bring down and up the VF interface to resume normal operation\n");
 			return -EPERM;
 		}
 	}
@@ -2567,6 +2567,16 @@ static int i40e_vc_del_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 			dev_err(&pf->pdev->dev, "Invalid MAC addr %pM for VF %d\n",
 				al->list[i].addr, vf->vf_id);
 			ret = I40E_ERR_INVALID_MAC_ADDR;
+			goto error_param;
+		}
+
+		if (vf->pf_set_mac &&
+		    ether_addr_equal(al->list[i].addr,
+				     vf->default_lan_addr.addr)) {
+			dev_err(&pf->pdev->dev,
+				"MAC addr %pM has been set by PF, cannot delete it for VF %d, reset VF to change MAC addr\n",
+				vf->default_lan_addr.addr, vf->vf_id);
+			ret = I40E_ERR_PARAM;
 			goto error_param;
 		}
 	}
@@ -3873,9 +3883,11 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 			 mac, vf_id);
 	}
 
-	/* Force the VF driver stop so it has to reload with new MAC address */
+	/* Force the VF interface down so it has to bring up with new MAC
+	 * address
+	 */
 	i40e_vc_disable_vf(vf);
-	dev_info(&pf->pdev->dev, "Reload the VF driver to make this change effective.\n");
+	dev_info(&pf->pdev->dev, "Bring down and up the VF interface to make this change effective.\n");
 
 error_param:
 	return ret;
