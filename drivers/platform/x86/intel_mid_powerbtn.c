@@ -121,12 +121,9 @@ static const struct mid_pb_ddata mrfld_ddata = {
 	.setup	= mrfld_setup,
 };
 
-#define ICPU(model, ddata)	\
-	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (kernel_ulong_t)&ddata }
-
 static const struct x86_cpu_id mid_pb_cpu_ids[] = {
-	ICPU(INTEL_FAM6_ATOM_PENWELL,		mfld_ddata),
-	ICPU(INTEL_FAM6_ATOM_MERRIFIELD,	mrfld_ddata),
+	INTEL_CPU_FAM6(ATOM_PENWELL,		mfld_ddata),
+	INTEL_CPU_FAM6(ATOM_MERRIFIELD,		mrfld_ddata),
 	{}
 };
 
