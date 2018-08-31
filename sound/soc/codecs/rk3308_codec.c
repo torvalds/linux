@@ -237,22 +237,10 @@ static const char *hpf_text[HPF_NUM] = {
 };
 
 static const struct soc_enum rk3308_hpf_enum_array[] = {
-	SOC_ENUM_SINGLE(RK3308_ADC_DIG_CON04(0),
-			0,
-			ARRAY_SIZE(hpf_text),
-			hpf_text),
-	SOC_ENUM_SINGLE(RK3308_ADC_DIG_CON04(1),
-			1,
-			ARRAY_SIZE(hpf_text),
-			hpf_text),
-	SOC_ENUM_SINGLE(RK3308_ADC_DIG_CON04(2),
-			2,
-			ARRAY_SIZE(hpf_text),
-			hpf_text),
-	SOC_ENUM_SINGLE(RK3308_ADC_DIG_CON04(3),
-			3,
-			ARRAY_SIZE(hpf_text),
-			hpf_text),
+	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(hpf_text), hpf_text),
+	SOC_ENUM_SINGLE(1, 0, ARRAY_SIZE(hpf_text), hpf_text),
+	SOC_ENUM_SINGLE(2, 0, ARRAY_SIZE(hpf_text), hpf_text),
+	SOC_ENUM_SINGLE(3, 0, ARRAY_SIZE(hpf_text), hpf_text),
 };
 
 static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
@@ -576,8 +564,22 @@ static int rk3308_codec_hpf_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int value;
 
-	ucontrol->value.integer.value[0] = rk3308->hpf_cutoff[e->shift_l];
+	if (e->reg < 0 || e->reg > ADC_LR_GROUP_MAX - 1) {
+		dev_err(rk3308->plat_dev,
+			"%s: Invalid ADC grp: %d\n", __func__, e->reg);
+		return -EINVAL;
+	}
+
+	regmap_read(rk3308->regmap, RK3308_ADC_DIG_CON04(e->reg), &value);
+	if (value & RK3308_ADC_HPF_PATH_MSK)
+		rk3308->hpf_cutoff[e->reg] = HPF_OFF;
+	else
+		rk3308->hpf_cutoff[e->reg] =
+			(value & RK3308_ADC_HPF_CUTOFF_MSK) >> RK3308_ADC_HPF_CUTOFF_SFT;
+
+	ucontrol->value.integer.value[0] = rk3308->hpf_cutoff[e->reg];
 
 	return 0;
 }
@@ -595,28 +597,34 @@ static int rk3308_codec_hpf_put(struct snd_kcontrol *kcontrol,
 		RK3308_ADC_HPF_CUTOFF_612HZ,
 	};
 
+	if (e->reg < 0 || e->reg > ADC_LR_GROUP_MAX - 1) {
+		dev_err(rk3308->plat_dev,
+			"%s: Invalid ADC grp: %d\n", __func__, e->reg);
+		return -EINVAL;
+	}
+
 	switch (value) {
 	case HPF_CUTOFF_20HZ:
 	case HPF_CUTOFF_245HZ:
 	case HPF_CUTOFF_612HZ:
 		/* Enable high pass filter for ADCs */
-		regmap_update_bits(rk3308->regmap, e->reg,
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON04(e->reg),
 				   RK3308_ADC_HPF_PATH_MSK,
 				   RK3308_ADC_HPF_PATH_EN);
 		udelay(10);
-		regmap_update_bits(rk3308->regmap, e->reg,
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON04(e->reg),
 				   RK3308_ADC_HPF_CUTOFF_MSK,
 				   cutoff[value]);
 		break;
 	default:
 		/* Disable high pass filter for ADCs. */
-		regmap_update_bits(rk3308->regmap, e->reg,
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON04(e->reg),
 				   RK3308_ADC_HPF_PATH_MSK,
 				   RK3308_ADC_HPF_PATH_DIS);
 		break;
 	}
 
-	rk3308->hpf_cutoff[e->shift_l] = value;
+	rk3308->hpf_cutoff[e->reg] = value;
 
 	return 0;
 }
