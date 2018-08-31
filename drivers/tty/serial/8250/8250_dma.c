@@ -160,37 +160,34 @@ err:
 
 int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 {
-	unsigned int rfl, i = 0, fcr = 0;
+	unsigned int rfl, i = 0, fcr = 0, cur_index = 0;
 	unsigned char buf[MAX_FIFO_SIZE];
 	struct uart_port	*port = &p->port;
 	struct tty_port		*tty_port = &p->port.state->port;
+	struct dma_tx_state	state;
+	struct uart_8250_dma	*dma = p->dma;
+
 
 	if ((iir & 0xf) != UART_IIR_RX_TIMEOUT)
 		return 0;
 
-	rfl = serial_port_in(port, UART_RFL_16550A);
+	fcr = UART_FCR_ENABLE_FIFO | UART_FCR_T_TRIG_10 | UART_FCR_R_TRIG_11;
+	serial_port_out(port, UART_FCR, fcr);
 
-	if (rfl > (p->port.fifosize / 2 - 4)) {
-		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_T_TRIG_10 | UART_FCR_R_TRIG_01;
-		serial_port_out(port, UART_FCR, fcr);
-	} else {
-		while (i < rfl)
-			buf[i++] = serial_port_in(port, UART_RX);
-	}
+	do {
+		dmaengine_tx_status(dma->rxchan, dma->rx_cookie, &state);
+		cur_index = dma->rx_size - state.residue;
+	} while (cur_index % dma->rxconf.src_maxburst);
+
+	rfl = serial_port_in(port, UART_RFL_16550A);
+	while (i < rfl)
+		buf[i++] = serial_port_in(port, UART_RX);
 
 	__dma_rx_complete(p);
 
-	if (i == 0) {
-		rfl = serial_port_in(port, UART_RFL_16550A);
-		if (rfl == 0) {
-			__dma_rx_complete(p);
-			tty_flip_buffer_push(tty_port);
-		}
-	} else {
-		tty_insert_flip_string(tty_port, buf, i);
-		p->port.icount.rx += i;
-		tty_flip_buffer_push(tty_port);
-	}
+	tty_insert_flip_string(tty_port, buf, i);
+	p->port.icount.rx += i;
+	tty_flip_buffer_push(tty_port);
 
 	if (fcr)
 		serial_port_out(port, UART_FCR, p->fcr);
