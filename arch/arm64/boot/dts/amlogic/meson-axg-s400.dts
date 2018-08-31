@@ -86,6 +86,15 @@
 		sound-name-prefix = "DIT";
 	};
 
+	dmics: audio-codec@3 {
+		#sound-dai-cells = <0>;
+		compatible = "dmic-codec";
+		num-channels = <7>;
+		wakeup-delay-ms = <50>;
+		status = "okay";
+		sound-name-prefix = "MIC";
+	};
+
 	emmc_pwrseq: emmc-pwrseq {
 		compatible = "mmc-pwrseq-emmc";
 		reset-gpios = <&gpio BOOT_9 GPIO_ACTIVE_LOW>;
