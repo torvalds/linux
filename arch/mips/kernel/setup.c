@@ -642,29 +642,6 @@ static void __init bootmem_init(void)
 
 #endif	/* CONFIG_SGI_IP27 */
 
-/*
- * arch_mem_init - initialize memory management subsystem
- *
- *  o plat_mem_setup() detects the memory configuration and will record detected
- *    memory areas using add_memory_region.
- *
- * At this stage the memory configuration of the system is known to the
- * kernel but generic memory management system is still entirely uninitialized.
- *
- *  o bootmem_init()
- *  o sparse_init()
- *  o paging_init()
- *  o dma_contiguous_reserve()
- *
- * At this stage the bootmem allocator is ready to use.
- *
- * NOTE: historically plat_mem_setup did the entire platform initialization.
- *	 This was rather impractical because it meant plat_mem_setup had to
- * get away without any kind of memory allocator.  To keep old code from
- * breaking plat_setup was just renamed to plat_mem_setup and a second platform
- * initialization hook for anything else was introduced.
- */
-
 static int usermem __initdata;
 
 static int __init early_parse_mem(char *p)
@@ -841,6 +818,28 @@ static void __init request_crashkernel(struct resource *res)
 #define BUILTIN_EXTEND_WITH_PROM	\
 	IS_ENABLED(CONFIG_MIPS_CMDLINE_BUILTIN_EXTEND)
 
+/*
+ * arch_mem_init - initialize memory management subsystem
+ *
+ *  o plat_mem_setup() detects the memory configuration and will record detected
+ *    memory areas using add_memory_region.
+ *
+ * At this stage the memory configuration of the system is known to the
+ * kernel but generic memory management system is still entirely uninitialized.
+ *
+ *  o bootmem_init()
+ *  o sparse_init()
+ *  o paging_init()
+ *  o dma_contiguous_reserve()
+ *
+ * At this stage the bootmem allocator is ready to use.
+ *
+ * NOTE: historically plat_mem_setup did the entire platform initialization.
+ *	 This was rather impractical because it meant plat_mem_setup had to
+ * get away without any kind of memory allocator.  To keep old code from
+ * breaking plat_setup was just renamed to plat_mem_setup and a second platform
+ * initialization hook for anything else was introduced.
+ */
 static void __init arch_mem_init(char **cmdline_p)
 {
 	struct memblock_region *reg;
