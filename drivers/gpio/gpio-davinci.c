@@ -41,7 +41,6 @@ struct davinci_gpio_regs {
 typedef struct irq_chip *(*gpio_get_irq_chip_cb_t)(unsigned int irq);
 
 #define BINTEN	0x8 /* GPIO Interrupt Per-Bank Enable Register */
-#define MAX_LABEL_SIZE 20
 
 static void __iomem *gpio_base;
 static unsigned int offset_array[5] = {0x10, 0x38, 0x60, 0x88, 0xb0};
@@ -166,14 +165,12 @@ of_err:
 
 static int davinci_gpio_probe(struct platform_device *pdev)
 {
-	static int ctrl_num, bank_base;
 	int gpio, bank, i, ret = 0;
 	unsigned int ngpio, nbank, nirq;
 	struct davinci_gpio_controller *chips;
 	struct davinci_gpio_platform_data *pdata;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
-	char label[MAX_LABEL_SIZE];
 
 	pdata = davinci_gpio_get_pdata(pdev);
 	if (!pdata) {
@@ -228,10 +225,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 		}
 	}
 
-	snprintf(label, MAX_LABEL_SIZE, "davinci_gpio.%d", ctrl_num++);
-	chips->chip.label = devm_kstrdup(dev, label, GFP_KERNEL);
-		if (!chips->chip.label)
-			return -ENOMEM;
+	chips->chip.label = dev_name(dev);
 
 	chips->chip.direction_input = davinci_direction_in;
 	chips->chip.get = davinci_gpio_get;
@@ -239,7 +233,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	chips->chip.set = davinci_gpio_set;
 
 	chips->chip.ngpio = ngpio;
-	chips->chip.base = bank_base;
+	chips->chip.base = -1;
 
 #ifdef CONFIG_OF_GPIO
 	chips->chip.of_gpio_n_cells = 2;
@@ -252,28 +246,20 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	}
 #endif
 	spin_lock_init(&chips->lock);
-	bank_base += ngpio;
 
 	for (gpio = 0, bank = 0; gpio < ngpio; gpio += 32, bank++)
 		chips->regs[bank] = gpio_base + offset_array[bank];
 
 	ret = devm_gpiochip_add_data(dev, &chips->chip, chips);
 	if (ret)
-		goto err;
+		return ret;
 
 	platform_set_drvdata(pdev, chips);
 	ret = davinci_gpio_irq_setup(pdev);
 	if (ret)
-		goto err;
+		return ret;
 
 	return 0;
-
-err:
-	/* Revert the static variable increments */
-	ctrl_num--;
-	bank_base -= ngpio;
-
-	return ret;
 }
 
 /*--------------------------------------------------------------------------*/
