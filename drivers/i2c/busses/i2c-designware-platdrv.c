@@ -86,7 +86,6 @@ static int dw_i2c_acpi_configure(struct platform_device *pdev)
 	struct i2c_timings *t = &dev->timings;
 	u32 ss_ht = 0, fp_ht = 0, hs_ht = 0, fs_ht = 0;
 	acpi_handle handle = ACPI_HANDLE(&pdev->dev);
-	const struct acpi_device_id *id;
 	struct acpi_device *adev;
 	const char *uid;
 
@@ -118,10 +117,6 @@ static int dw_i2c_acpi_configure(struct platform_device *pdev)
 		dev->sda_hold_time = fs_ht;
 		break;
 	}
-
-	id = acpi_match_device(pdev->dev.driver->acpi_match_table, &pdev->dev);
-	if (id && id->driver_data)
-		dev->flags |= (u32)id->driver_data;
 
 	if (acpi_bus_get_device(handle, &adev))
 		return -ENODEV;
@@ -290,6 +285,8 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		t->bus_freq_hz = max(t->bus_freq_hz, acpi_speed);
 	else
 		t->bus_freq_hz = 400000;
+
+	dev->flags |= (uintptr_t)device_get_match_data(&pdev->dev);
 
 	if (has_acpi_companion(&pdev->dev))
 		dw_i2c_acpi_configure(pdev);
