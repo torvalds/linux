@@ -134,6 +134,7 @@
 		status = "okay";
 	};
 
+	/* Apalis SD1 */
 	sdhci@78000000 {
 		status = "okay";
 		bus-width = <4>;
@@ -142,6 +143,7 @@
 		no-1-8-v;
 	};
 
+	/* Apalis MMC1 */
 	sdhci@78000400 {
 		status = "okay";
 		bus-width = <8>;
