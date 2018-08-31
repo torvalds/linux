@@ -20,7 +20,7 @@ config NI_XGE_MANAGEMENT_ENET
 	tristate "National Instruments XGE management enet support"
 	depends on HAS_IOMEM && HAS_DMA
 	select PHYLIB
-	select OF_MDIO
+	select OF_MDIO if OF
 	help
 	  Simple LAN device for debug or management purposes. Can
 	  support either 10G or 1G PHYs via SFP+ ports.
