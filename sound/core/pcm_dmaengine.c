@@ -35,6 +35,7 @@ struct dmaengine_pcm_runtime_data {
 	unsigned int pos;
 #ifdef CONFIG_SND_SOC_ROCKCHIP_VAD
 	unsigned int vpos;
+	unsigned int vresidue_bytes;
 #endif
 };
 
@@ -188,7 +189,21 @@ static void dmaengine_pcm_vad_dma_complete(void *arg)
 {
 	struct snd_pcm_substream *substream = arg;
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
+	unsigned int pos, size;
+	void *buf;
 
+	if (snd_pcm_vad_attached(substream) &&
+	    substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		buf = substream->runtime->dma_area + prtd->vpos;
+		pos = prtd->vpos + snd_pcm_lib_period_bytes(substream);
+
+		if (pos <= snd_pcm_lib_buffer_bytes(substream))
+			size = substream->runtime->period_size;
+		else
+			size = bytes_to_frames(substream->runtime,
+					       prtd->vresidue_bytes);
+		snd_pcm_vad_preprocess(substream, buf, size);
+	}
 	prtd->vpos += snd_pcm_lib_period_bytes(substream);
 	if (prtd->vpos >= snd_pcm_lib_buffer_bytes(substream))
 		prtd->vpos = 0;
@@ -221,6 +236,7 @@ static int dmaengine_pcm_prepare_single_and_submit(struct snd_pcm_substream *sub
 	buf_end = substream->runtime->dma_addr + snd_pcm_lib_buffer_bytes(substream);
 	count = (buf_end - buf_start) / period_bytes;
 	residue_bytes = (buf_end - buf_start) % period_bytes;
+	prtd->vresidue_bytes = residue_bytes;
 	pr_debug("%s: offset: %d, buffer_bytes: %d\n", __func__, offset, buffer_bytes);
 	pr_debug("%s: count: %d, residue_bytes: %d\n", __func__, count, residue_bytes);
 	for (i = 0; i < count; i++) {
