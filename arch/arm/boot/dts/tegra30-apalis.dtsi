@@ -7,9 +7,6 @@
  * 2GB: V1.0B, V1.0C, V1.0E, V1.1A
  */
 / {
-	model = "Toradex Apalis T30";
-	compatible = "toradex,apalis_t30", "nvidia,tegra30";
-
 	memory@80000000 {
 		reg = <0x80000000 0x40000000>;
 	};
