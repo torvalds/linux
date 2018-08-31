@@ -16,13 +16,13 @@
 
 	pcie@3000 {
 		avdd-pexa-supply = <&vdd2_reg>;
-		vdd-pexa-supply = <&vdd2_reg>;
 		avdd-pexb-supply = <&vdd2_reg>;
-		vdd-pexb-supply = <&vdd2_reg>;
 		avdd-pex-pll-supply = <&vdd2_reg>;
 		avdd-plle-supply = <&ldo6_reg>;
-		vddio-pex-ctl-supply = <&sys_3v3_reg>;
 		hvdd-pex-supply = <&sys_3v3_reg>;
+		vddio-pex-ctl-supply = <&sys_3v3_reg>;
+		vdd-pexa-supply = <&vdd2_reg>;
+		vdd-pexb-supply = <&vdd2_reg>;
 
 		pci@1,0 {
 			nvidia,num-lanes = <4>;
