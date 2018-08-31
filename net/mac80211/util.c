@@ -1151,8 +1151,7 @@ void ieee80211_regulatory_limit_wmm_params(struct ieee80211_sub_if_data *sdata,
 	qparam->cw_min = max_t(u16, qparam->cw_min, wmm_ac->cw_min);
 	qparam->cw_max = max_t(u16, qparam->cw_max, wmm_ac->cw_max);
 	qparam->aifs = max_t(u8, qparam->aifs, wmm_ac->aifsn);
-	qparam->txop = !qparam->txop ? wmm_ac->cot / 32 :
-		min_t(u16, qparam->txop, wmm_ac->cot / 32);
+	qparam->txop = min_t(u16, qparam->txop, wmm_ac->cot / 32);
 	rcu_read_unlock();
 }
 
