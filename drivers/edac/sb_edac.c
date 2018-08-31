@@ -3320,17 +3320,14 @@ fail0:
 	return rc;
 }
 
-#define ICPU(model, table) \
-	{ X86_VENDOR_INTEL, 6, model, 0, (unsigned long)&table }
-
 static const struct x86_cpu_id sbridge_cpuids[] = {
-	ICPU(INTEL_FAM6_SANDYBRIDGE_X,	  pci_dev_descr_sbridge_table),
-	ICPU(INTEL_FAM6_IVYBRIDGE_X,	  pci_dev_descr_ibridge_table),
-	ICPU(INTEL_FAM6_HASWELL_X,	  pci_dev_descr_haswell_table),
-	ICPU(INTEL_FAM6_BROADWELL_X,	  pci_dev_descr_broadwell_table),
-	ICPU(INTEL_FAM6_BROADWELL_XEON_D, pci_dev_descr_broadwell_table),
-	ICPU(INTEL_FAM6_XEON_PHI_KNL,	  pci_dev_descr_knl_table),
-	ICPU(INTEL_FAM6_XEON_PHI_KNM,	  pci_dev_descr_knl_table),
+	INTEL_CPU_FAM6(SANDYBRIDGE_X,	  pci_dev_descr_sbridge_table),
+	INTEL_CPU_FAM6(IVYBRIDGE_X,	  pci_dev_descr_ibridge_table),
+	INTEL_CPU_FAM6(HASWELL_X,	  pci_dev_descr_haswell_table),
+	INTEL_CPU_FAM6(BROADWELL_X,	  pci_dev_descr_broadwell_table),
+	INTEL_CPU_FAM6(BROADWELL_XEON_D,  pci_dev_descr_broadwell_table),
+	INTEL_CPU_FAM6(XEON_PHI_KNL,	  pci_dev_descr_knl_table),
+	INTEL_CPU_FAM6(XEON_PHI_KNM,	  pci_dev_descr_knl_table),
 	{ }
 };
 MODULE_DEVICE_TABLE(x86cpu, sbridge_cpuids);
