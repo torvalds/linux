@@ -3,7 +3,7 @@
 
 /*
  * Toradex Colibri T30 Module Device Tree
- * Compatible for Revisions V1.1B, V1.1C, V1.1D, V1.1E; IT: V1.1A
+ * Compatible for Revisions V1.1B, V1.1C, V1.1D, V1.1E, V1.1F; IT: V1.1A, V1.1B
  */
 / {
 	model = "Toradex Colibri T30";
