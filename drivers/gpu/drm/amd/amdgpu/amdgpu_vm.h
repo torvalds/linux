@@ -201,12 +201,15 @@ struct amdgpu_vm {
 	/* PT BOs which relocated and their parent need an update */
 	struct list_head	relocated;
 
-	/* BOs moved, but not yet updated in the PT */
+	/* per VM BOs moved, but not yet updated in the PT */
 	struct list_head	moved;
-	spinlock_t		moved_lock;
 
 	/* All BOs of this VM not currently in the state machine */
 	struct list_head	idle;
+
+	/* regular invalidated BOs, but not yet updated in the PT */
+	struct list_head	invalidated;
+	spinlock_t		invalidated_lock;
 
 	/* BO mappings freed, but not yet updated in the PT */
 	struct list_head	freed;
