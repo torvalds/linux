@@ -1844,18 +1844,18 @@
 
 				lanes {
 					usb2-0 {
-						nvidia,function = "xusb";
 						status = "okay";
+						nvidia,function = "xusb";
 					};
 
 					usb2-1 {
-						nvidia,function = "xusb";
 						status = "okay";
+						nvidia,function = "xusb";
 					};
 
 					usb2-2 {
-						nvidia,function = "xusb";
 						status = "okay";
+						nvidia,function = "xusb";
 					};
 				};
 			};
@@ -1865,28 +1865,28 @@
 
 				lanes {
 					pcie-0 {
-						nvidia,function = "usb3-ss";
 						status = "okay";
+						nvidia,function = "usb3-ss";
 					};
 
 					pcie-1 {
-						nvidia,function = "usb3-ss";
 						status = "okay";
+						nvidia,function = "usb3-ss";
 					};
 
 					pcie-2 {
-						nvidia,function = "pcie";
 						status = "okay";
+						nvidia,function = "pcie";
 					};
 
 					pcie-3 {
-						nvidia,function = "pcie";
 						status = "okay";
+						nvidia,function = "pcie";
 					};
 
 					pcie-4 {
-						nvidia,function = "pcie";
 						status = "okay";
+						nvidia,function = "pcie";
 					};
 				};
 			};
@@ -1896,8 +1896,8 @@
 
 				lanes {
 					sata-0 {
-						nvidia,function = "sata";
 						status = "okay";
+						nvidia,function = "sata";
 					};
 				};
 			};
@@ -1929,13 +1929,13 @@
 			};
 
 			usb3-0 {
-				nvidia,usb2-companion = <2>;
 				status = "okay";
+				nvidia,usb2-companion = <2>;
 			};
 
 			usb3-1 {
-				nvidia,usb2-companion = <0>;
 				status = "okay";
+				nvidia,usb2-companion = <0>;
 			};
 		};
 	};
