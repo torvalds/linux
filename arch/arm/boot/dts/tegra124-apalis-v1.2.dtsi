@@ -1745,7 +1745,7 @@
 		 * TMP451 temperature sensor
 		 * Note: THERM_N directly connected to AS3722 PMIC THERM
 		 */
-		temperature-sensor@4c {
+		temp-sensor@4c {
 			compatible = "ti,tmp451";
 			reg = <0x4c>;
 			interrupt-parent = <&gpio>;
