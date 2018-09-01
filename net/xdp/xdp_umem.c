@@ -76,8 +76,6 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 	if (!dev->netdev_ops->ndo_bpf || !dev->netdev_ops->ndo_xsk_async_xmit)
 		return force_zc ? -EOPNOTSUPP : 0; /* fail or fallback */
 
-	bpf.command = XDP_QUERY_XSK_UMEM;
-
 	rtnl_lock();
 	err = xdp_umem_query(dev, queue_id);
 	if (err) {
@@ -314,8 +312,8 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 
 	umem->pid = get_task_pid(current, PIDTYPE_PID);
 	umem->address = (unsigned long)addr;
-	umem->props.chunk_mask = ~((u64)chunk_size - 1);
-	umem->props.size = size;
+	umem->chunk_mask = ~((u64)chunk_size - 1);
+	umem->size = size;
 	umem->headroom = headroom;
 	umem->chunk_size_nohr = chunk_size - headroom;
 	umem->npgs = size / PAGE_SIZE;

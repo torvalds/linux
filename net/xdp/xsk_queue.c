@@ -7,12 +7,13 @@
 
 #include "xsk_queue.h"
 
-void xskq_set_umem(struct xsk_queue *q, struct xdp_umem_props *umem_props)
+void xskq_set_umem(struct xsk_queue *q, u64 size, u64 chunk_mask)
 {
 	if (!q)
 		return;
 
-	q->umem_props = *umem_props;
+	q->size = size;
+	q->chunk_mask = chunk_mask;
 }
 
 static u32 xskq_umem_get_ring_size(struct xsk_queue *q)

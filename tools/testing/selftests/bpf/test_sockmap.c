@@ -469,8 +469,6 @@ static int sendmsg_test(struct sockmap_options *opt)
 			fprintf(stderr,
 				"msg_loop_rx: iov_count %i iov_buf %i cnt %i err %i\n",
 				iov_count, iov_buf, cnt, err);
-		shutdown(p2, SHUT_RDWR);
-		shutdown(p1, SHUT_RDWR);
 		if (s.end.tv_sec - s.start.tv_sec) {
 			sent_Bps = sentBps(s);
 			recvd_Bps = recvdBps(s);
@@ -500,7 +498,6 @@ static int sendmsg_test(struct sockmap_options *opt)
 			fprintf(stderr,
 				"msg_loop_tx: iov_count %i iov_buf %i cnt %i err %i\n",
 				iov_count, iov_buf, cnt, err);
-		shutdown(c1, SHUT_RDWR);
 		if (s.end.tv_sec - s.start.tv_sec) {
 			sent_Bps = sentBps(s);
 			recvd_Bps = recvdBps(s);
@@ -1348,9 +1345,9 @@ static int populate_progs(char *bpf_file)
 	return 0;
 }
 
-static int __test_suite(char *bpf_file)
+static int __test_suite(int cg_fd, char *bpf_file)
 {
-	int cg_fd, err;
+	int err, cleanup = cg_fd;
 
 	err = populate_progs(bpf_file);
 	if (err < 0) {
@@ -1358,22 +1355,24 @@ static int __test_suite(char *bpf_file)
 		return err;
 	}
 
-	if (setup_cgroup_environment()) {
-		fprintf(stderr, "ERROR: cgroup env failed\n");
-		return -EINVAL;
-	}
-
-	cg_fd = create_and_get_cgroup(CG_PATH);
 	if (cg_fd < 0) {
-		fprintf(stderr,
-			"ERROR: (%i) open cg path failed: %s\n",
-			cg_fd, optarg);
-		return cg_fd;
-	}
+		if (setup_cgroup_environment()) {
+			fprintf(stderr, "ERROR: cgroup env failed\n");
+			return -EINVAL;
+		}
 
-	if (join_cgroup(CG_PATH)) {
-		fprintf(stderr, "ERROR: failed to join cgroup\n");
-		return -EINVAL;
+		cg_fd = create_and_get_cgroup(CG_PATH);
+		if (cg_fd < 0) {
+			fprintf(stderr,
+				"ERROR: (%i) open cg path failed: %s\n",
+				cg_fd, optarg);
+			return cg_fd;
+		}
+
+		if (join_cgroup(CG_PATH)) {
+			fprintf(stderr, "ERROR: failed to join cgroup\n");
+			return -EINVAL;
+		}
 	}
 
 	/* Tests basic commands and APIs with range of iov values */
@@ -1394,20 +1393,24 @@ static int __test_suite(char *bpf_file)
 
 out:
 	printf("Summary: %i PASSED %i FAILED\n", passed, failed);
-	cleanup_cgroup_environment();
-	close(cg_fd);
+	if (cleanup < 0) {
+		cleanup_cgroup_environment();
+		close(cg_fd);
+	}
 	return err;
 }
 
-static int test_suite(void)
+static int test_suite(int cg_fd)
 {
 	int err;
 
-	err = __test_suite(BPF_SOCKMAP_FILENAME);
+	err = __test_suite(cg_fd, BPF_SOCKMAP_FILENAME);
 	if (err)
 		goto out;
-	err = __test_suite(BPF_SOCKHASH_FILENAME);
+	err = __test_suite(cg_fd, BPF_SOCKHASH_FILENAME);
 out:
+	if (cg_fd > -1)
+		close(cg_fd);
 	return err;
 }
 
@@ -1420,7 +1423,7 @@ int main(int argc, char **argv)
 	int test = PING_PONG;
 
 	if (argc < 2)
-		return test_suite();
+		return test_suite(-1);
 
 	while ((opt = getopt_long(argc, argv, ":dhvc:r:i:l:t:",
 				  long_options, &longindex)) != -1) {
@@ -1485,6 +1488,9 @@ int main(int argc, char **argv)
 			return -1;
 		}
 	}
+
+	if (argc <= 3 && cg_fd)
+		return test_suite(cg_fd);
 
 	if (!cg_fd) {
 		fprintf(stderr, "%s requires cgroup option: --cgroup <path>\n",

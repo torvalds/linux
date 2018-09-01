@@ -535,6 +535,32 @@ static inline void napi_synchronize(const struct napi_struct *n)
 		barrier();
 }
 
+/**
+ *	napi_if_scheduled_mark_missed - if napi is running, set the
+ *	NAPIF_STATE_MISSED
+ *	@n: NAPI context
+ *
+ * If napi is running, set the NAPIF_STATE_MISSED, and return true if
+ * NAPI is scheduled.
+ **/
+static inline bool napi_if_scheduled_mark_missed(struct napi_struct *n)
+{
+	unsigned long val, new;
+
+	do {
+		val = READ_ONCE(n->state);
+		if (val & NAPIF_STATE_DISABLE)
+			return true;
+
+		if (!(val & NAPIF_STATE_SCHED))
+			return false;
+
+		new = val | NAPIF_STATE_MISSED;
+	} while (cmpxchg(&n->state, val, new) != val);
+
+	return true;
+}
+
 enum netdev_queue_state_t {
 	__QUEUE_STATE_DRV_XOFF,
 	__QUEUE_STATE_STACK_XOFF,
