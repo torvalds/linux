@@ -47,9 +47,6 @@
  * Compatible for Revisions 2GB: V1.0A, V1.0B, V1.1A
  */
 / {
-	model = "Toradex Apalis TK1";
-	compatible = "toradex,apalis-tk1", "nvidia,tegra124";
-
 	memory@80000000 {
 		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
