@@ -1910,7 +1910,6 @@
 			usb2-0 {
 				status = "okay";
 				mode = "otg";
-
 				vbus-supply = <&reg_usbo1_vbus>;
 			};
 
@@ -1918,7 +1917,6 @@
 			usb2-1 {
 				status = "okay";
 				mode = "host";
-
 				vbus-supply = <&reg_usbh_vbus>;
 			};
 
@@ -1926,7 +1924,6 @@
 			usb2-2 {
 				status = "okay";
 				mode = "host";
-
 				vbus-supply = <&reg_usbh_vbus>;
 			};
 
