@@ -1954,8 +1954,8 @@
 	/* CPU DFLL clock */
 	clock@70110000 {
 		status = "okay";
-		vdd-cpu-supply = <&reg_vdd_cpu>;
 		nvidia,i2c-fs-rate = <400000>;
+		vdd-cpu-supply = <&reg_vdd_cpu>;
 	};
 
 	ahub@70300000 {
