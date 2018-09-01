@@ -149,7 +149,7 @@ struct regmap {
 
 	/* if set, converts bulk read to single read */
 	bool use_single_read;
-	/* if set, converts bulk read to single read */
+	/* if set, converts bulk write to single write */
 	bool use_single_write;
 	/* if set, the device supports multi write mode */
 	bool can_multi_write;
