@@ -729,7 +729,7 @@
 			clocks = <&tegra_car TEGRA30_CLK_EXTERN1>;
 		};
 
-		pmic: tps65911@2d {
+		pmic: pmic@2d {
 			compatible = "ti,tps65911";
 			reg = <0x2d>;
 
@@ -837,7 +837,7 @@
 		};
 
 		/* STMPE811 touch screen controller */
-		stmpe811@41 {
+		touchscreen@41 {
 			compatible = "st,stmpe811";
 			reg = <0x41>;
 			irq-gpio = <&gpio TEGRA_GPIO(V, 0) IRQ_TYPE_LEVEL_LOW>;
@@ -882,7 +882,7 @@
 		};
 
 		/* SW: +V1.2_VDD_CORE */
-		tps62362@60 {
+		regulator@60 {
 			compatible = "ti,tps62362";
 			reg = <0x60>;
 
