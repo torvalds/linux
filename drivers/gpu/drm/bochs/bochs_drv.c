@@ -143,22 +143,6 @@ static const struct dev_pm_ops bochs_pm_ops = {
 /* ---------------------------------------------------------------------- */
 /* pci interface                                                          */
 
-static int bochs_kick_out_firmware_fb(struct pci_dev *pdev)
-{
-	struct apertures_struct *ap;
-
-	ap = alloc_apertures(1);
-	if (!ap)
-		return -ENOMEM;
-
-	ap->ranges[0].base = pci_resource_start(pdev, 0);
-	ap->ranges[0].size = pci_resource_len(pdev, 0);
-	drm_fb_helper_remove_conflicting_framebuffers(ap, "bochsdrmfb", false);
-	kfree(ap);
-
-	return 0;
-}
-
 static int bochs_pci_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *ent)
 {
@@ -171,7 +155,7 @@ static int bochs_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	ret = bochs_kick_out_firmware_fb(pdev);
+	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, 0, "bochsdrmfb");
 	if (ret)
 		return ret;
 
