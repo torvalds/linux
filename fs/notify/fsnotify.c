@@ -286,17 +286,13 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 
 	iter_info.srcu_idx = srcu_read_lock(&fsnotify_mark_srcu);
 
-	if ((mask & FS_MODIFY) ||
-	    (test_mask & to_tell->i_fsnotify_mask)) {
-		inode_conn = srcu_dereference(to_tell->i_fsnotify_marks,
+	inode_conn = srcu_dereference(to_tell->i_fsnotify_marks,
+				      &fsnotify_mark_srcu);
+	if (inode_conn)
+		inode_node = srcu_dereference(inode_conn->list.first,
 					      &fsnotify_mark_srcu);
-		if (inode_conn)
-			inode_node = srcu_dereference(inode_conn->list.first,
-						      &fsnotify_mark_srcu);
-	}
 
-	if (mnt && ((mask & FS_MODIFY) ||
-		    (test_mask & mnt->mnt_fsnotify_mask))) {
+	if (mnt) {
 		inode_conn = srcu_dereference(to_tell->i_fsnotify_marks,
 					      &fsnotify_mark_srcu);
 		if (inode_conn)
