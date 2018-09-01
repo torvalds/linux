@@ -615,4 +615,16 @@ drm_fb_helper_remove_conflicting_framebuffers(struct apertures_struct *a,
 #endif
 }
 
+static inline int
+drm_fb_helper_remove_conflicting_pci_framebuffers(struct pci_dev *pdev,
+						  int resource_id,
+						  const char *name)
+{
+#if IS_REACHABLE(CONFIG_FB)
+	return remove_conflicting_pci_framebuffers(pdev, resource_id, name);
+#else
+	return 0;
+#endif
+}
+
 #endif
