@@ -5,7 +5,8 @@
 
 / {
 	model = "Toradex Colibri T30 on Colibri Evaluation Board";
-	compatible = "toradex,colibri_t30-eval-v3", "toradex,colibri_t30", "nvidia,tegra30";
+	compatible = "toradex,colibri_t30-eval-v3", "toradex,colibri_t30",
+		     "nvidia,tegra30";
 
 	aliases {
 		rtc0 = "/i2c@7000c000/rtc@68";
