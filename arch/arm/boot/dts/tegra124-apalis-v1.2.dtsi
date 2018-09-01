@@ -1565,7 +1565,8 @@
 		sgtl5000: codec@a {
 			compatible = "fsl,sgtl5000";
 			reg = <0x0a>;
-			VDDA-supply = <&reg_module_3v3>;
+			VDDA-supply = <&reg_module_3v3_audio>;
+			VDDD-supply = <&reg_1v8_vddio>;
 			VDDIO-supply = <&reg_1v8_vddio>;
 			clocks = <&tegra_car TEGRA124_CLK_EXTERN1>;
 		};
@@ -1754,6 +1755,7 @@
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(I, 6) IRQ_TYPE_LEVEL_LOW>;
 			#thermal-sensor-cells = <1>;
+			vcc-supply = <&reg_module_3v3>;
 		};
 	};
 
@@ -1902,11 +1904,13 @@
 			usb3-0 {
 				status = "okay";
 				nvidia,usb2-companion = <2>;
+				vbus-supply = <&reg_usbh_vbus>;
 			};
 
 			usb3-1 {
 				status = "okay";
 				nvidia,usb2-companion = <0>;
+				vbus-supply = <&reg_usbo1_vbus>;
 			};
 		};
 	};
@@ -1987,6 +1991,14 @@
 		gpio = <&pmic 2 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		vin-supply = <&reg_3v3_mxm>;
+	};
+
+	reg_module_3v3_audio: regulator-module-3v3-audio {
+		compatible = "regulator-fixed";
+		regulator-name = "+V3.3_AUDIO_AVDD_S";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
 	};
 
 	sound {
