@@ -735,7 +735,12 @@ static int eb_select_context(struct i915_execbuffer *eb)
 		return -ENOENT;
 
 	eb->ctx = ctx;
-	eb->vm = ctx->ppgtt ? &ctx->ppgtt->vm : &eb->i915->ggtt.vm;
+	if (ctx->ppgtt) {
+		eb->vm = &ctx->ppgtt->vm;
+		eb->invalid_flags |= EXEC_OBJECT_NEEDS_GTT;
+	} else {
+		eb->vm = &eb->i915->ggtt.vm;
+	}
 
 	eb->context_flags = 0;
 	if (ctx->flags & CONTEXT_NO_ZEROMAP)
@@ -2201,8 +2206,6 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	eb.flags = (unsigned int *)(eb.vma + args->buffer_count + 1);
 
 	eb.invalid_flags = __EXEC_OBJECT_UNKNOWN_FLAGS;
-	if (USES_FULL_PPGTT(eb.i915))
-		eb.invalid_flags |= EXEC_OBJECT_NEEDS_GTT;
 	reloc_cache_init(&eb.reloc_cache, eb.i915);
 
 	eb.buffer_count = args->buffer_count;
