@@ -325,15 +325,18 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	     const unsigned char *file_name, u32 cookie)
 {
 	struct fsnotify_iter_info iter_info = {};
-	struct mount *mnt;
+	struct super_block *sb = NULL;
+	struct mount *mnt = NULL;
+	__u32 mnt_or_sb_mask = 0;
 	int ret = 0;
 	/* global tests shouldn't care about events on child only the specific event */
 	__u32 test_mask = (mask & ~FS_EVENT_ON_CHILD);
 
-	if (data_is == FSNOTIFY_EVENT_PATH)
+	if (data_is == FSNOTIFY_EVENT_PATH) {
 		mnt = real_mount(((const struct path *)data)->mnt);
-	else
-		mnt = NULL;
+		sb = mnt->mnt.mnt_sb;
+		mnt_or_sb_mask = mnt->mnt_fsnotify_mask | sb->s_fsnotify_mask;
+	}
 
 	/*
 	 * Optimization: srcu_read_lock() has a memory barrier which can
@@ -343,16 +346,15 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	 * need SRCU to keep them "alive".
 	 */
 	if (!to_tell->i_fsnotify_marks &&
-	    (!mnt || !mnt->mnt_fsnotify_marks))
+	    (!mnt || (!mnt->mnt_fsnotify_marks && !sb->s_fsnotify_marks)))
 		return 0;
 	/*
 	 * if this is a modify event we may need to clear the ignored masks
-	 * otherwise return if neither the inode nor the vfsmount care about
+	 * otherwise return if neither the inode nor the vfsmount/sb care about
 	 * this type of event.
 	 */
 	if (!(mask & FS_MODIFY) &&
-	    !(test_mask & to_tell->i_fsnotify_mask) &&
-	    !(mnt && test_mask & mnt->mnt_fsnotify_mask))
+	    !(test_mask & (to_tell->i_fsnotify_mask | mnt_or_sb_mask)))
 		return 0;
 
 	iter_info.srcu_idx = srcu_read_lock(&fsnotify_mark_srcu);
@@ -362,11 +364,13 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	if (mnt) {
 		iter_info.marks[FSNOTIFY_OBJ_TYPE_VFSMOUNT] =
 			fsnotify_first_mark(&mnt->mnt_fsnotify_marks);
+		iter_info.marks[FSNOTIFY_OBJ_TYPE_SB] =
+			fsnotify_first_mark(&sb->s_fsnotify_marks);
 	}
 
 	/*
-	 * We need to merge inode & vfsmount mark lists so that inode mark
-	 * ignore masks are properly reflected for mount mark notifications.
+	 * We need to merge inode/vfsmount/sb mark lists so that e.g. inode mark
+	 * ignore masks are properly reflected for mount/sb mark notifications.
 	 * That's why this traversal is so complicated...
 	 */
 	while (fsnotify_iter_select_report_types(&iter_info)) {
