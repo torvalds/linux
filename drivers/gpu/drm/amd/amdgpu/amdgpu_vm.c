@@ -845,103 +845,6 @@ static void amdgpu_vm_bo_param(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 }
 
 /**
- * amdgpu_vm_alloc_levels - allocate the PD/PT levels
- *
- * @adev: amdgpu_device pointer
- * @vm: requested vm
- * @parent: parent PT
- * @saddr: start of the address range
- * @eaddr: end of the address range
- * @level: VMPT level
- * @ats: indicate ATS support from PTE
- *
- * Make sure the page directories and page tables are allocated
- *
- * Returns:
- * 0 on success, errno otherwise.
- */
-static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
-				  struct amdgpu_vm *vm,
-				  struct amdgpu_vm_pt *parent,
-				  uint64_t saddr, uint64_t eaddr,
-				  unsigned level, bool ats)
-{
-	unsigned shift = amdgpu_vm_level_shift(adev, level);
-	struct amdgpu_bo_param bp;
-	unsigned pt_idx, from, to;
-	int r;
-
-	if (!parent->entries) {
-		unsigned num_entries = amdgpu_vm_num_entries(adev, level);
-
-		parent->entries = kvmalloc_array(num_entries,
-						   sizeof(struct amdgpu_vm_pt),
-						   GFP_KERNEL | __GFP_ZERO);
-		if (!parent->entries)
-			return -ENOMEM;
-	}
-
-	from = saddr >> shift;
-	to = eaddr >> shift;
-	if (from >= amdgpu_vm_num_entries(adev, level) ||
-	    to >= amdgpu_vm_num_entries(adev, level))
-		return -EINVAL;
-
-	++level;
-	saddr = saddr & ((1 << shift) - 1);
-	eaddr = eaddr & ((1 << shift) - 1);
-
-	amdgpu_vm_bo_param(adev, vm, level, &bp);
-
-	/* walk over the address space and allocate the page tables */
-	for (pt_idx = from; pt_idx <= to; ++pt_idx) {
-		struct amdgpu_vm_pt *entry = &parent->entries[pt_idx];
-		struct amdgpu_bo *pt;
-
-		if (!entry->base.bo) {
-			r = amdgpu_bo_create(adev, &bp, &pt);
-			if (r)
-				return r;
-
-			r = amdgpu_vm_clear_bo(adev, vm, pt, level, ats);
-			if (r) {
-				amdgpu_bo_unref(&pt->shadow);
-				amdgpu_bo_unref(&pt);
-				return r;
-			}
-
-			if (vm->use_cpu_for_update) {
-				r = amdgpu_bo_kmap(pt, NULL);
-				if (r) {
-					amdgpu_bo_unref(&pt->shadow);
-					amdgpu_bo_unref(&pt);
-					return r;
-				}
-			}
-
-			/* Keep a reference to the root directory to avoid
-			* freeing them up in the wrong order.
-			*/
-			pt->parent = amdgpu_bo_ref(parent->base.bo);
-
-			amdgpu_vm_bo_base_init(&entry->base, vm, pt);
-		}
-
-		if (level < AMDGPU_VM_PTB) {
-			uint64_t sub_saddr = (pt_idx == from) ? saddr : 0;
-			uint64_t sub_eaddr = (pt_idx == to) ? eaddr :
-				((1 << shift) - 1);
-			r = amdgpu_vm_alloc_levels(adev, vm, entry, sub_saddr,
-						   sub_eaddr, level, ats);
-			if (r)
-				return r;
-		}
-	}
-
-	return 0;
-}
-
-/**
  * amdgpu_vm_alloc_pts - Allocate page tables.
  *
  * @adev: amdgpu_device pointer
@@ -949,7 +852,7 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
  * @saddr: Start address which needs to be allocated
  * @size: Size from start address we need.
  *
- * Make sure the page tables are allocated.
+ * Make sure the page directories and page tables are allocated
  *
  * Returns:
  * 0 on success, errno otherwise.
@@ -958,8 +861,11 @@ int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 			struct amdgpu_vm *vm,
 			uint64_t saddr, uint64_t size)
 {
-	uint64_t eaddr;
+	struct amdgpu_vm_pt_cursor cursor;
+	struct amdgpu_bo *pt;
 	bool ats = false;
+	uint64_t eaddr;
+	int r;
 
 	/* validate the parameters */
 	if (saddr & AMDGPU_GPU_PAGE_MASK || size & AMDGPU_GPU_PAGE_MASK)
@@ -979,8 +885,56 @@ int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 		return -EINVAL;
 	}
 
-	return amdgpu_vm_alloc_levels(adev, vm, &vm->root, saddr, eaddr,
-				      adev->vm_manager.root_level, ats);
+	for_each_amdgpu_vm_pt_leaf(adev, vm, saddr, eaddr, cursor) {
+		struct amdgpu_vm_pt *entry = cursor.entry;
+		struct amdgpu_bo_param bp;
+
+		if (cursor.level < AMDGPU_VM_PTB) {
+			unsigned num_entries;
+
+			num_entries = amdgpu_vm_num_entries(adev, cursor.level);
+			entry->entries = kvmalloc_array(num_entries,
+							sizeof(*entry->entries),
+							GFP_KERNEL |
+							__GFP_ZERO);
+			if (!entry->entries)
+				return -ENOMEM;
+		}
+
+
+		if (entry->base.bo)
+			continue;
+
+		amdgpu_vm_bo_param(adev, vm, cursor.level, &bp);
+
+		r = amdgpu_bo_create(adev, &bp, &pt);
+		if (r)
+			return r;
+
+		r = amdgpu_vm_clear_bo(adev, vm, pt, cursor.level, ats);
+		if (r)
+			goto error_free_pt;
+
+		if (vm->use_cpu_for_update) {
+			r = amdgpu_bo_kmap(pt, NULL);
+			if (r)
+				goto error_free_pt;
+		}
+
+		/* Keep a reference to the root directory to avoid
+		* freeing them up in the wrong order.
+		*/
+		pt->parent = amdgpu_bo_ref(cursor.parent->base.bo);
+
+		amdgpu_vm_bo_base_init(&entry->base, vm, pt);
+	}
+
+	return 0;
+
+error_free_pt:
+	amdgpu_bo_unref(&pt->shadow);
+	amdgpu_bo_unref(&pt);
+	return r;
 }
 
 /**
