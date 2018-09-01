@@ -1948,6 +1948,7 @@
 		non-removable;
 		vmmc-supply = <&reg_module_3v3>; /* VCC */
 		vqmmc-supply = <&reg_1v8_vddio>; /* VCCQ */
+		mmc-ddr-1_8v;
 	};
 
 	/* CPU DFLL clock */
