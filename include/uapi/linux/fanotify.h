@@ -27,7 +27,7 @@
 #define FAN_CLOEXEC		0x00000001
 #define FAN_NONBLOCK		0x00000002
 
-/* These are NOT bitwise flags.  Both bits are used togther.  */
+/* These are NOT bitwise flags.  Both bits are used together.  */
 #define FAN_CLASS_NOTIF		0x00000000
 #define FAN_CLASS_CONTENT	0x00000004
 #define FAN_CLASS_PRE_CONTENT	0x00000008
@@ -47,19 +47,27 @@
 #define FAN_MARK_REMOVE		0x00000002
 #define FAN_MARK_DONT_FOLLOW	0x00000004
 #define FAN_MARK_ONLYDIR	0x00000008
-#define FAN_MARK_MOUNT		0x00000010
+/* FAN_MARK_MOUNT is		0x00000010 */
 #define FAN_MARK_IGNORED_MASK	0x00000020
 #define FAN_MARK_IGNORED_SURV_MODIFY	0x00000040
 #define FAN_MARK_FLUSH		0x00000080
+/* FAN_MARK_FILESYSTEM is	0x00000100 */
+
+/* These are NOT bitwise flags.  Both bits can be used togther.  */
+#define FAN_MARK_INODE		0x00000000
+#define FAN_MARK_MOUNT		0x00000010
+#define FAN_MARK_FILESYSTEM	0x00000100
+#define FAN_MARK_TYPE_MASK	(FAN_MARK_INODE | FAN_MARK_MOUNT | \
+				 FAN_MARK_FILESYSTEM)
 
 #define FAN_ALL_MARK_FLAGS	(FAN_MARK_ADD |\
 				 FAN_MARK_REMOVE |\
 				 FAN_MARK_DONT_FOLLOW |\
 				 FAN_MARK_ONLYDIR |\
-				 FAN_MARK_MOUNT |\
 				 FAN_MARK_IGNORED_MASK |\
 				 FAN_MARK_IGNORED_SURV_MODIFY |\
-				 FAN_MARK_FLUSH)
+				 FAN_MARK_FLUSH|\
+				 FAN_MARK_TYPE_MASK)
 
 /*
  * All of the events - we build the list by hand so that we can add flags in

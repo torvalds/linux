@@ -563,6 +563,13 @@ static int fanotify_remove_vfsmount_mark(struct fsnotify_group *group,
 				    mask, flags);
 }
 
+static int fanotify_remove_sb_mark(struct fsnotify_group *group,
+				      struct super_block *sb, __u32 mask,
+				      unsigned int flags)
+{
+	return fanotify_remove_mark(group, &sb->s_fsnotify_marks, mask, flags);
+}
+
 static int fanotify_remove_inode_mark(struct fsnotify_group *group,
 				      struct inode *inode, __u32 mask,
 				      unsigned int flags)
@@ -656,6 +663,14 @@ static int fanotify_add_vfsmount_mark(struct fsnotify_group *group,
 {
 	return fanotify_add_mark(group, &real_mount(mnt)->mnt_fsnotify_marks,
 				 FSNOTIFY_OBJ_TYPE_VFSMOUNT, mask, flags);
+}
+
+static int fanotify_add_sb_mark(struct fsnotify_group *group,
+				      struct super_block *sb, __u32 mask,
+				      unsigned int flags)
+{
+	return fanotify_add_mark(group, &sb->s_fsnotify_marks,
+				 FSNOTIFY_OBJ_TYPE_SB, mask, flags);
 }
 
 static int fanotify_add_inode_mark(struct fsnotify_group *group,
@@ -806,6 +821,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	struct fd f;
 	struct path path;
 	u32 valid_mask = FAN_ALL_EVENTS | FAN_EVENT_ON_CHILD;
+	unsigned int mark_type = flags & FAN_MARK_TYPE_MASK;
 	int ret;
 
 	pr_debug("%s: fanotify_fd=%d flags=%x dfd=%d pathname=%p mask=%llx\n",
@@ -817,6 +833,16 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 
 	if (flags & ~FAN_ALL_MARK_FLAGS)
 		return -EINVAL;
+
+	switch (mark_type) {
+	case FAN_MARK_INODE:
+	case FAN_MARK_MOUNT:
+	case FAN_MARK_FILESYSTEM:
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE | FAN_MARK_FLUSH)) {
 	case FAN_MARK_ADD:		/* fallthrough */
 	case FAN_MARK_REMOVE:
@@ -824,7 +850,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 			return -EINVAL;
 		break;
 	case FAN_MARK_FLUSH:
-		if (flags & ~(FAN_MARK_MOUNT | FAN_MARK_FLUSH))
+		if (flags & ~(FAN_MARK_TYPE_MASK | FAN_MARK_FLUSH))
 			return -EINVAL;
 		break;
 	default:
@@ -863,8 +889,10 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 
 	if (flags & FAN_MARK_FLUSH) {
 		ret = 0;
-		if (flags & FAN_MARK_MOUNT)
+		if (mark_type == FAN_MARK_MOUNT)
 			fsnotify_clear_vfsmount_marks_by_group(group);
+		else if (mark_type == FAN_MARK_FILESYSTEM)
+			fsnotify_clear_sb_marks_by_group(group);
 		else
 			fsnotify_clear_inode_marks_by_group(group);
 		goto fput_and_out;
@@ -875,7 +903,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		goto fput_and_out;
 
 	/* inode held in place by reference to path; group by fget on fd */
-	if (!(flags & FAN_MARK_MOUNT))
+	if (mark_type == FAN_MARK_INODE)
 		inode = path.dentry->d_inode;
 	else
 		mnt = path.mnt;
@@ -883,14 +911,18 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	/* create/update an inode mark */
 	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE)) {
 	case FAN_MARK_ADD:
-		if (flags & FAN_MARK_MOUNT)
+		if (mark_type == FAN_MARK_MOUNT)
 			ret = fanotify_add_vfsmount_mark(group, mnt, mask, flags);
+		else if (mark_type == FAN_MARK_FILESYSTEM)
+			ret = fanotify_add_sb_mark(group, mnt->mnt_sb, mask, flags);
 		else
 			ret = fanotify_add_inode_mark(group, inode, mask, flags);
 		break;
 	case FAN_MARK_REMOVE:
-		if (flags & FAN_MARK_MOUNT)
+		if (mark_type == FAN_MARK_MOUNT)
 			ret = fanotify_remove_vfsmount_mark(group, mnt, mask, flags);
+		else if (mark_type == FAN_MARK_FILESYSTEM)
+			ret = fanotify_remove_sb_mark(group, mnt->mnt_sb, mask, flags);
 		else
 			ret = fanotify_remove_inode_mark(group, inode, mask, flags);
 		break;
