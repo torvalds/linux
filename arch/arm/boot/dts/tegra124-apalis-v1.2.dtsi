@@ -68,7 +68,7 @@
 		vdd-supply = <&reg_vdd_gpu>;
 	};
 
-	pinmux: pinmux@70000868 {
+	pinmux@70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
