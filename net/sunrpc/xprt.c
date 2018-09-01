@@ -191,8 +191,6 @@ int xprt_reserve_xprt(struct rpc_xprt *xprt, struct rpc_task *task)
 		goto out_sleep;
 	}
 	xprt->snd_task = task;
-	if (req != NULL)
-		req->rq_ntrans++;
 
 	return 1;
 
@@ -247,7 +245,6 @@ int xprt_reserve_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task)
 	}
 	if (__xprt_get_cong(xprt, task)) {
 		xprt->snd_task = task;
-		req->rq_ntrans++;
 		return 1;
 	}
 	xprt_clear_locked(xprt);
@@ -281,12 +278,8 @@ static inline int xprt_lock_write(struct rpc_xprt *xprt, struct rpc_task *task)
 static bool __xprt_lock_write_func(struct rpc_task *task, void *data)
 {
 	struct rpc_xprt *xprt = data;
-	struct rpc_rqst *req;
 
-	req = task->tk_rqstp;
 	xprt->snd_task = task;
-	if (req)
-		req->rq_ntrans++;
 	return true;
 }
 
@@ -1153,6 +1146,7 @@ void xprt_transmit(struct rpc_task *task)
 	struct rpc_rqst	*req = task->tk_rqstp;
 	struct rpc_xprt	*xprt = req->rq_xprt;
 	unsigned int connect_cookie;
+	int is_retrans = RPC_WAS_SENT(task);
 	int status;
 
 	dprintk("RPC: %5u xprt_transmit(%u)\n", task->tk_pid, req->rq_slen);
@@ -1167,13 +1161,24 @@ void xprt_transmit(struct rpc_task *task)
 		}
 	}
 
+	/*
+	 * Update req->rq_ntrans before transmitting to avoid races with
+	 * xprt_update_rtt(), which needs to know that it is recording a
+	 * reply to the first transmission.
+	 */
+	req->rq_ntrans++;
+
 	connect_cookie = xprt->connect_cookie;
 	status = xprt->ops->send_request(req, task);
 	trace_xprt_transmit(xprt, req->rq_xid, status);
 	if (status != 0) {
+		req->rq_ntrans--;
 		task->tk_status = status;
 		return;
 	}
+
+	if (is_retrans)
+		task->tk_client->cl_stats->rpcretrans++;
 
 	xprt_inject_disconnect(xprt);
 
