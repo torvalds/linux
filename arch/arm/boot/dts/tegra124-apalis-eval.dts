@@ -180,18 +180,18 @@
 	/* Apalis MMC1 */
 	sdhci@700b0000 {
 		status = "okay";
+		bus-width = <4>;
 		/* MMC1_CD# */
 		cd-gpios = <&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_LOW>;
-		bus-width = <4>;
 		vqmmc-supply = <&vddio_sdmmc1>;
 	};
 
 	/* Apalis SD1 */
 	sdhci@700b0400 {
 		status = "okay";
+		bus-width = <4>;
 		/* SD1_CD# */
 		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
-		bus-width = <4>;
 		vqmmc-supply = <&vddio_sdmmc3>;
 	};
 
