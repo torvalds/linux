@@ -949,7 +949,6 @@
 
 	usb-phy@7d004000 {
 		status = "okay";
-		nvidia,is-wired = <1>;
 		vbus-supply = <&reg_lan_v_bus>;
 	};
 
