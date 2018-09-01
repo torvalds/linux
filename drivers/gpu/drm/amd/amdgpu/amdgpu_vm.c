@@ -356,6 +356,230 @@ static struct amdgpu_vm_pt *amdgpu_vm_pt_parent(struct amdgpu_vm_pt *pt)
 }
 
 /**
+ * amdgpu_vm_pt_cursor - state for for_each_amdgpu_vm_pt
+ */
+struct amdgpu_vm_pt_cursor {
+	uint64_t pfn;
+	struct amdgpu_vm_pt *parent;
+	struct amdgpu_vm_pt *entry;
+	unsigned level;
+};
+
+/**
+ * amdgpu_vm_pt_start - start PD/PT walk
+ *
+ * @adev: amdgpu_device pointer
+ * @vm: amdgpu_vm structure
+ * @start: start address of the walk
+ * @cursor: state to initialize
+ *
+ * Initialize a amdgpu_vm_pt_cursor to start a walk.
+ */
+static void amdgpu_vm_pt_start(struct amdgpu_device *adev,
+			       struct amdgpu_vm *vm, uint64_t start,
+			       struct amdgpu_vm_pt_cursor *cursor)
+{
+	cursor->pfn = start;
+	cursor->parent = NULL;
+	cursor->entry = &vm->root;
+	cursor->level = adev->vm_manager.root_level;
+}
+
+/**
+ * amdgpu_vm_pt_descendant - go to child node
+ *
+ * @adev: amdgpu_device pointer
+ * @cursor: current state
+ *
+ * Walk to the child node of the current node.
+ * Returns:
+ * True if the walk was possible, false otherwise.
+ */
+static bool amdgpu_vm_pt_descendant(struct amdgpu_device *adev,
+				    struct amdgpu_vm_pt_cursor *cursor)
+{
+	unsigned num_entries, shift, idx;
+
+	if (!cursor->entry->entries)
+		return false;
+
+	BUG_ON(!cursor->entry->base.bo);
+	num_entries = amdgpu_vm_num_entries(adev, cursor->level);
+	shift = amdgpu_vm_level_shift(adev, cursor->level);
+
+	++cursor->level;
+	idx = (cursor->pfn >> shift) % num_entries;
+	cursor->parent = cursor->entry;
+	cursor->entry = &cursor->entry->entries[idx];
+	return true;
+}
+
+/**
+ * amdgpu_vm_pt_sibling - go to sibling node
+ *
+ * @adev: amdgpu_device pointer
+ * @cursor: current state
+ *
+ * Walk to the sibling node of the current node.
+ * Returns:
+ * True if the walk was possible, false otherwise.
+ */
+static bool amdgpu_vm_pt_sibling(struct amdgpu_device *adev,
+				 struct amdgpu_vm_pt_cursor *cursor)
+{
+	unsigned shift, num_entries;
+
+	/* Root doesn't have a sibling */
+	if (!cursor->parent)
+		return false;
+
+	/* Go to our parents and see if we got a sibling */
+	shift = amdgpu_vm_level_shift(adev, cursor->level - 1);
+	num_entries = amdgpu_vm_num_entries(adev, cursor->level - 1);
+
+	if (cursor->entry == &cursor->parent->entries[num_entries - 1])
+		return false;
+
+	cursor->pfn += 1ULL << shift;
+	cursor->pfn &= ~((1ULL << shift) - 1);
+	++cursor->entry;
+	return true;
+}
+
+/**
+ * amdgpu_vm_pt_ancestor - go to parent node
+ *
+ * @cursor: current state
+ *
+ * Walk to the parent node of the current node.
+ * Returns:
+ * True if the walk was possible, false otherwise.
+ */
+static bool amdgpu_vm_pt_ancestor(struct amdgpu_vm_pt_cursor *cursor)
+{
+	if (!cursor->parent)
+		return false;
+
+	--cursor->level;
+	cursor->entry = cursor->parent;
+	cursor->parent = amdgpu_vm_pt_parent(cursor->parent);
+	return true;
+}
+
+/**
+ * amdgpu_vm_pt_next - get next PD/PT in hieratchy
+ *
+ * @adev: amdgpu_device pointer
+ * @cursor: current state
+ *
+ * Walk the PD/PT tree to the next node.
+ */
+static void amdgpu_vm_pt_next(struct amdgpu_device *adev,
+			      struct amdgpu_vm_pt_cursor *cursor)
+{
+	/* First try a newborn child */
+	if (amdgpu_vm_pt_descendant(adev, cursor))
+		return;
+
+	/* If that didn't worked try to find a sibling */
+	while (!amdgpu_vm_pt_sibling(adev, cursor)) {
+		/* No sibling, go to our parents and grandparents */
+		if (!amdgpu_vm_pt_ancestor(cursor)) {
+			cursor->pfn = ~0ll;
+			return;
+		}
+	}
+}
+
+/**
+ * amdgpu_vm_pt_first_leaf - get first leaf PD/PT
+ *
+ * @adev: amdgpu_device pointer
+ * @vm: amdgpu_vm structure
+ * @start: start addr of the walk
+ * @cursor: state to initialize
+ *
+ * Start a walk and go directly to the leaf node.
+ */
+static void amdgpu_vm_pt_first_leaf(struct amdgpu_device *adev,
+				    struct amdgpu_vm *vm, uint64_t start,
+				    struct amdgpu_vm_pt_cursor *cursor)
+{
+	amdgpu_vm_pt_start(adev, vm, start, cursor);
+	while (amdgpu_vm_pt_descendant(adev, cursor));
+}
+
+/**
+ * amdgpu_vm_pt_next_leaf - get next leaf PD/PT
+ *
+ * @adev: amdgpu_device pointer
+ * @cursor: current state
+ *
+ * Walk the PD/PT tree to the next leaf node.
+ */
+static void amdgpu_vm_pt_next_leaf(struct amdgpu_device *adev,
+				   struct amdgpu_vm_pt_cursor *cursor)
+{
+	amdgpu_vm_pt_next(adev, cursor);
+	while (amdgpu_vm_pt_descendant(adev, cursor));
+}
+
+/**
+ * for_each_amdgpu_vm_pt_leaf - walk over all leaf PDs/PTs in the hierarchy
+ */
+#define for_each_amdgpu_vm_pt_leaf(adev, vm, start, end, cursor)		\
+	for (amdgpu_vm_pt_first_leaf((adev), (vm), (start), &(cursor));		\
+	     (cursor).pfn <= end; amdgpu_vm_pt_next_leaf((adev), &(cursor)))
+
+/**
+ * amdgpu_vm_pt_first_dfs - start a deep first search
+ *
+ * @adev: amdgpu_device structure
+ * @vm: amdgpu_vm structure
+ * @cursor: state to initialize
+ *
+ * Starts a deep first traversal of the PD/PT tree.
+ */
+static void amdgpu_vm_pt_first_dfs(struct amdgpu_device *adev,
+				   struct amdgpu_vm *vm,
+				   struct amdgpu_vm_pt_cursor *cursor)
+{
+	amdgpu_vm_pt_start(adev, vm, 0, cursor);
+	while (amdgpu_vm_pt_descendant(adev, cursor));
+}
+
+/**
+ * amdgpu_vm_pt_next_dfs - get the next node for a deep first search
+ *
+ * @adev: amdgpu_device structure
+ * @cursor: current state
+ *
+ * Move the cursor to the next node in a deep first search.
+ */
+static void amdgpu_vm_pt_next_dfs(struct amdgpu_device *adev,
+				  struct amdgpu_vm_pt_cursor *cursor)
+{
+	if (!cursor->entry)
+		return;
+
+	if (!cursor->parent)
+		cursor->entry = NULL;
+	else if (amdgpu_vm_pt_sibling(adev, cursor))
+		while (amdgpu_vm_pt_descendant(adev, cursor));
+	else
+		amdgpu_vm_pt_ancestor(cursor);
+}
+
+/**
+ * for_each_amdgpu_vm_pt_dfs_safe - safe deep first search of all PDs/PTs
+ */
+#define for_each_amdgpu_vm_pt_dfs_safe(adev, vm, cursor, entry)			\
+	for (amdgpu_vm_pt_first_dfs((adev), (vm), &(cursor)),			\
+	     (entry) = (cursor).entry, amdgpu_vm_pt_next_dfs((adev), &(cursor));\
+	     (entry); (entry) = (cursor).entry,					\
+	     amdgpu_vm_pt_next_dfs((adev), &(cursor)))
+
+/**
  * amdgpu_vm_get_pd_bo - add the VM PD to a validation list
  *
  * @vm: vm providing the BOs
