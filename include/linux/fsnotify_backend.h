@@ -206,12 +206,14 @@ struct fsnotify_group {
 enum fsnotify_obj_type {
 	FSNOTIFY_OBJ_TYPE_INODE,
 	FSNOTIFY_OBJ_TYPE_VFSMOUNT,
+	FSNOTIFY_OBJ_TYPE_SB,
 	FSNOTIFY_OBJ_TYPE_COUNT,
 	FSNOTIFY_OBJ_TYPE_DETACHED = FSNOTIFY_OBJ_TYPE_COUNT
 };
 
 #define FSNOTIFY_OBJ_TYPE_INODE_FL	(1U << FSNOTIFY_OBJ_TYPE_INODE)
 #define FSNOTIFY_OBJ_TYPE_VFSMOUNT_FL	(1U << FSNOTIFY_OBJ_TYPE_VFSMOUNT)
+#define FSNOTIFY_OBJ_TYPE_SB_FL		(1U << FSNOTIFY_OBJ_TYPE_SB)
 #define FSNOTIFY_OBJ_ALL_TYPES_MASK	((1U << FSNOTIFY_OBJ_TYPE_COUNT) - 1)
 
 static inline bool fsnotify_valid_obj_type(unsigned int type)
@@ -255,6 +257,7 @@ static inline struct fsnotify_mark *fsnotify_iter_##name##_mark( \
 
 FSNOTIFY_ITER_FUNCS(inode, INODE)
 FSNOTIFY_ITER_FUNCS(vfsmount, VFSMOUNT)
+FSNOTIFY_ITER_FUNCS(sb, SB)
 
 #define fsnotify_foreach_obj_type(type) \
 	for (type = 0; type < FSNOTIFY_OBJ_TYPE_COUNT; type++)
@@ -267,8 +270,8 @@ struct fsnotify_mark_connector;
 typedef struct fsnotify_mark_connector __rcu *fsnotify_connp_t;
 
 /*
- * Inode / vfsmount point to this structure which tracks all marks attached to
- * the inode / vfsmount. The reference to inode / vfsmount is held by this
+ * Inode/vfsmount/sb point to this structure which tracks all marks attached to
+ * the inode/vfsmount/sb. The reference to inode/vfsmount/sb is held by this
  * structure. We destroy this structure when there are no more marks attached
  * to it. The structure is protected by fsnotify_mark_srcu.
  */
@@ -335,6 +338,7 @@ extern int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int dat
 extern int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask);
 extern void __fsnotify_inode_delete(struct inode *inode);
 extern void __fsnotify_vfsmount_delete(struct vfsmount *mnt);
+extern void fsnotify_sb_delete(struct super_block *sb);
 extern u32 fsnotify_get_cookie(void);
 
 static inline int fsnotify_inode_watches_children(struct inode *inode)
@@ -455,9 +459,13 @@ static inline void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *gr
 {
 	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_INODE_FL);
 }
+/* run all the marks in a group, and clear all of the sn marks */
+static inline void fsnotify_clear_sb_marks_by_group(struct fsnotify_group *group)
+{
+	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_SB_FL);
+}
 extern void fsnotify_get_mark(struct fsnotify_mark *mark);
 extern void fsnotify_put_mark(struct fsnotify_mark *mark);
-extern void fsnotify_unmount_inodes(struct super_block *sb);
 extern void fsnotify_finish_user_wait(struct fsnotify_iter_info *iter_info);
 extern bool fsnotify_prepare_user_wait(struct fsnotify_iter_info *iter_info);
 
@@ -482,6 +490,9 @@ static inline void __fsnotify_inode_delete(struct inode *inode)
 {}
 
 static inline void __fsnotify_vfsmount_delete(struct vfsmount *mnt)
+{}
+
+static inline void fsnotify_sb_delete(struct super_block *sb)
 {}
 
 static inline void fsnotify_update_flags(struct dentry *dentry)

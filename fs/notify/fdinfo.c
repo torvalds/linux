@@ -131,6 +131,11 @@ static void fanotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
 
 		seq_printf(m, "fanotify mnt_id:%x mflags:%x mask:%x ignored_mask:%x\n",
 			   mnt->mnt_id, mflags, mark->mask, mark->ignored_mask);
+	} else if (mark->connector->type == FSNOTIFY_OBJ_TYPE_SB) {
+		struct super_block *sb = fsnotify_conn_sb(mark->connector);
+
+		seq_printf(m, "fanotify sdev:%x mflags:%x mask:%x ignored_mask:%x\n",
+			   sb->s_dev, mflags, mark->mask, mark->ignored_mask);
 	}
 }
 

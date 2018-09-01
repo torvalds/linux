@@ -115,6 +115,8 @@ static __u32 *fsnotify_conn_mask_p(struct fsnotify_mark_connector *conn)
 		return &fsnotify_conn_inode(conn)->i_fsnotify_mask;
 	else if (conn->type == FSNOTIFY_OBJ_TYPE_VFSMOUNT)
 		return &fsnotify_conn_mount(conn)->mnt_fsnotify_mask;
+	else if (conn->type == FSNOTIFY_OBJ_TYPE_SB)
+		return &fsnotify_conn_sb(conn)->s_fsnotify_mask;
 	return NULL;
 }
 
@@ -192,6 +194,8 @@ static struct inode *fsnotify_detach_connector_from_object(
 		inode->i_fsnotify_mask = 0;
 	} else if (conn->type == FSNOTIFY_OBJ_TYPE_VFSMOUNT) {
 		fsnotify_conn_mount(conn)->mnt_fsnotify_mask = 0;
+	} else if (conn->type == FSNOTIFY_OBJ_TYPE_SB) {
+		fsnotify_conn_sb(conn)->s_fsnotify_mask = 0;
 	}
 
 	rcu_assign_pointer(*(conn->obj), NULL);
