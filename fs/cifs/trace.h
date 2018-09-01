@@ -486,6 +486,36 @@ DEFINE_EVENT(smb3_reconnect_class, smb3_##name,  \
 DEFINE_SMB3_RECONNECT_EVENT(reconnect);
 DEFINE_SMB3_RECONNECT_EVENT(partial_send_reconnect);
 
+DECLARE_EVENT_CLASS(smb3_credit_class,
+	TP_PROTO(__u64	currmid,
+		char *hostname,
+		int credits),
+	TP_ARGS(currmid, hostname, credits),
+	TP_STRUCT__entry(
+		__field(__u64, currmid)
+		__field(char *, hostname)
+		__field(int, credits)
+	),
+	TP_fast_assign(
+		__entry->currmid = currmid;
+		__entry->hostname = hostname;
+		__entry->credits = credits;
+	),
+	TP_printk("server=%s current_mid=0x%llx credits=%d",
+		__entry->hostname,
+		__entry->currmid,
+		__entry->credits)
+)
+
+#define DEFINE_SMB3_CREDIT_EVENT(name)        \
+DEFINE_EVENT(smb3_credit_class, smb3_##name,  \
+	TP_PROTO(__u64	currmid,		\
+		char *hostname,			\
+		int  credits),			\
+	TP_ARGS(currmid, hostname, credits))
+
+DEFINE_SMB3_CREDIT_EVENT(reconnect_with_invalid_credits);
+
 #endif /* _CIFS_TRACE_H */
 
 #undef TRACE_INCLUDE_PATH

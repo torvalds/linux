@@ -74,6 +74,12 @@ smb2_add_credits(struct TCP_Server_Info *server, const unsigned int add,
 	int *val, rc = 0;
 	spin_lock(&server->req_lock);
 	val = server->ops->get_credits_field(server, optype);
+
+	/* eg found case where write overlapping reconnect messed up credits */
+	if (((optype & CIFS_OP_MASK) == CIFS_NEG_OP) && (*val != 0))
+		trace_smb3_reconnect_with_invalid_credits(server->CurrentMid,
+			server->hostname, *val);
+
 	*val += add;
 	if (*val > 65000) {
 		*val = 65000; /* Don't get near 64K credits, avoid srv bugs */
