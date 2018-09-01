@@ -157,12 +157,11 @@ static int device_process(struct vicodec_ctx *ctx,
 			  struct vb2_v4l2_buffer *out_vb)
 {
 	struct vicodec_dev *dev = ctx->dev;
-	struct vicodec_q_data *q_out, *q_cap;
+	struct vicodec_q_data *q_cap;
 	struct v4l2_fwht_state *state = &ctx->state;
 	u8 *p_in, *p_out;
 	int ret;
 
-	q_out = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	q_cap = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 	if (ctx->is_enc)
 		p_in = vb2_plane_vaddr(&in_vb->vb2_buf, 0);
