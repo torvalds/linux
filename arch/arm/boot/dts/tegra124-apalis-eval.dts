@@ -142,24 +142,12 @@
 	spi@7000d400 {
 		status = "okay";
 		spi-max-frequency = <50000000>;
-
-		spidev0: spidev@0 {
-			compatible = "spidev";
-			reg = <0>;
-			spi-max-frequency = <50000000>;
-		};
 	};
 
 	/* SPI4: Apalis SPI2 */
 	spi@7000da00 {
 		status = "okay";
 		spi-max-frequency = <50000000>;
-
-		spidev1: spidev@0 {
-			compatible = "spidev";
-			reg = <0>;
-			spi-max-frequency = <50000000>;
-		};
 	};
 
 	/* Apalis Serial ATA */
