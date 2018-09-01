@@ -762,8 +762,8 @@ struct regmap *__regmap_init(struct device *dev,
 		map->reg_stride_order = ilog2(map->reg_stride);
 	else
 		map->reg_stride_order = -1;
-	map->use_single_read = config->use_single_rw || !bus || !bus->read;
-	map->use_single_write = config->use_single_rw || !bus || !bus->write;
+	map->use_single_read = config->use_single_read || !bus || !bus->read;
+	map->use_single_write = config->use_single_write || !bus || !bus->write;
 	map->can_multi_write = config->can_multi_write && bus && bus->write;
 	if (bus) {
 		map->max_raw_read = bus->max_raw_read;

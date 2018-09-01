@@ -2419,7 +2419,8 @@ static const struct regmap_config rt5682_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = rt5682_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5682_reg),
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static const struct i2c_device_id rt5682_i2c_id[] = {
