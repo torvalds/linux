@@ -939,7 +939,7 @@
 		mmc-ddr-1_8v;
 	};
 
-	/* EHCI instance 1: USB2_DP/N -> AX88772B */
+	/* EHCI instance 1: USB2_DP/N -> AX88772B (On-module) */
 	usb@7d004000 {
 		status = "okay";
 		#address-cells = <1>;
