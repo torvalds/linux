@@ -6,9 +6,6 @@
  * Compatible for Revisions V1.1B, V1.1C, V1.1D, V1.1E, V1.1F; IT: V1.1A, V1.1B
  */
 / {
-	model = "Toradex Colibri T30";
-	compatible = "toradex,colibri_t30", "nvidia,tegra30";
-
 	memory@80000000 {
 		reg = <0x80000000 0x40000000>;
 	};
