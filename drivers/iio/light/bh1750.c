@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ROHM BH1710/BH1715/BH1721/BH1750/BH1751 ambient light sensor driver
  *
  * Copyright (c) Tomasz Duszynski <tduszyns@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Data sheets:
  *  http://rohmfs.rohm.com/en/products/databook/datasheet/ic/sensor/light/bh1710fvc-e.pdf
