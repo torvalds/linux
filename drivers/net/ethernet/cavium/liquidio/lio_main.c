@@ -1841,6 +1841,12 @@ static int liquidio_open(struct net_device *netdev)
 	/* tell Octeon to start forwarding packets to host */
 	send_rx_ctrl_cmd(lio, 1);
 
+	/* start periodical statistics fetch */
+	INIT_DELAYED_WORK(&lio->stats_wk.work, lio_fetch_stats);
+	lio->stats_wk.ctxptr = lio;
+	schedule_delayed_work(&lio->stats_wk.work, msecs_to_jiffies
+					(LIQUIDIO_NDEV_STATS_POLL_TIME_MS));
+
 	dev_info(&oct->pci_dev->dev, "%s interface is opened\n",
 		 netdev->name);
 
@@ -1880,6 +1886,8 @@ static int liquidio_stop(struct net_device *netdev)
 	} else {
 		cleanup_tx_poll_fn(netdev);
 	}
+
+	cancel_delayed_work_sync(&lio->stats_wk.work);
 
 	if (lio->ptp_clock) {
 		ptp_clock_unregister(lio->ptp_clock);
@@ -2081,7 +2089,6 @@ liquidio_get_stats64(struct net_device *netdev,
 	lstats->rx_packets = pkts;
 	lstats->rx_dropped = drop;
 
-	octnet_get_link_stats(netdev);
 	lstats->multicast = oct->link_stats.fromwire.fw_total_mcast;
 	lstats->collisions = oct->link_stats.fromhost.total_collisions;
 

@@ -1352,16 +1352,19 @@ octnet_nic_stats_callback(struct octeon_device *oct_dev,
 
 		resp->status = 1;
 	} else {
+		dev_err(&oct_dev->pci_dev->dev, "sc OPCODE_NIC_PORT_STATS command failed\n");
 		resp->status = -1;
 	}
 }
 
-int octnet_get_link_stats(struct net_device *netdev)
+void lio_fetch_stats(struct work_struct *work)
 {
-	struct lio *lio = GET_LIO(netdev);
+	struct cavium_wk *wk = (struct cavium_wk *)work;
+	struct lio *lio = wk->ctxptr;
 	struct octeon_device *oct_dev = lio->oct_dev;
 	struct octeon_soft_command *sc;
 	struct oct_nic_stats_resp *resp;
+	unsigned long time_in_jiffies;
 	int retval;
 
 	/* Alloc soft command */
@@ -1371,8 +1374,10 @@ int octnet_get_link_stats(struct net_device *netdev)
 					  sizeof(struct oct_nic_stats_resp),
 					  0);
 
-	if (!sc)
-		return -ENOMEM;
+	if (!sc) {
+		dev_err(&oct_dev->pci_dev->dev, "Soft command allocation failed\n");
+		goto lio_fetch_stats_exit;
+	}
 
 	resp = (struct oct_nic_stats_resp *)sc->virtrptr;
 	memset(resp, 0, sizeof(struct oct_nic_stats_resp));
@@ -1388,20 +1393,25 @@ int octnet_get_link_stats(struct net_device *netdev)
 	retval = octeon_send_soft_command(oct_dev, sc);
 	if (retval == IQ_SEND_FAILED) {
 		octeon_free_soft_command(oct_dev, sc);
-		return -EINVAL;
+		goto lio_fetch_stats_exit;
 	}
 
 	retval = wait_for_sc_completion_timeout(oct_dev, sc,
 						(2 * LIO_SC_MAX_TMO_MS));
 	if (retval)  {
 		dev_err(&oct_dev->pci_dev->dev, "sc OPCODE_NIC_PORT_STATS command failed\n");
-		return retval;
+		goto lio_fetch_stats_exit;
 	}
 
 	octnet_nic_stats_callback(oct_dev, sc->sc_status, sc);
 	WRITE_ONCE(sc->caller_is_done, true);
 
-	return 0;
+lio_fetch_stats_exit:
+	time_in_jiffies = msecs_to_jiffies(LIQUIDIO_NDEV_STATS_POLL_TIME_MS);
+	if (ifstate_check(lio, LIO_IFSTATE_RUNNING))
+		schedule_delayed_work(&lio->stats_wk.work, time_in_jiffies);
+
+	return;
 }
 
 int liquidio_set_speed(struct lio *lio, int speed)

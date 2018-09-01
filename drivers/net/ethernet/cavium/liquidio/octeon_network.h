@@ -42,6 +42,7 @@ struct liquidio_if_cfg_resp {
 };
 
 #define LIO_IFCFG_WAIT_TIME    3000 /* In milli seconds */
+#define LIQUIDIO_NDEV_STATS_POLL_TIME_MS 200
 
 /* Structure of a node in list of gather components maintained by
  * NIC driver for each network device.
@@ -175,6 +176,7 @@ struct lio {
 	struct cavium_wq	sync_octeon_time_wq;
 
 	int netdev_uc_count;
+	struct cavium_wk stats_wk;
 };
 
 #define LIO_SIZE         (sizeof(struct lio))
@@ -213,7 +215,7 @@ irqreturn_t liquidio_msix_intr_handler(int irq __attribute__((unused)),
 
 int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs);
 
-int octnet_get_link_stats(struct net_device *netdev);
+void lio_fetch_stats(struct work_struct *work);
 
 int lio_wait_for_clean_oq(struct octeon_device *oct);
 /**

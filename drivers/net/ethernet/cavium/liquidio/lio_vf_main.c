@@ -917,6 +917,11 @@ static int liquidio_open(struct net_device *netdev)
 	netif_info(lio, ifup, lio->netdev, "Interface Open, ready for traffic\n");
 	start_txqs(netdev);
 
+	INIT_DELAYED_WORK(&lio->stats_wk.work, lio_fetch_stats);
+	lio->stats_wk.ctxptr = lio;
+	schedule_delayed_work(&lio->stats_wk.work, msecs_to_jiffies
+					(LIQUIDIO_NDEV_STATS_POLL_TIME_MS));
+
 	/* tell Octeon to start forwarding packets to host */
 	send_rx_ctrl_cmd(lio, 1);
 
@@ -963,6 +968,8 @@ static int liquidio_stop(struct net_device *netdev)
 
 		oct->droq[0]->ops.poll_mode = 0;
 	}
+
+	cancel_delayed_work_sync(&lio->stats_wk.work);
 
 	dev_info(&oct->pci_dev->dev, "%s interface is stopped\n", netdev->name);
 
@@ -1181,7 +1188,6 @@ liquidio_get_stats64(struct net_device *netdev,
 	lstats->rx_packets = pkts;
 	lstats->rx_dropped = drop;
 
-	octnet_get_link_stats(netdev);
 	lstats->multicast = oct->link_stats.fromwire.fw_total_mcast;
 
 	/* detailed rx_errors: */
