@@ -1447,7 +1447,6 @@ struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 	u64 pbl_base_addr, phy_prod_pair_addr;
 	struct ib_ucontext *ib_ctx = NULL;
 	struct qedr_srq_hwq_info *hw_srq;
-	struct qedr_ucontext *ctx = NULL;
 	u32 page_cnt, page_size;
 	struct qedr_srq *srq;
 	int rc = 0;
@@ -1473,7 +1472,6 @@ struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 
 	if (udata && ibpd->uobject && ibpd->uobject->context) {
 		ib_ctx = ibpd->uobject->context;
-		ctx = get_qedr_ucontext(ib_ctx);
 
 		if (ib_copy_from_udata(&ureq, udata, sizeof(ureq))) {
 			DP_ERR(dev,
