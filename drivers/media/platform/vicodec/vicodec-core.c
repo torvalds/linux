@@ -1186,23 +1186,28 @@ static int vicodec_open(struct file *file)
 	ctx->q_data[V4L2_M2M_SRC].height = 720;
 	size = 1280 * 720 * ctx->q_data[V4L2_M2M_SRC].info->sizeimage_mult /
 		ctx->q_data[V4L2_M2M_SRC].info->sizeimage_div;
-	ctx->q_data[V4L2_M2M_SRC].sizeimage = size;
+	if (ctx->is_enc)
+		ctx->q_data[V4L2_M2M_SRC].sizeimage = size;
+	else
+		ctx->q_data[V4L2_M2M_SRC].sizeimage =
+			size + sizeof(struct fwht_cframe_hdr);
 	ctx->q_data[V4L2_M2M_DST] = ctx->q_data[V4L2_M2M_SRC];
 	ctx->q_data[V4L2_M2M_DST].info =
 		ctx->is_enc ? &pixfmt_fwht : v4l2_fwht_get_pixfmt(0);
 	size = 1280 * 720 * ctx->q_data[V4L2_M2M_DST].info->sizeimage_mult /
 		ctx->q_data[V4L2_M2M_DST].info->sizeimage_div;
-	ctx->q_data[V4L2_M2M_DST].sizeimage = size;
+	if (ctx->is_enc)
+		ctx->q_data[V4L2_M2M_DST].sizeimage =
+			size + sizeof(struct fwht_cframe_hdr);
+	else
+		ctx->q_data[V4L2_M2M_DST].sizeimage = size;
 	ctx->state.colorspace = V4L2_COLORSPACE_REC709;
 
-	size += sizeof(struct fwht_cframe_hdr);
 	if (ctx->is_enc) {
-		ctx->q_data[V4L2_M2M_DST].sizeimage = size;
 		ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(dev->enc_dev, ctx,
 						    &queue_init);
 		ctx->lock = &dev->enc_lock;
 	} else {
-		ctx->q_data[V4L2_M2M_SRC].sizeimage = size;
 		ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(dev->dec_dev, ctx,
 						    &queue_init);
 		ctx->lock = &dev->dec_lock;
