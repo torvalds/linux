@@ -926,7 +926,7 @@ static int ov2680_mode_init(struct ov2680_dev *sensor)
 	return 0;
 }
 
-static int ov2680_v4l2_init(struct ov2680_dev *sensor)
+static int ov2680_v4l2_register(struct ov2680_dev *sensor)
 {
 	const struct v4l2_ctrl_ops *ops = &ov2680_ctrl_ops;
 	struct ov2680_ctrls *ctrls = &sensor->ctrls;
@@ -1092,7 +1092,7 @@ static int ov2680_probe(struct i2c_client *client)
 	if (ret < 0)
 		goto lock_destroy;
 
-	ret = ov2680_v4l2_init(sensor);
+	ret = ov2680_v4l2_register(sensor);
 	if (ret < 0)
 		goto lock_destroy;
 
