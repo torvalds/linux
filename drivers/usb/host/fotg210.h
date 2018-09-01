@@ -182,6 +182,9 @@ struct fotg210_hcd {			/* one per controller */
 #	define COUNT(x)
 #endif
 
+	/* silicon clock */
+	struct clk		*pclk;
+
 	/* debug files */
 	struct dentry		*debug_dir;
 };
