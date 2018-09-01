@@ -25,6 +25,9 @@ enum rcar_gen3_clk_types {
 	CLK_TYPE_GEN3_Z2,
 	CLK_TYPE_GEN3_OSC,	/* OSC EXTAL predivider and fixed divider */
 	CLK_TYPE_GEN3_RCKSEL,	/* Select parent/divider using RCKCR.CKSEL */
+
+	/* SoC specific definitions start here */
+	CLK_TYPE_GEN3_SOC_BASE,
 };
 
 #define DEF_GEN3_SD(_name, _id, _parent, _offset)	\
