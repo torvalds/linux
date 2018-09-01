@@ -670,7 +670,7 @@ static vm_fault_t uio_vma_fault(struct vm_fault *vmf)
 	struct page *page;
 	unsigned long offset;
 	void *addr;
-	int ret = 0;
+	vm_fault_t ret = 0;
 	int mi;
 
 	mutex_lock(&idev->info_lock);
