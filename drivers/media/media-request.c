@@ -249,7 +249,7 @@ media_request_get_by_fd(struct media_device *mdev, int request_fd)
 
 	if (!mdev || !mdev->ops ||
 	    !mdev->ops->req_validate || !mdev->ops->req_queue)
-		return ERR_PTR(-EPERM);
+		return ERR_PTR(-EACCES);
 
 	filp = fget(request_fd);
 	if (!filp)
@@ -405,7 +405,7 @@ int media_request_object_bind(struct media_request *req,
 	int ret = -EBUSY;
 
 	if (WARN_ON(!ops->release))
-		return -EPERM;
+		return -EACCES;
 
 	spin_lock_irqsave(&req->lock, flags);
 

@@ -64,7 +64,7 @@ request cannot be modified anymore.
 .. caution::
    For :ref:`memory-to-memory devices <codec>` you can use requests only for
    output buffers, not for capture buffers. Attempting to add a capture buffer
-   to a request will result in an ``EPERM`` error.
+   to a request will result in an ``EACCES`` error.
 
 If the request contains parameters for multiple entities, individual drivers may
 synchronize so the requested pipeline's topology is applied before the buffers
@@ -77,7 +77,7 @@ perfect atomicity may not be possible due to hardware limitations.
    whichever method is used first locks this in place until
    :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` is called or the device is
    :ref:`closed <func-close>`. Attempts to directly queue a buffer when earlier
-   a buffer was queued via a request or vice versa will result in an ``EPERM``
+   a buffer was queued via a request or vice versa will result in an ``EBUSY``
    error.
 
 Controls can still be set without a request and are applied immediately,

@@ -1495,7 +1495,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 	    (!req && vb->state != VB2_BUF_STATE_IN_REQUEST &&
 	     q->uses_requests)) {
 		dprintk(1, "queue in wrong mode (qbuf vs requests)\n");
-		return -EPERM;
+		return -EBUSY;
 	}
 
 	if (req) {

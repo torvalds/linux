@@ -104,18 +104,18 @@ in use. Setting it means that the buffer will not be passed to the driver
 until the request itself is queued. Also, the driver will apply any
 settings associated with the request for this buffer. This field will
 be ignored unless the ``V4L2_BUF_FLAG_REQUEST_FD`` flag is set.
-If the device does not support requests, then ``EPERM`` will be returned.
+If the device does not support requests, then ``EACCES`` will be returned.
 If requests are supported but an invalid request file descriptor is given,
 then ``EINVAL`` will be returned.
 
 .. caution::
    It is not allowed to mix queuing requests with queuing buffers directly.
-   ``EPERM`` will be returned if the first buffer was queued directly and
+   ``EBUSY`` will be returned if the first buffer was queued directly and
    then the application tries to queue a request, or vice versa.
 
    For :ref:`memory-to-memory devices <codec>` you can specify the
    ``request_fd`` only for output buffers, not for capture buffers. Attempting
-   to specify this for a capture buffer will result in an ``EPERM`` error.
+   to specify this for a capture buffer will result in an ``EACCES`` error.
 
 Applications call the ``VIDIOC_DQBUF`` ioctl to dequeue a filled
 (capturing) or displayed (output) buffer from the driver's outgoing
@@ -175,9 +175,11 @@ EPIPE
     codecs if a buffer with the ``V4L2_BUF_FLAG_LAST`` was already
     dequeued and no new buffers are expected to become available.
 
-EPERM
+EACCES
     The ``V4L2_BUF_FLAG_REQUEST_FD`` flag was set but the device does not
-    support requests. Or the first buffer was queued via a request, but
-    the application now tries to queue it directly, or vice versa (it is
-    not permitted to mix the two APIs). Or an attempt is made to queue a
-    CAPTURE buffer to a request for a :ref:`memory-to-memory device <codec>`.
+    support requests for the given buffer type.
+
+EBUSY
+    The first buffer was queued via a request, but the application now tries
+    to queue it directly, or vice versa (it is not permitted to mix the two
+    APIs).

@@ -49,7 +49,7 @@ exception is the ``EIO`` error which signals a fatal error that requires
 the application to stop streaming to reset the hardware state.
 
 It is not allowed to mix queuing requests with queuing buffers directly
-(without a request). ``EPERM`` will be returned if the first buffer was
+(without a request). ``EBUSY`` will be returned if the first buffer was
 queued directly and you next try to queue a request, or vice versa.
 
 A request must contain at least one buffer, otherwise this ioctl will
@@ -63,10 +63,9 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EBUSY
-    The request was already queued.
-EPERM
-    The application queued the first buffer directly, but later attempted
-    to use a request. It is not permitted to mix the two APIs.
+    The request was already queued or the application queued the first
+    buffer directly, but later attempted to use a request. It is not permitted
+    to mix the two APIs.
 ENOENT
     The request did not contain any buffers. All requests are required
     to have at least one buffer. This can also be returned if required

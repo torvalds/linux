@@ -100,7 +100,7 @@ file descriptor and ``which`` is set to ``V4L2_CTRL_WHICH_REQUEST_VAL``,
 then the controls are not applied immediately when calling
 :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`, but instead are applied by
 the driver for the buffer associated with the same request.
-If the device does not support requests, then ``EPERM`` will be returned.
+If the device does not support requests, then ``EACCES`` will be returned.
 If requests are supported but an invalid request file descriptor is given,
 then ``EINVAL`` will be returned.
 
@@ -233,7 +233,7 @@ still cause this situation.
 	these controls have to be retrieved from a request or tried/set for
 	a request. In the latter case the ``request_fd`` field contains the
 	file descriptor of the request that should be used. If the device
-	does not support requests, then ``EPERM`` will be returned.
+	does not support requests, then ``EACCES`` will be returned.
 
 	.. note::
 
@@ -299,7 +299,7 @@ still cause this situation.
       - ``request_fd``
       - File descriptor of the request to be used by this operation. Only
 	valid if ``which`` is set to ``V4L2_CTRL_WHICH_REQUEST_VAL``.
-	If the device does not support requests, then ``EPERM`` will be returned.
+	If the device does not support requests, then ``EACCES`` will be returned.
 	If requests are supported but an invalid request file descriptor is
 	given, then ``EINVAL`` will be returned.
     * - __u32
@@ -408,6 +408,5 @@ EACCES
     control, or to get a control from a request that has not yet been
     completed.
 
-EPERM
-    The ``which`` field was set to ``V4L2_CTRL_WHICH_REQUEST_VAL`` but the
+    Or the ``which`` field was set to ``V4L2_CTRL_WHICH_REQUEST_VAL`` but the
     device does not support requests.

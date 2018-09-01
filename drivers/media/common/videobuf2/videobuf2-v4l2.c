@@ -381,12 +381,15 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 	if (!(b->flags & V4L2_BUF_FLAG_REQUEST_FD)) {
 		if (q->uses_requests) {
 			dprintk(1, "%s: queue uses requests\n", opname);
-			return -EPERM;
+			return -EBUSY;
 		}
 		return 0;
-	} else if (q->uses_qbuf || !q->supports_requests) {
+	} else if (!q->supports_requests) {
+		dprintk(1, "%s: queue does not support requests\n", opname);
+		return -EACCES;
+	} else if (q->uses_qbuf) {
 		dprintk(1, "%s: queue does not use requests\n", opname);
-		return -EPERM;
+		return -EBUSY;
 	}
 
 	/*
