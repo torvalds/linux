@@ -100,7 +100,7 @@
 	 * I2C4 (DDC): I2C4_SDA/SCL (DDC) on MXM3 pin 205/207
 	 * (e.g. display EDID)
 	 */
-	hdmi_ddc: i2c@7000c700 {
+	i2c@7000c700 {
 		status = "okay";
 	};
 

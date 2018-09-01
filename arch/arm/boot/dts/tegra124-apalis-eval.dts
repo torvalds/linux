@@ -123,7 +123,7 @@
 	/*
 	 * GEN2_I2C: I2C2_SDA/SCL (DDC) on MXM3 pin 205/207 (e.g. display EDID)
 	 */
-	hdmi_ddc: i2c@7000c400 {
+	i2c@7000c400 {
 		status = "okay";
 	};
 
