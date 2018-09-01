@@ -278,6 +278,7 @@ replace define V4L2_DV_BT_STD_SDI dv-bt-standards
 
 replace define V4L2_DV_FL_REDUCED_BLANKING dv-bt-standards
 replace define V4L2_DV_FL_CAN_REDUCE_FPS dv-bt-standards
+replace define V4L2_DV_FL_CAN_DETECT_REDUCED_FPS dv-bt-standards
 replace define V4L2_DV_FL_REDUCED_FPS dv-bt-standards
 replace define V4L2_DV_FL_HALF_LINE dv-bt-standards
 replace define V4L2_DV_FL_IS_CE_VIDEO dv-bt-standards
