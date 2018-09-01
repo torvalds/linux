@@ -1138,7 +1138,6 @@ EXPORT_SYMBOL_GPL(rpc_call_async);
 struct rpc_task *rpc_run_bc_task(struct rpc_rqst *req)
 {
 	struct rpc_task *task;
-	struct xdr_buf *xbufp = &req->rq_snd_buf;
 	struct rpc_task_setup task_setup_data = {
 		.callback_ops = &rpc_default_ops,
 		.flags = RPC_TASK_SOFTCONN |
@@ -1150,14 +1149,7 @@ struct rpc_task *rpc_run_bc_task(struct rpc_rqst *req)
 	 * Create an rpc_task to send the data
 	 */
 	task = rpc_new_task(&task_setup_data);
-	task->tk_rqstp = req;
-
-	/*
-	 * Set up the xdr_buf length.
-	 * This also indicates that the buffer is XDR encoded already.
-	 */
-	xbufp->len = xbufp->head[0].iov_len + xbufp->page_len +
-			xbufp->tail[0].iov_len;
+	xprt_init_bc_request(req, task);
 
 	task->tk_action = call_bc_transmit;
 	atomic_inc(&task->tk_count);
@@ -2064,6 +2056,8 @@ call_bc_transmit(struct rpc_task *task)
 
 	if (rpc_task_need_encode(task))
 		xprt_request_enqueue_transmit(task);
+	if (!test_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate))
+		goto out_wakeup;
 
 	if (!xprt_prepare_transmit(task))
 		goto out_retry;
@@ -2073,13 +2067,11 @@ call_bc_transmit(struct rpc_task *task)
 			"error: %d\n", task->tk_status);
 		goto out_done;
 	}
-	if (req->rq_connect_cookie != req->rq_xprt->connect_cookie)
-		req->rq_bytes_sent = 0;
 
 	xprt_transmit(task);
 
 	if (task->tk_status == -EAGAIN)
-		goto out_nospace;
+		goto out_retry;
 
 	xprt_end_transmit(task);
 	dprint_status(task);
@@ -2119,12 +2111,11 @@ call_bc_transmit(struct rpc_task *task)
 			"error: %d\n", task->tk_status);
 		break;
 	}
+out_wakeup:
 	rpc_wake_up_queued_task(&req->rq_xprt->pending, task);
 out_done:
 	task->tk_action = rpc_exit_task;
 	return;
-out_nospace:
-	req->rq_connect_cookie = req->rq_xprt->connect_cookie;
 out_retry:
 	task->tk_status = 0;
 }

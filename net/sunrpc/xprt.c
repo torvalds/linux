@@ -1390,6 +1390,12 @@ void xprt_free(struct rpc_xprt *xprt)
 }
 EXPORT_SYMBOL_GPL(xprt_free);
 
+static void
+xprt_init_connect_cookie(struct rpc_rqst *req, struct rpc_xprt *xprt)
+{
+	req->rq_connect_cookie = xprt_connect_cookie(xprt) - 1;
+}
+
 static __be32
 xprt_alloc_xid(struct rpc_xprt *xprt)
 {
@@ -1418,7 +1424,7 @@ xprt_request_init(struct rpc_task *task)
 	req->rq_xprt    = xprt;
 	req->rq_buffer  = NULL;
 	req->rq_xid	= xprt_alloc_xid(xprt);
-	req->rq_connect_cookie = xprt_connect_cookie(xprt) - 1;
+	xprt_init_connect_cookie(req, xprt);
 	req->rq_bytes_sent = 0;
 	req->rq_snd_buf.len = 0;
 	req->rq_snd_buf.buflen = 0;
@@ -1551,6 +1557,25 @@ void xprt_release(struct rpc_task *task)
 	else
 		xprt_free_bc_request(req);
 }
+
+#ifdef CONFIG_SUNRPC_BACKCHANNEL
+void
+xprt_init_bc_request(struct rpc_rqst *req, struct rpc_task *task)
+{
+	struct xdr_buf *xbufp = &req->rq_snd_buf;
+
+	task->tk_rqstp = req;
+	req->rq_task = task;
+	xprt_init_connect_cookie(req, req->rq_xprt);
+	/*
+	 * Set up the xdr_buf length.
+	 * This also indicates that the buffer is XDR encoded already.
+	 */
+	xbufp->len = xbufp->head[0].iov_len + xbufp->page_len +
+		xbufp->tail[0].iov_len;
+	req->rq_bytes_sent = 0;
+}
+#endif
 
 static void xprt_init(struct rpc_xprt *xprt, struct net *net)
 {
