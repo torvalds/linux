@@ -80,7 +80,7 @@
 		status = "okay";
 		spi-max-frequency = <25000000>;
 
-		can0: can@0 {
+		can@0 {
 			compatible = "microchip,mcp2515";
 			reg = <0>;
 			clocks = <&clk16m>;
