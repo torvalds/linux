@@ -933,6 +933,7 @@
 		non-removable;
 		vmmc-supply = <&reg_module_3v3>; /* VCC */
 		vqmmc-supply = <&reg_1v8_vio>; /* VCCQ */
+		mmc-ddr-1_8v;
 	};
 
 	/* EHCI instance 1: USB2_DP/N -> AX88772B */
