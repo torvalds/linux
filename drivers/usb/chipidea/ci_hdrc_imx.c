@@ -364,8 +364,7 @@ static void ci_hdrc_imx_shutdown(struct platform_device *pdev)
 	ci_hdrc_imx_remove(pdev);
 }
 
-#ifdef CONFIG_PM
-static int imx_controller_suspend(struct device *dev)
+static int __maybe_unused imx_controller_suspend(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 
@@ -377,7 +376,7 @@ static int imx_controller_suspend(struct device *dev)
 	return 0;
 }
 
-static int imx_controller_resume(struct device *dev)
+static int __maybe_unused imx_controller_resume(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 	int ret = 0;
@@ -408,8 +407,7 @@ clk_disable:
 	return ret;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int ci_hdrc_imx_suspend(struct device *dev)
+static int __maybe_unused ci_hdrc_imx_suspend(struct device *dev)
 {
 	int ret;
 
@@ -431,7 +429,7 @@ static int ci_hdrc_imx_suspend(struct device *dev)
 	return imx_controller_suspend(dev);
 }
 
-static int ci_hdrc_imx_resume(struct device *dev)
+static int __maybe_unused ci_hdrc_imx_resume(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 	int ret;
@@ -445,9 +443,8 @@ static int ci_hdrc_imx_resume(struct device *dev)
 
 	return ret;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-static int ci_hdrc_imx_runtime_suspend(struct device *dev)
+static int __maybe_unused ci_hdrc_imx_runtime_suspend(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 	int ret;
@@ -466,12 +463,10 @@ static int ci_hdrc_imx_runtime_suspend(struct device *dev)
 	return imx_controller_suspend(dev);
 }
 
-static int ci_hdrc_imx_runtime_resume(struct device *dev)
+static int __maybe_unused ci_hdrc_imx_runtime_resume(struct device *dev)
 {
 	return imx_controller_resume(dev);
 }
-
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops ci_hdrc_imx_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ci_hdrc_imx_suspend, ci_hdrc_imx_resume)
