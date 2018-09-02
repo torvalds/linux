@@ -2481,6 +2481,11 @@ static int parse_flow_flow_action(const union ib_flow_spec *ib_spec,
 			action->modify_id = maction->flow_action_raw.action_id;
 			return 0;
 		}
+		if (maction->flow_action_raw.sub_type ==
+		    MLX5_IB_FLOW_ACTION_DECAP) {
+			action->action |= MLX5_FLOW_CONTEXT_ACTION_DECAP;
+			return 0;
+		}
 		/* fall through */
 	default:
 		return -EOPNOTSUPP;
