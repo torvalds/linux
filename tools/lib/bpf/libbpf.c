@@ -2336,7 +2336,7 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 		bpf_program__set_expected_attach_type(prog,
 						      expected_attach_type);
 
-		if (!bpf_program__is_function_storage(prog, obj) && !first_prog)
+		if (!first_prog)
 			first_prog = prog;
 	}
 
