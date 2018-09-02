@@ -857,15 +857,14 @@ static void nfs_init_lock_context(struct nfs_lock_context *l_ctx)
 
 static struct nfs_lock_context *__nfs_find_lock_context(struct nfs_open_context *ctx)
 {
-	struct nfs_lock_context *head = &ctx->lock_context;
-	struct nfs_lock_context *pos = head;
+	struct nfs_lock_context *pos;
 
-	do {
+	list_for_each_entry_rcu(pos, &ctx->lock_context.list, list) {
 		if (pos->lockowner != current->files)
 			continue;
-		refcount_inc(&pos->count);
-		return pos;
-	} while ((pos = list_entry(pos->list.next, typeof(*pos), list)) != head);
+		if (refcount_inc_not_zero(&pos->count))
+			return pos;
+	}
 	return NULL;
 }
 
@@ -874,10 +873,10 @@ struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx)
 	struct nfs_lock_context *res, *new = NULL;
 	struct inode *inode = d_inode(ctx->dentry);
 
-	spin_lock(&inode->i_lock);
+	rcu_read_lock();
 	res = __nfs_find_lock_context(ctx);
+	rcu_read_unlock();
 	if (res == NULL) {
-		spin_unlock(&inode->i_lock);
 		new = kmalloc(sizeof(*new), GFP_KERNEL);
 		if (new == NULL)
 			return ERR_PTR(-ENOMEM);
@@ -885,14 +884,14 @@ struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx)
 		spin_lock(&inode->i_lock);
 		res = __nfs_find_lock_context(ctx);
 		if (res == NULL) {
-			list_add_tail(&new->list, &ctx->lock_context.list);
+			list_add_tail_rcu(&new->list, &ctx->lock_context.list);
 			new->open_context = ctx;
 			res = new;
 			new = NULL;
 		}
+		spin_unlock(&inode->i_lock);
+		kfree(new);
 	}
-	spin_unlock(&inode->i_lock);
-	kfree(new);
 	return res;
 }
 EXPORT_SYMBOL_GPL(nfs_get_lock_context);
@@ -904,9 +903,9 @@ void nfs_put_lock_context(struct nfs_lock_context *l_ctx)
 
 	if (!refcount_dec_and_lock(&l_ctx->count, &inode->i_lock))
 		return;
-	list_del(&l_ctx->list);
+	list_del_rcu(&l_ctx->list);
 	spin_unlock(&inode->i_lock);
-	kfree(l_ctx);
+	kfree_rcu(l_ctx, rcu_head);
 }
 EXPORT_SYMBOL_GPL(nfs_put_lock_context);
 
