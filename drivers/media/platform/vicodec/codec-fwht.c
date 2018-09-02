@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: LGPL-2.1+
 /*
  * Copyright 2016 Tom aan de Wiel
  * Copyright 2018 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
