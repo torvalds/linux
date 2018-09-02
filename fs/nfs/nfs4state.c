@@ -1437,8 +1437,8 @@ void nfs_inode_find_state_and_recover(struct inode *inode,
 	struct nfs4_state *state;
 	bool found = false;
 
-	spin_lock(&inode->i_lock);
-	list_for_each_entry(ctx, &nfsi->open_files, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(ctx, &nfsi->open_files, list) {
 		state = ctx->state;
 		if (state == NULL)
 			continue;
@@ -1456,7 +1456,7 @@ void nfs_inode_find_state_and_recover(struct inode *inode,
 		    nfs4_state_mark_reclaim_nograce(clp, state))
 			found = true;
 	}
-	spin_unlock(&inode->i_lock);
+	rcu_read_unlock();
 
 	nfs_inode_find_delegation_state_and_recover(inode, stateid);
 	if (found)
@@ -1469,13 +1469,13 @@ static void nfs4_state_mark_open_context_bad(struct nfs4_state *state)
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_open_context *ctx;
 
-	spin_lock(&inode->i_lock);
-	list_for_each_entry(ctx, &nfsi->open_files, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(ctx, &nfsi->open_files, list) {
 		if (ctx->state != state)
 			continue;
 		set_bit(NFS_CONTEXT_BAD, &ctx->flags);
 	}
-	spin_unlock(&inode->i_lock);
+	rcu_read_unlock();
 }
 
 static void nfs4_state_mark_recovery_failed(struct nfs4_state *state, int error)

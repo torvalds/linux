@@ -1933,21 +1933,39 @@ nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data)
 	return ret;
 }
 
-static struct nfs_open_context *nfs4_state_find_open_context(struct nfs4_state *state)
+static struct nfs_open_context *
+nfs4_state_find_open_context_mode(struct nfs4_state *state, fmode_t mode)
 {
 	struct nfs_inode *nfsi = NFS_I(state->inode);
 	struct nfs_open_context *ctx;
 
-	spin_lock(&state->inode->i_lock);
-	list_for_each_entry(ctx, &nfsi->open_files, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(ctx, &nfsi->open_files, list) {
 		if (ctx->state != state)
 			continue;
-		get_nfs_open_context(ctx);
-		spin_unlock(&state->inode->i_lock);
+		if ((ctx->mode & mode) != mode)
+			continue;
+		if (!get_nfs_open_context(ctx))
+			continue;
+		rcu_read_unlock();
 		return ctx;
 	}
-	spin_unlock(&state->inode->i_lock);
+	rcu_read_unlock();
 	return ERR_PTR(-ENOENT);
+}
+
+static struct nfs_open_context *
+nfs4_state_find_open_context(struct nfs4_state *state)
+{
+	struct nfs_open_context *ctx;
+
+	ctx = nfs4_state_find_open_context_mode(state, FMODE_READ|FMODE_WRITE);
+	if (!IS_ERR(ctx))
+		return ctx;
+	ctx = nfs4_state_find_open_context_mode(state, FMODE_WRITE);
+	if (!IS_ERR(ctx))
+		return ctx;
+	return nfs4_state_find_open_context_mode(state, FMODE_READ);
 }
 
 static struct nfs4_opendata *nfs4_open_recoverdata_alloc(struct nfs_open_context *ctx,

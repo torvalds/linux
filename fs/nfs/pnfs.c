@@ -1339,6 +1339,7 @@ bool pnfs_roc(struct inode *ino,
 	if (!nfs_have_layout(ino))
 		return false;
 retry:
+	rcu_read_lock();
 	spin_lock(&ino->i_lock);
 	lo = nfsi->layout;
 	if (!lo || !pnfs_layout_is_valid(lo) ||
@@ -1349,6 +1350,7 @@ retry:
 	pnfs_get_layout_hdr(lo);
 	if (test_bit(NFS_LAYOUT_RETURN_LOCK, &lo->plh_flags)) {
 		spin_unlock(&ino->i_lock);
+		rcu_read_unlock();
 		wait_on_bit(&lo->plh_flags, NFS_LAYOUT_RETURN,
 				TASK_UNINTERRUPTIBLE);
 		pnfs_put_layout_hdr(lo);
@@ -1362,7 +1364,7 @@ retry:
 		skip_read = true;
 	}
 
-	list_for_each_entry(ctx, &nfsi->open_files, list) {
+	list_for_each_entry_rcu(ctx, &nfsi->open_files, list) {
 		state = ctx->state;
 		if (state == NULL)
 			continue;
@@ -1410,6 +1412,7 @@ retry:
 
 out_noroc:
 	spin_unlock(&ino->i_lock);
+	rcu_read_unlock();
 	pnfs_layoutcommit_inode(ino, true);
 	if (roc) {
 		struct pnfs_layoutdriver_type *ld = NFS_SERVER(ino)->pnfs_curr_ld;

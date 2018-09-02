@@ -977,9 +977,9 @@ EXPORT_SYMBOL_GPL(alloc_nfs_open_context);
 
 struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx)
 {
-	if (ctx != NULL)
-		refcount_inc(&ctx->lock_context.count);
-	return ctx;
+	if (ctx != NULL && refcount_inc_not_zero(&ctx->lock_context.count))
+		return ctx;
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(get_nfs_open_context);
 
@@ -988,13 +988,13 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 	struct inode *inode = d_inode(ctx->dentry);
 	struct super_block *sb = ctx->dentry->d_sb;
 
-	if (!list_empty(&ctx->list)) {
-		if (!refcount_dec_and_lock(&ctx->lock_context.count, &inode->i_lock))
-			return;
-		list_del(&ctx->list);
-		spin_unlock(&inode->i_lock);
-	} else if (!refcount_dec_and_test(&ctx->lock_context.count))
+	if (!refcount_dec_and_test(&ctx->lock_context.count))
 		return;
+	if (!list_empty(&ctx->list)) {
+		spin_lock(&inode->i_lock);
+		list_del_rcu(&ctx->list);
+		spin_unlock(&inode->i_lock);
+	}
 	if (inode != NULL)
 		NFS_PROTO(inode)->close_context(ctx, is_sync);
 	if (ctx->cred != NULL)
@@ -1002,7 +1002,7 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 	dput(ctx->dentry);
 	nfs_sb_deactive(sb);
 	kfree(ctx->mdsthreshold);
-	kfree(ctx);
+	kfree_rcu(ctx, rcu_head);
 }
 
 void put_nfs_open_context(struct nfs_open_context *ctx)
@@ -1026,10 +1026,7 @@ void nfs_inode_attach_open_context(struct nfs_open_context *ctx)
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	spin_lock(&inode->i_lock);
-	if (ctx->mode & FMODE_WRITE)
-		list_add(&ctx->list, &nfsi->open_files);
-	else
-		list_add_tail(&ctx->list, &nfsi->open_files);
+	list_add_tail_rcu(&ctx->list, &nfsi->open_files);
 	spin_unlock(&inode->i_lock);
 }
 EXPORT_SYMBOL_GPL(nfs_inode_attach_open_context);
@@ -1050,16 +1047,17 @@ struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_c
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_open_context *pos, *ctx = NULL;
 
-	spin_lock(&inode->i_lock);
-	list_for_each_entry(pos, &nfsi->open_files, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(pos, &nfsi->open_files, list) {
 		if (cred != NULL && pos->cred != cred)
 			continue;
 		if ((pos->mode & (FMODE_READ|FMODE_WRITE)) != mode)
 			continue;
 		ctx = get_nfs_open_context(pos);
-		break;
+		if (ctx)
+			break;
 	}
-	spin_unlock(&inode->i_lock);
+	rcu_read_unlock();
 	return ctx;
 }
 
@@ -1077,9 +1075,6 @@ void nfs_file_clear_open_context(struct file *filp)
 		if (ctx->error < 0)
 			invalidate_inode_pages2(inode->i_mapping);
 		filp->private_data = NULL;
-		spin_lock(&inode->i_lock);
-		list_move_tail(&ctx->list, &NFS_I(inode)->open_files);
-		spin_unlock(&inode->i_lock);
 		put_nfs_open_context_sync(ctx);
 	}
 }
