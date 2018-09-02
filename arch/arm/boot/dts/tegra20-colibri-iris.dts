@@ -163,9 +163,11 @@
 		vbus-supply = <&reg_usbh_vbus>;
 	};
 
+	/* SD/MMC */
 	sdhci@c8000600 {
 		status = "okay";
 		bus-width = <4>;
+		cd-gpios = <&gpio TEGRA_GPIO(C, 7) GPIO_ACTIVE_LOW>; /* MMCD */
 		no-1-8-v;
 	};
 

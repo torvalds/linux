@@ -698,10 +698,6 @@
 		vbus-supply = <&reg_lan_v_bus>;
 	};
 
-	sdhci@c8000600 {
-		cd-gpios = <&gpio TEGRA_GPIO(C, 7) GPIO_ACTIVE_LOW>;
-	};
-
 	clocks {
 		compatible = "simple-bus";
 		#address-cells = <1>;
