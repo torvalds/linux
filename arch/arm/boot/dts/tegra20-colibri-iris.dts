@@ -29,6 +29,10 @@
 
 	pinmux@70000014 {
 		state_default: pinmux {
+			bl-on {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
 			ddc {
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
@@ -37,7 +41,35 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
+			i2c {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			lcd {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			lm1 {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
 			mmc {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			mmccd {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			pwm-a-b {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			pwm-c-d {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			ssp {
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
@@ -46,6 +78,14 @@
 			};
 
 			uart-b {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			uart-c {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			usbh-pen {
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 		};
