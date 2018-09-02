@@ -145,6 +145,7 @@
 	/* EHCI instance 0: USB1_DP/N -> USBC_P/N */
 	usb@c5000000 {
 		status = "okay";
+		dr_mode = "otg";
 	};
 
 	usb-phy@c5000000 {
