@@ -1328,19 +1328,11 @@ static bool nfs_file_has_writers(struct nfs_inode *nfsi)
 {
 	struct inode *inode = &nfsi->vfs_inode;
 
-	assert_spin_locked(&inode->i_lock);
-
 	if (!S_ISREG(inode->i_mode))
 		return false;
 	if (list_empty(&nfsi->open_files))
 		return false;
-	/* Note: This relies on nfsi->open_files being ordered with writers
-	 *       being placed at the head of the list.
-	 *       See nfs_inode_attach_open_context()
-	 */
-	return (list_first_entry(&nfsi->open_files,
-			struct nfs_open_context,
-			list)->mode & FMODE_WRITE) == FMODE_WRITE;
+	return inode_is_open_for_write(inode);
 }
 
 static bool nfs_file_has_buffered_writers(struct nfs_inode *nfsi)
