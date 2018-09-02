@@ -5,11 +5,6 @@
 	model = "Toradex Colibri T20 256/512 MB";
 	compatible = "toradex,colibri_t20-512", "nvidia,tegra20";
 
-	aliases {
-		rtc0 = "/i2c@7000d000/tps6586x@34";
-		rtc1 = "/rtc@7000e000";
-	};
-
 	memory@0 {
 		/*
 		 * Set memory to 256 MB to be safe as this could be used on
