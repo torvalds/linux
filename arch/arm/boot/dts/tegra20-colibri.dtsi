@@ -471,6 +471,7 @@
 		status = "okay";
 		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
 			GPIO_ACTIVE_LOW>;
+		vbus-supply = <&reg_lan_v_bus>;
 	};
 
 	sdhci@c8000600 {
