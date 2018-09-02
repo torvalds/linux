@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "tegra20.dtsi"
 
+/*
+ * Toradex Colibri T20 Module Device Tree
+ * Compatible for Revisions Colibri T20 256MB V1.1B, V1.2A;
+ * Colibri T20 256MB IT V1.2A; Colibri T20 512MB V1.1C, V1.2A;
+ * Colibri T20 512MB IT V1.2A
+ */
 / {
 	model = "Toradex Colibri T20 256/512 MB";
 	compatible = "toradex,colibri_t20-512", "nvidia,tegra20";
