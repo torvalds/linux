@@ -101,8 +101,7 @@
 	sdhci@c8000600 {
 		status = "okay";
 		bus-width = <4>;
-		vmmc-supply = <&vcc_sd_reg>;
-		vqmmc-supply = <&vcc_sd_reg>;
+		no-1-8-v;
 	};
 
 	regulators {
@@ -115,16 +114,6 @@
 			regulator-boot-on;
 			regulator-always-on;
 			gpio = <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_HIGH>;
-		};
-
-		vcc_sd_reg: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "vcc_sd";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-boot-on;
-			regulator-always-on;
 		};
 	};
 };
