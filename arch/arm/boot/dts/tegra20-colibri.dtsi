@@ -418,7 +418,7 @@
 		};
 	};
 
-	ac97: ac97@70002000 {
+	tegra_ac97: ac97@70002000 {
 		status = "okay";
 		nvidia,codec-reset-gpio =
 			<&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_HIGH>;
@@ -734,7 +734,7 @@
 			"LineIn", "LINEINL",
 			"LineIn", "LINEINR",
 			"Mic", "MIC1";
-		nvidia,ac97-controller = <&ac97>;
+		nvidia,ac97-controller = <&tegra_ac97>;
 		clocks = <&tegra_car TEGRA20_CLK_PLL_A>,
 			 <&tegra_car TEGRA20_CLK_PLL_A_OUT0>,
 			 <&tegra_car TEGRA20_CLK_CDEV1>;
