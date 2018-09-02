@@ -206,10 +206,10 @@
 
 	ac97: ac97@70002000 {
 		status = "okay";
-		nvidia,codec-reset-gpio = <&gpio TEGRA_GPIO(V, 0)
-			GPIO_ACTIVE_HIGH>;
-		nvidia,codec-sync-gpio = <&gpio TEGRA_GPIO(P, 0)
-			GPIO_ACTIVE_HIGH>;
+		nvidia,codec-reset-gpio =
+			<&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_HIGH>;
+		nvidia,codec-sync-gpio =
+			<&gpio TEGRA_GPIO(P, 0) GPIO_ACTIVE_HIGH>;
 	};
 
 	nand-controller@70008000 {
@@ -254,12 +254,9 @@
 			compatible = "ti,tps6586x";
 			reg = <0x34>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
-
 			ti,system-power-controller;
-
 			#gpio-cells = <2>;
 			gpio-controller;
-
 			sys-supply = <&reg_module_3v3>;
 			vin-sm0-supply = <&reg_3v3_vsys>;
 			vin-sm1-supply = <&reg_3v3_vsys>;
@@ -468,8 +465,8 @@
 
 	usb-phy@c5004000 {
 		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
-			GPIO_ACTIVE_LOW>;
+		nvidia,phy-reset-gpio =
+			<&gpio TEGRA_GPIO(V, 1) GPIO_ACTIVE_LOW>;
 		vbus-supply = <&reg_lan_v_bus>;
 	};
 
@@ -509,18 +506,15 @@
 
 	sound {
 		compatible = "nvidia,tegra-audio-wm9712-colibri_t20",
-			         "nvidia,tegra-audio-wm9712";
+			     "nvidia,tegra-audio-wm9712";
 		nvidia,model = "Colibri T20 AC97 Audio";
-
 		nvidia,audio-routing =
 			"Headphone", "HPOUTL",
 			"Headphone", "HPOUTR",
 			"LineIn", "LINEINL",
 			"LineIn", "LINEINR",
 			"Mic", "MIC1";
-
 		nvidia,ac97-controller = <&ac97>;
-
 		clocks = <&tegra_car TEGRA20_CLK_PLL_A>,
 			 <&tegra_car TEGRA20_CLK_PLL_A_OUT0>,
 			 <&tegra_car TEGRA20_CLK_CDEV1>;
