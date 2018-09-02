@@ -487,7 +487,7 @@ static struct platform_driver ci_hdrc_imx_driver = {
 module_platform_driver(ci_hdrc_imx_driver);
 
 MODULE_ALIAS("platform:imx-usb");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("CI HDRC i.MX USB binding");
 MODULE_AUTHOR("Marek Vasut <marex@denx.de>");
 MODULE_AUTHOR("Richard Zhao <richard.zhao@freescale.com>");

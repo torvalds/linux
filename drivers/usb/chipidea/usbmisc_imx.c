@@ -635,6 +635,6 @@ static struct platform_driver usbmisc_imx_driver = {
 module_platform_driver(usbmisc_imx_driver);
 
 MODULE_ALIAS("platform:usbmisc-imx");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("driver for imx usb non-core registers");
 MODULE_AUTHOR("Richard Zhao <richard.zhao@freescale.com>");
