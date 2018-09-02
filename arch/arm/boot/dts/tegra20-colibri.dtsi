@@ -8,9 +8,6 @@
  * Colibri T20 512MB IT V1.2A
  */
 / {
-	model = "Toradex Colibri T20";
-	compatible = "toradex,colibri_t20", "nvidia,tegra20";
-
 	memory@0 {
 		/*
 		 * Set memory to 256 MB to be safe as this could be used on
