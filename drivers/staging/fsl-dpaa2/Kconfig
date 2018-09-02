@@ -9,14 +9,6 @@ config FSL_DPAA2
 	  Build drivers for Freescale DataPath Acceleration
 	  Architecture (DPAA2) family of SoCs.
 
-config FSL_DPAA2_ETH
-	tristate "Freescale DPAA2 Ethernet"
-	depends on FSL_DPAA2 && FSL_MC_DPIO
-	depends on NETDEVICES && ETHERNET
-	---help---
-	  Ethernet driver for Freescale DPAA2 SoCs, using the
-	  Freescale MC bus driver
-
 config FSL_DPAA2_ETHSW
 	tristate "Freescale DPAA2 Ethernet Switch"
 	depends on FSL_DPAA2

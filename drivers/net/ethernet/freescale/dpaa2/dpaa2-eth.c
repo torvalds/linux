@@ -1143,34 +1143,6 @@ static int dpaa2_eth_stop(struct net_device *net_dev)
 	return 0;
 }
 
-static int dpaa2_eth_init(struct net_device *net_dev)
-{
-	u64 supported = 0;
-	u64 not_supported = 0;
-	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
-	u32 options = priv->dpni_attrs.options;
-
-	/* Capabilities listing */
-	supported |= IFF_LIVE_ADDR_CHANGE;
-
-	if (options & DPNI_OPT_NO_MAC_FILTER)
-		not_supported |= IFF_UNICAST_FLT;
-	else
-		supported |= IFF_UNICAST_FLT;
-
-	net_dev->priv_flags |= supported;
-	net_dev->priv_flags &= ~not_supported;
-
-	/* Features */
-	net_dev->features = NETIF_F_RXCSUM |
-			    NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			    NETIF_F_SG | NETIF_F_HIGHDMA |
-			    NETIF_F_LLTX;
-	net_dev->hw_features = net_dev->features;
-
-	return 0;
-}
-
 static int dpaa2_eth_set_addr(struct net_device *net_dev, void *addr)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
@@ -1418,7 +1390,6 @@ static const struct net_device_ops dpaa2_eth_ops = {
 	.ndo_open = dpaa2_eth_open,
 	.ndo_start_xmit = dpaa2_eth_tx,
 	.ndo_stop = dpaa2_eth_stop,
-	.ndo_init = dpaa2_eth_init,
 	.ndo_set_mac_address = dpaa2_eth_set_addr,
 	.ndo_get_stats64 = dpaa2_eth_get_stats,
 	.ndo_set_rx_mode = dpaa2_eth_set_rx_mode,
@@ -2316,11 +2287,14 @@ static int netdev_init(struct net_device *net_dev)
 {
 	struct device *dev = net_dev->dev.parent;
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	u32 options = priv->dpni_attrs.options;
+	u64 supported = 0, not_supported = 0;
 	u8 bcast_addr[ETH_ALEN];
 	u8 num_queues;
 	int err;
 
 	net_dev->netdev_ops = &dpaa2_eth_ops;
+	net_dev->ethtool_ops = &dpaa2_ethtool_ops;
 
 	err = set_mac_addr(priv);
 	if (err)
@@ -2356,12 +2330,23 @@ static int netdev_init(struct net_device *net_dev)
 		return err;
 	}
 
-	/* Our .ndo_init will be called herein */
-	err = register_netdev(net_dev);
-	if (err < 0) {
-		dev_err(dev, "register_netdev() failed\n");
-		return err;
-	}
+	/* Capabilities listing */
+	supported |= IFF_LIVE_ADDR_CHANGE;
+
+	if (options & DPNI_OPT_NO_MAC_FILTER)
+		not_supported |= IFF_UNICAST_FLT;
+	else
+		supported |= IFF_UNICAST_FLT;
+
+	net_dev->priv_flags |= supported;
+	net_dev->priv_flags &= ~not_supported;
+
+	/* Features */
+	net_dev->features = NETIF_F_RXCSUM |
+			    NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			    NETIF_F_SG | NETIF_F_HIGHDMA |
+			    NETIF_F_LLTX;
+	net_dev->hw_features = net_dev->features;
 
 	return 0;
 }
@@ -2561,28 +2546,36 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	if (err)
 		goto err_alloc_rings;
 
-	net_dev->ethtool_ops = &dpaa2_ethtool_ops;
-
 	err = setup_irqs(dpni_dev);
 	if (err) {
 		netdev_warn(net_dev, "Failed to set link interrupt, fall back to polling\n");
 		priv->poll_thread = kthread_run(poll_link_state, priv,
 						"%s_poll_link", net_dev->name);
 		if (IS_ERR(priv->poll_thread)) {
-			netdev_err(net_dev, "Error starting polling thread\n");
+			dev_err(dev, "Error starting polling thread\n");
 			goto err_poll_thread;
 		}
 		priv->do_link_poll = true;
 	}
 
+	err = register_netdev(net_dev);
+	if (err < 0) {
+		dev_err(dev, "register_netdev() failed\n");
+		goto err_netdev_reg;
+	}
+
 	dev_info(dev, "Probed interface %s\n", net_dev->name);
 	return 0;
 
+err_netdev_reg:
+	if (priv->do_link_poll)
+		kthread_stop(priv->poll_thread);
+	else
+		fsl_mc_free_irqs(dpni_dev);
 err_poll_thread:
 	free_rings(priv);
 err_alloc_rings:
 err_csum:
-	unregister_netdev(net_dev);
 err_netdev_init:
 	free_percpu(priv->percpu_extras);
 err_alloc_percpu_extras:
