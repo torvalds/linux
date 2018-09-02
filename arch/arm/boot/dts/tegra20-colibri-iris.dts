@@ -98,10 +98,12 @@
 		};
 	};
 
+	/* Colibri UART-A */
 	serial@70006000 {
 		status = "okay";
 	};
 
+	/* Colibri UART-B */
 	serial@70006300 {
 		status = "okay";
 	};
