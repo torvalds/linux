@@ -2292,7 +2292,7 @@ static const struct bpf_func_proto bpf_msg_cork_bytes_proto = {
 BPF_CALL_4(bpf_msg_pull_data,
 	   struct sk_msg_buff *, msg, u32, start, u32, end, u64, flags)
 {
-	unsigned int len = 0, offset = 0, copy = 0;
+	unsigned int len = 0, offset = 0, copy = 0, poffset = 0;
 	int bytes = end - start, bytes_sg_total;
 	struct scatterlist *sg = msg->sg_data;
 	int first_sg, last_sg, i, shift;
@@ -2348,16 +2348,15 @@ BPF_CALL_4(bpf_msg_pull_data,
 	if (unlikely(!page))
 		return -ENOMEM;
 	p = page_address(page);
-	offset = 0;
 
 	i = first_sg;
 	do {
 		from = sg_virt(&sg[i]);
 		len = sg[i].length;
-		to = p + offset;
+		to = p + poffset;
 
 		memcpy(to, from, len);
-		offset += len;
+		poffset += len;
 		sg[i].length = 0;
 		put_page(sg_page(&sg[i]));
 
