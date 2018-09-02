@@ -3042,14 +3042,15 @@ enum flow_table_type {
 static struct mlx5_ib_flow_prio *_get_prio(struct mlx5_flow_namespace *ns,
 					   struct mlx5_ib_flow_prio *prio,
 					   int priority,
-					   int num_entries, int num_groups)
+					   int num_entries, int num_groups,
+					   u32 flags)
 {
 	struct mlx5_flow_table *ft;
 
 	ft = mlx5_create_auto_grouped_flow_table(ns, priority,
 						 num_entries,
 						 num_groups,
-						 0, 0);
+						 0, flags);
 	if (IS_ERR(ft))
 		return ERR_CAST(ft);
 
@@ -3069,6 +3070,7 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 	int max_table_size;
 	int num_entries;
 	int num_groups;
+	u32 flags = 0;
 	int priority;
 
 	max_table_size = BIT(MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
@@ -3085,12 +3087,18 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 		if (ft_type == MLX5_IB_FT_RX) {
 			fn_type = MLX5_FLOW_NAMESPACE_BYPASS;
 			prio = &dev->flow_db->prios[priority];
+			if (!dev->rep &&
+			    MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev, decap))
+				flags |= MLX5_FLOW_TABLE_TUNNEL_EN_DECAP;
 		} else {
 			max_table_size =
 				BIT(MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev,
 							      log_max_ft_size));
 			fn_type = MLX5_FLOW_NAMESPACE_EGRESS;
 			prio = &dev->flow_db->egress_prios[priority];
+			if (!dev->rep &&
+			    MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev, reformat))
+				flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
 		}
 		ns = mlx5_get_flow_namespace(dev->mdev, fn_type);
 		num_entries = MLX5_FS_MAX_ENTRIES;
@@ -3126,7 +3134,8 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 
 	ft = prio->flow_table;
 	if (!ft)
-		return _get_prio(ns, prio, priority, num_entries, num_groups);
+		return _get_prio(ns, prio, priority, num_entries, num_groups,
+				 flags);
 
 	return prio;
 }
@@ -3710,7 +3719,7 @@ static struct mlx5_ib_flow_prio *_get_flow_table(struct mlx5_ib_dev *dev,
 		return prio;
 
 	return _get_prio(ns, prio, priority, MLX5_FS_MAX_ENTRIES,
-			 MLX5_FS_MAX_TYPES);
+			 MLX5_FS_MAX_TYPES, 0);
 }
 
 static struct mlx5_ib_flow_handler *
