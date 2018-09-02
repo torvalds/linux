@@ -103,6 +103,11 @@
 		status = "okay";
 	};
 
+	/* Colibri UART-C */
+	serial@70006040 {
+		status = "okay";
+	};
+
 	/* Colibri UART-B */
 	serial@70006300 {
 		status = "okay";
