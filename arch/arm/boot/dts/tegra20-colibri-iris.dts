@@ -83,6 +83,7 @@
 		status = "okay";
 	};
 
+	/* EHCI instance 0: USB1_DP/N -> USBC_P/N */
 	usb@c5000000 {
 		status = "okay";
 	};
@@ -92,6 +93,7 @@
 		vbus-supply = <&reg_usbc_vbus>;
 	};
 
+	/* EHCI instance 2: USB3_DP/N -> USBH_P/N */
 	usb@c5008000 {
 		status = "okay";
 	};
