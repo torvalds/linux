@@ -2474,6 +2474,14 @@ static int parse_flow_flow_action(const union ib_flow_spec *ib_spec,
 			MLX5_FLOW_CONTEXT_ACTION_ENCRYPT :
 			MLX5_FLOW_CONTEXT_ACTION_DECRYPT;
 		return 0;
+	case IB_FLOW_ACTION_UNSPECIFIED:
+		if (maction->flow_action_raw.sub_type ==
+		    MLX5_IB_FLOW_ACTION_MODIFY_HEADER) {
+			action->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+			action->modify_id = maction->flow_action_raw.action_id;
+			return 0;
+		}
+		/* fall through */
 	default:
 		return -EOPNOTSUPP;
 	}
