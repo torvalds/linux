@@ -898,15 +898,32 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		      struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	u32 max_chain = mlx5_eswitch_get_chain_range(esw);
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
+	u16 max_prio = mlx5_eswitch_get_prio_range(esw);
 	struct net_device *out_dev, *encap_dev = NULL;
 	struct mlx5_fc *counter = NULL;
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_priv *out_priv;
 	int err = 0, encap_err = 0;
 
-	/* keep the old behaviour, use same prio for all offloaded rules */
-	attr->prio = 1;
+	/* if prios are not supported, keep the old behaviour of using same prio
+	 * for all offloaded rules.
+	 */
+	if (!mlx5_eswitch_prios_supported(esw))
+		attr->prio = 1;
+
+	if (attr->chain > max_chain) {
+		NL_SET_ERR_MSG(extack, "Requested chain is out of supported range");
+		err = -EOPNOTSUPP;
+		goto err_max_prio_chain;
+	}
+
+	if (attr->prio > max_prio) {
+		NL_SET_ERR_MSG(extack, "Requested priority is out of supported range");
+		err = -EOPNOTSUPP;
+		goto err_max_prio_chain;
+	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT) {
 		out_dev = __dev_get_by_index(dev_net(priv->netdev),
@@ -975,6 +992,7 @@ err_add_vlan:
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT)
 		mlx5e_detach_encap(priv, flow);
 err_attach_encap:
+err_max_prio_chain:
 	return err;
 }
 
@@ -2826,6 +2844,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				struct mlx5e_tc_flow *flow,
 				struct netlink_ext_ack *extack)
 {
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct ip_tunnel_info *info = NULL;
@@ -2934,6 +2953,25 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 			continue;
 		}
 
+		if (is_tcf_gact_goto_chain(a)) {
+			u32 dest_chain = tcf_gact_goto_chain_index(a);
+			u32 max_chain = mlx5_eswitch_get_chain_range(esw);
+
+			if (dest_chain <= attr->chain) {
+				NL_SET_ERR_MSG(extack, "Goto earlier chain isn't supported");
+				return -EOPNOTSUPP;
+			}
+			if (dest_chain > max_chain) {
+				NL_SET_ERR_MSG(extack, "Requested destination chain is out of supported range");
+				return -EOPNOTSUPP;
+			}
+			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			attr->dest_chain = dest_chain;
+
+			continue;
+		}
+
 		return -EINVAL;
 	}
 
@@ -3036,6 +3074,8 @@ mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 	if (err)
 		goto out;
 
+	flow->esw_attr->chain = f->common.chain_index;
+	flow->esw_attr->prio = TC_H_MAJ(f->common.prio) >> 16;
 	err = parse_tc_fdb_actions(priv, f->exts, parse_attr, flow, extack);
 	if (err)
 		goto err_free;
@@ -3069,6 +3109,10 @@ mlx5e_add_nic_flow(struct mlx5e_priv *priv,
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5e_tc_flow *flow;
 	int attr_size, err;
+
+	/* multi-chain not supported for NIC rules */
+	if (!tc_cls_can_offload_and_chain0(priv->netdev, &f->common))
+		return -EOPNOTSUPP;
 
 	flow_flags |= MLX5E_TC_FLOW_NIC;
 	attr_size  = sizeof(struct mlx5_nic_flow_attr);
@@ -3109,6 +3153,9 @@ mlx5e_tc_add_flow(struct mlx5e_priv *priv,
 	int err;
 
 	get_flags(flags, &flow_flags);
+
+	if (!tc_can_offload_extack(priv->netdev, f->common.extack))
+		return -EOPNOTSUPP;
 
 	if (esw && esw->mode == SRIOV_OFFLOADS)
 		err = mlx5e_add_fdb_flow(priv, f, flow_flags, flow);

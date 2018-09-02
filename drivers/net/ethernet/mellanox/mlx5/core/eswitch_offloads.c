@@ -71,7 +71,7 @@ u16 mlx5_eswitch_get_prio_range(struct mlx5_eswitch *esw)
 	if (esw->fdb_table.flags & ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED)
 		return FDB_MAX_PRIO;
 
-	return U16_MAX;
+	return 1;
 }
 
 struct mlx5_flow_handle *
