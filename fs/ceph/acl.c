@@ -104,6 +104,11 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	struct timespec64 old_ctime = inode->i_ctime;
 	umode_t new_mode = inode->i_mode, old_mode = inode->i_mode;
 
+	if (ceph_snap(inode) != CEPH_NOSNAP) {
+		ret = -EROFS;
+		goto out;
+	}
+
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		name = XATTR_NAME_POSIX_ACL_ACCESS;
@@ -136,11 +141,6 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		ret = posix_acl_to_xattr(&init_user_ns, acl, value, size);
 		if (ret < 0)
 			goto out_free;
-	}
-
-	if (ceph_snap(inode) != CEPH_NOSNAP) {
-		ret = -EROFS;
-		goto out_free;
 	}
 
 	if (new_mode != old_mode) {
