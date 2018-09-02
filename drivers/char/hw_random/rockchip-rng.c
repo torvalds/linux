@@ -90,7 +90,6 @@ static int rk_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	reg_ctrl |= CRYPTO_RNG_SLOWER_SOC_RING_0;
 	reg_ctrl |= CRYPTO_RNG_ENABLE;
 	reg_ctrl |= CRYPTO_RNG_START;
-	reg_ctrl |= CRYPTO_WRITE_MASK_ALL;
 
 	rk_rng_writel(rk_rng, reg_ctrl | CRYPTO_WRITE_MASK_ALL, CRYPTO_RNG_CTL);
 
@@ -183,8 +182,12 @@ static int rk_rng_runtime_resume(struct device *dev)
 	return rk_rng_init(&rk_rng->rng);
 }
 
-static UNIVERSAL_DEV_PM_OPS(rk_rng_pm_ops, rk_rng_runtime_suspend,
-			    rk_rng_runtime_resume, NULL);
+static const struct dev_pm_ops rk_rng_pm_ops = {
+	SET_RUNTIME_PM_OPS(rk_rng_runtime_suspend,
+				rk_rng_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+};
 
 #endif
 
