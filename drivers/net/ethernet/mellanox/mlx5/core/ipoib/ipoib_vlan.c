@@ -146,6 +146,7 @@ static const struct net_device_ops mlx5i_pkey_netdev_ops = {
 	.ndo_open                = mlx5i_pkey_open,
 	.ndo_stop                = mlx5i_pkey_close,
 	.ndo_init                = mlx5i_pkey_dev_init,
+	.ndo_get_stats64         = mlx5i_get_stats,
 	.ndo_uninit              = mlx5i_pkey_dev_cleanup,
 	.ndo_change_mtu          = mlx5i_pkey_change_mtu,
 	.ndo_do_ioctl            = mlx5i_pkey_ioctl,
