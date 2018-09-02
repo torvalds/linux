@@ -1777,7 +1777,7 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 out:
 	return ERR_PTR(ret);
 out_return_state:
-	atomic_inc(&state->count);
+	refcount_inc(&state->count);
 	return state;
 }
 
@@ -1849,7 +1849,7 @@ _nfs4_opendata_reclaim_to_nfs4_state(struct nfs4_opendata *data)
 update:
 	update_open_stateid(state, &data->o_res.stateid, NULL,
 			    data->o_arg.fmode);
-	atomic_inc(&state->count);
+	refcount_inc(&state->count);
 
 	return state;
 }
@@ -1887,7 +1887,7 @@ nfs4_opendata_find_nfs4_state(struct nfs4_opendata *data)
 		return ERR_CAST(inode);
 	if (data->state != NULL && data->state->inode == inode) {
 		state = data->state;
-		atomic_inc(&state->count);
+		refcount_inc(&state->count);
 	} else
 		state = nfs4_get_open_state(inode, data->owner);
 	iput(inode);
@@ -1978,7 +1978,7 @@ static struct nfs4_opendata *nfs4_open_recoverdata_alloc(struct nfs_open_context
 	if (opendata == NULL)
 		return ERR_PTR(-ENOMEM);
 	opendata->state = state;
-	atomic_inc(&state->count);
+	refcount_inc(&state->count);
 	return opendata;
 }
 

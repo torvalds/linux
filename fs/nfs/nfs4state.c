@@ -655,7 +655,7 @@ nfs4_alloc_open_state(void)
 	state = kzalloc(sizeof(*state), GFP_NOFS);
 	if (!state)
 		return NULL;
-	atomic_set(&state->count, 1);
+	refcount_set(&state->count, 1);
 	INIT_LIST_HEAD(&state->lock_states);
 	spin_lock_init(&state->state_lock);
 	seqlock_init(&state->seqlock);
@@ -689,7 +689,7 @@ __nfs4_find_state_byowner(struct inode *inode, struct nfs4_state_owner *owner)
 			continue;
 		if (!nfs4_valid_open_stateid(state))
 			continue;
-		if (atomic_inc_not_zero(&state->count))
+		if (refcount_inc_not_zero(&state->count))
 			return state;
 	}
 	return NULL;
@@ -743,7 +743,7 @@ void nfs4_put_open_state(struct nfs4_state *state)
 	struct inode *inode = state->inode;
 	struct nfs4_state_owner *owner = state->owner;
 
-	if (!atomic_dec_and_lock(&state->count, &owner->so_lock))
+	if (!refcount_dec_and_lock(&state->count, &owner->so_lock))
 		return;
 	spin_lock(&inode->i_lock);
 	list_del_rcu(&state->inode_states);
@@ -1573,7 +1573,7 @@ restart:
 			continue;
 		if (state->state == 0)
 			continue;
-		atomic_inc(&state->count);
+		refcount_inc(&state->count);
 		spin_unlock(&sp->so_lock);
 		status = ops->recover_open(sp, state);
 		if (status >= 0) {
