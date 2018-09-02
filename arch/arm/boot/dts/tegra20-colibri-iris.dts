@@ -29,23 +29,23 @@
 
 	pinmux@70000014 {
 		state_default: pinmux {
-			hdint {
+			ddc {
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
-			i2cddc {
+			hotplug-detect {
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
-			sdio4 {
+			mmc {
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
-			uarta {
+			uart-a {
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
-			uartd {
+			uart-b {
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 		};
