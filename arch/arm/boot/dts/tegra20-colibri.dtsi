@@ -598,6 +598,14 @@
 		nvidia,core-pwr-good-time = <3845 3845>;
 		nvidia,core-pwr-off-time = <3875>;
 		nvidia,sys-clock-req-active-high;
+
+		/* Set SLEEP MODE bit in SUPPLYENE register of TPS658643 PMIC */
+		i2c-thermtrip {
+			nvidia,i2c-controller-id = <3>;
+			nvidia,bus-addr = <0x34>;
+			nvidia,reg-addr = <0x14>;
+			nvidia,reg-data = <0x8>;
+		};
 	};
 
 	memory-controller@7000f400 {
