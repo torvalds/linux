@@ -5,8 +5,8 @@
 #include "tegra20-colibri.dtsi"
 
 / {
-	model = "Toradex Colibri T20 256/512 MB on Iris";
-	compatible = "toradex,iris", "toradex,colibri_t20-512", "nvidia,tegra20";
+	model = "Toradex Colibri T20 on Iris";
+	compatible = "toradex,iris", "toradex,colibri_t20", "nvidia,tegra20";
 
 	aliases {
 		rtc0 = "/i2c@7000c000/rtc@68";
