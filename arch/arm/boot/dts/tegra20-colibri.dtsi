@@ -584,7 +584,8 @@
 			};
 		};
 
-		temperature-sensor@4c {
+		/* LM95245 temperature sensor */
+		temp-sensor@4c {
 			compatible = "national,lm95245";
 			reg = <0x4c>;
 		};
