@@ -684,7 +684,7 @@ __nfs4_find_state_byowner(struct inode *inode, struct nfs4_state_owner *owner)
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs4_state *state;
 
-	list_for_each_entry(state, &nfsi->open_states, inode_states) {
+	list_for_each_entry_rcu(state, &nfsi->open_states, inode_states) {
 		if (state->owner != owner)
 			continue;
 		if (!nfs4_valid_open_stateid(state))
@@ -698,7 +698,7 @@ __nfs4_find_state_byowner(struct inode *inode, struct nfs4_state_owner *owner)
 static void
 nfs4_free_open_state(struct nfs4_state *state)
 {
-	kfree(state);
+	kfree_rcu(state, rcu_head);
 }
 
 struct nfs4_state *
@@ -707,9 +707,9 @@ nfs4_get_open_state(struct inode *inode, struct nfs4_state_owner *owner)
 	struct nfs4_state *state, *new;
 	struct nfs_inode *nfsi = NFS_I(inode);
 
-	spin_lock(&inode->i_lock);
+	rcu_read_lock();
 	state = __nfs4_find_state_byowner(inode, owner);
-	spin_unlock(&inode->i_lock);
+	rcu_read_unlock();
 	if (state)
 		goto out;
 	new = nfs4_alloc_open_state();
@@ -720,7 +720,7 @@ nfs4_get_open_state(struct inode *inode, struct nfs4_state_owner *owner)
 		state = new;
 		state->owner = owner;
 		atomic_inc(&owner->so_count);
-		list_add(&state->inode_states, &nfsi->open_states);
+		list_add_rcu(&state->inode_states, &nfsi->open_states);
 		ihold(inode);
 		state->inode = inode;
 		spin_unlock(&inode->i_lock);
@@ -746,7 +746,7 @@ void nfs4_put_open_state(struct nfs4_state *state)
 	if (!atomic_dec_and_lock(&state->count, &owner->so_lock))
 		return;
 	spin_lock(&inode->i_lock);
-	list_del(&state->inode_states);
+	list_del_rcu(&state->inode_states);
 	list_del(&state->open_states);
 	spin_unlock(&inode->i_lock);
 	spin_unlock(&owner->so_lock);

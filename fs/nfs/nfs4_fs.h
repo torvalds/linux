@@ -191,6 +191,7 @@ struct nfs4_state {
 	atomic_t count;
 
 	wait_queue_head_t waitq;
+	struct rcu_head rcu_head;
 };
 
 
