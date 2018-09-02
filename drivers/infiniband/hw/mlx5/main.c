@@ -2891,7 +2891,7 @@ is_valid_esp_aes_gcm(struct mlx5_core_dev *mdev,
 	 * rules would be supported, always return VALID_SPEC_NA.
 	 */
 	if (!is_crypto)
-		return egress ? VALID_SPEC_INVALID : VALID_SPEC_NA;
+		return VALID_SPEC_NA;
 
 	return is_crypto && is_ipsec &&
 		(!egress || (!is_drop && !flow_act->has_flow_tag)) ?
@@ -3066,21 +3066,27 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 	max_table_size = BIT(MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
 						       log_max_ft_size));
 	if (flow_attr->type == IB_FLOW_ATTR_NORMAL) {
-		if (ft_type == MLX5_IB_FT_TX)
-			priority = 0;
-		else if (flow_is_multicast_only(flow_attr) &&
-			 !dont_trap)
+		enum mlx5_flow_namespace_type fn_type;
+
+		if (flow_is_multicast_only(flow_attr) &&
+		    !dont_trap)
 			priority = MLX5_IB_FLOW_MCAST_PRIO;
 		else
 			priority = ib_prio_to_core_prio(flow_attr->priority,
 							dont_trap);
-		ns = mlx5_get_flow_namespace(dev->mdev,
-					     ft_type == MLX5_IB_FT_TX ?
-					     MLX5_FLOW_NAMESPACE_EGRESS :
-					     MLX5_FLOW_NAMESPACE_BYPASS);
+		if (ft_type == MLX5_IB_FT_RX) {
+			fn_type = MLX5_FLOW_NAMESPACE_BYPASS;
+			prio = &dev->flow_db->prios[priority];
+		} else {
+			max_table_size =
+				BIT(MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev,
+							      log_max_ft_size));
+			fn_type = MLX5_FLOW_NAMESPACE_EGRESS;
+			prio = &dev->flow_db->egress_prios[priority];
+		}
+		ns = mlx5_get_flow_namespace(dev->mdev, fn_type);
 		num_entries = MLX5_FS_MAX_ENTRIES;
 		num_groups = MLX5_FS_MAX_TYPES;
-		prio = &dev->flow_db->prios[priority];
 	} else if (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||
 		   flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT) {
 		ns = mlx5_get_flow_namespace(dev->mdev,
@@ -3277,6 +3283,9 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 	bool is_egress = flow_attr->flags & IB_FLOW_ATTR_FLAGS_EGRESS;
 
 	if (!is_valid_attr(dev->mdev, flow_attr))
+		return ERR_PTR(-EINVAL);
+
+	if (dev->rep && is_egress)
 		return ERR_PTR(-EINVAL);
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
