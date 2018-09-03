@@ -1839,7 +1839,7 @@ int ath10k_pci_hif_map_service_to_pipe(struct ath10k *ar, u16 service_id,
 		}
 	}
 
-	if (WARN_ON(!ul_set || !dl_set))
+	if (!ul_set || !dl_set)
 		return -ENOENT;
 
 	return 0;
