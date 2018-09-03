@@ -182,12 +182,6 @@ extern int SMB2_echo(struct TCP_Server_Info *server);
 extern int SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 				u64 persistent_fid, u64 volatile_fid, int index,
 				struct cifs_search_info *srch_inf);
-extern int SMB2_rename(const unsigned int xid, struct cifs_tcon *tcon,
-		       u64 persistent_fid, u64 volatile_fid,
-		       __le16 *target_file);
-extern int SMB2_set_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
-			     u64 persistent_fid, u64 volatile_fid,
-			     __le16 *target_file);
 extern int SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid, u32 pid,
 			__le64 *eof);
