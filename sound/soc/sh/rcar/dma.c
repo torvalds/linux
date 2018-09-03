@@ -298,16 +298,26 @@ static struct rsnd_mod_ops rsnd_dmaen_ops = {
  *		Audio DMAC peri peri
  */
 static const u8 gen2_id_table_ssiu[] = {
-	0x00, /* SSI00 */
-	0x04, /* SSI10 */
-	0x08, /* SSI20 */
-	0x0c, /* SSI3  */
-	0x0d, /* SSI4  */
-	0x0e, /* SSI5  */
-	0x0f, /* SSI6  */
-	0x10, /* SSI7  */
-	0x11, /* SSI8  */
-	0x12, /* SSI90 */
+	/* SSI00 ~ SSI07 */
+	0x00, 0x01, 0x02, 0x03, 0x39, 0x3a, 0x3b, 0x3c,
+	/* SSI10 ~ SSI17 */
+	0x04, 0x05, 0x06, 0x07, 0x3d, 0x3e, 0x3f, 0x40,
+	/* SSI20 ~ SSI27 */
+	0x08, 0x09, 0x0a, 0x0b, 0x41, 0x42, 0x43, 0x44,
+	/* SSI30 ~ SSI37 */
+	0x0c, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b,
+	/* SSI40 ~ SSI47 */
+	0x0d, 0x4c, 0x4d, 0x4e, 0x4f, 0x50, 0x51, 0x52,
+	/* SSI5 */
+	0x0e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/* SSI6 */
+	0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/* SSI7 */
+	0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/* SSI8 */
+	0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/* SSI90 ~ SSI97 */
+	0x12, 0x13, 0x14, 0x15, 0x53, 0x54, 0x55, 0x56,
 };
 static const u8 gen2_id_table_scu[] = {
 	0x2d, /* SCU_SRCI0 */
@@ -333,18 +343,23 @@ static u32 rsnd_dmapp_get_id(struct rsnd_dai_stream *io,
 	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
 	struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
 	const u8 *entry = NULL;
-	int id = rsnd_mod_id(mod);
+	int id = 255;
 	int size = 0;
 
 	if (mod == ssi) {
+		int busif = rsnd_ssi_get_busif(io);
+
 		entry = gen2_id_table_ssiu;
 		size = ARRAY_SIZE(gen2_id_table_ssiu);
+		id = (rsnd_mod_id(mod) * 8) + busif;
 	} else if (mod == src) {
 		entry = gen2_id_table_scu;
 		size = ARRAY_SIZE(gen2_id_table_scu);
+		id = rsnd_mod_id(mod);
 	} else if (mod == dvc) {
 		entry = gen2_id_table_cmd;
 		size = ARRAY_SIZE(gen2_id_table_cmd);
+		id = rsnd_mod_id(mod);
 	}
 
 	if ((!entry) || (size <= id)) {
