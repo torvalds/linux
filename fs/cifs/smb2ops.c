@@ -1562,7 +1562,7 @@ smb2_oplock_response(struct cifs_tcon *tcon, struct cifs_fid *fid,
 				 CIFS_CACHE_READ(cinode) ? 1 : 0);
 }
 
-static void
+void
 smb2_set_related(struct smb_rqst *rqst)
 {
 	struct smb2_sync_hdr *shdr;
@@ -1573,7 +1573,7 @@ smb2_set_related(struct smb_rqst *rqst)
 
 char smb2_padding[7] = {0, 0, 0, 0, 0, 0, 0};
 
-static void
+void
 smb2_set_next_command(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 {
 	struct smb2_sync_hdr *shdr;
@@ -1616,7 +1616,7 @@ smb2_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 		flags |= CIFS_TRANSFORM_REQ;
 
 	memset(rqst, 0, sizeof(rqst));
-	memset(resp_buftype, 0, sizeof(resp_buftype));
+	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
 	memset(rsp_iov, 0, sizeof(rsp_iov));
 
 	memset(&open_iov, 0, sizeof(open_iov));

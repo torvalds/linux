@@ -38,6 +38,118 @@
 #include "smb2proto.h"
 
 static int
+smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
+		 struct cifs_sb_info *cifs_sb, const char *full_path,
+		 __u32 desired_access, __u32 create_disposition,
+		 __u32 create_options, void *data, int command)
+{
+	int rc;
+	__le16 *utf16_path = NULL;
+	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	struct cifs_open_parms oparms;
+	struct cifs_fid fid;
+	struct cifs_ses *ses = tcon->ses;
+	struct TCP_Server_Info *server = ses->server;
+	int num_rqst = 0;
+	struct smb_rqst rqst[3];
+	int resp_buftype[3];
+	struct kvec rsp_iov[3];
+	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
+	struct kvec qi_iov[1];
+	struct kvec close_iov[1];
+	struct smb2_query_info_rsp *rsp = NULL;
+	int flags = 0;
+
+	if (smb3_encryption_required(tcon))
+		flags |= CIFS_TRANSFORM_REQ;
+
+	memset(rqst, 0, sizeof(rqst));
+	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
+	memset(rsp_iov, 0, sizeof(rsp_iov));
+
+	/* Open */
+	utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
+	if (!utf16_path)
+		return -ENOMEM;
+
+	oparms.tcon = tcon;
+	oparms.desired_access = desired_access;
+	oparms.disposition = create_disposition;
+	oparms.create_options = create_options;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	memset(&open_iov, 0, sizeof(open_iov));
+	rqst[num_rqst].rq_iov = open_iov;
+	rqst[num_rqst].rq_nvec = SMB2_CREATE_IOV_SIZE;
+	rc = SMB2_open_init(tcon, &rqst[num_rqst], &oplock, &oparms,
+			    utf16_path);
+	kfree(utf16_path);
+	if (rc)
+		goto finished;
+
+	smb2_set_next_command(server, &rqst[num_rqst++]);
+
+	/* Operation */
+	switch (command) {
+	case SMB2_OP_QUERY_INFO:
+		memset(&qi_iov, 0, sizeof(qi_iov));
+		rqst[num_rqst].rq_iov = qi_iov;
+		rqst[num_rqst].rq_nvec = 1;
+
+		rc = SMB2_query_info_init(tcon, &rqst[num_rqst], COMPOUND_FID,
+				COMPOUND_FID, FILE_ALL_INFORMATION,
+				SMB2_O_INFO_FILE, 0,
+				sizeof(struct smb2_file_all_info) +
+					  PATH_MAX * 2);
+		smb2_set_next_command(server, &rqst[num_rqst]);
+		smb2_set_related(&rqst[num_rqst++]);
+		break;
+	default:
+		cifs_dbg(VFS, "Invalid command\n");
+		rc = -EINVAL;
+	}
+	if (rc)
+		goto finished;
+
+	/* Close */
+	memset(&close_iov, 0, sizeof(close_iov));
+	rqst[num_rqst].rq_iov = close_iov;
+	rqst[num_rqst].rq_nvec = 1;
+	rc = SMB2_close_init(tcon, &rqst[num_rqst], COMPOUND_FID,
+			     COMPOUND_FID);
+	smb2_set_related(&rqst[num_rqst++]);
+	if (rc)
+		goto finished;
+
+	rc = compound_send_recv(xid, ses, flags, num_rqst, rqst,
+				resp_buftype, rsp_iov);
+
+ finished:
+	SMB2_open_free(&rqst[0]);
+	switch (command) {
+	case SMB2_OP_QUERY_INFO:
+		if (rc == 0) {
+			rsp = (struct smb2_query_info_rsp *)rsp_iov[1].iov_base;
+			rc = smb2_validate_and_copy_iov(
+				le16_to_cpu(rsp->OutputBufferOffset),
+				le32_to_cpu(rsp->OutputBufferLength),
+				&rsp_iov[1], sizeof(struct smb2_file_all_info),
+				data);
+		}
+		if (rqst[1].rq_iov)
+			SMB2_query_info_free(&rqst[1]);
+		if (rqst[2].rq_iov)
+			SMB2_close_free(&rqst[2]);
+		break;
+	}
+	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
+	free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
+	free_rsp_buf(resp_buftype[2], rsp_iov[2].iov_base);
+	return rc;
+}
+
+static int
 smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 		   struct cifs_sb_info *cifs_sb, const char *full_path,
 		   __u32 desired_access, __u32 create_disposition,
@@ -81,11 +193,6 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 
 	switch (command) {
 	case SMB2_OP_DELETE:
-		break;
-	case SMB2_OP_QUERY_INFO:
-		tmprc = SMB2_query_info(xid, tcon, fid.persistent_fid,
-					fid.volatile_fid,
-					(struct smb2_file_all_info *)data);
 		break;
 	case SMB2_OP_MKDIR:
 		/*
@@ -156,16 +263,16 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if (smb2_data == NULL)
 		return -ENOMEM;
 
-	rc = smb2_open_op_close(xid, tcon, cifs_sb, full_path,
-				FILE_READ_ATTRIBUTES, FILE_OPEN, 0,
-				smb2_data, SMB2_OP_QUERY_INFO);
+	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
+			      FILE_READ_ATTRIBUTES, FILE_OPEN, 0,
+			      smb2_data, SMB2_OP_QUERY_INFO);
 	if (rc == -EOPNOTSUPP) {
 		*symlink = true;
 		/* Failed on a symbolic link - query a reparse point info */
-		rc = smb2_open_op_close(xid, tcon, cifs_sb, full_path,
-					FILE_READ_ATTRIBUTES, FILE_OPEN,
-					OPEN_REPARSE_POINT, smb2_data,
-					SMB2_OP_QUERY_INFO);
+		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
+				      FILE_READ_ATTRIBUTES, FILE_OPEN,
+				      OPEN_REPARSE_POINT, smb2_data,
+				      SMB2_OP_QUERY_INFO);
 	}
 	if (rc)
 		goto out;

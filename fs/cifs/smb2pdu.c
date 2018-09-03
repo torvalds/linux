@@ -2627,10 +2627,10 @@ smb2_validate_iov(unsigned int offset, unsigned int buffer_length,
  * If SMB buffer fields are valid, copy into temporary buffer to hold result.
  * Caller must free buffer.
  */
-static int
-validate_and_copy_iov(unsigned int offset, unsigned int buffer_length,
-		      struct kvec *iov, unsigned int minbufsize,
-		      char *data)
+int
+smb2_validate_and_copy_iov(unsigned int offset, unsigned int buffer_length,
+			   struct kvec *iov, unsigned int minbufsize,
+			   char *data)
 {
 	char *begin_of_buf = offset + (char *)iov->iov_base;
 	int rc;
@@ -2746,9 +2746,9 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 		}
 	}
 
-	rc = validate_and_copy_iov(le16_to_cpu(rsp->OutputBufferOffset),
-				   le32_to_cpu(rsp->OutputBufferLength),
-				   &rsp_iov, min_len, *data);
+	rc = smb2_validate_and_copy_iov(le16_to_cpu(rsp->OutputBufferOffset),
+					le32_to_cpu(rsp->OutputBufferLength),
+					&rsp_iov, min_len, *data);
 
 qinf_exit:
 	SMB2_query_info_free(&rqst);

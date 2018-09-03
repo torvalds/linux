@@ -116,6 +116,9 @@ extern void smb2_reconnect_server(struct work_struct *work);
 extern int smb3_crypto_aead_allocate(struct TCP_Server_Info *server);
 extern unsigned long smb_rqst_len(struct TCP_Server_Info *server,
 				  struct smb_rqst *rqst);
+extern void smb2_set_next_command(struct TCP_Server_Info *server,
+				  struct smb_rqst *rqst);
+extern void smb2_set_related(struct smb_rqst *rqst);
 
 /*
  * SMB2 Worker functions - most of protocol specific implementation details
@@ -232,6 +235,10 @@ extern enum securityEnum smb2_select_sectype(struct TCP_Server_Info *,
 extern int smb3_encryption_required(const struct cifs_tcon *tcon);
 extern int smb2_validate_iov(unsigned int offset, unsigned int buffer_length,
 			     struct kvec *iov, unsigned int min_buf_size);
+extern int smb2_validate_and_copy_iov(unsigned int offset,
+				      unsigned int buffer_length,
+				      struct kvec *iov,
+				      unsigned int minbufsize, char *data);
 extern void smb2_copy_fs_info_to_kstatfs(
 	 struct smb2_fs_full_size_info *pfs_inf,
 	 struct kstatfs *kst);
