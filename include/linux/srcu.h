@@ -171,6 +171,9 @@ static inline int srcu_read_lock_held(const struct srcu_struct *sp)
 
 /**
  * srcu_dereference_notrace - no tracing and no lockdep calls from here
+ * @p: the pointer to fetch and protect for later dereferencing
+ * @sp: pointer to the srcu_struct, which is used to check that we
+ *	really are in an SRCU read-side critical section.
  */
 #define srcu_dereference_notrace(p, sp) srcu_dereference_check((p), (sp), 1)
 
