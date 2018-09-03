@@ -131,7 +131,7 @@ struct p9_conn {
 	int err;
 	struct list_head req_list;
 	struct list_head unsent_req_list;
-	struct p9_req_t *req;
+	struct p9_req_t *rreq;
 	struct p9_req_t *wreq;
 	char tmp_buf[7];
 	struct p9_fcall rc;
@@ -323,7 +323,7 @@ static void p9_read_work(struct work_struct *work)
 	m->rc.offset += err;
 
 	/* header read in */
-	if ((!m->req) && (m->rc.offset == m->rc.capacity)) {
+	if ((!m->rreq) && (m->rc.offset == m->rc.capacity)) {
 		p9_debug(P9_DEBUG_TRANS, "got new header\n");
 
 		/* Header size */
@@ -347,23 +347,23 @@ static void p9_read_work(struct work_struct *work)
 			 "mux %p pkt: size: %d bytes tag: %d\n",
 			 m, m->rc.size, m->rc.tag);
 
-		m->req = p9_tag_lookup(m->client, m->rc.tag);
-		if (!m->req || (m->req->status != REQ_STATUS_SENT)) {
+		m->rreq = p9_tag_lookup(m->client, m->rc.tag);
+		if (!m->rreq || (m->rreq->status != REQ_STATUS_SENT)) {
 			p9_debug(P9_DEBUG_ERROR, "Unexpected packet tag %d\n",
 				 m->rc.tag);
 			err = -EIO;
 			goto error;
 		}
 
-		if (!m->req->rc.sdata) {
+		if (!m->rreq->rc.sdata) {
 			p9_debug(P9_DEBUG_ERROR,
 				 "No recv fcall for tag %d (req %p), disconnecting!\n",
-				 m->rc.tag, m->req);
-			m->req = NULL;
+				 m->rc.tag, m->rreq);
+			m->rreq = NULL;
 			err = -EIO;
 			goto error;
 		}
-		m->rc.sdata = m->req->rc.sdata;
+		m->rc.sdata = m->rreq->rc.sdata;
 		memcpy(m->rc.sdata, m->tmp_buf, m->rc.capacity);
 		m->rc.capacity = m->rc.size;
 	}
@@ -371,21 +371,21 @@ static void p9_read_work(struct work_struct *work)
 	/* packet is read in
 	 * not an else because some packets (like clunk) have no payload
 	 */
-	if ((m->req) && (m->rc.offset == m->rc.capacity)) {
+	if ((m->rreq) && (m->rc.offset == m->rc.capacity)) {
 		p9_debug(P9_DEBUG_TRANS, "got new packet\n");
-		m->req->rc.size = m->rc.offset;
+		m->rreq->rc.size = m->rc.offset;
 		spin_lock(&m->client->lock);
-		if (m->req->status != REQ_STATUS_ERROR)
+		if (m->rreq->status != REQ_STATUS_ERROR)
 			status = REQ_STATUS_RCVD;
-		list_del(&m->req->req_list);
+		list_del(&m->rreq->req_list);
 		/* update req->status while holding client->lock  */
-		p9_client_cb(m->client, m->req, status);
+		p9_client_cb(m->client, m->rreq, status);
 		spin_unlock(&m->client->lock);
 		m->rc.sdata = NULL;
 		m->rc.offset = 0;
 		m->rc.capacity = 0;
-		p9_req_put(m->req);
-		m->req = NULL;
+		p9_req_put(m->rreq);
+		m->rreq = NULL;
 	}
 
 end_clear:
