@@ -738,6 +738,7 @@ struct hns_roce_work {
 	struct hns_roce_dev *hr_dev;
 	struct work_struct work;
 	u32 qpn;
+	u32 cqn;
 	int event_type;
 	int sub_type;
 };
