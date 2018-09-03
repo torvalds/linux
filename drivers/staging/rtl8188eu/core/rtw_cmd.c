@@ -745,7 +745,6 @@ u8 rtw_set_chplan_cmd(struct adapter *padapter, u8 chplan, u8 enqueue)
 		kfree(setChannelPlan_param);
 	}
 
-	/* do something based on res... */
 	if (res == _SUCCESS)
 		padapter->mlmepriv.ChannelPlan = chplan;
 
