@@ -1488,36 +1488,6 @@ error:
 }
 
 /**
- * amdgpu_vm_find_entry - find the entry for an address
- *
- * @p: see amdgpu_pte_update_params definition
- * @addr: virtual address in question
- * @entry: resulting entry or NULL
- * @parent: parent entry
- *
- * Find the vm_pt entry and it's parent for the given address.
- */
-void amdgpu_vm_get_entry(struct amdgpu_pte_update_params *p, uint64_t addr,
-			 struct amdgpu_vm_pt **entry,
-			 struct amdgpu_vm_pt **parent)
-{
-	unsigned level = p->adev->vm_manager.root_level;
-
-	*parent = NULL;
-	*entry = &p->vm->root;
-	while ((*entry)->entries) {
-		unsigned shift = amdgpu_vm_level_shift(p->adev, level++);
-
-		*parent = *entry;
-		*entry = &(*entry)->entries[addr >> shift];
-		addr &= (1ULL << shift) - 1;
-	}
-
-	if (level != AMDGPU_VM_PTB)
-		*entry = NULL;
-}
-
-/**
  * amdgpu_vm_handle_huge_pages - handle updating the PD with huge pages
  *
  * @p: see amdgpu_pte_update_params definition
@@ -1580,36 +1550,34 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 {
 	struct amdgpu_device *adev = params->adev;
 	const uint64_t mask = AMDGPU_VM_PTE_COUNT(adev) - 1;
-
-	uint64_t addr, pe_start;
-	struct amdgpu_bo *pt;
-	unsigned nptes;
+	struct amdgpu_vm_pt_cursor cursor;
 
 	/* walk over the address space and update the page tables */
-	for (addr = start; addr < end; addr += nptes,
-	     dst += nptes * AMDGPU_GPU_PAGE_SIZE) {
-		struct amdgpu_vm_pt *entry, *parent;
+	for_each_amdgpu_vm_pt_leaf(adev, params->vm, start, end - 1, cursor) {
+		struct amdgpu_bo *pt = cursor.entry->base.bo;
+		uint64_t pe_start;
+		unsigned nptes;
 
-		amdgpu_vm_get_entry(params, addr, &entry, &parent);
-		if (!entry)
+		if (!pt || cursor.level != AMDGPU_VM_PTB)
 			return -ENOENT;
 
-		if ((addr & ~mask) == (end & ~mask))
-			nptes = end - addr;
+		if ((cursor.pfn & ~mask) == (end & ~mask))
+			nptes = end - cursor.pfn;
 		else
-			nptes = AMDGPU_VM_PTE_COUNT(adev) - (addr & mask);
+			nptes = AMDGPU_VM_PTE_COUNT(adev) - (cursor.pfn & mask);
 
-		amdgpu_vm_handle_huge_pages(params, entry, parent,
+		amdgpu_vm_handle_huge_pages(params, cursor.entry, cursor.parent,
 					    nptes, dst, flags);
 		/* We don't need to update PTEs for huge pages */
-		if (entry->huge)
+		if (cursor.entry->huge) {
+			dst += nptes * AMDGPU_GPU_PAGE_SIZE;
 			continue;
+		}
 
-		pt = entry->base.bo;
-		pe_start = (addr & mask) * 8;
+		pe_start = (cursor.pfn & mask) * 8;
 		amdgpu_vm_update_func(params, pt, pe_start, dst, nptes,
 				      AMDGPU_GPU_PAGE_SIZE, flags);
-
+		dst += nptes * AMDGPU_GPU_PAGE_SIZE;
 	}
 
 	return 0;
