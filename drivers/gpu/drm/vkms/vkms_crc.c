@@ -34,6 +34,15 @@ out:
 	return crc;
 }
 
+/**
+ * vkms_crc_work_handle - ordered work_struct to compute CRC
+ *
+ * @work: work_struct
+ *
+ * Work handler for computing CRCs. work_struct scheduled in
+ * an ordered workqueue that's periodically scheduled to run by
+ * _vblank_handle() and flushed at vkms_atomic_crtc_destroy_state().
+ */
 void vkms_crc_work_handle(struct work_struct *work)
 {
 	struct vkms_crtc_state *crtc_state = container_of(work,
@@ -45,8 +54,18 @@ void vkms_crc_work_handle(struct work_struct *work)
 						output);
 	struct vkms_crc_data *primary_crc = NULL;
 	struct drm_plane *plane;
-
 	u32 crc32 = 0;
+	u64 frame_start, frame_end;
+	unsigned long flags;
+
+	spin_lock_irqsave(&out->state_lock, flags);
+	frame_start = crtc_state->frame_start;
+	frame_end = crtc_state->frame_end;
+	spin_unlock_irqrestore(&out->state_lock, flags);
+
+	/* _vblank_handle() hasn't updated frame_start yet */
+	if (!frame_start || frame_start == frame_end)
+		goto out;
 
 	drm_for_each_plane(plane, &vdev->drm) {
 		struct vkms_plane_state *vplane_state;
@@ -67,7 +86,20 @@ void vkms_crc_work_handle(struct work_struct *work)
 	if (primary_crc)
 		crc32 = _vkms_get_crc(primary_crc);
 
-	drm_crtc_add_crc_entry(crtc, true, crtc_state->n_frame, &crc32);
+	frame_end = drm_crtc_accurate_vblank_count(crtc);
+
+	/* queue_work can fail to schedule crc_work; add crc for
+	 * missing frames
+	 */
+	while (frame_start <= frame_end)
+		drm_crtc_add_crc_entry(crtc, true, frame_start++, &crc32);
+
+out:
+	/* to avoid using the same value for frame number again */
+	spin_lock_irqsave(&out->state_lock, flags);
+	crtc_state->frame_end = frame_end;
+	crtc_state->frame_start = 0;
+	spin_unlock_irqrestore(&out->state_lock, flags);
 }
 
 static int vkms_crc_parse_source(const char *src_name, bool *enabled)

@@ -39,12 +39,14 @@ struct vkms_plane_state {
  * vkms_crtc_state - Driver specific CRTC state
  * @base: base CRTC state
  * @crc_work: work struct to compute and add CRC entries
- * @n_frame: frame number for computed CRC
+ * @n_frame_start: start frame number for computed CRC
+ * @n_frame_end: end frame number for computed CRC
  */
 struct vkms_crtc_state {
 	struct drm_crtc_state base;
 	struct work_struct crc_work;
-	unsigned int n_frame;
+	u64 frame_start;
+	u64 frame_end;
 };
 
 struct vkms_output {
@@ -59,6 +61,8 @@ struct vkms_output {
 	struct workqueue_struct *crc_workq;
 	/* protects concurrent access to crc_data */
 	spinlock_t lock;
+	/* protects concurrent access to crtc_state */
+	spinlock_t state_lock;
 };
 
 struct vkms_device {

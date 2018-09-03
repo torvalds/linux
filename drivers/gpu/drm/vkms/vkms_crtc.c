@@ -22,8 +22,19 @@ static void _vblank_handle(struct vkms_output *output)
 		DRM_ERROR("vkms failure on handling vblank");
 
 	if (state && output->crc_enabled) {
-		state->n_frame = drm_crtc_accurate_vblank_count(crtc);
-		queue_work(output->crc_workq, &state->crc_work);
+		u64 frame = drm_crtc_accurate_vblank_count(crtc);
+
+		/* update frame_start only if a queued vkms_crc_work_handle()
+		 * has read the data
+		 */
+		spin_lock(&output->state_lock);
+		if (!state->frame_start)
+			state->frame_start = frame;
+		spin_unlock(&output->state_lock);
+
+		ret = queue_work(output->crc_workq, &state->crc_work);
+		if (!ret)
+			DRM_WARN("failed to queue vkms_crc_work_handle");
 	}
 
 	spin_unlock(&output->lock);
@@ -211,6 +222,7 @@ int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	drm_crtc_helper_add(crtc, &vkms_crtc_helper_funcs);
 
 	spin_lock_init(&vkms_out->lock);
+	spin_lock_init(&vkms_out->state_lock);
 
 	vkms_out->crc_workq = alloc_ordered_workqueue("vkms_crc_workq", 0);
 
