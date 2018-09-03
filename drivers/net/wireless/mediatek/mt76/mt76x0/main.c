@@ -77,9 +77,8 @@ static void mt76x0_remove_interface(struct ieee80211_hw *hw,
 {
 	struct mt76x0_dev *dev = hw->priv;
 	struct mt76_vif *mvif = (struct mt76_vif *) vif->drv_priv;
-	unsigned int wcid = mvif->group_wcid.idx;
 
-	dev->wcid_mask[wcid / BITS_PER_LONG] &= ~BIT(wcid % BITS_PER_LONG);
+	dev->vif_mask &= ~BIT(mvif->idx);
 }
 
 static int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
