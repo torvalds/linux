@@ -30,7 +30,6 @@
 #define CDNS_UART_TTY_NAME	"ttyPS"
 #define CDNS_UART_NAME		"xuartps"
 #define CDNS_UART_MAJOR		0	/* use dynamic node allocation */
-#define CDNS_UART_MINOR		0	/* works best with devtmpfs */
 #define CDNS_UART_NR_PORTS	2
 #define CDNS_UART_FIFO_SIZE	64	/* FIFO size */
 #define CDNS_UART_REGISTER_SPACE	0x1000
@@ -1100,8 +1099,6 @@ static const struct uart_ops cdns_uart_ops = {
 #endif
 };
 
-static struct uart_driver cdns_uart_uart_driver;
-
 #ifdef CONFIG_SERIAL_XILINX_PS_UART_CONSOLE
 /**
  * cdns_uart_console_putchar - write the character to the FIFO buffer
@@ -1241,16 +1238,6 @@ static int cdns_uart_console_setup(struct console *co, char *options)
 
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
-
-static struct console cdns_uart_console = {
-	.name	= CDNS_UART_TTY_NAME,
-	.write	= cdns_uart_console_write,
-	.device	= uart_console_device,
-	.setup	= cdns_uart_console_setup,
-	.flags	= CON_PRINTBUFFER,
-	.index	= -1, /* Specified on the cmdline (e.g. console=ttyPS ) */
-	.data	= &cdns_uart_uart_driver,
-};
 #endif /* CONFIG_SERIAL_XILINX_PS_UART_CONSOLE */
 
 #ifdef CONFIG_PM_SLEEP
@@ -1382,9 +1369,6 @@ static const struct of_device_id cdns_uart_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, cdns_uart_of_match);
 
-/* Temporary variable for storing number of instances */
-static int instances;
-
 /**
  * cdns_uart_probe - Platform driver probe
  * @pdev: Pointer to the platform device structure
@@ -1398,6 +1382,11 @@ static int cdns_uart_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct cdns_uart *cdns_uart_data;
 	const struct of_device_id *match;
+	struct uart_driver *cdns_uart_uart_driver;
+	char *driver_name;
+#ifdef CONFIG_SERIAL_XILINX_PS_UART_CONSOLE
+	struct console *cdns_uart_console;
+#endif
 
 	cdns_uart_data = devm_kzalloc(&pdev->dev, sizeof(*cdns_uart_data),
 			GFP_KERNEL);
@@ -1405,6 +1394,12 @@ static int cdns_uart_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	port = devm_kzalloc(&pdev->dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
+		return -ENOMEM;
+
+	cdns_uart_uart_driver = devm_kzalloc(&pdev->dev,
+					     sizeof(*cdns_uart_uart_driver),
+					     GFP_KERNEL);
+	if (!cdns_uart_uart_driver)
 		return -ENOMEM;
 
 	/* Look for a serialN alias */
@@ -1417,25 +1412,50 @@ static int cdns_uart_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (!cdns_uart_uart_driver.state) {
-		cdns_uart_uart_driver.owner = THIS_MODULE;
-		cdns_uart_uart_driver.driver_name = CDNS_UART_NAME;
-		cdns_uart_uart_driver.dev_name = CDNS_UART_TTY_NAME;
-		cdns_uart_uart_driver.major = CDNS_UART_MAJOR;
-		cdns_uart_uart_driver.minor = CDNS_UART_MINOR;
-		cdns_uart_uart_driver.nr = CDNS_UART_NR_PORTS;
+	/* There is a need to use unique driver name */
+	driver_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s%d",
+				     CDNS_UART_NAME, id);
+	if (!driver_name)
+		return -ENOMEM;
+
+	cdns_uart_uart_driver->owner = THIS_MODULE;
+	cdns_uart_uart_driver->driver_name = driver_name;
+	cdns_uart_uart_driver->dev_name	= CDNS_UART_TTY_NAME;
+	cdns_uart_uart_driver->major = CDNS_UART_MAJOR;
+	cdns_uart_uart_driver->minor = id;
+	cdns_uart_uart_driver->nr = 1;
+
 #ifdef CONFIG_SERIAL_XILINX_PS_UART_CONSOLE
-		cdns_uart_uart_driver.cons = &cdns_uart_console;
+	cdns_uart_console = devm_kzalloc(&pdev->dev, sizeof(*cdns_uart_console),
+					 GFP_KERNEL);
+	if (!cdns_uart_console)
+		return -ENOMEM;
+
+	strncpy(cdns_uart_console->name, CDNS_UART_TTY_NAME,
+		sizeof(cdns_uart_console->name));
+	cdns_uart_console->index = id;
+	cdns_uart_console->write = cdns_uart_console_write;
+	cdns_uart_console->device = uart_console_device;
+	cdns_uart_console->setup = cdns_uart_console_setup;
+	cdns_uart_console->flags = CON_PRINTBUFFER;
+	cdns_uart_console->data = cdns_uart_uart_driver;
+	cdns_uart_uart_driver->cons = cdns_uart_console;
 #endif
 
-		rc = uart_register_driver(&cdns_uart_uart_driver);
-		if (rc < 0) {
-			dev_err(&pdev->dev, "Failed to register driver\n");
-			return rc;
-		}
+	rc = uart_register_driver(cdns_uart_uart_driver);
+	if (rc < 0) {
+		dev_err(&pdev->dev, "Failed to register driver\n");
+		return rc;
 	}
 
-	cdns_uart_data->cdns_uart_driver = &cdns_uart_uart_driver;
+	cdns_uart_data->cdns_uart_driver = cdns_uart_uart_driver;
+
+	/*
+	 * Setting up proper name_base needs to be done after uart
+	 * registration because tty_driver structure is not filled.
+	 * name_base is 0 by default.
+	 */
+	cdns_uart_uart_driver->tty_driver->name_base = id;
 
 	match = of_match_node(cdns_uart_of_match, pdev->dev.of_node);
 	if (match && match->data) {
@@ -1506,7 +1526,6 @@ static int cdns_uart_probe(struct platform_device *pdev)
 	port->flags	= UPF_BOOT_AUTOCONF;
 	port->ops	= &cdns_uart_ops;
 	port->fifosize	= CDNS_UART_FIFO_SIZE;
-	port->line	= id;
 
 	/*
 	 * Register the port.
@@ -1537,7 +1556,7 @@ static int cdns_uart_probe(struct platform_device *pdev)
 		console_port = port;
 #endif
 
-	rc = uart_add_one_port(&cdns_uart_uart_driver, port);
+	rc = uart_add_one_port(cdns_uart_uart_driver, port);
 	if (rc) {
 		dev_err(&pdev->dev,
 			"uart_add_one_port() failed; err=%i\n", rc);
@@ -1547,11 +1566,10 @@ static int cdns_uart_probe(struct platform_device *pdev)
 #ifdef CONFIG_SERIAL_XILINX_PS_UART_CONSOLE
 	/* This is not port which is used for console that's why clean it up */
 	if (console_port == port &&
-	    !(cdns_uart_uart_driver.cons->flags & CON_ENABLED))
+	    !(cdns_uart_uart_driver->cons->flags & CON_ENABLED))
 		console_port = NULL;
 #endif
 
-	instances++;
 	return 0;
 
 err_out_pm_disable:
@@ -1567,8 +1585,8 @@ err_out_clk_disable:
 err_out_clk_dis_pclk:
 	clk_disable_unprepare(cdns_uart_data->pclk);
 err_out_unregister_driver:
-	if (!instances)
-		uart_unregister_driver(cdns_uart_data->cdns_uart_driver);
+	uart_unregister_driver(cdns_uart_data->cdns_uart_driver);
+
 	return rc;
 }
 
@@ -1602,8 +1620,7 @@ static int cdns_uart_remove(struct platform_device *pdev)
 		console_port = NULL;
 #endif
 
-	if (!--instances)
-		uart_unregister_driver(cdns_uart_data->cdns_uart_driver);
+	uart_unregister_driver(cdns_uart_data->cdns_uart_driver);
 	return rc;
 }
 
