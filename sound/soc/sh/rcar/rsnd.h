@@ -280,6 +280,9 @@ struct rsnd_mod_ops {
 	int (*nolock_stop)(struct rsnd_mod *mod,
 		    struct rsnd_dai_stream *io,
 		    struct rsnd_priv *priv);
+	int (*prepare)(struct rsnd_mod *mod,
+		       struct rsnd_dai_stream *io,
+		       struct rsnd_priv *priv);
 };
 
 struct rsnd_dai_stream;
@@ -309,6 +312,7 @@ struct rsnd_mod {
  * H	0: fallback
  * H	0: hw_params
  * H	0: pointer
+ * H	0: prepare
  */
 #define __rsnd_mod_shift_nolock_start	0
 #define __rsnd_mod_shift_nolock_stop	0
@@ -323,6 +327,7 @@ struct rsnd_mod {
 #define __rsnd_mod_shift_fallback	28 /* always called */
 #define __rsnd_mod_shift_hw_params	28 /* always called */
 #define __rsnd_mod_shift_pointer	28 /* always called */
+#define __rsnd_mod_shift_prepare	28 /* always called */
 
 #define __rsnd_mod_add_probe		0
 #define __rsnd_mod_add_remove		0
@@ -337,6 +342,7 @@ struct rsnd_mod {
 #define __rsnd_mod_add_fallback		0
 #define __rsnd_mod_add_hw_params	0
 #define __rsnd_mod_add_pointer		0
+#define __rsnd_mod_add_prepare		0
 
 #define __rsnd_mod_call_probe		0
 #define __rsnd_mod_call_remove		0
@@ -351,6 +357,7 @@ struct rsnd_mod {
 #define __rsnd_mod_call_pointer		0
 #define __rsnd_mod_call_nolock_start	0
 #define __rsnd_mod_call_nolock_stop	1
+#define __rsnd_mod_call_prepare		0
 
 #define rsnd_mod_to_priv(mod)	((mod)->priv)
 #define rsnd_mod_name(mod)	((mod)->ops->name)
