@@ -1263,8 +1263,15 @@ int rsnd_kctrl_accept_anytime(struct rsnd_dai_stream *io)
 int rsnd_kctrl_accept_runtime(struct rsnd_dai_stream *io)
 {
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct rsnd_priv *priv = rsnd_io_to_priv(io);
+	struct device *dev = rsnd_priv_to_dev(priv);
 
-	return !!runtime;
+	if (!runtime) {
+		dev_warn(dev, "Can't update kctrl when idle\n");
+		return 0;
+	}
+
+	return 1;
 }
 
 struct rsnd_kctrl_cfg *rsnd_kctrl_init_m(struct rsnd_kctrl_cfg_m *cfg)
