@@ -54,9 +54,9 @@ enum rgmii_rx_clock_delay {
 #define HP_AUTO_MDIX_X_OVER_IND_MASK	  0x2000
 
 #define MSCC_PHY_LED_MODE_SEL		  29
-#define LED_1_MODE_SEL_MASK		  0x00F0
-#define LED_0_MODE_SEL_MASK		  0x000F
-#define LED_1_MODE_SEL_POS		  4
+#define LED_MODE_SEL_POS(x)		  ((x) * 4)
+#define LED_MODE_SEL_MASK(x)		  (GENMASK(3, 0) << LED_MODE_SEL_POS(x))
+#define LED_MODE_SEL(x, mode)		  (((mode) << LED_MODE_SEL_POS(x)) & LED_MODE_SEL_MASK(x))
 
 #define MSCC_EXT_PAGE_ACCESS		  31
 #define MSCC_PHY_PAGE_STANDARD		  0x0000 /* Standard registers */
@@ -103,10 +103,11 @@ enum rgmii_rx_clock_delay {
 
 #define DOWNSHIFT_COUNT_MAX		  5
 
+#define MAX_LEDS			  4
 struct vsc8531_private {
 	int rate_magic;
-	u8 led_0_mode;
-	u8 led_1_mode;
+	u8 leds_mode[MAX_LEDS];
+	u8 nleds;
 };
 
 #ifdef CONFIG_OF_MDIO
@@ -140,14 +141,8 @@ static int vsc85xx_led_cntl_set(struct phy_device *phydev,
 
 	mutex_lock(&phydev->lock);
 	reg_val = phy_read(phydev, MSCC_PHY_LED_MODE_SEL);
-	if (led_num) {
-		reg_val &= ~LED_1_MODE_SEL_MASK;
-		reg_val |= (((u16)mode << LED_1_MODE_SEL_POS) &
-			    LED_1_MODE_SEL_MASK);
-	} else {
-		reg_val &= ~LED_0_MODE_SEL_MASK;
-		reg_val |= ((u16)mode & LED_0_MODE_SEL_MASK);
-	}
+	reg_val &= ~LED_MODE_SEL_MASK(led_num);
+	reg_val |= LED_MODE_SEL(led_num, (u16)mode);
 	rc = phy_write(phydev, MSCC_PHY_LED_MODE_SEL, reg_val);
 	mutex_unlock(&phydev->lock);
 
@@ -438,6 +433,27 @@ static int vsc85xx_dt_led_mode_get(struct phy_device *phydev,
 }
 #endif /* CONFIG_OF_MDIO */
 
+static int vsc85xx_dt_led_modes_get(struct phy_device *phydev, u8 *default_mode)
+{
+	struct vsc8531_private *priv = phydev->priv;
+	char led_dt_prop[19];
+	int i, ret;
+
+	for (i = 0; i < priv->nleds; i++) {
+		ret = sprintf(led_dt_prop, "vsc8531,led-%d-mode", i);
+		if (ret < 0)
+			return ret;
+
+		ret = vsc85xx_dt_led_mode_get(phydev, led_dt_prop,
+					      default_mode[i]);
+		if (ret < 0)
+			return ret;
+		priv->leds_mode[i] = ret;
+	}
+
+	return 0;
+}
+
 static int vsc85xx_edge_rate_cntl_set(struct phy_device *phydev, u8 edge_rate)
 {
 	int rc;
@@ -545,7 +561,7 @@ static int vsc85xx_set_tunable(struct phy_device *phydev,
 
 static int vsc85xx_config_init(struct phy_device *phydev)
 {
-	int rc;
+	int rc, i;
 	struct vsc8531_private *vsc8531 = phydev->priv;
 
 	rc = vsc85xx_default_config(phydev);
@@ -560,13 +576,11 @@ static int vsc85xx_config_init(struct phy_device *phydev)
 	if (rc)
 		return rc;
 
-	rc = vsc85xx_led_cntl_set(phydev, 1, vsc8531->led_1_mode);
-	if (rc)
-		return rc;
-
-	rc = vsc85xx_led_cntl_set(phydev, 0, vsc8531->led_0_mode);
-	if (rc)
-		return rc;
+	for (i = 0; i < vsc8531->nleds; i++) {
+		rc = vsc85xx_led_cntl_set(phydev, i, vsc8531->leds_mode[i]);
+		if (rc)
+			return rc;
+	}
 
 	rc = genphy_config_init(phydev);
 
@@ -626,7 +640,8 @@ static int vsc85xx_probe(struct phy_device *phydev)
 {
 	struct vsc8531_private *vsc8531;
 	int rate_magic;
-	int led_mode;
+	u8 default_mode[2] = {VSC8531_LINK_1000_ACTIVITY,
+	   VSC8531_LINK_100_ACTIVITY};
 
 	rate_magic = vsc85xx_edge_rate_magic_get(phydev);
 	if (rate_magic < 0)
@@ -639,21 +654,9 @@ static int vsc85xx_probe(struct phy_device *phydev)
 	phydev->priv = vsc8531;
 
 	vsc8531->rate_magic = rate_magic;
+	vsc8531->nleds = 2;
 
-	/* LED[0] and LED[1] mode */
-	led_mode = vsc85xx_dt_led_mode_get(phydev, "vsc8531,led-0-mode",
-					   VSC8531_LINK_1000_ACTIVITY);
-	if (led_mode < 0)
-		return led_mode;
-	vsc8531->led_0_mode = led_mode;
-
-	led_mode = vsc85xx_dt_led_mode_get(phydev, "vsc8531,led-1-mode",
-					   VSC8531_LINK_100_ACTIVITY);
-	if (led_mode < 0)
-		return led_mode;
-	vsc8531->led_1_mode = led_mode;
-
-	return 0;
+	return vsc85xx_dt_led_modes_get(phydev, default_mode);
 }
 
 /* Microsemi VSC85xx PHYs */
