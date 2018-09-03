@@ -546,50 +546,62 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	u32 flowctrl_adv = 0;
+	const struct hnae3_ae_ops *ops;
 	u8 link_stat;
 
 	if (!h->ae_algo || !h->ae_algo->ops)
 		return -EOPNOTSUPP;
 
-	/* 1.auto_neg & speed & duplex from cmd */
-	if (netdev->phydev) {
+	ops = h->ae_algo->ops;
+	if (ops->get_port_type)
+		ops->get_port_type(h, &cmd->base.port);
+	else
+		return -EOPNOTSUPP;
+
+	switch (cmd->base.port) {
+	case PORT_FIBRE:
+		/* 1.auto_neg & speed & duplex from cmd */
+		if (ops->get_ksettings_an_result)
+			ops->get_ksettings_an_result(h,
+						     &cmd->base.autoneg,
+						     &cmd->base.speed,
+						     &cmd->base.duplex);
+		else
+			return -EOPNOTSUPP;
+
+		/* 2.get link mode*/
+		if (ops->get_link_mode)
+			ops->get_link_mode(h,
+					   cmd->link_modes.supported,
+					   cmd->link_modes.advertising);
+
+		/* 3.mdix_ctrl&mdix get from phy reg */
+		if (ops->get_mdix_mode)
+			ops->get_mdix_mode(h, &cmd->base.eth_tp_mdix_ctrl,
+					   &cmd->base.eth_tp_mdix);
+
+		break;
+	case PORT_TP:
+		if (!netdev->phydev)
+			return -EOPNOTSUPP;
+
 		phy_ethtool_ksettings_get(netdev->phydev, cmd);
 
+		break;
+	default:
+		netdev_warn(netdev,
+			    "Unknown port type, neither Fibre/Copper detected");
 		return 0;
 	}
 
-	if (h->ae_algo->ops->get_ksettings_an_result)
-		h->ae_algo->ops->get_ksettings_an_result(h,
-							 &cmd->base.autoneg,
-							 &cmd->base.speed,
-							 &cmd->base.duplex);
-	else
-		return -EOPNOTSUPP;
+	/* mdio_support */
+	cmd->base.mdio_support = ETH_MDIO_SUPPORTS_C22;
 
 	link_stat = hns3_get_link(netdev);
 	if (!link_stat) {
 		cmd->base.speed = SPEED_UNKNOWN;
 		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
-
-	/* 2.get link mode and port type*/
-	if (h->ae_algo->ops->get_link_mode)
-		h->ae_algo->ops->get_link_mode(h,
-					       cmd->link_modes.supported,
-					       cmd->link_modes.advertising);
-
-	cmd->base.port = PORT_NONE;
-	if (h->ae_algo->ops->get_port_type)
-		h->ae_algo->ops->get_port_type(h,
-					       &cmd->base.port);
-
-	/* 3.mdix_ctrl&mdix get from phy reg */
-	if (h->ae_algo->ops->get_mdix_mode)
-		h->ae_algo->ops->get_mdix_mode(h, &cmd->base.eth_tp_mdix_ctrl,
-					       &cmd->base.eth_tp_mdix);
-	/* 4.mdio_support */
-	cmd->base.mdio_support = ETH_MDIO_SUPPORTS_C22;
 
 	return 0;
 }
