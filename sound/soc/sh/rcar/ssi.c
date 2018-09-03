@@ -280,7 +280,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 	if (rsnd_ssi_is_multi_slave(mod, io))
 		return 0;
 
-	if (ssi->usrcnt > 1) {
+	if (ssi->rate) {
 		if (ssi->rate != rate) {
 			dev_err(dev, "SSI parent/child should use same rate\n");
 			return -EINVAL;
@@ -482,7 +482,6 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 			 struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	int ret;
 
 	if (!rsnd_ssi_is_run_mods(mod, io))
 		return 0;
@@ -492,10 +491,6 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 	ssi->usrcnt++;
 
 	rsnd_mod_power_on(mod);
-
-	ret = rsnd_ssi_master_clk_start(mod, io);
-	if (ret < 0)
-		return ret;
 
 	rsnd_ssi_config_init(mod, io);
 
@@ -847,6 +842,13 @@ static int rsnd_ssi_pointer(struct rsnd_mod *mod,
 	return 0;
 }
 
+static int rsnd_ssi_prepare(struct rsnd_mod *mod,
+			    struct rsnd_dai_stream *io,
+			    struct rsnd_priv *priv)
+{
+	return rsnd_ssi_master_clk_start(mod, io);
+}
+
 static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.name	= SSI_NAME,
 	.probe	= rsnd_ssi_common_probe,
@@ -859,6 +861,7 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.pointer= rsnd_ssi_pointer,
 	.pcm_new = rsnd_ssi_pcm_new,
 	.hw_params = rsnd_ssi_hw_params,
+	.prepare = rsnd_ssi_prepare,
 };
 
 static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
@@ -935,6 +938,7 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.pcm_new = rsnd_ssi_pcm_new,
 	.fallback = rsnd_ssi_fallback,
 	.hw_params = rsnd_ssi_hw_params,
+	.prepare = rsnd_ssi_prepare,
 };
 
 int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod)
