@@ -5918,7 +5918,7 @@ void bnxt_set_max_func_cp_rings(struct bnxt *bp, unsigned int max)
 	bp->hw_resc.max_cp_rings = max;
 }
 
-unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
+static unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
 {
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 

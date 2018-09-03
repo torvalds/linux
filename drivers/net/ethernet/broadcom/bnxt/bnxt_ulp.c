@@ -220,21 +220,6 @@ int bnxt_get_ulp_msix_base(struct bnxt *bp)
 	return 0;
 }
 
-void bnxt_subtract_ulp_resources(struct bnxt *bp, int ulp_id)
-{
-	ASSERT_RTNL();
-	if (bnxt_ulp_registered(bp->edev, ulp_id)) {
-		struct bnxt_en_dev *edev = bp->edev;
-		unsigned int msix_req, max;
-
-		msix_req = edev->ulp_tbl[ulp_id].msix_requested;
-		max = bnxt_get_max_func_cp_rings(bp);
-		bnxt_set_max_func_cp_rings(bp, max - msix_req);
-		max = bnxt_get_max_func_stat_ctxs(bp);
-		bnxt_set_max_func_stat_ctxs(bp, max - 1);
-	}
-}
-
 static int bnxt_send_msg(struct bnxt_en_dev *edev, int ulp_id,
 			 struct bnxt_fw_msg *fw_msg)
 {
