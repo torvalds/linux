@@ -326,6 +326,20 @@ static int __add_metainfo(const struct tcf_meta_ops *ops,
 	return ret;
 }
 
+static int add_metainfo_and_get_ops(const struct tcf_meta_ops *ops,
+				    struct tcf_ife_info *ife, u32 metaid,
+				    bool exists)
+{
+	int ret;
+
+	if (!try_module_get(ops->owner))
+		return -ENOENT;
+	ret = __add_metainfo(ops, ife, metaid, NULL, 0, true, exists);
+	if (ret)
+		module_put(ops->owner);
+	return ret;
+}
+
 static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
 			int len, bool exists)
 {
@@ -349,7 +363,7 @@ static int use_all_metadata(struct tcf_ife_info *ife, bool exists)
 
 	read_lock(&ife_mod_lock);
 	list_for_each_entry(o, &ifeoplist, list) {
-		rc = __add_metainfo(o, ife, o->metaid, NULL, 0, true, exists);
+		rc = add_metainfo_and_get_ops(o, ife, o->metaid, exists);
 		if (rc == 0)
 			installed += 1;
 	}
