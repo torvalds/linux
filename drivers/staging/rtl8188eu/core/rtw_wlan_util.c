@@ -107,8 +107,8 @@ unsigned char networktype_to_raid(unsigned char network_type)
 u8 judge_network_type(struct adapter *padapter, unsigned char *rate, int ratelen)
 {
 	u8 network_type = 0;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 
 	if (pmlmeinfo->HT_enable)
 		network_type = WIRELESS_11_24N;
@@ -120,7 +120,7 @@ u8 judge_network_type(struct adapter *padapter, unsigned char *rate, int ratelen
 	else
 		network_type |= WIRELESS_11G;
 
-	return	network_type;
+	return network_type;
 }
 
 static unsigned char ratetbl_val_2wifirate(unsigned char rate)
@@ -1413,10 +1413,10 @@ void update_wireless_mode(struct adapter *padapter)
 {
 	int ratelen, network_type = 0;
 	u32 SIFS_Timer;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	struct wlan_bssid_ex	*cur_network = &(pmlmeinfo->network);
-	unsigned char		*rate = cur_network->SupportedRates;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct wlan_bssid_ex *cur_network = &(pmlmeinfo->network);
+	unsigned char *rate = cur_network->SupportedRates;
 
 	ratelen = rtw_get_rateset_len(cur_network->SupportedRates);
 
