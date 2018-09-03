@@ -5913,9 +5913,9 @@ unsigned int bnxt_get_max_func_cp_rings(struct bnxt *bp)
 	return bp->hw_resc.max_cp_rings;
 }
 
-void bnxt_set_max_func_cp_rings(struct bnxt *bp, unsigned int max)
+unsigned int bnxt_get_max_func_cp_rings_for_en(struct bnxt *bp)
 {
-	bp->hw_resc.max_cp_rings = max;
+	return bp->hw_resc.max_cp_rings - bnxt_get_ulp_msix_num(bp);
 }
 
 static unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
@@ -8631,7 +8631,8 @@ static void _bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 
 	*max_tx = hw_resc->max_tx_rings;
 	*max_rx = hw_resc->max_rx_rings;
-	*max_cp = min_t(int, hw_resc->max_irqs, hw_resc->max_cp_rings);
+	*max_cp = min_t(int, bnxt_get_max_func_cp_rings_for_en(bp),
+			hw_resc->max_irqs);
 	*max_cp = min_t(int, *max_cp, hw_resc->max_stat_ctxs);
 	max_ring_grps = hw_resc->max_hw_ring_grps;
 	if (BNXT_CHIP_TYPE_NITRO_A0(bp) && BNXT_PF(bp)) {
