@@ -157,6 +157,12 @@ int ahci_platform_enable_regulators(struct ahci_host_priv *hpriv)
 			return rc;
 	}
 
+	if (hpriv->phy_regulator) {
+		rc = regulator_enable(hpriv->phy_regulator);
+		if (rc)
+			goto disable_ahci_pwrs;
+	}
+
 	for (i = 0; i < hpriv->nports; i++) {
 		if (!hpriv->target_pwrs[i])
 			continue;
@@ -173,6 +179,9 @@ disable_target_pwrs:
 		if (hpriv->target_pwrs[i])
 			regulator_disable(hpriv->target_pwrs[i]);
 
+	if (hpriv->phy_regulator)
+		regulator_disable(hpriv->phy_regulator);
+disable_ahci_pwrs:
 	if (hpriv->ahci_regulator)
 		regulator_disable(hpriv->ahci_regulator);
 	return rc;
@@ -198,6 +207,8 @@ void ahci_platform_disable_regulators(struct ahci_host_priv *hpriv)
 
 	if (hpriv->ahci_regulator)
 		regulator_disable(hpriv->ahci_regulator);
+	if (hpriv->phy_regulator)
+		regulator_disable(hpriv->phy_regulator);
 }
 EXPORT_SYMBOL_GPL(ahci_platform_disable_regulators);
 /**
@@ -428,6 +439,15 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 			goto err_out;
 		rc = 0;
 		hpriv->ahci_regulator = NULL;
+	}
+
+	hpriv->phy_regulator = devm_regulator_get_optional(dev, "phy");
+	if (IS_ERR(hpriv->phy_regulator)) {
+		rc = PTR_ERR(hpriv->phy_regulator);
+		if (rc == -EPROBE_DEFER)
+			goto err_out;
+		rc = 0;
+		hpriv->phy_regulator = NULL;
 	}
 
 	if (flags & AHCI_PLATFORM_GET_RESETS) {
