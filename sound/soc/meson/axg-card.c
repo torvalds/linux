@@ -97,14 +97,15 @@ static void axg_card_clean_references(struct axg_card *priv)
 {
 	struct snd_soc_card *card = &priv->card;
 	struct snd_soc_dai_link *link;
+	struct snd_soc_dai_link_component *codec;
 	int i, j;
 
 	if (card->dai_link) {
 		for (i = 0; i < card->num_links; i++) {
 			link = &card->dai_link[i];
 			of_node_put(link->cpu_of_node);
-			for (j = 0; j < link->num_codecs; j++)
-				of_node_put(link->codecs[j].of_node);
+			for_each_link_codecs(link, j, codec)
+				of_node_put(codec->of_node);
 		}
 	}
 

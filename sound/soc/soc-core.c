@@ -1071,6 +1071,7 @@ static int soc_init_dai_link(struct snd_soc_card *card,
 				   struct snd_soc_dai_link *link)
 {
 	int i, ret;
+	struct snd_soc_dai_link_component *codec;
 
 	ret = snd_soc_init_platform(card, link);
 	if (ret) {
@@ -1084,19 +1085,19 @@ static int soc_init_dai_link(struct snd_soc_card *card,
 		return ret;
 	}
 
-	for (i = 0; i < link->num_codecs; i++) {
+	for_each_link_codecs(link, i, codec) {
 		/*
 		 * Codec must be specified by 1 of name or OF node,
 		 * not both or neither.
 		 */
-		if (!!link->codecs[i].name ==
-		    !!link->codecs[i].of_node) {
+		if (!!codec->name ==
+		    !!codec->of_node) {
 			dev_err(card->dev, "ASoC: Neither/both codec name/of_node are set for %s\n",
 				link->name);
 			return -EINVAL;
 		}
 		/* Codec DAI name must be specified */
-		if (!link->codecs[i].dai_name) {
+		if (!codec->dai_name) {
 			dev_err(card->dev, "ASoC: codec_dai_name not set for %s\n",
 				link->name);
 			return -EINVAL;
@@ -3796,10 +3797,10 @@ EXPORT_SYMBOL_GPL(snd_soc_of_get_dai_name);
  */
 void snd_soc_of_put_dai_link_codecs(struct snd_soc_dai_link *dai_link)
 {
-	struct snd_soc_dai_link_component *component = dai_link->codecs;
+	struct snd_soc_dai_link_component *component;
 	int index;
 
-	for (index = 0; index < dai_link->num_codecs; index++, component++) {
+	for_each_link_codecs(dai_link, index, component) {
 		if (!component->of_node)
 			break;
 		of_node_put(component->of_node);
@@ -3851,9 +3852,7 @@ int snd_soc_of_get_dai_link_codecs(struct device *dev,
 	dai_link->num_codecs = num_codecs;
 
 	/* Parse the list */
-	for (index = 0, component = dai_link->codecs;
-	     index < dai_link->num_codecs;
-	     index++, component++) {
+	for_each_link_codecs(dai_link, index, component) {
 		ret = of_parse_phandle_with_args(of_node, name,
 						 "#sound-dai-cells",
 						  index, &args);
