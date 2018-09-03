@@ -200,6 +200,9 @@ int xprt_rdma_bc_send_reply(struct rpc_rqst *rqst)
 	if (!xprt_connected(rqst->rq_xprt))
 		goto drop_connection;
 
+	if (!xprt_request_get_cong(rqst->rq_xprt, rqst))
+		return -EBADSLT;
+
 	rc = rpcrdma_bc_marshal_reply(rqst);
 	if (rc < 0)
 		goto failed_marshal;

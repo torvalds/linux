@@ -721,6 +721,9 @@ xprt_rdma_send_request(struct rpc_rqst *rqst, struct rpc_task *task)
 	if (!xprt_connected(xprt))
 		goto drop_connection;
 
+	if (!xprt_request_get_cong(xprt, rqst))
+		return -EBADSLT;
+
 	rc = rpcrdma_marshal_req(r_xprt, rqst);
 	if (rc < 0)
 		goto failed_marshal;

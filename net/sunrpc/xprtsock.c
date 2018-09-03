@@ -609,6 +609,10 @@ static int xs_udp_send_request(struct rpc_rqst *req, struct rpc_task *task)
 
 	if (!xprt_bound(xprt))
 		return -ENOTCONN;
+
+	if (!xprt_request_get_cong(xprt, req))
+		return -EBADSLT;
+
 	req->rq_xtime = ktime_get();
 	status = xs_sendpages(transport->sock, xs_addr(xprt), xprt->addrlen,
 			      xdr, 0, true, &sent);
