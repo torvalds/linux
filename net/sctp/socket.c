@@ -2658,10 +2658,12 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 	}
 
 	if (params->spp_flags & SPP_IPV6_FLOWLABEL) {
-		if (trans && trans->ipaddr.sa.sa_family == AF_INET6) {
-			trans->flowlabel = params->spp_ipv6_flowlabel &
-					   SCTP_FLOWLABEL_VAL_MASK;
-			trans->flowlabel |= SCTP_FLOWLABEL_SET_MASK;
+		if (trans) {
+			if (trans->ipaddr.sa.sa_family == AF_INET6) {
+				trans->flowlabel = params->spp_ipv6_flowlabel &
+						   SCTP_FLOWLABEL_VAL_MASK;
+				trans->flowlabel |= SCTP_FLOWLABEL_SET_MASK;
+			}
 		} else if (asoc) {
 			struct sctp_transport *t;
 
