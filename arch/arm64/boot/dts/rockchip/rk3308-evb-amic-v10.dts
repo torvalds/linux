@@ -24,7 +24,6 @@
 };
 
 &acodec {
-	rockchip,no-deep-low-power;
 	rockchip,en-always-grps = <0 1 2>;
 };
 
