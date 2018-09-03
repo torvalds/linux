@@ -168,8 +168,7 @@ static int axg_card_tdm_be_hw_params(struct snd_pcm_substream *substream,
 	if (be->mclk_fs) {
 		mclk = params_rate(params) * be->mclk_fs;
 
-		for (i = 0; i < rtd->num_codecs; i++) {
-			codec_dai = rtd->codec_dais[i];
+		for_each_rtd_codec_dai(rtd, i, codec_dai) {
 			ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
 						     SND_SOC_CLOCK_IN);
 			if (ret && ret != -ENOTSUPP)
@@ -197,8 +196,7 @@ static int axg_card_tdm_dai_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dai *codec_dai;
 	int ret, i;
 
-	for (i = 0; i < rtd->num_codecs; i++) {
-		codec_dai = rtd->codec_dais[i];
+	for_each_rtd_codec_dai(rtd, i, codec_dai) {
 		ret = snd_soc_dai_set_tdm_slot(codec_dai,
 					       be->codec_masks[i].tx,
 					       be->codec_masks[i].rx,
