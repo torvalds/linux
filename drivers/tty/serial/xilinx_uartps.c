@@ -1394,6 +1394,9 @@ static const struct of_device_id cdns_uart_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, cdns_uart_of_match);
 
+/* Temporary variable for storing number of instances */
+static int instances;
+
 /**
  * cdns_uart_probe - Platform driver probe
  * @pdev: Pointer to the platform device structure
@@ -1426,6 +1429,14 @@ static int cdns_uart_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (!cdns_uart_uart_driver.state) {
+		rc = uart_register_driver(&cdns_uart_uart_driver);
+		if (rc < 0) {
+			dev_err(&pdev->dev, "Failed to register driver\n");
+			return rc;
+		}
+	}
+
 	cdns_uart_data->cdns_uart_driver = &cdns_uart_uart_driver;
 
 	match = of_match_node(cdns_uart_of_match, pdev->dev.of_node);
@@ -1443,7 +1454,8 @@ static int cdns_uart_probe(struct platform_device *pdev)
 	}
 	if (IS_ERR(cdns_uart_data->pclk)) {
 		dev_err(&pdev->dev, "pclk clock not found.\n");
-		return PTR_ERR(cdns_uart_data->pclk);
+		rc = PTR_ERR(cdns_uart_data->pclk);
+		goto err_out_unregister_driver;
 	}
 
 	cdns_uart_data->uartclk = devm_clk_get(&pdev->dev, "uart_clk");
@@ -1454,13 +1466,14 @@ static int cdns_uart_probe(struct platform_device *pdev)
 	}
 	if (IS_ERR(cdns_uart_data->uartclk)) {
 		dev_err(&pdev->dev, "uart_clk clock not found.\n");
-		return PTR_ERR(cdns_uart_data->uartclk);
+		rc = PTR_ERR(cdns_uart_data->uartclk);
+		goto err_out_unregister_driver;
 	}
 
 	rc = clk_prepare_enable(cdns_uart_data->pclk);
 	if (rc) {
 		dev_err(&pdev->dev, "Unable to enable pclk clock.\n");
-		return rc;
+		goto err_out_unregister_driver;
 	}
 	rc = clk_prepare_enable(cdns_uart_data->uartclk);
 	if (rc) {
@@ -1539,6 +1552,7 @@ static int cdns_uart_probe(struct platform_device *pdev)
 		console_port = NULL;
 #endif
 
+	instances++;
 	return 0;
 
 err_out_pm_disable:
@@ -1553,7 +1567,9 @@ err_out_clk_disable:
 	clk_disable_unprepare(cdns_uart_data->uartclk);
 err_out_clk_dis_pclk:
 	clk_disable_unprepare(cdns_uart_data->pclk);
-
+err_out_unregister_driver:
+	if (!instances)
+		uart_unregister_driver(cdns_uart_data->cdns_uart_driver);
 	return rc;
 }
 
@@ -1581,6 +1597,8 @@ static int cdns_uart_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
+	if (!--instances)
+		uart_unregister_driver(cdns_uart_data->cdns_uart_driver);
 	return rc;
 }
 
@@ -1596,28 +1614,14 @@ static struct platform_driver cdns_uart_platform_driver = {
 
 static int __init cdns_uart_init(void)
 {
-	int retval = 0;
-
-	/* Register the cdns_uart driver with the serial core */
-	retval = uart_register_driver(&cdns_uart_uart_driver);
-	if (retval)
-		return retval;
-
 	/* Register the platform driver */
-	retval = platform_driver_register(&cdns_uart_platform_driver);
-	if (retval)
-		uart_unregister_driver(&cdns_uart_uart_driver);
-
-	return retval;
+	return platform_driver_register(&cdns_uart_platform_driver);
 }
 
 static void __exit cdns_uart_exit(void)
 {
 	/* Unregister the platform driver */
 	platform_driver_unregister(&cdns_uart_platform_driver);
-
-	/* Unregister the cdns_uart driver */
-	uart_unregister_driver(&cdns_uart_uart_driver);
 }
 
 arch_initcall(cdns_uart_init);
