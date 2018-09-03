@@ -65,8 +65,7 @@ struct super_block *ovl_same_sb(struct super_block *sb)
  */
 int ovl_can_decode_fh(struct super_block *sb)
 {
-	if (!sb->s_export_op || !sb->s_export_op->fh_to_dentry ||
-	    uuid_is_null(&sb->s_uuid))
+	if (!sb->s_export_op || !sb->s_export_op->fh_to_dentry)
 		return 0;
 
 	return sb->s_export_op->encode_fh ? -1 : FILEID_INO32_GEN;
