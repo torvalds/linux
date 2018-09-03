@@ -4464,19 +4464,6 @@ void regulator_unregister(struct regulator_dev *rdev)
 EXPORT_SYMBOL_GPL(regulator_unregister);
 
 #ifdef CONFIG_SUSPEND
-static int _regulator_suspend(struct device *dev, void *data)
-{
-	struct regulator_dev *rdev = dev_to_rdev(dev);
-	suspend_state_t *state = data;
-	int ret;
-
-	regulator_lock(rdev);
-	ret = suspend_set_state(rdev, *state);
-	regulator_unlock(rdev);
-
-	return ret;
-}
-
 /**
  * regulator_suspend - prepare regulators for system wide suspend
  * @state: system suspend state
@@ -4485,20 +4472,25 @@ static int _regulator_suspend(struct device *dev, void *data)
  */
 static int regulator_suspend(struct device *dev)
 {
+	struct regulator_dev *rdev = dev_to_rdev(dev);
 	suspend_state_t state = pm_suspend_target_state;
+	int ret;
 
-	return class_for_each_device(&regulator_class, NULL, &state,
-				     _regulator_suspend);
+	regulator_lock(rdev);
+	ret = suspend_set_state(rdev, state);
+	regulator_unlock(rdev);
+
+	return ret;
 }
 
-static int _regulator_resume(struct device *dev, void *data)
+static int regulator_resume(struct device *dev)
 {
-	int ret = 0;
+	suspend_state_t state = pm_suspend_target_state;
 	struct regulator_dev *rdev = dev_to_rdev(dev);
-	suspend_state_t *state = data;
 	struct regulator_state *rstate;
+	int ret = 0;
 
-	rstate = regulator_get_suspend_state(rdev, *state);
+	rstate = regulator_get_suspend_state(rdev, state);
 	if (rstate == NULL)
 		return 0;
 
@@ -4513,15 +4505,6 @@ static int _regulator_resume(struct device *dev, void *data)
 
 	return ret;
 }
-
-static int regulator_resume(struct device *dev)
-{
-	suspend_state_t state = pm_suspend_target_state;
-
-	return class_for_each_device(&regulator_class, NULL, &state,
-				     _regulator_resume);
-}
-
 #else /* !CONFIG_SUSPEND */
 
 #define regulator_suspend	NULL
