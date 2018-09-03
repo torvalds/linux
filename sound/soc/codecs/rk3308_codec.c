@@ -57,7 +57,6 @@
 #define ADC_LR_GROUP_MAX		4
 #define ADC_STABLE_MS			200
 #define DEBUG_POP_ALWAYS		0
-#define ENABLE_AGC			0
 #define HPDET_POLL_MS			2000
 #define NOT_USED			255
 #define LOOPBACK_HANDLE_MS		100
@@ -162,6 +161,14 @@ struct rk3308_codec_priv {
 
 	int pm_state;
 
+	/* AGC L/R Off/on */
+	unsigned int agc_l[ADC_LR_GROUP_MAX];
+	unsigned int agc_r[ADC_LR_GROUP_MAX];
+
+	/* AGC L/R Approximate Sample Rate */
+	unsigned int agc_asr_l[ADC_LR_GROUP_MAX];
+	unsigned int agc_asr_r[ADC_LR_GROUP_MAX];
+
 	/* For the high pass filter */
 	unsigned int hpf_cutoff[ADC_LR_GROUP_MAX];
 
@@ -221,6 +228,19 @@ static int rk3308_codec_hpf_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol);
 static int rk3308_codec_hpf_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol);
+static int rk3308_codec_agc_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol);
+static int rk3308_codec_agc_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol);
+static int rk3308_codec_agc_asr_get(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol);
+static int rk3308_codec_agc_asr_put(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol);
+
+static const char *offon_text[2] = {
+	[0] = "Off",
+	[1] = "On",
+};
 
 #define HPF_NUM				4
 
@@ -241,6 +261,52 @@ static const struct soc_enum rk3308_hpf_enum_array[] = {
 	SOC_ENUM_SINGLE(1, 0, ARRAY_SIZE(hpf_text), hpf_text),
 	SOC_ENUM_SINGLE(2, 0, ARRAY_SIZE(hpf_text), hpf_text),
 	SOC_ENUM_SINGLE(3, 0, ARRAY_SIZE(hpf_text), hpf_text),
+};
+
+/* ALC AGC Switch */
+static const struct soc_enum rk3308_agc_enum_array[] = {
+	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(offon_text), offon_text),
+	SOC_ENUM_SINGLE(0, 1, ARRAY_SIZE(offon_text), offon_text),
+	SOC_ENUM_SINGLE(1, 0, ARRAY_SIZE(offon_text), offon_text),
+	SOC_ENUM_SINGLE(1, 1, ARRAY_SIZE(offon_text), offon_text),
+	SOC_ENUM_SINGLE(2, 0, ARRAY_SIZE(offon_text), offon_text),
+	SOC_ENUM_SINGLE(2, 1, ARRAY_SIZE(offon_text), offon_text),
+	SOC_ENUM_SINGLE(3, 0, ARRAY_SIZE(offon_text), offon_text),
+	SOC_ENUM_SINGLE(3, 1, ARRAY_SIZE(offon_text), offon_text),
+};
+
+/* ALC AGC Approximate Sample Rate */
+#define AGC_ASR_NUM				8
+
+#define AGC_ASR_96KHZ				0
+#define AGC_ASR_48KHZ				1
+#define AGC_ASR_44_1KHZ				2
+#define AGC_ASR_32KHZ				3
+#define AGC_ASR_24KHZ				4
+#define AGC_ASR_16KHZ				5
+#define AGC_ASR_12KHZ				6
+#define AGC_ASR_8KHZ				7
+
+static const char *agc_asr_text[AGC_ASR_NUM] = {
+	[AGC_ASR_96KHZ] = "96KHz",
+	[AGC_ASR_48KHZ] = "48KHz",
+	[AGC_ASR_44_1KHZ] = "44.1KHz",
+	[AGC_ASR_32KHZ] = "32KHz",
+	[AGC_ASR_24KHZ] = "24KHz",
+	[AGC_ASR_16KHZ] = "16KHz",
+	[AGC_ASR_12KHZ] = "12KHz",
+	[AGC_ASR_8KHZ] = "8KHz",
+};
+
+static const struct soc_enum rk3308_agc_asr_enum_array[] = {
+	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(agc_asr_text), agc_asr_text),
+	SOC_ENUM_SINGLE(0, 1, ARRAY_SIZE(agc_asr_text), agc_asr_text),
+	SOC_ENUM_SINGLE(1, 0, ARRAY_SIZE(agc_asr_text), agc_asr_text),
+	SOC_ENUM_SINGLE(1, 1, ARRAY_SIZE(agc_asr_text), agc_asr_text),
+	SOC_ENUM_SINGLE(2, 0, ARRAY_SIZE(agc_asr_text), agc_asr_text),
+	SOC_ENUM_SINGLE(2, 1, ARRAY_SIZE(agc_asr_text), agc_asr_text),
+	SOC_ENUM_SINGLE(3, 0, ARRAY_SIZE(agc_asr_text), agc_asr_text),
+	SOC_ENUM_SINGLE(3, 1, ARRAY_SIZE(agc_asr_text), agc_asr_text),
 };
 
 static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
@@ -403,6 +469,42 @@ static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
 			     RK3308_AGC_MIN_GAIN_PGA_MAX,
 			     0, rk3308_codec_alc_agc_grp_min_gain_tlv),
 
+	/* ALC AGC Switch */
+	SOC_ENUM_EXT("ALC AGC Group 0 Left Switch", rk3308_agc_enum_array[0],
+		     rk3308_codec_agc_get, rk3308_codec_agc_put),
+	SOC_ENUM_EXT("ALC AGC Group 0 Right Switch", rk3308_agc_enum_array[1],
+		     rk3308_codec_agc_get, rk3308_codec_agc_put),
+	SOC_ENUM_EXT("ALC AGC Group 1 Left Switch", rk3308_agc_enum_array[2],
+		     rk3308_codec_agc_get, rk3308_codec_agc_put),
+	SOC_ENUM_EXT("ALC AGC Group 1 Right Switch", rk3308_agc_enum_array[3],
+		     rk3308_codec_agc_get, rk3308_codec_agc_put),
+	SOC_ENUM_EXT("ALC AGC Group 2 Left Switch", rk3308_agc_enum_array[4],
+		     rk3308_codec_agc_get, rk3308_codec_agc_put),
+	SOC_ENUM_EXT("ALC AGC Group 2 Right Switch", rk3308_agc_enum_array[5],
+		     rk3308_codec_agc_get, rk3308_codec_agc_put),
+	SOC_ENUM_EXT("ALC AGC Group 3 Left Switch", rk3308_agc_enum_array[6],
+		     rk3308_codec_agc_get, rk3308_codec_agc_put),
+	SOC_ENUM_EXT("ALC AGC Group 3 Right Switch", rk3308_agc_enum_array[7],
+		     rk3308_codec_agc_get, rk3308_codec_agc_put),
+
+	/* ALC AGC Approximate Sample Rate */
+	SOC_ENUM_EXT("AGC Group 0 Left Approximate Sample Rate", rk3308_agc_asr_enum_array[0],
+		     rk3308_codec_agc_asr_get, rk3308_codec_agc_asr_put),
+	SOC_ENUM_EXT("AGC Group 0 Right Approximate Sample Rate", rk3308_agc_asr_enum_array[1],
+		     rk3308_codec_agc_asr_get, rk3308_codec_agc_asr_put),
+	SOC_ENUM_EXT("AGC Group 1 Left Approximate Sample Rate", rk3308_agc_asr_enum_array[2],
+		     rk3308_codec_agc_asr_get, rk3308_codec_agc_asr_put),
+	SOC_ENUM_EXT("AGC Group 1 Right Approximate Sample Rate", rk3308_agc_asr_enum_array[3],
+		     rk3308_codec_agc_asr_get, rk3308_codec_agc_asr_put),
+	SOC_ENUM_EXT("AGC Group 2 Left Approximate Sample Rate", rk3308_agc_asr_enum_array[4],
+		     rk3308_codec_agc_asr_get, rk3308_codec_agc_asr_put),
+	SOC_ENUM_EXT("AGC Group 2 Right Approximate Sample Rate", rk3308_agc_asr_enum_array[5],
+		     rk3308_codec_agc_asr_get, rk3308_codec_agc_asr_put),
+	SOC_ENUM_EXT("AGC Group 3 Left Approximate Sample Rate", rk3308_agc_asr_enum_array[6],
+		     rk3308_codec_agc_asr_get, rk3308_codec_agc_asr_put),
+	SOC_ENUM_EXT("AGC Group 3 Right Approximate Sample Rate", rk3308_agc_asr_enum_array[7],
+		     rk3308_codec_agc_asr_get, rk3308_codec_agc_asr_put),
+
 	/* ADC MIC */
 	SOC_SINGLE_RANGE_TLV("ADC MIC Group 0 Left Volume",
 			     RK3308_ADC_ANA_CON01(0),
@@ -557,6 +659,155 @@ static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
 			     RK3308_DAC_R_HPMIX_GAIN_MAX,
 			     0, rk3308_codec_dac_hpmix_gain_tlv),
 };
+
+static int rk3308_codec_agc_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+
+	if (e->reg < 0 || e->reg > ADC_LR_GROUP_MAX - 1) {
+		dev_err(rk3308->plat_dev,
+			"%s: Invalid ADC grp: %d\n", __func__, e->reg);
+		return -EINVAL;
+	}
+
+	if (e->shift_l)
+		ucontrol->value.integer.value[0] = rk3308->agc_r[e->reg];
+	else
+		ucontrol->value.integer.value[0] = rk3308->agc_l[e->reg];
+
+	return 0;
+}
+
+static int rk3308_codec_agc_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int value = ucontrol->value.integer.value[0];
+	int grp = e->reg;
+
+	if (e->reg < 0 || e->reg > ADC_LR_GROUP_MAX - 1) {
+		dev_err(rk3308->plat_dev,
+			"%s: Invalid ADC grp: %d\n", __func__, e->reg);
+		return -EINVAL;
+	}
+
+	if (value) {
+		/* ALC AGC On */
+		if (e->shift_l) {
+			/* ALC AGC Right On */
+			regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON09(grp),
+					   RK3308_AGC_FUNC_SEL_MSK,
+					   RK3308_AGC_FUNC_SEL_EN);
+			regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON11(grp),
+					   RK3308_ADC_ALCR_CON_GAIN_PGAR_MSK,
+					   RK3308_ADC_ALCR_CON_GAIN_PGAR_EN);
+
+			rk3308->agc_r[e->reg] = 1;
+		} else {
+			/* ALC AGC Left On */
+			regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON09(grp),
+					   RK3308_AGC_FUNC_SEL_MSK,
+					   RK3308_AGC_FUNC_SEL_EN);
+			regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON11(grp),
+					   RK3308_ADC_ALCL_CON_GAIN_PGAL_MSK,
+					   RK3308_ADC_ALCL_CON_GAIN_PGAL_EN);
+
+			rk3308->agc_l[e->reg] = 1;
+		}
+	} else {
+		/* ALC AGC Off */
+		if (e->shift_l) {
+			/* ALC AGC Right Off */
+			regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON09(grp),
+					   RK3308_AGC_FUNC_SEL_MSK,
+					   RK3308_AGC_FUNC_SEL_DIS);
+			regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON11(grp),
+					   RK3308_ADC_ALCR_CON_GAIN_PGAR_MSK,
+					   RK3308_ADC_ALCR_CON_GAIN_PGAR_DIS);
+
+			rk3308->agc_r[e->reg] = 0;
+		} else {
+			/* ALC AGC Left Off */
+			regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON09(grp),
+					   RK3308_AGC_FUNC_SEL_MSK,
+					   RK3308_AGC_FUNC_SEL_DIS);
+			regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON11(grp),
+					   RK3308_ADC_ALCL_CON_GAIN_PGAL_MSK,
+					   RK3308_ADC_ALCL_CON_GAIN_PGAL_DIS);
+
+			rk3308->agc_l[e->reg] = 0;
+		}
+	}
+
+	return 0;
+}
+
+static int rk3308_codec_agc_asr_get(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int value;
+	int grp = e->reg;
+
+	if (e->reg < 0 || e->reg > ADC_LR_GROUP_MAX - 1) {
+		dev_err(rk3308->plat_dev,
+			"%s: Invalid ADC grp: %d\n", __func__, e->reg);
+		return -EINVAL;
+	}
+
+	if (e->shift_l) {
+		regmap_read(rk3308->regmap, RK3308_ALC_R_DIG_CON04(grp), &value);
+		rk3308->agc_asr_r[e->reg] = value >> RK3308_AGC_APPROX_RATE_SFT;
+		ucontrol->value.integer.value[0] = rk3308->agc_asr_r[e->reg];
+	} else {
+		regmap_read(rk3308->regmap, RK3308_ALC_L_DIG_CON04(grp), &value);
+		rk3308->agc_asr_l[e->reg] = value >> RK3308_AGC_APPROX_RATE_SFT;
+		ucontrol->value.integer.value[0] = rk3308->agc_asr_l[e->reg];
+	}
+
+	return 0;
+}
+
+static int rk3308_codec_agc_asr_put(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int value;
+	int grp = e->reg;
+
+	if (e->reg < 0 || e->reg > ADC_LR_GROUP_MAX - 1) {
+		dev_err(rk3308->plat_dev,
+			"%s: Invalid ADC grp: %d\n", __func__, e->reg);
+		return -EINVAL;
+	}
+
+	value = ucontrol->value.integer.value[0] << RK3308_AGC_APPROX_RATE_SFT;
+
+	if (e->shift_l) {
+		/* ALC AGC Right Approximate Sample Rate */
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON04(grp),
+				   RK3308_AGC_APPROX_RATE_MSK,
+				   value);
+		rk3308->agc_asr_r[e->reg] = ucontrol->value.integer.value[0];
+	} else {
+		/* ALC AGC Left Approximate Sample Rate */
+		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON04(grp),
+				   RK3308_AGC_APPROX_RATE_MSK,
+				   value);
+		rk3308->agc_asr_l[e->reg] = ucontrol->value.integer.value[0];
+	}
+
+	return 0;
+}
 
 static int rk3308_codec_hpf_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -2145,148 +2396,6 @@ static int rk3308_codec_micbias_disable(struct rk3308_codec_priv *rk3308)
 	return 0;
 }
 
-static int rk3308_codec_alc_enable(struct rk3308_codec_priv *rk3308, int type)
-{
-	int idx, grp;
-
-	/*
-	 * 1. Set he max level and min level of the ALC need to control.
-	 *
-	 * These values are estimated
-	 */
-	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
-		if (grp < 0 || grp > ADC_LR_GROUP_MAX - 1)
-			continue;
-
-		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON05(grp),
-				   RK3308_AGC_LO_8BITS_AGC_MAX_MSK,
-				   0x26);
-		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON05(grp),
-				   RK3308_AGC_LO_8BITS_AGC_MAX_MSK,
-				   0x26);
-
-		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON06(grp),
-				   RK3308_AGC_HI_8BITS_AGC_MAX_MSK,
-				   0x40);
-		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON06(grp),
-				   RK3308_AGC_HI_8BITS_AGC_MAX_MSK,
-				   0x40);
-
-		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON07(grp),
-				   RK3308_AGC_LO_8BITS_AGC_MIN_MSK,
-				   0x36);
-		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON07(grp),
-				   RK3308_AGC_LO_8BITS_AGC_MIN_MSK,
-				   0x36);
-
-		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON08(grp),
-				   RK3308_AGC_LO_8BITS_AGC_MIN_MSK,
-				   0x20);
-		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON08(grp),
-				   RK3308_AGC_LO_8BITS_AGC_MIN_MSK,
-				   0x20);
-	}
-
-	/*
-	 * 2. Set ACODEC_ALC_DIG_CON4[2:0] according to the sample rate
-	 *
-	 * By default is 44.1KHz for sample.
-	 */
-	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
-		if (grp < 0 || grp > ADC_LR_GROUP_MAX - 1)
-			continue;
-
-		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON04(grp),
-				   RK3308_AGC_APPROX_RATE_MSK,
-				   RK3308_AGC_APPROX_RATE_44_1K);
-
-		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON04(grp),
-				   RK3308_AGC_APPROX_RATE_MSK,
-				   RK3308_AGC_APPROX_RATE_44_1K);
-	}
-
-#if ENABLE_AGC
-	/* 3. Set ACODEC_ALC_DIG_CON9[6] to 0x1, to enable the ALC module */
-	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
-		if (grp < 0 || grp > ADC_LR_GROUP_MAX - 1)
-			continue;
-
-		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON09(grp),
-				   RK3308_AGC_FUNC_SEL_MSK,
-				   RK3308_AGC_FUNC_SEL_EN);
-
-		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON09(grp),
-				   RK3308_AGC_FUNC_SEL_MSK,
-				   RK3308_AGC_FUNC_SEL_EN);
-	}
-
-	/*
-	 * 4. Set ACODEC_ADC_ANA_CON11[1:0], (ACODEC_ADC_ANA_CON11+0x40)[1:0],
-	 * (ACODEC_ADC_ANA_CON11+0x80)[1:0] and (ACODEC_ADC_ANA_CON11+0xc0)[1:0]
-	 * to 0x3, to enable the ALC module to control the gain of PGA.
-	 */
-	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
-		if (grp < 0 || grp > ADC_LR_GROUP_MAX - 1)
-			continue;
-
-		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON11(grp),
-				   RK3308_ADC_ALCL_CON_GAIN_PGAL_MSK |
-				   RK3308_ADC_ALCR_CON_GAIN_PGAR_MSK,
-				   RK3308_ADC_ALCL_CON_GAIN_PGAL_EN |
-				   RK3308_ADC_ALCR_CON_GAIN_PGAR_EN);
-	}
-#endif
-	/*
-	 * 5.Observe the current ALC output gain by reading
-	 * ACODEC_ALC_DIG_CON12[4:0]
-	 */
-
-	/* Do nothing if we don't use AGC */
-
-	return 0;
-}
-
-static int rk3308_codec_alc_disable(struct rk3308_codec_priv *rk3308,
-				    int type)
-{
-	int idx, grp;
-
-	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
-		if (grp < 0 || grp > ADC_LR_GROUP_MAX - 1)
-			continue;
-
-		/*
-		 * 1. Set ACODEC_ALC_DIG_CON9[6] to 0x0, to disable the ALC
-		 * module, then the ALC output gain will keep to the last value
-		 */
-		regmap_update_bits(rk3308->regmap, RK3308_ALC_L_DIG_CON09(grp),
-				   RK3308_AGC_FUNC_SEL_MSK,
-				   RK3308_AGC_FUNC_SEL_DIS);
-		regmap_update_bits(rk3308->regmap, RK3308_ALC_R_DIG_CON09(grp),
-				   RK3308_AGC_FUNC_SEL_MSK,
-				   RK3308_AGC_FUNC_SEL_DIS);
-	}
-
-	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
-		if (grp < 0 || grp > ADC_LR_GROUP_MAX - 1)
-			continue;
-
-		/*
-		 * 2. Set ACODEC_ADC_ANA_CON11[1:0], (ACODEC_ADC_ANA_CON11+0x40)
-		 * [1:0], (ACODEC_ADC_ANA_CON11+0x80)[1:0] and
-		 * (ACODEC_ADC_ANA_CON11+0xc0)[1:0] to 0x0, to disable the ALC
-		 * module to control the gain of PGA.
-		 */
-		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON11(grp),
-				   RK3308_ADC_ALCL_CON_GAIN_PGAL_MSK |
-				   RK3308_ADC_ALCR_CON_GAIN_PGAR_MSK,
-				   RK3308_ADC_ALCL_CON_GAIN_PGAL_DIS |
-				   RK3308_ADC_ALCR_CON_GAIN_PGAR_DIS);
-	}
-
-	return 0;
-}
-
 static int rk3308_codec_adc_reinit_mics(struct rk3308_codec_priv *rk3308,
 					int type)
 {
@@ -2712,7 +2821,6 @@ static int rk3308_codec_open_capture(struct rk3308_codec_priv *rk3308)
 	int idx, grp = 0;
 	int type = ADC_TYPE_NORMAL;
 
-	rk3308_codec_alc_enable(rk3308, type);
 	rk3308_codec_adc_ana_enable(rk3308, type);
 	rk3308_codec_adc_reinit_mics(rk3308, type);
 
@@ -2796,7 +2904,6 @@ static void rk3308_codec_dac_mclk_enable(struct rk3308_codec_priv *rk3308)
 
 static int rk3308_codec_close_all_capture(struct rk3308_codec_priv *rk3308)
 {
-	rk3308_codec_alc_disable(rk3308, ADC_TYPE_ALL);
 	rk3308_codec_adc_ana_disable(rk3308, ADC_TYPE_ALL);
 
 	return 0;
@@ -2804,7 +2911,6 @@ static int rk3308_codec_close_all_capture(struct rk3308_codec_priv *rk3308)
 
 static int rk3308_codec_close_capture(struct rk3308_codec_priv *rk3308)
 {
-	rk3308_codec_alc_disable(rk3308, ADC_TYPE_NORMAL);
 	rk3308_codec_adc_ana_disable(rk3308, ADC_TYPE_NORMAL);
 
 	return 0;
@@ -3036,7 +3142,6 @@ static int rk3308_pcm_trigger(struct snd_pcm_substream *substream,
 						   RK3308_ADC_R_CH_BIST_MSK,
 						   RK3308_ADC_R_CH_BIST_SINE);
 			}
-			rk3308_codec_alc_disable(rk3308, ADC_TYPE_LOOPBACK);
 			rk3308_codec_adc_ana_disable(rk3308, ADC_TYPE_LOOPBACK);
 		}
 	}
@@ -3258,6 +3363,21 @@ static int rk3308_codec_setup_en_always_adcs(struct rk3308_codec_priv *rk3308,
 	return 0;
 }
 
+static int rk3308_codec_dapm_controls_prepare(struct rk3308_codec_priv *rk3308)
+{
+	int grp;
+
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		rk3308->hpf_cutoff[grp] = HPF_OFF;
+		rk3308->agc_l[grp] = 0;
+		rk3308->agc_r[grp] = 0;
+		rk3308->agc_asr_l[grp] = AGC_ASR_96KHZ;
+		rk3308->agc_asr_r[grp] = AGC_ASR_96KHZ;
+	}
+
+	return 0;
+}
+
 static int rk3308_codec_prepare(struct rk3308_codec_priv *rk3308)
 {
 	/* Clear registers for ADC and DAC */
@@ -3265,6 +3385,7 @@ static int rk3308_codec_prepare(struct rk3308_codec_priv *rk3308)
 	rk3308_codec_close_all_capture(rk3308);
 	rk3308_codec_default_gains(rk3308);
 	rk3308_codec_llp_down(rk3308);
+	rk3308_codec_dapm_controls_prepare(rk3308);
 
 	return 0;
 }
@@ -3389,7 +3510,6 @@ static void rk3308_codec_loopback_work(struct work_struct *work)
 	int idx, grp;
 
 	/* Prepare loopback ADCs */
-	rk3308_codec_alc_enable(rk3308, type);
 	rk3308_codec_adc_ana_enable(rk3308, type);
 
 	/* Waiting ADCs are stable */
@@ -4086,10 +4206,6 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	rk3308->dac_output = DAC_LINEOUT;
 	rk3308->adc_zerocross = 1;
 	rk3308->pm_state = PM_NORMAL;
-	rk3308->hpf_cutoff[0] = HPF_OFF;
-	rk3308->hpf_cutoff[1] = HPF_OFF;
-	rk3308->hpf_cutoff[2] = HPF_OFF;
-	rk3308->hpf_cutoff[3] = HPF_OFF;
 
 	platform_set_drvdata(pdev, rk3308);
 
