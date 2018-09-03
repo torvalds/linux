@@ -1414,7 +1414,7 @@ static int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 		break;
 	}
 
-	ref_clock = dev_priv->cdclk.hw.ref;
+	ref_clock = cnl_hdmi_pll_ref_clock(dev_priv);
 
 	dco_freq = (cfgcr0 & DPLL_CFGCR0_DCO_INTEGER_MASK) * ref_clock;
 

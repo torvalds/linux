@@ -2212,6 +2212,20 @@ static void cnl_wrpll_params_populate(struct skl_wrpll_params *params,
 	params->dco_fraction = dco & 0x7fff;
 }
 
+int cnl_hdmi_pll_ref_clock(struct drm_i915_private *dev_priv)
+{
+	int ref_clock = dev_priv->cdclk.hw.ref;
+
+	/*
+	 * For ICL+, the spec states: if reference frequency is 38.4,
+	 * use 19.2 because the DPLL automatically divides that by 2.
+	 */
+	if (INTEL_GEN(dev_priv) >= 11 && ref_clock == 38400)
+		ref_clock = 19200;
+
+	return ref_clock;
+}
+
 static bool
 cnl_ddi_calculate_wrpll(int clock,
 			struct drm_i915_private *dev_priv,
@@ -2251,14 +2265,7 @@ cnl_ddi_calculate_wrpll(int clock,
 
 	cnl_wrpll_get_multipliers(best_div, &pdiv, &qdiv, &kdiv);
 
-	ref_clock = dev_priv->cdclk.hw.ref;
-
-	/*
-	 * For ICL, the spec states: if reference frequency is 38.4, use 19.2
-	 * because the DPLL automatically divides that by 2.
-	 */
-	if (IS_ICELAKE(dev_priv) && ref_clock == 38400)
-		ref_clock = 19200;
+	ref_clock = cnl_hdmi_pll_ref_clock(dev_priv);
 
 	cnl_wrpll_params_populate(wrpll_params, best_dco, ref_clock, pdiv, qdiv,
 				  kdiv);
