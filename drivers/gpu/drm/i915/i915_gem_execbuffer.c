@@ -1127,6 +1127,13 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	u32 *cmd;
 	int err;
 
+	if (DBG_FORCE_RELOC == FORCE_GPU_RELOC) {
+		obj = vma->obj;
+		if (obj->cache_dirty & ~obj->cache_coherent)
+			i915_gem_clflush_object(obj, 0);
+		obj->write_domain = 0;
+	}
+
 	GEM_BUG_ON(vma->obj->write_domain & I915_GEM_DOMAIN_CPU);
 
 	obj = i915_gem_batch_pool_get(&eb->engine->batch_pool, PAGE_SIZE);
