@@ -1,10 +1,5 @@
 * Microsemi - vsc8531 Giga bit ethernet phy
 
-Required properties:
-- compatible	: Should contain phy id as "ethernet-phy-idAAAA.BBBB"
-		  The PHY device uses the binding described in
-		  Documentation/devicetree/bindings/net/phy.txt
-
 Optional properties:
 - vsc8531,vddmac	: The vddmac in mV. Allowed values is listed
 			  in the first row of Table 1 (below).
