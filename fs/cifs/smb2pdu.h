@@ -1174,6 +1174,15 @@ struct smb2_query_info_rsp {
 	__u8   Buffer[1];
 } __packed;
 
+/*
+ * Maximum number of iovs we need for a set-info request.
+ * The largest one is rename/hardlink
+ * [0] : struct smb2_set_info_req + smb2_file_[rename|link]_info
+ * [1] : path
+ * [2] : compound padding
+ */
+#define SMB2_SET_INFO_IOV_SIZE 3
+
 struct smb2_set_info_req {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 33 */

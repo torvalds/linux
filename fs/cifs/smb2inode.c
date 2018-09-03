@@ -56,7 +56,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	struct kvec rsp_iov[3];
 	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
 	struct kvec qi_iov[1];
-	struct kvec si_iov[3];  /* 2 + potential padding. */
+	struct kvec si_iov[SMB2_SET_INFO_IOV_SIZE];
 	struct kvec close_iov[1];
 	struct smb2_query_info_rsp *qi_rsp = NULL;
 	int flags = 0;
