@@ -32,6 +32,12 @@ static int twl6040gpo_get(struct gpio_chip *chip, unsigned offset)
 	return !!(ret & BIT(offset));
 }
 
+static int twl6040gpo_get_direction(struct gpio_chip *chip, unsigned offset)
+{
+	/* This means "out" */
+	return 0;
+}
+
 static int twl6040gpo_direction_out(struct gpio_chip *chip, unsigned offset,
 				    int value)
 {
@@ -62,6 +68,7 @@ static struct gpio_chip twl6040gpo_chip = {
 	.owner			= THIS_MODULE,
 	.get			= twl6040gpo_get,
 	.direction_output	= twl6040gpo_direction_out,
+	.get_direction		= twl6040gpo_get_direction,
 	.set			= twl6040gpo_set,
 	.can_sleep		= true,
 };
