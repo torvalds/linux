@@ -1491,8 +1491,10 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct i915_vma *vma)
 				 * can read from this userspace address.
 				 */
 				offset = gen8_canonical_addr(offset & ~UPDATE);
-				__put_user(offset,
-					   &urelocs[r-stack].presumed_offset);
+				if (unlikely(__put_user(offset, &urelocs[r-stack].presumed_offset))) {
+					remain = -EFAULT;
+					goto out;
+				}
 			}
 		} while (r++, --count);
 		urelocs += ARRAY_SIZE(stack);
@@ -1577,7 +1579,6 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 
 		relocs = kvmalloc_array(size, 1, GFP_KERNEL);
 		if (!relocs) {
-			kvfree(relocs);
 			err = -ENOMEM;
 			goto err;
 		}
@@ -1591,6 +1592,7 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 			if (__copy_from_user((char *)relocs + copied,
 					     (char __user *)urelocs + copied,
 					     len)) {
+end_user:
 				kvfree(relocs);
 				err = -EFAULT;
 				goto err;
@@ -1614,7 +1616,6 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 			unsafe_put_user(-1,
 					&urelocs[copied].presumed_offset,
 					end_user);
-end_user:
 		user_access_end();
 
 		eb->exec[i].relocs_ptr = (uintptr_t)relocs;
