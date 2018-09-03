@@ -460,6 +460,7 @@ struct rsnd_dai {
 
 	int max_channels;	/* 2ch - 16ch */
 	int ssi_lane;		/* 1lane - 4lane */
+	int chan_width;		/* 16/24/32 bit width */
 
 	unsigned int clk_master:1;
 	unsigned int bit_clk_inv:1;
@@ -493,6 +494,11 @@ int rsnd_rdai_channels_ctrl(struct rsnd_dai *rdai,
 int rsnd_rdai_ssi_lane_ctrl(struct rsnd_dai *rdai,
 			    int ssi_lane);
 
+#define rsnd_rdai_width_set(rdai, width) \
+	rsnd_rdai_width_ctrl(rdai, width)
+#define rsnd_rdai_width_get(rdai) \
+	rsnd_rdai_width_ctrl(rdai, 0)
+int rsnd_rdai_width_ctrl(struct rsnd_dai *rdai, int width);
 void rsnd_dai_period_elapsed(struct rsnd_dai_stream *io);
 int rsnd_dai_connect(struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io,
@@ -702,7 +708,7 @@ int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 			    struct device_node *playback,
 			    struct device_node *capture);
-unsigned int rsnd_ssi_clk_query(struct rsnd_priv *priv,
+unsigned int rsnd_ssi_clk_query(struct rsnd_dai *rdai,
 		       int param1, int param2, int *idx);
 
 /*
