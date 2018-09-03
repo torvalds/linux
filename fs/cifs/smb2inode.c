@@ -105,6 +105,8 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		smb2_set_next_command(server, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
 		break;
+	case SMB2_OP_DELETE:
+		break;
 	case SMB2_OP_MKDIR:
 		/*
 		 * Directories are created through parameters in the
@@ -148,6 +150,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		if (rqst[2].rq_iov)
 			SMB2_close_free(&rqst[2]);
 		break;
+	case SMB2_OP_DELETE:
 	case SMB2_OP_MKDIR:
 		if (rqst[1].rq_iov)
 			SMB2_close_free(&rqst[1]);
@@ -202,8 +205,6 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 	}
 
 	switch (command) {
-	case SMB2_OP_DELETE:
-		break;
 	case SMB2_OP_RMDIR:
 		tmprc = SMB2_rmdir(xid, tcon, fid.persistent_fid,
 				   fid.volatile_fid);
@@ -330,9 +331,9 @@ int
 smb2_unlink(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
 	    struct cifs_sb_info *cifs_sb)
 {
-	return smb2_open_op_close(xid, tcon, cifs_sb, name, DELETE, FILE_OPEN,
-				  CREATE_DELETE_ON_CLOSE | OPEN_REPARSE_POINT,
-				  NULL, SMB2_OP_DELETE);
+	return smb2_compound_op(xid, tcon, cifs_sb, name, DELETE, FILE_OPEN,
+				CREATE_DELETE_ON_CLOSE | OPEN_REPARSE_POINT,
+				NULL, SMB2_OP_DELETE);
 }
 
 static int
