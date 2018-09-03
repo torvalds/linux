@@ -15,6 +15,7 @@
 #include <linux/irq.h>
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
+#include <linux/bitops.h>
 #include <linux/of.h>
 
 #include <linux/mfd/twl6040.h>
@@ -28,7 +29,7 @@ static int twl6040gpo_get(struct gpio_chip *chip, unsigned offset)
 	if (ret < 0)
 		return ret;
 
-	return (ret >> offset) & 1;
+	return !!(ret & BIT(offset));
 }
 
 static int twl6040gpo_direction_out(struct gpio_chip *chip, unsigned offset,
@@ -49,9 +50,9 @@ static void twl6040gpo_set(struct gpio_chip *chip, unsigned offset, int value)
 		return;
 
 	if (value)
-		gpoctl = ret | (1 << offset);
+		gpoctl = ret | BIT(offset);
 	else
-		gpoctl = ret & ~(1 << offset);
+		gpoctl = ret & ~BIT(offset);
 
 	twl6040_reg_write(twl6040, TWL6040_REG_GPOCTL, gpoctl);
 }
