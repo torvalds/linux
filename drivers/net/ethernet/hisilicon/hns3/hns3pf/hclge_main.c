@@ -2066,19 +2066,17 @@ static int hclge_init_msi(struct hclge_dev *hdev)
 	return 0;
 }
 
-static void hclge_check_speed_dup(struct hclge_dev *hdev, int duplex, int speed)
+static u8 hclge_check_speed_dup(u8 duplex, int speed)
 {
-	struct hclge_mac *mac = &hdev->hw.mac;
 
-	if ((speed == HCLGE_MAC_SPEED_10M) || (speed == HCLGE_MAC_SPEED_100M))
-		mac->duplex = (u8)duplex;
-	else
-		mac->duplex = HCLGE_MAC_FULL;
+	if (!(speed == HCLGE_MAC_SPEED_10M || speed == HCLGE_MAC_SPEED_100M))
+		duplex = HCLGE_MAC_FULL;
 
-	mac->speed = speed;
+	return duplex;
 }
 
-int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex)
+static int hclge_cfg_mac_speed_dup_hw(struct hclge_dev *hdev, int speed,
+				      u8 duplex)
 {
 	struct hclge_config_mac_speed_dup_cmd *req;
 	struct hclge_desc desc;
@@ -2138,7 +2136,23 @@ int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex)
 		return ret;
 	}
 
-	hclge_check_speed_dup(hdev, duplex, speed);
+	return 0;
+}
+
+int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex)
+{
+	int ret;
+
+	duplex = hclge_check_speed_dup(duplex, speed);
+	if (hdev->hw.mac.speed == speed && hdev->hw.mac.duplex == duplex)
+		return 0;
+
+	ret = hclge_cfg_mac_speed_dup_hw(hdev, speed, duplex);
+	if (ret)
+		return ret;
+
+	hdev->hw.mac.speed = speed;
+	hdev->hw.mac.duplex = duplex;
 
 	return 0;
 }
@@ -2259,7 +2273,9 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 	int ret;
 	int i;
 
-	ret = hclge_cfg_mac_speed_dup(hdev, hdev->hw.mac.speed, HCLGE_MAC_FULL);
+	hdev->hw.mac.duplex = HCLGE_MAC_FULL;
+	ret = hclge_cfg_mac_speed_dup_hw(hdev, hdev->hw.mac.speed,
+					 hdev->hw.mac.duplex);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"Config mac speed dup fail ret=%d\n", ret);
@@ -2415,13 +2431,11 @@ static int hclge_update_speed_duplex(struct hclge_dev *hdev)
 		return ret;
 	}
 
-	if ((mac.speed != speed) || (mac.duplex != duplex)) {
-		ret = hclge_cfg_mac_speed_dup(hdev, speed, duplex);
-		if (ret) {
-			dev_err(&hdev->pdev->dev,
-				"mac speed/duplex config failed %d\n", ret);
-			return ret;
-		}
+	ret = hclge_cfg_mac_speed_dup(hdev, speed, duplex);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"mac speed/duplex config failed %d\n", ret);
+		return ret;
 	}
 
 	return 0;
