@@ -66,9 +66,15 @@ struct gpio_irq_chip {
 	/**
 	 * @lock_key:
 	 *
-	 * Per GPIO IRQ chip lockdep classes.
+	 * Per GPIO IRQ chip lockdep class for IRQ lock.
 	 */
 	struct lock_class_key *lock_key;
+
+	/**
+	 * @request_key:
+	 *
+	 * Per GPIO IRQ chip lockdep class for IRQ request.
+	 */
 	struct lock_class_key *request_key;
 
 	/**
