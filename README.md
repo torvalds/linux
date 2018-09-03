@@ -68,10 +68,10 @@ Kernel breakdown features by version
 
 () = testing (separate Branch wlan/hdmi/hwnat/hwqos)
 
-HW-NAT only works between LAN and WAN (bridge unclear, wifi not working)
-HW-QoS is merged into 4.14-main, but we do not know how to test it
-ACPI-feature means System is powered off, not only halted (power-consumption ~0.2W, no reboot on reset), reboot-problem with soldered power-switch (see https://github.com/frank-w/BPI-R2-4.14/issues/35). Power-off is also initiated by pressing the power-switch
-VIDEO is hdmi-output (X-server/framebuffer-console)...here some resolutions are not supported by vendor-driver
+* HW-NAT only works between LAN and WAN (bridge unclear, wifi not working)
+* HW-QoS is merged into 4.14-main, but we do not know how to test it
+* ACPI-feature means System is powered off, not only halted (power-consumption ~0.2W, no reboot on reset), reboot-problem with soldered power-switch (see https://github.com/frank-w/BPI-R2-4.14/issues/35). Power-off is also initiated by pressing the power-switch
+* VIDEO is hdmi-output (X-server/framebuffer-console)...here some resolutions are not supported by vendor-driver
 
 kernel 4.4 / uboot: https://github.com/frank-w/BPI-R2-4.4
 
