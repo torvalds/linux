@@ -113,9 +113,9 @@ u8 judge_network_type(struct adapter *padapter, unsigned char *rate, int ratelen
 	if (pmlmeinfo->HT_enable)
 		network_type = WIRELESS_11_24N;
 
-	if ((cckratesonly_included(rate, ratelen)) == true)
+	if (cckratesonly_included(rate, ratelen))
 		network_type |= WIRELESS_11B;
-	else if ((cckrates_included(rate, ratelen)) == true)
+	else if (cckrates_included(rate, ratelen))
 		network_type |= WIRELESS_11BG;
 	else
 		network_type |= WIRELESS_11G;
@@ -1426,9 +1426,9 @@ void update_wireless_mode(struct adapter *padapter)
 	if (pmlmeinfo->HT_enable)
 		network_type = WIRELESS_11_24N;
 
-	if ((cckratesonly_included(rate, ratelen)) == true)
+	if (cckratesonly_included(rate, ratelen))
 		network_type |= WIRELESS_11B;
-	else if ((cckrates_included(rate, ratelen)) == true)
+	else if (cckrates_included(rate, ratelen))
 		network_type |= WIRELESS_11BG;
 	else
 		network_type |= WIRELESS_11G;
