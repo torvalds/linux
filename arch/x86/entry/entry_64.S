@@ -900,6 +900,42 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
  */
 #define CPU_TSS_IST(x) PER_CPU_VAR(cpu_tss_rw) + (TSS_ist + ((x) - 1) * 8)
 
+/**
+ * idtentry - Generate an IDT entry stub
+ * @sym:		Name of the generated entry point
+ * @do_sym: 		C function to be called
+ * @has_error_code: 	True if this IDT vector has an error code on the stack
+ * @paranoid: 		non-zero means that this vector may be invoked from
+ *			kernel mode with user GSBASE and/or user CR3.
+ *			2 is special -- see below.
+ * @shift_ist:		Set to an IST index if entries from kernel mode should
+ *             		decrement the IST stack so that nested entries get a
+ *			fresh stack.  (This is for #DB, which has a nasty habit
+ *             		of recursing.)
+ *
+ * idtentry generates an IDT stub that sets up a usable kernel context,
+ * creates struct pt_regs, and calls @do_sym.  The stub has the following
+ * special behaviors:
+ *
+ * On an entry from user mode, the stub switches from the trampoline or
+ * IST stack to the normal thread stack.  On an exit to user mode, the
+ * normal exit-to-usermode path is invoked.
+ *
+ * On an exit to kernel mode, if @paranoid == 0, we check for preemption,
+ * whereas we omit the preemption check if @paranoid != 0.  This is purely
+ * because the implementation is simpler this way.  The kernel only needs
+ * to check for asynchronous kernel preemption when IRQ handlers return.
+ *
+ * If @paranoid == 0, then the stub will handle IRET faults by pretending
+ * that the fault came from user mode.  It will handle gs_change faults by
+ * pretending that the fault happened with kernel GSBASE.  Since this handling
+ * is omitted for @paranoid != 0, the #GP, #SS, and #NP stubs must have
+ * @paranoid == 0.  This special handling will do the wrong thing for
+ * espfix-induced #DF on IRET, so #DF must not use @paranoid == 0.
+ *
+ * @paranoid == 2 is special: the stub will never switch stacks.  This is for
+ * #DF: if the thread stack is somehow unusable, we'll still get a useful OOPS.
+ */
 .macro idtentry sym do_sym has_error_code:req paranoid=0 shift_ist=-1
 ENTRY(\sym)
 	UNWIND_HINT_IRET_REGS offset=\has_error_code*8
