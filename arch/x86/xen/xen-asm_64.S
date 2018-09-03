@@ -91,13 +91,15 @@ ENTRY(xen_iret)
 ENTRY(xen_sysret64)
 	/*
 	 * We're already on the usermode stack at this point, but
-	 * still with the kernel gs, so we can easily switch back
+	 * still with the kernel gs, so we can easily switch back.
+	 *
+	 * tss.sp2 is scratch space.
 	 */
-	movq %rsp, PER_CPU_VAR(rsp_scratch)
+	movq %rsp, PER_CPU_VAR(cpu_tss_rw + TSS_sp2)
 	movq PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
 	pushq $__USER_DS
-	pushq PER_CPU_VAR(rsp_scratch)
+	pushq PER_CPU_VAR(cpu_tss_rw + TSS_sp2)
 	pushq %r11
 	pushq $__USER_CS
 	pushq %rcx
