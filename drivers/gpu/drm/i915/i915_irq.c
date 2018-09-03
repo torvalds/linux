@@ -3309,7 +3309,8 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 	 * Try engine reset when available. We fall back to full reset if
 	 * single reset fails.
 	 */
-	if (intel_has_reset_engine(dev_priv)) {
+	if (intel_has_reset_engine(dev_priv) &&
+	    !i915_terminally_wedged(&dev_priv->gpu_error)) {
 		for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
 			BUILD_BUG_ON(I915_RESET_MODESET >= I915_RESET_ENGINE);
 			if (test_and_set_bit(I915_RESET_ENGINE + engine->id,
