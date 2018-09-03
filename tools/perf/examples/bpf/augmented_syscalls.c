@@ -33,9 +33,9 @@ struct syscall_exit_args {
 };
 
 struct augmented_filename {
-	int	size;
-	int	reserved;
-	char	value[256];
+	unsigned int	size;
+	int		reserved;
+	char		value[256];
 };
 
 #define augmented_filename_syscall(syscall)							\
@@ -46,14 +46,15 @@ struct augmented_enter_##syscall##_args {			 				\
 int syscall_enter(syscall)(struct syscall_enter_##syscall##_args *args)				\
 {												\
 	struct augmented_enter_##syscall##_args augmented_args = { .filename.reserved = 0, }; 	\
+	unsigned int len = sizeof(augmented_args);						\
 	probe_read(&augmented_args.args, sizeof(augmented_args.args), args);			\
 	augmented_args.filename.size = probe_read_str(&augmented_args.filename.value, 		\
 						      sizeof(augmented_args.filename.value), 	\
 						      args->filename_ptr); 			\
+	if (augmented_args.filename.size < sizeof(augmented_args.filename.value))		\
+		len -= sizeof(augmented_args.filename.value) - augmented_args.filename.size;	\
 	perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, 			\
-			  &augmented_args, 							\
-			  (sizeof(augmented_args) - sizeof(augmented_args.filename.value) +	\
-			   augmented_args.filename.size));					\
+			  &augmented_args, len);						\
 	return 0;										\
 }												\
 int syscall_exit(syscall)(struct syscall_exit_args *args)					\
