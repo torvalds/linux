@@ -1,6 +1,6 @@
 # Kernel 4.14 for BPI-R2
 
-[![Build Status](https://travis-ci.com/frank-w/BPI-R2-4.14.svg?branch=4.14-main)](https://travis-ci.com/frank-w/BPI-R2-4.14?branch=4.14-main)
+<a href="https://travis-ci.com/frank-w/BPI-R2-4.14" target="_blank"><img src="https://travis-ci.com/frank-w/BPI-R2-4.14.svg?branch=4.14-main" alt="Build status 4.14-main"></a>
 
 ## Requirements
 
@@ -34,34 +34,35 @@ sudo update-alternatives --config arm-linux-gnueabihf-gcc
 
 Kernel upstream + BPI-R2
 * 4.14-main
-* 4.9-main
-* 4.16-main (EOL)
-* 4.17-main
-* 4.18-main
+* <a href="https://github.com/frank-w/BPI-R2-4.14/tree/4.9-main">4.9-main</a>
+* <a href="https://github.com/frank-w/BPI-R2-4.14/tree/4.16-main">4.16-main</a> (EOL)
+* <a href="https://github.com/frank-w/BPI-R2-4.14/tree/4.17-main">4.17-main</a> (EOL)
+* <a href="https://github.com/frank-w/BPI-R2-4.14/tree/4.18-main">4.18-main</a>
+* <a href="https://github.com/frank-w/BPI-R2-4.14/tree/4.19-rc">4.19-rc</a> (next LTS)
 
 ## Kernel version
 
 Kernel breakdown features by version
 
-|          | 4.4 | 4.9 | 4.14 | 4.16 | 4.17 | 4.18 |
-|----------| --- | --- | --- | --- | --- | --- |
-| PCIe     |  Y  |  Y  |  Y  |  Y  |     |   ?  |
-| SATA     |  Y  |  Y  |  Y  |  Y?  |     |  Y   |
-| 2 GMAC   |  Y  |  Y  |  Y  |  N  |     |     |
-| DSA      |  N  |  Y  |  Y  |  Y  |  Y  |   Y  |
-| USB      |  Y  |  Y  |  Y  |  Y?  |     |  ?   |
-| VLAN     |     |     |  Y  |     |     |  ?   |
-| HW NAT   |     |  Y  |  Y |     |     |     |
-| HW QOS   |     |  Y  |  ? |     |     |     |
-| Crypto   |  Y  |  Y  |  Y  |  Y?  |     |     |
-| WIFI     |     |     |  Y  |  Y |  Y  |   Y  |
-| BT       |     |     |     |     |     |     |
-| VIDEO    |  Y  |  N  |  Y  |  Y  |     |     |
-| ACPI |  ?  |  N  |  Y  |  N  |     |     |
-||| other Options ||||     |
-| OpenVPN  |  ?  |  Y  |  Y  |  ?  |     |   ?  |
-| iptables |  ?  |  ?  |  Y  |  ?  |     |   ?  |
-| LXC / Docker |  ?  |  ?  |  Y  |  ?  |     |  ?   |
+|          | 4.4 | 4.9 | 4.14 | 4.16 | 4.17 | 4.18 | 4.19 |
+|----------| --- | --- | --- | --- | --- | --- | --- |
+| PCIe     |  Y  |  Y  |  Y  |  Y  |     |   ?  |    |
+| SATA     |  Y  |  Y  |  Y  |  Y?  |     |  Y   |    |
+| 2 GMAC   |  Y  |  Y  |  Y  |  N  |     |     |    |
+| DSA      |  N  |  Y  |  Y  |  Y  |  Y  |   Y  |    |
+| USB      |  Y  |  Y  |  Y  |  Y?  |     |  ?   |    |
+| VLAN     |     |     |  Y  |     |     |  ?   |    |
+| HW NAT   |     |  Y  |  Y |     |     |     |    |
+| HW QOS   |     |  Y  |  ? |     |     |     |    |
+| Crypto   |  Y  |  Y  |  Y  |  Y?  |     |     |    |
+| WIFI     |     |     |  Y  |  Y |  Y  |   Y  |  Y  |
+| BT       |     |     |     |     |     |     |    |
+| VIDEO    |  Y  |  N  |  Y  |  Y  |     |     |  Y  |
+| ACPI |  ?  |  N  |  Y  |  N  |     |     |  Y  |
+||| other Options ||||     |    |
+| OpenVPN  |  ?  |  Y  |  Y  |  ?  |     |   ?  |    |
+| iptables |  ?  |  ?  |  Y  |  ?  |     |   ?  |    |
+| LXC / Docker |  ?  |  ?  |  Y  |  ?  |     |  ?   |    |
 
 ? = unsure
 
