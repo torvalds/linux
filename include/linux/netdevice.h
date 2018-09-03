@@ -2343,6 +2343,7 @@ static inline struct sk_buff *call_gro_receive_sk(gro_receive_sk_t cb,
 
 struct packet_type {
 	__be16			type;	/* This is really htons(ether_type). */
+	bool			ignore_outgoing;
 	struct net_device	*dev;	/* NULL is wildcarded here	     */
 	int			(*func) (struct sk_buff *,
 					 struct net_device *,
