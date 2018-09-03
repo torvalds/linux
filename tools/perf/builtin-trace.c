@@ -1677,6 +1677,17 @@ static int trace__fprintf_sample(struct trace *trace, struct perf_evsel *evsel,
 	return printed;
 }
 
+static void *syscall__augmented_args(struct syscall *sc, struct perf_sample *sample, int *augmented_args_size)
+{
+	void *augmented_args = NULL;
+
+	*augmented_args_size = sample->raw_size - sc->args_size;
+	if (*augmented_args_size > 0)
+		augmented_args = sample->raw_data + sc->args_size;
+
+	return augmented_args;
+}
+
 static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 			    union perf_event *event __maybe_unused,
 			    struct perf_sample *sample)
@@ -1762,10 +1773,7 @@ static int trace__fprintf_sys_enter(struct trace *trace, struct perf_evsel *evse
 		goto out_put;
 
 	args = perf_evsel__sc_tp_ptr(evsel, args, sample);
-	augmented_args_size = sample->raw_size - sc->args_size;
-	if (augmented_args_size > 0)
-		augmented_args = sample->raw_data + sc->args_size;
-
+	augmented_args = syscall__augmented_args(sc, sample, &augmented_args_size);
 	syscall__scnprintf_args(sc, msg, sizeof(msg), args, augmented_args, augmented_args_size, trace, thread);
 	fprintf(trace->output, "%s", msg);
 	err = 0;
