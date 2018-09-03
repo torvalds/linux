@@ -355,8 +355,10 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.fw = {
 			.dir = QCA9984_HW_1_0_FW_DIR,
 			.board = QCA9984_HW_1_0_BOARD_DATA_FILE,
+			.eboard = QCA9984_HW_1_0_EBOARD_DATA_FILE,
 			.board_size = QCA99X0_BOARD_DATA_SZ,
 			.board_ext_size = QCA99X0_BOARD_EXT_DATA_SZ,
+			.ext_board_size = QCA99X0_EXT_BOARD_DATA_SZ,
 		},
 		.sw_decrypt_mcast_mgmt = true,
 		.hw_ops = &qca99x0_ops,
@@ -781,6 +783,7 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 {
 	u32 result, address;
 	u8 board_id, chip_id;
+	bool ext_bid_support;
 	int ret, bmi_board_id_param;
 
 	address = ar->hw_params.patch_load_addr;
@@ -820,10 +823,13 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 
 	board_id = MS(result, ATH10K_BMI_BOARD_ID_FROM_OTP);
 	chip_id = MS(result, ATH10K_BMI_CHIP_ID_FROM_OTP);
+	ext_bid_support = (result & ATH10K_BMI_EXT_BOARD_ID_SUPPORT);
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
-		   "boot get otp board id result 0x%08x board_id %d chip_id %d\n",
-		   result, board_id, chip_id);
+		   "boot get otp board id result 0x%08x board_id %d chip_id %d ext_bid_support %d\n",
+		   result, board_id, chip_id, ext_bid_support);
+
+	ar->id.ext_bid_supported = ext_bid_support;
 
 	if ((result & ATH10K_BMI_BOARD_ID_STATUS_MASK) != 0 ||
 	    (board_id == 0)) {
@@ -964,9 +970,15 @@ static void ath10k_core_free_board_files(struct ath10k *ar)
 	if (!IS_ERR(ar->normal_mode_fw.board))
 		release_firmware(ar->normal_mode_fw.board);
 
+	if (!IS_ERR(ar->normal_mode_fw.ext_board))
+		release_firmware(ar->normal_mode_fw.ext_board);
+
 	ar->normal_mode_fw.board = NULL;
 	ar->normal_mode_fw.board_data = NULL;
 	ar->normal_mode_fw.board_len = 0;
+	ar->normal_mode_fw.ext_board = NULL;
+	ar->normal_mode_fw.ext_board_data = NULL;
+	ar->normal_mode_fw.ext_board_len = 0;
 }
 
 static void ath10k_core_free_firmware_files(struct ath10k *ar)
@@ -1020,28 +1032,47 @@ success:
 	return 0;
 }
 
-static int ath10k_core_fetch_board_data_api_1(struct ath10k *ar)
+static int ath10k_core_fetch_board_data_api_1(struct ath10k *ar, int bd_ie_type)
 {
-	if (!ar->hw_params.fw.board) {
-		ath10k_err(ar, "failed to find board file fw entry\n");
-		return -EINVAL;
+	const struct firmware *fw;
+
+	if (bd_ie_type == ATH10K_BD_IE_BOARD) {
+		if (!ar->hw_params.fw.board) {
+			ath10k_err(ar, "failed to find board file fw entry\n");
+			return -EINVAL;
+		}
+
+		ar->normal_mode_fw.board = ath10k_fetch_fw_file(ar,
+								ar->hw_params.fw.dir,
+								ar->hw_params.fw.board);
+		if (IS_ERR(ar->normal_mode_fw.board))
+			return PTR_ERR(ar->normal_mode_fw.board);
+
+		ar->normal_mode_fw.board_data = ar->normal_mode_fw.board->data;
+		ar->normal_mode_fw.board_len = ar->normal_mode_fw.board->size;
+	} else if (bd_ie_type == ATH10K_BD_IE_BOARD_EXT) {
+		if (!ar->hw_params.fw.eboard) {
+			ath10k_err(ar, "failed to find eboard file fw entry\n");
+			return -EINVAL;
+		}
+
+		fw = ath10k_fetch_fw_file(ar, ar->hw_params.fw.dir,
+					  ar->hw_params.fw.eboard);
+		ar->normal_mode_fw.ext_board = fw;
+		if (IS_ERR(ar->normal_mode_fw.ext_board))
+			return PTR_ERR(ar->normal_mode_fw.ext_board);
+
+		ar->normal_mode_fw.ext_board_data = ar->normal_mode_fw.ext_board->data;
+		ar->normal_mode_fw.ext_board_len = ar->normal_mode_fw.ext_board->size;
 	}
-
-	ar->normal_mode_fw.board = ath10k_fetch_fw_file(ar,
-							ar->hw_params.fw.dir,
-							ar->hw_params.fw.board);
-	if (IS_ERR(ar->normal_mode_fw.board))
-		return PTR_ERR(ar->normal_mode_fw.board);
-
-	ar->normal_mode_fw.board_data = ar->normal_mode_fw.board->data;
-	ar->normal_mode_fw.board_len = ar->normal_mode_fw.board->size;
 
 	return 0;
 }
 
 static int ath10k_core_parse_bd_ie_board(struct ath10k *ar,
 					 const void *buf, size_t buf_len,
-					 const char *boardname)
+					 const char *boardname,
+					 int bd_ie_type)
 {
 	const struct ath10k_fw_ie *hdr;
 	bool name_match_found;
@@ -1090,12 +1121,21 @@ static int ath10k_core_parse_bd_ie_board(struct ath10k *ar,
 				/* no match found */
 				break;
 
-			ath10k_dbg(ar, ATH10K_DBG_BOOT,
-				   "boot found board data for '%s'",
-				   boardname);
+			if (bd_ie_type == ATH10K_BD_IE_BOARD) {
+				ath10k_dbg(ar, ATH10K_DBG_BOOT,
+					   "boot found board data for '%s'",
+						boardname);
 
-			ar->normal_mode_fw.board_data = board_ie_data;
-			ar->normal_mode_fw.board_len = board_ie_len;
+				ar->normal_mode_fw.board_data = board_ie_data;
+				ar->normal_mode_fw.board_len = board_ie_len;
+			} else if (bd_ie_type == ATH10K_BD_IE_BOARD_EXT) {
+				ath10k_dbg(ar, ATH10K_DBG_BOOT,
+					   "boot found eboard data for '%s'",
+						boardname);
+
+				ar->normal_mode_fw.ext_board_data = board_ie_data;
+				ar->normal_mode_fw.ext_board_len = board_ie_len;
+			}
 
 			ret = 0;
 			goto out;
@@ -1145,7 +1185,18 @@ static int ath10k_core_search_bd(struct ath10k *ar,
 		switch (ie_id) {
 		case ATH10K_BD_IE_BOARD:
 			ret = ath10k_core_parse_bd_ie_board(ar, data, ie_len,
-							    boardname);
+							    boardname,
+							    ATH10K_BD_IE_BOARD);
+			if (ret == -ENOENT)
+				/* no match found, continue */
+				break;
+
+			/* either found or error, so stop searching */
+			goto out;
+		case ATH10K_BD_IE_BOARD_EXT:
+			ret = ath10k_core_parse_bd_ie_board(ar, data, ie_len,
+							    boardname,
+							    ATH10K_BD_IE_BOARD_EXT);
 			if (ret == -ENOENT)
 				/* no match found, continue */
 				break;
@@ -1175,9 +1226,11 @@ static int ath10k_core_fetch_board_data_api_n(struct ath10k *ar,
 	const u8 *data;
 	int ret;
 
-	ar->normal_mode_fw.board = ath10k_fetch_fw_file(ar,
-							ar->hw_params.fw.dir,
-							filename);
+	/* Skip if already fetched during board data download */
+	if (!ar->normal_mode_fw.board)
+		ar->normal_mode_fw.board = ath10k_fetch_fw_file(ar,
+								ar->hw_params.fw.dir,
+								filename);
 	if (IS_ERR(ar->normal_mode_fw.board))
 		return PTR_ERR(ar->normal_mode_fw.board);
 
@@ -1265,23 +1318,49 @@ out:
 	return 0;
 }
 
-static int ath10k_core_fetch_board_file(struct ath10k *ar)
+static int ath10k_core_create_eboard_name(struct ath10k *ar, char *name,
+					  size_t name_len)
+{
+	if (ar->id.bmi_ids_valid) {
+		scnprintf(name, name_len,
+			  "bus=%s,bmi-chip-id=%d,bmi-eboard-id=%d",
+			  ath10k_bus_str(ar->hif.bus),
+			  ar->id.bmi_chip_id,
+			  ar->id.bmi_eboard_id);
+
+		ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot using eboard name '%s'\n", name);
+		return 0;
+	}
+	/* Fallback if returned board id is zero */
+	return -1;
+}
+
+static int ath10k_core_fetch_board_file(struct ath10k *ar, int bd_ie_type)
 {
 	char boardname[100], fallback_boardname[100];
 	int ret;
 
-	ret = ath10k_core_create_board_name(ar, boardname,
-					    sizeof(boardname), true);
-	if (ret) {
-		ath10k_err(ar, "failed to create board name: %d", ret);
-		return ret;
-	}
+	if (bd_ie_type == ATH10K_BD_IE_BOARD) {
+		ret = ath10k_core_create_board_name(ar, boardname,
+						    sizeof(boardname), true);
+		if (ret) {
+			ath10k_err(ar, "failed to create board name: %d", ret);
+			return ret;
+		}
 
-	ret = ath10k_core_create_board_name(ar, fallback_boardname,
-					    sizeof(boardname), false);
-	if (ret) {
-		ath10k_err(ar, "failed to create fallback board name: %d", ret);
-		return ret;
+		ret = ath10k_core_create_board_name(ar, fallback_boardname,
+						    sizeof(boardname), false);
+		if (ret) {
+			ath10k_err(ar, "failed to create fallback board name: %d", ret);
+			return ret;
+		}
+	} else if (bd_ie_type == ATH10K_BD_IE_BOARD_EXT) {
+		ret = ath10k_core_create_eboard_name(ar, boardname,
+						     sizeof(boardname));
+		if (ret) {
+			ath10k_err(ar, "fallback to eboard.bin since board id 0");
+			goto fallback;
+		}
 	}
 
 	ar->bd_api = 2;
@@ -1291,8 +1370,9 @@ static int ath10k_core_fetch_board_file(struct ath10k *ar)
 	if (!ret)
 		goto success;
 
+fallback:
 	ar->bd_api = 1;
-	ret = ath10k_core_fetch_board_data_api_1(ar);
+	ret = ath10k_core_fetch_board_data_api_1(ar, bd_ie_type);
 	if (ret) {
 		ath10k_err(ar, "failed to fetch board-2.bin or board.bin from %s\n",
 			   ar->hw_params.fw.dir);
@@ -1304,11 +1384,65 @@ success:
 	return 0;
 }
 
+static int ath10k_core_get_ext_board_id_from_otp(struct ath10k *ar)
+{
+	u32 result, address;
+	u8 ext_board_id;
+	int ret;
+
+	address = ar->hw_params.patch_load_addr;
+
+	if (!ar->normal_mode_fw.fw_file.otp_data ||
+	    !ar->normal_mode_fw.fw_file.otp_len) {
+		ath10k_warn(ar,
+			    "failed to retrieve extended board id due to otp binary missing\n");
+		return -ENODATA;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "boot upload otp to 0x%x len %zd for ext board id\n",
+		   address, ar->normal_mode_fw.fw_file.otp_len);
+
+	ret = ath10k_bmi_fast_download(ar, address,
+				       ar->normal_mode_fw.fw_file.otp_data,
+				       ar->normal_mode_fw.fw_file.otp_len);
+	if (ret) {
+		ath10k_err(ar, "could not write otp for ext board id check: %d\n",
+			   ret);
+		return ret;
+	}
+
+	ret = ath10k_bmi_execute(ar, address, BMI_PARAM_GET_EXT_BOARD_ID, &result);
+	if (ret) {
+		ath10k_err(ar, "could not execute otp for ext board id check: %d\n",
+			   ret);
+		return ret;
+	}
+
+	if (!result) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "ext board id does not exist in otp, ignore it\n");
+		return -EOPNOTSUPP;
+	}
+
+	ext_board_id = result & ATH10K_BMI_EBOARD_ID_STATUS_MASK;
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "boot get otp ext board id result 0x%08x ext_board_id %d\n",
+		   result, ext_board_id);
+
+	ar->id.bmi_eboard_id = ext_board_id;
+
+	return 0;
+}
+
 static int ath10k_download_board_data(struct ath10k *ar, const void *data,
 				      size_t data_len)
 {
 	u32 board_data_size = ar->hw_params.fw.board_size;
-	u32 address;
+	u32 eboard_data_size = ar->hw_params.fw.ext_board_size;
+	u32 board_address;
+	u32 ext_board_address;
 	int ret;
 
 	ret = ath10k_push_board_ext_data(ar, data, data_len);
@@ -1317,13 +1451,13 @@ static int ath10k_download_board_data(struct ath10k *ar, const void *data,
 		goto exit;
 	}
 
-	ret = ath10k_bmi_read32(ar, hi_board_data, &address);
+	ret = ath10k_bmi_read32(ar, hi_board_data, &board_address);
 	if (ret) {
 		ath10k_err(ar, "could not read board data addr (%d)\n", ret);
 		goto exit;
 	}
 
-	ret = ath10k_bmi_write_memory(ar, address, data,
+	ret = ath10k_bmi_write_memory(ar, board_address, data,
 				      min_t(u32, board_data_size,
 					    data_len));
 	if (ret) {
@@ -1335,6 +1469,36 @@ static int ath10k_download_board_data(struct ath10k *ar, const void *data,
 	if (ret) {
 		ath10k_err(ar, "could not write board data bit (%d)\n", ret);
 		goto exit;
+	}
+
+	if (!ar->id.ext_bid_supported)
+		goto exit;
+
+	/* Extended board data download */
+	ret = ath10k_core_get_ext_board_id_from_otp(ar);
+	if (ret == -EOPNOTSUPP) {
+		/* Not fetching ext_board_data if ext board id is 0 */
+		ath10k_dbg(ar, ATH10K_DBG_BOOT, "otp returned ext board id 0\n");
+		return 0;
+	} else if (ret) {
+		ath10k_err(ar, "failed to get extended board id: %d\n", ret);
+		goto exit;
+	}
+
+	ret = ath10k_core_fetch_board_file(ar, ATH10K_BD_IE_BOARD_EXT);
+	if (ret)
+		goto exit;
+
+	if (ar->normal_mode_fw.ext_board_data) {
+		ext_board_address = board_address + EXT_BOARD_ADDRESS_OFFSET;
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "boot writing ext board data to addr 0x%x",
+			   ext_board_address);
+		ret = ath10k_bmi_write_memory(ar, ext_board_address,
+					      ar->normal_mode_fw.ext_board_data,
+					      min_t(u32, eboard_data_size, data_len));
+		if (ret)
+			ath10k_err(ar, "failed to write ext board data: %d\n", ret);
 	}
 
 exit:
@@ -2609,7 +2773,7 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		if (ret)
 			ath10k_dbg(ar, ATH10K_DBG_BOOT, "DT bdf variant name not set.\n");
 
-		ret = ath10k_core_fetch_board_file(ar);
+		ret = ath10k_core_fetch_board_file(ar, ATH10K_BD_IE_BOARD);
 		if (ret) {
 			ath10k_err(ar, "failed to fetch board file: %d\n", ret);
 			goto err_free_firmware_files;
