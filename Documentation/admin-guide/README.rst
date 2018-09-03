@@ -51,8 +51,7 @@ Documentation
 
  - There are various README files in the Documentation/ subdirectory:
    these typically contain kernel-specific installation notes for some
-   drivers for example. See Documentation/00-INDEX for a list of what
-   is contained in each file.  Please read the
+   drivers for example. Please read the
    :ref:`Documentation/process/changes.rst <changes>` file, as it
    contains information about the problems, which may result by upgrading
    your kernel.
