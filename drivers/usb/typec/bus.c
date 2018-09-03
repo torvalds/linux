@@ -255,12 +255,13 @@ EXPORT_SYMBOL_GPL(typec_altmode_unregister_driver);
 /* API for the port drivers */
 
 /**
- * typec_match_altmode - Match SVID to an array of alternate modes
+ * typec_match_altmode - Match SVID and mode to an array of alternate modes
  * @altmodes: Array of alternate modes
- * @n: Number of elements in the array, or -1 for NULL termiated arrays
+ * @n: Number of elements in the array, or -1 for NULL terminated arrays
  * @svid: Standard or Vendor ID to match with
+ * @mode: Mode to match with
  *
- * Return pointer to an alternate mode with SVID mathing @svid, or NULL when no
+ * Return pointer to an alternate mode with SVID matching @svid, or NULL when no
  * match is found.
  */
 struct typec_altmode *typec_match_altmode(struct typec_altmode **altmodes,
