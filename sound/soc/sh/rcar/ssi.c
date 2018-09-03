@@ -150,6 +150,11 @@ int rsnd_ssi_use_busif(struct rsnd_dai_stream *io)
 	return use_busif;
 }
 
+int rsnd_ssi_get_busif(struct rsnd_dai_stream *io)
+{
+	return 0; /* BUSIF0 only for now */
+}
+
 static void rsnd_ssi_status_clear(struct rsnd_mod *mod)
 {
 	rsnd_mod_write(mod, SSISR, 0);
