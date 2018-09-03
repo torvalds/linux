@@ -1429,20 +1429,6 @@ out_init_req:
 }
 EXPORT_SYMBOL_GPL(xprt_alloc_slot);
 
-void xprt_lock_and_alloc_slot(struct rpc_xprt *xprt, struct rpc_task *task)
-{
-	/* Note: grabbing the xprt_lock_write() ensures that we throttle
-	 * new slot allocation if the transport is congested (i.e. when
-	 * reconnecting a stream transport or when out of socket write
-	 * buffer space).
-	 */
-	if (xprt_lock_write(xprt, task)) {
-		xprt_alloc_slot(xprt, task);
-		xprt_release_write(xprt, task);
-	}
-}
-EXPORT_SYMBOL_GPL(xprt_lock_and_alloc_slot);
-
 void xprt_free_slot(struct rpc_xprt *xprt, struct rpc_rqst *req)
 {
 	spin_lock(&xprt->reserve_lock);
