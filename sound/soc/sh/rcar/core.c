@@ -819,16 +819,14 @@ static int rsnd_soc_hw_rule(struct rsnd_dai *rdai,
 	return snd_interval_refine(iv, &p);
 }
 
-static int __rsnd_soc_hw_rule_rate(struct snd_pcm_hw_params *params,
-				   struct snd_pcm_hw_rule *rule,
-				   int is_play)
+static int rsnd_soc_hw_rule_rate(struct snd_pcm_hw_params *params,
+				 struct snd_pcm_hw_rule *rule)
 {
 	struct snd_interval *ic_ = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 	struct snd_interval *ir = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_interval ic;
-	struct snd_soc_dai *dai = rule->private;
-	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
-	struct rsnd_dai_stream *io = is_play ? &rdai->playback : &rdai->capture;
+	struct rsnd_dai_stream *io = rule->private;
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 
 	/*
 	 * possible sampling rate limitation is same as
@@ -844,28 +842,14 @@ static int __rsnd_soc_hw_rule_rate(struct snd_pcm_hw_params *params,
 				&ic, ir);
 }
 
-static int rsnd_soc_hw_rule_rate_playback(struct snd_pcm_hw_params *params,
-				 struct snd_pcm_hw_rule *rule)
-{
-	return __rsnd_soc_hw_rule_rate(params, rule, 1);
-}
-
-static int rsnd_soc_hw_rule_rate_capture(struct snd_pcm_hw_params *params,
-					  struct snd_pcm_hw_rule *rule)
-{
-	return __rsnd_soc_hw_rule_rate(params, rule, 0);
-}
-
-static int __rsnd_soc_hw_rule_channels(struct snd_pcm_hw_params *params,
-				       struct snd_pcm_hw_rule *rule,
-				       int is_play)
+static int rsnd_soc_hw_rule_channels(struct snd_pcm_hw_params *params,
+				     struct snd_pcm_hw_rule *rule)
 {
 	struct snd_interval *ic_ = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 	struct snd_interval *ir = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_interval ic;
-	struct snd_soc_dai *dai = rule->private;
-	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
-	struct rsnd_dai_stream *io = is_play ? &rdai->playback : &rdai->capture;
+	struct rsnd_dai_stream *io = rule->private;
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 
 	/*
 	 * possible sampling rate limitation is same as
@@ -879,18 +863,6 @@ static int __rsnd_soc_hw_rule_channels(struct snd_pcm_hw_params *params,
 	return rsnd_soc_hw_rule(rdai, rsnd_soc_hw_channels_list,
 				ARRAY_SIZE(rsnd_soc_hw_channels_list),
 				ir, &ic);
-}
-
-static int rsnd_soc_hw_rule_channels_playback(struct snd_pcm_hw_params *params,
-					      struct snd_pcm_hw_rule *rule)
-{
-	return __rsnd_soc_hw_rule_channels(params, rule, 1);
-}
-
-static int rsnd_soc_hw_rule_channels_capture(struct snd_pcm_hw_params *params,
-					     struct snd_pcm_hw_rule *rule)
-{
-	return __rsnd_soc_hw_rule_channels(params, rule, 0);
 }
 
 static const struct snd_pcm_hardware rsnd_pcm_hardware = {
@@ -949,14 +921,12 @@ static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
 		int is_play = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 
 		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-				    is_play ? rsnd_soc_hw_rule_rate_playback :
-					      rsnd_soc_hw_rule_rate_capture,
-				    dai,
+				    rsnd_soc_hw_rule_rate,
+				    is_play ? &rdai->playback : &rdai->capture,
 				    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-				    is_play ? rsnd_soc_hw_rule_channels_playback :
-					      rsnd_soc_hw_rule_channels_capture,
-				    dai,
+				    rsnd_soc_hw_rule_channels,
+				    is_play ? &rdai->playback : &rdai->capture,
 				    SNDRV_PCM_HW_PARAM_RATE, -1);
 	}
 
