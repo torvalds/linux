@@ -122,7 +122,7 @@ enum rgmii_rx_clock_delay {
 struct vsc8531_private {
 	int rate_magic;
 	u16 supp_led_modes;
-	u8 leds_mode[MAX_LEDS];
+	u32 leds_mode[MAX_LEDS];
 	u8 nleds;
 };
 
@@ -414,19 +414,19 @@ static int vsc85xx_edge_rate_magic_get(struct phy_device *phydev)
 
 static int vsc85xx_dt_led_mode_get(struct phy_device *phydev,
 				   char *led,
-				   u8 default_mode)
+				   u32 default_mode)
 {
 	struct vsc8531_private *priv = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
 	struct device_node *of_node = dev->of_node;
-	u8 led_mode;
+	u32 led_mode;
 	int err;
 
 	if (!of_node)
 		return -ENODEV;
 
 	led_mode = default_mode;
-	err = of_property_read_u8(of_node, led, &led_mode);
+	err = of_property_read_u32(of_node, led, &led_mode);
 	if (!err && !(BIT(led_mode) & priv->supp_led_modes)) {
 		phydev_err(phydev, "DT %s invalid\n", led);
 		return -EINVAL;
@@ -449,7 +449,8 @@ static int vsc85xx_dt_led_mode_get(struct phy_device *phydev,
 }
 #endif /* CONFIG_OF_MDIO */
 
-static int vsc85xx_dt_led_modes_get(struct phy_device *phydev, u8 *default_mode)
+static int vsc85xx_dt_led_modes_get(struct phy_device *phydev,
+				    u32 *default_mode)
 {
 	struct vsc8531_private *priv = phydev->priv;
 	char led_dt_prop[19];
@@ -656,7 +657,7 @@ static int vsc85xx_probe(struct phy_device *phydev)
 {
 	struct vsc8531_private *vsc8531;
 	int rate_magic;
-	u8 default_mode[2] = {VSC8531_LINK_1000_ACTIVITY,
+	u32 default_mode[2] = {VSC8531_LINK_1000_ACTIVITY,
 	   VSC8531_LINK_100_ACTIVITY};
 
 	rate_magic = vsc85xx_edge_rate_magic_get(phydev);
