@@ -196,7 +196,7 @@ EXPORT_SYMBOL_GPL(pci_ioremap_wc_bar);
 /**
  * pci_dev_str_match_path - test if a path string matches a device
  * @dev:    the PCI device to test
- * @p:      string to match the device against
+ * @path:   string to match the device against
  * @endptr: pointer to the string after the match
  *
  * Test if a string (typically from a kernel parameter) formatted as a
