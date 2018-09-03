@@ -132,6 +132,21 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		smb2_set_next_command(server, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
 		break;
+	case SMB2_OP_SET_EOF:
+		memset(&si_iov, 0, sizeof(si_iov));
+		rqst[num_rqst].rq_iov = si_iov;
+		rqst[num_rqst].rq_nvec = 1;
+
+		size[0] = 8; /* sizeof __le64 */
+		data[0] = ptr;
+
+		rc = SMB2_set_info_init(tcon, &rqst[num_rqst], COMPOUND_FID,
+					COMPOUND_FID, current->tgid,
+					FILE_END_OF_FILE_INFORMATION,
+					SMB2_O_INFO_FILE, 0, data, size);
+		smb2_set_next_command(server, &rqst[num_rqst]);
+		smb2_set_related(&rqst[num_rqst++]);
+		break;
 	default:
 		cifs_dbg(VFS, "Invalid command\n");
 		rc = -EINVAL;
@@ -175,6 +190,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		if (rqst[1].rq_iov)
 			SMB2_close_free(&rqst[1]);
 		break;
+	case SMB2_OP_SET_EOF:
 	case SMB2_OP_RMDIR:
 		if (rqst[1].rq_iov)
 			SMB2_set_info_free(&rqst[1]);
@@ -238,11 +254,6 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 	case SMB2_OP_HARDLINK:
 		tmprc = SMB2_set_hardlink(xid, tcon, fid.persistent_fid,
 					  fid.volatile_fid, (__le16 *)data);
-		break;
-	case SMB2_OP_SET_EOF:
-		tmprc = SMB2_set_eof(xid, tcon, fid.persistent_fid,
-				     fid.volatile_fid, current->tgid,
-				     (__le64 *)data, false);
 		break;
 	case SMB2_OP_SET_INFO:
 		tmprc = SMB2_set_basic_info(xid, tcon, fid.persistent_fid,
@@ -403,9 +414,10 @@ smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 		   struct cifs_sb_info *cifs_sb, bool set_alloc)
 {
 	__le64 eof = cpu_to_le64(size);
-	return smb2_open_op_close(xid, tcon, cifs_sb, full_path,
-				  FILE_WRITE_DATA, FILE_OPEN, 0, &eof,
-				  SMB2_OP_SET_EOF);
+
+	return smb2_compound_op(xid, tcon, cifs_sb, full_path,
+				FILE_WRITE_DATA, FILE_OPEN, 0, &eof,
+				SMB2_OP_SET_EOF);
 }
 
 int
