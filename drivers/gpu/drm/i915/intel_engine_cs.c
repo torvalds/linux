@@ -532,11 +532,11 @@ void intel_engine_cleanup_scratch(struct intel_engine_cs *engine)
 
 static void cleanup_status_page(struct intel_engine_cs *engine)
 {
-	struct drm_dma_handle *dmah;
+	if (HWS_NEEDS_PHYSICAL(engine->i915)) {
+		void *addr = fetch_and_zero(&engine->status_page.page_addr);
 
-	dmah = fetch_and_zero(&engine->i915->status_page_dmah);
-	if (dmah)
-		drm_pci_free(&engine->i915->drm, dmah);
+		__free_page(virt_to_page(addr));
+	}
 
 	i915_vma_unpin_and_release(&engine->status_page.vma,
 				   I915_VMA_RELEASE_MAP);
@@ -605,17 +605,18 @@ err:
 
 static int init_phys_status_page(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct page *page;
 
-	GEM_BUG_ON(engine->id != RCS);
-
-	dev_priv->status_page_dmah =
-		drm_pci_alloc(&dev_priv->drm, PAGE_SIZE, PAGE_SIZE);
-	if (!dev_priv->status_page_dmah)
+	/*
+	 * Though the HWS register does support 36bit addresses, historically
+	 * we have had hangs and corruption reported due to wild writes if
+	 * the HWS is placed above 4G.
+	 */
+	page = alloc_page(GFP_KERNEL | __GFP_DMA32 | __GFP_ZERO);
+	if (!page)
 		return -ENOMEM;
 
-	engine->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
-	memset(engine->status_page.page_addr, 0, PAGE_SIZE);
+	engine->status_page.page_addr = page_address(page);
 
 	return 0;
 }

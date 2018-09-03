@@ -344,11 +344,14 @@ gen7_render_ring_flush(struct i915_request *rq, u32 mode)
 static void ring_setup_phys_status_page(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
+	struct page *page = virt_to_page(engine->status_page.page_addr);
+	phys_addr_t phys = PFN_PHYS(page_to_pfn(page));
 	u32 addr;
 
-	addr = dev_priv->status_page_dmah->busaddr;
+	addr = lower_32_bits(phys);
 	if (INTEL_GEN(dev_priv) >= 4)
-		addr |= (dev_priv->status_page_dmah->busaddr >> 28) & 0xf0;
+		addr |= (phys >> 28) & 0xf0;
+
 	I915_WRITE(HWS_PGA, addr);
 }
 
