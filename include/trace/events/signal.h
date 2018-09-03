@@ -11,8 +11,7 @@
 
 #define TP_STORE_SIGINFO(__entry, info)				\
 	do {							\
-		if (info == SEND_SIG_NOINFO ||			\
-		    info == SEND_SIG_FORCED) {			\
+		if (info == SEND_SIG_NOINFO) {			\
 			__entry->errno	= 0;			\
 			__entry->code	= SI_USER;		\
 		} else if (info == SEND_SIG_PRIV) {		\

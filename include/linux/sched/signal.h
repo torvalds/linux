@@ -477,7 +477,6 @@ static inline int kill_cad_pid(int sig, int priv)
 /* These can be the second arg to send_sig_info/send_group_sig_info.  */
 #define SEND_SIG_NOINFO ((struct siginfo *) 0)
 #define SEND_SIG_PRIV	((struct siginfo *) 1)
-#define SEND_SIG_FORCED	((struct siginfo *) 2)
 
 /*
  * True if we are on the alternate signal stack.
