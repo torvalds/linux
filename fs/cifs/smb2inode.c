@@ -41,7 +41,7 @@ static int
 smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		 struct cifs_sb_info *cifs_sb, const char *full_path,
 		 __u32 desired_access, __u32 create_disposition,
-		 __u32 create_options, void *data, int command)
+		 __u32 create_options, void *ptr, int command)
 {
 	int rc;
 	__le16 *utf16_path = NULL;
@@ -56,9 +56,13 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	struct kvec rsp_iov[3];
 	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
 	struct kvec qi_iov[1];
+	struct kvec si_iov[2];  /* 1 + potential padding. */
 	struct kvec close_iov[1];
-	struct smb2_query_info_rsp *rsp = NULL;
+	struct smb2_query_info_rsp *qi_rsp = NULL;
 	int flags = 0;
+	__u8 delete_pending[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+	unsigned int size[1];
+	void *data[1];
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
@@ -113,6 +117,21 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		 * SMB2_open() call.
 		 */
 		break;
+	case SMB2_OP_RMDIR:
+		memset(&si_iov, 0, sizeof(si_iov));
+		rqst[num_rqst].rq_iov = si_iov;
+		rqst[num_rqst].rq_nvec = 1;
+
+		size[0] = 8;
+		data[0] = &delete_pending[0];
+
+		rc = SMB2_set_info_init(tcon, &rqst[num_rqst], COMPOUND_FID,
+					COMPOUND_FID, current->tgid,
+					FILE_DISPOSITION_INFORMATION,
+					SMB2_O_INFO_FILE, 0, data, size);
+		smb2_set_next_command(server, &rqst[num_rqst]);
+		smb2_set_related(&rqst[num_rqst++]);
+		break;
 	default:
 		cifs_dbg(VFS, "Invalid command\n");
 		rc = -EINVAL;
@@ -138,12 +157,13 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	switch (command) {
 	case SMB2_OP_QUERY_INFO:
 		if (rc == 0) {
-			rsp = (struct smb2_query_info_rsp *)rsp_iov[1].iov_base;
+			qi_rsp = (struct smb2_query_info_rsp *)
+				rsp_iov[1].iov_base;
 			rc = smb2_validate_and_copy_iov(
-				le16_to_cpu(rsp->OutputBufferOffset),
-				le32_to_cpu(rsp->OutputBufferLength),
+				le16_to_cpu(qi_rsp->OutputBufferOffset),
+				le32_to_cpu(qi_rsp->OutputBufferLength),
 				&rsp_iov[1], sizeof(struct smb2_file_all_info),
-				data);
+				ptr);
 		}
 		if (rqst[1].rq_iov)
 			SMB2_query_info_free(&rqst[1]);
@@ -154,6 +174,12 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	case SMB2_OP_MKDIR:
 		if (rqst[1].rq_iov)
 			SMB2_close_free(&rqst[1]);
+		break;
+	case SMB2_OP_RMDIR:
+		if (rqst[1].rq_iov)
+			SMB2_set_info_free(&rqst[1]);
+		if (rqst[2].rq_iov)
+			SMB2_close_free(&rqst[2]);
 		break;
 	}
 	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
@@ -205,10 +231,6 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 	}
 
 	switch (command) {
-	case SMB2_OP_RMDIR:
-		tmprc = SMB2_rmdir(xid, tcon, fid.persistent_fid,
-				   fid.volatile_fid);
-		break;
 	case SMB2_OP_RENAME:
 		tmprc = SMB2_rename(xid, tcon, fid.persistent_fid,
 				    fid.volatile_fid, (__le16 *)data);
@@ -322,9 +344,9 @@ int
 smb2_rmdir(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
 	   struct cifs_sb_info *cifs_sb)
 {
-	return smb2_open_op_close(xid, tcon, cifs_sb, name, DELETE, FILE_OPEN,
-				  CREATE_NOT_FILE,
-				  NULL, SMB2_OP_RMDIR);
+	return smb2_compound_op(xid, tcon, cifs_sb, name, DELETE, FILE_OPEN,
+				CREATE_NOT_FILE,
+				NULL, SMB2_OP_RMDIR);
 }
 
 int
