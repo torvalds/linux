@@ -689,6 +689,7 @@ static int rsnd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		rdai->frm_clk_inv = 0;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
+	case SND_SOC_DAIFMT_DSP_B:
 		rdai->sys_delay = 1;
 		rdai->data_alignment = 0;
 		rdai->frm_clk_inv = 1;
@@ -696,6 +697,11 @@ static int rsnd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_RIGHT_J:
 		rdai->sys_delay = 1;
 		rdai->data_alignment = 1;
+		rdai->frm_clk_inv = 1;
+		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		rdai->sys_delay = 0;
+		rdai->data_alignment = 0;
 		rdai->frm_clk_inv = 1;
 		break;
 	}
