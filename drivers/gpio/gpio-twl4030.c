@@ -154,6 +154,23 @@ static int twl4030_set_gpio_direction(int gpio, int is_input)
 	return ret;
 }
 
+static int twl4030_get_gpio_direction(int gpio)
+{
+	u8 d_bnk = gpio >> 3;
+	u8 d_msk = BIT(gpio & 0x7);
+	u8 base = REG_GPIODATADIR1 + d_bnk;
+	int ret = 0;
+
+	ret = gpio_twl4030_read(base);
+	if (ret < 0)
+		return ret;
+
+	/* 1 = output, but gpiolib semantics are inverse so invert */
+	ret = !(ret & d_msk);
+
+	return ret;
+}
+
 static int twl4030_set_gpio_dataout(int gpio, int enable)
 {
 	u8 d_bnk = gpio >> 3;
@@ -359,6 +376,28 @@ static int twl_direction_out(struct gpio_chip *chip, unsigned offset, int value)
 	return ret;
 }
 
+static int twl_get_direction(struct gpio_chip *chip, unsigned offset)
+{
+	struct gpio_twl4030_priv *priv = gpiochip_get_data(chip);
+	/*
+	 * Default 0 = output
+	 * LED GPIOs >= TWL4030_GPIO_MAX are always output
+	 */
+	int ret = 0;
+
+	mutex_lock(&priv->mutex);
+	if (offset < TWL4030_GPIO_MAX) {
+		ret = twl4030_get_gpio_direction(offset);
+		if (ret) {
+			mutex_unlock(&priv->mutex);
+			return ret;
+		}
+	}
+	mutex_unlock(&priv->mutex);
+
+	return ret;
+}
+
 static int twl_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct gpio_twl4030_priv *priv = gpiochip_get_data(chip);
@@ -374,8 +413,9 @@ static const struct gpio_chip template_chip = {
 	.request		= twl_request,
 	.free			= twl_free,
 	.direction_input	= twl_direction_in,
-	.get			= twl_get,
 	.direction_output	= twl_direction_out,
+	.get_direction		= twl_get_direction,
+	.get			= twl_get,
 	.set			= twl_set,
 	.to_irq			= twl_to_irq,
 	.can_sleep		= true,
