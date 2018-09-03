@@ -307,6 +307,11 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 			return -EINVAL;
 		}
 
+		if (ssi->chan != chan) {
+			dev_err(dev, "SSI parent/child should use same chan\n");
+			return -EINVAL;
+		}
+
 		return 0;
 	}
 
@@ -334,6 +339,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 			SCKD | SWSD | CKDV(idx);
 	ssi->wsr = CONT;
 	ssi->rate = rate;
+	ssi->chan = chan;
 
 	dev_dbg(dev, "%s[%d] outputs %u Hz\n",
 		rsnd_mod_name(mod),
@@ -359,6 +365,7 @@ static void rsnd_ssi_master_clk_stop(struct rsnd_mod *mod,
 
 	ssi->cr_clk	= 0;
 	ssi->rate	= 0;
+	ssi->chan	= 0;
 
 	rsnd_adg_ssi_clk_stop(mod);
 }
@@ -511,9 +518,7 @@ static int rsnd_ssi_hw_params(struct rsnd_mod *mod,
 			      struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
-	int chan = params_channels(params);
 	unsigned int fmt_width = snd_pcm_format_width(params_format(params));
 
 	if (fmt_width > rdai->chan_width) {
@@ -523,24 +528,6 @@ static int rsnd_ssi_hw_params(struct rsnd_mod *mod,
 		dev_err(dev, "invalid combination of slot-width and format-data-width\n");
 		return -EINVAL;
 	}
-
-	/*
-	 * snd_pcm_ops::hw_params will be called *before*
-	 * snd_soc_dai_ops::trigger. Thus, ssi->usrcnt is 0
-	 * in 1st call.
-	 */
-	if (ssi->usrcnt) {
-		/*
-		 * Already working.
-		 * It will happen if SSI has parent/child connection.
-		 * it is error if child <-> parent SSI uses
-		 * different channels.
-		 */
-		if (ssi->chan != chan)
-			return -EIO;
-	}
-
-	ssi->chan = chan;
 
 	return 0;
 }
