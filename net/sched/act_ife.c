@@ -377,7 +377,6 @@ static void _tcf_ife_cleanup(struct tc_action *a, int bind)
 	struct tcf_meta_info *e, *n;
 
 	list_for_each_entry_safe(e, n, &ife->metalist, metalist) {
-		module_put(e->ops->owner);
 		list_del(&e->metalist);
 		if (e->metaval) {
 			if (e->ops->release)
@@ -385,6 +384,7 @@ static void _tcf_ife_cleanup(struct tc_action *a, int bind)
 			else
 				kfree(e->metaval);
 		}
+		module_put(e->ops->owner);
 		kfree(e);
 	}
 }
