@@ -196,9 +196,6 @@ extern int SMB2_set_info_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 			      u8 info_class, u8 info_type, u32 additional_info,
 			      void **data, unsigned int *size);
 extern void SMB2_set_info_free(struct smb_rqst *rqst);
-extern int SMB2_set_basic_info(const unsigned int xid, struct cifs_tcon *tcon,
-			       u64 persistent_fid, u64 volatile_fid,
-			       FILE_BASIC_INFO *buf);
 extern int SMB2_set_acl(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid,
 			struct cifs_ntsd *pnntsd, int pacllen, int aclflag);
