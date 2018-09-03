@@ -533,6 +533,13 @@ enum {
 };
 
 enum {
+	MAX_TXQ_DESC_SIZE      = 64,
+	MAX_RXQ_DESC_SIZE      = 128,
+	MAX_FL_DESC_SIZE       = 8,
+	MAX_CTRL_TXQ_DESC_SIZE = 64,
+};
+
+enum {
 	INGQ_EXTRAS = 2,        /* firmware event queue and */
 				/*   forwarded interrupts */
 	MAX_INGQ = MAX_ETH_QSETS + INGQ_EXTRAS,
