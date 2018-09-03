@@ -10,9 +10,12 @@
 
 struct rsnd_ssiu {
 	struct rsnd_mod mod;
+	u32 busif_status[8]; /* for BUSIF0 - BUSIF7 */
+	unsigned int usrcnt;
 };
 
 #define rsnd_ssiu_nr(priv) ((priv)->ssiu_nr)
+#define rsnd_mod_to_ssiu(_mod) container_of((_mod), struct rsnd_ssiu, mod)
 #define for_each_rsnd_ssiu(pos, priv, i)				\
 	for (i = 0;							\
 	     (i < rsnd_ssiu_nr(priv)) &&				\
@@ -120,6 +123,7 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 			       struct rsnd_dai_stream *io,
 			       struct rsnd_priv *priv)
 {
+	struct rsnd_ssiu *ssiu = rsnd_mod_to_ssiu(mod);
 	int hdmi = rsnd_ssi_hdmi_port(io);
 	int ret;
 	u32 mode = 0;
@@ -127,6 +131,8 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 	ret = rsnd_ssiu_init(mod, io, priv);
 	if (ret < 0)
 		return ret;
+
+	ssiu->usrcnt++;
 
 	if (rsnd_runtime_is_ssi_tdm(io)) {
 		/*
@@ -255,12 +261,16 @@ static int rsnd_ssiu_stop_gen2(struct rsnd_mod *mod,
 			       struct rsnd_dai_stream *io,
 			       struct rsnd_priv *priv)
 {
+	struct rsnd_ssiu *ssiu = rsnd_mod_to_ssiu(mod);
 	int busif = rsnd_ssi_get_busif(io);
 
 	if (!rsnd_ssi_use_busif(io))
 		return 0;
 
 	rsnd_mod_bset(mod, SSI_CTRL, 1 << (busif * 4), 0);
+
+	if (--ssiu->usrcnt)
+		return 0;
 
 	if (rsnd_ssi_multi_slaves_runtime(io))
 		rsnd_mod_write(mod, SSI_CONTROL, 0);
@@ -294,6 +304,16 @@ int rsnd_ssiu_attach(struct rsnd_dai_stream *io,
 	return rsnd_dai_connect(mod, io, mod->type);
 }
 
+static u32 *rsnd_ssiu_get_status(struct rsnd_dai_stream *io,
+				 struct rsnd_mod *mod,
+				 enum rsnd_mod_type type)
+{
+	struct rsnd_ssiu *ssiu = rsnd_mod_to_ssiu(mod);
+	int busif = rsnd_ssi_get_busif(io);
+
+	return &ssiu->busif_status[busif];
+}
+
 int rsnd_ssiu_probe(struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
@@ -317,7 +337,7 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 
 	for_each_rsnd_ssiu(ssiu, priv, i) {
 		ret = rsnd_mod_init(priv, rsnd_mod_get(ssiu),
-				    ops, NULL, rsnd_mod_get_status,
+				    ops, NULL, rsnd_ssiu_get_status,
 				    RSND_MOD_SSIU, i);
 		if (ret)
 			return ret;
