@@ -51,8 +51,10 @@ int syscall_enter(syscall)(struct syscall_enter_##syscall##_args *args)				\
 	augmented_args.filename.size = probe_read_str(&augmented_args.filename.value, 		\
 						      sizeof(augmented_args.filename.value), 	\
 						      args->filename_ptr); 			\
-	if (augmented_args.filename.size < sizeof(augmented_args.filename.value))		\
+	if (augmented_args.filename.size < sizeof(augmented_args.filename.value)) {		\
 		len -= sizeof(augmented_args.filename.value) - augmented_args.filename.size;	\
+		len &= sizeof(augmented_args.filename.value) - 1;				\
+	}											\
 	perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, 			\
 			  &augmented_args, len);						\
 	return 0;										\
