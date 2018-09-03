@@ -2663,14 +2663,15 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 					   SCTP_FLOWLABEL_VAL_MASK;
 			trans->flowlabel |= SCTP_FLOWLABEL_SET_MASK;
 		} else if (asoc) {
-			list_for_each_entry(trans,
-					    &asoc->peer.transport_addr_list,
+			struct sctp_transport *t;
+
+			list_for_each_entry(t, &asoc->peer.transport_addr_list,
 					    transports) {
-				if (trans->ipaddr.sa.sa_family != AF_INET6)
+				if (t->ipaddr.sa.sa_family != AF_INET6)
 					continue;
-				trans->flowlabel = params->spp_ipv6_flowlabel &
-						   SCTP_FLOWLABEL_VAL_MASK;
-				trans->flowlabel |= SCTP_FLOWLABEL_SET_MASK;
+				t->flowlabel = params->spp_ipv6_flowlabel &
+					       SCTP_FLOWLABEL_VAL_MASK;
+				t->flowlabel |= SCTP_FLOWLABEL_SET_MASK;
 			}
 			asoc->flowlabel = params->spp_ipv6_flowlabel &
 					  SCTP_FLOWLABEL_VAL_MASK;
@@ -2687,12 +2688,13 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 			trans->dscp = params->spp_dscp & SCTP_DSCP_VAL_MASK;
 			trans->dscp |= SCTP_DSCP_SET_MASK;
 		} else if (asoc) {
-			list_for_each_entry(trans,
-					    &asoc->peer.transport_addr_list,
+			struct sctp_transport *t;
+
+			list_for_each_entry(t, &asoc->peer.transport_addr_list,
 					    transports) {
-				trans->dscp = params->spp_dscp &
-					      SCTP_DSCP_VAL_MASK;
-				trans->dscp |= SCTP_DSCP_SET_MASK;
+				t->dscp = params->spp_dscp &
+					  SCTP_DSCP_VAL_MASK;
+				t->dscp |= SCTP_DSCP_SET_MASK;
 			}
 			asoc->dscp = params->spp_dscp & SCTP_DSCP_VAL_MASK;
 			asoc->dscp |= SCTP_DSCP_SET_MASK;
