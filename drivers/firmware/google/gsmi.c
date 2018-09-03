@@ -84,7 +84,7 @@ struct gsmi_buf {
 	u32 address;			/* physical address of buffer */
 };
 
-struct gsmi_device {
+static struct gsmi_device {
 	struct platform_device *pdev;	/* platform device */
 	struct gsmi_buf *name_buf;	/* variable name buffer */
 	struct gsmi_buf *data_buf;	/* generic data buffer */
