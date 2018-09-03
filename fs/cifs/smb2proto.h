@@ -190,7 +190,7 @@ extern int SMB2_set_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
 			     __le16 *target_file);
 extern int SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid, u32 pid,
-			__le64 *eof, bool is_fallocate);
+			__le64 *eof);
 extern int SMB2_set_info_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 			      u64 persistent_fid, u64 volatile_fid, u32 pid,
 			      u8 info_class, u8 info_type, u32 additional_info,

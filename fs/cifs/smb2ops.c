@@ -1307,7 +1307,7 @@ smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
 	}
 
 	return SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
-			    cfile->fid.volatile_fid, cfile->pid, &eof, false);
+			    cfile->fid.volatile_fid, cfile->pid, &eof);
 }
 
 static int
