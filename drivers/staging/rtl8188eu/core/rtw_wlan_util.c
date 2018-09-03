@@ -110,22 +110,16 @@ u8 judge_network_type(struct adapter *padapter, unsigned char *rate, int ratelen
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 
-	if (pmlmeext->cur_channel > 14) {
-		if (pmlmeinfo->HT_enable)
-			network_type = WIRELESS_11_5N;
+	if (pmlmeinfo->HT_enable)
+		network_type = WIRELESS_11_24N;
 
-		network_type |= WIRELESS_11A;
-	} else {
-		if (pmlmeinfo->HT_enable)
-			network_type = WIRELESS_11_24N;
+	if ((cckratesonly_included(rate, ratelen)) == true)
+		network_type |= WIRELESS_11B;
+	else if ((cckrates_included(rate, ratelen)) == true)
+		network_type |= WIRELESS_11BG;
+	else
+		network_type |= WIRELESS_11G;
 
-		if ((cckratesonly_included(rate, ratelen)) == true)
-			network_type |= WIRELESS_11B;
-		else if ((cckrates_included(rate, ratelen)) == true)
-			network_type |= WIRELESS_11BG;
-		else
-			network_type |= WIRELESS_11G;
-	}
 	return	network_type;
 }
 
@@ -1429,22 +1423,15 @@ void update_wireless_mode(struct adapter *padapter)
 	if ((pmlmeinfo->HT_info_enable) && (pmlmeinfo->HT_caps_enable))
 		pmlmeinfo->HT_enable = 1;
 
-	if (pmlmeext->cur_channel > 14) {
-		if (pmlmeinfo->HT_enable)
-			network_type = WIRELESS_11_5N;
+	if (pmlmeinfo->HT_enable)
+		network_type = WIRELESS_11_24N;
 
-		network_type |= WIRELESS_11A;
-	} else {
-		if (pmlmeinfo->HT_enable)
-			network_type = WIRELESS_11_24N;
-
-		if ((cckratesonly_included(rate, ratelen)) == true)
-			network_type |= WIRELESS_11B;
-		else if ((cckrates_included(rate, ratelen)) == true)
-			network_type |= WIRELESS_11BG;
-		else
-			network_type |= WIRELESS_11G;
-	}
+	if ((cckratesonly_included(rate, ratelen)) == true)
+		network_type |= WIRELESS_11B;
+	else if ((cckrates_included(rate, ratelen)) == true)
+		network_type |= WIRELESS_11BG;
+	else
+		network_type |= WIRELESS_11G;
 
 	pmlmeext->cur_wireless_mode = network_type & padapter->registrypriv.wireless_mode;
 
