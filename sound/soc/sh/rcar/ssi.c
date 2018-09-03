@@ -400,6 +400,9 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 
 	cr_own &= ~DWL_MASK;
 	switch (snd_pcm_format_width(runtime->format)) {
+	case 8:
+		cr_own |= DWL_8;
+		break;
 	case 16:
 		cr_own |= DWL_16;
 		break;
