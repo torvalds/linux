@@ -999,11 +999,17 @@ static const struct dev_pm_ops uhdlc_pm_ops = {
 #define HDLC_PM_OPS NULL
 
 #endif
+static void uhdlc_tx_timeout(struct net_device *ndev)
+{
+	netdev_err(ndev, "%s\n", __func__);
+}
+
 static const struct net_device_ops uhdlc_ops = {
 	.ndo_open       = uhdlc_open,
 	.ndo_stop       = uhdlc_close,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = uhdlc_ioctl,
+	.ndo_tx_timeout	= uhdlc_tx_timeout,
 };
 
 static int ucc_hdlc_probe(struct platform_device *pdev)
@@ -1122,6 +1128,7 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	hdlc = dev_to_hdlc(dev);
 	dev->tx_queue_len = 16;
 	dev->netdev_ops = &uhdlc_ops;
+	dev->watchdog_timeo = 2 * HZ;
 	hdlc->attach = ucc_hdlc_attach;
 	hdlc->xmit = ucc_hdlc_tx;
 	netif_napi_add(dev, &uhdlc_priv->napi, ucc_hdlc_poll, 32);
