@@ -452,12 +452,12 @@ int snd_soc_suspend(struct device *dev)
 
 	/* mute any active DACs */
 	list_for_each_entry(rtd, &card->rtd_list, list) {
+		struct snd_soc_dai *dai;
 
 		if (rtd->dai_link->ignore_suspend)
 			continue;
 
-		for (i = 0; i < rtd->num_codecs; i++) {
-			struct snd_soc_dai *dai = rtd->codec_dais[i];
+		for_each_rtd_codec_dai(rtd, i, dai) {
 			struct snd_soc_dai_driver *drv = dai->driver;
 
 			if (drv->ops->digital_mute && dai->playback_active)
@@ -625,12 +625,12 @@ static void soc_resume_deferred(struct work_struct *work)
 
 	/* unmute any active DACs */
 	list_for_each_entry(rtd, &card->rtd_list, list) {
+		struct snd_soc_dai *dai;
 
 		if (rtd->dai_link->ignore_suspend)
 			continue;
 
-		for (i = 0; i < rtd->num_codecs; i++) {
-			struct snd_soc_dai *dai = rtd->codec_dais[i];
+		for_each_rtd_codec_dai(rtd, i, dai) {
 			struct snd_soc_dai_driver *drv = dai->driver;
 
 			if (drv->ops->digital_mute && dai->playback_active)
@@ -674,15 +674,14 @@ int snd_soc_resume(struct device *dev)
 
 	/* activate pins from sleep state */
 	list_for_each_entry(rtd, &card->rtd_list, list) {
-		struct snd_soc_dai **codec_dais = rtd->codec_dais;
+		struct snd_soc_dai *codec_dai;
 		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 		int j;
 
 		if (cpu_dai->active)
 			pinctrl_pm_select_default_state(cpu_dai->dev);
 
-		for (j = 0; j < rtd->num_codecs; j++) {
-			struct snd_soc_dai *codec_dai = codec_dais[j];
+		for_each_rtd_codec_dai(rtd, j, codec_dai) {
 			if (codec_dai->active)
 				pinctrl_pm_select_default_state(codec_dai->dev);
 		}
@@ -877,6 +876,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	rtd->num_codecs = dai_link->num_codecs;
 
 	/* Find CODEC from registered CODECs */
+	/* we can use for_each_rtd_codec_dai() after this */
 	codec_dais = rtd->codec_dais;
 	for (i = 0; i < rtd->num_codecs; i++) {
 		codec_dais[i] = snd_soc_find_dai(&codecs[i]);
@@ -959,6 +959,7 @@ static void soc_remove_link_dais(struct snd_soc_card *card,
 		struct snd_soc_pcm_runtime *rtd, int order)
 {
 	int i;
+	struct snd_soc_dai *codec_dai;
 
 	/* unregister the rtd device */
 	if (rtd->dev_registered) {
@@ -967,8 +968,8 @@ static void soc_remove_link_dais(struct snd_soc_card *card,
 	}
 
 	/* remove the CODEC DAI */
-	for (i = 0; i < rtd->num_codecs; i++)
-		soc_remove_dai(rtd->codec_dais[i], order);
+	for_each_rtd_codec_dai(rtd, i, codec_dai)
+		soc_remove_dai(codec_dai, order);
 
 	soc_remove_dai(rtd->cpu_dai, order);
 }
@@ -1511,6 +1512,7 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_component *component;
+	struct snd_soc_dai *codec_dai;
 	int i, ret, num;
 
 	dev_dbg(card->dev, "ASoC: probe %s dai link %d late %d\n",
@@ -1524,8 +1526,8 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 		return ret;
 
 	/* probe the CODEC DAI */
-	for (i = 0; i < rtd->num_codecs; i++) {
-		ret = soc_probe_dai(rtd->codec_dais[i], order);
+	for_each_rtd_codec_dai(rtd, i, codec_dai) {
+		ret = soc_probe_dai(codec_dai, order);
 		if (ret)
 			return ret;
 	}
@@ -1712,14 +1714,12 @@ static void soc_remove_aux_devices(struct snd_soc_card *card)
 int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 	unsigned int dai_fmt)
 {
-	struct snd_soc_dai **codec_dais = rtd->codec_dais;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai;
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < rtd->num_codecs; i++) {
-		struct snd_soc_dai *codec_dai = codec_dais[i];
-
+	for_each_rtd_codec_dai(rtd, i, codec_dai) {
 		ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
 		if (ret != 0 && ret != -ENOTSUPP) {
 			dev_warn(codec_dai->dev,
@@ -2266,11 +2266,11 @@ int snd_soc_poweroff(struct device *dev)
 	/* deactivate pins to sleep state */
 	list_for_each_entry(rtd, &card->rtd_list, list) {
 		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+		struct snd_soc_dai *codec_dai;
 		int i;
 
 		pinctrl_pm_select_sleep_state(cpu_dai->dev);
-		for (i = 0; i < rtd->num_codecs; i++) {
-			struct snd_soc_dai *codec_dai = rtd->codec_dais[i];
+		for_each_rtd_codec_dai(rtd, i, codec_dai) {
 			pinctrl_pm_select_sleep_state(codec_dai->dev);
 		}
 	}
@@ -2776,10 +2776,10 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	/* deactivate pins to sleep state */
 	list_for_each_entry(rtd, &card->rtd_list, list)  {
 		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+		struct snd_soc_dai *codec_dai;
 		int j;
 
-		for (j = 0; j < rtd->num_codecs; j++) {
-			struct snd_soc_dai *codec_dai = rtd->codec_dais[j];
+		for_each_rtd_codec_dai(rtd, j, codec_dai) {
 			if (!codec_dai->active)
 				pinctrl_pm_select_sleep_state(codec_dai->dev);
 		}

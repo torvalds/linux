@@ -1158,6 +1158,13 @@ struct snd_soc_pcm_runtime {
 	unsigned int dev_registered:1;
 	unsigned int pop_wait:1;
 };
+#define for_each_rtd_codec_dai(rtd, i, dai)\
+	for ((i) = 0;						       \
+	     ((i) < rtd->num_codecs) && ((dai) = rtd->codec_dais[i]); \
+	     (i)++)
+#define for_each_rtd_codec_dai_reverse(rtd, i, dai)				\
+	for (; ((i--) >= 0) && ((dai) = rtd->codec_dais[i]);)
+
 
 /* mixer control */
 struct soc_mixer_control {
