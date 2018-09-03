@@ -142,67 +142,6 @@ END(native_usergs_sysret64)
  * with them due to bugs in both AMD and Intel CPUs.
  */
 
-	.pushsection .entry_trampoline, "ax"
-
-/*
- * The code in here gets remapped into cpu_entry_area's trampoline.  This means
- * that the assembler and linker have the wrong idea as to where this code
- * lives (and, in fact, it's mapped more than once, so it's not even at a
- * fixed address).  So we can't reference any symbols outside the entry
- * trampoline and expect it to work.
- *
- * Instead, we carefully abuse %rip-relative addressing.
- * _entry_trampoline(%rip) refers to the start of the remapped) entry
- * trampoline.  We can thus find cpu_entry_area with this macro:
- */
-
-#define CPU_ENTRY_AREA \
-	_entry_trampoline - CPU_ENTRY_AREA_entry_trampoline(%rip)
-
-/* The top word of the SYSENTER stack is hot and is usable as scratch space. */
-#define RSP_SCRATCH	CPU_ENTRY_AREA_entry_stack + \
-			SIZEOF_entry_stack - 8 + CPU_ENTRY_AREA
-
-ENTRY(entry_SYSCALL_64_trampoline)
-	UNWIND_HINT_EMPTY
-	swapgs
-
-	/* Stash the user RSP. */
-	movq	%rsp, RSP_SCRATCH
-
-	/* Note: using %rsp as a scratch reg. */
-	SWITCH_TO_KERNEL_CR3 scratch_reg=%rsp
-
-	/* Load the top of the task stack into RSP */
-	movq	CPU_ENTRY_AREA_tss + TSS_sp1 + CPU_ENTRY_AREA, %rsp
-
-	/* Start building the simulated IRET frame. */
-	pushq	$__USER_DS			/* pt_regs->ss */
-	pushq	RSP_SCRATCH			/* pt_regs->sp */
-	pushq	%r11				/* pt_regs->flags */
-	pushq	$__USER_CS			/* pt_regs->cs */
-	pushq	%rcx				/* pt_regs->ip */
-
-	/*
-	 * x86 lacks a near absolute jump, and we can't jump to the real
-	 * entry text with a relative jump.  We could push the target
-	 * address and then use retq, but this destroys the pipeline on
-	 * many CPUs (wasting over 20 cycles on Sandy Bridge).  Instead,
-	 * spill RDI and restore it in a second-stage trampoline.
-	 */
-	pushq	%rdi
-	movq	$entry_SYSCALL_64_stage2, %rdi
-	JMP_NOSPEC %rdi
-END(entry_SYSCALL_64_trampoline)
-
-	.popsection
-
-ENTRY(entry_SYSCALL_64_stage2)
-	UNWIND_HINT_EMPTY
-	popq	%rdi
-	jmp	entry_SYSCALL_64_after_hwframe
-END(entry_SYSCALL_64_stage2)
-
 ENTRY(entry_SYSCALL_64)
 	UNWIND_HINT_EMPTY
 	/*
@@ -212,13 +151,9 @@ ENTRY(entry_SYSCALL_64)
 	 */
 
 	swapgs
-	/*
-	 * This path is only taken when PAGE_TABLE_ISOLATION is disabled so it
-	 * is not required to switch CR3.
-	 *
-	 * tss.sp2 is scratch space.
-	 */
+	/* tss.sp2 is scratch space. */
 	movq	%rsp, PER_CPU_VAR(cpu_tss_rw + TSS_sp2)
+	SWITCH_TO_KERNEL_CR3 scratch_reg=%rsp
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
 	/* Construct struct pt_regs on stack */

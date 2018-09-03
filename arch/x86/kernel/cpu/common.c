@@ -1531,19 +1531,10 @@ EXPORT_PER_CPU_SYMBOL(__preempt_count);
 /* May not be marked __init: used by software suspend */
 void syscall_init(void)
 {
-	extern char _entry_trampoline[];
-	extern char entry_SYSCALL_64_trampoline[];
-
-	int cpu = smp_processor_id();
-	unsigned long SYSCALL64_entry_trampoline =
-		(unsigned long)get_cpu_entry_area(cpu)->entry_trampoline +
-		(entry_SYSCALL_64_trampoline - _entry_trampoline);
+	int __maybe_unused cpu = smp_processor_id();
 
 	wrmsr(MSR_STAR, 0, (__USER32_CS << 16) | __KERNEL_CS);
-	if (static_cpu_has(X86_FEATURE_PTI))
-		wrmsrl(MSR_LSTAR, SYSCALL64_entry_trampoline);
-	else
-		wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
+	wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
 
 #ifdef CONFIG_IA32_EMULATION
 	wrmsrl(MSR_CSTAR, (unsigned long)entry_SYSCALL_compat);
