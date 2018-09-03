@@ -881,12 +881,10 @@ static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
-	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
 	struct snd_pcm_hw_constraint_list *constraint = &rdai->constraint;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int max_channels = rsnd_rdai_channels_get(rdai);
-	int ret;
 	int i;
 
 	rsnd_dai_stream_init(io, substream);
@@ -930,14 +928,7 @@ static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
 				    SNDRV_PCM_HW_PARAM_RATE, -1);
 	}
 
-	/*
-	 * call rsnd_dai_call without spinlock
-	 */
-	ret = rsnd_dai_call(nolock_start, io, priv);
-	if (ret < 0)
-		rsnd_dai_call(nolock_stop, io, priv);
-
-	return ret;
+	return 0;
 }
 
 static void rsnd_soc_dai_shutdown(struct snd_pcm_substream *substream,
@@ -950,7 +941,7 @@ static void rsnd_soc_dai_shutdown(struct snd_pcm_substream *substream,
 	/*
 	 * call rsnd_dai_call without spinlock
 	 */
-	rsnd_dai_call(nolock_stop, io, priv);
+	rsnd_dai_call(cleanup, io, priv);
 
 	rsnd_dai_stream_quit(io);
 }
