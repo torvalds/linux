@@ -223,9 +223,9 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 				     (__le64 *)data, false);
 		break;
 	case SMB2_OP_SET_INFO:
-		tmprc = SMB2_set_info(xid, tcon, fid.persistent_fid,
-				      fid.volatile_fid,
-				      (FILE_BASIC_INFO *)data);
+		tmprc = SMB2_set_basic_info(xid, tcon, fid.persistent_fid,
+					    fid.volatile_fid,
+					    (FILE_BASIC_INFO *)data);
 		break;
 	default:
 		cifs_dbg(VFS, "Invalid command\n");

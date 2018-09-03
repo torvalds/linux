@@ -3754,45 +3754,22 @@ qdir_exit:
 	return rc;
 }
 
-static int
-send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
+int
+SMB2_set_info_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 	       u64 persistent_fid, u64 volatile_fid, u32 pid, u8 info_class,
-	       u8 info_type, u32 additional_info, unsigned int num,
+	       u8 info_type, u32 additional_info,
 		void **data, unsigned int *size)
 {
-	struct smb_rqst rqst;
 	struct smb2_set_info_req *req;
-	struct smb2_set_info_rsp *rsp = NULL;
-	struct kvec *iov;
-	struct kvec rsp_iov;
-	int rc = 0;
-	int resp_buftype;
-	unsigned int i;
-	struct cifs_ses *ses = tcon->ses;
-	int flags = 0;
-	unsigned int total_len;
-
-	if (!ses || !(ses->server))
-		return -EIO;
-
-	if (!num)
-		return -EINVAL;
-
-	iov = kmalloc_array(num, sizeof(struct kvec), GFP_KERNEL);
-	if (!iov)
-		return -ENOMEM;
+	struct kvec *iov = rqst->rq_iov;
+	unsigned int i, total_len;
+	int rc;
 
 	rc = smb2_plain_req_init(SMB2_SET_INFO, tcon, (void **) &req, &total_len);
-	if (rc) {
-		kfree(iov);
+	if (rc)
 		return rc;
-	}
-
-	if (smb3_encryption_required(tcon))
-		flags |= CIFS_TRANSFORM_REQ;
 
 	req->sync_hdr.ProcessId = cpu_to_le32(pid);
-
 	req->InfoType = info_type;
 	req->FileInfoClass = info_class;
 	req->PersistentFileId = persistent_fid;
@@ -3810,19 +3787,65 @@ send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 	/* 1 for Buffer */
 	iov[0].iov_len = total_len - 1;
 
-	for (i = 1; i < num; i++) {
+	for (i = 1; i < rqst->rq_nvec; i++) {
 		le32_add_cpu(&req->BufferLength, size[i]);
 		iov[i].iov_base = (char *)data[i];
 		iov[i].iov_len = size[i];
 	}
 
+	return 0;
+}
+
+void
+SMB2_set_info_free(struct smb_rqst *rqst)
+{
+	cifs_buf_release(rqst->rq_iov[0].iov_base); /* request */
+}
+
+static int
+send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
+	       u64 persistent_fid, u64 volatile_fid, u32 pid, u8 info_class,
+	       u8 info_type, u32 additional_info, unsigned int num,
+		void **data, unsigned int *size)
+{
+	struct smb_rqst rqst;
+	struct smb2_set_info_rsp *rsp = NULL;
+	struct kvec *iov;
+	struct kvec rsp_iov;
+	int rc = 0;
+	int resp_buftype;
+	struct cifs_ses *ses = tcon->ses;
+	int flags = 0;
+
+	if (!ses || !(ses->server))
+		return -EIO;
+
+	if (!num)
+		return -EINVAL;
+
+	if (smb3_encryption_required(tcon))
+		flags |= CIFS_TRANSFORM_REQ;
+
+	iov = kmalloc_array(num, sizeof(struct kvec), GFP_KERNEL);
+	if (!iov)
+		return -ENOMEM;
+
 	memset(&rqst, 0, sizeof(struct smb_rqst));
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = num;
 
+	rc = SMB2_set_info_init(tcon, &rqst, persistent_fid, volatile_fid, pid,
+				info_class, info_type, additional_info,
+				data, size);
+	if (rc) {
+		kfree(iov);
+		return rc;
+	}
+
+
 	rc = cifs_send_recv(xid, ses, &rqst, &resp_buftype, flags,
 			    &rsp_iov);
-	cifs_buf_release(req);
+	SMB2_set_info_free(&rqst);
 	rsp = (struct smb2_set_info_rsp *)rsp_iov.iov_base;
 
 	if (rc != 0) {
@@ -3940,8 +3963,8 @@ SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 }
 
 int
-SMB2_set_info(const unsigned int xid, struct cifs_tcon *tcon,
-	      u64 persistent_fid, u64 volatile_fid, FILE_BASIC_INFO *buf)
+SMB2_set_basic_info(const unsigned int xid, struct cifs_tcon *tcon,
+		    u64 persistent_fid, u64 volatile_fid, FILE_BASIC_INFO *buf)
 {
 	unsigned int size;
 	size = sizeof(FILE_BASIC_INFO);
