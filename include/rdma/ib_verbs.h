@@ -1486,7 +1486,7 @@ struct ib_ucontext {
 	 * it is set when we are closing the file descriptor and indicates
 	 * that mm_sem may be locked.
 	 */
-	int			closing;
+	bool closing;
 
 	bool cleanup_retryable;
 
