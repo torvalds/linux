@@ -591,18 +591,6 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 	/* 4.mdio_support */
 	cmd->base.mdio_support = ETH_MDIO_SUPPORTS_C22;
 
-	/* 5.get flow control setttings */
-	if (h->ae_algo->ops->get_flowctrl_adv)
-		h->ae_algo->ops->get_flowctrl_adv(h, &flowctrl_adv);
-
-	if (flowctrl_adv & ADVERTISED_Pause)
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     Pause);
-
-	if (flowctrl_adv & ADVERTISED_Asym_Pause)
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     Asym_Pause);
-
 	return 0;
 }
 
