@@ -6684,6 +6684,8 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 		hw_resc->resv_rx_rings = 0;
 		hw_resc->resv_hw_ring_grps = 0;
 		hw_resc->resv_vnics = 0;
+		bp->tx_nr_rings = 0;
+		bp->rx_nr_rings = 0;
 	}
 	return rc;
 }
@@ -8769,20 +8771,25 @@ static int bnxt_init_dflt_ring_mode(struct bnxt *bp)
 	if (bp->tx_nr_rings)
 		return 0;
 
+	bnxt_ulp_irq_stop(bp);
+	bnxt_clear_int_mode(bp);
 	rc = bnxt_set_dflt_rings(bp, true);
 	if (rc) {
 		netdev_err(bp->dev, "Not enough rings available.\n");
-		return rc;
+		goto init_dflt_ring_err;
 	}
 	rc = bnxt_init_int_mode(bp);
 	if (rc)
-		return rc;
+		goto init_dflt_ring_err;
+
 	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
 	if (bnxt_rfs_supported(bp) && bnxt_rfs_capable(bp)) {
 		bp->flags |= BNXT_FLAG_RFS;
 		bp->dev->features |= NETIF_F_NTUPLE;
 	}
-	return 0;
+init_dflt_ring_err:
+	bnxt_ulp_irq_restart(bp, rc);
+	return rc;
 }
 
 int bnxt_restore_pf_fw_resources(struct bnxt *bp)
