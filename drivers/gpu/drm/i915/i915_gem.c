@@ -2018,7 +2018,7 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	bool write = !!(vmf->flags & FAULT_FLAG_WRITE);
+	bool write = area->vm_flags & VM_WRITE;
 	struct i915_vma *vma;
 	pgoff_t page_offset;
 	int ret;
