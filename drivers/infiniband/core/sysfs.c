@@ -1359,8 +1359,8 @@ void ib_device_unregister_sysfs(struct ib_device *device)
 {
 	int i;
 
-	/* Hold kobject until ib_dealloc_device() */
-	kobject_get(&device->dev.kobj);
+	/* Hold device until ib_dealloc_device() */
+	get_device(&device->dev);
 
 	free_port_list_attributes(device);
 
