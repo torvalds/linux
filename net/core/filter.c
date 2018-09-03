@@ -3187,7 +3187,7 @@ static int __bpf_tx_xdp_map(struct net_device *dev_rx, void *fwd,
 		struct bpf_dtab_netdev *dst = fwd;
 
 		err = dev_map_enqueue(dst, xdp, dev_rx);
-		if (err)
+		if (unlikely(err))
 			return err;
 		__dev_map_insert_ctx(map, index);
 		break;
@@ -3196,7 +3196,7 @@ static int __bpf_tx_xdp_map(struct net_device *dev_rx, void *fwd,
 		struct bpf_cpu_map_entry *rcpu = fwd;
 
 		err = cpu_map_enqueue(rcpu, xdp, dev_rx);
-		if (err)
+		if (unlikely(err))
 			return err;
 		__cpu_map_insert_ctx(map, index);
 		break;
@@ -3284,7 +3284,7 @@ static int xdp_do_redirect_map(struct net_device *dev, struct xdp_buff *xdp,
 		err = -EINVAL;
 		goto err;
 	}
-	if (ri->map_to_flush && ri->map_to_flush != map)
+	if (ri->map_to_flush && unlikely(ri->map_to_flush != map))
 		xdp_do_flush_map();
 
 	err = __bpf_tx_xdp_map(dev, fwd, map, xdp, index);
