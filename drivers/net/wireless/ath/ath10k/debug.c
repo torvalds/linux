@@ -2042,6 +2042,61 @@ static const struct file_operations fops_btcoex = {
 	.open = simple_open
 };
 
+static ssize_t ath10k_write_enable_extd_tx_stats(struct file *file,
+						 const char __user *ubuf,
+						 size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u32 filter;
+	int ret;
+
+	if (kstrtouint_from_user(ubuf, count, 0, &filter))
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON) {
+		ar->debug.enable_extd_tx_stats = filter;
+		ret = count;
+		goto out;
+	}
+
+	if (filter == ar->debug.enable_extd_tx_stats) {
+		ret = count;
+		goto out;
+	}
+
+	ar->debug.enable_extd_tx_stats = filter;
+	ret = count;
+
+out:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static ssize_t ath10k_read_enable_extd_tx_stats(struct file *file,
+						char __user *ubuf,
+						size_t count, loff_t *ppos)
+
+{
+	char buf[32];
+	struct ath10k *ar = file->private_data;
+	int len = 0;
+
+	mutex_lock(&ar->conf_mutex);
+	len = scnprintf(buf, sizeof(buf) - len, "%08x\n",
+			ar->debug.enable_extd_tx_stats);
+	mutex_unlock(&ar->conf_mutex);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_enable_extd_tx_stats = {
+	.read = ath10k_read_enable_extd_tx_stats,
+	.write = ath10k_write_enable_extd_tx_stats,
+	.open = simple_open
+};
+
 static ssize_t ath10k_write_peer_stats(struct file *file,
 				       const char __user *ubuf,
 				       size_t count, loff_t *ppos)
@@ -2454,9 +2509,14 @@ int ath10k_debug_register(struct ath10k *ar)
 		debugfs_create_file("btcoex", 0644, ar->debug.debugfs_phy, ar,
 				    &fops_btcoex);
 
-	if (test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map))
+	if (test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map)) {
 		debugfs_create_file("peer_stats", 0644, ar->debug.debugfs_phy, ar,
 				    &fops_peer_stats);
+
+		debugfs_create_file("enable_extd_tx_stats", 0644,
+				    ar->debug.debugfs_phy, ar,
+				    &fops_enable_extd_tx_stats);
+	}
 
 	debugfs_create_file("fw_checksums", 0400, ar->debug.debugfs_phy, ar,
 			    &fops_fw_checksums);
