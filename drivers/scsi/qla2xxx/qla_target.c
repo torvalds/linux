@@ -3291,6 +3291,7 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 
 	cmd->state = QLA_TGT_STATE_PROCESSED; /* Mid-level is done processing */
 	cmd->cmd_sent_to_fw = 1;
+	cmd->ctio_flags = le16_to_cpu(pkt->u.status0.flags);
 
 	/* Memory Barrier */
 	wmb();
@@ -3369,6 +3370,7 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 
 	cmd->state = QLA_TGT_STATE_NEED_DATA;
 	cmd->cmd_sent_to_fw = 1;
+	cmd->ctio_flags = le16_to_cpu(pkt->u.status0.flags);
 
 	/* Memory Barrier */
 	wmb();
@@ -3942,12 +3944,20 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 
 	if (unlikely(status != CTIO_SUCCESS)) {
 		switch (status & 0xFFFF) {
+		case CTIO_INVALID_RX_ID:
+			if (printk_ratelimit())
+				dev_info(&vha->hw->pdev->dev,
+				    "qla_target(%d): CTIO with INVALID_RX_ID ATIO attr %x CTIO Flags %x|%x\n",
+				    vha->vp_idx, cmd->atio.u.isp24.attr,
+				    ((cmd->ctio_flags >> 9) & 0xf),
+				    cmd->ctio_flags);
+
+			break;
 		case CTIO_LIP_RESET:
 		case CTIO_TARGET_RESET:
 		case CTIO_ABORTED:
 			/* driver request abort via Terminate exchange */
 		case CTIO_TIMEOUT:
-		case CTIO_INVALID_RX_ID:
 			/* They are OK */
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf058,
 			    "qla_target(%d): CTIO with "

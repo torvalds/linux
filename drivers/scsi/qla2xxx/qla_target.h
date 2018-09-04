@@ -908,6 +908,7 @@ struct qla_tgt_cmd {
 	u64 unpacked_lun;
 	enum dma_data_direction dma_data_direction;
 
+	uint16_t ctio_flags;
 	uint16_t vp_idx;
 	uint16_t loop_id;	/* to save extra sess dereferences */
 	struct qla_tgt *tgt;	/* to save extra sess dereferences */
