@@ -1333,7 +1333,8 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
 			if (__PageMovable(page))
 				return pfn;
 			if (PageHuge(page)) {
-				if (page_huge_active(page))
+				if (hugepage_migration_supported(page_hstate(page)) &&
+				    page_huge_active(page))
 					return pfn;
 				else
 					pfn = round_up(pfn + 1,
