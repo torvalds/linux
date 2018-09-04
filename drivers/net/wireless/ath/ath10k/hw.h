@@ -391,6 +391,11 @@ extern const struct ath10k_hw_ce_regs qcax_ce_regs;
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev);
 
+int ath10k_hw_diag_fast_download(struct ath10k *ar,
+				 u32 address,
+				 const void *buffer,
+				 u32 length);
+
 #define QCA_REV_988X(ar) ((ar)->hw_rev == ATH10K_HW_QCA988X)
 #define QCA_REV_9887(ar) ((ar)->hw_rev == ATH10K_HW_QCA9887)
 #define QCA_REV_6174(ar) ((ar)->hw_rev == ATH10K_HW_QCA6174)
@@ -598,6 +603,9 @@ struct ath10k_hw_params {
 	 * to avoid it sending spurious acks.
 	 */
 	bool hw_filter_reset_required;
+
+	/* target supporting fw download via diag ce */
+	bool fw_diag_ce_download;
 };
 
 struct htt_rx_desc;
@@ -1132,5 +1140,16 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define RTC_SYNC_STATUS_PLL_CHANGING_LSB	5
 #define RTC_SYNC_STATUS_PLL_CHANGING_MASK	0x00000020
 /* qca6174 PLL offset/mask end */
+
+/* CPU_ADDR_MSB is a register, bit[3:0] is to specify which memory
+ * region is accessed. The memory region size is 1M.
+ * If host wants to access 0xX12345 at target, then CPU_ADDR_MSB[3:0]
+ * is 0xX.
+ * The following MACROs are defined to get the 0xX and the size limit.
+ */
+#define CPU_ADDR_MSB_REGION_MASK	GENMASK(23, 20)
+#define CPU_ADDR_MSB_REGION_VAL(X)	FIELD_GET(CPU_ADDR_MSB_REGION_MASK, X)
+#define REGION_ACCESS_SIZE_LIMIT	0x100000
+#define REGION_ACCESS_SIZE_MASK		(REGION_ACCESS_SIZE_LIMIT - 1)
 
 #endif /* _HW_H_ */

@@ -195,6 +195,35 @@ struct bmi_target_info {
 	u32 type;
 };
 
+struct bmi_segmented_file_header {
+	__le32 magic_num;
+	__le32 file_flags;
+	u8 data[];
+};
+
+struct bmi_segmented_metadata {
+	__le32 addr;
+	__le32 length;
+	u8 data[];
+};
+
+#define BMI_SGMTFILE_MAGIC_NUM          0x544d4753 /* "SGMT" */
+#define BMI_SGMTFILE_FLAG_COMPRESS      1
+
+/* Special values for bmi_segmented_metadata.length (all have high bit set) */
+
+/* end of segmented data */
+#define BMI_SGMTFILE_DONE               0xffffffff
+
+/* Board Data segment */
+#define BMI_SGMTFILE_BDDATA             0xfffffffe
+
+/* set beginning address */
+#define BMI_SGMTFILE_BEGINADDR          0xfffffffd
+
+/* immediate function execution */
+#define BMI_SGMTFILE_EXEC               0xfffffffc
+
 /* in jiffies */
 #define BMI_COMMUNICATION_TIMEOUT_HZ (3 * HZ)
 
@@ -244,4 +273,6 @@ int ath10k_bmi_fast_download(struct ath10k *ar, u32 address,
 			     const void *buffer, u32 length);
 int ath10k_bmi_read_soc_reg(struct ath10k *ar, u32 address, u32 *reg_val);
 int ath10k_bmi_write_soc_reg(struct ath10k *ar, u32 address, u32 reg_val);
+int ath10k_bmi_set_start(struct ath10k *ar, u32 address);
+
 #endif /* _BMI_H_ */
