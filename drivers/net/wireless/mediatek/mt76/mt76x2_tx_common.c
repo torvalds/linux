@@ -47,22 +47,6 @@ void mt76x2_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 }
 EXPORT_SYMBOL_GPL(mt76x2_tx);
 
-int mt76x2_insert_hdr_pad(struct sk_buff *skb)
-{
-	int len = ieee80211_get_hdrlen_from_skb(skb);
-
-	if (len % 4 == 0)
-		return 0;
-
-	skb_push(skb, 2);
-	memmove(skb->data, skb->data + 2, len);
-
-	skb->data[len] = 0;
-	skb->data[len + 1] = 0;
-	return 2;
-}
-EXPORT_SYMBOL_GPL(mt76x2_insert_hdr_pad);
-
 s8 mt76x2_tx_get_max_txpwr_adj(struct mt76_dev *mdev,
 			       const struct ieee80211_tx_rate *rate)
 {

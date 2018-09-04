@@ -14,6 +14,7 @@
 
 #include "mt76x0.h"
 #include "trace.h"
+#include "../mt76x02_util.h"
 
 /* Take mac80211 Q id from the skb and translate it to hardware Q id */
 static u8 skb2q(struct sk_buff *skb)
@@ -35,7 +36,7 @@ static void mt76x0_tx_skb_remove_dma_overhead(struct sk_buff *skb,
 
 	skb_pull(skb, sizeof(struct mt76x02_txwi) + 4);
 	if (ieee80211_get_hdrlen_from_skb(skb) % 4)
-		mt76x0_remove_hdr_pad(skb);
+		mt76x02_remove_hdr_pad(skb, 2);
 
 	skb_trim(skb, pkt_len);
 }
@@ -146,7 +147,7 @@ void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	BUILD_BUG_ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
 	info->status.status_driver_data[0] = (void *)(unsigned long)pkt_len;
 
-	mt76x0_insert_hdr_pad(skb);
+	mt76x02_insert_hdr_pad(skb);
 
 	if (sta) {
 		msta = (struct mt76x02_sta *) sta->drv_priv;

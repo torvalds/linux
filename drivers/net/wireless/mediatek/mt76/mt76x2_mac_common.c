@@ -16,6 +16,7 @@
  */
 
 #include "mt76x2.h"
+#include "mt76x02_util.h"
 
 void mt76x2_mac_stop(struct mt76x2_dev *dev, bool force)
 {
@@ -146,18 +147,6 @@ void mt76x2_mac_write_txwi(struct mt76x2_dev *dev, struct mt76x02_txwi *txwi,
 }
 EXPORT_SYMBOL_GPL(mt76x2_mac_write_txwi);
 
-static void mt76x2_remove_hdr_pad(struct sk_buff *skb, int len)
-{
-	int hdrlen;
-
-	if (!len)
-		return;
-
-	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-	memmove(skb->data + len, skb->data, hdrlen);
-	skb_pull(skb, len);
-}
-
 int mt76x2_mac_get_rssi(struct mt76x2_dev *dev, s8 rssi, int chain)
 {
 	struct mt76x2_rx_freq_cal *cal = &dev->cal.rx;
@@ -254,7 +243,7 @@ int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 		}
 	}
 
-	mt76x2_remove_hdr_pad(skb, pad_len);
+	mt76x02_remove_hdr_pad(skb, pad_len);
 
 	if ((rxinfo & MT_RXINFO_BA) && !(rxinfo & MT_RXINFO_NULL))
 		status->aggr = true;

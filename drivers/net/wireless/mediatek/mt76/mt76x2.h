@@ -239,7 +239,6 @@ s8 mt76x2_tx_get_max_txpwr_adj(struct mt76_dev *dev,
 s8 mt76x2_tx_get_txpwr_adj(struct mt76x2_dev *dev, s8 txpwr, s8 max_txpwr_adj);
 void mt76x2_tx_set_txpwr_auto(struct mt76x2_dev *dev, s8 txpwr);
 
-int mt76x2_insert_hdr_pad(struct sk_buff *skb);
 
 void mt76x2_reset_wlan(struct mt76x2_dev *dev, bool enable);
 void mt76x2_init_txpower(struct mt76x2_dev *dev,

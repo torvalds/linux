@@ -16,6 +16,7 @@
 
 #include "mt76x2u.h"
 #include "dma.h"
+#include "mt76x02_util.h"
 
 static void mt76x2u_remove_dma_hdr(struct sk_buff *skb)
 {
@@ -89,7 +90,7 @@ int mt76x2u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 	if (err < 0)
 		return -ENOMEM;
 
-	mt76x2_insert_hdr_pad(skb);
+	mt76x02_insert_hdr_pad(skb);
 
 	txwi = skb_push(skb, sizeof(struct mt76x02_txwi));
 	mt76x2_mac_write_txwi(dev, txwi, skb, wcid, sta, len);

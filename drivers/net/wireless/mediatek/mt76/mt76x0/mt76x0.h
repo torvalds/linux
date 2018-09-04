@@ -245,10 +245,6 @@ void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 void mt76x0_tx_status(struct mt76x0_dev *dev, struct sk_buff *skb);
 void mt76x0_tx_stat(struct work_struct *work);
 
-/* util */
-void mt76x0_remove_hdr_pad(struct sk_buff *skb);
-int mt76x0_insert_hdr_pad(struct sk_buff *skb);
-
 int mt76x0_dma_init(struct mt76x0_dev *dev);
 void mt76x0_dma_cleanup(struct mt76x0_dev *dev);
 
