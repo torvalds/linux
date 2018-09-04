@@ -460,11 +460,11 @@ free_wq:
 	return ret;
 }
 
-static int bcm2835_audio_set_ctls_chan(struct bcm2835_alsa_stream *alsa_stream,
-				       struct bcm2835_chip *chip)
+int bcm2835_audio_set_ctls(struct bcm2835_alsa_stream *alsa_stream)
 {
 	struct vc_audio_msg m;
 	struct bcm2835_audio_instance *instance = alsa_stream->instance;
+	struct bcm2835_chip *chip = alsa_stream->chip;
 	int status;
 	int ret;
 
@@ -478,7 +478,10 @@ static int bcm2835_audio_set_ctls_chan(struct bcm2835_alsa_stream *alsa_stream,
 
 	m.type = VC_AUDIO_MSG_TYPE_CONTROL;
 	m.u.control.dest = chip->dest;
-	m.u.control.volume = chip->volume;
+	if (!chip->mute)
+		m.u.control.volume = CHIP_MIN_VOLUME;
+	else
+		m.u.control.volume = alsa2chip(chip->volume);
 
 	/* Create the message available completion */
 	init_completion(&instance->msg_avail_comp);
@@ -514,27 +517,6 @@ unlock:
 	return ret;
 }
 
-int bcm2835_audio_set_ctls(struct bcm2835_chip *chip)
-{
-	int i;
-	int ret = 0;
-
-	LOG_DBG(" Setting ALSA dest(%d), volume(%d)\n", chip->dest, chip->volume);
-
-	/* change ctls for all substreams */
-	for (i = 0; i < MAX_SUBSTREAMS; i++) {
-		if (!chip->alsa_stream[i])
-			continue;
-		if (bcm2835_audio_set_ctls_chan(chip->alsa_stream[i], chip) != 0) {
-			LOG_ERR("Couldn't set the controls for stream %d\n", i);
-			ret = -1;
-		} else {
-			LOG_DBG(" Controls set for stream %d\n", i);
-		}
-	}
-	return ret;
-}
-
 int bcm2835_audio_set_params(struct bcm2835_alsa_stream *alsa_stream,
 			     unsigned int channels, unsigned int samplerate,
 			     unsigned int bps)
@@ -548,7 +530,7 @@ int bcm2835_audio_set_params(struct bcm2835_alsa_stream *alsa_stream,
 		 channels, samplerate, bps);
 
 	/* resend ctls - alsa_stream may not have been open when first send */
-	ret = bcm2835_audio_set_ctls_chan(alsa_stream, alsa_stream->chip);
+	ret = bcm2835_audio_set_ctls(alsa_stream);
 	if (ret) {
 		LOG_ERR(" Alsa controls not supported\n");
 		return -EINVAL;

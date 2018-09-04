@@ -280,7 +280,7 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 	bcm2835_audio_setup(alsa_stream);
 
 	/* in preparation of the stream, set the controls (volume level) of the stream */
-	bcm2835_audio_set_ctls(alsa_stream->chip);
+	bcm2835_audio_set_ctls(alsa_stream);
 
 	memset(&alsa_stream->pcm_indirect, 0, sizeof(alsa_stream->pcm_indirect));
 
@@ -441,7 +441,7 @@ int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, u32 numchannels)
 	strcpy(pcm->name, "bcm2835 ALSA");
 	chip->pcm = pcm;
 	chip->dest = AUDIO_DEST_AUTO;
-	chip->volume = alsa2chip(0);
+	chip->volume = 0;
 	chip->mute = CTRL_VOL_UNMUTE; /*disable mute on startup */
 	/* set operators */
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
@@ -498,7 +498,7 @@ int snd_bcm2835_new_simple_pcm(struct bcm2835_chip *chip,
 	strcpy(pcm->name, name);
 	chip->pcm = pcm;
 	chip->dest = route;
-	chip->volume = alsa2chip(0);
+	chip->volume = 0;
 	chip->mute = CTRL_VOL_UNMUTE;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,

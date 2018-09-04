@@ -12,6 +12,21 @@
 #define CTRL_VOL_MAX 400
 #define CTRL_VOL_MIN -10239 /* originally -10240 */
 
+static int bcm2835_audio_set_chip_ctls(struct bcm2835_chip *chip)
+{
+	int i, err = 0;
+
+	/* change ctls for all substreams */
+	for (i = 0; i < MAX_SUBSTREAMS; i++) {
+		if (chip->alsa_stream[i]) {
+			err = bcm2835_audio_set_ctls(chip->alsa_stream[i]);
+			if (err < 0)
+				break;
+		}
+	}
+	return err;
+}
+
 static int snd_bcm2835_ctl_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo)
 {
@@ -34,29 +49,6 @@ static int snd_bcm2835_ctl_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-/* toggles mute on or off depending on the value of nmute, and returns
- * 1 if the mute value was changed, otherwise 0
- */
-static int toggle_mute(struct bcm2835_chip *chip, int nmute)
-{
-	/* if settings are ok, just return 0 */
-	if (chip->mute == nmute)
-		return 0;
-
-	/* if the sound is muted then we need to unmute */
-	if (chip->mute == CTRL_VOL_MUTE) {
-		chip->volume = chip->old_volume; /* copy the old volume back */
-		audio_info("Unmuting, old_volume = %d, volume = %d ...\n", chip->old_volume, chip->volume);
-	} else /* otherwise we mute */ {
-		chip->old_volume = chip->volume;
-		chip->volume = 26214; /* set volume to minimum level AKA mute */
-		audio_info("Muting, old_volume = %d, volume = %d ...\n", chip->old_volume, chip->volume);
-	}
-
-	chip->mute = nmute;
-	return 1;
-}
-
 static int snd_bcm2835_ctl_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
@@ -65,7 +57,7 @@ static int snd_bcm2835_ctl_get(struct snd_kcontrol *kcontrol,
 	mutex_lock(&chip->audio_mutex);
 
 	if (kcontrol->private_value == PCM_PLAYBACK_VOLUME)
-		ucontrol->value.integer.value[0] = chip2alsa(chip->volume);
+		ucontrol->value.integer.value[0] = chip->volume;
 	else if (kcontrol->private_value == PCM_PLAYBACK_MUTE)
 		ucontrol->value.integer.value[0] = chip->mute;
 	else if (kcontrol->private_value == PCM_PLAYBACK_DEVICE)
@@ -79,38 +71,26 @@ static int snd_bcm2835_ctl_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
 	struct bcm2835_chip *chip = snd_kcontrol_chip(kcontrol);
+	int val, *valp;
 	int changed = 0;
 
+	if (kcontrol->private_value == PCM_PLAYBACK_VOLUME)
+		valp = &chip->volume;
+	else if (kcontrol->private_value == PCM_PLAYBACK_MUTE)
+		valp = &chip->mute;
+	else if (kcontrol->private_value == PCM_PLAYBACK_DEVICE)
+		valp = &chip->dest;
+	else
+		return -EINVAL;
+
+	val = ucontrol->value.integer.value[0];
 	mutex_lock(&chip->audio_mutex);
-
-	if (kcontrol->private_value == PCM_PLAYBACK_VOLUME) {
-		audio_info("Volume change attempted.. volume = %d new_volume = %d\n", chip->volume, (int)ucontrol->value.integer.value[0]);
-		if (chip->mute == CTRL_VOL_MUTE) {
-			/* changed = toggle_mute(chip, CTRL_VOL_UNMUTE); */
-			changed = 1; /* should return 0 to signify no change but the mixer takes this as the opposite sign (no idea why) */
-			goto unlock;
-		}
-		if (changed || (ucontrol->value.integer.value[0] != chip2alsa(chip->volume))) {
-			chip->volume = alsa2chip(ucontrol->value.integer.value[0]);
-			changed = 1;
-		}
-
-	} else if (kcontrol->private_value == PCM_PLAYBACK_MUTE) {
-		/* Now implemented */
-		audio_info(" Mute attempted\n");
-		changed = toggle_mute(chip, ucontrol->value.integer.value[0]);
-
-	} else if (kcontrol->private_value == PCM_PLAYBACK_DEVICE) {
-		if (ucontrol->value.integer.value[0] != chip->dest) {
-			chip->dest = ucontrol->value.integer.value[0];
-			changed = 1;
-		}
+	if (val != *valp) {
+		*valp = val;
+		changed = 1;
+		if (bcm2835_audio_set_chip_ctls(chip))
+			dev_err(chip->card->dev, "Failed to set ALSA controls..\n");
 	}
-
-	if (changed && bcm2835_audio_set_ctls(chip))
-		dev_err(chip->card->dev, "Failed to set ALSA controls..\n");
-
-unlock:
 	mutex_unlock(&chip->audio_mutex);
 	return changed;
 }

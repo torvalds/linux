@@ -74,6 +74,8 @@ enum {
 // convert chip to alsa volume
 #define chip2alsa(vol) -(((vol) * 100) >> 8)
 
+#define CHIP_MIN_VOLUME		26214 /* minimum level aka mute */
+
 /* Some constants for values .. */
 enum snd_bcm2835_route {
 	AUDIO_DEST_AUTO = 0,
@@ -102,7 +104,6 @@ struct bcm2835_chip {
 	struct bcm2835_alsa_stream *alsa_stream[MAX_SUBSTREAMS];
 
 	int volume;
-	int old_volume; /* stores the volume value whist muted */
 	int dest;
 	int mute;
 
@@ -160,7 +161,7 @@ int bcm2835_audio_set_params(struct bcm2835_alsa_stream *alsa_stream,
 int bcm2835_audio_setup(struct bcm2835_alsa_stream *alsa_stream);
 int bcm2835_audio_start(struct bcm2835_alsa_stream *alsa_stream);
 int bcm2835_audio_stop(struct bcm2835_alsa_stream *alsa_stream);
-int bcm2835_audio_set_ctls(struct bcm2835_chip *chip);
+int bcm2835_audio_set_ctls(struct bcm2835_alsa_stream *alsa_stream);
 int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 			unsigned int count,
 			void *src);
