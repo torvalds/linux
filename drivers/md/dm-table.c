@@ -748,6 +748,16 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 		goto bad;
 	}
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+	while (argv &&
+	       strncmp(argv[1], "PARTUUID=", 9) == 0 &&
+	       name_to_dev_t(argv[1]) == 0) {
+		DMINFO("%s: %s: Waiting for device %s ...",
+		       dm_device_name(t->md), type, argv[1]);
+		msleep(100);
+	}
+#endif
+
 	r = tgt->type->ctr(tgt, argc, argv);
 	kfree(argv);
 	if (r)
