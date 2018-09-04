@@ -145,6 +145,8 @@ void gf119_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gk104_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gv100_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 
+void gm200_hdmi_scdc(struct nvkm_ior *, int, u8);
+
 void gt215_hda_hpd(struct nvkm_ior *, int, bool);
 void gt215_hda_eld(struct nvkm_ior *, u8 *, u8);
 
