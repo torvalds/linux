@@ -48,8 +48,8 @@ static int dev_state_ev_handler(struct notifier_block *this,
 	case NETDEV_UP:
 		if (vif->iftype == STATION_MODE || vif->iftype == CLIENT_MODE) {
 			hif_drv->ifc_up = 1;
-			wilc_optaining_ip = false;
-			del_timer(&wilc_during_ip_timer);
+			vif->obtaining_ip = false;
+			del_timer(&vif->during_ip_timer);
 		}
 
 		if (vif->wilc->enable_ps)
@@ -68,7 +68,7 @@ static int dev_state_ev_handler(struct notifier_block *this,
 	case NETDEV_DOWN:
 		if (vif->iftype == STATION_MODE || vif->iftype == CLIENT_MODE) {
 			hif_drv->ifc_up = 0;
-			wilc_optaining_ip = false;
+			vif->obtaining_ip = false;
 		}
 
 		if (memcmp(dev_iface->ifa_label, wlan_dev_name, 5) == 0)

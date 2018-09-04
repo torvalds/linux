@@ -186,7 +186,6 @@ struct join_bss_param {
 };
 
 static struct host_if_drv *terminated_handle;
-bool wilc_optaining_ip;
 static u8 p2p_listen_state;
 static struct workqueue_struct *hif_workqueue;
 static struct completion hif_driver_comp;
@@ -791,7 +790,7 @@ static void handle_scan(struct work_struct *work)
 		goto error;
 	}
 
-	if (wilc_optaining_ip || wilc_connecting) {
+	if (vif->obtaining_ip || wilc_connecting) {
 		netdev_err(vif->ndev, "Don't do obss scan\n");
 		result = -EBUSY;
 		goto error;
@@ -1562,8 +1561,8 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 
 		hif_drv->hif_state = HOST_IF_CONNECTED;
 
-		wilc_optaining_ip = true;
-		mod_timer(&wilc_during_ip_timer,
+		vif->obtaining_ip = true;
+		mod_timer(&vif->during_ip_timer,
 			  jiffies + msecs_to_jiffies(10000));
 	} else {
 		hif_drv->hif_state = HOST_IF_IDLE;
@@ -1595,7 +1594,7 @@ static inline void host_int_handle_disconnect(struct wilc_vif *vif)
 	disconn_info.ie_len = 0;
 
 	if (conn_result) {
-		wilc_optaining_ip = false;
+		vif->obtaining_ip = false;
 		wilc_set_power_mgmt(vif, 0, 0);
 
 		conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF, NULL, 0,
@@ -1942,7 +1941,7 @@ static void handle_disconnect(struct work_struct *work)
 	wid.val = (s8 *)&dummy_reason_code;
 	wid.size = sizeof(char);
 
-	wilc_optaining_ip = false;
+	vif->obtaining_ip = false;
 	wilc_set_power_mgmt(vif, 0, 0);
 
 	eth_zero_addr(wilc_connected_ssid);
@@ -2397,7 +2396,7 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 		goto error;
 	}
 
-	if (wilc_optaining_ip || wilc_connecting) {
+	if (vif->obtaining_ip || wilc_connecting) {
 		result = -EBUSY;
 		goto error;
 	}
@@ -3455,7 +3454,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 			break;
 		}
 
-	wilc_optaining_ip = false;
+	vif->obtaining_ip = false;
 
 	if (clients_count == 0) {
 		init_completion(&hif_driver_comp);

@@ -118,6 +118,8 @@ struct wilc_vif {
 	struct net_device *ndev;
 	u8 mode;
 	u8 ifc_id;
+	struct timer_list during_ip_timer;
+	bool obtaining_ip;
 };
 
 struct wilc {

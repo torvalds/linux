@@ -82,7 +82,6 @@ static const struct wiphy_wowlan_support wowlan_support = {
 	.flags = WIPHY_WOWLAN_ANY
 };
 
-struct timer_list wilc_during_ip_timer;
 static u8 op_ifcs;
 
 #define CHAN2G(_channel, _freq, _flags) {	 \
@@ -261,9 +260,11 @@ static void remove_network_from_shadow(struct timer_list *t)
 			  jiffies + msecs_to_jiffies(AGING_TIME));
 }
 
-static void clear_during_ip(struct timer_list *unused)
+static void clear_during_ip(struct timer_list *t)
 {
-	wilc_optaining_ip = false;
+	struct wilc_vif *vif = from_timer(vif, t, during_ip_timer);
+
+	vif->obtaining_ip = false;
 }
 
 static int is_network_in_shadow(struct network_info *nw_info,
@@ -518,7 +519,7 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt,
 					conn_info->resp_ies_len, connect_status,
 					GFP_KERNEL);
 	} else if (conn_disconn_evt == CONN_DISCONN_EVENT_DISCONN_NOTIF) {
-		wilc_optaining_ip = false;
+		vif->obtaining_ip = false;
 		p2p_local_random = 0x01;
 		p2p_recv_random = 0x00;
 		wilc_ie = false;
@@ -1743,8 +1744,8 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 	p2p_local_random = 0x01;
 	p2p_recv_random = 0x00;
 	wilc_ie = false;
-	wilc_optaining_ip = false;
-	del_timer(&wilc_during_ip_timer);
+	vif->obtaining_ip = false;
+	del_timer(&vif->during_ip_timer);
 
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
@@ -1789,8 +1790,8 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		break;
 
 	case NL80211_IFTYPE_P2P_GO:
-		wilc_optaining_ip = true;
-		mod_timer(&wilc_during_ip_timer,
+		vif->obtaining_ip = true;
+		mod_timer(&vif->during_ip_timer,
 			  jiffies + msecs_to_jiffies(DURING_IP_TIME_OUT));
 		wilc_set_operation_mode(vif, AP_MODE);
 		dev->ieee80211_ptr->iftype = type;
@@ -2159,10 +2160,10 @@ int wilc_init_host_int(struct net_device *net)
 {
 	int ret;
 	struct wilc_priv *priv = wdev_priv(net->ieee80211_ptr);
+	struct wilc_vif *vif = netdev_priv(priv->dev);
 
 	timer_setup(&priv->aging_timer, remove_network_from_shadow, 0);
-	if (op_ifcs == 0)
-		timer_setup(&wilc_during_ip_timer, clear_during_ip, 0);
+	timer_setup(&vif->during_ip_timer, clear_during_ip, 0);
 	op_ifcs++;
 
 	priv->p2p_listen_state = false;
@@ -2190,8 +2191,7 @@ int wilc_deinit_host_int(struct net_device *net)
 
 	del_timer_sync(&priv->aging_timer);
 	clear_shadow_scan(priv);
-	if (op_ifcs == 0)
-		del_timer_sync(&wilc_during_ip_timer);
+	del_timer_sync(&vif->during_ip_timer);
 
 	if (ret)
 		netdev_err(net, "Error while deinitializing host interface\n");
