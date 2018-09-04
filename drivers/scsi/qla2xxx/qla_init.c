@@ -4859,19 +4859,10 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 			 */
 			if (qla_tgt_mode_enabled(vha) ||
 			    qla_dual_mode_enabled(vha)) {
-				if (IS_QLA27XX(ha) || IS_QLA83XX(ha)) {
-					spin_lock_irqsave(&ha->tgt.atio_lock,
-					    flags);
-					qlt_24xx_process_atio_queue(vha, 0);
-					spin_unlock_irqrestore(
-					    &ha->tgt.atio_lock, flags);
-				} else {
-					spin_lock_irqsave(&ha->hardware_lock,
-					    flags);
-					qlt_24xx_process_atio_queue(vha, 1);
-					spin_unlock_irqrestore(
-					    &ha->hardware_lock, flags);
-				}
+				spin_lock_irqsave(&ha->tgt.atio_lock, flags);
+				qlt_24xx_process_atio_queue(vha, 0);
+				spin_unlock_irqrestore(&ha->tgt.atio_lock,
+				    flags);
 			}
 		}
 	}
