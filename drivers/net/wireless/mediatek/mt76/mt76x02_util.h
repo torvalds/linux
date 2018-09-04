@@ -28,6 +28,8 @@ int mt76x02_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 void mt76x02_vif_init(struct mt76_dev *dev, struct ieee80211_vif *vif,
 		     unsigned int idx);
+int mt76x02_add_interface(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif);
 void mt76x02_remove_interface(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif);
 

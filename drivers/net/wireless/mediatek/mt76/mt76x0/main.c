@@ -51,17 +51,6 @@ static void mt76x0_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&dev->mt76.mutex);
 }
 
-
-static int mt76x0_add_interface(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif)
-{
-	struct mt76x0_dev *dev = hw->priv;
-	unsigned int idx = 0;
-
-	mt76x02_vif_init(&dev->mt76, vif, idx);
-	return 0;
-}
-
 static int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct mt76x0_dev *dev = hw->priv;
@@ -194,7 +183,7 @@ const struct ieee80211_ops mt76x0_ops = {
 	.tx = mt76x0_tx,
 	.start = mt76x0_start,
 	.stop = mt76x0_stop,
-	.add_interface = mt76x0_add_interface,
+	.add_interface = mt76x02_add_interface,
 	.remove_interface = mt76x02_remove_interface,
 	.config = mt76x0_config,
 	.configure_filter = mt76x02_configure_filter,

@@ -55,35 +55,6 @@ mt76x2_stop(struct ieee80211_hw *hw)
 }
 
 static int
-mt76x2_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-{
-	struct mt76x2_dev *dev = hw->priv;
-	unsigned int idx = 0;
-
-	if (vif->addr[0] & BIT(1))
-		idx = 1 + (((dev->mt76.macaddr[0] ^ vif->addr[0]) >> 2) & 7);
-
-	/*
-	 * Client mode typically only has one configurable BSSID register,
-	 * which is used for bssidx=0. This is linked to the MAC address.
-	 * Since mac80211 allows changing interface types, and we cannot
-	 * force the use of the primary MAC address for a station mode
-	 * interface, we need some other way of configuring a per-interface
-	 * remote BSSID.
-	 * The hardware provides an AP-Client feature, where bssidx 0-7 are
-	 * used for AP mode and bssidx 8-15 for client mode.
-	 * We shift the station interface bss index by 8 to force the
-	 * hardware to recognize the BSSID.
-	 * The resulting bssidx mismatch for unicast frames is ignored by hw.
-	 */
-	if (vif->type == NL80211_IFTYPE_STATION)
-		idx += 8;
-
-	mt76x02_vif_init(&dev->mt76, vif, idx);
-	return 0;
-}
-
-static int
 mt76x2_set_channel(struct mt76x2_dev *dev, struct cfg80211_chan_def *chandef)
 {
 	int ret;
@@ -313,7 +284,7 @@ const struct ieee80211_ops mt76x2_ops = {
 	.tx = mt76x2_tx,
 	.start = mt76x2_start,
 	.stop = mt76x2_stop,
-	.add_interface = mt76x2_add_interface,
+	.add_interface = mt76x02_add_interface,
 	.remove_interface = mt76x02_remove_interface,
 	.config = mt76x2_config,
 	.configure_filter = mt76x02_configure_filter,
