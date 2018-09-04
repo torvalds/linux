@@ -171,6 +171,7 @@ struct wilc {
 
 	struct rf_info dummy_statistics;
 	bool enable_ps;
+	int clients_count;
 };
 
 struct wilc_wfi_mon_priv {

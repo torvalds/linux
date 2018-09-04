@@ -199,7 +199,6 @@ static u8 rcv_assoc_resp[MAX_ASSOC_RESP_FRAME_SIZE];
 
 static u8 set_ip[2][4];
 static u8 get_ip[2][4];
-static u32 clients_count;
 
 static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx);
 
@@ -3456,7 +3455,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	vif->obtaining_ip = false;
 
-	if (clients_count == 0) {
+	if (wilc->clients_count == 0) {
 		init_completion(&hif_driver_comp);
 		mutex_init(&hif_deinit_lock);
 
@@ -3490,7 +3489,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	mutex_unlock(&hif_drv->cfg_values_lock);
 
-	clients_count++;
+	wilc->clients_count++;
 
 	return 0;
 }
@@ -3526,7 +3525,7 @@ int wilc_deinit(struct wilc_vif *vif)
 
 	hif_drv->hif_state = HOST_IF_IDLE;
 
-	if (clients_count == 1)	{
+	if (vif->wilc->clients_count == 1) {
 		struct host_if_msg *msg;
 
 		msg = wilc_alloc_work(vif, handle_hif_exit_work, true);
@@ -3544,7 +3543,7 @@ int wilc_deinit(struct wilc_vif *vif)
 
 	kfree(hif_drv);
 
-	clients_count--;
+	vif->wilc->clients_count--;
 	terminated_handle = NULL;
 	mutex_unlock(&hif_deinit_lock);
 	return result;
