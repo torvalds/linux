@@ -198,7 +198,8 @@ static int txx9ndfmc_correct_data(struct nand_chip *chip, unsigned char *buf,
 	int stat;
 
 	for (eccsize = chip->ecc.size; eccsize > 0; eccsize -= 256) {
-		stat = __nand_correct_data(buf, read_ecc, calc_ecc, 256);
+		stat = __nand_correct_data(buf, read_ecc, calc_ecc, 256,
+					   false);
 		if (stat < 0)
 			return stat;
 		corrected += stat;

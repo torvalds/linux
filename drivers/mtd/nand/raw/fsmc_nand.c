@@ -949,6 +949,7 @@ static int fsmc_nand_attach_chip(struct nand_chip *nand)
 		nand->ecc.correct = nand_correct_data;
 		nand->ecc.bytes = 3;
 		nand->ecc.strength = 1;
+		nand->ecc.options |= NAND_ECC_SOFT_HAMMING_SM_ORDER;
 		break;
 
 	case NAND_ECC_SOFT:

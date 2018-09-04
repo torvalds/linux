@@ -122,6 +122,12 @@ enum nand_ecc_algo {
 #define NAND_ECC_MAXIMIZE		BIT(1)
 
 /*
+ * When using software implementation of Hamming, we can specify which byte
+ * ordering should be used.
+ */
+#define NAND_ECC_SOFT_HAMMING_SM_ORDER	BIT(2)
+
+/*
  * Option constants for bizarre disfunctionality and real
  * features.
  */

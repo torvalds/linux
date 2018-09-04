@@ -19,7 +19,7 @@ struct nand_chip;
  * Calculate 3 byte ECC code for eccsize byte block
  */
 void __nand_calculate_ecc(const u_char *dat, unsigned int eccsize,
-				u_char *ecc_code);
+			  u_char *ecc_code, bool sm_order);
 
 /*
  * Calculate 3 byte ECC code for 256/512 byte block
@@ -31,7 +31,7 @@ int nand_calculate_ecc(struct nand_chip *chip, const u_char *dat,
  * Detect and correct a 1 bit error for eccsize byte block
  */
 int __nand_correct_data(u_char *dat, u_char *read_ecc, u_char *calc_ecc,
-			unsigned int eccsize);
+			unsigned int eccsize, bool sm_order);
 
 /*
  * Detect and correct a 1 bit error for 256/512 byte block
