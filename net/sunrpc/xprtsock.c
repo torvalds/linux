@@ -507,7 +507,6 @@ static inline void xs_encode_stream_record_marker(struct xdr_buf *buf)
 /**
  * xs_local_send_request - write an RPC request to an AF_LOCAL socket
  * @req: pointer to RPC request
- * @task: RPC task that manages the state of an RPC request
  *
  * Return values:
  *        0:	The request has been sent
@@ -516,7 +515,7 @@ static inline void xs_encode_stream_record_marker(struct xdr_buf *buf)
  * ENOTCONN:	Caller needs to invoke connect logic then call again
  *    other:	Some other error occured, the request was not sent
  */
-static int xs_local_send_request(struct rpc_rqst *req, struct rpc_task *task)
+static int xs_local_send_request(struct rpc_rqst *req)
 {
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport =
@@ -579,7 +578,6 @@ static int xs_local_send_request(struct rpc_rqst *req, struct rpc_task *task)
 /**
  * xs_udp_send_request - write an RPC request to a UDP socket
  * @req: pointer to RPC request
- * @task: address of RPC task that manages the state of an RPC request
  *
  * Return values:
  *        0:	The request has been sent
@@ -588,7 +586,7 @@ static int xs_local_send_request(struct rpc_rqst *req, struct rpc_task *task)
  * ENOTCONN:	Caller needs to invoke connect logic then call again
  *    other:	Some other error occurred, the request was not sent
  */
-static int xs_udp_send_request(struct rpc_rqst *req, struct rpc_task *task)
+static int xs_udp_send_request(struct rpc_rqst *req)
 {
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
@@ -656,7 +654,6 @@ process_status:
 /**
  * xs_tcp_send_request - write an RPC request to a TCP socket
  * @req: pointer to RPC request
- * @task: address of RPC task that manages the state of an RPC request
  *
  * Return values:
  *        0:	The request has been sent
@@ -668,7 +665,7 @@ process_status:
  * XXX: In the case of soft timeouts, should we eventually give up
  *	if sendmsg is not able to make progress?
  */
-static int xs_tcp_send_request(struct rpc_rqst *req, struct rpc_task *task)
+static int xs_tcp_send_request(struct rpc_rqst *req)
 {
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
@@ -2704,7 +2701,7 @@ static int bc_sendto(struct rpc_rqst *req)
 /*
  * The send routine. Borrows from svc_send
  */
-static int bc_send_request(struct rpc_rqst *req, struct rpc_task *task)
+static int bc_send_request(struct rpc_rqst *req)
 {
 	struct svc_xprt	*xprt;
 	int len;

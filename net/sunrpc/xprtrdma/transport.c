@@ -693,7 +693,7 @@ xprt_rdma_free(struct rpc_task *task)
 
 /**
  * xprt_rdma_send_request - marshal and send an RPC request
- * @task: RPC task with an RPC message in rq_snd_buf
+ * @rqst: RPC message in rq_snd_buf
  *
  * Caller holds the transport's write lock.
  *
@@ -706,7 +706,7 @@ xprt_rdma_free(struct rpc_task *task)
  *		sent. Do not try to send this message again.
  */
 static int
-xprt_rdma_send_request(struct rpc_rqst *rqst, struct rpc_task *task)
+xprt_rdma_send_request(struct rpc_rqst *rqst)
 {
 	struct rpc_xprt *xprt = rqst->rq_xprt;
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);

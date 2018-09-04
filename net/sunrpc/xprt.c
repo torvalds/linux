@@ -1283,7 +1283,7 @@ xprt_request_transmit(struct rpc_rqst *req, struct rpc_task *snd_task)
 	req->rq_ntrans++;
 
 	connect_cookie = xprt->connect_cookie;
-	status = xprt->ops->send_request(req, snd_task);
+	status = xprt->ops->send_request(req);
 	trace_xprt_transmit(xprt, req->rq_xid, status);
 	if (status != 0) {
 		req->rq_ntrans--;

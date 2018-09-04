@@ -215,7 +215,7 @@ drop_connection:
  * connection.
  */
 static int
-xprt_rdma_bc_send_request(struct rpc_rqst *rqst, struct rpc_task *task)
+xprt_rdma_bc_send_request(struct rpc_rqst *rqst)
 {
 	struct svc_xprt *sxprt = rqst->rq_xprt->bc_xprt;
 	struct svcxprt_rdma *rdma;
