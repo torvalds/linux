@@ -206,22 +206,7 @@ static int snd_bcm2835_playback_close(struct snd_pcm_substream *substream)
 static int snd_bcm2835_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
-	int err;
-
-	err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-	if (err < 0) {
-		audio_error
-			(" pcm_lib_malloc failed to allocated pages for buffers\n");
-		return err;
-	}
-
-	alsa_stream->channels = params_channels(params);
-	alsa_stream->params_rate = params_rate(params);
-	alsa_stream->pcm_format_width = snd_pcm_format_width(params_format(params));
-
-	return err;
+	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 }
 
 /* hw_free callback */
@@ -248,11 +233,11 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 	if (chip->spdif_status & IEC958_AES0_NONAUDIO)
 		channels = 0;
 	else
-		channels = alsa_stream->channels;
+		channels = runtime->channels;
 
 	err = bcm2835_audio_set_params(alsa_stream, channels,
-		alsa_stream->params_rate,
-		alsa_stream->pcm_format_width);
+				       runtime->rate,
+				       snd_pcm_format_width(runtime->format));
 	if (err < 0)
 		audio_error(" error setting hw params\n");
 

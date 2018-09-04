@@ -121,10 +121,6 @@ struct bcm2835_alsa_stream {
 
 	int draining;
 
-	int channels;
-	int params_rate;
-	int pcm_format_width;
-
 	unsigned int pos;
 	unsigned int buffer_size;
 	unsigned int period_size;
