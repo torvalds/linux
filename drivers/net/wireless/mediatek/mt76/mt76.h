@@ -427,6 +427,9 @@ struct mt76_rx_status {
 #define __mt76_rmw(dev, ...)	(dev)->bus->rmw((dev), __VA_ARGS__)
 #define __mt76_wr_copy(dev, ...)	(dev)->bus->copy((dev), __VA_ARGS__)
 
+#define __mt76_set(dev, offset, val)	__mt76_rmw(dev, offset, 0, val)
+#define __mt76_clear(dev, offset, val)	__mt76_rmw(dev, offset, val, 0)
+
 #define mt76_rr(dev, ...)	(dev)->mt76.bus->rr(&((dev)->mt76), __VA_ARGS__)
 #define mt76_wr(dev, ...)	(dev)->mt76.bus->wr(&((dev)->mt76), __VA_ARGS__)
 #define mt76_rmw(dev, ...)	(dev)->mt76.bus->rmw(&((dev)->mt76), __VA_ARGS__)

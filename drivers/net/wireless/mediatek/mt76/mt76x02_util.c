@@ -127,4 +127,54 @@ void mt76x02_vif_init(struct mt76_dev *dev, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(mt76x02_vif_init);
 
+int mt76x02_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			struct ieee80211_ampdu_params *params)
+{
+	enum ieee80211_ampdu_mlme_action action = params->action;
+	struct ieee80211_sta *sta = params->sta;
+	struct mt76_dev *dev = hw->priv;
+	struct mt76x02_sta *msta = (struct mt76x02_sta *) sta->drv_priv;
+	struct ieee80211_txq *txq = sta->txq[params->tid];
+	u16 tid = params->tid;
+	u16 *ssn = &params->ssn;
+	struct mt76_txq *mtxq;
+
+	if (!txq)
+		return -EINVAL;
+
+	mtxq = (struct mt76_txq *)txq->drv_priv;
+
+	switch (action) {
+	case IEEE80211_AMPDU_RX_START:
+		mt76_rx_aggr_start(dev, &msta->wcid, tid, *ssn, params->buf_size);
+		__mt76_set(dev, MT_WCID_ADDR(msta->wcid.idx) + 4, BIT(16 + tid));
+		break;
+	case IEEE80211_AMPDU_RX_STOP:
+		mt76_rx_aggr_stop(dev, &msta->wcid, tid);
+		__mt76_clear(dev, MT_WCID_ADDR(msta->wcid.idx) + 4, BIT(16 + tid));
+		break;
+	case IEEE80211_AMPDU_TX_OPERATIONAL:
+		mtxq->aggr = true;
+		mtxq->send_bar = false;
+		ieee80211_send_bar(vif, sta->addr, tid, mtxq->agg_ssn);
+		break;
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
+		mtxq->aggr = false;
+		ieee80211_send_bar(vif, sta->addr, tid, mtxq->agg_ssn);
+		break;
+	case IEEE80211_AMPDU_TX_START:
+		mtxq->agg_ssn = *ssn << 4;
+		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		break;
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+		mtxq->aggr = false;
+		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		break;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76x02_ampdu_action);
+
 MODULE_LICENSE("Dual BSD/GPL");

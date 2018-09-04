@@ -225,49 +225,6 @@ static int mt76x0_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	return 0;
 }
 
-static int
-mt76_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		  struct ieee80211_ampdu_params *params)
-{
-	struct mt76x0_dev *dev = hw->priv;
-	struct ieee80211_sta *sta = params->sta;
-	struct mt76x02_sta *msta = (struct mt76x02_sta *) sta->drv_priv;
-	enum ieee80211_ampdu_mlme_action action = params->action;
-	struct ieee80211_txq *txq = sta->txq[params->tid];
-	u16 tid = params->tid;
-	u16 *ssn = &params->ssn;
-	struct mt76_txq *mtxq;
-
-	if (!txq)
-		return -EINVAL;
-
-	mtxq = (struct mt76_txq *)txq->drv_priv;
-
-	switch (action) {
-	case IEEE80211_AMPDU_RX_START:
-		mt76_set(dev, MT_WCID_ADDR(msta->wcid.idx) + 4, BIT(16 + tid));
-		break;
-	case IEEE80211_AMPDU_RX_STOP:
-		mt76_clear(dev, MT_WCID_ADDR(msta->wcid.idx) + 4, BIT(16 + tid));
-		break;
-	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		ieee80211_send_bar(vif, sta->addr, tid, mtxq->agg_ssn);
-		break;
-	case IEEE80211_AMPDU_TX_STOP_FLUSH:
-	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
-		break;
-	case IEEE80211_AMPDU_TX_START:
-		mtxq->agg_ssn = *ssn << 4;
-		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
-		break;
-	case IEEE80211_AMPDU_TX_STOP_CONT:
-		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
-		break;
-	}
-
-	return 0;
-}
-
 static void
 mt76_sta_rate_tbl_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta)
@@ -307,7 +264,7 @@ const struct ieee80211_ops mt76x0_ops = {
 	.conf_tx = mt76x0_conf_tx,
 	.sw_scan_start = mt76x0_sw_scan,
 	.sw_scan_complete = mt76x0_sw_scan_complete,
-	.ampdu_action = mt76_ampdu_action,
+	.ampdu_action = mt76x02_ampdu_action,
 	.sta_rate_tbl_update = mt76_sta_rate_tbl_update,
 	.set_rts_threshold = mt76x0_set_rts_threshold,
 };

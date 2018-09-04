@@ -250,8 +250,6 @@ void mt76x2_init_txpower(struct mt76x2_dev *dev,
 			 struct ieee80211_supported_band *sband);
 void mt76_write_mac_initvals(struct mt76x2_dev *dev);
 
-int mt76x2_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			struct ieee80211_ampdu_params *params);
 int mt76x2_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);
 int mt76x2_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
