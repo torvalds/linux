@@ -1582,7 +1582,10 @@ static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 	}
 
 	cfg->num_peer_keys = __cpu_to_le32(2);
-	cfg->num_tids = __cpu_to_le32(TARGET_TLV_NUM_TIDS);
+	if (ar->hw_params.num_peers)
+		cfg->num_tids = __cpu_to_le32(ar->hw_params.num_peers * 2);
+	else
+		cfg->num_tids = __cpu_to_le32(TARGET_TLV_NUM_TIDS);
 	cfg->tx_chain_mask = __cpu_to_le32(0x7);
 	cfg->rx_chain_mask = __cpu_to_le32(0x7);
 	cfg->rx_timeout_pri[0] = __cpu_to_le32(0x64);
