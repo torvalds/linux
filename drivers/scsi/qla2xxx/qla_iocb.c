@@ -3440,12 +3440,13 @@ qla2x00_start_sp(srb_t *sp)
 	int rval;
 	scsi_qla_host_t *vha = sp->vha;
 	struct qla_hw_data *ha = vha->hw;
+	struct qla_qpair *qp = sp->qpair;
 	void *pkt;
 	unsigned long flags;
 
 	rval = QLA_FUNCTION_FAILED;
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	pkt = qla2x00_alloc_iocbs(vha, sp);
+	spin_lock_irqsave(qp->qp_lock_ptr, flags);
+	pkt = __qla2x00_alloc_iocbs(sp->qpair, sp);
 	if (!pkt) {
 		ql_log(ql_log_warn, vha, 0x700c,
 		    "qla2x00_alloc_iocbs failed.\n");
@@ -3523,9 +3524,9 @@ qla2x00_start_sp(srb_t *sp)
 	}
 
 	wmb();
-	qla2x00_start_iocbs(vha, ha->req_q_map[0]);
+	qla2x00_start_iocbs(vha, qp->req);
 done:
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	spin_unlock_irqrestore(qp->qp_lock_ptr, flags);
 	return rval;
 }
 

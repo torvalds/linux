@@ -1761,7 +1761,8 @@ qla24xx_async_abort_cmd(srb_t *cmd_sp, bool wait)
 	srb_t *sp;
 	int rval = QLA_FUNCTION_FAILED;
 
-	sp = qla2xxx_get_qpair_sp(cmd_sp->qpair, cmd_sp->fcport, GFP_KERNEL);
+	sp = qla2xxx_get_qpair_sp(cmd_sp->vha, cmd_sp->qpair, cmd_sp->fcport,
+	    GFP_KERNEL);
 	if (!sp)
 		goto done;
 

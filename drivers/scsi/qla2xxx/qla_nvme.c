@@ -506,7 +506,7 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 		return -EBUSY;
 
 	/* Alloc SRB structure */
-	sp = qla2xxx_get_qpair_sp(qpair, fcport, GFP_ATOMIC);
+	sp = qla2xxx_get_qpair_sp(vha, qpair, fcport, GFP_ATOMIC);
 	if (!sp)
 		return -EBUSY;
 

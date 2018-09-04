@@ -398,6 +398,7 @@ static void qla_init_base_qpair(struct scsi_qla_host *vha, struct req_que *req,
 	ha->base_qpair->qp_lock_ptr = &ha->hardware_lock;
 	ha->base_qpair->use_shadow_reg = IS_SHADOW_REG_CAPABLE(ha) ? 1 : 0;
 	ha->base_qpair->msix = &ha->msix_entries[QLA_MSIX_RSP_Q];
+	ha->base_qpair->srb_mempool = ha->srb_mempool;
 	INIT_LIST_HEAD(&ha->base_qpair->hints_list);
 	ha->base_qpair->enable_class_2 = ql2xenableclass2;
 	/* init qpair to this cpu. Will adjust at run time. */
@@ -1013,7 +1014,7 @@ qla2xxx_mqueuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd,
 	else
 		goto qc24_target_busy;
 
-	sp = qla2xxx_get_qpair_sp(qpair, fcport, GFP_ATOMIC);
+	sp = qla2xxx_get_qpair_sp(vha, qpair, fcport, GFP_ATOMIC);
 	if (!sp)
 		goto qc24_host_busy;
 

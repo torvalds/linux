@@ -4157,7 +4157,6 @@ static void qla2x00_async_gpnft_gnnft_sp_done(void *s, int res)
 		if (rc) {
 			/* Cleanup here to prevent memory leak */
 			qla24xx_sp_unmap(vha, sp);
-			sp->free(sp);
 		}
 
 		spin_lock_irqsave(&vha->work_lock, flags);
