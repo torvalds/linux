@@ -436,11 +436,11 @@ nv50_disp_super_2_0(struct nv50_disp *disp, struct nvkm_head *head)
 	nv50_disp_super_ied_off(head, ior, 2);
 
 	/* If we're shutting down the OR's only active head, execute
-	 * the output path's release function.
+	 * the output path's disable function.
 	 */
 	if (ior->arm.head == (1 << head->id)) {
-		if ((outp = ior->arm.outp) && outp->func->release)
-			outp->func->release(outp, ior);
+		if ((outp = ior->arm.outp) && outp->func->disable)
+			outp->func->disable(outp, ior);
 	}
 }
 
