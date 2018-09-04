@@ -1,30 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright 2011 Broadcom Corporation.  All rights reserved. */
 
-#include <linux/device.h>
-#include <sound/core.h>
-#include <sound/initval.h>
-#include <sound/pcm.h>
-#include <linux/io.h>
-#include <linux/interrupt.h>
-#include <linux/fs.h>
-#include <linux/file.h>
-#include <linux/mm.h>
-#include <linux/syscalls.h>
-#include <linux/uaccess.h>
 #include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/atomic.h>
 #include <linux/module.h>
 #include <linux/completion.h>
-
 #include "bcm2835.h"
-
-/* ---- Include Files -------------------------------------------------------- */
-
 #include "vc_vchi_audioserv_defs.h"
-
-/* ---- Private Constants and Types ------------------------------------------ */
 
 struct bcm2835_audio_instance {
 	struct device *dev;

@@ -5,16 +5,10 @@
 #define __SOUND_ARM_BCM2835_H
 
 #include <linux/device.h>
-#include <linux/list.h>
-#include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <sound/core.h>
-#include <sound/initval.h>
 #include <sound/pcm.h>
-#include <sound/pcm_params.h>
 #include <sound/pcm-indirect.h>
-#include <linux/workqueue.h>
-
 #include "interface/vchi/vchi.h"
 
 #define MAX_SUBSTREAMS   (8)
