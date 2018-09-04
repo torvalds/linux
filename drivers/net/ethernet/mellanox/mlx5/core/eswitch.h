@@ -60,6 +60,7 @@
 	MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_to_table)
 
 #define FDB_MAX_CHAIN 3
+#define FDB_SLOW_PATH_CHAIN (FDB_MAX_CHAIN + 1)
 #define FDB_MAX_PRIO 16
 
 struct vport_ingress {
@@ -356,6 +357,7 @@ static inline int  mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs,
 static inline void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw) {}
 
 #define FDB_MAX_CHAIN 1
+#define FDB_SLOW_PATH_CHAIN (FDB_MAX_CHAIN + 1)
 #define FDB_MAX_PRIO 1
 
 #endif /* CONFIG_MLX5_ESWITCH */

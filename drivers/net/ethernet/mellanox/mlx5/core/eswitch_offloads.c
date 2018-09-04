@@ -671,6 +671,9 @@ esw_get_prio_table(struct mlx5_eswitch *esw, u32 chain, u16 prio, int level)
 	int table_prio, l = 0;
 	u32 flags = 0;
 
+	if (chain == FDB_SLOW_PATH_CHAIN)
+		return esw->fdb_table.offloads.slow_fdb;
+
 	mutex_lock(&esw->fdb_table.offloads.fdb_prio_lock);
 
 	fdb = fdb_prio_table(esw, chain, prio, level).fdb;
@@ -729,6 +732,9 @@ static void
 esw_put_prio_table(struct mlx5_eswitch *esw, u32 chain, u16 prio, int level)
 {
 	int l;
+
+	if (chain == FDB_SLOW_PATH_CHAIN)
+		return;
 
 	mutex_lock(&esw->fdb_table.offloads.fdb_prio_lock);
 
