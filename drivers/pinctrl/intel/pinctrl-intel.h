@@ -10,6 +10,8 @@
 #ifndef PINCTRL_INTEL_H
 #define PINCTRL_INTEL_H
 
+#include <linux/pm.h>
+
 struct pinctrl_pin_desc;
 struct platform_device;
 struct device;
