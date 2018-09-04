@@ -1016,7 +1016,7 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + nla_total_size(4)  /* IFLA_NEW_NETNSID */
 	       + nla_total_size(4)  /* IFLA_NEW_IFINDEX */
 	       + nla_total_size(1)  /* IFLA_PROTO_DOWN */
-	       + nla_total_size(4)  /* IFLA_IF_NETNSID */
+	       + nla_total_size(4)  /* IFLA_TARGET_NETNSID */
 	       + nla_total_size(4)  /* IFLA_CARRIER_UP_COUNT */
 	       + nla_total_size(4)  /* IFLA_CARRIER_DOWN_COUNT */
 	       + nla_total_size(4)  /* IFLA_MIN_MTU */
@@ -1598,7 +1598,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 	ifm->ifi_flags = dev_get_flags(dev);
 	ifm->ifi_change = change;
 
-	if (tgt_netnsid >= 0 && nla_put_s32(skb, IFLA_IF_NETNSID, tgt_netnsid))
+	if (tgt_netnsid >= 0 && nla_put_s32(skb, IFLA_TARGET_NETNSID, tgt_netnsid))
 		goto nla_put_failure;
 
 	if (nla_put_string(skb, IFLA_IFNAME, dev->name) ||
@@ -1737,7 +1737,7 @@ static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_XDP]		= { .type = NLA_NESTED },
 	[IFLA_EVENT]		= { .type = NLA_U32 },
 	[IFLA_GROUP]		= { .type = NLA_U32 },
-	[IFLA_IF_NETNSID]	= { .type = NLA_S32 },
+	[IFLA_TARGET_NETNSID]	= { .type = NLA_S32 },
 	[IFLA_CARRIER_UP_COUNT]	= { .type = NLA_U32 },
 	[IFLA_CARRIER_DOWN_COUNT] = { .type = NLA_U32 },
 	[IFLA_MIN_MTU]		= { .type = NLA_U32 },
@@ -1904,8 +1904,8 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 
 	if (nlmsg_parse(cb->nlh, hdrlen, tb, IFLA_MAX,
 			ifla_policy, NULL) >= 0) {
-		if (tb[IFLA_IF_NETNSID]) {
-			netnsid = nla_get_s32(tb[IFLA_IF_NETNSID]);
+		if (tb[IFLA_TARGET_NETNSID]) {
+			netnsid = nla_get_s32(tb[IFLA_TARGET_NETNSID]);
 			tgt_net = rtnl_get_net_ns_capable(skb->sk, netnsid);
 			if (IS_ERR(tgt_net)) {
 				tgt_net = net;
@@ -1993,7 +1993,7 @@ EXPORT_SYMBOL(rtnl_link_get_net);
  *
  * 1. IFLA_NET_NS_PID
  * 2. IFLA_NET_NS_FD
- * 3. IFLA_IF_NETNSID
+ * 3. IFLA_TARGET_NETNSID
  */
 static struct net *rtnl_link_get_net_by_nlattr(struct net *src_net,
 					       struct nlattr *tb[])
@@ -2003,10 +2003,10 @@ static struct net *rtnl_link_get_net_by_nlattr(struct net *src_net,
 	if (tb[IFLA_NET_NS_PID] || tb[IFLA_NET_NS_FD])
 		return rtnl_link_get_net(src_net, tb);
 
-	if (!tb[IFLA_IF_NETNSID])
+	if (!tb[IFLA_TARGET_NETNSID])
 		return get_net(src_net);
 
-	net = get_net_ns_by_id(src_net, nla_get_u32(tb[IFLA_IF_NETNSID]));
+	net = get_net_ns_by_id(src_net, nla_get_u32(tb[IFLA_TARGET_NETNSID]));
 	if (!net)
 		return ERR_PTR(-EINVAL);
 
@@ -2047,13 +2047,13 @@ static int rtnl_ensure_unique_netns(struct nlattr *tb[],
 		return -EOPNOTSUPP;
 	}
 
-	if (tb[IFLA_IF_NETNSID] && (tb[IFLA_NET_NS_PID] || tb[IFLA_NET_NS_FD]))
+	if (tb[IFLA_TARGET_NETNSID] && (tb[IFLA_NET_NS_PID] || tb[IFLA_NET_NS_FD]))
 		goto invalid_attr;
 
-	if (tb[IFLA_NET_NS_PID] && (tb[IFLA_IF_NETNSID] || tb[IFLA_NET_NS_FD]))
+	if (tb[IFLA_NET_NS_PID] && (tb[IFLA_TARGET_NETNSID] || tb[IFLA_NET_NS_FD]))
 		goto invalid_attr;
 
-	if (tb[IFLA_NET_NS_FD] && (tb[IFLA_IF_NETNSID] || tb[IFLA_NET_NS_PID]))
+	if (tb[IFLA_NET_NS_FD] && (tb[IFLA_TARGET_NETNSID] || tb[IFLA_NET_NS_PID]))
 		goto invalid_attr;
 
 	return 0;
@@ -2329,7 +2329,7 @@ static int do_setlink(const struct sk_buff *skb,
 	if (err < 0)
 		return err;
 
-	if (tb[IFLA_NET_NS_PID] || tb[IFLA_NET_NS_FD] || tb[IFLA_IF_NETNSID]) {
+	if (tb[IFLA_NET_NS_PID] || tb[IFLA_NET_NS_FD] || tb[IFLA_TARGET_NETNSID]) {
 		struct net *net = rtnl_link_get_net_capable(skb, dev_net(dev),
 							    tb, CAP_NET_ADMIN);
 		if (IS_ERR(net)) {
@@ -2772,8 +2772,8 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tb[IFLA_IFNAME])
 		nla_strlcpy(ifname, tb[IFLA_IFNAME], IFNAMSIZ);
 
-	if (tb[IFLA_IF_NETNSID]) {
-		netnsid = nla_get_s32(tb[IFLA_IF_NETNSID]);
+	if (tb[IFLA_TARGET_NETNSID]) {
+		netnsid = nla_get_s32(tb[IFLA_TARGET_NETNSID]);
 		tgt_net = rtnl_get_net_ns_capable(NETLINK_CB(skb).sk, netnsid);
 		if (IS_ERR(tgt_net))
 			return PTR_ERR(tgt_net);
@@ -3182,8 +3182,8 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		return err;
 
-	if (tb[IFLA_IF_NETNSID]) {
-		netnsid = nla_get_s32(tb[IFLA_IF_NETNSID]);
+	if (tb[IFLA_TARGET_NETNSID]) {
+		netnsid = nla_get_s32(tb[IFLA_TARGET_NETNSID]);
 		tgt_net = rtnl_get_net_ns_capable(NETLINK_CB(skb).sk, netnsid);
 		if (IS_ERR(tgt_net))
 			return PTR_ERR(tgt_net);
