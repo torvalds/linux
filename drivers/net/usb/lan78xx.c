@@ -3766,7 +3766,6 @@ static int lan78xx_probe(struct usb_interface *intf,
 	ret = lan78xx_bind(dev, intf);
 	if (ret < 0)
 		goto out2;
-	strcpy(netdev->name, "eth%d");
 
 	if (netdev->mtu > (dev->hard_mtu - netdev->hard_header_len))
 		netdev->mtu = dev->hard_mtu - netdev->hard_header_len;
