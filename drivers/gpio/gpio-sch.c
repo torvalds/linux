@@ -18,15 +18,14 @@
  *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/init.h>
+#include <linux/acpi.h>
+#include <linux/errno.h>
+#include <linux/gpio/driver.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/io.h>
-#include <linux/errno.h>
-#include <linux/acpi.h>
-#include <linux/platform_device.h>
 #include <linux/pci_ids.h>
-#include <linux/gpio/driver.h>
+#include <linux/platform_device.h>
 
 #define GEN	0x00
 #define GIO	0x04
