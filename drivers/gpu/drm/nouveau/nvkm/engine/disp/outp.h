@@ -13,7 +13,6 @@ struct nvkm_outp {
 	struct dcb_output info;
 
 	struct nvkm_i2c_bus *i2c;
-	int or;
 
 	struct list_head head;
 	struct nvkm_conn *conn;

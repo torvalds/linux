@@ -245,7 +245,6 @@ nvkm_outp_ctor(const struct nvkm_outp_func *func, struct nvkm_disp *disp,
 	outp->index = index;
 	outp->info = *dcbE;
 	outp->i2c = nvkm_i2c_bus_find(i2c, dcbE->i2c_index);
-	outp->or = ffs(outp->info.or) - 1;
 
 	OUTP_DBG(outp, "type %02x loc %d or %d link %d con %x "
 		       "edid %x bus %d head %x",
