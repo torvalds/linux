@@ -48,9 +48,9 @@ static __always_inline int xdp_fwd_flags(struct xdp_md *ctx, u32 flags)
 	struct ethhdr *eth = data;
 	struct ipv6hdr *ip6h;
 	struct iphdr *iph;
-	int out_index;
 	u16 h_proto;
 	u64 nh_off;
+	int rc;
 
 	nh_off = sizeof(*eth);
 	if (data + nh_off > data_end)
@@ -101,7 +101,7 @@ static __always_inline int xdp_fwd_flags(struct xdp_md *ctx, u32 flags)
 
 	fib_params.ifindex = ctx->ingress_ifindex;
 
-	out_index = bpf_fib_lookup(ctx, &fib_params, sizeof(fib_params), flags);
+	rc = bpf_fib_lookup(ctx, &fib_params, sizeof(fib_params), flags);
 
 	/* verify egress index has xdp support
 	 * TO-DO bpf_map_lookup_elem(&tx_port, &key) fails with
@@ -109,7 +109,7 @@ static __always_inline int xdp_fwd_flags(struct xdp_md *ctx, u32 flags)
 	 * NOTE: without verification that egress index supports XDP
 	 *       forwarding packets are dropped.
 	 */
-	if (out_index > 0) {
+	if (rc == 0) {
 		if (h_proto == htons(ETH_P_IP))
 			ip_decrease_ttl(iph);
 		else if (h_proto == htons(ETH_P_IPV6))
@@ -117,7 +117,7 @@ static __always_inline int xdp_fwd_flags(struct xdp_md *ctx, u32 flags)
 
 		memcpy(eth->h_dest, fib_params.dmac, ETH_ALEN);
 		memcpy(eth->h_source, fib_params.smac, ETH_ALEN);
-		return bpf_redirect_map(&tx_port, out_index, 0);
+		return bpf_redirect_map(&tx_port, fib_params.ifindex, 0);
 	}
 
 	return XDP_PASS;

@@ -411,7 +411,6 @@ static int tipc_sk_sock_err(struct socket *sock, long *timeout)
 static int tipc_sk_create(struct net *net, struct socket *sock,
 			  int protocol, int kern)
 {
-	struct tipc_net *tn;
 	const struct proto_ops *ops;
 	struct sock *sk;
 	struct tipc_sock *tsk;
@@ -446,7 +445,6 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	INIT_LIST_HEAD(&tsk->publications);
 	INIT_LIST_HEAD(&tsk->cong_links);
 	msg = &tsk->phdr;
-	tn = net_generic(sock_net(sk), tipc_net_id);
 
 	/* Finish initializing socket data structures */
 	sock->ops = ops;
@@ -692,9 +690,10 @@ static int tipc_getname(struct socket *sock, struct sockaddr *uaddr,
 }
 
 /**
- * tipc_poll - read pollmask
+ * tipc_poll - read and possibly block on pollmask
  * @file: file structure associated with the socket
  * @sock: socket for which to calculate the poll bits
+ * @wait: ???
  *
  * Returns pollmask value
  *
@@ -708,11 +707,14 @@ static int tipc_getname(struct socket *sock, struct sockaddr *uaddr,
  * imply that the operation will succeed, merely that it should be performed
  * and will not block.
  */
-static __poll_t tipc_poll_mask(struct socket *sock, __poll_t events)
+static __poll_t tipc_poll(struct file *file, struct socket *sock,
+			      poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
 	__poll_t revents = 0;
+
+	sock_poll_wait(file, wait);
 
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
 		revents |= EPOLLRDHUP | EPOLLIN | EPOLLRDNORM;
@@ -1113,7 +1115,7 @@ void tipc_sk_mcast_rcv(struct net *net, struct sk_buff_head *arrvq,
 	u32 self = tipc_own_addr(net);
 	u32 type, lower, upper, scope;
 	struct sk_buff *skb, *_skb;
-	u32 portid, oport, onode;
+	u32 portid, onode;
 	struct sk_buff_head tmpq;
 	struct list_head dports;
 	struct tipc_msg *hdr;
@@ -1129,7 +1131,6 @@ void tipc_sk_mcast_rcv(struct net *net, struct sk_buff_head *arrvq,
 		user = msg_user(hdr);
 		mtyp = msg_type(hdr);
 		hlen = skb_headroom(skb) + msg_hdr_sz(hdr);
-		oport = msg_origport(hdr);
 		onode = msg_orignode(hdr);
 		type = msg_nametype(hdr);
 
@@ -3033,7 +3034,7 @@ static const struct proto_ops msg_ops = {
 	.socketpair	= tipc_socketpair,
 	.accept		= sock_no_accept,
 	.getname	= tipc_getname,
-	.poll_mask	= tipc_poll_mask,
+	.poll		= tipc_poll,
 	.ioctl		= tipc_ioctl,
 	.listen		= sock_no_listen,
 	.shutdown	= tipc_shutdown,
@@ -3054,7 +3055,7 @@ static const struct proto_ops packet_ops = {
 	.socketpair	= tipc_socketpair,
 	.accept		= tipc_accept,
 	.getname	= tipc_getname,
-	.poll_mask	= tipc_poll_mask,
+	.poll		= tipc_poll,
 	.ioctl		= tipc_ioctl,
 	.listen		= tipc_listen,
 	.shutdown	= tipc_shutdown,
@@ -3075,7 +3076,7 @@ static const struct proto_ops stream_ops = {
 	.socketpair	= tipc_socketpair,
 	.accept		= tipc_accept,
 	.getname	= tipc_getname,
-	.poll_mask	= tipc_poll_mask,
+	.poll		= tipc_poll,
 	.ioctl		= tipc_ioctl,
 	.listen		= tipc_listen,
 	.shutdown	= tipc_shutdown,
@@ -3316,6 +3317,11 @@ int tipc_sk_fill_sock_diag(struct sk_buff *skb, struct netlink_callback *cb,
 		goto stat_msg_cancel;
 
 	nla_nest_end(skb, stat);
+
+	if (tsk->group)
+		if (tipc_group_fill_sock_diag(tsk->group, skb))
+			goto stat_msg_cancel;
+
 	nla_nest_end(skb, attrs);
 
 	return 0;

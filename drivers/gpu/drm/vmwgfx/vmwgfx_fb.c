@@ -42,7 +42,7 @@ struct vmw_fb_par {
 	void *vmalloc;
 
 	struct mutex bo_mutex;
-	struct vmw_dma_buffer *vmw_bo;
+	struct vmw_buffer_object *vmw_bo;
 	unsigned bo_size;
 	struct drm_framebuffer *set_fb;
 	struct drm_display_mode *set_mode;
@@ -184,7 +184,7 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 	struct drm_clip_rect clip;
 	struct drm_framebuffer *cur_fb;
 	u8 *src_ptr, *dst_ptr;
-	struct vmw_dma_buffer *vbo = par->vmw_bo;
+	struct vmw_buffer_object *vbo = par->vmw_bo;
 	void *virtual;
 
 	if (!READ_ONCE(par->dirty.active))
@@ -197,7 +197,7 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 
 	(void) ttm_read_lock(&vmw_priv->reservation_sem, false);
 	(void) ttm_bo_reserve(&vbo->base, false, false, NULL);
-	virtual = vmw_dma_buffer_map_and_cache(vbo);
+	virtual = vmw_bo_map_and_cache(vbo);
 	if (!virtual)
 		goto out_unreserve;
 
@@ -391,9 +391,9 @@ static void vmw_fb_imageblit(struct fb_info *info, const struct fb_image *image)
  */
 
 static int vmw_fb_create_bo(struct vmw_private *vmw_priv,
-			    size_t size, struct vmw_dma_buffer **out)
+			    size_t size, struct vmw_buffer_object **out)
 {
-	struct vmw_dma_buffer *vmw_bo;
+	struct vmw_buffer_object *vmw_bo;
 	int ret;
 
 	(void) ttm_write_lock(&vmw_priv->reservation_sem, false);
@@ -404,10 +404,10 @@ static int vmw_fb_create_bo(struct vmw_private *vmw_priv,
 		goto err_unlock;
 	}
 
-	ret = vmw_dmabuf_init(vmw_priv, vmw_bo, size,
+	ret = vmw_bo_init(vmw_priv, vmw_bo, size,
 			      &vmw_sys_placement,
 			      false,
-			      &vmw_dmabuf_bo_free);
+			      &vmw_bo_bo_free);
 	if (unlikely(ret != 0))
 		goto err_unlock; /* init frees the buffer on failure */
 
@@ -439,38 +439,13 @@ static int vmw_fb_compute_depth(struct fb_var_screeninfo *var,
 static int vmwgfx_set_config_internal(struct drm_mode_set *set)
 {
 	struct drm_crtc *crtc = set->crtc;
-	struct drm_framebuffer *fb;
-	struct drm_crtc *tmp;
-	struct drm_device *dev = set->crtc->dev;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
 	drm_modeset_acquire_init(&ctx, 0);
 
 restart:
-	/*
-	 * NOTE: ->set_config can also disable other crtcs (if we steal all
-	 * connectors from it), hence we need to refcount the fbs across all
-	 * crtcs. Atomic modeset will have saner semantics ...
-	 */
-	drm_for_each_crtc(tmp, dev)
-		tmp->primary->old_fb = tmp->primary->fb;
-
-	fb = set->fb;
-
 	ret = crtc->funcs->set_config(set, &ctx);
-	if (ret == 0) {
-		crtc->primary->crtc = crtc;
-		crtc->primary->fb = fb;
-	}
-
-	drm_for_each_crtc(tmp, dev) {
-		if (tmp->primary->fb)
-			drm_framebuffer_get(tmp->primary->fb);
-		if (tmp->primary->old_fb)
-			drm_framebuffer_put(tmp->primary->old_fb);
-		tmp->primary->old_fb = NULL;
-	}
 
 	if (ret == -EDEADLK) {
 		drm_modeset_backoff(&ctx);
@@ -516,7 +491,7 @@ static int vmw_fb_kms_detach(struct vmw_fb_par *par,
 	}
 
 	if (par->vmw_bo && detach_bo && unref_bo)
-		vmw_dmabuf_unreference(&par->vmw_bo);
+		vmw_bo_unreference(&par->vmw_bo);
 
 	return 0;
 }

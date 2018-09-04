@@ -1083,6 +1083,8 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 	lmac->dmacs_count = (RX_DMAC_COUNT / bgx->lmac_count);
 	lmac->dmacs = kcalloc(lmac->dmacs_count, sizeof(*lmac->dmacs),
 			      GFP_KERNEL);
+	if (!lmac->dmacs)
+		return -ENOMEM;
 
 	/* Enable lmac */
 	bgx_reg_modify(bgx, lmacid, BGX_CMRX_CFG, CMR_EN);

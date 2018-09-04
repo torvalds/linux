@@ -354,7 +354,7 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		while (s->bytes_recvd < total_bytes) {
 			if (txmsg_cork) {
 				timeout.tv_sec = 0;
-				timeout.tv_usec = 1000;
+				timeout.tv_usec = 300000;
 			} else {
 				timeout.tv_sec = 1;
 				timeout.tv_usec = 0;
@@ -1413,17 +1413,11 @@ out:
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {10 * 1024 * 1024, RLIM_INFINITY};
 	int iov_count = 1, length = 1024, rate = 1;
 	struct sockmap_options options = {0};
 	int opt, longindex, err, cg_fd = 0;
 	char *bpf_file = BPF_SOCKMAP_FILENAME;
 	int test = PING_PONG;
-
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		perror("setrlimit(RLIMIT_MEMLOCK)");
-		return 1;
-	}
 
 	if (argc < 2)
 		return test_suite();

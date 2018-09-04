@@ -7,7 +7,6 @@
  * All rights reserved.
  *
  * Send feedback to <kristen.c.accardi@intel.com>
- *
  */
 
 #include <linux/module.h>
@@ -75,23 +74,34 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev)
 	struct acpi_buffer string = { ACPI_ALLOCATE_BUFFER, NULL };
 
 	/*
-	 * Per PCI firmware specification, we should run the ACPI _OSC
-	 * method to get control of hotplug hardware before using it. If
-	 * an _OSC is missing, we look for an OSHP to do the same thing.
-	 * To handle different BIOS behavior, we look for _OSC on a root
-	 * bridge preferentially (according to PCI fw spec). Later for
-	 * OSHP within the scope of the hotplug controller and its parents,
-	 * up to the host bridge under which this controller exists.
+	 * If there's no ACPI host bridge (i.e., ACPI support is compiled
+	 * into the kernel but the hardware platform doesn't support ACPI),
+	 * there's nothing to do here.
 	 */
-	if (shpchp_is_native(pdev))
-		return 0;
-
-	/* If _OSC exists, we should not evaluate OSHP */
 	host = pci_find_host_bridge(pdev->bus);
 	root = acpi_pci_find_root(ACPI_HANDLE(&host->dev));
-	if (root->osc_support_set)
-		goto no_control;
+	if (!root)
+		return 0;
 
+	/*
+	 * If _OSC exists, it determines whether we're allowed to manage
+	 * the SHPC.  We executed it while enumerating the host bridge.
+	 */
+	if (root->osc_support_set) {
+		if (host->native_shpc_hotplug)
+			return 0;
+		return -ENODEV;
+	}
+
+	/*
+	 * In the absence of _OSC, we're always allowed to manage the SHPC.
+	 * However, if an OSHP method is present, we must execute it so the
+	 * firmware can transfer control to the OS, e.g., direct interrupts
+	 * to the OS instead of to the firmware.
+	 *
+	 * N.B. The PCI Firmware Spec (r3.2, sec 4.8) does not endorse
+	 * searching up the ACPI hierarchy, so the loops below are suspect.
+	 */
 	handle = ACPI_HANDLE(&pdev->dev);
 	if (!handle) {
 		/*
@@ -120,7 +130,7 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev)
 		if (ACPI_FAILURE(status))
 			break;
 	}
-no_control:
+
 	pci_info(pdev, "Cannot get control of SHPC hotplug\n");
 	kfree(string.pointer);
 	return -ENODEV;

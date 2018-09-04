@@ -28,6 +28,7 @@
 #include "virtgpu_drv.h"
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #define XRES_MIN    32
 #define YRES_MIN    32
@@ -48,16 +49,6 @@ static const struct drm_crtc_funcs virtio_gpu_crtc_funcs = {
 	.atomic_destroy_state   = drm_atomic_helper_crtc_destroy_state,
 };
 
-static void virtio_gpu_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct virtio_gpu_framebuffer *virtio_gpu_fb
-		= to_virtio_gpu_framebuffer(fb);
-
-	drm_gem_object_put_unlocked(virtio_gpu_fb->obj);
-	drm_framebuffer_cleanup(fb);
-	kfree(virtio_gpu_fb);
-}
-
 static int
 virtio_gpu_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 				     struct drm_file *file_priv,
@@ -71,20 +62,9 @@ virtio_gpu_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 	return virtio_gpu_surface_dirty(virtio_gpu_fb, clips, num_clips);
 }
 
-static int
-virtio_gpu_framebuffer_create_handle(struct drm_framebuffer *fb,
-				     struct drm_file *file_priv,
-				     unsigned int *handle)
-{
-	struct virtio_gpu_framebuffer *virtio_gpu_fb =
-		to_virtio_gpu_framebuffer(fb);
-
-	return drm_gem_handle_create(file_priv, virtio_gpu_fb->obj, handle);
-}
-
 static const struct drm_framebuffer_funcs virtio_gpu_fb_funcs = {
-	.create_handle = virtio_gpu_framebuffer_create_handle,
-	.destroy = virtio_gpu_user_framebuffer_destroy,
+	.create_handle = drm_gem_fb_create_handle,
+	.destroy = drm_gem_fb_destroy,
 	.dirty = virtio_gpu_framebuffer_surface_dirty,
 };
 
@@ -97,7 +77,7 @@ virtio_gpu_framebuffer_init(struct drm_device *dev,
 	int ret;
 	struct virtio_gpu_object *bo;
 
-	vgfb->obj = obj;
+	vgfb->base.obj[0] = obj;
 
 	bo = gem_to_virtio_gpu_obj(obj);
 
@@ -105,7 +85,7 @@ virtio_gpu_framebuffer_init(struct drm_device *dev,
 
 	ret = drm_framebuffer_init(dev, &vgfb->base, &virtio_gpu_fb_funcs);
 	if (ret) {
-		vgfb->obj = NULL;
+		vgfb->base.obj[0] = NULL;
 		return ret;
 	}
 
@@ -302,8 +282,6 @@ static int vgdev_output_init(struct virtio_gpu_device *vgdev, int index)
 	drm_crtc_init_with_planes(dev, crtc, primary, cursor,
 				  &virtio_gpu_crtc_funcs, NULL);
 	drm_crtc_helper_add(crtc, &virtio_gpu_crtc_helper_funcs);
-	primary->crtc = crtc;
-	cursor->crtc = crtc;
 
 	drm_connector_init(dev, connector, &virtio_gpu_connector_funcs,
 			   DRM_MODE_CONNECTOR_VIRTUAL);
@@ -314,7 +292,7 @@ static int vgdev_output_init(struct virtio_gpu_device *vgdev, int index)
 	drm_encoder_helper_add(encoder, &virtio_gpu_enc_helper_funcs);
 	encoder->possible_crtcs = 1 << index;
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	drm_connector_register(connector);
 	return 0;
 }

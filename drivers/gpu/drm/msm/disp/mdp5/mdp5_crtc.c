@@ -65,7 +65,7 @@ struct mdp5_crtc {
 		struct drm_gem_object *scanout_bo;
 		uint64_t iova;
 		uint32_t width, height;
-		uint32_t x, y;
+		int x, y;
 	} cursor;
 };
 #define to_mdp5_crtc(x) container_of(x, struct mdp5_crtc, base)
@@ -760,20 +760,31 @@ static void get_roi(struct drm_crtc *crtc, uint32_t *roi_w, uint32_t *roi_h)
 	 * Cursor Region Of Interest (ROI) is a plane read from cursor
 	 * buffer to render. The ROI region is determined by the visibility of
 	 * the cursor point. In the default Cursor image the cursor point will
-	 * be at the top left of the cursor image, unless it is specified
-	 * otherwise using hotspot feature.
+	 * be at the top left of the cursor image.
 	 *
+	 * Without rotation:
 	 * If the cursor point reaches the right (xres - x < cursor.width) or
 	 * bottom (yres - y < cursor.height) boundary of the screen, then ROI
 	 * width and ROI height need to be evaluated to crop the cursor image
 	 * accordingly.
 	 * (xres-x) will be new cursor width when x > (xres - cursor.width)
 	 * (yres-y) will be new cursor height when y > (yres - cursor.height)
+	 *
+	 * With rotation:
+	 * We get negative x and/or y coordinates.
+	 * (cursor.width - abs(x)) will be new cursor width when x < 0
+	 * (cursor.height - abs(y)) will be new cursor width when y < 0
 	 */
-	*roi_w = min(mdp5_crtc->cursor.width, xres -
+	if (mdp5_crtc->cursor.x >= 0)
+		*roi_w = min(mdp5_crtc->cursor.width, xres -
 			mdp5_crtc->cursor.x);
-	*roi_h = min(mdp5_crtc->cursor.height, yres -
+	else
+		*roi_w = mdp5_crtc->cursor.width - abs(mdp5_crtc->cursor.x);
+	if (mdp5_crtc->cursor.y >= 0)
+		*roi_h = min(mdp5_crtc->cursor.height, yres -
 			mdp5_crtc->cursor.y);
+	else
+		*roi_h = mdp5_crtc->cursor.height - abs(mdp5_crtc->cursor.y);
 }
 
 static void mdp5_crtc_restore_cursor(struct drm_crtc *crtc)
@@ -783,7 +794,7 @@ static void mdp5_crtc_restore_cursor(struct drm_crtc *crtc)
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	const enum mdp5_cursor_alpha cur_alpha = CURSOR_ALPHA_PER_PIXEL;
 	uint32_t blendcfg, stride;
-	uint32_t x, y, width, height;
+	uint32_t x, y, src_x, src_y, width, height;
 	uint32_t roi_w, roi_h;
 	int lm;
 
@@ -800,6 +811,26 @@ static void mdp5_crtc_restore_cursor(struct drm_crtc *crtc)
 
 	get_roi(crtc, &roi_w, &roi_h);
 
+	/* If cusror buffer overlaps due to rotation on the
+	 * upper or left screen border the pixel offset inside
+	 * the cursor buffer of the ROI is the positive overlap
+	 * distance.
+	 */
+	if (mdp5_crtc->cursor.x < 0) {
+		src_x = abs(mdp5_crtc->cursor.x);
+		x = 0;
+	} else {
+		src_x = 0;
+	}
+	if (mdp5_crtc->cursor.y < 0) {
+		src_y = abs(mdp5_crtc->cursor.y);
+		y = 0;
+	} else {
+		src_y = 0;
+	}
+	DBG("%s: x=%d, y=%d roi_w=%d roi_h=%d src_x=%d src_y=%d",
+		crtc->name, x, y, roi_w, roi_h, src_x, src_y);
+
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_STRIDE(lm), stride);
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_FORMAT(lm),
 			MDP5_LM_CURSOR_FORMAT_FORMAT(CURSOR_FMT_ARGB8888));
@@ -812,6 +843,9 @@ static void mdp5_crtc_restore_cursor(struct drm_crtc *crtc)
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_START_XY(lm),
 			MDP5_LM_CURSOR_START_XY_Y_START(y) |
 			MDP5_LM_CURSOR_START_XY_X_START(x));
+	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_XY(lm),
+			MDP5_LM_CURSOR_XY_SRC_Y(src_y) |
+			MDP5_LM_CURSOR_XY_SRC_X(src_x));
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_BASE_ADDR(lm),
 			mdp5_crtc->cursor.iova);
 
@@ -932,8 +966,9 @@ static int mdp5_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	if (unlikely(!crtc->state->enable))
 		return 0;
 
-	mdp5_crtc->cursor.x = x = max(x, 0);
-	mdp5_crtc->cursor.y = y = max(y, 0);
+	/* accept negative x/y coordinates up to maximum cursor overlap */
+	mdp5_crtc->cursor.x = x = max(x, -(int)mdp5_crtc->cursor.width);
+	mdp5_crtc->cursor.y = y = max(y, -(int)mdp5_crtc->cursor.height);
 
 	get_roi(crtc, &roi_w, &roi_h);
 
@@ -1207,7 +1242,6 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 			"unref cursor", unref_cursor_worker);
 
 	drm_crtc_helper_add(crtc, &mdp5_crtc_helper_funcs);
-	plane->crtc = crtc;
 
 	return crtc;
 }

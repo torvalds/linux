@@ -7,13 +7,14 @@
 #include "zynq-7000.dtsi"
 
 / {
-	model = "Zynq ZC702 Development Board";
+	model = "Xilinx ZC702 board";
 	compatible = "xlnx,zynq-zc702", "xlnx,zynq-7000";
 
 	aliases {
 		ethernet0 = &gem0;
 		i2c0 = &i2c0;
 		serial0 = &uart1;
+		mmc0 = &sdhci0;
 	};
 
 	memory@0 {
@@ -28,8 +29,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		autorepeat;
 		sw14 {
 			label = "sw14";

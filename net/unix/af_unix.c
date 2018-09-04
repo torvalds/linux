@@ -430,7 +430,12 @@ static int unix_dgram_peer_wake_me(struct sock *sk, struct sock *other)
 
 	connected = unix_dgram_peer_wake_connect(sk, other);
 
-	if (unix_recvq_full(other))
+	/* If other is SOCK_DEAD, we want to make sure we signal
+	 * POLLOUT, such that a subsequent write() can get a
+	 * -ECONNREFUSED. Otherwise, if we haven't queued any skbs
+	 * to other and its full, we will hang waiting for POLLOUT.
+	 */
+	if (unix_recvq_full(other) && !sock_flag(other, SOCK_DEAD))
 		return 1;
 
 	if (connected)
@@ -638,8 +643,9 @@ static int unix_stream_connect(struct socket *, struct sockaddr *,
 static int unix_socketpair(struct socket *, struct socket *);
 static int unix_accept(struct socket *, struct socket *, int, bool);
 static int unix_getname(struct socket *, struct sockaddr *, int);
-static __poll_t unix_poll_mask(struct socket *, __poll_t);
-static __poll_t unix_dgram_poll_mask(struct socket *, __poll_t);
+static __poll_t unix_poll(struct file *, struct socket *, poll_table *);
+static __poll_t unix_dgram_poll(struct file *, struct socket *,
+				    poll_table *);
 static int unix_ioctl(struct socket *, unsigned int, unsigned long);
 static int unix_shutdown(struct socket *, int);
 static int unix_stream_sendmsg(struct socket *, struct msghdr *, size_t);
@@ -680,7 +686,7 @@ static const struct proto_ops unix_stream_ops = {
 	.socketpair =	unix_socketpair,
 	.accept =	unix_accept,
 	.getname =	unix_getname,
-	.poll_mask =	unix_poll_mask,
+	.poll =		unix_poll,
 	.ioctl =	unix_ioctl,
 	.listen =	unix_listen,
 	.shutdown =	unix_shutdown,
@@ -703,7 +709,7 @@ static const struct proto_ops unix_dgram_ops = {
 	.socketpair =	unix_socketpair,
 	.accept =	sock_no_accept,
 	.getname =	unix_getname,
-	.poll_mask =	unix_dgram_poll_mask,
+	.poll =		unix_dgram_poll,
 	.ioctl =	unix_ioctl,
 	.listen =	sock_no_listen,
 	.shutdown =	unix_shutdown,
@@ -725,7 +731,7 @@ static const struct proto_ops unix_seqpacket_ops = {
 	.socketpair =	unix_socketpair,
 	.accept =	unix_accept,
 	.getname =	unix_getname,
-	.poll_mask =	unix_dgram_poll_mask,
+	.poll =		unix_dgram_poll,
 	.ioctl =	unix_ioctl,
 	.listen =	unix_listen,
 	.shutdown =	unix_shutdown,
@@ -2629,10 +2635,13 @@ static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
-static __poll_t unix_poll_mask(struct socket *sock, __poll_t events)
+static __poll_t unix_poll(struct file *file, struct socket *sock, poll_table *wait)
 {
 	struct sock *sk = sock->sk;
-	__poll_t mask = 0;
+	__poll_t mask;
+
+	sock_poll_wait(file, wait);
+	mask = 0;
 
 	/* exceptional events? */
 	if (sk->sk_err)
@@ -2661,11 +2670,15 @@ static __poll_t unix_poll_mask(struct socket *sock, __poll_t events)
 	return mask;
 }
 
-static __poll_t unix_dgram_poll_mask(struct socket *sock, __poll_t events)
+static __poll_t unix_dgram_poll(struct file *file, struct socket *sock,
+				    poll_table *wait)
 {
 	struct sock *sk = sock->sk, *other;
-	int writable;
-	__poll_t mask = 0;
+	unsigned int writable;
+	__poll_t mask;
+
+	sock_poll_wait(file, wait);
+	mask = 0;
 
 	/* exceptional events? */
 	if (sk->sk_err || !skb_queue_empty(&sk->sk_error_queue))
@@ -2691,7 +2704,7 @@ static __poll_t unix_dgram_poll_mask(struct socket *sock, __poll_t events)
 	}
 
 	/* No write status requested, avoid expensive OUT tests. */
-	if (!(events & (EPOLLWRBAND|EPOLLWRNORM|EPOLLOUT)))
+	if (!(poll_requested_events(wait) & (EPOLLWRBAND|EPOLLWRNORM|EPOLLOUT)))
 		return mask;
 
 	writable = unix_writable(sk);

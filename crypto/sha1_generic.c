@@ -76,7 +76,7 @@ static struct shash_alg alg = {
 	.base		=	{
 		.cra_name	=	"sha1",
 		.cra_driver_name=	"sha1-generic",
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_priority	=	100,
 		.cra_blocksize	=	SHA1_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}

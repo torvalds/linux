@@ -191,9 +191,21 @@ int drm_encoder_init(struct drm_device *dev,
  * Given a registered encoder, return the index of that encoder within a DRM
  * device's list of encoders.
  */
-static inline unsigned int drm_encoder_index(struct drm_encoder *encoder)
+static inline unsigned int drm_encoder_index(const struct drm_encoder *encoder)
 {
 	return encoder->index;
+}
+
+/**
+ * drm_encoder_mask - find the mask of a registered ENCODER
+ * @encoder: encoder to find mask for
+ *
+ * Given a registered encoder, return the mask bit of that encoder for an
+ * encoder's possible_clones field.
+ */
+static inline u32 drm_encoder_mask(const struct drm_encoder *encoder)
+{
+	return 1 << drm_encoder_index(encoder);
 }
 
 /**
@@ -241,7 +253,7 @@ void drm_encoder_cleanup(struct drm_encoder *encoder);
  */
 #define drm_for_each_encoder_mask(encoder, dev, encoder_mask) \
 	list_for_each_entry((encoder), &(dev)->mode_config.encoder_list, head) \
-		for_each_if ((encoder_mask) & (1 << drm_encoder_index(encoder)))
+		for_each_if ((encoder_mask) & drm_encoder_mask(encoder))
 
 /**
  * drm_for_each_encoder - iterate over all encoders

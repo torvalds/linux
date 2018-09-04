@@ -30,13 +30,13 @@ static int ir_raw_event_thread(void *data)
 		while (kfifo_out(&raw->kfifo, &ev, 1)) {
 			if (is_timing_event(ev)) {
 				if (ev.duration == 0)
-					dev_err(&dev->dev, "nonsensical timing event of duration 0");
+					dev_warn_once(&dev->dev, "nonsensical timing event of duration 0");
 				if (is_timing_event(raw->prev_ev) &&
 				    !is_transition(&ev, &raw->prev_ev))
-					dev_err(&dev->dev, "two consecutive events of type %s",
-						TO_STR(ev.pulse));
+					dev_warn_once(&dev->dev, "two consecutive events of type %s",
+						      TO_STR(ev.pulse));
 				if (raw->prev_ev.reset && ev.pulse == 0)
-					dev_err(&dev->dev, "timing event after reset should be pulse");
+					dev_warn_once(&dev->dev, "timing event after reset should be pulse");
 			}
 			list_for_each_entry(handler, &ir_raw_handler_list, list)
 				if (dev->enabled_protocols &

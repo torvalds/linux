@@ -355,11 +355,12 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	struct inode *inode;
 	struct dentry *newent;
 	bool outarg_valid = true;
+	bool locked;
 
-	fuse_lock_inode(dir);
+	locked = fuse_lock_inode(dir);
 	err = fuse_lookup_name(dir->i_sb, get_node_id(dir), &entry->d_name,
 			       &outarg, &inode);
-	fuse_unlock_inode(dir);
+	fuse_unlock_inode(dir, locked);
 	if (err == -ENOENT) {
 		outarg_valid = false;
 		err = 0;
@@ -399,7 +400,7 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
  */
 static int fuse_create_open(struct inode *dir, struct dentry *entry,
 			    struct file *file, unsigned flags,
-			    umode_t mode, int *opened)
+			    umode_t mode)
 {
 	int err;
 	struct inode *inode;
@@ -469,7 +470,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	d_instantiate(entry, inode);
 	fuse_change_entry_timeout(entry, &outentry);
 	fuse_invalidate_attr(dir);
-	err = finish_open(file, entry, generic_file_open, opened);
+	err = finish_open(file, entry, generic_file_open);
 	if (err) {
 		fuse_sync_release(ff, flags);
 	} else {
@@ -489,7 +490,7 @@ out_err:
 static int fuse_mknod(struct inode *, struct dentry *, umode_t, dev_t);
 static int fuse_atomic_open(struct inode *dir, struct dentry *entry,
 			    struct file *file, unsigned flags,
-			    umode_t mode, int *opened)
+			    umode_t mode)
 {
 	int err;
 	struct fuse_conn *fc = get_fuse_conn(dir);
@@ -508,12 +509,12 @@ static int fuse_atomic_open(struct inode *dir, struct dentry *entry,
 		goto no_open;
 
 	/* Only creates */
-	*opened |= FILE_CREATED;
+	file->f_mode |= FMODE_CREATED;
 
 	if (fc->no_create)
 		goto mknod;
 
-	err = fuse_create_open(dir, entry, file, flags, mode, opened);
+	err = fuse_create_open(dir, entry, file, flags, mode);
 	if (err == -ENOSYS) {
 		fc->no_create = 1;
 		goto mknod;
@@ -539,6 +540,7 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_args *args,
 {
 	struct fuse_entry_out outarg;
 	struct inode *inode;
+	struct dentry *d;
 	int err;
 	struct fuse_forget_link *forget;
 
@@ -570,11 +572,17 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_args *args,
 	}
 	kfree(forget);
 
-	err = d_instantiate_no_diralias(entry, inode);
-	if (err)
-		return err;
+	d_drop(entry);
+	d = d_splice_alias(inode, entry);
+	if (IS_ERR(d))
+		return PTR_ERR(d);
 
-	fuse_change_entry_timeout(entry, &outarg);
+	if (d) {
+		fuse_change_entry_timeout(d, &outarg);
+		dput(d);
+	} else {
+		fuse_change_entry_timeout(entry, &outarg);
+	}
 	fuse_invalidate_attr(dir);
 	return 0;
 
@@ -1340,6 +1348,7 @@ static int fuse_readdir(struct file *file, struct dir_context *ctx)
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_req *req;
 	u64 attr_version = 0;
+	bool locked;
 
 	if (is_bad_inode(inode))
 		return -EIO;
@@ -1367,9 +1376,9 @@ static int fuse_readdir(struct file *file, struct dir_context *ctx)
 		fuse_read_fill(req, file, ctx->pos, PAGE_SIZE,
 			       FUSE_READDIR);
 	}
-	fuse_lock_inode(inode);
+	locked = fuse_lock_inode(inode);
 	fuse_request_send(fc, req);
-	fuse_unlock_inode(inode);
+	fuse_unlock_inode(inode, locked);
 	nbytes = req->out.args[0].size;
 	err = req->out.h.error;
 	fuse_put_request(fc, req);

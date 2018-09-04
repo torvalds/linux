@@ -31,7 +31,7 @@ struct symbol *symbol_hash[SYMBOL_HASHSIZE];
 static struct menu *current_menu, *current_entry;
 
 %}
-%expect 32
+%expect 30
 
 %union
 {
@@ -117,7 +117,7 @@ start: mainmenu_stmt stmt_list | stmt_list;
 
 /* mainmenu entry */
 
-mainmenu_stmt: T_MAINMENU prompt nl
+mainmenu_stmt: T_MAINMENU prompt T_EOL
 {
 	menu_add_prompt(P_MENU, $2, NULL);
 };
@@ -265,7 +265,7 @@ symbol_option_arg:
 choice: T_CHOICE word_opt T_EOL
 {
 	struct symbol *sym = sym_lookup($2, SYMBOL_CHOICE);
-	sym->flags |= SYMBOL_AUTO;
+	sym->flags |= SYMBOL_NO_WRITE;
 	menu_add_entry(sym);
 	menu_add_expr(P_CHOICE, NULL, NULL);
 	free($2);
@@ -337,7 +337,7 @@ choice_block:
 
 /* if entry */
 
-if_entry: T_IF expr nl
+if_entry: T_IF expr T_EOL
 {
 	printd(DEBUG_PARSE, "%s:%d:if\n", zconf_curname(), zconf_lineno());
 	menu_add_entry(NULL);
@@ -716,6 +716,10 @@ static void print_symbol(FILE *out, struct menu *menu)
 			fputs( "  menu ", out);
 			print_quoted_string(out, prop->text);
 			fputc('\n', out);
+			break;
+		case P_SYMBOL:
+			fputs( "  symbol ", out);
+			fprintf(out, "%s\n", prop->sym->name);
 			break;
 		default:
 			fprintf(out, "  unknown prop %d!\n", prop->type);

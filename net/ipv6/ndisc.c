@@ -811,7 +811,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 			return;
 		}
 	}
-	if (ndopts.nd_opts_nonce)
+	if (ndopts.nd_opts_nonce && ndopts.nd_opts_nonce->nd_opt_len == 1)
 		memcpy(&nonce, (u8 *)(ndopts.nd_opts_nonce + 1), 6);
 
 	inc = ipv6_addr_is_multicast(daddr);

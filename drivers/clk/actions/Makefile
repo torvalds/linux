@@ -9,4 +9,5 @@ clk-owl-y			+= owl-composite.o
 clk-owl-y			+= owl-pll.o
 
 # SoC support
+obj-$(CONFIG_CLK_OWL_S700)	+= owl-s700.o
 obj-$(CONFIG_CLK_OWL_S900)	+= owl-s900.o

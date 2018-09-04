@@ -399,100 +399,12 @@ bool intel_fbc_is_active(struct drm_i915_private *dev_priv)
 	return dev_priv->fbc.active;
 }
 
-static void intel_fbc_work_fn(struct work_struct *__work)
-{
-	struct drm_i915_private *dev_priv =
-		container_of(__work, struct drm_i915_private, fbc.work.work);
-	struct intel_fbc *fbc = &dev_priv->fbc;
-	struct intel_fbc_work *work = &fbc->work;
-	struct intel_crtc *crtc = fbc->crtc;
-	struct drm_vblank_crtc *vblank = &dev_priv->drm.vblank[crtc->pipe];
-
-	if (drm_crtc_vblank_get(&crtc->base)) {
-		/* CRTC is now off, leave FBC deactivated */
-		mutex_lock(&fbc->lock);
-		work->scheduled = false;
-		mutex_unlock(&fbc->lock);
-		return;
-	}
-
-retry:
-	/* Delay the actual enabling to let pageflipping cease and the
-	 * display to settle before starting the compression. Note that
-	 * this delay also serves a second purpose: it allows for a
-	 * vblank to pass after disabling the FBC before we attempt
-	 * to modify the control registers.
-	 *
-	 * WaFbcWaitForVBlankBeforeEnable:ilk,snb
-	 *
-	 * It is also worth mentioning that since work->scheduled_vblank can be
-	 * updated multiple times by the other threads, hitting the timeout is
-	 * not an error condition. We'll just end up hitting the "goto retry"
-	 * case below.
-	 */
-	wait_event_timeout(vblank->queue,
-		drm_crtc_vblank_count(&crtc->base) != work->scheduled_vblank,
-		msecs_to_jiffies(50));
-
-	mutex_lock(&fbc->lock);
-
-	/* Were we cancelled? */
-	if (!work->scheduled)
-		goto out;
-
-	/* Were we delayed again while this function was sleeping? */
-	if (drm_crtc_vblank_count(&crtc->base) == work->scheduled_vblank) {
-		mutex_unlock(&fbc->lock);
-		goto retry;
-	}
-
-	intel_fbc_hw_activate(dev_priv);
-
-	work->scheduled = false;
-
-out:
-	mutex_unlock(&fbc->lock);
-	drm_crtc_vblank_put(&crtc->base);
-}
-
-static void intel_fbc_schedule_activation(struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_fbc *fbc = &dev_priv->fbc;
-	struct intel_fbc_work *work = &fbc->work;
-
-	WARN_ON(!mutex_is_locked(&fbc->lock));
-	if (WARN_ON(!fbc->enabled))
-		return;
-
-	if (drm_crtc_vblank_get(&crtc->base)) {
-		DRM_ERROR("vblank not available for FBC on pipe %c\n",
-			  pipe_name(crtc->pipe));
-		return;
-	}
-
-	/* It is useless to call intel_fbc_cancel_work() or cancel_work() in
-	 * this function since we're not releasing fbc.lock, so it won't have an
-	 * opportunity to grab it to discover that it was cancelled. So we just
-	 * update the expected jiffy count. */
-	work->scheduled = true;
-	work->scheduled_vblank = drm_crtc_vblank_count(&crtc->base);
-	drm_crtc_vblank_put(&crtc->base);
-
-	schedule_work(&work->work);
-}
-
 static void intel_fbc_deactivate(struct drm_i915_private *dev_priv,
 				 const char *reason)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	WARN_ON(!mutex_is_locked(&fbc->lock));
-
-	/* Calling cancel_work() here won't help due to the fact that the work
-	 * function grabs fbc->lock. Just set scheduled to false so the work
-	 * function can know it was cancelled. */
-	fbc->work.scheduled = false;
 
 	if (fbc->active)
 		intel_fbc_hw_deactivate(dev_priv);
@@ -924,13 +836,6 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 						32 * fbc->threshold) * 8;
 }
 
-static bool intel_fbc_reg_params_equal(struct intel_fbc_reg_params *params1,
-				       struct intel_fbc_reg_params *params2)
-{
-	/* We can use this since intel_fbc_get_reg_params() does a memset. */
-	return memcmp(params1, params2, sizeof(*params1)) == 0;
-}
-
 void intel_fbc_pre_update(struct intel_crtc *crtc,
 			  struct intel_crtc_state *crtc_state,
 			  struct intel_plane_state *plane_state)
@@ -953,6 +858,7 @@ void intel_fbc_pre_update(struct intel_crtc *crtc,
 		goto unlock;
 
 	intel_fbc_update_state_cache(crtc, crtc_state, plane_state);
+	fbc->flip_pending = true;
 
 deactivate:
 	intel_fbc_deactivate(dev_priv, reason);
@@ -988,12 +894,14 @@ static void __intel_fbc_post_update(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	struct intel_fbc_reg_params old_params;
 
 	WARN_ON(!mutex_is_locked(&fbc->lock));
 
 	if (!fbc->enabled || fbc->crtc != crtc)
 		return;
+
+	fbc->flip_pending = false;
+	WARN_ON(fbc->active);
 
 	if (!i915_modparams.enable_fbc) {
 		intel_fbc_deactivate(dev_priv, "disabled at runtime per module param");
@@ -1002,25 +910,16 @@ static void __intel_fbc_post_update(struct intel_crtc *crtc)
 		return;
 	}
 
-	if (!intel_fbc_can_activate(crtc)) {
-		WARN_ON(fbc->active);
-		return;
-	}
-
-	old_params = fbc->params;
 	intel_fbc_get_reg_params(crtc, &fbc->params);
 
-	/* If the scanout has not changed, don't modify the FBC settings.
-	 * Note that we make the fundamental assumption that the fb->obj
-	 * cannot be unpinned (and have its GTT offset and fence revoked)
-	 * without first being decoupled from the scanout and FBC disabled.
-	 */
-	if (fbc->active &&
-	    intel_fbc_reg_params_equal(&old_params, &fbc->params))
+	if (!intel_fbc_can_activate(crtc))
 		return;
 
-	intel_fbc_deactivate(dev_priv, "FBC enabled (active or scheduled)");
-	intel_fbc_schedule_activation(crtc);
+	if (!fbc->busy_bits) {
+		intel_fbc_deactivate(dev_priv, "FBC enabled (active or scheduled)");
+		intel_fbc_hw_activate(dev_priv);
+	} else
+		intel_fbc_deactivate(dev_priv, "frontbuffer write");
 }
 
 void intel_fbc_post_update(struct intel_crtc *crtc)
@@ -1085,7 +984,7 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 	    (frontbuffer_bits & intel_fbc_get_frontbuffer_bit(fbc))) {
 		if (fbc->active)
 			intel_fbc_recompress(dev_priv);
-		else
+		else if (!fbc->flip_pending)
 			__intel_fbc_post_update(fbc->crtc);
 	}
 
@@ -1225,8 +1124,6 @@ void intel_fbc_disable(struct intel_crtc *crtc)
 	if (fbc->crtc == crtc)
 		__intel_fbc_disable(dev_priv);
 	mutex_unlock(&fbc->lock);
-
-	cancel_work_sync(&fbc->work.work);
 }
 
 /**
@@ -1248,8 +1145,6 @@ void intel_fbc_global_disable(struct drm_i915_private *dev_priv)
 		__intel_fbc_disable(dev_priv);
 	}
 	mutex_unlock(&fbc->lock);
-
-	cancel_work_sync(&fbc->work.work);
 }
 
 static void intel_fbc_underrun_work_fn(struct work_struct *work)
@@ -1400,12 +1295,10 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
-	INIT_WORK(&fbc->work.work, intel_fbc_work_fn);
 	INIT_WORK(&fbc->underrun_work, intel_fbc_underrun_work_fn);
 	mutex_init(&fbc->lock);
 	fbc->enabled = false;
 	fbc->active = false;
-	fbc->work.scheduled = false;
 
 	if (need_fbc_vtd_wa(dev_priv))
 		mkwrite_device_info(dev_priv)->has_fbc = false;

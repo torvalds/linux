@@ -44,6 +44,7 @@
 #include <asm/cputhreads.h>
 #include <asm/ppc-opcode.h>
 #include <asm/export.h>
+#include <asm/feature-fixups.h>
 
 /* The physical memory is laid out such that the secondary processor
  * spin code sits at 0x0000...0x00ff. On server, the vectors follow

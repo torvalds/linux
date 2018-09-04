@@ -262,7 +262,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	unsigned long acc_type;
-	int fault = 0;
+	vm_fault_t fault = 0;
 	unsigned int flags;
 
 	if (faulthandler_disabled())

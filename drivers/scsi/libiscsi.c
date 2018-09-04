@@ -284,11 +284,11 @@ static int iscsi_check_tmf_restrictions(struct iscsi_task *task, int opcode)
 		 */
 		if (opcode != ISCSI_OP_SCSI_DATA_OUT) {
 			iscsi_conn_printk(KERN_INFO, conn,
-					  "task [op %x/%x itt "
+					  "task [op %x itt "
 					  "0x%x/0x%x] "
 					  "rejected.\n",
-					  task->hdr->opcode, opcode,
-					  task->itt, task->hdr_itt);
+					  opcode, task->itt,
+					  task->hdr_itt);
 			return -EACCES;
 		}
 		/*
@@ -297,10 +297,10 @@ static int iscsi_check_tmf_restrictions(struct iscsi_task *task, int opcode)
 		 */
 		if (conn->session->fast_abort) {
 			iscsi_conn_printk(KERN_INFO, conn,
-					  "task [op %x/%x itt "
+					  "task [op %x itt "
 					  "0x%x/0x%x] fast abort.\n",
-					  task->hdr->opcode, opcode,
-					  task->itt, task->hdr_itt);
+					  opcode, task->itt,
+					  task->hdr_itt);
 			return -EACCES;
 		}
 		break;
@@ -1705,6 +1705,7 @@ int iscsi_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc)
 				sc->result = DID_NO_CONNECT << 16;
 				break;
 			}
+			/* fall through */
 		case ISCSI_STATE_IN_RECOVERY:
 			reason = FAILURE_SESSION_IN_RECOVERY;
 			sc->result = DID_IMM_RETRY << 16;
@@ -1832,6 +1833,7 @@ static void iscsi_tmf_timedout(struct timer_list *t)
 static int iscsi_exec_task_mgmt_fn(struct iscsi_conn *conn,
 				   struct iscsi_tm *hdr, int age,
 				   int timeout)
+	__must_hold(&session->frwd_lock)
 {
 	struct iscsi_session *session = conn->session;
 	struct iscsi_task *task;

@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define  _RTW_SECURITY_C_
@@ -139,23 +131,22 @@ static __le32 getcrc32(u8 *buf, int len)
 	Need to consider the fragment  situation
 */
 void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
-{	/*  exclude ICV */
-
-	unsigned char	crc[4];
-	struct arc4context	 mycontext;
-
+{
 	int	curfragnum, length;
-	u32	keylength;
-
-	u8	*pframe, *payload, *iv;    /* wepkey */
-	u8	wepkey[16];
-	u8   hw_hdr_offset = 0;
+	u8 *pframe;
+	u8 hw_hdr_offset = 0;
 	struct	pkt_attrib	 *pattrib = &((struct xmit_frame *)pxmitframe)->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
-
+	const int keyindex = psecuritypriv->dot11PrivacyKeyIndex;
+	void *crypto_private;
+	struct sk_buff *skb;
+	struct lib80211_crypto_ops *crypto_ops;
 
 	if (((struct xmit_frame *)pxmitframe)->buf_addr == NULL)
+		return;
+
+	if ((pattrib->encrypt != _WEP40_) && (pattrib->encrypt != _WEP104_))
 		return;
 
 	hw_hdr_offset = TXDESC_SIZE +
@@ -163,37 +154,49 @@ void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
 
 	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + hw_hdr_offset;
 
-	/* start to encrypt each fragment */
-	if ((pattrib->encrypt == _WEP40_) || (pattrib->encrypt == _WEP104_)) {
-		keylength = psecuritypriv->dot11DefKeylen[psecuritypriv->dot11PrivacyKeyIndex];
+	crypto_ops = try_then_request_module(lib80211_get_crypto_ops("WEP"), "lib80211_crypt_wep");
 
-		for (curfragnum = 0; curfragnum < pattrib->nr_frags; curfragnum++) {
-			iv = pframe+pattrib->hdrlen;
-			memcpy(&wepkey[0], iv, 3);
-			memcpy(&wepkey[3], &psecuritypriv->dot11DefKey[psecuritypriv->dot11PrivacyKeyIndex].skey[0], keylength);
-			payload = pframe+pattrib->iv_len+pattrib->hdrlen;
+	if (!crypto_ops)
+		return;
 
-			if ((curfragnum+1) == pattrib->nr_frags) {	/* the last fragment */
-				length = pattrib->last_txcmdsz-pattrib->hdrlen-pattrib->iv_len-pattrib->icv_len;
+	crypto_private = crypto_ops->init(keyindex);
+	if (!crypto_private)
+		return;
 
-				*((__le32 *)crc) = getcrc32(payload, length);
+	if (crypto_ops->set_key(psecuritypriv->dot11DefKey[keyindex].skey,
+				psecuritypriv->dot11DefKeylen[keyindex], NULL, crypto_private) < 0)
+		goto free_crypto_private;
 
-				arcfour_init(&mycontext, wepkey, 3+keylength);
-				arcfour_encrypt(&mycontext, payload, payload, length);
-				arcfour_encrypt(&mycontext, payload+length, crc, 4);
-			} else {
-				length = pxmitpriv->frag_len-pattrib->hdrlen-pattrib->iv_len-pattrib->icv_len;
-				*((__le32 *)crc) = getcrc32(payload, length);
-				arcfour_init(&mycontext, wepkey, 3+keylength);
-				arcfour_encrypt(&mycontext, payload, payload, length);
-				arcfour_encrypt(&mycontext, payload+length, crc, 4);
+	for (curfragnum = 0; curfragnum < pattrib->nr_frags; curfragnum++) {
+		if (curfragnum + 1 == pattrib->nr_frags)
+			length = pattrib->last_txcmdsz;
+		else
+			length = pxmitpriv->frag_len;
+		skb = dev_alloc_skb(length);
+		if (!skb)
+			goto free_crypto_private;
 
-				pframe += pxmitpriv->frag_len;
-				pframe = (u8 *)round_up((size_t)(pframe), 4);
-			}
+		skb_put_data(skb, pframe, length);
+
+		memmove(skb->data + 4, skb->data, pattrib->hdrlen);
+		skb_pull(skb, 4);
+		skb_trim(skb, skb->len - 4);
+
+		if (crypto_ops->encrypt_mpdu(skb, pattrib->hdrlen, crypto_private)) {
+			kfree_skb(skb);
+			goto free_crypto_private;
 		}
+
+		memcpy(pframe, skb->data, skb->len);
+
+		pframe += skb->len;
+		pframe = (u8 *)round_up((size_t)(pframe), 4);
+
+		kfree_skb(skb);
 	}
 
+free_crypto_private:
+	crypto_ops->deinit(crypto_private);
 }
 
 int rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
@@ -650,71 +653,71 @@ u32	rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	return res;
 }
 
+/* The hlen isn't include the IV */
 u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
-{
-	struct rx_pkt_attrib *prxattrib = &((struct recv_frame *)precvframe)->attrib;
-	u32 res = _SUCCESS;
+{																	/*  exclude ICV */
+	u16 pnl;
+	u32 pnh;
+	u8   rc4key[16];
+	u8   ttkey[16];
+	u8	crc[4];
+	struct arc4context mycontext;
+	int			length;
+
+	u8	*pframe, *payload, *iv, *prwskey;
+	union pn48 dot11txpn;
+	struct	sta_info		*stainfo;
+	struct	rx_pkt_attrib	 *prxattrib = &((struct recv_frame *)precvframe)->attrib;
+	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
+	u32		res = _SUCCESS;
+
+
+	pframe = (unsigned char *)((struct recv_frame *)precvframe)->pkt->data;
 
 	/* 4 start to decrypt recvframe */
 	if (prxattrib->encrypt == _TKIP_) {
-		struct sta_info *stainfo = rtw_get_stainfo(&padapter->stapriv, prxattrib->ta);
-
+		stainfo = rtw_get_stainfo(&padapter->stapriv, &prxattrib->ta[0]);
 		if (stainfo) {
-			int key_idx;
-			const int iv_len = 8, icv_len = 4, key_length = 32;
-			void *crypto_private = NULL;
-			struct sk_buff *skb = ((struct recv_frame *)precvframe)->pkt;
-			u8 key[32], iv[8], icv[4], *pframe = skb->data;
-			struct lib80211_crypto_ops *crypto_ops = try_then_request_module(lib80211_get_crypto_ops("TKIP"), "lib80211_crypt_tkip");
-			struct security_priv *psecuritypriv = &padapter->securitypriv;
-
 			if (IS_MCAST(prxattrib->ra)) {
 				if (!psecuritypriv->binstallGrpkey) {
 					res = _FAIL;
 					DBG_88E("%s:rx bc/mc packets, but didn't install group key!!!!!!!!!!\n", __func__);
 					goto exit;
 				}
-				key_idx = prxattrib->key_index;
-				memcpy(key, psecuritypriv->dot118021XGrpKey[key_idx].skey, 16);
-				memcpy(key + 16, psecuritypriv->dot118021XGrprxmickey[key_idx].skey, 16);
+				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
 			} else {
-				key_idx = 0;
-				memcpy(key, stainfo->dot118021x_UncstKey.skey, 16);
-				memcpy(key + 16, stainfo->dot11tkiprxmickey.skey, 16);
+				RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("%s: stainfo!= NULL!!!\n", __func__));
+				prwskey = &stainfo->dot118021x_UncstKey.skey[0];
 			}
 
-			if (!crypto_ops) {
+			iv = pframe+prxattrib->hdrlen;
+			payload = pframe+prxattrib->iv_len+prxattrib->hdrlen;
+			length = ((struct recv_frame *)precvframe)->pkt->len-prxattrib->hdrlen-prxattrib->iv_len;
+
+			GET_TKIP_PN(iv, dot11txpn);
+
+			pnl = (u16)(dot11txpn.val);
+			pnh = (u32)(dot11txpn.val>>16);
+
+			phase1((u16 *)&ttkey[0], prwskey, &prxattrib->ta[0], pnh);
+			phase2(&rc4key[0], prwskey, (unsigned short *)&ttkey[0], pnl);
+
+			/* 4 decrypt payload include icv */
+
+			arcfour_init(&mycontext, rc4key, 16);
+			arcfour_encrypt(&mycontext, payload, payload, length);
+
+			*((__le32 *)crc) = getcrc32(payload, length-4);
+
+			if (crc[3] != payload[length-1] ||
+			    crc[2] != payload[length-2] ||
+			    crc[1] != payload[length-3] ||
+			    crc[0] != payload[length-4]) {
+				RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
+					 ("rtw_wep_decrypt:icv error crc (%4ph)!=payload (%4ph)\n",
+					 &crc, &payload[length-4]));
 				res = _FAIL;
-				goto exit_lib80211_tkip;
 			}
-
-			memcpy(iv, pframe + prxattrib->hdrlen, iv_len);
-			memcpy(icv, pframe + skb->len - icv_len, icv_len);
-
-			crypto_private = crypto_ops->init(key_idx);
-			if (!crypto_private) {
-				res = _FAIL;
-				goto exit_lib80211_tkip;
-			}
-			if (crypto_ops->set_key(key, key_length, NULL, crypto_private) < 0) {
-				res = _FAIL;
-				goto exit_lib80211_tkip;
-			}
-			if (crypto_ops->decrypt_mpdu(skb, prxattrib->hdrlen, crypto_private)) {
-				res = _FAIL;
-				goto exit_lib80211_tkip;
-			}
-
-			memmove(pframe, pframe + iv_len, prxattrib->hdrlen);
-			skb_push(skb, iv_len);
-			skb_put(skb, icv_len);
-
-			memcpy(pframe + prxattrib->hdrlen, iv, iv_len);
-			memcpy(pframe + skb->len - icv_len, icv, icv_len);
-
-exit_lib80211_tkip:
-			if (crypto_ops && crypto_private)
-				crypto_ops->deinit(crypto_private);
 		} else {
 			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("rtw_tkip_decrypt: stainfo==NULL!!!\n"));
 			res = _FAIL;
@@ -1038,7 +1041,6 @@ static void construct_mic_header2(u8 *mic_header2, u8 *mpdu, int a4_exists, int 
 		mic_header2[14] = mpdu[30] & 0x0f;
 		mic_header2[15] = mpdu[31] & 0x00;
 	}
-
 }
 
 /************************************************/

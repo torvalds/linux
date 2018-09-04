@@ -10,7 +10,6 @@ Required properties:
 - compatible: "rockchip,rk808"
 - compatible: "rockchip,rk818"
 - reg: I2C slave address
-- interrupt-parent: The parent interrupt controller.
 - interrupts: the interrupt outputs of the controller.
 - #clock-cells: from common clock binding; shall be set to 1 (multiple clock
   outputs). See <dt-bindings/clock/rockchip,rk808.h> for clock IDs.

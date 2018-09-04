@@ -121,6 +121,37 @@ static int fat_ioctl_get_volume_id(struct inode *inode, u32 __user *user_attr)
 	return put_user(sbi->vol_id, user_attr);
 }
 
+static int fat_ioctl_fitrim(struct inode *inode, unsigned long arg)
+{
+	struct super_block *sb = inode->i_sb;
+	struct fstrim_range __user *user_range;
+	struct fstrim_range range;
+	struct request_queue *q = bdev_get_queue(sb->s_bdev);
+	int err;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (!blk_queue_discard(q))
+		return -EOPNOTSUPP;
+
+	user_range = (struct fstrim_range __user *)arg;
+	if (copy_from_user(&range, user_range, sizeof(range)))
+		return -EFAULT;
+
+	range.minlen = max_t(unsigned int, range.minlen,
+			     q->limits.discard_granularity);
+
+	err = fat_trim_fs(inode, &range);
+	if (err < 0)
+		return err;
+
+	if (copy_to_user(user_range, &range, sizeof(range)))
+		return -EFAULT;
+
+	return 0;
+}
+
 long fat_generic_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
@@ -133,6 +164,8 @@ long fat_generic_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return fat_ioctl_set_attributes(filp, user_attr);
 	case FAT_IOCTL_GET_VOLUME_ID:
 		return fat_ioctl_get_volume_id(inode, user_attr);
+	case FITRIM:
+		return fat_ioctl_fitrim(inode, arg);
 	default:
 		return -ENOTTY;	/* Inappropriate ioctl for device */
 	}

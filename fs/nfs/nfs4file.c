@@ -133,10 +133,15 @@ static ssize_t nfs4_copy_file_range(struct file *file_in, loff_t pos_in,
 				    struct file *file_out, loff_t pos_out,
 				    size_t count, unsigned int flags)
 {
+	ssize_t ret;
+
 	if (file_inode(file_in) == file_inode(file_out))
 		return -EINVAL;
-
-	return nfs42_proc_copy(file_in, pos_in, file_out, pos_out, count);
+retry:
+	ret = nfs42_proc_copy(file_in, pos_in, file_out, pos_out, count);
+	if (ret == -EAGAIN)
+		goto retry;
+	return ret;
 }
 
 static loff_t nfs4_file_llseek(struct file *filep, loff_t offset, int whence)
@@ -149,6 +154,7 @@ static loff_t nfs4_file_llseek(struct file *filep, loff_t offset, int whence)
 		ret = nfs42_proc_llseek(filep, offset, whence);
 		if (ret != -ENOTSUPP)
 			return ret;
+		/* Fall through */
 	default:
 		return nfs_file_llseek(filep, offset, whence);
 	}

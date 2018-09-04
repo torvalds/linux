@@ -14,10 +14,7 @@
 
 #include "cgroup_helpers.h"
 #include "bpf_rlimit.h"
-
-#ifndef ARRAY_SIZE
-# define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
+#include "bpf_util.h"
 
 #define CG_PATH		"/foo"
 #define MAX_INSNS	512

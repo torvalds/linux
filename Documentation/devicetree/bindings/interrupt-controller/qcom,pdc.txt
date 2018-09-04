@@ -35,12 +35,6 @@ Properties:
 		    interrupt.
 		    The second element is the trigger type.
 
-- interrupt-parent:
-	Usage: required
-	Value type: <phandle>
-	Definition: Specifies the interrupt parent necessary for hierarchical
-		    domain to operate.
-
 - interrupt-controller:
 	Usage: required
 	Value type: <bool>

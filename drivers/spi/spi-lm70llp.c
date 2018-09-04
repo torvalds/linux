@@ -188,9 +188,10 @@ static void lm70_chipselect(struct spi_device *spi, int value)
 /*
  * Our actual bitbanger routine.
  */
-static u32 lm70_txrx(struct spi_device *spi, unsigned nsecs, u32 word, u8 bits)
+static u32 lm70_txrx(struct spi_device *spi, unsigned nsecs, u32 word, u8 bits,
+		     unsigned flags)
 {
-	return bitbang_txrx_be_cpha0(spi, nsecs, 0, 0, word, bits);
+	return bitbang_txrx_be_cpha0(spi, nsecs, 0, flags, word, bits);
 }
 
 static void spi_lm70llp_attach(struct parport *p)

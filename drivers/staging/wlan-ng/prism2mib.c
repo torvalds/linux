@@ -87,10 +87,10 @@ struct mibrec {
 	u16 parm2;
 	u16 parm3;
 	int (*func)(struct mibrec *mib,
-		     int isget,
-		     struct wlandevice *wlandev,
-		     struct hfa384x *hw,
-		     struct p80211msg_dot11req_mibset *msg, void *data);
+		    int isget,
+		    struct wlandevice *wlandev,
+		    struct hfa384x *hw,
+		    struct p80211msg_dot11req_mibset *msg, void *data);
 };
 
 static int prism2mib_bytearea2pstr(struct mibrec *mib,

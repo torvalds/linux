@@ -133,6 +133,8 @@ static void disc_dupl_alert(struct tipc_bearer *b, u32 node_addr,
 }
 
 /* tipc_disc_addr_trial(): - handle an address uniqueness trial from peer
+ * Returns true if message should be dropped by caller, i.e., if it is a
+ * trial message or we are inside trial period. Otherwise false.
  */
 static bool tipc_disc_addr_trial_msg(struct tipc_discoverer *d,
 				     struct tipc_media_addr *maddr,
@@ -168,8 +170,9 @@ static bool tipc_disc_addr_trial_msg(struct tipc_discoverer *d,
 		msg_set_type(buf_msg(d->skb), DSC_REQ_MSG);
 	}
 
+	/* Accept regular link requests/responses only after trial period */
 	if (mtyp != DSC_TRIAL_MSG)
-		return false;
+		return trial;
 
 	sugg_addr = tipc_node_try_addr(net, peer_id, src);
 	if (sugg_addr)
@@ -284,7 +287,6 @@ static void tipc_disc_timeout(struct timer_list *t)
 {
 	struct tipc_discoverer *d = from_timer(d, t, timer);
 	struct tipc_net *tn = tipc_net(d->net);
-	u32 self = tipc_own_addr(d->net);
 	struct tipc_media_addr maddr;
 	struct sk_buff *skb = NULL;
 	struct net *net = d->net;
@@ -298,12 +300,14 @@ static void tipc_disc_timeout(struct timer_list *t)
 		goto exit;
 	}
 
-	/* Did we just leave the address trial period ? */
-	if (!self && !time_before(jiffies, tn->addr_trial_end)) {
-		self = tn->trial_addr;
-		tipc_net_finalize(net, self);
-		msg_set_prevnode(buf_msg(d->skb), self);
+	/* Trial period over ? */
+	if (!time_before(jiffies, tn->addr_trial_end)) {
+		/* Did we just leave it ? */
+		if (!tipc_own_addr(net))
+			tipc_net_finalize(net, tn->trial_addr);
+
 		msg_set_type(buf_msg(d->skb), DSC_REQ_MSG);
+		msg_set_prevnode(buf_msg(d->skb), tipc_own_addr(net));
 	}
 
 	/* Adjust timeout interval according to discovery phase */

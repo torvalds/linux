@@ -688,7 +688,7 @@ u8 PHY_GetTxPowerIndex_8723B(
 	txPower = (s8) PHY_GetTxPowerIndexBase(padapter, RFPath, Rate, BandWidth, Channel, &bIn24G);
 	powerDiffByRate = PHY_GetTxPowerByRate(padapter, BAND_ON_2_4G, ODM_RF_PATH_A, RF_1TX, Rate);
 
-	limit = PHY_GetTxPowerLimit(
+	limit = phy_get_tx_pwr_lmt(
 		padapter,
 		padapter->registrypriv.RegPwrTblSel,
 		(u8)(!bIn24G),

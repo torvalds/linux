@@ -832,9 +832,17 @@ nft_target_select_ops(const struct nft_ctx *ctx,
 	rev = ntohl(nla_get_be32(tb[NFTA_TARGET_REV]));
 	family = ctx->family;
 
+	if (strcmp(tg_name, XT_ERROR_TARGET) == 0 ||
+	    strcmp(tg_name, XT_STANDARD_TARGET) == 0 ||
+	    strcmp(tg_name, "standard") == 0)
+		return ERR_PTR(-EINVAL);
+
 	/* Re-use the existing target if it's already loaded. */
 	list_for_each_entry(nft_target, &nft_target_list, head) {
 		struct xt_target *target = nft_target->ops.data;
+
+		if (!target->target)
+			continue;
 
 		if (nft_target_cmp(target, tg_name, rev, family))
 			return &nft_target->ops;
@@ -843,6 +851,11 @@ nft_target_select_ops(const struct nft_ctx *ctx,
 	target = xt_request_find_target(family, tg_name, rev);
 	if (IS_ERR(target))
 		return ERR_PTR(-ENOENT);
+
+	if (!target->target) {
+		err = -EINVAL;
+		goto err;
+	}
 
 	if (target->targetsize > nla_len(tb[NFTA_TARGET_INFO])) {
 		err = -EINVAL;

@@ -903,22 +903,27 @@ get_free_slot_v1_hw(struct hisi_hba *hisi_hba, struct hisi_sas_dq *dq)
 static void start_delivery_v1_hw(struct hisi_sas_dq *dq)
 {
 	struct hisi_hba *hisi_hba = dq->hisi_hba;
-	struct hisi_sas_slot *s, *s1;
+	struct hisi_sas_slot *s, *s1, *s2 = NULL;
 	struct list_head *dq_list;
 	int dlvry_queue = dq->id;
-	int wp, count = 0;
+	int wp;
 
 	dq_list = &dq->list;
 	list_for_each_entry_safe(s, s1, &dq->list, delivery) {
 		if (!s->ready)
 			break;
-		count++;
-		wp = (s->dlvry_queue_slot + 1) % HISI_SAS_QUEUE_SLOTS;
+		s2 = s;
 		list_del(&s->delivery);
 	}
 
-	if (!count)
+	if (!s2)
 		return;
+
+	/*
+	 * Ensure that memories for slots built on other CPUs is observed.
+	 */
+	smp_rmb();
+	wp = (s2->dlvry_queue_slot + 1) % HISI_SAS_QUEUE_SLOTS;
 
 	hisi_sas_write32(hisi_hba, DLVRY_Q_0_WR_PTR + (dlvry_queue * 0x14), wp);
 }
@@ -1296,11 +1301,8 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 		!(cmplt_hdr_data & CMPLT_HDR_RSPNS_XFRD_MSK)) {
 
 		slot_err_v1_hw(hisi_hba, task, slot);
-		if (unlikely(slot->abort)) {
-			queue_work(hisi_hba->wq, &slot->abort_slot);
-			/* immediately return and do not complete */
+		if (unlikely(slot->abort))
 			return ts->stat;
-		}
 		goto out;
 	}
 
@@ -1469,7 +1471,8 @@ static irqreturn_t int_bcast_v1_hw(int irq, void *p)
 		goto end;
 	}
 
-	sha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
+	if (!test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags))
+		sha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
 
 end:
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,

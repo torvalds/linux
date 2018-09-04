@@ -19,14 +19,9 @@ extern char cmd_line[COMMAND_LINE_SIZE];
 
 extern char *klimit;
 
-void microblaze_heartbeat(void);
-void microblaze_setup_heartbeat(void);
-
 #   ifdef CONFIG_MMU
 extern void mmu_reset(void);
 #   endif /* CONFIG_MMU */
-
-extern void of_platform_reset_gpio_probe(void);
 
 void time_init(void);
 void init_IRQ(void);

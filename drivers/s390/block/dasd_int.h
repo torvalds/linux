@@ -228,14 +228,6 @@ struct dasd_ccw_req {
 #define DASD_CQR_SUPPRESS_IL	6	/* Suppress 'Incorrect Length' error */
 #define DASD_CQR_SUPPRESS_CR	7	/* Suppress 'Command Reject' error */
 
-/*
- * There is no reliable way to determine the number of available CPUs on
- * LPAR but there is no big performance difference between 1 and the
- * maximum CPU number.
- * 64 is a good trade off performance wise.
- */
-#define DASD_NR_HW_QUEUES 64
-#define DASD_MAX_LCU_DEV 256
 #define DASD_REQ_PER_DEV 4
 
 /* Signature for error recovery functions. */

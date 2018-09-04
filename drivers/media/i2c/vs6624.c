@@ -770,7 +770,7 @@ static int vs6624_probe(struct i2c_client *client,
 		return ret;
 	}
 	/* wait 100ms before any further i2c writes are performed */
-	mdelay(100);
+	msleep(100);
 
 	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
 	if (sensor == NULL)
@@ -782,7 +782,7 @@ static int vs6624_probe(struct i2c_client *client,
 	vs6624_writeregs(sd, vs6624_p1);
 	vs6624_write(sd, VS6624_MICRO_EN, 0x2);
 	vs6624_write(sd, VS6624_DIO_EN, 0x1);
-	mdelay(10);
+	usleep_range(10000, 11000);
 	vs6624_writeregs(sd, vs6624_p2);
 
 	vs6624_writeregs(sd, vs6624_default);

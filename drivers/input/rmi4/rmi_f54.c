@@ -610,11 +610,6 @@ error:
 	mutex_unlock(&f54->data_mutex);
 }
 
-static int rmi_f54_attention(struct rmi_function *fn, unsigned long *irqbits)
-{
-	return 0;
-}
-
 static int rmi_f54_config(struct rmi_function *fn)
 {
 	struct rmi_driver *drv = fn->rmi_dev->driver;
@@ -756,6 +751,5 @@ struct rmi_function_handler rmi_f54_handler = {
 	.func = 0x54,
 	.probe = rmi_f54_probe,
 	.config = rmi_f54_config,
-	.attention = rmi_f54_attention,
 	.remove = rmi_f54_remove,
 };

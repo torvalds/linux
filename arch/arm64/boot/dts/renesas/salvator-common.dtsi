@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree Source for common parts of Salvator-X board variants
  *
  * Copyright (C) 2015-2016 Renesas Electronics Corp.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 /*
@@ -36,7 +33,7 @@
 / {
 	aliases {
 		serial0 = &scif2;
-		serial1 = &scif1;
+		serial1 = &hscif1;
 		ethernet0 = &avb;
 	};
 
@@ -341,6 +338,15 @@
 	clock-frequency = <32768>;
 };
 
+&hscif1 {
+	pinctrl-0 = <&hscif1_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
+	/* Please only enable hscif1 or scif1 */
+	status = "okay";
+};
+
 &hsusb {
 	dr_mode = "otg";
 	status = "okay";
@@ -440,7 +446,7 @@
 			};
 		};
 
-		port@10 {
+		port@a {
 			reg = <10>;
 
 			adv7482_txa: endpoint {
@@ -450,7 +456,7 @@
 			};
 		};
 
-		port@11 {
+		port@b {
 			reg = <11>;
 
 			adv7482_txb: endpoint {
@@ -546,6 +552,11 @@
 		function = "du";
 	};
 
+	hscif1_pins: hscif1 {
+		groups = "hscif1_data_a", "hscif1_ctrl_a";
+		function = "hscif1";
+	};
+
 	i2c2_pins: i2c2 {
 		groups = "i2c2_a";
 		function = "i2c2";
@@ -589,13 +600,13 @@
 	};
 
 	sdhi2_pins: sd2 {
-		groups = "sdhi2_data8", "sdhi2_ctrl";
+		groups = "sdhi2_data8", "sdhi2_ctrl", "sdhi2_ds";
 		function = "sdhi2";
 		power-source = <3300>;
 	};
 
 	sdhi2_pins_uhs: sd2_uhs {
-		groups = "sdhi2_data8", "sdhi2_ctrl";
+		groups = "sdhi2_data8", "sdhi2_ctrl", "sdhi2_ds";
 		function = "sdhi2";
 		power-source = <1800>;
 	};
@@ -711,7 +722,8 @@
 	pinctrl-names = "default";
 
 	uart-has-rtscts;
-	status = "okay";
+	/* Please only enable hscif1 or scif1 */
+	/* status = "okay"; */
 };
 
 &scif2 {
@@ -838,7 +850,7 @@
 	status = "okay";
 };
 
-&wdt0 {
+&rwdt {
 	timeout-sec = <60>;
 	status = "okay";
 };

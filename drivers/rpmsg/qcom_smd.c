@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/sched.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/wait.h>
@@ -93,6 +94,8 @@ static const struct {
 
 /**
  * struct qcom_smd_edge - representing a remote processor
+ * @dev:		device associated with this edge
+ * @name:		name of this edge
  * @of_node:		of_node handle for information related to this edge
  * @edge_id:		identifier of this edge
  * @remote_pid:		identifier of remote processor
@@ -106,6 +109,7 @@ static const struct {
  * @channels_lock:	guard for modifications of @channels
  * @allocated:		array of bitmaps representing already allocated channels
  * @smem_available:	last available amount of smem triggering a channel scan
+ * @new_channel_event:	wait queue for new channel events
  * @scan_work:		work item for discovering new channels
  * @state_work:		work item for edge state changes
  */
@@ -172,10 +176,12 @@ struct qcom_smd_endpoint {
 /**
  * struct qcom_smd_channel - smd channel struct
  * @edge:		qcom_smd_edge this channel is living on
- * @qsdev:		reference to a associated smd client device
+ * @qsept:		reference to a associated smd endpoint
+ * @registered:		flag to indicate if the channel is registered
  * @name:		name of the channel
  * @state:		local state of the channel
  * @remote_state:	remote state of the channel
+ * @state_change_event:	state change event
  * @info:		byte aligned outgoing/incoming channel info
  * @info_word:		word aligned outgoing/incoming channel info
  * @tx_lock:		lock to make writes to the channel mutually exclusive
@@ -187,6 +193,7 @@ struct qcom_smd_endpoint {
  * @cb:			callback function registered for this channel
  * @recv_lock:		guard for rx info modifications and cb pointer
  * @pkt_size:		size of the currently handled packet
+ * @drvdata:		driver private data
  * @list:		lite entry for @channels in qcom_smd_edge
  */
 struct qcom_smd_channel {
@@ -726,6 +733,7 @@ static int qcom_smd_write_fifo(struct qcom_smd_channel *channel,
  * @channel:	channel handle
  * @data:	buffer of data to write
  * @len:	number of bytes to write
+ * @wait:	flag to indicate if write has ca wait
  *
  * This is a blocking write of len bytes into the channel's tx ring buffer and
  * signal the remote end. It will sleep until there is enough space available

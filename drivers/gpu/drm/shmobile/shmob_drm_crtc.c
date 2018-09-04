@@ -675,7 +675,7 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 	if (ret < 0)
 		goto err_cleanup;
 
-	ret = drm_mode_connector_attach_encoder(connector, encoder);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0)
 		goto err_backlight;
 

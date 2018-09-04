@@ -75,6 +75,11 @@ struct bpf_lpm_trie_key {
 	__u8	data[0];	/* Arbitrary size */
 };
 
+struct bpf_cgroup_storage_key {
+	__u64	cgroup_inode_id;	/* cgroup inode id */
+	__u32	attach_type;		/* program attach type */
+};
+
 /* BPF syscall commands, see bpf(2) man-page for details. */
 enum bpf_cmd {
 	BPF_MAP_CREATE,
@@ -120,6 +125,8 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_CPUMAP,
 	BPF_MAP_TYPE_XSKMAP,
 	BPF_MAP_TYPE_SOCKHASH,
+	BPF_MAP_TYPE_CGROUP_STORAGE,
+	BPF_MAP_TYPE_REUSEPORT_SOCKARRAY,
 };
 
 enum bpf_prog_type {
@@ -144,6 +151,7 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
 	BPF_PROG_TYPE_LWT_SEG6LOCAL,
 	BPF_PROG_TYPE_LIRC_MODE2,
+	BPF_PROG_TYPE_SK_REUSEPORT,
 };
 
 enum bpf_attach_type {
@@ -1371,6 +1379,20 @@ union bpf_attr {
  * 		A 8-byte long non-decreasing number on success, or 0 if the
  * 		socket field is missing inside *skb*.
  *
+ * u64 bpf_get_socket_cookie(struct bpf_sock_addr *ctx)
+ * 	Description
+ * 		Equivalent to bpf_get_socket_cookie() helper that accepts
+ * 		*skb*, but gets socket from **struct bpf_sock_addr** contex.
+ * 	Return
+ * 		A 8-byte long non-decreasing number.
+ *
+ * u64 bpf_get_socket_cookie(struct bpf_sock_ops *ctx)
+ * 	Description
+ * 		Equivalent to bpf_get_socket_cookie() helper that accepts
+ * 		*skb*, but gets socket from **struct bpf_sock_ops** contex.
+ * 	Return
+ * 		A 8-byte long non-decreasing number.
+ *
  * u32 bpf_get_socket_uid(struct sk_buff *skb)
  * 	Return
  * 		The owner UID of the socket associated to *skb*. If the socket
@@ -1826,7 +1848,7 @@ union bpf_attr {
  * 		A non-negative value equal to or less than *size* on success,
  * 		or a negative error in case of failure.
  *
- * int skb_load_bytes_relative(const struct sk_buff *skb, u32 offset, void *to, u32 len, u32 start_header)
+ * int bpf_skb_load_bytes_relative(const struct sk_buff *skb, u32 offset, void *to, u32 len, u32 start_header)
  * 	Description
  * 		This helper is similar to **bpf_skb_load_bytes**\ () in that
  * 		it provides an easy way to load *len* bytes from *offset*
@@ -1857,7 +1879,8 @@ union bpf_attr {
  *		is resolved), the nexthop address is returned in ipv4_dst
  *		or ipv6_dst based on family, smac is set to mac address of
  *		egress device, dmac is set to nexthop mac address, rt_metric
- *		is set to metric from route (IPv4/IPv6 only).
+ *		is set to metric from route (IPv4/IPv6 only), and ifindex
+ *		is set to the device index of the nexthop from the FIB lookup.
  *
  *             *plen* argument is the size of the passed in struct.
  *             *flags* argument can be a combination of one or more of the
@@ -1873,9 +1896,10 @@ union bpf_attr {
  *             *ctx* is either **struct xdp_md** for XDP programs or
  *             **struct sk_buff** tc cls_act programs.
  *     Return
- *             Egress device index on success, 0 if packet needs to continue
- *             up the stack for further processing or a negative error in case
- *             of failure.
+ *		* < 0 if any input argument is invalid
+ *		*   0 on success (packet is forwarded, nexthop neighbor exists)
+ *		* > 0 one of **BPF_FIB_LKUP_RET_** codes explaining why the
+ *		  packet is not forwarded or needs assist from full stack
  *
  * int bpf_sock_hash_update(struct bpf_sock_ops_kern *skops, struct bpf_map *map, void *key, u64 flags)
  *	Description
@@ -2031,7 +2055,6 @@ union bpf_attr {
  *		This helper is only available is the kernel was compiled with
  *		the **CONFIG_BPF_LIRC_MODE2** configuration option set to
  *		"**y**".
- *
  *	Return
  *		0
  *
@@ -2051,7 +2074,6 @@ union bpf_attr {
  *		This helper is only available is the kernel was compiled with
  *		the **CONFIG_BPF_LIRC_MODE2** configuration option set to
  *		"**y**".
- *
  *	Return
  *		0
  *
@@ -2071,10 +2093,54 @@ union bpf_attr {
  * 	Return
  * 		The id is returned or 0 in case the id could not be retrieved.
  *
+ * u64 bpf_skb_ancestor_cgroup_id(struct sk_buff *skb, int ancestor_level)
+ *	Description
+ *		Return id of cgroup v2 that is ancestor of cgroup associated
+ *		with the *skb* at the *ancestor_level*.  The root cgroup is at
+ *		*ancestor_level* zero and each step down the hierarchy
+ *		increments the level. If *ancestor_level* == level of cgroup
+ *		associated with *skb*, then return value will be same as that
+ *		of **bpf_skb_cgroup_id**\ ().
+ *
+ *		The helper is useful to implement policies based on cgroups
+ *		that are upper in hierarchy than immediate cgroup associated
+ *		with *skb*.
+ *
+ *		The format of returned id and helper limitations are same as in
+ *		**bpf_skb_cgroup_id**\ ().
+ *	Return
+ *		The id is returned or 0 in case the id could not be retrieved.
+ *
  * u64 bpf_get_current_cgroup_id(void)
  * 	Return
  * 		A 64-bit integer containing the current cgroup id based
  * 		on the cgroup within which the current task is running.
+ *
+ * void* get_local_storage(void *map, u64 flags)
+ *	Description
+ *		Get the pointer to the local storage area.
+ *		The type and the size of the local storage is defined
+ *		by the *map* argument.
+ *		The *flags* meaning is specific for each map type,
+ *		and has to be 0 for cgroup local storage.
+ *
+ *		Depending on the bpf program type, a local storage area
+ *		can be shared between multiple instances of the bpf program,
+ *		running simultaneously.
+ *
+ *		A user should care about the synchronization by himself.
+ *		For example, by using the BPF_STX_XADD instruction to alter
+ *		the shared data.
+ *	Return
+ *		Pointer to the local storage area.
+ *
+ * int bpf_sk_select_reuseport(struct sk_reuseport_md *reuse, struct bpf_map *map, void *key, u64 flags)
+ *	Description
+ *		Select a SO_REUSEPORT sk from a	BPF_MAP_TYPE_REUSEPORT_ARRAY map
+ *		It checks the selected sk is matching the incoming
+ *		request in the skb.
+ *	Return
+ *		0 on success, or a negative error in case of failure.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -2157,7 +2223,10 @@ union bpf_attr {
 	FN(rc_repeat),			\
 	FN(rc_keydown),			\
 	FN(skb_cgroup_id),		\
-	FN(get_current_cgroup_id),
+	FN(get_current_cgroup_id),	\
+	FN(get_local_storage),		\
+	FN(sk_select_reuseport),	\
+	FN(skb_ancestor_cgroup_id),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -2374,6 +2443,30 @@ struct sk_msg_md {
 	__u32 local_port;	/* stored in host byte order */
 };
 
+struct sk_reuseport_md {
+	/*
+	 * Start of directly accessible data. It begins from
+	 * the tcp/udp header.
+	 */
+	void *data;
+	void *data_end;		/* End of directly accessible data */
+	/*
+	 * Total length of packet (starting from the tcp/udp header).
+	 * Note that the directly accessible bytes (data_end - data)
+	 * could be less than this "len".  Those bytes could be
+	 * indirectly read by a helper "bpf_skb_load_bytes()".
+	 */
+	__u32 len;
+	/*
+	 * Eth protocol in the mac header (network byte order). e.g.
+	 * ETH_P_IP(0x0800) and ETH_P_IPV6(0x86DD)
+	 */
+	__u32 eth_protocol;
+	__u32 ip_protocol;	/* IP protocol. e.g. IPPROTO_TCP, IPPROTO_UDP */
+	__u32 bind_inany;	/* Is sock bound to an INANY address? */
+	__u32 hash;		/* A hash of the packet 4 tuples */
+};
+
 #define BPF_TAG_SIZE	8
 
 struct bpf_prog_info {
@@ -2555,6 +2648,9 @@ enum {
 					 * Arg1: old_state
 					 * Arg2: new_state
 					 */
+	BPF_SOCK_OPS_TCP_LISTEN_CB,	/* Called on listen(2), right after
+					 * socket transition to LISTEN state.
+					 */
 };
 
 /* List of TCP states. There is a build check in net/ipv4/tcp.c to detect
@@ -2612,6 +2708,18 @@ struct bpf_raw_tracepoint_args {
 #define BPF_FIB_LOOKUP_DIRECT  BIT(0)
 #define BPF_FIB_LOOKUP_OUTPUT  BIT(1)
 
+enum {
+	BPF_FIB_LKUP_RET_SUCCESS,      /* lookup successful */
+	BPF_FIB_LKUP_RET_BLACKHOLE,    /* dest is blackholed; can be dropped */
+	BPF_FIB_LKUP_RET_UNREACHABLE,  /* dest is unreachable; can be dropped */
+	BPF_FIB_LKUP_RET_PROHIBIT,     /* dest not allowed; can be dropped */
+	BPF_FIB_LKUP_RET_NOT_FWDED,    /* packet is not forwarded */
+	BPF_FIB_LKUP_RET_FWD_DISABLED, /* fwding is not enabled on ingress */
+	BPF_FIB_LKUP_RET_UNSUPP_LWT,   /* fwd requires encapsulation */
+	BPF_FIB_LKUP_RET_NO_NEIGH,     /* no neighbor entry for nh */
+	BPF_FIB_LKUP_RET_FRAG_NEEDED,  /* fragmentation required to fwd */
+};
+
 struct bpf_fib_lookup {
 	/* input:  network family for lookup (AF_INET, AF_INET6)
 	 * output: network family of egress nexthop
@@ -2625,12 +2733,16 @@ struct bpf_fib_lookup {
 
 	/* total length of packet from network header - used for MTU check */
 	__u16	tot_len;
-	__u32	ifindex;  /* L3 device index for lookup */
+
+	/* input: L3 device index for lookup
+	 * output: device index from FIB lookup
+	 */
+	__u32	ifindex;
 
 	union {
 		/* inputs to lookup */
 		__u8	tos;		/* AF_INET  */
-		__be32	flowlabel;	/* AF_INET6 */
+		__be32	flowinfo;	/* AF_INET6, flow_label + priority */
 
 		/* output: metric of fib result (IPv4/IPv6 only) */
 		__u32	rt_metric;

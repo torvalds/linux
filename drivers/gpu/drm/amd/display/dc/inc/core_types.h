@@ -92,6 +92,7 @@ struct resource_context;
 
 struct resource_funcs {
 	void (*destroy)(struct resource_pool **pool);
+	void (*link_init)(struct dc_link *link);
 	struct link_encoder *(*link_enc_create)(
 			const struct encoder_init_data *init);
 
@@ -138,7 +139,7 @@ struct resource_pool {
 	struct output_pixel_processor *opps[MAX_PIPES];
 	struct timing_generator *timing_generators[MAX_PIPES];
 	struct stream_encoder *stream_enc[MAX_PIPES * 2];
-
+	struct aux_engine *engines[MAX_PIPES];
 	struct hubbub *hubbub;
 	struct mpc *mpc;
 	struct pp_smu_funcs_rv *pp_smu;
@@ -162,7 +163,7 @@ struct resource_pool {
 	unsigned int audio_count;
 	struct audio_support audio_support;
 
-	struct display_clock *display_clock;
+	struct dccg *dccg;
 	struct irq_service *irqs;
 
 	struct abm *abm;
@@ -255,8 +256,7 @@ struct dce_bw_output {
 };
 
 struct dcn_bw_output {
-	struct dc_clocks cur_clk;
-	struct dc_clocks calc_clk;
+	struct dc_clocks clk;
 	struct dcn_watermark_set watermarks;
 };
 
@@ -281,7 +281,7 @@ struct dc_state {
 	struct dcn_bw_internal_vars dcn_bw_vars;
 #endif
 
-	struct display_clock *dis_clk;
+	struct dccg *dis_clk;
 
 	struct kref refcount;
 };

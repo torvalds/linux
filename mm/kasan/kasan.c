@@ -619,12 +619,13 @@ void kasan_kfree_large(void *ptr, unsigned long ip)
 int kasan_module_alloc(void *addr, size_t size)
 {
 	void *ret;
+	size_t scaled_size;
 	size_t shadow_size;
 	unsigned long shadow_start;
 
 	shadow_start = (unsigned long)kasan_mem_to_shadow(addr);
-	shadow_size = round_up(size >> KASAN_SHADOW_SCALE_SHIFT,
-			PAGE_SIZE);
+	scaled_size = (size + KASAN_SHADOW_MASK) >> KASAN_SHADOW_SCALE_SHIFT;
+	shadow_size = round_up(scaled_size, PAGE_SIZE);
 
 	if (WARN_ON(!PAGE_ALIGNED(shadow_start)))
 		return -EINVAL;

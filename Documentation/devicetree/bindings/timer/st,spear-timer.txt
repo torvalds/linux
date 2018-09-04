@@ -5,8 +5,6 @@
 - compatible : Should be:
 	"st,spear-timer"
 - reg: Address range of the timer registers
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupt: Should contain the timer interrupt number
 
 Example:

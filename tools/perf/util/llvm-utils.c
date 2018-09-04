@@ -22,12 +22,14 @@
 		"$CLANG_OPTIONS $KERNEL_INC_OPTIONS $PERF_BPF_INC_OPTIONS " \
 		"-Wno-unused-value -Wno-pointer-sign "		\
 		"-working-directory $WORKING_DIR "		\
-		"-c \"$CLANG_SOURCE\" -target bpf -O2 -o -"
+		"-c \"$CLANG_SOURCE\" -target bpf $CLANG_EMIT_LLVM -O2 -o - $LLVM_OPTIONS_PIPE"
 
 struct llvm_param llvm_param = {
 	.clang_path = "clang",
+	.llc_path = "llc",
 	.clang_bpf_cmd_template = CLANG_BPF_CMD_DEFAULT_TEMPLATE,
 	.clang_opt = NULL,
+	.opts = NULL,
 	.kbuild_dir = NULL,
 	.kbuild_opts = NULL,
 	.user_set_param = false,
@@ -51,6 +53,8 @@ int perf_llvm_config(const char *var, const char *value)
 		llvm_param.kbuild_opts = strdup(value);
 	else if (!strcmp(var, "dump-obj"))
 		llvm_param.dump_obj = !!perf_config_bool(var, value);
+	else if (!strcmp(var, "opts"))
+		llvm_param.opts = strdup(value);
 	else {
 		pr_debug("Invalid LLVM config option: %s\n", value);
 		return -1;
@@ -266,16 +270,16 @@ static const char *kinc_fetch_script =
 "#!/usr/bin/env sh\n"
 "if ! test -d \"$KBUILD_DIR\"\n"
 "then\n"
-"	exit -1\n"
+"	exit 1\n"
 "fi\n"
 "if ! test -f \"$KBUILD_DIR/include/generated/autoconf.h\"\n"
 "then\n"
-"	exit -1\n"
+"	exit 1\n"
 "fi\n"
 "TMPDIR=`mktemp -d`\n"
 "if test -z \"$TMPDIR\"\n"
 "then\n"
-"    exit -1\n"
+"    exit 1\n"
 "fi\n"
 "cat << EOF > $TMPDIR/Makefile\n"
 "obj-y := dummy.o\n"
@@ -430,11 +434,13 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	unsigned int kernel_version;
 	char linux_version_code_str[64];
 	const char *clang_opt = llvm_param.clang_opt;
-	char clang_path[PATH_MAX], abspath[PATH_MAX], nr_cpus_avail_str[64];
+	char clang_path[PATH_MAX], llc_path[PATH_MAX], abspath[PATH_MAX], nr_cpus_avail_str[64];
 	char serr[STRERR_BUFSIZE];
 	char *kbuild_dir = NULL, *kbuild_include_opts = NULL,
 	     *perf_bpf_include_opts = NULL;
 	const char *template = llvm_param.clang_bpf_cmd_template;
+	char *pipe_template = NULL;
+	const char *opts = llvm_param.opts;
 	char *command_echo = NULL, *command_out;
 	char *perf_include_dir = system_path(PERF_INCLUDE_DIR);
 
@@ -483,6 +489,26 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	force_set_env("KERNEL_INC_OPTIONS", kbuild_include_opts);
 	force_set_env("PERF_BPF_INC_OPTIONS", perf_bpf_include_opts);
 	force_set_env("WORKING_DIR", kbuild_dir ? : ".");
+
+	if (opts) {
+		err = search_program(llvm_param.llc_path, "llc", llc_path);
+		if (err) {
+			pr_err("ERROR:\tunable to find llc.\n"
+			       "Hint:\tTry to install latest clang/llvm to support BPF. Check your $PATH\n"
+			       "     \tand 'llc-path' option in [llvm] section of ~/.perfconfig.\n");
+			version_notice();
+			goto errout;
+		}
+
+		if (asprintf(&pipe_template, "%s -emit-llvm | %s -march=bpf %s -filetype=obj -o -",
+			      template, llc_path, opts) < 0) {
+			pr_err("ERROR:\tnot enough memory to setup command line\n");
+			goto errout;
+		}
+
+		template = pipe_template;
+
+	}
 
 	/*
 	 * Since we may reset clang's working dir, path of source file
@@ -535,6 +561,7 @@ errout:
 	free(obj_buf);
 	free(perf_bpf_include_opts);
 	free(perf_include_dir);
+	free(pipe_template);
 	if (p_obj_buf)
 		*p_obj_buf = NULL;
 	if (p_obj_buf_sz)

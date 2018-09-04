@@ -165,7 +165,7 @@ config PPC
 	select GENERIC_CLOCKEVENTS_BROADCAST	if SMP
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_CPU_AUTOPROBE
-	select GENERIC_CPU_VULNERABILITIES	if PPC_BOOK3S_64
+	select GENERIC_CPU_VULNERABILITIES	if PPC_BARRIER_NOSPEC
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IRQ_SHOW_LEVEL
 	select GENERIC_SMP_IDLE_THREAD
@@ -197,6 +197,7 @@ config PPC
 	select HAVE_IOREMAP_PROT
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK
 	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_XZ			if PPC_BOOK3S
 	select HAVE_KPROBES
 	select HAVE_KPROBES_ON_FTRACE
 	select HAVE_KRETPROBES
@@ -225,6 +226,7 @@ config PPC
 	select IRQ_DOMAIN
 	select IRQ_FORCED_THREADING
 	select MODULES_USE_ELF_RELA
+	select NEED_DMA_MAP_STATE		if PPC64 || NOT_COHERENT_CACHE
 	select NEED_SG_DMA_LENGTH
 	select NO_BOOTMEM
 	select OF
@@ -239,6 +241,11 @@ config PPC
 	#
 	# Please keep this list sorted alphabetically.
 	#
+
+config PPC_BARRIER_NOSPEC
+    bool
+    default y
+    depends on PPC_BOOK3S_64 || PPC_FSL_BOOK3E
 
 config GENERIC_CSUM
 	def_bool n
@@ -383,10 +390,6 @@ config PGTABLE_LEVELS
 	default 3 if PPC_64K_PAGES && !PPC_BOOK3S_64
 	default 4
 
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
 source "arch/powerpc/sysdev/Kconfig"
 source "arch/powerpc/platforms/Kconfig"
 
@@ -397,8 +400,6 @@ config HIGHMEM
 	depends on PPC32
 
 source kernel/Kconfig.hz
-source kernel/Kconfig.preempt
-source "fs/Kconfig.binfmt"
 
 config HUGETLB_PAGE_SIZE_VARIABLE
 	bool
@@ -641,8 +642,6 @@ config ILLEGAL_POINTER_VALUE
 	default 0x5deadbeef0000000 if PPC64
 	default 0
 
-source "mm/Kconfig"
-
 config ARCH_MEMORY_PROBE
 	def_bool y
 	depends on MEMORY_HOTPLUG
@@ -883,9 +882,6 @@ config ISA
 config ZONE_DMA
 	bool
 	default y
-
-config NEED_DMA_MAP_STATE
-	def_bool (PPC64 || NOT_COHERENT_CACHE)
 
 config GENERIC_ISA_DMA
 	bool
@@ -1200,20 +1196,6 @@ endif
 
 config	ARCH_RANDOM
 	def_bool n
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "lib/Kconfig"
-
-source "arch/powerpc/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
 
 config PPC_LIB_RHEAP
 	bool

@@ -137,8 +137,7 @@ static int dss_initialize_debugfs(void)
 
 static void dss_uninitialize_debugfs(void)
 {
-	if (dss_debugfs_dir)
-		debugfs_remove_recursive(dss_debugfs_dir);
+	debugfs_remove_recursive(dss_debugfs_dir);
 }
 
 int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))

@@ -400,6 +400,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, 0x0f23), board_ahci_mobile }, /* Bay Trail AHCI */
 	{ PCI_VDEVICE(INTEL, 0x22a3), board_ahci_mobile }, /* Cherry Tr. AHCI */
 	{ PCI_VDEVICE(INTEL, 0x5ae3), board_ahci_mobile }, /* ApolloLake AHCI */
+	{ PCI_VDEVICE(INTEL, 0x34d3), board_ahci_mobile }, /* Ice Lake LP AHCI */
 
 	/* JMicron 360/1/3/5/6, match class to avoid IDE function */
 	{ PCI_VENDOR_ID_JMICRON, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID,
@@ -609,7 +610,7 @@ static int marvell_enable = 1;
 module_param(marvell_enable, int, 0644);
 MODULE_PARM_DESC(marvell_enable, "Marvell SATA via AHCI (1 = enabled)");
 
-static int mobile_lpm_policy = CONFIG_SATA_MOBILE_LPM_POLICY;
+static int mobile_lpm_policy = -1;
 module_param(mobile_lpm_policy, int, 0644);
 MODULE_PARM_DESC(mobile_lpm_policy, "Default LPM policy for mobile chipsets");
 
@@ -1280,6 +1281,59 @@ static bool ahci_broken_suspend(struct pci_dev *pdev)
 	return strcmp(buf, dmi->driver_data) < 0;
 }
 
+static bool ahci_broken_lpm(struct pci_dev *pdev)
+{
+	static const struct dmi_system_id sysids[] = {
+		/* Various Lenovo 50 series have LPM issues with older BIOSen */
+		{
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+				DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X250"),
+			},
+			.driver_data = "20180406", /* 1.31 */
+		},
+		{
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+				DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad L450"),
+			},
+			.driver_data = "20180420", /* 1.28 */
+		},
+		{
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+				DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T450s"),
+			},
+			.driver_data = "20180315", /* 1.33 */
+		},
+		{
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+				DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad W541"),
+			},
+			/*
+			 * Note date based on release notes, 2.35 has been
+			 * reported to be good, but I've been unable to get
+			 * a hold of the reporter to get the DMI BIOS date.
+			 * TODO: fix this.
+			 */
+			.driver_data = "20180310", /* 2.35 */
+		},
+		{ }	/* terminate list */
+	};
+	const struct dmi_system_id *dmi = dmi_first_match(sysids);
+	int year, month, date;
+	char buf[9];
+
+	if (!dmi)
+		return false;
+
+	dmi_get_date(DMI_BIOS_DATE, &year, &month, &date);
+	snprintf(buf, sizeof(buf), "%04d%02d%02d", year, month, date);
+
+	return strcmp(buf, dmi->driver_data) < 0;
+}
+
 static bool ahci_broken_online(struct pci_dev *pdev)
 {
 #define ENCODE_BUSDEVFN(bus, slot, func)			\
@@ -1550,6 +1604,37 @@ static int ahci_init_msi(struct pci_dev *pdev, unsigned int n_ports,
 	return pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSIX);
 }
 
+static void ahci_update_initial_lpm_policy(struct ata_port *ap,
+					   struct ahci_host_priv *hpriv)
+{
+	int policy = CONFIG_SATA_MOBILE_LPM_POLICY;
+
+
+	/* Ignore processing for non mobile platforms */
+	if (!(hpriv->flags & AHCI_HFLAG_IS_MOBILE))
+		return;
+
+	/* user modified policy via module param */
+	if (mobile_lpm_policy != -1) {
+		policy = mobile_lpm_policy;
+		goto update_policy;
+	}
+
+#ifdef CONFIG_ACPI
+	if (policy > ATA_LPM_MED_POWER &&
+	    (acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0)) {
+		if (hpriv->cap & HOST_CAP_PART)
+			policy = ATA_LPM_MIN_POWER_WITH_PARTIAL;
+		else if (hpriv->cap & HOST_CAP_SSC)
+			policy = ATA_LPM_MIN_POWER;
+	}
+#endif
+
+update_policy:
+	if (policy >= ATA_LPM_UNKNOWN && policy <= ATA_LPM_MIN_POWER)
+		ap->target_lpm_policy = policy;
+}
+
 static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	unsigned int board_id = ent->driver_data;
@@ -1694,6 +1779,12 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			"quirky BIOS, skipping spindown on poweroff\n");
 	}
 
+	if (ahci_broken_lpm(pdev)) {
+		pi.flags |= ATA_FLAG_NO_LPM;
+		dev_warn(&pdev->dev,
+			 "BIOS update required for Link Power Management support\n");
+	}
+
 	if (ahci_broken_suspend(pdev)) {
 		hpriv->flags |= AHCI_HFLAG_NO_SUSPEND;
 		dev_warn(&pdev->dev,
@@ -1747,10 +1838,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (ap->flags & ATA_FLAG_EM)
 			ap->em_message_type = hpriv->em_msg_type;
 
-		if ((hpriv->flags & AHCI_HFLAG_IS_MOBILE) &&
-		    mobile_lpm_policy >= ATA_LPM_UNKNOWN &&
-		    mobile_lpm_policy <= ATA_LPM_MIN_POWER)
-			ap->target_lpm_policy = mobile_lpm_policy;
+		ahci_update_initial_lpm_policy(ap, hpriv);
 
 		/* disabled/not-implemented port */
 		if (!(hpriv->port_map & (1 << i)))

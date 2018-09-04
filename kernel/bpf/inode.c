@@ -196,19 +196,21 @@ static void *map_seq_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct bpf_map *map = seq_file_to_map(m);
 	void *key = map_iter(m)->key;
+	void *prev_key;
 
 	if (map_iter(m)->done)
 		return NULL;
 
 	if (unlikely(v == SEQ_START_TOKEN))
-		goto done;
+		prev_key = NULL;
+	else
+		prev_key = key;
 
-	if (map->ops->map_get_next_key(map, key, key)) {
+	if (map->ops->map_get_next_key(map, prev_key, key)) {
 		map_iter(m)->done = true;
 		return NULL;
 	}
 
-done:
 	++(*pos);
 	return key;
 }
@@ -332,7 +334,8 @@ static int bpf_mkmap(struct dentry *dentry, umode_t mode, void *arg)
 	struct bpf_map *map = arg;
 
 	return bpf_mkobj_ops(dentry, mode, arg, &bpf_map_iops,
-			     map->btf ? &bpffs_map_fops : &bpffs_obj_fops);
+			     bpf_map_support_seq_show(map) ?
+			     &bpffs_map_fops : &bpffs_obj_fops);
 }
 
 static struct dentry *

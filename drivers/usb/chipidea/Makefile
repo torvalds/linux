@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_USB_CHIPIDEA)		+= ci_hdrc.o
 
-ci_hdrc-y				:= core.o otg.o debug.o
+ci_hdrc-y				:= core.o otg.o debug.o ulpi.o
 ci_hdrc-$(CONFIG_USB_CHIPIDEA_UDC)	+= udc.o
 ci_hdrc-$(CONFIG_USB_CHIPIDEA_HOST)	+= host.o
 ci_hdrc-$(CONFIG_USB_OTG_FSM)		+= otg_fsm.o
-ci_hdrc-$(CONFIG_USB_CHIPIDEA_ULPI)	+= ulpi.o
 
 # Glue/Bridge layers go here
 

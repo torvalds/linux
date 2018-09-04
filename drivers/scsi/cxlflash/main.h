@@ -107,12 +107,12 @@ cxlflash_assign_ops(struct dev_dependent_vals *ddv)
 {
 	const struct cxlflash_backend_ops *ops = NULL;
 
-#ifdef CONFIG_OCXL
+#ifdef CONFIG_OCXL_BASE
 	if (ddv->flags & CXLFLASH_OCXL_DEV)
 		ops = &cxlflash_ocxl_ops;
 #endif
 
-#ifdef CONFIG_CXL
+#ifdef CONFIG_CXL_BASE
 	if (!(ddv->flags & CXLFLASH_OCXL_DEV))
 		ops = &cxlflash_cxl_ops;
 #endif

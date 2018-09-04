@@ -30,6 +30,100 @@
 #include <drm/drmP.h>
 #include <drm/drm_print.h>
 
+void __drm_puts_coredump(struct drm_printer *p, const char *str)
+{
+	struct drm_print_iterator *iterator = p->arg;
+	ssize_t len;
+
+	if (!iterator->remain)
+		return;
+
+	if (iterator->offset < iterator->start) {
+		ssize_t copy;
+
+		len = strlen(str);
+
+		if (iterator->offset + len <= iterator->start) {
+			iterator->offset += len;
+			return;
+		}
+
+		copy = len - (iterator->start - iterator->offset);
+
+		if (copy > iterator->remain)
+			copy = iterator->remain;
+
+		/* Copy out the bit of the string that we need */
+		memcpy(iterator->data,
+			str + (iterator->start - iterator->offset), copy);
+
+		iterator->offset = iterator->start + copy;
+		iterator->remain -= copy;
+	} else {
+		ssize_t pos = iterator->offset - iterator->start;
+
+		len = min_t(ssize_t, strlen(str), iterator->remain);
+
+		memcpy(iterator->data + pos, str, len);
+
+		iterator->offset += len;
+		iterator->remain -= len;
+	}
+}
+EXPORT_SYMBOL(__drm_puts_coredump);
+
+void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf)
+{
+	struct drm_print_iterator *iterator = p->arg;
+	size_t len;
+	char *buf;
+
+	if (!iterator->remain)
+		return;
+
+	/* Figure out how big the string will be */
+	len = snprintf(NULL, 0, "%pV", vaf);
+
+	/* This is the easiest path, we've already advanced beyond the offset */
+	if (iterator->offset + len <= iterator->start) {
+		iterator->offset += len;
+		return;
+	}
+
+	/* Then check if we can directly copy into the target buffer */
+	if ((iterator->offset >= iterator->start) && (len < iterator->remain)) {
+		ssize_t pos = iterator->offset - iterator->start;
+
+		snprintf(((char *) iterator->data) + pos,
+			iterator->remain, "%pV", vaf);
+
+		iterator->offset += len;
+		iterator->remain -= len;
+
+		return;
+	}
+
+	/*
+	 * Finally, hit the slow path and make a temporary string to copy over
+	 * using _drm_puts_coredump
+	 */
+	buf = kmalloc(len + 1, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+	if (!buf)
+		return;
+
+	snprintf(buf, len + 1, "%pV", vaf);
+	__drm_puts_coredump(p, (const char *) buf);
+
+	kfree(buf);
+}
+EXPORT_SYMBOL(__drm_printfn_coredump);
+
+void __drm_puts_seq_file(struct drm_printer *p, const char *str)
+{
+	seq_puts(p->arg, str);
+}
+EXPORT_SYMBOL(__drm_puts_seq_file);
+
 void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf)
 {
 	seq_printf(p->arg, "%pV", vaf);
@@ -47,6 +141,23 @@ void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf)
 	pr_debug("%s %pV", p->prefix, vaf);
 }
 EXPORT_SYMBOL(__drm_printfn_debug);
+
+/**
+ * drm_puts - print a const string to a &drm_printer stream
+ * @p: the &drm printer
+ * @str: const string
+ *
+ * Allow &drm_printer types that have a constant string
+ * option to use it.
+ */
+void drm_puts(struct drm_printer *p, const char *str)
+{
+	if (p->puts)
+		p->puts(p, str);
+	else
+		drm_printf(p, "%s", str);
+}
+EXPORT_SYMBOL(drm_puts);
 
 /**
  * drm_printf - print to a &drm_printer stream

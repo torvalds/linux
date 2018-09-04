@@ -564,8 +564,9 @@ nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
 	if (lag_upper_info &&
 	    lag_upper_info->tx_type != NETDEV_LAG_TX_TYPE_ACTIVEBACKUP &&
 	    (lag_upper_info->tx_type != NETDEV_LAG_TX_TYPE_HASH ||
-	    (lag_upper_info->hash_type != NETDEV_LAG_HASH_L34 &&
-	    lag_upper_info->hash_type != NETDEV_LAG_HASH_E34))) {
+	     (lag_upper_info->hash_type != NETDEV_LAG_HASH_L34 &&
+	      lag_upper_info->hash_type != NETDEV_LAG_HASH_E34 &&
+	      lag_upper_info->hash_type != NETDEV_LAG_HASH_UNKNOWN))) {
 		can_offload = false;
 		nfp_flower_cmsg_warn(priv->app,
 				     "Unable to offload tx_type %u hash %u\n",

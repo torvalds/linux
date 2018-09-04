@@ -44,10 +44,6 @@ i915_param_named(modeset, int, 0400,
 	"Use kernel modesetting [KMS] (0=disable, "
 	"1=on, -1=force vga console preference [default])");
 
-i915_param_named_unsafe(panel_ignore_lid, int, 0600,
-	"Override lid status (0=autodetect, 1=autodetect disabled [default], "
-	"-1=force lid closed, -2=force lid open)");
-
 i915_param_named_unsafe(enable_dc, int, 0400,
 	"Enable power-saving display C-states. "
 	"(-1=auto [default]; 0=disable; 1=up to DC5; 2=up to DC6)");
@@ -92,7 +88,7 @@ i915_param_named_unsafe(enable_ppgtt, int, 0400,
 
 i915_param_named_unsafe(enable_psr, int, 0600,
 	"Enable PSR "
-	"(0=disabled, 1=enabled - link mode chosen per-platform, 2=force link-standby mode, 3=force link-off mode) "
+	"(0=disabled, 1=enabled) "
 	"Default: -1 (use per-chip default)");
 
 i915_param_named_unsafe(alpha_support, bool, 0400,
@@ -129,9 +125,6 @@ i915_param_named_unsafe(invert_brightness, int, 0600,
 
 i915_param_named(disable_display, bool, 0400,
 	"Disable display (default: false)");
-
-i915_param_named_unsafe(enable_cmd_parser, bool, 0400,
-	"Enable command parsing (true=enabled [default], false=disabled)");
 
 i915_param_named(mmio_debug, int, 0600,
 	"Enable the MMIO debug code for the first N failures (default: off). "

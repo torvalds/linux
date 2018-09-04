@@ -132,7 +132,7 @@ static void exynos_drm_plane_reset(struct drm_plane *plane)
 	if (plane->state) {
 		exynos_state = to_exynos_plane_state(plane->state);
 		if (exynos_state->base.fb)
-			drm_framebuffer_unreference(exynos_state->base.fb);
+			drm_framebuffer_put(exynos_state->base.fb);
 		kfree(exynos_state);
 		plane->state = NULL;
 	}
@@ -262,8 +262,6 @@ static void exynos_plane_atomic_update(struct drm_plane *plane,
 
 	if (!state->crtc)
 		return;
-
-	plane->crtc = state->crtc;
 
 	if (exynos_crtc->ops->update_plane)
 		exynos_crtc->ops->update_plane(exynos_crtc, exynos_plane);

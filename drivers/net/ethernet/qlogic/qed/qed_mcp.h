@@ -635,11 +635,14 @@ struct qed_mcp_info {
 	 */
 	spinlock_t				cmd_lock;
 
+	/* Flag to indicate whether sending a MFW mailbox command is blocked */
+	bool					b_block_cmd;
+
 	/* Spinlock used for syncing SW link-changes and link-changes
 	 * originating from attention context.
 	 */
 	spinlock_t				link_lock;
-	bool					block_mb_sending;
+
 	u32					public_base;
 	u32					drv_mb_addr;
 	u32					mfw_mb_addr;
@@ -660,14 +663,20 @@ struct qed_mcp_info {
 };
 
 struct qed_mcp_mb_params {
-	u32			cmd;
-	u32			param;
-	void			*p_data_src;
-	u8			data_src_size;
-	void			*p_data_dst;
-	u8			data_dst_size;
-	u32			mcp_resp;
-	u32			mcp_param;
+	u32 cmd;
+	u32 param;
+	void *p_data_src;
+	void *p_data_dst;
+	u8 data_src_size;
+	u8 data_dst_size;
+	u32 mcp_resp;
+	u32 mcp_param;
+	u32 flags;
+#define QED_MB_FLAG_CAN_SLEEP	(0x1 << 0)
+#define QED_MB_FLAG_AVOID_BLOCK	(0x1 << 1)
+#define QED_MB_FLAGS_IS_SET(params, flag) \
+	({ typeof(params) __params = (params); \
+	   (__params && (__params->flags & QED_MB_FLAG_ ## flag)); })
 };
 
 struct qed_drv_tlv_hdr {
@@ -838,6 +847,22 @@ int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
 		       u32 param,
 		       u32 *o_mcp_resp,
 		       u32 *o_mcp_param, u32 *o_txn_size, u32 *o_buf);
+
+/**
+ * @brief Read from sfp
+ *
+ *  @param p_hwfn - hw function
+ *  @param p_ptt  - PTT required for register access
+ *  @param port   - transceiver port
+ *  @param addr   - I2C address
+ *  @param offset - offset in sfp
+ *  @param len    - buffer length
+ *  @param p_buf  - buffer to read into
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_phy_sfp_read(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			 u32 port, u32 addr, u32 offset, u32 len, u8 *p_buf);
 
 /**
  * @brief indicates whether the MFW objects [under mcp_info] are accessible

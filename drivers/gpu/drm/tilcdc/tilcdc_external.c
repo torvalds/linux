@@ -103,12 +103,11 @@ struct drm_connector *tilcdc_encoder_find_connector(struct drm_device *ddev,
 						    struct drm_encoder *encoder)
 {
 	struct drm_connector *connector;
-	int i;
 
-	list_for_each_entry(connector, &ddev->mode_config.connector_list, head)
-		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++)
-			if (connector->encoder_ids[i] == encoder->base.id)
-				return connector;
+	list_for_each_entry(connector, &ddev->mode_config.connector_list, head) {
+		if (drm_connector_has_possible_encoder(connector, encoder))
+			return connector;
+	}
 
 	dev_err(ddev->dev, "No connector found for %s encoder (id %d)\n",
 		encoder->name, encoder->base.id);

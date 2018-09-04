@@ -11,7 +11,6 @@ config PARISC
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
-	select ARCH_WANTS_UBSAN_NO_NULL
 	select ARCH_SUPPORTS_MEMORY_FAILURE
 	select RTC_CLASS
 	select RTC_DRV_GENERIC
@@ -46,6 +45,7 @@ config PARISC
 	select HAVE_ARCH_HASH
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_REGS_AND_STACK_ACCESS_API
 	select GENERIC_SCHED_CLOCK
 	select HAVE_UNSTABLE_SCHED_CLOCK if SMP
 	select GENERIC_CLOCKEVENTS
@@ -129,10 +129,6 @@ config PGTABLE_LEVELS
 config SYS_SUPPORTS_HUGETLBFS
 	def_bool y if PA20
 
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
 
 menu "Processor type and features"
 
@@ -188,6 +184,10 @@ config PA20
 config PA11
 	def_bool y
 	depends on PA7000 || PA7100LC || PA7200 || PA7300LC
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select DMA_NONCOHERENT_OPS
+	select DMA_NONCOHERENT_CACHE_SYNC
 
 config PREFETCH
 	def_bool y
@@ -195,7 +195,7 @@ config PREFETCH
 
 config MLONGCALLS
 	bool "Enable the -mlong-calls compiler option for big kernels"
-	def_bool y if (!MODULES)
+	default y
 	depends on PA8X00
 	help
 	  If you configure the kernel to include many drivers built-in instead
@@ -244,11 +244,11 @@ config PARISC_PAGE_SIZE_4KB
 
 config PARISC_PAGE_SIZE_16KB
 	bool "16KB"
-	depends on PA8X00
+	depends on PA8X00 && BROKEN
 
 config PARISC_PAGE_SIZE_64KB
 	bool "64KB"
-	depends on PA8X00
+	depends on PA8X00 && BROKEN
 
 endchoice
 
@@ -327,9 +327,7 @@ config NODES_SHIFT
 	default "3"
 	depends on NEED_MULTIPLE_NODES
 
-source "kernel/Kconfig.preempt"
 source "kernel/Kconfig.hz"
-source "mm/Kconfig"
 
 config COMPAT
 	def_bool y
@@ -347,27 +345,12 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
 	depends on SMP
-	default "32"
+	default "4"
 
 endmenu
 
 
 source "drivers/parisc/Kconfig"
-
-
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/parisc/Kconfig.debug"
 
 config SECCOMP
 	def_bool y
@@ -384,9 +367,3 @@ config SECCOMP
 	  defined by each seccomp mode.
 
 	  If unsure, say Y. Only embedded should say N here.
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"

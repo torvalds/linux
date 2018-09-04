@@ -1559,10 +1559,10 @@ static int lbs_cfg_get_station(struct wiphy *wiphy, struct net_device *dev,
 	int ret;
 	size_t i;
 
-	sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES) |
-			 BIT(NL80211_STA_INFO_TX_PACKETS) |
-			 BIT(NL80211_STA_INFO_RX_BYTES) |
-			 BIT(NL80211_STA_INFO_RX_PACKETS);
+	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BYTES) |
+			 BIT_ULL(NL80211_STA_INFO_TX_PACKETS) |
+			 BIT_ULL(NL80211_STA_INFO_RX_BYTES) |
+			 BIT_ULL(NL80211_STA_INFO_RX_PACKETS);
 	sinfo->tx_bytes = priv->dev->stats.tx_bytes;
 	sinfo->tx_packets = priv->dev->stats.tx_packets;
 	sinfo->rx_bytes = priv->dev->stats.rx_bytes;
@@ -1572,14 +1572,14 @@ static int lbs_cfg_get_station(struct wiphy *wiphy, struct net_device *dev,
 	ret = lbs_get_rssi(priv, &signal, &noise);
 	if (ret == 0) {
 		sinfo->signal = signal;
-		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
 	}
 
 	/* Convert priv->cur_rate from hw_value to NL80211 value */
 	for (i = 0; i < ARRAY_SIZE(lbs_rates); i++) {
 		if (priv->cur_rate == lbs_rates[i].hw_value) {
 			sinfo->txrate.legacy = lbs_rates[i].bitrate;
-			sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
+			sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 			break;
 		}
 	}

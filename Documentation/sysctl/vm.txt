@@ -27,6 +27,7 @@ Currently, these files are in /proc/sys/vm:
 - dirty_bytes
 - dirty_expire_centisecs
 - dirty_ratio
+- dirtytime_expire_seconds
 - dirty_writeback_centisecs
 - drop_caches
 - extfrag_threshold
@@ -44,6 +45,7 @@ Currently, these files are in /proc/sys/vm:
 - mmap_rnd_bits
 - mmap_rnd_compat_bits
 - nr_hugepages
+- nr_hugepages_mempolicy
 - nr_overcommit_hugepages
 - nr_trim_pages         (only if CONFIG_MMU=n)
 - numa_zonelist_order
@@ -175,6 +177,18 @@ and reclaimable pages, the number of pages at which a process which is
 generating disk writes will itself start writing out dirty data.
 
 The total available memory is not equal to total system memory.
+
+==============================================================
+
+dirtytime_expire_seconds
+
+When a lazytime inode is constantly having its pages dirtied, the inode with
+an updated timestamp will never get chance to be written out.  And, if the
+only thing that has happened on the file system is a dirtytime inode caused
+by an atime update, a worker will be scheduled to make sure that inode
+eventually gets pushed out to disk.  This tunable is used to define when dirty
+inode is old enough to be eligible for writeback by the kernel flusher threads.
+And, it is also used as the interval to wakeup dirtytime_writeback thread.
 
 ==============================================================
 
@@ -519,6 +533,15 @@ See Documentation/admin-guide/mm/hugetlbpage.rst
 
 ==============================================================
 
+nr_hugepages_mempolicy
+
+Change the size of the hugepage pool at run-time on a specific
+set of NUMA nodes.
+
+See Documentation/admin-guide/mm/hugetlbpage.rst
+
+==============================================================
+
 nr_overcommit_hugepages
 
 Change the maximum size of the hugepage pool. The maximum is
@@ -668,7 +691,7 @@ and don't use much of it.
 The default value is 0.
 
 See Documentation/vm/overcommit-accounting.rst and
-mm/mmap.c::__vm_enough_memory() for more information.
+mm/util.c::__vm_enough_memory() for more information.
 
 ==============================================================
 

@@ -7112,7 +7112,7 @@ static u32 ipw_qos_get_burst_duration(struct ipw_priv *priv)
 {
 	u32 ret = 0;
 
-	if ((priv == NULL))
+	if (!priv)
 		return 0;
 
 	if (!(priv->ieee->modulation & LIBIPW_OFDM_MODULATION))
@@ -11888,7 +11888,7 @@ static int ipw_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
-	priv->suspend_at = get_seconds();
+	priv->suspend_at = ktime_get_boottime_seconds();
 
 	return 0;
 }
@@ -11925,7 +11925,7 @@ static int ipw_pci_resume(struct pci_dev *pdev)
 	 * the queue of needed */
 	netif_device_attach(dev);
 
-	priv->suspend_time = get_seconds() - priv->suspend_at;
+	priv->suspend_time = ktime_get_boottime_seconds() - priv->suspend_at;
 
 	/* Bring the device back up */
 	schedule_work(&priv->up);

@@ -221,11 +221,12 @@ static int udp_reuseport_add_sock(struct sock *sk, struct udp_hslot *hslot)
 		    (sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
 		    sk2->sk_reuseport && uid_eq(uid, sock_i_uid(sk2)) &&
 		    inet_rcv_saddr_equal(sk, sk2, false)) {
-			return reuseport_add_sock(sk, sk2);
+			return reuseport_add_sock(sk, sk2,
+						  inet_rcv_saddr_any(sk));
 		}
 	}
 
-	return reuseport_alloc(sk);
+	return reuseport_alloc(sk, inet_rcv_saddr_any(sk));
 }
 
 /**
@@ -498,6 +499,8 @@ struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 						  daddr, hnum, dif, sdif,
 						  exact_dif, hslot2, skb);
 		}
+		if (unlikely(IS_ERR(result)))
+			return NULL;
 		return result;
 	}
 begin:
@@ -512,6 +515,8 @@ begin:
 						   saddr, sport);
 				result = reuseport_select_sock(sk, hash, skb,
 							sizeof(struct udphdr));
+				if (unlikely(IS_ERR(result)))
+					return NULL;
 				if (result)
 					return result;
 			}
@@ -926,11 +931,6 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	if (msg->msg_flags & MSG_OOB) /* Mirror BSD error message compatibility */
 		return -EOPNOTSUPP;
 
-	ipc.opt = NULL;
-	ipc.tx_flags = 0;
-	ipc.ttl = 0;
-	ipc.tos = -1;
-
 	getfrag = is_udplite ? udplite_getfrag : ip_generic_getfrag;
 
 	fl4 = &inet->cork.fl.u.ip4;
@@ -977,9 +977,7 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		connected = 1;
 	}
 
-	ipc.sockc.tsflags = sk->sk_tsflags;
-	ipc.addr = inet->inet_saddr;
-	ipc.oif = sk->sk_bound_dev_if;
+	ipcm_init_sk(&ipc, inet);
 	ipc.gso_size = up->gso_size;
 
 	if (msg->msg_controllen) {
@@ -1026,8 +1024,6 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	saddr = ipc.addr;
 	ipc.addr = faddr = daddr;
-
-	sock_tx_timestamp(sk, ipc.sockc.tsflags, &ipc.tx_flags);
 
 	if (ipc.opt && ipc.opt->opt.srr) {
 		if (!daddr) {
@@ -2591,7 +2587,7 @@ int compat_udp_getsockopt(struct sock *sk, int level, int optname,
  * 	udp_poll - wait for a UDP event.
  *	@file - file struct
  *	@sock - socket
- *	@events - events to wait for
+ *	@wait - poll table
  *
  *	This is same as datagram poll, except for the special case of
  *	blocking sockets. If application is using a blocking fd
@@ -2600,23 +2596,23 @@ int compat_udp_getsockopt(struct sock *sk, int level, int optname,
  *	but then block when reading it. Add special case code
  *	to work around these arguably broken applications.
  */
-__poll_t udp_poll_mask(struct socket *sock, __poll_t events)
+__poll_t udp_poll(struct file *file, struct socket *sock, poll_table *wait)
 {
-	__poll_t mask = datagram_poll_mask(sock, events);
+	__poll_t mask = datagram_poll(file, sock, wait);
 	struct sock *sk = sock->sk;
 
 	if (!skb_queue_empty(&udp_sk(sk)->reader_queue))
 		mask |= EPOLLIN | EPOLLRDNORM;
 
 	/* Check for false positives due to checksum errors */
-	if ((mask & EPOLLRDNORM) && !(sock->file->f_flags & O_NONBLOCK) &&
+	if ((mask & EPOLLRDNORM) && !(file->f_flags & O_NONBLOCK) &&
 	    !(sk->sk_shutdown & RCV_SHUTDOWN) && first_packet_length(sk) == -1)
 		mask &= ~(EPOLLIN | EPOLLRDNORM);
 
 	return mask;
 
 }
-EXPORT_SYMBOL(udp_poll_mask);
+EXPORT_SYMBOL(udp_poll);
 
 int udp_abort(struct sock *sk, int err)
 {

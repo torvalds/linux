@@ -331,8 +331,20 @@ static void __init setup_boot_command_line(void)
 	append_to_cmdline(append_ipl_scpdata);
 }
 
+static void __init check_image_bootable(void)
+{
+	if (!memcmp(EP_STRING, (void *)EP_OFFSET, strlen(EP_STRING)))
+		return;
+
+	sclp_early_printk("Linux kernel boot failure: An attempt to boot a vmlinux ELF image failed.\n");
+	sclp_early_printk("This image does not contain all parts necessary for starting up. Use\n");
+	sclp_early_printk("bzImage or arch/s390/boot/compressed/vmlinux instead.\n");
+	disabled_wait(0xbadb007);
+}
+
 void __init startup_init(void)
 {
+	check_image_bootable();
 	time_early_init();
 	init_kernel_storage_key();
 	lockdep_off();

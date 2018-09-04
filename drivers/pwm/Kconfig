@@ -286,7 +286,7 @@ config PWM_MTK_DISP
 
 config PWM_MEDIATEK
 	tristate "MediaTek PWM support"
-	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on ARCH_MEDIATEK || RALINK || COMPILE_TEST
 	help
 	  Generic PWM framework driver for Mediatek ARM SoC.
 

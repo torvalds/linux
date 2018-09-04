@@ -3,8 +3,11 @@
  * Copyright (c) 2017 Jesper Dangaard Brouer, Red Hat Inc.
  * Released under terms in GPL version 2.  See COPYING.
  */
+#include <linux/bpf.h>
+#include <linux/filter.h>
 #include <linux/types.h>
 #include <linux/mm.h>
+#include <linux/netdevice.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/rhashtable.h>
@@ -45,8 +48,8 @@ static u32 xdp_mem_id_hashfn(const void *data, u32 len, u32 seed)
 	BUILD_BUG_ON(FIELD_SIZEOF(struct xdp_mem_allocator, mem.id)
 		     != sizeof(u32));
 
-	/* Use cyclic increasing ID as direct hash key, see rht_bucket_index */
-	return key << RHT_HASH_RESERVED_SPACE;
+	/* Use cyclic increasing ID as direct hash key */
+	return key;
 }
 
 static int xdp_mem_id_cmp(struct rhashtable_compare_arg *arg,
@@ -95,23 +98,15 @@ static void __xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
 {
 	struct xdp_mem_allocator *xa;
 	int id = xdp_rxq->mem.id;
-	int err;
 
 	if (id == 0)
 		return;
 
 	mutex_lock(&mem_id_lock);
 
-	xa = rhashtable_lookup(mem_id_ht, &id, mem_id_rht_params);
-	if (!xa) {
-		mutex_unlock(&mem_id_lock);
-		return;
-	}
-
-	err = rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params);
-	WARN_ON(err);
-
-	call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
+	xa = rhashtable_lookup_fast(mem_id_ht, &id, mem_id_rht_params);
+	if (xa && !rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
+		call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
 
 	mutex_unlock(&mem_id_lock);
 }
@@ -327,10 +322,12 @@ static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct,
 		/* mem->id is valid, checked in xdp_rxq_info_reg_mem_model() */
 		xa = rhashtable_lookup(mem_id_ht, &mem->id, mem_id_rht_params);
 		page = virt_to_head_page(data);
-		if (xa)
+		if (xa) {
+			napi_direct &= !xdp_return_frame_no_direct();
 			page_pool_put_page(xa->page_pool, page, napi_direct);
-		else
+		} else {
 			put_page(page);
+		}
 		rcu_read_unlock();
 		break;
 	case MEM_TYPE_PAGE_SHARED:
@@ -370,3 +367,34 @@ void xdp_return_buff(struct xdp_buff *xdp)
 	__xdp_return(xdp->data, &xdp->rxq->mem, true, xdp->handle);
 }
 EXPORT_SYMBOL_GPL(xdp_return_buff);
+
+int xdp_attachment_query(struct xdp_attachment_info *info,
+			 struct netdev_bpf *bpf)
+{
+	bpf->prog_id = info->prog ? info->prog->aux->id : 0;
+	bpf->prog_flags = info->prog ? info->flags : 0;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xdp_attachment_query);
+
+bool xdp_attachment_flags_ok(struct xdp_attachment_info *info,
+			     struct netdev_bpf *bpf)
+{
+	if (info->prog && (bpf->flags ^ info->flags) & XDP_FLAGS_MODES) {
+		NL_SET_ERR_MSG(bpf->extack,
+			       "program loaded with different flags");
+		return false;
+	}
+	return true;
+}
+EXPORT_SYMBOL_GPL(xdp_attachment_flags_ok);
+
+void xdp_attachment_setup(struct xdp_attachment_info *info,
+			  struct netdev_bpf *bpf)
+{
+	if (info->prog)
+		bpf_prog_put(info->prog);
+	info->prog = bpf->prog;
+	info->flags = bpf->flags;
+}
+EXPORT_SYMBOL_GPL(xdp_attachment_setup);

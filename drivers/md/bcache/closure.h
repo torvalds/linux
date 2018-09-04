@@ -159,7 +159,7 @@ struct closure {
 #define CLOSURE_MAGIC_DEAD	0xc054dead
 #define CLOSURE_MAGIC_ALIVE	0xc054a11e
 
-	unsigned		magic;
+	unsigned int		magic;
 	struct list_head	all;
 	unsigned long		ip;
 	unsigned long		waiting_on;
@@ -186,13 +186,13 @@ static inline void closure_sync(struct closure *cl)
 
 #ifdef CONFIG_BCACHE_CLOSURES_DEBUG
 
-int closure_debug_init(void);
+void closure_debug_init(void);
 void closure_debug_create(struct closure *cl);
 void closure_debug_destroy(struct closure *cl);
 
 #else
 
-static inline int closure_debug_init(void) { return 0; }
+static inline void closure_debug_init(void) {}
 static inline void closure_debug_create(struct closure *cl) {}
 static inline void closure_debug_destroy(struct closure *cl) {}
 
@@ -289,10 +289,12 @@ static inline void closure_init_stack(struct closure *cl)
 }
 
 /**
- * closure_wake_up - wake up all closures on a wait list.
+ * closure_wake_up - wake up all closures on a wait list,
+ *		     with memory barrier
  */
 static inline void closure_wake_up(struct closure_waitlist *list)
 {
+	/* Memory barrier for the wait list */
 	smp_mb();
 	__closure_wake_up(list);
 }

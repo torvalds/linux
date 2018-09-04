@@ -183,10 +183,10 @@ static int get_vddc_lookup_table(
 					ATOM_Tonga_Voltage_Lookup_Record,
 					entries, vddc_lookup_pp_tables, i);
 		record->us_calculated = 0;
-		record->us_vdd = atom_record->usVdd;
-		record->us_cac_low = atom_record->usCACLow;
-		record->us_cac_mid = atom_record->usCACMid;
-		record->us_cac_high = atom_record->usCACHigh;
+		record->us_vdd = le16_to_cpu(atom_record->usVdd);
+		record->us_cac_low = le16_to_cpu(atom_record->usCACLow);
+		record->us_cac_mid = le16_to_cpu(atom_record->usCACMid);
+		record->us_cac_high = le16_to_cpu(atom_record->usCACHigh);
 	}
 
 	*lookup_table = table;

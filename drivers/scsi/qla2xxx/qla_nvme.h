@@ -142,7 +142,7 @@ struct pt_ls4_rx_unsol {
 /*
  * Global functions prototype in qla_nvme.c source file.
  */
-void qla_nvme_register_hba(struct scsi_qla_host *);
+int qla_nvme_register_hba(struct scsi_qla_host *);
 int  qla_nvme_register_remote(struct scsi_qla_host *, struct fc_port *);
 void qla_nvme_delete(struct scsi_qla_host *);
 void qla_nvme_abort(struct qla_hw_data *, struct srb *sp, int res);

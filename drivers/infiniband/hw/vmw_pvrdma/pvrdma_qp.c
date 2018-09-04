@@ -599,7 +599,8 @@ static inline void *get_rq_wqe(struct pvrdma_qp *qp, unsigned int n)
 				       qp->rq.offset + n * qp->rq.wqe_size);
 }
 
-static int set_reg_seg(struct pvrdma_sq_wqe_hdr *wqe_hdr, struct ib_reg_wr *wr)
+static int set_reg_seg(struct pvrdma_sq_wqe_hdr *wqe_hdr,
+		       const struct ib_reg_wr *wr)
 {
 	struct pvrdma_user_mr *mr = to_vmr(wr->mr);
 
@@ -623,8 +624,8 @@ static int set_reg_seg(struct pvrdma_sq_wqe_hdr *wqe_hdr, struct ib_reg_wr *wr)
  *
  * @return: 0 on success, otherwise errno returned.
  */
-int pvrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		     struct ib_send_wr **bad_wr)
+int pvrdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		     const struct ib_send_wr **bad_wr)
 {
 	struct pvrdma_qp *qp = to_vqp(ibqp);
 	struct pvrdma_dev *dev = to_vdev(ibqp->device);
@@ -827,8 +828,8 @@ out:
  *
  * @return: 0 on success, otherwise errno returned.
  */
-int pvrdma_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		     struct ib_recv_wr **bad_wr)
+int pvrdma_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		     const struct ib_recv_wr **bad_wr)
 {
 	struct pvrdma_dev *dev = to_vdev(ibqp->device);
 	unsigned long flags;

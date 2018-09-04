@@ -29,6 +29,7 @@
 #include <net/netfilter/nf_conntrack_ecache.h>
 #include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netfilter/nf_conntrack_synproxy.h>
+#include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_log.h>
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
@@ -274,31 +275,6 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
 static inline struct nf_tcp_net *tcp_pernet(struct net *net)
 {
 	return &net->ct.nf_ct_proto.tcp;
-}
-
-static bool tcp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
-			     struct net *net, struct nf_conntrack_tuple *tuple)
-{
-	const struct tcphdr *hp;
-	struct tcphdr _hdr;
-
-	/* Actually only need first 4 bytes to get ports. */
-	hp = skb_header_pointer(skb, dataoff, 4, &_hdr);
-	if (hp == NULL)
-		return false;
-
-	tuple->src.u.tcp.port = hp->source;
-	tuple->dst.u.tcp.port = hp->dest;
-
-	return true;
-}
-
-static bool tcp_invert_tuple(struct nf_conntrack_tuple *tuple,
-			     const struct nf_conntrack_tuple *orig)
-{
-	tuple->src.u.tcp.port = orig->dst.u.tcp.port;
-	tuple->dst.u.tcp.port = orig->src.u.tcp.port;
-	return true;
 }
 
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
@@ -793,27 +769,21 @@ static int tcp_error(struct net *net, struct nf_conn *tmpl,
 	return NF_ACCEPT;
 }
 
-static unsigned int *tcp_get_timeouts(struct net *net)
-{
-	return tcp_pernet(net)->timeouts;
-}
-
 /* Returns verdict for packet, or -1 for invalid. */
 static int tcp_packet(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
-		      enum ip_conntrack_info ctinfo,
-		      unsigned int *timeouts)
+		      enum ip_conntrack_info ctinfo)
 {
 	struct net *net = nf_ct_net(ct);
 	struct nf_tcp_net *tn = tcp_pernet(net);
 	struct nf_conntrack_tuple *tuple;
 	enum tcp_conntrack new_state, old_state;
+	unsigned int index, *timeouts;
 	enum ip_conntrack_dir dir;
 	const struct tcphdr *th;
 	struct tcphdr _tcph;
 	unsigned long timeout;
-	unsigned int index;
 
 	th = skb_header_pointer(skb, dataoff, sizeof(_tcph), &_tcph);
 	BUG_ON(th == NULL);
@@ -1046,6 +1016,10 @@ static int tcp_packet(struct nf_conn *ct,
 	    && new_state == TCP_CONNTRACK_FIN_WAIT)
 		ct->proto.tcp.seen[dir].flags |= IP_CT_TCP_FLAG_CLOSE_INIT;
 
+	timeouts = nf_ct_timeout_lookup(ct);
+	if (!timeouts)
+		timeouts = tn->timeouts;
+
 	if (ct->proto.tcp.retrans >= tn->tcp_max_retrans &&
 	    timeouts[new_state] > timeouts[TCP_CONNTRACK_RETRANS])
 		timeout = timeouts[TCP_CONNTRACK_RETRANS];
@@ -1095,7 +1069,7 @@ static int tcp_packet(struct nf_conn *ct,
 
 /* Called when a new connection for this protocol found. */
 static bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		    unsigned int dataoff, unsigned int *timeouts)
+		    unsigned int dataoff)
 {
 	enum tcp_conntrack new_state;
 	const struct tcphdr *th;
@@ -1313,10 +1287,12 @@ static unsigned int tcp_nlattr_tuple_size(void)
 static int tcp_timeout_nlattr_to_obj(struct nlattr *tb[],
 				     struct net *net, void *data)
 {
-	unsigned int *timeouts = data;
 	struct nf_tcp_net *tn = tcp_pernet(net);
+	unsigned int *timeouts = data;
 	int i;
 
+	if (!timeouts)
+		timeouts = tn->timeouts;
 	/* set default TCP timeouts. */
 	for (i=0; i<TCP_CONNTRACK_TIMEOUT_MAX; i++)
 		timeouts[i] = tn->timeouts[i];
@@ -1559,13 +1535,10 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 =
 {
 	.l3proto		= PF_INET,
 	.l4proto 		= IPPROTO_TCP,
-	.pkt_to_tuple 		= tcp_pkt_to_tuple,
-	.invert_tuple 		= tcp_invert_tuple,
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack 	= tcp_print_conntrack,
 #endif
 	.packet 		= tcp_packet,
-	.get_timeouts		= tcp_get_timeouts,
 	.new 			= tcp_new,
 	.error			= tcp_error,
 	.can_early_drop		= tcp_can_early_drop,
@@ -1597,13 +1570,10 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 =
 {
 	.l3proto		= PF_INET6,
 	.l4proto 		= IPPROTO_TCP,
-	.pkt_to_tuple 		= tcp_pkt_to_tuple,
-	.invert_tuple 		= tcp_invert_tuple,
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack 	= tcp_print_conntrack,
 #endif
 	.packet 		= tcp_packet,
-	.get_timeouts		= tcp_get_timeouts,
 	.new 			= tcp_new,
 	.error			= tcp_error,
 	.can_early_drop		= tcp_can_early_drop,

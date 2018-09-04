@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2013 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2013 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -40,7 +40,6 @@
  */
 
 static int vmw_prime_map_attach(struct dma_buf *dma_buf,
-				struct device *target_dev,
 				struct dma_buf_attachment *attach)
 {
 	return -ENOSYS;
@@ -72,17 +71,6 @@ static void vmw_prime_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 {
 }
 
-static void *vmw_prime_dmabuf_kmap_atomic(struct dma_buf *dma_buf,
-		unsigned long page_num)
-{
-	return NULL;
-}
-
-static void vmw_prime_dmabuf_kunmap_atomic(struct dma_buf *dma_buf,
-		unsigned long page_num, void *addr)
-{
-
-}
 static void *vmw_prime_dmabuf_kmap(struct dma_buf *dma_buf,
 		unsigned long page_num)
 {
@@ -109,9 +97,7 @@ const struct dma_buf_ops vmw_prime_dmabuf_ops =  {
 	.unmap_dma_buf = vmw_prime_unmap_dma_buf,
 	.release = NULL,
 	.map = vmw_prime_dmabuf_kmap,
-	.map_atomic = vmw_prime_dmabuf_kmap_atomic,
 	.unmap = vmw_prime_dmabuf_kunmap,
-	.unmap_atomic = vmw_prime_dmabuf_kunmap_atomic,
 	.mmap = vmw_prime_dmabuf_mmap,
 	.vmap = vmw_prime_dmabuf_vmap,
 	.vunmap = vmw_prime_dmabuf_vunmap,

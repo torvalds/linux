@@ -1007,7 +1007,7 @@ static int pio_wait(struct rvt_qp *qp,
 			int was_empty;
 
 			dev->n_piowait += !!(flag & RVT_S_WAIT_PIO);
-			dev->n_piodrain += !!(flag & RVT_S_WAIT_PIO_DRAIN);
+			dev->n_piodrain += !!(flag & HFI1_S_WAIT_PIO_DRAIN);
 			qp->s_flags |= flag;
 			was_empty = list_empty(&sc->piowait);
 			iowait_queue(ps->pkts_sent, &priv->s_iowait,
@@ -1376,7 +1376,7 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		return pio_wait(qp,
 				ps->s_txreq->psc,
 				ps,
-				RVT_S_WAIT_PIO_DRAIN);
+				HFI1_S_WAIT_PIO_DRAIN);
 	return sr(qp, ps, 0);
 }
 
@@ -1410,7 +1410,8 @@ static void hfi1_fill_device_attr(struct hfi1_devdata *dd)
 	rdi->dparms.props.max_fast_reg_page_list_len = UINT_MAX;
 	rdi->dparms.props.max_qp = hfi1_max_qps;
 	rdi->dparms.props.max_qp_wr = hfi1_max_qp_wrs;
-	rdi->dparms.props.max_sge = hfi1_max_sges;
+	rdi->dparms.props.max_send_sge = hfi1_max_sges;
+	rdi->dparms.props.max_recv_sge = hfi1_max_sges;
 	rdi->dparms.props.max_sge_rd = hfi1_max_sges;
 	rdi->dparms.props.max_cq = hfi1_max_cqs;
 	rdi->dparms.props.max_ah = hfi1_max_ahs;
@@ -1496,15 +1497,6 @@ static int query_port(struct rvt_dev_info *rdi, u8 port_num,
 				      4096 : hfi1_max_mtu), IB_MTU_4096);
 	props->active_mtu = !valid_ib_mtu(ppd->ibmtu) ? props->max_mtu :
 		mtu_to_enum(ppd->ibmtu, IB_MTU_4096);
-
-	/*
-	 * sm_lid of 0xFFFF needs special handling so that it can
-	 * be differentiated from a permissve LID of 0xFFFF.
-	 * We set the grh_required flag here so the SA can program
-	 * the DGID in the address handle appropriately
-	 */
-	if (props->sm_lid == be16_to_cpu(IB_LID_PERMISSIVE))
-		props->grh_required = true;
 
 	return 0;
 }
@@ -1892,7 +1884,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->process_mad = hfi1_process_mad;
 	ibdev->get_dev_fw_str = hfi1_get_dev_fw_str;
 
-	strncpy(ibdev->node_desc, init_utsname()->nodename,
+	strlcpy(ibdev->node_desc, init_utsname()->nodename,
 		sizeof(ibdev->node_desc));
 
 	/*

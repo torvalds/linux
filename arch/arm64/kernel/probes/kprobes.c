@@ -275,7 +275,7 @@ static int __kprobes reenter_kprobe(struct kprobe *p,
 		break;
 	case KPROBE_HIT_SS:
 	case KPROBE_REENTER:
-		pr_warn("Unrecoverable kprobe detected at %p.\n", p->addr);
+		pr_warn("Unrecoverable kprobe detected.\n");
 		dump_kprobe(p);
 		BUG();
 		break;
@@ -395,9 +395,9 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 			/*
 			 * If we have no pre-handler or it returned 0, we
 			 * continue with normal processing.  If we have a
-			 * pre-handler and it returned non-zero, it prepped
-			 * for calling the break_handler below on re-entry,
-			 * so get out doing nothing more here.
+			 * pre-handler and it returned non-zero, it will
+			 * modify the execution path and no need to single
+			 * stepping. Let's just reset current kprobe and exit.
 			 *
 			 * pre_handler can hit a breakpoint and can step thru
 			 * before return, keep PSTATE D-flag enabled until
@@ -405,16 +405,8 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 			 */
 			if (!p->pre_handler || !p->pre_handler(p, regs)) {
 				setup_singlestep(p, regs, kcb, 0);
-				return;
-			}
-		}
-	} else if ((le32_to_cpu(*(kprobe_opcode_t *) addr) ==
-	    BRK64_OPCODE_KPROBES) && cur_kprobe) {
-		/* We probably hit a jprobe.  Call its break handler. */
-		if (cur_kprobe->break_handler  &&
-		     cur_kprobe->break_handler(cur_kprobe, regs)) {
-			setup_singlestep(cur_kprobe, regs, kcb, 0);
-			return;
+			} else
+				reset_current_kprobe();
 		}
 	}
 	/*
@@ -463,74 +455,6 @@ kprobe_breakpoint_handler(struct pt_regs *regs, unsigned int esr)
 {
 	kprobe_handler(regs);
 	return DBG_HOOK_HANDLED;
-}
-
-int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	struct jprobe *jp = container_of(p, struct jprobe, kp);
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-
-	kcb->jprobe_saved_regs = *regs;
-	/*
-	 * Since we can't be sure where in the stack frame "stacked"
-	 * pass-by-value arguments are stored we just don't try to
-	 * duplicate any of the stack. Do not use jprobes on functions that
-	 * use more than 64 bytes (after padding each to an 8 byte boundary)
-	 * of arguments, or pass individual arguments larger than 16 bytes.
-	 */
-
-	instruction_pointer_set(regs, (unsigned long) jp->entry);
-	preempt_disable();
-	pause_graph_tracing();
-	return 1;
-}
-
-void __kprobes jprobe_return(void)
-{
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-
-	/*
-	 * Jprobe handler return by entering break exception,
-	 * encoded same as kprobe, but with following conditions
-	 * -a special PC to identify it from the other kprobes.
-	 * -restore stack addr to original saved pt_regs
-	 */
-	asm volatile("				mov sp, %0	\n"
-		     "jprobe_return_break:	brk %1		\n"
-		     :
-		     : "r" (kcb->jprobe_saved_regs.sp),
-		       "I" (BRK64_ESR_KPROBES)
-		     : "memory");
-
-	unreachable();
-}
-
-int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	long stack_addr = kcb->jprobe_saved_regs.sp;
-	long orig_sp = kernel_stack_pointer(regs);
-	struct jprobe *jp = container_of(p, struct jprobe, kp);
-	extern const char jprobe_return_break[];
-
-	if (instruction_pointer(regs) != (u64) jprobe_return_break)
-		return 0;
-
-	if (orig_sp != stack_addr) {
-		struct pt_regs *saved_regs =
-		    (struct pt_regs *)kcb->jprobe_saved_regs.sp;
-		pr_err("current sp %lx does not match saved sp %lx\n",
-		       orig_sp, stack_addr);
-		pr_err("Saved registers for jprobe %p\n", jp);
-		__show_regs(saved_regs);
-		pr_err("Current registers\n");
-		__show_regs(regs);
-		BUG();
-	}
-	unpause_graph_tracing();
-	*regs = kcb->jprobe_saved_regs;
-	preempt_enable_no_resched();
-	return 1;
 }
 
 bool arch_within_kprobe_blacklist(unsigned long addr)

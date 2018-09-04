@@ -53,6 +53,29 @@
 
 #define PACKET3_COMPUTE(op, n) (PACKET3(op, n) | 1 << 1)
 
+#define	PACKETJ_CONDITION_CHECK0	0
+#define	PACKETJ_CONDITION_CHECK1	1
+#define	PACKETJ_CONDITION_CHECK2	2
+#define	PACKETJ_CONDITION_CHECK3	3
+#define	PACKETJ_CONDITION_CHECK4	4
+#define	PACKETJ_CONDITION_CHECK5	5
+#define	PACKETJ_CONDITION_CHECK6	6
+#define	PACKETJ_CONDITION_CHECK7	7
+
+#define	PACKETJ_TYPE0	0
+#define	PACKETJ_TYPE1	1
+#define	PACKETJ_TYPE2	2
+#define	PACKETJ_TYPE3	3
+#define	PACKETJ_TYPE4	4
+#define	PACKETJ_TYPE5	5
+#define	PACKETJ_TYPE6	6
+#define	PACKETJ_TYPE7	7
+
+#define PACKETJ(reg, r, cond, type)	((reg & 0x3FFFF) |			\
+			 ((r & 0x3F) << 18) |			\
+			 ((cond & 0xF) << 24) |				\
+			 ((type & 0xF) << 28))
+
 /* Packet 3 types */
 #define	PACKET3_NOP					0x10
 #define	PACKET3_SET_BASE				0x11

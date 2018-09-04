@@ -105,8 +105,25 @@ struct amdgpu_gmc {
 	/* protects concurrent invalidation */
 	spinlock_t		invalidate_lock;
 	bool			translate_further;
+	struct kfd_vm_fault_info *vm_fault_info;
+	atomic_t		vm_fault_info_updated;
 
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
 };
+
+/**
+ * amdgpu_gmc_vram_full_visible - Check if full VRAM is visible through the BAR
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns:
+ * True if full VRAM is visible through the BAR
+ */
+static inline bool amdgpu_gmc_vram_full_visible(struct amdgpu_gmc *gmc)
+{
+	WARN_ON(gmc->real_vram_size < gmc->visible_vram_size);
+
+	return (gmc->real_vram_size == gmc->visible_vram_size);
+}
 
 #endif

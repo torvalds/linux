@@ -426,6 +426,7 @@ static void run_fsm(void)
 				pd_claimed = 1;
 				if (!pi_schedule_claimed(pi_current, run_fsm))
 					return;
+				/* fall through */
 			case 1:
 				pd_claimed = 2;
 				pi_current->proto->connect(pi_current);
@@ -445,6 +446,7 @@ static void run_fsm(void)
 				spin_unlock_irqrestore(&pd_lock, saved_flags);
 				if (stop)
 					return;
+				/* fall through */
 			case Hold:
 				schedule_fsm();
 				return;

@@ -139,7 +139,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	/* ring tests don't use a job */
 	if (job) {
 		vm = job->vm;
-		fence_ctx = job->fence_ctx;
+		fence_ctx = job->base.s_fence->scheduled.context;
 	} else {
 		vm = NULL;
 		fence_ctx = 0;
@@ -164,8 +164,10 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return r;
 	}
 
+	need_ctx_switch = ring->current_ctx != fence_ctx;
 	if (ring->funcs->emit_pipeline_sync && job &&
 	    ((tmp = amdgpu_sync_get_fence(&job->sched_sync, NULL)) ||
+	     (amdgpu_sriov_vf(adev) && need_ctx_switch) ||
 	     amdgpu_vm_need_pipeline_sync(ring, job))) {
 		need_pipe_sync = true;
 		dma_fence_put(tmp);
@@ -196,7 +198,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	}
 
 	skip_preamble = ring->current_ctx == fence_ctx;
-	need_ctx_switch = ring->current_ctx != fence_ctx;
 	if (job && ring->funcs->emit_cntxcntl) {
 		if (need_ctx_switch)
 			status |= AMDGPU_HAVE_CTX_SWITCH;
@@ -231,6 +232,12 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (ib->flags & AMDGPU_IB_FLAG_TC_WB_NOT_INVALIDATE)
 		fence_flags |= AMDGPU_FENCE_FLAG_TC_WB_ONLY;
 
+	/* wrap the last IB with fence */
+	if (job && job->uf_addr) {
+		amdgpu_ring_emit_fence(ring, job->uf_addr, job->uf_sequence,
+				       fence_flags | AMDGPU_FENCE_FLAG_64BIT);
+	}
+
 	r = amdgpu_fence_emit(ring, f, fence_flags);
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
@@ -242,12 +249,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 
 	if (ring->funcs->insert_end)
 		ring->funcs->insert_end(ring);
-
-	/* wrap the last IB with fence */
-	if (job && job->uf_addr) {
-		amdgpu_ring_emit_fence(ring, job->uf_addr, job->uf_sequence,
-				       fence_flags | AMDGPU_FENCE_FLAG_64BIT);
-	}
 
 	if (patch_offset != ~0 && ring->funcs->patch_cond_exec)
 		amdgpu_ring_patch_cond_exec(ring, patch_offset);
@@ -353,7 +354,8 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 			ring->funcs->type == AMDGPU_RING_TYPE_VCE ||
 			ring->funcs->type == AMDGPU_RING_TYPE_UVD_ENC ||
 			ring->funcs->type == AMDGPU_RING_TYPE_VCN_DEC ||
-			ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC)
+			ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC ||
+			ring->funcs->type == AMDGPU_RING_TYPE_VCN_JPEG)
 			tmo = tmo_mm;
 		else
 			tmo = tmo_gfx;

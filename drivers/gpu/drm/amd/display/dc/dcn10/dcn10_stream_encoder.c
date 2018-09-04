@@ -257,20 +257,18 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	uint8_t colorimetry_bpc;
 	uint8_t dynamic_range_rgb = 0; /*full range*/
 	uint8_t dynamic_range_ycbcr = 1; /*bt709*/
+	uint8_t dp_pixel_encoding = 0;
+	uint8_t dp_component_depth = 0;
 
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
-
-	REG_UPDATE(DP_DB_CNTL, DP_DB_DISABLE, 1);
 
 	/* set pixel encoding */
 	switch (crtc_timing->pixel_encoding) {
 	case PIXEL_ENCODING_YCBCR422:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_TYPE_YCBCR422);
+		dp_pixel_encoding = DP_PIXEL_ENCODING_TYPE_YCBCR422;
 		break;
 	case PIXEL_ENCODING_YCBCR444:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_TYPE_YCBCR444);
+		dp_pixel_encoding = DP_PIXEL_ENCODING_TYPE_YCBCR444;
 
 		if (crtc_timing->flags.Y_ONLY)
 			if (crtc_timing->display_color_depth != COLOR_DEPTH_666)
@@ -278,8 +276,8 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 				 * Color depth of Y-only could be
 				 * 8, 10, 12, 16 bits
 				 */
-				REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-						DP_PIXEL_ENCODING_TYPE_Y_ONLY);
+				dp_pixel_encoding = DP_PIXEL_ENCODING_TYPE_Y_ONLY;
+
 		/* Note: DP_MSA_MISC1 bit 7 is the indicator
 		 * of Y-only mode.
 		 * This bit is set in HW if register
@@ -287,47 +285,54 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 		 */
 		break;
 	case PIXEL_ENCODING_YCBCR420:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_TYPE_YCBCR420);
+		dp_pixel_encoding = DP_PIXEL_ENCODING_TYPE_YCBCR420;
 		REG_UPDATE(DP_VID_TIMING, DP_VID_N_MUL, 1);
 		break;
 	default:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_TYPE_RGB444);
+		dp_pixel_encoding = DP_PIXEL_ENCODING_TYPE_RGB444;
 		break;
 	}
 
 	misc1 = REG_READ(DP_MSA_MISC);
+	/* For YCbCr420 and BT2020 Colorimetry Formats, VSC SDP shall be used.
+	 * When MISC1, bit 6, is Set to 1, a Source device uses a VSC SDP to indicate the
+	 * Pixel Encoding/Colorimetry Format and that a Sink device shall ignore MISC1, bit 7,
+	 * and MISC0, bits 7:1 (MISC1, bit 7, and MISC0, bits 7:1, become "don't care").
+	 */
+	if ((crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420) ||
+			(output_color_space == COLOR_SPACE_2020_YCBCR) ||
+			(output_color_space == COLOR_SPACE_2020_RGB_FULLRANGE) ||
+			(output_color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE))
+		misc1 = misc1 | 0x40;
+	else
+		misc1 = misc1 & ~0x40;
 
 	/* set color depth */
-
 	switch (crtc_timing->display_color_depth) {
 	case COLOR_DEPTH_666:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				0);
+		dp_component_depth = DP_COMPONENT_PIXEL_DEPTH_6BPC;
 		break;
 	case COLOR_DEPTH_888:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_PIXEL_DEPTH_8BPC);
+		dp_component_depth = DP_COMPONENT_PIXEL_DEPTH_8BPC;
 		break;
 	case COLOR_DEPTH_101010:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_PIXEL_DEPTH_10BPC);
-
+		dp_component_depth = DP_COMPONENT_PIXEL_DEPTH_10BPC;
 		break;
 	case COLOR_DEPTH_121212:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_PIXEL_DEPTH_12BPC);
+		dp_component_depth = DP_COMPONENT_PIXEL_DEPTH_12BPC;
 		break;
 	case COLOR_DEPTH_161616:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_PIXEL_DEPTH_16BPC);
+		dp_component_depth = DP_COMPONENT_PIXEL_DEPTH_16BPC;
 		break;
 	default:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_PIXEL_DEPTH_6BPC);
+		dp_component_depth = DP_COMPONENT_PIXEL_DEPTH_6BPC;
 		break;
 	}
+
+	/* Set DP pixel encoding and component depth */
+	REG_UPDATE_2(DP_PIXEL_FORMAT,
+			DP_PIXEL_ENCODING, dp_pixel_encoding,
+			DP_COMPONENT_DEPTH, dp_component_depth);
 
 	/* set dynamic range and YCbCr range */
 
@@ -354,7 +359,6 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 
 	switch (output_color_space) {
 	case COLOR_SPACE_SRGB:
-		misc0 = misc0 | 0x0;
 		misc1 = misc1 & ~0x80; /* bit7 = 0*/
 		dynamic_range_rgb = 0; /*full range*/
 		break;
@@ -1087,27 +1091,6 @@ static union audio_cea_channels speakers_to_channels(
 	return cea_channels;
 }
 
-static uint32_t calc_max_audio_packets_per_line(
-	const struct audio_crtc_info *crtc_info)
-{
-	uint32_t max_packets_per_line;
-
-	max_packets_per_line =
-		crtc_info->h_total - crtc_info->h_active;
-
-	if (crtc_info->pixel_repetition)
-		max_packets_per_line *= crtc_info->pixel_repetition;
-
-	/* for other hdmi features */
-	max_packets_per_line -= 58;
-	/* for Control Period */
-	max_packets_per_line -= 16;
-	/* Number of Audio Packets per Line */
-	max_packets_per_line /= 32;
-
-	return max_packets_per_line;
-}
-
 static void get_audio_clock_info(
 	enum dc_color_depth color_depth,
 	uint32_t crtc_pixel_clock_in_khz,
@@ -1201,16 +1184,9 @@ static void enc1_se_setup_hdmi_audio(
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
 	struct audio_clock_info audio_clock_info = {0};
-	uint32_t max_packets_per_line;
-
-	/* For now still do calculation, although this field is ignored when
-	 * above HDMI_PACKET_GEN_VERSION set to 1
-	 */
-	max_packets_per_line = calc_max_audio_packets_per_line(crtc_info);
 
 	/* HDMI_AUDIO_PACKET_CONTROL */
-	REG_UPDATE_2(HDMI_AUDIO_PACKET_CONTROL,
-			HDMI_AUDIO_PACKETS_PER_LINE, max_packets_per_line,
+	REG_UPDATE(HDMI_AUDIO_PACKET_CONTROL,
 			HDMI_AUDIO_DELAY_EN, 1);
 
 	/* AFMT_AUDIO_PACKET_CONTROL */

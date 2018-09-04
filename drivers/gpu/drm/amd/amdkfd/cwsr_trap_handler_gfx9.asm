@@ -103,6 +103,10 @@ var SQ_WAVE_STATUS_INST_ATC_MASK   = 0x00800000
 var SQ_WAVE_STATUS_SPI_PRIO_SHIFT  = 1
 var SQ_WAVE_STATUS_SPI_PRIO_MASK   = 0x00000006
 var SQ_WAVE_STATUS_HALT_MASK       = 0x2000
+var SQ_WAVE_STATUS_PRE_SPI_PRIO_SHIFT   = 0
+var SQ_WAVE_STATUS_PRE_SPI_PRIO_SIZE    = 1
+var SQ_WAVE_STATUS_POST_SPI_PRIO_SHIFT  = 3
+var SQ_WAVE_STATUS_POST_SPI_PRIO_SIZE   = 29
 
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT	= 12
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE	= 9
@@ -317,7 +321,7 @@ L_EXCP_CASE:
     // Restore SQ_WAVE_STATUS.
     s_and_b64       exec, exec, exec // Restore STATUS.EXECZ, not writable by s_setreg_b32
     s_and_b64       vcc, vcc, vcc    // Restore STATUS.VCCZ, not writable by s_setreg_b32
-    s_setreg_b32    hwreg(HW_REG_STATUS), s_save_status
+    set_status_without_spi_prio(s_save_status, ttmp2)
 
     s_rfe_b64       [ttmp0, ttmp1]
 end
@@ -1120,7 +1124,7 @@ end
     s_and_b32 s_restore_pc_hi, s_restore_pc_hi, 0x0000ffff	//pc[47:32]	   //Do it here in order not to affect STATUS
     s_and_b64	 exec, exec, exec  // Restore STATUS.EXECZ, not writable by s_setreg_b32
     s_and_b64	 vcc, vcc, vcc	// Restore STATUS.VCCZ, not writable by s_setreg_b32
-    s_setreg_b32    hwreg(HW_REG_STATUS),   s_restore_status	 // SCC is included, which is changed by previous salu
+    set_status_without_spi_prio(s_restore_status, s_restore_tmp) // SCC is included, which is changed by previous salu
 
     s_barrier							//barrier to ensure the readiness of LDS before access attempts from any other wave in the same TG //FIXME not performance-optimal at this time
 
@@ -1211,4 +1215,12 @@ function ack_sqc_store_workaround
     if ACK_SQC_STORE
         s_waitcnt lgkmcnt(0)
     end
+end
+
+function set_status_without_spi_prio(status, tmp)
+    // Do not restore STATUS.SPI_PRIO since scheduler may have raised it.
+    s_lshr_b32      tmp, status, SQ_WAVE_STATUS_POST_SPI_PRIO_SHIFT
+    s_setreg_b32    hwreg(HW_REG_STATUS, SQ_WAVE_STATUS_POST_SPI_PRIO_SHIFT, SQ_WAVE_STATUS_POST_SPI_PRIO_SIZE), tmp
+    s_nop           0x2 // avoid S_SETREG => S_SETREG hazard
+    s_setreg_b32    hwreg(HW_REG_STATUS, SQ_WAVE_STATUS_PRE_SPI_PRIO_SHIFT, SQ_WAVE_STATUS_PRE_SPI_PRIO_SIZE), status
 end

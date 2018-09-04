@@ -149,7 +149,7 @@
 
 		CP110_LABEL(icu): interrupt-controller@1e0000 {
 			compatible = "marvell,cp110-icu";
-			reg = <0x1e0000 0x10>;
+			reg = <0x1e0000 0x440>;
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			msi-parent = <&gicp>;
@@ -398,7 +398,7 @@
 		};
 
 		CP110_LABEL(crypto): crypto@800000 {
-			compatible = "inside-secure,safexcel-eip197";
+			compatible = "inside-secure,safexcel-eip197b";
 			reg = <0x800000 0x200000>;
 			interrupts = <ICU_GRP_NSR 87 IRQ_TYPE_LEVEL_HIGH>,
 				<ICU_GRP_NSR 88 IRQ_TYPE_LEVEL_HIGH>,

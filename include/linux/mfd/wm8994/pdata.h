@@ -222,6 +222,12 @@ struct wm8994_pdata {
 	 */
 	bool spkmode_pu;
 
+	/*
+	 * CS/ADDR must be pulled internally by the device on this
+	 * system.
+	 */
+	bool csnaddr_pd;
+
 	/**
 	 * Maximum number of channels clocks will be generated for,
 	 * useful for systems where and I2S bus with multiple data

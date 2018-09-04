@@ -5,7 +5,8 @@ menu "Qualcomm SoC drivers"
 
 config QCOM_COMMAND_DB
 	bool "Qualcomm Command DB"
-	depends on (ARCH_QCOM && OF) || COMPILE_TEST
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on OF_RESERVED_MEM
 	help
 	  Command DB queries shared memory by key string for shared system
 	  resources. Platform drivers that require to set state of a shared
@@ -38,6 +39,23 @@ config QCOM_GSBI
           Say y here to enable GSBI support.  The GSBI provides control
           functions for connecting the underlying serial UART, SPI, and I2C
           devices to the output pins.
+
+config QCOM_LLCC
+	tristate "Qualcomm Technologies, Inc. LLCC driver"
+	depends on ARCH_QCOM
+	help
+	  Qualcomm Technologies, Inc. platform specific
+	  Last Level Cache Controller(LLCC) driver. This provides interfaces
+	  to clients that use the LLCC. Say yes here to enable LLCC slice
+	  driver.
+
+config QCOM_SDM845_LLCC
+	tristate "Qualcomm Technologies, Inc. SDM845 LLCC driver"
+	depends on QCOM_LLCC
+	help
+	  Say yes here to enable the LLCC driver for SDM845. This provides
+	  data required to configure LLCC so that clients can start using the
+	  LLCC slices.
 
 config QCOM_MDT_LOADER
 	tristate
@@ -73,6 +91,16 @@ config QCOM_RMTFS_MEM
 	  service and its clients.
 
 	  Say y here if you intend to boot the modem remoteproc.
+
+config QCOM_RPMH
+	bool "Qualcomm RPM-Hardened (RPMH) Communication"
+	depends on ARCH_QCOM && ARM64 && OF || COMPILE_TEST
+	help
+	  Support for communication with the hardened-RPM blocks in
+	  Qualcomm Technologies Inc (QTI) SoCs. RPMH communication uses an
+	  internal bus to transmit state requests for shared resources. A set
+	  of hardware components aggregate requests for these resources and
+	  help apply the aggregated state on the resource.
 
 config QCOM_SMEM
 	tristate "Qualcomm Shared Memory Manager (SMEM)"

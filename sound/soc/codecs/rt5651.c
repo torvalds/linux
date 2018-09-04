@@ -331,11 +331,13 @@ static const struct snd_kcontrol_new rt5651_snd_controls[] = {
 	SOC_DOUBLE_TLV("Mono DAC Playback Volume", RT5651_DAC2_DIG_VOL,
 			RT5651_L_VOL_SFT, RT5651_R_VOL_SFT,
 			175, 0, dac_vol_tlv),
-	/* IN1/IN2 Control */
+	/* IN1/IN2/IN3 Control */
 	SOC_SINGLE_TLV("IN1 Boost", RT5651_IN1_IN2,
 		RT5651_BST_SFT1, 8, 0, bst_tlv),
 	SOC_SINGLE_TLV("IN2 Boost", RT5651_IN1_IN2,
 		RT5651_BST_SFT2, 8, 0, bst_tlv),
+	SOC_SINGLE_TLV("IN3 Boost", RT5651_IN3,
+		RT5651_BST_SFT1, 8, 0, bst_tlv),
 	/* INL/INR Volume Control */
 	SOC_DOUBLE_TLV("IN Capture Volume", RT5651_INL1_INR1_VOL,
 			RT5651_INL_VOL_SFT, RT5651_INR_VOL_SFT,
@@ -1581,6 +1583,24 @@ static void rt5651_disable_micbias1_for_ovcd(struct snd_soc_component *component
 	snd_soc_dapm_mutex_unlock(dapm);
 }
 
+static void rt5651_enable_micbias1_ovcd_irq(struct snd_soc_component *component)
+{
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
+
+	snd_soc_component_update_bits(component, RT5651_IRQ_CTRL2,
+		RT5651_IRQ_MB1_OC_MASK, RT5651_IRQ_MB1_OC_NOR);
+	rt5651->ovcd_irq_enabled = true;
+}
+
+static void rt5651_disable_micbias1_ovcd_irq(struct snd_soc_component *component)
+{
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
+
+	snd_soc_component_update_bits(component, RT5651_IRQ_CTRL2,
+		RT5651_IRQ_MB1_OC_MASK, RT5651_IRQ_MB1_OC_BP);
+	rt5651->ovcd_irq_enabled = false;
+}
+
 static void rt5651_clear_micbias1_ovcd(struct snd_soc_component *component)
 {
 	snd_soc_component_update_bits(component, RT5651_IRQ_CTRL2,
@@ -1622,10 +1642,80 @@ static bool rt5651_jack_inserted(struct snd_soc_component *component)
 	return val == 0;
 }
 
-/* Jack detect timings */
+/* Jack detect and button-press timings */
 #define JACK_SETTLE_TIME	100 /* milli seconds */
 #define JACK_DETECT_COUNT	5
 #define JACK_DETECT_MAXCOUNT	20  /* Aprox. 2 seconds worth of tries */
+#define JACK_UNPLUG_TIME	80  /* milli seconds */
+#define BP_POLL_TIME		10  /* milli seconds */
+#define BP_POLL_MAXCOUNT	200 /* assume something is wrong after this */
+#define BP_THRESHOLD		3
+
+static void rt5651_start_button_press_work(struct snd_soc_component *component)
+{
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
+
+	rt5651->poll_count = 0;
+	rt5651->press_count = 0;
+	rt5651->release_count = 0;
+	rt5651->pressed = false;
+	rt5651->press_reported = false;
+	rt5651_clear_micbias1_ovcd(component);
+	schedule_delayed_work(&rt5651->bp_work, msecs_to_jiffies(BP_POLL_TIME));
+}
+
+static void rt5651_button_press_work(struct work_struct *work)
+{
+	struct rt5651_priv *rt5651 =
+		container_of(work, struct rt5651_priv, bp_work.work);
+	struct snd_soc_component *component = rt5651->component;
+
+	/* Check the jack was not removed underneath us */
+	if (!rt5651_jack_inserted(component))
+		return;
+
+	if (rt5651_micbias1_ovcd(component)) {
+		rt5651->release_count = 0;
+		rt5651->press_count++;
+		/* Remember till after JACK_UNPLUG_TIME wait */
+		if (rt5651->press_count >= BP_THRESHOLD)
+			rt5651->pressed = true;
+		rt5651_clear_micbias1_ovcd(component);
+	} else {
+		rt5651->press_count = 0;
+		rt5651->release_count++;
+	}
+
+	/*
+	 * The pins get temporarily shorted on jack unplug, so we poll for
+	 * at least JACK_UNPLUG_TIME milli-seconds before reporting a press.
+	 */
+	rt5651->poll_count++;
+	if (rt5651->poll_count < (JACK_UNPLUG_TIME / BP_POLL_TIME)) {
+		schedule_delayed_work(&rt5651->bp_work,
+				      msecs_to_jiffies(BP_POLL_TIME));
+		return;
+	}
+
+	if (rt5651->pressed && !rt5651->press_reported) {
+		dev_dbg(component->dev, "headset button press\n");
+		snd_soc_jack_report(rt5651->hp_jack, SND_JACK_BTN_0,
+				    SND_JACK_BTN_0);
+		rt5651->press_reported = true;
+	}
+
+	if (rt5651->release_count >= BP_THRESHOLD) {
+		if (rt5651->press_reported) {
+			dev_dbg(component->dev, "headset button release\n");
+			snd_soc_jack_report(rt5651->hp_jack, 0, SND_JACK_BTN_0);
+		}
+		/* Re-enable OVCD IRQ to detect next press */
+		rt5651_enable_micbias1_ovcd_irq(component);
+		return; /* Stop polling */
+	}
+
+	schedule_delayed_work(&rt5651->bp_work, msecs_to_jiffies(BP_POLL_TIME));
+}
 
 static int rt5651_detect_headset(struct snd_soc_component *component)
 {
@@ -1676,15 +1766,58 @@ static void rt5651_jack_detect_work(struct work_struct *work)
 {
 	struct rt5651_priv *rt5651 =
 		container_of(work, struct rt5651_priv, jack_detect_work);
+	struct snd_soc_component *component = rt5651->component;
 	int report = 0;
 
-	if (rt5651_jack_inserted(rt5651->component)) {
-		rt5651_enable_micbias1_for_ovcd(rt5651->component);
-		report = rt5651_detect_headset(rt5651->component);
-		rt5651_disable_micbias1_for_ovcd(rt5651->component);
-	}
+	if (!rt5651_jack_inserted(component)) {
+		/* Jack removed, or spurious IRQ? */
+		if (rt5651->hp_jack->status & SND_JACK_HEADPHONE) {
+			if (rt5651->hp_jack->status & SND_JACK_MICROPHONE) {
+				cancel_delayed_work_sync(&rt5651->bp_work);
+				rt5651_disable_micbias1_ovcd_irq(component);
+				rt5651_disable_micbias1_for_ovcd(component);
+			}
+			snd_soc_jack_report(rt5651->hp_jack, 0,
+					    SND_JACK_HEADSET | SND_JACK_BTN_0);
+			dev_dbg(component->dev, "jack unplugged\n");
+		}
+	} else if (!(rt5651->hp_jack->status & SND_JACK_HEADPHONE)) {
+		/* Jack inserted */
+		WARN_ON(rt5651->ovcd_irq_enabled);
+		rt5651_enable_micbias1_for_ovcd(component);
+		report = rt5651_detect_headset(component);
+		if (report == SND_JACK_HEADSET) {
+			/* Enable ovcd IRQ for button press detect. */
+			rt5651_enable_micbias1_ovcd_irq(component);
+		} else {
+			/* No more need for overcurrent detect. */
+			rt5651_disable_micbias1_for_ovcd(component);
+		}
+		dev_dbg(component->dev, "detect report %#02x\n", report);
+		snd_soc_jack_report(rt5651->hp_jack, report, SND_JACK_HEADSET);
+	} else if (rt5651->ovcd_irq_enabled && rt5651_micbias1_ovcd(component)) {
+		dev_dbg(component->dev, "OVCD IRQ\n");
 
-	snd_soc_jack_report(rt5651->hp_jack, report, SND_JACK_HEADSET);
+		/*
+		 * The ovcd IRQ keeps firing while the button is pressed, so
+		 * we disable it and start polling the button until released.
+		 *
+		 * The disable will make the IRQ pin 0 again and since we get
+		 * IRQs on both edges (so as to detect both jack plugin and
+		 * unplug) this means we will immediately get another IRQ.
+		 * The ovcd_irq_enabled check above makes the 2ND IRQ a NOP.
+		 */
+		rt5651_disable_micbias1_ovcd_irq(component);
+		rt5651_start_button_press_work(component);
+
+		/*
+		 * If the jack-detect IRQ flag goes high (unplug) after our
+		 * above rt5651_jack_inserted() check and before we have
+		 * disabled the OVCD IRQ, the IRQ pin will stay high and as
+		 * we react to edges, we miss the unplug event -> recheck.
+		 */
+		queue_work(system_long_wq, &rt5651->jack_detect_work);
+	}
 }
 
 static irqreturn_t rt5651_irq(int irq, void *data)
@@ -1696,14 +1829,18 @@ static irqreturn_t rt5651_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int rt5651_set_jack(struct snd_soc_component *component,
-			   struct snd_soc_jack *hp_jack, void *data)
+static void rt5651_cancel_work(void *data)
+{
+	struct rt5651_priv *rt5651 = data;
+
+	cancel_work_sync(&rt5651->jack_detect_work);
+	cancel_delayed_work_sync(&rt5651->bp_work);
+}
+
+static void rt5651_enable_jack_detect(struct snd_soc_component *component,
+				      struct snd_soc_jack *hp_jack)
 {
 	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
-	int ret;
-
-	if (!rt5651->irq)
-		return -EINVAL;
 
 	/* IRQ output on GPIO1 */
 	snd_soc_component_update_bits(component, RT5651_GPIO_CTRL1,
@@ -1730,10 +1867,10 @@ static int rt5651_set_jack(struct snd_soc_component *component,
 			RT5651_JD2_IRQ_EN, RT5651_JD2_IRQ_EN);
 		break;
 	case RT5651_JD_NULL:
-		return 0;
+		return;
 	default:
 		dev_err(component->dev, "Currently only JD1_1 / JD1_2 / JD2 are supported\n");
-		return -EINVAL;
+		return;
 	}
 
 	/* Enable jack detect power */
@@ -1767,19 +1904,39 @@ static int rt5651_set_jack(struct snd_soc_component *component,
 		RT5651_MB1_OC_STKY_MASK, RT5651_MB1_OC_STKY_EN);
 
 	rt5651->hp_jack = hp_jack;
-
-	ret = devm_request_threaded_irq(component->dev, rt5651->irq, NULL,
-					rt5651_irq,
-					IRQF_TRIGGER_RISING |
-					IRQF_TRIGGER_FALLING |
-					IRQF_ONESHOT, "rt5651", rt5651);
-	if (ret) {
-		dev_err(component->dev, "Failed to reguest IRQ: %d\n", ret);
-		return ret;
+	if (rt5651->hp_jack->status & SND_JACK_MICROPHONE) {
+		rt5651_enable_micbias1_for_ovcd(component);
+		rt5651_enable_micbias1_ovcd_irq(component);
 	}
 
+	enable_irq(rt5651->irq);
 	/* sync initial jack state */
 	queue_work(system_power_efficient_wq, &rt5651->jack_detect_work);
+}
+
+static void rt5651_disable_jack_detect(struct snd_soc_component *component)
+{
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
+
+	disable_irq(rt5651->irq);
+	rt5651_cancel_work(rt5651);
+
+	if (rt5651->hp_jack->status & SND_JACK_MICROPHONE) {
+		rt5651_disable_micbias1_ovcd_irq(component);
+		rt5651_disable_micbias1_for_ovcd(component);
+		snd_soc_jack_report(rt5651->hp_jack, 0, SND_JACK_BTN_0);
+	}
+
+	rt5651->hp_jack = NULL;
+}
+
+static int rt5651_set_jack(struct snd_soc_component *component,
+			   struct snd_soc_jack *jack, void *data)
+{
+	if (jack)
+		rt5651_enable_jack_detect(component, jack);
+	else
+		rt5651_disable_jack_detect(component);
 
 	return 0;
 }
@@ -2034,22 +2191,31 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 	rt5651->irq = i2c->irq;
 	rt5651->hp_mute = 1;
 
+	INIT_DELAYED_WORK(&rt5651->bp_work, rt5651_button_press_work);
 	INIT_WORK(&rt5651->jack_detect_work, rt5651_jack_detect_work);
+
+	/* Make sure work is stopped on probe-error / remove */
+	ret = devm_add_action_or_reset(&i2c->dev, rt5651_cancel_work, rt5651);
+	if (ret)
+		return ret;
+
+	ret = devm_request_irq(&i2c->dev, rt5651->irq, rt5651_irq,
+			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
+			       | IRQF_ONESHOT, "rt5651", rt5651);
+	if (ret == 0) {
+		/* Gets re-enabled by rt5651_set_jack() */
+		disable_irq(rt5651->irq);
+	} else {
+		dev_warn(&i2c->dev, "Failed to reguest IRQ %d: %d\n",
+			 rt5651->irq, ret);
+		rt5651->irq = -ENXIO;
+	}
 
 	ret = devm_snd_soc_register_component(&i2c->dev,
 				&soc_component_dev_rt5651,
 				rt5651_dai, ARRAY_SIZE(rt5651_dai));
 
 	return ret;
-}
-
-static int rt5651_i2c_remove(struct i2c_client *i2c)
-{
-	struct rt5651_priv *rt5651 = i2c_get_clientdata(i2c);
-
-	cancel_work_sync(&rt5651->jack_detect_work);
-
-	return 0;
 }
 
 static struct i2c_driver rt5651_i2c_driver = {
@@ -2059,7 +2225,6 @@ static struct i2c_driver rt5651_i2c_driver = {
 		.of_match_table = of_match_ptr(rt5651_of_match),
 	},
 	.probe = rt5651_i2c_probe,
-	.remove   = rt5651_i2c_remove,
 	.id_table = rt5651_i2c_id,
 };
 module_i2c_driver(rt5651_i2c_driver);

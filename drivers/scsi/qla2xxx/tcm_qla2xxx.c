@@ -1049,10 +1049,8 @@ static struct configfs_attribute *tcm_qla2xxx_tpg_attrs[] = {
 	NULL,
 };
 
-static struct se_portal_group *tcm_qla2xxx_make_tpg(
-	struct se_wwn *wwn,
-	struct config_group *group,
-	const char *name)
+static struct se_portal_group *tcm_qla2xxx_make_tpg(struct se_wwn *wwn,
+						    const char *name)
 {
 	struct tcm_qla2xxx_lport *lport = container_of(wwn,
 			struct tcm_qla2xxx_lport, lport_wwn);
@@ -1171,10 +1169,8 @@ static struct configfs_attribute *tcm_qla2xxx_npiv_tpg_attrs[] = {
         NULL,
 };
 
-static struct se_portal_group *tcm_qla2xxx_npiv_make_tpg(
-	struct se_wwn *wwn,
-	struct config_group *group,
-	const char *name)
+static struct se_portal_group *tcm_qla2xxx_npiv_make_tpg(struct se_wwn *wwn,
+							 const char *name)
 {
 	struct tcm_qla2xxx_lport *lport = container_of(wwn,
 			struct tcm_qla2xxx_lport, lport_wwn);
@@ -1465,8 +1461,7 @@ static void tcm_qla2xxx_free_session(struct fc_port *sess)
 	}
 	target_wait_for_sess_cmds(se_sess);
 
-	transport_deregister_session_configfs(sess->se_sess);
-	transport_deregister_session(sess->se_sess);
+	target_remove_session(se_sess);
 }
 
 static int tcm_qla2xxx_session_cb(struct se_portal_group *se_tpg,
@@ -1543,7 +1538,7 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 	 * Locate our struct se_node_acl either from an explict NodeACL created
 	 * via ConfigFS, or via running in TPG demo mode.
 	 */
-	se_sess = target_alloc_session(&tpg->se_tpg, num_tags,
+	se_sess = target_setup_session(&tpg->se_tpg, num_tags,
 				       sizeof(struct qla_tgt_cmd),
 				       TARGET_PROT_ALL, port_name,
 				       qlat_sess, tcm_qla2xxx_session_cb);
@@ -1624,9 +1619,6 @@ static void tcm_qla2xxx_update_sess(struct fc_port *sess, port_id_t s_id,
 
 	sess->conf_compl_supported = conf_compl_supported;
 
-	/* Reset logout parameters to default */
-	sess->logout_on_delete = 1;
-	sess->keep_nport_handle = 0;
 }
 
 /*

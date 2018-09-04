@@ -71,43 +71,6 @@ static int puts(const char *s)
 	return 0;
 }
 
-void *memset(void *s, int c, size_t n)
-{
-	char *xs;
-
-	xs = s;
-	while (n--)
-		*xs++ = c;
-	return s;
-}
-
-void *memcpy(void *dest, const void *src, size_t n)
-{
-	const char *s = src;
-	char *d = dest;
-
-	while (n--)
-		*d++ = *s++;
-	return dest;
-}
-
-void *memmove(void *dest, const void *src, size_t n)
-{
-	const char *s = src;
-	char *d = dest;
-
-	if (d <= s) {
-		while (n--)
-			*d++ = *s++;
-	} else {
-		d += n;
-		s += n;
-		while (n--)
-			*--d = *--s;
-	}
-	return dest;
-}
-
 static void error(char *x)
 {
 	unsigned long long psw = 0x000a0000deadbeefULL;

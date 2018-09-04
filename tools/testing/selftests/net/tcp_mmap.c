@@ -402,7 +402,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	fd = socket(AF_INET6, SOCK_STREAM, 0);
+	fd = socket(cfg_family, SOCK_STREAM, 0);
 	if (fd == -1) {
 		perror("socket");
 		exit(1);

@@ -554,9 +554,9 @@ static const struct dvb_frontend_ops mxl111sf_demod_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name               = "MaxLinear MxL111SF DVB-T demodulator",
-		.frequency_min      = 177000000,
-		.frequency_max      = 858000000,
-		.frequency_stepsize = 166666,
+		.frequency_min_hz      = 177 * MHz,
+		.frequency_max_hz      = 858 * MHz,
+		.frequency_stepsize_hz = 166666,
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |

@@ -66,7 +66,7 @@ void scsi_eh_wakeup(struct Scsi_Host *shost)
 {
 	lockdep_assert_held(shost->host_lock);
 
-	if (atomic_read(&shost->host_busy) == shost->host_failed) {
+	if (scsi_host_busy(shost) == shost->host_failed) {
 		trace_scsi_eh_wakeup(shost);
 		wake_up_process(shost->ehandler);
 		SCSI_LOG_ERROR_RECOVERY(5, shost_printk(KERN_INFO, shost,
@@ -296,6 +296,20 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 		rtn = host->hostt->eh_timed_out(scmd);
 
 	if (rtn == BLK_EH_DONE) {
+		/*
+		 * For blk-mq, we must set the request state to complete now
+		 * before sending the request to the scsi error handler. This
+		 * will prevent a use-after-free in the event the LLD manages
+		 * to complete the request before the error handler finishes
+		 * processing this timed out request.
+		 *
+		 * If the request was already completed, then the LLD beat the
+		 * time out handler from transferring the request to the scsi
+		 * error handler. In that case we can return immediately as no
+		 * further action is required.
+		 */
+		if (req->q->mq_ops && !blk_mq_mark_complete(req))
+			return rtn;
 		if (scsi_abort_command(scmd) != SUCCESS) {
 			set_host_byte(scmd, DID_TIME_OUT);
 			scsi_eh_scmd_add(scmd);
@@ -2155,7 +2169,7 @@ int scsi_error_handler(void *data)
 			break;
 
 		if ((shost->host_failed == 0 && shost->host_eh_scheduled == 0) ||
-		    shost->host_failed != atomic_read(&shost->host_busy)) {
+		    shost->host_failed != scsi_host_busy(shost)) {
 			SCSI_LOG_ERROR_RECOVERY(1,
 				shost_printk(KERN_INFO, shost,
 					     "scsi_eh_%d: sleeping\n",
@@ -2170,7 +2184,7 @@ int scsi_error_handler(void *data)
 				     "scsi_eh_%d: waking up %d/%d/%d\n",
 				     shost->host_no, shost->host_eh_scheduled,
 				     shost->host_failed,
-				     atomic_read(&shost->host_busy)));
+				     scsi_host_busy(shost)));
 
 		/*
 		 * We have a host that is failing for some reason.  Figure out

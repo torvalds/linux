@@ -63,6 +63,8 @@ the control register.  write_control_reg sends the new control register
 value to the DSP. */
 static int write_control_reg(struct echoaudio *chip, u32 value, char force)
 {
+	__le32 reg_value;
+
 	/* Handle the digital input auto-mute */
 	if (chip->digital_in_automute)
 		value |= GML_DIGITAL_IN_AUTO_MUTE;
@@ -72,11 +74,11 @@ static int write_control_reg(struct echoaudio *chip, u32 value, char force)
 	dev_dbg(chip->card->dev, "write_control_reg: 0x%x\n", value);
 
 	/* Write the control register */
-	value = cpu_to_le32(value);
-	if (value != chip->comm_page->control_register || force) {
+	reg_value = cpu_to_le32(value);
+	if (reg_value != chip->comm_page->control_register || force) {
 		if (wait_handshake(chip))
 			return -EIO;
-		chip->comm_page->control_register = value;
+		chip->comm_page->control_register = reg_value;
 		clear_handshake(chip);
 		return send_vector(chip, DSP_VC_WRITE_CONTROL_REG);
 	}

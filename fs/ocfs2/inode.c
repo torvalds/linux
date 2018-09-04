@@ -637,10 +637,8 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 		handle = NULL;
 
 		status = ocfs2_commit_truncate(osb, inode, fe_bh);
-		if (status < 0) {
+		if (status < 0)
 			mlog_errno(status);
-			goto out;
-		}
 	}
 
 out:
@@ -1499,7 +1497,6 @@ static int ocfs2_filecheck_validate_inode_block(struct super_block *sb,
 		     (unsigned long long)bh->b_blocknr,
 		     le32_to_cpu(di->i_fs_generation));
 		rc = -OCFS2_FILECHECK_ERR_GENERATION;
-		goto bail;
 	}
 
 bail:

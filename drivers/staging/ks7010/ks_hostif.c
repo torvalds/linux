@@ -354,7 +354,6 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 	u16 auth_type;
 	unsigned char temp[256];
 	struct ether_hdr *eth_hdr;
-	unsigned short eth_proto;
 	struct ieee802_1x_hdr *aa1x_hdr;
 	size_t size;
 	int ret;
@@ -369,7 +368,6 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 	get_word(priv);	/* Reserve Area */
 
 	eth_hdr = (struct ether_hdr *)(priv->rxp);
-	eth_proto = ntohs(eth_hdr->h_proto);
 
 	/* source address check */
 	if (ether_addr_equal(&priv->eth_addr[0], eth_hdr->h_source)) {
@@ -1842,15 +1840,15 @@ void hostif_sme_multicast_set(struct ks_wlan_private *priv)
 	memset(set_address, 0, NIC_MAX_MCAST_LIST * ETH_ALEN);
 
 	if (dev->flags & IFF_PROMISC) {
-		hostif_mib_set_request_bool(priv, LOCAL_MULTICAST_FILTER,
-					    MCAST_FILTER_PROMISC);
+		hostif_mib_set_request_int(priv, LOCAL_MULTICAST_FILTER,
+					   MCAST_FILTER_PROMISC);
 		goto spin_unlock;
 	}
 
 	if ((netdev_mc_count(dev) > NIC_MAX_MCAST_LIST) ||
 	    (dev->flags & IFF_ALLMULTI)) {
-		hostif_mib_set_request_bool(priv, LOCAL_MULTICAST_FILTER,
-					    MCAST_FILTER_MCASTALL);
+		hostif_mib_set_request_int(priv, LOCAL_MULTICAST_FILTER,
+					   MCAST_FILTER_MCASTALL);
 		goto spin_unlock;
 	}
 
@@ -1866,8 +1864,8 @@ void hostif_sme_multicast_set(struct ks_wlan_private *priv)
 					       ETH_ALEN * mc_count);
 	} else {
 		priv->sme_i.sme_flag |= SME_MULTICAST;
-		hostif_mib_set_request_bool(priv, LOCAL_MULTICAST_FILTER,
-					    MCAST_FILTER_MCAST);
+		hostif_mib_set_request_int(priv, LOCAL_MULTICAST_FILTER,
+					   MCAST_FILTER_MCAST);
 	}
 
 spin_unlock:

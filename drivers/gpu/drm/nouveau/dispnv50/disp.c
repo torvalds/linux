@@ -136,12 +136,24 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
 	struct nv50_disp_core_channel_dma_v0 *args = data;
+	u8 type = NVIF_MEM_COHERENT;
 	int ret;
 
 	mutex_init(&dmac->lock);
 
-	ret = nvif_mem_init_map(&cli->mmu, NVIF_MEM_COHERENT, 0x1000,
-				&dmac->push);
+	/* Pascal added support for 47-bit physical addresses, but some
+	 * parts of EVO still only accept 40-bit PAs.
+	 *
+	 * To avoid issues on systems with large amounts of RAM, and on
+	 * systems where an IOMMU maps pages at a high address, we need
+	 * to allocate push buffers in VRAM instead.
+	 *
+	 * This appears to match NVIDIA's behaviour on Pascal.
+	 */
+	if (device->info.family == NV_DEVICE_INFO_V0_PASCAL)
+		type |= NVIF_MEM_VRAM;
+
+	ret = nvif_mem_init_map(&cli->mmu, type, 0x1000, &dmac->push);
 	if (ret)
 		return ret;
 
@@ -216,6 +228,19 @@ void
 evo_kick(u32 *push, struct nv50_dmac *evoc)
 {
 	struct nv50_dmac *dmac = evoc;
+
+	/* Push buffer fetches are not coherent with BAR1, we need to ensure
+	 * writes have been flushed right through to VRAM before writing PUT.
+	 */
+	if (dmac->push.type & NVIF_MEM_VRAM) {
+		struct nvif_device *device = dmac->base.device;
+		nvif_wr32(&device->object, 0x070000, 0x00000001);
+		nvif_msec(device, 2000,
+			if (!(nvif_rd32(&device->object, 0x070000) & 0x00000002))
+				break;
+		);
+	}
+
 	nvif_wr32(&dmac->base.user, 0x0000, (push - dmac->ptr) << 2);
 	mutex_unlock(&dmac->lock);
 }
@@ -424,7 +449,7 @@ nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 			 "dac-%04x-%04x", dcbe->hasht, dcbe->hashm);
 	drm_encoder_helper_add(encoder, &nv50_dac_help);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	return 0;
 }
 
@@ -850,7 +875,7 @@ nv50_mstc_get_modes(struct drm_connector *connector)
 	int ret = 0;
 
 	mstc->edid = drm_dp_mst_get_edid(&mstc->connector, mstc->port->mgr, mstc->port);
-	drm_mode_connector_update_edid_property(&mstc->connector, mstc->edid);
+	drm_connector_update_edid_property(&mstc->connector, mstc->edid);
 	if (mstc->edid)
 		ret = drm_add_edid_modes(&mstc->connector, mstc->edid);
 
@@ -927,11 +952,11 @@ nv50_mstc_new(struct nv50_mstm *mstm, struct drm_dp_mst_port *port,
 	nouveau_conn_attach_properties(&mstc->connector);
 
 	for (i = 0; i < ARRAY_SIZE(mstm->msto) && mstm->msto[i]; i++)
-		drm_mode_connector_attach_encoder(&mstc->connector, &mstm->msto[i]->encoder);
+		drm_connector_attach_encoder(&mstc->connector, &mstm->msto[i]->encoder);
 
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.path_property, 0);
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.tile_property, 0);
-	drm_mode_connector_set_path_property(&mstc->connector, path);
+	drm_connector_set_path_property(&mstc->connector, path);
 	return 0;
 }
 
@@ -1007,7 +1032,7 @@ nv50_mstm_destroy_connector(struct drm_dp_mst_topology_mgr *mgr,
 	mstc->port = NULL;
 	drm_modeset_unlock(&drm->dev->mode_config.connection_mutex);
 
-	drm_connector_unreference(&mstc->connector);
+	drm_connector_put(&mstc->connector);
 }
 
 static void
@@ -1418,7 +1443,7 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 			 "sor-%04x-%04x", dcbe->hasht, dcbe->hashm);
 	drm_encoder_helper_add(encoder, &nv50_sor_help);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	if (dcbe->type == DCB_OUTPUT_DP) {
 		struct nv50_disp *disp = nv50_disp(encoder->dev);
@@ -1576,7 +1601,7 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 			 "pior-%04x-%04x", dcbe->hasht, dcbe->hashm);
 	drm_encoder_helper_add(encoder, &nv50_pior_help);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	return 0;
 }
 
@@ -1585,8 +1610,9 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
  *****************************************************************************/
 
 static void
-nv50_disp_atomic_commit_core(struct nouveau_drm *drm, u32 *interlock)
+nv50_disp_atomic_commit_core(struct drm_atomic_state *state, u32 *interlock)
 {
+	struct nouveau_drm *drm = nouveau_drm(state->dev);
 	struct nv50_disp *disp = nv50_disp(drm->dev);
 	struct nv50_core *core = disp->core;
 	struct nv50_mstm *mstm;
@@ -1613,6 +1639,22 @@ nv50_disp_atomic_commit_core(struct nouveau_drm *drm, u32 *interlock)
 			mstm = nouveau_encoder(encoder)->dp.mstm;
 			if (mstm && mstm->modified)
 				nv50_mstm_cleanup(mstm);
+		}
+	}
+}
+
+static void
+nv50_disp_atomic_commit_wndw(struct drm_atomic_state *state, u32 *interlock)
+{
+	struct drm_plane_state *new_plane_state;
+	struct drm_plane *plane;
+	int i;
+
+	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+		struct nv50_wndw *wndw = nv50_wndw(plane);
+		if (interlock[wndw->interlock.type] & wndw->interlock.data) {
+			if (wndw->func->update)
+				wndw->func->update(wndw, interlock);
 		}
 	}
 }
@@ -1684,7 +1726,8 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 			help->disable(encoder);
 			interlock[NV50_DISP_INTERLOCK_CORE] |= 1;
 			if (outp->flush_disable) {
-				nv50_disp_atomic_commit_core(drm, interlock);
+				nv50_disp_atomic_commit_wndw(state, interlock);
+				nv50_disp_atomic_commit_core(state, interlock);
 				memset(interlock, 0x00, sizeof(interlock));
 			}
 		}
@@ -1693,15 +1736,8 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	/* Flush disable. */
 	if (interlock[NV50_DISP_INTERLOCK_CORE]) {
 		if (atom->flush_disable) {
-			for_each_new_plane_in_state(state, plane, new_plane_state, i) {
-				struct nv50_wndw *wndw = nv50_wndw(plane);
-				if (interlock[wndw->interlock.type] & wndw->interlock.data) {
-					if (wndw->func->update)
-						wndw->func->update(wndw, interlock);
-				}
-			}
-
-			nv50_disp_atomic_commit_core(drm, interlock);
+			nv50_disp_atomic_commit_wndw(state, interlock);
+			nv50_disp_atomic_commit_core(state, interlock);
 			memset(interlock, 0x00, sizeof(interlock));
 		}
 	}
@@ -1762,18 +1798,14 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 
 	/* Flush update. */
-	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
-		struct nv50_wndw *wndw = nv50_wndw(plane);
-		if (interlock[wndw->interlock.type] & wndw->interlock.data) {
-			if (wndw->func->update)
-				wndw->func->update(wndw, interlock);
-		}
-	}
+	nv50_disp_atomic_commit_wndw(state, interlock);
 
 	if (interlock[NV50_DISP_INTERLOCK_CORE]) {
 		if (interlock[NV50_DISP_INTERLOCK_BASE] ||
+		    interlock[NV50_DISP_INTERLOCK_OVLY] ||
+		    interlock[NV50_DISP_INTERLOCK_WNDW] ||
 		    !atom->state.legacy_cursor_update)
-			nv50_disp_atomic_commit_core(drm, interlock);
+			nv50_disp_atomic_commit_core(state, interlock);
 		else
 			disp->core->func->update(disp->core, interlock, false);
 	}
@@ -1871,7 +1903,7 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 		nv50_disp_atomic_commit_tail(state);
 
 	drm_for_each_crtc(crtc, dev) {
-		if (crtc->state->enable) {
+		if (crtc->state->active) {
 			if (!drm->have_disp_power_ref) {
 				drm->have_disp_power_ref = true;
 				return 0;
@@ -2119,10 +2151,6 @@ nv50_display_destroy(struct drm_device *dev)
 	kfree(disp);
 }
 
-MODULE_PARM_DESC(atomic, "Expose atomic ioctl (default: disabled)");
-static int nouveau_atomic = 0;
-module_param_named(atomic, nouveau_atomic, int, 0400);
-
 int
 nv50_display_create(struct drm_device *dev)
 {
@@ -2147,8 +2175,6 @@ nv50_display_create(struct drm_device *dev)
 	disp->disp = &nouveau_display(dev)->disp;
 	dev->mode_config.funcs = &nv50_disp_func;
 	dev->driver->driver_features |= DRIVER_PREFER_XBGR_30BPP;
-	if (nouveau_atomic)
-		dev->driver->driver_features |= DRIVER_ATOMIC;
 
 	/* small shared memory area we use for notifiers and semaphores */
 	ret = nouveau_bo_new(&drm->client, 4096, 0x1000, TTM_PL_FLAG_VRAM,
@@ -2230,6 +2256,9 @@ nv50_display_create(struct drm_device *dev)
 			connector->name);
 		connector->funcs->destroy(connector);
 	}
+
+	/* Disable vblank irqs aggressively for power-saving, safe on nv50+ */
+	dev->vblank_disable_immediate = true;
 
 out:
 	if (ret)

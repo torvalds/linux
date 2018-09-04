@@ -494,7 +494,7 @@
 				atmel,external-irqs = <47>;
 			};
 
-			pinctrl@fffff200 {
+			pinctrl: pinctrl@fffff200 {
 				#address-cells = <1>;
 				#size-cells = <1>;
 				compatible = "atmel,sama5d3-pinctrl", "atmel,at91sam9x5-pinctrl", "simple-bus";
@@ -1340,13 +1340,13 @@
 				};
 			};
 
-			rstc@fffffe00 {
+			reset_controller: rstc@fffffe00 {
 				compatible = "atmel,sama5d3-rstc", "atmel,at91sam9g45-rstc";
 				reg = <0xfffffe00 0x10>;
 				clocks = <&clk32k>;
 			};
 
-			shutdown-controller@fffffe10 {
+			shutdown_controller: shutdown-controller@fffffe10 {
 				compatible = "atmel,at91sam9x5-shdwc";
 				reg = <0xfffffe10 0x10>;
 				clocks = <&clk32k>;
@@ -1359,7 +1359,7 @@
 				clocks = <&mck>;
 			};
 
-			watchdog@fffffe40 {
+			watchdog: watchdog@fffffe40 {
 				compatible = "atmel,at91sam9260-wdt";
 				reg = <0xfffffe40 0x10>;
 				interrupts = <4 IRQ_TYPE_LEVEL_HIGH 7>;

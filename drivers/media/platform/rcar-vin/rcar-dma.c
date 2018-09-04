@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for Renesas R-Car VIN
  *
@@ -7,11 +8,6 @@
  * Copyright (C) 2008 Magnus Damm
  *
  * Based on the soc-camera rcar_vin driver
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/delay.h>
@@ -123,6 +119,7 @@
 /* Video n Data Mode Register 2 bits */
 #define VNDMR2_VPS		(1 << 30)
 #define VNDMR2_HPS		(1 << 29)
+#define VNDMR2_CES		(1 << 28)
 #define VNDMR2_FTEV		(1 << 17)
 #define VNDMR2_VLV(n)		((n & 0xf) << 12)
 
@@ -659,8 +656,12 @@ static int rvin_setup(struct rvin_dev *vin)
 		break;
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		/* BT.656 8bit YCbCr422 or BT.601 8bit YCbCr422 */
-		vnmc |= vin->mbus_cfg.type == V4L2_MBUS_BT656 ?
-			VNMC_INF_YUV8_BT656 : VNMC_INF_YUV8_BT601;
+		if (!vin->is_csi &&
+		    vin->parallel->mbus_type == V4L2_MBUS_BT656)
+			vnmc |= VNMC_INF_YUV8_BT656;
+		else
+			vnmc |= VNMC_INF_YUV8_BT601;
+
 		input_is_yuv = true;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
@@ -668,8 +669,12 @@ static int rvin_setup(struct rvin_dev *vin)
 		break;
 	case MEDIA_BUS_FMT_UYVY10_2X10:
 		/* BT.656 10bit YCbCr422 or BT.601 10bit YCbCr422 */
-		vnmc |= vin->mbus_cfg.type == V4L2_MBUS_BT656 ?
-			VNMC_INF_YUV10_BT656 : VNMC_INF_YUV10_BT601;
+		if (!vin->is_csi &&
+		    vin->parallel->mbus_type == V4L2_MBUS_BT656)
+			vnmc |= VNMC_INF_YUV10_BT656;
+		else
+			vnmc |= VNMC_INF_YUV10_BT601;
+
 		input_is_yuv = true;
 		break;
 	default:
@@ -682,13 +687,19 @@ static int rvin_setup(struct rvin_dev *vin)
 	else
 		dmr2 = VNDMR2_FTEV | VNDMR2_VLV(1);
 
-	/* Hsync Signal Polarity Select */
-	if (!(vin->mbus_cfg.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW))
-		dmr2 |= VNDMR2_HPS;
+	if (!vin->is_csi) {
+		/* Hsync Signal Polarity Select */
+		if (!(vin->parallel->mbus_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW))
+			dmr2 |= VNDMR2_HPS;
 
-	/* Vsync Signal Polarity Select */
-	if (!(vin->mbus_cfg.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW))
-		dmr2 |= VNDMR2_VPS;
+		/* Vsync Signal Polarity Select */
+		if (!(vin->parallel->mbus_flags & V4L2_MBUS_VSYNC_ACTIVE_LOW))
+			dmr2 |= VNDMR2_VPS;
+
+		/* Data Enable Polarity Select */
+		if (vin->parallel->mbus_flags & V4L2_MBUS_DATA_ENABLE_LOW)
+			dmr2 |= VNDMR2_CES;
+	}
 
 	/*
 	 * Output format
@@ -733,8 +744,8 @@ static int rvin_setup(struct rvin_dev *vin)
 		vnmc |= VNMC_BPS;
 
 	if (vin->info->model == RCAR_GEN3) {
-		/* Select between CSI-2 and Digital input */
-		if (vin->mbus_cfg.type == V4L2_MBUS_CSI2)
+		/* Select between CSI-2 and parallel input */
+		if (vin->is_csi)
 			vnmc &= ~VNMC_DPINE;
 		else
 			vnmc |= VNMC_DPINE;
@@ -856,7 +867,7 @@ static int rvin_capture_start(struct rvin_dev *vin)
 	/* Continuous Frame Capture Mode */
 	rvin_write(vin, VNFC_C_FRAME, VNFC_REG);
 
-	vin->state = RUNNING;
+	vin->state = STARTING;
 
 	return 0;
 }
@@ -909,6 +920,20 @@ static irqreturn_t rvin_irq(int irq, void *data)
 	/* Prepare for capture and update state */
 	vnms = rvin_read(vin, VNMS_REG);
 	slot = (vnms & VNMS_FBS_MASK) >> VNMS_FBS_SHIFT;
+
+	/*
+	 * To hand buffers back in a known order to userspace start
+	 * to capture first from slot 0.
+	 */
+	if (vin->state == STARTING) {
+		if (slot != 0) {
+			vin_dbg(vin, "Starting sync slot: %d\n", slot);
+			goto done;
+		}
+
+		vin_dbg(vin, "Capture start synced!\n");
+		vin->state = RUNNING;
+	}
 
 	/* Capture frame */
 	if (vin->queue_buf[slot]) {
@@ -1074,7 +1099,7 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 
 	/* No media controller used, simply pass operation to subdevice. */
 	if (!vin->info->use_mc) {
-		ret = v4l2_subdev_call(vin->digital->subdev, video, s_stream,
+		ret = v4l2_subdev_call(vin->parallel->subdev, video, s_stream,
 				       on);
 
 		return ret == -ENOIOCTLCMD ? 0 : ret;

@@ -25,10 +25,6 @@
 #include "opl3_voice.h"
 #include <sound/asoundef.h>
 
-extern char snd_opl3_regmap[MAX_OPL2_VOICES][4];
-
-extern bool use_internal_drums;
-
 static void snd_opl3_note_off_unsafe(void *p, int note, int vel,
 				     struct snd_midi_channel *chan);
 /*
@@ -372,6 +368,7 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 			instr_4op = 1;
 			break;
 		}
+		/* fall through */
 	default:
 		spin_unlock_irqrestore(&opl3->voice_lock, flags);
 		return;
@@ -721,9 +718,6 @@ void snd_opl3_note_off(void *p, int note, int vel,
  */
 void snd_opl3_key_press(void *p, int note, int vel, struct snd_midi_channel *chan)
 {
-  	struct snd_opl3 *opl3;
-
-	opl3 = p;
 #ifdef DEBUG_MIDI
 	snd_printk(KERN_DEBUG "Key pressure, ch#: %i, inst#: %i\n",
 		   chan->number, chan->midi_program);
@@ -735,9 +729,6 @@ void snd_opl3_key_press(void *p, int note, int vel, struct snd_midi_channel *cha
  */
 void snd_opl3_terminate_note(void *p, int note, struct snd_midi_channel *chan)
 {
-  	struct snd_opl3 *opl3;
-
-	opl3 = p;
 #ifdef DEBUG_MIDI
 	snd_printk(KERN_DEBUG "Terminate note, ch#: %i, inst#: %i\n",
 		   chan->number, chan->midi_program);
@@ -861,9 +852,6 @@ void snd_opl3_control(void *p, int type, struct snd_midi_channel *chan)
 void snd_opl3_nrpn(void *p, struct snd_midi_channel *chan,
 		   struct snd_midi_channel_set *chset)
 {
-  	struct snd_opl3 *opl3;
-
-	opl3 = p;
 #ifdef DEBUG_MIDI
 	snd_printk(KERN_DEBUG "NRPN, ch#: %i, inst#: %i\n",
 		   chan->number, chan->midi_program);
@@ -876,9 +864,6 @@ void snd_opl3_nrpn(void *p, struct snd_midi_channel *chan,
 void snd_opl3_sysex(void *p, unsigned char *buf, int len,
 		    int parsed, struct snd_midi_channel_set *chset)
 {
-  	struct snd_opl3 *opl3;
-
-	opl3 = p;
 #ifdef DEBUG_MIDI
 	snd_printk(KERN_DEBUG "SYSEX\n");
 #endif

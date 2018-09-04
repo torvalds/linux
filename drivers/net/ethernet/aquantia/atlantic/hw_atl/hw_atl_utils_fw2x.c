@@ -28,6 +28,10 @@
 #define HW_ATL_FW2X_MPI_STATE_ADDR	0x370
 #define HW_ATL_FW2X_MPI_STATE2_ADDR	0x374
 
+static int aq_fw2x_set_link_speed(struct aq_hw_s *self, u32 speed);
+static int aq_fw2x_set_state(struct aq_hw_s *self,
+			     enum hal_atl_utils_fw_state_e state);
+
 static int aq_fw2x_init(struct aq_hw_s *self)
 {
 	int err = 0;
@@ -36,6 +40,16 @@ static int aq_fw2x_init(struct aq_hw_s *self)
 	AQ_HW_WAIT_FOR(0U != (self->mbox_addr =
 			aq_hw_read_reg(self, HW_ATL_FW2X_MPI_MBOX_ADDR)),
 		       1000U, 10U);
+	return err;
+}
+
+static int aq_fw2x_deinit(struct aq_hw_s *self)
+{
+	int err = aq_fw2x_set_link_speed(self, 0);
+
+	if (!err)
+		err = aq_fw2x_set_state(self, MPI_DEINIT);
+
 	return err;
 }
 
@@ -73,10 +87,38 @@ static int aq_fw2x_set_link_speed(struct aq_hw_s *self, u32 speed)
 	return 0;
 }
 
+static void aq_fw2x_set_mpi_flow_control(struct aq_hw_s *self, u32 *mpi_state)
+{
+	if (self->aq_nic_cfg->flow_control & AQ_NIC_FC_RX)
+		*mpi_state |= BIT(CAPS_HI_PAUSE);
+	else
+		*mpi_state &= ~BIT(CAPS_HI_PAUSE);
+
+	if (self->aq_nic_cfg->flow_control & AQ_NIC_FC_TX)
+		*mpi_state |= BIT(CAPS_HI_ASYMMETRIC_PAUSE);
+	else
+		*mpi_state &= ~BIT(CAPS_HI_ASYMMETRIC_PAUSE);
+}
+
 static int aq_fw2x_set_state(struct aq_hw_s *self,
 			     enum hal_atl_utils_fw_state_e state)
 {
-	/* No explicit state in 2x fw */
+	u32 mpi_state = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
+
+	switch (state) {
+	case MPI_INIT:
+		mpi_state &= ~BIT(CAPS_HI_LINK_DROP);
+		aq_fw2x_set_mpi_flow_control(self, &mpi_state);
+		break;
+	case MPI_DEINIT:
+		mpi_state |= BIT(CAPS_HI_LINK_DROP);
+		break;
+	case MPI_RESET:
+	case MPI_POWER:
+		/* No actions */
+		break;
+	}
+	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_state);
 	return 0;
 }
 
@@ -173,12 +215,37 @@ static int aq_fw2x_update_stats(struct aq_hw_s *self)
 	return hw_atl_utils_update_stats(self);
 }
 
+static int aq_fw2x_renegotiate(struct aq_hw_s *self)
+{
+	u32 mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
+
+	mpi_opts |= BIT(CTRL_FORCE_RECONNECT);
+
+	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
+
+	return 0;
+}
+
+static int aq_fw2x_set_flow_control(struct aq_hw_s *self)
+{
+	u32 mpi_state = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
+
+	aq_fw2x_set_mpi_flow_control(self, &mpi_state);
+
+	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_state);
+
+	return 0;
+}
+
 const struct aq_fw_ops aq_fw_2x_ops = {
 	.init = aq_fw2x_init,
+	.deinit = aq_fw2x_deinit,
 	.reset = NULL,
+	.renegotiate = aq_fw2x_renegotiate,
 	.get_mac_permanent = aq_fw2x_get_mac_permanent,
 	.set_link_speed = aq_fw2x_set_link_speed,
 	.set_state = aq_fw2x_set_state,
 	.update_link_status = aq_fw2x_update_link_status,
 	.update_stats = aq_fw2x_update_stats,
+	.set_flow_control   = aq_fw2x_set_flow_control,
 };

@@ -259,9 +259,15 @@ out_nostate:
 	return ret;
 }
 
+enum hash_test {
+	HASH_TEST_DIGEST,
+	HASH_TEST_FINAL,
+	HASH_TEST_FINUP
+};
+
 static int __test_hash(struct crypto_ahash *tfm,
 		       const struct hash_testvec *template, unsigned int tcount,
-		       bool use_digest, const int align_offset)
+		       enum hash_test test_type, const int align_offset)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
 	size_t digest_size = crypto_ahash_digestsize(tfm);
@@ -332,14 +338,17 @@ static int __test_hash(struct crypto_ahash *tfm,
 		}
 
 		ahash_request_set_crypt(req, sg, result, template[i].psize);
-		if (use_digest) {
+		switch (test_type) {
+		case HASH_TEST_DIGEST:
 			ret = crypto_wait_req(crypto_ahash_digest(req), &wait);
 			if (ret) {
 				pr_err("alg: hash: digest failed on test %d "
 				       "for %s: ret=%d\n", j, algo, -ret);
 				goto out;
 			}
-		} else {
+			break;
+
+		case HASH_TEST_FINAL:
 			memset(result, 1, digest_size);
 			ret = crypto_wait_req(crypto_ahash_init(req), &wait);
 			if (ret) {
@@ -371,6 +380,29 @@ static int __test_hash(struct crypto_ahash *tfm,
 				       "for %s: ret=%d\n", j, algo, -ret);
 				goto out;
 			}
+			break;
+
+		case HASH_TEST_FINUP:
+			memset(result, 1, digest_size);
+			ret = crypto_wait_req(crypto_ahash_init(req), &wait);
+			if (ret) {
+				pr_err("alg: hash: init failed on test %d "
+				       "for %s: ret=%d\n", j, algo, -ret);
+				goto out;
+			}
+			ret = ahash_guard_result(result, 1, digest_size);
+			if (ret) {
+				pr_err("alg: hash: init failed on test %d "
+				       "for %s: used req->result\n", j, algo);
+				goto out;
+			}
+			ret = crypto_wait_req(crypto_ahash_finup(req), &wait);
+			if (ret) {
+				pr_err("alg: hash: final failed on test %d "
+				       "for %s: ret=%d\n", j, algo, -ret);
+				goto out;
+			}
+			break;
 		}
 
 		if (memcmp(result, template[i].digest,
@@ -382,6 +414,9 @@ static int __test_hash(struct crypto_ahash *tfm,
 			goto out;
 		}
 	}
+
+	if (test_type)
+		goto out;
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
@@ -540,24 +575,24 @@ out_nobuf:
 
 static int test_hash(struct crypto_ahash *tfm,
 		     const struct hash_testvec *template,
-		     unsigned int tcount, bool use_digest)
+		     unsigned int tcount, enum hash_test test_type)
 {
 	unsigned int alignmask;
 	int ret;
 
-	ret = __test_hash(tfm, template, tcount, use_digest, 0);
+	ret = __test_hash(tfm, template, tcount, test_type, 0);
 	if (ret)
 		return ret;
 
 	/* test unaligned buffers, check with one byte offset */
-	ret = __test_hash(tfm, template, tcount, use_digest, 1);
+	ret = __test_hash(tfm, template, tcount, test_type, 1);
 	if (ret)
 		return ret;
 
 	alignmask = crypto_tfm_alg_alignmask(&tfm->base);
 	if (alignmask) {
 		/* Check if alignment mask for tfm is correctly set. */
-		ret = __test_hash(tfm, template, tcount, use_digest,
+		ret = __test_hash(tfm, template, tcount, test_type,
 				  alignmask + 1);
 		if (ret)
 			return ret;
@@ -1803,9 +1838,11 @@ static int __alg_test_hash(const struct hash_testvec *template,
 		return PTR_ERR(tfm);
 	}
 
-	err = test_hash(tfm, template, tcount, true);
+	err = test_hash(tfm, template, tcount, HASH_TEST_DIGEST);
 	if (!err)
-		err = test_hash(tfm, template, tcount, false);
+		err = test_hash(tfm, template, tcount, HASH_TEST_FINAL);
+	if (!err)
+		err = test_hash(tfm, template, tcount, HASH_TEST_FINUP);
 	crypto_free_ahash(tfm);
 	return err;
 }
@@ -3478,10 +3515,10 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(tgr192_tv_template)
 		}
 	}, {
-		.alg = "vmac(aes)",
+		.alg = "vmac64(aes)",
 		.test = alg_test_hash,
 		.suite = {
-			.hash = __VECS(aes_vmac128_tv_template)
+			.hash = __VECS(vmac64_aes_tv_template)
 		}
 	}, {
 		.alg = "wp256",

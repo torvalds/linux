@@ -28,7 +28,7 @@ static struct ctl_table page_table_sysctl[] = {
 		.data		= &page_table_allocate_pgste,
 		.maxlen		= sizeof(int),
 		.mode		= S_IRUGO | S_IWUSR,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &page_table_allocate_pgste_min,
 		.extra2		= &page_table_allocate_pgste_max,
 	},
@@ -252,6 +252,8 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 		spin_unlock_bh(&mm->context.lock);
 		if (mask != 0)
 			return;
+	} else {
+		atomic_xor_bits(&page->_refcount, 3U << 24);
 	}
 
 	pgtable_page_dtor(page);
@@ -304,6 +306,8 @@ static void __tlb_remove_table(void *_table)
 			break;
 		/* fallthrough */
 	case 3:		/* 4K page table with pgstes */
+		if (mask & 3)
+			atomic_xor_bits(&page->_refcount, 3 << 24);
 		pgtable_page_dtor(page);
 		__free_page(page);
 		break;

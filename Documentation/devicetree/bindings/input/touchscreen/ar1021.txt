@@ -3,7 +3,6 @@
 Required properties:
 - compatible		: "microchip,ar1021-i2c"
 - reg			: I2C slave address
-- interrupt-parent	: the phandle for the interrupt controller
 - interrupts		: touch controller interrupt
 
 Example:

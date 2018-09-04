@@ -121,7 +121,7 @@ static void crypto_aegis128l_ad(struct aegis_state *state,
 				(const union aegis_chunk *)src;
 
 		while (size >= AEGIS128L_CHUNK_SIZE) {
-                    crypto_aegis128l_update_a(state, src_chunk);
+			crypto_aegis128l_update_a(state, src_chunk);
 
 			size -= AEGIS128L_CHUNK_SIZE;
 			src_chunk += 1;
@@ -493,7 +493,6 @@ static struct aead_alg crypto_aegis128l_alg = {
 	.chunksize = AEGIS128L_CHUNK_SIZE,
 
 	.base = {
-		.cra_flags = CRYPTO_ALG_TYPE_AEAD,
 		.cra_blocksize = 1,
 		.cra_ctxsize = sizeof(struct aegis_ctx),
 		.cra_alignmask = 0,

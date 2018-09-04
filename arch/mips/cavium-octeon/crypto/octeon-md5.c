@@ -182,7 +182,6 @@ static struct shash_alg alg = {
 		.cra_name	=	"md5",
 		.cra_driver_name=	"octeon-md5",
 		.cra_priority	=	OCTEON_CR_OPCODE_PRIORITY,
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	MD5_HMAC_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}

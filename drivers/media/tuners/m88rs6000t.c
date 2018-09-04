@@ -569,9 +569,9 @@ err:
 
 static const struct dvb_tuner_ops m88rs6000t_tuner_ops = {
 	.info = {
-		.name          = "Montage M88RS6000 Internal Tuner",
-		.frequency_min = 950000,
-		.frequency_max = 2150000,
+		.name             = "Montage M88RS6000 Internal Tuner",
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
 	},
 
 	.init = m88rs6000t_init,

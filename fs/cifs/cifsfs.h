@@ -65,8 +65,7 @@ extern struct inode *cifs_root_iget(struct super_block *);
 extern int cifs_create(struct inode *, struct dentry *, umode_t,
 		       bool excl);
 extern int cifs_atomic_open(struct inode *, struct dentry *,
-			    struct file *, unsigned, umode_t,
-			    int *);
+			    struct file *, unsigned, umode_t);
 extern struct dentry *cifs_lookup(struct inode *, struct dentry *,
 				  unsigned int);
 extern int cifs_unlink(struct inode *dir, struct dentry *dentry);
@@ -149,5 +148,5 @@ extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
-#define CIFS_VERSION   "2.12"
+#define CIFS_VERSION   "2.13"
 #endif				/* _CIFSFS_H */

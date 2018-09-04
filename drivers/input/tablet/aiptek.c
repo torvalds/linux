@@ -1712,7 +1712,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
         }
 
 	aiptek->data = usb_alloc_coherent(usbdev, AIPTEK_PACKET_LENGTH,
-					  GFP_ATOMIC, &aiptek->data_dma);
+					  GFP_KERNEL, &aiptek->data_dma);
         if (!aiptek->data) {
 		dev_warn(&intf->dev, "cannot allocate usb buffer\n");
 		goto fail1;

@@ -2,7 +2,7 @@
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -1062,6 +1062,9 @@ lpfc_rcv_logo_plogi_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 {
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *) arg;
 
+	/* Retrieve RPI from LOGO IOCB. RPI is used for CMD_ABORT_XRI_CN */
+	if (vport->phba->sli_rev == LPFC_SLI_REV3)
+		ndlp->nlp_rpi = cmdiocb->iocb.ulpIoTag;
 				/* software abort outstanding PLOGI */
 	lpfc_els_abort(vport->phba, ndlp);
 
@@ -1981,12 +1984,6 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			ndlp->nlp_type |= NLP_NVME_TARGET;
 			if (bf_get_be32(prli_disc, nvpr))
 				ndlp->nlp_type |= NLP_NVME_DISCOVERY;
-
-			/* This node is an NVME target.  Adjust the command
-			 * queue depth on this node to not exceed the available
-			 * xris.
-			 */
-			ndlp->cmd_qdepth = phba->sli4_hba.nvme_xri_max;
 
 			/*
 			 * If prli_fba is set, the Target supports FirstBurst.

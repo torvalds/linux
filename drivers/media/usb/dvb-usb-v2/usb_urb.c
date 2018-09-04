@@ -40,7 +40,7 @@ static void usb_urb_complete(struct urb *urb)
 		return;
 	default:        /* error */
 		dev_dbg_ratelimited(&stream->udev->dev,
-				"%s: urb completition failed=%d\n",
+				"%s: urb completion failed=%d\n",
 				__func__, urb->status);
 		break;
 	}
@@ -69,7 +69,7 @@ static void usb_urb_complete(struct urb *urb)
 		break;
 	default:
 		dev_err(&stream->udev->dev,
-				"%s: unknown endpoint type in completition handler\n",
+				"%s: unknown endpoint type in completion handler\n",
 				KBUILD_MODNAME);
 		return;
 	}

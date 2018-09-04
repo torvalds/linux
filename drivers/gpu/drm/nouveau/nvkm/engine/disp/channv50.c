@@ -166,8 +166,8 @@ void
 nv50_disp_chan_intr(struct nv50_disp_chan *chan, bool en)
 {
 	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
-	const u64 mask = 0x00010001 << chan->chid.user;
-	const u64 data = en ? 0x00010000 : 0x00000000;
+	const u32 mask = 0x00010001 << chan->chid.user;
+	const u32 data = en ? 0x00010000 << chan->chid.user : 0x00000000;
 	nvkm_mask(device, 0x610028, mask, data);
 }
 

@@ -168,6 +168,17 @@ else
 fi
 
 echo "--------------------"
+echo "running map_populate"
+echo "--------------------"
+./map_populate
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+
+echo "--------------------"
 echo "running mlock2-tests"
 echo "--------------------"
 ./mlock2-tests

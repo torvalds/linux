@@ -872,8 +872,6 @@ int o2net_register_handler(u32 msg_type, u32 key, u32 max_len,
 				"for type %u key %08x\n", msg_type, key);
 	}
 	write_unlock(&o2net_handler_lock);
-	if (ret)
-		goto out;
 
 out:
 	if (ret)

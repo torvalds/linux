@@ -348,7 +348,6 @@ struct wl1271 {
 	enum nl80211_band band;
 
 	struct completion *elp_compl;
-	struct delayed_work elp_work;
 
 	/* in dBm */
 	int power_level;

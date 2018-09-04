@@ -45,7 +45,7 @@
 #include <asm/apic.h>
 #include <asm/apicdef.h>
 #include <asm/hypervisor.h>
-#include <asm/kvm_guest.h>
+#include <asm/tlb.h>
 
 static int kvmapf = 1;
 
@@ -65,15 +65,6 @@ static int __init parse_no_stealacc(char *arg)
 }
 
 early_param("no-steal-acc", parse_no_stealacc);
-
-static int kvmclock_vsyscall = 1;
-static int __init parse_no_kvmclock_vsyscall(char *arg)
-{
-        kvmclock_vsyscall = 0;
-        return 0;
-}
-
-early_param("no-kvmclock-vsyscall", parse_no_kvmclock_vsyscall);
 
 static DEFINE_PER_CPU_DECRYPTED(struct kvm_vcpu_pv_apf_data, apf_reason) __aligned(64);
 static DEFINE_PER_CPU_DECRYPTED(struct kvm_steal_time, steal_time) __aligned(64);
@@ -154,7 +145,7 @@ void kvm_async_pf_task_wait(u32 token, int interrupt_kernel)
 
 	for (;;) {
 		if (!n.halted)
-			prepare_to_swait(&n.wq, &wait, TASK_UNINTERRUPTIBLE);
+			prepare_to_swait_exclusive(&n.wq, &wait, TASK_UNINTERRUPTIBLE);
 		if (hlist_unhashed(&n.link))
 			break;
 
@@ -188,7 +179,7 @@ static void apf_task_wake_one(struct kvm_task_sleep_node *n)
 	if (n->halted)
 		smp_send_reschedule(n->cpu);
 	else if (swq_has_sleeper(&n->wq))
-		swake_up(&n->wq);
+		swake_up_one(&n->wq);
 }
 
 static void apf_task_wake_all(void)
@@ -454,6 +445,98 @@ static void __init sev_map_percpu_data(void)
 }
 
 #ifdef CONFIG_SMP
+#define KVM_IPI_CLUSTER_SIZE	(2 * BITS_PER_LONG)
+
+static void __send_ipi_mask(const struct cpumask *mask, int vector)
+{
+	unsigned long flags;
+	int cpu, apic_id, icr;
+	int min = 0, max = 0;
+#ifdef CONFIG_X86_64
+	__uint128_t ipi_bitmap = 0;
+#else
+	u64 ipi_bitmap = 0;
+#endif
+
+	if (cpumask_empty(mask))
+		return;
+
+	local_irq_save(flags);
+
+	switch (vector) {
+	default:
+		icr = APIC_DM_FIXED | vector;
+		break;
+	case NMI_VECTOR:
+		icr = APIC_DM_NMI;
+		break;
+	}
+
+	for_each_cpu(cpu, mask) {
+		apic_id = per_cpu(x86_cpu_to_apicid, cpu);
+		if (!ipi_bitmap) {
+			min = max = apic_id;
+		} else if (apic_id < min && max - apic_id < KVM_IPI_CLUSTER_SIZE) {
+			ipi_bitmap <<= min - apic_id;
+			min = apic_id;
+		} else if (apic_id < min + KVM_IPI_CLUSTER_SIZE) {
+			max = apic_id < max ? max : apic_id;
+		} else {
+			kvm_hypercall4(KVM_HC_SEND_IPI, (unsigned long)ipi_bitmap,
+				(unsigned long)(ipi_bitmap >> BITS_PER_LONG), min, icr);
+			min = max = apic_id;
+			ipi_bitmap = 0;
+		}
+		__set_bit(apic_id - min, (unsigned long *)&ipi_bitmap);
+	}
+
+	if (ipi_bitmap) {
+		kvm_hypercall4(KVM_HC_SEND_IPI, (unsigned long)ipi_bitmap,
+			(unsigned long)(ipi_bitmap >> BITS_PER_LONG), min, icr);
+	}
+
+	local_irq_restore(flags);
+}
+
+static void kvm_send_ipi_mask(const struct cpumask *mask, int vector)
+{
+	__send_ipi_mask(mask, vector);
+}
+
+static void kvm_send_ipi_mask_allbutself(const struct cpumask *mask, int vector)
+{
+	unsigned int this_cpu = smp_processor_id();
+	struct cpumask new_mask;
+	const struct cpumask *local_mask;
+
+	cpumask_copy(&new_mask, mask);
+	cpumask_clear_cpu(this_cpu, &new_mask);
+	local_mask = &new_mask;
+	__send_ipi_mask(local_mask, vector);
+}
+
+static void kvm_send_ipi_allbutself(int vector)
+{
+	kvm_send_ipi_mask_allbutself(cpu_online_mask, vector);
+}
+
+static void kvm_send_ipi_all(int vector)
+{
+	__send_ipi_mask(cpu_online_mask, vector);
+}
+
+/*
+ * Set the IPI entry points
+ */
+static void kvm_setup_pv_ipi(void)
+{
+	apic->send_IPI_mask = kvm_send_ipi_mask;
+	apic->send_IPI_mask_allbutself = kvm_send_ipi_mask_allbutself;
+	apic->send_IPI_allbutself = kvm_send_ipi_allbutself;
+	apic->send_IPI_all = kvm_send_ipi_all;
+	pr_info("KVM setup pv IPIs\n");
+}
+
 static void __init kvm_smp_prepare_cpus(unsigned int max_cpus)
 {
 	native_smp_prepare_cpus(max_cpus);
@@ -554,14 +637,13 @@ static void __init kvm_guest_init(void)
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
 	    !kvm_para_has_hint(KVM_HINTS_REALTIME) &&
-	    kvm_para_has_feature(KVM_FEATURE_STEAL_TIME))
+	    kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
 		pv_mmu_ops.flush_tlb_others = kvm_flush_tlb_others;
+		pv_mmu_ops.tlb_remove_table = tlb_remove_table;
+	}
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
 		apic_set_eoi_write(kvm_guest_apic_eoi_write);
-
-	if (kvmclock_vsyscall)
-		kvm_setup_vsyscall_timeinfo();
 
 #ifdef CONFIG_SMP
 	smp_ops.smp_prepare_cpus = kvm_smp_prepare_cpus;
@@ -624,12 +706,27 @@ static uint32_t __init kvm_detect(void)
 	return kvm_cpuid_base();
 }
 
+static void __init kvm_apic_init(void)
+{
+#if defined(CONFIG_SMP)
+	if (kvm_para_has_feature(KVM_FEATURE_PV_SEND_IPI))
+		kvm_setup_pv_ipi();
+#endif
+}
+
+static void __init kvm_init_platform(void)
+{
+	kvmclock_init();
+	x86_platform.apic_post_init = kvm_apic_init;
+}
+
 const __initconst struct hypervisor_x86 x86_hyper_kvm = {
 	.name			= "KVM",
 	.detect			= kvm_detect,
 	.type			= X86_HYPER_KVM,
 	.init.guest_late_init	= kvm_guest_init,
 	.init.x2apic_available	= kvm_para_available,
+	.init.init_platform	= kvm_init_platform,
 };
 
 static __init int activate_jump_labels(void)
@@ -746,6 +843,10 @@ void __init kvm_spinlock_init(void)
 		return;
 
 	if (kvm_para_has_hint(KVM_HINTS_REALTIME))
+		return;
+
+	/* Don't use the pvqspinlock code if there is only 1 vCPU. */
+	if (num_possible_cpus() == 1)
 		return;
 
 	__pv_init_lock_hash();

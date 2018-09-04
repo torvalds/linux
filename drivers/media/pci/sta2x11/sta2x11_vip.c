@@ -116,6 +116,7 @@ static inline struct vip_buffer *to_vip_buffer(struct vb2_v4l2_buffer *vb2)
  * @sequence: sequence number of acquired buffer
  * @active: current active buffer
  * @lock: used in videobuf2 callback
+ * @v4l_lock: serialize its video4linux ioctls
  * @tcount: Number of top frames
  * @bcount: Number of bottom frames
  * @overflow: Number of FIFO overflows
@@ -145,6 +146,7 @@ struct sta2x11_vip {
 	unsigned int sequence;
 	struct vip_buffer *active; /* current active buffer */
 	spinlock_t lock; /* Used in videobuf2 callback */
+	struct mutex v4l_lock;
 
 	/* Interrupt counters */
 	int tcount, bcount;
@@ -385,6 +387,8 @@ static const struct vb2_ops vip_video_qops = {
 	.buf_queue		= buffer_queue,
 	.start_streaming	= start_streaming,
 	.stop_streaming		= stop_streaming,
+	.wait_prepare		= vb2_ops_wait_prepare,
+	.wait_finish		= vb2_ops_wait_finish,
 };
 
 
@@ -870,6 +874,7 @@ static int sta2x11_vip_init_buffer(struct sta2x11_vip *vip)
 	vip->vb_vidq.mem_ops = &vb2_dma_contig_memops;
 	vip->vb_vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	vip->vb_vidq.dev = &vip->pdev->dev;
+	vip->vb_vidq.lock = &vip->v4l_lock;
 	err = vb2_queue_init(&vip->vb_vidq);
 	if (err)
 		return err;
@@ -1034,6 +1039,7 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 	vip->std = V4L2_STD_PAL;
 	vip->format = formats_50[0];
 	vip->config = config;
+	mutex_init(&vip->v4l_lock);
 
 	ret = sta2x11_vip_init_controls(vip);
 	if (ret)
@@ -1080,6 +1086,7 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 	vip->video_dev = video_dev_template;
 	vip->video_dev.v4l2_dev = &vip->v4l2_dev;
 	vip->video_dev.queue = &vip->vb_vidq;
+	vip->video_dev.lock = &vip->v4l_lock;
 	video_set_drvdata(&vip->video_dev, vip);
 
 	ret = video_register_device(&vip->video_dev, VFL_TYPE_GRABBER, -1);

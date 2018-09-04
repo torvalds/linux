@@ -251,7 +251,6 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 {
 	int ret = -ENOENT;
 	struct inode *inode = path->dentry->d_inode;
-	struct orangefs_inode_s *orangefs_inode = NULL;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "orangefs_getattr: called on %pd\n",
@@ -262,8 +261,6 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 		generic_fillattr(inode, stat);
 
 		/* override block size reported to stat */
-		orangefs_inode = ORANGEFS_I(inode);
-
 		if (request_mask & STATX_SIZE)
 			stat->result_mask = STATX_BASIC_STATS;
 		else

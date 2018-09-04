@@ -244,8 +244,9 @@ static int rmi_f03_config(struct rmi_function *fn)
 	return 0;
 }
 
-static int rmi_f03_attention(struct rmi_function *fn, unsigned long *irq_bits)
+static irqreturn_t rmi_f03_attention(int irq, void *ctx)
 {
+	struct rmi_function *fn = ctx;
 	struct rmi_device *rmi_dev = fn->rmi_dev;
 	struct rmi_driver_data *drvdata = dev_get_drvdata(&rmi_dev->dev);
 	struct f03_data *f03 = dev_get_drvdata(&fn->dev);
@@ -262,7 +263,7 @@ static int rmi_f03_attention(struct rmi_function *fn, unsigned long *irq_bits)
 		/* First grab the data passed by the transport device */
 		if (drvdata->attn_data.size < ob_len) {
 			dev_warn(&fn->dev, "F03 interrupted, but data is missing!\n");
-			return 0;
+			return IRQ_HANDLED;
 		}
 
 		memcpy(obs, drvdata->attn_data.data, ob_len);
@@ -277,7 +278,7 @@ static int rmi_f03_attention(struct rmi_function *fn, unsigned long *irq_bits)
 				"%s: Failed to read F03 output buffers: %d\n",
 				__func__, error);
 			serio_interrupt(f03->serio, 0, SERIO_TIMEOUT);
-			return error;
+			return IRQ_RETVAL(error);
 		}
 	}
 
@@ -303,7 +304,7 @@ static int rmi_f03_attention(struct rmi_function *fn, unsigned long *irq_bits)
 		serio_interrupt(f03->serio, ob_data, serio_flags);
 	}
 
-	return 0;
+	return IRQ_HANDLED;
 }
 
 static void rmi_f03_remove(struct rmi_function *fn)

@@ -73,17 +73,57 @@ int uvc_query_ctrl(struct uvc_device *dev, u8 query, u8 unit,
 			u8 intfnum, u8 cs, void *data, u16 size)
 {
 	int ret;
+	u8 error;
+	u8 tmp;
 
 	ret = __uvc_query_ctrl(dev, query, unit, intfnum, cs, data, size,
 				UVC_CTRL_CONTROL_TIMEOUT);
-	if (ret != size) {
-		uvc_printk(KERN_ERR, "Failed to query (%s) UVC control %u on "
-			"unit %u: %d (exp. %u).\n", uvc_query_name(query), cs,
-			unit, ret, size);
-		return -EIO;
+	if (likely(ret == size))
+		return 0;
+
+	uvc_printk(KERN_ERR,
+		   "Failed to query (%s) UVC control %u on unit %u: %d (exp. %u).\n",
+		   uvc_query_name(query), cs, unit, ret, size);
+
+	if (ret != -EPIPE)
+		return ret;
+
+	tmp = *(u8 *)data;
+
+	ret = __uvc_query_ctrl(dev, UVC_GET_CUR, 0, intfnum,
+			       UVC_VC_REQUEST_ERROR_CODE_CONTROL, data, 1,
+			       UVC_CTRL_CONTROL_TIMEOUT);
+
+	error = *(u8 *)data;
+	*(u8 *)data = tmp;
+
+	if (ret != 1)
+		return ret < 0 ? ret : -EPIPE;
+
+	uvc_trace(UVC_TRACE_CONTROL, "Control error %u\n", error);
+
+	switch (error) {
+	case 0:
+		/* Cannot happen - we received a STALL */
+		return -EPIPE;
+	case 1: /* Not ready */
+		return -EBUSY;
+	case 2: /* Wrong state */
+		return -EILSEQ;
+	case 3: /* Power */
+		return -EREMOTE;
+	case 4: /* Out of range */
+		return -ERANGE;
+	case 5: /* Invalid unit */
+	case 6: /* Invalid control */
+	case 7: /* Invalid Request */
+	case 8: /* Invalid value within range */
+		return -EINVAL;
+	default: /* reserved or unknown */
+		break;
 	}
 
-	return 0;
+	return -EPIPE;
 }
 
 static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
@@ -1232,6 +1272,8 @@ static void uvc_video_validate_buffer(const struct uvc_streaming *stream,
 static void uvc_video_next_buffers(struct uvc_streaming *stream,
 		struct uvc_buffer **video_buf, struct uvc_buffer **meta_buf)
 {
+	uvc_video_validate_buffer(stream, *video_buf);
+
 	if (*meta_buf) {
 		struct vb2_v4l2_buffer *vb2_meta = &(*meta_buf)->buf;
 		const struct vb2_v4l2_buffer *vb2_video = &(*video_buf)->buf;
@@ -1270,10 +1312,8 @@ static void uvc_video_decode_isoc(struct urb *urb, struct uvc_streaming *stream,
 		do {
 			ret = uvc_video_decode_start(stream, buf, mem,
 				urb->iso_frame_desc[i].actual_length);
-			if (ret == -EAGAIN) {
-				uvc_video_validate_buffer(stream, buf);
+			if (ret == -EAGAIN)
 				uvc_video_next_buffers(stream, &buf, &meta_buf);
-			}
 		} while (ret == -EAGAIN);
 
 		if (ret < 0)
@@ -1289,10 +1329,8 @@ static void uvc_video_decode_isoc(struct urb *urb, struct uvc_streaming *stream,
 		uvc_video_decode_end(stream, buf, mem,
 			urb->iso_frame_desc[i].actual_length);
 
-		if (buf->state == UVC_BUF_STATE_READY) {
-			uvc_video_validate_buffer(stream, buf);
+		if (buf->state == UVC_BUF_STATE_READY)
 			uvc_video_next_buffers(stream, &buf, &meta_buf);
-		}
 	}
 }
 

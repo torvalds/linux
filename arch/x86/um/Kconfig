@@ -1,13 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-mainmenu "User Mode Linux/$(SUBARCH) $(KERNELVERSION) Kernel Configuration"
-
-comment "Compiler: $(CC_VERSION_TEXT)"
-
-source "scripts/Kconfig.include"
-
-source "arch/um/Kconfig.common"
-
-menu "UML-specific options"
 
 menu "Host processor type and features"
 
@@ -66,9 +57,3 @@ config ARCH_REUSE_HOST_VSYSCALL_AREA
 
 config GENERIC_HWEIGHT
 	def_bool y
-
-source "arch/um/Kconfig.um"
-
-endmenu
-
-source "arch/um/Kconfig.rest"
