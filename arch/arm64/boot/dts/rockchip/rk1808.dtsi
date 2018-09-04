@@ -123,6 +123,11 @@
 		reg = <0x0 0xfe000000 0x0 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+
+		io_domains: io-domains {
+			compatible = "rockchip,rk1808-io-voltage-domain";
+			status = "disabled";
+		};
 	};
 
 	usb2phy_grf: syscon@fe010000 {
@@ -167,6 +172,11 @@
 		reg = <0x0 0xfe410000 0x0 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+
+		pmu_io_domains: io-domains {
+			compatible = "rockchip,rk1808-pmu-io-voltage-domain";
+			status = "disabled";
+		};
 	};
 
 	qos_npu: qos@fe850000 {
