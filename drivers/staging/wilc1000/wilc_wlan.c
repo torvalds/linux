@@ -125,14 +125,14 @@ static inline int add_tcp_pending_ack(struct wilc_vif *vif, u32 ack,
 				      struct txq_entry_t *txqe)
 {
 	struct tcp_ack_filter *f = &vif->ack_filter;
-	u32 i = f->pending_base + f->pending_acks;
+	u32 i = f->pending_base + f->pending_acks_idx;
 
 	if (i < MAX_PENDING_ACKS) {
-		f->pending_acks_info[i].ack_num = ack;
-		f->pending_acks_info[i].txqe = txqe;
-		f->pending_acks_info[i].session_index = session_index;
-		txqe->tcp_pending_ack_idx = i;
-		f->pending_acks++;
+		f->pending_acks[i].ack_num = ack;
+		f->pending_acks[i].txqe = txqe;
+		f->pending_acks[i].session_index = session_index;
+		txqe->ack_idx = i;
+		f->pending_acks_idx++;
 	}
 	return 0;
 }
@@ -200,24 +200,24 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 
 	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 	for (i = f->pending_base;
-	     i < (f->pending_base + f->pending_acks); i++) {
+	     i < (f->pending_base + f->pending_acks_idx); i++) {
 		u32 index;
 		u32 bigger_ack_num;
 
 		if (i >= MAX_PENDING_ACKS)
 			break;
 
-		index = f->pending_acks_info[i].session_index;
+		index = f->pending_acks[i].session_index;
 
 		if (index >= 2 * MAX_TCP_SESSION)
 			break;
 
 		bigger_ack_num = f->ack_session_info[index].bigger_ack_num;
 
-		if (f->pending_acks_info[i].ack_num < bigger_ack_num) {
+		if (f->pending_acks[i].ack_num < bigger_ack_num) {
 			struct txq_entry_t *tqe;
 
-			tqe = f->pending_acks_info[i].txqe;
+			tqe = f->pending_acks[i].txqe;
 			if (tqe) {
 				wilc_wlan_txq_remove(wilc, tqe);
 				tqe->status = 1;
@@ -229,7 +229,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 			}
 		}
 	}
-	f->pending_acks = 0;
+	f->pending_acks_idx = 0;
 	f->tcp_session = 0;
 
 	if (f->pending_base == 0)
@@ -275,7 +275,7 @@ static int wilc_wlan_txq_add_cfg_pkt(struct wilc_vif *vif, u8 *buffer,
 	tqe->buffer_size = buffer_size;
 	tqe->tx_complete_func = NULL;
 	tqe->priv = NULL;
-	tqe->tcp_pending_ack_idx = NOT_TCP_ACK;
+	tqe->ack_idx = NOT_TCP_ACK;
 
 	if (wilc_wlan_txq_add_to_head(vif, tqe)) {
 		kfree(tqe);
@@ -307,7 +307,7 @@ int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,
 	tqe->tx_complete_func = func;
 	tqe->priv = priv;
 
-	tqe->tcp_pending_ack_idx = NOT_TCP_ACK;
+	tqe->ack_idx = NOT_TCP_ACK;
 	if (vif->ack_filter.enabled)
 		tcp_process(dev, tqe);
 	wilc_wlan_txq_add_to_tail(dev, tqe);
@@ -335,7 +335,7 @@ int wilc_wlan_txq_add_mgmt_pkt(struct net_device *dev, void *priv, u8 *buffer,
 	tqe->buffer_size = buffer_size;
 	tqe->tx_complete_func = func;
 	tqe->priv = priv;
-	tqe->tcp_pending_ack_idx = NOT_TCP_ACK;
+	tqe->ack_idx = NOT_TCP_ACK;
 	wilc_wlan_txq_add_to_tail(dev, tqe);
 	return 1;
 }
@@ -668,9 +668,9 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 		tqe->status = 1;
 		if (tqe->tx_complete_func)
 			tqe->tx_complete_func(tqe->priv, tqe->status);
-		if (tqe->tcp_pending_ack_idx != NOT_TCP_ACK &&
-		    tqe->tcp_pending_ack_idx < MAX_PENDING_ACKS)
-			vif->ack_filter.pending_acks_info[tqe->tcp_pending_ack_idx].txqe = NULL;
+		if (tqe->ack_idx != NOT_TCP_ACK &&
+		    tqe->ack_idx < MAX_PENDING_ACKS)
+			vif->ack_filter.pending_acks[tqe->ack_idx].txqe = NULL;
 		kfree(tqe);
 	} while (--entries);
 

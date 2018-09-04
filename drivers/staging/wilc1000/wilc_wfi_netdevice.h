@@ -115,7 +115,7 @@ struct ack_session_info {
 	u16 status;
 };
 
-struct pending_acks_info {
+struct pending_acks {
 	u32 ack_num;
 	u32 session_index;
 	struct txq_entry_t  *txqe;
@@ -123,10 +123,10 @@ struct pending_acks_info {
 
 struct tcp_ack_filter {
 	struct ack_session_info ack_session_info[2 * MAX_TCP_SESSION];
-	struct pending_acks_info pending_acks_info[MAX_PENDING_ACKS];
+	struct pending_acks pending_acks[MAX_PENDING_ACKS];
 	u32 pending_base;
 	u32 tcp_session;
-	u32 pending_acks;
+	u32 pending_acks_idx;
 	bool enabled;
 };
 
