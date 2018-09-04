@@ -1800,15 +1800,15 @@ static void qlt_24xx_send_abts_resp(struct qla_qpair *qpair,
  * ha->hardware_lock supposed to be held on entry. Might drop it, then reaquire
  */
 static void qlt_24xx_retry_term_exchange(struct scsi_qla_host *vha,
-	struct abts_resp_from_24xx_fw *entry)
+    struct qla_qpair *qpair, struct abts_resp_from_24xx_fw *entry)
 {
 	struct ctio7_to_24xx *ctio;
+	u16 tmp;
 
 	ql_dbg(ql_dbg_tgt, vha, 0xe007,
 	    "Sending retry TERM EXCH CTIO7 (ha=%p)\n", vha->hw);
 
-	ctio = (struct ctio7_to_24xx *)qla2x00_alloc_iocbs_ready(
-	    vha->hw->base_qpair, NULL);
+	ctio = (struct ctio7_to_24xx *)qla2x00_alloc_iocbs_ready(qpair, NULL);
 	if (ctio == NULL) {
 		ql_dbg(ql_dbg_tgt, vha, 0xe04b,
 		    "qla_target(%d): %s failed: unable to allocate "
@@ -1831,16 +1831,21 @@ static void qlt_24xx_retry_term_exchange(struct scsi_qla_host *vha,
 	ctio->initiator_id[1] = entry->fcp_hdr_le.d_id[1];
 	ctio->initiator_id[2] = entry->fcp_hdr_le.d_id[2];
 	ctio->exchange_addr = entry->exchange_addr_to_abort;
-	ctio->u.status1.flags = cpu_to_le16(CTIO7_FLAGS_STATUS_MODE_1 |
-					    CTIO7_FLAGS_TERMINATE);
+	tmp = (CTIO7_FLAGS_STATUS_MODE_1 | CTIO7_FLAGS_TERMINATE);
+	if (qpair->retry_term_cnt & 1)
+		tmp |= (0x4 << 9);
+	ctio->u.status1.flags = cpu_to_le16(tmp);
+
 	ctio->u.status1.ox_id = cpu_to_le16(entry->fcp_hdr_le.ox_id);
 
 	/* Memory Barrier */
 	wmb();
-	qla2x00_start_iocbs(vha, vha->req);
+	if (qpair->reqq_start_iocbs)
+		qpair->reqq_start_iocbs(qpair);
+	else
+		qla2x00_start_iocbs(vha, qpair->req);
 
-	qlt_24xx_send_abts_resp(vha->hw->base_qpair,
-	    (struct abts_recv_from_24xx *)entry,
+	qlt_24xx_send_abts_resp(qpair, (struct abts_recv_from_24xx *)entry,
 	    FCP_TMF_CMPL, true);
 }
 
@@ -5667,6 +5672,52 @@ static void qlt_24xx_atio_pkt(struct scsi_qla_host *vha,
 	tgt->atio_irq_cmd_count--;
 }
 
+/*
+ * qpair lock is assume to be held
+ * rc = 0 : send terminate & abts respond
+ * rc != 0: do not send term & abts respond
+ */
+static int qlt_chk_unresolv_exchg(struct scsi_qla_host *vha,
+    struct qla_qpair *qpair, struct abts_resp_from_24xx_fw *entry)
+{
+	struct qla_hw_data *ha = vha->hw;
+	int rc = 0;
+
+	/*
+	 * Detect unresolved exchange. If the same ABTS is unable
+	 * to terminate an existing command and the same ABTS loops
+	 * between FW & Driver, then force FW dump. Under 1 jiff,
+	 * we should see multiple loops.
+	 */
+	if (qpair->retry_term_exchg_addr == entry->exchange_addr_to_abort &&
+	    qpair->retry_term_jiff == jiffies) {
+		/* found existing exchange */
+		qpair->retry_term_cnt++;
+		if (qpair->retry_term_cnt >= 5) {
+			rc = EIO;
+			qpair->retry_term_cnt = 0;
+			ql_log(ql_log_warn, vha, 0xffff,
+			    "Unable to send ABTS Respond. Dumping firmware.\n");
+			ql_dump_buffer(ql_dbg_tgt_mgt + ql_dbg_buffer,
+			    vha, 0xffff, (uint8_t *)entry, sizeof(*entry));
+
+			if (qpair == ha->base_qpair)
+				ha->isp_ops->fw_dump(vha, 1);
+			else
+				ha->isp_ops->fw_dump(vha, 0);
+
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+			qla2xxx_wake_dpc(vha);
+		}
+	} else if (qpair->retry_term_jiff != jiffies) {
+		qpair->retry_term_exchg_addr = entry->exchange_addr_to_abort;
+		qpair->retry_term_cnt = 0;
+		qpair->retry_term_jiff = jiffies;
+	}
+
+	return rc;
+}
+
 /* ha->hardware_lock supposed to be held on entry */
 /* called via callback from qla2xxx */
 static void qlt_response_pkt(struct scsi_qla_host *vha,
@@ -5824,8 +5875,11 @@ static void qlt_response_pkt(struct scsi_qla_host *vha,
 					 * (re)terminate the exchange and retry
 					 * the abort response.
 					 */
+					if (qlt_chk_unresolv_exchg(vha,
+						rsp->qpair, entry))
+						break;
 					qlt_24xx_retry_term_exchange(vha,
-					    entry);
+					    rsp->qpair, entry);
 				} else
 					ql_dbg(ql_dbg_tgt, vha, 0xe063,
 					    "qla_target(%d): ABTS_RESP_24XX "

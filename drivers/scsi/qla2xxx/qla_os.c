@@ -391,6 +391,7 @@ static void qla_init_base_qpair(struct scsi_qla_host *vha, struct req_que *req,
 	struct qla_hw_data *ha = vha->hw;
 	rsp->qpair = ha->base_qpair;
 	rsp->req = req;
+	ha->base_qpair->hw = ha;
 	ha->base_qpair->req = req;
 	ha->base_qpair->rsp = rsp;
 	ha->base_qpair->vha = vha;
