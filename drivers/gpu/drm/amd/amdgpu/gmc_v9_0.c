@@ -48,6 +48,7 @@
 #include "gfxhub_v1_0.h"
 #include "mmhub_v1_0.h"
 #include "gfxhub_v1_1.h"
+#include "mmhub_v9_4.h"
 
 #include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
 
@@ -807,8 +808,12 @@ static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 					struct amdgpu_gmc *mc)
 {
 	u64 base = 0;
-	if (!amdgpu_sriov_vf(adev))
-		base = mmhub_v1_0_get_fb_location(adev);
+	if (!amdgpu_sriov_vf(adev)) {
+		if (adev->asic_type == CHIP_ARCTURUS)
+			base = mmhub_v9_4_get_fb_location(adev);
+		else
+			base = mmhub_v1_0_get_fb_location(adev);
+	}
 	/* add the xgmi offset of the physical node */
 	base += adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
 	amdgpu_gmc_vram_location(adev, mc, base);
@@ -974,7 +979,10 @@ static int gmc_v9_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gfxhub_v1_0_init(adev);
-	mmhub_v1_0_init(adev);
+	if (adev->asic_type == CHIP_ARCTURUS)
+		mmhub_v9_4_init(adev);
+	else
+		mmhub_v1_0_init(adev);
 
 	spin_lock_init(&adev->gmc.invalidate_lock);
 
@@ -1194,7 +1202,10 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	r = mmhub_v1_0_gart_enable(adev);
+	if (adev->asic_type == CHIP_ARCTURUS)
+		r = mmhub_v9_4_gart_enable(adev);
+	else
+		r = mmhub_v1_0_gart_enable(adev);
 	if (r)
 		return r;
 
@@ -1215,7 +1226,10 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 		value = true;
 
 	gfxhub_v1_0_set_fault_enable_default(adev, value);
-	mmhub_v1_0_set_fault_enable_default(adev, value);
+	if (adev->asic_type == CHIP_ARCTURUS)
+		mmhub_v9_4_set_fault_enable_default(adev, value);
+	else
+		mmhub_v1_0_set_fault_enable_default(adev, value);
 	gmc_v9_0_flush_gpu_tlb(adev, 0, 0);
 
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
@@ -1256,7 +1270,10 @@ static int gmc_v9_0_hw_init(void *handle)
 static void gmc_v9_0_gart_disable(struct amdgpu_device *adev)
 {
 	gfxhub_v1_0_gart_disable(adev);
-	mmhub_v1_0_gart_disable(adev);
+	if (adev->asic_type == CHIP_ARCTURUS)
+		mmhub_v9_4_gart_disable(adev);
+	else
+		mmhub_v1_0_gart_disable(adev);
 	amdgpu_gart_table_vram_unpin(adev);
 }
 
@@ -1321,12 +1338,18 @@ static int gmc_v9_0_set_clockgating_state(void *handle,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (adev->asic_type == CHIP_ARCTURUS)
+		return 0;
+
 	return mmhub_v1_0_set_clockgating(adev, state);
 }
 
 static void gmc_v9_0_get_clockgating_state(void *handle, u32 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (adev->asic_type == CHIP_ARCTURUS)
+		return;
 
 	mmhub_v1_0_get_clockgating(adev, flags);
 }
