@@ -345,8 +345,8 @@ int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, u32 numchannels)
 
 	/* pre-allocation of buffers */
 	/* NOTE: this may fail */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					      snd_dma_continuous_data(GFP_KERNEL),
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+					      chip->card->dev->parent,
 					      snd_bcm2835_playback_hw.buffer_bytes_max,
 					      snd_bcm2835_playback_hw.buffer_bytes_max);
 
@@ -371,8 +371,8 @@ int snd_bcm2835_new_spdif_pcm(struct bcm2835_chip *chip)
 
 	/* pre-allocation of buffers */
 	/* NOTE: this may fail */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-		snd_dma_continuous_data(GFP_KERNEL),
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+		chip->card->dev->parent,
 		snd_bcm2835_playback_spdif_hw.buffer_bytes_max, snd_bcm2835_playback_spdif_hw.buffer_bytes_max);
 
 	return 0;
@@ -404,8 +404,8 @@ int snd_bcm2835_new_simple_pcm(struct bcm2835_chip *chip,
 
 	snd_pcm_lib_preallocate_pages_for_all(
 		pcm,
-		SNDRV_DMA_TYPE_CONTINUOUS,
-		snd_dma_continuous_data(GFP_KERNEL),
+		SNDRV_DMA_TYPE_DEV,
+		chip->card->dev->parent,
 		snd_bcm2835_playback_hw.buffer_bytes_max,
 		snd_bcm2835_playback_hw.buffer_bytes_max);
 
