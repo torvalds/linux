@@ -100,33 +100,19 @@ static int hns3_lp_up(struct net_device *ndev, enum hnae3_loop loop_mode)
 	struct hnae3_handle *h = hns3_get_handle(ndev);
 	int ret;
 
-	if (!h->ae_algo->ops->start)
-		return -EOPNOTSUPP;
-
 	ret = hns3_nic_reset_all_ring(h);
 	if (ret)
 		return ret;
 
-	ret = h->ae_algo->ops->start(h);
-	if (ret) {
-		netdev_err(ndev,
-			   "hns3_lb_up ae start return error: %d\n", ret);
-		return ret;
-	}
-
 	ret = hns3_lp_setup(ndev, loop_mode, true);
 	usleep_range(10000, 20000);
 
-	return ret;
+	return 0;
 }
 
 static int hns3_lp_down(struct net_device *ndev, enum hnae3_loop loop_mode)
 {
-	struct hnae3_handle *h = hns3_get_handle(ndev);
 	int ret;
-
-	if (!h->ae_algo->ops->stop)
-		return -EOPNOTSUPP;
 
 	ret = hns3_lp_setup(ndev, loop_mode, false);
 	if (ret) {
@@ -134,7 +120,6 @@ static int hns3_lp_down(struct net_device *ndev, enum hnae3_loop loop_mode)
 		return ret;
 	}
 
-	h->ae_algo->ops->stop(h);
 	usleep_range(10000, 20000);
 
 	return 0;
@@ -152,6 +137,7 @@ static void hns3_lp_setup_skb(struct sk_buff *skb)
 	packet = skb_put(skb, HNS3_NIC_LB_TEST_PACKET_SIZE);
 
 	memcpy(ethh->h_dest, ndev->dev_addr, ETH_ALEN);
+	ethh->h_dest[5] += 0x1f;
 	eth_zero_addr(ethh->h_source);
 	ethh->h_proto = htons(ETH_P_ARP);
 	skb_reset_mac_header(skb);
@@ -309,7 +295,7 @@ static void hns3_self_test(struct net_device *ndev,
 			h->flags & HNAE3_SUPPORT_SERDES_LOOPBACK;
 
 	if (if_running)
-		dev_close(ndev);
+		ndev->netdev_ops->ndo_stop(ndev);
 
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
 	/* Disable the vlan filter for selftest does not support it */
@@ -347,7 +333,7 @@ static void hns3_self_test(struct net_device *ndev,
 #endif
 
 	if (if_running)
-		dev_open(ndev);
+		ndev->netdev_ops->ndo_open(ndev);
 }
 
 static int hns3_get_sset_count(struct net_device *netdev, int stringset)
@@ -560,62 +546,62 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	u32 flowctrl_adv = 0;
+	const struct hnae3_ae_ops *ops;
 	u8 link_stat;
 
 	if (!h->ae_algo || !h->ae_algo->ops)
 		return -EOPNOTSUPP;
 
-	/* 1.auto_neg & speed & duplex from cmd */
-	if (netdev->phydev) {
+	ops = h->ae_algo->ops;
+	if (ops->get_port_type)
+		ops->get_port_type(h, &cmd->base.port);
+	else
+		return -EOPNOTSUPP;
+
+	switch (cmd->base.port) {
+	case PORT_FIBRE:
+		/* 1.auto_neg & speed & duplex from cmd */
+		if (ops->get_ksettings_an_result)
+			ops->get_ksettings_an_result(h,
+						     &cmd->base.autoneg,
+						     &cmd->base.speed,
+						     &cmd->base.duplex);
+		else
+			return -EOPNOTSUPP;
+
+		/* 2.get link mode*/
+		if (ops->get_link_mode)
+			ops->get_link_mode(h,
+					   cmd->link_modes.supported,
+					   cmd->link_modes.advertising);
+
+		/* 3.mdix_ctrl&mdix get from phy reg */
+		if (ops->get_mdix_mode)
+			ops->get_mdix_mode(h, &cmd->base.eth_tp_mdix_ctrl,
+					   &cmd->base.eth_tp_mdix);
+
+		break;
+	case PORT_TP:
+		if (!netdev->phydev)
+			return -EOPNOTSUPP;
+
 		phy_ethtool_ksettings_get(netdev->phydev, cmd);
 
+		break;
+	default:
+		netdev_warn(netdev,
+			    "Unknown port type, neither Fibre/Copper detected");
 		return 0;
 	}
 
-	if (h->ae_algo->ops->get_ksettings_an_result)
-		h->ae_algo->ops->get_ksettings_an_result(h,
-							 &cmd->base.autoneg,
-							 &cmd->base.speed,
-							 &cmd->base.duplex);
-	else
-		return -EOPNOTSUPP;
+	/* mdio_support */
+	cmd->base.mdio_support = ETH_MDIO_SUPPORTS_C22;
 
 	link_stat = hns3_get_link(netdev);
 	if (!link_stat) {
 		cmd->base.speed = SPEED_UNKNOWN;
 		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
-
-	/* 2.get link mode and port type*/
-	if (h->ae_algo->ops->get_link_mode)
-		h->ae_algo->ops->get_link_mode(h,
-					       cmd->link_modes.supported,
-					       cmd->link_modes.advertising);
-
-	cmd->base.port = PORT_NONE;
-	if (h->ae_algo->ops->get_port_type)
-		h->ae_algo->ops->get_port_type(h,
-					       &cmd->base.port);
-
-	/* 3.mdix_ctrl&mdix get from phy reg */
-	if (h->ae_algo->ops->get_mdix_mode)
-		h->ae_algo->ops->get_mdix_mode(h, &cmd->base.eth_tp_mdix_ctrl,
-					       &cmd->base.eth_tp_mdix);
-	/* 4.mdio_support */
-	cmd->base.mdio_support = ETH_MDIO_SUPPORTS_C22;
-
-	/* 5.get flow control setttings */
-	if (h->ae_algo->ops->get_flowctrl_adv)
-		h->ae_algo->ops->get_flowctrl_adv(h, &flowctrl_adv);
-
-	if (flowctrl_adv & ADVERTISED_Pause)
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     Pause);
-
-	if (flowctrl_adv & ADVERTISED_Asym_Pause)
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     Asym_Pause);
 
 	return 0;
 }

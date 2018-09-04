@@ -2066,19 +2066,17 @@ static int hclge_init_msi(struct hclge_dev *hdev)
 	return 0;
 }
 
-static void hclge_check_speed_dup(struct hclge_dev *hdev, int duplex, int speed)
+static u8 hclge_check_speed_dup(u8 duplex, int speed)
 {
-	struct hclge_mac *mac = &hdev->hw.mac;
 
-	if ((speed == HCLGE_MAC_SPEED_10M) || (speed == HCLGE_MAC_SPEED_100M))
-		mac->duplex = (u8)duplex;
-	else
-		mac->duplex = HCLGE_MAC_FULL;
+	if (!(speed == HCLGE_MAC_SPEED_10M || speed == HCLGE_MAC_SPEED_100M))
+		duplex = HCLGE_MAC_FULL;
 
-	mac->speed = speed;
+	return duplex;
 }
 
-int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex)
+static int hclge_cfg_mac_speed_dup_hw(struct hclge_dev *hdev, int speed,
+				      u8 duplex)
 {
 	struct hclge_config_mac_speed_dup_cmd *req;
 	struct hclge_desc desc;
@@ -2138,7 +2136,23 @@ int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex)
 		return ret;
 	}
 
-	hclge_check_speed_dup(hdev, duplex, speed);
+	return 0;
+}
+
+int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex)
+{
+	int ret;
+
+	duplex = hclge_check_speed_dup(duplex, speed);
+	if (hdev->hw.mac.speed == speed && hdev->hw.mac.duplex == duplex)
+		return 0;
+
+	ret = hclge_cfg_mac_speed_dup_hw(hdev, speed, duplex);
+	if (ret)
+		return ret;
+
+	hdev->hw.mac.speed = speed;
+	hdev->hw.mac.duplex = duplex;
 
 	return 0;
 }
@@ -2259,7 +2273,9 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 	int ret;
 	int i;
 
-	ret = hclge_cfg_mac_speed_dup(hdev, hdev->hw.mac.speed, HCLGE_MAC_FULL);
+	hdev->hw.mac.duplex = HCLGE_MAC_FULL;
+	ret = hclge_cfg_mac_speed_dup_hw(hdev, hdev->hw.mac.speed,
+					 hdev->hw.mac.duplex);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"Config mac speed dup fail ret=%d\n", ret);
@@ -2415,13 +2431,11 @@ static int hclge_update_speed_duplex(struct hclge_dev *hdev)
 		return ret;
 	}
 
-	if ((mac.speed != speed) || (mac.duplex != duplex)) {
-		ret = hclge_cfg_mac_speed_dup(hdev, speed, duplex);
-		if (ret) {
-			dev_err(&hdev->pdev->dev,
-				"mac speed/duplex config failed %d\n", ret);
-			return ret;
-		}
+	ret = hclge_cfg_mac_speed_dup(hdev, speed, duplex);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"mac speed/duplex config failed %d\n", ret);
+		return ret;
 	}
 
 	return 0;
@@ -3659,6 +3673,8 @@ static int hclge_set_mac_loopback(struct hclge_dev *hdev, bool en)
 	/* 2 Then setup the loopback flag */
 	loop_en = le32_to_cpu(req->txrx_pad_fcs_loop_en);
 	hnae3_set_bit(loop_en, HCLGE_MAC_APP_LP_B, en ? 1 : 0);
+	hnae3_set_bit(loop_en, HCLGE_MAC_TX_EN_B, en ? 1 : 0);
+	hnae3_set_bit(loop_en, HCLGE_MAC_RX_EN_B, en ? 1 : 0);
 
 	req->txrx_pad_fcs_loop_en = cpu_to_le32(loop_en);
 
@@ -3719,31 +3735,8 @@ static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en)
 		return -EIO;
 	}
 
+	hclge_cfg_mac_mode(hdev, en);
 	return 0;
-}
-
-static int hclge_set_loopback(struct hnae3_handle *handle,
-			      enum hnae3_loop loop_mode, bool en)
-{
-	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct hclge_dev *hdev = vport->back;
-	int ret;
-
-	switch (loop_mode) {
-	case HNAE3_MAC_INTER_LOOP_MAC:
-		ret = hclge_set_mac_loopback(hdev, en);
-		break;
-	case HNAE3_MAC_INTER_LOOP_SERDES:
-		ret = hclge_set_serdes_loopback(hdev, en);
-		break;
-	default:
-		ret = -ENOTSUPP;
-		dev_err(&hdev->pdev->dev,
-			"loop_mode %d is not supported\n", loop_mode);
-		break;
-	}
-
-	return ret;
 }
 
 static int hclge_tqp_enable(struct hclge_dev *hdev, int tqp_id,
@@ -3764,6 +3757,36 @@ static int hclge_tqp_enable(struct hclge_dev *hdev, int tqp_id,
 		dev_err(&hdev->pdev->dev,
 			"Tqp enable fail, status =%d.\n", ret);
 	return ret;
+}
+
+static int hclge_set_loopback(struct hnae3_handle *handle,
+			      enum hnae3_loop loop_mode, bool en)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	int i, ret;
+
+	switch (loop_mode) {
+	case HNAE3_MAC_INTER_LOOP_MAC:
+		ret = hclge_set_mac_loopback(hdev, en);
+		break;
+	case HNAE3_MAC_INTER_LOOP_SERDES:
+		ret = hclge_set_serdes_loopback(hdev, en);
+		break;
+	default:
+		ret = -ENOTSUPP;
+		dev_err(&hdev->pdev->dev,
+			"loop_mode %d is not supported\n", loop_mode);
+		break;
+	}
+
+	for (i = 0; i < vport->alloc_tqps; i++) {
+		ret = hclge_tqp_enable(hdev, i, 0, en);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static void hclge_reset_tqp_stats(struct hnae3_handle *handle)
@@ -4362,7 +4385,7 @@ int hclge_add_mc_addr_common(struct hclge_vport *vport,
 	hnae3_set_bit(req.flags, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
 	hnae3_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
 	hnae3_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT1_EN_B, 1);
-	hnae3_set_bit(req.mc_mac_en, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
+	hnae3_set_bit(req.mc_mac_en, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
 	hclge_prepare_mac_addr(&req, addr);
 	status = hclge_lookup_mac_vlan_tbl(vport, &req, desc, true);
 	if (!status) {
@@ -4429,7 +4452,7 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 	hnae3_set_bit(req.flags, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
 	hnae3_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
 	hnae3_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT1_EN_B, 1);
-	hnae3_set_bit(req.mc_mac_en, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
+	hnae3_set_bit(req.mc_mac_en, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
 	hclge_prepare_mac_addr(&req, addr);
 	status = hclge_lookup_mac_vlan_tbl(vport, &req, desc, true);
 	if (!status) {
@@ -4686,8 +4709,16 @@ static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, int vfid,
 			"Add vf vlan filter fail, ret =%d.\n",
 			req0->resp_code);
 	} else {
+#define HCLGE_VF_VLAN_DEL_NO_FOUND	1
 		if (!req0->resp_code)
 			return 0;
+
+		if (req0->resp_code == HCLGE_VF_VLAN_DEL_NO_FOUND) {
+			dev_warn(&hdev->pdev->dev,
+				 "vlan %d filter is not in vf vlan table\n",
+				 vlan);
+			return 0;
+		}
 
 		dev_err(&hdev->pdev->dev,
 			"Kill vf vlan filter fail, ret =%d.\n",
@@ -4732,6 +4763,9 @@ static int hclge_set_vlan_filter_hw(struct hclge_dev *hdev, __be16 proto,
 	u16 vport_idx, vport_num = 0;
 	int ret;
 
+	if (is_kill && !vlan_id)
+		return 0;
+
 	ret = hclge_set_vf_vlan_common(hdev, vport_id, is_kill, vlan_id,
 				       0, proto);
 	if (ret) {
@@ -4761,7 +4795,7 @@ static int hclge_set_vlan_filter_hw(struct hclge_dev *hdev, __be16 proto,
 		return -EINVAL;
 	}
 
-	for_each_set_bit(vport_idx, hdev->vlan_table[vlan_id], VLAN_N_VID)
+	for_each_set_bit(vport_idx, hdev->vlan_table[vlan_id], HCLGE_VPORT_NUM)
 		vport_num++;
 
 	if ((is_kill && vport_num == 0) || (!is_kill && vport_num == 1))
@@ -5185,20 +5219,6 @@ static u32 hclge_get_fw_version(struct hnae3_handle *handle)
 	struct hclge_dev *hdev = vport->back;
 
 	return hdev->fw_version;
-}
-
-static void hclge_get_flowctrl_adv(struct hnae3_handle *handle,
-				   u32 *flowctrl_adv)
-{
-	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct hclge_dev *hdev = vport->back;
-	struct phy_device *phydev = hdev->hw.mac.phydev;
-
-	if (!phydev)
-		return;
-
-	*flowctrl_adv |= (phydev->advertising & ADVERTISED_Pause) |
-			 (phydev->advertising & ADVERTISED_Asym_Pause);
 }
 
 static void hclge_set_flowctrl_adv(struct hclge_dev *hdev, u32 rx_en, u32 tx_en)
@@ -6301,7 +6321,6 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_tqps_and_rss_info = hclge_get_tqps_and_rss_info,
 	.set_channels = hclge_set_channels,
 	.get_channels = hclge_get_channels,
-	.get_flowctrl_adv = hclge_get_flowctrl_adv,
 	.get_regs_len = hclge_get_regs_len,
 	.get_regs = hclge_get_regs,
 	.set_led_id = hclge_set_led_id,

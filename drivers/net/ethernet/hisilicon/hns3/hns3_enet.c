@@ -1662,11 +1662,24 @@ static int hns3_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	return 0;
 }
 
+static void hns3_shutdown(struct pci_dev *pdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
+
+	hnae3_unregister_ae_dev(ae_dev);
+	devm_kfree(&pdev->dev, ae_dev);
+	pci_set_drvdata(pdev, NULL);
+
+	if (system_state == SYSTEM_POWER_OFF)
+		pci_set_power_state(pdev, PCI_D3hot);
+}
+
 static struct pci_driver hns3_driver = {
 	.name     = hns3_driver_name,
 	.id_table = hns3_pci_tbl,
 	.probe    = hns3_probe,
 	.remove   = hns3_remove,
+	.shutdown = hns3_shutdown,
 	.sriov_configure = hns3_pci_sriov_configure,
 };
 
