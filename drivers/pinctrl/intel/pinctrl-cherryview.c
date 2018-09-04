@@ -23,6 +23,8 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
 
+#include "pinctrl-intel.h"
+
 #define CHV_INTSTAT			0x300
 #define CHV_INTMASK			0x380
 
@@ -97,18 +99,6 @@ struct chv_pingroup {
 };
 
 /**
- * struct chv_function - A CHV pinmux function
- * @name: Name of the function
- * @groups: An array of groups for this function
- * @ngroups: Number of groups in @groups
- */
-struct chv_function {
-	const char *name;
-	const char * const *groups;
-	size_t ngroups;
-};
-
-/**
  * struct chv_gpio_pinrange - A range of pins that can be used as GPIOs
  * @base: Start pin number
  * @npins: Number of pins in this range
@@ -137,7 +127,7 @@ struct chv_community {
 	size_t npins;
 	const struct chv_pingroup *groups;
 	size_t ngroups;
-	const struct chv_function *functions;
+	const struct intel_function *functions;
 	size_t nfunctions;
 	const struct chv_gpio_pinrange *gpio_ranges;
 	size_t ngpio_ranges;
@@ -183,7 +173,7 @@ struct chv_pinctrl {
 		.invert_oe = (i),		\
 	}
 
-#define PIN_GROUP(n, p, m, i)			\
+#define PIN_GROUP_WITH_ALT(n, p, m, i)		\
 	{					\
 		.name = (n),			\
 		.pins = (p),			\
@@ -201,13 +191,6 @@ struct chv_pinctrl {
 		.altfunc.invert_oe = (i),	\
 		.overrides = (o),		\
 		.noverrides = ARRAY_SIZE((o)),	\
-	}
-
-#define FUNCTION(n, g)				\
-	{					\
-		.name = (n),			\
-		.groups = (g),			\
-		.ngroups = ARRAY_SIZE((g)),	\
 	}
 
 #define GPIO_PINRANGE(start, end)		\
@@ -317,18 +300,18 @@ static const struct chv_alternate_function southwest_spi3_altfuncs[] = {
 };
 
 static const struct chv_pingroup southwest_groups[] = {
-	PIN_GROUP("uart0_grp", southwest_uart0_pins, 2, false),
-	PIN_GROUP("uart1_grp", southwest_uart1_pins, 1, false),
-	PIN_GROUP("uart2_grp", southwest_uart2_pins, 1, false),
-	PIN_GROUP("hda_grp", southwest_hda_pins, 2, false),
-	PIN_GROUP("i2c0_grp", southwest_i2c0_pins, 1, true),
-	PIN_GROUP("i2c1_grp", southwest_i2c1_pins, 1, true),
-	PIN_GROUP("i2c2_grp", southwest_i2c2_pins, 1, true),
-	PIN_GROUP("i2c3_grp", southwest_i2c3_pins, 1, true),
-	PIN_GROUP("i2c4_grp", southwest_i2c4_pins, 1, true),
-	PIN_GROUP("i2c5_grp", southwest_i2c5_pins, 1, true),
-	PIN_GROUP("i2c6_grp", southwest_i2c6_pins, 1, true),
-	PIN_GROUP("i2c_nfc_grp", southwest_i2c_nfc_pins, 2, true),
+	PIN_GROUP_WITH_ALT("uart0_grp", southwest_uart0_pins, 2, false),
+	PIN_GROUP_WITH_ALT("uart1_grp", southwest_uart1_pins, 1, false),
+	PIN_GROUP_WITH_ALT("uart2_grp", southwest_uart2_pins, 1, false),
+	PIN_GROUP_WITH_ALT("hda_grp", southwest_hda_pins, 2, false),
+	PIN_GROUP_WITH_ALT("i2c0_grp", southwest_i2c0_pins, 1, true),
+	PIN_GROUP_WITH_ALT("i2c1_grp", southwest_i2c1_pins, 1, true),
+	PIN_GROUP_WITH_ALT("i2c2_grp", southwest_i2c2_pins, 1, true),
+	PIN_GROUP_WITH_ALT("i2c3_grp", southwest_i2c3_pins, 1, true),
+	PIN_GROUP_WITH_ALT("i2c4_grp", southwest_i2c4_pins, 1, true),
+	PIN_GROUP_WITH_ALT("i2c5_grp", southwest_i2c5_pins, 1, true),
+	PIN_GROUP_WITH_ALT("i2c6_grp", southwest_i2c6_pins, 1, true),
+	PIN_GROUP_WITH_ALT("i2c_nfc_grp", southwest_i2c_nfc_pins, 2, true),
 
 	PIN_GROUP_WITH_OVERRIDE("lpe_grp", southwest_lpe_pins, 1, false,
 				southwest_lpe_altfuncs),
@@ -355,7 +338,7 @@ static const char * const southwest_spi3_groups[] = { "spi3_grp" };
  * Only do pinmuxing for certain LPSS devices for now. Rest of the pins are
  * enabled only as GPIOs.
  */
-static const struct chv_function southwest_functions[] = {
+static const struct intel_function southwest_functions[] = {
 	FUNCTION("uart0", southwest_uart0_groups),
 	FUNCTION("uart1", southwest_uart1_groups),
 	FUNCTION("uart2", southwest_uart2_groups),
@@ -609,13 +592,13 @@ static const unsigned southeast_spi1_pins[] = { 60, 61, 62, 64, 66 };
 static const unsigned southeast_spi2_pins[] = { 2, 3, 4, 6, 7 };
 
 static const struct chv_pingroup southeast_groups[] = {
-	PIN_GROUP("pwm0_grp", southeast_pwm0_pins, 1, false),
-	PIN_GROUP("pwm1_grp", southeast_pwm1_pins, 1, false),
-	PIN_GROUP("sdmmc1_grp", southeast_sdmmc1_pins, 1, false),
-	PIN_GROUP("sdmmc2_grp", southeast_sdmmc2_pins, 1, false),
-	PIN_GROUP("sdmmc3_grp", southeast_sdmmc3_pins, 1, false),
-	PIN_GROUP("spi1_grp", southeast_spi1_pins, 1, false),
-	PIN_GROUP("spi2_grp", southeast_spi2_pins, 4, false),
+	PIN_GROUP_WITH_ALT("pwm0_grp", southeast_pwm0_pins, 1, false),
+	PIN_GROUP_WITH_ALT("pwm1_grp", southeast_pwm1_pins, 1, false),
+	PIN_GROUP_WITH_ALT("sdmmc1_grp", southeast_sdmmc1_pins, 1, false),
+	PIN_GROUP_WITH_ALT("sdmmc2_grp", southeast_sdmmc2_pins, 1, false),
+	PIN_GROUP_WITH_ALT("sdmmc3_grp", southeast_sdmmc3_pins, 1, false),
+	PIN_GROUP_WITH_ALT("spi1_grp", southeast_spi1_pins, 1, false),
+	PIN_GROUP_WITH_ALT("spi2_grp", southeast_spi2_pins, 4, false),
 };
 
 static const char * const southeast_pwm0_groups[] = { "pwm0_grp" };
@@ -626,7 +609,7 @@ static const char * const southeast_sdmmc3_groups[] = { "sdmmc3_grp" };
 static const char * const southeast_spi1_groups[] = { "spi1_grp" };
 static const char * const southeast_spi2_groups[] = { "spi2_grp" };
 
-static const struct chv_function southeast_functions[] = {
+static const struct intel_function southeast_functions[] = {
 	FUNCTION("pwm0", southeast_pwm0_groups),
 	FUNCTION("pwm1", southeast_pwm1_groups),
 	FUNCTION("sdmmc1", southeast_sdmmc1_groups),
