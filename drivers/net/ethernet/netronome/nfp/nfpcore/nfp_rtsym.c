@@ -237,10 +237,10 @@ u64 nfp_rtsym_size(const struct nfp_rtsym *sym)
 {
 	switch (sym->type) {
 	case NFP_RTSYM_TYPE_NONE:
-		pr_err("rtsym type NONE\n");
+		pr_err("rtsym '%s': type NONE\n", sym->name);
 		return 0;
 	default:
-		pr_warn("Unknown rtsym type: %d\n", sym->type);
+		pr_warn("rtsym '%s': unknown type: %d\n", sym->name, sym->type);
 		/* fall through */
 	case NFP_RTSYM_TYPE_OBJECT:
 	case NFP_RTSYM_TYPE_FUNCTION:
@@ -255,7 +255,8 @@ nfp_rtsym_to_dest(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 		  u8 action, u8 token, u64 off, u32 *cpp_id, u64 *addr)
 {
 	if (sym->type != NFP_RTSYM_TYPE_OBJECT) {
-		nfp_err(cpp, "Direct access attempt to non-object rtsym\n");
+		nfp_err(cpp, "rtsym '%s': direct access to non-object rtsym\n",
+			sym->name);
 		return -EINVAL;
 	}
 
@@ -270,8 +271,8 @@ nfp_rtsym_to_dest(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 		*cpp_id = NFP_CPP_ISLAND_ID(NFP_CPP_TARGET_MU, action, token,
 					    sym->domain);
 	} else if (sym->target < 0) {
-		nfp_err(cpp, "Unhandled RTsym target encoding: %d\n",
-			sym->target);
+		nfp_err(cpp, "rtsym '%s': unhandled target encoding: %d\n",
+			sym->name, sym->target);
 		return -EINVAL;
 	} else {
 		*cpp_id = NFP_CPP_ISLAND_ID(sym->target, action, token,
@@ -451,7 +452,7 @@ u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
 		break;
 	default:
 		nfp_err(rtbl->cpp,
-			"rtsym '%s' unsupported or non-scalar size: %lld\n",
+			"rtsym '%s': unsupported or non-scalar size: %lld\n",
 			name, nfp_rtsym_size(sym));
 		err = -EINVAL;
 		break;
@@ -497,7 +498,7 @@ int nfp_rtsym_write_le(struct nfp_rtsym_table *rtbl, const char *name,
 		break;
 	default:
 		nfp_err(rtbl->cpp,
-			"rtsym '%s' unsupported or non-scalar size: %lld\n",
+			"rtsym '%s': unsupported or non-scalar size: %lld\n",
 			name, nfp_rtsym_size(sym));
 		err = -EINVAL;
 		break;
@@ -523,18 +524,18 @@ nfp_rtsym_map(struct nfp_rtsym_table *rtbl, const char *name, const char *id,
 	err = nfp_rtsym_to_dest(rtbl->cpp, sym, NFP_CPP_ACTION_RW, 0, 0,
 				&cpp_id, &addr);
 	if (err) {
-		nfp_err(rtbl->cpp, "Symbol %s mapping failed\n", name);
+		nfp_err(rtbl->cpp, "rtsym '%s': mapping failed\n", name);
 		return (u8 __iomem *)ERR_PTR(err);
 	}
 
 	if (sym->size < min_size) {
-		nfp_err(rtbl->cpp, "Symbol %s too small\n", name);
+		nfp_err(rtbl->cpp, "rtsym '%s': too small\n", name);
 		return (u8 __iomem *)ERR_PTR(-EINVAL);
 	}
 
 	mem = nfp_cpp_map_area(rtbl->cpp, id, cpp_id, addr, sym->size, area);
 	if (IS_ERR(mem)) {
-		nfp_err(rtbl->cpp, "Failed to map symbol %s: %ld\n",
+		nfp_err(rtbl->cpp, "rtysm '%s': failed to map: %ld\n",
 			name, PTR_ERR(mem));
 		return mem;
 	}
