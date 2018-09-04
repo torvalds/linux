@@ -432,9 +432,6 @@ struct omap_dss_device {
 	unsigned long ops_flags;
 	u32 bus_flags;
 
-	/* helper variable for driver suspend/resume */
-	bool activate_after_resume;
-
 	enum omap_display_caps caps;
 
 	enum omap_dss_display_state state;

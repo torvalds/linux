@@ -685,54 +685,12 @@ static int pdev_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int omap_drm_suspend_all_displays(struct drm_device *ddev)
-{
-	struct omap_drm_private *priv = ddev->dev_private;
-	int i;
-
-	for (i = 0; i < priv->num_pipes; i++) {
-		struct omap_dss_device *display = priv->pipes[i].display;
-
-		if (display->state == OMAP_DSS_DISPLAY_ACTIVE) {
-			display->ops->disable(display);
-			display->activate_after_resume = true;
-		} else {
-			display->activate_after_resume = false;
-		}
-	}
-
-	return 0;
-}
-
-static int omap_drm_resume_all_displays(struct drm_device *ddev)
-{
-	struct omap_drm_private *priv = ddev->dev_private;
-	int i;
-
-	for (i = 0; i < priv->num_pipes; i++) {
-		struct omap_dss_device *display = priv->pipes[i].display;
-
-		if (display->activate_after_resume) {
-			display->ops->enable(display);
-			display->activate_after_resume = false;
-		}
-	}
-
-	return 0;
-}
-
 static int omap_drm_suspend(struct device *dev)
 {
 	struct omap_drm_private *priv = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = priv->ddev;
 
-	drm_kms_helper_poll_disable(drm_dev);
-
-	drm_modeset_lock_all(drm_dev);
-	omap_drm_suspend_all_displays(drm_dev);
-	drm_modeset_unlock_all(drm_dev);
-
-	return 0;
+	return drm_mode_config_helper_suspend(drm_dev);
 }
 
 static int omap_drm_resume(struct device *dev)
@@ -740,11 +698,7 @@ static int omap_drm_resume(struct device *dev)
 	struct omap_drm_private *priv = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = priv->ddev;
 
-	drm_modeset_lock_all(drm_dev);
-	omap_drm_resume_all_displays(drm_dev);
-	drm_modeset_unlock_all(drm_dev);
-
-	drm_kms_helper_poll_enable(drm_dev);
+	drm_mode_config_helper_resume(drm_dev);
 
 	return omap_gem_resume(drm_dev);
 }
