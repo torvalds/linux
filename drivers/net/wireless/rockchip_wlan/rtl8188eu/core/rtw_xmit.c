@@ -4123,7 +4123,10 @@ static void do_queue_select(_adapter	*padapter, struct pkt_attrib *pattrib)
 	/*	if (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == _TRUE)
 	 *		qsel = 7; */
 #endif
-
+	if (pattrib->ether_type == 0x888e) {
+		qsel = QSLT_MGNT;
+		RTW_INFO("TX EAPOL by QSLT_MGMT\n");
+	}
 #ifdef CONFIG_MCC_MODE
 	if (MCC_EN(padapter)) {
 		/* Under MCC */

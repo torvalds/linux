@@ -310,6 +310,8 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz , u8 ba
 
 		qsel = (uint)(pattrib->qsel & 0x0000001f);
 		/* RTW_INFO("==> macid(%d) qsel:0x%02x\n",pattrib->mac_id,qsel); */
+		if (pattrib->ether_type == 0x888e)
+			RTW_INFO("==> macid(%d) qsel:0x%02x, pattrib->qsel = %x\n", pattrib->mac_id, qsel, pattrib->qsel);
 		ptxdesc->txdw1 |= cpu_to_le32((qsel << QSEL_SHT) & 0x00001f00);
 
 		ptxdesc->txdw1 |= cpu_to_le32((pattrib->raid << RATE_ID_SHT) & 0x000F0000);
