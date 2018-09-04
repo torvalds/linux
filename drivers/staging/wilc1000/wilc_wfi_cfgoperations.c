@@ -165,10 +165,8 @@ static void clear_shadow_scan(void)
 		return;
 
 	for (i = 0; i < last_scanned_cnt; i++) {
-		if (last_scanned_shadow[i].ies) {
-			kfree(last_scanned_shadow[i].ies);
-			last_scanned_shadow[i].ies = NULL;
-		}
+		kfree(last_scanned_shadow[i].ies);
+		last_scanned_shadow[i].ies = NULL;
 
 		kfree(last_scanned_shadow[i].join_params);
 		last_scanned_shadow[i].join_params = NULL;
