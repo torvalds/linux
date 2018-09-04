@@ -1776,7 +1776,6 @@ static const struct acpi_device_id byt_gpio_acpi_match[] = {
 	{ "INT33FC", (kernel_ulong_t)byt_soc_data },
 	{ }
 };
-MODULE_DEVICE_TABLE(acpi, byt_gpio_acpi_match);
 
 static int byt_pinctrl_probe(struct platform_device *pdev)
 {
