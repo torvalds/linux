@@ -155,63 +155,6 @@ mt76x0_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mutex_unlock(&dev->mt76.mutex);
 }
 
-static int
-mt76x0_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-	       struct ieee80211_sta *sta)
-{
-	struct mt76x0_dev *dev = hw->priv;
-	struct mt76x02_sta *msta = (struct mt76x02_sta *) sta->drv_priv;
-	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
-	int ret = 0;
-	int idx = 0;
-	int i;
-
-	mutex_lock(&dev->mt76.mutex);
-
-	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, ARRAY_SIZE(dev->mt76.wcid));
-	if (idx < 0) {
-		ret = -ENOSPC;
-		goto out;
-	}
-
-	msta->wcid.idx = idx;
-	msta->wcid.hw_key_idx = -1;
-	mt76x02_mac_wcid_setup(&dev->mt76, idx, mvif->idx, sta->addr);
-	mt76x02_mac_wcid_set_drop(&dev->mt76, idx, false);
-	mt76_clear(dev, MT_WCID_DROP(idx), MT_WCID_DROP_MASK(idx));
-	rcu_assign_pointer(dev->mt76.wcid[idx], &msta->wcid);
-	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
-		mt76x02_txq_init(&dev->mt76, sta->txq[i]);
-	mt76x0_mac_set_ampdu_factor(dev);
-
-out:
-	mutex_unlock(&dev->mt76.mutex);
-
-	return ret;
-}
-
-static int
-mt76x0_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   struct ieee80211_sta *sta)
-{
-	struct mt76x0_dev *dev = hw->priv;
-	struct mt76x02_sta *msta = (struct mt76x02_sta *) sta->drv_priv;
-	int idx = msta->wcid.idx;
-	int i;
-
-	mutex_lock(&dev->mt76.mutex);
-	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
-	mt76x02_mac_wcid_set_drop(&dev->mt76, idx, true);
-	mt76_wcid_free(dev->mt76.wcid_mask, idx);
-	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
-		mt76_txq_remove(&dev->mt76, sta->txq[i]);
-	mt76x02_mac_wcid_setup(&dev->mt76, idx, 0, NULL);
-	mt76x0_mac_set_ampdu_factor(dev);
-	mutex_unlock(&dev->mt76.mutex);
-
-	return 0;
-}
-
 static void
 mt76x0_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   enum sta_notify_cmd cmd, struct ieee80211_sta *sta)
@@ -362,8 +305,8 @@ const struct ieee80211_ops mt76x0_ops = {
 	.config = mt76x0_config,
 	.configure_filter = mt76x02_configure_filter,
 	.bss_info_changed = mt76x0_bss_info_changed,
-	.sta_add = mt76x0_sta_add,
-	.sta_remove = mt76x0_sta_remove,
+	.sta_add = mt76x02_sta_add,
+	.sta_remove = mt76x02_sta_remove,
 	.sta_notify = mt76x0_sta_notify,
 	.set_key = mt76x0_set_key,
 	.conf_tx = mt76x0_conf_tx,
