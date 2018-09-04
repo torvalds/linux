@@ -19,18 +19,17 @@
  *
  */
 
+#include <linux/acpi.h>
+#include <linux/bitops.h>
+#include <linux/gpio/driver.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/bitops.h>
-#include <linux/interrupt.h>
-#include <linux/gpio/driver.h>
-#include <linux/slab.h>
-#include <linux/acpi.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/io.h>
+#include <linux/slab.h>
+#include <linux/types.h>
 
 /* LynxPoint chipset has support for 94 gpio pins */
 
