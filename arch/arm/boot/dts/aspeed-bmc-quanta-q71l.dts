@@ -112,6 +112,10 @@
 			&pinctrl_ddcclk_default &pinctrl_ddcdat_default>;
 };
 
+&ibt {
+	status = "okay";
+};
+
 &lpc_snoop {
 	status = "okay";
 	snoop-ports = <0x80>;
@@ -381,6 +385,10 @@
 };
 
 &wdt2 {
+	status = "okay";
+};
+
+&adc {
 	status = "okay";
 };
 
