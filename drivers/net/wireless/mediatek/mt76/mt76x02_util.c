@@ -327,4 +327,25 @@ int mt76x02_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(mt76x02_conf_tx);
 
+void mt76x02_sta_rate_tbl_update(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_sta *sta)
+{
+	struct mt76_dev *dev = hw->priv;
+	struct mt76x02_sta *msta = (struct mt76x02_sta *) sta->drv_priv;
+	struct ieee80211_sta_rates *rates = rcu_dereference(sta->rates);
+	struct ieee80211_tx_rate rate = {};
+
+	if (!rates)
+		return;
+
+	rate.idx = rates->rate[0].idx;
+	rate.flags = rates->rate[0].flags;
+	mt76x02_mac_wcid_set_rate(dev, &msta->wcid, &rate);
+
+	if (dev->drv && dev->drv->get_max_txpwr_adj)
+		msta->wcid.max_txpwr_adj = dev->drv->get_max_txpwr_adj(dev, &rate);
+}
+EXPORT_SYMBOL_GPL(mt76x02_sta_rate_tbl_update);
+
 MODULE_LICENSE("Dual BSD/GPL");

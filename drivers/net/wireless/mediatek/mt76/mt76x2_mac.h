@@ -47,57 +47,6 @@ struct mt76x2_rxwi {
 	__le32 bbp_rxinfo[4];
 };
 
-#define MT_RXINFO_BA			BIT(0)
-#define MT_RXINFO_DATA			BIT(1)
-#define MT_RXINFO_NULL			BIT(2)
-#define MT_RXINFO_FRAG			BIT(3)
-#define MT_RXINFO_UNICAST		BIT(4)
-#define MT_RXINFO_MULTICAST		BIT(5)
-#define MT_RXINFO_BROADCAST		BIT(6)
-#define MT_RXINFO_MYBSS			BIT(7)
-#define MT_RXINFO_CRCERR		BIT(8)
-#define MT_RXINFO_ICVERR		BIT(9)
-#define MT_RXINFO_MICERR		BIT(10)
-#define MT_RXINFO_AMSDU			BIT(11)
-#define MT_RXINFO_HTC			BIT(12)
-#define MT_RXINFO_RSSI			BIT(13)
-#define MT_RXINFO_L2PAD			BIT(14)
-#define MT_RXINFO_AMPDU			BIT(15)
-#define MT_RXINFO_DECRYPT		BIT(16)
-#define MT_RXINFO_BSSIDX3		BIT(17)
-#define MT_RXINFO_WAPI_KEY		BIT(18)
-#define MT_RXINFO_PN_LEN		GENMASK(21, 19)
-#define MT_RXINFO_SW_FTYPE0		BIT(22)
-#define MT_RXINFO_SW_FTYPE1		BIT(23)
-#define MT_RXINFO_PROBE_RESP		BIT(24)
-#define MT_RXINFO_BEACON		BIT(25)
-#define MT_RXINFO_DISASSOC		BIT(26)
-#define MT_RXINFO_DEAUTH		BIT(27)
-#define MT_RXINFO_ACTION		BIT(28)
-#define MT_RXINFO_TCP_SUM_ERR		BIT(30)
-#define MT_RXINFO_IP_SUM_ERR		BIT(31)
-
-#define MT_RXWI_CTL_WCID		GENMASK(7, 0)
-#define MT_RXWI_CTL_KEY_IDX		GENMASK(9, 8)
-#define MT_RXWI_CTL_BSS_IDX		GENMASK(12, 10)
-#define MT_RXWI_CTL_UDF			GENMASK(15, 13)
-#define MT_RXWI_CTL_MPDU_LEN		GENMASK(29, 16)
-#define MT_RXWI_CTL_EOF			BIT(31)
-
-#define MT_RXWI_TID			GENMASK(3, 0)
-#define MT_RXWI_SN			GENMASK(15, 4)
-
-#define MT_RXWI_RATE_INDEX		GENMASK(5, 0)
-#define MT_RXWI_RATE_LDPC		BIT(6)
-#define MT_RXWI_RATE_BW			GENMASK(8, 7)
-#define MT_RXWI_RATE_SGI		BIT(9)
-#define MT_RXWI_RATE_STBC		BIT(10)
-#define MT_RXWI_RATE_LDPC_EXSYM		BIT(11)
-#define MT_RXWI_RATE_PHY		GENMASK(15, 13)
-
-#define MT_RATE_INDEX_VHT_IDX		GENMASK(3, 0)
-#define MT_RATE_INDEX_VHT_NSS		GENMASK(5, 4)
-
 #define MT_TX_PWR_ADJ			GENMASK(3, 0)
 
 enum mt76x2_phy_bandwidth {
@@ -157,8 +106,6 @@ int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 void mt76x2_mac_write_txwi(struct mt76x2_dev *dev, struct mt76x2_txwi *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid,
 			   struct ieee80211_sta *sta, int len);
-void mt76x2_mac_wcid_set_rate(struct mt76x2_dev *dev, struct mt76_wcid *wcid,
-			      const struct ieee80211_tx_rate *rate);
 
 int mt76x2_mac_set_beacon(struct mt76x2_dev *dev, u8 vif_idx,
 			  struct sk_buff *skb);

@@ -234,7 +234,7 @@ void mt76x2_sta_ps(struct mt76_dev *dev, struct ieee80211_sta *sta, bool ps);
 
 void mt76x2_update_channel(struct mt76_dev *mdev);
 
-s8 mt76x2_tx_get_max_txpwr_adj(struct mt76x2_dev *dev,
+s8 mt76x2_tx_get_max_txpwr_adj(struct mt76_dev *dev,
 			       const struct ieee80211_tx_rate *rate);
 s8 mt76x2_tx_get_txpwr_adj(struct mt76x2_dev *dev, s8 txpwr, s8 max_txpwr_adj);
 void mt76x2_tx_set_txpwr_auto(struct mt76x2_dev *dev, s8 txpwr);
@@ -259,9 +259,6 @@ void mt76x2_remove_interface(struct ieee80211_hw *hw,
 int mt76x2_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   u16 queue, const struct ieee80211_tx_queue_params *params);
 void mt76x2_txq_init(struct mt76x2_dev *dev, struct ieee80211_txq *txq);
-void mt76x2_sta_rate_tbl_update(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta);
 
 void mt76x2_phy_set_txpower_regs(struct mt76x2_dev *dev,
 				 enum nl80211_band band);

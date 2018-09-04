@@ -493,6 +493,7 @@ struct mt76x0_dev *mt76x0_alloc_device(struct device *pdev)
 	dev = hw->priv;
 	dev->mt76.dev = pdev;
 	dev->mt76.hw = hw;
+	dev->mt76.drv = NULL;
 	mutex_init(&dev->usb_ctrl_mtx);
 	mutex_init(&dev->reg_atomic_mutex);
 	mutex_init(&dev->hw_atomic_mutex);

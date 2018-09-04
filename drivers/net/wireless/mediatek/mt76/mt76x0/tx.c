@@ -93,7 +93,7 @@ mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
 		rate_ctl = wcid->tx_rate;
 		nss = wcid->tx_rate_nss;
 	} else {
-		rate_ctl = mt76x0_mac_tx_rate_val(dev, rate, &nss);
+		rate_ctl = mt76x02_mac_tx_rate_val(&dev->mt76, rate, &nss);
 	}
 	spin_unlock_irqrestore(&dev->mt76.lock, flags);
 

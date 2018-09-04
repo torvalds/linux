@@ -229,67 +229,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(mt76x2_send_tx_status);
 
-static __le16
-mt76x2_mac_tx_rate_val(struct mt76x2_dev *dev,
-		       const struct ieee80211_tx_rate *rate, u8 *nss_val)
-{
-	u16 rateval;
-	u8 phy, rate_idx;
-	u8 nss = 1;
-	u8 bw = 0;
-
-	if (rate->flags & IEEE80211_TX_RC_VHT_MCS) {
-		rate_idx = rate->idx;
-		nss = 1 + (rate->idx >> 4);
-		phy = MT_PHY_TYPE_VHT;
-		if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
-			bw = 2;
-		else if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-			bw = 1;
-	} else if (rate->flags & IEEE80211_TX_RC_MCS) {
-		rate_idx = rate->idx;
-		nss = 1 + (rate->idx >> 3);
-		phy = MT_PHY_TYPE_HT;
-		if (rate->flags & IEEE80211_TX_RC_GREEN_FIELD)
-			phy = MT_PHY_TYPE_HT_GF;
-		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-			bw = 1;
-	} else {
-		const struct ieee80211_rate *r;
-		int band = dev->mt76.chandef.chan->band;
-		u16 val;
-
-		r = &mt76_hw(dev)->wiphy->bands[band]->bitrates[rate->idx];
-		if (rate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
-			val = r->hw_value_short;
-		else
-			val = r->hw_value;
-
-		phy = val >> 8;
-		rate_idx = val & 0xff;
-		bw = 0;
-	}
-
-	rateval = FIELD_PREP(MT_RXWI_RATE_INDEX, rate_idx);
-	rateval |= FIELD_PREP(MT_RXWI_RATE_PHY, phy);
-	rateval |= FIELD_PREP(MT_RXWI_RATE_BW, bw);
-	if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
-		rateval |= MT_RXWI_RATE_SGI;
-
-	*nss_val = nss;
-	return cpu_to_le16(rateval);
-}
-
-void mt76x2_mac_wcid_set_rate(struct mt76x2_dev *dev, struct mt76_wcid *wcid,
-			      const struct ieee80211_tx_rate *rate)
-{
-	spin_lock_bh(&dev->mt76.lock);
-	wcid->tx_rate = mt76x2_mac_tx_rate_val(dev, rate, &wcid->tx_rate_nss);
-	wcid->tx_rate_set = true;
-	spin_unlock_bh(&dev->mt76.lock);
-}
-EXPORT_SYMBOL_GPL(mt76x2_mac_wcid_set_rate);
-
 void mt76x2_mac_write_txwi(struct mt76x2_dev *dev, struct mt76x2_txwi *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid,
 			   struct ieee80211_sta *sta, int len)
@@ -333,8 +272,8 @@ void mt76x2_mac_write_txwi(struct mt76x2_dev *dev, struct mt76x2_txwi *txwi,
 		max_txpwr_adj = wcid->max_txpwr_adj;
 		nss = wcid->tx_rate_nss;
 	} else {
-		txwi->rate = mt76x2_mac_tx_rate_val(dev, rate, &nss);
-		max_txpwr_adj = mt76x2_tx_get_max_txpwr_adj(dev, rate);
+		txwi->rate = mt76x02_mac_tx_rate_val(&dev->mt76, rate, &nss);
+		max_txpwr_adj = mt76x2_tx_get_max_txpwr_adj(&dev->mt76, rate);
 	}
 	spin_unlock_bh(&dev->mt76.lock);
 

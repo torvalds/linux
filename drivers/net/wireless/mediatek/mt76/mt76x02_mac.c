@@ -155,3 +155,64 @@ void mt76x02_txq_init(struct mt76_dev *dev, struct ieee80211_txq *txq)
 	mt76_txq_init(dev, txq);
 }
 EXPORT_SYMBOL_GPL(mt76x02_txq_init);
+
+__le16
+mt76x02_mac_tx_rate_val(struct mt76_dev *dev,
+		       const struct ieee80211_tx_rate *rate, u8 *nss_val)
+{
+	u16 rateval;
+	u8 phy, rate_idx;
+	u8 nss = 1;
+	u8 bw = 0;
+
+	if (rate->flags & IEEE80211_TX_RC_VHT_MCS) {
+		rate_idx = rate->idx;
+		nss = 1 + (rate->idx >> 4);
+		phy = MT_PHY_TYPE_VHT;
+		if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
+			bw = 2;
+		else if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+			bw = 1;
+	} else if (rate->flags & IEEE80211_TX_RC_MCS) {
+		rate_idx = rate->idx;
+		nss = 1 + (rate->idx >> 3);
+		phy = MT_PHY_TYPE_HT;
+		if (rate->flags & IEEE80211_TX_RC_GREEN_FIELD)
+			phy = MT_PHY_TYPE_HT_GF;
+		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+			bw = 1;
+	} else {
+		const struct ieee80211_rate *r;
+		int band = dev->chandef.chan->band;
+		u16 val;
+
+		r = &dev->hw->wiphy->bands[band]->bitrates[rate->idx];
+		if (rate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
+			val = r->hw_value_short;
+		else
+			val = r->hw_value;
+
+		phy = val >> 8;
+		rate_idx = val & 0xff;
+		bw = 0;
+	}
+
+	rateval = FIELD_PREP(MT_RXWI_RATE_INDEX, rate_idx);
+	rateval |= FIELD_PREP(MT_RXWI_RATE_PHY, phy);
+	rateval |= FIELD_PREP(MT_RXWI_RATE_BW, bw);
+	if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
+		rateval |= MT_RXWI_RATE_SGI;
+
+	*nss_val = nss;
+	return cpu_to_le16(rateval);
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_tx_rate_val);
+
+void mt76x02_mac_wcid_set_rate(struct mt76_dev *dev, struct mt76_wcid *wcid,
+			      const struct ieee80211_tx_rate *rate)
+{
+	spin_lock_bh(&dev->lock);
+	wcid->tx_rate = mt76x02_mac_tx_rate_val(dev, rate, &wcid->tx_rate_nss);
+	wcid->tx_rate_set = true;
+	spin_unlock_bh(&dev->lock);
+}

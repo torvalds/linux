@@ -116,67 +116,6 @@ mt76_mac_fill_tx_status(struct mt76x0_dev *dev, struct ieee80211_tx_info *info,
 		info->flags |= IEEE80211_TX_STAT_ACK;
 }
 
-u16 mt76x0_mac_tx_rate_val(struct mt76x0_dev *dev,
-			 const struct ieee80211_tx_rate *rate, u8 *nss_val)
-{
-	u16 rateval;
-	u8 phy, rate_idx;
-	u8 nss = 1;
-	u8 bw = 0;
-
-	if (rate->flags & IEEE80211_TX_RC_VHT_MCS) {
-		rate_idx = rate->idx;
-		nss = 1 + (rate->idx >> 4);
-		phy = MT_PHY_TYPE_VHT;
-		if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
-			bw = 2;
-		else if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-			bw = 1;
-	} else if (rate->flags & IEEE80211_TX_RC_MCS) {
-		rate_idx = rate->idx;
-		nss = 1 + (rate->idx >> 3);
-		phy = MT_PHY_TYPE_HT;
-		if (rate->flags & IEEE80211_TX_RC_GREEN_FIELD)
-			phy = MT_PHY_TYPE_HT_GF;
-		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-			bw = 1;
-	} else {
-		const struct ieee80211_rate *r;
-		int band = dev->mt76.chandef.chan->band;
-		u16 val;
-
-		r = &dev->mt76.hw->wiphy->bands[band]->bitrates[rate->idx];
-		if (rate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
-			val = r->hw_value_short;
-		else
-			val = r->hw_value;
-
-		phy = val >> 8;
-		rate_idx = val & 0xff;
-		bw = 0;
-	}
-
-	rateval = FIELD_PREP(MT_RXWI_RATE_INDEX, rate_idx);
-	rateval |= FIELD_PREP(MT_RXWI_RATE_PHY, phy);
-	rateval |= FIELD_PREP(MT_RXWI_RATE_BW, bw);
-	if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
-		rateval |= MT_RXWI_RATE_SGI;
-
-	*nss_val = nss;
-	return cpu_to_le16(rateval);
-}
-
-void mt76x0_mac_wcid_set_rate(struct mt76x0_dev *dev, struct mt76_wcid *wcid,
-			    const struct ieee80211_tx_rate *rate)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->mt76.lock, flags);
-	wcid->tx_rate = mt76x0_mac_tx_rate_val(dev, rate, &wcid->tx_rate_nss);
-	wcid->tx_rate_set = true;
-	spin_unlock_irqrestore(&dev->mt76.lock, flags);
-}
-
 struct mt76x02_tx_status mt76x0_mac_fetch_tx_status(struct mt76x0_dev *dev)
 {
 	struct mt76x02_tx_status stat = {};
@@ -537,7 +476,7 @@ u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
 	spin_lock_bh(&dev->con_mon_lock);
 	if (mt76x0_rx_is_our_beacon(dev, data)) {
 		mt76x0_rx_monitor_beacon(dev, rxwi, rate, rssi);
-	} else if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_U2M)) {
+	} else if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_UNICAST)) {
 		if (dev->avg_rssi == 0)
 			dev->avg_rssi = rssi;
 		else

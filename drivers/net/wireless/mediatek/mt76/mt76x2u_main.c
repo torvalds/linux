@@ -176,5 +176,5 @@ const struct ieee80211_ops mt76x2u_ops = {
 	.conf_tx = mt76x02_conf_tx,
 	.sw_scan_start = mt76x2u_sw_scan,
 	.sw_scan_complete = mt76x2u_sw_scan_complete,
-	.sta_rate_tbl_update = mt76x2_sta_rate_tbl_update,
+	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
 };

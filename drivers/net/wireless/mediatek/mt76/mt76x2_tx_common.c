@@ -63,9 +63,10 @@ int mt76x2_insert_hdr_pad(struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(mt76x2_insert_hdr_pad);
 
-s8 mt76x2_tx_get_max_txpwr_adj(struct mt76x2_dev *dev,
+s8 mt76x2_tx_get_max_txpwr_adj(struct mt76_dev *mdev,
 			       const struct ieee80211_tx_rate *rate)
 {
+	struct mt76x2_dev *dev = (struct mt76x2_dev *) mdev;
 	s8 max_txpwr;
 
 	if (rate->flags & IEEE80211_TX_RC_VHT_MCS) {
