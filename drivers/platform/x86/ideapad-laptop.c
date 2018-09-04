@@ -212,7 +212,7 @@ static int read_ec_data(acpi_handle handle, int cmd, unsigned long *data)
 			return 0;
 		}
 	}
-	pr_err("timeout in read_ec_cmd\n");
+	pr_err("timeout in %s\n", __func__);
 	return -1;
 }
 
