@@ -124,19 +124,11 @@ static int nec_8048_enable(struct omap_dss_device *dssdev)
 	struct omap_dss_device *src = dssdev->src;
 	int r;
 
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
 	r = src->ops->enable(src);
 	if (r)
 		return r;
 
 	gpiod_set_value_cansleep(ddata->res_gpio, 1);
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
 	return 0;
 }
@@ -152,8 +144,6 @@ static void nec_8048_disable(struct omap_dss_device *dssdev)
 	gpiod_set_value_cansleep(ddata->res_gpio, 0);
 
 	src->ops->disable(src);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static void nec_8048_get_timings(struct omap_dss_device *dssdev,

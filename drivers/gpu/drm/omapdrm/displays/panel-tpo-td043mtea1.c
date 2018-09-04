@@ -326,12 +326,6 @@ static int tpo_td043_enable(struct omap_dss_device *dssdev)
 	struct omap_dss_device *src = dssdev->src;
 	int r;
 
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
 	r = src->ops->enable(src);
 	if (r)
 		return r;
@@ -348,8 +342,6 @@ static int tpo_td043_enable(struct omap_dss_device *dssdev)
 		}
 	}
 
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
 	return 0;
 }
 
@@ -365,8 +357,6 @@ static void tpo_td043_disable(struct omap_dss_device *dssdev)
 
 	if (!ddata->spi_suspended)
 		tpo_td043_power_off(ddata);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static void tpo_td043_get_timings(struct omap_dss_device *dssdev,

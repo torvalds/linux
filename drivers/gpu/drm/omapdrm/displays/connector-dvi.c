@@ -49,21 +49,8 @@ static void dvic_disconnect(struct omap_dss_device *src,
 static int dvic_enable(struct omap_dss_device *dssdev)
 {
 	struct omap_dss_device *src = dssdev->src;
-	int r;
 
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
-	r = src->ops->enable(src);
-	if (r)
-		return r;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return 0;
+	return src->ops->enable(src);
 }
 
 static void dvic_disable(struct omap_dss_device *dssdev)
@@ -74,8 +61,6 @@ static void dvic_disable(struct omap_dss_device *dssdev)
 		return;
 
 	src->ops->disable(src);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static int dvic_ddc_read(struct i2c_adapter *adapter,

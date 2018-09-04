@@ -68,12 +68,6 @@ static int sharp_ls_enable(struct omap_dss_device *dssdev)
 	struct omap_dss_device *src = dssdev->src;
 	int r;
 
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
 	if (ddata->vcc) {
 		r = regulator_enable(ddata->vcc);
 		if (r != 0)
@@ -94,8 +88,6 @@ static int sharp_ls_enable(struct omap_dss_device *dssdev)
 
 	if (ddata->ini_gpio)
 		gpiod_set_value_cansleep(ddata->ini_gpio, 1);
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
 	return 0;
 }
@@ -122,8 +114,6 @@ static void sharp_ls_disable(struct omap_dss_device *dssdev)
 
 	if (ddata->vcc)
 		regulator_disable(ddata->vcc);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static void sharp_ls_get_timings(struct omap_dss_device *dssdev,

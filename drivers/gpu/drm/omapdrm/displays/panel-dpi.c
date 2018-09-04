@@ -51,12 +51,6 @@ static int panel_dpi_enable(struct omap_dss_device *dssdev)
 	struct omap_dss_device *src = dssdev->src;
 	int r;
 
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
 	r = src->ops->enable(src);
 	if (r)
 		return r;
@@ -69,8 +63,6 @@ static int panel_dpi_enable(struct omap_dss_device *dssdev)
 
 	gpiod_set_value_cansleep(ddata->enable_gpio, 1);
 	backlight_enable(ddata->backlight);
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
 	return 0;
 }
@@ -89,8 +81,6 @@ static void panel_dpi_disable(struct omap_dss_device *dssdev)
 	regulator_disable(ddata->vcc_supply);
 
 	src->ops->disable(src);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static void panel_dpi_get_timings(struct omap_dss_device *dssdev,

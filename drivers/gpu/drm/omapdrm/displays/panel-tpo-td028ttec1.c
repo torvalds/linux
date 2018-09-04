@@ -175,12 +175,6 @@ static int td028ttec1_panel_enable(struct omap_dss_device *dssdev)
 	struct omap_dss_device *src = dssdev->src;
 	int r;
 
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
 	r = src->ops->enable(src);
 	if (r)
 		return r;
@@ -198,7 +192,7 @@ static int td028ttec1_panel_enable(struct omap_dss_device *dssdev)
 
 	if (r) {
 		dev_warn(dssdev->dev, "transfer error\n");
-		goto transfer_err;
+		return -EIO;
 	}
 
 	/* deep standby out */
@@ -268,10 +262,6 @@ static int td028ttec1_panel_enable(struct omap_dss_device *dssdev)
 
 	r |= jbt_ret_write_0(ddata, JBT_REG_DISPLAY_ON);
 
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-transfer_err:
-
 	return r ? -EIO : 0;
 }
 
@@ -291,8 +281,6 @@ static void td028ttec1_panel_disable(struct omap_dss_device *dssdev)
 	jbt_reg_write_1(ddata, JBT_REG_POWER_ON_OFF, 0x00);
 
 	src->ops->disable(src);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static void td028ttec1_panel_get_timings(struct omap_dss_device *dssdev,

@@ -43,40 +43,19 @@ static void hdmic_disconnect(struct omap_dss_device *src,
 
 static int hdmic_enable(struct omap_dss_device *dssdev)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
-	int r;
 
-	dev_dbg(ddata->dev, "enable\n");
-
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
-	r = src->ops->enable(src);
-	if (r)
-		return r;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return r;
+	return src->ops->enable(src);
 }
 
 static void hdmic_disable(struct omap_dss_device *dssdev)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
-
-	dev_dbg(ddata->dev, "disable\n");
 
 	if (!omapdss_device_is_enabled(dssdev))
 		return;
 
 	src->ops->disable(src);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static bool hdmic_detect(struct omap_dss_device *dssdev)

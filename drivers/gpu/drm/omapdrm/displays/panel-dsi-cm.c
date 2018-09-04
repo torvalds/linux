@@ -793,19 +793,7 @@ static int dsicm_enable(struct omap_dss_device *dssdev)
 	struct omap_dss_device *src = dssdev->src;
 	int r;
 
-	dev_dbg(&ddata->pdev->dev, "enable\n");
-
 	mutex_lock(&ddata->lock);
-
-	if (!omapdss_device_is_connected(dssdev)) {
-		r = -ENODEV;
-		goto err;
-	}
-
-	if (omapdss_device_is_enabled(dssdev)) {
-		r = 0;
-		goto err;
-	}
 
 	src->ops->dsi.bus_lock(src);
 
@@ -815,8 +803,6 @@ static int dsicm_enable(struct omap_dss_device *dssdev)
 
 	if (r)
 		goto err;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
 	mutex_unlock(&ddata->lock);
 
@@ -835,8 +821,6 @@ static void dsicm_disable(struct omap_dss_device *dssdev)
 	struct omap_dss_device *src = dssdev->src;
 	int r;
 
-	dev_dbg(&ddata->pdev->dev, "disable\n");
-
 	dsicm_bl_power(ddata, false);
 
 	mutex_lock(&ddata->lock);
@@ -852,8 +836,6 @@ static void dsicm_disable(struct omap_dss_device *dssdev)
 	}
 
 	src->ops->dsi.bus_unlock(src);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 
 	mutex_unlock(&ddata->lock);
 }

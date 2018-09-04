@@ -594,30 +594,16 @@ static int acx565akm_enable(struct omap_dss_device *dssdev)
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	int r;
 
-	dev_dbg(dssdev->dev, "%s\n", __func__);
-
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
 	mutex_lock(&ddata->mutex);
 	r = acx565akm_panel_power_on(dssdev);
 	mutex_unlock(&ddata->mutex);
-	if (r)
-		return r;
 
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return 0;
+	return r;
 }
 
 static void acx565akm_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	dev_dbg(dssdev->dev, "%s\n", __func__);
 
 	if (!omapdss_device_is_enabled(dssdev))
 		return;
@@ -625,8 +611,6 @@ static void acx565akm_disable(struct omap_dss_device *dssdev)
 	mutex_lock(&ddata->mutex);
 	acx565akm_panel_power_off(dssdev);
 	mutex_unlock(&ddata->mutex);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static void acx565akm_get_timings(struct omap_dss_device *dssdev,

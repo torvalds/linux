@@ -147,21 +147,45 @@ static void omap_encoder_disable(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
 	struct omap_dss_device *dssdev = omap_encoder->display;
+	struct drm_device *dev = encoder->dev;
+
+	dev_dbg(dev->dev, "disable(%s)\n", dssdev->name);
+
+	if (!omapdss_device_is_enabled(dssdev))
+		return;
 
 	dssdev->ops->disable(dssdev);
+
+	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static void omap_encoder_enable(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
 	struct omap_dss_device *dssdev = omap_encoder->display;
+	struct drm_device *dev = encoder->dev;
 	int r;
+
+	dev_dbg(dev->dev, "enable(%s)\n", dssdev->name);
+
+	if (!omapdss_device_is_connected(dssdev)) {
+		r = -ENODEV;
+		goto error;
+	}
+
+	if (omapdss_device_is_enabled(dssdev))
+		return;
 
 	r = dssdev->ops->enable(dssdev);
 	if (r)
-		dev_err(encoder->dev->dev,
-			"Failed to enable display '%s': %d\n",
-			dssdev->name, r);
+		goto error;
+
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+	return;
+
+error:
+	dev_err(dev->dev, "Failed to enable display '%s': %d\n",
+		dssdev->name, r);
 }
 
 static int omap_encoder_atomic_check(struct drm_encoder *encoder,
