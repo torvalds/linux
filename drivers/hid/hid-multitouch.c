@@ -1697,6 +1697,9 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	 */
 	hdev->quirks |= HID_QUIRK_INPUT_PER_APP;
 
+	if (id->group != HID_GROUP_MULTITOUCH_WIN_8)
+		hdev->quirks |= HID_QUIRK_MULTI_INPUT;
+
 	timer_setup(&td->release_timer, mt_expired_timeout, 0);
 
 	ret = hid_parse(hdev);
