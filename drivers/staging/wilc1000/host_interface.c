@@ -188,7 +188,6 @@ struct join_bss_param {
 
 static struct host_if_drv *terminated_handle;
 static u8 p2p_listen_state;
-static struct workqueue_struct *hif_workqueue;
 static struct completion hif_driver_comp;
 static struct mutex hif_deinit_lock;
 static struct timer_list periodic_rssi;
@@ -226,7 +225,11 @@ wilc_alloc_work(struct wilc_vif *vif, void (*work_fun)(struct work_struct *),
 static int wilc_enqueue_work(struct host_if_msg *msg)
 {
 	INIT_WORK(&msg->work, msg->fn);
-	if (!hif_workqueue || !queue_work(hif_workqueue, &msg->work))
+
+	if (!msg->vif || !msg->vif->wilc || !msg->vif->wilc->hif_workqueue)
+		return -EINVAL;
+
+	if (!queue_work(msg->vif->wilc->hif_workqueue, &msg->work))
 		return -EINVAL;
 
 	return 0;
@@ -3459,8 +3462,8 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 		init_completion(&hif_driver_comp);
 		mutex_init(&hif_deinit_lock);
 
-		hif_workqueue = create_singlethread_workqueue("WILC_wq");
-		if (!hif_workqueue) {
+		wilc->hif_workqueue = create_singlethread_workqueue("WILC_wq");
+		if (!wilc->hif_workqueue) {
 			netdev_err(vif->ndev, "Failed to create workqueue\n");
 			kfree(hif_drv);
 			return -ENOMEM;
@@ -3538,7 +3541,7 @@ int wilc_deinit(struct wilc_vif *vif)
 				wait_for_completion(&msg->work_comp);
 			kfree(msg);
 		}
-		destroy_workqueue(hif_workqueue);
+		destroy_workqueue(vif->wilc->hif_workqueue);
 	}
 
 	kfree(hif_drv);
