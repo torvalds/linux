@@ -280,7 +280,6 @@ static int snd_bcm2835_pcm_ack(struct snd_pcm_substream *substream)
 	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
 	struct snd_pcm_indirect *pcm_indirect = &alsa_stream->pcm_indirect;
 
-	pcm_indirect->hw_queue_size = runtime->hw.buffer_bytes_max;
 	return snd_pcm_indirect_playback_transfer(substream, pcm_indirect,
 						  snd_bcm2835_pcm_transfer);
 }
