@@ -377,10 +377,25 @@
 						clk-gate = <0xC8 11>;
 					};
 
-					nand_clk: nand_clk {
+					nand_x_clk: nand_x_clk {
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-a10-gate-clk";
 						clocks = <&l4_mp_clk>;
+						clk-gate = <0xC8 10>;
+					};
+
+					nand_ecc_clk: nand_ecc_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-a10-gate-clk";
+						clocks = <&nand_x_clk>;
+						clk-gate = <0xC8 10>;
+					};
+
+					nand_clk: nand_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-a10-gate-clk";
+						clocks = <&nand_x_clk>;
+						fixed-divider = <4>;
 						clk-gate = <0xC8 10>;
 					};
 
@@ -650,7 +665,8 @@
 			reg-names = "nand_data", "denali_reg";
 			interrupts = <0 99 4>;
 			dma-mask = <0xffffffff>;
-			clocks = <&nand_clk>;
+			clocks = <&nand_clk>, <&nand_x_clk>, <&nand_ecc_clk>;
+			clock-names = "nand", "nand_x", "ecc";
 			status = "disabled";
 		};
 
@@ -760,7 +776,7 @@
 		timer@ffffc600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0xffffc600 0x100>;
-			interrupts = <1 13 0xf04>;
+			interrupts = <1 13 0xf01>;
 			clocks = <&mpu_periph_clk>;
 		};
 
