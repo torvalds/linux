@@ -311,8 +311,8 @@ int mt76x2_phy_get_min_avg_rssi(struct mt76x2_dev *dev)
 	local_bh_disable();
 	rcu_read_lock();
 
-	for (i = 0; i < ARRAY_SIZE(dev->wcid_mask); i++) {
-		unsigned long mask = dev->wcid_mask[i];
+	for (i = 0; i < ARRAY_SIZE(dev->mt76.wcid_mask); i++) {
+		unsigned long mask = dev->mt76.wcid_mask[i];
 
 		if (!mask)
 			continue;
@@ -321,7 +321,7 @@ int mt76x2_phy_get_min_avg_rssi(struct mt76x2_dev *dev)
 			if (!(mask & 1))
 				continue;
 
-			wcid = rcu_dereference(dev->wcid[j]);
+			wcid = rcu_dereference(dev->mt76.wcid[j]);
 			if (!wcid)
 				continue;
 

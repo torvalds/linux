@@ -24,7 +24,7 @@ void mt76x2_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct mt76x2_dev *dev = hw->priv;
 	struct ieee80211_vif *vif = info->control.vif;
-	struct mt76_wcid *wcid = &dev->global_wcid;
+	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
 
 	if (control->sta) {
 		struct mt76x02_sta *msta;

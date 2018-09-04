@@ -213,8 +213,8 @@ void mt76x2_init_device(struct mt76x2_dev *dev)
 	dev->mt76.sband_5g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
 
 	dev->chainmask = 0x202;
-	dev->global_wcid.idx = 255;
-	dev->global_wcid.hw_key_idx = -1;
+	dev->mt76.global_wcid.idx = 255;
+	dev->mt76.global_wcid.hw_key_idx = -1;
 	dev->slottime = 9;
 
 	/* init antenna configuration */

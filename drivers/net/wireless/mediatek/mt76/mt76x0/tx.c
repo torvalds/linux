@@ -150,7 +150,7 @@ void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	struct ieee80211_vif *vif = info->control.vif;
 	struct ieee80211_sta *sta = control->sta;
 	struct mt76x02_sta *msta = NULL;
-	struct mt76_wcid *wcid = dev->mon_wcid;
+	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
 	struct mt76_txwi *txwi;
 	int pkt_len = skb->len;
 	int hw_q = skb2q(skb);

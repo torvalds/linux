@@ -186,8 +186,8 @@ void mt76x2_send_tx_status(struct mt76x2_dev *dev,
 	struct mt76x02_sta *msta = NULL;
 
 	rcu_read_lock();
-	if (stat->wcid < ARRAY_SIZE(dev->wcid))
-		wcid = rcu_dereference(dev->wcid[stat->wcid]);
+	if (stat->wcid < ARRAY_SIZE(dev->mt76.wcid))
+		wcid = rcu_dereference(dev->mt76.wcid[stat->wcid]);
 
 	if (wcid) {
 		void *priv;
@@ -477,10 +477,10 @@ mt76x2_rx_get_sta(struct mt76x2_dev *dev, u8 idx)
 {
 	struct mt76_wcid *wcid;
 
-	if (idx >= ARRAY_SIZE(dev->wcid))
+	if (idx >= ARRAY_SIZE(dev->mt76.wcid))
 		return NULL;
 
-	wcid = rcu_dereference(dev->wcid[idx]);
+	wcid = rcu_dereference(dev->mt76.wcid[idx]);
 	if (!wcid)
 		return NULL;
 

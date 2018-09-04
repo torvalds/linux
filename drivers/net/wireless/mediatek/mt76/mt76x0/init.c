@@ -230,17 +230,17 @@ static int mt76x0_init_wcid_mem(struct mt76x0_dev *dev)
 	u32 *vals;
 	int i, ret;
 
-	vals = kmalloc(sizeof(*vals) * N_WCIDS * 2, GFP_KERNEL);
+	vals = kmalloc(sizeof(*vals) * MT76_N_WCIDS * 2, GFP_KERNEL);
 	if (!vals)
 		return -ENOMEM;
 
-	for (i = 0; i < N_WCIDS; i++)  {
+	for (i = 0; i < MT76_N_WCIDS; i++)  {
 		vals[i * 2] = 0xffffffff;
 		vals[i * 2 + 1] = 0x00ffffff;
 	}
 
 	ret = mt76x0_burst_write_regs(dev, MT_WCID_ADDR_BASE,
-				      vals, N_WCIDS * 2);
+				      vals, MT76_N_WCIDS * 2);
 	kfree(vals);
 
 	return ret;
@@ -259,15 +259,15 @@ static int mt76x0_init_wcid_attr_mem(struct mt76x0_dev *dev)
 	u32 *vals;
 	int i, ret;
 
-	vals = kmalloc(sizeof(*vals) * N_WCIDS * 2, GFP_KERNEL);
+	vals = kmalloc(sizeof(*vals) * MT76_N_WCIDS * 2, GFP_KERNEL);
 	if (!vals)
 		return -ENOMEM;
 
-	for (i = 0; i < N_WCIDS * 2; i++)
+	for (i = 0; i < MT76_N_WCIDS * 2; i++)
 		vals[i] = 1;
 
 	ret = mt76x0_burst_write_regs(dev, MT_WCID_ATTR_BASE,
-				      vals, N_WCIDS * 2);
+				      vals, MT76_N_WCIDS * 2);
 	kfree(vals);
 
 	return ret;
@@ -667,15 +667,11 @@ int mt76x0_register_device(struct mt76x0_dev *dev)
 	/* Reserve WCID 0 for mcast - thanks to this APs WCID will go to
 	 * entry no. 1 like it does in the vendor driver.
 	 */
-	dev->wcid_mask[0] |= 1;
+	dev->mt76.wcid_mask[0] |= 1;
 
 	/* init fake wcid for monitor interfaces */
-	dev->mon_wcid = devm_kmalloc(dev->mt76.dev, sizeof(*dev->mon_wcid),
-				     GFP_KERNEL);
-	if (!dev->mon_wcid)
-		return -ENOMEM;
-	dev->mon_wcid->idx = 0xff;
-	dev->mon_wcid->hw_key_idx = -1;
+	dev->mt76.global_wcid.idx = 0xff;
+	dev->mt76.global_wcid.hw_key_idx = -1;
 
 	SET_IEEE80211_DEV(hw, dev->mt76.dev);
 

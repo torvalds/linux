@@ -95,8 +95,6 @@ struct mt76x2_dev {
 	struct mutex mutex;
 
 	const u16 *beacon_offsets;
-	unsigned long wcid_mask[128 / BITS_PER_LONG];
-
 	int txpower_conf;
 	int txpower_cur;
 
@@ -112,9 +110,6 @@ struct mt76x2_dev {
 	struct delayed_work mac_work;
 
 	u32 aggr_stats[32];
-
-	struct mt76_wcid global_wcid;
-	struct mt76_wcid __rcu *wcid[128];
 
 	spinlock_t irq_lock;
 	u32 irqmask;

@@ -148,6 +148,8 @@ enum mt76_wcid_flags {
 	MT_WCID_FLAG_PS,
 };
 
+#define MT76_N_WCIDS 128
+
 struct mt76_wcid {
 	struct mt76_rx_tid __rcu *aggr[IEEE80211_NUM_TIDS];
 
@@ -347,6 +349,11 @@ struct mt76_dev {
 	const struct mt76_queue_ops *queue_ops;
 
 	wait_queue_head_t tx_wait;
+
+	unsigned long wcid_mask[MT76_N_WCIDS / BITS_PER_LONG];
+
+	struct mt76_wcid global_wcid;
+	struct mt76_wcid __rcu *wcid[MT76_N_WCIDS];
 
 	u8 macaddr[ETH_ALEN];
 	u32 rev;

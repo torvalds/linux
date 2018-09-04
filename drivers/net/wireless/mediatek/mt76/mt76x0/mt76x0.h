@@ -96,7 +96,6 @@ struct mt76x0_tx_queue {
  * ...7e: group wcids
  *    7f: reserved
  */
-#define N_WCIDS		128
 #define GROUP_WCID(idx)	(254 - idx)
 
 struct mt76x0_eeprom_params;
@@ -144,7 +143,6 @@ struct mt76x0_dev {
 	u8 in_ep[__MT_EP_IN_MAX];
 	u16 in_max_packet;
 
-	unsigned long wcid_mask[DIV_ROUND_UP(N_WCIDS, BITS_PER_LONG)];
 	unsigned long vif_mask;
 
 	struct delayed_work cal_work;
@@ -152,9 +150,6 @@ struct mt76x0_dev {
 
 	struct workqueue_struct *stat_wq;
 	struct delayed_work stat_work;
-
-	struct mt76_wcid *mon_wcid;
-	struct mt76_wcid __rcu *wcid[N_WCIDS];
 
 	spinlock_t mac_lock;
 

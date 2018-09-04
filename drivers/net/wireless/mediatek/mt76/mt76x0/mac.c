@@ -206,8 +206,8 @@ void mt76x0_send_tx_status(struct mt76x0_dev *dev, struct mt76x02_tx_status *sta
 	struct mt76x02_sta *msta = NULL;
 
 	rcu_read_lock();
-	if (stat->wcid < ARRAY_SIZE(dev->wcid))
-		wcid = rcu_dereference(dev->wcid[stat->wcid]);
+	if (stat->wcid < ARRAY_SIZE(dev->mt76.wcid))
+		wcid = rcu_dereference(dev->mt76.wcid[stat->wcid]);
 
 	if (wcid) {
 		void *priv;
@@ -408,8 +408,8 @@ void mt76x0_mac_set_ampdu_factor(struct mt76x0_dev *dev)
 	int i;
 
 	rcu_read_lock();
-	for (i = 0; i < ARRAY_SIZE(dev->wcid); i++) {
-		wcid = rcu_dereference(dev->wcid[i]);
+	for (i = 0; i < ARRAY_SIZE(dev->mt76.wcid); i++) {
+		wcid = rcu_dereference(dev->mt76.wcid[i]);
 		if (!wcid)
 			continue;
 
