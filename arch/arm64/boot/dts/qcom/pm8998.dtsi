@@ -2,8 +2,10 @@
 /* Copyright 2018 Google LLC. */
 
 #include <dt-bindings/iio/qcom,spmi-vadc.h>
+#include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/spmi/spmi.h>
+
 
 &spmi_bus {
 	pm8998_lsid0: pmic@0 {
@@ -12,6 +14,29 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		pm8998_pon: pon@800 {
+			compatible = "qcom,pm8916-pon";
+
+			reg = <0x800>;
+			mode-bootloader = <0x2>;
+			mode-recovery = <0x1>;
+
+			pwrkey {
+				compatible = "qcom,pm8941-pwrkey";
+				interrupts = <0x0 0x8 0 IRQ_TYPE_EDGE_BOTH>;
+				debounce = <15625>;
+				bias-pull-up;
+				linux,code = <KEY_POWER>;
+			};
+		};
+
+		pm8998_coincell: coincell@2800 {
+			compatible = "qcom,pm8941-coincell";
+			reg = <0x2800>;
+
+			status = "disabled";
+		};
+
 		pm8998_adc: adc@3100 {
 			compatible = "qcom,spmi-adc-rev2";
 			reg = <0x3100>;
@@ -19,6 +44,13 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			#io-channel-cells = <1>;
+		};
+
+		rtc@6000 {
+			compatible = "qcom,pm8941-rtc";
+			reg = <0x6000>, <0x6100>;
+			reg-names = "rtc", "alarm";
+			interrupts = <0x0 0x61 0x1 IRQ_TYPE_EDGE_RISING>;
 		};
 
 		pm8998_gpio: gpios@c000 {
