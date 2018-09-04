@@ -2072,9 +2072,9 @@ static void handle_get_statistics(struct work_struct *work)
 
 	if (stats->link_speed > TCP_ACK_FILTER_LINK_SPEED_THRESH &&
 	    stats->link_speed != DEFAULT_LINK_SPEED)
-		wilc_enable_tcp_ack_filter(true);
+		wilc_enable_tcp_ack_filter(vif, true);
 	else if (stats->link_speed != DEFAULT_LINK_SPEED)
-		wilc_enable_tcp_ack_filter(false);
+		wilc_enable_tcp_ack_filter(vif, false);
 
 	/* free 'msg' for async command, for sync caller will free it */
 	if (msg->is_sync)
