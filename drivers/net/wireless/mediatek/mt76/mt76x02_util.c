@@ -177,4 +177,71 @@ int mt76x02_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(mt76x02_ampdu_action);
 
+int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+		   struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		   struct ieee80211_key_conf *key)
+{
+	struct mt76_dev *dev = hw->priv;
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
+	struct mt76x02_sta *msta;
+	struct mt76_wcid *wcid;
+	int idx = key->keyidx;
+	int ret;
+
+	/* fall back to sw encryption for unsupported ciphers */
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+	case WLAN_CIPHER_SUITE_TKIP:
+	case WLAN_CIPHER_SUITE_CCMP:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	/*
+	 * The hardware does not support per-STA RX GTK, fall back
+	 * to software mode for these.
+	 */
+	if ((vif->type == NL80211_IFTYPE_ADHOC ||
+	     vif->type == NL80211_IFTYPE_MESH_POINT) &&
+	    (key->cipher == WLAN_CIPHER_SUITE_TKIP ||
+	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
+	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+		return -EOPNOTSUPP;
+
+	msta = sta ? (struct mt76x02_sta *) sta->drv_priv : NULL;
+	wcid = msta ? &msta->wcid : &mvif->group_wcid;
+
+	if (cmd == SET_KEY) {
+		key->hw_key_idx = wcid->idx;
+		wcid->hw_key_idx = idx;
+		if (key->flags & IEEE80211_KEY_FLAG_RX_MGMT) {
+			key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
+			wcid->sw_iv = true;
+		}
+	} else {
+		if (idx == wcid->hw_key_idx) {
+			wcid->hw_key_idx = -1;
+			wcid->sw_iv = true;
+		}
+
+		key = NULL;
+	}
+	mt76_wcid_key_setup(dev, wcid, key);
+
+	if (!msta) {
+		if (key || wcid->hw_key_idx == idx) {
+			ret = mt76x02_mac_wcid_set_key(dev, wcid->idx, key);
+			if (ret)
+				return ret;
+		}
+
+		return mt76x02_mac_shared_key_setup(dev, mvif->idx, idx, key);
+	}
+
+	return mt76x02_mac_wcid_set_key(dev, msta->wcid.idx, key);
+}
+EXPORT_SYMBOL_GPL(mt76x02_set_key);
+
 MODULE_LICENSE("Dual BSD/GPL");

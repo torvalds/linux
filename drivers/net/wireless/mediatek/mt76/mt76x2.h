@@ -256,9 +256,6 @@ int mt76x2_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta);
 void mt76x2_remove_interface(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif);
-int mt76x2_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-		   struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-		   struct ieee80211_key_conf *key);
 int mt76x2_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   u16 queue, const struct ieee80211_tx_queue_params *params);
 void mt76x2_txq_init(struct mt76x2_dev *dev, struct ieee80211_txq *txq);

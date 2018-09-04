@@ -31,4 +31,8 @@ void mt76x02_vif_init(struct mt76_dev *dev, struct ieee80211_vif *vif,
 
 int mt76x02_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			struct ieee80211_ampdu_params *params);
+
+int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+		   struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		   struct ieee80211_key_conf *key);
 #endif
