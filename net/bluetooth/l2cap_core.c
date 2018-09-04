@@ -52,7 +52,6 @@ static LIST_HEAD(chan_list);
 static DEFINE_RWLOCK(chan_list_lock);
 
 static u16 le_max_credits = L2CAP_LE_MAX_CREDITS;
-static u16 le_default_mps = L2CAP_LE_DEFAULT_MPS;
 
 static struct sk_buff *l2cap_build_cmd(struct l2cap_conn *conn,
 				       u8 code, u8 ident, u16 dlen, void *data);
@@ -520,7 +519,8 @@ static void l2cap_le_flowctl_init(struct l2cap_chan *chan)
 	chan->sdu_len = 0;
 	chan->tx_credits = 0;
 	chan->rx_credits = le_max_credits;
-	chan->mps = min_t(u16, chan->imtu, le_default_mps);
+	/* Derive MPS from connection MTU to stop HCI fragmentation */
+	chan->mps = min_t(u16, chan->imtu, chan->conn->mtu - L2CAP_HDR_SIZE);
 
 	skb_queue_head_init(&chan->tx_q);
 }
@@ -1281,6 +1281,8 @@ static void l2cap_le_connect(struct l2cap_chan *chan)
 
 	if (test_and_set_bit(FLAG_LE_CONN_REQ_SENT, &chan->flags))
 		return;
+
+	l2cap_le_flowctl_init(chan);
 
 	req.psm     = chan->psm;
 	req.scid    = cpu_to_le16(chan->scid);
@@ -5493,8 +5495,6 @@ static int l2cap_le_connect_req(struct l2cap_conn *conn,
 		goto response_unlock;
 	}
 
-	l2cap_le_flowctl_init(chan);
-
 	bacpy(&chan->src, &conn->hcon->src);
 	bacpy(&chan->dst, &conn->hcon->dst);
 	chan->src_type = bdaddr_src_type(conn->hcon);
@@ -5506,6 +5506,9 @@ static int l2cap_le_connect_req(struct l2cap_conn *conn,
 	chan->tx_credits = __le16_to_cpu(req->credits);
 
 	__l2cap_chan_add(conn, chan);
+
+	l2cap_le_flowctl_init(chan);
+
 	dcid = chan->scid;
 	credits = chan->rx_credits;
 
@@ -7102,7 +7105,6 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	case L2CAP_MODE_BASIC:
 		break;
 	case L2CAP_MODE_LE_FLOWCTL:
-		l2cap_le_flowctl_init(chan);
 		break;
 	case L2CAP_MODE_ERTM:
 	case L2CAP_MODE_STREAMING:
@@ -7647,8 +7649,6 @@ int __init l2cap_init(void)
 
 	debugfs_create_u16("l2cap_le_max_credits", 0644, bt_debugfs,
 			   &le_max_credits);
-	debugfs_create_u16("l2cap_le_default_mps", 0644, bt_debugfs,
-			   &le_default_mps);
 
 	return 0;
 }
