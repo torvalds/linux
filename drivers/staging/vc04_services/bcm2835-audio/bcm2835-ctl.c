@@ -1,23 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright 2011 Broadcom Corporation.  All rights reserved. */
 
-#include <linux/platform_device.h>
-#include <linux/init.h>
-#include <linux/io.h>
-#include <linux/jiffies.h>
-#include <linux/slab.h>
-#include <linux/time.h>
-#include <linux/wait.h>
-#include <linux/delay.h>
-#include <linux/moduleparam.h>
-#include <linux/sched.h>
-
 #include <sound/core.h>
 #include <sound/control.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
-#include <sound/rawmidi.h>
-#include <sound/initval.h>
 #include <sound/tlv.h>
 #include <sound/asoundef.h>
 
