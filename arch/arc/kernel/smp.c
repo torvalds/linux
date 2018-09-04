@@ -29,10 +29,8 @@
 
 #ifndef CONFIG_ARC_HAS_LLSC
 arch_spinlock_t smp_atomic_ops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
-arch_spinlock_t smp_bitops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 
 EXPORT_SYMBOL_GPL(smp_atomic_ops_lock);
-EXPORT_SYMBOL_GPL(smp_bitops_lock);
 #endif
 
 struct plat_smp_ops  __weak plat_smp_ops;
