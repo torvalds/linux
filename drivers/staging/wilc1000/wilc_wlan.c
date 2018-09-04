@@ -164,7 +164,7 @@ static inline void tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 	struct wilc *wilc = vif->wilc;
 	const struct iphdr *ip_hdr_ptr;
 	const struct tcphdr *tcp_hdr_ptr;
-	u32 IHL, total_length, data_offset;
+	u32 ihl, total_length, data_offset;
 
 	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 
@@ -176,12 +176,12 @@ static inline void tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 	if (ip_hdr_ptr->protocol != IPPROTO_TCP)
 		goto out;
 
-	IHL = ip_hdr_ptr->ihl << 2;
-	tcp_hdr_ptr = buffer + ETH_HLEN + IHL;
+	ihl = ip_hdr_ptr->ihl << 2;
+	tcp_hdr_ptr = buffer + ETH_HLEN + ihl;
 	total_length = ntohs(ip_hdr_ptr->tot_len);
 
 	data_offset = tcp_hdr_ptr->doff << 2;
-	if (total_length == (IHL + data_offset)) {
+	if (total_length == (ihl + data_offset)) {
 		u32 seq_no, ack_no;
 
 		seq_no = ntohl(tcp_hdr_ptr->seq);
