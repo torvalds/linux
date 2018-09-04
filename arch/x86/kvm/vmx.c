@@ -6189,6 +6189,27 @@ static void vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
 	nested_mark_vmcs12_pages_dirty(vcpu);
 }
 
+static bool vmx_guest_apic_has_interrupt(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	void *vapic_page;
+	u32 vppr;
+	int rvi;
+
+	if (WARN_ON_ONCE(!is_guest_mode(vcpu)) ||
+		!nested_cpu_has_vid(get_vmcs12(vcpu)) ||
+		WARN_ON_ONCE(!vmx->nested.virtual_apic_page))
+		return false;
+
+	rvi = vmcs_read16(GUEST_INTR_STATUS) & 0xff;
+
+	vapic_page = kmap(vmx->nested.virtual_apic_page);
+	vppr = *((u32 *)(vapic_page + APIC_PROCPRI));
+	kunmap(vmx->nested.virtual_apic_page);
+
+	return ((rvi & 0xf0) > (vppr & 0xf0));
+}
+
 static inline bool kvm_vcpu_trigger_posted_interrupt(struct kvm_vcpu *vcpu,
 						     bool nested)
 {
@@ -14129,6 +14150,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.apicv_post_state_restore = vmx_apicv_post_state_restore,
 	.hwapic_irr_update = vmx_hwapic_irr_update,
 	.hwapic_isr_update = vmx_hwapic_isr_update,
+	.guest_apic_has_interrupt = vmx_guest_apic_has_interrupt,
 	.sync_pir_to_irr = vmx_sync_pir_to_irr,
 	.deliver_posted_interrupt = vmx_deliver_posted_interrupt,
 
