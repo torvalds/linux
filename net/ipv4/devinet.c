@@ -100,6 +100,7 @@ static const struct nla_policy ifa_ipv4_policy[IFA_MAX+1] = {
 	[IFA_CACHEINFO]		= { .len = sizeof(struct ifa_cacheinfo) },
 	[IFA_FLAGS]		= { .type = NLA_U32 },
 	[IFA_RT_PRIORITY]	= { .type = NLA_U32 },
+	[IFA_TARGET_NETNSID]	= { .type = NLA_S32 },
 };
 
 #define IN4_ADDR_HSIZE_SHIFT	8
@@ -1584,7 +1585,8 @@ static int put_cacheinfo(struct sk_buff *skb, unsigned long cstamp,
 }
 
 static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
-			    u32 portid, u32 seq, int event, unsigned int flags)
+			    u32 portid, u32 seq, int event, unsigned int flags,
+			    int netnsid)
 {
 	struct ifaddrmsg *ifm;
 	struct nlmsghdr  *nlh;
@@ -1600,6 +1602,9 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 	ifm->ifa_flags = ifa->ifa_flags;
 	ifm->ifa_scope = ifa->ifa_scope;
 	ifm->ifa_index = ifa->ifa_dev->dev->ifindex;
+
+	if (netnsid >= 0 && nla_put_s32(skb, IFA_TARGET_NETNSID, netnsid))
+		goto nla_put_failure;
 
 	if (!(ifm->ifa_flags & IFA_F_PERMANENT)) {
 		preferred = ifa->ifa_preferred_lft;
@@ -1648,6 +1653,9 @@ nla_put_failure:
 static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
+	struct nlattr *tb[IFA_MAX+1];
+	struct net *tgt_net = net;
+	int netnsid = -1;
 	int h, s_h;
 	int idx, s_idx;
 	int ip_idx, s_ip_idx;
@@ -1660,12 +1668,23 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	s_idx = idx = cb->args[1];
 	s_ip_idx = ip_idx = cb->args[2];
 
+	if (nlmsg_parse(cb->nlh, sizeof(struct ifaddrmsg), tb, IFA_MAX,
+			ifa_ipv4_policy, NULL) >= 0) {
+		if (tb[IFA_TARGET_NETNSID]) {
+			netnsid = nla_get_s32(tb[IFA_TARGET_NETNSID]);
+
+			tgt_net = rtnl_get_net_ns_capable(skb->sk, netnsid);
+			if (IS_ERR(tgt_net))
+				return PTR_ERR(tgt_net);
+		}
+	}
+
 	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
 		idx = 0;
-		head = &net->dev_index_head[h];
+		head = &tgt_net->dev_index_head[h];
 		rcu_read_lock();
-		cb->seq = atomic_read(&net->ipv4.dev_addr_genid) ^
-			  net->dev_base_seq;
+		cb->seq = atomic_read(&tgt_net->ipv4.dev_addr_genid) ^
+			  tgt_net->dev_base_seq;
 		hlist_for_each_entry_rcu(dev, head, index_hlist) {
 			if (idx < s_idx)
 				goto cont;
@@ -1680,9 +1699,10 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 				if (ip_idx < s_ip_idx)
 					continue;
 				if (inet_fill_ifaddr(skb, ifa,
-					     NETLINK_CB(cb->skb).portid,
-					     cb->nlh->nlmsg_seq,
-					     RTM_NEWADDR, NLM_F_MULTI) < 0) {
+						     NETLINK_CB(cb->skb).portid,
+						     cb->nlh->nlmsg_seq,
+						     RTM_NEWADDR, NLM_F_MULTI,
+						     netnsid) < 0) {
 					rcu_read_unlock();
 					goto done;
 				}
@@ -1698,6 +1718,8 @@ done:
 	cb->args[0] = h;
 	cb->args[1] = idx;
 	cb->args[2] = ip_idx;
+	if (netnsid >= 0)
+		put_net(tgt_net);
 
 	return skb->len;
 }
@@ -1715,7 +1737,7 @@ static void rtmsg_ifa(int event, struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 	if (!skb)
 		goto errout;
 
-	err = inet_fill_ifaddr(skb, ifa, portid, seq, event, 0);
+	err = inet_fill_ifaddr(skb, ifa, portid, seq, event, 0, -1);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in inet_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
