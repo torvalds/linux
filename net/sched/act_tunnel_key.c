@@ -317,7 +317,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 						  &metadata->u.tun_info,
 						  opts_len, extack);
 			if (ret < 0)
-				goto err_out;
+				goto release_tun_meta;
 		}
 
 		metadata->u.tun_info.mode |= IP_TUNNEL_INFO_TX;
@@ -333,23 +333,24 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 				     &act_tunnel_key_ops, bind, true);
 		if (ret) {
 			NL_SET_ERR_MSG(extack, "Cannot create TC IDR");
-			goto err_out;
+			goto release_tun_meta;
 		}
 
 		ret = ACT_P_CREATED;
 	} else if (!ovr) {
-		tcf_idr_release(*a, bind);
 		NL_SET_ERR_MSG(extack, "TC IDR already exists");
-		return -EEXIST;
+		ret = -EEXIST;
+		goto release_tun_meta;
 	}
 
 	t = to_tunnel_key(*a);
 
 	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
 	if (unlikely(!params_new)) {
-		tcf_idr_release(*a, bind);
 		NL_SET_ERR_MSG(extack, "Cannot allocate tunnel key parameters");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		exists = true;
+		goto release_tun_meta;
 	}
 	params_new->tcft_action = parm->t_action;
 	params_new->tcft_enc_metadata = metadata;
@@ -366,6 +367,9 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		tcf_idr_insert(tn, *a);
 
 	return ret;
+
+release_tun_meta:
+	dst_release(&metadata->dst);
 
 err_out:
 	if (exists)
