@@ -97,40 +97,34 @@ static int snd_bcm2835_ctl_put(struct snd_kcontrol *kcontrol,
 
 static DECLARE_TLV_DB_SCALE(snd_bcm2835_db_scale, CTRL_VOL_MIN, 1, 1);
 
-static struct snd_kcontrol_new snd_bcm2835_ctl[] = {
+static const struct snd_kcontrol_new snd_bcm2835_ctl[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "PCM Playback Volume",
-		.index = 0,
 		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ,
 		.private_value = PCM_PLAYBACK_VOLUME,
 		.info = snd_bcm2835_ctl_info,
 		.get = snd_bcm2835_ctl_get,
 		.put = snd_bcm2835_ctl_put,
-		.count = 1,
 		.tlv = {.p = snd_bcm2835_db_scale}
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "PCM Playback Switch",
-		.index = 0,
 		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 		.private_value = PCM_PLAYBACK_MUTE,
 		.info = snd_bcm2835_ctl_info,
 		.get = snd_bcm2835_ctl_get,
 		.put = snd_bcm2835_ctl_put,
-		.count = 1,
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "PCM Playback Route",
-		.index = 0,
 		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 		.private_value = PCM_PLAYBACK_DEVICE,
 		.info = snd_bcm2835_ctl_info,
 		.get = snd_bcm2835_ctl_get,
 		.put = snd_bcm2835_ctl_put,
-		.count = 1,
 	},
 };
 
@@ -196,7 +190,7 @@ static int snd_bcm2835_spdif_mask_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_bcm2835_spdif[] = {
+static const struct snd_kcontrol_new snd_bcm2835_spdif[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 		.name = SNDRV_CTL_NAME_IEC958("", PLAYBACK, DEFAULT),
@@ -213,28 +207,32 @@ static struct snd_kcontrol_new snd_bcm2835_spdif[] = {
 	},
 };
 
-int snd_bcm2835_new_ctl(struct bcm2835_chip *chip)
+static int create_ctls(struct bcm2835_chip *chip, size_t size,
+		       const struct snd_kcontrol_new *kctls)
 {
-	int err;
-	unsigned int idx;
+	int i, err;
 
-	strcpy(chip->card->mixername, "Broadcom Mixer");
-	for (idx = 0; idx < ARRAY_SIZE(snd_bcm2835_ctl); idx++) {
-		err = snd_ctl_add(chip->card,
-				  snd_ctl_new1(&snd_bcm2835_ctl[idx], chip));
-		if (err < 0)
-			return err;
-	}
-	for (idx = 0; idx < ARRAY_SIZE(snd_bcm2835_spdif); idx++) {
-		err = snd_ctl_add(chip->card,
-				  snd_ctl_new1(&snd_bcm2835_spdif[idx], chip));
+	for (i = 0; i < size; i++) {
+		err = snd_ctl_add(chip->card, snd_ctl_new1(&kctls[i], chip));
 		if (err < 0)
 			return err;
 	}
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_bcm2835_headphones_ctl[] = {
+int snd_bcm2835_new_ctl(struct bcm2835_chip *chip)
+{
+	int err;
+
+	strcpy(chip->card->mixername, "Broadcom Mixer");
+	err = create_ctls(chip, ARRAY_SIZE(snd_bcm2835_ctl), snd_bcm2835_ctl);
+	if (err < 0)
+		return err;
+	return create_ctls(chip, ARRAY_SIZE(snd_bcm2835_spdif),
+			   snd_bcm2835_spdif);
+}
+
+static const struct snd_kcontrol_new snd_bcm2835_headphones_ctl[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Headphone Playback Volume",
@@ -263,21 +261,12 @@ static struct snd_kcontrol_new snd_bcm2835_headphones_ctl[] = {
 
 int snd_bcm2835_new_headphones_ctl(struct bcm2835_chip *chip)
 {
-	int err;
-	unsigned int idx;
-
 	strcpy(chip->card->mixername, "Broadcom Mixer");
-	for (idx = 0; idx < ARRAY_SIZE(snd_bcm2835_headphones_ctl); idx++) {
-		err = snd_ctl_add(chip->card,
-				  snd_ctl_new1(&snd_bcm2835_headphones_ctl[idx],
-					       chip));
-		if (err)
-			return err;
-	}
-	return 0;
+	return create_ctls(chip, ARRAY_SIZE(snd_bcm2835_headphones_ctl),
+			   snd_bcm2835_headphones_ctl);
 }
 
-static struct snd_kcontrol_new snd_bcm2835_hdmi[] = {
+static const struct snd_kcontrol_new snd_bcm2835_hdmi[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "HDMI Playback Volume",
@@ -306,16 +295,8 @@ static struct snd_kcontrol_new snd_bcm2835_hdmi[] = {
 
 int snd_bcm2835_new_hdmi_ctl(struct bcm2835_chip *chip)
 {
-	int err;
-	unsigned int idx;
-
 	strcpy(chip->card->mixername, "Broadcom Mixer");
-	for (idx = 0; idx < ARRAY_SIZE(snd_bcm2835_hdmi); idx++) {
-		err = snd_ctl_add(chip->card,
-				  snd_ctl_new1(&snd_bcm2835_hdmi[idx], chip));
-		if (err)
-			return err;
-	}
-	return 0;
+	return create_ctls(chip, ARRAY_SIZE(snd_bcm2835_hdmi),
+			   snd_bcm2835_hdmi);
 }
 
