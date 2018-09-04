@@ -12,15 +12,15 @@
  */
 
 #include <linux/errno.h>
+#include <linux/gpio/driver.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/of_irq.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
-#include <linux/of_irq.h>
-#include <linux/gpio/driver.h>
 
 #define DRV_NAME		"sdv_gpio"
 #define SDV_NUM_PUB_GPIOS	12
