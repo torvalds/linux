@@ -923,6 +923,80 @@ static int clk_core_enable_lock(struct clk_core *core)
 	return ret;
 }
 
+static int _clk_save_context(struct clk_core *clk)
+{
+	struct clk_core *child;
+	int ret = 0;
+
+	hlist_for_each_entry(child, &clk->children, child_node) {
+		ret = _clk_save_context(child);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (clk->ops && clk->ops->save_context)
+		ret = clk->ops->save_context(clk->hw);
+
+	return ret;
+}
+
+static void _clk_restore_context(struct clk_core *clk)
+{
+	struct clk_core *child;
+
+	if (clk->ops && clk->ops->restore_context)
+		clk->ops->restore_context(clk->hw);
+
+	hlist_for_each_entry(child, &clk->children, child_node)
+		_clk_restore_context(child);
+}
+
+/**
+ * clk_save_context - save clock context for poweroff
+ *
+ * Saves the context of the clock register for powerstates in which the
+ * contents of the registers will be lost. Occurs deep within the suspend
+ * code.  Returns 0 on success.
+ */
+int clk_save_context(void)
+{
+	struct clk_core *clk;
+	int ret;
+
+	hlist_for_each_entry(clk, &clk_root_list, child_node) {
+		ret = _clk_save_context(clk);
+		if (ret < 0)
+			return ret;
+	}
+
+	hlist_for_each_entry(clk, &clk_orphan_list, child_node) {
+		ret = _clk_save_context(clk);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(clk_save_context);
+
+/**
+ * clk_restore_context - restore clock context after poweroff
+ *
+ * Restore the saved clock context upon resume.
+ *
+ */
+void clk_restore_context(void)
+{
+	struct clk_core *clk;
+
+	hlist_for_each_entry(clk, &clk_root_list, child_node)
+		_clk_restore_context(clk);
+
+	hlist_for_each_entry(clk, &clk_orphan_list, child_node)
+		_clk_restore_context(clk);
+}
+EXPORT_SYMBOL_GPL(clk_restore_context);
+
 /**
  * clk_enable - ungate a clock
  * @clk: the clk being ungated
