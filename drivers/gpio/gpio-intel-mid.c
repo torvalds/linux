@@ -20,12 +20,11 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/gpio/driver.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -273,9 +272,8 @@ static const struct pci_device_id intel_gpio_ids[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x08f7),
 		.driver_data = (kernel_ulong_t)&gpio_cloverview_core,
 	},
-	{ 0 }
+	{ }
 };
-MODULE_DEVICE_TABLE(pci, intel_gpio_ids);
 
 static void intel_mid_irq_handler(struct irq_desc *desc)
 {
