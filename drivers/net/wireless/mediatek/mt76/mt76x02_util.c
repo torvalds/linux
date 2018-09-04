@@ -115,4 +115,16 @@ int mt76x02_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(mt76x02_sta_remove);
 
+void mt76x02_vif_init(struct mt76_dev *dev, struct ieee80211_vif *vif,
+		     unsigned int idx)
+{
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
+
+	mvif->idx = idx;
+	mvif->group_wcid.idx = MT_VIF_WCID(idx);
+	mvif->group_wcid.hw_key_idx = -1;
+	mt76x02_txq_init(dev, vif->txq);
+}
+EXPORT_SYMBOL_GPL(mt76x02_vif_init);
+
 MODULE_LICENSE("Dual BSD/GPL");

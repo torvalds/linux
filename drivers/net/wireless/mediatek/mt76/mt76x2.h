@@ -42,9 +42,6 @@
 
 #define MT_CALIBRATE_INTERVAL	HZ
 
-#define MT_MAX_VIFS		8
-#define MT_VIF_WCID(_n)		(254 - ((_n) & 7))
-
 #include "mt76.h"
 #include "mt76x02_regs.h"
 #include "mt76x2_mac.h"

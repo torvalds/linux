@@ -89,15 +89,6 @@ struct mt76x0_tx_queue {
 	unsigned int fifo_seq;
 };
 
-/* WCID allocation:
- *     0: mcast wcid
- *     1: bssid wcid
- *  1...: STAs
- * ...7e: group wcids
- *    7f: reserved
- */
-#define GROUP_WCID(idx)	(254 - idx)
-
 struct mt76x0_eeprom_params;
 
 #define MT_EE_TEMPERATURE_SLOPE		39

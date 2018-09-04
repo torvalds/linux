@@ -58,7 +58,6 @@ static int
 mt76x2_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct mt76x2_dev *dev = hw->priv;
-	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
 	unsigned int idx = 0;
 
 	if (vif->addr[0] & BIT(1))
@@ -80,11 +79,7 @@ mt76x2_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	if (vif->type == NL80211_IFTYPE_STATION)
 		idx += 8;
 
-	mvif->idx = idx;
-	mvif->group_wcid.idx = MT_VIF_WCID(idx);
-	mvif->group_wcid.hw_key_idx = -1;
-	mt76x02_txq_init(&dev->mt76, vif->txq);
-
+	mt76x02_vif_init(&dev->mt76, vif, idx);
 	return 0;
 }
 
