@@ -4,14 +4,25 @@ http://www.analog.com/media/en/technical-documentation/data-sheets/adxl372.pdf
 
 Required properties:
  - compatible : should be "adi,adxl372"
- - reg: SPI chip select number for the device
+ - reg: the I2C address or SPI chip select number for the device
+
+Required properties for SPI bus usage:
  - spi-max-frequency: Max SPI frequency to use
 
 Optional properties:
  - interrupts: interrupt mapping for IRQ as documented in
    Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 
-Example:
+Example for a I2C device node:
+
+	accelerometer@53 {
+		compatible = "adi,adxl372";
+		reg = <0x53>;
+		interrupt-parent = <&gpio>;
+		interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
+	};
+
+Example for a SPI device node:
 
 	accelerometer@0 {
 		compatible = "adi,adxl372";
