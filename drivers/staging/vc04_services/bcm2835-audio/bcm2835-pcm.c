@@ -145,6 +145,11 @@ static int snd_bcm2835_playback_open_generic(
 				   SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
 				   16);
 
+	/* position update is in 10ms order */
+	snd_pcm_hw_constraint_minmax(runtime,
+				     SNDRV_PCM_HW_PARAM_PERIOD_TIME,
+				     10 * 1000, UINT_MAX);
+
 	chip->alsa_stream[idx] = alsa_stream;
 
 	chip->opened |= (1 << idx);
