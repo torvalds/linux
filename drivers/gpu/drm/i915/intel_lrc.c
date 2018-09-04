@@ -1272,6 +1272,8 @@ static void execlists_context_destroy(struct intel_context *ce)
 
 static void execlists_context_unpin(struct intel_context *ce)
 {
+	i915_gem_context_unpin_hw_id(ce->gem_context);
+
 	intel_ring_unpin(ce->ring);
 
 	ce->state->obj->pin_global--;
@@ -1330,6 +1332,10 @@ __execlists_context_pin(struct intel_engine_cs *engine,
 	if (ret)
 		goto unpin_map;
 
+	ret = i915_gem_context_pin_hw_id(ctx);
+	if (ret)
+		goto unpin_ring;
+
 	intel_lr_context_descriptor_update(ctx, engine, ce);
 
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
@@ -1342,6 +1348,8 @@ __execlists_context_pin(struct intel_engine_cs *engine,
 	i915_gem_context_get(ctx);
 	return ce;
 
+unpin_ring:
+	intel_ring_unpin(ce->ring);
 unpin_map:
 	i915_gem_object_unpin_map(ce->state->obj);
 unpin_vma:

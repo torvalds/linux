@@ -1953,7 +1953,10 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		return ret;
 
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
-		seq_printf(m, "HW context %u ", ctx->hw_id);
+		seq_puts(m, "HW context ");
+		if (!list_empty(&ctx->hw_id_link))
+			seq_printf(m, "%x [pin %u]", ctx->hw_id,
+				   atomic_read(&ctx->hw_id_pin_count));
 		if (ctx->pid) {
 			struct task_struct *task;
 
