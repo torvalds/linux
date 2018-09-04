@@ -2,6 +2,9 @@
 /* Copyright (c) 2016, The Linux Foundation. All rights reserved. */
 
 #include "msm8998.dtsi"
+#include "pm8998.dtsi"
+#include "pmi8998.dtsi"
+#include "pm8005.dtsi"
 
 / {
 	aliases {
