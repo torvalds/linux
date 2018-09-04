@@ -1562,11 +1562,17 @@ static const struct ath10k_htt_tx_ops htt_tx_ops_64 = {
 	.htt_free_txbuff = ath10k_htt_tx_free_cont_txbuf_64,
 };
 
+static const struct ath10k_htt_tx_ops htt_tx_ops_hl = {
+	.htt_send_frag_desc_bank_cfg = ath10k_htt_send_frag_desc_bank_cfg_32,
+};
+
 void ath10k_htt_set_tx_ops(struct ath10k_htt *htt)
 {
 	struct ath10k *ar = htt->ar;
 
-	if (ar->hw_params.target_64bit)
+	if (ar->dev_type == ATH10K_DEV_TYPE_HL)
+		htt->tx_ops = &htt_tx_ops_hl;
+	else if (ar->hw_params.target_64bit)
 		htt->tx_ops = &htt_tx_ops_64;
 	else
 		htt->tx_ops = &htt_tx_ops_32;
