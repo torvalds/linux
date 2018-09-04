@@ -61,7 +61,6 @@ static const char *const ahc_chip_names[] = {
 	"aic7892",
 	"aic7899"
 };
-static const u_int num_chip_names = ARRAY_SIZE(ahc_chip_names);
 
 /*
  * Hardware error codes.
