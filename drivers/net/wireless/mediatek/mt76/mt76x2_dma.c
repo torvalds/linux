@@ -102,12 +102,6 @@ mt76x2_tx_tasklet(unsigned long data)
 
 int mt76x2_dma_init(struct mt76x2_dev *dev)
 {
-	static const u8 wmm_queue_map[] = {
-		[IEEE80211_AC_BE] = 0,
-		[IEEE80211_AC_BK] = 1,
-		[IEEE80211_AC_VI] = 2,
-		[IEEE80211_AC_VO] = 3,
-	};
 	int ret;
 	int i;
 	struct mt76_txwi_cache __maybe_unused *t;
@@ -125,9 +119,9 @@ int mt76x2_dma_init(struct mt76x2_dev *dev)
 
 	mt76_wr(dev, MT_WPDMA_RST_IDX, ~0);
 
-	for (i = 0; i < ARRAY_SIZE(wmm_queue_map); i++) {
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		ret = mt76x2_init_tx_queue(dev, &dev->mt76.q_tx[i],
-					   wmm_queue_map[i], MT_TX_RING_SIZE);
+					   mt76_ac_to_hwq(i), MT_TX_RING_SIZE);
 		if (ret)
 			return ret;
 	}

@@ -442,3 +442,19 @@ void mt76_txq_init(struct mt76_dev *dev, struct ieee80211_txq *txq)
 	mtxq->hwq = &dev->q_tx[mt76_txq_get_qid(txq)];
 }
 EXPORT_SYMBOL_GPL(mt76_txq_init);
+
+u8 mt76_ac_to_hwq(u8 ac)
+{
+	static const u8 wmm_queue_map[] = {
+		[IEEE80211_AC_BE] = 0,
+		[IEEE80211_AC_BK] = 1,
+		[IEEE80211_AC_VI] = 2,
+		[IEEE80211_AC_VO] = 3,
+	};
+
+	if (WARN_ON(ac >= IEEE80211_NUM_ACS))
+		return 0;
+
+	return wmm_queue_map[ac];
+}
+EXPORT_SYMBOL_GPL(mt76_ac_to_hwq);

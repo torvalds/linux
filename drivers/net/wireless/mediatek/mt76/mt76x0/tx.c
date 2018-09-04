@@ -25,7 +25,7 @@ static u8 skb2q(struct sk_buff *skb)
 		skb_set_queue_mapping(skb, qid);
 	}
 
-	return q2hwq(qid);
+	return mt76_ac_to_hwq(qid);
 }
 
 static void mt76x0_tx_skb_remove_dma_overhead(struct sk_buff *skb,
@@ -216,7 +216,7 @@ int mt76x0_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		    u16 queue, const struct ieee80211_tx_queue_params *params)
 {
 	struct mt76x0_dev *dev = hw->priv;
-	u8 cw_min = 5, cw_max = 10, hw_q = q2hwq(queue);
+	u8 cw_min = 5, cw_max = 10, hw_q = mt76_ac_to_hwq(queue);
 	u32 val;
 
 	/* TODO: should we do funny things with the parameters?

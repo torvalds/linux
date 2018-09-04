@@ -715,7 +715,7 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 		q = &dev->q_tx[i];
 		spin_lock_init(&q->lock);
 		INIT_LIST_HEAD(&q->swq);
-		q->hw_idx = q2hwq(i);
+		q->hw_idx = mt76_ac_to_hwq(i);
 
 		q->entry = devm_kzalloc(dev->dev,
 					MT_NUM_TX_ENTRIES * sizeof(*q->entry),

@@ -519,13 +519,7 @@ static inline int mt76_decr(int val, int size)
 	return (val - 1) & (size - 1);
 }
 
-/* Hardware uses mirrored order of queues with Q3
- * having the highest priority
- */
-static inline u8 q2hwq(u8 q)
-{
-	return q ^ 0x3;
-}
+u8 mt76_ac_to_hwq(u8 ac);
 
 static inline struct ieee80211_txq *
 mtxq_to_txq(struct mt76_txq *mtxq)
