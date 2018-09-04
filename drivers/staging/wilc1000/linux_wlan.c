@@ -61,7 +61,6 @@ static int dev_state_ev_handler(struct notifier_block *this,
 		netdev_dbg(dev, "IP add=%d:%d:%d:%d\n",
 			   ip_addr_buf[0], ip_addr_buf[1],
 			   ip_addr_buf[2], ip_addr_buf[3]);
-		wilc_setup_ipaddress(vif, ip_addr_buf, vif->idx);
 
 		break;
 
@@ -82,8 +81,6 @@ static int dev_state_ev_handler(struct notifier_block *this,
 		netdev_dbg(dev, "IP add=%d:%d:%d:%d\n",
 			   ip_addr_buf[0], ip_addr_buf[1],
 			   ip_addr_buf[2], ip_addr_buf[3]);
-
-		wilc_setup_ipaddress(vif, ip_addr_buf, vif->idx);
 
 		break;
 

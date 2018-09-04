@@ -191,11 +191,6 @@ static u8 p2p_listen_state;
 static struct completion hif_driver_comp;
 static struct mutex hif_deinit_lock;
 
-static u8 set_ip[2][4];
-static u8 get_ip[2][4];
-
-static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx);
-
 /* 'msg' should be free by the caller for syc */
 static struct host_if_msg*
 wilc_alloc_work(struct wilc_vif *vif, void (*work_fun)(struct work_struct *),
@@ -345,64 +340,6 @@ static void handle_set_operation_mode(struct work_struct *work)
 	if (ret)
 		netdev_err(vif->ndev, "Failed to set operation mode\n");
 
-	kfree(msg);
-}
-
-static void handle_set_ip_address(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	u8 *ip_addr = msg->body.ip_info.ip_addr;
-	u8 idx = msg->body.ip_info.idx;
-	int ret;
-	struct wid wid;
-	char firmware_ip_addr[4] = {0};
-
-	if (ip_addr[0] < 192)
-		ip_addr[0] = 0;
-
-	memcpy(set_ip[idx], ip_addr, IP_ALEN);
-
-	wid.id = WID_IP_ADDRESS;
-	wid.type = WID_STR;
-	wid.val = ip_addr;
-	wid.size = IP_ALEN;
-
-	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
-				   wilc_get_vif_idx(vif));
-
-	host_int_get_ipaddress(vif, firmware_ip_addr, idx);
-
-	if (ret)
-		netdev_err(vif->ndev, "Failed to set IP address\n");
-	kfree(msg);
-}
-
-static void handle_get_ip_address(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	u8 idx = msg->body.ip_info.idx;
-	int ret;
-	struct wid wid;
-
-	wid.id = WID_IP_ADDRESS;
-	wid.type = WID_STR;
-	wid.val = kmalloc(IP_ALEN, GFP_KERNEL);
-	wid.size = IP_ALEN;
-
-	ret = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
-				   wilc_get_vif_idx(vif));
-
-	memcpy(get_ip[idx], wid.val, IP_ALEN);
-
-	kfree(wid.val);
-
-	if (memcmp(get_ip[idx], set_ip[idx], IP_ALEN) != 0)
-		wilc_setup_ipaddress(vif, set_ip[idx], idx);
-
-	if (ret)
-		netdev_err(vif->ndev, "Failed to get IP address\n");
 	kfree(msg);
 }
 
@@ -4005,48 +3942,6 @@ int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled, u32 count,
 		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
 		kfree(msg);
 	}
-	return result;
-}
-
-int wilc_setup_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
-{
-	int result;
-	struct host_if_msg *msg;
-
-	msg = wilc_alloc_work(vif, handle_set_ip_address, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	msg->body.ip_info.ip_addr = ip_addr;
-	msg->body.ip_info.idx = idx;
-
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-	}
-
-	return result;
-}
-
-static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
-{
-	int result;
-	struct host_if_msg *msg;
-
-	msg = wilc_alloc_work(vif, handle_get_ip_address, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	msg->body.ip_info.ip_addr = ip_addr;
-	msg->body.ip_info.idx = idx;
-
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-	}
-
 	return result;
 }
 

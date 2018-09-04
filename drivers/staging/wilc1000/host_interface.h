@@ -9,8 +9,6 @@
 #include <linux/ieee80211.h>
 #include "coreconfigurator.h"
 
-#define IP_ALEN  4
-
 #define IDLE_MODE	0x00
 #define AP_MODE		0x01
 #define STATION_MODE	0x02
@@ -344,7 +342,6 @@ int wilc_edit_station(struct wilc_vif *vif,
 int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout);
 int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled, u32 count,
 				u8 *mc_list);
-int wilc_setup_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx);
 int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
 			   u32 duration, u16 chan,
 			   wilc_remain_on_chan_expired expired,
