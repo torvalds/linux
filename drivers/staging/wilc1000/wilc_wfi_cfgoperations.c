@@ -453,8 +453,6 @@ static inline bool wilc_cfg_scan_time_expired(struct wilc_priv *priv, int i)
 		return false;
 }
 
-int wilc_connecting;
-
 static void cfg_connect_result(enum conn_event conn_disconn_evt,
 			       struct connect_info *conn_info,
 			       u8 mac_status,
@@ -468,7 +466,7 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt,
 	struct host_if_drv *wfi_drv = priv->hif_drv;
 	u8 null_bssid[ETH_ALEN] = {0};
 
-	wilc_connecting = 0;
+	vif->connecting = false;
 
 	if (conn_disconn_evt == CONN_DISCONN_EVENT_CONN_RESP) {
 		u16 connect_status;
@@ -666,7 +664,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	enum authtype auth_type = ANY;
 	u32 cipher_group;
 
-	wilc_connecting = 1;
+	vif->connecting = true;
 
 	if (!(strncmp(sme->ssid, "DIRECT-", 7)))
 		wfi_drv->p2p_connect = 1;
@@ -698,7 +696,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 		nw_info = &priv->scanned_shadow[sel_bssi_idx];
 	} else {
 		ret = -ENOENT;
-		wilc_connecting = 0;
+		vif->connecting = false;
 		return ret;
 	}
 
@@ -741,7 +739,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 			ret = -ENOTSUPP;
 			netdev_err(dev, "%s: Unsupported cipher\n",
 				   __func__);
-			wilc_connecting = 0;
+			vif->connecting = false;
 			return ret;
 		}
 	}
@@ -792,7 +790,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	if (ret != 0) {
 		netdev_err(dev, "wilc_set_join_req(): Error\n");
 		ret = -ENOENT;
-		wilc_connecting = 0;
+		vif->connecting = false;
 		return ret;
 	}
 
@@ -809,7 +807,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev,
 	int ret;
 	u8 null_bssid[ETH_ALEN] = {0};
 
-	wilc_connecting = 0;
+	vif->connecting = false;
 
 	if (!wilc)
 		return -EIO;
@@ -1747,7 +1745,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
-		wilc_connecting = 0;
+		vif->connecting = false;
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
 		vif->monitor_flag = 0;
@@ -1762,7 +1760,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		break;
 
 	case NL80211_IFTYPE_P2P_CLIENT:
-		wilc_connecting = 0;
+		vif->connecting = false;
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
 		vif->monitor_flag = 0;

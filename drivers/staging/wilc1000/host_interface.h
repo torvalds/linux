@@ -361,6 +361,4 @@ int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power);
 
 extern u8 wilc_connected_ssid[6];
 
-extern int wilc_connecting;
-
 #endif
