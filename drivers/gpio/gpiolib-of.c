@@ -57,7 +57,8 @@ static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
 }
 
 static void of_gpio_flags_quirks(struct device_node *np,
-				 enum of_gpio_flags *flags)
+				 enum of_gpio_flags *flags,
+				 int index)
 {
 	/*
 	 * Some GPIO fixed regulator quirks.
@@ -90,6 +91,51 @@ static void of_gpio_flags_quirks(struct device_node *np,
 		*flags |= (OF_GPIO_SINGLE_ENDED | OF_GPIO_OPEN_DRAIN);
 		pr_info("%s uses legacy open drain flag - update the DTS if you can\n",
 			of_node_full_name(np));
+	}
+
+	/*
+	 * Legacy handling of SPI active high chip select. If we have a
+	 * property named "cs-gpios" we need to inspect the child node
+	 * to determine if the flags should have inverted semantics.
+	 */
+	if (IS_ENABLED(CONFIG_SPI_MASTER) &&
+	    of_property_read_bool(np, "cs-gpios")) {
+		struct device_node *child;
+		u32 cs;
+		int ret;
+
+		for_each_child_of_node(np, child) {
+			ret = of_property_read_u32(child, "reg", &cs);
+			if (!ret)
+				continue;
+			if (cs == index) {
+				/*
+				 * SPI children have active low chip selects
+				 * by default. This can be specified negatively
+				 * by just omitting "spi-cs-high" in the
+				 * device node, or actively by tagging on
+				 * GPIO_ACTIVE_LOW as flag in the device
+				 * tree. If the line is simultaneously
+				 * tagged as active low in the device tree
+				 * and has the "spi-cs-high" set, we get a
+				 * conflict and the "spi-cs-high" flag will
+				 * take precedence.
+				 */
+				if (of_property_read_bool(np, "spi-cs-high")) {
+					if (*flags & OF_GPIO_ACTIVE_LOW) {
+						pr_warn("%s GPIO handle specifies active low - ignored\n",
+							of_node_full_name(np));
+						*flags &= ~OF_GPIO_ACTIVE_LOW;
+					}
+				} else {
+					if (!(*flags & OF_GPIO_ACTIVE_LOW))
+						pr_info("%s enforce active low on chipselect handle\n",
+							of_node_full_name(np));
+					*flags |= OF_GPIO_ACTIVE_LOW;
+				}
+				break;
+			}
+		}
 	}
 }
 
@@ -131,7 +177,7 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		goto out;
 
 	if (flags)
-		of_gpio_flags_quirks(np, flags);
+		of_gpio_flags_quirks(np, flags, index);
 
 	pr_debug("%s: parsed '%s' property of node '%pOF[%d]' - status (%d)\n",
 		 __func__, propname, np, index,
