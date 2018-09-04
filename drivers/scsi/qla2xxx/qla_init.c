@@ -2075,26 +2075,6 @@ qla2x00_async_logout_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 	return;
 }
 
-void
-qla2x00_async_adisc_done(struct scsi_qla_host *vha, fc_port_t *fcport,
-    uint16_t *data)
-{
-	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
-	if (data[0] == MBS_COMMAND_COMPLETE) {
-		qla2x00_update_fcport(vha, fcport);
-
-		return;
-	}
-
-	/* Retry login. */
-	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
-		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
-	else
-		qla2x00_mark_device_lost(vha, fcport, 1, 0);
-
-	return;
-}
-
 /****************************************************************************/
 /*                QLogic ISP2x00 Hardware Support Functions.                */
 /****************************************************************************/

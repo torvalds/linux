@@ -4733,7 +4733,6 @@ qla2x00_post_async_work(login, QLA_EVT_ASYNC_LOGIN);
 qla2x00_post_async_work(logout, QLA_EVT_ASYNC_LOGOUT);
 qla2x00_post_async_work(logout_done, QLA_EVT_ASYNC_LOGOUT_DONE);
 qla2x00_post_async_work(adisc, QLA_EVT_ASYNC_ADISC);
-qla2x00_post_async_work(adisc_done, QLA_EVT_ASYNC_ADISC_DONE);
 qla2x00_post_async_work(prlo, QLA_EVT_ASYNC_PRLO);
 qla2x00_post_async_work(prlo_done, QLA_EVT_ASYNC_PRLO_DONE);
 
@@ -5020,10 +5019,6 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 			break;
 		case QLA_EVT_ASYNC_ADISC:
 			qla2x00_async_adisc(vha, e->u.logio.fcport,
-			    e->u.logio.data);
-			break;
-		case QLA_EVT_ASYNC_ADISC_DONE:
-			qla2x00_async_adisc_done(vha, e->u.logio.fcport,
 			    e->u.logio.data);
 			break;
 		case QLA_EVT_UEVENT:
