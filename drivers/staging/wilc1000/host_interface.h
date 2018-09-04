@@ -284,6 +284,7 @@ struct host_if_drv {
 
 	bool ifc_up;
 	int driver_handler_id;
+	u8 assoc_resp[MAX_ASSOC_RESP_FRAME_SIZE];
 };
 
 struct add_sta_param {
