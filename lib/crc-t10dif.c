@@ -20,7 +20,7 @@
 
 static struct crypto_shash __rcu *crct10dif_tfm;
 static struct static_key crct10dif_fallback __read_mostly;
-DEFINE_MUTEX(crc_t10dif_mutex);
+static DEFINE_MUTEX(crc_t10dif_mutex);
 
 static int crc_t10dif_rehash(struct notifier_block *self, unsigned long val, void *data)
 {
