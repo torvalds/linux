@@ -823,6 +823,43 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct mlx5e_tc_flow *flow,
 			      struct netlink_ext_ack *extack);
 
+static struct mlx5_flow_handle *
+mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
+			   struct mlx5e_tc_flow *flow,
+			   struct mlx5_flow_spec *spec,
+			   struct mlx5_esw_flow_attr *attr)
+{
+	struct mlx5_flow_handle *rule;
+
+	rule = mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
+	if (IS_ERR(rule))
+		return rule;
+
+	if (attr->mirror_count) {
+		flow->rule[1] = mlx5_eswitch_add_fwd_rule(esw, spec, attr);
+		if (IS_ERR(flow->rule[1])) {
+			mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
+			return flow->rule[1];
+		}
+	}
+
+	flow->flags |= MLX5E_TC_FLOW_OFFLOADED;
+	return rule;
+}
+
+static void
+mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
+			     struct mlx5e_tc_flow *flow,
+			   struct mlx5_esw_flow_attr *attr)
+{
+	flow->flags &= ~MLX5E_TC_FLOW_OFFLOADED;
+
+	if (attr->mirror_count)
+		mlx5_eswitch_del_fwd_rule(esw, flow->rule[1], attr);
+
+	mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
+}
+
 static int
 mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		      struct mlx5e_tc_flow_parse_attr *parse_attr,
@@ -881,25 +918,15 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	 * (2) there's an encap action and we're on -EAGAIN (no valid neigh)
 	 */
 	if (encap_err != -EAGAIN) {
-		flow->rule[0] = mlx5_eswitch_add_offloaded_rule(esw, &parse_attr->spec, attr);
+		flow->rule[0] = mlx5e_tc_offload_fdb_rules(esw, flow, &parse_attr->spec, attr);
 		if (IS_ERR(flow->rule[0])) {
 			err = PTR_ERR(flow->rule[0]);
 			goto err_add_rule;
-		}
-
-		if (attr->mirror_count) {
-			flow->rule[1] = mlx5_eswitch_add_fwd_rule(esw, &parse_attr->spec, attr);
-			if (IS_ERR(flow->rule[1])) {
-				err = PTR_ERR(flow->rule[1]);
-				goto err_fwd_rule;
-			}
 		}
 	}
 
 	return encap_err;
 
-err_fwd_rule:
-	mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
 err_add_rule:
 	mlx5_fc_destroy(esw->dev, counter);
 err_create_counter:
@@ -920,12 +947,8 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 
-	if (flow->flags & MLX5E_TC_FLOW_OFFLOADED) {
-		flow->flags &= ~MLX5E_TC_FLOW_OFFLOADED;
-		if (attr->mirror_count)
-			mlx5_eswitch_del_fwd_rule(esw, flow->rule[1], attr);
-		mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
-	}
+	if (flow->flags & MLX5E_TC_FLOW_OFFLOADED)
+		mlx5e_tc_unoffload_fdb_rules(esw, flow, flow->esw_attr);
 
 	mlx5_eswitch_del_vlan_action(esw, attr);
 
@@ -946,6 +969,8 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *esw_attr;
+	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_spec *spec;
 	struct mlx5e_tc_flow *flow;
 	int err;
 
@@ -964,26 +989,16 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 	list_for_each_entry(flow, &e->flows, encap) {
 		esw_attr = flow->esw_attr;
 		esw_attr->encap_id = e->encap_id;
-		flow->rule[0] = mlx5_eswitch_add_offloaded_rule(esw, &esw_attr->parse_attr->spec, esw_attr);
-		if (IS_ERR(flow->rule[0])) {
-			err = PTR_ERR(flow->rule[0]);
+		spec = &esw_attr->parse_attr->spec;
+
+		rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, esw_attr);
+		if (IS_ERR(rule)) {
+			err = PTR_ERR(rule);
 			mlx5_core_warn(priv->mdev, "Failed to update cached encapsulation flow, %d\n",
 				       err);
 			continue;
 		}
-
-		if (esw_attr->mirror_count) {
-			flow->rule[1] = mlx5_eswitch_add_fwd_rule(esw, &esw_attr->parse_attr->spec, esw_attr);
-			if (IS_ERR(flow->rule[1])) {
-				mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], esw_attr);
-				err = PTR_ERR(flow->rule[1]);
-				mlx5_core_warn(priv->mdev, "Failed to update cached mirror flow, %d\n",
-					       err);
-				continue;
-			}
-		}
-
-		flow->flags |= MLX5E_TC_FLOW_OFFLOADED;
+		flow->rule[0] = rule;
 	}
 }
 
@@ -994,14 +1009,8 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 	struct mlx5e_tc_flow *flow;
 
 	list_for_each_entry(flow, &e->flows, encap) {
-		if (flow->flags & MLX5E_TC_FLOW_OFFLOADED) {
-			struct mlx5_esw_flow_attr *attr = flow->esw_attr;
-
-			flow->flags &= ~MLX5E_TC_FLOW_OFFLOADED;
-			if (attr->mirror_count)
-				mlx5_eswitch_del_fwd_rule(esw, flow->rule[1], attr);
-			mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
-		}
+		if (flow->flags & MLX5E_TC_FLOW_OFFLOADED)
+			mlx5e_tc_unoffload_fdb_rules(esw, flow, flow->esw_attr);
 	}
 
 	if (e->flags & MLX5_ENCAP_ENTRY_VALID) {
