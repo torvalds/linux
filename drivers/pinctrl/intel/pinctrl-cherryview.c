@@ -120,6 +120,7 @@ struct chv_gpio_pinrange {
  * @gpio_ranges: An array of GPIO ranges in this community
  * @ngpio_ranges: Number of GPIO ranges
  * @nirqs: Total number of IRQs this community can generate
+ * @acpi_space_id: An address space ID for ACPI OpRegion handler
  */
 struct chv_community {
 	const char *uid;
@@ -150,6 +151,8 @@ struct chv_pin_context {
  * @intr_lines: Stores mapping between 16 HW interrupt wires and GPIO
  *		offset (in GPIO number space)
  * @community: Community this pinctrl instance represents
+ * @saved_intmask: Interrupt mask saved for system sleep
+ * @saved_pin_context: Pointer to a context of the pins saved for system sleep
  *
  * The first group in @groups is expected to contain all pins that can be
  * used as GPIOs.
