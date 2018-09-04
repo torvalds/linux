@@ -61,6 +61,7 @@ struct nvkm_ior_func {
 		void (*ctrl)(struct nvkm_ior *, int head, bool enable,
 			     u8 max_ac_packet, u8 rekey, u8 *avi, u8 avi_size,
 			     u8 *vendor, u8 vendor_size);
+		void (*scdc)(struct nvkm_ior *, int head, u8 scdc);
 	} hdmi;
 
 	struct {
