@@ -322,12 +322,6 @@ static int hdmi_display_enable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&hdmi->lock);
 
-	if (!dssdev->dispc_channel_connected) {
-		DSSERR("failed to enable display: no output/manager\n");
-		r = -ENODEV;
-		goto err0;
-	}
-
 	r = hdmi_power_on_full(hdmi);
 	if (r) {
 		DSSERR("failed to power on device\n");
@@ -417,21 +411,12 @@ void hdmi4_core_disable(struct hdmi_core_data *core)
 static int hdmi_connect(struct omap_dss_device *src,
 			struct omap_dss_device *dst)
 {
-	int r;
-
-	r = omapdss_device_connect(dst->dss, dst, dst->next);
-	if (r)
-		return r;
-
-	dst->dispc_channel_connected = true;
-	return 0;
+	return omapdss_device_connect(dst->dss, dst, dst->next);
 }
 
 static void hdmi_disconnect(struct omap_dss_device *src,
 			    struct omap_dss_device *dst)
 {
-	dst->dispc_channel_connected = false;
-
 	omapdss_device_disconnect(dst, dst->next);
 }
 

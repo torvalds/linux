@@ -136,11 +136,6 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	unsigned long fck;
 	int r;
 
-	if (!sdi->output.dispc_channel_connected) {
-		DSSERR("failed to enable display: no output/manager\n");
-		return -ENODEV;
-	}
-
 	r = regulator_enable(sdi->vdds_sdi_reg);
 	if (r)
 		goto err_reg_enable;
@@ -251,21 +246,12 @@ static int sdi_check_timings(struct omap_dss_device *dssdev,
 static int sdi_connect(struct omap_dss_device *src,
 		       struct omap_dss_device *dst)
 {
-	int r;
-
-	r = omapdss_device_connect(dst->dss, dst, dst->next);
-	if (r)
-		return r;
-
-	dst->dispc_channel_connected = true;
-	return 0;
+	return omapdss_device_connect(dst->dss, dst, dst->next);
 }
 
 static void sdi_disconnect(struct omap_dss_device *src,
 			   struct omap_dss_device *dst)
 {
-	dst->dispc_channel_connected = false;
-
 	omapdss_device_disconnect(dst, dst->next);
 }
 

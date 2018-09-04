@@ -386,12 +386,6 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&dpi->lock);
 
-	if (!out->dispc_channel_connected) {
-		DSSERR("failed to enable display: no output/manager\n");
-		r = -ENODEV;
-		goto err_no_out_mgr;
-	}
-
 	if (dpi->vdds_dsi_reg) {
 		r = regulator_enable(dpi->vdds_dsi_reg);
 		if (r)
@@ -439,7 +433,6 @@ err_get_dispc:
 	if (dpi->vdds_dsi_reg)
 		regulator_disable(dpi->vdds_dsi_reg);
 err_reg_enable:
-err_no_out_mgr:
 	mutex_unlock(&dpi->lock);
 	return r;
 }
@@ -596,23 +589,15 @@ static int dpi_connect(struct omap_dss_device *src,
 		       struct omap_dss_device *dst)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dst);
-	int r;
 
 	dpi_init_pll(dpi);
 
-	r = omapdss_device_connect(dst->dss, dst, dst->next);
-	if (r)
-		return r;
-
-	dst->dispc_channel_connected = true;
-	return 0;
+	return omapdss_device_connect(dst->dss, dst, dst->next);
 }
 
 static void dpi_disconnect(struct omap_dss_device *src,
 			   struct omap_dss_device *dst)
 {
-	dst->dispc_channel_connected = false;
-
 	omapdss_device_disconnect(dst, dst->next);
 }
 

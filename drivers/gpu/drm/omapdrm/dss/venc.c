@@ -531,12 +531,6 @@ static int venc_display_enable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&venc->venc_lock);
 
-	if (!dssdev->dispc_channel_connected) {
-		DSSERR("Failed to enable display: no output/manager\n");
-		r = -ENODEV;
-		goto err0;
-	}
-
 	r = venc_power_on(venc);
 	if (r)
 		goto err0;
@@ -687,21 +681,12 @@ static int venc_get_clocks(struct venc_device *venc)
 static int venc_connect(struct omap_dss_device *src,
 			struct omap_dss_device *dst)
 {
-	int r;
-
-	r = omapdss_device_connect(dst->dss, dst, dst->next);
-	if (r)
-		return r;
-
-	dst->dispc_channel_connected = true;
-	return 0;
+	return omapdss_device_connect(dst->dss, dst, dst->next);
 }
 
 static void venc_disconnect(struct omap_dss_device *src,
 			    struct omap_dss_device *dst)
 {
-	dst->dispc_channel_connected = false;
-
 	omapdss_device_disconnect(dst, dst->next);
 }
 

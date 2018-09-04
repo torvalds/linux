@@ -3753,19 +3753,13 @@ static int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 {
 	struct dsi_data *dsi = to_dsi_data(dssdev);
 	int bpp = dsi_get_pixel_size(dsi->pix_fmt);
-	struct omap_dss_device *out = &dsi->output;
 	u8 data_type;
 	u16 word_count;
 	int r;
 
-	if (!out->dispc_channel_connected) {
-		DSSERR("failed to enable display: no output/manager\n");
-		return -ENODEV;
-	}
-
 	r = dsi_display_init_dispc(dsi);
 	if (r)
-		goto err_init_dispc;
+		return r;
 
 	if (dsi->mode == OMAP_DSS_DSI_VIDEO_MODE) {
 		switch (dsi->pix_fmt) {
@@ -3814,7 +3808,6 @@ err_mgr_enable:
 	}
 err_pix_fmt:
 	dsi_display_uninit_dispc(dsi);
-err_init_dispc:
 	return r;
 }
 
@@ -4888,21 +4881,12 @@ static int dsi_get_clocks(struct dsi_data *dsi)
 static int dsi_connect(struct omap_dss_device *src,
 		       struct omap_dss_device *dst)
 {
-	int r;
-
-	r = omapdss_device_connect(dst->dss, dst, dst->next);
-	if (r)
-		return r;
-
-	dst->dispc_channel_connected = true;
-	return 0;
+	return omapdss_device_connect(dst->dss, dst, dst->next);
 }
 
 static void dsi_disconnect(struct omap_dss_device *src,
 			   struct omap_dss_device *dst)
 {
-	dst->dispc_channel_connected = false;
-
 	omapdss_device_disconnect(dst, dst->next);
 }
 
