@@ -158,7 +158,6 @@ int bcm2835_audio_close(struct bcm2835_alsa_stream *alsa_stream);
 int bcm2835_audio_set_params(struct bcm2835_alsa_stream *alsa_stream,
 			     unsigned int channels, unsigned int samplerate,
 			     unsigned int bps);
-int bcm2835_audio_setup(struct bcm2835_alsa_stream *alsa_stream);
 int bcm2835_audio_start(struct bcm2835_alsa_stream *alsa_stream);
 int bcm2835_audio_stop(struct bcm2835_alsa_stream *alsa_stream);
 int bcm2835_audio_set_ctls(struct bcm2835_alsa_stream *alsa_stream);
@@ -167,7 +166,5 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 			void *src);
 void bcm2835_playback_fifo(struct bcm2835_alsa_stream *alsa_stream);
 unsigned int bcm2835_audio_retrieve_buffers(struct bcm2835_alsa_stream *alsa_stream);
-void bcm2835_audio_flush_buffers(struct bcm2835_alsa_stream *alsa_stream);
-void bcm2835_audio_flush_playback_buffers(struct bcm2835_alsa_stream *alsa_stream);
 
 #endif /* __SOUND_ARM_BCM2835_H */

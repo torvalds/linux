@@ -277,11 +277,6 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 	if (err < 0)
 		audio_error(" error setting hw params\n");
 
-	bcm2835_audio_setup(alsa_stream);
-
-	/* in preparation of the stream, set the controls (volume level) of the stream */
-	bcm2835_audio_set_ctls(alsa_stream);
-
 	memset(&alsa_stream->pcm_indirect, 0, sizeof(alsa_stream->pcm_indirect));
 
 	alsa_stream->pcm_indirect.hw_buffer_size =

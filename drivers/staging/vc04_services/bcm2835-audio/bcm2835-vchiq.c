@@ -580,12 +580,6 @@ unlock:
 	return ret;
 }
 
-int bcm2835_audio_setup(struct bcm2835_alsa_stream *alsa_stream)
-{
-
-	return 0;
-}
-
 static int bcm2835_audio_start_worker(struct bcm2835_alsa_stream *alsa_stream)
 {
 	struct vc_audio_msg m;
@@ -772,21 +766,6 @@ unlock:
 	vchi_service_release(instance->vchi_handle[0]);
 	mutex_unlock(&instance->vchi_mutex);
 	return ret;
-}
-
-/**
- * Returns all buffers from arm->vc
- */
-void bcm2835_audio_flush_buffers(struct bcm2835_alsa_stream *alsa_stream)
-{
-}
-
-/**
- * Forces VC to flush(drop) its filled playback buffers and
- * return them the us. (VC->ARM)
- */
-void bcm2835_audio_flush_playback_buffers(struct bcm2835_alsa_stream *alsa_stream)
-{
 }
 
 unsigned int bcm2835_audio_retrieve_buffers(struct bcm2835_alsa_stream *alsa_stream)
