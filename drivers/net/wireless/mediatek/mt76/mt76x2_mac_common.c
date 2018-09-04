@@ -146,73 +146,6 @@ void mt76x2_mac_write_txwi(struct mt76x2_dev *dev, struct mt76x02_txwi *txwi,
 }
 EXPORT_SYMBOL_GPL(mt76x2_mac_write_txwi);
 
-static int
-mt76x2_mac_process_rate(struct mt76_rx_status *status, u16 rate)
-{
-	u8 idx = FIELD_GET(MT_RXWI_RATE_INDEX, rate);
-
-	switch (FIELD_GET(MT_RXWI_RATE_PHY, rate)) {
-	case MT_PHY_TYPE_OFDM:
-		if (idx >= 8)
-			idx = 0;
-
-		if (status->band == NL80211_BAND_2GHZ)
-			idx += 4;
-
-		status->rate_idx = idx;
-		return 0;
-	case MT_PHY_TYPE_CCK:
-		if (idx >= 8) {
-			idx -= 8;
-			status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
-		}
-
-		if (idx >= 4)
-			idx = 0;
-
-		status->rate_idx = idx;
-		return 0;
-	case MT_PHY_TYPE_HT_GF:
-		status->enc_flags |= RX_ENC_FLAG_HT_GF;
-		/* fall through */
-	case MT_PHY_TYPE_HT:
-		status->encoding = RX_ENC_HT;
-		status->rate_idx = idx;
-		break;
-	case MT_PHY_TYPE_VHT:
-		status->encoding = RX_ENC_VHT;
-		status->rate_idx = FIELD_GET(MT_RATE_INDEX_VHT_IDX, idx);
-		status->nss = FIELD_GET(MT_RATE_INDEX_VHT_NSS, idx) + 1;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (rate & MT_RXWI_RATE_LDPC)
-		status->enc_flags |= RX_ENC_FLAG_LDPC;
-
-	if (rate & MT_RXWI_RATE_SGI)
-		status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
-
-	if (rate & MT_RXWI_RATE_STBC)
-		status->enc_flags |= 1 << RX_ENC_FLAG_STBC_SHIFT;
-
-	switch (FIELD_GET(MT_RXWI_RATE_BW, rate)) {
-	case MT_PHY_BW_20:
-		break;
-	case MT_PHY_BW_40:
-		status->bw = RATE_INFO_BW_40;
-		break;
-	case MT_PHY_BW_80:
-		status->bw = RATE_INFO_BW_80;
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
 static void mt76x2_remove_hdr_pad(struct sk_buff *skb, int len)
 {
 	int hdrlen;
@@ -345,6 +278,6 @@ int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 		sta->inactive_count = 0;
 	}
 
-	return mt76x2_mac_process_rate(status, rate);
+	return mt76x02_mac_process_rate(status, rate);
 }
 EXPORT_SYMBOL_GPL(mt76x2_mac_process_rx);

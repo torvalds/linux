@@ -196,73 +196,6 @@ void mt76x0_mac_set_ampdu_factor(struct mt76x0_dev *dev)
 }
 
 static void
-mt76_mac_process_rate(struct mt76_rx_status *status, u16 rate)
-{
-	u8 idx = FIELD_GET(MT_RXWI_RATE_INDEX, rate);
-
-	switch (FIELD_GET(MT_RXWI_RATE_PHY, rate)) {
-	case MT_PHY_TYPE_OFDM:
-		if (idx >= 8)
-			idx = 0;
-
-		if (status->band == NL80211_BAND_2GHZ)
-			idx += 4;
-
-		status->rate_idx = idx;
-		return;
-	case MT_PHY_TYPE_CCK:
-		if (idx >= 8) {
-			idx -= 8;
-			status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
-		}
-
-		if (idx >= 4)
-			idx = 0;
-
-		status->rate_idx = idx;
-		return;
-	case MT_PHY_TYPE_HT_GF:
-		status->enc_flags |= RX_ENC_FLAG_HT_GF;
-		/* fall through */
-	case MT_PHY_TYPE_HT:
-		status->encoding = RX_ENC_HT;
-		status->rate_idx = idx;
-		break;
-	case MT_PHY_TYPE_VHT:
-		status->encoding = RX_ENC_VHT;
-		status->rate_idx = FIELD_GET(MT_RATE_INDEX_VHT_IDX, idx);
-		status->nss = FIELD_GET(MT_RATE_INDEX_VHT_NSS, idx) + 1;
-		break;
-	default:
-		WARN_ON(1);
-		return;
-	}
-
-	if (rate & MT_RXWI_RATE_LDPC)
-		status->enc_flags |= RX_ENC_FLAG_LDPC;
-
-	if (rate & MT_RXWI_RATE_SGI)
-		status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
-
-	if (rate & MT_RXWI_RATE_STBC)
-		status->enc_flags |= 1 << RX_ENC_FLAG_STBC_SHIFT;
-
-	switch (FIELD_GET(MT_RXWI_RATE_BW, rate)) {
-	case MT_PHY_BW_20:
-		break;
-	case MT_PHY_BW_40:
-		status->bw = RATE_INFO_BW_40;
-		break;
-	case MT_PHY_BW_80:
-		status->bw = RATE_INFO_BW_80;
-		break;
-	default:
-		WARN_ON(1);
-		break;
-	}
-}
-
-static void
 mt76x0_rx_monitor_beacon(struct mt76x0_dev *dev, struct mt76x02_rxwi *rxwi,
 			  u16 rate, int rssi)
 {
@@ -303,7 +236,7 @@ u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
 	status->freq = dev->mt76.chandef.chan->center_freq;
 	status->band = dev->mt76.chandef.chan->band;
 
-	mt76_mac_process_rate(status, rate);
+	mt76x02_mac_process_rate(status, rate);
 
 	spin_lock_bh(&dev->con_mon_lock);
 	if (mt76x0_rx_is_our_beacon(dev, data)) {

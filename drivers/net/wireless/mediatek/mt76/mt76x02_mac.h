@@ -199,4 +199,6 @@ bool mt76x02_mac_load_tx_status(struct mt76_dev *dev,
 			       struct mt76x02_tx_status *stat);
 void mt76x02_send_tx_status(struct mt76_dev *dev,
 			   struct mt76x02_tx_status *stat, u8 *update);
+int
+mt76x02_mac_process_rate(struct mt76_rx_status *status, u16 rate);
 #endif
