@@ -577,6 +577,8 @@ struct htt_mgmt_tx_completion {
 #define HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES_MASK     0xFF000000
 #define HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES_LSB      24
 
+#define HTT_TX_CMPL_FLAG_DATA_RSSI BIT(0)
+
 struct htt_rx_indication_hdr {
 	u8 info0; /* %HTT_RX_INDICATION_INFO0_ */
 	__le16 peer_id;
@@ -840,7 +842,7 @@ struct htt_data_tx_completion {
 		} __packed;
 	} __packed;
 	u8 num_msdus;
-	u8 rsvd0;
+	u8 flags2; /* HTT_TX_CMPL_FLAG_DATA_RSSI */
 	__le16 msdus[0]; /* variable length based on %num_msdus */
 } __packed;
 

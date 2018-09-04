@@ -1884,7 +1884,9 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
 	struct htt_resp *resp = (struct htt_resp *)skb->data;
 	struct htt_tx_done tx_done = {};
 	int status = MS(resp->data_tx_completion.flags, HTT_DATA_TX_STATUS);
-	__le16 msdu_id;
+	__le16 msdu_id, *msdus;
+	bool rssi_enabled = false;
+	u8 msdu_count = 0;
 	int i;
 
 	switch (status) {
@@ -1908,9 +1910,29 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
 	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx completion num_msdus %d\n",
 		   resp->data_tx_completion.num_msdus);
 
-	for (i = 0; i < resp->data_tx_completion.num_msdus; i++) {
-		msdu_id = resp->data_tx_completion.msdus[i];
+	msdu_count = resp->data_tx_completion.num_msdus;
+
+	if (resp->data_tx_completion.flags2 & HTT_TX_CMPL_FLAG_DATA_RSSI)
+		rssi_enabled = true;
+
+	for (i = 0; i < msdu_count; i++) {
+		msdus = resp->data_tx_completion.msdus;
+		msdu_id = msdus[i];
 		tx_done.msdu_id = __le16_to_cpu(msdu_id);
+
+		if (rssi_enabled) {
+			/* Total no of MSDUs should be even,
+			 * if odd MSDUs are sent firmware fills
+			 * last msdu id with 0xffff
+			 */
+			if (msdu_count & 0x01) {
+				msdu_id = msdus[msdu_count +  i + 1];
+				tx_done.ack_rssi = __le16_to_cpu(msdu_id);
+			} else {
+				msdu_id = msdus[msdu_count +  i];
+				tx_done.ack_rssi = __le16_to_cpu(msdu_id);
+			}
+		}
 
 		/* kfifo_put: In practice firmware shouldn't fire off per-CE
 		 * interrupt and main interrupt (MSI/-X range case) for the same

@@ -2549,6 +2549,10 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 			     ar->wmi.svc_map))
 			val |= WMI_10_4_TDLS_UAPSD_BUFFER_STA;
 
+		if (test_bit(WMI_SERVICE_TX_DATA_ACK_RSSI,
+			     ar->wmi.svc_map))
+			val |= WMI_10_4_TX_DATA_ACK_RSSI;
+
 		status = ath10k_mac_ext_resource_config(ar, val);
 		if (status) {
 			ath10k_err(ar,

@@ -203,6 +203,7 @@ enum wmi_service {
 	WMI_SERVICE_TPC_STATS_FINAL,
 	WMI_SERVICE_RESET_CHIP,
 	WMI_SERVICE_SPOOF_MAC_SUPPORT,
+	WMI_SERVICE_TX_DATA_ACK_RSSI,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -350,6 +351,8 @@ enum wmi_10_4_service {
 	WMI_10_4_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS,
 	WMI_10_4_SERVICE_HOST_DFS_CHECK_SUPPORT,
 	WMI_10_4_SERVICE_TPC_STATS_FINAL,
+	WMI_10_4_SERVICE_CFR_CAPTURE_SUPPORT,
+	WMI_10_4_SERVICE_TX_DATA_ACK_RSSI,
 };
 
 static inline char *wmi_service_name(int service_id)
@@ -463,6 +466,7 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_HOST_DFS_CHECK_SUPPORT);
 	SVCSTR(WMI_SERVICE_TPC_STATS_FINAL);
 	SVCSTR(WMI_SERVICE_RESET_CHIP);
+	SVCSTR(WMI_SERVICE_TX_DATA_ACK_RSSI);
 	default:
 		return NULL;
 	}
@@ -771,6 +775,8 @@ static inline void wmi_10_4_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_HOST_DFS_CHECK_SUPPORT, len);
 	SVCMAP(WMI_10_4_SERVICE_TPC_STATS_FINAL,
 	       WMI_SERVICE_TPC_STATS_FINAL, len);
+	SVCMAP(WMI_10_4_SERVICE_TX_DATA_ACK_RSSI,
+	       WMI_SERVICE_TX_DATA_ACK_RSSI, len);
 }
 
 #undef SVCMAP
@@ -2924,6 +2930,7 @@ enum wmi_coex_version {
  * @WMI_10_4_TDLS_CONN_TRACKER_IN_HOST_MODE: TDLS connection tracker in host
  *	enable/disable
  * @WMI_10_4_TDLS_EXPLICIT_MODE_ONLY:Explicit TDLS mode enable/disable
+ * @WMI_10_4_TX_DATA_ACK_RSSI: Enable DATA ACK RSSI if firmware is capable
  */
 enum wmi_10_4_feature_mask {
 	WMI_10_4_LTEU_SUPPORT			= BIT(0),
@@ -2939,6 +2946,7 @@ enum wmi_10_4_feature_mask {
 	WMI_10_4_TDLS_UAPSD_SLEEP_STA		= BIT(10),
 	WMI_10_4_TDLS_CONN_TRACKER_IN_HOST_MODE = BIT(11),
 	WMI_10_4_TDLS_EXPLICIT_MODE_ONLY	= BIT(12),
+	WMI_10_4_TX_DATA_ACK_RSSI               = BIT(16),
 
 };
 
