@@ -39,6 +39,8 @@
  *          Espen Skoglund <espen.skoglund@netronome.com>
  *          Francois H. Theron <francois.theron@netronome.com>
  */
+
+#include <asm/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -285,15 +287,23 @@ nfp_rtsym_to_dest(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 int __nfp_rtsym_read(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 		     u8 action, u8 token, u64 off, void *buf, size_t len)
 {
+	u64 sym_size = nfp_rtsym_size(sym);
 	u32 cpp_id;
 	u64 addr;
 	int err;
 
-	if (sym->type == NFP_RTSYM_TYPE_ABS) {
-		__le64 tmp = cpu_to_le64(sym->addr);
+	if (off > sym_size) {
+		nfp_err(cpp, "rtsym '%s': read out of bounds: off: %lld + len: %zd > size: %lld\n",
+			sym->name, off, len, sym_size);
+		return -ENXIO;
+	}
+	len = min_t(size_t, len, sym_size - off);
 
-		len = min(len, sizeof(tmp));
-		memcpy(buf, &tmp, len);
+	if (sym->type == NFP_RTSYM_TYPE_ABS) {
+		u8 tmp[8];
+
+		put_unaligned_le64(sym->addr, tmp);
+		memcpy(buf, &tmp[off], len);
 
 		return len;
 	}
@@ -318,6 +328,12 @@ int __nfp_rtsym_readl(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 	u64 addr;
 	int err;
 
+	if (off + 4 > nfp_rtsym_size(sym)) {
+		nfp_err(cpp, "rtsym '%s': readl out of bounds: off: %lld + 4 > size: %lld\n",
+			sym->name, off, nfp_rtsym_size(sym));
+		return -ENXIO;
+	}
+
 	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
 	if (err)
 		return err;
@@ -337,6 +353,12 @@ int __nfp_rtsym_readq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 	u32 cpp_id;
 	u64 addr;
 	int err;
+
+	if (off + 8 > nfp_rtsym_size(sym)) {
+		nfp_err(cpp, "rtsym '%s': readq out of bounds: off: %lld + 8 > size: %lld\n",
+			sym->name, off, nfp_rtsym_size(sym));
+		return -ENXIO;
+	}
 
 	if (sym->type == NFP_RTSYM_TYPE_ABS) {
 		*value = sym->addr;
@@ -359,9 +381,17 @@ int nfp_rtsym_readq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
 int __nfp_rtsym_write(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 		      u8 action, u8 token, u64 off, void *buf, size_t len)
 {
+	u64 sym_size = nfp_rtsym_size(sym);
 	u32 cpp_id;
 	u64 addr;
 	int err;
+
+	if (off > sym_size) {
+		nfp_err(cpp, "rtsym '%s': write out of bounds: off: %lld + len: %zd > size: %lld\n",
+			sym->name, off, len, sym_size);
+		return -ENXIO;
+	}
+	len = min_t(size_t, len, sym_size - off);
 
 	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
 	if (err)
@@ -383,6 +413,12 @@ int __nfp_rtsym_writel(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 	u64 addr;
 	int err;
 
+	if (off + 4 > nfp_rtsym_size(sym)) {
+		nfp_err(cpp, "rtsym '%s': writel out of bounds: off: %lld + 4 > size: %lld\n",
+			sym->name, off, nfp_rtsym_size(sym));
+		return -ENXIO;
+	}
+
 	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
 	if (err)
 		return err;
@@ -402,6 +438,12 @@ int __nfp_rtsym_writeq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 	u32 cpp_id;
 	u64 addr;
 	int err;
+
+	if (off + 8 > nfp_rtsym_size(sym)) {
+		nfp_err(cpp, "rtsym '%s': writeq out of bounds: off: %lld + 8 > size: %lld\n",
+			sym->name, off, nfp_rtsym_size(sym));
+		return -ENXIO;
+	}
 
 	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
 	if (err)
