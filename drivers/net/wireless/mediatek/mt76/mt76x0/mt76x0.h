@@ -134,8 +134,6 @@ struct mt76x0_dev {
 	u8 in_ep[__MT_EP_IN_MAX];
 	u16 in_max_packet;
 
-	unsigned long vif_mask;
-
 	struct delayed_work cal_work;
 	struct delayed_work mac_work;
 

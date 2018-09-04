@@ -56,14 +56,7 @@ static int mt76x0_add_interface(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif)
 {
 	struct mt76x0_dev *dev = hw->priv;
-	unsigned int idx;
-
-	idx = ffs(~dev->vif_mask);
-	if (!idx || idx > 8)
-		return -ENOSPC;
-
-	idx--;
-	dev->vif_mask |= BIT(idx);
+	unsigned int idx = 0;
 
 	mt76x02_vif_init(&dev->mt76, vif, idx);
 	return 0;
@@ -73,9 +66,7 @@ static void mt76x0_remove_interface(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif)
 {
 	struct mt76x0_dev *dev = hw->priv;
-	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
 
-	dev->vif_mask &= ~BIT(mvif->idx);
 	mt76_txq_remove(&dev->mt76, vif->txq);
 }
 
