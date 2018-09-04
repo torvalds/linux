@@ -432,13 +432,6 @@ static int davinci_spi_setup(struct spi_device *spi)
 			retval = gpio_direction_output(
 				      spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
 			internal_cs = false;
-		} else if (pdata->chip_sel &&
-			   spi->chip_select < pdata->num_chipselect &&
-			   pdata->chip_sel[spi->chip_select] != SPI_INTERN_CS) {
-			spi->cs_gpio = pdata->chip_sel[spi->chip_select];
-			retval = gpio_direction_output(
-				      spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
-			internal_cs = false;
 		}
 
 		if (retval) {
