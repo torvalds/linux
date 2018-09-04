@@ -58,6 +58,11 @@
 		};
 	};
 
+	charge-animation {
+		compatible = "rockchip,uboot-charge";
+		status = "okay";
+	};
+
 	dummy_codec: dummy-codec {
 		compatible = "rockchip,dummy-codec";
 		#sound-dai-cells = <0>;
