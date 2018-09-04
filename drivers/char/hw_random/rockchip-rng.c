@@ -14,6 +14,8 @@
 #include <linux/pm_runtime.h>
 
 #define _SBF(s, v)	((v) << (s))
+#define HIWORD_UPDATE(val, mask, shift) \
+			((val) << (shift) | (mask) << ((shift) + 16))
 
 #define CRYPTO_CLK_NUM	(4)
 #define ROCKCHIP_AUTOSUSPEND_DELAY	100
@@ -21,9 +23,6 @@
 #define ROCKCHIP_POLL_TIMEOUT_US	10000
 
 #define RK_MAX_RNG_BYTE			(32)
-#define CRYPTO_WRITE_MASK_SHIFT		(16)
-#define CRYPTO_WRITE_MASK_ALL		(0xffffu << CRYPTO_WRITE_MASK_SHIFT)
-
 #define CRYPTO_RNG_CTL			0x0400
 #define CRYPTO_RNG_64_BIT_LEN		_SBF(4, 0x00)
 #define CRYPTO_RNG_128_BIT_LEN		_SBF(4, 0x01)
@@ -91,7 +90,8 @@ static int rk_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	reg_ctrl |= CRYPTO_RNG_ENABLE;
 	reg_ctrl |= CRYPTO_RNG_START;
 
-	rk_rng_writel(rk_rng, reg_ctrl | CRYPTO_WRITE_MASK_ALL, CRYPTO_RNG_CTL);
+	rk_rng_writel(rk_rng, HIWORD_UPDATE(reg_ctrl, 0xffff, 0),
+			CRYPTO_RNG_CTL);
 
 	ret = readl_poll_timeout(rk_rng->mem + CRYPTO_RNG_CTL, reg_ctrl,
 				!(reg_ctrl & CRYPTO_RNG_START),
@@ -106,7 +106,7 @@ static int rk_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 
 out:
 	/* close TRNG */
-	rk_rng_writel(rk_rng, 0 | CRYPTO_WRITE_MASK_ALL, CRYPTO_RNG_CTL);
+	rk_rng_writel(rk_rng, HIWORD_UPDATE(0, 0xffff, 0), CRYPTO_RNG_CTL);
 
 	pm_runtime_mark_last_busy(rk_rng->dev);
 	pm_runtime_put_sync_autosuspend(rk_rng->dev);
