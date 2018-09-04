@@ -1036,6 +1036,8 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 		}
 	}
 
+	flush_workqueue(wilc->hif_workqueue);
+	destroy_workqueue(wilc->hif_workqueue);
 	kfree(wilc);
 	wilc_debugfs_remove();
 }
@@ -1069,6 +1071,12 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 	wl->chip_ps_state = CHIP_WAKEDUP;
 	INIT_LIST_HEAD(&wl->txq_head.list);
 	INIT_LIST_HEAD(&wl->rxq_head.list);
+
+	wl->hif_workqueue = create_singlethread_workqueue("WILC_wq");
+	if (!wl->hif_workqueue) {
+		kfree(wl);
+		return -ENOMEM;
+	}
 
 	register_inetaddr_notifier(&g_dev_notifier);
 
