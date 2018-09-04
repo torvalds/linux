@@ -86,9 +86,6 @@ static int bcm2835_devm_add_vchi_ctx(struct device *dev)
 
 static void snd_bcm2835_release(struct device *dev)
 {
-	struct bcm2835_chip *chip = dev_get_drvdata(dev);
-
-	kfree(chip);
 }
 
 static struct device *
@@ -115,69 +112,6 @@ snd_create_device(struct device *parent,
 		return ERR_PTR(ret);
 
 	return device;
-}
-
-/* component-destructor
- * (see "Management of Cards and Components")
- */
-static int snd_bcm2835_dev_free(struct snd_device *device)
-{
-	struct bcm2835_chip *chip = device->device_data;
-	struct snd_card *card = chip->card;
-
-	snd_device_free(card, chip);
-
-	return 0;
-}
-
-/* chip-specific constructor
- * (see "Management of Cards and Components")
- */
-static int snd_bcm2835_create(struct snd_card *card,
-			      struct bcm2835_chip **rchip)
-{
-	struct bcm2835_chip *chip;
-	int err;
-	static struct snd_device_ops ops = {
-		.dev_free = snd_bcm2835_dev_free,
-	};
-
-	*rchip = NULL;
-
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (!chip)
-		return -ENOMEM;
-
-	chip->card = card;
-	mutex_init(&chip->audio_mutex);
-
-	chip->vchi_ctx = devres_find(card->dev->parent,
-				     bcm2835_devm_free_vchi_ctx, NULL, NULL);
-	if (!chip->vchi_ctx) {
-		kfree(chip);
-		return -ENODEV;
-	}
-
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
-	if (err) {
-		kfree(chip);
-		return err;
-	}
-
-	*rchip = chip;
-	return 0;
-}
-
-static struct snd_card *snd_bcm2835_card_new(struct device *dev)
-{
-	struct snd_card *card;
-	int ret;
-
-	ret = snd_card_new(dev, -1, NULL, THIS_MODULE, 0, &card);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return card;
 }
 
 typedef int (*bcm2835_audio_newpcm_func)(struct bcm2835_chip *chip,
@@ -292,24 +226,25 @@ static int snd_add_child_device(struct device *device,
 		return PTR_ERR(child);
 	}
 
-	card = snd_bcm2835_card_new(child);
-	if (IS_ERR(card)) {
+	err = snd_card_new(child, -1, NULL, THIS_MODULE, sizeof(*chip), &card);
+	if (err < 0) {
 		dev_err(child, "Failed to create card");
-		return PTR_ERR(card);
-	}
-
-	snd_card_set_dev(card, child);
-	strcpy(card->driver, audio_driver->driver.name);
-	strcpy(card->shortname, audio_driver->shortname);
-	strcpy(card->longname, audio_driver->longname);
-
-	err = snd_bcm2835_create(card, &chip);
-	if (err) {
-		dev_err(child, "Failed to create chip, error %d\n", err);
 		return err;
 	}
 
+	chip = card->private_data;
+	chip->card = card;
 	chip->dev = child;
+	mutex_init(&chip->audio_mutex);
+
+	chip->vchi_ctx = devres_find(device,
+				     bcm2835_devm_free_vchi_ctx, NULL, NULL);
+	if (!chip->vchi_ctx)
+		return -ENODEV;
+
+	strcpy(card->driver, audio_driver->driver.name);
+	strcpy(card->shortname, audio_driver->shortname);
+	strcpy(card->longname, audio_driver->longname);
 
 	err = audio_driver->newpcm(chip, audio_driver->shortname,
 		audio_driver->route,
