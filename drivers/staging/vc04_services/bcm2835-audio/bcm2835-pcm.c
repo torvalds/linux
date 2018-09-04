@@ -324,91 +324,36 @@ static const struct snd_pcm_ops snd_bcm2835_playback_spdif_ops = {
 };
 
 /* create a pcm device */
-int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, u32 numchannels)
+int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, const char *name,
+			int idx, enum snd_bcm2835_route route,
+			u32 numchannels, bool spdif)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	err = snd_pcm_new(chip->card, "bcm2835 ALSA", 0, numchannels, 0, &pcm);
-	if (err < 0)
-		return err;
-	pcm->private_data = chip;
-	pcm->nonatomic = true;
-	strcpy(pcm->name, "bcm2835 ALSA");
-	chip->pcm = pcm;
-	chip->dest = AUDIO_DEST_AUTO;
-	chip->volume = 0;
-	chip->mute = CTRL_VOL_UNMUTE; /*disable mute on startup */
-	/* set operators */
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
-			&snd_bcm2835_playback_ops);
-
-	/* pre-allocation of buffers */
-	/* NOTE: this may fail */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      chip->card->dev->parent,
-					      snd_bcm2835_playback_hw.buffer_bytes_max,
-					      snd_bcm2835_playback_hw.buffer_bytes_max);
-
-	return 0;
-}
-
-int snd_bcm2835_new_spdif_pcm(struct bcm2835_chip *chip)
-{
-	struct snd_pcm *pcm;
-	int err;
-
-	err = snd_pcm_new(chip->card, "bcm2835 ALSA", 1, 1, 0, &pcm);
-	if (err < 0)
-		return err;
-
-	pcm->private_data = chip;
-	pcm->nonatomic = true;
-	strcpy(pcm->name, "bcm2835 IEC958/HDMI");
-	chip->pcm_spdif = pcm;
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
-			&snd_bcm2835_playback_spdif_ops);
-
-	/* pre-allocation of buffers */
-	/* NOTE: this may fail */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-		chip->card->dev->parent,
-		snd_bcm2835_playback_spdif_hw.buffer_bytes_max, snd_bcm2835_playback_spdif_hw.buffer_bytes_max);
-
-	return 0;
-}
-
-int snd_bcm2835_new_simple_pcm(struct bcm2835_chip *chip,
-			       const char *name,
-			       enum snd_bcm2835_route route,
-			       u32 numchannels)
-{
-	struct snd_pcm *pcm;
-	int err;
-
-	err = snd_pcm_new(chip->card, name, 0, numchannels,
-			  0, &pcm);
+	err = snd_pcm_new(chip->card, name, idx, numchannels, 0, &pcm);
 	if (err)
 		return err;
 
 	pcm->private_data = chip;
 	pcm->nonatomic = true;
 	strcpy(pcm->name, name);
-	chip->pcm = pcm;
-	chip->dest = route;
-	chip->volume = 0;
-	chip->mute = CTRL_VOL_UNMUTE;
+	if (!spdif) {
+		chip->dest = route;
+		chip->volume = 0;
+		chip->mute = CTRL_VOL_UNMUTE;
+	}
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+			spdif ? &snd_bcm2835_playback_spdif_ops :
 			&snd_bcm2835_playback_ops);
 
-	snd_pcm_lib_preallocate_pages_for_all(
-		pcm,
-		SNDRV_DMA_TYPE_DEV,
-		chip->card->dev->parent,
-		snd_bcm2835_playback_hw.buffer_bytes_max,
-		snd_bcm2835_playback_hw.buffer_bytes_max);
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+		chip->card->dev->parent, 128 * 1024, 128 * 1024);
 
+	if (spdif)
+		chip->pcm_spdif = pcm;
+	else
+		chip->pcm = pcm;
 	return 0;
 }
-

@@ -138,15 +138,24 @@ static int bcm2835_audio_alsa_newpcm(struct bcm2835_chip *chip,
 {
 	int err;
 
-	err = snd_bcm2835_new_pcm(chip, numchannels - 1);
+	err = snd_bcm2835_new_pcm(chip, "bcm2835 ALSA", 0, AUDIO_DEST_AUTO,
+				  numchannels - 1, false);
 	if (err)
 		return err;
 
-	err = snd_bcm2835_new_spdif_pcm(chip);
+	err = snd_bcm2835_new_pcm(chip, "bcm2835 IEC958/HDMI", 1, 0, 1, true);
 	if (err)
 		return err;
 
 	return 0;
+}
+
+static int bcm2835_audio_simple_newpcm(struct bcm2835_chip *chip,
+				       const char *name,
+				       enum snd_bcm2835_route route,
+				       u32 numchannels)
+{
+	return snd_bcm2835_new_pcm(chip, name, 0, route, numchannels, false);
 }
 
 static struct bcm2835_audio_driver bcm2835_audio_alsa = {
@@ -169,7 +178,7 @@ static struct bcm2835_audio_driver bcm2835_audio_hdmi = {
 	.shortname = "bcm2835 HDMI",
 	.longname  = "bcm2835 HDMI",
 	.minchannels = 1,
-	.newpcm = snd_bcm2835_new_simple_pcm,
+	.newpcm = bcm2835_audio_simple_newpcm,
 	.newctl = snd_bcm2835_new_hdmi_ctl,
 	.route = AUDIO_DEST_HDMI
 };
@@ -182,7 +191,7 @@ static struct bcm2835_audio_driver bcm2835_audio_headphones = {
 	.shortname = "bcm2835 Headphones",
 	.longname  = "bcm2835 Headphones",
 	.minchannels = 1,
-	.newpcm = snd_bcm2835_new_simple_pcm,
+	.newpcm = bcm2835_audio_simple_newpcm,
 	.newctl = snd_bcm2835_new_headphones_ctl,
 	.route = AUDIO_DEST_HEADPHONES
 };

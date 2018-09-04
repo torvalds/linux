@@ -84,12 +84,9 @@ struct bcm2835_alsa_stream {
 };
 
 int snd_bcm2835_new_ctl(struct bcm2835_chip *chip);
-int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, u32 numchannels);
-int snd_bcm2835_new_spdif_pcm(struct bcm2835_chip *chip);
-int snd_bcm2835_new_simple_pcm(struct bcm2835_chip *chip,
-			       const char *name,
-			       enum snd_bcm2835_route route,
-			       u32 numchannels);
+int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, const char *name,
+			int idx, enum snd_bcm2835_route route,
+			u32 numchannels, bool spdif);
 
 int snd_bcm2835_new_hdmi_ctl(struct bcm2835_chip *chip);
 int snd_bcm2835_new_headphones_ctl(struct bcm2835_chip *chip);
