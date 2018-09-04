@@ -162,42 +162,46 @@ static inline void tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 	unsigned long flags;
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
+	const struct iphdr *ip_hdr_ptr;
+	const struct tcphdr *tcp_hdr_ptr;
+	u32 IHL, total_length, data_offset;
 
 	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 
-	if (eth_hdr_ptr->h_proto == htons(ETH_P_IP)) {
-		const struct iphdr *ip_hdr_ptr = buffer + ETH_HLEN;
+	if (eth_hdr_ptr->h_proto != htons(ETH_P_IP))
+		goto out;
 
-		if (ip_hdr_ptr->protocol == IPPROTO_TCP) {
-			const struct tcphdr *tcp_hdr_ptr;
-			u32 IHL, total_length, data_offset;
+	ip_hdr_ptr = buffer + ETH_HLEN;
 
-			IHL = ip_hdr_ptr->ihl << 2;
-			tcp_hdr_ptr = buffer + ETH_HLEN + IHL;
-			total_length = ntohs(ip_hdr_ptr->tot_len);
+	if (ip_hdr_ptr->protocol != IPPROTO_TCP)
+		goto out;
 
-			data_offset = tcp_hdr_ptr->doff << 2;
-			if (total_length == (IHL + data_offset)) {
-				u32 seq_no, ack_no;
+	IHL = ip_hdr_ptr->ihl << 2;
+	tcp_hdr_ptr = buffer + ETH_HLEN + IHL;
+	total_length = ntohs(ip_hdr_ptr->tot_len);
 
-				seq_no = ntohl(tcp_hdr_ptr->seq);
-				ack_no = ntohl(tcp_hdr_ptr->ack_seq);
-				for (i = 0; i < tcp_session; i++) {
-					u32 j = ack_session_info[i].seq_num;
+	data_offset = tcp_hdr_ptr->doff << 2;
+	if (total_length == (IHL + data_offset)) {
+		u32 seq_no, ack_no;
 
-					if (i < 2 * MAX_TCP_SESSION &&
-					    j == seq_no) {
-						update_tcp_session(i, ack_no);
-						break;
-					}
-				}
-				if (i == tcp_session)
-					add_tcp_session(0, 0, seq_no);
+		seq_no = ntohl(tcp_hdr_ptr->seq);
+		ack_no = ntohl(tcp_hdr_ptr->ack_seq);
+		for (i = 0; i < tcp_session; i++) {
+			u32 j = ack_session_info[i].seq_num;
 
-				add_tcp_pending_ack(ack_no, i, tqe);
+			if (i < 2 * MAX_TCP_SESSION &&
+			    j == seq_no) {
+				update_tcp_session(i, ack_no);
+				break;
 			}
 		}
+		if (i == tcp_session)
+			add_tcp_session(0, 0, seq_no);
+
+		add_tcp_pending_ack(ack_no, i, tqe);
 	}
+
+out:
 	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
 }
 
