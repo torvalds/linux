@@ -401,8 +401,9 @@ static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 		 * pairwise keys.*/
 		ret = ieee80211_hw_key_replace(old, new, pairwise);
 	} else {
+		/* new must be provided in case old is not */
 		idx = new->conf.keyidx;
-		if (new && !new->local->wowlan)
+		if (!new->local->wowlan)
 			ret = ieee80211_key_enable_hw_accel(new);
 		else
 			ret = 0;
