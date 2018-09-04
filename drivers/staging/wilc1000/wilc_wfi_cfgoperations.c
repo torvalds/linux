@@ -82,8 +82,6 @@ static const struct wiphy_wowlan_support wowlan_support = {
 	.flags = WIPHY_WOWLAN_ANY
 };
 
-static u8 op_ifcs;
-
 #define CHAN2G(_channel, _freq, _flags) {	 \
 		.band             = NL80211_BAND_2GHZ, \
 		.center_freq      = (_freq),		 \
@@ -2164,7 +2162,6 @@ int wilc_init_host_int(struct net_device *net)
 
 	timer_setup(&priv->aging_timer, remove_network_from_shadow, 0);
 	timer_setup(&vif->during_ip_timer, clear_during_ip, 0);
-	op_ifcs++;
 
 	priv->p2p_listen_state = false;
 
@@ -2183,8 +2180,6 @@ int wilc_deinit_host_int(struct net_device *net)
 	struct wilc_vif *vif = netdev_priv(priv->dev);
 
 	priv->p2p_listen_state = false;
-
-	op_ifcs--;
 
 	mutex_destroy(&priv->scan_req_lock);
 	ret = wilc_deinit(vif);
