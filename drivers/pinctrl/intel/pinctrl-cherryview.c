@@ -264,7 +264,6 @@ static const struct pinctrl_pin_desc southwest_pins[] = {
 	PINCTRL_PIN(97, "GP_SSP_2_TXD"),
 };
 
-static const unsigned southwest_fspi_pins[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 static const unsigned southwest_uart0_pins[] = { 16, 20 };
 static const unsigned southwest_uart1_pins[] = { 15, 16, 18, 20 };
 static const unsigned southwest_uart2_pins[] = { 17, 19, 21, 22 };
@@ -280,7 +279,6 @@ static const unsigned southwest_i2c4_pins[] = { 46, 50 };
 static const unsigned southwest_i2c5_pins[] = { 45, 48 };
 static const unsigned southwest_i2c6_pins[] = { 47, 51 };
 static const unsigned southwest_i2c_nfc_pins[] = { 49, 52 };
-static const unsigned southwest_smbus_pins[] = { 79, 81, 82 };
 static const unsigned southwest_spi3_pins[] = { 76, 79, 80, 81, 82 };
 
 /* LPE I2S TXD pins need to have invert_oe set */
