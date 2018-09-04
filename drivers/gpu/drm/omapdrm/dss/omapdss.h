@@ -505,11 +505,6 @@ int omap_dispc_unregister_isr(omap_dispc_isr_t isr, void *arg, u32 mask);
 int omapdss_compat_init(void);
 void omapdss_compat_uninit(void);
 
-static inline bool omapdss_device_is_connected(struct omap_dss_device *dssdev)
-{
-	return dssdev->src;
-}
-
 static inline bool omapdss_device_is_enabled(struct omap_dss_device *dssdev)
 {
 	return dssdev->state == OMAP_DSS_DISPLAY_ACTIVE;

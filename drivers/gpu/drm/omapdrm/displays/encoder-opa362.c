@@ -49,9 +49,6 @@ static int opa362_enable(struct omap_dss_device *dssdev)
 
 	dev_dbg(dssdev->dev, "enable\n");
 
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
@@ -144,10 +141,6 @@ static int __exit opa362_remove(struct platform_device *pdev)
 	WARN_ON(omapdss_device_is_enabled(dssdev));
 	if (omapdss_device_is_enabled(dssdev))
 		opa362_disable(dssdev);
-
-	WARN_ON(omapdss_device_is_connected(dssdev));
-	if (omapdss_device_is_connected(dssdev))
-		omapdss_device_disconnect(NULL, dssdev);
 
 	return 0;
 }

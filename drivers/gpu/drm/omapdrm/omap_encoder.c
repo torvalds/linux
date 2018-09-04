@@ -168,24 +168,17 @@ static void omap_encoder_enable(struct drm_encoder *encoder)
 
 	dev_dbg(dev->dev, "enable(%s)\n", dssdev->name);
 
-	if (!omapdss_device_is_connected(dssdev)) {
-		r = -ENODEV;
-		goto error;
-	}
-
 	if (omapdss_device_is_enabled(dssdev))
 		return;
 
 	r = dssdev->ops->enable(dssdev);
-	if (r)
-		goto error;
+	if (r) {
+		dev_err(dev->dev, "Failed to enable display '%s': %d\n",
+			dssdev->name, r);
+		return;
+	}
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-	return;
-
-error:
-	dev_err(dev->dev, "Failed to enable display '%s': %d\n",
-		dssdev->name, r);
 }
 
 static int omap_encoder_atomic_check(struct drm_encoder *encoder,

@@ -42,9 +42,6 @@ static int tfp410_enable(struct omap_dss_device *dssdev)
 	struct omap_dss_device *src = dssdev->src;
 	int r;
 
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
@@ -138,10 +135,6 @@ static int __exit tfp410_remove(struct platform_device *pdev)
 	WARN_ON(omapdss_device_is_enabled(dssdev));
 	if (omapdss_device_is_enabled(dssdev))
 		tfp410_disable(dssdev);
-
-	WARN_ON(omapdss_device_is_connected(dssdev));
-	if (omapdss_device_is_connected(dssdev))
-		omapdss_device_disconnect(NULL, dssdev);
 
 	return 0;
 }

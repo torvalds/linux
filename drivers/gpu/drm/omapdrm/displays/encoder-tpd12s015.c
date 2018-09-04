@@ -229,10 +229,6 @@ static int __exit tpd_remove(struct platform_device *pdev)
 	if (omapdss_device_is_enabled(dssdev))
 		tpd_disable(dssdev);
 
-	WARN_ON(omapdss_device_is_connected(dssdev));
-	if (omapdss_device_is_connected(dssdev))
-		omapdss_device_disconnect(NULL, dssdev);
-
 	return 0;
 }
 

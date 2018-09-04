@@ -185,6 +185,11 @@ done:
 }
 EXPORT_SYMBOL(omapdss_device_get_next);
 
+static bool omapdss_device_is_connected(struct omap_dss_device *dssdev)
+{
+	return dssdev->src;
+}
+
 int omapdss_device_connect(struct dss_device *dss,
 			   struct omap_dss_device *src,
 			   struct omap_dss_device *dst)
