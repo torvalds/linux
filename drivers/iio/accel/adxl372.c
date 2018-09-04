@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * ADXL372 3-Axis Digital Accelerometer SPI driver
+ * ADXL372 3-Axis Digital Accelerometer core driver
  *
  * Copyright 2018 Analog Devices Inc.
  */
@@ -19,6 +19,8 @@
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+
+#include "adxl372.h"
 
 /* ADXL372 registers definition */
 #define ADXL372_DEVID			0x00
@@ -246,7 +248,8 @@ static const struct iio_chan_spec adxl372_channels[] = {
 };
 
 struct adxl372_state {
-	struct spi_device		*spi;
+	int				irq;
+	struct device			*dev;
 	struct regmap			*regmap;
 	struct iio_trigger		*dready_trig;
 	enum adxl372_fifo_mode		fifo_mode;
@@ -565,7 +568,7 @@ static int adxl372_setup(struct adxl372_state *st)
 		return ret;
 
 	if (regval != ADXL372_DEVID_VAL) {
-		dev_err(&st->spi->dev, "Invalid chip id %x\n", regval);
+		dev_err(st->dev, "Invalid chip id %x\n", regval);
 		return -ENODEV;
 	}
 
@@ -891,56 +894,45 @@ static const struct iio_info adxl372_info = {
 	.hwfifo_set_watermark = adxl372_set_watermark,
 };
 
-static bool adxl372_readable_noinc_reg(struct device *dev, unsigned int reg)
+bool adxl372_readable_noinc_reg(struct device *dev, unsigned int reg)
 {
 	return (reg == ADXL372_FIFO_DATA);
 }
+EXPORT_SYMBOL_GPL(adxl372_readable_noinc_reg);
 
-static const struct regmap_config adxl372_spi_regmap_config = {
-	.reg_bits = 7,
-	.pad_bits = 1,
-	.val_bits = 8,
-	.read_flag_mask = BIT(0),
-	.readable_noinc_reg = adxl372_readable_noinc_reg,
-};
-
-static int adxl372_probe(struct spi_device *spi)
+int adxl372_probe(struct device *dev, struct regmap *regmap,
+		  int irq, const char *name)
 {
 	struct iio_dev *indio_dev;
 	struct adxl372_state *st;
-	struct regmap *regmap;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	spi_set_drvdata(spi, indio_dev);
+	dev_set_drvdata(dev, indio_dev);
 
-	st->spi = spi;
-
-	regmap = devm_regmap_init_spi(spi, &adxl372_spi_regmap_config);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
-
+	st->dev = dev;
 	st->regmap = regmap;
+	st->irq = irq;
 
 	indio_dev->channels = adxl372_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adxl372_channels);
 	indio_dev->available_scan_masks = adxl372_channel_masks;
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->name = spi_get_device_id(spi)->name;
+	indio_dev->dev.parent = dev;
+	indio_dev->name = name;
 	indio_dev->info = &adxl372_info;
 	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_SOFTWARE;
 
 	ret = adxl372_setup(st);
 	if (ret < 0) {
-		dev_err(&st->spi->dev, "ADXL372 setup failed\n");
+		dev_err(dev, "ADXL372 setup failed\n");
 		return ret;
 	}
 
-	ret = devm_iio_triggered_buffer_setup(&st->spi->dev,
+	ret = devm_iio_triggered_buffer_setup(dev,
 					      indio_dev, NULL,
 					      adxl372_trigger_handler,
 					      &adxl372_buffer_ops);
@@ -949,8 +941,8 @@ static int adxl372_probe(struct spi_device *spi)
 
 	iio_buffer_set_attrs(indio_dev->buffer, adxl372_fifo_attributes);
 
-	if (st->spi->irq) {
-		st->dready_trig = devm_iio_trigger_alloc(&st->spi->dev,
+	if (st->irq) {
+		st->dready_trig = devm_iio_trigger_alloc(dev,
 							 "%s-dev%d",
 							 indio_dev->name,
 							 indio_dev->id);
@@ -958,15 +950,15 @@ static int adxl372_probe(struct spi_device *spi)
 			return -ENOMEM;
 
 		st->dready_trig->ops = &adxl372_trigger_ops;
-		st->dready_trig->dev.parent = &st->spi->dev;
+		st->dready_trig->dev.parent = dev;
 		iio_trigger_set_drvdata(st->dready_trig, indio_dev);
-		ret = devm_iio_trigger_register(&st->spi->dev, st->dready_trig);
+		ret = devm_iio_trigger_register(dev, st->dready_trig);
 		if (ret < 0)
 			return ret;
 
 		indio_dev->trig = iio_trigger_get(st->dready_trig);
 
-		ret = devm_request_threaded_irq(&st->spi->dev, st->spi->irq,
+		ret = devm_request_threaded_irq(dev, st->irq,
 					iio_trigger_generic_data_rdy_poll,
 					NULL,
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
@@ -975,24 +967,9 @@ static int adxl372_probe(struct spi_device *spi)
 			return ret;
 	}
 
-	return devm_iio_device_register(&st->spi->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
-
-static const struct spi_device_id adxl372_id[] = {
-	{ "adxl372", 0 },
-	{}
-};
-MODULE_DEVICE_TABLE(spi, adxl372_id);
-
-static struct spi_driver adxl372_driver = {
-	.driver = {
-		.name = KBUILD_MODNAME,
-	},
-	.probe = adxl372_probe,
-	.id_table = adxl372_id,
-};
-
-module_spi_driver(adxl372_driver);
+EXPORT_SYMBOL_GPL(adxl372_probe);
 
 MODULE_AUTHOR("Stefan Popa <stefan.popa@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADXL372 3-axis accelerometer driver");

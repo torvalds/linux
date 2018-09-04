@@ -61,15 +61,20 @@ config ADXL345_SPI
 	  for the core module.
 
 config ADXL372
-	tristate "Analog Devices ADXL372 3-Axis Accelerometer Driver"
-	depends on SPI
+	tristate
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
+
+config ADXL372_SPI
+	tristate "Analog Devices ADXL372 3-Axis Accelerometer SPI Driver"
+	depends on SPI
+	select ADXL372
+	select REGMAP_SPI
 	help
 	  Say yes here to add support for the Analog Devices ADXL372 triaxial
 	  acceleration sensor.
 	  To compile this driver as a module, choose M here: the
-	  module will be called adxl372.
+	  module will be called adxl372_spi.
 
 config BMA180
 	tristate "Bosch BMA180/BMA250 3-Axis Accelerometer Driver"
