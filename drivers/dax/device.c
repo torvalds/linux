@@ -392,7 +392,8 @@ static vm_fault_t dev_dax_huge_fault(struct vm_fault *vmf,
 {
 	struct file *filp = vmf->vma->vm_file;
 	unsigned long fault_size;
-	int rc, id;
+	vm_fault_t rc = VM_FAULT_SIGBUS;
+	int id;
 	pfn_t pfn;
 	struct dev_dax *dev_dax = filp->private_data;
 
