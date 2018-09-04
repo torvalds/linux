@@ -107,8 +107,8 @@ int mt76x2_dma_init(struct mt76x2_dev *dev)
 	struct mt76_txwi_cache __maybe_unused *t;
 	struct mt76_queue *q;
 
-	BUILD_BUG_ON(sizeof(t->txwi) < sizeof(struct mt76x2_txwi));
-	BUILD_BUG_ON(sizeof(struct mt76x2_rxwi) > MT_RX_HEADROOM);
+	BUILD_BUG_ON(sizeof(t->txwi) < sizeof(struct mt76x02_txwi));
+	BUILD_BUG_ON(sizeof(struct mt76x02_rxwi) > MT_RX_HEADROOM);
 
 	mt76_dma_attach(&dev->mt76);
 
@@ -142,7 +142,7 @@ int mt76x2_dma_init(struct mt76x2_dev *dev)
 		return ret;
 
 	q = &dev->mt76.q_rx[MT_RXQ_MAIN];
-	q->buf_offset = MT_RX_HEADROOM - sizeof(struct mt76x2_rxwi);
+	q->buf_offset = MT_RX_HEADROOM - sizeof(struct mt76x02_rxwi);
 	ret = mt76x2_init_rx_queue(dev, q, 0, MT76x2_RX_RING_SIZE, MT_RX_BUF_SIZE);
 	if (ret)
 		return ret;

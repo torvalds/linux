@@ -431,7 +431,7 @@ mt76_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 }
 
 static void
-mt76x0_rx_monitor_beacon(struct mt76x0_dev *dev, struct mt76x0_rxwi *rxwi,
+mt76x0_rx_monitor_beacon(struct mt76x0_dev *dev, struct mt76x02_rxwi *rxwi,
 			  u16 rate, int rssi)
 {
 	dev->bcn_phy_mode = FIELD_GET(MT_RXWI_RATE_PHY, rate);
@@ -451,7 +451,7 @@ u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
 			u8 *data, void *rxi)
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
-	struct mt76x0_rxwi *rxwi = rxi;
+	struct mt76x02_rxwi *rxwi = rxi;
 	u32 len, ctl = le32_to_cpu(rxwi->ctl);
 	u16 rate = le16_to_cpu(rxwi->rate);
 	int rssi;

@@ -104,6 +104,60 @@ struct mt76x02_sta {
 #define MT_RATE_INDEX_VHT_IDX		GENMASK(3, 0)
 #define MT_RATE_INDEX_VHT_NSS		GENMASK(5, 4)
 
+struct mt76x02_rxwi {
+	__le32 rxinfo;
+
+	__le32 ctl;
+
+	__le16 tid_sn;
+	__le16 rate;
+
+	u8 rssi[4];
+
+	__le32 bbp_rxinfo[4];
+};
+
+#define MT_TX_PWR_ADJ			GENMASK(3, 0)
+
+enum mt76x2_phy_bandwidth {
+	MT_PHY_BW_20,
+	MT_PHY_BW_40,
+	MT_PHY_BW_80,
+};
+
+#define MT_TXWI_FLAGS_FRAG		BIT(0)
+#define MT_TXWI_FLAGS_MMPS		BIT(1)
+#define MT_TXWI_FLAGS_CFACK		BIT(2)
+#define MT_TXWI_FLAGS_TS		BIT(3)
+#define MT_TXWI_FLAGS_AMPDU		BIT(4)
+#define MT_TXWI_FLAGS_MPDU_DENSITY	GENMASK(7, 5)
+#define MT_TXWI_FLAGS_TXOP		GENMASK(9, 8)
+#define MT_TXWI_FLAGS_NDPS		BIT(10)
+#define MT_TXWI_FLAGS_RTSBWSIG		BIT(11)
+#define MT_TXWI_FLAGS_NDP_BW		GENMASK(13, 12)
+#define MT_TXWI_FLAGS_SOUND		BIT(14)
+#define MT_TXWI_FLAGS_TX_RATE_LUT	BIT(15)
+
+#define MT_TXWI_ACK_CTL_REQ		BIT(0)
+#define MT_TXWI_ACK_CTL_NSEQ		BIT(1)
+#define MT_TXWI_ACK_CTL_BA_WINDOW	GENMASK(7, 2)
+
+#define MT_TXWI_PKTID_PROBE		BIT(7)
+
+struct mt76x02_txwi {
+	__le16 flags;
+	__le16 rate;
+	u8 ack_ctl;
+	u8 wcid;
+	__le16 len_ctl;
+	__le32 iv;
+	__le32 eiv;
+	u8 aid;
+	u8 txstream;
+	u8 ctl2;
+	u8 pktid;
+} __packed __aligned(4);
+
 static inline bool mt76x02_wait_for_mac(struct mt76_dev *dev)
 {
 	const u32 MAC_CSR0 = 0x1000;

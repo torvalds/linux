@@ -21,7 +21,7 @@ static void mt76x2u_remove_dma_hdr(struct sk_buff *skb)
 {
 	int hdr_len;
 
-	skb_pull(skb, sizeof(struct mt76x2_txwi) + MT_DMA_HDR_LEN);
+	skb_pull(skb, sizeof(struct mt76x02_txwi) + MT_DMA_HDR_LEN);
 	hdr_len = ieee80211_get_hdrlen_from_skb(skb);
 	if (hdr_len % 4) {
 		memmove(skb->data + 2, skb->data, hdr_len);
@@ -35,7 +35,7 @@ mt76x2u_check_skb_rooms(struct sk_buff *skb)
 	int hdr_len = ieee80211_get_hdrlen_from_skb(skb);
 	u32 need_head;
 
-	need_head = sizeof(struct mt76x2_txwi) + MT_DMA_HDR_LEN;
+	need_head = sizeof(struct mt76x02_txwi) + MT_DMA_HDR_LEN;
 	if (hdr_len % 4)
 		need_head += 2;
 	return skb_cow(skb, need_head);
@@ -82,7 +82,7 @@ int mt76x2u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 			   u32 *tx_info)
 {
 	struct mt76x2_dev *dev = container_of(mdev, struct mt76x2_dev, mt76);
-	struct mt76x2_txwi *txwi;
+	struct mt76x02_txwi *txwi;
 	int err, len = skb->len;
 
 	err = mt76x2u_check_skb_rooms(skb);
@@ -91,7 +91,7 @@ int mt76x2u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 
 	mt76x2_insert_hdr_pad(skb);
 
-	txwi = skb_push(skb, sizeof(struct mt76x2_txwi));
+	txwi = skb_push(skb, sizeof(struct mt76x02_txwi));
 	mt76x2_mac_write_txwi(dev, txwi, skb, wcid, sta, len);
 
 	return mt76x2u_set_txinfo(skb, wcid, q2ep(q->hw_idx));

@@ -64,7 +64,7 @@ mt76x2_mac_queue_txdone(struct mt76x2_dev *dev, struct sk_buff *skb,
 			void *txwi_ptr)
 {
 	struct mt76x2_tx_info *txi = mt76x2_skb_tx_info(skb);
-	struct mt76x2_txwi *txwi = txwi_ptr;
+	struct mt76x02_txwi *txwi = txwi_ptr;
 
 	mt76x2_mac_poll_tx_status(dev, false);
 
@@ -100,9 +100,9 @@ static int
 mt76_write_beacon(struct mt76x2_dev *dev, int offset, struct sk_buff *skb)
 {
 	int beacon_len = dev->beacon_offsets[1] - dev->beacon_offsets[0];
-	struct mt76x2_txwi txwi;
+	struct mt76x02_txwi txwi;
 
-	if (WARN_ON_ONCE(beacon_len < skb->len + sizeof(struct mt76x2_txwi)))
+	if (WARN_ON_ONCE(beacon_len < skb->len + sizeof(struct mt76x02_txwi)))
 		return -ENOSPC;
 
 	mt76x2_mac_write_txwi(dev, &txwi, skb, NULL, NULL, skb->len);

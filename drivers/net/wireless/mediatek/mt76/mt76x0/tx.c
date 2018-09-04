@@ -33,7 +33,7 @@ static void mt76x0_tx_skb_remove_dma_overhead(struct sk_buff *skb,
 {
 	int pkt_len = (unsigned long)info->status.status_driver_data[0];
 
-	skb_pull(skb, sizeof(struct mt76_txwi) + 4);
+	skb_pull(skb, sizeof(struct mt76x02_txwi) + 4);
 	if (ieee80211_get_hdrlen_from_skb(skb) % 4)
 		mt76x0_remove_hdr_pad(skb);
 
@@ -60,28 +60,28 @@ static int mt76x0_skb_rooms(struct mt76x0_dev *dev, struct sk_buff *skb)
 	int hdr_len = ieee80211_get_hdrlen_from_skb(skb);
 	u32 need_head;
 
-	need_head = sizeof(struct mt76_txwi) + 4;
+	need_head = sizeof(struct mt76x02_txwi) + 4;
 	if (hdr_len % 4)
 		need_head += 2;
 
 	return skb_cow(skb, need_head);
 }
 
-static struct mt76_txwi *
+static struct mt76x02_txwi *
 mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
 		  struct ieee80211_sta *sta, struct mt76_wcid *wcid,
 		  int pkt_len)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *rate = &info->control.rates[0];
-	struct mt76_txwi *txwi;
+	struct mt76x02_txwi *txwi;
 	unsigned long flags;
 	u16 txwi_flags = 0;
 	u32 pkt_id;
 	u16 rate_ctl;
 	u8 nss;
 
-	txwi = (struct mt76_txwi *)skb_push(skb, sizeof(struct mt76_txwi));
+	txwi = (struct mt76x02_txwi *)skb_push(skb, sizeof(struct mt76x02_txwi));
 	memset(txwi, 0, sizeof(*txwi));
 
 	if (!wcid->tx_rate_set)
@@ -97,12 +97,12 @@ mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
 	}
 	spin_unlock_irqrestore(&dev->mt76.lock, flags);
 
-	txwi->rate_ctl = cpu_to_le16(rate_ctl);
+	txwi->rate = cpu_to_le16(rate_ctl);
 
 	if (info->flags & IEEE80211_TX_CTL_LDPC)
-		txwi->rate_ctl |= cpu_to_le16(MT_RXWI_RATE_LDPC);
+		txwi->rate |= cpu_to_le16(MT_RXWI_RATE_LDPC);
 	if ((info->flags & IEEE80211_TX_CTL_STBC) && nss == 1)
-		txwi->rate_ctl |= cpu_to_le16(MT_RXWI_RATE_STBC);
+		txwi->rate |= cpu_to_le16(MT_RXWI_RATE_STBC);
 	if (nss > 1 && sta && sta->smps_mode == IEEE80211_SMPS_DYNAMIC)
 		txwi_flags |= MT_TXWI_FLAGS_MMPS;
 
@@ -151,7 +151,7 @@ void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	struct ieee80211_sta *sta = control->sta;
 	struct mt76x02_sta *msta = NULL;
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
-	struct mt76_txwi *txwi;
+	struct mt76x02_txwi *txwi;
 	int pkt_len = skb->len;
 	int hw_q = skb2q(skb);
 

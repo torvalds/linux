@@ -34,7 +34,7 @@ static unsigned int ieee80211_get_hdrlen_from_buf(const u8 *data, unsigned len)
 }
 
 static struct sk_buff *
-mt76x0_rx_skb_from_seg(struct mt76x0_dev *dev, struct mt76x0_rxwi *rxwi,
+mt76x0_rx_skb_from_seg(struct mt76x0_dev *dev, struct mt76x02_rxwi *rxwi,
 			void *data, u32 seg_len, u32 truesize, struct page *p)
 {
 	struct sk_buff *skb;
@@ -86,7 +86,7 @@ static void mt76x0_rx_process_seg(struct mt76x0_dev *dev, u8 *data,
 				   u32 seg_len, struct page *p)
 {
 	struct sk_buff *skb;
-	struct mt76x0_rxwi *rxwi;
+	struct mt76x02_rxwi *rxwi;
 	u32 fce_info, truesize = seg_len;
 
 	/* DMA_INFO field at the beginning of the segment contains only some of
@@ -98,9 +98,9 @@ static void mt76x0_rx_process_seg(struct mt76x0_dev *dev, u8 *data,
 	data += MT_DMA_HDR_LEN;
 	seg_len -= MT_DMA_HDR_LEN;
 
-	rxwi = (struct mt76x0_rxwi *) data;
-	data += sizeof(struct mt76x0_rxwi);
-	seg_len -= sizeof(struct mt76x0_rxwi);
+	rxwi = (struct mt76x02_rxwi *) data;
+	data += sizeof(struct mt76x02_rxwi);
+	seg_len -= sizeof(struct mt76x02_rxwi);
 
 	if (unlikely(FIELD_GET(MT_RXD_INFO_TYPE, fce_info)))
 		dev_err_once(dev->mt76.dev, "Error: RX path seen a non-pkt urb\n");
@@ -119,7 +119,7 @@ static void mt76x0_rx_process_seg(struct mt76x0_dev *dev, u8 *data,
 static u16 mt76x0_rx_next_seg_len(u8 *data, u32 data_len)
 {
 	u32 min_seg_len = MT_DMA_HDR_LEN + MT_RX_INFO_LEN +
-		sizeof(struct mt76x0_rxwi) + MT_FCE_INFO_LEN;
+		sizeof(struct mt76x02_rxwi) + MT_FCE_INFO_LEN;
 	u16 dma_len = get_unaligned_le16(data);
 
 	if (data_len < min_seg_len ||
