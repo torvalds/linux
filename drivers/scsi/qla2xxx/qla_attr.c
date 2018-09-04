@@ -1208,6 +1208,34 @@ qla2x00_zio_timer_store(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
+qla_zio_threshold_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+
+	return scnprintf(buf, PAGE_SIZE, "%d exchanges\n",
+	    vha->hw->last_zio_threshold);
+}
+
+static ssize_t
+qla_zio_threshold_store(struct device *dev, struct device_attribute *attr,
+    const char *buf, size_t count)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	int val = 0;
+
+	if (vha->hw->zio_mode != QLA_ZIO_MODE_6)
+		return -EINVAL;
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+	if (val > 256)
+		return -ERANGE;
+
+	atomic_set(&vha->hw->zio_threshold, val);
+	return strlen(buf);
+}
+
+static ssize_t
 qla2x00_beacon_show(struct device *dev, struct device_attribute *attr,
 		    char *buf)
 {
@@ -1651,6 +1679,9 @@ static DEVICE_ATTR(allow_cna_fw_dump, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(pep_version, S_IRUGO, qla2x00_pep_version_show, NULL);
 static DEVICE_ATTR(min_link_speed, S_IRUGO, qla2x00_min_link_speed_show, NULL);
 static DEVICE_ATTR(max_speed_sup, S_IRUGO, qla2x00_max_speed_sup_show, NULL);
+static DEVICE_ATTR(zio_threshold, 0644,
+    qla_zio_threshold_show,
+    qla_zio_threshold_store);
 
 struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_driver_version,
@@ -1687,6 +1718,7 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_pep_version,
 	&dev_attr_min_link_speed,
 	&dev_attr_max_speed_sup,
+	&dev_attr_zio_threshold,
 	NULL,
 };
 

@@ -3532,6 +3532,11 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 			if (rval == QLA_SUCCESS) {
 				qla24xx_detect_sfp(vha);
 
+				if ((IS_QLA83XX(ha) || IS_QLA27XX(ha)) &&
+				    (ha->zio_mode == QLA_ZIO_MODE_6))
+					qla27xx_set_zio_threshold(vha,
+					    ha->last_zio_threshold);
+
 				rval = qla2x00_set_exlogins_buffer(vha);
 				if (rval != QLA_SUCCESS)
 					goto failed;

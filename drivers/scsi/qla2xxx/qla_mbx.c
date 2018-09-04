@@ -60,6 +60,7 @@ static struct rom_cmd {
 	{ MBC_GET_ADAPTER_LOOP_ID },
 	{ MBC_READ_SFP },
 	{ MBC_GET_RNID_PARAMS },
+	{ MBC_GET_SET_ZIO_THRESHOLD },
 };
 
 static int is_rom_cmd(uint16_t cmd)
