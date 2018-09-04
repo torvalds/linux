@@ -2283,8 +2283,12 @@ bool intel_uncore_unclaimed_mmio(struct drm_i915_private *dev_priv)
 bool
 intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv)
 {
+	bool ret = false;
+
+	spin_lock_irq(&dev_priv->uncore.lock);
+
 	if (unlikely(dev_priv->uncore.unclaimed_mmio_check <= 0))
-		return false;
+		goto out;
 
 	if (unlikely(intel_uncore_unclaimed_mmio(dev_priv))) {
 		if (!i915_modparams.mmio_debug) {
@@ -2294,10 +2298,13 @@ intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv)
 			i915_modparams.mmio_debug++;
 		}
 		dev_priv->uncore.unclaimed_mmio_check--;
-		return true;
+		ret = true;
 	}
 
-	return false;
+out:
+	spin_unlock_irq(&dev_priv->uncore.lock);
+
+	return ret;
 }
 
 static enum forcewake_domains
