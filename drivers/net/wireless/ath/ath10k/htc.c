@@ -53,7 +53,8 @@ static inline void ath10k_htc_restore_tx_skb(struct ath10k_htc *htc,
 {
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(skb);
 
-	dma_unmap_single(htc->ar->dev, skb_cb->paddr, skb->len, DMA_TO_DEVICE);
+	if (htc->ar->dev_type != ATH10K_DEV_TYPE_HL)
+		dma_unmap_single(htc->ar->dev, skb_cb->paddr, skb->len, DMA_TO_DEVICE);
 	skb_pull(skb, sizeof(struct ath10k_htc_hdr));
 }
 
@@ -137,11 +138,14 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 	ath10k_htc_prepare_tx_skb(ep, skb);
 
 	skb_cb->eid = eid;
-	skb_cb->paddr = dma_map_single(dev, skb->data, skb->len, DMA_TO_DEVICE);
-	ret = dma_mapping_error(dev, skb_cb->paddr);
-	if (ret) {
-		ret = -EIO;
-		goto err_credits;
+	if (ar->dev_type != ATH10K_DEV_TYPE_HL) {
+		skb_cb->paddr = dma_map_single(dev, skb->data, skb->len,
+					       DMA_TO_DEVICE);
+		ret = dma_mapping_error(dev, skb_cb->paddr);
+		if (ret) {
+			ret = -EIO;
+			goto err_credits;
+		}
 	}
 
 	sg_item.transfer_id = ep->eid;
@@ -157,7 +161,8 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 	return 0;
 
 err_unmap:
-	dma_unmap_single(dev, skb_cb->paddr, skb->len, DMA_TO_DEVICE);
+	if (ar->dev_type != ATH10K_DEV_TYPE_HL)
+		dma_unmap_single(dev, skb_cb->paddr, skb->len, DMA_TO_DEVICE);
 err_credits:
 	if (ep->tx_credit_flow_enabled) {
 		spin_lock_bh(&htc->tx_lock);
