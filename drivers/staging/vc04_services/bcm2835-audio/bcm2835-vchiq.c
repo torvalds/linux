@@ -19,6 +19,8 @@ struct bcm2835_audio_instance {
 };
 
 static bool force_bulk;
+module_param(force_bulk, bool, 0444);
+MODULE_PARM_DESC(force_bulk, "Force use of vchiq bulk for audio");
 
 static void bcm2835_audio_lock(struct bcm2835_audio_instance *instance)
 {
@@ -378,6 +380,3 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 	bcm2835_audio_unlock(instance);
 	return err;
 }
-
-module_param(force_bulk, bool, 0444);
-MODULE_PARM_DESC(force_bulk, "Force use of vchiq bulk for audio");
