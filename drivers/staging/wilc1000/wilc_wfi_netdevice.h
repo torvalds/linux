@@ -166,6 +166,7 @@ struct wilc {
 	bool suspend_event;
 
 	struct rf_info dummy_statistics;
+	bool enable_ps;
 };
 
 struct wilc_wfi_mon_priv {

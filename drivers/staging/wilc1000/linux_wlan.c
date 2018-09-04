@@ -12,8 +12,6 @@
 
 #include "wilc_wfi_cfgoperations.h"
 
-bool wilc_enable_ps = true;
-
 static int dev_state_ev_handler(struct notifier_block *this,
 				unsigned long event, void *ptr)
 {
@@ -54,7 +52,7 @@ static int dev_state_ev_handler(struct notifier_block *this,
 			del_timer(&wilc_during_ip_timer);
 		}
 
-		if (wilc_enable_ps)
+		if (vif->wilc->enable_ps)
 			wilc_set_power_mgmt(vif, 1, 0);
 
 		netdev_dbg(dev, "[%s] Up IP\n", dev_iface->ifa_label);
@@ -1066,6 +1064,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 	*wilc = wl;
 	wl->io_type = io_type;
 	wl->hif_func = ops;
+	wl->enable_ps = true;
 	INIT_LIST_HEAD(&wl->txq_head.list);
 	INIT_LIST_HEAD(&wl->rxq_head.list);
 

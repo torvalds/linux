@@ -1732,7 +1732,7 @@ static int set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	if (!priv->hif_drv)
 		return -EIO;
 
-	if (wilc_enable_ps)
+	if (vif->wilc->enable_ps)
 		wilc_set_power_mgmt(vif, enabled, timeout);
 
 	return 0;
@@ -1764,7 +1764,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		memset(priv->assoc_stainfo.sta_associated_bss, 0,
 		       MAX_NUM_STA * ETH_ALEN);
 
-		wilc_enable_ps = true;
+		wl->enable_ps = true;
 		wilc_set_power_mgmt(vif, 1, 0);
 		break;
 
@@ -1776,12 +1776,12 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		vif->iftype = CLIENT_MODE;
 		wilc_set_operation_mode(vif, STATION_MODE);
 
-		wilc_enable_ps = false;
+		wl->enable_ps = false;
 		wilc_set_power_mgmt(vif, 0, 0);
 		break;
 
 	case NL80211_IFTYPE_AP:
-		wilc_enable_ps = false;
+		wl->enable_ps = false;
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
 		vif->iftype = AP_MODE;
@@ -1803,7 +1803,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		priv->wdev->iftype = type;
 		vif->iftype = GO_MODE;
 
-		wilc_enable_ps = false;
+		wl->enable_ps = false;
 		wilc_set_power_mgmt(vif, 0, 0);
 		break;
 
