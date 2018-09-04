@@ -97,6 +97,9 @@ Required properties:
     first port should be the input endpoint. The second should be the
     output, usually to an HDMI connector.
 
+Optional properties:
+  - hvcc-supply: the VCC power supply of the controller
+
 DWC HDMI PHY
 ------------
 
