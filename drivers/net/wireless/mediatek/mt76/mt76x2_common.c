@@ -18,15 +18,6 @@
 #include "mt76x2.h"
 #include "mt76x02_mac.h"
 
-void mt76x2_remove_interface(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif)
-{
-	struct mt76x2_dev *dev = hw->priv;
-
-	mt76_txq_remove(&dev->mt76, vif->txq);
-}
-EXPORT_SYMBOL_GPL(mt76x2_remove_interface);
-
 void mt76x2_sta_rate_tbl_update(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta)

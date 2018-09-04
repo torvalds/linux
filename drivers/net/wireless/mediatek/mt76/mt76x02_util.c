@@ -127,6 +127,15 @@ void mt76x02_vif_init(struct mt76_dev *dev, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(mt76x02_vif_init);
 
+void mt76x02_remove_interface(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif)
+{
+	struct mt76_dev *dev = hw->priv;
+
+	mt76_txq_remove(dev, vif->txq);
+}
+EXPORT_SYMBOL_GPL(mt76x02_remove_interface);
+
 int mt76x02_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			struct ieee80211_ampdu_params *params)
 {

@@ -62,14 +62,6 @@ static int mt76x0_add_interface(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static void mt76x0_remove_interface(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif)
-{
-	struct mt76x0_dev *dev = hw->priv;
-
-	mt76_txq_remove(&dev->mt76, vif->txq);
-}
-
 static int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct mt76x0_dev *dev = hw->priv;
@@ -203,7 +195,7 @@ const struct ieee80211_ops mt76x0_ops = {
 	.start = mt76x0_start,
 	.stop = mt76x0_stop,
 	.add_interface = mt76x0_add_interface,
-	.remove_interface = mt76x0_remove_interface,
+	.remove_interface = mt76x02_remove_interface,
 	.config = mt76x0_config,
 	.configure_filter = mt76x02_configure_filter,
 	.bss_info_changed = mt76x0_bss_info_changed,
