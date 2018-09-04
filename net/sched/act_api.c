@@ -662,6 +662,13 @@ int tcf_action_destroy(struct tc_action *actions[], int bind)
 	return ret;
 }
 
+static int tcf_action_destroy_1(struct tc_action *a, int bind)
+{
+	struct tc_action *actions[] = { a, NULL };
+
+	return tcf_action_destroy(actions, bind);
+}
+
 static int tcf_action_put(struct tc_action *p)
 {
 	return __tcf_action_put(p, false);
@@ -881,17 +888,16 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 	if (TC_ACT_EXT_CMP(a->tcfa_action, TC_ACT_GOTO_CHAIN)) {
 		err = tcf_action_goto_chain_init(a, tp);
 		if (err) {
-			struct tc_action *actions[] = { a, NULL };
-
-			tcf_action_destroy(actions, bind);
+			tcf_action_destroy_1(a, bind);
 			NL_SET_ERR_MSG(extack, "Failed to init TC action chain");
 			return ERR_PTR(err);
 		}
 	}
 
 	if (!tcf_action_valid(a->tcfa_action)) {
-		NL_SET_ERR_MSG(extack, "invalid action value, using TC_ACT_UNSPEC instead");
-		a->tcfa_action = TC_ACT_UNSPEC;
+		tcf_action_destroy_1(a, bind);
+		NL_SET_ERR_MSG(extack, "Invalid control action value");
+		return ERR_PTR(-EINVAL);
 	}
 
 	return a;
@@ -1173,6 +1179,7 @@ static int tcf_action_delete(struct net *net, struct tc_action *actions[])
 		struct tcf_idrinfo *idrinfo = a->idrinfo;
 		u32 act_index = a->tcfa_index;
 
+		actions[i] = NULL;
 		if (tcf_action_put(a)) {
 			/* last reference, action was deleted concurrently */
 			module_put(ops->owner);
@@ -1184,7 +1191,6 @@ static int tcf_action_delete(struct net *net, struct tc_action *actions[])
 			if (ret < 0)
 				return ret;
 		}
-		actions[i] = NULL;
 	}
 	return 0;
 }

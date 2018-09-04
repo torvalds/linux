@@ -215,7 +215,6 @@ static const struct seq_operations sctp_eps_ops = {
 struct sctp_ht_iter {
 	struct seq_net_private p;
 	struct rhashtable_iter hti;
-	int start_fail;
 };
 
 static void *sctp_transport_seq_start(struct seq_file *seq, loff_t *pos)
@@ -224,7 +223,6 @@ static void *sctp_transport_seq_start(struct seq_file *seq, loff_t *pos)
 
 	sctp_transport_walk_start(&iter->hti);
 
-	iter->start_fail = 0;
 	return sctp_transport_get_idx(seq_file_net(seq), &iter->hti, *pos);
 }
 
@@ -232,8 +230,6 @@ static void sctp_transport_seq_stop(struct seq_file *seq, void *v)
 {
 	struct sctp_ht_iter *iter = seq->private;
 
-	if (iter->start_fail)
-		return;
 	sctp_transport_walk_stop(&iter->hti);
 }
 
@@ -264,8 +260,6 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 	}
 
 	transport = (struct sctp_transport *)v;
-	if (!sctp_transport_hold(transport))
-		return 0;
 	assoc = transport->asoc;
 	epb = &assoc->base;
 	sk = epb->sk;
@@ -322,8 +316,6 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 	}
 
 	transport = (struct sctp_transport *)v;
-	if (!sctp_transport_hold(transport))
-		return 0;
 	assoc = transport->asoc;
 
 	list_for_each_entry_rcu(tsp, &assoc->peer.transport_addr_list,

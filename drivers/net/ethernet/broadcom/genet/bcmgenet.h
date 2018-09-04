@@ -186,6 +186,9 @@ struct bcmgenet_mib_counters {
 #define UMAC_MAC1			0x010
 #define UMAC_MAX_FRAME_LEN		0x014
 
+#define UMAC_MODE			0x44
+#define  MODE_LINK_STATUS		(1 << 5)
+
 #define UMAC_EEE_CTRL			0x064
 #define  EN_LPI_RX_PAUSE		(1 << 0)
 #define  EN_LPI_TX_PFC			(1 << 1)
