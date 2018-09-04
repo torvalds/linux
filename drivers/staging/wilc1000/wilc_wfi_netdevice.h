@@ -201,6 +201,7 @@ struct wilc {
 	bool enable_ps;
 	int clients_count;
 	struct workqueue_struct *hif_workqueue;
+	enum chip_ps_states chip_ps_state;
 };
 
 struct wilc_wfi_mon_priv {

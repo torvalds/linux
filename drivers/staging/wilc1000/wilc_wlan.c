@@ -9,8 +9,6 @@
 #include "wilc_wfi_netdevice.h"
 #include "wilc_wlan_cfg.h"
 
-static enum chip_ps_states chip_ps_state = CHIP_WAKEDUP;
-
 static inline bool is_wilc1000(u32 id)
 {
 	return ((id & 0xfffff000) == 0x100000 ? true : false);
@@ -444,7 +442,7 @@ void chip_wakeup(struct wilc *wilc)
 		} while ((clk_status_reg & 0x1) == 0);
 	}
 
-	if (chip_ps_state == CHIP_SLEEPING_MANUAL) {
+	if (wilc->chip_ps_state == CHIP_SLEEPING_MANUAL) {
 		if (wilc_get_chipid(wilc, false) < 0x1002b0) {
 			u32 val32;
 
@@ -457,19 +455,19 @@ void chip_wakeup(struct wilc *wilc)
 			wilc->hif_func->hif_write_reg(wilc, 0x1e9c, val32);
 		}
 	}
-	chip_ps_state = CHIP_WAKEDUP;
+	wilc->chip_ps_state = CHIP_WAKEDUP;
 }
 
 void wilc_chip_sleep_manually(struct wilc *wilc)
 {
-	if (chip_ps_state != CHIP_WAKEDUP)
+	if (wilc->chip_ps_state != CHIP_WAKEDUP)
 		return;
 	acquire_bus(wilc, ACQUIRE_ONLY);
 
 	chip_allow_sleep(wilc);
 	wilc->hif_func->hif_write_reg(wilc, 0x10a8, 1);
 
-	chip_ps_state = CHIP_SLEEPING_MANUAL;
+	wilc->chip_ps_state = CHIP_SLEEPING_MANUAL;
 	release_bus(wilc, RELEASE_ONLY);
 }
 

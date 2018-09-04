@@ -1066,6 +1066,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 	wl->io_type = io_type;
 	wl->hif_func = ops;
 	wl->enable_ps = true;
+	wl->chip_ps_state = CHIP_WAKEDUP;
 	INIT_LIST_HEAD(&wl->txq_head.list);
 	INIT_LIST_HEAD(&wl->rxq_head.list);
 
