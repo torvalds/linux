@@ -3459,9 +3459,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	if (clients_count == 0) {
 		init_completion(&hif_driver_comp);
 		mutex_init(&hif_deinit_lock);
-	}
 
-	if (clients_count == 0) {
 		hif_workqueue = create_singlethread_workqueue("WILC_wq");
 		if (!hif_workqueue) {
 			netdev_err(vif->ndev, "Failed to create workqueue\n");
