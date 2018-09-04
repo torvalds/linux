@@ -319,11 +319,7 @@ static int vc_vchi_audio_deinit(struct bcm2835_audio_instance *instance)
 	}
 
 	LOG_DBG(" .. about to lock (%d)\n", instance->num_connections);
-	if (mutex_lock_interruptible(&instance->vchi_mutex)) {
-		LOG_DBG("Interrupted whilst waiting for lock on (%d)\n",
-			instance->num_connections);
-		return -EINTR;
-	}
+	mutex_lock(&instance->vchi_mutex);
 
 	/* Close all VCHI service connections */
 	for (i = 0; i < instance->num_connections; i++) {
@@ -434,11 +430,7 @@ int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)
 	instance = alsa_stream->instance;
 	LOG_DBG(" instance (%p)\n", instance);
 
-	if (mutex_lock_interruptible(&instance->vchi_mutex)) {
-		LOG_DBG("Interrupted whilst waiting for lock on (%d)\n", instance->num_connections);
-		ret = -EINTR;
-		goto free_wq;
-	}
+	mutex_lock(&instance->vchi_mutex);
 	vchi_service_use(instance->vchi_handle[0]);
 
 	m.type = VC_AUDIO_MSG_TYPE_OPEN;
@@ -479,11 +471,7 @@ static int bcm2835_audio_set_ctls_chan(struct bcm2835_alsa_stream *alsa_stream,
 	LOG_INFO(" Setting ALSA dest(%d), volume(%d)\n",
 		 chip->dest, chip->volume);
 
-	if (mutex_lock_interruptible(&instance->vchi_mutex)) {
-		LOG_DBG("Interrupted whilst waiting for lock on (%d)\n",
-			instance->num_connections);
-		return -EINTR;
-	}
+	mutex_lock(&instance->vchi_mutex);
 	vchi_service_use(instance->vchi_handle[0]);
 
 	instance->result = -1;
@@ -569,10 +557,7 @@ int bcm2835_audio_set_params(struct bcm2835_alsa_stream *alsa_stream,
 		return -EINVAL;
 	}
 
-	if (mutex_lock_interruptible(&instance->vchi_mutex)) {
-		LOG_DBG("Interrupted whilst waiting for lock on (%d)\n", instance->num_connections);
-		return -EINTR;
-	}
+	mutex_lock(&instance->vchi_mutex);
 	vchi_service_use(instance->vchi_handle[0]);
 
 	instance->result = -1;
@@ -629,11 +614,7 @@ static int bcm2835_audio_start_worker(struct bcm2835_alsa_stream *alsa_stream)
 	int status;
 	int ret;
 
-	if (mutex_lock_interruptible(&instance->vchi_mutex)) {
-		LOG_DBG("Interrupted whilst waiting for lock on (%d)\n",
-			instance->num_connections);
-		return -EINTR;
-	}
+	mutex_lock(&instance->vchi_mutex);
 	vchi_service_use(instance->vchi_handle[0]);
 
 	m.type = VC_AUDIO_MSG_TYPE_START;
@@ -665,11 +646,7 @@ static int bcm2835_audio_stop_worker(struct bcm2835_alsa_stream *alsa_stream)
 	int status;
 	int ret;
 
-	if (mutex_lock_interruptible(&instance->vchi_mutex)) {
-		LOG_DBG("Interrupted whilst waiting for lock on (%d)\n",
-			instance->num_connections);
-		return -EINTR;
-	}
+	mutex_lock(&instance->vchi_mutex);
 	vchi_service_use(instance->vchi_handle[0]);
 
 	m.type = VC_AUDIO_MSG_TYPE_STOP;
@@ -704,11 +681,7 @@ int bcm2835_audio_close(struct bcm2835_alsa_stream *alsa_stream)
 
 	my_workqueue_quit(alsa_stream);
 
-	if (mutex_lock_interruptible(&instance->vchi_mutex)) {
-		LOG_DBG("Interrupted whilst waiting for lock on (%d)\n",
-			instance->num_connections);
-		return -EINTR;
-	}
+	mutex_lock(&instance->vchi_mutex);
 	vchi_service_use(instance->vchi_handle[0]);
 
 	m.type = VC_AUDIO_MSG_TYPE_CLOSE;
@@ -761,11 +734,7 @@ static int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
 
 	LOG_INFO(" Writing %d bytes from %p\n", count, src);
 
-	if (mutex_lock_interruptible(&instance->vchi_mutex)) {
-		LOG_DBG("Interrupted whilst waiting for lock on (%d)\n",
-			instance->num_connections);
-		return -EINTR;
-	}
+	mutex_lock(&instance->vchi_mutex);
 	vchi_service_use(instance->vchi_handle[0]);
 
 	if (instance->peer_version == 0 &&

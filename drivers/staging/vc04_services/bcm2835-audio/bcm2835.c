@@ -149,6 +149,7 @@ static int snd_bcm2835_create(struct snd_card *card,
 		return -ENOMEM;
 
 	chip->card = card;
+	mutex_init(&chip->audio_mutex);
 
 	chip->vchi_ctx = devres_find(card->dev->parent,
 				     bcm2835_devm_free_vchi_ctx, NULL, NULL);

@@ -77,8 +77,7 @@ static int snd_bcm2835_ctl_get(struct snd_kcontrol *kcontrol,
 {
 	struct bcm2835_chip *chip = snd_kcontrol_chip(kcontrol);
 
-	if (mutex_lock_interruptible(&chip->audio_mutex))
-		return -EINTR;
+	mutex_lock(&chip->audio_mutex);
 
 	BUG_ON(!chip && !(chip->avail_substreams & AVAIL_SUBSTREAMS_MASK));
 
@@ -99,8 +98,7 @@ static int snd_bcm2835_ctl_put(struct snd_kcontrol *kcontrol,
 	struct bcm2835_chip *chip = snd_kcontrol_chip(kcontrol);
 	int changed = 0;
 
-	if (mutex_lock_interruptible(&chip->audio_mutex))
-		return -EINTR;
+	mutex_lock(&chip->audio_mutex);
 
 	if (kcontrol->private_value == PCM_PLAYBACK_VOLUME) {
 		audio_info("Volume change attempted.. volume = %d new_volume = %d\n", chip->volume, (int)ucontrol->value.integer.value[0]);
@@ -187,8 +185,7 @@ static int snd_bcm2835_spdif_default_get(struct snd_kcontrol *kcontrol,
 	struct bcm2835_chip *chip = snd_kcontrol_chip(kcontrol);
 	int i;
 
-	if (mutex_lock_interruptible(&chip->audio_mutex))
-		return -EINTR;
+	mutex_lock(&chip->audio_mutex);
 
 	for (i = 0; i < 4; i++)
 		ucontrol->value.iec958.status[i] =
@@ -205,8 +202,7 @@ static int snd_bcm2835_spdif_default_put(struct snd_kcontrol *kcontrol,
 	unsigned int val = 0;
 	int i, change;
 
-	if (mutex_lock_interruptible(&chip->audio_mutex))
-		return -EINTR;
+	mutex_lock(&chip->audio_mutex);
 
 	for (i = 0; i < 4; i++)
 		val |= (unsigned int)ucontrol->value.iec958.status[i] << (i * 8);
@@ -251,8 +247,7 @@ static int snd_bcm2835_spdif_stream_get(struct snd_kcontrol *kcontrol,
 	struct bcm2835_chip *chip = snd_kcontrol_chip(kcontrol);
 	int i;
 
-	if (mutex_lock_interruptible(&chip->audio_mutex))
-		return -EINTR;
+	mutex_lock(&chip->audio_mutex);
 
 	for (i = 0; i < 4; i++)
 		ucontrol->value.iec958.status[i] =
@@ -269,8 +264,7 @@ static int snd_bcm2835_spdif_stream_put(struct snd_kcontrol *kcontrol,
 	unsigned int val = 0;
 	int i, change;
 
-	if (mutex_lock_interruptible(&chip->audio_mutex))
-		return -EINTR;
+	mutex_lock(&chip->audio_mutex);
 
 	for (i = 0; i < 4; i++)
 		val |= (unsigned int)ucontrol->value.iec958.status[i] << (i * 8);

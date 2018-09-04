@@ -99,10 +99,7 @@ static int snd_bcm2835_playback_open_generic(
 	int idx;
 	int err;
 
-	if (mutex_lock_interruptible(&chip->audio_mutex)) {
-		audio_error("Interrupted whilst waiting for lock\n");
-		return -EINTR;
-	}
+	mutex_lock(&chip->audio_mutex);
 	audio_info("Alsa open (%d)\n", substream->number);
 	idx = substream->number;
 
@@ -194,10 +191,7 @@ static int snd_bcm2835_playback_close(struct snd_pcm_substream *substream)
 	struct bcm2835_alsa_stream *alsa_stream;
 
 	chip = snd_pcm_substream_chip(substream);
-	if (mutex_lock_interruptible(&chip->audio_mutex)) {
-		audio_error("Interrupted whilst waiting for lock\n");
-		return -EINTR;
-	}
+	mutex_lock(&chip->audio_mutex);
 	runtime = substream->runtime;
 	alsa_stream = runtime->private_data;
 
@@ -274,8 +268,7 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 	int channels;
 	int err;
 
-	if (mutex_lock_interruptible(&chip->audio_mutex))
-		return -EINTR;
+	mutex_lock(&chip->audio_mutex);
 
 	/* notify the vchiq that it should enter spdif passthrough mode by
 	 * setting channels=0 (see
@@ -449,14 +442,9 @@ int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, u32 numchannels)
 	struct snd_pcm *pcm;
 	int err;
 
-	mutex_init(&chip->audio_mutex);
-	if (mutex_lock_interruptible(&chip->audio_mutex)) {
-		audio_error("Interrupted whilst waiting for lock\n");
-		return -EINTR;
-	}
 	err = snd_pcm_new(chip->card, "bcm2835 ALSA", 0, numchannels, 0, &pcm);
 	if (err < 0)
-		goto out;
+		return err;
 	pcm->private_data = chip;
 	strcpy(pcm->name, "bcm2835 ALSA");
 	chip->pcm = pcm;
@@ -474,9 +462,6 @@ int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, u32 numchannels)
 					      snd_bcm2835_playback_hw.buffer_bytes_max,
 					      snd_bcm2835_playback_hw.buffer_bytes_max);
 
-out:
-	mutex_unlock(&chip->audio_mutex);
-
 	return 0;
 }
 
@@ -485,13 +470,9 @@ int snd_bcm2835_new_spdif_pcm(struct bcm2835_chip *chip)
 	struct snd_pcm *pcm;
 	int err;
 
-	if (mutex_lock_interruptible(&chip->audio_mutex)) {
-		audio_error("Interrupted whilst waiting for lock\n");
-		return -EINTR;
-	}
 	err = snd_pcm_new(chip->card, "bcm2835 ALSA", 1, 1, 0, &pcm);
 	if (err < 0)
-		goto out;
+		return err;
 
 	pcm->private_data = chip;
 	strcpy(pcm->name, "bcm2835 IEC958/HDMI");
@@ -504,8 +485,6 @@ int snd_bcm2835_new_spdif_pcm(struct bcm2835_chip *chip)
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
 		snd_dma_continuous_data(GFP_KERNEL),
 		snd_bcm2835_playback_spdif_hw.buffer_bytes_max, snd_bcm2835_playback_spdif_hw.buffer_bytes_max);
-out:
-	mutex_unlock(&chip->audio_mutex);
 
 	return 0;
 }
@@ -517,8 +496,6 @@ int snd_bcm2835_new_simple_pcm(struct bcm2835_chip *chip,
 {
 	struct snd_pcm *pcm;
 	int err;
-
-	mutex_init(&chip->audio_mutex);
 
 	err = snd_pcm_new(chip->card, name, 0, numchannels,
 			  0, &pcm);
