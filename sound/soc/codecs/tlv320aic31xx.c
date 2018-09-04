@@ -1409,7 +1409,7 @@ static irqreturn_t aic31xx_irq(int irq, void *data)
 	if (value)
 		handled = true;
 	else
-		goto exit;
+		goto read_overflow;
 
 	if (value & AIC31XX_HPLSCDETECT)
 		dev_err(dev, "Short circuit on Left output is detected\n");
@@ -1418,6 +1418,35 @@ static irqreturn_t aic31xx_irq(int irq, void *data)
 	if (value & ~(AIC31XX_HPLSCDETECT |
 		      AIC31XX_HPRSCDETECT))
 		dev_err(dev, "Unknown DAC interrupt flags: 0x%08x\n", value);
+
+read_overflow:
+	ret = regmap_read(aic31xx->regmap, AIC31XX_OFFLAG, &value);
+	if (ret) {
+		dev_err(dev, "Failed to read overflow flag: %d\n", ret);
+		goto exit;
+	}
+
+	if (value)
+		handled = true;
+	else
+		goto exit;
+
+	if (value & AIC31XX_DAC_OF_LEFT)
+		dev_warn(dev, "Left-channel DAC overflow has occurred\n");
+	if (value & AIC31XX_DAC_OF_RIGHT)
+		dev_warn(dev, "Right-channel DAC overflow has occurred\n");
+	if (value & AIC31XX_DAC_OF_SHIFTER)
+		dev_warn(dev, "DAC barrel shifter overflow has occurred\n");
+	if (value & AIC31XX_ADC_OF)
+		dev_warn(dev, "ADC overflow has occurred\n");
+	if (value & AIC31XX_ADC_OF_SHIFTER)
+		dev_warn(dev, "ADC barrel shifter overflow has occurred\n");
+	if (value & ~(AIC31XX_DAC_OF_LEFT |
+		      AIC31XX_DAC_OF_RIGHT |
+		      AIC31XX_DAC_OF_SHIFTER |
+		      AIC31XX_ADC_OF |
+		      AIC31XX_ADC_OF_SHIFTER))
+		dev_warn(dev, "Unknown overflow interrupt flags: 0x%08x\n", value);
 
 exit:
 	if (handled)
@@ -1499,7 +1528,8 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c,
 				   AIC31XX_GPIO1_FUNC_SHIFT);
 
 		regmap_write(aic31xx->regmap, AIC31XX_INT1CTRL,
-			     AIC31XX_SC);
+			     AIC31XX_SC |
+			     AIC31XX_ENGINE);
 
 		ret = devm_request_threaded_irq(aic31xx->dev, aic31xx->irq,
 						NULL, aic31xx_irq,
