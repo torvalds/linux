@@ -337,8 +337,10 @@ int __nfp_rtsym_readq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 	u64 addr;
 	int err;
 
-	if (sym->type == NFP_RTSYM_TYPE_ABS)
-		return sym->addr;
+	if (sym->type == NFP_RTSYM_TYPE_ABS) {
+		*value = sym->addr;
+		return 0;
+	}
 
 	err = nfp_rtsym_to_dest(cpp, sym, action, token, off, &cpp_id, &addr);
 	if (err)
