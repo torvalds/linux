@@ -17,47 +17,6 @@
 
 #include "interface/vchi/vchi.h"
 
-/*
- * #define AUDIO_DEBUG_ENABLE
- * #define AUDIO_VERBOSE_DEBUG_ENABLE
- */
-
-/* Debug macros */
-
-#ifdef AUDIO_DEBUG_ENABLE
-#ifdef AUDIO_VERBOSE_DEBUG_ENABLE
-
-#define audio_debug(fmt, arg...) \
-	pr_info("%s:%d " fmt, __func__, __LINE__, ##arg)
-
-#define audio_info(fmt, arg...) \
-	pr_info("%s:%d " fmt, __func__, __LINE__, ##arg)
-
-#else
-
-#define audio_debug(fmt, arg...)
-
-#define audio_info(fmt, arg...)
-
-#endif /* AUDIO_VERBOSE_DEBUG_ENABLE */
-
-#else
-
-#define audio_debug(fmt, arg...)
-
-#define audio_info(fmt, arg...)
-
-#endif /* AUDIO_DEBUG_ENABLE */
-
-#define audio_error(fmt, arg...) \
-	pr_err("%s:%d " fmt, __func__, __LINE__, ##arg)
-
-#define audio_warning(fmt, arg...) \
-	pr_warn("%s:%d " fmt, __func__, __LINE__, ##arg)
-
-#define audio_alert(fmt, arg...) \
-	pr_alert("%s:%d " fmt, __func__, __LINE__, ##arg)
-
 #define MAX_SUBSTREAMS   (8)
 #define AVAIL_SUBSTREAMS_MASK  (0xff)
 
@@ -141,7 +100,7 @@ int snd_bcm2835_new_simple_pcm(struct bcm2835_chip *chip,
 int snd_bcm2835_new_hdmi_ctl(struct bcm2835_chip *chip);
 int snd_bcm2835_new_headphones_ctl(struct bcm2835_chip *chip);
 
-int bcm2835_new_vchi_ctx(struct bcm2835_vchi_ctx *vchi_ctx);
+int bcm2835_new_vchi_ctx(struct device *dev, struct bcm2835_vchi_ctx *vchi_ctx);
 void bcm2835_free_vchi_ctx(struct bcm2835_vchi_ctx *vchi_ctx);
 
 int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream);

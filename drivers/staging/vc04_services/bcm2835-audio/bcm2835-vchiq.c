@@ -26,20 +26,8 @@
 
 /* ---- Private Constants and Types ------------------------------------------ */
 
-/* Logging macros (for remapping to other logging mechanisms, i.e., printf) */
-#ifdef AUDIO_DEBUG_ENABLE
-#define LOG_ERR(fmt, arg...)   pr_err("%s:%d " fmt, __func__, __LINE__, ##arg)
-#define LOG_WARN(fmt, arg...)  pr_info("%s:%d " fmt, __func__, __LINE__, ##arg)
-#define LOG_INFO(fmt, arg...)  pr_info("%s:%d " fmt, __func__, __LINE__, ##arg)
-#define LOG_DBG(fmt, arg...)   pr_info("%s:%d " fmt, __func__, __LINE__, ##arg)
-#else
-#define LOG_ERR(fmt, arg...)   pr_err("%s:%d " fmt, __func__, __LINE__, ##arg)
-#define LOG_WARN(fmt, arg...)	 no_printk(fmt, ##arg)
-#define LOG_INFO(fmt, arg...)	 no_printk(fmt, ##arg)
-#define LOG_DBG(fmt, arg...)	 no_printk(fmt, ##arg)
-#endif
-
 struct bcm2835_audio_instance {
+	struct device *dev;
 	VCHI_SERVICE_HANDLE_T vchi_handle;
 	struct completion msg_avail_comp;
 	struct mutex vchi_mutex;
@@ -76,7 +64,8 @@ static int bcm2835_audio_send_msg_locked(struct bcm2835_audio_instance *instance
 	status = vchi_queue_kernel_message(instance->vchi_handle,
 					   m, sizeof(*m));
 	if (status) {
-		LOG_ERR("vchi message queue failed: %d, msg=%d\n",
+		dev_err(instance->dev,
+			"vchi message queue failed: %d, msg=%d\n",
 			status, m->type);
 		return -EIO;
 	}
@@ -84,10 +73,12 @@ static int bcm2835_audio_send_msg_locked(struct bcm2835_audio_instance *instance
 	if (wait) {
 		if (!wait_for_completion_timeout(&instance->msg_avail_comp,
 						 msecs_to_jiffies(10 * 1000))) {
-			LOG_ERR("vchi message timeout, msg=%d\n", m->type);
+			dev_err(instance->dev,
+				"vchi message timeout, msg=%d\n", m->type);
 			return -ETIMEDOUT;
 		} else if (instance->result) {
-			LOG_ERR("vchi message response error:%d, msg=%d\n",
+			dev_err(instance->dev,
+				"vchi message response error:%d, msg=%d\n",
 				instance->result, m->type);
 			return -EIO;
 		}
@@ -140,12 +131,12 @@ static void audio_vchi_callback(void *param,
 	} else if (m.type == VC_AUDIO_MSG_TYPE_COMPLETE) {
 		if (m.u.complete.cookie1 != BCM2835_AUDIO_WRITE_COOKIE1 ||
 		    m.u.complete.cookie2 != BCM2835_AUDIO_WRITE_COOKIE2)
-			LOG_ERR("invalid cookie\n");
+			dev_err(instance->dev, "invalid cookie\n");
 		else
 			bcm2835_playback_fifo(instance->alsa_stream,
 					      m.u.complete.count);
 	} else {
-		LOG_ERR("unexpected callback type=%d\n", m.type);
+		dev_err(instance->dev, "unexpected callback type=%d\n", m.type);
 	}
 }
 
@@ -173,8 +164,9 @@ vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
 				   &instance->vchi_handle);
 
 	if (status) {
-		LOG_ERR("%s: failed to open VCHI service connection (status=%d)\n",
-			__func__, status);
+		dev_err(instance->dev,
+			"failed to open VCHI service connection (status=%d)\n",
+			status);
 		kfree(instance);
 		return -EPERM;
 	}
@@ -195,30 +187,30 @@ static void vc_vchi_audio_deinit(struct bcm2835_audio_instance *instance)
 	/* Close all VCHI service connections */
 	status = vchi_service_close(instance->vchi_handle);
 	if (status) {
-		LOG_DBG("%s: failed to close VCHI service connection (status=%d)\n",
-			__func__, status);
+		dev_err(instance->dev,
+			"failed to close VCHI service connection (status=%d)\n",
+			status);
 	}
 
 	mutex_unlock(&instance->vchi_mutex);
 }
 
-int bcm2835_new_vchi_ctx(struct bcm2835_vchi_ctx *vchi_ctx)
+int bcm2835_new_vchi_ctx(struct device *dev, struct bcm2835_vchi_ctx *vchi_ctx)
 {
 	int ret;
 
 	/* Initialize and create a VCHI connection */
 	ret = vchi_initialise(&vchi_ctx->vchi_instance);
 	if (ret) {
-		LOG_ERR("%s: failed to initialise VCHI instance (ret=%d)\n",
-			__func__, ret);
-
+		dev_err(dev, "failed to initialise VCHI instance (ret=%d)\n",
+			ret);
 		return -EIO;
 	}
 
 	ret = vchi_connect(NULL, 0, vchi_ctx->vchi_instance);
 	if (ret) {
-		LOG_ERR("%s: failed to connect VCHI instance (ret=%d)\n",
-			__func__, ret);
+		dev_dbg(dev, "failed to connect VCHI instance (ret=%d)\n",
+			ret);
 
 		kfree(vchi_ctx->vchi_instance);
 		vchi_ctx->vchi_instance = NULL;
@@ -248,6 +240,7 @@ int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)
 	if (!instance)
 		return -ENOMEM;
 	mutex_init(&instance->vchi_mutex);
+	instance->dev = alsa_stream->chip->dev;
 	instance->alsa_stream = alsa_stream;
 	alsa_stream->instance = instance;
 
@@ -394,7 +387,8 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 	}
 
 	if (status) {
-		LOG_ERR("failed on %d bytes transfer (status=%d)\n",
+		dev_err(instance->dev,
+			"failed on %d bytes transfer (status=%d)\n",
 			size, status);
 		err = -EIO;
 	}
