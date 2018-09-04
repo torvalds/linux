@@ -21,7 +21,6 @@ static int ixgbevf_ipsec_set_pf_sa(struct ixgbevf_adapter *adapter,
 	u32 msgbuf[IXGBE_VFMAILBOX_SIZE] = { 0 };
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct sa_mbx_msg *sam;
-	u16 msglen;
 	int ret;
 
 	/* send the important bits to the PF */
@@ -38,16 +37,14 @@ static int ixgbevf_ipsec_set_pf_sa(struct ixgbevf_adapter *adapter,
 	memcpy(sam->key, xs->aead->alg_key, sizeof(sam->key));
 
 	msgbuf[0] = IXGBE_VF_IPSEC_ADD;
-	msglen = sizeof(*sam) + sizeof(msgbuf[0]);
 
 	spin_lock_bh(&adapter->mbx_lock);
 
-	ret = hw->mbx.ops.write_posted(hw, msgbuf, msglen);
+	ret = hw->mbx.ops.write_posted(hw, msgbuf, IXGBE_VFMAILBOX_SIZE);
 	if (ret)
 		goto out;
 
-	msglen = sizeof(msgbuf[0]) * 2;
-	ret = hw->mbx.ops.read_posted(hw, msgbuf, msglen);
+	ret = hw->mbx.ops.read_posted(hw, msgbuf, 2);
 	if (ret)
 		goto out;
 
@@ -80,11 +77,11 @@ static int ixgbevf_ipsec_del_pf_sa(struct ixgbevf_adapter *adapter, int pfsa)
 
 	spin_lock_bh(&adapter->mbx_lock);
 
-	err = hw->mbx.ops.write_posted(hw, msgbuf, sizeof(msgbuf));
+	err = hw->mbx.ops.write_posted(hw, msgbuf, 2);
 	if (err)
 		goto out;
 
-	err = hw->mbx.ops.read_posted(hw, msgbuf, sizeof(msgbuf));
+	err = hw->mbx.ops.read_posted(hw, msgbuf, 2);
 	if (err)
 		goto out;
 
