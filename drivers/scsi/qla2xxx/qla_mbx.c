@@ -189,7 +189,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		goto premature_exit;
 	}
 
-	ha->flags.mbox_busy = 1;
+
 	/* Save mailbox command for debug */
 	ha->mcp = mcp;
 
@@ -198,12 +198,13 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
-	if (ha->flags.purge_mbox || chip_reset != ha->chip_reset) {
+	if (ha->flags.purge_mbox || chip_reset != ha->chip_reset ||
+	    ha->flags.mbox_busy) {
 		rval = QLA_ABORTED;
-		ha->flags.mbox_busy = 0;
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		goto premature_exit;
 	}
+	ha->flags.mbox_busy = 1;
 
 	/* Load mailbox registers. */
 	if (IS_P3P_TYPE(ha))
@@ -254,9 +255,10 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		if (IS_P3P_TYPE(ha)) {
 			if (RD_REG_DWORD(&reg->isp82.hint) &
 				HINT_MBX_INT_PENDING) {
+				ha->flags.mbox_busy = 0;
 				spin_unlock_irqrestore(&ha->hardware_lock,
 					flags);
-				ha->flags.mbox_busy = 0;
+
 				atomic_dec(&ha->num_pend_mbx_stage2);
 				ql_dbg(ql_dbg_mbx, vha, 0x1010,
 				    "Pending mailbox timeout, exiting.\n");
@@ -274,6 +276,16 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		atomic_inc(&ha->num_pend_mbx_stage3);
 		if (!wait_for_completion_timeout(&ha->mbx_intr_comp,
 		    mcp->tov * HZ)) {
+			if (chip_reset != ha->chip_reset) {
+				spin_lock_irqsave(&ha->hardware_lock, flags);
+				ha->flags.mbox_busy = 0;
+				spin_unlock_irqrestore(&ha->hardware_lock,
+				    flags);
+				atomic_dec(&ha->num_pend_mbx_stage2);
+				atomic_dec(&ha->num_pend_mbx_stage3);
+				rval = QLA_ABORTED;
+				goto premature_exit;
+			}
 			ql_dbg(ql_dbg_mbx, vha, 0x117a,
 			    "cmd=%x Timeout.\n", command);
 			spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -282,7 +294,9 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 
 		} else if (ha->flags.purge_mbox ||
 		    chip_reset != ha->chip_reset) {
+			spin_lock_irqsave(&ha->hardware_lock, flags);
 			ha->flags.mbox_busy = 0;
+			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 			atomic_dec(&ha->num_pend_mbx_stage2);
 			atomic_dec(&ha->num_pend_mbx_stage3);
 			rval = QLA_ABORTED;
@@ -300,9 +314,9 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		if (IS_P3P_TYPE(ha)) {
 			if (RD_REG_DWORD(&reg->isp82.hint) &
 				HINT_MBX_INT_PENDING) {
+				ha->flags.mbox_busy = 0;
 				spin_unlock_irqrestore(&ha->hardware_lock,
 					flags);
-				ha->flags.mbox_busy = 0;
 				atomic_dec(&ha->num_pend_mbx_stage2);
 				ql_dbg(ql_dbg_mbx, vha, 0x1012,
 				    "Pending mailbox timeout, exiting.\n");
@@ -320,7 +334,10 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		while (!ha->flags.mbox_int) {
 			if (ha->flags.purge_mbox ||
 			    chip_reset != ha->chip_reset) {
+				spin_lock_irqsave(&ha->hardware_lock, flags);
 				ha->flags.mbox_busy = 0;
+				spin_unlock_irqrestore(&ha->hardware_lock,
+				    flags);
 				atomic_dec(&ha->num_pend_mbx_stage2);
 				rval = QLA_ABORTED;
 				goto premature_exit;
@@ -363,7 +380,10 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 
 		if (IS_P3P_TYPE(ha) && ha->flags.isp82xx_fw_hung) {
+			spin_lock_irqsave(&ha->hardware_lock, flags);
 			ha->flags.mbox_busy = 0;
+			spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
 			/* Setting Link-Down error */
 			mcp->mb[0] = MBS_LINK_DOWN_ERROR;
 			ha->mcp = NULL;
@@ -436,7 +456,10 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 				 * then only PCI ERR flag would be set.
 				 * we will do premature exit for above case.
 				 */
+				spin_lock_irqsave(&ha->hardware_lock, flags);
 				ha->flags.mbox_busy = 0;
+				spin_unlock_irqrestore(&ha->hardware_lock,
+				    flags);
 				rval = QLA_FUNCTION_TIMEOUT;
 				goto premature_exit;
 			}
@@ -451,8 +474,9 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			rval = QLA_FUNCTION_TIMEOUT;
 		 }
 	}
-
+	spin_lock_irqsave(&ha->hardware_lock, flags);
 	ha->flags.mbox_busy = 0;
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	/* Clean up */
 	ha->mcp = NULL;

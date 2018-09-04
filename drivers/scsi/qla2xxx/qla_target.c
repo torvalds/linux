@@ -1491,27 +1491,14 @@ int qlt_stop_phase1(struct qla_tgt *tgt)
 	struct qla_hw_data *ha = tgt->ha;
 	unsigned long flags;
 
+	mutex_lock(&ha->optrom_mutex);
 	mutex_lock(&qla_tgt_mutex);
-	if (!vha->fc_vport) {
-		struct Scsi_Host *sh = vha->host;
-		struct fc_host_attrs *fc_host = shost_to_fc_host(sh);
-		bool npiv_vports;
 
-		spin_lock_irqsave(sh->host_lock, flags);
-		npiv_vports = (fc_host->npiv_vports_inuse);
-		spin_unlock_irqrestore(sh->host_lock, flags);
-
-		if (npiv_vports) {
-			mutex_unlock(&qla_tgt_mutex);
-			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf021,
-			    "NPIV is in use. Can not stop target\n");
-			return -EPERM;
-		}
-	}
 	if (tgt->tgt_stop || tgt->tgt_stopped) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf04e,
 		    "Already in tgt->tgt_stop or tgt_stopped state\n");
 		mutex_unlock(&qla_tgt_mutex);
+		mutex_unlock(&ha->optrom_mutex);
 		return -EPERM;
 	}
 
@@ -1549,6 +1536,8 @@ int qlt_stop_phase1(struct qla_tgt *tgt)
 
 	/* Wait for sessions to clear out (just in case) */
 	wait_event_timeout(tgt->waitQ, test_tgt_sess_count(tgt), 10*HZ);
+	mutex_unlock(&ha->optrom_mutex);
+
 	return 0;
 }
 EXPORT_SYMBOL(qlt_stop_phase1);
@@ -6595,6 +6584,9 @@ qlt_enable_vha(struct scsi_qla_host *vha)
 	qlt_set_mode(vha);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
+	mutex_lock(&ha->optrom_mutex);
+	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf021,
+	    "%s.\n", __func__);
 	if (vha->vp_idx) {
 		qla24xx_disable_vp(vha);
 		qla24xx_enable_vp(vha);
@@ -6603,6 +6595,7 @@ qlt_enable_vha(struct scsi_qla_host *vha)
 		qla2xxx_wake_dpc(base_vha);
 		qla2x00_wait_for_hba_online(base_vha);
 	}
+	mutex_unlock(&ha->optrom_mutex);
 }
 EXPORT_SYMBOL(qlt_enable_vha);
 

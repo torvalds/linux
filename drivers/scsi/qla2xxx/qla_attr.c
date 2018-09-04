@@ -158,9 +158,17 @@ qla2x00_sysfs_read_nvram(struct file *filp, struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN))
 		return 0;
 
+	mutex_lock(&ha->optrom_mutex);
+	if (qla2x00_chip_is_down(vha)) {
+		mutex_unlock(&ha->optrom_mutex);
+		return -EAGAIN;
+	}
+
 	if (IS_NOCACHE_VPD_TYPE(ha))
 		ha->isp_ops->read_optrom(vha, ha->nvram, ha->flt_region_nvram << 2,
 		    ha->nvram_size);
+	mutex_unlock(&ha->optrom_mutex);
+
 	return memory_read_from_buffer(buf, count, &off, ha->nvram,
 					ha->nvram_size);
 }
@@ -208,10 +216,17 @@ qla2x00_sysfs_write_nvram(struct file *filp, struct kobject *kobj,
 		return -EAGAIN;
 	}
 
+	mutex_lock(&ha->optrom_mutex);
+	if (qla2x00_chip_is_down(vha)) {
+		mutex_unlock(&vha->hw->optrom_mutex);
+		return -EAGAIN;
+	}
+
 	/* Write NVRAM. */
 	ha->isp_ops->write_nvram(vha, (uint8_t *)buf, ha->nvram_base, count);
 	ha->isp_ops->read_nvram(vha, (uint8_t *)ha->nvram, ha->nvram_base,
-	    count);
+	     count);
+	mutex_unlock(&ha->optrom_mutex);
 
 	ql_dbg(ql_dbg_user, vha, 0x7060,
 	    "Setting ISP_ABORT_NEEDED\n");
@@ -322,6 +337,10 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		size = ha->optrom_size - start;
 
 	mutex_lock(&ha->optrom_mutex);
+	if (qla2x00_chip_is_down(vha)) {
+		mutex_unlock(&ha->optrom_mutex);
+		return -EAGAIN;
+	}
 	switch (val) {
 	case 0:
 		if (ha->optrom_state != QLA_SREADING &&
@@ -499,8 +518,14 @@ qla2x00_sysfs_read_vpd(struct file *filp, struct kobject *kobj,
 		    qla27xx_find_valid_image(vha) == QLA27XX_SECONDARY_IMAGE)
 			faddr = ha->flt_region_vpd_sec << 2;
 
+		mutex_lock(&ha->optrom_mutex);
+		if (qla2x00_chip_is_down(vha)) {
+			mutex_unlock(&ha->optrom_mutex);
+			return -EAGAIN;
+		}
 		ha->isp_ops->read_optrom(vha, ha->vpd, faddr,
 		    ha->vpd_size);
+		mutex_unlock(&ha->optrom_mutex);
 	}
 	return memory_read_from_buffer(buf, count, &off, ha->vpd, ha->vpd_size);
 }
@@ -518,9 +543,6 @@ qla2x00_sysfs_write_vpd(struct file *filp, struct kobject *kobj,
 	if (unlikely(pci_channel_offline(ha->pdev)))
 		return 0;
 
-	if (qla2x00_chip_is_down(vha))
-		return 0;
-
 	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->vpd_size ||
 	    !ha->isp_ops->write_nvram)
 		return 0;
@@ -531,22 +553,33 @@ qla2x00_sysfs_write_vpd(struct file *filp, struct kobject *kobj,
 		return -EAGAIN;
 	}
 
+	mutex_lock(&ha->optrom_mutex);
+	if (qla2x00_chip_is_down(vha)) {
+		mutex_unlock(&ha->optrom_mutex);
+		return -EAGAIN;
+	}
+
 	/* Write NVRAM. */
 	ha->isp_ops->write_nvram(vha, (uint8_t *)buf, ha->vpd_base, count);
 	ha->isp_ops->read_nvram(vha, (uint8_t *)ha->vpd, ha->vpd_base, count);
 
 	/* Update flash version information for 4Gb & above. */
-	if (!IS_FWI2_CAPABLE(ha))
+	if (!IS_FWI2_CAPABLE(ha)) {
+		mutex_unlock(&ha->optrom_mutex);
 		return -EINVAL;
+	}
 
 	tmp_data = vmalloc(256);
 	if (!tmp_data) {
+		mutex_unlock(&ha->optrom_mutex);
 		ql_log(ql_log_warn, vha, 0x706b,
 		    "Unable to allocate memory for VPD information update.\n");
 		return -ENOMEM;
 	}
 	ha->isp_ops->get_flash_version(vha, tmp_data);
 	vfree(tmp_data);
+
+	mutex_unlock(&ha->optrom_mutex);
 
 	return count;
 }
@@ -573,10 +606,15 @@ qla2x00_sysfs_read_sfp(struct file *filp, struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN) || off != 0 || count < SFP_DEV_SIZE)
 		return 0;
 
-	if (qla2x00_chip_is_down(vha))
+	mutex_lock(&vha->hw->optrom_mutex);
+	if (qla2x00_chip_is_down(vha)) {
+		mutex_unlock(&vha->hw->optrom_mutex);
 		return 0;
+	}
 
 	rval = qla2x00_read_sfp_dev(vha, buf, count);
+	mutex_unlock(&vha->hw->optrom_mutex);
+
 	if (rval)
 		return -EIO;
 
@@ -785,9 +823,11 @@ qla2x00_sysfs_read_xgmac_stats(struct file *filp, struct kobject *kobj,
 
 	if (unlikely(pci_channel_offline(ha->pdev)))
 		return 0;
-
-	if (qla2x00_chip_is_down(vha))
+	mutex_lock(&vha->hw->optrom_mutex);
+	if (qla2x00_chip_is_down(vha)) {
+		mutex_unlock(&vha->hw->optrom_mutex);
 		return 0;
+	}
 
 	if (ha->xgmac_data)
 		goto do_read;
@@ -795,6 +835,7 @@ qla2x00_sysfs_read_xgmac_stats(struct file *filp, struct kobject *kobj,
 	ha->xgmac_data = dma_alloc_coherent(&ha->pdev->dev, XGMAC_DATA_SIZE,
 	    &ha->xgmac_data_dma, GFP_KERNEL);
 	if (!ha->xgmac_data) {
+		mutex_unlock(&vha->hw->optrom_mutex);
 		ql_log(ql_log_warn, vha, 0x7076,
 		    "Unable to allocate memory for XGMAC read-data.\n");
 		return 0;
@@ -806,6 +847,8 @@ do_read:
 
 	rval = qla2x00_get_xgmac_stats(vha, ha->xgmac_data_dma,
 	    XGMAC_DATA_SIZE, &actual_size);
+
+	mutex_unlock(&vha->hw->optrom_mutex);
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x7077,
 		    "Unable to read XGMAC data (%x).\n", rval);
@@ -842,13 +885,16 @@ qla2x00_sysfs_read_dcbx_tlv(struct file *filp, struct kobject *kobj,
 
 	if (ha->dcbx_tlv)
 		goto do_read;
-
-	if (qla2x00_chip_is_down(vha))
+	mutex_lock(&vha->hw->optrom_mutex);
+	if (qla2x00_chip_is_down(vha)) {
+		mutex_unlock(&vha->hw->optrom_mutex);
 		return 0;
+	}
 
 	ha->dcbx_tlv = dma_alloc_coherent(&ha->pdev->dev, DCBX_TLV_DATA_SIZE,
 	    &ha->dcbx_tlv_dma, GFP_KERNEL);
 	if (!ha->dcbx_tlv) {
+		mutex_unlock(&vha->hw->optrom_mutex);
 		ql_log(ql_log_warn, vha, 0x7078,
 		    "Unable to allocate memory for DCBX TLV read-data.\n");
 		return -ENOMEM;
@@ -859,6 +905,9 @@ do_read:
 
 	rval = qla2x00_get_dcbx_params(vha, ha->dcbx_tlv_dma,
 	    DCBX_TLV_DATA_SIZE);
+
+	mutex_unlock(&vha->hw->optrom_mutex);
+
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x7079,
 		    "Unable to read DCBX TLV (%x).\n", rval);
@@ -1184,14 +1233,16 @@ qla2x00_beacon_store(struct device *dev, struct device_attribute *attr,
 	if (IS_QLA2100(ha) || IS_QLA2200(ha))
 		return -EPERM;
 
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	mutex_lock(&vha->hw->optrom_mutex);
 	if (qla2x00_chip_is_down(vha)) {
+		mutex_unlock(&vha->hw->optrom_mutex);
 		ql_log(ql_log_warn, vha, 0x707a,
 		    "Abort ISP active -- ignoring beacon request.\n");
 		return -EBUSY;
 	}
-
-	if (sscanf(buf, "%d", &val) != 1)
-		return -EINVAL;
 
 	if (val)
 		rval = ha->isp_ops->beacon_on(vha);
@@ -1200,6 +1251,8 @@ qla2x00_beacon_store(struct device *dev, struct device_attribute *attr,
 
 	if (rval != QLA_SUCCESS)
 		count = 0;
+
+	mutex_unlock(&vha->hw->optrom_mutex);
 
 	return count;
 }
@@ -1370,18 +1423,24 @@ qla2x00_thermal_temp_show(struct device *dev,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	uint16_t temp = 0;
+	int rc;
 
+	mutex_lock(&vha->hw->optrom_mutex);
 	if (qla2x00_chip_is_down(vha)) {
+		mutex_unlock(&vha->hw->optrom_mutex);
 		ql_log(ql_log_warn, vha, 0x70dc, "ISP reset active.\n");
 		goto done;
 	}
 
 	if (vha->hw->flags.eeh_busy) {
+		mutex_unlock(&vha->hw->optrom_mutex);
 		ql_log(ql_log_warn, vha, 0x70dd, "PCI EEH busy.\n");
 		goto done;
 	}
 
-	if (qla2x00_get_thermal_temp(vha, &temp) == QLA_SUCCESS)
+	rc = qla2x00_get_thermal_temp(vha, &temp);
+	mutex_unlock(&vha->hw->optrom_mutex);
+	if (rc == QLA_SUCCESS)
 		return scnprintf(buf, PAGE_SIZE, "%d\n", temp);
 
 done:
@@ -1402,13 +1461,24 @@ qla2x00_fw_state_show(struct device *dev, struct device_attribute *attr,
 		return scnprintf(buf, PAGE_SIZE, "0x%x\n", pstate);
 	}
 
-	if (qla2x00_chip_is_down(vha))
+	mutex_lock(&vha->hw->optrom_mutex);
+	if (qla2x00_chip_is_down(vha)) {
+		mutex_unlock(&vha->hw->optrom_mutex);
 		ql_log(ql_log_warn, vha, 0x707c,
 		    "ISP reset active.\n");
-	else if (!vha->hw->flags.eeh_busy)
-		rval = qla2x00_get_firmware_state(vha, state);
-	if (rval != QLA_SUCCESS)
+		goto out;
+	} else if (vha->hw->flags.eeh_busy) {
+		mutex_unlock(&vha->hw->optrom_mutex);
+		goto out;
+	}
+
+	rval = qla2x00_get_firmware_state(vha, state);
+	mutex_unlock(&vha->hw->optrom_mutex);
+out:
+	if (rval != QLA_SUCCESS) {
 		memset(state, -1, sizeof(state));
+		rval = qla2x00_get_firmware_state(vha, state);
+	}
 
 	return scnprintf(buf, PAGE_SIZE, "0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
 	    state[0], state[1], state[2], state[3], state[4], state[5]);
