@@ -120,6 +120,8 @@ struct wilc_vif {
 	u8 ifc_id;
 	struct timer_list during_ip_timer;
 	bool obtaining_ip;
+	struct timer_list periodic_rssi;
+	struct rf_info dummy_statistics;
 };
 
 struct wilc {
@@ -169,7 +171,6 @@ struct wilc {
 	struct device *dev;
 	bool suspend_event;
 
-	struct rf_info dummy_statistics;
 	bool enable_ps;
 	int clients_count;
 	struct workqueue_struct *hif_workqueue;

@@ -190,8 +190,6 @@ static struct host_if_drv *terminated_handle;
 static u8 p2p_listen_state;
 static struct completion hif_driver_comp;
 static struct mutex hif_deinit_lock;
-static struct timer_list periodic_rssi;
-static struct wilc_vif *periodic_rssi_vif;
 
 static u8 rcv_assoc_resp[MAX_ASSOC_RESP_FRAME_SIZE];
 
@@ -3422,9 +3420,9 @@ int wilc_hif_set_cfg(struct wilc_vif *vif,
 	return result;
 }
 
-static void get_periodic_rssi(struct timer_list *unused)
+static void get_periodic_rssi(struct timer_list *t)
 {
-	struct wilc_vif *vif = periodic_rssi_vif;
+	struct wilc_vif *vif = from_timer(vif, t, periodic_rssi);
 
 	if (!vif->hif_drv) {
 		netdev_err(vif->ndev, "%s: hif driver is NULL", __func__);
@@ -3432,9 +3430,9 @@ static void get_periodic_rssi(struct timer_list *unused)
 	}
 
 	if (vif->hif_drv->hif_state == HOST_IF_CONNECTED)
-		wilc_get_statistics(vif, &vif->wilc->dummy_statistics, false);
+		wilc_get_statistics(vif, &vif->dummy_statistics, false);
 
-	mod_timer(&periodic_rssi, jiffies + msecs_to_jiffies(5000));
+	mod_timer(&vif->periodic_rssi, jiffies + msecs_to_jiffies(5000));
 }
 
 int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
@@ -3468,11 +3466,10 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 			kfree(hif_drv);
 			return -ENOMEM;
 		}
-
-		periodic_rssi_vif = vif;
-		timer_setup(&periodic_rssi, get_periodic_rssi, 0);
-		mod_timer(&periodic_rssi, jiffies + msecs_to_jiffies(5000));
 	}
+
+	timer_setup(&vif->periodic_rssi, get_periodic_rssi, 0);
+	mod_timer(&vif->periodic_rssi, jiffies + msecs_to_jiffies(5000));
 
 	timer_setup(&hif_drv->scan_timer, timer_scan_cb, 0);
 	timer_setup(&hif_drv->connect_timer, timer_connect_cb, 0);
@@ -3513,7 +3510,7 @@ int wilc_deinit(struct wilc_vif *vif)
 
 	del_timer_sync(&hif_drv->scan_timer);
 	del_timer_sync(&hif_drv->connect_timer);
-	del_timer_sync(&periodic_rssi);
+	del_timer_sync(&vif->periodic_rssi);
 	del_timer_sync(&hif_drv->remain_on_ch_timer);
 
 	wilc_set_wfi_drv_handler(vif, 0, 0, 0);
