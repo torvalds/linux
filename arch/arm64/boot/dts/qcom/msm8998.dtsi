@@ -469,6 +469,13 @@
 			reg = <0x778000 0x7000>;
 		};
 
+		qfprom: qfprom@780000 {
+			compatible = "qcom,qfprom";
+			reg = <0x780000 0x621c>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
 		gcc: clock-controller@100000 {
 			compatible = "qcom,gcc-msm8998";
 			#clock-cells = <1>;
