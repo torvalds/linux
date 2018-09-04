@@ -1964,13 +1964,14 @@ call_transmit(struct rpc_task *task)
 {
 	dprint_status(task);
 
+	task->tk_status = 0;
+	if (test_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate)) {
+		if (!xprt_prepare_transmit(task))
+			return;
+		xprt_transmit(task);
+	}
 	task->tk_action = call_transmit_status;
-	if (!test_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate))
-		return;
-
-	if (!xprt_prepare_transmit(task))
-		return;
-	xprt_transmit(task);
+	xprt_end_transmit(task);
 }
 
 /*
@@ -1986,7 +1987,6 @@ call_transmit_status(struct rpc_task *task)
 	 * test first.
 	 */
 	if (task->tk_status == 0) {
-		xprt_end_transmit(task);
 		xprt_request_wait_receive(task);
 		return;
 	}
@@ -1994,15 +1994,8 @@ call_transmit_status(struct rpc_task *task)
 	switch (task->tk_status) {
 	default:
 		dprint_status(task);
-		xprt_end_transmit(task);
-		break;
-	case -EBADSLT:
-		xprt_end_transmit(task);
-		task->tk_action = call_transmit;
-		task->tk_status = 0;
 		break;
 	case -EBADMSG:
-		xprt_end_transmit(task);
 		task->tk_status = 0;
 		task->tk_action = call_encode;
 		break;
@@ -2015,6 +2008,7 @@ call_transmit_status(struct rpc_task *task)
 	case -ENOBUFS:
 		rpc_delay(task, HZ>>2);
 		/* fall through */
+	case -EBADSLT:
 	case -EAGAIN:
 		task->tk_action = call_transmit;
 		task->tk_status = 0;
@@ -2026,7 +2020,6 @@ call_transmit_status(struct rpc_task *task)
 	case -ENETUNREACH:
 	case -EPERM:
 		if (RPC_IS_SOFTCONN(task)) {
-			xprt_end_transmit(task);
 			if (!task->tk_msg.rpc_proc->p_proc)
 				trace_xprt_ping(task->tk_xprt,
 						task->tk_status);
@@ -2069,9 +2062,6 @@ call_bc_transmit(struct rpc_task *task)
 
 	xprt_transmit(task);
 
-	if (task->tk_status == -EAGAIN)
-		goto out_retry;
-
 	xprt_end_transmit(task);
 	dprint_status(task);
 	switch (task->tk_status) {
@@ -2087,6 +2077,8 @@ call_bc_transmit(struct rpc_task *task)
 	case -ENOTCONN:
 	case -EPIPE:
 		break;
+	case -EAGAIN:
+		goto out_retry;
 	case -ETIMEDOUT:
 		/*
 		 * Problem reaching the server.  Disconnect and let the

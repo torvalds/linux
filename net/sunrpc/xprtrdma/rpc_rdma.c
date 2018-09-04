@@ -866,7 +866,7 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 out_err:
 	switch (ret) {
 	case -EAGAIN:
-		xprt_wait_for_buffer_space(rqst->rq_task, NULL);
+		xprt_wait_for_buffer_space(rqst->rq_xprt);
 		break;
 	case -ENOBUFS:
 		break;

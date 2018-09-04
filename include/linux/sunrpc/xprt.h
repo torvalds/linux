@@ -387,8 +387,8 @@ int			xprt_load_transport(const char *);
 void			xprt_set_retrans_timeout_def(struct rpc_task *task);
 void			xprt_set_retrans_timeout_rtt(struct rpc_task *task);
 void			xprt_wake_pending_tasks(struct rpc_xprt *xprt, int status);
-void			xprt_wait_for_buffer_space(struct rpc_task *task, rpc_action action);
-void			xprt_write_space(struct rpc_xprt *xprt);
+void			xprt_wait_for_buffer_space(struct rpc_xprt *xprt);
+bool			xprt_write_space(struct rpc_xprt *xprt);
 void			xprt_adjust_cwnd(struct rpc_xprt *xprt, struct rpc_task *task, int result);
 struct rpc_rqst *	xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid);
 void			xprt_update_rtt(struct rpc_task *task);
@@ -416,6 +416,7 @@ void			xprt_unlock_connect(struct rpc_xprt *, void *);
 #define XPRT_CLOSING		(6)
 #define XPRT_CONGESTED		(9)
 #define XPRT_CWND_WAIT		(10)
+#define XPRT_WRITE_SPACE	(11)
 
 static inline void xprt_set_connected(struct rpc_xprt *xprt)
 {
