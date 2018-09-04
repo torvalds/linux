@@ -65,8 +65,6 @@ mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
 	struct ieee80211_tx_rate *rate = &info->control.rates[0];
 	struct mt76x02_txwi *txwi;
 	unsigned long flags;
-	u16 txwi_flags = 0;
-	u32 pkt_id;
 	u16 rate_ctl;
 	u8 nss;
 
@@ -86,47 +84,11 @@ mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
 	}
 	spin_unlock_irqrestore(&dev->mt76.lock, flags);
 
-	txwi->rate = cpu_to_le16(rate_ctl);
-
-	if (info->flags & IEEE80211_TX_CTL_LDPC)
-		txwi->rate |= cpu_to_le16(MT_RXWI_RATE_LDPC);
-	if ((info->flags & IEEE80211_TX_CTL_STBC) && nss == 1)
-		txwi->rate |= cpu_to_le16(MT_RXWI_RATE_STBC);
-	if (nss > 1 && sta && sta->smps_mode == IEEE80211_SMPS_DYNAMIC)
-		txwi_flags |= MT_TXWI_FLAGS_MMPS;
-
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
-		txwi->ack_ctl |= MT_TXWI_ACK_CTL_REQ;
-		pkt_id = 1;
-	} else {
-		pkt_id = 0;
-	}
-
-	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
-		pkt_id |= MT_TXWI_PKTID_PROBE;
-
-	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
-		txwi->ack_ctl |= MT_TXWI_ACK_CTL_NSEQ;
-
-	if ((info->flags & IEEE80211_TX_CTL_AMPDU) && sta) {
-		u8 ba_size = IEEE80211_MIN_AMPDU_BUF;
-
-		ba_size <<= sta->ht_cap.ampdu_factor;
-		ba_size = min_t(int, 7, ba_size - 1);
-		if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) {
-			ba_size = 0;
-		} else {
-			txwi_flags |= MT_TXWI_FLAGS_AMPDU;
-			txwi_flags |= FIELD_PREP(MT_TXWI_FLAGS_MPDU_DENSITY,
-						 sta->ht_cap.ampdu_density);
-		}
-		txwi->ack_ctl |= FIELD_PREP(MT_TXWI_ACK_CTL_BA_WINDOW, ba_size);
-	}
-
 	txwi->wcid = wcid->idx;
-	txwi->flags |= cpu_to_le16(txwi_flags);
-	txwi->len_ctl = cpu_to_le16(pkt_len);
-	txwi->pktid = pkt_id;
+	txwi->rate = cpu_to_le16(rate_ctl);
+	txwi->pktid = (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) ? 1 : 0;
+
+	mt76x02_mac_fill_txwi(txwi, skb, sta, pkt_len, nss);
 
 	return txwi;
 }
