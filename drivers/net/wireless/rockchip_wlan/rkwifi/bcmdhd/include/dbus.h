@@ -32,11 +32,22 @@
 #define __DBUS_H__
 
 #include "typedefs.h"
+#include <dhd_linux.h>
 
-#define DBUSTRACE(args)
+extern uint dbus_msglevel;
+#define DBUS_ERROR_VAL	0x0001
+#define DBUS_TRACE_VAL	0x0002
+#define DBUS_INFO_VAL	0x0004
+
+#if defined(DHD_DEBUG)
+#define DBUSERR(args)		do {if (dbus_msglevel & DBUS_ERROR_VAL) printf args;} while (0)
+#define DBUSTRACE(args)		do {if (dbus_msglevel & DBUS_TRACE_VAL) printf args;} while (0)
+#define DBUSINFO(args)		do {if (dbus_msglevel & DBUS_INFO_VAL) printf args;} while (0)
+#else /* defined(DHD_DEBUG) */
 #define DBUSERR(args)
+#define DBUSTRACE(args)
 #define DBUSINFO(args)
-#define DBUSDBGLOCK(args)
+#endif
 
 enum {
 	DBUS_OK = 0,
@@ -181,7 +192,8 @@ typedef struct dbus_extdl {
 struct dbus_callbacks;
 struct exec_parms;
 
-typedef void *(*probe_cb_t)(void *arg, const char *desc, uint32 bustype, uint32 hdrlen);
+typedef void *(*probe_cb_t)(void *arg, const char *desc, uint32 bustype,
+	uint16 bus_no, uint16 slot, uint32 hdrlen);
 typedef void (*disconnect_cb_t)(void *arg);
 typedef void *(*exec_cb_t)(struct exec_parms *args);
 
@@ -237,7 +249,7 @@ typedef struct {
 	int  (*get_config)(void *bus, dbus_config_t *config);
 
 	bool (*device_exists)(void *bus);
-	bool (*dlneeded)(void *bus);
+	int (*dlneeded)(void *bus);
 	int  (*dlstart)(void *bus, uint8 *fw, int len);
 	int  (*dlrun)(void *bus);
 	bool (*recv_needed)(void *bus);
@@ -299,26 +311,21 @@ extern int dbus_register(int vid, int pid, probe_cb_t prcb, disconnect_cb_t disc
 	void *param1, void *param2);
 extern int dbus_deregister(void);
 
-extern dbus_pub_t *dbus_attach(struct osl_info *osh, int rxsize, int nrxq, int ntxq,
-	void *cbarg, dbus_callbacks_t *cbs, dbus_extdl_t *extdl, struct shared_info *sh);
-extern void dbus_detach(dbus_pub_t *pub);
-
-extern int dbus_download_firmware(dbus_pub_t *pub);
-extern int dbus_up(dbus_pub_t *pub);
+//extern int dbus_download_firmware(dbus_pub_t *pub);
+//extern int dbus_up(struct dhd_bus *pub);
 extern int dbus_down(dbus_pub_t *pub);
-extern int dbus_stop(dbus_pub_t *pub);
+//extern int dbus_stop(struct dhd_bus *pub);
 extern int dbus_shutdown(dbus_pub_t *pub);
 extern void dbus_flowctrl_rx(dbus_pub_t *pub, bool on);
 
 extern int dbus_send_txdata(dbus_pub_t *dbus, void *pktbuf);
 extern int dbus_send_buf(dbus_pub_t *pub, uint8 *buf, int len, void *info);
 extern int dbus_send_pkt(dbus_pub_t *pub, void *pkt, void *info);
-extern int dbus_send_ctl(dbus_pub_t *pub, uint8 *buf, int len);
-extern int dbus_recv_ctl(dbus_pub_t *pub, uint8 *buf, int len);
+//extern int dbus_send_ctl(struct dhd_bus *pub, uint8 *buf, int len);
+//extern int dbus_recv_ctl(struct dhd_bus *pub, uint8 *buf, int len);
 extern int dbus_recv_bulk(dbus_pub_t *pub, uint32 ep_idx);
 extern int dbus_poll_intr(dbus_pub_t *pub);
 extern int dbus_get_stats(dbus_pub_t *pub, dbus_stats_t *stats);
-extern int dbus_get_attrib(dbus_pub_t *pub, dbus_attrib_t *attrib);
 extern int dbus_get_device_speed(dbus_pub_t *pub);
 extern int dbus_set_config(dbus_pub_t *pub, dbus_config_t *config);
 extern int dbus_get_config(dbus_pub_t *pub, dbus_config_t *config);
@@ -332,8 +339,8 @@ extern int dbus_pnp_sleep(dbus_pub_t *pub);
 extern int dbus_pnp_resume(dbus_pub_t *pub, int *fw_reload);
 extern int dbus_pnp_disconnect(dbus_pub_t *pub);
 
-extern int dbus_iovar_op(dbus_pub_t *pub, const char *name,
-	void *params, int plen, void *arg, int len, bool set);
+//extern int dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
+//	void *params, int plen, void *arg, int len, bool set);
 
 extern void *dhd_dbus_txq(const dbus_pub_t *pub);
 extern uint dhd_dbus_hdrlen(const dbus_pub_t *pub);

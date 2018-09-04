@@ -51,6 +51,9 @@
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_HAS_WAKELOCK)
 #include <linux/wakelock.h>
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined (CONFIG_HAS_WAKELOCK) */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+#include <linux/sched/types.h>
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0) */
 /* The kernel threading is sdio-specific */
 struct task_struct;
 struct sched_param;
@@ -106,6 +109,7 @@ enum dhd_bus_state {
 	DHD_BUS_DATA,		/* Ready for frame transfers */
 	DHD_BUS_SUSPEND,	/* Bus has been suspended */
 	DHD_BUS_DOWN_IN_PROGRESS,	/* Bus going Down */
+	DHD_BUS_REMOVE,	/* Bus has been removed */
 };
 
 /*
@@ -217,7 +221,11 @@ enum dhd_bus_state {
 		 DHD_BUS_BUSY_CHECK_RPM_SUSPEND_IN_PROGRESS(dhdp))
 
 #define DHD_BUS_CHECK_DOWN_OR_DOWN_IN_PROGRESS(dhdp) \
-		((dhdp)->busstate == DHD_BUS_DOWN || (dhdp)->busstate == DHD_BUS_DOWN_IN_PROGRESS)
+		((dhdp)->busstate == DHD_BUS_DOWN || (dhdp)->busstate == DHD_BUS_DOWN_IN_PROGRESS || \
+		(dhdp)->busstate == DHD_BUS_REMOVE)
+
+#define DHD_BUS_CHECK_REMOVE(dhdp) \
+		((dhdp)->busstate == DHD_BUS_REMOVE)
 
 /* Macro to print Ethernet Address as String
  * expects both arguements as (char *)
@@ -667,6 +675,9 @@ typedef struct dhd_pub {
 	 * please do NOT merge it back from other branches !!!
 	 */
 
+#ifdef BCMDBUS
+	struct dbus_pub *dbus;
+#endif /* BCMDBUS */
 
 	/* Internal dhd items */
 	bool up;		/* Driver up/down (to OS) */
@@ -1028,6 +1039,10 @@ typedef struct dhd_pub {
 	char		*clm_path;		/* module_param: path to clm vars file */
 	char		*conf_path;		/* module_param: path to config vars file */
 	struct dhd_conf *conf;	/* Bus module handle */
+	void *adapter;			/* adapter information, interrupt, fw path etc. */
+#ifdef BCMDBUS
+	bool dhd_remove;
+#endif /* BCMDBUS */
 } dhd_pub_t;
 
 typedef struct {
@@ -1347,12 +1362,36 @@ typedef enum dhd_ioctl_recieved_status
  */
 void dhd_net_if_lock(struct net_device *dev);
 void dhd_net_if_unlock(struct net_device *dev);
-
 #if defined(MULTIPLE_SUPPLICANT)
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)) && 1
-extern struct mutex _dhd_sdio_mutex_lock_;
+extern void wl_android_post_init(void); // terence 20120530: fix critical section in dhd_open and dhdsdio_probe
 #endif
-#endif /* MULTIPLE_SUPPLICANT */
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)) && defined(MULTIPLE_SUPPLICANT)
+extern struct mutex _dhd_mutex_lock_;
+#define DHD_MUTEX_IS_LOCK_RETURN() \
+	if (mutex_is_locked(&_dhd_mutex_lock_) != 0) { \
+		printf("%s : probe is already running! return.\n", __FUNCTION__); \
+		return 0; \
+	}
+#define DHD_MUTEX_LOCK() \
+	do { \
+		if (mutex_is_locked(&_dhd_mutex_lock_) == 0) { \
+			printf("%s : no mutex held. set lock\n", __FUNCTION__); \
+		} else { \
+			printf("%s : mutex is locked!. wait for unlocking\n", __FUNCTION__); \
+		} \
+		mutex_lock(&_dhd_mutex_lock_); \
+	} while (0)
+#define DHD_MUTEX_UNLOCK() \
+	do { \
+		mutex_unlock(&_dhd_mutex_lock_); \
+		printf("%s : the lock is released.\n", __FUNCTION__); \
+	} while (0)
+#else
+#define DHD_MUTEX_IS_LOCK_RETURN(a)	do {} while (0)
+#define DHD_MUTEX_LOCK(a)	do {} while (0)
+#define DHD_MUTEX_UNLOCK(a)	do {} while (0)
+#endif
 
 typedef enum dhd_attach_states
 {
@@ -1386,7 +1425,11 @@ typedef enum dhd_attach_states
  * Returned structure should have bus and prot pointers filled in.
  * bus_hdrlen specifies required headroom for bus module header.
  */
-extern dhd_pub_t *dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen);
+extern dhd_pub_t *dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen
+#ifdef BCMDBUS
+	, void *adapter
+#endif
+);
 #if defined(WLP2P) && defined(WL_CFG80211)
 /* To allow attach/detach calls corresponding to p2p0 interface  */
 extern int dhd_attach_p2p(dhd_pub_t *);
@@ -1482,7 +1525,7 @@ extern void dhd_os_dhdiovar_lock(dhd_pub_t *pub);
 extern void dhd_os_dhdiovar_unlock(dhd_pub_t *pub);
 extern int dhd_os_proto_block(dhd_pub_t * pub);
 extern int dhd_os_proto_unblock(dhd_pub_t * pub);
-extern int dhd_os_ioctl_resp_wait(dhd_pub_t * pub, uint * condition);
+extern int dhd_os_ioctl_resp_wait(dhd_pub_t * pub, uint * condition, bool resched);
 extern int dhd_os_ioctl_resp_wake(dhd_pub_t * pub);
 extern unsigned int dhd_os_get_ioctl_resp_timeout(void);
 extern void dhd_os_set_ioctl_resp_timeout(unsigned int timeout_msec);
@@ -1700,6 +1743,9 @@ extern int dhd_event_ifdel(struct dhd_info *dhd, struct wl_event_data_if *ifeven
 	char *name, uint8 *mac);
 extern int dhd_event_ifchange(struct dhd_info *dhd, struct wl_event_data_if *ifevent,
        char *name, uint8 *mac);
+#ifdef DHD_UPDATE_INTF_MAC
+extern int dhd_op_if_update(dhd_pub_t *dhdpub, int ifidx);
+#endif /* DHD_UPDATE_INTF_MAC */
 extern struct net_device* dhd_allocate_if(dhd_pub_t *dhdpub, int ifidx, const char *name,
 	uint8 *mac, uint8 bssidx, bool need_rtnl_lock, const char *dngl_name);
 extern int dhd_remove_if(dhd_pub_t *dhdpub, int ifidx, bool need_rtnl_lock);
@@ -1821,6 +1867,9 @@ extern uint dhd_console_ms;
 extern uint android_msg_level;
 extern uint config_msg_level;
 extern uint sd_msglevel;
+#ifdef BCMDBUS
+extern uint dbus_msglevel;
+#endif /* BCMDBUS */
 #ifdef WL_WIRELESS_EXT
 extern uint iw_msg_level;
 #endif
@@ -2031,7 +2080,9 @@ extern char fw_path2[MOD_PARAM_PATHLEN];
 
 /* Flag to indicate if we should download firmware on driver load */
 extern uint dhd_download_fw_on_driverload;
+#ifndef BCMDBUS
 extern int allow_delay_fwdl;
+#endif /* !BCMDBUS */
 
 extern int dhd_process_cid_mac(dhd_pub_t *dhdp, bool prepost);
 extern int dhd_write_file(const char *filepath, char *buf, int buf_len);
@@ -2226,6 +2277,12 @@ extern void dhd_os_general_spin_unlock(dhd_pub_t *pub, unsigned long flags);
 
 extern void dhd_dump_to_kernelog(dhd_pub_t *dhdp);
 
+#ifdef BCMDBUS
+extern uint dhd_get_rxsz(dhd_pub_t *pub);
+extern void dhd_set_path(dhd_pub_t *pub);
+extern void dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf);
+extern void dhd_bus_clearcounts(dhd_pub_t *dhdp);
+#endif /* BCMDBUS */
 
 #ifdef DHD_L2_FILTER
 extern int dhd_get_parp_status(dhd_pub_t *dhdp, uint32 idx);

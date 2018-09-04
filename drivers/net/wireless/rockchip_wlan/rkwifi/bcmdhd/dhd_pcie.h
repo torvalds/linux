@@ -259,6 +259,7 @@ typedef struct dhd_bus {
 	struct pktq	txq;			/* Queue length used for flow-control */
 
 	bool		intr;			/* Use interrupts */
+	bool		poll;			/* Use polling */
 	bool		ipend;			/* Device interrupt is pending */
 	bool		intdis;			/* Interrupts disabled by isr */
 	uint		intrcount;		/* Count of device interrupt callbacks */

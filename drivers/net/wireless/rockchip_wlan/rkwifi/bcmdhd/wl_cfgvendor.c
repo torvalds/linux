@@ -2322,10 +2322,15 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 			((wl_cnt_info_t *)iovar_buf)->datalen,
 			WL_CNT_XTLV_CNTV_LE10_UCODE, NULL,
 			BCM_XTLV_OPTION_ALIGN32)) == NULL) {
-		macstat_cnt = bcm_get_data_from_xtlv_buf(((wl_cnt_info_t *)iovar_buf)->data,
+		if ((macstat_cnt = bcm_get_data_from_xtlv_buf(((wl_cnt_info_t *)iovar_buf)->data,
 				((wl_cnt_info_t *)iovar_buf)->datalen,
 				WL_CNT_XTLV_GE40_UCODE_V1, NULL,
+				BCM_XTLV_OPTION_ALIGN32)) == NULL) {
+			macstat_cnt = bcm_get_data_from_xtlv_buf(((wl_cnt_info_t *)iovar_buf)->data,
+				((wl_cnt_info_t *)iovar_buf)->datalen,
+				WL_CNT_XTLV_LT40_UCODE_V1, NULL,
 				BCM_XTLV_OPTION_ALIGN32);
+		}
 	}
 
 	if (macstat_cnt == NULL) {

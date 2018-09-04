@@ -11548,6 +11548,15 @@ typedef enum wl_interface_type {
  */
 #define WL_INTERFACE_BSSID_INDEX_USE	(1 << 4)
 
+#ifdef WLMESH
+typedef struct wl_interface_info {
+    uint16  ver;            /* version of this struct */
+    struct ether_addr    mac_addr;  /* MAC address of the interface */
+    char    ifname[BCM_MSG_IFNAME_MAX]; /* name of interface */
+    uint8   bsscfgidx;      /* source bsscfg index */
+} wl_interface_info_t;
+#endif
+
 typedef struct wl_interface_create {
 	uint16	ver;			/* version of this struct */
 	uint32  flags;			/* flags that defines the operation */
@@ -12461,6 +12470,12 @@ enum wl_mesh_cmd_xtlv_id {
 	WL_MESH_XTLV_ENAB_AIRLINK = 7
 };
 /* endif WLMESH */
+
+#ifdef WLMESH
+#ifndef SAE_MAX_PASSWD_LEN
+#define SAE_MAX_PASSWD_LEN	32
+#endif
+#endif
 
 /* Fast BSS Transition parameter configuration */
 #define FBT_PARAM_CURRENT_VERSION 0

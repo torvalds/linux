@@ -604,7 +604,6 @@ si_doattach(si_info_t *sii, uint devid, osl_t *osh, volatile void *regs,
 	}
 
 	sih->bustype = bustype;
-
 #ifdef BCMBUSTYPE
 	if (bustype != BUSTYPE(bustype)) {
 		SI_ERROR(("si_doattach: bus type %d does not match configured bus type %d\n",
@@ -636,7 +635,7 @@ si_doattach(si_info_t *sii, uint devid, osl_t *osh, volatile void *regs,
 	sih->chiprev = (w & CID_REV_MASK) >> CID_REV_SHIFT;
 	sih->chippkg = (w & CID_PKG_MASK) >> CID_PKG_SHIFT;
 
-#if defined(HW_OOB) || defined(FORCE_WOWLAN)
+#if defined(BCMSDIO) && (defined(HW_OOB) || defined(FORCE_WOWLAN))
 	dhd_conf_set_hw_oob_intr(sdh, sih->chip);
 #endif
 

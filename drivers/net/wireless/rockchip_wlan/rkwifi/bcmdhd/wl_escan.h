@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-
 #ifndef _wl_escan_
 #define _wl_escan_
 
@@ -57,9 +56,19 @@ typedef struct wl_escan_info {
 	tsk_ctl_t event_tsk;  		/* task of main event handler thread */
 	ESCAN_EVENT_HANDLER evt_handler[WLC_E_LAST];
 	struct mutex usr_sync;	/* maily for up/down synchronization */
+	int autochannel;
+	int best_2g_ch;
+	int best_5g_ch;
+#if defined(RSSIAVG)
+	wl_rssi_cache_ctrl_t g_rssi_cache_ctrl;
+	wl_rssi_cache_ctrl_t g_connected_rssi_cache_ctrl;
+#endif
+#if defined(BSSCACHE)
+	wl_bss_cache_ctrl_t g_bss_cache_ctrl;
+#endif
 } wl_escan_info_t;
 
-void wl_escan_event(struct net_device *ndev, const wl_event_msg_t * e, void *data);
+void wl_escan_event(struct net_device *dev, const wl_event_msg_t * e, void *data);
 
 int wl_escan_set_scan(
 	struct net_device *dev,
@@ -69,6 +78,7 @@ int wl_escan_set_scan(
 );
 int wl_escan_get_scan(struct net_device *dev,	struct iw_request_info *info,
 	struct iw_point *dwrq, char *extra);
+s32 wl_escan_autochannel(struct net_device *dev, char* command, int total_len);
 int wl_escan_attach(struct net_device *dev, dhd_pub_t *dhdp);
 void wl_escan_detach(dhd_pub_t *dhdp);
 

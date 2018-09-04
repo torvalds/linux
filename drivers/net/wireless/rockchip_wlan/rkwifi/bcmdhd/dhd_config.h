@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-
 #ifndef _dhd_config_
 #define _dhd_config_
 
@@ -9,36 +8,27 @@
 #include <wlioctl.h>
 #include <802.11.h>
 
+#define FW_TYPE_STA     0
+#define FW_TYPE_APSTA   1
+#define FW_TYPE_P2P     2
+#define FW_TYPE_MESH    3
+#define FW_TYPE_ES      4
+#define FW_TYPE_MFG     5
+#define FW_TYPE_G       0
+#define FW_TYPE_AG      1
+
 #define FW_PATH_AUTO_SELECT 1
 //#define CONFIG_PATH_AUTO_SELECT
 extern char firmware_path[MOD_PARAM_PATHLEN];
+#if defined(BCMSDIO) || defined(BCMPCIE)
 extern uint dhd_rxbound;
 extern uint dhd_txbound;
+#endif
 #ifdef BCMSDIO
 #define TXGLOM_RECV_OFFSET 8
 extern uint dhd_doflow;
 extern uint dhd_slpauto;
-
-#define BCM43362A0_CHIP_REV     0
-#define BCM43362A2_CHIP_REV     1
-#define BCM43430A0_CHIP_REV     0
-#define BCM43430A1_CHIP_REV     1
-#define BCM43430A2_CHIP_REV     2
-#define BCM43012B0_CHIP_REV     1
-#define BCM4330B2_CHIP_REV      4
-#define BCM4334B1_CHIP_REV      3
-#define BCM43341B0_CHIP_REV     2
-#define BCM43241B4_CHIP_REV     5
-#define BCM4335A0_CHIP_REV      2
-#define BCM4339A0_CHIP_REV      1
-#define BCM43455C0_CHIP_REV     6
-#define BCM43456C5_CHIP_REV     9
-#define BCM4354A1_CHIP_REV      1
-#define BCM4359B1_CHIP_REV      5
-#define BCM4359C0_CHIP_REV      9
 #endif
-#define BCM4356A2_CHIP_REV      2
-#define BCM4358A3_CHIP_REV      3
 
 typedef struct wl_mac_range {
 	uint32 oui;
@@ -98,25 +88,35 @@ typedef struct conf_pkt_filter_del {
 #define CONFIG_COUNTRY_LIST_SIZE 100
 typedef struct conf_country_list {
 	uint32 count;
-	wl_country_t cspec[CONFIG_COUNTRY_LIST_SIZE];
+	wl_country_t *cspec[CONFIG_COUNTRY_LIST_SIZE];
 } conf_country_list_t;
+
+/* mchan_params */
+#define MCHAN_MAX_NUM 4
+#define MIRACAST_SOURCE	1
+#define MIRACAST_SINK	2
+typedef struct mchan_params {
+	int bw;
+	int p2p_mode;
+	int miracast_mode;
+} mchan_params_t;
 
 typedef struct dhd_conf {
 	uint chip;
 	uint chiprev;
+	int fw_type;
 	wl_mac_list_ctrl_t fw_by_mac;
 	wl_mac_list_ctrl_t nv_by_mac;
 	wl_chip_nv_path_list_ctrl_t nv_by_chip;
 	conf_country_list_t country_list;
+	conf_country_list_t country_list_nodfs;
 	int band;
-	int mimo_bw_cap;
-	int bw_cap_2g;
-	int bw_cap_5g;
+	int bw_cap[2];
 	wl_country_t cspec;
 	wl_channel_list_t channels;
 	uint roam_off;
 	uint roam_off_suspend;
-	int roam_trigger[2];	
+	int roam_trigger[2];
 	int roam_scan_period[2];
 	int roam_delta[2];
 	int fullroamperiod;
@@ -124,7 +124,6 @@ typedef struct dhd_conf {
 	int force_wme_ac;
 	wme_param_t wme_sta;
 	wme_param_t wme_ap;
-	int stbc;
 	int phy_oclscdenable;
 #ifdef PKT_FILTER_SUPPORT
 	conf_pkt_filter_add_t pkt_filter_add;
@@ -134,12 +133,10 @@ typedef struct dhd_conf {
 	int srl;
 	int lrl;
 	uint bcn_timeout;
-	int spect;
 	int txbf;
-	int lpc;
 	int disable_proptx;
+	int dhd_poll;
 #ifdef BCMSDIO
-	int bus_txglom;
 	int use_rxchain;
 	bool bus_rxglom;
 	bool txglom_ext; /* Only for 43362/4330/43340/43341/43241 */
@@ -150,7 +147,6 @@ typedef struct dhd_conf {
 	*/
 	int tx_max_offset;
 	uint txglomsize;
-	int dhd_poll;
 	int txctl_tmo_fix;
 	bool tx_in_rx;
 	bool txglom_mode;
@@ -164,22 +160,22 @@ typedef struct dhd_conf {
 	int dhd_txminmax; // -1=DATABUFCNT(bus)
 	uint sd_f2_blocksize;
 	bool oob_enabled_later;
+	int orphan_move;
 #endif
-	int ampdu_ba_wsize;
-	int ampdu_hostreorder;
+#ifdef BCMPCIE
+	int bus_deepsleep_disable;
+#endif
 	int dpc_cpucore;
 	int rxf_cpucore;
 	int frameburst;
 	bool deepsleep;
 	int pm;
 	int pm_in_suspend;
-	int pm2_sleep_ret;
+	int suspend_bcn_li_dtim;
 #ifdef DHDTCPACK_SUPPRESS
 	uint8 tcpack_sup_mode;
 #endif
 	int pktprio8021x;
-	int rsdb_mode;
-	int vhtmode;
 	int num_different_channels;
 	int xmit_in_suspend;
 	int ap_in_suspend;
@@ -196,12 +192,15 @@ typedef struct dhd_conf {
 	struct ipv4_addr dhcpd_ip_start;
 	struct ipv4_addr dhcpd_ip_end;
 #endif
-#ifdef IAPSTA_PREINIT
-	char iapsta_init[50];
-	char iapsta_config[300];
-	char iapsta_enable[50];
+#ifdef ISAM_PREINIT
+	char isam_init[50];
+	char isam_config[300];
+	char isam_enable[50];
 #endif
-	int autocountry;
+	int ctrl_resched;
+	int dhd_ioctl_timeout_msec;
+	struct mchan_params mchan[MCHAN_MAX_NUM];
+	char *wl_preinit;
 	int tsq;
 } dhd_conf_t;
 
@@ -215,7 +214,7 @@ void dhd_conf_set_hw_oob_intr(bcmsdh_info_t *sdh, uint chip);
 void dhd_conf_set_txglom_params(dhd_pub_t *dhd, bool enable);
 int dhd_conf_set_blksize(bcmsdh_info_t *sdh);
 #endif
-void dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path, char *nv_path);
+void dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path);
 void dhd_conf_set_clm_name_by_chip(dhd_pub_t *dhd, char *clm_path);
 void dhd_conf_set_nv_name_by_chip(dhd_pub_t *dhd, char *nv_path);
 void dhd_conf_set_path(dhd_pub_t *dhd, char *dst_name, char *dst_path, char *src_path);
@@ -226,14 +225,13 @@ int dhd_conf_set_intiovar(dhd_pub_t *dhd, uint cmd, char *name, int val, int def
 int dhd_conf_get_iovar(dhd_pub_t *dhd, int cmd, char *name, char *buf, int len, int ifidx);
 int dhd_conf_set_bufiovar(dhd_pub_t *dhd, uint cmd, char *name, char *buf, int len, bool down);
 uint dhd_conf_get_band(dhd_pub_t *dhd);
-int dhd_conf_set_country(dhd_pub_t *dhd);
+int dhd_conf_set_country(dhd_pub_t *dhd, wl_country_t *cspec);
 int dhd_conf_get_country(dhd_pub_t *dhd, wl_country_t *cspec);
-int dhd_conf_get_country_from_config(dhd_pub_t *dhd, wl_country_t *cspec);
+int dhd_conf_map_country_list(dhd_pub_t *dhd, wl_country_t *cspec, int nodfs);
 int dhd_conf_fix_country(dhd_pub_t *dhd);
 bool dhd_conf_match_channel(dhd_pub_t *dhd, uint32 channel);
-int dhd_conf_set_roam(dhd_pub_t *dhd);
-void dhd_conf_set_bw_cap(dhd_pub_t *dhd);
 void dhd_conf_set_wme(dhd_pub_t *dhd, int mode);
+void dhd_conf_set_mchan_bw(dhd_pub_t *dhd, int go, int source);
 void dhd_conf_add_pkt_filter(dhd_pub_t *dhd);
 bool dhd_conf_del_pkt_filter(dhd_pub_t *dhd, uint32 id);
 void dhd_conf_discard_pkt_filter(dhd_pub_t *dhd);
@@ -247,6 +245,7 @@ int dhd_conf_get_disable_proptx(dhd_pub_t *dhd);
 #endif
 int dhd_conf_get_ap_mode_in_suspend(dhd_pub_t *dhd);
 int dhd_conf_set_ap_in_suspend(dhd_pub_t *dhd, int suspend);
+void dhd_conf_postinit_ioctls(dhd_pub_t *dhd);
 int dhd_conf_preinit(dhd_pub_t *dhd);
 int dhd_conf_reset(dhd_pub_t *dhd);
 int dhd_conf_attach(dhd_pub_t *dhd);

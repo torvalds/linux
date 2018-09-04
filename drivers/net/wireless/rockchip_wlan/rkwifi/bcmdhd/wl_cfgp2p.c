@@ -56,6 +56,7 @@
 #include <dhdioctl.h>
 #include <wlioctl.h>
 #include <dhd_cfg80211.h>
+#include <dhd_config.h>
 
 #if defined(BCMPCIE) && defined(DHD_FW_COREDUMP)
 extern int dhd_bus_mem_dump(dhd_pub_t *dhd);
@@ -333,6 +334,9 @@ wl_cfgp2p_init_priv(struct bcm_cfg80211 *cfg)
 		return -ENOMEM;
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+	cfg->p2p->cfg = cfg;
+#endif
 	wl_to_p2p_bss_ndev(cfg, P2PAPI_BSSCFG_PRIMARY) = bcmcfg_to_prmry_ndev(cfg);
 	wl_to_p2p_bss_bssidx(cfg, P2PAPI_BSSCFG_PRIMARY) = 0;
 	wl_to_p2p_bss_ndev(cfg, P2PAPI_BSSCFG_DEVICE) = NULL;
@@ -1385,10 +1389,21 @@ wl_cfgp2p_listen_complete(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
  *  so lets do it from thread context.
  */
 void
-wl_cfgp2p_listen_expired(unsigned long data)
+wl_cfgp2p_listen_expired(
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+	struct timer_list *t
+#else
+	ulong data
+#endif
+)
 {
 	wl_event_msg_t msg;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+	struct p2p_info *p2p = from_timer(p2p, t, listen_timer);
+	struct bcm_cfg80211 *cfg = p2p->cfg;
+#else
 	struct bcm_cfg80211 *cfg = (struct bcm_cfg80211 *) data;
+#endif
 	struct net_device *ndev;
 	CFGP2P_DBG((" Enter\n"));
 
@@ -1742,6 +1757,8 @@ wl_cfgp2p_supported(struct bcm_cfg80211 *cfg, struct net_device *ndev)
 			return ret;
 		}
 	}
+	if (cfg->pub->conf->fw_type == FW_TYPE_MESH)
+		p2p_supported = 0;
 	if (p2p_supported == 1) {
 		CFGP2P_INFO(("p2p is supported\n"));
 	} else {
@@ -1750,6 +1767,7 @@ wl_cfgp2p_supported(struct bcm_cfg80211 *cfg, struct net_device *ndev)
 	}
 	return p2p_supported;
 }
+
 /* Cleanup P2P resources */
 s32
 wl_cfgp2p_down(struct bcm_cfg80211 *cfg)

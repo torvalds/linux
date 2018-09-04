@@ -33,6 +33,10 @@
 #ifndef _dhd_bus_h_
 #define _dhd_bus_h_
 
+extern int dbus_up(struct dhd_bus *pub);
+extern int dbus_stop(struct dhd_bus *pub);
+extern int dbus_send_ctl(struct dhd_bus *pub, uint8 *buf, int len);
+extern int dbus_recv_ctl(struct dhd_bus *pub, uint8 *buf, int len);
 /*
  * Exported from dhd bus module (dhd_usb, dhd_sdio)
  */

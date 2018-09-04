@@ -627,16 +627,18 @@ wl_iw_get_freq(
 	char *extra
 )
 {
-	channel_info_t ci;
 	int error;
+	u32 chanspec = 0;
+	int ctl_chan;
 
 	WL_TRACE(("%s: SIOCGIWFREQ\n", dev->name));
 
-	if ((error = dev_wlc_ioctl(dev, WLC_GET_CHANNEL, &ci, sizeof(ci))))
+	if ((error = dev_wlc_intvar_get(dev, "chanspec", &chanspec)))
 		return error;
+	ctl_chan = wf_chspec_ctlchan(chanspec);
 
 	/* Return radio channel in channel form */
-	fwrq->m = dtoh32(ci.hw_channel);
+	fwrq->m = ctl_chan;
 	fwrq->e = dtoh32(0);
 	return 0;
 }
@@ -1779,14 +1781,13 @@ wl_iw_get_essid(
 	/* Max SSID length check */
 	if (ssid.SSID_len > IW_ESSID_MAX_SIZE) {
 		ssid.SSID_len = IW_ESSID_MAX_SIZE;
-		/* Get the current SSID */
-		memcpy(extra, ssid.SSID, ssid.SSID_len);
-		/* NULL terminating as length of extra buffer is IW_ESSID_MAX_SIZE ie 32 */
-		extra[IW_ESSID_MAX_SIZE - 1] = '\0';
-	} else {
-		/* Get the current SSID */
-		memcpy(extra, ssid.SSID, ssid.SSID_len);
 	}
+
+	/* Get the current SSID */
+	memcpy(extra, ssid.SSID, ssid.SSID_len);
+
+	/* NULL terminating as length of extra buffer is IW_ESSID_MAX_SIZE ie 32 */
+	extra[IW_ESSID_MAX_SIZE] = '\0';
 
 	dwrq->length = ssid.SSID_len;
 
@@ -3304,6 +3305,7 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 	uint16 flags =  ntoh16(e->flags);
 	uint32 datalen = ntoh32(e->datalen);
 	uint32 status =  ntoh32(e->status);
+	uint32 reason =  ntoh32(e->reason);
 
 	memset(&wrqu, 0, sizeof(wrqu));
 	memset(extra, 0, sizeof(extra));
@@ -3333,12 +3335,12 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 		cmd = SIOCGIWAP;
 		wrqu.data.length = strlen(extra);
 		if (!(flags & WLC_EVENT_MSG_LINK)) {
-			printf("%s: Link Down with BSSID="MACSTR"\n", __FUNCTION__,
-				MAC2STR((u8 *)wrqu.addr.sa_data));
+			printf("%s: Link Down with "MACSTR", reason=%d\n", __FUNCTION__,
+				MAC2STR((u8 *)wrqu.addr.sa_data), reason);
 			bzero(wrqu.addr.sa_data, ETHER_ADDR_LEN);
 			bzero(&extra, ETHER_ADDR_LEN);
 		} else {
-			printf("%s: Link UP with BSSID="MACSTR"\n", __FUNCTION__,
+			printf("%s: Link UP with "MACSTR"\n", __FUNCTION__,
 				MAC2STR((u8 *)wrqu.addr.sa_data));
 		}
 		break;
@@ -3545,15 +3547,19 @@ int wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstat
 #endif /* WIRELESS_EXT > 11 */
 
 	phy_noise = 0;
-	if ((res = dev_wlc_ioctl(dev, WLC_GET_PHY_NOISE, &phy_noise, sizeof(phy_noise))))
+	if ((res = dev_wlc_ioctl(dev, WLC_GET_PHY_NOISE, &phy_noise, sizeof(phy_noise)))) {
+		WL_ERROR(("%s: WLC_GET_PHY_NOISE error=%d\n", __FUNCTION__, res));
 		goto done;
+	}
 
 	phy_noise = dtoh32(phy_noise);
 	WL_TRACE(("wl_iw_get_wireless_stats phy noise=%d\n *****", phy_noise));
 
-	scb_val.val = 0;
-	if ((res = dev_wlc_ioctl(dev, WLC_GET_RSSI, &scb_val, sizeof(scb_val_t))))
+	memset(&scb_val, 0, sizeof(scb_val));
+	if ((res = dev_wlc_ioctl(dev, WLC_GET_RSSI, &scb_val, sizeof(scb_val_t)))) {
+		WL_ERROR(("%s: WLC_GET_RSSI error=%d\n", __FUNCTION__, res));
 		goto done;
+	}
 
 	rssi = dtoh32(scb_val.val);
 	rssi = MIN(rssi, RSSI_MAXVAL);
@@ -3647,9 +3653,19 @@ done:
 
 #ifndef WL_ESCAN
 static void
-wl_iw_timerfunc(ulong data)
+wl_iw_timerfunc(
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+	struct timer_list *t
+#else
+	unsigned long data
+#endif
+)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+	iscan_info_t *iscan = from_timer(iscan, t, timer);
+#else
 	iscan_info_t *iscan = (iscan_info_t *)data;
+#endif
 	iscan->timer_on = 0;
 	if (iscan->iscan_state != ISCAN_STATE_IDLE) {
 		WL_TRACE(("timer trigger\n"));
@@ -3887,9 +3903,13 @@ wl_iw_attach(struct net_device *dev, void * dhdp)
 
 	/* Set up the timer */
 	iscan->timer_ms    = 2000;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+	timer_setup(&iscan->timer, wl_iw_timerfunc, 0);
+#else
 	init_timer(&iscan->timer);
 	iscan->timer.data = (ulong)iscan;
 	iscan->timer.function = wl_iw_timerfunc;
+#endif
 
 	sema_init(&iscan->sysioc_sem, 0);
 	init_completion(&iscan->sysioc_exited);

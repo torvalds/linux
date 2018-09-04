@@ -38,6 +38,9 @@ config BCMDHD_SDIO
 config BCMDHD_PCIE
 		bool "PCIe bus interface support"
 		depends on BCMDHD && PCI
+config BCMDHD_USB
+		bool "USB bus interface support"
+		depends on BCMDHD && USB
 endchoice
 
 choice

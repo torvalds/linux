@@ -52,6 +52,7 @@
 #include <pcie_core.h>
 #include <bcmpcie.h>
 #include <dhd_pcie.h>
+#include <dhd_config.h>
 #ifdef DHD_TIMESYNC
 #include <dhd_timesync.h>
 #endif /* DHD_TIMESYNC */
@@ -6013,6 +6014,7 @@ dhd_msgbuf_wait_ioctl_cmplt(dhd_pub_t *dhd, uint32 len, void *buf)
 	int timeleft;
 	unsigned long flags;
 	int ret = 0;
+	static uint cnt = 0;
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
@@ -6021,7 +6023,7 @@ dhd_msgbuf_wait_ioctl_cmplt(dhd_pub_t *dhd, uint32 len, void *buf)
 		goto out;
 	}
 
-	timeleft = dhd_os_ioctl_resp_wait(dhd, (uint *)&prot->ioctl_received);
+	timeleft = dhd_os_ioctl_resp_wait(dhd, (uint *)&prot->ioctl_received, false);
 
 #ifdef DHD_RECOVER_TIMEOUT
 	if (prot->ioctl_received == 0) {
@@ -6052,6 +6054,25 @@ dhd_msgbuf_wait_ioctl_cmplt(dhd_pub_t *dhd, uint32 len, void *buf)
 		}
 	}
 #endif /* DHD_RECOVER_TIMEOUT */
+
+	if (dhd->conf->ctrl_resched > 0 && timeleft == 0 && (!dhd_query_bus_erros(dhd))) {
+		cnt++;
+		if (cnt <= dhd->conf->ctrl_resched) {
+			uint32 intstatus = 0, intmask = 0;
+			intstatus = si_corereg(dhd->bus->sih, dhd->bus->sih->buscoreidx, PCIMailBoxInt, 0, 0);
+			intmask = si_corereg(dhd->bus->sih, dhd->bus->sih->buscoreidx, PCIMailBoxMask, 0, 0);
+			if (intstatus) {
+				DHD_ERROR(("%s: reschedule dhd_dpc, cnt=%d, intstatus=0x%x, intmask=0x%x\n",
+					__FUNCTION__, cnt, intstatus, intmask));
+				dhd->bus->ipend = TRUE;
+				dhd->bus->dpc_sched = TRUE;
+				dhd_sched_dpc(dhd);
+				timeleft = dhd_os_ioctl_resp_wait(dhd, &prot->ioctl_received, true);
+			}
+		}
+	} else {
+		cnt = 0;
+	}
 
 	if (timeleft == 0 && (!dhd_query_bus_erros(dhd))) {
 		uint32 intstatus;

@@ -232,7 +232,7 @@ static const struct sdio_device_id bcmsdh_sdmmc_ids[] = {
 
 MODULE_DEVICE_TABLE(sdio, bcmsdh_sdmmc_ids);
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)) && defined(CONFIG_PM_SLEEP)
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)) && defined(CONFIG_PM)
 static int bcmsdh_sdmmc_suspend(struct device *pdev)
 {
 	int err;
@@ -275,9 +275,7 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 
 static int bcmsdh_sdmmc_resume(struct device *pdev)
 {
-#if defined(OOB_INTR_ONLY)
 	sdioh_info_t *sdioh;
-#endif
 	struct sdio_func *func = dev_to_sdio_func(pdev);
 
 	printf("%s Enter func->num=%d\n", __FUNCTION__, func->num);
@@ -285,10 +283,8 @@ static int bcmsdh_sdmmc_resume(struct device *pdev)
 		return 0;
 
 	dhd_mmc_suspend = FALSE;
-#if defined(OOB_INTR_ONLY)
 	sdioh = sdio_get_drvdata(func);
 	bcmsdh_resume(sdioh->bcmsdh);
-#endif
 
 	smp_mb();
 	printf("%s Exit\n", __FUNCTION__);
@@ -346,7 +342,7 @@ static struct sdio_driver bcmsdh_sdmmc_driver = {
 	.remove		= bcmsdh_sdmmc_remove,
 	.name		= "bcmsdh_sdmmc",
 	.id_table	= bcmsdh_sdmmc_ids,
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)) && defined(CONFIG_PM_SLEEP)
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)) && defined(CONFIG_PM)
 	.drv = {
 	.pm	= &bcmsdh_sdmmc_pm_ops,
 	},

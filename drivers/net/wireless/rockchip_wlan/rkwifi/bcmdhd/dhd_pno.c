@@ -910,6 +910,7 @@ exit:
 	bytes_written = (int32)(bp - buf);
 	return bytes_written;
 }
+
 static int
 _dhd_pno_clear_all_batch_results(dhd_pub_t *dhd, struct list_head *head, bool only_last)
 {
@@ -992,6 +993,7 @@ _dhd_pno_cfg(dhd_pub_t *dhd, uint16 *channel_list, int nchan)
 exit:
 	return err;
 }
+
 static int
 _dhd_pno_reinitialize_prof(dhd_pub_t *dhd, dhd_pno_params_t *params, dhd_pno_mode_t mode)
 {
@@ -1084,6 +1086,7 @@ _dhd_pno_reinitialize_prof(dhd_pub_t *dhd, dhd_pno_params_t *params, dhd_pno_mod
 	mutex_unlock(&_pno_state->pno_mutex);
 	return err;
 }
+
 static int
 _dhd_pno_add_bssid(dhd_pub_t *dhd, wl_pfn_bssid_t *p_pfn_bssid, int nbssid)
 {
@@ -2763,6 +2766,7 @@ exit:
 	return err;
 }
 #endif /* GSCAN_SUPPORT */
+
 #if defined(GSCAN_SUPPORT) || defined(DHD_GET_VALID_CHANNELS)
 void *
 dhd_pno_get_gscan(dhd_pub_t *dhd, dhd_pno_gscan_cmd_cfg_t type,
@@ -4007,6 +4011,7 @@ exit:
 	kfree(buf);
 	return err;
 }
+
 int dhd_pno_deinit(dhd_pub_t *dhd)
 {
 	int err = BCME_OK;

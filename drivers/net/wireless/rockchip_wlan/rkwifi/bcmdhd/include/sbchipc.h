@@ -3343,6 +3343,7 @@ typedef volatile struct {
 #define CA7_4365_RAM_BASE                    (0x200000)
 
 #define CR4_4347_RAM_BASE                    (0x170000)
+#define CR4_4362_RAM_BASE                    (0x170000)
 
 /* 4335 chip OTP present & OTP select bits. */
 #define SPROM4335_OTP_SELECT	0x00000010

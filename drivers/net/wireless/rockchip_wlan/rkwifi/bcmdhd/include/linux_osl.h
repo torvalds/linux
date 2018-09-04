@@ -1145,6 +1145,7 @@ typedef struct sk_buff_head PKT_LIST;
 #define PKTLIST_UNLINK(x, y)	skb_unlink((struct sk_buff *)(y), (struct sk_buff_head *)(x))
 #define PKTLIST_FINI(x)		skb_queue_purge((struct sk_buff_head *)(x))
 
+#ifdef REPORT_FATAL_TIMEOUTS
 typedef struct osl_timer {
 	struct timer_list *timer;
 	bool   set;
@@ -1156,5 +1157,6 @@ extern osl_timer_t * osl_timer_init(osl_t *osh, const char *name, void (*fn)(voi
 extern void osl_timer_add(osl_t *osh, osl_timer_t *t, uint32 ms, bool periodic);
 extern void osl_timer_update(osl_t *osh, osl_timer_t *t, uint32 ms, bool periodic);
 extern bool osl_timer_del(osl_t *osh, osl_timer_t *t);
+#endif
 
 #endif	/* _linux_osl_h_ */
