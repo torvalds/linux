@@ -519,6 +519,7 @@ struct srb_iocb {
 enum {
 	TYPE_SRB,
 	TYPE_TGT_CMD,
+	TYPE_TGT_TMCMD,		/* task management */
 };
 
 typedef struct srb {

@@ -141,6 +141,8 @@ static void qlt_24xx_handle_abts(struct scsi_qla_host *,
 	struct abts_recv_from_24xx *);
 static void qlt_send_busy(struct qla_qpair *, struct atio_from_isp *,
     uint16_t);
+static int qlt_check_reserve_free_req(struct qla_qpair *qpair, uint32_t);
+static inline uint32_t qlt_make_handle(struct qla_qpair *);
 
 /*
  * Global Variables
@@ -541,7 +543,6 @@ void qlt_response_pkt_all_vps(struct scsi_qla_host *vha,
 		qlt_response_pkt(host, rsp, pkt);
 		break;
 	}
-
 	default:
 		qlt_response_pkt(vha, rsp, pkt);
 		break;
@@ -1716,6 +1717,94 @@ static void qlt_send_notify_ack(struct qla_qpair *qpair,
 	qla2x00_start_iocbs(vha, qpair->req);
 }
 
+static int qlt_build_abts_resp_iocb(struct qla_tgt_mgmt_cmd *mcmd)
+{
+	struct scsi_qla_host *vha = mcmd->vha;
+	struct qla_hw_data *ha = vha->hw;
+	struct abts_resp_to_24xx *resp;
+	uint32_t f_ctl, h;
+	uint8_t *p;
+	int rc;
+	struct abts_recv_from_24xx *abts = &mcmd->orig_iocb.abts;
+	struct qla_qpair *qpair = mcmd->qpair;
+
+	ql_dbg(ql_dbg_tgt, vha, 0xe006,
+	    "Sending task mgmt ABTS response (ha=%p, status=%x)\n",
+	    ha, mcmd->fc_tm_rsp);
+
+	rc = qlt_check_reserve_free_req(qpair, 1);
+	if (rc) {
+		ql_dbg(ql_dbg_tgt, vha, 0xe04a,
+		    "qla_target(%d): %s failed: unable to allocate request packet\n",
+		    vha->vp_idx, __func__);
+		return -EAGAIN;
+	}
+
+	resp = (struct abts_resp_to_24xx *)qpair->req->ring_ptr;
+	memset(resp, 0, sizeof(*resp));
+
+	h = qlt_make_handle(qpair);
+	if (unlikely(h == QLA_TGT_NULL_HANDLE)) {
+		/*
+		 * CTIO type 7 from the firmware doesn't provide a way to
+		 * know the initiator's LOOP ID, hence we can't find
+		 * the session and, so, the command.
+		 */
+		return -EAGAIN;
+	} else {
+		qpair->req->outstanding_cmds[h] = (srb_t *)mcmd;
+	}
+
+	resp->handle = MAKE_HANDLE(qpair->req->id, h);
+	resp->entry_type = ABTS_RESP_24XX;
+	resp->entry_count = 1;
+	resp->nport_handle = abts->nport_handle;
+	resp->vp_index = vha->vp_idx;
+	resp->sof_type = abts->sof_type;
+	resp->exchange_address = abts->exchange_address;
+	resp->fcp_hdr_le = abts->fcp_hdr_le;
+	f_ctl = cpu_to_le32(F_CTL_EXCH_CONTEXT_RESP |
+	    F_CTL_LAST_SEQ | F_CTL_END_SEQ |
+	    F_CTL_SEQ_INITIATIVE);
+	p = (uint8_t *)&f_ctl;
+	resp->fcp_hdr_le.f_ctl[0] = *p++;
+	resp->fcp_hdr_le.f_ctl[1] = *p++;
+	resp->fcp_hdr_le.f_ctl[2] = *p;
+
+	resp->fcp_hdr_le.d_id[0] = abts->fcp_hdr_le.s_id[0];
+	resp->fcp_hdr_le.d_id[1] = abts->fcp_hdr_le.s_id[1];
+	resp->fcp_hdr_le.d_id[2] = abts->fcp_hdr_le.s_id[2];
+	resp->fcp_hdr_le.s_id[0] = abts->fcp_hdr_le.d_id[0];
+	resp->fcp_hdr_le.s_id[1] = abts->fcp_hdr_le.d_id[1];
+	resp->fcp_hdr_le.s_id[2] = abts->fcp_hdr_le.d_id[2];
+
+	resp->exchange_addr_to_abort = abts->exchange_addr_to_abort;
+	if (mcmd->fc_tm_rsp == FCP_TMF_CMPL) {
+		resp->fcp_hdr_le.r_ctl = R_CTL_BASIC_LINK_SERV | R_CTL_B_ACC;
+		resp->payload.ba_acct.seq_id_valid = SEQ_ID_INVALID;
+		resp->payload.ba_acct.low_seq_cnt = 0x0000;
+		resp->payload.ba_acct.high_seq_cnt = 0xFFFF;
+		resp->payload.ba_acct.ox_id = abts->fcp_hdr_le.ox_id;
+		resp->payload.ba_acct.rx_id = abts->fcp_hdr_le.rx_id;
+	} else {
+		resp->fcp_hdr_le.r_ctl = R_CTL_BASIC_LINK_SERV | R_CTL_B_RJT;
+		resp->payload.ba_rjt.reason_code =
+			BA_RJT_REASON_CODE_UNABLE_TO_PERFORM;
+		/* Other bytes are zero */
+	}
+
+	vha->vha_tgt.qla_tgt->abts_resp_expected++;
+
+	/* Memory Barrier */
+	wmb();
+	if (qpair->reqq_start_iocbs)
+		qpair->reqq_start_iocbs(qpair);
+	else
+		qla2x00_start_iocbs(vha, qpair->req);
+
+	return rc;
+}
+
 /*
  * ha->hardware_lock supposed to be held on entry. Might drop it, then reaquire
  */
@@ -1743,6 +1832,7 @@ static void qlt_24xx_send_abts_resp(struct qla_qpair *qpair,
 	}
 
 	resp->entry_type = ABTS_RESP_24XX;
+	resp->handle = QLA_TGT_SKIP_HANDLE;
 	resp->entry_count = 1;
 	resp->nport_handle = abts->nport_handle;
 	resp->vp_index = vha->vp_idx;
@@ -1800,13 +1890,11 @@ static void qlt_24xx_send_abts_resp(struct qla_qpair *qpair,
  * ha->hardware_lock supposed to be held on entry. Might drop it, then reaquire
  */
 static void qlt_24xx_retry_term_exchange(struct scsi_qla_host *vha,
-    struct qla_qpair *qpair, struct abts_resp_from_24xx_fw *entry)
+    struct qla_qpair *qpair, response_t *pkt, struct qla_tgt_mgmt_cmd *mcmd)
 {
 	struct ctio7_to_24xx *ctio;
 	u16 tmp;
-
-	ql_dbg(ql_dbg_tgt, vha, 0xe007,
-	    "Sending retry TERM EXCH CTIO7 (ha=%p)\n", vha->hw);
+	struct abts_recv_from_24xx *entry;
 
 	ctio = (struct ctio7_to_24xx *)qla2x00_alloc_iocbs_ready(qpair, NULL);
 	if (ctio == NULL) {
@@ -1815,6 +1903,13 @@ static void qlt_24xx_retry_term_exchange(struct scsi_qla_host *vha,
 		    "request packet\n", vha->vp_idx, __func__);
 		return;
 	}
+
+	if (mcmd)
+		/* abts from remote port */
+		entry = &mcmd->orig_iocb.abts;
+	else
+		/* abts from this driver.  */
+		entry = (struct abts_recv_from_24xx *)pkt;
 
 	/*
 	 * We've got on entrance firmware's response on by us generated
@@ -1827,16 +1922,34 @@ static void qlt_24xx_retry_term_exchange(struct scsi_qla_host *vha,
 	ctio->handle = QLA_TGT_SKIP_HANDLE |	CTIO_COMPLETION_HANDLE_MARK;
 	ctio->timeout = cpu_to_le16(QLA_TGT_TIMEOUT);
 	ctio->vp_index = vha->vp_idx;
-	ctio->initiator_id[0] = entry->fcp_hdr_le.d_id[0];
-	ctio->initiator_id[1] = entry->fcp_hdr_le.d_id[1];
-	ctio->initiator_id[2] = entry->fcp_hdr_le.d_id[2];
 	ctio->exchange_addr = entry->exchange_addr_to_abort;
 	tmp = (CTIO7_FLAGS_STATUS_MODE_1 | CTIO7_FLAGS_TERMINATE);
-	if (qpair->retry_term_cnt & 1)
-		tmp |= (0x4 << 9);
-	ctio->u.status1.flags = cpu_to_le16(tmp);
 
-	ctio->u.status1.ox_id = cpu_to_le16(entry->fcp_hdr_le.ox_id);
+	if (mcmd) {
+		ctio->initiator_id[0] = entry->fcp_hdr_le.s_id[0];
+		ctio->initiator_id[1] = entry->fcp_hdr_le.s_id[1];
+		ctio->initiator_id[2] = entry->fcp_hdr_le.s_id[2];
+
+		if (mcmd->flags & QLA24XX_MGMT_ABORT_IO_ATTR_VALID)
+			tmp |= (mcmd->abort_io_attr << 9);
+		else if (qpair->retry_term_cnt & 1)
+			tmp |= (0x4 << 9);
+	} else {
+		ctio->initiator_id[0] = entry->fcp_hdr_le.d_id[0];
+		ctio->initiator_id[1] = entry->fcp_hdr_le.d_id[1];
+		ctio->initiator_id[2] = entry->fcp_hdr_le.d_id[2];
+
+		if (qpair->retry_term_cnt & 1)
+			tmp |= (0x4 << 9);
+	}
+	ctio->u.status1.flags = cpu_to_le16(tmp);
+	ctio->u.status1.ox_id = entry->fcp_hdr_le.ox_id;
+
+	ql_dbg(ql_dbg_tgt, vha, 0xe007,
+	    "Sending retry TERM EXCH CTIO7 flags %04xh oxid %04xh attr valid %x\n",
+	    le16_to_cpu(ctio->u.status1.flags),
+	    le16_to_cpu(ctio->u.status1.ox_id),
+	    (mcmd && mcmd->flags & QLA24XX_MGMT_ABORT_IO_ATTR_VALID) ? 1 : 0);
 
 	/* Memory Barrier */
 	wmb();
@@ -1845,43 +1958,12 @@ static void qlt_24xx_retry_term_exchange(struct scsi_qla_host *vha,
 	else
 		qla2x00_start_iocbs(vha, qpair->req);
 
-	qlt_24xx_send_abts_resp(qpair, (struct abts_recv_from_24xx *)entry,
-	    FCP_TMF_CMPL, true);
-}
+	if (mcmd)
+		qlt_build_abts_resp_iocb(mcmd);
+	else
+		qlt_24xx_send_abts_resp(qpair,
+		    (struct abts_recv_from_24xx *)entry, FCP_TMF_CMPL, true);
 
-static int abort_cmd_for_tag(struct scsi_qla_host *vha, uint32_t tag)
-{
-	struct qla_tgt_sess_op *op;
-	struct qla_tgt_cmd *cmd;
-	unsigned long flags;
-
-	spin_lock_irqsave(&vha->cmd_list_lock, flags);
-	list_for_each_entry(op, &vha->qla_sess_op_cmd_list, cmd_list) {
-		if (tag == op->atio.u.isp24.exchange_addr) {
-			op->aborted = true;
-			spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
-			return 1;
-		}
-	}
-
-	list_for_each_entry(op, &vha->unknown_atio_list, cmd_list) {
-		if (tag == op->atio.u.isp24.exchange_addr) {
-			op->aborted = true;
-			spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
-			return 1;
-		}
-	}
-
-	list_for_each_entry(cmd, &vha->qla_cmd_list, cmd_list) {
-		if (tag == cmd->atio.u.isp24.exchange_addr) {
-			cmd->aborted = 1;
-			spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
-			return 1;
-		}
-	}
-	spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
-
-	return 0;
 }
 
 /* drop cmds for the given lun
@@ -1976,9 +2058,8 @@ static void qlt_do_tmr_work(struct work_struct *work)
 		spin_lock_irqsave(mcmd->qpair->qp_lock_ptr, flags);
 		switch (mcmd->tmr_func) {
 		case QLA_TGT_ABTS:
-			qlt_24xx_send_abts_resp(mcmd->qpair,
-			    &mcmd->orig_iocb.abts,
-			    FCP_TMF_REJECTED, false);
+			mcmd->fc_tm_rsp = FCP_TMF_REJECTED;
+			qlt_build_abts_resp_iocb(mcmd);
 			break;
 		case QLA_TGT_LUN_RESET:
 		case QLA_TGT_CLEAR_TS:
@@ -2013,12 +2094,6 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	struct qla_tgt_mgmt_cmd *mcmd;
 	struct qla_qpair_hint *h = &vha->vha_tgt.qla_tgt->qphints[0];
 
-	if (abort_cmd_for_tag(vha, abts->exchange_addr_to_abort)) {
-		/* send TASK_ABORT response immediately */
-		qlt_24xx_send_abts_resp(ha->base_qpair, abts, FCP_TMF_CMPL, false);
-		return 0;
-	}
-
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf00f,
 	    "qla_target(%d): task abort (tag=%d)\n",
 	    vha->vp_idx, abts->exchange_addr_to_abort);
@@ -2031,7 +2106,7 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 		return -ENOMEM;
 	}
 	memset(mcmd, 0, sizeof(*mcmd));
-
+	mcmd->cmd_type = TYPE_TGT_TMCMD;
 	mcmd->sess = sess;
 	memcpy(&mcmd->orig_iocb.abts, abts, sizeof(mcmd->orig_iocb.abts));
 	mcmd->reset_count = ha->base_qpair->chip_reset;
@@ -2053,6 +2128,8 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 		if (abort_cmd && abort_cmd->qpair) {
 			mcmd->qpair = abort_cmd->qpair;
 			mcmd->se_cmd.cpuid = abort_cmd->se_cmd.cpuid;
+			mcmd->abort_io_attr = abort_cmd->atio.u.isp24.attr;
+			mcmd->flags = QLA24XX_MGMT_ABORT_IO_ATTR_VALID;
 		}
 	}
 
@@ -2270,6 +2347,7 @@ void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *mcmd)
 	struct qla_hw_data *ha = vha->hw;
 	unsigned long flags;
 	struct qla_qpair *qpair = mcmd->qpair;
+	bool free_mcmd = true;
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf013,
 	    "TM response mcmd (%p) status %#x state %#x",
@@ -2308,10 +2386,10 @@ void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *mcmd)
 			    &mcmd->orig_iocb.imm_ntfy, 0, 0, 0, 0, 0, 0);
 		}
 	} else {
-		if (mcmd->orig_iocb.atio.u.raw.entry_type == ABTS_RECV_24XX)
-			qlt_24xx_send_abts_resp(qpair, &mcmd->orig_iocb.abts,
-			    mcmd->fc_tm_rsp, false);
-		else
+		if (mcmd->orig_iocb.atio.u.raw.entry_type == ABTS_RECV_24XX) {
+			qlt_build_abts_resp_iocb(mcmd);
+			free_mcmd = false;
+		} else
 			qlt_24xx_send_task_mgmt_ctio(qpair, mcmd,
 			    mcmd->fc_tm_rsp);
 	}
@@ -2323,7 +2401,9 @@ void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *mcmd)
 	 * descriptor after TFO->queue_tm_rsp() -> tcm_qla2xxx_queue_tm_rsp() ->
 	 * qlt_xmit_tm_rsp() returns here..
 	 */
-	ha->tgt.tgt_ops->free_mcmd(mcmd);
+	if (free_mcmd)
+		ha->tgt.tgt_ops->free_mcmd(mcmd);
+
 	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 }
 EXPORT_SYMBOL(qlt_xmit_tm_rsp);
@@ -3833,10 +3913,10 @@ static int qlt_term_ctio_exchange(struct qla_qpair *qpair, void *ctio,
 
 
 /* ha->hardware_lock supposed to be held on entry */
-static struct qla_tgt_cmd *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
+static void *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
 	struct rsp_que *rsp, uint32_t handle, void *ctio)
 {
-	struct qla_tgt_cmd *cmd = NULL;
+	void *cmd = NULL;
 	struct req_que *req;
 	int qid = GET_QID(handle);
 	uint32_t h = handle & ~QLA_TGT_HANDLE_MASK;
@@ -3865,7 +3945,7 @@ static struct qla_tgt_cmd *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
 			return NULL;
 		}
 
-		cmd = (struct qla_tgt_cmd *)req->outstanding_cmds[h];
+		cmd = (void *) req->outstanding_cmds[h];
 		if (unlikely(cmd == NULL)) {
 			ql_dbg(ql_dbg_async, vha, 0xe053,
 			    "qla_target(%d): Suspicious: unable to find the command with handle %x req->id %d rsp->id %d\n",
@@ -3938,7 +4018,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 		return;
 	}
 
-	cmd = qlt_ctio_to_cmd(vha, rsp, handle, ctio);
+	cmd = (struct qla_tgt_cmd *)qlt_ctio_to_cmd(vha, rsp, handle, ctio);
 	if (cmd == NULL)
 		return;
 
@@ -5718,6 +5798,55 @@ static int qlt_chk_unresolv_exchg(struct scsi_qla_host *vha,
 	return rc;
 }
 
+
+static void qlt_handle_abts_completion(struct scsi_qla_host *vha,
+	struct rsp_que *rsp, response_t *pkt)
+{
+	struct abts_resp_from_24xx_fw *entry =
+		(struct abts_resp_from_24xx_fw *)pkt;
+	u32 h = pkt->handle & ~QLA_TGT_HANDLE_MASK;
+	struct qla_tgt_mgmt_cmd *mcmd;
+	struct qla_hw_data *ha = vha->hw;
+
+	mcmd = (struct qla_tgt_mgmt_cmd *)qlt_ctio_to_cmd(vha, rsp,
+	    pkt->handle, pkt);
+	if (mcmd == NULL && h != QLA_TGT_SKIP_HANDLE) {
+		ql_dbg(ql_dbg_async, vha, 0xe064,
+		    "qla_target(%d): ABTS Comp without mcmd\n",
+		    vha->vp_idx);
+		return;
+	}
+
+	if (mcmd)
+		vha  = mcmd->vha;
+	vha->vha_tgt.qla_tgt->abts_resp_expected--;
+
+	ql_dbg(ql_dbg_tgt, vha, 0xe038,
+	    "ABTS_RESP_24XX: compl_status %x\n",
+	    entry->compl_status);
+
+	if (le16_to_cpu(entry->compl_status) != ABTS_RESP_COMPL_SUCCESS) {
+		if ((entry->error_subcode1 == 0x1E) &&
+		    (entry->error_subcode2 == 0)) {
+			if (qlt_chk_unresolv_exchg(vha, rsp->qpair, entry)) {
+				ha->tgt.tgt_ops->free_mcmd(mcmd);
+				return;
+			}
+			qlt_24xx_retry_term_exchange(vha, rsp->qpair,
+			    pkt, mcmd);
+		} else {
+			ql_dbg(ql_dbg_tgt, vha, 0xe063,
+			    "qla_target(%d): ABTS_RESP_24XX failed %x (subcode %x:%x)",
+			    vha->vp_idx, entry->compl_status,
+			    entry->error_subcode1,
+			    entry->error_subcode2);
+			ha->tgt.tgt_ops->free_mcmd(mcmd);
+		}
+	} else {
+		ha->tgt.tgt_ops->free_mcmd(mcmd);
+	}
+}
+
 /* ha->hardware_lock supposed to be held on entry */
 /* called via callback from qla2xxx */
 static void qlt_response_pkt(struct scsi_qla_host *vha,
@@ -5850,44 +5979,7 @@ static void qlt_response_pkt(struct scsi_qla_host *vha,
 
 	case ABTS_RESP_24XX:
 		if (tgt->abts_resp_expected > 0) {
-			struct abts_resp_from_24xx_fw *entry =
-				(struct abts_resp_from_24xx_fw *)pkt;
-			ql_dbg(ql_dbg_tgt, vha, 0xe038,
-			    "ABTS_RESP_24XX: compl_status %x\n",
-			    entry->compl_status);
-			tgt->abts_resp_expected--;
-			if (le16_to_cpu(entry->compl_status) !=
-			    ABTS_RESP_COMPL_SUCCESS) {
-				if ((entry->error_subcode1 == 0x1E) &&
-				    (entry->error_subcode2 == 0)) {
-					/*
-					 * We've got a race here: aborted
-					 * exchange not terminated, i.e.
-					 * response for the aborted command was
-					 * sent between the abort request was
-					 * received and processed.
-					 * Unfortunately, the firmware has a
-					 * silly requirement that all aborted
-					 * exchanges must be explicitely
-					 * terminated, otherwise it refuses to
-					 * send responses for the abort
-					 * requests. So, we have to
-					 * (re)terminate the exchange and retry
-					 * the abort response.
-					 */
-					if (qlt_chk_unresolv_exchg(vha,
-						rsp->qpair, entry))
-						break;
-					qlt_24xx_retry_term_exchange(vha,
-					    rsp->qpair, entry);
-				} else
-					ql_dbg(ql_dbg_tgt, vha, 0xe063,
-					    "qla_target(%d): ABTS_RESP_24XX "
-					    "failed %x (subcode %x:%x)",
-					    vha->vp_idx, entry->compl_status,
-					    entry->error_subcode1,
-					    entry->error_subcode2);
-			}
+			qlt_handle_abts_completion(vha, rsp, pkt);
 		} else {
 			ql_dbg(ql_dbg_tgt, vha, 0xe064,
 			    "qla_target(%d): Unexpected ABTS_RESP_24XX "

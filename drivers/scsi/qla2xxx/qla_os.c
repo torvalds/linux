@@ -1732,64 +1732,84 @@ __qla2x00_abort_all_cmds(struct qla_qpair *qp, int res)
 		sp = req->outstanding_cmds[cnt];
 		if (sp) {
 			req->outstanding_cmds[cnt] = NULL;
-			if (sp->cmd_type == TYPE_SRB) {
-				if (sp->type == SRB_NVME_CMD ||
-				    sp->type == SRB_NVME_LS) {
-					sp_get(sp);
-					spin_unlock_irqrestore(qp->qp_lock_ptr,
-					    flags);
-					qla_nvme_abort(ha, sp, res);
-					spin_lock_irqsave(qp->qp_lock_ptr,
-					    flags);
-				} else if (GET_CMD_SP(sp) &&
-				    !ha->flags.eeh_busy &&
-				    (!test_bit(ABORT_ISP_ACTIVE,
-					&vha->dpc_flags)) &&
-				    (sp->type == SRB_SCSI_CMD)) {
+			switch (sp->cmd_type) {
+			case TYPE_SRB:
+				if (sp->cmd_type == TYPE_SRB) {
+					if (sp->type == SRB_NVME_CMD ||
+					    sp->type == SRB_NVME_LS) {
+						sp_get(sp);
+						spin_unlock_irqrestore
+							(qp->qp_lock_ptr,
+							 flags);
+						qla_nvme_abort(ha, sp, res);
+						spin_lock_irqsave
+							(qp->qp_lock_ptr,
+							 flags);
+					} else if (GET_CMD_SP(sp) &&
+					    !ha->flags.eeh_busy &&
+					    (!test_bit(ABORT_ISP_ACTIVE,
+						&vha->dpc_flags)) &&
+					    (sp->type == SRB_SCSI_CMD)) {
+						/*
+						 * Don't abort commands in
+						 * adapter during EEH
+						 * recovery as it's not
+						 * accessible/responding.
+						 *
+						 * Get a reference to the sp
+						 * and drop the lock. The
+						 * reference ensures this
+						 * sp->done() call and not the
+						 * call in qla2xxx_eh_abort()
+						 * ends the SCSI command (with
+						 * result 'res').
+						 */
+						sp_get(sp);
+						spin_unlock_irqrestore
+							(qp->qp_lock_ptr,
+							 flags);
+						status = qla2xxx_eh_abort(
+						    GET_CMD_SP(sp));
+						spin_lock_irqsave
+							(qp->qp_lock_ptr,
+							 flags);
+						/*
+						 * Get rid of extra reference
+						 * if immediate exit from
+						 * ql2xxx_eh_abort
+						 */
+						if (status == FAILED &&
+						    (qla2x00_isp_reg_stat(ha)))
+							atomic_dec(
+							    &sp->ref_count);
+					}
+					sp->done(sp, res);
+					break;
+				case TYPE_TGT_CMD:
+					if (!vha->hw->tgt.tgt_ops ||
+					    !tgt || qla_ini_mode_enabled(vha)) {
+						if (!trace)
+							ql_dbg(ql_dbg_tgt_mgt,
+							    vha, 0xf003,
+							    "HOST-ABORT-HNDLR: dpc_flags=%lx. Target mode disabled\n",
+							    vha->dpc_flags);
+						continue;
+					}
+					cmd = (struct qla_tgt_cmd *)sp;
+					qlt_abort_cmd_on_host_reset(cmd->vha,
+					    cmd);
+					break;
+				case TYPE_TGT_TMCMD:
 					/*
-					 * Don't abort commands in
-					 * adapter during EEH
-					 * recovery as it's not
-					 * accessible/responding.
-					 *
-					 * Get a reference to the sp
-					 * and drop the lock. The
-					 * reference ensures this
-					 * sp->done() call and not the
-					 * call in qla2xxx_eh_abort()
-					 * ends the SCSI command (with
-					 * result 'res').
+					 * Currently, only ABTS response gets on
+					 * the outstanding_cmds[]
 					 */
-					sp_get(sp);
-					spin_unlock_irqrestore(qp->qp_lock_ptr,
-					    flags);
-					status = qla2xxx_eh_abort(
-					    GET_CMD_SP(sp));
-					spin_lock_irqsave(qp->qp_lock_ptr,
-					    flags);
-					/*
-					 * Get rid of extra reference
-					 * if immediate exit from
-					 * ql2xxx_eh_abort
-					 */
-					if (status == FAILED &&
-					    (qla2x00_isp_reg_stat(ha)))
-						atomic_dec(
-						    &sp->ref_count);
+					ha->tgt.tgt_ops->free_mcmd(
+					    (struct qla_tgt_mgmt_cmd *)sp);
+					break;
+				default:
+					break;
 				}
-				sp->done(sp, res);
-			} else {
-				if (!vha->hw->tgt.tgt_ops || !tgt ||
-				    qla_ini_mode_enabled(vha)) {
-					if (!trace)
-						ql_dbg(ql_dbg_tgt_mgt,
-						    vha, 0xf003,
-						    "HOST-ABORT-HNDLR: dpc_flags=%lx. Target mode disabled\n",
-						    vha->dpc_flags);
-					continue;
-				}
-				cmd = (struct qla_tgt_cmd *)sp;
-				qlt_abort_cmd_on_host_reset(cmd->vha, cmd);
 			}
 		}
 	}
