@@ -26,10 +26,6 @@
 
 /* ---- Private Constants and Types ------------------------------------------ */
 
-#define BCM2835_AUDIO_STOP           0
-#define BCM2835_AUDIO_START          1
-#define BCM2835_AUDIO_WRITE          2
-
 /* Logging macros (for remapping to other logging mechanisms, i.e., printf) */
 #ifdef AUDIO_DEBUG_ENABLE
 #define LOG_ERR(fmt, arg...)   pr_err("%s:%d " fmt, __func__, __LINE__, ##arg)
@@ -54,17 +50,6 @@ struct bcm2835_audio_instance {
 };
 
 static bool force_bulk;
-
-/* ---- Private Variables ---------------------------------------------------- */
-
-/* ---- Private Function Prototypes ------------------------------------------ */
-
-/* ---- Private Functions ---------------------------------------------------- */
-
-static int bcm2835_audio_stop_worker(struct bcm2835_alsa_stream *alsa_stream);
-static int bcm2835_audio_start_worker(struct bcm2835_alsa_stream *alsa_stream);
-static int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
-				      unsigned int count, void *src);
 
 static void bcm2835_audio_lock(struct bcm2835_audio_instance *instance)
 {
@@ -135,108 +120,6 @@ static const u32 BCM2835_AUDIO_WRITE_COOKIE1 = ('B' << 24 | 'C' << 16 |
 static const u32 BCM2835_AUDIO_WRITE_COOKIE2 = ('D' << 24 | 'A' << 16 |
 						'T' << 8  | 'A');
 
-struct bcm2835_audio_work {
-	struct work_struct my_work;
-	struct bcm2835_alsa_stream *alsa_stream;
-	int cmd;
-	void *src;
-	unsigned int count;
-};
-
-static void my_wq_function(struct work_struct *work)
-{
-	struct bcm2835_audio_work *w =
-		container_of(work, struct bcm2835_audio_work, my_work);
-	int ret = -9;
-
-	switch (w->cmd) {
-	case BCM2835_AUDIO_START:
-		ret = bcm2835_audio_start_worker(w->alsa_stream);
-		break;
-	case BCM2835_AUDIO_STOP:
-		ret = bcm2835_audio_stop_worker(w->alsa_stream);
-		break;
-	case BCM2835_AUDIO_WRITE:
-		ret = bcm2835_audio_write_worker(w->alsa_stream, w->count,
-						 w->src);
-		break;
-	default:
-		LOG_ERR(" Unexpected work: %p:%d\n", w->alsa_stream, w->cmd);
-		break;
-	}
-	kfree((void *)work);
-}
-
-int bcm2835_audio_start(struct bcm2835_alsa_stream *alsa_stream)
-{
-	struct bcm2835_audio_work *work;
-
-	work = kmalloc(sizeof(*work), GFP_ATOMIC);
-	/*--- Queue some work (item 1) ---*/
-	if (!work) {
-		LOG_ERR(" .. Error: NULL work kmalloc\n");
-		return -ENOMEM;
-	}
-	INIT_WORK(&work->my_work, my_wq_function);
-	work->alsa_stream = alsa_stream;
-	work->cmd = BCM2835_AUDIO_START;
-	if (!queue_work(alsa_stream->my_wq, &work->my_work)) {
-		kfree(work);
-		return -EBUSY;
-	}
-	return 0;
-}
-
-int bcm2835_audio_stop(struct bcm2835_alsa_stream *alsa_stream)
-{
-	struct bcm2835_audio_work *work;
-
-	work = kmalloc(sizeof(*work), GFP_ATOMIC);
-	/*--- Queue some work (item 1) ---*/
-	if (!work) {
-		LOG_ERR(" .. Error: NULL work kmalloc\n");
-		return -ENOMEM;
-	}
-	INIT_WORK(&work->my_work, my_wq_function);
-	work->alsa_stream = alsa_stream;
-	work->cmd = BCM2835_AUDIO_STOP;
-	if (!queue_work(alsa_stream->my_wq, &work->my_work)) {
-		kfree(work);
-		return -EBUSY;
-	}
-	return 0;
-}
-
-int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
-			unsigned int count, void *src)
-{
-	struct bcm2835_audio_work *work;
-
-	work = kmalloc(sizeof(*work), GFP_ATOMIC);
-	/*--- Queue some work (item 1) ---*/
-	if (!work) {
-		LOG_ERR(" .. Error: NULL work kmalloc\n");
-		return -ENOMEM;
-	}
-	INIT_WORK(&work->my_work, my_wq_function);
-	work->alsa_stream = alsa_stream;
-	work->cmd = BCM2835_AUDIO_WRITE;
-	work->src = src;
-	work->count = count;
-	if (!queue_work(alsa_stream->my_wq, &work->my_work)) {
-		kfree(work);
-		return -EBUSY;
-	}
-	return 0;
-}
-
-static void my_workqueue_quit(struct bcm2835_alsa_stream *alsa_stream)
-{
-	flush_workqueue(alsa_stream->my_wq);
-	destroy_workqueue(alsa_stream->my_wq);
-	alsa_stream->my_wq = NULL;
-}
-
 static void audio_vchi_callback(void *param,
 				const VCHI_CALLBACK_REASON_T reason,
 				void *msg_handle)
@@ -249,47 +132,27 @@ static void audio_vchi_callback(void *param,
 	if (reason != VCHI_CALLBACK_MSG_AVAILABLE)
 		return;
 
-	if (!instance) {
-		LOG_ERR(" .. instance is null\n");
-		BUG();
-		return;
-	}
-	if (!instance->vchi_handle) {
-		LOG_ERR(" .. instance->vchi_handle is null\n");
-		BUG();
-		return;
-	}
 	status = vchi_msg_dequeue(instance->vchi_handle,
 				  &m, sizeof(m), &msg_len, VCHI_FLAGS_NONE);
 	if (m.type == VC_AUDIO_MSG_TYPE_RESULT) {
-		LOG_DBG(" .. instance=%p, m.type=VC_AUDIO_MSG_TYPE_RESULT, success=%d\n",
-			instance, m.u.result.success);
 		instance->result = m.u.result.success;
 		complete(&instance->msg_avail_comp);
 	} else if (m.type == VC_AUDIO_MSG_TYPE_COMPLETE) {
-		struct bcm2835_alsa_stream *alsa_stream = instance->alsa_stream;
-
-		LOG_DBG(" .. instance=%p, m.type=VC_AUDIO_MSG_TYPE_COMPLETE, complete=%d\n",
-			instance, m.u.complete.count);
 		if (m.u.complete.cookie1 != BCM2835_AUDIO_WRITE_COOKIE1 ||
 		    m.u.complete.cookie2 != BCM2835_AUDIO_WRITE_COOKIE2)
-			LOG_ERR(" .. response is corrupt\n");
-		else if (alsa_stream) {
-			atomic_add(m.u.complete.count,
-				   &alsa_stream->retrieved);
-			bcm2835_playback_fifo(alsa_stream);
-		} else {
-			LOG_ERR(" .. unexpected alsa_stream=%p\n",
-				alsa_stream);
-		}
+			LOG_ERR("invalid cookie\n");
+		else
+			bcm2835_playback_fifo(instance->alsa_stream,
+					      m.u.complete.count);
 	} else {
-		LOG_ERR(" .. unexpected m.type=%d\n", m.type);
+		LOG_ERR("unexpected callback type=%d\n", m.type);
 	}
 }
 
-static struct bcm2835_audio_instance *
+static int
 vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
-		   VCHI_CONNECTION_T *vchi_connection)
+		   VCHI_CONNECTION_T *vchi_connection,
+		   struct bcm2835_audio_instance *instance)
 {
 	SERVICE_CREATION_T params = {
 		.version		= VCHI_VERSION_EX(VC_AUDIOSERV_VER, VC_AUDIOSERV_MIN_VER),
@@ -298,23 +161,14 @@ vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
 		.rx_fifo_size		= 0,
 		.tx_fifo_size		= 0,
 		.callback		= audio_vchi_callback,
+		.callback_param		= instance,
 		.want_unaligned_bulk_rx = 1, //TODO: remove VCOS_FALSE
 		.want_unaligned_bulk_tx = 1, //TODO: remove VCOS_FALSE
 		.want_crc		= 0
 	};
-	struct bcm2835_audio_instance *instance;
 	int status;
 
-	/* Allocate memory for this instance */
-	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
-	if (!instance)
-		return ERR_PTR(-ENOMEM);
-
-	/* Create a lock for exclusive, serialized VCHI connection access */
-	mutex_init(&instance->vchi_mutex);
 	/* Open the VCHI service connections */
-	params.callback_param = instance,
-
 	status = vchi_service_open(vchi_instance, &params,
 				   &instance->vchi_handle);
 
@@ -322,16 +176,16 @@ vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
 		LOG_ERR("%s: failed to open VCHI service connection (status=%d)\n",
 			__func__, status);
 		kfree(instance);
-		return ERR_PTR(-EPERM);
+		return -EPERM;
 	}
 
 	/* Finished with the service for now */
 	vchi_service_release(instance->vchi_handle);
 
-	return instance;
+	return 0;
 }
 
-static int vc_vchi_audio_deinit(struct bcm2835_audio_instance *instance)
+static void vc_vchi_audio_deinit(struct bcm2835_audio_instance *instance)
 {
 	int status;
 
@@ -346,10 +200,6 @@ static int vc_vchi_audio_deinit(struct bcm2835_audio_instance *instance)
 	}
 
 	mutex_unlock(&instance->vchi_mutex);
-
-	kfree(instance);
-
-	return 0;
 }
 
 int bcm2835_new_vchi_ctx(struct bcm2835_vchi_ctx *vchi_ctx)
@@ -387,39 +237,25 @@ void bcm2835_free_vchi_ctx(struct bcm2835_vchi_ctx *vchi_ctx)
 	vchi_ctx->vchi_instance = NULL;
 }
 
-static int bcm2835_audio_open_connection(struct bcm2835_alsa_stream *alsa_stream)
-{
-	struct bcm2835_audio_instance *instance =
-		(struct bcm2835_audio_instance *)alsa_stream->instance;
-	struct bcm2835_vchi_ctx *vhci_ctx = alsa_stream->chip->vchi_ctx;
-
-	/* Initialize an instance of the audio service */
-	instance = vc_vchi_audio_init(vhci_ctx->vchi_instance,
-				      vhci_ctx->vchi_connection);
-
-	if (IS_ERR(instance))
-		return PTR_ERR(instance);
-
-	instance->alsa_stream = alsa_stream;
-	alsa_stream->instance = instance;
-
-	return 0;
-}
-
 int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)
 {
+	struct bcm2835_vchi_ctx *vchi_ctx = alsa_stream->chip->vchi_ctx;
 	struct bcm2835_audio_instance *instance;
 	int err;
 
-	alsa_stream->my_wq = alloc_workqueue("my_queue", WQ_HIGHPRI, 1);
-	if (!alsa_stream->my_wq)
+	/* Allocate memory for this instance */
+	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
+	if (!instance)
 		return -ENOMEM;
+	mutex_init(&instance->vchi_mutex);
+	instance->alsa_stream = alsa_stream;
+	alsa_stream->instance = instance;
 
-	err = bcm2835_audio_open_connection(alsa_stream);
+	err = vc_vchi_audio_init(vchi_ctx->vchi_instance,
+				 vchi_ctx->vchi_connection,
+				 instance);
 	if (err < 0)
-		goto free_wq;
-
-	instance = alsa_stream->instance;
+		goto free_instance;
 
 	err = bcm2835_audio_send_simple(instance, VC_AUDIO_MSG_TYPE_OPEN,
 					false);
@@ -438,8 +274,9 @@ int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)
 
  deinit:
 	vc_vchi_audio_deinit(instance);
- free_wq:
-	destroy_workqueue(alsa_stream->my_wq);
+ free_instance:
+	alsa_stream->instance = NULL;
+	kfree(instance);
 	return err;
 }
 
@@ -478,16 +315,26 @@ int bcm2835_audio_set_params(struct bcm2835_alsa_stream *alsa_stream,
 	return bcm2835_audio_send_msg(alsa_stream->instance, &m, true);
 }
 
-static int bcm2835_audio_start_worker(struct bcm2835_alsa_stream *alsa_stream)
+int bcm2835_audio_start(struct bcm2835_alsa_stream *alsa_stream)
 {
 	return bcm2835_audio_send_simple(alsa_stream->instance,
 					 VC_AUDIO_MSG_TYPE_START, false);
 }
 
-static int bcm2835_audio_stop_worker(struct bcm2835_alsa_stream *alsa_stream)
+int bcm2835_audio_stop(struct bcm2835_alsa_stream *alsa_stream)
 {
 	return bcm2835_audio_send_simple(alsa_stream->instance,
 					 VC_AUDIO_MSG_TYPE_STOP, false);
+}
+
+int bcm2835_audio_drain(struct bcm2835_alsa_stream *alsa_stream)
+{
+	struct vc_audio_msg m = {
+		.type = VC_AUDIO_MSG_TYPE_STOP,
+		.u.stop.draining = 1,
+	};
+
+	return bcm2835_audio_send_msg(alsa_stream->instance, &m, false);
 }
 
 int bcm2835_audio_close(struct bcm2835_alsa_stream *alsa_stream)
@@ -495,20 +342,19 @@ int bcm2835_audio_close(struct bcm2835_alsa_stream *alsa_stream)
 	struct bcm2835_audio_instance *instance = alsa_stream->instance;
 	int err;
 
-	my_workqueue_quit(alsa_stream);
-
 	err = bcm2835_audio_send_simple(alsa_stream->instance,
 					VC_AUDIO_MSG_TYPE_CLOSE, true);
 
 	/* Stop the audio service */
 	vc_vchi_audio_deinit(instance);
 	alsa_stream->instance = NULL;
+	kfree(instance);
 
 	return err;
 }
 
-static int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
-				      unsigned int size, void *src)
+int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
+			unsigned int size, void *src)
 {
 	struct bcm2835_audio_instance *instance = alsa_stream->instance;
 	struct vc_audio_msg m = {
@@ -556,14 +402,6 @@ static int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
  unlock:
 	bcm2835_audio_unlock(instance);
 	return err;
-}
-
-unsigned int bcm2835_audio_retrieve_buffers(struct bcm2835_alsa_stream *alsa_stream)
-{
-	unsigned int count = atomic_read(&alsa_stream->retrieved);
-
-	atomic_sub(count, &alsa_stream->retrieved);
-	return count;
 }
 
 module_param(force_bulk, bool, 0444);

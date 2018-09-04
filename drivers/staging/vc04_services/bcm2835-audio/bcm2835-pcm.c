@@ -11,7 +11,8 @@
 /* hardware definition */
 static const struct snd_pcm_hardware snd_bcm2835_playback_hw = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
-	SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID),
+		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
+		 SNDRV_PCM_INFO_DRAIN_TRIGGER),
 	.formats = SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
 	.rates = SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000,
 	.rate_min = 8000,
@@ -27,7 +28,8 @@ static const struct snd_pcm_hardware snd_bcm2835_playback_hw = {
 
 static const struct snd_pcm_hardware snd_bcm2835_playback_spdif_hw = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
-	SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID),
+		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
+		 SNDRV_PCM_INFO_DRAIN_TRIGGER),
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	.rates = SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_44100 |
 	SNDRV_PCM_RATE_48000,
@@ -47,42 +49,34 @@ static void snd_bcm2835_playback_free(struct snd_pcm_runtime *runtime)
 	kfree(runtime->private_data);
 }
 
-void bcm2835_playback_fifo(struct bcm2835_alsa_stream *alsa_stream)
+void bcm2835_playback_fifo(struct bcm2835_alsa_stream *alsa_stream,
+			   unsigned int bytes)
 {
-	unsigned int consumed = 0;
-	int new_period = 0;
+	struct snd_pcm_substream *substream = alsa_stream->substream;
+	unsigned int pos;
 
-	audio_info("alsa_stream=%p substream=%p\n", alsa_stream,
-		alsa_stream ? alsa_stream->substream : 0);
+	if (!alsa_stream->period_size)
+		return;
 
-	consumed = bcm2835_audio_retrieve_buffers(alsa_stream);
-
-	/* We get called only if playback was triggered, So, the number of buffers we retrieve in
-	 * each iteration are the buffers that have been played out already
-	 */
-
-	if (alsa_stream->period_size) {
-		if ((alsa_stream->pos / alsa_stream->period_size) !=
-			((alsa_stream->pos + consumed) / alsa_stream->period_size))
-			new_period = 1;
-	}
-	audio_debug("updating pos cur: %d + %d max:%d period_bytes:%d, hw_ptr: %d new_period:%d\n",
-		alsa_stream->pos,
-		consumed,
-		alsa_stream->buffer_size,
-		(int) (alsa_stream->period_size * alsa_stream->substream->runtime->periods),
-		frames_to_bytes(alsa_stream->substream->runtime, alsa_stream->substream->runtime->status->hw_ptr),
-		new_period);
-	if (alsa_stream->buffer_size) {
-		alsa_stream->pos += consumed & ~(1 << 30);
-		alsa_stream->pos %= alsa_stream->buffer_size;
+	if (bytes >= alsa_stream->buffer_size) {
+		snd_pcm_stream_lock(substream);
+		snd_pcm_stop(substream,
+			     alsa_stream->draining ?
+			     SNDRV_PCM_STATE_SETUP :
+			     SNDRV_PCM_STATE_XRUN);
+		snd_pcm_stream_unlock(substream);
+		return;
 	}
 
-	if (alsa_stream->substream) {
-		if (new_period)
-			snd_pcm_period_elapsed(alsa_stream->substream);
-	} else {
-		audio_warning(" unexpected NULL substream\n");
+	pos = atomic_read(&alsa_stream->pos);
+	pos += bytes;
+	pos %= alsa_stream->buffer_size;
+	atomic_set(&alsa_stream->pos, pos);
+
+	alsa_stream->period_offset += bytes;
+	if (alsa_stream->period_offset >= alsa_stream->period_size) {
+		alsa_stream->period_offset %= alsa_stream->period_size;
+		snd_pcm_period_elapsed(substream);
 	}
 }
 
@@ -246,7 +240,8 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 
 	alsa_stream->buffer_size = snd_pcm_lib_buffer_bytes(substream);
 	alsa_stream->period_size = snd_pcm_lib_period_bytes(substream);
-	alsa_stream->pos = 0;
+	atomic_set(&alsa_stream->pos, 0);
+	alsa_stream->period_offset = 0;
 	alsa_stream->draining = false;
 
 	return 0;
@@ -283,7 +278,7 @@ static int snd_bcm2835_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		return bcm2835_audio_start(alsa_stream);
 	case SNDRV_PCM_TRIGGER_DRAIN:
 		alsa_stream->draining = true;
-		return 0;
+		return bcm2835_audio_drain(alsa_stream);
 	case SNDRV_PCM_TRIGGER_STOP:
 		return bcm2835_audio_stop(alsa_stream);
 	default:
@@ -300,7 +295,7 @@ snd_bcm2835_pcm_pointer(struct snd_pcm_substream *substream)
 
 	return snd_pcm_indirect_playback_pointer(substream,
 		&alsa_stream->pcm_indirect,
-		alsa_stream->pos);
+		atomic_read(&alsa_stream->pos));
 }
 
 /* operators */
@@ -338,6 +333,7 @@ int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, u32 numchannels)
 	if (err < 0)
 		return err;
 	pcm->private_data = chip;
+	pcm->nonatomic = true;
 	strcpy(pcm->name, "bcm2835 ALSA");
 	chip->pcm = pcm;
 	chip->dest = AUDIO_DEST_AUTO;
@@ -367,6 +363,7 @@ int snd_bcm2835_new_spdif_pcm(struct bcm2835_chip *chip)
 		return err;
 
 	pcm->private_data = chip;
+	pcm->nonatomic = true;
 	strcpy(pcm->name, "bcm2835 IEC958/HDMI");
 	chip->pcm_spdif = pcm;
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
@@ -395,6 +392,7 @@ int snd_bcm2835_new_simple_pcm(struct bcm2835_chip *chip,
 		return err;
 
 	pcm->private_data = chip;
+	pcm->nonatomic = true;
 	strcpy(pcm->name, name);
 	chip->pcm = pcm;
 	chip->dest = route;

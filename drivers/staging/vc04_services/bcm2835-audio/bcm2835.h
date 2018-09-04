@@ -121,13 +121,12 @@ struct bcm2835_alsa_stream {
 
 	int draining;
 
-	unsigned int pos;
+	atomic_t pos;
+	unsigned int period_offset;
 	unsigned int buffer_size;
 	unsigned int period_size;
 
-	atomic_t retrieved;
 	struct bcm2835_audio_instance *instance;
-	struct workqueue_struct *my_wq;
 	int idx;
 };
 
@@ -152,11 +151,13 @@ int bcm2835_audio_set_params(struct bcm2835_alsa_stream *alsa_stream,
 			     unsigned int bps);
 int bcm2835_audio_start(struct bcm2835_alsa_stream *alsa_stream);
 int bcm2835_audio_stop(struct bcm2835_alsa_stream *alsa_stream);
+int bcm2835_audio_drain(struct bcm2835_alsa_stream *alsa_stream);
 int bcm2835_audio_set_ctls(struct bcm2835_alsa_stream *alsa_stream);
 int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 			unsigned int count,
 			void *src);
-void bcm2835_playback_fifo(struct bcm2835_alsa_stream *alsa_stream);
+void bcm2835_playback_fifo(struct bcm2835_alsa_stream *alsa_stream,
+			   unsigned int size);
 unsigned int bcm2835_audio_retrieve_buffers(struct bcm2835_alsa_stream *alsa_stream);
 
 #endif /* __SOUND_ARM_BCM2835_H */
