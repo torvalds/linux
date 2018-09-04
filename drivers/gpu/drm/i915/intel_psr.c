@@ -834,6 +834,7 @@ int intel_psr_set_debugfs_mode(struct drm_i915_private *dev_priv,
 	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector_state *conn_state;
 	struct intel_crtc_state *crtc_state = NULL;
+	struct drm_crtc_commit *commit;
 	struct drm_crtc *crtc;
 	struct intel_dp *dp;
 	int ret;
@@ -860,12 +861,15 @@ int intel_psr_set_debugfs_mode(struct drm_i915_private *dev_priv,
 			return ret;
 
 		crtc_state = to_intel_crtc_state(crtc->state);
-		ret = wait_for_completion_interruptible(&crtc_state->base.commit->hw_done);
-	} else
-		ret = wait_for_completion_interruptible(&conn_state->commit->hw_done);
-
-	if (ret)
-		return ret;
+		commit = crtc_state->base.commit;
+	} else {
+		commit = conn_state->commit;
+	}
+	if (commit) {
+		ret = wait_for_completion_interruptible(&commit->hw_done);
+		if (ret)
+			return ret;
+	}
 
 	ret = mutex_lock_interruptible(&dev_priv->psr.lock);
 	if (ret)
