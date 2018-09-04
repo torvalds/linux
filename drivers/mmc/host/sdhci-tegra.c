@@ -817,7 +817,7 @@ static int tegra_sdhci_init_pinctrl_info(struct device *dev,
 		pinctrl_lookup_state(tegra_host->pinctrl_sdmmc, "sdmmc-1v8");
 	if (IS_ERR(tegra_host->pinctrl_state_1v8)) {
 		dev_warn(dev, "Missing 1.8V pad state, err: %ld\n",
-			 PTR_ERR(tegra_host->pinctrl_state_3v3));
+			 PTR_ERR(tegra_host->pinctrl_state_1v8));
 		return -1;
 	}
 
