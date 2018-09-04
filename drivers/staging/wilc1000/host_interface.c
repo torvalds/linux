@@ -187,7 +187,6 @@ struct join_bss_param {
 };
 
 static struct host_if_drv *terminated_handle;
-static u8 p2p_listen_state;
 static struct completion hif_driver_comp;
 static struct mutex hif_deinit_lock;
 
@@ -2355,7 +2354,6 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 		netdev_err(vif->ndev, "Failed to set remain on channel\n");
 
 error:
-	p2p_listen_state = 1;
 	hif_drv->remain_on_ch_timer_vif = vif;
 	mod_timer(&hif_drv->remain_on_ch_timer,
 		  jiffies + msecs_to_jiffies(hif_remain_ch->duration));
@@ -2411,8 +2409,9 @@ static void handle_listen_state_expired(struct work_struct *work)
 	struct wid wid;
 	int result;
 	struct host_if_drv *hif_drv = vif->hif_drv;
+	struct wilc_priv *priv = wdev_priv(vif->ndev->ieee80211_ptr);
 
-	if (p2p_listen_state) {
+	if (priv->p2p_listen_state) {
 		remain_on_chan_flag = false;
 		wid.id = WID_REMAIN_ON_CHAN;
 		wid.type = WID_STR;
@@ -2437,7 +2436,6 @@ static void handle_listen_state_expired(struct work_struct *work)
 			hif_drv->remain_on_ch.expired(hif_drv->remain_on_ch.arg,
 						      hif_remain_ch->id);
 		}
-		p2p_listen_state = 0;
 	} else {
 		netdev_dbg(vif->ndev, "Not in listen state\n");
 	}
