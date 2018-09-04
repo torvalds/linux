@@ -94,7 +94,7 @@ struct wilc_priv {
 	/* mutexes */
 	struct mutex scan_req_lock;
 	bool p2p_listen_state;
-
+	struct timer_list aging_timer;
 };
 
 struct frame_reg {

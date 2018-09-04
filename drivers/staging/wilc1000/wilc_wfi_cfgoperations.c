@@ -85,7 +85,6 @@ static const struct wiphy_wowlan_support wowlan_support = {
 static struct network_info last_scanned_shadow[MAX_NUM_SCANNED_NETWORKS_SHADOW];
 static u32 last_scanned_cnt;
 struct timer_list wilc_during_ip_timer;
-static struct timer_list aging_timer;
 static u8 op_ifcs;
 
 #define CHAN2G(_channel, _freq, _flags) {	 \
@@ -165,8 +164,6 @@ static void clear_shadow_scan(void)
 	if (op_ifcs != 0)
 		return;
 
-	del_timer_sync(&aging_timer);
-
 	for (i = 0; i < last_scanned_cnt; i++) {
 		if (last_scanned_shadow[last_scanned_cnt].ies) {
 			kfree(last_scanned_shadow[i].ies);
@@ -245,8 +242,9 @@ static void update_scan_time(void)
 		last_scanned_shadow[i].time_scan = jiffies;
 }
 
-static void remove_network_from_shadow(struct timer_list *unused)
+static void remove_network_from_shadow(struct timer_list *t)
 {
+	struct wilc_priv *priv = from_timer(priv, t, aging_timer);
 	unsigned long now = jiffies;
 	int i, j;
 
@@ -266,7 +264,8 @@ static void remove_network_from_shadow(struct timer_list *unused)
 	}
 
 	if (last_scanned_cnt != 0)
-		mod_timer(&aging_timer, jiffies + msecs_to_jiffies(AGING_TIME));
+		mod_timer(&priv->aging_timer,
+			  jiffies + msecs_to_jiffies(AGING_TIME));
 }
 
 static void clear_during_ip(struct timer_list *unused)
@@ -274,13 +273,15 @@ static void clear_during_ip(struct timer_list *unused)
 	wilc_optaining_ip = false;
 }
 
-static int is_network_in_shadow(struct network_info *nw_info, void *user_void)
+static int is_network_in_shadow(struct network_info *nw_info,
+				struct wilc_priv *priv)
 {
 	int state = -1;
 	int i;
 
 	if (last_scanned_cnt == 0) {
-		mod_timer(&aging_timer, jiffies + msecs_to_jiffies(AGING_TIME));
+		mod_timer(&priv->aging_timer,
+			  jiffies + msecs_to_jiffies(AGING_TIME));
 		state = -1;
 	} else {
 		for (i = 0; i < last_scanned_cnt; i++) {
@@ -295,9 +296,9 @@ static int is_network_in_shadow(struct network_info *nw_info, void *user_void)
 }
 
 static void add_network_to_shadow(struct network_info *nw_info,
-				  void *user_void, void *join_params)
+				  struct wilc_priv *priv, void *join_params)
 {
-	int ap_found = is_network_in_shadow(nw_info, user_void);
+	int ap_found = is_network_in_shadow(nw_info, priv);
 	u32 ap_index = 0;
 	u8 rssi_index = 0;
 	struct network_info *shadow_nw_info;
@@ -2166,10 +2167,9 @@ int wilc_init_host_int(struct net_device *net)
 	int ret;
 	struct wilc_priv *priv = wdev_priv(net->ieee80211_ptr);
 
-	if (op_ifcs == 0) {
-		timer_setup(&aging_timer, remove_network_from_shadow, 0);
+	timer_setup(&priv->aging_timer, remove_network_from_shadow, 0);
+	if (op_ifcs == 0)
 		timer_setup(&wilc_during_ip_timer, clear_during_ip, 0);
-	}
 	op_ifcs++;
 
 	priv->p2p_listen_state = false;
@@ -2195,6 +2195,7 @@ int wilc_deinit_host_int(struct net_device *net)
 	mutex_destroy(&priv->scan_req_lock);
 	ret = wilc_deinit(vif);
 
+	del_timer_sync(&priv->aging_timer);
 	clear_shadow_scan();
 	if (op_ifcs == 0)
 		del_timer_sync(&wilc_during_ip_timer);
