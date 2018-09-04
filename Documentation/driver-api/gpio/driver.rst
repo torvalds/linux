@@ -434,7 +434,9 @@ try_module_get()). A GPIO driver can use the following functions instead
 to request and free descriptors without being pinned to the kernel forever::
 
 	struct gpio_desc *gpiochip_request_own_desc(struct gpio_desc *desc,
-						    const char *label)
+						    u16 hwnum,
+						    const char *label,
+						    enum gpiod_flags flags)
 
 	void gpiochip_free_own_desc(struct gpio_desc *desc)
 

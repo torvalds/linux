@@ -2454,6 +2454,7 @@ EXPORT_SYMBOL_GPL(gpiochip_is_requested);
  * @chip: GPIO chip
  * @hwnum: hardware number of the GPIO for which to request the descriptor
  * @label: label for the GPIO
+ * @flags: flags for this GPIO or 0 if default
  *
  * Function allows GPIO chip drivers to request and use their own GPIO
  * descriptors via gpiolib API. Difference to gpiod_request() is that this
@@ -2466,7 +2467,8 @@ EXPORT_SYMBOL_GPL(gpiochip_is_requested);
  * code on failure.
  */
 struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
-					    const char *label)
+					    const char *label,
+					    enum gpiod_flags flags)
 {
 	struct gpio_desc *desc = gpiochip_get_desc(chip, hwnum);
 	int err;
@@ -2479,6 +2481,13 @@ struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
 	err = gpiod_request_commit(desc, label);
 	if (err < 0)
 		return ERR_PTR(err);
+
+	err = gpiod_configure_flags(desc, label, 0, flags);
+	if (err) {
+		chip_err(chip, "setup of own GPIO %s failed\n", label);
+		gpiod_free_commit(desc);
+		return ERR_PTR(err);
+	}
 
 	return desc;
 }
@@ -4332,7 +4341,15 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
 	chip = gpiod_to_chip(desc);
 	hwnum = gpio_chip_hwgpio(desc);
 
-	local_desc = gpiochip_request_own_desc(chip, hwnum, name);
+	/*
+	 * FIXME: not very elegant that we call gpiod_configure_flags()
+	 * twice here (once inside gpiochip_request_own_desc() and
+	 * again here), but the gpiochip_request_own_desc() is external
+	 * and cannot really pass the lflags so this is the lesser evil
+	 * at the moment. Pass zero as dflags on this first call so we
+	 * don't screw anything up.
+	 */
+	local_desc = gpiochip_request_own_desc(chip, hwnum, name, 0);
 	if (IS_ERR(local_desc)) {
 		status = PTR_ERR(local_desc);
 		pr_err("requesting hog GPIO %s (chip %s, offset %d) failed, %d\n",

@@ -167,7 +167,7 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 	if (!handler)
 		return AE_OK;
 
-	desc = gpiochip_request_own_desc(chip, pin, "ACPI:Event");
+	desc = gpiochip_request_own_desc(chip, pin, "ACPI:Event", 0);
 	if (IS_ERR(desc)) {
 		dev_err(chip->parent, "Failed to request GPIO\n");
 		return AE_ERROR;
@@ -884,17 +884,10 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 			const char *label = "ACPI:OpRegion";
 			int err;
 
-			desc = gpiochip_request_own_desc(chip, pin, label);
+			desc = gpiochip_request_own_desc(chip, pin, label,
+							 flags);
 			if (IS_ERR(desc)) {
 				status = AE_ERROR;
-				mutex_unlock(&achip->conn_lock);
-				goto out;
-			}
-
-			err = gpiod_configure_flags(desc, label, 0, flags);
-			if (err < 0) {
-				status = AE_NOT_CONFIGURED;
-				gpiochip_free_own_desc(desc);
 				mutex_unlock(&achip->conn_lock);
 				goto out;
 			}

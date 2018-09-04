@@ -608,7 +608,7 @@ static int mvebu_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		ret = -EBUSY;
 	} else {
 		desc = gpiochip_request_own_desc(&mvchip->chip,
-						 pwm->hwpwm, "mvebu-pwm");
+						 pwm->hwpwm, "mvebu-pwm", 0);
 		if (IS_ERR(desc)) {
 			ret = PTR_ERR(desc);
 			goto out;

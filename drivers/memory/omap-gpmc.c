@@ -2170,7 +2170,8 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 		unsigned int wait_pin = gpmc_s.wait_pin;
 
 		waitpin_desc = gpiochip_request_own_desc(&gpmc->gpio_chip,
-							 wait_pin, "WAITPIN");
+							 wait_pin, "WAITPIN",
+							 0);
 		if (IS_ERR(waitpin_desc)) {
 			dev_err(&pdev->dev, "invalid wait-pin: %d\n", wait_pin);
 			ret = PTR_ERR(waitpin_desc);

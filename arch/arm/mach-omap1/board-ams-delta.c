@@ -808,7 +808,7 @@ static void __init ams_delta_led_init(struct gpio_chip *chip)
 	int i;
 
 	for (i = LATCH1_PIN_LED_CAMERA; i < LATCH1_PIN_DOCKIT1; i++) {
-		gpiod = gpiochip_request_own_desc(chip, i, NULL);
+		gpiod = gpiochip_request_own_desc(chip, i, "camera-led", 0);
 		if (IS_ERR(gpiod)) {
 			pr_warn("%s: %s GPIO %d request failed (%ld)\n",
 				__func__, LATCH1_LABEL, i, PTR_ERR(gpiod));
