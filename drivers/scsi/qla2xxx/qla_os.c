@@ -2719,7 +2719,7 @@ static void qla2x00_iocb_work_fn(struct work_struct *work)
 		struct scsi_qla_host, iocb_work);
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
-	int i = 20;
+	int i = 2;
 	unsigned long flags;
 
 	if (test_bit(UNLOADING, &base_vha->dpc_flags))
@@ -4606,7 +4606,6 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 
 	spin_lock_init(&vha->work_lock);
 	spin_lock_init(&vha->cmd_list_lock);
-	spin_lock_init(&vha->gnl.fcports_lock);
 	init_waitqueue_head(&vha->fcport_waitQ);
 	init_waitqueue_head(&vha->vref_waitq);
 

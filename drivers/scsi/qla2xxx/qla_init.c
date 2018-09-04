@@ -800,6 +800,7 @@ qla24xx_async_gnl_sp_done(void *s, int res)
 	if (res == QLA_FUNCTION_TIMEOUT)
 		return;
 
+	sp->fcport->flags &= ~(FCF_ASYNC_SENT|FCF_ASYNC_ACTIVE);
 	memset(&ea, 0, sizeof(ea));
 	ea.sp = sp;
 	ea.rc = res;
@@ -827,25 +828,24 @@ qla24xx_async_gnl_sp_done(void *s, int res)
 		    (loop_id & 0x7fff));
 	}
 
-	spin_lock_irqsave(&vha->gnl.fcports_lock, flags);
+	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 
 	INIT_LIST_HEAD(&h);
 	fcport = tf = NULL;
 	if (!list_empty(&vha->gnl.fcports))
 		list_splice_init(&vha->gnl.fcports, &h);
+	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
 	list_for_each_entry_safe(fcport, tf, &h, gnl_entry) {
 		list_del_init(&fcport->gnl_entry);
-		spin_lock(&vha->hw->tgt.sess_lock);
+		spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 		fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
-		spin_unlock(&vha->hw->tgt.sess_lock);
+		spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 		ea.fcport = fcport;
 
 		qla2x00_fcport_event_handler(vha, &ea);
 	}
-	spin_unlock_irqrestore(&vha->gnl.fcports_lock, flags);
 
-	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 	/* create new fcport if fw has knowledge of new sessions */
 	for (i = 0; i < n; i++) {
 		port_id_t id;
@@ -878,6 +878,8 @@ qla24xx_async_gnl_sp_done(void *s, int res)
 		}
 	}
 
+	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
+	vha->gnl.sent = 0;
 	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
 	sp->free(sp);
@@ -897,27 +899,24 @@ int qla24xx_async_gnl(struct scsi_qla_host *vha, fc_port_t *fcport)
 	ql_dbg(ql_dbg_disc, vha, 0x20d9,
 	    "Async-gnlist WWPN %8phC \n", fcport->port_name);
 
-	spin_lock_irqsave(&vha->gnl.fcports_lock, flags);
-	if (!list_empty(&fcport->gnl_entry)) {
-		spin_unlock_irqrestore(&vha->gnl.fcports_lock, flags);
-		rval = QLA_SUCCESS;
-		goto done;
-	}
-
-	spin_lock(&vha->hw->tgt.sess_lock);
+	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
+	fcport->flags |= FCF_ASYNC_SENT;
 	fcport->disc_state = DSC_GNL;
 	fcport->last_rscn_gen = fcport->rscn_gen;
 	fcport->last_login_gen = fcport->login_gen;
-	spin_unlock(&vha->hw->tgt.sess_lock);
 
 	list_add_tail(&fcport->gnl_entry, &vha->gnl.fcports);
-	spin_unlock_irqrestore(&vha->gnl.fcports_lock, flags);
+	if (vha->gnl.sent) {
+		spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
+		return QLA_SUCCESS;
+	}
+	vha->gnl.sent = 1;
+	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp)
 		goto done;
 
-	fcport->flags |= FCF_ASYNC_SENT;
 	sp->type = SRB_MB_IOCB;
 	sp->name = "gnlist";
 	sp->gen1 = fcport->rscn_gen;
@@ -1204,7 +1203,9 @@ void __qla24xx_handle_gpdb_event(scsi_qla_host_t *vha, struct event_arg *ea)
 		vha->fcport_count++;
 		ea->fcport->login_succ = 1;
 
+		spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 		qla24xx_sched_upd_fcport(ea->fcport);
+		spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 	} else if (ea->fcport->login_succ) {
 		/*
 		 * We have an existing session. A late RSCN delivery

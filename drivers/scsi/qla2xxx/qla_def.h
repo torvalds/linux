@@ -262,8 +262,8 @@ struct name_list_extended {
 	struct get_name_list_extended *l;
 	dma_addr_t		ldma;
 	struct list_head	fcports;
-	spinlock_t		fcports_lock;
 	u32			size;
+	u8			sent;
 };
 /*
  * Timeout timer counts in seconds
