@@ -5032,9 +5032,6 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 		case QLA_EVT_AENFX:
 			qlafx00_process_aen(vha, e);
 			break;
-		case QLA_EVT_GIDPN:
-			qla24xx_async_gidpn(vha, e->u.fcport.fcport);
-			break;
 		case QLA_EVT_GPNID:
 			qla24xx_async_gpnid(vha, &e->u.gpnid.id);
 			break;

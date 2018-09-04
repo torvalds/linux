@@ -119,6 +119,8 @@ extern int qla2x00_post_async_prlo_done_work(struct scsi_qla_host *,
 int qla_post_iidma_work(struct scsi_qla_host *vha, fc_port_t *fcport);
 void qla_do_iidma_work(struct scsi_qla_host *vha, fc_port_t *fcport);
 int qla2x00_reserve_mgmt_server_loop_id(scsi_qla_host_t *);
+void qla_rscn_replay(fc_port_t *fcport);
+
 /*
  * Global Data in qla_os.c source file.
  */
@@ -645,9 +647,6 @@ extern void qla2x00_get_sym_node_name(scsi_qla_host_t *, uint8_t *, size_t);
 extern int qla2x00_chk_ms_status(scsi_qla_host_t *, ms_iocb_entry_t *,
 	struct ct_sns_rsp *, const char *);
 extern void qla2x00_async_iocb_timeout(void *data);
-extern int qla24xx_async_gidpn(scsi_qla_host_t *, fc_port_t *);
-int qla24xx_post_gidpn_work(struct scsi_qla_host *, fc_port_t *);
-void qla24xx_handle_gidpn_event(scsi_qla_host_t *, struct event_arg *);
 
 extern void qla2x00_free_fcport(fc_port_t *);
 
