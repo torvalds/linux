@@ -42,7 +42,7 @@ void mt76x2_mac_poll_tx_status(struct mt76x2_dev *dev, bool irq)
 
 	while (!irq || !kfifo_is_full(&dev->txstatus_fifo)) {
 		spin_lock_irqsave(&dev->irq_lock, flags);
-		ret = mt76x2_mac_load_tx_status(dev, &stat);
+		ret = mt76x02_mac_load_tx_status(&dev->mt76, &stat);
 		spin_unlock_irqrestore(&dev->irq_lock, flags);
 
 		if (!ret)

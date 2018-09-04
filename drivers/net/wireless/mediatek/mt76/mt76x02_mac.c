@@ -216,3 +216,28 @@ void mt76x02_mac_wcid_set_rate(struct mt76_dev *dev, struct mt76_wcid *wcid,
 	wcid->tx_rate_set = true;
 	spin_unlock_bh(&dev->lock);
 }
+
+bool mt76x02_mac_load_tx_status(struct mt76_dev *dev,
+			       struct mt76x02_tx_status *stat)
+{
+	u32 stat1, stat2;
+
+	stat2 = __mt76_rr(dev, MT_TX_STAT_FIFO_EXT);
+	stat1 = __mt76_rr(dev, MT_TX_STAT_FIFO);
+
+	stat->valid = !!(stat1 & MT_TX_STAT_FIFO_VALID);
+	if (!stat->valid)
+		return false;
+
+	stat->success = !!(stat1 & MT_TX_STAT_FIFO_SUCCESS);
+	stat->aggr = !!(stat1 & MT_TX_STAT_FIFO_AGGR);
+	stat->ack_req = !!(stat1 & MT_TX_STAT_FIFO_ACKREQ);
+	stat->wcid = FIELD_GET(MT_TX_STAT_FIFO_WCID, stat1);
+	stat->rate = FIELD_GET(MT_TX_STAT_FIFO_RATE, stat1);
+
+	stat->retry = FIELD_GET(MT_TX_STAT_FIFO_EXT_RETRY, stat2);
+	stat->pktid = FIELD_GET(MT_TX_STAT_FIFO_EXT_PKTID, stat2);
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_load_tx_status);

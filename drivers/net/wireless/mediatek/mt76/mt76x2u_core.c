@@ -68,7 +68,7 @@ bool mt76x2u_tx_status_data(struct mt76_dev *mdev, u8 *update)
 	struct mt76x2_dev *dev = container_of(mdev, struct mt76x2_dev, mt76);
 	struct mt76x02_tx_status stat;
 
-	if (!mt76x2_mac_load_tx_status(dev, &stat))
+	if (!mt76x02_mac_load_tx_status(&dev->mt76, &stat))
 		return false;
 
 	mt76x2_send_tx_status(dev, &stat, update);

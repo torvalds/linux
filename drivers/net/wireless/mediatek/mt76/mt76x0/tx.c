@@ -190,8 +190,7 @@ void mt76x0_tx_stat(struct work_struct *work)
 	u8 update = 1;
 
 	while (!test_bit(MT76_REMOVED, &dev->mt76.state)) {
-		stat = mt76x0_mac_fetch_tx_status(dev);
-		if (!stat.valid)
+		if (!mt76x02_mac_load_tx_status(&dev->mt76, &stat))
 			break;
 
 		mt76x0_send_tx_status(dev, &stat, &update);

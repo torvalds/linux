@@ -53,31 +53,6 @@ void mt76x2_mac_stop(struct mt76x2_dev *dev, bool force)
 }
 EXPORT_SYMBOL_GPL(mt76x2_mac_stop);
 
-bool mt76x2_mac_load_tx_status(struct mt76x2_dev *dev,
-			       struct mt76x02_tx_status *stat)
-{
-	u32 stat1, stat2;
-
-	stat2 = mt76_rr(dev, MT_TX_STAT_FIFO_EXT);
-	stat1 = mt76_rr(dev, MT_TX_STAT_FIFO);
-
-	stat->valid = !!(stat1 & MT_TX_STAT_FIFO_VALID);
-	if (!stat->valid)
-		return false;
-
-	stat->success = !!(stat1 & MT_TX_STAT_FIFO_SUCCESS);
-	stat->aggr = !!(stat1 & MT_TX_STAT_FIFO_AGGR);
-	stat->ack_req = !!(stat1 & MT_TX_STAT_FIFO_ACKREQ);
-	stat->wcid = FIELD_GET(MT_TX_STAT_FIFO_WCID, stat1);
-	stat->rate = FIELD_GET(MT_TX_STAT_FIFO_RATE, stat1);
-
-	stat->retry = FIELD_GET(MT_TX_STAT_FIFO_EXT_RETRY, stat2);
-	stat->pktid = FIELD_GET(MT_TX_STAT_FIFO_EXT_PKTID, stat2);
-
-	return true;
-}
-EXPORT_SYMBOL_GPL(mt76x2_mac_load_tx_status);
-
 static int
 mt76x2_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 			   enum nl80211_band band)

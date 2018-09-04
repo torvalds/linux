@@ -116,27 +116,6 @@ mt76_mac_fill_tx_status(struct mt76x0_dev *dev, struct ieee80211_tx_info *info,
 		info->flags |= IEEE80211_TX_STAT_ACK;
 }
 
-struct mt76x02_tx_status mt76x0_mac_fetch_tx_status(struct mt76x0_dev *dev)
-{
-	struct mt76x02_tx_status stat = {};
-	u32 stat2, stat1;
-
-	stat2 = mt76_rr(dev, MT_TX_STAT_FIFO_EXT);
-	stat1 = mt76_rr(dev, MT_TX_STAT_FIFO);
-
-	stat.valid = !!(stat1 & MT_TX_STAT_FIFO_VALID);
-	stat.success = !!(stat1 & MT_TX_STAT_FIFO_SUCCESS);
-	stat.aggr = !!(stat1 & MT_TX_STAT_FIFO_AGGR);
-	stat.ack_req = !!(stat1 & MT_TX_STAT_FIFO_ACKREQ);
-	stat.wcid = FIELD_GET(MT_TX_STAT_FIFO_WCID, stat1);
-	stat.rate = FIELD_GET(MT_TX_STAT_FIFO_RATE, stat1);
-
-	stat.retry = FIELD_GET(MT_TX_STAT_FIFO_EXT_RETRY, stat2);
-	stat.pktid = FIELD_GET(MT_TX_STAT_FIFO_EXT_PKTID, stat2);
-
-	return stat;
-}
-
 void mt76x0_send_tx_status(struct mt76x0_dev *dev, struct mt76x02_tx_status *stat, u8 *update)
 {
 	struct ieee80211_tx_info info = {};
