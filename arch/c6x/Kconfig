@@ -20,6 +20,7 @@ config C6X
 	select GENERIC_CLOCKEVENTS
 	select MODULES_USE_ELF_RELA
 	select ARCH_NO_COHERENT_DMA_MMAP
+	select MMU_GATHER_NO_RANGE if MMU
 
 config MMU
 	def_bool n

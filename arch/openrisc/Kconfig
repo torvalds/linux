@@ -36,6 +36,7 @@ config OPENRISC
 	select OMPIC if SMP
 	select ARCH_WANT_FRAME_POINTERS
 	select GENERIC_IRQ_MULTI_HANDLER
+	select MMU_GATHER_NO_RANGE if MMU
 
 config CPU_BIG_ENDIAN
 	def_bool y
