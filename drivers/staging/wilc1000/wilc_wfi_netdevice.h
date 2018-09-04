@@ -121,7 +121,7 @@ struct wilc_vif {
 	struct timer_list during_ip_timer;
 	bool obtaining_ip;
 	struct timer_list periodic_rssi;
-	struct rf_info dummy_statistics;
+	struct rf_info periodic_stat;
 };
 
 struct wilc {

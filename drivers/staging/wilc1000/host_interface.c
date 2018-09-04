@@ -3430,7 +3430,7 @@ static void get_periodic_rssi(struct timer_list *t)
 	}
 
 	if (vif->hif_drv->hif_state == HOST_IF_CONNECTED)
-		wilc_get_statistics(vif, &vif->dummy_statistics, false);
+		wilc_get_statistics(vif, &vif->periodic_stat, false);
 
 	mod_timer(&vif->periodic_rssi, jiffies + msecs_to_jiffies(5000));
 }
