@@ -51,7 +51,7 @@ void mt76x2_mac_poll_tx_status(struct mt76x2_dev *dev, bool irq)
 		trace_mac_txstat_fetch(dev, &stat);
 
 		if (!irq) {
-			mt76x2_send_tx_status(dev, &stat, &update);
+			mt76x02_send_tx_status(&dev->mt76, &stat, &update);
 			continue;
 		}
 
@@ -82,7 +82,7 @@ void mt76x2_mac_process_tx_status_fifo(struct mt76x2_dev *dev)
 	u8 update = 1;
 
 	while (kfifo_get(&dev->txstatus_fifo, &stat))
-		mt76x2_send_tx_status(dev, &stat, &update);
+		mt76x02_send_tx_status(&dev->mt76, &stat, &update);
 }
 
 void mt76x2_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,

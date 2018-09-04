@@ -241,8 +241,6 @@ void mt76x2_tx_set_txpwr_auto(struct mt76x2_dev *dev, s8 txpwr);
 
 int mt76x2_insert_hdr_pad(struct sk_buff *skb);
 
-void mt76x2_send_tx_status(struct mt76x2_dev *dev,
-			   struct mt76x02_tx_status *stat, u8 *update);
 void mt76x2_reset_wlan(struct mt76x2_dev *dev, bool enable);
 void mt76x2_init_txpower(struct mt76x2_dev *dev,
 			 struct ieee80211_supported_band *sband);

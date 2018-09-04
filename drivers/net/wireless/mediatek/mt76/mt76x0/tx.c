@@ -193,7 +193,7 @@ void mt76x0_tx_stat(struct work_struct *work)
 		if (!mt76x02_mac_load_tx_status(&dev->mt76, &stat))
 			break;
 
-		mt76x0_send_tx_status(dev, &stat, &update);
+		mt76x02_send_tx_status(&dev->mt76, &stat, &update);
 
 		cleaned++;
 	}

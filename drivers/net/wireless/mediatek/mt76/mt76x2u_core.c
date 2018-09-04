@@ -71,7 +71,7 @@ bool mt76x2u_tx_status_data(struct mt76_dev *mdev, u8 *update)
 	if (!mt76x02_mac_load_tx_status(&dev->mt76, &stat))
 		return false;
 
-	mt76x2_send_tx_status(dev, &stat, update);
+	mt76x02_send_tx_status(&dev->mt76, &stat, update);
 
 	return true;
 }
