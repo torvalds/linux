@@ -280,7 +280,7 @@ static int snd_add_child_device(struct device *device,
 	struct snd_card *card;
 	struct device *child;
 	struct bcm2835_chip *chip;
-	int err, i;
+	int err;
 
 	child = snd_create_device(device, &audio_driver->driver,
 				  audio_driver->driver.name);
@@ -324,9 +324,6 @@ static int snd_add_child_device(struct device *device,
 		dev_err(child, "Failed to create controls, error %d\n", err);
 		return err;
 	}
-
-	for (i = 0; i < numchans; i++)
-		chip->avail_substreams |= (1 << i);
 
 	err = snd_card_register(card);
 	if (err) {

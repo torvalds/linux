@@ -523,16 +523,13 @@ int bcm2835_audio_set_ctls(struct bcm2835_chip *chip)
 
 	/* change ctls for all substreams */
 	for (i = 0; i < MAX_SUBSTREAMS; i++) {
-		if (chip->avail_substreams & (1 << i)) {
-			if (!chip->alsa_stream[i]) {
-				LOG_DBG(" No ALSA stream available?! %i:%p (%x)\n", i, chip->alsa_stream[i], chip->avail_substreams);
-				ret = 0;
-			} else if (bcm2835_audio_set_ctls_chan(chip->alsa_stream[i], chip) != 0) {
-				LOG_ERR("Couldn't set the controls for stream %d\n", i);
-				ret = -1;
-			} else {
-				LOG_DBG(" Controls set for stream %d\n", i);
-			}
+		if (!chip->alsa_stream[i])
+			continue;
+		if (bcm2835_audio_set_ctls_chan(chip->alsa_stream[i], chip) != 0) {
+			LOG_ERR("Couldn't set the controls for stream %d\n", i);
+			ret = -1;
+		} else {
+			LOG_DBG(" Controls set for stream %d\n", i);
 		}
 	}
 	return ret;

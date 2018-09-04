@@ -118,14 +118,6 @@ static int snd_bcm2835_playback_open_generic(
 		goto out;
 	}
 
-	/* Check if we are ready */
-	if (!(chip->avail_substreams & (1 << idx))) {
-		/* We are not ready yet */
-		audio_error("substream(%d) device is not ready yet\n", idx);
-		err = -EAGAIN;
-		goto out;
-	}
-
 	alsa_stream = kzalloc(sizeof(*alsa_stream), GFP_KERNEL);
 	if (!alsa_stream) {
 		err = -ENOMEM;

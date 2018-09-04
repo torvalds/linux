@@ -98,8 +98,6 @@ struct bcm2835_chip {
 	struct snd_card *card;
 	struct snd_pcm *pcm;
 	struct snd_pcm *pcm_spdif;
-	/* Bitmat for valid reg_base and irq numbers */
-	unsigned int avail_substreams;
 	struct device *dev;
 	struct bcm2835_alsa_stream *alsa_stream[MAX_SUBSTREAMS];
 
