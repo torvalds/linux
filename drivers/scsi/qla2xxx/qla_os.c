@@ -14,6 +14,8 @@
 #include <linux/kobject.h>
 #include <linux/slab.h>
 #include <linux/blk-mq-pci.h>
+#include <linux/refcount.h>
+
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsicam.h>
 #include <scsi/scsi_transport.h>
@@ -1214,10 +1216,14 @@ qla2x00_wait_for_chip_reset(scsi_qla_host_t *vha)
 	return return_status;
 }
 
-static void
+static int
 sp_get(struct srb *sp)
 {
-	atomic_inc(&sp->ref_count);
+	if (!refcount_inc_not_zero((refcount_t*)&sp->ref_count))
+		/* kref get fail */
+		return ENXIO;
+	else
+		return 0;
 }
 
 #define ISP_REG_DISCONNECT 0xffffffffU
@@ -1275,38 +1281,51 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	unsigned long flags;
 	int rval, wait = 0;
 	struct qla_hw_data *ha = vha->hw;
+	struct qla_qpair *qpair;
 
 	if (qla2x00_isp_reg_stat(ha)) {
 		ql_log(ql_log_info, vha, 0x8042,
 		    "PCI/Register disconnect, exiting.\n");
 		return FAILED;
 	}
-	if (!CMD_SP(cmd))
-		return SUCCESS;
 
 	ret = fc_block_scsi_eh(cmd);
 	if (ret != 0)
 		return ret;
 	ret = SUCCESS;
 
-	id = cmd->device->id;
-	lun = cmd->device->lun;
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
 	sp = (srb_t *) CMD_SP(cmd);
-	if (!sp) {
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	if (!sp)
+		return SUCCESS;
+
+	qpair = sp->qpair;
+	if (!qpair)
+		return SUCCESS;
+
+	spin_lock_irqsave(qpair->qp_lock_ptr, flags);
+	if (!CMD_SP(cmd)) {
+		/* there's a chance an interrupt could clear
+		   the ptr as part of done & free */
+		spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 		return SUCCESS;
 	}
+
+	if (sp_get(sp)){
+		/* ref_count is already 0 */
+		spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
+		return SUCCESS;
+	}
+	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
+
+	id = cmd->device->id;
+	lun = cmd->device->lun;
 
 	ql_dbg(ql_dbg_taskm, vha, 0x8002,
 	    "Aborting from RISC nexus=%ld:%d:%llu sp=%p cmd=%p handle=%x\n",
 	    vha->host_no, id, lun, sp, cmd, sp->handle);
 
 	/* Get a reference to the sp and drop the lock.*/
-	sp_get(sp);
 
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	rval = ha->isp_ops->abort_command(sp);
 	if (rval) {
 		if (rval == QLA_FUNCTION_PARAMETER_ERROR)
@@ -1322,13 +1341,28 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 		wait = 1;
 	}
 
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	sp->done(sp, 0);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	spin_lock_irqsave(qpair->qp_lock_ptr, flags);
+	/*
+	 * Clear the slot in the oustanding_cmds array if we can't find the
+	 * command to reclaim the resources.
+	 */
+	if (rval == QLA_FUNCTION_PARAMETER_ERROR)
+		vha->req->outstanding_cmds[sp->handle] = NULL;
+
+	/*
+	 * sp->done will do ref_count--
+	 * sp_get() took an extra count above
+	 */
+	sp->done(sp, DID_RESET << 16);
 
 	/* Did the command return during mailbox execution? */
 	if (ret == FAILED && !CMD_SP(cmd))
 		ret = SUCCESS;
+
+	if (!CMD_SP(cmd))
+		wait = 0;
+
+	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 
 	/* Wait for the command to be returned. */
 	if (wait) {
@@ -1723,7 +1757,6 @@ __qla2x00_abort_all_cmds(struct qla_qpair *qp, int res)
 	struct req_que *req;
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
 	struct qla_tgt_cmd *cmd;
-	uint8_t trace = 0;
 
 	if (!ha->req_q_map)
 		return;
@@ -1735,82 +1768,65 @@ __qla2x00_abort_all_cmds(struct qla_qpair *qp, int res)
 			req->outstanding_cmds[cnt] = NULL;
 			switch (sp->cmd_type) {
 			case TYPE_SRB:
-				if (sp->cmd_type == TYPE_SRB) {
-					if (sp->type == SRB_NVME_CMD ||
-					    sp->type == SRB_NVME_LS) {
-						sp_get(sp);
+				if (sp->type == SRB_NVME_CMD ||
+				    sp->type == SRB_NVME_LS) {
+					if (!sp_get(sp)) {
+						/* got sp */
 						spin_unlock_irqrestore
 							(qp->qp_lock_ptr,
 							 flags);
 						qla_nvme_abort(ha, sp, res);
 						spin_lock_irqsave
-							(qp->qp_lock_ptr,
-							 flags);
-					} else if (GET_CMD_SP(sp) &&
-					    !ha->flags.eeh_busy &&
-					    (!test_bit(ABORT_ISP_ACTIVE,
-						&vha->dpc_flags)) &&
-					    (sp->type == SRB_SCSI_CMD)) {
-						/*
-						 * Don't abort commands in
-						 * adapter during EEH
-						 * recovery as it's not
-						 * accessible/responding.
-						 *
-						 * Get a reference to the sp
-						 * and drop the lock. The
-						 * reference ensures this
-						 * sp->done() call and not the
-						 * call in qla2xxx_eh_abort()
-						 * ends the SCSI command (with
-						 * result 'res').
-						 */
-						sp_get(sp);
+							(qp->qp_lock_ptr, flags);
+					}
+				} else if (GET_CMD_SP(sp) &&
+				    !ha->flags.eeh_busy &&
+				    (!test_bit(ABORT_ISP_ACTIVE,
+					&vha->dpc_flags)) &&
+				    (sp->type == SRB_SCSI_CMD)) {
+					/*
+					 * Don't abort commands in adapter
+					 * during EEH recovery as it's not
+					 * accessible/responding.
+					 *
+					 * Get a reference to the sp and drop
+					 * the lock. The reference ensures this
+					 * sp->done() call and not the call in
+					 * qla2xxx_eh_abort() ends the SCSI cmd
+					 * (with result 'res').
+					 */
+					if (!sp_get(sp)) {
 						spin_unlock_irqrestore
-							(qp->qp_lock_ptr,
-							 flags);
+							(qp->qp_lock_ptr, flags);
 						status = qla2xxx_eh_abort(
 						    GET_CMD_SP(sp));
 						spin_lock_irqsave
-							(qp->qp_lock_ptr,
-							 flags);
-						/*
-						 * Get rid of extra reference
-						 * if immediate exit from
-						 * ql2xxx_eh_abort
-						 */
-						if (status == FAILED &&
-						    (qla2x00_isp_reg_stat(ha)))
-							atomic_dec(
-							    &sp->ref_count);
+							(qp->qp_lock_ptr, flags);
 					}
-					sp->done(sp, res);
-					break;
-				case TYPE_TGT_CMD:
-					if (!vha->hw->tgt.tgt_ops ||
-					    !tgt || qla_ini_mode_enabled(vha)) {
-						if (!trace)
-							ql_dbg(ql_dbg_tgt_mgt,
-							    vha, 0xf003,
-							    "HOST-ABORT-HNDLR: dpc_flags=%lx. Target mode disabled\n",
-							    vha->dpc_flags);
-						continue;
-					}
-					cmd = (struct qla_tgt_cmd *)sp;
-					qlt_abort_cmd_on_host_reset(cmd->vha,
-					    cmd);
-					break;
-				case TYPE_TGT_TMCMD:
-					/*
-					 * Currently, only ABTS response gets on
-					 * the outstanding_cmds[]
-					 */
-					ha->tgt.tgt_ops->free_mcmd(
-					    (struct qla_tgt_mgmt_cmd *)sp);
-					break;
-				default:
-					break;
 				}
+				sp->done(sp, res);
+				break;
+			case TYPE_TGT_CMD:
+				if (!vha->hw->tgt.tgt_ops || !tgt ||
+				    qla_ini_mode_enabled(vha)) {
+					ql_dbg(ql_dbg_tgt_mgt, vha, 0xf003,
+					    "HOST-ABORT-HNDLR: dpc_flags=%lx. Target mode disabled\n",
+					    vha->dpc_flags);
+					continue;
+				}
+				cmd = (struct qla_tgt_cmd *)sp;
+				qlt_abort_cmd_on_host_reset(cmd->vha, cmd);
+				break;
+			case TYPE_TGT_TMCMD:
+				/*
+				 * Currently, only ABTS response gets on the
+				 * outstanding_cmds[]
+				 */
+				ha->tgt.tgt_ops->free_mcmd(
+				   (struct qla_tgt_mgmt_cmd *)sp);
+				break;
+			default:
+				break;
 			}
 		}
 	}
