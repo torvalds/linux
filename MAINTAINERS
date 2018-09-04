@@ -5329,7 +5329,8 @@ S:	Maintained
 F:	drivers/edac/r82600_edac.c
 
 EDAC-SBRIDGE
-M:	Mauro Carvalho Chehab <mchehab@kernel.org>
+M:	Tony Luck <tony.luck@intel.com>
+R:	Qiuxu Zhuo <qiuxu.zhuo@intel.com>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/sb_edac.c
