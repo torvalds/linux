@@ -22,38 +22,6 @@ module_param(enable_compat_alsa, bool, 0444);
 MODULE_PARM_DESC(enable_compat_alsa,
 		 "Enables ALSA compatibility virtual audio device");
 
-static void snd_devm_unregister_child(struct device *dev, void *res)
-{
-	struct device *childdev = *(struct device **)res;
-	struct bcm2835_chip *chip = dev_get_drvdata(childdev);
-	struct snd_card *card = chip->card;
-
-	snd_card_free(card);
-
-	device_unregister(childdev);
-}
-
-static int snd_devm_add_child(struct device *dev, struct device *child)
-{
-	struct device **dr;
-	int ret;
-
-	dr = devres_alloc(snd_devm_unregister_child, sizeof(*dr), GFP_KERNEL);
-	if (!dr)
-		return -ENOMEM;
-
-	ret = device_add(child);
-	if (ret) {
-		devres_free(dr);
-		return ret;
-	}
-
-	*dr = child;
-	devres_add(dev, dr);
-
-	return 0;
-}
-
 static void bcm2835_devm_free_vchi_ctx(struct device *dev, void *res)
 {
 	struct bcm2835_vchi_ctx *vchi_ctx = res;
@@ -82,36 +50,6 @@ static int bcm2835_devm_add_vchi_ctx(struct device *dev)
 	devres_add(dev, vchi_ctx);
 
 	return 0;
-}
-
-static void snd_bcm2835_release(struct device *dev)
-{
-}
-
-static struct device *
-snd_create_device(struct device *parent,
-		  struct device_driver *driver,
-		  const char *name)
-{
-	struct device *device;
-	int ret;
-
-	device = devm_kzalloc(parent, sizeof(*device), GFP_KERNEL);
-	if (!device)
-		return ERR_PTR(-ENOMEM);
-
-	device_initialize(device);
-	device->parent = parent;
-	device->driver = driver;
-	device->release = snd_bcm2835_release;
-
-	dev_set_name(device, "%s", name);
-
-	ret = snd_devm_add_child(parent, device);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return device;
 }
 
 typedef int (*bcm2835_audio_newpcm_func)(struct bcm2835_chip *chip,
@@ -216,40 +154,36 @@ static struct bcm2835_audio_drivers children_devices[] = {
 	},
 };
 
-static int snd_add_child_device(struct device *device,
+static void bcm2835_card_free(void *data)
+{
+	snd_card_free(data);
+}
+
+static int snd_add_child_device(struct device *dev,
 				struct bcm2835_audio_driver *audio_driver,
 				u32 numchans)
 {
 	struct snd_card *card;
-	struct device *child;
 	struct bcm2835_chip *chip;
 	int err;
 
-	child = snd_create_device(device, &audio_driver->driver,
-				  audio_driver->driver.name);
-	if (IS_ERR(child)) {
-		dev_err(device,
-			"Unable to create child device %p, error %ld",
-			audio_driver->driver.name,
-			PTR_ERR(child));
-		return PTR_ERR(child);
-	}
-
-	err = snd_card_new(child, -1, NULL, THIS_MODULE, sizeof(*chip), &card);
+	err = snd_card_new(dev, -1, NULL, THIS_MODULE, sizeof(*chip), &card);
 	if (err < 0) {
-		dev_err(child, "Failed to create card");
+		dev_err(dev, "Failed to create card");
 		return err;
 	}
 
 	chip = card->private_data;
 	chip->card = card;
-	chip->dev = child;
+	chip->dev = dev;
 	mutex_init(&chip->audio_mutex);
 
-	chip->vchi_ctx = devres_find(device,
+	chip->vchi_ctx = devres_find(dev,
 				     bcm2835_devm_free_vchi_ctx, NULL, NULL);
-	if (!chip->vchi_ctx)
-		return -ENODEV;
+	if (!chip->vchi_ctx) {
+		err = -ENODEV;
+		goto error;
+	}
 
 	strcpy(card->driver, audio_driver->driver.name);
 	strcpy(card->shortname, audio_driver->shortname);
@@ -259,26 +193,36 @@ static int snd_add_child_device(struct device *device,
 		audio_driver->route,
 		numchans);
 	if (err) {
-		dev_err(child, "Failed to create pcm, error %d\n", err);
-		return err;
+		dev_err(dev, "Failed to create pcm, error %d\n", err);
+		goto error;
 	}
 
 	err = audio_driver->newctl(chip);
 	if (err) {
-		dev_err(child, "Failed to create controls, error %d\n", err);
-		return err;
+		dev_err(dev, "Failed to create controls, error %d\n", err);
+		goto error;
 	}
 
 	err = snd_card_register(card);
 	if (err) {
-		dev_err(child, "Failed to register card, error %d\n", err);
-		return err;
+		dev_err(dev, "Failed to register card, error %d\n", err);
+		goto error;
 	}
 
-	dev_set_drvdata(child, chip);
-	dev_info(child, "card created with %d channels\n", numchans);
+	dev_set_drvdata(dev, chip);
 
+	err = devm_add_action(dev, bcm2835_card_free, card);
+	if (err < 0) {
+		dev_err(dev, "Failed to add devm action, err %d\n", err);
+		goto error;
+	}
+
+	dev_info(dev, "card created with %d channels\n", numchans);
 	return 0;
+
+ error:
+	snd_card_free(card);
+	return err;
 }
 
 static int snd_add_child_devices(struct device *device, u32 numchans)
