@@ -887,6 +887,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 		case CHIP_VEGA10:  /* all engines support GPUVM */
 		case CHIP_VEGA12:  /* all engines support GPUVM */
 		case CHIP_VEGA20:
+		case CHIP_ARCTURUS:
 		default:
 			adev->gmc.gart_size = 512ULL << 20;
 			break;
@@ -1001,6 +1002,10 @@ static int gmc_v9_0_sw_init(void *handle)
 			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 47);
 		else
 			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
+		break;
+	case CHIP_ARCTURUS:
+		/* Keep the vm size same with Vega20 */
+		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
 		break;
 	default:
 		break;
