@@ -33,6 +33,8 @@ Required properties:
 - compatible: should be one of:
   - "rockchip,px30-io-voltage-domain" for px30
   - "rockchip,px30-pmu-io-voltage-domain" for px30 pmu-domains
+  - "rockchip,rk1808-io-voltage-domain" for rk1808
+  - "rockchip,rk1808-pmu-io-voltage-domain" for rk1808 pmu-domains
   - "rockchip,rk3188-io-voltage-domain" for rk3188
   - "rockchip,rk322x-io-voltage-domain" for rk3228
   - "rockchip,rk3288-io-voltage-domain" for rk3288
