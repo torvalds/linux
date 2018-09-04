@@ -199,19 +199,20 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&wilc->txq_spinlock, flags);
-	for (i = f->pending_base; i < (f->pending_base + f->pending_acks); i++) {
-		u32 session_index;
+	for (i = f->pending_base;
+	     i < (f->pending_base + f->pending_acks); i++) {
+		u32 index;
 		u32 bigger_ack_num;
 
 		if (i >= MAX_PENDING_ACKS)
 			break;
 
-		session_index = f->pending_acks_info[i].session_index;
+		index = f->pending_acks_info[i].session_index;
 
-		if (session_index >= 2 * MAX_TCP_SESSION)
+		if (index >= 2 * MAX_TCP_SESSION)
 			break;
 
-		bigger_ack_num = f->ack_session_info[session_index].bigger_ack_num;
+		bigger_ack_num = f->ack_session_info[index].bigger_ack_num;
 
 		if (f->pending_acks_info[i].ack_num < bigger_ack_num) {
 			struct txq_entry_t *tqe;
