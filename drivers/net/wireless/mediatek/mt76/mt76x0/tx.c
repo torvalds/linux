@@ -55,18 +55,6 @@ void mt76x0_tx_status(struct mt76x0_dev *dev, struct sk_buff *skb)
 	spin_unlock(&dev->mac_lock);
 }
 
-static int mt76x0_skb_rooms(struct mt76x0_dev *dev, struct sk_buff *skb)
-{
-	int hdr_len = ieee80211_get_hdrlen_from_skb(skb);
-	u32 need_head;
-
-	need_head = sizeof(struct mt76x02_txwi) + 4;
-	if (hdr_len % 4)
-		need_head += 2;
-
-	return skb_cow(skb, need_head);
-}
-
 static struct mt76x02_txwi *
 mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
 		  struct ieee80211_sta *sta, struct mt76_wcid *wcid,
@@ -158,10 +146,7 @@ void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	BUILD_BUG_ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
 	info->status.status_driver_data[0] = (void *)(unsigned long)pkt_len;
 
-	if (mt76x0_skb_rooms(dev, skb) || mt76x0_insert_hdr_pad(skb)) {
-		ieee80211_free_txskb(dev->mt76.hw, skb);
-		return;
-	}
+	mt76x0_insert_hdr_pad(skb);
 
 	if (sta) {
 		msta = (struct mt76x02_sta *) sta->drv_priv;

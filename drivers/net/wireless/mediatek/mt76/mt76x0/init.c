@@ -685,6 +685,7 @@ int mt76x0_register_device(struct mt76x0_dev *dev)
 	hw->max_rates = 1;
 	hw->max_report_rates = 7;
 	hw->max_rate_tries = 1;
+	hw->extra_tx_headroom = sizeof(struct mt76x02_txwi) + 4 + 2;
 
 	hw->sta_data_size = sizeof(struct mt76x02_sta);
 	hw->vif_data_size = sizeof(struct mt76x02_vif);
