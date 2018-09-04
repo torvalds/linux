@@ -2593,14 +2593,6 @@ static void handle_remain_on_chan_work(struct work_struct *work)
 	kfree(msg);
 }
 
-static void handle_hif_exit_work(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-
-	/* free 'msg' data in caller */
-	complete(&msg->work_comp);
-}
-
 static void handle_scan_complete(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
