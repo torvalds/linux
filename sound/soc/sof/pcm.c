@@ -142,9 +142,10 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* firmware already configured host stream */
-	pcm.params.stream_tag = snd_sof_pcm_platform_hw_params(sdev,
-							       substream,
-							       params);
+	ret = snd_sof_pcm_platform_hw_params(sdev,
+					     substream,
+					     params,
+					     &pcm.params);
 	dev_dbg(sdev->dev, "stream_tag %d", pcm.params.stream_tag);
 
 	/* send IPC to the DSP */

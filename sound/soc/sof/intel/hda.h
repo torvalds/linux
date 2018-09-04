@@ -364,6 +364,9 @@ struct sof_intel_hda_dev {
 	int irq;
 };
 
+#define bus_to_sof_hda(bus) \
+	container_of(bus, struct sof_intel_hda_dev, hbus.core)
+
 #define SOF_STREAM_SD_OFFSET(s) \
 	(SOF_HDA_ADSP_SD_ENTRY_SIZE * ((s)->index) \
 	 + SOF_HDA_ADSP_LOADER_BASE)
@@ -414,7 +417,8 @@ int hda_dsp_pcm_close(struct snd_sof_dev *sdev,
 		      struct snd_pcm_substream *substream);
 int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 			  struct snd_pcm_substream *substream,
-			  struct snd_pcm_hw_params *params);
+			  struct snd_pcm_hw_params *params,
+			  struct sof_ipc_stream_params *ipc_params);
 int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 			struct snd_pcm_substream *substream, int cmd);
 snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,

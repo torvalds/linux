@@ -97,7 +97,8 @@ static inline u32 get_bits(struct snd_sof_dev *sdev, int sample_bits)
 
 int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 			  struct snd_pcm_substream *substream,
-			  struct snd_pcm_hw_params *params)
+			  struct snd_pcm_hw_params *params,
+			  struct sof_ipc_stream_params *ipc_params)
 {
 	struct hdac_stream *hstream = substream->runtime->private_data;
 	struct hdac_ext_stream *stream = stream_to_hdac_ext_stream(hstream);
@@ -125,7 +126,13 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 	/* disable SPIB, to enable buffer wrap for stream */
 	hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
 
-	return hstream->stream_tag;
+	/* set host_period_bytes to 0 if no IPC position */
+	if (sdev->hda && sdev->hda->no_ipc_position)
+		ipc_params->host_period_bytes = 0;
+
+	ipc_params->stream_tag = hstream->stream_tag;
+
+	return 0;
 }
 
 int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
