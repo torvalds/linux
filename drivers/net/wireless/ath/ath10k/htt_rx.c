@@ -265,6 +265,9 @@ int ath10k_htt_rx_ring_refill(struct ath10k *ar)
 	struct ath10k_htt *htt = &ar->htt;
 	int ret;
 
+	if (ar->dev_type == ATH10K_DEV_TYPE_HL)
+		return 0;
+
 	spin_lock_bh(&htt->rx_ring.lock);
 	ret = ath10k_htt_rx_ring_fill_n(htt, (htt->rx_ring.fill_level -
 					      htt->rx_ring.fill_cnt));
@@ -279,6 +282,9 @@ int ath10k_htt_rx_ring_refill(struct ath10k *ar)
 
 void ath10k_htt_rx_free(struct ath10k_htt *htt)
 {
+	if (htt->ar->dev_type == ATH10K_DEV_TYPE_HL)
+		return;
+
 	del_timer_sync(&htt->rx_ring.refill_retry_timer);
 
 	skb_queue_purge(&htt->rx_msdus_q);
@@ -569,6 +575,9 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	void *vaddr, *vaddr_ring;
 	size_t size;
 	struct timer_list *timer = &htt->rx_ring.refill_retry_timer;
+
+	if (ar->dev_type == ATH10K_DEV_TYPE_HL)
+		return 0;
 
 	htt->rx_confused = false;
 
@@ -1846,8 +1855,116 @@ static int ath10k_htt_rx_handle_amsdu(struct ath10k_htt *htt)
 	return 0;
 }
 
-static void ath10k_htt_rx_proc_rx_ind(struct ath10k_htt *htt,
-				      struct htt_rx_indication *rx)
+static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
+					 struct htt_rx_indication_hl *rx,
+					 struct sk_buff *skb)
+{
+	struct ath10k *ar = htt->ar;
+	struct ath10k_peer *peer;
+	struct htt_rx_indication_mpdu_range *mpdu_ranges;
+	struct fw_rx_desc_hl *fw_desc;
+	struct ieee80211_hdr *hdr;
+	struct ieee80211_rx_status *rx_status;
+	u16 peer_id;
+	u8 rx_desc_len;
+	int num_mpdu_ranges;
+	size_t tot_hdr_len;
+	struct ieee80211_channel *ch;
+
+	peer_id = __le16_to_cpu(rx->hdr.peer_id);
+
+	spin_lock_bh(&ar->data_lock);
+	peer = ath10k_peer_find_by_id(ar, peer_id);
+	spin_unlock_bh(&ar->data_lock);
+	if (!peer)
+		ath10k_warn(ar, "Got RX ind from invalid peer: %u\n", peer_id);
+
+	num_mpdu_ranges = MS(__le32_to_cpu(rx->hdr.info1),
+			     HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES);
+	mpdu_ranges = htt_rx_ind_get_mpdu_ranges_hl(rx);
+	fw_desc = &rx->fw_desc;
+	rx_desc_len = fw_desc->len;
+
+	/* I have not yet seen any case where num_mpdu_ranges > 1.
+	 * qcacld does not seem handle that case either, so we introduce the
+	 * same limitiation here as well.
+	 */
+	if (num_mpdu_ranges > 1)
+		ath10k_warn(ar,
+			    "Unsupported number of MPDU ranges: %d, ignoring all but the first\n",
+			    num_mpdu_ranges);
+
+	if (mpdu_ranges->mpdu_range_status !=
+	    HTT_RX_IND_MPDU_STATUS_OK) {
+		ath10k_warn(ar, "MPDU range status: %d\n",
+			    mpdu_ranges->mpdu_range_status);
+		goto err;
+	}
+
+	/* Strip off all headers before the MAC header before delivery to
+	 * mac80211
+	 */
+	tot_hdr_len = sizeof(struct htt_resp_hdr) + sizeof(rx->hdr) +
+		      sizeof(rx->ppdu) + sizeof(rx->prefix) +
+		      sizeof(rx->fw_desc) +
+		      sizeof(*mpdu_ranges) * num_mpdu_ranges + rx_desc_len;
+	skb_pull(skb, tot_hdr_len);
+
+	hdr = (struct ieee80211_hdr *)skb->data;
+	rx_status = IEEE80211_SKB_RXCB(skb);
+	rx_status->chains |= BIT(0);
+	rx_status->signal = ATH10K_DEFAULT_NOISE_FLOOR +
+			    rx->ppdu.combined_rssi;
+	rx_status->flag &= ~RX_FLAG_NO_SIGNAL_VAL;
+
+	spin_lock_bh(&ar->data_lock);
+	ch = ar->scan_channel;
+	if (!ch)
+		ch = ar->rx_channel;
+	if (!ch)
+		ch = ath10k_htt_rx_h_any_channel(ar);
+	if (!ch)
+		ch = ar->tgt_oper_chan;
+	spin_unlock_bh(&ar->data_lock);
+
+	if (ch) {
+		rx_status->band = ch->band;
+		rx_status->freq = ch->center_freq;
+	}
+	if (rx->fw_desc.flags & FW_RX_DESC_FLAGS_LAST_MSDU)
+		rx_status->flag &= ~RX_FLAG_AMSDU_MORE;
+	else
+		rx_status->flag |= RX_FLAG_AMSDU_MORE;
+
+	/* Not entirely sure about this, but all frames from the chipset has
+	 * the protected flag set even though they have already been decrypted.
+	 * Unmasking this flag is necessary in order for mac80211 not to drop
+	 * the frame.
+	 * TODO: Verify this is always the case or find out a way to check
+	 * if there has been hw decryption.
+	 */
+	if (ieee80211_has_protected(hdr->frame_control)) {
+		hdr->frame_control &= ~__cpu_to_le16(IEEE80211_FCTL_PROTECTED);
+		rx_status->flag |= RX_FLAG_DECRYPTED |
+				   RX_FLAG_IV_STRIPPED |
+				   RX_FLAG_MMIC_STRIPPED;
+	}
+
+	ieee80211_rx_ni(ar->hw, skb);
+
+	/* We have delivered the skb to the upper layers (mac80211) so we
+	 * must not free it.
+	 */
+	return false;
+err:
+	/* Tell the caller that it must free the skb since we have not
+	 * consumed it
+	 */
+	return true;
+}
+
+static void ath10k_htt_rx_proc_rx_ind_ll(struct ath10k_htt *htt,
+					 struct htt_rx_indication *rx)
 {
 	struct ath10k *ar = htt->ar;
 	struct htt_rx_indication_mpdu_range *mpdu_ranges;
@@ -2829,7 +2946,12 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_RX_IND:
-		ath10k_htt_rx_proc_rx_ind(htt, &resp->rx_ind);
+		if (ar->dev_type == ATH10K_DEV_TYPE_HL)
+			return ath10k_htt_rx_proc_rx_ind_hl(htt,
+							    &resp->rx_ind_hl,
+							    skb);
+		else
+			ath10k_htt_rx_proc_rx_ind_ll(htt, &resp->rx_ind);
 		break;
 	case HTT_T2H_MSG_TYPE_PEER_MAP: {
 		struct htt_peer_map_event ev = {
