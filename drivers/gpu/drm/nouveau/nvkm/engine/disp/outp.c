@@ -93,6 +93,8 @@ nvkm_outp_release(struct nvkm_outp *outp, u8 user)
 	if (ior) {
 		outp->acquired &= ~user;
 		if (!outp->acquired) {
+			if (outp->func->release && outp->ior)
+				outp->func->release(outp);
 			outp->ior->asy.outp = NULL;
 			outp->ior = NULL;
 		}
