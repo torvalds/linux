@@ -24,6 +24,7 @@ struct clk_omap_divider {
 	u8			flags;
 	s8			latch;
 	const struct clk_div_table	*table;
+	u32		context;
 };
 
 #define to_clk_omap_divider(_hw) container_of(_hw, struct clk_omap_divider, hw)
@@ -36,6 +37,7 @@ struct clk_omap_mux {
 	u8			shift;
 	s8			latch;
 	u8			flags;
+	u8			saved_parent;
 };
 
 #define to_clk_omap_mux(_hw) container_of(_hw, struct clk_omap_mux, hw)
