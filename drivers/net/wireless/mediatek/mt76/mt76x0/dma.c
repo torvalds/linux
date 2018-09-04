@@ -111,6 +111,8 @@ static void mt76x0_rx_process_seg(struct mt76x0_dev *dev, u8 *data,
 	if (!skb)
 		return;
 
+	mt76_rx_convert(skb);
+
 	spin_lock(&dev->mac_lock);
 	ieee80211_rx(dev->mt76.hw, skb);
 	spin_unlock(&dev->mac_lock);
