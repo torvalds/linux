@@ -16,6 +16,7 @@ struct nvkm_outp {
 
 	struct list_head head;
 	struct nvkm_conn *conn;
+	bool identity;
 
 	/* Assembly state. */
 #define NVKM_OUTP_PRIV 1
