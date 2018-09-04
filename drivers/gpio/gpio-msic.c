@@ -20,13 +20,13 @@
  *
  */
 
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/gpio/driver.h>
-#include <linux/platform_device.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/mfd/intel_msic.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
 
 /* the offset for the mapping of global gpio pin to irq */
 #define MSIC_GPIO_IRQ_OFFSET	0x100
