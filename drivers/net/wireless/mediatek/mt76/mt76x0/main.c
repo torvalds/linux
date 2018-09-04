@@ -151,12 +151,6 @@ mt76x0_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 static void
-mt76x0_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   enum sta_notify_cmd cmd, struct ieee80211_sta *sta)
-{
-}
-
-static void
 mt76x0_sw_scan(struct ieee80211_hw *hw,
 		struct ieee80211_vif *vif,
 		const u8 *mac_addr)
@@ -224,7 +218,6 @@ const struct ieee80211_ops mt76x0_ops = {
 	.bss_info_changed = mt76x0_bss_info_changed,
 	.sta_add = mt76x02_sta_add,
 	.sta_remove = mt76x02_sta_remove,
-	.sta_notify = mt76x0_sta_notify,
 	.set_key = mt76x02_set_key,
 	.conf_tx = mt76x0_conf_tx,
 	.sw_scan_start = mt76x0_sw_scan,
