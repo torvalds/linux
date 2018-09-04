@@ -931,6 +931,15 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 		goto done;
 	}
 
+	/* The address supplied by the caller is in the
+	 * Target CPU virtual address space.
+	 *
+	 * In order to use this address with the diagnostic CE,
+	 * convert it from Target CPU virtual address space
+	 * to CE address space
+	 */
+	address = ath10k_pci_targ_cpu_to_ce_addr(ar, address);
+
 	remaining_bytes = nbytes;
 	ce_data = ce_data_base;
 	while (remaining_bytes) {
@@ -942,16 +951,6 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 			goto done;
 
 		/* Request CE to send from Target(!) address to Host buffer */
-		/*
-		 * The address supplied by the caller is in the
-		 * Target CPU virtual address space.
-		 *
-		 * In order to use this address with the diagnostic CE,
-		 * convert it from Target CPU virtual address space
-		 * to CE address space
-		 */
-		address = ath10k_pci_targ_cpu_to_ce_addr(ar, address);
-
 		ret = ath10k_ce_send_nolock(ce_diag, NULL, (u32)address, nbytes, 0,
 					    0);
 		if (ret)
@@ -960,8 +959,10 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 		i = 0;
 		while (ath10k_ce_completed_send_next_nolock(ce_diag,
 							    NULL) != 0) {
-			mdelay(1);
-			if (i++ > DIAG_ACCESS_CE_TIMEOUT_MS) {
+			udelay(DIAG_ACCESS_CE_WAIT_US);
+			i += DIAG_ACCESS_CE_WAIT_US;
+
+			if (i > DIAG_ACCESS_CE_TIMEOUT_US) {
 				ret = -EBUSY;
 				goto done;
 			}
@@ -972,9 +973,10 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 							    (void **)&buf,
 							    &completed_nbytes)
 								!= 0) {
-			mdelay(1);
+			udelay(DIAG_ACCESS_CE_WAIT_US);
+			i += DIAG_ACCESS_CE_WAIT_US;
 
-			if (i++ > DIAG_ACCESS_CE_TIMEOUT_MS) {
+			if (i > DIAG_ACCESS_CE_TIMEOUT_US) {
 				ret = -EBUSY;
 				goto done;
 			}
@@ -1119,9 +1121,10 @@ int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 		i = 0;
 		while (ath10k_ce_completed_send_next_nolock(ce_diag,
 							    NULL) != 0) {
-			mdelay(1);
+			udelay(DIAG_ACCESS_CE_WAIT_US);
+			i += DIAG_ACCESS_CE_WAIT_US;
 
-			if (i++ > DIAG_ACCESS_CE_TIMEOUT_MS) {
+			if (i > DIAG_ACCESS_CE_TIMEOUT_US) {
 				ret = -EBUSY;
 				goto done;
 			}
@@ -1132,9 +1135,10 @@ int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 							    (void **)&buf,
 							    &completed_nbytes)
 								!= 0) {
-			mdelay(1);
+			udelay(DIAG_ACCESS_CE_WAIT_US);
+			i += DIAG_ACCESS_CE_WAIT_US;
 
-			if (i++ > DIAG_ACCESS_CE_TIMEOUT_MS) {
+			if (i > DIAG_ACCESS_CE_TIMEOUT_US) {
 				ret = -EBUSY;
 				goto done;
 			}
