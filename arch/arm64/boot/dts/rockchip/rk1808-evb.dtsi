@@ -427,7 +427,6 @@
 	};
 };
 
-/*
 &io_domains {
 	status = "okay";
 
@@ -436,7 +435,7 @@
 	vccio2-supply = <&vcca_1v8>;
 	vccio3-supply = <&vcca_1v8>;
 	vccio4-supply = <&vcca_1v8>;
-	vccio5-supply = <&vccio_3v3>;
+	vccio5-supply = <&vcca_1v8>;
 };
 
 &pmu_io_domains {
@@ -445,7 +444,6 @@
 	pmuio1-supply = <&vcc_1v8>;
 	pmuio2-supply = <&vcc_3v3>;
 };
-*/
 
 &pwm1 {
 	status = "okay";
