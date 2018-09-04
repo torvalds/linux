@@ -128,8 +128,6 @@ static int snd_bcm2835_playback_open_generic(
 	alsa_stream->substream = substream;
 	alsa_stream->idx = idx;
 
-	spin_lock_init(&alsa_stream->lock);
-
 	err = bcm2835_audio_open(alsa_stream);
 	if (err) {
 		kfree(alsa_stream);

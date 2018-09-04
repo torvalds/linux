@@ -119,8 +119,6 @@ struct bcm2835_alsa_stream {
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_indirect pcm_indirect;
 
-	spinlock_t lock;
-
 	int draining;
 
 	int channels;
