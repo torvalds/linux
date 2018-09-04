@@ -103,6 +103,14 @@ static const struct nla_policy ifa_ipv4_policy[IFA_MAX+1] = {
 	[IFA_TARGET_NETNSID]	= { .type = NLA_S32 },
 };
 
+struct inet_fill_args {
+	u32 portid;
+	u32 seq;
+	int event;
+	unsigned int flags;
+	int netnsid;
+};
+
 #define IN4_ADDR_HSIZE_SHIFT	8
 #define IN4_ADDR_HSIZE		(1U << IN4_ADDR_HSIZE_SHIFT)
 
@@ -1585,14 +1593,14 @@ static int put_cacheinfo(struct sk_buff *skb, unsigned long cstamp,
 }
 
 static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
-			    u32 portid, u32 seq, int event, unsigned int flags,
-			    int netnsid)
+			    struct inet_fill_args *args)
 {
 	struct ifaddrmsg *ifm;
 	struct nlmsghdr  *nlh;
 	u32 preferred, valid;
 
-	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*ifm), flags);
+	nlh = nlmsg_put(skb, args->portid, args->seq, args->event, sizeof(*ifm),
+			args->flags);
 	if (!nlh)
 		return -EMSGSIZE;
 
@@ -1603,7 +1611,8 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 	ifm->ifa_scope = ifa->ifa_scope;
 	ifm->ifa_index = ifa->ifa_dev->dev->ifindex;
 
-	if (netnsid >= 0 && nla_put_s32(skb, IFA_TARGET_NETNSID, netnsid))
+	if (args->netnsid >= 0 &&
+	    nla_put_s32(skb, IFA_TARGET_NETNSID, args->netnsid))
 		goto nla_put_failure;
 
 	if (!(ifm->ifa_flags & IFA_F_PERMANENT)) {
@@ -1652,10 +1661,16 @@ nla_put_failure:
 
 static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct inet_fill_args fillargs = {
+		.portid = NETLINK_CB(cb->skb).portid,
+		.seq = cb->nlh->nlmsg_seq,
+		.event = RTM_NEWADDR,
+		.flags = NLM_F_MULTI,
+		.netnsid = -1,
+	};
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[IFA_MAX+1];
 	struct net *tgt_net = net;
-	int netnsid = -1;
 	int h, s_h;
 	int idx, s_idx;
 	int ip_idx, s_ip_idx;
@@ -1671,9 +1686,10 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	if (nlmsg_parse(cb->nlh, sizeof(struct ifaddrmsg), tb, IFA_MAX,
 			ifa_ipv4_policy, NULL) >= 0) {
 		if (tb[IFA_TARGET_NETNSID]) {
-			netnsid = nla_get_s32(tb[IFA_TARGET_NETNSID]);
+			fillargs.netnsid = nla_get_s32(tb[IFA_TARGET_NETNSID]);
 
-			tgt_net = rtnl_get_net_ns_capable(skb->sk, netnsid);
+			tgt_net = rtnl_get_net_ns_capable(skb->sk,
+							  fillargs.netnsid);
 			if (IS_ERR(tgt_net))
 				return PTR_ERR(tgt_net);
 		}
@@ -1698,11 +1714,7 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 			     ifa = ifa->ifa_next, ip_idx++) {
 				if (ip_idx < s_ip_idx)
 					continue;
-				if (inet_fill_ifaddr(skb, ifa,
-						     NETLINK_CB(cb->skb).portid,
-						     cb->nlh->nlmsg_seq,
-						     RTM_NEWADDR, NLM_F_MULTI,
-						     netnsid) < 0) {
+				if (inet_fill_ifaddr(skb, ifa, &fillargs) < 0) {
 					rcu_read_unlock();
 					goto done;
 				}
@@ -1718,7 +1730,7 @@ done:
 	cb->args[0] = h;
 	cb->args[1] = idx;
 	cb->args[2] = ip_idx;
-	if (netnsid >= 0)
+	if (fillargs.netnsid >= 0)
 		put_net(tgt_net);
 
 	return skb->len;
@@ -1727,8 +1739,14 @@ done:
 static void rtmsg_ifa(int event, struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 		      u32 portid)
 {
+	struct inet_fill_args fillargs = {
+		.portid = portid,
+		.seq = nlh ? nlh->nlmsg_seq : 0,
+		.event = event,
+		.flags = 0,
+		.netnsid = -1,
+	};
 	struct sk_buff *skb;
-	u32 seq = nlh ? nlh->nlmsg_seq : 0;
 	int err = -ENOBUFS;
 	struct net *net;
 
@@ -1737,7 +1755,7 @@ static void rtmsg_ifa(int event, struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 	if (!skb)
 		goto errout;
 
-	err = inet_fill_ifaddr(skb, ifa, portid, seq, event, 0, -1);
+	err = inet_fill_ifaddr(skb, ifa, &fillargs);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in inet_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
