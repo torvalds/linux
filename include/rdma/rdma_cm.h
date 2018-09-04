@@ -152,7 +152,11 @@ struct rdma_cm_id *__rdma_create_id(struct net *net,
  * @ps: RDMA port space.
  * @qp_type: type of queue pair associated with the id.
  *
- * The id holds a reference on the network namespace until it is destroyed.
+ * Returns a new rdma_cm_id. The id holds a reference on the network
+ * namespace until it is destroyed.
+ *
+ * The event handler callback serializes on the id's mutex and is
+ * allowed to sleep.
  */
 #define rdma_create_id(net, event_handler, context, ps, qp_type) \
 	__rdma_create_id((net), (event_handler), (context), (ps), (qp_type), \
