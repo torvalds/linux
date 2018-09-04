@@ -121,7 +121,6 @@ struct bcm2835_alsa_stream {
 
 	spinlock_t lock;
 
-	int running;
 	int draining;
 
 	int channels;

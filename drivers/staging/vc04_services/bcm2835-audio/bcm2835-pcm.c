@@ -187,19 +187,6 @@ static int snd_bcm2835_playback_close(struct snd_pcm_substream *substream)
 
 	audio_info("Alsa close\n");
 
-	/*
-	 * Call stop if it's still running. This happens when app
-	 * is force killed and we don't get a stop trigger.
-	 */
-	if (alsa_stream->running) {
-		int err;
-
-		err = bcm2835_audio_stop(alsa_stream);
-		alsa_stream->running = 0;
-		if (err)
-			audio_error(" Failed to STOP alsa device\n");
-	}
-
 	alsa_stream->period_size = 0;
 	alsa_stream->buffer_size = 0;
 
@@ -324,27 +311,13 @@ static int snd_bcm2835_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		audio_debug("bcm2835_AUDIO_TRIGGER_START running=%d\n",
-			alsa_stream->running);
-		if (!alsa_stream->running) {
-			err = bcm2835_audio_start(alsa_stream);
-			if (!err) {
-				alsa_stream->pcm_indirect.hw_io =
-					alsa_stream->pcm_indirect.hw_data =
-					bytes_to_frames(runtime,
-					alsa_stream->pos);
-				substream->ops->ack(substream);
-				alsa_stream->running = 1;
-				alsa_stream->draining = 1;
-			} else {
-				audio_error(" Failed to START alsa device (%d)\n", err);
-			}
-		}
+		err = bcm2835_audio_start(alsa_stream);
+		if (!err)
+			alsa_stream->draining = 1;
+		else
+			audio_error(" Failed to START alsa device (%d)\n", err);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		audio_debug
-			("bcm2835_AUDIO_TRIGGER_STOP running=%d draining=%d\n",
-			alsa_stream->running, runtime->status->state == SNDRV_PCM_STATE_DRAINING);
 		if (runtime->status->state == SNDRV_PCM_STATE_DRAINING) {
 			audio_info("DRAINING\n");
 			alsa_stream->draining = 1;
@@ -352,12 +325,9 @@ static int snd_bcm2835_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 			audio_info("DROPPING\n");
 			alsa_stream->draining = 0;
 		}
-		if (alsa_stream->running) {
-			err = bcm2835_audio_stop(alsa_stream);
-			if (err != 0)
-				audio_error(" Failed to STOP alsa device (%d)\n", err);
-			alsa_stream->running = 0;
-		}
+		err = bcm2835_audio_stop(alsa_stream);
+		if (err != 0)
+			audio_error(" Failed to STOP alsa device (%d)\n", err);
 		break;
 	default:
 		err = -EINVAL;
