@@ -1707,7 +1707,27 @@ static int switch_context(struct i915_request *rq)
 	}
 
 	if (ppgtt) {
+		ret = engine->emit_flush(rq, EMIT_INVALIDATE);
+		if (ret)
+			goto err_mm;
+
 		ret = flush_pd_dir(rq);
+		if (ret)
+			goto err_mm;
+
+		/*
+		 * Not only do we need a full barrier (post-sync write) after
+		 * invalidating the TLBs, but we need to wait a little bit
+		 * longer. Whether this is merely delaying us, or the
+		 * subsequent flush is a key part of serialising with the
+		 * post-sync op, this extra pass appears vital before a
+		 * mm switch!
+		 */
+		ret = engine->emit_flush(rq, EMIT_INVALIDATE);
+		if (ret)
+			goto err_mm;
+
+		ret = engine->emit_flush(rq, EMIT_FLUSH);
 		if (ret)
 			goto err_mm;
 	}
@@ -1947,7 +1967,7 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
 
-static int emit_mi_flush_dw(struct i915_request *rq, u32 flags)
+static int mi_flush_dw(struct i915_request *rq, u32 flags)
 {
 	u32 cmd, *cs;
 
@@ -1985,23 +2005,7 @@ static int emit_mi_flush_dw(struct i915_request *rq, u32 flags)
 
 static int gen6_flush_dw(struct i915_request *rq, u32 mode, u32 invflags)
 {
-	int err;
-
-	/*
-	 * Not only do we need a full barrier (post-sync write) after
-	 * invalidating the TLBs, but we need to wait a little bit
-	 * longer. Whether this is merely delaying us, or the
-	 * subsequent flush is a key part of serialising with the
-	 * post-sync op, this extra pass appears vital before a
-	 * mm switch!
-	 */
-	if (mode & EMIT_INVALIDATE) {
-		err = emit_mi_flush_dw(rq, invflags);
-		if (err)
-			return err;
-	}
-
-	return emit_mi_flush_dw(rq, 0);
+	return mi_flush_dw(rq, mode & EMIT_INVALIDATE ? invflags : 0);
 }
 
 static int gen6_bsd_ring_flush(struct i915_request *rq, u32 mode)
