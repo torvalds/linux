@@ -1016,6 +1016,7 @@ static int ath10k_usb_probe(struct usb_interface *interface,
 	ar->id.vendor = vendor_id;
 	ar->id.device = product_id;
 
+	bus_params.dev_type = ATH10K_DEV_TYPE_HL;
 	/* TODO: don't know yet how to get chip_id with USB */
 	bus_params.chip_id = 0;
 	ret = ath10k_core_register(ar, &bus_params);

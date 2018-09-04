@@ -1351,6 +1351,7 @@ static int ath10k_snoc_probe(struct platform_device *pdev)
 		goto err_free_irq;
 	}
 
+	bus_params.dev_type = ATH10K_DEV_TYPE_LL;
 	bus_params.chip_id = drv_data->hw_rev;
 	ret = ath10k_core_register(ar, &bus_params);
 	if (ret) {
