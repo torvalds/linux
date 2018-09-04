@@ -97,6 +97,12 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	if (priv->tsa) {
 		uf_info->tsa = 1;
 		uf_info->ctsp = 1;
+		uf_info->cds = 1;
+		uf_info->ctss = 1;
+	} else {
+		uf_info->cds = 0;
+		uf_info->ctsp = 0;
+		uf_info->ctss = 0;
 	}
 
 	/* This sets HPM register in CMXUCR register which configures a
@@ -265,7 +271,7 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	iowrite16be(MAX_FRAME_LENGTH, &priv->ucc_pram->mflr);
 	iowrite16be(DEFAULT_RFTHR, &priv->ucc_pram->rfthr);
 	iowrite16be(DEFAULT_RFTHR, &priv->ucc_pram->rfcnt);
-	iowrite16be(DEFAULT_ADDR_MASK, &priv->ucc_pram->hmask);
+	iowrite16be(priv->hmask, &priv->ucc_pram->hmask);
 	iowrite16be(DEFAULT_HDLC_ADDR, &priv->ucc_pram->haddr1);
 	iowrite16be(DEFAULT_HDLC_ADDR, &priv->ucc_pram->haddr2);
 	iowrite16be(DEFAULT_HDLC_ADDR, &priv->ucc_pram->haddr3);
@@ -372,6 +378,10 @@ static netdev_tx_t ucc_hdlc_tx(struct sk_buff *skb, struct net_device *dev)
 			return -ENOMEM;
 		}
 
+		dev->stats.tx_bytes += skb->len;
+		break;
+
+	case ARPHRD_ETHER:
 		dev->stats.tx_bytes += skb->len;
 		break;
 
@@ -512,6 +522,7 @@ static int hdlc_rx_done(struct ucc_hdlc_private *priv, int rx_work_limit)
 			break;
 
 		case ARPHRD_PPP:
+		case ARPHRD_ETHER:
 			length -= HDLC_CRC_SIZE;
 
 			skb = dev_alloc_skb(length);
@@ -780,6 +791,7 @@ static int ucc_hdlc_attach(struct net_device *dev, unsigned short encoding,
 
 	if (parity != PARITY_NONE &&
 	    parity != PARITY_CRC32_PR1_CCITT &&
+	    parity != PARITY_CRC16_PR0_CCITT &&
 	    parity != PARITY_CRC16_PR1_CCITT)
 		return -EINVAL;
 
@@ -987,11 +999,17 @@ static const struct dev_pm_ops uhdlc_pm_ops = {
 #define HDLC_PM_OPS NULL
 
 #endif
+static void uhdlc_tx_timeout(struct net_device *ndev)
+{
+	netdev_err(ndev, "%s\n", __func__);
+}
+
 static const struct net_device_ops uhdlc_ops = {
 	.ndo_open       = uhdlc_open,
 	.ndo_stop       = uhdlc_close,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = uhdlc_ioctl,
+	.ndo_tx_timeout	= uhdlc_tx_timeout,
 };
 
 static int ucc_hdlc_probe(struct platform_device *pdev)
@@ -1015,7 +1033,7 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	}
 
 	ucc_num = val - 1;
-	if ((ucc_num > 3) || (ucc_num < 0)) {
+	if (ucc_num > (UCC_MAX_NUM - 1) || ucc_num < 0) {
 		dev_err(&pdev->dev, ": Invalid UCC num\n");
 		return -EINVAL;
 	}
@@ -1090,6 +1108,9 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 			goto free_utdm;
 	}
 
+	if (of_property_read_u16(np, "fsl,hmask", &uhdlc_priv->hmask))
+		uhdlc_priv->hmask = DEFAULT_ADDR_MASK;
+
 	ret = uhdlc_init(uhdlc_priv);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to init uhdlc\n");
@@ -1107,6 +1128,7 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	hdlc = dev_to_hdlc(dev);
 	dev->tx_queue_len = 16;
 	dev->netdev_ops = &uhdlc_ops;
+	dev->watchdog_timeo = 2 * HZ;
 	hdlc->attach = ucc_hdlc_attach;
 	hdlc->xmit = ucc_hdlc_tx;
 	netif_napi_add(dev, &uhdlc_priv->napi, ucc_hdlc_poll, 32);
