@@ -95,6 +95,8 @@ struct wilc_priv {
 	struct mutex scan_req_lock;
 	bool p2p_listen_state;
 	struct timer_list aging_timer;
+	struct network_info scanned_shadow[MAX_NUM_SCANNED_NETWORKS_SHADOW];
+	int scanned_cnt;
 };
 
 struct frame_reg {
