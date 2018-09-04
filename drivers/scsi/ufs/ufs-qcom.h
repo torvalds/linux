@@ -129,11 +129,6 @@ enum {
 	MASK_CLK_NS_REG                     = 0xFFFC00,
 };
 
-enum ufs_qcom_phy_init_type {
-	UFS_PHY_INIT_FULL,
-	UFS_PHY_INIT_CFG_RESTORE,
-};
-
 /* QCOM UFS debug print bit mask */
 #define UFS_QCOM_DBG_PRINT_REGS_EN	BIT(0)
 #define UFS_QCOM_DBG_PRINT_ICE_REGS_EN	BIT(1)
