@@ -3,7 +3,7 @@
 
 #include "dot11d.h"
 
-void dot11d_init(struct ieee80211_device *ieee)
+void rtl8192u_dot11d_init(struct ieee80211_device *ieee)
 {
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(ieee);
 
@@ -15,9 +15,9 @@ void dot11d_init(struct ieee80211_device *ieee)
 	memset(pDot11dInfo->max_tx_pwr_dbm_list, 0xFF, MAX_CHANNEL_NUMBER+1);
 	RESET_CIE_WATCHDOG(ieee);
 
-	netdev_info(ieee->dev, "dot11d_init()\n");
+	netdev_info(ieee->dev, "rtl8192u_dot11d_init()\n");
 }
-EXPORT_SYMBOL(dot11d_init);
+EXPORT_SYMBOL(rtl8192u_dot11d_init);
 
 /* Reset to the state as we are just entering a regulatory domain. */
 void dot11d_reset(struct ieee80211_device *ieee)
