@@ -233,48 +233,6 @@ static int snd_bcm2835_spdif_mask_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int snd_bcm2835_spdif_stream_info(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_IEC958;
-	uinfo->count = 1;
-	return 0;
-}
-
-static int snd_bcm2835_spdif_stream_get(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	struct bcm2835_chip *chip = snd_kcontrol_chip(kcontrol);
-	int i;
-
-	mutex_lock(&chip->audio_mutex);
-
-	for (i = 0; i < 4; i++)
-		ucontrol->value.iec958.status[i] =
-		(chip->spdif_status >> (i * 8)) & 0xff;
-
-	mutex_unlock(&chip->audio_mutex);
-	return 0;
-}
-
-static int snd_bcm2835_spdif_stream_put(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	struct bcm2835_chip *chip = snd_kcontrol_chip(kcontrol);
-	unsigned int val = 0;
-	int i, change;
-
-	mutex_lock(&chip->audio_mutex);
-
-	for (i = 0; i < 4; i++)
-		val |= (unsigned int)ucontrol->value.iec958.status[i] << (i * 8);
-	change = val != chip->spdif_status;
-	chip->spdif_status = val;
-
-	mutex_unlock(&chip->audio_mutex);
-	return change;
-}
-
 static struct snd_kcontrol_new snd_bcm2835_spdif[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
@@ -289,15 +247,6 @@ static struct snd_kcontrol_new snd_bcm2835_spdif[] = {
 		.name = SNDRV_CTL_NAME_IEC958("", PLAYBACK, CON_MASK),
 		.info = snd_bcm2835_spdif_mask_info,
 		.get = snd_bcm2835_spdif_mask_get,
-	},
-	{
-		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
-		SNDRV_CTL_ELEM_ACCESS_INACTIVE,
-		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
-		.name = SNDRV_CTL_NAME_IEC958("", PLAYBACK, PCM_STREAM),
-		.info = snd_bcm2835_spdif_stream_info,
-		.get = snd_bcm2835_spdif_stream_get,
-		.put = snd_bcm2835_spdif_stream_put,
 	},
 };
 
