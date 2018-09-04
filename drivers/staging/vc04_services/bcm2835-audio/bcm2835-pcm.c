@@ -44,9 +44,7 @@ static const struct snd_pcm_hardware snd_bcm2835_playback_spdif_hw = {
 
 static void snd_bcm2835_playback_free(struct snd_pcm_runtime *runtime)
 {
-	audio_info("Freeing up alsa stream here ..\n");
 	kfree(runtime->private_data);
-	runtime->private_data = NULL;
 }
 
 void bcm2835_playback_fifo(struct bcm2835_alsa_stream *alsa_stream)
@@ -99,7 +97,6 @@ static int snd_bcm2835_playback_open_generic(
 	int err;
 
 	mutex_lock(&chip->audio_mutex);
-	audio_info("Alsa open (%d)\n", substream->number);
 	idx = substream->number;
 
 	if (spdif && chip->opened) {
@@ -182,8 +179,6 @@ static int snd_bcm2835_playback_close(struct snd_pcm_substream *substream)
 	runtime = substream->runtime;
 	alsa_stream = runtime->private_data;
 
-	audio_info("Alsa close\n");
-
 	alsa_stream->period_size = 0;
 	alsa_stream->buffer_size = 0;
 
@@ -251,10 +246,6 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 	alsa_stream->pos = 0;
 	alsa_stream->draining = false;
 
-	audio_debug("buffer_size=%d, period_size=%d pos=%d frame_bits=%d\n",
-		alsa_stream->buffer_size, alsa_stream->period_size,
-		alsa_stream->pos, runtime->frame_bits);
-
  out:
 	mutex_unlock(&chip->audio_mutex);
 	return err;
@@ -266,12 +257,8 @@ static void snd_bcm2835_pcm_transfer(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
 	void *src = (void *) (substream->runtime->dma_area + rec->sw_data);
-	int err;
 
-	err = bcm2835_audio_write(alsa_stream, bytes, src);
-	if (err)
-		audio_error(" Failed to transfer to alsa device (%d)\n", err);
-
+	bcm2835_audio_write(alsa_stream, bytes, src);
 }
 
 static int snd_bcm2835_pcm_ack(struct snd_pcm_substream *substream)
@@ -289,27 +276,18 @@ static int snd_bcm2835_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
-	int err = 0;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		err = bcm2835_audio_start(alsa_stream);
-		if (err)
-			audio_error(" Failed to START alsa device (%d)\n", err);
-		break;
+		return bcm2835_audio_start(alsa_stream);
 	case SNDRV_PCM_TRIGGER_DRAIN:
 		alsa_stream->draining = true;
-		break;
+		return 0;
 	case SNDRV_PCM_TRIGGER_STOP:
-		err = bcm2835_audio_stop(alsa_stream);
-		if (err)
-			audio_error(" Failed to STOP alsa device (%d)\n", err);
-		break;
+		return bcm2835_audio_stop(alsa_stream);
 	default:
-		err = -EINVAL;
+		return -EINVAL;
 	}
-
-	return err;
 }
 
 /* pointer callback */
@@ -319,31 +297,16 @@ snd_bcm2835_pcm_pointer(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
 
-	audio_debug("pcm_pointer... (%d) hwptr=%d appl=%d pos=%d\n", 0,
-		frames_to_bytes(runtime, runtime->status->hw_ptr),
-		frames_to_bytes(runtime, runtime->control->appl_ptr),
-		alsa_stream->pos);
-
 	return snd_pcm_indirect_playback_pointer(substream,
 		&alsa_stream->pcm_indirect,
 		alsa_stream->pos);
-}
-
-static int snd_bcm2835_pcm_lib_ioctl(struct snd_pcm_substream *substream,
-	unsigned int cmd, void *arg)
-{
-	int ret = snd_pcm_lib_ioctl(substream, cmd, arg);
-
-	audio_info(" .. substream=%p, cmd=%d, arg=%p (%x) ret=%d\n", substream,
-		cmd, arg, arg ? *(unsigned int *)arg : 0, ret);
-	return ret;
 }
 
 /* operators */
 static const struct snd_pcm_ops snd_bcm2835_playback_ops = {
 	.open = snd_bcm2835_playback_open,
 	.close = snd_bcm2835_playback_close,
-	.ioctl = snd_bcm2835_pcm_lib_ioctl,
+	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_bcm2835_pcm_hw_params,
 	.hw_free = snd_bcm2835_pcm_hw_free,
 	.prepare = snd_bcm2835_pcm_prepare,
@@ -355,7 +318,7 @@ static const struct snd_pcm_ops snd_bcm2835_playback_ops = {
 static const struct snd_pcm_ops snd_bcm2835_playback_spdif_ops = {
 	.open = snd_bcm2835_playback_spdif_open,
 	.close = snd_bcm2835_playback_close,
-	.ioctl = snd_bcm2835_pcm_lib_ioctl,
+	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_bcm2835_pcm_hw_params,
 	.hw_free = snd_bcm2835_pcm_hw_free,
 	.prepare = snd_bcm2835_pcm_prepare,
