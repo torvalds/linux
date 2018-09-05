@@ -351,15 +351,16 @@ static int soc_common_pcmcia_config_skt(
 
 	if (ret == 0) {
 		struct gpio_desc *descs[2];
-		int values[2], n = 0;
+		DECLARE_BITMAP(values, 2);
+		int n = 0;
 
 		if (skt->gpio_reset) {
 			descs[n] = skt->gpio_reset;
-			values[n++] = !!(state->flags & SS_RESET);
+			__assign_bit(n++, values, state->flags & SS_RESET);
 		}
 		if (skt->gpio_bus_enable) {
 			descs[n] = skt->gpio_bus_enable;
-			values[n++] = !!(state->flags & SS_OUTPUT_ENA);
+			__assign_bit(n++, values, state->flags & SS_OUTPUT_ENA);
 		}
 
 		if (n)
