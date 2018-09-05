@@ -1,0 +1,17 @@
+// FIXME: which SPI bus is the card connected to?
+@spi {
+	status = "okay";
+
+	sue-creek: sof-sue-creek@0 {
+		reg = <0>;
+		compatible = "sof,spi-sue-creek";
+		// FIXME: frequency value
+		spi-max-frequency = <54000000>;
+		fw_filename = "intel/sof-spi.ri";
+		tplg_filename = "intel/sof-spi.tplg";
+		// FIXME: GPIO controller and IRQ number and sense
+		interrupt-parent = <&gpio1>;
+		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
+		irq-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+	};
+};
