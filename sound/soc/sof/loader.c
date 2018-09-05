@@ -212,13 +212,21 @@ int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev,
 				 bool first_boot)
 {
 	struct snd_sof_pdata *plat_data = dev_get_platdata(sdev->dev);
+	const char *fw_filename;
 	int ret;
 
 	/* set code loading condition to true */
 	sdev->code_loading = 1;
 
-	ret = request_firmware(&plat_data->fw,
-			       plat_data->machine->sof_fw_filename, sdev->dev);
+	switch (plat_data->type) {
+	case SOF_DEVICE_SPI:
+		fw_filename = plat_data->sof_machine->sof_fw_filename;
+		break;
+	default:
+		fw_filename = plat_data->machine->sof_fw_filename;
+	}
+
+	ret = request_firmware(&plat_data->fw, fw_filename, sdev->dev);
 
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: request firmware failed err: %d\n",

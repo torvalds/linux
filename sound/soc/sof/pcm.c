@@ -681,12 +681,21 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
 	struct snd_sof_pdata *plat_data = dev_get_platdata(component->dev);
+	const char *tplg_filename;
 	int ret, err;
 
 	/* load the default topology */
 	sdev->component = component;
-	ret = snd_sof_load_topology(sdev,
-				    plat_data->machine->sof_tplg_filename);
+
+	switch (plat_data->type) {
+	case SOF_DEVICE_SPI:
+		tplg_filename = plat_data->sof_machine->sof_tplg_filename;
+		break;
+	default:
+		tplg_filename = plat_data->machine->sof_tplg_filename;
+	}
+
+	ret = snd_sof_load_topology(sdev, tplg_filename);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to load DSP topology %d\n",
 			ret);
@@ -715,9 +724,19 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 {
 	struct snd_soc_component_driver *pd = &sdev->plat_drv;
 	struct snd_sof_pdata *plat_data = sdev->pdata;
+	const char *plat_name, *drv_name;
 
-	dev_dbg(sdev->dev, "using platform alias %s\n",
-		plat_data->machine->asoc_plat_name);
+	switch (plat_data->type) {
+	case SOF_DEVICE_SPI:
+		plat_name = plat_data->sof_machine->asoc_plat_name;
+		drv_name = plat_data->sof_machine->drv_name;
+		break;
+	default:
+		plat_name = plat_data->machine->asoc_plat_name;
+		drv_name = plat_data->machine->drv_name;
+	}
+
+	dev_dbg(sdev->dev, "using platform alias %s\n", plat_name);
 
 	pd->name = "sof-audio";
 	pd->probe = sof_pcm_probe;
@@ -726,7 +745,7 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 	pd->compr_ops = &sof_compressed_ops;
 	pd->pcm_new = sof_pcm_new;
 	pd->pcm_free = sof_pcm_free;
-	pd->ignore_machine = plat_data->machine->drv_name;
+	pd->ignore_machine = drv_name;
 	pd->be_hw_params_fixup = sof_pcm_dai_link_fixup;
 	pd->be_pcm_base = SOF_BE_PCM_BASE;
 	pd->use_dai_pcm_id = true;
