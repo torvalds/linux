@@ -1355,6 +1355,17 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return i915;
 }
 
+static void i915_driver_destroy(struct drm_i915_private *i915)
+{
+	struct pci_dev *pdev = i915->drm.pdev;
+
+	drm_dev_fini(&i915->drm);
+	kfree(i915);
+
+	/* And make sure we never chase our dangling pointer from pci_dev */
+	pci_set_drvdata(pdev, NULL);
+}
+
 /**
  * i915_driver_load - setup chip and create an initial config
  * @pdev: PCI device
@@ -1436,9 +1447,7 @@ out_pci_disable:
 	pci_disable_device(pdev);
 out_fini:
 	i915_load_error(dev_priv, "Device initialization failed (%d)\n", ret);
-	drm_dev_fini(&dev_priv->drm);
-	kfree(dev_priv);
-	pci_set_drvdata(pdev, NULL);
+	i915_driver_destroy(dev_priv);
 	return ret;
 }
 
@@ -1489,9 +1498,7 @@ static void i915_driver_release(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	i915_driver_cleanup_early(dev_priv);
-	drm_dev_fini(&dev_priv->drm);
-
-	kfree(dev_priv);
+	i915_driver_destroy(dev_priv);
 }
 
 static int i915_driver_open(struct drm_device *dev, struct drm_file *file)
