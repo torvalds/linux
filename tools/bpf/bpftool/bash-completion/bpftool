@@ -494,10 +494,10 @@ _bpftool()
                     _filedir
                     return 0
                     ;;
-		tree)
-		    _filedir
-		    return 0
-		    ;;
+                tree)
+                    _filedir
+                    return 0
+                    ;;
                 attach|detach)
                     local ATTACH_TYPES='ingress egress sock_create sock_ops \
                         device bind4 bind6 post_bind4 post_bind6 connect4 \
@@ -544,6 +544,15 @@ _bpftool()
             esac
             ;;
         perf)
+            case $command in
+                *)
+                    [[ $prev == $object ]] && \
+                        COMPREPLY=( $( compgen -W 'help \
+                            show list' -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        net)
             case $command in
                 *)
                     [[ $prev == $object ]] && \
