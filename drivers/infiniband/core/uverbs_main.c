@@ -947,7 +947,7 @@ static struct ib_client uverbs_client = {
 	.remove = ib_uverbs_remove_one
 };
 
-static ssize_t show_ibdev(struct device *device, struct device_attribute *attr,
+static ssize_t ibdev_show(struct device *device, struct device_attribute *attr,
 			  char *buf)
 {
 	struct ib_uverbs_device *dev =
@@ -964,10 +964,10 @@ static ssize_t show_ibdev(struct device *device, struct device_attribute *attr,
 
 	return ret;
 }
-static DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
+static DEVICE_ATTR_RO(ibdev);
 
-static ssize_t show_dev_abi_version(struct device *device,
-				    struct device_attribute *attr, char *buf)
+static ssize_t abi_version_show(struct device *device,
+				struct device_attribute *attr, char *buf)
 {
 	struct ib_uverbs_device *dev =
 			container_of(device, struct ib_uverbs_device, dev);
@@ -983,7 +983,17 @@ static ssize_t show_dev_abi_version(struct device *device,
 
 	return ret;
 }
-static DEVICE_ATTR(abi_version, S_IRUGO, show_dev_abi_version, NULL);
+static DEVICE_ATTR_RO(abi_version);
+
+static struct attribute *ib_dev_attrs[] = {
+	&dev_attr_abi_version.attr,
+	&dev_attr_ibdev.attr,
+	NULL,
+};
+
+static const struct attribute_group dev_attr_group = {
+	.attrs = ib_dev_attrs,
+};
 
 static CLASS_ATTR_STRING(abi_version, S_IRUGO,
 			 __stringify(IB_USER_VERBS_ABI_VERSION));
@@ -1050,6 +1060,8 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	uverbs_dev->dev.parent = device->dev.parent;
 	uverbs_dev->dev.devt = base;
 	uverbs_dev->dev.release = ib_uverbs_release_dev;
+	uverbs_dev->groups[0] = &dev_attr_group;
+	uverbs_dev->dev.groups = uverbs_dev->groups;
 	dev_set_name(&uverbs_dev->dev, "uverbs%d", uverbs_dev->devnum);
 
 	cdev_init(&uverbs_dev->cdev,
@@ -1060,17 +1072,9 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	if (ret)
 		goto err_cdev;
 
-	if (device_create_file(&uverbs_dev->dev, &dev_attr_ibdev))
-		goto err_file;
-	if (device_create_file(&uverbs_dev->dev, &dev_attr_abi_version))
-		goto err_file;
-
 	ib_set_client_data(device, &uverbs_client, uverbs_dev);
-
 	return;
 
-err_file:
-	cdev_device_del(&uverbs_dev->cdev, &uverbs_dev->dev);
 err_cdev:
 	cdev_del(&uverbs_dev->cdev);
 	put_device(&uverbs_dev->dev);

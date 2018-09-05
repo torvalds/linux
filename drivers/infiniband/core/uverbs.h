@@ -101,6 +101,8 @@ struct ib_uverbs_device {
 	int					num_comp_vectors;
 	struct completion			comp;
 	struct device				dev;
+	/* First group for device attributes, NULL terminated array */
+	const struct attribute_group		*groups[2];
 	struct ib_device	__rcu	       *ib_dev;
 	int					devnum;
 	struct cdev			        cdev;
