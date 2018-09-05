@@ -572,13 +572,8 @@ EXPORT_SYMBOL_GPL(dw_spi_suspend_host);
 
 int dw_spi_resume_host(struct dw_spi *dws)
 {
-	int ret;
-
 	spi_hw_init(&dws->master->dev, dws);
-	ret = spi_controller_resume(dws->master);
-	if (ret)
-		dev_err(&dws->master->dev, "fail to start queue (%d)\n", ret);
-	return ret;
+	return spi_controller_resume(dws->master);
 }
 EXPORT_SYMBOL_GPL(dw_spi_resume_host);
 

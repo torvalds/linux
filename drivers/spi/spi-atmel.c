@@ -1767,10 +1767,8 @@ static int atmel_spi_suspend(struct device *dev)
 
 	/* Stop the queue running */
 	ret = spi_master_suspend(master);
-	if (ret) {
-		dev_warn(dev, "cannot suspend master\n");
+	if (ret)
 		return ret;
-	}
 
 	if (!pm_runtime_suspended(dev))
 		atmel_spi_runtime_suspend(dev);
@@ -1799,11 +1797,7 @@ static int atmel_spi_resume(struct device *dev)
 	}
 
 	/* Start the queue running */
-	ret = spi_master_resume(master);
-	if (ret)
-		dev_err(dev, "problem starting queue (%d)\n", ret);
-
-	return ret;
+	return spi_master_resume(master);
 }
 #endif
 

@@ -1808,13 +1808,7 @@ static int pxa2xx_spi_resume(struct device *dev)
 		lpss_ssp_setup(drv_data);
 
 	/* Start the queue running */
-	status = spi_controller_resume(drv_data->master);
-	if (status != 0) {
-		dev_err(dev, "problem starting queue (%d)\n", status);
-		return status;
-	}
-
-	return 0;
+	return spi_controller_resume(drv_data->master);
 }
 #endif
 
