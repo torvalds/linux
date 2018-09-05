@@ -6397,10 +6397,6 @@ static int btrfs_add_reserved_bytes(struct btrfs_block_group_cache *cache,
 	} else {
 		cache->reserved += num_bytes;
 		space_info->bytes_reserved += num_bytes;
-
-		trace_btrfs_space_reservation(cache->fs_info,
-				"space_info", space_info->flags,
-				ram_bytes, 0);
 		space_info->bytes_may_use -= ram_bytes;
 		if (delalloc)
 			cache->delalloc_bytes += num_bytes;
