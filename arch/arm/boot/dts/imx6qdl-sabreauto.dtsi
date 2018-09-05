@@ -417,6 +417,15 @@
 		VLC-supply = <&reg_audio>;
 	};
 
+	touchscreen@4 {
+		compatible = "eeti,egalax_ts";
+		reg = <0x04>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_egalax_int>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <28 IRQ_TYPE_EDGE_FALLING>;
+		wakeup-gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &i2c3 {
@@ -449,6 +458,12 @@
 		pinctrl_ecspi1_cs: ecspi1cs {
 			fsl,pins = <
 				MX6QDL_PAD_EIM_D19__GPIO3_IO19 0x80000000
+			>;
+		};
+
+		pinctrl_egalax_int: egalax-intgrp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_EB0__GPIO2_IO28		0xb0b1
 			>;
 		};
 
