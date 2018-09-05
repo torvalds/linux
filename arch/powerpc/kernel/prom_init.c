@@ -1131,12 +1131,15 @@ static void __init prom_check_platform_support(void)
 				       "ibm,arch-vec-5-platform-support");
 	if (prop_len > 1) {
 		int i;
-		u8 vec[prop_len];
+		u8 vec[8];
 		prom_debug("Found ibm,arch-vec-5-platform-support, len: %d\n",
 			   prop_len);
+		if (prop_len > sizeof(vec))
+			prom_printf("WARNING: ibm,arch-vec-5-platform-support longer than expected (len: %d)\n",
+				    prop_len);
 		prom_getprop(prom.chosen, "ibm,arch-vec-5-platform-support",
 			     &vec, sizeof(vec));
-		for (i = 0; i < prop_len; i += 2) {
+		for (i = 0; i < sizeof(vec); i += 2) {
 			prom_debug("%d: index = 0x%x val = 0x%x\n", i / 2
 								  , vec[i]
 								  , vec[i + 1]);
