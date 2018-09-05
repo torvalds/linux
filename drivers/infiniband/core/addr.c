@@ -500,8 +500,8 @@ static int addr_resolve(struct sockaddr *src_in,
 			bool resolve_neigh,
 			u32 seq)
 {
+	struct dst_entry *dst = NULL;
 	struct rtable *rt = NULL;
-	struct dst_entry *dst;
 	int ret;
 
 	if (!addr->net) {
@@ -510,28 +510,26 @@ static int addr_resolve(struct sockaddr *src_in,
 	}
 
 	if (src_in->sa_family == AF_INET) {
-
 		ret = addr4_resolve(src_in, dst_in, addr, &rt);
-		if (ret)
-			return ret;
-
-		ret = rdma_set_src_addr(&rt->dst, dst_in, addr);
-		if (!ret && resolve_neigh)
-			ret = addr_resolve_neigh(&rt->dst, dst_in, addr, seq);
-
-		ip_rt_put(rt);
+		dst = &rt->dst;
 	} else {
 		ret = addr6_resolve(src_in, dst_in, addr, &dst);
-		if (ret)
-			return ret;
-
-		ret = rdma_set_src_addr(dst, dst_in, addr);
-		if (!ret && resolve_neigh)
-			ret = addr_resolve_neigh(dst, dst_in, addr, seq);
-
-		dst_release(dst);
 	}
+	if (ret)
+		return ret;
 
+	ret = rdma_set_src_addr(dst, dst_in, addr);
+	/*
+	 * Resolve neighbor destination address if requested and
+	 * only if src addr translation didn't fail.
+	 */
+	if (!ret && resolve_neigh)
+		ret = addr_resolve_neigh(dst, dst_in, addr, seq);
+
+	if (src_in->sa_family == AF_INET)
+		ip_rt_put(rt);
+	else
+		dst_release(dst);
 	return ret;
 }
 
