@@ -502,7 +502,13 @@ int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	struct b53_device *dev = ds->priv;
 	unsigned int cpu_port = ds->ports[port].cpu_dp->index;
+	int ret = 0;
 	u16 pvlan;
+
+	if (dev->ops->irq_enable)
+		ret = dev->ops->irq_enable(dev, port);
+	if (ret)
+		return ret;
 
 	/* Clear the Rx and Tx disable bits and set to no spanning tree */
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), 0);
@@ -536,6 +542,9 @@ void b53_disable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 	b53_read8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), &reg);
 	reg |= PORT_CTRL_RX_DISABLE | PORT_CTRL_TX_DISABLE;
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), reg);
+
+	if (dev->ops->irq_disable)
+		dev->ops->irq_disable(dev, port);
 }
 EXPORT_SYMBOL(b53_disable_port);
 

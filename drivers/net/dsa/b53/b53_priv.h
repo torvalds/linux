@@ -43,6 +43,8 @@ struct b53_io_ops {
 	int (*write64)(struct b53_device *dev, u8 page, u8 reg, u64 value);
 	int (*phy_read16)(struct b53_device *dev, int addr, int reg, u16 *value);
 	int (*phy_write16)(struct b53_device *dev, int addr, int reg, u16 value);
+	int (*irq_enable)(struct b53_device *dev, int port);
+	void (*irq_disable)(struct b53_device *dev, int port);
 };
 
 enum {
