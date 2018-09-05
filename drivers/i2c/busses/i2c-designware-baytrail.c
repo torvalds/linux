@@ -164,7 +164,7 @@ int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev)
 	dev_info(dev->dev, "I2C bus managed by PUNIT\n");
 	dev->acquire_lock = baytrail_i2c_acquire;
 	dev->release_lock = baytrail_i2c_release;
-	dev->pm_disabled = true;
+	dev->shared_with_punit = true;
 
 	pm_qos_add_request(&dev->pm_qos, PM_QOS_CPU_DMA_LATENCY,
 			   PM_QOS_DEFAULT_VALUE);

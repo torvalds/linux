@@ -85,9 +85,6 @@ static int dw_i2c_acpi_configure(struct platform_device *pdev)
 	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
 	struct i2c_timings *t = &dev->timings;
 	u32 ss_ht = 0, fp_ht = 0, hs_ht = 0, fs_ht = 0;
-	acpi_handle handle = ACPI_HANDLE(&pdev->dev);
-	struct acpi_device *adev;
-	const char *uid;
 
 	dev->adapter.nr = -1;
 	dev->tx_fifo_depth = 32;
@@ -117,18 +114,6 @@ static int dw_i2c_acpi_configure(struct platform_device *pdev)
 		dev->sda_hold_time = fs_ht;
 		break;
 	}
-
-	if (acpi_bus_get_device(handle, &adev))
-		return -ENODEV;
-
-	/*
-	 * Cherrytrail I2C7 gets used for the PMIC which gets accessed
-	 * through ACPI opregions during late suspend / early resume
-	 * disable pm for it.
-	 */
-	uid = adev->pnp.unique_id;
-	if ((dev->flags & MODEL_CHERRYTRAIL) && !strcmp(uid, "7"))
-		dev->pm_disabled = true;
 
 	return 0;
 }
@@ -261,7 +246,7 @@ static void dw_i2c_plat_pm_cleanup(struct dw_i2c_dev *dev)
 {
 	pm_runtime_disable(dev->dev);
 
-	if (dev->pm_disabled)
+	if (dev->shared_with_punit)
 		pm_runtime_put_noidle(dev->dev);
 }
 
@@ -393,7 +378,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 
-	if (dev->pm_disabled)
+	if (dev->shared_with_punit)
 		pm_runtime_get_noresume(&pdev->dev);
 
 	pm_runtime_enable(&pdev->dev);
@@ -471,7 +456,7 @@ static int dw_i2c_plat_suspend(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
-	if (i_dev->pm_disabled)
+	if (i_dev->shared_with_punit)
 		return 0;
 
 	i_dev->disable(i_dev);
@@ -484,7 +469,7 @@ static int dw_i2c_plat_resume(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
-	if (!i_dev->pm_disabled)
+	if (!i_dev->shared_with_punit)
 		i2c_dw_prepare_clk(i_dev, true);
 
 	i_dev->init(i_dev);

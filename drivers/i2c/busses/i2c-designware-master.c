@@ -707,7 +707,7 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 	adap->dev.parent = dev->dev;
 	i2c_set_adapdata(adap, dev);
 
-	if (dev->pm_disabled) {
+	if (dev->shared_with_punit) {
 		irq_flags = IRQF_NO_SUSPEND;
 	} else {
 		irq_flags = IRQF_SHARED | IRQF_COND_SUSPEND;
