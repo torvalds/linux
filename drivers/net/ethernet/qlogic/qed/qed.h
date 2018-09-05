@@ -623,6 +623,7 @@ struct qed_hwfn {
 	void				*unzip_buf;
 
 	struct dbg_tools_data		dbg_info;
+	void				*dbg_user_info;
 
 	/* PWM region specific data */
 	u16				wid_count;

@@ -144,6 +144,12 @@ static void qed_qm_info_free(struct qed_hwfn *p_hwfn)
 	qm_info->wfq_data = NULL;
 }
 
+static void qed_dbg_user_data_free(struct qed_hwfn *p_hwfn)
+{
+	kfree(p_hwfn->dbg_user_info);
+	p_hwfn->dbg_user_info = NULL;
+}
+
 void qed_resc_free(struct qed_dev *cdev)
 {
 	int i;
@@ -183,6 +189,7 @@ void qed_resc_free(struct qed_dev *cdev)
 		qed_l2_free(p_hwfn);
 		qed_dmae_info_free(p_hwfn);
 		qed_dcbx_info_free(p_hwfn);
+		qed_dbg_user_data_free(p_hwfn);
 	}
 }
 
@@ -1081,6 +1088,10 @@ int qed_resc_alloc(struct qed_dev *cdev)
 
 		/* DCBX initialization */
 		rc = qed_dcbx_info_alloc(p_hwfn);
+		if (rc)
+			goto alloc_err;
+
+		rc = qed_dbg_alloc_user_data(p_hwfn);
 		if (rc)
 			goto alloc_err;
 	}
