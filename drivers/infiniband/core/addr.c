@@ -372,11 +372,15 @@ static int fetch_ha(const struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
 		return dst_fetch_ha(dst, dev_addr, daddr);
 }
 
-static int addr4_resolve(struct sockaddr_in *src_in,
-			 const struct sockaddr_in *dst_in,
+static int addr4_resolve(struct sockaddr *src_sock,
+			 const struct sockaddr *dst_sock,
 			 struct rdma_dev_addr *addr,
 			 struct rtable **prt)
 {
+	struct sockaddr_in *src_in = (struct sockaddr_in *)src_sock;
+	const struct sockaddr_in *dst_in =
+			(const struct sockaddr_in *)dst_sock;
+
 	__be32 src_ip = src_in->sin_addr.s_addr;
 	__be32 dst_ip = dst_in->sin_addr.s_addr;
 	struct rtable *rt;
@@ -408,11 +412,14 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static int addr6_resolve(struct sockaddr_in6 *src_in,
-			 const struct sockaddr_in6 *dst_in,
+static int addr6_resolve(struct sockaddr *src_sock,
+			 const struct sockaddr *dst_sock,
 			 struct rdma_dev_addr *addr,
 			 struct dst_entry **pdst)
 {
+	struct sockaddr_in6 *src_in = (struct sockaddr_in6 *)src_sock;
+	const struct sockaddr_in6 *dst_in =
+				(const struct sockaddr_in6 *)dst_sock;
 	struct flowi6 fl6;
 	struct dst_entry *dst;
 	struct rt6_info *rt;
@@ -445,8 +452,8 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	return 0;
 }
 #else
-static int addr6_resolve(struct sockaddr_in6 *src_in,
-			 const struct sockaddr_in6 *dst_in,
+static int addr6_resolve(struct sockaddr *src_sock,
+			 const struct sockaddr *dst_sock,
 			 struct rdma_dev_addr *addr,
 			 struct dst_entry **pdst)
 {
@@ -496,11 +503,8 @@ static int addr_resolve(struct sockaddr *src_in,
 
 	if (src_in->sa_family == AF_INET) {
 		struct rtable *rt = NULL;
-		const struct sockaddr_in *dst_in4 =
-			(const struct sockaddr_in *)dst_in;
 
-		ret = addr4_resolve((struct sockaddr_in *)src_in,
-				    dst_in4, addr, &rt);
+		ret = addr4_resolve(src_in, dst_in, addr, &rt);
 		if (ret)
 			return ret;
 
@@ -516,12 +520,7 @@ static int addr_resolve(struct sockaddr *src_in,
 
 		ip_rt_put(rt);
 	} else {
-		const struct sockaddr_in6 *dst_in6 =
-			(const struct sockaddr_in6 *)dst_in;
-
-		ret = addr6_resolve((struct sockaddr_in6 *)src_in,
-				    dst_in6, addr,
-				    &dst);
+		ret = addr6_resolve(src_in, dst_in, addr, &dst);
 		if (ret)
 			return ret;
 
