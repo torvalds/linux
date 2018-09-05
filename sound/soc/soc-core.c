@@ -1463,48 +1463,6 @@ static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
 	return 0;
 }
 
-static int soc_link_dai_widgets(struct snd_soc_card *card,
-				struct snd_soc_dai_link *dai_link,
-				struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dapm_widget *sink, *source;
-	int ret;
-
-	if (rtd->num_codecs > 1)
-		dev_warn(card->dev, "ASoC: Multiple codecs not supported yet\n");
-
-	/* link the DAI widgets */
-	sink = codec_dai->playback_widget;
-	source = cpu_dai->capture_widget;
-	if (sink && source) {
-		ret = snd_soc_dapm_new_pcm(card, rtd, dai_link->params,
-					   dai_link->num_params,
-					   source, sink);
-		if (ret != 0) {
-			dev_err(card->dev, "ASoC: Can't link %s to %s: %d\n",
-				sink->name, source->name, ret);
-			return ret;
-		}
-	}
-
-	sink = cpu_dai->playback_widget;
-	source = codec_dai->capture_widget;
-	if (sink && source) {
-		ret = snd_soc_dapm_new_pcm(card, rtd, dai_link->params,
-					   dai_link->num_params,
-					   source, sink);
-		if (ret != 0) {
-			dev_err(card->dev, "ASoC: Can't link %s to %s: %d\n",
-				sink->name, source->name, ret);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 static int soc_probe_link_dais(struct snd_soc_card *card,
 		struct snd_soc_pcm_runtime *rtd, int order)
 {
@@ -1606,11 +1564,6 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 		} else {
 			INIT_DELAYED_WORK(&rtd->delayed_work,
 						codec2codec_close_delayed_work);
-
-			/* link the DAI widgets */
-			ret = soc_link_dai_widgets(card, dai_link, rtd);
-			if (ret)
-				return ret;
 		}
 	}
 
