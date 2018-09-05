@@ -20,6 +20,7 @@
 #include <linux/usb/video.h>
 
 #define fi_to_f_uvc_opts(f)	container_of(f, struct f_uvc_opts, func_inst)
+DECLARE_UVC_EXTENSION_UNIT_DESCRIPTOR(1, 1);
 
 struct f_uvc_opts {
 	struct usb_function_instance			func_inst;
@@ -51,6 +52,7 @@ struct f_uvc_opts {
 	struct uvc_camera_terminal_descriptor		uvc_camera_terminal;
 	struct uvc_processing_unit_descriptor		uvc_processing;
 	struct uvc_output_terminal_descriptor		uvc_output_terminal;
+	struct UVC_EXTENSION_UNIT_DESCRIPTOR(1, 1)	uvc_extension;
 	struct uvc_color_matching_descriptor		uvc_color_matching;
 
 	/*
@@ -60,8 +62,8 @@ struct f_uvc_opts {
 	 * descriptors. Used by configfs only, must not be touched by legacy
 	 * gadgets.
 	 */
-	struct uvc_descriptor_header			*uvc_fs_control_cls[5];
-	struct uvc_descriptor_header			*uvc_ss_control_cls[5];
+	struct uvc_descriptor_header			*uvc_fs_control_cls[6];
+	struct uvc_descriptor_header			*uvc_ss_control_cls[6];
 
 	/*
 	 * Streaming descriptors for full-speed, high-speed and super-speed.

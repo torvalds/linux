@@ -770,6 +770,7 @@ static struct usb_function_instance *uvc_alloc_inst(void)
 	struct uvc_camera_terminal_descriptor *cd;
 	struct uvc_processing_unit_descriptor *pd;
 	struct uvc_output_terminal_descriptor *od;
+	struct UVC_EXTENSION_UNIT_DESCRIPTOR(1, 1) *ed;
 	struct uvc_color_matching_descriptor *md;
 	struct uvc_descriptor_header **ctl_cls;
 
@@ -817,6 +818,34 @@ static struct usb_function_instance *uvc_alloc_inst(void)
 	od->bSourceID			= 2;
 	od->iTerminal			= 0;
 
+	ed = &opts->uvc_extension;
+	ed->bLength = UVC_DT_EXTENSION_UNIT_SIZE(1, 1);
+	ed->bDescriptorType = USB_DT_CS_INTERFACE;
+	ed->bDescriptorSubType = UVC_VC_EXTENSION_UNIT;
+	ed->bUnitID = 6;
+	ed->guidExtensionCode[0] = 0xa2;
+	ed->guidExtensionCode[1] = 0x9e;
+	ed->guidExtensionCode[2] = 0x76;
+	ed->guidExtensionCode[3] = 0x41;
+	ed->guidExtensionCode[4] = 0xde;
+	ed->guidExtensionCode[5] = 0x04;
+	ed->guidExtensionCode[6] = 0x47;
+	ed->guidExtensionCode[7] = 0xe3;
+	ed->guidExtensionCode[8] = 0x8b;
+	ed->guidExtensionCode[9] = 0x2b;
+	ed->guidExtensionCode[10] = 0xf4;
+	ed->guidExtensionCode[11] = 0x34;
+	ed->guidExtensionCode[12] = 0x1a;
+	ed->guidExtensionCode[13] = 0xff;
+	ed->guidExtensionCode[14] = 0x00;
+	ed->guidExtensionCode[15] = 0x3b;
+	ed->bNumControls = 3;
+	ed->bNrInPins = 1;
+	ed->baSourceID[0] = 2;
+	ed->bControlSize = 1;
+	ed->bmControls[0] = 7;
+	ed->iExtension = 0;
+
 	md = &opts->uvc_color_matching;
 	md->bLength			= UVC_DT_COLOR_MATCHING_SIZE;
 	md->bDescriptorType		= USB_DT_CS_INTERFACE;
@@ -831,7 +860,8 @@ static struct usb_function_instance *uvc_alloc_inst(void)
 	ctl_cls[1] = (struct uvc_descriptor_header *)cd;
 	ctl_cls[2] = (struct uvc_descriptor_header *)pd;
 	ctl_cls[3] = (struct uvc_descriptor_header *)od;
-	ctl_cls[4] = NULL;	/* NULL-terminate */
+	ctl_cls[4] = (struct uvc_descriptor_header *)ed;
+	ctl_cls[5] = NULL;	/* NULL-terminate */
 	opts->fs_control =
 		(const struct uvc_descriptor_header * const *)ctl_cls;
 
@@ -841,7 +871,8 @@ static struct usb_function_instance *uvc_alloc_inst(void)
 	ctl_cls[1] = (struct uvc_descriptor_header *)cd;
 	ctl_cls[2] = (struct uvc_descriptor_header *)pd;
 	ctl_cls[3] = (struct uvc_descriptor_header *)od;
-	ctl_cls[4] = NULL;	/* NULL-terminate */
+	ctl_cls[4] = (struct uvc_descriptor_header *)ed;
+	ctl_cls[5] = NULL;	/* NULL-terminate */
 	opts->ss_control =
 		(const struct uvc_descriptor_header * const *)ctl_cls;
 
