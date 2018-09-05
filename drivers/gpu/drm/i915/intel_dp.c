@@ -1921,6 +1921,42 @@ intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
 	return false;
 }
 
+/* Optimize link config in order: max bpp, min lanes, min clock */
+static bool
+intel_dp_compute_link_config_fast(struct intel_dp *intel_dp,
+				  struct intel_crtc_state *pipe_config,
+				  const struct link_config_limits *limits)
+{
+	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	int bpp, clock, lane_count;
+	int mode_rate, link_clock, link_avail;
+
+	for (bpp = limits->max_bpp; bpp >= limits->min_bpp; bpp -= 2 * 3) {
+		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
+						   bpp);
+
+		for (lane_count = limits->min_lane_count;
+		     lane_count <= limits->max_lane_count;
+		     lane_count <<= 1) {
+			for (clock = limits->min_clock; clock <= limits->max_clock; clock++) {
+				link_clock = intel_dp->common_rates[clock];
+				link_avail = intel_dp_max_data_rate(link_clock,
+								    lane_count);
+
+				if (mode_rate <= link_avail) {
+					pipe_config->lane_count = lane_count;
+					pipe_config->pipe_bpp = bpp;
+					pipe_config->port_clock = link_clock;
+
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 static bool
 intel_dp_compute_link_config(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config)
@@ -1945,13 +1981,15 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	limits.min_bpp = 6 * 3;
 	limits.max_bpp = intel_dp_compute_bpp(intel_dp, pipe_config);
 
-	if (intel_dp_is_edp(intel_dp)) {
+	if (intel_dp_is_edp(intel_dp) && intel_dp->edp_dpcd[0] < DP_EDP_14) {
 		/*
 		 * Use the maximum clock and number of lanes the eDP panel
-		 * advertizes being capable of. The panels are generally
-		 * designed to support only a single clock and lane
-		 * configuration, and typically these values correspond to the
-		 * native resolution of the panel.
+		 * advertizes being capable of. The eDP 1.3 and earlier panels
+		 * are generally designed to support only a single clock and
+		 * lane configuration, and typically these values correspond to
+		 * the native resolution of the panel. With eDP 1.4 rate select
+		 * and DSC, this is decreasingly the case, and we need to be
+		 * able to select less than maximum link config.
 		 */
 		limits.min_lane_count = limits.max_lane_count;
 		limits.min_clock = limits.max_clock;
@@ -1965,12 +2003,25 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 		      intel_dp->common_rates[limits.max_clock],
 		      limits.max_bpp, adjusted_mode->crtc_clock);
 
-	/*
-	 * Optimize for slow and wide. This is the place to add alternative
-	 * optimization policy.
-	 */
-	if (!intel_dp_compute_link_config_wide(intel_dp, pipe_config, &limits))
-		return false;
+	if (intel_dp_is_edp(intel_dp)) {
+		/*
+		 * Optimize for fast and narrow. eDP 1.3 section 3.3 and eDP 1.4
+		 * section A.1: "It is recommended that the minimum number of
+		 * lanes be used, using the minimum link rate allowed for that
+		 * lane configuration."
+		 *
+		 * Note that we use the max clock and lane count for eDP 1.3 and
+		 * earlier, and fast vs. wide is irrelevant.
+		 */
+		if (!intel_dp_compute_link_config_fast(intel_dp, pipe_config,
+						       &limits))
+			return false;
+	} else {
+		/* Optimize for slow and wide. */
+		if (!intel_dp_compute_link_config_wide(intel_dp, pipe_config,
+						       &limits))
+			return false;
+	}
 
 	DRM_DEBUG_KMS("DP lane count %d clock %d bpp %d\n",
 		      pipe_config->lane_count, pipe_config->port_clock,
