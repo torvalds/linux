@@ -40,8 +40,6 @@ struct bvec_iter {
 
 	unsigned int		bi_idx;		/* current index into bvl_vec */
 
-	unsigned int            bi_done;	/* number of bytes completed */
-
 	unsigned int            bi_bvec_done;	/* number of bytes completed in
 						   current bvec */
 };
@@ -85,7 +83,6 @@ static inline bool bvec_iter_advance(const struct bio_vec *bv,
 		bytes -= len;
 		iter->bi_size -= len;
 		iter->bi_bvec_done += len;
-		iter->bi_done += len;
 
 		if (iter->bi_bvec_done == __bvec_iter_bvec(bv, *iter)->bv_len) {
 			iter->bi_bvec_done = 0;
