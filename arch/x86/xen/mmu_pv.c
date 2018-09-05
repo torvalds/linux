@@ -104,7 +104,7 @@ static pud_t level3_user_vsyscall[PTRS_PER_PUD] __page_aligned_bss;
  * Protects atomic reservation decrease/increase against concurrent increases.
  * Also protects non-atomic updates of current_pages and balloon lists.
  */
-DEFINE_SPINLOCK(xen_reservation_lock);
+static DEFINE_SPINLOCK(xen_reservation_lock);
 
 /*
  * Note about cr3 (pagetable base) values:
