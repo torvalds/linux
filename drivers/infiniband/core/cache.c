@@ -1252,6 +1252,39 @@ void rdma_hold_gid_attr(const struct ib_gid_attr *attr)
 }
 EXPORT_SYMBOL(rdma_hold_gid_attr);
 
+/**
+ * rdma_read_gid_attr_ndev_rcu - Read GID attribute netdevice
+ * which must be in UP state.
+ *
+ * @attr:Pointer to the GID attribute
+ *
+ * Returns pointer to netdevice if the netdevice was attached to GID and
+ * netdevice is in UP state. Caller must hold RCU lock as this API
+ * reads the netdev flags which can change while netdevice migrates to
+ * different net namespace. Returns ERR_PTR with error code otherwise.
+ *
+ */
+struct net_device *rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr)
+{
+	struct ib_gid_table_entry *entry =
+			container_of(attr, struct ib_gid_table_entry, attr);
+	struct ib_device *device = entry->attr.device;
+	struct net_device *ndev = ERR_PTR(-ENODEV);
+	u8 port_num = entry->attr.port_num;
+	struct ib_gid_table *table;
+	unsigned long flags;
+	bool valid;
+
+	table = rdma_gid_table(device, port_num);
+
+	read_lock_irqsave(&table->rwlock, flags);
+	valid = is_gid_entry_valid(table->data_vec[attr->index]);
+	if (valid && attr->ndev && (READ_ONCE(attr->ndev->flags) & IFF_UP))
+		ndev = attr->ndev;
+	read_unlock_irqrestore(&table->rwlock, flags);
+	return ndev;
+}
+
 static int config_non_roce_gid_cache(struct ib_device *device,
 				     u8 port, int gid_tbl_len)
 {
