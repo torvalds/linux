@@ -54,13 +54,6 @@ struct drm_device;
 struct amdgpu_dm_irq_handler_data;
 struct dc;
 
-struct amdgpu_dm_prev_state {
-	struct drm_framebuffer *fb;
-	int32_t x;
-	int32_t y;
-	struct drm_display_mode mode;
-};
-
 struct common_irq_params {
 	struct amdgpu_device *adev;
 	enum dc_irq_source irq_src;
@@ -85,8 +78,6 @@ struct amdgpu_display_manager {
 	struct amdgpu_device *adev;	/*AMD base driver*/
 	struct drm_device *ddev;	/*DRM base driver*/
 	u16 display_indexes_num;
-
-	struct amdgpu_dm_prev_state prev_state;
 
 	/*
 	 * 'irq_source_handler_table' holds a list of handlers
