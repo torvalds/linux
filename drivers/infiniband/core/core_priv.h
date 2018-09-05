@@ -340,5 +340,7 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 				 const union ib_gid *dgid,
 				 u8 *dmac, const struct net_device *ndev,
 				 int *hoplimit);
+void rdma_copy_src_l2_addr(struct rdma_dev_addr *dev_addr,
+			   const struct net_device *dev);
 
 #endif /* _CORE_PRIV_H */

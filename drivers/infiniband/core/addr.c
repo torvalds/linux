@@ -219,18 +219,24 @@ int rdma_addr_size_kss(struct __kernel_sockaddr_storage *addr)
 }
 EXPORT_SYMBOL(rdma_addr_size_kss);
 
-void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
-		    const struct net_device *dev,
-		    const unsigned char *dst_dev_addr)
+/**
+ * rdma_copy_src_l2_addr - Copy netdevice source addresses
+ * @dev_addr:	Destination address pointer where to copy the addresses
+ * @dev:	Netdevice whose source addresses to copy
+ *
+ * rdma_copy_src_l2_addr() copies source addresses from the specified netdevice.
+ * This includes unicast address, broadcast address, device type and
+ * interface index.
+ */
+void rdma_copy_src_l2_addr(struct rdma_dev_addr *dev_addr,
+			   const struct net_device *dev)
 {
 	dev_addr->dev_type = dev->type;
 	memcpy(dev_addr->src_dev_addr, dev->dev_addr, MAX_ADDR_LEN);
 	memcpy(dev_addr->broadcast, dev->broadcast, MAX_ADDR_LEN);
-	if (dst_dev_addr)
-		memcpy(dev_addr->dst_dev_addr, dst_dev_addr, MAX_ADDR_LEN);
 	dev_addr->bound_dev_if = dev->ifindex;
 }
-EXPORT_SYMBOL(rdma_copy_addr);
+EXPORT_SYMBOL(rdma_copy_src_l2_addr);
 
 static struct net_device *
 rdma_find_ndev_for_src_ip_rcu(struct net *net, const struct sockaddr *src_in)
@@ -271,7 +277,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
 		dev = dev_get_by_index(dev_addr->net, dev_addr->bound_dev_if);
 		if (!dev)
 			return -ENODEV;
-		rdma_copy_addr(dev_addr, dev, NULL);
+		rdma_copy_src_l2_addr(dev_addr, dev);
 		dev_put(dev);
 		return 0;
 	}
@@ -279,7 +285,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
 	rcu_read_lock();
 	dev = rdma_find_ndev_for_src_ip_rcu(dev_addr->net, addr);
 	if (!IS_ERR(dev))
-		rdma_copy_addr(dev_addr, dev, NULL);
+		rdma_copy_src_l2_addr(dev_addr, dev);
 	rcu_read_unlock();
 	return PTR_ERR_OR_ZERO(dev);
 }
@@ -484,7 +490,7 @@ static int rdma_set_src_addr(const struct dst_entry *dst,
 	if (dst->dev->flags & IFF_LOOPBACK)
 		ret = rdma_translate_ip(dst_in, dev_addr);
 	else
-		rdma_copy_addr(dev_addr, dst->dev, NULL);
+		rdma_copy_src_l2_addr(dev_addr, dst->dev);
 	return ret;
 }
 
