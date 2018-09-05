@@ -456,9 +456,6 @@ static int nes_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	void __iomem *mmio_regs = NULL;
 	u8 hw_rev;
 
-	assert(pcidev != NULL);
-	assert(ent != NULL);
-
 	printk(KERN_INFO PFX "NetEffect RNIC driver v%s loading. (%s)\n",
 			DRV_VERSION, pci_name(pcidev));
 
