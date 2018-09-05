@@ -244,15 +244,13 @@ struct drm_bridge_funcs {
  */
 struct drm_bridge_timings {
 	/**
-	 * @sampling_edge:
+	 * @input_bus_flags:
 	 *
-	 * Tells whether the bridge samples the digital input signals from the
-	 * display engine on the positive or negative edge of the clock. This
-	 * should use the DRM_BUS_FLAG_PIXDATA_SAMPLE_[POS|NEG]EDGE and
-	 * DRM_BUS_FLAG_SYNC_SAMPLE_[POS|NEG]EDGE bitwise flags from the DRM
-	 * connector (bit 2, 3, 6 and 7 valid).
+	 * Tells what additional settings for the pixel data on the bus
+	 * this bridge requires (like pixel signal polarity). See also
+	 * &drm_display_info->bus_flags.
 	 */
-	u32 sampling_edge;
+	u32 input_bus_flags;
 	/**
 	 * @setup_time_ps:
 	 *
