@@ -16,6 +16,14 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	aliases {
+		serial0 = &wkup_uart0;
+		serial1 = &mcu_uart0;
+		serial2 = &main_uart0;
+		serial3 = &main_uart1;
+		serial4 = &main_uart2;
+	};
+
 	chosen { };
 
 	firmware {
@@ -85,3 +93,5 @@
 
 /* Now include the peripherals for each bus segments */
 #include "k3-am65-main.dtsi"
+#include "k3-am65-mcu.dtsi"
+#include "k3-am65-wakeup.dtsi"
