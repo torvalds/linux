@@ -16,8 +16,6 @@
 #include <dt-bindings/clock/qcom,rpmcc.h>
 
 / {
-	model = "Qualcomm Technologies, Inc. MSM8996";
-
 	interrupt-parent = <&intc>;
 
 	#address-cells = <2>;
