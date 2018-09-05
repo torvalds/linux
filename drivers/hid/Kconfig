@@ -596,6 +596,7 @@ config HID_MICROSOFT
 	tristate "Microsoft non-fully HID-compliant devices"
 	depends on HID
 	default !EXPERT
+	select INPUT_FF_MEMLESS
 	---help---
 	Support for Microsoft devices that are not fully compliant with HID standard.
 
