@@ -156,7 +156,6 @@
 		compatible = "arm,cortex-a7-pmu";
 		interrupt-parent = <&gpc>;
 		interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 	};
 
 	soc {
