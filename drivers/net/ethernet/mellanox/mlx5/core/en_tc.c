@@ -2040,8 +2040,8 @@ static bool same_hw_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv)
 	fmdev = priv->mdev;
 	pmdev = peer_priv->mdev;
 
-	mlx5_query_nic_vport_system_image_guid(fmdev, &fsystem_guid);
-	mlx5_query_nic_vport_system_image_guid(pmdev, &psystem_guid);
+	fsystem_guid = mlx5_query_nic_system_image_guid(fmdev);
+	psystem_guid = mlx5_query_nic_system_image_guid(pmdev);
 
 	return (fsystem_guid == psystem_guid);
 }
