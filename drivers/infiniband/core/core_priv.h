@@ -343,4 +343,7 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 void rdma_copy_src_l2_addr(struct rdma_dev_addr *dev_addr,
 			   const struct net_device *dev);
 
+struct sa_path_rec;
+int roce_resolve_route_from_path(struct sa_path_rec *rec,
+				 const struct ib_gid_attr *attr);
 #endif /* _CORE_PRIV_H */

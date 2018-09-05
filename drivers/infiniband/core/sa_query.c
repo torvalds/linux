@@ -1227,46 +1227,6 @@ static u8 get_src_path_mask(struct ib_device *device, u8 port_num)
 	return src_path_mask;
 }
 
-static int roce_resolve_route_from_path(struct sa_path_rec *rec,
-					const struct ib_gid_attr *attr)
-{
-	struct rdma_dev_addr dev_addr = {};
-	union {
-		struct sockaddr     _sockaddr;
-		struct sockaddr_in  _sockaddr_in;
-		struct sockaddr_in6 _sockaddr_in6;
-	} sgid_addr, dgid_addr;
-	int ret;
-
-	if (rec->roce.route_resolved)
-		return 0;
-	if (!attr || !attr->ndev)
-		return -EINVAL;
-
-	dev_addr.bound_dev_if = attr->ndev->ifindex;
-	/* TODO: Use net from the ib_gid_attr once it is added to it,
-	 * until than, limit itself to init_net.
-	 */
-	dev_addr.net = &init_net;
-
-	rdma_gid2ip(&sgid_addr._sockaddr, &rec->sgid);
-	rdma_gid2ip(&dgid_addr._sockaddr, &rec->dgid);
-
-	/* validate the route */
-	ret = rdma_resolve_ip_route(&sgid_addr._sockaddr,
-				    &dgid_addr._sockaddr, &dev_addr);
-	if (ret)
-		return ret;
-
-	if ((dev_addr.network == RDMA_NETWORK_IPV4 ||
-	     dev_addr.network == RDMA_NETWORK_IPV6) &&
-	    rec->rec_type != SA_PATH_REC_TYPE_ROCE_V2)
-		return -EINVAL;
-
-	rec->roce.route_resolved = true;
-	return 0;
-}
-
 static int init_ah_attr_grh_fields(struct ib_device *device, u8 port_num,
 				   struct sa_path_rec *rec,
 				   struct rdma_ah_attr *ah_attr,
