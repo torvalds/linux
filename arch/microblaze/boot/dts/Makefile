@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 
+dtb-y := system.dtb
+
 ifneq ($(DTB),)
 obj-y += linked_dtb.o
 
