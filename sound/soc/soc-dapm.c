@@ -364,10 +364,6 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 				ret = PTR_ERR(data->widget);
 				goto err_data;
 			}
-			if (!data->widget) {
-				ret = -ENOMEM;
-				goto err_data;
-			}
 		}
 		break;
 	case snd_soc_dapm_demux:
@@ -400,10 +396,6 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 			kfree(name);
 			if (IS_ERR(data->widget)) {
 				ret = PTR_ERR(data->widget);
-				goto err_data;
-			}
-			if (!data->widget) {
-				ret = -ENOMEM;
 				goto err_data;
 			}
 
@@ -3433,23 +3425,8 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 
 	mutex_lock_nested(&dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 	w = snd_soc_dapm_new_control_unlocked(dapm, widget);
-	/* Do not nag about probe deferrals */
-	if (IS_ERR(w)) {
-		int ret = PTR_ERR(w);
-
-		if (ret != -EPROBE_DEFER)
-			dev_err(dapm->dev,
-				"ASoC: Failed to create DAPM control %s (%d)\n",
-				widget->name, ret);
-		goto out_unlock;
-	}
-	if (!w)
-		dev_err(dapm->dev,
-			"ASoC: Failed to create DAPM control %s\n",
-			widget->name);
-
-out_unlock:
 	mutex_unlock(&dapm->card->dapm_mutex);
+
 	return w;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_new_control);
@@ -3464,24 +3441,20 @@ snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 	int ret;
 
 	if ((w = dapm_cnew_widget(widget)) == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	switch (w->id) {
 	case snd_soc_dapm_regulator_supply:
 		w->regulator = devm_regulator_get(dapm->dev, w->name);
 		if (IS_ERR(w->regulator)) {
 			ret = PTR_ERR(w->regulator);
-			if (ret == -EPROBE_DEFER)
-				return ERR_PTR(ret);
-			dev_err(dapm->dev, "ASoC: Failed to request %s: %d\n",
-				w->name, ret);
-			return NULL;
+			goto request_failed;
 		}
 
 		if (w->on_val & SND_SOC_DAPM_REGULATOR_BYPASS) {
 			ret = regulator_allow_bypass(w->regulator, true);
 			if (ret != 0)
-				dev_warn(w->dapm->dev,
+				dev_warn(dapm->dev,
 					 "ASoC: Failed to bypass %s: %d\n",
 					 w->name, ret);
 		}
@@ -3490,22 +3463,14 @@ snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 		w->pinctrl = devm_pinctrl_get(dapm->dev);
 		if (IS_ERR(w->pinctrl)) {
 			ret = PTR_ERR(w->pinctrl);
-			if (ret == -EPROBE_DEFER)
-				return ERR_PTR(ret);
-			dev_err(dapm->dev, "ASoC: Failed to request %s: %d\n",
-				w->name, ret);
-			return NULL;
+			goto request_failed;
 		}
 		break;
 	case snd_soc_dapm_clock_supply:
 		w->clk = devm_clk_get(dapm->dev, w->name);
 		if (IS_ERR(w->clk)) {
 			ret = PTR_ERR(w->clk);
-			if (ret == -EPROBE_DEFER)
-				return ERR_PTR(ret);
-			dev_err(dapm->dev, "ASoC: Failed to request %s: %d\n",
-				w->name, ret);
-			return NULL;
+			goto request_failed;
 		}
 		break;
 	default:
@@ -3519,7 +3484,7 @@ snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 		w->name = kstrdup_const(widget->name, GFP_KERNEL);
 	if (w->name == NULL) {
 		kfree(w);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	switch (w->id) {
@@ -3596,6 +3561,13 @@ snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 	/* machine layer sets up unconnected pins and insertions */
 	w->connected = 1;
 	return w;
+
+request_failed:
+	if (ret != -EPROBE_DEFER)
+		dev_err(dapm->dev, "ASoC: Failed to request %s: %d\n",
+			w->name, ret);
+
+	return ERR_PTR(ret);
 }
 
 /**
@@ -3621,19 +3593,6 @@ int snd_soc_dapm_new_controls(struct snd_soc_dapm_context *dapm,
 		w = snd_soc_dapm_new_control_unlocked(dapm, widget);
 		if (IS_ERR(w)) {
 			ret = PTR_ERR(w);
-			/* Do not nag about probe deferrals */
-			if (ret == -EPROBE_DEFER)
-				break;
-			dev_err(dapm->dev,
-				"ASoC: Failed to create DAPM control %s (%d)\n",
-				widget->name, ret);
-			break;
-		}
-		if (!w) {
-			dev_err(dapm->dev,
-				"ASoC: Failed to create DAPM control %s\n",
-				widget->name);
-			ret = -ENOMEM;
 			break;
 		}
 		widget++;
@@ -3944,21 +3903,8 @@ int snd_soc_dapm_new_pcm(struct snd_soc_card *card,
 	dev_dbg(card->dev, "ASoC: adding %s widget\n", link_name);
 
 	w = snd_soc_dapm_new_control_unlocked(&card->dapm, &template);
-	if (IS_ERR(w)) {
-		ret = PTR_ERR(w);
-		/* Do not nag about probe deferrals */
-		if (ret != -EPROBE_DEFER)
-			dev_err(card->dev,
-				"ASoC: Failed to create %s widget (%d)\n",
-				link_name, ret);
+	if (IS_ERR(w))
 		goto outfree_kcontrol_news;
-	}
-	if (!w) {
-		dev_err(card->dev, "ASoC: Failed to create %s widget\n",
-			link_name);
-		ret = -ENOMEM;
-		goto outfree_kcontrol_news;
-	}
 
 	w->params = params;
 	w->num_params = num_params;
@@ -3999,21 +3945,8 @@ int snd_soc_dapm_new_dai_widgets(struct snd_soc_dapm_context *dapm,
 			template.name);
 
 		w = snd_soc_dapm_new_control_unlocked(dapm, &template);
-		if (IS_ERR(w)) {
-			int ret = PTR_ERR(w);
-
-			/* Do not nag about probe deferrals */
-			if (ret != -EPROBE_DEFER)
-				dev_err(dapm->dev,
-				"ASoC: Failed to create %s widget (%d)\n",
-				dai->driver->playback.stream_name, ret);
-			return ret;
-		}
-		if (!w) {
-			dev_err(dapm->dev, "ASoC: Failed to create %s widget\n",
-				dai->driver->playback.stream_name);
-			return -ENOMEM;
-		}
+		if (IS_ERR(w))
+			return PTR_ERR(w);
 
 		w->priv = dai;
 		dai->playback_widget = w;
@@ -4028,21 +3961,8 @@ int snd_soc_dapm_new_dai_widgets(struct snd_soc_dapm_context *dapm,
 			template.name);
 
 		w = snd_soc_dapm_new_control_unlocked(dapm, &template);
-		if (IS_ERR(w)) {
-			int ret = PTR_ERR(w);
-
-			/* Do not nag about probe deferrals */
-			if (ret != -EPROBE_DEFER)
-				dev_err(dapm->dev,
-				"ASoC: Failed to create %s widget (%d)\n",
-				dai->driver->playback.stream_name, ret);
-			return ret;
-		}
-		if (!w) {
-			dev_err(dapm->dev, "ASoC: Failed to create %s widget\n",
-				dai->driver->capture.stream_name);
-			return -ENOMEM;
-		}
+		if (IS_ERR(w))
+			return PTR_ERR(w);
 
 		w->priv = dai;
 		dai->capture_widget = w;
