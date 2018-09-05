@@ -1142,6 +1142,10 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_RADIOTAP_HE_MU: HE MU radiotap data is present
  *	(&struct ieee80211_radiotap_he_mu)
  * @RX_FLAG_RADIOTAP_LSIG: L-SIG radiotap data is present
+ * @RX_FLAG_NO_PSDU: use the frame only for radiotap reporting, with
+ *	the "0-length PSDU" field included there.  The value for it is
+ *	in &struct ieee80211_rx_status.  Note that if this value isn't
+ *	known the frame shouldn't be reported.
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR		= BIT(0),
@@ -1173,6 +1177,7 @@ enum mac80211_rx_flags {
 	RX_FLAG_RADIOTAP_HE		= BIT(26),
 	RX_FLAG_RADIOTAP_HE_MU		= BIT(27),
 	RX_FLAG_RADIOTAP_LSIG		= BIT(28),
+	RX_FLAG_NO_PSDU			= BIT(29),
 };
 
 /**
@@ -1245,6 +1250,7 @@ enum mac80211_rx_encoding {
  * @ampdu_reference: A-MPDU reference number, must be a different value for
  *	each A-MPDU but the same for each subframe within one A-MPDU
  * @ampdu_delimiter_crc: A-MPDU delimiter CRC
+ * @zero_length_psdu_type: radiotap type of the 0-length PSDU
  */
 struct ieee80211_rx_status {
 	u64 mactime;
@@ -1265,6 +1271,7 @@ struct ieee80211_rx_status {
 	u8 chains;
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
 	u8 ampdu_delimiter_crc;
+	u8 zero_length_psdu_type;
 };
 
 /**

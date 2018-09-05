@@ -75,6 +75,7 @@ enum ieee80211_radiotap_presence {
 	IEEE80211_RADIOTAP_TIMESTAMP = 22,
 	IEEE80211_RADIOTAP_HE = 23,
 	IEEE80211_RADIOTAP_HE_MU = 24,
+	IEEE80211_RADIOTAP_ZERO_LEN_PSDU = 26,
 	IEEE80211_RADIOTAP_LSIG = 27,
 
 	/* valid in every it_present bitmap, even vendor namespaces */
@@ -338,6 +339,11 @@ enum ieee80211_radiotap_lsig_data2 {
 
 struct ieee80211_radiotap_lsig {
 	__le16 data1, data2;
+};
+
+enum ieee80211_radiotap_zero_len_psdu_type {
+	IEEE80211_RADIOTAP_ZERO_LEN_PSDU_SOUNDING		= 0,
+	IEEE80211_RADIOTAP_ZERO_LEN_PSDU_VENDOR			= 0xff,
 };
 
 /**
