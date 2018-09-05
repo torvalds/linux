@@ -124,6 +124,17 @@ int drm_mode_addfb(struct drm_device *dev, struct drm_mode_fb_cmd *or,
 	    r.pixel_format == DRM_FORMAT_XRGB2101010)
 		r.pixel_format = DRM_FORMAT_XBGR2101010;
 
+	if (dev->mode_config.quirk_addfb_prefer_host_byte_order) {
+		if (r.pixel_format == DRM_FORMAT_XRGB8888)
+			r.pixel_format = DRM_FORMAT_HOST_XRGB8888;
+		if (r.pixel_format == DRM_FORMAT_ARGB8888)
+			r.pixel_format = DRM_FORMAT_HOST_ARGB8888;
+		if (r.pixel_format == DRM_FORMAT_RGB565)
+			r.pixel_format = DRM_FORMAT_HOST_RGB565;
+		if (r.pixel_format == DRM_FORMAT_XRGB1555)
+			r.pixel_format = DRM_FORMAT_HOST_XRGB1555;
+	}
+
 	ret = drm_mode_addfb2(dev, &r, file_priv);
 	if (ret)
 		return ret;
