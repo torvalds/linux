@@ -1978,10 +1978,6 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 			sta_ctxt_cmd.htc_flags |=
 				cpu_to_le32(IWL_HE_HTC_LINK_ADAP_BOTH);
 	}
-	if (sta->he_cap.he_cap_elem.mac_cap_info[2] &
-	    IEEE80211_HE_MAC_CAP2_UL_MU_RESP_SCHED)
-		sta_ctxt_cmd.htc_flags |=
-			cpu_to_le32(IWL_HE_HTC_UL_MU_RESP_SCHED);
 	if (sta->he_cap.he_cap_elem.mac_cap_info[2] & IEEE80211_HE_MAC_CAP2_BSR)
 		sta_ctxt_cmd.htc_flags |= cpu_to_le32(IWL_HE_HTC_BSR_SUPP);
 	if (sta->he_cap.he_cap_elem.mac_cap_info[3] &
