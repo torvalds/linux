@@ -140,5 +140,17 @@ __uobj_alloc(const struct uverbs_api_object *obj, struct ib_uverbs_file *ufile,
 #define uobj_alloc(_type, _ufile, _ib_dev)                                     \
 	__uobj_alloc(uobj_get_type(_ufile, _type), _ufile, _ib_dev)
 
+static inline void uverbs_flow_action_fill_action(struct ib_flow_action *action,
+						  struct ib_uobject *uobj,
+						  struct ib_device *ib_dev,
+						  enum ib_flow_action_type type)
+{
+	atomic_set(&action->usecnt, 0);
+	action->device = ib_dev;
+	action->type = type;
+	action->uobject = uobj;
+	uobj->object = action;
+}
+
 #endif
 

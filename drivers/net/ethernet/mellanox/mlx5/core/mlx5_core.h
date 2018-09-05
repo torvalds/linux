@@ -39,6 +39,7 @@
 #include <linux/if_link.h>
 #include <linux/firmware.h>
 #include <linux/mlx5/cq.h>
+#include <linux/mlx5/fs.h>
 
 #define DRIVER_NAME "mlx5_core"
 #define DRIVER_VERSION "5.0-0"
@@ -169,17 +170,6 @@ struct mlx5_core_dev *mlx5_get_next_phys_dev(struct mlx5_core_dev *dev);
 void mlx5_dev_list_lock(void);
 void mlx5_dev_list_unlock(void);
 int mlx5_dev_list_trylock(void);
-int mlx5_encap_alloc(struct mlx5_core_dev *dev,
-		     int header_type,
-		     size_t size,
-		     void *encap_header,
-		     u32 *encap_id);
-void mlx5_encap_dealloc(struct mlx5_core_dev *dev, u32 encap_id);
-
-int mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
-			     u8 namespace, u8 num_actions,
-			     void *modify_actions, u32 *modify_header_id);
-void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev, u32 modify_header_id);
 
 bool mlx5_lag_intf_add(struct mlx5_interface *intf, struct mlx5_priv *priv);
 

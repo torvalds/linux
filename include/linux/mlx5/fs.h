@@ -45,7 +45,8 @@ enum {
 };
 
 enum {
-	MLX5_FLOW_TABLE_TUNNEL_EN = BIT(0),
+	MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT = BIT(0),
+	MLX5_FLOW_TABLE_TUNNEL_EN_DECAP = BIT(1),
 };
 
 #define LEFTOVERS_RULE_NUM	 2
@@ -159,7 +160,7 @@ struct mlx5_flow_act {
 	u32 action;
 	bool has_flow_tag;
 	u32 flow_tag;
-	u32 encap_id;
+	u32 reformat_id;
 	u32 modify_id;
 	uintptr_t esp_id;
 	struct mlx5_fs_vlan vlan[MLX5_FS_VLAN_DEPTH];
@@ -195,5 +196,20 @@ int mlx5_fc_query(struct mlx5_core_dev *dev, struct mlx5_fc *counter,
 
 int mlx5_fs_add_rx_underlay_qpn(struct mlx5_core_dev *dev, u32 underlay_qpn);
 int mlx5_fs_remove_rx_underlay_qpn(struct mlx5_core_dev *dev, u32 underlay_qpn);
+
+int mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
+			     u8 namespace, u8 num_actions,
+			     void *modify_actions, u32 *modify_header_id);
+void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev,
+				u32 modify_header_id);
+
+int mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
+			       int reformat_type,
+			       size_t size,
+			       void *reformat_data,
+			       enum mlx5_flow_namespace_type namespace,
+			       u32 *packet_reformat_id);
+void mlx5_packet_reformat_dealloc(struct mlx5_core_dev *dev,
+				  u32 packet_reformat_id);
 
 #endif

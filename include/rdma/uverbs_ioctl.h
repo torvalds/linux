@@ -365,6 +365,15 @@ struct uverbs_object_tree_def {
 			  __VA_ARGS__ },                                       \
 	})
 
+/* An input value that is a member in the enum _enum_type. */
+#define UVERBS_ATTR_CONST_IN(_attr_id, _enum_type, ...)                        \
+	UVERBS_ATTR_PTR_IN(                                                    \
+		_attr_id,                                                      \
+		UVERBS_ATTR_SIZE(                                              \
+			sizeof(u64) + BUILD_BUG_ON_ZERO(!sizeof(_enum_type)),  \
+			sizeof(u64)),                                          \
+		__VA_ARGS__)
+
 /*
  * An input value that is a bitwise combination of values of _enum_type.
  * This permits the flag value to be passed as either a u32 or u64, it must
@@ -603,6 +612,9 @@ static inline __malloc void *uverbs_zalloc(struct uverbs_attr_bundle *bundle,
 {
 	return _uverbs_alloc(bundle, size, GFP_KERNEL | __GFP_ZERO);
 }
+int _uverbs_get_const(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
+		      size_t idx, s64 lower_bound, u64 upper_bound,
+		      s64 *def_val);
 #else
 static inline int
 uverbs_get_flags64(u64 *to, const struct uverbs_attr_bundle *attrs_bundle,
@@ -631,6 +643,34 @@ static inline __malloc void *uverbs_zalloc(struct uverbs_attr_bundle *bundle,
 {
 	return ERR_PTR(-EINVAL);
 }
+static inline int
+_uverbs_get_const(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
+		  size_t idx, s64 lower_bound, u64 upper_bound,
+		  s64 *def_val)
+{
+	return -EINVAL;
+}
 #endif
 
+#define uverbs_get_const(_to, _attrs_bundle, _idx)                             \
+	({                                                                     \
+		s64 _val;                                                      \
+		int _ret = _uverbs_get_const(&_val, _attrs_bundle, _idx,       \
+					     type_min(typeof(*_to)),           \
+					     type_max(typeof(*_to)), NULL);    \
+		(*_to) = _val;                                                 \
+		_ret;                                                          \
+	})
+
+#define uverbs_get_const_default(_to, _attrs_bundle, _idx, _default)           \
+	({                                                                     \
+		s64 _val;                                                      \
+		s64 _def_val = _default;                                       \
+		int _ret =                                                     \
+			_uverbs_get_const(&_val, _attrs_bundle, _idx,          \
+					  type_min(typeof(*_to)),              \
+					  type_max(typeof(*_to)), &_def_val);  \
+		(*_to) = _val;                                                 \
+		_ret;                                                          \
+	})
 #endif

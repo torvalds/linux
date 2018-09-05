@@ -7,7 +7,9 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/uverbs_types.h>
 #include <rdma/uverbs_ioctl.h>
+#include <rdma/uverbs_std_types.h>
 #include <rdma/mlx5_user_ioctl_cmds.h>
+#include <rdma/mlx5_user_ioctl_verbs.h>
 #include <rdma/ib_umem.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/fs.h>
@@ -15,6 +17,24 @@
 
 #define UVERBS_MODULE_NAME mlx5_ib
 #include <rdma/uverbs_named_ioctl.h>
+
+static int
+mlx5_ib_ft_type_to_namespace(enum mlx5_ib_uapi_flow_table_type table_type,
+			     enum mlx5_flow_namespace_type *namespace)
+{
+	switch (table_type) {
+	case MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_RX:
+		*namespace = MLX5_FLOW_NAMESPACE_BYPASS;
+		break;
+	case MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_TX:
+		*namespace = MLX5_FLOW_NAMESPACE_EGRESS;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static const struct uverbs_attr_spec mlx5_ib_flow_type[] = {
 	[MLX5_IB_FLOW_TYPE_NORMAL] = {
@@ -175,6 +195,248 @@ end:
 	return err;
 }
 
+void mlx5_ib_destroy_flow_action_raw(struct mlx5_ib_flow_action *maction)
+{
+	switch (maction->flow_action_raw.sub_type) {
+	case MLX5_IB_FLOW_ACTION_MODIFY_HEADER:
+		mlx5_modify_header_dealloc(maction->flow_action_raw.dev->mdev,
+					   maction->flow_action_raw.action_id);
+		break;
+	case MLX5_IB_FLOW_ACTION_PACKET_REFORMAT:
+		mlx5_packet_reformat_dealloc(maction->flow_action_raw.dev->mdev,
+			maction->flow_action_raw.action_id);
+		break;
+	case MLX5_IB_FLOW_ACTION_DECAP:
+		break;
+	default:
+		break;
+	}
+}
+
+static struct ib_flow_action *
+mlx5_ib_create_modify_header(struct mlx5_ib_dev *dev,
+			     enum mlx5_ib_uapi_flow_table_type ft_type,
+			     u8 num_actions, void *in)
+{
+	enum mlx5_flow_namespace_type namespace;
+	struct mlx5_ib_flow_action *maction;
+	int ret;
+
+	ret = mlx5_ib_ft_type_to_namespace(ft_type, &namespace);
+	if (ret)
+		return ERR_PTR(-EINVAL);
+
+	maction = kzalloc(sizeof(*maction), GFP_KERNEL);
+	if (!maction)
+		return ERR_PTR(-ENOMEM);
+
+	ret = mlx5_modify_header_alloc(dev->mdev, namespace, num_actions, in,
+				       &maction->flow_action_raw.action_id);
+
+	if (ret) {
+		kfree(maction);
+		return ERR_PTR(ret);
+	}
+	maction->flow_action_raw.sub_type =
+		MLX5_IB_FLOW_ACTION_MODIFY_HEADER;
+	maction->flow_action_raw.dev = dev;
+
+	return &maction->ib_action;
+}
+
+static bool mlx5_ib_modify_header_supported(struct mlx5_ib_dev *dev)
+{
+	return MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
+					 max_modify_header_actions) ||
+	       MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev, max_modify_header_actions);
+}
+
+static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER)(
+	struct ib_uverbs_file *file,
+	struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(
+		attrs, MLX5_IB_ATTR_CREATE_MODIFY_HEADER_HANDLE);
+	struct mlx5_ib_dev *mdev = to_mdev(uobj->context->device);
+	enum mlx5_ib_uapi_flow_table_type ft_type;
+	struct ib_flow_action *action;
+	size_t num_actions;
+	void *in;
+	int len;
+	int ret;
+
+	if (!mlx5_ib_modify_header_supported(mdev))
+		return -EOPNOTSUPP;
+
+	in = uverbs_attr_get_alloced_ptr(attrs,
+		MLX5_IB_ATTR_CREATE_MODIFY_HEADER_ACTIONS_PRM);
+	len = uverbs_attr_get_len(attrs,
+		MLX5_IB_ATTR_CREATE_MODIFY_HEADER_ACTIONS_PRM);
+
+	if (len % MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto))
+		return -EINVAL;
+
+	ret = uverbs_get_const(&ft_type, attrs,
+			       MLX5_IB_ATTR_CREATE_MODIFY_HEADER_FT_TYPE);
+	if (ret)
+		return ret;
+
+	num_actions = len / MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto),
+	action = mlx5_ib_create_modify_header(mdev, ft_type, num_actions, in);
+	if (IS_ERR(action))
+		return PTR_ERR(action);
+
+	uverbs_flow_action_fill_action(action, uobj, uobj->context->device,
+				       IB_FLOW_ACTION_UNSPECIFIED);
+
+	return 0;
+}
+
+static bool mlx5_ib_flow_action_packet_reformat_valid(struct mlx5_ib_dev *ibdev,
+						      u8 packet_reformat_type,
+						      u8 ft_type)
+{
+	switch (packet_reformat_type) {
+	case MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L2_TO_L2_TUNNEL:
+		if (ft_type == MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_TX)
+			return MLX5_CAP_FLOWTABLE(ibdev->mdev,
+						  encap_general_header);
+		break;
+	case MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L2_TO_L3_TUNNEL:
+		if (ft_type == MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_TX)
+			return MLX5_CAP_FLOWTABLE_NIC_TX(ibdev->mdev,
+				reformat_l2_to_l3_tunnel);
+		break;
+	case MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L3_TUNNEL_TO_L2:
+		if (ft_type == MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_RX)
+			return MLX5_CAP_FLOWTABLE_NIC_RX(ibdev->mdev,
+				reformat_l3_tunnel_to_l2);
+		break;
+	case MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L2_TUNNEL_TO_L2:
+		if (ft_type == MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_RX)
+			return MLX5_CAP_FLOWTABLE_NIC_RX(ibdev->mdev, decap);
+		break;
+	default:
+		break;
+	}
+
+	return false;
+}
+
+static int mlx5_ib_dv_to_prm_packet_reforamt_type(u8 dv_prt, u8 *prm_prt)
+{
+	switch (dv_prt) {
+	case MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L2_TO_L2_TUNNEL:
+		*prm_prt = MLX5_REFORMAT_TYPE_L2_TO_L2_TUNNEL;
+		break;
+	case MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L3_TUNNEL_TO_L2:
+		*prm_prt = MLX5_REFORMAT_TYPE_L3_TUNNEL_TO_L2;
+		break;
+	case MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L2_TO_L3_TUNNEL:
+		*prm_prt = MLX5_REFORMAT_TYPE_L2_TO_L3_TUNNEL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int mlx5_ib_flow_action_create_packet_reformat_ctx(
+	struct mlx5_ib_dev *dev,
+	struct mlx5_ib_flow_action *maction,
+	u8 ft_type, u8 dv_prt,
+	void *in, size_t len)
+{
+	enum mlx5_flow_namespace_type namespace;
+	u8 prm_prt;
+	int ret;
+
+	ret = mlx5_ib_ft_type_to_namespace(ft_type, &namespace);
+	if (ret)
+		return ret;
+
+	ret = mlx5_ib_dv_to_prm_packet_reforamt_type(dv_prt, &prm_prt);
+	if (ret)
+		return ret;
+
+	ret = mlx5_packet_reformat_alloc(dev->mdev, prm_prt, len,
+					 in, namespace,
+					 &maction->flow_action_raw.action_id);
+	if (ret)
+		return ret;
+
+	maction->flow_action_raw.sub_type =
+		MLX5_IB_FLOW_ACTION_PACKET_REFORMAT;
+	maction->flow_action_raw.dev = dev;
+
+	return 0;
+}
+
+static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_PACKET_REFORMAT)(
+	struct ib_uverbs_file *file,
+	struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(attrs,
+		MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_HANDLE);
+	struct mlx5_ib_dev *mdev = to_mdev(uobj->context->device);
+	enum mlx5_ib_uapi_flow_action_packet_reformat_type dv_prt;
+	enum mlx5_ib_uapi_flow_table_type ft_type;
+	struct mlx5_ib_flow_action *maction;
+	int ret;
+
+	ret = uverbs_get_const(&ft_type, attrs,
+			       MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_FT_TYPE);
+	if (ret)
+		return ret;
+
+	ret = uverbs_get_const(&dv_prt, attrs,
+			       MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_TYPE);
+	if (ret)
+		return ret;
+
+	if (!mlx5_ib_flow_action_packet_reformat_valid(mdev, dv_prt, ft_type))
+		return -EOPNOTSUPP;
+
+	maction = kzalloc(sizeof(*maction), GFP_KERNEL);
+	if (!maction)
+		return -ENOMEM;
+
+	if (dv_prt ==
+	    MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L2_TUNNEL_TO_L2) {
+		maction->flow_action_raw.sub_type =
+			MLX5_IB_FLOW_ACTION_DECAP;
+		maction->flow_action_raw.dev = mdev;
+	} else {
+		void *in;
+		int len;
+
+		in = uverbs_attr_get_alloced_ptr(attrs,
+			MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_DATA_BUF);
+		if (IS_ERR(in)) {
+			ret = PTR_ERR(in);
+			goto free_maction;
+		}
+
+		len = uverbs_attr_get_len(attrs,
+			MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_DATA_BUF);
+
+		ret = mlx5_ib_flow_action_create_packet_reformat_ctx(mdev,
+			maction, ft_type, dv_prt, in, len);
+		if (ret)
+			goto free_maction;
+	}
+
+	uverbs_flow_action_fill_action(&maction->ib_action, uobj,
+				       uobj->context->device,
+				       IB_FLOW_ACTION_UNSPECIFIED);
+	return 0;
+
+free_maction:
+	kfree(maction);
+	return ret;
+}
+
 DECLARE_UVERBS_NAMED_METHOD(
 	MLX5_IB_METHOD_CREATE_FLOW,
 	UVERBS_ATTR_IDR(MLX5_IB_ATTR_CREATE_FLOW_HANDLE,
@@ -208,6 +470,44 @@ ADD_UVERBS_METHODS(mlx5_ib_fs,
 		   UVERBS_OBJECT_FLOW,
 		   &UVERBS_METHOD(MLX5_IB_METHOD_CREATE_FLOW),
 		   &UVERBS_METHOD(MLX5_IB_METHOD_DESTROY_FLOW));
+
+DECLARE_UVERBS_NAMED_METHOD(
+	MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER,
+	UVERBS_ATTR_IDR(MLX5_IB_ATTR_CREATE_MODIFY_HEADER_HANDLE,
+			UVERBS_OBJECT_FLOW_ACTION,
+			UVERBS_ACCESS_NEW,
+			UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_CREATE_MODIFY_HEADER_ACTIONS_PRM,
+			   UVERBS_ATTR_MIN_SIZE(MLX5_UN_SZ_BYTES(
+				   set_action_in_add_action_in_auto)),
+			   UA_MANDATORY,
+			   UA_ALLOC_AND_COPY),
+	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_CREATE_MODIFY_HEADER_FT_TYPE,
+			     enum mlx5_ib_uapi_flow_table_type,
+			     UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_METHOD(
+	MLX5_IB_METHOD_FLOW_ACTION_CREATE_PACKET_REFORMAT,
+	UVERBS_ATTR_IDR(MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_HANDLE,
+			UVERBS_OBJECT_FLOW_ACTION,
+			UVERBS_ACCESS_NEW,
+			UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_DATA_BUF,
+			   UVERBS_ATTR_MIN_SIZE(1),
+			   UA_ALLOC_AND_COPY,
+			   UA_OPTIONAL),
+	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_TYPE,
+			     enum mlx5_ib_uapi_flow_action_packet_reformat_type,
+			     UA_MANDATORY),
+	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_FT_TYPE,
+			     enum mlx5_ib_uapi_flow_table_type,
+			     UA_MANDATORY));
+
+ADD_UVERBS_METHODS(
+	mlx5_ib_flow_actions,
+	UVERBS_OBJECT_FLOW_ACTION,
+	&UVERBS_METHOD(MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER),
+	&UVERBS_METHOD(MLX5_IB_METHOD_FLOW_ACTION_CREATE_PACKET_REFORMAT));
 
 DECLARE_UVERBS_NAMED_METHOD(
 	MLX5_IB_METHOD_FLOW_MATCHER_CREATE,
@@ -247,6 +547,7 @@ int mlx5_ib_get_flow_trees(const struct uverbs_object_tree_def **root)
 
 	root[i++] = &flow_objects;
 	root[i++] = &mlx5_ib_fs;
+	root[i++] = &mlx5_ib_flow_actions;
 
 	return i;
 }
