@@ -2019,7 +2019,8 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 				struct hns3_desc_cb *desc_cb)
 {
 	struct hns3_desc *desc;
-	int truesize, size;
+	u32 truesize;
+	int size;
 	int last_offset;
 	bool twobufs;
 

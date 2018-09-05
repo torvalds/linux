@@ -2539,6 +2539,9 @@ struct ib_device {
 
 	struct module               *owner;
 	struct device                dev;
+	/* First group for device attributes, NULL terminated array */
+	const struct attribute_group	*groups[2];
+
 	struct kobject               *ports_parent;
 	struct list_head             port_list;
 

@@ -381,7 +381,7 @@ static int mtk_drm_bind(struct device *dev)
 err_deinit:
 	mtk_drm_kms_deinit(drm);
 err_free:
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 	return ret;
 }
 
@@ -390,7 +390,7 @@ static void mtk_drm_unbind(struct device *dev)
 	struct mtk_drm_private *private = dev_get_drvdata(dev);
 
 	drm_dev_unregister(private->drm);
-	drm_dev_unref(private->drm);
+	drm_dev_put(private->drm);
 	private->drm = NULL;
 }
 
@@ -564,7 +564,7 @@ static int mtk_drm_remove(struct platform_device *pdev)
 
 	drm_dev_unregister(drm);
 	mtk_drm_kms_deinit(drm);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 
 	component_master_del(&pdev->dev, &mtk_drm_ops);
 	pm_runtime_disable(&pdev->dev);
@@ -580,29 +580,24 @@ static int mtk_drm_sys_suspend(struct device *dev)
 {
 	struct mtk_drm_private *private = dev_get_drvdata(dev);
 	struct drm_device *drm = private->drm;
+	int ret;
 
-	drm_kms_helper_poll_disable(drm);
-
-	private->suspend_state = drm_atomic_helper_suspend(drm);
-	if (IS_ERR(private->suspend_state)) {
-		drm_kms_helper_poll_enable(drm);
-		return PTR_ERR(private->suspend_state);
-	}
-
+	ret = drm_mode_config_helper_suspend(drm);
 	DRM_DEBUG_DRIVER("mtk_drm_sys_suspend\n");
-	return 0;
+
+	return ret;
 }
 
 static int mtk_drm_sys_resume(struct device *dev)
 {
 	struct mtk_drm_private *private = dev_get_drvdata(dev);
 	struct drm_device *drm = private->drm;
+	int ret;
 
-	drm_atomic_helper_resume(drm, private->suspend_state);
-	drm_kms_helper_poll_enable(drm);
-
+	ret = drm_mode_config_helper_resume(drm);
 	DRM_DEBUG_DRIVER("mtk_drm_sys_resume\n");
-	return 0;
+
+	return ret;
 }
 #endif
 

@@ -100,13 +100,14 @@ struct ib_uverbs_device {
 	atomic_t				refcount;
 	int					num_comp_vectors;
 	struct completion			comp;
-	struct device			       *dev;
+	struct device				dev;
+	/* First group for device attributes, NULL terminated array */
+	const struct attribute_group		*groups[2];
 	struct ib_device	__rcu	       *ib_dev;
 	int					devnum;
 	struct cdev			        cdev;
 	struct rb_root				xrcd_tree;
 	struct mutex				xrcd_tree_mutex;
-	struct kobject				kobj;
 	struct srcu_struct			disassociate_srcu;
 	struct mutex				lists_mutex; /* protect lists */
 	struct list_head			uverbs_file_list;

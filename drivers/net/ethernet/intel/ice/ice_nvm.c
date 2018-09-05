@@ -131,9 +131,8 @@ ice_read_sr_word_aq(struct ice_hw *hw, u16 offset, u16 *data)
  *
  * This function will request NVM ownership.
  */
-static enum
-ice_status ice_acquire_nvm(struct ice_hw *hw,
-			   enum ice_aq_res_access_type access)
+static enum ice_status
+ice_acquire_nvm(struct ice_hw *hw, enum ice_aq_res_access_type access)
 {
 	if (hw->nvm.blank_nvm_mode)
 		return 0;
