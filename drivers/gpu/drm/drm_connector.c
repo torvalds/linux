@@ -20,11 +20,15 @@
  * OF THIS SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_utils.h>
+#include <drm/drm_print.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+
+#include <linux/uaccess.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
