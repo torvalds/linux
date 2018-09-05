@@ -1251,7 +1251,8 @@ static struct txq_info *ieee80211_get_txq(struct ieee80211_local *local,
 
 	if (unlikely(!ieee80211_is_data_present(hdr->frame_control))) {
 		if ((!ieee80211_is_mgmt(hdr->frame_control) ||
-		     ieee80211_is_bufferable_mmpdu(hdr->frame_control)) &&
+		     ieee80211_is_bufferable_mmpdu(hdr->frame_control) ||
+		     vif->type == NL80211_IFTYPE_STATION) &&
 		    sta && sta->uploaded) {
 			/*
 			 * This will be NULL if the driver didn't set the
@@ -1456,9 +1457,16 @@ void ieee80211_txq_init(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (tid == IEEE80211_NUM_TIDS) {
-		/* Drivers need to opt in to the bufferable MMPDU TXQ */
-		if (!ieee80211_hw_check(&sdata->local->hw, BUFF_MMPDU_TXQ))
+		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+			/* Drivers need to opt in to the management MPDU TXQ */
+			if (!ieee80211_hw_check(&sdata->local->hw,
+						STA_MMPDU_TXQ))
+				return;
+		} else if (!ieee80211_hw_check(&sdata->local->hw,
+					       BUFF_MMPDU_TXQ)) {
+			/* Drivers need to opt in to the bufferable MMPDU TXQ */
 			return;
+		}
 		txqi->txq.ac = IEEE80211_AC_VO;
 	} else {
 		txqi->txq.ac = ieee80211_ac_from_tid(tid);

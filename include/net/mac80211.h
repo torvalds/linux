@@ -2152,6 +2152,10 @@ struct ieee80211_txq {
  *	but if the rate control is built-in then it must be set by the driver.
  *	See also the documentation for that flag.
  *
+ * @IEEE80211_HW_STA_MMPDU_TXQ: use the extra non-TID per-station TXQ for all
+ *	MMPDUs on station interfaces. This of course requires the driver to use
+ *	TXQs to start with.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -2199,6 +2203,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_DOESNT_SUPPORT_QOS_NDP,
 	IEEE80211_HW_BUFF_MMPDU_TXQ,
 	IEEE80211_HW_SUPPORTS_VHT_EXT_NSS_BW,
+	IEEE80211_HW_STA_MMPDU_TXQ,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
