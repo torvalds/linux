@@ -6,6 +6,34 @@
  */
 
 &cbass_wakeup {
+	dmsc: dmsc {
+		compatible = "ti,k2g-sci";
+		ti,host-id = <12>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		mbox-names = "rx", "tx";
+
+		mboxes= <&secure_proxy_main 11>,
+			<&secure_proxy_main 13>;
+
+		k3_pds: power-controller {
+			compatible = "ti,sci-pm-domain";
+			#power-domain-cells = <1>;
+		};
+
+		k3_clks: clocks {
+			compatible = "ti,k2g-sci-clk";
+			#clock-cells = <2>;
+		};
+
+		k3_reset: reset-controller {
+			compatible = "ti,sci-reset";
+			#reset-cells = <2>;
+		};
+	};
+
 	wkup_uart0: serial@42300000 {
 		compatible = "ti,am654-uart";
 		reg = <0x00 0x42300000 0x00 0x100>;
