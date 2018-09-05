@@ -304,15 +304,12 @@ static void queue_req(struct addr_req *req)
 	spin_unlock_bh(&lock);
 }
 
-static int ib_nl_fetch_ha(const struct dst_entry *dst,
-			  struct rdma_dev_addr *dev_addr,
+static int ib_nl_fetch_ha(struct rdma_dev_addr *dev_addr,
 			  const void *daddr, u32 seq, u16 family)
 {
 	if (rdma_nl_chk_listeners(RDMA_NL_GROUP_LS))
 		return -EADDRNOTAVAIL;
 
-	/* We fill in what we can, the response will fill the rest */
-	rdma_copy_addr(dev_addr, dst->dev, NULL);
 	return ib_nl_ip_send_msg(dev_addr, daddr, seq, family);
 }
 
@@ -331,7 +328,7 @@ static int dst_fetch_ha(const struct dst_entry *dst,
 		neigh_event_send(n, NULL);
 		ret = -ENODATA;
 	} else {
-		rdma_copy_addr(dev_addr, dst->dev, n->ha);
+		memcpy(dev_addr->dst_dev_addr, n->ha, MAX_ADDR_LEN);
 	}
 
 	neigh_release(n);
@@ -367,7 +364,7 @@ static int fetch_ha(const struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
 
 	/* Gateway + ARPHRD_INFINIBAND -> IB router */
 	if (has_gateway(dst, family) && dst->dev->type == ARPHRD_INFINIBAND)
-		return ib_nl_fetch_ha(dst, dev_addr, daddr, seq, family);
+		return ib_nl_fetch_ha(dev_addr, daddr, seq, family);
 	else
 		return dst_fetch_ha(dst, dev_addr, daddr);
 }
@@ -467,23 +464,28 @@ static int addr_resolve_neigh(const struct dst_entry *dst,
 			      u32 seq)
 {
 	if (dst->dev->flags & IFF_LOOPBACK) {
-		int ret;
-
-		ret = rdma_translate_ip(dst_in, addr);
-		if (!ret)
-			memcpy(addr->dst_dev_addr, addr->src_dev_addr,
-			       MAX_ADDR_LEN);
-
-		return ret;
+		memcpy(addr->dst_dev_addr, addr->src_dev_addr, MAX_ADDR_LEN);
+		return 0;
 	}
 
 	/* If the device doesn't do ARP internally */
 	if (!(dst->dev->flags & IFF_NOARP))
 		return fetch_ha(dst, addr, dst_in, seq);
 
-	rdma_copy_addr(addr, dst->dev, NULL);
-
 	return 0;
+}
+
+static int rdma_set_src_addr(const struct dst_entry *dst,
+			     const struct sockaddr *dst_in,
+			     struct rdma_dev_addr *dev_addr)
+{
+	int ret = 0;
+
+	if (dst->dev->flags & IFF_LOOPBACK)
+		ret = rdma_translate_ip(dst_in, dev_addr);
+	else
+		rdma_copy_addr(dev_addr, dst->dev, NULL);
+	return ret;
 }
 
 static int addr_resolve(struct sockaddr *src_in,
@@ -492,7 +494,7 @@ static int addr_resolve(struct sockaddr *src_in,
 			bool resolve_neigh,
 			u32 seq)
 {
-	struct net_device *ndev;
+	struct rtable *rt = NULL;
 	struct dst_entry *dst;
 	int ret;
 
@@ -502,21 +504,14 @@ static int addr_resolve(struct sockaddr *src_in,
 	}
 
 	if (src_in->sa_family == AF_INET) {
-		struct rtable *rt = NULL;
 
 		ret = addr4_resolve(src_in, dst_in, addr, &rt);
 		if (ret)
 			return ret;
 
-		if (resolve_neigh)
+		ret = rdma_set_src_addr(&rt->dst, dst_in, addr);
+		if (!ret && resolve_neigh)
 			ret = addr_resolve_neigh(&rt->dst, dst_in, addr, seq);
-
-		if (addr->bound_dev_if) {
-			ndev = dev_get_by_index(addr->net, addr->bound_dev_if);
-		} else {
-			ndev = rt->dst.dev;
-			dev_hold(ndev);
-		}
 
 		ip_rt_put(rt);
 	} else {
@@ -524,25 +519,11 @@ static int addr_resolve(struct sockaddr *src_in,
 		if (ret)
 			return ret;
 
-		if (resolve_neigh)
+		ret = rdma_set_src_addr(dst, dst_in, addr);
+		if (!ret && resolve_neigh)
 			ret = addr_resolve_neigh(dst, dst_in, addr, seq);
 
-		if (addr->bound_dev_if) {
-			ndev = dev_get_by_index(addr->net, addr->bound_dev_if);
-		} else {
-			ndev = dst->dev;
-			dev_hold(ndev);
-		}
-
 		dst_release(dst);
-	}
-
-	if (ndev) {
-		if (ndev->flags & IFF_LOOPBACK)
-			ret = rdma_translate_ip(dst_in, addr);
-		else
-			addr->bound_dev_if = ndev->ifindex;
-		dev_put(ndev);
 	}
 
 	return ret;
