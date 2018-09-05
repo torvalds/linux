@@ -2512,7 +2512,11 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 		      struct amdgpu_bo_va *bo_va)
 {
 	struct amdgpu_bo_va_mapping *mapping, *next;
+	struct amdgpu_bo *bo = bo_va->base.bo;
 	struct amdgpu_vm *vm = bo_va->base.vm;
+
+	if (bo && bo->tbo.resv == vm->root.base.bo->tbo.resv)
+		vm->bulk_moveable = false;
 
 	list_del(&bo_va->base.bo_list);
 
