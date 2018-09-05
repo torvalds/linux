@@ -3614,7 +3614,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_new_controls);
 static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 				  struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_dapm_path *source_p, *sink_p;
+	struct snd_soc_dapm_path *path;
 	struct snd_soc_dai *source, *sink;
 	struct snd_soc_pcm_runtime *rtd = w->priv;
 	const struct snd_soc_pcm_stream *config = w->params + w->params_select;
@@ -3628,17 +3628,6 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 	    WARN_ON(list_empty(&w->edges[SND_SOC_DAPM_DIR_OUT]) ||
 		    list_empty(&w->edges[SND_SOC_DAPM_DIR_IN])))
 		return -EINVAL;
-
-	/* We only support a single source and sink, pick the first */
-	source_p = list_first_entry(&w->edges[SND_SOC_DAPM_DIR_OUT],
-				    struct snd_soc_dapm_path,
-				    list_node[SND_SOC_DAPM_DIR_OUT]);
-	sink_p = list_first_entry(&w->edges[SND_SOC_DAPM_DIR_IN],
-				    struct snd_soc_dapm_path,
-				    list_node[SND_SOC_DAPM_DIR_IN]);
-
-	source = source_p->source->priv;
-	sink = sink_p->sink->priv;
 
 	/* Be a little careful as we don't want to overflow the mask array */
 	if (config->formats) {
@@ -3681,59 +3670,90 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		substream.stream = SNDRV_PCM_STREAM_CAPTURE;
-		if (source->driver->ops->startup) {
-			ret = source->driver->ops->startup(&substream, source);
-			if (ret < 0) {
-				dev_err(source->dev,
-					"ASoC: startup() failed: %d\n", ret);
-				goto out;
+		snd_soc_dapm_widget_for_each_source_path(w, path) {
+			source = path->source->priv;
+
+			if (source->driver->ops->startup) {
+				ret = source->driver->ops->startup(&substream,
+								   source);
+				if (ret < 0) {
+					dev_err(source->dev,
+						"ASoC: startup() failed: %d\n",
+						ret);
+					goto out;
+				}
+				source->active++;
 			}
-			source->active++;
+			ret = soc_dai_hw_params(&substream, params, source);
+			if (ret < 0)
+				goto out;
 		}
-		ret = soc_dai_hw_params(&substream, params, source);
-		if (ret < 0)
-			goto out;
 
 		substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
-		if (sink->driver->ops->startup) {
-			ret = sink->driver->ops->startup(&substream, sink);
-			if (ret < 0) {
-				dev_err(sink->dev,
-					"ASoC: startup() failed: %d\n", ret);
-				goto out;
+		snd_soc_dapm_widget_for_each_sink_path(w, path) {
+			sink = path->sink->priv;
+
+			if (sink->driver->ops->startup) {
+				ret = sink->driver->ops->startup(&substream,
+								 sink);
+				if (ret < 0) {
+					dev_err(sink->dev,
+						"ASoC: startup() failed: %d\n",
+						ret);
+					goto out;
+				}
+				sink->active++;
 			}
-			sink->active++;
+			ret = soc_dai_hw_params(&substream, params, sink);
+			if (ret < 0)
+				goto out;
 		}
-		ret = soc_dai_hw_params(&substream, params, sink);
-		if (ret < 0)
-			goto out;
 		break;
 
 	case SND_SOC_DAPM_POST_PMU:
-		ret = snd_soc_dai_digital_mute(sink, 0,
-					       SNDRV_PCM_STREAM_PLAYBACK);
-		if (ret != 0 && ret != -ENOTSUPP)
-			dev_warn(sink->dev, "ASoC: Failed to unmute: %d\n", ret);
-		ret = 0;
+		snd_soc_dapm_widget_for_each_sink_path(w, path) {
+			sink = path->sink->priv;
+
+			ret = snd_soc_dai_digital_mute(sink, 0,
+						       SNDRV_PCM_STREAM_PLAYBACK);
+			if (ret != 0 && ret != -ENOTSUPP)
+				dev_warn(sink->dev,
+					 "ASoC: Failed to unmute: %d\n", ret);
+			ret = 0;
+		}
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		ret = snd_soc_dai_digital_mute(sink, 1,
-					       SNDRV_PCM_STREAM_PLAYBACK);
-		if (ret != 0 && ret != -ENOTSUPP)
-			dev_warn(sink->dev, "ASoC: Failed to mute: %d\n", ret);
-		ret = 0;
+		snd_soc_dapm_widget_for_each_sink_path(w, path) {
+			sink = path->sink->priv;
 
-		source->active--;
-		if (source->driver->ops->shutdown) {
-			substream.stream = SNDRV_PCM_STREAM_CAPTURE;
-			source->driver->ops->shutdown(&substream, source);
+			ret = snd_soc_dai_digital_mute(sink, 1,
+						       SNDRV_PCM_STREAM_PLAYBACK);
+			if (ret != 0 && ret != -ENOTSUPP)
+				dev_warn(sink->dev,
+					 "ASoC: Failed to mute: %d\n", ret);
+			ret = 0;
 		}
 
-		sink->active--;
-		if (sink->driver->ops->shutdown) {
-			substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
-			sink->driver->ops->shutdown(&substream, sink);
+		snd_soc_dapm_widget_for_each_source_path(w, path) {
+			source = path->source->priv;
+
+			source->active--;
+			if (source->driver->ops->shutdown) {
+				substream.stream = SNDRV_PCM_STREAM_CAPTURE;
+				source->driver->ops->shutdown(&substream,
+							      source);
+			}
+		}
+
+		snd_soc_dapm_widget_for_each_sink_path(w, path) {
+			sink = path->sink->priv;
+
+			sink->active--;
+			if (sink->driver->ops->shutdown) {
+				substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
+				sink->driver->ops->shutdown(&substream, sink);
+			}
 		}
 		break;
 
@@ -4043,9 +4063,6 @@ static void dapm_connect_dai_link_widgets(struct snd_soc_card *card,
 	int i;
 
 	if (rtd->dai_link->params) {
-		if (rtd->num_codecs > 1)
-			dev_warn(card->dev, "ASoC: Multiple codecs not supported yet\n");
-
 		playback_cpu = cpu_dai->capture_widget;
 		capture_cpu = cpu_dai->playback_widget;
 	} else {
