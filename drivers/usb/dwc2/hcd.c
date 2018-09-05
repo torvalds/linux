@@ -358,16 +358,10 @@ static void dwc2_gusbcfg_init(struct dwc2_hsotg *hsotg)
 
 static int dwc2_vbus_supply_init(struct dwc2_hsotg *hsotg)
 {
-	int ret;
+	if (hsotg->vbus_supply)
+		return regulator_enable(hsotg->vbus_supply);
 
-	hsotg->vbus_supply = devm_regulator_get_optional(hsotg->dev, "vbus");
-	if (IS_ERR(hsotg->vbus_supply)) {
-		ret = PTR_ERR(hsotg->vbus_supply);
-		hsotg->vbus_supply = NULL;
-		return ret == -ENODEV ? 0 : ret;
-	}
-
-	return regulator_enable(hsotg->vbus_supply);
+	return 0;
 }
 
 static int dwc2_vbus_supply_exit(struct dwc2_hsotg *hsotg)
