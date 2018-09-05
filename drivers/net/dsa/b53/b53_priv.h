@@ -300,6 +300,23 @@ int b53_br_join(struct dsa_switch *ds, int port, struct net_device *bridge);
 void b53_br_leave(struct dsa_switch *ds, int port, struct net_device *bridge);
 void b53_br_set_stp_state(struct dsa_switch *ds, int port, u8 state);
 void b53_br_fast_age(struct dsa_switch *ds, int port);
+void b53_port_event(struct dsa_switch *ds, int port);
+void b53_phylink_validate(struct dsa_switch *ds, int port,
+			  unsigned long *supported,
+			  struct phylink_link_state *state);
+int b53_phylink_mac_link_state(struct dsa_switch *ds, int port,
+			       struct phylink_link_state *state);
+void b53_phylink_mac_config(struct dsa_switch *ds, int port,
+			    unsigned int mode,
+			    const struct phylink_link_state *state);
+void b53_phylink_mac_an_restart(struct dsa_switch *ds, int port);
+void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
+			       unsigned int mode,
+			       phy_interface_t interface);
+void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
+			     unsigned int mode,
+			     phy_interface_t interface,
+			     struct phy_device *phydev);
 int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering);
 int b53_vlan_prepare(struct dsa_switch *ds, int port,
 		     const struct switchdev_obj_port_vlan *vlan);
