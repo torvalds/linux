@@ -112,12 +112,17 @@ int drm_mode_addfb(struct drm_device *dev, struct drm_mode_fb_cmd *or,
 	struct drm_mode_fb_cmd2 r = {};
 	int ret;
 
+	r.pixel_format = drm_mode_legacy_fb_format(or->bpp, or->depth);
+	if (r.pixel_format == DRM_FORMAT_INVALID) {
+		DRM_DEBUG("bad {bpp:%d, depth:%d}\n", or->bpp, or->depth);
+		return -EINVAL;
+	}
+
 	/* convert to new format and call new ioctl */
 	r.fb_id = or->fb_id;
 	r.width = or->width;
 	r.height = or->height;
 	r.pitches[0] = or->pitch;
-	r.pixel_format = drm_mode_legacy_fb_format(or->bpp, or->depth);
 	r.handles[0] = or->handle;
 
 	if (dev->mode_config.quirk_addfb_prefer_xbgr_30bpp &&
