@@ -62,6 +62,7 @@ struct addr_req {
 			 struct rdma_dev_addr *addr, void *context);
 	unsigned long timeout;
 	struct delayed_work work;
+	bool resolve_by_gid_attr;	/* Consider gid attr in resolve phase */
 	int status;
 	u32 seq;
 };
@@ -518,10 +519,37 @@ static int rdma_set_src_addr_rcu(struct rdma_dev_addr *dev_addr,
 	return 0;
 }
 
+static int set_addr_netns_by_gid_rcu(struct rdma_dev_addr *addr)
+{
+	struct net_device *ndev;
+
+	ndev = rdma_read_gid_attr_ndev_rcu(addr->sgid_attr);
+	if (IS_ERR(ndev))
+		return PTR_ERR(ndev);
+
+	/*
+	 * Since we are holding the rcu, reading net and ifindex
+	 * are safe without any additional reference; because
+	 * change_net_namespace() in net/core/dev.c does rcu sync
+	 * after it changes the state to IFF_DOWN and before
+	 * updating netdev fields {net, ifindex}.
+	 */
+	addr->net = dev_net(ndev);
+	addr->bound_dev_if = ndev->ifindex;
+	return 0;
+}
+
+static void rdma_addr_set_net_defaults(struct rdma_dev_addr *addr)
+{
+	addr->net = &init_net;
+	addr->bound_dev_if = 0;
+}
+
 static int addr_resolve(struct sockaddr *src_in,
 			const struct sockaddr *dst_in,
 			struct rdma_dev_addr *addr,
 			bool resolve_neigh,
+			bool resolve_by_gid_attr,
 			u32 seq)
 {
 	struct dst_entry *dst = NULL;
@@ -535,6 +563,23 @@ static int addr_resolve(struct sockaddr *src_in,
 	}
 
 	rcu_read_lock();
+	if (resolve_by_gid_attr) {
+		if (!addr->sgid_attr) {
+			rcu_read_unlock();
+			pr_warn_ratelimited("%s: missing gid_attr\n", __func__);
+			return -EINVAL;
+		}
+		/*
+		 * If the request is for a specific gid attribute of the
+		 * rdma_dev_addr, derive net from the netdevice of the
+		 * GID attribute.
+		 */
+		ret = set_addr_netns_by_gid_rcu(addr);
+		if (ret) {
+			rcu_read_unlock();
+			return ret;
+		}
+	}
 	if (src_in->sa_family == AF_INET) {
 		ret = addr4_resolve(src_in, dst_in, addr, &rt);
 		dst = &rt->dst;
@@ -543,7 +588,7 @@ static int addr_resolve(struct sockaddr *src_in,
 	}
 	if (ret) {
 		rcu_read_unlock();
-		return ret;
+		goto done;
 	}
 	ret = rdma_set_src_addr_rcu(addr, &ndev_flags, dst_in, dst);
 	rcu_read_unlock();
@@ -559,6 +604,13 @@ static int addr_resolve(struct sockaddr *src_in,
 		ip_rt_put(rt);
 	else
 		dst_release(dst);
+done:
+	/*
+	 * Clear the addr net to go back to its original state, only if it was
+	 * derived from GID attribute in this context.
+	 */
+	if (resolve_by_gid_attr)
+		rdma_addr_set_net_defaults(addr);
 	return ret;
 }
 
@@ -573,7 +625,8 @@ static void process_one_req(struct work_struct *_work)
 		src_in = (struct sockaddr *)&req->src_addr;
 		dst_in = (struct sockaddr *)&req->dst_addr;
 		req->status = addr_resolve(src_in, dst_in, req->addr,
-					   true, req->seq);
+					   true, req->resolve_by_gid_attr,
+					   req->seq);
 		if (req->status && time_after_eq(jiffies, req->timeout)) {
 			req->status = -ETIMEDOUT;
 		} else if (req->status == -ENODATA) {
@@ -608,6 +661,7 @@ int rdma_resolve_ip(struct sockaddr *src_addr, const struct sockaddr *dst_addr,
 		    struct rdma_dev_addr *addr, int timeout_ms,
 		    void (*callback)(int status, struct sockaddr *src_addr,
 				     struct rdma_dev_addr *addr, void *context),
+		    bool resolve_by_gid_attr,
 		    void *context)
 {
 	struct sockaddr *src_in, *dst_in;
@@ -636,10 +690,12 @@ int rdma_resolve_ip(struct sockaddr *src_addr, const struct sockaddr *dst_addr,
 	req->addr = addr;
 	req->callback = callback;
 	req->context = context;
+	req->resolve_by_gid_attr = resolve_by_gid_attr;
 	INIT_DELAYED_WORK(&req->work, process_one_req);
 	req->seq = (u32)atomic_inc_return(&ib_nl_addr_request_seq);
 
-	req->status = addr_resolve(src_in, dst_in, addr, true, req->seq);
+	req->status = addr_resolve(src_in, dst_in, addr, true,
+				   req->resolve_by_gid_attr, req->seq);
 	switch (req->status) {
 	case 0:
 		req->timeout = jiffies;
@@ -683,14 +739,11 @@ int roce_resolve_route_from_path(struct sa_path_rec *rec,
 	if (!attr || !attr->ndev)
 		return -EINVAL;
 
-	dev_addr.bound_dev_if = attr->ndev->ifindex;
-	/* TODO: Use net from the ib_gid_attr once it is added to it,
-	 * until than, limit itself to init_net.
-	 */
 	dev_addr.net = &init_net;
+	dev_addr.sgid_attr = attr;
 
 	ret = addr_resolve(&sgid._sockaddr, &dgid._sockaddr,
-			   &dev_addr, false, 0);
+			   &dev_addr, false, true, 0);
 	if (ret)
 		return ret;
 
@@ -755,7 +808,7 @@ static void resolve_cb(int status, struct sockaddr *src_addr,
 
 int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 				 const union ib_gid *dgid,
-				 u8 *dmac, const struct net_device *ndev,
+				 u8 *dmac, const struct ib_gid_attr *sgid_attr,
 				 int *hoplimit)
 {
 	struct rdma_dev_addr dev_addr;
@@ -771,12 +824,12 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 	rdma_gid2ip(&dgid_addr._sockaddr, dgid);
 
 	memset(&dev_addr, 0, sizeof(dev_addr));
-	dev_addr.bound_dev_if = ndev->ifindex;
 	dev_addr.net = &init_net;
+	dev_addr.sgid_attr = sgid_attr;
 
 	init_completion(&ctx.comp);
 	ret = rdma_resolve_ip(&sgid_addr._sockaddr, &dgid_addr._sockaddr,
-			      &dev_addr, 1000, resolve_cb, &ctx);
+			      &dev_addr, 1000, resolve_cb, true, &ctx);
 	if (ret)
 		return ret;
 

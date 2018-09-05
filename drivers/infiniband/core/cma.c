@@ -2987,9 +2987,10 @@ int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 		if (dst_addr->sa_family == AF_IB) {
 			ret = cma_resolve_ib_addr(id_priv);
 		} else {
-			ret = rdma_resolve_ip(cma_src_addr(id_priv),
-					      dst_addr, &id->route.addr.dev_addr,
-					      timeout_ms, addr_handler, id_priv);
+			ret = rdma_resolve_ip(cma_src_addr(id_priv), dst_addr,
+					      &id->route.addr.dev_addr,
+					      timeout_ms, addr_handler,
+					      false, id_priv);
 		}
 	}
 	if (ret)

@@ -710,7 +710,7 @@ static int ib_resolve_unicast_gid_dmac(struct ib_device *device,
 
 	ret = rdma_addr_find_l2_eth_by_grh(&sgid_attr->gid, &grh->dgid,
 					   ah_attr->roce.dmac,
-					   sgid_attr->ndev, &hop_limit);
+					   sgid_attr, &hop_limit);
 
 	grh->hop_limit = hop_limit;
 	return ret;
