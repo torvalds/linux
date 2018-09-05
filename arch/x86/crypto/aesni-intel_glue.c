@@ -817,7 +817,7 @@ static int gcmaes_crypt_by_sg(bool enc, struct aead_request *req,
 	/* Linearize assoc, if not already linear */
 	if (req->src->length >= assoclen && req->src->length &&
 		(!PageHighMem(sg_page(req->src)) ||
-			req->src->offset + req->src->length < PAGE_SIZE)) {
+			req->src->offset + req->src->length <= PAGE_SIZE)) {
 		scatterwalk_start(&assoc_sg_walk, req->src);
 		assoc = scatterwalk_map(&assoc_sg_walk);
 	} else {
