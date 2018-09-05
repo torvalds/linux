@@ -116,7 +116,7 @@ static void mlx5i_cleanup(struct mlx5e_priv *priv)
 	/* Do nothing .. */
 }
 
-void mlx5i_grp_sw_update_stats(struct mlx5e_priv *priv)
+static void mlx5i_grp_sw_update_stats(struct mlx5e_priv *priv)
 {
 	struct mlx5e_sw_stats s = { 0 };
 	int i, j;
