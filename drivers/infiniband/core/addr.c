@@ -232,6 +232,36 @@ void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
 }
 EXPORT_SYMBOL(rdma_copy_addr);
 
+static struct net_device *
+rdma_find_ndev_for_src_ip_rcu(struct net *net, const struct sockaddr *src_in)
+{
+	struct net_device *dev = NULL;
+	int ret = -EADDRNOTAVAIL;
+
+	switch (src_in->sa_family) {
+	case AF_INET:
+		dev = __ip_dev_find(net,
+				    ((const struct sockaddr_in *)src_in)->sin_addr.s_addr,
+				    false);
+		if (dev)
+			ret = 0;
+		break;
+#if IS_ENABLED(CONFIG_IPV6)
+	case AF_INET6:
+		for_each_netdev_rcu(net, dev) {
+			if (ipv6_chk_addr(net,
+					  &((const struct sockaddr_in6 *)src_in)->sin6_addr,
+					  dev, 1)) {
+				ret = 0;
+				break;
+			}
+		}
+		break;
+#endif
+	}
+	return ret ? ERR_PTR(ret) : dev;
+}
+
 int rdma_translate_ip(const struct sockaddr *addr,
 		      struct rdma_dev_addr *dev_addr)
 {
@@ -246,33 +276,12 @@ int rdma_translate_ip(const struct sockaddr *addr,
 		return 0;
 	}
 
-	switch (addr->sa_family) {
-	case AF_INET:
-		dev = ip_dev_find(dev_addr->net,
-			((const struct sockaddr_in *)addr)->sin_addr.s_addr);
-
-		if (!dev)
-			return -EADDRNOTAVAIL;
-
+	rcu_read_lock();
+	dev = rdma_find_ndev_for_src_ip_rcu(dev_addr->net, addr);
+	if (!IS_ERR(dev))
 		rdma_copy_addr(dev_addr, dev, NULL);
-		dev_put(dev);
-		break;
-#if IS_ENABLED(CONFIG_IPV6)
-	case AF_INET6:
-		rcu_read_lock();
-		for_each_netdev_rcu(dev_addr->net, dev) {
-			if (ipv6_chk_addr(dev_addr->net,
-					  &((const struct sockaddr_in6 *)addr)->sin6_addr,
-					  dev, 1)) {
-				rdma_copy_addr(dev_addr, dev, NULL);
-				break;
-			}
-		}
-		rcu_read_unlock();
-		break;
-#endif
-	}
-	return 0;
+	rcu_read_unlock();
+	return PTR_ERR_OR_ZERO(dev);
 }
 EXPORT_SYMBOL(rdma_translate_ip);
 
