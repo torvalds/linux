@@ -1199,7 +1199,8 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	byte_align = (adev->family == AMDGPU_FAMILY_VI &&
 			adev->asic_type != CHIP_FIJI &&
 			adev->asic_type != CHIP_POLARIS10 &&
-			adev->asic_type != CHIP_POLARIS11) ?
+			adev->asic_type != CHIP_POLARIS11 &&
+			adev->asic_type != CHIP_POLARIS12) ?
 			VI_BO_SIZE_ALIGN : 1;
 
 	mapping_flags = AMDGPU_VM_PAGE_READABLE;

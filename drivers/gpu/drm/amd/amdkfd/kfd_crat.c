@@ -133,6 +133,7 @@ static struct kfd_gpu_cache_info carrizo_cache_info[] = {
 #define fiji_cache_info  carrizo_cache_info
 #define polaris10_cache_info carrizo_cache_info
 #define polaris11_cache_info carrizo_cache_info
+#define polaris12_cache_info carrizo_cache_info
 /* TODO - check & update Vega10 cache details */
 #define vega10_cache_info carrizo_cache_info
 #define raven_cache_info carrizo_cache_info
@@ -647,7 +648,12 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		pcache_info = polaris11_cache_info;
 		num_of_cache_types = ARRAY_SIZE(polaris11_cache_info);
 		break;
+	case CHIP_POLARIS12:
+		pcache_info = polaris12_cache_info;
+		num_of_cache_types = ARRAY_SIZE(polaris12_cache_info);
+		break;
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 		pcache_info = vega10_cache_info;
 		num_of_cache_types = ARRAY_SIZE(vega10_cache_info);

@@ -1741,10 +1741,12 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 	case CHIP_FIJI:
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		device_queue_manager_init_vi_tonga(&dqm->asic_ops);
 		break;
 
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		device_queue_manager_init_v9(&dqm->asic_ops);
