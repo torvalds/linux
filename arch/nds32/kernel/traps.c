@@ -8,6 +8,7 @@
 #include <linux/kdebug.h>
 #include <linux/sched/task_stack.h>
 #include <linux/uaccess.h>
+#include <linux/ftrace.h>
 
 #include <asm/proc-fns.h>
 #include <asm/unistd.h>
@@ -94,28 +95,6 @@ static void dump_instr(struct pt_regs *regs)
 	set_fs(fs);
 }
 
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-#include <linux/ftrace.h>
-static void
-get_real_ret_addr(unsigned long *addr, struct task_struct *tsk, int *graph)
-{
-	if (*addr == (unsigned long)return_to_handler) {
-		int index = tsk->curr_ret_stack;
-
-		if (tsk->ret_stack && index >= *graph) {
-			index -= *graph;
-			*addr = tsk->ret_stack[index].ret;
-			(*graph)++;
-		}
-	}
-}
-#else
-static inline void
-get_real_ret_addr(unsigned long *addr, struct task_struct *tsk, int *graph)
-{
-}
-#endif
-
 #define LOOP_TIMES (100)
 static void __dump(struct task_struct *tsk, unsigned long *base_reg)
 {
@@ -126,7 +105,8 @@ static void __dump(struct task_struct *tsk, unsigned long *base_reg)
 		while (!kstack_end(base_reg)) {
 			ret_addr = *base_reg++;
 			if (__kernel_text_address(ret_addr)) {
-				get_real_ret_addr(&ret_addr, tsk, &graph);
+				ret_addr = ftrace_graph_ret_addr(
+						tsk, &graph, ret_addr, NULL);
 				print_ip_sym(ret_addr);
 			}
 			if (--cnt < 0)
@@ -137,15 +117,12 @@ static void __dump(struct task_struct *tsk, unsigned long *base_reg)
 		       !((unsigned long)base_reg & 0x3) &&
 		       ((unsigned long)base_reg >= TASK_SIZE)) {
 			unsigned long next_fp;
-#if !defined(NDS32_ABI_2)
-			ret_addr = base_reg[0];
-			next_fp = base_reg[1];
-#else
-			ret_addr = base_reg[-1];
+			ret_addr = base_reg[LP_OFFSET];
 			next_fp = base_reg[FP_OFFSET];
-#endif
 			if (__kernel_text_address(ret_addr)) {
-				get_real_ret_addr(&ret_addr, tsk, &graph);
+
+				ret_addr = ftrace_graph_ret_addr(
+						tsk, &graph, ret_addr, NULL);
 				print_ip_sym(ret_addr);
 			}
 			if (--cnt < 0)
@@ -196,11 +173,10 @@ void die(const char *str, struct pt_regs *regs, int err)
 	pr_emerg("CPU: %i\n", smp_processor_id());
 	show_regs(regs);
 	pr_emerg("Process %s (pid: %d, stack limit = 0x%p)\n",
-		 tsk->comm, tsk->pid, task_thread_info(tsk) + 1);
+		 tsk->comm, tsk->pid, end_of_stack(tsk));
 
 	if (!user_mode(regs) || in_interrupt()) {
-		dump_mem("Stack: ", regs->sp,
-			 THREAD_SIZE + (unsigned long)task_thread_info(tsk));
+		dump_mem("Stack: ", regs->sp, (regs->sp + PAGE_SIZE) & PAGE_MASK);
 		dump_instr(regs);
 		dump_stack();
 	}

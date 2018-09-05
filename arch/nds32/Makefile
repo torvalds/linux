@@ -5,6 +5,10 @@ KBUILD_DEFCONFIG := defconfig
 
 comma = ,
 
+ifdef CONFIG_FUNCTION_TRACER
+arch-y += -malways-save-lp -mno-relax
+endif
+
 KBUILD_CFLAGS	+= $(call cc-option, -mno-sched-prolog-epilog)
 KBUILD_CFLAGS	+= -mcmodel=large
 
