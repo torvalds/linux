@@ -24,6 +24,7 @@
 #include <linux/serial.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/rational.h>
 #include <linux/slab.h>
 #include <linux/of.h>
@@ -2444,6 +2445,8 @@ static int imx_uart_suspend_noirq(struct device *dev)
 
 	clk_disable(sport->clk_ipg);
 
+	pinctrl_pm_select_sleep_state(dev);
+
 	return 0;
 }
 
@@ -2451,6 +2454,8 @@ static int imx_uart_resume_noirq(struct device *dev)
 {
 	struct imx_port *sport = dev_get_drvdata(dev);
 	int ret;
+
+	pinctrl_pm_select_default_state(dev);
 
 	ret = clk_enable(sport->clk_ipg);
 	if (ret)
