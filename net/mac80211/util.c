@@ -2757,49 +2757,65 @@ bool ieee80211_chandef_ht_oper(const struct ieee80211_ht_operation *ht_oper,
 	return true;
 }
 
-bool ieee80211_chandef_vht_oper(const struct ieee80211_vht_operation *oper,
+bool ieee80211_chandef_vht_oper(struct ieee80211_hw *hw,
+				const struct ieee80211_vht_operation *oper,
+				const struct ieee80211_ht_operation *htop,
 				struct cfg80211_chan_def *chandef)
 {
 	struct cfg80211_chan_def new = *chandef;
-	int cf1, cf2;
+	int cf0, cf1;
+	int ccfs0, ccfs1, ccfs2;
+	int ccf0, ccf1;
 
-	if (!oper)
+	if (!oper || !htop)
 		return false;
 
-	cf1 = ieee80211_channel_to_frequency(oper->center_freq_seg0_idx,
-					     chandef->chan->band);
-	cf2 = ieee80211_channel_to_frequency(oper->center_freq_seg1_idx,
-					     chandef->chan->band);
+	ccfs0 = oper->center_freq_seg0_idx;
+	ccfs1 = oper->center_freq_seg1_idx;
+	ccfs2 = (le16_to_cpu(htop->operation_mode) &
+				IEEE80211_HT_OP_MODE_CCFS2_MASK)
+			>> IEEE80211_HT_OP_MODE_CCFS2_SHIFT;
+
+	/* when parsing (and we know how to) CCFS1 and CCFS2 are equivalent */
+	ccf0 = ccfs0;
+	ccf1 = ccfs1;
+	if (!ccfs1 && ieee80211_hw_check(hw, SUPPORTS_VHT_EXT_NSS_BW))
+		ccf1 = ccfs2;
+
+	cf0 = ieee80211_channel_to_frequency(ccf0, chandef->chan->band);
+	cf1 = ieee80211_channel_to_frequency(ccf1, chandef->chan->band);
 
 	switch (oper->chan_width) {
 	case IEEE80211_VHT_CHANWIDTH_USE_HT:
+		/* just use HT information directly */
 		break;
 	case IEEE80211_VHT_CHANWIDTH_80MHZ:
 		new.width = NL80211_CHAN_WIDTH_80;
-		new.center_freq1 = cf1;
+		new.center_freq1 = cf0;
 		/* If needed, adjust based on the newer interop workaround. */
-		if (oper->center_freq_seg1_idx) {
+		if (ccf1) {
 			unsigned int diff;
 
-			diff = abs(oper->center_freq_seg1_idx -
-				   oper->center_freq_seg0_idx);
+			diff = abs(ccf1 - ccf0);
 			if (diff == 8) {
 				new.width = NL80211_CHAN_WIDTH_160;
-				new.center_freq1 = cf2;
+				new.center_freq1 = cf1;
 			} else if (diff > 8) {
 				new.width = NL80211_CHAN_WIDTH_80P80;
-				new.center_freq2 = cf2;
+				new.center_freq2 = cf1;
 			}
 		}
 		break;
 	case IEEE80211_VHT_CHANWIDTH_160MHZ:
+		/* deprecated encoding */
 		new.width = NL80211_CHAN_WIDTH_160;
-		new.center_freq1 = cf1;
+		new.center_freq1 = cf0;
 		break;
 	case IEEE80211_VHT_CHANWIDTH_80P80MHZ:
+		/* deprecated encoding */
 		new.width = NL80211_CHAN_WIDTH_80P80;
-		new.center_freq1 = cf1;
-		new.center_freq2 = cf2;
+		new.center_freq1 = cf0;
+		new.center_freq2 = cf1;
 		break;
 	default:
 		return false;

@@ -1199,6 +1199,9 @@ struct ieee80211_local {
 	/* number of RX chains the hardware has */
 	u8 rx_chains;
 
+	/* bitmap of which sbands were copied */
+	u8 sband_allocated;
+
 	int tx_headroom; /* required headroom for hardware/radiotap */
 
 	/* Tasklet and skb queue to process calls from IRQ mode. All frames
@@ -2109,7 +2112,9 @@ u8 *ieee80211_add_wmm_info_ie(u8 *buf, u8 qosinfo);
 /* channel management */
 bool ieee80211_chandef_ht_oper(const struct ieee80211_ht_operation *ht_oper,
 			       struct cfg80211_chan_def *chandef);
-bool ieee80211_chandef_vht_oper(const struct ieee80211_vht_operation *oper,
+bool ieee80211_chandef_vht_oper(struct ieee80211_hw *hw,
+				const struct ieee80211_vht_operation *oper,
+				const struct ieee80211_ht_operation *htop,
 				struct cfg80211_chan_def *chandef);
 u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c);
 

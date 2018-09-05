@@ -158,12 +158,10 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 	if (ret)
 		return ret;
 
-	if (type == NL80211_IFTYPE_AP_VLAN &&
-	    params && params->use_4addr == 0) {
+	if (type == NL80211_IFTYPE_AP_VLAN && params->use_4addr == 0) {
 		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
 		ieee80211_check_fast_rx_iface(sdata);
-	} else if (type == NL80211_IFTYPE_STATION &&
-		   params && params->use_4addr >= 0) {
+	} else if (type == NL80211_IFTYPE_STATION && params->use_4addr >= 0) {
 		sdata->u.mgd.use_4addr = params->use_4addr;
 	}
 
@@ -910,6 +908,9 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	sdata->needed_rx_chains = sdata->local->rx_chains;
 
 	sdata->vif.bss_conf.beacon_int = params->beacon_interval;
+
+	if (params->he_cap)
+		sdata->vif.bss_conf.he_support = true;
 
 	mutex_lock(&local->mtx);
 	err = ieee80211_vif_use_channel(sdata, &params->chandef,
