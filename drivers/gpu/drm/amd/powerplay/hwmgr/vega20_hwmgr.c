@@ -1195,7 +1195,7 @@ static int vega20_set_sclk_od(
 	int ret = 0;
 
 	od_sclk = golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value * value;
-	do_div(od_sclk, 100);
+	od_sclk /= 100;
 	od_sclk += golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
 
 	ret = vega20_od8_set_settings(hwmgr, OD8_SETTING_GFXCLK_FMAX, od_sclk);
@@ -1242,7 +1242,7 @@ static int vega20_set_mclk_od(
 	int ret = 0;
 
 	od_mclk = golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value * value;
-	do_div(od_mclk, 100);
+	od_mclk /= 100;
 	od_mclk += golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value;
 
 	ret = vega20_od8_set_settings(hwmgr, OD8_SETTING_UCLK_FMAX, od_mclk);
