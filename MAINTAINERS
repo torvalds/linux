@@ -5624,6 +5624,8 @@ F:	lib/fault-inject.c
 
 FBTFT Framebuffer drivers
 M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+L:	dri-devel@lists.freedesktop.org
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/fbtft/
 
