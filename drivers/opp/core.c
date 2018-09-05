@@ -785,7 +785,7 @@ struct opp_device *_add_opp_dev(const struct device *dev,
 	return opp_dev;
 }
 
-static struct opp_table *_allocate_opp_table(struct device *dev)
+static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 {
 	struct opp_table *opp_table;
 	struct opp_device *opp_dev;
@@ -808,7 +808,7 @@ static struct opp_table *_allocate_opp_table(struct device *dev)
 		return NULL;
 	}
 
-	_of_init_opp_table(opp_table, dev);
+	_of_init_opp_table(opp_table, dev, index);
 
 	/* Find clk for the device */
 	opp_table->clk = clk_get(dev, NULL);
@@ -833,7 +833,7 @@ void _get_opp_table_kref(struct opp_table *opp_table)
 	kref_get(&opp_table->kref);
 }
 
-struct opp_table *dev_pm_opp_get_opp_table(struct device *dev)
+static struct opp_table *_opp_get_opp_table(struct device *dev, int index)
 {
 	struct opp_table *opp_table;
 
@@ -844,14 +844,25 @@ struct opp_table *dev_pm_opp_get_opp_table(struct device *dev)
 	if (!IS_ERR(opp_table))
 		goto unlock;
 
-	opp_table = _allocate_opp_table(dev);
+	opp_table = _allocate_opp_table(dev, index);
 
 unlock:
 	mutex_unlock(&opp_table_lock);
 
 	return opp_table;
 }
+
+struct opp_table *dev_pm_opp_get_opp_table(struct device *dev)
+{
+	return _opp_get_opp_table(dev, 0);
+}
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_table);
+
+struct opp_table *dev_pm_opp_get_opp_table_indexed(struct device *dev,
+						   int index)
+{
+	return _opp_get_opp_table(dev, index);
+}
 
 static void _opp_table_kref_release(struct kref *kref)
 {

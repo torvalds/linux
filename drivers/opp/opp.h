@@ -200,9 +200,9 @@ void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, bool of, in
 struct opp_table *_add_opp_table(struct device *dev);
 
 #ifdef CONFIG_OF
-void _of_init_opp_table(struct opp_table *opp_table, struct device *dev);
+void _of_init_opp_table(struct opp_table *opp_table, struct device *dev, int index);
 #else
-static inline void _of_init_opp_table(struct opp_table *opp_table, struct device *dev) {}
+static inline void _of_init_opp_table(struct opp_table *opp_table, struct device *dev, int index) {}
 #endif
 
 #ifdef CONFIG_DEBUG_FS
