@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/platform_data/b53.h>
 #include <linux/phy.h>
+#include <linux/phylink.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <net/dsa.h>
@@ -947,33 +948,50 @@ static int b53_setup(struct dsa_switch *ds)
 	return ret;
 }
 
-static void b53_adjust_link(struct dsa_switch *ds, int port,
-			    struct phy_device *phydev)
+static void b53_force_link(struct b53_device *dev, int port, int link)
 {
-	struct b53_device *dev = ds->priv;
-	struct ethtool_eee *p = &dev->ports[port].eee;
-	u8 rgmii_ctrl = 0, reg = 0, off;
-
-	if (!phy_is_pseudo_fixed_link(phydev))
-		return;
+	u8 reg, val, off;
 
 	/* Override the port settings */
 	if (port == dev->cpu_port) {
 		off = B53_PORT_OVERRIDE_CTRL;
-		reg = PORT_OVERRIDE_EN;
+		val = PORT_OVERRIDE_EN;
 	} else {
 		off = B53_GMII_PORT_OVERRIDE_CTRL(port);
-		reg = GMII_PO_EN;
+		val = GMII_PO_EN;
 	}
 
-	/* Set the link UP */
-	if (phydev->link)
+	b53_read8(dev, B53_CTRL_PAGE, off, &reg);
+	reg |= val;
+	if (link)
 		reg |= PORT_OVERRIDE_LINK;
+	else
+		reg &= ~PORT_OVERRIDE_LINK;
+	b53_write8(dev, B53_CTRL_PAGE, off, reg);
+}
 
-	if (phydev->duplex == DUPLEX_FULL)
+static void b53_force_port_config(struct b53_device *dev, int port,
+				  int speed, int duplex, int pause)
+{
+	u8 reg, val, off;
+
+	/* Override the port settings */
+	if (port == dev->cpu_port) {
+		off = B53_PORT_OVERRIDE_CTRL;
+		val = PORT_OVERRIDE_EN;
+	} else {
+		off = B53_GMII_PORT_OVERRIDE_CTRL(port);
+		val = GMII_PO_EN;
+	}
+
+	b53_read8(dev, B53_CTRL_PAGE, off, &reg);
+	reg |= val;
+	if (duplex == DUPLEX_FULL)
 		reg |= PORT_OVERRIDE_FULL_DUPLEX;
+	else
+		reg &= ~PORT_OVERRIDE_FULL_DUPLEX;
 
-	switch (phydev->speed) {
+	switch (speed) {
 	case 2000:
 		reg |= PORT_OVERRIDE_SPEED_2000M;
 		/* fallthrough */
@@ -987,21 +1005,41 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 		reg |= PORT_OVERRIDE_SPEED_10M;
 		break;
 	default:
-		dev_err(ds->dev, "unknown speed: %d\n", phydev->speed);
+		dev_err(dev->dev, "unknown speed: %d\n", speed);
 		return;
 	}
 
+	if (pause & MLO_PAUSE_RX)
+		reg |= PORT_OVERRIDE_RX_FLOW;
+	if (pause & MLO_PAUSE_TX)
+		reg |= PORT_OVERRIDE_TX_FLOW;
+
+	b53_write8(dev, B53_CTRL_PAGE, off, reg);
+}
+
+static void b53_adjust_link(struct dsa_switch *ds, int port,
+			    struct phy_device *phydev)
+{
+	struct b53_device *dev = ds->priv;
+	struct ethtool_eee *p = &dev->ports[port].eee;
+	u8 rgmii_ctrl = 0, reg = 0, off;
+	int pause;
+
+	if (!phy_is_pseudo_fixed_link(phydev))
+		return;
+
 	/* Enable flow control on BCM5301x's CPU port */
 	if (is5301x(dev) && port == dev->cpu_port)
-		reg |= PORT_OVERRIDE_RX_FLOW | PORT_OVERRIDE_TX_FLOW;
+		pause = MLO_PAUSE_TXRX_MASK;
 
 	if (phydev->pause) {
 		if (phydev->asym_pause)
-			reg |= PORT_OVERRIDE_TX_FLOW;
-		reg |= PORT_OVERRIDE_RX_FLOW;
+			pause |= MLO_PAUSE_TX;
+		pause |= MLO_PAUSE_RX;
 	}
 
-	b53_write8(dev, B53_CTRL_PAGE, off, reg);
+	b53_force_port_config(dev, port, phydev->speed, phydev->duplex, pause);
+	b53_force_link(dev, port, phydev->link);
 
 	if (is531x5(dev) && phy_interface_is_rgmii(phydev)) {
 		if (port == 8)
@@ -1061,16 +1099,9 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 		}
 	} else if (is5301x(dev)) {
 		if (port != dev->cpu_port) {
-			u8 po_reg = B53_GMII_PORT_OVERRIDE_CTRL(dev->cpu_port);
-			u8 gmii_po;
-
-			b53_read8(dev, B53_CTRL_PAGE, po_reg, &gmii_po);
-			gmii_po |= GMII_PO_LINK |
-				   GMII_PO_RX_FLOW |
-				   GMII_PO_TX_FLOW |
-				   GMII_PO_EN |
-				   GMII_PO_SPEED_2000M;
-			b53_write8(dev, B53_CTRL_PAGE, po_reg, gmii_po);
+			b53_force_port_config(dev, dev->cpu_port, 2000,
+					      DUPLEX_FULL, MLO_PAUSE_TXRX_MASK);
+			b53_force_link(dev, dev->cpu_port, 1);
 		}
 	}
 
