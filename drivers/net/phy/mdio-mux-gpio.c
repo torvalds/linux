@@ -34,7 +34,7 @@ static int mdio_mux_gpio_switch_fn(int current_child, int desired_child,
 	values[0] = desired_child;
 
 	gpiod_set_array_value_cansleep(s->gpios->ndescs, s->gpios->desc,
-				       values);
+				       s->gpios->info, values);
 
 	return 0;
 }

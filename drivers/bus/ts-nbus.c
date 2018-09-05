@@ -114,7 +114,8 @@ static void ts_nbus_reset_bus(struct ts_nbus *ts_nbus)
 
 	values[0] = 0;
 
-	gpiod_set_array_value_cansleep(8, ts_nbus->data->desc, values);
+	gpiod_set_array_value_cansleep(8, ts_nbus->data->desc,
+				       ts_nbus->data->info, values);
 	gpiod_set_value_cansleep(ts_nbus->csn, 0);
 	gpiod_set_value_cansleep(ts_nbus->strobe, 0);
 	gpiod_set_value_cansleep(ts_nbus->ale, 0);
@@ -159,7 +160,7 @@ static void ts_nbus_write_byte(struct ts_nbus *ts_nbus, u8 byte)
 
 	values[0] = byte;
 
-	gpiod_set_array_value_cansleep(8, gpios->desc, values);
+	gpiod_set_array_value_cansleep(8, gpios->desc, gpios->info, values);
 }
 
 /*

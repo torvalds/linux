@@ -27,7 +27,8 @@ static int mux_gpio_set(struct mux_control *mux, int state)
 	values[0] = state;
 
 	gpiod_set_array_value_cansleep(mux_gpio->gpios->ndescs,
-				       mux_gpio->gpios->desc, values);
+				       mux_gpio->gpios->desc,
+				       mux_gpio->gpios->info, values);
 
 	return 0;
 }

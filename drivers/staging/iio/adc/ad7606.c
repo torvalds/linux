@@ -230,7 +230,8 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 		values[0] = ret;
 
 		mutex_lock(&st->lock);
-		gpiod_set_array_value(3, st->gpio_os->desc, values);
+		gpiod_set_array_value(3, st->gpio_os->desc, st->gpio_os->info,
+				      values);
 		st->oversampling = val;
 		mutex_unlock(&st->lock);
 
