@@ -29,6 +29,7 @@
 #define DRM_ATOMIC_H_
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_util.h>
 
 /**
  * struct drm_crtc_commit - track modeset commits on a CRTC

@@ -27,6 +27,7 @@
 #include <linux/ctype.h>
 #include <drm/drm_mode_object.h>
 #include <drm/drm_color_mgmt.h>
+#include <drm/drm_util.h>
 
 struct drm_crtc;
 struct drm_printer;
