@@ -2155,8 +2155,8 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct sock *sk;
 	struct iucv_sock *iucv;
 	struct af_iucv_trans_hdr *trans_hdr;
+	int err = NET_RX_SUCCESS;
 	char nullstring[8];
-	int err = 0;
 
 	if (skb->len < (ETH_HLEN + sizeof(struct af_iucv_trans_hdr))) {
 		WARN_ONCE(1, "AF_IUCV too short skb, len=%d, min=%d",
@@ -2254,7 +2254,7 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 		err = afiucv_hs_callback_rx(sk, skb);
 		break;
 	default:
-		;
+		kfree_skb(skb);
 	}
 
 	return err;
