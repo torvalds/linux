@@ -464,30 +464,6 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 }
 EXPORT_SYMBOL(drm_atomic_set_mode_prop_for_crtc);
 
-/**
- * drm_atomic_replace_property_blob_from_id - lookup the new blob and replace the old one with it
- * @dev: DRM device
- * @blob: a pointer to the member blob to be replaced
- * @blob_id: ID of the new blob
- * @expected_size: total expected size of the blob data (in bytes)
- * @expected_elem_size: expected element size of the blob data (in bytes)
- * @replaced: did the blob get replaced?
- *
- * Replace @blob with another blob with the ID @blob_id. If @blob_id is zero
- * @blob becomes NULL.
- *
- * If @expected_size is positive the new blob length is expected to be equal
- * to @expected_size bytes. If @expected_elem_size is positive the new blob
- * length is expected to be a multiple of @expected_elem_size bytes. Otherwise
- * an error is returned.
- *
- * @replaced will indicate to the caller whether the blob was replaced or not.
- * If the old and new blobs were in fact the same blob @replaced will be false
- * otherwise it will be true.
- *
- * RETURNS:
- * Zero on success, error code on failure.
- */
 static int
 drm_atomic_replace_property_blob_from_id(struct drm_device *dev,
 					 struct drm_property_blob **blob,
@@ -521,22 +497,7 @@ drm_atomic_replace_property_blob_from_id(struct drm_device *dev,
 	return 0;
 }
 
-/**
- * drm_atomic_crtc_set_property - set property on CRTC
- * @crtc: the drm CRTC to set a property on
- * @state: the state object to update with the new property value
- * @property: the property to set
- * @val: the new property value
- *
- * This function handles generic/core properties and calls out to driver's
- * &drm_crtc_funcs.atomic_set_property for driver properties. To ensure
- * consistent behavior you must call this function rather than the driver hook
- * directly.
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
-int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
+static int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		struct drm_crtc_state *state, struct drm_property *property,
 		uint64_t val)
 {
@@ -598,23 +559,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_atomic_crtc_set_property);
 
-/**
- * drm_atomic_crtc_get_property - get property value from CRTC state
- * @crtc: the drm CRTC to set a property on
- * @state: the state object to get the property value from
- * @property: the property to set
- * @val: return location for the property value
- *
- * This function handles generic/core properties and calls out to driver's
- * &drm_crtc_funcs.atomic_get_property for driver properties. To ensure
- * consistent behavior you must call this function rather than the driver hook
- * directly.
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
 static int
 drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		const struct drm_crtc_state *state,
@@ -643,16 +588,6 @@ drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 	return 0;
 }
 
-/**
- * drm_atomic_crtc_check - check crtc state
- * @crtc: crtc to check
- * @state: crtc state to check
- *
- * Provides core sanity checks for crtc state.
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
 static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 		struct drm_crtc_state *state)
 {
@@ -728,16 +663,6 @@ static void drm_atomic_crtc_print_state(struct drm_printer *p,
 		crtc->funcs->atomic_print_state(p, state);
 }
 
-/**
- * drm_atomic_connector_check - check connector state
- * @connector: connector to check
- * @state: connector state to check
- *
- * Provides core sanity checks for connector state.
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
 static int drm_atomic_connector_check(struct drm_connector *connector,
 		struct drm_connector_state *state)
 {
@@ -923,21 +848,6 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 	return 0;
 }
 
-/**
- * drm_atomic_plane_get_property - get property value from plane state
- * @plane: the drm plane to set a property on
- * @state: the state object to get the property value from
- * @property: the property to set
- * @val: return location for the property value
- *
- * This function handles generic/core properties and calls out to driver's
- * &drm_plane_funcs.atomic_get_property for driver properties.  To ensure
- * consistent behavior you must call this function rather than the driver hook
- * directly.
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
 static int
 drm_atomic_plane_get_property(struct drm_plane *plane,
 		const struct drm_plane_state *state,
@@ -1328,21 +1238,39 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 }
 EXPORT_SYMBOL(drm_atomic_get_connector_state);
 
-/**
- * drm_atomic_connector_set_property - set property on connector.
- * @connector: the drm connector to set a property on
- * @state: the state object to update with the new property value
- * @property: the property to set
- * @val: the new property value
- *
- * This function handles generic/core properties and calls out to driver's
- * &drm_connector_funcs.atomic_set_property for driver properties.  To ensure
- * consistent behavior you must call this function rather than the driver hook
- * directly.
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
+static struct drm_writeback_job *
+drm_atomic_get_writeback_job(struct drm_connector_state *conn_state)
+{
+	WARN_ON(conn_state->connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK);
+
+	if (!conn_state->writeback_job)
+		conn_state->writeback_job =
+			kzalloc(sizeof(*conn_state->writeback_job), GFP_KERNEL);
+
+	return conn_state->writeback_job;
+}
+
+static int drm_atomic_set_writeback_fb_for_connector(
+		struct drm_connector_state *conn_state,
+		struct drm_framebuffer *fb)
+{
+	struct drm_writeback_job *job =
+		drm_atomic_get_writeback_job(conn_state);
+	if (!job)
+		return -ENOMEM;
+
+	drm_framebuffer_assign(&job->fb, fb);
+
+	if (fb)
+		DRM_DEBUG_ATOMIC("Set [FB:%d] for connector state %p\n",
+				 fb->base.id, conn_state);
+	else
+		DRM_DEBUG_ATOMIC("Set [NOFB] for connector state %p\n",
+				 conn_state);
+
+	return 0;
+}
+
 static int drm_atomic_connector_set_property(struct drm_connector *connector,
 		struct drm_connector_state *state, struct drm_property *property,
 		uint64_t val)
@@ -1449,21 +1377,6 @@ static void drm_atomic_connector_print_state(struct drm_printer *p,
 		connector->funcs->atomic_print_state(p, state);
 }
 
-/**
- * drm_atomic_connector_get_property - get property value from connector state
- * @connector: the drm connector to set a property on
- * @state: the state object to get the property value from
- * @property: the property to set
- * @val: return location for the property value
- *
- * This function handles generic/core properties and calls out to driver's
- * &drm_connector_funcs.atomic_get_property for driver properties.  To ensure
- * consistent behavior you must call this function rather than the driver hook
- * directly.
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
 static int
 drm_atomic_connector_get_property(struct drm_connector *connector,
 		const struct drm_connector_state *state,
@@ -1738,70 +1651,6 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_set_crtc_for_connector);
-
-/*
- * drm_atomic_get_writeback_job - return or allocate a writeback job
- * @conn_state: Connector state to get the job for
- *
- * Writeback jobs have a different lifetime to the atomic state they are
- * associated with. This convenience function takes care of allocating a job
- * if there isn't yet one associated with the connector state, otherwise
- * it just returns the existing job.
- *
- * Returns: The writeback job for the given connector state
- */
-static struct drm_writeback_job *
-drm_atomic_get_writeback_job(struct drm_connector_state *conn_state)
-{
-	WARN_ON(conn_state->connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK);
-
-	if (!conn_state->writeback_job)
-		conn_state->writeback_job =
-			kzalloc(sizeof(*conn_state->writeback_job), GFP_KERNEL);
-
-	return conn_state->writeback_job;
-}
-
-/**
- * drm_atomic_set_writeback_fb_for_connector - set writeback framebuffer
- * @conn_state: atomic state object for the connector
- * @fb: fb to use for the connector
- *
- * This is used to set the framebuffer for a writeback connector, which outputs
- * to a buffer instead of an actual physical connector.
- * Changing the assigned framebuffer requires us to grab a reference to the new
- * fb and drop the reference to the old fb, if there is one. This function
- * takes care of all these details besides updating the pointer in the
- * state object itself.
- *
- * Note: The only way conn_state can already have an fb set is if the commit
- * sets the property more than once.
- *
- * See also: drm_writeback_connector_init()
- *
- * Returns: 0 on success
- */
-int drm_atomic_set_writeback_fb_for_connector(
-		struct drm_connector_state *conn_state,
-		struct drm_framebuffer *fb)
-{
-	struct drm_writeback_job *job =
-		drm_atomic_get_writeback_job(conn_state);
-	if (!job)
-		return -ENOMEM;
-
-	drm_framebuffer_assign(&job->fb, fb);
-
-	if (fb)
-		DRM_DEBUG_ATOMIC("Set [FB:%d] for connector state %p\n",
-				 fb->base.id, conn_state);
-	else
-		DRM_DEBUG_ATOMIC("Set [NOFB] for connector state %p\n",
-				 conn_state);
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_atomic_set_writeback_fb_for_connector);
 
 /**
  * drm_atomic_add_affected_connectors - add connectors for crtc
