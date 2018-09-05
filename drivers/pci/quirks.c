@@ -4355,11 +4355,6 @@ static int pci_quirk_qcom_rp_acs(struct pci_dev *dev, u16 acs_flags)
  *
  * 0x9d10-0x9d1b PCI Express Root port #{1-12}
  *
- * The 300 series chipset suffers from the same bug so include those root
- * ports here as well.
- *
- * 0xa32c-0xa343 PCI Express Root port #{0-24}
- *
  * [1] http://www.intel.com/content/www/us/en/chipsets/100-series-chipset-datasheet-vol-2.html
  * [2] http://www.intel.com/content/www/us/en/chipsets/100-series-chipset-datasheet-vol-1.html
  * [3] http://www.intel.com/content/www/us/en/chipsets/100-series-chipset-spec-update.html
@@ -4377,7 +4372,6 @@ static bool pci_quirk_intel_spt_pch_acs_match(struct pci_dev *dev)
 	case 0xa110 ... 0xa11f: case 0xa167 ... 0xa16a: /* Sunrise Point */
 	case 0xa290 ... 0xa29f: case 0xa2e7 ... 0xa2ee: /* Union Point */
 	case 0x9d10 ... 0x9d1b: /* 7th & 8th Gen Mobile */
-	case 0xa32c ... 0xa343:				/* 300 series */
 		return true;
 	}
 
