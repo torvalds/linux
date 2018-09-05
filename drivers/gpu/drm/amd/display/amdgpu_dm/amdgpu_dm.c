@@ -427,8 +427,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	init_data.cgs_device = adev->dm.cgs_device;
 
-	adev->dm.dal = NULL;
-
 	init_data.dce_environment = DCE_ENV_PRODUCTION_DRV;
 
 	/*

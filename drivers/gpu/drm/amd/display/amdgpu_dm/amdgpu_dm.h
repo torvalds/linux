@@ -78,9 +78,7 @@ struct dm_comressor_info {
 	uint64_t gpu_addr;
 };
 
-
 struct amdgpu_display_manager {
-	struct dal *dal;
 	struct dc *dc;
 	struct cgs_device *cgs_device;
 
