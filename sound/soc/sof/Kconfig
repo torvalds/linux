@@ -4,6 +4,9 @@ config SND_SOC_SOF_PCI
 config SND_SOC_SOF_ACPI
 	tristate
 
+config SND_SOC_SOF_SPI
+	tristate
+
 config SND_SOC_SOF
 	tristate "Sound Open Firmware Support"
 	select SND_SOC_TOPOLOGY
