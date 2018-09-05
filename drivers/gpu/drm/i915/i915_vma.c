@@ -199,7 +199,6 @@ vma_create(struct drm_i915_gem_object *obj,
 		vma->flags |= I915_VMA_GGTT;
 		list_add(&vma->obj_link, &obj->vma_list);
 	} else {
-		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
 		list_add_tail(&vma->obj_link, &obj->vma_list);
 	}
 
@@ -806,9 +805,6 @@ static void __i915_vma_destroy(struct i915_vma *vma)
 	list_del(&vma->vm_link);
 	if (vma->obj)
 		rb_erase(&vma->obj_node, &vma->obj->vma_tree);
-
-	if (!i915_vma_is_ggtt(vma))
-		i915_ppgtt_put(i915_vm_to_ppgtt(vma->vm));
 
 	rbtree_postorder_for_each_entry_safe(iter, n, &vma->active, node) {
 		GEM_BUG_ON(i915_gem_active_isset(&iter->base));

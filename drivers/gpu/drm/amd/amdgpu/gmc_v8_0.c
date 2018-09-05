@@ -969,19 +969,6 @@ static void gmc_v8_0_gart_disable(struct amdgpu_device *adev)
 }
 
 /**
- * gmc_v8_0_gart_fini - vm fini callback
- *
- * @adev: amdgpu_device pointer
- *
- * Tears down the driver GART/VM setup (CIK).
- */
-static void gmc_v8_0_gart_fini(struct amdgpu_device *adev)
-{
-	amdgpu_gart_table_vram_free(adev);
-	amdgpu_gart_fini(adev);
-}
-
-/**
  * gmc_v8_0_vm_decode_fault - print human readable fault info
  *
  * @adev: amdgpu_device pointer
@@ -1199,8 +1186,9 @@ static int gmc_v8_0_sw_fini(void *handle)
 	amdgpu_gem_force_release(adev);
 	amdgpu_vm_manager_fini(adev);
 	kfree(adev->gmc.vm_fault_info);
-	gmc_v8_0_gart_fini(adev);
+	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_fini(adev);
+	amdgpu_gart_fini(adev);
 	release_firmware(adev->gmc.fw);
 	adev->gmc.fw = NULL;
 
