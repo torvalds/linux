@@ -368,8 +368,8 @@ static int fetch_ha(const struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
 		(const void *)&dst_in6->sin6_addr;
 	sa_family_t family = dst_in->sa_family;
 
-	/* Gateway + ARPHRD_INFINIBAND -> IB router */
-	if (has_gateway(dst, family) && dst->dev->type == ARPHRD_INFINIBAND)
+	/* If we have a gateway in IB mode then it must be an IB network */
+	if (has_gateway(dst, family) && dev_addr->network == RDMA_NETWORK_IB)
 		return ib_nl_fetch_ha(dev_addr, daddr, seq, family);
 	else
 		return dst_fetch_ha(dst, dev_addr, daddr);
@@ -401,13 +401,6 @@ static int addr4_resolve(struct sockaddr *src_sock,
 
 	src_in->sin_addr.s_addr = fl4.saddr;
 
-	/* If there's a gateway and type of device not ARPHRD_INFINIBAND, we're
-	 * definitely in RoCE v2 (as RoCE v1 isn't routable) set the network
-	 * type accordingly.
-	 */
-	if (rt->rt_uses_gateway && rt->dst.dev->type != ARPHRD_INFINIBAND)
-		addr->network = RDMA_NETWORK_IPV4;
-
 	addr->hoplimit = ip4_dst_hoplimit(&rt->dst);
 
 	*prt = rt;
@@ -425,7 +418,6 @@ static int addr6_resolve(struct sockaddr *src_sock,
 				(const struct sockaddr_in6 *)dst_sock;
 	struct flowi6 fl6;
 	struct dst_entry *dst;
-	struct rt6_info *rt;
 	int ret;
 
 	memset(&fl6, 0, sizeof fl6);
@@ -437,17 +429,8 @@ static int addr6_resolve(struct sockaddr *src_sock,
 	if (ret < 0)
 		return ret;
 
-	rt = (struct rt6_info *)dst;
 	if (ipv6_addr_any(&src_in->sin6_addr))
 		src_in->sin6_addr = fl6.saddr;
-
-	/* If there's a gateway and type of device not ARPHRD_INFINIBAND, we're
-	 * definitely in RoCE v2 (as RoCE v1 isn't routable) set the network
-	 * type accordingly.
-	 */
-	if (rt->rt6i_flags & RTF_GATEWAY &&
-	    ip6_dst_idev(dst)->dev->type != ARPHRD_INFINIBAND)
-		addr->network = RDMA_NETWORK_IPV6;
 
 	addr->hoplimit = ip6_dst_hoplimit(dst);
 
@@ -491,6 +474,20 @@ static int rdma_set_src_addr(const struct dst_entry *dst,
 		ret = rdma_translate_ip(dst_in, dev_addr);
 	else
 		rdma_copy_src_l2_addr(dev_addr, dst->dev);
+
+	/*
+	 * If there's a gateway and type of device not ARPHRD_INFINIBAND,
+	 * we're definitely in RoCE v2 (as RoCE v1 isn't routable) set the
+	 * network type accordingly.
+	 */
+	if (has_gateway(dst, dst_in->sa_family) &&
+	    dst->dev->type != ARPHRD_INFINIBAND)
+		dev_addr->network = dst_in->sa_family == AF_INET ?
+						RDMA_NETWORK_IPV4 :
+						RDMA_NETWORK_IPV6;
+	else
+		dev_addr->network = RDMA_NETWORK_IB;
+
 	return ret;
 }
 
