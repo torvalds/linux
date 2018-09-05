@@ -249,6 +249,9 @@ int rpmh_write_async(const struct device *dev, enum rpmh_state state,
 	struct rpmh_request *rpm_msg;
 	int ret;
 
+	if (rpmh_standalone)
+		return 0;
+
 	ret = check_ctrlr_state(ctrlr, state);
 	if (ret)
 		return ret;
@@ -285,6 +288,9 @@ int rpmh_write(const struct device *dev, enum rpmh_state state,
 	DEFINE_RPMH_MSG_ONSTACK(dev, state, &compl, rpm_msg);
 	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
 	int ret;
+
+	if (rpmh_standalone)
+		return 0;
 
 	ret = check_ctrlr_state(ctrlr, state);
 	if (ret)
@@ -367,6 +373,9 @@ int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 	int count = 0;
 	int ret, i;
 	void *ptr;
+
+	if (rpmh_standalone)
+		return 0;
 
 	ret = check_ctrlr_state(ctrlr, state);
 	if (ret)
@@ -472,6 +481,9 @@ int rpmh_flush(struct rpmh_ctrlr *ctrlr)
 	struct cache_req *p;
 	int ret = 0;
 
+	if (rpmh_standalone)
+		return 0;
+
 	lockdep_assert_irqs_disabled();
 
 	/*
@@ -531,6 +543,9 @@ void rpmh_invalidate(const struct device *dev)
 	struct batch_cache_req *req, *tmp;
 	unsigned long flags;
 
+	if (rpmh_standalone)
+		return;
+
 	spin_lock_irqsave(&ctrlr->cache_lock, flags);
 	list_for_each_entry_safe(req, tmp, &ctrlr->batch_cache, list)
 		kfree(req);
@@ -554,6 +569,9 @@ int rpmh_mode_solver_set(const struct device *dev, bool enable)
 {
 	int ret;
 	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
+
+	if (rpmh_standalone)
+		return 0;
 
 	spin_lock(&ctrlr->cache_lock);
 	ret = rpmh_rsc_mode_solver_set(ctrlr_to_drv(ctrlr), enable);

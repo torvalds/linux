@@ -95,6 +95,7 @@ static const char * const accl_str[] = {
 
 static struct rsc_drv *__rsc_drv[MAX_RSC_COUNT];
 static int __rsc_count;
+bool rpmh_standalone;
 
 /*
  * Here's a high level overview of how all the registers in RPMH work
@@ -1073,6 +1074,11 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 									ret);
 		return ret;
 	}
+
+	rpmh_standalone = cmd_db_is_standalone();
+	if (rpmh_standalone)
+		dev_info(&pdev->dev, "RPMH is running in standalone mode.\n");
+
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
