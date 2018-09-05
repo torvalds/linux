@@ -31,6 +31,14 @@
  * and are not exported to drivers.
  */
 
+enum drm_mode_status;
+enum drm_connector_force;
+
+struct drm_display_mode;
+struct work_struct;
+struct drm_connector;
+struct drm_bridge;
+struct edid;
 
 /* drm_crtc.c */
 int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
