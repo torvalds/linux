@@ -3261,6 +3261,9 @@ static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 	if (max_frags && nfrags > max_frags)
 		goto out;
 
+	if (!drv_can_aggregate_in_amsdu(local, head, skb))
+		goto out;
+
 	if (!ieee80211_amsdu_prepare_head(sdata, fast_tx, head))
 		goto out;
 
