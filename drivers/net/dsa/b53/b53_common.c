@@ -765,6 +765,8 @@ static int b53_reset_switch(struct b53_device *priv)
 	memset(priv->vlans, 0, sizeof(*priv->vlans) * priv->num_vlans);
 	memset(priv->ports, 0, sizeof(*priv->ports) * priv->num_ports);
 
+	priv->serdes_lane = B53_INVALID_LANE;
+
 	return b53_switch_reset(priv);
 }
 
@@ -1128,6 +1130,9 @@ void b53_phylink_validate(struct dsa_switch *ds, int port,
 	struct b53_device *dev = ds->priv;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
+	if (dev->ops->serdes_phylink_validate)
+		dev->ops->serdes_phylink_validate(dev, port, mask, state);
+
 	/* Allow all the expected bits */
 	phylink_set(mask, Autoneg);
 	phylink_set_port_modes(mask);
@@ -1164,7 +1169,12 @@ EXPORT_SYMBOL(b53_phylink_validate);
 int b53_phylink_mac_link_state(struct dsa_switch *ds, int port,
 			       struct phylink_link_state *state)
 {
+	struct b53_device *dev = ds->priv;
 	int ret = -EOPNOTSUPP;
+
+	if (phy_interface_mode_is_8023z(state->interface) &&
+	    dev->ops->serdes_link_state)
+		ret = dev->ops->serdes_link_state(dev, port, state);
 
 	return ret;
 }
@@ -1184,11 +1194,19 @@ void b53_phylink_mac_config(struct dsa_switch *ds, int port,
 				      state->duplex, state->pause);
 		return;
 	}
+
+	if (phy_interface_mode_is_8023z(state->interface) &&
+	    dev->ops->serdes_config)
+		dev->ops->serdes_config(dev, port, mode, state);
 }
 EXPORT_SYMBOL(b53_phylink_mac_config);
 
 void b53_phylink_mac_an_restart(struct dsa_switch *ds, int port)
 {
+	struct b53_device *dev = ds->priv;
+
+	if (dev->ops->serdes_an_restart)
+		dev->ops->serdes_an_restart(dev, port);
 }
 EXPORT_SYMBOL(b53_phylink_mac_an_restart);
 
@@ -1205,6 +1223,10 @@ void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
 		b53_force_link(dev, port, false);
 		return;
 	}
+
+	if (phy_interface_mode_is_8023z(interface) &&
+	    dev->ops->serdes_link_set)
+		dev->ops->serdes_link_set(dev, port, mode, interface, false);
 }
 EXPORT_SYMBOL(b53_phylink_mac_link_down);
 
@@ -1222,6 +1244,10 @@ void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
 		b53_force_link(dev, port, true);
 		return;
 	}
+
+	if (phy_interface_mode_is_8023z(interface) &&
+	    dev->ops->serdes_link_set)
+		dev->ops->serdes_link_set(dev, port, mode, interface, true);
 }
 EXPORT_SYMBOL(b53_phylink_mac_link_up);
 

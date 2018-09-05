@@ -25,6 +25,7 @@
 #include <linux/of.h>
 
 #include "b53_priv.h"
+#include "b53_serdes.h"
 
 /* command and status register of the SRAB */
 #define B53_SRAB_CMDSTAT		0x2c
@@ -62,15 +63,28 @@
 #define  B53_SRAB_P7_SLEEP_TIMER	BIT(11)
 #define  B53_SRAB_IMP0_SLEEP_TIMER	BIT(12)
 
+/* Port mux configuration registers */
+#define B53_MUX_CONFIG_P5		0x00
+#define  MUX_CONFIG_SGMII		0
+#define  MUX_CONFIG_MII_LITE		1
+#define  MUX_CONFIG_RGMII		2
+#define  MUX_CONFIG_GMII		3
+#define  MUX_CONFIG_GPHY		4
+#define  MUX_CONFIG_INTERNAL		5
+#define  MUX_CONFIG_MASK		0x7
+#define B53_MUX_CONFIG_P4		0x04
+
 struct b53_srab_port_priv {
 	int irq;
 	bool irq_enabled;
 	struct b53_device *dev;
 	unsigned int num;
+	phy_interface_t mode;
 };
 
 struct b53_srab_priv {
 	void __iomem *regs;
+	void __iomem *mux_config;
 	struct b53_srab_port_priv port_intrs[B53_N_PORTS];
 };
 
@@ -356,6 +370,11 @@ err:
 
 static irqreturn_t b53_srab_port_thread(int irq, void *dev_id)
 {
+	struct b53_srab_port_priv *port = dev_id;
+	struct b53_device *dev = port->dev;
+
+	b53_port_event(dev->ds, port->num);
+
 	return IRQ_HANDLED;
 }
 
@@ -369,6 +388,24 @@ static irqreturn_t b53_srab_port_isr(int irq, void *dev_id)
 	writel(BIT(port->num), priv->regs + B53_SRAB_INTR);
 
 	return IRQ_WAKE_THREAD;
+}
+
+static u8 b53_srab_serdes_map_lane(struct b53_device *dev, int port)
+{
+	struct b53_srab_priv *priv = dev->priv;
+	struct b53_srab_port_priv *p = &priv->port_intrs[port];
+
+	if (p->mode != PHY_INTERFACE_MODE_SGMII)
+		return B53_INVALID_LANE;
+
+	switch (port) {
+	case 5:
+		return 0;
+	case 4:
+		return 1;
+	default:
+		return B53_INVALID_LANE;
+	}
 }
 
 static int b53_srab_irq_enable(struct b53_device *dev, int port)
@@ -410,6 +447,14 @@ static const struct b53_io_ops b53_srab_ops = {
 	.write64 = b53_srab_write64,
 	.irq_enable = b53_srab_irq_enable,
 	.irq_disable = b53_srab_irq_disable,
+#if IS_ENABLED(CONFIG_B53_SERDES)
+	.serdes_map_lane = b53_srab_serdes_map_lane,
+	.serdes_link_state = b53_serdes_link_state,
+	.serdes_config = b53_serdes_config,
+	.serdes_an_restart = b53_serdes_an_restart,
+	.serdes_link_set = b53_serdes_link_set,
+	.serdes_phylink_validate = b53_serdes_phylink_validate,
+#endif
 };
 
 static const struct of_device_id b53_srab_of_match[] = {
@@ -480,6 +525,61 @@ static void b53_srab_prepare_irq(struct platform_device *pdev)
 	b53_srab_intr_set(priv, true);
 }
 
+static void b53_srab_mux_init(struct platform_device *pdev)
+{
+	struct b53_device *dev = platform_get_drvdata(pdev);
+	struct b53_srab_priv *priv = dev->priv;
+	struct b53_srab_port_priv *p;
+	struct resource *r;
+	unsigned int port;
+	u32 reg, off = 0;
+	int ret;
+
+	if (dev->pdata && dev->pdata->chip_id != BCM58XX_DEVICE_ID)
+		return;
+
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	priv->mux_config = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(priv->mux_config))
+		return;
+
+	/* Obtain the port mux configuration so we know which lanes
+	 * actually map to SerDes lanes
+	 */
+	for (port = 5; port > 3; port--, off += 4) {
+		p = &priv->port_intrs[port];
+
+		reg = readl(priv->mux_config + B53_MUX_CONFIG_P5 + off);
+		switch (reg & MUX_CONFIG_MASK) {
+		case MUX_CONFIG_SGMII:
+			p->mode = PHY_INTERFACE_MODE_SGMII;
+			ret = b53_serdes_init(dev, port);
+			if (ret)
+				continue;
+			break;
+		case MUX_CONFIG_MII_LITE:
+			p->mode = PHY_INTERFACE_MODE_MII;
+			break;
+		case MUX_CONFIG_GMII:
+			p->mode = PHY_INTERFACE_MODE_GMII;
+			break;
+		case MUX_CONFIG_RGMII:
+			p->mode = PHY_INTERFACE_MODE_RGMII;
+			break;
+		case MUX_CONFIG_INTERNAL:
+			p->mode = PHY_INTERFACE_MODE_INTERNAL;
+			break;
+		default:
+			p->mode = PHY_INTERFACE_MODE_NA;
+			break;
+		}
+
+		if (p->mode != PHY_INTERFACE_MODE_NA)
+			dev_info(&pdev->dev, "Port %d mode: %s\n",
+				 port, phy_modes(p->mode));
+	}
+}
+
 static int b53_srab_probe(struct platform_device *pdev)
 {
 	struct b53_platform_data *pdata = pdev->dev.platform_data;
@@ -519,6 +619,7 @@ static int b53_srab_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 
 	b53_srab_prepare_irq(pdev);
+	b53_srab_mux_init(pdev);
 
 	return b53_switch_register(dev);
 }
