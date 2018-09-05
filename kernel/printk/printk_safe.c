@@ -306,12 +306,12 @@ static __printf(1, 0) int vprintk_nmi(const char *fmt, va_list args)
 	return printk_safe_log_store(s, fmt, args);
 }
 
-void printk_nmi_enter(void)
+void notrace printk_nmi_enter(void)
 {
 	this_cpu_or(printk_context, PRINTK_NMI_CONTEXT_MASK);
 }
 
-void printk_nmi_exit(void)
+void notrace printk_nmi_exit(void)
 {
 	this_cpu_and(printk_context, ~PRINTK_NMI_CONTEXT_MASK);
 }
