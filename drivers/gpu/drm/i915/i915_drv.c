@@ -870,7 +870,6 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 /**
  * i915_driver_init_early - setup state not requiring device access
  * @dev_priv: device private
- * @ent: the matching pci_device_id
  *
  * Initialize everything that is a "SW-only" state, that is state not
  * requiring accessing the device or exposing the driver via kernel internal
@@ -878,25 +877,13 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
  * system memory allocation, setting up device specific attributes and
  * function hooks not requiring accessing the device.
  */
-static int i915_driver_init_early(struct drm_i915_private *dev_priv,
-				  const struct pci_device_id *ent)
+static int i915_driver_init_early(struct drm_i915_private *dev_priv)
 {
-	const struct intel_device_info *match_info =
-		(struct intel_device_info *)ent->driver_data;
-	struct intel_device_info *device_info;
 	int ret = 0;
 
 	if (i915_inject_load_failure())
 		return -ENODEV;
 
-	/* Setup the write-once "constant" device info */
-	device_info = mkwrite_device_info(dev_priv);
-	memcpy(device_info, match_info, sizeof(*device_info));
-	device_info->device_id = dev_priv->drm.pdev->device;
-
-	BUILD_BUG_ON(INTEL_MAX_PLATFORMS >
-		     sizeof(device_info->platform_mask) * BITS_PER_BYTE);
-	BUG_ON(device_info->gen > sizeof(device_info->gen_mask) * BITS_PER_BYTE);
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
 	mutex_init(&dev_priv->backlight_lock);
@@ -1335,6 +1322,39 @@ static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 		DRM_INFO("DRM_I915_DEBUG_RUNTIME_PM enabled\n");
 }
 
+static struct drm_i915_private *
+i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
+{
+	const struct intel_device_info *match_info =
+		(struct intel_device_info *)ent->driver_data;
+	struct intel_device_info *device_info;
+	struct drm_i915_private *i915;
+
+	i915 = kzalloc(sizeof(*i915), GFP_KERNEL);
+	if (!i915)
+		return NULL;
+
+	if (drm_dev_init(&i915->drm, &driver, &pdev->dev)) {
+		kfree(i915);
+		return NULL;
+	}
+
+	i915->drm.pdev = pdev;
+	i915->drm.dev_private = i915;
+	pci_set_drvdata(pdev, &i915->drm);
+
+	/* Setup the write-once "constant" device info */
+	device_info = mkwrite_device_info(i915);
+	memcpy(device_info, match_info, sizeof(*device_info));
+	device_info->device_id = pdev->device;
+
+	BUILD_BUG_ON(INTEL_MAX_PLATFORMS >
+		     sizeof(device_info->platform_mask) * BITS_PER_BYTE);
+	BUG_ON(device_info->gen > sizeof(device_info->gen_mask) * BITS_PER_BYTE);
+
+	return i915;
+}
+
 /**
  * i915_driver_load - setup chip and create an initial config
  * @pdev: PCI device
@@ -1357,24 +1377,15 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!i915_modparams.nuclear_pageflip && match_info->gen < 5)
 		driver.driver_features &= ~DRIVER_ATOMIC;
 
-	ret = -ENOMEM;
-	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
-	if (dev_priv)
-		ret = drm_dev_init(&dev_priv->drm, &driver, &pdev->dev);
-	if (ret) {
-		DRM_DEV_ERROR(&pdev->dev, "allocation failed\n");
-		goto out_free;
-	}
-
-	dev_priv->drm.pdev = pdev;
-	dev_priv->drm.dev_private = dev_priv;
+	dev_priv = i915_driver_create(pdev, ent);
+	if (!dev_priv)
+		return -ENOMEM;
 
 	ret = pci_enable_device(pdev);
 	if (ret)
 		goto out_fini;
 
-	pci_set_drvdata(pdev, &dev_priv->drm);
-	ret = i915_driver_init_early(dev_priv, ent);
+	ret = i915_driver_init_early(dev_priv);
 	if (ret < 0)
 		goto out_pci_disable;
 
@@ -1426,7 +1437,6 @@ out_pci_disable:
 out_fini:
 	i915_load_error(dev_priv, "Device initialization failed (%d)\n", ret);
 	drm_dev_fini(&dev_priv->drm);
-out_free:
 	kfree(dev_priv);
 	pci_set_drvdata(pdev, NULL);
 	return ret;
