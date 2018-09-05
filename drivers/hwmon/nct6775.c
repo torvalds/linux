@@ -3550,8 +3550,7 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 
 				if (!fan6pin)
 					fan6pin = (regval_2a & BIT(4)) &&
-					  (!dsw_en ||
-					   (dsw_en && (regval_ed & BIT(4))));
+					  (!dsw_en || (regval_ed & BIT(4)));
 				if (!pwm6pin)
 					pwm6pin = (regval_2a & BIT(3)) &&
 					  (regval_ed & BIT(2));
