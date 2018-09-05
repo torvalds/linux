@@ -809,6 +809,7 @@ struct drm_mode_config {
 
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;
+	bool quirk_addfb_prefer_xbgr_30bpp;
 
 	/**
 	 * @async_page_flip: Does this device support async flips on the primary
