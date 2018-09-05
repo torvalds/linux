@@ -191,6 +191,12 @@ static const struct stepping_info bxt_stepping_info[] = {
 	{'B', '0'}, {'B', '1'}, {'B', '2'}
 };
 
+static const struct stepping_info icl_stepping_info[] = {
+	{'A', '0'}, {'A', '1'}, {'A', '2'},
+	{'B', '0'}, {'B', '2'},
+	{'C', '0'}
+};
+
 static const struct stepping_info no_stepping_info = { '*', '*' };
 
 static const struct stepping_info *
@@ -199,7 +205,10 @@ intel_get_stepping_info(struct drm_i915_private *dev_priv)
 	const struct stepping_info *si;
 	unsigned int size;
 
-	if (IS_SKYLAKE(dev_priv)) {
+	if (IS_ICELAKE(dev_priv)) {
+		size = ARRAY_SIZE(icl_stepping_info);
+		si = icl_stepping_info;
+	} else if (IS_SKYLAKE(dev_priv)) {
 		size = ARRAY_SIZE(skl_stepping_info);
 		si = skl_stepping_info;
 	} else if (IS_BROXTON(dev_priv)) {
