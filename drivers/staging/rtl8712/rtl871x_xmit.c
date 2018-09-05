@@ -433,7 +433,7 @@ static sint xmitframe_addmic(struct _adapter *padapter,
 					r8712_secmicappend(&micdata, payload,
 							   length);
 					payload = payload + length;
-				} else{
+				} else {
 					length = pxmitpriv->frag_len -
 					    pattrib->hdrlen - pattrib->iv_len -
 					    ((psecuritypriv->sw_encrypt) ?
