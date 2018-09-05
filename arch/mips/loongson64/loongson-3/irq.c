@@ -96,12 +96,6 @@ void mach_irq_dispatch(unsigned int pending)
 	}
 }
 
-static struct irqaction cascade_irqaction = {
-	.handler = no_action,
-	.flags = IRQF_NO_SUSPEND,
-	.name = "cascade",
-};
-
 static inline void mask_loongson_irq(struct irq_data *d) { }
 static inline void unmask_loongson_irq(struct irq_data *d) { }
 
@@ -147,11 +141,10 @@ void __init mach_init_irq(void)
 
 	irq_set_chip_and_handler(LOONGSON_UART_IRQ,
 			&loongson_irq_chip, handle_percpu_irq);
+	irq_set_chip_and_handler(LOONGSON_BRIDGE_IRQ,
+			&loongson_irq_chip, handle_percpu_irq);
 
-	/* setup HT1 irq */
-	setup_irq(LOONGSON_HT1_IRQ, &cascade_irqaction);
-
-	set_c0_status(STATUSF_IP2 | STATUSF_IP6);
+	set_c0_status(STATUSF_IP2 | STATUSF_IP3 | STATUSF_IP6);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
