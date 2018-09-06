@@ -50,8 +50,6 @@
 
 #define UDF_INVALID_MODE		((umode_t)-1)
 
-#pragma pack(1) /* XXX(hch): Why?  This file just defines in-core structures */
-
 #define MF_DUPLICATE_MD		0x01
 #define MF_MIRROR_FE_LOADED	0x02
 
