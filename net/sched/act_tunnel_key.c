@@ -412,8 +412,10 @@ static int tunnel_key_geneve_opts_dump(struct sk_buff *skb,
 		    nla_put_u8(skb, TCA_TUNNEL_KEY_ENC_OPT_GENEVE_TYPE,
 			       opt->type) ||
 		    nla_put(skb, TCA_TUNNEL_KEY_ENC_OPT_GENEVE_DATA,
-			    opt->length * 4, opt + 1))
+			    opt->length * 4, opt + 1)) {
+			nla_nest_cancel(skb, start);
 			return -EMSGSIZE;
+		}
 
 		len -= sizeof(struct geneve_opt) + opt->length * 4;
 		src += sizeof(struct geneve_opt) + opt->length * 4;
@@ -427,7 +429,7 @@ static int tunnel_key_opts_dump(struct sk_buff *skb,
 				const struct ip_tunnel_info *info)
 {
 	struct nlattr *start;
-	int err;
+	int err = -EINVAL;
 
 	if (!info->options_len)
 		return 0;
@@ -439,9 +441,11 @@ static int tunnel_key_opts_dump(struct sk_buff *skb,
 	if (info->key.tun_flags & TUNNEL_GENEVE_OPT) {
 		err = tunnel_key_geneve_opts_dump(skb, info);
 		if (err)
-			return err;
+			goto err_out;
 	} else {
-		return -EINVAL;
+err_out:
+		nla_nest_cancel(skb, start);
+		return err;
 	}
 
 	nla_nest_end(skb, start);
