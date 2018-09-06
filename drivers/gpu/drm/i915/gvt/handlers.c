@@ -3399,6 +3399,7 @@ bool intel_gvt_in_force_nonpriv_whitelist(struct intel_gvt *gvt,
  * @offset: register offset
  * @pdata: data buffer
  * @bytes: data length
+ * @is_read: read or write
  *
  * Returns:
  * Zero on success, negative error code if failed.
