@@ -1488,117 +1488,40 @@ error:
 }
 
 /**
- * amdgpu_vm_handle_huge_pages - handle updating the PD with huge pages
+ * amdgpu_vm_update_huge - figure out parameters for PTE updates
  *
- * @p: see amdgpu_pte_update_params definition
- * @entry: vm_pt entry to check
- * @parent: parent entry
- * @nptes: number of PTEs updated with this operation
- * @dst: destination address where the PTEs should point to
- * @flags: access flags fro the PTEs
- *
- * Check if we can update the PD with a huge page.
+ * Make sure to set the right flags for the PTEs at the desired level.
  */
-static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
-					struct amdgpu_vm_pt *entry,
-					struct amdgpu_vm_pt *parent,
-					unsigned nptes, uint64_t dst,
-					uint64_t flags)
+static void amdgpu_vm_update_huge(struct amdgpu_pte_update_params *params,
+				  struct amdgpu_bo *bo, unsigned level,
+				  uint64_t pe, uint64_t addr,
+				  unsigned count, uint32_t incr,
+				  uint64_t flags)
+
 {
-	uint64_t pde;
-
-	/* In the case of a mixed PT the PDE must point to it*/
-	if (p->adev->asic_type >= CHIP_VEGA10 && !p->src &&
-	    nptes == AMDGPU_VM_PTE_COUNT(p->adev)) {
-		/* Set the huge page flag to stop scanning at this PDE */
+	if (level != AMDGPU_VM_PTB) {
 		flags |= AMDGPU_PDE_PTE;
+		amdgpu_gmc_get_vm_pde(params->adev, level, &addr, &flags);
 	}
 
-	if (!(flags & AMDGPU_PDE_PTE)) {
-		if (entry->huge) {
-			/* Add the entry to the relocated list to update it. */
-			entry->huge = false;
-			amdgpu_vm_bo_relocated(&entry->base);
-		}
-		return;
-	}
-
-	entry->huge = true;
-	amdgpu_gmc_get_vm_pde(p->adev, AMDGPU_VM_PDB0, &dst, &flags);
-
-	pde = (entry - parent->entries) * 8;
-	amdgpu_vm_update_func(p, parent->base.bo, pde, dst, 1, 0, flags);
+	amdgpu_vm_update_func(params, bo, pe, addr, count, incr, flags);
 }
 
 /**
- * amdgpu_vm_update_ptes - make sure that page tables are valid
+ * amdgpu_vm_fragment - get fragment for PTEs
  *
  * @params: see amdgpu_pte_update_params definition
- * @start: start of GPU address range
- * @end: end of GPU address range
- * @dst: destination address to map to, the next dst inside the function
- * @flags: mapping flags
- *
- * Update the page tables in the range @start - @end.
- *
- * Returns:
- * 0 for success, -EINVAL for failure.
- */
-static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
-				  uint64_t start, uint64_t end,
-				  uint64_t dst, uint64_t flags)
-{
-	struct amdgpu_device *adev = params->adev;
-	const uint64_t mask = AMDGPU_VM_PTE_COUNT(adev) - 1;
-	struct amdgpu_vm_pt_cursor cursor;
-
-	/* walk over the address space and update the page tables */
-	for_each_amdgpu_vm_pt_leaf(adev, params->vm, start, end - 1, cursor) {
-		struct amdgpu_bo *pt = cursor.entry->base.bo;
-		uint64_t pe_start;
-		unsigned nptes;
-
-		if (!pt || cursor.level != AMDGPU_VM_PTB)
-			return -ENOENT;
-
-		if ((cursor.pfn & ~mask) == (end & ~mask))
-			nptes = end - cursor.pfn;
-		else
-			nptes = AMDGPU_VM_PTE_COUNT(adev) - (cursor.pfn & mask);
-
-		amdgpu_vm_handle_huge_pages(params, cursor.entry, cursor.parent,
-					    nptes, dst, flags);
-		/* We don't need to update PTEs for huge pages */
-		if (cursor.entry->huge) {
-			dst += nptes * AMDGPU_GPU_PAGE_SIZE;
-			continue;
-		}
-
-		pe_start = (cursor.pfn & mask) * 8;
-		amdgpu_vm_update_func(params, pt, pe_start, dst, nptes,
-				      AMDGPU_GPU_PAGE_SIZE, flags);
-		dst += nptes * AMDGPU_GPU_PAGE_SIZE;
-	}
-
-	return 0;
-}
-
-/*
- * amdgpu_vm_frag_ptes - add fragment information to PTEs
- *
- * @params: see amdgpu_pte_update_params definition
- * @vm: requested vm
  * @start: first PTE to handle
  * @end: last PTE to handle
- * @dst: addr those PTEs should point to
  * @flags: hw mapping flags
+ * @frag: resulting fragment size
+ * @frag_end: end of this fragment
  *
- * Returns:
- * 0 for success, -EINVAL for failure.
+ * Returns the first possible fragment for the start and end address.
  */
-static int amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
-				uint64_t start, uint64_t end,
-				uint64_t dst, uint64_t flags)
+static void amdgpu_vm_fragment(struct amdgpu_pte_update_params *params,
+			       uint64_t start, uint64_t end, uint64_t flags,
+			       unsigned int *frag, uint64_t *frag_end)
 {
 	/**
 	 * The MC L1 TLB supports variable sized pages, based on a fragment
@@ -1619,34 +1542,138 @@ static int amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
 	 * allocation size to the fragment size.
 	 */
 	unsigned max_frag = params->adev->vm_manager.fragment_size;
-	int r;
 
 	/* system pages are non continuously */
-	if (params->src || !(flags & AMDGPU_PTE_VALID))
-		return amdgpu_vm_update_ptes(params, start, end, dst, flags);
+	if (params->src || !(flags & AMDGPU_PTE_VALID)) {
+		*frag = 0;
+		*frag_end = end;
+		return;
+	}
 
-	while (start != end) {
-		uint64_t frag_flags, frag_end;
-		unsigned frag;
+	/* This intentionally wraps around if no bit is set */
+	*frag = min((unsigned)ffs(start) - 1, (unsigned)fls64(end - start) - 1);
+	if (*frag >= max_frag) {
+		*frag = max_frag;
+		*frag_end = end & ~((1ULL << max_frag) - 1);
+	} else {
+		*frag_end = start + (1 << *frag);
+	}
+}
 
-		/* This intentionally wraps around if no bit is set */
-		frag = min((unsigned)ffs(start) - 1,
-			   (unsigned)fls64(end - start) - 1);
-		if (frag >= max_frag) {
-			frag_flags = AMDGPU_PTE_FRAG(max_frag);
-			frag_end = end & ~((1ULL << max_frag) - 1);
-		} else {
-			frag_flags = AMDGPU_PTE_FRAG(frag);
-			frag_end = start + (1 << frag);
+/**
+ * amdgpu_vm_update_ptes - make sure that page tables are valid
+ *
+ * @params: see amdgpu_pte_update_params definition
+ * @start: start of GPU address range
+ * @end: end of GPU address range
+ * @dst: destination address to map to, the next dst inside the function
+ * @flags: mapping flags
+ *
+ * Update the page tables in the range @start - @end.
+ *
+ * Returns:
+ * 0 for success, -EINVAL for failure.
+ */
+static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
+				 uint64_t start, uint64_t end,
+				 uint64_t dst, uint64_t flags)
+{
+	struct amdgpu_device *adev = params->adev;
+	struct amdgpu_vm_pt_cursor cursor;
+	uint64_t frag_start = start, frag_end;
+	unsigned int frag;
+
+	/* figure out the initial fragment */
+	amdgpu_vm_fragment(params, frag_start, end, flags, &frag, &frag_end);
+
+	/* walk over the address space and update the PTs */
+	amdgpu_vm_pt_start(adev, params->vm, start, &cursor);
+	while (cursor.pfn < end) {
+		struct amdgpu_bo *pt = cursor.entry->base.bo;
+		unsigned shift, parent_shift, num_entries;
+		uint64_t incr, entry_end, pe_start;
+
+		if (!pt)
+			return -ENOENT;
+
+		/* The root level can't be a huge page */
+		if (cursor.level == adev->vm_manager.root_level) {
+			if (!amdgpu_vm_pt_descendant(adev, &cursor))
+				return -ENOENT;
+			continue;
 		}
 
-		r = amdgpu_vm_update_ptes(params, start, frag_end, dst,
-					  flags | frag_flags);
-		if (r)
-			return r;
+		/* First check if the entry is already handled */
+		if (cursor.pfn < frag_start) {
+			cursor.entry->huge = true;
+			amdgpu_vm_pt_next(adev, &cursor);
+			continue;
+		}
 
-		dst += (frag_end - start) * AMDGPU_GPU_PAGE_SIZE;
-		start = frag_end;
+		/* If it isn't already handled it can't be a huge page */
+		if (cursor.entry->huge) {
+			/* Add the entry to the relocated list to update it. */
+			cursor.entry->huge = false;
+			amdgpu_vm_bo_relocated(&cursor.entry->base);
+		}
+
+		shift = amdgpu_vm_level_shift(adev, cursor.level);
+		parent_shift = amdgpu_vm_level_shift(adev, cursor.level - 1);
+		if (adev->asic_type < CHIP_VEGA10) {
+			/* No huge page support before GMC v9 */
+			if (cursor.level != AMDGPU_VM_PTB) {
+				if (!amdgpu_vm_pt_descendant(adev, &cursor))
+					return -ENOENT;
+				continue;
+			}
+		} else if (frag < shift) {
+			/* We can't use this level when the fragment size is
+			 * smaller than the address shift. Go to the next
+			 * child entry and try again.
+			 */
+			if (!amdgpu_vm_pt_descendant(adev, &cursor))
+				return -ENOENT;
+			continue;
+		} else if (frag >= parent_shift) {
+			/* If the fragment size is even larger than the parent
+			 * shift we should go up one level and check it again.
+			 */
+			if (!amdgpu_vm_pt_ancestor(&cursor))
+				return -ENOENT;
+			continue;
+		}
+
+		/* Looks good so far, calculate parameters for the update */
+		incr = AMDGPU_GPU_PAGE_SIZE << shift;
+		num_entries = amdgpu_vm_num_entries(adev, cursor.level);
+		pe_start = ((cursor.pfn >> shift) & (num_entries - 1)) * 8;
+		entry_end = num_entries << shift;
+		entry_end += cursor.pfn & ~(entry_end - 1);
+		entry_end = min(entry_end, end);
+
+		do {
+			uint64_t upd_end = min(entry_end, frag_end);
+			unsigned nptes = (upd_end - frag_start) >> shift;
+
+			amdgpu_vm_update_huge(params, pt, cursor.level,
+					      pe_start, dst, nptes, incr,
+					      flags | AMDGPU_PTE_FRAG(frag));
+
+			pe_start += nptes * 8;
+			dst += nptes * AMDGPU_GPU_PAGE_SIZE << shift;
+
+			frag_start = upd_end;
+			if (frag_start >= frag_end) {
+				/* figure out the next fragment */
+				amdgpu_vm_fragment(params, frag_start, end,
+						   flags, &frag, &frag_end);
+				if (frag < shift)
+					break;
+			}
+		} while (frag_start < entry_end);
+
+		if (frag >= shift)
+			amdgpu_vm_pt_next(adev, &cursor);
 	}
 
 	return 0;
@@ -1708,8 +1735,8 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 		params.func = amdgpu_vm_cpu_set_ptes;
 		params.pages_addr = pages_addr;
-		return amdgpu_vm_frag_ptes(&params, start, last + 1,
-					   addr, flags);
+		return amdgpu_vm_update_ptes(&params, start, last + 1,
+					     addr, flags);
 	}
 
 	ring = container_of(vm->entity.rq->sched, struct amdgpu_ring, sched);
@@ -1788,7 +1815,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (r)
 		goto error_free;
 
-	r = amdgpu_vm_frag_ptes(&params, start, last + 1, addr, flags);
+	r = amdgpu_vm_update_ptes(&params, start, last + 1, addr, flags);
 	if (r)
 		goto error_free;
 
