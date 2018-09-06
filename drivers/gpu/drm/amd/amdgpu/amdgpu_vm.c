@@ -938,6 +938,35 @@ error_free_pt:
 }
 
 /**
+ * amdgpu_vm_free_pts - free PD/PT levels
+ *
+ * @adev: amdgpu device structure
+ * @parent: PD/PT starting level to free
+ * @level: level of parent structure
+ *
+ * Free the page directory or page table level and all sub levels.
+ */
+static void amdgpu_vm_free_pts(struct amdgpu_device *adev,
+			       struct amdgpu_vm *vm)
+{
+	struct amdgpu_vm_pt_cursor cursor;
+	struct amdgpu_vm_pt *entry;
+
+	for_each_amdgpu_vm_pt_dfs_safe(adev, vm, cursor, entry) {
+
+		if (entry->base.bo) {
+			list_del(&entry->base.bo_list);
+			list_del(&entry->base.vm_status);
+			amdgpu_bo_unref(&entry->base.bo->shadow);
+			amdgpu_bo_unref(&entry->base.bo);
+		}
+		kvfree(entry->entries);
+	}
+
+	BUG_ON(vm->root.base.bo);
+}
+
+/**
  * amdgpu_vm_check_compute_bug - check whether asic has compute vm bug
  *
  * @adev: amdgpu_device pointer
@@ -3148,36 +3177,6 @@ void amdgpu_vm_release_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 }
 
 /**
- * amdgpu_vm_free_levels - free PD/PT levels
- *
- * @adev: amdgpu device structure
- * @parent: PD/PT starting level to free
- * @level: level of parent structure
- *
- * Free the page directory or page table level and all sub levels.
- */
-static void amdgpu_vm_free_levels(struct amdgpu_device *adev,
-				  struct amdgpu_vm_pt *parent,
-				  unsigned level)
-{
-	unsigned i, num_entries = amdgpu_vm_num_entries(adev, level);
-
-	if (parent->base.bo) {
-		list_del(&parent->base.bo_list);
-		list_del(&parent->base.vm_status);
-		amdgpu_bo_unref(&parent->base.bo->shadow);
-		amdgpu_bo_unref(&parent->base.bo);
-	}
-
-	if (parent->entries)
-		for (i = 0; i < num_entries; i++)
-			amdgpu_vm_free_levels(adev, &parent->entries[i],
-					      level + 1);
-
-	kvfree(parent->entries);
-}
-
-/**
  * amdgpu_vm_fini - tear down a vm instance
  *
  * @adev: amdgpu_device pointer
@@ -3237,8 +3236,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	if (r) {
 		dev_err(adev->dev, "Leaking page tables because BO reservation failed\n");
 	} else {
-		amdgpu_vm_free_levels(adev, &vm->root,
-				      adev->vm_manager.root_level);
+		amdgpu_vm_free_pts(adev, vm);
 		amdgpu_bo_unreserve(root);
 	}
 	amdgpu_bo_unref(&root);
