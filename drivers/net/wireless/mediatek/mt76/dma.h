@@ -75,6 +75,13 @@ enum dma_msg_port {
 	DISCARD,
 };
 
+enum mt76_qsel {
+	MT_QSEL_MGMT,
+	MT_QSEL_HCCA,
+	MT_QSEL_EDCA,
+	MT_QSEL_EDCA_2,
+};
+
 enum mt76_mcu_evt_type {
 	EVT_CMD_DONE,
 	EVT_CMD_ERROR,

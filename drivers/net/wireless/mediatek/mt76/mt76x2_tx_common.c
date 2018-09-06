@@ -16,7 +16,7 @@
  */
 
 #include "mt76x2.h"
-#include "mt76x2_dma.h"
+#include "dma.h"
 
 void mt76x2_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	       struct sk_buff *skb)

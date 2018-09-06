@@ -20,8 +20,8 @@
 
 #include "mt76x2.h"
 #include "mt76x2_mcu.h"
-#include "mt76x2_dma.h"
 #include "mt76x2_eeprom.h"
+#include "dma.h"
 
 static struct sk_buff *mt76x2_mcu_msg_alloc(const void *data, int len)
 {

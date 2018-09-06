@@ -15,7 +15,7 @@
  */
 
 #include "mt76x2.h"
-#include "mt76x2_dma.h"
+#include "dma.h"
 
 int
 mt76x2_tx_queue_mcu(struct mt76x2_dev *dev, enum mt76_txq_id qid,
