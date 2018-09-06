@@ -939,9 +939,6 @@ struct ubuf_info *sock_zerocopy_alloc(struct sock *sk, size_t size)
 
 	WARN_ON_ONCE(!in_task());
 
-	if (!sock_flag(sk, SOCK_ZEROCOPY))
-		return NULL;
-
 	skb = sock_omalloc(sk, 0, GFP_KERNEL);
 	if (!skb)
 		return NULL;
