@@ -382,27 +382,21 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 
 	mt76x0_chip_onoff(dev, true, true);
 
-	if (!mt76x02_wait_for_mac(&dev->mt76)) {
-		ret = -ETIMEDOUT;
-		goto err;
-	}
+	if (!mt76x02_wait_for_mac(&dev->mt76))
+		return -ETIMEDOUT;
 
 	ret = mt76x0_mcu_init(dev);
 	if (ret)
-		goto err;
+		return ret;
 
 	if (!mt76_poll_msec(dev, MT_WPDMA_GLO_CFG,
 			    MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
-			    MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 100)) {
-		ret = -EIO;
-		goto err;
-	}
+			    MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 100))
+		return -EIO;
 
 	/* Wait for ASIC ready after FW load. */
-	if (!mt76x02_wait_for_mac(&dev->mt76)) {
-		ret = -ETIMEDOUT;
-		goto err;
-	}
+	if (!mt76x02_wait_for_mac(&dev->mt76))
+		return -ETIMEDOUT;
 
 	mt76x0_reset_csr_bbp(dev);
 	mt76x0_init_usb_dma(dev);
@@ -412,33 +406,33 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 
 	ret = mt76x0_mcu_cmd_init(dev);
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = mt76u_alloc_queues(&dev->mt76);
 	if (ret < 0)
-		goto err_mcu;
+		return ret;
 
 	mt76x0_init_mac_registers(dev);
 
 	if (!mt76_poll_msec(dev, MT_MAC_STATUS,
-			    MT_MAC_STATUS_TX | MT_MAC_STATUS_RX, 0, 1000)) {
-		ret = -EIO;
-		goto err_rx;
-	}
+			    MT_MAC_STATUS_TX | MT_MAC_STATUS_RX, 0, 1000))
+		return -EIO;
 
 	ret = mt76x0_init_bbp(dev);
 	if (ret)
-		goto err_rx;
+		return ret;
 
 	ret = mt76x0_init_wcid_mem(dev);
 	if (ret)
-		goto err_rx;
+		return ret;
+
 	ret = mt76x0_init_key_mem(dev);
 	if (ret)
-		goto err_rx;
+		return ret;
+
 	ret = mt76x0_init_wcid_attr_mem(dev);
 	if (ret)
-		goto err_rx;
+		return ret;
 
 	mt76_clear(dev, MT_BEACON_TIME_CFG, (MT_BEACON_TIME_CFG_TIMER_EN |
 					     MT_BEACON_TIME_CFG_SYNC_MODE |
@@ -455,18 +449,11 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 
 	ret = mt76x0_eeprom_init(dev);
 	if (ret)
-		goto err_rx;
+		return ret;
 
 	mt76x0_phy_init(dev);
-	return 0;
 
-err_rx:
-	mt76u_queues_deinit(&dev->mt76);
-err_mcu:
-	mt76u_mcu_deinit(&dev->mt76);
-err:
-	mt76x0_chip_onoff(dev, false, false);
-	return ret;
+	return 0;
 }
 
 void mt76x0_cleanup(struct mt76x0_dev *dev)
@@ -626,6 +613,10 @@ int mt76x0_register_device(struct mt76x0_dev *dev)
 	struct ieee80211_hw *hw = dev->mt76.hw;
 	struct wiphy *wiphy = hw->wiphy;
 	int ret;
+
+	ret = mt76x0_init_hardware(dev);
+	if (ret)
+		return ret;
 
 	/* Reserve WCID 0 for mcast - thanks to this APs WCID will go to
 	 * entry no. 1 like it does in the vendor driver.
