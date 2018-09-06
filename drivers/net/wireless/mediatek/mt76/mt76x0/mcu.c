@@ -387,9 +387,11 @@ int mt76x0_mcu_init(struct mt76x0_dev *dev)
 
 int mt76x0_mcu_cmd_init(struct mt76x0_dev *dev)
 {
-	int ret = mt76x0_mcu_function_select(dev, Q_SELECT, 1);
+	int ret;
+
+	ret = mt76u_mcu_init_rx(&dev->mt76);
 	if (ret)
 		return ret;
 
-	return mt76u_mcu_init_rx(&dev->mt76);
+	return mt76x0_mcu_function_select(dev, Q_SELECT, 1);
 }
