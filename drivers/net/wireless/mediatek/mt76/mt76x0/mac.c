@@ -236,6 +236,7 @@ u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
 
 	mt76x02_remove_hdr_pad(skb, pad_len);
 
+	pskb_trim(skb, len);
 	status->chains = BIT(0);
 	rssi = mt76x0_phy_get_rssi(dev, rxwi);
 	status->chain_signal[0] = status->signal = rssi;
