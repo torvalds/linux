@@ -33,6 +33,9 @@ static int mt76x0_start(struct ieee80211_hw *hw)
 				     MT_CALIBRATE_INTERVAL);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
+
+	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+
 out:
 	mutex_unlock(&dev->mt76.mutex);
 	return ret;
@@ -43,6 +46,8 @@ static void mt76x0_stop(struct ieee80211_hw *hw)
 	struct mt76x0_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
+
+	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 
 	cancel_delayed_work_sync(&dev->cal_work);
 	cancel_delayed_work_sync(&dev->mac_work);
