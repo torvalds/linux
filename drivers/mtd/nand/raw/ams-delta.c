@@ -221,7 +221,7 @@ static int ams_delta_init(struct platform_device *pdev)
 		pr_notice("Couldn't request gpio for Delta NAND ready.\n");
 	}
 	/* 25 us command delay time */
-	this->chip_delay = 30;
+	this->legacy.chip_delay = 30;
 	this->ecc.mode = NAND_ECC_SOFT;
 	this->ecc.algo = NAND_ECC_HAMMING;
 

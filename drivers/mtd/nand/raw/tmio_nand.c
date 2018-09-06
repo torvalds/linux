@@ -422,7 +422,7 @@ static int tmio_probe(struct platform_device *dev)
 		nand_chip->badblock_pattern = data->badblock_pattern;
 
 	/* 15 us command delay time */
-	nand_chip->chip_delay = 15;
+	nand_chip->legacy.chip_delay = 15;
 
 	retval = devm_request_irq(&dev->dev, irq, &tmio_irq, 0,
 				  dev_name(&dev->dev), tmio);

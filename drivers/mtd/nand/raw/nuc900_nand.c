@@ -177,7 +177,7 @@ static void nuc900_nand_command_lp(struct nand_chip *chip,
 	case NAND_CMD_RESET:
 		if (chip->legacy.dev_ready)
 			break;
-		udelay(chip->chip_delay);
+		udelay(chip->legacy.chip_delay);
 
 		write_cmd_reg(nand, NAND_CMD_STATUS);
 		write_cmd_reg(nand, command);
@@ -197,7 +197,7 @@ static void nuc900_nand_command_lp(struct nand_chip *chip,
 	default:
 
 		if (!chip->legacy.dev_ready) {
-			udelay(chip->chip_delay);
+			udelay(chip->legacy.chip_delay);
 			return;
 		}
 	}
@@ -259,7 +259,7 @@ static int nuc900_nand_probe(struct platform_device *pdev)
 	chip->legacy.read_byte	= nuc900_nand_read_byte;
 	chip->legacy.write_buf	= nuc900_nand_write_buf;
 	chip->legacy.read_buf	= nuc900_nand_read_buf;
-	chip->chip_delay	= 50;
+	chip->legacy.chip_delay	= 50;
 	chip->options		= 0;
 	chip->ecc.mode		= NAND_ECC_SOFT;
 	chip->ecc.algo		= NAND_ECC_HAMMING;

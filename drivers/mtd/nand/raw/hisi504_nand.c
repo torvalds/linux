@@ -787,7 +787,7 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	chip->legacy.read_byte	= hisi_nfc_read_byte;
 	chip->legacy.write_buf	= hisi_nfc_write_buf;
 	chip->legacy.read_buf	= hisi_nfc_read_buf;
-	chip->chip_delay	= HINFC504_CHIP_DELAY;
+	chip->legacy.chip_delay	= HINFC504_CHIP_DELAY;
 	chip->legacy.set_features	= nand_get_set_features_notsupp;
 	chip->legacy.get_features	= nand_get_set_features_notsupp;
 

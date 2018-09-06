@@ -2248,10 +2248,10 @@ static int omap_nand_probe(struct platform_device *pdev)
 	 */
 	if (info->ready_gpiod) {
 		nand_chip->legacy.dev_ready = omap_dev_ready;
-		nand_chip->chip_delay = 0;
+		nand_chip->legacy.chip_delay = 0;
 	} else {
 		nand_chip->legacy.waitfunc = omap_wait;
-		nand_chip->chip_delay = 50;
+		nand_chip->legacy.chip_delay = 50;
 	}
 
 	if (info->flash_bbt)

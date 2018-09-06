@@ -143,7 +143,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	nc->ecc.algo = NAND_ECC_HAMMING;
 
 	if (board->chip_delay)
-		nc->chip_delay = board->chip_delay;
+		nc->legacy.chip_delay = board->chip_delay;
 
 	WARN(board->width > 16,
 		"%d bit bus width out of range",

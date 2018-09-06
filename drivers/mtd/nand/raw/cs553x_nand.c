@@ -212,7 +212,7 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	this->legacy.read_buf = cs553x_read_buf;
 	this->legacy.write_buf = cs553x_write_buf;
 
-	this->chip_delay = 0;
+	this->legacy.chip_delay = 0;
 
 	this->ecc.mode = NAND_ECC_HW;
 	this->ecc.size = 256;

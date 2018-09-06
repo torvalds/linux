@@ -163,7 +163,7 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 	fun->chip.legacy.IO_ADDR_R = fun->io_base;
 	fun->chip.legacy.IO_ADDR_W = fun->io_base;
 	fun->chip.legacy.cmd_ctrl = fun_cmd_ctrl;
-	fun->chip.chip_delay = fun->chip_delay;
+	fun->chip.legacy.chip_delay = fun->chip_delay;
 	fun->chip.legacy.read_byte = fun_read_byte;
 	fun->chip.legacy.read_buf = fun_read_buf;
 	fun->chip.legacy.write_buf = fun_write_buf;

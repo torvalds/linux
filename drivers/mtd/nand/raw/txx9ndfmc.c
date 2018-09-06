@@ -334,7 +334,7 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		chip->ecc.hwctl = txx9ndfmc_enable_hwecc;
 		chip->ecc.mode = NAND_ECC_HW;
 		chip->ecc.strength = 1;
-		chip->chip_delay = 100;
+		chip->legacy.chip_delay = 100;
 		chip->controller = &drvdata->controller;
 
 		nand_set_controller_data(chip, txx9_priv);

@@ -162,7 +162,7 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	nand_chip->ecc.algo = NAND_ECC_HAMMING;
 
 	/* TODO: I have no idea what real delay is. */
-	nand_chip->chip_delay = 20;		/* 20us command delay time */
+	nand_chip->legacy.chip_delay = 20;	/* 20us command delay time */
 
 	dev_set_drvdata(&ofdev->dev, host);
 

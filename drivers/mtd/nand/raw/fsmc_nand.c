@@ -1080,7 +1080,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	mtd->dev.parent = &pdev->dev;
 	nand->exec_op = fsmc_exec_op;
 	nand->select_chip = fsmc_select_chip;
-	nand->chip_delay = 30;
 
 	/*
 	 * Setup default ECC mode. nand_dt_init() called from nand_scan_ident()

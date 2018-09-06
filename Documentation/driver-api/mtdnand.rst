@@ -240,7 +240,7 @@ necessary information about the device.
         /* Reference hardware control function */
         this->hwcontrol = board_hwcontrol;
         /* Set command delay time, see datasheet for correct value */
-        this->chip_delay = CHIP_DEPENDEND_COMMAND_DELAY;
+        this->legacy.chip_delay = CHIP_DEPENDEND_COMMAND_DELAY;
         /* Assign the device ready function, if available */
         this->legacy.dev_ready = board_dev_ready;
         this->eccmode = NAND_ECC_SOFT;

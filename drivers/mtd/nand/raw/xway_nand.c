@@ -180,7 +180,7 @@ static int xway_nand_probe(struct platform_device *pdev)
 	data->chip.legacy.write_buf = xway_write_buf;
 	data->chip.legacy.read_buf = xway_read_buf;
 	data->chip.legacy.read_byte = xway_read_byte;
-	data->chip.chip_delay = 30;
+	data->chip.legacy.chip_delay = 30;
 
 	data->chip.ecc.mode = NAND_ECC_SOFT;
 	data->chip.ecc.algo = NAND_ECC_HAMMING;

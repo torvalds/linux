@@ -179,7 +179,7 @@ static int __init cmx270_init(void)
 	this->legacy.dev_ready = cmx270_device_ready;
 
 	/* 15 us command delay time */
-	this->chip_delay = 20;
+	this->legacy.chip_delay = 20;
 	this->ecc.mode = NAND_ECC_SOFT;
 	this->ecc.algo = NAND_ECC_HAMMING;
 

@@ -717,7 +717,7 @@ static void doc2001plus_command(struct nand_chip *this, unsigned command,
 	case NAND_CMD_RESET:
 		if (this->legacy.dev_ready)
 			break;
-		udelay(this->chip_delay);
+		udelay(this->legacy.chip_delay);
 		WriteDOC(NAND_CMD_STATUS, docptr, Mplus_FlashCmd);
 		WriteDOC(0, docptr, Mplus_WritePipeTerm);
 		WriteDOC(0, docptr, Mplus_WritePipeTerm);
@@ -731,7 +731,7 @@ static void doc2001plus_command(struct nand_chip *this, unsigned command,
 		 * command delay
 		 */
 		if (!this->legacy.dev_ready) {
-			udelay(this->chip_delay);
+			udelay(this->legacy.chip_delay);
 			return;
 		}
 	}

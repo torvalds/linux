@@ -136,7 +136,7 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 		chip->legacy.read_buf = oxnas_nand_read_buf;
 		chip->legacy.read_byte = oxnas_nand_read_byte;
 		chip->legacy.write_buf = oxnas_nand_write_buf;
-		chip->chip_delay = 30;
+		chip->legacy.chip_delay = 30;
 
 		/* Scan to find existence of the device */
 		err = nand_scan(chip, 1);

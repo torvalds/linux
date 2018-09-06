@@ -278,7 +278,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	chip->ecc.mode		= NAND_ECC_SOFT;
 	chip->ecc.algo		= NAND_ECC_HAMMING;
 	chip->options		= gpiomtd->plat.options;
-	chip->chip_delay	= gpiomtd->plat.chip_delay;
+	chip->legacy.chip_delay	= gpiomtd->plat.chip_delay;
 	chip->legacy.cmd_ctrl	= gpio_nand_cmd_ctrl;
 
 	mtd			= nand_to_mtd(chip);

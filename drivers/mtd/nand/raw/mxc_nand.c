@@ -1769,7 +1769,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 	mtd->name = DRIVER_NAME;
 
 	/* 50 us command delay time */
-	this->chip_delay = 5;
+	this->legacy.chip_delay = 5;
 
 	nand_set_controller_data(this, host);
 	nand_set_flash_node(this, pdev->dev.of_node),

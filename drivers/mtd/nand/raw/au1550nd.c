@@ -342,7 +342,7 @@ static void au1550_command(struct nand_chip *this, unsigned command,
 		/* Apply a short delay always to ensure that we do wait tWB. */
 		ndelay(100);
 		/* Wait for a chip to become ready... */
-		for (i = this->chip_delay;
+		for (i = this->legacy.chip_delay;
 		     !this->legacy.dev_ready(this) && i > 0; --i)
 			udelay(1);
 
@@ -434,7 +434,7 @@ static int au1550nd_probe(struct platform_device *pdev)
 	this->legacy.cmdfunc = au1550_command;
 
 	/* 30 us command delay time */
-	this->chip_delay = 30;
+	this->legacy.chip_delay = 30;
 	this->ecc.mode = NAND_ECC_SOFT;
 	this->ecc.algo = NAND_ECC_HAMMING;
 

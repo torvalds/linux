@@ -1192,6 +1192,8 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  * @erase: erase function
  * @set_features: set the NAND chip features
  * @get_features: get the NAND chip features
+ * @chip_delay: chip dependent delay for transferring data from array to read
+ *		regs (tR).
  *
  * If you look at this structure you're already wrong. These fields/hooks are
  * all deprecated.
@@ -1215,6 +1217,7 @@ struct nand_legacy {
 			    u8 *subfeature_para);
 	int (*get_features)(struct nand_chip *chip, int feature_addr,
 			    u8 *subfeature_para);
+	int chip_delay;
 };
 
 /**
@@ -1236,8 +1239,6 @@ struct nand_legacy {
  * @buf_align:		minimum buffer alignment required by a platform
  * @dummy_controller:	dummy controller implementation for drivers that can
  *			only control a single chip
- * @chip_delay:		[BOARDSPECIFIC] chip dependent delay for transferring
- *			data from array to read regs (tR).
  * @state:		[INTERN] the current state of the NAND device
  * @oob_poi:		"poison value buffer," used for laying out OOB data
  *			before writing
@@ -1317,7 +1318,6 @@ struct nand_chip {
 	int (*setup_data_interface)(struct nand_chip *chip, int chipnr,
 				    const struct nand_data_interface *conf);
 
-	int chip_delay;
 	unsigned int options;
 	unsigned int bbt_options;
 

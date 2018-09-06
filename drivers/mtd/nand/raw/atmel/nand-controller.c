@@ -1483,7 +1483,7 @@ static void atmel_nand_init(struct atmel_nand_controller *nc,
 		chip->setup_data_interface = atmel_nand_setup_data_interface;
 
 	/* Some NANDs require a longer delay than the default one (20us). */
-	chip->chip_delay = 40;
+	chip->legacy.chip_delay = 40;
 
 	/*
 	 * Use a bounce buffer when the buffer passed by the MTD user is not

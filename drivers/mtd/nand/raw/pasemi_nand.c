@@ -143,7 +143,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	chip->legacy.dev_ready = pasemi_device_ready;
 	chip->legacy.read_buf = pasemi_read_buf;
 	chip->legacy.write_buf = pasemi_write_buf;
-	chip->chip_delay = 0;
+	chip->legacy.chip_delay = 0;
 	chip->ecc.mode = NAND_ECC_SOFT;
 	chip->ecc.algo = NAND_ECC_HAMMING;
 

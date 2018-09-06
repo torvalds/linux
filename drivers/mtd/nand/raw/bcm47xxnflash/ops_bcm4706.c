@@ -393,7 +393,7 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 	b47n->nand_chip.legacy.set_features = nand_get_set_features_notsupp;
 	b47n->nand_chip.legacy.get_features = nand_get_set_features_notsupp;
 
-	nand_chip->chip_delay = 50;
+	nand_chip->legacy.chip_delay = 50;
 	b47n->nand_chip.bbt_options = NAND_BBT_USE_FLASH;
 	b47n->nand_chip.ecc.mode = NAND_ECC_NONE; /* TODO: implement ECC */
 

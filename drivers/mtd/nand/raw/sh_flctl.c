@@ -1178,7 +1178,7 @@ static int flctl_probe(struct platform_device *pdev)
 
 	/* Set address of hardware control function */
 	/* 20 us command delay time */
-	nand->chip_delay = 20;
+	nand->legacy.chip_delay = 20;
 
 	nand->legacy.read_byte = flctl_read_byte;
 	nand->legacy.write_buf = flctl_write_buf;

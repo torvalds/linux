@@ -882,7 +882,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	chip->legacy.IO_ADDR_W = SLC_DATA(host->io_base);
 	chip->legacy.cmd_ctrl = lpc32xx_nand_cmd_ctrl;
 	chip->legacy.dev_ready = lpc32xx_nand_device_ready;
-	chip->chip_delay = 20; /* 20us command delay time */
+	chip->legacy.chip_delay = 20; /* 20us command delay time */
 
 	/* Init NAND controller */
 	lpc32xx_nand_setup(host);

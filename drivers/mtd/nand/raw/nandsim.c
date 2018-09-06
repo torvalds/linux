@@ -656,7 +656,7 @@ static int __init init_nandsim(struct mtd_info *mtd)
 	}
 
 	/* Force mtd to not do delays */
-	chip->chip_delay = 0;
+	chip->legacy.chip_delay = 0;
 
 	/* Initialize the NAND flash parameters */
 	ns->busw = chip->options & NAND_BUSWIDTH_16 ? 16 : 8;

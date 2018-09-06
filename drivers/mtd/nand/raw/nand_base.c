@@ -827,7 +827,7 @@ static void nand_command(struct nand_chip *chip, unsigned int command,
 	case NAND_CMD_RESET:
 		if (chip->legacy.dev_ready)
 			break;
-		udelay(chip->chip_delay);
+		udelay(chip->legacy.chip_delay);
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_STATUS,
 				      NAND_CTRL_CLE | NAND_CTRL_CHANGE);
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE,
@@ -853,7 +853,7 @@ static void nand_command(struct nand_chip *chip, unsigned int command,
 		 * command delay
 		 */
 		if (!chip->legacy.dev_ready) {
-			udelay(chip->chip_delay);
+			udelay(chip->legacy.chip_delay);
 			return;
 		}
 	}
@@ -964,7 +964,7 @@ static void nand_command_lp(struct nand_chip *chip, unsigned int command,
 	case NAND_CMD_RESET:
 		if (chip->legacy.dev_ready)
 			break;
-		udelay(chip->chip_delay);
+		udelay(chip->legacy.chip_delay);
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_STATUS,
 				      NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE,
@@ -1005,7 +1005,7 @@ static void nand_command_lp(struct nand_chip *chip, unsigned int command,
 		 * command delay.
 		 */
 		if (!chip->legacy.dev_ready) {
-			udelay(chip->chip_delay);
+			udelay(chip->legacy.chip_delay);
 			return;
 		}
 	}
@@ -2206,7 +2206,7 @@ static int nand_wait_rdy_op(struct nand_chip *chip, unsigned int timeout_ms,
 
 	/* Apply delay or wait for ready/busy pin */
 	if (!chip->legacy.dev_ready)
-		udelay(chip->chip_delay);
+		udelay(chip->legacy.chip_delay);
 	else
 		nand_wait_ready(chip);
 
@@ -4926,8 +4926,8 @@ static void nand_set_defaults(struct nand_chip *chip)
 	unsigned int busw = chip->options & NAND_BUSWIDTH_16;
 
 	/* check for proper chip_delay setup, set 20us if not */
-	if (!chip->chip_delay)
-		chip->chip_delay = 20;
+	if (!chip->legacy.chip_delay)
+		chip->legacy.chip_delay = 20;
 
 	/* check, if a user supplied command function given */
 	if (!chip->legacy.cmdfunc && !chip->exec_op)
