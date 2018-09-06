@@ -595,9 +595,8 @@ static void amdgpu_vm_bo_param(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		AMDGPU_GEM_CREATE_CPU_GTT_USWC;
 	if (vm->use_cpu_for_update)
 		bp->flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
-	else
-		bp->flags |= AMDGPU_GEM_CREATE_SHADOW |
-			AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
+	else if (!vm->root.base.bo || vm->root.base.bo->shadow)
+		bp->flags |= AMDGPU_GEM_CREATE_SHADOW;
 	bp->type = ttm_bo_type_kernel;
 	if (vm->root.base.bo)
 		bp->resv = vm->root.base.bo->tbo.resv;
@@ -2749,6 +2748,8 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	vm->last_update = NULL;
 
 	amdgpu_vm_bo_param(adev, vm, adev->vm_manager.root_level, &bp);
+	if (vm_context == AMDGPU_VM_CONTEXT_COMPUTE)
+		bp.flags &= ~AMDGPU_GEM_CREATE_SHADOW;
 	r = amdgpu_bo_create(adev, &bp, &root);
 	if (r)
 		goto error_free_sched_entity;
