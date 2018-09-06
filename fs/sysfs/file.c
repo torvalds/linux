@@ -408,6 +408,50 @@ int sysfs_chmod_file(struct kobject *kobj, const struct attribute *attr,
 EXPORT_SYMBOL_GPL(sysfs_chmod_file);
 
 /**
+ * sysfs_break_active_protection - break "active" protection
+ * @kobj: The kernel object @attr is associated with.
+ * @attr: The attribute to break the "active" protection for.
+ *
+ * With sysfs, just like kernfs, deletion of an attribute is postponed until
+ * all active .show() and .store() callbacks have finished unless this function
+ * is called. Hence this function is useful in methods that implement self
+ * deletion.
+ */
+struct kernfs_node *sysfs_break_active_protection(struct kobject *kobj,
+						  const struct attribute *attr)
+{
+	struct kernfs_node *kn;
+
+	kobject_get(kobj);
+	kn = kernfs_find_and_get(kobj->sd, attr->name);
+	if (kn)
+		kernfs_break_active_protection(kn);
+	return kn;
+}
+EXPORT_SYMBOL_GPL(sysfs_break_active_protection);
+
+/**
+ * sysfs_unbreak_active_protection - restore "active" protection
+ * @kn: Pointer returned by sysfs_break_active_protection().
+ *
+ * Undo the effects of sysfs_break_active_protection(). Since this function
+ * calls kernfs_put() on the kernfs node that corresponds to the 'attr'
+ * argument passed to sysfs_break_active_protection() that attribute may have
+ * been removed between the sysfs_break_active_protection() and
+ * sysfs_unbreak_active_protection() calls, it is not safe to access @kn after
+ * this function has returned.
+ */
+void sysfs_unbreak_active_protection(struct kernfs_node *kn)
+{
+	struct kobject *kobj = kn->parent->priv;
+
+	kernfs_unbreak_active_protection(kn);
+	kernfs_put(kn);
+	kobject_put(kobj);
+}
+EXPORT_SYMBOL_GPL(sysfs_unbreak_active_protection);
+
+/**
  * sysfs_remove_file_ns - remove an object attribute with a custom ns tag
  * @kobj: object we're acting for
  * @attr: attribute descriptor
