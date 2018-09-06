@@ -194,8 +194,6 @@ struct nouveau_drm {
 	/* modesetting */
 	struct nvbios vbios;
 	struct nouveau_display *display;
-	struct backlight_device *backlight;
-	struct list_head bl_connectors;
 	struct work_struct hpd_work;
 	struct work_struct fbcon_work;
 	int fbcon_new_state;
