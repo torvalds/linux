@@ -76,6 +76,7 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		rockchip,avs = <1>;
 		rockchip,leakage-scaling-sel = <
 			0   254   20
 		>;
