@@ -462,9 +462,8 @@ static int tegra_nand_exec_op(struct nand_chip *chip,
 				      check_only);
 }
 
-static void tegra_nand_select_chip(struct mtd_info *mtd, int die_nr)
+static void tegra_nand_select_chip(struct nand_chip *chip, int die_nr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct tegra_nand_chip *nand = to_tegra_chip(chip);
 	struct tegra_nand_controller *ctrl = to_tegra_ctrl(chip->controller);
 

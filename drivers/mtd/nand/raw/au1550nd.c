@@ -227,10 +227,10 @@ int au1550_device_ready(struct mtd_info *mtd)
  *	chip needs it to be asserted during chip not ready time but the NAND
  *	controller keeps it released.
  *
- * @mtd:	MTD device structure
+ * @this:	NAND chip object
  * @chip:	chipnumber to select, -1 for deselect
  */
-static void au1550_select_chip(struct mtd_info *mtd, int chip)
+static void au1550_select_chip(struct nand_chip *this, int chip)
 {
 }
 

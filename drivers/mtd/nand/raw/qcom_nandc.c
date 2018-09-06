@@ -2324,9 +2324,8 @@ static void qcom_nandc_write_buf(struct nand_chip *chip, const uint8_t *buf,
 }
 
 /* we support only one external chip for now */
-static void qcom_nandc_select_chip(struct mtd_info *mtd, int chipnr)
+static void qcom_nandc_select_chip(struct nand_chip *chip, int chipnr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 
 	if (chipnr <= 0)

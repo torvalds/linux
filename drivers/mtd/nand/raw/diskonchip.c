@@ -85,7 +85,7 @@ static u_char empty_write_ecc[6] = { 0x4b, 0x00, 0xe2, 0x0e, 0x93, 0xf7 };
 
 static void doc200x_hwcontrol(struct mtd_info *mtd, int cmd,
 			      unsigned int bitmask);
-static void doc200x_select_chip(struct mtd_info *mtd, int chip);
+static void doc200x_select_chip(struct nand_chip *this, int chip);
 
 static int debug = 0;
 module_param(debug, int, 0);
@@ -371,7 +371,7 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 	struct doc_priv *doc = nand_get_controller_data(this);
 	uint16_t ret;
 
-	doc200x_select_chip(mtd, nr);
+	doc200x_select_chip(this, nr);
 	doc200x_hwcontrol(mtd, NAND_CMD_READID,
 			  NAND_CTRL_CLE | NAND_CTRL_CHANGE);
 	doc200x_hwcontrol(mtd, 0, NAND_CTRL_ALE | NAND_CTRL_CHANGE);
@@ -559,9 +559,8 @@ static void doc2001plus_readbuf(struct nand_chip *this, u_char *buf, int len)
 		printk("\n");
 }
 
-static void doc2001plus_select_chip(struct mtd_info *mtd, int chip)
+static void doc2001plus_select_chip(struct nand_chip *this, int chip)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	int floor = 0;
@@ -586,9 +585,9 @@ static void doc2001plus_select_chip(struct mtd_info *mtd, int chip)
 	doc->curfloor = floor;
 }
 
-static void doc200x_select_chip(struct mtd_info *mtd, int chip)
+static void doc200x_select_chip(struct nand_chip *this, int chip)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(this);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	int floor = 0;

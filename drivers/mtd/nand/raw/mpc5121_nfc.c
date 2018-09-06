@@ -263,8 +263,10 @@ static void mpc5121_nfc_addr_cycle(struct mtd_info *mtd, int column, int page)
 }
 
 /* Control chip select signals */
-static void mpc5121_nfc_select_chip(struct mtd_info *mtd, int chip)
+static void mpc5121_nfc_select_chip(struct nand_chip *nand, int chip)
 {
+	struct mtd_info *mtd = nand_to_mtd(nand);
+
 	if (chip < 0) {
 		nfc_clear(mtd, NFC_CONFIG1, NFC_CE);
 		return;
@@ -299,9 +301,9 @@ static int ads5121_chipselect_init(struct mtd_info *mtd)
 }
 
 /* Control chips select signal on ADS5121 board */
-static void ads5121_select_chip(struct mtd_info *mtd, int chip)
+static void ads5121_select_chip(struct nand_chip *nand, int chip)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct mpc5121_nfc_prv *prv = nand_get_controller_data(nand);
 	u8 v;
 
@@ -309,10 +311,10 @@ static void ads5121_select_chip(struct mtd_info *mtd, int chip)
 	v |= 0x0F;
 
 	if (chip >= 0) {
-		mpc5121_nfc_select_chip(mtd, 0);
+		mpc5121_nfc_select_chip(nand, 0);
 		v &= ~(1 << chip);
 	} else
-		mpc5121_nfc_select_chip(mtd, -1);
+		mpc5121_nfc_select_chip(nand, -1);
 
 	out_8(prv->csreg, v);
 }

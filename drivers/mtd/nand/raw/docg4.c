@@ -333,13 +333,12 @@ static int docg4_wait(struct mtd_info *mtd, struct nand_chip *nand)
 	return status;
 }
 
-static void docg4_select_chip(struct mtd_info *mtd, int chip)
+static void docg4_select_chip(struct nand_chip *nand, int chip)
 {
 	/*
 	 * Select among multiple cascaded chips ("floors").  Multiple floors are
 	 * not yet supported, so the only valid non-negative value is 0.
 	 */
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct docg4_priv *doc = nand_get_controller_data(nand);
 	void __iomem *docptr = doc->virtadr;
 

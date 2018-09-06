@@ -71,9 +71,9 @@ static inline struct jz4780_nand_controller
 	return container_of(ctrl, struct jz4780_nand_controller, controller);
 }
 
-static void jz4780_nand_select_chip(struct mtd_info *mtd, int chipnr)
+static void jz4780_nand_select_chip(struct nand_chip *chip, int chipnr)
 {
-	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(mtd);
+	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(nand_to_mtd(chip));
 	struct jz4780_nand_controller *nfc = to_jz4780_nand_controller(nand->chip.controller);
 	struct jz4780_nand_cs *cs;
 

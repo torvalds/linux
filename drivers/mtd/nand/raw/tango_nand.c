@@ -156,9 +156,8 @@ static void tango_write_buf(struct nand_chip *chip, const u8 *buf, int len)
 	iowrite8_rep(tchip->base + PBUS_DATA, buf, len);
 }
 
-static void tango_select_chip(struct mtd_info *mtd, int idx)
+static void tango_select_chip(struct nand_chip *chip, int idx)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct tango_nfc *nfc = to_tango_nfc(chip->controller);
 	struct tango_chip *tchip = to_tango_chip(chip);
 

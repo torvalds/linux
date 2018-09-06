@@ -681,7 +681,7 @@ static int spinand_read_page_hwecc(struct nand_chip *chip, u8 *buf,
 }
 #endif
 
-static void spinand_select_chip(struct mtd_info *mtd, int dev)
+static void spinand_select_chip(struct nand_chip *chip, int dev)
 {
 }
 

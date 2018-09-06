@@ -897,11 +897,11 @@ static int denali_write_page(struct nand_chip *chip, const uint8_t *buf,
 				page, 0, 1);
 }
 
-static void denali_select_chip(struct mtd_info *mtd, int chip)
+static void denali_select_chip(struct nand_chip *chip, int cs)
 {
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
+	struct denali_nand_info *denali = mtd_to_denali(nand_to_mtd(chip));
 
-	denali->active_bank = chip;
+	denali->active_bank = cs;
 }
 
 static int denali_waitfunc(struct mtd_info *mtd, struct nand_chip *chip)

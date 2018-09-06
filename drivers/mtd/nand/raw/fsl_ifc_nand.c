@@ -509,7 +509,7 @@ static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 	}
 }
 
-static void fsl_ifc_select_chip(struct mtd_info *mtd, int chip)
+static void fsl_ifc_select_chip(struct nand_chip *chip, int cs)
 {
 	/* The hardware does not seem to support multiple
 	 * chips per bank.

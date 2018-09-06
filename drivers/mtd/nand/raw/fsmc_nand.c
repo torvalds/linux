@@ -610,9 +610,9 @@ static void fsmc_write_buf_dma(struct mtd_info *mtd, const uint8_t *buf,
 }
 
 /* fsmc_select_chip - assert or deassert nCE */
-static void fsmc_select_chip(struct mtd_info *mtd, int chipnr)
+static void fsmc_select_chip(struct nand_chip *chip, int chipnr)
 {
-	struct fsmc_nand_data *host = mtd_to_fsmc(mtd);
+	struct fsmc_nand_data *host = mtd_to_fsmc(nand_to_mtd(chip));
 	u32 pc;
 
 	/* Support only one CS */

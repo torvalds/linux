@@ -498,9 +498,9 @@ static int vf610_nfc_exec_op(struct nand_chip *chip,
 /*
  * This function supports Vybrid only (MPC5125 would have full RB and four CS)
  */
-static void vf610_nfc_select_chip(struct mtd_info *mtd, int chip)
+static void vf610_nfc_select_chip(struct nand_chip *chip, int cs)
 {
-	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
+	struct vf610_nfc *nfc = mtd_to_nfc(nand_to_mtd(chip));
 	u32 tmp = vf610_nfc_read(nfc, NFC_ROW_ADDR);
 
 	/* Vybrid only (MPC5125 would have full RB and four CS) */
@@ -509,9 +509,9 @@ static void vf610_nfc_select_chip(struct mtd_info *mtd, int chip)
 
 	tmp &= ~(ROW_ADDR_CHIP_SEL_RB_MASK | ROW_ADDR_CHIP_SEL_MASK);
 
-	if (chip >= 0) {
+	if (cs >= 0) {
 		tmp |= 1 << ROW_ADDR_CHIP_SEL_RB_SHIFT;
-		tmp |= BIT(chip) << ROW_ADDR_CHIP_SEL_SHIFT;
+		tmp |= BIT(cs) << ROW_ADDR_CHIP_SEL_SHIFT;
 	}
 
 	vf610_nfc_write(nfc, NFC_ROW_ADDR, tmp);

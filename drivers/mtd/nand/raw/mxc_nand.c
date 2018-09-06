@@ -136,7 +136,7 @@ struct mxc_nand_devtype_data {
 	void (*irq_control)(struct mxc_nand_host *, int);
 	u32 (*get_ecc_status)(struct mxc_nand_host *);
 	const struct mtd_ooblayout_ops *ooblayout;
-	void (*select_chip)(struct mtd_info *mtd, int chip);
+	void (*select_chip)(struct nand_chip *chip, int cs);
 	int (*setup_data_interface)(struct mtd_info *mtd, int csline,
 				    const struct nand_data_interface *conf);
 	void (*enable_hwecc)(struct nand_chip *chip, bool enable);
@@ -957,9 +957,8 @@ static void mxc_nand_read_buf(struct nand_chip *nand_chip, u_char *buf,
 
 /* This function is used by upper layer for select and
  * deselect of the NAND chip */
-static void mxc_nand_select_chip_v1_v3(struct mtd_info *mtd, int chip)
+static void mxc_nand_select_chip_v1_v3(struct nand_chip *nand_chip, int chip)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
 
 	if (chip == -1) {
@@ -978,9 +977,8 @@ static void mxc_nand_select_chip_v1_v3(struct mtd_info *mtd, int chip)
 	}
 }
 
-static void mxc_nand_select_chip_v2(struct mtd_info *mtd, int chip)
+static void mxc_nand_select_chip_v2(struct nand_chip *nand_chip, int chip)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
 
 	if (chip == -1) {

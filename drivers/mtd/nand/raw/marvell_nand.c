@@ -701,9 +701,8 @@ static int marvell_nfc_wait_op(struct nand_chip *chip, unsigned int timeout_ms)
 	return 0;
 }
 
-static void marvell_nfc_select_chip(struct mtd_info *mtd, int die_nr)
+static void marvell_nfc_select_chip(struct nand_chip *chip, int die_nr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct marvell_nand_chip *marvell_nand = to_marvell_nand(chip);
 	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
 	u32 ndcr_generic;

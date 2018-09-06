@@ -926,9 +926,9 @@ runtime_exit:
 	return;
 }
 
-static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
+static void flctl_select_chip(struct nand_chip *chip, int chipnr)
 {
-	struct sh_flctl *flctl = mtd_to_flctl(mtd);
+	struct sh_flctl *flctl = mtd_to_flctl(nand_to_mtd(chip));
 	int ret;
 
 	switch (chipnr) {

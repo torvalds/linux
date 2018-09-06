@@ -825,9 +825,8 @@ static int gpmi_dev_ready(struct mtd_info *mtd)
 	return gpmi_is_ready(this, this->current_chip);
 }
 
-static void gpmi_select_chip(struct mtd_info *mtd, int chipnr)
+static void gpmi_select_chip(struct nand_chip *chip, int chipnr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	int ret;
 
@@ -1552,7 +1551,7 @@ static int gpmi_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	int column, page, chipnr;
 
 	chipnr = (int)(ofs >> chip->chip_shift);
-	chip->select_chip(mtd, chipnr);
+	chip->select_chip(chip, chipnr);
 
 	column = !GPMI_IS_MX23(this) ? mtd->writesize : 0;
 
@@ -1565,7 +1564,7 @@ static int gpmi_block_markbad(struct mtd_info *mtd, loff_t ofs)
 
 	ret = nand_prog_page_op(chip, page, column, block_mark, 1);
 
-	chip->select_chip(mtd, -1);
+	chip->select_chip(chip, -1);
 
 	return ret;
 }
@@ -1602,7 +1601,6 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 	struct boot_rom_geometry *rom_geo = &this->rom_geometry;
 	struct device *dev = this->dev;
 	struct nand_chip *chip = &this->nand;
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	unsigned int search_area_size_in_strides;
 	unsigned int stride;
 	unsigned int page;
@@ -1614,7 +1612,7 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 	search_area_size_in_strides = 1 << rom_geo->search_area_stride_exponent;
 
 	saved_chip_number = this->current_chip;
-	chip->select_chip(mtd, 0);
+	chip->select_chip(chip, 0);
 
 	/*
 	 * Loop through the first search area, looking for the NCB fingerprint.
@@ -1642,7 +1640,7 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 
 	}
 
-	chip->select_chip(mtd, saved_chip_number);
+	chip->select_chip(chip, saved_chip_number);
 
 	if (found_an_ncb_fingerprint)
 		dev_dbg(dev, "\tFound a fingerprint\n");
@@ -1685,7 +1683,7 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 
 	/* Select chip 0. */
 	saved_chip_number = this->current_chip;
-	chip->select_chip(mtd, 0);
+	chip->select_chip(chip, 0);
 
 	/* Loop over blocks in the first search area, erasing them. */
 	dev_dbg(dev, "Erasing the search area...\n");
@@ -1717,7 +1715,7 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 	}
 
 	/* Deselect chip 0. */
-	chip->select_chip(mtd, saved_chip_number);
+	chip->select_chip(chip, saved_chip_number);
 	return 0;
 }
 
@@ -1766,10 +1764,10 @@ static int mx23_boot_init(struct gpmi_nand_data  *this)
 		byte = block <<  chip->phys_erase_shift;
 
 		/* Send the command to read the conventional block mark. */
-		chip->select_chip(mtd, chipnr);
+		chip->select_chip(chip, chipnr);
 		nand_read_page_op(chip, page, mtd->writesize, NULL, 0);
 		block_mark = chip->read_byte(chip);
-		chip->select_chip(mtd, -1);
+		chip->select_chip(chip, -1);
 
 		/*
 		 * Check if the block is marked bad. If so, we need to mark it

@@ -118,9 +118,9 @@ static void nand_davinci_hwcontrol(struct mtd_info *mtd, int cmd,
 		iowrite8(cmd, nand->IO_ADDR_W);
 }
 
-static void nand_davinci_select_chip(struct mtd_info *mtd, int chip)
+static void nand_davinci_select_chip(struct nand_chip *nand, int chip)
 {
-	struct davinci_nand_info	*info = to_davinci_nand(mtd);
+	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(nand));
 
 	info->current_cs = info->vaddr;
 

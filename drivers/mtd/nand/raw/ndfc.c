@@ -44,10 +44,9 @@ struct ndfc_controller {
 
 static struct ndfc_controller ndfc_ctrl[NDFC_MAX_CS];
 
-static void ndfc_select_chip(struct mtd_info *mtd, int chip)
+static void ndfc_select_chip(struct nand_chip *nchip, int chip)
 {
 	uint32_t ccr;
-	struct nand_chip *nchip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = nand_get_controller_data(nchip);
 
 	ccr = in_be32(ndfc->ndfcbase + NDFC_CCR);

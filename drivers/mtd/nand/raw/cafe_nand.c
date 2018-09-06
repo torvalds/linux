@@ -314,9 +314,8 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	cafe_writel(cafe, cafe->ctl2, NAND_CTRL2);
 }
 
-static void cafe_select_chip(struct mtd_info *mtd, int chipnr)
+static void cafe_select_chip(struct nand_chip *chip, int chipnr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
 	cafe_dev_dbg(&cafe->pdev->dev, "select_chip %d\n", chipnr);

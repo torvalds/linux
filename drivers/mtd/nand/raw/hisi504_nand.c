@@ -353,9 +353,8 @@ static int hisi_nfc_send_cmd_reset(struct hinfc_host *host, int chipselect)
 	return 0;
 }
 
-static void hisi_nfc_select_chip(struct mtd_info *mtd, int chipselect)
+static void hisi_nfc_select_chip(struct nand_chip *chip, int chipselect)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	if (chipselect < 0)

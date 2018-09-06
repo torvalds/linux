@@ -191,8 +191,8 @@ static void bcm47xxnflash_ops_bcm4706_cmd_ctrl(struct mtd_info *mtd, int cmd,
 }
 
 /* Default nand_select_chip calls cmd_ctrl, which is not used in BCM4706 */
-static void bcm47xxnflash_ops_bcm4706_select_chip(struct mtd_info *mtd,
-						  int chip)
+static void bcm47xxnflash_ops_bcm4706_select_chip(struct nand_chip *chip,
+						  int cs)
 {
 	return;
 }

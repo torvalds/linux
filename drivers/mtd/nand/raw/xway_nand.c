@@ -85,9 +85,8 @@ static void xway_writeb(struct mtd_info *mtd, int op, u8 value)
 	writeb(value, data->nandaddr + op);
 }
 
-static void xway_select_chip(struct mtd_info *mtd, int select)
+static void xway_select_chip(struct nand_chip *chip, int select)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct xway_nand_data *data = nand_get_controller_data(chip);
 
 	switch (select) {

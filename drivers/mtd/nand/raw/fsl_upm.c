@@ -108,9 +108,9 @@ static void fun_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 		fun_wait_rnb(fun);
 }
 
-static void fun_select_chip(struct mtd_info *mtd, int mchip_nr)
+static void fun_select_chip(struct nand_chip *chip, int mchip_nr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct fsl_upm_nand *fun = to_fsl_upm_nand(mtd);
 
 	if (mchip_nr == -1) {

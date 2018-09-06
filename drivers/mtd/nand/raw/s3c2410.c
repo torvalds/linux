@@ -404,7 +404,7 @@ static int s3c2410_nand_inithw(struct s3c2410_nand_info *info)
 
 /**
  * s3c2410_nand_select_chip - select the given nand chip
- * @mtd: The MTD instance for this chip.
+ * @this: NAND chip object.
  * @chip: The chip number.
  *
  * This is called by the MTD layer to either select a given chip for the
@@ -415,11 +415,10 @@ static int s3c2410_nand_inithw(struct s3c2410_nand_info *info)
  * platform specific selection code is called to route nFCE to the specific
  * chip.
  */
-static void s3c2410_nand_select_chip(struct mtd_info *mtd, int chip)
+static void s3c2410_nand_select_chip(struct nand_chip *this, int chip)
 {
 	struct s3c2410_nand_info *info;
 	struct s3c2410_nand_mtd *nmtd;
-	struct nand_chip *this = mtd_to_nand(mtd);
 	unsigned long cur;
 
 	nmtd = nand_get_controller_data(this);

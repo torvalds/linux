@@ -420,9 +420,9 @@ static int sunxi_nfc_dev_ready(struct mtd_info *mtd)
 	return !!(readl(nfc->regs + NFC_REG_ST) & mask);
 }
 
-static void sunxi_nfc_select_chip(struct mtd_info *mtd, int chip)
+static void sunxi_nfc_select_chip(struct nand_chip *nand, int chip)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(sunxi_nand->nand.controller);
 	struct sunxi_nand_chip_sel *sel;

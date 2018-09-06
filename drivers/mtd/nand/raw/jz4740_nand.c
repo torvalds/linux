@@ -78,10 +78,9 @@ static inline struct jz_nand *mtd_to_jz_nand(struct mtd_info *mtd)
 	return container_of(mtd_to_nand(mtd), struct jz_nand, chip);
 }
 
-static void jz_nand_select_chip(struct mtd_info *mtd, int chipnr)
+static void jz_nand_select_chip(struct nand_chip *chip, int chipnr)
 {
-	struct jz_nand *nand = mtd_to_jz_nand(mtd);
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct jz_nand *nand = mtd_to_jz_nand(nand_to_mtd(chip));
 	uint32_t ctrl;
 	int banknr;
 
@@ -336,14 +335,14 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 			goto notfound_id;
 
 		/* Retrieve the IDs from the first chip. */
-		chip->select_chip(mtd, 0);
+		chip->select_chip(chip, 0);
 		nand_reset_op(chip);
 		nand_readid_op(chip, 0, id, sizeof(id));
 		*nand_maf_id = id[0];
 		*nand_dev_id = id[1];
 	} else {
 		/* Detect additional chip. */
-		chip->select_chip(mtd, chipnr);
+		chip->select_chip(chip, chipnr);
 		nand_reset_op(chip);
 		nand_readid_op(chip, 0, id, sizeof(id));
 		if (*nand_maf_id != id[0] || *nand_dev_id != id[1]) {

@@ -1026,7 +1026,6 @@ static int r852_suspend(struct device *device)
 static int r852_resume(struct device *device)
 {
 	struct r852_device *dev = pci_get_drvdata(to_pci_dev(device));
-	struct mtd_info *mtd = nand_to_mtd(dev->chip);
 
 	r852_disable_irqs(dev);
 	r852_card_update_present(dev);
@@ -1046,9 +1045,9 @@ static int r852_resume(struct device *device)
 	/* Otherwise, initialize the card */
 	if (dev->card_registred) {
 		r852_engine_enable(dev);
-		dev->chip->select_chip(mtd, 0);
+		dev->chip->select_chip(dev->chip, 0);
 		nand_reset_op(dev->chip);
-		dev->chip->select_chip(mtd, -1);
+		dev->chip->select_chip(dev->chip, -1);
 	}
 
 	/* Program card detection IRQ */

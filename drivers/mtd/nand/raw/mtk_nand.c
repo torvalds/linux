@@ -389,16 +389,15 @@ static int mtk_nfc_hw_runtime_config(struct mtd_info *mtd)
 	return 0;
 }
 
-static void mtk_nfc_select_chip(struct mtd_info *mtd, int chip)
+static void mtk_nfc_select_chip(struct nand_chip *nand, int chip)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct mtk_nfc *nfc = nand_get_controller_data(nand);
 	struct mtk_nfc_nand_chip *mtk_nand = to_mtk_nand(nand);
 
 	if (chip < 0)
 		return;
 
-	mtk_nfc_hw_runtime_config(mtd);
+	mtk_nfc_hw_runtime_config(nand_to_mtd(nand));
 
 	nfi_writel(nfc, mtk_nand->sels[chip], NFI_CSEL);
 }

@@ -37,13 +37,6 @@ static int plat_nand_dev_ready(struct mtd_info *mtd)
 	return pdata->ctrl.dev_ready(mtd_to_nand(mtd));
 }
 
-static void plat_nand_select_chip(struct mtd_info *mtd, int cs)
-{
-	struct platform_nand_data *pdata = dev_get_platdata(mtd->dev.parent);
-
-	pdata->ctrl.select_chip(mtd_to_nand(mtd), cs);
-}
-
 /*
  * Probe for the NAND device.
  */
@@ -90,9 +83,7 @@ static int plat_nand_probe(struct platform_device *pdev)
 	if (pdata->ctrl.dev_ready)
 		data->chip.dev_ready = plat_nand_dev_ready;
 
-	if (pdata->ctrl.select_chip)
-		data->chip.select_chip = plat_nand_select_chip;
-
+	data->chip.select_chip = pdata->ctrl.select_chip;
 	data->chip.write_buf = pdata->ctrl.write_buf;
 	data->chip.read_buf = pdata->ctrl.read_buf;
 	data->chip.chip_delay = pdata->chip.chip_delay;

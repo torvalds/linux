@@ -483,9 +483,8 @@ static int atmel_nand_dev_ready(struct mtd_info *mtd)
 	return gpiod_get_value(nand->activecs->rb.gpio);
 }
 
-static void atmel_nand_select_chip(struct mtd_info *mtd, int cs)
+static void atmel_nand_select_chip(struct nand_chip *chip, int cs)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 
 	if (cs < 0 || cs >= nand->numcs) {
@@ -514,15 +513,15 @@ static int atmel_hsmc_nand_dev_ready(struct mtd_info *mtd)
 	return status & ATMEL_HSMC_NFC_SR_RBEDGE(nand->activecs->rb.id);
 }
 
-static void atmel_hsmc_nand_select_chip(struct mtd_info *mtd, int cs)
+static void atmel_hsmc_nand_select_chip(struct nand_chip *chip, int cs)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 	struct atmel_hsmc_nand_controller *nc;
 
 	nc = to_hsmc_nand_controller(chip->controller);
 
-	atmel_nand_select_chip(mtd, cs);
+	atmel_nand_select_chip(chip, cs);
 
 	if (!nand->activecs) {
 		regmap_write(nc->base.smc, ATMEL_HSMC_NFC_CTRL,
