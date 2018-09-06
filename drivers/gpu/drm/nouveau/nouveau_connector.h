@@ -191,7 +191,7 @@ struct drm_display_mode *nouveau_conn_native_mode(struct drm_connector *);
 
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
 extern int nouveau_backlight_init(struct drm_connector *);
-extern void nouveau_backlight_exit(struct drm_connector *);
+extern void nouveau_backlight_fini(struct drm_connector *);
 extern void nouveau_backlight_ctor(void);
 extern void nouveau_backlight_dtor(void);
 #else
@@ -202,7 +202,7 @@ nouveau_backlight_init(struct drm_connector *connector)
 }
 
 static inline void
-nouveau_backlight_exit(struct drm_connector *connector) {
+nouveau_backlight_fini(struct drm_connector *connector) {
 }
 
 static inline void

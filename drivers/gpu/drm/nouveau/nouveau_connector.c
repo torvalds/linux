@@ -898,7 +898,7 @@ nouveau_connector_late_register(struct drm_connector *connector)
 static void
 nouveau_connector_early_unregister(struct drm_connector *connector)
 {
-	nouveau_backlight_exit(connector);
+	nouveau_backlight_fini(connector);
 }
 
 static int

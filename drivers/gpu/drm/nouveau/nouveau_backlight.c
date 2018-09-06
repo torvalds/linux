@@ -309,7 +309,7 @@ nouveau_backlight_init(struct drm_connector *connector)
 }
 
 void
-nouveau_backlight_exit(struct drm_connector *connector)
+nouveau_backlight_fini(struct drm_connector *connector)
 {
 	struct nouveau_connector *nv_conn = nouveau_connector(connector);
 	struct nouveau_backlight *bl = nv_conn->backlight;
