@@ -81,8 +81,8 @@ static const struct drm_plane_funcs vkms_plane_funcs = {
 	.atomic_destroy_state	= vkms_plane_destroy_state,
 };
 
-static void vkms_primary_plane_update(struct drm_plane *plane,
-				      struct drm_plane_state *old_state)
+static void vkms_plane_atomic_update(struct drm_plane *plane,
+				     struct drm_plane_state *old_state)
 {
 	struct vkms_plane_state *vkms_plane_state;
 	struct vkms_crc_data *crc_data;
@@ -101,6 +101,7 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 				   struct drm_plane_state *state)
 {
 	struct drm_crtc_state *crtc_state;
+	bool can_position = false;
 	int ret;
 
 	if (!state->fb | !state->crtc)
@@ -110,15 +111,18 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
+	if (plane->type == DRM_PLANE_TYPE_CURSOR)
+		can_position = true;
+
 	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
-						  false, true);
+						  can_position, true);
 	if (ret != 0)
 		return ret;
 
 	/* for now primary plane must be visible and full screen */
-	if (!state->visible)
+	if (!state->visible && !can_position)
 		return -EINVAL;
 
 	return 0;
@@ -156,15 +160,17 @@ static void vkms_cleanup_fb(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs vkms_primary_helper_funcs = {
-	.atomic_update		= vkms_primary_plane_update,
+	.atomic_update		= vkms_plane_atomic_update,
 	.atomic_check		= vkms_plane_atomic_check,
 	.prepare_fb		= vkms_prepare_fb,
 	.cleanup_fb		= vkms_cleanup_fb,
 };
 
-struct drm_plane *vkms_plane_init(struct vkms_device *vkmsdev)
+struct drm_plane *vkms_plane_init(struct vkms_device *vkmsdev,
+				  enum drm_plane_type type)
 {
 	struct drm_device *dev = &vkmsdev->drm;
+	const struct drm_plane_helper_funcs *funcs;
 	struct drm_plane *plane;
 	const u32 *formats;
 	int ret, nformats;
@@ -173,19 +179,26 @@ struct drm_plane *vkms_plane_init(struct vkms_device *vkmsdev)
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 
-	formats = vkms_formats;
-	nformats = ARRAY_SIZE(vkms_formats);
+	if (type == DRM_PLANE_TYPE_CURSOR) {
+		formats = vkms_cursor_formats;
+		nformats = ARRAY_SIZE(vkms_cursor_formats);
+		funcs = &vkms_primary_helper_funcs;
+	} else {
+		formats = vkms_formats;
+		nformats = ARRAY_SIZE(vkms_formats);
+		funcs = &vkms_primary_helper_funcs;
+	}
 
 	ret = drm_universal_plane_init(dev, plane, 0,
 				       &vkms_plane_funcs,
 				       formats, nformats,
-				       NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
+				       NULL, type, NULL);
 	if (ret) {
 		kfree(plane);
 		return ERR_PTR(ret);
 	}
 
-	drm_plane_helper_add(plane, &vkms_primary_helper_funcs);
+	drm_plane_helper_add(plane, funcs);
 
 	return plane;
 }
