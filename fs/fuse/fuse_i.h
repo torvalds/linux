@@ -28,8 +28,11 @@
 #include <linux/refcount.h>
 #include <linux/user_namespace.h>
 
-/** Max number of pages that can be used in a single read request */
-#define FUSE_MAX_PAGES_PER_REQ 32
+/** Default max number of pages that can be used in a single read request */
+#define FUSE_DEFAULT_MAX_PAGES_PER_REQ 32
+
+/** Maximum of max_pages received in init_out */
+#define FUSE_MAX_MAX_PAGES 256
 
 /** Bias for fi->writectr, meaning new writepages must not be sent */
 #define FUSE_NOWRITE INT_MIN
@@ -524,6 +527,9 @@ struct fuse_conn {
 
 	/** Maximum write size */
 	unsigned max_write;
+
+	/** Maxmum number of pages that can be used in a single request */
+	unsigned int max_pages;
 
 	/** Input queue */
 	struct fuse_iqueue iq;
