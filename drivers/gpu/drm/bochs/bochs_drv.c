@@ -107,11 +107,7 @@ static int bochs_pm_suspend(struct device *dev)
 
 	drm_kms_helper_poll_disable(drm_dev);
 
-	if (bochs->fb.initialized) {
-		console_lock();
-		drm_fb_helper_set_suspend(&bochs->fb.helper, 1);
-		console_unlock();
-	}
+	drm_fb_helper_set_suspend_unlocked(&bochs->fb.helper, 1);
 
 	return 0;
 }
@@ -124,11 +120,7 @@ static int bochs_pm_resume(struct device *dev)
 
 	drm_helper_resume_force_mode(drm_dev);
 
-	if (bochs->fb.initialized) {
-		console_lock();
-		drm_fb_helper_set_suspend(&bochs->fb.helper, 0);
-		console_unlock();
-	}
+	drm_fb_helper_set_suspend_unlocked(&bochs->fb.helper, 0);
 
 	drm_kms_helper_poll_enable(drm_dev);
 	return 0;
