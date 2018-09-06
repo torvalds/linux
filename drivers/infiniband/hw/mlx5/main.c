@@ -2460,17 +2460,16 @@ static int check_mpls_supp_fields(u32 field_support, const __be32 *set_mask)
 		   offsetof(typeof(filter), field) -\
 		   sizeof(filter.field))
 
-static int parse_flow_flow_action(const union ib_flow_spec *ib_spec,
-				  const struct ib_flow_attr *flow_attr,
-				  struct mlx5_flow_act *action)
+int parse_flow_flow_action(struct mlx5_ib_flow_action *maction,
+			   bool is_egress,
+			   struct mlx5_flow_act *action)
 {
-	struct mlx5_ib_flow_action *maction = to_mflow_act(ib_spec->action.act);
 
 	switch (maction->ib_action.type) {
 	case IB_FLOW_ACTION_ESP:
 		/* Currently only AES_GCM keymat is supported by the driver */
 		action->esp_id = (uintptr_t)maction->esp_aes_gcm.ctx;
-		action->action |= flow_attr->flags & IB_FLOW_ATTR_FLAGS_EGRESS ?
+		action->action |= is_egress ?
 			MLX5_FLOW_CONTEXT_ACTION_ENCRYPT :
 			MLX5_FLOW_CONTEXT_ACTION_DECRYPT;
 		return 0;
@@ -2831,7 +2830,8 @@ static int parse_flow_attr(struct mlx5_core_dev *mdev, u32 *match_c,
 		action->action |= MLX5_FLOW_CONTEXT_ACTION_DROP;
 		break;
 	case IB_FLOW_SPEC_ACTION_HANDLE:
-		ret = parse_flow_flow_action(ib_spec, flow_attr, action);
+		ret = parse_flow_flow_action(to_mflow_act(ib_spec->action.act),
+			flow_attr->flags & IB_FLOW_ATTR_FLAGS_EGRESS, action);
 		if (ret)
 			return ret;
 		break;
