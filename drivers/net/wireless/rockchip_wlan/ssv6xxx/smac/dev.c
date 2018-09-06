@@ -3412,6 +3412,24 @@ static void ssv6200_remove_interface(struct ieee80211_hw *hw,
     sc->nvif--;
     mutex_unlock(&sc->mutex);
 }
+static int ssv6200_change_interface(struct ieee80211_hw *dev,
+                            struct ieee80211_vif *vif,
+                            enum nl80211_iftype new_type,
+                            bool p2p)
+{
+        int ret = 0;
+        printk("change_interface new: %d (%d), old: %d (%d)\n", new_type,
+                 p2p, vif->type, vif->p2p);
+
+        if (new_type != vif->type || vif->p2p != p2p) {
+                ssv6200_remove_interface(dev, vif);
+                vif->type = new_type;
+                vif->p2p = p2p;
+                ret = ssv6200_add_interface(dev, vif);
+        }
+
+        return ret;
+}
 void ssv6xxx_ps_callback_func(unsigned long data)
 {
     struct ssv_softc *sc = (struct ssv_softc *)data;
@@ -4437,6 +4455,7 @@ struct ieee80211_ops ssv6200_ops =
     .stop = ssv6200_stop,
     .add_interface = ssv6200_add_interface,
     .remove_interface = ssv6200_remove_interface,
+    .change_interface = ssv6200_change_interface,
     .config = ssv6200_config,
     .configure_filter = ssv6200_config_filter,
     .bss_info_changed = ssv6200_bss_info_changed,
