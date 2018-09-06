@@ -3,6 +3,7 @@
 Required properties:
 - compatible: Should be one of the following.
   - "rockchip,px30-dmc" - for PX30 SoCs.
+  - "rockchip,rk1808-dmc" - for RK1808 SoCs.
   - "rockchip,rk3128-dmc" - for RK3128 SoCs.
   - "rockchip,rk3228-dmc" - for RK3228 SoCs.
   - "rockchip,rk3288-dmc" - for RK3288 SoCs.
