@@ -340,7 +340,7 @@ static int erofs_read_super(struct super_block *sb,
 		goto err_sbread;
 
 	sb->s_magic = EROFS_SUPER_MAGIC;
-	sb->s_flags |= MS_RDONLY | MS_NOATIME;
+	sb->s_flags |= SB_RDONLY | SB_NOATIME;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_time_gran = 1;
 
@@ -627,7 +627,7 @@ static int erofs_remount(struct super_block *sb, int *flags, char *data)
 {
 	BUG_ON(!sb_rdonly(sb));
 
-	*flags |= MS_RDONLY;
+	*flags |= SB_RDONLY;
 	return 0;
 }
 
