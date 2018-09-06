@@ -238,24 +238,6 @@ struct dpu_crtc_state {
 	container_of(x, struct dpu_crtc_state, base)
 
 /**
- * dpu_crtc_get_mixer_width - get the mixer width
- * Mixer width will be same as panel width(/2 for split)
- */
-static inline int dpu_crtc_get_mixer_width(struct dpu_crtc *dpu_crtc,
-	struct dpu_crtc_state *cstate, struct drm_display_mode *mode)
-{
-	u32 mixer_width;
-
-	if (!dpu_crtc || !cstate || !mode)
-		return 0;
-
-	mixer_width = (dpu_crtc->num_mixers == CRTC_DUAL_MIXERS ?
-			mode->hdisplay / CRTC_DUAL_MIXERS : mode->hdisplay);
-
-	return mixer_width;
-}
-
-/**
  * dpu_crtc_get_mixer_height - get the mixer height
  * Mixer height will be same as panel height
  */
