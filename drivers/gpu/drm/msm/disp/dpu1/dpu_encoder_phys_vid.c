@@ -801,7 +801,6 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 	struct dpu_encoder_phys *phys_enc = NULL;
 	struct dpu_encoder_phys_vid *vid_enc = NULL;
 	struct dpu_rm_hw_iter iter;
-	struct dpu_hw_mdp *hw_mdp;
 	struct dpu_encoder_irq *irq;
 	int i, ret = 0;
 
@@ -818,13 +817,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 
 	phys_enc = &vid_enc->base;
 
-	hw_mdp = dpu_rm_get_mdp(&p->dpu_kms->rm);
-	if (IS_ERR_OR_NULL(hw_mdp)) {
-		ret = PTR_ERR(hw_mdp);
-		DPU_ERROR("failed to get mdptop\n");
-		goto fail;
-	}
-	phys_enc->hw_mdptop = hw_mdp;
+	phys_enc->hw_mdptop = p->dpu_kms->hw_mdp;
 	phys_enc->intf_idx = p->intf_idx;
 
 	/**
