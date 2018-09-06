@@ -390,8 +390,8 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 	b47n->nand_chip.legacy.read_byte = bcm47xxnflash_ops_bcm4706_read_byte;
 	b47n->nand_chip.legacy.read_buf = bcm47xxnflash_ops_bcm4706_read_buf;
 	b47n->nand_chip.legacy.write_buf = bcm47xxnflash_ops_bcm4706_write_buf;
-	b47n->nand_chip.set_features = nand_get_set_features_notsupp;
-	b47n->nand_chip.get_features = nand_get_set_features_notsupp;
+	b47n->nand_chip.legacy.set_features = nand_get_set_features_notsupp;
+	b47n->nand_chip.legacy.get_features = nand_get_set_features_notsupp;
 
 	nand_chip->chip_delay = 50;
 	b47n->nand_chip.bbt_options = NAND_BBT_USE_FLASH;

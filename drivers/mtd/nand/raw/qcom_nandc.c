@@ -2808,8 +2808,8 @@ static int qcom_nand_host_init_and_register(struct qcom_nand_controller *nandc,
 	chip->legacy.read_byte	= qcom_nandc_read_byte;
 	chip->legacy.read_buf	= qcom_nandc_read_buf;
 	chip->legacy.write_buf	= qcom_nandc_write_buf;
-	chip->set_features	= nand_get_set_features_notsupp;
-	chip->get_features	= nand_get_set_features_notsupp;
+	chip->legacy.set_features	= nand_get_set_features_notsupp;
+	chip->legacy.get_features	= nand_get_set_features_notsupp;
 
 	/*
 	 * the bad block marker is readable only when we read the last codeword

@@ -1778,8 +1778,8 @@ static int mxcnd_probe(struct platform_device *pdev)
 	this->legacy.read_byte = mxc_nand_read_byte;
 	this->legacy.write_buf = mxc_nand_write_buf;
 	this->legacy.read_buf = mxc_nand_read_buf;
-	this->set_features = mxc_nand_set_features;
-	this->get_features = mxc_nand_get_features;
+	this->legacy.set_features = mxc_nand_set_features;
+	this->legacy.get_features = mxc_nand_get_features;
 
 	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk))

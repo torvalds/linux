@@ -1190,6 +1190,8 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  * @block_bad: check if a block is bad, using OOB markers
  * @block_markbad: mark a block bad
  * @erase: erase function
+ * @set_features: set the NAND chip features
+ * @get_features: get the NAND chip features
  *
  * If you look at this structure you're already wrong. These fields/hooks are
  * all deprecated.
@@ -1209,6 +1211,10 @@ struct nand_legacy {
 	int (*block_bad)(struct nand_chip *chip, loff_t ofs);
 	int (*block_markbad)(struct nand_chip *chip, loff_t ofs);
 	int (*erase)(struct nand_chip *chip, int page);
+	int (*set_features)(struct nand_chip *chip, int feature_addr,
+			    u8 *subfeature_para);
+	int (*get_features)(struct nand_chip *chip, int feature_addr,
+			    u8 *subfeature_para);
 };
 
 /**
@@ -1279,8 +1285,6 @@ struct nand_legacy {
  * @blocks_per_die:	[INTERN] The number of PEBs in a die
  * @data_interface:	[INTERN] NAND interface timing information
  * @read_retries:	[INTERN] the number of read retry modes supported
- * @set_features:	[REPLACEABLE] set the NAND chip features
- * @get_features:	[REPLACEABLE] get the NAND chip features
  * @setup_data_interface: [OPTIONAL] setup the data interface and timing. If
  *			  chipnr is set to %NAND_DATA_IFACE_CHECK_ONLY this
  *			  means the configuration should not be applied but
@@ -1309,10 +1313,6 @@ struct nand_chip {
 	int (*exec_op)(struct nand_chip *chip,
 		       const struct nand_operation *op,
 		       bool check_only);
-	int (*set_features)(struct nand_chip *chip, int feature_addr,
-			    uint8_t *subfeature_para);
-	int (*get_features)(struct nand_chip *chip, int feature_addr,
-			    uint8_t *subfeature_para);
 	int (*setup_read_retry)(struct nand_chip *chip, int retry_mode);
 	int (*setup_data_interface)(struct nand_chip *chip, int chipnr,
 				    const struct nand_data_interface *conf);

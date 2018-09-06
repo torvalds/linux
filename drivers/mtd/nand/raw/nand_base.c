@@ -1176,44 +1176,6 @@ static bool nand_supports_set_features(struct nand_chip *chip, int addr)
 }
 
 /**
- * nand_get_features - wrapper to perform a GET_FEATURE
- * @chip: NAND chip info structure
- * @addr: feature address
- * @subfeature_param: the subfeature parameters, a four bytes array
- *
- * Returns 0 for success, a negative error otherwise. Returns -ENOTSUPP if the
- * operation cannot be handled.
- */
-int nand_get_features(struct nand_chip *chip, int addr,
-		      u8 *subfeature_param)
-{
-	if (!nand_supports_get_features(chip, addr))
-		return -ENOTSUPP;
-
-	return chip->get_features(chip, addr, subfeature_param);
-}
-EXPORT_SYMBOL_GPL(nand_get_features);
-
-/**
- * nand_set_features - wrapper to perform a SET_FEATURE
- * @chip: NAND chip info structure
- * @addr: feature address
- * @subfeature_param: the subfeature parameters, a four bytes array
- *
- * Returns 0 for success, a negative error otherwise. Returns -ENOTSUPP if the
- * operation cannot be handled.
- */
-int nand_set_features(struct nand_chip *chip, int addr,
-		      u8 *subfeature_param)
-{
-	if (!nand_supports_set_features(chip, addr))
-		return -ENOTSUPP;
-
-	return chip->set_features(chip, addr, subfeature_param);
-}
-EXPORT_SYMBOL_GPL(nand_set_features);
-
-/**
  * nand_reset_data_interface - Reset data interface and timings
  * @chip: The NAND chip
  * @chipnr: Internal die id
@@ -2832,6 +2794,50 @@ int nand_reset(struct nand_chip *chip, int chipnr)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nand_reset);
+
+/**
+ * nand_get_features - wrapper to perform a GET_FEATURE
+ * @chip: NAND chip info structure
+ * @addr: feature address
+ * @subfeature_param: the subfeature parameters, a four bytes array
+ *
+ * Returns 0 for success, a negative error otherwise. Returns -ENOTSUPP if the
+ * operation cannot be handled.
+ */
+int nand_get_features(struct nand_chip *chip, int addr,
+		      u8 *subfeature_param)
+{
+	if (!nand_supports_get_features(chip, addr))
+		return -ENOTSUPP;
+
+	if (chip->legacy.get_features)
+		return chip->legacy.get_features(chip, addr, subfeature_param);
+
+	return nand_get_features_op(chip, addr, subfeature_param);
+}
+EXPORT_SYMBOL_GPL(nand_get_features);
+
+/**
+ * nand_set_features - wrapper to perform a SET_FEATURE
+ * @chip: NAND chip info structure
+ * @addr: feature address
+ * @subfeature_param: the subfeature parameters, a four bytes array
+ *
+ * Returns 0 for success, a negative error otherwise. Returns -ENOTSUPP if the
+ * operation cannot be handled.
+ */
+int nand_set_features(struct nand_chip *chip, int addr,
+		      u8 *subfeature_param)
+{
+	if (!nand_supports_set_features(chip, addr))
+		return -ENOTSUPP;
+
+	if (chip->legacy.set_features)
+		return chip->legacy.set_features(chip, addr, subfeature_param);
+
+	return nand_set_features_op(chip, addr, subfeature_param);
+}
+EXPORT_SYMBOL_GPL(nand_set_features);
 
 /**
  * nand_check_erased_buf - check if a buffer contains (almost) only 0xff data
@@ -4865,30 +4871,6 @@ static int nand_max_bad_blocks(struct mtd_info *mtd, loff_t ofs, size_t len)
 }
 
 /**
- * nand_default_set_features- [REPLACEABLE] set NAND chip features
- * @chip: nand chip info structure
- * @addr: feature address.
- * @subfeature_param: the subfeature parameters, a four bytes array.
- */
-static int nand_default_set_features(struct nand_chip *chip, int addr,
-				     uint8_t *subfeature_param)
-{
-	return nand_set_features_op(chip, addr, subfeature_param);
-}
-
-/**
- * nand_default_get_features- [REPLACEABLE] get NAND chip features
- * @chip: nand chip info structure
- * @addr: feature address.
- * @subfeature_param: the subfeature parameters, a four bytes array.
- */
-static int nand_default_get_features(struct nand_chip *chip, int addr,
-				     uint8_t *subfeature_param)
-{
-	return nand_get_features_op(chip, addr, subfeature_param);
-}
-
-/**
  * nand_get_set_features_notsupp - set/get features stub returning -ENOTSUPP
  * @chip: nand chip info structure
  * @addr: feature address.
@@ -4957,12 +4939,6 @@ static void nand_set_defaults(struct nand_chip *chip)
 
 	if (!chip->select_chip)
 		chip->select_chip = nand_select_chip;
-
-	/* set for ONFI nand */
-	if (!chip->set_features)
-		chip->set_features = nand_default_set_features;
-	if (!chip->get_features)
-		chip->get_features = nand_default_get_features;
 
 	/* If called twice, pointers that depend on busw may need to be reset */
 	if (!chip->legacy.read_byte || chip->legacy.read_byte == nand_read_byte)
