@@ -2005,8 +2005,8 @@ static int qcom_nandc_read_oob(struct nand_chip *chip, int page)
 }
 
 /* implements ecc->write_page() */
-static int qcom_nandc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-				 const uint8_t *buf, int oob_required, int page)
+static int qcom_nandc_write_page(struct nand_chip *chip, const uint8_t *buf,
+				 int oob_required, int page)
 {
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
@@ -2075,10 +2075,11 @@ static int qcom_nandc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 /* implements ecc->write_page_raw() */
-static int qcom_nandc_write_page_raw(struct mtd_info *mtd,
-				     struct nand_chip *chip, const uint8_t *buf,
-				     int oob_required, int page)
+static int qcom_nandc_write_page_raw(struct nand_chip *chip,
+				     const uint8_t *buf, int oob_required,
+				     int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
@@ -2153,9 +2154,9 @@ static int qcom_nandc_write_page_raw(struct mtd_info *mtd,
  * since ECC is calculated for the combined codeword. So update the OOB from
  * chip->oob_poi, and pad the data area with OxFF before writing.
  */
-static int qcom_nandc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
-				int page)
+static int qcom_nandc_write_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;

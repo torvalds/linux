@@ -3787,12 +3787,13 @@ EXPORT_SYMBOL(nand_read_oob_syndrome);
 
 /**
  * nand_write_oob_std - [REPLACEABLE] the most common OOB data write function
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @page: page number to write
  */
-int nand_write_oob_std(struct mtd_info *mtd, struct nand_chip *chip, int page)
+int nand_write_oob_std(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	return nand_prog_page_op(chip, page, mtd->writesize, chip->oob_poi,
 				 mtd->oobsize);
 }
@@ -3801,13 +3802,12 @@ EXPORT_SYMBOL(nand_write_oob_std);
 /**
  * nand_write_oob_syndrome - [REPLACEABLE] OOB data write function for HW ECC
  *			     with syndrome - only for large page flash
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @page: page number to write
  */
-int nand_write_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
-			    int page)
+int nand_write_oob_syndrome(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int chunk = chip->ecc.bytes + chip->ecc.prepad + chip->ecc.postpad;
 	int eccsize = chip->ecc.size, length = mtd->oobsize;
 	int ret, i, len, pos, sndcmd = 0, steps = chip->ecc.steps;
@@ -3984,7 +3984,6 @@ static int nand_read_oob(struct mtd_info *mtd, loff_t from,
 
 /**
  * nand_write_page_raw_notsupp - dummy raw page write function
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @buf: data buffer
  * @oob_required: must write chip->oob_poi to OOB
@@ -3992,8 +3991,8 @@ static int nand_read_oob(struct mtd_info *mtd, loff_t from,
  *
  * Returns -ENOTSUPP unconditionally.
  */
-int nand_write_page_raw_notsupp(struct mtd_info *mtd, struct nand_chip *chip,
-				const u8 *buf, int oob_required, int page)
+int nand_write_page_raw_notsupp(struct nand_chip *chip, const u8 *buf,
+				int oob_required, int page)
 {
 	return -ENOTSUPP;
 }
@@ -4001,7 +4000,6 @@ EXPORT_SYMBOL(nand_write_page_raw_notsupp);
 
 /**
  * nand_write_page_raw - [INTERN] raw page write function
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @buf: data buffer
  * @oob_required: must write chip->oob_poi to OOB
@@ -4009,9 +4007,10 @@ EXPORT_SYMBOL(nand_write_page_raw_notsupp);
  *
  * Not for syndrome calculating ECC controllers, which use a special oob layout.
  */
-int nand_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-			const uint8_t *buf, int oob_required, int page)
+int nand_write_page_raw(struct nand_chip *chip, const uint8_t *buf,
+			int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
 	ret = nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
@@ -4031,7 +4030,6 @@ EXPORT_SYMBOL(nand_write_page_raw);
 
 /**
  * nand_write_page_raw_syndrome - [INTERN] raw page write function
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @buf: data buffer
  * @oob_required: must write chip->oob_poi to OOB
@@ -4039,11 +4037,11 @@ EXPORT_SYMBOL(nand_write_page_raw);
  *
  * We need a special oob layout and handling even when ECC isn't checked.
  */
-static int nand_write_page_raw_syndrome(struct mtd_info *mtd,
-					struct nand_chip *chip,
+static int nand_write_page_raw_syndrome(struct nand_chip *chip,
 					const uint8_t *buf, int oob_required,
 					int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
 	uint8_t *oob = chip->oob_poi;
@@ -4096,16 +4094,15 @@ static int nand_write_page_raw_syndrome(struct mtd_info *mtd,
 }
 /**
  * nand_write_page_swecc - [REPLACEABLE] software ECC based page write function
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @buf: data buffer
  * @oob_required: must write chip->oob_poi to OOB
  * @page: page number to write
  */
-static int nand_write_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
-				 const uint8_t *buf, int oob_required,
-				 int page)
+static int nand_write_page_swecc(struct nand_chip *chip, const uint8_t *buf,
+				 int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int i, eccsize = chip->ecc.size, ret;
 	int eccbytes = chip->ecc.bytes;
 	int eccsteps = chip->ecc.steps;
@@ -4121,21 +4118,20 @@ static int nand_write_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 	if (ret)
 		return ret;
 
-	return chip->ecc.write_page_raw(mtd, chip, buf, 1, page);
+	return chip->ecc.write_page_raw(chip, buf, 1, page);
 }
 
 /**
  * nand_write_page_hwecc - [REPLACEABLE] hardware ECC based page write function
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @buf: data buffer
  * @oob_required: must write chip->oob_poi to OOB
  * @page: page number to write
  */
-static int nand_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
-				  const uint8_t *buf, int oob_required,
-				  int page)
+static int nand_write_page_hwecc(struct nand_chip *chip, const uint8_t *buf,
+				 int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int i, eccsize = chip->ecc.size, ret;
 	int eccbytes = chip->ecc.bytes;
 	int eccsteps = chip->ecc.steps;
@@ -4171,7 +4167,6 @@ static int nand_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 
 /**
  * nand_write_subpage_hwecc - [REPLACEABLE] hardware ECC based subpage write
- * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @offset:	column address of subpage within the page
  * @data_len:	data length
@@ -4179,11 +4174,11 @@ static int nand_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
  * @oob_required: must write chip->oob_poi to OOB
  * @page: page number to write
  */
-static int nand_write_subpage_hwecc(struct mtd_info *mtd,
-				struct nand_chip *chip, uint32_t offset,
-				uint32_t data_len, const uint8_t *buf,
-				int oob_required, int page)
+static int nand_write_subpage_hwecc(struct nand_chip *chip, uint32_t offset,
+				    uint32_t data_len, const uint8_t *buf,
+				    int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	uint8_t *oob_buf  = chip->oob_poi;
 	uint8_t *ecc_calc = chip->ecc.calc_buf;
 	int ecc_size      = chip->ecc.size;
@@ -4242,7 +4237,6 @@ static int nand_write_subpage_hwecc(struct mtd_info *mtd,
 
 /**
  * nand_write_page_syndrome - [REPLACEABLE] hardware ECC syndrome based page write
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @buf: data buffer
  * @oob_required: must write chip->oob_poi to OOB
@@ -4251,11 +4245,10 @@ static int nand_write_subpage_hwecc(struct mtd_info *mtd,
  * The hw generator calculates the error syndrome automatically. Therefore we
  * need a special oob layout and handling.
  */
-static int nand_write_page_syndrome(struct mtd_info *mtd,
-				    struct nand_chip *chip,
-				    const uint8_t *buf, int oob_required,
-				    int page)
+static int nand_write_page_syndrome(struct nand_chip *chip, const uint8_t *buf,
+				    int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int i, eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
 	int eccsteps = chip->ecc.steps;
@@ -4336,14 +4329,13 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 		subpage = 0;
 
 	if (unlikely(raw))
-		status = chip->ecc.write_page_raw(mtd, chip, buf,
-						  oob_required, page);
+		status = chip->ecc.write_page_raw(chip, buf, oob_required,
+						  page);
 	else if (subpage)
-		status = chip->ecc.write_subpage(mtd, chip, offset, data_len,
-						 buf, oob_required, page);
+		status = chip->ecc.write_subpage(chip, offset, data_len, buf,
+						 oob_required, page);
 	else
-		status = chip->ecc.write_page(mtd, chip, buf, oob_required,
-					      page);
+		status = chip->ecc.write_page(chip, buf, oob_required, page);
 
 	if (status < 0)
 		return status;
@@ -4610,9 +4602,9 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 	nand_fill_oob(mtd, ops->oobbuf, ops->ooblen, ops);
 
 	if (ops->mode == MTD_OPS_RAW)
-		status = chip->ecc.write_oob_raw(mtd, chip, page & chip->pagemask);
+		status = chip->ecc.write_oob_raw(chip, page & chip->pagemask);
 	else
-		status = chip->ecc.write_oob(mtd, chip, page & chip->pagemask);
+		status = chip->ecc.write_oob(chip, page & chip->pagemask);
 
 	chip->select_chip(mtd, -1);
 

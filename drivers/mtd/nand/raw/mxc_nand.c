@@ -873,22 +873,21 @@ static int mxc_nand_write_page(struct nand_chip *chip, const uint8_t *buf,
 	return 0;
 }
 
-static int mxc_nand_write_page_ecc(struct mtd_info *mtd, struct nand_chip *chip,
-				   const uint8_t *buf, int oob_required,
-				   int page)
+static int mxc_nand_write_page_ecc(struct nand_chip *chip, const uint8_t *buf,
+				   int oob_required, int page)
 {
 	return mxc_nand_write_page(chip, buf, true, page);
 }
 
-static int mxc_nand_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				   const uint8_t *buf, int oob_required, int page)
+static int mxc_nand_write_page_raw(struct nand_chip *chip, const uint8_t *buf,
+				   int oob_required, int page)
 {
 	return mxc_nand_write_page(chip, buf, false, page);
 }
 
-static int mxc_nand_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			      int page)
+static int mxc_nand_write_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct mxc_nand_host *host = nand_get_controller_data(chip);
 
 	memset(host->data_buf, 0xff, mtd->writesize);

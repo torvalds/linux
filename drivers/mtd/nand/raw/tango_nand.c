@@ -300,9 +300,10 @@ static int tango_read_page(struct nand_chip *chip, u8 *buf,
 	return res;
 }
 
-static int tango_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-			    const u8 *buf, int oob_required, int page)
+static int tango_write_page(struct nand_chip *chip, const u8 *buf,
+			    int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct tango_nfc *nfc = to_tango_nfc(chip->controller);
 	int err, status, len = mtd->writesize;
 
@@ -433,8 +434,8 @@ static int tango_read_page_raw(struct nand_chip *chip, u8 *buf,
 	return 0;
 }
 
-static int tango_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				const u8 *buf, int oob_required, int page)
+static int tango_write_page_raw(struct nand_chip *chip, const u8 *buf,
+				int oob_required, int page)
 {
 	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 	raw_write(chip, buf, chip->oob_poi);
@@ -448,8 +449,7 @@ static int tango_read_oob(struct nand_chip *chip, int page)
 	return 0;
 }
 
-static int tango_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			   int page)
+static int tango_write_oob(struct nand_chip *chip, int page)
 {
 	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 	raw_write(chip, NULL, chip->oob_poi);

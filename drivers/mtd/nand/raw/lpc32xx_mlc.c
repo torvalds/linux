@@ -508,11 +508,11 @@ static int lpc32xx_read_page(struct nand_chip *chip, uint8_t *buf,
 	return 0;
 }
 
-static int lpc32xx_write_page_lowlevel(struct mtd_info *mtd,
-				       struct nand_chip *chip,
+static int lpc32xx_write_page_lowlevel(struct nand_chip *chip,
 				       const uint8_t *buf, int oob_required,
 				       int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 	const uint8_t *oobbuf = chip->oob_poi;
 	uint8_t *dma_buf = (uint8_t *)buf;
@@ -568,8 +568,7 @@ static int lpc32xx_read_oob(struct nand_chip *chip, int page)
 	return 0;
 }
 
-static int lpc32xx_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			      int page)
+static int lpc32xx_write_oob(struct nand_chip *chip, int page)
 {
 	/* None, write_oob conflicts with the automatic LPC MLC ECC decoder! */
 	return 0;

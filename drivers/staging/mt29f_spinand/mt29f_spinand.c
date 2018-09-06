@@ -630,8 +630,7 @@ static int spinand_erase_block(struct spi_device *spi_nand, u16 block_id)
 }
 
 #ifdef CONFIG_MTD_SPINAND_ONDIEECC
-static int spinand_write_page_hwecc(struct mtd_info *mtd,
-				    struct nand_chip *chip,
+static int spinand_write_page_hwecc(struct nand_chip *chip,
 				    const u8 *buf, int oob_required,
 				    int page)
 {

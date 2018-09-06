@@ -394,7 +394,7 @@ EXPORT_SYMBOL(__nand_calculate_ecc);
 /**
  * nand_calculate_ecc - [NAND Interface] Calculate 3-byte ECC for 256/512-byte
  *			 block
- * @mtd:	MTD block structure
+ * @chip:	NAND chip object
  * @buf:	input buffer with raw data
  * @code:	output buffer with ECC
  */

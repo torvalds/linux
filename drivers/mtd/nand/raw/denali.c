@@ -761,9 +761,9 @@ static int denali_read_oob(struct nand_chip *chip, int page)
 	return 0;
 }
 
-static int denali_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			    int page)
+static int denali_write_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
 
 	denali_reset_irq(denali);
@@ -806,9 +806,10 @@ static int denali_read_page(struct nand_chip *chip, uint8_t *buf,
 	return stat;
 }
 
-static int denali_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				 const uint8_t *buf, int oob_required, int page)
+static int denali_write_page_raw(struct nand_chip *chip, const uint8_t *buf,
+				 int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
 	int writesize = mtd->writesize;
 	int oobsize = mtd->oobsize;
@@ -884,9 +885,10 @@ static int denali_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 	return denali_data_xfer(denali, tmp_buf, size, page, 1, 1);
 }
 
-static int denali_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-			     const uint8_t *buf, int oob_required, int page)
+static int denali_write_page(struct nand_chip *chip, const uint8_t *buf,
+			     int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
 
 	return denali_data_xfer(denali, (void *)buf, mtd->writesize,

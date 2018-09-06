@@ -654,23 +654,21 @@ struct nand_ecc_ctrl {
 		       uint8_t *calc_ecc);
 	int (*read_page_raw)(struct nand_chip *chip, uint8_t *buf,
 			     int oob_required, int page);
-	int (*write_page_raw)(struct mtd_info *mtd, struct nand_chip *chip,
-			const uint8_t *buf, int oob_required, int page);
+	int (*write_page_raw)(struct nand_chip *chip, const uint8_t *buf,
+			      int oob_required, int page);
 	int (*read_page)(struct nand_chip *chip, uint8_t *buf,
 			 int oob_required, int page);
 	int (*read_subpage)(struct nand_chip *chip, uint32_t offs,
 			    uint32_t len, uint8_t *buf, int page);
-	int (*write_subpage)(struct mtd_info *mtd, struct nand_chip *chip,
-			uint32_t offset, uint32_t data_len,
-			const uint8_t *data_buf, int oob_required, int page);
-	int (*write_page)(struct mtd_info *mtd, struct nand_chip *chip,
-			const uint8_t *buf, int oob_required, int page);
-	int (*write_oob_raw)(struct mtd_info *mtd, struct nand_chip *chip,
-			int page);
+	int (*write_subpage)(struct nand_chip *chip, uint32_t offset,
+			     uint32_t data_len, const uint8_t *data_buf,
+			     int oob_required, int page);
+	int (*write_page)(struct nand_chip *chip, const uint8_t *buf,
+			  int oob_required, int page);
+	int (*write_oob_raw)(struct nand_chip *chip, int page);
 	int (*read_oob_raw)(struct nand_chip *chip, int page);
 	int (*read_oob)(struct nand_chip *chip, int page);
-	int (*write_oob)(struct mtd_info *mtd, struct nand_chip *chip,
-			int page);
+	int (*write_oob)(struct nand_chip *chip, int page);
 };
 
 /**
@@ -1668,11 +1666,10 @@ int nand_ecc_choose_conf(struct nand_chip *chip,
 			 const struct nand_ecc_caps *caps, int oobavail);
 
 /* Default write_oob implementation */
-int nand_write_oob_std(struct mtd_info *mtd, struct nand_chip *chip, int page);
+int nand_write_oob_std(struct nand_chip *chip, int page);
 
 /* Default write_oob syndrome implementation */
-int nand_write_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
-			    int page);
+int nand_write_oob_syndrome(struct nand_chip *chip, int page);
 
 /* Default read_oob implementation */
 int nand_read_oob_std(struct nand_chip *chip, int page);
@@ -1694,10 +1691,10 @@ int nand_read_page_raw_notsupp(struct nand_chip *chip, u8 *buf,
 			       int oob_required, int page);
 
 /* Default write_page_raw implementation */
-int nand_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-			const uint8_t *buf, int oob_required, int page);
-int nand_write_page_raw_notsupp(struct mtd_info *mtd, struct nand_chip *chip,
-				const u8 *buf, int oob_required, int page);
+int nand_write_page_raw(struct nand_chip *chip, const uint8_t *buf,
+			int oob_required, int page);
+int nand_write_page_raw_notsupp(struct nand_chip *chip, const u8 *buf,
+				int oob_required, int page);
 
 /* Reset and initialize a NAND device */
 int nand_reset(struct nand_chip *chip, int chipnr);

@@ -1909,9 +1909,10 @@ out:
 	return ret;
 }
 
-static int brcmnand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-			       const uint8_t *buf, int oob_required, int page)
+static int brcmnand_write_page(struct nand_chip *chip, const uint8_t *buf,
+			       int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	void *oob = oob_required ? chip->oob_poi : NULL;
 
@@ -1921,10 +1922,10 @@ static int brcmnand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	return nand_prog_page_end_op(chip);
 }
 
-static int brcmnand_write_page_raw(struct mtd_info *mtd,
-				   struct nand_chip *chip, const uint8_t *buf,
+static int brcmnand_write_page_raw(struct nand_chip *chip, const uint8_t *buf,
 				   int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	void *oob = oob_required ? chip->oob_poi : NULL;
 
@@ -1936,16 +1937,16 @@ static int brcmnand_write_page_raw(struct mtd_info *mtd,
 	return nand_prog_page_end_op(chip);
 }
 
-static int brcmnand_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
-				  int page)
+static int brcmnand_write_oob(struct nand_chip *chip, int page)
 {
-	return brcmnand_write(mtd, chip, (u64)page << chip->page_shift,
-				  NULL, chip->oob_poi);
+	return brcmnand_write(nand_to_mtd(chip), chip,
+			      (u64)page << chip->page_shift, NULL,
+			      chip->oob_poi);
 }
 
-static int brcmnand_write_oob_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				  int page)
+static int brcmnand_write_oob_raw(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	int ret;
 

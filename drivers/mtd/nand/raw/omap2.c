@@ -1511,7 +1511,6 @@ static int omap_elm_correct_data(struct nand_chip *chip, u_char *data,
 
 /**
  * omap_write_page_bch - BCH ecc based write page function for entire page
- * @mtd:		mtd info structure
  * @chip:		nand chip info structure
  * @buf:		data buffer
  * @oob_required:	must write chip->oob_poi to OOB
@@ -1519,9 +1518,10 @@ static int omap_elm_correct_data(struct nand_chip *chip, u_char *data,
  *
  * Custom write page method evolved to support multi sector writing in one shot
  */
-static int omap_write_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
-			       const uint8_t *buf, int oob_required, int page)
+static int omap_write_page_bch(struct nand_chip *chip, const uint8_t *buf,
+			       int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 	uint8_t *ecc_calc = chip->ecc.calc_buf;
 
@@ -1549,7 +1549,6 @@ static int omap_write_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
 
 /**
  * omap_write_subpage_bch - BCH hardware ECC based subpage write
- * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @offset:	column address of subpage within the page
  * @data_len:	data length
@@ -1559,11 +1558,11 @@ static int omap_write_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
  *
  * OMAP optimized subpage write method.
  */
-static int omap_write_subpage_bch(struct mtd_info *mtd,
-				  struct nand_chip *chip, u32 offset,
+static int omap_write_subpage_bch(struct nand_chip *chip, u32 offset,
 				  u32 data_len, const u8 *buf,
 				  int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	u8 *ecc_calc = chip->ecc.calc_buf;
 	int ecc_size      = chip->ecc.size;
 	int ecc_bytes     = chip->ecc.bytes;

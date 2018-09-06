@@ -1007,20 +1007,19 @@ static int write_page(struct mtd_info *mtd, struct nand_chip *nand,
 	return nand_prog_page_end_op(nand);
 }
 
-static int docg4_write_page_raw(struct mtd_info *mtd, struct nand_chip *nand,
-				const uint8_t *buf, int oob_required, int page)
+static int docg4_write_page_raw(struct nand_chip *nand, const uint8_t *buf,
+				int oob_required, int page)
 {
-	return write_page(mtd, nand, buf, page, false);
+	return write_page(nand_to_mtd(nand), nand, buf, page, false);
 }
 
-static int docg4_write_page(struct mtd_info *mtd, struct nand_chip *nand,
-			     const uint8_t *buf, int oob_required, int page)
+static int docg4_write_page(struct nand_chip *nand, const uint8_t *buf,
+			    int oob_required, int page)
 {
-	return write_page(mtd, nand, buf, page, true);
+	return write_page(nand_to_mtd(nand), nand, buf, page, true);
 }
 
-static int docg4_write_oob(struct mtd_info *mtd, struct nand_chip *nand,
-			   int page)
+static int docg4_write_oob(struct nand_chip *nand, int page)
 {
 	/*
 	 * Writing oob-only is not really supported, because MLC nand must write
@@ -1144,7 +1143,7 @@ static int docg4_block_markbad(struct mtd_info *mtd, loff_t ofs)
 
 	/* write first page of block */
 	write_page_prologue(mtd, g4_addr);
-	docg4_write_page(mtd, nand, buf, 1, page);
+	docg4_write_page(nand, buf, 1, page);
 	ret = pageprog(mtd);
 
 	kfree(buf);

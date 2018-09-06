@@ -1136,8 +1136,7 @@ static int marvell_nfc_hw_ecc_hmg_do_write_page(struct nand_chip *chip,
 	return ret;
 }
 
-static int marvell_nfc_hw_ecc_hmg_write_page_raw(struct mtd_info *mtd,
-						 struct nand_chip *chip,
+static int marvell_nfc_hw_ecc_hmg_write_page_raw(struct nand_chip *chip,
 						 const u8 *buf,
 						 int oob_required, int page)
 {
@@ -1145,8 +1144,7 @@ static int marvell_nfc_hw_ecc_hmg_write_page_raw(struct mtd_info *mtd,
 						    true, page);
 }
 
-static int marvell_nfc_hw_ecc_hmg_write_page(struct mtd_info *mtd,
-					     struct nand_chip *chip,
+static int marvell_nfc_hw_ecc_hmg_write_page(struct nand_chip *chip,
 					     const u8 *buf,
 					     int oob_required, int page)
 {
@@ -1165,10 +1163,11 @@ static int marvell_nfc_hw_ecc_hmg_write_page(struct mtd_info *mtd,
  * it appears before the ECC bytes when reading), the ->write_oob_raw() function
  * also stands for ->write_oob().
  */
-static int marvell_nfc_hw_ecc_hmg_write_oob_raw(struct mtd_info *mtd,
-						struct nand_chip *chip,
+static int marvell_nfc_hw_ecc_hmg_write_oob_raw(struct nand_chip *chip,
 						int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	/* Invalidate page cache */
 	chip->pagebuf = -1;
 
@@ -1405,8 +1404,7 @@ static int marvell_nfc_hw_ecc_bch_read_oob(struct nand_chip *chip, int page)
 }
 
 /* BCH write helpers */
-static int marvell_nfc_hw_ecc_bch_write_page_raw(struct mtd_info *mtd,
-						 struct nand_chip *chip,
+static int marvell_nfc_hw_ecc_bch_write_page_raw(struct nand_chip *chip,
 						 const u8 *buf,
 						 int oob_required, int page)
 {
@@ -1519,11 +1517,11 @@ marvell_nfc_hw_ecc_bch_write_chunk(struct nand_chip *chip, int chunk,
 	return 0;
 }
 
-static int marvell_nfc_hw_ecc_bch_write_page(struct mtd_info *mtd,
-					     struct nand_chip *chip,
+static int marvell_nfc_hw_ecc_bch_write_page(struct nand_chip *chip,
 					     const u8 *buf,
 					     int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	const struct marvell_hw_ecc_layout *lt = to_marvell_nand(chip)->layout;
 	const u8 *data = buf;
 	const u8 *spare = chip->oob_poi;
@@ -1568,27 +1566,29 @@ static int marvell_nfc_hw_ecc_bch_write_page(struct mtd_info *mtd,
 	return 0;
 }
 
-static int marvell_nfc_hw_ecc_bch_write_oob_raw(struct mtd_info *mtd,
-						struct nand_chip *chip,
+static int marvell_nfc_hw_ecc_bch_write_oob_raw(struct nand_chip *chip,
 						int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	/* Invalidate page cache */
 	chip->pagebuf = -1;
 
 	memset(chip->data_buf, 0xFF, mtd->writesize);
 
-	return chip->ecc.write_page_raw(mtd, chip, chip->data_buf, true, page);
+	return chip->ecc.write_page_raw(chip, chip->data_buf, true, page);
 }
 
-static int marvell_nfc_hw_ecc_bch_write_oob(struct mtd_info *mtd,
-					    struct nand_chip *chip, int page)
+static int marvell_nfc_hw_ecc_bch_write_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	/* Invalidate page cache */
 	chip->pagebuf = -1;
 
 	memset(chip->data_buf, 0xFF, mtd->writesize);
 
-	return chip->ecc.write_page(mtd, chip, chip->data_buf, true, page);
+	return chip->ecc.write_page(chip, chip->data_buf, true, page);
 }
 
 /* NAND framework ->exec_op() hooks and related helpers */

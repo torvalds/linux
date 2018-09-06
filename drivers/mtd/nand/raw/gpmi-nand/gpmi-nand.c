@@ -1182,9 +1182,10 @@ static int gpmi_ecc_read_subpage(struct nand_chip *chip, uint32_t offs,
 	return max_bitflips;
 }
 
-static int gpmi_ecc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-				const uint8_t *buf, int oob_required, int page)
+static int gpmi_ecc_write_page(struct nand_chip *chip, const uint8_t *buf,
+			       int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	struct bch_geometry *nfc_geo = &this->bch_geometry;
 	const void *payload_virt;
@@ -1351,9 +1352,9 @@ static int gpmi_ecc_read_oob(struct nand_chip *chip, int page)
 	return 0;
 }
 
-static int
-gpmi_ecc_write_oob(struct mtd_info *mtd, struct nand_chip *chip, int page)
+static int gpmi_ecc_write_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct mtd_oob_region of = { };
 
 	/* Do we have available oob area? */
@@ -1464,11 +1465,10 @@ static int gpmi_ecc_read_page_raw(struct nand_chip *chip, uint8_t *buf,
  * See set_geometry_by_ecc_info inline comments to have a full description
  * of the layout used by the GPMI controller.
  */
-static int gpmi_ecc_write_page_raw(struct mtd_info *mtd,
-				   struct nand_chip *chip,
-				   const uint8_t *buf,
+static int gpmi_ecc_write_page_raw(struct nand_chip *chip, const uint8_t *buf,
 				   int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	struct bch_geometry *nfc_geo = &this->bch_geometry;
 	int eccsize = nfc_geo->ecc_chunk_size;
@@ -1541,10 +1541,9 @@ static int gpmi_ecc_read_oob_raw(struct nand_chip *chip, int page)
 	return gpmi_ecc_read_page_raw(chip, NULL, 1, page);
 }
 
-static int gpmi_ecc_write_oob_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				 int page)
+static int gpmi_ecc_write_oob_raw(struct nand_chip *chip, int page)
 {
-	return gpmi_ecc_write_page_raw(mtd, chip, NULL, 1, page);
+	return gpmi_ecc_write_page_raw(chip, NULL, 1, page);
 }
 
 static int gpmi_block_markbad(struct mtd_info *mtd, loff_t ofs)
@@ -1715,7 +1714,7 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 		/* Write the first page of the current stride. */
 		dev_dbg(dev, "Writing an NCB fingerprint in page 0x%x\n", page);
 
-		status = chip->ecc.write_page_raw(mtd, chip, buffer, 0, page);
+		status = chip->ecc.write_page_raw(chip, buffer, 0, page);
 		if (status)
 			dev_err(dev, "[%s] Write failed.\n", __func__);
 	}

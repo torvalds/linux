@@ -603,9 +603,10 @@ static int vf610_nfc_read_page(struct nand_chip *chip, uint8_t *buf,
 	}
 }
 
-static int vf610_nfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-				const uint8_t *buf, int oob_required, int page)
+static int vf610_nfc_write_page(struct nand_chip *chip, const uint8_t *buf,
+				int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
 	int trfr_sz = mtd->writesize + mtd->oobsize;
 	u32 row = 0, cmd1 = 0, cmd2 = 0, code = 0;
@@ -658,10 +659,10 @@ static int vf610_nfc_read_page_raw(struct nand_chip *chip, u8 *buf,
 	return ret;
 }
 
-static int vf610_nfc_write_page_raw(struct mtd_info *mtd,
-				    struct nand_chip *chip, const u8 *buf,
+static int vf610_nfc_write_page_raw(struct nand_chip *chip, const u8 *buf,
 				    int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
 	int ret;
 
@@ -690,9 +691,9 @@ static int vf610_nfc_read_oob(struct nand_chip *chip, int page)
 	return ret;
 }
 
-static int vf610_nfc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			       int page)
+static int vf610_nfc_write_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
 	int ret;
 

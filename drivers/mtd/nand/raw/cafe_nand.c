@@ -346,9 +346,10 @@ static irqreturn_t cafe_nand_interrupt(int irq, void *id)
 	return IRQ_HANDLED;
 }
 
-static int cafe_nand_write_oob(struct mtd_info *mtd,
-			       struct nand_chip *chip, int page)
+static int cafe_nand_write_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	return nand_prog_page_op(chip, page, mtd->writesize, chip->oob_poi,
 				 mtd->oobsize);
 }
@@ -533,11 +534,11 @@ static struct nand_bbt_descr cafe_bbt_mirror_descr_512 = {
 };
 
 
-static int cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
-					  struct nand_chip *chip,
-					  const uint8_t *buf, int oob_required,
-					  int page)
+static int cafe_nand_write_page_lowlevel(struct nand_chip *chip,
+					 const uint8_t *buf, int oob_required,
+					 int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
 	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
