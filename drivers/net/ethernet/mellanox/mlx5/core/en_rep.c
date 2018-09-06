@@ -999,14 +999,21 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
+	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_flow_handle *flow_rule;
 	int err;
 
 	mlx5e_init_l2_addr(priv);
 
+	err = mlx5e_open_drop_rq(priv, &priv->drop_rq);
+	if (err) {
+		mlx5_core_err(mdev, "open drop rq failed, %d\n", err);
+		return err;
+	}
+
 	err = mlx5e_create_direct_rqts(priv);
 	if (err)
-		return err;
+		goto err_close_drop_rq;
 
 	err = mlx5e_create_direct_tirs(priv);
 	if (err)
@@ -1027,6 +1034,8 @@ err_destroy_direct_tirs:
 	mlx5e_destroy_direct_tirs(priv);
 err_destroy_direct_rqts:
 	mlx5e_destroy_direct_rqts(priv);
+err_close_drop_rq:
+	mlx5e_close_drop_rq(&priv->drop_rq);
 	return err;
 }
 
@@ -1037,6 +1046,7 @@ static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 	mlx5_del_flow_rules(rpriv->vport_rx_rule);
 	mlx5e_destroy_direct_tirs(priv);
 	mlx5e_destroy_direct_rqts(priv);
+	mlx5e_close_drop_rq(&priv->drop_rq);
 }
 
 static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
