@@ -180,6 +180,7 @@ struct dpu_encoder_virt {
 	unsigned int num_phys_encs;
 	struct dpu_encoder_phys *phys_encs[MAX_PHYS_ENCODERS_PER_VIRTUAL];
 	struct dpu_encoder_phys *cur_master;
+	struct dpu_encoder_phys *cur_slave;
 	struct dpu_hw_pingpong *hw_pp[MAX_CHANNELS_PER_ENC];
 
 	bool intfs_swapped;
@@ -1141,7 +1142,7 @@ void dpu_encoder_virt_restore(struct drm_encoder *drm_enc)
 static void dpu_encoder_virt_enable(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = NULL;
-	int i, ret = 0;
+	int ret = 0;
 	struct drm_display_mode *cur_mode = NULL;
 
 	if (!drm_enc) {
@@ -1154,21 +1155,12 @@ static void dpu_encoder_virt_enable(struct drm_encoder *drm_enc)
 	trace_dpu_enc_enable(DRMID(drm_enc), cur_mode->hdisplay,
 			     cur_mode->vdisplay);
 
-	dpu_enc->cur_master = NULL;
-	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
-		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
+	/* always enable slave encoder before master */
+	if (dpu_enc->cur_slave && dpu_enc->cur_slave->ops.enable)
+		dpu_enc->cur_slave->ops.enable(dpu_enc->cur_slave);
 
-		if (phys && phys->ops.is_master && phys->ops.is_master(phys)) {
-			DPU_DEBUG_ENC(dpu_enc, "master is now idx %d\n", i);
-			dpu_enc->cur_master = phys;
-			break;
-		}
-	}
-
-	if (!dpu_enc->cur_master) {
-		DPU_ERROR("virt encoder has no master! num_phys %d\n", i);
-		return;
-	}
+	if (dpu_enc->cur_master && dpu_enc->cur_master->ops.enable)
+		dpu_enc->cur_master->ops.enable(dpu_enc->cur_master);
 
 	ret = dpu_encoder_resource_control(drm_enc, DPU_ENC_RC_EVENT_KICKOFF);
 	if (ret) {
@@ -1176,21 +1168,6 @@ static void dpu_encoder_virt_enable(struct drm_encoder *drm_enc)
 				ret);
 		return;
 	}
-
-	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
-		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
-
-		if (!phys)
-			continue;
-
-		if (phys != dpu_enc->cur_master) {
-			if (phys->ops.enable)
-				phys->ops.enable(phys);
-		}
-	}
-
-	if (dpu_enc->cur_master->ops.enable)
-		dpu_enc->cur_master->ops.enable(dpu_enc->cur_master);
 
 	_dpu_encoder_virt_enable_helper(drm_enc);
 }
@@ -2062,6 +2039,11 @@ static int dpu_encoder_virt_add_phys_encs(
 		++dpu_enc->num_phys_encs;
 	}
 
+	if (params->split_role == ENC_ROLE_SLAVE)
+		dpu_enc->cur_slave = enc;
+	else
+		dpu_enc->cur_master = enc;
+
 	return 0;
 }
 
@@ -2228,7 +2210,6 @@ int dpu_encoder_setup(struct drm_device *dev, struct drm_encoder *enc,
 	if (ret)
 		goto fail;
 
-	dpu_enc->cur_master = NULL;
 	spin_lock_init(&dpu_enc->enc_spinlock);
 
 	atomic_set(&dpu_enc->frame_done_timeout, 0);
