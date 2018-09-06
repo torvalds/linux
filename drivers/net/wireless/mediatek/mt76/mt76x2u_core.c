@@ -102,6 +102,6 @@ void mt76x2u_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 			     struct mt76_queue_entry *e, bool flush)
 {
 	mt76x2u_remove_dma_hdr(e->skb);
-	mt76x2_tx_complete(mdev, e->skb);
+	mt76x02_tx_complete(mdev, e->skb);
 }
 

@@ -19,6 +19,7 @@
 #include "mt76x2_mcu.h"
 #include "mt76x2_eeprom.h"
 #include "mt76x2_trace.h"
+#include "mt76x02_util.h"
 
 void mt76x2_mac_set_bssid(struct mt76x2_dev *dev, u8 idx, const u8 *addr)
 {
@@ -73,7 +74,7 @@ mt76x2_mac_queue_txdone(struct mt76x2_dev *dev, struct sk_buff *skb,
 	txi->wcid = txwi->wcid;
 	txi->pktid = txwi->pktid;
 	trace_mac_txdone_add(dev, txwi->wcid, txwi->pktid);
-	mt76x2_tx_complete(&dev->mt76, skb);
+	mt76x02_tx_complete(&dev->mt76, skb);
 }
 
 void mt76x2_mac_process_tx_status_fifo(struct mt76x2_dev *dev)
