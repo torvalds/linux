@@ -10755,14 +10755,16 @@ int btrfs_error_unpin_extent_range(struct btrfs_fs_info *fs_info,
  * We don't want a transaction for this since the discard may take a
  * substantial amount of time.  We don't require that a transaction be
  * running, but we do need to take a running transaction into account
- * to ensure that we're not discarding chunks that were released in
- * the current transaction.
+ * to ensure that we're not discarding chunks that were released or
+ * allocated in the current transaction.
  *
  * Holding the chunks lock will prevent other threads from allocating
  * or releasing chunks, but it won't prevent a running transaction
  * from committing and releasing the memory that the pending chunks
  * list head uses.  For that, we need to take a reference to the
- * transaction.
+ * transaction and hold the commit root sem.  We only need to hold
+ * it while performing the free space search since we have already
+ * held back allocations.
  */
 static int btrfs_trim_free_extents(struct btrfs_device *device,
 				   u64 minlen, u64 *trimmed)
@@ -10793,9 +10795,13 @@ static int btrfs_trim_free_extents(struct btrfs_device *device,
 
 		ret = mutex_lock_interruptible(&fs_info->chunk_mutex);
 		if (ret)
-			return ret;
+			break;
 
-		down_read(&fs_info->commit_root_sem);
+		ret = down_read_killable(&fs_info->commit_root_sem);
+		if (ret) {
+			mutex_unlock(&fs_info->chunk_mutex);
+			break;
+		}
 
 		spin_lock(&fs_info->trans_lock);
 		trans = fs_info->running_transaction;
@@ -10803,13 +10809,17 @@ static int btrfs_trim_free_extents(struct btrfs_device *device,
 			refcount_inc(&trans->use_count);
 		spin_unlock(&fs_info->trans_lock);
 
+		if (!trans)
+			up_read(&fs_info->commit_root_sem);
+
 		ret = find_free_dev_extent_start(trans, device, minlen, start,
 						 &start, &len);
-		if (trans)
+		if (trans) {
+			up_read(&fs_info->commit_root_sem);
 			btrfs_put_transaction(trans);
+		}
 
 		if (ret) {
-			up_read(&fs_info->commit_root_sem);
 			mutex_unlock(&fs_info->chunk_mutex);
 			if (ret == -ENOSPC)
 				ret = 0;
@@ -10817,7 +10827,6 @@ static int btrfs_trim_free_extents(struct btrfs_device *device,
 		}
 
 		ret = btrfs_issue_discard(device->bdev, start, len, &bytes);
-		up_read(&fs_info->commit_root_sem);
 		mutex_unlock(&fs_info->chunk_mutex);
 
 		if (ret)
