@@ -1880,6 +1880,8 @@ static int ipoib_parent_init(struct net_device *ndev)
 	       sizeof(union ib_gid));
 
 	SET_NETDEV_DEV(priv->dev, priv->ca->dev.parent);
+	priv->dev->dev_port = priv->port - 1;
+	/* Let's set this one too for backwards compatibility. */
 	priv->dev->dev_id = priv->port - 1;
 
 	return 0;
