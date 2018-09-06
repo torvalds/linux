@@ -58,6 +58,7 @@ struct mon_private {
 
 static int monwrite_diag(struct monwrite_hdr *myhdr, char *buffer, int fcn)
 {
+	struct appldata_parameter_list parm_list;
 	struct appldata_product_id id;
 	int rc;
 
@@ -67,7 +68,8 @@ static int monwrite_diag(struct monwrite_hdr *myhdr, char *buffer, int fcn)
 	id.version_nr = myhdr->version;
 	id.release_nr = myhdr->release;
 	id.mod_lvl = myhdr->mod_level;
-	rc = appldata_asm(&id, fcn, (void *) buffer, myhdr->datalen);
+	rc = appldata_asm(&parm_list, &id, fcn,
+			  (void *) buffer, myhdr->datalen);
 	if (rc <= 0)
 		return rc;
 	pr_err("Writing monitor data failed with rc=%i\n", rc);
