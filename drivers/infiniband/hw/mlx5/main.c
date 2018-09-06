@@ -3892,10 +3892,13 @@ mlx5_ib_raw_fs_rule_add(struct mlx5_ib_dev *dev,
 		dst->type = dest_type;
 		dst->tir_num = dest_id;
 		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	} else {
+	} else if (dest_type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE) {
 		dst->type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM;
 		dst->ft_num = dest_id;
 		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	} else {
+		dst->type = MLX5_FLOW_DESTINATION_TYPE_PORT;
+		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_ALLOW;
 	}
 
 	handler = _create_raw_flow_rule(dev, ft_prio, dst, fs_matcher, flow_act,

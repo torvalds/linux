@@ -86,7 +86,14 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 	dest_qp = uverbs_attr_is_valid(attrs,
 				       MLX5_IB_ATTR_CREATE_FLOW_DEST_QP);
 
-	if ((dest_devx && dest_qp) || (!dest_devx && !dest_qp))
+	fs_matcher = uverbs_attr_get_obj(attrs,
+					 MLX5_IB_ATTR_CREATE_FLOW_MATCHER);
+	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_BYPASS &&
+	    ((dest_devx && dest_qp) || (!dest_devx && !dest_qp)))
+		return -EINVAL;
+
+	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_EGRESS &&
+	    (dest_devx || dest_qp))
 		return -EINVAL;
 
 	if (dest_devx) {
@@ -100,7 +107,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 		 */
 		if (!mlx5_ib_devx_is_flow_dest(devx_obj, &dest_id, &dest_type))
 			return -EINVAL;
-	} else {
+	} else if (dest_qp) {
 		struct mlx5_ib_qp *mqp;
 
 		qp = uverbs_attr_get_obj(attrs,
@@ -117,6 +124,8 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 		else
 			dest_id = mqp->raw_packet_qp.rq.tirn;
 		dest_type = MLX5_FLOW_DESTINATION_TYPE_TIR;
+	} else {
+		dest_type = MLX5_FLOW_DESTINATION_TYPE_PORT;
 	}
 
 	if (dev->rep)
@@ -126,8 +135,6 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 		attrs, MLX5_IB_ATTR_CREATE_FLOW_MATCH_VALUE);
 	inlen = uverbs_attr_get_len(attrs,
 				    MLX5_IB_ATTR_CREATE_FLOW_MATCH_VALUE);
-	fs_matcher = uverbs_attr_get_obj(attrs,
-					 MLX5_IB_ATTR_CREATE_FLOW_MATCHER);
 
 	uflow_res = flow_resources_alloc(MLX5_IB_CREATE_FLOW_MAX_FLOW_ACTIONS);
 	if (!uflow_res)
@@ -183,6 +190,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_MATCHER_CREATE)(
 		attrs, MLX5_IB_ATTR_FLOW_MATCHER_CREATE_HANDLE);
 	struct mlx5_ib_dev *dev = to_mdev(uobj->context->device);
 	struct mlx5_ib_flow_matcher *obj;
+	u32 flags;
 	int err;
 
 	obj = kzalloc(sizeof(struct mlx5_ib_flow_matcher), GFP_KERNEL);
@@ -214,6 +222,19 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_MATCHER_CREATE)(
 			       MLX5_IB_ATTR_FLOW_MATCHER_MATCH_CRITERIA);
 	if (err)
 		goto end;
+
+	err = uverbs_get_flags32(&flags, attrs,
+				 MLX5_IB_ATTR_FLOW_MATCHER_FLOW_FLAGS,
+				 IB_FLOW_ATTR_FLAGS_EGRESS);
+	if (err)
+		goto end;
+
+	if (flags) {
+		err = mlx5_ib_ft_type_to_namespace(
+			MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_TX, &obj->ns_type);
+		if (err)
+			goto end;
+	}
 
 	uobj->object = obj;
 	obj->mdev = dev->mdev;
@@ -559,7 +580,10 @@ DECLARE_UVERBS_NAMED_METHOD(
 			    UA_MANDATORY),
 	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_FLOW_MATCHER_MATCH_CRITERIA,
 			   UVERBS_ATTR_TYPE(u8),
-			   UA_MANDATORY));
+			   UA_MANDATORY),
+	UVERBS_ATTR_FLAGS_IN(MLX5_IB_ATTR_FLOW_MATCHER_FLOW_FLAGS,
+			     enum ib_flow_flags,
+			     UA_OPTIONAL));
 
 DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 	MLX5_IB_METHOD_FLOW_MATCHER_DESTROY,
