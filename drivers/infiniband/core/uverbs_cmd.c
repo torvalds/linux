@@ -2747,7 +2747,7 @@ out_put:
 	return ret ? ret : in_len;
 }
 
-static struct ib_uflow_resources *flow_resources_alloc(size_t num_specs)
+struct ib_uflow_resources *flow_resources_alloc(size_t num_specs)
 {
 	struct ib_uflow_resources *resources;
 
@@ -2777,6 +2777,7 @@ err:
 
 	return NULL;
 }
+EXPORT_SYMBOL(flow_resources_alloc);
 
 void ib_uverbs_flow_resources_free(struct ib_uflow_resources *uflow_res)
 {
@@ -2795,10 +2796,11 @@ void ib_uverbs_flow_resources_free(struct ib_uflow_resources *uflow_res)
 	kfree(uflow_res->counters);
 	kfree(uflow_res);
 }
+EXPORT_SYMBOL(ib_uverbs_flow_resources_free);
 
-static void flow_resources_add(struct ib_uflow_resources *uflow_res,
-			       enum ib_flow_spec_type type,
-			       void *ibobj)
+void flow_resources_add(struct ib_uflow_resources *uflow_res,
+			enum ib_flow_spec_type type,
+			void *ibobj)
 {
 	WARN_ON(uflow_res->num >= uflow_res->max);
 
@@ -2819,6 +2821,7 @@ static void flow_resources_add(struct ib_uflow_resources *uflow_res,
 
 	uflow_res->num++;
 }
+EXPORT_SYMBOL(flow_resources_add);
 
 static int kern_spec_to_ib_spec_action(struct ib_uverbs_file *ufile,
 				       struct ib_uverbs_flow_spec *kern_spec,

@@ -166,6 +166,12 @@ struct ib_uflow_object {
 	struct ib_uflow_resources	*resources;
 };
 
+struct ib_uflow_resources *flow_resources_alloc(size_t num_specs);
+void flow_resources_add(struct ib_uflow_resources *uflow_res,
+			enum ib_flow_spec_type type,
+			void *ibobj);
+void ib_uverbs_flow_resources_free(struct ib_uflow_resources *uflow_res);
+
 static inline void ib_set_flow(struct ib_uobject *uobj, struct ib_flow *ibflow,
 			       struct ib_qp *qp, struct ib_device *device,
 			       struct ib_uflow_resources *uflow_res)
