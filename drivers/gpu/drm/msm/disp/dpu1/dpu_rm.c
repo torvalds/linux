@@ -751,7 +751,6 @@ static int _dpu_rm_populate_requirements(
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_KMS("num_h_tiles: %d\n", reqs->hw_res.display_num_of_h_tiles);
 	DRM_DEBUG_KMS("num_lm: %d num_ctl: %d topology: %d split_display: %d\n",
 		      reqs->topology->num_lm, reqs->topology->num_ctl,
 		      reqs->topology->top_name,

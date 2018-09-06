@@ -175,8 +175,6 @@ struct dpu_encoder_virt {
 	spinlock_t enc_spinlock;
 	uint32_t bus_scaling_client;
 
-	uint32_t display_num_of_h_tiles;
-
 	unsigned int num_phys_encs;
 	struct dpu_encoder_phys *phys_encs[MAX_PHYS_ENCODERS_PER_VIRTUAL];
 	struct dpu_encoder_phys *cur_master;
@@ -455,7 +453,6 @@ void dpu_encoder_get_hw_resources(struct drm_encoder *drm_enc,
 
 	/* Query resources used by phys encs, expected to be without overlap */
 	memset(hw_res, 0, sizeof(*hw_res));
-	hw_res->display_num_of_h_tiles = dpu_enc->display_num_of_h_tiles;
 
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
 		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
@@ -2103,8 +2100,6 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 	}
 
 	WARN_ON(disp_info->num_of_h_tiles < 1);
-
-	dpu_enc->display_num_of_h_tiles = disp_info->num_of_h_tiles;
 
 	DPU_DEBUG("dsi_info->num_of_h_tiles %d\n", disp_info->num_of_h_tiles);
 
