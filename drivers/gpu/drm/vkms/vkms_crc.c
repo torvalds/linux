@@ -1,36 +1,143 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "vkms_drv.h"
 #include <linux/crc32.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
-static uint32_t _vkms_get_crc(struct vkms_crc_data *crc_data)
+/**
+ * compute_crc - Compute CRC value on output frame
+ *
+ * @vaddr_out: address to final framebuffer
+ * @crc_out: framebuffer's metadata
+ *
+ * returns CRC value computed using crc32 on the visible portion of
+ * the final framebuffer at vaddr_out
+ */
+static uint32_t compute_crc(void *vaddr_out, struct vkms_crc_data *crc_out)
 {
-	struct drm_framebuffer *fb = &crc_data->fb;
-	struct drm_gem_object *gem_obj = drm_gem_fb_get_obj(fb, 0);
-	struct vkms_gem_object *vkms_obj = drm_gem_to_vkms_gem(gem_obj);
+	int i, j, src_offset;
+	int x_src = crc_out->src.x1 >> 16;
+	int y_src = crc_out->src.y1 >> 16;
+	int h_src = drm_rect_height(&crc_out->src) >> 16;
+	int w_src = drm_rect_width(&crc_out->src) >> 16;
 	u32 crc = 0;
-	int i = 0;
-	unsigned int x = crc_data->src.x1 >> 16;
-	unsigned int y = crc_data->src.y1 >> 16;
-	unsigned int height = drm_rect_height(&crc_data->src) >> 16;
-	unsigned int width = drm_rect_width(&crc_data->src) >> 16;
-	unsigned int cpp = fb->format->cpp[0];
-	unsigned int src_offset;
-	unsigned int size_byte = width * cpp;
-	void *vaddr;
 
-	mutex_lock(&vkms_obj->pages_lock);
-	vaddr = vkms_obj->vaddr;
-	if (WARN_ON(!vaddr))
-		goto out;
-
-	for (i = y; i < y + height; i++) {
-		src_offset = fb->offsets[0] + (i * fb->pitches[0]) + (x * cpp);
-		crc = crc32_le(crc, vaddr + src_offset, size_byte);
+	for (i = y_src; i < y_src + h_src; ++i) {
+		for (j = x_src; j < x_src + w_src; ++j) {
+			src_offset = crc_out->offset
+				     + (i * crc_out->pitch)
+				     + (j * crc_out->cpp);
+			/* XRGB format ignores Alpha channel */
+			memset(vaddr_out + src_offset + 24, 0,  8);
+			crc = crc32_le(crc, vaddr_out + src_offset,
+				       sizeof(u32));
+		}
 	}
 
+	return crc;
+}
+
+/**
+ * blend - belnd value at vaddr_src with value at vaddr_dst
+ * @vaddr_dst: destination address
+ * @vaddr_src: source address
+ * @crc_dst: destination framebuffer's metadata
+ * @crc_src: source framebuffer's metadata
+ *
+ * Blend value at vaddr_src with value at vaddr_dst.
+ * Currently, this function write value at vaddr_src on value
+ * at vaddr_dst using buffer's metadata to locate the new values
+ * from vaddr_src and their distenation at vaddr_dst.
+ *
+ * Todo: Use the alpha value to blend vaddr_src with vaddr_dst
+ *	 instead of overwriting it.
+ */
+static void blend(void *vaddr_dst, void *vaddr_src,
+		  struct vkms_crc_data *crc_dst,
+		  struct vkms_crc_data *crc_src)
+{
+	int i, j, j_dst, i_dst;
+	int offset_src, offset_dst;
+
+	int x_src = crc_src->src.x1 >> 16;
+	int y_src = crc_src->src.y1 >> 16;
+
+	int x_dst = crc_src->dst.x1;
+	int y_dst = crc_src->dst.y1;
+	int h_dst = drm_rect_height(&crc_src->dst);
+	int w_dst = drm_rect_width(&crc_src->dst);
+
+	int y_limit = y_src + h_dst;
+	int x_limit = x_src + w_dst;
+
+	for (i = y_src, i_dst = y_dst; i < y_limit; ++i) {
+		for (j = x_src, j_dst = x_dst; j < x_limit; ++j) {
+			offset_dst = crc_dst->offset
+				     + (i_dst * crc_dst->pitch)
+				     + (j_dst++ * crc_dst->cpp);
+			offset_src = crc_src->offset
+				     + (i * crc_src->pitch)
+				     + (j * crc_src->cpp);
+
+			memcpy(vaddr_dst + offset_dst,
+			       vaddr_src + offset_src, sizeof(u32));
+		}
+		i_dst++;
+	}
+}
+
+static void compose_cursor(struct vkms_crc_data *cursor_crc,
+			   struct vkms_crc_data *primary_crc, void *vaddr_out)
+{
+	struct drm_gem_object *cursor_obj;
+	struct vkms_gem_object *cursor_vkms_obj;
+
+	cursor_obj = drm_gem_fb_get_obj(&cursor_crc->fb, 0);
+	cursor_vkms_obj = drm_gem_to_vkms_gem(cursor_obj);
+
+	mutex_lock(&cursor_vkms_obj->pages_lock);
+	if (!cursor_vkms_obj->vaddr) {
+		DRM_WARN("cursor plane vaddr is NULL");
+		goto out;
+	}
+
+	blend(vaddr_out, cursor_vkms_obj->vaddr, primary_crc, cursor_crc);
+
 out:
+	mutex_unlock(&cursor_vkms_obj->pages_lock);
+}
+
+static uint32_t _vkms_get_crc(struct vkms_crc_data *primary_crc,
+			      struct vkms_crc_data *cursor_crc)
+{
+	struct drm_framebuffer *fb = &primary_crc->fb;
+	struct drm_gem_object *gem_obj = drm_gem_fb_get_obj(fb, 0);
+	struct vkms_gem_object *vkms_obj = drm_gem_to_vkms_gem(gem_obj);
+	void *vaddr_out = kzalloc(vkms_obj->gem.size, GFP_KERNEL);
+	u32 crc = 0;
+
+	if (!vaddr_out) {
+		DRM_ERROR("Failed to allocate memory for output frame.");
+		return 0;
+	}
+
+	mutex_lock(&vkms_obj->pages_lock);
+	if (WARN_ON(!vkms_obj->vaddr)) {
+		mutex_unlock(&vkms_obj->pages_lock);
+		return crc;
+	}
+
+	memcpy(vaddr_out, vkms_obj->vaddr, vkms_obj->gem.size);
 	mutex_unlock(&vkms_obj->pages_lock);
+
+	if (cursor_crc)
+		compose_cursor(cursor_crc, primary_crc, vaddr_out);
+
+	crc = compute_crc(vaddr_out, primary_crc);
+
+	kfree(vaddr_out);
+
 	return crc;
 }
 
@@ -53,6 +160,7 @@ void vkms_crc_work_handle(struct work_struct *work)
 	struct vkms_device *vdev = container_of(out, struct vkms_device,
 						output);
 	struct vkms_crc_data *primary_crc = NULL;
+	struct vkms_crc_data *cursor_crc = NULL;
 	struct drm_plane *plane;
 	u32 crc32 = 0;
 	u64 frame_start, frame_end;
@@ -77,14 +185,14 @@ void vkms_crc_work_handle(struct work_struct *work)
 		if (drm_framebuffer_read_refcount(&crc_data->fb) == 0)
 			continue;
 
-		if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
+		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
 			primary_crc = crc_data;
-			break;
-		}
+		else
+			cursor_crc = crc_data;
 	}
 
 	if (primary_crc)
-		crc32 = _vkms_get_crc(primary_crc);
+		crc32 = _vkms_get_crc(primary_crc, cursor_crc);
 
 	frame_end = drm_crtc_accurate_vblank_count(crtc);
 

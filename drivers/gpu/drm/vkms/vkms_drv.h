@@ -25,8 +25,11 @@ static const u32 vkms_cursor_formats[] = {
 };
 
 struct vkms_crc_data {
-	struct drm_rect src;
 	struct drm_framebuffer fb;
+	struct drm_rect src, dst;
+	unsigned int offset;
+	unsigned int pitch;
+	unsigned int cpp;
 };
 
 /**

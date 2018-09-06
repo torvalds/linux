@@ -85,16 +85,22 @@ static void vkms_plane_atomic_update(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
 	struct vkms_plane_state *vkms_plane_state;
+	struct drm_framebuffer *fb = plane->state->fb;
 	struct vkms_crc_data *crc_data;
 
-	if (!plane->state->crtc || !plane->state->fb)
+	if (!plane->state->crtc || !fb)
 		return;
 
 	vkms_plane_state = to_vkms_plane_state(plane->state);
+
 	crc_data = vkms_plane_state->crc_data;
 	memcpy(&crc_data->src, &plane->state->src, sizeof(struct drm_rect));
-	memcpy(&crc_data->fb, plane->state->fb, sizeof(struct drm_framebuffer));
+	memcpy(&crc_data->dst, &plane->state->dst, sizeof(struct drm_rect));
+	memcpy(&crc_data->fb, fb, sizeof(struct drm_framebuffer));
 	drm_framebuffer_get(&crc_data->fb);
+	crc_data->offset = fb->offsets[0];
+	crc_data->pitch = fb->pitches[0];
+	crc_data->cpp = fb->format->cpp[0];
 }
 
 static int vkms_plane_atomic_check(struct drm_plane *plane,
