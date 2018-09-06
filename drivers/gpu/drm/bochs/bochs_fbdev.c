@@ -6,6 +6,7 @@
  */
 
 #include "bochs.h"
+#include <drm/drm_gem_framebuffer_helper.h>
 
 /* ---------------------------------------------------------------------- */
 
@@ -13,9 +14,7 @@ static int bochsfb_mmap(struct fb_info *info,
 			struct vm_area_struct *vma)
 {
 	struct drm_fb_helper *fb_helper = info->par;
-	struct bochs_device *bochs =
-		container_of(fb_helper, struct bochs_device, fb.helper);
-	struct bochs_bo *bo = gem_to_bochs_bo(bochs->fb.gfb.obj);
+	struct bochs_bo *bo = gem_to_bochs_bo(fb_helper->fb->obj[0]);
 
 	return ttm_fbdev_mmap(vma, &bo->bo);
 }
@@ -101,19 +100,20 @@ static int bochsfb_create(struct drm_fb_helper *helper,
 
 	/* init fb device */
 	info = drm_fb_helper_alloc_fbi(helper);
-	if (IS_ERR(info))
+	if (IS_ERR(info)) {
+		DRM_ERROR("Failed to allocate fbi: %ld\n", PTR_ERR(info));
 		return PTR_ERR(info);
+	}
 
 	info->par = &bochs->fb.helper;
 
-	ret = bochs_framebuffer_init(bochs->dev, &bochs->fb.gfb, &mode_cmd, gobj);
-	if (ret)
-		return ret;
-
-	bochs->fb.size = size;
+	fb = drm_gem_fbdev_fb_create(bochs->dev, sizes, 0, gobj, NULL);
+	if (IS_ERR(fb)) {
+		DRM_ERROR("Failed to create framebuffer: %ld\n", PTR_ERR(fb));
+		return PTR_ERR(fb);
+	}
 
 	/* setup helper */
-	fb = &bochs->fb.gfb.base;
 	bochs->fb.helper.fb = fb;
 
 	strcpy(info->fix.id, "bochsdrmfb");
@@ -130,27 +130,6 @@ static int bochsfb_create(struct drm_fb_helper *helper,
 	drm_vma_offset_remove(&bo->bo.bdev->vma_manager, &bo->bo.vma_node);
 	info->fix.smem_start = 0;
 	info->fix.smem_len = size;
-
-	bochs->fb.initialized = true;
-	return 0;
-}
-
-static int bochs_fbdev_destroy(struct bochs_device *bochs)
-{
-	struct bochs_framebuffer *gfb = &bochs->fb.gfb;
-
-	DRM_DEBUG_DRIVER("\n");
-
-	drm_fb_helper_unregister_fbi(&bochs->fb.helper);
-
-	if (gfb->obj) {
-		drm_gem_object_unreference_unlocked(gfb->obj);
-		gfb->obj = NULL;
-	}
-
-	drm_framebuffer_unregister_private(&gfb->base);
-	drm_framebuffer_cleanup(&gfb->base);
-
 	return 0;
 }
 
@@ -158,41 +137,17 @@ static const struct drm_fb_helper_funcs bochs_fb_helper_funcs = {
 	.fb_probe = bochsfb_create,
 };
 
+const struct drm_mode_config_funcs bochs_mode_funcs = {
+	.fb_create = drm_gem_fb_create,
+};
+
 int bochs_fbdev_init(struct bochs_device *bochs)
 {
-	int ret;
-
-	drm_fb_helper_prepare(bochs->dev, &bochs->fb.helper,
-			      &bochs_fb_helper_funcs);
-
-	ret = drm_fb_helper_init(bochs->dev, &bochs->fb.helper, 1);
-	if (ret)
-		return ret;
-
-	ret = drm_fb_helper_single_add_all_connectors(&bochs->fb.helper);
-	if (ret)
-		goto fini;
-
-	drm_helper_disable_unused_functions(bochs->dev);
-
-	ret = drm_fb_helper_initial_config(&bochs->fb.helper, 32);
-	if (ret)
-		goto fini;
-
-	return 0;
-
-fini:
-	drm_fb_helper_fini(&bochs->fb.helper);
-	return ret;
+	return drm_fb_helper_fbdev_setup(bochs->dev, &bochs->fb.helper,
+					 &bochs_fb_helper_funcs, 32, 1);
 }
 
 void bochs_fbdev_fini(struct bochs_device *bochs)
 {
-	if (bochs->fb.initialized)
-		bochs_fbdev_destroy(bochs);
-
-	if (bochs->fb.helper.fbdev)
-		drm_fb_helper_fini(&bochs->fb.helper);
-
-	bochs->fb.initialized = false;
+	drm_fb_helper_fbdev_teardown(bochs->dev);
 }

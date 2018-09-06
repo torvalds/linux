@@ -35,14 +35,12 @@ static int bochs_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 {
 	struct bochs_device *bochs =
 		container_of(crtc, struct bochs_device, crtc);
-	struct bochs_framebuffer *bochs_fb;
 	struct bochs_bo *bo;
 	u64 gpu_addr = 0;
 	int ret;
 
 	if (old_fb) {
-		bochs_fb = to_bochs_framebuffer(old_fb);
-		bo = gem_to_bochs_bo(bochs_fb->obj);
+		bo = gem_to_bochs_bo(old_fb->obj[0]);
 		ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
 		if (ret) {
 			DRM_ERROR("failed to reserve old_fb bo\n");
@@ -55,8 +53,7 @@ static int bochs_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	if (WARN_ON(crtc->primary->fb == NULL))
 		return -EINVAL;
 
-	bochs_fb = to_bochs_framebuffer(crtc->primary->fb);
-	bo = gem_to_bochs_bo(bochs_fb->obj);
+	bo = gem_to_bochs_bo(crtc->primary->fb->obj[0]);
 	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
 	if (ret)
 		return ret;
