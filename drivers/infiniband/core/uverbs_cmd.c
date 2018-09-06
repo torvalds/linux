@@ -2747,15 +2747,6 @@ out_put:
 	return ret ? ret : in_len;
 }
 
-struct ib_uflow_resources {
-	size_t			max;
-	size_t			num;
-	size_t			collection_num;
-	size_t			counters_num;
-	struct ib_counters	**counters;
-	struct ib_flow_action	**collection;
-};
-
 static struct ib_uflow_resources *flow_resources_alloc(size_t num_specs)
 {
 	struct ib_uflow_resources *resources;
@@ -3462,7 +3453,6 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	struct ib_uverbs_create_flow	  cmd;
 	struct ib_uverbs_create_flow_resp resp;
 	struct ib_uobject		  *uobj;
-	struct ib_uflow_object		  *uflow;
 	struct ib_flow			  *flow_id;
 	struct ib_uverbs_flow_attr	  *kern_flow_attr;
 	struct ib_flow_attr		  *flow_attr;
@@ -3601,13 +3591,8 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 		err = PTR_ERR(flow_id);
 		goto err_free;
 	}
-	atomic_inc(&qp->usecnt);
-	flow_id->qp = qp;
-	flow_id->device = qp->device;
-	flow_id->uobject = uobj;
-	uobj->object = flow_id;
-	uflow = container_of(uobj, typeof(*uflow), uobject);
-	uflow->resources = uflow_res;
+
+	ib_set_flow(uobj, flow_id, qp, qp->device, uflow_res);
 
 	memset(&resp, 0, sizeof(resp));
 	resp.flow_handle = uobj->id;

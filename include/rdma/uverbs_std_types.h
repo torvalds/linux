@@ -152,5 +152,38 @@ static inline void uverbs_flow_action_fill_action(struct ib_flow_action *action,
 	uobj->object = action;
 }
 
+struct ib_uflow_resources {
+	size_t			max;
+	size_t			num;
+	size_t			collection_num;
+	size_t			counters_num;
+	struct ib_counters	**counters;
+	struct ib_flow_action	**collection;
+};
+
+struct ib_uflow_object {
+	struct ib_uobject		uobject;
+	struct ib_uflow_resources	*resources;
+};
+
+static inline void ib_set_flow(struct ib_uobject *uobj, struct ib_flow *ibflow,
+			       struct ib_qp *qp, struct ib_device *device,
+			       struct ib_uflow_resources *uflow_res)
+{
+	struct ib_uflow_object *uflow;
+
+	uobj->object = ibflow;
+	ibflow->uobject = uobj;
+
+	if (qp) {
+		atomic_inc(&qp->usecnt);
+		ibflow->qp = qp;
+	}
+
+	ibflow->device = device;
+	uflow = container_of(uobj, typeof(*uflow), uobject);
+	uflow->resources = uflow_res;
+}
+
 #endif
 

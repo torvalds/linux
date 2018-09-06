@@ -219,12 +219,6 @@ struct ib_ucq_object {
 	u32			async_events_reported;
 };
 
-struct ib_uflow_resources;
-struct ib_uflow_object {
-	struct ib_uobject		uobject;
-	struct ib_uflow_resources	*resources;
-};
-
 extern const struct file_operations uverbs_event_fops;
 void ib_uverbs_init_event_queue(struct ib_uverbs_event_queue *ev_queue);
 struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file,

@@ -128,7 +128,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 	if (IS_ERR(flow_handler))
 		return PTR_ERR(flow_handler);
 
-	ib_set_flow(uobj, &flow_handler->ibflow, qp, &dev->ib_dev);
+	ib_set_flow(uobj, &flow_handler->ibflow, qp, &dev->ib_dev, NULL);
 
 	return 0;
 }
