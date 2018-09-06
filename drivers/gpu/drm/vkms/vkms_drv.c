@@ -21,6 +21,10 @@
 
 static struct vkms_device *vkms_device;
 
+bool enable_cursor;
+module_param_named(enable_cursor, enable_cursor, bool, 0444);
+MODULE_PARM_DESC(enable_cursor, "Enable/Disable cursor support");
+
 static const struct file_operations vkms_driver_fops = {
 	.owner		= THIS_MODULE,
 	.open		= drm_open,

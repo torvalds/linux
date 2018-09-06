@@ -16,6 +16,8 @@
 #define XRES_MAX  8192
 #define YRES_MAX  8192
 
+extern bool enable_cursor;
+
 static const u32 vkms_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };

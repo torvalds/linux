@@ -56,10 +56,12 @@ int vkms_output_init(struct vkms_device *vkmsdev)
 	if (IS_ERR(primary))
 		return PTR_ERR(primary);
 
-	cursor = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_CURSOR);
-	if (IS_ERR(cursor)) {
-		ret = PTR_ERR(cursor);
-		goto err_cursor;
+	if (enable_cursor) {
+		cursor = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_CURSOR);
+		if (IS_ERR(cursor)) {
+			ret = PTR_ERR(cursor);
+			goto err_cursor;
+		}
 	}
 
 	ret = vkms_crtc_init(dev, crtc, primary, cursor);
@@ -112,7 +114,8 @@ err_connector:
 	drm_crtc_cleanup(crtc);
 
 err_crtc:
-	drm_plane_cleanup(cursor);
+	if (enable_cursor)
+		drm_plane_cleanup(cursor);
 
 err_cursor:
 	drm_plane_cleanup(primary);
