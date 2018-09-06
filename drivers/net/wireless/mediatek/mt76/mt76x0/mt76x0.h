@@ -40,51 +40,12 @@
 #define MT_USB_AGGR_SIZE_LIMIT		21 /* * 1024B */
 #define MT_USB_AGGR_TIMEOUT		0x80 /* * 33ns */
 
-struct mt76x0_dma_buf {
-	struct urb *urb;
-	void *buf;
-	dma_addr_t dma;
-	size_t len;
-};
-
 struct mac_stats {
 	u64 rx_stat[6];
 	u64 tx_stat[6];
 	u64 aggr_stat[2];
 	u64 aggr_n[32];
 	u64 zero_len_del[2];
-};
-
-#define N_RX_ENTRIES	16
-struct mt76x0_rx_queue {
-	struct mt76x0_dev *dev;
-
-	struct mt76x0_dma_buf_rx {
-		struct urb *urb;
-		struct page *p;
-	} e[N_RX_ENTRIES];
-
-	unsigned int start;
-	unsigned int end;
-	unsigned int entries;
-	unsigned int pending;
-};
-
-#define N_TX_ENTRIES	64
-
-struct mt76x0_tx_queue {
-	struct mt76x0_dev *dev;
-
-	struct mt76x0_dma_buf_tx {
-		struct urb *urb;
-		struct sk_buff *skb;
-	} e[N_TX_ENTRIES];
-
-	unsigned int start;
-	unsigned int end;
-	unsigned int entries;
-	unsigned int used;
-	unsigned int fifo_seq;
 };
 
 struct mt76x0_eeprom_params;
@@ -108,9 +69,6 @@ enum mt_bw {
  * struct mt76x0_dev - adapter structure
  * @lock:		protects @wcid->tx_rate.
  * @mac_lock:		locks out mac80211's tx status and rx paths.
- * @tx_lock:		protects @tx_q and changes of MT76_STATE_*_STATS
- *			flags in @state.
- * @rx_lock:		protects @rx_q.
  * @con_mon_lock:	protects @ap_bssid, @bcn_*, @avg_rssi.
  * @mutex:		ensures exclusive access from mac80211 callbacks.
  * @reg_atomic_mutex:	ensures atomicity of indirect register accesses
@@ -146,15 +104,7 @@ struct mt76x0_dev {
 
 	u32 debugfs_reg;
 
-	/* TX */
-	spinlock_t tx_lock;
-	struct mt76x0_tx_queue *tx_q;
-
 	atomic_t avg_ampdu_len;
-
-	/* RX */
-	spinlock_t rx_lock;
-	struct mt76x0_rx_queue rx_q;
 
 	/* Connection monitoring things */
 	spinlock_t con_mon_lock;
