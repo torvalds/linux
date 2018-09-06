@@ -317,10 +317,10 @@ static void fsl_elbc_do_read(struct nand_chip *chip, int oob)
 }
 
 /* cmdfunc send commands to the FCM */
-static void fsl_elbc_cmdfunc(struct mtd_info *mtd, unsigned int command,
+static void fsl_elbc_cmdfunc(struct nand_chip *chip, unsigned int command,
                              int column, int page_addr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct fsl_elbc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_lbc_ctrl *ctrl = priv->ctrl;
 	struct fsl_elbc_fcm_ctrl *elbc_fcm_ctrl = ctrl->nand;

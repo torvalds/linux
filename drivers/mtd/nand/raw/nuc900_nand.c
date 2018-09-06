@@ -129,10 +129,11 @@ static int nuc900_nand_devready(struct nand_chip *chip)
 	return ready;
 }
 
-static void nuc900_nand_command_lp(struct mtd_info *mtd, unsigned int command,
+static void nuc900_nand_command_lp(struct nand_chip *chip,
+				   unsigned int command,
 				   int column, int page_addr)
 {
-	register struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nuc900_nand *nand = mtd_to_nuc900(mtd);
 
 	if (command == NAND_CMD_READOOB) {

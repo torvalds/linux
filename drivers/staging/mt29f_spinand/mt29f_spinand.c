@@ -759,10 +759,10 @@ static void spinand_reset(struct spi_device *spi_nand)
 		dev_err(&spi_nand->dev, "wait timedout!\n");
 }
 
-static void spinand_cmdfunc(struct mtd_info *mtd, unsigned int command,
+static void spinand_cmdfunc(struct nand_chip *chip, unsigned int command,
 			    int column, int page)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct spinand_info *info = nand_get_controller_data(chip);
 	struct spinand_state *state = info->priv;
 

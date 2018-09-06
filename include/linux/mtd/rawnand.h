@@ -1292,7 +1292,7 @@ struct nand_chip {
 	int (*block_markbad)(struct nand_chip *chip, loff_t ofs);
 	void (*cmd_ctrl)(struct nand_chip *chip, int dat, unsigned int ctrl);
 	int (*dev_ready)(struct nand_chip *chip);
-	void (*cmdfunc)(struct mtd_info *mtd, unsigned command, int column,
+	void (*cmdfunc)(struct nand_chip *chip, unsigned command, int column,
 			int page_addr);
 	int(*waitfunc)(struct mtd_info *mtd, struct nand_chip *this);
 	int (*exec_op)(struct nand_chip *chip,

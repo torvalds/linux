@@ -750,9 +750,10 @@ static void execmd_write_oob(struct mtd_info *mtd)
 	}
 }
 
-static void flctl_cmdfunc(struct mtd_info *mtd, unsigned int command,
+static void flctl_cmdfunc(struct nand_chip *chip, unsigned int command,
 			int column, int page_addr)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
 	uint32_t read_cmd = 0;
 

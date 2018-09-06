@@ -301,9 +301,9 @@ static void fsl_ifc_do_read(struct nand_chip *chip,
 }
 
 /* cmdfunc send commands to the IFC NAND Machine */
-static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
-			     int column, int page_addr) {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+static void fsl_ifc_cmdfunc(struct nand_chip *chip, unsigned int command,
+			    int column, int page_addr) {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_runtime __iomem *ifc = ctrl->rregs;

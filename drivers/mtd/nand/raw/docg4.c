@@ -705,12 +705,12 @@ static uint32_t mtd_to_docg4_address(int page, int column)
 	return (g4_page << 16) | g4_index;	      /* pack */
 }
 
-static void docg4_command(struct mtd_info *mtd, unsigned command, int column,
+static void docg4_command(struct nand_chip *nand, unsigned command, int column,
 			  int page_addr)
 {
 	/* handle standard nand commands */
 
-	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct docg4_priv *doc = nand_get_controller_data(nand);
 	uint32_t g4_addr = mtd_to_docg4_address(page_addr, column);
 

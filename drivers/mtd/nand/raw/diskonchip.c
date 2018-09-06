@@ -637,9 +637,10 @@ static void doc200x_hwcontrol(struct nand_chip *this, int cmd,
 	}
 }
 
-static void doc2001plus_command(struct mtd_info *mtd, unsigned command, int column, int page_addr)
+static void doc2001plus_command(struct nand_chip *this, unsigned command,
+				int column, int page_addr)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(this);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 

@@ -429,10 +429,10 @@ static void set_addr(struct mtd_info *mtd, int column, int page_addr)
 	}
 }
 
-static void hisi_nfc_cmdfunc(struct mtd_info *mtd, unsigned command, int column,
-		int page_addr)
+static void hisi_nfc_cmdfunc(struct nand_chip *chip, unsigned command,
+			     int column, int page_addr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct hinfc_host *host = nand_get_controller_data(chip);
 	int is_cache_invalid = 1;
 	unsigned int flag = 0;

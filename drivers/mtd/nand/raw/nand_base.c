@@ -730,7 +730,7 @@ EXPORT_SYMBOL_GPL(nand_soft_waitrdy);
 
 /**
  * nand_command - [DEFAULT] Send command to NAND device
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @command: the command to be sent
  * @column: the column address for this command, -1 if none
  * @page_addr: the page address for this command, -1 if none
@@ -738,10 +738,10 @@ EXPORT_SYMBOL_GPL(nand_soft_waitrdy);
  * Send command to NAND device. This function is used for small page devices
  * (512 Bytes per page).
  */
-static void nand_command(struct mtd_info *mtd, unsigned int command,
+static void nand_command(struct nand_chip *chip, unsigned int command,
 			 int column, int page_addr)
 {
-	register struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ctrl = NAND_CTRL_CLE | NAND_CTRL_CHANGE;
 
 	/* Write out the command to the device */
@@ -864,7 +864,7 @@ static void nand_ccs_delay(struct nand_chip *chip)
 
 /**
  * nand_command_lp - [DEFAULT] Send command to NAND large page device
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @command: the command to be sent
  * @column: the column address for this command, -1 if none
  * @page_addr: the page address for this command, -1 if none
@@ -873,10 +873,10 @@ static void nand_ccs_delay(struct nand_chip *chip)
  * devices. We don't have the separate regions as we have in the small page
  * devices. We must emulate NAND_CMD_READOOB to keep the code compatible.
  */
-static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
+static void nand_command_lp(struct nand_chip *chip, unsigned int command,
 			    int column, int page_addr)
 {
-	register struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 
 	/* Emulate NAND_CMD_READOOB */
 	if (command == NAND_CMD_READOOB) {
@@ -1530,7 +1530,7 @@ int nand_read_page_op(struct nand_chip *chip, unsigned int page,
 						 buf, len);
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_READ0, offset_in_page, page);
+	chip->cmdfunc(chip, NAND_CMD_READ0, offset_in_page, page);
 	if (len)
 		chip->read_buf(chip, buf, len);
 
@@ -1579,7 +1579,7 @@ static int nand_read_param_page_op(struct nand_chip *chip, u8 page, void *buf,
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_PARAM, page, -1);
+	chip->cmdfunc(chip, NAND_CMD_PARAM, page, -1);
 	for (i = 0; i < len; i++)
 		p[i] = chip->read_byte(chip);
 
@@ -1642,7 +1642,7 @@ int nand_change_read_column_op(struct nand_chip *chip,
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_RNDOUT, offset_in_page, -1);
+	chip->cmdfunc(chip, NAND_CMD_RNDOUT, offset_in_page, -1);
 	if (len)
 		chip->read_buf(chip, buf, len);
 
@@ -1679,7 +1679,7 @@ int nand_read_oob_op(struct nand_chip *chip, unsigned int page,
 					 mtd->writesize + offset_in_oob,
 					 buf, len);
 
-	chip->cmdfunc(mtd, NAND_CMD_READOOB, offset_in_oob, page);
+	chip->cmdfunc(chip, NAND_CMD_READOOB, offset_in_oob, page);
 	if (len)
 		chip->read_buf(chip, buf, len);
 
@@ -1791,7 +1791,7 @@ int nand_prog_page_begin_op(struct nand_chip *chip, unsigned int page,
 		return nand_exec_prog_page_op(chip, page, offset_in_page, buf,
 					      len, false);
 
-	chip->cmdfunc(mtd, NAND_CMD_SEQIN, offset_in_page, page);
+	chip->cmdfunc(chip, NAND_CMD_SEQIN, offset_in_page, page);
 
 	if (buf)
 		chip->write_buf(chip, buf, len);
@@ -1833,7 +1833,7 @@ int nand_prog_page_end_op(struct nand_chip *chip)
 		if (ret)
 			return ret;
 	} else {
-		chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
+		chip->cmdfunc(chip, NAND_CMD_PAGEPROG, -1, -1);
 		ret = chip->waitfunc(mtd, chip);
 		if (ret < 0)
 			return ret;
@@ -1878,9 +1878,9 @@ int nand_prog_page_op(struct nand_chip *chip, unsigned int page,
 		status = nand_exec_prog_page_op(chip, page, offset_in_page, buf,
 						len, true);
 	} else {
-		chip->cmdfunc(mtd, NAND_CMD_SEQIN, offset_in_page, page);
+		chip->cmdfunc(chip, NAND_CMD_SEQIN, offset_in_page, page);
 		chip->write_buf(chip, buf, len);
-		chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
+		chip->cmdfunc(chip, NAND_CMD_PAGEPROG, -1, -1);
 		status = chip->waitfunc(mtd, chip);
 	}
 
@@ -1946,7 +1946,7 @@ int nand_change_write_column_op(struct nand_chip *chip,
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_RNDIN, offset_in_page, -1);
+	chip->cmdfunc(chip, NAND_CMD_RNDIN, offset_in_page, -1);
 	if (len)
 		chip->write_buf(chip, buf, len);
 
@@ -1994,7 +1994,7 @@ int nand_readid_op(struct nand_chip *chip, u8 addr, void *buf,
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_READID, addr, -1);
+	chip->cmdfunc(chip, NAND_CMD_READID, addr, -1);
 
 	for (i = 0; i < len; i++)
 		id[i] = chip->read_byte(chip);
@@ -2034,7 +2034,7 @@ int nand_status_op(struct nand_chip *chip, u8 *status)
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_STATUS, -1, -1);
+	chip->cmdfunc(chip, NAND_CMD_STATUS, -1, -1);
 	if (status)
 		*status = chip->read_byte(chip);
 
@@ -2066,7 +2066,7 @@ int nand_exit_status_op(struct nand_chip *chip)
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_READ0, -1, -1);
+	chip->cmdfunc(chip, NAND_CMD_READ0, -1, -1);
 
 	return 0;
 }
@@ -2115,8 +2115,8 @@ int nand_erase_op(struct nand_chip *chip, unsigned int eraseblock)
 		if (ret)
 			return ret;
 	} else {
-		chip->cmdfunc(mtd, NAND_CMD_ERASE1, -1, page);
-		chip->cmdfunc(mtd, NAND_CMD_ERASE2, -1, -1);
+		chip->cmdfunc(chip, NAND_CMD_ERASE1, -1, page);
+		chip->cmdfunc(chip, NAND_CMD_ERASE2, -1, -1);
 
 		ret = chip->waitfunc(mtd, chip);
 		if (ret < 0)
@@ -2166,7 +2166,7 @@ static int nand_set_features_op(struct nand_chip *chip, u8 feature,
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_SET_FEATURES, feature, -1);
+	chip->cmdfunc(chip, NAND_CMD_SET_FEATURES, feature, -1);
 	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
 		chip->write_byte(chip, params[i]);
 
@@ -2215,7 +2215,7 @@ static int nand_get_features_op(struct nand_chip *chip, u8 feature,
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_GET_FEATURES, feature, -1);
+	chip->cmdfunc(chip, NAND_CMD_GET_FEATURES, feature, -1);
 	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
 		params[i] = chip->read_byte(chip);
 
@@ -2270,7 +2270,7 @@ int nand_reset_op(struct nand_chip *chip)
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
+	chip->cmdfunc(chip, NAND_CMD_RESET, -1, -1);
 
 	return 0;
 }

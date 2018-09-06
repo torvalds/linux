@@ -1333,10 +1333,10 @@ static void preset_v3(struct mtd_info *mtd)
 
 /* Used by the upper layer to write command to NAND Flash for
  * different operations to be carried out on NAND Flash */
-static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
-				int column, int page_addr)
+static void mxc_nand_command(struct nand_chip *nand_chip, unsigned command,
+			     int column, int page_addr)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand_chip);
 	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
 
 	dev_dbg(host->dev, "mxc_nand_command (cmd = 0x%x, col = 0x%x, page = 0x%x)\n",

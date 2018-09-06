@@ -330,10 +330,10 @@ static int mpc5121_nfc_dev_ready(struct nand_chip *nand)
 }
 
 /* Write command to NAND flash */
-static void mpc5121_nfc_command(struct mtd_info *mtd, unsigned command,
-							int column, int page)
+static void mpc5121_nfc_command(struct nand_chip *chip, unsigned command,
+				int column, int page)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct mpc5121_nfc_prv *prv = nand_get_controller_data(chip);
 
 	prv->column = (column >= 0) ? column : 0;
@@ -364,7 +364,7 @@ static void mpc5121_nfc_command(struct mtd_info *mtd, unsigned command,
 		break;
 
 	case NAND_CMD_SEQIN:
-		mpc5121_nfc_command(mtd, NAND_CMD_READ0, column, page);
+		mpc5121_nfc_command(chip, NAND_CMD_READ0, column, page);
 		column = 0;
 		break;
 

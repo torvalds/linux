@@ -236,14 +236,15 @@ static void au1550_select_chip(struct nand_chip *this, int chip)
 
 /**
  * au1550_command - Send command to NAND device
- * @mtd:	MTD device structure
+ * @this:	NAND chip object
  * @command:	the command to be sent
  * @column:	the column address for this command, -1 if none
  * @page_addr:	the page address for this command, -1 if none
  */
-static void au1550_command(struct mtd_info *mtd, unsigned command, int column, int page_addr)
+static void au1550_command(struct nand_chip *this, unsigned command,
+			   int column, int page_addr)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(this);
 	struct au1550nd_ctx *ctx = container_of(this, struct au1550nd_ctx,
 						chip);
 	int ce_override = 0, i;

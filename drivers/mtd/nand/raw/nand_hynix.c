@@ -79,8 +79,6 @@ static bool hynix_nand_has_valid_jedecid(struct nand_chip *chip)
 
 static int hynix_nand_cmd_op(struct nand_chip *chip, u8 cmd)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-
 	if (chip->exec_op) {
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(cmd, 0),
@@ -90,14 +88,13 @@ static int hynix_nand_cmd_op(struct nand_chip *chip, u8 cmd)
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(mtd, cmd, -1, -1);
+	chip->cmdfunc(chip, cmd, -1, -1);
 
 	return 0;
 }
 
 static int hynix_nand_reg_write_op(struct nand_chip *chip, u8 addr, u8 val)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	u16 column = ((u16)addr << 8) | addr;
 
 	if (chip->exec_op) {
@@ -110,7 +107,7 @@ static int hynix_nand_reg_write_op(struct nand_chip *chip, u8 addr, u8 val)
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_NONE, column, -1);
+	chip->cmdfunc(chip, NAND_CMD_NONE, column, -1);
 	chip->write_byte(chip, val);
 
 	return 0;

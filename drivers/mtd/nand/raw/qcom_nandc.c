@@ -1440,10 +1440,9 @@ static void post_command(struct qcom_nand_host *host, int command)
  * NAND_CMD_READOOB would never be called because we have our own versions
  * of read_oob ops for nand_ecc_ctrl.
  */
-static void qcom_nandc_command(struct mtd_info *mtd, unsigned int command,
+static void qcom_nandc_command(struct nand_chip *chip, unsigned int command,
 			       int column, int page_addr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);

@@ -156,10 +156,10 @@ static uint8_t cafe_read_byte(struct nand_chip *chip)
 	return d;
 }
 
-static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
+static void cafe_nand_cmdfunc(struct nand_chip *chip, unsigned command,
 			      int column, int page_addr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 	int adrbytes = 0;
 	uint32_t ctl1;

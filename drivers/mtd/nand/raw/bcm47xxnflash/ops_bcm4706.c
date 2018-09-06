@@ -210,11 +210,11 @@ static int bcm47xxnflash_ops_bcm4706_dev_ready(struct nand_chip *nand_chip)
  * registers of ChipCommon core. Hacking cmd_ctrl to understand and convert
  * standard commands would be much more complicated.
  */
-static void bcm47xxnflash_ops_bcm4706_cmdfunc(struct mtd_info *mtd,
+static void bcm47xxnflash_ops_bcm4706_cmdfunc(struct nand_chip *nand_chip,
 					      unsigned command, int column,
 					      int page_addr)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand_chip);
 	struct bcm47xxnflash *b47n = nand_get_controller_data(nand_chip);
 	struct bcma_drv_cc *cc = b47n->cc;
 	u32 ctlcode;
