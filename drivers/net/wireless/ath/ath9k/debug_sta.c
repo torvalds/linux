@@ -286,9 +286,25 @@ static ssize_t read_airtime(struct file *file, char __user *user_buf,
 	return retval;
 }
 
+static ssize_t
+write_airtime_reset_stub(struct file *file, const char __user *ubuf,
+		   size_t count, loff_t *ppos)
+{
+	struct ath_node *an = file->private_data;
+	struct ath_airtime_stats *astats;
+	int i;
+
+	astats = &an->airtime_stats;
+	astats->rx_airtime = 0;
+	astats->tx_airtime = 0;
+	for (i = 0; i < 4; i++)
+		an->airtime_deficit[i] = ATH_AIRTIME_QUANTUM;
+	return count;
+}
 
 static const struct file_operations fops_airtime = {
 	.read = read_airtime,
+	.write = write_airtime_reset_stub,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -304,5 +320,5 @@ void ath9k_sta_add_debugfs(struct ieee80211_hw *hw,
 
 	debugfs_create_file("node_aggr", 0444, dir, an, &fops_node_aggr);
 	debugfs_create_file("node_recv", 0444, dir, an, &fops_node_recv);
-	debugfs_create_file("airtime", 0444, dir, an, &fops_airtime);
+	debugfs_create_file("airtime", 0644, dir, an, &fops_airtime);
 }
