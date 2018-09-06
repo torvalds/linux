@@ -1102,7 +1102,7 @@ static int __init read_factory_bbt(struct mtd_info *mtd)
 	return 0;
 }
 
-static int docg4_block_markbad(struct mtd_info *mtd, loff_t ofs)
+static int docg4_block_markbad(struct nand_chip *nand, loff_t ofs)
 {
 	/*
 	 * Mark a block as bad.  Bad blocks are marked in the oob area of the
@@ -1115,7 +1115,7 @@ static int docg4_block_markbad(struct mtd_info *mtd, loff_t ofs)
 
 	int ret, i;
 	uint8_t *buf;
-	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct docg4_priv *doc = nand_get_controller_data(nand);
 	struct nand_bbt_descr *bbtd = nand->badblock_pattern;
 	int page = (int)(ofs >> nand->page_shift);
@@ -1147,7 +1147,7 @@ static int docg4_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	return ret;
 }
 
-static int docg4_block_neverbad(struct mtd_info *mtd, loff_t ofs)
+static int docg4_block_neverbad(struct nand_chip *nand, loff_t ofs)
 {
 	/* only called when module_param ignore_badblocks is set */
 	return 0;

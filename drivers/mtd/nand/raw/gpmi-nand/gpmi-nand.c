@@ -1542,9 +1542,9 @@ static int gpmi_ecc_write_oob_raw(struct nand_chip *chip, int page)
 	return gpmi_ecc_write_page_raw(chip, NULL, 1, page);
 }
 
-static int gpmi_block_markbad(struct mtd_info *mtd, loff_t ofs)
+static int gpmi_block_markbad(struct nand_chip *chip, loff_t ofs)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	int ret = 0;
 	uint8_t *block_mark;
@@ -1776,7 +1776,7 @@ static int mx23_boot_init(struct gpmi_nand_data  *this)
 		 */
 		if (block_mark != 0xff) {
 			dev_dbg(dev, "Transcribing mark in block %u\n", block);
-			ret = chip->block_markbad(mtd, byte);
+			ret = chip->block_markbad(chip, byte);
 			if (ret)
 				dev_err(dev,
 					"Failed to mark block bad with ret %d\n",

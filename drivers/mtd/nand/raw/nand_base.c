@@ -398,15 +398,15 @@ static void nand_read_buf16(struct nand_chip *chip, uint8_t *buf, int len)
 
 /**
  * nand_block_bad - [DEFAULT] Read bad block marker from the chip
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @ofs: offset from device start
  *
  * Check, if the block is bad.
  */
-static int nand_block_bad(struct mtd_info *mtd, loff_t ofs)
+static int nand_block_bad(struct nand_chip *chip, loff_t ofs)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int page, page_end, res;
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	u8 bad;
 
 	if (chip->bbt_options & NAND_BBT_SCANLASTPAGE)
@@ -435,16 +435,16 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs)
 
 /**
  * nand_default_block_markbad - [DEFAULT] mark a block bad via bad block marker
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @ofs: offset from device start
  *
  * This is the default implementation, which can be overridden by a hardware
  * specific driver. It provides the details for writing a bad block marker to a
  * block.
  */
-static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
+static int nand_default_block_markbad(struct nand_chip *chip, loff_t ofs)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct mtd_oob_ops ops;
 	uint8_t buf[2] = { 0, 0 };
 	int ret = 0, res, i = 0;
@@ -510,7 +510,7 @@ static int nand_block_markbad_lowlevel(struct mtd_info *mtd, loff_t ofs)
 
 		/* Write bad block marker to OOB */
 		nand_get_device(mtd, FL_WRITING);
-		ret = chip->block_markbad(mtd, ofs);
+		ret = chip->block_markbad(chip, ofs);
 		nand_release_device(mtd);
 	}
 
@@ -583,7 +583,7 @@ static int nand_block_checkbad(struct mtd_info *mtd, loff_t ofs, int allowbbt)
 	struct nand_chip *chip = mtd_to_nand(mtd);
 
 	if (!chip->bbt)
-		return chip->block_bad(mtd, ofs);
+		return chip->block_bad(chip, ofs);
 
 	/* Return info from the table */
 	return nand_isbad_bbt(mtd, ofs, allowbbt);
