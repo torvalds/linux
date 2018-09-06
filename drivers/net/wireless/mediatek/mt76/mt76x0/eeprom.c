@@ -160,18 +160,19 @@ static int
 mt76x0_set_macaddr(struct mt76x0_dev *dev, const u8 *eeprom)
 {
 	const void *src = eeprom + MT_EE_MAC_ADDR;
+	u8 *dst = dev->mt76.macaddr;
 
-	ether_addr_copy(dev->macaddr, src);
+	ether_addr_copy(dev->mt76.macaddr, src);
 
-	if (!is_valid_ether_addr(dev->macaddr)) {
-		eth_random_addr(dev->macaddr);
+	if (!is_valid_ether_addr(dst)) {
+		eth_random_addr(dst);
 		dev_info(dev->mt76.dev,
 			 "Invalid MAC address, using random address %pM\n",
-			 dev->macaddr);
+			 dst);
 	}
 
-	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->macaddr));
-	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(dev->macaddr + 4) |
+	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dst));
+	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(dst + 4) |
 		FIELD_PREP(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
 
 	return 0;
