@@ -18,6 +18,7 @@
 #include "mt76x2.h"
 #include "mt76x2_eeprom.h"
 #include "mt76x2_mcu.h"
+#include "mt76x02_util.h"
 
 static void
 mt76x2_mac_pbf_init(struct mt76x2_dev *dev)
@@ -584,8 +585,8 @@ int mt76x2_register_device(struct mt76x2_dev *dev)
 	dev->mt76.led_cdev.brightness_set = mt76x2_led_set_brightness;
 	dev->mt76.led_cdev.blink_set = mt76x2_led_set_blink;
 
-	ret = mt76_register_device(&dev->mt76, true, mt76x2_rates,
-				   ARRAY_SIZE(mt76x2_rates));
+	ret = mt76_register_device(&dev->mt76, true, mt76x02_rates,
+				   ARRAY_SIZE(mt76x02_rates));
 	if (ret)
 		goto fail;
 

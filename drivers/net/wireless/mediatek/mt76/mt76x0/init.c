@@ -559,34 +559,6 @@ static const struct ieee80211_channel mt76_channels_5ghz[] = {
 	CHAN5G(140, 5700),
 };
 
-#define CCK_RATE(_idx, _rate) {					\
-	.bitrate = _rate,					\
-	.flags = IEEE80211_RATE_SHORT_PREAMBLE,			\
-	.hw_value = (MT_PHY_TYPE_CCK << 8) | _idx,		\
-	.hw_value_short = (MT_PHY_TYPE_CCK << 8) | (8 + _idx),	\
-}
-
-#define OFDM_RATE(_idx, _rate) {				\
-	.bitrate = _rate,					\
-	.hw_value = (MT_PHY_TYPE_OFDM << 8) | _idx,		\
-	.hw_value_short = (MT_PHY_TYPE_OFDM << 8) | _idx,	\
-}
-
-static struct ieee80211_rate mt76_rates[] = {
-	CCK_RATE(0, 10),
-	CCK_RATE(1, 20),
-	CCK_RATE(2, 55),
-	CCK_RATE(3, 110),
-	OFDM_RATE(0, 60),
-	OFDM_RATE(1, 90),
-	OFDM_RATE(2, 120),
-	OFDM_RATE(3, 180),
-	OFDM_RATE(4, 240),
-	OFDM_RATE(5, 360),
-	OFDM_RATE(6, 480),
-	OFDM_RATE(7, 540),
-};
-
 static int
 mt76_init_sband(struct mt76x0_dev *dev, struct ieee80211_supported_band *sband,
 		const struct ieee80211_channel *chan, int n_chan,
@@ -634,7 +606,7 @@ mt76_init_sband_2g(struct mt76x0_dev *dev)
 
 	return mt76_init_sband(dev, &dev->mt76.sband_2g.sband,
 			       mt76_channels_2ghz, ARRAY_SIZE(mt76_channels_2ghz),
-			       mt76_rates, ARRAY_SIZE(mt76_rates));
+			       mt76x02_rates, ARRAY_SIZE(mt76x02_rates));
 }
 
 static int
@@ -644,7 +616,7 @@ mt76_init_sband_5g(struct mt76x0_dev *dev)
 
 	return mt76_init_sband(dev, &dev->mt76.sband_5g.sband,
 			       mt76_channels_5ghz, ARRAY_SIZE(mt76_channels_5ghz),
-			       mt76_rates + 4, ARRAY_SIZE(mt76_rates) - 4);
+			       mt76x02_rates + 4, ARRAY_SIZE(mt76x02_rates) - 4);
 }
 
 

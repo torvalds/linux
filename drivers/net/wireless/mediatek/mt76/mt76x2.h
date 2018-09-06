@@ -175,8 +175,6 @@ static inline bool wait_for_wpdma(struct mt76x2_dev *dev)
 
 extern const struct ieee80211_ops mt76x2_ops;
 
-extern struct ieee80211_rate mt76x2_rates[12];
-
 struct mt76x2_dev *mt76x2_alloc_device(struct device *pdev);
 int mt76x2_register_device(struct mt76x2_dev *dev);
 void mt76x2_init_debugfs(struct mt76x2_dev *dev);

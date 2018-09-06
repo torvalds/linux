@@ -277,8 +277,8 @@ int mt76x2u_register_device(struct mt76x2_dev *dev)
 
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
-	err = mt76_register_device(&dev->mt76, true, mt76x2_rates,
-				   ARRAY_SIZE(mt76x2_rates));
+	err = mt76_register_device(&dev->mt76, true, mt76x02_rates,
+				   ARRAY_SIZE(mt76x02_rates));
 	if (err)
 		goto fail;
 

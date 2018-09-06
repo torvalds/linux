@@ -18,6 +18,8 @@
 #ifndef __MT76X02_UTIL_H
 #define __MT76X02_UTIL_H
 
+extern struct ieee80211_rate mt76x02_rates[12];
+
 void mt76x02_configure_filter(struct ieee80211_hw *hw,
 			     unsigned int changed_flags,
 			     unsigned int *total_flags, u64 multicast);
