@@ -362,8 +362,6 @@ static void mt76x0_mac_stop_hw(struct mt76x0_dev *dev)
 void mt76x0_mac_stop(struct mt76x0_dev *dev)
 {
 	mt76x0_mac_stop_hw(dev);
-	flush_delayed_work(&dev->stat_work);
-	cancel_delayed_work_sync(&dev->stat_work);
 }
 
 static void mt76x0_stop_hardware(struct mt76x0_dev *dev)

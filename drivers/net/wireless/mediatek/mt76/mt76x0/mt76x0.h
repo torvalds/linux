@@ -84,8 +84,6 @@ struct mt76x0_dev {
 	struct delayed_work cal_work;
 	struct delayed_work mac_work;
 
-	struct delayed_work stat_work;
-
 	spinlock_t mac_lock;
 
 	const u16 *beacon_offsets;
