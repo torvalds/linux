@@ -518,14 +518,6 @@ int mt76x0_register_device(struct mt76x0_dev *dev)
 	struct wiphy *wiphy = hw->wiphy;
 	int ret;
 
-	ret = mt76u_mcu_init_rx(mdev);
-	if (ret < 0)
-		return ret;
-
-	ret = mt76u_alloc_queues(mdev);
-	if (ret < 0)
-		return ret;
-
 	ret = mt76x0_init_hardware(dev);
 	if (ret)
 		return ret;

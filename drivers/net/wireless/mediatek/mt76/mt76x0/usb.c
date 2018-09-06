@@ -46,7 +46,7 @@ static struct usb_device_id mt76x0_device_table[] = {
 	{ 0, }
 };
 
-static int mt76x0_probe(struct usb_interface *usb_intf,
+static int mt76x0u_probe(struct usb_interface *usb_intf,
 			 const struct usb_device_id *id)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(usb_intf);
@@ -83,6 +83,14 @@ static int mt76x0_probe(struct usb_interface *usb_intf,
 	/* Note: vendor driver skips this check for MT76X0U */
 	if (!(mt76_rr(dev, MT_EFUSE_CTRL) & MT_EFUSE_CTRL_SEL))
 		dev_warn(dev->mt76.dev, "Warning: eFUSE not present\n");
+
+	ret = mt76u_mcu_init_rx(&dev->mt76);
+	if (ret < 0)
+		goto err;
+
+	ret = mt76u_alloc_queues(&dev->mt76);
+	if (ret < 0)
+		goto err;
 
 	ret = mt76x0_register_device(dev);
 	if (ret)
@@ -170,7 +178,7 @@ MODULE_LICENSE("GPL");
 static struct usb_driver mt76x0_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= mt76x0_device_table,
-	.probe		= mt76x0_probe,
+	.probe		= mt76x0u_probe,
 	.disconnect	= mt76x0_disconnect,
 	.suspend	= mt76x0_suspend,
 	.resume		= mt76x0_resume,
