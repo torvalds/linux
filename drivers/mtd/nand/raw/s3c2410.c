@@ -1170,7 +1170,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 		mtd->dev.parent = &pdev->dev;
 		s3c2410_nand_init_chip(info, nmtd, sets);
 
-		err = nand_scan(mtd, sets ? sets->nr_chips : 1);
+		err = nand_scan(&nmtd->chip, sets ? sets->nr_chips : 1);
 		if (err)
 			goto exit_error;
 

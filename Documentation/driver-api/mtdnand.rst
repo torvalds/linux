@@ -246,7 +246,7 @@ necessary information about the device.
         this->eccmode = NAND_ECC_SOFT;
 
         /* Scan to find existence of the device */
-        if (nand_scan (board_mtd, 1)) {
+        if (nand_scan (this, 1)) {
             err = -ENXIO;
             goto out_ior;
         }

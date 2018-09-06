@@ -1940,7 +1940,7 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 	mtd = nand_to_mtd(nand);
 	mtd->dev.parent = dev;
 
-	ret = nand_scan(mtd, nsels);
+	ret = nand_scan(nand, nsels);
 	if (ret)
 		return ret;
 

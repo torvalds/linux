@@ -1079,7 +1079,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 		goto err;
 
 	priv->chip.controller->ops = &fsl_ifc_controller_ops;
-	ret = nand_scan(mtd, 1);
+	ret = nand_scan(&priv->chip, 1);
 	if (ret)
 		goto err;
 

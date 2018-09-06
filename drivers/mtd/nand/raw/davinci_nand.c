@@ -807,7 +807,7 @@ static int nand_davinci_probe(struct platform_device *pdev)
 
 	/* Scan to find existence of the device(s) */
 	info->chip.dummy_controller.ops = &davinci_nand_controller_ops;
-	ret = nand_scan(mtd, pdata->mask_chipsel ? 2 : 1);
+	ret = nand_scan(&info->chip, pdata->mask_chipsel ? 2 : 1);
 	if (ret < 0) {
 		dev_dbg(&pdev->dev, "no NAND chip(s) found\n");
 		return ret;

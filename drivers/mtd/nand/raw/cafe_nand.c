@@ -783,7 +783,7 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 
 	/* Scan to find existence of the device */
 	cafe->nand.dummy_controller.ops = &cafe_nand_controller_ops;
-	err = nand_scan(mtd, 2);
+	err = nand_scan(&cafe->nand, 2);
 	if (err)
 		goto out_irq;
 
