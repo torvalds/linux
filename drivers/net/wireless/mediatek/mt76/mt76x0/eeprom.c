@@ -123,18 +123,19 @@ mt76x0_set_chip_cap(struct mt76x0_dev *dev, u8 *eeprom)
 
 	switch (FIELD_GET(MT_EE_NIC_CONF_0_BOARD_TYPE, nic_conf0)) {
 	case BOARD_TYPE_5GHZ:
-		dev->ee->has_5ghz = true;
+		dev->mt76.cap.has_5ghz = true;
 		break;
 	case BOARD_TYPE_2GHZ:
-		dev->ee->has_2ghz = true;
+		dev->mt76.cap.has_2ghz = true;
 		break;
 	default:
-		dev->ee->has_2ghz = true;
-		dev->ee->has_5ghz = true;
+		dev->mt76.cap.has_2ghz = true;
+		dev->mt76.cap.has_5ghz = true;
 		break;
 	}
 
-	dev_dbg(dev->mt76.dev, "Has 2GHZ %d 5GHZ %d\n", dev->ee->has_2ghz, dev->ee->has_5ghz);
+	dev_dbg(dev->mt76.dev, "Has 2GHZ %d 5GHZ %d\n",
+		dev->mt76.cap.has_2ghz, dev->mt76.cap.has_5ghz);
 
 	if (!field_valid(nic_conf1 & 0xff))
 		nic_conf1 &= 0xff00;

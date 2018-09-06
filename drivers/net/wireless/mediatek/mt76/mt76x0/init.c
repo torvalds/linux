@@ -662,13 +662,13 @@ int mt76x0_register_device(struct mt76x0_dev *dev)
 	wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR;
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
-	if (dev->ee->has_2ghz) {
+	if (dev->mt76.cap.has_2ghz) {
 		ret = mt76_init_sband_2g(dev);
 		if (ret)
 			return ret;
 	}
 
-	if (dev->ee->has_5ghz) {
+	if (dev->mt76.cap.has_5ghz) {
 		ret = mt76_init_sband_5g(dev);
 		if (ret)
 			return ret;

@@ -112,9 +112,6 @@ struct mt76x0_eeprom_params {
 	u8 tx_pwr_per_chan[58];
 
 	struct reg_channel_bounds reg;
-
-	bool has_2ghz;
-	bool has_5ghz;
 };
 
 int mt76x0_eeprom_init(struct mt76x0_dev *dev);
