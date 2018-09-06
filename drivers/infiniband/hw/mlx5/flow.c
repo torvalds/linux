@@ -189,6 +189,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_MATCHER_CREATE)(
 	if (!obj)
 		return -ENOMEM;
 
+	obj->ns_type = MLX5_FLOW_NAMESPACE_BYPASS;
 	obj->mask_len = uverbs_attr_get_len(
 		attrs, MLX5_IB_ATTR_FLOW_MATCHER_MATCH_MASK);
 	err = uverbs_copy_from(&obj->matcher_mask,

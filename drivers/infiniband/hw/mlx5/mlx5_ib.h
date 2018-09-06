@@ -190,6 +190,7 @@ struct mlx5_ib_flow_matcher {
 	struct mlx5_ib_match_params matcher_mask;
 	int			mask_len;
 	enum mlx5_ib_flow_type	flow_type;
+	enum mlx5_flow_namespace_type ns_type;
 	u16			priority;
 	struct mlx5_core_dev	*mdev;
 	atomic_t		usecnt;

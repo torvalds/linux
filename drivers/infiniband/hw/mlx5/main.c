@@ -3719,34 +3719,54 @@ free_ucmd:
 	return ERR_PTR(err);
 }
 
-static struct mlx5_ib_flow_prio *_get_flow_table(struct mlx5_ib_dev *dev,
-						 int priority, bool mcast)
+static struct mlx5_ib_flow_prio *
+_get_flow_table(struct mlx5_ib_dev *dev,
+		struct mlx5_ib_flow_matcher *fs_matcher,
+		bool mcast)
 {
-	int max_table_size;
 	struct mlx5_flow_namespace *ns = NULL;
 	struct mlx5_ib_flow_prio *prio;
+	int max_table_size;
+	u32 flags = 0;
+	int priority;
 
-	max_table_size = BIT(MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
-			     log_max_ft_size));
+	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_BYPASS) {
+		max_table_size = BIT(MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
+					log_max_ft_size));
+		if (MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev, decap))
+			flags |= MLX5_FLOW_TABLE_TUNNEL_EN_DECAP;
+		if (MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
+					      reformat_l3_tunnel_to_l2))
+			flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
+	} else { /* Can only be MLX5_FLOW_NAMESPACE_EGRESS */
+		max_table_size = BIT(MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev,
+					log_max_ft_size));
+		if (MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev, reformat))
+			flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
+	}
+
 	if (max_table_size < MLX5_FS_MAX_ENTRIES)
 		return ERR_PTR(-ENOMEM);
 
 	if (mcast)
 		priority = MLX5_IB_FLOW_MCAST_PRIO;
 	else
-		priority = ib_prio_to_core_prio(priority, false);
+		priority = ib_prio_to_core_prio(fs_matcher->priority, false);
 
-	ns = mlx5_get_flow_namespace(dev->mdev, MLX5_FLOW_NAMESPACE_BYPASS);
+	ns = mlx5_get_flow_namespace(dev->mdev, fs_matcher->ns_type);
 	if (!ns)
 		return ERR_PTR(-ENOTSUPP);
 
-	prio = &dev->flow_db->prios[priority];
+	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_BYPASS)
+		prio = &dev->flow_db->prios[priority];
+	else
+		prio = &dev->flow_db->egress_prios[priority];
 
 	if (prio->flow_table)
 		return prio;
 
 	return _get_prio(ns, prio, priority, MLX5_FS_MAX_ENTRIES,
-			 MLX5_FS_MAX_TYPES, 0);
+			 MLX5_FS_MAX_TYPES, flags);
 }
 
 static struct mlx5_ib_flow_handler *
@@ -3845,7 +3865,6 @@ mlx5_ib_raw_fs_rule_add(struct mlx5_ib_dev *dev,
 {
 	struct mlx5_flow_destination *dst;
 	struct mlx5_ib_flow_prio *ft_prio;
-	int priority = fs_matcher->priority;
 	struct mlx5_ib_flow_handler *handler;
 	bool mcast;
 	int err;
@@ -3863,7 +3882,7 @@ mlx5_ib_raw_fs_rule_add(struct mlx5_ib_dev *dev,
 	mcast = raw_fs_is_multicast(fs_matcher, cmd_in);
 	mutex_lock(&dev->flow_db->lock);
 
-	ft_prio = _get_flow_table(dev, priority, mcast);
+	ft_prio = _get_flow_table(dev, fs_matcher, mcast);
 	if (IS_ERR(ft_prio)) {
 		err = PTR_ERR(ft_prio);
 		goto unlock;
