@@ -433,10 +433,10 @@ static void r852_ecc_hwctl(struct nand_chip *chip, int mode)
  * Calculate ECC, only used for writes
  */
 
-static int r852_ecc_calculate(struct mtd_info *mtd, const uint8_t *dat,
-							uint8_t *ecc_code)
+static int r852_ecc_calculate(struct nand_chip *chip, const uint8_t *dat,
+			      uint8_t *ecc_code)
 {
-	struct r852_device *dev = r852_get_dev(mtd);
+	struct r852_device *dev = r852_get_dev(nand_to_mtd(chip));
 	struct sm_oob *oob = (struct sm_oob *)ecc_code;
 	uint32_t ecc1, ecc2;
 

@@ -164,10 +164,10 @@ static void cs_enable_hwecc(struct nand_chip *this, int mode)
 	writeb(0x07, mmio_base + MM_NAND_ECC_CTL);
 }
 
-static int cs_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
+static int cs_calculate_ecc(struct nand_chip *this, const u_char *dat,
+			    u_char *ecc_code)
 {
 	uint32_t ecc;
-	struct nand_chip *this = mtd_to_nand(mtd);
 	void __iomem *mmio_base = this->IO_ADDR_R;
 
 	ecc = readl(mmio_base + MM_NAND_STS);

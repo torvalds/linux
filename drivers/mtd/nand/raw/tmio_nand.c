@@ -268,10 +268,10 @@ static void tmio_nand_enable_hwecc(struct nand_chip *chip, int mode)
 	tmio_iowrite8(FCR_MODE_HWECC_CALC, tmio->fcr + FCR_MODE);
 }
 
-static int tmio_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
-							u_char *ecc_code)
+static int tmio_nand_calculate_ecc(struct nand_chip *chip, const u_char *dat,
+				   u_char *ecc_code)
 {
-	struct tmio_nand *tmio = mtd_to_tmio(mtd);
+	struct tmio_nand *tmio = mtd_to_tmio(nand_to_mtd(chip));
 	unsigned int ecc;
 
 	tmio_iowrite8(FCR_MODE_HWECC_RESULT, tmio->fcr + FCR_MODE);

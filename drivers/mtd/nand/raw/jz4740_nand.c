@@ -162,10 +162,10 @@ static void jz_nand_hwctl(struct nand_chip *chip, int mode)
 	writel(reg, nand->base + JZ_REG_NAND_ECC_CTRL);
 }
 
-static int jz_nand_calculate_ecc_rs(struct mtd_info *mtd, const uint8_t *dat,
-	uint8_t *ecc_code)
+static int jz_nand_calculate_ecc_rs(struct nand_chip *chip, const uint8_t *dat,
+				    uint8_t *ecc_code)
 {
-	struct jz_nand *nand = mtd_to_jz_nand(mtd);
+	struct jz_nand *nand = mtd_to_jz_nand(nand_to_mtd(chip));
 	uint32_t reg, status;
 	int i;
 	unsigned int timeout = 1000;

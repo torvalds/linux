@@ -900,7 +900,7 @@ static int omap_correct_data(struct mtd_info *mtd, u_char *dat,
 
 /**
  * omap_calcuate_ecc - Generate non-inverted ECC bytes.
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @dat: The pointer to data on which ecc is computed
  * @ecc_code: The ecc_code buffer
  *
@@ -910,10 +910,10 @@ static int omap_correct_data(struct mtd_info *mtd, u_char *dat,
  * an erased page will produce an ECC mismatch between generated and read
  * ECC bytes that has to be dealt with separately.
  */
-static int omap_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
-				u_char *ecc_code)
+static int omap_calculate_ecc(struct nand_chip *chip, const u_char *dat,
+			      u_char *ecc_code)
 {
-	struct omap_nand_info *info = mtd_to_omap(mtd);
+	struct omap_nand_info *info = mtd_to_omap(nand_to_mtd(chip));
 	u32 val;
 
 	val = readl(info->reg.gpmc_ecc_config);
@@ -1255,7 +1255,7 @@ static int _omap_calculate_ecc_bch(struct mtd_info *mtd,
 
 /**
  * omap_calculate_ecc_bch_sw - ECC generator for sector for SW based correction
- * @mtd:	MTD device structure
+ * @chip:	NAND chip object
  * @dat:	The pointer to data on which ecc is computed
  * @ecc_code:	The ecc_code buffer
  *
@@ -1263,10 +1263,10 @@ static int _omap_calculate_ecc_bch(struct mtd_info *mtd,
  * when SW based correction is required as ECC is required for one sector
  * at a time.
  */
-static int omap_calculate_ecc_bch_sw(struct mtd_info *mtd,
+static int omap_calculate_ecc_bch_sw(struct nand_chip *chip,
 				     const u_char *dat, u_char *ecc_calc)
 {
-	return _omap_calculate_ecc_bch(mtd, dat, ecc_calc, 0);
+	return _omap_calculate_ecc_bch(nand_to_mtd(chip), dat, ecc_calc, 0);
 }
 
 /**

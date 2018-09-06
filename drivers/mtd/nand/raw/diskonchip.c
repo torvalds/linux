@@ -834,9 +834,9 @@ static void doc2001plus_enable_hwecc(struct nand_chip *this, int mode)
 }
 
 /* This code is only called on write */
-static int doc200x_calculate_ecc(struct mtd_info *mtd, const u_char *dat, unsigned char *ecc_code)
+static int doc200x_calculate_ecc(struct nand_chip *this, const u_char *dat,
+				 unsigned char *ecc_code)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	int i;

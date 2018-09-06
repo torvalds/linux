@@ -3110,7 +3110,7 @@ static int nand_read_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 	chip->ecc.read_page_raw(mtd, chip, buf, 1, page);
 
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize)
-		chip->ecc.calculate(mtd, p, &ecc_calc[i]);
+		chip->ecc.calculate(chip, p, &ecc_calc[i]);
 
 	ret = mtd_ooblayout_get_eccbytes(mtd, ecc_code, chip->oob_poi, 0,
 					 chip->ecc.total);
@@ -3175,7 +3175,7 @@ static int nand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 
 	/* Calculate ECC */
 	for (i = 0; i < eccfrag_len ; i += chip->ecc.bytes, p += chip->ecc.size)
-		chip->ecc.calculate(mtd, p, &chip->ecc.calc_buf[i]);
+		chip->ecc.calculate(chip, p, &chip->ecc.calc_buf[i]);
 
 	/*
 	 * The performance is faster if we position offsets according to
@@ -3278,7 +3278,7 @@ static int nand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		if (ret)
 			return ret;
 
-		chip->ecc.calculate(mtd, p, &ecc_calc[i]);
+		chip->ecc.calculate(chip, p, &ecc_calc[i]);
 	}
 
 	ret = nand_read_data_op(chip, chip->oob_poi, mtd->oobsize, false);
@@ -3364,7 +3364,7 @@ static int nand_read_page_hwecc_oob_first(struct mtd_info *mtd,
 		if (ret)
 			return ret;
 
-		chip->ecc.calculate(mtd, p, &ecc_calc[i]);
+		chip->ecc.calculate(chip, p, &ecc_calc[i]);
 
 		stat = chip->ecc.correct(mtd, p, &ecc_code[i], NULL);
 		if (stat == -EBADMSG &&
@@ -4118,7 +4118,7 @@ static int nand_write_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 
 	/* Software ECC calculation */
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize)
-		chip->ecc.calculate(mtd, p, &ecc_calc[i]);
+		chip->ecc.calculate(chip, p, &ecc_calc[i]);
 
 	ret = mtd_ooblayout_set_eccbytes(mtd, ecc_calc, chip->oob_poi, 0,
 					 chip->ecc.total);
@@ -4157,7 +4157,7 @@ static int nand_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		if (ret)
 			return ret;
 
-		chip->ecc.calculate(mtd, p, &ecc_calc[i]);
+		chip->ecc.calculate(chip, p, &ecc_calc[i]);
 	}
 
 	ret = mtd_ooblayout_set_eccbytes(mtd, ecc_calc, chip->oob_poi, 0,
@@ -4215,7 +4215,7 @@ static int nand_write_subpage_hwecc(struct mtd_info *mtd,
 		if ((step < start_step) || (step > end_step))
 			memset(ecc_calc, 0xff, ecc_bytes);
 		else
-			chip->ecc.calculate(mtd, buf, ecc_calc);
+			chip->ecc.calculate(chip, buf, ecc_calc);
 
 		/* mask OOB of un-touched subpages by padding 0xFF */
 		/* if oob_required, preserve OOB metadata of written subpage */
@@ -4287,7 +4287,7 @@ static int nand_write_page_syndrome(struct mtd_info *mtd,
 			oob += chip->ecc.prepad;
 		}
 
-		chip->ecc.calculate(mtd, p, oob);
+		chip->ecc.calculate(chip, p, oob);
 
 		ret = nand_write_data_op(chip, oob, eccbytes, false);
 		if (ret)

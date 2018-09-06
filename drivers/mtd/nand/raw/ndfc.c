@@ -92,10 +92,9 @@ static void ndfc_enable_hwecc(struct nand_chip *chip, int mode)
 	wmb();
 }
 
-static int ndfc_calculate_ecc(struct mtd_info *mtd,
+static int ndfc_calculate_ecc(struct nand_chip *chip,
 			      const u_char *dat, u_char *ecc_code)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = nand_get_controller_data(chip);
 	uint32_t ecc;
 	uint8_t *p = (uint8_t *)&ecc;

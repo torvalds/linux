@@ -345,7 +345,7 @@ static void lpc32xx_nand_ecc_enable(struct nand_chip *chip, int mode)
 /*
  * Calculates the ECC for the data
  */
-static int lpc32xx_nand_ecc_calculate(struct mtd_info *mtd,
+static int lpc32xx_nand_ecc_calculate(struct nand_chip *chip,
 				      const unsigned char *buf,
 				      unsigned char *code)
 {

@@ -170,10 +170,10 @@ static void nand_davinci_hwctl_1bit(struct nand_chip *chip, int mode)
 /*
  * Read hardware ECC value and pack into three bytes
  */
-static int nand_davinci_calculate_1bit(struct mtd_info *mtd,
-				      const u_char *dat, u_char *ecc_code)
+static int nand_davinci_calculate_1bit(struct nand_chip *chip,
+				       const u_char *dat, u_char *ecc_code)
 {
-	unsigned int ecc_val = nand_davinci_readecc_1bit(mtd);
+	unsigned int ecc_val = nand_davinci_readecc_1bit(nand_to_mtd(chip));
 	unsigned int ecc24 = (ecc_val & 0x0fff) | ((ecc_val & 0x0fff0000) >> 4);
 
 	/* invert so that erased block ecc is correct */
@@ -266,10 +266,10 @@ nand_davinci_readecc_4bit(struct davinci_nand_info *info, u32 code[4])
 }
 
 /* Terminate read ECC; or return ECC (as bytes) of data written to NAND. */
-static int nand_davinci_calculate_4bit(struct mtd_info *mtd,
-		const u_char *dat, u_char *ecc_code)
+static int nand_davinci_calculate_4bit(struct nand_chip *chip,
+				       const u_char *dat, u_char *ecc_code)
 {
-	struct davinci_nand_info *info = to_davinci_nand(mtd);
+	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(chip));
 	u32 raw_ecc[4], *p;
 	unsigned i;
 

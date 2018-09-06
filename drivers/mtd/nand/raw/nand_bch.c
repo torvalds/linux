@@ -43,14 +43,13 @@ struct nand_bch_control {
 
 /**
  * nand_bch_calculate_ecc - [NAND Interface] Calculate ECC for data block
- * @mtd:	MTD block structure
+ * @chip:	NAND chip object
  * @buf:	input buffer with raw data
  * @code:	output buffer with ECC
  */
-int nand_bch_calculate_ecc(struct mtd_info *mtd, const unsigned char *buf,
+int nand_bch_calculate_ecc(struct nand_chip *chip, const unsigned char *buf,
 			   unsigned char *code)
 {
-	const struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nand_bch_control *nbc = chip->ecc.priv;
 	unsigned int i;
 

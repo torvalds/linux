@@ -170,11 +170,10 @@ static int txx9ndfmc_dev_ready(struct mtd_info *mtd)
 	return !(txx9ndfmc_read(dev, TXX9_NDFSR) & TXX9_NDFSR_BUSY);
 }
 
-static int txx9ndfmc_calculate_ecc(struct mtd_info *mtd, const uint8_t *dat,
+static int txx9ndfmc_calculate_ecc(struct nand_chip *chip, const uint8_t *dat,
 				   uint8_t *ecc_code)
 {
-	struct platform_device *dev = mtd_to_platdev(mtd);
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct platform_device *dev = mtd_to_platdev(nand_to_mtd(chip));
 	int eccbytes;
 	u32 mcr = txx9ndfmc_read(dev, TXX9_NDFMCR);
 

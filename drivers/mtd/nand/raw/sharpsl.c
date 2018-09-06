@@ -91,9 +91,10 @@ static void sharpsl_nand_enable_hwecc(struct nand_chip *chip, int mode)
 	writeb(0, sharpsl->io + ECCCLRR);
 }
 
-static int sharpsl_nand_calculate_ecc(struct mtd_info *mtd, const u_char * dat, u_char * ecc_code)
+static int sharpsl_nand_calculate_ecc(struct nand_chip *chip,
+				      const u_char * dat, u_char * ecc_code)
 {
-	struct sharpsl_nand *sharpsl = mtd_to_sharpsl(mtd);
+	struct sharpsl_nand *sharpsl = mtd_to_sharpsl(nand_to_mtd(chip));
 	ecc_code[0] = ~readb(sharpsl->io + ECCLPUB);
 	ecc_code[1] = ~readb(sharpsl->io + ECCLPLB);
 	ecc_code[2] = (~readb(sharpsl->io + ECCCP) << 2) | 0x03;

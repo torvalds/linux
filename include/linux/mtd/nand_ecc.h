@@ -14,6 +14,7 @@
 #define __MTD_NAND_ECC_H__
 
 struct mtd_info;
+struct nand_chip;
 
 /*
  * Calculate 3 byte ECC code for eccsize byte block
@@ -24,7 +25,8 @@ void __nand_calculate_ecc(const u_char *dat, unsigned int eccsize,
 /*
  * Calculate 3 byte ECC code for 256/512 byte block
  */
-int nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code);
+int nand_calculate_ecc(struct nand_chip *chip, const u_char *dat,
+		       u_char *ecc_code);
 
 /*
  * Detect and correct a 1 bit error for eccsize byte block

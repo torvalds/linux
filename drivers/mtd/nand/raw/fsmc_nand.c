@@ -385,10 +385,10 @@ static void fsmc_enable_hwecc(struct nand_chip *chip, int mode)
  * FSMC. ECC is 13 bytes for 512 bytes of data (supports error correction up to
  * max of 8-bits)
  */
-static int fsmc_read_hwecc_ecc4(struct mtd_info *mtd, const uint8_t *data,
+static int fsmc_read_hwecc_ecc4(struct nand_chip *chip, const uint8_t *data,
 				uint8_t *ecc)
 {
-	struct fsmc_nand_data *host = mtd_to_fsmc(mtd);
+	struct fsmc_nand_data *host = mtd_to_fsmc(nand_to_mtd(chip));
 	uint32_t ecc_tmp;
 	unsigned long deadline = jiffies + FSMC_BUSY_WAIT_TIMEOUT;
 
@@ -433,10 +433,10 @@ static int fsmc_read_hwecc_ecc4(struct mtd_info *mtd, const uint8_t *data,
  * FSMC. ECC is 3 bytes for 512 bytes of data (supports error correction up to
  * max of 1-bit)
  */
-static int fsmc_read_hwecc_ecc1(struct mtd_info *mtd, const uint8_t *data,
+static int fsmc_read_hwecc_ecc1(struct nand_chip *chip, const uint8_t *data,
 				uint8_t *ecc)
 {
-	struct fsmc_nand_data *host = mtd_to_fsmc(mtd);
+	struct fsmc_nand_data *host = mtd_to_fsmc(nand_to_mtd(chip));
 	uint32_t ecc_tmp;
 
 	ecc_tmp = readl_relaxed(host->regs_va + ECC1);
@@ -767,7 +767,7 @@ static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		}
 
 		memcpy(&ecc_code[i], oob, chip->ecc.bytes);
-		chip->ecc.calculate(mtd, p, &ecc_calc[i]);
+		chip->ecc.calculate(chip, p, &ecc_calc[i]);
 
 		stat = chip->ecc.correct(mtd, p, &ecc_code[i], &ecc_calc[i]);
 		if (stat < 0) {

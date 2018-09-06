@@ -623,9 +623,10 @@ static void s3c2440_nand_enable_hwecc(struct nand_chip *chip, int mode)
 	writel(ctrl | S3C2440_NFCONT_INITECC, info->regs + S3C2440_NFCONT);
 }
 
-static int s3c2410_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
-				      u_char *ecc_code)
+static int s3c2410_nand_calculate_ecc(struct nand_chip *chip,
+				      const u_char *dat, u_char *ecc_code)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 
 	ecc_code[0] = readb(info->regs + S3C2410_NFECC + 0);
@@ -637,9 +638,10 @@ static int s3c2410_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
 	return 0;
 }
 
-static int s3c2412_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
-				      u_char *ecc_code)
+static int s3c2412_nand_calculate_ecc(struct nand_chip *chip,
+				      const u_char *dat, u_char *ecc_code)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	unsigned long ecc = readl(info->regs + S3C2412_NFMECC0);
 
@@ -652,9 +654,10 @@ static int s3c2412_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
 	return 0;
 }
 
-static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
-				      u_char *ecc_code)
+static int s3c2440_nand_calculate_ecc(struct nand_chip *chip,
+				      const u_char *dat, u_char *ecc_code)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	unsigned long ecc = readl(info->regs + S3C2440_NFMECC0);
 

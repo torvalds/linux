@@ -398,11 +398,10 @@ EXPORT_SYMBOL(__nand_calculate_ecc);
  * @buf:	input buffer with raw data
  * @code:	output buffer with ECC
  */
-int nand_calculate_ecc(struct mtd_info *mtd, const unsigned char *buf,
+int nand_calculate_ecc(struct nand_chip *chip, const unsigned char *buf,
 		       unsigned char *code)
 {
-	__nand_calculate_ecc(buf,
-			mtd_to_nand(mtd)->ecc.size, code);
+	__nand_calculate_ecc(buf, chip->ecc.size, code);
 
 	return 0;
 }

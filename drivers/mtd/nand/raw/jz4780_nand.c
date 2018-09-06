@@ -123,10 +123,10 @@ static void jz4780_nand_ecc_hwctl(struct nand_chip *chip, int mode)
 	nand->reading = (mode == NAND_ECC_READ);
 }
 
-static int jz4780_nand_ecc_calculate(struct mtd_info *mtd, const u8 *dat,
+static int jz4780_nand_ecc_calculate(struct nand_chip *chip, const u8 *dat,
 				     u8 *ecc_code)
 {
-	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(mtd);
+	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(nand_to_mtd(chip));
 	struct jz4780_nand_controller *nfc = to_jz4780_nand_controller(nand->chip.controller);
 	struct jz4780_bch_params params;
 
