@@ -101,9 +101,7 @@ int mt76x2u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 void mt76x2u_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 			     struct mt76_queue_entry *e, bool flush)
 {
-	struct mt76x2_dev *dev = container_of(mdev, struct mt76x2_dev, mt76);
-
 	mt76x2u_remove_dma_hdr(e->skb);
-	mt76x2_tx_complete(dev, e->skb);
+	mt76x2_tx_complete(mdev, e->skb);
 }
 

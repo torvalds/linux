@@ -73,7 +73,7 @@ mt76x2_mac_queue_txdone(struct mt76x2_dev *dev, struct sk_buff *skb,
 	txi->wcid = txwi->wcid;
 	txi->pktid = txwi->pktid;
 	trace_mac_txdone_add(dev, txwi->wcid, txwi->pktid);
-	mt76x2_tx_complete(dev, skb);
+	mt76x2_tx_complete(&dev->mt76, skb);
 }
 
 void mt76x2_mac_process_tx_status_fifo(struct mt76x2_dev *dev)
