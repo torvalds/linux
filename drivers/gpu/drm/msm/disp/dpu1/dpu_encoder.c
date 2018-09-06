@@ -1011,9 +1011,10 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 	struct dpu_kms *dpu_kms;
 	struct list_head *connector_list;
 	struct drm_connector *conn = NULL, *conn_iter;
-	struct dpu_rm_hw_iter pp_iter;
+	struct dpu_rm_hw_iter pp_iter, ctl_iter;
 	struct msm_display_topology topology;
 	enum dpu_rm_topology_name topology_name;
+	struct dpu_hw_ctl *hw_ctl[MAX_CHANNELS_PER_ENC] = { NULL };
 	int i = 0, ret;
 
 	if (!drm_enc) {
@@ -1061,17 +1062,33 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 		dpu_enc->hw_pp[i] = (struct dpu_hw_pingpong *) pp_iter.hw;
 	}
 
+	dpu_rm_init_hw_iter(&ctl_iter, drm_enc->base.id, DPU_HW_BLK_CTL);
+	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
+		if (!dpu_rm_get_hw(&dpu_kms->rm, &ctl_iter))
+			break;
+		hw_ctl[i] = (struct dpu_hw_ctl *)ctl_iter.hw;
+	}
+
 	topology_name = dpu_rm_get_topology_name(topology);
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
 		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
 
 		if (phys) {
 			if (!dpu_enc->hw_pp[i]) {
-				DPU_ERROR_ENC(dpu_enc,
-				    "invalid pingpong block for the encoder\n");
+				DPU_ERROR_ENC(dpu_enc, "no pp block assigned"
+					     "at idx: %d\n", i);
 				return;
 			}
+
+			if (!hw_ctl[i]) {
+				DPU_ERROR_ENC(dpu_enc, "no ctl block assigned"
+					     "at idx: %d\n", i);
+				return;
+			}
+
 			phys->hw_pp = dpu_enc->hw_pp[i];
+			phys->hw_ctl = hw_ctl[i];
+
 			phys->connector = conn->state->connector;
 			phys->topology_name = topology_name;
 			if (phys->ops.mode_set)

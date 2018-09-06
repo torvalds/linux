@@ -395,9 +395,6 @@ static void dpu_encoder_phys_vid_mode_set(
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adj_mode)
 {
-	struct dpu_rm *rm;
-	struct dpu_rm_hw_iter iter;
-	int i, instance;
 	struct dpu_encoder_phys_vid *vid_enc;
 
 	if (!phys_enc || !phys_enc->dpu_kms) {
@@ -405,28 +402,12 @@ static void dpu_encoder_phys_vid_mode_set(
 		return;
 	}
 
-	rm = &phys_enc->dpu_kms->rm;
 	vid_enc = to_dpu_encoder_phys_vid(phys_enc);
 
 	if (adj_mode) {
 		phys_enc->cached_mode = *adj_mode;
 		drm_mode_debug_printmodeline(adj_mode);
 		DPU_DEBUG_VIDENC(vid_enc, "caching mode:\n");
-	}
-
-	instance = phys_enc->split_role == ENC_ROLE_SLAVE ? 1 : 0;
-
-	/* Retrieve previously allocated HW Resources. Shouldn't fail */
-	dpu_rm_init_hw_iter(&iter, phys_enc->parent->base.id, DPU_HW_BLK_CTL);
-	for (i = 0; i <= instance; i++) {
-		if (dpu_rm_get_hw(rm, &iter))
-			phys_enc->hw_ctl = (struct dpu_hw_ctl *)iter.hw;
-	}
-	if (IS_ERR_OR_NULL(phys_enc->hw_ctl)) {
-		DPU_ERROR_VIDENC(vid_enc, "failed to init ctl, %ld\n",
-				PTR_ERR(phys_enc->hw_ctl));
-		phys_enc->hw_ctl = NULL;
-		return;
 	}
 
 	_dpu_encoder_phys_vid_setup_irq_hw_idx(phys_enc);
