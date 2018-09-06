@@ -4730,7 +4730,11 @@ int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,
 		    (page + pages_per_block))
 			chip->pagebuf = -1;
 
-		status = chip->erase(chip, page & chip->pagemask);
+		if (chip->legacy.erase)
+			status = chip->legacy.erase(chip,
+						    page & chip->pagemask);
+		else
+			status = single_erase(chip, page & chip->pagemask);
 
 		/* See if block erase succeeded */
 		if (status) {
@@ -5756,7 +5760,6 @@ ident_done:
 		chip->options |= NAND_ROW_ADDR_3;
 
 	chip->badblockbits = 8;
-	chip->erase = single_erase;
 
 	/* Do not replace user supplied command function! */
 	if (mtd->writesize > 512 && chip->legacy.cmdfunc == nand_command)

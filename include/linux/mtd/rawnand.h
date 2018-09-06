@@ -1189,6 +1189,7 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  * @waitfunc: hardware specific function for wait on ready.
  * @block_bad: check if a block is bad, using OOB markers
  * @block_markbad: mark a block bad
+ * @erase: erase function
  *
  * If you look at this structure you're already wrong. These fields/hooks are
  * all deprecated.
@@ -1207,6 +1208,7 @@ struct nand_legacy {
 	int (*waitfunc)(struct nand_chip *chip);
 	int (*block_bad)(struct nand_chip *chip, loff_t ofs);
 	int (*block_markbad)(struct nand_chip *chip, loff_t ofs);
+	int (*erase)(struct nand_chip *chip, int page);
 };
 
 /**
@@ -1228,7 +1230,6 @@ struct nand_legacy {
  * @buf_align:		minimum buffer alignment required by a platform
  * @dummy_controller:	dummy controller implementation for drivers that can
  *			only control a single chip
- * @erase:		[REPLACEABLE] erase function
  * @chip_delay:		[BOARDSPECIFIC] chip dependent delay for transferring
  *			data from array to read regs (tR).
  * @state:		[INTERN] the current state of the NAND device
@@ -1308,7 +1309,6 @@ struct nand_chip {
 	int (*exec_op)(struct nand_chip *chip,
 		       const struct nand_operation *op,
 		       bool check_only);
-	int (*erase)(struct nand_chip *chip, int page);
 	int (*set_features)(struct nand_chip *chip, int feature_addr,
 			    uint8_t *subfeature_para);
 	int (*get_features)(struct nand_chip *chip, int feature_addr,
