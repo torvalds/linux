@@ -25,11 +25,10 @@
 #include <linux/ioport.h>
 #include <linux/ucb1400.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/partitions.h>
 #include <linux/types.h>
 #include <linux/platform_data/pcf857x.h>
 #include <linux/platform_data/i2c-pxa.h>
-#include <linux/mtd/rawnand.h>
+#include <linux/mtd/platnand.h>
 #include <linux/mtd/physmap.h>
 #include <linux/regulator/max1586.h>
 

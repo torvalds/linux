@@ -20,6 +20,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/platnand.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <asm/types.h>

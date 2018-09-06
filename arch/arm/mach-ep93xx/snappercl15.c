@@ -23,8 +23,7 @@
 #include <linux/i2c.h>
 #include <linux/fb.h>
 
-#include <linux/mtd/partitions.h>
-#include <linux/mtd/rawnand.h>
+#include <linux/mtd/platnand.h>
 
 #include <mach/hardware.h>
 #include <linux/platform_data/video-ep93xx.h>
