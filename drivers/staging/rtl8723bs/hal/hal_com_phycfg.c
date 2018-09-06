@@ -2919,7 +2919,6 @@ int PHY_ConfigRFWithTxPwrTrackParaFile(struct adapter *Adapter, char *pFileName)
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
 	int	rlen = 0, rtStatus = _FAIL;
 	char *szLine, *ptmp;
-	u32 i = 0;
 
 	if (!(Adapter->registrypriv.load_phy_file & LOAD_RF_TXPWR_TRACK_PARA_FILE))
 		return rtStatus;
@@ -2958,8 +2957,10 @@ int PHY_ConfigRFWithTxPwrTrackParaFile(struct adapter *Adapter, char *pFileName)
 				char band[5] = "", path[5] = "", sign[5] = "";
 				char chnl[5] = "", rate[10] = "";
 				char data[300] = ""; /*  100 is too small */
+				const int len = strlen(szLine);
+				int i;
 
-				if (strlen(szLine) < 10 || szLine[0] != '[')
+				if (len < 10 || szLine[0] != '[')
 					continue;
 
 				strncpy(band, szLine+1, 2);
@@ -2973,7 +2974,7 @@ int PHY_ConfigRFWithTxPwrTrackParaFile(struct adapter *Adapter, char *pFileName)
 				if (!ParseQualifiedString(szLine, &i, chnl, '[', ']')) {
 					/* DBG_871X("Fail to parse channel group!\n"); */
 				}
-				while (szLine[i] != '{' && i < strlen(szLine))
+				while (i < len && szLine[i] != '{')
 					i++;
 				if (!ParseQualifiedString(szLine, &i, data, '{', '}')) {
 					/* DBG_871X("Fail to parse data!\n"); */
