@@ -1299,10 +1299,10 @@ struct nand_chip {
 		       const struct nand_operation *op,
 		       bool check_only);
 	int (*erase)(struct nand_chip *chip, int page);
-	int (*set_features)(struct mtd_info *mtd, struct nand_chip *chip,
-			    int feature_addr, uint8_t *subfeature_para);
-	int (*get_features)(struct mtd_info *mtd, struct nand_chip *chip,
-			    int feature_addr, uint8_t *subfeature_para);
+	int (*set_features)(struct nand_chip *chip, int feature_addr,
+			    uint8_t *subfeature_para);
+	int (*get_features)(struct nand_chip *chip, int feature_addr,
+			    uint8_t *subfeature_para);
 	int (*setup_read_retry)(struct mtd_info *mtd, int retry_mode);
 	int (*setup_data_interface)(struct mtd_info *mtd, int chipnr,
 				    const struct nand_data_interface *conf);
@@ -1681,8 +1681,8 @@ int nand_read_oob_syndrome(struct nand_chip *chip, int page);
 int nand_get_features(struct nand_chip *chip, int addr, u8 *subfeature_param);
 int nand_set_features(struct nand_chip *chip, int addr, u8 *subfeature_param);
 /* Stub used by drivers that do not support GET/SET FEATURES operations */
-int nand_get_set_features_notsupp(struct mtd_info *mtd, struct nand_chip *chip,
-				  int addr, u8 *subfeature_param);
+int nand_get_set_features_notsupp(struct nand_chip *chip, int addr,
+				  u8 *subfeature_param);
 
 /* Default read_page_raw implementation */
 int nand_read_page_raw(struct nand_chip *chip, uint8_t *buf, int oob_required,

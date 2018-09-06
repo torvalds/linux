@@ -1393,11 +1393,11 @@ static void mxc_nand_command(struct nand_chip *nand_chip, unsigned command,
 	}
 }
 
-static int mxc_nand_set_features(struct mtd_info *mtd, struct nand_chip *chip,
-				 int addr, u8 *subfeature_param)
+static int mxc_nand_set_features(struct nand_chip *chip, int addr,
+				 u8 *subfeature_param)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
-	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct mxc_nand_host *host = nand_get_controller_data(chip);
 	int i;
 
 	host->buf_start = 0;
@@ -1413,11 +1413,11 @@ static int mxc_nand_set_features(struct mtd_info *mtd, struct nand_chip *chip,
 	return 0;
 }
 
-static int mxc_nand_get_features(struct mtd_info *mtd, struct nand_chip *chip,
-				 int addr, u8 *subfeature_param)
+static int mxc_nand_get_features(struct nand_chip *chip, int addr,
+				 u8 *subfeature_param)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
-	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct mxc_nand_host *host = nand_get_controller_data(chip);
 	int i;
 
 	host->devtype_data->send_cmd(host, NAND_CMD_GET_FEATURES, false);

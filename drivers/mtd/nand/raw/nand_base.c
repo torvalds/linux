@@ -1163,12 +1163,10 @@ static bool nand_supports_set_features(struct nand_chip *chip, int addr)
 int nand_get_features(struct nand_chip *chip, int addr,
 		      u8 *subfeature_param)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-
 	if (!nand_supports_get_features(chip, addr))
 		return -ENOTSUPP;
 
-	return chip->get_features(mtd, chip, addr, subfeature_param);
+	return chip->get_features(chip, addr, subfeature_param);
 }
 EXPORT_SYMBOL_GPL(nand_get_features);
 
@@ -1184,12 +1182,10 @@ EXPORT_SYMBOL_GPL(nand_get_features);
 int nand_set_features(struct nand_chip *chip, int addr,
 		      u8 *subfeature_param)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-
 	if (!nand_supports_set_features(chip, addr))
 		return -ENOTSUPP;
 
-	return chip->set_features(mtd, chip, addr, subfeature_param);
+	return chip->set_features(chip, addr, subfeature_param);
 }
 EXPORT_SYMBOL_GPL(nand_set_features);
 
@@ -4846,13 +4842,11 @@ static int nand_max_bad_blocks(struct mtd_info *mtd, loff_t ofs, size_t len)
 
 /**
  * nand_default_set_features- [REPLACEABLE] set NAND chip features
- * @mtd: MTD device structure
  * @chip: nand chip info structure
  * @addr: feature address.
  * @subfeature_param: the subfeature parameters, a four bytes array.
  */
-static int nand_default_set_features(struct mtd_info *mtd,
-				     struct nand_chip *chip, int addr,
+static int nand_default_set_features(struct nand_chip *chip, int addr,
 				     uint8_t *subfeature_param)
 {
 	return nand_set_features_op(chip, addr, subfeature_param);
@@ -4860,13 +4854,11 @@ static int nand_default_set_features(struct mtd_info *mtd,
 
 /**
  * nand_default_get_features- [REPLACEABLE] get NAND chip features
- * @mtd: MTD device structure
  * @chip: nand chip info structure
  * @addr: feature address.
  * @subfeature_param: the subfeature parameters, a four bytes array.
  */
-static int nand_default_get_features(struct mtd_info *mtd,
-				     struct nand_chip *chip, int addr,
+static int nand_default_get_features(struct nand_chip *chip, int addr,
 				     uint8_t *subfeature_param)
 {
 	return nand_get_features_op(chip, addr, subfeature_param);
@@ -4874,7 +4866,6 @@ static int nand_default_get_features(struct mtd_info *mtd,
 
 /**
  * nand_get_set_features_notsupp - set/get features stub returning -ENOTSUPP
- * @mtd: MTD device structure
  * @chip: nand chip info structure
  * @addr: feature address.
  * @subfeature_param: the subfeature parameters, a four bytes array.
@@ -4882,8 +4873,8 @@ static int nand_default_get_features(struct mtd_info *mtd,
  * Should be used by NAND controller drivers that do not support the SET/GET
  * FEATURES operations.
  */
-int nand_get_set_features_notsupp(struct mtd_info *mtd, struct nand_chip *chip,
-				  int addr, u8 *subfeature_param)
+int nand_get_set_features_notsupp(struct nand_chip *chip, int addr,
+				  u8 *subfeature_param)
 {
 	return -ENOTSUPP;
 }
