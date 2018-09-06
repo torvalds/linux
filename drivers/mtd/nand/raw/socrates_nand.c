@@ -152,10 +152,6 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	mtd->name = "socrates_nand";
 	mtd->dev.parent = &ofdev->dev;
 
-	/*should never be accessed directly */
-	nand_chip->IO_ADDR_R = (void *)0xdeadbeef;
-	nand_chip->IO_ADDR_W = (void *)0xdeadbeef;
-
 	nand_chip->cmd_ctrl = socrates_nand_cmd_ctrl;
 	nand_chip->read_byte = socrates_nand_read_byte;
 	nand_chip->write_buf = socrates_nand_write_buf;

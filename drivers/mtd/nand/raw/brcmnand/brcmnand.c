@@ -2270,9 +2270,6 @@ static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = &pdev->dev;
 
-	chip->IO_ADDR_R = (void __iomem *)0xdeadbeef;
-	chip->IO_ADDR_W = (void __iomem *)0xdeadbeef;
-
 	chip->cmd_ctrl = brcmnand_cmd_ctrl;
 	chip->cmdfunc = brcmnand_cmdfunc;
 	chip->waitfunc = brcmnand_waitfunc;
