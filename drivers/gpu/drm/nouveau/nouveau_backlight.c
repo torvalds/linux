@@ -68,7 +68,7 @@ nv40_get_intensity(struct backlight_device *bd)
 	struct nouveau_drm *drm = bl_get_data(bd);
 	struct nvif_object *device = &drm->client.device.object;
 	int val = (nvif_rd32(device, NV40_PMC_BACKLIGHT) &
-				   NV40_PMC_BACKLIGHT_MASK) >> 16;
+		   NV40_PMC_BACKLIGHT_MASK) >> 16;
 
 	return val;
 }
@@ -82,7 +82,7 @@ nv40_set_intensity(struct backlight_device *bd)
 	int reg = nvif_rd32(device, NV40_PMC_BACKLIGHT);
 
 	nvif_wr32(device, NV40_PMC_BACKLIGHT,
-		 (val << 16) | (reg & ~NV40_PMC_BACKLIGHT_MASK));
+		  (val << 16) | (reg & ~NV40_PMC_BACKLIGHT_MASK));
 
 	return 0;
 }
@@ -164,7 +164,7 @@ nv50_set_intensity(struct backlight_device *bd)
 	u32 val = (bd->props.brightness * div) / 100;
 
 	nvif_wr32(device, NV50_PDISP_SOR_PWM_CTL(or),
-			NV50_PDISP_SOR_PWM_CTL_NEW | val);
+		  NV50_PDISP_SOR_PWM_CTL_NEW | val);
 	return 0;
 }
 
@@ -204,9 +204,10 @@ nva3_set_intensity(struct backlight_device *bd)
 	div = nvif_rd32(device, NV50_PDISP_SOR_PWM_DIV(or));
 	val = (bd->props.brightness * div) / 100;
 	if (div) {
-		nvif_wr32(device, NV50_PDISP_SOR_PWM_CTL(or), val |
-				NV50_PDISP_SOR_PWM_CTL_NEW |
-				NVA3_PDISP_SOR_PWM_CTL_UNK);
+		nvif_wr32(device, NV50_PDISP_SOR_PWM_CTL(or),
+			  val |
+			  NV50_PDISP_SOR_PWM_CTL_NEW |
+			  NVA3_PDISP_SOR_PWM_CTL_UNK);
 		return 0;
 	}
 
