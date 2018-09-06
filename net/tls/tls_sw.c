@@ -125,6 +125,9 @@ static int alloc_encrypted_sg(struct sock *sk, int len)
 			 &ctx->sg_encrypted_num_elem,
 			 &ctx->sg_encrypted_size, 0);
 
+	if (rc == -ENOSPC)
+		ctx->sg_encrypted_num_elem = ARRAY_SIZE(ctx->sg_encrypted_data);
+
 	return rc;
 }
 
@@ -137,6 +140,9 @@ static int alloc_plaintext_sg(struct sock *sk, int len)
 	rc = sk_alloc_sg(sk, len, ctx->sg_plaintext_data, 0,
 			 &ctx->sg_plaintext_num_elem, &ctx->sg_plaintext_size,
 			 tls_ctx->pending_open_record_frags);
+
+	if (rc == -ENOSPC)
+		ctx->sg_plaintext_num_elem = ARRAY_SIZE(ctx->sg_plaintext_data);
 
 	return rc;
 }
