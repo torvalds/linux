@@ -39,6 +39,7 @@
 #include <rdma/ib_smi.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cq.h>
+#include <linux/mlx5/fs.h>
 #include <linux/mlx5/qp.h>
 #include <linux/mlx5/srq.h>
 #include <linux/mlx5/fs.h>
@@ -1253,7 +1254,8 @@ void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev,
 const struct uverbs_object_tree_def *mlx5_ib_get_devx_tree(void);
 struct mlx5_ib_flow_handler *mlx5_ib_raw_fs_rule_add(
 	struct mlx5_ib_dev *dev, struct mlx5_ib_flow_matcher *fs_matcher,
-	void *cmd_in, int inlen, int dest_id, int dest_type);
+	struct mlx5_flow_act *flow_act, void *cmd_in, int inlen,
+	int dest_id, int dest_type);
 bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id, int *dest_type);
 int mlx5_ib_get_flow_trees(const struct uverbs_object_tree_def **root);
 void mlx5_ib_destroy_flow_action_raw(struct mlx5_ib_flow_action *maction);

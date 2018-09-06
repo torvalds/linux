@@ -61,6 +61,7 @@ static const struct uverbs_attr_spec mlx5_ib_flow_type[] = {
 static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
 {
+	struct mlx5_flow_act flow_act = {.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG};
 	struct mlx5_ib_flow_handler *flow_handler;
 	struct mlx5_ib_flow_matcher *fs_matcher;
 	void *devx_obj;
@@ -123,7 +124,8 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 				    MLX5_IB_ATTR_CREATE_FLOW_MATCH_VALUE);
 	fs_matcher = uverbs_attr_get_obj(attrs,
 					 MLX5_IB_ATTR_CREATE_FLOW_MATCHER);
-	flow_handler = mlx5_ib_raw_fs_rule_add(dev, fs_matcher, cmd_in, inlen,
+	flow_handler = mlx5_ib_raw_fs_rule_add(dev, fs_matcher, &flow_act,
+					       cmd_in, inlen,
 					       dest_id, dest_type);
 	if (IS_ERR(flow_handler))
 		return PTR_ERR(flow_handler);

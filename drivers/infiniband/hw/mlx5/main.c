@@ -3754,10 +3754,10 @@ _create_raw_flow_rule(struct mlx5_ib_dev *dev,
 		      struct mlx5_ib_flow_prio *ft_prio,
 		      struct mlx5_flow_destination *dst,
 		      struct mlx5_ib_flow_matcher  *fs_matcher,
+		      struct mlx5_flow_act *flow_act,
 		      void *cmd_in, int inlen)
 {
 	struct mlx5_ib_flow_handler *handler;
-	struct mlx5_flow_act flow_act = {.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG};
 	struct mlx5_flow_spec *spec;
 	struct mlx5_flow_table *ft = ft_prio->flow_table;
 	int err = 0;
@@ -3776,9 +3776,8 @@ _create_raw_flow_rule(struct mlx5_ib_dev *dev,
 	       fs_matcher->mask_len);
 	spec->match_criteria_enable = fs_matcher->match_criteria_enable;
 
-	flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	handler->rule = mlx5_add_flow_rules(ft, spec,
-					    &flow_act, dst, 1);
+					    flow_act, dst, 1);
 
 	if (IS_ERR(handler->rule)) {
 		err = PTR_ERR(handler->rule);
@@ -3840,6 +3839,7 @@ static bool raw_fs_is_multicast(struct mlx5_ib_flow_matcher *fs_matcher,
 struct mlx5_ib_flow_handler *
 mlx5_ib_raw_fs_rule_add(struct mlx5_ib_dev *dev,
 			struct mlx5_ib_flow_matcher *fs_matcher,
+			struct mlx5_flow_act *flow_act,
 			void *cmd_in, int inlen, int dest_id,
 			int dest_type)
 {
@@ -3872,13 +3872,15 @@ mlx5_ib_raw_fs_rule_add(struct mlx5_ib_dev *dev,
 	if (dest_type == MLX5_FLOW_DESTINATION_TYPE_TIR) {
 		dst->type = dest_type;
 		dst->tir_num = dest_id;
+		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	} else {
 		dst->type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM;
 		dst->ft_num = dest_id;
+		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	}
 
-	handler = _create_raw_flow_rule(dev, ft_prio, dst, fs_matcher, cmd_in,
-					inlen);
+	handler = _create_raw_flow_rule(dev, ft_prio, dst, fs_matcher, flow_act,
+					cmd_in, inlen);
 
 	if (IS_ERR(handler)) {
 		err = PTR_ERR(handler);
