@@ -16,6 +16,7 @@
  */
 
 #include "mt76.h"
+#include "dma.h"
 #include "mt76x02_regs.h"
 #include "mt76x02_mac.h"
 
@@ -376,6 +377,17 @@ void mt76x02_remove_hdr_pad(struct sk_buff *skb, int len)
 	skb_pull(skb, len);
 }
 EXPORT_SYMBOL_GPL(mt76x02_remove_hdr_pad);
+
+void mt76x02_remove_dma_hdr(struct sk_buff *skb)
+{
+	int hdr_len;
+
+	skb_pull(skb, sizeof(struct mt76x02_txwi) + MT_DMA_HDR_LEN);
+	hdr_len = ieee80211_get_hdrlen_from_skb(skb);
+	if (hdr_len % 4)
+		mt76x02_remove_hdr_pad(skb, 2);
+}
+EXPORT_SYMBOL_GPL(mt76x02_remove_dma_hdr);
 
 void mt76x02_tx_complete(struct mt76_dev *dev, struct sk_buff *skb)
 {

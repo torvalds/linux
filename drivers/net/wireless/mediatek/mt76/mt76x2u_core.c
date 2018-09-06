@@ -18,18 +18,6 @@
 #include "dma.h"
 #include "mt76x02_util.h"
 
-static void mt76x2u_remove_dma_hdr(struct sk_buff *skb)
-{
-	int hdr_len;
-
-	skb_pull(skb, sizeof(struct mt76x02_txwi) + MT_DMA_HDR_LEN);
-	hdr_len = ieee80211_get_hdrlen_from_skb(skb);
-	if (hdr_len % 4) {
-		memmove(skb->data + 2, skb->data, hdr_len);
-		skb_pull(skb, 2);
-	}
-}
-
 static int
 mt76x2u_check_skb_rooms(struct sk_buff *skb)
 {
@@ -101,7 +89,7 @@ int mt76x2u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 void mt76x2u_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 			     struct mt76_queue_entry *e, bool flush)
 {
-	mt76x2u_remove_dma_hdr(e->skb);
+	mt76x02_remove_dma_hdr(e->skb);
 	mt76x02_tx_complete(mdev, e->skb);
 }
 

@@ -29,23 +29,11 @@ static u8 skb2q(struct sk_buff *skb)
 	return mt76_ac_to_hwq(qid);
 }
 
-static void mt76x0_tx_skb_remove_dma_overhead(struct sk_buff *skb,
-					       struct ieee80211_tx_info *info)
-{
-	int pkt_len = (unsigned long)info->status.status_driver_data[0];
-
-	skb_pull(skb, sizeof(struct mt76x02_txwi) + 4);
-	if (ieee80211_get_hdrlen_from_skb(skb) % 4)
-		mt76x02_remove_hdr_pad(skb, 2);
-
-	skb_trim(skb, pkt_len);
-}
-
 void mt76x0_tx_status(struct mt76x0_dev *dev, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
-	mt76x0_tx_skb_remove_dma_overhead(skb, info);
+	mt76x02_remove_dma_hdr(skb);
 
 	ieee80211_tx_info_clear_status(info);
 	info->status.rates[0].idx = -1;
