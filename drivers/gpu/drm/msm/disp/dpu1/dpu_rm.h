@@ -36,22 +36,6 @@ enum dpu_rm_topology_name {
 };
 
 /**
- * enum dpu_rm_topology_control - HW resource use case in use by connector
- * @DPU_RM_TOPCTL_RESERVE_LOCK: If set, in AtomicTest phase, after a successful
- *                              test, reserve the resources for this display.
- *                              Normal behavior would not impact the reservation
- *                              list during the AtomicTest phase.
- * @DPU_RM_TOPCTL_RESERVE_CLEAR: If set, in AtomicTest phase, before testing,
- *                               release any reservation held by this display.
- *                               Normal behavior would not impact the
- *                               reservation list during the AtomicTest phase.
- */
-enum dpu_rm_topology_control {
-	DPU_RM_TOPCTL_RESERVE_LOCK,
-	DPU_RM_TOPCTL_RESERVE_CLEAR,
-};
-
-/**
  * struct dpu_rm - DPU dynamic hardware resource manager
  * @dev: device handle for event logging purposes
  * @rsvps: list of hardware reservations by each crtc->encoder->connector

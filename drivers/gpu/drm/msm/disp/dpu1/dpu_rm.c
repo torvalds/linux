@@ -24,8 +24,6 @@
 #define RESERVED_BY_OTHER(h, r) \
 	((h)->rsvp && ((h)->rsvp->enc_id != (r)->enc_id))
 
-#define RM_RQ_LOCK(r) ((r)->top_ctrl & BIT(DPU_RM_TOPCTL_RESERVE_LOCK))
-#define RM_RQ_CLEAR(r) ((r)->top_ctrl & BIT(DPU_RM_TOPCTL_RESERVE_CLEAR))
 #define RM_IS_TOPOLOGY_MATCH(t, r) ((t).num_lm == (r).num_lm && \
 				(t).num_comp_enc == (r).num_enc && \
 				(t).num_intf == (r).num_intf)
@@ -48,12 +46,10 @@ static const struct dpu_rm_topology_def g_top_table[] = {
 
 /**
  * struct dpu_rm_requirements - Reservation requirements parameter bundle
- * @top_ctrl:  topology control preference from kernel client
  * @top:       selected topology for the display
  * @hw_res:	   Hardware resources required as reported by the encoders
  */
 struct dpu_rm_requirements {
-	uint64_t top_ctrl;
 	const struct dpu_rm_topology_def *topology;
 	struct dpu_encoder_hw_resources hw_res;
 };
@@ -755,8 +751,7 @@ static int _dpu_rm_populate_requirements(
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_KMS("top_ctrl: 0x%llX num_h_tiles: %d\n", reqs->top_ctrl,
-		      reqs->hw_res.display_num_of_h_tiles);
+	DRM_DEBUG_KMS("num_h_tiles: %d\n", reqs->hw_res.display_num_of_h_tiles);
 	DRM_DEBUG_KMS("num_lm: %d num_ctl: %d topology: %d split_display: %d\n",
 		      reqs->topology->num_lm, reqs->topology->num_ctl,
 		      reqs->topology->top_name,
@@ -956,18 +951,6 @@ int dpu_rm_reserve(
 
 	rsvp_cur = _dpu_rm_get_rsvp(rm, enc);
 
-	/*
-	 * User can request that we clear out any reservation during the
-	 * atomic_check phase by using this CLEAR bit
-	 */
-	if (rsvp_cur && test_only && RM_RQ_CLEAR(&reqs)) {
-		DPU_DEBUG("test_only & CLEAR: clear rsvp[s%de%d]\n",
-				rsvp_cur->seq, rsvp_cur->enc_id);
-		_dpu_rm_release_rsvp(rm, rsvp_cur, conn_state->connector);
-		rsvp_cur = NULL;
-		_dpu_rm_print_rsvps(rm, DPU_RM_STAGE_AFTER_CLEAR);
-	}
-
 	/* Check the proposed reservation, store it in hw's "next" field */
 	ret = _dpu_rm_make_next_rsvp(rm, enc, crtc_state, conn_state,
 			rsvp_nxt, &reqs);
@@ -977,7 +960,7 @@ int dpu_rm_reserve(
 	if (ret) {
 		DPU_ERROR("failed to reserve hw resources: %d\n", ret);
 		_dpu_rm_release_rsvp(rm, rsvp_nxt, conn_state->connector);
-	} else if (test_only && !RM_RQ_LOCK(&reqs)) {
+	} else if (test_only) {
 		/*
 		 * Normally, if test_only, test the reservation and then undo
 		 * However, if the user requests LOCK, then keep the reservation
@@ -987,10 +970,6 @@ int dpu_rm_reserve(
 				rsvp_nxt->seq, rsvp_nxt->enc_id);
 		_dpu_rm_release_rsvp(rm, rsvp_nxt, conn_state->connector);
 	} else {
-		if (test_only && RM_RQ_LOCK(&reqs))
-			DPU_DEBUG("test_only & LOCK: lock rsvp[s%de%d]\n",
-					rsvp_nxt->seq, rsvp_nxt->enc_id);
-
 		_dpu_rm_release_rsvp(rm, rsvp_cur, conn_state->connector);
 
 		ret = _dpu_rm_commit_rsvp(rm, rsvp_nxt, conn_state);
