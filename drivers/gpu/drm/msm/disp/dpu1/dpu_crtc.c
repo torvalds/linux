@@ -1281,26 +1281,12 @@ static void dpu_crtc_handle_power_event(u32 event_type, void *arg)
 
 	trace_dpu_crtc_handle_power_event(DRMID(crtc), event_type);
 
-	switch (event_type) {
-	case DPU_POWER_EVENT_POST_ENABLE:
-		/* restore encoder; crtc will be programmed during commit */
-		drm_for_each_encoder(encoder, crtc->dev) {
-			if (encoder->crtc != crtc)
-				continue;
+	/* restore encoder; crtc will be programmed during commit */
+	drm_for_each_encoder(encoder, crtc->dev) {
+		if (encoder->crtc != crtc)
+			continue;
 
-			dpu_encoder_virt_restore(encoder);
-		}
-		break;
-	case DPU_POWER_EVENT_PRE_DISABLE:
-	case DPU_POWER_EVENT_POST_DISABLE:
-		/**
-		 * Nothing to do. All the planes on the CRTC will be
-		 * programmed for every frame
-		 */
-		break;
-	default:
-		DPU_DEBUG("event:%d not handled\n", event_type);
-		break;
+		dpu_encoder_virt_restore(encoder);
 	}
 
 	mutex_unlock(&dpu_crtc->crtc_lock);
@@ -1429,9 +1415,7 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 	drm_crtc_vblank_on(crtc);
 
 	dpu_crtc->power_event = dpu_power_handle_register_event(
-		dpu_crtc->phandle,
-		DPU_POWER_EVENT_POST_ENABLE | DPU_POWER_EVENT_POST_DISABLE |
-		DPU_POWER_EVENT_PRE_DISABLE,
+		dpu_crtc->phandle, DPU_POWER_EVENT_ENABLE,
 		dpu_crtc_handle_power_event, crtc, dpu_crtc->name);
 
 }

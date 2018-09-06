@@ -967,8 +967,7 @@ static void dpu_kms_handle_power_event(u32 event_type, void *usr)
 	if (!dpu_kms)
 		return;
 
-	if (event_type == DPU_POWER_EVENT_POST_ENABLE)
-		dpu_vbif_init_memtypes(dpu_kms);
+	dpu_vbif_init_memtypes(dpu_kms);
 }
 
 static int dpu_kms_hw_init(struct msm_kms *kms)
@@ -1155,10 +1154,9 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	/*
 	 * Handle (re)initializations during power enable
 	 */
-	dpu_kms_handle_power_event(DPU_POWER_EVENT_POST_ENABLE, dpu_kms);
+	dpu_kms_handle_power_event(DPU_POWER_EVENT_ENABLE, dpu_kms);
 	dpu_kms->power_event = dpu_power_handle_register_event(
-			&dpu_kms->phandle,
-			DPU_POWER_EVENT_POST_ENABLE,
+			&dpu_kms->phandle, DPU_POWER_EVENT_ENABLE,
 			dpu_kms_handle_power_event, dpu_kms, "kms");
 
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
