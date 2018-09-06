@@ -447,10 +447,8 @@ static int spi_gpio_probe(struct platform_device *pdev)
 static int spi_gpio_remove(struct platform_device *pdev)
 {
 	struct spi_gpio			*spi_gpio;
-	struct spi_gpio_platform_data	*pdata;
 
 	spi_gpio = platform_get_drvdata(pdev);
-	pdata = dev_get_platdata(&pdev->dev);
 
 	/* stop() unregisters child devices too */
 	spi_bitbang_stop(&spi_gpio->bitbang);
