@@ -776,6 +776,7 @@ enum rk805_reg {
 #define PWM_MODE_MSK			BIT(7)
 #define FPWM_MODE			BIT(7)
 #define AUTO_PWM_MODE			0
+#define REGS_WMSK			0xf0
 
 enum rk817_reg_id {
 	RK817_ID_DCDC1 = 0,
