@@ -390,6 +390,7 @@ static irqreturn_t b53_srab_port_isr(int irq, void *dev_id)
 	return IRQ_WAKE_THREAD;
 }
 
+#if IS_ENABLED(CONFIG_B53_SERDES)
 static u8 b53_srab_serdes_map_lane(struct b53_device *dev, int port)
 {
 	struct b53_srab_priv *priv = dev->priv;
@@ -407,6 +408,7 @@ static u8 b53_srab_serdes_map_lane(struct b53_device *dev, int port)
 		return B53_INVALID_LANE;
 	}
 }
+#endif
 
 static int b53_srab_irq_enable(struct b53_device *dev, int port)
 {

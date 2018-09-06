@@ -118,4 +118,11 @@ void b53_serdes_link_set(struct b53_device *dev, int port, unsigned int mode,
 void b53_serdes_phylink_validate(struct b53_device *dev, int port,
 				unsigned long *supported,
 				struct phylink_link_state *state);
+#if IS_ENABLED(CONFIG_B53_SERDES)
 int b53_serdes_init(struct b53_device *dev, int port);
+#else
+static inline int b53_serdes_init(struct b53_device *dev, int port)
+{
+	return -ENODEV;
+}
+#endif
