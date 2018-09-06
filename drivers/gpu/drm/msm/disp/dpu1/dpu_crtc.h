@@ -121,11 +121,6 @@ struct dpu_crtc_frame_event {
  * struct dpu_crtc - virtualized CRTC data structure
  * @base          : Base drm crtc structure
  * @name          : ASCII description of this crtc
- * @num_ctls      : Number of ctl paths in use
- * @num_mixers    : Number of mixers in use
- * @mixers_swapped: Whether the mixers have been swapped for left/right update
- *                  especially in the case of DSC Merge.
- * @mixers        : List of active mixers
  * @event         : Pointer to last received drm vblank event. If there is a
  *                  pending vblank event, this will be non-null.
  * @vsync_count   : Running count of received vsync events
@@ -163,12 +158,6 @@ struct dpu_crtc_frame_event {
 struct dpu_crtc {
 	struct drm_crtc base;
 	char name[DPU_CRTC_NAME_SIZE];
-
-	/* HW Resources reserved for the crtc */
-	u32 num_ctls;
-	u32 num_mixers;
-	bool mixers_swapped;
-	struct dpu_crtc_mixer mixers[CRTC_DUAL_MIXERS];
 
 	struct drm_pending_vblank_event *event;
 	u32 vsync_count;
@@ -221,6 +210,10 @@ struct dpu_crtc {
  * @property_values: Current crtc property values
  * @input_fence_timeout_ns : Cached input fence timeout, in ns
  * @new_perf: new performance state being requested
+ * @num_mixers    : Number of mixers in use
+ * @mixers        : List of active mixers
+ * @num_ctls      : Number of ctl paths in use
+ * @hw_ctls       : List of active ctl paths
  */
 struct dpu_crtc_state {
 	struct drm_crtc_state base;
@@ -232,6 +225,13 @@ struct dpu_crtc_state {
 	uint64_t input_fence_timeout_ns;
 
 	struct dpu_core_perf_params new_perf;
+
+	/* HW Resources reserved for the crtc */
+	u32 num_mixers;
+	struct dpu_crtc_mixer mixers[CRTC_DUAL_MIXERS];
+
+	u32 num_ctls;
+	struct dpu_hw_ctl *hw_ctls[CRTC_DUAL_MIXERS];
 };
 
 #define to_dpu_crtc_state(x) \

@@ -155,9 +155,9 @@ static void _dpu_crtc_program_lm_output_roi(struct drm_crtc *crtc)
 	crtc_state = to_dpu_crtc_state(crtc->state);
 
 	lm_horiz_position = 0;
-	for (lm_idx = 0; lm_idx < dpu_crtc->num_mixers; lm_idx++) {
+	for (lm_idx = 0; lm_idx < crtc_state->num_mixers; lm_idx++) {
 		const struct drm_rect *lm_roi = &crtc_state->lm_bounds[lm_idx];
-		struct dpu_hw_mixer *hw_lm = dpu_crtc->mixers[lm_idx].hw_lm;
+		struct dpu_hw_mixer *hw_lm = crtc_state->mixers[lm_idx].hw_lm;
 		struct dpu_hw_mixer_cfg cfg;
 
 		if (!lm_roi || !drm_rect_visible(lm_roi))
@@ -238,7 +238,7 @@ static void _dpu_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 					   fb ? fb->modifier : 0);
 
 		/* blend config update */
-		for (lm_idx = 0; lm_idx < dpu_crtc->num_mixers; lm_idx++) {
+		for (lm_idx = 0; lm_idx < cstate->num_mixers; lm_idx++) {
 			_dpu_crtc_setup_blend_cfg(mixer + lm_idx,
 						pstate, format);
 
@@ -262,7 +262,7 @@ static void _dpu_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 static void _dpu_crtc_blend_setup(struct drm_crtc *crtc)
 {
 	struct dpu_crtc *dpu_crtc;
-	struct dpu_crtc_state *dpu_crtc_state;
+	struct dpu_crtc_state *cstate;
 	struct dpu_crtc_mixer *mixer;
 	struct dpu_hw_ctl *ctl;
 	struct dpu_hw_mixer *lm;
@@ -273,17 +273,12 @@ static void _dpu_crtc_blend_setup(struct drm_crtc *crtc)
 		return;
 
 	dpu_crtc = to_dpu_crtc(crtc);
-	dpu_crtc_state = to_dpu_crtc_state(crtc->state);
-	mixer = dpu_crtc->mixers;
+	cstate = to_dpu_crtc_state(crtc->state);
+	mixer = cstate->mixers;
 
 	DPU_DEBUG("%s\n", dpu_crtc->name);
 
-	if (dpu_crtc->num_mixers > CRTC_DUAL_MIXERS) {
-		DPU_ERROR("invalid number mixers: %d\n", dpu_crtc->num_mixers);
-		return;
-	}
-
-	for (i = 0; i < dpu_crtc->num_mixers; i++) {
+	for (i = 0; i < cstate->num_mixers; i++) {
 		if (!mixer[i].hw_lm || !mixer[i].hw_ctl) {
 			DPU_ERROR("invalid lm or ctl assigned to mixer\n");
 			return;
@@ -300,7 +295,7 @@ static void _dpu_crtc_blend_setup(struct drm_crtc *crtc)
 
 	_dpu_crtc_blend_setup_mixer(crtc, dpu_crtc, mixer);
 
-	for (i = 0; i < dpu_crtc->num_mixers; i++) {
+	for (i = 0; i < cstate->num_mixers; i++) {
 		ctl = mixer[i].hw_ctl;
 		lm = mixer[i].hw_lm;
 
@@ -522,7 +517,7 @@ static void _dpu_crtc_setup_mixer_for_encoder(
 		struct drm_crtc *crtc,
 		struct drm_encoder *enc)
 {
-	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
+	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
 	struct dpu_kms *dpu_kms = _dpu_crtc_get_kms(crtc);
 	struct dpu_rm *rm = &dpu_kms->rm;
 	struct dpu_crtc_mixer *mixer;
@@ -534,8 +529,8 @@ static void _dpu_crtc_setup_mixer_for_encoder(
 	dpu_rm_init_hw_iter(&ctl_iter, enc->base.id, DPU_HW_BLK_CTL);
 
 	/* Set up all the mixers and ctls reserved by this encoder */
-	for (i = dpu_crtc->num_mixers; i < ARRAY_SIZE(dpu_crtc->mixers); i++) {
-		mixer = &dpu_crtc->mixers[i];
+	for (i = cstate->num_mixers; i < ARRAY_SIZE(cstate->mixers); i++) {
+		mixer = &cstate->mixers[i];
 
 		if (!dpu_rm_get_hw(rm, &lm_iter))
 			break;
@@ -560,7 +555,7 @@ static void _dpu_crtc_setup_mixer_for_encoder(
 
 		mixer->encoder = enc;
 
-		dpu_crtc->num_mixers++;
+		cstate->num_mixers++;
 		DPU_DEBUG("setup mixer %d: lm %d\n",
 				i, mixer->hw_lm->idx - LM_0);
 		DPU_DEBUG("setup mixer %d: ctl %d\n",
@@ -572,10 +567,6 @@ static void _dpu_crtc_setup_mixers(struct drm_crtc *crtc)
 {
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 	struct drm_encoder *enc;
-
-	dpu_crtc->num_mixers = 0;
-	dpu_crtc->mixers_swapped = false;
-	memset(dpu_crtc->mixers, 0, sizeof(dpu_crtc->mixers));
 
 	mutex_lock(&dpu_crtc->crtc_lock);
 	/* Check for mixers on all encoders attached to this crtc */
@@ -609,7 +600,7 @@ static void _dpu_crtc_setup_lm_bounds(struct drm_crtc *crtc,
 	adj_mode = &state->adjusted_mode;
 	crtc_split_width = _dpu_crtc_get_mixer_width(cstate, adj_mode);
 
-	for (i = 0; i < dpu_crtc->num_mixers; i++) {
+	for (i = 0; i < cstate->num_mixers; i++) {
 		struct drm_rect *r = &cstate->lm_bounds[i];
 		r->x1 = crtc_split_width * i;
 		r->y1 = 0;
@@ -626,6 +617,7 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 		struct drm_crtc_state *old_state)
 {
 	struct dpu_crtc *dpu_crtc;
+	struct dpu_crtc_state *cstate;
 	struct drm_encoder *encoder;
 	struct drm_device *dev;
 	unsigned long flags;
@@ -645,10 +637,11 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 	DPU_DEBUG("crtc%d\n", crtc->base.id);
 
 	dpu_crtc = to_dpu_crtc(crtc);
+	cstate = to_dpu_crtc_state(crtc->state);
 	dev = crtc->dev;
 	smmu_state = &dpu_crtc->smmu_state;
 
-	if (!dpu_crtc->num_mixers) {
+	if (!cstate->num_mixers) {
 		_dpu_crtc_setup_mixers(crtc);
 		_dpu_crtc_setup_lm_bounds(crtc, crtc->state);
 	}
@@ -675,7 +668,7 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 	 * it means we are trying to flush a CRTC whose state is disabled:
 	 * nothing else needs to be done.
 	 */
-	if (unlikely(!dpu_crtc->num_mixers))
+	if (unlikely(!cstate->num_mixers))
 		return;
 
 	_dpu_crtc_blend_setup(crtc);
@@ -739,7 +732,7 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 	 * it means we are trying to flush a CRTC whose state is disabled:
 	 * nothing else needs to be done.
 	 */
-	if (unlikely(!dpu_crtc->num_mixers))
+	if (unlikely(!cstate->num_mixers))
 		return;
 
 	/*
@@ -854,7 +847,7 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 	 * it means we are trying to start a CRTC whose state is disabled:
 	 * nothing else needs to be done.
 	 */
-	if (unlikely(!dpu_crtc->num_mixers))
+	if (unlikely(!cstate->num_mixers))
 		return;
 
 	DPU_ATRACE_BEGIN("crtc_commit");
@@ -1088,12 +1081,14 @@ static void dpu_crtc_handle_power_event(u32 event_type, void *arg)
 	struct drm_crtc *crtc = arg;
 	struct dpu_crtc *dpu_crtc;
 	struct drm_encoder *encoder;
+	struct dpu_crtc_state *cstate;
 
 	if (!crtc) {
 		DPU_ERROR("invalid crtc\n");
 		return;
 	}
 	dpu_crtc = to_dpu_crtc(crtc);
+	cstate = to_dpu_crtc_state(dpu_crtc->base.state);
 
 	mutex_lock(&dpu_crtc->crtc_lock);
 
@@ -1174,9 +1169,8 @@ static void dpu_crtc_disable(struct drm_crtc *crtc)
 		dpu_power_handle_unregister_event(dpu_crtc->phandle,
 				dpu_crtc->power_event);
 
-	memset(dpu_crtc->mixers, 0, sizeof(dpu_crtc->mixers));
-	dpu_crtc->num_mixers = 0;
-	dpu_crtc->mixers_swapped = false;
+	memset(cstate->mixers, 0, sizeof(cstate->mixers));
+	cstate->num_mixers = 0;
 
 	/* disable clk & bw control until clk & bw properties are set */
 	cstate->bw_control = false;
@@ -1521,6 +1515,8 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 
 	dpu_crtc = s->private;
 	crtc = &dpu_crtc->base;
+
+	drm_modeset_lock_all(crtc->dev);
 	cstate = to_dpu_crtc_state(crtc->state);
 
 	mutex_lock(&dpu_crtc->crtc_lock);
@@ -1532,8 +1528,8 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 
 	seq_puts(s, "\n");
 
-	for (i = 0; i < dpu_crtc->num_mixers; ++i) {
-		m = &dpu_crtc->mixers[i];
+	for (i = 0; i < cstate->num_mixers; ++i) {
+		m = &cstate->mixers[i];
 		if (!m->hw_lm)
 			seq_printf(s, "\tmixer[%d] has no lm\n", i);
 		else if (!m->hw_ctl)
@@ -1613,6 +1609,7 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 	seq_printf(s, "vblank_enable:%d\n", dpu_crtc->vblank_requested);
 
 	mutex_unlock(&dpu_crtc->crtc_lock);
+	drm_modeset_unlock_all(crtc->dev);
 
 	return 0;
 }
