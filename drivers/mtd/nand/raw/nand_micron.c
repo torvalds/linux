@@ -290,10 +290,10 @@ static int micron_nand_on_die_ecc_status_8(struct nand_chip *chip, u8 status)
 }
 
 static int
-micron_nand_read_page_on_die_ecc(struct mtd_info *mtd, struct nand_chip *chip,
-				 uint8_t *buf, int oob_required,
-				 int page)
+micron_nand_read_page_on_die_ecc(struct nand_chip *chip, uint8_t *buf,
+				 int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	u8 status;
 	int ret, max_bitflips = 0;
 

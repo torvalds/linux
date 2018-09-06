@@ -1616,7 +1616,6 @@ static int omap_write_subpage_bch(struct mtd_info *mtd,
 
 /**
  * omap_read_page_bch - BCH ecc based page read function for entire page
- * @mtd:		mtd info structure
  * @chip:		nand chip info structure
  * @buf:		buffer to store read data
  * @oob_required:	caller requires OOB data read to chip->oob_poi
@@ -1629,9 +1628,10 @@ static int omap_write_subpage_bch(struct mtd_info *mtd,
  * ecc engine enabled. ecc vector updated after read of OOB data.
  * For non error pages ecc vector reported as zero.
  */
-static int omap_read_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
-				uint8_t *buf, int oob_required, int page)
+static int omap_read_page_bch(struct nand_chip *chip, uint8_t *buf,
+			      int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	uint8_t *ecc_calc = chip->ecc.calc_buf;
 	uint8_t *ecc_code = chip->ecc.code_buf;
 	int stat, ret;

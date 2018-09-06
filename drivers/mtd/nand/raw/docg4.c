@@ -845,21 +845,21 @@ static int read_page(struct mtd_info *mtd, struct nand_chip *nand,
 }
 
 
-static int docg4_read_page_raw(struct mtd_info *mtd, struct nand_chip *nand,
-			       uint8_t *buf, int oob_required, int page)
+static int docg4_read_page_raw(struct nand_chip *nand, uint8_t *buf,
+			       int oob_required, int page)
 {
-	return read_page(mtd, nand, buf, page, false);
+	return read_page(nand_to_mtd(nand), nand, buf, page, false);
 }
 
-static int docg4_read_page(struct mtd_info *mtd, struct nand_chip *nand,
-			   uint8_t *buf, int oob_required, int page)
+static int docg4_read_page(struct nand_chip *nand, uint8_t *buf,
+			   int oob_required, int page)
 {
-	return read_page(mtd, nand, buf, page, true);
+	return read_page(nand_to_mtd(nand), nand, buf, page, true);
 }
 
-static int docg4_read_oob(struct mtd_info *mtd, struct nand_chip *nand,
-			  int page)
+static int docg4_read_oob(struct nand_chip *nand, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct docg4_priv *doc = nand_get_controller_data(nand);
 	void __iomem *docptr = doc->virtadr;
 	uint16_t status;
@@ -1059,7 +1059,7 @@ static int __init read_factory_bbt(struct mtd_info *mtd)
 		return -ENOMEM;
 
 	read_page_prologue(mtd, g4_addr);
-	docg4_read_page(mtd, nand, buf, 0, DOCG4_FACTORY_BBT_PAGE);
+	docg4_read_page(nand, buf, 0, DOCG4_FACTORY_BBT_PAGE);
 
 	/*
 	 * If no memory-based bbt was created, exit.  This will happen if module
@@ -1077,7 +1077,7 @@ static int __init read_factory_bbt(struct mtd_info *mtd)
 		 * It is stored redundantly, so we get another chance.
 		 */
 		eccfailed_stats = mtd->ecc_stats.failed;
-		docg4_read_page(mtd, nand, buf, 0, DOCG4_REDUNDANT_BBT_PAGE);
+		docg4_read_page(nand, buf, 0, DOCG4_REDUNDANT_BBT_PAGE);
 		if (mtd->ecc_stats.failed > eccfailed_stats) {
 			dev_warn(doc->dev,
 				 "The factory bbt could not be read!\n");

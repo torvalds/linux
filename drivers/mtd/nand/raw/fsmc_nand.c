@@ -707,7 +707,6 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 
 /*
  * fsmc_read_page_hwecc
- * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @buf:	buffer to store read data
  * @oob_required:	caller expects OOB data read to chip->oob_poi
@@ -719,9 +718,10 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
  * After this read, fsmc hardware generates and reports error data bits(up to a
  * max of 8 bits)
  */
-static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
-				 uint8_t *buf, int oob_required, int page)
+static int fsmc_read_page_hwecc(struct nand_chip *chip, uint8_t *buf,
+				int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int i, j, s, stat, eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
 	int eccsteps = chip->ecc.steps;

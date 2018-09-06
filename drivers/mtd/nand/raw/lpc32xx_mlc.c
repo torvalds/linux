@@ -442,9 +442,10 @@ out1:
 	return -ENXIO;
 }
 
-static int lpc32xx_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			     uint8_t *buf, int oob_required, int page)
+static int lpc32xx_read_page(struct nand_chip *chip, uint8_t *buf,
+			     int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 	int i, j;
 	uint8_t *oobbuf = chip->oob_poi;
@@ -557,13 +558,12 @@ static int lpc32xx_write_page_lowlevel(struct mtd_info *mtd,
 	return nand_prog_page_end_op(chip);
 }
 
-static int lpc32xx_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			    int page)
+static int lpc32xx_read_oob(struct nand_chip *chip, int page)
 {
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
 	/* Read whole page - necessary with MLC controller! */
-	lpc32xx_read_page(mtd, chip, host->dummy_buf, 1, page);
+	lpc32xx_read_page(chip, host->dummy_buf, 1, page);
 
 	return 0;
 }

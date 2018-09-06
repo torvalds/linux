@@ -1189,10 +1189,10 @@ static void sunxi_nfc_hw_ecc_write_extra_oob(struct mtd_info *mtd,
 		*cur_off = mtd->oobsize + mtd->writesize;
 }
 
-static int sunxi_nfc_hw_ecc_read_page(struct mtd_info *mtd,
-				      struct nand_chip *chip, uint8_t *buf,
+static int sunxi_nfc_hw_ecc_read_page(struct nand_chip *chip, uint8_t *buf,
 				      int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	unsigned int max_bitflips = 0;
 	int ret, i, cur_off = 0;
@@ -1227,10 +1227,10 @@ static int sunxi_nfc_hw_ecc_read_page(struct mtd_info *mtd,
 	return max_bitflips;
 }
 
-static int sunxi_nfc_hw_ecc_read_page_dma(struct mtd_info *mtd,
-					  struct nand_chip *chip, u8 *buf,
+static int sunxi_nfc_hw_ecc_read_page_dma(struct nand_chip *chip, u8 *buf,
 					  int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
 	nand_read_page_op(chip, page, 0, NULL, 0);
@@ -1241,14 +1241,14 @@ static int sunxi_nfc_hw_ecc_read_page_dma(struct mtd_info *mtd,
 		return ret;
 
 	/* Fallback to PIO mode */
-	return sunxi_nfc_hw_ecc_read_page(mtd, chip, buf, oob_required, page);
+	return sunxi_nfc_hw_ecc_read_page(chip, buf, oob_required, page);
 }
 
-static int sunxi_nfc_hw_ecc_read_subpage(struct mtd_info *mtd,
-					 struct nand_chip *chip,
+static int sunxi_nfc_hw_ecc_read_subpage(struct nand_chip *chip,
 					 u32 data_offs, u32 readlen,
 					 u8 *bufpoi, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	int ret, i, cur_off = 0;
 	unsigned int max_bitflips = 0;
@@ -1278,11 +1278,11 @@ static int sunxi_nfc_hw_ecc_read_subpage(struct mtd_info *mtd,
 	return max_bitflips;
 }
 
-static int sunxi_nfc_hw_ecc_read_subpage_dma(struct mtd_info *mtd,
-					     struct nand_chip *chip,
+static int sunxi_nfc_hw_ecc_read_subpage_dma(struct nand_chip *chip,
 					     u32 data_offs, u32 readlen,
 					     u8 *buf, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int nchunks = DIV_ROUND_UP(data_offs + readlen, chip->ecc.size);
 	int ret;
 
@@ -1293,7 +1293,7 @@ static int sunxi_nfc_hw_ecc_read_subpage_dma(struct mtd_info *mtd,
 		return ret;
 
 	/* Fallback to PIO mode */
-	return sunxi_nfc_hw_ecc_read_subpage(mtd, chip, data_offs, readlen,
+	return sunxi_nfc_hw_ecc_read_subpage(chip, data_offs, readlen,
 					     buf, page);
 }
 
@@ -1428,13 +1428,11 @@ pio_fallback:
 	return sunxi_nfc_hw_ecc_write_page(mtd, chip, buf, oob_required, page);
 }
 
-static int sunxi_nfc_hw_ecc_read_oob(struct mtd_info *mtd,
-				     struct nand_chip *chip,
-				     int page)
+static int sunxi_nfc_hw_ecc_read_oob(struct nand_chip *chip, int page)
 {
 	chip->pagebuf = -1;
 
-	return chip->ecc.read_page(mtd, chip, chip->data_buf, 1, page);
+	return chip->ecc.read_page(chip, chip->data_buf, 1, page);
 }
 
 static int sunxi_nfc_hw_ecc_write_oob(struct mtd_info *mtd,

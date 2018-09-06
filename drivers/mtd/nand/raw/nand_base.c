@@ -427,7 +427,7 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs)
 	page_end = page + (chip->bbt_options & NAND_BBT_SCAN2NDPAGE ? 2 : 1);
 
 	for (; page < page_end; page++) {
-		res = chip->ecc.read_oob(mtd, chip, page);
+		res = chip->ecc.read_oob(chip, page);
 		if (res < 0)
 			return res;
 
@@ -2978,7 +2978,6 @@ EXPORT_SYMBOL(nand_check_erased_ecc_chunk);
 
 /**
  * nand_read_page_raw_notsupp - dummy read raw page function
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @buf: buffer to store read data
  * @oob_required: caller requires OOB data read to chip->oob_poi
@@ -2986,8 +2985,8 @@ EXPORT_SYMBOL(nand_check_erased_ecc_chunk);
  *
  * Returns -ENOTSUPP unconditionally.
  */
-int nand_read_page_raw_notsupp(struct mtd_info *mtd, struct nand_chip *chip,
-			       u8 *buf, int oob_required, int page)
+int nand_read_page_raw_notsupp(struct nand_chip *chip, u8 *buf,
+			       int oob_required, int page)
 {
 	return -ENOTSUPP;
 }
@@ -2995,7 +2994,6 @@ EXPORT_SYMBOL(nand_read_page_raw_notsupp);
 
 /**
  * nand_read_page_raw - [INTERN] read raw page data without ecc
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @buf: buffer to store read data
  * @oob_required: caller requires OOB data read to chip->oob_poi
@@ -3003,9 +3001,10 @@ EXPORT_SYMBOL(nand_read_page_raw_notsupp);
  *
  * Not for syndrome calculating ECC controllers, which use a special oob layout.
  */
-int nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-		       uint8_t *buf, int oob_required, int page)
+int nand_read_page_raw(struct nand_chip *chip, uint8_t *buf, int oob_required,
+		       int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
 	ret = nand_read_page_op(chip, page, 0, buf, mtd->writesize);
@@ -3025,7 +3024,6 @@ EXPORT_SYMBOL(nand_read_page_raw);
 
 /**
  * nand_read_page_raw_syndrome - [INTERN] read raw page data without ecc
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @buf: buffer to store read data
  * @oob_required: caller requires OOB data read to chip->oob_poi
@@ -3033,10 +3031,10 @@ EXPORT_SYMBOL(nand_read_page_raw);
  *
  * We need a special oob layout and handling even when OOB isn't used.
  */
-static int nand_read_page_raw_syndrome(struct mtd_info *mtd,
-				       struct nand_chip *chip, uint8_t *buf,
+static int nand_read_page_raw_syndrome(struct nand_chip *chip, uint8_t *buf,
 				       int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
 	uint8_t *oob = chip->oob_poi;
@@ -3090,15 +3088,15 @@ static int nand_read_page_raw_syndrome(struct mtd_info *mtd,
 
 /**
  * nand_read_page_swecc - [REPLACEABLE] software ECC based page read function
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @buf: buffer to store read data
  * @oob_required: caller requires OOB data read to chip->oob_poi
  * @page: page number to read
  */
-static int nand_read_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
-				uint8_t *buf, int oob_required, int page)
+static int nand_read_page_swecc(struct nand_chip *chip, uint8_t *buf,
+				int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int i, eccsize = chip->ecc.size, ret;
 	int eccbytes = chip->ecc.bytes;
 	int eccsteps = chip->ecc.steps;
@@ -3107,7 +3105,7 @@ static int nand_read_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 	uint8_t *ecc_code = chip->ecc.code_buf;
 	unsigned int max_bitflips = 0;
 
-	chip->ecc.read_page_raw(mtd, chip, buf, 1, page);
+	chip->ecc.read_page_raw(chip, buf, 1, page);
 
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize)
 		chip->ecc.calculate(chip, p, &ecc_calc[i]);
@@ -3136,17 +3134,16 @@ static int nand_read_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 
 /**
  * nand_read_subpage - [REPLACEABLE] ECC based sub-page read function
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @data_offs: offset of requested data within the page
  * @readlen: data length
  * @bufpoi: buffer to store read data
  * @page: page number to read
  */
-static int nand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
-			uint32_t data_offs, uint32_t readlen, uint8_t *bufpoi,
-			int page)
+static int nand_read_subpage(struct nand_chip *chip, uint32_t data_offs,
+			     uint32_t readlen, uint8_t *bufpoi, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int start_step, end_step, num_steps, ret;
 	uint8_t *p;
 	int data_col_addr, i, gaps = 0;
@@ -3248,7 +3245,6 @@ static int nand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 
 /**
  * nand_read_page_hwecc - [REPLACEABLE] hardware ECC based page read function
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @buf: buffer to store read data
  * @oob_required: caller requires OOB data read to chip->oob_poi
@@ -3256,9 +3252,10 @@ static int nand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
  *
  * Not for syndrome calculating ECC controllers which need a special oob layout.
  */
-static int nand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
-				uint8_t *buf, int oob_required, int page)
+static int nand_read_page_hwecc(struct nand_chip *chip, uint8_t *buf,
+				int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int i, eccsize = chip->ecc.size, ret;
 	int eccbytes = chip->ecc.bytes;
 	int eccsteps = chip->ecc.steps;
@@ -3318,7 +3315,6 @@ static int nand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 
 /**
  * nand_read_page_hwecc_oob_first - [REPLACEABLE] hw ecc, read oob first
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @buf: buffer to store read data
  * @oob_required: caller requires OOB data read to chip->oob_poi
@@ -3330,9 +3326,10 @@ static int nand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
  * multiple ECC steps, follows the "infix ECC" scheme and reads/writes ECC from
  * the data area, by overwriting the NAND manufacturer bad block markings.
  */
-static int nand_read_page_hwecc_oob_first(struct mtd_info *mtd,
-	struct nand_chip *chip, uint8_t *buf, int oob_required, int page)
+static int nand_read_page_hwecc_oob_first(struct nand_chip *chip, uint8_t *buf,
+					  int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int i, eccsize = chip->ecc.size, ret;
 	int eccbytes = chip->ecc.bytes;
 	int eccsteps = chip->ecc.steps;
@@ -3388,7 +3385,6 @@ static int nand_read_page_hwecc_oob_first(struct mtd_info *mtd,
 
 /**
  * nand_read_page_syndrome - [REPLACEABLE] hardware ECC syndrome based page read
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @buf: buffer to store read data
  * @oob_required: caller requires OOB data read to chip->oob_poi
@@ -3397,9 +3393,10 @@ static int nand_read_page_hwecc_oob_first(struct mtd_info *mtd,
  * The hw generator calculates the error syndrome automatically. Therefore we
  * need a special oob layout and handling.
  */
-static int nand_read_page_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
-				   uint8_t *buf, int oob_required, int page)
+static int nand_read_page_syndrome(struct nand_chip *chip, uint8_t *buf,
+				   int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret, i, eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
 	int eccsteps = chip->ecc.steps;
@@ -3610,16 +3607,15 @@ read_retry:
 			 * the read methods return max bitflips per ecc step.
 			 */
 			if (unlikely(ops->mode == MTD_OPS_RAW))
-				ret = chip->ecc.read_page_raw(mtd, chip, bufpoi,
+				ret = chip->ecc.read_page_raw(chip, bufpoi,
 							      oob_required,
 							      page);
 			else if (!aligned && NAND_HAS_SUBPAGE_READ(chip) &&
 				 !oob)
-				ret = chip->ecc.read_subpage(mtd, chip,
-							col, bytes, bufpoi,
-							page);
+				ret = chip->ecc.read_subpage(chip, col, bytes,
+							     bufpoi, page);
 			else
-				ret = chip->ecc.read_page(mtd, chip, bufpoi,
+				ret = chip->ecc.read_page(chip, bufpoi,
 							  oob_required, page);
 			if (ret < 0) {
 				if (use_bufpoi)
@@ -3723,12 +3719,13 @@ read_retry:
 
 /**
  * nand_read_oob_std - [REPLACEABLE] the most common OOB data read function
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @page: page number to read
  */
-int nand_read_oob_std(struct mtd_info *mtd, struct nand_chip *chip, int page)
+int nand_read_oob_std(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	return nand_read_oob_op(chip, page, 0, chip->oob_poi, mtd->oobsize);
 }
 EXPORT_SYMBOL(nand_read_oob_std);
@@ -3736,13 +3733,12 @@ EXPORT_SYMBOL(nand_read_oob_std);
 /**
  * nand_read_oob_syndrome - [REPLACEABLE] OOB data read function for HW ECC
  *			    with syndromes
- * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @page: page number to read
  */
-int nand_read_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
-			   int page)
+int nand_read_oob_syndrome(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int length = mtd->oobsize;
 	int chunk = chip->ecc.bytes + chip->ecc.prepad + chip->ecc.postpad;
 	int eccsize = chip->ecc.size;
@@ -3913,9 +3909,9 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 
 	while (1) {
 		if (ops->mode == MTD_OPS_RAW)
-			ret = chip->ecc.read_oob_raw(mtd, chip, page);
+			ret = chip->ecc.read_oob_raw(chip, page);
 		else
-			ret = chip->ecc.read_oob(mtd, chip, page);
+			ret = chip->ecc.read_oob(chip, page);
 
 		if (ret < 0)
 			break;

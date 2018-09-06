@@ -895,15 +895,13 @@ static int atmel_nand_pmecc_read_pg(struct nand_chip *chip, u8 *buf,
 	return ret;
 }
 
-static int atmel_nand_pmecc_read_page(struct mtd_info *mtd,
-				      struct nand_chip *chip, u8 *buf,
+static int atmel_nand_pmecc_read_page(struct nand_chip *chip, u8 *buf,
 				      int oob_required, int page)
 {
 	return atmel_nand_pmecc_read_pg(chip, buf, oob_required, page, false);
 }
 
-static int atmel_nand_pmecc_read_page_raw(struct mtd_info *mtd,
-					  struct nand_chip *chip, u8 *buf,
+static int atmel_nand_pmecc_read_page_raw(struct nand_chip *chip, u8 *buf,
 					  int oob_required, int page)
 {
 	return atmel_nand_pmecc_read_pg(chip, buf, oob_required, page, true);
@@ -1037,16 +1035,14 @@ static int atmel_hsmc_nand_pmecc_read_pg(struct nand_chip *chip, u8 *buf,
 	return ret;
 }
 
-static int atmel_hsmc_nand_pmecc_read_page(struct mtd_info *mtd,
-					   struct nand_chip *chip, u8 *buf,
+static int atmel_hsmc_nand_pmecc_read_page(struct nand_chip *chip, u8 *buf,
 					   int oob_required, int page)
 {
 	return atmel_hsmc_nand_pmecc_read_pg(chip, buf, oob_required, page,
 					     false);
 }
 
-static int atmel_hsmc_nand_pmecc_read_page_raw(struct mtd_info *mtd,
-					       struct nand_chip *chip,
+static int atmel_hsmc_nand_pmecc_read_page_raw(struct nand_chip *chip,
 					       u8 *buf, int oob_required,
 					       int page)
 {

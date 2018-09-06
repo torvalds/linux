@@ -396,9 +396,10 @@ static void lpc32xx_nand_write_buf(struct mtd_info *mtd, const uint8_t *buf, int
 /*
  * Read the OOB data from the device without ECC using FIFO method
  */
-static int lpc32xx_nand_read_oob_syndrome(struct mtd_info *mtd,
-					  struct nand_chip *chip, int page)
+static int lpc32xx_nand_read_oob_syndrome(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	return nand_read_oob_op(chip, page, 0, chip->oob_poi, mtd->oobsize);
 }
 
@@ -610,10 +611,10 @@ static int lpc32xx_xfer(struct mtd_info *mtd, uint8_t *buf, int eccsubpages,
  * Read the data and OOB data from the device, use ECC correction with the
  * data, disable ECC for the OOB data
  */
-static int lpc32xx_nand_read_page_syndrome(struct mtd_info *mtd,
-					   struct nand_chip *chip, uint8_t *buf,
+static int lpc32xx_nand_read_page_syndrome(struct nand_chip *chip, uint8_t *buf,
 					   int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 	struct mtd_oob_region oobregion = { };
 	int stat, i, status, error;
@@ -657,11 +658,12 @@ static int lpc32xx_nand_read_page_syndrome(struct mtd_info *mtd,
  * Read the data and OOB data from the device, no ECC correction with the
  * data or OOB data
  */
-static int lpc32xx_nand_read_page_raw_syndrome(struct mtd_info *mtd,
-					       struct nand_chip *chip,
+static int lpc32xx_nand_read_page_raw_syndrome(struct nand_chip *chip,
 					       uint8_t *buf, int oob_required,
 					       int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	/* Issue read command */
 	nand_read_page_op(chip, page, 0, NULL, 0);
 

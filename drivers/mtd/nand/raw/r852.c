@@ -521,9 +521,10 @@ exit:
  * This is copy of nand_read_oob_std
  * nand_read_oob_syndrome assumes we can send column address - we can't
  */
-static int r852_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			     int page)
+static int r852_read_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	return nand_read_oob_op(chip, page, 0, chip->oob_poi, mtd->oobsize);
 }
 

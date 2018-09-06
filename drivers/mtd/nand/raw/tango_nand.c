@@ -277,14 +277,15 @@ dma_unmap:
 	return err;
 }
 
-static int tango_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			   u8 *buf, int oob_required, int page)
+static int tango_read_page(struct nand_chip *chip, u8 *buf,
+			   int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct tango_nfc *nfc = to_tango_nfc(chip->controller);
 	int err, res, len = mtd->writesize;
 
 	if (oob_required)
-		chip->ecc.read_oob(mtd, chip, page);
+		chip->ecc.read_oob(chip, page);
 
 	err = do_dma(nfc, DMA_FROM_DEVICE, NFC_READ, buf, len, page);
 	if (err)
@@ -292,7 +293,7 @@ static int tango_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	res = decode_error_report(chip);
 	if (res < 0) {
-		chip->ecc.read_oob_raw(mtd, chip, page);
+		chip->ecc.read_oob_raw(chip, page);
 		res = check_erased_page(chip, buf);
 	}
 
@@ -424,8 +425,8 @@ static void raw_write(struct nand_chip *chip, const u8 *buf, const u8 *oob)
 	aux_write(chip, &oob, ecc_size, &pos);
 }
 
-static int tango_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-			       u8 *buf, int oob_required, int page)
+static int tango_read_page_raw(struct nand_chip *chip, u8 *buf,
+			       int oob_required, int page)
 {
 	nand_read_page_op(chip, page, 0, NULL, 0);
 	raw_read(chip, buf, chip->oob_poi);
@@ -440,8 +441,7 @@ static int tango_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 	return nand_prog_page_end_op(chip);
 }
 
-static int tango_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			  int page)
+static int tango_read_oob(struct nand_chip *chip, int page)
 {
 	nand_read_page_op(chip, page, 0, NULL, 0);
 	raw_read(chip, NULL, chip->oob_poi);

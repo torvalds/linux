@@ -816,8 +816,8 @@ static int mxc_nand_read_page_v2_v3(struct nand_chip *chip, void *buf,
 	return max_bitflips;
 }
 
-static int mxc_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			      uint8_t *buf, int oob_required, int page)
+static int mxc_nand_read_page(struct nand_chip *chip, uint8_t *buf,
+			      int oob_required, int page)
 {
 	struct mxc_nand_host *host = nand_get_controller_data(chip);
 	void *oob_buf;
@@ -830,8 +830,8 @@ static int mxc_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	return host->devtype_data->read_page(chip, buf, oob_buf, 1, page);
 }
 
-static int mxc_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				  uint8_t *buf, int oob_required, int page)
+static int mxc_nand_read_page_raw(struct nand_chip *chip, uint8_t *buf,
+				  int oob_required, int page)
 {
 	struct mxc_nand_host *host = nand_get_controller_data(chip);
 	void *oob_buf;
@@ -844,8 +844,7 @@ static int mxc_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 	return host->devtype_data->read_page(chip, buf, oob_buf, 0, page);
 }
 
-static int mxc_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			     int page)
+static int mxc_nand_read_oob(struct nand_chip *chip, int page)
 {
 	struct mxc_nand_host *host = nand_get_controller_data(chip);
 

@@ -48,13 +48,13 @@ static int toshiba_nand_benand_eccstatus(struct mtd_info *mtd,
 }
 
 static int
-toshiba_nand_read_page_benand(struct mtd_info *mtd,
-			      struct nand_chip *chip, uint8_t *buf,
+toshiba_nand_read_page_benand(struct nand_chip *chip, uint8_t *buf,
 			      int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
-	ret = nand_read_page_raw(mtd, chip, buf, oob_required, page);
+	ret = nand_read_page_raw(chip, buf, oob_required, page);
 	if (ret)
 		return ret;
 
@@ -62,10 +62,10 @@ toshiba_nand_read_page_benand(struct mtd_info *mtd,
 }
 
 static int
-toshiba_nand_read_subpage_benand(struct mtd_info *mtd,
-				 struct nand_chip *chip, uint32_t data_offs,
+toshiba_nand_read_subpage_benand(struct nand_chip *chip, uint32_t data_offs,
 				 uint32_t readlen, uint8_t *bufpoi, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
 	ret = nand_read_page_op(chip, page, data_offs,

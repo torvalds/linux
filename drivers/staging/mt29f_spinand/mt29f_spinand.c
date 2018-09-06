@@ -643,14 +643,15 @@ static int spinand_write_page_hwecc(struct mtd_info *mtd,
 	return nand_prog_page_op(chip, page, 0, p, eccsize * eccsteps);
 }
 
-static int spinand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
-				   u8 *buf, int oob_required, int page)
+static int spinand_read_page_hwecc(struct nand_chip *chip, u8 *buf,
+				   int oob_required, int page)
 {
 	int retval;
 	u8 status;
 	u8 *p = buf;
 	int eccsize = chip->ecc.size;
 	int eccsteps = chip->ecc.steps;
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct spinand_info *info = nand_get_controller_data(chip);
 
 	enable_read_hw_ecc = 1;

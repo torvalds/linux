@@ -528,9 +528,10 @@ static irqreturn_t hinfc_irq_handle(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
-static int hisi_nand_read_page_hwecc(struct mtd_info *mtd,
-	struct nand_chip *chip, uint8_t *buf, int oob_required, int page)
+static int hisi_nand_read_page_hwecc(struct nand_chip *chip, uint8_t *buf,
+				     int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct hinfc_host *host = nand_get_controller_data(chip);
 	int max_bitflips = 0, stat = 0, stat_max = 0, status_ecc;
 	int stat_1, stat_2;
@@ -560,9 +561,9 @@ static int hisi_nand_read_page_hwecc(struct mtd_info *mtd,
 	return max_bitflips;
 }
 
-static int hisi_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-				int page)
+static int hisi_nand_read_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	nand_read_oob_op(chip, page, 0, chip->oob_poi, mtd->oobsize);

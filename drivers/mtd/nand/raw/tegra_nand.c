@@ -615,10 +615,10 @@ err_unmap_dma_page:
 	return ret;
 }
 
-static int tegra_nand_read_page_raw(struct mtd_info *mtd,
-				    struct nand_chip *chip, u8 *buf,
+static int tegra_nand_read_page_raw(struct nand_chip *chip, u8 *buf,
 				    int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	void *oob_buf = oob_required ? chip->oob_poi : NULL;
 
 	return tegra_nand_page_xfer(mtd, chip, buf, oob_buf,
@@ -635,9 +635,10 @@ static int tegra_nand_write_page_raw(struct mtd_info *mtd,
 				     mtd->oobsize, page, false);
 }
 
-static int tegra_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			       int page)
+static int tegra_nand_read_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	return tegra_nand_page_xfer(mtd, chip, NULL, chip->oob_poi,
 				    mtd->oobsize, page, true);
 }
@@ -649,10 +650,10 @@ static int tegra_nand_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 				    mtd->oobsize, page, false);
 }
 
-static int tegra_nand_read_page_hwecc(struct mtd_info *mtd,
-				      struct nand_chip *chip, u8 *buf,
+static int tegra_nand_read_page_hwecc(struct nand_chip *chip, u8 *buf,
 				      int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct tegra_nand_controller *ctrl = to_tegra_ctrl(chip->controller);
 	struct tegra_nand_chip *nand = to_tegra_chip(chip);
 	void *oob_buf = oob_required ? chip->oob_poi : NULL;
@@ -716,7 +717,7 @@ static int tegra_nand_read_page_hwecc(struct mtd_info *mtd,
 		 * erased or if error correction just failed for all sub-
 		 * pages.
 		 */
-		ret = tegra_nand_read_oob(mtd, chip, page);
+		ret = tegra_nand_read_oob(chip, page);
 		if (ret < 0)
 			return ret;
 

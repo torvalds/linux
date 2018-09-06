@@ -354,9 +354,10 @@ static int cafe_nand_write_oob(struct mtd_info *mtd,
 }
 
 /* Don't use -- use nand_read_oob_std for now */
-static int cafe_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			      int page)
+static int cafe_nand_read_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	return nand_read_oob_op(chip, page, 0, chip->oob_poi, mtd->oobsize);
 }
 /**
@@ -369,9 +370,10 @@ static int cafe_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
  * The hw generator calculates the error syndrome automatically. Therefore
  * we need a special oob layout and handling.
  */
-static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			       uint8_t *buf, int oob_required, int page)
+static int cafe_nand_read_page(struct nand_chip *chip, uint8_t *buf,
+			       int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 	unsigned int max_bitflips = 0;
 

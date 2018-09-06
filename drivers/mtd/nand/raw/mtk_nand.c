@@ -969,23 +969,25 @@ done:
 	return bitflips;
 }
 
-static int mtk_nfc_read_subpage_hwecc(struct mtd_info *mtd,
-				      struct nand_chip *chip, u32 off,
+static int mtk_nfc_read_subpage_hwecc(struct nand_chip *chip, u32 off,
 				      u32 len, u8 *p, int pg)
 {
-	return mtk_nfc_read_subpage(mtd, chip, off, len, p, pg, 0);
+	return mtk_nfc_read_subpage(nand_to_mtd(chip), chip, off, len, p, pg,
+				    0);
 }
 
-static int mtk_nfc_read_page_hwecc(struct mtd_info *mtd,
-				   struct nand_chip *chip, u8 *p,
-				   int oob_on, int pg)
+static int mtk_nfc_read_page_hwecc(struct nand_chip *chip, u8 *p, int oob_on,
+				   int pg)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	return mtk_nfc_read_subpage(mtd, chip, 0, mtd->writesize, p, pg, 0);
 }
 
-static int mtk_nfc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				 u8 *buf, int oob_on, int page)
+static int mtk_nfc_read_page_raw(struct nand_chip *chip, u8 *buf, int oob_on,
+				 int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct mtk_nfc_nand_chip *mtk_nand = to_mtk_nand(chip);
 	struct mtk_nfc *nfc = nand_get_controller_data(chip);
 	struct mtk_nfc_fdm *fdm = &mtk_nand->fdm;
@@ -1011,10 +1013,9 @@ static int mtk_nfc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 	return ret;
 }
 
-static int mtk_nfc_read_oob_std(struct mtd_info *mtd, struct nand_chip *chip,
-				int page)
+static int mtk_nfc_read_oob_std(struct nand_chip *chip, int page)
 {
-	return mtk_nfc_read_page_raw(mtd, chip, NULL, 1, page);
+	return mtk_nfc_read_page_raw(chip, NULL, 1, page);
 }
 
 static inline void mtk_nfc_hw_init(struct mtk_nfc *nfc)
