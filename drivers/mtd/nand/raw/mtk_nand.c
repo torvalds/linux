@@ -474,9 +474,9 @@ static void mtk_nfc_read_buf(struct nand_chip *chip, u8 *buf, int len)
 		buf[i] = mtk_nfc_read_byte(chip);
 }
 
-static void mtk_nfc_write_byte(struct mtd_info *mtd, u8 byte)
+static void mtk_nfc_write_byte(struct nand_chip *chip, u8 byte)
 {
-	struct mtk_nfc *nfc = nand_get_controller_data(mtd_to_nand(mtd));
+	struct mtk_nfc *nfc = nand_get_controller_data(chip);
 	u32 reg;
 
 	reg = nfi_readl(nfc, NFI_STA) & NFI_FSM_MASK;
@@ -495,12 +495,12 @@ static void mtk_nfc_write_byte(struct mtd_info *mtd, u8 byte)
 	nfi_writeb(nfc, byte, NFI_DATAW);
 }
 
-static void mtk_nfc_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
+static void mtk_nfc_write_buf(struct nand_chip *chip, const u8 *buf, int len)
 {
 	int i;
 
 	for (i = 0; i < len; i++)
-		mtk_nfc_write_byte(mtd, buf[i]);
+		mtk_nfc_write_byte(chip, buf[i]);
 }
 
 static int mtk_nfc_setup_data_interface(struct mtd_info *mtd, int csline,

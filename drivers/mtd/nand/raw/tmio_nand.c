@@ -245,9 +245,9 @@ static u_char tmio_nand_read_byte(struct nand_chip *chip)
   *buffer functions.
  */
 static void
-tmio_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+tmio_nand_write_buf(struct nand_chip *chip, const u_char *buf, int len)
 {
-	struct tmio_nand *tmio = mtd_to_tmio(mtd);
+	struct tmio_nand *tmio = mtd_to_tmio(nand_to_mtd(chip));
 
 	tmio_iowrite16_rep(tmio->fcr + FCR_DATA, buf, len >> 1);
 }

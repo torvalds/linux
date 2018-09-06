@@ -868,9 +868,8 @@ static void gpmi_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 	gpmi_read_data(this, buf, len);
 }
 
-static void gpmi_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void gpmi_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 
 	dev_dbg(this->dev, "len is %d\n", len);

@@ -290,9 +290,8 @@ static inline int DoC_WaitReady(struct doc_priv *doc)
 	return ret;
 }
 
-static void doc2000_write_byte(struct mtd_info *mtd, u_char datum)
+static void doc2000_write_byte(struct nand_chip *this, u_char datum)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 
@@ -316,9 +315,9 @@ static u_char doc2000_read_byte(struct nand_chip *this)
 	return ret;
 }
 
-static void doc2000_writebuf(struct mtd_info *mtd, const u_char *buf, int len)
+static void doc2000_writebuf(struct nand_chip *this, const u_char *buf,
+			     int len)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	int i;
@@ -448,9 +447,8 @@ static int doc200x_wait(struct mtd_info *mtd, struct nand_chip *this)
 	return status;
 }
 
-static void doc2001_write_byte(struct mtd_info *mtd, u_char datum)
+static void doc2001_write_byte(struct nand_chip *this, u_char datum)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 
@@ -472,9 +470,8 @@ static u_char doc2001_read_byte(struct nand_chip *this)
 	return ReadDOC(docptr, LastDataRead);
 }
 
-static void doc2001_writebuf(struct mtd_info *mtd, const u_char *buf, int len)
+static void doc2001_writebuf(struct nand_chip *this, const u_char *buf, int len)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	int i;
@@ -515,9 +512,8 @@ static u_char doc2001plus_read_byte(struct nand_chip *this)
 	return ret;
 }
 
-static void doc2001plus_writebuf(struct mtd_info *mtd, const u_char *buf, int len)
+static void doc2001plus_writebuf(struct nand_chip *this, const u_char *buf, int len)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	int i;
@@ -638,9 +634,9 @@ static void doc200x_hwcontrol(struct mtd_info *mtd, int cmd,
 	}
 	if (cmd != NAND_CMD_NONE) {
 		if (DoC_is_2000(doc))
-			doc2000_write_byte(mtd, cmd);
+			doc2000_write_byte(this, cmd);
 		else
-			doc2001_write_byte(mtd, cmd);
+			doc2001_write_byte(this, cmd);
 	}
 }
 

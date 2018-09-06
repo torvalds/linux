@@ -99,11 +99,11 @@ static void nuc900_nand_read_buf(struct nand_chip *chip,
 		buf[i] = (unsigned char)read_data_reg(nand);
 }
 
-static void nuc900_nand_write_buf(struct mtd_info *mtd,
+static void nuc900_nand_write_buf(struct nand_chip *chip,
 				  const unsigned char *buf, int len)
 {
 	int i;
-	struct nuc900_nand *nand = mtd_to_nuc900(mtd);
+	struct nuc900_nand *nand = mtd_to_nuc900(nand_to_mtd(chip));
 
 	for (i = 0; i < len; i++)
 		write_data_reg(nand, buf[i]);

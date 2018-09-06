@@ -384,13 +384,14 @@ static void omap_read_buf_pref(struct nand_chip *chip, u_char *buf, int len)
 
 /**
  * omap_write_buf_pref - write buffer to NAND controller
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @buf: data buffer
  * @len: number of bytes to write
  */
-static void omap_write_buf_pref(struct mtd_info *mtd,
-					const u_char *buf, int len)
+static void omap_write_buf_pref(struct nand_chip *chip, const u_char *buf,
+				int len)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct omap_nand_info *info = mtd_to_omap(mtd);
 	uint32_t w_count = 0;
 	int i = 0, ret = 0;
@@ -547,18 +548,20 @@ static void omap_read_buf_dma_pref(struct nand_chip *chip, u_char *buf,
 
 /**
  * omap_write_buf_dma_pref - write buffer to NAND controller
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @buf: data buffer
  * @len: number of bytes to write
  */
-static void omap_write_buf_dma_pref(struct mtd_info *mtd,
-					const u_char *buf, int len)
+static void omap_write_buf_dma_pref(struct nand_chip *chip, const u_char *buf,
+				    int len)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	if (len <= mtd->oobsize)
-		omap_write_buf_pref(mtd, buf, len);
+		omap_write_buf_pref(chip, buf, len);
 	else
 		/* start transfer in DMA mode */
-		omap_nand_dma_transfer(mtd, (u_char *) buf, len, 0x1);
+		omap_nand_dma_transfer(mtd, (u_char *)buf, len, 0x1);
 }
 
 /*
@@ -657,20 +660,21 @@ out_copy:
 
 /*
  * omap_write_buf_irq_pref - write buffer to NAND controller
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @buf: data buffer
  * @len: number of bytes to write
  */
-static void omap_write_buf_irq_pref(struct mtd_info *mtd,
-					const u_char *buf, int len)
+static void omap_write_buf_irq_pref(struct nand_chip *chip, const u_char *buf,
+				    int len)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct omap_nand_info *info = mtd_to_omap(mtd);
 	int ret = 0;
 	unsigned long tim, limit;
 	u32 val;
 
 	if (len <= mtd->oobsize) {
-		omap_write_buf_pref(mtd, buf, len);
+		omap_write_buf_pref(chip, buf, len);
 		return;
 	}
 
@@ -1537,7 +1541,7 @@ static int omap_write_page_bch(struct nand_chip *chip, const uint8_t *buf,
 	chip->ecc.hwctl(chip, NAND_ECC_WRITE);
 
 	/* Write data */
-	chip->write_buf(mtd, buf, mtd->writesize);
+	chip->write_buf(chip, buf, mtd->writesize);
 
 	/* Update ecc vector from GPMC result registers */
 	omap_calculate_ecc_bch_multi(mtd, buf, &ecc_calc[0]);
@@ -1548,7 +1552,7 @@ static int omap_write_page_bch(struct nand_chip *chip, const uint8_t *buf,
 		return ret;
 
 	/* Write ecc vector to OOB area */
-	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return nand_prog_page_end_op(chip);
 }
@@ -1589,7 +1593,7 @@ static int omap_write_subpage_bch(struct nand_chip *chip, u32 offset,
 	chip->ecc.hwctl(chip, NAND_ECC_WRITE);
 
 	/* Write data */
-	chip->write_buf(mtd, buf, mtd->writesize);
+	chip->write_buf(chip, buf, mtd->writesize);
 
 	for (step = 0; step < ecc_steps; step++) {
 		/* mask ECC of un-touched subpages by padding 0xFF */
@@ -1614,7 +1618,7 @@ static int omap_write_subpage_bch(struct nand_chip *chip, u32 offset,
 		return ret;
 
 	/* write OOB buffer to NAND device */
-	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return nand_prog_page_end_op(chip);
 }

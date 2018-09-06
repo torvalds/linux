@@ -149,9 +149,9 @@ static void tango_read_buf(struct nand_chip *chip, u8 *buf, int len)
 	ioread8_rep(tchip->base + PBUS_DATA, buf, len);
 }
 
-static void tango_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
+static void tango_write_buf(struct nand_chip *chip, const u8 *buf, int len)
 {
-	struct tango_chip *tchip = to_tango_chip(mtd_to_nand(mtd));
+	struct tango_chip *tchip = to_tango_chip(chip);
 
 	iowrite8_rep(tchip->base + PBUS_DATA, buf, len);
 }
@@ -338,15 +338,13 @@ static void aux_read(struct nand_chip *chip, u8 **buf, int len, int *pos)
 
 static void aux_write(struct nand_chip *chip, const u8 **buf, int len, int *pos)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-
 	*pos += len;
 
 	if (!*buf) {
 		/* skip over "len" bytes */
 		nand_change_write_column_op(chip, *pos, NULL, 0, false);
 	} else {
-		tango_write_buf(mtd, *buf, len);
+		tango_write_buf(chip, *buf, len);
 		*buf += len;
 	}
 }

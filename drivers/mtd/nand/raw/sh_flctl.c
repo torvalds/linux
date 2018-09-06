@@ -628,7 +628,7 @@ static int flctl_write_page_hwecc(struct nand_chip *chip, const uint8_t *buf,
 	struct mtd_info *mtd = nand_to_mtd(chip);
 
 	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
-	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->write_buf(chip, chip->oob_poi, mtd->oobsize);
 	return nand_prog_page_end_op(chip);
 }
 
@@ -970,9 +970,9 @@ static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
 	}
 }
 
-static void flctl_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void flctl_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 {
-	struct sh_flctl *flctl = mtd_to_flctl(mtd);
+	struct sh_flctl *flctl = mtd_to_flctl(nand_to_mtd(chip));
 
 	memcpy(&flctl->done_buff[flctl->index], buf, len);
 	flctl->index += len;

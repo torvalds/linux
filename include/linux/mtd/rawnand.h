@@ -1284,8 +1284,8 @@ struct nand_chip {
 	void __iomem *IO_ADDR_W;
 
 	uint8_t (*read_byte)(struct nand_chip *chip);
-	void (*write_byte)(struct mtd_info *mtd, uint8_t byte);
-	void (*write_buf)(struct mtd_info *mtd, const uint8_t *buf, int len);
+	void (*write_byte)(struct nand_chip *chip, uint8_t byte);
+	void (*write_buf)(struct nand_chip *chip, const uint8_t *buf, int len);
 	void (*read_buf)(struct nand_chip *chip, uint8_t *buf, int len);
 	void (*select_chip)(struct mtd_info *mtd, int chip);
 	int (*block_bad)(struct mtd_info *mtd, loff_t ofs);

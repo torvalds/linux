@@ -226,9 +226,10 @@ static void denali_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 		buf[i] = denali->host_read(denali, addr);
 }
 
-static void denali_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void denali_write_buf(struct nand_chip *chip, const uint8_t *buf,
+			     int len)
 {
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
+	struct denali_nand_info *denali = mtd_to_denali(nand_to_mtd(chip));
 	u32 addr = DENALI_MAP11_DATA | DENALI_BANK(denali);
 	int i;
 
@@ -247,10 +248,10 @@ static void denali_read_buf16(struct nand_chip *chip, uint8_t *buf, int len)
 		buf16[i] = denali->host_read(denali, addr);
 }
 
-static void denali_write_buf16(struct mtd_info *mtd, const uint8_t *buf,
+static void denali_write_buf16(struct nand_chip *chip, const uint8_t *buf,
 			       int len)
 {
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
+	struct denali_nand_info *denali = mtd_to_denali(nand_to_mtd(chip));
 	u32 addr = DENALI_MAP11_DATA | DENALI_BANK(denali);
 	const uint16_t *buf16 = (const uint16_t *)buf;
 	int i;
@@ -268,9 +269,9 @@ static uint8_t denali_read_byte(struct nand_chip *chip)
 	return byte;
 }
 
-static void denali_write_byte(struct mtd_info *mtd, uint8_t byte)
+static void denali_write_byte(struct nand_chip *chip, uint8_t byte)
 {
-	denali_write_buf(mtd, &byte, 1);
+	denali_write_buf(chip, &byte, 1);
 }
 
 static void denali_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)

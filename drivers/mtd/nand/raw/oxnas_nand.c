@@ -52,9 +52,9 @@ static void oxnas_nand_read_buf(struct nand_chip *chip, u8 *buf, int len)
 	ioread8_rep(oxnas->io_base, buf, len);
 }
 
-static void oxnas_nand_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
+static void oxnas_nand_write_buf(struct nand_chip *chip, const u8 *buf,
+				 int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct oxnas_nand_ctrl *oxnas = nand_get_controller_data(chip);
 
 	iowrite8_rep(oxnas->io_base, buf, len);

@@ -117,9 +117,8 @@ static int cafe_device_ready(struct mtd_info *mtd)
 }
 
 
-static void cafe_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void cafe_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
 	if (cafe->usedma)
@@ -540,7 +539,7 @@ static int cafe_nand_write_page_lowlevel(struct nand_chip *chip,
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
 	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
-	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	/* Set up ECC autogeneration */
 	cafe->ctl2 |= (1<<30);

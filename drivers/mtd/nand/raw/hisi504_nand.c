@@ -380,9 +380,8 @@ static uint8_t hisi_nfc_read_byte(struct nand_chip *chip)
 }
 
 static void
-hisi_nfc_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+hisi_nfc_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	memcpy(host->buffer + host->offset, buf, len);
@@ -583,7 +582,7 @@ static int hisi_nand_write_page_hwecc(struct nand_chip *chip,
 
 	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
 	if (oob_required)
-		chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+		chip->write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return nand_prog_page_end_op(chip);
 }

@@ -109,10 +109,10 @@ static uint8_t txx9ndfmc_read_byte(struct nand_chip *chip)
 	return txx9ndfmc_read(dev, TXX9_NDFDTR);
 }
 
-static void txx9ndfmc_write_buf(struct mtd_info *mtd, const uint8_t *buf,
+static void txx9ndfmc_write_buf(struct nand_chip *chip, const uint8_t *buf,
 				int len)
 {
-	struct platform_device *dev = mtd_to_platdev(mtd);
+	struct platform_device *dev = mtd_to_platdev(nand_to_mtd(chip));
 	void __iomem *ndfdtr = ndregaddr(dev, TXX9_NDFDTR);
 	u32 mcr = txx9ndfmc_read(dev, TXX9_NDFMCR);
 

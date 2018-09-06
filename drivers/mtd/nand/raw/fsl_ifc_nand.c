@@ -519,9 +519,9 @@ static void fsl_ifc_select_chip(struct mtd_info *mtd, int chip)
 /*
  * Write buf to the IFC NAND Controller Data Buffer
  */
-static void fsl_ifc_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
+static void fsl_ifc_write_buf(struct nand_chip *chip, const u8 *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	unsigned int bufsize = mtd->writesize + mtd->oobsize;
 
@@ -710,7 +710,7 @@ static int fsl_ifc_write_page(struct nand_chip *chip, const uint8_t *buf,
 	struct mtd_info *mtd = nand_to_mtd(chip);
 
 	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
-	fsl_ifc_write_buf(mtd, chip->oob_poi, mtd->oobsize);
+	fsl_ifc_write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return nand_prog_page_end_op(chip);
 }

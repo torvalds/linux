@@ -499,10 +499,10 @@ static void mpc5121_nfc_read_buf(struct nand_chip *chip, u_char *buf, int len)
 }
 
 /* Write data to NFC buffers */
-static void mpc5121_nfc_write_buf(struct mtd_info *mtd,
-						const u_char *buf, int len)
+static void mpc5121_nfc_write_buf(struct nand_chip *chip, const u_char *buf,
+				  int len)
 {
-	mpc5121_nfc_buf_copy(mtd, (u_char *)buf, len, 1);
+	mpc5121_nfc_buf_copy(nand_to_mtd(chip), (u_char *)buf, len, 1);
 }
 
 /* Read byte from NFC buffers */

@@ -501,10 +501,9 @@ static void sunxi_nfc_read_buf(struct nand_chip *nand, uint8_t *buf, int len)
 	}
 }
 
-static void sunxi_nfc_write_buf(struct mtd_info *mtd, const uint8_t *buf,
+static void sunxi_nfc_write_buf(struct nand_chip *nand, const uint8_t *buf,
 				int len)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(sunxi_nand->nand.controller);
 	int ret;
@@ -760,7 +759,7 @@ static void sunxi_nfc_randomizer_write_buf(struct mtd_info *mtd,
 {
 	sunxi_nfc_randomizer_config(mtd, page, ecc);
 	sunxi_nfc_randomizer_enable(mtd);
-	sunxi_nfc_write_buf(mtd, buf, len);
+	sunxi_nfc_write_buf(mtd_to_nand(mtd), buf, len);
 	sunxi_nfc_randomizer_disable(mtd);
 }
 

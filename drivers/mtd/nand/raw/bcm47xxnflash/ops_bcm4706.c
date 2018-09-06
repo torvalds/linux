@@ -354,15 +354,15 @@ static void bcm47xxnflash_ops_bcm4706_read_buf(struct nand_chip *nand_chip,
 	pr_err("Invalid command for buf read: 0x%X\n", b47n->curr_command);
 }
 
-static void bcm47xxnflash_ops_bcm4706_write_buf(struct mtd_info *mtd,
+static void bcm47xxnflash_ops_bcm4706_write_buf(struct nand_chip *nand_chip,
 						const uint8_t *buf, int len)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct bcm47xxnflash *b47n = nand_get_controller_data(nand_chip);
 
 	switch (b47n->curr_command) {
 	case NAND_CMD_SEQIN:
-		bcm47xxnflash_ops_bcm4706_write(mtd, buf, len);
+		bcm47xxnflash_ops_bcm4706_write(nand_to_mtd(nand_chip), buf,
+						len);
 		return;
 	}
 

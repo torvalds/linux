@@ -140,9 +140,9 @@ static void fun_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 		buf[i] = in_8(fun->chip.IO_ADDR_R);
 }
 
-static void fun_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void fun_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 {
-	struct fsl_upm_nand *fun = to_fsl_upm_nand(mtd);
+	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
 	int i;
 
 	for (i = 0; i < len; i++) {

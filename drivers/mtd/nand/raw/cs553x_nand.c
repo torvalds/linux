@@ -103,10 +103,8 @@ static void cs553x_read_buf(struct nand_chip *this, u_char *buf, int len)
 	memcpy_fromio(buf, this->IO_ADDR_R, len);
 }
 
-static void cs553x_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static void cs553x_write_buf(struct nand_chip *this, const u_char *buf, int len)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
-
 	while (unlikely(len > 0x800)) {
 		memcpy_toio(this->IO_ADDR_R, buf, 0x800);
 		buf += 0x800;
@@ -120,9 +118,8 @@ static unsigned char cs553x_read_byte(struct nand_chip *this)
 	return readb(this->IO_ADDR_R);
 }
 
-static void cs553x_write_byte(struct mtd_info *mtd, u_char byte)
+static void cs553x_write_byte(struct nand_chip *this, u_char byte)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	int i = 100000;
 
 	while (i && readb(this->IO_ADDR_R + MM_NAND_STS) & CS_NAND_CTLR_BUSY) {
@@ -142,7 +139,7 @@ static void cs553x_hwcontrol(struct mtd_info *mtd, int cmd,
 		writeb(ctl, mmio_base + MM_NAND_CTL);
 	}
 	if (cmd != NAND_CMD_NONE)
-		cs553x_write_byte(mtd, cmd);
+		cs553x_write_byte(this, cmd);
 }
 
 static int cs553x_device_ready(struct mtd_info *mtd)

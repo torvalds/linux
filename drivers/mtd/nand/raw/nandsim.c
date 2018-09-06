@@ -1933,9 +1933,8 @@ static u_char ns_nand_read_byte(struct nand_chip *chip)
 	return outb;
 }
 
-static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
+static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Sanity and correctness checks */
@@ -2098,7 +2097,7 @@ static void ns_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int bitmask)
 	ns->lines.ce = bitmask & NAND_NCE ? 1 : 0;
 
 	if (cmd != NAND_CMD_NONE)
-		ns_nand_write_byte(mtd, cmd);
+		ns_nand_write_byte(chip, cmd);
 }
 
 static int ns_device_ready(struct mtd_info *mtd)
@@ -2107,9 +2106,9 @@ static int ns_device_ready(struct mtd_info *mtd)
 	return 1;
 }
 
-static void ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static void ns_nand_write_buf(struct nand_chip *chip, const u_char *buf,
+			      int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Check that chip is expecting data input */

@@ -34,15 +34,14 @@ struct socrates_nand_host {
 
 /**
  * socrates_nand_write_buf -  write buffer to chip
- * @mtd:	MTD device structure
+ * @this:	NAND chip object
  * @buf:	data buffer
  * @len:	number of bytes to write
  */
-static void socrates_nand_write_buf(struct mtd_info *mtd,
-		const uint8_t *buf, int len)
+static void socrates_nand_write_buf(struct nand_chip *this, const uint8_t *buf,
+				    int len)
 {
 	int i;
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct socrates_nand_host *host = nand_get_controller_data(this);
 
 	for (i = 0; i < len; i++) {

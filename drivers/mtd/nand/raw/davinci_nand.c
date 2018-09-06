@@ -446,11 +446,9 @@ static void nand_davinci_read_buf(struct nand_chip *chip, uint8_t *buf,
 		ioread8_rep(chip->IO_ADDR_R, buf, len);
 }
 
-static void nand_davinci_write_buf(struct mtd_info *mtd,
-		const uint8_t *buf, int len)
+static void nand_davinci_write_buf(struct nand_chip *chip, const uint8_t *buf,
+				   int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	if ((0x03 & ((uintptr_t)buf)) == 0 && (0x03 & len) == 0)
 		iowrite32_rep(chip->IO_ADDR_R, buf, len >> 2);
 	else if ((0x01 & ((uintptr_t)buf)) == 0 && (0x01 & len) == 0)

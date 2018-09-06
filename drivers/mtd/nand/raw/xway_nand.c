@@ -138,12 +138,12 @@ static void xway_read_buf(struct nand_chip *chip, u_char *buf, int len)
 		buf[i] = xway_readb(nand_to_mtd(chip), NAND_WRITE_DATA);
 }
 
-static void xway_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static void xway_write_buf(struct nand_chip *chip, const u_char *buf, int len)
 {
 	int i;
 
 	for (i = 0; i < len; i++)
-		xway_writeb(mtd, NAND_WRITE_DATA, buf[i]);
+		xway_writeb(nand_to_mtd(chip), NAND_WRITE_DATA, buf[i]);
 }
 
 /*

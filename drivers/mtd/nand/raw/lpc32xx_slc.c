@@ -381,9 +381,9 @@ static void lpc32xx_nand_read_buf(struct nand_chip *chip, u_char *buf, int len)
 /*
  * Simple device write without ECC
  */
-static void lpc32xx_nand_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void lpc32xx_nand_write_buf(struct nand_chip *chip, const uint8_t *buf,
+				   int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
 	/* Direct device write with no ECC */
@@ -706,7 +706,7 @@ static int lpc32xx_nand_write_page_syndrome(struct nand_chip *chip,
 	lpc32xx_slc_ecc_copy(pb, (uint32_t *)host->ecc_buf, chip->ecc.steps);
 
 	/* Write ECC data to device */
-	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return nand_prog_page_end_op(chip);
 }
@@ -724,7 +724,7 @@ static int lpc32xx_nand_write_page_raw_syndrome(struct nand_chip *chip,
 	/* Raw writes can just use the FIFO interface */
 	nand_prog_page_begin_op(chip, page, 0, buf,
 				chip->ecc.size * chip->ecc.steps);
-	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return nand_prog_page_end_op(chip);
 }

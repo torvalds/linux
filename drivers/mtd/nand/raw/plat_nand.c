@@ -44,14 +44,6 @@ static void plat_nand_select_chip(struct mtd_info *mtd, int cs)
 	pdata->ctrl.select_chip(mtd_to_nand(mtd), cs);
 }
 
-static void plat_nand_write_buf(struct mtd_info *mtd, const uint8_t *buf,
-				int len)
-{
-	struct platform_nand_data *pdata = dev_get_platdata(mtd->dev.parent);
-
-	pdata->ctrl.write_buf(mtd_to_nand(mtd), buf, len);
-}
-
 /*
  * Probe for the NAND device.
  */
@@ -101,9 +93,7 @@ static int plat_nand_probe(struct platform_device *pdev)
 	if (pdata->ctrl.select_chip)
 		data->chip.select_chip = plat_nand_select_chip;
 
-	if (pdata->ctrl.write_buf)
-		data->chip.write_buf = plat_nand_write_buf;
-
+	data->chip.write_buf = pdata->ctrl.write_buf;
 	data->chip.read_buf = pdata->ctrl.read_buf;
 	data->chip.chip_delay = pdata->chip.chip_delay;
 	data->chip.options |= pdata->chip.options;

@@ -271,10 +271,10 @@ static void docg4_read_buf(struct nand_chip *nand, uint8_t *buf, int len)
 		p[i] = readw(nand->IO_ADDR_R);
 }
 
-static void docg4_write_buf16(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void docg4_write_buf16(struct nand_chip *nand, const uint8_t *buf,
+			      int len)
 {
 	int i;
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	uint16_t *p = (uint16_t *) buf;
 	len >>= 1;
 
@@ -964,10 +964,10 @@ static int write_page(struct mtd_info *mtd, struct nand_chip *nand,
 	write_nop(docptr);
 
 	/* write the page data */
-	docg4_write_buf16(mtd, buf, DOCG4_PAGE_SIZE);
+	docg4_write_buf16(nand, buf, DOCG4_PAGE_SIZE);
 
 	/* oob bytes 0 through 5 are written to I/O reg */
-	docg4_write_buf16(mtd, nand->oob_poi, 6);
+	docg4_write_buf16(nand, nand->oob_poi, 6);
 
 	/* oob byte 6 written to a separate reg */
 	writew(nand->oob_poi[6], docptr + DOCG4_OOB_6_7);
@@ -995,7 +995,7 @@ static int write_page(struct mtd_info *mtd, struct nand_chip *nand,
 		memcpy(ecc_buf, &nand->oob_poi[8], 8);
 	}
 
-	docg4_write_buf16(mtd, ecc_buf, 8);
+	docg4_write_buf16(nand, ecc_buf, 8);
 	write_nop(docptr);
 	write_nop(docptr);
 	writew(0, docptr + DOC_DATAEND);

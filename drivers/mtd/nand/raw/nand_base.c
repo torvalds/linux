@@ -300,28 +300,25 @@ static void nand_select_chip(struct mtd_info *mtd, int chipnr)
 
 /**
  * nand_write_byte - [DEFAULT] write single byte to chip
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @byte: value to write
  *
  * Default function to write a byte to I/O[7:0]
  */
-static void nand_write_byte(struct mtd_info *mtd, uint8_t byte)
+static void nand_write_byte(struct nand_chip *chip, uint8_t byte)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
-	chip->write_buf(mtd, &byte, 1);
+	chip->write_buf(chip, &byte, 1);
 }
 
 /**
  * nand_write_byte16 - [DEFAULT] write single byte to a chip with width 16
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @byte: value to write
  *
  * Default function to write a byte to I/O[7:0] on a 16-bit wide chip.
  */
-static void nand_write_byte16(struct mtd_info *mtd, uint8_t byte)
+static void nand_write_byte16(struct nand_chip *chip, uint8_t byte)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	uint16_t word = byte;
 
 	/*
@@ -340,21 +337,19 @@ static void nand_write_byte16(struct mtd_info *mtd, uint8_t byte)
 	 * neither an address nor a command transfer. Let's assume a 0 on the
 	 * upper I/O lines is OK.
 	 */
-	chip->write_buf(mtd, (uint8_t *)&word, 2);
+	chip->write_buf(chip, (uint8_t *)&word, 2);
 }
 
 /**
  * nand_write_buf - [DEFAULT] write buffer to chip
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @buf: data buffer
  * @len: number of bytes to write
  *
  * Default write function for 8bit buswidth.
  */
-static void nand_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void nand_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	iowrite8_rep(chip->IO_ADDR_W, buf, len);
 }
 
@@ -373,15 +368,15 @@ static void nand_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 
 /**
  * nand_write_buf16 - [DEFAULT] write buffer to chip
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @buf: data buffer
  * @len: number of bytes to write
  *
  * Default write function for 16bit buswidth.
  */
-static void nand_write_buf16(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void nand_write_buf16(struct nand_chip *chip, const uint8_t *buf,
+			     int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	u16 *p = (u16 *) buf;
 
 	iowrite16_rep(chip->IO_ADDR_W, p, len >> 1);
@@ -1801,7 +1796,7 @@ int nand_prog_page_begin_op(struct nand_chip *chip, unsigned int page,
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, offset_in_page, page);
 
 	if (buf)
-		chip->write_buf(mtd, buf, len);
+		chip->write_buf(chip, buf, len);
 
 	return 0;
 }
@@ -1886,7 +1881,7 @@ int nand_prog_page_op(struct nand_chip *chip, unsigned int page,
 						len, true);
 	} else {
 		chip->cmdfunc(mtd, NAND_CMD_SEQIN, offset_in_page, page);
-		chip->write_buf(mtd, buf, len);
+		chip->write_buf(chip, buf, len);
 		chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
 		status = chip->waitfunc(mtd, chip);
 	}
@@ -1955,7 +1950,7 @@ int nand_change_write_column_op(struct nand_chip *chip,
 
 	chip->cmdfunc(mtd, NAND_CMD_RNDIN, offset_in_page, -1);
 	if (len)
-		chip->write_buf(mtd, buf, len);
+		chip->write_buf(chip, buf, len);
 
 	return 0;
 }
@@ -2175,7 +2170,7 @@ static int nand_set_features_op(struct nand_chip *chip, u8 feature,
 
 	chip->cmdfunc(mtd, NAND_CMD_SET_FEATURES, feature, -1);
 	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
-		chip->write_byte(mtd, params[i]);
+		chip->write_byte(chip, params[i]);
 
 	ret = chip->waitfunc(mtd, chip);
 	if (ret < 0)
@@ -2343,8 +2338,6 @@ EXPORT_SYMBOL_GPL(nand_read_data_op);
 int nand_write_data_op(struct nand_chip *chip, const void *buf,
 		       unsigned int len, bool force_8bit)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-
 	if (!len || !buf)
 		return -EINVAL;
 
@@ -2364,9 +2357,9 @@ int nand_write_data_op(struct nand_chip *chip, const void *buf,
 		unsigned int i;
 
 		for (i = 0; i < len; i++)
-			chip->write_byte(mtd, p[i]);
+			chip->write_byte(chip, p[i]);
 	} else {
-		chip->write_buf(mtd, buf, len);
+		chip->write_buf(chip, buf, len);
 	}
 
 	return 0;

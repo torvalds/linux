@@ -53,10 +53,9 @@ static void pasemi_read_buf(struct nand_chip *chip, u_char *buf, int len)
 	memcpy_fromio(buf, chip->IO_ADDR_R, len);
 }
 
-static void pasemi_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static void pasemi_write_buf(struct nand_chip *chip, const u_char *buf,
+			     int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	while (len > 0x800) {
 		memcpy_toio(chip->IO_ADDR_R, buf, 0x800);
 		buf += 0x800;

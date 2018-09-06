@@ -54,10 +54,10 @@ static u_char cmx270_read_byte(struct nand_chip *this)
 	return (readl(this->IO_ADDR_R) >> 16);
 }
 
-static void cmx270_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static void cmx270_write_buf(struct nand_chip *this, const u_char *buf,
+			     int len)
 {
 	int i;
-	struct nand_chip *this = mtd_to_nand(mtd);
 
 	for (i=0; i<len; i++)
 		writel((*buf++ << 16), this->IO_ADDR_W);

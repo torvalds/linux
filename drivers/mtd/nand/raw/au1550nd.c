@@ -24,7 +24,7 @@ struct au1550nd_ctx {
 
 	int cs;
 	void __iomem *base;
-	void (*write_byte)(struct mtd_info *, u_char);
+	void (*write_byte)(struct nand_chip *, u_char);
 };
 
 /**
@@ -42,14 +42,13 @@ static u_char au_read_byte(struct nand_chip *this)
 
 /**
  * au_write_byte -  write one byte to the chip
- * @mtd:	MTD device structure
+ * @this:	NAND chip object
  * @byte:	pointer to data byte to write
  *
  * write function for 8it buswidth
  */
-static void au_write_byte(struct mtd_info *mtd, u_char byte)
+static void au_write_byte(struct nand_chip *this, u_char byte)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	writeb(byte, this->IO_ADDR_W);
 	wmb(); /* drain writebuffer */
 }
@@ -69,30 +68,28 @@ static u_char au_read_byte16(struct nand_chip *this)
 
 /**
  * au_write_byte16 -  write one byte endianness aware to the chip
- * @mtd:	MTD device structure
+ * @this:	NAND chip object
  * @byte:	pointer to data byte to write
  *
  * write function for 16bit buswidth with endianness conversion
  */
-static void au_write_byte16(struct mtd_info *mtd, u_char byte)
+static void au_write_byte16(struct nand_chip *this, u_char byte)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	writew(le16_to_cpu((u16) byte), this->IO_ADDR_W);
 	wmb(); /* drain writebuffer */
 }
 
 /**
  * au_write_buf -  write buffer to chip
- * @mtd:	MTD device structure
+ * @this:	NAND chip object
  * @buf:	data buffer
  * @len:	number of bytes to write
  *
  * write function for 8bit buswidth
  */
-static void au_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static void au_write_buf(struct nand_chip *this, const u_char *buf, int len)
 {
 	int i;
-	struct nand_chip *this = mtd_to_nand(mtd);
 
 	for (i = 0; i < len; i++) {
 		writeb(buf[i], this->IO_ADDR_W);
@@ -120,16 +117,15 @@ static void au_read_buf(struct nand_chip *this, u_char *buf, int len)
 
 /**
  * au_write_buf16 -  write buffer to chip
- * @mtd:	MTD device structure
+ * @this:	NAND chip object
  * @buf:	data buffer
  * @len:	number of bytes to write
  *
  * write function for 16bit buswidth
  */
-static void au_write_buf16(struct mtd_info *mtd, const u_char *buf, int len)
+static void au_write_buf16(struct nand_chip *this, const u_char *buf, int len)
 {
 	int i;
-	struct nand_chip *this = mtd_to_nand(mtd);
 	u16 *p = (u16 *) buf;
 	len >>= 1;
 
@@ -272,9 +268,9 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 			column -= 256;
 			readcmd = NAND_CMD_READ1;
 		}
-		ctx->write_byte(mtd, readcmd);
+		ctx->write_byte(this, readcmd);
 	}
-	ctx->write_byte(mtd, command);
+	ctx->write_byte(this, command);
 
 	/* Set ALE and clear CLE to start address cycle */
 	au1550_hwcontrol(mtd, NAND_CTL_CLRCLE);
@@ -288,10 +284,10 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 			if (this->options & NAND_BUSWIDTH_16 &&
 					!nand_opcode_8bits(command))
 				column >>= 1;
-			ctx->write_byte(mtd, column);
+			ctx->write_byte(this, column);
 		}
 		if (page_addr != -1) {
-			ctx->write_byte(mtd, (u8)(page_addr & 0xff));
+			ctx->write_byte(this, (u8)(page_addr & 0xff));
 
 			if (command == NAND_CMD_READ0 ||
 			    command == NAND_CMD_READ1 ||
@@ -309,10 +305,10 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 				au1550_hwcontrol(mtd, NAND_CTL_SETNCE);
 			}
 
-			ctx->write_byte(mtd, (u8)(page_addr >> 8));
+			ctx->write_byte(this, (u8)(page_addr >> 8));
 
 			if (this->options & NAND_ROW_ADDR_3)
-				ctx->write_byte(mtd,
+				ctx->write_byte(this,
 						((page_addr >> 16) & 0x0f));
 		}
 		/* Latch in address */

@@ -2312,10 +2312,9 @@ static void qcom_nandc_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 	nandc->buf_start += real_len;
 }
 
-static void qcom_nandc_write_buf(struct mtd_info *mtd, const uint8_t *buf,
+static void qcom_nandc_write_buf(struct nand_chip *chip, const uint8_t *buf,
 				 int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	int real_len = min_t(size_t, len, nandc->buf_count - nandc->buf_start);
 

@@ -63,9 +63,8 @@ static const struct mtd_partition partition_info[] = {
 	  .size		=  3 * SZ_256K },
 };
 
-static void ams_delta_write_byte(struct mtd_info *mtd, u_char byte)
+static void ams_delta_write_byte(struct nand_chip *this, u_char byte)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	void __iomem *io_base = (void __iomem *)nand_get_controller_data(this);
 
 	writew(0, io_base + OMAP_MPUIO_IO_CNTL);
@@ -89,13 +88,13 @@ static u_char ams_delta_read_byte(struct nand_chip *this)
 	return res;
 }
 
-static void ams_delta_write_buf(struct mtd_info *mtd, const u_char *buf,
+static void ams_delta_write_buf(struct nand_chip *this, const u_char *buf,
 				int len)
 {
 	int i;
 
 	for (i=0; i<len; i++)
-		ams_delta_write_byte(mtd, buf[i]);
+		ams_delta_write_byte(this, buf[i]);
 }
 
 static void ams_delta_read_buf(struct nand_chip *this, u_char *buf, int len)
@@ -128,7 +127,7 @@ static void ams_delta_hwcontrol(struct mtd_info *mtd, int cmd,
 	}
 
 	if (cmd != NAND_CMD_NONE)
-		ams_delta_write_byte(mtd, cmd);
+		ams_delta_write_byte(mtd_to_nand(mtd), cmd);
 }
 
 static int ams_delta_nand_ready(struct mtd_info *mtd)

@@ -232,9 +232,9 @@ static void r852_do_dma(struct r852_device *dev, uint8_t *buf, int do_read)
 /*
  * Program data lines of the nand chip to send data to it
  */
-static void r852_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void r852_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 {
-	struct r852_device *dev = r852_get_dev(mtd);
+	struct r852_device *dev = r852_get_dev(nand_to_mtd(chip));
 	uint32_t reg;
 
 	/* Don't allow any access to hardware if we suspect card removal */

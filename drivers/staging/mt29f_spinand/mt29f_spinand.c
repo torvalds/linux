@@ -724,9 +724,9 @@ static int spinand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	return 0;
 }
 
-static void spinand_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
+static void spinand_write_buf(struct nand_chip *chip, const u8 *buf, int len)
 {
-	struct spinand_state *state = mtd_to_state(mtd);
+	struct spinand_state *state = mtd_to_state(nand_to_mtd(chip));
 
 	memcpy(state->buf + state->buf_ptr, buf, len);
 	state->buf_ptr += len;

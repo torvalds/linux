@@ -696,16 +696,16 @@ static void s3c2440_nand_read_buf(struct nand_chip *this, u_char *buf, int len)
 	}
 }
 
-static void s3c2410_nand_write_buf(struct mtd_info *mtd, const u_char *buf,
+static void s3c2410_nand_write_buf(struct nand_chip *this, const u_char *buf,
 				   int len)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	writesb(this->IO_ADDR_W, buf, len);
 }
 
-static void s3c2440_nand_write_buf(struct mtd_info *mtd, const u_char *buf,
+static void s3c2440_nand_write_buf(struct nand_chip *this, const u_char *buf,
 				   int len)
 {
+	struct mtd_info *mtd = nand_to_mtd(this);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 
 	writesl(info->regs + S3C2440_NFDATA, buf, len >> 2);

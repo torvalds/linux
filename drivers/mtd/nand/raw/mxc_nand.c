@@ -921,10 +921,10 @@ static u_char mxc_nand_read_byte(struct nand_chip *nand_chip)
 /* Write data of length len to buffer buf. The data to be
  * written on NAND Flash is first copied to RAMbuffer. After the Data Input
  * Operation by the NFC, the data is written to NAND Flash */
-static void mxc_nand_write_buf(struct mtd_info *mtd,
-				const u_char *buf, int len)
+static void mxc_nand_write_buf(struct nand_chip *nand_chip, const u_char *buf,
+			       int len)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand_chip);
 	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
 	u16 col = host->buf_start;
 	int n = mtd->oobsize + mtd->writesize - col;
@@ -1405,7 +1405,7 @@ static int mxc_nand_set_features(struct mtd_info *mtd, struct nand_chip *chip,
 	host->buf_start = 0;
 
 	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
-		chip->write_byte(mtd, subfeature_param[i]);
+		chip->write_byte(chip, subfeature_param[i]);
 
 	memcpy32_toio(host->main_area0, host->data_buf, mtd->writesize);
 	host->devtype_data->send_cmd(host, NAND_CMD_SET_FEATURES, false);
