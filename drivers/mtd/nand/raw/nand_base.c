@@ -3475,17 +3475,15 @@ static uint8_t *nand_transfer_oob(struct mtd_info *mtd, uint8_t *oob,
 
 /**
  * nand_setup_read_retry - [INTERN] Set the READ RETRY mode
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @retry_mode: the retry mode to use
  *
  * Some vendors supply a special command to shift the Vt threshold, to be used
  * when there are too many bitflips in a page (i.e., ECC error). After setting
  * a new threshold, the host should retry reading the page.
  */
-static int nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
+static int nand_setup_read_retry(struct nand_chip *chip, int retry_mode)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	pr_debug("setting READ RETRY mode %d\n", retry_mode);
 
 	if (retry_mode >= chip->read_retries)
@@ -3494,7 +3492,7 @@ static int nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
 	if (!chip->setup_read_retry)
 		return -EOPNOTSUPP;
 
-	return chip->setup_read_retry(mtd, retry_mode);
+	return chip->setup_read_retry(chip, retry_mode);
 }
 
 static void nand_wait_readrdy(struct nand_chip *chip)
@@ -3619,7 +3617,7 @@ read_retry:
 			if (mtd->ecc_stats.failed - ecc_failures) {
 				if (retry_mode + 1 < chip->read_retries) {
 					retry_mode++;
-					ret = nand_setup_read_retry(mtd,
+					ret = nand_setup_read_retry(chip,
 							retry_mode);
 					if (ret < 0)
 						break;
@@ -3646,7 +3644,7 @@ read_retry:
 
 		/* Reset to retry mode 0 */
 		if (retry_mode) {
-			ret = nand_setup_read_retry(mtd, 0);
+			ret = nand_setup_read_retry(chip, 0);
 			if (ret < 0)
 				break;
 			retry_mode = 0;

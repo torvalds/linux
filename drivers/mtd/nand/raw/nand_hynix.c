@@ -113,9 +113,8 @@ static int hynix_nand_reg_write_op(struct nand_chip *chip, u8 addr, u8 val)
 	return 0;
 }
 
-static int hynix_nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
+static int hynix_nand_setup_read_retry(struct nand_chip *chip, int retry_mode)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct hynix_nand *hynix = nand_get_manufacturer_data(chip);
 	const u8 *values;
 	int i, ret;

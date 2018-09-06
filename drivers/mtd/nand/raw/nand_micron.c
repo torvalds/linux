@@ -74,9 +74,8 @@ struct micron_nand {
 	struct micron_on_die_ecc ecc;
 };
 
-static int micron_nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
+static int micron_nand_setup_read_retry(struct nand_chip *chip, int retry_mode)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	u8 feature[ONFI_SUBFEATURE_PARAM_LEN] = {retry_mode};
 
 	return nand_set_features(chip, ONFI_FEATURE_ADDR_READ_RETRY, feature);
