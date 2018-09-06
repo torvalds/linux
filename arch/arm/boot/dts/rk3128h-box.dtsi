@@ -208,6 +208,7 @@
 		compatible = "pwm-regulator";
 		rockchip,pwm_id = <1>;
 		regulator-init-microvolt = <1200000>;
+		regulator-early-min-microvolt = <1200000>;
 		pwms = <&pwm1 0 5000 1>;
 		regulator-name = "vdd_arm";
 		regulator-min-microvolt = <950000>;
