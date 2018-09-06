@@ -2717,6 +2717,22 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t min_vm_size,
 		 adev->vm_manager.fragment_size);
 }
 
+static struct amdgpu_retryfault_hashtable *init_fault_hash(void)
+{
+	struct amdgpu_retryfault_hashtable *fault_hash;
+
+	fault_hash = kmalloc(sizeof(*fault_hash), GFP_KERNEL);
+	if (!fault_hash)
+		return fault_hash;
+
+	INIT_CHASH_TABLE(fault_hash->hash,
+			AMDGPU_PAGEFAULT_HASH_BITS, 8, 0);
+	spin_lock_init(&fault_hash->lock);
+	fault_hash->count = 0;
+
+	return fault_hash;
+}
+
 /**
  * amdgpu_vm_init - initialize a vm instance
  *
@@ -2803,6 +2819,12 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			goto error_free_root;
 
 		vm->pasid = pasid;
+	}
+
+	vm->fault_hash = init_fault_hash();
+	if (!vm->fault_hash) {
+		r = -ENOMEM;
+		goto error_free_root;
 	}
 
 	INIT_KFIFO(vm->faults);
@@ -2998,7 +3020,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 
 	/* Clear pending page faults from IH when the VM is destroyed */
 	while (kfifo_get(&vm->faults, &fault))
-		amdgpu_ih_clear_fault(adev, fault);
+		amdgpu_vm_clear_fault(vm->fault_hash, fault);
 
 	if (vm->pasid) {
 		unsigned long flags;
@@ -3007,6 +3029,9 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		idr_remove(&adev->vm_manager.pasid_idr, vm->pasid);
 		spin_unlock_irqrestore(&adev->vm_manager.pasid_lock, flags);
 	}
+
+	kfree(vm->fault_hash);
+	vm->fault_hash = NULL;
 
 	drm_sched_entity_destroy(&vm->entity);
 
@@ -3207,4 +3232,79 @@ void amdgpu_vm_set_task_info(struct amdgpu_vm *vm)
 			get_task_comm(vm->task_info.process_name, current->group_leader);
 		}
 	}
+}
+
+/**
+ * amdgpu_vm_add_fault - Add a page fault record to fault hash table
+ *
+ * @fault_hash: fault hash table
+ * @key: 64-bit encoding of PASID and address
+ *
+ * This should be called when a retry page fault interrupt is
+ * received. If this is a new page fault, it will be added to a hash
+ * table. The return value indicates whether this is a new fault, or
+ * a fault that was already known and is already being handled.
+ *
+ * If there are too many pending page faults, this will fail. Retry
+ * interrupts should be ignored in this case until there is enough
+ * free space.
+ *
+ * Returns 0 if the fault was added, 1 if the fault was already known,
+ * -ENOSPC if there are too many pending faults.
+ */
+int amdgpu_vm_add_fault(struct amdgpu_retryfault_hashtable *fault_hash, u64 key)
+{
+	unsigned long flags;
+	int r = -ENOSPC;
+
+	if (WARN_ON_ONCE(!fault_hash))
+		/* Should be allocated in amdgpu_vm_init
+		 */
+		return r;
+
+	spin_lock_irqsave(&fault_hash->lock, flags);
+
+	/* Only let the hash table fill up to 50% for best performance */
+	if (fault_hash->count >= (1 << (AMDGPU_PAGEFAULT_HASH_BITS-1)))
+		goto unlock_out;
+
+	r = chash_table_copy_in(&fault_hash->hash, key, NULL);
+	if (!r)
+		fault_hash->count++;
+
+	/* chash_table_copy_in should never fail unless we're losing count */
+	WARN_ON_ONCE(r < 0);
+
+unlock_out:
+	spin_unlock_irqrestore(&fault_hash->lock, flags);
+	return r;
+}
+
+/**
+ * amdgpu_vm_clear_fault - Remove a page fault record
+ *
+ * @fault_hash: fault hash table
+ * @key: 64-bit encoding of PASID and address
+ *
+ * This should be called when a page fault has been handled. Any
+ * future interrupt with this key will be processed as a new
+ * page fault.
+ */
+void amdgpu_vm_clear_fault(struct amdgpu_retryfault_hashtable *fault_hash, u64 key)
+{
+	unsigned long flags;
+	int r;
+
+	if (!fault_hash)
+		return;
+
+	spin_lock_irqsave(&fault_hash->lock, flags);
+
+	r = chash_table_remove(&fault_hash->hash, key, NULL);
+	if (!WARN_ON_ONCE(r < 0)) {
+		fault_hash->count--;
+		WARN_ON_ONCE(fault_hash->count < 0);
+	}
+
+	spin_unlock_irqrestore(&fault_hash->lock, flags);
 }
