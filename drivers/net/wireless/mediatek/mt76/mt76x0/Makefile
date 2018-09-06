@@ -1,7 +1,7 @@
 obj-$(CONFIG_MT76x0U)    += mt76x0.o
 
 mt76x0-objs	= \
-	usb.o init.o main.o mcu.o trace.o dma.o eeprom.o phy.o \
+	usb.o init.o main.o mcu.o trace.o eeprom.o phy.o \
 	mac.o debugfs.o tx.o
 # ccflags-y := -DDEBUG
 CFLAGS_trace.o := -I$(src)

@@ -39,8 +39,6 @@
 
 #define MT_USB_AGGR_SIZE_LIMIT		21 /* * 1024B */
 #define MT_USB_AGGR_TIMEOUT		0x80 /* * 33ns */
-#define MT_RX_ORDER			3
-#define MT_RX_URB_SIZE			(PAGE_SIZE << MT_RX_ORDER)
 
 struct mt76x0_dma_buf {
 	struct urb *urb;
@@ -126,9 +124,6 @@ struct mt76x0_dev {
 	struct mutex usb_ctrl_mtx;
 	u8 data[32];
 
-	struct tasklet_struct rx_tasklet;
-	struct tasklet_struct tx_tasklet;
-
 	u8 out_ep[__MT_EP_OUT_MAX];
 	u16 out_max_packet;
 	u8 in_ep[__MT_EP_IN_MAX];
@@ -155,7 +150,6 @@ struct mt76x0_dev {
 	/* TX */
 	spinlock_t tx_lock;
 	struct mt76x0_tx_queue *tx_q;
-	struct sk_buff_head tx_skb_done;
 
 	atomic_t avg_ampdu_len;
 
@@ -248,11 +242,6 @@ void mt76x0_tx_stat(struct work_struct *work);
 void mt76x0_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb);
 
-int mt76x0_dma_init(struct mt76x0_dev *dev);
-void mt76x0_dma_cleanup(struct mt76x0_dev *dev);
-
-int mt76x0_dma_enqueue_tx(struct mt76x0_dev *dev, struct sk_buff *skb,
-			   struct mt76_wcid *wcid, int hw_q);
 int mt76x0_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 			  struct sk_buff *skb, struct mt76_queue *q,
 			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,

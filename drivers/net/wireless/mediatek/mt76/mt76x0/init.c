@@ -510,7 +510,6 @@ struct mt76x0_dev *mt76x0_alloc_device(struct device *pdev)
 	spin_lock_init(&dev->mac_lock);
 	spin_lock_init(&dev->con_mon_lock);
 	atomic_set(&dev->avg_ampdu_len, 1);
-	skb_queue_head_init(&dev->tx_skb_done);
 
 	dev->stat_wq = alloc_workqueue("mt76x0", WQ_UNBOUND, 0);
 	if (!dev->stat_wq) {
