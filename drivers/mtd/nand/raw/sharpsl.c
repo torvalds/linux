@@ -156,7 +156,7 @@ static int sharpsl_nand_probe(struct platform_device *pdev)
 	this->legacy.IO_ADDR_R = sharpsl->io + FLASHIO;
 	this->legacy.IO_ADDR_W = sharpsl->io + FLASHIO;
 	/* Set address of hardware control function */
-	this->cmd_ctrl = sharpsl_nand_hwcontrol;
+	this->legacy.cmd_ctrl = sharpsl_nand_hwcontrol;
 	this->dev_ready = sharpsl_nand_dev_ready;
 	/* 15 us command delay time */
 	this->chip_delay = 15;

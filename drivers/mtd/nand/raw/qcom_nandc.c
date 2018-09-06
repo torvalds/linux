@@ -1155,8 +1155,8 @@ static void config_nand_cw_write(struct qcom_nand_controller *nandc)
 }
 
 /*
- * the following functions are used within chip->cmdfunc() to perform different
- * NAND_CMD_* commands
+ * the following functions are used within chip->legacy.cmdfunc() to
+ * perform different NAND_CMD_* commands
  */
 
 /* sets up descriptors for NAND_CMD_PARAM */
@@ -1436,10 +1436,10 @@ static void post_command(struct qcom_nand_host *host, int command)
 }
 
 /*
- * Implements chip->cmdfunc. It's  only used for a limited set of commands.
- * The rest of the commands wouldn't be called by upper layers. For example,
- * NAND_CMD_READOOB would never be called because we have our own versions
- * of read_oob ops for nand_ecc_ctrl.
+ * Implements chip->legacy.cmdfunc. It's  only used for a limited set of
+ * commands. The rest of the commands wouldn't be called by upper layers.
+ * For example, NAND_CMD_READOOB would never be called because we have our own
+ * versions of read_oob ops for nand_ecc_ctrl.
  */
 static void qcom_nandc_command(struct nand_chip *chip, unsigned int command,
 			       int column, int page_addr)
@@ -2803,7 +2803,7 @@ static int qcom_nand_host_init_and_register(struct qcom_nand_controller *nandc,
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = dev;
 
-	chip->cmdfunc		= qcom_nandc_command;
+	chip->legacy.cmdfunc	= qcom_nandc_command;
 	chip->select_chip	= qcom_nandc_select_chip;
 	chip->legacy.read_byte	= qcom_nandc_read_byte;
 	chip->legacy.read_buf	= qcom_nandc_read_buf;

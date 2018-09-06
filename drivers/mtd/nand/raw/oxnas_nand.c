@@ -132,7 +132,7 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 		mtd->dev.parent = &pdev->dev;
 		mtd->priv = chip;
 
-		chip->cmd_ctrl = oxnas_nand_cmd_ctrl;
+		chip->legacy.cmd_ctrl = oxnas_nand_cmd_ctrl;
 		chip->legacy.read_buf = oxnas_nand_read_buf;
 		chip->legacy.read_byte = oxnas_nand_read_byte;
 		chip->legacy.write_buf = oxnas_nand_write_buf;

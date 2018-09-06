@@ -426,7 +426,7 @@ static int jz_nand_probe(struct platform_device *pdev)
 	chip->ecc.options	= NAND_ECC_GENERIC_ERASED_CHECK;
 
 	chip->chip_delay = 50;
-	chip->cmd_ctrl = jz_nand_cmd_ctrl;
+	chip->legacy.cmd_ctrl = jz_nand_cmd_ctrl;
 	chip->select_chip = jz_nand_select_chip;
 	chip->dummy_controller.ops = &jz_nand_controller_ops;
 

@@ -139,7 +139,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 		goto out_ior;
 	}
 
-	chip->cmd_ctrl = pasemi_hwcontrol;
+	chip->legacy.cmd_ctrl = pasemi_hwcontrol;
 	chip->dev_ready = pasemi_device_ready;
 	chip->legacy.read_buf = pasemi_read_buf;
 	chip->legacy.write_buf = pasemi_write_buf;

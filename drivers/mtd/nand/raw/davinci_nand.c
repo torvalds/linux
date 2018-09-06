@@ -781,7 +781,7 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	info->mask_cle		= pdata->mask_cle ? : MASK_CLE;
 
 	/* Set address of hardware control function */
-	info->chip.cmd_ctrl	= nand_davinci_hwcontrol;
+	info->chip.legacy.cmd_ctrl	= nand_davinci_hwcontrol;
 	info->chip.dev_ready	= nand_davinci_dev_ready;
 
 	/* Speed up buffer I/O */

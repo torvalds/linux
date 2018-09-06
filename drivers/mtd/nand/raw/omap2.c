@@ -2230,7 +2230,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 	nand_chip->controller = &omap_gpmc_controller;
 
 	nand_chip->legacy.IO_ADDR_W = nand_chip->legacy.IO_ADDR_R;
-	nand_chip->cmd_ctrl  = omap_hwcontrol;
+	nand_chip->legacy.cmd_ctrl  = omap_hwcontrol;
 
 	info->ready_gpiod = devm_gpiod_get_optional(&pdev->dev, "rb",
 						    GPIOD_IN);

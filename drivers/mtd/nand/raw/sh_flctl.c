@@ -1184,7 +1184,7 @@ static int flctl_probe(struct platform_device *pdev)
 	nand->legacy.write_buf = flctl_write_buf;
 	nand->legacy.read_buf = flctl_read_buf;
 	nand->select_chip = flctl_select_chip;
-	nand->cmdfunc = flctl_cmdfunc;
+	nand->legacy.cmdfunc = flctl_cmdfunc;
 	nand->set_features = nand_get_set_features_notsupp;
 	nand->get_features = nand_get_set_features_notsupp;
 

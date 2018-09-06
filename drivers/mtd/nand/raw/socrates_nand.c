@@ -152,7 +152,7 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	mtd->name = "socrates_nand";
 	mtd->dev.parent = &ofdev->dev;
 
-	nand_chip->cmd_ctrl = socrates_nand_cmd_ctrl;
+	nand_chip->legacy.cmd_ctrl = socrates_nand_cmd_ctrl;
 	nand_chip->legacy.read_byte = socrates_nand_read_byte;
 	nand_chip->legacy.write_buf = socrates_nand_write_buf;
 	nand_chip->legacy.read_buf = socrates_nand_read_buf;

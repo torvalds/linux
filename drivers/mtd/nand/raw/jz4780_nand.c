@@ -280,7 +280,7 @@ static int jz4780_nand_init_chip(struct platform_device *pdev,
 	chip->chip_delay = RB_DELAY_US;
 	chip->options = NAND_NO_SUBPAGE_WRITE;
 	chip->select_chip = jz4780_nand_select_chip;
-	chip->cmd_ctrl = jz4780_nand_cmd_ctrl;
+	chip->legacy.cmd_ctrl = jz4780_nand_cmd_ctrl;
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->controller = &nfc->controller;
 	nand_set_flash_node(chip, np);

@@ -62,7 +62,7 @@ static int plat_nand_probe(struct platform_device *pdev)
 
 	data->chip.legacy.IO_ADDR_R = data->io_base;
 	data->chip.legacy.IO_ADDR_W = data->io_base;
-	data->chip.cmd_ctrl = pdata->ctrl.cmd_ctrl;
+	data->chip.legacy.cmd_ctrl = pdata->ctrl.cmd_ctrl;
 	data->chip.dev_ready = pdata->ctrl.dev_ready;
 	data->chip.select_chip = pdata->ctrl.select_chip;
 	data->chip.legacy.write_buf = pdata->ctrl.write_buf;

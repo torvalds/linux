@@ -2249,7 +2249,7 @@ static int __init ns_init_module(void)
 	/*
 	 * Register simulator's callbacks.
 	 */
-	chip->cmd_ctrl	 = ns_hwcontrol;
+	chip->legacy.cmd_ctrl	 = ns_hwcontrol;
 	chip->legacy.read_byte  = ns_nand_read_byte;
 	chip->dev_ready  = ns_device_ready;
 	chip->legacy.write_buf  = ns_nand_write_buf;

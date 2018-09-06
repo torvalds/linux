@@ -1902,7 +1902,7 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	nand_set_flash_node(chip, this->pdev->dev.of_node);
 	chip->select_chip	= gpmi_select_chip;
 	chip->setup_data_interface = gpmi_setup_data_interface;
-	chip->cmd_ctrl		= gpmi_cmd_ctrl;
+	chip->legacy.cmd_ctrl	= gpmi_cmd_ctrl;
 	chip->dev_ready		= gpmi_dev_ready;
 	chip->legacy.read_byte	= gpmi_read_byte;
 	chip->legacy.read_buf	= gpmi_read_buf;

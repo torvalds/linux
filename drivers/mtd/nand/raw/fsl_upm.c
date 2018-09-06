@@ -112,7 +112,7 @@ static void fun_select_chip(struct nand_chip *chip, int mchip_nr)
 	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
 
 	if (mchip_nr == -1) {
-		chip->cmd_ctrl(chip, NAND_CMD_NONE, 0 | NAND_CTRL_CHANGE);
+		chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE, 0 | NAND_CTRL_CHANGE);
 	} else if (mchip_nr >= 0 && mchip_nr < NAND_MAX_CHIPS) {
 		fun->mchip_number = mchip_nr;
 		chip->legacy.IO_ADDR_R = fun->io_base + fun->mchip_offsets[mchip_nr];
@@ -162,7 +162,7 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 
 	fun->chip.legacy.IO_ADDR_R = fun->io_base;
 	fun->chip.legacy.IO_ADDR_W = fun->io_base;
-	fun->chip.cmd_ctrl = fun_cmd_ctrl;
+	fun->chip.legacy.cmd_ctrl = fun_cmd_ctrl;
 	fun->chip.chip_delay = fun->chip_delay;
 	fun->chip.legacy.read_byte = fun_read_byte;
 	fun->chip.legacy.read_buf = fun_read_buf;

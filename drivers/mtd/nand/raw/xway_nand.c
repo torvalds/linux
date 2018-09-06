@@ -174,7 +174,7 @@ static int xway_nand_probe(struct platform_device *pdev)
 	mtd = nand_to_mtd(&data->chip);
 	mtd->dev.parent = &pdev->dev;
 
-	data->chip.cmd_ctrl = xway_cmd_ctrl;
+	data->chip.legacy.cmd_ctrl = xway_cmd_ctrl;
 	data->chip.dev_ready = xway_dev_ready;
 	data->chip.select_chip = xway_select_chip;
 	data->chip.legacy.write_buf = xway_write_buf;

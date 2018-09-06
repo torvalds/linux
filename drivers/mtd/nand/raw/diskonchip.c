@@ -1389,9 +1389,9 @@ static inline int __init doc2001plus_init(struct mtd_info *mtd)
 	this->legacy.write_buf = doc2001plus_writebuf;
 	this->legacy.read_buf = doc2001plus_readbuf;
 	doc->late_init = inftl_scan_bbt;
-	this->cmd_ctrl = NULL;
+	this->legacy.cmd_ctrl = NULL;
 	this->select_chip = doc2001plus_select_chip;
-	this->cmdfunc = doc2001plus_command;
+	this->legacy.cmdfunc = doc2001plus_command;
 	this->ecc.hwctl = doc2001plus_enable_hwecc;
 
 	doc->chips_per_floor = 1;
@@ -1569,7 +1569,7 @@ static int __init doc_probe(unsigned long physadr)
 
 	nand_set_controller_data(nand, doc);
 	nand->select_chip	= doc200x_select_chip;
-	nand->cmd_ctrl		= doc200x_hwcontrol;
+	nand->legacy.cmd_ctrl		= doc200x_hwcontrol;
 	nand->dev_ready		= doc200x_dev_ready;
 	nand->waitfunc		= doc200x_wait;
 	nand->block_bad		= doc200x_block_bad;

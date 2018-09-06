@@ -1472,7 +1472,7 @@ static void atmel_nand_init(struct atmel_nand_controller *nc,
 	mtd->dev.parent = nc->dev;
 	nand->base.controller = &nc->base;
 
-	chip->cmd_ctrl = atmel_nand_cmd_ctrl;
+	chip->legacy.cmd_ctrl = atmel_nand_cmd_ctrl;
 	chip->legacy.read_byte = atmel_nand_read_byte;
 	chip->legacy.write_byte = atmel_nand_write_byte;
 	chip->legacy.read_buf = atmel_nand_read_buf;
@@ -1524,7 +1524,7 @@ static void atmel_hsmc_nand_init(struct atmel_nand_controller *nc,
 	atmel_nand_init(nc, nand);
 
 	/* Overload some methods for the HSMC controller. */
-	chip->cmd_ctrl = atmel_hsmc_nand_cmd_ctrl;
+	chip->legacy.cmd_ctrl = atmel_hsmc_nand_cmd_ctrl;
 	chip->select_chip = atmel_hsmc_nand_select_chip;
 }
 

@@ -1338,7 +1338,7 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 	nand->legacy.write_buf = mtk_nfc_write_buf;
 	nand->legacy.read_byte = mtk_nfc_read_byte;
 	nand->legacy.read_buf = mtk_nfc_read_buf;
-	nand->cmd_ctrl = mtk_nfc_cmd_ctrl;
+	nand->legacy.cmd_ctrl = mtk_nfc_cmd_ctrl;
 	nand->setup_data_interface = mtk_nfc_setup_data_interface;
 
 	/* set default mode in case dt entry is missing */

@@ -739,7 +739,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	if (res)
 		goto put_clk;
 
-	nand_chip->cmd_ctrl = lpc32xx_nand_cmd_ctrl;
+	nand_chip->legacy.cmd_ctrl = lpc32xx_nand_cmd_ctrl;
 	nand_chip->dev_ready = lpc32xx_nand_device_ready;
 	nand_chip->chip_delay = 25; /* us */
 	nand_chip->legacy.IO_ADDR_R = MLC_DATA(host->io_base);

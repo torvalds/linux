@@ -1345,7 +1345,7 @@ int denali_init(struct denali_nand_info *denali)
 	chip->select_chip = denali_select_chip;
 	chip->legacy.read_byte = denali_read_byte;
 	chip->legacy.write_byte = denali_write_byte;
-	chip->cmd_ctrl = denali_cmd_ctrl;
+	chip->legacy.cmd_ctrl = denali_cmd_ctrl;
 	chip->dev_ready = denali_dev_ready;
 	chip->waitfunc = denali_waitfunc;
 

@@ -2270,8 +2270,8 @@ static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = &pdev->dev;
 
-	chip->cmd_ctrl = brcmnand_cmd_ctrl;
-	chip->cmdfunc = brcmnand_cmdfunc;
+	chip->legacy.cmd_ctrl = brcmnand_cmd_ctrl;
+	chip->legacy.cmdfunc = brcmnand_cmdfunc;
 	chip->waitfunc = brcmnand_waitfunc;
 	chip->legacy.read_byte = brcmnand_read_byte;
 	chip->legacy.read_buf = brcmnand_read_buf;

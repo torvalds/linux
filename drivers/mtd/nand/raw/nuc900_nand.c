@@ -254,7 +254,7 @@ static int nuc900_nand_probe(struct platform_device *pdev)
 		return -ENOENT;
 	clk_enable(nuc900_nand->clk);
 
-	chip->cmdfunc		= nuc900_nand_command_lp;
+	chip->legacy.cmdfunc	= nuc900_nand_command_lp;
 	chip->dev_ready		= nuc900_nand_devready;
 	chip->legacy.read_byte	= nuc900_nand_read_byte;
 	chip->legacy.write_buf	= nuc900_nand_write_buf;

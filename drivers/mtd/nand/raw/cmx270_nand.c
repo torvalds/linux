@@ -175,7 +175,7 @@ static int __init cmx270_init(void)
 	/* insert callbacks */
 	this->legacy.IO_ADDR_R = cmx270_nand_io;
 	this->legacy.IO_ADDR_W = cmx270_nand_io;
-	this->cmd_ctrl = cmx270_hwcontrol;
+	this->legacy.cmd_ctrl = cmx270_hwcontrol;
 	this->dev_ready = cmx270_device_ready;
 
 	/* 15 us command delay time */

@@ -703,7 +703,7 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 		goto out_ior;
 	}
 
-	cafe->nand.cmdfunc = cafe_nand_cmdfunc;
+	cafe->nand.legacy.cmdfunc = cafe_nand_cmdfunc;
 	cafe->nand.dev_ready = cafe_device_ready;
 	cafe->nand.legacy.read_byte = cafe_read_byte;
 	cafe->nand.legacy.read_buf = cafe_read_buf;

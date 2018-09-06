@@ -199,10 +199,10 @@ enum nand_ecc_algo {
 #define NAND_USE_BOUNCE_BUFFER	0x00100000
 
 /*
- * In case your controller is implementing ->cmd_ctrl() and is relying on the
- * default ->cmdfunc() implementation, you may want to let the core handle the
- * tCCS delay which is required when a column change (RNDIN or RNDOUT) is
- * requested.
+ * In case your controller is implementing ->legacy.cmd_ctrl() and is relying
+ * on the default ->cmdfunc() implementation, you may want to let the core
+ * handle the tCCS delay which is required when a column change (RNDIN or
+ * RNDOUT) is requested.
  * If your controller already takes care of this delay, you don't need to set
  * this flag.
  */
@@ -1180,6 +1180,9 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  * @write_byte: write a single byte to the chip on the low 8 I/O lines
  * @write_buf: write data from the buffer to the chip
  * @read_buf: read data from the chip into the buffer
+ * @cmd_ctrl: hardware specific function for controlling ALE/CLE/nCE. Also used
+ *	      to write command and address
+ * @cmdfunc: hardware specific function for writing commands to the chip.
  *
  * If you look at this structure you're already wrong. These fields/hooks are
  * all deprecated.
@@ -1191,6 +1194,9 @@ struct nand_legacy {
 	void (*write_byte)(struct nand_chip *chip, u8 byte);
 	void (*write_buf)(struct nand_chip *chip, const u8 *buf, int len);
 	void (*read_buf)(struct nand_chip *chip, u8 *buf, int len);
+	void (*cmd_ctrl)(struct nand_chip *chip, int dat, unsigned int ctrl);
+	void (*cmdfunc)(struct nand_chip *chip, unsigned command, int column,
+			int page_addr);
 };
 
 /**
@@ -1204,14 +1210,10 @@ struct nand_legacy {
  * @select_chip:	[REPLACEABLE] select chip nr
  * @block_bad:		[REPLACEABLE] check if a block is bad, using OOB markers
  * @block_markbad:	[REPLACEABLE] mark a block bad
- * @cmd_ctrl:		[BOARDSPECIFIC] hardwarespecific function for controlling
- *			ALE/CLE/nCE. Also used to write command and address
  * @dev_ready:		[BOARDSPECIFIC] hardwarespecific function for accessing
  *			device ready/busy line. If set to NULL no access to
  *			ready/busy is available and the ready/busy information
  *			is read from the chip status register.
- * @cmdfunc:		[REPLACEABLE] hardwarespecific function for writing
- *			commands to the chip.
  * @waitfunc:		[REPLACEABLE] hardwarespecific function for wait on
  *			ready.
  * @exec_op:		controller specific method to execute NAND operations.
@@ -1303,10 +1305,7 @@ struct nand_chip {
 	void (*select_chip)(struct nand_chip *chip, int cs);
 	int (*block_bad)(struct nand_chip *chip, loff_t ofs);
 	int (*block_markbad)(struct nand_chip *chip, loff_t ofs);
-	void (*cmd_ctrl)(struct nand_chip *chip, int dat, unsigned int ctrl);
 	int (*dev_ready)(struct nand_chip *chip);
-	void (*cmdfunc)(struct nand_chip *chip, unsigned command, int column,
-			int page_addr);
 	int (*waitfunc)(struct nand_chip *chip);
 	int (*exec_op)(struct nand_chip *chip,
 		       const struct nand_operation *op,

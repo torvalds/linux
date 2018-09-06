@@ -88,7 +88,7 @@ static int hynix_nand_cmd_op(struct nand_chip *chip, u8 cmd)
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(chip, cmd, -1, -1);
+	chip->legacy.cmdfunc(chip, cmd, -1, -1);
 
 	return 0;
 }
@@ -107,7 +107,7 @@ static int hynix_nand_reg_write_op(struct nand_chip *chip, u8 addr, u8 val)
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(chip, NAND_CMD_NONE, column, -1);
+	chip->legacy.cmdfunc(chip, NAND_CMD_NONE, column, -1);
 	chip->legacy.write_byte(chip, val);
 
 	return 0;

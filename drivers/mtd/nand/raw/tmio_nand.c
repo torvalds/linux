@@ -403,7 +403,7 @@ static int tmio_probe(struct platform_device *dev)
 	nand_chip->legacy.IO_ADDR_W = tmio->fcr;
 
 	/* Set address of hardware control function */
-	nand_chip->cmd_ctrl = tmio_nand_hwcontrol;
+	nand_chip->legacy.cmd_ctrl = tmio_nand_hwcontrol;
 	nand_chip->dev_ready = tmio_nand_dev_ready;
 	nand_chip->legacy.read_byte = tmio_nand_read_byte;
 	nand_chip->legacy.write_buf = tmio_nand_write_buf;

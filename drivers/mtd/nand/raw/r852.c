@@ -853,7 +853,7 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		goto error4;
 
 	/* commands */
-	chip->cmd_ctrl = r852_cmdctl;
+	chip->legacy.cmd_ctrl = r852_cmdctl;
 	chip->waitfunc = r852_wait;
 	chip->dev_ready = r852_ready;
 

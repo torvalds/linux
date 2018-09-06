@@ -884,7 +884,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		chip->legacy.IO_ADDR_W = regs + S3C2410_NFDATA;
 		info->sel_reg   = regs + S3C2410_NFCONF;
 		info->sel_bit	= S3C2410_NFCONF_nFCE;
-		chip->cmd_ctrl  = s3c2410_nand_hwcontrol;
+		chip->legacy.cmd_ctrl  = s3c2410_nand_hwcontrol;
 		chip->dev_ready = s3c2410_nand_devready;
 		break;
 
@@ -892,7 +892,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		chip->legacy.IO_ADDR_W = regs + S3C2440_NFDATA;
 		info->sel_reg   = regs + S3C2440_NFCONT;
 		info->sel_bit	= S3C2440_NFCONT_nFCE;
-		chip->cmd_ctrl  = s3c2440_nand_hwcontrol;
+		chip->legacy.cmd_ctrl  = s3c2440_nand_hwcontrol;
 		chip->dev_ready = s3c2440_nand_devready;
 		chip->legacy.read_buf  = s3c2440_nand_read_buf;
 		chip->legacy.write_buf	= s3c2440_nand_write_buf;
@@ -902,7 +902,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		chip->legacy.IO_ADDR_W = regs + S3C2440_NFDATA;
 		info->sel_reg   = regs + S3C2440_NFCONT;
 		info->sel_bit	= S3C2412_NFCONT_nFCE0;
-		chip->cmd_ctrl  = s3c2440_nand_hwcontrol;
+		chip->legacy.cmd_ctrl  = s3c2440_nand_hwcontrol;
 		chip->dev_ready = s3c2412_nand_devready;
 
 		if (readl(regs + S3C2410_NFCONF) & S3C2412_NFCONF_NANDBOOT)
