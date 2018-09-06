@@ -161,7 +161,6 @@ struct dpu_crtc_frame_event {
  * @cur_perf      : current performance committed to clock/bandwidth driver
  * @rp_lock       : serialization lock for resource pool
  * @rp_head       : list of active resource pool
- * @scl3_cfg_lut  : qseed3 lut config
  */
 struct dpu_crtc {
 	struct drm_crtc base;
@@ -172,7 +171,6 @@ struct dpu_crtc {
 	u32 num_mixers;
 	bool mixers_swapped;
 	struct dpu_crtc_mixer mixers[CRTC_DUAL_MIXERS];
-	struct dpu_hw_scaler3_lut_cfg *scl3_lut_cfg;
 
 	struct drm_pending_vblank_event *event;
 	u32 vsync_count;
