@@ -69,7 +69,6 @@ int mt76x2u_mcu_fw_init(struct mt76x2_dev *dev);
 int mt76x2u_alloc_queues(struct mt76x2_dev *dev);
 void mt76x2u_queues_deinit(struct mt76x2_dev *dev);
 void mt76x2u_stop_queues(struct mt76x2_dev *dev);
-bool mt76x2u_tx_status_data(struct mt76_dev *mdev, u8 *update);
 int mt76x2u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 			   struct sk_buff *skb, struct mt76_queue *q,
 			   struct mt76_wcid *wcid, struct ieee80211_sta *sta,

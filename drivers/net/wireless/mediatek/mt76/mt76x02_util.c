@@ -433,4 +433,17 @@ int mt76x02_set_txinfo(struct sk_buff *skb, struct mt76_wcid *wcid, u8 ep)
 }
 EXPORT_SYMBOL_GPL(mt76x02_set_txinfo);
 
+bool mt76x02_tx_status_data(struct mt76_dev *dev, u8 *update)
+{
+	struct mt76x02_tx_status stat;
+
+	if (!mt76x02_mac_load_tx_status(dev, &stat))
+		return false;
+
+	mt76x02_send_tx_status(dev, &stat, update);
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(mt76x02_tx_status_data);
+
 MODULE_LICENSE("Dual BSD/GPL");
