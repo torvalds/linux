@@ -35,8 +35,6 @@
 
 #define UDF_PART_FLAG_UNALLOC_BITMAP	0x0001
 #define UDF_PART_FLAG_UNALLOC_TABLE	0x0002
-#define UDF_PART_FLAG_FREED_BITMAP	0x0004
-#define UDF_PART_FLAG_FREED_TABLE	0x0008
 #define UDF_PART_FLAG_READ_ONLY		0x0010
 #define UDF_PART_FLAG_WRITE_ONCE	0x0020
 #define UDF_PART_FLAG_REWRITABLE	0x0040
@@ -95,10 +93,6 @@ struct udf_part_map {
 		struct udf_bitmap	*s_bitmap;
 		struct inode		*s_table;
 	} s_uspace;
-	union {
-		struct udf_bitmap	*s_bitmap;
-		struct inode		*s_table;
-	} s_fspace;
 	__u32	s_partition_root;
 	__u32	s_partition_len;
 	__u16	s_partition_type;
