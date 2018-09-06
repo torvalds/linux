@@ -502,7 +502,6 @@ struct mt76x0_dev *mt76x0_alloc_device(struct device *pdev)
 	mdev->drv = &drv_ops;
 
 	dev = container_of(mdev, struct mt76x0_dev, mt76);
-	mutex_init(&dev->usb_ctrl_mtx);
 	mutex_init(&dev->reg_atomic_mutex);
 	mutex_init(&dev->hw_atomic_mutex);
 	spin_lock_init(&dev->mac_lock);

@@ -79,13 +79,7 @@ enum mt_bw {
 struct mt76x0_dev {
 	struct mt76_dev mt76; /* must be first */
 
-	struct mutex usb_ctrl_mtx;
 	u8 data[32];
-
-	u8 out_ep[__MT_EP_OUT_MAX];
-	u16 out_max_packet;
-	u8 in_ep[__MT_EP_IN_MAX];
-	u16 in_max_packet;
 
 	struct delayed_work cal_work;
 	struct delayed_work mac_work;
