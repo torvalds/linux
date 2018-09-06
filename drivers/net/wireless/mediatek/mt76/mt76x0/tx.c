@@ -16,19 +16,6 @@
 #include "trace.h"
 #include "../mt76x02_util.h"
 
-/* Take mac80211 Q id from the skb and translate it to hardware Q id */
-static u8 skb2q(struct sk_buff *skb)
-{
-	int qid = skb_get_queue_mapping(skb);
-
-	if (WARN_ON(qid >= MT_TXQ_PSD)) {
-		qid = MT_TXQ_BE;
-		skb_set_queue_mapping(skb, qid);
-	}
-
-	return mt76_ac_to_hwq(qid);
-}
-
 void mt76x0_tx_status(struct mt76x0_dev *dev, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -82,38 +69,31 @@ mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
 }
 
 void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
-		struct sk_buff *skb)
+	       struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct mt76x0_dev *dev = hw->priv;
 	struct ieee80211_vif *vif = info->control.vif;
-	struct ieee80211_sta *sta = control->sta;
-	struct mt76x02_sta *msta = NULL;
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
-	struct mt76x02_txwi *txwi;
-	int pkt_len = skb->len;
-	int hw_q = skb2q(skb);
 
-	BUILD_BUG_ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
-	info->status.status_driver_data[0] = (void *)(unsigned long)pkt_len;
+	if (control->sta) {
+		struct mt76x02_sta *msta;
 
-	mt76x02_insert_hdr_pad(skb);
-
-	if (sta) {
-		msta = (struct mt76x02_sta *) sta->drv_priv;
+		msta = (struct mt76x02_sta *)control->sta->drv_priv;
 		wcid = &msta->wcid;
-	} else if (vif && (!info->control.hw_key && wcid->hw_key_idx != 0xff)) {
-		struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
+		/* sw encrypted frames */
+		if (!info->control.hw_key && wcid->hw_key_idx != 0xff)
+			control->sta = NULL;
+	}
 
+	if (vif && !control->sta) {
+		struct mt76x02_vif *mvif;
+
+		mvif = (struct mt76x02_vif *)vif->drv_priv;
 		wcid = &mvif->group_wcid;
 	}
 
-	txwi = mt76x0_push_txwi(dev, skb, sta, wcid, pkt_len);
-
-	if (mt76x0_dma_enqueue_tx(dev, skb, wcid, hw_q))
-		return;
-
-	trace_mt76x0_tx(&dev->mt76, skb, msta, txwi);
+	mt76_tx(&dev->mt76, control->sta, wcid, skb);
 }
 
 int mt76x0_tx_prepare_skb(struct mt76_dev *mdev, void *data,

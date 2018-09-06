@@ -417,8 +417,9 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 	ret = mt76x0_mcu_cmd_init(dev);
 	if (ret)
 		goto err;
-	ret = mt76x0_dma_init(dev);
-	if (ret)
+
+	ret = mt76u_alloc_queues(&dev->mt76);
+	if (ret < 0)
 		goto err_mcu;
 
 	mt76x0_init_mac_registers(dev);
@@ -464,7 +465,7 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 	return 0;
 
 err_rx:
-	mt76x0_dma_cleanup(dev);
+	mt76u_queues_deinit(&dev->mt76);
 err_mcu:
 	mt76u_mcu_deinit(&dev->mt76);
 err:
@@ -478,7 +479,7 @@ void mt76x0_cleanup(struct mt76x0_dev *dev)
 		return;
 
 	mt76x0_stop_hardware(dev);
-	mt76x0_dma_cleanup(dev);
+	mt76u_queues_deinit(&dev->mt76);
 	mt76u_mcu_deinit(&dev->mt76);
 }
 

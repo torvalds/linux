@@ -15,6 +15,7 @@
 
 #include "mt76x0.h"
 #include "trace.h"
+#include "../mt76x02_util.h"
 #include <linux/etherdevice.h>
 
 void mt76x0_mac_set_protection(struct mt76x0_dev *dev, bool legacy_prot,
@@ -219,7 +220,7 @@ u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
 	struct mt76x02_rxwi *rxwi = rxi;
 	u32 len, ctl = le32_to_cpu(rxwi->ctl);
 	u16 rate = le16_to_cpu(rxwi->rate);
-	int rssi;
+	int rssi, pad_len = 0;
 
 	len = FIELD_GET(MT_RXWI_CTL_MPDU_LEN, ctl);
 	if (WARN_ON(len < 10))
@@ -229,6 +230,11 @@ u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
 		status->flag |= RX_FLAG_DECRYPTED;
 		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED;
 	}
+
+	if (rxwi->rxinfo & MT_RXINFO_L2PAD)
+		pad_len += 2;
+
+	mt76x02_remove_hdr_pad(skb, pad_len);
 
 	status->chains = BIT(0);
 	rssi = mt76x0_phy_get_rssi(dev, rxwi);
