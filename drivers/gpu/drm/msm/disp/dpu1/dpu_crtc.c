@@ -194,7 +194,7 @@ static void _dpu_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 		return;
 	}
 
-	ctl = mixer->hw_ctl;
+	ctl = mixer->lm_ctl;
 	lm = mixer->hw_lm;
 	stage_cfg = &dpu_crtc->stage_cfg;
 	cstate = to_dpu_crtc_state(crtc->state);
@@ -279,15 +279,15 @@ static void _dpu_crtc_blend_setup(struct drm_crtc *crtc)
 	DPU_DEBUG("%s\n", dpu_crtc->name);
 
 	for (i = 0; i < cstate->num_mixers; i++) {
-		if (!mixer[i].hw_lm || !mixer[i].hw_ctl) {
+		if (!mixer[i].hw_lm || !mixer[i].lm_ctl) {
 			DPU_ERROR("invalid lm or ctl assigned to mixer\n");
 			return;
 		}
 		mixer[i].mixer_op_mode = 0;
 		mixer[i].flush_mask = 0;
-		if (mixer[i].hw_ctl->ops.clear_all_blendstages)
-			mixer[i].hw_ctl->ops.clear_all_blendstages(
-					mixer[i].hw_ctl);
+		if (mixer[i].lm_ctl->ops.clear_all_blendstages)
+			mixer[i].lm_ctl->ops.clear_all_blendstages(
+					mixer[i].lm_ctl);
 	}
 
 	/* initialize stage cfg */
@@ -296,7 +296,7 @@ static void _dpu_crtc_blend_setup(struct drm_crtc *crtc)
 	_dpu_crtc_blend_setup_mixer(crtc, dpu_crtc, mixer);
 
 	for (i = 0; i < cstate->num_mixers; i++) {
-		ctl = mixer[i].hw_ctl;
+		ctl = mixer[i].lm_ctl;
 		lm = mixer[i].hw_lm;
 
 		lm->ops.setup_alpha_out(lm, mixer[i].mixer_op_mode);
@@ -540,14 +540,14 @@ static void _dpu_crtc_setup_mixer_for_encoder(
 		if (!dpu_rm_get_hw(rm, &ctl_iter)) {
 			DPU_DEBUG("no ctl assigned to lm %d, using previous\n",
 					mixer->hw_lm->idx - LM_0);
-			mixer->hw_ctl = last_valid_ctl;
+			mixer->lm_ctl = last_valid_ctl;
 		} else {
-			mixer->hw_ctl = (struct dpu_hw_ctl *)ctl_iter.hw;
-			last_valid_ctl = mixer->hw_ctl;
+			mixer->lm_ctl = (struct dpu_hw_ctl *)ctl_iter.hw;
+			last_valid_ctl = mixer->lm_ctl;
 		}
 
 		/* Shouldn't happen, mixers are always >= ctls */
-		if (!mixer->hw_ctl) {
+		if (!mixer->lm_ctl) {
 			DPU_ERROR("no valid ctls found for lm %d\n",
 					mixer->hw_lm->idx - LM_0);
 			return;
@@ -559,7 +559,7 @@ static void _dpu_crtc_setup_mixer_for_encoder(
 		DPU_DEBUG("setup mixer %d: lm %d\n",
 				i, mixer->hw_lm->idx - LM_0);
 		DPU_DEBUG("setup mixer %d: ctl %d\n",
-				i, mixer->hw_ctl->idx - CTL_0);
+				i, mixer->lm_ctl->idx - CTL_0);
 	}
 }
 
@@ -1532,11 +1532,11 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 		m = &cstate->mixers[i];
 		if (!m->hw_lm)
 			seq_printf(s, "\tmixer[%d] has no lm\n", i);
-		else if (!m->hw_ctl)
+		else if (!m->lm_ctl)
 			seq_printf(s, "\tmixer[%d] has no ctl\n", i);
 		else
 			seq_printf(s, "\tmixer:%d ctl:%d width:%d height:%d\n",
-				m->hw_lm->idx - LM_0, m->hw_ctl->idx - CTL_0,
+				m->hw_lm->idx - LM_0, m->lm_ctl->idx - CTL_0,
 				out_width, mode->vdisplay);
 	}
 
