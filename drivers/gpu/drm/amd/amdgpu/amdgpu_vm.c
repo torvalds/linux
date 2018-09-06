@@ -3148,7 +3148,7 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 /**
  * amdgpu_vm_get_task_info - Extracts task info for a PASID.
  *
- * @dev: drm device pointer
+ * @adev: drm device pointer
  * @pasid: PASID identifier for VM
  * @task_info: task_info to fill.
  */
