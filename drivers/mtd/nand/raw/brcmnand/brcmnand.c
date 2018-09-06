@@ -1231,8 +1231,8 @@ static void brcmnand_send_cmd(struct brcmnand_host *host, int cmd)
  * NAND MTD API: read/program/erase
  ***********************************************************************/
 
-static void brcmnand_cmd_ctrl(struct mtd_info *mtd, int dat,
-	unsigned int ctrl)
+static void brcmnand_cmd_ctrl(struct nand_chip *chip, int dat,
+			      unsigned int ctrl)
 {
 	/* intentionally left blank */
 }

@@ -317,9 +317,9 @@ static uint8_t r852_read_byte(struct nand_chip *chip)
 /*
  * Control several chip lines & send commands
  */
-static void r852_cmdctl(struct mtd_info *mtd, int dat, unsigned int ctrl)
+static void r852_cmdctl(struct nand_chip *chip, int dat, unsigned int ctrl)
 {
-	struct r852_device *dev = r852_get_dev(mtd);
+	struct r852_device *dev = r852_get_dev(nand_to_mtd(chip));
 
 	if (dev->card_unstable)
 		return;

@@ -86,10 +86,9 @@ static void nand_cs_off(void)
 /*
  *	hardware specific access to control-lines
  */
-static void cmx270_hwcontrol(struct mtd_info *mtd, int dat,
+static void cmx270_hwcontrol(struct nand_chip *this, int dat,
 			     unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	unsigned int nandaddr = (unsigned int)this->IO_ADDR_W;
 
 	dsb();

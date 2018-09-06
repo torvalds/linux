@@ -286,8 +286,7 @@ static void nand_select_chip(struct nand_chip *chip, int chipnr)
 {
 	switch (chipnr) {
 	case -1:
-		chip->cmd_ctrl(nand_to_mtd(chip), NAND_CMD_NONE,
-			       0 | NAND_CTRL_CHANGE);
+		chip->cmd_ctrl(chip, NAND_CMD_NONE, 0 | NAND_CTRL_CHANGE);
 		break;
 	case 0:
 		break;
@@ -760,11 +759,11 @@ static void nand_command(struct mtd_info *mtd, unsigned int command,
 			column -= 256;
 			readcmd = NAND_CMD_READ1;
 		}
-		chip->cmd_ctrl(mtd, readcmd, ctrl);
+		chip->cmd_ctrl(chip, readcmd, ctrl);
 		ctrl &= ~NAND_CTRL_CHANGE;
 	}
 	if (command != NAND_CMD_NONE)
-		chip->cmd_ctrl(mtd, command, ctrl);
+		chip->cmd_ctrl(chip, command, ctrl);
 
 	/* Address cycle, when necessary */
 	ctrl = NAND_CTRL_ALE | NAND_CTRL_CHANGE;
@@ -774,17 +773,17 @@ static void nand_command(struct mtd_info *mtd, unsigned int command,
 		if (chip->options & NAND_BUSWIDTH_16 &&
 				!nand_opcode_8bits(command))
 			column >>= 1;
-		chip->cmd_ctrl(mtd, column, ctrl);
+		chip->cmd_ctrl(chip, column, ctrl);
 		ctrl &= ~NAND_CTRL_CHANGE;
 	}
 	if (page_addr != -1) {
-		chip->cmd_ctrl(mtd, page_addr, ctrl);
+		chip->cmd_ctrl(chip, page_addr, ctrl);
 		ctrl &= ~NAND_CTRL_CHANGE;
-		chip->cmd_ctrl(mtd, page_addr >> 8, ctrl);
+		chip->cmd_ctrl(chip, page_addr >> 8, ctrl);
 		if (chip->options & NAND_ROW_ADDR_3)
-			chip->cmd_ctrl(mtd, page_addr >> 16, ctrl);
+			chip->cmd_ctrl(chip, page_addr >> 16, ctrl);
 	}
-	chip->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
+	chip->cmd_ctrl(chip, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
 
 	/*
 	 * Program and erase have their own busy handlers status and sequential
@@ -806,9 +805,9 @@ static void nand_command(struct mtd_info *mtd, unsigned int command,
 		if (chip->dev_ready)
 			break;
 		udelay(chip->chip_delay);
-		chip->cmd_ctrl(mtd, NAND_CMD_STATUS,
+		chip->cmd_ctrl(chip, NAND_CMD_STATUS,
 			       NAND_CTRL_CLE | NAND_CTRL_CHANGE);
-		chip->cmd_ctrl(mtd,
+		chip->cmd_ctrl(chip,
 			       NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
 		/* EZ-NAND can take upto 250ms as per ONFi v4.0 */
 		nand_wait_status_ready(mtd, 250);
@@ -887,7 +886,7 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 
 	/* Command latch cycle */
 	if (command != NAND_CMD_NONE)
-		chip->cmd_ctrl(mtd, command,
+		chip->cmd_ctrl(chip, command,
 			       NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
 
 	if (column != -1 || page_addr != -1) {
@@ -899,23 +898,23 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 			if (chip->options & NAND_BUSWIDTH_16 &&
 					!nand_opcode_8bits(command))
 				column >>= 1;
-			chip->cmd_ctrl(mtd, column, ctrl);
+			chip->cmd_ctrl(chip, column, ctrl);
 			ctrl &= ~NAND_CTRL_CHANGE;
 
 			/* Only output a single addr cycle for 8bits opcodes. */
 			if (!nand_opcode_8bits(command))
-				chip->cmd_ctrl(mtd, column >> 8, ctrl);
+				chip->cmd_ctrl(chip, column >> 8, ctrl);
 		}
 		if (page_addr != -1) {
-			chip->cmd_ctrl(mtd, page_addr, ctrl);
-			chip->cmd_ctrl(mtd, page_addr >> 8,
+			chip->cmd_ctrl(chip, page_addr, ctrl);
+			chip->cmd_ctrl(chip, page_addr >> 8,
 				       NAND_NCE | NAND_ALE);
 			if (chip->options & NAND_ROW_ADDR_3)
-				chip->cmd_ctrl(mtd, page_addr >> 16,
+				chip->cmd_ctrl(chip, page_addr >> 16,
 					       NAND_NCE | NAND_ALE);
 		}
 	}
-	chip->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
+	chip->cmd_ctrl(chip, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
 
 	/*
 	 * Program and erase have their own busy handlers status, sequential
@@ -942,9 +941,9 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 		if (chip->dev_ready)
 			break;
 		udelay(chip->chip_delay);
-		chip->cmd_ctrl(mtd, NAND_CMD_STATUS,
+		chip->cmd_ctrl(chip, NAND_CMD_STATUS,
 			       NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
-		chip->cmd_ctrl(mtd, NAND_CMD_NONE,
+		chip->cmd_ctrl(chip, NAND_CMD_NONE,
 			       NAND_NCE | NAND_CTRL_CHANGE);
 		/* EZ-NAND can take upto 250ms as per ONFi v4.0 */
 		nand_wait_status_ready(mtd, 250);
@@ -952,9 +951,9 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 
 	case NAND_CMD_RNDOUT:
 		/* No ready / busy check necessary */
-		chip->cmd_ctrl(mtd, NAND_CMD_RNDOUTSTART,
+		chip->cmd_ctrl(chip, NAND_CMD_RNDOUTSTART,
 			       NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
-		chip->cmd_ctrl(mtd, NAND_CMD_NONE,
+		chip->cmd_ctrl(chip, NAND_CMD_NONE,
 			       NAND_NCE | NAND_CTRL_CHANGE);
 
 		nand_ccs_delay(chip);
@@ -970,9 +969,9 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 		if (column == -1 && page_addr == -1)
 			return;
 
-		chip->cmd_ctrl(mtd, NAND_CMD_READSTART,
+		chip->cmd_ctrl(chip, NAND_CMD_READSTART,
 			       NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
-		chip->cmd_ctrl(mtd, NAND_CMD_NONE,
+		chip->cmd_ctrl(chip, NAND_CMD_NONE,
 			       NAND_NCE | NAND_CTRL_CHANGE);
 
 		/* This applies to read commands */

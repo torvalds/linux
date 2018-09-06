@@ -113,7 +113,7 @@ static void ams_delta_read_buf(struct nand_chip *this, u_char *buf, int len)
  * NAND_CLE: bit 1 -> bit 7
  * NAND_ALE: bit 2 -> bit 6
  */
-static void ams_delta_hwcontrol(struct mtd_info *mtd, int cmd,
+static void ams_delta_hwcontrol(struct nand_chip *this, int cmd,
 				unsigned int ctrl)
 {
 
@@ -127,7 +127,7 @@ static void ams_delta_hwcontrol(struct mtd_info *mtd, int cmd,
 	}
 
 	if (cmd != NAND_CMD_NONE)
-		ams_delta_write_byte(mtd_to_nand(mtd), cmd);
+		ams_delta_write_byte(this, cmd);
 }
 
 static int ams_delta_nand_ready(struct mtd_info *mtd)

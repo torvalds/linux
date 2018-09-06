@@ -86,10 +86,10 @@ static void jz4780_nand_select_chip(struct nand_chip *chip, int chipnr)
 	nfc->selected = chipnr;
 }
 
-static void jz4780_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void jz4780_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
 				 unsigned int ctrl)
 {
-	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(mtd);
+	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(nand_to_mtd(chip));
 	struct jz4780_nand_controller *nfc = to_jz4780_nand_controller(nand->chip.controller);
 	struct jz4780_nand_cs *cs;
 

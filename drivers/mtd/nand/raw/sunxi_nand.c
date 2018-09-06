@@ -547,10 +547,9 @@ static uint8_t sunxi_nfc_read_byte(struct nand_chip *nand)
 	return ret;
 }
 
-static void sunxi_nfc_cmd_ctrl(struct mtd_info *mtd, int dat,
+static void sunxi_nfc_cmd_ctrl(struct nand_chip *nand, int dat,
 			       unsigned int ctrl)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(sunxi_nand->nand.controller);
 	int ret;

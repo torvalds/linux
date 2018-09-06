@@ -783,9 +783,8 @@ error_alloc:
 	return -ENOMEM;
 }
 
-static void gpmi_cmd_ctrl(struct mtd_info *mtd, int data, unsigned int ctrl)
+static void gpmi_cmd_ctrl(struct nand_chip *chip, int data, unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	int ret;
 

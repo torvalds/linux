@@ -1290,7 +1290,7 @@ struct nand_chip {
 	void (*select_chip)(struct nand_chip *chip, int cs);
 	int (*block_bad)(struct nand_chip *chip, loff_t ofs);
 	int (*block_markbad)(struct nand_chip *chip, loff_t ofs);
-	void (*cmd_ctrl)(struct mtd_info *mtd, int dat, unsigned int ctrl);
+	void (*cmd_ctrl)(struct nand_chip *chip, int dat, unsigned int ctrl);
 	int (*dev_ready)(struct mtd_info *mtd);
 	void (*cmdfunc)(struct mtd_info *mtd, unsigned command, int column,
 			int page_addr);

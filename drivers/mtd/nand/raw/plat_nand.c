@@ -23,13 +23,6 @@ struct plat_nand_data {
 	void __iomem		*io_base;
 };
 
-static void plat_nand_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)
-{
-	struct platform_nand_data *pdata = dev_get_platdata(mtd->dev.parent);
-
-	pdata->ctrl.cmd_ctrl(mtd_to_nand(mtd), dat, ctrl);
-}
-
 static int plat_nand_dev_ready(struct mtd_info *mtd)
 {
 	struct platform_nand_data *pdata = dev_get_platdata(mtd->dev.parent);
@@ -76,9 +69,7 @@ static int plat_nand_probe(struct platform_device *pdev)
 
 	data->chip.IO_ADDR_R = data->io_base;
 	data->chip.IO_ADDR_W = data->io_base;
-
-	if (pdata->ctrl.cmd_ctrl)
-		data->chip.cmd_ctrl = plat_nand_cmd_ctrl;
+	data->chip.cmd_ctrl = pdata->ctrl.cmd_ctrl;
 
 	if (pdata->ctrl.dev_ready)
 		data->chip.dev_ready = plat_nand_dev_ready;

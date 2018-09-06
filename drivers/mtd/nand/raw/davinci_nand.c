@@ -97,12 +97,11 @@ static inline void davinci_nand_writel(struct davinci_nand_info *info,
  * Access to hardware control lines:  ALE, CLE, secondary chipselect.
  */
 
-static void nand_davinci_hwcontrol(struct mtd_info *mtd, int cmd,
+static void nand_davinci_hwcontrol(struct nand_chip *nand, int cmd,
 				   unsigned int ctrl)
 {
-	struct davinci_nand_info	*info = to_davinci_nand(mtd);
+	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(nand));
 	void __iomem			*addr = info->current_cs;
-	struct nand_chip		*nand = mtd_to_nand(mtd);
 
 	/* Did the control lines change? */
 	if (ctrl & NAND_CTRL_CHANGE) {

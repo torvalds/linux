@@ -99,10 +99,10 @@ static void jz_nand_select_chip(struct nand_chip *chip, int chipnr)
 	nand->selected_bank = banknr;
 }
 
-static void jz_nand_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)
+static void jz_nand_cmd_ctrl(struct nand_chip *chip, int dat,
+			     unsigned int ctrl)
 {
-	struct jz_nand *nand = mtd_to_jz_nand(mtd);
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct jz_nand *nand = mtd_to_jz_nand(nand_to_mtd(chip));
 	uint32_t reg;
 	void __iomem *bank_base = nand->bank_base[nand->selected_bank];
 

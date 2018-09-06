@@ -131,10 +131,9 @@ static void txx9ndfmc_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 		*buf++ = __raw_readl(ndfdtr);
 }
 
-static void txx9ndfmc_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void txx9ndfmc_cmd_ctrl(struct nand_chip *chip, int cmd,
 			       unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct txx9ndfmc_priv *txx9_priv = nand_get_controller_data(chip);
 	struct platform_device *dev = txx9_priv->dev;
 	struct txx9ndfmc_platform_data *plat = dev_get_platdata(&dev->dev);

@@ -105,8 +105,10 @@ static void xway_select_chip(struct nand_chip *chip, int select)
 	}
 }
 
-static void xway_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+static void xway_cmd_ctrl(struct nand_chip *chip, int cmd, unsigned int ctrl)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	if (cmd == NAND_CMD_NONE)
 		return;
 

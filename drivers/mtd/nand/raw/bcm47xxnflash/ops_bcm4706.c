@@ -170,10 +170,9 @@ static void bcm47xxnflash_ops_bcm4706_write(struct mtd_info *mtd,
  * NAND chip ops
  **************************************************/
 
-static void bcm47xxnflash_ops_bcm4706_cmd_ctrl(struct mtd_info *mtd, int cmd,
-					       unsigned int ctrl)
+static void bcm47xxnflash_ops_bcm4706_cmd_ctrl(struct nand_chip *nand_chip,
+					       int cmd, unsigned int ctrl)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct bcm47xxnflash *b47n = nand_get_controller_data(nand_chip);
 	u32 code = 0;
 
@@ -229,7 +228,7 @@ static void bcm47xxnflash_ops_bcm4706_cmdfunc(struct mtd_info *mtd,
 
 	switch (command) {
 	case NAND_CMD_RESET:
-		nand_chip->cmd_ctrl(mtd, command, NAND_CTRL_CLE);
+		nand_chip->cmd_ctrl(nand_chip, command, NAND_CTRL_CLE);
 
 		ndelay(100);
 		nand_wait_ready(nand_chip);

@@ -594,10 +594,9 @@ static int atmel_nfc_exec_op(struct atmel_hsmc_nand_controller *nc, bool poll)
 	return ret;
 }
 
-static void atmel_hsmc_nand_cmd_ctrl(struct mtd_info *mtd, int dat,
+static void atmel_hsmc_nand_cmd_ctrl(struct nand_chip *chip, int dat,
 				     unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 	struct atmel_hsmc_nand_controller *nc;
 
@@ -621,10 +620,9 @@ static void atmel_hsmc_nand_cmd_ctrl(struct mtd_info *mtd, int dat,
 	}
 }
 
-static void atmel_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void atmel_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
 				unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 	struct atmel_nand_controller *nc;
 

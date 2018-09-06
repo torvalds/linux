@@ -26,9 +26,9 @@ struct orion_nand_info {
 	struct clk *clk;
 };
 
-static void orion_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+static void orion_nand_cmd_ctrl(struct nand_chip *nc, int cmd,
+				unsigned int ctrl)
 {
-	struct nand_chip *nc = mtd_to_nand(mtd);
 	struct orion_nand_data *board = nand_get_controller_data(nc);
 	u32 offs;
 

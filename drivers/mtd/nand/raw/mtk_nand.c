@@ -412,9 +412,10 @@ static int mtk_nfc_dev_ready(struct mtd_info *mtd)
 	return 1;
 }
 
-static void mtk_nfc_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)
+static void mtk_nfc_cmd_ctrl(struct nand_chip *chip, int dat,
+			     unsigned int ctrl)
 {
-	struct mtk_nfc *nfc = nand_get_controller_data(mtd_to_nand(mtd));
+	struct mtk_nfc *nfc = nand_get_controller_data(chip);
 
 	if (ctrl & NAND_ALE) {
 		mtk_nfc_send_address(nfc, dat);

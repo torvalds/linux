@@ -116,9 +116,9 @@ struct tango_chip {
 
 #define TIMING(t0, t1, t2, t3) ((t0) << 24 | (t1) << 16 | (t2) << 8 | (t3))
 
-static void tango_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)
+static void tango_cmd_ctrl(struct nand_chip *chip, int dat, unsigned int ctrl)
 {
-	struct tango_chip *tchip = to_tango_chip(mtd_to_nand(mtd));
+	struct tango_chip *tchip = to_tango_chip(chip);
 
 	if (ctrl & NAND_CLE)
 		writeb_relaxed(dat, tchip->base + PBUS_CMD);

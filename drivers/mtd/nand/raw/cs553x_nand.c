@@ -129,10 +129,9 @@ static void cs553x_write_byte(struct nand_chip *this, u_char byte)
 	writeb(byte, this->IO_ADDR_W + 0x801);
 }
 
-static void cs553x_hwcontrol(struct mtd_info *mtd, int cmd,
+static void cs553x_hwcontrol(struct nand_chip *this, int cmd,
 			     unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	void __iomem *mmio_base = this->IO_ADDR_R;
 	if (ctrl & NAND_CTRL_CHANGE) {
 		unsigned char ctl = (ctrl & ~NAND_CTRL_CHANGE ) ^ 0x01;

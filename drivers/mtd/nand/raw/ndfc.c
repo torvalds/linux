@@ -58,9 +58,8 @@ static void ndfc_select_chip(struct nand_chip *nchip, int chip)
 	out_be32(ndfc->ndfcbase + NDFC_CCR, ccr);
 }
 
-static void ndfc_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+static void ndfc_hwcontrol(struct nand_chip *chip, int cmd, unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = nand_get_controller_data(chip);
 
 	if (cmd == NAND_CMD_NONE)

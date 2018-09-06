@@ -64,11 +64,9 @@ static void pasemi_write_buf(struct nand_chip *chip, const u_char *buf,
 	memcpy_toio(chip->IO_ADDR_R, buf, len);
 }
 
-static void pasemi_hwcontrol(struct mtd_info *mtd, int cmd,
+static void pasemi_hwcontrol(struct nand_chip *chip, int cmd,
 			     unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	if (cmd == NAND_CMD_NONE)
 		return;
 

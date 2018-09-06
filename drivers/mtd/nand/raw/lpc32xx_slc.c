@@ -278,11 +278,10 @@ static void lpc32xx_nand_setup(struct lpc32xx_nand_host *host)
 /*
  * Hardware specific access to control lines
  */
-static void lpc32xx_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
-	unsigned int ctrl)
+static void lpc32xx_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
+				  unsigned int ctrl)
 {
 	uint32_t tmp;
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
 	/* Does CE state need to be changed? */

@@ -456,9 +456,10 @@ static void s3c2410_nand_select_chip(struct nand_chip *this, int chip)
  * Issue command and address cycles to the chip
 */
 
-static void s3c2410_nand_hwcontrol(struct mtd_info *mtd, int cmd,
+static void s3c2410_nand_hwcontrol(struct nand_chip *chip, int cmd,
 				   unsigned int ctrl)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 
 	if (cmd == NAND_CMD_NONE)
@@ -472,9 +473,10 @@ static void s3c2410_nand_hwcontrol(struct mtd_info *mtd, int cmd,
 
 /* command and control functions */
 
-static void s3c2440_nand_hwcontrol(struct mtd_info *mtd, int cmd,
+static void s3c2440_nand_hwcontrol(struct nand_chip *chip, int cmd,
 				   unsigned int ctrl)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 
 	if (cmd == NAND_CMD_NONE)

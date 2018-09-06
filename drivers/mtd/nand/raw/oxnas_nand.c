@@ -61,10 +61,9 @@ static void oxnas_nand_write_buf(struct nand_chip *chip, const u8 *buf,
 }
 
 /* Single CS command control */
-static void oxnas_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void oxnas_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
 				unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct oxnas_nand_ctrl *oxnas = nand_get_controller_data(chip);
 
 	if (ctrl & NAND_CLE)

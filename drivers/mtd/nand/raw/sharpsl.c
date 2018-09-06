@@ -59,11 +59,10 @@ static inline struct sharpsl_nand *mtd_to_sharpsl(struct mtd_info *mtd)
  *	NAND_ALE: bit 2 -> bit 2
  *
  */
-static void sharpsl_nand_hwcontrol(struct mtd_info *mtd, int cmd,
+static void sharpsl_nand_hwcontrol(struct nand_chip *chip, int cmd,
 				   unsigned int ctrl)
 {
-	struct sharpsl_nand *sharpsl = mtd_to_sharpsl(mtd);
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct sharpsl_nand *sharpsl = mtd_to_sharpsl(nand_to_mtd(chip));
 
 	if (ctrl & NAND_CTRL_CHANGE) {
 		unsigned char bits = ctrl & 0x07;

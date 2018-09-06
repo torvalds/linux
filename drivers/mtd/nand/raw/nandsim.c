@@ -2087,9 +2087,8 @@ static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 	return;
 }
 
-static void ns_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int bitmask)
+static void ns_hwcontrol(struct nand_chip *chip, int cmd, unsigned int bitmask)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	ns->lines.cle = bitmask & NAND_CLE ? 1 : 0;

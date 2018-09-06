@@ -87,10 +87,9 @@ static uint8_t socrates_nand_read_byte(struct nand_chip *this)
 /*
  * Hardware specific access to control-lines
  */
-static void socrates_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
-		unsigned int ctrl)
+static void socrates_nand_cmd_ctrl(struct nand_chip *nand_chip, int cmd,
+				   unsigned int ctrl)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct socrates_nand_host *host = nand_get_controller_data(nand_chip);
 	uint32_t val;
 

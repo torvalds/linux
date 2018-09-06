@@ -286,10 +286,9 @@ static void lpc32xx_nand_setup(struct lpc32xx_nand_host *host)
 /*
  * Hardware specific access to control lines
  */
-static void lpc32xx_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void lpc32xx_nand_cmd_ctrl(struct nand_chip *nand_chip, int cmd,
 				  unsigned int ctrl)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct lpc32xx_nand_host *host = nand_get_controller_data(nand_chip);
 
 	if (cmd != NAND_CMD_NONE) {

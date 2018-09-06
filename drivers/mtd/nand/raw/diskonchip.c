@@ -83,7 +83,7 @@ static u_char empty_write_ecc[6] = { 0x4b, 0x00, 0xe2, 0x0e, 0x93, 0xf7 };
 #define DoC_is_Millennium(doc) ((doc)->ChipID == DOC_ChipID_DocMil)
 #define DoC_is_2000(doc) ((doc)->ChipID == DOC_ChipID_Doc2k)
 
-static void doc200x_hwcontrol(struct mtd_info *mtd, int cmd,
+static void doc200x_hwcontrol(struct nand_chip *this, int cmd,
 			      unsigned int bitmask);
 static void doc200x_select_chip(struct nand_chip *this, int chip);
 
@@ -372,10 +372,10 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 	uint16_t ret;
 
 	doc200x_select_chip(this, nr);
-	doc200x_hwcontrol(mtd, NAND_CMD_READID,
+	doc200x_hwcontrol(this, NAND_CMD_READID,
 			  NAND_CTRL_CLE | NAND_CTRL_CHANGE);
-	doc200x_hwcontrol(mtd, 0, NAND_CTRL_ALE | NAND_CTRL_CHANGE);
-	doc200x_hwcontrol(mtd, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
+	doc200x_hwcontrol(this, 0, NAND_CTRL_ALE | NAND_CTRL_CHANGE);
+	doc200x_hwcontrol(this, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
 
 	/* We can't use dev_ready here, but at least we wait for the
 	 * command to complete
@@ -393,10 +393,10 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 		} ident;
 		void __iomem *docptr = doc->virtadr;
 
-		doc200x_hwcontrol(mtd, NAND_CMD_READID,
+		doc200x_hwcontrol(this, NAND_CMD_READID,
 				  NAND_CTRL_CLE | NAND_CTRL_CHANGE);
-		doc200x_hwcontrol(mtd, 0, NAND_CTRL_ALE | NAND_CTRL_CHANGE);
-		doc200x_hwcontrol(mtd, NAND_CMD_NONE,
+		doc200x_hwcontrol(this, 0, NAND_CTRL_ALE | NAND_CTRL_CHANGE);
+		doc200x_hwcontrol(this, NAND_CMD_NONE,
 				  NAND_NCE | NAND_CTRL_CHANGE);
 
 		udelay(50);
@@ -587,7 +587,6 @@ static void doc2001plus_select_chip(struct nand_chip *this, int chip)
 
 static void doc200x_select_chip(struct nand_chip *this, int chip)
 {
-	struct mtd_info *mtd = nand_to_mtd(this);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	int floor = 0;
@@ -602,12 +601,12 @@ static void doc200x_select_chip(struct nand_chip *this, int chip)
 	chip -= (floor * doc->chips_per_floor);
 
 	/* 11.4.4 -- deassert CE before changing chip */
-	doc200x_hwcontrol(mtd, NAND_CMD_NONE, 0 | NAND_CTRL_CHANGE);
+	doc200x_hwcontrol(this, NAND_CMD_NONE, 0 | NAND_CTRL_CHANGE);
 
 	WriteDOC(floor, docptr, FloorSelect);
 	WriteDOC(chip, docptr, CDSNDeviceSelect);
 
-	doc200x_hwcontrol(mtd, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
+	doc200x_hwcontrol(this, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
 
 	doc->curchip = chip;
 	doc->curfloor = floor;
@@ -615,10 +614,9 @@ static void doc200x_select_chip(struct nand_chip *this, int chip)
 
 #define CDSN_CTRL_MSK (CDSN_CTRL_CE | CDSN_CTRL_CLE | CDSN_CTRL_ALE)
 
-static void doc200x_hwcontrol(struct mtd_info *mtd, int cmd,
+static void doc200x_hwcontrol(struct nand_chip *this, int cmd,
 			      unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 

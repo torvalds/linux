@@ -78,10 +78,9 @@ static void fun_wait_rnb(struct fsl_upm_nand *fun)
 	}
 }
 
-static void fun_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+static void fun_cmd_ctrl(struct nand_chip *chip, int cmd, unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct fsl_upm_nand *fun = to_fsl_upm_nand(mtd);
+	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
 	u32 mar;
 
 	if (!(ctrl & fun->last_ctrl)) {
@@ -110,11 +109,10 @@ static void fun_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 
 static void fun_select_chip(struct nand_chip *chip, int mchip_nr)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct fsl_upm_nand *fun = to_fsl_upm_nand(mtd);
+	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
 
 	if (mchip_nr == -1) {
-		chip->cmd_ctrl(mtd, NAND_CMD_NONE, 0 | NAND_CTRL_CHANGE);
+		chip->cmd_ctrl(chip, NAND_CMD_NONE, 0 | NAND_CTRL_CHANGE);
 	} else if (mchip_nr >= 0 && mchip_nr < NAND_MAX_CHIPS) {
 		fun->mchip_number = mchip_nr;
 		chip->IO_ADDR_R = fun->io_base + fun->mchip_offsets[mchip_nr];

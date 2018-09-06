@@ -240,7 +240,7 @@ static int omap_prefetch_reset(int cs, struct omap_nand_info *info)
 
 /**
  * omap_hwcontrol - hardware specific access to control-lines
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @cmd: command to device
  * @ctrl:
  * NAND_NCE: bit 0 -> don't care
@@ -249,9 +249,9 @@ static int omap_prefetch_reset(int cs, struct omap_nand_info *info)
  *
  * NOTE: boards may use different bits for these!!
  */
-static void omap_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+static void omap_hwcontrol(struct nand_chip *chip, int cmd, unsigned int ctrl)
 {
-	struct omap_nand_info *info = mtd_to_omap(mtd);
+	struct omap_nand_info *info = mtd_to_omap(nand_to_mtd(chip));
 
 	if (cmd != NAND_CMD_NONE) {
 		if (ctrl & NAND_CLE)

@@ -274,9 +274,9 @@ static void denali_write_byte(struct nand_chip *chip, uint8_t byte)
 	denali_write_buf(chip, &byte, 1);
 }
 
-static void denali_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)
+static void denali_cmd_ctrl(struct nand_chip *chip, int dat, unsigned int ctrl)
 {
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
+	struct denali_nand_info *denali = mtd_to_denali(nand_to_mtd(chip));
 	uint32_t type;
 
 	if (ctrl & NAND_CLE)

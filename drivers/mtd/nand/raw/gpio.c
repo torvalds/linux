@@ -73,9 +73,10 @@ static void gpio_nand_dosync(struct gpiomtd *gpiomtd)
 static inline void gpio_nand_dosync(struct gpiomtd *gpiomtd) {}
 #endif
 
-static void gpio_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+static void gpio_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
+			       unsigned int ctrl)
 {
-	struct gpiomtd *gpiomtd = gpio_nand_getpriv(mtd);
+	struct gpiomtd *gpiomtd = gpio_nand_getpriv(nand_to_mtd(chip));
 
 	gpio_nand_dosync(gpiomtd);
 
