@@ -325,12 +325,6 @@ int dpu_reg_read(struct dpu_hw_blk_reg_map *c, u32 reg_off);
 #define DPU_REG_WRITE(c, off, val) dpu_reg_write(c, off, val, #off)
 #define DPU_REG_READ(c, off) dpu_reg_read(c, off)
 
-#define MISR_FRAME_COUNT_MASK		0xFF
-#define MISR_CTRL_ENABLE		BIT(8)
-#define MISR_CTRL_STATUS		BIT(9)
-#define MISR_CTRL_STATUS_CLEAR		BIT(10)
-#define INTF_MISR_CTRL_FREE_RUN_MASK	BIT(31)
-
 void *dpu_hw_util_get_dir(void);
 
 void dpu_hw_setup_scaler3(struct dpu_hw_blk_reg_map *c,

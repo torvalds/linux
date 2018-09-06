@@ -47,8 +47,6 @@
 #define LEFT_MIXER 0
 #define RIGHT_MIXER 1
 
-#define MISR_BUFF_SIZE			256
-
 static inline struct dpu_kms *_dpu_crtc_get_kms(struct drm_crtc *crtc)
 {
 	struct msm_drm_private *priv;
@@ -1272,8 +1270,6 @@ static void dpu_crtc_handle_power_event(u32 event_type, void *arg)
 	struct drm_crtc *crtc = arg;
 	struct dpu_crtc *dpu_crtc;
 	struct drm_encoder *encoder;
-	struct dpu_crtc_mixer *m;
-	u32 i, misr_status;
 
 	if (!crtc) {
 		DPU_ERROR("invalid crtc\n");
@@ -1294,29 +1290,8 @@ static void dpu_crtc_handle_power_event(u32 event_type, void *arg)
 
 			dpu_encoder_virt_restore(encoder);
 		}
-
-		for (i = 0; i < dpu_crtc->num_mixers; ++i) {
-			m = &dpu_crtc->mixers[i];
-			if (!m->hw_lm || !m->hw_lm->ops.setup_misr ||
-					!dpu_crtc->misr_enable)
-				continue;
-
-			m->hw_lm->ops.setup_misr(m->hw_lm, true,
-					dpu_crtc->misr_frame_count);
-		}
 		break;
 	case DPU_POWER_EVENT_PRE_DISABLE:
-		for (i = 0; i < dpu_crtc->num_mixers; ++i) {
-			m = &dpu_crtc->mixers[i];
-			if (!m->hw_lm || !m->hw_lm->ops.collect_misr ||
-					!dpu_crtc->misr_enable)
-				continue;
-
-			misr_status = m->hw_lm->ops.collect_misr(m->hw_lm);
-			dpu_crtc->misr_data[i] = misr_status ? misr_status :
-							dpu_crtc->misr_data[i];
-		}
-		break;
 	case DPU_POWER_EVENT_POST_DISABLE:
 		/**
 		 * Nothing to do. All the planes on the CRTC will be
@@ -1846,113 +1821,6 @@ static int _dpu_debugfs_status_open(struct inode *inode, struct file *file)
 	return single_open(file, _dpu_debugfs_status_show, inode->i_private);
 }
 
-static ssize_t _dpu_crtc_misr_setup(struct file *file,
-		const char __user *user_buf, size_t count, loff_t *ppos)
-{
-	struct dpu_crtc *dpu_crtc;
-	struct dpu_crtc_mixer *m;
-	int i = 0, rc;
-	char buf[MISR_BUFF_SIZE + 1];
-	u32 frame_count, enable;
-	size_t buff_copy;
-
-	if (!file || !file->private_data)
-		return -EINVAL;
-
-	dpu_crtc = file->private_data;
-	buff_copy = min_t(size_t, count, MISR_BUFF_SIZE);
-	if (copy_from_user(buf, user_buf, buff_copy)) {
-		DPU_ERROR("buffer copy failed\n");
-		return -EINVAL;
-	}
-
-	buf[buff_copy] = 0; /* end of string */
-
-	if (sscanf(buf, "%u %u", &enable, &frame_count) != 2)
-		return -EINVAL;
-
-	rc = _dpu_crtc_power_enable(dpu_crtc, true);
-	if (rc)
-		return rc;
-
-	mutex_lock(&dpu_crtc->crtc_lock);
-	dpu_crtc->misr_enable = enable;
-	dpu_crtc->misr_frame_count = frame_count;
-	for (i = 0; i < dpu_crtc->num_mixers; ++i) {
-		dpu_crtc->misr_data[i] = 0;
-		m = &dpu_crtc->mixers[i];
-		if (!m->hw_lm || !m->hw_lm->ops.setup_misr)
-			continue;
-
-		m->hw_lm->ops.setup_misr(m->hw_lm, enable, frame_count);
-	}
-	mutex_unlock(&dpu_crtc->crtc_lock);
-	_dpu_crtc_power_enable(dpu_crtc, false);
-
-	return count;
-}
-
-static ssize_t _dpu_crtc_misr_read(struct file *file,
-		char __user *user_buff, size_t count, loff_t *ppos)
-{
-	struct dpu_crtc *dpu_crtc;
-	struct dpu_crtc_mixer *m;
-	int i = 0, rc;
-	u32 misr_status;
-	ssize_t len = 0;
-	char buf[MISR_BUFF_SIZE + 1] = {'\0'};
-
-	if (*ppos)
-		return 0;
-
-	if (!file || !file->private_data)
-		return -EINVAL;
-
-	dpu_crtc = file->private_data;
-	rc = _dpu_crtc_power_enable(dpu_crtc, true);
-	if (rc)
-		return rc;
-
-	mutex_lock(&dpu_crtc->crtc_lock);
-	if (!dpu_crtc->misr_enable) {
-		len += snprintf(buf + len, MISR_BUFF_SIZE - len,
-			"disabled\n");
-		goto buff_check;
-	}
-
-	for (i = 0; i < dpu_crtc->num_mixers; ++i) {
-		m = &dpu_crtc->mixers[i];
-		if (!m->hw_lm || !m->hw_lm->ops.collect_misr)
-			continue;
-
-		misr_status = m->hw_lm->ops.collect_misr(m->hw_lm);
-		dpu_crtc->misr_data[i] = misr_status ? misr_status :
-							dpu_crtc->misr_data[i];
-		len += snprintf(buf + len, MISR_BUFF_SIZE - len, "lm idx:%d\n",
-					m->hw_lm->idx - LM_0);
-		len += snprintf(buf + len, MISR_BUFF_SIZE - len, "0x%x\n",
-							dpu_crtc->misr_data[i]);
-	}
-
-buff_check:
-	if (count <= len) {
-		len = 0;
-		goto end;
-	}
-
-	if (copy_to_user(user_buff, buf, len)) {
-		len = -EFAULT;
-		goto end;
-	}
-
-	*ppos += len;   /* increase offset */
-
-end:
-	mutex_unlock(&dpu_crtc->crtc_lock);
-	_dpu_crtc_power_enable(dpu_crtc, false);
-	return len;
-}
-
 #define DEFINE_DPU_DEBUGFS_SEQ_FOPS(__prefix)                          \
 static int __prefix ## _open(struct inode *inode, struct file *file)	\
 {									\
@@ -2014,11 +1882,6 @@ static int _dpu_crtc_init_debugfs(struct drm_crtc *crtc)
 		.llseek =	seq_lseek,
 		.release =	single_release,
 	};
-	static const struct file_operations debugfs_misr_fops = {
-		.open =		simple_open,
-		.read =		_dpu_crtc_misr_read,
-		.write =	_dpu_crtc_misr_setup,
-	};
 
 	if (!crtc)
 		return -EINVAL;
@@ -2041,8 +1904,6 @@ static int _dpu_crtc_init_debugfs(struct drm_crtc *crtc)
 			dpu_crtc->debugfs_root,
 			&dpu_crtc->base,
 			&dpu_crtc_debugfs_state_fops);
-	debugfs_create_file("misr_data", 0600, dpu_crtc->debugfs_root,
-					dpu_crtc, &debugfs_misr_fops);
 
 	return 0;
 }

@@ -756,32 +756,6 @@ static void dpu_encoder_phys_vid_irq_control(struct dpu_encoder_phys *phys_enc,
 	}
 }
 
-static void dpu_encoder_phys_vid_setup_misr(struct dpu_encoder_phys *phys_enc,
-						bool enable, u32 frame_count)
-{
-	struct dpu_encoder_phys_vid *vid_enc;
-
-	if (!phys_enc)
-		return;
-	vid_enc = to_dpu_encoder_phys_vid(phys_enc);
-
-	if (vid_enc->hw_intf && vid_enc->hw_intf->ops.setup_misr)
-		vid_enc->hw_intf->ops.setup_misr(vid_enc->hw_intf,
-							enable, frame_count);
-}
-
-static u32 dpu_encoder_phys_vid_collect_misr(struct dpu_encoder_phys *phys_enc)
-{
-	struct dpu_encoder_phys_vid *vid_enc;
-
-	if (!phys_enc)
-		return 0;
-	vid_enc = to_dpu_encoder_phys_vid(phys_enc);
-
-	return vid_enc->hw_intf && vid_enc->hw_intf->ops.collect_misr ?
-		vid_enc->hw_intf->ops.collect_misr(vid_enc->hw_intf) : 0;
-}
-
 static int dpu_encoder_phys_vid_get_line_count(
 		struct dpu_encoder_phys *phys_enc)
 {
@@ -817,8 +791,6 @@ static void dpu_encoder_phys_vid_init_ops(struct dpu_encoder_phys_ops *ops)
 	ops->prepare_for_kickoff = dpu_encoder_phys_vid_prepare_for_kickoff;
 	ops->handle_post_kickoff = dpu_encoder_phys_vid_handle_post_kickoff;
 	ops->needs_single_flush = dpu_encoder_phys_vid_needs_single_flush;
-	ops->setup_misr = dpu_encoder_phys_vid_setup_misr;
-	ops->collect_misr = dpu_encoder_phys_vid_collect_misr;
 	ops->hw_reset = dpu_encoder_helper_hw_reset;
 	ops->get_line_count = dpu_encoder_phys_vid_get_line_count;
 }

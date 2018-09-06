@@ -34,9 +34,6 @@
 #define LM_BLEND0_FG_ALPHA               0x04
 #define LM_BLEND0_BG_ALPHA               0x08
 
-#define LM_MISR_CTRL			0x310
-#define LM_MISR_SIGNATURE		0x314
-
 static struct dpu_lm_cfg *_lm_offset(enum dpu_lm mixer,
 		struct dpu_mdss_cfg *m,
 		void __iomem *addr,
@@ -171,30 +168,6 @@ static void dpu_hw_lm_gc(struct dpu_hw_mixer *mixer,
 {
 }
 
-static void dpu_hw_lm_setup_misr(struct dpu_hw_mixer *ctx,
-				bool enable, u32 frame_count)
-{
-	struct dpu_hw_blk_reg_map *c = &ctx->hw;
-	u32 config = 0;
-
-	DPU_REG_WRITE(c, LM_MISR_CTRL, MISR_CTRL_STATUS_CLEAR);
-	/* clear misr data */
-	wmb();
-
-	if (enable)
-		config = (frame_count & MISR_FRAME_COUNT_MASK) |
-			MISR_CTRL_ENABLE | INTF_MISR_CTRL_FREE_RUN_MASK;
-
-	DPU_REG_WRITE(c, LM_MISR_CTRL, config);
-}
-
-static u32 dpu_hw_lm_collect_misr(struct dpu_hw_mixer *ctx)
-{
-	struct dpu_hw_blk_reg_map *c = &ctx->hw;
-
-	return DPU_REG_READ(c, LM_MISR_SIGNATURE);
-}
-
 static void _setup_mixer_ops(struct dpu_mdss_cfg *m,
 		struct dpu_hw_lm_ops *ops,
 		unsigned long features)
@@ -207,8 +180,6 @@ static void _setup_mixer_ops(struct dpu_mdss_cfg *m,
 	ops->setup_alpha_out = dpu_hw_lm_setup_color3;
 	ops->setup_border_color = dpu_hw_lm_setup_border_color;
 	ops->setup_gc = dpu_hw_lm_gc;
-	ops->setup_misr = dpu_hw_lm_setup_misr;
-	ops->collect_misr = dpu_hw_lm_collect_misr;
 };
 
 static struct dpu_hw_blk_ops dpu_hw_ops = {

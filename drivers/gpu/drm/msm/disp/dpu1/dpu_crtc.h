@@ -156,9 +156,6 @@ struct dpu_crtc_frame_event {
  * @event_thread  : Pointer to event handler thread
  * @event_worker  : Event worker queue
  * @event_lock    : Spinlock around event handling code
- * @misr_enable   : boolean entry indicates misr enable/disable status.
- * @misr_frame_count  : misr frame count provided by client
- * @misr_data     : store misr data before turning off the clocks.
  * @phandle: Pointer to power handler
  * @power_event   : registered power event handle
  * @cur_perf      : current performance committed to clock/bandwidth driver
@@ -206,9 +203,6 @@ struct dpu_crtc {
 
 	/* for handling internal event thread */
 	spinlock_t event_lock;
-	bool misr_enable;
-	u32 misr_frame_count;
-	u32 misr_data[CRTC_DUAL_MIXERS];
 
 	struct dpu_power_handle *phandle;
 	struct dpu_power_event *power_event;

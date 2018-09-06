@@ -114,8 +114,6 @@ struct dpu_encoder_virt_ops {
  * @handle_post_kickoff:	Do any work necessary post-kickoff work
  * @trigger_start:		Process start event on physical encoder
  * @needs_single_flush:		Whether encoder slaves need to be flushed
- * @setup_misr:		Sets up MISR, enable and disables based on sysfs
- * @collect_misr:		Collects MISR data on frame update
  * @hw_reset:			Issue HW recovery such as CTL reset and clear
  *				DPU_ENC_ERR_NEEDS_HW_RESET state
  * @irq_control:		Handler to enable/disable all the encoder IRQs
@@ -154,10 +152,6 @@ struct dpu_encoder_phys_ops {
 	void (*handle_post_kickoff)(struct dpu_encoder_phys *phys_enc);
 	void (*trigger_start)(struct dpu_encoder_phys *phys_enc);
 	bool (*needs_single_flush)(struct dpu_encoder_phys *phys_enc);
-
-	void (*setup_misr)(struct dpu_encoder_phys *phys_encs,
-				bool enable, u32 frame_count);
-	u32 (*collect_misr)(struct dpu_encoder_phys *phys_enc);
 	void (*hw_reset)(struct dpu_encoder_phys *phys_enc);
 	void (*irq_control)(struct dpu_encoder_phys *phys, bool enable);
 	void (*prepare_idle_pc)(struct dpu_encoder_phys *phys_enc);

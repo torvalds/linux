@@ -65,8 +65,6 @@
 
 #define MAX_CHANNELS_PER_ENC 2
 
-#define MISR_BUFF_SIZE			256
-
 #define IDLE_SHORT_TIMEOUT	1
 
 #define MAX_VDISPLAY_SPLIT 1080
@@ -161,8 +159,6 @@ enum dpu_enc_rc_states {
  * @frame_done_timer:		watchdog timer for frame done event
  * @vsync_event_timer:		vsync timer
  * @disp_info:			local copy of msm_display_info struct
- * @misr_enable:		misr enable/disable status
- * @misr_frame_count:		misr frame count before start capturing the data
  * @idle_pc_supported:		indicate if idle power collaps is supported
  * @rc_lock:			resource control mutex lock to protect
  *				virt encoder over various state changes
@@ -202,8 +198,6 @@ struct dpu_encoder_virt {
 	struct timer_list vsync_event_timer;
 
 	struct msm_display_info disp_info;
-	bool misr_enable;
-	u32 misr_frame_count;
 
 	bool idle_pc_supported;
 	struct mutex rc_lock;
@@ -1193,11 +1187,6 @@ static void dpu_encoder_virt_enable(struct drm_encoder *drm_enc)
 			if (phys->ops.enable)
 				phys->ops.enable(phys);
 		}
-
-		if (dpu_enc->misr_enable && (dpu_enc->disp_info.capabilities &
-		     MSM_DISPLAY_CAP_VID_MODE) && phys->ops.setup_misr)
-			phys->ops.setup_misr(phys, true,
-						dpu_enc->misr_frame_count);
 	}
 
 	if (dpu_enc->cur_master->ops.enable)
@@ -1949,113 +1938,6 @@ static int _dpu_encoder_debugfs_status_open(struct inode *inode,
 	return single_open(file, _dpu_encoder_status_show, inode->i_private);
 }
 
-static ssize_t _dpu_encoder_misr_setup(struct file *file,
-		const char __user *user_buf, size_t count, loff_t *ppos)
-{
-	struct dpu_encoder_virt *dpu_enc;
-	int i = 0, rc;
-	char buf[MISR_BUFF_SIZE + 1];
-	size_t buff_copy;
-	u32 frame_count, enable;
-
-	if (!file || !file->private_data)
-		return -EINVAL;
-
-	dpu_enc = file->private_data;
-
-	buff_copy = min_t(size_t, count, MISR_BUFF_SIZE);
-	if (copy_from_user(buf, user_buf, buff_copy))
-		return -EINVAL;
-
-	buf[buff_copy] = 0; /* end of string */
-
-	if (sscanf(buf, "%u %u", &enable, &frame_count) != 2)
-		return -EINVAL;
-
-	rc = _dpu_encoder_power_enable(dpu_enc, true);
-	if (rc)
-		return rc;
-
-	mutex_lock(&dpu_enc->enc_lock);
-	dpu_enc->misr_enable = enable;
-	dpu_enc->misr_frame_count = frame_count;
-	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
-		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
-
-		if (!phys || !phys->ops.setup_misr)
-			continue;
-
-		phys->ops.setup_misr(phys, enable, frame_count);
-	}
-	mutex_unlock(&dpu_enc->enc_lock);
-	_dpu_encoder_power_enable(dpu_enc, false);
-
-	return count;
-}
-
-static ssize_t _dpu_encoder_misr_read(struct file *file,
-		char __user *user_buff, size_t count, loff_t *ppos)
-{
-	struct dpu_encoder_virt *dpu_enc;
-	int i = 0, len = 0;
-	char buf[MISR_BUFF_SIZE + 1] = {'\0'};
-	int rc;
-
-	if (*ppos)
-		return 0;
-
-	if (!file || !file->private_data)
-		return -EINVAL;
-
-	dpu_enc = file->private_data;
-
-	rc = _dpu_encoder_power_enable(dpu_enc, true);
-	if (rc)
-		return rc;
-
-	mutex_lock(&dpu_enc->enc_lock);
-	if (!dpu_enc->misr_enable) {
-		len += snprintf(buf + len, MISR_BUFF_SIZE - len,
-			"disabled\n");
-		goto buff_check;
-	} else if (dpu_enc->disp_info.capabilities &
-						~MSM_DISPLAY_CAP_VID_MODE) {
-		len += snprintf(buf + len, MISR_BUFF_SIZE - len,
-			"unsupported\n");
-		goto buff_check;
-	}
-
-	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
-		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
-
-		if (!phys || !phys->ops.collect_misr)
-			continue;
-
-		len += snprintf(buf + len, MISR_BUFF_SIZE - len,
-			"Intf idx:%d\n", phys->intf_idx - INTF_0);
-		len += snprintf(buf + len, MISR_BUFF_SIZE - len, "0x%x\n",
-					phys->ops.collect_misr(phys));
-	}
-
-buff_check:
-	if (count <= len) {
-		len = 0;
-		goto end;
-	}
-
-	if (copy_to_user(user_buff, buf, len)) {
-		len = -EFAULT;
-		goto end;
-	}
-
-	*ppos += len;   /* increase offset */
-
-end:
-	mutex_unlock(&dpu_enc->enc_lock);
-	_dpu_encoder_power_enable(dpu_enc, false);
-	return len;
-}
-
 static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc;
@@ -2068,12 +1950,6 @@ static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 		.read =		seq_read,
 		.llseek =	seq_lseek,
 		.release =	single_release,
-	};
-
-	static const struct file_operations debugfs_misr_fops = {
-		.open = simple_open,
-		.read = _dpu_encoder_misr_read,
-		.write = _dpu_encoder_misr_setup,
 	};
 
 	char name[DPU_NAME_SIZE];
@@ -2098,9 +1974,6 @@ static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 	/* don't error check these */
 	debugfs_create_file("status", 0600,
 		dpu_enc->debugfs_root, dpu_enc, &debugfs_status_fops);
-
-	debugfs_create_file("misr_data", 0600,
-		dpu_enc->debugfs_root, dpu_enc, &debugfs_misr_fops);
 
 	for (i = 0; i < dpu_enc->num_phys_encs; i++)
 		if (dpu_enc->phys_encs[i] &&
