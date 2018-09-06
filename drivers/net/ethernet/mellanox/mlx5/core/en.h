@@ -173,12 +173,20 @@ static inline u16 mlx5_min_rx_wqes(int wq_type, u32 wq_size)
 	}
 }
 
+/* Use this function to get max num channels (rxqs/txqs) only to create netdev */
 static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
 {
 	return is_kdump_kernel() ?
 		MLX5E_MIN_NUM_CHANNELS :
 		min_t(int, mdev->priv.eq_table.num_comp_vectors,
 		      MLX5E_MAX_NUM_CHANNELS);
+}
+
+/* Use this function to get max num channels after netdev was created */
+static inline int mlx5e_get_netdev_max_channels(struct net_device *netdev)
+{
+	return min_t(unsigned int, netdev->num_rx_queues,
+		     netdev->num_tx_queues);
 }
 
 struct mlx5e_tx_wqe {
@@ -710,7 +718,6 @@ struct mlx5e_profile {
 	void	(*disable)(struct mlx5e_priv *priv);
 	void	(*update_stats)(struct mlx5e_priv *priv);
 	void	(*update_carrier)(struct mlx5e_priv *priv);
-	int	(*max_nch)(struct mlx5_core_dev *mdev);
 	struct {
 		mlx5e_fp_handle_rx_cqe handle_rx_cqe;
 		mlx5e_fp_handle_rx_cqe handle_rx_cqe_mpwqe;
@@ -970,7 +977,7 @@ int mlx5e_netdev_init(struct net_device *netdev,
 void mlx5e_netdev_cleanup(struct net_device *netdev, struct mlx5e_priv *priv);
 struct net_device*
 mlx5e_create_netdev(struct mlx5_core_dev *mdev, const struct mlx5e_profile *profile,
-		    void *ppriv);
+		    int nch, void *ppriv);
 int mlx5e_attach_netdev(struct mlx5e_priv *priv);
 void mlx5e_detach_netdev(struct mlx5e_priv *priv);
 void mlx5e_destroy_netdev(struct mlx5e_priv *priv);

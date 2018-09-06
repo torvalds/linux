@@ -88,7 +88,8 @@ int mlx5i_init(struct mlx5_core_dev *mdev,
 	netdev->mtu = max_mtu;
 
 	mlx5e_build_nic_params(mdev, &priv->channels.params,
-			       profile->max_nch(mdev), netdev->mtu);
+			       mlx5e_get_netdev_max_channels(netdev),
+			       netdev->mtu);
 	mlx5i_build_nic_params(mdev, &priv->channels.params);
 
 	mlx5e_timestamp_init(priv);
@@ -117,10 +118,11 @@ void mlx5i_cleanup(struct mlx5e_priv *priv)
 
 static void mlx5i_grp_sw_update_stats(struct mlx5e_priv *priv)
 {
+	int max_nch = mlx5e_get_netdev_max_channels(priv->netdev);
 	struct mlx5e_sw_stats s = { 0 };
 	int i, j;
 
-	for (i = 0; i < priv->profile->max_nch(priv->mdev); i++) {
+	for (i = 0; i < max_nch; i++) {
 		struct mlx5e_channel_stats *channel_stats;
 		struct mlx5e_rq_stats *rq_stats;
 
@@ -417,7 +419,6 @@ static const struct mlx5e_profile mlx5i_nic_profile = {
 	.enable		   = NULL, /* mlx5i_enable */
 	.disable	   = NULL, /* mlx5i_disable */
 	.update_stats	   = NULL, /* mlx5i_update_stats */
-	.max_nch	   = mlx5e_get_max_num_channels,
 	.update_carrier    = NULL, /* no HW update in IB link */
 	.rx_handlers.handle_rx_cqe       = mlx5i_handle_rx_cqe,
 	.rx_handlers.handle_rx_cqe_mpwqe = NULL, /* Not supported */
@@ -729,7 +730,7 @@ int mlx5_rdma_rn_get_params(struct mlx5_core_dev *mdev,
 	if (rc)
 		return rc;
 
-	nch = mlx5_get_profile(mdev)->max_nch(mdev);
+	nch = mlx5e_get_max_num_channels(mdev);
 
 	*params = (struct rdma_netdev_alloc_params){
 		.sizeof_priv = sizeof(struct mlx5i_priv) +
