@@ -935,10 +935,9 @@ static int omap_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
  * @mtd: MTD device structure
  * @mode: Read/Write mode
  */
-static void omap_enable_hwecc(struct mtd_info *mtd, int mode)
+static void omap_enable_hwecc(struct nand_chip *chip, int mode)
 {
-	struct omap_nand_info *info = mtd_to_omap(mtd);
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct omap_nand_info *info = mtd_to_omap(nand_to_mtd(chip));
 	unsigned int dev_width = (chip->options & NAND_BUSWIDTH_16) ? 1 : 0;
 	u32 val;
 
@@ -1030,13 +1029,13 @@ static int omap_dev_ready(struct mtd_info *mtd)
  * eccsize0 = 0  (no additional protected byte in spare area)
  * eccsize1 = 32 (skip 32 nibbles = 16 bytes per sector in spare area)
  */
-static void __maybe_unused omap_enable_hwecc_bch(struct mtd_info *mtd, int mode)
+static void __maybe_unused omap_enable_hwecc_bch(struct nand_chip *chip,
+						 int mode)
 {
 	unsigned int bch_type;
 	unsigned int dev_width, nsectors;
-	struct omap_nand_info *info = mtd_to_omap(mtd);
+	struct omap_nand_info *info = mtd_to_omap(nand_to_mtd(chip));
 	enum omap_ecc ecc_opt = info->ecc_opt;
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	u32 val, wr_mode;
 	unsigned int ecc_size1, ecc_size0;
 
@@ -1529,7 +1528,7 @@ static int omap_write_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
 	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 
 	/* Enable GPMC ecc engine */
-	chip->ecc.hwctl(mtd, NAND_ECC_WRITE);
+	chip->ecc.hwctl(chip, NAND_ECC_WRITE);
 
 	/* Write data */
 	chip->write_buf(mtd, buf, mtd->writesize);
@@ -1582,7 +1581,7 @@ static int omap_write_subpage_bch(struct mtd_info *mtd,
 	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 
 	/* Enable GPMC ECC engine */
-	chip->ecc.hwctl(mtd, NAND_ECC_WRITE);
+	chip->ecc.hwctl(chip, NAND_ECC_WRITE);
 
 	/* Write data */
 	chip->write_buf(mtd, buf, mtd->writesize);
@@ -1641,7 +1640,7 @@ static int omap_read_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
 	nand_read_page_op(chip, page, 0, NULL, 0);
 
 	/* Enable GPMC ecc engine */
-	chip->ecc.hwctl(mtd, NAND_ECC_READ);
+	chip->ecc.hwctl(chip, NAND_ECC_READ);
 
 	/* Read data */
 	chip->read_buf(mtd, buf, mtd->writesize);

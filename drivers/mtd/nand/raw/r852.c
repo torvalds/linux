@@ -401,9 +401,9 @@ static int r852_ready(struct mtd_info *mtd)
  * Set ECC engine mode
 */
 
-static void r852_ecc_hwctl(struct mtd_info *mtd, int mode)
+static void r852_ecc_hwctl(struct nand_chip *chip, int mode)
 {
-	struct r852_device *dev = r852_get_dev(mtd);
+	struct r852_device *dev = r852_get_dev(nand_to_mtd(chip));
 
 	if (dev->card_unstable)
 		return;

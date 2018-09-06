@@ -337,7 +337,7 @@ static void lpc32xx_wp_disable(struct lpc32xx_nand_host *host)
 /*
  * Prepares SLC for transfers with H/W ECC enabled
  */
-static void lpc32xx_nand_ecc_enable(struct mtd_info *mtd, int mode)
+static void lpc32xx_nand_ecc_enable(struct nand_chip *chip, int mode)
 {
 	/* Hardware ECC is enabled automatically in hardware as needed */
 }

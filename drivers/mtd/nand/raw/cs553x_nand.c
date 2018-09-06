@@ -157,9 +157,8 @@ static int cs553x_device_ready(struct mtd_info *mtd)
 	return (foo & CS_NAND_STS_FLASH_RDY) && !(foo & CS_NAND_CTLR_BUSY);
 }
 
-static void cs_enable_hwecc(struct mtd_info *mtd, int mode)
+static void cs_enable_hwecc(struct nand_chip *this, int mode)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	void __iomem *mmio_base = this->IO_ADDR_R;
 
 	writeb(0x07, mmio_base + MM_NAND_ECC_CTL);

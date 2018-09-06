@@ -368,9 +368,9 @@ static int fsmc_setup_data_interface(struct mtd_info *mtd, int csline,
 /*
  * fsmc_enable_hwecc - Enables Hardware ECC through FSMC registers
  */
-static void fsmc_enable_hwecc(struct mtd_info *mtd, int mode)
+static void fsmc_enable_hwecc(struct nand_chip *chip, int mode)
 {
-	struct fsmc_nand_data *host = mtd_to_fsmc(mtd);
+	struct fsmc_nand_data *host = mtd_to_fsmc(nand_to_mtd(chip));
 
 	writel_relaxed(readl(host->regs_va + FSMC_PC) & ~FSMC_ECCPLEN_256,
 		       host->regs_va + FSMC_PC);
@@ -740,7 +740,7 @@ static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 
 	for (i = 0, s = 0; s < eccsteps; s++, i += eccbytes, p += eccsize) {
 		nand_read_page_op(chip, page, s * eccsize, NULL, 0);
-		chip->ecc.hwctl(mtd, NAND_ECC_READ);
+		chip->ecc.hwctl(chip, NAND_ECC_READ);
 		nand_read_data_op(chip, p, eccsize, false);
 
 		for (j = 0; j < eccbytes;) {

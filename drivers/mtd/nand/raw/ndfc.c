@@ -81,10 +81,9 @@ static int ndfc_ready(struct mtd_info *mtd)
 	return in_be32(ndfc->ndfcbase + NDFC_STAT) & NDFC_STAT_IS_READY;
 }
 
-static void ndfc_enable_hwecc(struct mtd_info *mtd, int mode)
+static void ndfc_enable_hwecc(struct nand_chip *chip, int mode)
 {
 	uint32_t ccr;
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = nand_get_controller_data(chip);
 
 	ccr = in_be32(ndfc->ndfcbase + NDFC_CCR);

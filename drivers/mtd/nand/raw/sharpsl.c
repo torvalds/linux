@@ -85,9 +85,9 @@ static int sharpsl_nand_dev_ready(struct mtd_info *mtd)
 	return !((readb(sharpsl->io + FLASHCTL) & FLRYBY) == 0);
 }
 
-static void sharpsl_nand_enable_hwecc(struct mtd_info *mtd, int mode)
+static void sharpsl_nand_enable_hwecc(struct nand_chip *chip, int mode)
 {
-	struct sharpsl_nand *sharpsl = mtd_to_sharpsl(mtd);
+	struct sharpsl_nand *sharpsl = mtd_to_sharpsl(nand_to_mtd(chip));
 	writeb(0, sharpsl->io + ECCCLRR);
 }
 

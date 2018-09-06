@@ -259,9 +259,9 @@ static void tmio_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 	tmio_ioread16_rep(tmio->fcr + FCR_DATA, buf, len >> 1);
 }
 
-static void tmio_nand_enable_hwecc(struct mtd_info *mtd, int mode)
+static void tmio_nand_enable_hwecc(struct nand_chip *chip, int mode)
 {
-	struct tmio_nand *tmio = mtd_to_tmio(mtd);
+	struct tmio_nand *tmio = mtd_to_tmio(nand_to_mtd(chip));
 
 	tmio_iowrite8(FCR_MODE_HWECC_RESET, tmio->fcr + FCR_MODE);
 	tmio_ioread8(tmio->fcr + FCR_DATA);	/* dummy read */

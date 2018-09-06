@@ -146,16 +146,16 @@ static inline uint32_t nand_davinci_readecc_1bit(struct mtd_info *mtd)
 			+ 4 * info->core_chipsel);
 }
 
-static void nand_davinci_hwctl_1bit(struct mtd_info *mtd, int mode)
+static void nand_davinci_hwctl_1bit(struct nand_chip *chip, int mode)
 {
 	struct davinci_nand_info *info;
 	uint32_t nandcfr;
 	unsigned long flags;
 
-	info = to_davinci_nand(mtd);
+	info = to_davinci_nand(nand_to_mtd(chip));
 
 	/* Reset ECC hardware */
-	nand_davinci_readecc_1bit(mtd);
+	nand_davinci_readecc_1bit(nand_to_mtd(chip));
 
 	spin_lock_irqsave(&davinci_nand_lock, flags);
 
@@ -231,9 +231,9 @@ static int nand_davinci_correct_1bit(struct mtd_info *mtd, u_char *dat,
  * OOB without recomputing ECC.
  */
 
-static void nand_davinci_hwctl_4bit(struct mtd_info *mtd, int mode)
+static void nand_davinci_hwctl_4bit(struct nand_chip *chip, int mode)
 {
-	struct davinci_nand_info *info = to_davinci_nand(mtd);
+	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(chip));
 	unsigned long flags;
 	u32 val;
 

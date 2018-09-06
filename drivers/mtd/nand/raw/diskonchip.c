@@ -797,9 +797,8 @@ static int doc200x_block_bad(struct mtd_info *mtd, loff_t ofs)
 	return 0;
 }
 
-static void doc200x_enable_hwecc(struct mtd_info *mtd, int mode)
+static void doc200x_enable_hwecc(struct nand_chip *this, int mode)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 
@@ -816,9 +815,8 @@ static void doc200x_enable_hwecc(struct mtd_info *mtd, int mode)
 	}
 }
 
-static void doc2001plus_enable_hwecc(struct mtd_info *mtd, int mode)
+static void doc2001plus_enable_hwecc(struct nand_chip *this, int mode)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 

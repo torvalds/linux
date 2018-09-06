@@ -211,9 +211,9 @@ static int txx9ndfmc_correct_data(struct mtd_info *mtd, unsigned char *buf,
 	return corrected;
 }
 
-static void txx9ndfmc_enable_hwecc(struct mtd_info *mtd, int mode)
+static void txx9ndfmc_enable_hwecc(struct nand_chip *chip, int mode)
 {
-	struct platform_device *dev = mtd_to_platdev(mtd);
+	struct platform_device *dev = mtd_to_platdev(nand_to_mtd(chip));
 	u32 mcr = txx9ndfmc_read(dev, TXX9_NDFMCR);
 
 	mcr &= ~TXX9_NDFMCR_ECC_ALL;

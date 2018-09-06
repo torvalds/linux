@@ -576,7 +576,7 @@ static int lpc32xx_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 /* Prepares MLC for transfers with H/W ECC enabled: always enabled anyway */
-static void lpc32xx_ecc_enable(struct mtd_info *mtd, int mode)
+static void lpc32xx_ecc_enable(struct nand_chip *chip, int mode)
 {
 	/* Always enabled! */
 }

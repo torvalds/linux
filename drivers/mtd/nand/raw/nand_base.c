@@ -3272,7 +3272,7 @@ static int nand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		return ret;
 
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
-		chip->ecc.hwctl(mtd, NAND_ECC_READ);
+		chip->ecc.hwctl(chip, NAND_ECC_READ);
 
 		ret = nand_read_data_op(chip, p, eccsize, false);
 		if (ret)
@@ -3358,7 +3358,7 @@ static int nand_read_page_hwecc_oob_first(struct mtd_info *mtd,
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
 		int stat;
 
-		chip->ecc.hwctl(mtd, NAND_ECC_READ);
+		chip->ecc.hwctl(chip, NAND_ECC_READ);
 
 		ret = nand_read_data_op(chip, p, eccsize, false);
 		if (ret)
@@ -3415,7 +3415,7 @@ static int nand_read_page_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
 		int stat;
 
-		chip->ecc.hwctl(mtd, NAND_ECC_READ);
+		chip->ecc.hwctl(chip, NAND_ECC_READ);
 
 		ret = nand_read_data_op(chip, p, eccsize, false);
 		if (ret)
@@ -3430,7 +3430,7 @@ static int nand_read_page_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 			oob += chip->ecc.prepad;
 		}
 
-		chip->ecc.hwctl(mtd, NAND_ECC_READSYN);
+		chip->ecc.hwctl(chip, NAND_ECC_READSYN);
 
 		ret = nand_read_data_op(chip, oob, eccbytes, false);
 		if (ret)
@@ -4151,7 +4151,7 @@ static int nand_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		return ret;
 
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
-		chip->ecc.hwctl(mtd, NAND_ECC_WRITE);
+		chip->ecc.hwctl(chip, NAND_ECC_WRITE);
 
 		ret = nand_write_data_op(chip, p, eccsize, false);
 		if (ret)
@@ -4204,7 +4204,7 @@ static int nand_write_subpage_hwecc(struct mtd_info *mtd,
 
 	for (step = 0; step < ecc_steps; step++) {
 		/* configure controller for WRITE access */
-		chip->ecc.hwctl(mtd, NAND_ECC_WRITE);
+		chip->ecc.hwctl(chip, NAND_ECC_WRITE);
 
 		/* write data (untouched subpages already masked by 0xFF) */
 		ret = nand_write_data_op(chip, buf, ecc_size, false);
@@ -4272,7 +4272,7 @@ static int nand_write_page_syndrome(struct mtd_info *mtd,
 		return ret;
 
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
-		chip->ecc.hwctl(mtd, NAND_ECC_WRITE);
+		chip->ecc.hwctl(chip, NAND_ECC_WRITE);
 
 		ret = nand_write_data_op(chip, p, eccsize, false);
 		if (ret)

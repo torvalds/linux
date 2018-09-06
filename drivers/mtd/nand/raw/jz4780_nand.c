@@ -116,9 +116,9 @@ static int jz4780_nand_dev_ready(struct mtd_info *mtd)
 	return !gpiod_get_value_cansleep(nand->busy_gpio);
 }
 
-static void jz4780_nand_ecc_hwctl(struct mtd_info *mtd, int mode)
+static void jz4780_nand_ecc_hwctl(struct nand_chip *chip, int mode)
 {
-	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(mtd);
+	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(nand_to_mtd(chip));
 
 	nand->reading = (mode == NAND_ECC_READ);
 }

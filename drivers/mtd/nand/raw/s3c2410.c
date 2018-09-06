@@ -591,31 +591,34 @@ static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
  * generator block to ECC the data as it passes through]
 */
 
-static void s3c2410_nand_enable_hwecc(struct mtd_info *mtd, int mode)
+static void s3c2410_nand_enable_hwecc(struct nand_chip *chip, int mode)
 {
-	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
+	struct s3c2410_nand_info *info;
 	unsigned long ctrl;
 
+	info = s3c2410_nand_mtd_toinfo(nand_to_mtd(chip));
 	ctrl = readl(info->regs + S3C2410_NFCONF);
 	ctrl |= S3C2410_NFCONF_INITECC;
 	writel(ctrl, info->regs + S3C2410_NFCONF);
 }
 
-static void s3c2412_nand_enable_hwecc(struct mtd_info *mtd, int mode)
+static void s3c2412_nand_enable_hwecc(struct nand_chip *chip, int mode)
 {
-	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
+	struct s3c2410_nand_info *info;
 	unsigned long ctrl;
 
+	info = s3c2410_nand_mtd_toinfo(nand_to_mtd(chip));
 	ctrl = readl(info->regs + S3C2440_NFCONT);
 	writel(ctrl | S3C2412_NFCONT_INIT_MAIN_ECC,
 	       info->regs + S3C2440_NFCONT);
 }
 
-static void s3c2440_nand_enable_hwecc(struct mtd_info *mtd, int mode)
+static void s3c2440_nand_enable_hwecc(struct nand_chip *chip, int mode)
 {
-	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
+	struct s3c2410_nand_info *info;
 	unsigned long ctrl;
 
+	info = s3c2410_nand_mtd_toinfo(nand_to_mtd(chip));
 	ctrl = readl(info->regs + S3C2440_NFCONT);
 	writel(ctrl | S3C2440_NFCONT_INITECC, info->regs + S3C2440_NFCONT);
 }

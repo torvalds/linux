@@ -134,9 +134,9 @@ static int jz_nand_dev_ready(struct mtd_info *mtd)
 	return gpiod_get_value_cansleep(nand->busy_gpio);
 }
 
-static void jz_nand_hwctl(struct mtd_info *mtd, int mode)
+static void jz_nand_hwctl(struct nand_chip *chip, int mode)
 {
-	struct jz_nand *nand = mtd_to_jz_nand(mtd);
+	struct jz_nand *nand = mtd_to_jz_nand(nand_to_mtd(chip));
 	uint32_t reg;
 
 	writel(0, nand->base + JZ_REG_NAND_IRQ_STAT);
