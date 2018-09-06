@@ -98,6 +98,7 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		rockchip,evb-irdrop = <25000>;
 		nvmem-cells = <&cpu_leakage>;
 		nvmem-cell-names = "leakage";
 
@@ -226,6 +227,8 @@
 
 	dmc_opp_table: dmc-opp-table {
 		compatible = "operating-points-v2";
+
+		rockchip,evb-irdrop = <25000>;
 
 		opp-394000000 {
 			opp-hz = /bits/ 64 <394000000>;
