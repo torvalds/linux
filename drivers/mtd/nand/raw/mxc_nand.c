@@ -701,7 +701,7 @@ static void mxc_nand_enable_hwecc_v3(struct nand_chip *chip, bool enable)
 }
 
 /* This functions is used by upper layer to checks if device is ready */
-static int mxc_nand_dev_ready(struct mtd_info *mtd)
+static int mxc_nand_dev_ready(struct nand_chip *chip)
 {
 	/*
 	 * NFC handles R/B internally. Therefore, this function

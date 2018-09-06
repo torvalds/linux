@@ -460,9 +460,9 @@ static void nand_davinci_write_buf(struct nand_chip *chip, const uint8_t *buf,
  * Check hardware register for wait status. Returns 1 if device is ready,
  * 0 if it is still busy.
  */
-static int nand_davinci_dev_ready(struct mtd_info *mtd)
+static int nand_davinci_dev_ready(struct nand_chip *chip)
 {
-	struct davinci_nand_info *info = to_davinci_nand(mtd);
+	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(chip));
 
 	return davinci_nand_readl(info, NANDFSR_OFFSET) & BIT(0);
 }

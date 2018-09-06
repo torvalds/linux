@@ -109,9 +109,9 @@ static void jz4780_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
 		writeb(cmd, cs->base + OFFSET_CMD);
 }
 
-static int jz4780_nand_dev_ready(struct mtd_info *mtd)
+static int jz4780_nand_dev_ready(struct nand_chip *chip)
 {
-	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(mtd);
+	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(nand_to_mtd(chip));
 
 	return !gpiod_get_value_cansleep(nand->busy_gpio);
 }

@@ -373,7 +373,7 @@ static int r852_wait(struct mtd_info *mtd, struct nand_chip *chip)
 		msecs_to_jiffies(400) : msecs_to_jiffies(20));
 
 	while (time_before(jiffies, timeout))
-		if (chip->dev_ready(mtd))
+		if (chip->dev_ready(chip))
 			break;
 
 	nand_status_op(chip, &status);
@@ -390,9 +390,9 @@ static int r852_wait(struct mtd_info *mtd, struct nand_chip *chip)
  * Check if card is ready
  */
 
-static int r852_ready(struct mtd_info *mtd)
+static int r852_ready(struct nand_chip *chip)
 {
-	struct r852_device *dev = r852_get_dev(mtd);
+	struct r852_device *dev = r852_get_dev(nand_to_mtd(chip));
 	return !(r852_read_reg(dev, R852_CARD_STA) & R852_CARD_STA_BUSY);
 }
 

@@ -94,9 +94,9 @@ static void gpio_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
 	gpio_nand_dosync(gpiomtd);
 }
 
-static int gpio_nand_devready(struct mtd_info *mtd)
+static int gpio_nand_devready(struct nand_chip *chip)
 {
-	struct gpiomtd *gpiomtd = gpio_nand_getpriv(mtd);
+	struct gpiomtd *gpiomtd = gpio_nand_getpriv(nand_to_mtd(chip));
 
 	return gpiod_get_value(gpiomtd->rdy);
 }

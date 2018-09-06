@@ -320,7 +320,7 @@ static void ads5121_select_chip(struct nand_chip *nand, int chip)
 }
 
 /* Read NAND Ready/Busy signal */
-static int mpc5121_nfc_dev_ready(struct mtd_info *mtd)
+static int mpc5121_nfc_dev_ready(struct nand_chip *nand)
 {
 	/*
 	 * NFC handles ready/busy signal internally. Therefore, this function

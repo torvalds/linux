@@ -119,7 +119,7 @@ static void cmx270_hwcontrol(struct nand_chip *this, int dat,
 /*
  *	read device ready pin
  */
-static int cmx270_device_ready(struct mtd_info *mtd)
+static int cmx270_device_ready(struct nand_chip *this)
 {
 	dsb();
 

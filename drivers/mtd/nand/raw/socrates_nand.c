@@ -112,9 +112,8 @@ static void socrates_nand_cmd_ctrl(struct nand_chip *nand_chip, int cmd,
 /*
  * Read the Device Ready pin.
  */
-static int socrates_nand_device_ready(struct mtd_info *mtd)
+static int socrates_nand_device_ready(struct nand_chip *nand_chip)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct socrates_nand_host *host = nand_get_controller_data(nand_chip);
 
 	if (in_be32(host->io_base) & FPGA_NAND_BUSY)

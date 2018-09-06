@@ -52,9 +52,9 @@ static inline struct fsl_upm_nand *to_fsl_upm_nand(struct mtd_info *mtdinfo)
 			    chip);
 }
 
-static int fun_chip_ready(struct mtd_info *mtd)
+static int fun_chip_ready(struct nand_chip *chip)
 {
-	struct fsl_upm_nand *fun = to_fsl_upm_nand(mtd);
+	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
 
 	if (gpio_get_value(fun->rnb_gpio[fun->mchip_number]))
 		return 1;
@@ -69,7 +69,7 @@ static void fun_wait_rnb(struct fsl_upm_nand *fun)
 		struct mtd_info *mtd = nand_to_mtd(&fun->chip);
 		int cnt = 1000000;
 
-		while (--cnt && !fun_chip_ready(mtd))
+		while (--cnt && !fun_chip_ready(&fun->chip))
 			cpu_relax();
 		if (!cnt)
 			dev_err(fun->dev, "tired waiting for RNB\n");

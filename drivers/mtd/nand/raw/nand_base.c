@@ -603,7 +603,7 @@ static void panic_nand_wait_ready(struct mtd_info *mtd, unsigned long timeo)
 
 	/* Wait for the device to get ready */
 	for (i = 0; i < timeo; i++) {
-		if (chip->dev_ready(mtd))
+		if (chip->dev_ready(chip))
 			break;
 		touch_softlockup_watchdog();
 		mdelay(1);
@@ -627,12 +627,12 @@ void nand_wait_ready(struct nand_chip *chip)
 	/* Wait until command is processed or timeout occurs */
 	timeo = jiffies + msecs_to_jiffies(timeo);
 	do {
-		if (chip->dev_ready(mtd))
+		if (chip->dev_ready(chip))
 			return;
 		cond_resched();
 	} while (time_before(jiffies, timeo));
 
-	if (!chip->dev_ready(mtd))
+	if (!chip->dev_ready(chip))
 		pr_warn_ratelimited("timeout while waiting for chip to become ready\n");
 }
 EXPORT_SYMBOL_GPL(nand_wait_ready);
@@ -1068,7 +1068,7 @@ static void panic_nand_wait(struct mtd_info *mtd, struct nand_chip *chip,
 	int i;
 	for (i = 0; i < timeo; i++) {
 		if (chip->dev_ready) {
-			if (chip->dev_ready(mtd))
+			if (chip->dev_ready(chip))
 				break;
 		} else {
 			int ret;
@@ -1116,7 +1116,7 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 		timeo = jiffies + msecs_to_jiffies(timeo);
 		do {
 			if (chip->dev_ready) {
-				if (chip->dev_ready(mtd))
+				if (chip->dev_ready(chip))
 					break;
 			} else {
 				ret = nand_read_data_op(chip, &status,

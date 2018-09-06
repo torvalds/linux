@@ -71,9 +71,8 @@ static void ndfc_hwcontrol(struct nand_chip *chip, int cmd, unsigned int ctrl)
 		writel(cmd & 0xFF, ndfc->ndfcbase + NDFC_ALE);
 }
 
-static int ndfc_ready(struct mtd_info *mtd)
+static int ndfc_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = nand_get_controller_data(chip);
 
 	return in_be32(ndfc->ndfcbase + NDFC_STAT) & NDFC_STAT_IS_READY;

@@ -127,9 +127,9 @@ static void jz_nand_cmd_ctrl(struct nand_chip *chip, int dat,
 		writeb(dat, chip->IO_ADDR_W);
 }
 
-static int jz_nand_dev_ready(struct mtd_info *mtd)
+static int jz_nand_dev_ready(struct nand_chip *chip)
 {
-	struct jz_nand *nand = mtd_to_jz_nand(mtd);
+	struct jz_nand *nand = mtd_to_jz_nand(nand_to_mtd(chip));
 	return gpiod_get_value_cansleep(nand->busy_gpio);
 }
 

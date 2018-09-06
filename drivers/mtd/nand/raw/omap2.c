@@ -1021,9 +1021,9 @@ static int omap_wait(struct mtd_info *mtd, struct nand_chip *chip)
  *
  * Returns true if ready and false if busy.
  */
-static int omap_dev_ready(struct mtd_info *mtd)
+static int omap_dev_ready(struct nand_chip *chip)
 {
-	struct omap_nand_info *info = mtd_to_omap(mtd);
+	struct omap_nand_info *info = mtd_to_omap(nand_to_mtd(chip));
 
 	return gpiod_get_value(info->ready_gpiod);
 }

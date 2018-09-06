@@ -120,9 +120,9 @@ static int nuc900_check_rb(struct nuc900_nand *nand)
 	return val;
 }
 
-static int nuc900_nand_devready(struct mtd_info *mtd)
+static int nuc900_nand_devready(struct nand_chip *chip)
 {
-	struct nuc900_nand *nand = mtd_to_nuc900(mtd);
+	struct nuc900_nand *nand = mtd_to_nuc900(nand_to_mtd(chip));
 	int ready;
 
 	ready = (nuc900_check_rb(nand)) ? 1 : 0;
@@ -205,7 +205,7 @@ static void nuc900_nand_command_lp(struct mtd_info *mtd, unsigned int command,
 	 * any case on any machine. */
 	ndelay(100);
 
-	while (!chip->dev_ready(mtd))
+	while (!chip->dev_ready(chip))
 		;
 }
 

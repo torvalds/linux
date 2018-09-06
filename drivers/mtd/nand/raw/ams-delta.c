@@ -130,7 +130,7 @@ static void ams_delta_hwcontrol(struct nand_chip *this, int cmd,
 		ams_delta_write_byte(this, cmd);
 }
 
-static int ams_delta_nand_ready(struct mtd_info *mtd)
+static int ams_delta_nand_ready(struct nand_chip *this)
 {
 	return gpio_get_value(AMS_DELTA_GPIO_PIN_NAND_RB);
 }

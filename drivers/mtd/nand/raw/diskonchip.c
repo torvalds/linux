@@ -739,12 +739,11 @@ static void doc2001plus_command(struct mtd_info *mtd, unsigned command, int colu
 	 * any case on any machine. */
 	ndelay(100);
 	/* wait until command is processed */
-	while (!this->dev_ready(mtd)) ;
+	while (!this->dev_ready(this)) ;
 }
 
-static int doc200x_dev_ready(struct mtd_info *mtd)
+static int doc200x_dev_ready(struct nand_chip *this)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 

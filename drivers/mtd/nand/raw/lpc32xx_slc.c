@@ -303,9 +303,8 @@ static void lpc32xx_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
 /*
  * Read the Device Ready pin
  */
-static int lpc32xx_nand_device_ready(struct mtd_info *mtd)
+static int lpc32xx_nand_device_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 	int rdy = 0;
 

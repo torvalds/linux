@@ -127,9 +127,8 @@ static void tango_cmd_ctrl(struct nand_chip *chip, int dat, unsigned int ctrl)
 		writeb_relaxed(dat, tchip->base + PBUS_ADDR);
 }
 
-static int tango_dev_ready(struct mtd_info *mtd)
+static int tango_dev_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct tango_nfc *nfc = to_tango_nfc(chip->controller);
 
 	return readl_relaxed(nfc->pbus_base + PBUS_CS_CTRL) & PBUS_IORDY;

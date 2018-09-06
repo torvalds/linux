@@ -121,7 +121,7 @@ static void xway_cmd_ctrl(struct nand_chip *chip, int cmd, unsigned int ctrl)
 		;
 }
 
-static int xway_dev_ready(struct mtd_info *mtd)
+static int xway_dev_ready(struct nand_chip *chip)
 {
 	return ltq_ebu_r32(EBU_NAND_WAIT) & NAND_WAIT_RD;
 }

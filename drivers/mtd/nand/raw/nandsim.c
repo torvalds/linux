@@ -2099,7 +2099,7 @@ static void ns_hwcontrol(struct nand_chip *chip, int cmd, unsigned int bitmask)
 		ns_nand_write_byte(chip, cmd);
 }
 
-static int ns_device_ready(struct mtd_info *mtd)
+static int ns_device_ready(struct nand_chip *chip)
 {
 	NS_DBG("device_ready\n");
 	return 1;

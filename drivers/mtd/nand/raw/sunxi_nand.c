@@ -400,9 +400,8 @@ static void sunxi_nfc_dma_op_cleanup(struct mtd_info *mtd,
 	       nfc->regs + NFC_REG_CTL);
 }
 
-static int sunxi_nfc_dev_ready(struct mtd_info *mtd)
+static int sunxi_nfc_dev_ready(struct nand_chip *nand)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(sunxi_nand->nand.controller);
 	u32 mask;

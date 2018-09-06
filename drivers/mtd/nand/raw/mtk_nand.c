@@ -402,9 +402,9 @@ static void mtk_nfc_select_chip(struct nand_chip *nand, int chip)
 	nfi_writel(nfc, mtk_nand->sels[chip], NFI_CSEL);
 }
 
-static int mtk_nfc_dev_ready(struct mtd_info *mtd)
+static int mtk_nfc_dev_ready(struct nand_chip *nand)
 {
-	struct mtk_nfc *nfc = nand_get_controller_data(mtd_to_nand(mtd));
+	struct mtk_nfc *nfc = nand_get_controller_data(nand);
 
 	if (nfi_readl(nfc, NFI_STA) & STA_BUSY)
 		return 0;

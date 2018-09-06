@@ -141,9 +141,8 @@ static void cs553x_hwcontrol(struct nand_chip *this, int cmd,
 		cs553x_write_byte(this, cmd);
 }
 
-static int cs553x_device_ready(struct mtd_info *mtd)
+static int cs553x_device_ready(struct nand_chip *this)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	void __iomem *mmio_base = this->IO_ADDR_R;
 	unsigned char foo = readb(mmio_base + MM_NAND_STS);
 

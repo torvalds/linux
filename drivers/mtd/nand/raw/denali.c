@@ -296,9 +296,9 @@ static void denali_cmd_ctrl(struct nand_chip *chip, int dat, unsigned int ctrl)
 	denali->host_write(denali, DENALI_BANK(denali) | type, dat);
 }
 
-static int denali_dev_ready(struct mtd_info *mtd)
+static int denali_dev_ready(struct nand_chip *chip)
 {
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
+	struct denali_nand_info *denali = mtd_to_denali(nand_to_mtd(chip));
 
 	return !!(denali_check_irq(denali) & INTR__INT_ACT);
 }

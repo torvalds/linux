@@ -158,9 +158,9 @@ static void tmio_nand_hwcontrol(struct nand_chip *chip, int cmd,
 		tmio_iowrite8(cmd, chip->IO_ADDR_W);
 }
 
-static int tmio_nand_dev_ready(struct mtd_info *mtd)
+static int tmio_nand_dev_ready(struct nand_chip *chip)
 {
-	struct tmio_nand *tmio = mtd_to_tmio(mtd);
+	struct tmio_nand *tmio = mtd_to_tmio(nand_to_mtd(chip));
 
 	return !(tmio_ioread8(tmio->fcr + FCR_STATUS) & FCR_STATUS_BUSY);
 }
@@ -198,10 +198,10 @@ tmio_nand_wait(struct mtd_info *mtd, struct nand_chip *nand_chip)
 	tmio_iowrite8(0x81, tmio->fcr + FCR_IMR);
 
 	timeout = wait_event_timeout(nand_chip->controller->wq,
-		tmio_nand_dev_ready(mtd),
+		tmio_nand_dev_ready(nand_chip),
 		msecs_to_jiffies(nand_chip->state == FL_ERASING ? 400 : 20));
 
-	if (unlikely(!tmio_nand_dev_ready(mtd))) {
+	if (unlikely(!tmio_nand_dev_ready(nand_chip))) {
 		tmio_iowrite8(0x00, tmio->fcr + FCR_IMR);
 		dev_warn(&tmio->dev->dev, "still busy with %s after %d ms\n",
 			nand_chip->state == FL_ERASING ? "erase" : "program",

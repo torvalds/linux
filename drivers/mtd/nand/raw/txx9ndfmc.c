@@ -162,9 +162,9 @@ static void txx9ndfmc_cmd_ctrl(struct nand_chip *chip, int cmd,
 	mmiowb();
 }
 
-static int txx9ndfmc_dev_ready(struct mtd_info *mtd)
+static int txx9ndfmc_dev_ready(struct nand_chip *chip)
 {
-	struct platform_device *dev = mtd_to_platdev(mtd);
+	struct platform_device *dev = mtd_to_platdev(nand_to_mtd(chip));
 
 	return !(txx9ndfmc_read(dev, TXX9_NDFSR) & TXX9_NDFSR_BUSY);
 }

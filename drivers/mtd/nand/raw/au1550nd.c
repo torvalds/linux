@@ -213,7 +213,7 @@ static void au1550_hwcontrol(struct mtd_info *mtd, int cmd)
 	wmb(); /* Drain the writebuffer */
 }
 
-int au1550_device_ready(struct mtd_info *mtd)
+int au1550_device_ready(struct nand_chip *this)
 {
 	return (alchemy_rdsmem(AU1000_MEM_STSTAT) & 0x1) ? 1 : 0;
 }
@@ -341,7 +341,7 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 		/* Apply a short delay always to ensure that we do wait tWB. */
 		ndelay(100);
 		/* Wait for a chip to become ready... */
-		for (i = this->chip_delay; !this->dev_ready(mtd) && i > 0; --i)
+		for (i = this->chip_delay; !this->dev_ready(this) && i > 0; --i)
 			udelay(1);
 
 		/* Release -CE and re-enable interrupts. */
@@ -352,7 +352,7 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 	/* Apply this short delay always to ensure that we do wait tWB. */
 	ndelay(100);
 
-	while(!this->dev_ready(mtd));
+	while(!this->dev_ready(this));
 }
 
 static int find_nand_cs(unsigned long nand_base)

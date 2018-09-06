@@ -196,9 +196,8 @@ static void bcm47xxnflash_ops_bcm4706_select_chip(struct nand_chip *chip,
 	return;
 }
 
-static int bcm47xxnflash_ops_bcm4706_dev_ready(struct mtd_info *mtd)
+static int bcm47xxnflash_ops_bcm4706_dev_ready(struct nand_chip *nand_chip)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct bcm47xxnflash *b47n = nand_get_controller_data(nand_chip);
 
 	return !!(bcma_cc_read32(b47n->cc, BCMA_CC_NFLASH_CTL) & NCTL_READY);

@@ -475,9 +475,8 @@ static void atmel_nand_write_buf(struct nand_chip *chip, const u8 *buf, int len)
 		iowrite8_rep(nand->activecs->io.virt, buf, len);
 }
 
-static int atmel_nand_dev_ready(struct mtd_info *mtd)
+static int atmel_nand_dev_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 
 	return gpiod_get_value(nand->activecs->rb.gpio);
@@ -499,9 +498,8 @@ static void atmel_nand_select_chip(struct nand_chip *chip, int cs)
 		chip->dev_ready = atmel_nand_dev_ready;
 }
 
-static int atmel_hsmc_nand_dev_ready(struct mtd_info *mtd)
+static int atmel_hsmc_nand_dev_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 	struct atmel_hsmc_nand_controller *nc;
 	u32 status;

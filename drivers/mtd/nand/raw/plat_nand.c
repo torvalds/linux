@@ -23,13 +23,6 @@ struct plat_nand_data {
 	void __iomem		*io_base;
 };
 
-static int plat_nand_dev_ready(struct mtd_info *mtd)
-{
-	struct platform_nand_data *pdata = dev_get_platdata(mtd->dev.parent);
-
-	return pdata->ctrl.dev_ready(mtd_to_nand(mtd));
-}
-
 /*
  * Probe for the NAND device.
  */
@@ -70,10 +63,7 @@ static int plat_nand_probe(struct platform_device *pdev)
 	data->chip.IO_ADDR_R = data->io_base;
 	data->chip.IO_ADDR_W = data->io_base;
 	data->chip.cmd_ctrl = pdata->ctrl.cmd_ctrl;
-
-	if (pdata->ctrl.dev_ready)
-		data->chip.dev_ready = plat_nand_dev_ready;
-
+	data->chip.dev_ready = pdata->ctrl.dev_ready;
 	data->chip.select_chip = pdata->ctrl.select_chip;
 	data->chip.write_buf = pdata->ctrl.write_buf;
 	data->chip.read_buf = pdata->ctrl.read_buf;

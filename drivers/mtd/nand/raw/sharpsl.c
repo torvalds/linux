@@ -78,9 +78,9 @@ static void sharpsl_nand_hwcontrol(struct nand_chip *chip, int cmd,
 		writeb(cmd, chip->IO_ADDR_W);
 }
 
-static int sharpsl_nand_dev_ready(struct mtd_info *mtd)
+static int sharpsl_nand_dev_ready(struct nand_chip *chip)
 {
-	struct sharpsl_nand *sharpsl = mtd_to_sharpsl(mtd);
+	struct sharpsl_nand *sharpsl = mtd_to_sharpsl(nand_to_mtd(chip));
 	return !((readb(sharpsl->io + FLASHCTL) & FLRYBY) == 0);
 }
 

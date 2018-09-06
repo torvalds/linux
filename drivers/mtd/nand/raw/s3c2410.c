@@ -493,20 +493,23 @@ static void s3c2440_nand_hwcontrol(struct nand_chip *chip, int cmd,
  * returns 0 if the nand is busy, 1 if it is ready
 */
 
-static int s3c2410_nand_devready(struct mtd_info *mtd)
+static int s3c2410_nand_devready(struct nand_chip *chip)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	return readb(info->regs + S3C2410_NFSTAT) & S3C2410_NFSTAT_BUSY;
 }
 
-static int s3c2440_nand_devready(struct mtd_info *mtd)
+static int s3c2440_nand_devready(struct nand_chip *chip)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	return readb(info->regs + S3C2440_NFSTAT) & S3C2440_NFSTAT_READY;
 }
 
-static int s3c2412_nand_devready(struct mtd_info *mtd)
+static int s3c2412_nand_devready(struct nand_chip *chip)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	return readb(info->regs + S3C2412_NFSTAT) & S3C2412_NFSTAT_READY;
 }

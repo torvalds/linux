@@ -816,9 +816,8 @@ static void gpmi_cmd_ctrl(struct nand_chip *chip, int data, unsigned int ctrl)
 	this->command_length = 0;
 }
 
-static int gpmi_dev_ready(struct mtd_info *mtd)
+static int gpmi_dev_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 
 	return gpmi_is_ready(this, this->current_chip);
