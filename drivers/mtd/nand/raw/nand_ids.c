@@ -6,8 +6,10 @@
  * published by the Free Software Foundation.
  *
  */
-#include <linux/mtd/rawnand.h>
+
 #include <linux/sizes.h>
+
+#include "internals.h"
 
 #define LP_OPTIONS 0
 #define LP_OPTIONS16 (LP_OPTIONS | NAND_BUSWIDTH_16)

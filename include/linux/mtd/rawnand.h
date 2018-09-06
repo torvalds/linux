@@ -776,24 +776,6 @@ nand_get_sdr_timings(const struct nand_data_interface *conf)
 }
 
 /**
- * struct nand_manufacturer_ops - NAND Manufacturer operations
- * @detect: detect the NAND memory organization and capabilities
- * @init: initialize all vendor specific fields (like the ->read_retry()
- *	  implementation) if any.
- * @cleanup: the ->init() function may have allocated resources, ->cleanup()
- *	     is here to let vendor specific code release those resources.
- * @fixup_onfi_param_page: apply vendor specific fixups to the ONFI parameter
- *			   page. This is called after the checksum is verified.
- */
-struct nand_manufacturer_ops {
-	void (*detect)(struct nand_chip *chip);
-	int (*init)(struct nand_chip *chip);
-	void (*cleanup)(struct nand_chip *chip);
-	void (*fixup_onfi_param_page)(struct nand_chip *chip,
-				      struct nand_onfi_params *p);
-};
-
-/**
  * struct nand_op_cmd_instr - Definition of a command instruction
  * @opcode: the command to issue in one cycle
  */
@@ -1404,27 +1386,6 @@ static inline void *nand_get_manufacturer_data(struct nand_chip *chip)
 }
 
 /*
- * NAND Flash Manufacturer ID Codes
- */
-#define NAND_MFR_TOSHIBA	0x98
-#define NAND_MFR_ESMT		0xc8
-#define NAND_MFR_SAMSUNG	0xec
-#define NAND_MFR_FUJITSU	0x04
-#define NAND_MFR_NATIONAL	0x8f
-#define NAND_MFR_RENESAS	0x07
-#define NAND_MFR_STMICRO	0x20
-#define NAND_MFR_HYNIX		0xad
-#define NAND_MFR_MICRON		0x2c
-#define NAND_MFR_AMD		0x01
-#define NAND_MFR_MACRONIX	0xc2
-#define NAND_MFR_EON		0x92
-#define NAND_MFR_SANDISK	0x45
-#define NAND_MFR_INTEL		0x89
-#define NAND_MFR_ATO		0x9b
-#define NAND_MFR_WINBOND	0xef
-
-
-/*
  * A helper for defining older NAND chips where the second ID byte fully
  * defined the chip, including the geometry (chip size, eraseblock size, page
  * size). All these chips have 512 bytes NAND page size.
@@ -1503,46 +1464,7 @@ struct nand_flash_dev {
 	int onfi_timing_mode_default;
 };
 
-/**
- * struct nand_manufacturer - NAND Flash Manufacturer structure
- * @name:	Manufacturer name
- * @id:		manufacturer ID code of device.
- * @ops:	manufacturer operations
-*/
-struct nand_manufacturer {
-	int id;
-	char *name;
-	const struct nand_manufacturer_ops *ops;
-};
-
-const struct nand_manufacturer *nand_get_manufacturer(u8 id);
-
-static inline const char *
-nand_manufacturer_name(const struct nand_manufacturer *manufacturer)
-{
-	return manufacturer ? manufacturer->name : "Unknown";
-}
-
-extern struct nand_flash_dev nand_flash_ids[];
-
-extern const struct nand_manufacturer_ops toshiba_nand_manuf_ops;
-extern const struct nand_manufacturer_ops samsung_nand_manuf_ops;
-extern const struct nand_manufacturer_ops hynix_nand_manuf_ops;
-extern const struct nand_manufacturer_ops micron_nand_manuf_ops;
-extern const struct nand_manufacturer_ops amd_nand_manuf_ops;
-extern const struct nand_manufacturer_ops macronix_nand_manuf_ops;
-
 int nand_create_bbt(struct nand_chip *chip);
-int nand_markbad_bbt(struct nand_chip *chip, loff_t offs);
-int nand_markbad_bbm(struct nand_chip *chip, loff_t ofs);
-int nand_isreserved_bbt(struct nand_chip *chip, loff_t offs);
-int nand_isbad_bbt(struct nand_chip *chip, loff_t offs, int allowbbt);
-int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,
-		    int allowbbt);
-
-int onfi_fill_data_interface(struct nand_chip *chip,
-			     enum nand_data_interface_type type,
-			     int timing_mode);
 
 /*
  * Check if it is a SLC nand.
@@ -1574,7 +1496,6 @@ static inline int nand_opcode_8bits(unsigned int command)
 	return 0;
 }
 
-
 int nand_check_erased_ecc_chunk(void *data, int datalen,
 				void *ecc, int ecclen,
 				void *extraoob, int extraooblen,
@@ -1586,18 +1507,9 @@ int nand_ecc_choose_conf(struct nand_chip *chip,
 /* Default write_oob implementation */
 int nand_write_oob_std(struct nand_chip *chip, int page);
 
-/* Default write_oob syndrome implementation */
-int nand_write_oob_syndrome(struct nand_chip *chip, int page);
-
 /* Default read_oob implementation */
 int nand_read_oob_std(struct nand_chip *chip, int page);
 
-/* Default read_oob syndrome implementation */
-int nand_read_oob_syndrome(struct nand_chip *chip, int page);
-
-/* Wrapper to use in order for controllers/vendors to GET/SET FEATURES */
-int nand_get_features(struct nand_chip *chip, int addr, u8 *subfeature_param);
-int nand_set_features(struct nand_chip *chip, int addr, u8 *subfeature_param);
 /* Stub used by drivers that do not support GET/SET FEATURES operations */
 int nand_get_set_features_notsupp(struct nand_chip *chip, int addr,
 				  u8 *subfeature_param);
@@ -1605,14 +1517,10 @@ int nand_get_set_features_notsupp(struct nand_chip *chip, int addr,
 /* Default read_page_raw implementation */
 int nand_read_page_raw(struct nand_chip *chip, uint8_t *buf, int oob_required,
 		       int page);
-int nand_read_page_raw_notsupp(struct nand_chip *chip, u8 *buf,
-			       int oob_required, int page);
 
 /* Default write_page_raw implementation */
 int nand_write_page_raw(struct nand_chip *chip, const uint8_t *buf,
 			int oob_required, int page);
-int nand_write_page_raw_notsupp(struct nand_chip *chip, const u8 *buf,
-				int oob_required, int page);
 
 /* Reset and initialize a NAND device */
 int nand_reset(struct nand_chip *chip, int chipnr);
@@ -1622,7 +1530,6 @@ int nand_reset_op(struct nand_chip *chip);
 int nand_readid_op(struct nand_chip *chip, u8 addr, void *buf,
 		   unsigned int len);
 int nand_status_op(struct nand_chip *chip, u8 *status);
-int nand_exit_status_op(struct nand_chip *chip);
 int nand_erase_op(struct nand_chip *chip, unsigned int eraseblock);
 int nand_read_page_op(struct nand_chip *chip, unsigned int page,
 		      unsigned int offset_in_page, void *buf, unsigned int len);
@@ -1665,9 +1572,6 @@ void nand_wait_ready(struct nand_chip *chip);
 void nand_cleanup(struct nand_chip *chip);
 /* Unregister the MTD device and calls nand_cleanup() */
 void nand_release(struct nand_chip *chip);
-
-/* Default extended ID decoding function */
-void nand_decode_ext_id(struct nand_chip *chip);
 
 /*
  * External helper for controller drivers that have to implement the WAITRDY

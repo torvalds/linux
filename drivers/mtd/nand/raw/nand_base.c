@@ -39,7 +39,6 @@
 #include <linux/nmi.h>
 #include <linux/types.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/rawnand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/nand_bch.h>
 #include <linux/interrupt.h>
@@ -47,6 +46,8 @@
 #include <linux/io.h>
 #include <linux/mtd/partitions.h>
 #include <linux/of.h>
+
+#include "internals.h"
 
 static int nand_get_device(struct mtd_info *mtd, int new_state);
 
@@ -1319,7 +1320,6 @@ static int nand_init_data_interface(struct nand_chip *chip)
 		modes = GENMASK(chip->onfi_timing_mode_default, 0);
 	}
 
-
 	for (mode = fls(modes) - 1; mode >= 0; mode--) {
 		ret = onfi_fill_data_interface(chip, NAND_SDR_IFACE, mode);
 		if (ret)
@@ -2043,7 +2043,6 @@ int nand_exit_status_op(struct nand_chip *chip)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(nand_exit_status_op);
 
 /**
  * nand_erase_op - Do an erase operation
@@ -2816,7 +2815,6 @@ int nand_get_features(struct nand_chip *chip, int addr,
 
 	return nand_get_features_op(chip, addr, subfeature_param);
 }
-EXPORT_SYMBOL_GPL(nand_get_features);
 
 /**
  * nand_set_features - wrapper to perform a SET_FEATURE
@@ -2838,7 +2836,6 @@ int nand_set_features(struct nand_chip *chip, int addr,
 
 	return nand_set_features_op(chip, addr, subfeature_param);
 }
-EXPORT_SYMBOL_GPL(nand_set_features);
 
 /**
  * nand_check_erased_buf - check if a buffer contains (almost) only 0xff data
@@ -2985,7 +2982,6 @@ int nand_read_page_raw_notsupp(struct nand_chip *chip, u8 *buf,
 {
 	return -ENOTSUPP;
 }
-EXPORT_SYMBOL(nand_read_page_raw_notsupp);
 
 /**
  * nand_read_page_raw - [INTERN] read raw page data without ecc
@@ -3729,7 +3725,7 @@ EXPORT_SYMBOL(nand_read_oob_std);
  * @chip: nand chip info structure
  * @page: page number to read
  */
-int nand_read_oob_syndrome(struct nand_chip *chip, int page)
+static int nand_read_oob_syndrome(struct nand_chip *chip, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int length = mtd->oobsize;
@@ -3776,7 +3772,6 @@ int nand_read_oob_syndrome(struct nand_chip *chip, int page)
 
 	return 0;
 }
-EXPORT_SYMBOL(nand_read_oob_syndrome);
 
 /**
  * nand_write_oob_std - [REPLACEABLE] the most common OOB data write function
@@ -3798,7 +3793,7 @@ EXPORT_SYMBOL(nand_write_oob_std);
  * @chip: nand chip info structure
  * @page: page number to write
  */
-int nand_write_oob_syndrome(struct nand_chip *chip, int page)
+static int nand_write_oob_syndrome(struct nand_chip *chip, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int chunk = chip->ecc.bytes + chip->ecc.prepad + chip->ecc.postpad;
@@ -3864,7 +3859,6 @@ int nand_write_oob_syndrome(struct nand_chip *chip, int page)
 
 	return nand_prog_page_end_op(chip);
 }
-EXPORT_SYMBOL(nand_write_oob_syndrome);
 
 /**
  * nand_do_read_oob - [INTERN] NAND read out-of-band
@@ -3989,7 +3983,6 @@ int nand_write_page_raw_notsupp(struct nand_chip *chip, const u8 *buf,
 {
 	return -ENOTSUPP;
 }
-EXPORT_SYMBOL(nand_write_page_raw_notsupp);
 
 /**
  * nand_write_page_raw - [INTERN] raw page write function
@@ -5577,6 +5570,12 @@ static void nand_manufacturer_cleanup(struct nand_chip *chip)
 	if (chip->manufacturer.desc && chip->manufacturer.desc->ops &&
 	    chip->manufacturer.desc->ops->cleanup)
 		chip->manufacturer.desc->ops->cleanup(chip);
+}
+
+static const char *
+nand_manufacturer_name(const struct nand_manufacturer *manufacturer)
+{
+	return manufacturer ? manufacturer->name : "Unknown";
 }
 
 /*

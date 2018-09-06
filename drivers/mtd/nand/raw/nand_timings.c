@@ -11,7 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/export.h>
-#include <linux/mtd/rawnand.h>
+
+#include "internals.h"
 
 #define ONFI_DYN_TIMING_MAX U16_MAX
 
@@ -325,4 +326,3 @@ int onfi_fill_data_interface(struct nand_chip *chip,
 
 	return 0;
 }
-EXPORT_SYMBOL(onfi_fill_data_interface);

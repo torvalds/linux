@@ -15,8 +15,9 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/mtd/rawnand.h>
 #include <linux/slab.h>
+
+#include "internals.h"
 
 /*
  * Special Micron status bit 3 indicates that the block has been

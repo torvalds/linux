@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/mtd/rawnand.h>
+#include "internals.h"
 
 /* Bit for detecting BENAND */
 #define TOSHIBA_NAND_ID4_IS_BENAND		BIT(7)

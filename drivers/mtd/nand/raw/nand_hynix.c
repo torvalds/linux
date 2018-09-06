@@ -15,9 +15,10 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/mtd/rawnand.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
+
+#include "internals.h"
 
 #define NAND_HYNIX_CMD_SET_PARAMS	0x36
 #define NAND_HYNIX_CMD_APPLY_PARAMS	0x16

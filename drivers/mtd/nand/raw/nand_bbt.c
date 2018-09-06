@@ -61,12 +61,13 @@
 #include <linux/types.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/bbm.h>
-#include <linux/mtd/rawnand.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
 #include <linux/export.h>
 #include <linux/string.h>
+
+#include "internals.h"
 
 #define BBT_BLOCK_GOOD		0x00
 #define BBT_BLOCK_WORN		0x01
