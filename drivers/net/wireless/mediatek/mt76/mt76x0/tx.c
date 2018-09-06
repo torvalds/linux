@@ -16,21 +16,6 @@
 #include "trace.h"
 #include "../mt76x02_util.h"
 
-void mt76x0_tx_status(struct mt76x0_dev *dev, struct sk_buff *skb)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-
-	mt76x02_remove_dma_hdr(skb);
-
-	ieee80211_tx_info_clear_status(info);
-	info->status.rates[0].idx = -1;
-	info->flags |= IEEE80211_TX_STAT_ACK;
-
-	spin_lock(&dev->mac_lock);
-	ieee80211_tx_status(dev->mt76.hw, skb);
-	spin_unlock(&dev->mac_lock);
-}
-
 static struct mt76x02_txwi *
 mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
 		  struct ieee80211_sta *sta, struct mt76_wcid *wcid,
