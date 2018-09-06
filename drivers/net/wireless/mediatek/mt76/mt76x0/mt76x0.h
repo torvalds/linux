@@ -112,15 +112,6 @@ struct mt76x0_dev {
 	struct mac_stats stats;
 };
 
-struct mt76x0_wcid {
-	u8 idx;
-	u8 hw_key_idx;
-
-	u16 tx_rate;
-	bool tx_rate_set;
-	u8 tx_rate_nss;
-};
-
 extern const struct ieee80211_ops mt76x0_ops;
 
 static inline bool is_mt7610e(struct mt76x0_dev *dev)
