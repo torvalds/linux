@@ -113,7 +113,7 @@ static void rebalance_work_accumulate(struct rebalance_work *w,
 		work = U64_MAX;
 	work = min(work, capacity);
 
-	percent_full = div_u64(work * 100, capacity);
+	percent_full = div64_u64(work * 100, capacity);
 
 	if (percent_full >= w->dev_most_full_percent) {
 		w->dev_most_full_idx		= idx;
