@@ -191,7 +191,7 @@ set_udp(void *headers_c, void *headers_v, __be16 psrc_m, __be16 psrc_v,
 {
 	if (psrc_m) {
 		MLX5E_FTE_SET(headers_c, udp_sport, 0xffff);
-		MLX5E_FTE_SET(headers_c, udp_sport, ntohs(psrc_v));
+		MLX5E_FTE_SET(headers_v, udp_sport, ntohs(psrc_v));
 	}
 
 	if (pdst_m) {
