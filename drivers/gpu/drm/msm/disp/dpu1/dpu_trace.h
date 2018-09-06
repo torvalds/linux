@@ -868,10 +868,6 @@ DECLARE_EVENT_CLASS(dpu_rm_iter_template,
 	TP_printk("id:%d type:%d enc_id:%u", __entry->id, __entry->type,
 		  __entry->enc_id)
 );
-DEFINE_EVENT(dpu_rm_iter_template, dpu_rm_reserve_cdm,
-	TP_PROTO(uint32_t id, enum dpu_hw_blk_type type, uint32_t enc_id),
-	TP_ARGS(id, type, enc_id)
-);
 DEFINE_EVENT(dpu_rm_iter_template, dpu_rm_reserve_intf,
 	TP_PROTO(uint32_t id, enum dpu_hw_blk_type type, uint32_t enc_id),
 	TP_ARGS(id, type, enc_id)

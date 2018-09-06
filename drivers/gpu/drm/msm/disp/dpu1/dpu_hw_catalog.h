@@ -494,18 +494,6 @@ struct dpu_pingpong_cfg  {
 };
 
 /**
- * struct dpu_cdm_cfg - information of chroma down blocks
- * @id                 enum identifying this block
- * @base               register offset of this block
- * @features           bit mask identifying sub-blocks/features
- * @intf_connect       Bitmask of INTF IDs this CDM can connect to
- */
-struct dpu_cdm_cfg   {
-	DPU_HW_BLK_INFO;
-	unsigned long intf_connect;
-};
-
-/**
  * struct dpu_intf_cfg - information of timing engine blocks
  * @id                 enum identifying this block
  * @base               register offset of this block
@@ -695,9 +683,6 @@ struct dpu_mdss_cfg {
 	u32 pingpong_count;
 	struct dpu_pingpong_cfg *pingpong;
 
-	u32 cdm_count;
-	struct dpu_cdm_cfg *cdm;
-
 	u32 intf_count;
 	struct dpu_intf_cfg *intf;
 
@@ -733,7 +718,6 @@ struct dpu_mdss_hw_cfg_handler {
 #define BLK_CURSOR(s) ((s)->cursor)
 #define BLK_MIXER(s) ((s)->mixer)
 #define BLK_PINGPONG(s) ((s)->pingpong)
-#define BLK_CDM(s) ((s)->cdm)
 #define BLK_INTF(s) ((s)->intf)
 #define BLK_AD(s) ((s)->ad)
 

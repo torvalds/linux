@@ -295,18 +295,6 @@ static struct dpu_intf_cfg sdm845_intf[] = {
 };
 
 /*************************************************************
- * CDM sub blocks config
- *************************************************************/
-static struct dpu_cdm_cfg sdm845_cdm[] = {
-	{
-	.name = "cdm_0", .id = CDM_0,
-	.base = 0x79200, .len = 0x224,
-	.features = 0,
-	.intf_connect = BIT(INTF_3),
-	},
-};
-
-/*************************************************************
  * VBIF sub blocks config
  *************************************************************/
 /* VBIF QOS remap */
@@ -430,8 +418,6 @@ static void sdm845_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.mixer = sdm845_lm,
 		.pingpong_count = ARRAY_SIZE(sdm845_pp),
 		.pingpong = sdm845_pp,
-		.cdm_count = ARRAY_SIZE(sdm845_cdm),
-		.cdm = sdm845_cdm,
 		.intf_count = ARRAY_SIZE(sdm845_intf),
 		.intf = sdm845_intf,
 		.vbif_count = ARRAY_SIZE(sdm845_vbif),

@@ -32,14 +32,12 @@
 /**
  * Encoder functions and data types
  * @intfs:	Interfaces this encoder is using, INTF_MODE_NONE if unused
- * @needs_cdm:	Encoder requests a CDM based on pixel format conversion needs
  * @display_num_of_h_tiles: Number of horizontal tiles in case of split
  *                          interface
  * @topology:   Topology of the display
  */
 struct dpu_encoder_hw_resources {
 	enum dpu_intf_mode intfs[INTF_MAX];
-	bool needs_cdm;
 	u32 display_num_of_h_tiles;
 };
 

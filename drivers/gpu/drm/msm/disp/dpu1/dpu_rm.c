@@ -16,7 +16,6 @@
 #include "dpu_kms.h"
 #include "dpu_hw_lm.h"
 #include "dpu_hw_ctl.h"
-#include "dpu_hw_cdm.h"
 #include "dpu_hw_pingpong.h"
 #include "dpu_hw_intf.h"
 #include "dpu_encoder.h"
@@ -228,9 +227,6 @@ static void _dpu_rm_hw_destroy(enum dpu_hw_blk_type type, void *hw)
 	case DPU_HW_BLK_CTL:
 		dpu_hw_ctl_destroy(hw);
 		break;
-	case DPU_HW_BLK_CDM:
-		dpu_hw_cdm_destroy(hw);
-		break;
 	case DPU_HW_BLK_PINGPONG:
 		dpu_hw_pingpong_destroy(hw);
 		break;
@@ -303,9 +299,6 @@ static int _dpu_rm_hw_blk_create(
 		break;
 	case DPU_HW_BLK_CTL:
 		hw = dpu_hw_ctl_init(id, mmio, cat);
-		break;
-	case DPU_HW_BLK_CDM:
-		hw = dpu_hw_cdm_init(id, mmio, cat, hw_mdp);
 		break;
 	case DPU_HW_BLK_PINGPONG:
 		hw = dpu_hw_pingpong_init(id, mmio, cat);
@@ -433,15 +426,6 @@ int dpu_rm_init(struct dpu_rm *rm,
 				cat->ctl[i].id, &cat->ctl[i]);
 		if (rc) {
 			DPU_ERROR("failed: ctl hw not available\n");
-			goto fail;
-		}
-	}
-
-	for (i = 0; i < cat->cdm_count; i++) {
-		rc = _dpu_rm_hw_blk_create(rm, cat, mmio, DPU_HW_BLK_CDM,
-				cat->cdm[i].id, &cat->cdm[i]);
-		if (rc) {
-			DPU_ERROR("failed: cdm hw not available\n");
 			goto fail;
 		}
 	}
@@ -642,55 +626,11 @@ static int _dpu_rm_reserve_ctls(
 	return 0;
 }
 
-static int _dpu_rm_reserve_cdm(
-		struct dpu_rm *rm,
-		struct dpu_rm_rsvp *rsvp,
-		uint32_t id,
-		enum dpu_hw_blk_type type)
-{
-	struct dpu_rm_hw_iter iter;
-
-	DRM_DEBUG_KMS("type %d id %d\n", type, id);
-
-	dpu_rm_init_hw_iter(&iter, 0, DPU_HW_BLK_CDM);
-	while (_dpu_rm_get_hw_locked(rm, &iter)) {
-		const struct dpu_hw_cdm *cdm = to_dpu_hw_cdm(iter.blk->hw);
-		const struct dpu_cdm_cfg *caps = cdm->caps;
-		bool match = false;
-
-		if (RESERVED_BY_OTHER(iter.blk, rsvp))
-			continue;
-
-		if (type == DPU_HW_BLK_INTF && id != INTF_MAX)
-			match = test_bit(id, &caps->intf_connect);
-
-		DRM_DEBUG_KMS("iter: type:%d id:%d enc:%d cdm:%lu match:%d\n",
-			      iter.blk->type, iter.blk->id, rsvp->enc_id,
-			      caps->intf_connect, match);
-
-		if (!match)
-			continue;
-
-		trace_dpu_rm_reserve_cdm(iter.blk->id, iter.blk->type,
-					 rsvp->enc_id);
-		iter.blk->rsvp_nxt = rsvp;
-		break;
-	}
-
-	if (!iter.hw) {
-		DPU_ERROR("couldn't reserve cdm for type %d id %d\n", type, id);
-		return -ENAVAIL;
-	}
-
-	return 0;
-}
-
 static int _dpu_rm_reserve_intf(
 		struct dpu_rm *rm,
 		struct dpu_rm_rsvp *rsvp,
 		uint32_t id,
-		enum dpu_hw_blk_type type,
-		bool needs_cdm)
+		enum dpu_hw_blk_type type)
 {
 	struct dpu_rm_hw_iter iter;
 	int ret = 0;
@@ -718,9 +658,6 @@ static int _dpu_rm_reserve_intf(
 		return -EINVAL;
 	}
 
-	if (needs_cdm)
-		ret = _dpu_rm_reserve_cdm(rm, rsvp, id, type);
-
 	return ret;
 }
 
@@ -737,7 +674,7 @@ static int _dpu_rm_reserve_intf_related_hw(
 			continue;
 		id = i + INTF_0;
 		ret = _dpu_rm_reserve_intf(rm, rsvp, id,
-				DPU_HW_BLK_INTF, hw_res->needs_cdm);
+				DPU_HW_BLK_INTF);
 		if (ret)
 			return ret;
 	}
@@ -784,7 +721,6 @@ static int _dpu_rm_make_next_rsvp(
 		return ret;
 	}
 
-	/* Assign INTFs and blks whose usage is tied to them: CTL & CDM */
 	ret = _dpu_rm_reserve_intf_related_hw(rm, rsvp, &reqs->hw_res);
 	if (ret)
 		return ret;

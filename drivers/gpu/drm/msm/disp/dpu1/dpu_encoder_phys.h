@@ -22,7 +22,6 @@
 #include "dpu_hw_pingpong.h"
 #include "dpu_hw_ctl.h"
 #include "dpu_hw_top.h"
-#include "dpu_hw_cdm.h"
 #include "dpu_encoder.h"
 
 #define DPU_ENCODER_NAME_MAX	16
@@ -204,8 +203,6 @@ struct dpu_encoder_irq {
  * @parent_ops:		Callbacks exposed by the parent to the phys_enc
  * @hw_mdptop:		Hardware interface to the top registers
  * @hw_ctl:		Hardware interface to the ctl registers
- * @hw_cdm:		Hardware interface to the cdm registers
- * @cdm_cfg:		Chroma-down hardware configuration
  * @hw_pp:		Hardware interface to the ping pong registers
  * @dpu_kms:		Pointer to the dpu_kms top level
  * @cached_mode:	DRM mode cached at mode_set time, acted on in enable
@@ -235,8 +232,6 @@ struct dpu_encoder_phys {
 	const struct dpu_encoder_virt_ops *parent_ops;
 	struct dpu_hw_mdp *hw_mdptop;
 	struct dpu_hw_ctl *hw_ctl;
-	struct dpu_hw_cdm *hw_cdm;
-	struct dpu_hw_cdm_cfg cdm_cfg;
 	struct dpu_hw_pingpong *hw_pp;
 	struct dpu_kms *dpu_kms;
 	struct drm_display_mode cached_mode;
