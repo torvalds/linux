@@ -650,8 +650,8 @@ struct nand_ecc_ctrl {
 	void (*hwctl)(struct nand_chip *chip, int mode);
 	int (*calculate)(struct nand_chip *chip, const uint8_t *dat,
 			 uint8_t *ecc_code);
-	int (*correct)(struct mtd_info *mtd, uint8_t *dat, uint8_t *read_ecc,
-			uint8_t *calc_ecc);
+	int (*correct)(struct nand_chip *chip, uint8_t *dat, uint8_t *read_ecc,
+		       uint8_t *calc_ecc);
 	int (*read_page_raw)(struct mtd_info *mtd, struct nand_chip *chip,
 			uint8_t *buf, int oob_required, int page);
 	int (*write_page_raw)(struct mtd_info *mtd, struct nand_chip *chip,

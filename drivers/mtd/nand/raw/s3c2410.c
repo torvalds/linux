@@ -512,9 +512,10 @@ static int s3c2412_nand_devready(struct mtd_info *mtd)
 
 /* ECC handling functions */
 
-static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
+static int s3c2410_nand_correct_data(struct nand_chip *chip, u_char *dat,
 				     u_char *read_ecc, u_char *calc_ecc)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	unsigned int diff0, diff1, diff2;
 	unsigned int bit, byte;

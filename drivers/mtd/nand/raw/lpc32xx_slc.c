@@ -639,7 +639,7 @@ static int lpc32xx_nand_read_page_syndrome(struct mtd_info *mtd,
 	oobecc = chip->oob_poi + oobregion.offset;
 
 	for (i = 0; i < chip->ecc.steps; i++) {
-		stat = chip->ecc.correct(mtd, buf, oobecc,
+		stat = chip->ecc.correct(chip, buf, oobecc,
 					 &tmpecc[i * chip->ecc.bytes]);
 		if (stat < 0)
 			mtd->ecc_stats.failed++;

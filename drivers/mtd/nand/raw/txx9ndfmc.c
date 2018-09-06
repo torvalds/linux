@@ -190,10 +190,10 @@ static int txx9ndfmc_calculate_ecc(struct nand_chip *chip, const uint8_t *dat,
 	return 0;
 }
 
-static int txx9ndfmc_correct_data(struct mtd_info *mtd, unsigned char *buf,
-		unsigned char *read_ecc, unsigned char *calc_ecc)
+static int txx9ndfmc_correct_data(struct nand_chip *chip, unsigned char *buf,
+				  unsigned char *read_ecc,
+				  unsigned char *calc_ecc)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	int eccsize;
 	int corrected = 0;
 	int stat;

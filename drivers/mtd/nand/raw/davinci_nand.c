@@ -185,10 +185,9 @@ static int nand_davinci_calculate_1bit(struct nand_chip *chip,
 	return 0;
 }
 
-static int nand_davinci_correct_1bit(struct mtd_info *mtd, u_char *dat,
+static int nand_davinci_correct_1bit(struct nand_chip *chip, u_char *dat,
 				     u_char *read_ecc, u_char *calc_ecc)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	uint32_t eccNand = read_ecc[0] | (read_ecc[1] << 8) |
 					  (read_ecc[2] << 16);
 	uint32_t eccCalc = calc_ecc[0] | (calc_ecc[1] << 8) |
@@ -303,11 +302,11 @@ static int nand_davinci_calculate_4bit(struct nand_chip *chip,
 /* Correct up to 4 bits in data we just read, using state left in the
  * hardware plus the ecc_code computed when it was first written.
  */
-static int nand_davinci_correct_4bit(struct mtd_info *mtd,
-		u_char *data, u_char *ecc_code, u_char *null)
+static int nand_davinci_correct_4bit(struct nand_chip *chip, u_char *data,
+				     u_char *ecc_code, u_char *null)
 {
 	int i;
-	struct davinci_nand_info *info = to_davinci_nand(mtd);
+	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(chip));
 	unsigned short ecc10[8];
 	unsigned short *ecc16;
 	u32 syndrome[4];

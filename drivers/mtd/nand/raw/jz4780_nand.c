@@ -144,10 +144,10 @@ static int jz4780_nand_ecc_calculate(struct nand_chip *chip, const u8 *dat,
 	return jz4780_bch_calculate(nfc->bch, &params, dat, ecc_code);
 }
 
-static int jz4780_nand_ecc_correct(struct mtd_info *mtd, u8 *dat,
+static int jz4780_nand_ecc_correct(struct nand_chip *chip, u8 *dat,
 				   u8 *read_ecc, u8 *calc_ecc)
 {
-	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(mtd);
+	struct jz4780_nand_chip *nand = to_jz4780_nand_chip(nand_to_mtd(chip));
 	struct jz4780_nand_controller *nfc = to_jz4780_nand_controller(nand->chip.controller);
 	struct jz4780_bch_params params;
 

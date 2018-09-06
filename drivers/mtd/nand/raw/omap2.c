@@ -857,7 +857,7 @@ static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
 
 /**
  * omap_correct_data - Compares the ECC read with HW generated ECC
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @dat: page data
  * @read_ecc: ecc read from nand flash
  * @calc_ecc: ecc read from HW ECC registers
@@ -869,10 +869,10 @@ static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
  * corrected errors is returned. If uncorrectable errors exist, %-1 is
  * returned.
  */
-static int omap_correct_data(struct mtd_info *mtd, u_char *dat,
-				u_char *read_ecc, u_char *calc_ecc)
+static int omap_correct_data(struct nand_chip *chip, u_char *dat,
+			     u_char *read_ecc, u_char *calc_ecc)
 {
-	struct omap_nand_info *info = mtd_to_omap(mtd);
+	struct omap_nand_info *info = mtd_to_omap(nand_to_mtd(chip));
 	int blockCnt = 0, i = 0, ret = 0;
 	int stat = 0;
 
@@ -1338,7 +1338,7 @@ static int erased_sector_bitflips(u_char *data, u_char *oob,
 
 /**
  * omap_elm_correct_data - corrects page data area in case error reported
- * @mtd:	MTD device structure
+ * @chip:	NAND chip object
  * @data:	page data
  * @read_ecc:	ecc read from nand flash
  * @calc_ecc:	ecc read from HW ECC registers
@@ -1347,10 +1347,10 @@ static int erased_sector_bitflips(u_char *data, u_char *oob,
  * In case of non-zero ecc vector, first filter out erased-pages, and
  * then process data via ELM to detect bit-flips.
  */
-static int omap_elm_correct_data(struct mtd_info *mtd, u_char *data,
-				u_char *read_ecc, u_char *calc_ecc)
+static int omap_elm_correct_data(struct nand_chip *chip, u_char *data,
+				 u_char *read_ecc, u_char *calc_ecc)
 {
-	struct omap_nand_info *info = mtd_to_omap(mtd);
+	struct omap_nand_info *info = mtd_to_omap(nand_to_mtd(chip));
 	struct nand_ecc_ctrl *ecc = &info->nand.ecc;
 	int eccsteps = info->nand.ecc.steps;
 	int i , j, stat = 0;
@@ -1659,7 +1659,7 @@ static int omap_read_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
 	if (ret)
 		return ret;
 
-	stat = chip->ecc.correct(mtd, buf, ecc_code, ecc_calc);
+	stat = chip->ecc.correct(chip, buf, ecc_code, ecc_calc);
 
 	if (stat < 0) {
 		mtd->ecc_stats.failed++;

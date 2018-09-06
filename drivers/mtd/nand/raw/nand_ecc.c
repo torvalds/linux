@@ -490,18 +490,17 @@ EXPORT_SYMBOL(__nand_correct_data);
 
 /**
  * nand_correct_data - [NAND Interface] Detect and correct bit error(s)
- * @mtd:	MTD block structure
+ * @chip:	NAND chip object
  * @buf:	raw data read from the chip
  * @read_ecc:	ECC from the chip
  * @calc_ecc:	the ECC calculated from raw data
  *
  * Detect and correct a 1 bit error for 256/512 byte block
  */
-int nand_correct_data(struct mtd_info *mtd, unsigned char *buf,
+int nand_correct_data(struct nand_chip *chip, unsigned char *buf,
 		      unsigned char *read_ecc, unsigned char *calc_ecc)
 {
-	return __nand_correct_data(buf, read_ecc, calc_ecc,
-				   mtd_to_nand(mtd)->ecc.size);
+	return __nand_correct_data(buf, read_ecc, calc_ecc, chip->ecc.size);
 }
 EXPORT_SYMBOL(nand_correct_data);
 

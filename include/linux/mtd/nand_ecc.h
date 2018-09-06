@@ -13,7 +13,6 @@
 #ifndef __MTD_NAND_ECC_H__
 #define __MTD_NAND_ECC_H__
 
-struct mtd_info;
 struct nand_chip;
 
 /*
@@ -37,6 +36,7 @@ int __nand_correct_data(u_char *dat, u_char *read_ecc, u_char *calc_ecc,
 /*
  * Detect and correct a 1 bit error for 256/512 byte block
  */
-int nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_char *calc_ecc);
+int nand_correct_data(struct nand_chip *chip, u_char *dat, u_char *read_ecc,
+		      u_char *calc_ecc);
 
 #endif /* __MTD_NAND_ECC_H__ */

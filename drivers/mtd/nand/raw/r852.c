@@ -465,14 +465,14 @@ static int r852_ecc_calculate(struct nand_chip *chip, const uint8_t *dat,
  * Correct the data using ECC, hw did almost everything for us
  */
 
-static int r852_ecc_correct(struct mtd_info *mtd, uint8_t *dat,
-				uint8_t *read_ecc, uint8_t *calc_ecc)
+static int r852_ecc_correct(struct nand_chip *chip, uint8_t *dat,
+			    uint8_t *read_ecc, uint8_t *calc_ecc)
 {
 	uint32_t ecc_reg;
 	uint8_t ecc_status, err_byte;
 	int i, error = 0;
 
-	struct r852_device *dev = r852_get_dev(mtd);
+	struct r852_device *dev = r852_get_dev(nand_to_mtd(chip));
 
 	if (dev->card_unstable)
 		return 0;

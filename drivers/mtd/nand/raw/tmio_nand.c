@@ -290,8 +290,9 @@ static int tmio_nand_calculate_ecc(struct nand_chip *chip, const u_char *dat,
 	return 0;
 }
 
-static int tmio_nand_correct_data(struct mtd_info *mtd, unsigned char *buf,
-		unsigned char *read_ecc, unsigned char *calc_ecc)
+static int tmio_nand_correct_data(struct nand_chip *chip, unsigned char *buf,
+				  unsigned char *read_ecc,
+				  unsigned char *calc_ecc)
 {
 	int r0, r1;
 

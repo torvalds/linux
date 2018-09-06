@@ -28,8 +28,8 @@ int nand_bch_calculate_ecc(struct nand_chip *chip, const u_char *dat,
 /*
  * Detect and correct bit errors
  */
-int nand_bch_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc,
-			  u_char *calc_ecc);
+int nand_bch_correct_data(struct nand_chip *chip, u_char *dat,
+			  u_char *read_ecc, u_char *calc_ecc);
 /*
  * Initialize BCH encoder/decoder
  */
@@ -51,7 +51,7 @@ nand_bch_calculate_ecc(struct nand_chip *chip, const u_char *dat,
 }
 
 static inline int
-nand_bch_correct_data(struct mtd_info *mtd, unsigned char *buf,
+nand_bch_correct_data(struct nand_chip *chip, unsigned char *buf,
 		      unsigned char *read_ecc, unsigned char *calc_ecc)
 {
 	return -ENOTSUPP;

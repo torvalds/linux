@@ -215,10 +215,10 @@ static void jz_nand_correct_data(uint8_t *dat, int index, int mask)
 	dat[index+1] = (data >> 8) & 0xff;
 }
 
-static int jz_nand_correct_ecc_rs(struct mtd_info *mtd, uint8_t *dat,
-	uint8_t *read_ecc, uint8_t *calc_ecc)
+static int jz_nand_correct_ecc_rs(struct nand_chip *chip, uint8_t *dat,
+				  uint8_t *read_ecc, uint8_t *calc_ecc)
 {
-	struct jz_nand *nand = mtd_to_jz_nand(mtd);
+	struct jz_nand *nand = mtd_to_jz_nand(nand_to_mtd(chip));
 	int i, error_count, index;
 	uint32_t reg, status, error;
 	unsigned int timeout = 1000;
