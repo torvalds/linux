@@ -2564,7 +2564,7 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 		ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
 		dev_err(dev, "failed to register mtd device: %d\n", ret);
-		nand_release(mtd);
+		nand_release(chip);
 		return ret;
 	}
 
@@ -2619,7 +2619,7 @@ static void marvell_nand_chips_cleanup(struct marvell_nfc *nfc)
 	struct marvell_nand_chip *entry, *temp;
 
 	list_for_each_entry_safe(entry, temp, &nfc->chips, node) {
-		nand_release(nand_to_mtd(&entry->chip));
+		nand_release(&entry->chip);
 		list_del(&entry->node);
 	}
 }

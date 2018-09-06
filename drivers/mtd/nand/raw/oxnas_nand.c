@@ -148,7 +148,7 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 
 		err = mtd_device_register(mtd, NULL, 0);
 		if (err) {
-			nand_release(mtd);
+			nand_release(chip);
 			goto err_clk_unprepare;
 		}
 
@@ -176,7 +176,7 @@ static int oxnas_nand_remove(struct platform_device *pdev)
 	struct oxnas_nand_ctrl *oxnas = platform_get_drvdata(pdev);
 
 	if (oxnas->chips[0])
-		nand_release(nand_to_mtd(oxnas->chips[0]));
+		nand_release(oxnas->chips[0]);
 
 	clk_disable_unprepare(oxnas->clk);
 

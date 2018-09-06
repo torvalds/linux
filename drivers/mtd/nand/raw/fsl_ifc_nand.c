@@ -1105,9 +1105,8 @@ err:
 static int fsl_ifc_nand_remove(struct platform_device *dev)
 {
 	struct fsl_ifc_mtd *priv = dev_get_drvdata(&dev->dev);
-	struct mtd_info *mtd = nand_to_mtd(&priv->chip);
 
-	nand_release(mtd);
+	nand_release(&priv->chip);
 	fsl_ifc_chip_remove(priv);
 
 	mutex_lock(&fsl_ifc_nand_mutex);
