@@ -525,6 +525,8 @@ int ib_register_device(struct ib_device *device,
 		goto port_cleanup;
 	}
 
+	device->index = __dev_new_index();
+
 	ret = ib_device_register_rdmacg(device);
 	if (ret) {
 		pr_warn("Couldn't register device with rdma cgroup\n");
@@ -551,7 +553,6 @@ int ib_register_device(struct ib_device *device,
 		if (!add_client_context(device, client) && client->add)
 			client->add(device);
 
-	device->index = __dev_new_index();
 	down_write(&lists_rwsem);
 	list_add_tail(&device->core_list, &device_list);
 	up_write(&lists_rwsem);
