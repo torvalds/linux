@@ -117,7 +117,7 @@ static inline u64 bochs_bo_mmap_offset(struct bochs_bo *bo)
 /* ---------------------------------------------------------------------- */
 
 /* bochs_hw.c */
-int bochs_hw_init(struct drm_device *dev, uint32_t flags);
+int bochs_hw_init(struct drm_device *dev);
 void bochs_hw_fini(struct drm_device *dev);
 
 void bochs_hw_setmode(struct bochs_device *bochs,
