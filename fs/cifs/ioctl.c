@@ -123,7 +123,6 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	struct inode *inode = file_inode(filep);
 	int rc = -ENOTTY; /* strange error - but the precedent */
 	unsigned int xid;
-	struct cifs_sb_info *cifs_sb;
 	struct cifsFileInfo *pSMBFile = filep->private_data;
 	struct cifs_tcon *tcon;
 	__u64	ExtAttrBits = 0;
@@ -131,7 +130,6 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 
 	xid = get_xid();
 
-	cifs_sb = CIFS_SB(inode->i_sb);
 	cifs_dbg(FYI, "cifs ioctl 0x%x\n", command);
 	switch (command) {
 		case FS_IOC_GETFLAGS:
