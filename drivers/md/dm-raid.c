@@ -3869,13 +3869,12 @@ static int rs_start_reshape(struct raid_set *rs)
 	struct mddev *mddev = &rs->md;
 	struct md_personality *pers = mddev->pers;
 
+	/* Don't allow the sync thread to work until the table gets reloaded. */
+	set_bit(MD_RECOVERY_WAIT, &mddev->recovery);
+
 	r = rs_setup_reshape(rs);
 	if (r)
 		return r;
-
-	/* Need to be resumed to be able to start reshape, recovery is frozen until raid_resume() though */
-	if (test_and_clear_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags))
-		mddev_resume(mddev);
 
 	/*
 	 * Check any reshape constraints enforced by the personalility
@@ -3899,10 +3898,6 @@ static int rs_start_reshape(struct raid_set *rs)
 			return r;
 		}
 	}
-
-	/* Suspend because a resume will happen in raid_resume() */
-	set_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags);
-	mddev_suspend(mddev);
 
 	/*
 	 * Now reshape got set up, update superblocks to
