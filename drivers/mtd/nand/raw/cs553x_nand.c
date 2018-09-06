@@ -241,7 +241,7 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	}
 
 	/* Scan to find existence of the device */
-	err = nand_scan(new_mtd, 1);
+	err = nand_scan(this, 1);
 	if (err)
 		goto out_free;
 

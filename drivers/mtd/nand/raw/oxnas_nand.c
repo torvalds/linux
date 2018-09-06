@@ -142,7 +142,7 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 		chip->chip_delay = 30;
 
 		/* Scan to find existence of the device */
-		err = nand_scan(mtd, 1);
+		err = nand_scan(chip, 1);
 		if (err)
 			goto err_clk_unprepare;
 

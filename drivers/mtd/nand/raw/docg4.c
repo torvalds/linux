@@ -1391,7 +1391,7 @@ static int __init probe_docg4(struct platform_device *pdev)
 	 * ->attach_chip callback.
 	 */
 	nand->dummy_controller.ops = &docg4_controller_ops;
-	retval = nand_scan(mtd, 0);
+	retval = nand_scan(nand, 0);
 	if (retval)
 		goto free_nand;
 

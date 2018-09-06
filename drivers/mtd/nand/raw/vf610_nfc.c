@@ -892,7 +892,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 
 	/* Scan the NAND chip */
 	chip->dummy_controller.ops = &vf610_nfc_controller_ops;
-	err = nand_scan(mtd, 1);
+	err = nand_scan(chip, 1);
 	if (err)
 		goto err_disable_clk;
 

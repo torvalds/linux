@@ -2319,7 +2319,7 @@ static int __init ns_init_module(void)
 		goto error;
 
 	chip->dummy_controller.ops = &ns_controller_ops;
-	retval = nand_scan(nsmtd, 1);
+	retval = nand_scan(chip, 1);
 	if (retval) {
 		NS_ERR("Could not scan NAND Simulator device\n");
 		goto error;

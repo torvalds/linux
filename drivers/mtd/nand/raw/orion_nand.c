@@ -174,7 +174,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = nand_scan(mtd, 1);
+	ret = nand_scan(nc, 1);
 	if (ret)
 		goto no_dev;
 

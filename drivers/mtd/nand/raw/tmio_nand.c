@@ -436,7 +436,7 @@ static int tmio_probe(struct platform_device *dev)
 	nand_chip->waitfunc = tmio_nand_wait;
 
 	/* Scan to find existence of the device */
-	retval = nand_scan(mtd, 1);
+	retval = nand_scan(nand_chip, 1);
 	if (retval)
 		goto err_irq;
 

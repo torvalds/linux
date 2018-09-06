@@ -235,7 +235,7 @@ static int ams_delta_init(struct platform_device *pdev)
 		goto out_gpio;
 
 	/* Scan to find existence of the device */
-	err = nand_scan(ams_delta_mtd, 1);
+	err = nand_scan(this, 1);
 	if (err)
 		goto out_mtd;
 

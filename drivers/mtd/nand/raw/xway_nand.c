@@ -205,7 +205,7 @@ static int xway_nand_probe(struct platform_device *pdev)
 		    | cs_flag, EBU_NAND_CON);
 
 	/* Scan to find existence of the device */
-	err = nand_scan(mtd, 1);
+	err = nand_scan(&data->chip, 1);
 	if (err)
 		return err;
 

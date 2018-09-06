@@ -802,7 +802,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	 * SMALL block or LARGE block.
 	 */
 	nand_chip->dummy_controller.ops = &lpc32xx_nand_controller_ops;
-	res = nand_scan(mtd, 1);
+	res = nand_scan(nand_chip, 1);
 	if (res)
 		goto free_irq;
 

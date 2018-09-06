@@ -1384,7 +1384,7 @@ int denali_init(struct denali_nand_info *denali)
 		chip->setup_data_interface = denali_setup_data_interface;
 
 	chip->dummy_controller.ops = &denali_controller_ops;
-	ret = nand_scan(mtd, denali->max_banks);
+	ret = nand_scan(chip, denali->max_banks);
 	if (ret)
 		goto disable_irq;
 

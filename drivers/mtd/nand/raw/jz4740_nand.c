@@ -331,7 +331,7 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 
 	if (chipnr == 0) {
 		/* Detect first chip. */
-		ret = nand_scan(mtd, 1);
+		ret = nand_scan(chip, 1);
 		if (ret)
 			goto notfound_id;
 

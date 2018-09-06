@@ -1620,7 +1620,7 @@ static int __init doc_probe(unsigned long physadr)
 	else
 		numchips = doc2001_init(mtd);
 
-	if ((ret = nand_scan(mtd, numchips)) || (ret = doc->late_init(mtd))) {
+	if ((ret = nand_scan(nand, numchips)) || (ret = doc->late_init(mtd))) {
 		/* DBB note: i believe nand_release is necessary here, as
 		   buffers may have been allocated in nand_base.  Check with
 		   Thomas. FIX ME! */

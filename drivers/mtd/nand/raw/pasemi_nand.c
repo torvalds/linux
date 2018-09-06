@@ -156,7 +156,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	chip->bbt_options = NAND_BBT_USE_FLASH;
 
 	/* Scan to find existence of the device */
-	err = nand_scan(pasemi_nand_mtd, 1);
+	err = nand_scan(chip, 1);
 	if (err)
 		goto out_lpc;
 

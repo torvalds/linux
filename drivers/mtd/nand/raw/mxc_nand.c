@@ -1900,7 +1900,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 
 	/* Scan the NAND device */
 	this->dummy_controller.ops = &mxcnd_controller_ops;
-	err = nand_scan(mtd, is_imx25_nfc(host) ? 4 : 1);
+	err = nand_scan(this, is_imx25_nfc(host) ? 4 : 1);
 	if (err)
 		goto escan;
 

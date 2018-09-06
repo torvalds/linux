@@ -1203,7 +1203,7 @@ static int flctl_probe(struct platform_device *pdev)
 	flctl_setup_dma(flctl);
 
 	nand->dummy_controller.ops = &flctl_nand_controller_ops;
-	ret = nand_scan(flctl_mtd, 1);
+	ret = nand_scan(nand, 1);
 	if (ret)
 		goto err_chip;
 

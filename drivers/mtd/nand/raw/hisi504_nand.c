@@ -811,7 +811,7 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	}
 
 	chip->dummy_controller.ops = &hisi_nfc_controller_ops;
-	ret = nand_scan(mtd, max_chips);
+	ret = nand_scan(chip, max_chips);
 	if (ret)
 		return ret;
 

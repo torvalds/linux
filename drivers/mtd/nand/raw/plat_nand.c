@@ -84,7 +84,7 @@ static int plat_nand_probe(struct platform_device *pdev)
 	}
 
 	/* Scan to find existence of the device */
-	err = nand_scan(mtd, pdata->chip.nr_chips);
+	err = nand_scan(&data->chip, pdata->chip.nr_chips);
 	if (err)
 		goto out;
 

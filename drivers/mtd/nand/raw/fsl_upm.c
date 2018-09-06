@@ -191,7 +191,7 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 		goto err;
 	}
 
-	ret = nand_scan(mtd, fun->mchip_count);
+	ret = nand_scan(&fun->chip, fun->mchip_count);
 	if (ret)
 		goto err;
 

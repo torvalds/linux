@@ -925,7 +925,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 
 	/* Find NAND device */
 	chip->dummy_controller.ops = &lpc32xx_nand_controller_ops;
-	res = nand_scan(mtd, 1);
+	res = nand_scan(chip, 1);
 	if (res)
 		goto release_dma;
 

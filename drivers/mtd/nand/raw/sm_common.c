@@ -195,7 +195,7 @@ int sm_register_device(struct mtd_info *mtd, int smartmedia)
 	/* Scan for card properties */
 	chip->dummy_controller.ops = &sm_controller_ops;
 	flash_ids = smartmedia ? nand_smartmedia_flash_ids : nand_xd_flash_ids;
-	ret = nand_scan_with_ids(mtd, 1, flash_ids);
+	ret = nand_scan_with_ids(chip, 1, flash_ids);
 	if (ret)
 		return ret;
 
