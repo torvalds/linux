@@ -113,7 +113,7 @@ int main(int argc, int argv[])
 	return 0;
 }
 ___EOF___
-cc -static -Os -o init init.c
+${CROSS_COMPILE}gcc -static -Os -o init init.c
 strip init
 rm init.c
 echo "Done creating a statically linked C-language initrd"
