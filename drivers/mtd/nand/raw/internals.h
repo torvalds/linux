@@ -89,10 +89,16 @@ int nand_write_page_raw_notsupp(struct nand_chip *chip, const u8 *buf,
 				int oob_required, int page);
 int nand_exit_status_op(struct nand_chip *chip);
 void nand_decode_ext_id(struct nand_chip *chip);
+void panic_nand_wait(struct nand_chip *chip, unsigned long timeo);
 
 /* BBT functions */
 int nand_markbad_bbt(struct nand_chip *chip, loff_t offs);
 int nand_isreserved_bbt(struct nand_chip *chip, loff_t offs);
 int nand_isbad_bbt(struct nand_chip *chip, loff_t offs, int allowbbt);
+
+/* Legacy */
+void nand_legacy_set_defaults(struct nand_chip *chip);
+void nand_legacy_adjust_cmdfunc(struct nand_chip *chip);
+int nand_legacy_check_hooks(struct nand_chip *chip);
 
 #endif /* __LINUX_RAWNAND_INTERNALS */
