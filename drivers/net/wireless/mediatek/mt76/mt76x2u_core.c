@@ -85,11 +85,3 @@ int mt76x2u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 
 	return mt76x2u_set_txinfo(skb, wcid, q2ep(q->hw_idx));
 }
-
-void mt76x2u_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
-			     struct mt76_queue_entry *e, bool flush)
-{
-	mt76x02_remove_dma_hdr(e->skb);
-	mt76x02_tx_complete(mdev, e->skb);
-}
-
