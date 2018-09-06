@@ -505,7 +505,7 @@ static int nand_block_markbad_lowlevel(struct mtd_info *mtd, loff_t ofs)
 		memset(&einfo, 0, sizeof(einfo));
 		einfo.addr = ofs;
 		einfo.len = 1ULL << chip->phys_erase_shift;
-		nand_erase_nand(mtd, &einfo, 0);
+		nand_erase_nand(chip, &einfo, 0);
 
 		/* Write bad block marker to OOB */
 		nand_get_device(mtd, FL_WRITING);
@@ -4638,22 +4638,22 @@ static int single_erase(struct nand_chip *chip, int page)
  */
 static int nand_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
-	return nand_erase_nand(mtd, instr, 0);
+	return nand_erase_nand(mtd_to_nand(mtd), instr, 0);
 }
 
 /**
  * nand_erase_nand - [INTERN] erase block(s)
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @instr: erase instruction
  * @allowbbt: allow erasing the bbt area
  *
  * Erase one ore more blocks.
  */
-int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
+int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,
 		    int allowbbt)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int page, status, pages_per_block, ret, chipnr;
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	loff_t len;
 
 	pr_debug("%s: start = 0x%012llx, len = %llu\n",
