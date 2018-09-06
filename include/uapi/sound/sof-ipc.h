@@ -102,7 +102,7 @@
 #define SOF_IPC_MESSAGE_ID(x)			((x) & 0xffff)
 
 /* maximum message size for mailbox Tx/Rx */
-#define SOF_IPC_MSG_MAX_SIZE			128
+#define SOF_IPC_MSG_MAX_SIZE			384
 
 /*
  * SOF panic codes
