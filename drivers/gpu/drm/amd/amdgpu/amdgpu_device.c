@@ -1492,6 +1492,8 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	}
 
 	adev->powerplay.pp_feature = amdgpu_pp_feature_mask;
+	if (amdgpu_sriov_vf(adev))
+		adev->powerplay.pp_feature &= ~PP_GFXOFF_MASK;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if ((amdgpu_ip_block_mask & (1 << i)) == 0) {
