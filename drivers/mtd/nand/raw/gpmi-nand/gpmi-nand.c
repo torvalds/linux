@@ -1903,7 +1903,7 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	chip->select_chip	= gpmi_select_chip;
 	chip->setup_data_interface = gpmi_setup_data_interface;
 	chip->legacy.cmd_ctrl	= gpmi_cmd_ctrl;
-	chip->dev_ready		= gpmi_dev_ready;
+	chip->legacy.dev_ready	= gpmi_dev_ready;
 	chip->legacy.read_byte	= gpmi_read_byte;
 	chip->legacy.read_buf	= gpmi_read_buf;
 	chip->legacy.write_buf	= gpmi_write_buf;

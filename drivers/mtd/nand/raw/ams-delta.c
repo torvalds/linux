@@ -215,9 +215,9 @@ static int ams_delta_init(struct platform_device *pdev)
 	this->legacy.read_buf = ams_delta_read_buf;
 	this->legacy.cmd_ctrl = ams_delta_hwcontrol;
 	if (gpio_request(AMS_DELTA_GPIO_PIN_NAND_RB, "nand_rdy") == 0) {
-		this->dev_ready = ams_delta_nand_ready;
+		this->legacy.dev_ready = ams_delta_nand_ready;
 	} else {
-		this->dev_ready = NULL;
+		this->legacy.dev_ready = NULL;
 		pr_notice("Couldn't request gpio for Delta NAND ready.\n");
 	}
 	/* 25 us command delay time */

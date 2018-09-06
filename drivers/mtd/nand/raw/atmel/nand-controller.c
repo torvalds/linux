@@ -488,14 +488,14 @@ static void atmel_nand_select_chip(struct nand_chip *chip, int cs)
 
 	if (cs < 0 || cs >= nand->numcs) {
 		nand->activecs = NULL;
-		chip->dev_ready = NULL;
+		chip->legacy.dev_ready = NULL;
 		return;
 	}
 
 	nand->activecs = &nand->cs[cs];
 
 	if (nand->activecs->rb.type == ATMEL_NAND_GPIO_RB)
-		chip->dev_ready = atmel_nand_dev_ready;
+		chip->legacy.dev_ready = atmel_nand_dev_ready;
 }
 
 static int atmel_hsmc_nand_dev_ready(struct nand_chip *chip)
@@ -528,7 +528,7 @@ static void atmel_hsmc_nand_select_chip(struct nand_chip *chip, int cs)
 	}
 
 	if (nand->activecs->rb.type == ATMEL_NAND_NATIVE_RB)
-		chip->dev_ready = atmel_hsmc_nand_dev_ready;
+		chip->legacy.dev_ready = atmel_hsmc_nand_dev_ready;
 
 	regmap_update_bits(nc->base.smc, ATMEL_HSMC_NFC_CFG,
 			   ATMEL_HSMC_NFC_CFG_PAGESIZE_MASK |
@@ -945,7 +945,7 @@ static int atmel_hsmc_nand_pmecc_write_pg(struct nand_chip *chip,
 		dev_err(nc->base.dev, "Failed to program NAND page (err = %d)\n",
 			ret);
 
-	status = chip->waitfunc(chip);
+	status = chip->legacy.waitfunc(chip);
 	if (status & NAND_STATUS_FAIL)
 		return -EIO;
 

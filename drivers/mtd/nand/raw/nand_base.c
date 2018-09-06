@@ -604,7 +604,7 @@ static void panic_nand_wait_ready(struct mtd_info *mtd, unsigned long timeo)
 
 	/* Wait for the device to get ready */
 	for (i = 0; i < timeo; i++) {
-		if (chip->dev_ready(chip))
+		if (chip->legacy.dev_ready(chip))
 			break;
 		touch_softlockup_watchdog();
 		mdelay(1);
@@ -628,12 +628,12 @@ void nand_wait_ready(struct nand_chip *chip)
 	/* Wait until command is processed or timeout occurs */
 	timeo = jiffies + msecs_to_jiffies(timeo);
 	do {
-		if (chip->dev_ready(chip))
+		if (chip->legacy.dev_ready(chip))
 			return;
 		cond_resched();
 	} while (time_before(jiffies, timeo));
 
-	if (!chip->dev_ready(chip))
+	if (!chip->legacy.dev_ready(chip))
 		pr_warn_ratelimited("timeout while waiting for chip to become ready\n");
 }
 EXPORT_SYMBOL_GPL(nand_wait_ready);
@@ -804,7 +804,7 @@ static void nand_command(struct nand_chip *chip, unsigned int command,
 		return;
 
 	case NAND_CMD_RESET:
-		if (chip->dev_ready)
+		if (chip->legacy.dev_ready)
 			break;
 		udelay(chip->chip_delay);
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_STATUS,
@@ -831,7 +831,7 @@ static void nand_command(struct nand_chip *chip, unsigned int command,
 		 * If we don't have access to the busy pin, we apply the given
 		 * command delay
 		 */
-		if (!chip->dev_ready) {
+		if (!chip->legacy.dev_ready) {
 			udelay(chip->chip_delay);
 			return;
 		}
@@ -941,7 +941,7 @@ static void nand_command_lp(struct nand_chip *chip, unsigned int command,
 		return;
 
 	case NAND_CMD_RESET:
-		if (chip->dev_ready)
+		if (chip->legacy.dev_ready)
 			break;
 		udelay(chip->chip_delay);
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_STATUS,
@@ -983,7 +983,7 @@ static void nand_command_lp(struct nand_chip *chip, unsigned int command,
 		 * If we don't have access to the busy pin, we apply the given
 		 * command delay.
 		 */
-		if (!chip->dev_ready) {
+		if (!chip->legacy.dev_ready) {
 			udelay(chip->chip_delay);
 			return;
 		}
@@ -1069,8 +1069,8 @@ static void panic_nand_wait(struct nand_chip *chip, unsigned long timeo)
 {
 	int i;
 	for (i = 0; i < timeo; i++) {
-		if (chip->dev_ready) {
-			if (chip->dev_ready(chip))
+		if (chip->legacy.dev_ready) {
+			if (chip->legacy.dev_ready(chip))
 				break;
 		} else {
 			int ret;
@@ -1117,8 +1117,8 @@ static int nand_wait(struct nand_chip *chip)
 	else {
 		timeo = jiffies + msecs_to_jiffies(timeo);
 		do {
-			if (chip->dev_ready) {
-				if (chip->dev_ready(chip))
+			if (chip->legacy.dev_ready) {
+				if (chip->legacy.dev_ready(chip))
 					break;
 			} else {
 				ret = nand_read_data_op(chip, &status,
@@ -1827,7 +1827,7 @@ int nand_prog_page_end_op(struct nand_chip *chip)
 			return ret;
 	} else {
 		chip->legacy.cmdfunc(chip, NAND_CMD_PAGEPROG, -1, -1);
-		ret = chip->waitfunc(chip);
+		ret = chip->legacy.waitfunc(chip);
 		if (ret < 0)
 			return ret;
 
@@ -1875,7 +1875,7 @@ int nand_prog_page_op(struct nand_chip *chip, unsigned int page,
 				     page);
 		chip->legacy.write_buf(chip, buf, len);
 		chip->legacy.cmdfunc(chip, NAND_CMD_PAGEPROG, -1, -1);
-		status = chip->waitfunc(chip);
+		status = chip->legacy.waitfunc(chip);
 	}
 
 	if (status & NAND_STATUS_FAIL)
@@ -2106,7 +2106,7 @@ int nand_erase_op(struct nand_chip *chip, unsigned int eraseblock)
 		chip->legacy.cmdfunc(chip, NAND_CMD_ERASE1, -1, page);
 		chip->legacy.cmdfunc(chip, NAND_CMD_ERASE2, -1, -1);
 
-		ret = chip->waitfunc(chip);
+		ret = chip->legacy.waitfunc(chip);
 		if (ret < 0)
 			return ret;
 
@@ -2157,7 +2157,7 @@ static int nand_set_features_op(struct nand_chip *chip, u8 feature,
 	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
 		chip->legacy.write_byte(chip, params[i]);
 
-	ret = chip->waitfunc(chip);
+	ret = chip->legacy.waitfunc(chip);
 	if (ret < 0)
 		return ret;
 
@@ -2222,7 +2222,7 @@ static int nand_wait_rdy_op(struct nand_chip *chip, unsigned int timeout_ms,
 	}
 
 	/* Apply delay or wait for ready/busy pin */
-	if (!chip->dev_ready)
+	if (!chip->legacy.dev_ready)
 		udelay(chip->chip_delay);
 	else
 		nand_wait_ready(chip);
@@ -4927,8 +4927,8 @@ static void nand_set_defaults(struct nand_chip *chip)
 		chip->legacy.cmdfunc = nand_command;
 
 	/* check, if a user supplied wait function given */
-	if (chip->waitfunc == NULL)
-		chip->waitfunc = nand_wait;
+	if (chip->legacy.waitfunc == NULL)
+		chip->legacy.waitfunc = nand_wait;
 
 	if (!chip->select_chip)
 		chip->select_chip = nand_select_chip;

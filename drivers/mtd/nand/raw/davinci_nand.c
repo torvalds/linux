@@ -782,7 +782,7 @@ static int nand_davinci_probe(struct platform_device *pdev)
 
 	/* Set address of hardware control function */
 	info->chip.legacy.cmd_ctrl	= nand_davinci_hwcontrol;
-	info->chip.dev_ready	= nand_davinci_dev_ready;
+	info->chip.legacy.dev_ready	= nand_davinci_dev_ready;
 
 	/* Speed up buffer I/O */
 	info->chip.legacy.read_buf     = nand_davinci_read_buf;

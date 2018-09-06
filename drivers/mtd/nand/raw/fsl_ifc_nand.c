@@ -866,7 +866,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	chip->legacy.read_buf = fsl_ifc_read_buf;
 	chip->select_chip = fsl_ifc_select_chip;
 	chip->legacy.cmdfunc = fsl_ifc_cmdfunc;
-	chip->waitfunc = fsl_ifc_wait;
+	chip->legacy.waitfunc = fsl_ifc_wait;
 	chip->set_features = nand_get_set_features_notsupp;
 	chip->get_features = nand_get_set_features_notsupp;
 

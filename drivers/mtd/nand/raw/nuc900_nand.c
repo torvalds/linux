@@ -175,7 +175,7 @@ static void nuc900_nand_command_lp(struct nand_chip *chip,
 		return;
 
 	case NAND_CMD_RESET:
-		if (chip->dev_ready)
+		if (chip->legacy.dev_ready)
 			break;
 		udelay(chip->chip_delay);
 
@@ -196,7 +196,7 @@ static void nuc900_nand_command_lp(struct nand_chip *chip,
 		write_cmd_reg(nand, NAND_CMD_READSTART);
 	default:
 
-		if (!chip->dev_ready) {
+		if (!chip->legacy.dev_ready) {
 			udelay(chip->chip_delay);
 			return;
 		}
@@ -206,7 +206,7 @@ static void nuc900_nand_command_lp(struct nand_chip *chip,
 	 * any case on any machine. */
 	ndelay(100);
 
-	while (!chip->dev_ready(chip))
+	while (!chip->legacy.dev_ready(chip))
 		;
 }
 
@@ -255,7 +255,7 @@ static int nuc900_nand_probe(struct platform_device *pdev)
 	clk_enable(nuc900_nand->clk);
 
 	chip->legacy.cmdfunc	= nuc900_nand_command_lp;
-	chip->dev_ready		= nuc900_nand_devready;
+	chip->legacy.dev_ready	= nuc900_nand_devready;
 	chip->legacy.read_byte	= nuc900_nand_read_byte;
 	chip->legacy.write_buf	= nuc900_nand_write_buf;
 	chip->legacy.read_buf	= nuc900_nand_read_buf;

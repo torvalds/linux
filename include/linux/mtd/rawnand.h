@@ -1183,6 +1183,10 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  * @cmd_ctrl: hardware specific function for controlling ALE/CLE/nCE. Also used
  *	      to write command and address
  * @cmdfunc: hardware specific function for writing commands to the chip.
+ * @dev_ready: hardware specific function for accessing device ready/busy line.
+ *	       If set to NULL no access to ready/busy is available and the
+ *	       ready/busy information is read from the chip status register.
+ * @waitfunc: hardware specific function for wait on ready.
  *
  * If you look at this structure you're already wrong. These fields/hooks are
  * all deprecated.
@@ -1197,6 +1201,8 @@ struct nand_legacy {
 	void (*cmd_ctrl)(struct nand_chip *chip, int dat, unsigned int ctrl);
 	void (*cmdfunc)(struct nand_chip *chip, unsigned command, int column,
 			int page_addr);
+	int (*dev_ready)(struct nand_chip *chip);
+	int (*waitfunc)(struct nand_chip *chip);
 };
 
 /**
@@ -1210,16 +1216,10 @@ struct nand_legacy {
  * @select_chip:	[REPLACEABLE] select chip nr
  * @block_bad:		[REPLACEABLE] check if a block is bad, using OOB markers
  * @block_markbad:	[REPLACEABLE] mark a block bad
- * @dev_ready:		[BOARDSPECIFIC] hardwarespecific function for accessing
- *			device ready/busy line. If set to NULL no access to
- *			ready/busy is available and the ready/busy information
- *			is read from the chip status register.
- * @waitfunc:		[REPLACEABLE] hardwarespecific function for wait on
- *			ready.
  * @exec_op:		controller specific method to execute NAND operations.
  *			This method replaces ->cmdfunc(),
- *			->legacy.{read,write}_{buf,byte,word}(), ->dev_ready()
- *			and ->waifunc().
+ *			->legacy.{read,write}_{buf,byte,word}(),
+ *			->legacy.dev_ready() and ->waifunc().
  * @setup_read_retry:	[FLASHSPECIFIC] flash (vendor) specific function for
  *			setting the read-retry mode. Mostly needed for MLC NAND.
  * @ecc:		[BOARDSPECIFIC] ECC control structure
@@ -1305,8 +1305,6 @@ struct nand_chip {
 	void (*select_chip)(struct nand_chip *chip, int cs);
 	int (*block_bad)(struct nand_chip *chip, loff_t ofs);
 	int (*block_markbad)(struct nand_chip *chip, loff_t ofs);
-	int (*dev_ready)(struct nand_chip *chip);
-	int (*waitfunc)(struct nand_chip *chip);
 	int (*exec_op)(struct nand_chip *chip,
 		       const struct nand_operation *op,
 		       bool check_only);

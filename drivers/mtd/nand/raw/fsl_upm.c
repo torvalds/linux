@@ -173,7 +173,7 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 		fun->chip.select_chip = fun_select_chip;
 
 	if (fun->rnb_gpio[0] >= 0)
-		fun->chip.dev_ready = fun_chip_ready;
+		fun->chip.legacy.dev_ready = fun_chip_ready;
 
 	mtd->dev.parent = fun->dev;
 

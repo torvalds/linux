@@ -271,7 +271,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	}
 	/* Using RDY pin */
 	if (gpiomtd->rdy)
-		chip->dev_ready = gpio_nand_devready;
+		chip->legacy.dev_ready = gpio_nand_devready;
 
 	nand_set_flash_node(chip, pdev->dev.of_node);
 	chip->legacy.IO_ADDR_W	= chip->legacy.IO_ADDR_R;

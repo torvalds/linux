@@ -715,7 +715,7 @@ static void doc2001plus_command(struct nand_chip *this, unsigned command,
 		return;
 
 	case NAND_CMD_RESET:
-		if (this->dev_ready)
+		if (this->legacy.dev_ready)
 			break;
 		udelay(this->chip_delay);
 		WriteDOC(NAND_CMD_STATUS, docptr, Mplus_FlashCmd);
@@ -730,7 +730,7 @@ static void doc2001plus_command(struct nand_chip *this, unsigned command,
 		 * If we don't have access to the busy pin, we apply the given
 		 * command delay
 		 */
-		if (!this->dev_ready) {
+		if (!this->legacy.dev_ready) {
 			udelay(this->chip_delay);
 			return;
 		}
@@ -740,7 +740,7 @@ static void doc2001plus_command(struct nand_chip *this, unsigned command,
 	 * any case on any machine. */
 	ndelay(100);
 	/* wait until command is processed */
-	while (!this->dev_ready(this)) ;
+	while (!this->legacy.dev_ready(this)) ;
 }
 
 static int doc200x_dev_ready(struct nand_chip *this)
@@ -1570,8 +1570,8 @@ static int __init doc_probe(unsigned long physadr)
 	nand_set_controller_data(nand, doc);
 	nand->select_chip	= doc200x_select_chip;
 	nand->legacy.cmd_ctrl		= doc200x_hwcontrol;
-	nand->dev_ready		= doc200x_dev_ready;
-	nand->waitfunc		= doc200x_wait;
+	nand->legacy.dev_ready	= doc200x_dev_ready;
+	nand->legacy.waitfunc	= doc200x_wait;
 	nand->block_bad		= doc200x_block_bad;
 	nand->ecc.hwctl		= doc200x_enable_hwecc;
 	nand->ecc.calculate	= doc200x_calculate_ecc;

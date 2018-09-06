@@ -431,7 +431,7 @@ static int jz_nand_probe(struct platform_device *pdev)
 	chip->dummy_controller.ops = &jz_nand_controller_ops;
 
 	if (nand->busy_gpio)
-		chip->dev_ready = jz_nand_dev_ready;
+		chip->legacy.dev_ready = jz_nand_dev_ready;
 
 	platform_set_drvdata(pdev, nand);
 

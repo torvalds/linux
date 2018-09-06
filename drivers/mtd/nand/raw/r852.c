@@ -373,7 +373,7 @@ static int r852_wait(struct nand_chip *chip)
 		msecs_to_jiffies(400) : msecs_to_jiffies(20));
 
 	while (time_before(jiffies, timeout))
-		if (chip->dev_ready(chip))
+		if (chip->legacy.dev_ready(chip))
 			break;
 
 	nand_status_op(chip, &status);
@@ -854,8 +854,8 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 
 	/* commands */
 	chip->legacy.cmd_ctrl = r852_cmdctl;
-	chip->waitfunc = r852_wait;
-	chip->dev_ready = r852_ready;
+	chip->legacy.waitfunc = r852_wait;
+	chip->legacy.dev_ready = r852_ready;
 
 	/* I/O */
 	chip->legacy.read_byte = r852_read_byte;

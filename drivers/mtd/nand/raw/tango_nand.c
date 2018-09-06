@@ -314,7 +314,7 @@ static int tango_write_page(struct nand_chip *chip, const u8 *buf,
 	if (err)
 		return err;
 
-	status = chip->waitfunc(chip);
+	status = chip->legacy.waitfunc(chip);
 	if (status & NAND_STATUS_FAIL)
 		return -EIO;
 
@@ -569,7 +569,7 @@ static int chip_init(struct device *dev, struct device_node *np)
 	chip->legacy.read_buf = tango_read_buf;
 	chip->select_chip = tango_select_chip;
 	chip->legacy.cmd_ctrl = tango_cmd_ctrl;
-	chip->dev_ready = tango_dev_ready;
+	chip->legacy.dev_ready = tango_dev_ready;
 	chip->setup_data_interface = tango_set_timings;
 	chip->options = NAND_USE_BOUNCE_BUFFER |
 			NAND_NO_SUBPAGE_WRITE |

@@ -692,7 +692,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	}
 
 	mtd->name = "MPC5121 NAND";
-	chip->dev_ready = mpc5121_nfc_dev_ready;
+	chip->legacy.dev_ready = mpc5121_nfc_dev_ready;
 	chip->legacy.cmdfunc = mpc5121_nfc_command;
 	chip->legacy.read_byte = mpc5121_nfc_read_byte;
 	chip->legacy.read_buf = mpc5121_nfc_read_buf;

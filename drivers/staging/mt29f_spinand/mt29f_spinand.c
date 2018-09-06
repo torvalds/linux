@@ -919,7 +919,7 @@ static int spinand_probe(struct spi_device *spi_nand)
 	chip->legacy.write_buf	= spinand_write_buf;
 	chip->legacy.read_byte	= spinand_read_byte;
 	chip->legacy.cmdfunc	= spinand_cmdfunc;
-	chip->waitfunc	= spinand_wait;
+	chip->legacy.waitfunc	= spinand_wait;
 	chip->options	|= NAND_CACHEPRG;
 	chip->select_chip = spinand_select_chip;
 	chip->set_features = nand_get_set_features_notsupp;

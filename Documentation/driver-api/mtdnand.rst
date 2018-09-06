@@ -197,7 +197,7 @@ to read back the state of the pin. The function has no arguments and
 should return 0, if the device is busy (R/B pin is low) and 1, if the
 device is ready (R/B pin is high). If the hardware interface does not
 give access to the ready busy pin, then the function must not be defined
-and the function pointer this->dev_ready is set to NULL.
+and the function pointer this->legacy.dev_ready is set to NULL.
 
 Init function
 -------------
@@ -242,7 +242,7 @@ necessary information about the device.
         /* Set command delay time, see datasheet for correct value */
         this->chip_delay = CHIP_DEPENDEND_COMMAND_DELAY;
         /* Assign the device ready function, if available */
-        this->dev_ready = board_dev_ready;
+        this->legacy.dev_ready = board_dev_ready;
         this->eccmode = NAND_ECC_SOFT;
 
         /* Scan to find existence of the device */

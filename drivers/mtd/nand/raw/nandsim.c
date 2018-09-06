@@ -2251,7 +2251,7 @@ static int __init ns_init_module(void)
 	 */
 	chip->legacy.cmd_ctrl	 = ns_hwcontrol;
 	chip->legacy.read_byte  = ns_nand_read_byte;
-	chip->dev_ready  = ns_device_ready;
+	chip->legacy.dev_ready  = ns_device_ready;
 	chip->legacy.write_buf  = ns_nand_write_buf;
 	chip->legacy.read_buf   = ns_nand_read_buf;
 	chip->ecc.mode   = NAND_ECC_SOFT;

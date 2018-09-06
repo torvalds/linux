@@ -342,7 +342,8 @@ static void au1550_command(struct nand_chip *this, unsigned command,
 		/* Apply a short delay always to ensure that we do wait tWB. */
 		ndelay(100);
 		/* Wait for a chip to become ready... */
-		for (i = this->chip_delay; !this->dev_ready(this) && i > 0; --i)
+		for (i = this->chip_delay;
+		     !this->legacy.dev_ready(this) && i > 0; --i)
 			udelay(1);
 
 		/* Release -CE and re-enable interrupts. */
@@ -353,7 +354,7 @@ static void au1550_command(struct nand_chip *this, unsigned command,
 	/* Apply this short delay always to ensure that we do wait tWB. */
 	ndelay(100);
 
-	while(!this->dev_ready(this));
+	while(!this->legacy.dev_ready(this));
 }
 
 static int find_nand_cs(unsigned long nand_base)
@@ -428,7 +429,7 @@ static int au1550nd_probe(struct platform_device *pdev)
 	}
 	ctx->cs = cs;
 
-	this->dev_ready = au1550_device_ready;
+	this->legacy.dev_ready = au1550_device_ready;
 	this->select_chip = au1550_select_chip;
 	this->legacy.cmdfunc = au1550_command;
 

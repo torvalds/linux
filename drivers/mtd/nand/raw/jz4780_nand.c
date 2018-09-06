@@ -256,7 +256,7 @@ static int jz4780_nand_init_chip(struct platform_device *pdev,
 		dev_err(dev, "failed to request busy GPIO: %d\n", ret);
 		return ret;
 	} else if (nand->busy_gpio) {
-		nand->chip.dev_ready = jz4780_nand_dev_ready;
+		nand->chip.legacy.dev_ready = jz4780_nand_dev_ready;
 	}
 
 	nand->wp_gpio = devm_gpiod_get_optional(dev, "wp", GPIOD_OUT_LOW);

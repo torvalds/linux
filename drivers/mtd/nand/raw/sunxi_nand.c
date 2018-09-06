@@ -442,9 +442,9 @@ static void sunxi_nfc_select_chip(struct nand_chip *nand, int chip)
 		ctl |= NFC_CE_SEL(sel->cs) | NFC_EN |
 		       NFC_PAGE_SHIFT(nand->page_shift);
 		if (sel->rb < 0) {
-			nand->dev_ready = NULL;
+			nand->legacy.dev_ready = NULL;
 		} else {
-			nand->dev_ready = sunxi_nfc_dev_ready;
+			nand->legacy.dev_ready = sunxi_nfc_dev_ready;
 			ctl |= NFC_RB_SEL(sel->rb);
 		}
 

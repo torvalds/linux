@@ -207,7 +207,7 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	}
 
 	this->legacy.cmd_ctrl = cs553x_hwcontrol;
-	this->dev_ready = cs553x_device_ready;
+	this->legacy.dev_ready = cs553x_device_ready;
 	this->legacy.read_byte = cs553x_read_byte;
 	this->legacy.read_buf = cs553x_read_buf;
 	this->legacy.write_buf = cs553x_write_buf;

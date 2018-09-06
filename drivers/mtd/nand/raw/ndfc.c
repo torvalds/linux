@@ -145,7 +145,7 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 	chip->legacy.IO_ADDR_R = ndfc->ndfcbase + NDFC_DATA;
 	chip->legacy.IO_ADDR_W = ndfc->ndfcbase + NDFC_DATA;
 	chip->legacy.cmd_ctrl = ndfc_hwcontrol;
-	chip->dev_ready = ndfc_ready;
+	chip->legacy.dev_ready = ndfc_ready;
 	chip->select_chip = ndfc_select_chip;
 	chip->chip_delay = 50;
 	chip->controller = &ndfc->ndfc_control;

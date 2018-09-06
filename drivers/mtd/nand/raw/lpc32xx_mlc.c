@@ -740,7 +740,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 		goto put_clk;
 
 	nand_chip->legacy.cmd_ctrl = lpc32xx_nand_cmd_ctrl;
-	nand_chip->dev_ready = lpc32xx_nand_device_ready;
+	nand_chip->legacy.dev_ready = lpc32xx_nand_device_ready;
 	nand_chip->chip_delay = 25; /* us */
 	nand_chip->legacy.IO_ADDR_R = MLC_DATA(host->io_base);
 	nand_chip->legacy.IO_ADDR_W = MLC_DATA(host->io_base);
@@ -760,7 +760,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	nand_chip->ecc.read_oob = lpc32xx_read_oob;
 	nand_chip->ecc.strength = 4;
 	nand_chip->ecc.bytes = 10;
-	nand_chip->waitfunc = lpc32xx_waitfunc;
+	nand_chip->legacy.waitfunc = lpc32xx_waitfunc;
 
 	nand_chip->options = NAND_NO_SUBPAGE_WRITE;
 	nand_chip->bbt_options = NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;

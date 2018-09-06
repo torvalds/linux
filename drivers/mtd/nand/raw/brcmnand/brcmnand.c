@@ -2272,7 +2272,7 @@ static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 
 	chip->legacy.cmd_ctrl = brcmnand_cmd_ctrl;
 	chip->legacy.cmdfunc = brcmnand_cmdfunc;
-	chip->waitfunc = brcmnand_waitfunc;
+	chip->legacy.waitfunc = brcmnand_waitfunc;
 	chip->legacy.read_byte = brcmnand_read_byte;
 	chip->legacy.read_buf = brcmnand_read_buf;
 	chip->legacy.write_buf = brcmnand_write_buf;

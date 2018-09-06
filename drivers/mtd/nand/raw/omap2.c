@@ -2247,10 +2247,10 @@ static int omap_nand_probe(struct platform_device *pdev)
 	 * device and read status register until you get a failure or success
 	 */
 	if (info->ready_gpiod) {
-		nand_chip->dev_ready = omap_dev_ready;
+		nand_chip->legacy.dev_ready = omap_dev_ready;
 		nand_chip->chip_delay = 0;
 	} else {
-		nand_chip->waitfunc = omap_wait;
+		nand_chip->legacy.waitfunc = omap_wait;
 		nand_chip->chip_delay = 50;
 	}
 
