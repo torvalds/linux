@@ -51,6 +51,7 @@ static void mt76x0_stop(struct ieee80211_hw *hw)
 
 	cancel_delayed_work_sync(&dev->cal_work);
 	cancel_delayed_work_sync(&dev->mac_work);
+	mt76u_stop_stat_wk(&dev->mt76);
 	mt76x0_mac_stop(dev);
 
 	mutex_unlock(&dev->mt76.mutex);
