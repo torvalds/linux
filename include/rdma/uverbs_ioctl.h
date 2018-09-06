@@ -52,6 +52,7 @@ enum uverbs_attr_type {
 	UVERBS_ATTR_TYPE_IDR,
 	UVERBS_ATTR_TYPE_FD,
 	UVERBS_ATTR_TYPE_ENUM_IN,
+	UVERBS_ATTR_TYPE_IDRS_ARRAY,
 };
 
 enum uverbs_obj_access {
@@ -101,7 +102,7 @@ struct uverbs_attr_spec {
 		} enum_def;
 	} u;
 
-	/* This weird split of the enum lets us remove some padding */
+	/* This weird split lets us remove some padding */
 	union {
 		struct {
 			/*
@@ -111,6 +112,17 @@ struct uverbs_attr_spec {
 			 */
 			const struct uverbs_attr_spec *ids;
 		} enum_def;
+
+		struct {
+			/*
+			 * higher bits mean the namespace and lower bits mean
+			 * the type id within the namespace.
+			 */
+			u16				obj_type;
+			u16				min_len;
+			u16				max_len;
+			u8				access;
+		} objs_arr;
 	} u2;
 };
 
@@ -251,6 +263,11 @@ static inline __attribute_const__ u32 uapi_bkey_attr(u32 attr_key)
 	return attr_key - 1;
 }
 
+static inline __attribute_const__ u32 uapi_bkey_to_key_attr(u32 attr_bkey)
+{
+	return attr_bkey + 1;
+}
+
 /*
  * =======================================
  *	Verbs definitions
@@ -322,6 +339,27 @@ struct uverbs_object_tree_def {
 #define UA_ALLOC_AND_COPY .alloc_and_copy = 1
 #define UA_MANDATORY .mandatory = 1
 #define UA_OPTIONAL .mandatory = 0
+
+/*
+ * min_len must be bigger than 0 and _max_len must be smaller than 4095.  Only
+ * READ\WRITE accesses are supported.
+ */
+#define UVERBS_ATTR_IDRS_ARR(_attr_id, _idr_type, _access, _min_len, _max_len, \
+			     ...)                                              \
+	(&(const struct uverbs_attr_def){                                      \
+		.id = (_attr_id) +                                             \
+		      BUILD_BUG_ON_ZERO((_min_len) == 0 ||                     \
+					(_max_len) >                           \
+						PAGE_SIZE / sizeof(void *) ||  \
+					(_min_len) > (_max_len) ||             \
+					(_access) == UVERBS_ACCESS_NEW ||      \
+					(_access) == UVERBS_ACCESS_DESTROY),   \
+		.attr = { .type = UVERBS_ATTR_TYPE_IDRS_ARRAY,                 \
+			  .u2.objs_arr.obj_type = _idr_type,                   \
+			  .u2.objs_arr.access = _access,                       \
+			  .u2.objs_arr.min_len = _min_len,                     \
+			  .u2.objs_arr.max_len = _max_len,                     \
+			  __VA_ARGS__ } })
 
 #define UVERBS_ATTR_IDR(_attr_id, _idr_type, _access, ...)                     \
 	(&(const struct uverbs_attr_def){                                      \
@@ -440,10 +478,16 @@ struct uverbs_obj_attr {
 	const struct uverbs_api_attr	*attr_elm;
 };
 
+struct uverbs_objs_arr_attr {
+	struct ib_uobject **uobjects;
+	u16 len;
+};
+
 struct uverbs_attr {
 	union {
 		struct uverbs_ptr_attr	ptr_attr;
 		struct uverbs_obj_attr	obj_attr;
+		struct uverbs_objs_arr_attr objs_arr_attr;
 	};
 };
 
@@ -514,6 +558,31 @@ uverbs_attr_get_len(const struct uverbs_attr_bundle *attrs_bundle, u16 idx)
 		return PTR_ERR(attr);
 
 	return attr->ptr_attr.len;
+}
+
+/**
+ * uverbs_attr_get_uobjs_arr() - Provides array's properties for attribute for
+ * UVERBS_ATTR_TYPE_IDRS_ARRAY.
+ * @arr: Returned pointer to array of pointers for uobjects or NULL if
+ *       the attribute isn't provided.
+ *
+ * Return: The array length or 0 if no attribute was provided.
+ */
+static inline int uverbs_attr_get_uobjs_arr(
+	const struct uverbs_attr_bundle *attrs_bundle, u16 attr_idx,
+	struct ib_uobject ***arr)
+{
+	const struct uverbs_attr *attr =
+			uverbs_attr_get(attrs_bundle, attr_idx);
+
+	if (IS_ERR(attr)) {
+		*arr = NULL;
+		return 0;
+	}
+
+	*arr = attr->objs_arr_attr.uobjects;
+
+	return attr->objs_arr_attr.len;
 }
 
 static inline bool uverbs_attr_ptr_is_inline(const struct uverbs_attr *attr)
