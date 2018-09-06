@@ -313,7 +313,7 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		cafe_writel(cafe, cafe->ctl2, NAND_CTRL2);
 		return;
 	}
-	nand_wait_ready(mtd);
+	nand_wait_ready(chip);
 	cafe_writel(cafe, cafe->ctl2, NAND_CTRL2);
 }
 

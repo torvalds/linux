@@ -37,7 +37,7 @@ static inline int nand_scan(struct nand_chip *chip, int max_chips)
 }
 
 /* Internal helper for board drivers which need to override command function */
-void nand_wait_ready(struct mtd_info *mtd);
+void nand_wait_ready(struct nand_chip *chip);
 
 /* The maximum number of NAND chips in an array */
 #define NAND_MAX_CHIPS		8

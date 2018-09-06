@@ -624,13 +624,13 @@ static void panic_nand_wait_ready(struct mtd_info *mtd, unsigned long timeo)
 
 /**
  * nand_wait_ready - [GENERIC] Wait for the ready pin after commands.
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  *
  * Wait for the ready pin after a command, and warn if a timeout occurs.
  */
-void nand_wait_ready(struct mtd_info *mtd)
+void nand_wait_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	unsigned long timeo = 400;
 
 	if (in_interrupt() || oops_in_progress)
@@ -852,7 +852,7 @@ static void nand_command(struct mtd_info *mtd, unsigned int command,
 	 */
 	ndelay(100);
 
-	nand_wait_ready(mtd);
+	nand_wait_ready(chip);
 }
 
 static void nand_ccs_delay(struct nand_chip *chip)
@@ -1004,7 +1004,7 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 	 */
 	ndelay(100);
 
-	nand_wait_ready(mtd);
+	nand_wait_ready(chip);
 }
 
 /**
@@ -2251,7 +2251,7 @@ static int nand_wait_rdy_op(struct nand_chip *chip, unsigned int timeout_ms,
 	if (!chip->dev_ready)
 		udelay(chip->chip_delay);
 	else
-		nand_wait_ready(nand_to_mtd(chip));
+		nand_wait_ready(chip);
 
 	return 0;
 }

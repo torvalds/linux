@@ -232,7 +232,7 @@ static void bcm47xxnflash_ops_bcm4706_cmdfunc(struct mtd_info *mtd,
 		nand_chip->cmd_ctrl(mtd, command, NAND_CTRL_CLE);
 
 		ndelay(100);
-		nand_wait_ready(mtd);
+		nand_wait_ready(nand_chip);
 		break;
 	case NAND_CMD_READID:
 		ctlcode = NCTL_CSA | 0x01000000 | NCTL_CMD1W | NCTL_CMD0;
