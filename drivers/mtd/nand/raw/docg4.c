@@ -892,9 +892,9 @@ static int docg4_read_oob(struct nand_chip *nand, int page)
 	return 0;
 }
 
-static int docg4_erase_block(struct mtd_info *mtd, int page)
+static int docg4_erase_block(struct nand_chip *nand, int page)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct docg4_priv *doc = nand_get_controller_data(nand);
 	void __iomem *docptr = doc->virtadr;
 	uint16_t g4_page;

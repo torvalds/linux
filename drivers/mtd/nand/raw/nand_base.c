@@ -4623,14 +4623,13 @@ out:
 
 /**
  * single_erase - [GENERIC] NAND standard block erase command function
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @page: the page address of the block which will be erased
  *
  * Standard erase command for NAND chips. Returns NAND status.
  */
-static int single_erase(struct mtd_info *mtd, int page)
+static int single_erase(struct nand_chip *chip, int page)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	unsigned int eraseblock;
 
 	/* Send commands to erase a block */
@@ -4715,7 +4714,7 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 		    (page + pages_per_block))
 			chip->pagebuf = -1;
 
-		status = chip->erase(mtd, page & chip->pagemask);
+		status = chip->erase(chip, page & chip->pagemask);
 
 		/* See if block erase succeeded */
 		if (status) {
