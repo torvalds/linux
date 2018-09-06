@@ -71,6 +71,12 @@ struct oct_nic_stats_resp {
 	u64     status;
 };
 
+struct oct_nic_vf_stats_resp {
+	u64     rh;
+	u64	spoofmac_cnt;
+	u64     status;
+};
+
 struct oct_nic_stats_ctrl {
 	struct completion complete;
 	struct net_device *netdev;

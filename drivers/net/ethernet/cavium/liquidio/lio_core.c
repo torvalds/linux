@@ -1357,6 +1357,69 @@ octnet_nic_stats_callback(struct octeon_device *oct_dev,
 	}
 }
 
+int lio_fetch_vf_stats(struct lio *lio)
+{
+	struct octeon_device *oct_dev = lio->oct_dev;
+	struct octeon_soft_command *sc;
+	struct oct_nic_vf_stats_resp *resp;
+
+	int retval;
+
+	/* Alloc soft command */
+	sc = (struct octeon_soft_command *)
+		octeon_alloc_soft_command(oct_dev,
+					  0,
+					  sizeof(struct oct_nic_vf_stats_resp),
+					  0);
+
+	if (!sc) {
+		dev_err(&oct_dev->pci_dev->dev, "Soft command allocation failed\n");
+		retval = -ENOMEM;
+		goto lio_fetch_vf_stats_exit;
+	}
+
+	resp = (struct oct_nic_vf_stats_resp *)sc->virtrptr;
+	memset(resp, 0, sizeof(struct oct_nic_vf_stats_resp));
+
+	init_completion(&sc->complete);
+	sc->sc_status = OCTEON_REQUEST_PENDING;
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+
+	octeon_prepare_soft_command(oct_dev, sc, OPCODE_NIC,
+				    OPCODE_NIC_VF_PORT_STATS, 0, 0, 0);
+
+	retval = octeon_send_soft_command(oct_dev, sc);
+	if (retval == IQ_SEND_FAILED) {
+		octeon_free_soft_command(oct_dev, sc);
+		goto lio_fetch_vf_stats_exit;
+	}
+
+	retval =
+		wait_for_sc_completion_timeout(oct_dev, sc,
+					       (2 * LIO_SC_MAX_TMO_MS));
+	if (retval)  {
+		dev_err(&oct_dev->pci_dev->dev,
+			"sc OPCODE_NIC_VF_PORT_STATS command failed\n");
+		goto lio_fetch_vf_stats_exit;
+	}
+
+	if (sc->sc_status != OCTEON_REQUEST_TIMEOUT && !resp->status) {
+		octeon_swap_8B_data((u64 *)&resp->spoofmac_cnt,
+				    (sizeof(u64)) >> 3);
+
+		if (resp->spoofmac_cnt != 0) {
+			dev_warn(&oct_dev->pci_dev->dev,
+				 "%llu Spoofed packets detected\n",
+				 resp->spoofmac_cnt);
+		}
+	}
+	WRITE_ONCE(sc->caller_is_done, 1);
+
+lio_fetch_vf_stats_exit:
+	return retval;
+}
+
 void lio_fetch_stats(struct work_struct *work)
 {
 	struct cavium_wk *wk = (struct cavium_wk *)work;
@@ -1366,6 +1429,17 @@ void lio_fetch_stats(struct work_struct *work)
 	struct oct_nic_stats_resp *resp;
 	unsigned long time_in_jiffies;
 	int retval;
+
+	if (OCTEON_CN23XX_PF(oct_dev)) {
+		/* report spoofchk every 2 seconds */
+		if (!(oct_dev->vfstats_poll % LIO_VFSTATS_POLL) &&
+		    (oct_dev->fw_info.app_cap_flags & LIQUIDIO_SPOOFCHK_CAP) &&
+		    oct_dev->sriov_info.num_vfs_alloced) {
+			lio_fetch_vf_stats(lio);
+		}
+
+		oct_dev->vfstats_poll++;
+	}
 
 	/* Alloc soft command */
 	sc = (struct octeon_soft_command *)

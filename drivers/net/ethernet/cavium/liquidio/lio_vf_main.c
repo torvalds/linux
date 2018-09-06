@@ -1135,6 +1135,12 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 		return -ENOMEM;
 	}
 
+	if (nctrl.sc_status ==
+	    FIRMWARE_STATUS_CODE(OCTEON_REQUEST_NO_PERMISSION)) {
+		dev_err(&oct->pci_dev->dev, "MAC Address change failed: no permission\n");
+		return -EPERM;
+	}
+
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	ether_addr_copy(((u8 *)&lio->linfo.hw_addr) + 2, addr->sa_data);
 
@@ -2049,6 +2055,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		lio->linfo.link.u64 = resp->cfg_info.linfo.link.u64;
 		lio->linfo.macaddr_is_admin_asgnd =
 			resp->cfg_info.linfo.macaddr_is_admin_asgnd;
+		lio->linfo.macaddr_spoofchk =
+			resp->cfg_info.linfo.macaddr_spoofchk;
 
 		lio->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 

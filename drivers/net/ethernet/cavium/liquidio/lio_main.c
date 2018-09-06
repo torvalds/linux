@@ -2858,6 +2858,62 @@ static int liquidio_set_vf_mac(struct net_device *netdev, int vfidx, u8 *mac)
 	return retval;
 }
 
+static int liquidio_set_vf_spoofchk(struct net_device *netdev, int vfidx,
+				    bool enable)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	int retval;
+
+	if (!(oct->fw_info.app_cap_flags & LIQUIDIO_SPOOFCHK_CAP)) {
+		netif_info(lio, drv, lio->netdev,
+			   "firmware does not support spoofchk\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced) {
+		netif_info(lio, drv, lio->netdev, "Invalid vfidx %d\n", vfidx);
+		return -EINVAL;
+	}
+
+	if (enable) {
+		if (oct->sriov_info.vf_spoofchk[vfidx])
+			return 0;
+	} else {
+		/* Clear */
+		if (!oct->sriov_info.vf_spoofchk[vfidx])
+			return 0;
+	}
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+	nctrl.ncmd.s.cmdgroup = OCTNET_CMD_GROUP1;
+	nctrl.ncmd.s.cmd = OCTNET_CMD_SET_VF_SPOOFCHK;
+	nctrl.ncmd.s.param1 =
+		vfidx + 1; /* vfidx is 0 based,
+			    * but vf_num (param1) is 1 based
+			    */
+	nctrl.ncmd.s.param2 = enable;
+	nctrl.ncmd.s.more = 0;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.cb_fn = 0;
+
+	retval = octnet_send_nic_ctrl_pkt(oct, &nctrl);
+
+	if (retval) {
+		netif_info(lio, drv, lio->netdev,
+			   "Failed to set VF %d spoofchk %s\n", vfidx,
+			enable ? "on" : "off");
+		return -1;
+	}
+
+	oct->sriov_info.vf_spoofchk[vfidx] = enable;
+	netif_info(lio, drv, lio->netdev, "VF %u spoofchk is %s\n", vfidx,
+		   enable ? "on" : "off");
+
+	return 0;
+}
+
 static int liquidio_set_vf_vlan(struct net_device *netdev, int vfidx,
 				u16 vlan, u8 qos, __be16 vlan_proto)
 {
@@ -2920,6 +2976,8 @@ static int liquidio_get_vf_config(struct net_device *netdev, int vfidx,
 	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced)
 		return -EINVAL;
 
+	memset(ivi, 0, sizeof(struct ifla_vf_info));
+
 	ivi->vf = vfidx;
 	macaddr = 2 + (u8 *)&oct->sriov_info.vf_macaddr[vfidx];
 	ether_addr_copy(&ivi->mac[0], macaddr);
@@ -2931,6 +2989,10 @@ static int liquidio_get_vf_config(struct net_device *netdev, int vfidx,
 	else
 		ivi->trusted = false;
 	ivi->linkstate = oct->sriov_info.vf_linkstate[vfidx];
+	ivi->spoofchk = oct->sriov_info.vf_spoofchk[vfidx];
+	ivi->max_tx_rate = lio->linfo.link.s.speed;
+	ivi->min_tx_rate = 0;
+
 	return 0;
 }
 
@@ -3180,6 +3242,7 @@ static const struct net_device_ops lionetdevops = {
 	.ndo_set_vf_mac		= liquidio_set_vf_mac,
 	.ndo_set_vf_vlan	= liquidio_set_vf_vlan,
 	.ndo_get_vf_config	= liquidio_get_vf_config,
+	.ndo_set_vf_spoofchk	= liquidio_set_vf_spoofchk,
 	.ndo_set_vf_trust	= liquidio_set_vf_trust,
 	.ndo_set_vf_link_state  = liquidio_set_vf_link_state,
 	.ndo_get_vf_stats	= liquidio_get_vf_stats,

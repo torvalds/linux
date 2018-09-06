@@ -1713,7 +1713,8 @@ static void lio_vf_get_ethtool_stats(struct net_device *netdev,
 	  */
 	data[i++] = lstats.rx_dropped;
 	/* sum of oct->instr_queue[iq_no]->stats.tx_dropped */
-	data[i++] = lstats.tx_dropped;
+	data[i++] = lstats.tx_dropped +
+		oct_dev->link_stats.fromhost.fw_err_drop;
 
 	data[i++] = oct_dev->link_stats.fromwire.fw_total_mcast;
 	data[i++] = oct_dev->link_stats.fromhost.fw_total_mcast_sent;

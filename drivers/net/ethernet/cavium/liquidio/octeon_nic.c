@@ -172,13 +172,15 @@ octnet_send_nic_ctrl_pkt(struct octeon_device *oct,
 
 	spin_unlock_bh(&oct->cmd_resp_wqlock);
 
-	switch (nctrl->ncmd.s.cmd) {
-		/* caller holds lock, can not sleep */
-	case OCTNET_CMD_CHANGE_DEVFLAGS:
-	case OCTNET_CMD_SET_MULTI_LIST:
-	case OCTNET_CMD_SET_UC_LIST:
-		WRITE_ONCE(sc->caller_is_done, true);
-		return retval;
+	if (nctrl->ncmd.s.cmdgroup == 0) {
+		switch (nctrl->ncmd.s.cmd) {
+			/* caller holds lock, can not sleep */
+		case OCTNET_CMD_CHANGE_DEVFLAGS:
+		case OCTNET_CMD_SET_MULTI_LIST:
+		case OCTNET_CMD_SET_UC_LIST:
+			WRITE_ONCE(sc->caller_is_done, true);
+			return retval;
+		}
 	}
 
 	retval = wait_for_sc_completion_timeout(oct, sc, 0);
