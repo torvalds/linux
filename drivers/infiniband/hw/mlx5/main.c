@@ -2467,6 +2467,9 @@ int parse_flow_flow_action(struct mlx5_ib_flow_action *maction,
 
 	switch (maction->ib_action.type) {
 	case IB_FLOW_ACTION_ESP:
+		if (action->action & (MLX5_FLOW_CONTEXT_ACTION_ENCRYPT |
+				      MLX5_FLOW_CONTEXT_ACTION_DECRYPT))
+			return -EINVAL;
 		/* Currently only AES_GCM keymat is supported by the driver */
 		action->esp_id = (uintptr_t)maction->esp_aes_gcm.ctx;
 		action->action |= is_egress ?
@@ -2476,17 +2479,24 @@ int parse_flow_flow_action(struct mlx5_ib_flow_action *maction,
 	case IB_FLOW_ACTION_UNSPECIFIED:
 		if (maction->flow_action_raw.sub_type ==
 		    MLX5_IB_FLOW_ACTION_MODIFY_HEADER) {
+			if (action->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
+				return -EINVAL;
 			action->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 			action->modify_id = maction->flow_action_raw.action_id;
 			return 0;
 		}
 		if (maction->flow_action_raw.sub_type ==
 		    MLX5_IB_FLOW_ACTION_DECAP) {
+			if (action->action & MLX5_FLOW_CONTEXT_ACTION_DECAP)
+				return -EINVAL;
 			action->action |= MLX5_FLOW_CONTEXT_ACTION_DECAP;
 			return 0;
 		}
 		if (maction->flow_action_raw.sub_type ==
 		    MLX5_IB_FLOW_ACTION_PACKET_REFORMAT) {
+			if (action->action &
+			    MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT)
+				return -EINVAL;
 			action->action |=
 				MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
 			action->reformat_id =
