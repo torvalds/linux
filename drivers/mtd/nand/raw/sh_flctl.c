@@ -618,7 +618,7 @@ static int flctl_read_page_hwecc(struct nand_chip *chip, uint8_t *buf,
 
 	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	if (oob_required)
-		chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+		chip->read_buf(chip, chip->oob_poi, mtd->oobsize);
 	return 0;
 }
 
@@ -978,9 +978,9 @@ static void flctl_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 	flctl->index += len;
 }
 
-static uint8_t flctl_read_byte(struct mtd_info *mtd)
+static uint8_t flctl_read_byte(struct nand_chip *chip)
 {
-	struct sh_flctl *flctl = mtd_to_flctl(mtd);
+	struct sh_flctl *flctl = mtd_to_flctl(nand_to_mtd(chip));
 	uint8_t data;
 
 	data = flctl->done_buff[flctl->index];
@@ -988,9 +988,9 @@ static uint8_t flctl_read_byte(struct mtd_info *mtd)
 	return data;
 }
 
-static void flctl_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void flctl_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct sh_flctl *flctl = mtd_to_flctl(mtd);
+	struct sh_flctl *flctl = mtd_to_flctl(nand_to_mtd(chip));
 
 	memcpy(buf, &flctl->done_buff[flctl->index], len);
 	flctl->index += len;

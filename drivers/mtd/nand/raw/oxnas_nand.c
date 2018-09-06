@@ -38,17 +38,15 @@ struct oxnas_nand_ctrl {
 	struct nand_chip *chips[OXNAS_NAND_MAX_CHIPS];
 };
 
-static uint8_t oxnas_nand_read_byte(struct mtd_info *mtd)
+static uint8_t oxnas_nand_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct oxnas_nand_ctrl *oxnas = nand_get_controller_data(chip);
 
 	return readb(oxnas->io_base);
 }
 
-static void oxnas_nand_read_buf(struct mtd_info *mtd, u8 *buf, int len)
+static void oxnas_nand_read_buf(struct nand_chip *chip, u8 *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct oxnas_nand_ctrl *oxnas = nand_get_controller_data(chip);
 
 	ioread8_rep(oxnas->io_base, buf, len);

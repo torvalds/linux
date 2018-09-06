@@ -75,10 +75,9 @@ static void ams_delta_write_byte(struct mtd_info *mtd, u_char byte)
 	gpio_set_value(AMS_DELTA_GPIO_PIN_NAND_NWE, 1);
 }
 
-static u_char ams_delta_read_byte(struct mtd_info *mtd)
+static u_char ams_delta_read_byte(struct nand_chip *this)
 {
 	u_char res;
-	struct nand_chip *this = mtd_to_nand(mtd);
 	void __iomem *io_base = (void __iomem *)nand_get_controller_data(this);
 
 	gpio_set_value(AMS_DELTA_GPIO_PIN_NAND_NRE, 0);
@@ -99,12 +98,12 @@ static void ams_delta_write_buf(struct mtd_info *mtd, const u_char *buf,
 		ams_delta_write_byte(mtd, buf[i]);
 }
 
-static void ams_delta_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void ams_delta_read_buf(struct nand_chip *this, u_char *buf, int len)
 {
 	int i;
 
 	for (i=0; i<len; i++)
-		buf[i] = ams_delta_read_byte(mtd);
+		buf[i] = ams_delta_read_byte(this);
 }
 
 /*

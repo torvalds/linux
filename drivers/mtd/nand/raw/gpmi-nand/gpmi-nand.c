@@ -859,9 +859,8 @@ static void gpmi_select_chip(struct mtd_info *mtd, int chipnr)
 	this->current_chip = chipnr;
 }
 
-static void gpmi_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void gpmi_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 
 	dev_dbg(this->dev, "len is %d\n", len);
@@ -879,13 +878,12 @@ static void gpmi_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 	gpmi_send_data(this, buf, len);
 }
 
-static uint8_t gpmi_read_byte(struct mtd_info *mtd)
+static uint8_t gpmi_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	uint8_t *buf = this->data_buffer_dma;
 
-	gpmi_read_buf(mtd, buf, 1);
+	gpmi_read_buf(chip, buf, 1);
 	return buf[0];
 }
 
@@ -1336,7 +1334,7 @@ static int gpmi_ecc_read_oob(struct nand_chip *chip, int page)
 
 	/* Read out the conventional OOB. */
 	nand_read_page_op(chip, page, mtd->writesize, NULL, 0);
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	/*
 	 * Now, we want to make sure the block mark is correct. In the
@@ -1346,7 +1344,7 @@ static int gpmi_ecc_read_oob(struct nand_chip *chip, int page)
 	if (GPMI_IS_MX23(this)) {
 		/* Read the block mark into the first byte of the OOB buffer. */
 		nand_read_page_op(chip, page, 0, NULL, 0);
-		chip->oob_poi[0] = chip->read_byte(mtd);
+		chip->oob_poi[0] = chip->read_byte(chip);
 	}
 
 	return 0;
@@ -1635,7 +1633,7 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 		 * and starts in the 12th byte of the page.
 		 */
 		nand_read_page_op(chip, page, 12, NULL, 0);
-		chip->read_buf(mtd, buffer, strlen(fingerprint));
+		chip->read_buf(chip, buffer, strlen(fingerprint));
 
 		/* Look for the fingerprint. */
 		if (!memcmp(buffer, fingerprint, strlen(fingerprint))) {
@@ -1771,7 +1769,7 @@ static int mx23_boot_init(struct gpmi_nand_data  *this)
 		/* Send the command to read the conventional block mark. */
 		chip->select_chip(mtd, chipnr);
 		nand_read_page_op(chip, page, mtd->writesize, NULL, 0);
-		block_mark = chip->read_byte(mtd);
+		block_mark = chip->read_byte(chip);
 		chip->select_chip(mtd, -1);
 
 		/*

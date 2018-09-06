@@ -261,10 +261,9 @@ static inline void write_nop(void __iomem *docptr)
 	writew(0, docptr + DOC_NOP);
 }
 
-static void docg4_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void docg4_read_buf(struct nand_chip *nand, uint8_t *buf, int len)
 {
 	int i;
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	uint16_t *p = (uint16_t *) buf;
 	len >>= 1;
 
@@ -484,9 +483,8 @@ static int correct_data(struct mtd_info *mtd, uint8_t *buf, int page)
 	return numerrs;
 }
 
-static uint8_t docg4_read_byte(struct mtd_info *mtd)
+static uint8_t docg4_read_byte(struct nand_chip *nand)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct docg4_priv *doc = nand_get_controller_data(nand);
 
 	dev_dbg(doc->dev, "%s\n", __func__);
@@ -809,11 +807,11 @@ static int read_page(struct mtd_info *mtd, struct nand_chip *nand,
 
 	dev_dbg(doc->dev, "%s: status = 0x%x\n", __func__, status);
 
-	docg4_read_buf(mtd, buf, DOCG4_PAGE_SIZE); /* read the page data */
+	docg4_read_buf(nand, buf, DOCG4_PAGE_SIZE); /* read the page data */
 
 	/* this device always reads oob after page data */
 	/* first 14 oob bytes read from I/O reg */
-	docg4_read_buf(mtd, nand->oob_poi, 14);
+	docg4_read_buf(nand, nand->oob_poi, 14);
 
 	/* last 2 read from another reg */
 	buf16 = (uint16_t *)(nand->oob_poi + 14);
@@ -859,7 +857,6 @@ static int docg4_read_page(struct nand_chip *nand, uint8_t *buf,
 
 static int docg4_read_oob(struct nand_chip *nand, int page)
 {
-	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct docg4_priv *doc = nand_get_controller_data(nand);
 	void __iomem *docptr = doc->virtadr;
 	uint16_t status;
@@ -885,7 +882,7 @@ static int docg4_read_oob(struct nand_chip *nand, int page)
 
 	dev_dbg(doc->dev, "%s: status = 0x%x\n", __func__, status);
 
-	docg4_read_buf(mtd, nand->oob_poi, 16);
+	docg4_read_buf(nand, nand->oob_poi, 16);
 
 	write_nop(docptr);
 	write_nop(docptr);

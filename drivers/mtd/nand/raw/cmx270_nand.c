@@ -49,10 +49,8 @@ static const struct mtd_partition partition_info[] = {
 };
 #define NUM_PARTITIONS (ARRAY_SIZE(partition_info))
 
-static u_char cmx270_read_byte(struct mtd_info *mtd)
+static u_char cmx270_read_byte(struct nand_chip *this)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
-
 	return (readl(this->IO_ADDR_R) >> 16);
 }
 
@@ -65,10 +63,9 @@ static void cmx270_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 		writel((*buf++ << 16), this->IO_ADDR_W);
 }
 
-static void cmx270_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void cmx270_read_buf(struct nand_chip *this, u_char *buf, int len)
 {
 	int i;
-	struct nand_chip *this = mtd_to_nand(mtd);
 
 	for (i=0; i<len; i++)
 		*buf++ = readl(this->IO_ADDR_R) >> 16;

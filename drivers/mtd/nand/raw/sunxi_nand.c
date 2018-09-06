@@ -464,9 +464,8 @@ static void sunxi_nfc_select_chip(struct mtd_info *mtd, int chip)
 	sunxi_nand->selected = chip;
 }
 
-static void sunxi_nfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void sunxi_nfc_read_buf(struct nand_chip *nand, uint8_t *buf, int len)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(sunxi_nand->nand.controller);
 	int ret;
@@ -540,11 +539,11 @@ static void sunxi_nfc_write_buf(struct mtd_info *mtd, const uint8_t *buf,
 	}
 }
 
-static uint8_t sunxi_nfc_read_byte(struct mtd_info *mtd)
+static uint8_t sunxi_nfc_read_byte(struct nand_chip *nand)
 {
 	uint8_t ret = 0;
 
-	sunxi_nfc_read_buf(mtd, &ret, 1);
+	sunxi_nfc_read_buf(nand, &ret, 1);
 
 	return ret;
 }
@@ -770,7 +769,7 @@ static void sunxi_nfc_randomizer_read_buf(struct mtd_info *mtd, uint8_t *buf,
 {
 	sunxi_nfc_randomizer_config(mtd, page, ecc);
 	sunxi_nfc_randomizer_enable(mtd);
-	sunxi_nfc_read_buf(mtd, buf, len);
+	sunxi_nfc_read_buf(mtd_to_nand(mtd), buf, len);
 	sunxi_nfc_randomizer_disable(mtd);
 }
 
@@ -995,7 +994,7 @@ static void sunxi_nfc_hw_ecc_read_extra_oob(struct mtd_info *mtd,
 					   false);
 
 	if (!randomize)
-		sunxi_nfc_read_buf(mtd, oob + offset, len);
+		sunxi_nfc_read_buf(nand, oob + offset, len);
 	else
 		sunxi_nfc_randomizer_read_buf(mtd, oob + offset, len,
 					      false, page);

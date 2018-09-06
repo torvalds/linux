@@ -48,9 +48,8 @@ static void orion_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl
 	writeb(cmd, nc->IO_ADDR_W + offs);
 }
 
-static void orion_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void orion_nand_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	void __iomem *io_base = chip->IO_ADDR_R;
 #if defined(__LINUX_ARM_ARCH__) && __LINUX_ARM_ARCH__ >= 5
 	uint64_t *buf64;

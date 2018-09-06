@@ -54,14 +54,14 @@ static void socrates_nand_write_buf(struct mtd_info *mtd,
 
 /**
  * socrates_nand_read_buf -  read chip data into buffer
- * @mtd:	MTD device structure
+ * @this:	NAND chip object
  * @buf:	buffer to store date
  * @len:	number of bytes to read
  */
-static void socrates_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void socrates_nand_read_buf(struct nand_chip *this, uint8_t *buf,
+				   int len)
 {
 	int i;
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct socrates_nand_host *host = nand_get_controller_data(this);
 	uint32_t val;
 
@@ -78,10 +78,10 @@ static void socrates_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
  * socrates_nand_read_byte -  read one byte from the chip
  * @mtd:	MTD device structure
  */
-static uint8_t socrates_nand_read_byte(struct mtd_info *mtd)
+static uint8_t socrates_nand_read_byte(struct nand_chip *this)
 {
 	uint8_t byte;
-	socrates_nand_read_buf(mtd, &byte, sizeof(byte));
+	socrates_nand_read_buf(this, &byte, sizeof(byte));
 	return byte;
 }
 

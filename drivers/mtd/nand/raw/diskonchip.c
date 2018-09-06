@@ -302,9 +302,8 @@ static void doc2000_write_byte(struct mtd_info *mtd, u_char datum)
 	WriteDOC(datum, docptr, 2k_CDSN_IO);
 }
 
-static u_char doc2000_read_byte(struct mtd_info *mtd)
+static u_char doc2000_read_byte(struct nand_chip *this)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	u_char ret;
@@ -334,9 +333,8 @@ static void doc2000_writebuf(struct mtd_info *mtd, const u_char *buf, int len)
 		printk("\n");
 }
 
-static void doc2000_readbuf(struct mtd_info *mtd, u_char *buf, int len)
+static void doc2000_readbuf(struct nand_chip *this, u_char *buf, int len)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	int i;
@@ -344,14 +342,12 @@ static void doc2000_readbuf(struct mtd_info *mtd, u_char *buf, int len)
 	if (debug)
 		printk("readbuf of %d bytes: ", len);
 
-	for (i = 0; i < len; i++) {
+	for (i = 0; i < len; i++)
 		buf[i] = ReadDOC(docptr, 2k_CDSN_IO + i);
-	}
 }
 
-static void doc2000_readbuf_dword(struct mtd_info *mtd, u_char *buf, int len)
+static void doc2000_readbuf_dword(struct nand_chip *this, u_char *buf, int len)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	int i;
@@ -387,8 +383,8 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 	 */
 	udelay(50);
 
-	ret = this->read_byte(mtd) << 8;
-	ret |= this->read_byte(mtd);
+	ret = this->read_byte(this) << 8;
+	ret |= this->read_byte(this);
 
 	if (doc->ChipID == DOC_ChipID_Doc2k && try_dword && !nr) {
 		/* First chip probe. See if we get same results by 32-bit access */
@@ -447,7 +443,7 @@ static int doc200x_wait(struct mtd_info *mtd, struct nand_chip *this)
 	DoC_WaitReady(doc);
 	nand_status_op(this, NULL);
 	DoC_WaitReady(doc);
-	status = (int)this->read_byte(mtd);
+	status = (int)this->read_byte(this);
 
 	return status;
 }
@@ -463,9 +459,8 @@ static void doc2001_write_byte(struct mtd_info *mtd, u_char datum)
 	WriteDOC(datum, docptr, WritePipeTerm);
 }
 
-static u_char doc2001_read_byte(struct mtd_info *mtd)
+static u_char doc2001_read_byte(struct nand_chip *this)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 
@@ -490,9 +485,8 @@ static void doc2001_writebuf(struct mtd_info *mtd, const u_char *buf, int len)
 	WriteDOC(0x00, docptr, WritePipeTerm);
 }
 
-static void doc2001_readbuf(struct mtd_info *mtd, u_char *buf, int len)
+static void doc2001_readbuf(struct nand_chip *this, u_char *buf, int len)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	int i;
@@ -507,9 +501,8 @@ static void doc2001_readbuf(struct mtd_info *mtd, u_char *buf, int len)
 	buf[i] = ReadDOC(docptr, LastDataRead);
 }
 
-static u_char doc2001plus_read_byte(struct mtd_info *mtd)
+static u_char doc2001plus_read_byte(struct nand_chip *this)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	u_char ret;
@@ -540,9 +533,8 @@ static void doc2001plus_writebuf(struct mtd_info *mtd, const u_char *buf, int le
 		printk("\n");
 }
 
-static void doc2001plus_readbuf(struct mtd_info *mtd, u_char *buf, int len)
+static void doc2001plus_readbuf(struct nand_chip *this, u_char *buf, int len)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	int i;
@@ -735,7 +727,7 @@ static void doc2001plus_command(struct mtd_info *mtd, unsigned command, int colu
 		WriteDOC(NAND_CMD_STATUS, docptr, Mplus_FlashCmd);
 		WriteDOC(0, docptr, Mplus_WritePipeTerm);
 		WriteDOC(0, docptr, Mplus_WritePipeTerm);
-		while (!(this->read_byte(mtd) & 0x40)) ;
+		while (!(this->read_byte(this) & 0x40)) ;
 		return;
 
 		/* This applies to read commands */

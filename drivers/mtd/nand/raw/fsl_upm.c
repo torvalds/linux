@@ -124,16 +124,16 @@ static void fun_select_chip(struct mtd_info *mtd, int mchip_nr)
 	}
 }
 
-static uint8_t fun_read_byte(struct mtd_info *mtd)
+static uint8_t fun_read_byte(struct nand_chip *chip)
 {
-	struct fsl_upm_nand *fun = to_fsl_upm_nand(mtd);
+	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
 
 	return in_8(fun->chip.IO_ADDR_R);
 }
 
-static void fun_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void fun_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct fsl_upm_nand *fun = to_fsl_upm_nand(mtd);
+	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
 	int i;
 
 	for (i = 0; i < len; i++)

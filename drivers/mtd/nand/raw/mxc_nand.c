@@ -895,9 +895,8 @@ static int mxc_nand_write_oob(struct nand_chip *chip, int page)
 	return mxc_nand_write_page(chip, host->data_buf, false, page);
 }
 
-static u_char mxc_nand_read_byte(struct mtd_info *mtd)
+static u_char mxc_nand_read_byte(struct nand_chip *nand_chip)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
 	uint8_t ret;
 
@@ -941,9 +940,10 @@ static void mxc_nand_write_buf(struct mtd_info *mtd,
  * Flash first the data output cycle is initiated by the NFC, which copies
  * the data to RAMbuffer. This data of length len is then copied to buffer buf.
  */
-static void mxc_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void mxc_nand_read_buf(struct nand_chip *nand_chip, u_char *buf,
+			      int len)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand_chip);
 	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
 	u16 col = host->buf_start;
 	int n = mtd->oobsize + mtd->writesize - col;
@@ -1429,7 +1429,7 @@ static int mxc_nand_get_features(struct mtd_info *mtd, struct nand_chip *chip,
 	host->buf_start = 0;
 
 	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
-		*subfeature_param++ = chip->read_byte(mtd);
+		*subfeature_param++ = chip->read_byte(chip);
 
 	return 0;
 }

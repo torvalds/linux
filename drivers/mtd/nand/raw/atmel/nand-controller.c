@@ -410,9 +410,8 @@ err:
 	return -EIO;
 }
 
-static u8 atmel_nand_read_byte(struct mtd_info *mtd)
+static u8 atmel_nand_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 
 	return ioread8(nand->activecs->io.virt);
@@ -429,9 +428,8 @@ static void atmel_nand_write_byte(struct mtd_info *mtd, u8 byte)
 		iowrite8(byte, nand->activecs->io.virt);
 }
 
-static void atmel_nand_read_buf(struct mtd_info *mtd, u8 *buf, int len)
+static void atmel_nand_read_buf(struct nand_chip *chip, u8 *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 	struct atmel_nand_controller *nc;
 
@@ -883,8 +881,8 @@ static int atmel_nand_pmecc_read_pg(struct nand_chip *chip, u8 *buf,
 	if (ret)
 		return ret;
 
-	atmel_nand_read_buf(mtd, buf, mtd->writesize);
-	atmel_nand_read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	atmel_nand_read_buf(chip, buf, mtd->writesize);
+	atmel_nand_read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	ret = atmel_nand_pmecc_correct_data(chip, buf, raw);
 

@@ -93,10 +93,8 @@
 #define CS_NAND_ECC_CLRECC	(1<<1)
 #define CS_NAND_ECC_ENECC	(1<<0)
 
-static void cs553x_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void cs553x_read_buf(struct nand_chip *this, u_char *buf, int len)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
-
 	while (unlikely(len > 0x800)) {
 		memcpy_fromio(buf, this->IO_ADDR_R, 0x800);
 		buf += 0x800;
@@ -117,9 +115,8 @@ static void cs553x_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 	memcpy_toio(this->IO_ADDR_R, buf, len);
 }
 
-static unsigned char cs553x_read_byte(struct mtd_info *mtd)
+static unsigned char cs553x_read_byte(struct nand_chip *this)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	return readb(this->IO_ADDR_R);
 }
 

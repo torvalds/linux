@@ -1872,9 +1872,8 @@ static void switch_state(struct nandsim *ns)
 	}
 }
 
-static u_char ns_nand_read_byte(struct mtd_info *mtd)
+static u_char ns_nand_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 	u_char outb = 0x00;
 
@@ -2136,9 +2135,8 @@ static void ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 	}
 }
 
-static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void ns_nand_read_buf(struct nand_chip *chip, u_char *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Sanity and correctness checks */
@@ -2160,7 +2158,7 @@ static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 		int i;
 
 		for (i = 0; i < len; i++)
-			buf[i] = mtd_to_nand(mtd)->read_byte(mtd);
+			buf[i] = chip->read_byte(chip);
 
 		return;
 	}

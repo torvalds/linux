@@ -675,14 +675,14 @@ static int s3c2440_nand_calculate_ecc(struct nand_chip *chip,
  * use read/write block to move the data buffers to/from the controller
 */
 
-static void s3c2410_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void s3c2410_nand_read_buf(struct nand_chip *this, u_char *buf, int len)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	readsb(this->IO_ADDR_R, buf, len);
 }
 
-static void s3c2440_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void s3c2440_nand_read_buf(struct nand_chip *this, u_char *buf, int len)
 {
+	struct mtd_info *mtd = nand_to_mtd(this);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 
 	readsl(info->regs + S3C2440_NFDATA, buf, len >> 2);

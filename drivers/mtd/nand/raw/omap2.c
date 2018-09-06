@@ -337,12 +337,13 @@ static void omap_write_buf16(struct mtd_info *mtd, const u_char * buf, int len)
 
 /**
  * omap_read_buf_pref - read data from NAND controller into buffer
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @buf: buffer to store date
  * @len: number of bytes to read
  */
-static void omap_read_buf_pref(struct mtd_info *mtd, u_char *buf, int len)
+static void omap_read_buf_pref(struct nand_chip *chip, u_char *buf, int len)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct omap_nand_info *info = mtd_to_omap(mtd);
 	uint32_t r_count = 0;
 	int ret = 0;
@@ -528,14 +529,17 @@ out_copy:
 
 /**
  * omap_read_buf_dma_pref - read data from NAND controller into buffer
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @buf: buffer to store date
  * @len: number of bytes to read
  */
-static void omap_read_buf_dma_pref(struct mtd_info *mtd, u_char *buf, int len)
+static void omap_read_buf_dma_pref(struct nand_chip *chip, u_char *buf,
+				   int len)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	if (len <= mtd->oobsize)
-		omap_read_buf_pref(mtd, buf, len);
+		omap_read_buf_pref(chip, buf, len);
 	else
 		/* start transfer in DMA mode */
 		omap_nand_dma_transfer(mtd, buf, len, 0x0);
@@ -605,17 +609,19 @@ done:
 
 /*
  * omap_read_buf_irq_pref - read data from NAND controller into buffer
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @buf: buffer to store date
  * @len: number of bytes to read
  */
-static void omap_read_buf_irq_pref(struct mtd_info *mtd, u_char *buf, int len)
+static void omap_read_buf_irq_pref(struct nand_chip *chip, u_char *buf,
+				   int len)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct omap_nand_info *info = mtd_to_omap(mtd);
 	int ret = 0;
 
 	if (len <= mtd->oobsize) {
-		omap_read_buf_pref(mtd, buf, len);
+		omap_read_buf_pref(chip, buf, len);
 		return;
 	}
 
@@ -1642,7 +1648,7 @@ static int omap_read_page_bch(struct nand_chip *chip, uint8_t *buf,
 	chip->ecc.hwctl(chip, NAND_ECC_READ);
 
 	/* Read data */
-	chip->read_buf(mtd, buf, mtd->writesize);
+	chip->read_buf(chip, buf, mtd->writesize);
 
 	/* Read oob bytes */
 	nand_change_read_column_op(chip,

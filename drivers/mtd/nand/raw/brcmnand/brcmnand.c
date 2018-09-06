@@ -1417,9 +1417,8 @@ static void brcmnand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		brcmnand_wp(mtd, 1);
 }
 
-static uint8_t brcmnand_read_byte(struct mtd_info *mtd)
+static uint8_t brcmnand_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	struct brcmnand_controller *ctrl = host->ctrl;
 	uint8_t ret = 0;
@@ -1474,12 +1473,12 @@ static uint8_t brcmnand_read_byte(struct mtd_info *mtd)
 	return ret;
 }
 
-static void brcmnand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void brcmnand_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
 	int i;
 
 	for (i = 0; i < len; i++, buf++)
-		*buf = brcmnand_read_byte(mtd);
+		*buf = brcmnand_read_byte(chip);
 }
 
 static void brcmnand_write_buf(struct mtd_info *mtd, const uint8_t *buf,

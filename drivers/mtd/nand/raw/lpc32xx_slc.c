@@ -359,9 +359,8 @@ static int lpc32xx_nand_ecc_calculate(struct nand_chip *chip,
 /*
  * Read a single byte from NAND device
  */
-static uint8_t lpc32xx_nand_read_byte(struct mtd_info *mtd)
+static uint8_t lpc32xx_nand_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
 	return (uint8_t)readl(SLC_DATA(host->io_base));
@@ -370,9 +369,8 @@ static uint8_t lpc32xx_nand_read_byte(struct mtd_info *mtd)
 /*
  * Simple device read without ECC
  */
-static void lpc32xx_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void lpc32xx_nand_read_buf(struct nand_chip *chip, u_char *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
 	/* Direct device read with no ECC */
@@ -628,7 +626,7 @@ static int lpc32xx_nand_read_page_syndrome(struct nand_chip *chip, uint8_t *buf,
 	status = lpc32xx_xfer(mtd, buf, chip->ecc.steps, 1);
 
 	/* Get OOB data */
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	/* Convert to stored ECC format */
 	lpc32xx_slc_ecc_copy(tmpecc, (uint32_t *) host->ecc_buf, chip->ecc.steps);
@@ -669,8 +667,8 @@ static int lpc32xx_nand_read_page_raw_syndrome(struct nand_chip *chip,
 	nand_read_page_op(chip, page, 0, NULL, 0);
 
 	/* Raw reads can just use the FIFO interface */
-	chip->read_buf(mtd, buf, chip->ecc.size * chip->ecc.steps);
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->read_buf(chip, buf, chip->ecc.size * chip->ecc.steps);
+	chip->read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return 0;
 }

@@ -125,17 +125,17 @@ static int xway_dev_ready(struct mtd_info *mtd)
 	return ltq_ebu_r32(EBU_NAND_WAIT) & NAND_WAIT_RD;
 }
 
-static unsigned char xway_read_byte(struct mtd_info *mtd)
+static unsigned char xway_read_byte(struct nand_chip *chip)
 {
-	return xway_readb(mtd, NAND_READ_DATA);
+	return xway_readb(nand_to_mtd(chip), NAND_READ_DATA);
 }
 
-static void xway_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void xway_read_buf(struct nand_chip *chip, u_char *buf, int len)
 {
 	int i;
 
 	for (i = 0; i < len; i++)
-		buf[i] = xway_readb(mtd, NAND_WRITE_DATA);
+		buf[i] = xway_readb(nand_to_mtd(chip), NAND_WRITE_DATA);
 }
 
 static void xway_write_buf(struct mtd_info *mtd, const u_char *buf, int len)

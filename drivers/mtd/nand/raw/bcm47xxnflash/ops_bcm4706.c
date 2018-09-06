@@ -310,9 +310,9 @@ static void bcm47xxnflash_ops_bcm4706_cmdfunc(struct mtd_info *mtd,
 	b47n->curr_command = command;
 }
 
-static u8 bcm47xxnflash_ops_bcm4706_read_byte(struct mtd_info *mtd)
+static u8 bcm47xxnflash_ops_bcm4706_read_byte(struct nand_chip *nand_chip)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand_chip);
 	struct bcm47xxnflash *b47n = nand_get_controller_data(nand_chip);
 	struct bcma_drv_cc *cc = b47n->cc;
 	u32 tmp = 0;
@@ -338,16 +338,16 @@ static u8 bcm47xxnflash_ops_bcm4706_read_byte(struct mtd_info *mtd)
 	return 0;
 }
 
-static void bcm47xxnflash_ops_bcm4706_read_buf(struct mtd_info *mtd,
+static void bcm47xxnflash_ops_bcm4706_read_buf(struct nand_chip *nand_chip,
 					       uint8_t *buf, int len)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct bcm47xxnflash *b47n = nand_get_controller_data(nand_chip);
 
 	switch (b47n->curr_command) {
 	case NAND_CMD_READ0:
 	case NAND_CMD_READOOB:
-		bcm47xxnflash_ops_bcm4706_read(mtd, buf, len);
+		bcm47xxnflash_ops_bcm4706_read(nand_to_mtd(nand_chip), buf,
+					       len);
 		return;
 	}
 

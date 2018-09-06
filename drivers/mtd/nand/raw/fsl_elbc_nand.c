@@ -581,9 +581,8 @@ static void fsl_elbc_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
  * read a byte from either the FCM hardware buffer if it has any data left
  * otherwise issue a command to read a single byte.
  */
-static u8 fsl_elbc_read_byte(struct mtd_info *mtd)
+static u8 fsl_elbc_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct fsl_elbc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_elbc_fcm_ctrl *elbc_fcm_ctrl = priv->ctrl->nand;
 
@@ -598,9 +597,8 @@ static u8 fsl_elbc_read_byte(struct mtd_info *mtd)
 /*
  * Read from the FCM Controller Data Buffer
  */
-static void fsl_elbc_read_buf(struct mtd_info *mtd, u8 *buf, int len)
+static void fsl_elbc_read_buf(struct nand_chip *chip, u8 *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct fsl_elbc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_elbc_fcm_ctrl *elbc_fcm_ctrl = priv->ctrl->nand;
 	int avail;
@@ -720,7 +718,7 @@ static int fsl_elbc_read_page(struct nand_chip *chip, uint8_t *buf,
 
 	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	if (oob_required)
-		fsl_elbc_read_buf(mtd, chip->oob_poi, mtd->oobsize);
+		fsl_elbc_read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	if (fsl_elbc_wait(mtd, chip) & NAND_STATUS_FAIL)
 		mtd->ecc_stats.failed++;

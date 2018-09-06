@@ -43,10 +43,8 @@ static unsigned int lpcctl;
 static struct mtd_info *pasemi_nand_mtd;
 static const char driver_name[] = "pasemi-nand";
 
-static void pasemi_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void pasemi_read_buf(struct nand_chip *chip, u_char *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	while (len > 0x800) {
 		memcpy_fromio(buf, chip->IO_ADDR_R, 0x800);
 		buf += 0x800;

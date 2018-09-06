@@ -657,7 +657,7 @@ static int spinand_read_page_hwecc(struct nand_chip *chip, u8 *buf,
 
 	nand_read_page_op(chip, page, 0, p, eccsize * eccsteps);
 	if (oob_required)
-		chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+		chip->read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	while (1) {
 		retval = spinand_read_status(info->spi, &status);
@@ -685,9 +685,9 @@ static void spinand_select_chip(struct mtd_info *mtd, int dev)
 {
 }
 
-static u8 spinand_read_byte(struct mtd_info *mtd)
+static u8 spinand_read_byte(struct nand_chip *chip)
 {
-	struct spinand_state *state = mtd_to_state(mtd);
+	struct spinand_state *state = mtd_to_state(nand_to_mtd(chip));
 	u8 data;
 
 	data = state->buf[state->buf_ptr];
@@ -732,9 +732,9 @@ static void spinand_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
 	state->buf_ptr += len;
 }
 
-static void spinand_read_buf(struct mtd_info *mtd, u8 *buf, int len)
+static void spinand_read_buf(struct nand_chip *chip, u8 *buf, int len)
 {
-	struct spinand_state *state = mtd_to_state(mtd);
+	struct spinand_state *state = mtd_to_state(nand_to_mtd(chip));
 
 	memcpy(buf, state->buf + state->buf_ptr, len);
 	state->buf_ptr += len;

@@ -545,9 +545,8 @@ static void fsl_ifc_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
  * Read a byte from either the IFC hardware buffer
  * read function for 8-bit buswidth
  */
-static uint8_t fsl_ifc_read_byte(struct mtd_info *mtd)
+static uint8_t fsl_ifc_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	unsigned int offset;
 
@@ -568,9 +567,8 @@ static uint8_t fsl_ifc_read_byte(struct mtd_info *mtd)
  * Read two bytes from the IFC hardware buffer
  * read function for 16-bit buswith
  */
-static uint8_t fsl_ifc_read_byte16(struct mtd_info *mtd)
+static uint8_t fsl_ifc_read_byte16(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	uint16_t data;
 
@@ -591,9 +589,8 @@ static uint8_t fsl_ifc_read_byte16(struct mtd_info *mtd)
 /*
  * Read from the IFC Controller Data Buffer
  */
-static void fsl_ifc_read_buf(struct mtd_info *mtd, u8 *buf, int len)
+static void fsl_ifc_read_buf(struct nand_chip *chip, u8 *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	int avail;
 
@@ -689,11 +686,11 @@ static int fsl_ifc_read_page(struct nand_chip *chip, uint8_t *buf,
 
 	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	if (oob_required)
-		fsl_ifc_read_buf(mtd, chip->oob_poi, mtd->oobsize);
+		fsl_ifc_read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	if (ctrl->nand_stat & IFC_NAND_EVTER_STAT_ECCER) {
 		if (!oob_required)
-			fsl_ifc_read_buf(mtd, chip->oob_poi, mtd->oobsize);
+			fsl_ifc_read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 		return check_erased_page(chip, buf);
 	}

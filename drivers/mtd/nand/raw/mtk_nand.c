@@ -438,9 +438,8 @@ static inline void mtk_nfc_wait_ioready(struct mtk_nfc *nfc)
 		dev_err(nfc->dev, "data not ready\n");
 }
 
-static inline u8 mtk_nfc_read_byte(struct mtd_info *mtd)
+static inline u8 mtk_nfc_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct mtk_nfc *nfc = nand_get_controller_data(chip);
 	u32 reg;
 
@@ -467,12 +466,12 @@ static inline u8 mtk_nfc_read_byte(struct mtd_info *mtd)
 	return nfi_readb(nfc, NFI_DATAR);
 }
 
-static void mtk_nfc_read_buf(struct mtd_info *mtd, u8 *buf, int len)
+static void mtk_nfc_read_buf(struct nand_chip *chip, u8 *buf, int len)
 {
 	int i;
 
 	for (i = 0; i < len; i++)
-		buf[i] = mtk_nfc_read_byte(mtd);
+		buf[i] = mtk_nfc_read_byte(chip);
 }
 
 static void mtk_nfc_write_byte(struct mtd_info *mtd, u8 byte)

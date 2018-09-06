@@ -29,13 +29,12 @@ struct au1550nd_ctx {
 
 /**
  * au_read_byte -  read one byte from the chip
- * @mtd:	MTD device structure
+ * @this:	NAND chip object
  *
  * read function for 8bit buswidth
  */
-static u_char au_read_byte(struct mtd_info *mtd)
+static u_char au_read_byte(struct nand_chip *this)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	u_char ret = readb(this->IO_ADDR_R);
 	wmb(); /* drain writebuffer */
 	return ret;
@@ -57,13 +56,12 @@ static void au_write_byte(struct mtd_info *mtd, u_char byte)
 
 /**
  * au_read_byte16 -  read one byte endianness aware from the chip
- * @mtd:	MTD device structure
+ * @this:	NAND chip object
  *
  * read function for 16bit buswidth with endianness conversion
  */
-static u_char au_read_byte16(struct mtd_info *mtd)
+static u_char au_read_byte16(struct nand_chip *this)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	u_char ret = (u_char) cpu_to_le16(readw(this->IO_ADDR_R));
 	wmb(); /* drain writebuffer */
 	return ret;
@@ -104,16 +102,15 @@ static void au_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 
 /**
  * au_read_buf -  read chip data into buffer
- * @mtd:	MTD device structure
+ * @this:	NAND chip object
  * @buf:	buffer to store date
  * @len:	number of bytes to read
  *
  * read function for 8bit buswidth
  */
-static void au_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void au_read_buf(struct nand_chip *this, u_char *buf, int len)
 {
 	int i;
-	struct nand_chip *this = mtd_to_nand(mtd);
 
 	for (i = 0; i < len; i++) {
 		buf[i] = readb(this->IO_ADDR_R);

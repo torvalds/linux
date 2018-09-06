@@ -266,9 +266,9 @@ static void r852_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 /*
  * Read data lines of the nand chip to retrieve data
  */
-static void r852_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void r852_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct r852_device *dev = r852_get_dev(mtd);
+	struct r852_device *dev = r852_get_dev(nand_to_mtd(chip));
 	uint32_t reg;
 
 	if (dev->card_unstable) {
@@ -303,9 +303,9 @@ static void r852_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 /*
  * Read one byte from nand chip
  */
-static uint8_t r852_read_byte(struct mtd_info *mtd)
+static uint8_t r852_read_byte(struct nand_chip *chip)
 {
-	struct r852_device *dev = r852_get_dev(mtd);
+	struct r852_device *dev = r852_get_dev(nand_to_mtd(chip));
 
 	/* Same problem as in r852_read_buf.... */
 	if (dev->card_unstable)

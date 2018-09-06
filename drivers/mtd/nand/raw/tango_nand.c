@@ -135,16 +135,16 @@ static int tango_dev_ready(struct mtd_info *mtd)
 	return readl_relaxed(nfc->pbus_base + PBUS_CS_CTRL) & PBUS_IORDY;
 }
 
-static u8 tango_read_byte(struct mtd_info *mtd)
+static u8 tango_read_byte(struct nand_chip *chip)
 {
-	struct tango_chip *tchip = to_tango_chip(mtd_to_nand(mtd));
+	struct tango_chip *tchip = to_tango_chip(chip);
 
 	return readb_relaxed(tchip->base + PBUS_DATA);
 }
 
-static void tango_read_buf(struct mtd_info *mtd, u8 *buf, int len)
+static void tango_read_buf(struct nand_chip *chip, u8 *buf, int len)
 {
-	struct tango_chip *tchip = to_tango_chip(mtd_to_nand(mtd));
+	struct tango_chip *tchip = to_tango_chip(chip);
 
 	ioread8_rep(tchip->base + PBUS_DATA, buf, len);
 }
@@ -325,15 +325,13 @@ static int tango_write_page(struct nand_chip *chip, const u8 *buf,
 
 static void aux_read(struct nand_chip *chip, u8 **buf, int len, int *pos)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-
 	*pos += len;
 
 	if (!*buf) {
 		/* skip over "len" bytes */
 		nand_change_read_column_op(chip, *pos, NULL, 0, false);
 	} else {
-		tango_read_buf(mtd, *buf, len);
+		tango_read_buf(chip, *buf, len);
 		*buf += len;
 	}
 }

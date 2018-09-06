@@ -102,9 +102,9 @@ static void txx9ndfmc_write(struct platform_device *dev,
 	__raw_writel(val, ndregaddr(dev, reg));
 }
 
-static uint8_t txx9ndfmc_read_byte(struct mtd_info *mtd)
+static uint8_t txx9ndfmc_read_byte(struct nand_chip *chip)
 {
-	struct platform_device *dev = mtd_to_platdev(mtd);
+	struct platform_device *dev = mtd_to_platdev(nand_to_mtd(chip));
 
 	return txx9ndfmc_read(dev, TXX9_NDFDTR);
 }
@@ -122,9 +122,9 @@ static void txx9ndfmc_write_buf(struct mtd_info *mtd, const uint8_t *buf,
 	txx9ndfmc_write(dev, mcr, TXX9_NDFMCR);
 }
 
-static void txx9ndfmc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void txx9ndfmc_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct platform_device *dev = mtd_to_platdev(mtd);
+	struct platform_device *dev = mtd_to_platdev(nand_to_mtd(chip));
 	void __iomem *ndfdtr = ndregaddr(dev, TXX9_NDFDTR);
 
 	while (len--)

@@ -254,26 +254,24 @@ static void nand_release_device(struct mtd_info *mtd)
 
 /**
  * nand_read_byte - [DEFAULT] read one byte from the chip
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  *
  * Default read function for 8bit buswidth
  */
-static uint8_t nand_read_byte(struct mtd_info *mtd)
+static uint8_t nand_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	return readb(chip->IO_ADDR_R);
 }
 
 /**
  * nand_read_byte16 - [DEFAULT] read one byte endianness aware from the chip
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  *
  * Default read function for 16bit buswidth with endianness conversion.
  *
  */
-static uint8_t nand_read_byte16(struct mtd_info *mtd)
+static uint8_t nand_read_byte16(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	return (uint8_t) cpu_to_le16(readw(chip->IO_ADDR_R));
 }
 
@@ -362,16 +360,14 @@ static void nand_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 
 /**
  * nand_read_buf - [DEFAULT] read chip data into buffer
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @buf: buffer to store date
  * @len: number of bytes to read
  *
  * Default read function for 8bit buswidth.
  */
-static void nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void nand_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	ioread8_rep(chip->IO_ADDR_R, buf, len);
 }
 
@@ -393,15 +389,14 @@ static void nand_write_buf16(struct mtd_info *mtd, const uint8_t *buf, int len)
 
 /**
  * nand_read_buf16 - [DEFAULT] read chip data into buffer
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @buf: buffer to store date
  * @len: number of bytes to read
  *
  * Default read function for 16bit buswidth.
  */
-static void nand_read_buf16(struct mtd_info *mtd, uint8_t *buf, int len)
+static void nand_read_buf16(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	u16 *p = (u16 *) buf;
 
 	ioread16_rep(chip->IO_ADDR_R, p, len >> 1);
@@ -1544,7 +1539,7 @@ int nand_read_page_op(struct nand_chip *chip, unsigned int page,
 
 	chip->cmdfunc(mtd, NAND_CMD_READ0, offset_in_page, page);
 	if (len)
-		chip->read_buf(mtd, buf, len);
+		chip->read_buf(chip, buf, len);
 
 	return 0;
 }
@@ -1593,7 +1588,7 @@ static int nand_read_param_page_op(struct nand_chip *chip, u8 page, void *buf,
 
 	chip->cmdfunc(mtd, NAND_CMD_PARAM, page, -1);
 	for (i = 0; i < len; i++)
-		p[i] = chip->read_byte(mtd);
+		p[i] = chip->read_byte(chip);
 
 	return 0;
 }
@@ -1656,7 +1651,7 @@ int nand_change_read_column_op(struct nand_chip *chip,
 
 	chip->cmdfunc(mtd, NAND_CMD_RNDOUT, offset_in_page, -1);
 	if (len)
-		chip->read_buf(mtd, buf, len);
+		chip->read_buf(chip, buf, len);
 
 	return 0;
 }
@@ -1693,7 +1688,7 @@ int nand_read_oob_op(struct nand_chip *chip, unsigned int page,
 
 	chip->cmdfunc(mtd, NAND_CMD_READOOB, offset_in_oob, page);
 	if (len)
-		chip->read_buf(mtd, buf, len);
+		chip->read_buf(chip, buf, len);
 
 	return 0;
 }
@@ -2009,7 +2004,7 @@ int nand_readid_op(struct nand_chip *chip, u8 addr, void *buf,
 	chip->cmdfunc(mtd, NAND_CMD_READID, addr, -1);
 
 	for (i = 0; i < len; i++)
-		id[i] = chip->read_byte(mtd);
+		id[i] = chip->read_byte(chip);
 
 	return 0;
 }
@@ -2048,7 +2043,7 @@ int nand_status_op(struct nand_chip *chip, u8 *status)
 
 	chip->cmdfunc(mtd, NAND_CMD_STATUS, -1, -1);
 	if (status)
-		*status = chip->read_byte(mtd);
+		*status = chip->read_byte(chip);
 
 	return 0;
 }
@@ -2229,7 +2224,7 @@ static int nand_get_features_op(struct nand_chip *chip, u8 feature,
 
 	chip->cmdfunc(mtd, NAND_CMD_GET_FEATURES, feature, -1);
 	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
-		params[i] = chip->read_byte(mtd);
+		params[i] = chip->read_byte(chip);
 
 	return 0;
 }
@@ -2304,8 +2299,6 @@ EXPORT_SYMBOL_GPL(nand_reset_op);
 int nand_read_data_op(struct nand_chip *chip, void *buf, unsigned int len,
 		      bool force_8bit)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-
 	if (!len || !buf)
 		return -EINVAL;
 
@@ -2325,9 +2318,9 @@ int nand_read_data_op(struct nand_chip *chip, void *buf, unsigned int len,
 		unsigned int i;
 
 		for (i = 0; i < len; i++)
-			p[i] = chip->read_byte(mtd);
+			p[i] = chip->read_byte(chip);
 	} else {
-		chip->read_buf(mtd, buf, len);
+		chip->read_buf(chip, buf, len);
 	}
 
 	return 0;

@@ -364,9 +364,8 @@ static void hisi_nfc_select_chip(struct mtd_info *mtd, int chipselect)
 	host->chipselect = chipselect;
 }
 
-static uint8_t hisi_nfc_read_byte(struct mtd_info *mtd)
+static uint8_t hisi_nfc_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	if (host->command == NAND_CMD_STATUS)
@@ -390,9 +389,8 @@ hisi_nfc_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 	host->offset += len;
 }
 
-static void hisi_nfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void hisi_nfc_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct hinfc_host *host = nand_get_controller_data(chip);
 
 	memcpy(buf, host->buffer + host->offset, len);
@@ -537,7 +535,7 @@ static int hisi_nand_read_page_hwecc(struct nand_chip *chip, uint8_t *buf,
 	int stat_1, stat_2;
 
 	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	/* errors which can not be corrected by ECC */
 	if (host->irq_status & HINFC504_INTS_UE) {

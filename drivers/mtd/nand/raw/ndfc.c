@@ -116,9 +116,8 @@ static int ndfc_calculate_ecc(struct nand_chip *chip,
  * functions. No further checking, as nand_base will always read/write
  * page aligned.
  */
-static void ndfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void ndfc_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = nand_get_controller_data(chip);
 	uint32_t *p = (uint32_t *) buf;
 

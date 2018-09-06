@@ -493,9 +493,9 @@ static void mpc5121_nfc_buf_copy(struct mtd_info *mtd, u_char *buf, int len,
 }
 
 /* Read data from NFC buffers */
-static void mpc5121_nfc_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void mpc5121_nfc_read_buf(struct nand_chip *chip, u_char *buf, int len)
 {
-	mpc5121_nfc_buf_copy(mtd, buf, len, 0);
+	mpc5121_nfc_buf_copy(nand_to_mtd(chip), buf, len, 0);
 }
 
 /* Write data to NFC buffers */
@@ -506,11 +506,11 @@ static void mpc5121_nfc_write_buf(struct mtd_info *mtd,
 }
 
 /* Read byte from NFC buffers */
-static u8 mpc5121_nfc_read_byte(struct mtd_info *mtd)
+static u8 mpc5121_nfc_read_byte(struct nand_chip *chip)
 {
 	u8 tmp;
 
-	mpc5121_nfc_read_buf(mtd, &tmp, sizeof(tmp));
+	mpc5121_nfc_read_buf(chip, &tmp, sizeof(tmp));
 
 	return tmp;
 }

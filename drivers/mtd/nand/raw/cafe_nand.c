@@ -133,9 +133,8 @@ static void cafe_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 		len, cafe->datalen);
 }
 
-static void cafe_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void cafe_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
 	if (cafe->usedma)
@@ -148,13 +147,12 @@ static void cafe_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 	cafe->datalen += len;
 }
 
-static uint8_t cafe_read_byte(struct mtd_info *mtd)
+static uint8_t cafe_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 	uint8_t d;
 
-	cafe_read_buf(mtd, &d, 1);
+	cafe_read_buf(chip, &d, 1);
 	cafe_dev_dbg(&cafe->pdev->dev, "Read %02x\n", d);
 
 	return d;
@@ -383,7 +381,7 @@ static int cafe_nand_read_page(struct nand_chip *chip, uint8_t *buf,
 		     cafe_readl(cafe, NAND_ECC_SYN01));
 
 	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	if (checkecc && cafe_readl(cafe, NAND_ECC_RESULT) & (1<<18)) {
 		unsigned short syn[8], pat[4];

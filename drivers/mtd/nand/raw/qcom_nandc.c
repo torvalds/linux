@@ -2282,9 +2282,8 @@ static int qcom_nandc_block_markbad(struct mtd_info *mtd, loff_t ofs)
  * reading/writing page data, they are used for smaller data like reading
  * id, status etc
  */
-static uint8_t qcom_nandc_read_byte(struct mtd_info *mtd)
+static uint8_t qcom_nandc_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	u8 *buf = nandc->data_buffer;
@@ -2304,9 +2303,8 @@ static uint8_t qcom_nandc_read_byte(struct mtd_info *mtd)
 	return ret;
 }
 
-static void qcom_nandc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void qcom_nandc_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	int real_len = min_t(size_t, len, nandc->buf_count - nandc->buf_start);
 

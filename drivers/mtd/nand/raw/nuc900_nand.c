@@ -79,21 +79,21 @@ static const struct mtd_partition partitions[] = {
 	}
 };
 
-static unsigned char nuc900_nand_read_byte(struct mtd_info *mtd)
+static unsigned char nuc900_nand_read_byte(struct nand_chip *chip)
 {
 	unsigned char ret;
-	struct nuc900_nand *nand = mtd_to_nuc900(mtd);
+	struct nuc900_nand *nand = mtd_to_nuc900(nand_to_mtd(chip));
 
 	ret = (unsigned char)read_data_reg(nand);
 
 	return ret;
 }
 
-static void nuc900_nand_read_buf(struct mtd_info *mtd,
+static void nuc900_nand_read_buf(struct nand_chip *chip,
 				 unsigned char *buf, int len)
 {
 	int i;
-	struct nuc900_nand *nand = mtd_to_nuc900(mtd);
+	struct nuc900_nand *nand = mtd_to_nuc900(nand_to_mtd(chip));
 
 	for (i = 0; i < len; i++)
 		buf[i] = (unsigned char)read_data_reg(nand);
