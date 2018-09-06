@@ -2095,6 +2095,33 @@ err:
 	return ret;
 }
 
+static u32 calc_burst_len(struct cif_isp10_mi_path_config *config)
+{
+	u32 cb_offs = config->cb_offs;
+	u32 cr_offs = config->cr_offs;
+	u32 burst;
+
+	/* MI64bit Y/C base addr should be burstN * 8 aligned */
+	if (!(cb_offs % 128) && !(cr_offs % 128))
+		burst = CIF_MI_CTRL_BURST_LEN_LUM_16 |
+			CIF_MI_CTRL_BURST_LEN_CHROM_16;
+	else if (!(cb_offs % 64) && !(cr_offs % 64))
+		burst = CIF_MI_CTRL_BURST_LEN_LUM_8 |
+			CIF_MI_CTRL_BURST_LEN_CHROM_8;
+	else
+		burst = CIF_MI_CTRL_BURST_LEN_LUM_4 |
+			CIF_MI_CTRL_BURST_LEN_CHROM_4;
+
+	if (cb_offs % 32 || cr_offs % 32)
+		cif_isp10_pltfrm_pr_warn(dev->dev,
+			"%s %dx%d not support, should be %d aligned\n",
+			cif_isp10_pix_fmt_string(config->output.pix_fmt),
+			config->output.width,
+			config->output.height,
+			(cb_offs == cr_offs) ? 32 : 128);
+	return burst;
+}
+
 static int cif_isp10_config_mi_mp(
 	struct cif_isp10_device *dev)
 {
@@ -2111,6 +2138,7 @@ static int cif_isp10_config_mi_mp(
 	u32 bpp = CIF_ISP10_PIX_FMT_GET_BPP(out_pix_fmt);
 	u32 size = llength * height * bpp / 8;
 	u32 mi_ctrl;
+	u32 burst_len;
 
 	dev->config.mi_config.mp.input =
 		&dev->config.mp_config.rsz_config.output;
@@ -2125,6 +2153,8 @@ static int cif_isp10_config_mi_mp(
 	dev->config.mi_config.mp.y_size = size;
 	dev->config.mi_config.mp.cb_size = 0;
 	dev->config.mi_config.mp.cr_size = 0;
+	burst_len = CIF_MI_CTRL_BURST_LEN_LUM_16 |
+		CIF_MI_CTRL_BURST_LEN_CHROM_16;
 	if (CIF_ISP10_PIX_FMT_IS_YUV(out_pix_fmt)) {
 		u32 num_cplanes =
 			CIF_ISP10_PIX_FMT_YUV_GET_NUM_CPLANES(out_pix_fmt);
@@ -2174,6 +2204,7 @@ static int cif_isp10_config_mi_mp(
 					dev->config.mi_config.mp.cb_size;
 			}
 		}
+		burst_len = calc_burst_len(&dev->config.mi_config.mp);
 	} else if (CIF_ISP10_PIX_FMT_IS_RAW_BAYER(out_pix_fmt)) {
 		if (CIF_ISP10_PIX_FMT_GET_BPP(out_pix_fmt) > 8) {
 			writeformat = CIF_ISP10_BUFF_FMT_RAW12;
@@ -2209,11 +2240,16 @@ static int cif_isp10_config_mi_mp(
 			dev->config.base_addr + CIF_MI_XTD_FORMAT_CTRL);
 	}
 
+	/* check MP/SP burst config */
+	dev->config.mi_config.mp.burst_len = burst_len;
+	burst_len = (dev->config.mi_config.sp.burst_len >
+		dev->config.mi_config.mp.burst_len) ?
+		dev->config.mi_config.mp.burst_len :
+		dev->config.mi_config.sp.burst_len;
 	mi_ctrl = cif_ioread32(dev->config.base_addr + CIF_MI_CTRL);
 	mi_ctrl &= ~(CIF_MI_CTRL_MP_WRITE_FMT(3));
 	mi_ctrl |= CIF_MI_CTRL_MP_WRITE_FMT(writeformat) |
-		   CIF_MI_CTRL_BURST_LEN_LUM_16 |
-		   CIF_MI_CTRL_BURST_LEN_CHROM_16 |
+		   burst_len |
 		   CIF_MI_CTRL_INIT_BASE_EN |
 		   CIF_MI_CTRL_INIT_OFFSET_EN |
 		   CIF_MI_MP_AUTOUPDATE_ENABLE;
@@ -2429,6 +2465,10 @@ static int cif_isp10_config_mi_sp(
 		}
 	}
 
+	if (llength == width &&
+		CIF_ISP10_PIX_FMT_IS_YUV(out_pix_fmt))
+		burst_len = calc_burst_len(&dev->config.mi_config.sp);
+
 	cif_iowrite32_verify(dev->config.mi_config.sp.y_size,
 		dev->config.base_addr + CIF_MI_SP_Y_SIZE_INIT,
 		CIF_MI_ADDR_SIZE_ALIGN_MASK);
@@ -2459,6 +2499,11 @@ static int cif_isp10_config_mi_sp(
 			dev->config.base_addr + CIF_MI_XTD_FORMAT_CTRL);
 	}
 
+	dev->config.mi_config.sp.burst_len = burst_len;
+	burst_len = (dev->config.mi_config.sp.burst_len >
+		dev->config.mi_config.mp.burst_len) ?
+		dev->config.mi_config.mp.burst_len :
+		dev->config.mi_config.sp.burst_len;
 	mi_ctrl = cif_ioread32(dev->config.base_addr + CIF_MI_CTRL);
 	mi_ctrl &= ~(CIF_MI_CTRL_SP_WRITE_FMT(3) |/* SP_WRITE_FMT */
 		(0x7 << 28) |	/* SP_OUTPUT_FMT */
@@ -3510,6 +3555,9 @@ static void cif_isp10_init_stream(
 		dev->config.sp_config.rsz_config.ycflt_adjust = false;
 		dev->config.sp_config.rsz_config.ism_adjust = false;
 		dev->config.mi_config.sp.busy = false;
+		dev->config.mi_config.sp.burst_len =
+			CIF_MI_CTRL_BURST_LEN_LUM_16 |
+			CIF_MI_CTRL_BURST_LEN_CHROM_16;
 		dev->sp_stream.updt_cfg = true;
 
 		ret = cif_isp10_img_src_select_strm_fmt(dev);
@@ -3545,6 +3593,9 @@ static void cif_isp10_init_stream(
 		dev->config.mp_config.rsz_config.ycflt_adjust = false;
 		dev->config.mp_config.rsz_config.ism_adjust = false;
 		dev->config.mi_config.mp.busy = false;
+		dev->config.mi_config.mp.burst_len =
+			CIF_MI_CTRL_BURST_LEN_LUM_16 |
+			CIF_MI_CTRL_BURST_LEN_CHROM_16;
 		dev->mp_stream.updt_cfg = true;
 
 		ret = cif_isp10_img_src_select_strm_fmt(dev);
@@ -4713,6 +4764,9 @@ static void cif_isp10_stop_mi(
 			dev->config.base_addr + CIF_MI_ICR);
 		cif_iowrite32AND_verify(~CIF_MI_CTRL_SP_ENABLE,
 			dev->config.base_addr + CIF_MI_CTRL, ~0);
+		dev->config.mi_config.sp.burst_len =
+			CIF_MI_CTRL_BURST_LEN_LUM_16 |
+			CIF_MI_CTRL_BURST_LEN_CHROM_16;
 	} else if (stop_mi_mp) {
 		cif_iowrite32(CIF_MI_MP_FRAME |
 			CIF_JPE_STATUS_ENCODE_DONE,
@@ -4721,6 +4775,9 @@ static void cif_isp10_stop_mi(
 			CIF_MI_CTRL_JPEG_ENABLE |
 			CIF_MI_CTRL_RAW_ENABLE),
 			dev->config.base_addr + CIF_MI_CTRL, ~0);
+		dev->config.mi_config.mp.burst_len =
+			CIF_MI_CTRL_BURST_LEN_LUM_16 |
+			CIF_MI_CTRL_BURST_LEN_CHROM_16;
 	}
 }
 

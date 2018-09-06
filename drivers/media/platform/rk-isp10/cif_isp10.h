@@ -438,6 +438,7 @@ struct cif_isp10_mi_path_config {
 	u32 y_size;
 	u32 cb_size;
 	u32 cr_size;
+	u32 burst_len;
 	bool busy;
 
 	/* FOR BT655: 0 = ODD, 1 = EVEN */
