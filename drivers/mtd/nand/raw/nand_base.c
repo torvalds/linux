@@ -305,7 +305,7 @@ static void nand_select_chip(struct nand_chip *chip, int chipnr)
  */
 static void nand_write_byte(struct nand_chip *chip, uint8_t byte)
 {
-	chip->write_buf(chip, &byte, 1);
+	chip->legacy.write_buf(chip, &byte, 1);
 }
 
 /**
@@ -335,7 +335,7 @@ static void nand_write_byte16(struct nand_chip *chip, uint8_t byte)
 	 * neither an address nor a command transfer. Let's assume a 0 on the
 	 * upper I/O lines is OK.
 	 */
-	chip->write_buf(chip, (uint8_t *)&word, 2);
+	chip->legacy.write_buf(chip, (uint8_t *)&word, 2);
 }
 
 /**
@@ -1524,7 +1524,7 @@ int nand_read_page_op(struct nand_chip *chip, unsigned int page,
 
 	chip->cmdfunc(chip, NAND_CMD_READ0, offset_in_page, page);
 	if (len)
-		chip->read_buf(chip, buf, len);
+		chip->legacy.read_buf(chip, buf, len);
 
 	return 0;
 }
@@ -1572,7 +1572,7 @@ static int nand_read_param_page_op(struct nand_chip *chip, u8 page, void *buf,
 
 	chip->cmdfunc(chip, NAND_CMD_PARAM, page, -1);
 	for (i = 0; i < len; i++)
-		p[i] = chip->read_byte(chip);
+		p[i] = chip->legacy.read_byte(chip);
 
 	return 0;
 }
@@ -1635,7 +1635,7 @@ int nand_change_read_column_op(struct nand_chip *chip,
 
 	chip->cmdfunc(chip, NAND_CMD_RNDOUT, offset_in_page, -1);
 	if (len)
-		chip->read_buf(chip, buf, len);
+		chip->legacy.read_buf(chip, buf, len);
 
 	return 0;
 }
@@ -1672,7 +1672,7 @@ int nand_read_oob_op(struct nand_chip *chip, unsigned int page,
 
 	chip->cmdfunc(chip, NAND_CMD_READOOB, offset_in_oob, page);
 	if (len)
-		chip->read_buf(chip, buf, len);
+		chip->legacy.read_buf(chip, buf, len);
 
 	return 0;
 }
@@ -1785,7 +1785,7 @@ int nand_prog_page_begin_op(struct nand_chip *chip, unsigned int page,
 	chip->cmdfunc(chip, NAND_CMD_SEQIN, offset_in_page, page);
 
 	if (buf)
-		chip->write_buf(chip, buf, len);
+		chip->legacy.write_buf(chip, buf, len);
 
 	return 0;
 }
@@ -1869,7 +1869,7 @@ int nand_prog_page_op(struct nand_chip *chip, unsigned int page,
 						len, true);
 	} else {
 		chip->cmdfunc(chip, NAND_CMD_SEQIN, offset_in_page, page);
-		chip->write_buf(chip, buf, len);
+		chip->legacy.write_buf(chip, buf, len);
 		chip->cmdfunc(chip, NAND_CMD_PAGEPROG, -1, -1);
 		status = chip->waitfunc(chip);
 	}
@@ -1938,7 +1938,7 @@ int nand_change_write_column_op(struct nand_chip *chip,
 
 	chip->cmdfunc(chip, NAND_CMD_RNDIN, offset_in_page, -1);
 	if (len)
-		chip->write_buf(chip, buf, len);
+		chip->legacy.write_buf(chip, buf, len);
 
 	return 0;
 }
@@ -1986,7 +1986,7 @@ int nand_readid_op(struct nand_chip *chip, u8 addr, void *buf,
 	chip->cmdfunc(chip, NAND_CMD_READID, addr, -1);
 
 	for (i = 0; i < len; i++)
-		id[i] = chip->read_byte(chip);
+		id[i] = chip->legacy.read_byte(chip);
 
 	return 0;
 }
@@ -2023,7 +2023,7 @@ int nand_status_op(struct nand_chip *chip, u8 *status)
 
 	chip->cmdfunc(chip, NAND_CMD_STATUS, -1, -1);
 	if (status)
-		*status = chip->read_byte(chip);
+		*status = chip->legacy.read_byte(chip);
 
 	return 0;
 }
@@ -2151,7 +2151,7 @@ static int nand_set_features_op(struct nand_chip *chip, u8 feature,
 
 	chip->cmdfunc(chip, NAND_CMD_SET_FEATURES, feature, -1);
 	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
-		chip->write_byte(chip, params[i]);
+		chip->legacy.write_byte(chip, params[i]);
 
 	ret = chip->waitfunc(chip);
 	if (ret < 0)
@@ -2199,7 +2199,7 @@ static int nand_get_features_op(struct nand_chip *chip, u8 feature,
 
 	chip->cmdfunc(chip, NAND_CMD_GET_FEATURES, feature, -1);
 	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
-		params[i] = chip->read_byte(chip);
+		params[i] = chip->legacy.read_byte(chip);
 
 	return 0;
 }
@@ -2291,9 +2291,9 @@ int nand_read_data_op(struct nand_chip *chip, void *buf, unsigned int len,
 		unsigned int i;
 
 		for (i = 0; i < len; i++)
-			p[i] = chip->read_byte(chip);
+			p[i] = chip->legacy.read_byte(chip);
 	} else {
-		chip->read_buf(chip, buf, len);
+		chip->legacy.read_buf(chip, buf, len);
 	}
 
 	return 0;
@@ -2335,9 +2335,9 @@ int nand_write_data_op(struct nand_chip *chip, const void *buf,
 		unsigned int i;
 
 		for (i = 0; i < len; i++)
-			chip->write_byte(chip, p[i]);
+			chip->legacy.write_byte(chip, p[i]);
 	} else {
-		chip->write_buf(chip, buf, len);
+		chip->legacy.write_buf(chip, buf, len);
 	}
 
 	return 0;
@@ -4936,18 +4936,18 @@ static void nand_set_defaults(struct nand_chip *chip)
 		chip->get_features = nand_default_get_features;
 
 	/* If called twice, pointers that depend on busw may need to be reset */
-	if (!chip->read_byte || chip->read_byte == nand_read_byte)
-		chip->read_byte = busw ? nand_read_byte16 : nand_read_byte;
+	if (!chip->legacy.read_byte || chip->legacy.read_byte == nand_read_byte)
+		chip->legacy.read_byte = busw ? nand_read_byte16 : nand_read_byte;
 	if (!chip->block_bad)
 		chip->block_bad = nand_block_bad;
 	if (!chip->block_markbad)
 		chip->block_markbad = nand_default_block_markbad;
-	if (!chip->write_buf || chip->write_buf == nand_write_buf)
-		chip->write_buf = busw ? nand_write_buf16 : nand_write_buf;
-	if (!chip->write_byte || chip->write_byte == nand_write_byte)
-		chip->write_byte = busw ? nand_write_byte16 : nand_write_byte;
-	if (!chip->read_buf || chip->read_buf == nand_read_buf)
-		chip->read_buf = busw ? nand_read_buf16 : nand_read_buf;
+	if (!chip->legacy.write_buf || chip->legacy.write_buf == nand_write_buf)
+		chip->legacy.write_buf = busw ? nand_write_buf16 : nand_write_buf;
+	if (!chip->legacy.write_byte || chip->legacy.write_byte == nand_write_byte)
+		chip->legacy.write_byte = busw ? nand_write_byte16 : nand_write_byte;
+	if (!chip->legacy.read_buf || chip->legacy.read_buf == nand_read_buf)
+		chip->legacy.read_buf = busw ? nand_read_buf16 : nand_read_buf;
 
 	if (!chip->controller) {
 		chip->controller = &chip->dummy_controller;

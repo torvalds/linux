@@ -858,9 +858,9 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	chip->dev_ready = r852_ready;
 
 	/* I/O */
-	chip->read_byte = r852_read_byte;
-	chip->read_buf = r852_read_buf;
-	chip->write_buf = r852_write_buf;
+	chip->legacy.read_byte = r852_read_byte;
+	chip->legacy.read_buf = r852_read_buf;
+	chip->legacy.write_buf = r852_write_buf;
 
 	/* ecc */
 	chip->ecc.mode = NAND_ECC_HW_SYNDROME;

@@ -1330,7 +1330,7 @@ static int gpmi_ecc_read_oob(struct nand_chip *chip, int page)
 
 	/* Read out the conventional OOB. */
 	nand_read_page_op(chip, page, mtd->writesize, NULL, 0);
-	chip->read_buf(chip, chip->oob_poi, mtd->oobsize);
+	chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	/*
 	 * Now, we want to make sure the block mark is correct. In the
@@ -1340,7 +1340,7 @@ static int gpmi_ecc_read_oob(struct nand_chip *chip, int page)
 	if (GPMI_IS_MX23(this)) {
 		/* Read the block mark into the first byte of the OOB buffer. */
 		nand_read_page_op(chip, page, 0, NULL, 0);
-		chip->oob_poi[0] = chip->read_byte(chip);
+		chip->oob_poi[0] = chip->legacy.read_byte(chip);
 	}
 
 	return 0;
@@ -1628,7 +1628,7 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 		 * and starts in the 12th byte of the page.
 		 */
 		nand_read_page_op(chip, page, 12, NULL, 0);
-		chip->read_buf(chip, buffer, strlen(fingerprint));
+		chip->legacy.read_buf(chip, buffer, strlen(fingerprint));
 
 		/* Look for the fingerprint. */
 		if (!memcmp(buffer, fingerprint, strlen(fingerprint))) {
@@ -1764,7 +1764,7 @@ static int mx23_boot_init(struct gpmi_nand_data  *this)
 		/* Send the command to read the conventional block mark. */
 		chip->select_chip(chip, chipnr);
 		nand_read_page_op(chip, page, mtd->writesize, NULL, 0);
-		block_mark = chip->read_byte(chip);
+		block_mark = chip->legacy.read_byte(chip);
 		chip->select_chip(chip, -1);
 
 		/*
@@ -1904,9 +1904,9 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	chip->setup_data_interface = gpmi_setup_data_interface;
 	chip->cmd_ctrl		= gpmi_cmd_ctrl;
 	chip->dev_ready		= gpmi_dev_ready;
-	chip->read_byte		= gpmi_read_byte;
-	chip->read_buf		= gpmi_read_buf;
-	chip->write_buf		= gpmi_write_buf;
+	chip->legacy.read_byte	= gpmi_read_byte;
+	chip->legacy.read_buf	= gpmi_read_buf;
+	chip->legacy.write_buf	= gpmi_write_buf;
 	chip->badblock_pattern	= &gpmi_bbt_descr;
 	chip->block_markbad	= gpmi_block_markbad;
 	chip->options		|= NAND_NO_SUBPAGE_WRITE;

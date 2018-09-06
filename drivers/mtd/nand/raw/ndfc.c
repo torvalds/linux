@@ -149,8 +149,8 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 	chip->select_chip = ndfc_select_chip;
 	chip->chip_delay = 50;
 	chip->controller = &ndfc->ndfc_control;
-	chip->read_buf = ndfc_read_buf;
-	chip->write_buf = ndfc_write_buf;
+	chip->legacy.read_buf = ndfc_read_buf;
+	chip->legacy.write_buf = ndfc_write_buf;
 	chip->ecc.correct = nand_correct_data;
 	chip->ecc.hwctl = ndfc_enable_hwecc;
 	chip->ecc.calculate = ndfc_calculate_ecc;

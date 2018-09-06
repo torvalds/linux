@@ -256,9 +256,9 @@ static int nuc900_nand_probe(struct platform_device *pdev)
 
 	chip->cmdfunc		= nuc900_nand_command_lp;
 	chip->dev_ready		= nuc900_nand_devready;
-	chip->read_byte		= nuc900_nand_read_byte;
-	chip->write_buf		= nuc900_nand_write_buf;
-	chip->read_buf		= nuc900_nand_read_buf;
+	chip->legacy.read_byte	= nuc900_nand_read_byte;
+	chip->legacy.write_buf	= nuc900_nand_write_buf;
+	chip->legacy.read_buf	= nuc900_nand_read_buf;
 	chip->chip_delay	= 50;
 	chip->options		= 0;
 	chip->ecc.mode		= NAND_ECC_SOFT;

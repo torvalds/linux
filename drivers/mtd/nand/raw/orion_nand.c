@@ -138,7 +138,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	nand_set_flash_node(nc, pdev->dev.of_node);
 	nc->legacy.IO_ADDR_R = nc->legacy.IO_ADDR_W = io_base;
 	nc->cmd_ctrl = orion_nand_cmd_ctrl;
-	nc->read_buf = orion_nand_read_buf;
+	nc->legacy.read_buf = orion_nand_read_buf;
 	nc->ecc.mode = NAND_ECC_SOFT;
 	nc->ecc.algo = NAND_ECC_HAMMING;
 

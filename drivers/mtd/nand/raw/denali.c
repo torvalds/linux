@@ -1262,11 +1262,11 @@ static int denali_attach_chip(struct nand_chip *chip)
 	mtd_set_ooblayout(mtd, &denali_ooblayout_ops);
 
 	if (chip->options & NAND_BUSWIDTH_16) {
-		chip->read_buf = denali_read_buf16;
-		chip->write_buf = denali_write_buf16;
+		chip->legacy.read_buf = denali_read_buf16;
+		chip->legacy.write_buf = denali_write_buf16;
 	} else {
-		chip->read_buf = denali_read_buf;
-		chip->write_buf = denali_write_buf;
+		chip->legacy.read_buf = denali_read_buf;
+		chip->legacy.write_buf = denali_write_buf;
 	}
 	chip->ecc.read_page = denali_read_page;
 	chip->ecc.read_page_raw = denali_read_page_raw;
@@ -1343,8 +1343,8 @@ int denali_init(struct denali_nand_info *denali)
 		mtd->name = "denali-nand";
 
 	chip->select_chip = denali_select_chip;
-	chip->read_byte = denali_read_byte;
-	chip->write_byte = denali_write_byte;
+	chip->legacy.read_byte = denali_read_byte;
+	chip->legacy.write_byte = denali_write_byte;
 	chip->cmd_ctrl = denali_cmd_ctrl;
 	chip->dev_ready = denali_dev_ready;
 	chip->waitfunc = denali_waitfunc;

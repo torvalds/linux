@@ -184,9 +184,9 @@ static int __init cmx270_init(void)
 	this->ecc.algo = NAND_ECC_HAMMING;
 
 	/* read/write functions */
-	this->read_byte = cmx270_read_byte;
-	this->read_buf = cmx270_read_buf;
-	this->write_buf = cmx270_write_buf;
+	this->legacy.read_byte = cmx270_read_byte;
+	this->legacy.read_buf = cmx270_read_buf;
+	this->legacy.write_buf = cmx270_write_buf;
 
 	/* Scan to find existence of the device */
 	ret = nand_scan(this, 1);

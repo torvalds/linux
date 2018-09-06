@@ -1176,6 +1176,10 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  * struct nand_legacy - NAND chip legacy fields/hooks
  * @IO_ADDR_R: address to read the 8 I/O lines of the flash device
  * @IO_ADDR_W: address to write the 8 I/O lines of the flash device
+ * @read_byte: read one byte from the chip
+ * @write_byte: write a single byte to the chip on the low 8 I/O lines
+ * @write_buf: write data from the buffer to the chip
+ * @read_buf: read data from the chip into the buffer
  *
  * If you look at this structure you're already wrong. These fields/hooks are
  * all deprecated.
@@ -1183,6 +1187,10 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
 struct nand_legacy {
 	void __iomem *IO_ADDR_R;
 	void __iomem *IO_ADDR_W;
+	u8 (*read_byte)(struct nand_chip *chip);
+	void (*write_byte)(struct nand_chip *chip, u8 byte);
+	void (*write_buf)(struct nand_chip *chip, const u8 *buf, int len);
+	void (*read_buf)(struct nand_chip *chip, u8 *buf, int len);
 };
 
 /**
@@ -1193,11 +1201,6 @@ struct nand_legacy {
  *			you're modifying an existing driver that is using those
  *			fields/hooks, you should consider reworking the driver
  *			avoid using them.
- * @read_byte:		[REPLACEABLE] read one byte from the chip
- * @write_byte:		[REPLACEABLE] write a single byte to the chip on the
- *			low 8 I/O lines
- * @write_buf:		[REPLACEABLE] write data from the buffer to the chip
- * @read_buf:		[REPLACEABLE] read data from the chip into the buffer
  * @select_chip:	[REPLACEABLE] select chip nr
  * @block_bad:		[REPLACEABLE] check if a block is bad, using OOB markers
  * @block_markbad:	[REPLACEABLE] mark a block bad
@@ -1213,8 +1216,8 @@ struct nand_legacy {
  *			ready.
  * @exec_op:		controller specific method to execute NAND operations.
  *			This method replaces ->cmdfunc(),
- *			->{read,write}_{buf,byte,word}(), ->dev_ready() and
- *			->waifunc().
+ *			->legacy.{read,write}_{buf,byte,word}(), ->dev_ready()
+ *			and ->waifunc().
  * @setup_read_retry:	[FLASHSPECIFIC] flash (vendor) specific function for
  *			setting the read-retry mode. Mostly needed for MLC NAND.
  * @ecc:		[BOARDSPECIFIC] ECC control structure
@@ -1297,10 +1300,6 @@ struct nand_chip {
 
 	struct nand_legacy legacy;
 
-	uint8_t (*read_byte)(struct nand_chip *chip);
-	void (*write_byte)(struct nand_chip *chip, uint8_t byte);
-	void (*write_buf)(struct nand_chip *chip, const uint8_t *buf, int len);
-	void (*read_buf)(struct nand_chip *chip, uint8_t *buf, int len);
 	void (*select_chip)(struct nand_chip *chip, int cs);
 	int (*block_bad)(struct nand_chip *chip, loff_t ofs);
 	int (*block_markbad)(struct nand_chip *chip, loff_t ofs);

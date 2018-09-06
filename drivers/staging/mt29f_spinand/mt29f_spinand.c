@@ -657,7 +657,7 @@ static int spinand_read_page_hwecc(struct nand_chip *chip, u8 *buf,
 
 	nand_read_page_op(chip, page, 0, p, eccsize * eccsteps);
 	if (oob_required)
-		chip->read_buf(chip, chip->oob_poi, mtd->oobsize);
+		chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	while (1) {
 		retval = spinand_read_status(info->spi, &status);
@@ -915,9 +915,9 @@ static int spinand_probe(struct spi_device *spi_nand)
 
 	nand_set_flash_node(chip, spi_nand->dev.of_node);
 	nand_set_controller_data(chip, info);
-	chip->read_buf	= spinand_read_buf;
-	chip->write_buf	= spinand_write_buf;
-	chip->read_byte	= spinand_read_byte;
+	chip->legacy.read_buf	= spinand_read_buf;
+	chip->legacy.write_buf	= spinand_write_buf;
+	chip->legacy.read_byte	= spinand_read_byte;
 	chip->cmdfunc	= spinand_cmdfunc;
 	chip->waitfunc	= spinand_wait;
 	chip->options	|= NAND_CACHEPRG;

@@ -405,9 +405,9 @@ static int tmio_probe(struct platform_device *dev)
 	/* Set address of hardware control function */
 	nand_chip->cmd_ctrl = tmio_nand_hwcontrol;
 	nand_chip->dev_ready = tmio_nand_dev_ready;
-	nand_chip->read_byte = tmio_nand_read_byte;
-	nand_chip->write_buf = tmio_nand_write_buf;
-	nand_chip->read_buf = tmio_nand_read_buf;
+	nand_chip->legacy.read_byte = tmio_nand_read_byte;
+	nand_chip->legacy.write_buf = tmio_nand_write_buf;
+	nand_chip->legacy.read_buf = tmio_nand_read_buf;
 
 	/* set eccmode using hardware ECC */
 	nand_chip->ecc.mode = NAND_ECC_HW;

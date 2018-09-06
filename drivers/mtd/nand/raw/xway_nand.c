@@ -177,9 +177,9 @@ static int xway_nand_probe(struct platform_device *pdev)
 	data->chip.cmd_ctrl = xway_cmd_ctrl;
 	data->chip.dev_ready = xway_dev_ready;
 	data->chip.select_chip = xway_select_chip;
-	data->chip.write_buf = xway_write_buf;
-	data->chip.read_buf = xway_read_buf;
-	data->chip.read_byte = xway_read_byte;
+	data->chip.legacy.write_buf = xway_write_buf;
+	data->chip.legacy.read_buf = xway_read_buf;
+	data->chip.legacy.read_byte = xway_read_byte;
 	data->chip.chip_delay = 30;
 
 	data->chip.ecc.mode = NAND_ECC_SOFT;

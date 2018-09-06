@@ -564,9 +564,9 @@ static int chip_init(struct device *dev, struct device_node *np)
 	ecc = &chip->ecc;
 	mtd = nand_to_mtd(chip);
 
-	chip->read_byte = tango_read_byte;
-	chip->write_buf = tango_write_buf;
-	chip->read_buf = tango_read_buf;
+	chip->legacy.read_byte = tango_read_byte;
+	chip->legacy.write_buf = tango_write_buf;
+	chip->legacy.read_buf = tango_read_buf;
 	chip->select_chip = tango_select_chip;
 	chip->cmd_ctrl = tango_cmd_ctrl;
 	chip->dev_ready = tango_dev_ready;

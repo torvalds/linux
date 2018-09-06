@@ -324,9 +324,9 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		mtd = nand_to_mtd(chip);
 		mtd->dev.parent = &dev->dev;
 
-		chip->read_byte = txx9ndfmc_read_byte;
-		chip->read_buf = txx9ndfmc_read_buf;
-		chip->write_buf = txx9ndfmc_write_buf;
+		chip->legacy.read_byte = txx9ndfmc_read_byte;
+		chip->legacy.read_buf = txx9ndfmc_read_buf;
+		chip->legacy.write_buf = txx9ndfmc_write_buf;
 		chip->cmd_ctrl = txx9ndfmc_cmd_ctrl;
 		chip->dev_ready = txx9ndfmc_dev_ready;
 		chip->ecc.calculate = txx9ndfmc_calculate_ecc;

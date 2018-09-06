@@ -858,12 +858,12 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	/* set up function call table */
 	if ((ifc_in32(&ifc_global->cspr_cs[priv->bank].cspr))
 		& CSPR_PORT_SIZE_16)
-		chip->read_byte = fsl_ifc_read_byte16;
+		chip->legacy.read_byte = fsl_ifc_read_byte16;
 	else
-		chip->read_byte = fsl_ifc_read_byte;
+		chip->legacy.read_byte = fsl_ifc_read_byte;
 
-	chip->write_buf = fsl_ifc_write_buf;
-	chip->read_buf = fsl_ifc_read_buf;
+	chip->legacy.write_buf = fsl_ifc_write_buf;
+	chip->legacy.read_buf = fsl_ifc_read_buf;
 	chip->select_chip = fsl_ifc_select_chip;
 	chip->cmdfunc = fsl_ifc_cmdfunc;
 	chip->waitfunc = fsl_ifc_wait;
@@ -881,10 +881,10 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 
 	if (ifc_in32(&ifc_global->cspr_cs[priv->bank].cspr)
 		& CSPR_PORT_SIZE_16) {
-		chip->read_byte = fsl_ifc_read_byte16;
+		chip->legacy.read_byte = fsl_ifc_read_byte16;
 		chip->options |= NAND_BUSWIDTH_16;
 	} else {
-		chip->read_byte = fsl_ifc_read_byte;
+		chip->legacy.read_byte = fsl_ifc_read_byte;
 	}
 
 	chip->controller = &ifc_nand_ctrl->controller;

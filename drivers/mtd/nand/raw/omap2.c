@@ -1539,7 +1539,7 @@ static int omap_write_page_bch(struct nand_chip *chip, const uint8_t *buf,
 	chip->ecc.hwctl(chip, NAND_ECC_WRITE);
 
 	/* Write data */
-	chip->write_buf(chip, buf, mtd->writesize);
+	chip->legacy.write_buf(chip, buf, mtd->writesize);
 
 	/* Update ecc vector from GPMC result registers */
 	omap_calculate_ecc_bch_multi(mtd, buf, &ecc_calc[0]);
@@ -1550,7 +1550,7 @@ static int omap_write_page_bch(struct nand_chip *chip, const uint8_t *buf,
 		return ret;
 
 	/* Write ecc vector to OOB area */
-	chip->write_buf(chip, chip->oob_poi, mtd->oobsize);
+	chip->legacy.write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return nand_prog_page_end_op(chip);
 }
@@ -1591,7 +1591,7 @@ static int omap_write_subpage_bch(struct nand_chip *chip, u32 offset,
 	chip->ecc.hwctl(chip, NAND_ECC_WRITE);
 
 	/* Write data */
-	chip->write_buf(chip, buf, mtd->writesize);
+	chip->legacy.write_buf(chip, buf, mtd->writesize);
 
 	for (step = 0; step < ecc_steps; step++) {
 		/* mask ECC of un-touched subpages by padding 0xFF */
@@ -1616,7 +1616,7 @@ static int omap_write_subpage_bch(struct nand_chip *chip, u32 offset,
 		return ret;
 
 	/* write OOB buffer to NAND device */
-	chip->write_buf(chip, chip->oob_poi, mtd->oobsize);
+	chip->legacy.write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return nand_prog_page_end_op(chip);
 }
@@ -1650,7 +1650,7 @@ static int omap_read_page_bch(struct nand_chip *chip, uint8_t *buf,
 	chip->ecc.hwctl(chip, NAND_ECC_READ);
 
 	/* Read data */
-	chip->read_buf(chip, buf, mtd->writesize);
+	chip->legacy.read_buf(chip, buf, mtd->writesize);
 
 	/* Read oob bytes */
 	nand_change_read_column_op(chip,
@@ -1933,8 +1933,8 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 	/* Re-populate low-level callbacks based on xfer modes */
 	switch (info->xfer_type) {
 	case NAND_OMAP_PREFETCH_POLLED:
-		chip->read_buf = omap_read_buf_pref;
-		chip->write_buf = omap_write_buf_pref;
+		chip->legacy.read_buf = omap_read_buf_pref;
+		chip->legacy.write_buf = omap_write_buf_pref;
 		break;
 
 	case NAND_OMAP_POLLED:
@@ -1966,8 +1966,8 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 					err);
 				return err;
 			}
-			chip->read_buf = omap_read_buf_dma_pref;
-			chip->write_buf = omap_write_buf_dma_pref;
+			chip->legacy.read_buf = omap_read_buf_dma_pref;
+			chip->legacy.write_buf = omap_write_buf_dma_pref;
 		}
 		break;
 
@@ -2002,8 +2002,8 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 			return err;
 		}
 
-		chip->read_buf = omap_read_buf_irq_pref;
-		chip->write_buf = omap_write_buf_irq_pref;
+		chip->legacy.read_buf = omap_read_buf_irq_pref;
+		chip->legacy.write_buf = omap_write_buf_irq_pref;
 
 		break;
 

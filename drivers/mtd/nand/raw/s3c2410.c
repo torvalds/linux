@@ -864,8 +864,8 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 
 	nand_set_flash_node(chip, set->of_node);
 
-	chip->write_buf    = s3c2410_nand_write_buf;
-	chip->read_buf     = s3c2410_nand_read_buf;
+	chip->legacy.write_buf    = s3c2410_nand_write_buf;
+	chip->legacy.read_buf     = s3c2410_nand_read_buf;
 	chip->select_chip  = s3c2410_nand_select_chip;
 	chip->chip_delay   = 50;
 	nand_set_controller_data(chip, nmtd);
@@ -894,8 +894,8 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		info->sel_bit	= S3C2440_NFCONT_nFCE;
 		chip->cmd_ctrl  = s3c2440_nand_hwcontrol;
 		chip->dev_ready = s3c2440_nand_devready;
-		chip->read_buf  = s3c2440_nand_read_buf;
-		chip->write_buf	= s3c2440_nand_write_buf;
+		chip->legacy.read_buf  = s3c2440_nand_read_buf;
+		chip->legacy.write_buf	= s3c2440_nand_write_buf;
 		break;
 
 	case TYPE_S3C2412:

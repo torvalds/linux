@@ -382,8 +382,8 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 	 */
 	udelay(50);
 
-	ret = this->read_byte(this) << 8;
-	ret |= this->read_byte(this);
+	ret = this->legacy.read_byte(this) << 8;
+	ret |= this->legacy.read_byte(this);
 
 	if (doc->ChipID == DOC_ChipID_Doc2k && try_dword && !nr) {
 		/* First chip probe. See if we get same results by 32-bit access */
@@ -404,7 +404,7 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 		ident.dword = readl(docptr + DoC_2k_CDSN_IO);
 		if (((ident.byte[0] << 8) | ident.byte[1]) == ret) {
 			pr_info("DiskOnChip 2000 responds to DWORD access\n");
-			this->read_buf = &doc2000_readbuf_dword;
+			this->legacy.read_buf = &doc2000_readbuf_dword;
 		}
 	}
 
@@ -442,7 +442,7 @@ static int doc200x_wait(struct nand_chip *this)
 	DoC_WaitReady(doc);
 	nand_status_op(this, NULL);
 	DoC_WaitReady(doc);
-	status = (int)this->read_byte(this);
+	status = (int)this->legacy.read_byte(this);
 
 	return status;
 }
@@ -721,7 +721,7 @@ static void doc2001plus_command(struct nand_chip *this, unsigned command,
 		WriteDOC(NAND_CMD_STATUS, docptr, Mplus_FlashCmd);
 		WriteDOC(0, docptr, Mplus_WritePipeTerm);
 		WriteDOC(0, docptr, Mplus_WritePipeTerm);
-		while (!(this->read_byte(this) & 0x40)) ;
+		while (!(this->legacy.read_byte(this) & 0x40)) ;
 		return;
 
 		/* This applies to read commands */
@@ -1339,9 +1339,9 @@ static inline int __init doc2000_init(struct mtd_info *mtd)
 	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 
-	this->read_byte = doc2000_read_byte;
-	this->write_buf = doc2000_writebuf;
-	this->read_buf = doc2000_readbuf;
+	this->legacy.read_byte = doc2000_read_byte;
+	this->legacy.write_buf = doc2000_writebuf;
+	this->legacy.read_buf = doc2000_readbuf;
 	doc->late_init = nftl_scan_bbt;
 
 	doc->CDSNControl = CDSN_CTRL_FLASH_IO | CDSN_CTRL_ECC_IO;
@@ -1355,9 +1355,9 @@ static inline int __init doc2001_init(struct mtd_info *mtd)
 	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 
-	this->read_byte = doc2001_read_byte;
-	this->write_buf = doc2001_writebuf;
-	this->read_buf = doc2001_readbuf;
+	this->legacy.read_byte = doc2001_read_byte;
+	this->legacy.write_buf = doc2001_writebuf;
+	this->legacy.read_buf = doc2001_readbuf;
 
 	ReadDOC(doc->virtadr, ChipID);
 	ReadDOC(doc->virtadr, ChipID);
@@ -1385,9 +1385,9 @@ static inline int __init doc2001plus_init(struct mtd_info *mtd)
 	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
 
-	this->read_byte = doc2001plus_read_byte;
-	this->write_buf = doc2001plus_writebuf;
-	this->read_buf = doc2001plus_readbuf;
+	this->legacy.read_byte = doc2001plus_read_byte;
+	this->legacy.write_buf = doc2001plus_writebuf;
+	this->legacy.read_buf = doc2001plus_readbuf;
 	doc->late_init = inftl_scan_bbt;
 	this->cmd_ctrl = NULL;
 	this->select_chip = doc2001plus_select_chip;

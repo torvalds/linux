@@ -108,7 +108,7 @@ static int hynix_nand_reg_write_op(struct nand_chip *chip, u8 addr, u8 val)
 	}
 
 	chip->cmdfunc(chip, NAND_CMD_NONE, column, -1);
-	chip->write_byte(chip, val);
+	chip->legacy.write_byte(chip, val);
 
 	return 0;
 }

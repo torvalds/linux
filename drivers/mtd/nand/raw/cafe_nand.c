@@ -378,7 +378,7 @@ static int cafe_nand_read_page(struct nand_chip *chip, uint8_t *buf,
 		     cafe_readl(cafe, NAND_ECC_SYN01));
 
 	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
-	chip->read_buf(chip, chip->oob_poi, mtd->oobsize);
+	chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	if (checkecc && cafe_readl(cafe, NAND_ECC_RESULT) & (1<<18)) {
 		unsigned short syn[8], pat[4];
@@ -537,7 +537,7 @@ static int cafe_nand_write_page_lowlevel(struct nand_chip *chip,
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
 	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
-	chip->write_buf(chip, chip->oob_poi, mtd->oobsize);
+	chip->legacy.write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	/* Set up ECC autogeneration */
 	cafe->ctl2 |= (1<<30);
@@ -705,9 +705,9 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 
 	cafe->nand.cmdfunc = cafe_nand_cmdfunc;
 	cafe->nand.dev_ready = cafe_device_ready;
-	cafe->nand.read_byte = cafe_read_byte;
-	cafe->nand.read_buf = cafe_read_buf;
-	cafe->nand.write_buf = cafe_write_buf;
+	cafe->nand.legacy.read_byte = cafe_read_byte;
+	cafe->nand.legacy.read_buf = cafe_read_buf;
+	cafe->nand.legacy.write_buf = cafe_write_buf;
 	cafe->nand.select_chip = cafe_select_chip;
 	cafe->nand.set_features = nand_get_set_features_notsupp;
 	cafe->nand.get_features = nand_get_set_features_notsupp;

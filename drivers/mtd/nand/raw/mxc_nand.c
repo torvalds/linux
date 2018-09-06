@@ -1402,7 +1402,7 @@ static int mxc_nand_set_features(struct nand_chip *chip, int addr,
 	host->buf_start = 0;
 
 	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
-		chip->write_byte(chip, subfeature_param[i]);
+		chip->legacy.write_byte(chip, subfeature_param[i]);
 
 	memcpy32_toio(host->main_area0, host->data_buf, mtd->writesize);
 	host->devtype_data->send_cmd(host, NAND_CMD_SET_FEATURES, false);
@@ -1426,7 +1426,7 @@ static int mxc_nand_get_features(struct nand_chip *chip, int addr,
 	host->buf_start = 0;
 
 	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
-		*subfeature_param++ = chip->read_byte(chip);
+		*subfeature_param++ = chip->legacy.read_byte(chip);
 
 	return 0;
 }
@@ -1775,9 +1775,9 @@ static int mxcnd_probe(struct platform_device *pdev)
 	nand_set_flash_node(this, pdev->dev.of_node),
 	this->dev_ready = mxc_nand_dev_ready;
 	this->cmdfunc = mxc_nand_command;
-	this->read_byte = mxc_nand_read_byte;
-	this->write_buf = mxc_nand_write_buf;
-	this->read_buf = mxc_nand_read_buf;
+	this->legacy.read_byte = mxc_nand_read_byte;
+	this->legacy.write_buf = mxc_nand_write_buf;
+	this->legacy.read_buf = mxc_nand_read_buf;
 	this->set_features = mxc_nand_set_features;
 	this->get_features = mxc_nand_get_features;
 

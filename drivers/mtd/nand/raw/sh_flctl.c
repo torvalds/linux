@@ -618,7 +618,7 @@ static int flctl_read_page_hwecc(struct nand_chip *chip, uint8_t *buf,
 
 	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	if (oob_required)
-		chip->read_buf(chip, chip->oob_poi, mtd->oobsize);
+		chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
 	return 0;
 }
 
@@ -628,7 +628,7 @@ static int flctl_write_page_hwecc(struct nand_chip *chip, const uint8_t *buf,
 	struct mtd_info *mtd = nand_to_mtd(chip);
 
 	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
-	chip->write_buf(chip, chip->oob_poi, mtd->oobsize);
+	chip->legacy.write_buf(chip, chip->oob_poi, mtd->oobsize);
 	return nand_prog_page_end_op(chip);
 }
 
@@ -1180,9 +1180,9 @@ static int flctl_probe(struct platform_device *pdev)
 	/* 20 us command delay time */
 	nand->chip_delay = 20;
 
-	nand->read_byte = flctl_read_byte;
-	nand->write_buf = flctl_write_buf;
-	nand->read_buf = flctl_read_buf;
+	nand->legacy.read_byte = flctl_read_byte;
+	nand->legacy.write_buf = flctl_write_buf;
+	nand->legacy.read_buf = flctl_read_buf;
 	nand->select_chip = flctl_select_chip;
 	nand->cmdfunc = flctl_cmdfunc;
 	nand->set_features = nand_get_set_features_notsupp;

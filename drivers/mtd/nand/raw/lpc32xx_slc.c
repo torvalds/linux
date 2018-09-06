@@ -624,7 +624,7 @@ static int lpc32xx_nand_read_page_syndrome(struct nand_chip *chip, uint8_t *buf,
 	status = lpc32xx_xfer(mtd, buf, chip->ecc.steps, 1);
 
 	/* Get OOB data */
-	chip->read_buf(chip, chip->oob_poi, mtd->oobsize);
+	chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	/* Convert to stored ECC format */
 	lpc32xx_slc_ecc_copy(tmpecc, (uint32_t *) host->ecc_buf, chip->ecc.steps);
@@ -665,8 +665,8 @@ static int lpc32xx_nand_read_page_raw_syndrome(struct nand_chip *chip,
 	nand_read_page_op(chip, page, 0, NULL, 0);
 
 	/* Raw reads can just use the FIFO interface */
-	chip->read_buf(chip, buf, chip->ecc.size * chip->ecc.steps);
-	chip->read_buf(chip, chip->oob_poi, mtd->oobsize);
+	chip->legacy.read_buf(chip, buf, chip->ecc.size * chip->ecc.steps);
+	chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return 0;
 }
@@ -704,7 +704,7 @@ static int lpc32xx_nand_write_page_syndrome(struct nand_chip *chip,
 	lpc32xx_slc_ecc_copy(pb, (uint32_t *)host->ecc_buf, chip->ecc.steps);
 
 	/* Write ECC data to device */
-	chip->write_buf(chip, chip->oob_poi, mtd->oobsize);
+	chip->legacy.write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return nand_prog_page_end_op(chip);
 }
@@ -722,7 +722,7 @@ static int lpc32xx_nand_write_page_raw_syndrome(struct nand_chip *chip,
 	/* Raw writes can just use the FIFO interface */
 	nand_prog_page_begin_op(chip, page, 0, buf,
 				chip->ecc.size * chip->ecc.steps);
-	chip->write_buf(chip, chip->oob_poi, mtd->oobsize);
+	chip->legacy.write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return nand_prog_page_end_op(chip);
 }
@@ -891,9 +891,9 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 
 	/* NAND callbacks for LPC32xx SLC hardware */
 	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
-	chip->read_byte = lpc32xx_nand_read_byte;
-	chip->read_buf = lpc32xx_nand_read_buf;
-	chip->write_buf = lpc32xx_nand_write_buf;
+	chip->legacy.read_byte = lpc32xx_nand_read_byte;
+	chip->legacy.read_buf = lpc32xx_nand_read_buf;
+	chip->legacy.write_buf = lpc32xx_nand_write_buf;
 	chip->ecc.read_page_raw = lpc32xx_nand_read_page_raw_syndrome;
 	chip->ecc.read_page = lpc32xx_nand_read_page_syndrome;
 	chip->ecc.write_page_raw = lpc32xx_nand_write_page_raw_syndrome;

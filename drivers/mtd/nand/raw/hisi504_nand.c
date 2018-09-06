@@ -533,7 +533,7 @@ static int hisi_nand_read_page_hwecc(struct nand_chip *chip, uint8_t *buf,
 	int stat_1, stat_2;
 
 	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
-	chip->read_buf(chip, chip->oob_poi, mtd->oobsize);
+	chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	/* errors which can not be corrected by ECC */
 	if (host->irq_status & HINFC504_INTS_UE) {
@@ -581,7 +581,7 @@ static int hisi_nand_write_page_hwecc(struct nand_chip *chip,
 
 	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
 	if (oob_required)
-		chip->write_buf(chip, chip->oob_poi, mtd->oobsize);
+		chip->legacy.write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return nand_prog_page_end_op(chip);
 }
@@ -784,9 +784,9 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	nand_set_flash_node(chip, np);
 	chip->cmdfunc		= hisi_nfc_cmdfunc;
 	chip->select_chip	= hisi_nfc_select_chip;
-	chip->read_byte		= hisi_nfc_read_byte;
-	chip->write_buf		= hisi_nfc_write_buf;
-	chip->read_buf		= hisi_nfc_read_buf;
+	chip->legacy.read_byte	= hisi_nfc_read_byte;
+	chip->legacy.write_buf	= hisi_nfc_write_buf;
+	chip->legacy.read_buf	= hisi_nfc_read_buf;
 	chip->chip_delay	= HINFC504_CHIP_DELAY;
 	chip->set_features	= nand_get_set_features_notsupp;
 	chip->get_features	= nand_get_set_features_notsupp;

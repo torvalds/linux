@@ -387,9 +387,9 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 	nand_chip->cmd_ctrl = bcm47xxnflash_ops_bcm4706_cmd_ctrl;
 	nand_chip->dev_ready = bcm47xxnflash_ops_bcm4706_dev_ready;
 	b47n->nand_chip.cmdfunc = bcm47xxnflash_ops_bcm4706_cmdfunc;
-	b47n->nand_chip.read_byte = bcm47xxnflash_ops_bcm4706_read_byte;
-	b47n->nand_chip.read_buf = bcm47xxnflash_ops_bcm4706_read_buf;
-	b47n->nand_chip.write_buf = bcm47xxnflash_ops_bcm4706_write_buf;
+	b47n->nand_chip.legacy.read_byte = bcm47xxnflash_ops_bcm4706_read_byte;
+	b47n->nand_chip.legacy.read_buf = bcm47xxnflash_ops_bcm4706_read_buf;
+	b47n->nand_chip.legacy.write_buf = bcm47xxnflash_ops_bcm4706_write_buf;
 	b47n->nand_chip.set_features = nand_get_set_features_notsupp;
 	b47n->nand_chip.get_features = nand_get_set_features_notsupp;
 

@@ -2156,7 +2156,7 @@ static void ns_nand_read_buf(struct nand_chip *chip, u_char *buf, int len)
 		int i;
 
 		for (i = 0; i < len; i++)
-			buf[i] = chip->read_byte(chip);
+			buf[i] = chip->legacy.read_byte(chip);
 
 		return;
 	}
@@ -2250,10 +2250,10 @@ static int __init ns_init_module(void)
 	 * Register simulator's callbacks.
 	 */
 	chip->cmd_ctrl	 = ns_hwcontrol;
-	chip->read_byte  = ns_nand_read_byte;
+	chip->legacy.read_byte  = ns_nand_read_byte;
 	chip->dev_ready  = ns_device_ready;
-	chip->write_buf  = ns_nand_write_buf;
-	chip->read_buf   = ns_nand_read_buf;
+	chip->legacy.write_buf  = ns_nand_write_buf;
+	chip->legacy.read_buf   = ns_nand_read_buf;
 	chip->ecc.mode   = NAND_ECC_SOFT;
 	chip->ecc.algo   = NAND_ECC_HAMMING;
 	/* The NAND_SKIP_BBTSCAN option is necessary for 'overridesize' */

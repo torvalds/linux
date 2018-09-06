@@ -2273,9 +2273,9 @@ static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 	chip->cmd_ctrl = brcmnand_cmd_ctrl;
 	chip->cmdfunc = brcmnand_cmdfunc;
 	chip->waitfunc = brcmnand_waitfunc;
-	chip->read_byte = brcmnand_read_byte;
-	chip->read_buf = brcmnand_read_buf;
-	chip->write_buf = brcmnand_write_buf;
+	chip->legacy.read_byte = brcmnand_read_byte;
+	chip->legacy.read_buf = brcmnand_read_buf;
+	chip->legacy.write_buf = brcmnand_write_buf;
 
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->ecc.read_page = brcmnand_read_page;

@@ -1473,10 +1473,10 @@ static void atmel_nand_init(struct atmel_nand_controller *nc,
 	nand->base.controller = &nc->base;
 
 	chip->cmd_ctrl = atmel_nand_cmd_ctrl;
-	chip->read_byte = atmel_nand_read_byte;
-	chip->write_byte = atmel_nand_write_byte;
-	chip->read_buf = atmel_nand_read_buf;
-	chip->write_buf = atmel_nand_write_buf;
+	chip->legacy.read_byte = atmel_nand_read_byte;
+	chip->legacy.write_byte = atmel_nand_write_byte;
+	chip->legacy.read_buf = atmel_nand_read_buf;
+	chip->legacy.write_buf = atmel_nand_write_buf;
 	chip->select_chip = atmel_nand_select_chip;
 
 	if (nc->mck && nc->caps->ops->setup_data_interface)

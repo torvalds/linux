@@ -210,9 +210,9 @@ static int ams_delta_init(struct platform_device *pdev)
 	/* Set address of NAND IO lines */
 	this->legacy.IO_ADDR_R = io_base + OMAP_MPUIO_INPUT_LATCH;
 	this->legacy.IO_ADDR_W = io_base + OMAP_MPUIO_OUTPUT;
-	this->read_byte = ams_delta_read_byte;
-	this->write_buf = ams_delta_write_buf;
-	this->read_buf = ams_delta_read_buf;
+	this->legacy.read_byte = ams_delta_read_byte;
+	this->legacy.write_buf = ams_delta_write_buf;
+	this->legacy.read_buf = ams_delta_read_buf;
 	this->cmd_ctrl = ams_delta_hwcontrol;
 	if (gpio_request(AMS_DELTA_GPIO_PIN_NAND_RB, "nand_rdy") == 0) {
 		this->dev_ready = ams_delta_nand_ready;

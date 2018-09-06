@@ -164,9 +164,9 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 	fun->chip.legacy.IO_ADDR_W = fun->io_base;
 	fun->chip.cmd_ctrl = fun_cmd_ctrl;
 	fun->chip.chip_delay = fun->chip_delay;
-	fun->chip.read_byte = fun_read_byte;
-	fun->chip.read_buf = fun_read_buf;
-	fun->chip.write_buf = fun_write_buf;
+	fun->chip.legacy.read_byte = fun_read_byte;
+	fun->chip.legacy.read_buf = fun_read_buf;
+	fun->chip.legacy.write_buf = fun_write_buf;
 	fun->chip.ecc.mode = NAND_ECC_SOFT;
 	fun->chip.ecc.algo = NAND_ECC_HAMMING;
 	if (fun->mchip_count > 1)

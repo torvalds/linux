@@ -349,7 +349,8 @@ struct nandc_regs {
  * @data_buffer:		our local DMA buffer for page read/writes,
  *				used when we can't use the buffer provided
  *				by upper layers directly
- * @buf_size/count/start:	markers for chip->read_buf/write_buf functions
+ * @buf_size/count/start:	markers for chip->legacy.read_buf/write_buf
+ *				functions
  * @reg_read_buf:		local buffer for reading back registers via DMA
  * @reg_read_dma:		contains dma address for register read buffer
  * @reg_read_pos:		marker for data read in reg_read_buf
@@ -2275,10 +2276,10 @@ static int qcom_nandc_block_markbad(struct nand_chip *chip, loff_t ofs)
 }
 
 /*
- * the three functions below implement chip->read_byte(), chip->read_buf()
- * and chip->write_buf() respectively. these aren't used for
- * reading/writing page data, they are used for smaller data like reading
- * id, status etc
+ * the three functions below implement chip->legacy.read_byte(),
+ * chip->legacy.read_buf() and chip->legacy.write_buf() respectively. these
+ * aren't used for reading/writing page data, they are used for smaller data
+ * like reading	id, status etc
  */
 static uint8_t qcom_nandc_read_byte(struct nand_chip *chip)
 {
@@ -2804,9 +2805,9 @@ static int qcom_nand_host_init_and_register(struct qcom_nand_controller *nandc,
 
 	chip->cmdfunc		= qcom_nandc_command;
 	chip->select_chip	= qcom_nandc_select_chip;
-	chip->read_byte		= qcom_nandc_read_byte;
-	chip->read_buf		= qcom_nandc_read_buf;
-	chip->write_buf		= qcom_nandc_write_buf;
+	chip->legacy.read_byte	= qcom_nandc_read_byte;
+	chip->legacy.read_buf	= qcom_nandc_read_buf;
+	chip->legacy.write_buf	= qcom_nandc_write_buf;
 	chip->set_features	= nand_get_set_features_notsupp;
 	chip->get_features	= nand_get_set_features_notsupp;
 

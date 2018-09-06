@@ -153,9 +153,9 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	mtd->dev.parent = &ofdev->dev;
 
 	nand_chip->cmd_ctrl = socrates_nand_cmd_ctrl;
-	nand_chip->read_byte = socrates_nand_read_byte;
-	nand_chip->write_buf = socrates_nand_write_buf;
-	nand_chip->read_buf = socrates_nand_read_buf;
+	nand_chip->legacy.read_byte = socrates_nand_read_byte;
+	nand_chip->legacy.write_buf = socrates_nand_write_buf;
+	nand_chip->legacy.read_buf = socrates_nand_read_buf;
 	nand_chip->dev_ready = socrates_nand_device_ready;
 
 	nand_chip->ecc.mode = NAND_ECC_SOFT;	/* enable ECC */

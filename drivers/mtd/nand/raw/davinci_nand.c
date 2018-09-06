@@ -785,8 +785,8 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	info->chip.dev_ready	= nand_davinci_dev_ready;
 
 	/* Speed up buffer I/O */
-	info->chip.read_buf     = nand_davinci_read_buf;
-	info->chip.write_buf    = nand_davinci_write_buf;
+	info->chip.legacy.read_buf     = nand_davinci_read_buf;
+	info->chip.legacy.write_buf    = nand_davinci_write_buf;
 
 	/* Use board-specific ECC config */
 	info->chip.ecc.mode	= pdata->ecc_mode;

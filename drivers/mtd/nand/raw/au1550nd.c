@@ -440,10 +440,10 @@ static int au1550nd_probe(struct platform_device *pdev)
 	if (pd->devwidth)
 		this->options |= NAND_BUSWIDTH_16;
 
-	this->read_byte = (pd->devwidth) ? au_read_byte16 : au_read_byte;
+	this->legacy.read_byte = (pd->devwidth) ? au_read_byte16 : au_read_byte;
 	ctx->write_byte = (pd->devwidth) ? au_write_byte16 : au_write_byte;
-	this->write_buf = (pd->devwidth) ? au_write_buf16 : au_write_buf;
-	this->read_buf = (pd->devwidth) ? au_read_buf16 : au_read_buf;
+	this->legacy.write_buf = (pd->devwidth) ? au_write_buf16 : au_write_buf;
+	this->legacy.read_buf = (pd->devwidth) ? au_read_buf16 : au_read_buf;
 
 	ret = nand_scan(this, 1);
 	if (ret) {
