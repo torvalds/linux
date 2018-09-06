@@ -1652,9 +1652,9 @@ __init struct attribute **merge_attr(struct attribute **a, struct attribute **b)
 	struct attribute **new;
 	int j, i;
 
-	for (j = 0; a[j]; j++)
+	for (j = 0; a && a[j]; j++)
 		;
-	for (i = 0; b[i]; i++)
+	for (i = 0; b && b[i]; i++)
 		j++;
 	j++;
 
@@ -1663,9 +1663,9 @@ __init struct attribute **merge_attr(struct attribute **a, struct attribute **b)
 		return NULL;
 
 	j = 0;
-	for (i = 0; a[i]; i++)
+	for (i = 0; a && a[i]; i++)
 		new[j++] = a[i];
-	for (i = 0; b[i]; i++)
+	for (i = 0; b && b[i]; i++)
 		new[j++] = b[i];
 	new[j] = NULL;
 
