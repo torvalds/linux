@@ -126,33 +126,3 @@ void mt76x0_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	mt76_rx(&dev->mt76, q, skb);
 }
 
-void mt76x0_tx_stat(struct work_struct *work)
-{
-	struct mt76x0_dev *dev = container_of(work, struct mt76x0_dev,
-					       stat_work.work);
-	struct mt76x02_tx_status stat;
-	unsigned long flags;
-	int cleaned = 0;
-	u8 update = 1;
-
-	while (!test_bit(MT76_REMOVED, &dev->mt76.state)) {
-		if (!mt76x02_mac_load_tx_status(&dev->mt76, &stat))
-			break;
-
-		mt76x02_send_tx_status(&dev->mt76, &stat, &update);
-
-		cleaned++;
-	}
-	trace_mt76x0_tx_status_cleaned(&dev->mt76, cleaned);
-
-	spin_lock_irqsave(&dev->tx_lock, flags);
-	if (cleaned)
-		queue_delayed_work(dev->stat_wq, &dev->stat_work,
-				   msecs_to_jiffies(10));
-	else if (test_and_clear_bit(MT76_MORE_STATS, &dev->mt76.state))
-		queue_delayed_work(dev->stat_wq, &dev->stat_work,
-				   msecs_to_jiffies(20));
-	else
-		clear_bit(MT76_READING_STATS, &dev->mt76.state);
-	spin_unlock_irqrestore(&dev->tx_lock, flags);
-}

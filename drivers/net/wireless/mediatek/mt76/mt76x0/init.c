@@ -511,12 +511,6 @@ struct mt76x0_dev *mt76x0_alloc_device(struct device *pdev)
 	spin_lock_init(&dev->con_mon_lock);
 	atomic_set(&dev->avg_ampdu_len, 1);
 
-	dev->stat_wq = alloc_workqueue("mt76x0", WQ_UNBOUND, 0);
-	if (!dev->stat_wq) {
-		ieee80211_free_hw(mdev->hw);
-		return NULL;
-	}
-
 	return dev;
 }
 
@@ -715,7 +709,6 @@ int mt76x0_register_device(struct mt76x0_dev *dev)
 	dev->mt76.chandef.chan = &dev->mt76.sband_2g.sband.channels[0];
 
 	INIT_DELAYED_WORK(&dev->mac_work, mt76x0_mac_work);
-	INIT_DELAYED_WORK(&dev->stat_work, mt76x0_tx_stat);
 
 	ret = ieee80211_register_hw(hw);
 	if (ret)

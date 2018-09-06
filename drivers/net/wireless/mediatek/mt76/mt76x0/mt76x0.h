@@ -132,7 +132,6 @@ struct mt76x0_dev {
 	struct delayed_work cal_work;
 	struct delayed_work mac_work;
 
-	struct workqueue_struct *stat_wq;
 	struct delayed_work stat_work;
 
 	spinlock_t mac_lock;
@@ -237,7 +236,6 @@ void mt76x0_mac_set_ampdu_factor(struct mt76x0_dev *dev);
 void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		struct sk_buff *skb);
 void mt76x0_tx_status(struct mt76x0_dev *dev, struct sk_buff *skb);
-void mt76x0_tx_stat(struct work_struct *work);
 
 void mt76x0_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb);

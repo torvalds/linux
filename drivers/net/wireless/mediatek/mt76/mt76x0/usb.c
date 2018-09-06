@@ -107,7 +107,6 @@ err:
 	usb_set_intfdata(usb_intf, NULL);
 	usb_put_dev(interface_to_usbdev(usb_intf));
 
-	destroy_workqueue(dev->stat_wq);
 	ieee80211_free_hw(dev->mt76.hw);
 	return ret;
 }
@@ -126,7 +125,6 @@ static void mt76x0_disconnect(struct usb_interface *usb_intf)
 	usb_set_intfdata(usb_intf, NULL);
 	usb_put_dev(interface_to_usbdev(usb_intf));
 
-	destroy_workqueue(dev->stat_wq);
 	ieee80211_free_hw(dev->mt76.hw);
 }
 
