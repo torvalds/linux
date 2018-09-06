@@ -27,18 +27,6 @@
 struct nand_chip;
 struct nand_flash_dev;
 
-/* Scan and identify a NAND device */
-int nand_scan_with_ids(struct nand_chip *chip, unsigned int max_chips,
-		       struct nand_flash_dev *ids);
-
-static inline int nand_scan(struct nand_chip *chip, unsigned int max_chips)
-{
-	return nand_scan_with_ids(chip, max_chips, NULL);
-}
-
-/* Internal helper for board drivers which need to override command function */
-void nand_wait_ready(struct nand_chip *chip);
-
 /* The maximum number of NAND chips in an array */
 #define NAND_MAX_CHIPS		8
 
@@ -1738,6 +1726,18 @@ int nand_read_data_op(struct nand_chip *chip, void *buf, unsigned int len,
 		      bool force_8bit);
 int nand_write_data_op(struct nand_chip *chip, const void *buf,
 		       unsigned int len, bool force_8bit);
+
+/* Scan and identify a NAND device */
+int nand_scan_with_ids(struct nand_chip *chip, unsigned int max_chips,
+		       struct nand_flash_dev *ids);
+
+static inline int nand_scan(struct nand_chip *chip, unsigned int max_chips)
+{
+	return nand_scan_with_ids(chip, max_chips, NULL);
+}
+
+/* Internal helper for board drivers which need to override command function */
+void nand_wait_ready(struct nand_chip *chip);
 
 /*
  * Free resources held by the NAND device, must be called on error after a
