@@ -46,6 +46,7 @@ struct thermal_opp_info {
 	bool is_high_temp;
 };
 
+#ifdef CONFIG_ROCKCHIP_OPP
 void rockchip_of_get_lkg_sel(struct device *dev, struct device_node *np,
 			     char *lkg_name, int process,
 			     int *volt_sel, int *scale_sel);
@@ -79,5 +80,99 @@ int rockchip_dev_low_temp_adjust(struct thermal_opp_info *info,
 				 bool is_low);
 int rockchip_dev_high_temp_adjust(struct thermal_opp_info *info,
 				  bool is_high);
+#else
+static inline void rockchip_of_get_lkg_sel(struct device *dev,
+					   struct device_node *np,
+					   char *lkg_name, int process,
+					   int *volt_sel, int *scale_sel)
+{
+}
+
+static inline void rockchip_of_get_pvtm_sel(struct device *dev,
+					    struct device_node *np,
+					    char *reg_name, int process,
+					    int *volt_sel, int *scale_sel)
+{
+}
+
+static inline void rockchip_of_get_bin_sel(struct device *dev,
+					   struct device_node *np, int bin,
+					   int *scale_sel)
+{
+}
+
+static inline int rockchip_get_efuse_value(struct device_node *np,
+					   char *porp_name, int *value)
+{
+	return -ENOTSUPP;
+}
+
+static inline void rockchip_get_soc_info(struct device *dev,
+					 const struct of_device_id *matches,
+					 int *bin, int *process)
+{
+}
+
+static inline void rockchip_get_scale_volt_sel(struct device *dev,
+					       char *lkg_name, char *reg_name,
+					       int bin, int process, int *scale,
+					       int *volt_sel)
+{
+}
+
+static inline int rockchip_set_opp_info(struct device *dev, int process,
+					int volt_sel)
+{
+	return -ENOTSUPP;
+}
+
+static inline int rockchip_adjust_power_scale(struct device *dev, int scale)
+{
+	return -ENOTSUPP;
+}
+
+static inline int rockchip_init_opp_table(struct device *dev,
+					  const struct of_device_id *matches,
+					  char *lkg_name, char *reg_name)
+{
+	return -ENOTSUPP;
+}
+
+static inline struct thermal_opp_info *
+rockchip_register_thermal_notifier(struct device *dev,
+				   struct thermal_opp_device_data *data)
+{
+	return ERR_PTR(-ENOTSUPP);
+}
+
+static inline void
+rockchip_unregister_thermal_notifier(struct thermal_opp_info *info)
+{
+}
+
+static inline int rockchip_cpu_low_temp_adjust(struct thermal_opp_info *info,
+					       bool is_low)
+{
+	return -ENOTSUPP;
+}
+
+static inline int rockchip_cpu_high_temp_adjust(struct thermal_opp_info *info,
+						bool is_high)
+{
+	return -ENOTSUPP;
+}
+
+static inline int rockchip_dev_low_temp_adjust(struct thermal_opp_info *info,
+					       bool is_low)
+{
+	return -ENOTSUPP;
+}
+
+static inline int rockchip_dev_high_temp_adjust(struct thermal_opp_info *info,
+						bool is_high)
+{
+	return -ENOTSUPP;
+}
+#endif /* CONFIG_ROCKCHIP_OPP */
 
 #endif

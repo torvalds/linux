@@ -30,6 +30,13 @@ config ROCKCHIP_DEVICEINFO
 	help
 	  Say y here if you have a deviceinfo partition.
 
+config ROCKCHIP_OPP
+	bool "Rockchip OPP select support"
+	depends on PM_DEVFREQ
+	default y
+	help
+	  Say y here to enable rockchip OPP support.
+
 config ROCKCHIP_PM_TEST
 	bool "Rockchip pm_test support"
 	default n
