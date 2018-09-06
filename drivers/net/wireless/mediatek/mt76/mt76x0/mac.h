@@ -16,5 +16,5 @@
 #define __MT76_MAC_H
 
 u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
-			u8 *data, void *rxi);
+			void *rxi);
 #endif
