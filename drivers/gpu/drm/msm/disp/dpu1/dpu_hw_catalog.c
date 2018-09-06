@@ -74,7 +74,6 @@ static struct dpu_mdp_cfg sdm845_mdp[] = {
 	.base = 0x0, .len = 0x45C,
 	.features = 0,
 	.highest_bank_bit = 0x2,
-	.has_dest_scaler = true,
 	.clk_ctrls[DPU_CLK_CTRL_VIG0] = {
 			.reg_off = 0x2AC, .bit_off = 0},
 	.clk_ctrls[DPU_CLK_CTRL_VIG1] = {
@@ -220,48 +219,23 @@ static const struct dpu_lm_sub_blks sdm845_lm_sblk = {
 	},
 };
 
-#define LM_BLK(_name, _id, _base, _ds, _pp, _lmpair) \
+#define LM_BLK(_name, _id, _base, _pp, _lmpair) \
 	{ \
 	.name = _name, .id = _id, \
 	.base = _base, .len = 0x320, \
 	.features = MIXER_SDM845_MASK, \
 	.sblk = &sdm845_lm_sblk, \
-	.ds = _ds, \
 	.pingpong = _pp, \
 	.lm_pair_mask = (1 << _lmpair) \
 	}
 
 static struct dpu_lm_cfg sdm845_lm[] = {
-	LM_BLK("lm_0", LM_0, 0x44000, DS_0, PINGPONG_0, LM_1),
-	LM_BLK("lm_1", LM_1, 0x45000, DS_1, PINGPONG_1, LM_0),
-	LM_BLK("lm_2", LM_2, 0x46000, DS_MAX, PINGPONG_2, LM_5),
-	LM_BLK("lm_3", LM_3, 0x0, DS_MAX, PINGPONG_MAX, 0),
-	LM_BLK("lm_4", LM_4, 0x0, DS_MAX, PINGPONG_MAX, 0),
-	LM_BLK("lm_5", LM_5, 0x49000, DS_MAX, PINGPONG_3, LM_2),
-};
-
-/*************************************************************
- * DS sub blocks config
- *************************************************************/
-static const struct dpu_ds_top_cfg sdm845_ds_top = {
-	.name = "ds_top_0", .id = DS_TOP,
-	.base = 0x60000, .len = 0xc,
-	.maxinputwidth = DEFAULT_DPU_LINE_WIDTH,
-	.maxoutputwidth = DEFAULT_DPU_OUTPUT_LINE_WIDTH,
-	.maxupscale = MAX_UPSCALE_RATIO,
-};
-
-#define DS_BLK(_name, _id, _base) \
-	{\
-	.name = _name, .id = _id, \
-	.base = _base, .len = 0x800, \
-	.features = DPU_SSPP_SCALER_QSEED3, \
-	.top = &sdm845_ds_top \
-	}
-
-static struct dpu_ds_cfg sdm845_ds[] = {
-	DS_BLK("ds_0", DS_0, 0x800),
-	DS_BLK("ds_1", DS_1, 0x1000),
+	LM_BLK("lm_0", LM_0, 0x44000, PINGPONG_0, LM_1),
+	LM_BLK("lm_1", LM_1, 0x45000, PINGPONG_1, LM_0),
+	LM_BLK("lm_2", LM_2, 0x46000, PINGPONG_2, LM_5),
+	LM_BLK("lm_3", LM_3, 0x0, PINGPONG_MAX, 0),
+	LM_BLK("lm_4", LM_4, 0x0, PINGPONG_MAX, 0),
+	LM_BLK("lm_5", LM_5, 0x49000, PINGPONG_3, LM_2),
 };
 
 /*************************************************************
@@ -454,8 +428,6 @@ static void sdm845_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.sspp = sdm845_sspp,
 		.mixer_count = ARRAY_SIZE(sdm845_lm),
 		.mixer = sdm845_lm,
-		.ds_count = ARRAY_SIZE(sdm845_ds),
-		.ds = sdm845_ds,
 		.pingpong_count = ARRAY_SIZE(sdm845_pp),
 		.pingpong = sdm845_pp,
 		.cdm_count = ARRAY_SIZE(sdm845_cdm),

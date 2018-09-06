@@ -27,7 +27,6 @@
 
 #define RM_RQ_LOCK(r) ((r)->top_ctrl & BIT(DPU_RM_TOPCTL_RESERVE_LOCK))
 #define RM_RQ_CLEAR(r) ((r)->top_ctrl & BIT(DPU_RM_TOPCTL_RESERVE_CLEAR))
-#define RM_RQ_DS(r) ((r)->top_ctrl & BIT(DPU_RM_TOPCTL_DS))
 #define RM_IS_TOPOLOGY_MATCH(t, r) ((t).num_lm == (r).num_lm && \
 				(t).num_comp_enc == (r).num_enc && \
 				(t).num_intf == (r).num_intf)
@@ -819,15 +818,6 @@ static int _dpu_rm_populate_requirements(
 		DPU_ERROR("invalid topology for the display\n");
 		return -EINVAL;
 	}
-
-	/**
-	 * Set the requirement based on caps if not set from user space
-	 * This will ensure to select LM tied with DS blocks
-	 * Currently, DS blocks are tied with LM 0 and LM 1 (primary display)
-	 */
-	if (!RM_RQ_DS(reqs) && rm->hw_mdp->caps->has_dest_scaler &&
-		conn_state->connector->connector_type == DRM_MODE_CONNECTOR_DSI)
-		reqs->top_ctrl |= BIT(DPU_RM_TOPCTL_DS);
 
 	DRM_DEBUG_KMS("top_ctrl: 0x%llX num_h_tiles: %d\n", reqs->top_ctrl,
 		      reqs->hw_res.display_num_of_h_tiles);

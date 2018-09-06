@@ -173,13 +173,6 @@ enum dpu_dspp {
 	DSPP_MAX
 };
 
-enum dpu_ds {
-	DS_TOP,
-	DS_0,
-	DS_1,
-	DS_MAX
-};
-
 enum dpu_ctl {
 	CTL_0 = 1,
 	CTL_1,

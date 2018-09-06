@@ -45,12 +45,10 @@ enum dpu_rm_topology_name {
  *                               release any reservation held by this display.
  *                               Normal behavior would not impact the
  *                               reservation list during the AtomicTest phase.
- * @DPU_RM_TOPCTL_DS  : Require layer mixers with DS capabilities
  */
 enum dpu_rm_topology_control {
 	DPU_RM_TOPCTL_RESERVE_LOCK,
 	DPU_RM_TOPCTL_RESERVE_CLEAR,
-	DPU_RM_TOPCTL_DS,
 };
 
 /**
