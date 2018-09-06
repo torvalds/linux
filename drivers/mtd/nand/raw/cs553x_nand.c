@@ -96,43 +96,43 @@
 static void cs553x_read_buf(struct nand_chip *this, u_char *buf, int len)
 {
 	while (unlikely(len > 0x800)) {
-		memcpy_fromio(buf, this->IO_ADDR_R, 0x800);
+		memcpy_fromio(buf, this->legacy.IO_ADDR_R, 0x800);
 		buf += 0x800;
 		len -= 0x800;
 	}
-	memcpy_fromio(buf, this->IO_ADDR_R, len);
+	memcpy_fromio(buf, this->legacy.IO_ADDR_R, len);
 }
 
 static void cs553x_write_buf(struct nand_chip *this, const u_char *buf, int len)
 {
 	while (unlikely(len > 0x800)) {
-		memcpy_toio(this->IO_ADDR_R, buf, 0x800);
+		memcpy_toio(this->legacy.IO_ADDR_R, buf, 0x800);
 		buf += 0x800;
 		len -= 0x800;
 	}
-	memcpy_toio(this->IO_ADDR_R, buf, len);
+	memcpy_toio(this->legacy.IO_ADDR_R, buf, len);
 }
 
 static unsigned char cs553x_read_byte(struct nand_chip *this)
 {
-	return readb(this->IO_ADDR_R);
+	return readb(this->legacy.IO_ADDR_R);
 }
 
 static void cs553x_write_byte(struct nand_chip *this, u_char byte)
 {
 	int i = 100000;
 
-	while (i && readb(this->IO_ADDR_R + MM_NAND_STS) & CS_NAND_CTLR_BUSY) {
+	while (i && readb(this->legacy.IO_ADDR_R + MM_NAND_STS) & CS_NAND_CTLR_BUSY) {
 		udelay(1);
 		i--;
 	}
-	writeb(byte, this->IO_ADDR_W + 0x801);
+	writeb(byte, this->legacy.IO_ADDR_W + 0x801);
 }
 
 static void cs553x_hwcontrol(struct nand_chip *this, int cmd,
 			     unsigned int ctrl)
 {
-	void __iomem *mmio_base = this->IO_ADDR_R;
+	void __iomem *mmio_base = this->legacy.IO_ADDR_R;
 	if (ctrl & NAND_CTRL_CHANGE) {
 		unsigned char ctl = (ctrl & ~NAND_CTRL_CHANGE ) ^ 0x01;
 		writeb(ctl, mmio_base + MM_NAND_CTL);
@@ -143,7 +143,7 @@ static void cs553x_hwcontrol(struct nand_chip *this, int cmd,
 
 static int cs553x_device_ready(struct nand_chip *this)
 {
-	void __iomem *mmio_base = this->IO_ADDR_R;
+	void __iomem *mmio_base = this->legacy.IO_ADDR_R;
 	unsigned char foo = readb(mmio_base + MM_NAND_STS);
 
 	return (foo & CS_NAND_STS_FLASH_RDY) && !(foo & CS_NAND_CTLR_BUSY);
@@ -151,7 +151,7 @@ static int cs553x_device_ready(struct nand_chip *this)
 
 static void cs_enable_hwecc(struct nand_chip *this, int mode)
 {
-	void __iomem *mmio_base = this->IO_ADDR_R;
+	void __iomem *mmio_base = this->legacy.IO_ADDR_R;
 
 	writeb(0x07, mmio_base + MM_NAND_ECC_CTL);
 }
@@ -160,7 +160,7 @@ static int cs_calculate_ecc(struct nand_chip *this, const u_char *dat,
 			    u_char *ecc_code)
 {
 	uint32_t ecc;
-	void __iomem *mmio_base = this->IO_ADDR_R;
+	void __iomem *mmio_base = this->legacy.IO_ADDR_R;
 
 	ecc = readl(mmio_base + MM_NAND_STS);
 
@@ -199,8 +199,8 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	new_mtd->owner = THIS_MODULE;
 
 	/* map physical address */
-	this->IO_ADDR_R = this->IO_ADDR_W = ioremap(adr, 4096);
-	if (!this->IO_ADDR_R) {
+	this->legacy.IO_ADDR_R = this->legacy.IO_ADDR_W = ioremap(adr, 4096);
+	if (!this->legacy.IO_ADDR_R) {
 		pr_warn("ioremap cs553x NAND @0x%08lx failed\n", adr);
 		err = -EIO;
 		goto out_mtd;
@@ -242,7 +242,7 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 out_free:
 	kfree(new_mtd->name);
 out_ior:
-	iounmap(this->IO_ADDR_R);
+	iounmap(this->legacy.IO_ADDR_R);
 out_mtd:
 	kfree(this);
 out:
@@ -324,7 +324,7 @@ static void __exit cs553x_cleanup(void)
 			continue;
 
 		this = mtd_to_nand(mtd);
-		mmio_base = this->IO_ADDR_R;
+		mmio_base = this->legacy.IO_ADDR_R;
 
 		/* Release resources, unregister device */
 		nand_release(this);

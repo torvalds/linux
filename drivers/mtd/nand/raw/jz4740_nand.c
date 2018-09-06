@@ -91,8 +91,8 @@ static void jz_nand_select_chip(struct nand_chip *chip, int chipnr)
 		banknr = -1;
 	} else {
 		banknr = nand->banks[chipnr] - 1;
-		chip->IO_ADDR_R = nand->bank_base[banknr];
-		chip->IO_ADDR_W = nand->bank_base[banknr];
+		chip->legacy.IO_ADDR_R = nand->bank_base[banknr];
+		chip->legacy.IO_ADDR_W = nand->bank_base[banknr];
 	}
 	writel(ctrl, nand->base + JZ_REG_NAND_CTRL);
 
@@ -114,7 +114,7 @@ static void jz_nand_cmd_ctrl(struct nand_chip *chip, int dat,
 			bank_base += JZ_NAND_MEM_ADDR_OFFSET;
 		else if (ctrl & NAND_CLE)
 			bank_base += JZ_NAND_MEM_CMD_OFFSET;
-		chip->IO_ADDR_W = bank_base;
+		chip->legacy.IO_ADDR_W = bank_base;
 
 		reg = readl(nand->base + JZ_REG_NAND_CTRL);
 		if (ctrl & NAND_NCE)
@@ -124,7 +124,7 @@ static void jz_nand_cmd_ctrl(struct nand_chip *chip, int dat,
 		writel(reg, nand->base + JZ_REG_NAND_CTRL);
 	}
 	if (dat != NAND_CMD_NONE)
-		writeb(dat, chip->IO_ADDR_W);
+		writeb(dat, chip->legacy.IO_ADDR_W);
 }
 
 static int jz_nand_dev_ready(struct nand_chip *chip)

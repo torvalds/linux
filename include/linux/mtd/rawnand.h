@@ -1173,12 +1173,26 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
 			   const struct nand_operation *op, bool check_only);
 
 /**
+ * struct nand_legacy - NAND chip legacy fields/hooks
+ * @IO_ADDR_R: address to read the 8 I/O lines of the flash device
+ * @IO_ADDR_W: address to write the 8 I/O lines of the flash device
+ *
+ * If you look at this structure you're already wrong. These fields/hooks are
+ * all deprecated.
+ */
+struct nand_legacy {
+	void __iomem *IO_ADDR_R;
+	void __iomem *IO_ADDR_W;
+};
+
+/**
  * struct nand_chip - NAND Private Flash Chip Data
  * @mtd:		MTD device registered to the MTD framework
- * @IO_ADDR_R:		[BOARDSPECIFIC] address to read the 8 I/O lines of the
- *			flash device
- * @IO_ADDR_W:		[BOARDSPECIFIC] address to write the 8 I/O lines of the
- *			flash device.
+ * @legacy:		All legacy fields/hooks. If you develop a new driver,
+ *			don't even try to use any of these fields/hooks, and if
+ *			you're modifying an existing driver that is using those
+ *			fields/hooks, you should consider reworking the driver
+ *			avoid using them.
  * @read_byte:		[REPLACEABLE] read one byte from the chip
  * @write_byte:		[REPLACEABLE] write a single byte to the chip on the
  *			low 8 I/O lines
@@ -1280,8 +1294,8 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
 
 struct nand_chip {
 	struct mtd_info mtd;
-	void __iomem *IO_ADDR_R;
-	void __iomem *IO_ADDR_W;
+
+	struct nand_legacy legacy;
 
 	uint8_t (*read_byte)(struct nand_chip *chip);
 	void (*write_byte)(struct nand_chip *chip, uint8_t byte);

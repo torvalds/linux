@@ -180,10 +180,10 @@ by a chip select decoder.
     {
         struct nand_chip *this = mtd_to_nand(mtd);
         switch(cmd){
-            case NAND_CTL_SETCLE: this->IO_ADDR_W |= CLE_ADRR_BIT;  break;
-            case NAND_CTL_CLRCLE: this->IO_ADDR_W &= ~CLE_ADRR_BIT; break;
-            case NAND_CTL_SETALE: this->IO_ADDR_W |= ALE_ADRR_BIT;  break;
-            case NAND_CTL_CLRALE: this->IO_ADDR_W &= ~ALE_ADRR_BIT; break;
+            case NAND_CTL_SETCLE: this->legacy.IO_ADDR_W |= CLE_ADRR_BIT;  break;
+            case NAND_CTL_CLRCLE: this->legacy.IO_ADDR_W &= ~CLE_ADRR_BIT; break;
+            case NAND_CTL_SETALE: this->legacy.IO_ADDR_W |= ALE_ADRR_BIT;  break;
+            case NAND_CTL_CLRALE: this->legacy.IO_ADDR_W &= ~ALE_ADRR_BIT; break;
         }
     }
 
@@ -235,8 +235,8 @@ necessary information about the device.
         }
 
         /* Set address of NAND IO lines */
-        this->IO_ADDR_R = baseaddr;
-        this->IO_ADDR_W = baseaddr;
+        this->legacy.IO_ADDR_R = baseaddr;
+        this->legacy.IO_ADDR_W = baseaddr;
         /* Reference hardware control function */
         this->hwcontrol = board_hwcontrol;
         /* Set command delay time, see datasheet for correct value */
@@ -336,17 +336,17 @@ connected to an address decoder.
         struct nand_chip *this = mtd_to_nand(mtd);
 
         /* Deselect all chips */
-        this->IO_ADDR_R &= ~BOARD_NAND_ADDR_MASK;
-        this->IO_ADDR_W &= ~BOARD_NAND_ADDR_MASK;
+        this->legacy.IO_ADDR_R &= ~BOARD_NAND_ADDR_MASK;
+        this->legacy.IO_ADDR_W &= ~BOARD_NAND_ADDR_MASK;
         switch (chip) {
         case 0:
-            this->IO_ADDR_R |= BOARD_NAND_ADDR_CHIP0;
-            this->IO_ADDR_W |= BOARD_NAND_ADDR_CHIP0;
+            this->legacy.IO_ADDR_R |= BOARD_NAND_ADDR_CHIP0;
+            this->legacy.IO_ADDR_W |= BOARD_NAND_ADDR_CHIP0;
             break;
         ....
         case n:
-            this->IO_ADDR_R |= BOARD_NAND_ADDR_CHIPn;
-            this->IO_ADDR_W |= BOARD_NAND_ADDR_CHIPn;
+            this->legacy.IO_ADDR_R |= BOARD_NAND_ADDR_CHIPn;
+            this->legacy.IO_ADDR_W |= BOARD_NAND_ADDR_CHIPn;
             break;
         }
     }

@@ -90,7 +90,7 @@ static void gpio_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
 	if (cmd == NAND_CMD_NONE)
 		return;
 
-	writeb(cmd, gpiomtd->nand_chip.IO_ADDR_W);
+	writeb(cmd, gpiomtd->nand_chip.legacy.IO_ADDR_W);
 	gpio_nand_dosync(gpiomtd);
 }
 
@@ -225,9 +225,9 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	chip = &gpiomtd->nand_chip;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	chip->IO_ADDR_R = devm_ioremap_resource(dev, res);
-	if (IS_ERR(chip->IO_ADDR_R))
-		return PTR_ERR(chip->IO_ADDR_R);
+	chip->legacy.IO_ADDR_R = devm_ioremap_resource(dev, res);
+	if (IS_ERR(chip->legacy.IO_ADDR_R))
+		return PTR_ERR(chip->legacy.IO_ADDR_R);
 
 	res = gpio_nand_get_io_sync(pdev);
 	if (res) {
@@ -274,7 +274,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 		chip->dev_ready = gpio_nand_devready;
 
 	nand_set_flash_node(chip, pdev->dev.of_node);
-	chip->IO_ADDR_W		= chip->IO_ADDR_R;
+	chip->legacy.IO_ADDR_W	= chip->legacy.IO_ADDR_R;
 	chip->ecc.mode		= NAND_ECC_SOFT;
 	chip->ecc.algo		= NAND_ECC_HAMMING;
 	chip->options		= gpiomtd->plat.options;

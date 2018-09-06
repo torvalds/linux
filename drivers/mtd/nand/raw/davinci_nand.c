@@ -110,11 +110,11 @@ static void nand_davinci_hwcontrol(struct nand_chip *nand, int cmd,
 		else if ((ctrl & NAND_CTRL_ALE) == NAND_CTRL_ALE)
 			addr += info->mask_ale;
 
-		nand->IO_ADDR_W = addr;
+		nand->legacy.IO_ADDR_W = addr;
 	}
 
 	if (cmd != NAND_CMD_NONE)
-		iowrite8(cmd, nand->IO_ADDR_W);
+		iowrite8(cmd, nand->legacy.IO_ADDR_W);
 }
 
 static void nand_davinci_select_chip(struct nand_chip *nand, int chip)
@@ -127,8 +127,8 @@ static void nand_davinci_select_chip(struct nand_chip *nand, int chip)
 	if (chip > 0)
 		info->current_cs += info->mask_chipsel;
 
-	info->chip.IO_ADDR_W = info->current_cs;
-	info->chip.IO_ADDR_R = info->chip.IO_ADDR_W;
+	info->chip.legacy.IO_ADDR_W = info->current_cs;
+	info->chip.legacy.IO_ADDR_R = info->chip.legacy.IO_ADDR_W;
 }
 
 /*----------------------------------------------------------------------*/
@@ -438,22 +438,22 @@ static void nand_davinci_read_buf(struct nand_chip *chip, uint8_t *buf,
 				  int len)
 {
 	if ((0x03 & ((uintptr_t)buf)) == 0 && (0x03 & len) == 0)
-		ioread32_rep(chip->IO_ADDR_R, buf, len >> 2);
+		ioread32_rep(chip->legacy.IO_ADDR_R, buf, len >> 2);
 	else if ((0x01 & ((uintptr_t)buf)) == 0 && (0x01 & len) == 0)
-		ioread16_rep(chip->IO_ADDR_R, buf, len >> 1);
+		ioread16_rep(chip->legacy.IO_ADDR_R, buf, len >> 1);
 	else
-		ioread8_rep(chip->IO_ADDR_R, buf, len);
+		ioread8_rep(chip->legacy.IO_ADDR_R, buf, len);
 }
 
 static void nand_davinci_write_buf(struct nand_chip *chip, const uint8_t *buf,
 				   int len)
 {
 	if ((0x03 & ((uintptr_t)buf)) == 0 && (0x03 & len) == 0)
-		iowrite32_rep(chip->IO_ADDR_R, buf, len >> 2);
+		iowrite32_rep(chip->legacy.IO_ADDR_R, buf, len >> 2);
 	else if ((0x01 & ((uintptr_t)buf)) == 0 && (0x01 & len) == 0)
-		iowrite16_rep(chip->IO_ADDR_R, buf, len >> 1);
+		iowrite16_rep(chip->legacy.IO_ADDR_R, buf, len >> 1);
 	else
-		iowrite8_rep(chip->IO_ADDR_R, buf, len);
+		iowrite8_rep(chip->legacy.IO_ADDR_R, buf, len);
 }
 
 /*
@@ -759,8 +759,8 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	mtd->dev.parent		= &pdev->dev;
 	nand_set_flash_node(&info->chip, pdev->dev.of_node);
 
-	info->chip.IO_ADDR_R	= vaddr;
-	info->chip.IO_ADDR_W	= vaddr;
+	info->chip.legacy.IO_ADDR_R	= vaddr;
+	info->chip.legacy.IO_ADDR_W	= vaddr;
 	info->chip.chip_delay	= 0;
 	info->chip.select_chip	= nand_davinci_select_chip;
 

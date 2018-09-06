@@ -51,7 +51,7 @@ static const struct mtd_partition partition_info[] = {
 
 static u_char cmx270_read_byte(struct nand_chip *this)
 {
-	return (readl(this->IO_ADDR_R) >> 16);
+	return (readl(this->legacy.IO_ADDR_R) >> 16);
 }
 
 static void cmx270_write_buf(struct nand_chip *this, const u_char *buf,
@@ -60,7 +60,7 @@ static void cmx270_write_buf(struct nand_chip *this, const u_char *buf,
 	int i;
 
 	for (i=0; i<len; i++)
-		writel((*buf++ << 16), this->IO_ADDR_W);
+		writel((*buf++ << 16), this->legacy.IO_ADDR_W);
 }
 
 static void cmx270_read_buf(struct nand_chip *this, u_char *buf, int len)
@@ -68,7 +68,7 @@ static void cmx270_read_buf(struct nand_chip *this, u_char *buf, int len)
 	int i;
 
 	for (i=0; i<len; i++)
-		*buf++ = readl(this->IO_ADDR_R) >> 16;
+		*buf++ = readl(this->legacy.IO_ADDR_R) >> 16;
 }
 
 static inline void nand_cs_on(void)
@@ -89,7 +89,7 @@ static void nand_cs_off(void)
 static void cmx270_hwcontrol(struct nand_chip *this, int dat,
 			     unsigned int ctrl)
 {
-	unsigned int nandaddr = (unsigned int)this->IO_ADDR_W;
+	unsigned int nandaddr = (unsigned int)this->legacy.IO_ADDR_W;
 
 	dsb();
 
@@ -109,9 +109,9 @@ static void cmx270_hwcontrol(struct nand_chip *this, int dat,
 	}
 
 	dsb();
-	this->IO_ADDR_W = (void __iomem*)nandaddr;
+	this->legacy.IO_ADDR_W = (void __iomem*)nandaddr;
 	if (dat != NAND_CMD_NONE)
-		writel((dat << 16), this->IO_ADDR_W);
+		writel((dat << 16), this->legacy.IO_ADDR_W);
 
 	dsb();
 }
@@ -173,8 +173,8 @@ static int __init cmx270_init(void)
 	cmx270_nand_mtd->owner = THIS_MODULE;
 
 	/* insert callbacks */
-	this->IO_ADDR_R = cmx270_nand_io;
-	this->IO_ADDR_W = cmx270_nand_io;
+	this->legacy.IO_ADDR_R = cmx270_nand_io;
+	this->legacy.IO_ADDR_W = cmx270_nand_io;
 	this->cmd_ctrl = cmx270_hwcontrol;
 	this->dev_ready = cmx270_device_ready;
 

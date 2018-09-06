@@ -275,8 +275,8 @@ static int jz4780_nand_init_chip(struct platform_device *pdev,
 		return -ENOMEM;
 	mtd->dev.parent = dev;
 
-	chip->IO_ADDR_R = cs->base + OFFSET_DATA;
-	chip->IO_ADDR_W = cs->base + OFFSET_DATA;
+	chip->legacy.IO_ADDR_R = cs->base + OFFSET_DATA;
+	chip->legacy.IO_ADDR_W = cs->base + OFFSET_DATA;
 	chip->chip_delay = RB_DELAY_US;
 	chip->options = NAND_NO_SUBPAGE_WRITE;
 	chip->select_chip = jz4780_nand_select_chip;

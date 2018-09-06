@@ -142,8 +142,8 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
-	chip->IO_ADDR_R = ndfc->ndfcbase + NDFC_DATA;
-	chip->IO_ADDR_W = ndfc->ndfcbase + NDFC_DATA;
+	chip->legacy.IO_ADDR_R = ndfc->ndfcbase + NDFC_DATA;
+	chip->legacy.IO_ADDR_W = ndfc->ndfcbase + NDFC_DATA;
 	chip->cmd_ctrl = ndfc_hwcontrol;
 	chip->dev_ready = ndfc_ready;
 	chip->select_chip = ndfc_select_chip;

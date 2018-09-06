@@ -597,7 +597,7 @@ static void balloon3_nand_cmd_ctl(struct nand_chip *this, int cmd,
 	}
 
 	if (cmd != NAND_CMD_NONE)
-		writeb(cmd, this->IO_ADDR_W);
+		writeb(cmd, this->legacy.IO_ADDR_W);
 }
 
 static void balloon3_nand_select_chip(struct nand_chip *this, int chip)

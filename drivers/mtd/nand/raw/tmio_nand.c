@@ -155,7 +155,7 @@ static void tmio_nand_hwcontrol(struct nand_chip *chip, int cmd,
 	}
 
 	if (cmd != NAND_CMD_NONE)
-		tmio_iowrite8(cmd, chip->IO_ADDR_W);
+		tmio_iowrite8(cmd, chip->legacy.IO_ADDR_W);
 }
 
 static int tmio_nand_dev_ready(struct nand_chip *chip)
@@ -399,8 +399,8 @@ static int tmio_probe(struct platform_device *dev)
 		return retval;
 
 	/* Set address of NAND IO lines */
-	nand_chip->IO_ADDR_R = tmio->fcr;
-	nand_chip->IO_ADDR_W = tmio->fcr;
+	nand_chip->legacy.IO_ADDR_R = tmio->fcr;
+	nand_chip->legacy.IO_ADDR_W = tmio->fcr;
 
 	/* Set address of hardware control function */
 	nand_chip->cmd_ctrl = tmio_nand_hwcontrol;

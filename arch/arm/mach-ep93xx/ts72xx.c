@@ -80,7 +80,7 @@ static void ts72xx_nand_hwcontrol(struct nand_chip *chip,
 				  int cmd, unsigned int ctrl)
 {
 	if (ctrl & NAND_CTRL_CHANGE) {
-		void __iomem *addr = chip->IO_ADDR_R;
+		void __iomem *addr = chip->legacy.IO_ADDR_R;
 		unsigned char bits;
 
 		addr += (1 << TS72XX_NAND_CONTROL_ADDR_LINE);
@@ -94,12 +94,12 @@ static void ts72xx_nand_hwcontrol(struct nand_chip *chip,
 	}
 
 	if (cmd != NAND_CMD_NONE)
-		__raw_writeb(cmd, chip->IO_ADDR_W);
+		__raw_writeb(cmd, chip->legacy.IO_ADDR_W);
 }
 
 static int ts72xx_nand_device_ready(struct nand_chip *chip)
 {
-	void __iomem *addr = chip->IO_ADDR_R;
+	void __iomem *addr = chip->legacy.IO_ADDR_R;
 
 	addr += (1 << TS72XX_NAND_BUSY_ADDR_LINE);
 

@@ -92,7 +92,7 @@ ixdp425_flash_nand_cmd_ctrl(struct nand_chip *this, int cmd, unsigned int ctrl)
 	}
 
 	if (cmd != NAND_CMD_NONE)
-		writeb(cmd, this->IO_ADDR_W + offset);
+		writeb(cmd, this->legacy.IO_ADDR_W + offset);
 }
 
 static struct platform_nand_data ixdp425_flash_nand_data = {

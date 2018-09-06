@@ -68,7 +68,7 @@ static void ams_delta_write_byte(struct nand_chip *this, u_char byte)
 	void __iomem *io_base = (void __iomem *)nand_get_controller_data(this);
 
 	writew(0, io_base + OMAP_MPUIO_IO_CNTL);
-	writew(byte, this->IO_ADDR_W);
+	writew(byte, this->legacy.IO_ADDR_W);
 	gpio_set_value(AMS_DELTA_GPIO_PIN_NAND_NWE, 0);
 	ndelay(40);
 	gpio_set_value(AMS_DELTA_GPIO_PIN_NAND_NWE, 1);
@@ -82,7 +82,7 @@ static u_char ams_delta_read_byte(struct nand_chip *this)
 	gpio_set_value(AMS_DELTA_GPIO_PIN_NAND_NRE, 0);
 	ndelay(40);
 	writew(~0, io_base + OMAP_MPUIO_IO_CNTL);
-	res = readw(this->IO_ADDR_R);
+	res = readw(this->legacy.IO_ADDR_R);
 	gpio_set_value(AMS_DELTA_GPIO_PIN_NAND_NRE, 1);
 
 	return res;
@@ -208,8 +208,8 @@ static int ams_delta_init(struct platform_device *pdev)
 	nand_set_controller_data(this, (void *)io_base);
 
 	/* Set address of NAND IO lines */
-	this->IO_ADDR_R = io_base + OMAP_MPUIO_INPUT_LATCH;
-	this->IO_ADDR_W = io_base + OMAP_MPUIO_OUTPUT;
+	this->legacy.IO_ADDR_R = io_base + OMAP_MPUIO_INPUT_LATCH;
+	this->legacy.IO_ADDR_W = io_base + OMAP_MPUIO_OUTPUT;
 	this->read_byte = ams_delta_read_byte;
 	this->write_buf = ams_delta_write_buf;
 	this->read_buf = ams_delta_read_buf;

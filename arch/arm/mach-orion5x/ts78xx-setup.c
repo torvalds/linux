@@ -145,7 +145,7 @@ static void ts78xx_ts_nand_cmd_ctrl(struct nand_chip *this, int cmd,
 	}
 
 	if (cmd != NAND_CMD_NONE)
-		writeb(cmd, this->IO_ADDR_W);
+		writeb(cmd, this->legacy.IO_ADDR_W);
 }
 
 static int ts78xx_ts_nand_dev_ready(struct nand_chip *chip)
@@ -156,7 +156,7 @@ static int ts78xx_ts_nand_dev_ready(struct nand_chip *chip)
 static void ts78xx_ts_nand_write_buf(struct nand_chip *chip,
 				     const uint8_t *buf, int len)
 {
-	void __iomem *io_base = chip->IO_ADDR_W;
+	void __iomem *io_base = chip->legacy.IO_ADDR_W;
 	unsigned long off = ((unsigned long)buf & 3);
 	int sz;
 
@@ -182,7 +182,7 @@ static void ts78xx_ts_nand_write_buf(struct nand_chip *chip,
 static void ts78xx_ts_nand_read_buf(struct nand_chip *chip,
 				    uint8_t *buf, int len)
 {
-	void __iomem *io_base = chip->IO_ADDR_R;
+	void __iomem *io_base = chip->legacy.IO_ADDR_R;
 	unsigned long off = ((unsigned long)buf & 3);
 	int sz;
 

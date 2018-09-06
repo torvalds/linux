@@ -180,7 +180,7 @@ static struct platform_device pnx833x_sata_device = {
 static void
 pnx833x_flash_nand_cmd_ctrl(struct nand_chip *this, int cmd, unsigned int ctrl)
 {
-	unsigned long nandaddr = (unsigned long)this->IO_ADDR_W;
+	unsigned long nandaddr = (unsigned long)this->legacy.IO_ADDR_W;
 
 	if (cmd == NAND_CMD_NONE)
 		return;

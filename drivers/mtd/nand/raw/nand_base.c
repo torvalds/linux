@@ -260,7 +260,7 @@ static void nand_release_device(struct mtd_info *mtd)
  */
 static uint8_t nand_read_byte(struct nand_chip *chip)
 {
-	return readb(chip->IO_ADDR_R);
+	return readb(chip->legacy.IO_ADDR_R);
 }
 
 /**
@@ -272,7 +272,7 @@ static uint8_t nand_read_byte(struct nand_chip *chip)
  */
 static uint8_t nand_read_byte16(struct nand_chip *chip)
 {
-	return (uint8_t) cpu_to_le16(readw(chip->IO_ADDR_R));
+	return (uint8_t) cpu_to_le16(readw(chip->legacy.IO_ADDR_R));
 }
 
 /**
@@ -348,7 +348,7 @@ static void nand_write_byte16(struct nand_chip *chip, uint8_t byte)
  */
 static void nand_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 {
-	iowrite8_rep(chip->IO_ADDR_W, buf, len);
+	iowrite8_rep(chip->legacy.IO_ADDR_W, buf, len);
 }
 
 /**
@@ -361,7 +361,7 @@ static void nand_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
  */
 static void nand_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	ioread8_rep(chip->IO_ADDR_R, buf, len);
+	ioread8_rep(chip->legacy.IO_ADDR_R, buf, len);
 }
 
 /**
@@ -377,7 +377,7 @@ static void nand_write_buf16(struct nand_chip *chip, const uint8_t *buf,
 {
 	u16 *p = (u16 *) buf;
 
-	iowrite16_rep(chip->IO_ADDR_W, p, len >> 1);
+	iowrite16_rep(chip->legacy.IO_ADDR_W, p, len >> 1);
 }
 
 /**
@@ -392,7 +392,7 @@ static void nand_read_buf16(struct nand_chip *chip, uint8_t *buf, int len)
 {
 	u16 *p = (u16 *) buf;
 
-	ioread16_rep(chip->IO_ADDR_R, p, len >> 1);
+	ioread16_rep(chip->legacy.IO_ADDR_R, p, len >> 1);
 }
 
 /**

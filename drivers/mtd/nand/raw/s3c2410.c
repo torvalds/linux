@@ -681,7 +681,7 @@ static int s3c2440_nand_calculate_ecc(struct nand_chip *chip,
 
 static void s3c2410_nand_read_buf(struct nand_chip *this, u_char *buf, int len)
 {
-	readsb(this->IO_ADDR_R, buf, len);
+	readsb(this->legacy.IO_ADDR_R, buf, len);
 }
 
 static void s3c2440_nand_read_buf(struct nand_chip *this, u_char *buf, int len)
@@ -703,7 +703,7 @@ static void s3c2440_nand_read_buf(struct nand_chip *this, u_char *buf, int len)
 static void s3c2410_nand_write_buf(struct nand_chip *this, const u_char *buf,
 				   int len)
 {
-	writesb(this->IO_ADDR_W, buf, len);
+	writesb(this->legacy.IO_ADDR_W, buf, len);
 }
 
 static void s3c2440_nand_write_buf(struct nand_chip *this, const u_char *buf,
@@ -881,7 +881,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 
 	switch (info->cpu_type) {
 	case TYPE_S3C2410:
-		chip->IO_ADDR_W = regs + S3C2410_NFDATA;
+		chip->legacy.IO_ADDR_W = regs + S3C2410_NFDATA;
 		info->sel_reg   = regs + S3C2410_NFCONF;
 		info->sel_bit	= S3C2410_NFCONF_nFCE;
 		chip->cmd_ctrl  = s3c2410_nand_hwcontrol;
@@ -889,7 +889,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		break;
 
 	case TYPE_S3C2440:
-		chip->IO_ADDR_W = regs + S3C2440_NFDATA;
+		chip->legacy.IO_ADDR_W = regs + S3C2440_NFDATA;
 		info->sel_reg   = regs + S3C2440_NFCONT;
 		info->sel_bit	= S3C2440_NFCONT_nFCE;
 		chip->cmd_ctrl  = s3c2440_nand_hwcontrol;
@@ -899,7 +899,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		break;
 
 	case TYPE_S3C2412:
-		chip->IO_ADDR_W = regs + S3C2440_NFDATA;
+		chip->legacy.IO_ADDR_W = regs + S3C2440_NFDATA;
 		info->sel_reg   = regs + S3C2440_NFCONT;
 		info->sel_bit	= S3C2412_NFCONT_nFCE0;
 		chip->cmd_ctrl  = s3c2440_nand_hwcontrol;
@@ -911,7 +911,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		break;
 	}
 
-	chip->IO_ADDR_R = chip->IO_ADDR_W;
+	chip->legacy.IO_ADDR_R = chip->legacy.IO_ADDR_W;
 
 	nmtd->info	   = info;
 	nmtd->set	   = set;

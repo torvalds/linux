@@ -46,22 +46,22 @@ static const char driver_name[] = "pasemi-nand";
 static void pasemi_read_buf(struct nand_chip *chip, u_char *buf, int len)
 {
 	while (len > 0x800) {
-		memcpy_fromio(buf, chip->IO_ADDR_R, 0x800);
+		memcpy_fromio(buf, chip->legacy.IO_ADDR_R, 0x800);
 		buf += 0x800;
 		len -= 0x800;
 	}
-	memcpy_fromio(buf, chip->IO_ADDR_R, len);
+	memcpy_fromio(buf, chip->legacy.IO_ADDR_R, len);
 }
 
 static void pasemi_write_buf(struct nand_chip *chip, const u_char *buf,
 			     int len)
 {
 	while (len > 0x800) {
-		memcpy_toio(chip->IO_ADDR_R, buf, 0x800);
+		memcpy_toio(chip->legacy.IO_ADDR_R, buf, 0x800);
 		buf += 0x800;
 		len -= 0x800;
 	}
-	memcpy_toio(chip->IO_ADDR_R, buf, len);
+	memcpy_toio(chip->legacy.IO_ADDR_R, buf, len);
 }
 
 static void pasemi_hwcontrol(struct nand_chip *chip, int cmd,
@@ -71,9 +71,9 @@ static void pasemi_hwcontrol(struct nand_chip *chip, int cmd,
 		return;
 
 	if (ctrl & NAND_CLE)
-		out_8(chip->IO_ADDR_W + (1 << CLE_PIN_CTL), cmd);
+		out_8(chip->legacy.IO_ADDR_W + (1 << CLE_PIN_CTL), cmd);
 	else
-		out_8(chip->IO_ADDR_W + (1 << ALE_PIN_CTL), cmd);
+		out_8(chip->legacy.IO_ADDR_W + (1 << ALE_PIN_CTL), cmd);
 
 	/* Push out posted writes */
 	eieio();
@@ -117,10 +117,10 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	/* Link the private data with the MTD structure */
 	pasemi_nand_mtd->dev.parent = dev;
 
-	chip->IO_ADDR_R = of_iomap(np, 0);
-	chip->IO_ADDR_W = chip->IO_ADDR_R;
+	chip->legacy.IO_ADDR_R = of_iomap(np, 0);
+	chip->legacy.IO_ADDR_W = chip->legacy.IO_ADDR_R;
 
-	if (!chip->IO_ADDR_R) {
+	if (!chip->legacy.IO_ADDR_R) {
 		err = -EIO;
 		goto out_mtd;
 	}
@@ -169,7 +169,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
  out_lpc:
 	release_region(lpcctl, 4);
  out_ior:
-	iounmap(chip->IO_ADDR_R);
+	iounmap(chip->legacy.IO_ADDR_R);
  out_mtd:
 	kfree(chip);
  out:
@@ -190,7 +190,7 @@ static int pasemi_nand_remove(struct platform_device *ofdev)
 
 	release_region(lpcctl, 4);
 
-	iounmap(chip->IO_ADDR_R);
+	iounmap(chip->legacy.IO_ADDR_R);
 
 	/* Free the MTD device structure */
 	kfree(chip);

@@ -75,7 +75,7 @@ static void sharpsl_nand_hwcontrol(struct nand_chip *chip, int cmd,
 	}
 
 	if (cmd != NAND_CMD_NONE)
-		writeb(cmd, chip->IO_ADDR_W);
+		writeb(cmd, chip->legacy.IO_ADDR_W);
 }
 
 static int sharpsl_nand_dev_ready(struct nand_chip *chip)
@@ -153,8 +153,8 @@ static int sharpsl_nand_probe(struct platform_device *pdev)
 	writeb(readb(sharpsl->io + FLASHCTL) | FLWP, sharpsl->io + FLASHCTL);
 
 	/* Set address of NAND IO lines */
-	this->IO_ADDR_R = sharpsl->io + FLASHIO;
-	this->IO_ADDR_W = sharpsl->io + FLASHIO;
+	this->legacy.IO_ADDR_R = sharpsl->io + FLASHIO;
+	this->legacy.IO_ADDR_W = sharpsl->io + FLASHIO;
 	/* Set address of hardware control function */
 	this->cmd_ctrl = sharpsl_nand_hwcontrol;
 	this->dev_ready = sharpsl_nand_dev_ready;

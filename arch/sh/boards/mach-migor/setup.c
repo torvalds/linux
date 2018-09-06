@@ -172,11 +172,11 @@ static void migor_nand_flash_cmd_ctl(struct nand_chip *chip, int cmd,
 		return;
 
 	if (ctrl & NAND_CLE)
-		writeb(cmd, chip->IO_ADDR_W + 0x00400000);
+		writeb(cmd, chip->legacy.IO_ADDR_W + 0x00400000);
 	else if (ctrl & NAND_ALE)
-		writeb(cmd, chip->IO_ADDR_W + 0x00800000);
+		writeb(cmd, chip->legacy.IO_ADDR_W + 0x00800000);
 	else
-		writeb(cmd, chip->IO_ADDR_W);
+		writeb(cmd, chip->legacy.IO_ADDR_W);
 }
 
 static int migor_nand_flash_ready(struct nand_chip *chip)

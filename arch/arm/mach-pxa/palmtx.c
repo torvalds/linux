@@ -250,7 +250,7 @@ static inline void palmtx_keys_init(void) {}
 static void palmtx_nand_cmd_ctl(struct nand_chip *this, int cmd,
 				unsigned int ctrl)
 {
-	char __iomem *nandaddr = this->IO_ADDR_W;
+	char __iomem *nandaddr = this->legacy.IO_ADDR_W;
 
 	if (cmd == NAND_CMD_NONE)
 		return;

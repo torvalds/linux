@@ -275,7 +275,7 @@ static void omap_read_buf8(struct mtd_info *mtd, u_char *buf, int len)
 {
 	struct nand_chip *nand = mtd_to_nand(mtd);
 
-	ioread8_rep(nand->IO_ADDR_R, buf, len);
+	ioread8_rep(nand->legacy.IO_ADDR_R, buf, len);
 }
 
 /**
@@ -291,7 +291,7 @@ static void omap_write_buf8(struct mtd_info *mtd, const u_char *buf, int len)
 	bool status;
 
 	while (len--) {
-		iowrite8(*p++, info->nand.IO_ADDR_W);
+		iowrite8(*p++, info->nand.legacy.IO_ADDR_W);
 		/* wait until buffer is available for write */
 		do {
 			status = info->ops->nand_writebuffer_empty();
@@ -309,7 +309,7 @@ static void omap_read_buf16(struct mtd_info *mtd, u_char *buf, int len)
 {
 	struct nand_chip *nand = mtd_to_nand(mtd);
 
-	ioread16_rep(nand->IO_ADDR_R, buf, len / 2);
+	ioread16_rep(nand->legacy.IO_ADDR_R, buf, len / 2);
 }
 
 /**
@@ -327,7 +327,7 @@ static void omap_write_buf16(struct mtd_info *mtd, const u_char * buf, int len)
 	len >>= 1;
 
 	while (len--) {
-		iowrite16(*p++, info->nand.IO_ADDR_W);
+		iowrite16(*p++, info->nand.legacy.IO_ADDR_W);
 		/* wait until buffer is available for write */
 		do {
 			status = info->ops->nand_writebuffer_empty();
@@ -373,7 +373,7 @@ static void omap_read_buf_pref(struct nand_chip *chip, u_char *buf, int len)
 			r_count = readl(info->reg.gpmc_prefetch_status);
 			r_count = PREFETCH_STATUS_FIFO_CNT(r_count);
 			r_count = r_count >> 2;
-			ioread32_rep(info->nand.IO_ADDR_R, p, r_count);
+			ioread32_rep(info->nand.legacy.IO_ADDR_R, p, r_count);
 			p += r_count;
 			len -= r_count << 2;
 		} while (len);
@@ -401,7 +401,7 @@ static void omap_write_buf_pref(struct nand_chip *chip, const u_char *buf,
 
 	/* take care of subpage writes */
 	if (len % 2 != 0) {
-		writeb(*buf, info->nand.IO_ADDR_W);
+		writeb(*buf, info->nand.legacy.IO_ADDR_W);
 		p = (u16 *)(buf + 1);
 		len--;
 	}
@@ -421,7 +421,7 @@ static void omap_write_buf_pref(struct nand_chip *chip, const u_char *buf,
 			w_count = PREFETCH_STATUS_FIFO_CNT(w_count);
 			w_count = w_count >> 1;
 			for (i = 0; (i < w_count) && len; i++, len -= 2)
-				iowrite16(*p++, info->nand.IO_ADDR_W);
+				iowrite16(*p++, info->nand.legacy.IO_ADDR_W);
 		}
 		/* wait for data to flushed-out before reset the prefetch */
 		tim = 0;
@@ -585,14 +585,14 @@ static irqreturn_t omap_nand_irq(int this_irq, void *dev)
 			bytes = info->buf_len;
 		else if (!info->buf_len)
 			bytes = 0;
-		iowrite32_rep(info->nand.IO_ADDR_W,
-						(u32 *)info->buf, bytes >> 2);
+		iowrite32_rep(info->nand.legacy.IO_ADDR_W, (u32 *)info->buf,
+			      bytes >> 2);
 		info->buf = info->buf + bytes;
 		info->buf_len -= bytes;
 
 	} else {
-		ioread32_rep(info->nand.IO_ADDR_R,
-						(u32 *)info->buf, bytes >> 2);
+		ioread32_rep(info->nand.legacy.IO_ADDR_R, (u32 *)info->buf,
+			     bytes >> 2);
 		info->buf = info->buf + bytes;
 
 		if (this_irq == info->gpmc_irq_count)
@@ -2221,15 +2221,15 @@ static int omap_nand_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	nand_chip->IO_ADDR_R = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(nand_chip->IO_ADDR_R))
-		return PTR_ERR(nand_chip->IO_ADDR_R);
+	nand_chip->legacy.IO_ADDR_R = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(nand_chip->legacy.IO_ADDR_R))
+		return PTR_ERR(nand_chip->legacy.IO_ADDR_R);
 
 	info->phys_base = res->start;
 
 	nand_chip->controller = &omap_gpmc_controller;
 
-	nand_chip->IO_ADDR_W = nand_chip->IO_ADDR_R;
+	nand_chip->legacy.IO_ADDR_W = nand_chip->legacy.IO_ADDR_R;
 	nand_chip->cmd_ctrl  = omap_hwcontrol;
 
 	info->ready_gpiod = devm_gpiod_get_optional(&pdev->dev, "rb",

@@ -35,7 +35,7 @@ struct au1550nd_ctx {
  */
 static u_char au_read_byte(struct nand_chip *this)
 {
-	u_char ret = readb(this->IO_ADDR_R);
+	u_char ret = readb(this->legacy.IO_ADDR_R);
 	wmb(); /* drain writebuffer */
 	return ret;
 }
@@ -49,7 +49,7 @@ static u_char au_read_byte(struct nand_chip *this)
  */
 static void au_write_byte(struct nand_chip *this, u_char byte)
 {
-	writeb(byte, this->IO_ADDR_W);
+	writeb(byte, this->legacy.IO_ADDR_W);
 	wmb(); /* drain writebuffer */
 }
 
@@ -61,7 +61,7 @@ static void au_write_byte(struct nand_chip *this, u_char byte)
  */
 static u_char au_read_byte16(struct nand_chip *this)
 {
-	u_char ret = (u_char) cpu_to_le16(readw(this->IO_ADDR_R));
+	u_char ret = (u_char) cpu_to_le16(readw(this->legacy.IO_ADDR_R));
 	wmb(); /* drain writebuffer */
 	return ret;
 }
@@ -75,7 +75,7 @@ static u_char au_read_byte16(struct nand_chip *this)
  */
 static void au_write_byte16(struct nand_chip *this, u_char byte)
 {
-	writew(le16_to_cpu((u16) byte), this->IO_ADDR_W);
+	writew(le16_to_cpu((u16) byte), this->legacy.IO_ADDR_W);
 	wmb(); /* drain writebuffer */
 }
 
@@ -92,7 +92,7 @@ static void au_write_buf(struct nand_chip *this, const u_char *buf, int len)
 	int i;
 
 	for (i = 0; i < len; i++) {
-		writeb(buf[i], this->IO_ADDR_W);
+		writeb(buf[i], this->legacy.IO_ADDR_W);
 		wmb(); /* drain writebuffer */
 	}
 }
@@ -110,7 +110,7 @@ static void au_read_buf(struct nand_chip *this, u_char *buf, int len)
 	int i;
 
 	for (i = 0; i < len; i++) {
-		buf[i] = readb(this->IO_ADDR_R);
+		buf[i] = readb(this->legacy.IO_ADDR_R);
 		wmb(); /* drain writebuffer */
 	}
 }
@@ -130,7 +130,7 @@ static void au_write_buf16(struct nand_chip *this, const u_char *buf, int len)
 	len >>= 1;
 
 	for (i = 0; i < len; i++) {
-		writew(p[i], this->IO_ADDR_W);
+		writew(p[i], this->legacy.IO_ADDR_W);
 		wmb(); /* drain writebuffer */
 	}
 
@@ -152,7 +152,7 @@ static void au_read_buf16(struct mtd_info *mtd, u_char *buf, int len)
 	len >>= 1;
 
 	for (i = 0; i < len; i++) {
-		p[i] = readw(this->IO_ADDR_R);
+		p[i] = readw(this->legacy.IO_ADDR_R);
 		wmb(); /* drain writebuffer */
 	}
 }
@@ -179,19 +179,19 @@ static void au1550_hwcontrol(struct mtd_info *mtd, int cmd)
 	switch (cmd) {
 
 	case NAND_CTL_SETCLE:
-		this->IO_ADDR_W = ctx->base + MEM_STNAND_CMD;
+		this->legacy.IO_ADDR_W = ctx->base + MEM_STNAND_CMD;
 		break;
 
 	case NAND_CTL_CLRCLE:
-		this->IO_ADDR_W = ctx->base + MEM_STNAND_DATA;
+		this->legacy.IO_ADDR_W = ctx->base + MEM_STNAND_DATA;
 		break;
 
 	case NAND_CTL_SETALE:
-		this->IO_ADDR_W = ctx->base + MEM_STNAND_ADDR;
+		this->legacy.IO_ADDR_W = ctx->base + MEM_STNAND_ADDR;
 		break;
 
 	case NAND_CTL_CLRALE:
-		this->IO_ADDR_W = ctx->base + MEM_STNAND_DATA;
+		this->legacy.IO_ADDR_W = ctx->base + MEM_STNAND_DATA;
 		/* FIXME: Nobody knows why this is necessary,
 		 * but it works only that way */
 		udelay(1);
@@ -208,7 +208,7 @@ static void au1550_hwcontrol(struct mtd_info *mtd, int cmd)
 		break;
 	}
 
-	this->IO_ADDR_R = this->IO_ADDR_W;
+	this->legacy.IO_ADDR_R = this->legacy.IO_ADDR_W;
 
 	wmb(); /* Drain the writebuffer */
 }

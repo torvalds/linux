@@ -136,9 +136,9 @@ static void qong_nand_cmd_ctrl(struct nand_chip *nand_chip, int cmd,
 		return;
 
 	if (ctrl & NAND_CLE)
-		writeb(cmd, nand_chip->IO_ADDR_W + (1 << 24));
+		writeb(cmd, nand_chip->legacy.IO_ADDR_W + (1 << 24));
 	else
-		writeb(cmd, nand_chip->IO_ADDR_W + (1 << 23));
+		writeb(cmd, nand_chip->legacy.IO_ADDR_W + (1 << 23));
 }
 
 /*

@@ -288,7 +288,7 @@ static void nand_cs_off(void)
 static void em_x270_nand_cmd_ctl(struct nand_chip *this, int dat,
 				 unsigned int ctrl)
 {
-	unsigned long nandaddr = (unsigned long)this->IO_ADDR_W;
+	unsigned long nandaddr = (unsigned long)this->legacy.IO_ADDR_W;
 
 	dsb();
 
@@ -308,9 +308,9 @@ static void em_x270_nand_cmd_ctl(struct nand_chip *this, int dat,
 	}
 
 	dsb();
-	this->IO_ADDR_W = (void __iomem *)nandaddr;
+	this->legacy.IO_ADDR_W = (void __iomem *)nandaddr;
 	if (dat != NAND_CMD_NONE)
-		writel(dat, this->IO_ADDR_W);
+		writel(dat, this->legacy.IO_ADDR_W);
 
 	dsb();
 }

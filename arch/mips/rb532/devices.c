@@ -160,7 +160,7 @@ static void rb532_cmd_ctrl(struct nand_chip *chip, int cmd, unsigned int ctrl)
 		set_latch_u5(orbits, nandbits);
 	}
 	if (cmd != NAND_CMD_NONE)
-		writeb(cmd, chip->IO_ADDR_W);
+		writeb(cmd, chip->legacy.IO_ADDR_W);
 }
 
 static struct resource nand_slot0_res[] = {
