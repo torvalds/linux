@@ -482,14 +482,9 @@ void mt76x0_cleanup(struct mt76x0_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76x0_cleanup);
 
-struct mt76x0_dev *mt76x0_alloc_device(struct device *pdev)
+struct mt76x0_dev *
+mt76x0_alloc_device(struct device *pdev, const struct mt76_driver_ops *drv_ops)
 {
-	static const struct mt76_driver_ops drv_ops = {
-		.tx_prepare_skb = mt76x0_tx_prepare_skb,
-		.tx_complete_skb = mt76x02_tx_complete_skb,
-		.tx_status_data = mt76x02_tx_status_data,
-		.rx_skb = mt76x0_queue_rx_skb,
-	};
 	struct mt76x0_dev *dev;
 	struct mt76_dev *mdev;
 
@@ -498,7 +493,7 @@ struct mt76x0_dev *mt76x0_alloc_device(struct device *pdev)
 		return NULL;
 
 	mdev->dev = pdev;
-	mdev->drv = &drv_ops;
+	mdev->drv = drv_ops;
 
 	dev = container_of(mdev, struct mt76x0_dev, mt76);
 	mutex_init(&dev->reg_atomic_mutex);

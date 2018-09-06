@@ -95,6 +95,7 @@ int mt76x0_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 
 	return mt76x02_set_txinfo(skb, wcid, q2ep(q->hw_idx));
 }
+EXPORT_SYMBOL_GPL(mt76x0_tx_prepare_skb);
 
 void mt76x0_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb)
@@ -110,4 +111,4 @@ void mt76x0_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 
 	mt76_rx(&dev->mt76, q, skb);
 }
-
+EXPORT_SYMBOL_GPL(mt76x0_queue_rx_skb);

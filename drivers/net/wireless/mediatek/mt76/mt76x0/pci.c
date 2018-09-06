@@ -40,7 +40,7 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
-	dev = mt76x0_alloc_device(&pdev->dev);
+	dev = mt76x0_alloc_device(&pdev->dev, NULL);
 	if (!dev)
 		return -ENOMEM;
 

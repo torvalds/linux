@@ -18,6 +18,7 @@
 #include "mt76x0.h"
 #include "usb.h"
 #include "trace.h"
+#include "../mt76x02_util.h"
 
 static struct usb_device_id mt76x0_device_table[] = {
 	{ USB_DEVICE(0x148F, 0x7610) },	/* MT7610U */
@@ -49,12 +50,18 @@ static struct usb_device_id mt76x0_device_table[] = {
 static int mt76x0u_probe(struct usb_interface *usb_intf,
 			 const struct usb_device_id *id)
 {
+	static const struct mt76_driver_ops drv_ops = {
+		.tx_prepare_skb = mt76x0_tx_prepare_skb,
+		.tx_complete_skb = mt76x02_tx_complete_skb,
+		.tx_status_data = mt76x02_tx_status_data,
+		.rx_skb = mt76x0_queue_rx_skb,
+	};
 	struct usb_device *usb_dev = interface_to_usbdev(usb_intf);
 	struct mt76x0_dev *dev;
 	u32 asic_rev, mac_rev;
 	int ret;
 
-	dev = mt76x0_alloc_device(&usb_intf->dev);
+	dev = mt76x0_alloc_device(&usb_intf->dev, &drv_ops);
 	if (!dev)
 		return -ENOMEM;
 
