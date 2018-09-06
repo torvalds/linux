@@ -19,6 +19,7 @@
 #include "trace.h"
 #include "mcu.h"
 #include "usb.h"
+#include "../mt76x02_util.h"
 
 #include "initvals.h"
 
@@ -483,6 +484,12 @@ void mt76x0_cleanup(struct mt76x0_dev *dev)
 
 struct mt76x0_dev *mt76x0_alloc_device(struct device *pdev)
 {
+	static const struct mt76_driver_ops drv_ops = {
+		.tx_prepare_skb = mt76x0_tx_prepare_skb,
+		.tx_complete_skb = mt76x02_tx_complete_skb,
+		.tx_status_data = mt76x02_tx_status_data,
+		.rx_skb = mt76x0_queue_rx_skb,
+	};
 	struct ieee80211_hw *hw;
 	struct mt76x0_dev *dev;
 
@@ -493,7 +500,7 @@ struct mt76x0_dev *mt76x0_alloc_device(struct device *pdev)
 	dev = hw->priv;
 	dev->mt76.dev = pdev;
 	dev->mt76.hw = hw;
-	dev->mt76.drv = NULL;
+	dev->mt76.drv = &drv_ops;
 	mutex_init(&dev->usb_ctrl_mtx);
 	mutex_init(&dev->reg_atomic_mutex);
 	mutex_init(&dev->hw_atomic_mutex);
