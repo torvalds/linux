@@ -364,11 +364,6 @@ void mt76x0_mac_stop(struct mt76x0_dev *dev)
 	mt76x0_mac_stop_hw(dev);
 }
 
-static void mt76x0_stop_hardware(struct mt76x0_dev *dev)
-{
-	mt76x0_chip_onoff(dev, false, false);
-}
-
 int mt76x0_init_hardware(struct mt76x0_dev *dev)
 {
 	static const u16 beacon_offsets[16] = {
@@ -476,7 +471,7 @@ void mt76x0_cleanup(struct mt76x0_dev *dev)
 	if (!test_and_clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state))
 		return;
 
-	mt76x0_stop_hardware(dev);
+	mt76x0_chip_onoff(dev, false, false);
 	mt76u_queues_deinit(&dev->mt76);
 	mt76u_mcu_deinit(&dev->mt76);
 }
