@@ -1200,7 +1200,6 @@ EXPORT_SYMBOL_GPL(nand_set_features);
  */
 static int nand_reset_data_interface(struct nand_chip *chip, int chipnr)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
 	if (!chip->setup_data_interface)
@@ -1221,7 +1220,7 @@ static int nand_reset_data_interface(struct nand_chip *chip, int chipnr)
 	 */
 
 	onfi_fill_data_interface(chip, NAND_SDR_IFACE, 0);
-	ret = chip->setup_data_interface(mtd, chipnr, &chip->data_interface);
+	ret = chip->setup_data_interface(chip, chipnr, &chip->data_interface);
 	if (ret)
 		pr_err("Failed to configure data interface to SDR timing mode 0\n");
 
@@ -1243,7 +1242,6 @@ static int nand_reset_data_interface(struct nand_chip *chip, int chipnr)
  */
 static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	u8 tmode_param[ONFI_SUBFEATURE_PARAM_LEN] = {
 		chip->onfi_timing_mode_default,
 	};
@@ -1263,7 +1261,7 @@ static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 	}
 
 	/* Change the mode on the controller side */
-	ret = chip->setup_data_interface(mtd, chipnr, &chip->data_interface);
+	ret = chip->setup_data_interface(chip, chipnr, &chip->data_interface);
 	if (ret)
 		return ret;
 
@@ -1316,7 +1314,6 @@ err_reset_chip:
  */
 static int nand_init_data_interface(struct nand_chip *chip)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	int modes, mode, ret;
 
 	if (!chip->setup_data_interface)
@@ -1345,7 +1342,7 @@ static int nand_init_data_interface(struct nand_chip *chip)
 		 * Pass NAND_DATA_IFACE_CHECK_ONLY to only check if the
 		 * controller supports the requested timings.
 		 */
-		ret = chip->setup_data_interface(mtd,
+		ret = chip->setup_data_interface(chip,
 						 NAND_DATA_IFACE_CHECK_ONLY,
 						 &chip->data_interface);
 		if (!ret) {

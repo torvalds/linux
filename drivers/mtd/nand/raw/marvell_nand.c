@@ -2250,11 +2250,10 @@ static struct nand_bbt_descr bbt_mirror_descr = {
 	.pattern = bbt_mirror_pattern
 };
 
-static int marvell_nfc_setup_data_interface(struct mtd_info *mtd, int chipnr,
+static int marvell_nfc_setup_data_interface(struct nand_chip *chip, int chipnr,
 					    const struct nand_data_interface
 					    *conf)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct marvell_nand_chip *marvell_nand = to_marvell_nand(chip);
 	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
 	unsigned int period_ns = 1000000000 / clk_get_rate(nfc->core_clk) * 2;

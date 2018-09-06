@@ -820,9 +820,10 @@ static int s3c2410_nand_add_partition(struct s3c2410_nand_info *info,
 	return -ENODEV;
 }
 
-static int s3c2410_nand_setup_data_interface(struct mtd_info *mtd, int csline,
+static int s3c2410_nand_setup_data_interface(struct nand_chip *chip, int csline,
 					const struct nand_data_interface *conf)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	struct s3c2410_platform_nand *pdata = info->platform;
 	const struct nand_sdr_timings *timings;

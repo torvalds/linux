@@ -932,10 +932,10 @@ static int denali_erase(struct nand_chip *chip, int page)
 	return irq_status & INTR__ERASE_COMP ? 0 : -EIO;
 }
 
-static int denali_setup_data_interface(struct mtd_info *mtd, int chipnr,
+static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 				       const struct nand_data_interface *conf)
 {
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
+	struct denali_nand_info *denali = mtd_to_denali(nand_to_mtd(chip));
 	const struct nand_sdr_timings *timings;
 	unsigned long t_x, mult_x;
 	int acc_clks, re_2_we, re_2_re, we_2_re, addr_2_data;

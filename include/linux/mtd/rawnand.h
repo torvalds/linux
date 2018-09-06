@@ -1304,7 +1304,7 @@ struct nand_chip {
 	int (*get_features)(struct nand_chip *chip, int feature_addr,
 			    uint8_t *subfeature_para);
 	int (*setup_read_retry)(struct nand_chip *chip, int retry_mode);
-	int (*setup_data_interface)(struct mtd_info *mtd, int chipnr,
+	int (*setup_data_interface)(struct nand_chip *chip, int chipnr,
 				    const struct nand_data_interface *conf);
 
 	int chip_delay;
