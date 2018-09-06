@@ -213,7 +213,6 @@ struct dpu_crtc {
 /**
  * struct dpu_crtc_state - dpu container for atomic crtc state
  * @base: Base drm crtc state structure
- * @is_ppsplit    : Whether current topology requires PPSplit special handling
  * @bw_control    : true if bw/clk controlled by core bw/clk properties
  * @bw_split_vote : true if bw controlled by llcc/dram bw properties
  * @lm_bounds     : LM boundaries based on current mode full resolution, no ROI.
@@ -228,8 +227,6 @@ struct dpu_crtc_state {
 
 	bool bw_control;
 	bool bw_split_vote;
-
-	bool is_ppsplit;
 	struct drm_rect lm_bounds[CRTC_DUAL_MIXERS];
 
 	uint64_t input_fence_timeout_ns;
