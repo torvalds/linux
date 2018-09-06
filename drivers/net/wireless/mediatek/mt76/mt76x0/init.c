@@ -490,24 +490,22 @@ struct mt76x0_dev *mt76x0_alloc_device(struct device *pdev)
 		.tx_status_data = mt76x02_tx_status_data,
 		.rx_skb = mt76x0_queue_rx_skb,
 	};
-	struct ieee80211_hw *hw;
 	struct mt76x0_dev *dev;
+	struct mt76_dev *mdev;
 
-	hw = ieee80211_alloc_hw(sizeof(*dev), &mt76x0_ops);
-	if (!hw)
+	mdev = mt76_alloc_device(sizeof(*dev), &mt76x0_ops);
+	if (!mdev)
 		return NULL;
 
-	dev = hw->priv;
-	dev->mt76.dev = pdev;
-	dev->mt76.hw = hw;
-	dev->mt76.drv = &drv_ops;
+	mdev->dev = pdev;
+	mdev->drv = &drv_ops;
+
+	dev = container_of(mdev, struct mt76x0_dev, mt76);
 	mutex_init(&dev->usb_ctrl_mtx);
 	mutex_init(&dev->reg_atomic_mutex);
 	mutex_init(&dev->hw_atomic_mutex);
-	mutex_init(&dev->mt76.mutex);
 	spin_lock_init(&dev->tx_lock);
 	spin_lock_init(&dev->rx_lock);
-	spin_lock_init(&dev->mt76.lock);
 	spin_lock_init(&dev->mac_lock);
 	spin_lock_init(&dev->con_mon_lock);
 	atomic_set(&dev->avg_ampdu_len, 1);
@@ -515,7 +513,7 @@ struct mt76x0_dev *mt76x0_alloc_device(struct device *pdev)
 
 	dev->stat_wq = alloc_workqueue("mt76x0", WQ_UNBOUND, 0);
 	if (!dev->stat_wq) {
-		ieee80211_free_hw(hw);
+		ieee80211_free_hw(mdev->hw);
 		return NULL;
 	}
 
