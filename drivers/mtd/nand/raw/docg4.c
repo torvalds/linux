@@ -1420,7 +1420,7 @@ unmap:
 static int __exit cleanup_docg4(struct platform_device *pdev)
 {
 	struct docg4_priv *doc = platform_get_drvdata(pdev);
-	nand_release(doc->mtd);
+	nand_release(mtd_to_nand(doc->mtd));
 	kfree(mtd_to_nand(doc->mtd));
 	iounmap(doc->virtadr);
 	return 0;
