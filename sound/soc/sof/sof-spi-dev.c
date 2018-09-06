@@ -176,7 +176,7 @@ const struct of_device_id sof_of_match[] = {
 
 static struct spi_driver sof_spi_driver = {
 	.driver = {
-o		.name	= "sof-spi-dev",
+		.name	= "sof-spi-dev",
 		.of_match_table = sof_of_match,
 	},
 	.probe		= sof_spi_probe,

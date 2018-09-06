@@ -250,7 +250,6 @@ static int spi_sof_probe(struct snd_sof_dev *sdev)
 
 static int spi_sof_remove(struct snd_sof_dev *sdev)
 {
-	free_irq(sdev->ipc_irq, sdev);
 	return 0;
 }
 
