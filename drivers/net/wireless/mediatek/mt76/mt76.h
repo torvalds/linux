@@ -217,7 +217,6 @@ enum {
 	MT76_OFFCHANNEL,
 	MT76_REMOVED,
 	MT76_READING_STATS,
-	MT76_MORE_STATS,
 };
 
 struct mt76_hw_cap {
