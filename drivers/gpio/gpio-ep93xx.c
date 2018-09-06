@@ -76,7 +76,7 @@ static int ep93xx_gpio_port(struct gpio_chip *gc)
 	struct ep93xx_gpio *epg = gpiochip_get_data(gc);
 	int port = 0;
 
-	while (gc != &epg->gc[port] && port < sizeof(epg->gc))
+	while (port < ARRAY_SIZE(epg->gc) && gc != &epg->gc[port])
 		port++;
 
 	/* This should not happen but is there as a last safeguard */
