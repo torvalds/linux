@@ -291,7 +291,7 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	return 0;
 
 err_fb_alloc:
-	virtio_gpu_cmd_resource_inval_backing(vgdev, resid);
+	virtio_gpu_object_detach(vgdev, obj);
 err_obj_attach:
 err_obj_vmap:
 	virtio_gpu_gem_free_object(&obj->gem_base);

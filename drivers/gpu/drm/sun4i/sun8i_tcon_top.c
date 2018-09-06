@@ -129,8 +129,7 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 	if (!tcon_top)
 		return -ENOMEM;
 
-	clk_data = devm_kzalloc(dev, sizeof(*clk_data) +
-				sizeof(*clk_data->hws) * CLK_NUM,
+	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, CLK_NUM),
 				GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;

@@ -3555,6 +3555,29 @@ void drm_atomic_helper_crtc_destroy_state(struct drm_crtc *crtc,
 EXPORT_SYMBOL(drm_atomic_helper_crtc_destroy_state);
 
 /**
+ * __drm_atomic_helper_plane_reset - resets planes state to default values
+ * @plane: plane object, must not be NULL
+ * @state: atomic plane state, must not be NULL
+ *
+ * Initializes plane state to default. This is useful for drivers that subclass
+ * the plane state.
+ */
+void __drm_atomic_helper_plane_reset(struct drm_plane *plane,
+				     struct drm_plane_state *state)
+{
+	state->plane = plane;
+	state->rotation = DRM_MODE_ROTATE_0;
+
+	/* Reset the alpha value to fully opaque if it matters */
+	if (plane->alpha_property)
+		state->alpha = plane->alpha_property->values[1];
+	state->pixel_blend_mode = DRM_MODE_BLEND_PREMULTI;
+
+	plane->state = state;
+}
+EXPORT_SYMBOL(__drm_atomic_helper_plane_reset);
+
+/**
  * drm_atomic_helper_plane_reset - default &drm_plane_funcs.reset hook for planes
  * @plane: drm plane
  *
@@ -3568,15 +3591,8 @@ void drm_atomic_helper_plane_reset(struct drm_plane *plane)
 
 	kfree(plane->state);
 	plane->state = kzalloc(sizeof(*plane->state), GFP_KERNEL);
-
-	if (plane->state) {
-		plane->state->plane = plane;
-		plane->state->rotation = DRM_MODE_ROTATE_0;
-
-		/* Reset the alpha value to fully opaque if it matters */
-		if (plane->alpha_property)
-			plane->state->alpha = plane->alpha_property->values[1];
-	}
+	if (plane->state)
+		__drm_atomic_helper_plane_reset(plane, plane->state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_plane_reset);
 

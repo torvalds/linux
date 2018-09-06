@@ -720,9 +720,7 @@ void vmw_du_plane_reset(struct drm_plane *plane)
 		return;
 	}
 
-	plane->state = &vps->base;
-	plane->state->plane = plane;
-	plane->state->rotation = DRM_MODE_ROTATE_0;
+	__drm_atomic_helper_plane_reset(plane, &vps->base);
 }
 
 

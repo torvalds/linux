@@ -57,6 +57,7 @@ struct virtio_gpu_object {
 	uint32_t hw_res_handle;
 
 	struct sg_table *pages;
+	uint32_t mapped;
 	void *vmap;
 	bool dumb;
 	struct ttm_place                placement_code;
@@ -114,6 +115,7 @@ struct virtio_gpu_output {
 	struct virtio_gpu_update_cursor cursor;
 	int cur_x;
 	int cur_y;
+	bool enabled;
 };
 #define drm_crtc_to_virtio_gpu_output(x) \
 	container_of(x, struct virtio_gpu_output, crtc)
@@ -276,13 +278,13 @@ int virtio_gpu_object_attach(struct virtio_gpu_device *vgdev,
 			     struct virtio_gpu_object *obj,
 			     uint32_t resource_id,
 			     struct virtio_gpu_fence **fence);
+void virtio_gpu_object_detach(struct virtio_gpu_device *vgdev,
+			      struct virtio_gpu_object *obj);
 int virtio_gpu_attach_status_page(struct virtio_gpu_device *vgdev);
 int virtio_gpu_detach_status_page(struct virtio_gpu_device *vgdev);
 void virtio_gpu_cursor_ping(struct virtio_gpu_device *vgdev,
 			    struct virtio_gpu_output *output);
 int virtio_gpu_cmd_get_display_info(struct virtio_gpu_device *vgdev);
-void virtio_gpu_cmd_resource_inval_backing(struct virtio_gpu_device *vgdev,
-					   uint32_t resource_id);
 int virtio_gpu_cmd_get_capset_info(struct virtio_gpu_device *vgdev, int idx);
 int virtio_gpu_cmd_get_capset(struct virtio_gpu_device *vgdev,
 			      int idx, int version,
@@ -372,7 +374,7 @@ int virtgpu_gem_prime_mmap(struct drm_gem_object *obj,
 static inline struct virtio_gpu_object*
 virtio_gpu_object_ref(struct virtio_gpu_object *bo)
 {
-	ttm_bo_reference(&bo->tbo);
+	ttm_bo_get(&bo->tbo);
 	return bo;
 }
 
@@ -383,9 +385,8 @@ static inline void virtio_gpu_object_unref(struct virtio_gpu_object **bo)
 	if ((*bo) == NULL)
 		return;
 	tbo = &((*bo)->tbo);
-	ttm_bo_unref(&tbo);
-	if (tbo == NULL)
-		*bo = NULL;
+	ttm_bo_put(tbo);
+	*bo = NULL;
 }
 
 static inline u64 virtio_gpu_object_mmap_offset(struct virtio_gpu_object *bo)

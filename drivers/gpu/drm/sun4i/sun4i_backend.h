@@ -167,7 +167,6 @@
 #define SUN4I_BACKEND_PIPE_OFF(p)		(0x5000 + (0x400 * (p)))
 
 #define SUN4I_BACKEND_NUM_LAYERS		4
-#define SUN4I_BACKEND_NUM_ALPHA_LAYERS		1
 #define SUN4I_BACKEND_NUM_FRONTEND_LAYERS	1
 #define SUN4I_BACKEND_NUM_YUV_PLANES		1
 
@@ -187,6 +186,8 @@ struct sun4i_backend {
 	/* Protects against races in the frontend teardown */
 	spinlock_t		frontend_lock;
 	bool			frontend_teardown;
+
+	const struct sun4i_backend_quirks	*quirks;
 };
 
 static inline struct sun4i_backend *

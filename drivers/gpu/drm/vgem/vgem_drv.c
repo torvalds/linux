@@ -504,7 +504,7 @@ out_free:
 static void __exit vgem_exit(void)
 {
 	drm_dev_unregister(&vgem_device->drm);
-	drm_dev_unref(&vgem_device->drm);
+	drm_dev_put(&vgem_device->drm);
 }
 
 module_init(vgem_init);

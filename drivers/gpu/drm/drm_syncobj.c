@@ -120,14 +120,6 @@ static int drm_syncobj_fence_get_or_add_callback(struct drm_syncobj *syncobj,
 	return ret;
 }
 
-/**
- * drm_syncobj_add_callback - adds a callback to syncobj::cb_list
- * @syncobj: Sync object to which to add the callback
- * @cb: Callback to add
- * @func: Func to use when initializing the drm_syncobj_cb struct
- *
- * This adds a callback to be called next time the fence is replaced
- */
 void drm_syncobj_add_callback(struct drm_syncobj *syncobj,
 			      struct drm_syncobj_cb *cb,
 			      drm_syncobj_func_t func)
@@ -136,13 +128,7 @@ void drm_syncobj_add_callback(struct drm_syncobj *syncobj,
 	drm_syncobj_add_callback_locked(syncobj, cb, func);
 	spin_unlock(&syncobj->lock);
 }
-EXPORT_SYMBOL(drm_syncobj_add_callback);
 
-/**
- * drm_syncobj_add_callback - removes a callback to syncobj::cb_list
- * @syncobj: Sync object from which to remove the callback
- * @cb: Callback to remove
- */
 void drm_syncobj_remove_callback(struct drm_syncobj *syncobj,
 				 struct drm_syncobj_cb *cb)
 {
@@ -150,7 +136,6 @@ void drm_syncobj_remove_callback(struct drm_syncobj *syncobj,
 	list_del_init(&cb->node);
 	spin_unlock(&syncobj->lock);
 }
-EXPORT_SYMBOL(drm_syncobj_remove_callback);
 
 /**
  * drm_syncobj_replace_fence - replace fence in a sync object.

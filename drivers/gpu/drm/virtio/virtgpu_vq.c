@@ -423,8 +423,9 @@ void virtio_gpu_cmd_unref_resource(struct virtio_gpu_device *vgdev,
 	virtio_gpu_queue_ctrl_buffer(vgdev, vbuf);
 }
 
-void virtio_gpu_cmd_resource_inval_backing(struct virtio_gpu_device *vgdev,
-					   uint32_t resource_id)
+static void virtio_gpu_cmd_resource_inval_backing(struct virtio_gpu_device *vgdev,
+						  uint32_t resource_id,
+						  struct virtio_gpu_fence **fence)
 {
 	struct virtio_gpu_resource_detach_backing *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
@@ -435,7 +436,7 @@ void virtio_gpu_cmd_resource_inval_backing(struct virtio_gpu_device *vgdev,
 	cmd_p->hdr.type = cpu_to_le32(VIRTIO_GPU_CMD_RESOURCE_DETACH_BACKING);
 	cmd_p->resource_id = cpu_to_le32(resource_id);
 
-	virtio_gpu_queue_ctrl_buffer(vgdev, vbuf);
+	virtio_gpu_queue_fenced_ctrl_buffer(vgdev, vbuf, &cmd_p->hdr, fence);
 }
 
 void virtio_gpu_cmd_set_scanout(struct virtio_gpu_device *vgdev,
@@ -648,11 +649,11 @@ int virtio_gpu_cmd_get_capset(struct virtio_gpu_device *vgdev,
 {
 	struct virtio_gpu_get_capset *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
-	int max_size = vgdev->capsets[idx].max_size;
+	int max_size;
 	struct virtio_gpu_drv_cap_cache *cache_ent;
 	void *resp_buf;
 
-	if (idx > vgdev->num_capsets)
+	if (idx >= vgdev->num_capsets)
 		return -EINVAL;
 
 	if (version > vgdev->capsets[idx].max_version)
@@ -662,6 +663,7 @@ int virtio_gpu_cmd_get_capset(struct virtio_gpu_device *vgdev,
 	if (!cache_ent)
 		return -ENOMEM;
 
+	max_size = vgdev->capsets[idx].max_size;
 	cache_ent->caps_cache = kmalloc(max_size, GFP_KERNEL);
 	if (!cache_ent->caps_cache) {
 		kfree(cache_ent);
@@ -848,9 +850,10 @@ int virtio_gpu_object_attach(struct virtio_gpu_device *vgdev,
 			     uint32_t resource_id,
 			     struct virtio_gpu_fence **fence)
 {
+	bool use_dma_api = !virtio_has_iommu_quirk(vgdev->vdev);
 	struct virtio_gpu_mem_entry *ents;
 	struct scatterlist *sg;
-	int si;
+	int si, nents;
 
 	if (!obj->pages) {
 		int ret;
@@ -860,26 +863,58 @@ int virtio_gpu_object_attach(struct virtio_gpu_device *vgdev,
 			return ret;
 	}
 
+	if (use_dma_api) {
+		obj->mapped = dma_map_sg(vgdev->vdev->dev.parent,
+					 obj->pages->sgl, obj->pages->nents,
+					 DMA_TO_DEVICE);
+		nents = obj->mapped;
+	} else {
+		nents = obj->pages->nents;
+	}
+
 	/* gets freed when the ring has consumed it */
-	ents = kmalloc_array(obj->pages->nents,
-			     sizeof(struct virtio_gpu_mem_entry),
+	ents = kmalloc_array(nents, sizeof(struct virtio_gpu_mem_entry),
 			     GFP_KERNEL);
 	if (!ents) {
 		DRM_ERROR("failed to allocate ent list\n");
 		return -ENOMEM;
 	}
 
-	for_each_sg(obj->pages->sgl, sg, obj->pages->nents, si) {
-		ents[si].addr = cpu_to_le64(sg_phys(sg));
+	for_each_sg(obj->pages->sgl, sg, nents, si) {
+		ents[si].addr = cpu_to_le64(use_dma_api
+					    ? sg_dma_address(sg)
+					    : sg_phys(sg));
 		ents[si].length = cpu_to_le32(sg->length);
 		ents[si].padding = 0;
 	}
 
 	virtio_gpu_cmd_resource_attach_backing(vgdev, resource_id,
-					       ents, obj->pages->nents,
+					       ents, nents,
 					       fence);
 	obj->hw_res_handle = resource_id;
 	return 0;
+}
+
+void virtio_gpu_object_detach(struct virtio_gpu_device *vgdev,
+			      struct virtio_gpu_object *obj)
+{
+	bool use_dma_api = !virtio_has_iommu_quirk(vgdev->vdev);
+	struct virtio_gpu_fence *fence;
+
+	if (use_dma_api && obj->mapped) {
+		/* detach backing and wait for the host process it ... */
+		virtio_gpu_cmd_resource_inval_backing(vgdev, obj->hw_res_handle, &fence);
+		dma_fence_wait(&fence->f, true);
+		dma_fence_put(&fence->f);
+
+		/* ... then tear down iommu mappings */
+		dma_unmap_sg(vgdev->vdev->dev.parent,
+			     obj->pages->sgl, obj->mapped,
+			     DMA_TO_DEVICE);
+		obj->mapped = 0;
+	} else {
+		virtio_gpu_cmd_resource_inval_backing(vgdev, obj->hw_res_handle, NULL);
+	}
 }
 
 void virtio_gpu_cursor_ping(struct virtio_gpu_device *vgdev,

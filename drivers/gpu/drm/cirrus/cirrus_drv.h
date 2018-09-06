@@ -146,7 +146,7 @@ struct cirrus_device {
 
 struct cirrus_fbdev {
 	struct drm_fb_helper helper;
-	struct drm_framebuffer gfb;
+	struct drm_framebuffer *gfb;
 	void *sysram;
 	int size;
 	int x1, y1, x2, y2; /* dirty rect */

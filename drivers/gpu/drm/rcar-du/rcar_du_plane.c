@@ -690,14 +690,12 @@ static void rcar_du_plane_reset(struct drm_plane *plane)
 	if (state == NULL)
 		return;
 
+	__drm_atomic_helper_plane_reset(plane, &state->state);
+
 	state->hwindex = -1;
 	state->source = RCAR_DU_PLANE_MEMORY;
 	state->colorkey = RCAR_DU_COLORKEY_NONE;
 	state->state.zpos = plane->type == DRM_PLANE_TYPE_PRIMARY ? 0 : 1;
-
-	plane->state = &state->state;
-	plane->state->alpha = DRM_BLEND_ALPHA_OPAQUE;
-	plane->state->plane = plane;
 }
 
 static int rcar_du_plane_atomic_set_property(struct drm_plane *plane,

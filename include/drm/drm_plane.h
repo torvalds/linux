@@ -119,6 +119,14 @@ struct drm_plane_state {
 	u16 alpha;
 
 	/**
+	 * @pixel_blend_mode:
+	 * The alpha blending equation selection, describing how the pixels from
+	 * the current plane are composited with the background. Value can be
+	 * one of DRM_MODE_BLEND_*
+	 */
+	uint16_t pixel_blend_mode;
+
+	/**
 	 * @rotation:
 	 * Rotation of the plane. See drm_plane_create_rotation_property() for
 	 * more details.
@@ -659,6 +667,14 @@ struct drm_plane {
 	 * drm_plane_create_rotation_property().
 	 */
 	struct drm_property *rotation_property;
+	/**
+	 * @blend_mode_property:
+	 * Optional "pixel blend mode" enum property for this plane.
+	 * Blend mode property represents the alpha blending equation selection,
+	 * describing how the pixels from the current plane are composited with
+	 * the background.
+	 */
+	struct drm_property *blend_mode_property;
 
 	/**
 	 * @color_encoding_property:

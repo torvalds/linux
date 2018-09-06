@@ -125,10 +125,22 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 		return PTR_ERR(hdmi->clk_tmds);
 	}
 
+	hdmi->regulator = devm_regulator_get(dev, "hvcc");
+	if (IS_ERR(hdmi->regulator)) {
+		dev_err(dev, "Couldn't get regulator\n");
+		return PTR_ERR(hdmi->regulator);
+	}
+
+	ret = regulator_enable(hdmi->regulator);
+	if (ret) {
+		dev_err(dev, "Failed to enable regulator\n");
+		return ret;
+	}
+
 	ret = reset_control_deassert(hdmi->rst_ctrl);
 	if (ret) {
 		dev_err(dev, "Could not deassert ctrl reset control\n");
-		return ret;
+		goto err_disable_regulator;
 	}
 
 	ret = clk_prepare_enable(hdmi->clk_tmds);
@@ -183,6 +195,8 @@ err_disable_clk_tmds:
 	clk_disable_unprepare(hdmi->clk_tmds);
 err_assert_ctrl_reset:
 	reset_control_assert(hdmi->rst_ctrl);
+err_disable_regulator:
+	regulator_disable(hdmi->regulator);
 
 	return ret;
 }
@@ -196,6 +210,7 @@ static void sun8i_dw_hdmi_unbind(struct device *dev, struct device *master,
 	sun8i_hdmi_phy_remove(hdmi);
 	clk_disable_unprepare(hdmi->clk_tmds);
 	reset_control_assert(hdmi->rst_ctrl);
+	regulator_disable(hdmi->regulator);
 }
 
 static const struct component_ops sun8i_dw_hdmi_ops = {

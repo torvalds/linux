@@ -82,6 +82,7 @@ struct drm_panel_funcs {
  * @drm: DRM device owning the panel
  * @connector: DRM connector that the panel is attached to
  * @dev: parent device of the panel
+ * @link: link from panel device (supplier) to DRM device (consumer)
  * @funcs: operations that can be performed on the panel
  * @list: panel entry in registry
  */

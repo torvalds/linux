@@ -691,6 +691,65 @@ static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.atomic_disable = rcar_du_crtc_atomic_disable,
 };
 
+static void rcar_du_crtc_crc_init(struct rcar_du_crtc *rcrtc)
+{
+	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	const char **sources;
+	unsigned int count;
+	int i = -1;
+
+	/* CRC available only on Gen3 HW. */
+	if (rcdu->info->gen < 3)
+		return;
+
+	/* Reserve 1 for "auto" source. */
+	count = rcrtc->vsp->num_planes + 1;
+
+	sources = kmalloc_array(count, sizeof(*sources), GFP_KERNEL);
+	if (!sources)
+		return;
+
+	sources[0] = kstrdup("auto", GFP_KERNEL);
+	if (!sources[0])
+		goto error;
+
+	for (i = 0; i < rcrtc->vsp->num_planes; ++i) {
+		struct drm_plane *plane = &rcrtc->vsp->planes[i].plane;
+		char name[16];
+
+		sprintf(name, "plane%u", plane->base.id);
+		sources[i + 1] = kstrdup(name, GFP_KERNEL);
+		if (!sources[i + 1])
+			goto error;
+	}
+
+	rcrtc->sources = sources;
+	rcrtc->sources_count = count;
+	return;
+
+error:
+	while (i >= 0) {
+		kfree(sources[i]);
+		i--;
+	}
+	kfree(sources);
+}
+
+static void rcar_du_crtc_crc_cleanup(struct rcar_du_crtc *rcrtc)
+{
+	unsigned int i;
+
+	if (!rcrtc->sources)
+		return;
+
+	for (i = 0; i < rcrtc->sources_count; i++)
+		kfree(rcrtc->sources[i]);
+	kfree(rcrtc->sources);
+
+	rcrtc->sources = NULL;
+	rcrtc->sources_count = 0;
+}
+
 static struct drm_crtc_state *
 rcar_du_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 {
@@ -715,6 +774,15 @@ static void rcar_du_crtc_atomic_destroy_state(struct drm_crtc *crtc,
 {
 	__drm_atomic_helper_crtc_destroy_state(state);
 	kfree(to_rcar_crtc_state(state));
+}
+
+static void rcar_du_crtc_cleanup(struct drm_crtc *crtc)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	rcar_du_crtc_crc_cleanup(rcrtc);
+
+	return drm_crtc_cleanup(crtc);
 }
 
 static void rcar_du_crtc_reset(struct drm_crtc *crtc)
@@ -756,17 +824,11 @@ static void rcar_du_crtc_disable_vblank(struct drm_crtc *crtc)
 	rcrtc->vblank_enable = false;
 }
 
-static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
-				       const char *source_name,
-				       size_t *values_cnt)
+static int rcar_du_crtc_parse_crc_source(struct rcar_du_crtc *rcrtc,
+					 const char *source_name,
+					 enum vsp1_du_crc_source *source)
 {
-	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
-	struct drm_modeset_acquire_ctx ctx;
-	struct drm_crtc_state *crtc_state;
-	struct drm_atomic_state *state;
-	enum vsp1_du_crc_source source;
-	unsigned int index = 0;
-	unsigned int i;
+	unsigned int index;
 	int ret;
 
 	/*
@@ -774,31 +836,72 @@ static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
 	 * CRC on an input plane (%u is the plane ID), and "auto" to compute the
 	 * CRC on the composer (VSP) output.
 	 */
+
 	if (!source_name) {
-		source = VSP1_DU_CRC_NONE;
+		*source = VSP1_DU_CRC_NONE;
+		return 0;
 	} else if (!strcmp(source_name, "auto")) {
-		source = VSP1_DU_CRC_OUTPUT;
+		*source = VSP1_DU_CRC_OUTPUT;
+		return 0;
 	} else if (strstarts(source_name, "plane")) {
-		source = VSP1_DU_CRC_PLANE;
+		unsigned int i;
+
+		*source = VSP1_DU_CRC_PLANE;
 
 		ret = kstrtouint(source_name + strlen("plane"), 10, &index);
 		if (ret < 0)
 			return ret;
 
 		for (i = 0; i < rcrtc->vsp->num_planes; ++i) {
-			if (index == rcrtc->vsp->planes[i].plane.base.id) {
-				index = i;
-				break;
-			}
+			if (index == rcrtc->vsp->planes[i].plane.base.id)
+				return i;
 		}
+	}
 
-		if (i >= rcrtc->vsp->num_planes)
-			return -EINVAL;
-	} else {
+	return -EINVAL;
+}
+
+static int rcar_du_crtc_verify_crc_source(struct drm_crtc *crtc,
+					  const char *source_name,
+					  size_t *values_cnt)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	enum vsp1_du_crc_source source;
+
+	if (rcar_du_crtc_parse_crc_source(rcrtc, source_name, &source) < 0) {
+		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
 		return -EINVAL;
 	}
 
 	*values_cnt = 1;
+	return 0;
+}
+
+const char *const *rcar_du_crtc_get_crc_sources(struct drm_crtc *crtc,
+						size_t *count)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	*count = rcrtc->sources_count;
+	return rcrtc->sources;
+}
+
+static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
+				       const char *source_name)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_crtc_state *crtc_state;
+	struct drm_atomic_state *state;
+	enum vsp1_du_crc_source source;
+	unsigned int index;
+	int ret;
+
+	ret = rcar_du_crtc_parse_crc_source(rcrtc, source_name, &source);
+	if (ret < 0)
+		return ret;
+
+	index = ret;
 
 	/* Perform an atomic commit to set the CRC source. */
 	drm_modeset_acquire_init(&ctx, 0);
@@ -853,7 +956,7 @@ static const struct drm_crtc_funcs crtc_funcs_gen2 = {
 
 static const struct drm_crtc_funcs crtc_funcs_gen3 = {
 	.reset = rcar_du_crtc_reset,
-	.destroy = drm_crtc_cleanup,
+	.destroy = rcar_du_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = rcar_du_crtc_atomic_duplicate_state,
@@ -861,6 +964,8 @@ static const struct drm_crtc_funcs crtc_funcs_gen3 = {
 	.enable_vblank = rcar_du_crtc_enable_vblank,
 	.disable_vblank = rcar_du_crtc_disable_vblank,
 	.set_crc_source = rcar_du_crtc_set_crc_source,
+	.verify_crc_source = rcar_du_crtc_verify_crc_source,
+	.get_crc_sources = rcar_du_crtc_get_crc_sources,
 };
 
 /* -----------------------------------------------------------------------------
@@ -998,6 +1103,8 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
 			"failed to register IRQ for CRTC %u\n", swindex);
 		return ret;
 	}
+
+	rcar_du_crtc_crc_init(rcrtc);
 
 	return 0;
 }

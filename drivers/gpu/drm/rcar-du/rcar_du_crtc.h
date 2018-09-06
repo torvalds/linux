@@ -67,6 +67,9 @@ struct rcar_du_crtc {
 	struct rcar_du_group *group;
 	struct rcar_du_vsp *vsp;
 	unsigned int vsp_pipe;
+
+	const char *const *sources;
+	unsigned int sources_count;
 };
 
 #define to_rcar_crtc(c)	container_of(c, struct rcar_du_crtc, crtc)

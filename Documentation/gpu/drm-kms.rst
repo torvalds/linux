@@ -323,6 +323,12 @@ Frame Buffer Functions Reference
 DRM Format Handling
 ===================
 
+.. kernel-doc:: include/uapi/drm/drm_fourcc.h
+   :doc: overview
+
+Format Functions Reference
+--------------------------
+
 .. kernel-doc:: include/drm/drm_fourcc.h
    :internal:
 

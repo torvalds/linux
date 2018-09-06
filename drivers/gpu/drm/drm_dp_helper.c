@@ -850,7 +850,8 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			return ret;
 
 		case DP_AUX_I2C_REPLY_NACK:
-			DRM_DEBUG_KMS("I2C nack (result=%d, size=%zu\n", ret, msg->size);
+			DRM_DEBUG_KMS("I2C nack (result=%d, size=%zu)\n",
+				      ret, msg->size);
 			aux->i2c_nack_count++;
 			return -EREMOTEIO;
 
