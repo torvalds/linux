@@ -141,7 +141,6 @@ int mt76x0_read_reg_pairs(struct mt76x0_dev *dev, u32 base,
 			  struct mt76_reg_pair *data, int len);
 int mt76x0_burst_write_regs(struct mt76x0_dev *dev, u32 offset,
 			     const u32 *data, int n);
-void mt76x0_addr_wr(struct mt76x0_dev *dev, const u32 offset, const u8 *addr);
 
 /* Init */
 struct mt76x0_dev *mt76x0_alloc_device(struct device *dev);

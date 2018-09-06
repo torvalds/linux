@@ -111,6 +111,7 @@ void mt76x0_chip_onoff(struct mt76x0_dev *dev, bool enable, bool reset)
 
 	mutex_unlock(&dev->hw_atomic_mutex);
 }
+EXPORT_SYMBOL_GPL(mt76x0_chip_onoff);
 
 static void mt76x0_reset_csr_bbp(struct mt76x0_dev *dev)
 {
@@ -384,6 +385,7 @@ void mt76x0_mac_stop(struct mt76x0_dev *dev)
 	mt76u_stop_stat_wk(&dev->mt76);
 	mt76x0_mac_stop_hw(dev);
 }
+EXPORT_SYMBOL_GPL(mt76x0_mac_stop);
 
 int mt76x0_init_hardware(struct mt76x0_dev *dev)
 {
@@ -469,6 +471,7 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt76x0_init_hardware);
 
 void mt76x0_cleanup(struct mt76x0_dev *dev)
 {
@@ -477,6 +480,7 @@ void mt76x0_cleanup(struct mt76x0_dev *dev)
 	mt76u_queues_deinit(&dev->mt76);
 	mt76u_mcu_deinit(&dev->mt76);
 }
+EXPORT_SYMBOL_GPL(mt76x0_cleanup);
 
 struct mt76x0_dev *mt76x0_alloc_device(struct device *pdev)
 {
@@ -505,6 +509,7 @@ struct mt76x0_dev *mt76x0_alloc_device(struct device *pdev)
 
 	return dev;
 }
+EXPORT_SYMBOL_GPL(mt76x0_alloc_device);
 
 int mt76x0_register_device(struct mt76x0_dev *dev)
 {
@@ -569,3 +574,4 @@ int mt76x0_register_device(struct mt76x0_dev *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt76x0_register_device);

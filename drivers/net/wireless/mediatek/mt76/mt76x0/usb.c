@@ -46,12 +46,6 @@ static struct usb_device_id mt76x0_device_table[] = {
 	{ 0, }
 };
 
-void mt76x0_addr_wr(struct mt76x0_dev *dev, const u32 offset, const u8 *addr)
-{
-	mt76_wr(dev, offset, get_unaligned_le32(addr));
-	mt76_wr(dev, offset + 4, addr[4] | addr[5] << 8);
-}
-
 static int mt76x0_probe(struct usb_interface *usb_intf,
 			 const struct usb_device_id *id)
 {

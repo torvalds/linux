@@ -72,6 +72,13 @@ static int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 }
 
 static void
+mt76x0_addr_wr(struct mt76x0_dev *dev, const u32 offset, const u8 *addr)
+{
+	mt76_wr(dev, offset, get_unaligned_le32(addr));
+	mt76_wr(dev, offset + 4, addr[4] | addr[5] << 8);
+}
+
+static void
 mt76x0_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 struct ieee80211_bss_conf *info, u32 changed)
 {

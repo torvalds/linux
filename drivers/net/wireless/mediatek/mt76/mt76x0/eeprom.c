@@ -445,3 +445,5 @@ out:
 	kfree(eeprom);
 	return ret;
 }
+
+MODULE_LICENSE("Dual BSD/GPL");
