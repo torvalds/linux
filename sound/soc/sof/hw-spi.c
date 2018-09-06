@@ -13,6 +13,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
@@ -145,15 +146,25 @@ static void spi_mailbox_read(struct snd_sof_dev *sdev __maybe_unused,
  * IPC Doorbell IRQ handler and thread.
  */
 
-static irqreturn_t spi_irq_handler(int irq __maybe_unused, void *context __maybe_unused)
+/*
+ * If the handler only has to wake up the thread, we might use the standard one
+ * as well
+ */
+static irqreturn_t spi_irq_handler(int irq __maybe_unused, void *context)
 {
-	int ret = IRQ_NONE;
+	const struct snd_sof_dev *sdev = context;
+	const struct platform_device *pdev =
+		container_of(sdev->parent, struct platform_device, dev);
+	struct snd_sof_pdata *sof_pdata = dev_get_platdata(&pdev->dev);
 
 	// on SPI based devices this will likely come via a SoC GPIO IRQ
 
 	// check if GPIO is assetred and if so run thread.
+	if (sof_pdata->gpio >= 0 &&
+	    gpio_get_value(sof_pdata->gpio) == sof_pdata->active)
+		return IRQ_WAKE_THREAD;
 
-	return ret;
+	return IRQ_NONE;
 }
 
 static irqreturn_t spi_irq_thread(int irq __maybe_unused, void *context __maybe_unused)
@@ -226,9 +237,11 @@ static int spi_sof_probe(struct snd_sof_dev *sdev)
 {
 	struct platform_device *pdev =
 		container_of(sdev->parent, struct platform_device, dev);
+	struct snd_sof_pdata *sof_pdata = dev_get_platdata(&pdev->dev);
 	/* get IRQ from Device tree or ACPI - register our IRQ */
 	struct irq_data *irqd;
 	struct spi_device *spi = to_spi_device(pdev->dev.parent);
+	unsigned int irq_trigger, irq_sense;
 	int ret;
 
 	sdev->ipc_irq = spi->irq;
@@ -237,10 +250,15 @@ static int spi_sof_probe(struct snd_sof_dev *sdev)
 	if (!irqd)
 		return -EINVAL;
 
+	irq_trigger = irqd_get_trigger_type(irqd);
+	irq_sense = irq_trigger & IRQ_TYPE_SENSE_MASK;
+	sof_pdata->active = irq_sense == IRQ_TYPE_EDGE_RISING ||
+		irq_sense == IRQ_TYPE_LEVEL_HIGH;
+
 	ret = devm_request_threaded_irq(sdev->dev, sdev->ipc_irq,
-				spi_irq_handler, spi_irq_thread,
-				irqd_get_trigger_type(irqd) | IRQF_ONESHOT,
-				"AudioDSP", sdev);
+					spi_irq_handler, spi_irq_thread,
+					irq_trigger | IRQF_ONESHOT,
+					"AudioDSP", sdev);
 	if (ret < 0)
 		dev_err(sdev->dev, "error: failed to register IRQ %d\n",
 			sdev->ipc_irq);

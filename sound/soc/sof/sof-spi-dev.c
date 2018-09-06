@@ -97,6 +97,8 @@ static int sof_spi_probe(struct spi_device *spi)
 	if (IS_ERR(gpiod))
 		return PTR_ERR(gpiod);
 
+	sof_pdata->gpio = desc_to_gpio(gpiod);
+
 	irq = gpiod_to_irq(gpiod);
 	if (irq < 0)
 		return irq;

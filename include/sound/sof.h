@@ -55,6 +55,10 @@ struct snd_sof_pdata {
 	/* descriptor */
 	const struct sof_dev_desc *desc;
 
+	/* SPI data */
+	unsigned int gpio;
+	unsigned int active;
+
 	/* machine */
 	struct platform_device *pdev_mach;
 	union {
