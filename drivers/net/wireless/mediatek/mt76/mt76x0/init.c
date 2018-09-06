@@ -468,9 +468,7 @@ err:
 
 void mt76x0_cleanup(struct mt76x0_dev *dev)
 {
-	if (!test_and_clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state))
-		return;
-
+	clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
 	mt76x0_chip_onoff(dev, false, false);
 	mt76u_queues_deinit(&dev->mt76);
 	mt76u_mcu_deinit(&dev->mt76);
