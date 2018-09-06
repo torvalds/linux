@@ -108,4 +108,7 @@ int nand_legacy_check_hooks(struct nand_chip *chip);
 u16 onfi_crc16(u16 crc, u8 const *p, size_t len);
 int nand_onfi_detect(struct nand_chip *chip);
 
+/* JEDEC functions */
+int nand_jedec_detect(struct nand_chip *chip);
+
 #endif /* __LINUX_RAWNAND_INTERNALS */
