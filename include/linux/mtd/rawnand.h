@@ -25,7 +25,6 @@
 #include <linux/types.h>
 
 struct nand_chip;
-struct nand_flash_dev;
 
 /* The maximum number of NAND chips in an array */
 #define NAND_MAX_CHIPS		8
