@@ -316,10 +316,11 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 				struct amdgpu_irq_src *source,
 				struct amdgpu_iv_entry *entry)
 {
-	struct amdgpu_vmhub *hub = &adev->vmhub[entry->vmid_src];
+	struct amdgpu_vmhub *hub;
 	bool retry_fault = !!(entry->src_data[1] & 0x80);
 	uint32_t status = 0;
 	u64 addr;
+	char hub_name[10];
 
 	addr = (u64)entry->src_data[0] << 12;
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
@@ -327,6 +328,17 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	if (retry_fault && amdgpu_gmc_filter_faults(adev, addr, entry->pasid,
 						    entry->timestamp))
 		return 1; /* This also prevents sending it to KFD */
+
+	if (entry->client_id == SOC15_IH_CLIENTID_VMC) {
+		snprintf(hub_name, sizeof(hub_name), "mmhub0");
+		hub = &adev->vmhub[AMDGPU_MMHUB_0];
+	} else if (entry->client_id == SOC15_IH_CLIENTID_VMC1) {
+		snprintf(hub_name, sizeof(hub_name), "mmhub1");
+		hub = &adev->vmhub[AMDGPU_MMHUB_1];
+	} else {
+		snprintf(hub_name, sizeof(hub_name), "gfxhub0");
+		hub = &adev->vmhub[AMDGPU_GFXHUB_0];
+	}
 
 	/* If it's the first fault for this address, process it normally */
 	if (!amdgpu_sriov_vf(adev)) {
@@ -343,8 +355,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 		dev_err(adev->dev,
 			"[%s] %s page fault (src_id:%u ring:%u vmid:%u "
 			"pasid:%u, for process %s pid %d thread %s pid %d)\n",
-			entry->vmid_src ? "mmhub" : "gfxhub",
-			retry_fault ? "retry" : "no-retry",
+			hub_name, retry_fault ? "retry" : "no-retry",
 			entry->src_id, entry->ring_id, entry->vmid,
 			entry->pasid, task_info.process_name, task_info.tgid,
 			task_info.task_name, task_info.pid);
