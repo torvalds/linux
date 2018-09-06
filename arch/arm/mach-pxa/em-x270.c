@@ -986,7 +986,6 @@ static struct fixed_voltage_config camera_dummy_config = {
 	.supply_name		= "camera_vdd",
 	.input_supply		= "vcc cam",
 	.microvolts		= 2800000,
-	.gpio			= -1,
 	.enable_high		= 0,
 	.init_data		= &camera_dummy_initdata,
 };

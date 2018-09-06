@@ -352,7 +352,6 @@ static struct fixed_voltage_config wallvdd_pdata = {
 	.supply_name = "WALLVDD",
 	.microvolts = 5000000,
 	.init_data = &wallvdd_data,
-	.gpio = -EINVAL,
 };
 
 static struct platform_device wallvdd_device = {
