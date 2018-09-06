@@ -462,7 +462,7 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 {
 	struct msm_drm_private *priv;
 	struct dpu_encoder_phys_vid *vid_enc;
-	struct dpu_hw_intf *intf;
+	struct dpu_rm_hw_iter iter;
 	struct dpu_hw_ctl *ctl;
 	u32 flush_mask = 0;
 
@@ -474,11 +474,20 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 	priv = phys_enc->parent->dev->dev_private;
 
 	vid_enc = to_dpu_encoder_phys_vid(phys_enc);
-	intf = vid_enc->hw_intf;
 	ctl = phys_enc->hw_ctl;
-	if (!vid_enc->hw_intf || !phys_enc->hw_ctl) {
-		DPU_ERROR("invalid hw_intf %d hw_ctl %d\n",
-				vid_enc->hw_intf != 0, phys_enc->hw_ctl != 0);
+
+	dpu_rm_init_hw_iter(&iter, phys_enc->parent->base.id, DPU_HW_BLK_INTF);
+	while (dpu_rm_get_hw(&phys_enc->dpu_kms->rm, &iter)) {
+		struct dpu_hw_intf *hw_intf = (struct dpu_hw_intf *)iter.hw;
+
+		if (hw_intf->idx == phys_enc->intf_idx) {
+			vid_enc->hw_intf = hw_intf;
+			break;
+		}
+	}
+
+	if (!vid_enc->hw_intf) {
+		DPU_ERROR("hw_intf not assigned\n");
 		return;
 	}
 
@@ -500,7 +509,7 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 		!dpu_encoder_phys_vid_is_master(phys_enc))
 		goto skip_flush;
 
-	ctl->ops.get_bitmask_intf(ctl, &flush_mask, intf->idx);
+	ctl->ops.get_bitmask_intf(ctl, &flush_mask, vid_enc->hw_intf->idx);
 	ctl->ops.update_pending_flush(ctl, flush_mask);
 
 skip_flush:
@@ -531,22 +540,13 @@ static void dpu_encoder_phys_vid_get_hw_resources(
 		struct dpu_encoder_hw_resources *hw_res,
 		struct drm_connector_state *conn_state)
 {
-	struct dpu_encoder_phys_vid *vid_enc;
-
 	if (!phys_enc || !hw_res) {
 		DPU_ERROR("invalid arg(s), enc %d hw_res %d conn_state %d\n",
 				phys_enc != 0, hw_res != 0, conn_state != 0);
 		return;
 	}
 
-	vid_enc = to_dpu_encoder_phys_vid(phys_enc);
-	if (!vid_enc->hw_intf) {
-		DPU_ERROR("invalid arg(s), hw_intf\n");
-		return;
-	}
-
-	DPU_DEBUG_VIDENC(vid_enc, "\n");
-	hw_res->intfs[vid_enc->hw_intf->idx - INTF_0] = INTF_MODE_VIDEO;
+	hw_res->intfs[phys_enc->intf_idx - INTF_0] = INTF_MODE_VIDEO;
 }
 
 static int _dpu_encoder_phys_vid_wait_for_vblank(
@@ -781,7 +781,6 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 {
 	struct dpu_encoder_phys *phys_enc = NULL;
 	struct dpu_encoder_phys_vid *vid_enc = NULL;
-	struct dpu_rm_hw_iter iter;
 	struct dpu_encoder_irq *irq;
 	int i, ret = 0;
 
@@ -800,26 +799,6 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 
 	phys_enc->hw_mdptop = p->dpu_kms->hw_mdp;
 	phys_enc->intf_idx = p->intf_idx;
-
-	/**
-	 * hw_intf resource permanently assigned to this encoder
-	 * Other resources allocated at atomic commit time by use case
-	 */
-	dpu_rm_init_hw_iter(&iter, 0, DPU_HW_BLK_INTF);
-	while (dpu_rm_get_hw(&p->dpu_kms->rm, &iter)) {
-		struct dpu_hw_intf *hw_intf = (struct dpu_hw_intf *)iter.hw;
-
-		if (hw_intf->idx == p->intf_idx) {
-			vid_enc->hw_intf = hw_intf;
-			break;
-		}
-	}
-
-	if (!vid_enc->hw_intf) {
-		ret = -EINVAL;
-		DPU_ERROR("failed to get hw_intf\n");
-		goto fail;
-	}
 
 	DPU_DEBUG_VIDENC(vid_enc, "\n");
 
