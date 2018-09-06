@@ -1647,7 +1647,8 @@ static void iwl_fw_dbg_update_regions(struct iwl_fw_runtime *fwrt,
 		int id = le32_to_cpu(reg->region_id);
 		struct iwl_fw_ini_active_regs *active;
 
-		if (WARN_ON(id >= ARRAY_SIZE(fwrt->dump.active_regs)))
+		if (WARN(id >= ARRAY_SIZE(fwrt->dump.active_regs),
+			 "Invalid region id %d for apply point %d\n", id, pnt))
 			break;
 
 		active = &fwrt->dump.active_regs[id];
