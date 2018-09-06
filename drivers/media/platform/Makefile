@@ -25,6 +25,8 @@ obj-$(CONFIG_VIDEO_TI_CAL)		+= ti-vpe/
 obj-$(CONFIG_VIDEO_MX2_EMMAPRP)		+= mx2_emmaprp.o
 obj-$(CONFIG_VIDEO_CODA)		+= coda/
 
+obj-$(CONFIG_VIDEO_IMX_PXP)		+= imx-pxp.o
+
 obj-$(CONFIG_VIDEO_SH_VEU)		+= sh_veu.o
 
 obj-$(CONFIG_CEC_GPIO)			+= cec-gpio/
