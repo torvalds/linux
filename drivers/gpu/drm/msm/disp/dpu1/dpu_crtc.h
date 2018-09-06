@@ -159,8 +159,6 @@ struct dpu_crtc_frame_event {
  * @phandle: Pointer to power handler
  * @power_event   : registered power event handle
  * @cur_perf      : current performance committed to clock/bandwidth driver
- * @rp_lock       : serialization lock for resource pool
- * @rp_head       : list of active resource pool
  */
 struct dpu_crtc {
 	struct drm_crtc base;
@@ -207,63 +205,10 @@ struct dpu_crtc {
 
 	struct dpu_core_perf_params cur_perf;
 
-	struct mutex rp_lock;
-	struct list_head rp_head;
-
 	struct dpu_crtc_smmu_state_data smmu_state;
 };
 
 #define to_dpu_crtc(x) container_of(x, struct dpu_crtc, base)
-
-/**
- * struct dpu_crtc_res_ops - common operations for crtc resources
- * @get: get given resource
- * @put: put given resource
- */
-struct dpu_crtc_res_ops {
-	void *(*get)(void *val, u32 type, u64 tag);
-	void (*put)(void *val);
-};
-
-#define DPU_CRTC_RES_FLAG_FREE		BIT(0)
-
-/**
- * struct dpu_crtc_res - definition of crtc resources
- * @list: list of crtc resource
- * @type: crtc resource type
- * @tag: unique identifier per type
- * @refcount: reference/usage count
- * @ops: callback operations
- * @val: resource handle associated with type/tag
- * @flags: customization flags
- */
-struct dpu_crtc_res {
-	struct list_head list;
-	u32 type;
-	u64 tag;
-	atomic_t refcount;
-	struct dpu_crtc_res_ops ops;
-	void *val;
-	u32 flags;
-};
-
-/**
- * dpu_crtc_respool - crtc resource pool
- * @rp_lock: pointer to serialization lock
- * @rp_head: pointer to head of active resource pools of this crtc
- * @rp_list: list of crtc resource pool
- * @sequence_id: sequence identifier, incremented per state duplication
- * @res_list: list of resource managed by this resource pool
- * @ops: resource operations for parent resource pool
- */
-struct dpu_crtc_respool {
-	struct mutex *rp_lock;
-	struct list_head *rp_head;
-	struct list_head rp_list;
-	u32 sequence_id;
-	struct list_head res_list;
-	struct dpu_crtc_res_ops ops;
-};
 
 /**
  * struct dpu_crtc_state - dpu container for atomic crtc state
@@ -290,7 +235,6 @@ struct dpu_crtc_state {
 	uint64_t input_fence_timeout_ns;
 
 	struct dpu_core_perf_params new_perf;
-	struct dpu_crtc_respool rp;
 };
 
 #define to_dpu_crtc_state(x) \

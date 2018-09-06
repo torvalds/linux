@@ -97,187 +97,6 @@ static inline int _dpu_crtc_power_enable(struct dpu_crtc *dpu_crtc, bool enable)
 	return 0;
 }
 
-/**
- * _dpu_crtc_rp_to_crtc - get crtc from resource pool object
- * @rp: Pointer to resource pool
- * return: Pointer to drm crtc if success; null otherwise
- */
-static struct drm_crtc *_dpu_crtc_rp_to_crtc(struct dpu_crtc_respool *rp)
-{
-	if (!rp)
-		return NULL;
-
-	return container_of(rp, struct dpu_crtc_state, rp)->base.crtc;
-}
-
-/**
- * _dpu_crtc_rp_reclaim - reclaim unused, or all if forced, resources in pool
- * @rp: Pointer to resource pool
- * @force: True to reclaim all resources; otherwise, reclaim only unused ones
- * return: None
- */
-static void _dpu_crtc_rp_reclaim(struct dpu_crtc_respool *rp, bool force)
-{
-	struct dpu_crtc_res *res, *next;
-	struct drm_crtc *crtc;
-
-	crtc = _dpu_crtc_rp_to_crtc(rp);
-	if (!crtc) {
-		DPU_ERROR("invalid crtc\n");
-		return;
-	}
-
-	DPU_DEBUG("crtc%d.%u %s\n", crtc->base.id, rp->sequence_id,
-			force ? "destroy" : "free_unused");
-
-	list_for_each_entry_safe(res, next, &rp->res_list, list) {
-		if (!force && !(res->flags & DPU_CRTC_RES_FLAG_FREE))
-			continue;
-		DPU_DEBUG("crtc%d.%u reclaim res:0x%x/0x%llx/%pK/%d\n",
-				crtc->base.id, rp->sequence_id,
-				res->type, res->tag, res->val,
-				atomic_read(&res->refcount));
-		list_del(&res->list);
-		if (res->ops.put)
-			res->ops.put(res->val);
-		kfree(res);
-	}
-}
-
-/**
- * _dpu_crtc_rp_free_unused - free unused resource in pool
- * @rp: Pointer to resource pool
- * return: none
- */
-static void _dpu_crtc_rp_free_unused(struct dpu_crtc_respool *rp)
-{
-	mutex_lock(rp->rp_lock);
-	_dpu_crtc_rp_reclaim(rp, false);
-	mutex_unlock(rp->rp_lock);
-}
-
-/**
- * _dpu_crtc_rp_destroy - destroy resource pool
- * @rp: Pointer to resource pool
- * return: None
- */
-static void _dpu_crtc_rp_destroy(struct dpu_crtc_respool *rp)
-{
-	mutex_lock(rp->rp_lock);
-	list_del_init(&rp->rp_list);
-	_dpu_crtc_rp_reclaim(rp, true);
-	mutex_unlock(rp->rp_lock);
-}
-
-/**
- * _dpu_crtc_hw_blk_get - get callback for hardware block
- * @val: Resource handle
- * @type: Resource type
- * @tag: Search tag for given resource
- * return: Resource handle
- */
-static void *_dpu_crtc_hw_blk_get(void *val, u32 type, u64 tag)
-{
-	DPU_DEBUG("res:%d/0x%llx/%pK\n", type, tag, val);
-	return dpu_hw_blk_get(val, type, tag);
-}
-
-/**
- * _dpu_crtc_hw_blk_put - put callback for hardware block
- * @val: Resource handle
- * return: None
- */
-static void _dpu_crtc_hw_blk_put(void *val)
-{
-	DPU_DEBUG("res://%pK\n", val);
-	dpu_hw_blk_put(val);
-}
-
-/**
- * _dpu_crtc_rp_duplicate - duplicate resource pool and reset reference count
- * @rp: Pointer to original resource pool
- * @dup_rp: Pointer to duplicated resource pool
- * return: None
- */
-static void _dpu_crtc_rp_duplicate(struct dpu_crtc_respool *rp,
-		struct dpu_crtc_respool *dup_rp)
-{
-	struct dpu_crtc_res *res, *dup_res;
-	struct drm_crtc *crtc;
-
-	if (!rp || !dup_rp || !rp->rp_head) {
-		DPU_ERROR("invalid resource pool\n");
-		return;
-	}
-
-	crtc = _dpu_crtc_rp_to_crtc(rp);
-	if (!crtc) {
-		DPU_ERROR("invalid crtc\n");
-		return;
-	}
-
-	DPU_DEBUG("crtc%d.%u duplicate\n", crtc->base.id, rp->sequence_id);
-
-	mutex_lock(rp->rp_lock);
-	dup_rp->sequence_id = rp->sequence_id + 1;
-	INIT_LIST_HEAD(&dup_rp->res_list);
-	dup_rp->ops = rp->ops;
-	list_for_each_entry(res, &rp->res_list, list) {
-		dup_res = kzalloc(sizeof(struct dpu_crtc_res), GFP_KERNEL);
-		if (!dup_res) {
-			mutex_unlock(rp->rp_lock);
-			return;
-		}
-		INIT_LIST_HEAD(&dup_res->list);
-		atomic_set(&dup_res->refcount, 0);
-		dup_res->type = res->type;
-		dup_res->tag = res->tag;
-		dup_res->val = res->val;
-		dup_res->ops = res->ops;
-		dup_res->flags = DPU_CRTC_RES_FLAG_FREE;
-		DPU_DEBUG("crtc%d.%u dup res:0x%x/0x%llx/%pK/%d\n",
-				crtc->base.id, dup_rp->sequence_id,
-				dup_res->type, dup_res->tag, dup_res->val,
-				atomic_read(&dup_res->refcount));
-		list_add_tail(&dup_res->list, &dup_rp->res_list);
-		if (dup_res->ops.get)
-			dup_res->ops.get(dup_res->val, 0, -1);
-	}
-
-	dup_rp->rp_lock = rp->rp_lock;
-	dup_rp->rp_head = rp->rp_head;
-	INIT_LIST_HEAD(&dup_rp->rp_list);
-	list_add_tail(&dup_rp->rp_list, rp->rp_head);
-	mutex_unlock(rp->rp_lock);
-}
-
-/**
- * _dpu_crtc_rp_reset - reset resource pool after allocation
- * @rp: Pointer to original resource pool
- * @rp_lock: Pointer to serialization resource pool lock
- * @rp_head: Pointer to crtc resource pool head
- * return: None
- */
-static void _dpu_crtc_rp_reset(struct dpu_crtc_respool *rp,
-		struct mutex *rp_lock, struct list_head *rp_head)
-{
-	if (!rp || !rp_lock || !rp_head) {
-		DPU_ERROR("invalid resource pool\n");
-		return;
-	}
-
-	mutex_lock(rp_lock);
-	rp->rp_lock = rp_lock;
-	rp->rp_head = rp_head;
-	INIT_LIST_HEAD(&rp->rp_list);
-	rp->sequence_id = 0;
-	INIT_LIST_HEAD(&rp->res_list);
-	rp->ops.get = _dpu_crtc_hw_blk_get;
-	rp->ops.put = _dpu_crtc_hw_blk_put;
-	list_add_tail(&rp->rp_list, rp->rp_head);
-	mutex_unlock(rp_lock);
-}
-
 static void dpu_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
@@ -965,8 +784,6 @@ static void dpu_crtc_destroy_state(struct drm_crtc *crtc,
 
 	DPU_DEBUG("crtc%d\n", crtc->base.id);
 
-	_dpu_crtc_rp_destroy(&cstate->rp);
-
 	__drm_atomic_helper_crtc_destroy_state(state);
 
 	kfree(cstate);
@@ -1220,8 +1037,6 @@ static struct drm_crtc_state *dpu_crtc_duplicate_state(struct drm_crtc *crtc)
 	/* duplicate base helper */
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &cstate->base);
 
-	_dpu_crtc_rp_duplicate(&old_cstate->rp, &cstate->rp);
-
 	return &cstate->base;
 }
 
@@ -1257,9 +1072,6 @@ static void dpu_crtc_reset(struct drm_crtc *crtc)
 		DPU_ERROR("failed to allocate state\n");
 		return;
 	}
-
-	_dpu_crtc_rp_reset(&cstate->rp, &dpu_crtc->rp_lock,
-			&dpu_crtc->rp_head);
 
 	cstate->base.crtc = crtc;
 	crtc->state = &cstate->base;
@@ -1653,7 +1465,6 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 end:
-	_dpu_crtc_rp_free_unused(&cstate->rp);
 	kfree(pstates);
 	return rc;
 }
@@ -1822,8 +1633,6 @@ static int dpu_crtc_debugfs_state_show(struct seq_file *s, void *v)
 {
 	struct drm_crtc *crtc = (struct drm_crtc *) s->private;
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
-	struct dpu_crtc_res *res;
-	struct dpu_crtc_respool *rp;
 	int i;
 
 	seq_printf(s, "client type: %d\n", dpu_crtc_get_client_type(crtc));
@@ -1839,17 +1648,6 @@ static int dpu_crtc_debugfs_state_show(struct seq_file *s, void *v)
 				dpu_power_handle_get_dbus_name(i),
 				dpu_crtc->cur_perf.max_per_pipe_ib[i]);
 	}
-
-	mutex_lock(&dpu_crtc->rp_lock);
-	list_for_each_entry(rp, &dpu_crtc->rp_head, rp_list) {
-		seq_printf(s, "rp.%d: ", rp->sequence_id);
-		list_for_each_entry(res, &rp->res_list, list)
-			seq_printf(s, "0x%x/0x%llx/%pK/%d ",
-					res->type, res->tag, res->val,
-					atomic_read(&res->refcount));
-		seq_puts(s, "\n");
-	}
-	mutex_unlock(&dpu_crtc->rp_lock);
 
 	return 0;
 }
@@ -1964,9 +1762,6 @@ struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane,
 	mutex_init(&dpu_crtc->crtc_lock);
 	spin_lock_init(&dpu_crtc->spin_lock);
 	atomic_set(&dpu_crtc->frame_pending, 0);
-
-	mutex_init(&dpu_crtc->rp_lock);
-	INIT_LIST_HEAD(&dpu_crtc->rp_head);
 
 	init_completion(&dpu_crtc->frame_done_comp);
 
