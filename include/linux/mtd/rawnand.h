@@ -210,9 +210,6 @@ enum nand_ecc_algo {
 #define NAND_CI_CELLTYPE_MSK	0x0C
 #define NAND_CI_CELLTYPE_SHIFT	2
 
-/* Keep gcc happy */
-struct nand_chip;
-
 /* ONFI version bits */
 #define ONFI_VERSION_1_0		BIT(1)
 #define ONFI_VERSION_2_0		BIT(2)
