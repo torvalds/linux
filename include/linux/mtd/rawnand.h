@@ -1595,11 +1595,11 @@ struct platform_device;
 struct platform_nand_ctrl {
 	int (*probe)(struct platform_device *pdev);
 	void (*remove)(struct platform_device *pdev);
-	int (*dev_ready)(struct mtd_info *mtd);
-	void (*select_chip)(struct mtd_info *mtd, int chip);
-	void (*cmd_ctrl)(struct mtd_info *mtd, int dat, unsigned int ctrl);
-	void (*write_buf)(struct mtd_info *mtd, const uint8_t *buf, int len);
-	void (*read_buf)(struct mtd_info *mtd, uint8_t *buf, int len);
+	int (*dev_ready)(struct nand_chip *chip);
+	void (*select_chip)(struct nand_chip *chip, int cs);
+	void (*cmd_ctrl)(struct nand_chip *chip, int dat, unsigned int ctrl);
+	void (*write_buf)(struct nand_chip *chip, const uint8_t *buf, int len);
+	void (*read_buf)(struct nand_chip *chip, uint8_t *buf, int len);
 	void *priv;
 };
 

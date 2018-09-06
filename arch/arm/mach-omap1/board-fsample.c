@@ -186,7 +186,7 @@ static struct platform_device nor_device = {
 
 #define FSAMPLE_NAND_RB_GPIO_PIN	62
 
-static int nand_dev_ready(struct mtd_info *mtd)
+static int nand_dev_ready(struct nand_chip *chip)
 {
 	return gpio_get_value(FSAMPLE_NAND_RB_GPIO_PIN);
 }

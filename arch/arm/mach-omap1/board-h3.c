@@ -185,7 +185,7 @@ static struct mtd_partition nand_partitions[] = {
 
 #define H3_NAND_RB_GPIO_PIN	10
 
-static int nand_dev_ready(struct mtd_info *mtd)
+static int nand_dev_ready(struct nand_chip *chip)
 {
 	return gpio_get_value(H3_NAND_RB_GPIO_PIN);
 }

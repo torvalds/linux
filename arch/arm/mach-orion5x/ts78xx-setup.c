@@ -131,11 +131,9 @@ static void ts78xx_ts_rtc_unload(void)
  * NAND_CLE: bit 1 -> bit 1
  * NAND_ALE: bit 2 -> bit 0
  */
-static void ts78xx_ts_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
-			unsigned int ctrl)
+static void ts78xx_ts_nand_cmd_ctrl(struct nand_chip *this, int cmd,
+				    unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
-
 	if (ctrl & NAND_CTRL_CHANGE) {
 		unsigned char bits;
 
@@ -150,15 +148,14 @@ static void ts78xx_ts_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 		writeb(cmd, this->IO_ADDR_W);
 }
 
-static int ts78xx_ts_nand_dev_ready(struct mtd_info *mtd)
+static int ts78xx_ts_nand_dev_ready(struct nand_chip *chip)
 {
 	return readb(TS_NAND_CTRL) & 0x20;
 }
 
-static void ts78xx_ts_nand_write_buf(struct mtd_info *mtd,
-			const uint8_t *buf, int len)
+static void ts78xx_ts_nand_write_buf(struct nand_chip *chip,
+				     const uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	void __iomem *io_base = chip->IO_ADDR_W;
 	unsigned long off = ((unsigned long)buf & 3);
 	int sz;
@@ -182,10 +179,9 @@ static void ts78xx_ts_nand_write_buf(struct mtd_info *mtd,
 		writesb(io_base, buf, len);
 }
 
-static void ts78xx_ts_nand_read_buf(struct mtd_info *mtd,
-			uint8_t *buf, int len)
+static void ts78xx_ts_nand_read_buf(struct nand_chip *chip,
+				    uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	void __iomem *io_base = chip->IO_ADDR_R;
 	unsigned long off = ((unsigned long)buf & 3);
 	int sz;

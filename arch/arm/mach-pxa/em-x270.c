@@ -285,10 +285,9 @@ static void nand_cs_off(void)
 }
 
 /* hardware specific access to control-lines */
-static void em_x270_nand_cmd_ctl(struct mtd_info *mtd, int dat,
+static void em_x270_nand_cmd_ctl(struct nand_chip *this, int dat,
 				 unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	unsigned long nandaddr = (unsigned long)this->IO_ADDR_W;
 
 	dsb();
@@ -317,7 +316,7 @@ static void em_x270_nand_cmd_ctl(struct mtd_info *mtd, int dat,
 }
 
 /* read device ready pin */
-static int em_x270_nand_device_ready(struct mtd_info *mtd)
+static int em_x270_nand_device_ready(struct nand_chip *this)
 {
 	dsb();
 

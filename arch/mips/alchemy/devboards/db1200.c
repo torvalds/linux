@@ -197,10 +197,9 @@ static struct i2c_board_info db1200_i2c_devs[] __initdata = {
 
 /**********************************************************************/
 
-static void au1200_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void au1200_nand_cmd_ctrl(struct nand_chip *this, int cmd,
 				 unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	unsigned long ioaddr = (unsigned long)this->IO_ADDR_W;
 
 	ioaddr &= 0xffffff00;
@@ -220,7 +219,7 @@ static void au1200_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 	}
 }
 
-static int au1200_nand_device_ready(struct mtd_info *mtd)
+static int au1200_nand_device_ready(struct nand_chip *this)
 {
 	return alchemy_rdsmem(AU1000_MEM_STSTAT) & 1;
 }

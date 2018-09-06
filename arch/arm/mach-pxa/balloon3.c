@@ -571,9 +571,9 @@ static inline void balloon3_i2c_init(void) {}
  * NAND
  ******************************************************************************/
 #if defined(CONFIG_MTD_NAND_PLATFORM)||defined(CONFIG_MTD_NAND_PLATFORM_MODULE)
-static void balloon3_nand_cmd_ctl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+static void balloon3_nand_cmd_ctl(struct nand_chip *this, int cmd,
+				  unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	uint8_t balloon3_ctl_set = 0, balloon3_ctl_clr = 0;
 
 	if (ctrl & NAND_CTRL_CHANGE) {
@@ -600,7 +600,7 @@ static void balloon3_nand_cmd_ctl(struct mtd_info *mtd, int cmd, unsigned int ct
 		writeb(cmd, this->IO_ADDR_W);
 }
 
-static void balloon3_nand_select_chip(struct mtd_info *mtd, int chip)
+static void balloon3_nand_select_chip(struct nand_chip *this, int chip)
 {
 	if (chip < 0 || chip > 3)
 		return;
@@ -616,7 +616,7 @@ static void balloon3_nand_select_chip(struct mtd_info *mtd, int chip)
 		BALLOON3_NAND_CONTROL_REG);
 }
 
-static int balloon3_nand_dev_ready(struct mtd_info *mtd)
+static int balloon3_nand_dev_ready(struct nand_chip *this)
 {
 	return __raw_readl(BALLOON3_NAND_STAT_REG) & BALLOON3_NAND_STAT_RNB;
 }

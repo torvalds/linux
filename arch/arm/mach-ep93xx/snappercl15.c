@@ -45,10 +45,9 @@
 
 #define NAND_CTRL_ADDR(chip) 	(chip->IO_ADDR_W + 0x40)
 
-static void snappercl15_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void snappercl15_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
 				      unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	static u16 nand_state = SNAPPERCL15_NAND_WPN;
 	u16 set;
 
@@ -73,10 +72,8 @@ static void snappercl15_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 		__raw_writew((cmd & 0xff) | nand_state, chip->IO_ADDR_W);
 }
 
-static int snappercl15_nand_dev_ready(struct mtd_info *mtd)
+static int snappercl15_nand_dev_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	return !!(__raw_readw(NAND_CTRL_ADDR(chip)) & SNAPPERCL15_NAND_RDY);
 }
 

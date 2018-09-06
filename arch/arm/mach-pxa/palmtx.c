@@ -247,10 +247,9 @@ static inline void palmtx_keys_init(void) {}
  ******************************************************************************/
 #if defined(CONFIG_MTD_NAND_PLATFORM) || \
 	defined(CONFIG_MTD_NAND_PLATFORM_MODULE)
-static void palmtx_nand_cmd_ctl(struct mtd_info *mtd, int cmd,
-				 unsigned int ctrl)
+static void palmtx_nand_cmd_ctl(struct nand_chip *this, int cmd,
+				unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	char __iomem *nandaddr = this->IO_ADDR_W;
 
 	if (cmd == NAND_CMD_NONE)

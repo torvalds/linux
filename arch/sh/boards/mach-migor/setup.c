@@ -165,11 +165,9 @@ static struct mtd_partition migor_nand_flash_partitions[] = {
 	},
 };
 
-static void migor_nand_flash_cmd_ctl(struct mtd_info *mtd, int cmd,
+static void migor_nand_flash_cmd_ctl(struct nand_chip *chip, int cmd,
 				     unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	if (cmd == NAND_CMD_NONE)
 		return;
 
@@ -181,7 +179,7 @@ static void migor_nand_flash_cmd_ctl(struct mtd_info *mtd, int cmd,
 		writeb(cmd, chip->IO_ADDR_W);
 }
 
-static int migor_nand_flash_ready(struct mtd_info *mtd)
+static int migor_nand_flash_ready(struct nand_chip *chip)
 {
 	return gpio_get_value(GPIO_PTA1); /* NAND_RBn */
 }

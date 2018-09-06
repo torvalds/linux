@@ -76,11 +76,9 @@ static void __init ts72xx_map_io(void)
 #define TS72XX_NAND_CONTROL_ADDR_LINE	22	/* 0xN0400000 */
 #define TS72XX_NAND_BUSY_ADDR_LINE	23	/* 0xN0800000 */
 
-static void ts72xx_nand_hwcontrol(struct mtd_info *mtd,
+static void ts72xx_nand_hwcontrol(struct nand_chip *chip,
 				  int cmd, unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	if (ctrl & NAND_CTRL_CHANGE) {
 		void __iomem *addr = chip->IO_ADDR_R;
 		unsigned char bits;
@@ -99,9 +97,8 @@ static void ts72xx_nand_hwcontrol(struct mtd_info *mtd,
 		__raw_writeb(cmd, chip->IO_ADDR_W);
 }
 
-static int ts72xx_nand_device_ready(struct mtd_info *mtd)
+static int ts72xx_nand_device_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	void __iomem *addr = chip->IO_ADDR_R;
 
 	addr += (1 << TS72XX_NAND_BUSY_ADDR_LINE);
