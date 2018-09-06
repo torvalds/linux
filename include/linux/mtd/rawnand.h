@@ -1187,6 +1187,8 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  *	       If set to NULL no access to ready/busy is available and the
  *	       ready/busy information is read from the chip status register.
  * @waitfunc: hardware specific function for wait on ready.
+ * @block_bad: check if a block is bad, using OOB markers
+ * @block_markbad: mark a block bad
  *
  * If you look at this structure you're already wrong. These fields/hooks are
  * all deprecated.
@@ -1203,6 +1205,8 @@ struct nand_legacy {
 			int page_addr);
 	int (*dev_ready)(struct nand_chip *chip);
 	int (*waitfunc)(struct nand_chip *chip);
+	int (*block_bad)(struct nand_chip *chip, loff_t ofs);
+	int (*block_markbad)(struct nand_chip *chip, loff_t ofs);
 };
 
 /**
@@ -1214,8 +1218,6 @@ struct nand_legacy {
  *			fields/hooks, you should consider reworking the driver
  *			avoid using them.
  * @select_chip:	[REPLACEABLE] select chip nr
- * @block_bad:		[REPLACEABLE] check if a block is bad, using OOB markers
- * @block_markbad:	[REPLACEABLE] mark a block bad
  * @exec_op:		controller specific method to execute NAND operations.
  *			This method replaces ->cmdfunc(),
  *			->legacy.{read,write}_{buf,byte,word}(),
@@ -1303,8 +1305,6 @@ struct nand_chip {
 	struct nand_legacy legacy;
 
 	void (*select_chip)(struct nand_chip *chip, int cs);
-	int (*block_bad)(struct nand_chip *chip, loff_t ofs);
-	int (*block_markbad)(struct nand_chip *chip, loff_t ofs);
 	int (*exec_op)(struct nand_chip *chip,
 		       const struct nand_operation *op,
 		       bool check_only);
@@ -1556,6 +1556,7 @@ extern const struct nand_manufacturer_ops macronix_nand_manuf_ops;
 
 int nand_create_bbt(struct nand_chip *chip);
 int nand_markbad_bbt(struct nand_chip *chip, loff_t offs);
+int nand_markbad_bbm(struct nand_chip *chip, loff_t ofs);
 int nand_isreserved_bbt(struct nand_chip *chip, loff_t offs);
 int nand_isbad_bbt(struct nand_chip *chip, loff_t offs, int allowbbt);
 int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,

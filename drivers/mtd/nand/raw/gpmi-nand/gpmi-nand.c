@@ -1774,7 +1774,7 @@ static int mx23_boot_init(struct gpmi_nand_data  *this)
 		 */
 		if (block_mark != 0xff) {
 			dev_dbg(dev, "Transcribing mark in block %u\n", block);
-			ret = chip->block_markbad(chip, byte);
+			ret = chip->legacy.block_markbad(chip, byte);
 			if (ret)
 				dev_err(dev,
 					"Failed to mark block bad with ret %d\n",
@@ -1908,7 +1908,7 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	chip->legacy.read_buf	= gpmi_read_buf;
 	chip->legacy.write_buf	= gpmi_write_buf;
 	chip->badblock_pattern	= &gpmi_bbt_descr;
-	chip->block_markbad	= gpmi_block_markbad;
+	chip->legacy.block_markbad = gpmi_block_markbad;
 	chip->options		|= NAND_NO_SUBPAGE_WRITE;
 
 	/* Set up swap_block_mark, must be set before the gpmi_set_geometry() */

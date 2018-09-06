@@ -168,7 +168,7 @@ static int sm_attach_chip(struct nand_chip *chip)
 	/* Bad block marker position */
 	chip->badblockpos = 0x05;
 	chip->badblockbits = 7;
-	chip->block_markbad = sm_block_markbad;
+	chip->legacy.block_markbad = sm_block_markbad;
 
 	/* ECC layout */
 	if (mtd->writesize == SM_SECTOR_SIZE)

@@ -719,7 +719,7 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 
 	if (skipbbt) {
 		cafe->nand.options |= NAND_SKIP_BBTSCAN;
-		cafe->nand.block_bad = cafe_nand_block_bad;
+		cafe->nand.legacy.block_bad = cafe_nand_block_bad;
 	}
 
 	if (numtimings && numtimings != 3) {

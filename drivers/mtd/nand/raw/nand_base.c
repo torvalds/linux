@@ -476,13 +476,34 @@ static int nand_default_block_markbad(struct nand_chip *chip, loff_t ofs)
 }
 
 /**
+ * nand_markbad_bbm - mark a block by updating the BBM
+ * @chip: NAND chip object
+ * @ofs: offset of the block to mark bad
+ */
+int nand_markbad_bbm(struct nand_chip *chip, loff_t ofs)
+{
+	if (chip->legacy.block_markbad)
+		return chip->legacy.block_markbad(chip, ofs);
+
+	return nand_default_block_markbad(chip, ofs);
+}
+
+static int nand_isbad_bbm(struct nand_chip *chip, loff_t ofs)
+{
+	if (chip->legacy.block_bad)
+		return chip->legacy.block_bad(chip, ofs);
+
+	return nand_block_bad(chip, ofs);
+}
+
+/**
  * nand_block_markbad_lowlevel - mark a block bad
  * @mtd: MTD device structure
  * @ofs: offset from device start
  *
  * This function performs the generic NAND bad block marking steps (i.e., bad
  * block table(s) and/or marker(s)). We only allow the hardware driver to
- * specify how to write bad block markers to OOB (chip->block_markbad).
+ * specify how to write bad block markers to OOB (chip->legacy.block_markbad).
  *
  * We try operations in the following order:
  *
@@ -510,7 +531,7 @@ static int nand_block_markbad_lowlevel(struct mtd_info *mtd, loff_t ofs)
 
 		/* Write bad block marker to OOB */
 		nand_get_device(mtd, FL_WRITING);
-		ret = chip->block_markbad(chip, ofs);
+		ret = nand_markbad_bbm(chip, ofs);
 		nand_release_device(mtd);
 	}
 
@@ -582,11 +603,11 @@ static int nand_block_checkbad(struct mtd_info *mtd, loff_t ofs, int allowbbt)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 
-	if (!chip->bbt)
-		return chip->block_bad(chip, ofs);
-
 	/* Return info from the table */
-	return nand_isbad_bbt(chip, ofs, allowbbt);
+	if (chip->bbt)
+		return nand_isbad_bbt(chip, ofs, allowbbt);
+
+	return nand_isbad_bbm(chip, ofs);
 }
 
 /**
@@ -4942,10 +4963,6 @@ static void nand_set_defaults(struct nand_chip *chip)
 	/* If called twice, pointers that depend on busw may need to be reset */
 	if (!chip->legacy.read_byte || chip->legacy.read_byte == nand_read_byte)
 		chip->legacy.read_byte = busw ? nand_read_byte16 : nand_read_byte;
-	if (!chip->block_bad)
-		chip->block_bad = nand_block_bad;
-	if (!chip->block_markbad)
-		chip->block_markbad = nand_default_block_markbad;
 	if (!chip->legacy.write_buf || chip->legacy.write_buf == nand_write_buf)
 		chip->legacy.write_buf = busw ? nand_write_buf16 : nand_write_buf;
 	if (!chip->legacy.write_byte || chip->legacy.write_byte == nand_write_byte)

@@ -2819,8 +2819,8 @@ static int qcom_nand_host_init_and_register(struct qcom_nand_controller *nandc,
 	 * and block_markbad helpers until we permanently switch to using
 	 * MTD_OPS_RAW for all drivers (with the help of badblockbits)
 	 */
-	chip->block_bad		= qcom_nandc_block_bad;
-	chip->block_markbad	= qcom_nandc_block_markbad;
+	chip->legacy.block_bad		= qcom_nandc_block_bad;
+	chip->legacy.block_markbad	= qcom_nandc_block_markbad;
 
 	chip->controller = &nandc->controller;
 	chip->options |= NAND_NO_SUBPAGE_WRITE | NAND_USE_BOUNCE_BUFFER |
