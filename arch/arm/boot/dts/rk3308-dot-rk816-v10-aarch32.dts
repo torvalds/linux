@@ -212,11 +212,11 @@
 			ocv_table = <3400 3625 3685 3697 3718 3735 3748
 				     3760 3774 3788 3802 3816 3834 3853
 				     3877 3908 3946 3975 4018 4071 4106>;
-			design_capacity = <5000>;
-			design_qmax = <5200>;
-			bat_res = <100>;
+			design_capacity = <2750>;
+			design_qmax = <3000>;
+			bat_res = <110>;
 			max_input_current = <2000>;
-			max_chrg_current = <1300>;
+			max_chrg_current = <1800>;
 			max_chrg_voltage = <4200>;
 			sleep_enter_current = <300>;
 			sleep_exit_current = <300>;
@@ -225,7 +225,7 @@
 			zero_algorithm_vol = <3850>;
 			max_soc_offset = <80>;
 			monitor_sec = <5>;
-			virtual_power = <1>;
+			virtual_power = <0>;
 			power_dc2otg = <0>;
 			dc_det_adc = <0>;
 		};
