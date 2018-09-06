@@ -2057,12 +2057,12 @@ static void rk816_bat_select_chrg_cv(struct rk816_battery *di)
 	chrg_cur_input = di->pdata->max_input_current;
 	chrg_cur_lp_input = di->pdata->lp_input_current;
 
-	if (!di->over_20mR) {
+	if (di->pdata->sample_res < 20) {
 		if (chrg_cur_sel > 2000)
 			chrg_cur_sel = RES_FAC_DIV(chrg_cur_sel, di->res_fac);
 		else
 			chrg_cur_sel = 1000;
-	} else {
+	} else if (di->pdata->sample_res > 20) {
 		chrg_cur_sel = RES_FAC_MUX(chrg_cur_sel, di->res_fac);
 		if (chrg_cur_sel > 2400)
 			chrg_cur_sel = 2400;
@@ -2611,6 +2611,7 @@ static void rk816_bat_debug_info(struct rk816_battery *di)
 	u8 int_sts1, int_sts2, int_sts3;
 	u8 int_msk1, int_msk2, int_msk3;
 	u8 chrg_ctrl2, chrg_ctrl3, rtc, misc, dcdc_en2;
+	u32 chrg_sel;
 	const char *work_mode[] = {"ZERO", "FINISH", "UN", "UN", "SMOOTH"};
 	const char *bat_mode[] = {"BAT", "VIRTUAL"};
 
@@ -2644,6 +2645,11 @@ static void rk816_bat_debug_info(struct rk816_battery *di)
 	int_msk2 = rk816_bat_read(di, RK816_INT_STS_MSK_REG2);
 	int_msk3 = rk816_bat_read(di, RK816_INT_STS_MSK_REG3);
 	dcdc_en2 = rk816_bat_read(di, RK816_DCDC_EN_REG2);
+	chrg_sel = CHRG_CUR_SEL[chrg_ctrl1 & 0x0f];
+	if (!di->over_20mR)
+		chrg_sel = RES_FAC_MUX(chrg_sel, di->res_fac);
+	else
+		chrg_sel = RES_FAC_DIV(chrg_sel, di->res_fac);
 
 	DBG("\n------- DEBUG REGS, [Ver: %s] -------------------\n"
 	    "GGCON=0x%2x, GGSTS=0x%2x, RTC=0x%2x, DCDC_EN2=0x%2x\n"
@@ -2674,7 +2680,7 @@ static void rk816_bat_debug_info(struct rk816_battery *di)
 	    di->dsoc, di->rsoc, di->voltage_avg, di->current_avg,
 	    di->remain_cap, di->fcc, di->dsoc - di->rsoc,
 	    di->sm_linek, work_mode[di->work_mode], di->sm_remain_cap,
-	    CHRG_CUR_SEL[chrg_ctrl1 & 0x0f],
+	    chrg_sel,
 	    CHRG_CUR_INPUT[usb_ctrl & 0x0f],
 	    CHRG_VOL_SEL[(chrg_ctrl1 & 0x70) >> 4],
 	    rk816_bat_get_usb_voltage(di),
