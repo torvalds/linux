@@ -3,6 +3,7 @@
 #define _PERF_UTIL_TRACE_EVENT_H
 
 #include <traceevent/event-parse.h>
+#include <traceevent/trace-seq.h>
 #include "parse-events.h"
 
 struct machine;

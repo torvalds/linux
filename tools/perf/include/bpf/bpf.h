@@ -26,6 +26,9 @@ struct bpf_map {
 #define syscall_enter(name) \
 	SEC("syscalls:sys_enter_" #name) syscall_enter_ ## name
 
+#define syscall_exit(name) \
+	SEC("syscalls:sys_exit_" #name) syscall_exit_ ## name
+
 #define license(name) \
 char _license[] SEC("license") = #name; \
 int _version SEC("version") = LINUX_VERSION_CODE;
