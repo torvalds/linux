@@ -945,7 +945,7 @@ static int atmel_hsmc_nand_pmecc_write_pg(struct nand_chip *chip,
 		dev_err(nc->base.dev, "Failed to program NAND page (err = %d)\n",
 			ret);
 
-	status = chip->waitfunc(mtd, chip);
+	status = chip->waitfunc(chip);
 	if (status & NAND_STATUS_FAIL)
 		return -EIO;
 

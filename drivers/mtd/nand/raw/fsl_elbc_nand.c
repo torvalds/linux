@@ -621,7 +621,7 @@ static void fsl_elbc_read_buf(struct nand_chip *chip, u8 *buf, int len)
 /* This function is called after Program and Erase Operations to
  * check for success or failure.
  */
-static int fsl_elbc_wait(struct mtd_info *mtd, struct nand_chip *chip)
+static int fsl_elbc_wait(struct nand_chip *chip)
 {
 	struct fsl_elbc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_elbc_fcm_ctrl *elbc_fcm_ctrl = priv->ctrl->nand;
@@ -720,7 +720,7 @@ static int fsl_elbc_read_page(struct nand_chip *chip, uint8_t *buf,
 	if (oob_required)
 		fsl_elbc_read_buf(chip, chip->oob_poi, mtd->oobsize);
 
-	if (fsl_elbc_wait(mtd, chip) & NAND_STATUS_FAIL)
+	if (fsl_elbc_wait(chip) & NAND_STATUS_FAIL)
 		mtd->ecc_stats.failed++;
 
 	return elbc_fcm_ctrl->max_bitflips;

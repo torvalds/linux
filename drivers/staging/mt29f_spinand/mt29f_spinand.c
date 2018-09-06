@@ -695,8 +695,9 @@ static u8 spinand_read_byte(struct nand_chip *chip)
 	return data;
 }
 
-static int spinand_wait(struct mtd_info *mtd, struct nand_chip *chip)
+static int spinand_wait(struct nand_chip *chip)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct spinand_info *info = nand_get_controller_data(chip);
 
 	unsigned long timeo = jiffies;

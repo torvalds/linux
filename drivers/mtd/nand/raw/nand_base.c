@@ -1062,8 +1062,7 @@ retry:
  * we are in interrupt context. May happen when in panic and trying to write
  * an oops through mtdoops.
  */
-static void panic_nand_wait(struct mtd_info *mtd, struct nand_chip *chip,
-			    unsigned long timeo)
+static void panic_nand_wait(struct nand_chip *chip, unsigned long timeo)
 {
 	int i;
 	for (i = 0; i < timeo; i++) {
@@ -1093,7 +1092,7 @@ static void panic_nand_wait(struct mtd_info *mtd, struct nand_chip *chip,
  *
  * Wait for command done. This applies to erase and program only.
  */
-static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
+static int nand_wait(struct nand_chip *chip)
 {
 
 	unsigned long timeo = 400;
@@ -1111,7 +1110,7 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 		return ret;
 
 	if (in_interrupt() || oops_in_progress)
-		panic_nand_wait(mtd, chip, timeo);
+		panic_nand_wait(chip, timeo);
 	else {
 		timeo = jiffies + msecs_to_jiffies(timeo);
 		do {
@@ -1553,7 +1552,6 @@ EXPORT_SYMBOL_GPL(nand_read_page_op);
 static int nand_read_param_page_op(struct nand_chip *chip, u8 page, void *buf,
 				   unsigned int len)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	unsigned int i;
 	u8 *p = buf;
 
@@ -1811,7 +1809,6 @@ EXPORT_SYMBOL_GPL(nand_prog_page_begin_op);
  */
 int nand_prog_page_end_op(struct nand_chip *chip)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 	u8 status;
 
@@ -1834,7 +1831,7 @@ int nand_prog_page_end_op(struct nand_chip *chip)
 			return ret;
 	} else {
 		chip->cmdfunc(chip, NAND_CMD_PAGEPROG, -1, -1);
-		ret = chip->waitfunc(mtd, chip);
+		ret = chip->waitfunc(chip);
 		if (ret < 0)
 			return ret;
 
@@ -1881,7 +1878,7 @@ int nand_prog_page_op(struct nand_chip *chip, unsigned int page,
 		chip->cmdfunc(chip, NAND_CMD_SEQIN, offset_in_page, page);
 		chip->write_buf(chip, buf, len);
 		chip->cmdfunc(chip, NAND_CMD_PAGEPROG, -1, -1);
-		status = chip->waitfunc(mtd, chip);
+		status = chip->waitfunc(chip);
 	}
 
 	if (status & NAND_STATUS_FAIL)
@@ -1970,7 +1967,6 @@ EXPORT_SYMBOL_GPL(nand_change_write_column_op);
 int nand_readid_op(struct nand_chip *chip, u8 addr, void *buf,
 		   unsigned int len)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	unsigned int i;
 	u8 *id = buf;
 
@@ -2016,8 +2012,6 @@ EXPORT_SYMBOL_GPL(nand_readid_op);
  */
 int nand_status_op(struct nand_chip *chip, u8 *status)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-
 	if (chip->exec_op) {
 		const struct nand_sdr_timings *sdr =
 			nand_get_sdr_timings(&chip->data_interface);
@@ -2055,8 +2049,6 @@ EXPORT_SYMBOL_GPL(nand_status_op);
  */
 int nand_exit_status_op(struct nand_chip *chip)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-
 	if (chip->exec_op) {
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(NAND_CMD_READ0, 0),
@@ -2085,7 +2077,6 @@ EXPORT_SYMBOL_GPL(nand_exit_status_op);
  */
 int nand_erase_op(struct nand_chip *chip, unsigned int eraseblock)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	unsigned int page = eraseblock <<
 			    (chip->phys_erase_shift - chip->page_shift);
 	int ret;
@@ -2118,7 +2109,7 @@ int nand_erase_op(struct nand_chip *chip, unsigned int eraseblock)
 		chip->cmdfunc(chip, NAND_CMD_ERASE1, -1, page);
 		chip->cmdfunc(chip, NAND_CMD_ERASE2, -1, -1);
 
-		ret = chip->waitfunc(mtd, chip);
+		ret = chip->waitfunc(chip);
 		if (ret < 0)
 			return ret;
 
@@ -2147,7 +2138,6 @@ EXPORT_SYMBOL_GPL(nand_erase_op);
 static int nand_set_features_op(struct nand_chip *chip, u8 feature,
 				const void *data)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	const u8 *params = data;
 	int i, ret;
 
@@ -2170,7 +2160,7 @@ static int nand_set_features_op(struct nand_chip *chip, u8 feature,
 	for (i = 0; i < ONFI_SUBFEATURE_PARAM_LEN; ++i)
 		chip->write_byte(chip, params[i]);
 
-	ret = chip->waitfunc(mtd, chip);
+	ret = chip->waitfunc(chip);
 	if (ret < 0)
 		return ret;
 
@@ -2195,7 +2185,6 @@ static int nand_set_features_op(struct nand_chip *chip, u8 feature,
 static int nand_get_features_op(struct nand_chip *chip, u8 feature,
 				void *data)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	u8 *params = data;
 	int i;
 
@@ -2256,8 +2245,6 @@ static int nand_wait_rdy_op(struct nand_chip *chip, unsigned int timeout_ms,
  */
 int nand_reset_op(struct nand_chip *chip)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-
 	if (chip->exec_op) {
 		const struct nand_sdr_timings *sdr =
 			nand_get_sdr_timings(&chip->data_interface);
@@ -4518,7 +4505,7 @@ static int panic_nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 	chip->select_chip(chip, chipnr);
 
 	/* Wait for the device to get ready */
-	panic_nand_wait(mtd, chip, 400);
+	panic_nand_wait(chip, 400);
 
 	memset(&ops, 0, sizeof(ops));
 	ops.len = len;

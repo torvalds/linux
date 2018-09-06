@@ -1294,7 +1294,7 @@ struct nand_chip {
 	int (*dev_ready)(struct nand_chip *chip);
 	void (*cmdfunc)(struct nand_chip *chip, unsigned command, int column,
 			int page_addr);
-	int(*waitfunc)(struct mtd_info *mtd, struct nand_chip *this);
+	int (*waitfunc)(struct nand_chip *chip);
 	int (*exec_op)(struct nand_chip *chip,
 		       const struct nand_operation *op,
 		       bool check_only);

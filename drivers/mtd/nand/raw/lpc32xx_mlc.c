@@ -328,8 +328,9 @@ static irqreturn_t lpc3xxx_nand_irq(int irq, struct lpc32xx_nand_host *host)
 	return IRQ_HANDLED;
 }
 
-static int lpc32xx_waitfunc_nand(struct mtd_info *mtd, struct nand_chip *chip)
+static int lpc32xx_waitfunc_nand(struct nand_chip *chip)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
 	if (readb(MLC_ISR(host->io_base)) & MLCISR_NAND_READY)
@@ -347,9 +348,9 @@ exit:
 	return NAND_STATUS_READY;
 }
 
-static int lpc32xx_waitfunc_controller(struct mtd_info *mtd,
-				       struct nand_chip *chip)
+static int lpc32xx_waitfunc_controller(struct nand_chip *chip)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
 	if (readb(MLC_ISR(host->io_base)) & MLCISR_CONTROLLER_READY)
@@ -367,10 +368,10 @@ exit:
 	return NAND_STATUS_READY;
 }
 
-static int lpc32xx_waitfunc(struct mtd_info *mtd, struct nand_chip *chip)
+static int lpc32xx_waitfunc(struct nand_chip *chip)
 {
-	lpc32xx_waitfunc_nand(mtd, chip);
-	lpc32xx_waitfunc_controller(mtd, chip);
+	lpc32xx_waitfunc_nand(chip);
+	lpc32xx_waitfunc_controller(chip);
 
 	return NAND_STATUS_READY;
 }
@@ -469,7 +470,7 @@ static int lpc32xx_read_page(struct nand_chip *chip, uint8_t *buf,
 		writeb(0x00, MLC_ECC_AUTO_DEC_REG(host->io_base));
 
 		/* Wait for Controller Ready */
-		lpc32xx_waitfunc_controller(mtd, chip);
+		lpc32xx_waitfunc_controller(chip);
 
 		/* Check ECC Error status */
 		mlc_isr = readl(MLC_ISR(host->io_base));
@@ -550,7 +551,7 @@ static int lpc32xx_write_page_lowlevel(struct nand_chip *chip,
 		writeb(0x00, MLC_ECC_AUTO_ENC_REG(host->io_base));
 
 		/* Wait for Controller Ready */
-		lpc32xx_waitfunc_controller(mtd, chip);
+		lpc32xx_waitfunc_controller(chip);
 	}
 
 	return nand_prog_page_end_op(chip);

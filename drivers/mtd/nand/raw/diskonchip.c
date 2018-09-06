@@ -433,7 +433,7 @@ static void __init doc2000_count_chips(struct mtd_info *mtd)
 	pr_debug("Detected %d chips per floor.\n", i);
 }
 
-static int doc200x_wait(struct mtd_info *mtd, struct nand_chip *this)
+static int doc200x_wait(struct nand_chip *this)
 {
 	struct doc_priv *doc = nand_get_controller_data(this);
 

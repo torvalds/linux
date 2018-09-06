@@ -315,7 +315,7 @@ static int poll_status(struct docg4_priv *doc)
 }
 
 
-static int docg4_wait(struct mtd_info *mtd, struct nand_chip *nand)
+static int docg4_wait(struct nand_chip *nand)
 {
 
 	struct docg4_priv *doc = nand_get_controller_data(nand);
@@ -938,7 +938,7 @@ static int docg4_erase_block(struct mtd_info *mtd, int page)
 	poll_status(doc);
 	write_nop(docptr);
 
-	status = nand->waitfunc(mtd, nand);
+	status = nand->waitfunc(nand);
 	if (status < 0)
 		return status;
 

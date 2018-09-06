@@ -981,8 +981,7 @@ static void omap_enable_hwecc(struct nand_chip *chip, int mode)
 
 /**
  * omap_wait - wait until the command is done
- * @mtd: MTD device structure
- * @chip: NAND Chip structure
+ * @this: NAND Chip structure
  *
  * Wait function is called during Program and erase operations and
  * the way it is called from MTD layer, we should wait till the NAND
@@ -991,10 +990,9 @@ static void omap_enable_hwecc(struct nand_chip *chip, int mode)
  * Erase can take up to 400ms and program up to 20ms according to
  * general NAND and SmartMedia specs
  */
-static int omap_wait(struct mtd_info *mtd, struct nand_chip *chip)
+static int omap_wait(struct nand_chip *this)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
-	struct omap_nand_info *info = mtd_to_omap(mtd);
+	struct omap_nand_info *info = mtd_to_omap(nand_to_mtd(this));
 	unsigned long timeo = jiffies;
 	int status, state = this->state;
 

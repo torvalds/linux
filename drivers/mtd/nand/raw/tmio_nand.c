@@ -186,10 +186,9 @@ static irqreturn_t tmio_irq(int irq, void *__tmio)
   *erase and write, we enable it to wake us up.  The irq handler
   *disables the interrupt.
  */
-static int
-tmio_nand_wait(struct mtd_info *mtd, struct nand_chip *nand_chip)
+static int tmio_nand_wait(struct nand_chip *nand_chip)
 {
-	struct tmio_nand *tmio = mtd_to_tmio(mtd);
+	struct tmio_nand *tmio = mtd_to_tmio(nand_to_mtd(nand_chip));
 	long timeout;
 	u8 status;
 

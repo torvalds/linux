@@ -1237,9 +1237,8 @@ static void brcmnand_cmd_ctrl(struct nand_chip *chip, int dat,
 	/* intentionally left blank */
 }
 
-static int brcmnand_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
+static int brcmnand_waitfunc(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	struct brcmnand_controller *ctrl = host->ctrl;
 	unsigned long timeo = msecs_to_jiffies(100);
@@ -1274,7 +1273,6 @@ static int brcmnand_low_level_op(struct brcmnand_host *host,
 				 enum brcmnand_llop_type type, u32 data,
 				 bool last_op)
 {
-	struct mtd_info *mtd = nand_to_mtd(&host->chip);
 	struct nand_chip *chip = &host->chip;
 	struct brcmnand_controller *ctrl = host->ctrl;
 	u32 tmp;
@@ -1307,7 +1305,7 @@ static int brcmnand_low_level_op(struct brcmnand_host *host,
 	(void)brcmnand_read_reg(ctrl, BRCMNAND_LL_OP);
 
 	brcmnand_send_cmd(host, CMD_LOW_LEVEL_OP);
-	return brcmnand_waitfunc(mtd, chip);
+	return brcmnand_waitfunc(chip);
 }
 
 static void brcmnand_cmdfunc(struct nand_chip *chip, unsigned command,
@@ -1383,7 +1381,7 @@ static void brcmnand_cmdfunc(struct nand_chip *chip, unsigned command,
 	(void)brcmnand_read_reg(ctrl, BRCMNAND_CMD_ADDRESS);
 
 	brcmnand_send_cmd(host, native_cmd);
-	brcmnand_waitfunc(mtd, chip);
+	brcmnand_waitfunc(chip);
 
 	if (native_cmd == CMD_PARAMETER_READ ||
 			native_cmd == CMD_PARAMETER_CHANGE_COL) {
@@ -1615,7 +1613,7 @@ static int brcmnand_read_by_pio(struct mtd_info *mtd, struct nand_chip *chip,
 		(void)brcmnand_read_reg(ctrl, BRCMNAND_CMD_ADDRESS);
 		/* SPARE_AREA_READ does not use ECC, so just use PAGE_READ */
 		brcmnand_send_cmd(host, CMD_PAGE_READ);
-		brcmnand_waitfunc(mtd, chip);
+		brcmnand_waitfunc(chip);
 
 		if (likely(buf)) {
 			brcmnand_soc_data_bus_prepare(ctrl->soc, false);
@@ -1893,7 +1891,7 @@ static int brcmnand_write(struct mtd_info *mtd, struct nand_chip *chip,
 
 		/* we cannot use SPARE_AREA_PROGRAM when PARTIAL_PAGE_EN=0 */
 		brcmnand_send_cmd(host, CMD_PROGRAM_PAGE);
-		status = brcmnand_waitfunc(mtd, chip);
+		status = brcmnand_waitfunc(chip);
 
 		if (status & NAND_STATUS_FAIL) {
 			dev_info(ctrl->dev, "program failed at %llx\n",

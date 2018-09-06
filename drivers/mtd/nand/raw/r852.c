@@ -362,7 +362,7 @@ static void r852_cmdctl(struct nand_chip *chip, int dat, unsigned int ctrl)
  * Wait till card is ready.
  * based on nand_wait, but returns errors on DMA error
  */
-static int r852_wait(struct mtd_info *mtd, struct nand_chip *chip)
+static int r852_wait(struct nand_chip *chip)
 {
 	struct r852_device *dev = nand_get_controller_data(chip);
 

@@ -614,8 +614,9 @@ static void fsl_ifc_read_buf(struct nand_chip *chip, u8 *buf, int len)
  * This function is called after Program and Erase Operations to
  * check for success or failure.
  */
-static int fsl_ifc_wait(struct mtd_info *mtd, struct nand_chip *chip)
+static int fsl_ifc_wait(struct nand_chip *chip)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct fsl_ifc_mtd *priv = nand_get_controller_data(chip);
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
 	struct fsl_ifc_runtime __iomem *ifc = ctrl->rregs;

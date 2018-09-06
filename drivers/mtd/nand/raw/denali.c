@@ -904,9 +904,9 @@ static void denali_select_chip(struct nand_chip *chip, int cs)
 	denali->active_bank = cs;
 }
 
-static int denali_waitfunc(struct mtd_info *mtd, struct nand_chip *chip)
+static int denali_waitfunc(struct nand_chip *chip)
 {
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
+	struct denali_nand_info *denali = mtd_to_denali(nand_to_mtd(chip));
 	uint32_t irq_status;
 
 	/* R/B# pin transitioned from low to high? */

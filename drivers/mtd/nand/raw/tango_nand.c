@@ -314,7 +314,7 @@ static int tango_write_page(struct nand_chip *chip, const u8 *buf,
 	if (err)
 		return err;
 
-	status = chip->waitfunc(mtd, chip);
+	status = chip->waitfunc(chip);
 	if (status & NAND_STATUS_FAIL)
 		return -EIO;
 
