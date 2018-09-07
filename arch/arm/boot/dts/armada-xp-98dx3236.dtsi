@@ -243,7 +243,7 @@
 			ranges = <0 MBUS_ID(0x03, 0x00) 0 0x100000>;
 
 			pp0: packet-processor@0 {
-				compatible = "marvell,prestera-98dx3236";
+				compatible = "marvell,prestera-98dx3236", "marvell,prestera";
 				reg = <0 0x4000000>;
 				interrupts = <33>, <34>, <35>;
 				dfx = <&dfx>;
