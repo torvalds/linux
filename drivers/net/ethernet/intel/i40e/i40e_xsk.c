@@ -944,3 +944,24 @@ void i40e_xsk_clean_tx_ring(struct i40e_ring *tx_ring)
 	if (xsk_frames)
 		xsk_umem_complete_tx(umem, xsk_frames);
 }
+
+/**
+ * i40e_xsk_any_rx_ring_enabled - Checks if Rx rings have AF_XDP UMEM attached
+ * @vsi: vsi
+ *
+ * Returns true if any of the Rx rings has an AF_XDP UMEM attached
+ **/
+bool i40e_xsk_any_rx_ring_enabled(struct i40e_vsi *vsi)
+{
+	int i;
+
+	if (!vsi->xsk_umems)
+		return false;
+
+	for (i = 0; i < vsi->num_queue_pairs; i++) {
+		if (vsi->xsk_umems[i])
+			return true;
+	}
+
+	return false;
+}
