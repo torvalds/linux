@@ -518,6 +518,9 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	struct ubifs_dent_node *dent;
 	struct ubifs_ino_node *ino;
 	union ubifs_key dent_key, ino_key;
+	u8 hash_dent[UBIFS_HASH_ARR_SZ];
+	u8 hash_ino[UBIFS_HASH_ARR_SZ];
+	u8 hash_ino_host[UBIFS_HASH_ARR_SZ];
 
 	ubifs_assert(c, mutex_is_locked(&host_ui->ui_mutex));
 
@@ -572,11 +575,21 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 
 	zero_dent_node_unused(dent);
 	ubifs_prep_grp_node(c, dent, dlen, 0);
+	err = ubifs_node_calc_hash(c, dent, hash_dent);
+	if (err)
+		goto out_release;
 
 	ino = (void *)dent + aligned_dlen;
 	pack_inode(c, ino, inode, 0);
+	err = ubifs_node_calc_hash(c, ino, hash_ino);
+	if (err)
+		goto out_release;
+
 	ino = (void *)ino + aligned_ilen;
 	pack_inode(c, ino, dir, 1);
+	err = ubifs_node_calc_hash(c, ino, hash_ino_host);
+	if (err)
+		goto out_release;
 
 	if (last_reference) {
 		err = ubifs_add_orphan(c, inode->i_ino);
@@ -608,7 +621,8 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 			goto out_ro;
 		err = ubifs_add_dirt(c, lnum, dlen);
 	} else
-		err = ubifs_tnc_add_nm(c, &dent_key, lnum, dent_offs, dlen, nm);
+		err = ubifs_tnc_add_nm(c, &dent_key, lnum, dent_offs, dlen,
+				       hash_dent, nm);
 	if (err)
 		goto out_ro;
 
@@ -620,14 +634,14 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	 */
 	ino_key_init(c, &ino_key, inode->i_ino);
 	ino_offs = dent_offs + aligned_dlen;
-	err = ubifs_tnc_add(c, &ino_key, lnum, ino_offs, ilen);
+	err = ubifs_tnc_add(c, &ino_key, lnum, ino_offs, ilen, hash_ino);
 	if (err)
 		goto out_ro;
 
 	ino_key_init(c, &ino_key, dir->i_ino);
 	ino_offs += aligned_ilen;
 	err = ubifs_tnc_add(c, &ino_key, lnum, ino_offs,
-			    UBIFS_INO_NODE_SZ + host_ui->data_len);
+			    UBIFS_INO_NODE_SZ + host_ui->data_len, hash_ino_host);
 	if (err)
 		goto out_ro;
 
@@ -680,6 +694,7 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 	int dlen = COMPRESSED_DATA_NODE_BUF_SZ, allocated = 1;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	bool encrypted = ubifs_crypt_is_encrypted(inode);
+	u8 hash[UBIFS_HASH_ARR_SZ];
 
 	dbg_jnlk(key, "ino %lu, blk %u, len %d, key ",
 		(unsigned long)key_inum(c, key), key_block(c, key), len);
@@ -738,10 +753,15 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 	err = write_head(c, DATAHD, data, dlen, &lnum, &offs, 0);
 	if (err)
 		goto out_release;
+
+	err = ubifs_node_calc_hash(c, data, hash);
+	if (err)
+		goto out_release;
+
 	ubifs_wbuf_add_ino_nolock(&c->jheads[DATAHD].wbuf, key_inum(c, key));
 	release_head(c, DATAHD);
 
-	err = ubifs_tnc_add(c, key, lnum, offs, dlen);
+	err = ubifs_tnc_add(c, key, lnum, offs, dlen, hash);
 	if (err)
 		goto out_ro;
 
@@ -780,6 +800,7 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 	struct ubifs_ino_node *ino;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	int sync = 0, len = UBIFS_INO_NODE_SZ, last_reference = !inode->i_nlink;
+	u8 hash[UBIFS_HASH_ARR_SZ];
 
 	dbg_jnl("ino %lu, nlink %u", inode->i_ino, inode->i_nlink);
 
@@ -801,6 +822,10 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 		goto out_free;
 
 	pack_inode(c, ino, inode, 1);
+	err = ubifs_node_calc_hash(c, ino, hash);
+	if (err)
+		goto out_release;
+
 	err = write_head(c, BASEHD, ino, len, &lnum, &offs, sync);
 	if (err)
 		goto out_release;
@@ -819,7 +844,7 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 		union ubifs_key key;
 
 		ino_key_init(c, &key, inode->i_ino);
-		err = ubifs_tnc_add(c, &key, lnum, offs, len);
+		err = ubifs_tnc_add(c, &key, lnum, offs, len, hash);
 	}
 	if (err)
 		goto out_ro;
@@ -929,6 +954,10 @@ int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
 	int aligned_dlen1, aligned_dlen2;
 	int twoparents = (fst_dir != snd_dir);
 	void *p;
+	u8 hash_dent1[UBIFS_HASH_ARR_SZ];
+	u8 hash_dent2[UBIFS_HASH_ARR_SZ];
+	u8 hash_p1[UBIFS_HASH_ARR_SZ];
+	u8 hash_p2[UBIFS_HASH_ARR_SZ];
 
 	ubifs_assert(c, ubifs_inode(fst_dir)->data_len == 0);
 	ubifs_assert(c, ubifs_inode(snd_dir)->data_len == 0);
@@ -964,6 +993,9 @@ int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
 	set_dent_cookie(c, dent1);
 	zero_dent_node_unused(dent1);
 	ubifs_prep_grp_node(c, dent1, dlen1, 0);
+	err = ubifs_node_calc_hash(c, dent1, hash_dent1);
+	if (err)
+		goto out_release;
 
 	/* Make new dent for 2nd entry */
 	dent2 = (void *)dent1 + aligned_dlen1;
@@ -977,14 +1009,26 @@ int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
 	set_dent_cookie(c, dent2);
 	zero_dent_node_unused(dent2);
 	ubifs_prep_grp_node(c, dent2, dlen2, 0);
+	err = ubifs_node_calc_hash(c, dent2, hash_dent2);
+	if (err)
+		goto out_release;
 
 	p = (void *)dent2 + aligned_dlen2;
-	if (!twoparents)
+	if (!twoparents) {
 		pack_inode(c, p, fst_dir, 1);
-	else {
+		err = ubifs_node_calc_hash(c, p, hash_p1);
+		if (err)
+			goto out_release;
+	} else {
 		pack_inode(c, p, fst_dir, 0);
+		err = ubifs_node_calc_hash(c, p, hash_p1);
+		if (err)
+			goto out_release;
 		p += ALIGN(plen, 8);
 		pack_inode(c, p, snd_dir, 1);
+		err = ubifs_node_calc_hash(c, p, hash_p2);
+		if (err)
+			goto out_release;
 	}
 
 	err = write_head(c, BASEHD, dent1, len, &lnum, &offs, sync);
@@ -999,27 +1043,27 @@ int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
 	release_head(c, BASEHD);
 
 	dent_key_init(c, &key, snd_dir->i_ino, snd_nm);
-	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen1, snd_nm);
+	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen1, hash_dent1, snd_nm);
 	if (err)
 		goto out_ro;
 
 	offs += aligned_dlen1;
 	dent_key_init(c, &key, fst_dir->i_ino, fst_nm);
-	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen2, fst_nm);
+	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen2, hash_dent2, fst_nm);
 	if (err)
 		goto out_ro;
 
 	offs += aligned_dlen2;
 
 	ino_key_init(c, &key, fst_dir->i_ino);
-	err = ubifs_tnc_add(c, &key, lnum, offs, plen);
+	err = ubifs_tnc_add(c, &key, lnum, offs, plen, hash_p1);
 	if (err)
 		goto out_ro;
 
 	if (twoparents) {
 		offs += ALIGN(plen, 8);
 		ino_key_init(c, &key, snd_dir->i_ino);
-		err = ubifs_tnc_add(c, &key, lnum, offs, plen);
+		err = ubifs_tnc_add(c, &key, lnum, offs, plen, hash_p2);
 		if (err)
 			goto out_ro;
 	}
@@ -1072,6 +1116,11 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	int last_reference = !!(new_inode && new_inode->i_nlink == 0);
 	int move = (old_dir != new_dir);
 	struct ubifs_inode *uninitialized_var(new_ui);
+	u8 hash_old_dir[UBIFS_HASH_ARR_SZ];
+	u8 hash_new_dir[UBIFS_HASH_ARR_SZ];
+	u8 hash_new_inode[UBIFS_HASH_ARR_SZ];
+	u8 hash_dent1[UBIFS_HASH_ARR_SZ];
+	u8 hash_dent2[UBIFS_HASH_ARR_SZ];
 
 	ubifs_assert(c, ubifs_inode(old_dir)->data_len == 0);
 	ubifs_assert(c, ubifs_inode(new_dir)->data_len == 0);
@@ -1114,6 +1163,9 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	set_dent_cookie(c, dent);
 	zero_dent_node_unused(dent);
 	ubifs_prep_grp_node(c, dent, dlen1, 0);
+	err = ubifs_node_calc_hash(c, dent, hash_dent1);
+	if (err)
+		goto out_release;
 
 	dent2 = (void *)dent + aligned_dlen1;
 	dent2->ch.node_type = UBIFS_DENT_NODE;
@@ -1133,19 +1185,36 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	set_dent_cookie(c, dent2);
 	zero_dent_node_unused(dent2);
 	ubifs_prep_grp_node(c, dent2, dlen2, 0);
+	err = ubifs_node_calc_hash(c, dent2, hash_dent2);
+	if (err)
+		goto out_release;
 
 	p = (void *)dent2 + aligned_dlen2;
 	if (new_inode) {
 		pack_inode(c, p, new_inode, 0);
+		err = ubifs_node_calc_hash(c, p, hash_new_inode);
+		if (err)
+			goto out_release;
+
 		p += ALIGN(ilen, 8);
 	}
 
-	if (!move)
+	if (!move) {
 		pack_inode(c, p, old_dir, 1);
-	else {
+		err = ubifs_node_calc_hash(c, p, hash_old_dir);
+		if (err)
+			goto out_release;
+	} else {
 		pack_inode(c, p, old_dir, 0);
+		err = ubifs_node_calc_hash(c, p, hash_old_dir);
+		if (err)
+			goto out_release;
+
 		p += ALIGN(plen, 8);
 		pack_inode(c, p, new_dir, 1);
+		err = ubifs_node_calc_hash(c, p, hash_new_dir);
+		if (err)
+			goto out_release;
 	}
 
 	if (last_reference) {
@@ -1172,14 +1241,14 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	release_head(c, BASEHD);
 
 	dent_key_init(c, &key, new_dir->i_ino, new_nm);
-	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen1, new_nm);
+	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen1, hash_dent1, new_nm);
 	if (err)
 		goto out_ro;
 
 	offs += aligned_dlen1;
 	if (whiteout) {
 		dent_key_init(c, &key, old_dir->i_ino, old_nm);
-		err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen2, old_nm);
+		err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen2, hash_dent2, old_nm);
 		if (err)
 			goto out_ro;
 
@@ -1198,21 +1267,21 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	offs += aligned_dlen2;
 	if (new_inode) {
 		ino_key_init(c, &key, new_inode->i_ino);
-		err = ubifs_tnc_add(c, &key, lnum, offs, ilen);
+		err = ubifs_tnc_add(c, &key, lnum, offs, ilen, hash_new_inode);
 		if (err)
 			goto out_ro;
 		offs += ALIGN(ilen, 8);
 	}
 
 	ino_key_init(c, &key, old_dir->i_ino);
-	err = ubifs_tnc_add(c, &key, lnum, offs, plen);
+	err = ubifs_tnc_add(c, &key, lnum, offs, plen, hash_old_dir);
 	if (err)
 		goto out_ro;
 
 	if (move) {
 		offs += ALIGN(plen, 8);
 		ino_key_init(c, &key, new_dir->i_ino);
-		err = ubifs_tnc_add(c, &key, lnum, offs, plen);
+		err = ubifs_tnc_add(c, &key, lnum, offs, plen, hash_new_dir);
 		if (err)
 			goto out_ro;
 	}
@@ -1331,6 +1400,8 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	ino_t inum = inode->i_ino;
 	unsigned int blk;
+	u8 hash_ino[UBIFS_HASH_ARR_SZ];
+	u8 hash_dn[UBIFS_HASH_ARR_SZ];
 
 	dbg_jnl("ino %lu, size %lld -> %lld",
 		(unsigned long)inum, old_size, new_size);
@@ -1392,9 +1463,17 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 		goto out_free;
 
 	pack_inode(c, ino, inode, 0);
+	err = ubifs_node_calc_hash(c, ino, hash_ino);
+	if (err)
+		goto out_release;
+
 	ubifs_prep_grp_node(c, trun, UBIFS_TRUN_NODE_SZ, dlen ? 0 : 1);
-	if (dlen)
+	if (dlen) {
 		ubifs_prep_grp_node(c, dn, dlen, 1);
+		err = ubifs_node_calc_hash(c, dn, hash_dn);
+		if (err)
+			goto out_release;
+	}
 
 	err = write_head(c, BASEHD, ino, len, &lnum, &offs, sync);
 	if (err)
@@ -1405,13 +1484,13 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 
 	if (dlen) {
 		sz = offs + UBIFS_INO_NODE_SZ + UBIFS_TRUN_NODE_SZ;
-		err = ubifs_tnc_add(c, &key, lnum, sz, dlen);
+		err = ubifs_tnc_add(c, &key, lnum, sz, dlen, hash_dn);
 		if (err)
 			goto out_ro;
 	}
 
 	ino_key_init(c, &key, inum);
-	err = ubifs_tnc_add(c, &key, lnum, offs, UBIFS_INO_NODE_SZ);
+	err = ubifs_tnc_add(c, &key, lnum, offs, UBIFS_INO_NODE_SZ, hash_ino);
 	if (err)
 		goto out_ro;
 
@@ -1472,6 +1551,7 @@ int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
 	union ubifs_key xent_key, key1, key2;
 	int sync = IS_DIRSYNC(host);
 	struct ubifs_inode *host_ui = ubifs_inode(host);
+	u8 hash[UBIFS_HASH_ARR_SZ];
 
 	ubifs_assert(c, inode->i_nlink == 0);
 	ubifs_assert(c, mutex_is_locked(&host_ui->ui_mutex));
@@ -1511,6 +1591,9 @@ int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
 	pack_inode(c, ino, inode, 0);
 	ino = (void *)ino + UBIFS_INO_NODE_SZ;
 	pack_inode(c, ino, host, 1);
+	err = ubifs_node_calc_hash(c, ino, hash);
+	if (err)
+		goto out_release;
 
 	err = write_head(c, BASEHD, xent, len, &lnum, &xent_offs, sync);
 	if (!sync && !err)
@@ -1543,7 +1626,7 @@ int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
 
 	/* And update TNC with the new host inode position */
 	ino_key_init(c, &key1, host->i_ino);
-	err = ubifs_tnc_add(c, &key1, lnum, xent_offs + len - hlen, hlen);
+	err = ubifs_tnc_add(c, &key1, lnum, xent_offs + len - hlen, hlen, hash);
 	if (err)
 		goto out_ro;
 
@@ -1554,6 +1637,9 @@ int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
 	mark_inode_clean(c, host_ui);
 	return 0;
 
+out_release:
+	kfree(xent);
+	release_head(c, BASEHD);
 out_ro:
 	ubifs_ro_mode(c, err);
 	finish_reservation(c);
@@ -1581,6 +1667,8 @@ int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode,
 	struct ubifs_ino_node *ino;
 	union ubifs_key key;
 	int sync = IS_DIRSYNC(host);
+	u8 hash_host[UBIFS_HASH_ARR_SZ];
+	u8 hash[UBIFS_HASH_ARR_SZ];
 
 	dbg_jnl("ino %lu, ino %lu", host->i_ino, inode->i_ino);
 	ubifs_assert(c, host->i_nlink > 0);
@@ -1602,7 +1690,13 @@ int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode,
 		goto out_free;
 
 	pack_inode(c, ino, host, 0);
+	err = ubifs_node_calc_hash(c, ino, hash_host);
+	if (err)
+		goto out_release;
 	pack_inode(c, (void *)ino + aligned_len1, inode, 1);
+	err = ubifs_node_calc_hash(c, (void *)ino + aligned_len1, hash);
+	if (err)
+		goto out_release;
 
 	err = write_head(c, BASEHD, ino, aligned_len, &lnum, &offs, 0);
 	if (!sync && !err) {
@@ -1616,12 +1710,12 @@ int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode,
 		goto out_ro;
 
 	ino_key_init(c, &key, host->i_ino);
-	err = ubifs_tnc_add(c, &key, lnum, offs, len1);
+	err = ubifs_tnc_add(c, &key, lnum, offs, len1, hash_host);
 	if (err)
 		goto out_ro;
 
 	ino_key_init(c, &key, inode->i_ino);
-	err = ubifs_tnc_add(c, &key, lnum, offs + aligned_len1, len2);
+	err = ubifs_tnc_add(c, &key, lnum, offs + aligned_len1, len2, hash);
 	if (err)
 		goto out_ro;
 
@@ -1633,6 +1727,8 @@ int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode,
 	kfree(ino);
 	return 0;
 
+out_release:
+	release_head(c, BASEHD);
 out_ro:
 	ubifs_ro_mode(c, err);
 	finish_reservation(c);

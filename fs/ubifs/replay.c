@@ -228,7 +228,7 @@ static int apply_replay_entry(struct ubifs_info *c, struct replay_entry *r)
 			err = ubifs_tnc_remove_nm(c, &r->key, &r->nm);
 		else
 			err = ubifs_tnc_add_nm(c, &r->key, r->lnum, r->offs,
-					       r->len, &r->nm);
+					       r->len, NULL, &r->nm);
 	} else {
 		if (r->deletion)
 			switch (key_type(c, &r->key)) {
@@ -248,7 +248,7 @@ static int apply_replay_entry(struct ubifs_info *c, struct replay_entry *r)
 			}
 		else
 			err = ubifs_tnc_add(c, &r->key, r->lnum, r->offs,
-					    r->len);
+					    r->len, NULL);
 		if (err)
 			return err;
 
