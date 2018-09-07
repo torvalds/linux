@@ -362,8 +362,10 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 	ret = wait_event_timeout(stream->wq_stopped,
 				 stream->state != RKCIF_STATE_STREAMING,
 				 msecs_to_jiffies(1000));
-	if (!ret)
+	if (!ret) {
 		rkcif_stream_stop(stream);
+		stream->stopping = false;
+	}
 	pm_runtime_put(dev->dev);
 
 	/* stop the sub device*/
