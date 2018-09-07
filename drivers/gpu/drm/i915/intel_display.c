@@ -2079,14 +2079,13 @@ static bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
 
 struct i915_vma *
 intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
-			   unsigned int rotation,
+			   const struct i915_ggtt_view *view,
 			   bool uses_fence,
 			   unsigned long *out_flags)
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct i915_ggtt_view view;
 	struct i915_vma *vma;
 	unsigned int pinctl;
 	u32 alignment;
@@ -2094,8 +2093,6 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	alignment = intel_surf_alignment(fb, 0);
-
-	intel_fill_fb_ggtt_view(&view, fb, rotation);
 
 	/* Note that the w/a also requires 64 PTE of padding following the
 	 * bo. We currently fill all unused PTE with the shadow page and so
@@ -2129,7 +2126,7 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 		pinctl |= PIN_MAPPABLE;
 
 	vma = i915_gem_object_pin_to_display_plane(obj,
-						   alignment, &view, pinctl);
+						   alignment, view, pinctl);
 	if (IS_ERR(vma))
 		goto err;
 
@@ -2856,13 +2853,15 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	return;
 
 valid_fb:
+	intel_fill_fb_ggtt_view(&intel_state->view, fb,
+				intel_state->base.rotation);
 	intel_state->color_plane[0].stride =
 		intel_fb_pitch(fb, 0, intel_state->base.rotation);
 
 	mutex_lock(&dev->struct_mutex);
 	intel_state->vma =
 		intel_pin_and_fence_fb_obj(fb,
-					   primary->state->rotation,
+					   &intel_state->view,
 					   intel_plane_uses_fence(intel_state),
 					   &intel_state->flags);
 	mutex_unlock(&dev->struct_mutex);
@@ -3175,6 +3174,7 @@ int skl_check_plane_surface(const struct intel_crtc_state *crtc_state,
 	unsigned int rotation = plane_state->base.rotation;
 	int ret;
 
+	intel_fill_fb_ggtt_view(&plane_state->view, fb, rotation);
 	plane_state->color_plane[0].stride = intel_fb_pitch(fb, 0, rotation);
 	plane_state->color_plane[1].stride = intel_fb_pitch(fb, 1, rotation);
 
@@ -3320,6 +3320,7 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 	int src_y = plane_state->base.src.y1 >> 16;
 	u32 offset;
 
+	intel_fill_fb_ggtt_view(&plane_state->view, fb, rotation);
 	plane_state->color_plane[0].stride = intel_fb_pitch(fb, 0, rotation);
 
 	intel_add_fb_offsets(&src_x, &src_y, plane_state, 0);
@@ -9702,6 +9703,7 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 		return -EINVAL;
 	}
 
+	intel_fill_fb_ggtt_view(&plane_state->view, fb, rotation);
 	plane_state->color_plane[0].stride = intel_fb_pitch(fb, 0, rotation);
 
 	src_x = plane_state->base.src_x >> 16;
@@ -13046,7 +13048,7 @@ static int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 	}
 
 	vma = intel_pin_and_fence_fb_obj(fb,
-					 plane_state->base.rotation,
+					 &plane_state->view,
 					 intel_plane_uses_fence(plane_state),
 					 &plane_state->flags);
 	if (IS_ERR(vma))

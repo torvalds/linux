@@ -496,6 +496,7 @@ struct intel_atomic_state {
 
 struct intel_plane_state {
 	struct drm_plane_state base;
+	struct i915_ggtt_view view;
 	struct i915_vma *vma;
 	unsigned long flags;
 #define PLANE_HAS_FENCE BIT(0)
@@ -1568,7 +1569,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 				    struct drm_modeset_acquire_ctx *ctx);
 struct i915_vma *
 intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
-			   unsigned int rotation,
+			   const struct i915_ggtt_view *view,
 			   bool uses_fence,
 			   unsigned long *out_flags);
 void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags);
