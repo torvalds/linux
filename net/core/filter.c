@@ -4051,14 +4051,15 @@ static const struct bpf_func_proto bpf_setsockopt_proto = {
 BPF_CALL_5(bpf_getsockopt, struct bpf_sock_ops_kern *, bpf_sock,
 	   int, level, int, optname, char *, optval, int, optlen)
 {
-	struct inet_connection_sock *icsk;
 	struct sock *sk = bpf_sock->sk;
-	struct tcp_sock *tp;
 
 	if (!sk_fullsock(sk))
 		goto err_clear;
 #ifdef CONFIG_INET
 	if (level == SOL_TCP && sk->sk_prot->getsockopt == tcp_getsockopt) {
+		struct inet_connection_sock *icsk;
+		struct tcp_sock *tp;
+
 		switch (optname) {
 		case TCP_CONGESTION:
 			icsk = inet_csk(sk);
