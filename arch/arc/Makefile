@@ -18,7 +18,7 @@ KBUILD_DEFCONFIG := nsim_700_defconfig
 
 cflags-y	+= -fno-common -pipe -fno-builtin -mmedium-calls -D__linux__
 cflags-$(CONFIG_ISA_ARCOMPACT)	+= -mA7
-cflags-$(CONFIG_ISA_ARCV2)	+= -mcpu=archs
+cflags-$(CONFIG_ISA_ARCV2)	+= -mcpu=hs38
 
 is_700 = $(shell $(CC) -dM -E - < /dev/null | grep -q "ARC700" && echo 1 || echo 0)
 
