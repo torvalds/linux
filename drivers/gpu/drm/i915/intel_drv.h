@@ -1446,7 +1446,7 @@ void icl_unmap_plls_to_ports(struct drm_crtc *crtc,
 			     struct drm_atomic_state *old_state);
 
 unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
-				   int plane, unsigned int height);
+				   int color_plane, unsigned int height);
 
 /* intel_audio.c */
 void intel_init_audio_hooks(struct drm_i915_private *dev_priv);

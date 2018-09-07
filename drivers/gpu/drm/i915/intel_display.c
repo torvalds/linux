@@ -1916,10 +1916,10 @@ static unsigned int intel_tile_size(const struct drm_i915_private *dev_priv)
 }
 
 static unsigned int
-intel_tile_width_bytes(const struct drm_framebuffer *fb, int plane)
+intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
 {
 	struct drm_i915_private *dev_priv = to_i915(fb->dev);
-	unsigned int cpp = fb->format->cpp[plane];
+	unsigned int cpp = fb->format->cpp[color_plane];
 
 	switch (fb->modifier) {
 	case DRM_FORMAT_MOD_LINEAR:
@@ -1930,7 +1930,7 @@ intel_tile_width_bytes(const struct drm_framebuffer *fb, int plane)
 		else
 			return 512;
 	case I915_FORMAT_MOD_Y_TILED_CCS:
-		if (plane == 1)
+		if (color_plane == 1)
 			return 128;
 		/* fall through */
 	case I915_FORMAT_MOD_Y_TILED:
@@ -1939,7 +1939,7 @@ intel_tile_width_bytes(const struct drm_framebuffer *fb, int plane)
 		else
 			return 512;
 	case I915_FORMAT_MOD_Yf_TILED_CCS:
-		if (plane == 1)
+		if (color_plane == 1)
 			return 128;
 		/* fall through */
 	case I915_FORMAT_MOD_Yf_TILED:
@@ -1964,22 +1964,22 @@ intel_tile_width_bytes(const struct drm_framebuffer *fb, int plane)
 }
 
 static unsigned int
-intel_tile_height(const struct drm_framebuffer *fb, int plane)
+intel_tile_height(const struct drm_framebuffer *fb, int color_plane)
 {
 	if (fb->modifier == DRM_FORMAT_MOD_LINEAR)
 		return 1;
 	else
 		return intel_tile_size(to_i915(fb->dev)) /
-			intel_tile_width_bytes(fb, plane);
+			intel_tile_width_bytes(fb, color_plane);
 }
 
 /* Return the tile dimensions in pixel units */
-static void intel_tile_dims(const struct drm_framebuffer *fb, int plane,
+static void intel_tile_dims(const struct drm_framebuffer *fb, int color_plane,
 			    unsigned int *tile_width,
 			    unsigned int *tile_height)
 {
-	unsigned int tile_width_bytes = intel_tile_width_bytes(fb, plane);
-	unsigned int cpp = fb->format->cpp[plane];
+	unsigned int tile_width_bytes = intel_tile_width_bytes(fb, color_plane);
+	unsigned int cpp = fb->format->cpp[color_plane];
 
 	*tile_width = tile_width_bytes / cpp;
 	*tile_height = intel_tile_size(to_i915(fb->dev)) / tile_width_bytes;
@@ -1987,9 +1987,9 @@ static void intel_tile_dims(const struct drm_framebuffer *fb, int plane,
 
 unsigned int
 intel_fb_align_height(const struct drm_framebuffer *fb,
-		      int plane, unsigned int height)
+		      int color_plane, unsigned int height)
 {
-	unsigned int tile_height = intel_tile_height(fb, plane);
+	unsigned int tile_height = intel_tile_height(fb, color_plane);
 
 	return ALIGN(height, tile_height);
 }
@@ -2043,12 +2043,12 @@ static unsigned int intel_linear_alignment(const struct drm_i915_private *dev_pr
 }
 
 static unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
-					 int plane)
+					 int color_plane)
 {
 	struct drm_i915_private *dev_priv = to_i915(fb->dev);
 
 	/* AUX_DIST needs only 4K alignment */
-	if (plane == 1)
+	if (color_plane == 1)
 		return 4096;
 
 	switch (fb->modifier) {
@@ -2178,13 +2178,13 @@ void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags)
 	i915_vma_put(vma);
 }
 
-static int intel_fb_pitch(const struct drm_framebuffer *fb, int plane,
+static int intel_fb_pitch(const struct drm_framebuffer *fb, int color_plane,
 			  unsigned int rotation)
 {
 	if (drm_rotation_90_or_270(rotation))
-		return to_intel_framebuffer(fb)->rotated[plane].pitch;
+		return to_intel_framebuffer(fb)->rotated[color_plane].pitch;
 	else
-		return fb->pitches[plane];
+		return fb->pitches[color_plane];
 }
 
 /*
@@ -2195,11 +2195,11 @@ static int intel_fb_pitch(const struct drm_framebuffer *fb, int plane,
  */
 u32 intel_fb_xy_to_linear(int x, int y,
 			  const struct intel_plane_state *state,
-			  int plane)
+			  int color_plane)
 {
 	const struct drm_framebuffer *fb = state->base.fb;
-	unsigned int cpp = fb->format->cpp[plane];
-	unsigned int pitch = state->color_plane[plane].stride;
+	unsigned int cpp = fb->format->cpp[color_plane];
+	unsigned int pitch = state->color_plane[color_plane].stride;
 
 	return y * pitch + x * cpp;
 }
@@ -2211,18 +2211,18 @@ u32 intel_fb_xy_to_linear(int x, int y,
  */
 void intel_add_fb_offsets(int *x, int *y,
 			  const struct intel_plane_state *state,
-			  int plane)
+			  int color_plane)
 
 {
 	const struct intel_framebuffer *intel_fb = to_intel_framebuffer(state->base.fb);
 	unsigned int rotation = state->base.rotation;
 
 	if (drm_rotation_90_or_270(rotation)) {
-		*x += intel_fb->rotated[plane].x;
-		*y += intel_fb->rotated[plane].y;
+		*x += intel_fb->rotated[color_plane].x;
+		*y += intel_fb->rotated[color_plane].y;
 	} else {
-		*x += intel_fb->normal[plane].x;
-		*y += intel_fb->normal[plane].y;
+		*x += intel_fb->normal[color_plane].x;
+		*y += intel_fb->normal[color_plane].y;
 	}
 }
 
@@ -2254,13 +2254,14 @@ static u32 intel_adjust_tile_offset(int *x, int *y,
 }
 
 static u32 intel_adjust_aligned_offset(int *x, int *y,
-				       const struct drm_framebuffer *fb, int plane,
+				       const struct drm_framebuffer *fb,
+				       int color_plane,
 				       unsigned int rotation,
 				       unsigned int pitch,
 				       u32 old_offset, u32 new_offset)
 {
 	struct drm_i915_private *dev_priv = to_i915(fb->dev);
-	unsigned int cpp = fb->format->cpp[plane];
+	unsigned int cpp = fb->format->cpp[color_plane];
 
 	WARN_ON(new_offset > old_offset);
 
@@ -2269,7 +2270,7 @@ static u32 intel_adjust_aligned_offset(int *x, int *y,
 		unsigned int pitch_tiles;
 
 		tile_size = intel_tile_size(dev_priv);
-		intel_tile_dims(fb, plane, &tile_width, &tile_height);
+		intel_tile_dims(fb, color_plane, &tile_width, &tile_height);
 
 		if (drm_rotation_90_or_270(rotation)) {
 			pitch_tiles = pitch / tile_height;
@@ -2297,12 +2298,12 @@ static u32 intel_adjust_aligned_offset(int *x, int *y,
  */
 static u32 intel_plane_adjust_aligned_offset(int *x, int *y,
 					     const struct intel_plane_state *state,
-					     int plane,
+					     int color_plane,
 					     u32 old_offset, u32 new_offset)
 {
-	return intel_adjust_aligned_offset(x, y, state->base.fb, plane,
+	return intel_adjust_aligned_offset(x, y, state->base.fb, color_plane,
 					   state->base.rotation,
-					   state->color_plane[plane].stride,
+					   state->color_plane[color_plane].stride,
 					   old_offset, new_offset);
 }
 
@@ -2322,13 +2323,14 @@ static u32 intel_plane_adjust_aligned_offset(int *x, int *y,
  */
 static u32 intel_compute_aligned_offset(struct drm_i915_private *dev_priv,
 					int *x, int *y,
-					const struct drm_framebuffer *fb, int plane,
+					const struct drm_framebuffer *fb,
+					int color_plane,
 					unsigned int pitch,
 					unsigned int rotation,
 					u32 alignment)
 {
 	uint64_t fb_modifier = fb->modifier;
-	unsigned int cpp = fb->format->cpp[plane];
+	unsigned int cpp = fb->format->cpp[color_plane];
 	u32 offset, offset_aligned;
 
 	if (alignment)
@@ -2339,7 +2341,7 @@ static u32 intel_compute_aligned_offset(struct drm_i915_private *dev_priv,
 		unsigned int tile_rows, tiles, pitch_tiles;
 
 		tile_size = intel_tile_size(dev_priv);
-		intel_tile_dims(fb, plane, &tile_width, &tile_height);
+		intel_tile_dims(fb, color_plane, &tile_width, &tile_height);
 
 		if (drm_rotation_90_or_270(rotation)) {
 			pitch_tiles = pitch / tile_height;
@@ -2373,41 +2375,42 @@ static u32 intel_compute_aligned_offset(struct drm_i915_private *dev_priv,
 
 static u32 intel_plane_compute_aligned_offset(int *x, int *y,
 					      const struct intel_plane_state *state,
-					      int plane)
+					      int color_plane)
 {
 	struct intel_plane *intel_plane = to_intel_plane(state->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(intel_plane->base.dev);
 	const struct drm_framebuffer *fb = state->base.fb;
 	unsigned int rotation = state->base.rotation;
-	int pitch = state->color_plane[plane].stride;
+	int pitch = state->color_plane[color_plane].stride;
 	u32 alignment;
 
 	if (intel_plane->id == PLANE_CURSOR)
 		alignment = intel_cursor_alignment(dev_priv);
 	else
-		alignment = intel_surf_alignment(fb, plane);
+		alignment = intel_surf_alignment(fb, color_plane);
 
-	return intel_compute_aligned_offset(dev_priv, x, y, fb, plane,
+	return intel_compute_aligned_offset(dev_priv, x, y, fb, color_plane,
 					    pitch, rotation, alignment);
 }
 
 /* Convert the fb->offset[] into x/y offsets */
 static int intel_fb_offset_to_xy(int *x, int *y,
-				 const struct drm_framebuffer *fb, int plane)
+				 const struct drm_framebuffer *fb,
+				 int color_plane)
 {
 	struct drm_i915_private *dev_priv = to_i915(fb->dev);
 
 	if (fb->modifier != DRM_FORMAT_MOD_LINEAR &&
-	    fb->offsets[plane] % intel_tile_size(dev_priv))
+	    fb->offsets[color_plane] % intel_tile_size(dev_priv))
 		return -EINVAL;
 
 	*x = 0;
 	*y = 0;
 
 	intel_adjust_aligned_offset(x, y,
-				    fb, plane, DRM_MODE_ROTATE_0,
-				    fb->pitches[0],
-				    fb->offsets[plane], 0);
+				    fb, color_plane, DRM_MODE_ROTATE_0,
+				    fb->pitches[color_plane],
+				    fb->offsets[color_plane], 0);
 
 	return 0;
 }
@@ -2904,10 +2907,11 @@ valid_fb:
 		  &obj->frontbuffer_bits);
 }
 
-static int skl_max_plane_width(const struct drm_framebuffer *fb, int plane,
+static int skl_max_plane_width(const struct drm_framebuffer *fb,
+			       int color_plane,
 			       unsigned int rotation)
 {
-	int cpp = fb->format->cpp[plane];
+	int cpp = fb->format->cpp[color_plane];
 
 	switch (fb->modifier) {
 	case DRM_FORMAT_MOD_LINEAR:
@@ -3467,12 +3471,12 @@ static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
 }
 
 static u32
-intel_fb_stride_alignment(const struct drm_framebuffer *fb, int plane)
+intel_fb_stride_alignment(const struct drm_framebuffer *fb, int color_plane)
 {
 	if (fb->modifier == DRM_FORMAT_MOD_LINEAR)
 		return 64;
 	else
-		return intel_tile_width_bytes(fb, plane);
+		return intel_tile_width_bytes(fb, color_plane);
 }
 
 static void skl_detach_scaler(struct intel_crtc *intel_crtc, int id)
@@ -3503,13 +3507,13 @@ static void skl_detach_scalers(struct intel_crtc *intel_crtc)
 }
 
 u32 skl_plane_stride(const struct intel_plane_state *plane_state,
-		     int plane)
+		     int color_plane)
 {
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	unsigned int rotation = plane_state->base.rotation;
-	u32 stride = plane_state->color_plane[plane].stride;
+	u32 stride = plane_state->color_plane[color_plane].stride;
 
-	if (plane >= fb->format->num_planes)
+	if (color_plane >= fb->format->num_planes)
 		return 0;
 
 	/*
@@ -3517,9 +3521,9 @@ u32 skl_plane_stride(const struct intel_plane_state *plane_state,
 	 * linear buffers or in number of tiles for tiled buffers.
 	 */
 	if (drm_rotation_90_or_270(rotation))
-		stride /= intel_tile_height(fb, plane);
+		stride /= intel_tile_height(fb, color_plane);
 	else
-		stride /= intel_fb_stride_alignment(fb, plane);
+		stride /= intel_fb_stride_alignment(fb, color_plane);
 
 	return stride;
 }
