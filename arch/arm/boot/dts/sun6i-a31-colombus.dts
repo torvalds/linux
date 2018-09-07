@@ -60,7 +60,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	i2c_lcd: i2c@0 {
+	i2c_lcd: i2c {
 		/* The lcd panel i2c interface is hooked up via gpios */
 		compatible = "i2c-gpio";
 		pinctrl-names = "default";
