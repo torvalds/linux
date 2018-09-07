@@ -243,7 +243,7 @@ void omap_fbdev_init(struct drm_device *dev)
 	struct drm_fb_helper *helper;
 	int ret = 0;
 
-	if (!priv->num_crtcs || !priv->num_connectors)
+	if (!priv->num_pipes)
 		return;
 
 	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
@@ -256,7 +256,7 @@ void omap_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, helper, &omap_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, helper, priv->num_connectors);
+	ret = drm_fb_helper_init(dev, helper, priv->num_pipes);
 	if (ret)
 		goto fail;
 
