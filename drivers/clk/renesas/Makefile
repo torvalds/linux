@@ -2,6 +2,7 @@
 # SoC
 obj-$(CONFIG_CLK_EMEV2)			+= clk-emev2.o
 obj-$(CONFIG_CLK_RZA1)			+= clk-rz.o
+obj-$(CONFIG_CLK_R7S9210)		+= r7s9210-cpg-mssr.o
 obj-$(CONFIG_CLK_R8A73A4)		+= clk-r8a73a4.o
 obj-$(CONFIG_CLK_R8A7740)		+= clk-r8a7740.o
 obj-$(CONFIG_CLK_R8A7743)		+= r8a7743-cpg-mssr.o

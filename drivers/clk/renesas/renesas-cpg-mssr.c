@@ -73,6 +73,17 @@ static const u16 smstpcr[] = {
 
 #define	SMSTPCR(i)	smstpcr[i]
 
+/*
+ * Standby Control Register offsets (RZ/A)
+ * Base address is FRQCR register
+ */
+
+static const u16 stbcr[] = {
+	0xFFFF/*dummy*/, 0x010, 0x014, 0x410, 0x414, 0x418, 0x41C, 0x420,
+	0x424, 0x428, 0x42C,
+};
+
+#define	STBCR(i)	stbcr[i]
 
 /*
  * Software Reset Register offsets
@@ -110,6 +121,7 @@ static const u16 srcr[] = {
  * @notifiers: Notifier chain to save/restore clock state for system resume
  * @smstpcr_saved[].mask: Mask of SMSTPCR[] bits under our control
  * @smstpcr_saved[].val: Saved values of SMSTPCR[]
+ * @stbyctrl: This device has Standby Control Registers
  */
 struct cpg_mssr_priv {
 #ifdef CONFIG_RESET_CONTROLLER
@@ -123,6 +135,7 @@ struct cpg_mssr_priv {
 	unsigned int num_core_clks;
 	unsigned int num_mod_clks;
 	unsigned int last_dt_core_clk;
+	bool stbyctrl;
 
 	struct raw_notifier_head notifiers;
 	struct {
@@ -162,16 +175,29 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 		enable ? "ON" : "OFF");
 	spin_lock_irqsave(&priv->rmw_lock, flags);
 
-	value = readl(priv->base + SMSTPCR(reg));
-	if (enable)
-		value &= ~bitmask;
-	else
-		value |= bitmask;
-	writel(value, priv->base + SMSTPCR(reg));
+	if (priv->stbyctrl) {
+		value = readb(priv->base + STBCR(reg));
+		if (enable)
+			value &= ~bitmask;
+		else
+			value |= bitmask;
+		writeb(value, priv->base + STBCR(reg));
+
+		/* dummy read to ensure write has completed */
+		readb(priv->base + STBCR(reg));
+		barrier_data(priv->base + STBCR(reg));
+	} else {
+		value = readl(priv->base + SMSTPCR(reg));
+		if (enable)
+			value &= ~bitmask;
+		else
+			value |= bitmask;
+		writel(value, priv->base + SMSTPCR(reg));
+	}
 
 	spin_unlock_irqrestore(&priv->rmw_lock, flags);
 
-	if (!enable)
+	if (!enable || priv->stbyctrl)
 		return 0;
 
 	for (i = 1000; i > 0; --i) {
@@ -205,7 +231,10 @@ static int cpg_mstp_clock_is_enabled(struct clk_hw *hw)
 	struct cpg_mssr_priv *priv = clock->priv;
 	u32 value;
 
-	value = readl(priv->base + MSTPSR(clock->index / 32));
+	if (priv->stbyctrl)
+		value = readb(priv->base + STBCR(clock->index / 32));
+	else
+		value = readl(priv->base + MSTPSR(clock->index / 32));
 
 	return !(value & BIT(clock->index % 32));
 }
@@ -226,6 +255,7 @@ struct clk *cpg_mssr_clk_src_twocell_get(struct of_phandle_args *clkspec,
 	unsigned int idx;
 	const char *type;
 	struct clk *clk;
+	int range_check;
 
 	switch (clkspec->args[0]) {
 	case CPG_CORE:
@@ -240,8 +270,14 @@ struct clk *cpg_mssr_clk_src_twocell_get(struct of_phandle_args *clkspec,
 
 	case CPG_MOD:
 		type = "module";
-		idx = MOD_CLK_PACK(clkidx);
-		if (clkidx % 100 > 31 || idx >= priv->num_mod_clks) {
+		if (priv->stbyctrl) {
+			idx = MOD_CLK_PACK_10(clkidx);
+			range_check = 7 - (clkidx % 10);
+		} else {
+			idx = MOD_CLK_PACK(clkidx);
+			range_check = 31 - (clkidx % 100);
+		}
+		if (range_check < 0 || idx >= priv->num_mod_clks) {
 			dev_err(dev, "Invalid %s clock index %u\n", type,
 				clkidx);
 			return ERR_PTR(-EINVAL);
@@ -646,6 +682,12 @@ static inline int cpg_mssr_reset_controller_register(struct cpg_mssr_priv *priv)
 
 
 static const struct of_device_id cpg_mssr_match[] = {
+#ifdef CONFIG_CLK_R7S9210
+	{
+		.compatible = "renesas,r7s9210-cpg-mssr",
+		.data = &r7s9210_cpg_mssr_info,
+	},
+#endif
 #ifdef CONFIG_CLK_R8A7743
 	{
 		.compatible = "renesas,r8a7743-cpg-mssr",
@@ -791,13 +833,23 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 		if (!mask)
 			continue;
 
-		oldval = readl(priv->base + SMSTPCR(reg));
+		if (priv->stbyctrl)
+			oldval = readb(priv->base + STBCR(reg));
+		else
+			oldval = readl(priv->base + SMSTPCR(reg));
 		newval = oldval & ~mask;
 		newval |= priv->smstpcr_saved[reg].val & mask;
 		if (newval == oldval)
 			continue;
 
-		writel(newval, priv->base + SMSTPCR(reg));
+		if (priv->stbyctrl) {
+			writeb(newval, priv->base + STBCR(reg));
+			/* dummy read to ensure write has completed */
+			readb(priv->base + STBCR(reg));
+			barrier_data(priv->base + STBCR(reg));
+			continue;
+		} else
+			writel(newval, priv->base + SMSTPCR(reg));
 
 		/* Wait until enabled clocks are really enabled */
 		mask &= ~priv->smstpcr_saved[reg].val;
@@ -869,6 +921,7 @@ static int __init cpg_mssr_probe(struct platform_device *pdev)
 	priv->num_mod_clks = info->num_hw_mod_clks;
 	priv->last_dt_core_clk = info->last_dt_core_clk;
 	RAW_INIT_NOTIFIER_HEAD(&priv->notifiers);
+	priv->stbyctrl = info->stbyctrl;
 
 	for (i = 0; i < nclks; i++)
 		clks[i] = ERR_PTR(-ENOENT);
@@ -893,6 +946,10 @@ static int __init cpg_mssr_probe(struct platform_device *pdev)
 					info->num_core_pm_clks);
 	if (error)
 		return error;
+
+	/* Reset Controller not supported for Standby Control SoCs */
+	if (info->stbyctrl)
+		return 0;
 
 	error = cpg_mssr_reset_controller_register(priv);
 	if (error)

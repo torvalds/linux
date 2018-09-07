@@ -3,6 +3,7 @@ config CLK_RENESAS
 	default y if ARCH_RENESAS
 	select CLK_EMEV2 if ARCH_EMEV2
 	select CLK_RZA1 if ARCH_R7S72100
+	select CLK_R7S9210 if ARCH_R7S9210
 	select CLK_R8A73A4 if ARCH_R8A73A4
 	select CLK_R8A7740 if ARCH_R8A7740
 	select CLK_R8A7743 if ARCH_R8A7743
@@ -45,6 +46,10 @@ config CLK_EMEV2
 config CLK_RZA1
 	bool "RZ/A1H clock support" if COMPILE_TEST
 	select CLK_RENESAS_CPG_MSTP
+
+config CLK_R7S9210
+	bool "RZ/A2 clock support" if COMPILE_TEST
+	select CLK_RENESAS_CPG_MSSR
 
 config CLK_R8A73A4
 	bool "R-Mobile APE6 clock support" if COMPILE_TEST
