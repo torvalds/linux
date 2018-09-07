@@ -243,7 +243,7 @@
 	adsp-pil {
 		compatible = "qcom,msm8974-adsp-pil";
 
-		interrupts-extended = <&intc 0 162 IRQ_TYPE_EDGE_RISING>,
+		interrupts-extended = <&intc GIC_SPI 162 IRQ_TYPE_EDGE_RISING>,
 				      <&adsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
 				      <&adsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
 				      <&adsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
@@ -275,7 +275,7 @@
 		qcom,smem = <443>, <429>;
 
 		interrupt-parent = <&intc>;
-		interrupts = <0 158 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 158 IRQ_TYPE_EDGE_RISING>;
 
 		qcom,ipc = <&apcs 8 10>;
 
@@ -300,7 +300,7 @@
 		qcom,smem = <435>, <428>;
 
 		interrupt-parent = <&intc>;
-		interrupts = <0 27 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_EDGE_RISING>;
 
 		qcom,ipc = <&apcs 8 14>;
 
@@ -325,7 +325,7 @@
 		qcom,smem = <451>, <431>;
 
 		interrupt-parent = <&intc>;
-		interrupts = <0 143 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 143 IRQ_TYPE_EDGE_RISING>;
 
 		qcom,ipc = <&apcs 8 18>;
 
@@ -364,7 +364,7 @@
 
 		modem_smsm: modem@1 {
 			reg = <1>;
-			interrupts = <0 26 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 26 IRQ_TYPE_EDGE_RISING>;
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -372,7 +372,7 @@
 
 		adsp_smsm: adsp@2 {
 			reg = <2>;
-			interrupts = <0 157 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 157 IRQ_TYPE_EDGE_RISING>;
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -380,7 +380,7 @@
 
 		wcnss_smsm: wcnss@7 {
 			reg = <7>;
-			interrupts = <0 144 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 144 IRQ_TYPE_EDGE_RISING>;
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -445,50 +445,50 @@
 
 			frame@f9021000 {
 				frame-number = <0>;
-				interrupts = <0 8 0x4>,
-					     <0 7 0x4>;
+				interrupts = <GIC_SPI 8 0x4>,
+					     <GIC_SPI 7 0x4>;
 				reg = <0xf9021000 0x1000>,
 				      <0xf9022000 0x1000>;
 			};
 
 			frame@f9023000 {
 				frame-number = <1>;
-				interrupts = <0 9 0x4>;
+				interrupts = <GIC_SPI 9 0x4>;
 				reg = <0xf9023000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@f9024000 {
 				frame-number = <2>;
-				interrupts = <0 10 0x4>;
+				interrupts = <GIC_SPI 10 0x4>;
 				reg = <0xf9024000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@f9025000 {
 				frame-number = <3>;
-				interrupts = <0 11 0x4>;
+				interrupts = <GIC_SPI 11 0x4>;
 				reg = <0xf9025000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@f9026000 {
 				frame-number = <4>;
-				interrupts = <0 12 0x4>;
+				interrupts = <GIC_SPI 12 0x4>;
 				reg = <0xf9026000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@f9027000 {
 				frame-number = <5>;
-				interrupts = <0 13 0x4>;
+				interrupts = <GIC_SPI 13 0x4>;
 				reg = <0xf9027000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@f9028000 {
 				frame-number = <6>;
-				interrupts = <0 14 0x4>;
+				interrupts = <GIC_SPI 14 0x4>;
 				reg = <0xf9028000 0x1000>;
 				status = "disabled";
 			};
@@ -586,7 +586,7 @@
 		blsp1_uart1: serial@f991d000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0xf991d000 0x1000>;
-			interrupts = <0 107 0x0>;
+			interrupts = <GIC_SPI 107 0x0>;
 			clocks = <&gcc GCC_BLSP1_UART1_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			status = "disabled";
@@ -595,7 +595,7 @@
 		blsp1_uart2: serial@f991e000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0xf991e000 0x1000>;
-			interrupts = <0 108 0x0>;
+			interrupts = <GIC_SPI 108 0x0>;
 			clocks = <&gcc GCC_BLSP1_UART2_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			status = "disabled";
@@ -605,7 +605,8 @@
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0xf9824900 0x11c>, <0xf9824000 0x800>;
 			reg-names = "hc_mem", "core_mem";
-			interrupts = <0 123 0>, <0 138 0>;
+			interrupts = <GIC_SPI 123 0>,
+				     <GIC_SPI 138 0>;
 			interrupt-names = "hc_irq", "pwr_irq";
 			clocks = <&gcc GCC_SDCC1_APPS_CLK>,
 				 <&gcc GCC_SDCC1_AHB_CLK>,
@@ -632,7 +633,8 @@
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0xf98a4900 0x11c>, <0xf98a4000 0x800>;
 			reg-names = "hc_mem", "core_mem";
-			interrupts = <0 125 0>, <0 221 0>;
+			interrupts = <GIC_SPI 125 0>,
+				     <GIC_SPI 221 0>;
 			interrupt-names = "hc_irq", "pwr_irq";
 			clocks = <&gcc GCC_SDCC2_APPS_CLK>,
 				 <&gcc GCC_SDCC2_AHB_CLK>,
@@ -699,14 +701,14 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			interrupts = <0 208 0>;
+			interrupts = <GIC_SPI 208 0>;
 		};
 
 		i2c@f9924000 {
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9924000 0x1000>;
-			interrupts = <0 96 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 96 IRQ_TYPE_NONE>;
 			clocks = <&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			#address-cells = <1>;
@@ -717,7 +719,7 @@
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9964000 0x1000>;
-			interrupts = <0 102 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 102 IRQ_TYPE_NONE>;
 			clocks = <&gcc GCC_BLSP2_QUP2_I2C_APPS_CLK>, <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
 			#address-cells = <1>;
@@ -728,7 +730,7 @@
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9967000 0x1000>;
-			interrupts = <0 105 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 105 IRQ_TYPE_NONE>;
 			clocks = <&gcc GCC_BLSP2_QUP5_I2C_APPS_CLK>, <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
 			#address-cells = <1>;
@@ -744,7 +746,7 @@
 			      <0xfc4cb000 0x1000>,
 			      <0xfc4ca000 0x1000>;
 			interrupt-names = "periph_irq";
-			interrupts = <0 190 0>;
+			interrupts = <GIC_SPI 190 0>;
 			qcom,ee = <0>;
 			qcom,channel = <0>;
 			#address-cells = <2>;
@@ -1040,21 +1042,21 @@
 		compatible = "qcom,smd";
 
 		adsp {
-			interrupts = <0 156 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 156 IRQ_TYPE_EDGE_RISING>;
 
 			qcom,ipc = <&apcs 8 8>;
 			qcom,smd-edge = <1>;
 		};
 
 		modem {
-			interrupts = <0 25 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>;
 
 			qcom,ipc = <&apcs 8 12>;
 			qcom,smd-edge = <0>;
 		};
 
 		rpm {
-			interrupts = <0 168 1>;
+			interrupts = <GIC_SPI 168 1>;
 			qcom,ipc = <&apcs 8 0>;
 			qcom,smd-edge = <15>;
 
