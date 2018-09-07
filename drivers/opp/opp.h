@@ -206,8 +206,10 @@ void _put_opp_list_kref(struct opp_table *opp_table);
 
 #ifdef CONFIG_OF
 void _of_init_opp_table(struct opp_table *opp_table, struct device *dev, int index);
+struct opp_table *_managed_opp(struct device *dev, int index);
 #else
 static inline void _of_init_opp_table(struct opp_table *opp_table, struct device *dev, int index) {}
+static inline struct opp_table *_managed_opp(struct device *dev, int index) { return NULL; }
 #endif
 
 #ifdef CONFIG_DEBUG_FS

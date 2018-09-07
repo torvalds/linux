@@ -41,11 +41,14 @@ struct device_node *dev_pm_opp_of_get_opp_desc_node(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_opp_desc_node);
 
-static struct opp_table *_managed_opp(const struct device_node *np)
+struct opp_table *_managed_opp(struct device *dev, int index)
 {
 	struct opp_table *opp_table, *managed_table = NULL;
+	struct device_node *np;
 
-	mutex_lock(&opp_table_lock);
+	np = _opp_of_get_opp_desc_node(dev->of_node, index);
+	if (!np)
+		return NULL;
 
 	list_for_each_entry(opp_table, &opp_tables, node) {
 		if (opp_table->np == np) {
@@ -65,7 +68,7 @@ static struct opp_table *_managed_opp(const struct device_node *np)
 		}
 	}
 
-	mutex_unlock(&opp_table_lock);
+	of_node_put(np);
 
 	return managed_table;
 }
@@ -401,30 +404,19 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np,
 {
 	struct device_node *np;
 	struct opp_table *opp_table;
-	int ret = 0, count = 0, pstate_count = 0;
+	int ret, count = 0, pstate_count = 0;
 	struct dev_pm_opp *opp;
-
-	opp_table = _managed_opp(opp_np);
-	if (opp_table) {
-		/* OPPs are already managed */
-		if (!_add_opp_dev(dev, opp_table)) {
-			ret = -ENOMEM;
-			goto put_opp_table;
-		}
-
-		if (opp_table->parsed_static_opps) {
-			kref_get(&opp_table->list_kref);
-			return 0;
-		}
-
-		goto initialize_static_opps;
-	}
 
 	opp_table = dev_pm_opp_get_opp_table_indexed(dev, index);
 	if (!opp_table)
 		return -ENOMEM;
 
-initialize_static_opps:
+	/* OPP table is already initialized for the device */
+	if (opp_table->parsed_static_opps) {
+		kref_get(&opp_table->list_kref);
+		return 0;
+	}
+
 	kref_init(&opp_table->list_kref);
 
 	/* We have opp-table node now, iterate over it and add OPPs */
@@ -466,7 +458,6 @@ initialize_static_opps:
 
 put_list_kref:
 	_put_opp_list_kref(opp_table);
-put_opp_table:
 	dev_pm_opp_put_opp_table(opp_table);
 
 	return ret;
