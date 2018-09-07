@@ -1490,10 +1490,8 @@ static void do_polling_transfer(struct pl022 *pl022)
 	struct spi_message *message = NULL;
 	struct spi_transfer *transfer = NULL;
 	struct spi_transfer *previous = NULL;
-	struct chip_data *chip;
 	unsigned long time, timeout;
 
-	chip = pl022->cur_chip;
 	message = pl022->cur_msg;
 
 	while (message->state != STATE_DONE) {
