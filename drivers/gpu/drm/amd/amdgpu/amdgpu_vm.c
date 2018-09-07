@@ -1552,7 +1552,7 @@ static void amdgpu_vm_fragment(struct amdgpu_pte_update_params *params,
 		max_frag = 31;
 
 	/* system pages are non continuously */
-	if (params->src || !(flags & AMDGPU_PTE_VALID)) {
+	if (params->src) {
 		*frag = 0;
 		*frag_end = end;
 		return;
