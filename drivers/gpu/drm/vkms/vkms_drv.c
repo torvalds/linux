@@ -5,6 +5,15 @@
  * (at your option) any later version.
  */
 
+/**
+ * DOC: vkms (Virtual Kernel Modesetting)
+ *
+ * vkms is a software-only model of a kms driver that is useful for testing,
+ * or for running X (or similar) on headless machines and be able to still
+ * use the GPU. vkms aims to enable a virtual display without the need for
+ * a hardware display capability.
+ */
+
 #include <linux/module.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_crtc_helper.h>

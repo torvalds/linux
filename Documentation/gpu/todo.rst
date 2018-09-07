@@ -360,6 +360,13 @@ converting things over. For modeset tests we also first need a bit of
 infrastructure to use dumb buffers for untiled buffers, to be able to run all
 the non-i915 specific modeset tests.
 
+Extend virtual test driver (VKMS)
+---------------------------------
+
+See the documentation of :ref:`VKMS <vkms>` for more details. This is an ideal
+internship task, since it only requires a virtual machine and can be sized to
+fit the available time.
+
 Contact: Daniel Vetter
 
 Driver Specific
