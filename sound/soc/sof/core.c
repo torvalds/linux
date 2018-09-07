@@ -198,7 +198,7 @@ int snd_sof_create_page_table(struct snd_sof_dev *sdev,
 {
 	int i, pages;
 
-	pages = PAGE_ALIGN(size);
+	pages = snd_sgbuf_aligned_pages(size);
 
 	dev_dbg(sdev->dev, "generating page table for %p size 0x%zx pages %d\n",
 		dmab->area, size, pages);
