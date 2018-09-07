@@ -757,10 +757,10 @@ __mt76x0_phy_set_channel(struct mt76x0_dev *dev,
 	/* Vendor driver don't do it */
 	/* mt76x0_phy_set_tx_power(dev, channel, rf_bw_band); */
 
+	mt76x0_vco_cal(dev, channel);
 	if (scan)
-		mt76x0_vco_cal(dev, channel);
+		mt76x0_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1);
 
-	mt76x0_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1);
 	mt76x0_phy_set_chan_pwr(dev, channel);
 
 	dev->mt76.chandef = *chandef;
