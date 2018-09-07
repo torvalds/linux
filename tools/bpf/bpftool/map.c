@@ -673,12 +673,6 @@ static int do_dump(int argc, char **argv)
 	if (fd < 0)
 		return -1;
 
-	if (map_is_map_of_maps(info.type) || map_is_map_of_progs(info.type)) {
-		p_err("Dumping maps of maps and program maps not supported");
-		close(fd);
-		return -1;
-	}
-
 	key = malloc(info.key_size);
 	value = alloc_value(&info);
 	if (!key || !value) {
@@ -732,7 +726,9 @@ static int do_dump(int argc, char **argv)
 				} else {
 					print_entry_plain(&info, key, value);
 				}
-		} else {
+			num_elems++;
+		} else if (!map_is_map_of_maps(info.type) &&
+			   !map_is_map_of_progs(info.type)) {
 			if (json_output) {
 				jsonw_name(json_wtr, "key");
 				print_hex_data_json(key, info.key_size);
@@ -749,7 +745,6 @@ static int do_dump(int argc, char **argv)
 		}
 
 		prev_key = key;
-		num_elems++;
 	}
 
 	if (json_output)
