@@ -462,19 +462,6 @@ static long do_ioctl_trans(unsigned int cmd,
 #endif
 	}
 
-	/*
-	 * These take an integer instead of a pointer as 'arg',
-	 * so we must not do a compat_ptr() translation.
-	 */
-	switch (cmd) {
-	/* RAID */
-	case HOT_REMOVE_DISK:
-	case HOT_ADD_DISK:
-	case SET_DISK_FAULTY:
-	case SET_BITMAP_FILE:
-		return vfs_ioctl(file, cmd, arg);
-	}
-
 	return -ENOIOCTLCMD;
 }
 
