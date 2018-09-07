@@ -1056,7 +1056,7 @@
 		};
 
 		rpm {
-			interrupts = <GIC_SPI 168 1>;
+			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
 			qcom,ipc = <&apcs 8 0>;
 			qcom,smd-edge = <15>;
 
