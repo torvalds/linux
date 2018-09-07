@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * rmobile power management support
  *
@@ -7,10 +8,6 @@
  *
  * based on pm-sh7372.c
  *  Copyright (C) 2011 Magnus Damm
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/clk/renesas.h>
 #include <linux/console.h>
