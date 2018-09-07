@@ -365,6 +365,35 @@ static unsigned long long next_sqnum(struct ubifs_info *c)
 	return sqnum;
 }
 
+void ubifs_init_node(struct ubifs_info *c, void *node, int len, int pad)
+{
+	struct ubifs_ch *ch = node;
+	unsigned long long sqnum = next_sqnum(c);
+
+	ubifs_assert(c, len >= UBIFS_CH_SZ);
+
+	ch->magic = cpu_to_le32(UBIFS_NODE_MAGIC);
+	ch->len = cpu_to_le32(len);
+	ch->group_type = UBIFS_NO_NODE_GROUP;
+	ch->sqnum = cpu_to_le64(sqnum);
+	ch->padding[0] = ch->padding[1] = 0;
+
+	if (pad) {
+		len = ALIGN(len, 8);
+		pad = ALIGN(len, c->min_io_size) - len;
+		ubifs_pad(c, node + len, pad);
+	}
+}
+
+void ubifs_crc_node(struct ubifs_info *c, void *node, int len)
+{
+	struct ubifs_ch *ch = node;
+	uint32_t crc;
+
+	crc = crc32(UBIFS_CRC32_INIT, node + 8, len - 8);
+	ch->crc = cpu_to_le32(crc);
+}
+
 /**
  * ubifs_prepare_node - prepare node to be written to flash.
  * @c: UBIFS file-system description object
@@ -378,25 +407,8 @@ static unsigned long long next_sqnum(struct ubifs_info *c)
  */
 void ubifs_prepare_node(struct ubifs_info *c, void *node, int len, int pad)
 {
-	uint32_t crc;
-	struct ubifs_ch *ch = node;
-	unsigned long long sqnum = next_sqnum(c);
-
-	ubifs_assert(c, len >= UBIFS_CH_SZ);
-
-	ch->magic = cpu_to_le32(UBIFS_NODE_MAGIC);
-	ch->len = cpu_to_le32(len);
-	ch->group_type = UBIFS_NO_NODE_GROUP;
-	ch->sqnum = cpu_to_le64(sqnum);
-	ch->padding[0] = ch->padding[1] = 0;
-	crc = crc32(UBIFS_CRC32_INIT, node + 8, len - 8);
-	ch->crc = cpu_to_le32(crc);
-
-	if (pad) {
-		len = ALIGN(len, 8);
-		pad = ALIGN(len, c->min_io_size) - len;
-		ubifs_pad(c, node + len, pad);
-	}
+	ubifs_init_node(c, node, len, pad);
+	ubifs_crc_node(c, node, len);
 }
 
 /**
