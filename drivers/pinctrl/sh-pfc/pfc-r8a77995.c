@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * R8A77995 processor support - PFC hardware block.
  *
@@ -8,10 +9,6 @@
  * R-Car Gen3 processor support - PFC hardware block.
  *
  * Copyright (C) 2015  Renesas Electronics Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/kernel.h>
