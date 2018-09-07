@@ -1357,7 +1357,7 @@ octnet_nic_stats_callback(struct octeon_device *oct_dev,
 	}
 }
 
-int lio_fetch_vf_stats(struct lio *lio)
+static int lio_fetch_vf_stats(struct lio *lio)
 {
 	struct octeon_device *oct_dev = lio->oct_dev;
 	struct octeon_soft_command *sc;
