@@ -830,3 +830,33 @@ int i40e_xsk_async_xmit(struct net_device *dev, u32 queue_id)
 
 	return 0;
 }
+
+/**
+ * i40e_xsk_clean_xdp_ring - Clean the XDP Tx ring on shutdown
+ * @xdp_ring: XDP Tx ring
+ **/
+void i40e_xsk_clean_tx_ring(struct i40e_ring *tx_ring)
+{
+	u16 ntc = tx_ring->next_to_clean, ntu = tx_ring->next_to_use;
+	struct xdp_umem *umem = tx_ring->xsk_umem;
+	struct i40e_tx_buffer *tx_bi;
+	u32 xsk_frames = 0;
+
+	while (ntc != ntu) {
+		tx_bi = &tx_ring->tx_bi[ntc];
+
+		if (tx_bi->xdpf)
+			i40e_clean_xdp_tx_buffer(tx_ring, tx_bi);
+		else
+			xsk_frames++;
+
+		tx_bi->xdpf = NULL;
+
+		ntc++;
+		if (ntc >= tx_ring->count)
+			ntc = 0;
+	}
+
+	if (xsk_frames)
+		xsk_umem_complete_tx(umem, xsk_frames);
+}

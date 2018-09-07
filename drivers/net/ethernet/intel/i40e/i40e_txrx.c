@@ -636,13 +636,18 @@ void i40e_clean_tx_ring(struct i40e_ring *tx_ring)
 	unsigned long bi_size;
 	u16 i;
 
-	/* ring already cleared, nothing to do */
-	if (!tx_ring->tx_bi)
-		return;
+	if (ring_is_xdp(tx_ring) && tx_ring->xsk_umem) {
+		i40e_xsk_clean_tx_ring(tx_ring);
+	} else {
+		/* ring already cleared, nothing to do */
+		if (!tx_ring->tx_bi)
+			return;
 
-	/* Free all the Tx ring sk_buffs */
-	for (i = 0; i < tx_ring->count; i++)
-		i40e_unmap_and_free_tx_resource(tx_ring, &tx_ring->tx_bi[i]);
+		/* Free all the Tx ring sk_buffs */
+		for (i = 0; i < tx_ring->count; i++)
+			i40e_unmap_and_free_tx_resource(tx_ring,
+							&tx_ring->tx_bi[i]);
+	}
 
 	bi_size = sizeof(struct i40e_tx_buffer) * tx_ring->count;
 	memset(tx_ring->tx_bi, 0, bi_size);
