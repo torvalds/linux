@@ -717,6 +717,7 @@ struct ubifs_wbuf {
  * @jhead: journal head number this bud belongs to
  * @list: link in the list buds belonging to the same journal head
  * @rb: link in the tree of all buds
+ * @log_hash: the log hash from the commit start node up to this bud
  */
 struct ubifs_bud {
 	int lnum;
@@ -724,6 +725,7 @@ struct ubifs_bud {
 	int jhead;
 	struct list_head list;
 	struct rb_node rb;
+	struct shash_desc *log_hash;
 };
 
 /**
@@ -731,6 +733,7 @@ struct ubifs_bud {
  * @wbuf: head's write-buffer
  * @buds_list: list of bud LEBs belonging to this journal head
  * @grouped: non-zero if UBIFS groups nodes when writing to this journal head
+ * @log_hash: the log hash from the commit start node up to this journal head
  *
  * Note, the @buds list is protected by the @c->buds_lock.
  */
@@ -738,6 +741,7 @@ struct ubifs_jhead {
 	struct ubifs_wbuf wbuf;
 	struct list_head buds_list;
 	unsigned int grouped:1;
+	struct shash_desc *log_hash;
 };
 
 /**
@@ -1236,6 +1240,8 @@ struct ubifs_debug_info;
  * @auth_key_name: the authentication key name
  * @auth_hash_name: the name of the hash algorithm used for authentication
  * @auth_hash_algo: the authentication hash used for this fs
+ * @log_hash: the log hash from the commit start node up to the latest reference
+ *            node.
  *
  * @empty: %1 if the UBI device is empty
  * @need_recovery: %1 if the file-system needs recovery
@@ -1477,6 +1483,8 @@ struct ubifs_info {
 	char *auth_key_name;
 	char *auth_hash_name;
 	enum hash_algo auth_hash_algo;
+
+	struct shash_desc *log_hash;
 
 	/* The below fields are used only during mounting and re-mounting */
 	unsigned int empty:1;

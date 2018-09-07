@@ -666,6 +666,8 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 					  old_size, new_size);
 			break;
 		}
+		case UBIFS_AUTH_NODE:
+			break;
 		default:
 			ubifs_err(c, "unexpected node type %d in bud LEB %d:%d",
 				  snod->type, lnum, snod->offs);

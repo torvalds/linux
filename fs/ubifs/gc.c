@@ -254,7 +254,8 @@ static int sort_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 			     snod->type == UBIFS_DATA_NODE ||
 			     snod->type == UBIFS_DENT_NODE ||
 			     snod->type == UBIFS_XENT_NODE ||
-			     snod->type == UBIFS_TRUN_NODE);
+			     snod->type == UBIFS_TRUN_NODE ||
+			     snod->type == UBIFS_AUTH_NODE);
 
 		if (snod->type != UBIFS_INO_NODE  &&
 		    snod->type != UBIFS_DATA_NODE &&
