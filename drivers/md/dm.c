@@ -1666,7 +1666,7 @@ static blk_qc_t __process_bio(struct mapped_device *md,
 		 * Defend against IO still getting in during teardown
 		 * - as was seen for a time with nvme-fcloop
 		 */
-		if (unlikely(WARN_ON_ONCE(!ti || !dm_target_is_valid(ti)))) {
+		if (WARN_ON_ONCE(!ti || !dm_target_is_valid(ti))) {
 			error = -EIO;
 			goto out;
 		}
