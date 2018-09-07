@@ -35,7 +35,7 @@
 #include "ubifs.h"
 
 static int try_read_node(const struct ubifs_info *c, void *buf, int type,
-			 int len, int lnum, int offs);
+			 struct ubifs_zbranch *zbr);
 static int fallible_read_node(struct ubifs_info *c, const union ubifs_key *key,
 			      struct ubifs_zbranch *zbr, void *node);
 
@@ -433,9 +433,7 @@ static int tnc_read_hashed_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
  * @c: UBIFS file-system description object
  * @buf: buffer to read to
  * @type: node type
- * @len: node length (not aligned)
- * @lnum: LEB number of node to read
- * @offs: offset of node to read
+ * @zbr: the zbranch describing the node to read
  *
  * This function tries to read a node of known type and length, checks it and
  * stores it in @buf. This function returns %1 if a node is present and %0 if
@@ -453,8 +451,11 @@ static int tnc_read_hashed_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
  * journal nodes may potentially be corrupted, so checking is required.
  */
 static int try_read_node(const struct ubifs_info *c, void *buf, int type,
-			 int len, int lnum, int offs)
+			 struct ubifs_zbranch *zbr)
 {
+	int len = zbr->len;
+	int lnum = zbr->lnum;
+	int offs = zbr->offs;
 	int err, node_len;
 	struct ubifs_ch *ch = buf;
 	uint32_t crc, node_crc;
@@ -507,8 +508,7 @@ static int fallible_read_node(struct ubifs_info *c, const union ubifs_key *key,
 
 	dbg_tnck(key, "LEB %d:%d, key ", zbr->lnum, zbr->offs);
 
-	ret = try_read_node(c, node, key_type(c, key), zbr->len, zbr->lnum,
-			    zbr->offs);
+	ret = try_read_node(c, node, key_type(c, key), zbr);
 	if (ret == 1) {
 		union ubifs_key node_key;
 		struct ubifs_dent_node *dent = node;
