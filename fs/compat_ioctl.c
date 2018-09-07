@@ -27,7 +27,6 @@
 #include <linux/file.h>
 #include <linux/ppp-ioctl.h>
 #include <linux/if_pppox.h>
-#include <linux/mtio.h>
 #include <linux/tty.h>
 #include <linux/vt_kern.h>
 #include <linux/raw.h>
@@ -361,73 +360,6 @@ static int ppp_scompress(struct file *file, unsigned int cmd,
 	return do_ioctl(file, PPPIOCSCOMPRESS, (unsigned long) odata);
 }
 
-#ifdef CONFIG_BLOCK
-struct mtget32 {
-	compat_long_t	mt_type;
-	compat_long_t	mt_resid;
-	compat_long_t	mt_dsreg;
-	compat_long_t	mt_gstat;
-	compat_long_t	mt_erreg;
-	compat_daddr_t	mt_fileno;
-	compat_daddr_t	mt_blkno;
-};
-#define MTIOCGET32	_IOR('m', 2, struct mtget32)
-
-struct mtpos32 {
-	compat_long_t	mt_blkno;
-};
-#define MTIOCPOS32	_IOR('m', 3, struct mtpos32)
-
-static int mt_ioctl_trans(struct file *file,
-		unsigned int cmd, void __user *argp)
-{
-	/* NULL initialization to make gcc shut up */
-	struct mtget __user *get = NULL;
-	struct mtget32 __user *umget32;
-	struct mtpos __user *pos = NULL;
-	struct mtpos32 __user *upos32;
-	unsigned long kcmd;
-	void *karg;
-	int err = 0;
-
-	switch(cmd) {
-	case MTIOCPOS32:
-		kcmd = MTIOCPOS;
-		pos = compat_alloc_user_space(sizeof(*pos));
-		karg = pos;
-		break;
-	default:	/* MTIOCGET32 */
-		kcmd = MTIOCGET;
-		get = compat_alloc_user_space(sizeof(*get));
-		karg = get;
-		break;
-	}
-	if (karg == NULL)
-		return -EFAULT;
-	err = do_ioctl(file, kcmd, (unsigned long)karg);
-	if (err)
-		return err;
-	switch (cmd) {
-	case MTIOCPOS32:
-		upos32 = argp;
-		err = convert_in_user(&pos->mt_blkno, &upos32->mt_blkno);
-		break;
-	case MTIOCGET32:
-		umget32 = argp;
-		err = convert_in_user(&get->mt_type, &umget32->mt_type);
-		err |= convert_in_user(&get->mt_resid, &umget32->mt_resid);
-		err |= convert_in_user(&get->mt_dsreg, &umget32->mt_dsreg);
-		err |= convert_in_user(&get->mt_gstat, &umget32->mt_gstat);
-		err |= convert_in_user(&get->mt_erreg, &umget32->mt_erreg);
-		err |= convert_in_user(&get->mt_fileno, &umget32->mt_fileno);
-		err |= convert_in_user(&get->mt_blkno, &umget32->mt_blkno);
-		break;
-	}
-	return err ? -EFAULT: 0;
-}
-
-#endif /* CONFIG_BLOCK */
-
 /* Bluetooth ioctls */
 #define HCIUARTSETPROTO		_IOW('U', 200, int)
 #define HCIUARTGETPROTO		_IOR('U', 201, int)
@@ -479,8 +411,6 @@ IGNORE_IOCTL(VT_GETMODE)
  */
 COMPATIBLE_IOCTL(_IOR('p', 20, int[7])) /* RTCGET */
 COMPATIBLE_IOCTL(_IOW('p', 21, int[7])) /* RTCSET */
-/* Little m */
-COMPATIBLE_IOCTL(MTIOCTOP)
 #ifdef CONFIG_BLOCK
 /* md calls this on random blockdevs */
 IGNORE_IOCTL(RAID_VERSION)
@@ -846,9 +776,6 @@ static long do_ioctl_trans(unsigned int cmd,
 		return sg_ioctl_trans(file, cmd, argp);
 	case SG_GET_REQUEST_TABLE:
 		return sg_grt_trans(file, cmd, argp);
-	case MTIOCGET32:
-	case MTIOCPOS32:
-		return mt_ioctl_trans(file, cmd, argp);
 #endif
 	}
 
