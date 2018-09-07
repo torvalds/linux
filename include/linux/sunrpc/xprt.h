@@ -85,7 +85,7 @@ struct rpc_rqst {
 
 	union {
 		struct list_head	rq_list;	/* Slot allocation list */
-		struct list_head	rq_recv;	/* Receive queue */
+		struct rb_node		rq_recv;	/* Receive queue */
 	};
 
 	struct list_head	rq_xmit;	/* Send queue */
@@ -260,7 +260,7 @@ struct rpc_xprt {
 						 * backchannel rpc_rqst's */
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
-	struct list_head	recv_queue;	/* Receive queue */
+	struct rb_root		recv_queue;	/* Receive queue */
 
 	struct {
 		unsigned long		bind_count,	/* total number of binds */
