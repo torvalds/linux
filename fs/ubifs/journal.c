@@ -229,36 +229,6 @@ out_return:
 }
 
 /**
- * write_node - write node to a journal head.
- * @c: UBIFS file-system description object
- * @jhead: journal head
- * @node: node to write
- * @len: node length
- * @lnum: LEB number written is returned here
- * @offs: offset written is returned here
- *
- * This function writes a node to reserved space of journal head @jhead.
- * Returns zero in case of success and a negative error code in case of
- * failure.
- */
-static int write_node(struct ubifs_info *c, int jhead, void *node, int len,
-		      int *lnum, int *offs)
-{
-	struct ubifs_wbuf *wbuf = &c->jheads[jhead].wbuf;
-
-	ubifs_assert(c, jhead != GCHD);
-
-	*lnum = c->jheads[jhead].wbuf.lnum;
-	*offs = c->jheads[jhead].wbuf.offs + c->jheads[jhead].wbuf.used;
-
-	dbg_jnl("jhead %s, LEB %d:%d, len %d",
-		dbg_jhead(jhead), *lnum, *offs, len);
-	ubifs_prepare_node(c, node, len, 0);
-
-	return ubifs_wbuf_write_nolock(wbuf, node, len);
-}
-
-/**
  * write_head - write data to a journal head.
  * @c: UBIFS file-system description object
  * @jhead: journal head
@@ -268,9 +238,9 @@ static int write_node(struct ubifs_info *c, int jhead, void *node, int len,
  * @offs: offset written is returned here
  * @sync: non-zero if the write-buffer has to by synchronized
  *
- * This function is the same as 'write_node()' but it does not assume the
- * buffer it is writing is a node, so it does not prepare it (which means
- * initializing common header and calculating CRC).
+ * This function writes data to the reserved space of journal head @jhead.
+ * Returns zero in case of success and a negative error code in case of
+ * failure.
  */
 static int write_head(struct ubifs_info *c, int jhead, void *buf, int len,
 		      int *lnum, int *offs, int sync)
@@ -764,7 +734,8 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 	if (err)
 		goto out_free;
 
-	err = write_node(c, DATAHD, data, dlen, &lnum, &offs);
+	ubifs_prepare_node(c, data, dlen, 0);
+	err = write_head(c, DATAHD, data, dlen, &lnum, &offs, 0);
 	if (err)
 		goto out_release;
 	ubifs_wbuf_add_ino_nolock(&c->jheads[DATAHD].wbuf, key_inum(c, key));
