@@ -3323,6 +3323,10 @@ i9xx_plane_check(struct intel_crtc_state *crtc_state,
 {
 	int ret;
 
+	ret = chv_plane_check_rotation(plane_state);
+	if (ret)
+		return ret;
+
 	ret = drm_atomic_helper_check_plane_state(&plane_state->base,
 						  &crtc_state->base,
 						  DRM_PLANE_HELPER_NO_SCALING,

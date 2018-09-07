@@ -2139,6 +2139,7 @@ unsigned int skl_plane_max_stride(struct intel_plane *plane,
 int skl_plane_check(struct intel_crtc_state *crtc_state,
 		    struct intel_plane_state *plane_state);
 int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state);
+int chv_plane_check_rotation(const struct intel_plane_state *plane_state);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_i915_private *dev_priv);

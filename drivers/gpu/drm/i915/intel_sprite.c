@@ -1128,11 +1128,32 @@ g4x_sprite_check(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
+int chv_plane_check_rotation(const struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	unsigned int rotation = plane_state->base.rotation;
+
+	/* CHV ignores the mirror bit when the rotate bit is set :( */
+	if (IS_CHERRYVIEW(dev_priv) &&
+	    rotation & DRM_MODE_ROTATE_180 &&
+	    rotation & DRM_MODE_REFLECT_X) {
+		DRM_DEBUG_KMS("Cannot rotate and reflect at the same time\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int
 vlv_sprite_check(struct intel_crtc_state *crtc_state,
 		 struct intel_plane_state *plane_state)
 {
 	int ret;
+
+	ret = chv_plane_check_rotation(plane_state);
+	if (ret)
+		return ret;
 
 	ret = drm_atomic_helper_check_plane_state(&plane_state->base,
 						  &crtc_state->base,
