@@ -2587,14 +2587,12 @@ static int rt5668_i2c_probe(struct i2c_client *i2c,
 
 	}
 
-	return snd_soc_register_component(&i2c->dev, &soc_component_dev_rt5668,
+	return devm_snd_soc_register_component(&i2c->dev, &soc_component_dev_rt5668,
 			rt5668_dai, ARRAY_SIZE(rt5668_dai));
 }
 
 static int rt5668_i2c_remove(struct i2c_client *i2c)
 {
-	snd_soc_unregister_component(&i2c->dev);
-
 	return 0;
 }
 
