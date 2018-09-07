@@ -2229,13 +2229,13 @@ void intel_add_fb_offsets(int *x, int *y,
 	}
 }
 
-static u32 __intel_adjust_tile_offset(int *x, int *y,
-				      unsigned int tile_width,
-				      unsigned int tile_height,
-				      unsigned int tile_size,
-				      unsigned int pitch_tiles,
-				      u32 old_offset,
-				      u32 new_offset)
+static u32 intel_adjust_tile_offset(int *x, int *y,
+				    unsigned int tile_width,
+				    unsigned int tile_height,
+				    unsigned int tile_size,
+				    unsigned int pitch_tiles,
+				    u32 old_offset,
+				    u32 new_offset)
 {
 	unsigned int pitch_pixels = pitch_tiles * tile_width;
 	unsigned int tiles;
@@ -2256,12 +2256,12 @@ static u32 __intel_adjust_tile_offset(int *x, int *y,
 	return new_offset;
 }
 
-static u32 _intel_adjust_tile_offset(int *x, int *y,
-				     const struct drm_framebuffer *fb, int plane,
-				     unsigned int rotation,
-				     u32 old_offset, u32 new_offset)
+static u32 intel_adjust_aligned_offset(int *x, int *y,
+				       const struct drm_framebuffer *fb, int plane,
+				       unsigned int rotation,
+				       u32 old_offset, u32 new_offset)
 {
-	const struct drm_i915_private *dev_priv = to_i915(fb->dev);
+	struct drm_i915_private *dev_priv = to_i915(fb->dev);
 	unsigned int cpp = fb->format->cpp[plane];
 	unsigned int pitch = intel_fb_pitch(fb, plane, rotation);
 
@@ -2281,9 +2281,9 @@ static u32 _intel_adjust_tile_offset(int *x, int *y,
 			pitch_tiles = pitch / (tile_width * cpp);
 		}
 
-		__intel_adjust_tile_offset(x, y, tile_width, tile_height,
-					   tile_size, pitch_tiles,
-					   old_offset, new_offset);
+		intel_adjust_tile_offset(x, y, tile_width, tile_height,
+					 tile_size, pitch_tiles,
+					 old_offset, new_offset);
 	} else {
 		old_offset += *y * pitch + *x * cpp;
 
@@ -2298,17 +2298,18 @@ static u32 _intel_adjust_tile_offset(int *x, int *y,
  * Adjust the tile offset by moving the difference into
  * the x/y offsets.
  */
-static u32 intel_adjust_tile_offset(int *x, int *y,
-				    const struct intel_plane_state *state, int plane,
-				    u32 old_offset, u32 new_offset)
+static u32 intel_plane_adjust_aligned_offset(int *x, int *y,
+					     const struct intel_plane_state *state,
+					     int plane,
+					     u32 old_offset, u32 new_offset)
 {
-	return _intel_adjust_tile_offset(x, y, state->base.fb, plane,
-					 state->base.rotation,
-					 old_offset, new_offset);
+	return intel_adjust_aligned_offset(x, y, state->base.fb, plane,
+					   state->base.rotation,
+					   old_offset, new_offset);
 }
 
 /*
- * Computes the linear offset to the base tile and adjusts
+ * Computes the aligned offset to the base tile and adjusts
  * x, y. bytes per pixel is assumed to be a power-of-two.
  *
  * In the 90/270 rotated case, x and y are assumed
@@ -2321,12 +2322,12 @@ static u32 intel_adjust_tile_offset(int *x, int *y,
  * used. This is why the user has to pass in the pitch since it
  * is specified in the rotated orientation.
  */
-static u32 _intel_compute_tile_offset(const struct drm_i915_private *dev_priv,
-				      int *x, int *y,
-				      const struct drm_framebuffer *fb, int plane,
-				      unsigned int pitch,
-				      unsigned int rotation,
-				      u32 alignment)
+static u32 intel_compute_aligned_offset(struct drm_i915_private *dev_priv,
+					int *x, int *y,
+					const struct drm_framebuffer *fb, int plane,
+					unsigned int pitch,
+					unsigned int rotation,
+					u32 alignment)
 {
 	uint64_t fb_modifier = fb->modifier;
 	unsigned int cpp = fb->format->cpp[plane];
@@ -2358,9 +2359,9 @@ static u32 _intel_compute_tile_offset(const struct drm_i915_private *dev_priv,
 		offset = (tile_rows * pitch_tiles + tiles) * tile_size;
 		offset_aligned = offset & ~alignment;
 
-		__intel_adjust_tile_offset(x, y, tile_width, tile_height,
-					   tile_size, pitch_tiles,
-					   offset, offset_aligned);
+		intel_adjust_tile_offset(x, y, tile_width, tile_height,
+					 tile_size, pitch_tiles,
+					 offset, offset_aligned);
 	} else {
 		offset = *y * pitch + *x * cpp;
 		offset_aligned = offset & ~alignment;
@@ -2372,9 +2373,9 @@ static u32 _intel_compute_tile_offset(const struct drm_i915_private *dev_priv,
 	return offset_aligned;
 }
 
-u32 intel_compute_tile_offset(int *x, int *y,
-			      const struct intel_plane_state *state,
-			      int plane)
+static u32 intel_plane_compute_aligned_offset(int *x, int *y,
+					      const struct intel_plane_state *state,
+					      int plane)
 {
 	struct intel_plane *intel_plane = to_intel_plane(state->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(intel_plane->base.dev);
@@ -2388,8 +2389,8 @@ u32 intel_compute_tile_offset(int *x, int *y,
 	else
 		alignment = intel_surf_alignment(fb, plane);
 
-	return _intel_compute_tile_offset(dev_priv, x, y, fb, plane, pitch,
-					  rotation, alignment);
+	return intel_compute_aligned_offset(dev_priv, x, y, fb, plane,
+					    pitch, rotation, alignment);
 }
 
 /* Convert the fb->offset[] into x/y offsets */
@@ -2405,9 +2406,9 @@ static int intel_fb_offset_to_xy(int *x, int *y,
 	*x = 0;
 	*y = 0;
 
-	_intel_adjust_tile_offset(x, y,
-				  fb, plane, DRM_MODE_ROTATE_0,
-				  fb->offsets[plane], 0);
+	intel_adjust_aligned_offset(x, y,
+				    fb, plane, DRM_MODE_ROTATE_0,
+				    fb->offsets[plane], 0);
 
 	return 0;
 }
@@ -2564,9 +2565,10 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 		intel_fb->normal[i].x = x;
 		intel_fb->normal[i].y = y;
 
-		offset = _intel_compute_tile_offset(dev_priv, &x, &y,
-						    fb, i, fb->pitches[i],
-						    DRM_MODE_ROTATE_0, tile_size);
+		offset = intel_compute_aligned_offset(dev_priv, &x, &y, fb, i,
+						      fb->pitches[i],
+						      DRM_MODE_ROTATE_0,
+						      tile_size);
 		offset /= tile_size;
 
 		if (fb->modifier != DRM_FORMAT_MOD_LINEAR) {
@@ -2613,10 +2615,10 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 			 * We only keep the x/y offsets, so push all of the
 			 * gtt offset into the x/y offsets.
 			 */
-			__intel_adjust_tile_offset(&x, &y,
-						   tile_width, tile_height,
-						   tile_size, pitch_tiles,
-						   gtt_offset_rotated * tile_size, 0);
+			intel_adjust_tile_offset(&x, &y,
+						 tile_width, tile_height,
+						 tile_size, pitch_tiles,
+						 gtt_offset_rotated * tile_size, 0);
 
 			gtt_offset_rotated += rot_info->plane[i].width * rot_info->plane[i].height;
 
@@ -2965,8 +2967,8 @@ static bool skl_check_main_ccs_coordinates(struct intel_plane_state *plane_state
 
 		x = aux_x / hsub;
 		y = aux_y / vsub;
-		aux_offset = intel_adjust_tile_offset(&x, &y, plane_state, 1,
-						      aux_offset, aux_offset - alignment);
+		aux_offset = intel_plane_adjust_aligned_offset(&x, &y, plane_state, 1,
+							       aux_offset, aux_offset - alignment);
 		aux_x = x * hsub + aux_x % hsub;
 		aux_y = y * vsub + aux_y % vsub;
 	}
@@ -3024,7 +3026,7 @@ static int skl_check_main_surface(const struct intel_crtc_state *crtc_state,
 	}
 
 	intel_add_fb_offsets(&x, &y, plane_state, 0);
-	offset = intel_compute_tile_offset(&x, &y, plane_state, 0);
+	offset = intel_plane_compute_aligned_offset(&x, &y, plane_state, 0);
 	alignment = intel_surf_alignment(fb, 0);
 
 	/*
@@ -3033,8 +3035,8 @@ static int skl_check_main_surface(const struct intel_crtc_state *crtc_state,
 	 * sure that is what we will get.
 	 */
 	if (offset > aux_offset)
-		offset = intel_adjust_tile_offset(&x, &y, plane_state, 0,
-						  offset, aux_offset & ~(alignment - 1));
+		offset = intel_plane_adjust_aligned_offset(&x, &y, plane_state, 0,
+							   offset, aux_offset & ~(alignment - 1));
 
 	/*
 	 * When using an X-tiled surface, the plane blows up
@@ -3051,8 +3053,8 @@ static int skl_check_main_surface(const struct intel_crtc_state *crtc_state,
 				return -EINVAL;
 			}
 
-			offset = intel_adjust_tile_offset(&x, &y, plane_state, 0,
-							  offset, offset - alignment);
+			offset = intel_plane_adjust_aligned_offset(&x, &y, plane_state, 0,
+								   offset, offset - alignment);
 		}
 	}
 
@@ -3065,8 +3067,8 @@ static int skl_check_main_surface(const struct intel_crtc_state *crtc_state,
 			if (offset == 0)
 				break;
 
-			offset = intel_adjust_tile_offset(&x, &y, plane_state, 0,
-							  offset, offset - alignment);
+			offset = intel_plane_adjust_aligned_offset(&x, &y, plane_state, 0,
+								   offset, offset - alignment);
 		}
 
 		if (x != plane_state->aux.x || y != plane_state->aux.y) {
@@ -3118,7 +3120,7 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 	u32 offset;
 
 	intel_add_fb_offsets(&x, &y, plane_state, 1);
-	offset = intel_compute_tile_offset(&x, &y, plane_state, 1);
+	offset = intel_plane_compute_aligned_offset(&x, &y, plane_state, 1);
 
 	/* FIXME not quite sure how/if these apply to the chroma plane */
 	if (w > max_width || h > max_height) {
@@ -3152,7 +3154,7 @@ static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 	}
 
 	intel_add_fb_offsets(&x, &y, plane_state, 1);
-	offset = intel_compute_tile_offset(&x, &y, plane_state, 1);
+	offset = intel_plane_compute_aligned_offset(&x, &y, plane_state, 1);
 
 	plane_state->aux.offset = offset;
 	plane_state->aux.x = x * hsub + src_x % hsub;
@@ -3284,8 +3286,8 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 	intel_add_fb_offsets(&src_x, &src_y, plane_state, 0);
 
 	if (INTEL_GEN(dev_priv) >= 4)
-		offset = intel_compute_tile_offset(&src_x, &src_y,
-						   plane_state, 0);
+		offset = intel_plane_compute_aligned_offset(&src_x, &src_y,
+							    plane_state, 0);
 	else
 		offset = 0;
 
@@ -9666,7 +9668,8 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 	src_y = plane_state->base.src_y >> 16;
 
 	intel_add_fb_offsets(&src_x, &src_y, plane_state, 0);
-	offset = intel_compute_tile_offset(&src_x, &src_y, plane_state, 0);
+	offset = intel_plane_compute_aligned_offset(&src_x, &src_y,
+						    plane_state, 0);
 
 	if (src_x != 0 || src_y != 0) {
 		DRM_DEBUG_KMS("Arbitrary cursor panning not supported\n");
