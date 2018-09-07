@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * R-Car SYSC Power management support
  *
  * Copyright (C) 2014  Magnus Damm
  * Copyright (C) 2015-2017 Glider bvba
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #include <linux/clk/renesas.h>
