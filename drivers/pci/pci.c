@@ -999,7 +999,7 @@ static void __pci_start_power_transition(struct pci_dev *dev, pci_power_t state)
 		 * because have already delayed for the bridge.
 		 */
 		if (dev->runtime_d3cold) {
-			if (dev->d3cold_delay)
+			if (dev->d3cold_delay && !dev->imm_ready)
 				msleep(dev->d3cold_delay);
 			/*
 			 * When powering on a bridge from D3cold, the
@@ -2644,6 +2644,7 @@ EXPORT_SYMBOL_GPL(pci_d3cold_disable);
 void pci_pm_init(struct pci_dev *dev)
 {
 	int pm;
+	u16 status;
 	u16 pmc;
 
 	pm_runtime_forbid(&dev->dev);
@@ -2706,6 +2707,10 @@ void pci_pm_init(struct pci_dev *dev)
 		/* Disable the PME# generation functionality */
 		pci_pme_active(dev, false);
 	}
+
+	pci_read_config_word(dev, PCI_STATUS, &status);
+	if (status & PCI_STATUS_IMM_READY)
+		dev->imm_ready = 1;
 }
 
 static unsigned long pci_ea_flags(struct pci_dev *dev, u8 prop)
@@ -4376,6 +4381,9 @@ int pcie_flr(struct pci_dev *dev)
 
 	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
 
+	if (dev->imm_ready)
+		return 0;
+
 	/*
 	 * Per PCIe r4.0, sec 6.6.2, a device must complete an FLR within
 	 * 100ms, but may silently discard requests while the FLR is in
@@ -4416,6 +4424,9 @@ static int pci_af_flr(struct pci_dev *dev, int probe)
 		pci_err(dev, "timed out waiting for pending transaction; performing AF function level reset anyway\n");
 
 	pci_write_config_byte(dev, pos + PCI_AF_CTRL, PCI_AF_CTRL_FLR);
+
+	if (dev->imm_ready)
+		return 0;
 
 	/*
 	 * Per Advanced Capabilities for Conventional PCI ECN, 13 April 2006,
