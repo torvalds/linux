@@ -1540,8 +1540,16 @@ static void amdgpu_vm_fragment(struct amdgpu_pte_update_params *params,
 	 * larger. Thus, we try to use large fragments wherever possible.
 	 * Userspace can support this by aligning virtual base address and
 	 * allocation size to the fragment size.
+	 *
+	 * Starting with Vega10 the fragment size only controls the L1. The L2
+	 * is now directly feed with small/huge/giant pages from the walker.
 	 */
-	unsigned max_frag = params->adev->vm_manager.fragment_size;
+	unsigned max_frag;
+
+	if (params->adev->asic_type < CHIP_VEGA10)
+		max_frag = params->adev->vm_manager.fragment_size;
+	else
+		max_frag = 31;
 
 	/* system pages are non continuously */
 	if (params->src || !(flags & AMDGPU_PTE_VALID)) {
