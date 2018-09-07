@@ -1427,12 +1427,15 @@ out:
 static void smap_write_space(struct sock *sk)
 {
 	struct smap_psock *psock;
+	void (*write_space)(struct sock *sk);
 
 	rcu_read_lock();
 	psock = smap_psock_sk(sk);
 	if (likely(psock && test_bit(SMAP_TX_RUNNING, &psock->state)))
 		schedule_work(&psock->tx_work);
+	write_space = psock->save_write_space;
 	rcu_read_unlock();
+	write_space(sk);
 }
 
 static void smap_stop_sock(struct smap_psock *psock, struct sock *sk)
@@ -2140,7 +2143,9 @@ static struct bpf_map *sock_hash_alloc(union bpf_attr *attr)
 		return ERR_PTR(-EPERM);
 
 	/* check sanity of attributes */
-	if (attr->max_entries == 0 || attr->value_size != 4 ||
+	if (attr->max_entries == 0 ||
+	    attr->key_size == 0 ||
+	    attr->value_size != 4 ||
 	    attr->map_flags & ~SOCK_CREATE_FLAG_MASK)
 		return ERR_PTR(-EINVAL);
 
@@ -2267,8 +2272,10 @@ static struct htab_elem *alloc_sock_hash_elem(struct bpf_htab *htab,
 	}
 	l_new = kmalloc_node(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN,
 			     htab->map.numa_node);
-	if (!l_new)
+	if (!l_new) {
+		atomic_dec(&htab->count);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	memcpy(l_new->key, key, key_size);
 	l_new->sk = sk;

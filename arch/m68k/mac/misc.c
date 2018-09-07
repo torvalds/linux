@@ -98,11 +98,10 @@ static time64_t pmu_read_time(void)
 
 	if (pmu_request(&req, NULL, 1, PMU_READ_RTC) < 0)
 		return 0;
-	while (!req.complete)
-		pmu_poll();
+	pmu_wait_complete(&req);
 
-	time = (u32)((req.reply[1] << 24) | (req.reply[2] << 16) |
-		     (req.reply[3] << 8) | req.reply[4]);
+	time = (u32)((req.reply[0] << 24) | (req.reply[1] << 16) |
+		     (req.reply[2] << 8) | req.reply[3]);
 
 	return time - RTC_OFFSET;
 }
@@ -116,8 +115,7 @@ static void pmu_write_time(time64_t time)
 			(data >> 24) & 0xFF, (data >> 16) & 0xFF,
 			(data >> 8) & 0xFF, data & 0xFF) < 0)
 		return;
-	while (!req.complete)
-		pmu_poll();
+	pmu_wait_complete(&req);
 }
 
 static __u8 pmu_read_pram(int offset)
