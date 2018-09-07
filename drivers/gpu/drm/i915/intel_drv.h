@@ -1660,8 +1660,7 @@ u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 u32 glk_color_ctl(const struct intel_plane_state *plane_state);
 u32 skl_plane_stride(const struct intel_plane_state *plane_state,
 		     int plane);
-int skl_check_plane_surface(const struct intel_crtc_state *crtc_state,
-			    struct intel_plane_state *plane_state);
+int skl_check_plane_surface(struct intel_plane_state *plane_state);
 int i9xx_check_plane_surface(struct intel_plane_state *plane_state);
 int skl_format_to_fourcc(int format, bool rgb_order, bool alpha);
 unsigned int i9xx_plane_max_stride(struct intel_plane *plane,

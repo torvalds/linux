@@ -1220,6 +1220,36 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
+static int skl_plane_check_dst_coordinates(const struct intel_crtc_state *crtc_state,
+					   const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
+	int crtc_x = plane_state->base.dst.x1;
+	int crtc_w = drm_rect_width(&plane_state->base.dst);
+	int pipe_src_w = crtc_state->pipe_src_w;
+
+	/*
+	 * Display WA #1175: cnl,glk
+	 * Planes other than the cursor may cause FIFO underflow and display
+	 * corruption if starting less than 4 pixels from the right edge of
+	 * the screen.
+	 * Besides the above WA fix the similar problem, where planes other
+	 * than the cursor ending less than 4 pixels from the left edge of the
+	 * screen may cause FIFO underflow and display corruption.
+	 */
+	if ((IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) &&
+	    (crtc_x + crtc_w < 4 || crtc_x > pipe_src_w - 4)) {
+		DRM_DEBUG_KMS("requested plane X %s position %d invalid (valid range %d-%d)\n",
+			      crtc_x + crtc_w < 4 ? "end" : "start",
+			      crtc_x + crtc_w < 4 ? crtc_x + crtc_w : crtc_x,
+			      4, pipe_src_w - 4);
+		return -ERANGE;
+	}
+
+	return 0;
+}
+
 int skl_plane_check(struct intel_crtc_state *crtc_state,
 		    struct intel_plane_state *plane_state)
 {
@@ -1254,11 +1284,15 @@ int skl_plane_check(struct intel_crtc_state *crtc_state,
 	if (!plane_state->base.visible)
 		return 0;
 
+	ret = skl_plane_check_dst_coordinates(crtc_state, plane_state);
+	if (ret)
+		return ret;
+
 	ret = intel_plane_check_src_coordinates(plane_state);
 	if (ret)
 		return ret;
 
-	ret = skl_check_plane_surface(crtc_state, plane_state);
+	ret = skl_check_plane_surface(plane_state);
 	if (ret)
 		return ret;
 

@@ -2991,20 +2991,14 @@ static bool skl_check_main_ccs_coordinates(struct intel_plane_state *plane_state
 	return true;
 }
 
-static int skl_check_main_surface(const struct intel_crtc_state *crtc_state,
-				  struct intel_plane_state *plane_state)
+static int skl_check_main_surface(struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv =
-		to_i915(plane_state->base.plane->dev);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	unsigned int rotation = plane_state->base.rotation;
 	int x = plane_state->base.src.x1 >> 16;
 	int y = plane_state->base.src.y1 >> 16;
 	int w = drm_rect_width(&plane_state->base.src) >> 16;
 	int h = drm_rect_height(&plane_state->base.src) >> 16;
-	int dst_x = plane_state->base.dst.x1;
-	int dst_w = drm_rect_width(&plane_state->base.dst);
-	int pipe_src_w = crtc_state->pipe_src_w;
 	int max_width = skl_max_plane_width(fb, 0, rotation);
 	int max_height = 4096;
 	u32 alignment, offset, aux_offset = plane_state->color_plane[1].offset;
@@ -3013,24 +3007,6 @@ static int skl_check_main_surface(const struct intel_crtc_state *crtc_state,
 		DRM_DEBUG_KMS("requested Y/RGB source size %dx%d too big (limit %dx%d)\n",
 			      w, h, max_width, max_height);
 		return -EINVAL;
-	}
-
-	/*
-	 * Display WA #1175: cnl,glk
-	 * Planes other than the cursor may cause FIFO underflow and display
-	 * corruption if starting less than 4 pixels from the right edge of
-	 * the screen.
-	 * Besides the above WA fix the similar problem, where planes other
-	 * than the cursor ending less than 4 pixels from the left edge of the
-	 * screen may cause FIFO underflow and display corruption.
-	 */
-	if ((IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) &&
-	    (dst_x + dst_w < 4 || dst_x > pipe_src_w - 4)) {
-		DRM_DEBUG_KMS("requested plane X %s position %d invalid (valid range %d-%d)\n",
-			      dst_x + dst_w < 4 ? "end" : "start",
-			      dst_x + dst_w < 4 ? dst_x + dst_w : dst_x,
-			      4, pipe_src_w - 4);
-		return -ERANGE;
 	}
 
 	intel_add_fb_offsets(&x, &y, plane_state, 0);
@@ -3093,8 +3069,7 @@ static int skl_check_main_surface(const struct intel_crtc_state *crtc_state,
 }
 
 static int
-skl_check_nv12_surface(const struct intel_crtc_state *crtc_state,
-		       struct intel_plane_state *plane_state)
+skl_check_nv12_surface(struct intel_plane_state *plane_state)
 {
 	/* Display WA #1106 */
 	if (plane_state->base.rotation !=
@@ -3165,8 +3140,7 @@ static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 	return 0;
 }
 
-int skl_check_plane_surface(const struct intel_crtc_state *crtc_state,
-			    struct intel_plane_state *plane_state)
+int skl_check_plane_surface(struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	unsigned int rotation = plane_state->base.rotation;
@@ -3190,7 +3164,7 @@ int skl_check_plane_surface(const struct intel_crtc_state *crtc_state,
 	 * the main surface setup depends on it.
 	 */
 	if (fb->format->format == DRM_FORMAT_NV12) {
-		ret = skl_check_nv12_surface(crtc_state, plane_state);
+		ret = skl_check_nv12_surface(plane_state);
 		if (ret)
 			return ret;
 		ret = skl_check_nv12_aux_surface(plane_state);
@@ -3206,7 +3180,7 @@ int skl_check_plane_surface(const struct intel_crtc_state *crtc_state,
 		plane_state->color_plane[1].y = 0;
 	}
 
-	ret = skl_check_main_surface(crtc_state, plane_state);
+	ret = skl_check_main_surface(plane_state);
 	if (ret)
 		return ret;
 
