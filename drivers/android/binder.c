@@ -6133,12 +6133,11 @@ static int __init binder_init(void)
 	 * Copy the module_parameter string, because we don't want to
 	 * tokenize it in-place.
 	 */
-	device_names = kzalloc(strlen(binder_devices_param) + 1, GFP_KERNEL);
+	device_names = kstrdup(binder_devices_param, GFP_KERNEL);
 	if (!device_names) {
 		ret = -ENOMEM;
 		goto err_alloc_device_names_failed;
 	}
-	strcpy(device_names, binder_devices_param);
 
 	device_tmp = device_names;
 	while ((device_name = strsep(&device_tmp, ","))) {
