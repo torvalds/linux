@@ -488,6 +488,12 @@ static int try_read_node(const struct ubifs_info *c, void *buf, int type,
 	if (crc != node_crc)
 		return 0;
 
+	err = ubifs_node_check_hash(c, buf, zbr->hash);
+	if (err) {
+		ubifs_bad_hash(c, buf, zbr->hash, lnum, offs);
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -1711,6 +1717,12 @@ static int validate_data_node(struct ubifs_info *c, void *buf,
 	if (err) {
 		ubifs_err(c, "expected node type %d", UBIFS_DATA_NODE);
 		goto out;
+	}
+
+	err = ubifs_node_check_hash(c, buf, zbr->hash);
+	if (err) {
+		ubifs_bad_hash(c, buf, zbr->hash, zbr->lnum, zbr->offs);
+		return err;
 	}
 
 	len = le32_to_cpu(ch->len);

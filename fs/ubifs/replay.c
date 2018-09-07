@@ -56,6 +56,7 @@ struct replay_entry {
 	int lnum;
 	int offs;
 	int len;
+	u8 hash[UBIFS_HASH_ARR_SZ];
 	unsigned int deletion:1;
 	unsigned long long sqnum;
 	struct list_head list;
@@ -228,7 +229,7 @@ static int apply_replay_entry(struct ubifs_info *c, struct replay_entry *r)
 			err = ubifs_tnc_remove_nm(c, &r->key, &r->nm);
 		else
 			err = ubifs_tnc_add_nm(c, &r->key, r->lnum, r->offs,
-					       r->len, NULL, &r->nm);
+					       r->len, r->hash, &r->nm);
 	} else {
 		if (r->deletion)
 			switch (key_type(c, &r->key)) {
@@ -248,7 +249,7 @@ static int apply_replay_entry(struct ubifs_info *c, struct replay_entry *r)
 			}
 		else
 			err = ubifs_tnc_add(c, &r->key, r->lnum, r->offs,
-					    r->len, NULL);
+					    r->len, r->hash);
 		if (err)
 			return err;
 
@@ -352,9 +353,9 @@ static void destroy_replay_list(struct ubifs_info *c)
  * in case of success and a negative error code in case of failure.
  */
 static int insert_node(struct ubifs_info *c, int lnum, int offs, int len,
-		       union ubifs_key *key, unsigned long long sqnum,
-		       int deletion, int *used, loff_t old_size,
-		       loff_t new_size)
+		       const u8 *hash, union ubifs_key *key,
+		       unsigned long long sqnum, int deletion, int *used,
+		       loff_t old_size, loff_t new_size)
 {
 	struct replay_entry *r;
 
@@ -372,6 +373,7 @@ static int insert_node(struct ubifs_info *c, int lnum, int offs, int len,
 	r->lnum = lnum;
 	r->offs = offs;
 	r->len = len;
+	ubifs_copy_hash(c, hash, r->hash);
 	r->deletion = !!deletion;
 	r->sqnum = sqnum;
 	key_copy(c, key, &r->key);
@@ -400,8 +402,9 @@ static int insert_node(struct ubifs_info *c, int lnum, int offs, int len,
  * negative error code in case of failure.
  */
 static int insert_dent(struct ubifs_info *c, int lnum, int offs, int len,
-		       union ubifs_key *key, const char *name, int nlen,
-		       unsigned long long sqnum, int deletion, int *used)
+		       const u8 *hash, union ubifs_key *key,
+		       const char *name, int nlen, unsigned long long sqnum,
+		       int deletion, int *used)
 {
 	struct replay_entry *r;
 	char *nbuf;
@@ -425,6 +428,7 @@ static int insert_dent(struct ubifs_info *c, int lnum, int offs, int len,
 	r->lnum = lnum;
 	r->offs = offs;
 	r->len = len;
+	ubifs_copy_hash(c, hash, r->hash);
 	r->deletion = !!deletion;
 	r->sqnum = sqnum;
 	key_copy(c, key, &r->key);
@@ -582,6 +586,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 	 */
 
 	list_for_each_entry(snod, &sleb->nodes, list) {
+		u8 hash[UBIFS_HASH_ARR_SZ];
 		int deletion = 0;
 
 		cond_resched();
@@ -590,6 +595,8 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 			ubifs_err(c, "file system's life ended");
 			goto out_dump;
 		}
+
+		ubifs_node_calc_hash(c, snod->node, hash);
 
 		if (snod->sqnum > c->max_sqnum)
 			c->max_sqnum = snod->sqnum;
@@ -602,7 +609,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 
 			if (le32_to_cpu(ino->nlink) == 0)
 				deletion = 1;
-			err = insert_node(c, lnum, snod->offs, snod->len,
+			err = insert_node(c, lnum, snod->offs, snod->len, hash,
 					  &snod->key, snod->sqnum, deletion,
 					  &used, 0, new_size);
 			break;
@@ -614,7 +621,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 					  key_block(c, &snod->key) *
 					  UBIFS_BLOCK_SIZE;
 
-			err = insert_node(c, lnum, snod->offs, snod->len,
+			err = insert_node(c, lnum, snod->offs, snod->len, hash,
 					  &snod->key, snod->sqnum, deletion,
 					  &used, 0, new_size);
 			break;
@@ -628,7 +635,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 			if (err)
 				goto out_dump;
 
-			err = insert_dent(c, lnum, snod->offs, snod->len,
+			err = insert_dent(c, lnum, snod->offs, snod->len, hash,
 					  &snod->key, dent->name,
 					  le16_to_cpu(dent->nlen), snod->sqnum,
 					  !le64_to_cpu(dent->inum), &used);
@@ -654,7 +661,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 			 * functions which expect nodes to have keys.
 			 */
 			trun_key_init(c, &key, le32_to_cpu(trun->inum));
-			err = insert_node(c, lnum, snod->offs, snod->len,
+			err = insert_node(c, lnum, snod->offs, snod->len, hash,
 					  &key, snod->sqnum, 1, &used,
 					  old_size, new_size);
 			break;

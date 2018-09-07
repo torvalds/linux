@@ -293,6 +293,12 @@ static int read_znode(struct ubifs_info *c, struct ubifs_zbranch *zzbr,
 		return err;
 	}
 
+	err = ubifs_node_check_hash(c, idx, zzbr->hash);
+	if (err) {
+		ubifs_bad_hash(c, idx, zzbr->hash, lnum, offs);
+		return err;
+	}
+
 	znode->child_cnt = le16_to_cpu(idx->child_cnt);
 	znode->level = le16_to_cpu(idx->level);
 
@@ -309,13 +315,14 @@ static int read_znode(struct ubifs_info *c, struct ubifs_zbranch *zzbr,
 	}
 
 	for (i = 0; i < znode->child_cnt; i++) {
-		const struct ubifs_branch *br = ubifs_idx_branch(c, idx, i);
+		struct ubifs_branch *br = ubifs_idx_branch(c, idx, i);
 		struct ubifs_zbranch *zbr = &znode->zbranch[i];
 
 		key_read(c, &br->key, &zbr->key);
 		zbr->lnum = le32_to_cpu(br->lnum);
 		zbr->offs = le32_to_cpu(br->offs);
 		zbr->len  = le32_to_cpu(br->len);
+		ubifs_copy_hash(c, ubifs_branch_hash(c, br), zbr->hash);
 		zbr->znode = NULL;
 
 		/* Validate branch */
@@ -495,6 +502,12 @@ int ubifs_tnc_read_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 		dbg_tnck(&key1, "but found node's key ");
 		ubifs_dump_node(c, node);
 		return -EINVAL;
+	}
+
+	err = ubifs_node_check_hash(c, node, zbr->hash);
+	if (err) {
+		ubifs_bad_hash(c, node, zbr->hash, zbr->lnum, zbr->offs);
+		return err;
 	}
 
 	return 0;

@@ -305,6 +305,8 @@ int ubifs_read_master(struct ubifs_info *c)
 	c->lst.total_dead  = le64_to_cpu(c->mst_node->total_dead);
 	c->lst.total_dark  = le64_to_cpu(c->mst_node->total_dark);
 
+	ubifs_copy_hash(c, c->mst_node->hash_root_idx, c->zroot.hash);
+
 	c->calc_idx_sz = c->bi.old_idx_sz;
 
 	if (c->mst_node->flags & cpu_to_le32(UBIFS_MST_NO_ORPHS))
@@ -378,6 +380,7 @@ int ubifs_write_master(struct ubifs_info *c)
 	c->mst_offs = offs;
 	c->mst_node->highest_inum = cpu_to_le64(c->highest_inum);
 
+	ubifs_copy_hash(c, c->zroot.hash, c->mst_node->hash_root_idx);
 	err = ubifs_write_node(c, c->mst_node, len, lnum, offs);
 	if (err)
 		return err;

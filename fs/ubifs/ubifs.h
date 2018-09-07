@@ -765,6 +765,8 @@ struct ubifs_zbranch {
  * struct ubifs_znode - in-memory representation of an indexing node.
  * @parent: parent znode or NULL if it is the root
  * @cnext: next znode to commit
+ * @cparent: parent node for this commit
+ * @ciip: index in cparent's zbranch array
  * @flags: znode flags (%DIRTY_ZNODE, %COW_ZNODE or %OBSOLETE_ZNODE)
  * @time: last access time (seconds)
  * @level: level of the entry in the TNC tree
@@ -782,6 +784,8 @@ struct ubifs_zbranch {
 struct ubifs_znode {
 	struct ubifs_znode *parent;
 	struct ubifs_znode *cnext;
+	struct ubifs_znode *cparent;
+	int ciip;
 	unsigned long flags;
 	time64_t time;
 	int level;
