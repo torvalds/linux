@@ -124,7 +124,7 @@
 	vref-supply = <&reg_ldo2>;
 	status = "okay";
 
-	button@984 {
+	button-984 {
 		label = "Home";
 		linux,code = <KEY_HOMEPAGE>;
 		channel = <0>;
