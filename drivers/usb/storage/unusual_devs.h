@@ -873,6 +873,12 @@ UNUSUAL_DEV(  0x05e3, 0x0723, 0x9451, 0x9451,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_SANE_SENSE ),
 
+UNUSUAL_DEV(  0x05e3, 0x0749, 0x0000, 0xffff,
+		"Genesys Logic",
+		"USB Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_GO_SLOW | US_FL_MAX_SECTORS_64 | US_FL_IGNORE_RESIDUE ),
+
 /* Reported by Hanno Boeck <hanno@gmx.de>
  * Taken from the Lycoris Kernel */
 UNUSUAL_DEV(  0x0636, 0x0003, 0x0000, 0x9999,
