@@ -82,6 +82,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	int err, tmp, jnl_lebs, log_lebs, max_buds, main_lebs, main_first;
 	int lpt_lebs, lpt_first, orph_lebs, big_lpt, ino_waste, sup_flags = 0;
 	int min_leb_cnt = UBIFS_MIN_LEB_CNT;
+	int idx_node_size;
 	long long tmp64, main_bytes;
 	__le64 tmp_le64;
 	__le32 tmp_le32;
@@ -156,11 +157,19 @@ static int create_default_filesystem(struct ubifs_info *c)
 
 	main_first = c->leb_cnt - main_lebs;
 
+	sup = kzalloc(ALIGN(UBIFS_SB_NODE_SZ, c->min_io_size), GFP_KERNEL);
+	mst = kzalloc(c->mst_node_alsz, GFP_KERNEL);
+	idx_node_size = ubifs_idx_node_sz(c, 1);
+	idx = kzalloc(ALIGN(tmp, c->min_io_size), GFP_KERNEL);
+	ino = kzalloc(ALIGN(UBIFS_INO_NODE_SZ, c->min_io_size), GFP_KERNEL);
+	cs = kzalloc(ALIGN(UBIFS_CS_NODE_SZ, c->min_io_size), GFP_KERNEL);
+
+	if (!sup || !mst || !idx || !ino || !cs) {
+		err = -ENOMEM;
+		goto out;
+	}
+
 	/* Create default superblock */
-	tmp = ALIGN(UBIFS_SB_NODE_SZ, c->min_io_size);
-	sup = kzalloc(tmp, GFP_KERNEL);
-	if (!sup)
-		return -ENOMEM;
 
 	tmp64 = (long long)max_buds * c->leb_size;
 	if (big_lpt)
@@ -197,17 +206,9 @@ static int create_default_filesystem(struct ubifs_info *c)
 	sup->rp_size = cpu_to_le64(tmp64);
 	sup->ro_compat_version = cpu_to_le32(UBIFS_RO_COMPAT_VERSION);
 
-	err = ubifs_write_node(c, sup, UBIFS_SB_NODE_SZ, 0, 0);
-	kfree(sup);
-	if (err)
-		return err;
-
 	dbg_gen("default superblock created at LEB 0:0");
 
 	/* Create default master node */
-	mst = kzalloc(c->mst_node_alsz, GFP_KERNEL);
-	if (!mst)
-		return -ENOMEM;
 
 	mst->ch.node_type = UBIFS_MST_NODE;
 	mst->log_lnum     = cpu_to_le32(UBIFS_LOG_LNUM);
@@ -253,24 +254,9 @@ static int create_default_filesystem(struct ubifs_info *c)
 
 	mst->total_used = cpu_to_le64(UBIFS_INO_NODE_SZ);
 
-	err = ubifs_write_node(c, mst, UBIFS_MST_NODE_SZ, UBIFS_MST_LNUM, 0);
-	if (err) {
-		kfree(mst);
-		return err;
-	}
-	err = ubifs_write_node(c, mst, UBIFS_MST_NODE_SZ, UBIFS_MST_LNUM + 1,
-			       0);
-	kfree(mst);
-	if (err)
-		return err;
-
 	dbg_gen("default master node created at LEB %d:0", UBIFS_MST_LNUM);
 
 	/* Create the root indexing node */
-	tmp = ubifs_idx_node_sz(c, 1);
-	idx = kzalloc(ALIGN(tmp, c->min_io_size), GFP_KERNEL);
-	if (!idx)
-		return -ENOMEM;
 
 	c->key_fmt = UBIFS_SIMPLE_KEY_FMT;
 	c->key_hash = key_r5_hash;
@@ -282,19 +268,11 @@ static int create_default_filesystem(struct ubifs_info *c)
 	key_write_idx(c, &key, &br->key);
 	br->lnum = cpu_to_le32(main_first + DEFAULT_DATA_LEB);
 	br->len  = cpu_to_le32(UBIFS_INO_NODE_SZ);
-	err = ubifs_write_node(c, idx, tmp, main_first + DEFAULT_IDX_LEB, 0);
-	kfree(idx);
-	if (err)
-		return err;
 
 	dbg_gen("default root indexing node created LEB %d:0",
 		main_first + DEFAULT_IDX_LEB);
 
 	/* Create default root inode */
-	tmp = ALIGN(UBIFS_INO_NODE_SZ, c->min_io_size);
-	ino = kzalloc(tmp, GFP_KERNEL);
-	if (!ino)
-		return -ENOMEM;
 
 	ino_key_init_flash(c, &ino->key, UBIFS_ROOT_INO);
 	ino->ch.node_type = UBIFS_INO_NODE;
@@ -317,12 +295,6 @@ static int create_default_filesystem(struct ubifs_info *c)
 	/* Set compression enabled by default */
 	ino->flags = cpu_to_le32(UBIFS_COMPR_FL);
 
-	err = ubifs_write_node(c, ino, UBIFS_INO_NODE_SZ,
-			       main_first + DEFAULT_DATA_LEB, 0);
-	kfree(ino);
-	if (err)
-		return err;
-
 	dbg_gen("root inode created at LEB %d:0",
 		main_first + DEFAULT_DATA_LEB);
 
@@ -331,19 +303,46 @@ static int create_default_filesystem(struct ubifs_info *c)
 	 * always the case during normal file-system operation. Write a fake
 	 * commit start node to the log.
 	 */
-	tmp = ALIGN(UBIFS_CS_NODE_SZ, c->min_io_size);
-	cs = kzalloc(tmp, GFP_KERNEL);
-	if (!cs)
-		return -ENOMEM;
 
 	cs->ch.node_type = UBIFS_CS_NODE;
-	err = ubifs_write_node(c, cs, UBIFS_CS_NODE_SZ, UBIFS_LOG_LNUM, 0);
-	kfree(cs);
+
+	err = ubifs_write_node(c, sup, UBIFS_SB_NODE_SZ, 0, 0);
 	if (err)
-		return err;
+		goto out;
+
+	err = ubifs_write_node(c, mst, UBIFS_MST_NODE_SZ, UBIFS_MST_LNUM, 0);
+	if (err)
+		goto out;
+
+	err = ubifs_write_node(c, mst, UBIFS_MST_NODE_SZ, UBIFS_MST_LNUM + 1,
+			       0);
+	if (err)
+		goto out;
+
+	err = ubifs_write_node(c, idx, idx_node_size, main_first + DEFAULT_IDX_LEB, 0);
+	if (err)
+		goto out;
+
+	err = ubifs_write_node(c, ino, UBIFS_INO_NODE_SZ,
+			       main_first + DEFAULT_DATA_LEB, 0);
+	if (err)
+		goto out;
+
+	err = ubifs_write_node(c, cs, UBIFS_CS_NODE_SZ, UBIFS_LOG_LNUM, 0);
+	if (err)
+		goto out;
 
 	ubifs_msg(c, "default file-system created");
-	return 0;
+
+	err = 0;
+out:
+	kfree(sup);
+	kfree(mst);
+	kfree(idx);
+	kfree(ino);
+	kfree(cs);
+
+	return err;
 }
 
 /**
