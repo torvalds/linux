@@ -1,0 +1,12 @@
+Banana Pi 7" (S070WV20-CT16) TFT LCD Panel
+
+Required properties:
+- compatible: should be "bananapi,s070wv20-ct16"
+- power-supply: see ./panel-common.txt
+
+Optional properties:
+- enable-gpios: see ./simple-panel.txt
+- backlight: see ./simple-panel.txt
+
+This binding is compatible with the simple-panel binding, which is specified
+in ./simple-panel.txt.
