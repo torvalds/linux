@@ -4485,11 +4485,11 @@ S:	Maintained
 F:	Documentation/
 F:	scripts/kernel-doc
 X:	Documentation/ABI/
+X:	Documentation/acpi/
 X:	Documentation/devicetree/
-X:	Documentation/acpi
-X:	Documentation/power
-X:	Documentation/spi
-X:	Documentation/media
+X:	Documentation/media/
+X:	Documentation/power/
+X:	Documentation/spi/
 T:	git git://git.lwn.net/linux.git docs-next
 
 DOCUMENTATION/ITALIAN
