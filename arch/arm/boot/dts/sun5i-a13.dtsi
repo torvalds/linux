@@ -47,8 +47,6 @@
 #include <dt-bindings/thermal/thermal.h>
 
 / {
-	interrupt-parent = <&intc>;
-
 	thermal-zones {
 		cpu_thermal {
 			/* milliseconds */
