@@ -91,14 +91,6 @@ struct snd_sg_buf {
 };
 
 /*
- * return the pages matching with the given byte size
- */
-static inline unsigned int snd_sgbuf_aligned_pages(size_t size)
-{
-	return (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-}
-
-/*
  * return the physical address at the corresponding offset
  */
 static inline dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab,
@@ -139,6 +131,14 @@ static inline void *snd_sgbuf_get_ptr(struct snd_dma_buffer *dmab,
 #define snd_sgbuf_get_chunk_size(dmab, ofs, size)	(size)
 
 #endif /* CONFIG_SND_DMA_SGBUF */
+
+/*
+ * return the pages matching with the given byte size
+ */
+static inline unsigned int snd_sgbuf_aligned_pages(size_t size)
+{
+	return (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+}
 
 /* allocate/release a buffer */
 int snd_dma_alloc_pages(int type, struct device *dev, size_t size,
