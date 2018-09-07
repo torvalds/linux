@@ -4634,13 +4634,13 @@ static void rtl_hw_start(struct  rtl8169_private *tp)
 
 	rtl_set_rx_max_size(tp);
 	rtl_set_rx_tx_desc_registers(tp);
-	rtl_set_tx_config_registers(tp);
 	RTL_W8(tp, Cfg9346, Cfg9346_Lock);
 
 	/* Initially a 10 us delay. Turned it into a PCI commit. - FR */
 	RTL_R8(tp, IntrMask);
 	RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
 	rtl_init_rxcfg(tp);
+	rtl_set_tx_config_registers(tp);
 
 	rtl_set_rx_mode(tp->dev);
 	/* no early-rx interrupts */
