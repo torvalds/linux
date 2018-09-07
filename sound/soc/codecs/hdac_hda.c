@@ -448,7 +448,7 @@ static int hdac_hda_dev_probe(struct hdac_device *hdev)
 		return -ENOMEM;
 
 	/* ASoC specific initialization */
-	ret = snd_soc_register_component(&hdev->dev,
+	ret = devm_snd_soc_register_component(&hdev->dev,
 					 &hdac_hda_codec, hdac_hda_dais,
 					 ARRAY_SIZE(hdac_hda_dais));
 	if (ret < 0) {
@@ -464,7 +464,6 @@ static int hdac_hda_dev_probe(struct hdac_device *hdev)
 
 static int hdac_hda_dev_remove(struct hdac_device *hdev)
 {
-	snd_soc_unregister_component(&hdev->dev);
 	return 0;
 }
 
