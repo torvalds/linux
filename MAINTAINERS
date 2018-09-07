@@ -4487,6 +4487,7 @@ F:	scripts/kernel-doc
 X:	Documentation/ABI/
 X:	Documentation/acpi/
 X:	Documentation/devicetree/
+X:	Documentation/i2c/
 X:	Documentation/media/
 X:	Documentation/power/
 X:	Documentation/spi/
