@@ -212,7 +212,10 @@ static int write_rcvrd_mst_node(struct ubifs_info *c,
 	save_flags = mst->flags;
 	mst->flags |= cpu_to_le32(UBIFS_MST_RCVRY);
 
-	ubifs_prepare_node(c, mst, UBIFS_MST_NODE_SZ, 1);
+	err = ubifs_prepare_node_hmac(c, mst, UBIFS_MST_NODE_SZ,
+				      offsetof(struct ubifs_mst_node, hmac), 1);
+	if (err)
+		goto out;
 	err = ubifs_leb_change(c, lnum, mst, sz);
 	if (err)
 		goto out;
@@ -264,9 +267,7 @@ int ubifs_recover_master_node(struct ubifs_info *c)
 			offs2 = (void *)mst2 - buf2;
 			if (offs1 == offs2) {
 				/* Same offset, so must be the same */
-				if (memcmp((void *)mst1 + UBIFS_CH_SZ,
-					   (void *)mst2 + UBIFS_CH_SZ,
-					   UBIFS_MST_NODE_SZ - UBIFS_CH_SZ))
+				if (ubifs_compare_master_node(c, mst1, mst2))
 					goto out_err;
 				mst = mst1;
 			} else if (offs2 + sz == offs1) {
