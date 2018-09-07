@@ -965,6 +965,9 @@ struct intel_plane {
 	 * the intel_plane_state structure and accessed via plane_state.
 	 */
 
+	unsigned int (*max_stride)(struct intel_plane *plane,
+				   u32 pixel_format, u64 modifier,
+				   unsigned int rotation);
 	void (*update_plane)(struct intel_plane *plane,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct intel_plane_state *plane_state);
@@ -1660,6 +1663,9 @@ int skl_check_plane_surface(const struct intel_crtc_state *crtc_state,
 			    struct intel_plane_state *plane_state);
 int i9xx_check_plane_surface(struct intel_plane_state *plane_state);
 int skl_format_to_fourcc(int format, bool rgb_order, bool alpha);
+unsigned int i9xx_plane_max_stride(struct intel_plane *plane,
+				   u32 pixel_format, u64 modifier,
+				   unsigned int rotation);
 
 /* intel_csr.c */
 void intel_csr_ucode_init(struct drm_i915_private *);
@@ -2127,6 +2133,10 @@ bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
 		       enum pipe pipe, enum plane_id plane_id);
 bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, enum plane_id plane_id);
+unsigned int skl_plane_max_stride(struct intel_plane *plane,
+				  u32 pixel_format, u64 modifier,
+				  unsigned int rotation);
+
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_i915_private *dev_priv);

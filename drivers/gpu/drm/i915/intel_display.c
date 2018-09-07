@@ -3213,6 +3213,33 @@ int skl_check_plane_surface(const struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
+unsigned int
+i9xx_plane_max_stride(struct intel_plane *plane,
+		      u32 pixel_format, u64 modifier,
+		      unsigned int rotation)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+
+	if (!HAS_GMCH_DISPLAY(dev_priv)) {
+		return 32*1024;
+	} else if (INTEL_GEN(dev_priv) >= 4) {
+		if (modifier == I915_FORMAT_MOD_X_TILED)
+			return 16*1024;
+		else
+			return 32*1024;
+	} else if (INTEL_GEN(dev_priv) >= 3) {
+		if (modifier == I915_FORMAT_MOD_X_TILED)
+			return 8*1024;
+		else
+			return 16*1024;
+	} else {
+		if (plane->i9xx_plane == PLANE_C)
+			return 4*1024;
+		else
+			return 8*1024;
+	}
+}
+
 static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 			  const struct intel_plane_state *plane_state)
 {
@@ -9681,6 +9708,14 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
+static unsigned int
+i845_cursor_max_stride(struct intel_plane *plane,
+		       u32 pixel_format, u64 modifier,
+		       unsigned int rotation)
+{
+	return 2048;
+}
+
 static u32 i845_cursor_ctl(const struct intel_crtc_state *crtc_state,
 			   const struct intel_plane_state *plane_state)
 {
@@ -9811,6 +9846,14 @@ static bool i845_cursor_get_hw_state(struct intel_plane *plane,
 	intel_display_power_put(dev_priv, power_domain);
 
 	return ret;
+}
+
+static unsigned int
+i9xx_cursor_max_stride(struct intel_plane *plane,
+		       u32 pixel_format, u64 modifier,
+		       unsigned int rotation)
+{
+	return plane->base.dev->mode_config.cursor_width * 4;
 }
 
 static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
@@ -13727,6 +13770,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		else
 			modifiers = skl_format_modifiers_noccs;
 
+		primary->max_stride = skl_plane_max_stride;
 		primary->update_plane = skl_update_plane;
 		primary->disable_plane = skl_disable_plane;
 		primary->get_hw_state = skl_plane_get_hw_state;
@@ -13737,6 +13781,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		num_formats = ARRAY_SIZE(i965_primary_formats);
 		modifiers = i9xx_format_modifiers;
 
+		primary->max_stride = i9xx_plane_max_stride;
 		primary->update_plane = i9xx_update_plane;
 		primary->disable_plane = i9xx_disable_plane;
 		primary->get_hw_state = i9xx_plane_get_hw_state;
@@ -13747,6 +13792,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		num_formats = ARRAY_SIZE(i8xx_primary_formats);
 		modifiers = i9xx_format_modifiers;
 
+		primary->max_stride = i9xx_plane_max_stride;
 		primary->update_plane = i9xx_update_plane;
 		primary->disable_plane = i9xx_disable_plane;
 		primary->get_hw_state = i9xx_plane_get_hw_state;
@@ -13854,11 +13900,13 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 	cursor->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, cursor->id);
 
 	if (IS_I845G(dev_priv) || IS_I865G(dev_priv)) {
+		cursor->max_stride = i845_cursor_max_stride;
 		cursor->update_plane = i845_update_cursor;
 		cursor->disable_plane = i845_disable_cursor;
 		cursor->get_hw_state = i845_cursor_get_hw_state;
 		cursor->check_plane = i845_check_cursor;
 	} else {
+		cursor->max_stride = i9xx_cursor_max_stride;
 		cursor->update_plane = i9xx_update_cursor;
 		cursor->disable_plane = i9xx_disable_cursor;
 		cursor->get_hw_state = i9xx_cursor_get_hw_state;

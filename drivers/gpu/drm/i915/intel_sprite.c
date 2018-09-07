@@ -230,6 +230,23 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 #endif
 }
 
+unsigned int
+skl_plane_max_stride(struct intel_plane *plane,
+		     u32 pixel_format, u64 modifier,
+		     unsigned int rotation)
+{
+	int cpp = drm_format_plane_cpp(pixel_format, 0);
+
+	/*
+	 * "The stride in bytes must not exceed the
+	 * of the size of 8K pixels and 32K bytes."
+	 */
+	if (drm_rotation_90_or_270(rotation))
+		return min(8192, 32768 / cpp);
+	else
+		return min(8192 * cpp, 32768);
+}
+
 void
 skl_update_plane(struct intel_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
@@ -800,6 +817,14 @@ ivb_plane_get_hw_state(struct intel_plane *plane,
 	return ret;
 }
 
+static unsigned int
+g4x_sprite_max_stride(struct intel_plane *plane,
+		      u32 pixel_format, u64 modifier,
+		      unsigned int rotation)
+{
+	return 16384;
+}
+
 static u32 g4x_sprite_ctl(const struct intel_crtc_state *crtc_state,
 			  const struct intel_plane_state *plane_state)
 {
@@ -966,7 +991,6 @@ intel_check_sprite_plane(struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_framebuffer *fb = state->base.fb;
-	int max_stride = INTEL_GEN(dev_priv) >= 9 ? 32768 : 16384;
 	int max_scale, min_scale;
 	bool can_scale;
 	int ret;
@@ -984,7 +1008,9 @@ intel_check_sprite_plane(struct intel_crtc_state *crtc_state,
 	}
 
 	/* FIXME check all gen limits */
-	if (fb->width < 3 || fb->height < 3 || fb->pitches[0] > max_stride) {
+	if (fb->width < 3 || fb->height < 3 ||
+	    fb->pitches[0] > plane->max_stride(plane, fb->format->format,
+					       fb->modifier, DRM_MODE_ROTATE_0)) {
 		DRM_DEBUG_KMS("Unsuitable framebuffer for plane\n");
 		return -EINVAL;
 	}
@@ -1529,6 +1555,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		intel_plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe,
 							 PLANE_SPRITE0 + plane);
 
+		intel_plane->max_stride = skl_plane_max_stride;
 		intel_plane->update_plane = skl_update_plane;
 		intel_plane->disable_plane = skl_disable_plane;
 		intel_plane->get_hw_state = skl_plane_get_hw_state;
@@ -1552,6 +1579,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		intel_plane->can_scale = false;
 		intel_plane->max_downscale = 1;
 
+		intel_plane->max_stride = i9xx_plane_max_stride;
 		intel_plane->update_plane = vlv_update_plane;
 		intel_plane->disable_plane = vlv_disable_plane;
 		intel_plane->get_hw_state = vlv_plane_get_hw_state;
@@ -1570,6 +1598,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 			intel_plane->max_downscale = 1;
 		}
 
+		intel_plane->max_stride = g4x_sprite_max_stride;
 		intel_plane->update_plane = ivb_update_plane;
 		intel_plane->disable_plane = ivb_disable_plane;
 		intel_plane->get_hw_state = ivb_plane_get_hw_state;
@@ -1583,6 +1612,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		intel_plane->can_scale = true;
 		intel_plane->max_downscale = 16;
 
+		intel_plane->max_stride = g4x_sprite_max_stride;
 		intel_plane->update_plane = g4x_update_plane;
 		intel_plane->disable_plane = g4x_disable_plane;
 		intel_plane->get_hw_state = g4x_plane_get_hw_state;
