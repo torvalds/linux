@@ -1605,16 +1605,10 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 		goto out;
 
 	if (c->old_leb_cnt != c->leb_cnt) {
-		struct ubifs_sb_node *sup;
+		struct ubifs_sb_node *sup = c->sup_node;
 
-		sup = ubifs_read_sb_node(c);
-		if (IS_ERR(sup)) {
-			err = PTR_ERR(sup);
-			goto out;
-		}
 		sup->leb_cnt = cpu_to_le32(c->leb_cnt);
 		err = ubifs_write_sb_node(c, sup);
-		kfree(sup);
 		if (err)
 			goto out;
 	}

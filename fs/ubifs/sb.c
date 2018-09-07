@@ -497,7 +497,7 @@ failed:
  * code. Note, the user of this function is responsible of kfree()'ing the
  * returned superblock buffer.
  */
-struct ubifs_sb_node *ubifs_read_sb_node(struct ubifs_info *c)
+static struct ubifs_sb_node *ubifs_read_sb_node(struct ubifs_info *c)
 {
 	struct ubifs_sb_node *sup;
 	int err;
@@ -553,6 +553,8 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	sup = ubifs_read_sb_node(c);
 	if (IS_ERR(sup))
 		return PTR_ERR(sup);
+
+	c->sup_node = sup;
 
 	c->fmt_version = le32_to_cpu(sup->fmt_version);
 	c->ro_compat_version = le32_to_cpu(sup->ro_compat_version);
@@ -685,7 +687,6 @@ int ubifs_read_superblock(struct ubifs_info *c)
 
 	err = validate_sb(c, sup);
 out:
-	kfree(sup);
 	return err;
 }
 
@@ -814,7 +815,7 @@ out:
 int ubifs_fixup_free_space(struct ubifs_info *c)
 {
 	int err;
-	struct ubifs_sb_node *sup;
+	struct ubifs_sb_node *sup = c->sup_node;
 
 	ubifs_assert(c, c->space_fixup);
 	ubifs_assert(c, !c->ro_mount);
@@ -825,16 +826,11 @@ int ubifs_fixup_free_space(struct ubifs_info *c)
 	if (err)
 		return err;
 
-	sup = ubifs_read_sb_node(c);
-	if (IS_ERR(sup))
-		return PTR_ERR(sup);
-
 	/* Free-space fixup is no longer required */
 	c->space_fixup = 0;
 	sup->flags &= cpu_to_le32(~UBIFS_FLG_SPACE_FIXUP);
 
 	err = ubifs_write_sb_node(c, sup);
-	kfree(sup);
 	if (err)
 		return err;
 
@@ -845,7 +841,7 @@ int ubifs_fixup_free_space(struct ubifs_info *c)
 int ubifs_enable_encryption(struct ubifs_info *c)
 {
 	int err;
-	struct ubifs_sb_node *sup;
+	struct ubifs_sb_node *sup = c->sup_node;
 
 	if (c->encrypted)
 		return 0;
@@ -858,16 +854,11 @@ int ubifs_enable_encryption(struct ubifs_info *c)
 		return -EINVAL;
 	}
 
-	sup = ubifs_read_sb_node(c);
-	if (IS_ERR(sup))
-		return PTR_ERR(sup);
-
 	sup->flags |= cpu_to_le32(UBIFS_FLG_ENCRYPTION);
 
 	err = ubifs_write_sb_node(c, sup);
 	if (!err)
 		c->encrypted = 1;
-	kfree(sup);
 
 	return err;
 }
