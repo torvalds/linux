@@ -362,7 +362,7 @@ static inline void tcf_block_offload_dec(struct tcf_block *block, u32 *flags)
 }
 
 static inline void
-tc_cls_offload_cnt_update(struct tcf_block *block, unsigned int *cnt,
+tc_cls_offload_cnt_update(struct tcf_block *block, u32 *cnt,
 			  u32 *flags, bool add)
 {
 	if (add) {
