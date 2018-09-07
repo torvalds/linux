@@ -1395,7 +1395,7 @@ static void notify_display_count_to_smu(
 	 * sent as part of pplib_apply_display_requirements.
 	 * So just return.
 	 */
-	if (!pp_smu->set_display_count)
+	if (!pp_smu || !pp_smu->set_display_count)
 		return;
 
 	display_count = 0;
