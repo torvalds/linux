@@ -534,7 +534,7 @@ static int gc0312_read(struct i2c_client *client, u8 reg, u8 *val)
 	}
 
 	dev_err(&client->dev,
-		"gc0312 read reg(0x%x val:0x%x) failed !\n", reg, *val);
+		"gc0312 read reg:0x%x failed !\n", reg);
 
 	return ret;
 }
@@ -668,7 +668,7 @@ static void __gc0312_try_frame_size(struct v4l2_mbus_framefmt *mf,
 	unsigned int min_err = UINT_MAX;
 
 	while (i--) {
-		int err = abs(fsize->width - mf->width)
+		unsigned int err = abs(fsize->width - mf->width)
 				+ abs(fsize->height - mf->height);
 		if (err < min_err && fsize->regs[0].addr) {
 			min_err = err;
@@ -755,7 +755,16 @@ static int gc0312_s_stream(struct v4l2_subdev *sd, int on)
 		/* Stop Streaming Sequence */
 		gc0312_set_streaming(gc0312, 0x00);
 		gc0312->streaming = on;
+		if (!IS_ERR(gc0312->pwdn_gpio)) {
+			gpiod_set_value_cansleep(gc0312->pwdn_gpio, 1);
+			usleep_range(2000, 5000);
+		}
 		goto unlock;
+	}
+
+	if (!IS_ERR(gc0312->pwdn_gpio)) {
+		gpiod_set_value_cansleep(gc0312->pwdn_gpio, 0);
+		usleep_range(2000, 5000);
 	}
 
 	ret = gc0312_write_array(client, gc0312->frame_size->regs);
@@ -857,9 +866,9 @@ static const struct v4l2_subdev_internal_ops gc0312_subdev_internal_ops = {
 };
 #endif
 
-static int gc0312_detect(struct v4l2_subdev *sd)
+static int gc0312_detect(struct gc0312 *gc0312)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct i2c_client *client = gc0312->client;
 	u8 pid, ver;
 	int ret;
 
@@ -881,6 +890,8 @@ static int gc0312_detect(struct v4l2_subdev *sd)
 				id, ret);
 		} else {
 			dev_info(&client->dev, "Found GC%04X sensor\n", id);
+			if (!IS_ERR(gc0312->pwdn_gpio))
+				gpiod_set_value_cansleep(gc0312->pwdn_gpio, 1);
 		}
 	}
 
@@ -892,36 +903,50 @@ static int __gc0312_power_on(struct gc0312 *gc0312)
 	int ret;
 	struct device *dev = &gc0312->client->dev;
 
-	ret = clk_set_rate(gc0312->xvclk, 24000000);
-	if (ret < 0)
-		dev_info(dev, "Failed to set xvclk rate (24MHz)\n");
+	if (!IS_ERR(gc0312->xvclk)) {
+		ret = clk_set_rate(gc0312->xvclk, 24000000);
+		if (ret < 0)
+			dev_info(dev, "Failed to set xvclk rate (24MHz)\n");
+	}
 
-	gpiod_set_value_cansleep(gc0312->pwdn_gpio, 1);
-	usleep_range(2000, 5000);
+	if (!IS_ERR(gc0312->pwdn_gpio)) {
+		gpiod_set_value_cansleep(gc0312->pwdn_gpio, 1);
+		usleep_range(2000, 5000);
+	}
 
-	ret = regulator_bulk_enable(GC0312_NUM_SUPPLIES, gc0312->supplies);
-	if (ret < 0)
-		dev_info(dev, "Failed to enable regulators\n");
+	if (!IS_ERR(gc0312->supplies)) {
+		ret = regulator_bulk_enable(GC0312_NUM_SUPPLIES,
+			gc0312->supplies);
+		if (ret < 0)
+			dev_info(dev, "Failed to enable regulators\n");
 
-	usleep_range(20000, 50000);
+		usleep_range(2000, 5000);
+	}
 
-	gpiod_set_value_cansleep(gc0312->pwdn_gpio, 0);
-	usleep_range(2000, 5000);
+	if (!IS_ERR(gc0312->pwdn_gpio)) {
+		gpiod_set_value_cansleep(gc0312->pwdn_gpio, 0);
+		usleep_range(2000, 5000);
+	}
 
-	ret = clk_prepare_enable(gc0312->xvclk);
-	if (ret < 0)
-		dev_info(dev, "Failed to enable xvclk\n");
+	if (!IS_ERR(gc0312->xvclk)) {
+		ret = clk_prepare_enable(gc0312->xvclk);
+		if (ret < 0)
+			dev_info(dev, "Failed to enable xvclk\n");
+	}
 
-	usleep_range(70000, 100000);
+	usleep_range(7000, 10000);
 
 	return 0;
 }
 
 static void __gc0312_power_off(struct gc0312 *gc0312)
 {
-	clk_disable_unprepare(gc0312->xvclk);
-	regulator_bulk_disable(GC0312_NUM_SUPPLIES, gc0312->supplies);
-	gpiod_set_value_cansleep(gc0312->pwdn_gpio, 1);
+	if (!IS_ERR(gc0312->xvclk))
+		clk_disable_unprepare(gc0312->xvclk);
+	if (!IS_ERR(gc0312->supplies))
+		regulator_bulk_disable(GC0312_NUM_SUPPLIES, gc0312->supplies);
+	if (!IS_ERR(gc0312->pwdn_gpio))
+		gpiod_set_value_cansleep(gc0312->pwdn_gpio, 1);
 }
 
 static int gc0312_configure_regulators(struct gc0312 *gc0312)
@@ -942,10 +967,8 @@ static int gc0312_parse_of(struct gc0312 *gc0312)
 	int ret;
 
 	gc0312->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
-	if (IS_ERR(gc0312->pwdn_gpio)) {
-		dev_info(dev, "Failed to get pwdn-gpios\n");
-		return 0;
-	}
+	if (IS_ERR(gc0312->pwdn_gpio))
+		dev_info(dev, "Failed to get pwdn-gpios, maybe no used\n");
 
 	ret = gc0312_configure_regulators(gc0312);
 	if (ret)
@@ -1023,7 +1046,7 @@ static int gc0312_probe(struct i2c_client *client,
 	gc0312_get_default_format(&gc0312->format);
 	gc0312->frame_size = &gc0312_framesizes[0];
 
-	ret = gc0312_detect(sd);
+	ret = gc0312_detect(gc0312);
 	if (ret < 0)
 		goto error;
 

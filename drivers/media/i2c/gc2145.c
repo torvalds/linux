@@ -1091,7 +1091,7 @@ static int gc2145_read(struct i2c_client *client, u8 reg, u8 *val)
 	}
 
 	dev_err(&client->dev,
-		"gc2145 read reg(0x%x val:0x%x) failed !\n", reg, *val);
+		"gc2145 read reg:0x%x failed !\n", reg);
 
 	return ret;
 }
@@ -1222,11 +1222,11 @@ static void __gc2145_try_frame_size_fps(struct v4l2_mbus_framefmt *mf,
 {
 	const struct gc2145_framesize *fsize = &gc2145_framesizes[0];
 	const struct gc2145_framesize *match = NULL;
-	int i = ARRAY_SIZE(gc2145_framesizes);
+	unsigned int i = ARRAY_SIZE(gc2145_framesizes);
 	unsigned int min_err = UINT_MAX;
 
 	while (i--) {
-		int err = abs(fsize->width - mf->width)
+		unsigned int err = abs(fsize->width - mf->width)
 				+ abs(fsize->height - mf->height);
 		if (err < min_err && fsize->regs[0].addr) {
 			min_err = err;
@@ -1325,7 +1325,15 @@ static int gc2145_s_stream(struct v4l2_subdev *sd, int on)
 		/* Stop Streaming Sequence */
 		gc2145_set_streaming(gc2145, 0x00);
 		gc2145->streaming = on;
+		if (!IS_ERR(gc2145->pwdn_gpio)) {
+			gpiod_set_value_cansleep(gc2145->pwdn_gpio, 1);
+			usleep_range(2000, 5000);
+		}
 		goto unlock;
+	}
+	if (!IS_ERR(gc2145->pwdn_gpio)) {
+		gpiod_set_value_cansleep(gc2145->pwdn_gpio, 0);
+		usleep_range(2000, 5000);
 	}
 
 	ret = gc2145_write_array(client, gc2145_init_regs);
@@ -1479,9 +1487,9 @@ static const struct v4l2_subdev_internal_ops gc2145_subdev_internal_ops = {
 };
 #endif
 
-static int gc2145_detect(struct v4l2_subdev *sd)
+static int gc2145_detect(struct gc2145 *gc2145)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct i2c_client *client = gc2145->client;
 	u8 pid, ver;
 	int ret;
 
@@ -1503,6 +1511,8 @@ static int gc2145_detect(struct v4l2_subdev *sd)
 				id, ret);
 		} else {
 			dev_info(&client->dev, "Found GC%04X sensor\n", id);
+			if (!IS_ERR(gc2145->pwdn_gpio))
+				gpiod_set_value_cansleep(gc2145->pwdn_gpio, 1);
 		}
 	}
 
@@ -1514,36 +1524,49 @@ static int __gc2145_power_on(struct gc2145 *gc2145)
 	int ret;
 	struct device *dev = &gc2145->client->dev;
 
-	ret = clk_set_rate(gc2145->xvclk, 24000000);
-	if (ret < 0)
-		dev_info(dev, "Failed to set xvclk rate (24MHz)\n");
+	if (!IS_ERR(gc2145->xvclk)) {
+		ret = clk_set_rate(gc2145->xvclk, 24000000);
+		if (ret < 0)
+			dev_info(dev, "Failed to set xvclk rate (24MHz)\n");
+	}
 
-	gpiod_set_value_cansleep(gc2145->pwdn_gpio, 1);
-	usleep_range(2000, 5000);
+	if (!IS_ERR(gc2145->pwdn_gpio)) {
+		gpiod_set_value_cansleep(gc2145->pwdn_gpio, 1);
+		usleep_range(2000, 5000);
+	}
 
-	ret = regulator_bulk_enable(GC2145_NUM_SUPPLIES, gc2145->supplies);
-	if (ret < 0)
-		dev_info(dev, "Failed to enable regulators\n");
+	if (!IS_ERR(gc2145->supplies)) {
+		ret = regulator_bulk_enable(GC2145_NUM_SUPPLIES,
+			gc2145->supplies);
+		if (ret < 0)
+			dev_info(dev, "Failed to enable regulators\n");
 
-	usleep_range(20000, 50000);
+		usleep_range(20000, 50000);
+	}
 
-	gpiod_set_value_cansleep(gc2145->pwdn_gpio, 0);
-	usleep_range(2000, 5000);
+	if (!IS_ERR(gc2145->pwdn_gpio)) {
+		gpiod_set_value_cansleep(gc2145->pwdn_gpio, 0);
+		usleep_range(2000, 5000);
+	}
 
-	ret = clk_prepare_enable(gc2145->xvclk);
-	if (ret < 0)
-		dev_info(dev, "Failed to enable xvclk\n");
-
-	usleep_range(70000, 100000);
+	if (!IS_ERR(gc2145->xvclk)) {
+		ret = clk_prepare_enable(gc2145->xvclk);
+		if (ret < 0)
+			dev_info(dev, "Failed to enable xvclk\n");
+	}
+	usleep_range(7000, 10000);
 
 	return 0;
 }
 
 static void __gc2145_power_off(struct gc2145 *gc2145)
 {
-	clk_disable_unprepare(gc2145->xvclk);
-	regulator_bulk_disable(GC2145_NUM_SUPPLIES, gc2145->supplies);
-	gpiod_set_value_cansleep(gc2145->pwdn_gpio, 1);
+	if (!IS_ERR(gc2145->xvclk))
+		clk_disable_unprepare(gc2145->xvclk);
+	if (!IS_ERR(gc2145->supplies))
+		regulator_bulk_disable(GC2145_NUM_SUPPLIES, gc2145->supplies);
+	if (!IS_ERR(gc2145->pwdn_gpio))
+		gpiod_set_value_cansleep(gc2145->pwdn_gpio, 1);
 }
 
 static int gc2145_configure_regulators(struct gc2145 *gc2145)
@@ -1564,10 +1587,8 @@ static int gc2145_parse_of(struct gc2145 *gc2145)
 	int ret;
 
 	gc2145->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
-	if (IS_ERR(gc2145->pwdn_gpio)) {
-		dev_info(dev, "Failed to get pwdn-gpios\n");
-		return 0;
-	}
+	if (IS_ERR(gc2145->pwdn_gpio))
+		dev_info(dev, "Failed to get pwdn-gpios, maybe no use\n");
 
 	ret = gc2145_configure_regulators(gc2145);
 	if (ret)
@@ -1646,9 +1667,9 @@ static int gc2145_probe(struct i2c_client *client,
 	gc2145->frame_size = &gc2145_framesizes[0];
 	gc2145->format.width = gc2145_framesizes[0].width;
 	gc2145->format.height = gc2145_framesizes[0].height;
-	gc2145->fps = 0;
+	gc2145->fps = gc2145_framesizes[0].fps;
 
-	ret = gc2145_detect(sd);
+	ret = gc2145_detect(gc2145);
 	if (ret < 0)
 		goto error;
 
