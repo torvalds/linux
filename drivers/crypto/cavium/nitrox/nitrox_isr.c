@@ -6,6 +6,7 @@
 #include "nitrox_dev.h"
 #include "nitrox_csr.h"
 #include "nitrox_common.h"
+#include "nitrox_hal.h"
 
 #define NR_RING_VECTORS 3
 #define NPS_CORE_INT_ACTIVE_ENTRY 192

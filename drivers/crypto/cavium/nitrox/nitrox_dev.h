@@ -88,9 +88,25 @@ struct nitrox_bh {
 	struct bh_data *slc;
 };
 
-/* NITROX-V driver state */
-#define NITROX_UCODE_LOADED	0
-#define NITROX_READY		1
+/*
+ * NITROX Device states
+ */
+enum ndev_state {
+	__NDEV_NOT_READY,
+	__NDEV_READY,
+	__NDEV_IN_RESET,
+};
+
+/* NITROX support modes for VF(s) */
+enum vf_mode {
+	__NDEV_MODE_PF,
+	__NDEV_MODE_VF16,
+	__NDEV_MODE_VF32,
+	__NDEV_MODE_VF64,
+	__NDEV_MODE_VF128,
+};
+
+#define __NDEV_SRIOV_BIT 0
 
 /* command queue size */
 #define DEFAULT_CMD_QLEN 2048
@@ -98,7 +114,6 @@ struct nitrox_bh {
 #define CMD_TIMEOUT 2000
 
 #define DEV(ndev) ((struct device *)(&(ndev)->pdev->dev))
-#define PF_MODE 0
 
 #define NITROX_CSR_ADDR(ndev, offset) \
 	((ndev)->bar_addr + (offset))
@@ -108,13 +123,15 @@ struct nitrox_bh {
  * @list: pointer to linked list of devices
  * @bar_addr: iomap address
  * @pdev: PCI device information
- * @status: NITROX status
+ * @state: NITROX device state
+ * @flags: flags to indicate device the features
  * @timeout: Request timeout in jiffies
  * @refcnt: Device usage count
  * @idx: device index (0..N)
  * @node: NUMA node id attached
  * @qlen: Command queue length
  * @nr_queues: Number of command queues
+ * @mode: Device mode PF/VF
  * @ctx_pool: DMA pool for crypto context
  * @pkt_cmdqs: SE Command queues
  * @msix: MSI-X information
@@ -128,7 +145,8 @@ struct nitrox_device {
 	u8 __iomem *bar_addr;
 	struct pci_dev *pdev;
 
-	unsigned long status;
+	atomic_t state;
+	unsigned long flags;
 	unsigned long timeout;
 	refcount_t refcnt;
 
@@ -136,6 +154,8 @@ struct nitrox_device {
 	int node;
 	u16 qlen;
 	u16 nr_queues;
+	int num_vfs;
+	enum vf_mode mode;
 
 	struct dma_pool *ctx_pool;
 	struct nitrox_cmdq *pkt_cmdqs;
@@ -173,9 +193,9 @@ static inline void nitrox_write_csr(struct nitrox_device *ndev, u64 offset,
 	writeq(value, (ndev->bar_addr + offset));
 }
 
-static inline int nitrox_ready(struct nitrox_device *ndev)
+static inline bool nitrox_ready(struct nitrox_device *ndev)
 {
-	return test_bit(NITROX_READY, &ndev->status);
+	return atomic_read(&ndev->state) == __NDEV_READY;
 }
 
 #endif /* __NITROX_DEV_H */

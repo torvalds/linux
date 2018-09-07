@@ -256,7 +256,7 @@ void nitrox_config_nps_unit(struct nitrox_device *ndev)
 	/* disable ILK interface */
 	core_gbl_vfcfg.value = 0;
 	core_gbl_vfcfg.s.ilk_disable = 1;
-	core_gbl_vfcfg.s.cfg = PF_MODE;
+	core_gbl_vfcfg.s.cfg = __NDEV_MODE_PF;
 	nitrox_write_csr(ndev, NPS_CORE_GBL_VFCFG, core_gbl_vfcfg.value);
 	/* config input and solicit ports */
 	nitrox_config_pkt_input_rings(ndev);
@@ -399,4 +399,14 @@ void nitrox_config_lbc_unit(struct nitrox_device *ndev)
 	nitrox_write_csr(ndev, offset, (~0ULL));
 	offset = LBC_ELM_VF65_128_INT_ENA_W1S;
 	nitrox_write_csr(ndev, offset, (~0ULL));
+}
+
+void config_nps_core_vfcfg_mode(struct nitrox_device *ndev, enum vf_mode mode)
+{
+	union nps_core_gbl_vfcfg vfcfg;
+
+	vfcfg.value = nitrox_read_csr(ndev, NPS_CORE_GBL_VFCFG);
+	vfcfg.s.cfg = mode & 0x7;
+
+	nitrox_write_csr(ndev, NPS_CORE_GBL_VFCFG, vfcfg.value);
 }

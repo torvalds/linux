@@ -11,13 +11,14 @@
 #include "nitrox_dev.h"
 #include "nitrox_common.h"
 #include "nitrox_csr.h"
+#include "nitrox_hal.h"
 
 #define CNN55XX_DEV_ID	0x12
 #define MAX_PF_QUEUES	64
 #define UCODE_HLEN 48
 #define SE_GROUP 0
 
-#define DRIVER_VERSION "1.0"
+#define DRIVER_VERSION "1.1"
 #define FW_DIR "cavium/"
 /* SE microcode */
 #define SE_FW	FW_DIR "cnn55xx_se.fw"
@@ -41,6 +42,15 @@ MODULE_DEVICE_TABLE(pci, nitrox_pci_tbl);
 static unsigned int qlen = DEFAULT_CMD_QLEN;
 module_param(qlen, uint, 0644);
 MODULE_PARM_DESC(qlen, "Command queue length - default 2048");
+
+#ifdef CONFIG_PCI_IOV
+int nitrox_sriov_configure(struct pci_dev *pdev, int num_vfs);
+#else
+int nitrox_sriov_configure(struct pci_dev *pdev, int num_vfs)
+{
+	return 0;
+}
+#endif
 
 /**
  * struct ucode - Firmware Header
@@ -136,9 +146,6 @@ static int nitrox_load_fw(struct nitrox_device *ndev, const char *fw_name)
 	write_to_ucd_unit(ndev, ucode);
 	release_firmware(fw);
 
-	set_bit(NITROX_UCODE_LOADED, &ndev->status);
-	/* barrier to sync with other cpus */
-	smp_mb__after_atomic();
 	return 0;
 }
 
@@ -555,7 +562,7 @@ static int nitrox_probe(struct pci_dev *pdev,
 	if (err)
 		goto pf_hw_fail;
 
-	set_bit(NITROX_READY, &ndev->status);
+	atomic_set(&ndev->state, __NDEV_READY);
 	/* barrier to sync with other cpus */
 	smp_mb__after_atomic();
 
@@ -567,7 +574,7 @@ static int nitrox_probe(struct pci_dev *pdev,
 
 crypto_fail:
 	nitrox_debugfs_exit(ndev);
-	clear_bit(NITROX_READY, &ndev->status);
+	atomic_set(&ndev->state, __NDEV_NOT_READY);
 	/* barrier to sync with other cpus */
 	smp_mb__after_atomic();
 pf_hw_fail:
@@ -602,11 +609,16 @@ static void nitrox_remove(struct pci_dev *pdev)
 	dev_info(DEV(ndev), "Removing Device %x:%x\n",
 		 ndev->hw.vendor_id, ndev->hw.device_id);
 
-	clear_bit(NITROX_READY, &ndev->status);
+	atomic_set(&ndev->state, __NDEV_NOT_READY);
 	/* barrier to sync with other cpus */
 	smp_mb__after_atomic();
 
 	nitrox_remove_from_devlist(ndev);
+
+#ifdef CONFIG_PCI_IOV
+	/* disable SR-IOV */
+	nitrox_sriov_configure(pdev, 0);
+#endif
 	nitrox_crypto_unregister();
 	nitrox_debugfs_exit(ndev);
 	nitrox_pf_sw_cleanup(ndev);
@@ -632,6 +644,9 @@ static struct pci_driver nitrox_driver = {
 	.probe = nitrox_probe,
 	.remove	= nitrox_remove,
 	.shutdown = nitrox_shutdown,
+#ifdef CONFIG_PCI_IOV
+	.sriov_configure = nitrox_sriov_configure,
+#endif
 };
 
 module_pci_driver(nitrox_driver);
