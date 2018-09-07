@@ -5417,7 +5417,12 @@ void kvm_mmu_setup(struct kvm_vcpu *vcpu)
 {
 	MMU_WARN_ON(VALID_PAGE(vcpu->arch.mmu.root_hpa));
 
-	kvm_init_mmu(vcpu, true);
+	/*
+	 * kvm_mmu_setup() is called only on vCPU initialization.  
+	 * Therefore, no need to reset mmu roots as they are not yet
+	 * initialized.
+	 */
+	kvm_init_mmu(vcpu, false);
 }
 
 static void kvm_mmu_invalidate_zap_pages_in_memslot(struct kvm *kvm,
