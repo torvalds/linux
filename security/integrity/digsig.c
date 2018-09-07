@@ -26,7 +26,7 @@
 
 static struct key *keyring[INTEGRITY_KEYRING_MAX];
 
-static const char *keyring_name[INTEGRITY_KEYRING_MAX] = {
+static const char * const keyring_name[INTEGRITY_KEYRING_MAX] = {
 #ifndef CONFIG_INTEGRITY_TRUSTED_KEYRING
 	"_evm",
 	"_ima",
