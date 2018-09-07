@@ -503,11 +503,7 @@ struct intel_plane_state {
 	struct {
 		u32 offset;
 		int x, y;
-	} main;
-	struct {
-		u32 offset;
-		int x, y;
-	} aux;
+	} color_plane[2];
 
 	/* plane control register */
 	u32 ctl;

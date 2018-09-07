@@ -258,7 +258,7 @@ skl_update_plane(struct intel_plane *plane,
 	enum pipe pipe = plane->pipe;
 	u32 plane_ctl = plane_state->ctl;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
-	u32 surf_addr = plane_state->main.offset;
+	u32 surf_addr = plane_state->color_plane[0].offset;
 	unsigned int rotation = plane_state->base.rotation;
 	u32 stride = skl_plane_stride(fb, 0, rotation);
 	u32 aux_stride = skl_plane_stride(fb, 1, rotation);
@@ -266,8 +266,8 @@ skl_update_plane(struct intel_plane *plane,
 	int crtc_y = plane_state->base.dst.y1;
 	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
 	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
-	uint32_t x = plane_state->main.x;
-	uint32_t y = plane_state->main.y;
+	uint32_t x = plane_state->color_plane[0].x;
+	uint32_t y = plane_state->color_plane[0].y;
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	unsigned long irqflags;
@@ -294,9 +294,10 @@ skl_update_plane(struct intel_plane *plane,
 	I915_WRITE_FW(PLANE_STRIDE(pipe, plane_id), stride);
 	I915_WRITE_FW(PLANE_SIZE(pipe, plane_id), (src_h << 16) | src_w);
 	I915_WRITE_FW(PLANE_AUX_DIST(pipe, plane_id),
-		      (plane_state->aux.offset - surf_addr) | aux_stride);
+		      (plane_state->color_plane[1].offset - surf_addr) | aux_stride);
 	I915_WRITE_FW(PLANE_AUX_OFFSET(pipe, plane_id),
-		      (plane_state->aux.y << 16) | plane_state->aux.x);
+		      (plane_state->color_plane[1].y << 16) |
+		      plane_state->color_plane[1].x);
 
 	/* program plane scaler */
 	if (plane_state->scaler_id >= 0) {
@@ -562,15 +563,15 @@ vlv_update_plane(struct intel_plane *plane,
 	enum pipe pipe = plane->pipe;
 	enum plane_id plane_id = plane->id;
 	u32 sprctl = plane_state->ctl;
-	u32 sprsurf_offset = plane_state->main.offset;
+	u32 sprsurf_offset = plane_state->color_plane[0].offset;
 	u32 linear_offset;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
 	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
 	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
-	uint32_t x = plane_state->main.x;
-	uint32_t y = plane_state->main.y;
+	uint32_t x = plane_state->color_plane[0].x;
+	uint32_t y = plane_state->color_plane[0].y;
 	unsigned long irqflags;
 
 	/* Sizes are 0 based */
@@ -721,15 +722,15 @@ ivb_update_plane(struct intel_plane *plane,
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	enum pipe pipe = plane->pipe;
 	u32 sprctl = plane_state->ctl, sprscale = 0;
-	u32 sprsurf_offset = plane_state->main.offset;
+	u32 sprsurf_offset = plane_state->color_plane[0].offset;
 	u32 linear_offset;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
 	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
 	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
-	uint32_t x = plane_state->main.x;
-	uint32_t y = plane_state->main.y;
+	uint32_t x = plane_state->color_plane[0].x;
+	uint32_t y = plane_state->color_plane[0].y;
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	unsigned long irqflags;
@@ -893,15 +894,15 @@ g4x_update_plane(struct intel_plane *plane,
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	enum pipe pipe = plane->pipe;
 	u32 dvscntr = plane_state->ctl, dvsscale = 0;
-	u32 dvssurf_offset = plane_state->main.offset;
+	u32 dvssurf_offset = plane_state->color_plane[0].offset;
 	u32 linear_offset;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
 	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
 	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
-	uint32_t x = plane_state->main.x;
-	uint32_t y = plane_state->main.y;
+	uint32_t x = plane_state->color_plane[0].x;
+	uint32_t y = plane_state->color_plane[0].y;
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	unsigned long irqflags;

@@ -2951,9 +2951,9 @@ static bool skl_check_main_ccs_coordinates(struct intel_plane_state *plane_state
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	int hsub = fb->format->hsub;
 	int vsub = fb->format->vsub;
-	int aux_x = plane_state->aux.x;
-	int aux_y = plane_state->aux.y;
-	u32 aux_offset = plane_state->aux.offset;
+	int aux_x = plane_state->color_plane[1].x;
+	int aux_y = plane_state->color_plane[1].y;
+	u32 aux_offset = plane_state->color_plane[1].offset;
 	u32 alignment = intel_surf_alignment(fb, 1);
 
 	while (aux_offset >= main_offset && aux_y <= main_y) {
@@ -2976,9 +2976,9 @@ static bool skl_check_main_ccs_coordinates(struct intel_plane_state *plane_state
 	if (aux_x != main_x || aux_y != main_y)
 		return false;
 
-	plane_state->aux.offset = aux_offset;
-	plane_state->aux.x = aux_x;
-	plane_state->aux.y = aux_y;
+	plane_state->color_plane[1].offset = aux_offset;
+	plane_state->color_plane[1].x = aux_x;
+	plane_state->color_plane[1].y = aux_y;
 
 	return true;
 }
@@ -2999,7 +2999,7 @@ static int skl_check_main_surface(const struct intel_crtc_state *crtc_state,
 	int pipe_src_w = crtc_state->pipe_src_w;
 	int max_width = skl_max_plane_width(fb, 0, rotation);
 	int max_height = 4096;
-	u32 alignment, offset, aux_offset = plane_state->aux.offset;
+	u32 alignment, offset, aux_offset = plane_state->color_plane[1].offset;
 
 	if (w > max_width || h > max_height) {
 		DRM_DEBUG_KMS("requested Y/RGB source size %dx%d too big (limit %dx%d)\n",
@@ -3071,15 +3071,15 @@ static int skl_check_main_surface(const struct intel_crtc_state *crtc_state,
 								   offset, offset - alignment);
 		}
 
-		if (x != plane_state->aux.x || y != plane_state->aux.y) {
+		if (x != plane_state->color_plane[1].x || y != plane_state->color_plane[1].y) {
 			DRM_DEBUG_KMS("Unable to find suitable display surface offset due to CCS\n");
 			return -EINVAL;
 		}
 	}
 
-	plane_state->main.offset = offset;
-	plane_state->main.x = x;
-	plane_state->main.y = y;
+	plane_state->color_plane[0].offset = offset;
+	plane_state->color_plane[0].x = x;
+	plane_state->color_plane[0].y = y;
 
 	return 0;
 }
@@ -3129,9 +3129,9 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 		return -EINVAL;
 	}
 
-	plane_state->aux.offset = offset;
-	plane_state->aux.x = x;
-	plane_state->aux.y = y;
+	plane_state->color_plane[1].offset = offset;
+	plane_state->color_plane[1].x = x;
+	plane_state->color_plane[1].y = y;
 
 	return 0;
 }
@@ -3156,9 +3156,9 @@ static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 	intel_add_fb_offsets(&x, &y, plane_state, 1);
 	offset = intel_plane_compute_aligned_offset(&x, &y, plane_state, 1);
 
-	plane_state->aux.offset = offset;
-	plane_state->aux.x = x * hsub + src_x % hsub;
-	plane_state->aux.y = y * vsub + src_y % vsub;
+	plane_state->color_plane[1].offset = offset;
+	plane_state->color_plane[1].x = x * hsub + src_x % hsub;
+	plane_state->color_plane[1].y = y * vsub + src_y % vsub;
 
 	return 0;
 }
@@ -3201,9 +3201,9 @@ int skl_check_plane_surface(const struct intel_crtc_state *crtc_state,
 		if (ret)
 			return ret;
 	} else {
-		plane_state->aux.offset = ~0xfff;
-		plane_state->aux.x = 0;
-		plane_state->aux.y = 0;
+		plane_state->color_plane[1].offset = ~0xfff;
+		plane_state->color_plane[1].x = 0;
+		plane_state->color_plane[1].y = 0;
 	}
 
 	ret = skl_check_main_surface(crtc_state, plane_state);
@@ -3332,9 +3332,9 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 		}
 	}
 
-	plane_state->main.offset = offset;
-	plane_state->main.x = src_x;
-	plane_state->main.y = src_y;
+	plane_state->color_plane[0].offset = offset;
+	plane_state->color_plane[0].x = src_x;
+	plane_state->color_plane[0].y = src_y;
 
 	return 0;
 }
@@ -3349,15 +3349,15 @@ static void i9xx_update_plane(struct intel_plane *plane,
 	u32 linear_offset;
 	u32 dspcntr = plane_state->ctl;
 	i915_reg_t reg = DSPCNTR(i9xx_plane);
-	int x = plane_state->main.x;
-	int y = plane_state->main.y;
+	int x = plane_state->color_plane[0].x;
+	int y = plane_state->color_plane[0].y;
 	unsigned long irqflags;
 	u32 dspaddr_offset;
 
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
 	if (INTEL_GEN(dev_priv) >= 4)
-		dspaddr_offset = plane_state->main.offset;
+		dspaddr_offset = plane_state->color_plane[0].offset;
 	else
 		dspaddr_offset = linear_offset;
 
@@ -9624,7 +9624,7 @@ static u32 intel_cursor_base(const struct intel_plane_state *plane_state)
 	else
 		base = intel_plane_ggtt_offset(plane_state);
 
-	base += plane_state->main.offset;
+	base += plane_state->color_plane[0].offset;
 
 	/* ILK+ do this automagically */
 	if (HAS_GMCH_DISPLAY(dev_priv) &&
@@ -9703,7 +9703,7 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 		return -EINVAL;
 	}
 
-	plane_state->main.offset = offset;
+	plane_state->color_plane[0].offset = offset;
 
 	return 0;
 }
