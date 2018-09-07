@@ -1280,7 +1280,7 @@ static int dpaa_bman_release(const struct dpaa_bp *dpaa_bp,
 
 	err = bman_release(dpaa_bp->pool, bmb, cnt);
 	/* Should never occur, address anyway to avoid leaking the buffers */
-	if (unlikely(WARN_ON(err)) && dpaa_bp->free_buf_cb)
+	if (WARN_ON(err) && dpaa_bp->free_buf_cb)
 		while (cnt-- > 0)
 			dpaa_bp->free_buf_cb(dpaa_bp, &bmb[cnt]);
 
@@ -1704,10 +1704,8 @@ static struct sk_buff *contig_fd_to_skb(const struct dpaa_priv *priv,
 
 	skb = build_skb(vaddr, dpaa_bp->size +
 			SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
-	if (unlikely(!skb)) {
-		WARN_ONCE(1, "Build skb failure on Rx\n");
+	if (WARN_ONCE(!skb, "Build skb failure on Rx\n"))
 		goto free_buffer;
-	}
 	WARN_ON(fd_off != priv->rx_headroom);
 	skb_reserve(skb, fd_off);
 	skb_put(skb, qm_fd_get_length(fd));
@@ -1770,7 +1768,7 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 			sz = dpaa_bp->size +
 				SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 			skb = build_skb(sg_vaddr, sz);
-			if (WARN_ON(unlikely(!skb)))
+			if (WARN_ON(!skb))
 				goto free_buffers;
 
 			skb->ip_summed = rx_csum_offload(priv, fd);
