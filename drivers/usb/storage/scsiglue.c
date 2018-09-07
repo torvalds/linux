@@ -102,6 +102,10 @@ static int slave_configure(struct scsi_device *sdev)
 	if (us->fflags & (US_FL_MAX_SECTORS_64 | US_FL_MAX_SECTORS_MIN)) {
 		unsigned int max_sectors = 64;
 
+		if (le16_to_cpu(us->pusb_dev->descriptor.idVendor) == 0x05e3 &&
+		    le16_to_cpu(us->pusb_dev->descriptor.idProduct) == 0x0749)
+			max_sectors = 128;
+
 		if (us->fflags & US_FL_MAX_SECTORS_MIN)
 			max_sectors = PAGE_SIZE >> 9;
 		if (queue_max_hw_sectors(sdev->request_queue) > max_sectors)
