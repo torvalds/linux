@@ -86,6 +86,7 @@ struct dsa_slave_priv {
 /* dsa.c */
 const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
 bool dsa_schedule_work(struct work_struct *work);
+const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops);
 
 /* legacy.c */
 #if IS_ENABLED(CONFIG_NET_DSA_LEGACY)
