@@ -395,6 +395,39 @@ void ubifs_crc_node(struct ubifs_info *c, void *node, int len)
 }
 
 /**
+ * ubifs_prepare_node_hmac - prepare node to be written to flash.
+ * @c: UBIFS file-system description object
+ * @node: the node to pad
+ * @len: node length
+ * @hmac_offs: offset of the HMAC in the node
+ * @pad: if the buffer has to be padded
+ *
+ * This function prepares node at @node to be written to the media - it
+ * calculates node CRC, fills the common header, and adds proper padding up to
+ * the next minimum I/O unit if @pad is not zero. if @hmac_offs is positive then
+ * a HMAC is inserted into the node at the given offset.
+ *
+ * This function returns 0 for success or a negative error code otherwise.
+ */
+int ubifs_prepare_node_hmac(struct ubifs_info *c, void *node, int len,
+			    int hmac_offs, int pad)
+{
+	int err;
+
+	ubifs_init_node(c, node, len, pad);
+
+	if (hmac_offs > 0) {
+		err = ubifs_node_insert_hmac(c, node, len, hmac_offs);
+		if (err)
+			return err;
+	}
+
+	ubifs_crc_node(c, node, len);
+
+	return 0;
+}
+
+/**
  * ubifs_prepare_node - prepare node to be written to flash.
  * @c: UBIFS file-system description object
  * @node: the node to pad
@@ -407,8 +440,11 @@ void ubifs_crc_node(struct ubifs_info *c, void *node, int len)
  */
 void ubifs_prepare_node(struct ubifs_info *c, void *node, int len, int pad)
 {
-	ubifs_init_node(c, node, len, pad);
-	ubifs_crc_node(c, node, len);
+	/*
+	 * Deliberately ignore return value since this function can only fail
+	 * when a hmac offset is given.
+	 */
+	ubifs_prepare_node_hmac(c, node, len, 0, pad);
 }
 
 /**
@@ -861,6 +897,48 @@ out:
 }
 
 /**
+ * ubifs_write_node_hmac - write node to the media.
+ * @c: UBIFS file-system description object
+ * @buf: the node to write
+ * @len: node length
+ * @lnum: logical eraseblock number
+ * @offs: offset within the logical eraseblock
+ * @hmac_offs: offset of the HMAC within the node
+ *
+ * This function automatically fills node magic number, assigns sequence
+ * number, and calculates node CRC checksum. The length of the @buf buffer has
+ * to be aligned to the minimal I/O unit size. This function automatically
+ * appends padding node and padding bytes if needed. Returns zero in case of
+ * success and a negative error code in case of failure.
+ */
+int ubifs_write_node_hmac(struct ubifs_info *c, void *buf, int len, int lnum,
+			  int offs, int hmac_offs)
+{
+	int err, buf_len = ALIGN(len, c->min_io_size);
+
+	dbg_io("LEB %d:%d, %s, length %d (aligned %d)",
+	       lnum, offs, dbg_ntype(((struct ubifs_ch *)buf)->node_type), len,
+	       buf_len);
+	ubifs_assert(c, lnum >= 0 && lnum < c->leb_cnt && offs >= 0);
+	ubifs_assert(c, offs % c->min_io_size == 0 && offs < c->leb_size);
+	ubifs_assert(c, !c->ro_media && !c->ro_mount);
+	ubifs_assert(c, !c->space_fixup);
+
+	if (c->ro_error)
+		return -EROFS;
+
+	err = ubifs_prepare_node_hmac(c, buf, len, hmac_offs, 1);
+	if (err)
+		return err;
+
+	err = ubifs_leb_write(c, lnum, buf, offs, buf_len);
+	if (err)
+		ubifs_dump_node(c, buf);
+
+	return err;
+}
+
+/**
  * ubifs_write_node - write node to the media.
  * @c: UBIFS file-system description object
  * @buf: the node to write
@@ -877,25 +955,7 @@ out:
 int ubifs_write_node(struct ubifs_info *c, void *buf, int len, int lnum,
 		     int offs)
 {
-	int err, buf_len = ALIGN(len, c->min_io_size);
-
-	dbg_io("LEB %d:%d, %s, length %d (aligned %d)",
-	       lnum, offs, dbg_ntype(((struct ubifs_ch *)buf)->node_type), len,
-	       buf_len);
-	ubifs_assert(c, lnum >= 0 && lnum < c->leb_cnt && offs >= 0);
-	ubifs_assert(c, offs % c->min_io_size == 0 && offs < c->leb_size);
-	ubifs_assert(c, !c->ro_media && !c->ro_mount);
-	ubifs_assert(c, !c->space_fixup);
-
-	if (c->ro_error)
-		return -EROFS;
-
-	ubifs_prepare_node(c, buf, len, 1);
-	err = ubifs_leb_write(c, lnum, buf, offs, buf_len);
-	if (err)
-		ubifs_dump_node(c, buf);
-
-	return err;
+	return ubifs_write_node_hmac(c, buf, len, lnum, offs, -1);
 }
 
 /**
