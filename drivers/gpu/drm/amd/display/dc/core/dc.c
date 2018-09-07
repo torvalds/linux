@@ -1836,3 +1836,16 @@ void dc_link_remove_remote_sink(struct dc_link *link, struct dc_sink *sink)
 		}
 	}
 }
+
+void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info)
+{
+	info->displayClock				= (unsigned int)state->bw.dcn.clk.dispclk_khz;
+	info->engineClock				= (unsigned int)state->bw.dcn.clk.dcfclk_khz;
+	info->memoryClock				= (unsigned int)state->bw.dcn.clk.dramclk_khz;
+	info->maxSupportedDppClock		= (unsigned int)state->bw.dcn.clk.max_supported_dppclk_khz;
+	info->dppClock					= (unsigned int)state->bw.dcn.clk.dppclk_khz;
+	info->socClock					= (unsigned int)state->bw.dcn.clk.socclk_khz;
+	info->dcfClockDeepSleep			= (unsigned int)state->bw.dcn.clk.dcfclk_deep_sleep_khz;
+	info->fClock					= (unsigned int)state->bw.dcn.clk.fclk_khz;
+	info->phyClock					= (unsigned int)state->bw.dcn.clk.phyclk_khz;
+}

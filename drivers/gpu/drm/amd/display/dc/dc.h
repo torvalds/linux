@@ -44,7 +44,6 @@
 #define MAX_STREAMS 6
 #define MAX_SINKS_PER_LINK 4
 
-
 /*******************************************************************************
  * Display Core Interfaces
  ******************************************************************************/
@@ -208,6 +207,7 @@ struct dc_clocks {
 	int dcfclk_deep_sleep_khz;
 	int fclk_khz;
 	int phyclk_khz;
+	int dramclk_khz;
 };
 
 struct dc_debug_options {
@@ -600,6 +600,8 @@ struct dc_validation_set {
 };
 
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
+
+void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info);
 
 enum dc_status dc_validate_global_state(
 		struct dc *dc,
