@@ -236,6 +236,7 @@ static struct s3c2410fb_mach_info mini2440_fb_info __initdata = {
 static struct s3c24xx_mci_pdata mini2440_mmc_cfg __initdata = {
 	.gpio_detect		= S3C2410_GPG(8),
 	.gpio_wprotect		= S3C2410_GPH(8),
+	.wprotect_invert	= 1,
 	.set_power		= NULL,
 	.ocr_avail		= MMC_VDD_32_33|MMC_VDD_33_34,
 };
