@@ -67,7 +67,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		interrupts = <1 9 0xf04>;
+		interrupts = <GIC_PPI 9 0xf04>;
 
 		CPU0: cpu@0 {
 			compatible = "qcom,krait";
@@ -214,7 +214,7 @@
 
 	cpu-pmu {
 		compatible = "qcom,krait-pmu";
-		interrupts = <1 7 0xf04>;
+		interrupts = <GIC_PPI 7 0xf04>;
 	};
 
 	clocks {
@@ -233,10 +233,10 @@
 
 	timer {
 		compatible = "arm,armv7-timer";
-		interrupts = <1 2 0xf08>,
-			     <1 3 0xf08>,
-			     <1 4 0xf08>,
-			     <1 1 0xf08>;
+		interrupts = <GIC_PPI 2 0xf08>,
+			     <GIC_PPI 3 0xf08>,
+			     <GIC_PPI 4 0xf08>,
+			     <GIC_PPI 1 0xf08>;
 		clock-frequency = <19200000>;
 	};
 
