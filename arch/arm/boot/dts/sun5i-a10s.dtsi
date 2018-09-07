@@ -60,7 +60,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		framebuffer@2 {
+		framebuffer-lcd0-hdmi {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-hdmi";
