@@ -353,8 +353,8 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 	id_from = iolink->proximity_domain_from;
 	id_to = iolink->proximity_domain_to;
 
-	pr_debug("Found IO link entry in CRAT table with id_from=%d\n",
-			id_from);
+	pr_debug("Found IO link entry in CRAT table with id_from=%d, id_to %d\n",
+			id_from, id_to);
 	list_for_each_entry(dev, device_list, list) {
 		if (id_from == dev->proximity_domain) {
 			props = kfd_alloc_struct(props);
@@ -391,12 +391,12 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 	/* CPU topology is created before GPUs are detected, so CPU->GPU
 	 * links are not built at that time. If a PCIe type is discovered, it
 	 * means a GPU is detected and we are adding GPU->CPU to the topology.
-	 * At this time, also add the corresponded CPU->GPU link.
+	 * At this time, also add the corresponded CPU->GPU link if GPU
+	 * is large bar.
 	 * For xGMI, we only added the link with one direction in the crat
 	 * table, add corresponded reversed direction link now.
 	 */
-	if (props && (props->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS ||
-		      props->iolink_type == CRAT_IOLINK_TYPE_XGMI)) {
+	if (props && (iolink->flags & CRAT_IOLINK_FLAGS_BI_DIRECTIONAL)) {
 		to_dev = kfd_topology_device_by_proximity_domain(id_to);
 		if (!to_dev)
 			return -ENODEV;
@@ -1057,6 +1057,8 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 	sub_type_hdr->type = CRAT_SUBTYPE_IOLINK_AFFINITY;
 	sub_type_hdr->length = sizeof(struct crat_subtype_iolink);
 	sub_type_hdr->flags |= CRAT_SUBTYPE_FLAGS_ENABLED;
+	if (kfd_dev_is_large_bar(kdev))
+		sub_type_hdr->flags |= CRAT_IOLINK_FLAGS_BI_DIRECTIONAL;
 
 	/* Fill in IOLINK subtype.
 	 * TODO: Fill-in other fields of iolink subtype
@@ -1088,7 +1090,8 @@ static int kfd_fill_gpu_xgmi_link_to_gpu(int *avail_size,
 
 	sub_type_hdr->type = CRAT_SUBTYPE_IOLINK_AFFINITY;
 	sub_type_hdr->length = sizeof(struct crat_subtype_iolink);
-	sub_type_hdr->flags |= CRAT_SUBTYPE_FLAGS_ENABLED;
+	sub_type_hdr->flags |= CRAT_SUBTYPE_FLAGS_ENABLED |
+			       CRAT_IOLINK_FLAGS_BI_DIRECTIONAL;
 
 	sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_XGMI;
 	sub_type_hdr->proximity_domain_from = proximity_domain_from;
