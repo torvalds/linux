@@ -460,9 +460,25 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 					 struct dc_link_settings *link_setting,
 					 struct dc_link *link)
 {
+	int i;
+	struct pipe_ctx *pipe;
+	struct dc_stream_state *link_stream;
 	struct dc_link_settings store_settings = *link_setting;
-	struct dc_stream_state *link_stream =
-		link->dc->current_state->res_ctx.pipe_ctx[0].stream;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream && pipe->stream->sink
+			&& pipe->stream->sink->link) {
+			if (pipe->stream->sink->link == link)
+				break;
+		}
+	}
+
+	/* Stream not found */
+	if (i == MAX_PIPES)
+		return;
+
+	link_stream = link->dc->current_state->res_ctx.pipe_ctx[i].stream;
 
 	link->preferred_link_setting = store_settings;
 	if (link_stream)
