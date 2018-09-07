@@ -1636,6 +1636,131 @@ struct ubifs_lprops *ubifs_lpt_lookup_dirty(struct ubifs_info *c, int lnum)
 }
 
 /**
+ * ubifs_lpt_calc_hash - Calculate hash of the LPT pnodes
+ * @c: UBIFS file-system description object
+ * @hash: the returned hash of the LPT pnodes
+ *
+ * This function iterates over the LPT pnodes and creates a hash over them.
+ * Returns 0 for success or a negative error code otherwise.
+ */
+int ubifs_lpt_calc_hash(struct ubifs_info *c, u8 *hash)
+{
+	struct ubifs_nnode *nnode, *nn;
+	struct ubifs_cnode *cnode;
+	struct shash_desc *desc;
+	int iip = 0, i;
+	int bufsiz = max_t(int, c->nnode_sz, c->pnode_sz);
+	void *buf;
+	int err;
+
+	if (!ubifs_authenticated(c))
+		return 0;
+
+	desc = ubifs_hash_get_desc(c);
+	if (IS_ERR(desc))
+		return PTR_ERR(desc);
+
+	buf = kmalloc(bufsiz, GFP_NOFS);
+	if (!buf) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	if (!c->nroot) {
+		err = ubifs_read_nnode(c, NULL, 0);
+		if (err)
+			return err;
+	}
+
+	cnode = (struct ubifs_cnode *)c->nroot;
+
+	while (cnode) {
+		nnode = cnode->parent;
+		nn = (struct ubifs_nnode *)cnode;
+		if (cnode->level > 1) {
+			while (iip < UBIFS_LPT_FANOUT) {
+				if (nn->nbranch[iip].lnum == 0) {
+					/* Go right */
+					iip++;
+					continue;
+				}
+
+				nnode = ubifs_get_nnode(c, nn, iip);
+				if (IS_ERR(nnode)) {
+					err = PTR_ERR(nnode);
+					goto out;
+				}
+
+				/* Go down */
+				iip = 0;
+				cnode = (struct ubifs_cnode *)nnode;
+				break;
+			}
+			if (iip < UBIFS_LPT_FANOUT)
+				continue;
+		} else {
+			struct ubifs_pnode *pnode;
+
+			for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
+				if (nn->nbranch[i].lnum == 0)
+					continue;
+				pnode = ubifs_get_pnode(c, nn, i);
+				if (IS_ERR(pnode)) {
+					err = PTR_ERR(pnode);
+					goto out;
+				}
+
+				ubifs_pack_pnode(c, buf, pnode);
+				err = ubifs_shash_update(c, desc, buf,
+							 c->pnode_sz);
+				if (err)
+					goto out;
+			}
+		}
+		/* Go up and to the right */
+		iip = cnode->iip + 1;
+		cnode = (struct ubifs_cnode *)nnode;
+	}
+
+	err = ubifs_shash_final(c, desc, hash);
+out:
+	kfree(desc);
+	kfree(buf);
+
+	return err;
+}
+
+/**
+ * lpt_check_hash - check the hash of the LPT.
+ * @c: UBIFS file-system description object
+ *
+ * This function calculates a hash over all pnodes in the LPT and compares it with
+ * the hash stored in the master node. Returns %0 on success and a negative error
+ * code on failure.
+ */
+static int lpt_check_hash(struct ubifs_info *c)
+{
+	int err;
+	u8 hash[UBIFS_HASH_ARR_SZ];
+
+	if (!ubifs_authenticated(c))
+		return 0;
+
+	err = ubifs_lpt_calc_hash(c, hash);
+	if (err)
+		return err;
+
+	if (ubifs_check_hash(c, c->mst_node->hash_lpt, hash)) {
+		err = -EPERM;
+		ubifs_err(c, "Failed to authenticate LPT");
+	} else {
+		err = 0;
+	}
+
+	return err;
+}
+
+/**
  * lpt_init_rd - initialize the LPT for reading.
  * @c: UBIFS file-system description object
  *
@@ -1673,6 +1798,10 @@ static int lpt_init_rd(struct ubifs_info *c)
 	c->dirty_idx.max_cnt = LPT_HEAP_SZ;
 
 	err = read_ltab(c);
+	if (err)
+		return err;
+
+	err = lpt_check_hash(c);
 	if (err)
 		return err;
 
