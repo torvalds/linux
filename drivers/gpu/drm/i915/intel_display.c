@@ -13742,12 +13742,8 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 	primary->base.state = &state->base;
 
-	primary->can_scale = false;
-	primary->max_downscale = 1;
-	if (INTEL_GEN(dev_priv) >= 9) {
-		primary->can_scale = true;
+	if (INTEL_GEN(dev_priv) >= 9)
 		state->scaler_id = -1;
-	}
 	primary->pipe = pipe;
 	/*
 	 * On gen2/3 only plane A can do FBC, but the panel fitter and LVDS
@@ -13915,8 +13911,6 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 
 	cursor->base.state = &state->base;
 
-	cursor->can_scale = false;
-	cursor->max_downscale = 1;
 	cursor->pipe = pipe;
 	cursor->i9xx_plane = (enum i9xx_plane_id) pipe;
 	cursor->id = PLANE_CURSOR;

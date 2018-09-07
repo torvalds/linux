@@ -952,10 +952,8 @@ struct intel_plane {
 	enum i9xx_plane_id i9xx_plane;
 	enum plane_id id;
 	enum pipe pipe;
-	bool can_scale;
 	bool has_fbc;
 	bool has_ccs;
-	int max_downscale;
 	uint32_t frontbuffer_bit;
 
 	struct {

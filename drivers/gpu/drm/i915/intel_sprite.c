@@ -767,7 +767,7 @@ ivb_update_plane(struct intel_plane *plane,
 		I915_WRITE_FW(SPRLINOFF(pipe), linear_offset);
 
 	I915_WRITE_FW(SPRSIZE(pipe), (crtc_h << 16) | crtc_w);
-	if (plane->can_scale)
+	if (IS_IVYBRIDGE(dev_priv))
 		I915_WRITE_FW(SPRSCALE(pipe), sprscale);
 	I915_WRITE_FW(SPRCTL(pipe), sprctl);
 	I915_WRITE_FW(SPRSURF(pipe),
@@ -788,7 +788,7 @@ ivb_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 
 	I915_WRITE_FW(SPRCTL(pipe), 0);
 	/* Can't leave the scaler enabled... */
-	if (plane->can_scale)
+	if (IS_IVYBRIDGE(dev_priv))
 		I915_WRITE_FW(SPRSCALE(pipe), 0);
 
 	I915_WRITE_FW(SPRSURF(pipe), 0);
@@ -993,7 +993,6 @@ intel_check_sprite_plane(struct intel_crtc_state *crtc_state,
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_framebuffer *fb = state->base.fb;
 	int max_scale, min_scale;
-	bool can_scale;
 	int ret;
 	uint32_t pixel_format = 0;
 
@@ -1016,25 +1015,29 @@ intel_check_sprite_plane(struct intel_crtc_state *crtc_state,
 		return -EINVAL;
 	}
 
-	/* setup can_scale, min_scale, max_scale */
 	if (INTEL_GEN(dev_priv) >= 9) {
 		if (state->base.fb)
 			pixel_format = state->base.fb->format->format;
 		/* use scaler when colorkey is not required */
 		if (!state->ckey.flags) {
-			can_scale = 1;
 			min_scale = 1;
 			max_scale =
 				skl_max_scale(crtc, crtc_state, pixel_format);
 		} else {
-			can_scale = 0;
 			min_scale = DRM_PLANE_HELPER_NO_SCALING;
 			max_scale = DRM_PLANE_HELPER_NO_SCALING;
 		}
 	} else {
-		can_scale = plane->can_scale;
-		max_scale = plane->max_downscale << 16;
-		min_scale = plane->can_scale ? 1 : (1 << 16);
+		if (INTEL_GEN(dev_priv) < 7) {
+			min_scale = 1;
+			max_scale = 16 << 16;
+		} else if (IS_IVYBRIDGE(dev_priv)) {
+			min_scale = 1;
+			max_scale = 2 << 16;
+		} else {
+			min_scale = DRM_PLANE_HELPER_NO_SCALING;
+			max_scale = DRM_PLANE_HELPER_NO_SCALING;
+		}
 	}
 
 	ret = drm_atomic_helper_check_plane_state(&state->base,
@@ -1079,8 +1082,6 @@ intel_check_sprite_plane(struct intel_crtc_state *crtc_state,
 		if (src_w != crtc_w || src_h != crtc_h) {
 			unsigned int width_bytes;
 			int cpp = fb->format->cpp[0];
-
-			WARN_ON(!can_scale);
 
 			width_bytes = ((src_x * cpp) & 63) + src_w * cpp;
 
@@ -1550,7 +1551,6 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	intel_plane->base.state = &state->base;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
-		intel_plane->can_scale = true;
 		state->scaler_id = -1;
 
 		intel_plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe,
@@ -1577,9 +1577,6 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane_funcs = &skl_plane_funcs;
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		intel_plane->can_scale = false;
-		intel_plane->max_downscale = 1;
-
 		intel_plane->max_stride = i9xx_plane_max_stride;
 		intel_plane->update_plane = vlv_update_plane;
 		intel_plane->disable_plane = vlv_disable_plane;
@@ -1591,14 +1588,6 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane_funcs = &vlv_sprite_funcs;
 	} else if (INTEL_GEN(dev_priv) >= 7) {
-		if (IS_IVYBRIDGE(dev_priv)) {
-			intel_plane->can_scale = true;
-			intel_plane->max_downscale = 2;
-		} else {
-			intel_plane->can_scale = false;
-			intel_plane->max_downscale = 1;
-		}
-
 		intel_plane->max_stride = g4x_sprite_max_stride;
 		intel_plane->update_plane = ivb_update_plane;
 		intel_plane->disable_plane = ivb_disable_plane;
@@ -1610,9 +1599,6 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane_funcs = &snb_sprite_funcs;
 	} else {
-		intel_plane->can_scale = true;
-		intel_plane->max_downscale = 16;
-
 		intel_plane->max_stride = g4x_sprite_max_stride;
 		intel_plane->update_plane = g4x_update_plane;
 		intel_plane->disable_plane = g4x_disable_plane;
