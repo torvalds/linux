@@ -14432,31 +14432,18 @@ static
 u32 intel_fb_pitch_limit(struct drm_i915_private *dev_priv,
 			 uint64_t fb_modifier, uint32_t pixel_format)
 {
-	u32 gen = INTEL_GEN(dev_priv);
+	struct intel_crtc *crtc;
+	struct intel_plane *plane;
 
-	if (gen >= 9) {
-		int cpp = drm_format_plane_cpp(pixel_format, 0);
+	/*
+	 * We assume the primary plane for pipe A has
+	 * the highest stride limits of them all.
+	 */
+	crtc = intel_get_crtc_for_pipe(dev_priv, PIPE_A);
+	plane = to_intel_plane(crtc->base.primary);
 
-		/* "The stride in bytes must not exceed the of the size of 8K
-		 *  pixels and 32K bytes."
-		 */
-		return min(8192 * cpp, 32768);
-	} else if (gen >= 5 && !HAS_GMCH_DISPLAY(dev_priv)) {
-		return 32*1024;
-	} else if (gen >= 4) {
-		if (fb_modifier == I915_FORMAT_MOD_X_TILED)
-			return 16*1024;
-		else
-			return 32*1024;
-	} else if (gen >= 3) {
-		if (fb_modifier == I915_FORMAT_MOD_X_TILED)
-			return 8*1024;
-		else
-			return 16*1024;
-	} else {
-		/* XXX DSPC is limited to 4k tiled */
-		return 8*1024;
-	}
+	return plane->max_stride(plane, pixel_format, fb_modifier,
+				 DRM_MODE_ROTATE_0);
 }
 
 static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
