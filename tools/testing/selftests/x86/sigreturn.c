@@ -456,19 +456,38 @@ static int test_valid_sigreturn(int cs_bits, bool use_16bit_ss, int force_ss)
 		greg_t req = requested_regs[i], res = resulting_regs[i];
 		if (i == REG_TRAPNO || i == REG_IP)
 			continue;	/* don't care */
-		if (i == REG_SP) {
-			printf("\tSP: %llx -> %llx\n", (unsigned long long)req,
-			       (unsigned long long)res);
 
+		if (i == REG_SP) {
 			/*
-			 * In many circumstances, the high 32 bits of rsp
-			 * are zeroed.  For example, we could be a real
-			 * 32-bit program, or we could hit any of a number
-			 * of poorly-documented IRET or segmented ESP
-			 * oddities.  If this happens, it's okay.
+			 * If we were using a 16-bit stack segment, then
+			 * the kernel is a bit stuck: IRET only restores
+			 * the low 16 bits of ESP/RSP if SS is 16-bit.
+			 * The kernel uses a hack to restore bits 31:16,
+			 * but that hack doesn't help with bits 63:32.
+			 * On Intel CPUs, bits 63:32 end up zeroed, and, on
+			 * AMD CPUs, they leak the high bits of the kernel
+			 * espfix64 stack pointer.  There's very little that
+			 * the kernel can do about it.
+			 *
+			 * Similarly, if we are returning to a 32-bit context,
+			 * the CPU will often lose the high 32 bits of RSP.
 			 */
-			if (res == (req & 0xFFFFFFFF))
-				continue;  /* OK; not expected to work */
+
+			if (res == req)
+				continue;
+
+			if (cs_bits != 64 && ((res ^ req) & 0xFFFFFFFF) == 0) {
+				printf("[NOTE]\tSP: %llx -> %llx\n",
+				       (unsigned long long)req,
+				       (unsigned long long)res);
+				continue;
+			}
+
+			printf("[FAIL]\tSP mismatch: requested 0x%llx; got 0x%llx\n",
+			       (unsigned long long)requested_regs[i],
+			       (unsigned long long)resulting_regs[i]);
+			nerrs++;
+			continue;
 		}
 
 		bool ignore_reg = false;
@@ -507,13 +526,6 @@ static int test_valid_sigreturn(int cs_bits, bool use_16bit_ss, int force_ss)
 		}
 
 		if (requested_regs[i] != resulting_regs[i] && !ignore_reg) {
-			/*
-			 * SP is particularly interesting here.  The
-			 * usual cause of failures is that we hit the
-			 * nasty IRET case of returning to a 16-bit SS,
-			 * in which case bits 16:31 of the *kernel*
-			 * stack pointer persist in ESP.
-			 */
 			printf("[FAIL]\tReg %d mismatch: requested 0x%llx; got 0x%llx\n",
 			       i, (unsigned long long)requested_regs[i],
 			       (unsigned long long)resulting_regs[i]);

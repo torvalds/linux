@@ -1683,6 +1683,7 @@ static struct sk_buff *atl1c_alloc_skb(struct atl1c_adapter *adapter)
 	skb = build_skb(page_address(page) + adapter->rx_page_offset,
 			adapter->rx_frag_size);
 	if (likely(skb)) {
+		skb_reserve(skb, NET_SKB_PAD);
 		adapter->rx_page_offset += adapter->rx_frag_size;
 		if (adapter->rx_page_offset >= PAGE_SIZE)
 			adapter->rx_page = NULL;

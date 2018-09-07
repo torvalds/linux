@@ -1321,7 +1321,7 @@ static int pxad_init_phys(struct platform_device *op,
 	return 0;
 }
 
-static const struct of_device_id const pxad_dt_ids[] = {
+static const struct of_device_id pxad_dt_ids[] = {
 	{ .compatible = "marvell,pdma-1.0", },
 	{}
 };

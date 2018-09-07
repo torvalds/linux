@@ -99,6 +99,8 @@ struct tegra_mc_soc {
 	u8 client_id_mask;
 
 	const struct tegra_smmu_soc *smmu;
+
+	u32 intmask;
 };
 
 struct tegra_mc {

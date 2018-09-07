@@ -27,6 +27,7 @@ static int cachefiles_read_waiter(wait_queue_t *wait, unsigned mode,
 	struct cachefiles_one_read *monitor =
 		container_of(wait, struct cachefiles_one_read, monitor);
 	struct cachefiles_object *object;
+	struct fscache_retrieval *op = monitor->op;
 	struct wait_bit_key *key = _key;
 	struct page *page = wait->private;
 
@@ -51,16 +52,22 @@ static int cachefiles_read_waiter(wait_queue_t *wait, unsigned mode,
 	list_del(&wait->task_list);
 
 	/* move onto the action list and queue for FS-Cache thread pool */
-	ASSERT(monitor->op);
+	ASSERT(op);
 
-	object = container_of(monitor->op->op.object,
-			      struct cachefiles_object, fscache);
+	/* We need to temporarily bump the usage count as we don't own a ref
+	 * here otherwise cachefiles_read_copier() may free the op between the
+	 * monitor being enqueued on the op->to_do list and the op getting
+	 * enqueued on the work queue.
+	 */
+	fscache_get_retrieval(op);
 
+	object = container_of(op->op.object, struct cachefiles_object, fscache);
 	spin_lock(&object->work_lock);
-	list_add_tail(&monitor->op_link, &monitor->op->to_do);
+	list_add_tail(&monitor->op_link, &op->to_do);
 	spin_unlock(&object->work_lock);
 
-	fscache_enqueue_retrieval(monitor->op);
+	fscache_enqueue_retrieval(op);
+	fscache_put_retrieval(op);
 	return 0;
 }
 

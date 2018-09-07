@@ -702,12 +702,14 @@ void mwifiex_hist_data_set(struct mwifiex_private *priv, u8 rx_rate, s8 snr,
 			   s8 nflr)
 {
 	struct mwifiex_histogram_data *phist_data = priv->hist_data;
+	s8 nf   = -nflr;
+	s8 rssi = snr - nflr;
 
 	atomic_inc(&phist_data->num_samples);
 	atomic_inc(&phist_data->rx_rate[rx_rate]);
-	atomic_inc(&phist_data->snr[snr]);
-	atomic_inc(&phist_data->noise_flr[128 + nflr]);
-	atomic_inc(&phist_data->sig_str[nflr - snr]);
+	atomic_inc(&phist_data->snr[snr + 128]);
+	atomic_inc(&phist_data->noise_flr[nf + 128]);
+	atomic_inc(&phist_data->sig_str[rssi + 128]);
 }
 
 /* function to reset histogram data during init/reset */

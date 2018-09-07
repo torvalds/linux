@@ -205,6 +205,7 @@ static void cx_auto_reboot_notify(struct hda_codec *codec)
 	struct conexant_spec *spec = codec->spec;
 
 	switch (codec->core.vendor_id) {
+	case 0x14f12008: /* CX8200 */
 	case 0x14f150f2: /* CX20722 */
 	case 0x14f150f4: /* CX20724 */
 		break;
@@ -212,13 +213,14 @@ static void cx_auto_reboot_notify(struct hda_codec *codec)
 		return;
 	}
 
-	/* Turn the CX20722 codec into D3 to avoid spurious noises
+	/* Turn the problematic codec into D3 to avoid spurious noises
 	   from the internal speaker during (and after) reboot */
 	cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, false);
 
 	snd_hda_codec_set_power_to_all(codec, codec->core.afg, AC_PWRST_D3);
 	snd_hda_codec_write(codec, codec->core.afg, 0,
 			    AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
+	msleep(10);
 }
 
 static void cx_auto_free(struct hda_codec *codec)

@@ -11,6 +11,7 @@
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/bootmem.h>
+#include <linux/syscalls.h>
 #include <linux/irq.h>
 #include <linux/list.h>
 #include <linux/of.h>

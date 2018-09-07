@@ -4591,7 +4591,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 		rc = bnxt_request_irq(bp);
 		if (rc) {
 			netdev_err(bp->dev, "bnxt_request_irq err: %x\n", rc);
-			goto open_err;
+			goto open_err_irq;
 		}
 	}
 
@@ -4629,6 +4629,8 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 
 open_err:
 	bnxt_disable_napi(bp);
+
+open_err_irq:
 	bnxt_del_napi(bp);
 
 open_err_free_mem:

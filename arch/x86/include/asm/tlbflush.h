@@ -68,6 +68,8 @@ static inline void invpcid_flush_all_nonglobals(void)
 struct tlb_state {
 	struct mm_struct *active_mm;
 	int state;
+	/* last user mm's ctx id */
+	u64 last_ctx_id;
 
 	/*
 	 * Access to this CR4 shadow and to H/W CR4 is protected by
@@ -107,6 +109,16 @@ static inline void cr4_clear_bits(unsigned long mask)
 		this_cpu_write(cpu_tlbstate.cr4, cr4);
 		__write_cr4(cr4);
 	}
+}
+
+static inline void cr4_toggle_bits(unsigned long mask)
+{
+	unsigned long cr4;
+
+	cr4 = this_cpu_read(cpu_tlbstate.cr4);
+	cr4 ^= mask;
+	this_cpu_write(cpu_tlbstate.cr4, cr4);
+	__write_cr4(cr4);
 }
 
 /* Read the CR4 shadow. */

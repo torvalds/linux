@@ -2,7 +2,7 @@
  *  Plantronics USB HID Driver
  *
  *  Copyright (c) 2014 JD Cole <jd.cole@plantronics.com>
- *  Copyright (c) 2015 Terry Junge <terry.junge@plantronics.com>
+ *  Copyright (c) 2015-2018 Terry Junge <terry.junge@plantronics.com>
  */
 
 /*
@@ -47,6 +47,10 @@ static int plantronics_input_mapping(struct hid_device *hdev,
 {
 	unsigned short mapped_key;
 	unsigned long plt_type = (unsigned long)hid_get_drvdata(hdev);
+
+	/* special case for PTT products */
+	if (field->application == HID_GD_JOYSTICK)
+		goto defaulted;
 
 	/* handle volume up/down mapping */
 	/* non-standard types or multi-HID interfaces - plt_type is PID */
