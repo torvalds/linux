@@ -1712,6 +1712,7 @@ struct ubifs_pnode *ubifs_get_pnode(struct ubifs_info *c,
 				    struct ubifs_nnode *parent, int iip);
 struct ubifs_nnode *ubifs_get_nnode(struct ubifs_info *c,
 				    struct ubifs_nnode *parent, int iip);
+struct ubifs_pnode *ubifs_pnode_lookup(struct ubifs_info *c, int i);
 int ubifs_read_nnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip);
 void ubifs_add_lpt_dirt(struct ubifs_info *c, int lnum, int dirty);
 void ubifs_add_nnode_dirt(struct ubifs_info *c, struct ubifs_nnode *nnode);

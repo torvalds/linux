@@ -1439,6 +1439,38 @@ struct ubifs_pnode *ubifs_get_pnode(struct ubifs_info *c,
 }
 
 /**
+ * ubifs_pnode_lookup - lookup a pnode in the LPT.
+ * @c: UBIFS file-system description object
+ * @i: pnode number (0 to (main_lebs - 1) / UBIFS_LPT_FANOUT)
+ *
+ * This function returns a pointer to the pnode on success or a negative
+ * error code on failure.
+ */
+struct ubifs_pnode *ubifs_pnode_lookup(struct ubifs_info *c, int i)
+{
+	int err, h, iip, shft;
+	struct ubifs_nnode *nnode;
+
+	if (!c->nroot) {
+		err = ubifs_read_nnode(c, NULL, 0);
+		if (err)
+			return ERR_PTR(err);
+	}
+	i <<= UBIFS_LPT_FANOUT_SHIFT;
+	nnode = c->nroot;
+	shft = c->lpt_hght * UBIFS_LPT_FANOUT_SHIFT;
+	for (h = 1; h < c->lpt_hght; h++) {
+		iip = ((i >> shft) & (UBIFS_LPT_FANOUT - 1));
+		shft -= UBIFS_LPT_FANOUT_SHIFT;
+		nnode = ubifs_get_nnode(c, nnode, iip);
+		if (IS_ERR(nnode))
+			return ERR_CAST(nnode);
+	}
+	iip = ((i >> shft) & (UBIFS_LPT_FANOUT - 1));
+	return ubifs_get_pnode(c, nnode, iip);
+}
+
+/**
  * ubifs_lpt_lookup - lookup LEB properties in the LPT.
  * @c: UBIFS file-system description object
  * @lnum: LEB number to lookup
