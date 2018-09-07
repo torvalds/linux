@@ -278,9 +278,12 @@ static void sun4i_tcon0_mode_set_common(struct sun4i_tcon *tcon,
 }
 
 static void sun4i_tcon0_mode_set_cpu(struct sun4i_tcon *tcon,
-				     struct mipi_dsi_device *device,
+				     const struct drm_encoder *encoder,
 				     const struct drm_display_mode *mode)
 {
+	/* TODO support normal CPU interface modes */
+	struct sun6i_dsi *dsi = encoder_to_sun6i_dsi(encoder);
+	struct mipi_dsi_device *device = dsi->device;
 	u8 bpp = mipi_dsi_pixel_format_to_bpp(device->format);
 	u8 lanes = device->lanes;
 	u32 block_space, start_delay;
@@ -610,16 +613,10 @@ void sun4i_tcon_mode_set(struct sun4i_tcon *tcon,
 			 const struct drm_encoder *encoder,
 			 const struct drm_display_mode *mode)
 {
-	struct sun6i_dsi *dsi;
-
 	switch (encoder->encoder_type) {
 	case DRM_MODE_ENCODER_DSI:
-		/*
-		 * This is not really elegant, but it's the "cleaner"
-		 * way I could think of...
-		 */
-		dsi = encoder_to_sun6i_dsi(encoder);
-		sun4i_tcon0_mode_set_cpu(tcon, dsi->device, mode);
+		/* DSI is tied to special case of CPU interface */
+		sun4i_tcon0_mode_set_cpu(tcon, encoder, mode);
 		break;
 	case DRM_MODE_ENCODER_LVDS:
 		sun4i_tcon0_mode_set_lvds(tcon, encoder, mode);
