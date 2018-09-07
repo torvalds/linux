@@ -421,7 +421,7 @@ static void process_page(unsigned long data)
 	struct cardinfo *card = (struct cardinfo *)data;
 	unsigned int dma_status = card->dma_status;
 
-	spin_lock_bh(&card->lock);
+	spin_lock(&card->lock);
 	if (card->Active < 0)
 		goto out_unlock;
 	page = &card->mm_pages[card->Active];
@@ -496,7 +496,7 @@ static void process_page(unsigned long data)
 		mm_start_io(card);
 	}
  out_unlock:
-	spin_unlock_bh(&card->lock);
+	spin_unlock(&card->lock);
 
 	while (return_bio) {
 		struct bio *bio = return_bio;
