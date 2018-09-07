@@ -54,7 +54,7 @@
 		allwinner,pipelines = <&fe0>;
 	};
 
-	soc@1c00000 {
+	soc {
 		pwm: pwm@1c20e00 {
 			compatible = "allwinner,sun5i-a10s-pwm";
 			reg = <0x01c20e00 0xc>;
