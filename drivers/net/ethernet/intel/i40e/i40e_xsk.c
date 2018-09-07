@@ -140,6 +140,7 @@ static void i40e_xsk_umem_dma_unmap(struct i40e_vsi *vsi, struct xdp_umem *umem)
 static int i40e_xsk_umem_enable(struct i40e_vsi *vsi, struct xdp_umem *umem,
 				u16 qid)
 {
+	struct xdp_umem_fq_reuse *reuseq;
 	bool if_running;
 	int err;
 
@@ -155,6 +156,12 @@ static int i40e_xsk_umem_enable(struct i40e_vsi *vsi, struct xdp_umem *umem,
 		if (vsi->xsk_umems[qid])
 			return -EBUSY;
 	}
+
+	reuseq = xsk_reuseq_prepare(vsi->rx_rings[0]->count);
+	if (!reuseq)
+		return -ENOMEM;
+
+	xsk_reuseq_free(xsk_reuseq_swap(umem, reuseq));
 
 	err = i40e_xsk_umem_dma_map(vsi, umem);
 	if (err)
@@ -353,16 +360,46 @@ static bool i40e_alloc_buffer_zc(struct i40e_ring *rx_ring,
 }
 
 /**
- * i40e_alloc_rx_buffers_zc - Allocates a number of Rx buffers
+ * i40e_alloc_buffer_slow_zc - Allocates an i40e_rx_buffer
  * @rx_ring: Rx ring
- * @count: The number of buffers to allocate
+ * @bi: Rx buffer to populate
  *
- * This function allocates a number of Rx buffers and places them on
- * the Rx ring.
+ * This function allocates an Rx buffer. The buffer can come from fill
+ * queue, or via the reuse queue.
  *
  * Returns true for a successful allocation, false otherwise
  **/
-bool i40e_alloc_rx_buffers_zc(struct i40e_ring *rx_ring, u16 count)
+static bool i40e_alloc_buffer_slow_zc(struct i40e_ring *rx_ring,
+				      struct i40e_rx_buffer *bi)
+{
+	struct xdp_umem *umem = rx_ring->xsk_umem;
+	u64 handle, hr;
+
+	if (!xsk_umem_peek_addr_rq(umem, &handle)) {
+		rx_ring->rx_stats.alloc_page_failed++;
+		return false;
+	}
+
+	handle &= rx_ring->xsk_umem->chunk_mask;
+
+	hr = umem->headroom + XDP_PACKET_HEADROOM;
+
+	bi->dma = xdp_umem_get_dma(umem, handle);
+	bi->dma += hr;
+
+	bi->addr = xdp_umem_get_data(umem, handle);
+	bi->addr += hr;
+
+	bi->handle = handle + umem->headroom;
+
+	xsk_umem_discard_addr_rq(umem);
+	return true;
+}
+
+static __always_inline bool
+__i40e_alloc_rx_buffers_zc(struct i40e_ring *rx_ring, u16 count,
+			   bool alloc(struct i40e_ring *rx_ring,
+				      struct i40e_rx_buffer *bi))
 {
 	u16 ntu = rx_ring->next_to_use;
 	union i40e_rx_desc *rx_desc;
@@ -372,7 +409,7 @@ bool i40e_alloc_rx_buffers_zc(struct i40e_ring *rx_ring, u16 count)
 	rx_desc = I40E_RX_DESC(rx_ring, ntu);
 	bi = &rx_ring->rx_bi[ntu];
 	do {
-		if (!i40e_alloc_buffer_zc(rx_ring, bi)) {
+		if (!alloc(rx_ring, bi)) {
 			ok = false;
 			goto no_buffers;
 		}
@@ -402,6 +439,38 @@ no_buffers:
 		i40e_release_rx_desc(rx_ring, ntu);
 
 	return ok;
+}
+
+/**
+ * i40e_alloc_rx_buffers_zc - Allocates a number of Rx buffers
+ * @rx_ring: Rx ring
+ * @count: The number of buffers to allocate
+ *
+ * This function allocates a number of Rx buffers from the reuse queue
+ * or fill ring and places them on the Rx ring.
+ *
+ * Returns true for a successful allocation, false otherwise
+ **/
+bool i40e_alloc_rx_buffers_zc(struct i40e_ring *rx_ring, u16 count)
+{
+	return __i40e_alloc_rx_buffers_zc(rx_ring, count,
+					  i40e_alloc_buffer_slow_zc);
+}
+
+/**
+ * i40e_alloc_rx_buffers_fast_zc - Allocates a number of Rx buffers
+ * @rx_ring: Rx ring
+ * @count: The number of buffers to allocate
+ *
+ * This function allocates a number of Rx buffers from the fill ring
+ * or the internal recycle mechanism and places them on the Rx ring.
+ *
+ * Returns true for a successful allocation, false otherwise
+ **/
+static bool i40e_alloc_rx_buffers_fast_zc(struct i40e_ring *rx_ring, u16 count)
+{
+	return __i40e_alloc_rx_buffers_zc(rx_ring, count,
+					  i40e_alloc_buffer_zc);
 }
 
 /**
@@ -571,8 +640,8 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 
 		if (cleaned_count >= I40E_RX_BUFFER_WRITE) {
 			failure = failure ||
-				  !i40e_alloc_rx_buffers_zc(rx_ring,
-							    cleaned_count);
+				  !i40e_alloc_rx_buffers_fast_zc(rx_ring,
+								 cleaned_count);
 			cleaned_count = 0;
 		}
 
@@ -829,6 +898,21 @@ int i40e_xsk_async_xmit(struct net_device *dev, u32 queue_id)
 		i40e_force_wb(vsi, ring->q_vector);
 
 	return 0;
+}
+
+void i40e_xsk_clean_rx_ring(struct i40e_ring *rx_ring)
+{
+	u16 i;
+
+	for (i = 0; i < rx_ring->count; i++) {
+		struct i40e_rx_buffer *rx_bi = &rx_ring->rx_bi[i];
+
+		if (!rx_bi->addr)
+			continue;
+
+		xsk_umem_fq_reuse(rx_ring->xsk_umem, rx_bi->handle);
+		rx_bi->addr = NULL;
+	}
 }
 
 /**

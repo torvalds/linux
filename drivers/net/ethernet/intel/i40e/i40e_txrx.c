@@ -1355,8 +1355,10 @@ void i40e_clean_rx_ring(struct i40e_ring *rx_ring)
 		rx_ring->skb = NULL;
 	}
 
-	if (rx_ring->xsk_umem)
+	if (rx_ring->xsk_umem) {
+		i40e_xsk_clean_rx_ring(rx_ring);
 		goto skip_free;
+	}
 
 	/* Free all the Rx ring sk_buffs */
 	for (i = 0; i < rx_ring->count; i++) {

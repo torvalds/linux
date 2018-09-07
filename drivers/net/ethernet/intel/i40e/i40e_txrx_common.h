@@ -87,6 +87,7 @@ static inline void i40e_arm_wb(struct i40e_ring *tx_ring,
 	}
 }
 
+void i40e_xsk_clean_rx_ring(struct i40e_ring *rx_ring);
 void i40e_xsk_clean_tx_ring(struct i40e_ring *tx_ring);
 
 #endif /* I40E_TXRX_COMMON_ */
