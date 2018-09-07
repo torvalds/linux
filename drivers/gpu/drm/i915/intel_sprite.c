@@ -1158,6 +1158,68 @@ vlv_sprite_check(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
+static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
+			      const struct intel_plane_state *plane_state)
+{
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int rotation = plane_state->base.rotation;
+	struct drm_format_name_buf format_name;
+
+	if (!fb)
+		return 0;
+
+	if (rotation & ~(DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180) &&
+	    (fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS &&
+	     fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS)) {
+		DRM_DEBUG_KMS("RC support only with 0/180 degree rotation (%x)\n",
+			      rotation);
+		return -EINVAL;
+	}
+
+	if (rotation & DRM_MODE_REFLECT_X &&
+	    fb->modifier == DRM_FORMAT_MOD_LINEAR) {
+		DRM_DEBUG_KMS("horizontal flip is not supported with linear surface formats\n");
+		return -EINVAL;
+	}
+
+	if (drm_rotation_90_or_270(rotation)) {
+		if (fb->modifier != I915_FORMAT_MOD_Y_TILED &&
+		    fb->modifier != I915_FORMAT_MOD_Yf_TILED) {
+			DRM_DEBUG_KMS("Y/Yf tiling required for 90/270!\n");
+			return -EINVAL;
+		}
+
+		/*
+		 * 90/270 is not allowed with RGB64 16:16:16:16,
+		 * RGB 16-bit 5:6:5, and Indexed 8-bit.
+		 * TBD: Add RGB64 case once its added in supported format list.
+		 */
+		switch (fb->format->format) {
+		case DRM_FORMAT_C8:
+		case DRM_FORMAT_RGB565:
+			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n",
+				      drm_get_format_name(fb->format->format,
+							  &format_name));
+			return -EINVAL;
+		default:
+			break;
+		}
+	}
+
+	/* Y-tiling is not supported in IF-ID Interlace mode */
+	if (crtc_state->base.enable &&
+	    crtc_state->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE &&
+	    (fb->modifier == I915_FORMAT_MOD_Y_TILED ||
+	     fb->modifier == I915_FORMAT_MOD_Yf_TILED ||
+	     fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
+	     fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS)) {
+		DRM_DEBUG_KMS("Y/Yf tiling not supported in IF-ID mode\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int skl_plane_check(struct intel_crtc_state *crtc_state,
 		    struct intel_plane_state *plane_state)
 {
@@ -1165,6 +1227,10 @@ int skl_plane_check(struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	int max_scale, min_scale;
 	int ret;
+
+	ret = skl_plane_check_fb(crtc_state, plane_state);
+	if (ret)
+		return ret;
 
 	/* use scaler when colorkey is not required */
 	if (!plane_state->ckey.flags) {

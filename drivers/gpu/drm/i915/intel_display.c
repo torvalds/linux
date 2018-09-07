@@ -3155,12 +3155,6 @@ static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 	int y = src_y / vsub;
 	u32 offset;
 
-	if (plane_state->base.rotation & ~(DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180)) {
-		DRM_DEBUG_KMS("RC support only with 0/180 degree rotation %x\n",
-			      plane_state->base.rotation);
-		return -EINVAL;
-	}
-
 	intel_add_fb_offsets(&x, &y, plane_state, 1);
 	offset = intel_plane_compute_aligned_offset(&x, &y, plane_state, 1);
 
@@ -3181,12 +3175,6 @@ int skl_check_plane_surface(const struct intel_crtc_state *crtc_state,
 	intel_fill_fb_ggtt_view(&plane_state->view, fb, rotation);
 	plane_state->color_plane[0].stride = intel_fb_pitch(fb, 0, rotation);
 	plane_state->color_plane[1].stride = intel_fb_pitch(fb, 1, rotation);
-
-	if (rotation & DRM_MODE_REFLECT_X &&
-	    fb->modifier == DRM_FORMAT_MOD_LINEAR) {
-		DRM_DEBUG_KMS("horizontal flip is not supported with linear surface formats\n");
-		return -EINVAL;
-	}
 
 	if (!plane_state->base.visible)
 		return 0;
