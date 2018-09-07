@@ -3938,8 +3938,10 @@ snd_soc_dapm_new_dai(struct snd_soc_card *card, struct snd_soc_pcm_runtime *rtd,
 	dev_dbg(card->dev, "ASoC: adding %s widget\n", link_name);
 
 	w = snd_soc_dapm_new_control_unlocked(&card->dapm, &template);
-	if (IS_ERR(w))
+	if (IS_ERR(w)) {
+		ret = PTR_ERR(w);
 		goto outfree_kcontrol_news;
+	}
 
 	w->priv = rtd;
 
