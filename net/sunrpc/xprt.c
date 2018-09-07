@@ -298,6 +298,8 @@ static inline int xprt_lock_write(struct rpc_xprt *xprt, struct rpc_task *task)
 {
 	int retval;
 
+	if (test_bit(XPRT_LOCKED, &xprt->state) && xprt->snd_task == task)
+		return 1;
 	spin_lock_bh(&xprt->transport_lock);
 	retval = xprt->ops->reserve_xprt(xprt, task);
 	spin_unlock_bh(&xprt->transport_lock);
@@ -375,6 +377,8 @@ EXPORT_SYMBOL_GPL(xprt_release_xprt_cong);
 
 static inline void xprt_release_write(struct rpc_xprt *xprt, struct rpc_task *task)
 {
+	if (xprt->snd_task != task)
+		return;
 	spin_lock_bh(&xprt->transport_lock);
 	xprt->ops->release_xprt(xprt, task);
 	spin_unlock_bh(&xprt->transport_lock);
@@ -1645,8 +1649,7 @@ void xprt_release(struct rpc_task *task)
 	if (req == NULL) {
 		if (task->tk_client) {
 			xprt = task->tk_xprt;
-			if (xprt->snd_task == task)
-				xprt_release_write(xprt, task);
+			xprt_release_write(xprt, task);
 		}
 		return;
 	}
