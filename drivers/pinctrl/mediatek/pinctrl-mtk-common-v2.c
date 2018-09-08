@@ -59,7 +59,8 @@ void mtk_rmw(struct mtk_pinctrl *pctl, u32 reg, u32 mask, u32 set)
 	mtk_w32(pctl, reg, val);
 }
 
-static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw, int pin,
+static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw,
+				   const struct mtk_pin_desc *desc,
 				   const struct mtk_pin_reg_calc *rc,
 				   struct mtk_pin_field *pfd)
 {
@@ -70,13 +71,14 @@ static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw, int pin,
 	e = c + rc->nranges;
 
 	while (c < e) {
-		if (pin >= c->s_pin && pin <= c->e_pin)
+		if (desc->number >= c->s_pin && desc->number <= c->e_pin)
 			break;
 		c++;
 	}
 
 	if (c >= e) {
-		dev_err(hw->dev, "Out of range for pin = %d\n", pin);
+		dev_err(hw->dev, "Out of range for pin = %d (%s)\n",
+			desc->number, desc->name);
 		return -EINVAL;
 	}
 
@@ -84,7 +86,8 @@ static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw, int pin,
 	 * if c->fixed is held, that determines the all the pins in the
 	 * range use the same field with the s_pin.
 	 */
-	bits = c->fixed ? c->s_bit : c->s_bit + (pin - c->s_pin) * (c->x_bits);
+	bits = c->fixed ? c->s_bit : c->s_bit +
+	       (desc->number - c->s_pin) * (c->x_bits);
 
 	/* Fill pfd from bits. For example 32-bit register applied is assumed
 	 * when c->sz_reg is equal to 32.
@@ -102,7 +105,8 @@ static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw, int pin,
 	return 0;
 }
 
-static int mtk_hw_pin_field_get(struct mtk_pinctrl *hw, int pin,
+static int mtk_hw_pin_field_get(struct mtk_pinctrl *hw,
+				const struct mtk_pin_desc *desc,
 				int field, struct mtk_pin_field *pfd)
 {
 	const struct mtk_pin_reg_calc *rc;
@@ -119,7 +123,7 @@ static int mtk_hw_pin_field_get(struct mtk_pinctrl *hw, int pin,
 		return -EINVAL;
 	}
 
-	return mtk_hw_pin_field_lookup(hw, pin, rc, pfd);
+	return mtk_hw_pin_field_lookup(hw, desc, rc, pfd);
 }
 
 static void mtk_hw_bits_part(struct mtk_pin_field *pf, int *h, int *l)
@@ -155,12 +159,13 @@ static void mtk_hw_read_cross_field(struct mtk_pinctrl *hw,
 	*value = (h << nbits_l) | l;
 }
 
-int mtk_hw_set_value(struct mtk_pinctrl *hw, int pin, int field, int value)
+int mtk_hw_set_value(struct mtk_pinctrl *hw, const struct mtk_pin_desc *desc,
+		     int field, int value)
 {
 	struct mtk_pin_field pf;
 	int err;
 
-	err = mtk_hw_pin_field_get(hw, pin, field, &pf);
+	err = mtk_hw_pin_field_get(hw, desc, field, &pf);
 	if (err)
 		return err;
 
@@ -173,12 +178,13 @@ int mtk_hw_set_value(struct mtk_pinctrl *hw, int pin, int field, int value)
 	return 0;
 }
 
-int mtk_hw_get_value(struct mtk_pinctrl *hw, int pin, int field, int *value)
+int mtk_hw_get_value(struct mtk_pinctrl *hw, const struct mtk_pin_desc *desc,
+		     int field, int *value)
 {
 	struct mtk_pin_field pf;
 	int err;
 
-	err = mtk_hw_pin_field_get(hw, pin, field, &pf);
+	err = mtk_hw_pin_field_get(hw, desc, field, &pf);
 	if (err)
 		return err;
 
@@ -196,12 +202,12 @@ int mtk_pinconf_bias_disable_set(struct mtk_pinctrl *hw,
 {
 	int err;
 
-	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_PU,
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PU,
 			       MTK_DISABLE);
 	if (err)
 		return err;
 
-	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_PD,
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PD,
 			       MTK_DISABLE);
 	if (err)
 		return err;
@@ -215,11 +221,11 @@ int mtk_pinconf_bias_disable_get(struct mtk_pinctrl *hw,
 	int v, v2;
 	int err;
 
-	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_PU, &v);
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_PU, &v);
 	if (err)
 		return err;
 
-	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_PD, &v2);
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_PD, &v2);
 	if (err)
 		return err;
 
@@ -238,11 +244,11 @@ int mtk_pinconf_bias_set(struct mtk_pinctrl *hw,
 
 	arg = pullup ? 1 : 2;
 
-	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_PU, arg & 1);
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PU, arg & 1);
 	if (err)
 		return err;
 
-	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_PD,
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PD,
 			       !!(arg & 2));
 	if (err)
 		return err;
@@ -257,7 +263,7 @@ int mtk_pinconf_bias_get(struct mtk_pinctrl *hw,
 
 	reg = pullup ? PINCTRL_PIN_REG_PU : PINCTRL_PIN_REG_PD;
 
-	err = mtk_hw_get_value(hw, desc->number, reg, &v);
+	err = mtk_hw_get_value(hw, desc, reg, &v);
 	if (err)
 		return err;
 
@@ -275,7 +281,7 @@ int mtk_pinconf_bias_disable_set_rev1(struct mtk_pinctrl *hw,
 {
 	int err;
 
-	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_PULLEN,
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PULLEN,
 			       MTK_DISABLE);
 	if (err)
 		return err;
@@ -288,7 +294,7 @@ int mtk_pinconf_bias_disable_get_rev1(struct mtk_pinctrl *hw,
 {
 	int v, err;
 
-	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_PULLEN, &v);
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_PULLEN, &v);
 	if (err)
 		return err;
 
@@ -307,12 +313,12 @@ int mtk_pinconf_bias_set_rev1(struct mtk_pinctrl *hw,
 
 	arg = pullup ? MTK_PULLUP : MTK_PULLDOWN;
 
-	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_PULLEN,
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PULLEN,
 			       MTK_ENABLE);
 	if (err)
 		return err;
 
-	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_PULLSEL, arg);
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PULLSEL, arg);
 	if (err)
 		return err;
 
@@ -325,14 +331,14 @@ int mtk_pinconf_bias_get_rev1(struct mtk_pinctrl *hw,
 {
 	int err, v;
 
-	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_PULLEN, &v);
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_PULLEN, &v);
 	if (err)
 		return err;
 
 	if (v == MTK_DISABLE)
 		return -EINVAL;
 
-	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_PULLSEL, &v);
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_PULLSEL, &v);
 	if (err)
 		return err;
 
@@ -359,12 +365,12 @@ int mtk_pinconf_drive_set(struct mtk_pinctrl *hw,
 	 */
 	if ((arg >= tb->min && arg <= tb->max) && !(arg % tb->step)) {
 		arg = (arg / tb->step - 1) * tb->scal;
-		err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_E4,
+		err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_E4,
 				       arg & 0x1);
 		if (err)
 			return err;
 
-		err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_E8,
+		err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_E8,
 				       (arg & 0x2) >> 1);
 		if (err)
 			return err;
@@ -381,11 +387,11 @@ int mtk_pinconf_drive_get(struct mtk_pinctrl *hw,
 
 	tb = &mtk_drive[desc->drv_n];
 
-	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_E4, &val1);
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_E4, &val1);
 	if (err)
 		return err;
 
-	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_E8, &val2);
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_E8, &val2);
 	if (err)
 		return err;
 
@@ -409,7 +415,7 @@ int mtk_pinconf_drive_set_rev1(struct mtk_pinctrl *hw,
 	if ((arg >= tb->min && arg <= tb->max) && !(arg % tb->step)) {
 		arg = (arg / tb->step - 1) * tb->scal;
 
-		err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_DRV,
+		err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_DRV,
 				       arg);
 		if (err)
 			return err;
@@ -426,7 +432,7 @@ int mtk_pinconf_drive_get_rev1(struct mtk_pinctrl *hw,
 
 	tb = &mtk_drive[desc->drv_n];
 
-	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_DRV, &val1);
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_DRV, &val1);
 	if (err)
 		return err;
 
@@ -446,18 +452,18 @@ int mtk_pinconf_adv_pull_set(struct mtk_pinctrl *hw,
 	 * 10K on & 50K (75K) off, when (R0, R1) = (1, 0);
 	 * 10K on & 50K (75K) on, when (R0, R1) = (1, 1)
 	 */
-	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_R0, arg & 1);
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_R0, arg & 1);
 	if (err)
 		return 0;
 
-	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_R1,
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_R1,
 			       !!(arg & 2));
 	if (err)
 		return 0;
 
 	arg = pullup ? 0 : 1;
 
-	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_PUPD, arg);
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PUPD, arg);
 
 	return err;
 }
@@ -469,7 +475,7 @@ int mtk_pinconf_adv_pull_get(struct mtk_pinctrl *hw,
 	u32 t, t2;
 	int err;
 
-	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_PUPD, &t);
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_PUPD, &t);
 	if (err)
 		return err;
 
@@ -477,11 +483,11 @@ int mtk_pinconf_adv_pull_get(struct mtk_pinctrl *hw,
 	if (pullup ^ !t)
 		return -EINVAL;
 
-	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_R0, &t);
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_R0, &t);
 	if (err)
 		return err;
 
-	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_R1, &t2);
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_R1, &t2);
 	if (err)
 		return err;
 

@@ -192,8 +192,10 @@ struct mtk_pinctrl {
 
 void mtk_rmw(struct mtk_pinctrl *pctl, u32 reg, u32 mask, u32 set);
 
-int mtk_hw_set_value(struct mtk_pinctrl *hw, int pin, int field, int value);
-int mtk_hw_get_value(struct mtk_pinctrl *hw, int pin, int field, int *value);
+int mtk_hw_set_value(struct mtk_pinctrl *hw, const struct mtk_pin_desc *desc,
+		     int field, int value);
+int mtk_hw_get_value(struct mtk_pinctrl *hw, const struct mtk_pin_desc *desc,
+		     int field, int *value);
 
 int mtk_pinconf_bias_disable_set(struct mtk_pinctrl *hw,
 				 const struct mtk_pin_desc *desc);
