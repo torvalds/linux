@@ -32,6 +32,12 @@ config PINCTRL_MT2701
 	default MACH_MT2701
 	select PINCTRL_MTK
 
+config PINCTRL_MT7623
+	bool "Mediatek MT7623 pin control with generic binding"
+	depends on MACH_MT7623 || COMPILE_TEST
+	depends on PINCTRL_MTK_MOORE
+	default y
+
 config PINCTRL_MT8135
 	bool "Mediatek MT8135 pin control"
 	depends on MACH_MT8135 || COMPILE_TEST
