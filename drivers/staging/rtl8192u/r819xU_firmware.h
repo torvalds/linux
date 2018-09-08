@@ -11,9 +11,9 @@ enum firmware_init_step_e {
 	FW_INIT_STEP2_DATA = 2,
 };
 
-typedef enum _opt_rst_type {
+enum opt_rst_type_e {
 	OPT_SYSTEM_RESET = 0,
 	OPT_FIRMWARE_RESET = 1,
-} opt_rst_type_e;
+};
 
 #endif
