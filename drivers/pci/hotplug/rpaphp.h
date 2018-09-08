@@ -63,6 +63,7 @@ struct slot {
 	u32 index;
 	u32 type;
 	u32 power_domain;
+	u8 attention_status;
 	char *name;
 	struct device_node *dn;
 	struct pci_bus *bus;

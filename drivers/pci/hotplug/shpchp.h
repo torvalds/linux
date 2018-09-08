@@ -67,7 +67,9 @@ struct slot {
 	u32 number;
 	u8 is_a_board;
 	u8 state;
+	u8 attention_save;
 	u8 presence_save;
+	u8 latch_save;
 	u8 pwr_save;
 	struct controller *ctrl;
 	const struct hpc_ops *hpc_ops;

@@ -32,6 +32,8 @@ struct slot {
 	unsigned int devfn;
 	struct pci_bus *bus;
 	struct pci_dev *dev;
+	unsigned int latch_status:1;
+	unsigned int adapter_status:1;
 	unsigned int extracting;
 	struct hotplug_slot *hotplug_slot;
 	struct list_head slot_list;

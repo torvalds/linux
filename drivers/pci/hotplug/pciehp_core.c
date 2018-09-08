@@ -52,17 +52,12 @@ static int get_adapter_status(struct hotplug_slot *slot, u8 *value);
 static int init_slot(struct controller *ctrl)
 {
 	struct hotplug_slot *hotplug = NULL;
-	struct hotplug_slot_info *info = NULL;
 	struct hotplug_slot_ops *ops = NULL;
 	char name[SLOT_NAME_SIZE];
 	int retval = -ENOMEM;
 
 	hotplug = kzalloc(sizeof(*hotplug), GFP_KERNEL);
 	if (!hotplug)
-		goto out;
-
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
 		goto out;
 
 	/* Setup hotplug slot ops */
@@ -86,7 +81,6 @@ static int init_slot(struct controller *ctrl)
 	}
 
 	/* register this slot with the hotplug pci core */
-	hotplug->info = info;
 	hotplug->private = ctrl;
 	hotplug->ops = ops;
 	ctrl->hotplug_slot = hotplug;
@@ -99,7 +93,6 @@ static int init_slot(struct controller *ctrl)
 out:
 	if (retval) {
 		kfree(ops);
-		kfree(info);
 		kfree(hotplug);
 	}
 	return retval;
@@ -111,7 +104,6 @@ static void cleanup_slot(struct controller *ctrl)
 
 	pci_hp_destroy(hotplug_slot);
 	kfree(hotplug_slot->ops);
-	kfree(hotplug_slot->info);
 	kfree(hotplug_slot);
 }
 

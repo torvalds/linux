@@ -585,7 +585,6 @@ static inline int get_power_status(struct hotplug_slot *bss_hotplug_slot,
 
 static void sn_release_slot(struct hotplug_slot *bss_hotplug_slot)
 {
-	kfree(bss_hotplug_slot->info);
 	kfree(bss_hotplug_slot->private);
 	kfree(bss_hotplug_slot);
 }
@@ -610,14 +609,6 @@ static int sn_hotplug_slot_register(struct pci_bus *pci_bus)
 		bss_hotplug_slot = kzalloc(sizeof(*bss_hotplug_slot),
 					   GFP_KERNEL);
 		if (!bss_hotplug_slot) {
-			rc = -ENOMEM;
-			goto alloc_err;
-		}
-
-		bss_hotplug_slot->info =
-			kzalloc(sizeof(struct hotplug_slot_info),
-				GFP_KERNEL);
-		if (!bss_hotplug_slot->info) {
 			rc = -ENOMEM;
 			goto alloc_err;
 		}

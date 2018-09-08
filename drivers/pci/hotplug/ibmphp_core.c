@@ -582,28 +582,9 @@ static int validate(struct slot *slot_cur, int opn)
  ****************************************************************************/
 int ibmphp_update_slot_info(struct slot *slot_cur)
 {
-	struct hotplug_slot_info *info;
 	struct pci_bus *bus = slot_cur->hotplug_slot->pci_slot->bus;
-	int rc;
 	u8 bus_speed;
 	u8 mode;
-
-	info = kmalloc(sizeof(struct hotplug_slot_info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-
-	info->power_status = SLOT_PWRGD(slot_cur->status);
-	info->attention_status = SLOT_ATTN(slot_cur->status,
-						slot_cur->ext_status);
-	info->latch_status = SLOT_LATCH(slot_cur->status);
-	if (!SLOT_PRESENT(slot_cur->status)) {
-		info->adapter_status = 0;
-/*		info->max_adapter_speed_status = MAX_ADAPTER_NONE; */
-	} else {
-		info->adapter_status = 1;
-/*		get_max_adapter_speed_1(slot_cur->hotplug_slot,
-					&info->max_adapter_speed_status, 0); */
-	}
 
 	bus_speed = slot_cur->bus_on->current_speed;
 	mode = slot_cur->bus_on->current_bus_mode;
@@ -630,9 +611,7 @@ int ibmphp_update_slot_info(struct slot *slot_cur)
 	bus->cur_bus_speed = bus_speed;
 	// To do: bus_names
 
-	rc = pci_hp_change_slot_info(slot_cur->hotplug_slot, info);
-	kfree(info);
-	return rc;
+	return 0;
 }
 
 
@@ -684,7 +663,6 @@ static void free_slots(void)
 		ibmphp_unconfigure_card(&slot_cur, -1);
 
 		pci_hp_destroy(slot_cur->hotplug_slot);
-		kfree(slot_cur->hotplug_slot->info);
 		kfree(slot_cur->hotplug_slot);
 		kfree(slot_cur);
 	}
@@ -1095,8 +1073,7 @@ static int enable_slot(struct hotplug_slot *hs)
 
 	slot_cur->func = kzalloc(sizeof(struct pci_func), GFP_KERNEL);
 	if (!slot_cur->func) {
-		/* We cannot do update_slot_info here, since no memory for
-		 * kmalloc n.e.ways, and update_slot_info allocates some */
+		/* do update_slot_info here? */
 		rc = -ENOMEM;
 		goto error_power;
 	}

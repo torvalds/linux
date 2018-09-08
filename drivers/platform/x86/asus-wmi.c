@@ -902,15 +902,8 @@ static int asus_setup_pci_hotplug(struct asus_wmi *asus)
 	if (!asus->hotplug_slot)
 		goto error_slot;
 
-	asus->hotplug_slot->info = kzalloc(sizeof(struct hotplug_slot_info),
-					   GFP_KERNEL);
-	if (!asus->hotplug_slot->info)
-		goto error_info;
-
 	asus->hotplug_slot->private = asus;
 	asus->hotplug_slot->ops = &asus_hotplug_slot_ops;
-	asus_get_adapter_status(asus->hotplug_slot,
-				&asus->hotplug_slot->info->adapter_status);
 
 	ret = pci_hp_register(asus->hotplug_slot, bus, 0, "asus-wifi");
 	if (ret) {
@@ -921,8 +914,6 @@ static int asus_setup_pci_hotplug(struct asus_wmi *asus)
 	return 0;
 
 error_register:
-	kfree(asus->hotplug_slot->info);
-error_info:
 	kfree(asus->hotplug_slot);
 	asus->hotplug_slot = NULL;
 error_slot:
@@ -1055,7 +1046,6 @@ static void asus_wmi_rfkill_exit(struct asus_wmi *asus)
 	asus_rfkill_hotplug(asus);
 	if (asus->hotplug_slot) {
 		pci_hp_deregister(asus->hotplug_slot);
-		kfree(asus->hotplug_slot->info);
 		kfree(asus->hotplug_slot);
 	}
 	if (asus->hotplug_workqueue)

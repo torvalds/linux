@@ -65,7 +65,6 @@ static int init_slots(struct controller *ctrl)
 {
 	struct slot *slot;
 	struct hotplug_slot *hotplug_slot;
-	struct hotplug_slot_info *info;
 	char name[SLOT_NAME_SIZE];
 	int retval;
 	int i;
@@ -84,13 +83,6 @@ static int init_slots(struct controller *ctrl)
 		}
 		slot->hotplug_slot = hotplug_slot;
 
-		info = kzalloc(sizeof(*info), GFP_KERNEL);
-		if (!info) {
-			retval = -ENOMEM;
-			goto error_hpslot;
-		}
-		hotplug_slot->info = info;
-
 		slot->hp_slot = i;
 		slot->ctrl = ctrl;
 		slot->bus = ctrl->pci_dev->subordinate->number;
@@ -101,7 +93,7 @@ static int init_slots(struct controller *ctrl)
 		slot->wq = alloc_workqueue("shpchp-%d", 0, 0, slot->number);
 		if (!slot->wq) {
 			retval = -ENOMEM;
-			goto error_info;
+			goto error_hpslot;
 		}
 
 		mutex_init(&slot->lock);
@@ -124,10 +116,10 @@ static int init_slots(struct controller *ctrl)
 			goto error_slotwq;
 		}
 
-		get_power_status(hotplug_slot, &info->power_status);
-		get_attention_status(hotplug_slot, &info->attention_status);
-		get_latch_status(hotplug_slot, &info->latch_status);
-		get_adapter_status(hotplug_slot, &info->adapter_status);
+		get_power_status(hotplug_slot, &slot->pwr_save);
+		get_attention_status(hotplug_slot, &slot->attention_save);
+		get_latch_status(hotplug_slot, &slot->latch_save);
+		get_adapter_status(hotplug_slot, &slot->presence_save);
 
 		list_add(&slot->slot_list, &ctrl->slot_list);
 	}
@@ -135,8 +127,6 @@ static int init_slots(struct controller *ctrl)
 	return 0;
 error_slotwq:
 	destroy_workqueue(slot->wq);
-error_info:
-	kfree(info);
 error_hpslot:
 	kfree(hotplug_slot);
 error_slot:
@@ -154,7 +144,6 @@ void cleanup_slots(struct controller *ctrl)
 		cancel_delayed_work(&slot->work);
 		destroy_workqueue(slot->wq);
 		pci_hp_deregister(slot->hotplug_slot);
-		kfree(slot->hotplug_slot->info);
 		kfree(slot->hotplug_slot);
 		kfree(slot);
 	}
@@ -170,7 +159,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
 		 __func__, slot_name(slot));
 
-	hotplug_slot->info->attention_status = status;
+	slot->attention_save = status;
 	slot->hpc_ops->set_attention_status(slot, status);
 
 	return 0;
@@ -206,7 +195,7 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 
 	retval = slot->hpc_ops->get_power_status(slot, value);
 	if (retval < 0)
-		*value = hotplug_slot->info->power_status;
+		*value = slot->pwr_save;
 
 	return 0;
 }
@@ -221,7 +210,7 @@ static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 
 	retval = slot->hpc_ops->get_attention_status(slot, value);
 	if (retval < 0)
-		*value = hotplug_slot->info->attention_status;
+		*value = slot->attention_save;
 
 	return 0;
 }
@@ -236,7 +225,7 @@ static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 *value)
 
 	retval = slot->hpc_ops->get_latch_status(slot, value);
 	if (retval < 0)
-		*value = hotplug_slot->info->latch_status;
+		*value = slot->latch_save;
 
 	return 0;
 }
@@ -251,7 +240,7 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 
 	retval = slot->hpc_ops->get_adapter_status(slot, value);
 	if (retval < 0)
-		*value = hotplug_slot->info->adapter_status;
+		*value = slot->presence_save;
 
 	return 0;
 }

@@ -140,7 +140,6 @@ static const struct hotplug_slot_ops s390_hotplug_slot_ops = {
 int zpci_init_slot(struct zpci_dev *zdev)
 {
 	struct hotplug_slot *hotplug_slot;
-	struct hotplug_slot_info *info;
 	char name[SLOT_NAME_SIZE];
 	struct slot *slot;
 	int rc;
@@ -160,15 +159,7 @@ int zpci_init_slot(struct zpci_dev *zdev)
 	slot->hotplug_slot = hotplug_slot;
 	slot->zdev = zdev;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		goto error_info;
-	hotplug_slot->info = info;
-
 	hotplug_slot->ops = &s390_hotplug_slot_ops;
-
-	get_power_status(hotplug_slot, &info->power_status);
-	get_adapter_status(hotplug_slot, &info->adapter_status);
 
 	snprintf(name, SLOT_NAME_SIZE, "%08x", zdev->fid);
 	rc = pci_hp_register(slot->hotplug_slot, zdev->bus,
@@ -180,8 +171,6 @@ int zpci_init_slot(struct zpci_dev *zdev)
 	return 0;
 
 error_reg:
-	kfree(info);
-error_info:
 	kfree(hotplug_slot);
 error_hp:
 	kfree(slot);
@@ -199,7 +188,6 @@ void zpci_exit_slot(struct zpci_dev *zdev)
 			continue;
 		list_del(&slot->slot_list);
 		pci_hp_deregister(slot->hotplug_slot);
-		kfree(slot->hotplug_slot->info);
 		kfree(slot->hotplug_slot);
 		kfree(slot);
 	}

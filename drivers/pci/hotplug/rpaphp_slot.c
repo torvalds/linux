@@ -21,7 +21,6 @@
 /* free up the memory used by a slot */
 void dealloc_slot_struct(struct slot *slot)
 {
-	kfree(slot->hotplug_slot->info);
 	kfree(slot->name);
 	kfree(slot->hotplug_slot);
 	kfree(slot);
@@ -38,13 +37,9 @@ struct slot *alloc_slot_struct(struct device_node *dn,
 	slot->hotplug_slot = kzalloc(sizeof(struct hotplug_slot), GFP_KERNEL);
 	if (!slot->hotplug_slot)
 		goto error_slot;
-	slot->hotplug_slot->info = kzalloc(sizeof(struct hotplug_slot_info),
-					   GFP_KERNEL);
-	if (!slot->hotplug_slot->info)
-		goto error_hpslot;
 	slot->name = kstrdup(drc_name, GFP_KERNEL);
 	if (!slot->name)
-		goto error_info;
+		goto error_hpslot;
 	slot->dn = dn;
 	slot->index = drc_index;
 	slot->power_domain = power_domain;
@@ -53,8 +48,6 @@ struct slot *alloc_slot_struct(struct device_node *dn,
 
 	return (slot);
 
-error_info:
-	kfree(slot->hotplug_slot->info);
 error_hpslot:
 	kfree(slot->hotplug_slot);
 error_slot:

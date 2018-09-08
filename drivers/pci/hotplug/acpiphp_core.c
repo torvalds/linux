@@ -270,16 +270,10 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot,
 	if (!slot->hotplug_slot)
 		goto error_slot;
 
-	slot->hotplug_slot->info = &slot->info;
-
 	slot->hotplug_slot->private = slot;
 	slot->hotplug_slot->ops = &acpi_hotplug_slot_ops;
 
 	slot->acpi_slot = acpiphp_slot;
-	slot->hotplug_slot->info->power_status = acpiphp_get_power_status(slot->acpi_slot);
-	slot->hotplug_slot->info->attention_status = 0;
-	slot->hotplug_slot->info->latch_status = acpiphp_get_latch_status(slot->acpi_slot);
-	slot->hotplug_slot->info->adapter_status = acpiphp_get_adapter_status(slot->acpi_slot);
 
 	acpiphp_slot->slot = slot;
 	slot->sun = sun;

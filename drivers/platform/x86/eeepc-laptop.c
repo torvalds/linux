@@ -745,15 +745,8 @@ static int eeepc_setup_pci_hotplug(struct eeepc_laptop *eeepc)
 	if (!eeepc->hotplug_slot)
 		goto error_slot;
 
-	eeepc->hotplug_slot->info = kzalloc(sizeof(struct hotplug_slot_info),
-					    GFP_KERNEL);
-	if (!eeepc->hotplug_slot->info)
-		goto error_info;
-
 	eeepc->hotplug_slot->private = eeepc;
 	eeepc->hotplug_slot->ops = &eeepc_hotplug_slot_ops;
-	eeepc_get_adapter_status(eeepc->hotplug_slot,
-				 &eeepc->hotplug_slot->info->adapter_status);
 
 	ret = pci_hp_register(eeepc->hotplug_slot, bus, 0, "eeepc-wifi");
 	if (ret) {
@@ -764,8 +757,6 @@ static int eeepc_setup_pci_hotplug(struct eeepc_laptop *eeepc)
 	return 0;
 
 error_register:
-	kfree(eeepc->hotplug_slot->info);
-error_info:
 	kfree(eeepc->hotplug_slot);
 	eeepc->hotplug_slot = NULL;
 error_slot:
@@ -831,7 +822,6 @@ static void eeepc_rfkill_exit(struct eeepc_laptop *eeepc)
 
 	if (eeepc->hotplug_slot) {
 		pci_hp_deregister(eeepc->hotplug_slot);
-		kfree(eeepc->hotplug_slot->info);
 		kfree(eeepc->hotplug_slot);
 	}
 

@@ -671,31 +671,6 @@ static int fillslotinfo(struct hotplug_slot *hotplug_slot)
 
 	slot = hotplug_slot->private;
 	rc = ibmphp_hpc_readslot(slot, READ_ALLSTAT, NULL);
-	if (rc)
-		return rc;
-
-	// power - enabled:1  not:0
-	hotplug_slot->info->power_status = SLOT_POWER(slot->status);
-
-	// attention - off:0, on:1, blinking:2
-	hotplug_slot->info->attention_status = SLOT_ATTN(slot->status, slot->ext_status);
-
-	// latch - open:1 closed:0
-	hotplug_slot->info->latch_status = SLOT_LATCH(slot->status);
-
-	// pci board - present:1 not:0
-	if (SLOT_PRESENT(slot->status))
-		hotplug_slot->info->adapter_status = 1;
-	else
-		hotplug_slot->info->adapter_status = 0;
-/*
-	if (slot->bus_on->supported_bus_mode
-		&& (slot->bus_on->supported_speed == BUS_SPEED_66))
-		hotplug_slot->info->max_bus_speed_status = BUS_SPEED_66PCIX;
-	else
-		hotplug_slot->info->max_bus_speed_status = slot->bus_on->supported_speed;
-*/
-
 	return rc;
 }
 
@@ -877,12 +852,6 @@ static int __init ebda_rsrc_controller(void)
 				goto error_no_hp_slot;
 			}
 
-			hp_slot_ptr->info = kzalloc(sizeof(struct hotplug_slot_info), GFP_KERNEL);
-			if (!hp_slot_ptr->info) {
-				rc = -ENOMEM;
-				goto error_no_hp_info;
-			}
-
 			tmp_slot = kzalloc(sizeof(*tmp_slot), GFP_KERNEL);
 			if (!tmp_slot) {
 				rc = -ENOMEM;
@@ -955,8 +924,6 @@ static int __init ebda_rsrc_controller(void)
 error:
 	kfree(hp_slot_ptr->private);
 error_no_slot:
-	kfree(hp_slot_ptr->info);
-error_no_hp_info:
 	kfree(hp_slot_ptr);
 error_no_hp_slot:
 	free_ebda_hpc(hpc_ptr);

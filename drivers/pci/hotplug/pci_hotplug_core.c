@@ -55,8 +55,6 @@ static int get_##name(struct hotplug_slot *slot, type *value)		\
 		return -ENODEV;						\
 	if (ops->get_##name)						\
 		retval = ops->get_##name(slot, value);			\
-	else								\
-		*value = slot->info->name;				\
 	module_put(slot->owner);					\
 	return retval;							\
 }
@@ -445,7 +443,7 @@ int __pci_hp_initialize(struct hotplug_slot *slot, struct pci_bus *bus,
 
 	if (slot == NULL)
 		return -ENODEV;
-	if ((slot->info == NULL) || (slot->ops == NULL))
+	if (slot->ops == NULL)
 		return -EINVAL;
 
 	slot->owner = owner;
@@ -559,28 +557,6 @@ void pci_hp_destroy(struct hotplug_slot *slot)
 	pci_destroy_slot(pci_slot);
 }
 EXPORT_SYMBOL_GPL(pci_hp_destroy);
-
-/**
- * pci_hp_change_slot_info - changes the slot's information structure in the core
- * @slot: pointer to the slot whose info has changed
- * @info: pointer to the info copy into the slot's info structure
- *
- * @slot must have been registered with the pci
- * hotplug subsystem previously with a call to pci_hp_register().
- *
- * Returns 0 if successful, anything else for an error.
- */
-int pci_hp_change_slot_info(struct hotplug_slot *slot,
-			    struct hotplug_slot_info *info)
-{
-	if (!slot || !info)
-		return -ENODEV;
-
-	memcpy(slot->info, info, sizeof(struct hotplug_slot_info));
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pci_hp_change_slot_info);
 
 static int __init pci_hotplug_init(void)
 {

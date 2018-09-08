@@ -276,7 +276,6 @@ static int ctrl_slot_cleanup(struct controller *ctrl)
 	while (old_slot) {
 		next_slot = old_slot->next;
 		pci_hp_deregister(old_slot->hotplug_slot);
-		kfree(old_slot->hotplug_slot->info);
 		kfree(old_slot->hotplug_slot);
 		kfree(old_slot);
 		old_slot = next_slot;
@@ -579,7 +578,6 @@ static int ctrl_slot_setup(struct controller *ctrl,
 {
 	struct slot *slot;
 	struct hotplug_slot *hotplug_slot;
-	struct hotplug_slot_info *hotplug_slot_info;
 	struct pci_bus *bus = ctrl->pci_bus;
 	u8 number_of_slots;
 	u8 slot_device;
@@ -612,14 +610,6 @@ static int ctrl_slot_setup(struct controller *ctrl,
 			goto error_slot;
 		}
 		hotplug_slot = slot->hotplug_slot;
-
-		hotplug_slot->info = kzalloc(sizeof(*(hotplug_slot->info)),
-							GFP_KERNEL);
-		if (!hotplug_slot->info) {
-			result = -ENOMEM;
-			goto error_hpslot;
-		}
-		hotplug_slot_info = hotplug_slot->info;
 
 		slot->ctrl = ctrl;
 		slot->bus = ctrl->bus;
@@ -673,14 +663,6 @@ static int ctrl_slot_setup(struct controller *ctrl,
 		snprintf(name, SLOT_NAME_SIZE, "%u", slot->number);
 		hotplug_slot->ops = &cpqphp_hotplug_slot_ops;
 
-		hotplug_slot_info->power_status = get_slot_enabled(ctrl, slot);
-		hotplug_slot_info->attention_status =
-			cpq_get_attention_status(ctrl, slot);
-		hotplug_slot_info->latch_status =
-			cpq_get_latch_status(ctrl, slot);
-		hotplug_slot_info->adapter_status =
-			get_presence_status(ctrl, slot);
-
 		dbg("registering bus %d, dev %d, number %d, ctrl->slot_device_offset %d, slot %d\n",
 				slot->bus, slot->device,
 				slot->number, ctrl->slot_device_offset,
@@ -691,7 +673,7 @@ static int ctrl_slot_setup(struct controller *ctrl,
 					 name);
 		if (result) {
 			err("pci_hp_register failed with error %d\n", result);
-			goto error_info;
+			goto error_hpslot;
 		}
 
 		slot->next = ctrl->slot;
@@ -703,8 +685,6 @@ static int ctrl_slot_setup(struct controller *ctrl,
 	}
 
 	return 0;
-error_info:
-	kfree(hotplug_slot_info);
 error_hpslot:
 	kfree(hotplug_slot);
 error_slot:
