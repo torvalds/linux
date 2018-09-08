@@ -765,6 +765,8 @@ static const struct mtk_pin_soc mt7622_data = {
 	.funcs = mt7622_functions,
 	.nfuncs = ARRAY_SIZE(mt7622_functions),
 	.eint_hw = &mt7622_eint_hw,
+	.gpio_m	= 1,
+	.eint_m = 1,
 };
 
 static const struct of_device_id mt7622_pinctrl_of_match[] = {

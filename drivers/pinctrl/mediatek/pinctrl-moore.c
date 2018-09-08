@@ -63,7 +63,7 @@ static int mtk_pinmux_gpio_request_enable(struct pinctrl_dev *pctldev,
 {
 	struct mtk_pinctrl *hw = pinctrl_dev_get_drvdata(pctldev);
 
-	return mtk_hw_set_value(hw, pin, PINCTRL_PIN_REG_MODE, MTK_GPIO_MODE);
+	return mtk_hw_set_value(hw, pin, PINCTRL_PIN_REG_MODE, hw->soc->gpio_m);
 }
 
 static int mtk_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
@@ -580,7 +580,7 @@ static int mtk_xt_set_gpio_as_eint(void *data, unsigned long eint_n)
 		return err;
 
 	err = mtk_hw_set_value(hw, gpio_n, PINCTRL_PIN_REG_MODE,
-			       MTK_GPIO_MODE);
+			       hw->soc->eint_m);
 	if (err)
 		return err;
 

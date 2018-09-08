@@ -9,7 +9,6 @@
 #ifndef __PINCTRL_MTK_COMMON_V2_H
 #define __PINCTRL_MTK_COMMON_V2_H
 
-#define MTK_GPIO_MODE  1
 #define MTK_INPUT      0
 #define MTK_OUTPUT     1
 #define MTK_DISABLE    0
@@ -142,6 +141,10 @@ struct mtk_pin_soc {
 	unsigned int			nfuncs;
 	const struct mtk_eint_regs	*eint_regs;
 	const struct mtk_eint_hw	*eint_hw;
+
+	/* Specific parameters per SoC */
+	u8				gpio_m;
+	u8				eint_m;
 };
 
 struct mtk_pinctrl {
