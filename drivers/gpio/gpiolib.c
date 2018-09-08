@@ -1804,39 +1804,26 @@ static const struct irq_domain_ops gpiochip_domain_ops = {
 	.xlate	= irq_domain_xlate_twocell,
 };
 
-static int gpiochip_irq_reqres(struct irq_data *d)
-{
-	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
-	int ret;
-
-	if (!try_module_get(chip->gpiodev->owner))
-		return -ENODEV;
-
-	ret = gpiochip_lock_as_irq(chip, d->hwirq);
-	if (ret) {
-		chip_err(chip,
-			"unable to lock HW IRQ %lu for IRQ\n",
-			d->hwirq);
-		module_put(chip->gpiodev->owner);
-		return ret;
-	}
-	return 0;
-}
-
-static void gpiochip_irq_relres(struct irq_data *d)
-{
-	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
-
-	gpiochip_unlock_as_irq(chip, d->hwirq);
-	module_put(chip->gpiodev->owner);
-}
-
 static int gpiochip_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	if (!gpiochip_irqchip_irq_valid(chip, offset))
 		return -ENXIO;
 
 	return irq_create_mapping(chip->irq.domain, offset);
+}
+
+static int gpiochip_irq_reqres(struct irq_data *d)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
+
+	return gpiochip_reqres_irq(chip, d->hwirq);
+}
+
+static void gpiochip_irq_relres(struct irq_data *d)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
+
+	gpiochip_relres_irq(chip, d->hwirq);
 }
 
 /**
@@ -3337,6 +3324,30 @@ bool gpiochip_line_is_irq(struct gpio_chip *chip, unsigned int offset)
 	return test_bit(FLAG_USED_AS_IRQ, &chip->gpiodev->descs[offset].flags);
 }
 EXPORT_SYMBOL_GPL(gpiochip_line_is_irq);
+
+int gpiochip_reqres_irq(struct gpio_chip *chip, unsigned int offset)
+{
+	int ret;
+
+	if (!try_module_get(chip->gpiodev->owner))
+		return -ENODEV;
+
+	ret = gpiochip_lock_as_irq(chip, offset);
+	if (ret) {
+		chip_err(chip, "unable to lock HW IRQ %u for IRQ\n", offset);
+		module_put(chip->gpiodev->owner);
+		return ret;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gpiochip_reqres_irq);
+
+void gpiochip_relres_irq(struct gpio_chip *chip, unsigned int offset)
+{
+	gpiochip_unlock_as_irq(chip, offset);
+	module_put(chip->gpiodev->owner);
+}
+EXPORT_SYMBOL_GPL(gpiochip_relres_irq);
 
 bool gpiochip_line_is_open_drain(struct gpio_chip *chip, unsigned int offset)
 {
