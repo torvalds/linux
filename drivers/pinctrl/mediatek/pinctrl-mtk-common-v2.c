@@ -39,24 +39,24 @@ const struct mtk_drive_desc mtk_drive[] = {
 	[DRV_GRP4] = { 2, 16, 2, 1 },
 };
 
-static void mtk_w32(struct mtk_pinctrl *pctl, u32 reg, u32 val)
+static void mtk_w32(struct mtk_pinctrl *pctl, u8 i, u32 reg, u32 val)
 {
-	writel_relaxed(val, pctl->base + reg);
+	writel_relaxed(val, pctl->base[i] + reg);
 }
 
-static u32 mtk_r32(struct mtk_pinctrl *pctl, u32 reg)
+static u32 mtk_r32(struct mtk_pinctrl *pctl, u8 i, u32 reg)
 {
-	return readl_relaxed(pctl->base + reg);
+	return readl_relaxed(pctl->base[i] + reg);
 }
 
-void mtk_rmw(struct mtk_pinctrl *pctl, u32 reg, u32 mask, u32 set)
+void mtk_rmw(struct mtk_pinctrl *pctl, u8 i, u32 reg, u32 mask, u32 set)
 {
 	u32 val;
 
-	val = mtk_r32(pctl, reg);
+	val = mtk_r32(pctl, i, reg);
 	val &= ~mask;
 	val |= set;
-	mtk_w32(pctl, reg, val);
+	mtk_w32(pctl, i, reg, val);
 }
 
 static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw,
@@ -82,6 +82,12 @@ static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw,
 		return -EINVAL;
 	}
 
+	if (c->i_base > hw->nbase - 1) {
+		dev_err(hw->dev, "Invalid base is found for pin = %d (%s)\n",
+			desc->number, desc->name);
+		return -EINVAL;
+	}
+
 	/* Calculated bits as the overall offset the pin is located at,
 	 * if c->fixed is held, that determines the all the pins in the
 	 * range use the same field with the s_pin.
@@ -92,6 +98,7 @@ static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw,
 	/* Fill pfd from bits. For example 32-bit register applied is assumed
 	 * when c->sz_reg is equal to 32.
 	 */
+	pfd->index = c->i_base;
 	pfd->offset = c->s_addr + c->x_addrs * (bits / c->sz_reg);
 	pfd->bitpos = bits % c->sz_reg;
 	pfd->mask = (1 << c->x_bits) - 1;
@@ -139,10 +146,10 @@ static void mtk_hw_write_cross_field(struct mtk_pinctrl *hw,
 
 	mtk_hw_bits_part(pf, &nbits_h, &nbits_l);
 
-	mtk_rmw(hw, pf->offset, pf->mask << pf->bitpos,
+	mtk_rmw(hw, pf->index, pf->offset, pf->mask << pf->bitpos,
 		(value & pf->mask) << pf->bitpos);
 
-	mtk_rmw(hw, pf->offset + pf->next, BIT(nbits_h) - 1,
+	mtk_rmw(hw, pf->index, pf->offset + pf->next, BIT(nbits_h) - 1,
 		(value & pf->mask) >> nbits_l);
 }
 
@@ -153,8 +160,10 @@ static void mtk_hw_read_cross_field(struct mtk_pinctrl *hw,
 
 	mtk_hw_bits_part(pf, &nbits_h, &nbits_l);
 
-	l  = (mtk_r32(hw, pf->offset) >> pf->bitpos) & (BIT(nbits_l) - 1);
-	h  = (mtk_r32(hw, pf->offset + pf->next)) & (BIT(nbits_h) - 1);
+	l  = (mtk_r32(hw, pf->index, pf->offset)
+	      >> pf->bitpos) & (BIT(nbits_l) - 1);
+	h  = (mtk_r32(hw, pf->index, pf->offset + pf->next))
+	      & (BIT(nbits_h) - 1);
 
 	*value = (h << nbits_l) | l;
 }
@@ -170,7 +179,7 @@ int mtk_hw_set_value(struct mtk_pinctrl *hw, const struct mtk_pin_desc *desc,
 		return err;
 
 	if (!pf.next)
-		mtk_rmw(hw, pf.offset, pf.mask << pf.bitpos,
+		mtk_rmw(hw, pf.index, pf.offset, pf.mask << pf.bitpos,
 			(value & pf.mask) << pf.bitpos);
 	else
 		mtk_hw_write_cross_field(hw, &pf, value);
@@ -189,7 +198,8 @@ int mtk_hw_get_value(struct mtk_pinctrl *hw, const struct mtk_pin_desc *desc,
 		return err;
 
 	if (!pf.next)
-		*value = (mtk_r32(hw, pf.offset) >> pf.bitpos) & pf.mask;
+		*value = (mtk_r32(hw, pf.index, pf.offset)
+			  >> pf.bitpos) & pf.mask;
 	else
 		mtk_hw_read_cross_field(hw, &pf, value);
 

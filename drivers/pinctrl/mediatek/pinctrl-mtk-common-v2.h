@@ -18,10 +18,11 @@
 
 #define EINT_NA	-1
 
-#define PIN_FIELD_CALC(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit,	\
-			_x_bits, _sz_reg, _fixed) {			\
+#define PIN_FIELD_CALC(_s_pin, _e_pin, _i_base, _s_addr, _x_addrs,      \
+		       _s_bit, _x_bits, _sz_reg, _fixed) {		\
 		.s_pin = _s_pin,					\
 		.e_pin = _e_pin,					\
+		.i_base = _i_base,					\
 		.s_addr = _s_addr,					\
 		.x_addrs = _x_addrs,					\
 		.s_bit = _s_bit,					\
@@ -31,11 +32,11 @@
 	}
 
 #define PIN_FIELD(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit, _x_bits)	\
-	PIN_FIELD_CALC(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit,	\
+	PIN_FIELD_CALC(_s_pin, _e_pin, 0, _s_addr, _x_addrs, _s_bit,	\
 		       _x_bits, 32, 0)
 
 #define PINS_FIELD(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit, _x_bits)	\
-	PIN_FIELD_CALC(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit,	\
+	PIN_FIELD_CALC(_s_pin, _e_pin, 0, _s_addr, _x_addrs, _s_bit,	\
 		       _x_bits, 32, 1)
 
 /* List these attributes which could be modified for the pin */
@@ -73,8 +74,13 @@ enum {
 	DRV_GRP_MAX,
 };
 
+static const char * const mtk_default_register_base_names[] = {
+	"base",
+};
+
 /* struct mtk_pin_field - the structure that holds the information of the field
  *			  used to describe the attribute for the pin
+ * @base:		the index pointing to the entry in base address list
  * @offset:		the register offset relative to the base address
  * @mask:		the mask used to filter out the field from the register
  * @bitpos:		the start bit relative to the register
@@ -82,6 +88,7 @@ enum {
 			next register
  */
 struct mtk_pin_field {
+	u8  index;
 	u32 offset;
 	u32 mask;
 	u8  bitpos;
@@ -92,6 +99,7 @@ struct mtk_pin_field {
  *			       the guide used to look up the relevant field
  * @s_pin:		the start pin within the range
  * @e_pin:		the end pin within the range
+ * @i_base:		the index pointing to the entry in base address list
  * @s_addr:		the start address for the range
  * @x_addrs:		the address distance between two consecutive registers
  *			within the range
@@ -105,6 +113,7 @@ struct mtk_pin_field {
 struct mtk_pin_field_calc {
 	u16 s_pin;
 	u16 e_pin;
+	u8  i_base;
 	u32 s_addr;
 	u8  x_addrs;
 	u8  s_bit;
@@ -157,6 +166,8 @@ struct mtk_pin_soc {
 	u8				gpio_m;
 	u8				eint_m;
 	bool				ies_present;
+	const char * const		*base_names;
+	unsigned int			nbase_names;
 
 	/* Specific pinconfig operations */
 	int (*bias_disable_set)(struct mtk_pinctrl *hw,
@@ -183,14 +194,15 @@ struct mtk_pin_soc {
 
 struct mtk_pinctrl {
 	struct pinctrl_dev		*pctrl;
-	void __iomem			*base;
+	void __iomem			**base;
+	u8				nbase;
 	struct device			*dev;
 	struct gpio_chip		chip;
 	const struct mtk_pin_soc        *soc;
 	struct mtk_eint			*eint;
 };
 
-void mtk_rmw(struct mtk_pinctrl *pctl, u32 reg, u32 mask, u32 set);
+void mtk_rmw(struct mtk_pinctrl *pctl, u8 i, u32 reg, u32 mask, u32 set);
 
 int mtk_hw_set_value(struct mtk_pinctrl *hw, const struct mtk_pin_desc *desc,
 		     int field, int value);

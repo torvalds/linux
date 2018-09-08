@@ -18,15 +18,15 @@
 #define BOND_MSDC0E_CLR		0x1
 
 #define PIN_FIELD15(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit, _x_bits)	\
-	PIN_FIELD_CALC(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit,	\
+	PIN_FIELD_CALC(_s_pin, _e_pin, 0, _s_addr, _x_addrs, _s_bit,	\
 		       _x_bits, 15, false)
 
 #define PIN_FIELD16(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit, _x_bits)	\
-	PIN_FIELD_CALC(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit,	\
+	PIN_FIELD_CALC(_s_pin, _e_pin, 0, _s_addr, _x_addrs, _s_bit,	\
 		       _x_bits, 16, 0)
 
-#define PINS_FIELD16(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit, _x_bits)\
-	PIN_FIELD_CALC(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit,	\
+#define PINS_FIELD16(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit, _x_bits)	\
+	PIN_FIELD_CALC(_s_pin, _e_pin, 0, _s_addr, _x_addrs, _s_bit,	\
 		       _x_bits, 16, 1)
 
 #define MT7623_PIN(_number, _name, _eint_n, _drv_grp)			\
@@ -1383,6 +1383,8 @@ static struct mtk_pin_soc mt7623_data = {
 	.gpio_m = 0,
 	.eint_m = 0,
 	.ies_present = true,
+	.base_names = mtk_default_register_base_names,
+	.nbase_names = ARRAY_SIZE(mtk_default_register_base_names),
 	.bias_disable_set = mtk_pinconf_bias_disable_set_rev1,
 	.bias_disable_get = mtk_pinconf_bias_disable_get_rev1,
 	.bias_set = mtk_pinconf_bias_set_rev1,
@@ -1402,9 +1404,9 @@ static void mt7623_bonding_disable(struct platform_device *pdev)
 {
 	struct mtk_pinctrl *hw = platform_get_drvdata(pdev);
 
-	mtk_rmw(hw, PIN_BOND_REG0, BOND_PCIE_CLR, BOND_PCIE_CLR);
-	mtk_rmw(hw, PIN_BOND_REG1, BOND_I2S_CLR, BOND_I2S_CLR);
-	mtk_rmw(hw, PIN_BOND_REG2, BOND_MSDC0E_CLR, BOND_MSDC0E_CLR);
+	mtk_rmw(hw, 0, PIN_BOND_REG0, BOND_PCIE_CLR, BOND_PCIE_CLR);
+	mtk_rmw(hw, 0, PIN_BOND_REG1, BOND_I2S_CLR, BOND_I2S_CLR);
+	mtk_rmw(hw, 0, PIN_BOND_REG2, BOND_MSDC0E_CLR, BOND_MSDC0E_CLR);
 }
 
 static const struct of_device_id mt7623_pctrl_match[] = {

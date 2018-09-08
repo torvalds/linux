@@ -713,24 +713,40 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 {
 	struct resource *res;
 	struct mtk_pinctrl *hw;
-	int err;
+	int err, i;
 
 	hw = devm_kzalloc(&pdev->dev, sizeof(*hw), GFP_KERNEL);
 	if (!hw)
 		return -ENOMEM;
 
 	hw->soc = soc;
+	hw->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "missing IO resource\n");
-		return -ENXIO;
+	if (!hw->soc->nbase_names) {
+		dev_err(&pdev->dev,
+			"SoC should be assigned at least one register base\n");
+		return -EINVAL;
 	}
 
-	hw->dev = &pdev->dev;
-	hw->base = devm_ioremap_resource(&pdev->dev, res);
+	hw->base = devm_kmalloc_array(&pdev->dev, hw->soc->nbase_names,
+				      sizeof(*hw->base), GFP_KERNEL);
 	if (IS_ERR(hw->base))
 		return PTR_ERR(hw->base);
+
+	for (i = 0; i < hw->soc->nbase_names; i++) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						   hw->soc->base_names[i]);
+		if (!res) {
+			dev_err(&pdev->dev, "missing IO resource\n");
+			return -ENXIO;
+		}
+
+		hw->base[i] = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(hw->base[i]))
+			return PTR_ERR(hw->base[i]);
+	}
+
+	hw->nbase = hw->soc->nbase_names;
 
 	/* Setup pins descriptions per SoC types */
 	mtk_desc.pins = (const struct pinctrl_pin_desc *)hw->soc->pins;
