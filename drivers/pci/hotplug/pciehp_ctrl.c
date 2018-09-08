@@ -223,8 +223,7 @@ void pciehp_handle_disable_request(struct slot *slot)
 void pciehp_handle_presence_or_link_change(struct slot *slot, u32 events)
 {
 	struct controller *ctrl = slot->ctrl;
-	bool link_active;
-	u8 present;
+	bool present, link_active;
 
 	/*
 	 * If the slot is on and presence or link has changed, turn it off.
@@ -253,7 +252,7 @@ void pciehp_handle_presence_or_link_change(struct slot *slot, u32 events)
 
 	/* Turn the slot on if it's occupied or link is up */
 	mutex_lock(&slot->lock);
-	pciehp_get_adapter_status(slot, &present);
+	present = pciehp_card_present(ctrl);
 	link_active = pciehp_check_link_active(ctrl);
 	if (!present && !link_active) {
 		mutex_unlock(&slot->lock);
@@ -286,11 +285,6 @@ static int __pciehp_enable_slot(struct slot *p_slot)
 	u8 getstatus = 0;
 	struct controller *ctrl = p_slot->ctrl;
 
-	pciehp_get_adapter_status(p_slot, &getstatus);
-	if (!getstatus) {
-		ctrl_info(ctrl, "Slot(%s): No adapter\n", slot_name(p_slot));
-		return -ENODEV;
-	}
 	if (MRL_SENS(p_slot->ctrl)) {
 		pciehp_get_latch_status(p_slot, &getstatus);
 		if (getstatus) {
