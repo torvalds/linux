@@ -6983,7 +6983,7 @@ static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 	 * Cause the #SS fault with 0 error code in VM86 mode.
 	 */
 	if (((vec == GP_VECTOR) || (vec == SS_VECTOR)) && err_code == 0) {
-		if (emulate_instruction(vcpu, 0) == EMULATE_DONE) {
+		if (kvm_emulate_instruction(vcpu, 0) == EMULATE_DONE) {
 			if (vcpu->arch.halt_request) {
 				vcpu->arch.halt_request = 0;
 				return kvm_vcpu_halt(vcpu);
@@ -7054,7 +7054,7 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 
 	if (!vmx->rmode.vm86_active && is_gp_fault(intr_info)) {
 		WARN_ON_ONCE(!enable_vmware_backdoor);
-		er = emulate_instruction(vcpu,
+		er = kvm_emulate_instruction(vcpu,
 			EMULTYPE_VMWARE | EMULTYPE_NO_UD_ON_FAIL);
 		if (er == EMULATE_USER_EXIT)
 			return 0;
@@ -7157,7 +7157,7 @@ static int handle_io(struct kvm_vcpu *vcpu)
 	++vcpu->stat.io_exits;
 
 	if (string)
-		return emulate_instruction(vcpu, 0) == EMULATE_DONE;
+		return kvm_emulate_instruction(vcpu, 0) == EMULATE_DONE;
 
 	port = exit_qualification >> 16;
 	size = (exit_qualification & 7) + 1;
@@ -7231,7 +7231,7 @@ static int handle_set_cr4(struct kvm_vcpu *vcpu, unsigned long val)
 static int handle_desc(struct kvm_vcpu *vcpu)
 {
 	WARN_ON(!(vcpu->arch.cr4 & X86_CR4_UMIP));
-	return emulate_instruction(vcpu, 0) == EMULATE_DONE;
+	return kvm_emulate_instruction(vcpu, 0) == EMULATE_DONE;
 }
 
 static int handle_cr(struct kvm_vcpu *vcpu)
@@ -7480,7 +7480,7 @@ static int handle_vmcall(struct kvm_vcpu *vcpu)
 
 static int handle_invd(struct kvm_vcpu *vcpu)
 {
-	return emulate_instruction(vcpu, 0) == EMULATE_DONE;
+	return kvm_emulate_instruction(vcpu, 0) == EMULATE_DONE;
 }
 
 static int handle_invlpg(struct kvm_vcpu *vcpu)
@@ -7547,7 +7547,7 @@ static int handle_apic_access(struct kvm_vcpu *vcpu)
 			return kvm_skip_emulated_instruction(vcpu);
 		}
 	}
-	return emulate_instruction(vcpu, 0) == EMULATE_DONE;
+	return kvm_emulate_instruction(vcpu, 0) == EMULATE_DONE;
 }
 
 static int handle_apic_eoi_induced(struct kvm_vcpu *vcpu)
@@ -7704,8 +7704,8 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 		if (!static_cpu_has(X86_FEATURE_HYPERVISOR))
 			return kvm_skip_emulated_instruction(vcpu);
 		else
-			return x86_emulate_instruction(vcpu, gpa, EMULTYPE_SKIP,
-						       NULL, 0) == EMULATE_DONE;
+			return kvm_emulate_instruction(vcpu, EMULTYPE_SKIP) ==
+								EMULATE_DONE;
 	}
 
 	return kvm_mmu_page_fault(vcpu, gpa, PFERR_RSVD_MASK, NULL, 0);
@@ -7748,7 +7748,7 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 		if (kvm_test_request(KVM_REQ_EVENT, vcpu))
 			return 1;
 
-		err = emulate_instruction(vcpu, 0);
+		err = kvm_emulate_instruction(vcpu, 0);
 
 		if (err == EMULATE_USER_EXIT) {
 			++vcpu->stat.mmio_exits;
@@ -12537,7 +12537,10 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, u32 *exit_qual)
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	bool from_vmentry = !!exit_qual;
 	u32 dummy_exit_qual;
+	u32 vmcs01_cpu_exec_ctrl;
 	int r = 0;
+
+	vmcs01_cpu_exec_ctrl = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
 
 	enter_guest_mode(vcpu);
 
@@ -12572,6 +12575,25 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, u32 *exit_qual)
 		 * have already been set at vmentry time and should not be reset.
 		 */
 		kvm_make_request(KVM_REQ_GET_VMCS12_PAGES, vcpu);
+	}
+
+	/*
+	 * If L1 had a pending IRQ/NMI until it executed
+	 * VMLAUNCH/VMRESUME which wasn't delivered because it was
+	 * disallowed (e.g. interrupts disabled), L0 needs to
+	 * evaluate if this pending event should cause an exit from L2
+	 * to L1 or delivered directly to L2 (e.g. In case L1 don't
+	 * intercept EXTERNAL_INTERRUPT).
+	 *
+	 * Usually this would be handled by L0 requesting a
+	 * IRQ/NMI window by setting VMCS accordingly. However,
+	 * this setting was done on VMCS01 and now VMCS02 is active
+	 * instead. Thus, we force L0 to perform pending event
+	 * evaluation by requesting a KVM_REQ_EVENT.
+	 */
+	if (vmcs01_cpu_exec_ctrl &
+		(CPU_BASED_VIRTUAL_INTR_PENDING | CPU_BASED_VIRTUAL_NMI_PENDING)) {
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
 	}
 
 	/*
@@ -13987,9 +14009,6 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	if (check_vmentry_prereqs(vcpu, vmcs12) ||
 	    check_vmentry_postreqs(vcpu, vmcs12, &exit_qual))
 		return -EINVAL;
-
-	if (kvm_state->flags & KVM_STATE_NESTED_RUN_PENDING)
-		vmx->nested.nested_run_pending = 1;
 
 	vmx->nested.dirty_vmcs12 = true;
 	ret = enter_vmx_non_root_mode(vcpu, NULL);

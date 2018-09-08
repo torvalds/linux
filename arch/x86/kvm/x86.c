@@ -4987,7 +4987,7 @@ int handle_ud(struct kvm_vcpu *vcpu)
 		emul_type = 0;
 	}
 
-	er = emulate_instruction(vcpu, emul_type);
+	er = kvm_emulate_instruction(vcpu, emul_type);
 	if (er == EMULATE_USER_EXIT)
 		return 0;
 	if (er != EMULATE_DONE)
@@ -5870,7 +5870,10 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gva_t cr2,
 	gpa_t gpa = cr2;
 	kvm_pfn_t pfn;
 
-	if (emulation_type & EMULTYPE_NO_REEXECUTE)
+	if (!(emulation_type & EMULTYPE_ALLOW_RETRY))
+		return false;
+
+	if (WARN_ON_ONCE(is_guest_mode(vcpu)))
 		return false;
 
 	if (!vcpu->arch.mmu.direct_map) {
@@ -5958,7 +5961,10 @@ static bool retry_instruction(struct x86_emulate_ctxt *ctxt,
 	 */
 	vcpu->arch.last_retry_eip = vcpu->arch.last_retry_addr = 0;
 
-	if (!(emulation_type & EMULTYPE_RETRY))
+	if (!(emulation_type & EMULTYPE_ALLOW_RETRY))
+		return false;
+
+	if (WARN_ON_ONCE(is_guest_mode(vcpu)))
 		return false;
 
 	if (x86_page_table_writing_insn(ctxt))
@@ -6276,7 +6282,19 @@ restart:
 
 	return r;
 }
-EXPORT_SYMBOL_GPL(x86_emulate_instruction);
+
+int kvm_emulate_instruction(struct kvm_vcpu *vcpu, int emulation_type)
+{
+	return x86_emulate_instruction(vcpu, 0, emulation_type, NULL, 0);
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_instruction);
+
+int kvm_emulate_instruction_from_buffer(struct kvm_vcpu *vcpu,
+					void *insn, int insn_len)
+{
+	return x86_emulate_instruction(vcpu, 0, 0, insn, insn_len);
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_instruction_from_buffer);
 
 static int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size,
 			    unsigned short port)
@@ -7734,7 +7752,7 @@ static inline int complete_emulated_io(struct kvm_vcpu *vcpu)
 {
 	int r;
 	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-	r = emulate_instruction(vcpu, EMULTYPE_NO_DECODE);
+	r = kvm_emulate_instruction(vcpu, EMULTYPE_NO_DECODE);
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	if (r != EMULATE_DONE)
 		return 0;
