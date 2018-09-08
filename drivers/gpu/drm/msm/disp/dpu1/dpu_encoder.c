@@ -441,12 +441,6 @@ void dpu_encoder_get_hw_resources(struct drm_encoder *drm_enc,
 	struct dpu_encoder_virt *dpu_enc = NULL;
 	int i = 0;
 
-	if (!hw_res || !drm_enc) {
-		DPU_ERROR("invalid argument(s), drm_enc %d, res %d\n",
-			  drm_enc != 0, hw_res != 0);
-		return;
-	}
-
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
 	DPU_DEBUG_ENC(dpu_enc, "\n");
 

@@ -601,20 +601,6 @@ static void dpu_encoder_phys_cmd_get_hw_resources(
 		struct dpu_encoder_phys *phys_enc,
 		struct dpu_encoder_hw_resources *hw_res)
 {
-	struct dpu_encoder_phys_cmd *cmd_enc =
-		to_dpu_encoder_phys_cmd(phys_enc);
-
-	if (!phys_enc) {
-		DPU_ERROR("invalid encoder\n");
-		return;
-	}
-
-	if ((phys_enc->intf_idx - INTF_0) >= INTF_MAX) {
-		DPU_ERROR("invalid intf idx:%d\n", phys_enc->intf_idx);
-		return;
-	}
-
-	DPU_DEBUG_CMDENC(cmd_enc, "\n");
 	hw_res->intfs[phys_enc->intf_idx - INTF_0] = INTF_MODE_CMD;
 }
 

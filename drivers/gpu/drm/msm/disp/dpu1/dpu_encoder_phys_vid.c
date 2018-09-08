@@ -539,12 +539,6 @@ static void dpu_encoder_phys_vid_get_hw_resources(
 		struct dpu_encoder_phys *phys_enc,
 		struct dpu_encoder_hw_resources *hw_res)
 {
-	if (!phys_enc || !hw_res) {
-		DPU_ERROR("invalid arg(s), enc %d hw_res %d\n",
-			  phys_enc != 0, hw_res != 0);
-		return;
-	}
-
 	hw_res->intfs[phys_enc->intf_idx - INTF_0] = INTF_MODE_VIDEO;
 }
 
