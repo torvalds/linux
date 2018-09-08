@@ -46,9 +46,6 @@ static void tvc_disable(struct omap_dss_device *dssdev)
 {
 	struct omap_dss_device *src = dssdev->src;
 
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
 	src->ops->disable(src);
 }
 
@@ -92,7 +89,8 @@ static int __exit tvc_remove(struct platform_device *pdev)
 
 	omapdss_device_unregister(&ddata->dssdev);
 
-	tvc_disable(dssdev);
+	if (omapdss_device_is_enabled(dssdev))
+		tvc_disable(dssdev);
 
 	return 0;
 }

@@ -270,9 +270,6 @@ static void td028ttec1_panel_disable(struct omap_dss_device *dssdev)
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
 	dev_dbg(dssdev->dev, "td028ttec1_panel_disable()\n");
 
 	jbt_ret_write_0(ddata, JBT_REG_DISPLAY_OFF);
@@ -357,7 +354,8 @@ static int td028ttec1_panel_remove(struct spi_device *spi)
 
 	omapdss_device_unregister(dssdev);
 
-	td028ttec1_panel_disable(dssdev);
+	if (omapdss_device_is_enabled(dssdev))
+		td028ttec1_panel_disable(dssdev);
 
 	return 0;
 }

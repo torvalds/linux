@@ -144,9 +144,6 @@ static void lb035q02_disable(struct omap_dss_device *dssdev)
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
 	if (ddata->enable_gpio)
 		gpiod_set_value_cansleep(ddata->enable_gpio, 0);
 
@@ -235,7 +232,8 @@ static int lb035q02_panel_spi_remove(struct spi_device *spi)
 
 	omapdss_device_unregister(dssdev);
 
-	lb035q02_disable(dssdev);
+	if (omapdss_device_is_enabled(dssdev))
+		lb035q02_disable(dssdev);
 
 	return 0;
 }

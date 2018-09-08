@@ -49,9 +49,6 @@ static int opa362_enable(struct omap_dss_device *dssdev)
 
 	dev_dbg(dssdev->dev, "enable\n");
 
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
 	r = src->ops->enable(src);
 	if (r)
 		return r;
@@ -70,9 +67,6 @@ static void opa362_disable(struct omap_dss_device *dssdev)
 	struct omap_dss_device *src = dssdev->src;
 
 	dev_dbg(dssdev->dev, "disable\n");
-
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
 
 	if (ddata->enable_gpio)
 		gpiod_set_value_cansleep(ddata->enable_gpio, 0);

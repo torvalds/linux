@@ -350,9 +350,6 @@ static void tpo_td043_disable(struct omap_dss_device *dssdev)
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
 	src->ops->disable(src);
 
 	if (!ddata->spi_suspended)
@@ -457,7 +454,8 @@ static int tpo_td043_remove(struct spi_device *spi)
 
 	omapdss_device_unregister(dssdev);
 
-	tpo_td043_disable(dssdev);
+	if (omapdss_device_is_enabled(dssdev))
+		tpo_td043_disable(dssdev);
 
 	sysfs_remove_group(&spi->dev.kobj, &tpo_td043_attr_group);
 

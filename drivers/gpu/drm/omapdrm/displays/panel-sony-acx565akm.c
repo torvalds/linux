@@ -605,9 +605,6 @@ static void acx565akm_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
 	mutex_lock(&ddata->mutex);
 	acx565akm_panel_power_off(dssdev);
 	mutex_unlock(&ddata->mutex);
@@ -750,7 +747,8 @@ static int acx565akm_remove(struct spi_device *spi)
 
 	omapdss_device_unregister(dssdev);
 
-	acx565akm_disable(dssdev);
+	if (omapdss_device_is_enabled(dssdev))
+		acx565akm_disable(dssdev);
 
 	return 0;
 }

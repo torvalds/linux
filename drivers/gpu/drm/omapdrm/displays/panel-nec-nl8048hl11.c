@@ -138,9 +138,6 @@ static void nec_8048_disable(struct omap_dss_device *dssdev)
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
 	gpiod_set_value_cansleep(ddata->res_gpio, 0);
 
 	src->ops->disable(src);
@@ -226,7 +223,8 @@ static int nec_8048_remove(struct spi_device *spi)
 
 	omapdss_device_unregister(dssdev);
 
-	nec_8048_disable(dssdev);
+	if (omapdss_device_is_enabled(dssdev))
+		nec_8048_disable(dssdev);
 
 	return 0;
 }

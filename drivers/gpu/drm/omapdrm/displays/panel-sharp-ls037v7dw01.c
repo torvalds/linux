@@ -97,9 +97,6 @@ static void sharp_ls_disable(struct omap_dss_device *dssdev)
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
 	if (ddata->ini_gpio)
 		gpiod_set_value_cansleep(ddata->ini_gpio, 0);
 
@@ -233,7 +230,8 @@ static int __exit sharp_ls_remove(struct platform_device *pdev)
 
 	omapdss_device_unregister(dssdev);
 
-	sharp_ls_disable(dssdev);
+	if (omapdss_device_is_enabled(dssdev))
+		sharp_ls_disable(dssdev);
 
 	return 0;
 }

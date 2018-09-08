@@ -57,9 +57,6 @@ static void dvic_disable(struct omap_dss_device *dssdev)
 {
 	struct omap_dss_device *src = dssdev->src;
 
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
 	src->ops->disable(src);
 }
 
@@ -282,7 +279,8 @@ static int __exit dvic_remove(struct platform_device *pdev)
 
 	omapdss_device_unregister(&ddata->dssdev);
 
-	dvic_disable(dssdev);
+	if (omapdss_device_is_enabled(dssdev))
+		dvic_disable(dssdev);
 
 	i2c_put_adapter(ddata->i2c_adapter);
 

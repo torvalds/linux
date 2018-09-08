@@ -151,9 +151,6 @@ static void omap_encoder_disable(struct drm_encoder *encoder)
 
 	dev_dbg(dev->dev, "disable(%s)\n", dssdev->name);
 
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
 	dssdev->ops->disable(dssdev);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
@@ -167,9 +164,6 @@ static void omap_encoder_enable(struct drm_encoder *encoder)
 	int r;
 
 	dev_dbg(dev->dev, "enable(%s)\n", dssdev->name);
-
-	if (omapdss_device_is_enabled(dssdev))
-		return;
 
 	r = dssdev->ops->enable(dssdev);
 	if (r) {

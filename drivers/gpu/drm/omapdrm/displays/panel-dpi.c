@@ -72,9 +72,6 @@ static void panel_dpi_disable(struct omap_dss_device *dssdev)
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
 	backlight_disable(ddata->backlight);
 
 	gpiod_set_value_cansleep(ddata->enable_gpio, 0);
@@ -182,7 +179,8 @@ static int __exit panel_dpi_remove(struct platform_device *pdev)
 
 	omapdss_device_unregister(dssdev);
 
-	panel_dpi_disable(dssdev);
+	if (omapdss_device_is_enabled(dssdev))
+		panel_dpi_disable(dssdev);
 
 	return 0;
 }

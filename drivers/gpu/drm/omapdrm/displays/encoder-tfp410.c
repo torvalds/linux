@@ -42,9 +42,6 @@ static int tfp410_enable(struct omap_dss_device *dssdev)
 	struct omap_dss_device *src = dssdev->src;
 	int r;
 
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
 	r = src->ops->enable(src);
 	if (r)
 		return r;
@@ -61,9 +58,6 @@ static void tfp410_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
-
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
 
 	if (ddata->pd_gpio)
 		gpiod_set_value_cansleep(ddata->pd_gpio, 0);

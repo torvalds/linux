@@ -52,9 +52,6 @@ static void hdmic_disable(struct omap_dss_device *dssdev)
 {
 	struct omap_dss_device *src = dssdev->src;
 
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
 	src->ops->disable(src);
 }
 
@@ -179,7 +176,8 @@ static int __exit hdmic_remove(struct platform_device *pdev)
 
 	omapdss_device_unregister(&ddata->dssdev);
 
-	hdmic_disable(dssdev);
+	if (omapdss_device_is_enabled(dssdev))
+		hdmic_disable(dssdev);
 
 	return 0;
 }

@@ -829,11 +829,9 @@ static void dsicm_disable(struct omap_dss_device *dssdev)
 
 	src->ops->dsi.bus_lock(src);
 
-	if (omapdss_device_is_enabled(dssdev)) {
-		r = dsicm_wake_up(ddata);
-		if (!r)
-			dsicm_power_off(ddata);
-	}
+	r = dsicm_wake_up(ddata);
+	if (!r)
+		dsicm_power_off(ddata);
 
 	src->ops->dsi.bus_unlock(src);
 
@@ -1367,7 +1365,8 @@ static int __exit dsicm_remove(struct platform_device *pdev)
 
 	omapdss_device_unregister(dssdev);
 
-	dsicm_disable(dssdev);
+	if (omapdss_device_is_enabled(dssdev))
+		dsicm_disable(dssdev);
 	omapdss_device_disconnect(dssdev->src, dssdev);
 
 	sysfs_remove_group(&pdev->dev.kobj, &dsicm_attr_group);
