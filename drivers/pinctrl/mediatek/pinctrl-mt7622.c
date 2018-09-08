@@ -1,16 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * MediaTek MT7622 Pinctrl Driver
+ * Copyright (C) 2017-2018 MediaTek Inc.
  *
- * Copyright (C) 2017 Sean Wang <sean.wang@mediatek.com>
+ * Author: Sean Wang <sean.wang@mediatek.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/gpio.h>
@@ -32,6 +25,7 @@
 #include "../pinconf.h"
 #include "../pinmux.h"
 #include "mtk-eint.h"
+#include "pinctrl-mtk-common-v2.h"
 
 #define PINCTRL_PINCTRL_DEV		KBUILD_MODNAME
 #define MTK_RANGE(_a)		{ .range = (_a), .nranges = ARRAY_SIZE(_a), }
@@ -43,100 +37,9 @@
 		id##_funcs,				\
 	}
 
-#define MTK_GPIO_MODE	1
-#define MTK_INPUT	0
-#define MTK_OUTPUT	1
-#define MTK_DISABLE	0
-#define MTK_ENABLE	1
-
 /* Custom pinconf parameters */
 #define MTK_PIN_CONFIG_TDSEL	(PIN_CONFIG_END + 1)
 #define MTK_PIN_CONFIG_RDSEL	(PIN_CONFIG_END + 2)
-
-/* List these attributes which could be modified for the pin */
-enum {
-	PINCTRL_PIN_REG_MODE,
-	PINCTRL_PIN_REG_DIR,
-	PINCTRL_PIN_REG_DI,
-	PINCTRL_PIN_REG_DO,
-	PINCTRL_PIN_REG_SR,
-	PINCTRL_PIN_REG_SMT,
-	PINCTRL_PIN_REG_PD,
-	PINCTRL_PIN_REG_PU,
-	PINCTRL_PIN_REG_E4,
-	PINCTRL_PIN_REG_E8,
-	PINCTRL_PIN_REG_TDSEL,
-	PINCTRL_PIN_REG_RDSEL,
-	PINCTRL_PIN_REG_MAX,
-};
-
-/* struct mtk_pin_field - the structure that holds the information of the field
- *			  used to describe the attribute for the pin
- * @offset:		the register offset relative to the base address
- * @mask:		the mask used to filter out the field from the register
- * @bitpos:		the start bit relative to the register
- * @next:		the indication that the field would be extended to the
-			next register
- */
-struct mtk_pin_field {
-	u32 offset;
-	u32 mask;
-	u8  bitpos;
-	u8  next;
-};
-
-/* struct mtk_pin_field_calc - the structure that holds the range providing
- *			       the guide used to look up the relevant field
- * @s_pin:		the start pin within the range
- * @e_pin:		the end pin within the range
- * @s_addr:		the start address for the range
- * @x_addrs:		the address distance between two consecutive registers
- *			within the range
- * @s_bit:		the start bit for the first register within the range
- * @x_bits:		the bit distance between two consecutive pins within
- *			the range
- */
-struct mtk_pin_field_calc {
-	u16 s_pin;
-	u16 e_pin;
-	u32 s_addr;
-	u8  x_addrs;
-	u8  s_bit;
-	u8  x_bits;
-};
-
-/* struct mtk_pin_reg_calc - the structure that holds all ranges used to
- *			     determine which register the pin would make use of
- *			     for certain pin attribute.
- * @range:		     the start address for the range
- * @nranges:		     the number of items in the range
- */
-struct mtk_pin_reg_calc {
-	const struct mtk_pin_field_calc *range;
-	unsigned int nranges;
-};
-
-/* struct mtk_pin_soc - the structure that holds SoC-specific data */
-struct mtk_pin_soc {
-	const struct mtk_pin_reg_calc	*reg_cal;
-	const struct pinctrl_pin_desc	*pins;
-	unsigned int			npins;
-	const struct group_desc		*grps;
-	unsigned int			ngrps;
-	const struct function_desc	*funcs;
-	unsigned int			nfuncs;
-	const struct mtk_eint_regs	*eint_regs;
-	const struct mtk_eint_hw	*eint_hw;
-};
-
-struct mtk_pinctrl {
-	struct pinctrl_dev		*pctrl;
-	void __iomem			*base;
-	struct device			*dev;
-	struct gpio_chip		chip;
-	const struct mtk_pin_soc	*soc;
-	struct mtk_eint			*eint;
-};
 
 static const struct mtk_pin_field_calc mt7622_pin_mode_range[] = {
 	{0, 0, 0x320, 0x10, 16, 4},
@@ -935,154 +838,6 @@ static const struct mtk_pin_soc mt7622_data = {
 	.nfuncs = ARRAY_SIZE(mt7622_functions),
 	.eint_hw = &mt7622_eint_hw,
 };
-
-static void mtk_w32(struct mtk_pinctrl *pctl, u32 reg, u32 val)
-{
-	writel_relaxed(val, pctl->base + reg);
-}
-
-static u32 mtk_r32(struct mtk_pinctrl *pctl, u32 reg)
-{
-	return readl_relaxed(pctl->base + reg);
-}
-
-static void mtk_rmw(struct mtk_pinctrl *pctl, u32 reg, u32 mask, u32 set)
-{
-	u32 val;
-
-	val = mtk_r32(pctl, reg);
-	val &= ~mask;
-	val |= set;
-	mtk_w32(pctl, reg, val);
-}
-
-static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw, int pin,
-				   const struct mtk_pin_reg_calc *rc,
-				   struct mtk_pin_field *pfd)
-{
-	const struct mtk_pin_field_calc *c, *e;
-	u32 bits;
-
-	c = rc->range;
-	e = c + rc->nranges;
-
-	while (c < e) {
-		if (pin >= c->s_pin && pin <= c->e_pin)
-			break;
-		c++;
-	}
-
-	if (c >= e) {
-		dev_err(hw->dev, "Out of range for pin = %d\n", pin);
-		return -EINVAL;
-	}
-
-	/* Caculated bits as the overall offset the pin is located at */
-	bits = c->s_bit + (pin - c->s_pin) * (c->x_bits);
-
-	/* Fill pfd from bits and 32-bit register applied is assumed */
-	pfd->offset = c->s_addr + c->x_addrs * (bits / 32);
-	pfd->bitpos = bits % 32;
-	pfd->mask = (1 << c->x_bits) - 1;
-
-	/* pfd->next is used for indicating that bit wrapping-around happens
-	 * which requires the manipulation for bit 0 starting in the next
-	 * register to form the complete field read/write.
-	 */
-	pfd->next = pfd->bitpos + c->x_bits - 1 > 31 ? c->x_addrs : 0;
-
-	return 0;
-}
-
-static int mtk_hw_pin_field_get(struct mtk_pinctrl *hw, int pin,
-				int field, struct mtk_pin_field *pfd)
-{
-	const struct mtk_pin_reg_calc *rc;
-
-	if (field < 0 || field >= PINCTRL_PIN_REG_MAX) {
-		dev_err(hw->dev, "Invalid Field %d\n", field);
-		return -EINVAL;
-	}
-
-	if (hw->soc->reg_cal && hw->soc->reg_cal[field].range) {
-		rc = &hw->soc->reg_cal[field];
-	} else {
-		dev_err(hw->dev, "Undefined range for field %d\n", field);
-		return -EINVAL;
-	}
-
-	return mtk_hw_pin_field_lookup(hw, pin, rc, pfd);
-}
-
-static void mtk_hw_bits_part(struct mtk_pin_field *pf, int *h, int *l)
-{
-	*l = 32 - pf->bitpos;
-	*h = get_count_order(pf->mask) - *l;
-}
-
-static void mtk_hw_write_cross_field(struct mtk_pinctrl *hw,
-				     struct mtk_pin_field *pf, int value)
-{
-	int nbits_l, nbits_h;
-
-	mtk_hw_bits_part(pf, &nbits_h, &nbits_l);
-
-	mtk_rmw(hw, pf->offset, pf->mask << pf->bitpos,
-		(value & pf->mask) << pf->bitpos);
-
-	mtk_rmw(hw, pf->offset + pf->next, BIT(nbits_h) - 1,
-		(value & pf->mask) >> nbits_l);
-}
-
-static void mtk_hw_read_cross_field(struct mtk_pinctrl *hw,
-				    struct mtk_pin_field *pf, int *value)
-{
-	int nbits_l, nbits_h, h, l;
-
-	mtk_hw_bits_part(pf, &nbits_h, &nbits_l);
-
-	l  = (mtk_r32(hw, pf->offset) >> pf->bitpos) & (BIT(nbits_l) - 1);
-	h  = (mtk_r32(hw, pf->offset + pf->next)) & (BIT(nbits_h) - 1);
-
-	*value = (h << nbits_l) | l;
-}
-
-static int mtk_hw_set_value(struct mtk_pinctrl *hw, int pin, int field,
-			    int value)
-{
-	struct mtk_pin_field pf;
-	int err;
-
-	err = mtk_hw_pin_field_get(hw, pin, field, &pf);
-	if (err)
-		return err;
-
-	if (!pf.next)
-		mtk_rmw(hw, pf.offset, pf.mask << pf.bitpos,
-			(value & pf.mask) << pf.bitpos);
-	else
-		mtk_hw_write_cross_field(hw, &pf, value);
-
-	return 0;
-}
-
-static int mtk_hw_get_value(struct mtk_pinctrl *hw, int pin, int field,
-			    int *value)
-{
-	struct mtk_pin_field pf;
-	int err;
-
-	err = mtk_hw_pin_field_get(hw, pin, field, &pf);
-	if (err)
-		return err;
-
-	if (!pf.next)
-		*value = (mtk_r32(hw, pf.offset) >> pf.bitpos) & pf.mask;
-	else
-		mtk_hw_read_cross_field(hw, &pf, value);
-
-	return 0;
-}
 
 static int mtk_pinmux_set_mux(struct pinctrl_dev *pctldev,
 			      unsigned int selector, unsigned int group)
