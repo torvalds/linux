@@ -1131,10 +1131,9 @@ unsigned int get_cprb_fc(struct ica_xcRB *xcRB,
 	ap_msg->receive = zcrypt_msgtype6_receive;
 	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
-	ap_msg->private = kmalloc(sizeof(resp_type), GFP_KERNEL);
+	ap_msg->private = kmemdup(&resp_type, sizeof(resp_type), GFP_KERNEL);
 	if (!ap_msg->private)
 		return -ENOMEM;
-	memcpy(ap_msg->private, &resp_type, sizeof(resp_type));
 	return XCRB_msg_to_type6CPRB_msgX(ap_msg, xcRB, func_code, dom);
 }
 
@@ -1187,10 +1186,9 @@ unsigned int get_ep11cprb_fc(struct ep11_urb *xcrb,
 	ap_msg->receive = zcrypt_msgtype6_receive_ep11;
 	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
-	ap_msg->private = kmalloc(sizeof(resp_type), GFP_KERNEL);
+	ap_msg->private = kmemdup(&resp_type, sizeof(resp_type), GFP_KERNEL);
 	if (!ap_msg->private)
 		return -ENOMEM;
-	memcpy(ap_msg->private, &resp_type, sizeof(resp_type));
 	return xcrb_msg_to_type6_ep11cprb_msgx(ap_msg, xcrb, func_code);
 }
 
@@ -1282,10 +1280,9 @@ unsigned int get_rng_fc(struct ap_message *ap_msg, int *func_code,
 	ap_msg->receive = zcrypt_msgtype6_receive;
 	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
-	ap_msg->private = kmalloc(sizeof(resp_type), GFP_KERNEL);
+	ap_msg->private = kmemdup(&resp_type, sizeof(resp_type), GFP_KERNEL);
 	if (!ap_msg->private)
 		return -ENOMEM;
-	memcpy(ap_msg->private, &resp_type, sizeof(resp_type));
 
 	rng_type6CPRB_msgX(ap_msg, ZCRYPT_RNG_BUFFER_SIZE, domain);
 
