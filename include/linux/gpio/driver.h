@@ -144,6 +144,20 @@ struct gpio_irq_chip {
 	 * will allocate and map all IRQs during initialization.
 	 */
 	unsigned int first;
+
+	/**
+	 * @irq_enable:
+	 *
+	 * Store old irq_chip irq_enable callback
+	 */
+	void		(*irq_enable)(struct irq_data *data);
+
+	/**
+	 * @irq_disable:
+	 *
+	 * Store old irq_chip irq_disable callback
+	 */
+	void		(*irq_disable)(struct irq_data *data);
 };
 
 static inline struct gpio_irq_chip *to_gpio_irq_chip(struct irq_chip *chip)

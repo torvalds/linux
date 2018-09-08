@@ -1826,6 +1826,28 @@ static void gpiochip_irq_relres(struct irq_data *d)
 	gpiochip_relres_irq(chip, d->hwirq);
 }
 
+static void gpiochip_irq_enable(struct irq_data *d)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
+
+	gpiochip_enable_irq(chip, d->hwirq);
+	if (chip->irq.irq_enable)
+		chip->irq.irq_enable(d);
+	else
+		chip->irq.chip->irq_unmask(d);
+}
+
+static void gpiochip_irq_disable(struct irq_data *d)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
+
+	if (chip->irq.irq_disable)
+		chip->irq.irq_disable(d);
+	else
+		chip->irq.chip->irq_mask(d);
+	gpiochip_disable_irq(chip, d->hwirq);
+}
+
 static void gpiochip_set_irq_hooks(struct gpio_chip *gpiochip)
 {
 	struct irq_chip *irqchip = gpiochip->irq.chip;
@@ -1835,6 +1857,12 @@ static void gpiochip_set_irq_hooks(struct gpio_chip *gpiochip)
 		irqchip->irq_request_resources = gpiochip_irq_reqres;
 		irqchip->irq_release_resources = gpiochip_irq_relres;
 	}
+	if (WARN_ON(gpiochip->irq.irq_enable))
+		return;
+	gpiochip->irq.irq_enable = irqchip->irq_enable;
+	gpiochip->irq.irq_disable = irqchip->irq_disable;
+	irqchip->irq_enable = gpiochip_irq_enable;
+	irqchip->irq_disable = gpiochip_irq_disable;
 }
 
 /**
@@ -1954,11 +1982,18 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
 		irq_domain_remove(gpiochip->irq.domain);
 	}
 
-	if (irqchip &&
-	    irqchip->irq_request_resources == gpiochip_irq_reqres) {
-		irqchip->irq_request_resources = NULL;
-		irqchip->irq_release_resources = NULL;
+	if (irqchip) {
+		if (irqchip->irq_request_resources == gpiochip_irq_reqres) {
+			irqchip->irq_request_resources = NULL;
+			irqchip->irq_release_resources = NULL;
+		}
+		if (irqchip->irq_enable == gpiochip_irq_enable) {
+			irqchip->irq_enable = gpiochip->irq.irq_enable;
+			irqchip->irq_disable = gpiochip->irq.irq_disable;
+		}
 	}
+	gpiochip->irq.irq_enable = NULL;
+	gpiochip->irq.irq_disable = NULL;
 	gpiochip->irq.chip = NULL;
 
 	gpiochip_irqchip_free_valid_mask(gpiochip);
