@@ -245,6 +245,8 @@ int mtk_hw_set_value(struct mtk_pinctrl *hw, const struct mtk_pin_desc *desc,
 int mtk_hw_get_value(struct mtk_pinctrl *hw, const struct mtk_pin_desc *desc,
 		     int field, int *value);
 
+int mtk_build_eint(struct mtk_pinctrl *hw, struct platform_device *pdev);
+
 int mtk_pinconf_bias_disable_set(struct mtk_pinctrl *hw,
 				 const struct mtk_pin_desc *desc);
 int mtk_pinconf_bias_disable_get(struct mtk_pinctrl *hw,

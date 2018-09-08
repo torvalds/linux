@@ -9,8 +9,11 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
+#include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/of_irq.h>
 
+#include "mtk-eint.h"
 #include "pinctrl-mtk-common-v2.h"
 
 /**
@@ -205,6 +208,138 @@ int mtk_hw_get_value(struct mtk_pinctrl *hw, const struct mtk_pin_desc *desc,
 		mtk_hw_read_cross_field(hw, &pf, value);
 
 	return 0;
+}
+
+static int mtk_xt_find_eint_num(struct mtk_pinctrl *hw, unsigned long eint_n)
+{
+	const struct mtk_pin_desc *desc;
+	int i = 0;
+
+	desc = (const struct mtk_pin_desc *)hw->soc->pins;
+
+	while (i < hw->soc->npins) {
+		if (desc[i].eint.eint_n == eint_n)
+			return desc[i].number;
+		i++;
+	}
+
+	return EINT_NA;
+}
+
+static int mtk_xt_get_gpio_n(void *data, unsigned long eint_n,
+			     unsigned int *gpio_n,
+			     struct gpio_chip **gpio_chip)
+{
+	struct mtk_pinctrl *hw = (struct mtk_pinctrl *)data;
+	const struct mtk_pin_desc *desc;
+
+	desc = (const struct mtk_pin_desc *)hw->soc->pins;
+	*gpio_chip = &hw->chip;
+
+	/* Be greedy to guess first gpio_n is equal to eint_n */
+	if (desc[eint_n].eint.eint_n == eint_n)
+		*gpio_n = eint_n;
+	else
+		*gpio_n = mtk_xt_find_eint_num(hw, eint_n);
+
+	return *gpio_n == EINT_NA ? -EINVAL : 0;
+}
+
+static int mtk_xt_get_gpio_state(void *data, unsigned long eint_n)
+{
+	struct mtk_pinctrl *hw = (struct mtk_pinctrl *)data;
+	const struct mtk_pin_desc *desc;
+	struct gpio_chip *gpio_chip;
+	unsigned int gpio_n;
+	int value, err;
+
+	err = mtk_xt_get_gpio_n(hw, eint_n, &gpio_n, &gpio_chip);
+	if (err)
+		return err;
+
+	desc = (const struct mtk_pin_desc *)&hw->soc->pins[gpio_n];
+
+	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_DI, &value);
+	if (err)
+		return err;
+
+	return !!value;
+}
+
+static int mtk_xt_set_gpio_as_eint(void *data, unsigned long eint_n)
+{
+	struct mtk_pinctrl *hw = (struct mtk_pinctrl *)data;
+	const struct mtk_pin_desc *desc;
+	struct gpio_chip *gpio_chip;
+	unsigned int gpio_n;
+	int err;
+
+	err = mtk_xt_get_gpio_n(hw, eint_n, &gpio_n, &gpio_chip);
+	if (err)
+		return err;
+
+	desc = (const struct mtk_pin_desc *)&hw->soc->pins[gpio_n];
+
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_MODE,
+			       desc->eint.eint_m);
+	if (err)
+		return err;
+
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_DIR, MTK_INPUT);
+	if (err)
+		return err;
+
+	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_SMT, MTK_ENABLE);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static const struct mtk_eint_xt mtk_eint_xt = {
+	.get_gpio_n = mtk_xt_get_gpio_n,
+	.get_gpio_state = mtk_xt_get_gpio_state,
+	.set_gpio_as_eint = mtk_xt_set_gpio_as_eint,
+};
+
+int mtk_build_eint(struct mtk_pinctrl *hw, struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct resource *res;
+
+	if (!IS_ENABLED(CONFIG_EINT_MTK))
+		return 0;
+
+	if (!of_property_read_bool(np, "interrupt-controller"))
+		return -ENODEV;
+
+	hw->eint = devm_kzalloc(hw->dev, sizeof(*hw->eint), GFP_KERNEL);
+	if (!hw->eint)
+		return -ENOMEM;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "eint");
+	if (!res) {
+		dev_err(&pdev->dev, "Unable to get eint resource\n");
+		return -ENODEV;
+	}
+
+	hw->eint->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hw->eint->base))
+		return PTR_ERR(hw->eint->base);
+
+	hw->eint->irq = irq_of_parse_and_map(np, 0);
+	if (!hw->eint->irq)
+		return -EINVAL;
+
+	if (!hw->soc->eint_hw)
+		return -ENODEV;
+
+	hw->eint->dev = &pdev->dev;
+	hw->eint->hw = hw->soc->eint_hw;
+	hw->eint->pctl = hw;
+	hw->eint->gpio_xlate = &mtk_eint_xt;
+
+	return mtk_eint_do_init(hw->eint);
 }
 
 /* Revision 0 */
