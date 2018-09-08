@@ -358,3 +358,58 @@ int mtk_pinconf_drive_get_rev1(struct mtk_pinctrl *hw,
 
 	return 0;
 }
+
+int mtk_pinconf_adv_pull_set(struct mtk_pinctrl *hw,
+			     const struct mtk_pin_desc *desc, bool pullup,
+			     u32 arg)
+{
+	int err;
+
+	/* 10K off & 50K (75K) off, when (R0, R1) = (0, 0);
+	 * 10K off & 50K (75K) on, when (R0, R1) = (0, 1);
+	 * 10K on & 50K (75K) off, when (R0, R1) = (1, 0);
+	 * 10K on & 50K (75K) on, when (R0, R1) = (1, 1)
+	 */
+	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_R0, arg & 1);
+	if (err)
+		return 0;
+
+	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_R1,
+			       !!(arg & 2));
+	if (err)
+		return 0;
+
+	arg = pullup ? 0 : 1;
+
+	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_PUPD, arg);
+
+	return err;
+}
+
+int mtk_pinconf_adv_pull_get(struct mtk_pinctrl *hw,
+			     const struct mtk_pin_desc *desc, bool pullup,
+			     u32 *val)
+{
+	u32 t, t2;
+	int err;
+
+	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_PUPD, &t);
+	if (err)
+		return err;
+
+	/* t == 0 supposes PULLUP for the customized PULL setup */
+	if (pullup ^ !t)
+		return -EINVAL;
+
+	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_R0, &t);
+	if (err)
+		return err;
+
+	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_R1, &t2);
+	if (err)
+		return err;
+
+	*val = (t | t2 << 1) & 0x7;
+
+	return 0;
+}

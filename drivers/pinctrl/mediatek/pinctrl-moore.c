@@ -15,16 +15,22 @@
 /* Custom pinconf parameters */
 #define MTK_PIN_CONFIG_TDSEL	(PIN_CONFIG_END + 1)
 #define MTK_PIN_CONFIG_RDSEL	(PIN_CONFIG_END + 2)
+#define MTK_PIN_CONFIG_PU_ADV	(PIN_CONFIG_END + 3)
+#define MTK_PIN_CONFIG_PD_ADV	(PIN_CONFIG_END + 4)
 
 static const struct pinconf_generic_params mtk_custom_bindings[] = {
 	{"mediatek,tdsel",	MTK_PIN_CONFIG_TDSEL,		0},
 	{"mediatek,rdsel",	MTK_PIN_CONFIG_RDSEL,		0},
+	{"mediatek,pull-up-adv", MTK_PIN_CONFIG_PU_ADV,		1},
+	{"mediatek,pull-down-adv", MTK_PIN_CONFIG_PD_ADV,	1},
 };
 
 #ifdef CONFIG_DEBUG_FS
 static const struct pin_config_item mtk_conf_items[] = {
 	PCONFDUMP(MTK_PIN_CONFIG_TDSEL, "tdsel", NULL, true),
 	PCONFDUMP(MTK_PIN_CONFIG_RDSEL, "rdsel", NULL, true),
+	PCONFDUMP(MTK_PIN_CONFIG_PU_ADV, "pu-adv", NULL, true),
+	PCONFDUMP(MTK_PIN_CONFIG_PD_ADV, "pd-adv", NULL, true),
 };
 #endif
 
@@ -169,6 +175,19 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 		ret = val;
 
 		break;
+	case MTK_PIN_CONFIG_PU_ADV:
+	case MTK_PIN_CONFIG_PD_ADV:
+		if (hw->soc->adv_pull_get) {
+			bool pullup;
+
+			pullup = param == MTK_PIN_CONFIG_PU_ADV;
+			err = hw->soc->adv_pull_get(hw, desc, pullup, &ret);
+			if (err)
+				return err;
+		} else {
+			return -ENOTSUPP;
+		}
+		break;
 	default:
 		return -ENOTSUPP;
 	}
@@ -281,6 +300,20 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			err = mtk_hw_set_value(hw, pin, reg, arg);
 			if (err)
 				goto err;
+			break;
+		case MTK_PIN_CONFIG_PU_ADV:
+		case MTK_PIN_CONFIG_PD_ADV:
+			if (hw->soc->adv_pull_set) {
+				bool pullup;
+
+				pullup = param == MTK_PIN_CONFIG_PU_ADV;
+				err = hw->soc->adv_pull_set(hw, desc, pullup,
+							    arg);
+				if (err)
+					return err;
+			} else {
+				return -ENOTSUPP;
+			}
 			break;
 		default:
 			err = -ENOTSUPP;

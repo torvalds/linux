@@ -51,6 +51,9 @@ enum {
 	PINCTRL_PIN_REG_TDSEL,
 	PINCTRL_PIN_REG_RDSEL,
 	PINCTRL_PIN_REG_DRV,
+	PINCTRL_PIN_REG_PUPD,
+	PINCTRL_PIN_REG_R0,
+	PINCTRL_PIN_REG_R1,
 	PINCTRL_PIN_REG_MAX,
 };
 
@@ -163,6 +166,13 @@ struct mtk_pin_soc {
 			 const struct mtk_pin_desc *desc, u32 arg);
 	int (*drive_get)(struct mtk_pinctrl *hw,
 			 const struct mtk_pin_desc *desc, int *val);
+
+	int (*adv_pull_set)(struct mtk_pinctrl *hw,
+			    const struct mtk_pin_desc *desc, bool pullup,
+			    u32 arg);
+	int (*adv_pull_get)(struct mtk_pinctrl *hw,
+			    const struct mtk_pin_desc *desc, bool pullup,
+			    u32 *val);
 };
 
 struct mtk_pinctrl {
@@ -198,5 +208,12 @@ int mtk_pinconf_drive_set_rev1(struct mtk_pinctrl *hw,
 			       const struct mtk_pin_desc *desc, u32 arg);
 int mtk_pinconf_drive_get_rev1(struct mtk_pinctrl *hw,
 			       const struct mtk_pin_desc *desc, int *val);
+
+int mtk_pinconf_adv_pull_set(struct mtk_pinctrl *hw,
+			     const struct mtk_pin_desc *desc, bool pullup,
+			     u32 arg);
+int mtk_pinconf_adv_pull_get(struct mtk_pinctrl *hw,
+			     const struct mtk_pin_desc *desc, bool pullup,
+			     u32 *val);
 
 #endif /* __PINCTRL_MTK_COMMON_V2_H */
