@@ -3,7 +3,7 @@
 #define __INC_FIRMWARE_H
 
 #define GET_COMMAND_PACKET_FRAG_THRESHOLD(v) \
-	(4*(v/4) - 8 - USB_HWDESC_HEADER_LEN)
+	(4 * ((v) / 4) - 8 - USB_HWDESC_HEADER_LEN)
 
 typedef enum _firmware_init_step {
 	FW_INIT_STEP0_BOOT = 0,
