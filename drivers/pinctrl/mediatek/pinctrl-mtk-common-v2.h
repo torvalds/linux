@@ -175,4 +175,9 @@ int mtk_pinconf_drive_set(struct mtk_pinctrl *hw,
 int mtk_pinconf_drive_get(struct mtk_pinctrl *hw,
 			  const struct mtk_pin_desc *desc, int *val);
 
+int mtk_pinconf_drive_set_rev1(struct mtk_pinctrl *hw,
+			       const struct mtk_pin_desc *desc, u32 arg);
+int mtk_pinconf_drive_get_rev1(struct mtk_pinctrl *hw,
+			       const struct mtk_pin_desc *desc, int *val);
+
 #endif /* __PINCTRL_MTK_COMMON_V2_H */
