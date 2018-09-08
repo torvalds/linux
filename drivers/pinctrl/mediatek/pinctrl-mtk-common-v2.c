@@ -190,6 +190,7 @@ int mtk_hw_get_value(struct mtk_pinctrl *hw, int pin, int field, int *value)
 	return 0;
 }
 
+/* Revision 0 */
 int mtk_pinconf_bias_disable_set(struct mtk_pinctrl *hw,
 				 const struct mtk_pin_desc *desc)
 {
@@ -261,6 +262,81 @@ int mtk_pinconf_bias_get(struct mtk_pinctrl *hw,
 		return err;
 
 	if (!v)
+		return -EINVAL;
+
+	*res = 1;
+
+	return 0;
+}
+
+/* Revision 1 */
+int mtk_pinconf_bias_disable_set_rev1(struct mtk_pinctrl *hw,
+				      const struct mtk_pin_desc *desc)
+{
+	int err;
+
+	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_PULLEN,
+			       MTK_DISABLE);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+int mtk_pinconf_bias_disable_get_rev1(struct mtk_pinctrl *hw,
+				      const struct mtk_pin_desc *desc, int *res)
+{
+	int v, err;
+
+	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_PULLEN, &v);
+	if (err)
+		return err;
+
+	if (v == MTK_ENABLE)
+		return -EINVAL;
+
+	*res = 1;
+
+	return 0;
+}
+
+int mtk_pinconf_bias_set_rev1(struct mtk_pinctrl *hw,
+			      const struct mtk_pin_desc *desc, bool pullup)
+{
+	int err, arg;
+
+	arg = pullup ? MTK_PULLUP : MTK_PULLDOWN;
+
+	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_PULLEN,
+			       MTK_ENABLE);
+	if (err)
+		return err;
+
+	err = mtk_hw_set_value(hw, desc->number, PINCTRL_PIN_REG_PULLSEL, arg);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+int mtk_pinconf_bias_get_rev1(struct mtk_pinctrl *hw,
+			      const struct mtk_pin_desc *desc, bool pullup,
+			      int *res)
+{
+	int err, v;
+
+	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_PULLEN, &v);
+	if (err)
+		return err;
+
+	if (v == MTK_DISABLE)
+		return -EINVAL;
+
+	err = mtk_hw_get_value(hw, desc->number, PINCTRL_PIN_REG_PULLSEL, &v);
+	if (err)
+		return err;
+
+	if (pullup ^ (v == MTK_PULLUP))
 		return -EINVAL;
 
 	*res = 1;

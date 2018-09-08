@@ -13,6 +13,8 @@
 #define MTK_OUTPUT     1
 #define MTK_DISABLE    0
 #define MTK_ENABLE     1
+#define MTK_PULLDOWN   0
+#define MTK_PULLUP     1
 
 #define EINT_NA	-1
 
@@ -55,6 +57,8 @@ enum {
 	PINCTRL_PIN_REG_R0,
 	PINCTRL_PIN_REG_R1,
 	PINCTRL_PIN_REG_IES,
+	PINCTRL_PIN_REG_PULLEN,
+	PINCTRL_PIN_REG_PULLSEL,
 	PINCTRL_PIN_REG_MAX,
 };
 
@@ -200,6 +204,17 @@ int mtk_pinconf_bias_set(struct mtk_pinctrl *hw,
 int mtk_pinconf_bias_get(struct mtk_pinctrl *hw,
 			 const struct mtk_pin_desc *desc, bool pullup,
 			 int *res);
+
+int mtk_pinconf_bias_disable_set_rev1(struct mtk_pinctrl *hw,
+				      const struct mtk_pin_desc *desc);
+int mtk_pinconf_bias_disable_get_rev1(struct mtk_pinctrl *hw,
+				      const struct mtk_pin_desc *desc,
+				      int *res);
+int mtk_pinconf_bias_set_rev1(struct mtk_pinctrl *hw,
+			      const struct mtk_pin_desc *desc, bool pullup);
+int mtk_pinconf_bias_get_rev1(struct mtk_pinctrl *hw,
+			      const struct mtk_pin_desc *desc, bool pullup,
+			      int *res);
 
 int mtk_pinconf_drive_set(struct mtk_pinctrl *hw,
 			  const struct mtk_pin_desc *desc, u32 arg);
