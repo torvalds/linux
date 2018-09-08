@@ -1238,7 +1238,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 
 		list_for_each_entry_safe(pos, tmp,
 					 &rdev->sched_scan_req_list, list) {
-			if (WARN_ON(pos && pos->dev == wdev->netdev))
+			if (WARN_ON(pos->dev == wdev->netdev))
 				cfg80211_stop_sched_scan_req(rdev, pos, false);
 		}
 
