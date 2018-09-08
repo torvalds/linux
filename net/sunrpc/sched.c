@@ -479,6 +479,8 @@ void rpc_wake_up_queued_task_on_wq(struct workqueue_struct *wq,
 		struct rpc_wait_queue *queue,
 		struct rpc_task *task)
 {
+	if (!RPC_IS_QUEUED(task))
+		return;
 	spin_lock_bh(&queue->lock);
 	rpc_wake_up_task_on_wq_queue_locked(wq, queue, task);
 	spin_unlock_bh(&queue->lock);
@@ -489,6 +491,8 @@ void rpc_wake_up_queued_task_on_wq(struct workqueue_struct *wq,
  */
 void rpc_wake_up_queued_task(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
+	if (!RPC_IS_QUEUED(task))
+		return;
 	spin_lock_bh(&queue->lock);
 	rpc_wake_up_task_queue_locked(queue, task);
 	spin_unlock_bh(&queue->lock);
