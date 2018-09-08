@@ -5,11 +5,11 @@
 #define GET_COMMAND_PACKET_FRAG_THRESHOLD(v) \
 	(4 * ((v) / 4) - 8 - USB_HWDESC_HEADER_LEN)
 
-typedef enum _firmware_init_step {
+enum firmware_init_step_e {
 	FW_INIT_STEP0_BOOT = 0,
 	FW_INIT_STEP1_MAIN = 1,
 	FW_INIT_STEP2_DATA = 2,
-} firmware_init_step_e;
+};
 
 typedef enum _opt_rst_type {
 	OPT_SYSTEM_RESET = 0,
