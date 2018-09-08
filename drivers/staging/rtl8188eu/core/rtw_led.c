@@ -95,10 +95,12 @@ static void SwLedBlink1(struct LED_871x *pLed)
 	/*  Change LED according to BlinkingLedState specified. */
 	if (pLed->BlinkingLedState == RTW_LED_ON) {
 		SwLedOn(padapter, pLed);
-		RT_TRACE(_module_rtl8712_led_c_, _drv_info_, ("Blinktimes (%d): turn on\n", pLed->BlinkTimes));
+		RT_TRACE(_module_rtl8712_led_c_, _drv_info_,
+			 ("Blinktimes (%d): turn on\n", pLed->BlinkTimes));
 	} else {
 		SwLedOff(padapter, pLed);
-		RT_TRACE(_module_rtl8712_led_c_, _drv_info_, ("Blinktimes (%d): turn off\n", pLed->BlinkTimes));
+		RT_TRACE(_module_rtl8712_led_c_, _drv_info_,
+			 ("Blinktimes (%d): turn off\n", pLed->BlinkTimes));
 	}
 
 	if (padapter->pwrctrlpriv.rf_pwrstate != rf_on) {
@@ -449,7 +451,8 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 		break;
 	}
 
-	RT_TRACE(_module_rtl8712_led_c_, _drv_info_, ("Led %d\n", pLed->CurrLedState));
+	RT_TRACE(_module_rtl8712_led_c_, _drv_info_,
+		 ("Led %d\n", pLed->CurrLedState));
 }
 
 /*  */
