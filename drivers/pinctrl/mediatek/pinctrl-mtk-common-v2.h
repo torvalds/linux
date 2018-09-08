@@ -15,6 +15,8 @@
 #define MTK_DISABLE    0
 #define MTK_ENABLE     1
 
+#define EINT_NA	-1
+
 #define PIN_FIELD_CALC(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit,	\
 			_x_bits, _sz_reg, _fixed) {			\
 		.s_pin = _s_pin,					\
@@ -50,6 +52,17 @@ enum {
 	PINCTRL_PIN_REG_TDSEL,
 	PINCTRL_PIN_REG_RDSEL,
 	PINCTRL_PIN_REG_MAX,
+};
+
+/* Group the pins by the driving current */
+enum {
+	DRV_FIXED,
+	DRV_GRP0,
+	DRV_GRP1,
+	DRV_GRP2,
+	DRV_GRP3,
+	DRV_GRP4,
+	DRV_GRP_MAX,
 };
 
 /* struct mtk_pin_field - the structure that holds the information of the field
@@ -101,6 +114,21 @@ struct mtk_pin_field_calc {
 struct mtk_pin_reg_calc {
 	const struct mtk_pin_field_calc *range;
 	unsigned int nranges;
+};
+
+/**
+ * struct mtk_pin_desc - the structure that providing information
+ *			       for each pin of chips
+ * @number:		unique pin number from the global pin number space
+ * @name:		name for this pin
+ * @eint_n:		the eint number for this pin
+ * @drv_n:		the index with the driving group
+ */
+struct mtk_pin_desc {
+	unsigned int number;
+	const char *name;
+	u16 eint_n;
+	u8 drv_n;
 };
 
 /* struct mtk_pin_soc - the structure that holds SoC-specific data */

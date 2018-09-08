@@ -402,31 +402,36 @@ static int mtk_gpio_direction_output(struct gpio_chip *chip, unsigned int gpio,
 static int mtk_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 {
 	struct mtk_pinctrl *hw = gpiochip_get_data(chip);
-	unsigned long eint_n;
+	const struct mtk_pin_desc *desc;
 
 	if (!hw->eint)
 		return -ENOTSUPP;
 
-	eint_n = offset;
+	desc = (const struct mtk_pin_desc *)&hw->soc->pins[offset];
 
-	return mtk_eint_find_irq(hw->eint, eint_n);
+	if (desc->eint_n == EINT_NA)
+		return -ENOTSUPP;
+
+	return mtk_eint_find_irq(hw->eint, desc->eint_n);
 }
 
 static int mtk_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 			       unsigned long config)
 {
 	struct mtk_pinctrl *hw = gpiochip_get_data(chip);
-	unsigned long eint_n;
+	const struct mtk_pin_desc *desc;
 	u32 debounce;
 
+	desc = (const struct mtk_pin_desc *)&hw->soc->pins[offset];
+
 	if (!hw->eint ||
-	    pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
+	    pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE ||
+	    desc->eint_n == EINT_NA)
 		return -ENOTSUPP;
 
 	debounce = pinconf_to_config_argument(config);
-	eint_n = offset;
 
-	return mtk_eint_set_debounce(hw->eint, eint_n, debounce);
+	return mtk_eint_set_debounce(hw->eint, desc->eint_n, debounce);
 }
 
 static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_node *np)
@@ -513,16 +518,40 @@ static int mtk_build_functions(struct mtk_pinctrl *hw)
 	return 0;
 }
 
+static int mtk_xt_find_eint_num(struct mtk_pinctrl *hw,
+				unsigned long eint_n)
+{
+	const struct mtk_pin_desc *desc;
+	int i = 0;
+
+	desc = (const struct mtk_pin_desc *)hw->soc->pins;
+
+	while (i < hw->soc->npins) {
+		if (desc[i].eint_n == eint_n)
+			return desc[i].number;
+		i++;
+	}
+
+	return EINT_NA;
+}
+
 static int mtk_xt_get_gpio_n(void *data, unsigned long eint_n,
 			     unsigned int *gpio_n,
 			     struct gpio_chip **gpio_chip)
 {
 	struct mtk_pinctrl *hw = (struct mtk_pinctrl *)data;
+	const struct mtk_pin_desc *desc;
 
+	desc = (const struct mtk_pin_desc *)hw->soc->pins;
 	*gpio_chip = &hw->chip;
-	*gpio_n = eint_n;
 
-	return 0;
+	/* Be greedy to guess first gpio_n is equal to eint_n */
+	if (desc[eint_n].eint_n == eint_n)
+		*gpio_n = eint_n;
+	else
+		*gpio_n = mtk_xt_find_eint_num(hw, eint_n);
+
+	return *gpio_n == EINT_NA ? -EINVAL : 0;
 }
 
 static int mtk_xt_get_gpio_state(void *data, unsigned long eint_n)
@@ -635,7 +664,7 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 		return PTR_ERR(hw->base);
 
 	/* Setup pins descriptions per SoC types */
-	mtk_desc.pins = hw->soc->pins;
+	mtk_desc.pins = (const struct pinctrl_pin_desc *)hw->soc->pins;
 	mtk_desc.npins = hw->soc->npins;
 	mtk_desc.num_custom_params = ARRAY_SIZE(mtk_custom_bindings);
 	mtk_desc.custom_params = mtk_custom_bindings;
