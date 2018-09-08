@@ -1370,37 +1370,22 @@ static void amdgpu_vm_update_pde(struct amdgpu_pte_update_params *params,
 }
 
 /*
- * amdgpu_vm_invalidate_level - mark all PD levels as invalid
+ * amdgpu_vm_invalidate_pds - mark all PDs as invalid
  *
  * @adev: amdgpu_device pointer
  * @vm: related vm
- * @parent: parent PD
- * @level: VMPT level
  *
  * Mark all PD level as invalid after an error.
  */
-static void amdgpu_vm_invalidate_level(struct amdgpu_device *adev,
-				       struct amdgpu_vm *vm,
-				       struct amdgpu_vm_pt *parent,
-				       unsigned level)
+static void amdgpu_vm_invalidate_pds(struct amdgpu_device *adev,
+				     struct amdgpu_vm *vm)
 {
-	unsigned pt_idx, num_entries;
+	struct amdgpu_vm_pt_cursor cursor;
+	struct amdgpu_vm_pt *entry;
 
-	/*
-	 * Recurse into the subdirectories. This recursion is harmless because
-	 * we only have a maximum of 5 layers.
-	 */
-	num_entries = amdgpu_vm_num_entries(adev, level);
-	for (pt_idx = 0; pt_idx < num_entries; ++pt_idx) {
-		struct amdgpu_vm_pt *entry = &parent->entries[pt_idx];
-
-		if (!entry->base.bo)
-			continue;
-
-		if (!entry->base.moved)
+	for_each_amdgpu_vm_pt_dfs_safe(adev, vm, cursor, entry)
+		if (entry->base.bo && !entry->base.moved)
 			amdgpu_vm_bo_relocated(&entry->base);
-		amdgpu_vm_invalidate_level(adev, vm, entry, level + 1);
-	}
 }
 
 /*
@@ -1497,8 +1482,7 @@ restart:
 	return 0;
 
 error:
-	amdgpu_vm_invalidate_level(adev, vm, &vm->root,
-				   adev->vm_manager.root_level);
+	amdgpu_vm_invalidate_pds(adev, vm);
 	amdgpu_job_free(job);
 	return r;
 }
