@@ -32,7 +32,6 @@
 /**
  * Encoder functions and data types
  * @intfs:	Interfaces this encoder is using, INTF_MODE_NONE if unused
- * @topology:   Topology of the display
  */
 struct dpu_encoder_hw_resources {
 	enum dpu_intf_mode intfs[INTF_MAX];

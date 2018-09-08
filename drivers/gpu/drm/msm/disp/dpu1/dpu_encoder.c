@@ -1003,7 +1003,6 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 	struct drm_connector *conn = NULL, *conn_iter;
 	struct dpu_rm_hw_iter pp_iter, ctl_iter;
 	struct msm_display_topology topology;
-	enum dpu_rm_topology_name topology_name;
 	struct dpu_hw_ctl *hw_ctl[MAX_CHANNELS_PER_ENC] = { NULL };
 	int i = 0, ret;
 
@@ -1059,7 +1058,6 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 		hw_ctl[i] = (struct dpu_hw_ctl *)ctl_iter.hw;
 	}
 
-	topology_name = dpu_rm_get_topology_name(topology);
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
 		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
 
@@ -1080,7 +1078,6 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 			phys->hw_ctl = hw_ctl[i];
 
 			phys->connector = conn->state->connector;
-			phys->topology_name = topology_name;
 			if (phys->ops.mode_set)
 				phys->ops.mode_set(phys, mode, adj_mode);
 		}

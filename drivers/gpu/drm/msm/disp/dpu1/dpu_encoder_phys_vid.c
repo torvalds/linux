@@ -355,13 +355,14 @@ static void dpu_encoder_phys_vid_underrun_irq(void *arg, int irq_idx)
 
 static bool _dpu_encoder_phys_is_dual_ctl(struct dpu_encoder_phys *phys_enc)
 {
+	struct dpu_crtc_state *dpu_cstate;
+
 	if (!phys_enc)
 		return false;
 
-	if (phys_enc->topology_name == DPU_RM_TOPOLOGY_DUALPIPE)
-		return true;
+	dpu_cstate = to_dpu_crtc_state(phys_enc->parent->crtc->state);
 
-	return false;
+	return dpu_cstate->num_ctls > 1;
 }
 
 static bool dpu_encoder_phys_vid_needs_single_flush(

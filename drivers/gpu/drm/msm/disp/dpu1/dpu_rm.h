@@ -21,21 +21,6 @@
 #include "dpu_hw_top.h"
 
 /**
- * enum dpu_rm_topology_name - HW resource use case in use by connector
- * @DPU_RM_TOPOLOGY_NONE:                 No topology in use currently
- * @DPU_RM_TOPOLOGY_SINGLEPIPE:           1 LM, 1 PP, 1 INTF/WB
- * @DPU_RM_TOPOLOGY_DUALPIPE:             2 LM, 2 PP, 2 INTF/WB
- * @DPU_RM_TOPOLOGY_DUALPIPE_3DMERGE:     2 LM, 2 PP, 3DMux, 1 INTF/WB
- */
-enum dpu_rm_topology_name {
-	DPU_RM_TOPOLOGY_NONE = 0,
-	DPU_RM_TOPOLOGY_SINGLEPIPE,
-	DPU_RM_TOPOLOGY_DUALPIPE,
-	DPU_RM_TOPOLOGY_DUALPIPE_3DMERGE,
-	DPU_RM_TOPOLOGY_MAX,
-};
-
-/**
  * struct dpu_rm - DPU dynamic hardware resource manager
  * @dev: device handle for event logging purposes
  * @rsvps: list of hardware reservations by each crtc->encoder->connector
@@ -166,14 +151,5 @@ bool dpu_rm_get_hw(struct dpu_rm *rm, struct dpu_rm_hw_iter *iter);
  * @Return: 0 on success or error
  */
 int dpu_rm_check_property_topctl(uint64_t val);
-
-/**
- * dpu_rm_get_topology_name - returns the name of the the given topology
- *                            definition
- * @topology: topology definition
- * @Return: name of the topology
- */
-enum dpu_rm_topology_name
-dpu_rm_get_topology_name(struct msm_display_topology topology);
 
 #endif /* __DPU_RM_H__ */

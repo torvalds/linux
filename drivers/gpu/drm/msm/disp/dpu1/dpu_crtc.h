@@ -238,6 +238,16 @@ struct dpu_crtc_state {
 	container_of(x, struct dpu_crtc_state, base)
 
 /**
+ * dpu_crtc_state_is_stereo - Is crtc virtualized with two mixers?
+ * @cstate: Pointer to dpu crtc state
+ * @Return: true - has two mixers, false - has one mixer
+ */
+static inline bool dpu_crtc_state_is_stereo(struct dpu_crtc_state *cstate)
+{
+	return cstate->num_mixers == CRTC_DUAL_MIXERS;
+}
+
+/**
  * dpu_crtc_get_mixer_height - get the mixer height
  * Mixer height will be same as panel height
  */

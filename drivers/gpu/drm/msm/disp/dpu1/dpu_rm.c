@@ -24,33 +24,13 @@
 #define RESERVED_BY_OTHER(h, r) \
 	((h)->rsvp && ((h)->rsvp->enc_id != (r)->enc_id))
 
-#define RM_IS_TOPOLOGY_MATCH(t, r) ((t).num_lm == (r).num_lm && \
-				(t).num_comp_enc == (r).num_enc && \
-				(t).num_intf == (r).num_intf)
-
-struct dpu_rm_topology_def {
-	enum dpu_rm_topology_name top_name;
-	int num_lm;
-	int num_comp_enc;
-	int num_intf;
-	int num_ctl;
-	int needs_split_display;
-};
-
-static const struct dpu_rm_topology_def g_top_table[] = {
-	{   DPU_RM_TOPOLOGY_NONE,                 0, 0, 0, 0, false },
-	{   DPU_RM_TOPOLOGY_SINGLEPIPE,           1, 0, 1, 1, false },
-	{   DPU_RM_TOPOLOGY_DUALPIPE,             2, 0, 2, 2, true  },
-	{   DPU_RM_TOPOLOGY_DUALPIPE_3DMERGE,     2, 0, 1, 1, false },
-};
-
 /**
  * struct dpu_rm_requirements - Reservation requirements parameter bundle
- * @top:       selected topology for the display
+ * @topology:  selected topology for the display
  * @hw_res:	   Hardware resources required as reported by the encoders
  */
 struct dpu_rm_requirements {
-	const struct dpu_rm_topology_def *topology;
+	struct msm_display_topology topology;
 	struct dpu_encoder_hw_resources hw_res;
 };
 
@@ -66,13 +46,11 @@ struct dpu_rm_requirements {
  * @enc_id:	Reservations are tracked by Encoder DRM object ID.
  *		CRTCs may be connected to multiple Encoders.
  *		An encoder or connector id identifies the display path.
- * @topology	DRM<->HW topology use case
  */
 struct dpu_rm_rsvp {
 	struct list_head list;
 	uint32_t seq;
 	uint32_t enc_id;
-	enum dpu_rm_topology_name topology;
 };
 
 /**
@@ -116,8 +94,8 @@ static void _dpu_rm_print_rsvps(
 	DPU_DEBUG("%d\n", stage);
 
 	list_for_each_entry(rsvp, &rm->rsvps, list) {
-		DRM_DEBUG_KMS("%d rsvp[s%ue%u] topology %d\n", stage, rsvp->seq,
-			      rsvp->enc_id, rsvp->topology);
+		DRM_DEBUG_KMS("%d rsvp[s%ue%u]\n", stage, rsvp->seq,
+			      rsvp->enc_id);
 	}
 
 	for (type = 0; type < DPU_HW_BLK_MAX; type++) {
@@ -138,18 +116,6 @@ static void _dpu_rm_print_rsvps(
 struct dpu_hw_mdp *dpu_rm_get_mdp(struct dpu_rm *rm)
 {
 	return rm->hw_mdp;
-}
-
-enum dpu_rm_topology_name
-dpu_rm_get_topology_name(struct msm_display_topology topology)
-{
-	int i;
-
-	for (i = 0; i < DPU_RM_TOPOLOGY_MAX; i++)
-		if (RM_IS_TOPOLOGY_MATCH(g_top_table[i], topology))
-			return g_top_table[i].top_name;
-
-	return DPU_RM_TOPOLOGY_NONE;
 }
 
 void dpu_rm_init_hw_iter(
@@ -434,6 +400,11 @@ fail:
 	return rc;
 }
 
+static bool _dpu_rm_needs_split_display(const struct msm_display_topology *top)
+{
+	return top->num_intf > 1;
+}
+
 /**
  * _dpu_rm_check_lm_and_get_connected_blks - check if proposed layer mixer meets
  *	proposed use case requirements, incl. hardwired dependent blocks like
@@ -517,14 +488,14 @@ static int _dpu_rm_reserve_lms(
 	int lm_count = 0;
 	int i, rc = 0;
 
-	if (!reqs->topology->num_lm) {
-		DPU_ERROR("invalid number of lm: %d\n", reqs->topology->num_lm);
+	if (!reqs->topology.num_lm) {
+		DPU_ERROR("invalid number of lm: %d\n", reqs->topology.num_lm);
 		return -EINVAL;
 	}
 
 	/* Find a primary mixer */
 	dpu_rm_init_hw_iter(&iter_i, 0, DPU_HW_BLK_LM);
-	while (lm_count != reqs->topology->num_lm &&
+	while (lm_count != reqs->topology.num_lm &&
 			_dpu_rm_get_hw_locked(rm, &iter_i)) {
 		memset(&lm, 0, sizeof(lm));
 		memset(&pp, 0, sizeof(pp));
@@ -542,7 +513,7 @@ static int _dpu_rm_reserve_lms(
 		/* Valid primary mixer found, find matching peers */
 		dpu_rm_init_hw_iter(&iter_j, 0, DPU_HW_BLK_LM);
 
-		while (lm_count != reqs->topology->num_lm &&
+		while (lm_count != reqs->topology.num_lm &&
 				_dpu_rm_get_hw_locked(rm, &iter_j)) {
 			if (iter_i.blk == iter_j.blk)
 				continue;
@@ -557,7 +528,7 @@ static int _dpu_rm_reserve_lms(
 		}
 	}
 
-	if (lm_count != reqs->topology->num_lm) {
+	if (lm_count != reqs->topology.num_lm) {
 		DPU_DEBUG("unable to find appropriate mixers\n");
 		return -ENAVAIL;
 	}
@@ -579,13 +550,19 @@ static int _dpu_rm_reserve_lms(
 static int _dpu_rm_reserve_ctls(
 		struct dpu_rm *rm,
 		struct dpu_rm_rsvp *rsvp,
-		const struct dpu_rm_topology_def *top)
+		const struct msm_display_topology *top)
 {
 	struct dpu_rm_hw_blk *ctls[MAX_BLOCKS];
 	struct dpu_rm_hw_iter iter;
-	int i = 0;
+	int i = 0, num_ctls = 0;
+	bool needs_split_display = false;
 
 	memset(&ctls, 0, sizeof(ctls));
+
+	/* each hw_intf needs its own hw_ctrl to program its control path */
+	num_ctls = top->num_intf;
+
+	needs_split_display = _dpu_rm_needs_split_display(top);
 
 	dpu_rm_init_hw_iter(&iter, 0, DPU_HW_BLK_CTL);
 	while (_dpu_rm_get_hw_locked(rm, &iter)) {
@@ -600,20 +577,20 @@ static int _dpu_rm_reserve_ctls(
 
 		DPU_DEBUG("ctl %d caps 0x%lX\n", iter.blk->id, features);
 
-		if (top->needs_split_display != has_split_display)
+		if (needs_split_display != has_split_display)
 			continue;
 
 		ctls[i] = iter.blk;
 		DPU_DEBUG("ctl %d match\n", iter.blk->id);
 
-		if (++i == top->num_ctl)
+		if (++i == num_ctls)
 			break;
 	}
 
-	if (i != top->num_ctl)
+	if (i != num_ctls)
 		return -ENAVAIL;
 
-	for (i = 0; i < ARRAY_SIZE(ctls) && i < top->num_ctl; i++) {
+	for (i = 0; i < ARRAY_SIZE(ctls) && i < num_ctls; i++) {
 		ctls[i]->rsvp_nxt = rsvp;
 		trace_dpu_rm_reserve_ctls(ctls[i]->id, ctls[i]->type,
 					  rsvp->enc_id);
@@ -686,12 +663,10 @@ static int _dpu_rm_make_next_rsvp(
 		struct dpu_rm_requirements *reqs)
 {
 	int ret;
-	struct dpu_rm_topology_def topology;
 
 	/* Create reservation info, tag reserved blocks with it as we go */
 	rsvp->seq = ++rm->rsvp_next_seq;
 	rsvp->enc_id = enc->base.id;
-	rsvp->topology = reqs->topology->top_name;
 	list_add_tail(&rsvp->list, &rm->rsvps);
 
 	ret = _dpu_rm_reserve_lms(rm, rsvp, reqs);
@@ -700,17 +675,7 @@ static int _dpu_rm_make_next_rsvp(
 		return ret;
 	}
 
-	/*
-	 * Do assignment preferring to give away low-resource CTLs first:
-	 * - Check mixers without Split Display
-	 * - Only then allow to grab from CTLs with split display capability
-	 */
-	_dpu_rm_reserve_ctls(rm, rsvp, reqs->topology);
-	if (ret && !reqs->topology->needs_split_display) {
-		memcpy(&topology, reqs->topology, sizeof(topology));
-		topology.needs_split_display = true;
-		_dpu_rm_reserve_ctls(rm, rsvp, &topology);
-	}
+	ret = _dpu_rm_reserve_ctls(rm, rsvp, &reqs->topology);
 	if (ret) {
 		DPU_ERROR("unable to find appropriate CTL\n");
 		return ret;
@@ -730,29 +695,13 @@ static int _dpu_rm_populate_requirements(
 		struct dpu_rm_requirements *reqs,
 		struct msm_display_topology req_topology)
 {
-	int i;
-
-	memset(reqs, 0, sizeof(*reqs));
-
 	dpu_encoder_get_hw_resources(enc, &reqs->hw_res);
 
-	for (i = 0; i < DPU_RM_TOPOLOGY_MAX; i++) {
-		if (RM_IS_TOPOLOGY_MATCH(g_top_table[i],
-					req_topology)) {
-			reqs->topology = &g_top_table[i];
-			break;
-		}
-	}
+	reqs->topology = req_topology;
 
-	if (!reqs->topology) {
-		DPU_ERROR("invalid topology for the display\n");
-		return -EINVAL;
-	}
-
-	DRM_DEBUG_KMS("num_lm: %d num_ctl: %d topology: %d split_display: %d\n",
-		      reqs->topology->num_lm, reqs->topology->num_ctl,
-		      reqs->topology->top_name,
-		      reqs->topology->needs_split_display);
+	DRM_DEBUG_KMS("num_lm: %d num_enc: %d num_intf: %d\n",
+		      reqs->topology.num_lm, reqs->topology.num_enc,
+		      reqs->topology.num_intf);
 
 	return 0;
 }
@@ -843,11 +792,10 @@ end:
 	mutex_unlock(&rm->rm_lock);
 }
 
-static int _dpu_rm_commit_rsvp(struct dpu_rm *rm, struct dpu_rm_rsvp *rsvp)
+static void _dpu_rm_commit_rsvp(struct dpu_rm *rm, struct dpu_rm_rsvp *rsvp)
 {
 	struct dpu_rm_hw_blk *blk;
 	enum dpu_hw_blk_type type;
-	int ret = 0;
 
 	/* Swap next rsvp to be the active */
 	for (type = 0; type < DPU_HW_BLK_MAX; type++) {
@@ -858,12 +806,6 @@ static int _dpu_rm_commit_rsvp(struct dpu_rm *rm, struct dpu_rm_rsvp *rsvp)
 			}
 		}
 	}
-
-	if (!ret)
-		DRM_DEBUG_KMS("rsrv enc %d topology %d\n", rsvp->enc_id,
-			      rsvp->topology);
-
-	return ret;
 }
 
 int dpu_rm_reserve(
