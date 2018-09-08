@@ -698,7 +698,7 @@ struct slot {
 	u8 supported_bus_mode;
 	u8 flag;		/* this is for disable slot and polling */
 	u8 ctlr_index;
-	struct hotplug_slot *hotplug_slot;
+	struct hotplug_slot hotplug_slot;
 	struct controller *ctrl;
 	struct pci_func *func;
 	u8 irq[4];
@@ -741,6 +741,11 @@ int ibmphp_update_slot_info(struct slot *);	/* This function is called from HPC,
 int ibmphp_configure_card(struct pci_func *, u8);
 int ibmphp_unconfigure_card(struct slot **, int);
 extern const struct hotplug_slot_ops ibmphp_hotplug_slot_ops;
+
+static inline struct slot *to_slot(struct hotplug_slot *hotplug_slot)
+{
+	return container_of(hotplug_slot, struct slot, hotplug_slot);
+}
 
 #endif				//__IBMPHP_H
 

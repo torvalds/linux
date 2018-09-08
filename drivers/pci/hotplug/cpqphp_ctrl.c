@@ -1130,8 +1130,6 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 	for (slot = ctrl->slot; slot; slot = slot->next) {
 		if (slot->device == (hp_slot + ctrl->slot_device_offset))
 			continue;
-		if (!slot->hotplug_slot)
-			continue;
 		if (get_presence_status(ctrl, slot) == 0)
 			continue;
 		/* If another adapter is running on the same segment but at a

@@ -315,7 +315,7 @@ static int pciehp_link_enable(struct controller *ctrl)
 int pciehp_get_raw_indicator_status(struct hotplug_slot *hotplug_slot,
 				    u8 *status)
 {
-	struct controller *ctrl = hotplug_slot->private;
+	struct controller *ctrl = to_ctrl(hotplug_slot);
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 slot_ctrl;
 
@@ -328,7 +328,7 @@ int pciehp_get_raw_indicator_status(struct hotplug_slot *hotplug_slot,
 
 int pciehp_get_attention_status(struct hotplug_slot *hotplug_slot, u8 *status)
 {
-	struct controller *ctrl = hotplug_slot->private;
+	struct controller *ctrl = to_ctrl(hotplug_slot);
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 slot_ctrl;
 
@@ -422,7 +422,7 @@ int pciehp_query_power_fault(struct controller *ctrl)
 int pciehp_set_raw_indicator_status(struct hotplug_slot *hotplug_slot,
 				    u8 status)
 {
-	struct controller *ctrl = hotplug_slot->private;
+	struct controller *ctrl = to_ctrl(hotplug_slot);
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 
 	pci_config_pm_runtime_get(pdev);
@@ -758,7 +758,7 @@ void pcie_clear_hotplug_events(struct controller *ctrl)
  */
 int pciehp_reset_slot(struct hotplug_slot *hotplug_slot, int probe)
 {
-	struct controller *ctrl = hotplug_slot->private;
+	struct controller *ctrl = to_ctrl(hotplug_slot);
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 stat_mask = 0, ctrl_mask = 0;
 	int rc;

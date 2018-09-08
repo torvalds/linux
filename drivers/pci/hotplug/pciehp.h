@@ -88,7 +88,7 @@ do {									\
  *	protects scheduling, execution and cancellation of @button_work
  * @button_work: work item to turn the slot on or off after 5 seconds
  *	in response to an Attention Button press
- * @hotplug_slot: pointer to the structure registered with the PCI hotplug core
+ * @hotplug_slot: structure registered with the PCI hotplug core
  * @reset_lock: prevents access to the Data Link Layer Link Active bit in the
  *	Link Status register and to the Presence Detect State bit in the Slot
  *	Status register during a slot reset which may cause them to flap
@@ -120,7 +120,7 @@ struct controller {
 	struct mutex state_lock;
 	struct delayed_work button_work;
 
-	struct hotplug_slot *hotplug_slot;	/* hotplug core interface */
+	struct hotplug_slot hotplug_slot;	/* hotplug core interface */
 	struct rw_semaphore reset_lock;
 	int request_result;
 	wait_queue_head_t requester;
@@ -207,7 +207,12 @@ int pciehp_get_raw_indicator_status(struct hotplug_slot *h_slot, u8 *status);
 
 static inline const char *slot_name(struct controller *ctrl)
 {
-	return hotplug_slot_name(ctrl->hotplug_slot);
+	return hotplug_slot_name(&ctrl->hotplug_slot);
+}
+
+static inline struct controller *to_ctrl(struct hotplug_slot *hotplug_slot)
+{
+	return container_of(hotplug_slot, struct controller, hotplug_slot);
 }
 
 #endif				/* _PCIEHP_H */

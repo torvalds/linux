@@ -348,7 +348,7 @@ static int pciehp_disable_slot(struct controller *ctrl, bool safe_removal)
 
 int pciehp_sysfs_enable_slot(struct hotplug_slot *hotplug_slot)
 {
-	struct controller *ctrl = hotplug_slot->private;
+	struct controller *ctrl = to_ctrl(hotplug_slot);
 
 	mutex_lock(&ctrl->state_lock);
 	switch (ctrl->state) {
@@ -386,7 +386,7 @@ int pciehp_sysfs_enable_slot(struct hotplug_slot *hotplug_slot)
 
 int pciehp_sysfs_disable_slot(struct hotplug_slot *hotplug_slot)
 {
-	struct controller *ctrl = hotplug_slot->private;
+	struct controller *ctrl = to_ctrl(hotplug_slot);
 
 	mutex_lock(&ctrl->state_lock);
 	switch (ctrl->state) {

@@ -76,12 +76,7 @@ static int init_slots(struct controller *ctrl)
 			goto error;
 		}
 
-		hotplug_slot = kzalloc(sizeof(*hotplug_slot), GFP_KERNEL);
-		if (!hotplug_slot) {
-			retval = -ENOMEM;
-			goto error_slot;
-		}
-		slot->hotplug_slot = hotplug_slot;
+		hotplug_slot = &slot->hotplug_slot;
 
 		slot->hp_slot = i;
 		slot->ctrl = ctrl;
@@ -93,14 +88,13 @@ static int init_slots(struct controller *ctrl)
 		slot->wq = alloc_workqueue("shpchp-%d", 0, 0, slot->number);
 		if (!slot->wq) {
 			retval = -ENOMEM;
-			goto error_hpslot;
+			goto error_slot;
 		}
 
 		mutex_init(&slot->lock);
 		INIT_DELAYED_WORK(&slot->work, shpchp_queue_pushbutton_work);
 
 		/* register this slot with the hotplug pci core */
-		hotplug_slot->private = slot;
 		snprintf(name, SLOT_NAME_SIZE, "%d", slot->number);
 		hotplug_slot->ops = &shpchp_hotplug_slot_ops;
 
@@ -108,7 +102,7 @@ static int init_slots(struct controller *ctrl)
 			 pci_domain_nr(ctrl->pci_dev->subordinate),
 			 slot->bus, slot->device, slot->hp_slot, slot->number,
 			 ctrl->slot_device_offset);
-		retval = pci_hp_register(slot->hotplug_slot,
+		retval = pci_hp_register(hotplug_slot,
 				ctrl->pci_dev->subordinate, slot->device, name);
 		if (retval) {
 			ctrl_err(ctrl, "pci_hp_register failed with error %d\n",
@@ -127,8 +121,6 @@ static int init_slots(struct controller *ctrl)
 	return 0;
 error_slotwq:
 	destroy_workqueue(slot->wq);
-error_hpslot:
-	kfree(hotplug_slot);
 error_slot:
 	kfree(slot);
 error:
@@ -143,8 +135,7 @@ void cleanup_slots(struct controller *ctrl)
 		list_del(&slot->slot_list);
 		cancel_delayed_work(&slot->work);
 		destroy_workqueue(slot->wq);
-		pci_hp_deregister(slot->hotplug_slot);
-		kfree(slot->hotplug_slot);
+		pci_hp_deregister(&slot->hotplug_slot);
 		kfree(slot);
 	}
 }

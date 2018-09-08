@@ -336,7 +336,7 @@ static inline struct pnv_php_slot *to_pnv_php_slot(struct hotplug_slot *slot)
 int pnv_php_set_slot_power_state(struct hotplug_slot *slot,
 				 uint8_t state)
 {
-	struct pnv_php_slot *php_slot = slot->private;
+	struct pnv_php_slot *php_slot = to_pnv_php_slot(slot);
 	struct opal_msg msg;
 	int ret;
 
@@ -368,7 +368,7 @@ EXPORT_SYMBOL_GPL(pnv_php_set_slot_power_state);
 
 static int pnv_php_get_power_state(struct hotplug_slot *slot, u8 *state)
 {
-	struct pnv_php_slot *php_slot = slot->private;
+	struct pnv_php_slot *php_slot = to_pnv_php_slot(slot);
 	uint8_t power_state = OPAL_PCI_SLOT_POWER_ON;
 	int ret;
 
@@ -390,7 +390,7 @@ static int pnv_php_get_power_state(struct hotplug_slot *slot, u8 *state)
 
 static int pnv_php_get_adapter_state(struct hotplug_slot *slot, u8 *state)
 {
-	struct pnv_php_slot *php_slot = slot->private;
+	struct pnv_php_slot *php_slot = to_pnv_php_slot(slot);
 	uint8_t presence = OPAL_PCI_SLOT_EMPTY;
 	int ret;
 
@@ -521,7 +521,7 @@ static int pnv_php_enable_slot(struct hotplug_slot *slot)
 
 static int pnv_php_disable_slot(struct hotplug_slot *slot)
 {
-	struct pnv_php_slot *php_slot = slot->private;
+	struct pnv_php_slot *php_slot = to_pnv_php_slot(slot);
 	int ret;
 
 	if (php_slot->state != PNV_PHP_STATE_POPULATED)
@@ -607,7 +607,6 @@ static struct pnv_php_slot *pnv_php_alloc_slot(struct device_node *dn)
 	php_slot->id	                = id;
 	php_slot->power_state_check     = false;
 	php_slot->slot.ops              = &php_slot_ops;
-	php_slot->slot.private          = php_slot;
 
 	INIT_LIST_HEAD(&php_slot->children);
 	INIT_LIST_HEAD(&php_slot->link);
