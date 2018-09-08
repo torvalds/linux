@@ -18,7 +18,7 @@ static void BlinkTimerCallback(struct timer_list *t)
 	struct LED_871x *pLed = from_timer(pLed, t, BlinkTimer);
 	struct adapter *padapter = pLed->padapter;
 
-	if ((padapter->bSurpriseRemoved) || (padapter->bDriverStopped))
+	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		return;
 
 	schedule_work(&pLed->BlinkWorkItem);
@@ -460,7 +460,7 @@ void BlinkHandler(struct LED_871x *pLed)
 {
 	struct adapter *padapter = pLed->padapter;
 
-	if ((padapter->bSurpriseRemoved) || (padapter->bDriverStopped))
+	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		return;
 
 	SwLedBlink1(pLed);
@@ -468,8 +468,8 @@ void BlinkHandler(struct LED_871x *pLed)
 
 void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 {
-	if ((padapter->bSurpriseRemoved) || (padapter->bDriverStopped) ||
-	   (!padapter->hw_init_completed))
+	if (padapter->bSurpriseRemoved || padapter->bDriverStopped ||
+	    !padapter->hw_init_completed)
 		return;
 
 	if ((padapter->pwrctrlpriv.rf_pwrstate != rf_on &&
