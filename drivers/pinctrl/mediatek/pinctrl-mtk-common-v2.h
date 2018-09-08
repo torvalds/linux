@@ -15,6 +15,26 @@
 #define MTK_DISABLE    0
 #define MTK_ENABLE     1
 
+#define PIN_FIELD_CALC(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit,	\
+			_x_bits, _sz_reg, _fixed) {			\
+		.s_pin = _s_pin,					\
+		.e_pin = _e_pin,					\
+		.s_addr = _s_addr,					\
+		.x_addrs = _x_addrs,					\
+		.s_bit = _s_bit,					\
+		.x_bits = _x_bits,					\
+		.sz_reg = _sz_reg,					\
+		.fixed = _fixed,					\
+	}
+
+#define PIN_FIELD(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit, _x_bits)	\
+	PIN_FIELD_CALC(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit,	\
+		       _x_bits, 32, 0)
+
+#define PINS_FIELD(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit, _x_bits)	\
+	PIN_FIELD_CALC(_s_pin, _e_pin, _s_addr, _x_addrs, _s_bit,	\
+		       _x_bits, 32, 1)
+
 /* List these attributes which could be modified for the pin */
 enum {
 	PINCTRL_PIN_REG_MODE,
@@ -57,6 +77,9 @@ struct mtk_pin_field {
  * @s_bit:		the start bit for the first register within the range
  * @x_bits:		the bit distance between two consecutive pins within
  *			the range
+ * @sz_reg:		the size of bits in a register
+ * @fixed:		the consecutive pins share the same bits with the 1st
+ *			pin
  */
 struct mtk_pin_field_calc {
 	u16 s_pin;
@@ -65,6 +88,8 @@ struct mtk_pin_field_calc {
 	u8  x_addrs;
 	u8  s_bit;
 	u8  x_bits;
+	u8  sz_reg;
+	u8  fixed;
 };
 
 /* struct mtk_pin_reg_calc - the structure that holds all ranges used to

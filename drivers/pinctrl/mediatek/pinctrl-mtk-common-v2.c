@@ -54,19 +54,24 @@ static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw, int pin,
 		return -EINVAL;
 	}
 
-	/* Caculated bits as the overall offset the pin is located at */
-	bits = c->s_bit + (pin - c->s_pin) * (c->x_bits);
+	/* Calculated bits as the overall offset the pin is located at,
+	 * if c->fixed is held, that determines the all the pins in the
+	 * range use the same field with the s_pin.
+	 */
+	bits = c->fixed ? c->s_bit : c->s_bit + (pin - c->s_pin) * (c->x_bits);
 
-	/* Fill pfd from bits and 32-bit register applied is assumed */
-	pfd->offset = c->s_addr + c->x_addrs * (bits / 32);
-	pfd->bitpos = bits % 32;
+	/* Fill pfd from bits. For example 32-bit register applied is assumed
+	 * when c->sz_reg is equal to 32.
+	 */
+	pfd->offset = c->s_addr + c->x_addrs * (bits / c->sz_reg);
+	pfd->bitpos = bits % c->sz_reg;
 	pfd->mask = (1 << c->x_bits) - 1;
 
 	/* pfd->next is used for indicating that bit wrapping-around happens
 	 * which requires the manipulation for bit 0 starting in the next
 	 * register to form the complete field read/write.
 	 */
-	pfd->next = pfd->bitpos + c->x_bits - 1 > 31 ? c->x_addrs : 0;
+	pfd->next = pfd->bitpos + c->x_bits > c->sz_reg ? c->x_addrs : 0;
 
 	return 0;
 }
