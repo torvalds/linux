@@ -476,6 +476,19 @@ int mtk_pinconf_adv_pull_set(struct mtk_pinctrl *hw,
 
 	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PUPD, arg);
 
+	/* If PUPD register is not supported for that pin, let's fallback to
+	 * general bias control.
+	 */
+	if (err == -ENOTSUPP) {
+		if (hw->soc->bias_set) {
+			err = hw->soc->bias_set(hw, desc, pullup);
+			if (err)
+				return err;
+		} else {
+			return -ENOTSUPP;
+		}
+	}
+
 	return err;
 }
 
@@ -487,12 +500,26 @@ int mtk_pinconf_adv_pull_get(struct mtk_pinctrl *hw,
 	int err;
 
 	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_PUPD, &t);
-	if (err)
-		return err;
 
-	/* t == 0 supposes PULLUP for the customized PULL setup */
-	if (pullup ^ !t)
-		return -EINVAL;
+	/* If PUPD register is not supported for that pin, let's fallback to
+	 * general bias control.
+	 */
+	if (err == -ENOTSUPP) {
+		if (hw->soc->bias_get) {
+			err = hw->soc->bias_get(hw, desc, pullup, val);
+			if (err)
+				return err;
+		} else {
+			return -ENOTSUPP;
+		}
+	} else {
+		/* t == 0 supposes PULLUP for the customized PULL setup */
+		if (err)
+			return err;
+
+		if (pullup ^ !t)
+			return -EINVAL;
+	}
 
 	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_R0, &t);
 	if (err)
