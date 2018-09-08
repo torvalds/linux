@@ -24,6 +24,15 @@ config PINCTRL_MTK_MOORE
 	select GPIOLIB
 	select OF_GPIO
 
+config PINCTRL_MTK_PARIS
+	bool "MediaTek Paris Core that implements vendor binding"
+	depends on OF
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select EINT_MTK
+	select OF_GPIO
+
 # For ARMv7 SoCs
 config PINCTRL_MT2701
 	bool "Mediatek MT2701 pin control"

@@ -174,6 +174,12 @@ struct mtk_pin_desc {
 	struct mtk_func_desc *funcs;
 };
 
+struct mtk_pinctrl_group {
+	const char	*name;
+	unsigned long	config;
+	unsigned	pin;
+};
+
 struct mtk_pinctrl;
 
 /* struct mtk_pin_soc - the structure that holds SoC-specific data */
@@ -228,6 +234,8 @@ struct mtk_pinctrl {
 	struct gpio_chip		chip;
 	const struct mtk_pin_soc        *soc;
 	struct mtk_eint			*eint;
+	struct mtk_pinctrl_group	*groups;
+	const char          **grp_names;
 };
 
 void mtk_rmw(struct mtk_pinctrl *pctl, u8 i, u32 reg, u32 mask, u32 set);
