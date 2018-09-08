@@ -967,6 +967,13 @@ static const struct usb_device_id products[] = {
 		USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0x581d, USB_CLASS_VENDOR_SPEC, 1, 7),
 		.driver_info = (unsigned long)&qmi_wwan_info,
 	},
+	{	/* Quectel EP06/EG06/EM06 */
+		USB_DEVICE_AND_INTERFACE_INFO(0x2c7c, 0x0306,
+					      USB_CLASS_VENDOR_SPEC,
+					      USB_SUBCLASS_VENDOR_SPEC,
+					      0xff),
+		.driver_info	    = (unsigned long)&qmi_wwan_info_quirk_dtr,
+	},
 
 	/* 3. Combined interface devices matching on interface number */
 	{QMI_FIXED_INTF(0x0408, 0xea42, 4)},	/* Yota / Megafon M100-1 */
@@ -1255,7 +1262,6 @@ static const struct usb_device_id products[] = {
 	{QMI_QUIRK_SET_DTR(0x2c7c, 0x0121, 4)},	/* Quectel EC21 Mini PCIe */
 	{QMI_QUIRK_SET_DTR(0x2c7c, 0x0191, 4)},	/* Quectel EG91 */
 	{QMI_FIXED_INTF(0x2c7c, 0x0296, 4)},	/* Quectel BG96 */
-	{QMI_QUIRK_SET_DTR(0x2c7c, 0x0306, 4)},	/* Quectel EP06 Mini PCIe */
 
 	/* 4. Gobi 1000 devices */
 	{QMI_GOBI1K_DEVICE(0x05c6, 0x9212)},	/* Acer Gobi Modem Device */
@@ -1331,6 +1337,19 @@ static bool quectel_ec20_detected(struct usb_interface *intf)
 	return false;
 }
 
+static bool quectel_ep06_diag_detected(struct usb_interface *intf)
+{
+	struct usb_device *dev = interface_to_usbdev(intf);
+	struct usb_interface_descriptor intf_desc = intf->cur_altsetting->desc;
+
+	if (le16_to_cpu(dev->descriptor.idVendor) == 0x2c7c &&
+	    le16_to_cpu(dev->descriptor.idProduct) == 0x0306 &&
+	    intf_desc.bNumEndpoints == 2)
+		return true;
+
+	return false;
+}
+
 static int qmi_wwan_probe(struct usb_interface *intf,
 			  const struct usb_device_id *prod)
 {
@@ -1364,6 +1383,15 @@ static int qmi_wwan_probe(struct usb_interface *intf,
 		dev_dbg(&intf->dev, "Quectel EC20 quirk, skipping interface 0\n");
 		return -ENODEV;
 	}
+
+	/* Quectel EP06/EM06/EG06 supports dynamic interface configuration, so
+	 * we need to match on class/subclass/protocol. These values are
+	 * identical for the diagnostic- and QMI-interface, but bNumEndpoints is
+	 * different. Ignore the current interface if the number of endpoints
+	 * the number for the diag interface (two).
+	 */
+	if (quectel_ep06_diag_detected(intf))
+		return -ENODEV;
 
 	return usbnet_probe(intf, id);
 }
