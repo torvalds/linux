@@ -82,6 +82,13 @@ config PINCTRL_MT8173
 	default ARM64 && ARCH_MEDIATEK
 	select PINCTRL_MTK
 
+config PINCTRL_MT8183
+	bool "Mediatek MT8183 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK_PARIS
+
 # For PMIC
 config PINCTRL_MT6397
 	bool "Mediatek MT6397 pin control"
