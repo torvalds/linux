@@ -134,9 +134,9 @@ void pciehp_request(struct controller *ctrl, int action)
 void pciehp_queue_pushbutton_work(struct work_struct *work)
 {
 	struct controller *ctrl = container_of(work, struct controller,
-					       work.work);
+					       button_work.work);
 
-	mutex_lock(&ctrl->lock);
+	mutex_lock(&ctrl->state_lock);
 	switch (ctrl->state) {
 	case BLINKINGOFF_STATE:
 		pciehp_request(ctrl, DISABLE_SLOT);
@@ -147,12 +147,12 @@ void pciehp_queue_pushbutton_work(struct work_struct *work)
 	default:
 		break;
 	}
-	mutex_unlock(&ctrl->lock);
+	mutex_unlock(&ctrl->state_lock);
 }
 
 void pciehp_handle_button_press(struct controller *ctrl)
 {
-	mutex_lock(&ctrl->lock);
+	mutex_lock(&ctrl->state_lock);
 	switch (ctrl->state) {
 	case OFF_STATE:
 	case ON_STATE:
@@ -168,7 +168,7 @@ void pciehp_handle_button_press(struct controller *ctrl)
 		/* blink green LED and turn off amber */
 		pciehp_green_led_blink(ctrl);
 		pciehp_set_attention_status(ctrl, 0);
-		schedule_delayed_work(&ctrl->work, 5 * HZ);
+		schedule_delayed_work(&ctrl->button_work, 5 * HZ);
 		break;
 	case BLINKINGOFF_STATE:
 	case BLINKINGON_STATE:
@@ -178,7 +178,7 @@ void pciehp_handle_button_press(struct controller *ctrl)
 		 * expires to cancel hot-add or hot-remove
 		 */
 		ctrl_info(ctrl, "Slot(%s): Button cancel\n", slot_name(ctrl));
-		cancel_delayed_work(&ctrl->work);
+		cancel_delayed_work(&ctrl->button_work);
 		if (ctrl->state == BLINKINGOFF_STATE) {
 			ctrl->state = ON_STATE;
 			pciehp_green_led_on(ctrl);
@@ -195,20 +195,20 @@ void pciehp_handle_button_press(struct controller *ctrl)
 			 slot_name(ctrl), ctrl->state);
 		break;
 	}
-	mutex_unlock(&ctrl->lock);
+	mutex_unlock(&ctrl->state_lock);
 }
 
 void pciehp_handle_disable_request(struct controller *ctrl)
 {
-	mutex_lock(&ctrl->lock);
+	mutex_lock(&ctrl->state_lock);
 	switch (ctrl->state) {
 	case BLINKINGON_STATE:
 	case BLINKINGOFF_STATE:
-		cancel_delayed_work(&ctrl->work);
+		cancel_delayed_work(&ctrl->button_work);
 		break;
 	}
 	ctrl->state = POWEROFF_STATE;
-	mutex_unlock(&ctrl->lock);
+	mutex_unlock(&ctrl->state_lock);
 
 	ctrl->request_result = pciehp_disable_slot(ctrl, SAFE_REMOVAL);
 }
@@ -221,14 +221,14 @@ void pciehp_handle_presence_or_link_change(struct controller *ctrl, u32 events)
 	 * If the slot is on and presence or link has changed, turn it off.
 	 * Even if it's occupied again, we cannot assume the card is the same.
 	 */
-	mutex_lock(&ctrl->lock);
+	mutex_lock(&ctrl->state_lock);
 	switch (ctrl->state) {
 	case BLINKINGOFF_STATE:
-		cancel_delayed_work(&ctrl->work);
+		cancel_delayed_work(&ctrl->button_work);
 		/* fall through */
 	case ON_STATE:
 		ctrl->state = POWEROFF_STATE;
-		mutex_unlock(&ctrl->lock);
+		mutex_unlock(&ctrl->state_lock);
 		if (events & PCI_EXP_SLTSTA_DLLSC)
 			ctrl_info(ctrl, "Slot(%s): Link Down\n",
 				  slot_name(ctrl));
@@ -238,26 +238,26 @@ void pciehp_handle_presence_or_link_change(struct controller *ctrl, u32 events)
 		pciehp_disable_slot(ctrl, SURPRISE_REMOVAL);
 		break;
 	default:
-		mutex_unlock(&ctrl->lock);
+		mutex_unlock(&ctrl->state_lock);
 		break;
 	}
 
 	/* Turn the slot on if it's occupied or link is up */
-	mutex_lock(&ctrl->lock);
+	mutex_lock(&ctrl->state_lock);
 	present = pciehp_card_present(ctrl);
 	link_active = pciehp_check_link_active(ctrl);
 	if (!present && !link_active) {
-		mutex_unlock(&ctrl->lock);
+		mutex_unlock(&ctrl->state_lock);
 		return;
 	}
 
 	switch (ctrl->state) {
 	case BLINKINGON_STATE:
-		cancel_delayed_work(&ctrl->work);
+		cancel_delayed_work(&ctrl->button_work);
 		/* fall through */
 	case OFF_STATE:
 		ctrl->state = POWERON_STATE;
-		mutex_unlock(&ctrl->lock);
+		mutex_unlock(&ctrl->state_lock);
 		if (present)
 			ctrl_info(ctrl, "Slot(%s): Card present\n",
 				  slot_name(ctrl));
@@ -267,7 +267,7 @@ void pciehp_handle_presence_or_link_change(struct controller *ctrl, u32 events)
 		ctrl->request_result = pciehp_enable_slot(ctrl);
 		break;
 	default:
-		mutex_unlock(&ctrl->lock);
+		mutex_unlock(&ctrl->state_lock);
 		break;
 	}
 }
@@ -307,9 +307,9 @@ static int pciehp_enable_slot(struct controller *ctrl)
 		pciehp_green_led_off(ctrl); /* may be blinking */
 	pm_runtime_put(&ctrl->pcie->port->dev);
 
-	mutex_lock(&ctrl->lock);
+	mutex_lock(&ctrl->state_lock);
 	ctrl->state = ret ? OFF_STATE : ON_STATE;
-	mutex_unlock(&ctrl->lock);
+	mutex_unlock(&ctrl->state_lock);
 
 	return ret;
 }
@@ -339,9 +339,9 @@ static int pciehp_disable_slot(struct controller *ctrl, bool safe_removal)
 	ret = __pciehp_disable_slot(ctrl, safe_removal);
 	pm_runtime_put(&ctrl->pcie->port->dev);
 
-	mutex_lock(&ctrl->lock);
+	mutex_lock(&ctrl->state_lock);
 	ctrl->state = OFF_STATE;
-	mutex_unlock(&ctrl->lock);
+	mutex_unlock(&ctrl->state_lock);
 
 	return ret;
 }
@@ -350,11 +350,11 @@ int pciehp_sysfs_enable_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct controller *ctrl = hotplug_slot->private;
 
-	mutex_lock(&ctrl->lock);
+	mutex_lock(&ctrl->state_lock);
 	switch (ctrl->state) {
 	case BLINKINGON_STATE:
 	case OFF_STATE:
-		mutex_unlock(&ctrl->lock);
+		mutex_unlock(&ctrl->state_lock);
 		/*
 		 * The IRQ thread becomes a no-op if the user pulls out the
 		 * card before the thread wakes up, so initialize to -ENODEV.
@@ -379,7 +379,7 @@ int pciehp_sysfs_enable_slot(struct hotplug_slot *hotplug_slot)
 			 slot_name(ctrl), ctrl->state);
 		break;
 	}
-	mutex_unlock(&ctrl->lock);
+	mutex_unlock(&ctrl->state_lock);
 
 	return -ENODEV;
 }
@@ -388,11 +388,11 @@ int pciehp_sysfs_disable_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct controller *ctrl = hotplug_slot->private;
 
-	mutex_lock(&ctrl->lock);
+	mutex_lock(&ctrl->state_lock);
 	switch (ctrl->state) {
 	case BLINKINGOFF_STATE:
 	case ON_STATE:
-		mutex_unlock(&ctrl->lock);
+		mutex_unlock(&ctrl->state_lock);
 		pciehp_request(ctrl, DISABLE_SLOT);
 		wait_event(ctrl->requester,
 			   !atomic_read(&ctrl->pending_events));
@@ -412,7 +412,7 @@ int pciehp_sysfs_disable_slot(struct hotplug_slot *hotplug_slot)
 			 slot_name(ctrl), ctrl->state);
 		break;
 	}
-	mutex_unlock(&ctrl->lock);
+	mutex_unlock(&ctrl->state_lock);
 
 	return -ENODEV;
 }

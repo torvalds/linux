@@ -852,11 +852,11 @@ struct controller *pcie_init(struct pcie_device *dev)
 
 	ctrl->slot_cap = slot_cap;
 	mutex_init(&ctrl->ctrl_lock);
-	mutex_init(&ctrl->lock);
+	mutex_init(&ctrl->state_lock);
 	init_rwsem(&ctrl->reset_lock);
 	init_waitqueue_head(&ctrl->requester);
 	init_waitqueue_head(&ctrl->queue);
-	INIT_DELAYED_WORK(&ctrl->work, pciehp_queue_pushbutton_work);
+	INIT_DELAYED_WORK(&ctrl->button_work, pciehp_queue_pushbutton_work);
 	dbg_ctrl(ctrl);
 
 	down_read(&pci_bus_sem);
@@ -905,7 +905,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 
 void pciehp_release_ctrl(struct controller *ctrl)
 {
-	cancel_delayed_work_sync(&ctrl->work);
+	cancel_delayed_work_sync(&ctrl->button_work);
 	kfree(ctrl);
 }
 

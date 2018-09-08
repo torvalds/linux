@@ -177,7 +177,7 @@ static void pciehp_check_presence(struct controller *ctrl)
 	bool occupied;
 
 	down_read(&ctrl->reset_lock);
-	mutex_lock(&ctrl->lock);
+	mutex_lock(&ctrl->state_lock);
 
 	occupied = pciehp_card_present_or_link_active(ctrl);
 	if ((occupied && (ctrl->state == OFF_STATE ||
@@ -186,7 +186,7 @@ static void pciehp_check_presence(struct controller *ctrl)
 			   ctrl->state == BLINKINGOFF_STATE)))
 		pciehp_request(ctrl, PCI_EXP_SLTSTA_PDC);
 
-	mutex_unlock(&ctrl->lock);
+	mutex_unlock(&ctrl->state_lock);
 	up_read(&ctrl->reset_lock);
 }
 
