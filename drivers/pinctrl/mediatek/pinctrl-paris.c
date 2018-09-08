@@ -718,6 +718,22 @@ static int mtk_gpio_direction_output(struct gpio_chip *chip, unsigned int gpio,
 	return pinctrl_gpio_direction_output(chip->base + gpio);
 }
 
+static int mtk_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
+{
+	struct mtk_pinctrl *hw = gpiochip_get_data(chip);
+	const struct mtk_pin_desc *desc;
+
+	if (!hw->eint)
+		return -ENOTSUPP;
+
+	desc = (const struct mtk_pin_desc *)&hw->soc->pins[offset];
+
+	if (desc->eint.eint_n == EINT_NA)
+		return -ENOTSUPP;
+
+	return mtk_eint_find_irq(hw->eint, desc->eint.eint_n);
+}
+
 static int mtk_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 			       unsigned long config)
 {
@@ -751,6 +767,7 @@ static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_node *np)
 	chip->direction_output	= mtk_gpio_direction_output;
 	chip->get		= mtk_gpio_get;
 	chip->set		= mtk_gpio_set;
+	chip->to_irq		= mtk_gpio_to_irq,
 	chip->set_config	= mtk_gpio_set_config,
 	chip->base		= -1;
 	chip->ngpio		= hw->soc->npins;
@@ -870,6 +887,11 @@ int mtk_paris_pinctrl_probe(struct platform_device *pdev,
 	err = pinctrl_enable(hw->pctrl);
 	if (err)
 		return err;
+
+	err = mtk_build_eint(hw, pdev);
+	if (err)
+		dev_warn(&pdev->dev,
+			 "Failed to add EINT, but pinctrl still can work\n");
 
 	/* Build gpiochip should be after pinctrl_enable is done */
 	err = mtk_build_gpiochip(hw, pdev->dev.of_node);

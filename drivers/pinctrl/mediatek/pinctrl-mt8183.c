@@ -492,11 +492,19 @@ static const char * const mt8183_pinctrl_register_base_names[] = {
 	"iocfg6", "iocfg7", "iocfg8",
 };
 
+static const struct mtk_eint_hw mt8183_eint_hw = {
+	.port_mask = 7,
+	.ports     = 6,
+	.ap_num    = 212,
+	.db_cnt    = 13,
+};
+
 static const struct mtk_pin_soc mt8183_data = {
 	.reg_cal = mt8183_reg_cals,
 	.pins = mtk_pins_mt8183,
 	.npins = ARRAY_SIZE(mtk_pins_mt8183),
 	.ngrps = ARRAY_SIZE(mtk_pins_mt8183),
+	.eint_hw = &mt8183_eint_hw,
 	.gpio_m = 0,
 	.ies_present = true,
 	.base_names = mt8183_pinctrl_register_base_names,
