@@ -82,6 +82,9 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 	struct mtk_pinctrl *hw = pinctrl_dev_get_drvdata(pctldev);
 	u32 param = pinconf_to_config_param(*config);
 	int val, val2, err, reg, ret = 1;
+	const struct mtk_pin_desc *desc;
+
+	desc = (const struct mtk_pin_desc *)&hw->soc->pins[pin];
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
@@ -139,19 +142,13 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
-		err = mtk_hw_get_value(hw, pin, PINCTRL_PIN_REG_E4, &val);
-		if (err)
-			return err;
-
-		err = mtk_hw_get_value(hw, pin, PINCTRL_PIN_REG_E8, &val2);
-		if (err)
-			return err;
-
-		/* 4mA when (e8, e4) = (0, 0); 8mA when (e8, e4) = (0, 1)
-		 * 12mA when (e8, e4) = (1, 0); 16mA when (e8, e4) = (1, 1)
-		 */
-		ret = ((val2 << 1) + val + 1) * 4;
-
+		if (hw->soc->drive_get) {
+			err = hw->soc->drive_get(hw, desc, &ret);
+			if (err)
+				return err;
+		} else {
+			err = -ENOTSUPP;
+		}
 		break;
 	case MTK_PIN_CONFIG_TDSEL:
 	case MTK_PIN_CONFIG_RDSEL:
@@ -178,8 +175,11 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			   unsigned long *configs, unsigned int num_configs)
 {
 	struct mtk_pinctrl *hw = pinctrl_dev_get_drvdata(pctldev);
+	const struct mtk_pin_desc *desc;
 	u32 reg, param, arg;
 	int cfg, err = 0;
+
+	desc = (const struct mtk_pin_desc *)&hw->soc->pins[pin];
 
 	for (cfg = 0; cfg < num_configs; cfg++) {
 		param = pinconf_to_config_param(configs[cfg]);
@@ -247,24 +247,10 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				goto err;
 			break;
 		case PIN_CONFIG_DRIVE_STRENGTH:
-			/* 4mA when (e8, e4) = (0, 0);
-			 * 8mA when (e8, e4) = (0, 1);
-			 * 12mA when (e8, e4) = (1, 0);
-			 * 16mA when (e8, e4) = (1, 1)
-			 */
-			if (!(arg % 4) && (arg >= 4 && arg <= 16)) {
-				arg = arg / 4 - 1;
-				err = mtk_hw_set_value(hw, pin,
-						       PINCTRL_PIN_REG_E4,
-						       arg & 0x1);
-				if (err)
-					goto err;
-
-				err = mtk_hw_set_value(hw, pin,
-						       PINCTRL_PIN_REG_E8,
-						       (arg & 0x2) >> 1);
-				if (err)
-					goto err;
+			if (hw->soc->drive_set) {
+				err = hw->soc->drive_set(hw, desc, arg);
+			if (err)
+				return err;
 			} else {
 				err = -ENOTSUPP;
 			}

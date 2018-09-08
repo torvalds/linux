@@ -50,6 +50,7 @@ enum {
 	PINCTRL_PIN_REG_E8,
 	PINCTRL_PIN_REG_TDSEL,
 	PINCTRL_PIN_REG_RDSEL,
+	PINCTRL_PIN_REG_DRV,
 	PINCTRL_PIN_REG_MAX,
 };
 
@@ -130,6 +131,8 @@ struct mtk_pin_desc {
 	u8 drv_n;
 };
 
+struct mtk_pinctrl;
+
 /* struct mtk_pin_soc - the structure that holds SoC-specific data */
 struct mtk_pin_soc {
 	const struct mtk_pin_reg_calc	*reg_cal;
@@ -145,6 +148,12 @@ struct mtk_pin_soc {
 	/* Specific parameters per SoC */
 	u8				gpio_m;
 	u8				eint_m;
+
+	/* Specific pinconfig operations */
+	int (*drive_set)(struct mtk_pinctrl *hw,
+			 const struct mtk_pin_desc *desc, u32 arg);
+	int (*drive_get)(struct mtk_pinctrl *hw,
+			 const struct mtk_pin_desc *desc, int *val);
 };
 
 struct mtk_pinctrl {
@@ -160,5 +169,10 @@ void mtk_rmw(struct mtk_pinctrl *pctl, u32 reg, u32 mask, u32 set);
 
 int mtk_hw_set_value(struct mtk_pinctrl *hw, int pin, int field, int value);
 int mtk_hw_get_value(struct mtk_pinctrl *hw, int pin, int field, int *value);
+
+int mtk_pinconf_drive_set(struct mtk_pinctrl *hw,
+			  const struct mtk_pin_desc *desc, u32 arg);
+int mtk_pinconf_drive_get(struct mtk_pinctrl *hw,
+			  const struct mtk_pin_desc *desc, int *val);
 
 #endif /* __PINCTRL_MTK_COMMON_V2_H */
