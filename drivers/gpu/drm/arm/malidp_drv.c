@@ -260,7 +260,6 @@ static const struct drm_mode_config_helper_funcs malidp_mode_config_helpers = {
 
 static const struct drm_mode_config_funcs malidp_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -450,7 +449,6 @@ static int malidp_debugfs_init(struct drm_minor *minor)
 static struct drm_driver malidp_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
 			   DRIVER_PRIME,
-	.lastclose = drm_fb_helper_lastclose,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = malidp_dumb_create,
@@ -762,22 +760,18 @@ static int malidp_bind(struct device *dev)
 
 	drm_mode_config_reset(drm);
 
-	ret = drm_fb_cma_fbdev_init(drm, 32, 0);
-	if (ret)
-		goto fbdev_fail;
-
 	drm_kms_helper_poll_init(drm);
 
 	ret = drm_dev_register(drm, 0);
 	if (ret)
 		goto register_fail;
 
+	drm_fbdev_generic_setup(drm, 32);
+
 	return 0;
 
 register_fail:
-	drm_fb_cma_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
-fbdev_fail:
 	pm_runtime_get_sync(dev);
 vblank_fail:
 	malidp_se_irq_fini(hwdev);
@@ -814,7 +808,6 @@ static void malidp_unbind(struct device *dev)
 	struct malidp_hw_device *hwdev = malidp->dev;
 
 	drm_dev_unregister(drm);
-	drm_fb_cma_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
 	pm_runtime_get_sync(dev);
 	drm_crtc_vblank_off(&malidp->crtc);
