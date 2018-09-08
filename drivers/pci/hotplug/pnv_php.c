@@ -530,7 +530,7 @@ static int pnv_php_disable_slot(struct hotplug_slot *slot)
 	return ret;
 }
 
-static struct hotplug_slot_ops php_slot_ops = {
+static const struct hotplug_slot_ops php_slot_ops = {
 	.get_power_status	= pnv_php_get_power_state,
 	.get_adapter_status	= pnv_php_get_adapter_state,
 	.set_attention_status	= pnv_php_set_attention_state,

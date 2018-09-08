@@ -560,7 +560,7 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	return 0;
 }
 
-static struct hotplug_slot_ops cpqphp_hotplug_slot_ops = {
+static const struct hotplug_slot_ops cpqphp_hotplug_slot_ops = {
 	.set_attention_status =	set_attention_status,
 	.enable_slot =		process_SI,
 	.disable_slot =		process_SS,

@@ -4571,13 +4571,13 @@ static int pci_reset_hotplug_slot(struct hotplug_slot *hotplug, int probe)
 {
 	int rc = -ENOTTY;
 
-	if (!hotplug || !try_module_get(hotplug->ops->owner))
+	if (!hotplug || !try_module_get(hotplug->owner))
 		return rc;
 
 	if (hotplug->ops->reset_slot)
 		rc = hotplug->ops->reset_slot(hotplug, probe);
 
-	module_put(hotplug->ops->owner);
+	module_put(hotplug->owner);
 
 	return rc;
 }

@@ -70,7 +70,7 @@ struct slot {
 	struct hotplug_slot *hotplug_slot;
 };
 
-extern struct hotplug_slot_ops rpaphp_hotplug_slot_ops;
+extern const struct hotplug_slot_ops rpaphp_hotplug_slot_ops;
 extern struct list_head rpaphp_slot_head;
 
 /* function prototypes */

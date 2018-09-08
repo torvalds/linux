@@ -1259,7 +1259,7 @@ error:
 	goto exit;
 }
 
-struct hotplug_slot_ops ibmphp_hotplug_slot_ops = {
+const struct hotplug_slot_ops ibmphp_hotplug_slot_ops = {
 	.set_attention_status =		set_attention_status,
 	.enable_slot =			enable_slot,
 	.disable_slot =			ibmphp_disable_slot,

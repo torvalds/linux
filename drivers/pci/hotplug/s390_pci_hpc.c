@@ -130,7 +130,7 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	return 0;
 }
 
-static struct hotplug_slot_ops s390_hotplug_slot_ops = {
+static const struct hotplug_slot_ops s390_hotplug_slot_ops = {
 	.enable_slot =		enable_slot,
 	.disable_slot =		disable_slot,
 	.get_power_status =	get_power_status,

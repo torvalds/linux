@@ -726,8 +726,7 @@ static int eeepc_get_adapter_status(struct hotplug_slot *hotplug_slot,
 	return 0;
 }
 
-static struct hotplug_slot_ops eeepc_hotplug_slot_ops = {
-	.owner = THIS_MODULE,
+static const struct hotplug_slot_ops eeepc_hotplug_slot_ops = {
 	.get_adapter_status = eeepc_get_adapter_status,
 	.get_power_status = eeepc_get_adapter_status,
 };

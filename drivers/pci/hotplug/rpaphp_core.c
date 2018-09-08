@@ -477,7 +477,7 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	return 0;
 }
 
-struct hotplug_slot_ops rpaphp_hotplug_slot_ops = {
+const struct hotplug_slot_ops rpaphp_hotplug_slot_ops = {
 	.enable_slot = enable_slot,
 	.disable_slot = disable_slot,
 	.set_attention_status = set_attention_status,

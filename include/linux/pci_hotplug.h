@@ -16,8 +16,6 @@
 
 /**
  * struct hotplug_slot_ops -the callbacks that the hotplug pci core can use
- * @owner: The module owner of this structure
- * @mod_name: The module name (KBUILD_MODNAME) of this structure
  * @enable_slot: Called when the user wants to enable a specific pci slot
  * @disable_slot: Called when the user wants to disable a specific pci slot
  * @set_attention_status: Called to set the specific slot's attention LED to
@@ -46,8 +44,6 @@
  * set an LED, enable / disable power, etc.)
  */
 struct hotplug_slot_ops {
-	struct module *owner;
-	const char *mod_name;
 	int (*enable_slot)		(struct hotplug_slot *slot);
 	int (*disable_slot)		(struct hotplug_slot *slot);
 	int (*set_attention_status)	(struct hotplug_slot *slot, u8 value);
@@ -82,15 +78,19 @@ struct hotplug_slot_info {
  * this slot.
  * @private: used by the hotplug pci controller driver to store whatever it
  * needs.
+ * @owner: The module owner of this structure
+ * @mod_name: The module name (KBUILD_MODNAME) of this structure
  */
 struct hotplug_slot {
-	struct hotplug_slot_ops		*ops;
+	const struct hotplug_slot_ops	*ops;
 	struct hotplug_slot_info	*info;
 	void				*private;
 
 	/* Variables below this are for use only by the hotplug pci core. */
 	struct list_head		slot_list;
 	struct pci_slot			*pci_slot;
+	struct module			*owner;
+	const char			*mod_name;
 };
 
 static inline const char *hotplug_slot_name(const struct hotplug_slot *slot)

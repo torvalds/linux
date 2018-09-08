@@ -740,7 +740,7 @@ int ibmphp_do_disable_slot(struct slot *slot_cur);
 int ibmphp_update_slot_info(struct slot *);	/* This function is called from HPC, so we need it to not be be static */
 int ibmphp_configure_card(struct pci_func *, u8);
 int ibmphp_unconfigure_card(struct slot **, int);
-extern struct hotplug_slot_ops ibmphp_hotplug_slot_ops;
+extern const struct hotplug_slot_ops ibmphp_hotplug_slot_ops;
 
 #endif				//__IBMPHP_H
 

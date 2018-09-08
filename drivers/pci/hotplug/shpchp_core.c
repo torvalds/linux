@@ -51,7 +51,7 @@ static int get_attention_status(struct hotplug_slot *slot, u8 *value);
 static int get_latch_status(struct hotplug_slot *slot, u8 *value);
 static int get_adapter_status(struct hotplug_slot *slot, u8 *value);
 
-static struct hotplug_slot_ops shpchp_hotplug_slot_ops = {
+static const struct hotplug_slot_ops shpchp_hotplug_slot_ops = {
 	.set_attention_status =	set_attention_status,
 	.enable_slot =		enable_slot,
 	.disable_slot =		disable_slot,
