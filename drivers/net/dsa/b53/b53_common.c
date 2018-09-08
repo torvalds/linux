@@ -1025,7 +1025,7 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 	struct b53_device *dev = ds->priv;
 	struct ethtool_eee *p = &dev->ports[port].eee;
 	u8 rgmii_ctrl = 0, reg = 0, off;
-	int pause;
+	int pause = 0;
 
 	if (!phy_is_pseudo_fixed_link(phydev))
 		return;
