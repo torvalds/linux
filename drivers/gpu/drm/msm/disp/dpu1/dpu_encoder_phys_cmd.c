@@ -599,8 +599,7 @@ static void dpu_encoder_phys_cmd_destroy(struct dpu_encoder_phys *phys_enc)
 
 static void dpu_encoder_phys_cmd_get_hw_resources(
 		struct dpu_encoder_phys *phys_enc,
-		struct dpu_encoder_hw_resources *hw_res,
-		struct drm_connector_state *conn_state)
+		struct dpu_encoder_hw_resources *hw_res)
 {
 	struct dpu_encoder_phys_cmd *cmd_enc =
 		to_dpu_encoder_phys_cmd(phys_enc);

@@ -436,15 +436,14 @@ int dpu_encoder_helper_unregister_irq(struct dpu_encoder_phys *phys_enc,
 }
 
 void dpu_encoder_get_hw_resources(struct drm_encoder *drm_enc,
-		struct dpu_encoder_hw_resources *hw_res,
-		struct drm_connector_state *conn_state)
+				  struct dpu_encoder_hw_resources *hw_res)
 {
 	struct dpu_encoder_virt *dpu_enc = NULL;
 	int i = 0;
 
-	if (!hw_res || !drm_enc || !conn_state) {
-		DPU_ERROR("invalid argument(s), drm_enc %d, res %d, state %d\n",
-				drm_enc != 0, hw_res != 0, conn_state != 0);
+	if (!hw_res || !drm_enc) {
+		DPU_ERROR("invalid argument(s), drm_enc %d, res %d\n",
+			  drm_enc != 0, hw_res != 0);
 		return;
 	}
 
@@ -458,7 +457,7 @@ void dpu_encoder_get_hw_resources(struct drm_encoder *drm_enc,
 		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
 
 		if (phys && phys->ops.get_hw_resources)
-			phys->ops.get_hw_resources(phys, hw_res, conn_state);
+			phys->ops.get_hw_resources(phys, hw_res);
 	}
 }
 
@@ -652,7 +651,7 @@ static int dpu_encoder_virt_atomic_check(
 		if (drm_atomic_crtc_needs_modeset(crtc_state)
 				&& dpu_enc->mode_set_complete) {
 			ret = dpu_rm_reserve(&dpu_kms->rm, drm_enc, crtc_state,
-				conn_state, topology, true);
+					     topology, true);
 			dpu_enc->mode_set_complete = false;
 		}
 	}
@@ -1044,7 +1043,7 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 
 	/* Reserve dynamic resources now. Indicating non-AtomicTest phase */
 	ret = dpu_rm_reserve(&dpu_kms->rm, drm_enc, drm_enc->crtc->state,
-			conn->state, topology, false);
+			     topology, false);
 	if (ret) {
 		DPU_ERROR_ENC(dpu_enc,
 				"failed to reserve hw resources, %d\n", ret);

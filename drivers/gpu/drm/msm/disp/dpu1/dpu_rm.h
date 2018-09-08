@@ -107,7 +107,6 @@ int dpu_rm_destroy(struct dpu_rm *rm);
  * @rm: DPU Resource Manager handle
  * @drm_enc: DRM Encoder handle
  * @crtc_state: Proposed Atomic DRM CRTC State handle
- * @conn_state: Proposed Atomic DRM Connector State handle
  * @topology: Pointer to topology info for the display
  * @test_only: Atomic-Test phase, discard results (unless property overrides)
  * @Return: 0 on Success otherwise -ERROR
@@ -115,7 +114,6 @@ int dpu_rm_destroy(struct dpu_rm *rm);
 int dpu_rm_reserve(struct dpu_rm *rm,
 		struct drm_encoder *drm_enc,
 		struct drm_crtc_state *crtc_state,
-		struct drm_connector_state *conn_state,
 		struct msm_display_topology topology,
 		bool test_only);
 

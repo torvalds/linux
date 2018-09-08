@@ -537,12 +537,11 @@ static void dpu_encoder_phys_vid_destroy(struct dpu_encoder_phys *phys_enc)
 
 static void dpu_encoder_phys_vid_get_hw_resources(
 		struct dpu_encoder_phys *phys_enc,
-		struct dpu_encoder_hw_resources *hw_res,
-		struct drm_connector_state *conn_state)
+		struct dpu_encoder_hw_resources *hw_res)
 {
 	if (!phys_enc || !hw_res) {
-		DPU_ERROR("invalid arg(s), enc %d hw_res %d conn_state %d\n",
-				phys_enc != 0, hw_res != 0, conn_state != 0);
+		DPU_ERROR("invalid arg(s), enc %d hw_res %d\n",
+			  phys_enc != 0, hw_res != 0);
 		return;
 	}
 

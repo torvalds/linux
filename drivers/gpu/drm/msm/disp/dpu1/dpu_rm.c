@@ -682,7 +682,6 @@ static int _dpu_rm_make_next_rsvp(
 		struct dpu_rm *rm,
 		struct drm_encoder *enc,
 		struct drm_crtc_state *crtc_state,
-		struct drm_connector_state *conn_state,
 		struct dpu_rm_rsvp *rsvp,
 		struct dpu_rm_requirements *reqs)
 {
@@ -728,7 +727,6 @@ static int _dpu_rm_populate_requirements(
 		struct dpu_rm *rm,
 		struct drm_encoder *enc,
 		struct drm_crtc_state *crtc_state,
-		struct drm_connector_state *conn_state,
 		struct dpu_rm_requirements *reqs,
 		struct msm_display_topology req_topology)
 {
@@ -736,7 +734,7 @@ static int _dpu_rm_populate_requirements(
 
 	memset(reqs, 0, sizeof(*reqs));
 
-	dpu_encoder_get_hw_resources(enc, &reqs->hw_res, conn_state);
+	dpu_encoder_get_hw_resources(enc, &reqs->hw_res);
 
 	for (i = 0; i < DPU_RM_TOPOLOGY_MAX; i++) {
 		if (RM_IS_TOPOLOGY_MATCH(g_top_table[i],
@@ -780,29 +778,12 @@ static struct dpu_rm_rsvp *_dpu_rm_get_rsvp(
 	return NULL;
 }
 
-static struct drm_connector *_dpu_rm_get_connector(
-		struct drm_encoder *enc)
-{
-	struct drm_connector *conn = NULL;
-	struct list_head *connector_list =
-			&enc->dev->mode_config.connector_list;
-
-	list_for_each_entry(conn, connector_list, head)
-		if (conn->encoder == enc)
-			return conn;
-
-	return NULL;
-}
-
 /**
  * _dpu_rm_release_rsvp - release resources and release a reservation
  * @rm:	KMS handle
  * @rsvp:	RSVP pointer to release and release resources for
  */
-static void _dpu_rm_release_rsvp(
-		struct dpu_rm *rm,
-		struct dpu_rm_rsvp *rsvp,
-		struct drm_connector *conn)
+static void _dpu_rm_release_rsvp(struct dpu_rm *rm, struct dpu_rm_rsvp *rsvp)
 {
 	struct dpu_rm_rsvp *rsvp_c, *rsvp_n;
 	struct dpu_rm_hw_blk *blk;
@@ -843,7 +824,6 @@ static void _dpu_rm_release_rsvp(
 void dpu_rm_release(struct dpu_rm *rm, struct drm_encoder *enc)
 {
 	struct dpu_rm_rsvp *rsvp;
-	struct drm_connector *conn;
 
 	if (!rm || !enc) {
 		DPU_ERROR("invalid params\n");
@@ -858,21 +838,12 @@ void dpu_rm_release(struct dpu_rm *rm, struct drm_encoder *enc)
 		goto end;
 	}
 
-	conn = _dpu_rm_get_connector(enc);
-	if (!conn) {
-		DPU_ERROR("failed to get connector for enc %d\n", enc->base.id);
-		goto end;
-	}
-
-	_dpu_rm_release_rsvp(rm, rsvp, conn);
+	_dpu_rm_release_rsvp(rm, rsvp);
 end:
 	mutex_unlock(&rm->rm_lock);
 }
 
-static int _dpu_rm_commit_rsvp(
-		struct dpu_rm *rm,
-		struct dpu_rm_rsvp *rsvp,
-		struct drm_connector_state *conn_state)
+static int _dpu_rm_commit_rsvp(struct dpu_rm *rm, struct dpu_rm_rsvp *rsvp)
 {
 	struct dpu_rm_hw_blk *blk;
 	enum dpu_hw_blk_type type;
@@ -899,7 +870,6 @@ int dpu_rm_reserve(
 		struct dpu_rm *rm,
 		struct drm_encoder *enc,
 		struct drm_crtc_state *crtc_state,
-		struct drm_connector_state *conn_state,
 		struct msm_display_topology topology,
 		bool test_only)
 {
@@ -907,25 +877,19 @@ int dpu_rm_reserve(
 	struct dpu_rm_requirements reqs;
 	int ret;
 
-	if (!rm || !enc || !crtc_state || !conn_state) {
-		DPU_ERROR("invalid arguments\n");
-		return -EINVAL;
-	}
-
 	/* Check if this is just a page-flip */
 	if (!drm_atomic_crtc_needs_modeset(crtc_state))
 		return 0;
 
-	DRM_DEBUG_KMS("reserving hw for conn %d enc %d crtc %d test_only %d\n",
-		      conn_state->connector->base.id, enc->base.id,
-		      crtc_state->crtc->base.id, test_only);
+	DRM_DEBUG_KMS("reserving hw for enc %d crtc %d test_only %d\n",
+		      enc->base.id, crtc_state->crtc->base.id, test_only);
 
 	mutex_lock(&rm->rm_lock);
 
 	_dpu_rm_print_rsvps(rm, DPU_RM_STAGE_BEGIN);
 
-	ret = _dpu_rm_populate_requirements(rm, enc, crtc_state,
-			conn_state, &reqs, topology);
+	ret = _dpu_rm_populate_requirements(rm, enc, crtc_state, &reqs,
+					    topology);
 	if (ret) {
 		DPU_ERROR("failed to populate hw requirements\n");
 		goto end;
@@ -951,14 +915,13 @@ int dpu_rm_reserve(
 	rsvp_cur = _dpu_rm_get_rsvp(rm, enc);
 
 	/* Check the proposed reservation, store it in hw's "next" field */
-	ret = _dpu_rm_make_next_rsvp(rm, enc, crtc_state, conn_state,
-			rsvp_nxt, &reqs);
+	ret = _dpu_rm_make_next_rsvp(rm, enc, crtc_state, rsvp_nxt, &reqs);
 
 	_dpu_rm_print_rsvps(rm, DPU_RM_STAGE_AFTER_RSVPNEXT);
 
 	if (ret) {
 		DPU_ERROR("failed to reserve hw resources: %d\n", ret);
-		_dpu_rm_release_rsvp(rm, rsvp_nxt, conn_state->connector);
+		_dpu_rm_release_rsvp(rm, rsvp_nxt);
 	} else if (test_only) {
 		/*
 		 * Normally, if test_only, test the reservation and then undo
@@ -967,11 +930,11 @@ int dpu_rm_reserve(
 		 */
 		DPU_DEBUG("test_only: discard test rsvp[s%de%d]\n",
 				rsvp_nxt->seq, rsvp_nxt->enc_id);
-		_dpu_rm_release_rsvp(rm, rsvp_nxt, conn_state->connector);
+		_dpu_rm_release_rsvp(rm, rsvp_nxt);
 	} else {
-		_dpu_rm_release_rsvp(rm, rsvp_cur, conn_state->connector);
+		_dpu_rm_release_rsvp(rm, rsvp_cur);
 
-		ret = _dpu_rm_commit_rsvp(rm, rsvp_nxt, conn_state);
+		_dpu_rm_commit_rsvp(rm, rsvp_nxt);
 	}
 
 	_dpu_rm_print_rsvps(rm, DPU_RM_STAGE_FINAL);

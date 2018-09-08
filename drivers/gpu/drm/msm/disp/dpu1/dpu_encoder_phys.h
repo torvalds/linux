@@ -140,8 +140,7 @@ struct dpu_encoder_phys_ops {
 			    struct drm_connector_state *conn_state);
 	void (*destroy)(struct dpu_encoder_phys *encoder);
 	void (*get_hw_resources)(struct dpu_encoder_phys *encoder,
-			struct dpu_encoder_hw_resources *hw_res,
-			struct drm_connector_state *conn_state);
+				 struct dpu_encoder_hw_resources *hw_res);
 	int (*control_vblank_irq)(struct dpu_encoder_phys *enc, bool enable);
 	int (*wait_for_commit_done)(struct dpu_encoder_phys *phys_enc);
 	int (*wait_for_tx_complete)(struct dpu_encoder_phys *phys_enc);
