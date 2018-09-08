@@ -20,127 +20,6 @@
 
 #include "test.h"
 
-#define for_each_index(i, base, order) \
-	for (i = base; i < base + (1 << order); i++)
-
-static void __multiorder_tag_test(int index, int order)
-{
-	RADIX_TREE(tree, GFP_KERNEL);
-	int base, err, i;
-
-	/* our canonical entry */
-	base = index & ~((1 << order) - 1);
-
-	printv(2, "Multiorder tag test with index %d, canonical entry %d\n",
-			index, base);
-
-	err = item_insert_order(&tree, index, order);
-	assert(!err);
-
-	/*
-	 * Verify we get collisions for covered indices.  We try and fail to
-	 * insert a value entry so we don't leak memory via
-	 * item_insert_order().
-	 */
-	for_each_index(i, base, order) {
-		err = __radix_tree_insert(&tree, i, order, xa_mk_value(0xA0));
-		assert(err == -EEXIST);
-	}
-
-	for_each_index(i, base, order) {
-		assert(!radix_tree_tag_get(&tree, i, 0));
-		assert(!radix_tree_tag_get(&tree, i, 1));
-	}
-
-	assert(radix_tree_tag_set(&tree, index, 0));
-
-	for_each_index(i, base, order) {
-		assert(radix_tree_tag_get(&tree, i, 0));
-		assert(!radix_tree_tag_get(&tree, i, 1));
-	}
-
-	assert(tag_tagged_items(&tree, 0, ~0UL, 10, XA_MARK_0, XA_MARK_1) == 1);
-	assert(radix_tree_tag_clear(&tree, index, 0));
-
-	for_each_index(i, base, order) {
-		assert(!radix_tree_tag_get(&tree, i, 0));
-		assert(radix_tree_tag_get(&tree, i, 1));
-	}
-
-	assert(radix_tree_tag_clear(&tree, index, 1));
-
-	assert(!radix_tree_tagged(&tree, 0));
-	assert(!radix_tree_tagged(&tree, 1));
-
-	item_kill_tree(&tree);
-}
-
-static void __multiorder_tag_test2(unsigned order, unsigned long index2)
-{
-	RADIX_TREE(tree, GFP_KERNEL);
-	unsigned long index = (1 << order);
-	index2 += index;
-
-	assert(item_insert_order(&tree, 0, order) == 0);
-	assert(item_insert(&tree, index2) == 0);
-
-	assert(radix_tree_tag_set(&tree, 0, 0));
-	assert(radix_tree_tag_set(&tree, index2, 0));
-
-	assert(tag_tagged_items(&tree, 0, ~0UL, 10, XA_MARK_0, XA_MARK_1) == 2);
-
-	item_kill_tree(&tree);
-}
-
-static void multiorder_tag_tests(void)
-{
-	int i, j;
-
-	/* test multi-order entry for indices 0-7 with no sibling pointers */
-	__multiorder_tag_test(0, 3);
-	__multiorder_tag_test(5, 3);
-
-	/* test multi-order entry for indices 8-15 with no sibling pointers */
-	__multiorder_tag_test(8, 3);
-	__multiorder_tag_test(15, 3);
-
-	/*
-	 * Our order 5 entry covers indices 0-31 in a tree with height=2.
-	 * This is broken up as follows:
-	 * 0-7:		canonical entry
-	 * 8-15:	sibling 1
-	 * 16-23:	sibling 2
-	 * 24-31:	sibling 3
-	 */
-	__multiorder_tag_test(0, 5);
-	__multiorder_tag_test(29, 5);
-
-	/* same test, but with indices 32-63 */
-	__multiorder_tag_test(32, 5);
-	__multiorder_tag_test(44, 5);
-
-	/*
-	 * Our order 8 entry covers indices 0-255 in a tree with height=3.
-	 * This is broken up as follows:
-	 * 0-63:	canonical entry
-	 * 64-127:	sibling 1
-	 * 128-191:	sibling 2
-	 * 192-255:	sibling 3
-	 */
-	__multiorder_tag_test(0, 8);
-	__multiorder_tag_test(190, 8);
-
-	/* same test, but with indices 256-511 */
-	__multiorder_tag_test(256, 8);
-	__multiorder_tag_test(300, 8);
-
-	__multiorder_tag_test(0x12345678UL, 8);
-
-	for (i = 1; i < 10; i++)
-		for (j = 0; j < (10 << i); j++)
-			__multiorder_tag_test2(i, j);
-}
-
 static void multiorder_check(unsigned long index, int order)
 {
 	unsigned long i;
@@ -179,53 +58,6 @@ static void multiorder_check(unsigned long index, int order)
 
 	for (i = 0; i < 2*max; i++)
 		item_check_absent(&tree, i);
-}
-
-static void multiorder_shrink(unsigned long index, int order)
-{
-	unsigned long i;
-	unsigned long max = 1 << order;
-	RADIX_TREE(tree, GFP_KERNEL);
-	struct radix_tree_node *node;
-
-	printv(2, "Multiorder shrink index %ld, order %d\n", index, order);
-
-	assert(item_insert_order(&tree, 0, order) == 0);
-
-	node = tree.xa_head;
-
-	assert(item_insert(&tree, index) == 0);
-	assert(node != tree.xa_head);
-
-	assert(item_delete(&tree, index) != 0);
-	assert(node == tree.xa_head);
-
-	for (i = 0; i < max; i++) {
-		struct item *item = item_lookup(&tree, i);
-		assert(item != 0);
-		assert(item->index == 0);
-	}
-	for (i = max; i < 2*max; i++)
-		item_check_absent(&tree, i);
-
-	if (!item_delete(&tree, 0)) {
-		printv(2, "failed to delete index %ld (order %d)\n", index, order);
-		abort();
-	}
-
-	for (i = 0; i < 2*max; i++)
-		item_check_absent(&tree, i);
-}
-
-static void multiorder_insert_bug(void)
-{
-	RADIX_TREE(tree, GFP_KERNEL);
-
-	item_insert(&tree, 0);
-	radix_tree_tag_set(&tree, 0, 0);
-	item_insert_order(&tree, 3 << 6, 6);
-
-	item_kill_tree(&tree);
 }
 
 void multiorder_iteration(void)
@@ -427,11 +259,6 @@ void multiorder_checks(void)
 		multiorder_check((1UL << i) + 1, i);
 	}
 
-	for (i = 0; i < 15; i++)
-		multiorder_shrink((1UL << (i + RADIX_TREE_MAP_SHIFT)), i);
-
-	multiorder_insert_bug();
-	multiorder_tag_tests();
 	multiorder_iteration();
 	multiorder_tagged_iteration();
 	multiorder_iteration_race();

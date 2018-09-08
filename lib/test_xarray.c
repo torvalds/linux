@@ -199,9 +199,25 @@ static noinline void check_xa_mark_1(struct xarray *xa, unsigned long index)
 		xa_store_order(xa, index, order, xa_mk_value(index),
 				GFP_KERNEL);
 		for (i = base; i < next; i++) {
+			XA_STATE(xas, xa, i);
+			unsigned int seen = 0;
+			void *entry;
+
 			XA_BUG_ON(xa, !xa_get_mark(xa, i, XA_MARK_0));
 			XA_BUG_ON(xa, !xa_get_mark(xa, i, XA_MARK_1));
 			XA_BUG_ON(xa, xa_get_mark(xa, i, XA_MARK_2));
+
+			/* We should see two elements in the array */
+			xas_for_each(&xas, entry, ULONG_MAX)
+				seen++;
+			XA_BUG_ON(xa, seen != 2);
+
+			/* One of which is marked */
+			xas_set(&xas, 0);
+			seen = 0;
+			xas_for_each_marked(&xas, entry, ULONG_MAX, XA_MARK_0)
+				seen++;
+			XA_BUG_ON(xa, seen != 1);
 		}
 		XA_BUG_ON(xa, xa_get_mark(xa, next, XA_MARK_0));
 		XA_BUG_ON(xa, xa_get_mark(xa, next, XA_MARK_1));
@@ -265,6 +281,8 @@ static noinline void check_xa_shrink(struct xarray *xa)
 {
 	XA_STATE(xas, xa, 1);
 	struct xa_node *node;
+	unsigned int order;
+	unsigned int max_order = IS_ENABLED(CONFIG_XARRAY_MULTI) ? 15 : 1;
 
 	XA_BUG_ON(xa, !xa_empty(xa));
 	XA_BUG_ON(xa, xa_store_index(xa, 0, GFP_KERNEL) != NULL);
@@ -287,6 +305,25 @@ static noinline void check_xa_shrink(struct xarray *xa)
 	XA_BUG_ON(xa, xa_load(xa, 0) != xa_mk_value(0));
 	xa_erase_index(xa, 0);
 	XA_BUG_ON(xa, !xa_empty(xa));
+
+	for (order = 0; order < max_order; order++) {
+		unsigned long max = (1UL << order) - 1;
+		xa_store_order(xa, 0, order, xa_mk_value(0), GFP_KERNEL);
+		XA_BUG_ON(xa, xa_load(xa, max) != xa_mk_value(0));
+		XA_BUG_ON(xa, xa_load(xa, max + 1) != NULL);
+		rcu_read_lock();
+		node = xa_head(xa);
+		rcu_read_unlock();
+		XA_BUG_ON(xa, xa_store_index(xa, ULONG_MAX, GFP_KERNEL) !=
+				NULL);
+		rcu_read_lock();
+		XA_BUG_ON(xa, xa_head(xa) == node);
+		rcu_read_unlock();
+		XA_BUG_ON(xa, xa_load(xa, max + 1) != NULL);
+		xa_erase_index(xa, ULONG_MAX);
+		XA_BUG_ON(xa, xa->xa_head != node);
+		xa_erase_index(xa, 0);
+	}
 }
 
 static noinline void check_cmpxchg(struct xarray *xa)
