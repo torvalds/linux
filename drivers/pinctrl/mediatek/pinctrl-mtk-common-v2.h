@@ -150,6 +150,15 @@ struct mtk_pin_soc {
 	u8				eint_m;
 
 	/* Specific pinconfig operations */
+	int (*bias_disable_set)(struct mtk_pinctrl *hw,
+				const struct mtk_pin_desc *desc);
+	int (*bias_disable_get)(struct mtk_pinctrl *hw,
+				const struct mtk_pin_desc *desc, int *res);
+	int (*bias_set)(struct mtk_pinctrl *hw,
+			const struct mtk_pin_desc *desc, bool pullup);
+	int (*bias_get)(struct mtk_pinctrl *hw,
+			const struct mtk_pin_desc *desc, bool pullup, int *res);
+
 	int (*drive_set)(struct mtk_pinctrl *hw,
 			 const struct mtk_pin_desc *desc, u32 arg);
 	int (*drive_get)(struct mtk_pinctrl *hw,
@@ -169,6 +178,16 @@ void mtk_rmw(struct mtk_pinctrl *pctl, u32 reg, u32 mask, u32 set);
 
 int mtk_hw_set_value(struct mtk_pinctrl *hw, int pin, int field, int value);
 int mtk_hw_get_value(struct mtk_pinctrl *hw, int pin, int field, int *value);
+
+int mtk_pinconf_bias_disable_set(struct mtk_pinctrl *hw,
+				 const struct mtk_pin_desc *desc);
+int mtk_pinconf_bias_disable_get(struct mtk_pinctrl *hw,
+				 const struct mtk_pin_desc *desc, int *res);
+int mtk_pinconf_bias_set(struct mtk_pinctrl *hw,
+			 const struct mtk_pin_desc *desc, bool pullup);
+int mtk_pinconf_bias_get(struct mtk_pinctrl *hw,
+			 const struct mtk_pin_desc *desc, bool pullup,
+			 int *res);
 
 int mtk_pinconf_drive_set(struct mtk_pinctrl *hw,
 			  const struct mtk_pin_desc *desc, u32 arg);

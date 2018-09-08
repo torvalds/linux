@@ -88,27 +88,34 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
-		err = mtk_hw_get_value(hw, pin, PINCTRL_PIN_REG_PU, &val);
-		if (err)
-			return err;
-
-		err = mtk_hw_get_value(hw, pin, PINCTRL_PIN_REG_PD, &val2);
-		if (err)
-			return err;
-
-		if (val || val2)
-			return -EINVAL;
-
+		if (hw->soc->bias_disable_get) {
+			err = hw->soc->bias_disable_get(hw, desc, &ret);
+			if (err)
+				return err;
+		} else {
+			return -ENOTSUPP;
+		}
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
+		if (hw->soc->bias_get) {
+			err = hw->soc->bias_get(hw, desc, 1, &ret);
+			if (err)
+				return err;
+		} else {
+			return -ENOTSUPP;
+		}
+		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
+		if (hw->soc->bias_get) {
+			err = hw->soc->bias_get(hw, desc, 0, &ret);
+			if (err)
+				return err;
+		} else {
+			return -ENOTSUPP;
+		}
+		break;
 	case PIN_CONFIG_SLEW_RATE:
-		reg = (param == PIN_CONFIG_BIAS_PULL_UP) ?
-		      PINCTRL_PIN_REG_PU :
-		      (param == PIN_CONFIG_BIAS_PULL_DOWN) ?
-		      PINCTRL_PIN_REG_PD : PINCTRL_PIN_REG_SR;
-
-		err = mtk_hw_get_value(hw, pin, reg, &val);
+		err = mtk_hw_get_value(hw, pin, PINCTRL_PIN_REG_SR, &val);
 		if (err)
 			return err;
 
@@ -187,20 +194,31 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:
+			if (hw->soc->bias_disable_set) {
+				err = hw->soc->bias_disable_set(hw, desc);
+				if (err)
+					return err;
+			} else {
+				return -ENOTSUPP;
+			}
+			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
+			if (hw->soc->bias_set) {
+				err = hw->soc->bias_set(hw, desc, 1);
+				if (err)
+					return err;
+			} else {
+				return -ENOTSUPP;
+			}
+			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
-			arg = (param == PIN_CONFIG_BIAS_DISABLE) ? 0 :
-			       (param == PIN_CONFIG_BIAS_PULL_UP) ? 1 : 2;
-
-			err = mtk_hw_set_value(hw, pin, PINCTRL_PIN_REG_PU,
-					       arg & 1);
-			if (err)
-				goto err;
-
-			err = mtk_hw_set_value(hw, pin, PINCTRL_PIN_REG_PD,
-					       !!(arg & 2));
-			if (err)
-				goto err;
+			if (hw->soc->bias_set) {
+				err = hw->soc->bias_set(hw, desc, 0);
+				if (err)
+					return err;
+			} else {
+				return -ENOTSUPP;
+			}
 			break;
 		case PIN_CONFIG_OUTPUT_ENABLE:
 			err = mtk_hw_set_value(hw, pin, PINCTRL_PIN_REG_SMT,
