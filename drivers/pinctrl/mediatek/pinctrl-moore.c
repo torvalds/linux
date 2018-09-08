@@ -244,15 +244,27 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 					       MTK_DISABLE);
 			if (err)
 				goto err;
-			/* else: fall through */
-		case PIN_CONFIG_INPUT_ENABLE:
-		case PIN_CONFIG_SLEW_RATE:
-			reg = (param == PIN_CONFIG_SLEW_RATE) ?
-			       PINCTRL_PIN_REG_SR : PINCTRL_PIN_REG_DIR;
 
-			arg = (param == PIN_CONFIG_INPUT_ENABLE) ? 0 :
-			      (param == PIN_CONFIG_OUTPUT_ENABLE) ? 1 : arg;
-			err = mtk_hw_set_value(hw, pin, reg, arg);
+			err = mtk_hw_set_value(hw, pin, PINCTRL_PIN_REG_DIR,
+					       MTK_OUTPUT);
+			if (err)
+				goto err;
+			break;
+		case PIN_CONFIG_INPUT_ENABLE:
+
+			if (hw->soc->ies_present) {
+				mtk_hw_set_value(hw, pin, PINCTRL_PIN_REG_IES,
+						 MTK_ENABLE);
+			}
+
+			err = mtk_hw_set_value(hw, pin, PINCTRL_PIN_REG_DIR,
+					       MTK_INPUT);
+			if (err)
+				goto err;
+			break;
+		case PIN_CONFIG_SLEW_RATE:
+			err = mtk_hw_set_value(hw, pin, PINCTRL_PIN_REG_SR,
+					       arg);
 			if (err)
 				goto err;
 
