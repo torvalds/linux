@@ -2540,9 +2540,9 @@ static struct dmar_domain *dmar_insert_one_dev_info(struct intel_iommu *iommu,
 	if (dev && dev_is_pci(dev) && info->pasid_supported) {
 		ret = intel_pasid_alloc_table(dev);
 		if (ret) {
-			__dmar_remove_one_dev_info(info);
-			spin_unlock_irqrestore(&device_domain_lock, flags);
-			return NULL;
+			pr_warn("No pasid table for %s, pasid disabled\n",
+				dev_name(dev));
+			info->pasid_supported = 0;
 		}
 	}
 	spin_unlock_irqrestore(&device_domain_lock, flags);
