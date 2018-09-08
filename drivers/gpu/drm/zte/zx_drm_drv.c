@@ -31,7 +31,6 @@
 
 static const struct drm_mode_config_funcs zx_drm_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -41,7 +40,6 @@ DEFINE_DRM_GEM_CMA_FOPS(zx_drm_fops);
 static struct drm_driver zx_drm_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
-	.lastclose = drm_fb_helper_lastclose,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
@@ -101,20 +99,14 @@ static int zx_drm_bind(struct device *dev)
 	drm_mode_config_reset(drm);
 	drm_kms_helper_poll_init(drm);
 
-	ret = drm_fb_cma_fbdev_init(drm, 32, 0);
-	if (ret) {
-		DRM_DEV_ERROR(dev, "failed to init cma fbdev: %d\n", ret);
-		goto out_poll_fini;
-	}
-
 	ret = drm_dev_register(drm, 0);
 	if (ret)
-		goto out_fbdev_fini;
+		goto out_poll_fini;
+
+	drm_fbdev_generic_setup(drm, 32);
 
 	return 0;
 
-out_fbdev_fini:
-	drm_fb_cma_fbdev_fini(drm);
 out_poll_fini:
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
@@ -131,7 +123,6 @@ static void zx_drm_unbind(struct device *dev)
 	struct drm_device *drm = dev_get_drvdata(dev);
 
 	drm_dev_unregister(drm);
-	drm_fb_cma_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
 	component_unbind_all(dev, drm);
