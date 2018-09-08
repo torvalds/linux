@@ -2588,8 +2588,9 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 	else
 		value = !!value;
 
-	/* GPIOs used for IRQs shall not be set as output */
-	if (test_bit(FLAG_USED_AS_IRQ, &desc->flags)) {
+	/* GPIOs used for enabled IRQs shall not be set as output */
+	if (test_bit(FLAG_USED_AS_IRQ, &desc->flags) &&
+	    test_bit(FLAG_IRQ_IS_ENABLED, &desc->flags)) {
 		gpiod_err(desc,
 			  "%s: tried to set a GPIO tied to an IRQ as output\n",
 			  __func__);
@@ -3276,6 +3277,7 @@ int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
 	}
 
 	set_bit(FLAG_USED_AS_IRQ, &desc->flags);
+	set_bit(FLAG_IRQ_IS_ENABLED, &desc->flags);
 
 	/*
 	 * If the consumer has not set up a label (such as when the
@@ -3306,12 +3308,35 @@ void gpiochip_unlock_as_irq(struct gpio_chip *chip, unsigned int offset)
 		return;
 
 	clear_bit(FLAG_USED_AS_IRQ, &desc->flags);
+	clear_bit(FLAG_IRQ_IS_ENABLED, &desc->flags);
 
 	/* If we only had this marking, erase it */
 	if (desc->label && !strcmp(desc->label, "interrupt"))
 		desc_set_label(desc, NULL);
 }
 EXPORT_SYMBOL_GPL(gpiochip_unlock_as_irq);
+
+void gpiochip_disable_irq(struct gpio_chip *chip, unsigned int offset)
+{
+	struct gpio_desc *desc = gpiochip_get_desc(chip, offset);
+
+	if (!IS_ERR(desc) &&
+	    !WARN_ON(!test_bit(FLAG_USED_AS_IRQ, &desc->flags)))
+		clear_bit(FLAG_IRQ_IS_ENABLED, &desc->flags);
+}
+EXPORT_SYMBOL_GPL(gpiochip_disable_irq);
+
+void gpiochip_enable_irq(struct gpio_chip *chip, unsigned int offset)
+{
+	struct gpio_desc *desc = gpiochip_get_desc(chip, offset);
+
+	if (!IS_ERR(desc) &&
+	    !WARN_ON(!test_bit(FLAG_USED_AS_IRQ, &desc->flags))) {
+		WARN_ON(test_bit(FLAG_IS_OUT, &desc->flags));
+		set_bit(FLAG_IRQ_IS_ENABLED, &desc->flags);
+	}
+}
+EXPORT_SYMBOL_GPL(gpiochip_enable_irq);
 
 bool gpiochip_line_is_irq(struct gpio_chip *chip, unsigned int offset)
 {
