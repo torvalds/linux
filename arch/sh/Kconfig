@@ -7,6 +7,7 @@ config SUPERH
 	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
 	select HAVE_PATA_PLATFORM
 	select CLKDEV_LOOKUP
+	select DMA_DIRECT_OPS
 	select HAVE_IDE if HAS_IOPORT_MAP
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
@@ -158,13 +159,11 @@ config SWAP_IO_SPACE
 	bool
 
 config DMA_COHERENT
-	select DMA_DIRECT_OPS
 	bool
 
 config DMA_NONCOHERENT
 	def_bool !DMA_COHERENT
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
-	select DMA_NONCOHERENT_OPS
 
 config PGTABLE_LEVELS
 	default 3 if X2TLB

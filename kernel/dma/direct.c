@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * DMA operations that map physical memory directly without using an IOMMU or
- * flushing caches.
+ * Copyright (C) 2018 Christoph Hellwig.
+ *
+ * DMA operations that map physical memory directly without using an IOMMU.
  */
 #include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/dma-direct.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-contiguous.h>
+#include <linux/dma-noncoherent.h>
 #include <linux/pfn.h>
 #include <linux/set_memory.h>
 
@@ -58,8 +60,8 @@ static bool dma_coherent_ok(struct device *dev, phys_addr_t phys, size_t size)
 	return addr + size - 1 <= dev->coherent_dma_mask;
 }
 
-void *dma_direct_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		gfp_t gfp, unsigned long attrs)
+void *dma_direct_alloc_pages(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
 {
 	unsigned int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	int page_order = get_order(size);
@@ -124,7 +126,7 @@ again:
  * NOTE: this function must never look at the dma_addr argument, because we want
  * to be able to use it as a helper for iommu implementations as well.
  */
-void dma_direct_free(struct device *dev, size_t size, void *cpu_addr,
+void dma_direct_free_pages(struct device *dev, size_t size, void *cpu_addr,
 		dma_addr_t dma_addr, unsigned long attrs)
 {
 	unsigned int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
@@ -136,14 +138,106 @@ void dma_direct_free(struct device *dev, size_t size, void *cpu_addr,
 		free_pages((unsigned long)cpu_addr, page_order);
 }
 
+void *dma_direct_alloc(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
+{
+	if (!dev_is_dma_coherent(dev))
+		return arch_dma_alloc(dev, size, dma_handle, gfp, attrs);
+	return dma_direct_alloc_pages(dev, size, dma_handle, gfp, attrs);
+}
+
+void dma_direct_free(struct device *dev, size_t size,
+		void *cpu_addr, dma_addr_t dma_addr, unsigned long attrs)
+{
+	if (!dev_is_dma_coherent(dev))
+		arch_dma_free(dev, size, cpu_addr, dma_addr, attrs);
+	else
+		dma_direct_free_pages(dev, size, cpu_addr, dma_addr, attrs);
+}
+
+static int dma_direct_mmap(struct device *dev, struct vm_area_struct *vma,
+		void *cpu_addr, dma_addr_t dma_addr, size_t size,
+		unsigned long attrs)
+{
+	if (!dev_is_dma_coherent(dev) &&
+	    IS_ENABLED(CONFIG_DMA_NONCOHERENT_MMAP))
+		return arch_dma_mmap(dev, vma, cpu_addr, dma_addr, size, attrs);
+	return dma_common_mmap(dev, vma, cpu_addr, dma_addr, size);
+}
+
+static void dma_direct_sync_single_for_device(struct device *dev,
+		dma_addr_t addr, size_t size, enum dma_data_direction dir)
+{
+	if (dev_is_dma_coherent(dev))
+		return;
+	arch_sync_dma_for_device(dev, dma_to_phys(dev, addr), size, dir);
+}
+
+static void dma_direct_sync_sg_for_device(struct device *dev,
+		struct scatterlist *sgl, int nents, enum dma_data_direction dir)
+{
+	struct scatterlist *sg;
+	int i;
+
+	if (dev_is_dma_coherent(dev))
+		return;
+
+	for_each_sg(sgl, sg, nents, i)
+		arch_sync_dma_for_device(dev, sg_phys(sg), sg->length, dir);
+}
+
+#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
+    defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
+static void dma_direct_sync_single_for_cpu(struct device *dev,
+		dma_addr_t addr, size_t size, enum dma_data_direction dir)
+{
+	if (dev_is_dma_coherent(dev))
+		return;
+	arch_sync_dma_for_cpu(dev, dma_to_phys(dev, addr), size, dir);
+	arch_sync_dma_for_cpu_all(dev);
+}
+
+static void dma_direct_sync_sg_for_cpu(struct device *dev,
+		struct scatterlist *sgl, int nents, enum dma_data_direction dir)
+{
+	struct scatterlist *sg;
+	int i;
+
+	if (dev_is_dma_coherent(dev))
+		return;
+
+	for_each_sg(sgl, sg, nents, i)
+		arch_sync_dma_for_cpu(dev, sg_phys(sg), sg->length, dir);
+	arch_sync_dma_for_cpu_all(dev);
+}
+
+static void dma_direct_unmap_page(struct device *dev, dma_addr_t addr,
+		size_t size, enum dma_data_direction dir, unsigned long attrs)
+{
+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+		dma_direct_sync_single_for_cpu(dev, addr, size, dir);
+}
+
+static void dma_direct_unmap_sg(struct device *dev, struct scatterlist *sgl,
+		int nents, enum dma_data_direction dir, unsigned long attrs)
+{
+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+		dma_direct_sync_sg_for_cpu(dev, sgl, nents, dir);
+}
+#endif
+
 dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
 		unsigned long offset, size_t size, enum dma_data_direction dir,
 		unsigned long attrs)
 {
-	dma_addr_t dma_addr = phys_to_dma(dev, page_to_phys(page)) + offset;
+	phys_addr_t phys = page_to_phys(page) + offset;
+	dma_addr_t dma_addr = phys_to_dma(dev, phys);
 
 	if (!check_addr(dev, dma_addr, size, __func__))
 		return DIRECT_MAPPING_ERROR;
+
+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+		dma_direct_sync_single_for_device(dev, dma_addr, size, dir);
 	return dma_addr;
 }
 
@@ -162,6 +256,8 @@ int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl, int nents,
 		sg_dma_len(sg) = sg->length;
 	}
 
+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+		dma_direct_sync_sg_for_device(dev, sgl, nents, dir);
 	return nents;
 }
 
@@ -197,9 +293,22 @@ int dma_direct_mapping_error(struct device *dev, dma_addr_t dma_addr)
 const struct dma_map_ops dma_direct_ops = {
 	.alloc			= dma_direct_alloc,
 	.free			= dma_direct_free,
+	.mmap			= dma_direct_mmap,
 	.map_page		= dma_direct_map_page,
 	.map_sg			= dma_direct_map_sg,
+#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE)
+	.sync_single_for_device	= dma_direct_sync_single_for_device,
+	.sync_sg_for_device	= dma_direct_sync_sg_for_device,
+#endif
+#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
+    defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
+	.sync_single_for_cpu	= dma_direct_sync_single_for_cpu,
+	.sync_sg_for_cpu	= dma_direct_sync_sg_for_cpu,
+	.unmap_page		= dma_direct_unmap_page,
+	.unmap_sg		= dma_direct_unmap_sg,
+#endif
 	.dma_supported		= dma_direct_supported,
 	.mapping_error		= dma_direct_mapping_error,
+	.cache_sync		= arch_dma_cache_sync,
 };
 EXPORT_SYMBOL(dma_direct_ops);

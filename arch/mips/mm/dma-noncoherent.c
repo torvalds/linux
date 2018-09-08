@@ -29,9 +29,6 @@
  */
 static inline bool cpu_needs_post_dma_flush(struct device *dev)
 {
-	if (dev_is_dma_coherent(dev))
-		return false;
-
 	switch (boot_cpu_type()) {
 	case CPU_R10000:
 	case CPU_R12000:
@@ -52,11 +49,8 @@ void *arch_dma_alloc(struct device *dev, size_t size,
 {
 	void *ret;
 
-	ret = dma_direct_alloc(dev, size, dma_handle, gfp, attrs);
-	if (!ret)
-		return NULL;
-
-	if (!dev_is_dma_coherent(dev) && !(attrs & DMA_ATTR_NON_CONSISTENT)) {
+	ret = dma_direct_alloc_pages(dev, size, dma_handle, gfp, attrs);
+	if (!ret && !(attrs & DMA_ATTR_NON_CONSISTENT)) {
 		dma_cache_wback_inv((unsigned long) ret, size);
 		ret = (void *)UNCAC_ADDR(ret);
 	}
@@ -67,9 +61,9 @@ void *arch_dma_alloc(struct device *dev, size_t size,
 void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 		dma_addr_t dma_addr, unsigned long attrs)
 {
-	if (!(attrs & DMA_ATTR_NON_CONSISTENT) && !dev_is_dma_coherent(dev))
+	if (!(attrs & DMA_ATTR_NON_CONSISTENT))
 		cpu_addr = (void *)CAC_ADDR((unsigned long)cpu_addr);
-	dma_direct_free(dev, size, cpu_addr, dma_addr, attrs);
+	dma_direct_free_pages(dev, size, cpu_addr, dma_addr, attrs);
 }
 
 int arch_dma_mmap(struct device *dev, struct vm_area_struct *vma,
@@ -78,15 +72,10 @@ int arch_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 {
 	unsigned long user_count = vma_pages(vma);
 	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
-	unsigned long addr = (unsigned long)cpu_addr;
+	unsigned long addr = CAC_ADDR((unsigned long)cpu_addr);
 	unsigned long off = vma->vm_pgoff;
-	unsigned long pfn;
+	unsigned long pfn = page_to_pfn(virt_to_page((void *)addr));
 	int ret = -ENXIO;
-
-	if (!dev_is_dma_coherent(dev))
-		addr = CAC_ADDR(addr);
-
-	pfn = page_to_pfn(virt_to_page((void *)addr));
 
 	if (attrs & DMA_ATTR_WRITE_COMBINE)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
@@ -167,8 +156,7 @@ static inline void dma_sync_phys(phys_addr_t paddr, size_t size,
 void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
 		size_t size, enum dma_data_direction dir)
 {
-	if (!dev_is_dma_coherent(dev))
-		dma_sync_phys(paddr, size, dir);
+	dma_sync_phys(paddr, size, dir);
 }
 
 void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
@@ -183,6 +171,5 @@ void arch_dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 {
 	BUG_ON(direction == DMA_NONE);
 
-	if (!dev_is_dma_coherent(dev))
-		dma_sync_virt(vaddr, size, direction);
+	dma_sync_virt(vaddr, size, direction);
 }

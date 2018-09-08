@@ -51,7 +51,7 @@ config SPARC
 config SPARC32
 	def_bool !64BIT
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
-	select DMA_NONCOHERENT_OPS
+	select DMA_DIRECT_OPS
 	select GENERIC_ATOMIC64
 	select CLZ_TAB
 	select HAVE_UID16

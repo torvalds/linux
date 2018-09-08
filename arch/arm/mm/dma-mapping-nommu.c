@@ -47,7 +47,8 @@ static void *arm_nommu_dma_alloc(struct device *dev, size_t size,
 	 */
 
 	if (attrs & DMA_ATTR_NON_CONSISTENT)
-		return dma_direct_alloc(dev, size, dma_handle, gfp, attrs);
+		return dma_direct_alloc_pages(dev, size, dma_handle, gfp,
+				attrs);
 
 	ret = dma_alloc_from_global_coherent(size, dma_handle);
 
@@ -70,7 +71,7 @@ static void arm_nommu_dma_free(struct device *dev, size_t size,
 			       unsigned long attrs)
 {
 	if (attrs & DMA_ATTR_NON_CONSISTENT) {
-		dma_direct_free(dev, size, cpu_addr, dma_addr, attrs);
+		dma_direct_free_pages(dev, size, cpu_addr, dma_addr, attrs);
 	} else {
 		int ret = dma_release_from_global_coherent(get_order(size),
 							   cpu_addr);
