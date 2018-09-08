@@ -164,3 +164,4 @@ module_platform_driver(rpi_hwmon_driver);
 MODULE_AUTHOR("Stefan Wahren <stefan.wahren@i2se.com>");
 MODULE_DESCRIPTION("Raspberry Pi voltage sensor driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:raspberrypi-hwmon");
