@@ -475,10 +475,10 @@ static int mtk_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[offset];
 
-	if (desc->eint_n == EINT_NA)
+	if (desc->eint.eint_n == EINT_NA)
 		return -ENOTSUPP;
 
-	return mtk_eint_find_irq(hw->eint, desc->eint_n);
+	return mtk_eint_find_irq(hw->eint, desc->eint.eint_n);
 }
 
 static int mtk_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
@@ -492,12 +492,12 @@ static int mtk_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 
 	if (!hw->eint ||
 	    pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE ||
-	    desc->eint_n == EINT_NA)
+	    desc->eint.eint_n == EINT_NA)
 		return -ENOTSUPP;
 
 	debounce = pinconf_to_config_argument(config);
 
-	return mtk_eint_set_debounce(hw->eint, desc->eint_n, debounce);
+	return mtk_eint_set_debounce(hw->eint, desc->eint.eint_n, debounce);
 }
 
 static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_node *np)
@@ -593,7 +593,7 @@ static int mtk_xt_find_eint_num(struct mtk_pinctrl *hw,
 	desc = (const struct mtk_pin_desc *)hw->soc->pins;
 
 	while (i < hw->soc->npins) {
-		if (desc[i].eint_n == eint_n)
+		if (desc[i].eint.eint_n == eint_n)
 			return desc[i].number;
 		i++;
 	}
@@ -612,7 +612,7 @@ static int mtk_xt_get_gpio_n(void *data, unsigned long eint_n,
 	*gpio_chip = &hw->chip;
 
 	/* Be greedy to guess first gpio_n is equal to eint_n */
-	if (desc[eint_n].eint_n == eint_n)
+	if (desc[eint_n].eint.eint_n == eint_n)
 		*gpio_n = eint_n;
 	else
 		*gpio_n = mtk_xt_find_eint_num(hw, eint_n);
@@ -649,7 +649,7 @@ static int mtk_xt_set_gpio_as_eint(void *data, unsigned long eint_n)
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[gpio_n];
 
 	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_MODE,
-			       hw->soc->eint_m);
+			       desc->eint.eint_m);
 	if (err)
 		return err;
 
@@ -711,6 +711,7 @@ mtk_build_eint(struct mtk_pinctrl *hw, struct platform_device *pdev)
 int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 			    const struct mtk_pin_soc *soc)
 {
+	struct pinctrl_pin_desc *pins;
 	struct resource *res;
 	struct mtk_pinctrl *hw;
 	int err, i;
@@ -748,8 +749,19 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 
 	hw->nbase = hw->soc->nbase_names;
 
+	/* Copy from internal struct mtk_pin_desc to register to the core */
+	pins = devm_kmalloc_array(&pdev->dev, hw->soc->npins, sizeof(*pins),
+				  GFP_KERNEL);
+	if (IS_ERR(pins))
+		return PTR_ERR(pins);
+
+	for (i = 0; i < hw->soc->npins; i++) {
+		pins[i].number = hw->soc->pins[i].number;
+		pins[i].name = hw->soc->pins[i].name;
+	}
+
 	/* Setup pins descriptions per SoC types */
-	mtk_desc.pins = (const struct pinctrl_pin_desc *)hw->soc->pins;
+	mtk_desc.pins = (const struct pinctrl_pin_desc *)pins;
 	mtk_desc.npins = hw->soc->npins;
 	mtk_desc.num_custom_params = ARRAY_SIZE(mtk_custom_bindings);
 	mtk_desc.custom_params = mtk_custom_bindings;

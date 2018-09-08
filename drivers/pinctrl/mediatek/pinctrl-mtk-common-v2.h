@@ -134,18 +134,44 @@ struct mtk_pin_reg_calc {
 };
 
 /**
+ * struct mtk_func_desc - the structure that providing information
+ *			  all the funcs for this pin
+ * @name:		the name of function
+ * @muxval:		the mux to the function
+ */
+struct mtk_func_desc {
+	const char *name;
+	u8 muxval;
+};
+
+/**
+ * struct mtk_eint_desc - the structure that providing information
+ *			       for eint data per pin
+ * @eint_m:		the eint mux for this pin
+ * @eitn_n:		the eint number for this pin
+ */
+struct mtk_eint_desc {
+	u8 eint_m;
+	u16 eint_n;
+};
+
+/**
  * struct mtk_pin_desc - the structure that providing information
  *			       for each pin of chips
  * @number:		unique pin number from the global pin number space
  * @name:		name for this pin
- * @eint_n:		the eint number for this pin
+ * @eint:		the eint data for this pin
  * @drv_n:		the index with the driving group
+ * @funcs:		all available functions for this pins (only used in
+ *			those drivers compatible to pinctrl-mtk-common.c-like
+ *			ones)
  */
 struct mtk_pin_desc {
 	unsigned int number;
 	const char *name;
-	u16 eint_n;
+	struct mtk_eint_desc eint;
 	u8 drv_n;
+	struct mtk_func_desc *funcs;
 };
 
 struct mtk_pinctrl;
@@ -153,7 +179,7 @@ struct mtk_pinctrl;
 /* struct mtk_pin_soc - the structure that holds SoC-specific data */
 struct mtk_pin_soc {
 	const struct mtk_pin_reg_calc	*reg_cal;
-	const struct pinctrl_pin_desc	*pins;
+	const struct mtk_pin_desc	*pins;
 	unsigned int			npins;
 	const struct group_desc		*grps;
 	unsigned int			ngrps;
@@ -164,7 +190,6 @@ struct mtk_pin_soc {
 
 	/* Specific parameters per SoC */
 	u8				gpio_m;
-	u8				eint_m;
 	bool				ies_present;
 	const char * const		*base_names;
 	unsigned int			nbase_names;
@@ -190,6 +215,9 @@ struct mtk_pin_soc {
 	int (*adv_pull_get)(struct mtk_pinctrl *hw,
 			    const struct mtk_pin_desc *desc, bool pullup,
 			    u32 *val);
+
+	/* Specific driver data */
+	void				*driver_data;
 };
 
 struct mtk_pinctrl {

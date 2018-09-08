@@ -9,7 +9,7 @@
 #include "pinctrl-moore.h"
 
 #define MT7622_PIN(_number, _name)					\
-	MTK_PIN(_number, _name, _number, DRV_GRP0)
+	MTK_PIN(_number, _name, 1, _number, DRV_GRP0)
 
 static const struct mtk_pin_field_calc mt7622_pin_mode_range[] = {
 	PIN_FIELD(0, 0, 0x320, 0x10, 16, 4),
@@ -758,7 +758,7 @@ static const struct mtk_eint_hw mt7622_eint_hw = {
 
 static const struct mtk_pin_soc mt7622_data = {
 	.reg_cal = mt7622_reg_cals,
-	.pins = (const struct pinctrl_pin_desc *)mt7622_pins,
+	.pins = mt7622_pins,
 	.npins = ARRAY_SIZE(mt7622_pins),
 	.grps = mt7622_groups,
 	.ngrps = ARRAY_SIZE(mt7622_groups),
@@ -766,7 +766,6 @@ static const struct mtk_pin_soc mt7622_data = {
 	.nfuncs = ARRAY_SIZE(mt7622_functions),
 	.eint_hw = &mt7622_eint_hw,
 	.gpio_m	= 1,
-	.eint_m = 1,
 	.ies_present = false,
 	.base_names = mtk_default_register_base_names,
 	.nbase_names = ARRAY_SIZE(mtk_default_register_base_names),

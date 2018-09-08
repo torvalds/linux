@@ -30,7 +30,7 @@
 		       _x_bits, 16, 1)
 
 #define MT7623_PIN(_number, _name, _eint_n, _drv_grp)			\
-	MTK_PIN(_number, _name, _eint_n, _drv_grp)
+	MTK_PIN(_number, _name, 0, _eint_n, _drv_grp)
 
 static const struct mtk_pin_field_calc mt7623_pin_mode_range[] = {
 	PIN_FIELD15(0, 278, 0x760, 0x10, 0, 3),
@@ -1373,7 +1373,7 @@ static const struct mtk_eint_hw mt7623_eint_hw = {
 
 static struct mtk_pin_soc mt7623_data = {
 	.reg_cal = mt7623_reg_cals,
-	.pins = (const struct pinctrl_pin_desc *)mt7623_pins,
+	.pins = mt7623_pins,
 	.npins = ARRAY_SIZE(mt7623_pins),
 	.grps = mt7623_groups,
 	.ngrps = ARRAY_SIZE(mt7623_groups),
@@ -1381,7 +1381,6 @@ static struct mtk_pin_soc mt7623_data = {
 	.nfuncs = ARRAY_SIZE(mt7623_functions),
 	.eint_hw = &mt7623_eint_hw,
 	.gpio_m = 0,
-	.eint_m = 0,
 	.ies_present = true,
 	.base_names = mtk_default_register_base_names,
 	.nbase_names = ARRAY_SIZE(mtk_default_register_base_names),
