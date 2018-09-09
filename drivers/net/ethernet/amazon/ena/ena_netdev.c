@@ -551,14 +551,9 @@ static int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 			    rx_ring->qid, i, num);
 	}
 
-	if (likely(i)) {
-		/* Add memory barrier to make sure the desc were written before
-		 * issue a doorbell
-		 */
-		wmb();
-		ena_com_write_sq_doorbell(rx_ring->ena_com_io_sq, true);
-		mmiowb();
-	}
+	/* ena_com_write_sq_doorbell issues a wmb() */
+	if (likely(i))
+		ena_com_write_sq_doorbell(rx_ring->ena_com_io_sq);
 
 	rx_ring->next_to_use = next_to_use;
 
@@ -2112,12 +2107,6 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_ring->next_to_use = ENA_TX_RING_IDX_NEXT(next_to_use,
 		tx_ring->ring_size);
 
-	/* This WMB is aimed to:
-	 * 1 - perform smp barrier before reading next_to_completion
-	 * 2 - make sure the desc were written before trigger DB
-	 */
-	wmb();
-
 	/* stop the queue when no more space available, the packet can have up
 	 * to sgl_size + 2. one for the meta descriptor and one for header
 	 * (if the header is larger than tx_max_header_size).
@@ -2136,10 +2125,11 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * stop the queue but meanwhile clean_tx_irq updates
 		 * next_to_completion and terminates.
 		 * The queue will remain stopped forever.
-		 * To solve this issue this function perform rmb, check
-		 * the wakeup condition and wake up the queue if needed.
+		 * To solve this issue add a mb() to make sure that
+		 * netif_tx_stop_queue() write is vissible before checking if
+		 * there is additional space in the queue.
 		 */
-		smp_rmb();
+		smp_mb();
 
 		if (ena_com_sq_empty_space(tx_ring->ena_com_io_sq)
 				> ENA_TX_WAKEUP_THRESH) {
@@ -2151,8 +2141,10 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (netif_xmit_stopped(txq) || !skb->xmit_more) {
-		/* trigger the dma engine */
-		ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq, false);
+		/* trigger the dma engine. ena_com_write_sq_doorbell()
+		 * has a mb
+		 */
+		ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
 		u64_stats_update_begin(&tx_ring->syncp);
 		tx_ring->tx_stats.doorbells++;
 		u64_stats_update_end(&tx_ring->syncp);

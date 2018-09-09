@@ -464,7 +464,7 @@ static void ena_com_handle_admin_completion(struct ena_com_admin_queue *admin_qu
 		/* Do not read the rest of the completion entry before the
 		 * phase bit was validated
 		 */
-		rmb();
+		dma_rmb();
 		ena_com_handle_single_admin_completion(admin_queue, cqe);
 
 		head_masked++;
@@ -627,15 +627,8 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 	mmio_read_reg |= mmio_read->seq_num &
 			ENA_REGS_MMIO_REG_READ_REQ_ID_MASK;
 
-	/* make sure read_resp->req_id get updated before the hw can write
-	 * there
-	 */
-	wmb();
+	writel(mmio_read_reg, ena_dev->reg_bar + ENA_REGS_MMIO_REG_READ_OFF);
 
-	writel_relaxed(mmio_read_reg,
-		       ena_dev->reg_bar + ENA_REGS_MMIO_REG_READ_OFF);
-
-	mmiowb();
 	for (i = 0; i < timeout; i++) {
 		if (READ_ONCE(read_resp->req_id) == mmio_read->seq_num)
 			break;
@@ -1798,6 +1791,11 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 	/* Go over all the events */
 	while ((READ_ONCE(aenq_common->flags) &
 		ENA_ADMIN_AENQ_COMMON_DESC_PHASE_MASK) == phase) {
+		/* Make sure the phase bit (ownership) is as expected before
+		 * reading the rest of the descriptor.
+		 */
+		dma_rmb();
+
 		pr_debug("AENQ! Group[%x] Syndrom[%x] timestamp: [%llus]\n",
 			 aenq_common->group, aenq_common->syndrom,
 			 (u64)aenq_common->timestamp_low +
