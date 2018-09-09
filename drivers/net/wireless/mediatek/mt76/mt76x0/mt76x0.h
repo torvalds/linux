@@ -126,10 +126,6 @@ void mt76x0_init_debugfs(struct mt76x0_dev *dev);
 #define mt76_rmw_field(_dev, _reg, _field, _val)	\
 	mt76_rmw(_dev, _reg, _field, FIELD_PREP(_field, _val))
 
-int mt76x0_write_reg_pairs(struct mt76x0_dev *dev, u32 base,
-			    const struct mt76_reg_pair *data, int len);
-int mt76x0_read_reg_pairs(struct mt76x0_dev *dev, u32 base,
-			  struct mt76_reg_pair *data, int len);
 int mt76x0_burst_write_regs(struct mt76x0_dev *dev, u32 offset,
 			     const u32 *data, int n);
 

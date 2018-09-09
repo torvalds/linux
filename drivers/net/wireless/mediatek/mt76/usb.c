@@ -187,6 +187,60 @@ void mt76u_single_wr(struct mt76_dev *dev, const u8 req,
 EXPORT_SYMBOL_GPL(mt76u_single_wr);
 
 static int
+mt76u_req_wr_rp(struct mt76_dev *dev, u32 base,
+		const struct mt76_reg_pair *data, int len)
+{
+	struct mt76_usb *usb = &dev->usb;
+
+	mutex_lock(&usb->usb_ctrl_mtx);
+	while (len > 0) {
+		__mt76u_wr(dev, base + data->reg, data->value);
+		len--;
+		data++;
+	}
+	mutex_unlock(&usb->usb_ctrl_mtx);
+
+	return 0;
+}
+
+int mt76u_wr_rp(struct mt76_dev *dev, u32 base,
+		const struct mt76_reg_pair *data, int n)
+{
+	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->state))
+		return mt76u_mcu_wr_rp(dev, base, data, n);
+	else
+		return mt76u_req_wr_rp(dev, base, data, n);
+}
+EXPORT_SYMBOL_GPL(mt76u_wr_rp);
+
+static int
+mt76u_req_rd_rp(struct mt76_dev *dev, u32 base, struct mt76_reg_pair *data,
+		int len)
+{
+	struct mt76_usb *usb = &dev->usb;
+
+	mutex_lock(&usb->usb_ctrl_mtx);
+	while (len > 0) {
+		data->value = __mt76u_rr(dev, base + data->reg);
+		len--;
+		data++;
+	}
+	mutex_unlock(&usb->usb_ctrl_mtx);
+
+	return 0;
+}
+
+int mt76u_rd_rp(struct mt76_dev *dev, u32 base,
+		struct mt76_reg_pair *data, int n)
+{
+	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->state))
+		return mt76u_mcu_rd_rp(dev, base, data, n);
+	else
+		return mt76u_req_rd_rp(dev, base, data, n);
+}
+EXPORT_SYMBOL_GPL(mt76u_rd_rp);
+
+static int
 mt76u_set_endpoints(struct usb_interface *intf,
 		    struct mt76_usb *usb)
 {

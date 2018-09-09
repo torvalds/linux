@@ -650,6 +650,14 @@ int __mt76u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 			 int cmd, bool wait_resp);
 int mt76u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 		       int cmd, bool wait_resp);
+int mt76u_mcu_wr_rp(struct mt76_dev *dev, u32 base,
+		    const struct mt76_reg_pair *data, int n);
+int mt76u_mcu_rd_rp(struct mt76_dev *dev, u32 base,
+		    struct mt76_reg_pair *data, int n);
+int mt76u_wr_rp(struct mt76_dev *dev, u32 base,
+		const struct mt76_reg_pair *data, int n);
+int mt76u_rd_rp(struct mt76_dev *dev, u32 base,
+		struct mt76_reg_pair *data, int n);
 void mt76u_mcu_fw_reset(struct mt76_dev *dev);
 int mt76u_mcu_init_rx(struct mt76_dev *dev);
 void mt76u_mcu_deinit(struct mt76_dev *dev);

@@ -26,6 +26,8 @@
 
 #define MT_TX_CPU_FROM_FCE_CPU_DESC_IDX	0x09a8
 
+#define MT_INBAND_PACKET_MAX_LEN	192
+
 struct sk_buff *mt76u_mcu_msg_alloc(const void *data, int len)
 {
 	struct sk_buff *skb;
@@ -177,6 +179,83 @@ int mt76u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 	return err;
 }
 EXPORT_SYMBOL_GPL(mt76u_mcu_send_msg);
+
+static inline void skb_put_le32(struct sk_buff *skb, u32 val)
+{
+	put_unaligned_le32(val, skb_put(skb, 4));
+}
+
+int mt76u_mcu_wr_rp(struct mt76_dev *dev, u32 base,
+		    const struct mt76_reg_pair *data, int n)
+{
+	const int CMD_RANDOM_WRITE = 12;
+	const int max_vals_per_cmd = MT_INBAND_PACKET_MAX_LEN / 8;
+	struct sk_buff *skb;
+	int cnt, i, ret;
+
+	if (!n)
+		return 0;
+
+	cnt = min(max_vals_per_cmd, n);
+
+	skb = alloc_skb(cnt * 8 + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+	skb_reserve(skb, MT_DMA_HDR_LEN);
+
+	for (i = 0; i < cnt; i++) {
+		skb_put_le32(skb, base + data[i].reg);
+		skb_put_le32(skb, data[i].value);
+	}
+
+	ret = mt76u_mcu_send_msg(dev, skb, CMD_RANDOM_WRITE, cnt == n);
+	if (ret)
+		return ret;
+
+	return mt76u_mcu_wr_rp(dev, base, data + cnt, n - cnt);
+}
+
+int mt76u_mcu_rd_rp(struct mt76_dev *dev, u32 base,
+		    struct mt76_reg_pair *data, int n)
+{
+	const int CMD_RANDOM_READ = 10;
+	const int max_vals_per_cmd = MT_INBAND_PACKET_MAX_LEN / 8;
+	struct mt76_usb *usb = &dev->usb;
+	struct sk_buff *skb;
+	int cnt, i, ret;
+
+	if (!n)
+		return 0;
+
+	cnt = min(max_vals_per_cmd, n);
+	if (cnt != n)
+		return -EINVAL;
+
+	skb = alloc_skb(cnt * 8 + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+	skb_reserve(skb, MT_DMA_HDR_LEN);
+
+	for (i = 0; i < cnt; i++) {
+		skb_put_le32(skb, base + data[i].reg);
+		skb_put_le32(skb, data[i].value);
+	}
+
+	mutex_lock(&usb->mcu.mutex);
+
+	usb->mcu.rp = data;
+	usb->mcu.rp_len = n;
+	usb->mcu.base = base;
+	usb->mcu.burst = false;
+
+	ret = __mt76u_mcu_send_msg(dev, skb, CMD_RANDOM_READ, true);
+
+	usb->mcu.rp = NULL;
+
+	mutex_unlock(&usb->mcu.mutex);
+
+	return ret;
+}
 
 void mt76u_mcu_fw_reset(struct mt76_dev *dev)
 {
