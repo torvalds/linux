@@ -68,4 +68,21 @@ enum mcu_function {
 	GET_FW_VERSION = 5,
 };
 
+struct mt76x02_fw_header {
+	__le32 ilm_len;
+	__le32 dlm_len;
+	__le16 build_ver;
+	__le16 fw_ver;
+	u8 pad[4];
+	char build_time[16];
+};
+
+struct mt76x02_patch_header {
+	char build_time[16];
+	char platform[4];
+	char hw_version[4];
+	char patch_version[4];
+	u8 pad[2];
+};
+
 #endif /* __MT76x02_MCU_H */

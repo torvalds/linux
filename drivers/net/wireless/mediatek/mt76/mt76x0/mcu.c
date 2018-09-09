@@ -73,17 +73,8 @@ mt76x0_mcu_calibrate(struct mt76x0_dev *dev, enum mcu_calibrate cal, u32 val)
 	return mt76_mcu_send_msg(dev, skb, CMD_CALIBRATION_OP, true);
 }
 
-struct mt76_fw_header {
-	__le32 ilm_len;
-	__le32 dlm_len;
-	__le16 build_ver;
-	__le16 fw_ver;
-	u8 pad[4];
-	char build_time[16];
-};
-
 struct mt76_fw {
-	struct mt76_fw_header hdr;
+	struct mt76x02_fw_header hdr;
 	u8 ivb[MT_MCU_IVB_SIZE];
 	u8 ilm[];
 };
@@ -140,7 +131,7 @@ error:
 static int mt76x0_load_firmware(struct mt76x0_dev *dev)
 {
 	const struct firmware *fw;
-	const struct mt76_fw_header *hdr;
+	const struct mt76x02_fw_header *hdr;
 	int len, ret;
 	u32 val;
 
@@ -157,7 +148,7 @@ static int mt76x0_load_firmware(struct mt76x0_dev *dev)
 	if (!fw || !fw->data || fw->size < sizeof(*hdr))
 		goto err_inv_fw;
 
-	hdr = (const struct mt76_fw_header *) fw->data;
+	hdr = (const struct mt76x02_fw_header *)fw->data;
 
 	if (le32_to_cpu(hdr->ilm_len) <= MT_MCU_IVB_SIZE)
 		goto err_inv_fw;

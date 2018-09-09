@@ -104,7 +104,7 @@ static int
 mt76pci_load_rom_patch(struct mt76x2_dev *dev)
 {
 	const struct firmware *fw = NULL;
-	struct mt76x2_patch_header *hdr;
+	struct mt76x02_patch_header *hdr;
 	bool rom_protect = !is_mt7612(dev);
 	int len, ret = 0;
 	__le32 *cur;
@@ -139,7 +139,7 @@ mt76pci_load_rom_patch(struct mt76x2_dev *dev)
 		goto out;
 	}
 
-	hdr = (struct mt76x2_patch_header *) fw->data;
+	hdr = (struct mt76x02_patch_header *)fw->data;
 	dev_info(dev->mt76.dev, "ROM patch build: %.15s\n", hdr->build_time);
 
 	mt76_wr(dev, MT_MCU_PCIE_REMAP_BASE4, MT_MCU_ROM_PATCH_OFFSET);
@@ -170,7 +170,7 @@ static int
 mt76pci_load_firmware(struct mt76x2_dev *dev)
 {
 	const struct firmware *fw;
-	const struct mt76x2_fw_header *hdr;
+	const struct mt76x02_fw_header *hdr;
 	int len, ret;
 	__le32 *cur;
 	u32 offset, val;
@@ -182,7 +182,7 @@ mt76pci_load_firmware(struct mt76x2_dev *dev)
 	if (!fw || !fw->data || fw->size < sizeof(*hdr))
 		goto error;
 
-	hdr = (const struct mt76x2_fw_header *) fw->data;
+	hdr = (const struct mt76x02_fw_header *)fw->data;
 
 	len = sizeof(*hdr);
 	len += le32_to_cpu(hdr->ilm_len);

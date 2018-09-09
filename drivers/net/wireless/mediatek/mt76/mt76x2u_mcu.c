@@ -236,7 +236,7 @@ static void mt76x2u_mcu_reset_wmt(struct mt76x2_dev *dev)
 static int mt76x2u_mcu_load_rom_patch(struct mt76x2_dev *dev)
 {
 	bool rom_protect = !is_mt7612(dev);
-	struct mt76x2_patch_header *hdr;
+	struct mt76x02_patch_header *hdr;
 	u32 val, patch_mask, patch_reg;
 	const struct firmware *fw;
 	int err;
@@ -271,7 +271,7 @@ static int mt76x2u_mcu_load_rom_patch(struct mt76x2_dev *dev)
 		goto out;
 	}
 
-	hdr = (struct mt76x2_patch_header *)fw->data;
+	hdr = (struct mt76x02_patch_header *)fw->data;
 	dev_info(dev->mt76.dev, "ROM patch build: %.15s\n", hdr->build_time);
 
 	/* enable USB_DMA_CFG */
@@ -323,7 +323,7 @@ out:
 static int mt76x2u_mcu_load_firmware(struct mt76x2_dev *dev)
 {
 	u32 val, dlm_offset = MT76U_MCU_DLM_OFFSET;
-	const struct mt76x2_fw_header *hdr;
+	const struct mt76x02_fw_header *hdr;
 	int err, len, ilm_len, dlm_len;
 	const struct firmware *fw;
 
@@ -336,7 +336,7 @@ static int mt76x2u_mcu_load_firmware(struct mt76x2_dev *dev)
 		goto out;
 	}
 
-	hdr = (const struct mt76x2_fw_header *)fw->data;
+	hdr = (const struct mt76x02_fw_header *)fw->data;
 	ilm_len = le32_to_cpu(hdr->ilm_len);
 	dlm_len = le32_to_cpu(hdr->dlm_len);
 	len = sizeof(*hdr) + ilm_len + dlm_len;
