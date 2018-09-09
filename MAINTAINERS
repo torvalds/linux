@@ -8167,6 +8167,12 @@ S:	Maintained
 F:	net/l3mdev
 F:	include/net/l3mdev.h
 
+LANTIQ / INTEL Ethernet drivers
+M:	Hauke Mehrtens <hauke@hauke-m.de>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	net/dsa/tag_gswip.c
+
 LANTIQ MIPS ARCHITECTURE
 M:	John Crispin <john@phrozen.org>
 L:	linux-mips@linux-mips.org

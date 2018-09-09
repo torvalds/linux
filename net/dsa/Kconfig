@@ -38,6 +38,9 @@ config NET_DSA_TAG_DSA
 config NET_DSA_TAG_EDSA
 	bool
 
+config NET_DSA_TAG_GSWIP
+	bool
+
 config NET_DSA_TAG_KSZ
 	bool
 
