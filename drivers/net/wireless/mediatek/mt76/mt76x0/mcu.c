@@ -81,7 +81,7 @@ mt76x0_mcu_calibrate(struct mt76x0_dev *dev, enum mcu_calibrate cal, u32 val)
 int mt76x0_write_reg_pairs(struct mt76x0_dev *dev, u32 base,
 			   const struct mt76_reg_pair *data, int n)
 {
-	const int max_vals_per_cmd = INBAND_PACKET_MAX_LEN / 8;
+	const int max_vals_per_cmd = MT_INBAND_PACKET_MAX_LEN / 8;
 	struct sk_buff *skb;
 	int cnt, i, ret;
 
@@ -111,7 +111,7 @@ int mt76x0_write_reg_pairs(struct mt76x0_dev *dev, u32 base,
 int mt76x0_read_reg_pairs(struct mt76x0_dev *dev, u32 base,
 			  struct mt76_reg_pair *data, int n)
 {
-	const int max_vals_per_cmd = INBAND_PACKET_MAX_LEN / 8;
+	const int max_vals_per_cmd = MT_INBAND_PACKET_MAX_LEN / 8;
 	struct mt76_usb *usb = &dev->mt76.usb;
 	struct sk_buff *skb;
 	int cnt, i, ret;
@@ -154,7 +154,7 @@ int mt76x0_read_reg_pairs(struct mt76x0_dev *dev, u32 base,
 int mt76x0_burst_write_regs(struct mt76x0_dev *dev, u32 offset,
 			     const u32 *data, int n)
 {
-	const int max_regs_per_cmd = INBAND_PACKET_MAX_LEN / 4 - 1;
+	const int max_regs_per_cmd = MT_INBAND_PACKET_MAX_LEN / 4 - 1;
 	struct sk_buff *skb;
 	int cnt, i, ret;
 
@@ -185,7 +185,7 @@ int mt76x0_burst_write_regs(struct mt76x0_dev *dev, u32 offset,
 static int mt76x0_burst_read_regs(struct mt76x0_dev *dev, u32 base,
 				  struct mt76_reg_pair *data, int n)
 {
-	const int max_vals_per_cmd = INBAND_PACKET_MAX_LEN / 4 - 1;
+	const int max_vals_per_cmd = MT_INBAND_PACKET_MAX_LEN / 4 - 1;
 	struct mt76_usb *usb = &dev->mt76.usb;
 	struct sk_buff *skb;
 	int cnt, ret;

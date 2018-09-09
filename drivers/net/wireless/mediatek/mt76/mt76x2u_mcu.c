@@ -20,8 +20,6 @@
 #include "mt76x2_eeprom.h"
 
 #define MT_CMD_HDR_LEN			4
-#define MT_INBAND_PACKET_MAX_LEN	192
-#define MT_MCU_MEMMAP_WLAN		0x410000
 
 #define MCU_FW_URB_MAX_PAYLOAD		0x3900
 #define MCU_ROM_PATCH_MAX_PAYLOAD	2048
