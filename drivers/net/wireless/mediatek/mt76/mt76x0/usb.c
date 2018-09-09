@@ -19,6 +19,7 @@
 #include "usb.h"
 #include "trace.h"
 #include "../mt76x02_util.h"
+#include "../mt76x02_usb.h"
 
 static struct usb_device_id mt76x0_device_table[] = {
 	{ USB_DEVICE(0x148F, 0x7610) },	/* MT7610U */
@@ -70,6 +71,7 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 
 	usb_set_intfdata(usb_intf, dev);
 
+	mt76x02u_init_mcu(&dev->mt76);
 	ret = mt76u_init(&dev->mt76, usb_intf);
 	if (ret)
 		goto err;

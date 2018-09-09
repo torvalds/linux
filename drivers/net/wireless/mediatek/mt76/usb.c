@@ -109,6 +109,7 @@ u32 mt76u_rr(struct mt76_dev *dev, u32 addr)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mt76u_rr);
 
 /* should be called with usb_ctrl_mtx locked */
 static void __mt76u_wr(struct mt76_dev *dev, u32 addr, u32 val)
@@ -140,6 +141,7 @@ void mt76u_wr(struct mt76_dev *dev, u32 addr, u32 val)
 	__mt76u_wr(dev, addr, val);
 	mutex_unlock(&dev->usb.usb_ctrl_mtx);
 }
+EXPORT_SYMBOL_GPL(mt76u_wr);
 
 static u32 mt76u_rmw(struct mt76_dev *dev, u32 addr,
 		     u32 mask, u32 val)
@@ -892,7 +894,6 @@ int mt76u_init(struct mt76_dev *dev,
 	mutex_init(&usb->usb_ctrl_mtx);
 	dev->bus = &mt76u_ops;
 	dev->queue_ops = &usb_queue_ops;
-	mt76u_init_mcu_ops(dev);
 
 	return mt76u_set_endpoints(intf, usb);
 }

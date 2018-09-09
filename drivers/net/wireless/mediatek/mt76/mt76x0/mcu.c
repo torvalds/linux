@@ -25,6 +25,7 @@
 #include "mcu.h"
 #include "usb.h"
 #include "trace.h"
+#include "../mt76x02_usb.h"
 
 #define MCU_FW_URB_MAX_PAYLOAD		0x38f8
 #define MCU_FW_URB_SIZE			(MCU_FW_URB_MAX_PAYLOAD + 12)
@@ -177,17 +178,17 @@ mt76x0_upload_firmware(struct mt76x0_dev *dev, const struct mt76_fw *fw)
 	ilm_len = le32_to_cpu(fw->hdr.ilm_len) - sizeof(fw->ivb);
 	dev_dbg(dev->mt76.dev, "loading FW - ILM %u + IVB %zu\n",
 		ilm_len, sizeof(fw->ivb));
-	ret = mt76u_mcu_fw_send_data(&dev->mt76, fw->ilm, ilm_len,
-				     MCU_FW_URB_MAX_PAYLOAD,
-				     sizeof(fw->ivb));
+	ret = mt76x02u_mcu_fw_send_data(&dev->mt76, fw->ilm, ilm_len,
+					MCU_FW_URB_MAX_PAYLOAD,
+					sizeof(fw->ivb));
 	if (ret)
 		goto error;
 
 	dlm_len = le32_to_cpu(fw->hdr.dlm_len);
 	dev_dbg(dev->mt76.dev, "loading FW - DLM %u\n", dlm_len);
-	ret = mt76u_mcu_fw_send_data(&dev->mt76, fw->ilm + ilm_len,
-				     dlm_len, MCU_FW_URB_MAX_PAYLOAD,
-				     MT_MCU_DLM_OFFSET);
+	ret = mt76x02u_mcu_fw_send_data(&dev->mt76, fw->ilm + ilm_len,
+					dlm_len, MCU_FW_URB_MAX_PAYLOAD,
+					MT_MCU_DLM_OFFSET);
 	if (ret)
 		goto error;
 
@@ -257,7 +258,7 @@ static int mt76x0_load_firmware(struct mt76x0_dev *dev)
 	mt76_set(dev, MT_USB_DMA_CFG, (MT_USB_DMA_CFG_RX_BULK_EN |
 				       MT_USB_DMA_CFG_TX_BULK_EN) |
 				       FIELD_PREP(MT_USB_DMA_CFG_RX_BULK_AGG_TOUT, 0x20));
-	mt76u_mcu_fw_reset(&dev->mt76);
+	mt76x02u_mcu_fw_reset(&dev->mt76);
 	msleep(5);
 /*
 	mt76x0_rmw(dev, MT_PBF_CFG, 0, (MT_PBF_CFG_TX0Q_EN |

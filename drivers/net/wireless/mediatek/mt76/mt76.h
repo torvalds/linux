@@ -652,12 +652,8 @@ void mt76u_stop_stat_wk(struct mt76_dev *dev);
 void mt76u_queues_deinit(struct mt76_dev *dev);
 int mt76u_skb_dma_info(struct sk_buff *skb, int port, u32 flags);
 
-int mt76u_mcu_fw_send_data(struct mt76_dev *dev, const void *data,
-			   int data_len, u32 max_payload, u32 offset);
 void mt76u_mcu_complete_urb(struct urb *urb);
-void mt76u_mcu_fw_reset(struct mt76_dev *dev);
 int mt76u_mcu_init_rx(struct mt76_dev *dev);
 void mt76u_mcu_deinit(struct mt76_dev *dev);
-void mt76u_init_mcu_ops(struct mt76_dev *dev);
 
 #endif
