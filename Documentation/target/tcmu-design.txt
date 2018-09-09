@@ -302,7 +302,7 @@ ret = read(fd, buf, sizeof(buf));
 close(fd);
 str_buf[ret-1] = '\0'; /* null-terminate and chop off the \n */
 
-map_len = strtoull(buf, NULL, 0);
+map_len = strtoull(buf, NULL, 16);
 
 dev_fd = open("/dev/uio0", O_RDWR);
 map = mmap(NULL, map_len, PROT_READ|PROT_WRITE, MAP_SHARED, dev_fd, 0);
@@ -356,7 +356,7 @@ int handle_device_events(int fd, void *map)
     }
 
     /* update cmd_tail */
-    mb->cmd_tail = (mb->cmd_tail + tcmu_hdr_get_len(&ent->hdr)) % mb->cmdr_size;
+    mb->cmd_tail = (mb->cmd_tail + tcmu_hdr_get_len(ent->hdr.len_op)) % mb->cmdr_size;
     ent = (void *) mb + mb->cmdr_off + mb->cmd_tail;
     did_some_work = 1;
   }
