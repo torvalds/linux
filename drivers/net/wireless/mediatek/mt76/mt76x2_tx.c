@@ -16,7 +16,7 @@
 
 #include "mt76x2.h"
 #include "mt76x02_util.h"
-#include "dma.h"
+#include "mt76x02_dma.h"
 
 struct beacon_bc_data {
 	struct mt76x2_dev *dev;

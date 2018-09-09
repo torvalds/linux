@@ -16,7 +16,7 @@
  */
 
 #include "mt76.h"
-#include "dma.h"
+#include "mt76x02_dma.h"
 #include "mt76x02_regs.h"
 #include "mt76x02_mac.h"
 

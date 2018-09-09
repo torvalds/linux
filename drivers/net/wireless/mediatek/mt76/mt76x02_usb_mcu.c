@@ -17,7 +17,7 @@
 #include <linux/firmware.h>
 
 #include "mt76.h"
-#include "dma.h"
+#include "mt76x02_dma.h"
 #include "mt76x02_mcu.h"
 #include "mt76x02_usb.h"
 

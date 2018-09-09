@@ -15,7 +15,7 @@
  */
 
 #include "mt76.h"
-#include "dma.h"
+#include "mt76x02_dma.h"
 
 int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 {
