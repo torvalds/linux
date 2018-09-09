@@ -381,6 +381,8 @@ void mt76u_init_mcu_ops(struct mt76_dev *dev)
 	static const struct mt76_mcu_ops mt76u_mcu_ops = {
 		.mcu_msg_alloc = mt76u_mcu_msg_alloc,
 		.mcu_send_msg = mt76u_mcu_send_msg,
+		.mcu_wr_rp = mt76u_mcu_wr_rp,
+		.mcu_rd_rp = mt76u_mcu_rd_rp,
 	};
 
 	dev->mcu_ops = &mt76u_mcu_ops;
