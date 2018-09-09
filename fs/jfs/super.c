@@ -247,7 +247,7 @@ static const match_table_t tokens = {
 	{Opt_resize_nosize, "resize"},
 	{Opt_errors, "errors=%s"},
 	{Opt_ignore, "noquota"},
-	{Opt_ignore, "quota"},
+	{Opt_quota, "quota"},
 	{Opt_usrquota, "usrquota"},
 	{Opt_grpquota, "grpquota"},
 	{Opt_uid, "uid=%u"},
