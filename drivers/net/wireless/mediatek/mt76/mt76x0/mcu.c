@@ -106,49 +106,6 @@ int mt76x0_burst_write_regs(struct mt76x0_dev *dev, u32 offset,
 					data + cnt, n - cnt);
 }
 
-#if 0
-static int mt76x0_burst_read_regs(struct mt76x0_dev *dev, u32 base,
-				  struct mt76_reg_pair *data, int n)
-{
-	const int max_vals_per_cmd = MT_INBAND_PACKET_MAX_LEN / 4 - 1;
-	struct mt76_usb *usb = &dev->mt76.usb;
-	struct sk_buff *skb;
-	int cnt, ret;
-
-	if (!n)
-		return 0;
-
-	cnt = min(max_vals_per_cmd, n);
-	if (cnt != n)
-		return -EINVAL;
-
-	skb = alloc_skb(cnt * 4 + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
-	if (!skb)
-		return -ENOMEM;
-	skb_reserve(skb, MT_DMA_HDR_LEN);
-
-	skb_put_le32(skb, base + data[0].reg);
-	skb_put_le32(skb, n);
-
-	mutex_lock(&usb->mcu.mutex);
-
-	usb->mcu.rp = data;
-	usb->mcu.rp_len = n;
-	usb->mcu.base = base;
-	usb->mcu.burst = false;
-
-	ret = __mt76u_mcu_send_msg(&dev->mt76, skb, CMD_BURST_READ, true);
-
-	usb->mcu.rp = NULL;
-
-	mutex_unlock(&usb->mcu.mutex);
-
-	consume_skb(skb);
-
-	return ret;
-}
-#endif
-
 struct mt76_fw_header {
 	__le32 ilm_len;
 	__le32 dlm_len;
