@@ -896,10 +896,27 @@ static int __init modem_nreset_init(void)
 /*
  * This function expects MODEM IRQ number already assigned to the port
  * and fails if it's not.
+ * The MODEM device requires its RESET# pin kept high during probe.
+ * That requirement can be fulfilled in several ways:
+ * - with a descriptor of already functional modem_nreset regulator
+ *   assigned to the MODEM private data,
+ * - with the regulator not yet controlled by modem_pm function but
+ *   already enabled by default on probe,
+ * - before the modem_nreset regulator is probed, with the pin already
+ *   set high explicitly.
+ * The last one is already guaranteed by ams_delta_latch2_init() called
+ * from machine_init.
+ * In order to avoid taking over ttyS0 device slot, the MODEM device
+ * should be registered after OMAP serial ports.  Since those ports
+ * are registered at arch_initcall, this function can be called safely
+ * at arch_initcall_sync earliest.
  */
 static int __init ams_delta_modem_init(void)
 {
 	int err;
+
+	if (!machine_is_ams_delta())
+		return -ENODEV;
 
 	if (ams_delta_modem_ports[0].irq < 0)
 		return ams_delta_modem_ports[0].irq;
@@ -913,16 +930,13 @@ static int __init ams_delta_modem_init(void)
 
 	return err;
 }
+arch_initcall_sync(ams_delta_modem_init);
 
 static int __init late_init(void)
 {
 	int err;
 
 	err = modem_nreset_init();
-	if (err)
-		return err;
-
-	err = ams_delta_modem_init();
 	if (err)
 		return err;
 
