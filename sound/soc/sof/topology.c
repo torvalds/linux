@@ -298,6 +298,8 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc_ctrl_data *cdata;
+	struct snd_soc_tplg_bytes_control *control =
+		(struct snd_soc_tplg_bytes_control *)hdr;
 
 	/* init the get/put bytes data */
 	scontrol->size = SOF_IPC_MSG_MAX_SIZE;
@@ -311,6 +313,21 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 
 	dev_dbg(sdev->dev, "tplg: load kcontrol index %d chans %d\n",
 		scontrol->comp_id, scontrol->num_channels);
+
+	if (le32_to_cpu(control->priv.size) > SOF_IPC_MSG_MAX_SIZE) {
+		dev_warn(sdev->dev, "bytes priv data size %d too big\n",
+			 control->priv.size);
+		return -EINVAL;
+	}
+
+	if (le32_to_cpu(control->priv.size) > 0) {
+		memcpy(cdata->data->data, control->priv.data,
+		       le32_to_cpu(control->priv.size));
+		cdata->data->size = control->priv.size;
+		cdata->data->magic = SOF_ABI_MAGIC;
+		cdata->data->abi = SOF_ABI_VERSION;
+		cdata->data->comp_abi = SOF_ABI_VERSION;
+	}
 
 	return 0;
 }
@@ -434,16 +451,6 @@ static const struct sof_topology_token src_tokens[] = {
 
 /* Tone */
 static const struct sof_topology_token tone_tokens[] = {
-};
-
-/* EQ FIR */
-/*
-static const struct sof_topology_token eq_fir_tokens[] = {
-};
-*/
-
-/* EQ IIR */
-static const struct sof_topology_token eq_iir_tokens[] = {
 };
 
 /* EFFECT */
@@ -1383,10 +1390,164 @@ err:
 	kfree(tone);
 	return ret;
 }
+
+static int sof_effect_fir_load(struct snd_soc_component *scomp, int index,
+			       struct snd_sof_widget *swidget,
+			       struct snd_soc_tplg_dapm_widget *tw,
+			       struct sof_ipc_comp_reply *r)
+
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_private *private = &tw->priv;
+	struct snd_sof_control *scontrol = NULL;
+	struct snd_soc_dapm_widget *widget = swidget->widget;
+	const struct snd_kcontrol_new *kc = NULL;
+	struct soc_bytes_ext *sbe;
+	struct sof_abi_hdr *pdata = NULL;
+	struct sof_ipc_comp_eq_fir *fir;
+	size_t ipc_size = 0, fir_data_size = 0;
+	int ret;
+
+	/* get possible eq controls */
+	kc = &widget->kcontrol_news[0];
+	if (kc) {
+		sbe = (struct soc_bytes_ext *)kc->private_value;
+		scontrol = sbe->dobj.private;
+	}
+
+	/*
+	 * Check if there's eq parameters in control's private member and set
+	 * data size accordingly. If there's no parameters eq will use defaults
+	 * in firmware (which in this case is passthrough).
+	 */
+	if (scontrol && scontrol->cmd == SOF_CTRL_CMD_BINARY) {
+		pdata = scontrol->control_data->data;
+		if (pdata->size > 0 && pdata->magic == SOF_ABI_MAGIC)
+			fir_data_size = pdata->size;
+	}
+
+	ipc_size = sizeof(struct sof_ipc_comp_eq_fir) +
+		le32_to_cpu(private->size) +
+		fir_data_size;
+
+	fir = kzalloc(ipc_size, GFP_KERNEL);
+	if (!fir)
+		return -ENOMEM;
+
+	/* configure fir IPC message */
+	fir->comp.hdr.size = ipc_size;
+	fir->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
+	fir->comp.id = swidget->comp_id;
+	fir->comp.type = SOF_COMP_EQ_FIR;
+	fir->comp.pipeline_id = index;
+
+	ret = sof_parse_tokens(scomp, &fir->config, comp_tokens,
+			       ARRAY_SIZE(comp_tokens), private->array,
+			       le32_to_cpu(private->size));
+	if (ret != 0) {
+		dev_err(sdev->dev, "error: parse fir.cfg tokens failed %d\n",
+			le32_to_cpu(private->size));
+		goto err;
+	}
+
+	sof_dbg_comp_config(scomp, &fir->config);
+
+	/* we have a private data found in control, so copy it */
+	if (fir_data_size > 0) {
+		memcpy(&fir->data, pdata->data, pdata->size);
+		fir->size = fir_data_size;
+	}
+
+	swidget->private = (void *)fir;
+
+	ret = sof_ipc_tx_message(sdev->ipc, fir->comp.hdr.cmd, fir,
+				 ipc_size, r, sizeof(*r));
+	if (ret >= 0)
+		return ret;
+err:
+	kfree(fir);
+	return ret;
+}
+
+static int sof_effect_iir_load(struct snd_soc_component *scomp, int index,
+			       struct snd_sof_widget *swidget,
+			       struct snd_soc_tplg_dapm_widget *tw,
+			       struct sof_ipc_comp_reply *r)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_private *private = &tw->priv;
+	struct snd_soc_dapm_widget *widget = swidget->widget;
+	const struct snd_kcontrol_new *kc = NULL;
+	struct soc_bytes_ext *sbe;
+	struct snd_sof_control *scontrol = NULL;
+	struct sof_abi_hdr *pdata = NULL;
+	struct sof_ipc_comp_eq_iir *iir;
+	size_t ipc_size = 0, iir_data_size = 0;
+	int ret;
+
+	/* get possible eq controls */
+	kc = &widget->kcontrol_news[0];
+	if (kc) {
+		sbe = (struct soc_bytes_ext *)kc->private_value;
+		scontrol = sbe->dobj.private;
+	}
+
+	/*
+	 * Check if there's eq parameters in control's private member and set
+	 * data size accordingly. If there's no parameters eq will use defaults
+	 * in firmware (which in this case is passthrough).
+	 */
+	if (scontrol && scontrol->cmd == SOF_CTRL_CMD_BINARY) {
+		pdata = scontrol->control_data->data;
+		if (pdata->size > 0 && pdata->magic == SOF_ABI_MAGIC)
+			iir_data_size = pdata->size;
+	}
+
+	ipc_size = sizeof(struct sof_ipc_comp_eq_iir) +
+		le32_to_cpu(private->size) +
+		iir_data_size;
+
+	iir = kzalloc(ipc_size, GFP_KERNEL);
+	if (!iir)
+		return -ENOMEM;
+
+	/* configure iir IPC message */
+	iir->comp.hdr.size = ipc_size;
+	iir->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
+	iir->comp.id = swidget->comp_id;
+	iir->comp.type = SOF_COMP_EQ_IIR;
+	iir->comp.pipeline_id = index;
+
+	ret = sof_parse_tokens(scomp, &iir->config, comp_tokens,
+			       ARRAY_SIZE(comp_tokens), private->array,
+			       le32_to_cpu(private->size));
+	if (ret != 0) {
+		dev_err(sdev->dev, "error: parse iir.cfg tokens failed %d\n",
+			le32_to_cpu(private->size));
+		goto err;
+	}
+
+	sof_dbg_comp_config(scomp, &iir->config);
+
+	/* we have a private data found in control, so copy it */
+	if (iir_data_size > 0) {
+		memcpy(&iir->data, pdata->data, pdata->size);
+		iir->size = iir_data_size;
+	}
+
+	swidget->private = (void *)iir;
+
+	ret = sof_ipc_tx_message(sdev->ipc, iir->comp.hdr.cmd, iir,
+				 ipc_size, r, sizeof(*r));
+	if (ret >= 0)
+		return ret;
+err:
+	kfree(iir);
+	return ret;
+}
+
 /*
- * Effect Topology. Only IIR equalizer is supported at this moment.
- * TODO: Need to add also FIR support and have a way to add other
- * effects and enhancements.
+ * Effect Topology
  */
 
 static int sof_widget_load_effect(struct snd_soc_component *scomp, int index,
@@ -1396,52 +1557,48 @@ static int sof_widget_load_effect(struct snd_soc_component *scomp, int index,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
-	struct sof_ipc_comp_eq_iir *eq;
+	struct sof_ipc_comp_effect config;
 	int ret;
 
-	eq = kzalloc(sizeof(*eq), GFP_KERNEL);
-	if (!eq)
-		return -ENOMEM;
-
-        /* configure IIR EQ IPC message */
-	eq->comp.hdr.size = sizeof(*eq);
-	eq->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	eq->comp.id = swidget->comp_id;
-	eq->comp.pipeline_id = index;
-
-	eq->comp.type = SOF_COMP_EQ_IIR;
-	ret = sof_parse_tokens(scomp, eq, eq_iir_tokens,
-			       ARRAY_SIZE(eq_iir_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret) {
-		dev_err(sdev->dev, "error: parse EQ tokens failed %d\n",
-			private->size);
-		goto err;
+	/* check we have some tokens - we need at least effect type */
+	if (le32_to_cpu(private->size) == 0) {
+		dev_err(sdev->dev, "error: effect tokens not found\n");
+		return -EINVAL;
 	}
 
-	ret = sof_parse_tokens(scomp, &eq->config, comp_tokens,
-			       ARRAY_SIZE(comp_tokens), private->array,
+	memset(&config, 0, sizeof(config));
+
+	/* get the effect token */
+	ret = sof_parse_tokens(scomp, &config, effect_tokens,
+			       ARRAY_SIZE(effect_tokens), private->array,
 			       le32_to_cpu(private->size));
-	if (ret) {
-		dev_err(sdev->dev, "error: parse EQ.cfg tokens failed %d\n",
+	if (ret != 0) {
+		dev_err(sdev->dev, "error: parse effect tokens failed %d\n",
 			le32_to_cpu(private->size));
-		goto err;
+		return ret;
 	}
 
-	dev_dbg(sdev->dev, "eq iir %s created\n", swidget->widget->name);
+	/* now load effect specific data and send IPC */
+	switch (config.type) {
+	case SOF_EFFECT_INTEL_EQFIR:
+		ret = sof_effect_fir_load(scomp, index, swidget, tw, r);
+		break;
+	case SOF_EFFECT_INTEL_EQIIR:
+		ret = sof_effect_iir_load(scomp, index, swidget, tw, r);
+		break;
+	default:
+		dev_err(sdev->dev, "error: invalid effect type %d\n",
+			config.type);
+		ret = -EINVAL;
+		break;
+	}
 
-	sof_dbg_comp_config(scomp, &eq->config);
-
-	swidget->private = (void *)eq;
-
-	ret = sof_ipc_tx_message(sdev->ipc, eq->comp.hdr.cmd, eq,
-				 sizeof(*eq), r, sizeof(*r));
-
-	if (ret >= 0)
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: effect loading failed\n");
 		return ret;
-err:
-	kfree(eq);
-	return ret;
+	}
+
+	return 0;
 }
 
 /*

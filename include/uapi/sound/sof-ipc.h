@@ -724,12 +724,16 @@ struct sof_ipc_comp_tone {
 struct sof_ipc_comp_eq_fir {
 	struct sof_ipc_comp comp;
 	struct sof_ipc_comp_config config;
+	int32_t size;
+	unsigned char data[0];
 } __attribute__((packed));
 
 /* IIR equalizer component */
 struct sof_ipc_comp_eq_iir {
 	struct sof_ipc_comp comp;
 	struct sof_ipc_comp_config config;
+	int32_t size;
+	unsigned char data[0];
 } __attribute__((packed));
 
 /** \brief Types of EFFECT */
