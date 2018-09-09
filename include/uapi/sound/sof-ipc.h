@@ -732,6 +732,18 @@ struct sof_ipc_comp_eq_iir {
 	struct sof_ipc_comp_config config;
 } __attribute__((packed));
 
+/** \brief Types of EFFECT */
+enum sof_ipc_effect_type {
+	SOF_EFFECT_INTEL_NONE = 0,	/**< None */
+	SOF_EFFECT_INTEL_EQFIR,		/**< Intel FIR */
+	SOF_EFFECT_INTEL_EQIIR,		/**< Intel IIR */
+};
+
+/* general purpose EFFECT configuration */
+struct sof_ipc_comp_effect {
+	enum sof_ipc_effect_type type;
+} __attribute__((packed));
+
 /* frees components, buffers and pipelines
  * SOF_IPC_TPLG_COMP_FREE, SOF_IPC_TPLG_PIPE_FREE, SOF_IPC_TPLG_BUFFER_FREE
  */

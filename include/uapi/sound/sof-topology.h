@@ -91,4 +91,6 @@
 #define SOF_TKN_INTEL_DMIC_PDM_CLK_EDGE		705
 #define SOF_TKN_INTEL_DMIC_PDM_SKEW		706
 
+#define SOF_TKN_EFFECT_TYPE                     900
+
 #endif

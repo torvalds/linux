@@ -233,6 +233,28 @@ static enum sof_ipc_frame find_format(const char *name)
 	return SOF_IPC_FRAME_S32_LE;
 }
 
+struct sof_effect_types {
+	const char *name;
+	enum sof_ipc_effect_type type;
+};
+
+static const struct sof_effect_types sof_effects[] = {
+	{"EQFIR", SOF_EFFECT_INTEL_EQFIR},
+	{"EQIIR", SOF_EFFECT_INTEL_EQIIR},
+};
+
+static enum sof_ipc_effect_type find_effect(const char *name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sof_effects); i++) {
+		if (strcmp(name, sof_effects[i].name) == 0)
+			return sof_effects[i].type;
+	}
+
+	return SOF_EFFECT_INTEL_NONE;
+}
+
 /*
  * Standard Kcontrols.
  */
@@ -342,6 +364,15 @@ static int get_token_dai_type(void *elem, void *object, u32 offset, u32 size)
 	return 0;
 }
 
+static int get_token_effect_type(void *elem, void *object, u32 offset, u32 size)
+{
+	struct snd_soc_tplg_vendor_string_elem *velem = elem;
+	u32 *val = object + offset;
+
+	*val = find_effect(velem->string);
+	return 0;
+}
+
 /* Buffers */
 static const struct sof_topology_token buffer_tokens[] = {
 	{SOF_TKN_BUF_SIZE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -413,6 +444,13 @@ static const struct sof_topology_token eq_fir_tokens[] = {
 
 /* EQ IIR */
 static const struct sof_topology_token eq_iir_tokens[] = {
+};
+
+/* EFFECT */
+static const struct sof_topology_token effect_tokens[] = {
+	{SOF_TKN_EFFECT_TYPE, SND_SOC_TPLG_TUPLE_TYPE_STRING,
+		get_token_effect_type,
+		offsetof(struct sof_ipc_comp_effect, type), 0},
 };
 
 /* PCM */
