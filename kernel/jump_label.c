@@ -455,7 +455,7 @@ struct static_key_mod {
 
 static inline struct static_key_mod *static_key_mod(struct static_key *key)
 {
-	WARN_ON_ONCE(!(key->type & JUMP_TYPE_LINKED));
+	WARN_ON_ONCE(!static_key_linked(key));
 	return (struct static_key_mod *)(key->type & ~JUMP_TYPE_MASK);
 }
 
