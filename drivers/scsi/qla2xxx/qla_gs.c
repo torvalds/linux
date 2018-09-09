@@ -4035,7 +4035,7 @@ static int qla24xx_async_gnnft(scsi_qla_host_t *vha, struct srb *sp,
 	}
 
 	ql_dbg(ql_dbg_disc, vha, 0xfffff,
-	    "%s: FC4Type %x, CT-PASSTRHU %s command ctarg rsp size %d, ctarg req size %d\n",
+	    "%s: FC4Type %x, CT-PASSTHRU %s command ctarg rsp size %d, ctarg req size %d\n",
 	    __func__, fc4_type, sp->name, sp->u.iocb_cmd.u.ctarg.rsp_size,
 	     sp->u.iocb_cmd.u.ctarg.req_size);
 
