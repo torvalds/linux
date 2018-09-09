@@ -836,6 +836,7 @@ int mt76u_init(struct mt76_dev *dev,
 	mutex_init(&usb->usb_ctrl_mtx);
 	dev->bus = &mt76u_ops;
 	dev->queue_ops = &usb_queue_ops;
+	mt76u_init_mcu_ops(dev);
 
 	return mt76u_set_endpoints(intf, usb);
 }

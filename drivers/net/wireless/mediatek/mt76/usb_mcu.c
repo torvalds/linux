@@ -296,3 +296,13 @@ void mt76u_mcu_deinit(struct mt76_dev *dev)
 	mt76u_buf_free(&usb->mcu.res);
 }
 EXPORT_SYMBOL_GPL(mt76u_mcu_deinit);
+
+void mt76u_init_mcu_ops(struct mt76_dev *dev)
+{
+	static const struct mt76_mcu_ops mt76u_mcu_ops = {
+		.mcu_msg_alloc = mt76u_mcu_msg_alloc,
+		.mcu_send_msg = mt76u_mcu_send_msg,
+	};
+
+	dev->mcu_ops = &mt76u_mcu_ops;
+}
