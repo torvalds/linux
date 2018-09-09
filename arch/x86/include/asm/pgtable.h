@@ -1195,7 +1195,7 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 		return xchg(pmdp, pmd);
 	} else {
 		pmd_t old = *pmdp;
-		*pmdp = pmd;
+		WRITE_ONCE(*pmdp, pmd);
 		return old;
 	}
 }

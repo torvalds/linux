@@ -205,12 +205,12 @@ static inline long long arch_atomic64_sub(long long i, atomic64_t *v)
  *
  * Atomically increments @v by 1.
  */
-#define arch_atomic64_inc arch_atomic64_inc
 static inline void arch_atomic64_inc(atomic64_t *v)
 {
 	__alternative_atomic64(inc, inc_return, /* no output */,
 			       "S" (v) : "memory", "eax", "ecx", "edx");
 }
+#define arch_atomic64_inc arch_atomic64_inc
 
 /**
  * arch_atomic64_dec - decrement atomic64 variable
@@ -218,12 +218,12 @@ static inline void arch_atomic64_inc(atomic64_t *v)
  *
  * Atomically decrements @v by 1.
  */
-#define arch_atomic64_dec arch_atomic64_dec
 static inline void arch_atomic64_dec(atomic64_t *v)
 {
 	__alternative_atomic64(dec, dec_return, /* no output */,
 			       "S" (v) : "memory", "eax", "ecx", "edx");
 }
+#define arch_atomic64_dec arch_atomic64_dec
 
 /**
  * arch_atomic64_add_unless - add unless the number is a given value
@@ -245,7 +245,6 @@ static inline int arch_atomic64_add_unless(atomic64_t *v, long long a,
 	return (int)a;
 }
 
-#define arch_atomic64_inc_not_zero arch_atomic64_inc_not_zero
 static inline int arch_atomic64_inc_not_zero(atomic64_t *v)
 {
 	int r;
@@ -253,8 +252,8 @@ static inline int arch_atomic64_inc_not_zero(atomic64_t *v)
 			     "S" (v) : "ecx", "edx", "memory");
 	return r;
 }
+#define arch_atomic64_inc_not_zero arch_atomic64_inc_not_zero
 
-#define arch_atomic64_dec_if_positive arch_atomic64_dec_if_positive
 static inline long long arch_atomic64_dec_if_positive(atomic64_t *v)
 {
 	long long r;
@@ -262,6 +261,7 @@ static inline long long arch_atomic64_dec_if_positive(atomic64_t *v)
 			     "S" (v) : "ecx", "memory");
 	return r;
 }
+#define arch_atomic64_dec_if_positive arch_atomic64_dec_if_positive
 
 #undef alternative_atomic64
 #undef __alternative_atomic64
