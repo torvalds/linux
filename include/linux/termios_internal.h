@@ -12,7 +12,20 @@
 	reprint=^R	discard=^O	werase=^W	lnext=^V
 	eol2=\0
 */
-#define INIT_C_CC "\003\034\177\025\004\0\1\0\021\023\032\0\022\017\027\026\0"
+#define INIT_C_CC {		\
+	[VINTR] = 'C'-0x40,	\
+	[VQUIT] = '\\'-0x40,	\
+	[VERASE] = '\177',	\
+	[VKILL] = 'U'-0x40,	\
+	[VEOF] = 'D'-0x40,	\
+	[VSTART] = 'Q'-0x40,	\
+	[VSTOP] = 'S'-0x40,	\
+	[VSUSP] = 'Z'-0x40,	\
+	[VREPRINT] = 'R'-0x40,	\
+	[VDISCARD] = 'O'-0x40,	\
+	[VWERASE] = 'W'-0x40,	\
+	[VLNEXT] = 'V'-0x40,	\
+	[VMIN] = 1 }
 #endif
 
 int user_termio_to_kernel_termios(struct ktermios *, struct termio __user *);
