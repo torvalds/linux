@@ -28,8 +28,8 @@ if [ ! -d "$D" ]; then
     echo >&2 "$D does not exist: Malformed kernel source tree?"
     exit 1
 fi
-if [ -d "$D/initrd" ]; then
-    echo "$D/initrd already exists, no need to create it"
+if [ -s "$D/initrd/init" ]; then
+    echo "$D/initrd/init already exists, no need to create it"
     exit 0
 fi
 
@@ -65,7 +65,7 @@ then
 	# Filesystem creation
 	dracut --force --no-hostonly --no-hostonly-cmdline --module "base" $T/initramfs.img
 	cd $D
-	mkdir initrd
+	mkdir -p initrd
 	cd initrd
 	zcat $T/initramfs.img | cpio -id
 	cp $T/init init
@@ -79,7 +79,7 @@ fi
 # future-proof than dracut.
 echo "Could not find dracut, attempting C initrd"
 cd $D
-mkdir initrd
+mkdir -p initrd
 cd initrd
 cat > init.c << '___EOF___'
 #include <unistd.h>
