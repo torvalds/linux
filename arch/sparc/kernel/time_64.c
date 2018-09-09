@@ -813,7 +813,7 @@ static void __init get_tick_patch(void)
 	}
 }
 
-static void init_tick_ops(struct sparc64_tick_ops *ops)
+static void __init init_tick_ops(struct sparc64_tick_ops *ops)
 {
 	unsigned long freq, quotient, tick;
 
