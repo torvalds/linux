@@ -641,7 +641,7 @@ mt76x0_bbp_set_bw(struct mt76x0_dev *dev, enum nl80211_chan_width width)
 		return ;
 	}
 
-	mt76x0_mcu_function_select(dev, BW_SETTING, bw);
+	mt76x02_mcu_function_select(&dev->mt76, BW_SETTING, bw, false);
 }
 
 static void

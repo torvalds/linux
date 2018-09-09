@@ -188,18 +188,14 @@ void mt76x2_phy_set_txpower(struct mt76x2_dev *dev);
 int mt76x2_mcu_init(struct mt76x2_dev *dev);
 int mt76x2_mcu_set_channel(struct mt76x2_dev *dev, u8 channel, u8 bw,
 			   u8 bw_index, bool scan);
-int mt76x2_mcu_set_radio_state(struct mt76x2_dev *dev, bool on);
 int mt76x2_mcu_load_cr(struct mt76x2_dev *dev, u8 type, u8 temp_level,
 		       u8 channel);
-int mt76x2_mcu_cleanup(struct mt76x2_dev *dev);
 
 int mt76x2_dma_init(struct mt76x2_dev *dev);
 void mt76x2_dma_cleanup(struct mt76x2_dev *dev);
 
 void mt76x2_cleanup(struct mt76x2_dev *dev);
 
-int mt76x2_tx_queue_mcu(struct mt76_dev *dev, enum mt76_txq_id qid,
-			struct sk_buff *skb, int cmd, int seq);
 void mt76x2_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	       struct sk_buff *skb);
 int mt76x2_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,

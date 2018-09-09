@@ -85,4 +85,14 @@ struct mt76x02_patch_header {
 	u8 pad[2];
 };
 
+int mt76x02_mcu_cleanup(struct mt76_dev *dev);
+struct sk_buff *mt76x02_mcu_msg_alloc(const void *data, int len);
+int mt76x02_mcu_msg_send(struct mt76_dev *dev, struct sk_buff *skb,
+			 int cmd, bool wait_resp);
+int mt76x02_mcu_function_select(struct mt76_dev *dev,
+				enum mcu_function func,
+				u32 val, bool wait_resp);
+int mt76x02_mcu_set_radio_state(struct mt76_dev *dev, bool on,
+				bool wait_resp);
+
 #endif /* __MT76x02_MCU_H */

@@ -60,7 +60,6 @@ int mt76x2u_mcu_init_gain(struct mt76x2_dev *dev, u8 channel, u32 gain,
 			  bool force);
 int mt76x2u_mcu_set_dynamic_vga(struct mt76x2_dev *dev, u8 channel, bool ap,
 				bool ext, int rssi, u32 false_cca);
-int mt76x2u_mcu_set_radio_state(struct mt76x2_dev *dev, bool val);
 int mt76x2u_mcu_load_cr(struct mt76x2_dev *dev, u8 type,
 			u8 temp_level, u8 channel);
 int mt76x2u_mcu_init(struct mt76x2_dev *dev);

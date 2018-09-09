@@ -29,40 +29,6 @@
 #define MT76U_MCU_DLM_OFFSET		0x110000
 #define MT76U_MCU_ROM_PATCH_OFFSET	0x90000
 
-static int
-mt76x2u_mcu_function_select(struct mt76x2_dev *dev, enum mcu_function func,
-			    u32 val)
-{
-	struct {
-		__le32 id;
-		__le32 value;
-	} __packed __aligned(4) msg = {
-		.id = cpu_to_le32(func),
-		.value = cpu_to_le32(val),
-	};
-	struct sk_buff *skb;
-
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_FUN_SET_OP,
-				 func != Q_SELECT);
-}
-
-int mt76x2u_mcu_set_radio_state(struct mt76x2_dev *dev, bool val)
-{
-	struct {
-		__le32 mode;
-		__le32 level;
-	} __packed __aligned(4) msg = {
-		.mode = cpu_to_le32(val ? RADIO_ON : RADIO_OFF),
-		.level = cpu_to_le32(0),
-	};
-	struct sk_buff *skb;
-
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_POWER_SAVING_OP,
-				 false);
-}
-
 int mt76x2u_mcu_load_cr(struct mt76x2_dev *dev, u8 type, u8 temp_level,
 			u8 channel)
 {
@@ -426,9 +392,10 @@ int mt76x2u_mcu_init(struct mt76x2_dev *dev)
 {
 	int err;
 
-	err = mt76x2u_mcu_function_select(dev, Q_SELECT, 1);
+	err = mt76x02_mcu_function_select(&dev->mt76, Q_SELECT,
+					   1, false);
 	if (err < 0)
 		return err;
 
-	return mt76x2u_mcu_set_radio_state(dev, true);
+	return mt76x02_mcu_set_radio_state(&dev->mt76, true, false);
 }

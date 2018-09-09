@@ -489,7 +489,7 @@ int mt76x2_phy_start(struct mt76x2_dev *dev)
 {
 	int ret;
 
-	ret = mt76x2_mcu_set_radio_state(dev, true);
+	ret = mt76x02_mcu_set_radio_state(&dev->mt76, true, true);
 	if (ret)
 		return ret;
 
