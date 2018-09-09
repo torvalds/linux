@@ -126,9 +126,6 @@ void mt76x0_init_debugfs(struct mt76x0_dev *dev);
 #define mt76_rmw_field(_dev, _reg, _field, _val)	\
 	mt76_rmw(_dev, _reg, _field, FIELD_PREP(_field, _val))
 
-int mt76x0_burst_write_regs(struct mt76x0_dev *dev, u32 offset,
-			     const u32 *data, int n);
-
 /* Init */
 struct mt76x0_dev *
 mt76x0_alloc_device(struct device *pdev, const struct mt76_driver_ops *drv_ops);

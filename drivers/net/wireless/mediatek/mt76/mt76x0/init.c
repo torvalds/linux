@@ -249,7 +249,7 @@ static void mt76x0_init_mac_registers(struct mt76x0_dev *dev)
 static int mt76x0_init_wcid_mem(struct mt76x0_dev *dev)
 {
 	u32 *vals;
-	int i, ret;
+	int i;
 
 	vals = kmalloc(sizeof(*vals) * MT76_N_WCIDS * 2, GFP_KERNEL);
 	if (!vals)
@@ -260,25 +260,22 @@ static int mt76x0_init_wcid_mem(struct mt76x0_dev *dev)
 		vals[i * 2 + 1] = 0x00ffffff;
 	}
 
-	ret = mt76x0_burst_write_regs(dev, MT_WCID_ADDR_BASE,
-				      vals, MT76_N_WCIDS * 2);
+	mt76_wr_copy(dev, MT_WCID_ADDR_BASE, vals, MT76_N_WCIDS * 2);
 	kfree(vals);
-
-	return ret;
+	return 0;
 }
 
-static int mt76x0_init_key_mem(struct mt76x0_dev *dev)
+static void mt76x0_init_key_mem(struct mt76x0_dev *dev)
 {
 	u32 vals[4] = {};
 
-	return mt76x0_burst_write_regs(dev, MT_SKEY_MODE_BASE_0,
-					vals, ARRAY_SIZE(vals));
+	mt76_wr_copy(dev, MT_SKEY_MODE_BASE_0, vals, ARRAY_SIZE(vals));
 }
 
 static int mt76x0_init_wcid_attr_mem(struct mt76x0_dev *dev)
 {
 	u32 *vals;
-	int i, ret;
+	int i;
 
 	vals = kmalloc(sizeof(*vals) * MT76_N_WCIDS * 2, GFP_KERNEL);
 	if (!vals)
@@ -287,11 +284,9 @@ static int mt76x0_init_wcid_attr_mem(struct mt76x0_dev *dev)
 	for (i = 0; i < MT76_N_WCIDS * 2; i++)
 		vals[i] = 1;
 
-	ret = mt76x0_burst_write_regs(dev, MT_WCID_ATTR_BASE,
-				      vals, MT76_N_WCIDS * 2);
+	mt76_wr_copy(dev, MT_WCID_ATTR_BASE, vals, MT76_N_WCIDS * 2);
 	kfree(vals);
-
-	return ret;
+	return 0;
 }
 
 static void mt76x0_reset_counters(struct mt76x0_dev *dev)
@@ -443,9 +438,7 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 	if (ret)
 		return ret;
 
-	ret = mt76x0_init_key_mem(dev);
-	if (ret)
-		return ret;
+	mt76x0_init_key_mem(dev);
 
 	ret = mt76x0_init_wcid_attr_mem(dev);
 	if (ret)
