@@ -3421,23 +3421,17 @@ static void ena_remove(struct pci_dev *pdev)
 
 	unregister_netdev(netdev);
 
-	/* Reset the device only if the device is running. */
+	/* If the device is running then we want to make sure the device will be
+	 * reset to make sure no more events will be issued by the device.
+	 */
 	if (test_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags))
-		ena_com_dev_reset(ena_dev, adapter->reset_reason);
+		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 
-	ena_free_mgmnt_irq(adapter);
-
-	ena_disable_msix(adapter);
+	rtnl_lock();
+	ena_destroy_device(adapter, true);
+	rtnl_unlock();
 
 	free_netdev(netdev);
-
-	ena_com_mmio_reg_read_request_destroy(ena_dev);
-
-	ena_com_abort_admin_commands(ena_dev);
-
-	ena_com_wait_for_abort_completion(ena_dev);
-
-	ena_com_admin_destroy(ena_dev);
 
 	ena_com_rss_destroy(ena_dev);
 
