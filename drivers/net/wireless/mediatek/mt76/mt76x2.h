@@ -52,7 +52,6 @@ struct mt76x2_mcu {
 
 	wait_queue_head_t wait;
 	struct sk_buff_head res_q;
-	struct mt76u_buf res_u;
 
 	u32 msg_seq;
 };
