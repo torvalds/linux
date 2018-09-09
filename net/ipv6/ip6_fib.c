@@ -989,7 +989,10 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
 					fib6_clean_expires(iter);
 				else
 					fib6_set_expires(iter, rt->expires);
-				fib6_metric_set(iter, RTAX_MTU, rt->fib6_pmtu);
+
+				if (rt->fib6_pmtu)
+					fib6_metric_set(iter, RTAX_MTU,
+							rt->fib6_pmtu);
 				return -EEXIST;
 			}
 			/* If we have the same destination and the same metric,

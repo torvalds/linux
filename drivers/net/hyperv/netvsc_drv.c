@@ -2206,6 +2206,16 @@ static int netvsc_probe(struct hv_device *dev,
 
 	memcpy(net->dev_addr, device_info.mac_adr, ETH_ALEN);
 
+	/* We must get rtnl lock before scheduling nvdev->subchan_work,
+	 * otherwise netvsc_subchan_work() can get rtnl lock first and wait
+	 * all subchannels to show up, but that may not happen because
+	 * netvsc_probe() can't get rtnl lock and as a result vmbus_onoffer()
+	 * -> ... -> device_add() -> ... -> __device_attach() can't get
+	 * the device lock, so all the subchannels can't be processed --
+	 * finally netvsc_subchan_work() hangs for ever.
+	 */
+	rtnl_lock();
+
 	if (nvdev->num_chn > 1)
 		schedule_work(&nvdev->subchan_work);
 
@@ -2224,7 +2234,6 @@ static int netvsc_probe(struct hv_device *dev,
 	else
 		net->max_mtu = ETH_DATA_LEN;
 
-	rtnl_lock();
 	ret = register_netdevice(net);
 	if (ret != 0) {
 		pr_err("Unable to register netdev.\n");

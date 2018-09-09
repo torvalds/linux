@@ -980,20 +980,17 @@ int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 struct tipc_dest *tipc_dest_find(struct list_head *l, u32 node, u32 port)
 {
-	u64 value = (u64)node << 32 | port;
 	struct tipc_dest *dst;
 
 	list_for_each_entry(dst, l, list) {
-		if (dst->value != value)
-			continue;
-		return dst;
+		if (dst->node == node && dst->port == port)
+			return dst;
 	}
 	return NULL;
 }
 
 bool tipc_dest_push(struct list_head *l, u32 node, u32 port)
 {
-	u64 value = (u64)node << 32 | port;
 	struct tipc_dest *dst;
 
 	if (tipc_dest_find(l, node, port))
@@ -1002,7 +999,8 @@ bool tipc_dest_push(struct list_head *l, u32 node, u32 port)
 	dst = kmalloc(sizeof(*dst), GFP_ATOMIC);
 	if (unlikely(!dst))
 		return false;
-	dst->value = value;
+	dst->node = node;
+	dst->port = port;
 	list_add(&dst->list, l);
 	return true;
 }

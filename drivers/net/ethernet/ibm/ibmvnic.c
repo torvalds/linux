@@ -1823,11 +1823,17 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 			adapter->map_id = 1;
 			release_rx_pools(adapter);
 			release_tx_pools(adapter);
-			init_rx_pools(netdev);
-			init_tx_pools(netdev);
+			rc = init_rx_pools(netdev);
+			if (rc)
+				return rc;
+			rc = init_tx_pools(netdev);
+			if (rc)
+				return rc;
 
 			release_napi(adapter);
-			init_napi(adapter);
+			rc = init_napi(adapter);
+			if (rc)
+				return rc;
 		} else {
 			rc = reset_tx_pools(adapter);
 			if (rc)

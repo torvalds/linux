@@ -167,7 +167,9 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 	},
 	{
 		.cmd	= TIPC_NL_SOCK_GET,
+		.start = tipc_dump_start,
 		.dumpit	= tipc_nl_sk_dump,
+		.done	= tipc_dump_done,
 		.policy = tipc_nl_policy,
 	},
 	{
