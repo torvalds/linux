@@ -165,33 +165,6 @@ error:
 	return -ENOENT;
 }
 
-int mt76x2_mcu_calibrate(struct mt76x2_dev *dev, enum mcu_calibration type,
-			 u32 param)
-{
-	struct sk_buff *skb;
-	struct {
-		__le32 id;
-		__le32 value;
-	} __packed __aligned(4) msg = {
-		.id = cpu_to_le32(type),
-		.value = cpu_to_le32(param),
-	};
-	int ret;
-
-	mt76_clear(dev, MT_MCU_COM_REG0, BIT(31));
-
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	ret = mt76_mcu_send_msg(dev, skb, CMD_CALIBRATION_OP, true);
-	if (ret)
-		return ret;
-
-	if (WARN_ON(!mt76_poll_msec(dev, MT_MCU_COM_REG0,
-				    BIT(31), BIT(31), 100)))
-		return -ETIMEDOUT;
-
-	return 0;
-}
-
 int mt76x2_mcu_init(struct mt76x2_dev *dev)
 {
 	static const struct mt76_mcu_ops mt76x2_mcu_ops = {

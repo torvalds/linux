@@ -29,22 +29,6 @@
 #define MT76U_MCU_DLM_OFFSET		0x110000
 #define MT76U_MCU_ROM_PATCH_OFFSET	0x90000
 
-int mt76x2u_mcu_calibrate(struct mt76x2_dev *dev, enum mcu_calibration type,
-			  u32 val)
-{
-	struct {
-		__le32 id;
-		__le32 value;
-	} __packed __aligned(4) msg = {
-		.id = cpu_to_le32(type),
-		.value = cpu_to_le32(val),
-	};
-	struct sk_buff *skb;
-
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_CALIBRATION_OP, true);
-}
-
 int mt76x2u_mcu_set_dynamic_vga(struct mt76x2_dev *dev, u8 channel, bool ap,
 				bool ext, int rssi, u32 false_cca)
 {

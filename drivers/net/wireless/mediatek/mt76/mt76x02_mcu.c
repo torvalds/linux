@@ -168,6 +168,36 @@ int mt76x02_mcu_set_radio_state(struct mt76_dev *dev, bool on,
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_set_radio_state);
 
+int mt76x02_mcu_calibrate(struct mt76_dev *dev, int type,
+			  u32 param, bool wait)
+{
+	struct sk_buff *skb;
+	struct {
+		__le32 id;
+		__le32 value;
+	} __packed __aligned(4) msg = {
+		.id = cpu_to_le32(type),
+		.value = cpu_to_le32(param),
+	};
+	int ret;
+
+	if (wait)
+		dev->bus->rmw(dev, MT_MCU_COM_REG0, BIT(31), 0);
+
+	skb = dev->mcu_ops->mcu_msg_alloc(&msg, sizeof(msg));
+	ret = dev->mcu_ops->mcu_send_msg(dev, skb, CMD_CALIBRATION_OP, true);
+	if (ret)
+		return ret;
+
+	if (wait &&
+	    WARN_ON(!__mt76_poll_msec(dev, MT_MCU_COM_REG0,
+				      BIT(31), BIT(31), 100)))
+		return -ETIMEDOUT;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76x02_mcu_calibrate);
+
 int mt76x02_mcu_cleanup(struct mt76_dev *dev)
 {
 	struct sk_buff *skb;

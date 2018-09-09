@@ -41,22 +41,6 @@ static inline void skb_put_le32(struct sk_buff *skb, u32 val)
 	put_unaligned_le32(val, skb_put(skb, 4));
 }
 
-int
-mt76x0_mcu_calibrate(struct mt76x0_dev *dev, enum mcu_calibrate cal, u32 val)
-{
-	struct sk_buff *skb;
-	struct {
-		__le32 id;
-		__le32 value;
-	} __packed __aligned(4) msg = {
-		.id = cpu_to_le32(cal),
-		.value = cpu_to_le32(val),
-	};
-
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_CALIBRATION_OP, true);
-}
-
 struct mt76_fw {
 	struct mt76x02_fw_header hdr;
 	u8 ivb[MT_MCU_IVB_SIZE];

@@ -37,7 +37,7 @@ mt76x2_phy_tssi_init_cal(struct mt76x2_dev *dev)
 	if (mt76x2_ext_pa_enabled(dev, chan->band))
 		flag |= BIT(8);
 
-	mt76x2_mcu_calibrate(dev, MCU_CAL_TSSI, flag);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TSSI, flag, true);
 	dev->cal.tssi_cal_done = true;
 	return true;
 }
@@ -61,13 +61,13 @@ mt76x2_phy_channel_calibrate(struct mt76x2_dev *dev, bool mac_stopped)
 		mt76x2_mac_stop(dev, false);
 
 	if (is_5ghz)
-		mt76x2_mcu_calibrate(dev, MCU_CAL_LC, 0);
+		mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_LC, 0, true);
 
-	mt76x2_mcu_calibrate(dev, MCU_CAL_TX_LOFT, is_5ghz);
-	mt76x2_mcu_calibrate(dev, MCU_CAL_TXIQ, is_5ghz);
-	mt76x2_mcu_calibrate(dev, MCU_CAL_RXIQC_FI, is_5ghz);
-	mt76x2_mcu_calibrate(dev, MCU_CAL_TEMP_SENSOR, 0);
-	mt76x2_mcu_calibrate(dev, MCU_CAL_TX_SHAPING, 0);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TX_LOFT, is_5ghz, true);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TXIQ, is_5ghz, true);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXIQC_FI, is_5ghz, true);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TEMP_SENSOR, 0, true);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TX_SHAPING, 0, true);
 
 	if (!mac_stopped)
 		mt76x2_mac_resume(dev);
@@ -363,14 +363,14 @@ int mt76x2_phy_set_channel(struct mt76x2_dev *dev,
 		u8 val = mt76x2_eeprom_get(dev, MT_EE_BT_RCAL_RESULT);
 
 		if (val != 0xff)
-			mt76x2_mcu_calibrate(dev, MCU_CAL_R, 0);
+			mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_R, 0, true);
 	}
 
-	mt76x2_mcu_calibrate(dev, MCU_CAL_RXDCOC, channel);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXDCOC, channel, true);
 
 	/* Rx LPF calibration */
 	if (!dev->cal.init_cal_done)
-		mt76x2_mcu_calibrate(dev, MCU_CAL_RC, 0);
+		mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RC, 0, true);
 
 	dev->cal.init_cal_done = true;
 
@@ -439,7 +439,7 @@ mt76x2_phy_tssi_compensate(struct mt76x2_dev *dev)
 			return;
 
 		usleep_range(10000, 20000);
-		mt76x2_mcu_calibrate(dev, MCU_CAL_DPD, chan->hw_value);
+		mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_DPD, chan->hw_value, true);
 		dev->cal.dpd_cal_done = true;
 	}
 }

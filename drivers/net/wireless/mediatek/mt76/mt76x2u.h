@@ -50,8 +50,6 @@ void mt76x2u_phy_set_txdac(struct mt76x2_dev *dev);
 void mt76x2u_phy_set_rxpath(struct mt76x2_dev *dev);
 
 void mt76x2u_mcu_complete_urb(struct urb *urb);
-int mt76x2u_mcu_calibrate(struct mt76x2_dev *dev, enum mcu_calibration type,
-			  u32 val);
 int mt76x2u_mcu_set_dynamic_vga(struct mt76x2_dev *dev, u8 channel, bool ap,
 				bool ext, int rssi, u32 false_cca);
 int mt76x2u_mcu_init(struct mt76x2_dev *dev);
