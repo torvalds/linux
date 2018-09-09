@@ -422,6 +422,43 @@ static noinline void check_xas_erase(struct xarray *xa)
 	}
 }
 
+#ifdef CONFIG_XARRAY_MULTI
+static noinline void check_multi_store_1(struct xarray *xa, unsigned long index,
+		unsigned int order)
+{
+	XA_STATE(xas, xa, index);
+	unsigned long min = index & ~((1UL << order) - 1);
+	unsigned long max = min + (1UL << order);
+
+	xa_store_order(xa, index, order, xa_mk_value(index), GFP_KERNEL);
+	XA_BUG_ON(xa, xa_load(xa, min) != xa_mk_value(index));
+	XA_BUG_ON(xa, xa_load(xa, max - 1) != xa_mk_value(index));
+	XA_BUG_ON(xa, xa_load(xa, max) != NULL);
+	XA_BUG_ON(xa, xa_load(xa, min - 1) != NULL);
+
+	XA_BUG_ON(xa, xas_store(&xas, xa_mk_value(min)) != xa_mk_value(index));
+	XA_BUG_ON(xa, xa_load(xa, min) != xa_mk_value(min));
+	XA_BUG_ON(xa, xa_load(xa, max - 1) != xa_mk_value(min));
+	XA_BUG_ON(xa, xa_load(xa, max) != NULL);
+	XA_BUG_ON(xa, xa_load(xa, min - 1) != NULL);
+
+	xa_erase_index(xa, min);
+	XA_BUG_ON(xa, !xa_empty(xa));
+}
+
+static noinline void check_multi_store_2(struct xarray *xa, unsigned long index,
+		unsigned int order)
+{
+	XA_STATE(xas, xa, index);
+	xa_store_order(xa, index, order, xa_mk_value(0), GFP_KERNEL);
+
+	XA_BUG_ON(xa, xas_store(&xas, xa_mk_value(1)) != xa_mk_value(0));
+	XA_BUG_ON(xa, xas.xa_index != index);
+	XA_BUG_ON(xa, xas_store(&xas, NULL) != xa_mk_value(1));
+	XA_BUG_ON(xa, !xa_empty(xa));
+}
+#endif
+
 static noinline void check_multi_store(struct xarray *xa)
 {
 #ifdef CONFIG_XARRAY_MULTI
@@ -487,6 +524,13 @@ static noinline void check_multi_store(struct xarray *xa)
 			XA_BUG_ON(xa, !xa_empty(xa));
 		}
 	}
+
+	for (i = 0; i < 20; i++) {
+		check_multi_store_1(xa, 200, i);
+		check_multi_store_1(xa, 0, i);
+		check_multi_store_1(xa, (1UL << i) + 1, i);
+	}
+	check_multi_store_2(xa, 4095, 9);
 #endif
 }
 

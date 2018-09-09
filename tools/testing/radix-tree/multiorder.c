@@ -20,46 +20,6 @@
 
 #include "test.h"
 
-static void multiorder_check(unsigned long index, int order)
-{
-	unsigned long i;
-	unsigned long min = index & ~((1UL << order) - 1);
-	unsigned long max = min + (1UL << order);
-	void **slot;
-	struct item *item2 = item_create(min, order);
-	RADIX_TREE(tree, GFP_KERNEL);
-
-	printv(2, "Multiorder index %ld, order %d\n", index, order);
-
-	assert(item_insert_order(&tree, index, order) == 0);
-
-	for (i = min; i < max; i++) {
-		struct item *item = item_lookup(&tree, i);
-		assert(item != 0);
-		assert(item->index == index);
-	}
-	for (i = 0; i < min; i++)
-		item_check_absent(&tree, i);
-	for (i = max; i < 2*max; i++)
-		item_check_absent(&tree, i);
-	for (i = min; i < max; i++)
-		assert(radix_tree_insert(&tree, i, item2) == -EEXIST);
-
-	slot = radix_tree_lookup_slot(&tree, index);
-	free(*slot);
-	radix_tree_replace_slot(&tree, slot, item2);
-	for (i = min; i < max; i++) {
-		struct item *item = item_lookup(&tree, i);
-		assert(item != 0);
-		assert(item->index == min);
-	}
-
-	assert(item_delete(&tree, min) != 0);
-
-	for (i = 0; i < 2*max; i++)
-		item_check_absent(&tree, i);
-}
-
 void multiorder_iteration(void)
 {
 	RADIX_TREE(tree, GFP_KERNEL);
@@ -251,14 +211,6 @@ static void multiorder_iteration_race(void)
 
 void multiorder_checks(void)
 {
-	int i;
-
-	for (i = 0; i < 20; i++) {
-		multiorder_check(200, i);
-		multiorder_check(0, i);
-		multiorder_check((1UL << i) + 1, i);
-	}
-
 	multiorder_iteration();
 	multiorder_tagged_iteration();
 	multiorder_iteration_race();
