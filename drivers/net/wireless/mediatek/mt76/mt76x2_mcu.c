@@ -44,9 +44,10 @@ mt76x2_mcu_get_response(struct mt76x2_dev *dev, unsigned long expires)
 		return NULL;
 
 	timeout = expires - jiffies;
-	wait_event_timeout(dev->mcu.wait, !skb_queue_empty(&dev->mcu.res_q),
+	wait_event_timeout(dev->mt76.mmio.mcu.wait,
+			   !skb_queue_empty(&dev->mt76.mmio.mcu.res_q),
 			   timeout);
-	return skb_dequeue(&dev->mcu.res_q);
+	return skb_dequeue(&dev->mt76.mmio.mcu.res_q);
 }
 
 static int
@@ -60,11 +61,11 @@ mt76x2_mcu_msg_send(struct mt76x2_dev *dev, struct sk_buff *skb,
 	if (!skb)
 		return -EINVAL;
 
-	mutex_lock(&dev->mcu.mutex);
+	mutex_lock(&dev->mt76.mmio.mcu.mutex);
 
-	seq = ++dev->mcu.msg_seq & 0xf;
+	seq = ++dev->mt76.mmio.mcu.msg_seq & 0xf;
 	if (!seq)
-		seq = ++dev->mcu.msg_seq & 0xf;
+		seq = ++dev->mt76.mmio.mcu.msg_seq & 0xf;
 
 	ret = mt76x2_tx_queue_mcu(&dev->mt76, MT_TXQ_MCU, skb, cmd, seq);
 	if (ret)
@@ -94,7 +95,7 @@ mt76x2_mcu_msg_send(struct mt76x2_dev *dev, struct sk_buff *skb,
 	}
 
 out:
-	mutex_unlock(&dev->mcu.mutex);
+	mutex_unlock(&dev->mt76.mmio.mcu.mutex);
 
 	return ret;
 }
@@ -399,8 +400,6 @@ int mt76x2_mcu_init(struct mt76x2_dev *dev)
 {
 	int ret;
 
-	mutex_init(&dev->mcu.mutex);
-
 	ret = mt76pci_load_rom_patch(dev);
 	if (ret)
 		return ret;
@@ -420,7 +419,7 @@ int mt76x2_mcu_cleanup(struct mt76x2_dev *dev)
 	mt76_wr(dev, MT_MCU_INT_LEVEL, 1);
 	usleep_range(20000, 30000);
 
-	while ((skb = skb_dequeue(&dev->mcu.res_q)) != NULL)
+	while ((skb = skb_dequeue(&dev->mt76.mmio.mcu.res_q)) != NULL)
 		dev_kfree_skb(skb);
 
 	return 0;

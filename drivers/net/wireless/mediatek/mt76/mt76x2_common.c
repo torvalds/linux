@@ -25,8 +25,9 @@ void mt76x2_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	void *rxwi = skb->data;
 
 	if (q == MT_RXQ_MCU) {
-		skb_queue_tail(&dev->mcu.res_q, skb);
-		wake_up(&dev->mcu.wait);
+		/* this is used just by mmio code */
+		skb_queue_tail(&mdev->mmio.mcu.res_q, skb);
+		wake_up(&mdev->mmio.mcu.wait);
 		return;
 	}
 

@@ -338,6 +338,17 @@ struct mt76_usb {
 	} mcu;
 };
 
+struct mt76_mmio {
+	struct mt76e_mcu {
+		struct mutex mutex;
+
+		wait_queue_head_t wait;
+		struct sk_buff_head res_q;
+
+		u32 msg_seq;
+	} mcu;
+};
+
 struct mt76_dev {
 	struct ieee80211_hw *hw;
 	struct cfg80211_chan_def chandef;
@@ -392,7 +403,10 @@ struct mt76_dev {
 
 	u32 rxfilter;
 
-	struct mt76_usb usb;
+	union {
+		struct mt76_mmio mmio;
+		struct mt76_usb usb;
+	};
 };
 
 enum mt76_phy_type {
