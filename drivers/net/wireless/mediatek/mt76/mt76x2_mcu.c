@@ -165,66 +165,6 @@ error:
 	return -ENOENT;
 }
 
-int mt76x2_mcu_load_cr(struct mt76x2_dev *dev, u8 type, u8 temp_level,
-		       u8 channel)
-{
-	struct sk_buff *skb;
-	struct {
-		u8 cr_mode;
-		u8 temp;
-		u8 ch;
-		u8 _pad0;
-
-		__le32 cfg;
-	} __packed __aligned(4) msg = {
-		.cr_mode = type,
-		.temp = temp_level,
-		.ch = channel,
-	};
-	u32 val;
-
-	val = BIT(31);
-	val |= (mt76x2_eeprom_get(dev, MT_EE_NIC_CONF_0) >> 8) & 0x00ff;
-	val |= (mt76x2_eeprom_get(dev, MT_EE_NIC_CONF_1) << 8) & 0xff00;
-	msg.cfg = cpu_to_le32(val);
-
-	/* first set the channel without the extension channel info */
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_LOAD_CR, true);
-}
-
-int mt76x2_mcu_set_channel(struct mt76x2_dev *dev, u8 channel, u8 bw,
-			   u8 bw_index, bool scan)
-{
-	struct sk_buff *skb;
-	struct {
-		u8 idx;
-		u8 scan;
-		u8 bw;
-		u8 _pad0;
-
-		__le16 chainmask;
-		u8 ext_chan;
-		u8 _pad1;
-
-	} __packed __aligned(4) msg = {
-		.idx = channel,
-		.scan = scan,
-		.bw = bw,
-		.chainmask = cpu_to_le16(dev->chainmask),
-	};
-
-	/* first set the channel without the extension channel info */
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	mt76_mcu_send_msg(dev, skb, CMD_SWITCH_CHANNEL_OP, true);
-
-	usleep_range(5000, 10000);
-
-	msg.ext_chan = 0xe0 + bw_index;
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_SWITCH_CHANNEL_OP, true);
-}
-
 int mt76x2_mcu_calibrate(struct mt76x2_dev *dev, enum mcu_calibration type,
 			 u32 param)
 {
@@ -250,41 +190,6 @@ int mt76x2_mcu_calibrate(struct mt76x2_dev *dev, enum mcu_calibration type,
 		return -ETIMEDOUT;
 
 	return 0;
-}
-
-int mt76x2_mcu_tssi_comp(struct mt76x2_dev *dev,
-			 struct mt76x2_tssi_comp *tssi_data)
-{
-	struct sk_buff *skb;
-	struct {
-		__le32 id;
-		struct mt76x2_tssi_comp data;
-	} __packed __aligned(4) msg = {
-		.id = cpu_to_le32(MCU_CAL_TSSI_COMP),
-		.data = *tssi_data,
-	};
-
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_CALIBRATION_OP, true);
-}
-
-int mt76x2_mcu_init_gain(struct mt76x2_dev *dev, u8 channel, u32 gain,
-			 bool force)
-{
-	struct sk_buff *skb;
-	struct {
-		__le32 channel;
-		__le32 gain_val;
-	} __packed __aligned(4) msg = {
-		.channel = cpu_to_le32(channel),
-		.gain_val = cpu_to_le32(gain),
-	};
-
-	if (force)
-		msg.channel |= cpu_to_le32(BIT(31));
-
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_INIT_GAIN_OP, true);
 }
 
 int mt76x2_mcu_init(struct mt76x2_dev *dev)

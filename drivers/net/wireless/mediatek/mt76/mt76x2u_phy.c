@@ -84,7 +84,7 @@ mt76x2u_phy_tssi_compensate(struct mt76x2_dev *dev)
 	if (!dev->cal.tssi_comp_pending) {
 		/* TSSI trigger */
 		t.cal_mode = BIT(0);
-		mt76x2u_mcu_tssi_comp(dev, &t);
+		mt76x2_mcu_tssi_comp(dev, &t);
 		dev->cal.tssi_comp_pending = true;
 	} else {
 		if (mt76_rr(dev, MT_BBP(CORE, 34)) & BIT(4))
@@ -101,7 +101,7 @@ mt76x2u_phy_tssi_compensate(struct mt76x2_dev *dev)
 		t.offset0 = txp.chain[0].tssi_offset;
 		t.slope1 = txp.chain[1].tssi_slope;
 		t.offset1 = txp.chain[1].tssi_offset;
-		mt76x2u_mcu_tssi_comp(dev, &t);
+		mt76x2_mcu_tssi_comp(dev, &t);
 
 		if (t.pa_mode || dev->cal.dpd_cal_done)
 			return;
@@ -239,11 +239,11 @@ int mt76x2u_phy_set_channel(struct mt76x2_dev *dev,
 		  MT_EXT_CCA_CFG_CCA_MASK),
 		 ext_cca_chan[ch_group_index]);
 
-	ret = mt76x2u_mcu_set_channel(dev, channel, bw, bw_index, scan);
+	ret = mt76x2_mcu_set_channel(dev, channel, bw, bw_index, scan);
 	if (ret)
 		return ret;
 
-	mt76x2u_mcu_init_gain(dev, channel, dev->cal.rx.mcu_gain, true);
+	mt76x2_mcu_init_gain(dev, channel, dev->cal.rx.mcu_gain, true);
 
 	/* Enable LDPC Rx */
 	if (mt76xx_rev(dev) >= MT76XX_REV_E3)

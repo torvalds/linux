@@ -240,7 +240,7 @@ int mt76x2u_init_hardware(struct mt76x2_dev *dev)
 	mt76_rmw(dev, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
 	mt76_wr(dev, MT_TXOP_CTRL_CFG, 0x583f);
 
-	err = mt76x2u_mcu_load_cr(dev, MT_RF_BBP_CR, 0, 0);
+	err = mt76x2_mcu_load_cr(dev, MT_RF_BBP_CR, 0, 0);
 	if (err < 0)
 		return err;
 

@@ -22,7 +22,7 @@ mt76x02-usb-y := mt76x02_usb_mcu.o mt76x02_usb_core.o
 mt76x2-common-y := \
 	mt76x2_eeprom.o mt76x2_tx_common.o mt76x2_mac_common.o \
 	mt76x2_init_common.o mt76x2_common.o mt76x2_phy_common.o \
-	mt76x2_debugfs.o
+	mt76x2_debugfs.o mt76x2_mcu_common.o
 
 mt76x2e-y := \
 	mt76x2_pci.o mt76x2_dma.o \

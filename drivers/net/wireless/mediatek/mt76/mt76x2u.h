@@ -50,18 +50,10 @@ void mt76x2u_phy_set_txdac(struct mt76x2_dev *dev);
 void mt76x2u_phy_set_rxpath(struct mt76x2_dev *dev);
 
 void mt76x2u_mcu_complete_urb(struct urb *urb);
-int mt76x2u_mcu_set_channel(struct mt76x2_dev *dev, u8 channel, u8 bw,
-			    u8 bw_index, bool scan);
 int mt76x2u_mcu_calibrate(struct mt76x2_dev *dev, enum mcu_calibration type,
 			  u32 val);
-int mt76x2u_mcu_tssi_comp(struct mt76x2_dev *dev,
-			  struct mt76x2_tssi_comp *tssi_data);
-int mt76x2u_mcu_init_gain(struct mt76x2_dev *dev, u8 channel, u32 gain,
-			  bool force);
 int mt76x2u_mcu_set_dynamic_vga(struct mt76x2_dev *dev, u8 channel, bool ap,
 				bool ext, int rssi, u32 false_cca);
-int mt76x2u_mcu_load_cr(struct mt76x2_dev *dev, u8 type,
-			u8 temp_level, u8 channel);
 int mt76x2u_mcu_init(struct mt76x2_dev *dev);
 int mt76x2u_mcu_fw_init(struct mt76x2_dev *dev);
 
