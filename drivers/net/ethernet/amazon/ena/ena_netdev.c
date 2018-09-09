@@ -76,7 +76,7 @@ MODULE_DEVICE_TABLE(pci, ena_pci_tbl);
 
 static int ena_rss_init_default(struct ena_adapter *adapter);
 static void check_for_admin_com_state(struct ena_adapter *adapter);
-static void ena_destroy_device(struct ena_adapter *adapter);
+static void ena_destroy_device(struct ena_adapter *adapter, bool graceful);
 static int ena_restore_device(struct ena_adapter *adapter);
 
 static void ena_tx_timeout(struct net_device *dev)
@@ -1900,7 +1900,7 @@ static int ena_close(struct net_device *netdev)
 			  "Destroy failure, restarting device\n");
 		ena_dump_stats_to_dmesg(adapter);
 		/* rtnl lock already obtained in dev_ioctl() layer */
-		ena_destroy_device(adapter);
+		ena_destroy_device(adapter, false);
 		ena_restore_device(adapter);
 	}
 
@@ -2550,7 +2550,7 @@ err_disable_msix:
 	return rc;
 }
 
-static void ena_destroy_device(struct ena_adapter *adapter)
+static void ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
@@ -2563,7 +2563,8 @@ static void ena_destroy_device(struct ena_adapter *adapter)
 	dev_up = test_bit(ENA_FLAG_DEV_UP, &adapter->flags);
 	adapter->dev_up_before_reset = dev_up;
 
-	ena_com_set_admin_running_state(ena_dev, false);
+	if (!graceful)
+		ena_com_set_admin_running_state(ena_dev, false);
 
 	if (test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
 		ena_down(adapter);
@@ -2665,7 +2666,7 @@ static void ena_fw_reset_device(struct work_struct *work)
 		return;
 	}
 	rtnl_lock();
-	ena_destroy_device(adapter);
+	ena_destroy_device(adapter, false);
 	ena_restore_device(adapter);
 	rtnl_unlock();
 }
@@ -3467,7 +3468,7 @@ static int ena_suspend(struct pci_dev *pdev,  pm_message_t state)
 			"ignoring device reset request as the device is being suspended\n");
 		clear_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 	}
-	ena_destroy_device(adapter);
+	ena_destroy_device(adapter, true);
 	rtnl_unlock();
 	return 0;
 }
