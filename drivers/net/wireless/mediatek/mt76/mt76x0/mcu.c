@@ -54,8 +54,6 @@ int mt76x0_mcu_function_select(struct mt76x0_dev *dev,
 	};
 
 	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	if (!skb)
-		return -ENOMEM;
 	return mt76_mcu_send_msg(dev, skb, CMD_FUN_SET_OP, func == 5);
 }
 
@@ -72,8 +70,6 @@ mt76x0_mcu_calibrate(struct mt76x0_dev *dev, enum mcu_calibrate cal, u32 val)
 	};
 
 	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	if (!skb)
-		return -ENOMEM;
 	return mt76_mcu_send_msg(dev, skb, CMD_CALIBRATION_OP, true);
 }
 
