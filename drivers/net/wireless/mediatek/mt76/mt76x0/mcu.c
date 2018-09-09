@@ -52,11 +52,10 @@ int mt76x0_mcu_function_select(struct mt76x0_dev *dev,
 		.value = cpu_to_le32(val),
 	};
 
-	skb = mt76u_mcu_msg_alloc(&msg, sizeof(msg));
+	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
 	if (!skb)
 		return -ENOMEM;
-	return mt76u_mcu_send_msg(&dev->mt76, skb, CMD_FUN_SET_OP,
-				  func == 5);
+	return mt76_mcu_send_msg(dev, skb, CMD_FUN_SET_OP, func == 5);
 }
 
 int
@@ -71,11 +70,10 @@ mt76x0_mcu_calibrate(struct mt76x0_dev *dev, enum mcu_calibrate cal, u32 val)
 		.value = cpu_to_le32(val),
 	};
 
-	skb = mt76u_mcu_msg_alloc(&msg, sizeof(msg));
+	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
 	if (!skb)
 		return -ENOMEM;
-	return mt76u_mcu_send_msg(&dev->mt76, skb, CMD_CALIBRATION_OP,
-				  true);
+	return mt76_mcu_send_msg(dev, skb, CMD_CALIBRATION_OP, true);
 }
 
 int mt76x0_burst_write_regs(struct mt76x0_dev *dev, u32 offset,
@@ -99,8 +97,7 @@ int mt76x0_burst_write_regs(struct mt76x0_dev *dev, u32 offset,
 	for (i = 0; i < cnt; i++)
 		skb_put_le32(skb, data[i]);
 
-	ret = mt76u_mcu_send_msg(&dev->mt76, skb, CMD_BURST_WRITE,
-				 cnt == n);
+	ret = mt76_mcu_send_msg(dev, skb, CMD_BURST_WRITE, cnt == n);
 	if (ret)
 		return ret;
 

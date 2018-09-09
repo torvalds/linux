@@ -28,7 +28,8 @@
 
 #define MT_INBAND_PACKET_MAX_LEN	192
 
-struct sk_buff *mt76u_mcu_msg_alloc(const void *data, int len)
+static struct sk_buff *
+mt76u_mcu_msg_alloc(const void *data, int len)
 {
 	struct sk_buff *skb;
 
@@ -41,7 +42,6 @@ struct sk_buff *mt76u_mcu_msg_alloc(const void *data, int len)
 
 	return skb;
 }
-EXPORT_SYMBOL_GPL(mt76u_mcu_msg_alloc);
 
 void mt76u_mcu_complete_urb(struct urb *urb)
 {
@@ -125,8 +125,9 @@ static int mt76u_mcu_wait_resp(struct mt76_dev *dev, u8 seq)
 	return -ETIMEDOUT;
 }
 
-int __mt76u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
-			 int cmd, bool wait_resp)
+static int
+__mt76u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
+		     int cmd, bool wait_resp)
 {
 	struct usb_interface *intf = to_usb_interface(dev->dev);
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -164,10 +165,10 @@ int __mt76u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(__mt76u_mcu_send_msg);
 
-int mt76u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
-		       int cmd, bool wait_resp)
+static int
+mt76u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
+		   int cmd, bool wait_resp)
 {
 	struct mt76_usb *usb = &dev->usb;
 	int err;
@@ -178,15 +179,15 @@ int mt76u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(mt76u_mcu_send_msg);
 
 static inline void skb_put_le32(struct sk_buff *skb, u32 val)
 {
 	put_unaligned_le32(val, skb_put(skb, 4));
 }
 
-int mt76u_mcu_wr_rp(struct mt76_dev *dev, u32 base,
-		    const struct mt76_reg_pair *data, int n)
+static int
+mt76u_mcu_wr_rp(struct mt76_dev *dev, u32 base,
+		const struct mt76_reg_pair *data, int n)
 {
 	const int CMD_RANDOM_WRITE = 12;
 	const int max_vals_per_cmd = MT_INBAND_PACKET_MAX_LEN / 8;
@@ -215,8 +216,9 @@ int mt76u_mcu_wr_rp(struct mt76_dev *dev, u32 base,
 	return mt76u_mcu_wr_rp(dev, base, data + cnt, n - cnt);
 }
 
-int mt76u_mcu_rd_rp(struct mt76_dev *dev, u32 base,
-		    struct mt76_reg_pair *data, int n)
+static int
+mt76u_mcu_rd_rp(struct mt76_dev *dev, u32 base,
+		struct mt76_reg_pair *data, int n)
 {
 	const int CMD_RANDOM_READ = 10;
 	const int max_vals_per_cmd = MT_INBAND_PACKET_MAX_LEN / 8;

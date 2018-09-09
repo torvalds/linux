@@ -203,15 +203,15 @@ mt76u_req_wr_rp(struct mt76_dev *dev, u32 base,
 	return 0;
 }
 
-int mt76u_wr_rp(struct mt76_dev *dev, u32 base,
-		const struct mt76_reg_pair *data, int n)
+static int
+mt76u_wr_rp(struct mt76_dev *dev, u32 base,
+	    const struct mt76_reg_pair *data, int n)
 {
 	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->state))
-		return mt76u_mcu_wr_rp(dev, base, data, n);
+		return dev->mcu_ops->mcu_wr_rp(dev, base, data, n);
 	else
 		return mt76u_req_wr_rp(dev, base, data, n);
 }
-EXPORT_SYMBOL_GPL(mt76u_wr_rp);
 
 static int
 mt76u_req_rd_rp(struct mt76_dev *dev, u32 base, struct mt76_reg_pair *data,
@@ -230,15 +230,15 @@ mt76u_req_rd_rp(struct mt76_dev *dev, u32 base, struct mt76_reg_pair *data,
 	return 0;
 }
 
-int mt76u_rd_rp(struct mt76_dev *dev, u32 base,
-		struct mt76_reg_pair *data, int n)
+static int
+mt76u_rd_rp(struct mt76_dev *dev, u32 base,
+	    struct mt76_reg_pair *data, int n)
 {
 	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->state))
-		return mt76u_mcu_rd_rp(dev, base, data, n);
+		return dev->mcu_ops->mcu_rd_rp(dev, base, data, n);
 	else
 		return mt76u_req_rd_rp(dev, base, data, n);
 }
-EXPORT_SYMBOL_GPL(mt76u_rd_rp);
 
 static int
 mt76u_set_endpoints(struct usb_interface *intf,
