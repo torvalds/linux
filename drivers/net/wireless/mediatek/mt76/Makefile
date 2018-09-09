@@ -17,7 +17,7 @@ CFLAGS_usb_trace.o := -I$(src)
 
 mt76x02-lib-y := mt76x02_util.o mt76x02_mac.o
 
-mt76x02-usb-y := mt76x02_usb_mcu.o
+mt76x02-usb-y := mt76x02_usb_mcu.o mt76x02_usb_core.o
 
 mt76x2-common-y := \
 	mt76x2_eeprom.o mt76x2_tx_common.o mt76x2_mac_common.o \

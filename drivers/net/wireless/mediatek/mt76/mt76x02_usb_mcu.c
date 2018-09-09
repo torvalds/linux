@@ -19,6 +19,7 @@
 #include "mt76.h"
 #include "dma.h"
 #include "mt76x02_mcu.h"
+#include "mt76x02_usb.h"
 
 #define MT_CMD_HDR_LEN			4
 
@@ -144,7 +145,7 @@ __mt76x02u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 	info = FIELD_PREP(MT_MCU_MSG_CMD_SEQ, seq) |
 	       FIELD_PREP(MT_MCU_MSG_CMD_TYPE, cmd) |
 	       MT_MCU_MSG_TYPE_CMD;
-	ret = mt76u_skb_dma_info(skb, CPU_TX_PORT, info);
+	ret = mt76x02u_skb_dma_info(skb, CPU_TX_PORT, info);
 	if (ret)
 		return ret;
 

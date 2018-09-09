@@ -15,6 +15,7 @@
 #include "mt76x0.h"
 #include "trace.h"
 #include "../mt76x02_util.h"
+#include "../mt76x02_usb.h"
 
 static struct mt76x02_txwi *
 mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
@@ -93,7 +94,7 @@ int mt76x0_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 	mt76x02_insert_hdr_pad(skb);
 	txwi = mt76x0_push_txwi(dev, skb, sta, wcid, len);
 
-	return mt76x02_set_txinfo(skb, wcid, q2ep(q->hw_idx));
+	return mt76x02u_set_txinfo(skb, wcid, q2ep(q->hw_idx));
 }
 EXPORT_SYMBOL_GPL(mt76x0_tx_prepare_skb);
 

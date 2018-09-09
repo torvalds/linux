@@ -565,40 +565,6 @@ static void mt76u_stop_rx(struct mt76_dev *dev)
 		usb_kill_urb(q->entry[i].ubuf.urb);
 }
 
-int mt76u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
-{
-	struct sk_buff *iter, *last = skb;
-	u32 info, pad;
-
-	/* Buffer layout:
-	 *	|   4B   | xfer len |      pad       |  4B  |
-	 *	| TXINFO | pkt/cmd  | zero pad to 4B | zero |
-	 *
-	 * length field of TXINFO should be set to 'xfer len'.
-	 */
-	info = FIELD_PREP(MT_TXD_INFO_LEN, round_up(skb->len, 4)) |
-	       FIELD_PREP(MT_TXD_INFO_DPORT, port) | flags;
-	put_unaligned_le32(info, skb_push(skb, sizeof(info)));
-
-	pad = round_up(skb->len, 4) + 4 - skb->len;
-	skb_walk_frags(skb, iter) {
-		last = iter;
-		if (!iter->next) {
-			skb->data_len += pad;
-			skb->len += pad;
-			break;
-		}
-	}
-
-	if (unlikely(pad)) {
-		if (__skb_pad(last, pad, true))
-			return -ENOMEM;
-		__skb_put(last, pad);
-	}
-	return 0;
-}
-EXPORT_SYMBOL_GPL(mt76u_skb_dma_info);
-
 static void mt76u_tx_tasklet(unsigned long data)
 {
 	struct mt76_dev *dev = (struct mt76_dev *)data;

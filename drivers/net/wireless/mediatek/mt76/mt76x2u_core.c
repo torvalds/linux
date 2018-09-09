@@ -17,6 +17,7 @@
 #include "mt76x2u.h"
 #include "dma.h"
 #include "mt76x02_util.h"
+#include "mt76x02_usb.h"
 
 static int
 mt76x2u_check_skb_rooms(struct sk_buff *skb)
@@ -48,5 +49,5 @@ int mt76x2u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 	txwi = skb_push(skb, sizeof(struct mt76x02_txwi));
 	mt76x2_mac_write_txwi(dev, txwi, skb, wcid, sta, len);
 
-	return mt76x02_set_txinfo(skb, wcid, q2ep(q->hw_idx));
+	return mt76x02u_set_txinfo(skb, wcid, q2ep(q->hw_idx));
 }
