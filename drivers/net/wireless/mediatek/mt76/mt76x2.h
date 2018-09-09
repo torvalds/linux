@@ -237,6 +237,7 @@ int mt76x2_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   u16 queue, const struct ieee80211_tx_queue_params *params);
 void mt76x2_txq_init(struct mt76x2_dev *dev, struct ieee80211_txq *txq);
 
+void mt76x2_phy_tssi_compensate(struct mt76x2_dev *dev, bool wait);
 void mt76x2_phy_set_txpower_regs(struct mt76x2_dev *dev,
 				 enum nl80211_band band);
 void mt76x2_configure_tx_delay(struct mt76x2_dev *dev,
