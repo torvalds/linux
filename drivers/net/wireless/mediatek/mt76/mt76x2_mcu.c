@@ -66,7 +66,7 @@ mt76x2_mcu_msg_send(struct mt76x2_dev *dev, struct sk_buff *skb,
 	if (!seq)
 		seq = ++dev->mcu.msg_seq & 0xf;
 
-	ret = mt76x2_tx_queue_mcu(dev, MT_TXQ_MCU, skb, cmd, seq);
+	ret = mt76x2_tx_queue_mcu(&dev->mt76, MT_TXQ_MCU, skb, cmd, seq);
 	if (ret)
 		goto out;
 
