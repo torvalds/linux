@@ -1053,12 +1053,21 @@ xprt_request_need_enqueue_transmit(struct rpc_task *task, struct rpc_rqst *req)
 void
 xprt_request_enqueue_transmit(struct rpc_task *task)
 {
-	struct rpc_rqst *req = task->tk_rqstp;
+	struct rpc_rqst *pos, *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 
 	if (xprt_request_need_enqueue_transmit(task, req)) {
 		spin_lock(&xprt->queue_lock);
+		list_for_each_entry(pos, &xprt->xmit_queue, rq_xmit) {
+			if (pos->rq_task->tk_owner != task->tk_owner)
+				continue;
+			list_add_tail(&req->rq_xmit2, &pos->rq_xmit2);
+			INIT_LIST_HEAD(&req->rq_xmit);
+			goto out;
+		}
 		list_add_tail(&req->rq_xmit, &xprt->xmit_queue);
+		INIT_LIST_HEAD(&req->rq_xmit2);
+out:
 		set_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate);
 		spin_unlock(&xprt->queue_lock);
 	}
@@ -1074,8 +1083,20 @@ xprt_request_enqueue_transmit(struct rpc_task *task)
 static void
 xprt_request_dequeue_transmit_locked(struct rpc_task *task)
 {
-	if (test_and_clear_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate))
-		list_del(&task->tk_rqstp->rq_xmit);
+	struct rpc_rqst *req = task->tk_rqstp;
+
+	if (!test_and_clear_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate))
+		return;
+	if (!list_empty(&req->rq_xmit)) {
+		list_del(&req->rq_xmit);
+		if (!list_empty(&req->rq_xmit2)) {
+			struct rpc_rqst *next = list_first_entry(&req->rq_xmit2,
+					struct rpc_rqst, rq_xmit2);
+			list_del(&req->rq_xmit2);
+			list_add_tail(&next->rq_xmit, &next->rq_xprt->xmit_queue);
+		}
+	} else
+		list_del(&req->rq_xmit2);
 }
 
 /**

@@ -89,6 +89,7 @@ struct rpc_rqst {
 	};
 
 	struct list_head	rq_xmit;	/* Send queue */
+	struct list_head	rq_xmit2;	/* Send queue */
 
 	void			*rq_buffer;	/* Call XDR encode buffer */
 	size_t			rq_callsize;
