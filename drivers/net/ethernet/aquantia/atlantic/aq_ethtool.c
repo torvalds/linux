@@ -315,6 +315,81 @@ static int aq_ethtool_set_wol(struct net_device *ndev,
 	return err;
 }
 
+static enum hw_atl_fw2x_rate eee_mask_to_ethtool_mask(u32 speed)
+{
+	u32 rate = 0;
+
+	if (speed & AQ_NIC_RATE_EEE_10G)
+		rate |= SUPPORTED_10000baseT_Full;
+
+	if (speed & AQ_NIC_RATE_EEE_2GS)
+		rate |= SUPPORTED_2500baseX_Full;
+
+	if (speed & AQ_NIC_RATE_EEE_1G)
+		rate |= SUPPORTED_1000baseT_Full;
+
+	return rate;
+}
+
+static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_eee *eee)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	u32 rate, supported_rates;
+	int err = 0;
+
+	if (!aq_nic->aq_fw_ops->get_eee_rate)
+		return -EOPNOTSUPP;
+
+	err = aq_nic->aq_fw_ops->get_eee_rate(aq_nic->aq_hw, &rate,
+					      &supported_rates);
+	if (err < 0)
+		return err;
+
+	eee->supported = eee_mask_to_ethtool_mask(supported_rates);
+
+	if (aq_nic->aq_nic_cfg.eee_speeds)
+		eee->advertised = eee->supported;
+
+	eee->lp_advertised = eee_mask_to_ethtool_mask(rate);
+
+	eee->eee_enabled = !!eee->advertised;
+
+	eee->tx_lpi_enabled = eee->eee_enabled;
+	if (eee->advertised & eee->lp_advertised)
+		eee->eee_active = true;
+
+	return 0;
+}
+
+static int aq_ethtool_set_eee(struct net_device *ndev, struct ethtool_eee *eee)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	u32 rate, supported_rates;
+	struct aq_nic_cfg_s *cfg;
+	int err = 0;
+
+	cfg = aq_nic_get_cfg(aq_nic);
+
+	if (unlikely(!aq_nic->aq_fw_ops->get_eee_rate ||
+		     !aq_nic->aq_fw_ops->set_eee_rate))
+		return -EOPNOTSUPP;
+
+	err = aq_nic->aq_fw_ops->get_eee_rate(aq_nic->aq_hw, &rate,
+					      &supported_rates);
+	if (err < 0)
+		return err;
+
+	if (eee->eee_enabled) {
+		rate = supported_rates;
+		cfg->eee_speeds = rate;
+	} else {
+		rate = 0;
+		cfg->eee_speeds = 0;
+	}
+
+	return aq_nic->aq_fw_ops->set_eee_rate(aq_nic->aq_hw, rate);
+}
+
 static int aq_ethtool_nway_reset(struct net_device *ndev)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
@@ -438,6 +513,8 @@ const struct ethtool_ops aq_ethtool_ops = {
 	.nway_reset          = aq_ethtool_nway_reset,
 	.get_ringparam       = aq_get_ringparam,
 	.set_ringparam       = aq_set_ringparam,
+	.get_eee             = aq_ethtool_get_eee,
+	.set_eee             = aq_ethtool_set_eee,
 	.get_pauseparam      = aq_ethtool_get_pauseparam,
 	.set_pauseparam      = aq_ethtool_set_pauseparam,
 	.get_rxfh_key_size   = aq_ethtool_get_rss_key_size,

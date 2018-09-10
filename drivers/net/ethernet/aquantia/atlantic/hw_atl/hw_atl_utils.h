@@ -171,9 +171,22 @@ struct __packed hw_aq_atl_utils_mbox_header {
 	u32 error;
 };
 
+struct __packed hw_aq_info {
+	u8 reserved[6];
+	u16 phy_fault_code;
+	u16 phy_temperature;
+	u8 cable_len;
+	u8 reserved1;
+	u32 cable_diag_data[4];
+	u8 reserved2[32];
+	u32 caps_lo;
+	u32 caps_hi;
+};
+
 struct __packed hw_aq_atl_utils_mbox {
 	struct hw_aq_atl_utils_mbox_header header;
 	struct hw_atl_stats_s stats;
+	struct hw_aq_info info;
 };
 
 /* fw2x */

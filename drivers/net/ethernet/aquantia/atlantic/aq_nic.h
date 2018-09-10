@@ -45,6 +45,7 @@ struct aq_nic_cfg_s {
 	bool is_lro;
 	u8  tcs;
 	struct aq_rss_parameters aq_rss;
+	u32 eee_speeds;
 };
 
 #define AQ_NIC_FLAG_STARTED     0x00000004U

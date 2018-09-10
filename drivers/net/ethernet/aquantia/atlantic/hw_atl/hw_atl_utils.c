@@ -916,5 +916,7 @@ const struct aq_fw_ops aq_fw_1x_ops = {
 	.update_link_status = hw_atl_utils_mpi_get_link_status,
 	.update_stats = hw_atl_utils_update_stats,
 	.set_power = aq_fw1x_set_power,
+	.set_eee_rate = NULL,
+	.get_eee_rate = NULL,
 	.set_flow_control = NULL,
 };

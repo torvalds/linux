@@ -230,6 +230,11 @@ struct aq_fw_ops {
 
 	int (*set_power)(struct aq_hw_s *self, unsigned int power_state,
 			 u8 *mac);
+
+	int (*set_eee_rate)(struct aq_hw_s *self, u32 speed);
+
+	int (*get_eee_rate)(struct aq_hw_s *self, u32 *rate,
+			    u32 *supported_rates);
 };
 
 #endif /* AQ_HW_H */
