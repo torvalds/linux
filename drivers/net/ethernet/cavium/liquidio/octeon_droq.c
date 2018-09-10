@@ -333,8 +333,6 @@ init_droq_fail:
  * Returns:
  *  Success: Pointer to recv_info_t
  *  Failure: NULL.
- * Locks:
- *  The droq->lock is held when this routine is called.
  */
 static inline struct octeon_recv_info *octeon_create_recv_info(
 		struct octeon_device *octeon_dev,
@@ -433,8 +431,6 @@ octeon_droq_refill_pullup_descs(struct octeon_droq *droq,
  *  up buffers (that were not dispatched) to form a contiguous ring.
  * Returns:
  *  No of descriptors refilled.
- * Locks:
- *  This routine is called with droq->lock held.
  */
 static u32
 octeon_droq_refill(struct octeon_device *octeon_dev, struct octeon_droq *droq)
@@ -449,8 +445,7 @@ octeon_droq_refill(struct octeon_device *octeon_dev, struct octeon_droq *droq)
 
 	while (droq->refill_count && (desc_refilled < droq->max_count)) {
 		/* If a valid buffer exists (happens if there is no dispatch),
-		 * reuse
-		 * the buffer, else allocate.
+		 * reuse the buffer, else allocate.
 		 */
 		if (!droq->recv_buf_list[droq->refill_idx].buffer) {
 			pg_info =
@@ -503,28 +498,33 @@ octeon_droq_refill(struct octeon_device *octeon_dev, struct octeon_droq *droq)
 
 /** check if we can allocate packets to get out of oom.
  *  @param  droq - Droq being checked.
- *  @return does not return anything
+ *  @return 1 if fails to refill minimum
  */
-void octeon_droq_check_oom(struct octeon_droq *droq)
+int octeon_retry_droq_refill(struct octeon_droq *droq)
 {
-	int desc_refilled;
 	struct octeon_device *oct = droq->oct_dev;
+	int desc_refilled, reschedule = 1;
+	u32 pkts_credit;
 
-	if (readl(droq->pkts_credit_reg) <= CN23XX_SLI_DEF_BP) {
-		spin_lock_bh(&droq->lock);
-		desc_refilled = octeon_droq_refill(oct, droq);
-		if (desc_refilled) {
-			/* Flush the droq descriptor data to memory to be sure
-			 * that when we update the credits the data in memory
-			 * is accurate.
-			 */
-			wmb();
-			writel(desc_refilled, droq->pkts_credit_reg);
-			/* make sure mmio write completes */
-			mmiowb();
-		}
-		spin_unlock_bh(&droq->lock);
+	spin_lock_bh(&droq->lock);
+	pkts_credit = readl(droq->pkts_credit_reg);
+	desc_refilled = octeon_droq_refill(oct, droq);
+	if (desc_refilled) {
+		/* Flush the droq descriptor data to memory to be sure
+		 * that when we update the credits the data in memory
+		 * is accurate.
+		 */
+		wmb();
+		writel(desc_refilled, droq->pkts_credit_reg);
+		/* make sure mmio write completes */
+		mmiowb();
+
+		if (pkts_credit + desc_refilled >= CN23XX_SLI_DEF_BP)
+			reschedule = 0;
 	}
+	spin_unlock_bh(&droq->lock);
+
+	return reschedule;
 }
 
 static inline u32
@@ -603,9 +603,9 @@ octeon_droq_fast_process_packets(struct octeon_device *oct,
 				 struct octeon_droq *droq,
 				 u32 pkts_to_process)
 {
+	u32 pkt, total_len = 0, pkt_count, retval;
 	struct octeon_droq_info *info;
 	union octeon_rh *rh;
-	u32 pkt, total_len = 0, pkt_count;
 
 	pkt_count = pkts_to_process;
 
@@ -709,30 +709,43 @@ octeon_droq_fast_process_packets(struct octeon_device *oct,
 		if (droq->refill_count >= droq->refill_threshold) {
 			int desc_refilled = octeon_droq_refill(oct, droq);
 
-			/* Flush the droq descriptor data to memory to be sure
-			 * that when we update the credits the data in memory
-			 * is accurate.
-			 */
-			wmb();
-			writel((desc_refilled), droq->pkts_credit_reg);
-			/* make sure mmio write completes */
-			mmiowb();
+			if (desc_refilled) {
+				/* Flush the droq descriptor data to memory to
+				 * be sure that when we update the credits the
+				 * data in memory is accurate.
+				 */
+				wmb();
+				writel(desc_refilled, droq->pkts_credit_reg);
+				/* make sure mmio write completes */
+				mmiowb();
+			}
 		}
-
 	}                       /* for (each packet)... */
 
 	/* Increment refill_count by the number of buffers processed. */
 	droq->stats.pkts_received += pkt;
 	droq->stats.bytes_received += total_len;
 
+	retval = pkt;
 	if ((droq->ops.drop_on_max) && (pkts_to_process - pkt)) {
 		octeon_droq_drop_packets(oct, droq, (pkts_to_process - pkt));
 
 		droq->stats.dropped_toomany += (pkts_to_process - pkt);
-		return pkts_to_process;
+		retval = pkts_to_process;
 	}
 
-	return pkt;
+	atomic_sub(retval, &droq->pkts_pending);
+
+	if (droq->refill_count >= droq->refill_threshold &&
+	    readl(droq->pkts_credit_reg) < CN23XX_SLI_DEF_BP) {
+		octeon_droq_check_hw_for_pkts(droq);
+
+		/* Make sure there are no pkts_pending */
+		if (!atomic_read(&droq->pkts_pending))
+			octeon_schedule_rxq_oom_work(oct, droq);
+	}
+
+	return retval;
 }
 
 int
@@ -740,7 +753,7 @@ octeon_droq_process_packets(struct octeon_device *oct,
 			    struct octeon_droq *droq,
 			    u32 budget)
 {
-	u32 pkt_count = 0, pkts_processed = 0;
+	u32 pkt_count = 0;
 	struct list_head *tmp, *tmp2;
 
 	/* Grab the droq lock */
@@ -757,9 +770,7 @@ octeon_droq_process_packets(struct octeon_device *oct,
 	if (pkt_count > budget)
 		pkt_count = budget;
 
-	pkts_processed = octeon_droq_fast_process_packets(oct, droq, pkt_count);
-
-	atomic_sub(pkts_processed, &droq->pkts_pending);
+	octeon_droq_fast_process_packets(oct, droq, pkt_count);
 
 	/* Release the spin lock */
 	spin_unlock(&droq->lock);
@@ -812,8 +823,6 @@ octeon_droq_process_poll_pkts(struct octeon_device *oct,
 		pkts_processed =
 			octeon_droq_fast_process_packets(oct, droq,
 							 pkts_available);
-
-		atomic_sub(pkts_processed, &droq->pkts_pending);
 
 		total_pkts_processed += pkts_processed;
 	}

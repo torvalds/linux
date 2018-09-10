@@ -425,56 +425,73 @@ void octeon_pf_changed_vf_macaddr(struct octeon_device *oct, u8 *mac)
 	 */
 }
 
+void octeon_schedule_rxq_oom_work(struct octeon_device *oct,
+				  struct octeon_droq *droq)
+{
+	struct net_device *netdev = oct->props[0].netdev;
+	struct lio *lio = GET_LIO(netdev);
+	struct cavium_wq *wq = &lio->rxq_status_wq[droq->q_no];
+
+	queue_delayed_work(wq->wq, &wq->wk.work,
+			   msecs_to_jiffies(LIO_OOM_POLL_INTERVAL_MS));
+}
+
 static void octnet_poll_check_rxq_oom_status(struct work_struct *work)
 {
 	struct cavium_wk *wk = (struct cavium_wk *)work;
 	struct lio *lio = (struct lio *)wk->ctxptr;
 	struct octeon_device *oct = lio->oct_dev;
-	struct octeon_droq *droq;
-	int q, q_no = 0;
+	int q_no = wk->ctxul;
+	struct octeon_droq *droq = oct->droq[q_no];
 
-	if (ifstate_check(lio, LIO_IFSTATE_RUNNING)) {
-		for (q = 0; q < lio->linfo.num_rxpciq; q++) {
-			q_no = lio->linfo.rxpciq[q].s.q_no;
-			droq = oct->droq[q_no];
-			if (!droq)
-				continue;
-			octeon_droq_check_oom(droq);
-		}
-	}
-	queue_delayed_work(lio->rxq_status_wq.wq,
-			   &lio->rxq_status_wq.wk.work,
-			   msecs_to_jiffies(LIO_OOM_POLL_INTERVAL_MS));
+	if (!ifstate_check(lio, LIO_IFSTATE_RUNNING) || !droq)
+		return;
+
+	if (octeon_retry_droq_refill(droq))
+		octeon_schedule_rxq_oom_work(oct, droq);
 }
 
 int setup_rx_oom_poll_fn(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
+	struct cavium_wq *wq;
+	int q, q_no;
 
-	lio->rxq_status_wq.wq = alloc_workqueue("rxq-oom-status",
-						WQ_MEM_RECLAIM, 0);
-	if (!lio->rxq_status_wq.wq) {
-		dev_err(&oct->pci_dev->dev, "unable to create cavium rxq oom status wq\n");
-		return -ENOMEM;
+	for (q = 0; q < oct->num_oqs; q++) {
+		q_no = lio->linfo.rxpciq[q].s.q_no;
+		wq = &lio->rxq_status_wq[q_no];
+		wq->wq = alloc_workqueue("rxq-oom-status",
+					 WQ_MEM_RECLAIM, 0);
+		if (!wq->wq) {
+			dev_err(&oct->pci_dev->dev, "unable to create cavium rxq oom status wq\n");
+			return -ENOMEM;
+		}
+
+		INIT_DELAYED_WORK(&wq->wk.work,
+				  octnet_poll_check_rxq_oom_status);
+		wq->wk.ctxptr = lio;
+		wq->wk.ctxul = q_no;
 	}
-	INIT_DELAYED_WORK(&lio->rxq_status_wq.wk.work,
-			  octnet_poll_check_rxq_oom_status);
-	lio->rxq_status_wq.wk.ctxptr = lio;
-	queue_delayed_work(lio->rxq_status_wq.wq,
-			   &lio->rxq_status_wq.wk.work,
-			   msecs_to_jiffies(LIO_OOM_POLL_INTERVAL_MS));
+
 	return 0;
 }
 
 void cleanup_rx_oom_poll_fn(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct cavium_wq *wq;
+	int q_no;
 
-	if (lio->rxq_status_wq.wq) {
-		cancel_delayed_work_sync(&lio->rxq_status_wq.wk.work);
-		flush_workqueue(lio->rxq_status_wq.wq);
-		destroy_workqueue(lio->rxq_status_wq.wq);
+	for (q_no = 0; q_no < oct->num_oqs; q_no++) {
+		wq = &lio->rxq_status_wq[q_no];
+		if (wq->wq) {
+			cancel_delayed_work_sync(&wq->wk.work);
+			flush_workqueue(wq->wq);
+			destroy_workqueue(wq->wq);
+			wq->wq = NULL;
+		}
 	}
 }
 
