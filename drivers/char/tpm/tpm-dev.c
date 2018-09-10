@@ -68,5 +68,6 @@ const struct file_operations tpm_fops = {
 	.open = tpm_open,
 	.read = tpm_common_read,
 	.write = tpm_common_write,
+	.poll = tpm_common_poll,
 	.release = tpm_release,
 };

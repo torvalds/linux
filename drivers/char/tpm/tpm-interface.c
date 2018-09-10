@@ -1409,19 +1409,32 @@ static int __init tpm_init(void)
 	tpmrm_class = class_create(THIS_MODULE, "tpmrm");
 	if (IS_ERR(tpmrm_class)) {
 		pr_err("couldn't create tpmrm class\n");
-		class_destroy(tpm_class);
-		return PTR_ERR(tpmrm_class);
+		rc = PTR_ERR(tpmrm_class);
+		goto out_destroy_tpm_class;
 	}
 
 	rc = alloc_chrdev_region(&tpm_devt, 0, 2*TPM_NUM_DEVICES, "tpm");
 	if (rc < 0) {
 		pr_err("tpm: failed to allocate char dev region\n");
-		class_destroy(tpmrm_class);
-		class_destroy(tpm_class);
-		return rc;
+		goto out_destroy_tpmrm_class;
+	}
+
+	rc = tpm_dev_common_init();
+	if (rc) {
+		pr_err("tpm: failed to allocate char dev region\n");
+		goto out_unreg_chrdev;
 	}
 
 	return 0;
+
+out_unreg_chrdev:
+	unregister_chrdev_region(tpm_devt, 2 * TPM_NUM_DEVICES);
+out_destroy_tpmrm_class:
+	class_destroy(tpmrm_class);
+out_destroy_tpm_class:
+	class_destroy(tpm_class);
+
+	return rc;
 }
 
 static void __exit tpm_exit(void)
@@ -1430,6 +1443,7 @@ static void __exit tpm_exit(void)
 	class_destroy(tpm_class);
 	class_destroy(tpmrm_class);
 	unregister_chrdev_region(tpm_devt, 2*TPM_NUM_DEVICES);
+	tpm_dev_common_exit();
 }
 
 subsys_initcall(tpm_init);
