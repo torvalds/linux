@@ -171,6 +171,84 @@ AES_ENDPROC(aes_cbc_decrypt)
 
 
 	/*
+	 * aes_cbc_cts_encrypt(u8 out[], u8 const in[], u32 const rk[],
+	 *		       int rounds, int bytes, u8 const iv[])
+	 * aes_cbc_cts_decrypt(u8 out[], u8 const in[], u32 const rk[],
+	 *		       int rounds, int bytes, u8 const iv[])
+	 */
+
+AES_ENTRY(aes_cbc_cts_encrypt)
+	adr_l		x8, .Lcts_permute_table
+	sub		x4, x4, #16
+	add		x9, x8, #32
+	add		x8, x8, x4
+	sub		x9, x9, x4
+	ld1		{v3.16b}, [x8]
+	ld1		{v4.16b}, [x9]
+
+	ld1		{v0.16b}, [x1], x4		/* overlapping loads */
+	ld1		{v1.16b}, [x1]
+
+	ld1		{v5.16b}, [x5]			/* get iv */
+	enc_prepare	w3, x2, x6
+
+	eor		v0.16b, v0.16b, v5.16b		/* xor with iv */
+	tbl		v1.16b, {v1.16b}, v4.16b
+	encrypt_block	v0, w3, x2, x6, w7
+
+	eor		v1.16b, v1.16b, v0.16b
+	tbl		v0.16b, {v0.16b}, v3.16b
+	encrypt_block	v1, w3, x2, x6, w7
+
+	add		x4, x0, x4
+	st1		{v0.16b}, [x4]			/* overlapping stores */
+	st1		{v1.16b}, [x0]
+	ret
+AES_ENDPROC(aes_cbc_cts_encrypt)
+
+AES_ENTRY(aes_cbc_cts_decrypt)
+	adr_l		x8, .Lcts_permute_table
+	sub		x4, x4, #16
+	add		x9, x8, #32
+	add		x8, x8, x4
+	sub		x9, x9, x4
+	ld1		{v3.16b}, [x8]
+	ld1		{v4.16b}, [x9]
+
+	ld1		{v0.16b}, [x1], x4		/* overlapping loads */
+	ld1		{v1.16b}, [x1]
+
+	ld1		{v5.16b}, [x5]			/* get iv */
+	dec_prepare	w3, x2, x6
+
+	tbl		v2.16b, {v1.16b}, v4.16b
+	decrypt_block	v0, w3, x2, x6, w7
+	eor		v2.16b, v2.16b, v0.16b
+
+	tbx		v0.16b, {v1.16b}, v4.16b
+	tbl		v2.16b, {v2.16b}, v3.16b
+	decrypt_block	v0, w3, x2, x6, w7
+	eor		v0.16b, v0.16b, v5.16b		/* xor with iv */
+
+	add		x4, x0, x4
+	st1		{v2.16b}, [x4]			/* overlapping stores */
+	st1		{v0.16b}, [x0]
+	ret
+AES_ENDPROC(aes_cbc_cts_decrypt)
+
+	.section	".rodata", "a"
+	.align		6
+.Lcts_permute_table:
+	.byte		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	.byte		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	.byte		 0x0,  0x1,  0x2,  0x3,  0x4,  0x5,  0x6,  0x7
+	.byte		 0x8,  0x9,  0xa,  0xb,  0xc,  0xd,  0xe,  0xf
+	.byte		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	.byte		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	.previous
+
+
+	/*
 	 * aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
 	 *		   int blocks, u8 ctr[])
 	 */
@@ -253,7 +331,6 @@ AES_ENTRY(aes_ctr_encrypt)
 	ins		v4.d[0], x7
 	b		.Lctrcarrydone
 AES_ENDPROC(aes_ctr_encrypt)
-	.ltorg
 
 
 	/*
