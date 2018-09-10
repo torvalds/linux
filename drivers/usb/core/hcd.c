@@ -1755,20 +1755,7 @@ static void __usb_hcd_giveback_urb(struct urb *urb)
 
 	/* pass ownership to the completion handler */
 	urb->status = status;
-
-	/*
-	 * We disable local IRQs here avoid possible deadlock because
-	 * drivers may call spin_lock() to hold lock which might be
-	 * acquired in one hard interrupt handler.
-	 *
-	 * The local_irq_save()/local_irq_restore() around complete()
-	 * will be removed if current USB drivers have been cleaned up
-	 * and no one may trigger the above deadlock situation when
-	 * running complete() in tasklet.
-	 */
-	local_irq_save(flags);
 	urb->complete(urb);
-	local_irq_restore(flags);
 
 	usb_anchor_resume_wakeups(anchor);
 	atomic_dec(&urb->use_count);
