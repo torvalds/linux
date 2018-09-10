@@ -373,7 +373,8 @@ static irqreturn_t b53_srab_port_thread(int irq, void *dev_id)
 	struct b53_srab_port_priv *port = dev_id;
 	struct b53_device *dev = port->dev;
 
-	b53_port_event(dev->ds, port->num);
+	if (port->mode == PHY_INTERFACE_MODE_SGMII)
+		b53_port_event(dev->ds, port->num);
 
 	return IRQ_HANDLED;
 }
