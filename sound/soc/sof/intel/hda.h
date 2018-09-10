@@ -322,6 +322,8 @@
 #define SOF_SKL_NUM_DAIS		8
 #endif
 
+#define HDA_DSP_SRAM_REG_ROM_STATUS_SKL 0x8000
+
 struct sof_intel_dsp_bdl {
 	u32 addr_l;
 	u32 addr_h;
@@ -383,6 +385,7 @@ int hda_dsp_core_reset_leave(struct snd_sof_dev *sdev,
 int hda_dsp_core_stall_reset(struct snd_sof_dev *sdev, unsigned int core_mask);
 int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask);
 int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask);
+int hda_dsp_enable_core(struct snd_sof_dev *sdev, unsigned int core_mask);
 int hda_dsp_core_power_down(struct snd_sof_dev *sdev, unsigned int core_mask);
 bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev,
 			     unsigned int core_mask);
@@ -473,6 +476,7 @@ int hda_dsp_ipc_cmd_done(struct snd_sof_dev *sdev, int dir);
  */
 int hda_dsp_cl_load_fw(struct snd_sof_dev *sdev, bool first_boot);
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev);
+int hda_dsp_cl_boot_firmware_skl(struct snd_sof_dev *sdev);
 
 /*
  * HDA Controller Operations.

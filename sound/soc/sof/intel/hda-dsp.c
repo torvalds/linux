@@ -208,6 +208,21 @@ bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev,
 	return is_enable;
 }
 
+int hda_dsp_enable_core(struct snd_sof_dev *sdev, unsigned int core_mask)
+{
+	int ret;
+
+	/* power up */
+	ret = hda_dsp_core_power_up(sdev, core_mask);
+	if (ret < 0) {
+		dev_err(sdev->dev, "dsp core power up failed: core_mask %x\n",
+			core_mask);
+		return ret;
+	}
+
+	return hda_dsp_core_run(sdev, core_mask);
+}
+
 int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
 				  unsigned int core_mask)
 {
