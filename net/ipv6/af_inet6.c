@@ -209,6 +209,7 @@ lookup_protocol:
 	np->hop_limit	= -1;
 	np->mcast_hops	= IPV6_DEFAULT_MCASTHOPS;
 	np->mc_loop	= 1;
+	np->mc_all	= 1;
 	np->pmtudisc	= IPV6_PMTUDISC_WANT;
 	np->repflow	= net->ipv6.sysctl.flowlabel_reflect;
 	sk->sk_ipv6only	= net->ipv6.sysctl.bindv6only;
