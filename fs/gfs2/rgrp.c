@@ -2233,7 +2233,8 @@ static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, u64 bstart,
 		return NULL;
 	}
 
-	gfs2_rbm_from_block(&rbm, bstart);
+	if (WARN_ON_ONCE(gfs2_rbm_from_block(&rbm, bstart)))
+		return NULL;
 	while (blen--) {
 		bi = rbm_bi(&rbm);
 		if (bi != bi_prev) {
@@ -2366,7 +2367,10 @@ static void gfs2_set_alloc_start(struct gfs2_rbm *rbm,
 	else
 		goal = rbm->rgd->rd_last_alloc + rbm->rgd->rd_data0;
 
-	gfs2_rbm_from_block(rbm, goal);
+	if (WARN_ON_ONCE(gfs2_rbm_from_block(rbm, goal))) {
+		rbm->bii = 0;
+		rbm->offset = 0;
+	}
 }
 
 /**
@@ -2575,7 +2579,8 @@ int gfs2_check_blk_type(struct gfs2_sbd *sdp, u64 no_addr, unsigned int type)
 
 	rbm.rgd = rgd;
 	error = gfs2_rbm_from_block(&rbm, no_addr);
-	WARN_ON_ONCE(error != 0);
+	if (WARN_ON_ONCE(error))
+		goto fail;
 
 	if (gfs2_testbit(&rbm, false) != type)
 		error = -ESTALE;
