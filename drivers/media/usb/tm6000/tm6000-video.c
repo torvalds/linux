@@ -1091,7 +1091,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	else
 		i->type = V4L2_INPUT_TYPE_CAMERA;
 
-	strcpy(i->name, iname[dev->vinput[n].type]);
+	strscpy(i->name, iname[dev->vinput[n].type], sizeof(i->name));
 
 	i->std = TM6000_STD;
 
@@ -1188,7 +1188,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 
-	strcpy(t->name, "Television");
+	strscpy(t->name, "Television", sizeof(t->name));
 	t->type       = V4L2_TUNER_ANALOG_TV;
 	t->capability = V4L2_TUNER_CAP_NORM | V4L2_TUNER_CAP_STEREO;
 	t->rangehigh  = 0xffffffffUL;
@@ -1268,7 +1268,7 @@ static int radio_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	memset(t, 0, sizeof(*t));
-	strcpy(t->name, "Radio");
+	strscpy(t->name, "Radio", sizeof(t->name));
 	t->type = V4L2_TUNER_RADIO;
 	t->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
 	t->rxsubchans = V4L2_TUNER_SUB_STEREO;

@@ -597,7 +597,7 @@ static int csi2_probe(struct platform_device *pdev)
 	csi2->sd.dev = &pdev->dev;
 	csi2->sd.owner = THIS_MODULE;
 	csi2->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
-	strcpy(csi2->sd.name, DEVICE_NAME);
+	strscpy(csi2->sd.name, DEVICE_NAME, sizeof(csi2->sd.name));
 	csi2->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	csi2->sd.grp_id = IMX_MEDIA_GRP_ID_CSI2;
 

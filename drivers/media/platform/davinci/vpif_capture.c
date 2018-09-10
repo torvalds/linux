@@ -949,11 +949,13 @@ static int vpif_enum_fmt_vid_cap(struct file *file, void  *priv,
 	/* Fill in the information about format */
 	if (ch->vpifparams.iface.if_type == VPIF_IF_RAW_BAYER) {
 		fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		strcpy(fmt->description, "Raw Mode -Bayer Pattern GrRBGb");
+		strscpy(fmt->description, "Raw Mode -Bayer Pattern GrRBGb",
+			sizeof(fmt->description));
 		fmt->pixelformat = V4L2_PIX_FMT_SBGGR8;
 	} else {
 		fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		strcpy(fmt->description, "YCbCr4:2:2 Semi-Planar");
+		strscpy(fmt->description, "YCbCr4:2:2 Semi-Planar",
+			sizeof(fmt->description));
 		fmt->pixelformat = V4L2_PIX_FMT_NV16;
 	}
 	return 0;

@@ -2132,7 +2132,7 @@ static int uvc_probe(struct usb_interface *intf,
 	if (udev->serial)
 		strscpy(dev->mdev.serial, udev->serial,
 			sizeof(dev->mdev.serial));
-	strcpy(dev->mdev.bus_info, udev->devpath);
+	strscpy(dev->mdev.bus_info, udev->devpath, sizeof(dev->mdev.bus_info));
 	dev->mdev.hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
 	media_device_init(&dev->mdev);
 

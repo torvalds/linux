@@ -2455,7 +2455,8 @@ vpfe_get_pdata(struct platform_device *pdev)
 
 		/* we only support camera */
 		sdinfo->inputs[0].index = i;
-		strcpy(sdinfo->inputs[0].name, "Camera");
+		strscpy(sdinfo->inputs[0].name, "Camera",
+			sizeof(sdinfo->inputs[0].name));
 		sdinfo->inputs[0].type = V4L2_INPUT_TYPE_CAMERA;
 		sdinfo->inputs[0].std = V4L2_STD_ALL;
 		sdinfo->inputs[0].capabilities = V4L2_IN_CAP_STD;

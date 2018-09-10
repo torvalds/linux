@@ -222,7 +222,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	 * retval = ma901radio_get_stat(radio, &is_stereo, &v->signal);
 	 */
 
-	strcpy(v->name, "FM");
+	strscpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = FREQ_MIN * FREQ_MUL;
 	v->rangehigh = FREQ_MAX * FREQ_MUL;

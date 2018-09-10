@@ -1048,7 +1048,7 @@ static int zr36057_init (struct zoran *zr)
 	*zr->video_dev = zoran_template;
 	zr->video_dev->v4l2_dev = &zr->v4l2_dev;
 	zr->video_dev->lock = &zr->lock;
-	strcpy(zr->video_dev->name, ZR_DEVNAME(zr));
+	strscpy(zr->video_dev->name, ZR_DEVNAME(zr), sizeof(zr->video_dev->name));
 	/* It's not a mem2mem device, but you can both capture and output from
 	   one and the same device. This should really be split up into two
 	   device nodes, but that's a job for another day. */

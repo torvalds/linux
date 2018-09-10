@@ -703,7 +703,7 @@ static int sr030pc30_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	sd = &info->sd;
-	strcpy(sd->name, MODULE_NAME);
+	strscpy(sd->name, MODULE_NAME, sizeof(sd->name));
 	info->pdata = client->dev.platform_data;
 
 	v4l2_i2c_subdev_init(sd, client, &sr030pc30_ops);

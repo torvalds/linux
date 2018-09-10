@@ -441,7 +441,7 @@ static int cx25821_vidioc_querycap(struct file *file, void *priv,
 			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
 	const u32 cap_output = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_READWRITE;
 
-	strcpy(cap->driver, "cx25821");
+	strscpy(cap->driver, "cx25821", sizeof(cap->driver));
 	strscpy(cap->card, cx25821_boards[dev->board].name, sizeof(cap->card));
 	sprintf(cap->bus_info, "PCIe:%s", pci_name(dev->pci));
 	if (chan->id >= VID_CHANNEL_NUM)
@@ -486,7 +486,7 @@ static int cx25821_vidioc_enum_input(struct file *file, void *priv,
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 	i->std = CX25821_NORMS;
-	strcpy(i->name, "Composite");
+	strscpy(i->name, "Composite", sizeof(i->name));
 	return 0;
 }
 
@@ -534,7 +534,7 @@ static int cx25821_vidioc_enum_output(struct file *file, void *priv,
 
 	o->type = V4L2_INPUT_TYPE_CAMERA;
 	o->std = CX25821_NORMS;
-	strcpy(o->name, "Composite");
+	strscpy(o->name, "Composite", sizeof(o->name));
 	return 0;
 }
 

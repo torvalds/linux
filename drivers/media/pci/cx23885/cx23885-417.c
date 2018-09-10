@@ -1280,7 +1280,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 	if (0 != t->index)
 		return -EINVAL;
-	strcpy(t->name, "Television");
+	strscpy(t->name, "Television", sizeof(t->name));
 	call_all(dev, tuner, g_tuner, t);
 
 	dprintk(1, "VIDIOC_G_TUNER: tuner type %d\n", t->type);

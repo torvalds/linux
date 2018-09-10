@@ -419,8 +419,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	struct sta2x11_vip *vip = video_drvdata(file);
 
-	strcpy(cap->driver, KBUILD_MODNAME);
-	strcpy(cap->card, KBUILD_MODNAME);
+	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
+	strscpy(cap->card, KBUILD_MODNAME, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
 		 pci_name(vip->pdev));
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
@@ -580,7 +580,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	if (f->index != 0)
 		return -EINVAL;
 
-	strcpy(f->description, "4:2:2, packed, UYVY");
+	strscpy(f->description, "4:2:2, packed, UYVY", sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_UYVY;
 	f->flags = 0;
 	return 0;

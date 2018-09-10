@@ -492,7 +492,7 @@ static int pwc_querycap(struct file *file, void *fh, struct v4l2_capability *cap
 {
 	struct pwc_device *pdev = video_drvdata(file);
 
-	strcpy(cap->driver, PWC_NAME);
+	strscpy(cap->driver, PWC_NAME, sizeof(cap->driver));
 	strscpy(cap->card, pdev->vdev.name, sizeof(cap->card));
 	usb_make_path(pdev->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |

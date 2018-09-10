@@ -312,7 +312,7 @@ static int soc_camera_enum_input(struct file *file, void *priv,
 	/* default is camera */
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 	inp->std = icd->vdev->tvnorms;
-	strcpy(inp->name, "Camera");
+	strscpy(inp->name, "Camera", sizeof(inp->name));
 
 	return 0;
 }
