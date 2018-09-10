@@ -301,8 +301,6 @@ int octeon_init_droq(struct octeon_device *oct,
 	dev_dbg(&oct->pci_dev->dev, "DROQ INIT: max_empty_descs: %d\n",
 		droq->max_empty_descs);
 
-	spin_lock_init(&droq->lock);
-
 	INIT_LIST_HEAD(&droq->dispatch_list);
 
 	/* For 56xx Pass1, this function won't be called, so no checks. */
@@ -506,7 +504,6 @@ int octeon_retry_droq_refill(struct octeon_droq *droq)
 	int desc_refilled, reschedule = 1;
 	u32 pkts_credit;
 
-	spin_lock_bh(&droq->lock);
 	pkts_credit = readl(droq->pkts_credit_reg);
 	desc_refilled = octeon_droq_refill(oct, droq);
 	if (desc_refilled) {
@@ -522,7 +519,6 @@ int octeon_retry_droq_refill(struct octeon_droq *droq)
 		if (pkts_credit + desc_refilled >= CN23XX_SLI_DEF_BP)
 			reschedule = 0;
 	}
-	spin_unlock_bh(&droq->lock);
 
 	return reschedule;
 }
@@ -756,24 +752,16 @@ octeon_droq_process_packets(struct octeon_device *oct,
 	u32 pkt_count = 0;
 	struct list_head *tmp, *tmp2;
 
-	/* Grab the droq lock */
-	spin_lock(&droq->lock);
-
 	octeon_droq_check_hw_for_pkts(droq);
 	pkt_count = atomic_read(&droq->pkts_pending);
 
-	if (!pkt_count) {
-		spin_unlock(&droq->lock);
+	if (!pkt_count)
 		return 0;
-	}
 
 	if (pkt_count > budget)
 		pkt_count = budget;
 
 	octeon_droq_fast_process_packets(oct, droq, pkt_count);
-
-	/* Release the spin lock */
-	spin_unlock(&droq->lock);
 
 	list_for_each_safe(tmp, tmp2, &droq->dispatch_list) {
 		struct __dispatch *rdisp = (struct __dispatch *)tmp;
@@ -809,8 +797,6 @@ octeon_droq_process_poll_pkts(struct octeon_device *oct,
 	if (budget > droq->max_count)
 		budget = droq->max_count;
 
-	spin_lock(&droq->lock);
-
 	while (total_pkts_processed < budget) {
 		octeon_droq_check_hw_for_pkts(droq);
 
@@ -826,8 +812,6 @@ octeon_droq_process_poll_pkts(struct octeon_device *oct,
 
 		total_pkts_processed += pkts_processed;
 	}
-
-	spin_unlock(&droq->lock);
 
 	list_for_each_safe(tmp, tmp2, &droq->dispatch_list) {
 		struct __dispatch *rdisp = (struct __dispatch *)tmp;
@@ -888,9 +872,8 @@ octeon_enable_irq(struct octeon_device *oct, u32 q_no)
 int octeon_register_droq_ops(struct octeon_device *oct, u32 q_no,
 			     struct octeon_droq_ops *ops)
 {
-	struct octeon_droq *droq;
-	unsigned long flags;
 	struct octeon_config *oct_cfg = NULL;
+	struct octeon_droq *droq;
 
 	oct_cfg = octeon_get_conf(oct);
 
@@ -910,21 +893,15 @@ int octeon_register_droq_ops(struct octeon_device *oct, u32 q_no,
 	}
 
 	droq = oct->droq[q_no];
-
-	spin_lock_irqsave(&droq->lock, flags);
-
 	memcpy(&droq->ops, ops, sizeof(struct octeon_droq_ops));
-
-	spin_unlock_irqrestore(&droq->lock, flags);
 
 	return 0;
 }
 
 int octeon_unregister_droq_ops(struct octeon_device *oct, u32 q_no)
 {
-	unsigned long flags;
-	struct octeon_droq *droq;
 	struct octeon_config *oct_cfg = NULL;
+	struct octeon_droq *droq;
 
 	oct_cfg = octeon_get_conf(oct);
 
@@ -945,13 +922,9 @@ int octeon_unregister_droq_ops(struct octeon_device *oct, u32 q_no)
 		return 0;
 	}
 
-	spin_lock_irqsave(&droq->lock, flags);
-
 	droq->ops.fptr = NULL;
 	droq->ops.farg = NULL;
 	droq->ops.drop_on_max = 0;
-
-	spin_unlock_irqrestore(&droq->lock, flags);
 
 	return 0;
 }

@@ -1440,12 +1440,8 @@ void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq)
 	/* the whole thing needs to be atomic, ideally */
 	if (droq) {
 		pkts_pend = (u32)atomic_read(&droq->pkts_pending);
-		spin_lock_bh(&droq->lock);
 		writel(droq->pkt_count - pkts_pend, droq->pkts_sent_reg);
 		droq->pkt_count = pkts_pend;
-		/* this write needs to be flushed before we release the lock */
-		mmiowb();
-		spin_unlock_bh(&droq->lock);
 		oct = droq->oct_dev;
 	}
 	if (iq) {

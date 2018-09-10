@@ -245,9 +245,6 @@ struct octeon_droq_ops {
  *  Octeon DROQ.
  */
 struct octeon_droq {
-	/** A spinlock to protect access to this ring. */
-	spinlock_t lock;
-
 	u32 q_no;
 
 	u32 pkt_count;
