@@ -99,16 +99,6 @@ struct cpuidle_device {
 DECLARE_PER_CPU(struct cpuidle_device *, cpuidle_devices);
 DECLARE_PER_CPU(struct cpuidle_device, cpuidle_dev);
 
-/**
- * cpuidle_get_last_residency - retrieves the last state's residency time
- * @dev: the target CPU
- */
-static inline int cpuidle_get_last_residency(struct cpuidle_device *dev)
-{
-	return dev->last_residency;
-}
-
-
 /****************************
  * CPUIDLE DRIVER INTERFACE *
  ****************************/

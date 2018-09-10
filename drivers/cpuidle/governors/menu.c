@@ -514,7 +514,7 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		measured_us = 9 * MAX_INTERESTING / 10;
 	} else {
 		/* measured value */
-		measured_us = cpuidle_get_last_residency(dev);
+		measured_us = dev->last_residency;
 
 		/* Deduct exit latency */
 		if (measured_us > 2 * target->exit_latency)
