@@ -112,7 +112,7 @@ struct aq_hw_s {
 	const struct aq_fw_ops *aq_fw_ops;
 	void __iomem *mmio;
 	struct aq_hw_link_status_s aq_link_status;
-	struct hw_aq_atl_utils_mbox mbox;
+	struct hw_atl_utils_mbox mbox;
 	struct hw_atl_stats_s last_stats;
 	struct aq_stats_s curr_stats;
 	u64 speed;
@@ -124,7 +124,7 @@ struct aq_hw_s {
 	u32 mbox_addr;
 	u32 rpc_addr;
 	u32 rpc_tid;
-	struct hw_aq_atl_utils_fw_rpc rpc;
+	struct hw_atl_utils_fw_rpc rpc;
 };
 
 struct aq_ring_s;

@@ -302,7 +302,7 @@ int aq_fw2x_update_stats(struct aq_hw_s *self)
 
 static int aq_fw2x_set_sleep_proxy(struct aq_hw_s *self, u8 *mac)
 {
-	struct hw_aq_atl_utils_fw_rpc *rpc = NULL;
+	struct hw_atl_utils_fw_rpc *rpc = NULL;
 	struct offload_info *cfg = NULL;
 	unsigned int rpc_size = 0U;
 	u32 mpi_opts;
@@ -344,7 +344,7 @@ err_exit:
 
 static int aq_fw2x_set_wol_params(struct aq_hw_s *self, u8 *mac)
 {
-	struct hw_aq_atl_utils_fw_rpc *rpc = NULL;
+	struct hw_atl_utils_fw_rpc *rpc = NULL;
 	struct fw2x_msg_wol *msg = NULL;
 	u32 mpi_opts;
 	int err = 0;
@@ -412,7 +412,7 @@ static int aq_fw2x_get_eee_rate(struct aq_hw_s *self, u32 *rate,
 	u32 mpi_state;
 	u32 caps_hi;
 	int err = 0;
-	u32 addr = self->mbox_addr + offsetof(struct hw_aq_atl_utils_mbox, info) +
+	u32 addr = self->mbox_addr + offsetof(struct hw_atl_utils_mbox, info) +
 		   offsetof(struct hw_aq_info, caps_hi);
 
 	err = hw_atl_utils_fw_downld_dwords(self, addr, &caps_hi,

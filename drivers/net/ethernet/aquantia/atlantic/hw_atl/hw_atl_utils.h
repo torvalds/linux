@@ -75,7 +75,7 @@ union __packed ip_addr {
 	} v4;
 };
 
-struct __packed hw_aq_atl_utils_fw_rpc {
+struct __packed hw_atl_utils_fw_rpc {
 	u32 msg_id;
 
 	union {
@@ -165,7 +165,7 @@ struct __packed hw_aq_atl_utils_fw_rpc {
 	};
 };
 
-struct __packed hw_aq_atl_utils_mbox_header {
+struct __packed hw_atl_utils_mbox_header {
 	u32 version;
 	u32 transaction_id;
 	u32 error;
@@ -183,8 +183,8 @@ struct __packed hw_aq_info {
 	u32 caps_hi;
 };
 
-struct __packed hw_aq_atl_utils_mbox {
-	struct hw_aq_atl_utils_mbox_header header;
+struct __packed hw_atl_utils_mbox {
+	struct hw_atl_utils_mbox_header header;
 	struct hw_atl_stats_s stats;
 	struct hw_aq_info info;
 };
@@ -386,10 +386,10 @@ int hw_atl_utils_soft_reset(struct aq_hw_s *self);
 void hw_atl_utils_hw_chip_features_init(struct aq_hw_s *self, u32 *p);
 
 int hw_atl_utils_mpi_read_mbox(struct aq_hw_s *self,
-			       struct hw_aq_atl_utils_mbox_header *pmbox);
+			       struct hw_atl_utils_mbox_header *pmbox);
 
 void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
-				 struct hw_aq_atl_utils_mbox *pmbox);
+				 struct hw_atl_utils_mbox *pmbox);
 
 void hw_atl_utils_mpi_set(struct aq_hw_s *self,
 			  enum hal_atl_utils_fw_state_e state,
@@ -425,7 +425,7 @@ int hw_atl_utils_fw_set_wol(struct aq_hw_s *self, bool wol_enabled, u8 *mac);
 int hw_atl_utils_fw_rpc_call(struct aq_hw_s *self, unsigned int rpc_size);
 
 int hw_atl_utils_fw_rpc_wait(struct aq_hw_s *self,
-			     struct hw_aq_atl_utils_fw_rpc **rpc);
+			     struct hw_atl_utils_fw_rpc **rpc);
 
 extern const struct aq_fw_ops aq_fw_1x_ops;
 extern const struct aq_fw_ops aq_fw_2x_ops;

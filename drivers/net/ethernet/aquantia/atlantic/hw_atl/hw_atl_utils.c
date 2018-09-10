@@ -439,7 +439,7 @@ err_exit:
 }
 
 int hw_atl_utils_fw_rpc_wait(struct aq_hw_s *self,
-			     struct hw_aq_atl_utils_fw_rpc **rpc)
+			     struct hw_atl_utils_fw_rpc **rpc)
 {
 	int err = 0;
 	struct aq_hw_atl_utils_fw_rpc_tid_s sw;
@@ -504,7 +504,7 @@ err_exit:
 }
 
 int hw_atl_utils_mpi_read_mbox(struct aq_hw_s *self,
-			       struct hw_aq_atl_utils_mbox_header *pmbox)
+			       struct hw_atl_utils_mbox_header *pmbox)
 {
 	return hw_atl_utils_fw_downld_dwords(self,
 					     self->mbox_addr,
@@ -513,7 +513,7 @@ int hw_atl_utils_mpi_read_mbox(struct aq_hw_s *self,
 }
 
 void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
-				 struct hw_aq_atl_utils_mbox *pmbox)
+				 struct hw_atl_utils_mbox *pmbox)
 {
 	int err = 0;
 
@@ -553,7 +553,7 @@ static int hw_atl_utils_mpi_set_state(struct aq_hw_s *self,
 {
 	int err = 0;
 	u32 transaction_id = 0;
-	struct hw_aq_atl_utils_mbox_header mbox;
+	struct hw_atl_utils_mbox_header mbox;
 	u32 val = aq_hw_read_reg(self, HW_ATL_MPI_CONTROL_ADR);
 
 	if (state == MPI_RESET) {
@@ -747,7 +747,7 @@ static int hw_atl_fw1x_deinit(struct aq_hw_s *self)
 
 int hw_atl_utils_update_stats(struct aq_hw_s *self)
 {
-	struct hw_aq_atl_utils_mbox mbox;
+	struct hw_atl_utils_mbox mbox;
 
 	hw_atl_utils_mpi_read_stats(self, &mbox);
 
@@ -834,7 +834,7 @@ int hw_atl_utils_get_fw_version(struct aq_hw_s *self, u32 *fw_version)
 
 static int aq_fw1x_set_wol(struct aq_hw_s *self, bool wol_enabled, u8 *mac)
 {
-	struct hw_aq_atl_utils_fw_rpc *prpc = NULL;
+	struct hw_atl_utils_fw_rpc *prpc = NULL;
 	unsigned int rpc_size = 0U;
 	int err = 0;
 
@@ -873,7 +873,7 @@ err_exit:
 int aq_fw1x_set_power(struct aq_hw_s *self, unsigned int power_state,
 		      u8 *mac)
 {
-	struct hw_aq_atl_utils_fw_rpc *prpc = NULL;
+	struct hw_atl_utils_fw_rpc *prpc = NULL;
 	unsigned int rpc_size = 0U;
 	int err = 0;
 
