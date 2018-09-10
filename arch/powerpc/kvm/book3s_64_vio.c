@@ -378,8 +378,7 @@ static long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt,
 	if (iommu_tce_check_gpa(stt->page_shift, gpa))
 		return H_TOO_HARD;
 
-	if (kvmppc_gpa_to_ua(stt->kvm, tce & ~(TCE_PCI_READ | TCE_PCI_WRITE),
-				&ua, NULL))
+	if (kvmppc_tce_to_ua(stt->kvm, tce, &ua, NULL))
 		return H_TOO_HARD;
 
 	list_for_each_entry_rcu(stit, &stt->iommu_tables, next) {
@@ -552,8 +551,7 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 
 	idx = srcu_read_lock(&vcpu->kvm->srcu);
 
-	if ((dir != DMA_NONE) && kvmppc_gpa_to_ua(vcpu->kvm,
-			tce & ~(TCE_PCI_READ | TCE_PCI_WRITE), &ua, NULL)) {
+	if ((dir != DMA_NONE) && kvmppc_tce_to_ua(vcpu->kvm, tce, &ua, NULL)) {
 		ret = H_PARAMETER;
 		goto unlock_exit;
 	}
@@ -614,7 +612,7 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 		return ret;
 
 	idx = srcu_read_lock(&vcpu->kvm->srcu);
-	if (kvmppc_gpa_to_ua(vcpu->kvm, tce_list, &ua, NULL)) {
+	if (kvmppc_tce_to_ua(vcpu->kvm, tce_list, &ua, NULL)) {
 		ret = H_TOO_HARD;
 		goto unlock_exit;
 	}
@@ -649,9 +647,7 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 		}
 		tce = be64_to_cpu(tce);
 
-		if (kvmppc_gpa_to_ua(vcpu->kvm,
-				tce & ~(TCE_PCI_READ | TCE_PCI_WRITE),
-				&ua, NULL))
+		if (kvmppc_tce_to_ua(vcpu->kvm, tce, &ua, NULL))
 			return H_PARAMETER;
 
 		list_for_each_entry_lockless(stit, &stt->iommu_tables, next) {
