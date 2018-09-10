@@ -122,7 +122,7 @@ static int create_crypto_dma_pool(struct nitrox_device *ndev)
 
 	/* Crypto context pool, 16 byte aligned */
 	size = CRYPTO_CTX_SIZE + sizeof(struct ctx_hdr);
-	ndev->ctx_pool = dma_pool_create("crypto-context",
+	ndev->ctx_pool = dma_pool_create("nitrox-context",
 					 DEV(ndev), size, 16, 0);
 	if (!ndev->ctx_pool)
 		return -ENOMEM;
@@ -149,7 +149,7 @@ void *crypto_alloc_context(struct nitrox_device *ndev)
 	void *vaddr;
 	dma_addr_t dma;
 
-	vaddr = dma_pool_alloc(ndev->ctx_pool, (GFP_KERNEL | __GFP_ZERO), &dma);
+	vaddr = dma_pool_zalloc(ndev->ctx_pool, GFP_KERNEL, &dma);
 	if (!vaddr)
 		return NULL;
 
