@@ -4087,6 +4087,13 @@ static void dapm_connect_dai_link_widgets(struct snd_soc_card *card,
 				playback = snd_soc_dapm_new_dai(card, rtd,
 								playback_cpu,
 								codec);
+				if (IS_ERR(playback)) {
+					dev_err(rtd->dev,
+						"ASoC: Failed to create DAI %s: %ld\n",
+						codec_dai->name,
+						PTR_ERR(playback));
+					continue;
+				}
 
 				snd_soc_dapm_add_path(&card->dapm, playback_cpu,
 						      playback, NULL, NULL);
@@ -4099,7 +4106,9 @@ static void dapm_connect_dai_link_widgets(struct snd_soc_card *card,
 			snd_soc_dapm_add_path(&card->dapm, playback, codec,
 					      NULL, NULL);
 		}
+	}
 
+	for_each_rtd_codec_dai(rtd, i, codec_dai) {
 		/* connect BE DAI capture if widgets are valid */
 		codec = codec_dai->capture_widget;
 
@@ -4108,6 +4117,13 @@ static void dapm_connect_dai_link_widgets(struct snd_soc_card *card,
 				capture = snd_soc_dapm_new_dai(card, rtd,
 							       codec,
 							       capture_cpu);
+				if (IS_ERR(capture)) {
+					dev_err(rtd->dev,
+						"ASoC: Failed to create DAI %s: %ld\n",
+						codec_dai->name,
+						PTR_ERR(capture));
+					continue;
+				}
 
 				snd_soc_dapm_add_path(&card->dapm, capture,
 						      capture_cpu, NULL, NULL);
