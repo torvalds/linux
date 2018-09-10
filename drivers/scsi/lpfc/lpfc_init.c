@@ -6228,6 +6228,9 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	if (phba->cfg_fof)
 		fof_vectors = 1;
 
+	/* Verify RAS support on adapter */
+	lpfc_sli4_ras_init(phba);
+
 	/* Verify all the SLI4 queues */
 	rc = lpfc_sli4_queue_verify(phba);
 	if (rc)
@@ -10515,6 +10518,14 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 	/* Stop kthread signal shall trigger work_done one more time */
 	kthread_stop(phba->worker_thread);
 
+	/* Disable FW logging to host memory */
+	writel(LPFC_CTL_PDEV_CTL_DDL_RAS,
+	       phba->sli4_hba.conf_regs_memmap_p + LPFC_CTL_PDEV_CTL_OFFSET);
+
+	/* Free RAS DMA memory */
+	if (phba->ras_fwlog.ras_enabled == true)
+		lpfc_sli4_ras_dma_free(phba);
+
 	/* Unset the queues shared with the hardware then release all
 	 * allocated resources.
 	 */
@@ -10760,6 +10771,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		phba->mds_diags_support = 1;
 	else
 		phba->mds_diags_support = 0;
+
 	return 0;
 }
 
@@ -11721,6 +11733,10 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	/* Check if there are static vports to be created. */
 	lpfc_create_static_vport(phba);
+
+	/* Enable RAS FW log support */
+	lpfc_sli4_ras_setup(phba);
+
 	return 0;
 
 out_disable_intr:
@@ -12448,6 +12464,30 @@ lpfc_sli4_oas_verify(struct lpfc_hba *phba)
 	}
 
 	return;
+}
+
+/**
+ * lpfc_sli4_ras_init - Verify RAS-FW log is supported by this adapter
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine checks to see if RAS is supported by the adapter. Check the
+ * function through which RAS support enablement is to be done.
+ **/
+void
+lpfc_sli4_ras_init(struct lpfc_hba *phba)
+{
+	switch (phba->pcidev->device) {
+	case PCI_DEVICE_ID_LANCER_G6_FC:
+	case PCI_DEVICE_ID_LANCER_G7_FC:
+		phba->ras_fwlog.ras_hwsupport = true;
+		if (phba->cfg_ras_fwlog_func == PCI_FUNC(phba->pcidev->devfn))
+			phba->ras_fwlog.ras_enabled = true;
+		else
+			phba->ras_fwlog.ras_enabled = false;
+		break;
+	default:
+		phba->ras_fwlog.ras_hwsupport = false;
+	}
 }
 
 /**
