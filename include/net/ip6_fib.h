@@ -182,7 +182,6 @@ struct rt6_info {
 	struct in6_addr			rt6i_gateway;
 	struct inet6_dev		*rt6i_idev;
 	u32				rt6i_flags;
-	struct rt6key			rt6i_prefsrc;
 
 	struct list_head		rt6i_uncached;
 	struct uncached_list		*rt6i_uncached_list;
