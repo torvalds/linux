@@ -10209,7 +10209,6 @@ int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
 					 FW_ACL_VLAN_CMD_VFN_V(vf));
 	vlan_cmd.en_to_len16 = cpu_to_be32(enable | FW_LEN16(vlan_cmd));
 	/* Drop all packets that donot match vlan id */
-	vlan_cmd.dropnovlan_fm = FW_ACL_VLAN_CMD_FM_F;
 	vlan_cmd.dropnovlan_fm = (enable
 				  ? (FW_ACL_VLAN_CMD_DROPNOVLAN_F |
 				     FW_ACL_VLAN_CMD_FM_F) : 0);
