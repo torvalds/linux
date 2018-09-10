@@ -363,6 +363,41 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	return ret;
 }
 
+static long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt,
+		unsigned long tce)
+{
+	unsigned long gpa = tce & ~(TCE_PCI_READ | TCE_PCI_WRITE);
+	enum dma_data_direction dir = iommu_tce_direction(tce);
+	struct kvmppc_spapr_tce_iommu_table *stit;
+	unsigned long ua = 0;
+
+	/* Allow userspace to poison TCE table */
+	if (dir == DMA_NONE)
+		return H_SUCCESS;
+
+	if (iommu_tce_check_gpa(stt->page_shift, gpa))
+		return H_TOO_HARD;
+
+	if (kvmppc_gpa_to_ua(stt->kvm, tce & ~(TCE_PCI_READ | TCE_PCI_WRITE),
+				&ua, NULL))
+		return H_TOO_HARD;
+
+	list_for_each_entry_rcu(stit, &stt->iommu_tables, next) {
+		unsigned long hpa = 0;
+		struct mm_iommu_table_group_mem_t *mem;
+		long shift = stit->tbl->it_page_shift;
+
+		mem = mm_iommu_lookup(stt->kvm->mm, ua, 1ULL << shift);
+		if (!mem)
+			return H_TOO_HARD;
+
+		if (mm_iommu_ua_to_hpa(mem, ua, shift, &hpa))
+			return H_TOO_HARD;
+	}
+
+	return H_SUCCESS;
+}
+
 static void kvmppc_clear_tce(struct iommu_table *tbl, unsigned long entry)
 {
 	unsigned long hpa = 0;

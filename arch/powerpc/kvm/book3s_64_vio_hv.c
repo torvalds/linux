@@ -87,6 +87,7 @@ struct kvmppc_spapr_tce_table *kvmppc_find_table(struct kvm *kvm,
 }
 EXPORT_SYMBOL_GPL(kvmppc_find_table);
 
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 /*
  * Validates TCE address.
  * At the moment flags and page mask are validated.
@@ -94,14 +95,14 @@ EXPORT_SYMBOL_GPL(kvmppc_find_table);
  * to the table and user space is supposed to process them), we can skip
  * checking other things (such as TCE is a guest RAM address or the page
  * was actually allocated).
- *
- * WARNING: This will be called in real-mode on HV KVM and virtual
- *          mode on PR KVM
  */
-long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt, unsigned long tce)
+static long kvmppc_rm_tce_validate(struct kvmppc_spapr_tce_table *stt,
+		unsigned long tce)
 {
 	unsigned long gpa = tce & ~(TCE_PCI_READ | TCE_PCI_WRITE);
 	enum dma_data_direction dir = iommu_tce_direction(tce);
+	struct kvmppc_spapr_tce_iommu_table *stit;
+	unsigned long ua = 0;
 
 	/* Allow userspace to poison TCE table */
 	if (dir == DMA_NONE)
@@ -110,9 +111,26 @@ long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt, unsigned long tce)
 	if (iommu_tce_check_gpa(stt->page_shift, gpa))
 		return H_PARAMETER;
 
+	if (kvmppc_gpa_to_ua(stt->kvm, tce & ~(TCE_PCI_READ | TCE_PCI_WRITE),
+				&ua, NULL))
+		return H_TOO_HARD;
+
+	list_for_each_entry_lockless(stit, &stt->iommu_tables, next) {
+		unsigned long hpa = 0;
+		struct mm_iommu_table_group_mem_t *mem;
+		long shift = stit->tbl->it_page_shift;
+
+		mem = mm_iommu_lookup_rm(stt->kvm->mm, ua, 1ULL << shift);
+		if (!mem)
+			return H_TOO_HARD;
+
+		if (mm_iommu_ua_to_hpa_rm(mem, ua, shift, &hpa))
+			return H_TOO_HARD;
+	}
+
 	return H_SUCCESS;
 }
-EXPORT_SYMBOL_GPL(kvmppc_tce_validate);
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
 /* Note on the use of page_address() in real mode,
  *
@@ -368,7 +386,7 @@ long kvmppc_rm_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 	if (ret != H_SUCCESS)
 		return ret;
 
-	ret = kvmppc_tce_validate(stt, tce);
+	ret = kvmppc_rm_tce_validate(stt, tce);
 	if (ret != H_SUCCESS)
 		return ret;
 
@@ -521,7 +539,7 @@ long kvmppc_rm_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 	for (i = 0; i < npages; ++i) {
 		unsigned long tce = be64_to_cpu(((u64 *)tces)[i]);
 
-		ret = kvmppc_tce_validate(stt, tce);
+		ret = kvmppc_rm_tce_validate(stt, tce);
 		if (ret != H_SUCCESS)
 			goto unlock_exit;
 	}

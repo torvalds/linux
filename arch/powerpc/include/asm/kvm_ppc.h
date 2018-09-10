@@ -194,8 +194,6 @@ extern struct kvmppc_spapr_tce_table *kvmppc_find_table(
 		(iommu_tce_check_ioba((stt)->page_shift, (stt)->offset, \
 				(stt)->size, (ioba), (npages)) ?        \
 				H_PARAMETER : H_SUCCESS)
-extern long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *tt,
-		unsigned long tce);
 extern long kvmppc_gpa_to_ua(struct kvm *kvm, unsigned long gpa,
 		unsigned long *ua, unsigned long **prmap);
 extern void kvmppc_tce_put(struct kvmppc_spapr_tce_table *tt,
