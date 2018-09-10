@@ -129,7 +129,7 @@ struct amdgpu_vm_bo_base {
 	struct amdgpu_bo		*bo;
 
 	/* protected by bo being reserved */
-	struct list_head		bo_list;
+	struct amdgpu_vm_bo_base	*next;
 
 	/* protected by spinlock */
 	struct list_head		vm_status;

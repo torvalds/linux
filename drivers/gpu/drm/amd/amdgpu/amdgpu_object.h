@@ -89,8 +89,8 @@ struct amdgpu_bo {
 	void				*metadata;
 	u32				metadata_size;
 	unsigned			prime_shared_count;
-	/* list of all virtual address to which this bo is associated to */
-	struct list_head		va;
+	/* per VM structure for page tables and with virtual addresses */
+	struct amdgpu_vm_bo_base	*vm_bo;
 	/* Constant after initialization */
 	struct drm_gem_object		gem_base;
 	struct amdgpu_bo		*parent;

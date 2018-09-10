@@ -309,12 +309,13 @@ static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 {
 	base->vm = vm;
 	base->bo = bo;
-	INIT_LIST_HEAD(&base->bo_list);
+	base->next = NULL;
 	INIT_LIST_HEAD(&base->vm_status);
 
 	if (!bo)
 		return;
-	list_add_tail(&base->bo_list, &bo->va);
+	base->next = bo->vm_bo;
+	bo->vm_bo = base;
 
 	if (bo->tbo.resv != vm->root.base.bo->tbo.resv)
 		return;
@@ -352,7 +353,7 @@ static struct amdgpu_vm_pt *amdgpu_vm_pt_parent(struct amdgpu_vm_pt *pt)
 	if (!parent)
 		return NULL;
 
-	return list_first_entry(&parent->va, struct amdgpu_vm_pt, base.bo_list);
+	return container_of(parent->vm_bo, struct amdgpu_vm_pt, base);
 }
 
 /**
@@ -954,7 +955,7 @@ static void amdgpu_vm_free_pts(struct amdgpu_device *adev,
 	for_each_amdgpu_vm_pt_dfs_safe(adev, vm, cursor, entry) {
 
 		if (entry->base.bo) {
-			list_del(&entry->base.bo_list);
+			entry->base.bo->vm_bo = NULL;
 			list_del(&entry->base.vm_status);
 			amdgpu_bo_unref(&entry->base.bo->shadow);
 			amdgpu_bo_unref(&entry->base.bo);
@@ -1162,12 +1163,13 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job, bool need_
 struct amdgpu_bo_va *amdgpu_vm_bo_find(struct amdgpu_vm *vm,
 				       struct amdgpu_bo *bo)
 {
-	struct amdgpu_bo_va *bo_va;
+	struct amdgpu_vm_bo_base *base;
 
-	list_for_each_entry(bo_va, &bo->va, base.bo_list) {
-		if (bo_va->base.vm == vm) {
-			return bo_va;
-		}
+	for (base = bo->vm_bo; base; base = base->next) {
+		if (base->vm != vm)
+			continue;
+
+		return container_of(base, struct amdgpu_bo_va, base);
 	}
 	return NULL;
 }
@@ -2728,11 +2730,21 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 	struct amdgpu_bo_va_mapping *mapping, *next;
 	struct amdgpu_bo *bo = bo_va->base.bo;
 	struct amdgpu_vm *vm = bo_va->base.vm;
+	struct amdgpu_vm_bo_base **base;
 
-	if (bo && bo->tbo.resv == vm->root.base.bo->tbo.resv)
-		vm->bulk_moveable = false;
+	if (bo) {
+		if (bo->tbo.resv == vm->root.base.bo->tbo.resv)
+			vm->bulk_moveable = false;
 
-	list_del(&bo_va->base.bo_list);
+		for (base = &bo_va->base.bo->vm_bo; *base;
+		     base = &(*base)->next) {
+			if (*base != &bo_va->base)
+				continue;
+
+			*base = bo_va->base.next;
+			break;
+		}
+	}
 
 	spin_lock(&vm->invalidated_lock);
 	list_del(&bo_va->base.vm_status);
@@ -2774,7 +2786,7 @@ void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 	if (bo->parent && bo->parent->shadow == bo)
 		bo = bo->parent;
 
-	list_for_each_entry(bo_base, &bo->va, bo_list) {
+	for (bo_base = bo->vm_bo; bo_base; bo_base = bo_base->next) {
 		struct amdgpu_vm *vm = bo_base->vm;
 
 		if (evicted && bo->tbo.resv == vm->root.base.bo->tbo.resv) {

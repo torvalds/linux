@@ -448,7 +448,7 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 		return -ENOMEM;
 	drm_gem_private_object_init(adev->ddev, &bo->gem_base, size);
 	INIT_LIST_HEAD(&bo->shadow_list);
-	INIT_LIST_HEAD(&bo->va);
+	bo->vm_bo = NULL;
 	bo->preferred_domains = bp->preferred_domain ? bp->preferred_domain :
 		bp->domain;
 	bo->allowed_domains = bo->preferred_domains;
