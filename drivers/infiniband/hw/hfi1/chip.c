@@ -13012,7 +13012,7 @@ int set_intr_bits(struct hfi1_devdata *dd, u16 first, u16 last, bool set)
 		}
 		bits |= BIT_ULL(bit);
 	}
-	read_mod_write(dd, src, bits, set);
+	read_mod_write(dd, last, bits, set);
 
 	return 0;
 }
