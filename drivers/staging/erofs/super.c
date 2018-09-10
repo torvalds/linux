@@ -237,16 +237,18 @@ static int parse_options(struct super_block *sb, char *options)
 			infoln("noacl options not supported");
 			break;
 #endif
+#ifdef CONFIG_EROFS_FAULT_INJECTION
 		case Opt_fault_injection:
 			if (args->from && match_int(args, &arg))
 				return -EINVAL;
-#ifdef CONFIG_EROFS_FAULT_INJECTION
 			erofs_build_fault_attr(EROFS_SB(sb), arg);
 			set_opt(EROFS_SB(sb), FAULT_INJECTION);
-#else
-			infoln("FAULT_INJECTION was not selected");
-#endif
 			break;
+#else
+		case Opt_fault_injection:
+			infoln("fault_injection options not supported");
+			break;
+#endif
 		default:
 			errln("Unrecognized mount option \"%s\" "
 					"or missing value", p);
