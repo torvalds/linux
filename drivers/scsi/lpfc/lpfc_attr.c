@@ -5353,15 +5353,74 @@ LPFC_ATTR(delay_discovery, 0, 0, 1,
 
 /*
  * lpfc_sg_seg_cnt - Initial Maximum DMA Segment Count
- * This value can be set to values between 64 and 4096. The default value is
- * 64, but may be increased to allow for larger Max I/O sizes. The scsi layer
- * will be allowed to request I/Os of sizes up to (MAX_SEG_COUNT * SEG_SIZE).
+ * This value can be set to values between 64 and 4096. The default value
+ * is 64, but may be increased to allow for larger Max I/O sizes. The scsi
+ * and nvme layers will allow I/O sizes up to (MAX_SEG_COUNT * SEG_SIZE).
  * Because of the additional overhead involved in setting up T10-DIF,
  * this parameter will be limited to 128 if BlockGuard is enabled under SLI4
  * and will be limited to 512 if BlockGuard is enabled under SLI3.
  */
-LPFC_ATTR_R(sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT, LPFC_MIN_SG_SEG_CNT,
-	    LPFC_MAX_SG_SEG_CNT, "Max Scatter Gather Segment Count");
+static uint lpfc_sg_seg_cnt = LPFC_DEFAULT_SG_SEG_CNT;
+module_param(lpfc_sg_seg_cnt, uint, 0444);
+MODULE_PARM_DESC(lpfc_sg_seg_cnt, "Max Scatter Gather Segment Count");
+
+/**
+ * lpfc_sg_seg_cnt_show - Display the scatter/gather list sizes
+ *    configured for the adapter
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains a string with the list sizes
+ *
+ * Returns: size of formatted string.
+ **/
+static ssize_t
+lpfc_sg_seg_cnt_show(struct device *dev, struct device_attribute *attr,
+		     char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	int len;
+
+	len = snprintf(buf, PAGE_SIZE, "SGL sz: %d  total SGEs: %d\n",
+		       phba->cfg_sg_dma_buf_size, phba->cfg_total_seg_cnt);
+
+	len += snprintf(buf + len, PAGE_SIZE, "Cfg: %d  SCSI: %d  NVME: %d\n",
+			phba->cfg_sg_seg_cnt, phba->cfg_scsi_seg_cnt,
+			phba->cfg_nvme_seg_cnt);
+	return len;
+}
+
+static DEVICE_ATTR_RO(lpfc_sg_seg_cnt);
+
+/**
+ * lpfc_sg_seg_cnt_init - Set the hba sg_seg_cnt initial value
+ * @phba: lpfc_hba pointer.
+ * @val: contains the initial value
+ *
+ * Description:
+ * Validates the initial value is within range and assigns it to the
+ * adapter. If not in range, an error message is posted and the
+ * default value is assigned.
+ *
+ * Returns:
+ * zero if value is in range and is set
+ * -EINVAL if value was out of range
+ **/
+static int
+lpfc_sg_seg_cnt_init(struct lpfc_hba *phba, int val)
+{
+	if (val >= LPFC_MIN_SG_SEG_CNT && val <= LPFC_MAX_SG_SEG_CNT) {
+		phba->cfg_sg_seg_cnt = val;
+		return 0;
+	}
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"0409 "LPFC_DRIVER_NAME"_sg_seg_cnt attribute cannot "
+			"be set to %d, allowed range is [%d, %d]\n",
+			val, LPFC_MIN_SG_SEG_CNT, LPFC_MAX_SG_SEG_CNT);
+	phba->cfg_sg_seg_cnt = LPFC_DEFAULT_SG_SEG_CNT;
+	return -EINVAL;
+}
 
 /*
  * lpfc_enable_mds_diags: Enable MDS Diagnostics

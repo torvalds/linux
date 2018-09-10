@@ -3956,7 +3956,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		shost->dma_boundary =
 			phba->sli4_hba.pc_sli4_params.sge_supp_len-1;
-		shost->sg_tablesize = phba->cfg_sg_seg_cnt;
+		shost->sg_tablesize = phba->cfg_scsi_seg_cnt;
 	}
 
 	/*
@@ -5919,8 +5919,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 * There are going to be 2 reserved SGEs: 1 FCP cmnd + 1 FCP rsp
 	 */
 	max_buf_size = (2 * SLI4_PAGE_SIZE);
-	if (phba->cfg_sg_seg_cnt > LPFC_MAX_SGL_SEG_CNT - extra)
-		phba->cfg_sg_seg_cnt = LPFC_MAX_SGL_SEG_CNT - extra;
 
 	/*
 	 * Since lpfc_sg_seg_cnt is module param, the sg_dma_buf_size
@@ -5942,9 +5940,16 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		/* Total SGEs for scsi_sg_list and scsi_sg_prot_list */
 		phba->cfg_total_seg_cnt = LPFC_MAX_SGL_SEG_CNT;
 
-		if (phba->cfg_sg_seg_cnt > LPFC_MAX_SG_SLI4_SEG_CNT_DIF)
-			phba->cfg_sg_seg_cnt =
-				LPFC_MAX_SG_SLI4_SEG_CNT_DIF;
+		/*
+		 * If supporting DIF, reduce the seg count for scsi to
+		 * allow room for the DIF sges.
+		 */
+		if (phba->cfg_enable_bg &&
+		    phba->cfg_sg_seg_cnt > LPFC_MAX_BG_SLI4_SEG_CNT_DIF)
+			phba->cfg_scsi_seg_cnt = LPFC_MAX_BG_SLI4_SEG_CNT_DIF;
+		else
+			phba->cfg_scsi_seg_cnt = phba->cfg_sg_seg_cnt;
+
 	} else {
 		/*
 		 * The scsi_buf for a regular I/O holds the FCP cmnd,
@@ -5958,6 +5963,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 		/* Total SGEs for scsi_sg_list */
 		phba->cfg_total_seg_cnt = phba->cfg_sg_seg_cnt + extra;
+		phba->cfg_scsi_seg_cnt = phba->cfg_sg_seg_cnt;
 
 		/*
 		 * NOTE: if (phba->cfg_sg_seg_cnt + extra) <= 256 we only
@@ -5965,10 +5971,22 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		 */
 	}
 
+	/* Limit to LPFC_MAX_NVME_SEG_CNT for NVME. */
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		if (phba->cfg_sg_seg_cnt > LPFC_MAX_NVME_SEG_CNT) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_NVME | LOG_INIT,
+					"6300 Reducing NVME sg segment "
+					"cnt to %d\n",
+					LPFC_MAX_NVME_SEG_CNT);
+			phba->cfg_nvme_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
+		} else
+			phba->cfg_nvme_seg_cnt = phba->cfg_sg_seg_cnt;
+	}
+
 	/* Initialize the host templates with the updated values. */
-	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template_no_hr.sg_tablesize = phba->cfg_sg_seg_cnt;
+	lpfc_vport_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
+	lpfc_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
+	lpfc_template_no_hr.sg_tablesize = phba->cfg_scsi_seg_cnt;
 
 	if (phba->cfg_sg_dma_buf_size  <= LPFC_MIN_SG_SLI4_BUF_SZ)
 		phba->cfg_sg_dma_buf_size = LPFC_MIN_SG_SLI4_BUF_SZ;
@@ -5977,9 +5995,11 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 			SLI4_PAGE_ALIGN(phba->cfg_sg_dma_buf_size);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
-			"9087 sg_tablesize:%d dmabuf_size:%d total_sge:%d\n",
+			"9087 sg_seg_cnt:%d dmabuf_size:%d "
+			"total:%d scsi:%d nvme:%d\n",
 			phba->cfg_sg_seg_cnt, phba->cfg_sg_dma_buf_size,
-			phba->cfg_total_seg_cnt);
+			phba->cfg_total_seg_cnt,  phba->cfg_scsi_seg_cnt,
+			phba->cfg_nvme_seg_cnt);
 
 	/* Initialize buffer queue management fields */
 	INIT_LIST_HEAD(&phba->hbqs[LPFC_ELS_HBQ].hbq_buffer_list);

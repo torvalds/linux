@@ -2462,17 +2462,10 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 	nfcp_info.node_name = wwn_to_u64(vport->fc_nodename.u.wwn);
 	nfcp_info.port_name = wwn_to_u64(vport->fc_portname.u.wwn);
 
-	/* Limit to LPFC_MAX_NVME_SEG_CNT.
-	 * For now need + 1 to get around NVME transport logic.
+	/* We need to tell the transport layer + 1 because it takes page
+	 * alignment into account. When space for the SGL is allocated we
+	 * allocate + 3, one for cmd, one for rsp and one for this alignment
 	 */
-	if (phba->cfg_sg_seg_cnt > LPFC_MAX_NVME_SEG_CNT) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME | LOG_INIT,
-				 "6300 Reducing sg segment cnt to %d\n",
-				 LPFC_MAX_NVME_SEG_CNT);
-		phba->cfg_nvme_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
-	} else {
-		phba->cfg_nvme_seg_cnt = phba->cfg_sg_seg_cnt;
-	}
 	lpfc_nvme_template.max_sgl_segments = phba->cfg_nvme_seg_cnt + 1;
 	lpfc_nvme_template.max_hw_queues = phba->cfg_nvme_io_channel;
 

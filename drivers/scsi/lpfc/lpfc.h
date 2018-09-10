@@ -52,7 +52,7 @@ struct lpfc_sli2_slim;
 		downloads using bsg */
 
 #define LPFC_MIN_SG_SLI4_BUF_SZ	0x800	/* based on LPFC_DEFAULT_SG_SEG_CNT */
-#define LPFC_MAX_SG_SLI4_SEG_CNT_DIF 128 /* sg element count per scsi cmnd */
+#define LPFC_MAX_BG_SLI4_SEG_CNT_DIF 128 /* sg element count for BlockGuard */
 #define LPFC_MAX_SG_SEG_CNT_DIF 512	/* sg element count per scsi cmnd  */
 #define LPFC_MAX_SG_SEG_CNT	4096	/* sg element count per scsi cmnd */
 #define LPFC_MIN_SG_SEG_CNT	32	/* sg element count per scsi cmnd */
@@ -790,6 +790,7 @@ struct lpfc_hba {
 	uint32_t cfg_total_seg_cnt;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_nvme_seg_cnt;
+	uint32_t cfg_scsi_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
 	uint64_t cfg_soft_wwnn;
 	uint64_t cfg_soft_wwpn;
