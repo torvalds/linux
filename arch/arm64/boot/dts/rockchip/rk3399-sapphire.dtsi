@@ -114,6 +114,16 @@
 		vin-supply = <&vcc_sys>;
 	};
 
+	vcc5v0_typec0: vcc5v0-typec0-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio2 RK_PA0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_typec0_en>;
+		regulator-name = "vcc5v0_typec0";
+		vin-supply = <&vcc_sys>;
+	};
+
 	vcc_sys: vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
@@ -469,6 +479,10 @@
 			rockchip,pins =
 				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
+		vcc5v0_typec0_en: vcc5v0-typec0-en {
+			rockchip,pins =
+				<2 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
 	};
 };
 
@@ -526,6 +540,7 @@
 	status = "okay";
 
 	u2phy0_otg: otg-port {
+		phy-supply = <&vcc5v0_typec0>;
 		status = "okay";
 	};
 
