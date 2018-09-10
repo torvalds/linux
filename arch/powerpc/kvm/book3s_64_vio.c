@@ -599,6 +599,24 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 		ret = kvmppc_tce_validate(stt, tce);
 		if (ret != H_SUCCESS)
 			goto unlock_exit;
+	}
+
+	for (i = 0; i < npages; ++i) {
+		/*
+		 * This looks unsafe, because we validate, then regrab
+		 * the TCE from userspace which could have been changed by
+		 * another thread.
+		 *
+		 * But it actually is safe, because the relevant checks will be
+		 * re-executed in the following code.  If userspace tries to
+		 * change this dodgily it will result in a messier failure mode
+		 * but won't threaten the host.
+		 */
+		if (get_user(tce, tces + i)) {
+			ret = H_TOO_HARD;
+			goto unlock_exit;
+		}
+		tce = be64_to_cpu(tce);
 
 		if (kvmppc_gpa_to_ua(vcpu->kvm,
 				tce & ~(TCE_PCI_READ | TCE_PCI_WRITE),
