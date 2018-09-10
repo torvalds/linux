@@ -623,7 +623,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 	sub_frag_mem_limit(qp->q.net, head->truesize);
 
 	*nextp = NULL;
-	head->next = NULL;
+	skb_mark_not_on_list(head);
 	head->prev = NULL;
 	head->dev = dev;
 	head->tstamp = qp->q.stamp;

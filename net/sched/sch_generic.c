@@ -184,7 +184,7 @@ static void try_bulk_dequeue_skb(struct Qdisc *q,
 		skb = nskb;
 		(*packets)++; /* GSO counts as one pkt */
 	}
-	skb->next = NULL;
+	skb_mark_not_on_list(skb);
 }
 
 /* This variant of try_bulk_dequeue_skb() makes sure
@@ -210,7 +210,7 @@ static void try_bulk_dequeue_skb_slow(struct Qdisc *q,
 		skb = nskb;
 	} while (++cnt < 8);
 	(*packets) += cnt;
-	skb->next = NULL;
+	skb_mark_not_on_list(skb);
 }
 
 /* Note that dequeue_skb can possibly return a SKB list (via skb->next).
