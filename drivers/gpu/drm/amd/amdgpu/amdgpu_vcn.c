@@ -264,7 +264,7 @@ int amdgpu_vcn_dec_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r;
 
-	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID), 0xCAFEDEAD);
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0xCAFEDEAD);
 	r = amdgpu_ring_alloc(ring, 3);
 	if (r) {
 		DRM_ERROR("amdgpu: cp failed to lock ring %d (%d).\n",
@@ -272,11 +272,11 @@ int amdgpu_vcn_dec_ring_test_ring(struct amdgpu_ring *ring)
 		return r;
 	}
 	amdgpu_ring_write(ring,
-		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID), 0));
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0));
 	amdgpu_ring_write(ring, 0xDEADBEEF);
 	amdgpu_ring_commit(ring);
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID));
+		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9));
 		if (tmp == 0xDEADBEEF)
 			break;
 		DRM_UDELAY(1);
@@ -616,7 +616,7 @@ int amdgpu_vcn_jpeg_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r;
 
-	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID), 0xCAFEDEAD);
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0xCAFEDEAD);
 	r = amdgpu_ring_alloc(ring, 3);
 
 	if (r) {
@@ -626,12 +626,12 @@ int amdgpu_vcn_jpeg_ring_test_ring(struct amdgpu_ring *ring)
 	}
 
 	amdgpu_ring_write(ring,
-		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID), 0, 0, 0));
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0, 0, 0));
 	amdgpu_ring_write(ring, 0xDEADBEEF);
 	amdgpu_ring_commit(ring);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID));
+		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9));
 		if (tmp == 0xDEADBEEF)
 			break;
 		DRM_UDELAY(1);
@@ -665,7 +665,7 @@ static int amdgpu_vcn_jpeg_set_reg(struct amdgpu_ring *ring, uint32_t handle,
 
 	ib = &job->ibs[0];
 
-	ib->ptr[0] = PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JPEG_PITCH), 0, 0, PACKETJ_TYPE0);
+	ib->ptr[0] = PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0, 0, PACKETJ_TYPE0);
 	ib->ptr[1] = 0xDEADBEEF;
 	for (i = 2; i < 16; i += 2) {
 		ib->ptr[i] = PACKETJ(0, 0, 0, PACKETJ_TYPE6);
@@ -714,7 +714,7 @@ int amdgpu_vcn_jpeg_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		r = 0;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_JPEG_PITCH));
+		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9));
 		if (tmp == 0xDEADBEEF)
 			break;
 		DRM_UDELAY(1);
