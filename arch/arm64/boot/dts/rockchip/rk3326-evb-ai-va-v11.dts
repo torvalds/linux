@@ -261,18 +261,6 @@
 	status = "okay";
 };
 
-&cpu0_opp_table {
-	/*
-	 * max IR-drop values on different freq condition for this board!
-	 */
-	rockchip,board-irdrop = <
-		/*MHz   MHz     uV */
-		0       815     37500
-		816     1119    50000
-		1200    1512    75000
-	>;
-};
-
 &dmc {
 	center-supply = <&vdd_logic>;
 	status = "okay";
@@ -1234,6 +1222,7 @@
 	};
 
 	u2phy_otg: otg-port {
+		vbus-supply = <&vcc5v0_host>;
 		status = "okay";
 	};
 };
