@@ -3072,11 +3072,11 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 */
 	limits->max_segment_size = PAGE_SIZE;
 
-	if (cc->sector_size != (1 << SECTOR_SHIFT)) {
-		limits->logical_block_size = cc->sector_size;
-		limits->physical_block_size = cc->sector_size;
-		blk_limits_io_min(limits, cc->sector_size);
-	}
+	limits->logical_block_size =
+		max_t(unsigned short, limits->logical_block_size, cc->sector_size);
+	limits->physical_block_size =
+		max_t(unsigned, limits->physical_block_size, cc->sector_size);
+	limits->io_min = max_t(unsigned, limits->io_min, cc->sector_size);
 }
 
 static struct target_type crypt_target = {

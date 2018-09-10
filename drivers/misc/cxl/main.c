@@ -287,7 +287,7 @@ int cxl_adapter_context_get(struct cxl *adapter)
 	int rc;
 
 	rc = atomic_inc_unless_negative(&adapter->contexts_num);
-	return rc >= 0 ? 0 : -EBUSY;
+	return rc ? 0 : -EBUSY;
 }
 
 void cxl_adapter_context_put(struct cxl *adapter)

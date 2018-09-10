@@ -887,7 +887,8 @@ static ssize_t bfq_io_set_weight(struct kernfs_open_file *of,
 	if (ret)
 		return ret;
 
-	return bfq_io_set_weight_legacy(of_css(of), NULL, weight);
+	ret = bfq_io_set_weight_legacy(of_css(of), NULL, weight);
+	return ret ?: nbytes;
 }
 
 static int bfqg_print_stat(struct seq_file *sf, void *v)

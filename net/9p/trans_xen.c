@@ -95,6 +95,9 @@ static int p9_xen_create(struct p9_client *client, const char *addr, char *args)
 {
 	struct xen_9pfs_front_priv *priv;
 
+	if (addr == NULL)
+		return -EINVAL;
+
 	read_lock(&xen_9pfs_lock);
 	list_for_each_entry(priv, &xen_9pfs_devs, list) {
 		if (!strcmp(priv->tag, addr)) {
