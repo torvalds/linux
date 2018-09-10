@@ -12,7 +12,11 @@ Optional properties:
 - no-big-frame-no : boolean, set if frame_no lives in bits [15:0] of HCCA
 - remote-wakeup-connected: remote wakeup is wired on the platform
 - num-ports : u32, to override the detected port count
-- clocks : a list of phandle + clock specifier pairs
+- clocks : a list of phandle + clock specifier pairs. In case of Renesas
+	   R-Car Gen3 SoCs:
+	   - if a host only channel: first clock should be host.
+	   - if a USB DRD channel: first clock should be host and second one
+				   should be peripheral.
 - phys : see usb-hcd.txt in the current directory
 - resets : a list of phandle + reset specifier pairs
 
