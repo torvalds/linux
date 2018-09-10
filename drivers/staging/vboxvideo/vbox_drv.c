@@ -59,6 +59,11 @@ static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ret = PTR_ERR(dev);
 		goto err_drv_alloc;
 	}
+
+	ret = pci_enable_device(pdev);
+	if (ret)
+		goto err_pci_enable;
+
 	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
 
@@ -75,6 +80,8 @@ static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
  err_drv_dev_register:
 	vbox_driver_unload(dev);
  err_vbox_driver_load:
+	pci_disable_device(pdev);
+ err_pci_enable:
 	drm_dev_put(dev);
  err_drv_alloc:
 	return ret;
