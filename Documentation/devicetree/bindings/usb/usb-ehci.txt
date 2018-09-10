@@ -15,7 +15,11 @@ Optional properties:
  - needs-reset-on-resume : boolean, set this to force EHCI reset after resume
  - has-transaction-translator : boolean, set this if EHCI have a Transaction
 				Translator built into the root hub.
- - clocks : a list of phandle + clock specifier pairs
+ - clocks : a list of phandle + clock specifier pairs. In case of Renesas
+	    R-Car Gen3 SoCs:
+	    - if a host only channel: first clock should be host.
+	    - if a USB DRD channel: first clock should be host and second one
+				    should be peripheral.
  - phys : see usb-hcd.txt in the current directory
  - resets : phandle + reset specifier pair
 
