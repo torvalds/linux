@@ -214,8 +214,14 @@ struct rvt_driver_provided {
 	void (*schedule_send)(struct rvt_qp *qp);
 	void (*schedule_send_no_lock)(struct rvt_qp *qp);
 
-	/* Driver specific work request checking */
-	int (*check_send_wqe)(struct rvt_qp *qp, struct rvt_swqe *wqe);
+	/*
+	 * Validate the wqe.  This needs to be done prior to inserting the
+	 * wqe into the ring, but after the wqe has been set up.  Allow for
+	 * driver specific work request checking by providing a callback.
+	 * call_send indicates if the wqe should be posted or scheduled.
+	 */
+	int (*check_send_wqe)(struct rvt_qp *qp, struct rvt_swqe *wqe,
+			      bool *call_send);
 
 	/*
 	 * Sometimes rdmavt needs to kick the driver's send progress. That is

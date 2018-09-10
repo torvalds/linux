@@ -1718,7 +1718,7 @@ static inline int rvt_qp_is_avail(
  */
 static int rvt_post_one_wr(struct rvt_qp *qp,
 			   const struct ib_send_wr *wr,
-			   int *call_send)
+			   bool *call_send)
 {
 	struct rvt_swqe *wqe;
 	u32 next;
@@ -1825,11 +1825,9 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 
 	/* general part of wqe valid - allow for driver checks */
 	if (rdi->driver_f.check_send_wqe) {
-		ret = rdi->driver_f.check_send_wqe(qp, wqe);
+		ret = rdi->driver_f.check_send_wqe(qp, wqe, call_send);
 		if (ret < 0)
 			goto bail_inval_free;
-		if (ret)
-			*call_send = ret;
 	}
 
 	log_pmtu = qp->log_pmtu;
@@ -1897,7 +1895,7 @@ int rvt_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
 	unsigned long flags = 0;
-	int call_send;
+	bool call_send;
 	unsigned nreq = 0;
 	int err = 0;
 
@@ -1930,7 +1928,11 @@ int rvt_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 bail:
 	spin_unlock_irqrestore(&qp->s_hlock, flags);
 	if (nreq) {
-		if (call_send)
+		/*
+		 * Only call do_send if there is exactly one packet, and the
+		 * driver said it was ok.
+		 */
+		if (nreq == 1 && call_send)
 			rdi->driver_f.do_send(qp);
 		else
 			rdi->driver_f.schedule_send_no_lock(qp);

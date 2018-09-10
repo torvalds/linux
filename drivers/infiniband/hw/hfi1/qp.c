@@ -285,17 +285,13 @@ void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
  * hfi1_check_send_wqe - validate wqe
  * @qp - The qp
  * @wqe - The built wqe
- *
- * validate wqe.  This is called
- * prior to inserting the wqe into
- * the ring but after the wqe has been
- * setup.
+ * @call_send - Determine if the send should be posted or scheduled.
  *
  * Returns 0 on success, -EINVAL on failure
  *
  */
 int hfi1_check_send_wqe(struct rvt_qp *qp,
-			struct rvt_swqe *wqe)
+			struct rvt_swqe *wqe, bool *call_send)
 {
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	struct rvt_ah *ah;
@@ -305,6 +301,8 @@ int hfi1_check_send_wqe(struct rvt_qp *qp,
 	case IB_QPT_UC:
 		if (wqe->length > 0x80000000U)
 			return -EINVAL;
+		if (wqe->length > qp->pmtu)
+			*call_send = false;
 		break;
 	case IB_QPT_SMI:
 		ah = ibah_to_rvtah(wqe->ud_wr.ah);
@@ -321,7 +319,7 @@ int hfi1_check_send_wqe(struct rvt_qp *qp,
 	default:
 		break;
 	}
-	return wqe->length <= piothreshold;
+	return 0;
 }
 
 /**

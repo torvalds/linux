@@ -343,7 +343,8 @@ int hfi1_check_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		    int attr_mask, struct ib_udata *udata);
 void hfi1_restart_rc(struct rvt_qp *qp, u32 psn, int wait);
-int hfi1_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
+int hfi1_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe,
+			bool *call_send);
 
 extern const u32 rc_only_opcode;
 extern const u32 uc_only_opcode;
