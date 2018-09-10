@@ -52,9 +52,9 @@ const struct aq_hw_caps_s hw_atl_b0_caps_aqc100 = {
 	DEFAULT_B0_BOARD_BASIC_CAPABILITIES,
 	.media_type = AQ_HW_MEDIA_TYPE_FIBRE,
 	.link_speed_msk = HW_ATL_B0_RATE_10G |
-			  HW_ATL_B0_RATE_5G  |
+			  HW_ATL_B0_RATE_5G |
 			  HW_ATL_B0_RATE_2G5 |
-			  HW_ATL_B0_RATE_1G  |
+			  HW_ATL_B0_RATE_1G |
 			  HW_ATL_B0_RATE_100M,
 };
 
@@ -62,18 +62,18 @@ const struct aq_hw_caps_s hw_atl_b0_caps_aqc107 = {
 	DEFAULT_B0_BOARD_BASIC_CAPABILITIES,
 	.media_type = AQ_HW_MEDIA_TYPE_TP,
 	.link_speed_msk = HW_ATL_B0_RATE_10G |
-			  HW_ATL_B0_RATE_5G  |
+			  HW_ATL_B0_RATE_5G |
 			  HW_ATL_B0_RATE_2G5 |
-			  HW_ATL_B0_RATE_1G  |
+			  HW_ATL_B0_RATE_1G |
 			  HW_ATL_B0_RATE_100M,
 };
 
 const struct aq_hw_caps_s hw_atl_b0_caps_aqc108 = {
 	DEFAULT_B0_BOARD_BASIC_CAPABILITIES,
 	.media_type = AQ_HW_MEDIA_TYPE_TP,
-	.link_speed_msk = HW_ATL_B0_RATE_5G  |
+	.link_speed_msk = HW_ATL_B0_RATE_5G |
 			  HW_ATL_B0_RATE_2G5 |
-			  HW_ATL_B0_RATE_1G  |
+			  HW_ATL_B0_RATE_1G |
 			  HW_ATL_B0_RATE_100M,
 };
 
@@ -81,7 +81,7 @@ const struct aq_hw_caps_s hw_atl_b0_caps_aqc109 = {
 	DEFAULT_B0_BOARD_BASIC_CAPABILITIES,
 	.media_type = AQ_HW_MEDIA_TYPE_TP,
 	.link_speed_msk = HW_ATL_B0_RATE_2G5 |
-			  HW_ATL_B0_RATE_1G  |
+			  HW_ATL_B0_RATE_1G |
 			  HW_ATL_B0_RATE_100M,
 };
 

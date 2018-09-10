@@ -49,6 +49,7 @@
 #define FORCE_FLASHLESS 0
 
 static int hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual);
+
 static int hw_atl_utils_mpi_set_state(struct aq_hw_s *self,
 				      enum hal_atl_utils_fw_state_e state);
 
@@ -69,10 +70,10 @@ int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
 				   self->fw_ver_actual) == 0) {
 		*fw_ops = &aq_fw_1x_ops;
 	} else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_2X,
-					self->fw_ver_actual) == 0) {
+					  self->fw_ver_actual) == 0) {
 		*fw_ops = &aq_fw_2x_ops;
 	} else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_3X,
-					self->fw_ver_actual) == 0) {
+					  self->fw_ver_actual) == 0) {
 		*fw_ops = &aq_fw_2x_ops;
 	} else {
 		aq_pr_err("Bad FW version detected: %x\n",
@@ -260,7 +261,7 @@ int hw_atl_utils_soft_reset(struct aq_hw_s *self)
 
 		hw_atl_utils_mpi_set_state(self, MPI_DEINIT);
 		AQ_HW_WAIT_FOR((aq_hw_read_reg(self, HW_ATL_MPI_STATE_ADR) &
-			       HW_ATL_MPI_STATE_MSK) == MPI_DEINIT,
+				HW_ATL_MPI_STATE_MSK) == MPI_DEINIT,
 			       10, 1000U);
 	}
 
@@ -277,7 +278,7 @@ int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
 
 	AQ_HW_WAIT_FOR(hw_atl_reg_glb_cpu_sem_get(self,
 						  HW_ATL_FW_SM_RAM) == 1U,
-						  1U, 10000U);
+		       1U, 10000U);
 
 	if (err < 0) {
 		bool is_locked;
@@ -393,7 +394,7 @@ static int hw_atl_utils_init_ucp(struct aq_hw_s *self,
 
 	/* check 10 times by 1ms */
 	AQ_HW_WAIT_FOR(0U != (self->mbox_addr =
-			aq_hw_read_reg(self, 0x360U)), 1000U, 10U);
+			      aq_hw_read_reg(self, 0x360U)), 1000U, 10U);
 
 	return err;
 }
@@ -425,7 +426,7 @@ int hw_atl_utils_fw_rpc_call(struct aq_hw_s *self, unsigned int rpc_size)
 	err = hw_atl_utils_fw_upload_dwords(self, self->rpc_addr,
 					    (u32 *)(void *)&self->rpc,
 					    (rpc_size + sizeof(u32) -
-					    sizeof(u8)) / sizeof(u32));
+					     sizeof(u8)) / sizeof(u32));
 	if (err < 0)
 		goto err_exit;
 
@@ -450,7 +451,7 @@ int hw_atl_utils_fw_rpc_wait(struct aq_hw_s *self,
 		self->rpc_tid = sw.tid;
 
 		AQ_HW_WAIT_FOR(sw.tid ==
-				(fw.val =
+			       (fw.val =
 				aq_hw_read_reg(self, HW_ATL_RPC_STATE_ADR),
 				fw.tid), 1000U, 100U);
 		if (err < 0)
@@ -473,7 +474,7 @@ int hw_atl_utils_fw_rpc_wait(struct aq_hw_s *self,
 						      (u32 *)(void *)
 						      &self->rpc,
 						      (fw.len + sizeof(u32) -
-						      sizeof(u8)) /
+						       sizeof(u8)) /
 						      sizeof(u32));
 			if (err < 0)
 				goto err_exit;
@@ -506,9 +507,9 @@ int hw_atl_utils_mpi_read_mbox(struct aq_hw_s *self,
 			       struct hw_aq_atl_utils_mbox_header *pmbox)
 {
 	return hw_atl_utils_fw_downld_dwords(self,
-				      self->mbox_addr,
-				      (u32 *)(void *)pmbox,
-				      sizeof(*pmbox) / sizeof(u32));
+					     self->mbox_addr,
+					     (u32 *)(void *)pmbox,
+					     sizeof(*pmbox) / sizeof(u32));
 }
 
 void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
@@ -561,8 +562,8 @@ static int hw_atl_utils_mpi_set_state(struct aq_hw_s *self,
 		transaction_id = mbox.transaction_id;
 
 		AQ_HW_WAIT_FOR(transaction_id !=
-				(hw_atl_utils_mpi_read_mbox(self, &mbox),
-				 mbox.transaction_id),
+			       (hw_atl_utils_mpi_read_mbox(self, &mbox),
+				mbox.transaction_id),
 			       1000U, 100U);
 		if (err < 0)
 			goto err_exit;
@@ -659,9 +660,9 @@ int hw_atl_utils_get_mac_permanent(struct aq_hw_s *self,
 
 	if ((mac[0] & 0x01U) || ((mac[0] | mac[1] | mac[2]) == 0x00U)) {
 		/* chip revision */
-		l = 0xE3000000U
-			| (0xFFFFU & aq_hw_read_reg(self, HW_ATL_UCP_0X370_REG))
-			| (0x00 << 16);
+		l = 0xE3000000U |
+		    (0xFFFFU & aq_hw_read_reg(self, HW_ATL_UCP_0X370_REG)) |
+		    (0x00 << 16);
 		h = 0x8001300EU;
 
 		mac[5] = (u8)(0xFFU & l);

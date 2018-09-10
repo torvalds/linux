@@ -98,8 +98,8 @@ static void aq_ethtool_stats(struct net_device *ndev,
 	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
 
 	memset(data, 0, (ARRAY_SIZE(aq_ethtool_stat_names) +
-				ARRAY_SIZE(aq_ethtool_queue_stat_names) *
-				cfg->vecs) * sizeof(u64));
+			 ARRAY_SIZE(aq_ethtool_queue_stat_names) *
+			 cfg->vecs) * sizeof(u64));
 	aq_nic_get_stats(aq_nic, data);
 }
 

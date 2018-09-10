@@ -76,7 +76,7 @@ static int aq_fw2x_init(struct aq_hw_s *self)
 
 	/* check 10 times by 1ms */
 	AQ_HW_WAIT_FOR(0U != (self->mbox_addr =
-			aq_hw_read_reg(self, HW_ATL_FW2X_MPI_MBOX_ADDR)),
+		       aq_hw_read_reg(self, HW_ATL_FW2X_MPI_MBOX_ADDR)),
 		       1000U, 10U);
 	AQ_HW_WAIT_FOR(0U != (self->rpc_addr =
 		       aq_hw_read_reg(self, HW_ATL_FW2X_MPI_RPC_ADDR)),
@@ -213,7 +213,7 @@ static int aq_fw2x_update_link_status(struct aq_hw_s *self)
 {
 	u32 mpi_state = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE_ADDR);
 	u32 speed = mpi_state & (FW2X_RATE_100M | FW2X_RATE_1G |
-				FW2X_RATE_2G5 | FW2X_RATE_5G | FW2X_RATE_10G);
+				 FW2X_RATE_2G5 | FW2X_RATE_5G | FW2X_RATE_10G);
 	struct aq_hw_link_status_s *link_status = &self->aq_link_status;
 
 	if (speed) {
@@ -262,9 +262,7 @@ static int aq_fw2x_get_mac_permanent(struct aq_hw_s *self, u8 *mac)
 
 		get_random_bytes(&rnd, sizeof(unsigned int));
 
-		l = 0xE3000000U
-			| (0xFFFFU & rnd)
-			| (0x00 << 16);
+		l = 0xE3000000U | (0xFFFFU & rnd) | (0x00 << 16);
 		h = 0x8001300EU;
 
 		mac[5] = (u8)(0xFFU & l);
@@ -294,7 +292,7 @@ int aq_fw2x_update_stats(struct aq_hw_s *self)
 	/* Wait FW to report back */
 	AQ_HW_WAIT_FOR(orig_stats_val !=
 		       (aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE2_ADDR) &
-				       BIT(CAPS_HI_STATISTICS)),
+			BIT(CAPS_HI_STATISTICS)),
 		       1U, 10000U);
 	if (err)
 		return err;
@@ -466,5 +464,5 @@ const struct aq_fw_ops aq_fw_2x_ops = {
 	.set_power = aq_fw2x_set_power,
 	.set_eee_rate = aq_fw2x_set_eee_rate,
 	.get_eee_rate = aq_fw2x_get_eee_rate,
-	.set_flow_control   = aq_fw2x_set_flow_control,
+	.set_flow_control = aq_fw2x_set_flow_control,
 };

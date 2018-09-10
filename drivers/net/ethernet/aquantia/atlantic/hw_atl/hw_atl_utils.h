@@ -416,6 +416,7 @@ int hw_atl_utils_get_fw_version(struct aq_hw_s *self, u32 *fw_version);
 int hw_atl_utils_update_stats(struct aq_hw_s *self);
 
 struct aq_stats_s *hw_atl_utils_get_hw_stats(struct aq_hw_s *self);
+
 int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
 				  u32 *p, u32 cnt);
 
