@@ -16,6 +16,7 @@
 #include "../aq_pci_func.h"
 #include "../aq_ring.h"
 #include "../aq_vec.h"
+#include "../aq_nic.h"
 #include "hw_atl_utils.h"
 #include "hw_atl_llh.h"
 
@@ -28,6 +29,37 @@
 
 #define HW_ATL_FW2X_MPI_STATE_ADDR	0x370
 #define HW_ATL_FW2X_MPI_STATE2_ADDR	0x374
+
+#define HW_ATL_FW2X_CAP_SLEEP_PROXY      BIT(CAPS_HI_SLEEP_PROXY)
+#define HW_ATL_FW2X_CAP_WOL              BIT(CAPS_HI_WOL)
+
+#define HW_ATL_FW2X_CTRL_SLEEP_PROXY      BIT(CTRL_SLEEP_PROXY)
+#define HW_ATL_FW2X_CTRL_WOL              BIT(CTRL_WOL)
+#define HW_ATL_FW2X_CTRL_LINK_DROP        BIT(CTRL_LINK_DROP)
+#define HW_ATL_FW2X_CTRL_PAUSE            BIT(CTRL_PAUSE)
+#define HW_ATL_FW2X_CTRL_ASYMMETRIC_PAUSE BIT(CTRL_ASYMMETRIC_PAUSE)
+#define HW_ATL_FW2X_CTRL_FORCE_RECONNECT  BIT(CTRL_FORCE_RECONNECT)
+
+#define HAL_ATLANTIC_WOL_FILTERS_COUNT   8
+#define HAL_ATLANTIC_UTILS_FW2X_MSG_WOL  0x0E
+
+struct __packed fw2x_msg_wol_pattern {
+	u8 mask[16];
+	u32 crc;
+};
+
+struct __packed fw2x_msg_wol {
+	u32 msg_id;
+	u8 hw_addr[ETH_ALEN];
+	u8 magic_packet_enabled;
+	u8 filter_count;
+	struct fw2x_msg_wol_pattern filter[HAL_ATLANTIC_WOL_FILTERS_COUNT];
+	u8 link_up_enabled;
+	u8 link_down_enabled;
+	u16 reserved;
+	u32 link_up_timeout;
+	u32 link_down_timeout;
+};
 
 static int aq_fw2x_set_link_speed(struct aq_hw_s *self, u32 speed);
 static int aq_fw2x_set_state(struct aq_hw_s *self,
