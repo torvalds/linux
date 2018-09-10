@@ -1991,7 +1991,7 @@ int vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
 	if (ret < 0)
 		goto out_drop_write;
 
-	ret = -EINVAL;
+	ret = -EPERM;
 	if (!allow_file_dedupe(dst_file))
 		goto out_drop_write;
 
