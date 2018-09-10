@@ -4458,8 +4458,8 @@ static struct dvb_frontend *dib8000_init(struct i2c_adapter *i2c_adap, u8 i2c_ad
 	dibx000_init_i2c_master(&state->i2c_master, DIB8000, state->i2c.adap, state->i2c.addr);
 
 	/* init 8096p tuner adapter */
-	strncpy(state->dib8096p_tuner_adap.name, "DiB8096P tuner interface",
-			sizeof(state->dib8096p_tuner_adap.name));
+	strscpy(state->dib8096p_tuner_adap.name, "DiB8096P tuner interface",
+		sizeof(state->dib8096p_tuner_adap.name));
 	state->dib8096p_tuner_adap.algo = &dib8096p_tuner_xfer_algo;
 	state->dib8096p_tuner_adap.algo_data = NULL;
 	state->dib8096p_tuner_adap.dev.parent = state->i2c.adap->dev.parent;

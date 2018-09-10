@@ -1526,8 +1526,8 @@ static int zoran_enum_fmt(struct zoran *zr, struct v4l2_fmtdesc *fmt, int flag)
 
 	for (num = i = 0; i < NUM_FORMATS; i++) {
 		if (zoran_formats[i].flags & flag && num++ == fmt->index) {
-			strncpy(fmt->description, zoran_formats[i].name,
-				sizeof(fmt->description) - 1);
+			strscpy(fmt->description, zoran_formats[i].name,
+				sizeof(fmt->description));
 			/* fmt struct pre-zeroed, so adding '\0' not needed */
 			fmt->pixelformat = zoran_formats[i].fourcc;
 			if (zoran_formats[i].flags & ZORAN_FORMAT_COMPRESSED)
@@ -2301,8 +2301,8 @@ static int zoran_enum_input(struct file *file, void *__fh,
 	if (inp->index >= zr->card.inputs)
 		return -EINVAL;
 
-	strncpy(inp->name, zr->card.input[inp->index].name,
-		sizeof(inp->name) - 1);
+	strscpy(inp->name, zr->card.input[inp->index].name,
+		sizeof(inp->name));
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 	inp->std = V4L2_STD_ALL;
 
@@ -2344,7 +2344,7 @@ static int zoran_enum_output(struct file *file, void *__fh,
 
 	outp->index = 0;
 	outp->type = V4L2_OUTPUT_TYPE_ANALOGVGAOVERLAY;
-	strncpy(outp->name, "Autodetect", sizeof(outp->name)-1);
+	strscpy(outp->name, "Autodetect", sizeof(outp->name));
 
 	return 0;
 }

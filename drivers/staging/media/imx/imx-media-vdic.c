@@ -964,7 +964,7 @@ static int imx_vdic_probe(struct platform_device *pdev)
 	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
 	/* get our group id */
 	priv->sd.grp_id = pdata->grp_id;
-	strncpy(priv->sd.name, pdata->sd_name, sizeof(priv->sd.name));
+	strscpy(priv->sd.name, pdata->sd_name, sizeof(priv->sd.name));
 
 	mutex_init(&priv->lock);
 

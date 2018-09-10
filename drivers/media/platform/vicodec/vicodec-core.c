@@ -692,8 +692,8 @@ static const struct v4l2_fwht_pixfmt_info *find_fmt(u32 fmt)
 static int vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	strncpy(cap->driver, VICODEC_NAME, sizeof(cap->driver) - 1);
-	strncpy(cap->card, VICODEC_NAME, sizeof(cap->card) - 1);
+	strscpy(cap->driver, VICODEC_NAME, sizeof(cap->driver));
+	strscpy(cap->card, VICODEC_NAME, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 			"platform:%s", VICODEC_NAME);
 	return 0;

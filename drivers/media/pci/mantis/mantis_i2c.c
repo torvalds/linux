@@ -225,7 +225,7 @@ int mantis_i2c_init(struct mantis_pci *mantis)
 
 	init_waitqueue_head(&mantis->i2c_wq);
 	mutex_init(&mantis->i2c_lock);
-	strncpy(i2c_adapter->name, "Mantis I2C", sizeof(i2c_adapter->name));
+	strscpy(i2c_adapter->name, "Mantis I2C", sizeof(i2c_adapter->name));
 	i2c_set_adapdata(i2c_adapter, mantis);
 
 	i2c_adapter->owner	= THIS_MODULE;

@@ -2459,9 +2459,8 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		if (!(qctrl.flags & V4L2_CTRL_FLAG_READ_ONLY)) {
 			ciptr->set_value = ctrl_cx2341x_set;
 		}
-		strncpy(hdw->mpeg_ctrl_info[idx].desc,qctrl.name,
-			PVR2_CTLD_INFO_DESC_SIZE);
-		hdw->mpeg_ctrl_info[idx].desc[PVR2_CTLD_INFO_DESC_SIZE-1] = 0;
+		strscpy(hdw->mpeg_ctrl_info[idx].desc, qctrl.name,
+			sizeof(hdw->mpeg_ctrl_info[idx].desc));
 		ciptr->default_value = qctrl.default_value;
 		switch (qctrl.type) {
 		default:

@@ -1132,7 +1132,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	usb->usbdev = usbdev;
 	usb_make_path(usbdev, go->bus_info, sizeof(go->bus_info));
 	go->board_id = id->driver_info;
-	strncpy(go->name, name, sizeof(go->name));
+	strscpy(go->name, name, sizeof(go->name));
 	if (board->flags & GO7007_USB_EZUSB)
 		go->hpi_ops = &go7007_usb_ezusb_hpi_ops;
 	else
@@ -1198,7 +1198,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 				go->board_id = GO7007_BOARDID_ENDURA;
 				usb->board = board = &board_endura;
 				go->board_info = &board->main_info;
-				strncpy(go->name, "Pelco Endura",
+				strscpy(go->name, "Pelco Endura",
 					sizeof(go->name));
 			} else {
 				u16 channel;
@@ -1232,21 +1232,21 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		case 1:
 			go->tuner_type = TUNER_SONY_BTF_PG472Z;
 			go->std = V4L2_STD_PAL;
-			strncpy(go->name, "Plextor PX-TV402U-EU",
-					sizeof(go->name));
+			strscpy(go->name, "Plextor PX-TV402U-EU",
+				sizeof(go->name));
 			break;
 		case 2:
 			go->tuner_type = TUNER_SONY_BTF_PK467Z;
 			go->std = V4L2_STD_NTSC_M_JP;
 			num_i2c_devs -= 2;
-			strncpy(go->name, "Plextor PX-TV402U-JP",
-					sizeof(go->name));
+			strscpy(go->name, "Plextor PX-TV402U-JP",
+				sizeof(go->name));
 			break;
 		case 3:
 			go->tuner_type = TUNER_SONY_BTF_PB463Z;
 			num_i2c_devs -= 2;
-			strncpy(go->name, "Plextor PX-TV402U-NA",
-					sizeof(go->name));
+			strscpy(go->name, "Plextor PX-TV402U-NA",
+				sizeof(go->name));
 			break;
 		default:
 			pr_debug("unable to detect tuner type!\n");

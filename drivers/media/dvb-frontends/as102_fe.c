@@ -467,7 +467,7 @@ struct dvb_frontend *as102_attach(const char *name,
 
 	/* init frontend callback ops */
 	memcpy(&fe->ops, &as102_fe_ops, sizeof(struct dvb_frontend_ops));
-	strncpy(fe->ops.info.name, name, sizeof(fe->ops.info.name));
+	strscpy(fe->ops.info.name, name, sizeof(fe->ops.info.name));
 
 	return fe;
 
