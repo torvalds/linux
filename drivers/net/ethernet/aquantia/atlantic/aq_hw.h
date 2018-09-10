@@ -204,7 +204,6 @@ struct aq_hw_ops {
 
 	int (*hw_get_fw_version)(struct aq_hw_s *self, u32 *fw_version);
 
-	int (*hw_set_power)(struct aq_hw_s *self, unsigned int power_state);
 };
 
 struct aq_fw_ops {
@@ -228,6 +227,9 @@ struct aq_fw_ops {
 	int (*update_stats)(struct aq_hw_s *self);
 
 	int (*set_flow_control)(struct aq_hw_s *self);
+
+	int (*set_power)(struct aq_hw_s *self, unsigned int power_state,
+			 u8 *mac);
 };
 
 #endif /* AQ_HW_H */

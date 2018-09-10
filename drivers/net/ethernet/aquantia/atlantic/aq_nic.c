@@ -889,11 +889,13 @@ void aq_nic_deinit(struct aq_nic_s *self)
 		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
 		aq_vec_deinit(aq_vec);
 
-	if (self->power_state == AQ_HW_POWER_STATE_D0) {
-		(void)self->aq_fw_ops->deinit(self->aq_hw);
-	} else {
-		(void)self->aq_hw_ops->hw_set_power(self->aq_hw,
-						   self->power_state);
+	self->aq_fw_ops->deinit(self->aq_hw);
+
+	if (self->power_state != AQ_HW_POWER_STATE_D0 ||
+	    self->aq_hw->aq_nic_cfg->wol) {
+		self->aq_fw_ops->set_power(self->aq_hw,
+					   self->power_state,
+					   self->ndev->dev_addr);
 	}
 
 err_exit:;

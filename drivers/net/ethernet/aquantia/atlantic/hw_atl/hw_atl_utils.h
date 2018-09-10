@@ -257,6 +257,9 @@ enum hal_atl_utils_fw_state_e {
 #define HAL_ATLANTIC_UTILS_FW_MSG_ARP           0x2U
 #define HAL_ATLANTIC_UTILS_FW_MSG_INJECT        0x3U
 #define HAL_ATLANTIC_UTILS_FW_MSG_WOL_ADD       0x4U
+#define HAL_ATLANTIC_UTILS_FW_MSG_WOL_PRIOR     0x10000000U
+#define HAL_ATLANTIC_UTILS_FW_MSG_WOL_PATTERN   0x1U
+#define HAL_ATLANTIC_UTILS_FW_MSG_WOL_MAG_PKT   0x2U
 #define HAL_ATLANTIC_UTILS_FW_MSG_WOL_DEL       0x5U
 #define HAL_ATLANTIC_UTILS_FW_MSG_ENABLE_WAKEUP 0x6U
 #define HAL_ATLANTIC_UTILS_FW_MSG_MSM_PFC       0x7U
@@ -402,6 +405,8 @@ int hw_atl_utils_update_stats(struct aq_hw_s *self);
 struct aq_stats_s *hw_atl_utils_get_hw_stats(struct aq_hw_s *self);
 int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
 				  u32 *p, u32 cnt);
+
+int hw_atl_utils_fw_set_wol(struct aq_hw_s *self, bool wol_enabled, u8 *mac);
 
 int hw_atl_utils_fw_rpc_call(struct aq_hw_s *self, unsigned int rpc_size);
 

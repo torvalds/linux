@@ -231,7 +231,7 @@ static int aq_fw2x_get_mac_permanent(struct aq_hw_s *self, u8 *mac)
 	return err;
 }
 
-static int aq_fw2x_update_stats(struct aq_hw_s *self)
+int aq_fw2x_update_stats(struct aq_hw_s *self)
 {
 	int err = 0;
 	u32 mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
@@ -250,6 +250,101 @@ static int aq_fw2x_update_stats(struct aq_hw_s *self)
 		return err;
 
 	return hw_atl_utils_update_stats(self);
+}
+
+static int aq_fw2x_set_sleep_proxy(struct aq_hw_s *self, u8 *mac)
+{
+	struct hw_aq_atl_utils_fw_rpc *rpc = NULL;
+	struct offload_info *cfg = NULL;
+	unsigned int rpc_size = 0U;
+	u32 mpi_opts;
+	int err = 0;
+
+	rpc_size = sizeof(rpc->msg_id) + sizeof(*cfg);
+
+	err = hw_atl_utils_fw_rpc_wait(self, &rpc);
+	if (err < 0)
+		goto err_exit;
+
+	memset(rpc, 0, rpc_size);
+	cfg = (struct offload_info *)(&rpc->msg_id + 1);
+
+	memcpy(cfg->mac_addr, mac, ETH_ALEN);
+	cfg->len = sizeof(*cfg);
+
+	/* Clear bit 0x36C.23 and 0x36C.22 */
+	mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
+	mpi_opts &= ~HW_ATL_FW2X_CTRL_SLEEP_PROXY;
+	mpi_opts &= ~HW_ATL_FW2X_CTRL_LINK_DROP;
+
+	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
+
+	err = hw_atl_utils_fw_rpc_call(self, rpc_size);
+	if (err < 0)
+		goto err_exit;
+
+	/* Set bit 0x36C.23 */
+	mpi_opts |= HW_ATL_FW2X_CTRL_SLEEP_PROXY;
+	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
+
+	AQ_HW_WAIT_FOR((aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE2_ADDR) &
+			HW_ATL_FW2X_CTRL_SLEEP_PROXY), 1U, 10000U);
+
+err_exit:
+	return err;
+}
+
+static int aq_fw2x_set_wol_params(struct aq_hw_s *self, u8 *mac)
+{
+	struct hw_aq_atl_utils_fw_rpc *rpc = NULL;
+	struct fw2x_msg_wol *msg = NULL;
+	u32 mpi_opts;
+	int err = 0;
+
+	err = hw_atl_utils_fw_rpc_wait(self, &rpc);
+	if (err < 0)
+		goto err_exit;
+
+	msg = (struct fw2x_msg_wol *)rpc;
+
+	msg->msg_id = HAL_ATLANTIC_UTILS_FW2X_MSG_WOL;
+	msg->magic_packet_enabled = true;
+	memcpy(msg->hw_addr, mac, ETH_ALEN);
+
+	mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
+	mpi_opts &= ~(HW_ATL_FW2X_CTRL_SLEEP_PROXY | HW_ATL_FW2X_CTRL_WOL);
+
+	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
+
+	err = hw_atl_utils_fw_rpc_call(self, sizeof(*msg));
+	if (err < 0)
+		goto err_exit;
+
+	/* Set bit 0x36C.24 */
+	mpi_opts |= HW_ATL_FW2X_CTRL_WOL;
+	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
+
+	AQ_HW_WAIT_FOR((aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE2_ADDR) &
+			HW_ATL_FW2X_CTRL_WOL), 1U, 10000U);
+
+err_exit:
+	return err;
+}
+
+static int aq_fw2x_set_power(struct aq_hw_s *self, unsigned int power_state,
+			     u8 *mac)
+{
+	int err = 0;
+
+	if (self->aq_nic_cfg->wol & AQ_NIC_WOL_ENABLED) {
+		err = aq_fw2x_set_sleep_proxy(self, mac);
+		if (err < 0)
+			goto err_exit;
+		err = aq_fw2x_set_wol_params(self, mac);
+	}
+
+err_exit:
+	return err;
 }
 
 static int aq_fw2x_renegotiate(struct aq_hw_s *self)
@@ -284,5 +379,6 @@ const struct aq_fw_ops aq_fw_2x_ops = {
 	.set_state = aq_fw2x_set_state,
 	.update_link_status = aq_fw2x_update_link_status,
 	.update_stats = aq_fw2x_update_stats,
+	.set_power = aq_fw2x_set_power,
 	.set_flow_control   = aq_fw2x_set_flow_control,
 };

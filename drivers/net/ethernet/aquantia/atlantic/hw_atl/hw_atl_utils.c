@@ -744,14 +744,6 @@ static int hw_atl_fw1x_deinit(struct aq_hw_s *self)
 	return 0;
 }
 
-int hw_atl_utils_hw_set_power(struct aq_hw_s *self,
-			      unsigned int power_state)
-{
-	hw_atl_utils_mpi_set_speed(self, 0);
-	hw_atl_utils_mpi_set_state(self, MPI_POWER);
-	return 0;
-}
-
 int hw_atl_utils_update_stats(struct aq_hw_s *self)
 {
 	struct hw_aq_atl_utils_mbox mbox;
@@ -839,6 +831,81 @@ int hw_atl_utils_get_fw_version(struct aq_hw_s *self, u32 *fw_version)
 	return 0;
 }
 
+static int aq_fw1x_set_wol(struct aq_hw_s *self, bool wol_enabled, u8 *mac)
+{
+	struct hw_aq_atl_utils_fw_rpc *prpc = NULL;
+	unsigned int rpc_size = 0U;
+	int err = 0;
+
+	err = hw_atl_utils_fw_rpc_wait(self, &prpc);
+	if (err < 0)
+		goto err_exit;
+
+	memset(prpc, 0, sizeof(*prpc));
+
+	if (wol_enabled) {
+		rpc_size = sizeof(prpc->msg_id) + sizeof(prpc->msg_wol);
+
+		prpc->msg_id = HAL_ATLANTIC_UTILS_FW_MSG_WOL_ADD;
+		prpc->msg_wol.priority =
+				HAL_ATLANTIC_UTILS_FW_MSG_WOL_PRIOR;
+		prpc->msg_wol.pattern_id =
+				HAL_ATLANTIC_UTILS_FW_MSG_WOL_PATTERN;
+		prpc->msg_wol.wol_packet_type =
+				HAL_ATLANTIC_UTILS_FW_MSG_WOL_MAG_PKT;
+
+		ether_addr_copy((u8 *)&prpc->msg_wol.wol_pattern, mac);
+	} else {
+		rpc_size = sizeof(prpc->msg_id) + sizeof(prpc->msg_del_id);
+
+		prpc->msg_id = HAL_ATLANTIC_UTILS_FW_MSG_WOL_DEL;
+		prpc->msg_wol.pattern_id =
+				HAL_ATLANTIC_UTILS_FW_MSG_WOL_PATTERN;
+	}
+
+	err = hw_atl_utils_fw_rpc_call(self, rpc_size);
+
+err_exit:
+	return err;
+}
+
+int aq_fw1x_set_power(struct aq_hw_s *self, unsigned int power_state,
+		      u8 *mac)
+{
+	struct hw_aq_atl_utils_fw_rpc *prpc = NULL;
+	unsigned int rpc_size = 0U;
+	int err = 0;
+
+	if (self->aq_nic_cfg->wol & AQ_NIC_WOL_ENABLED) {
+		err = aq_fw1x_set_wol(self, 1, mac);
+
+		if (err < 0)
+			goto err_exit;
+
+		rpc_size = sizeof(prpc->msg_id) +
+			   sizeof(prpc->msg_enable_wakeup);
+
+		err = hw_atl_utils_fw_rpc_wait(self, &prpc);
+
+		if (err < 0)
+			goto err_exit;
+
+		memset(prpc, 0, rpc_size);
+
+		prpc->msg_id = HAL_ATLANTIC_UTILS_FW_MSG_ENABLE_WAKEUP;
+		prpc->msg_enable_wakeup.pattern_mask = 0x00000002;
+
+		err = hw_atl_utils_fw_rpc_call(self, rpc_size);
+		if (err < 0)
+			goto err_exit;
+	}
+	hw_atl_utils_mpi_set_speed(self, 0);
+	hw_atl_utils_mpi_set_state(self, MPI_POWER);
+
+err_exit:
+	return err;
+}
+
 const struct aq_fw_ops aq_fw_1x_ops = {
 	.init = hw_atl_utils_mpi_create,
 	.deinit = hw_atl_fw1x_deinit,
@@ -848,5 +915,6 @@ const struct aq_fw_ops aq_fw_1x_ops = {
 	.set_state = hw_atl_utils_mpi_set_state,
 	.update_link_status = hw_atl_utils_mpi_get_link_status,
 	.update_stats = hw_atl_utils_update_stats,
+	.set_power = aq_fw1x_set_power,
 	.set_flow_control = NULL,
 };

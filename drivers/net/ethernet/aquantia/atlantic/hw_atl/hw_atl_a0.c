@@ -877,7 +877,6 @@ static int hw_atl_a0_hw_ring_rx_stop(struct aq_hw_s *self,
 const struct aq_hw_ops hw_atl_ops_a0 = {
 	.hw_set_mac_address   = hw_atl_a0_hw_mac_addr_set,
 	.hw_init              = hw_atl_a0_hw_init,
-	.hw_set_power         = hw_atl_utils_hw_set_power,
 	.hw_reset             = hw_atl_a0_hw_reset,
 	.hw_start             = hw_atl_a0_hw_start,
 	.hw_ring_tx_start     = hw_atl_a0_hw_ring_tx_start,
