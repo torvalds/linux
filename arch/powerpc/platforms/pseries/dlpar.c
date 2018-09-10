@@ -32,8 +32,6 @@ static struct workqueue_struct *pseries_hp_wq;
 struct pseries_hp_work {
 	struct work_struct work;
 	struct pseries_hp_errorlog *errlog;
-	struct completion *hp_completion;
-	int *rc;
 };
 
 struct cc_workarea {
@@ -329,7 +327,7 @@ int dlpar_release_drc(u32 drc_index)
 	return 0;
 }
 
-static int handle_dlpar_errorlog(struct pseries_hp_errorlog *hp_elog)
+int handle_dlpar_errorlog(struct pseries_hp_errorlog *hp_elog)
 {
 	int rc;
 
@@ -371,20 +369,13 @@ static void pseries_hp_work_fn(struct work_struct *work)
 	struct pseries_hp_work *hp_work =
 			container_of(work, struct pseries_hp_work, work);
 
-	if (hp_work->rc)
-		*(hp_work->rc) = handle_dlpar_errorlog(hp_work->errlog);
-	else
-		handle_dlpar_errorlog(hp_work->errlog);
-
-	if (hp_work->hp_completion)
-		complete(hp_work->hp_completion);
+	handle_dlpar_errorlog(hp_work->errlog);
 
 	kfree(hp_work->errlog);
 	kfree((void *)work);
 }
 
-void queue_hotplug_event(struct pseries_hp_errorlog *hp_errlog,
-			 struct completion *hotplug_done, int *rc)
+void queue_hotplug_event(struct pseries_hp_errorlog *hp_errlog)
 {
 	struct pseries_hp_work *work;
 	struct pseries_hp_errorlog *hp_errlog_copy;
@@ -397,13 +388,9 @@ void queue_hotplug_event(struct pseries_hp_errorlog *hp_errlog,
 	if (work) {
 		INIT_WORK((struct work_struct *)work, pseries_hp_work_fn);
 		work->errlog = hp_errlog_copy;
-		work->hp_completion = hotplug_done;
-		work->rc = rc;
 		queue_work(pseries_hp_wq, (struct work_struct *)work);
 	} else {
-		*rc = -ENOMEM;
 		kfree(hp_errlog_copy);
-		complete(hotplug_done);
 	}
 }
 
@@ -521,18 +508,15 @@ static int dlpar_parse_id_type(char **cmd, struct pseries_hp_errorlog *hp_elog)
 static ssize_t dlpar_store(struct class *class, struct class_attribute *attr,
 			   const char *buf, size_t count)
 {
-	struct pseries_hp_errorlog *hp_elog;
-	struct completion hotplug_done;
+	struct pseries_hp_errorlog hp_elog;
 	char *argbuf;
 	char *args;
 	int rc;
 
 	args = argbuf = kstrdup(buf, GFP_KERNEL);
-	hp_elog = kzalloc(sizeof(*hp_elog), GFP_KERNEL);
-	if (!hp_elog || !argbuf) {
+	if (!argbuf) {
 		pr_info("Could not allocate resources for DLPAR operation\n");
 		kfree(argbuf);
-		kfree(hp_elog);
 		return -ENOMEM;
 	}
 
@@ -540,25 +524,22 @@ static ssize_t dlpar_store(struct class *class, struct class_attribute *attr,
 	 * Parse out the request from the user, this will be in the form:
 	 * <resource> <action> <id_type> <id>
 	 */
-	rc = dlpar_parse_resource(&args, hp_elog);
+	rc = dlpar_parse_resource(&args, &hp_elog);
 	if (rc)
 		goto dlpar_store_out;
 
-	rc = dlpar_parse_action(&args, hp_elog);
+	rc = dlpar_parse_action(&args, &hp_elog);
 	if (rc)
 		goto dlpar_store_out;
 
-	rc = dlpar_parse_id_type(&args, hp_elog);
+	rc = dlpar_parse_id_type(&args, &hp_elog);
 	if (rc)
 		goto dlpar_store_out;
 
-	init_completion(&hotplug_done);
-	queue_hotplug_event(hp_elog, &hotplug_done, &rc);
-	wait_for_completion(&hotplug_done);
+	rc = handle_dlpar_errorlog(&hp_elog);
 
 dlpar_store_out:
 	kfree(argbuf);
-	kfree(hp_elog);
 
 	if (rc)
 		pr_err("Could not handle DLPAR request \"%s\"\n", buf);

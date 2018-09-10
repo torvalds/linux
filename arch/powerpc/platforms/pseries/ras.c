@@ -334,7 +334,7 @@ static irqreturn_t ras_hotplug_interrupt(int irq, void *dev_id)
 	 */
 	if (hp_elog->resource == PSERIES_HP_ELOG_RESOURCE_MEM ||
 	    hp_elog->resource == PSERIES_HP_ELOG_RESOURCE_CPU)
-		queue_hotplug_event(hp_elog, NULL, NULL);
+		queue_hotplug_event(hp_elog);
 	else
 		log_error(ras_log_buf, ERR_TYPE_RTAS_LOG, 0);
 
