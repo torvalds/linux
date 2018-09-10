@@ -328,6 +328,8 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 		ip_tunnel_rcv(tunnel, skb, tpi, tun_dst, log_ecn_error);
 		return PACKET_RCVD;
 	}
+	return PACKET_REJECT;
+
 drop:
 	kfree_skb(skb);
 	return PACKET_RCVD;
