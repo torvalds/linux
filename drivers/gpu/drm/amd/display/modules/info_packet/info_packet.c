@@ -48,9 +48,12 @@ static void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 	unsigned int i;
 	unsigned int pixelEncoding = 0;
 	unsigned int colorimetryFormat = 0;
+	bool stereo3dSupport = false;
 
-	if (stream->timing.timing_3d_format != TIMING_3D_FORMAT_NONE && stream->view_format != VIEW_3D_FORMAT_NONE)
+	if (stream->timing.timing_3d_format != TIMING_3D_FORMAT_NONE && stream->view_format != VIEW_3D_FORMAT_NONE) {
 		vscPacketRevision = 1;
+		stereo3dSupport = true;
+	}
 
 	/*VSC packet set to 2 when DP revision >= 1.2*/
 	if (stream->psr_version != 0)
@@ -94,10 +97,57 @@ static void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		info_packet->hb2 = 0x01;	// 01h = Revision number. VSC SDP supporting 3D stereo only
 		info_packet->hb3 = 0x01;	// 01h = VSC SDP supporting 3D stereo only (HB2 = 01h).
 
-		if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_INBAND_FA)
-			info_packet->sb[0] = 0x1;
-
 		info_packet->valid = true;
+	}
+
+	if (stereo3dSupport) {
+		/* ==============================================================================================================|
+		 * A. STEREO 3D
+		 * ==============================================================================================================|
+		 * VSC Payload (1 byte) From DP1.2 spec
+		 *
+		 * Bits 3:0 (Stereo Interface Method Code)  |  Bits 7:4 (Stereo Interface Method Specific Parameter)
+		 * -----------------------------------------------------------------------------------------------------
+		 * 0 = Non Stereo Video                     |  Must be set to 0x0
+		 * -----------------------------------------------------------------------------------------------------
+		 * 1 = Frame/Field Sequential               |  0x0: L + R view indication based on MISC1 bit 2:1
+		 *                                          |  0x1: Right when Stereo Signal = 1
+		 *                                          |  0x2: Left when Stereo Signal = 1
+		 *                                          |  (others reserved)
+		 * -----------------------------------------------------------------------------------------------------
+		 * 2 = Stacked Frame                        |  0x0: Left view is on top and right view on bottom
+		 *                                          |  (others reserved)
+		 * -----------------------------------------------------------------------------------------------------
+		 * 3 = Pixel Interleaved                    |  0x0: horiz interleaved, right view pixels on even lines
+		 *                                          |  0x1: horiz interleaved, right view pixels on odd lines
+		 *                                          |  0x2: checker board, start with left view pixel
+		 *                                          |  0x3: vertical interleaved, start with left view pixels
+		 *                                          |  0x4: vertical interleaved, start with right view pixels
+		 *                                          |  (others reserved)
+		 * -----------------------------------------------------------------------------------------------------
+		 * 4 = Side-by-side                         |  0x0: left half represents left eye view
+		 *                                          |  0x1: left half represents right eye view
+		 */
+		switch (stream->timing.timing_3d_format) {
+		case TIMING_3D_FORMAT_HW_FRAME_PACKING:
+		case TIMING_3D_FORMAT_SW_FRAME_PACKING:
+		case TIMING_3D_FORMAT_TOP_AND_BOTTOM:
+		case TIMING_3D_FORMAT_TB_SW_PACKED:
+			info_packet->sb[0] = 0x02; // Stacked Frame, Left view is on top and right view on bottom.
+			break;
+		case TIMING_3D_FORMAT_DP_HDMI_INBAND_FA:
+		case TIMING_3D_FORMAT_INBAND_FA:
+			info_packet->sb[0] = 0x01; // Frame/Field Sequential, L + R view indication based on MISC1 bit 2:1
+			break;
+		case TIMING_3D_FORMAT_SIDE_BY_SIDE:
+		case TIMING_3D_FORMAT_SBS_SW_PACKED:
+			info_packet->sb[0] = 0x04; // Side-by-side
+			break;
+		default:
+			info_packet->sb[0] = 0x00; // No Stereo Video, Shall be cleared to 0x0.
+			break;
+		}
+
 	}
 
 	/* 05h = VSC SDP supporting 3D stereo, PSR2, and Pixel Encoding/Colorimetry Format indication.
