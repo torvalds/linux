@@ -445,14 +445,14 @@ lpfc_find_vport_by_did(struct lpfc_hba *phba, uint32_t did) {
 	struct lpfc_vport *vport_curr;
 	unsigned long flags;
 
-	spin_lock_irqsave(&phba->hbalock, flags);
+	spin_lock_irqsave(&phba->port_list_lock, flags);
 	list_for_each_entry(vport_curr, &phba->port_list, listentry) {
 		if ((vport_curr->fc_myDID) && (vport_curr->fc_myDID == did)) {
-			spin_unlock_irqrestore(&phba->hbalock, flags);
+			spin_unlock_irqrestore(&phba->port_list_lock, flags);
 			return vport_curr;
 		}
 	}
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock_irqrestore(&phba->port_list_lock, flags);
 	return NULL;
 }
 

@@ -964,6 +964,7 @@ struct lpfc_hba {
 	uint32_t intr_mode;
 #define LPFC_INTR_ERROR	0xFFFFFFFF
 	struct list_head port_list;
+	spinlock_t port_list_lock;	/* lock for port_list mutations */
 	struct lpfc_vport *pport;	/* physical lpfc_vport pointer */
 	uint16_t max_vpi;		/* Maximum virtual nports */
 #define LPFC_MAX_VPI 0xFFFF		/* Max number of VPI supported */
