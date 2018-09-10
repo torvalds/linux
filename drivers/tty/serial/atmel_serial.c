@@ -193,8 +193,7 @@ static struct console atmel_console;
 
 #if defined(CONFIG_OF)
 static const struct of_device_id atmel_serial_dt_ids[] = {
-	{ .compatible = "atmel,at91rm9200-usart" },
-	{ .compatible = "atmel,at91sam9260-usart" },
+	{ .compatible = "atmel,at91rm9200-usart-serial" },
 	{ /* sentinel */ }
 };
 #endif
@@ -915,6 +914,7 @@ static void atmel_tx_dma(struct uart_port *port)
 static int atmel_prepare_tx_dma(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	struct device *mfd_dev = port->dev->parent;
 	dma_cap_mask_t		mask;
 	struct dma_slave_config config;
 	int ret, nent;
@@ -922,7 +922,7 @@ static int atmel_prepare_tx_dma(struct uart_port *port)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	atmel_port->chan_tx = dma_request_slave_channel(port->dev, "tx");
+	atmel_port->chan_tx = dma_request_slave_channel(mfd_dev, "tx");
 	if (atmel_port->chan_tx == NULL)
 		goto chan_err;
 	dev_info(port->dev, "using %s for tx DMA transfers\n",
@@ -1093,6 +1093,7 @@ static void atmel_rx_from_dma(struct uart_port *port)
 static int atmel_prepare_rx_dma(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	struct device *mfd_dev = port->dev->parent;
 	struct dma_async_tx_descriptor *desc;
 	dma_cap_mask_t		mask;
 	struct dma_slave_config config;
@@ -1104,7 +1105,7 @@ static int atmel_prepare_rx_dma(struct uart_port *port)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_CYCLIC, mask);
 
-	atmel_port->chan_rx = dma_request_slave_channel(port->dev, "rx");
+	atmel_port->chan_rx = dma_request_slave_channel(mfd_dev, "rx");
 	if (atmel_port->chan_rx == NULL)
 		goto chan_err;
 	dev_info(port->dev, "using %s for rx DMA transfers\n",
@@ -2222,8 +2223,8 @@ static const char *atmel_type(struct uart_port *port)
  */
 static void atmel_release_port(struct uart_port *port)
 {
-	struct platform_device *pdev = to_platform_device(port->dev);
-	int size = pdev->resource[0].end - pdev->resource[0].start + 1;
+	struct platform_device *mpdev = to_platform_device(port->dev->parent);
+	int size = resource_size(mpdev->resource);
 
 	release_mem_region(port->mapbase, size);
 
@@ -2238,8 +2239,8 @@ static void atmel_release_port(struct uart_port *port)
  */
 static int atmel_request_port(struct uart_port *port)
 {
-	struct platform_device *pdev = to_platform_device(port->dev);
-	int size = pdev->resource[0].end - pdev->resource[0].start + 1;
+	struct platform_device *mpdev = to_platform_device(port->dev->parent);
+	int size = resource_size(mpdev->resource);
 
 	if (!request_mem_region(port->mapbase, size, "atmel_serial"))
 		return -EBUSY;
@@ -2341,27 +2342,28 @@ static int atmel_init_port(struct atmel_uart_port *atmel_port,
 {
 	int ret;
 	struct uart_port *port = &atmel_port->uart;
+	struct platform_device *mpdev = to_platform_device(pdev->dev.parent);
 
 	atmel_init_property(atmel_port, pdev);
 	atmel_set_ops(port);
 
-	uart_get_rs485_mode(&pdev->dev, &port->rs485);
+	uart_get_rs485_mode(&mpdev->dev, &port->rs485);
 
 	port->iotype		= UPIO_MEM;
 	port->flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP;
 	port->ops		= &atmel_pops;
 	port->fifosize		= 1;
 	port->dev		= &pdev->dev;
-	port->mapbase	= pdev->resource[0].start;
-	port->irq	= pdev->resource[1].start;
+	port->mapbase		= mpdev->resource[0].start;
+	port->irq		= mpdev->resource[1].start;
 	port->rs485_config	= atmel_config_rs485;
-	port->membase	= NULL;
+	port->membase		= NULL;
 
 	memset(&atmel_port->rx_ring, 0, sizeof(atmel_port->rx_ring));
 
 	/* for console, the clock could already be configured */
 	if (!atmel_port->clk) {
-		atmel_port->clk = clk_get(&pdev->dev, "usart");
+		atmel_port->clk = clk_get(&mpdev->dev, "usart");
 		if (IS_ERR(atmel_port->clk)) {
 			ret = PTR_ERR(atmel_port->clk);
 			atmel_port->clk = NULL;
@@ -2694,12 +2696,21 @@ static void atmel_serial_probe_fifos(struct atmel_uart_port *atmel_port,
 static int atmel_serial_probe(struct platform_device *pdev)
 {
 	struct atmel_uart_port *atmel_port;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = pdev->dev.parent->of_node;
 	void *data;
 	int ret = -ENODEV;
 	bool rs485_enabled;
 
 	BUILD_BUG_ON(ATMEL_SERIAL_RINGSIZE & (ATMEL_SERIAL_RINGSIZE - 1));
+
+	/*
+	 * In device tree there is no node with "atmel,at91rm9200-usart-serial"
+	 * as compatible string. This driver is probed by at91-usart mfd driver
+	 * which is just a wrapper over the atmel_serial driver and
+	 * spi-at91-usart driver. All attributes needed by this driver are
+	 * found in of_node of parent.
+	 */
+	pdev->dev.of_node = np;
 
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0)
@@ -2836,6 +2847,7 @@ static int atmel_serial_remove(struct platform_device *pdev)
 
 	clk_put(atmel_port->clk);
 	atmel_port->clk = NULL;
+	pdev->dev.of_node = NULL;
 
 	return ret;
 }
@@ -2846,7 +2858,7 @@ static struct platform_driver atmel_serial_driver = {
 	.suspend	= atmel_serial_suspend,
 	.resume		= atmel_serial_resume,
 	.driver		= {
-		.name			= "atmel_usart",
+		.name			= "atmel_usart_serial",
 		.of_match_table		= of_match_ptr(atmel_serial_dt_ids),
 	},
 };
