@@ -675,7 +675,6 @@ static int reserve_bo_and_vm(struct kgd_mem *mem,
 	if (!ctx->vm_pd)
 		return -ENOMEM;
 
-	ctx->kfd_bo.robj = bo;
 	ctx->kfd_bo.priority = 0;
 	ctx->kfd_bo.tv.bo = &bo->tbo;
 	ctx->kfd_bo.tv.shared = true;
@@ -740,7 +739,6 @@ static int reserve_bo_and_cond_vms(struct kgd_mem *mem,
 			return -ENOMEM;
 	}
 
-	ctx->kfd_bo.robj = bo;
 	ctx->kfd_bo.priority = 0;
 	ctx->kfd_bo.tv.bo = &bo->tbo;
 	ctx->kfd_bo.tv.shared = true;

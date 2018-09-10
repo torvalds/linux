@@ -593,9 +593,8 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 			 struct list_head *validated,
 			 struct amdgpu_bo_list_entry *entry)
 {
-	entry->robj = vm->root.base.bo;
 	entry->priority = 0;
-	entry->tv.bo = &entry->robj->tbo;
+	entry->tv.bo = &vm->root.base.bo->tbo;
 	entry->tv.shared = true;
 	entry->user_pages = NULL;
 	list_add(&entry->tv.head, validated);
