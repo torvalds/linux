@@ -76,8 +76,7 @@ MODULE_PARM_DESC(sdma_comp_size, "Size of User SDMA completion ring. Default: 12
 
 static unsigned initial_pkt_count = 8;
 
-static int user_sdma_send_pkts(struct user_sdma_request *req,
-			       unsigned maxpkts);
+static int user_sdma_send_pkts(struct user_sdma_request *req, u16 maxpkts);
 static void user_sdma_txreq_cb(struct sdma_txreq *txreq, int status);
 static inline void pq_update(struct hfi1_user_sdma_pkt_q *pq);
 static void user_sdma_free_request(struct user_sdma_request *req, bool unpin);
@@ -756,9 +755,10 @@ static int user_sdma_txadd(struct user_sdma_request *req,
 	return ret;
 }
 
-static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
+static int user_sdma_send_pkts(struct user_sdma_request *req, u16 maxpkts)
 {
-	int ret = 0, count;
+	int ret = 0;
+	u16 count;
 	unsigned npkts = 0;
 	struct user_sdma_txreq *tx = NULL;
 	struct hfi1_user_sdma_pkt_q *pq = NULL;
