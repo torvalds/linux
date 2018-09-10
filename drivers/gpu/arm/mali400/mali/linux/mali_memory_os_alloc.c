@@ -8,6 +8,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include "../platform/rk/custom_log.h"
+
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/mm_types.h>
@@ -200,7 +202,7 @@ int mali_mem_os_alloc_pages(mali_mem_os_mem *os_mem, u32 size)
 	/* Allocate new pages, if needed. */
 	for (i = 0; i < remaining; i++) {
 		dma_addr_t dma_addr;
-		gfp_t flags = __GFP_ZERO | __GFP_REPEAT | __GFP_NOWARN | __GFP_COLD;
+		gfp_t flags = __GFP_ZERO | GFP_HIGHUSER;
 		int err;
 
 #if defined(CONFIG_ARM) && !defined(CONFIG_ARM_LPAE)
@@ -210,7 +212,6 @@ int mali_mem_os_alloc_pages(mali_mem_os_mem *os_mem, u32 size)
 		flags |= GFP_DMA32;
 #else
 #ifdef CONFIG_ZONE_DMA
-		flags |= GFP_DMA;
 #else
 		/* arm64 utgard only work on < 4G, but the kernel
 		 * didn't provide method to allocte memory < 4G
@@ -223,6 +224,7 @@ int mali_mem_os_alloc_pages(mali_mem_os_mem *os_mem, u32 size)
 		new_page = alloc_page(flags);
 
 		if (unlikely(NULL == new_page)) {
+			E("err.");
 			/* Calculate the number of pages actually allocated, and free them. */
 			os_mem->count = (page_count - remaining) + i;
 			atomic_add(os_mem->count, &mali_mem_os_allocator.allocated_pages);
