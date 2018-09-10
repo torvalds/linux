@@ -6013,6 +6013,8 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	i9xx_set_pipeconf(intel_crtc);
 
+	intel_color_set_csc(&pipe_config->base);
+
 	intel_crtc->active = true;
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
