@@ -982,16 +982,6 @@ static int ovl_get_upper(struct ovl_fs *ofs, struct path *upperpath)
 	if (err)
 		goto out;
 
-	err = -EBUSY;
-	if (ovl_inuse_trylock(upperpath->dentry)) {
-		ofs->upperdir_locked = true;
-	} else if (ofs->config.index) {
-		pr_err("overlayfs: upperdir is in-use by another mount, mount with '-o index=off' to override exclusive upperdir protection.\n");
-		goto out;
-	} else {
-		pr_warn("overlayfs: upperdir is in-use by another mount, accessing files from both mounts will result in undefined behavior.\n");
-	}
-
 	upper_mnt = clone_private_mount(upperpath);
 	err = PTR_ERR(upper_mnt);
 	if (IS_ERR(upper_mnt)) {
@@ -1002,6 +992,17 @@ static int ovl_get_upper(struct ovl_fs *ofs, struct path *upperpath)
 	/* Don't inherit atime flags */
 	upper_mnt->mnt_flags &= ~(MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME);
 	ofs->upper_mnt = upper_mnt;
+
+	err = -EBUSY;
+	if (ovl_inuse_trylock(ofs->upper_mnt->mnt_root)) {
+		ofs->upperdir_locked = true;
+	} else if (ofs->config.index) {
+		pr_err("overlayfs: upperdir is in-use by another mount, mount with '-o index=off' to override exclusive upperdir protection.\n");
+		goto out;
+	} else {
+		pr_warn("overlayfs: upperdir is in-use by another mount, accessing files from both mounts will result in undefined behavior.\n");
+	}
+
 	err = 0;
 out:
 	return err;
@@ -1101,8 +1102,10 @@ static int ovl_get_workdir(struct ovl_fs *ofs, struct path *upperpath)
 		goto out;
 	}
 
+	ofs->workbasedir = dget(workpath.dentry);
+
 	err = -EBUSY;
-	if (ovl_inuse_trylock(workpath.dentry)) {
+	if (ovl_inuse_trylock(ofs->workbasedir)) {
 		ofs->workdir_locked = true;
 	} else if (ofs->config.index) {
 		pr_err("overlayfs: workdir is in-use by another mount, mount with '-o index=off' to override exclusive workdir protection.\n");
@@ -1111,7 +1114,6 @@ static int ovl_get_workdir(struct ovl_fs *ofs, struct path *upperpath)
 		pr_warn("overlayfs: workdir is in-use by another mount, accessing files from both mounts will result in undefined behavior.\n");
 	}
 
-	ofs->workbasedir = dget(workpath.dentry);
 	err = ovl_make_workdir(ofs, &workpath);
 	if (err)
 		goto out;
