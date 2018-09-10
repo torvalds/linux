@@ -42,8 +42,6 @@
 #define DEVICE_TYPE_EFP3   0x20
 #define DEVICE_TYPE_EFP4   0x10
 
-#define DEV_SIZE	38
-
 struct opregion_header {
 	u8 signature[16];
 	u32 size;
@@ -63,6 +61,10 @@ struct bdb_data_header {
 	u16 size; /* data size */
 } __packed;
 
+/* For supporting windows guest with opregion, here hardcode the emulated
+ * bdb header version as '186', and the corresponding child_device_config
+ * length should be '33' but not '38'.
+ */
 struct efp_child_device_config {
 	u16 handle;
 	u16 device_type;
@@ -109,12 +111,6 @@ struct efp_child_device_config {
 	u8 mipi_bridge_type; /* 171 */
 	u16 device_class_ext;
 	u8 dvo_function;
-	u8 dp_usb_type_c:1; /* 195 */
-	u8 skip6:7;
-	u8 dp_usb_type_c_2x_gpio_index; /* 195 */
-	u16 dp_usb_type_c_2x_gpio_pin; /* 195 */
-	u8 iboost_dp:4; /* 196 */
-	u8 iboost_hdmi:4; /* 196 */
 } __packed;
 
 struct vbt {
@@ -155,7 +151,7 @@ static void virt_vbt_generation(struct vbt *v)
 	v->header.bdb_offset = offsetof(struct vbt, bdb_header);
 
 	strcpy(&v->bdb_header.signature[0], "BIOS_DATA_BLOCK");
-	v->bdb_header.version = 186; /* child_dev_size = 38 */
+	v->bdb_header.version = 186; /* child_dev_size = 33 */
 	v->bdb_header.header_size = sizeof(v->bdb_header);
 
 	v->bdb_header.bdb_size = sizeof(struct vbt) - sizeof(struct vbt_header)
@@ -169,11 +165,13 @@ static void virt_vbt_generation(struct vbt *v)
 
 	/* child device */
 	num_child = 4; /* each port has one child */
+	v->general_definitions.child_dev_size =
+		sizeof(struct efp_child_device_config);
 	v->general_definitions_header.id = BDB_GENERAL_DEFINITIONS;
 	/* size will include child devices */
 	v->general_definitions_header.size =
-		sizeof(struct bdb_general_definitions) + num_child * DEV_SIZE;
-	v->general_definitions.child_dev_size = DEV_SIZE;
+		sizeof(struct bdb_general_definitions) +
+			num_child * v->general_definitions.child_dev_size;
 
 	/* portA */
 	v->child0.handle = DEVICE_TYPE_EFP1;
