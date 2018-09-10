@@ -648,6 +648,12 @@ struct nbio_hdp_flush_reg {
 	u32 ref_and_mask_cp9;
 	u32 ref_and_mask_sdma0;
 	u32 ref_and_mask_sdma1;
+	u32 ref_and_mask_sdma2;
+	u32 ref_and_mask_sdma3;
+	u32 ref_and_mask_sdma4;
+	u32 ref_and_mask_sdma5;
+	u32 ref_and_mask_sdma6;
+	u32 ref_and_mask_sdma7;
 };
 
 struct amdgpu_mmio_remap {
