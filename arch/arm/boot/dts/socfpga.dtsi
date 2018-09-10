@@ -849,6 +849,8 @@
 			reg = <0xffc08000 0x1000>;
 			clocks = <&l4_sp_clk>;
 			clock-names = "timer";
+			resets = <&rst SPTIMER0_RESET>;
+			reset-names = "timer";
 		};
 
 		timer1: timer1@ffc09000 {
@@ -857,6 +859,8 @@
 			reg = <0xffc09000 0x1000>;
 			clocks = <&l4_sp_clk>;
 			clock-names = "timer";
+			resets = <&rst SPTIMER1_RESET>;
+			reset-names = "timer";
 		};
 
 		timer2: timer2@ffd00000 {
@@ -865,6 +869,8 @@
 			reg = <0xffd00000 0x1000>;
 			clocks = <&osc1>;
 			clock-names = "timer";
+			resets = <&rst OSC1TIMER0_RESET>;
+			reset-names = "timer";
 		};
 
 		timer3: timer3@ffd01000 {
@@ -873,6 +879,8 @@
 			reg = <0xffd01000 0x1000>;
 			clocks = <&osc1>;
 			clock-names = "timer";
+			resets = <&rst OSC1TIMER1_RESET>;
+			reset-names = "timer";
 		};
 
 		uart0: serial0@ffc02000 {
