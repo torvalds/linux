@@ -6,6 +6,7 @@
 
 struct file_priv {
 	struct tpm_chip *chip;
+	struct tpm_space *space;
 
 	/* Data passed to and from the tpm via the read/write calls */
 	size_t data_pending;
@@ -18,11 +19,11 @@ struct file_priv {
 };
 
 void tpm_common_open(struct file *file, struct tpm_chip *chip,
-		     struct file_priv *priv);
+		     struct file_priv *priv, struct tpm_space *space);
 ssize_t tpm_common_read(struct file *file, char __user *buf,
 			size_t size, loff_t *off);
 ssize_t tpm_common_write(struct file *file, const char __user *buf,
-			 size_t size, loff_t *off, struct tpm_space *space);
+			 size_t size, loff_t *off);
 void tpm_common_release(struct file *file, struct file_priv *priv);
 
 #endif

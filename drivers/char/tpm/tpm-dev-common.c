@@ -43,9 +43,11 @@ static void timeout_work(struct work_struct *work)
 }
 
 void tpm_common_open(struct file *file, struct tpm_chip *chip,
-		     struct file_priv *priv)
+		     struct file_priv *priv, struct tpm_space *space)
 {
 	priv->chip = chip;
+	priv->space = space;
+
 	mutex_init(&priv->buffer_mutex);
 	timer_setup(&priv->user_read_timer, user_reader_timeout, 0);
 	INIT_WORK(&priv->work, timeout_work);
@@ -79,7 +81,7 @@ ssize_t tpm_common_read(struct file *file, char __user *buf,
 }
 
 ssize_t tpm_common_write(struct file *file, const char __user *buf,
-			 size_t size, loff_t *off, struct tpm_space *space)
+			 size_t size, loff_t *off)
 {
 	struct file_priv *priv = file->private_data;
 	size_t in_size = size;
@@ -119,7 +121,7 @@ ssize_t tpm_common_write(struct file *file, const char __user *buf,
 		mutex_unlock(&priv->buffer_mutex);
 		return -EPIPE;
 	}
-	out_size = tpm_transmit(priv->chip, space, priv->data_buffer,
+	out_size = tpm_transmit(priv->chip, priv->space, priv->data_buffer,
 				sizeof(priv->data_buffer), 0);
 
 	tpm_put_ops(priv->chip);
