@@ -101,6 +101,28 @@
  *	Without this property the rectangle is only scaled, but not rotated or
  *	reflected.
  *
+ *	Possbile values:
+ *
+ *	"rotate-<degrees>":
+ *		Signals that a drm plane is rotated <degrees> degrees in counter
+ *		clockwise direction.
+ *
+ *	"reflect-<axis>":
+ *		Signals that the contents of a drm plane is reflected along the
+ *		<axis> axis, in the same way as mirroring.
+ *
+ *	reflect-x::
+ *
+ *			|o |    | o|
+ *			|  | -> |  |
+ *			| v|    |v |
+ *
+ *	reflect-y::
+ *
+ *			|o |    | ^|
+ *			|  | -> |  |
+ *			| v|    |o |
+ *
  * zpos:
  *	Z position is set up with drm_plane_create_zpos_immutable_property() and
  *	drm_plane_create_zpos_property(). It controls the visibility of overlapping
