@@ -175,12 +175,18 @@ static int device_process(struct vicodec_ctx *ctx,
 	}
 
 	if (ctx->is_enc) {
-		unsigned int size = v4l2_fwht_encode(state, p_in, p_out);
+		struct vicodec_q_data *q_out;
 
-		vb2_set_plane_payload(&out_vb->vb2_buf, 0, size);
+		q_out = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
+		state->info = q_out->info;
+		ret = v4l2_fwht_encode(state, p_in, p_out);
+		if (ret < 0)
+			return ret;
+		vb2_set_plane_payload(&out_vb->vb2_buf, 0, ret);
 	} else {
+		state->info = q_cap->info;
 		ret = v4l2_fwht_decode(state, p_in, p_out);
-		if (ret)
+		if (ret < 0)
 			return ret;
 		vb2_set_plane_payload(&out_vb->vb2_buf, 0, q_cap->sizeimage);
 	}
