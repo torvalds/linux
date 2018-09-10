@@ -112,8 +112,6 @@ struct vicodec_ctx {
 
 	struct v4l2_ctrl_handler hdl;
 
-	/* Abort requested by m2m */
-	int			aborting;
 	struct vb2_v4l2_buffer *last_src_buf;
 	struct vb2_v4l2_buffer *last_dst_buf;
 
@@ -376,14 +374,6 @@ restart:
 			ctx->comp_has_next_frame = remaining >= frame_size;
 	}
 	return 1;
-}
-
-static void job_abort(void *priv)
-{
-	struct vicodec_ctx *ctx = priv;
-
-	/* Will cancel the transaction in the next interrupt handler */
-	ctx->aborting = 1;
 }
 
 /*
@@ -1270,7 +1260,6 @@ static const struct video_device vicodec_videodev = {
 
 static const struct v4l2_m2m_ops m2m_ops = {
 	.device_run	= device_run,
-	.job_abort	= job_abort,
 	.job_ready	= job_ready,
 };
 
