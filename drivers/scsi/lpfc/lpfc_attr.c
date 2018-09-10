@@ -6641,6 +6641,16 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_sli_mode_init(phba, lpfc_sli_mode);
 	phba->cfg_enable_dss = 1;
 	lpfc_enable_mds_diags_init(phba, lpfc_enable_mds_diags);
+
+	/* If the NVME FC4 type is enabled, scale the sg_seg_cnt to
+	 * accommodate 512K and 1M IOs in a single nvme buf and supply
+	 * enough NVME LS iocb buffers for larger connectivity counts.
+	 */
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		phba->cfg_sg_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
+		phba->cfg_iocb_cnt = 5;
+	}
+
 	return;
 }
 
