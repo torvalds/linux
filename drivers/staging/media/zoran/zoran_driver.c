@@ -1510,8 +1510,8 @@ static int zoran_querycap(struct file *file, void *__fh, struct v4l2_capability 
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;
 
-	strlcpy(cap->card, ZR_DEVNAME(zr), sizeof(cap->card));
-	strlcpy(cap->driver, "zoran", sizeof(cap->driver));
+	strscpy(cap->card, ZR_DEVNAME(zr), sizeof(cap->card));
+	strscpy(cap->driver, "zoran", sizeof(cap->driver));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
 		 pci_name(zr->pci_dev));
 	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_CAPTURE |

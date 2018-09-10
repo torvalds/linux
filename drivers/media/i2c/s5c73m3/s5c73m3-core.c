@@ -1683,7 +1683,7 @@ static int s5c73m3_probe(struct i2c_client *client,
 	v4l2_subdev_init(sd, &s5c73m3_subdev_ops);
 	sd->owner = client->dev.driver->owner;
 	v4l2_set_subdevdata(sd, state);
-	strlcpy(sd->name, "S5C73M3", sizeof(sd->name));
+	strscpy(sd->name, "S5C73M3", sizeof(sd->name));
 
 	sd->internal_ops = &s5c73m3_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;

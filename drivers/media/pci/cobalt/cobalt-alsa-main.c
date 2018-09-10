@@ -65,7 +65,7 @@ static int snd_cobalt_card_set_names(struct snd_cobalt_card *cobsc)
 	struct snd_card *sc = cobsc->sc;
 
 	/* sc->driver is used by alsa-lib's configurator: simple, unique */
-	strlcpy(sc->driver, "cobalt", sizeof(sc->driver));
+	strscpy(sc->driver, "cobalt", sizeof(sc->driver));
 
 	/* sc->shortname is a symlink in /proc/asound: COBALT-M -> cardN */
 	snprintf(sc->shortname,  sizeof(sc->shortname), "cobalt-%d-%d",

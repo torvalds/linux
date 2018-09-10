@@ -504,8 +504,8 @@ xvip_dma_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS
 			  | dma->xdev->v4l2_caps;
 
-	strlcpy(cap->driver, "xilinx-vipp", sizeof(cap->driver));
-	strlcpy(cap->card, dma->video.name, sizeof(cap->card));
+	strscpy(cap->driver, "xilinx-vipp", sizeof(cap->driver));
+	strscpy(cap->card, dma->video.name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s:%u",
 		 dma->xdev->dev->of_node->name, dma->port);
 
@@ -527,7 +527,7 @@ xvip_dma_enum_format(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 		return -EINVAL;
 
 	f->pixelformat = dma->format.pixelformat;
-	strlcpy(f->description, dma->fmtinfo->description,
+	strscpy(f->description, dma->fmtinfo->description,
 		sizeof(f->description));
 
 	return 0;

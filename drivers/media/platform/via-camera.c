@@ -860,8 +860,8 @@ static int viacam_enum_fmt_vid_cap(struct file *filp, void *priv,
 {
 	if (fmt->index >= N_VIA_FMTS)
 		return -EINVAL;
-	strlcpy(fmt->description, via_formats[fmt->index].desc,
-			sizeof(fmt->description));
+	strscpy(fmt->description, via_formats[fmt->index].desc,
+		sizeof(fmt->description));
 	fmt->pixelformat = via_formats[fmt->index].pixelformat;
 	return 0;
 }

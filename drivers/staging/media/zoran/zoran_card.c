@@ -706,7 +706,7 @@ zoran_register_i2c (struct zoran *zr)
 {
 	zr->i2c_algo = zoran_i2c_bit_data_template;
 	zr->i2c_algo.data = zr;
-	strlcpy(zr->i2c_adapter.name, ZR_DEVNAME(zr),
+	strscpy(zr->i2c_adapter.name, ZR_DEVNAME(zr),
 		sizeof(zr->i2c_adapter.name));
 	i2c_set_adapdata(&zr->i2c_adapter, &zr->v4l2_dev);
 	zr->i2c_adapter.algo_data = &zr->i2c_algo;
@@ -1145,7 +1145,7 @@ static struct videocodec_master *zoran_setup_videocodec(struct zoran *zr,
 	m->type = 0;
 
 	m->flags = CODEC_FLAG_ENCODER | CODEC_FLAG_DECODER;
-	strlcpy(m->name, ZR_DEVNAME(zr), sizeof(m->name));
+	strscpy(m->name, ZR_DEVNAME(zr), sizeof(m->name));
 	m->data = zr;
 
 	switch (type)

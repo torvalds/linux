@@ -876,7 +876,7 @@ static int camss_probe(struct platform_device *pdev)
 		return ret;
 
 	camss->media_dev.dev = camss->dev;
-	strlcpy(camss->media_dev.model, "Qualcomm Camera Subsystem",
+	strscpy(camss->media_dev.model, "Qualcomm Camera Subsystem",
 		sizeof(camss->media_dev.model));
 	camss->media_dev.ops = &camss_media_ops;
 	media_device_init(&camss->media_dev);

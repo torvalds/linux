@@ -427,7 +427,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 		fmtdesc = uvc_format_by_guid(&buffer[5]);
 
 		if (fmtdesc != NULL) {
-			strlcpy(format->name, fmtdesc->name,
+			strscpy(format->name, fmtdesc->name,
 				sizeof(format->name));
 			format->fcc = fmtdesc->fcc;
 		} else {
@@ -445,7 +445,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 		 */
 		if (dev->quirks & UVC_QUIRK_FORCE_Y8) {
 			if (format->fcc == V4L2_PIX_FMT_YUYV) {
-				strlcpy(format->name, "Greyscale 8-bit (Y8  )",
+				strscpy(format->name, "Greyscale 8-bit (Y8  )",
 					sizeof(format->name));
 				format->fcc = V4L2_PIX_FMT_GREY;
 				format->bpp = 8;
@@ -471,7 +471,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 			return -EINVAL;
 		}
 
-		strlcpy(format->name, "MJPEG", sizeof(format->name));
+		strscpy(format->name, "MJPEG", sizeof(format->name));
 		format->fcc = V4L2_PIX_FMT_MJPEG;
 		format->flags = UVC_FMT_FLAG_COMPRESSED;
 		format->bpp = 0;
@@ -489,13 +489,13 @@ static int uvc_parse_format(struct uvc_device *dev,
 
 		switch (buffer[8] & 0x7f) {
 		case 0:
-			strlcpy(format->name, "SD-DV", sizeof(format->name));
+			strscpy(format->name, "SD-DV", sizeof(format->name));
 			break;
 		case 1:
-			strlcpy(format->name, "SDL-DV", sizeof(format->name));
+			strscpy(format->name, "SDL-DV", sizeof(format->name));
 			break;
 		case 2:
-			strlcpy(format->name, "HD-DV", sizeof(format->name));
+			strscpy(format->name, "HD-DV", sizeof(format->name));
 			break;
 		default:
 			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming "
@@ -1932,7 +1932,7 @@ int uvc_register_video_device(struct uvc_device *dev,
 		break;
 	}
 
-	strlcpy(vdev->name, dev->name, sizeof(vdev->name));
+	strscpy(vdev->name, dev->name, sizeof(vdev->name));
 
 	/*
 	 * Set the driver data before calling video_register_device, otherwise
@@ -2080,7 +2080,7 @@ static int uvc_probe(struct usb_interface *intf,
 		    ? dev->info->quirks : uvc_quirks_param;
 
 	if (udev->product != NULL)
-		strlcpy(dev->name, udev->product, sizeof(dev->name));
+		strscpy(dev->name, udev->product, sizeof(dev->name));
 	else
 		snprintf(dev->name, sizeof(dev->name),
 			 "UVC Camera (%04x:%04x)",
@@ -2128,9 +2128,9 @@ static int uvc_probe(struct usb_interface *intf,
 	/* Initialize the media device and register the V4L2 device. */
 #ifdef CONFIG_MEDIA_CONTROLLER
 	dev->mdev.dev = &intf->dev;
-	strlcpy(dev->mdev.model, dev->name, sizeof(dev->mdev.model));
+	strscpy(dev->mdev.model, dev->name, sizeof(dev->mdev.model));
 	if (udev->serial)
-		strlcpy(dev->mdev.serial, udev->serial,
+		strscpy(dev->mdev.serial, udev->serial,
 			sizeof(dev->mdev.serial));
 	strcpy(dev->mdev.bus_info, udev->devpath);
 	dev->mdev.hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);

@@ -610,7 +610,7 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 		return;
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
-	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+	strscpy(info.type, "ir_video", I2C_NAME_SIZE);
 
 	switch (core->boardnr) {
 	case CX88_BOARD_LEADTEK_PVR2000:
@@ -635,7 +635,7 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 
 		if (*addrp == 0x71) {
 			/* Hauppauge Z8F0811 */
-			strlcpy(info.type, "ir_z8f0811_haup", I2C_NAME_SIZE);
+			strscpy(info.type, "ir_z8f0811_haup", I2C_NAME_SIZE);
 			core->init_data.name = core->board.name;
 			core->init_data.ir_codes = RC_MAP_HAUPPAUGE;
 			core->init_data.type = RC_PROTO_BIT_RC5 |

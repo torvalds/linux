@@ -1408,8 +1408,8 @@ static int vpfe_querycap(struct file *file, void  *priv,
 
 	vpfe_dbg(2, vpfe, "vpfe_querycap\n");
 
-	strlcpy(cap->driver, VPFE_MODULE_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, "TI AM437x VPFE", sizeof(cap->card));
+	strscpy(cap->driver, VPFE_MODULE_NAME, sizeof(cap->driver));
+	strscpy(cap->card, "TI AM437x VPFE", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 			"platform:%s", vpfe->v4l2_dev.name);
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
@@ -2386,7 +2386,7 @@ static int vpfe_probe_complete(struct vpfe_device *vpfe)
 	INIT_LIST_HEAD(&vpfe->dma_queue);
 
 	vdev = &vpfe->video_dev;
-	strlcpy(vdev->name, VPFE_MODULE_NAME, sizeof(vdev->name));
+	strscpy(vdev->name, VPFE_MODULE_NAME, sizeof(vdev->name));
 	vdev->release = video_device_release_empty;
 	vdev->fops = &vpfe_fops;
 	vdev->ioctl_ops = &vpfe_ioctl_ops;

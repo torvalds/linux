@@ -498,14 +498,14 @@ static int imx_media_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, imxmd);
 
-	strlcpy(imxmd->md.model, "imx-media", sizeof(imxmd->md.model));
+	strscpy(imxmd->md.model, "imx-media", sizeof(imxmd->md.model));
 	imxmd->md.ops = &imx_media_md_ops;
 	imxmd->md.dev = dev;
 
 	mutex_init(&imxmd->mutex);
 
 	imxmd->v4l2_dev.mdev = &imxmd->md;
-	strlcpy(imxmd->v4l2_dev.name, "imx-media",
+	strscpy(imxmd->v4l2_dev.name, "imx-media",
 		sizeof(imxmd->v4l2_dev.name));
 
 	media_device_init(&imxmd->md);

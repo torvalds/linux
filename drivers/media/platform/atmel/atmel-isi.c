@@ -655,9 +655,9 @@ static int isi_enum_fmt_vid_cap(struct file *file, void  *priv,
 static int isi_querycap(struct file *file, void *priv,
 			struct v4l2_capability *cap)
 {
-	strlcpy(cap->driver, "atmel-isi", sizeof(cap->driver));
-	strlcpy(cap->card, "Atmel Image Sensor Interface", sizeof(cap->card));
-	strlcpy(cap->bus_info, "platform:isi", sizeof(cap->bus_info));
+	strscpy(cap->driver, "atmel-isi", sizeof(cap->driver));
+	strscpy(cap->card, "Atmel Image Sensor Interface", sizeof(cap->card));
+	strscpy(cap->bus_info, "platform:isi", sizeof(cap->bus_info));
 	return 0;
 }
 
@@ -668,7 +668,7 @@ static int isi_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
-	strlcpy(i->name, "Camera", sizeof(i->name));
+	strscpy(i->name, "Camera", sizeof(i->name));
 	return 0;
 }
 
@@ -1202,7 +1202,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	isi->vdev->fops = &isi_fops;
 	isi->vdev->v4l2_dev = &isi->v4l2_dev;
 	isi->vdev->queue = &isi->queue;
-	strlcpy(isi->vdev->name, KBUILD_MODNAME, sizeof(isi->vdev->name));
+	strscpy(isi->vdev->name, KBUILD_MODNAME, sizeof(isi->vdev->name));
 	isi->vdev->release = video_device_release;
 	isi->vdev->ioctl_ops = &isi_ioctl_ops;
 	isi->vdev->lock = &isi->lock;

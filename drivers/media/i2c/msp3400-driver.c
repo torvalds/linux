@@ -688,7 +688,7 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 #endif
 
 	if (!id)
-		strlcpy(client->name, "msp3400", sizeof(client->name));
+		strscpy(client->name, "msp3400", sizeof(client->name));
 
 	if (msp_reset(client) == -1) {
 		dev_dbg_lvl(&client->dev, 1, msp_debug, "msp3400 not found\n");

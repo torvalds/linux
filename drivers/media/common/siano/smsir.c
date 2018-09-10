@@ -55,7 +55,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 	snprintf(coredev->ir.name, sizeof(coredev->ir.name),
 		 "SMS IR (%s)", sms_get_board(board_id)->name);
 
-	strlcpy(coredev->ir.phys, coredev->devpath, sizeof(coredev->ir.phys));
+	strscpy(coredev->ir.phys, coredev->devpath, sizeof(coredev->ir.phys));
 	strlcat(coredev->ir.phys, "/ir0", sizeof(coredev->ir.phys));
 
 	dev->device_name = coredev->ir.name;

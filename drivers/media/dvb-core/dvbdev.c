@@ -967,9 +967,9 @@ struct i2c_client *dvb_module_probe(const char *module_name,
 		return NULL;
 
 	if (name)
-		strlcpy(board_info->type, name, I2C_NAME_SIZE);
+		strscpy(board_info->type, name, I2C_NAME_SIZE);
 	else
-		strlcpy(board_info->type, module_name, I2C_NAME_SIZE);
+		strscpy(board_info->type, module_name, I2C_NAME_SIZE);
 
 	board_info->addr = addr;
 	board_info->platform_data = platform_data;

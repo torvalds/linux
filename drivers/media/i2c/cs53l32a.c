@@ -149,7 +149,7 @@ static int cs53l32a_probe(struct i2c_client *client,
 		return -EIO;
 
 	if (!id)
-		strlcpy(client->name, "cs53l32a", sizeof(client->name));
+		strscpy(client->name, "cs53l32a", sizeof(client->name));
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);

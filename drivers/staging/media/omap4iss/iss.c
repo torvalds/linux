@@ -989,7 +989,7 @@ static int iss_register_entities(struct iss_device *iss)
 	int ret;
 
 	iss->media_dev.dev = iss->dev;
-	strlcpy(iss->media_dev.model, "TI OMAP4 ISS",
+	strscpy(iss->media_dev.model, "TI OMAP4 ISS",
 		sizeof(iss->media_dev.model));
 	iss->media_dev.hw_revision = iss->revision;
 	iss->media_dev.ops = &iss_media_ops;

@@ -1354,22 +1354,22 @@ int cx231xx_g_chip_info(struct file *file, void *fh,
 	case 0:	/* Cx231xx - internal registers */
 		return 0;
 	case 1:	/* AFE - read byte */
-		strlcpy(chip->name, "AFE (byte)", sizeof(chip->name));
+		strscpy(chip->name, "AFE (byte)", sizeof(chip->name));
 		return 0;
 	case 2:	/* Video Block - read byte */
-		strlcpy(chip->name, "Video (byte)", sizeof(chip->name));
+		strscpy(chip->name, "Video (byte)", sizeof(chip->name));
 		return 0;
 	case 3:	/* I2S block - read byte */
-		strlcpy(chip->name, "I2S (byte)", sizeof(chip->name));
+		strscpy(chip->name, "I2S (byte)", sizeof(chip->name));
 		return 0;
 	case 4: /* AFE - read dword */
-		strlcpy(chip->name, "AFE (dword)", sizeof(chip->name));
+		strscpy(chip->name, "AFE (dword)", sizeof(chip->name));
 		return 0;
 	case 5: /* Video Block - read dword */
-		strlcpy(chip->name, "Video (dword)", sizeof(chip->name));
+		strscpy(chip->name, "Video (dword)", sizeof(chip->name));
 		return 0;
 	case 6: /* I2S Block - read dword */
-		strlcpy(chip->name, "I2S (dword)", sizeof(chip->name));
+		strscpy(chip->name, "I2S (dword)", sizeof(chip->name));
 		return 0;
 	}
 	return -EINVAL;
@@ -1553,8 +1553,8 @@ int cx231xx_querycap(struct file *file, void *priv,
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
 
-	strlcpy(cap->driver, "cx231xx", sizeof(cap->driver));
-	strlcpy(cap->card, cx231xx_boards[dev->model].name, sizeof(cap->card));
+	strscpy(cap->driver, "cx231xx", sizeof(cap->driver));
+	strscpy(cap->card, cx231xx_boards[dev->model].name, sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 
 	if (vdev->vfl_type == VFL_TYPE_RADIO)
@@ -1583,7 +1583,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	if (unlikely(f->index >= ARRAY_SIZE(format)))
 		return -EINVAL;
 
-	strlcpy(f->description, format[f->index].name, sizeof(f->description));
+	strscpy(f->description, format[f->index].name, sizeof(f->description));
 	f->pixelformat = format[f->index].fourcc;
 
 	return 0;

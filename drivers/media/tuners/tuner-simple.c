@@ -1130,7 +1130,7 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 				   priv->nr, dtv_input[priv->nr]);
 	}
 
-	strlcpy(fe->ops.tuner_ops.info.name, priv->tun->name,
+	strscpy(fe->ops.tuner_ops.info.name, priv->tun->name,
 		sizeof(fe->ops.tuner_ops.info.name));
 
 	return fe;

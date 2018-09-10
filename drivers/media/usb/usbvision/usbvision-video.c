@@ -467,8 +467,8 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct usb_usbvision *usbvision = video_drvdata(file);
 	struct video_device *vdev = video_devdata(file);
 
-	strlcpy(vc->driver, "USBVision", sizeof(vc->driver));
-	strlcpy(vc->card,
+	strscpy(vc->driver, "USBVision", sizeof(vc->driver));
+	strscpy(vc->card,
 		usbvision_device_data[usbvision->dev_model].model_string,
 		sizeof(vc->card));
 	usb_make_path(usbvision->dev, vc->bus_info, sizeof(vc->bus_info));

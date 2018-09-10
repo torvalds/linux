@@ -811,7 +811,7 @@ int cx88_querycap(struct file *file, struct cx88_core *core,
 {
 	struct video_device *vdev = video_devdata(file);
 
-	strlcpy(cap->card, core->board.name, sizeof(cap->card));
+	strscpy(cap->card, core->board.name, sizeof(cap->card));
 	cap->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
 	if (core->board.tuner_type != UNSET)
 		cap->device_caps |= V4L2_CAP_TUNER;
@@ -853,7 +853,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (unlikely(f->index >= ARRAY_SIZE(formats)))
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name, sizeof(f->description));
+	strscpy(f->description, formats[f->index].name, sizeof(f->description));
 	f->pixelformat = formats[f->index].fourcc;
 
 	return 0;

@@ -549,7 +549,7 @@ static int smi_dvbsky_m88ds3103_fe_attach(struct smi_port *port)
 	}
 	/* attach tuner */
 	ts2020_config.fe = port->fe;
-	strlcpy(tuner_info.type, "ts2020", I2C_NAME_SIZE);
+	strscpy(tuner_info.type, "ts2020", I2C_NAME_SIZE);
 	tuner_info.addr = 0x60;
 	tuner_info.platform_data = &ts2020_config;
 	tuner_client = smi_add_i2c_client(tuner_i2c_adapter, &tuner_info);
@@ -605,7 +605,7 @@ static int smi_dvbsky_m88rs6000_fe_attach(struct smi_port *port)
 	}
 	/* attach tuner */
 	m88rs6000t_config.fe = port->fe;
-	strlcpy(tuner_info.type, "m88rs6000t", I2C_NAME_SIZE);
+	strscpy(tuner_info.type, "m88rs6000t", I2C_NAME_SIZE);
 	tuner_info.addr = 0x21;
 	tuner_info.platform_data = &m88rs6000t_config;
 	tuner_client = smi_add_i2c_client(tuner_i2c_adapter, &tuner_info);
@@ -647,7 +647,7 @@ static int smi_dvbsky_sit2_fe_attach(struct smi_port *port)
 	si2168_config.ts_mode = SI2168_TS_PARALLEL;
 
 	memset(&client_info, 0, sizeof(struct i2c_board_info));
-	strlcpy(client_info.type, "si2168", I2C_NAME_SIZE);
+	strscpy(client_info.type, "si2168", I2C_NAME_SIZE);
 	client_info.addr = 0x64;
 	client_info.platform_data = &si2168_config;
 
@@ -664,7 +664,7 @@ static int smi_dvbsky_sit2_fe_attach(struct smi_port *port)
 	si2157_config.if_port = 1;
 
 	memset(&client_info, 0, sizeof(struct i2c_board_info));
-	strlcpy(client_info.type, "si2157", I2C_NAME_SIZE);
+	strscpy(client_info.type, "si2157", I2C_NAME_SIZE);
 	client_info.addr = 0x60;
 	client_info.platform_data = &si2157_config;
 

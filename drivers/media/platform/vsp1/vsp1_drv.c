@@ -242,7 +242,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 	mdev->dev = vsp1->dev;
 	mdev->hw_revision = vsp1->version;
-	strlcpy(mdev->model, vsp1->info->model, sizeof(mdev->model));
+	strscpy(mdev->model, vsp1->info->model, sizeof(mdev->model));
 	snprintf(mdev->bus_info, sizeof(mdev->bus_info), "platform:%s",
 		 dev_name(mdev->dev));
 	media_device_init(mdev);

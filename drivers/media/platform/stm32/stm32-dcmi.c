@@ -1147,10 +1147,10 @@ static int dcmi_s_selection(struct file *file, void *priv,
 static int dcmi_querycap(struct file *file, void *priv,
 			 struct v4l2_capability *cap)
 {
-	strlcpy(cap->driver, DRV_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, "STM32 Camera Memory Interface",
+	strscpy(cap->driver, DRV_NAME, sizeof(cap->driver));
+	strscpy(cap->card, "STM32 Camera Memory Interface",
 		sizeof(cap->card));
-	strlcpy(cap->bus_info, "platform:dcmi", sizeof(cap->bus_info));
+	strscpy(cap->bus_info, "platform:dcmi", sizeof(cap->bus_info));
 	return 0;
 }
 
@@ -1161,7 +1161,7 @@ static int dcmi_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
-	strlcpy(i->name, "Camera", sizeof(i->name));
+	strscpy(i->name, "Camera", sizeof(i->name));
 	return 0;
 }
 
@@ -1736,7 +1736,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	dcmi->vdev->fops = &dcmi_fops;
 	dcmi->vdev->v4l2_dev = &dcmi->v4l2_dev;
 	dcmi->vdev->queue = &dcmi->queue;
-	strlcpy(dcmi->vdev->name, KBUILD_MODNAME, sizeof(dcmi->vdev->name));
+	strscpy(dcmi->vdev->name, KBUILD_MODNAME, sizeof(dcmi->vdev->name));
 	dcmi->vdev->release = video_device_release;
 	dcmi->vdev->ioctl_ops = &dcmi_ioctl_ops;
 	dcmi->vdev->lock = &dcmi->lock;

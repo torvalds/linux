@@ -396,7 +396,7 @@ static int streamzap_probe(struct usb_interface *intf,
 	if (usbdev->descriptor.iManufacturer
 	    && usb_string(usbdev, usbdev->descriptor.iManufacturer,
 			  buf, sizeof(buf)) > 0)
-		strlcpy(name, buf, sizeof(name));
+		strscpy(name, buf, sizeof(name));
 
 	if (usbdev->descriptor.iProduct
 	    && usb_string(usbdev, usbdev->descriptor.iProduct,

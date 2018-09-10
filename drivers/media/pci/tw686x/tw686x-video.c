@@ -765,8 +765,8 @@ static int tw686x_querycap(struct file *file, void *priv,
 	struct tw686x_video_channel *vc = video_drvdata(file);
 	struct tw686x_dev *dev = vc->dev;
 
-	strlcpy(cap->driver, "tw686x", sizeof(cap->driver));
-	strlcpy(cap->card, dev->name, sizeof(cap->card));
+	strscpy(cap->driver, "tw686x", sizeof(cap->driver));
+	strscpy(cap->card, dev->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "PCI:%s", pci_name(dev->pci_dev));
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |

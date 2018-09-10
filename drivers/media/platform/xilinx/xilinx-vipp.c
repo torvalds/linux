@@ -578,7 +578,7 @@ static int xvip_composite_v4l2_init(struct xvip_composite_device *xdev)
 	int ret;
 
 	xdev->media_dev.dev = xdev->dev;
-	strlcpy(xdev->media_dev.model, "Xilinx Video Composite Device",
+	strscpy(xdev->media_dev.model, "Xilinx Video Composite Device",
 		sizeof(xdev->media_dev.model));
 	xdev->media_dev.hw_revision = 0;
 

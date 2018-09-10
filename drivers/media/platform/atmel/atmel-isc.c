@@ -1951,7 +1951,7 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	INIT_WORK(&isc->awb_work, isc_awb_work);
 
 	/* Register video device */
-	strlcpy(vdev->name, ATMEL_ISC_NAME, sizeof(vdev->name));
+	strscpy(vdev->name, ATMEL_ISC_NAME, sizeof(vdev->name));
 	vdev->release		= video_device_release_empty;
 	vdev->fops		= &isc_fops;
 	vdev->ioctl_ops		= &isc_ioctl_ops;

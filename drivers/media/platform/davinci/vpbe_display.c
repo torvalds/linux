@@ -647,7 +647,7 @@ static int vpbe_display_querycap(struct file *file, void  *priv,
 		dev_name(vpbe_dev->pdev));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(vpbe_dev->pdev));
-	strlcpy(cap->card, vpbe_dev->cfg->module_name, sizeof(cap->card));
+	strscpy(cap->card, vpbe_dev->cfg->module_name, sizeof(cap->card));
 
 	return 0;
 }

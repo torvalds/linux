@@ -439,8 +439,8 @@ static int rtl2832_sdr_querycap(struct file *file, void *fh,
 
 	dev_dbg(&pdev->dev, "\n");
 
-	strlcpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
-	strlcpy(cap->card, dev->vdev.name, sizeof(cap->card));
+	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
+	strscpy(cap->card, dev->vdev.name, sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->device_caps = V4L2_CAP_SDR_CAPTURE | V4L2_CAP_STREAMING |
 			V4L2_CAP_READWRITE | V4L2_CAP_TUNER;
@@ -976,7 +976,7 @@ static int rtl2832_sdr_g_tuner(struct file *file, void *priv,
 	dev_dbg(&pdev->dev, "index=%d type=%d\n", v->index, v->type);
 
 	if (v->index == 0) {
-		strlcpy(v->name, "ADC: Realtek RTL2832", sizeof(v->name));
+		strscpy(v->name, "ADC: Realtek RTL2832", sizeof(v->name));
 		v->type = V4L2_TUNER_ADC;
 		v->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 		v->rangelow =   300000;
@@ -986,7 +986,7 @@ static int rtl2832_sdr_g_tuner(struct file *file, void *priv,
 		   V4L2_SUBDEV_HAS_OP(dev->v4l2_subdev, tuner, g_tuner)) {
 		ret = v4l2_subdev_call(dev->v4l2_subdev, tuner, g_tuner, v);
 	} else if (v->index == 1) {
-		strlcpy(v->name, "RF: <unknown>", sizeof(v->name));
+		strscpy(v->name, "RF: <unknown>", sizeof(v->name));
 		v->type = V4L2_TUNER_RF;
 		v->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 		v->rangelow =    50000000;
@@ -1133,7 +1133,7 @@ static int rtl2832_sdr_enum_fmt_sdr_cap(struct file *file, void *priv,
 	if (f->index >= dev->num_formats)
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name, sizeof(f->description));
+	strscpy(f->description, formats[f->index].name, sizeof(f->description));
 	f->pixelformat = formats[f->index].pixelformat;
 
 	return 0;

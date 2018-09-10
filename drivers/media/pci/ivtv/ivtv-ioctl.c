@@ -747,8 +747,8 @@ static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vc
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
 
-	strlcpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
-	strlcpy(vcap->card, itv->card_name, sizeof(vcap->card));
+	strscpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
+	strscpy(vcap->card, itv->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->pdev));
 	vcap->capabilities = itv->v4l2_cap | V4L2_CAP_DEVICE_CAPS;
 	vcap->device_caps = s->caps;
@@ -1227,9 +1227,9 @@ static int ivtv_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	ivtv_call_all(itv, tuner, g_tuner, vt);
 
 	if (vt->type == V4L2_TUNER_RADIO)
-		strlcpy(vt->name, "ivtv Radio Tuner", sizeof(vt->name));
+		strscpy(vt->name, "ivtv Radio Tuner", sizeof(vt->name));
 	else
-		strlcpy(vt->name, "ivtv TV Tuner", sizeof(vt->name));
+		strscpy(vt->name, "ivtv TV Tuner", sizeof(vt->name));
 	return 0;
 }
 

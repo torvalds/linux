@@ -1503,7 +1503,7 @@ int saa7134_querycap(struct file *file, void *priv,
 	unsigned int tuner_type = dev->tuner_type;
 
 	strcpy(cap->driver, "saa7134");
-	strlcpy(cap->card, saa7134_boards[dev->board].name,
+	strscpy(cap->card, saa7134_boards[dev->board].name,
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
 
@@ -1819,7 +1819,7 @@ static int saa7134_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (f->index >= FORMATS)
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name,
+	strscpy(f->description, formats[f->index].name,
 		sizeof(f->description));
 
 	f->pixelformat = formats[f->index].fourcc;
@@ -1838,7 +1838,7 @@ static int saa7134_enum_fmt_vid_overlay(struct file *file, void  *priv,
 	if ((f->index >= FORMATS) || formats[f->index].planar)
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name,
+	strscpy(f->description, formats[f->index].name,
 		sizeof(f->description));
 
 	f->pixelformat = formats[f->index].fourcc;

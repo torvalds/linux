@@ -1191,8 +1191,8 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	dprintk(1, "%s called std_set %d dev_state %ld\n", __func__,
 		dev->std_set_in_tuner_core, dev->dev_state);
 
-	strlcpy(cap->driver, "au0828", sizeof(cap->driver));
-	strlcpy(cap->card, dev->board.name, sizeof(cap->card));
+	strscpy(cap->driver, "au0828", sizeof(cap->driver));
+	strscpy(cap->card, dev->board.name, sizeof(cap->card));
 	usb_make_path(dev->usbdev, cap->bus_info, sizeof(cap->bus_info));
 
 	/* set the device capabilities */

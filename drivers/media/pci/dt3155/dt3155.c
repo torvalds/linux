@@ -378,7 +378,7 @@ static int dt3155_enum_input(struct file *filp, void *p,
 		snprintf(input->name, sizeof(input->name), "VID%d",
 			 input->index);
 	else
-		strlcpy(input->name, "J2/VID0", sizeof(input->name));
+		strscpy(input->name, "J2/VID0", sizeof(input->name));
 	input->type = V4L2_INPUT_TYPE_CAMERA;
 	input->std = V4L2_STD_ALL;
 	input->status = 0;

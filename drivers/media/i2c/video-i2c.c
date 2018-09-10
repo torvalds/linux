@@ -352,8 +352,8 @@ static int video_i2c_querycap(struct file *file, void  *priv,
 	struct video_i2c_data *data = video_drvdata(file);
 	struct i2c_client *client = data->client;
 
-	strlcpy(vcap->driver, data->v4l2_dev.name, sizeof(vcap->driver));
-	strlcpy(vcap->card, data->vdev.name, sizeof(vcap->card));
+	strscpy(vcap->driver, data->v4l2_dev.name, sizeof(vcap->driver));
+	strscpy(vcap->card, data->vdev.name, sizeof(vcap->card));
 
 	sprintf(vcap->bus_info, "I2C:%d-%d", client->adapter->nr, client->addr);
 
@@ -378,7 +378,7 @@ static int video_i2c_enum_input(struct file *file, void *fh,
 	if (vin->index > 0)
 		return -EINVAL;
 
-	strlcpy(vin->name, "Camera", sizeof(vin->name));
+	strscpy(vin->name, "Camera", sizeof(vin->name));
 
 	vin->type = V4L2_INPUT_TYPE_CAMERA;
 
@@ -534,7 +534,7 @@ static int video_i2c_probe(struct i2c_client *client,
 
 	data->client = client;
 	v4l2_dev = &data->v4l2_dev;
-	strlcpy(v4l2_dev->name, VIDEO_I2C_DRIVER, sizeof(v4l2_dev->name));
+	strscpy(v4l2_dev->name, VIDEO_I2C_DRIVER, sizeof(v4l2_dev->name));
 
 	ret = v4l2_device_register(&client->dev, v4l2_dev);
 	if (ret < 0)

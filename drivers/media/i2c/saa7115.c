@@ -1765,7 +1765,7 @@ static int saa711x_detect_chip(struct i2c_client *client,
 		 * the lower nibble is a gm7113c.
 		 */
 
-		strlcpy(name, "gm7113c", CHIP_VER_SIZE);
+		strscpy(name, "gm7113c", CHIP_VER_SIZE);
 
 		if (!autodetect && strcmp(name, id->name))
 			return -EINVAL;
@@ -1779,7 +1779,7 @@ static int saa711x_detect_chip(struct i2c_client *client,
 
 	/* Check if it is a CJC7113 */
 	if (!memcmp(name, "1111111111111111", CHIP_VER_SIZE)) {
-		strlcpy(name, "cjc7113", CHIP_VER_SIZE);
+		strscpy(name, "cjc7113", CHIP_VER_SIZE);
 
 		if (!autodetect && strcmp(name, id->name))
 			return -EINVAL;
@@ -1825,7 +1825,7 @@ static int saa711x_probe(struct i2c_client *client,
 	if (ident < 0)
 		return ident;
 
-	strlcpy(client->name, name, sizeof(client->name));
+	strscpy(client->name, name, sizeof(client->name));
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)

@@ -855,8 +855,9 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct tm6000_core *dev = ((struct tm6000_fh *)priv)->dev;
 	struct video_device *vdev = video_devdata(file);
 
-	strlcpy(cap->driver, "tm6000", sizeof(cap->driver));
-	strlcpy(cap->card, "Trident TVMaster TM5600/6000/6010", sizeof(cap->card));
+	strscpy(cap->driver, "tm6000", sizeof(cap->driver));
+	strscpy(cap->card, "Trident TVMaster TM5600/6000/6010",
+		sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	if (dev->tuner_type != TUNER_ABSENT)
 		cap->device_caps |= V4L2_CAP_TUNER;
@@ -878,7 +879,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (f->index >= ARRAY_SIZE(format))
 		return -EINVAL;
 
-	strlcpy(f->description, format[f->index].name, sizeof(f->description));
+	strscpy(f->description, format[f->index].name, sizeof(f->description));
 	f->pixelformat = format[f->index].fourcc;
 	return 0;
 }

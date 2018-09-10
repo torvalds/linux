@@ -1137,8 +1137,8 @@ static int ceu_querycap(struct file *file, void *priv,
 {
 	struct ceu_device *ceudev = video_drvdata(file);
 
-	strlcpy(cap->card, "Renesas CEU", sizeof(cap->card));
-	strlcpy(cap->driver, DRIVER_NAME, sizeof(cap->driver));
+	strscpy(cap->card, "Renesas CEU", sizeof(cap->card));
+	strscpy(cap->driver, DRIVER_NAME, sizeof(cap->driver));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "platform:renesas-ceu-%s", dev_name(ceudev->dev));
 
@@ -1440,7 +1440,7 @@ static int ceu_notify_complete(struct v4l2_async_notifier *notifier)
 		return ret;
 
 	/* Register the video device. */
-	strlcpy(vdev->name, DRIVER_NAME, sizeof(vdev->name));
+	strscpy(vdev->name, DRIVER_NAME, sizeof(vdev->name));
 	vdev->v4l2_dev		= v4l2_dev;
 	vdev->lock		= &ceudev->mlock;
 	vdev->queue		= &ceudev->vb2_vq;

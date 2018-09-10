@@ -976,8 +976,8 @@ vsp1_video_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 		cap->device_caps = V4L2_CAP_VIDEO_OUTPUT_MPLANE
 				 | V4L2_CAP_STREAMING;
 
-	strlcpy(cap->driver, "vsp1", sizeof(cap->driver));
-	strlcpy(cap->card, video->video.name, sizeof(cap->card));
+	strscpy(cap->driver, "vsp1", sizeof(cap->driver));
+	strscpy(cap->card, video->video.name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(video->vsp1->dev));
 

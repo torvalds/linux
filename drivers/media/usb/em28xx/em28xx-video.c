@@ -1833,9 +1833,9 @@ static int vidioc_g_chip_info(struct file *file, void *priv,
 	if (chip->match.addr > 1)
 		return -EINVAL;
 	if (chip->match.addr == 1)
-		strlcpy(chip->name, "ac97", sizeof(chip->name));
+		strscpy(chip->name, "ac97", sizeof(chip->name));
 	else
-		strlcpy(chip->name,
+		strscpy(chip->name,
 			dev->v4l2->v4l2_dev.name, sizeof(chip->name));
 	return 0;
 }
@@ -1920,8 +1920,8 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
 	struct usb_device *udev = interface_to_usbdev(dev->intf);
 
-	strlcpy(cap->driver, "em28xx", sizeof(cap->driver));
-	strlcpy(cap->card, em28xx_boards[dev->model].name, sizeof(cap->card));
+	strscpy(cap->driver, "em28xx", sizeof(cap->driver));
+	strscpy(cap->card, em28xx_boards[dev->model].name, sizeof(cap->card));
 	usb_make_path(udev, cap->bus_info, sizeof(cap->bus_info));
 
 	if (vdev->vfl_type == VFL_TYPE_GRABBER)
@@ -1954,7 +1954,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (unlikely(f->index >= ARRAY_SIZE(format)))
 		return -EINVAL;
 
-	strlcpy(f->description, format[f->index].name, sizeof(f->description));
+	strscpy(f->description, format[f->index].name, sizeof(f->description));
 	f->pixelformat = format[f->index].fourcc;
 
 	return 0;
