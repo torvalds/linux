@@ -1411,7 +1411,7 @@
 
 		pwm2 {
 			pwm2_pin: pwm2-pin {
-				rockchip,pins = <1 RK_PD4 1 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PD4 1 &pcfg_pull_none>;
 			};
 		};
 
