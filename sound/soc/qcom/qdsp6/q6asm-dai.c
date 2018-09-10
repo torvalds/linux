@@ -493,7 +493,7 @@ static int q6asm_dai_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 static void q6asm_dai_pcm_free(struct snd_pcm *pcm)
