@@ -36,57 +36,102 @@
 #include "hda.h"
 
 /*
- * set up Buffer Descriptor List (BDL) for host memory transfer
- * BDL describes the location of the individual buffers and is little endian.
+ * set up one of BDL entries for a stream
  */
-int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
-			     struct snd_dma_buffer *dmab,
-			     struct hdac_stream *stream,
-			     struct sof_intel_dsp_bdl *bdl, int size,
-			     struct snd_pcm_hw_params *params)
+static int hda_setup_bdle(struct snd_sof_dev *sdev,
+			  struct snd_dma_buffer *dmab,
+			  struct hdac_stream *stream,
+			  struct sof_intel_dsp_bdl **bdlp,
+			  int offset, int size, int ioc)
 {
-	int offset = 0;
-	int chunk = PAGE_SIZE, entry_size;
-	dma_addr_t addr;
-
-	if (stream->substream && params) {
-		chunk = params_period_bytes(params);
-		dev_dbg(sdev->dev, "period_bytes:0x%x\n", chunk);
-	}
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct sof_intel_dsp_bdl *bdl = *bdlp;
 
 	while (size > 0) {
+		dma_addr_t addr;
+		int chunk;
+
 		if (stream->frags >= HDA_DSP_MAX_BDL_ENTRIES) {
 			dev_err(sdev->dev, "error: stream frags exceeded\n");
 			return -EINVAL;
 		}
 
 		addr = snd_sgbuf_get_addr(dmab, offset);
-
 		/* program BDL addr */
 		bdl->addr_l = lower_32_bits(addr);
 		bdl->addr_h = upper_32_bits(addr);
-
-		entry_size = size > chunk ? chunk : size;
-
 		/* program BDL size */
-		bdl->size = snd_sgbuf_get_chunk_size(dmab, offset, entry_size);
+		chunk = snd_sgbuf_get_chunk_size(dmab, offset, size);
+		/* one BDLE should not cross 4K boundary */
+		if (bus->align_bdle_4k) {
+			u32 remain = 0x1000 - (offset & 0xfff);
 
-		/* program the IOC to enable interrupt
-		 * when the whole fragment is processed
-		 */
-		size -= entry_size;
-		if (size)
-			bdl->ioc = 0;
-		else
-			bdl->ioc = 1;
-
-		stream->frags++;
-		offset += bdl->size;
-
-		dev_vdbg(sdev->dev, "bdl, frags:%d, entry size:0x%x;\n",
-			 stream->frags, entry_size);
-
+			if (chunk > remain)
+				chunk = remain;
+		}
+		bdl->size = cpu_to_le32(chunk);
+		/* only program IOC when the whole segment is processed */
+		size -= chunk;
+		bdl->ioc = (size || !ioc) ? 0 : cpu_to_le32(0x01);
 		bdl++;
+		stream->frags++;
+		offset += chunk;
+
+		dev_vdbg(sdev->dev, "bdl, frags:%d, chunk size:0x%x;\n",
+			 stream->frags, chunk);
+	}
+
+	*bdlp = bdl;
+	return offset;
+}
+
+/*
+ * set up Buffer Descriptor List (BDL) for host memory transfer
+ * BDL describes the location of the individual buffers and is little endian.
+ */
+int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
+			     struct snd_dma_buffer *dmab,
+			     struct hdac_stream *stream)
+{
+	struct sof_intel_dsp_bdl *bdl;
+	int i, offset, period_bytes, periods;
+	int remain, ioc;
+
+	period_bytes = stream->period_bytes;
+	dev_dbg(sdev->dev, "period_bytes:0x%x\n", period_bytes);
+	if (!period_bytes)
+		period_bytes = stream->bufsize;
+
+	periods = stream->bufsize / period_bytes;
+
+	dev_dbg(sdev->dev, "periods:%d\n", periods);
+
+	remain = stream->bufsize % period_bytes;
+	if (remain)
+		periods++;
+
+	/* program the initial BDL entries */
+	bdl = (struct sof_intel_dsp_bdl *)stream->bdl.area;
+	offset = 0;
+	stream->frags = 0;
+
+	/*
+	 * set IOC if don't use position IPC
+	 * and period_wakeup needed.
+	 */
+	ioc = sdev->hda->no_ipc_position ?
+	      !stream->no_period_wakeup : 0;
+
+	for (i = 0; i < periods; i++) {
+		if (i == periods - 1 && remain)
+			/* set the last small entry */
+			offset = hda_setup_bdle(sdev, dmab,
+						stream, &bdl, offset,
+						remain, 0);
+		else
+			offset = hda_setup_bdle(sdev, dmab,
+						stream, &bdl, offset,
+						period_bytes, ioc);
 	}
 
 	return offset;
@@ -310,7 +355,6 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hdac_stream *hstream = &stream->hstream;
-	struct sof_intel_dsp_bdl *bdl;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
 	int ret, timeout = HDA_DSP_STREAM_RESET_TIMEOUT;
 	u32 val, mask;
@@ -323,12 +367,8 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	/* decouple host and link DMA */
 	mask = 0x1 << hstream->index;
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
-#ifndef CONFIG_SND_SOC_SOF_FORCE_LEGACY_HDA
 				mask, mask);
-#else
-	/* temporary using coupled mode */
-				mask, 0);
-#endif
+
 	if (!dmab) {
 		dev_err(sdev->dev, "error: no dma buffer allocated!\n");
 		return -ENODEV;
@@ -397,9 +437,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 
 	hstream->frags = 0;
 
-	bdl = (struct sof_intel_dsp_bdl *)hstream->bdl.area;
-	ret = hda_dsp_stream_setup_bdl(sdev, dmab, hstream, bdl,
-				       hstream->bufsize, params);
+	ret = hda_dsp_stream_setup_bdl(sdev, dmab, hstream);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: set up of BDL failed\n");
 		return ret;
