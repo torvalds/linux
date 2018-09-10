@@ -24,8 +24,10 @@
 #ifndef __ASM_ARCH_OMAP_GPIO_H
 #define __ASM_ARCH_OMAP_GPIO_H
 
+#ifndef __ASSEMBLER__
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#endif
 
 #define OMAP1_MPUIO_BASE			0xfffb5000
 
@@ -157,6 +159,7 @@
 #define OMAP_MPUIO(nr)		(OMAP_MAX_GPIO_LINES + (nr))
 #define OMAP_GPIO_IS_MPUIO(nr)	((nr) >= OMAP_MAX_GPIO_LINES)
 
+#ifndef __ASSEMBLER__
 struct omap_gpio_reg_offs {
 	u16 revision;
 	u16 direction;
@@ -215,5 +218,6 @@ static inline void omap2_gpio_resume_after_idle(void)
 {
 }
 #endif
+#endif /* __ASSEMBLER__ */
 
 #endif
