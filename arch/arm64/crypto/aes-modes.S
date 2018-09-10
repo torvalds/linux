@@ -340,17 +340,19 @@ AES_ENDPROC(aes_ctr_encrypt)
 	 *		   int blocks, u8 const rk2[], u8 iv[], int first)
 	 */
 
-	.macro		next_tweak, out, in, const, tmp
+	.macro		next_tweak, out, in, tmp
 	sshr		\tmp\().2d,  \in\().2d,   #63
-	and		\tmp\().16b, \tmp\().16b, \const\().16b
+	and		\tmp\().16b, \tmp\().16b, xtsmask.16b
 	add		\out\().2d,  \in\().2d,   \in\().2d
 	ext		\tmp\().16b, \tmp\().16b, \tmp\().16b, #8
 	eor		\out\().16b, \out\().16b, \tmp\().16b
 	.endm
 
-.Lxts_mul_x:
-CPU_LE(	.quad		1, 0x87		)
-CPU_BE(	.quad		0x87, 1		)
+	.macro		xts_load_mask, tmp
+	movi		xtsmask.2s, #0x1
+	movi		\tmp\().2s, #0x87
+	uzp1		xtsmask.4s, xtsmask.4s, \tmp\().4s
+	.endm
 
 AES_ENTRY(aes_xts_encrypt)
 	stp		x29, x30, [sp, #-16]!
@@ -362,24 +364,24 @@ AES_ENTRY(aes_xts_encrypt)
 	enc_prepare	w3, x5, x8
 	encrypt_block	v4, w3, x5, x8, w7		/* first tweak */
 	enc_switch_key	w3, x2, x8
-	ldr		q7, .Lxts_mul_x
+	xts_load_mask	v8
 	b		.LxtsencNx
 
 .Lxtsencnotfirst:
 	enc_prepare	w3, x2, x8
 .LxtsencloopNx:
-	ldr		q7, .Lxts_mul_x
-	next_tweak	v4, v4, v7, v8
+	xts_reload_mask	v8
+	next_tweak	v4, v4, v8
 .LxtsencNx:
 	subs		w4, w4, #4
 	bmi		.Lxtsenc1x
 	ld1		{v0.16b-v3.16b}, [x1], #64	/* get 4 pt blocks */
-	next_tweak	v5, v4, v7, v8
+	next_tweak	v5, v4, v8
 	eor		v0.16b, v0.16b, v4.16b
-	next_tweak	v6, v5, v7, v8
+	next_tweak	v6, v5, v8
 	eor		v1.16b, v1.16b, v5.16b
 	eor		v2.16b, v2.16b, v6.16b
-	next_tweak	v7, v6, v7, v8
+	next_tweak	v7, v6, v8
 	eor		v3.16b, v3.16b, v7.16b
 	bl		aes_encrypt_block4x
 	eor		v3.16b, v3.16b, v7.16b
@@ -401,7 +403,7 @@ AES_ENTRY(aes_xts_encrypt)
 	st1		{v0.16b}, [x0], #16
 	subs		w4, w4, #1
 	beq		.Lxtsencout
-	next_tweak	v4, v4, v7, v8
+	next_tweak	v4, v4, v8
 	b		.Lxtsencloop
 .Lxtsencout:
 	st1		{v4.16b}, [x6]
@@ -420,24 +422,24 @@ AES_ENTRY(aes_xts_decrypt)
 	enc_prepare	w3, x5, x8
 	encrypt_block	v4, w3, x5, x8, w7		/* first tweak */
 	dec_prepare	w3, x2, x8
-	ldr		q7, .Lxts_mul_x
+	xts_load_mask	v8
 	b		.LxtsdecNx
 
 .Lxtsdecnotfirst:
 	dec_prepare	w3, x2, x8
 .LxtsdecloopNx:
-	ldr		q7, .Lxts_mul_x
-	next_tweak	v4, v4, v7, v8
+	xts_reload_mask	v8
+	next_tweak	v4, v4, v8
 .LxtsdecNx:
 	subs		w4, w4, #4
 	bmi		.Lxtsdec1x
 	ld1		{v0.16b-v3.16b}, [x1], #64	/* get 4 ct blocks */
-	next_tweak	v5, v4, v7, v8
+	next_tweak	v5, v4, v8
 	eor		v0.16b, v0.16b, v4.16b
-	next_tweak	v6, v5, v7, v8
+	next_tweak	v6, v5, v8
 	eor		v1.16b, v1.16b, v5.16b
 	eor		v2.16b, v2.16b, v6.16b
-	next_tweak	v7, v6, v7, v8
+	next_tweak	v7, v6, v8
 	eor		v3.16b, v3.16b, v7.16b
 	bl		aes_decrypt_block4x
 	eor		v3.16b, v3.16b, v7.16b
@@ -459,7 +461,7 @@ AES_ENTRY(aes_xts_decrypt)
 	st1		{v0.16b}, [x0], #16
 	subs		w4, w4, #1
 	beq		.Lxtsdecout
-	next_tweak	v4, v4, v7, v8
+	next_tweak	v4, v4, v8
 	b		.Lxtsdecloop
 .Lxtsdecout:
 	st1		{v4.16b}, [x6]
