@@ -1036,6 +1036,30 @@
  * @NL80211_CMD_GET_FTM_RESPONDER_STATS: Retrieve FTM responder statistics, in
  *	the %NL80211_ATTR_FTM_RESPONDER_STATS attribute.
  *
+ * @NL80211_CMD_PEER_MEASUREMENT_START: start a (set of) peer measurement(s)
+ *	with the given parameters, which are encapsulated in the nested
+ *	%NL80211_ATTR_PEER_MEASUREMENTS attribute. Optionally, MAC address
+ *	randomization may be enabled and configured by specifying the
+ *	%NL80211_ATTR_MAC and %NL80211_ATTR_MAC_MASK attributes.
+ *	If a timeout is requested, use the %NL80211_ATTR_TIMEOUT attribute.
+ *	A u64 cookie for further %NL80211_ATTR_COOKIE use is is returned in
+ *	the netlink extended ack message.
+ *
+ *	To cancel a measurement, close the socket that requested it.
+ *
+ *	Measurement results are reported to the socket that requested the
+ *	measurement using @NL80211_CMD_PEER_MEASUREMENT_RESULT when they
+ *	become available, so applications must ensure a large enough socket
+ *	buffer size.
+ *
+ *	Depending on driver support it may or may not be possible to start
+ *	multiple concurrent measurements.
+ * @NL80211_CMD_PEER_MEASUREMENT_RESULT: This command number is used for the
+ *	result notification from the driver to the requesting socket.
+ * @NL80211_CMD_PEER_MEASUREMENT_COMPLETE: Notification only, indicating that
+ *	the measurement completed, using the measurement cookie
+ *	(%NL80211_ATTR_COOKIE).
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1249,6 +1273,10 @@ enum nl80211_commands {
 	NL80211_CMD_CONTROL_PORT_FRAME,
 
 	NL80211_CMD_GET_FTM_RESPONDER_STATS,
+
+	NL80211_CMD_PEER_MEASUREMENT_START,
+	NL80211_CMD_PEER_MEASUREMENT_RESULT,
+	NL80211_CMD_PEER_MEASUREMENT_COMPLETE,
 
 	/* add new commands above here */
 
@@ -2254,6 +2282,16 @@ enum nl80211_commands {
  * @NL80211_ATTR_FTM_RESPONDER_STATS: Nested attribute with FTM responder
  *	statistics, see &enum nl80211_ftm_responder_stats.
  *
+ * @NL80211_ATTR_TIMEOUT: Timeout for the given operation in milliseconds (u32),
+ *	if the attribute is not given no timeout is requested. Note that 0 is an
+ *	invalid value.
+ *
+ * @NL80211_ATTR_PEER_MEASUREMENTS: peer measurements request (and result)
+ *	data, uses nested attributes specified in
+ *	&enum nl80211_peer_measurement_attrs.
+ *	This is also used for capability advertisement in the wiphy information,
+ *	with the appropriate sub-attributes.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2698,6 +2736,10 @@ enum nl80211_attrs {
 	NL80211_ATTR_FTM_RESPONDER,
 
 	NL80211_ATTR_FTM_RESPONDER_STATS,
+
+	NL80211_ATTR_TIMEOUT,
+
+	NL80211_ATTR_PEER_MEASUREMENTS,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -5904,6 +5946,382 @@ enum nl80211_ftm_responder_stats {
 	/* keep last */
 	__NL80211_FTM_STATS_AFTER_LAST,
 	NL80211_FTM_STATS_MAX = __NL80211_FTM_STATS_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_preamble - frame preamble types
+ * @NL80211_PREAMBLE_LEGACY: legacy (HR/DSSS, OFDM, ERP PHY) preamble
+ * @NL80211_PREAMBLE_HT: HT preamble
+ * @NL80211_PREAMBLE_VHT: VHT preamble
+ * @NL80211_PREAMBLE_DMG: DMG preamble
+ */
+enum nl80211_preamble {
+	NL80211_PREAMBLE_LEGACY,
+	NL80211_PREAMBLE_HT,
+	NL80211_PREAMBLE_VHT,
+	NL80211_PREAMBLE_DMG,
+};
+
+/**
+ * enum nl80211_peer_measurement_type - peer measurement types
+ * @NL80211_PMSR_TYPE_INVALID: invalid/unused, needed as we use
+ *	these numbers also for attributes
+ *
+ * @NL80211_PMSR_TYPE_FTM: flight time measurement
+ *
+ * @NUM_NL80211_PMSR_TYPES: internal
+ * @NL80211_PMSR_TYPE_MAX: highest type number
+ */
+enum nl80211_peer_measurement_type {
+	NL80211_PMSR_TYPE_INVALID,
+
+	NL80211_PMSR_TYPE_FTM,
+
+	NUM_NL80211_PMSR_TYPES,
+	NL80211_PMSR_TYPE_MAX = NUM_NL80211_PMSR_TYPES - 1
+};
+
+/**
+ * enum nl80211_peer_measurement_status - peer measurement status
+ * @NL80211_PMSR_STATUS_SUCCESS: measurement completed successfully
+ * @NL80211_PMSR_STATUS_REFUSED: measurement was locally refused
+ * @NL80211_PMSR_STATUS_TIMEOUT: measurement timed out
+ * @NL80211_PMSR_STATUS_FAILURE: measurement failed, a type-dependent
+ *	reason may be available in the response data
+ */
+enum nl80211_peer_measurement_status {
+	NL80211_PMSR_STATUS_SUCCESS,
+	NL80211_PMSR_STATUS_REFUSED,
+	NL80211_PMSR_STATUS_TIMEOUT,
+	NL80211_PMSR_STATUS_FAILURE,
+};
+
+/**
+ * enum nl80211_peer_measurement_req - peer measurement request attributes
+ * @__NL80211_PMSR_REQ_ATTR_INVALID: invalid
+ *
+ * @NL80211_PMSR_REQ_ATTR_DATA: This is a nested attribute with measurement
+ *	type-specific request data inside. The attributes used are from the
+ *	enums named nl80211_peer_measurement_<type>_req.
+ * @NL80211_PMSR_REQ_ATTR_GET_AP_TSF: include AP TSF timestamp, if supported
+ *	(flag attribute)
+ *
+ * @NUM_NL80211_PMSR_REQ_ATTRS: internal
+ * @NL80211_PMSR_REQ_ATTR_MAX: highest attribute number
+ */
+enum nl80211_peer_measurement_req {
+	__NL80211_PMSR_REQ_ATTR_INVALID,
+
+	NL80211_PMSR_REQ_ATTR_DATA,
+	NL80211_PMSR_REQ_ATTR_GET_AP_TSF,
+
+	/* keep last */
+	NUM_NL80211_PMSR_REQ_ATTRS,
+	NL80211_PMSR_REQ_ATTR_MAX = NUM_NL80211_PMSR_REQ_ATTRS - 1
+};
+
+/**
+ * enum nl80211_peer_measurement_resp - peer measurement response attributes
+ * @__NL80211_PMSR_RESP_ATTR_INVALID: invalid
+ *
+ * @NL80211_PMSR_RESP_ATTR_DATA: This is a nested attribute with measurement
+ *	type-specific results inside. The attributes used are from the enums
+ *	named nl80211_peer_measurement_<type>_resp.
+ * @NL80211_PMSR_RESP_ATTR_STATUS: u32 value with the measurement status
+ *	(using values from &enum nl80211_peer_measurement_status.)
+ * @NL80211_PMSR_RESP_ATTR_HOST_TIME: host time (%CLOCK_BOOTTIME) when the
+ *	result was measured; this value is not expected to be accurate to
+ *	more than 20ms. (u64, nanoseconds)
+ * @NL80211_PMSR_RESP_ATTR_AP_TSF: TSF of the AP that the interface
+ *	doing the measurement is connected to when the result was measured.
+ *	This shall be accurately reported if supported and requested
+ *	(u64, usec)
+ * @NL80211_PMSR_RESP_ATTR_FINAL: If results are sent to the host partially
+ *	(*e.g. with FTM per-burst data) this flag will be cleared on all but
+ *	the last result; if all results are combined it's set on the single
+ *	result.
+ * @NL80211_PMSR_RESP_ATTR_PAD: padding for 64-bit attributes, ignore
+ *
+ * @NUM_NL80211_PMSR_RESP_ATTRS: internal
+ * @NL80211_PMSR_RESP_ATTR_MAX: highest attribute number
+ */
+enum nl80211_peer_measurement_resp {
+	__NL80211_PMSR_RESP_ATTR_INVALID,
+
+	NL80211_PMSR_RESP_ATTR_DATA,
+	NL80211_PMSR_RESP_ATTR_STATUS,
+	NL80211_PMSR_RESP_ATTR_HOST_TIME,
+	NL80211_PMSR_RESP_ATTR_AP_TSF,
+	NL80211_PMSR_RESP_ATTR_FINAL,
+	NL80211_PMSR_RESP_ATTR_PAD,
+
+	/* keep last */
+	NUM_NL80211_PMSR_RESP_ATTRS,
+	NL80211_PMSR_RESP_ATTR_MAX = NUM_NL80211_PMSR_RESP_ATTRS - 1
+};
+
+/**
+ * enum nl80211_peer_measurement_peer_attrs - peer attributes for measurement
+ * @__NL80211_PMSR_PEER_ATTR_INVALID: invalid
+ *
+ * @NL80211_PMSR_PEER_ATTR_ADDR: peer's MAC address
+ * @NL80211_PMSR_PEER_ATTR_CHAN: channel definition, nested, using top-level
+ *	attributes like %NL80211_ATTR_WIPHY_FREQ etc.
+ * @NL80211_PMSR_PEER_ATTR_REQ: This is a nested attribute indexed by
+ *	measurement type, with attributes from the
+ *	&enum nl80211_peer_measurement_req inside.
+ * @NL80211_PMSR_PEER_ATTR_RESP: This is a nested attribute indexed by
+ *	measurement type, with attributes from the
+ *	&enum nl80211_peer_measurement_resp inside.
+ *
+ * @NUM_NL80211_PMSR_PEER_ATTRS: internal
+ * @NL80211_PMSR_PEER_ATTR_MAX: highest attribute number
+ */
+enum nl80211_peer_measurement_peer_attrs {
+	__NL80211_PMSR_PEER_ATTR_INVALID,
+
+	NL80211_PMSR_PEER_ATTR_ADDR,
+	NL80211_PMSR_PEER_ATTR_CHAN,
+	NL80211_PMSR_PEER_ATTR_REQ,
+	NL80211_PMSR_PEER_ATTR_RESP,
+
+	/* keep last */
+	NUM_NL80211_PMSR_PEER_ATTRS,
+	NL80211_PMSR_PEER_ATTR_MAX = NUM_NL80211_PMSR_PEER_ATTRS - 1,
+};
+
+/**
+ * enum nl80211_peer_measurement_attrs - peer measurement attributes
+ * @__NL80211_PMSR_ATTR_INVALID: invalid
+ *
+ * @NL80211_PMSR_ATTR_MAX_PEERS: u32 attribute used for capability
+ *	advertisement only, indicates the maximum number of peers
+ *	measurements can be done with in a single request
+ * @NL80211_PMSR_ATTR_REPORT_AP_TSF: flag attribute in capability
+ *	indicating that the connected AP's TSF can be reported in
+ *	measurement results
+ * @NL80211_PMSR_ATTR_RANDOMIZE_MAC_ADDR: flag attribute in capability
+ *	indicating that MAC address randomization is supported.
+ * @NL80211_PMSR_ATTR_TYPE_CAPA: capabilities reported by the device,
+ *	this contains a nesting indexed by measurement type, and
+ *	type-specific capabilities inside, which are from the enums
+ *	named nl80211_peer_measurement_<type>_capa.
+ * @NL80211_PMSR_ATTR_PEERS: nested attribute, the nesting index is
+ *	meaningless, just a list of peers to measure with, with the
+ *	sub-attributes taken from
+ *	&enum nl80211_peer_measurement_peer_attrs.
+ *
+ * @NUM_NL80211_PMSR_ATTR: internal
+ * @NL80211_PMSR_ATTR_MAX: highest attribute number
+ */
+enum nl80211_peer_measurement_attrs {
+	__NL80211_PMSR_ATTR_INVALID,
+
+	NL80211_PMSR_ATTR_MAX_PEERS,
+	NL80211_PMSR_ATTR_REPORT_AP_TSF,
+	NL80211_PMSR_ATTR_RANDOMIZE_MAC_ADDR,
+	NL80211_PMSR_ATTR_TYPE_CAPA,
+	NL80211_PMSR_ATTR_PEERS,
+
+	/* keep last */
+	NUM_NL80211_PMSR_ATTR,
+	NL80211_PMSR_ATTR_MAX = NUM_NL80211_PMSR_ATTR - 1
+};
+
+/**
+ * enum nl80211_peer_measurement_ftm_capa - FTM capabilities
+ * @__NL80211_PMSR_FTM_CAPA_ATTR_INVALID: invalid
+ *
+ * @NL80211_PMSR_FTM_CAPA_ATTR_ASAP: flag attribute indicating ASAP mode
+ *	is supported
+ * @NL80211_PMSR_FTM_CAPA_ATTR_NON_ASAP: flag attribute indicating non-ASAP
+ *	mode is supported
+ * @NL80211_PMSR_FTM_CAPA_ATTR_REQ_LCI: flag attribute indicating if LCI
+ *	data can be requested during the measurement
+ * @NL80211_PMSR_FTM_CAPA_ATTR_REQ_CIVICLOC: flag attribute indicating if civic
+ *	location data can be requested during the measurement
+ * @NL80211_PMSR_FTM_CAPA_ATTR_PREAMBLES: u32 bitmap attribute of bits
+ *	from &enum nl80211_preamble.
+ * @NL80211_PMSR_FTM_CAPA_ATTR_BANDWIDTHS: bitmap of values from
+ *	&enum nl80211_chan_width indicating the supported channel
+ *	bandwidths for FTM. Note that a higher channel bandwidth may be
+ *	configured to allow for other measurements types with different
+ *	bandwidth requirement in the same measurement.
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_BURSTS_EXPONENT: u32 attribute indicating
+ *	the maximum bursts exponent that can be used (if not present anything
+ *	is valid)
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_FTMS_PER_BURST: u32 attribute indicating
+ *	the maximum FTMs per burst (if not present anything is valid)
+ *
+ * @NUM_NL80211_PMSR_FTM_CAPA_ATTR: internal
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX: highest attribute number
+ */
+enum nl80211_peer_measurement_ftm_capa {
+	__NL80211_PMSR_FTM_CAPA_ATTR_INVALID,
+
+	NL80211_PMSR_FTM_CAPA_ATTR_ASAP,
+	NL80211_PMSR_FTM_CAPA_ATTR_NON_ASAP,
+	NL80211_PMSR_FTM_CAPA_ATTR_REQ_LCI,
+	NL80211_PMSR_FTM_CAPA_ATTR_REQ_CIVICLOC,
+	NL80211_PMSR_FTM_CAPA_ATTR_PREAMBLES,
+	NL80211_PMSR_FTM_CAPA_ATTR_BANDWIDTHS,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX_BURSTS_EXPONENT,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX_FTMS_PER_BURST,
+
+	/* keep last */
+	NUM_NL80211_PMSR_FTM_CAPA_ATTR,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX = NUM_NL80211_PMSR_FTM_CAPA_ATTR - 1
+};
+
+/**
+ * enum nl80211_peer_measurement_ftm_req - FTM request attributes
+ * @__NL80211_PMSR_FTM_REQ_ATTR_INVALID: invalid
+ *
+ * @NL80211_PMSR_FTM_REQ_ATTR_ASAP: ASAP mode requested (flag)
+ * @NL80211_PMSR_FTM_REQ_ATTR_PREAMBLE: preamble type (see
+ *	&enum nl80211_preamble), optional for DMG (u32)
+ * @NL80211_PMSR_FTM_REQ_ATTR_NUM_BURSTS_EXP: number of bursts exponent as in
+ *	802.11-2016 9.4.2.168 "Fine Timing Measurement Parameters element"
+ *	(u8, 0-15, optional with default 15 i.e. "no preference")
+ * @NL80211_PMSR_FTM_REQ_ATTR_BURST_PERIOD: interval between bursts in units
+ *	of 100ms (u16, optional with default 0)
+ * @NL80211_PMSR_FTM_REQ_ATTR_BURST_DURATION: burst duration, as in 802.11-2016
+ *	Table 9-257 "Burst Duration field encoding" (u8, 0-15, optional with
+ *	default 15 i.e. "no preference")
+ * @NL80211_PMSR_FTM_REQ_ATTR_FTMS_PER_BURST: number of successful FTM frames
+ *	requested per burst
+ *	(u8, 0-31, optional with default 0 i.e. "no preference")
+ * @NL80211_PMSR_FTM_REQ_ATTR_NUM_FTMR_RETRIES: number of FTMR frame retries
+ *	(u8, default 3)
+ * @NL80211_PMSR_FTM_REQ_ATTR_REQUEST_LCI: request LCI data (flag)
+ * @NL80211_PMSR_FTM_REQ_ATTR_REQUEST_CIVICLOC: request civic location data
+ *	(flag)
+ *
+ * @NUM_NL80211_PMSR_FTM_REQ_ATTR: internal
+ * @NL80211_PMSR_FTM_REQ_ATTR_MAX: highest attribute number
+ */
+enum nl80211_peer_measurement_ftm_req {
+	__NL80211_PMSR_FTM_REQ_ATTR_INVALID,
+
+	NL80211_PMSR_FTM_REQ_ATTR_ASAP,
+	NL80211_PMSR_FTM_REQ_ATTR_PREAMBLE,
+	NL80211_PMSR_FTM_REQ_ATTR_NUM_BURSTS_EXP,
+	NL80211_PMSR_FTM_REQ_ATTR_BURST_PERIOD,
+	NL80211_PMSR_FTM_REQ_ATTR_BURST_DURATION,
+	NL80211_PMSR_FTM_REQ_ATTR_FTMS_PER_BURST,
+	NL80211_PMSR_FTM_REQ_ATTR_NUM_FTMR_RETRIES,
+	NL80211_PMSR_FTM_REQ_ATTR_REQUEST_LCI,
+	NL80211_PMSR_FTM_REQ_ATTR_REQUEST_CIVICLOC,
+
+	/* keep last */
+	NUM_NL80211_PMSR_FTM_REQ_ATTR,
+	NL80211_PMSR_FTM_REQ_ATTR_MAX = NUM_NL80211_PMSR_FTM_REQ_ATTR - 1
+};
+
+/**
+ * enum nl80211_peer_measurement_ftm_failure_reasons - FTM failure reasons
+ * @NL80211_PMSR_FTM_FAILURE_UNSPECIFIED: unspecified failure, not used
+ * @NL80211_PMSR_FTM_FAILURE_NO_RESPONSE: no response from the FTM responder
+ * @NL80211_PMSR_FTM_FAILURE_REJECTED: FTM responder rejected measurement
+ * @NL80211_PMSR_FTM_FAILURE_WRONG_CHANNEL: we already know the peer is
+ *	on a different channel, so can't measure (if we didn't know, we'd
+ *	try and get no response)
+ * @NL80211_PMSR_FTM_FAILURE_PEER_NOT_CAPABLE: peer can't actually do FTM
+ * @NL80211_PMSR_FTM_FAILURE_INVALID_TIMESTAMP: invalid T1/T4 timestamps
+ *	received
+ * @NL80211_PMSR_FTM_FAILURE_PEER_BUSY: peer reports busy, you may retry
+ *	later (see %NL80211_PMSR_FTM_RESP_ATTR_BUSY_RETRY_TIME)
+ * @NL80211_PMSR_FTM_FAILURE_BAD_CHANGED_PARAMS: parameters were changed
+ *	by the peer and are no longer supported
+ */
+enum nl80211_peer_measurement_ftm_failure_reasons {
+	NL80211_PMSR_FTM_FAILURE_UNSPECIFIED,
+	NL80211_PMSR_FTM_FAILURE_NO_RESPONSE,
+	NL80211_PMSR_FTM_FAILURE_REJECTED,
+	NL80211_PMSR_FTM_FAILURE_WRONG_CHANNEL,
+	NL80211_PMSR_FTM_FAILURE_PEER_NOT_CAPABLE,
+	NL80211_PMSR_FTM_FAILURE_INVALID_TIMESTAMP,
+	NL80211_PMSR_FTM_FAILURE_PEER_BUSY,
+	NL80211_PMSR_FTM_FAILURE_BAD_CHANGED_PARAMS,
+};
+
+/**
+ * enum nl80211_peer_measurement_ftm_resp - FTM response attributes
+ * @__NL80211_PMSR_FTM_RESP_ATTR_INVALID: invalid
+ *
+ * @NL80211_PMSR_FTM_RESP_ATTR_FAIL_REASON: FTM-specific failure reason
+ *	(u32, optional)
+ * @NL80211_PMSR_FTM_RESP_ATTR_BURST_INDEX: optional, if bursts are reported
+ *	as separate results then it will be the burst index 0...(N-1) and
+ *	the top level will indicate partial results (u32)
+ * @NL80211_PMSR_FTM_RESP_ATTR_NUM_FTMR_ATTEMPTS: number of FTM Request frames
+ *	transmitted (u32, optional)
+ * @NL80211_PMSR_FTM_RESP_ATTR_NUM_FTMR_SUCCESSES: number of FTM Request frames
+ *	that were acknowleged (u32, optional)
+ * @NL80211_PMSR_FTM_RESP_ATTR_BUSY_RETRY_TIME: retry time received from the
+ *	busy peer (u32, seconds)
+ * @NL80211_PMSR_FTM_RESP_ATTR_NUM_BURSTS_EXP: actual number of bursts exponent
+ *	used by the responder (similar to request, u8)
+ * @NL80211_PMSR_FTM_RESP_ATTR_BURST_DURATION: actual burst duration used by
+ *	the responder (similar to request, u8)
+ * @NL80211_PMSR_FTM_RESP_ATTR_FTMS_PER_BURST: actual FTMs per burst used
+ *	by the responder (similar to request, u8)
+ * @NL80211_PMSR_FTM_RESP_ATTR_RSSI_AVG: average RSSI across all FTM action
+ *	frames (optional, s32, 1/2 dBm)
+ * @NL80211_PMSR_FTM_RESP_ATTR_RSSI_SPREAD: RSSI spread across all FTM action
+ *	frames (optional, s32, 1/2 dBm)
+ * @NL80211_PMSR_FTM_RESP_ATTR_TX_RATE: bitrate we used for the response to the
+ *	FTM action frame (optional, nested, using &enum nl80211_rate_info
+ *	attributes)
+ * @NL80211_PMSR_FTM_RESP_ATTR_RX_RATE: bitrate the responder used for the FTM
+ *	action frame (optional, nested, using &enum nl80211_rate_info attrs)
+ * @NL80211_PMSR_FTM_RESP_ATTR_RTT_AVG: average RTT (s64, picoseconds, optional
+ *	but one of RTT/DIST must be present)
+ * @NL80211_PMSR_FTM_RESP_ATTR_RTT_VARIANCE: RTT variance (u64, ps^2, note that
+ *	standard deviation is the square root of variance, optional)
+ * @NL80211_PMSR_FTM_RESP_ATTR_RTT_SPREAD: RTT spread (u64, picoseconds,
+ *	optional)
+ * @NL80211_PMSR_FTM_RESP_ATTR_DIST_AVG: average distance (s64, mm, optional
+ *	but one of RTT/DIST must be present)
+ * @NL80211_PMSR_FTM_RESP_ATTR_DIST_VARIANCE: distance variance (u64, mm^2, note
+ *	that standard deviation is the square root of variance, optional)
+ * @NL80211_PMSR_FTM_RESP_ATTR_DIST_SPREAD: distance spread (u64, mm, optional)
+ * @NL80211_PMSR_FTM_RESP_ATTR_LCI: LCI data from peer (binary, optional)
+ * @NL80211_PMSR_FTM_RESP_ATTR_CIVICLOC: civic location data from peer
+ *	(binary, optional)
+ * @NL80211_PMSR_FTM_RESP_ATTR_PAD: ignore, for u64/s64 padding only
+ *
+ * @NUM_NL80211_PMSR_FTM_RESP_ATTR: internal
+ * @NL80211_PMSR_FTM_RESP_ATTR_MAX: highest attribute number
+ */
+enum nl80211_peer_measurement_ftm_resp {
+	__NL80211_PMSR_FTM_RESP_ATTR_INVALID,
+
+	NL80211_PMSR_FTM_RESP_ATTR_FAIL_REASON,
+	NL80211_PMSR_FTM_RESP_ATTR_BURST_INDEX,
+	NL80211_PMSR_FTM_RESP_ATTR_NUM_FTMR_ATTEMPTS,
+	NL80211_PMSR_FTM_RESP_ATTR_NUM_FTMR_SUCCESSES,
+	NL80211_PMSR_FTM_RESP_ATTR_BUSY_RETRY_TIME,
+	NL80211_PMSR_FTM_RESP_ATTR_NUM_BURSTS_EXP,
+	NL80211_PMSR_FTM_RESP_ATTR_BURST_DURATION,
+	NL80211_PMSR_FTM_RESP_ATTR_FTMS_PER_BURST,
+	NL80211_PMSR_FTM_RESP_ATTR_RSSI_AVG,
+	NL80211_PMSR_FTM_RESP_ATTR_RSSI_SPREAD,
+	NL80211_PMSR_FTM_RESP_ATTR_TX_RATE,
+	NL80211_PMSR_FTM_RESP_ATTR_RX_RATE,
+	NL80211_PMSR_FTM_RESP_ATTR_RTT_AVG,
+	NL80211_PMSR_FTM_RESP_ATTR_RTT_VARIANCE,
+	NL80211_PMSR_FTM_RESP_ATTR_RTT_SPREAD,
+	NL80211_PMSR_FTM_RESP_ATTR_DIST_AVG,
+	NL80211_PMSR_FTM_RESP_ATTR_DIST_VARIANCE,
+	NL80211_PMSR_FTM_RESP_ATTR_DIST_SPREAD,
+	NL80211_PMSR_FTM_RESP_ATTR_LCI,
+	NL80211_PMSR_FTM_RESP_ATTR_CIVICLOC,
+	NL80211_PMSR_FTM_RESP_ATTR_PAD,
+
+	/* keep last */
+	NUM_NL80211_PMSR_FTM_RESP_ATTR,
+	NL80211_PMSR_FTM_RESP_ATTR_MAX = NUM_NL80211_PMSR_FTM_RESP_ATTR - 1
 };
 
 #endif /* __LINUX_NL80211_H */

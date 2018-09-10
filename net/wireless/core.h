@@ -3,6 +3,7 @@
  * Wireless configuration interface internals.
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright (C) 2018 Intel Corporation
  */
 #ifndef __NET_WIRELESS_CORE_H
 #define __NET_WIRELESS_CORE_H
@@ -529,5 +530,9 @@ void cfg80211_stop_nan(struct cfg80211_registered_device *rdev,
 #endif
 
 void cfg80211_cqm_config_free(struct wireless_dev *wdev);
+
+void cfg80211_release_pmsr(struct wireless_dev *wdev, u32 portid);
+void cfg80211_pmsr_wdev_down(struct wireless_dev *wdev);
+void cfg80211_pmsr_free_wk(struct work_struct *work);
 
 #endif /* __NET_WIRELESS_CORE_H */

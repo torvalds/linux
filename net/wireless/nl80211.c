@@ -240,7 +240,63 @@ nl80211_ftm_responder_policy[NL80211_FTM_RESP_ATTR_MAX + 1] = {
 					     .len = U8_MAX },
 };
 
-static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
+static const struct nla_policy
+nl80211_pmsr_ftm_req_attr_policy[NL80211_PMSR_FTM_REQ_ATTR_MAX + 1] = {
+	[NL80211_PMSR_FTM_REQ_ATTR_ASAP] = { .type = NLA_FLAG },
+	[NL80211_PMSR_FTM_REQ_ATTR_PREAMBLE] = { .type = NLA_U32 },
+	[NL80211_PMSR_FTM_REQ_ATTR_NUM_BURSTS_EXP] =
+		NLA_POLICY_MAX(NLA_U8, 15),
+	[NL80211_PMSR_FTM_REQ_ATTR_BURST_PERIOD] = { .type = NLA_U16 },
+	[NL80211_PMSR_FTM_REQ_ATTR_BURST_DURATION] =
+		NLA_POLICY_MAX(NLA_U8, 15),
+	[NL80211_PMSR_FTM_REQ_ATTR_FTMS_PER_BURST] =
+		NLA_POLICY_MAX(NLA_U8, 15),
+	[NL80211_PMSR_FTM_REQ_ATTR_NUM_FTMR_RETRIES] = { .type = NLA_U8 },
+	[NL80211_PMSR_FTM_REQ_ATTR_REQUEST_LCI] = { .type = NLA_FLAG },
+	[NL80211_PMSR_FTM_REQ_ATTR_REQUEST_CIVICLOC] = { .type = NLA_FLAG },
+};
+
+static const struct nla_policy
+nl80211_pmsr_req_data_policy[NL80211_PMSR_TYPE_MAX + 1] = {
+	[NL80211_PMSR_TYPE_FTM] =
+		NLA_POLICY_NESTED(NL80211_PMSR_FTM_REQ_ATTR_MAX,
+				  nl80211_pmsr_ftm_req_attr_policy),
+};
+
+static const struct nla_policy
+nl80211_pmsr_req_attr_policy[NL80211_PMSR_REQ_ATTR_MAX + 1] = {
+	[NL80211_PMSR_REQ_ATTR_DATA] =
+		NLA_POLICY_NESTED(NL80211_PMSR_TYPE_MAX,
+				  nl80211_pmsr_req_data_policy),
+	[NL80211_PMSR_REQ_ATTR_GET_AP_TSF] = { .type = NLA_FLAG },
+};
+
+static const struct nla_policy
+nl80211_psmr_peer_attr_policy[NL80211_PMSR_PEER_ATTR_MAX + 1] = {
+	[NL80211_PMSR_PEER_ATTR_ADDR] = NLA_POLICY_ETH_ADDR,
+	/*
+	 * we could specify this again to be the top-level policy,
+	 * but that would open us up to recursion problems ...
+	 */
+	[NL80211_PMSR_PEER_ATTR_CHAN] = { .type = NLA_NESTED },
+	[NL80211_PMSR_PEER_ATTR_REQ] =
+		NLA_POLICY_NESTED(NL80211_PMSR_REQ_ATTR_MAX,
+				  nl80211_pmsr_req_attr_policy),
+	[NL80211_PMSR_PEER_ATTR_RESP] = { .type = NLA_REJECT },
+};
+
+static const struct nla_policy
+nl80211_pmsr_attr_policy[NL80211_PMSR_ATTR_MAX + 1] = {
+	[NL80211_PMSR_ATTR_MAX_PEERS] = { .type = NLA_REJECT },
+	[NL80211_PMSR_ATTR_REPORT_AP_TSF] = { .type = NLA_REJECT },
+	[NL80211_PMSR_ATTR_RANDOMIZE_MAC_ADDR] = { .type = NLA_REJECT },
+	[NL80211_PMSR_ATTR_TYPE_CAPA] = { .type = NLA_REJECT },
+	[NL80211_PMSR_ATTR_PEERS] =
+		NLA_POLICY_NESTED_ARRAY(NL80211_PMSR_PEER_ATTR_MAX,
+					nl80211_psmr_peer_attr_policy),
+};
+
+const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_WIPHY] = { .type = NLA_U32 },
 	[NL80211_ATTR_WIPHY_NAME] = { .type = NLA_NUL_STRING,
 				      .len = 20-1 },
@@ -497,6 +553,10 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 		.type = NLA_NESTED,
 		.validation_data = nl80211_ftm_responder_policy,
 	},
+	[NL80211_ATTR_TIMEOUT] = NLA_POLICY_MIN(NLA_U32, 1),
+	[NL80211_ATTR_PEER_MEASUREMENTS] =
+		NLA_POLICY_NESTED(NL80211_PMSR_FTM_REQ_ATTR_MAX,
+				  nl80211_pmsr_attr_policy),
 };
 
 /* policy for the key attributes */
@@ -637,9 +697,9 @@ nl80211_packet_pattern_policy[MAX_NL80211_PKTPAT + 1] = {
 	[NL80211_PKTPAT_OFFSET] = { .type = NLA_U32 },
 };
 
-static int nl80211_prepare_wdev_dump(struct netlink_callback *cb,
-				     struct cfg80211_registered_device **rdev,
-				     struct wireless_dev **wdev)
+int nl80211_prepare_wdev_dump(struct netlink_callback *cb,
+			      struct cfg80211_registered_device **rdev,
+			      struct wireless_dev **wdev)
 {
 	int err;
 
@@ -684,8 +744,8 @@ static int nl80211_prepare_wdev_dump(struct netlink_callback *cb,
 }
 
 /* message building helper */
-static inline void *nl80211hdr_put(struct sk_buff *skb, u32 portid, u32 seq,
-				   int flags, u8 cmd)
+void *nl80211hdr_put(struct sk_buff *skb, u32 portid, u32 seq,
+		     int flags, u8 cmd)
 {
 	/* since there is no private header just add the generic one */
 	return genlmsg_put(skb, portid, seq, &nl80211_fam, flags, cmd);
@@ -1615,6 +1675,91 @@ static int nl80211_add_commands_unsplit(struct cfg80211_registered_device *rdev,
 	return -ENOBUFS;
 }
 
+static int
+nl80211_send_pmsr_ftm_capa(const struct cfg80211_pmsr_capabilities *cap,
+			   struct sk_buff *msg)
+{
+	struct nlattr *ftm;
+
+	if (!cap->ftm.supported)
+		return 0;
+
+	ftm = nla_nest_start(msg, NL80211_PMSR_TYPE_FTM);
+	if (!ftm)
+		return -ENOBUFS;
+
+	if (cap->ftm.asap && nla_put_flag(msg, NL80211_PMSR_FTM_CAPA_ATTR_ASAP))
+		return -ENOBUFS;
+	if (cap->ftm.non_asap &&
+	    nla_put_flag(msg, NL80211_PMSR_FTM_CAPA_ATTR_NON_ASAP))
+		return -ENOBUFS;
+	if (cap->ftm.request_lci &&
+	    nla_put_flag(msg, NL80211_PMSR_FTM_CAPA_ATTR_REQ_LCI))
+		return -ENOBUFS;
+	if (cap->ftm.request_civicloc &&
+	    nla_put_flag(msg, NL80211_PMSR_FTM_CAPA_ATTR_REQ_CIVICLOC))
+		return -ENOBUFS;
+	if (nla_put_u32(msg, NL80211_PMSR_FTM_CAPA_ATTR_PREAMBLES,
+			cap->ftm.preambles))
+		return -ENOBUFS;
+	if (nla_put_u32(msg, NL80211_PMSR_FTM_CAPA_ATTR_BANDWIDTHS,
+			cap->ftm.bandwidths))
+		return -ENOBUFS;
+	if (cap->ftm.max_bursts_exponent >= 0 &&
+	    nla_put_u32(msg, NL80211_PMSR_FTM_CAPA_ATTR_MAX_BURSTS_EXPONENT,
+			cap->ftm.max_bursts_exponent))
+		return -ENOBUFS;
+	if (cap->ftm.max_ftms_per_burst &&
+	    nla_put_u32(msg, NL80211_PMSR_FTM_CAPA_ATTR_MAX_FTMS_PER_BURST,
+			cap->ftm.max_ftms_per_burst))
+		return -ENOBUFS;
+
+	nla_nest_end(msg, ftm);
+	return 0;
+}
+
+static int nl80211_send_pmsr_capa(struct cfg80211_registered_device *rdev,
+				  struct sk_buff *msg)
+{
+	const struct cfg80211_pmsr_capabilities *cap = rdev->wiphy.pmsr_capa;
+	struct nlattr *pmsr, *caps;
+
+	if (!cap)
+		return 0;
+
+	/*
+	 * we don't need to clean up anything here since the caller
+	 * will genlmsg_cancel() if we fail
+	 */
+
+	pmsr = nla_nest_start(msg, NL80211_ATTR_PEER_MEASUREMENTS);
+	if (!pmsr)
+		return -ENOBUFS;
+
+	if (nla_put_u32(msg, NL80211_PMSR_ATTR_MAX_PEERS, cap->max_peers))
+		return -ENOBUFS;
+
+	if (cap->report_ap_tsf &&
+	    nla_put_flag(msg, NL80211_PMSR_ATTR_REPORT_AP_TSF))
+		return -ENOBUFS;
+
+	if (cap->randomize_mac_addr &&
+	    nla_put_flag(msg, NL80211_PMSR_ATTR_RANDOMIZE_MAC_ADDR))
+		return -ENOBUFS;
+
+	caps = nla_nest_start(msg, NL80211_PMSR_ATTR_TYPE_CAPA);
+	if (!caps)
+		return -ENOBUFS;
+
+	if (nl80211_send_pmsr_ftm_capa(cap, msg))
+		return -ENOBUFS;
+
+	nla_nest_end(msg, caps);
+	nla_nest_end(msg, pmsr);
+
+	return 0;
+}
+
 struct nl80211_dump_wiphy_state {
 	s64 filter_wiphy;
 	long start;
@@ -2118,6 +2263,12 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 				goto nla_put_failure;
 		}
 
+		state->split_start++;
+		break;
+	case 14:
+		if (nl80211_send_pmsr_capa(rdev, msg))
+			goto nla_put_failure;
+
 		/* done */
 		state->split_start = 0;
 		break;
@@ -2318,9 +2469,9 @@ static bool nl80211_can_set_dev_channel(struct wireless_dev *wdev)
 		wdev->iftype == NL80211_IFTYPE_P2P_GO;
 }
 
-static int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
-				 struct genl_info *info,
-				 struct cfg80211_chan_def *chandef)
+int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
+			  struct genl_info *info,
+			  struct cfg80211_chan_def *chandef)
 {
 	struct netlink_ext_ack *extack = info->extack;
 	struct nlattr **attrs = info->attrs;
@@ -2792,12 +2943,6 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 	return 0;
-}
-
-static inline u64 wdev_id(struct wireless_dev *wdev)
-{
-	return (u64)wdev->identifier |
-	       ((u64)wiphy_to_rdev(wdev->wiphy)->wiphy_idx << 32);
 }
 
 static int nl80211_send_chandef(struct sk_buff *msg,
@@ -4521,8 +4666,7 @@ static int parse_station_flags(struct genl_info *info,
 	return 0;
 }
 
-static bool nl80211_put_sta_rate(struct sk_buff *msg, struct rate_info *info,
-				 int attr)
+bool nl80211_put_sta_rate(struct sk_buff *msg, struct rate_info *info, int attr)
 {
 	struct nlattr *rate;
 	u32 bitrate;
@@ -6855,8 +6999,8 @@ static int parse_bss_select(struct nlattr *nla, struct wiphy *wiphy,
 	return 0;
 }
 
-static int nl80211_parse_random_mac(struct nlattr **attrs,
-				    u8 *mac_addr, u8 *mac_addr_mask)
+int nl80211_parse_random_mac(struct nlattr **attrs,
+			     u8 *mac_addr, u8 *mac_addr_mask)
 {
 	int i;
 
@@ -13898,6 +14042,14 @@ static const struct genl_ops nl80211_ops[] = {
 		.internal_flags = NL80211_FLAG_NEED_NETDEV |
 				  NL80211_FLAG_NEED_RTNL,
 	},
+	{
+		.cmd = NL80211_CMD_PEER_MEASUREMENT_START,
+		.doit = nl80211_pmsr_start,
+		.policy = nl80211_policy,
+		.flags = GENL_UNS_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_WDEV_UP |
+				  NL80211_FLAG_NEED_RTNL,
+	},
 };
 
 static struct genl_family nl80211_fam __ro_after_init = {
@@ -15881,6 +16033,8 @@ static int nl80211_netlink_notify(struct notifier_block * nb,
 			} else if (wdev->conn_owner_nlportid == notify->portid) {
 				schedule_work(&wdev->disconnect_wk);
 			}
+
+			cfg80211_release_pmsr(wdev, notify->portid);
 		}
 
 		spin_lock_bh(&rdev->beacon_registrations_lock);

@@ -2849,6 +2849,190 @@ struct cfg80211_ftm_responder_stats {
 };
 
 /**
+ * struct cfg80211_pmsr_ftm_result - FTM result
+ * @failure_reason: if this measurement failed (PMSR status is
+ *	%NL80211_PMSR_STATUS_FAILURE), this gives a more precise
+ *	reason than just "failure"
+ * @burst_index: if reporting partial results, this is the index
+ *	in [0 .. num_bursts-1] of the burst that's being reported
+ * @num_ftmr_attempts: number of FTM request frames transmitted
+ * @num_ftmr_successes: number of FTM request frames acked
+ * @busy_retry_time: if failure_reason is %NL80211_PMSR_FTM_FAILURE_PEER_BUSY,
+ *	fill this to indicate in how many seconds a retry is deemed possible
+ *	by the responder
+ * @num_bursts_exp: actual number of bursts exponent negotiated
+ * @burst_duration: actual burst duration negotiated
+ * @ftms_per_burst: actual FTMs per burst negotiated
+ * @lci_len: length of LCI information (if present)
+ * @civicloc_len: length of civic location information (if present)
+ * @lci: LCI data (may be %NULL)
+ * @civicloc: civic location data (may be %NULL)
+ * @rssi_avg: average RSSI over FTM action frames reported
+ * @rssi_spread: spread of the RSSI over FTM action frames reported
+ * @tx_rate: bitrate for transmitted FTM action frame response
+ * @rx_rate: bitrate of received FTM action frame
+ * @rtt_avg: average of RTTs measured (must have either this or @dist_avg)
+ * @rtt_variance: variance of RTTs measured (note that standard deviation is
+ *	the square root of the variance)
+ * @rtt_spread: spread of the RTTs measured
+ * @dist_avg: average of distances (mm) measured
+ *	(must have either this or @rtt_avg)
+ * @dist_variance: variance of distances measured (see also @rtt_variance)
+ * @dist_spread: spread of distances measured (see also @rtt_spread)
+ * @num_ftmr_attempts_valid: @num_ftmr_attempts is valid
+ * @num_ftmr_successes_valid: @num_ftmr_successes is valid
+ * @rssi_avg_valid: @rssi_avg is valid
+ * @rssi_spread_valid: @rssi_spread is valid
+ * @tx_rate_valid: @tx_rate is valid
+ * @rx_rate_valid: @rx_rate is valid
+ * @rtt_avg_valid: @rtt_avg is valid
+ * @rtt_variance_valid: @rtt_variance is valid
+ * @rtt_spread_valid: @rtt_spread is valid
+ * @dist_avg_valid: @dist_avg is valid
+ * @dist_variance_valid: @dist_variance is valid
+ * @dist_spread_valid: @dist_spread is valid
+ */
+struct cfg80211_pmsr_ftm_result {
+	const u8 *lci;
+	const u8 *civicloc;
+	unsigned int lci_len;
+	unsigned int civicloc_len;
+	enum nl80211_peer_measurement_ftm_failure_reasons failure_reason;
+	u32 num_ftmr_attempts, num_ftmr_successes;
+	s16 burst_index;
+	u8 busy_retry_time;
+	u8 num_bursts_exp;
+	u8 burst_duration;
+	u8 ftms_per_burst;
+	s32 rssi_avg;
+	s32 rssi_spread;
+	struct rate_info tx_rate, rx_rate;
+	s64 rtt_avg;
+	s64 rtt_variance;
+	s64 rtt_spread;
+	s64 dist_avg;
+	s64 dist_variance;
+	s64 dist_spread;
+
+	u16 num_ftmr_attempts_valid:1,
+	    num_ftmr_successes_valid:1,
+	    rssi_avg_valid:1,
+	    rssi_spread_valid:1,
+	    tx_rate_valid:1,
+	    rx_rate_valid:1,
+	    rtt_avg_valid:1,
+	    rtt_variance_valid:1,
+	    rtt_spread_valid:1,
+	    dist_avg_valid:1,
+	    dist_variance_valid:1,
+	    dist_spread_valid:1;
+};
+
+/**
+ * struct cfg80211_pmsr_result - peer measurement result
+ * @addr: address of the peer
+ * @host_time: host time (use ktime_get_boottime() adjust to the time when the
+ *	measurement was made)
+ * @ap_tsf: AP's TSF at measurement time
+ * @status: status of the measurement
+ * @final: if reporting partial results, mark this as the last one; if not
+ *	reporting partial results always set this flag
+ * @ap_tsf_valid: indicates the @ap_tsf value is valid
+ * @type: type of the measurement reported, note that we only support reporting
+ *	one type at a time, but you can report multiple results separately and
+ *	they're all aggregated for userspace.
+ */
+struct cfg80211_pmsr_result {
+	u64 host_time, ap_tsf;
+	enum nl80211_peer_measurement_status status;
+
+	u8 addr[ETH_ALEN];
+
+	u8 final:1,
+	   ap_tsf_valid:1;
+
+	enum nl80211_peer_measurement_type type;
+
+	union {
+		struct cfg80211_pmsr_ftm_result ftm;
+	};
+};
+
+/**
+ * struct cfg80211_pmsr_ftm_request_peer - FTM request data
+ * @requested: indicates FTM is requested
+ * @preamble: frame preamble to use
+ * @burst_period: burst period to use
+ * @asap: indicates to use ASAP mode
+ * @num_bursts_exp: number of bursts exponent
+ * @burst_duration: burst duration
+ * @ftms_per_burst: number of FTMs per burst
+ * @ftmr_retries: number of retries for FTM request
+ * @request_lci: request LCI information
+ * @request_civicloc: request civic location information
+ *
+ * See also nl80211 for the respective attribute documentation.
+ */
+struct cfg80211_pmsr_ftm_request_peer {
+	enum nl80211_preamble preamble;
+	u16 burst_period;
+	u8 requested:1,
+	   asap:1,
+	   request_lci:1,
+	   request_civicloc:1;
+	u8 num_bursts_exp;
+	u8 burst_duration;
+	u8 ftms_per_burst;
+	u8 ftmr_retries;
+};
+
+/**
+ * struct cfg80211_pmsr_request_peer - peer data for a peer measurement request
+ * @addr: MAC address
+ * @chandef: channel to use
+ * @report_ap_tsf: report the associated AP's TSF
+ * @ftm: FTM data, see &struct cfg80211_pmsr_ftm_request_peer
+ */
+struct cfg80211_pmsr_request_peer {
+	u8 addr[ETH_ALEN];
+	struct cfg80211_chan_def chandef;
+	u8 report_ap_tsf:1;
+	struct cfg80211_pmsr_ftm_request_peer ftm;
+};
+
+/**
+ * struct cfg80211_pmsr_request - peer measurement request
+ * @cookie: cookie, set by cfg80211
+ * @nl_portid: netlink portid - used by cfg80211
+ * @drv_data: driver data for this request, if required for aborting,
+ *	not otherwise freed or anything by cfg80211
+ * @mac_addr: MAC address used for (randomised) request
+ * @mac_addr_mask: MAC address mask used for randomisation, bits that
+ *	are 0 in the mask should be randomised, bits that are 1 should
+ *	be taken from the @mac_addr
+ * @list: used by cfg80211 to hold on to the request
+ * @timeout: timeout (in milliseconds) for the whole operation, if
+ *	zero it means there's no timeout
+ * @n_peers: number of peers to do measurements with
+ * @peers: per-peer measurement request data
+ */
+struct cfg80211_pmsr_request {
+	u64 cookie;
+	void *drv_data;
+	u32 n_peers;
+	u32 nl_portid;
+
+	u32 timeout;
+
+	u8 mac_addr[ETH_ALEN] __aligned(2);
+	u8 mac_addr_mask[ETH_ALEN] __aligned(2);
+
+	struct list_head list;
+
+	struct cfg80211_pmsr_request_peer peers[];
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -3183,6 +3367,8 @@ struct cfg80211_ftm_responder_stats {
  *
  * @get_ftm_responder_stats: Retrieve FTM responder statistics, if available.
  *	Statistics should be cumulative, currently no way to reset is provided.
+ * @start_pmsr: start peer measurement (e.g. FTM)
+ * @abort_pmsr: abort peer measurement
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -3492,6 +3678,11 @@ struct cfg80211_ops {
 	int	(*get_ftm_responder_stats)(struct wiphy *wiphy,
 				struct net_device *dev,
 				struct cfg80211_ftm_responder_stats *ftm_stats);
+
+	int	(*start_pmsr)(struct wiphy *wiphy, struct wireless_dev *wdev,
+			      struct cfg80211_pmsr_request *request);
+	void	(*abort_pmsr)(struct wiphy *wiphy, struct wireless_dev *wdev,
+			      struct cfg80211_pmsr_request *request);
 };
 
 /*
@@ -3864,6 +4055,42 @@ struct wiphy_iftype_ext_capab {
 };
 
 /**
+ * struct cfg80211_pmsr_capabilities - cfg80211 peer measurement capabilities
+ * @max_peers: maximum number of peers in a single measurement
+ * @report_ap_tsf: can report assoc AP's TSF for radio resource measurement
+ * @randomize_mac_addr: can randomize MAC address for measurement
+ * @ftm.supported: FTM measurement is supported
+ * @ftm.asap: ASAP-mode is supported
+ * @ftm.non_asap: non-ASAP-mode is supported
+ * @ftm.request_lci: can request LCI data
+ * @ftm.request_civicloc: can request civic location data
+ * @ftm.preambles: bitmap of preambles supported (&enum nl80211_preamble)
+ * @ftm.bandwidths: bitmap of bandwidths supported (&enum nl80211_chan_width)
+ * @ftm.max_bursts_exponent: maximum burst exponent supported
+ *	(set to -1 if not limited; note that setting this will necessarily
+ *	forbid using the value 15 to let the responder pick)
+ * @ftm.max_ftms_per_burst: maximum FTMs per burst supported (set to 0 if
+ *	not limited)
+ */
+struct cfg80211_pmsr_capabilities {
+	unsigned int max_peers;
+	u8 report_ap_tsf:1,
+	   randomize_mac_addr:1;
+
+	struct {
+		u32 preambles;
+		u32 bandwidths;
+		s8 max_bursts_exponent;
+		u8 max_ftms_per_burst;
+		u8 supported:1,
+		   asap:1,
+		   non_asap:1,
+		   request_lci:1,
+		   request_civicloc:1;
+	} ftm;
+};
+
+/**
  * struct wiphy - wireless hardware description
  * @reg_notifier: the driver's regulatory notification callback,
  *	note that if your driver uses wiphy_apply_custom_regulatory()
@@ -4027,6 +4254,8 @@ struct wiphy_iftype_ext_capab {
  * @txq_limit: configuration of internal TX queue frame limit
  * @txq_memory_limit: configuration internal TX queue memory limit
  * @txq_quantum: configuration of internal TX queue scheduler quantum
+ *
+ * @pmsr_capa: peer measurement capabilities
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -4162,6 +4391,8 @@ struct wiphy {
 	u32 txq_limit;
 	u32 txq_memory_limit;
 	u32 txq_quantum;
+
+	const struct cfg80211_pmsr_capabilities *pmsr_capa;
 
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
@@ -4365,6 +4596,9 @@ struct cfg80211_cqm_config;
  * @owner_nlportid: (private) owner socket port ID
  * @nl_owner_dead: (private) owner socket went away
  * @cqm_config: (private) nl80211 RSSI monitor state
+ * @pmsr_list: (private) peer measurement requests
+ * @pmsr_lock: (private) peer measurements requests/results lock
+ * @pmsr_free_wk: (private) peer measurements cleanup work
  */
 struct wireless_dev {
 	struct wiphy *wiphy;
@@ -4436,6 +4670,10 @@ struct wireless_dev {
 #endif
 
 	struct cfg80211_cqm_config *cqm_config;
+
+	struct list_head pmsr_list;
+	spinlock_t pmsr_lock;
+	struct work_struct pmsr_free_wk;
 };
 
 static inline u8 *wdev_address(struct wireless_dev *wdev)
@@ -6629,6 +6867,31 @@ void cfg80211_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info);
 int cfg80211_external_auth_request(struct net_device *netdev,
 				   struct cfg80211_external_auth_params *params,
 				   gfp_t gfp);
+
+/**
+ * cfg80211_pmsr_report - report peer measurement result data
+ * @wdev: the wireless device reporting the measurement
+ * @req: the original measurement request
+ * @result: the result data
+ * @gfp: allocation flags
+ */
+void cfg80211_pmsr_report(struct wireless_dev *wdev,
+			  struct cfg80211_pmsr_request *req,
+			  struct cfg80211_pmsr_result *result,
+			  gfp_t gfp);
+
+/**
+ * cfg80211_pmsr_complete - report peer measurement completed
+ * @wdev: the wireless device reporting the measurement
+ * @req: the original measurement request
+ * @gfp: allocation flags
+ *
+ * Report that the entire measurement completed, after this
+ * the request pointer will no longer be valid.
+ */
+void cfg80211_pmsr_complete(struct wireless_dev *wdev,
+			    struct cfg80211_pmsr_request *req,
+			    gfp_t gfp);
 
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 
