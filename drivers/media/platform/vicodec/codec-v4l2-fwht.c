@@ -51,8 +51,7 @@ const struct v4l2_fwht_pixfmt_info *v4l2_fwht_get_pixfmt(u32 idx)
 	return v4l2_fwht_pixfmts + idx;
 }
 
-unsigned int v4l2_fwht_encode(struct v4l2_fwht_state *state,
-			      u8 *p_in, u8 *p_out)
+int v4l2_fwht_encode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 {
 	unsigned int size = state->width * state->height;
 	const struct v4l2_fwht_pixfmt_info *info = state->info;
@@ -62,6 +61,8 @@ unsigned int v4l2_fwht_encode(struct v4l2_fwht_state *state,
 	u32 encoding;
 	u32 flags = 0;
 
+	if (!info)
+		return -EINVAL;
 	rf.width = state->width;
 	rf.height = state->height;
 	rf.luma = p_in;
@@ -137,6 +138,8 @@ unsigned int v4l2_fwht_encode(struct v4l2_fwht_state *state,
 		rf.cr = rf.cb + 2;
 		rf.luma++;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	cf.width = state->width;
@@ -180,8 +183,7 @@ unsigned int v4l2_fwht_encode(struct v4l2_fwht_state *state,
 	return cf.size + sizeof(*p_hdr);
 }
 
-int v4l2_fwht_decode(struct v4l2_fwht_state *state,
-		     u8 *p_in, u8 *p_out)
+int v4l2_fwht_decode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 {
 	unsigned int size = state->width * state->height;
 	unsigned int chroma_size = size;
@@ -190,6 +192,9 @@ int v4l2_fwht_decode(struct v4l2_fwht_state *state,
 	struct fwht_cframe_hdr *p_hdr;
 	struct fwht_cframe cf;
 	u8 *p;
+
+	if (!state->info)
+		return -EINVAL;
 
 	p_hdr = (struct fwht_cframe_hdr *)p_in;
 	cf.width = ntohl(p_hdr->width);
@@ -320,6 +325,8 @@ int v4l2_fwht_decode(struct v4l2_fwht_state *state,
 			*p++ = 0;
 		}
 		break;
+	default:
+		return -EINVAL;
 	}
 	return 0;
 }
