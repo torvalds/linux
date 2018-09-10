@@ -81,7 +81,7 @@ static int superblock_read(struct super_block *sb)
 	struct erofs_sb_info *sbi;
 	struct buffer_head *bh;
 	struct erofs_super_block *layout;
-	unsigned blkszbits;
+	unsigned int blkszbits;
 	int ret;
 
 	bh = sb_bread(sb, 0);

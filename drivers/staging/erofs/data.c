@@ -202,7 +202,7 @@ static inline struct bio *erofs_read_raw_page(
 	struct address_space *mapping,
 	struct page *page,
 	erofs_off_t *last_block,
-	unsigned nblocks,
+	unsigned int nblocks,
 	bool ra)
 {
 	struct inode *inode = mapping->host;
@@ -236,7 +236,7 @@ submit_bio_retry:
 			.m_la = blknr_to_addr(current_block),
 		};
 		erofs_blk_t blknr;
-		unsigned blkoff;
+		unsigned int blkoff;
 
 		err = erofs_map_blocks(inode, &map, EROFS_GET_BLOCKS_RAW);
 		if (unlikely(err))

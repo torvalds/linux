@@ -19,7 +19,7 @@ static int read_inode(struct inode *inode, void *data)
 {
 	struct erofs_vnode *vi = EROFS_V(inode);
 	struct erofs_inode_v1 *v1 = data;
-	const unsigned advise = le16_to_cpu(v1->i_advise);
+	const unsigned int advise = le16_to_cpu(v1->i_advise);
 
 	vi->data_mapping_mode = __inode_data_mapping(advise);
 
@@ -112,7 +112,8 @@ static int read_inode(struct inode *inode, void *data)
  * try_lock since it takes no much overhead and
  * will success immediately.
  */
-static int fill_inline_data(struct inode *inode, void *data, unsigned m_pofs)
+static int fill_inline_data(struct inode *inode, void *data,
+			    unsigned int m_pofs)
 {
 	struct erofs_vnode *vi = EROFS_V(inode);
 	struct erofs_sb_info *sbi = EROFS_I_SB(inode);
@@ -152,7 +153,7 @@ static int fill_inode(struct inode *inode, int isdir)
 	void *data;
 	int err;
 	erofs_blk_t blkaddr;
-	unsigned ofs;
+	unsigned int ofs;
 
 	trace_erofs_fill_inode(inode, isdir);
 
