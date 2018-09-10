@@ -490,9 +490,8 @@ static void vbox_bo_unref(struct vbox_bo **bo)
 		return;
 
 	tbo = &((*bo)->bo);
-	ttm_bo_unref(&tbo);
-	if (!tbo)
-		*bo = NULL;
+	ttm_bo_put(tbo);
+	*bo = NULL;
 }
 
 void vbox_gem_free_object(struct drm_gem_object *obj)
