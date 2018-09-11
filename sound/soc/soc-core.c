@@ -1013,7 +1013,6 @@ static void soc_remove_dai_links(struct snd_soc_card *card)
 				link->name);
 
 		list_del(&link->list);
-		card->num_dai_links--;
 	}
 }
 
@@ -1182,7 +1181,6 @@ int snd_soc_add_dai_link(struct snd_soc_card *card,
 		card->add_dai_link(card, dai_link);
 
 	list_add_tail(&dai_link->list, &card->dai_link_list);
-	card->num_dai_links++;
 
 	return 0;
 }
@@ -1220,7 +1218,6 @@ void snd_soc_remove_dai_link(struct snd_soc_card *card,
 	list_for_each_entry_safe(link, _link, &card->dai_link_list, list) {
 		if (link == dai_link) {
 			list_del(&link->list);
-			card->num_dai_links--;
 			return;
 		}
 	}
@@ -2712,7 +2709,6 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	snd_soc_initialize_card_lists(card);
 
 	INIT_LIST_HEAD(&card->dai_link_list);
-	card->num_dai_links = 0;
 
 	INIT_LIST_HEAD(&card->rtd_list);
 	card->num_rtd = 0;
