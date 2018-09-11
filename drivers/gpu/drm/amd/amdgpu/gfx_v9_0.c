@@ -1673,6 +1673,7 @@ static int gfx_v9_0_sw_init(void *handle)
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
+	case CHIP_ARCTURUS:
 		adev->gfx.mec.num_mec = 2;
 		break;
 	default:
