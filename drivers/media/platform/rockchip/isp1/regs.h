@@ -139,12 +139,12 @@
 #define CIF_MI_MP_AUTOUPDATE_ENABLE		BIT(13)
 #define CIF_MI_SP_AUTOUPDATE_ENABLE		BIT(14)
 #define CIF_MI_LAST_PIXEL_SIG_ENABLE		BIT(15)
-#define CIF_MI_CTRL_BURST_LEN_LUM_16		(0 << 16)
-#define CIF_MI_CTRL_BURST_LEN_LUM_32		(1 << 16)
-#define CIF_MI_CTRL_BURST_LEN_LUM_64		(2 << 16)
-#define CIF_MI_CTRL_BURST_LEN_CHROM_16		(0 << 18)
-#define CIF_MI_CTRL_BURST_LEN_CHROM_32		(1 << 18)
-#define CIF_MI_CTRL_BURST_LEN_CHROM_64		(2 << 18)
+#define CIF_MI_CTRL_BURST_LEN_LUM_4		(0 << 16)
+#define CIF_MI_CTRL_BURST_LEN_LUM_8		(1 << 16)
+#define CIF_MI_CTRL_BURST_LEN_LUM_16		(2 << 16)
+#define CIF_MI_CTRL_BURST_LEN_CHROM_4		(0 << 18)
+#define CIF_MI_CTRL_BURST_LEN_CHROM_8		(1 << 18)
+#define CIF_MI_CTRL_BURST_LEN_CHROM_16		(2 << 18)
 #define CIF_MI_CTRL_INIT_BASE_EN		BIT(20)
 #define CIF_MI_CTRL_INIT_OFFSET_EN		BIT(21)
 #define MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8	(0 << 22)
@@ -1448,7 +1448,7 @@ void config_rsz(struct rkisp1_stream *stream, struct v4l2_rect *in_y,
 		struct v4l2_rect *in_c, struct v4l2_rect *out_y,
 		struct v4l2_rect *out_c, bool async);
 
-void config_mi_ctrl(struct rkisp1_stream *stream);
+void config_mi_ctrl(struct rkisp1_stream *stream, u32 burst);
 
 void mp_clr_frame_end_int(void __iomem *base);
 void sp_clr_frame_end_int(void __iomem *base);

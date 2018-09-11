@@ -744,6 +744,56 @@ disable:
 /***************************** stream operations*******************************/
 
 /*
+ * memory base addresses should be with respect
+ * to the burst alignment restriction for AXI.
+ */
+static u32 calc_burst_len(struct rkisp1_stream *stream)
+{
+	struct rkisp1_device *dev = stream->ispdev;
+	u32 y_size = stream->out_fmt.plane_fmt[0].bytesperline *
+		stream->out_fmt.height;
+	u32 cb_size = stream->out_fmt.plane_fmt[1].sizeimage;
+	u32 cr_size = stream->out_fmt.plane_fmt[2].sizeimage;
+	u32 cb_offs, cr_offs;
+	u32 bus, burst;
+	int i;
+
+	/* MI128bit and MI64bit */
+	bus = (dev->isp_ver == ISP_V12) ? 16 : 8;
+
+	/* y/c base addr: burstN * bus alignment */
+	cb_offs = y_size;
+	cr_offs = cr_size ? (cb_size + cb_offs) : 0;
+
+	if (!(cb_offs % (bus * 16)) &&
+		!(cr_offs % (bus * 16)))
+		burst = CIF_MI_CTRL_BURST_LEN_LUM_16 |
+			CIF_MI_CTRL_BURST_LEN_CHROM_16;
+	else if (!(cb_offs % (bus * 8)) &&
+		!(cr_offs % (bus * 8)))
+		burst = CIF_MI_CTRL_BURST_LEN_LUM_8 |
+			CIF_MI_CTRL_BURST_LEN_CHROM_8;
+	else
+		burst = CIF_MI_CTRL_BURST_LEN_LUM_4 |
+			CIF_MI_CTRL_BURST_LEN_CHROM_4;
+
+	if (cb_offs % (bus * 4) ||
+		cr_offs % (bus * 4))
+		v4l2_warn(&dev->v4l2_dev,
+			"%dx%d fmt:0x%x not support, should be %d aligned\n",
+			stream->out_fmt.width,
+			stream->out_fmt.height,
+			stream->out_fmt.pixelformat,
+			(cr_offs == 0) ? bus * 4 : bus * 16);
+
+	stream->burst = burst;
+	for (i = 0; i < RKISP1_MAX_STREAM; i++)
+		if (burst > dev->stream[i].burst)
+			burst = dev->stream[i].burst;
+	return burst;
+}
+
+/*
  * configure memory interface for mainpath
  * This should only be called when stream-on
  */
@@ -759,12 +809,11 @@ static int mp_config_mi(struct rkisp1_stream *stream)
 			 stream->out_fmt.height);
 	mi_set_cb_size(stream, stream->out_fmt.plane_fmt[1].sizeimage);
 	mi_set_cr_size(stream, stream->out_fmt.plane_fmt[2].sizeimage);
-
 	mi_frame_end_int_enable(stream);
 	if (stream->out_isp_fmt.uv_swap)
 		mp_set_uv_swap(base);
 
-	config_mi_ctrl(stream);
+	config_mi_ctrl(stream, calc_burst_len(stream));
 	mp_mi_ctrl_set_format(base, stream->out_isp_fmt.write_format);
 	mp_mi_ctrl_autoupdate_en(base);
 
@@ -805,7 +854,7 @@ static int sp_config_mi(struct rkisp1_stream *stream)
 	if (output_isp_fmt->uv_swap)
 		sp_set_uv_swap(base);
 
-	config_mi_ctrl(stream);
+	config_mi_ctrl(stream, calc_burst_len(stream));
 	sp_mi_ctrl_set_format(base, stream->out_isp_fmt.write_format |
 			      sp_in_fmt | output_isp_fmt->output_format);
 
@@ -983,6 +1032,9 @@ static void rkisp1_stream_stop(struct rkisp1_stream *stream)
 	}
 	disable_dcrop(stream, true);
 	disable_rsz(stream, true);
+	stream->burst =
+		CIF_MI_CTRL_BURST_LEN_LUM_16 |
+		CIF_MI_CTRL_BURST_LEN_CHROM_16;
 }
 
 /*
@@ -1471,6 +1523,10 @@ void rkisp1_stream_init(struct rkisp1_device *dev, u32 id)
 	stream->dcrop.top = 0;
 	stream->dcrop.width = RKISP1_DEFAULT_WIDTH;
 	stream->dcrop.height = RKISP1_DEFAULT_HEIGHT;
+
+	stream->burst =
+		CIF_MI_CTRL_BURST_LEN_LUM_16 |
+		CIF_MI_CTRL_BURST_LEN_CHROM_16;
 }
 
 static const struct v4l2_file_operations rkisp1_fops = {

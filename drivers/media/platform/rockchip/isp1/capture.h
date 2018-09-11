@@ -177,6 +177,7 @@ struct rkisp1_stream {
 	bool streaming;
 	bool stopping;
 	wait_queue_head_t done;
+	unsigned int burst;
 	union {
 		struct rkisp1_stream_sp sp;
 		struct rkisp1_stream_mp mp;

@@ -216,16 +216,14 @@ void disable_rsz(struct rkisp1_stream *stream, bool async)
 		update_rsz_shadow(stream, async);
 }
 
-void config_mi_ctrl(struct rkisp1_stream *stream)
+void config_mi_ctrl(struct rkisp1_stream *stream, u32 burst)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	void __iomem *addr = base + CIF_MI_CTRL;
 	u32 reg;
 
-	reg = readl(addr) & ~GENMASK(17, 16);
-	writel(reg | CIF_MI_CTRL_BURST_LEN_LUM_64, addr);
-	reg = readl(addr) & ~GENMASK(19, 18);
-	writel(reg | CIF_MI_CTRL_BURST_LEN_CHROM_64, addr);
+	reg = readl(addr) & ~GENMASK(19, 16);
+	writel(reg | burst, addr);
 	reg = readl(addr);
 	writel(reg | CIF_MI_CTRL_INIT_BASE_EN, addr);
 	reg = readl(addr);
