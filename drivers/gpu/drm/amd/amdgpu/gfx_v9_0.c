@@ -4342,14 +4342,16 @@ static void gfx_v9_0_get_clockgating_state(void *handle, u32 *flags)
 	if (data & CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK)
 		*flags |= AMD_CG_SUPPORT_GFX_CP_LS | AMD_CG_SUPPORT_GFX_MGLS;
 
-	/* AMD_CG_SUPPORT_GFX_3D_CGCG */
-	data = RREG32_SOC15(GC, 0, mmRLC_CGCG_CGLS_CTRL_3D);
-	if (data & RLC_CGCG_CGLS_CTRL_3D__CGCG_EN_MASK)
-		*flags |= AMD_CG_SUPPORT_GFX_3D_CGCG;
+	if (adev->asic_type != CHIP_ARCTURUS) {
+		/* AMD_CG_SUPPORT_GFX_3D_CGCG */
+		data = RREG32_SOC15(GC, 0, mmRLC_CGCG_CGLS_CTRL_3D);
+		if (data & RLC_CGCG_CGLS_CTRL_3D__CGCG_EN_MASK)
+			*flags |= AMD_CG_SUPPORT_GFX_3D_CGCG;
 
-	/* AMD_CG_SUPPORT_GFX_3D_CGLS */
-	if (data & RLC_CGCG_CGLS_CTRL_3D__CGLS_EN_MASK)
-		*flags |= AMD_CG_SUPPORT_GFX_3D_CGLS;
+		/* AMD_CG_SUPPORT_GFX_3D_CGLS */
+		if (data & RLC_CGCG_CGLS_CTRL_3D__CGLS_EN_MASK)
+			*flags |= AMD_CG_SUPPORT_GFX_3D_CGLS;
+	}
 }
 
 static u64 gfx_v9_0_ring_get_rptr_gfx(struct amdgpu_ring *ring)
