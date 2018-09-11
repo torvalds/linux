@@ -53,9 +53,6 @@ ctnl_timeout_parse_policy(void *timeout,
 	struct nlattr **tb;
 	int ret = 0;
 
-	if (!l4proto->ctnl_timeout.nlattr_to_obj)
-		return 0;
-
 	tb = kcalloc(l4proto->ctnl_timeout.nlattr_max + 1, sizeof(*tb),
 		     GFP_KERNEL);
 
@@ -167,6 +164,8 @@ ctnl_timeout_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	struct nfgenmsg *nfmsg;
 	unsigned int flags = portid ? NLM_F_MULTI : 0;
 	const struct nf_conntrack_l4proto *l4proto = timeout->timeout.l4proto;
+	struct nlattr *nest_parms;
+	int ret;
 
 	event = nfnl_msg_type(NFNL_SUBSYS_CTNETLINK_TIMEOUT, event);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);
@@ -186,22 +185,15 @@ ctnl_timeout_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 			 htonl(refcount_read(&timeout->refcnt))))
 		goto nla_put_failure;
 
-	if (likely(l4proto->ctnl_timeout.obj_to_nlattr)) {
-		struct nlattr *nest_parms;
-		int ret;
+	nest_parms = nla_nest_start(skb, CTA_TIMEOUT_DATA | NLA_F_NESTED);
+	if (!nest_parms)
+		goto nla_put_failure;
 
-		nest_parms = nla_nest_start(skb,
-					    CTA_TIMEOUT_DATA | NLA_F_NESTED);
-		if (!nest_parms)
-			goto nla_put_failure;
+	ret = l4proto->ctnl_timeout.obj_to_nlattr(skb, &timeout->timeout.data);
+	if (ret < 0)
+		goto nla_put_failure;
 
-		ret = l4proto->ctnl_timeout.obj_to_nlattr(skb,
-							&timeout->timeout.data);
-		if (ret < 0)
-			goto nla_put_failure;
-
-		nla_nest_end(skb, nest_parms);
-	}
+	nla_nest_end(skb, nest_parms);
 
 	nlmsg_end(skb, nlh);
 	return skb->len;
@@ -397,6 +389,8 @@ cttimeout_default_fill_info(struct net *net, struct sk_buff *skb, u32 portid,
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 	unsigned int flags = portid ? NLM_F_MULTI : 0;
+	struct nlattr *nest_parms;
+	int ret;
 
 	event = nfnl_msg_type(NFNL_SUBSYS_CTNETLINK_TIMEOUT, event);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);
@@ -412,21 +406,15 @@ cttimeout_default_fill_info(struct net *net, struct sk_buff *skb, u32 portid,
 	    nla_put_u8(skb, CTA_TIMEOUT_L4PROTO, l4proto->l4proto))
 		goto nla_put_failure;
 
-	if (likely(l4proto->ctnl_timeout.obj_to_nlattr)) {
-		struct nlattr *nest_parms;
-		int ret;
+	nest_parms = nla_nest_start(skb, CTA_TIMEOUT_DATA | NLA_F_NESTED);
+	if (!nest_parms)
+		goto nla_put_failure;
 
-		nest_parms = nla_nest_start(skb,
-					    CTA_TIMEOUT_DATA | NLA_F_NESTED);
-		if (!nest_parms)
-			goto nla_put_failure;
+	ret = l4proto->ctnl_timeout.obj_to_nlattr(skb, NULL);
+	if (ret < 0)
+		goto nla_put_failure;
 
-		ret = l4proto->ctnl_timeout.obj_to_nlattr(skb, NULL);
-		if (ret < 0)
-			goto nla_put_failure;
-
-		nla_nest_end(skb, nest_parms);
-	}
+	nla_nest_end(skb, nest_parms);
 
 	nlmsg_end(skb, nlh);
 	return skb->len;
