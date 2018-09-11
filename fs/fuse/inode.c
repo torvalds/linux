@@ -594,9 +594,11 @@ static void fuse_iqueue_init(struct fuse_iqueue *fiq)
 
 static void fuse_pqueue_init(struct fuse_pqueue *fpq)
 {
-	memset(fpq, 0, sizeof(struct fuse_pqueue));
+	unsigned int i;
+
 	spin_lock_init(&fpq->lock);
-	INIT_LIST_HEAD(&fpq->processing);
+	for (i = 0; i < FUSE_PQ_HASH_SIZE; i++)
+		INIT_LIST_HEAD(&fpq->processing[i]);
 	INIT_LIST_HEAD(&fpq->io);
 	fpq->connected = 1;
 }
@@ -1025,16 +1027,25 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
 struct fuse_dev *fuse_dev_alloc(struct fuse_conn *fc)
 {
 	struct fuse_dev *fud;
+	struct list_head *pq;
 
 	fud = kzalloc(sizeof(struct fuse_dev), GFP_KERNEL);
-	if (fud) {
-		fud->fc = fuse_conn_get(fc);
-		fuse_pqueue_init(&fud->pq);
+	if (!fud)
+		return NULL;
 
-		spin_lock(&fc->lock);
-		list_add_tail(&fud->entry, &fc->devices);
-		spin_unlock(&fc->lock);
+	pq = kcalloc(FUSE_PQ_HASH_SIZE, sizeof(struct list_head), GFP_KERNEL);
+	if (!pq) {
+		kfree(fud);
+		return NULL;
 	}
+
+	fud->pq.processing = pq;
+	fud->fc = fuse_conn_get(fc);
+	fuse_pqueue_init(&fud->pq);
+
+	spin_lock(&fc->lock);
+	list_add_tail(&fud->entry, &fc->devices);
+	spin_unlock(&fc->lock);
 
 	return fud;
 }

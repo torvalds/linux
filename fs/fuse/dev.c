@@ -327,6 +327,11 @@ static u64 fuse_get_unique(struct fuse_iqueue *fiq)
 	return fiq->reqctr;
 }
 
+static unsigned int fuse_req_hash(u64 unique)
+{
+	return hash_long(unique & ~FUSE_INT_REQ_BIT, FUSE_PQ_HASH_BITS);
+}
+
 static void queue_request(struct fuse_iqueue *fiq, struct fuse_req *req)
 {
 	req->in.h.len = sizeof(struct fuse_in_header) +
@@ -1248,6 +1253,7 @@ static ssize_t fuse_dev_do_read(struct fuse_dev *fud, struct file *file,
 	struct fuse_req *req;
 	struct fuse_in *in;
 	unsigned reqsize;
+	unsigned int hash;
 
  restart:
 	spin_lock(&fiq->waitq.lock);
@@ -1320,7 +1326,8 @@ static ssize_t fuse_dev_do_read(struct fuse_dev *fud, struct file *file,
 		err = reqsize;
 		goto out_end;
 	}
-	list_move_tail(&req->list, &fpq->processing);
+	hash = fuse_req_hash(req->in.h.unique);
+	list_move_tail(&req->list, &fpq->processing[hash]);
 	__fuse_get_request(req);
 	set_bit(FR_SENT, &req->flags);
 	spin_unlock(&fpq->lock);
@@ -1804,9 +1811,10 @@ static int fuse_notify(struct fuse_conn *fc, enum fuse_notify_code code,
 /* Look up request on processing list by unique ID */
 static struct fuse_req *request_find(struct fuse_pqueue *fpq, u64 unique)
 {
+	unsigned int hash = fuse_req_hash(unique);
 	struct fuse_req *req;
 
-	list_for_each_entry(req, &fpq->processing, list) {
+	list_for_each_entry(req, &fpq->processing[hash], list) {
 		if (req->in.h.unique == unique)
 			return req;
 	}
@@ -2118,6 +2126,7 @@ void fuse_abort_conn(struct fuse_conn *fc, bool is_abort)
 		struct fuse_dev *fud;
 		struct fuse_req *req, *next;
 		LIST_HEAD(to_end);
+		unsigned int i;
 
 		/* Background queuing checks fc->connected under bg_lock */
 		spin_lock(&fc->bg_lock);
@@ -2142,7 +2151,9 @@ void fuse_abort_conn(struct fuse_conn *fc, bool is_abort)
 				}
 				spin_unlock(&req->waitq.lock);
 			}
-			list_splice_tail_init(&fpq->processing, &to_end);
+			for (i = 0; i < FUSE_PQ_HASH_SIZE; i++)
+				list_splice_tail_init(&fpq->processing[i],
+						      &to_end);
 			spin_unlock(&fpq->lock);
 		}
 		spin_lock(&fc->bg_lock);
@@ -2185,10 +2196,12 @@ int fuse_dev_release(struct inode *inode, struct file *file)
 		struct fuse_conn *fc = fud->fc;
 		struct fuse_pqueue *fpq = &fud->pq;
 		LIST_HEAD(to_end);
+		unsigned int i;
 
 		spin_lock(&fpq->lock);
 		WARN_ON(!list_empty(&fpq->io));
-		list_splice_init(&fpq->processing, &to_end);
+		for (i = 0; i < FUSE_PQ_HASH_SIZE; i++)
+			list_splice_init(&fpq->processing[i], &to_end);
 		spin_unlock(&fpq->lock);
 
 		end_requests(fc, &to_end);
