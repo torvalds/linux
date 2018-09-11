@@ -532,7 +532,11 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	if (r)
 		goto error;
 
-	r = ttm_bo_pipeline_move(bo, fence, evict, new_mem);
+	/* Always block for VM page tables before committing the new location */
+	if (bo->type == ttm_bo_type_kernel)
+		r = ttm_bo_move_accel_cleanup(bo, fence, true, new_mem);
+	else
+		r = ttm_bo_pipeline_move(bo, fence, evict, new_mem);
 	dma_fence_put(fence);
 	return r;
 
