@@ -1693,12 +1693,8 @@ static int lookup_dir_item_inode(struct btrfs_root *root,
 
 	di = btrfs_lookup_dir_item(NULL, root, path,
 			dir, name, name_len, 0);
-	if (!di) {
-		ret = -ENOENT;
-		goto out;
-	}
-	if (IS_ERR(di)) {
-		ret = PTR_ERR(di);
+	if (IS_ERR_OR_NULL(di)) {
+		ret = di ? PTR_ERR(di) : -ENOENT;
 		goto out;
 	}
 	btrfs_dir_item_key_to_cpu(path->nodes[0], di, &key);
