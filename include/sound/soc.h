@@ -1060,7 +1060,6 @@ struct snd_soc_card {
 	struct snd_soc_dai_link *dai_link;  /* predefined links only */
 	int num_links;  /* predefined links only */
 	struct list_head dai_link_list; /* all links */
-	int num_dai_links;
 
 	struct list_head rtd_list;
 	int num_rtd;
