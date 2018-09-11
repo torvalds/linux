@@ -461,16 +461,7 @@ static int ave_ethtool_set_pauseparam(struct net_device *ndev,
 	priv->pause_rx   = pause->rx_pause;
 	priv->pause_tx   = pause->tx_pause;
 
-	phydev->advertising &= ~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
-	if (pause->rx_pause)
-		phydev->advertising |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
-	if (pause->tx_pause)
-		phydev->advertising ^= ADVERTISED_Asym_Pause;
-
-	if (pause->autoneg) {
-		if (netif_running(ndev))
-			phy_start_aneg(phydev);
-	}
+	phy_set_asym_pause(phydev, pause->rx_pause, pause->tx_pause);
 
 	return 0;
 }

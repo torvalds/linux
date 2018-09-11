@@ -5228,13 +5228,7 @@ static void hclge_set_flowctrl_adv(struct hclge_dev *hdev, u32 rx_en, u32 tx_en)
 	if (!phydev)
 		return;
 
-	phydev->advertising &= ~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
-
-	if (rx_en)
-		phydev->advertising |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
-
-	if (tx_en)
-		phydev->advertising ^= ADVERTISED_Asym_Pause;
+	phy_set_asym_pause(phydev, rx_en, tx_en);
 }
 
 static int hclge_cfg_pauseparam(struct hclge_dev *hdev, u32 rx_en, u32 tx_en)

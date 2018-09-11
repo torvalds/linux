@@ -1810,6 +1810,36 @@ void phy_support_asym_pause(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_support_asym_pause);
 
+/**
+ * phy_set_asym_pause - Configure Pause and Asym Pause
+ * @phydev: target phy_device struct
+ * @rx: Receiver Pause is supported
+ * @tx: Transmit Pause is supported
+ *
+ * Description: Configure advertised Pause support depending on if
+ * transmit and receiver pause is supported. If there has been a
+ * change in adverting, trigger a new autoneg. Generally called from
+ * the set_pauseparam .ndo.
+ */
+void phy_set_asym_pause(struct phy_device *phydev, bool rx, bool tx)
+{
+	u16 oldadv = phydev->advertising;
+	u16 newadv = oldadv &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+
+	if (rx)
+		newadv |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	if (tx)
+		newadv ^= SUPPORTED_Asym_Pause;
+
+	if (oldadv != newadv) {
+		phydev->advertising = newadv;
+
+		if (phydev->autoneg)
+			phy_start_aneg(phydev);
+	}
+}
+EXPORT_SYMBOL(phy_set_asym_pause);
+
 static void of_set_phy_supported(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->mdio.dev.of_node;

@@ -503,7 +503,6 @@ static int gfar_spauseparam(struct net_device *dev,
 	struct gfar_private *priv = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-	u32 oldadv, newadv;
 
 	if (!phydev)
 		return -ENODEV;
@@ -514,54 +513,36 @@ static int gfar_spauseparam(struct net_device *dev,
 		return -EINVAL;
 
 	priv->rx_pause_en = priv->tx_pause_en = 0;
+	phy_set_asym_pause(phydev, epause->rx_pause, epause->tx_pause);
 	if (epause->rx_pause) {
 		priv->rx_pause_en = 1;
 
 		if (epause->tx_pause) {
 			priv->tx_pause_en = 1;
-			/* FLOW_CTRL_RX & TX */
-			newadv = ADVERTISED_Pause;
-		} else  /* FLOW_CTLR_RX */
-			newadv = ADVERTISED_Pause | ADVERTISED_Asym_Pause;
+		}
 	} else if (epause->tx_pause) {
 		priv->tx_pause_en = 1;
-		/* FLOW_CTLR_TX */
-		newadv = ADVERTISED_Asym_Pause;
-	} else
-		newadv = 0;
+	}
 
 	if (epause->autoneg)
 		priv->pause_aneg_en = 1;
 	else
 		priv->pause_aneg_en = 0;
 
-	oldadv = phydev->advertising &
-		(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
-	if (oldadv != newadv) {
-		phydev->advertising &=
-			~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
-		phydev->advertising |= newadv;
-		if (phydev->autoneg)
-			/* inform link partner of our
-			 * new flow ctrl settings
-			 */
-			return phy_start_aneg(phydev);
+	if (!epause->autoneg) {
+		u32 tempval = gfar_read(&regs->maccfg1);
 
-		if (!epause->autoneg) {
-			u32 tempval;
-			tempval = gfar_read(&regs->maccfg1);
-			tempval &= ~(MACCFG1_TX_FLOW | MACCFG1_RX_FLOW);
+		tempval &= ~(MACCFG1_TX_FLOW | MACCFG1_RX_FLOW);
 
-			priv->tx_actual_en = 0;
-			if (priv->tx_pause_en) {
-				priv->tx_actual_en = 1;
-				tempval |= MACCFG1_TX_FLOW;
-			}
-
-			if (priv->rx_pause_en)
-				tempval |= MACCFG1_RX_FLOW;
-			gfar_write(&regs->maccfg1, tempval);
+		priv->tx_actual_en = 0;
+		if (priv->tx_pause_en) {
+			priv->tx_actual_en = 1;
+			tempval |= MACCFG1_TX_FLOW;
 		}
+
+		if (priv->rx_pause_en)
+			tempval |= MACCFG1_RX_FLOW;
+		gfar_write(&regs->maccfg1, tempval);
 	}
 
 	return 0;

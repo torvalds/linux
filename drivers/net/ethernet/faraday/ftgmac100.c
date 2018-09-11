@@ -1219,22 +1219,11 @@ static int ftgmac100_set_pauseparam(struct net_device *netdev,
 	priv->tx_pause = pause->tx_pause;
 	priv->rx_pause = pause->rx_pause;
 
-	if (phydev) {
-		phydev->advertising &= ~ADVERTISED_Pause;
-		phydev->advertising &= ~ADVERTISED_Asym_Pause;
+	if (phydev)
+		phy_set_asym_pause(phydev, pause->rx_pause, pause->tx_pause);
 
-		if (pause->rx_pause) {
-			phydev->advertising |= ADVERTISED_Pause;
-			phydev->advertising |= ADVERTISED_Asym_Pause;
-		}
-
-		if (pause->tx_pause)
-			phydev->advertising ^= ADVERTISED_Asym_Pause;
-	}
 	if (netif_running(netdev)) {
-		if (phydev && priv->aneg_pause)
-			phy_start_aneg(phydev);
-		else
+		if (!(phydev && priv->aneg_pause))
 			ftgmac100_config_pause(priv);
 	}
 
