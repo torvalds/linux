@@ -104,6 +104,13 @@ MODULE_FIRMWARE("amdgpu/raven2_mec2.bin");
 MODULE_FIRMWARE("amdgpu/raven2_rlc.bin");
 MODULE_FIRMWARE("amdgpu/raven_kicker_rlc.bin");
 
+MODULE_FIRMWARE("amdgpu/arcturus_ce.bin");
+MODULE_FIRMWARE("amdgpu/arcturus_pfp.bin");
+MODULE_FIRMWARE("amdgpu/arcturus_me.bin");
+MODULE_FIRMWARE("amdgpu/arcturus_mec.bin");
+MODULE_FIRMWARE("amdgpu/arcturus_mec2.bin");
+MODULE_FIRMWARE("amdgpu/arcturus_rlc.bin");
+
 static const struct soc15_reg_golden golden_settings_gc_9_0[] =
 {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG2, 0xf00fffff, 0x00000400),
@@ -644,6 +651,9 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 			chip_name = "picasso";
 		else
 			chip_name = "raven";
+		break;
+	case CHIP_ARCTURUS:
+		chip_name = "arcturus";
 		break;
 	default:
 		BUG();
