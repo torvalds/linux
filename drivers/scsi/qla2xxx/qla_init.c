@@ -4991,6 +4991,19 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 	    (uint8_t *)ha->gid_list,
 	    entries * sizeof(struct gid_list_info));
 
+	if (entries == 0) {
+		spin_lock_irqsave(&vha->work_lock, flags);
+		vha->scan.scan_retry++;
+		spin_unlock_irqrestore(&vha->work_lock, flags);
+
+		if (vha->scan.scan_retry < MAX_SCAN_RETRIES) {
+			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+		}
+	} else {
+		vha->scan.scan_retry = 0;
+	}
+
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
 		fcport->scan_state = QLA_FCPORT_SCAN;
 	}
