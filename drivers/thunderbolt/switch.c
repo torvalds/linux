@@ -1337,7 +1337,19 @@ static umode_t switch_attr_is_visible(struct kobject *kobj,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	if (attr == &dev_attr_key.attr) {
+	if (attr == &dev_attr_device.attr) {
+		if (!sw->device)
+			return 0;
+	} else if (attr == &dev_attr_device_name.attr) {
+		if (!sw->device_name)
+			return 0;
+	} else if (attr == &dev_attr_vendor.attr)  {
+		if (!sw->vendor)
+			return 0;
+	} else if (attr == &dev_attr_vendor_name.attr)  {
+		if (!sw->vendor_name)
+			return 0;
+	} else if (attr == &dev_attr_key.attr) {
 		if (tb_route(sw) &&
 		    sw->tb->security_level == TB_SECURITY_SECURE &&
 		    sw->security_level == TB_SECURITY_SECURE)
