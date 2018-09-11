@@ -34,14 +34,10 @@ extern bool pv_is_native_vcpu_is_preempted(void);
 
 unsigned native_patch(u8 type, void *ibuf, unsigned long addr, unsigned len)
 {
-	const unsigned char *start, *end;
-	unsigned ret;
-
 #define PATCH_SITE(ops, x)					\
-		case PARAVIRT_PATCH(ops.x):			\
-			start = start_##ops##_##x;		\
-			end = end_##ops##_##x;			\
-			goto patch_site
+	case PARAVIRT_PATCH(ops.x):				\
+		return paravirt_patch_insns(ibuf, len, start_##ops##_##x, end_##ops##_##x)
+
 	switch (type) {
 #ifdef CONFIG_PARAVIRT_XXL
 		PATCH_SITE(irq, irq_disable);
@@ -54,32 +50,24 @@ unsigned native_patch(u8 type, void *ibuf, unsigned long addr, unsigned len)
 		PATCH_SITE(mmu, write_cr3);
 #endif
 #if defined(CONFIG_PARAVIRT_SPINLOCKS)
-		case PARAVIRT_PATCH(lock.queued_spin_unlock):
-			if (pv_is_native_spin_unlock()) {
-				start = start_lock_queued_spin_unlock;
-				end   = end_lock_queued_spin_unlock;
-				goto patch_site;
-			}
-			goto patch_default;
+	case PARAVIRT_PATCH(lock.queued_spin_unlock):
+		if (pv_is_native_spin_unlock())
+			return paravirt_patch_insns(ibuf, len,
+						    start_lock_queued_spin_unlock,
+						    end_lock_queued_spin_unlock);
+		break;
 
-		case PARAVIRT_PATCH(lock.vcpu_is_preempted):
-			if (pv_is_native_vcpu_is_preempted()) {
-				start = start_lock_vcpu_is_preempted;
-				end   = end_lock_vcpu_is_preempted;
-				goto patch_site;
-			}
-			goto patch_default;
+	case PARAVIRT_PATCH(lock.vcpu_is_preempted):
+		if (pv_is_native_vcpu_is_preempted())
+			return paravirt_patch_insns(ibuf, len,
+						    start_lock_vcpu_is_preempted,
+						    end_lock_vcpu_is_preempted);
+		break;
 #endif
 
 	default:
-patch_default: __maybe_unused
-		ret = paravirt_patch_default(type, ibuf, addr, len);
-		break;
-
-patch_site:
-		ret = paravirt_patch_insns(ibuf, len, start, end);
 		break;
 	}
 #undef PATCH_SITE
-	return ret;
+	return paravirt_patch_default(type, ibuf, addr, len);
 }
