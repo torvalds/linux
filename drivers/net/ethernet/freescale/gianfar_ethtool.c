@@ -507,9 +507,7 @@ static int gfar_spauseparam(struct net_device *dev,
 	if (!phydev)
 		return -ENODEV;
 
-	if (!(phydev->supported & SUPPORTED_Pause) ||
-	    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
-	     (epause->rx_pause != epause->tx_pause)))
+	if (!phy_validate_pause(phydev, epause))
 		return -EINVAL;
 
 	priv->rx_pause_en = priv->tx_pause_en = 0;

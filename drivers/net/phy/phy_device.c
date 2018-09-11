@@ -1863,6 +1863,26 @@ void phy_set_asym_pause(struct phy_device *phydev, bool rx, bool tx)
 }
 EXPORT_SYMBOL(phy_set_asym_pause);
 
+/**
+ * phy_validate_pause - Test if the PHY/MAC support the pause configuration
+ * @phydev: phy_device struct
+ * @pp: requested pause configuration
+ *
+ * Description: Test if the PHY/MAC combination supports the Pause
+ * configuration the user is requesting. Returns True if it is
+ * supported, false otherwise.
+ */
+bool phy_validate_pause(struct phy_device *phydev,
+			struct ethtool_pauseparam *pp)
+{
+	if (!(phydev->supported & SUPPORTED_Pause) ||
+	    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
+	     pp->rx_pause != pp->tx_pause))
+		return false;
+	return true;
+}
+EXPORT_SYMBOL(phy_validate_pause);
+
 static void of_set_phy_supported(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->mdio.dev.of_node;

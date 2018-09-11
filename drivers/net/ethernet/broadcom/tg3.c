@@ -12496,9 +12496,7 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 
 		phydev = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr);
 
-		if (!(phydev->supported & SUPPORTED_Pause) ||
-		    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
-		     (epause->rx_pause != epause->tx_pause)))
+		if (!phy_validate_pause(phydev, epause))
 			return -EINVAL;
 
 		tp->link_config.flowctrl = 0;

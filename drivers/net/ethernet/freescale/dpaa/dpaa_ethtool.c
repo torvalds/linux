@@ -194,9 +194,7 @@ static int dpaa_set_pauseparam(struct net_device *net_dev,
 		return -ENODEV;
 	}
 
-	if (!(phydev->supported & SUPPORTED_Pause) ||
-	    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
-	    (epause->rx_pause != epause->tx_pause)))
+	if (!phy_validate_pause(phydev, epause))
 		return -EINVAL;
 
 	/* The MAC should know how to handle PAUSE frame autonegotiation before

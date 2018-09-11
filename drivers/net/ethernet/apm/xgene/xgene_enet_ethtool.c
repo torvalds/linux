@@ -312,9 +312,7 @@ static int xgene_set_pauseparam(struct net_device *ndev,
 		if (!phydev)
 			return -EINVAL;
 
-		if (!(phydev->supported & SUPPORTED_Pause) ||
-		    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
-		     pp->rx_pause != pp->tx_pause))
+		if (!phy_validate_pause(phydev, pp))
 			return -EINVAL;
 
 		pdata->pause_autoneg = pp->autoneg;
