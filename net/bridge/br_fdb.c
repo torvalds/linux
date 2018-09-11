@@ -584,7 +584,7 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 			unsigned long now = jiffies;
 
 			/* fastpath: update of existing entry */
-			if (unlikely(source != fdb->dst)) {
+			if (unlikely(source != fdb->dst && !fdb->is_sticky)) {
 				fdb->dst = source;
 				fdb_modified = true;
 				/* Take over HW learned entry */
@@ -656,6 +656,8 @@ static int fdb_fill_info(struct sk_buff *skb, const struct net_bridge *br,
 		ndm->ndm_flags |= NTF_OFFLOADED;
 	if (fdb->added_by_external_learn)
 		ndm->ndm_flags |= NTF_EXT_LEARNED;
+	if (fdb->is_sticky)
+		ndm->ndm_flags |= NTF_STICKY;
 
 	if (nla_put(skb, NDA_LLADDR, ETH_ALEN, &fdb->key.addr))
 		goto nla_put_failure;
@@ -772,8 +774,10 @@ skip:
 
 /* Update (create or replace) forwarding database entry */
 static int fdb_add_entry(struct net_bridge *br, struct net_bridge_port *source,
-			 const __u8 *addr, __u16 state, __u16 flags, __u16 vid)
+			 const u8 *addr, u16 state, u16 flags, u16 vid,
+			 u8 ndm_flags)
 {
+	u8 is_sticky = !!(ndm_flags & NTF_STICKY);
 	struct net_bridge_fdb_entry *fdb;
 	bool modified = false;
 
@@ -788,6 +792,9 @@ static int fdb_add_entry(struct net_bridge *br, struct net_bridge_port *source,
 			br->dev->name);
 		return -EINVAL;
 	}
+
+	if (is_sticky && (state & NUD_PERMANENT))
+		return -EINVAL;
 
 	fdb = br_fdb_find(br, addr, vid);
 	if (fdb == NULL) {
@@ -832,6 +839,12 @@ static int fdb_add_entry(struct net_bridge *br, struct net_bridge_port *source,
 
 		modified = true;
 	}
+
+	if (is_sticky != fdb->is_sticky) {
+		fdb->is_sticky = is_sticky;
+		modified = true;
+	}
+
 	fdb->added_by_user = 1;
 
 	fdb->used = jiffies;
@@ -865,7 +878,7 @@ static int __br_fdb_add(struct ndmsg *ndm, struct net_bridge *br,
 	} else {
 		spin_lock_bh(&br->hash_lock);
 		err = fdb_add_entry(br, p, addr, ndm->ndm_state,
-				    nlh_flags, vid);
+				    nlh_flags, vid, ndm->ndm_flags);
 		spin_unlock_bh(&br->hash_lock);
 	}
 
