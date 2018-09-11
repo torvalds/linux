@@ -132,4 +132,12 @@ enum pm8001_hba_info_flags {
 	PM8001F_RUN_TIME	= (1U << 1),
 };
 
+/**
+ * Phy Status
+ */
+#define PHY_LINK_DISABLE	0x00
+#define PHY_LINK_DOWN		0x01
+#define PHY_STATE_LINK_UP_SPCV	0x2
+#define PHY_STATE_LINK_UP_SPC	0x1
+
 #endif

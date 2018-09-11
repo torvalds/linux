@@ -157,9 +157,12 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 	int rc = 0, phy_id = sas_phy->id;
 	struct pm8001_hba_info *pm8001_ha = NULL;
 	struct sas_phy_linkrates *rates;
+	struct sas_ha_struct *sas_ha;
+	struct pm8001_phy *phy;
 	DECLARE_COMPLETION_ONSTACK(completion);
 	unsigned long flags;
 	pm8001_ha = sas_phy->ha->lldd_ha;
+	phy = &pm8001_ha->phy[phy_id];
 	pm8001_ha->phy[phy_id].enable_completion = &completion;
 	switch (func) {
 	case PHY_FUNC_SET_LINK_RATE:
@@ -172,7 +175,7 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 			pm8001_ha->phy[phy_id].maximum_linkrate =
 				rates->maximum_linkrate;
 		}
-		if (pm8001_ha->phy[phy_id].phy_state == 0) {
+		if (pm8001_ha->phy[phy_id].phy_state ==  PHY_LINK_DISABLE) {
 			PM8001_CHIP_DISP->phy_start_req(pm8001_ha, phy_id);
 			wait_for_completion(&completion);
 		}
@@ -180,7 +183,7 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 					      PHY_LINK_RESET);
 		break;
 	case PHY_FUNC_HARD_RESET:
-		if (pm8001_ha->phy[phy_id].phy_state == 0) {
+		if (pm8001_ha->phy[phy_id].phy_state == PHY_LINK_DISABLE) {
 			PM8001_CHIP_DISP->phy_start_req(pm8001_ha, phy_id);
 			wait_for_completion(&completion);
 		}
@@ -188,7 +191,7 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 					      PHY_HARD_RESET);
 		break;
 	case PHY_FUNC_LINK_RESET:
-		if (pm8001_ha->phy[phy_id].phy_state == 0) {
+		if (pm8001_ha->phy[phy_id].phy_state == PHY_LINK_DISABLE) {
 			PM8001_CHIP_DISP->phy_start_req(pm8001_ha, phy_id);
 			wait_for_completion(&completion);
 		}
@@ -200,6 +203,25 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 					      PHY_LINK_RESET);
 		break;
 	case PHY_FUNC_DISABLE:
+		if (pm8001_ha->chip_id != chip_8001) {
+			if (pm8001_ha->phy[phy_id].phy_state ==
+				PHY_STATE_LINK_UP_SPCV) {
+				sas_ha = pm8001_ha->sas;
+				sas_phy_disconnected(&phy->sas_phy);
+				sas_ha->notify_phy_event(&phy->sas_phy,
+					PHYE_LOSS_OF_SIGNAL);
+				phy->phy_attached = 0;
+			}
+		} else {
+			if (pm8001_ha->phy[phy_id].phy_state ==
+				PHY_STATE_LINK_UP_SPC) {
+				sas_ha = pm8001_ha->sas;
+				sas_phy_disconnected(&phy->sas_phy);
+				sas_ha->notify_phy_event(&phy->sas_phy,
+					PHYE_LOSS_OF_SIGNAL);
+				phy->phy_attached = 0;
+			}
+		}
 		PM8001_CHIP_DISP->phy_stop_req(pm8001_ha, phy_id);
 		break;
 	case PHY_FUNC_GET_EVENTS:

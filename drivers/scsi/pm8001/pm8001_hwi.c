@@ -3810,7 +3810,8 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void* piomb)
 			" status = %x\n", status));
 		if (status == 0) {
 			phy->phy_state = 1;
-			if (pm8001_ha->flags == PM8001F_RUN_TIME)
+			if (pm8001_ha->flags == PM8001F_RUN_TIME &&
+					phy->enable_completion != NULL)
 				complete(phy->enable_completion);
 		}
 		break;

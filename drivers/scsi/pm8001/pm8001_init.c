@@ -121,7 +121,7 @@ static void pm8001_phy_init(struct pm8001_hba_info *pm8001_ha, int phy_id)
 {
 	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	phy->phy_state = 0;
+	phy->phy_state = PHY_LINK_DISABLE;
 	phy->pm8001_ha = pm8001_ha;
 	sas_phy->enabled = (phy_id < pm8001_ha->chip->n_phy) ? 1 : 0;
 	sas_phy->class = SAS;
@@ -1067,6 +1067,7 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 	if (rc)
 		goto err_out_shost;
 	scsi_scan_host(pm8001_ha->shost);
+	pm8001_ha->flags = PM8001F_RUN_TIME;
 	return 0;
 
 err_out_shost:

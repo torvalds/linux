@@ -170,6 +170,10 @@
 #define LINKRATE_60			(0x04 << 8)
 #define LINKRATE_120			(0x08 << 8)
 
+/*phy_stop*/
+#define PHY_STOP_SUCCESS		0x00
+#define PHY_STOP_ERR_DEVICE_ATTACHED	0x1046
+
 /* phy_profile */
 #define SAS_PHY_ANALOG_SETTINGS_PAGE	0x04
 #define PHY_DWORD_LENGTH		0xC
@@ -216,8 +220,6 @@
 #define SAS_DOPNRJT_RTRY_TMO            128
 #define SAS_COPNRJT_RTRY_TMO            128
 
-/* for phy state */
-#define PHY_STATE_LINK_UP_SPCV		0x2
 /*
   Making ORR bigger than IT NEXUS LOSS which is 2000000us = 2 second.
   Assuming a bigger value 3 second, 3000000/128 = 23437.5 where 128

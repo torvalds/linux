@@ -3118,8 +3118,9 @@ static int mpi_phy_start_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_printk("phy start resp status:0x%x, phyid:0x%x\n",
 				status, phy_id));
 	if (status == 0) {
-		phy->phy_state = 1;
-		if (pm8001_ha->flags == PM8001F_RUN_TIME)
+		phy->phy_state = PHY_LINK_DOWN;
+		if (pm8001_ha->flags == PM8001F_RUN_TIME &&
+				phy->enable_completion != NULL)
 			complete(phy->enable_completion);
 	}
 	return 0;
@@ -3211,7 +3212,7 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			return 0;
 		}
 		phy->phy_attached = 0;
-		phy->phy_state = 0;
+		phy->phy_state = PHY_LINK_DISABLE;
 		break;
 	case HW_EVENT_PORT_INVALID:
 		PM8001_MSG_DBG(pm8001_ha,
@@ -3384,13 +3385,14 @@ static int mpi_phy_stop_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	u32 status =
 		le32_to_cpu(pPayload->status);
 	u32 phyid =
-		le32_to_cpu(pPayload->phyid);
+		le32_to_cpu(pPayload->phyid) & 0xFF;
 	struct pm8001_phy *phy = &pm8001_ha->phy[phyid];
 	PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk("phy:0x%x status:0x%x\n",
 					phyid, status));
-	if (status == 0)
-		phy->phy_state = 0;
+	if (status == PHY_STOP_SUCCESS ||
+		status == PHY_STOP_ERR_DEVICE_ATTACHED)
+		phy->phy_state = PHY_LINK_DISABLE;
 	return 0;
 }
 
