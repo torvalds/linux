@@ -116,6 +116,10 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 
 	hstream->format_val = rate | bits | (params_channels(params) - 1);
 	hstream->bufsize = size;
+	hstream->period_bytes = params_period_size(params);
+	hstream->no_period_wakeup  =
+			(params->info & SNDRV_PCM_INFO_NO_PERIOD_WAKEUP) &&
+			(params->flags & SNDRV_PCM_HW_PARAMS_NO_PERIOD_WAKEUP);
 
 	ret = hda_dsp_stream_hw_params(sdev, stream, dmab, params);
 	if (ret < 0) {
