@@ -12,7 +12,7 @@
 
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/mfd/core.h>
@@ -21,7 +21,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/slab.h>
 
 struct ti_lmu_data {
@@ -32,17 +31,8 @@ struct ti_lmu_data {
 
 static int ti_lmu_enable_hw(struct ti_lmu *lmu, enum ti_lmu_id id)
 {
-	int ret;
-
-	if (gpio_is_valid(lmu->en_gpio)) {
-		ret = devm_gpio_request_one(lmu->dev, lmu->en_gpio,
-					    GPIOF_OUT_INIT_HIGH, "lmu_hwen");
-		if (ret) {
-			dev_err(lmu->dev, "Can not request enable GPIO: %d\n",
-				ret);
-			return ret;
-		}
-	}
+	if (lmu->en_gpio)
+		gpiod_set_value(lmu->en_gpio, 1);
 
 	/* Delay about 1ms after HW enable pin control */
 	usleep_range(1000, 1500);
@@ -59,8 +49,8 @@ static int ti_lmu_enable_hw(struct ti_lmu *lmu, enum ti_lmu_id id)
 
 static void ti_lmu_disable_hw(struct ti_lmu *lmu)
 {
-	if (gpio_is_valid(lmu->en_gpio))
-		gpio_set_value(lmu->en_gpio, 0);
+	if (lmu->en_gpio)
+		gpiod_set_value(lmu->en_gpio, 0);
 }
 
 static const struct mfd_cell lm3532_devices[] = {
@@ -204,7 +194,13 @@ static int ti_lmu_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 		return PTR_ERR(lmu->regmap);
 
 	/* HW enable pin control and additional power up sequence if required */
-	lmu->en_gpio = of_get_named_gpio(dev->of_node, "enable-gpios", 0);
+	lmu->en_gpio = devm_gpiod_get_optional(dev, "enable", GPIOD_OUT_HIGH);
+	if (IS_ERR(lmu->en_gpio)) {
+		ret = PTR_ERR(lmu->en_gpio);
+		dev_err(dev, "Can not request enable GPIO: %d\n", ret);
+		return ret;
+	}
+
 	ret = ti_lmu_enable_hw(lmu, id->driver_data);
 	if (ret)
 		return ret;
