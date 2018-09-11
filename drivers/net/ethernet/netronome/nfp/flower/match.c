@@ -56,7 +56,7 @@ nfp_flower_compile_meta_tci(struct nfp_flower_meta_tci *frame,
 						      FLOW_DISSECTOR_KEY_VLAN,
 						      target);
 		/* Populate the tci field. */
-		if (flow_vlan->vlan_id) {
+		if (flow_vlan->vlan_id || flow_vlan->vlan_priority) {
 			tmp_tci = FIELD_PREP(NFP_FLOWER_MASK_VLAN_PRIO,
 					     flow_vlan->vlan_priority) |
 				  FIELD_PREP(NFP_FLOWER_MASK_VLAN_VID,
