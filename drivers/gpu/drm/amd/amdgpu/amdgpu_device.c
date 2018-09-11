@@ -2999,7 +2999,7 @@ err:
 }
 
 /**
- * amdgpu_device_handle_vram_lost - Handle the loss of VRAM contents
+ * amdgpu_device_recover_vram - Recover some VRAM contents
  *
  * @adev: amdgpu_device pointer
  *
@@ -3008,7 +3008,7 @@ err:
  * the contents of VRAM might be lost.
  * Returns 0 on success, 1 on failure.
  */
-static int amdgpu_device_handle_vram_lost(struct amdgpu_device *adev)
+static int amdgpu_device_recover_vram(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 	struct amdgpu_bo *bo, *tmp;
@@ -3135,8 +3135,8 @@ out:
 		}
 	}
 
-	if (!r && ((need_full_reset && !(adev->flags & AMD_IS_APU)) || vram_lost))
-		r = amdgpu_device_handle_vram_lost(adev);
+	if (!r)
+		r = amdgpu_device_recover_vram(adev);
 
 	return r;
 }
@@ -3182,7 +3182,7 @@ error:
 	amdgpu_virt_release_full_gpu(adev, true);
 	if (!r && adev->virt.gim_feature & AMDGIM_FEATURE_GIM_FLR_VRAMLOST) {
 		atomic_inc(&adev->vram_lost_counter);
-		r = amdgpu_device_handle_vram_lost(adev);
+		r = amdgpu_device_recover_vram(adev);
 	}
 
 	return r;
