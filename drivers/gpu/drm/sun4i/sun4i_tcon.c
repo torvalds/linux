@@ -974,7 +974,8 @@ static bool sun4i_tcon_connected_to_tcon_top(struct device_node *node)
 
 	remote = of_graph_get_remote_node(node, 0, -1);
 	if (remote) {
-		ret = !!of_match_node(sun8i_tcon_top_of_table, remote);
+		ret = !!(IS_ENABLED(CONFIG_DRM_SUN8I_TCON_TOP) &&
+			 of_match_node(sun8i_tcon_top_of_table, remote));
 		of_node_put(remote);
 	}
 
@@ -1402,13 +1403,20 @@ static int sun8i_r40_tcon_tv_set_mux(struct sun4i_tcon *tcon,
 	if (!pdev)
 		return -EINVAL;
 
-	if (encoder->encoder_type == DRM_MODE_ENCODER_TMDS) {
+	if (IS_ENABLED(CONFIG_DRM_SUN8I_TCON_TOP) &&
+	    encoder->encoder_type == DRM_MODE_ENCODER_TMDS) {
 		ret = sun8i_tcon_top_set_hdmi_src(&pdev->dev, id);
 		if (ret)
 			return ret;
 	}
 
-	return sun8i_tcon_top_de_config(&pdev->dev, tcon->id, id);
+	if (IS_ENABLED(CONFIG_DRM_SUN8I_TCON_TOP)) {
+		ret = sun8i_tcon_top_de_config(&pdev->dev, tcon->id, id);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static const struct sun4i_tcon_quirks sun4i_a10_quirks = {
