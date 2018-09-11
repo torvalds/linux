@@ -8,6 +8,7 @@
 #ifndef RENESAS_USB_DRIVER_H
 #define RENESAS_USB_DRIVER_H
 
+#include <linux/clk.h>
 #include <linux/extcon.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
@@ -278,6 +279,7 @@ struct usbhs_priv {
 
 	struct phy *phy;
 	struct reset_control *rsts;
+	struct clk *clks[2];
 };
 
 /*
