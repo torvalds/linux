@@ -1021,6 +1021,18 @@ static int ov5640_get_gain(struct ov5640_dev *sensor)
 	return gain & 0x3ff;
 }
 
+static int ov5640_set_gain(struct ov5640_dev *sensor, int gain)
+{
+	return ov5640_write_reg16(sensor, OV5640_REG_AEC_PK_REAL_GAIN,
+				  (u16)gain & 0x3ff);
+}
+
+static int ov5640_set_autogain(struct ov5640_dev *sensor, bool on)
+{
+	return ov5640_mod_reg(sensor, OV5640_REG_AEC_PK_MANUAL,
+			      BIT(1), on ? 0 : BIT(1));
+}
+
 static int ov5640_set_stream_dvp(struct ov5640_dev *sensor, bool on)
 {
 	int ret;
@@ -1587,7 +1599,7 @@ static int ov5640_set_mode_exposure_calc(struct ov5640_dev *sensor,
 	}
 
 	/* set capture gain */
-	ret = __v4l2_ctrl_s_ctrl(sensor->ctrls.gain, cap_gain16);
+	ret = ov5640_set_gain(sensor, cap_gain16);
 	if (ret)
 		return ret;
 
@@ -1600,7 +1612,7 @@ static int ov5640_set_mode_exposure_calc(struct ov5640_dev *sensor,
 	}
 
 	/* set exposure */
-	return __v4l2_ctrl_s_ctrl(sensor->ctrls.exposure, cap_shutter);
+	return ov5640_set_exposure(sensor, cap_shutter);
 }
 
 /*
@@ -1608,26 +1620,13 @@ static int ov5640_set_mode_exposure_calc(struct ov5640_dev *sensor,
  * change mode directly
  */
 static int ov5640_set_mode_direct(struct ov5640_dev *sensor,
-				  const struct ov5640_mode_info *mode,
-				  bool auto_exp)
+				  const struct ov5640_mode_info *mode)
 {
-	int ret;
-
 	if (!mode->reg_data)
 		return -EINVAL;
 
 	/* Write capture setting */
-	ret = ov5640_load_regs(sensor, mode);
-	if (ret < 0)
-		return ret;
-
-	/* turn auto gain/exposure back on for direct mode */
-	ret = __v4l2_ctrl_s_ctrl(sensor->ctrls.auto_gain, 1);
-	if (ret)
-		return ret;
-
-	return __v4l2_ctrl_s_ctrl(sensor->ctrls.auto_exp, auto_exp ?
-				  V4L2_EXPOSURE_AUTO : V4L2_EXPOSURE_MANUAL);
+	return ov5640_load_regs(sensor, mode);
 }
 
 static int ov5640_set_mode(struct ov5640_dev *sensor,
@@ -1635,6 +1634,7 @@ static int ov5640_set_mode(struct ov5640_dev *sensor,
 {
 	const struct ov5640_mode_info *mode = sensor->current_mode;
 	enum ov5640_downsize_mode dn_mode, orig_dn_mode;
+	bool auto_gain = sensor->ctrls.auto_gain->val == 1;
 	bool auto_exp =  sensor->ctrls.auto_exp->val == V4L2_EXPOSURE_AUTO;
 	int ret;
 
@@ -1642,19 +1642,23 @@ static int ov5640_set_mode(struct ov5640_dev *sensor,
 	orig_dn_mode = orig_mode->dn_mode;
 
 	/* auto gain and exposure must be turned off when changing modes */
-	ret = __v4l2_ctrl_s_ctrl(sensor->ctrls.auto_gain, 0);
-	if (ret)
-		return ret;
+	if (auto_gain) {
+		ret = ov5640_set_autogain(sensor, false);
+		if (ret)
+			return ret;
+	}
 
-	ret = ov5640_set_autoexposure(sensor, false);
-	if (ret)
-		return ret;
+	if (auto_exp) {
+		ret = ov5640_set_autoexposure(sensor, false);
+		if (ret)
+			goto restore_auto_gain;
+	}
 
 	if ((dn_mode == SUBSAMPLING && orig_dn_mode == SCALING) ||
 	    (dn_mode == SCALING && orig_dn_mode == SUBSAMPLING)) {
 		/*
 		 * change between subsampling and scaling
-		 * go through exposure calucation
+		 * go through exposure calculation
 		 */
 		ret = ov5640_set_mode_exposure_calc(sensor, mode);
 	} else {
@@ -1662,11 +1666,16 @@ static int ov5640_set_mode(struct ov5640_dev *sensor,
 		 * change inside subsampling or scaling
 		 * download firmware directly
 		 */
-		ret = ov5640_set_mode_direct(sensor, mode, auto_exp);
+		ret = ov5640_set_mode_direct(sensor, mode);
 	}
-
 	if (ret < 0)
-		return ret;
+		goto restore_auto_exp_gain;
+
+	/* restore auto gain and exposure */
+	if (auto_gain)
+		ov5640_set_autogain(sensor, true);
+	if (auto_exp)
+		ov5640_set_autoexposure(sensor, true);
 
 	ret = ov5640_set_binning(sensor, dn_mode != SCALING);
 	if (ret < 0)
@@ -1687,6 +1696,15 @@ static int ov5640_set_mode(struct ov5640_dev *sensor,
 	sensor->pending_mode_change = false;
 
 	return 0;
+
+restore_auto_exp_gain:
+	if (auto_exp)
+		ov5640_set_autoexposure(sensor, true);
+restore_auto_gain:
+	if (auto_gain)
+		ov5640_set_autogain(sensor, true);
+
+	return ret;
 }
 
 static int ov5640_set_framefmt(struct ov5640_dev *sensor,
@@ -2198,20 +2216,20 @@ static int ov5640_set_ctrl_white_balance(struct ov5640_dev *sensor, int awb)
 	return ret;
 }
 
-static int ov5640_set_ctrl_exposure(struct ov5640_dev *sensor, int exp)
+static int ov5640_set_ctrl_exposure(struct ov5640_dev *sensor,
+				    enum v4l2_exposure_auto_type auto_exposure)
 {
 	struct ov5640_ctrls *ctrls = &sensor->ctrls;
-	bool auto_exposure = (exp == V4L2_EXPOSURE_AUTO);
+	bool auto_exp = (auto_exposure == V4L2_EXPOSURE_AUTO);
 	int ret = 0;
 
 	if (ctrls->auto_exp->is_new) {
-		ret = ov5640_mod_reg(sensor, OV5640_REG_AEC_PK_MANUAL,
-				     BIT(0), auto_exposure ? 0 : BIT(0));
+		ret = ov5640_set_autoexposure(sensor, auto_exp);
 		if (ret)
 			return ret;
 	}
 
-	if (!auto_exposure && ctrls->exposure->is_new) {
+	if (!auto_exp && ctrls->exposure->is_new) {
 		u16 max_exp;
 
 		ret = ov5640_read_reg16(sensor, OV5640_REG_AEC_PK_VTS,
@@ -2231,25 +2249,19 @@ static int ov5640_set_ctrl_exposure(struct ov5640_dev *sensor, int exp)
 	return ret;
 }
 
-static int ov5640_set_ctrl_gain(struct ov5640_dev *sensor, int auto_gain)
+static int ov5640_set_ctrl_gain(struct ov5640_dev *sensor, bool auto_gain)
 {
 	struct ov5640_ctrls *ctrls = &sensor->ctrls;
 	int ret = 0;
 
 	if (ctrls->auto_gain->is_new) {
-		ret = ov5640_mod_reg(sensor, OV5640_REG_AEC_PK_MANUAL,
-				     BIT(1),
-				     ctrls->auto_gain->val ? 0 : BIT(1));
+		ret = ov5640_set_autogain(sensor, auto_gain);
 		if (ret)
 			return ret;
 	}
 
-	if (!auto_gain && ctrls->gain->is_new) {
-		u16 gain = (u16)ctrls->gain->val;
-
-		ret = ov5640_write_reg16(sensor, OV5640_REG_AEC_PK_REAL_GAIN,
-					 gain & 0x3ff);
-	}
+	if (!auto_gain && ctrls->gain->is_new)
+		ret = ov5640_set_gain(sensor, ctrls->gain->val);
 
 	return ret;
 }
