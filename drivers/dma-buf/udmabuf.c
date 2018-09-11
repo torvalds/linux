@@ -154,14 +154,17 @@ static long udmabuf_create(const struct udmabuf_create_list *head,
 
 	pgbuf = 0;
 	for (i = 0; i < head->count; i++) {
+		ret = -EBADFD;
 		memfd = fget(list[i].memfd);
 		if (!memfd)
 			goto err;
 		if (!shmem_mapping(file_inode(memfd)->i_mapping))
 			goto err;
 		seals = memfd_fcntl(memfd, F_GET_SEALS, 0);
-		if (seals == -EINVAL ||
-		    (seals & SEALS_WANTED) != SEALS_WANTED ||
+		if (seals == -EINVAL)
+			goto err;
+		ret = -EINVAL;
+		if ((seals & SEALS_WANTED) != SEALS_WANTED ||
 		    (seals & SEALS_DENIED) != 0)
 			goto err;
 		pgoff = list[i].offset >> PAGE_SHIFT;
