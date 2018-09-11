@@ -2591,11 +2591,6 @@ static int rt5668_i2c_probe(struct i2c_client *i2c,
 			rt5668_dai, ARRAY_SIZE(rt5668_dai));
 }
 
-static int rt5668_i2c_remove(struct i2c_client *i2c)
-{
-	return 0;
-}
-
 static void rt5668_i2c_shutdown(struct i2c_client *client)
 {
 	struct rt5668_priv *rt5668 = i2c_get_clientdata(client);
@@ -2626,7 +2621,6 @@ static struct i2c_driver rt5668_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(rt5668_acpi_match),
 	},
 	.probe = rt5668_i2c_probe,
-	.remove = rt5668_i2c_remove,
 	.shutdown = rt5668_i2c_shutdown,
 	.id_table = rt5668_i2c_id,
 };
