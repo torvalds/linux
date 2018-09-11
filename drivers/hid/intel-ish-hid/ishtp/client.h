@@ -178,5 +178,7 @@ int ishtp_cl_flush_queues(struct ishtp_cl *cl);
 
 /* exported functions from ISHTP client buffer management scope */
 int ishtp_cl_io_rb_recycle(struct ishtp_cl_rb *rb);
+bool ishtp_cl_tx_empty(struct ishtp_cl *cl);
+struct ishtp_cl_rb *ishtp_cl_rx_get_rb(struct ishtp_cl *cl);
 
 #endif /* _ISHTP_CLIENT_H_ */
