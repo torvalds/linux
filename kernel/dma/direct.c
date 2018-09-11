@@ -155,16 +155,6 @@ void dma_direct_free(struct device *dev, size_t size,
 		dma_direct_free_pages(dev, size, cpu_addr, dma_addr, attrs);
 }
 
-static int dma_direct_mmap(struct device *dev, struct vm_area_struct *vma,
-		void *cpu_addr, dma_addr_t dma_addr, size_t size,
-		unsigned long attrs)
-{
-	if (!dev_is_dma_coherent(dev) &&
-	    IS_ENABLED(CONFIG_DMA_NONCOHERENT_MMAP))
-		return arch_dma_mmap(dev, vma, cpu_addr, dma_addr, size, attrs);
-	return dma_common_mmap(dev, vma, cpu_addr, dma_addr, size);
-}
-
 static void dma_direct_sync_single_for_device(struct device *dev,
 		dma_addr_t addr, size_t size, enum dma_data_direction dir)
 {
@@ -293,7 +283,6 @@ int dma_direct_mapping_error(struct device *dev, dma_addr_t dma_addr)
 const struct dma_map_ops dma_direct_ops = {
 	.alloc			= dma_direct_alloc,
 	.free			= dma_direct_free,
-	.mmap			= dma_direct_mmap,
 	.map_page		= dma_direct_map_page,
 	.map_sg			= dma_direct_map_sg,
 #if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE)

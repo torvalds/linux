@@ -66,33 +66,19 @@ void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 	dma_direct_free_pages(dev, size, cpu_addr, dma_addr, attrs);
 }
 
-int arch_dma_mmap(struct device *dev, struct vm_area_struct *vma,
-		void *cpu_addr, dma_addr_t dma_addr, size_t size,
+long arch_dma_coherent_to_pfn(struct device *dev, void *cpu_addr,
+		dma_addr_t dma_addr)
+{
+	unsigned long addr = CAC_ADDR((unsigned long)cpu_addr);
+	return page_to_pfn(virt_to_page((void *)addr));
+}
+
+pgprot_t arch_dma_mmap_pgprot(struct device *dev, pgprot_t prot,
 		unsigned long attrs)
 {
-	unsigned long user_count = vma_pages(vma);
-	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
-	unsigned long addr = CAC_ADDR((unsigned long)cpu_addr);
-	unsigned long off = vma->vm_pgoff;
-	unsigned long pfn = page_to_pfn(virt_to_page((void *)addr));
-	int ret = -ENXIO;
-
 	if (attrs & DMA_ATTR_WRITE_COMBINE)
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-	else
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	if (dma_mmap_from_dev_coherent(dev, vma, cpu_addr, size, &ret))
-		return ret;
-
-	if (off < count && user_count <= (count - off)) {
-		ret = remap_pfn_range(vma, vma->vm_start,
-				      pfn + off,
-				      user_count << PAGE_SHIFT,
-				      vma->vm_page_prot);
-	}
-
-	return ret;
+		return pgprot_writecombine(prot);
+	return pgprot_noncached(prot);
 }
 
 static inline void dma_sync_virt(void *addr, size_t size,

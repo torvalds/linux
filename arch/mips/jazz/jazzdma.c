@@ -682,7 +682,6 @@ static int jazz_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 const struct dma_map_ops jazz_dma_ops = {
 	.alloc			= jazz_dma_alloc,
 	.free			= jazz_dma_free,
-	.mmap			= arch_dma_mmap,
 	.map_page		= jazz_dma_map_page,
 	.unmap_page		= jazz_dma_unmap_page,
 	.map_sg			= jazz_dma_map_sg,

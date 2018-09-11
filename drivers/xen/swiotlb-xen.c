@@ -662,7 +662,7 @@ xen_swiotlb_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 		return xen_get_dma_ops(dev)->mmap(dev, vma, cpu_addr,
 						    dma_addr, size, attrs);
 #endif
-	return dma_common_mmap(dev, vma, cpu_addr, dma_addr, size);
+	return dma_common_mmap(dev, vma, cpu_addr, dma_addr, size, attrs);
 }
 
 /*
