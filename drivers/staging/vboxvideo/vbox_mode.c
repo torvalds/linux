@@ -221,53 +221,68 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 	return old_single_framebuffer != vbox->single_framebuffer;
 }
 
-static int vbox_crtc_do_set_base(struct drm_crtc *crtc,
-				 struct drm_framebuffer *old_fb,
-				 struct drm_framebuffer *new_fb,
-				 int x, int y)
+static int vbox_fb_pin(struct drm_framebuffer *fb, u64 *addr)
 {
-	struct vbox_private *vbox = crtc->dev->dev_private;
-	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
-	struct drm_gem_object *obj;
-	struct vbox_framebuffer *vbox_fb;
-	struct vbox_bo *bo;
+	struct vbox_bo *bo = gem_to_vbox_bo(to_vbox_framebuffer(fb)->obj);
 	int ret;
-	u64 gpu_addr;
-
-	/* Unpin the previous fb. */
-	if (old_fb) {
-		vbox_fb = to_vbox_framebuffer(old_fb);
-		obj = vbox_fb->obj;
-		bo = gem_to_vbox_bo(obj);
-		ret = vbox_bo_reserve(bo, false);
-		if (ret)
-			return ret;
-
-		vbox_bo_unpin(bo);
-		vbox_bo_unreserve(bo);
-	}
-
-	vbox_fb = to_vbox_framebuffer(new_fb);
-	obj = vbox_fb->obj;
-	bo = gem_to_vbox_bo(obj);
 
 	ret = vbox_bo_reserve(bo, false);
 	if (ret)
 		return ret;
 
-	ret = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM, &gpu_addr);
+	ret = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM, addr);
+	vbox_bo_unreserve(bo);
+	return ret;
+}
+
+static void vbox_fb_unpin(struct drm_framebuffer *fb)
+{
+	struct vbox_bo *bo;
+	int ret;
+
+	if (!fb)
+		return;
+
+	bo = gem_to_vbox_bo(to_vbox_framebuffer(fb)->obj);
+
+	ret = vbox_bo_reserve(bo, false);
 	if (ret) {
-		vbox_bo_unreserve(bo);
+		DRM_ERROR("Error %d reserving fb bo, leaving it pinned\n", ret);
+		return;
+	}
+
+	vbox_bo_unpin(bo);
+	vbox_bo_unreserve(bo);
+}
+
+static int vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
+				       struct drm_framebuffer *old_fb,
+				       struct drm_framebuffer *new_fb,
+				       struct drm_display_mode *mode,
+				       int x, int y)
+{
+	struct vbox_private *vbox = crtc->dev->dev_private;
+	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
+	u64 gpu_addr;
+	int ret;
+
+	/* Prepare: pin the new framebuffer bo */
+	ret = vbox_fb_pin(new_fb, &gpu_addr);
+	if (ret) {
+		DRM_WARN("Error %d pinning new fb, out of video mem?\n", ret);
 		return ret;
 	}
 
-	if (&vbox->fbdev->afb == vbox_fb)
-		vbox_fbdev_set_base(vbox, gpu_addr);
-	vbox_bo_unreserve(bo);
+	/* Commit: Update hardware to use the new fb */
+	mutex_lock(&vbox->hw_mutex);
 
-	/* vbox_set_start_address_crt1(crtc, (u32)gpu_addr); */
+	if (&vbox->fbdev->afb == to_vbox_framebuffer(new_fb))
+		vbox_fbdev_set_base(vbox, gpu_addr);
+
 	vbox_crtc->fb_offset = gpu_addr;
-	if (vbox_set_up_input_mapping(vbox)) {
+
+	/* vbox_do_modeset() checks vbox->single_framebuffer so update it now */
+	if (mode && vbox_set_up_input_mapping(vbox)) {
 		struct drm_crtc *crtci;
 
 		list_for_each_entry(crtci, &vbox->dev->mode_config.crtc_list,
@@ -277,13 +292,20 @@ static int vbox_crtc_do_set_base(struct drm_crtc *crtc,
 		}
 	}
 
-	return 0;
-}
+	vbox_set_view(crtc);
+	vbox_do_modeset(crtc, mode ? mode : &crtc->mode);
 
-static int vbox_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-				   struct drm_framebuffer *old_fb)
-{
-	return vbox_crtc_do_set_base(crtc, old_fb, CRTC_FB(crtc), x, y);
+	if (mode)
+		hgsmi_update_input_mapping(vbox->guest_pool, 0, 0,
+					   vbox->input_mapping_width,
+					   vbox->input_mapping_height);
+
+	mutex_unlock(&vbox->hw_mutex);
+
+	/* Cleanup: unpin the old fb */
+	vbox_fb_unpin(old_fb);
+
+	return 0;
 }
 
 static int vbox_crtc_mode_set(struct drm_crtc *crtc,
@@ -291,21 +313,8 @@ static int vbox_crtc_mode_set(struct drm_crtc *crtc,
 			      struct drm_display_mode *adjusted_mode,
 			      int x, int y, struct drm_framebuffer *old_fb)
 {
-	struct vbox_private *vbox = crtc->dev->dev_private;
-	int ret;
-
-	vbox_crtc_mode_set_base(crtc, x, y, old_fb);
-
-	mutex_lock(&vbox->hw_mutex);
-	ret = vbox_set_view(crtc);
-	if (!ret)
-		vbox_do_modeset(crtc, mode);
-	hgsmi_update_input_mapping(vbox->guest_pool, 0, 0,
-				   vbox->input_mapping_width,
-				   vbox->input_mapping_height);
-	mutex_unlock(&vbox->hw_mutex);
-
-	return ret;
+	return vbox_crtc_set_base_and_mode(crtc, old_fb, CRTC_FB(crtc),
+					   mode, x, y);
 }
 
 static int vbox_crtc_page_flip(struct drm_crtc *crtc,
@@ -319,14 +328,9 @@ static int vbox_crtc_page_flip(struct drm_crtc *crtc,
 	unsigned long flags;
 	int rc;
 
-	rc = vbox_crtc_do_set_base(crtc, CRTC_FB(crtc), fb, 0, 0);
+	rc = vbox_crtc_set_base_and_mode(crtc, CRTC_FB(crtc), fb, NULL, 0, 0);
 	if (rc)
 		return rc;
-
-	mutex_lock(&vbox->hw_mutex);
-	vbox_set_view(crtc);
-	vbox_do_modeset(crtc, &crtc->mode);
-	mutex_unlock(&vbox->hw_mutex);
 
 	spin_lock_irqsave(&drm->event_lock, flags);
 
@@ -354,7 +358,6 @@ static const struct drm_crtc_helper_funcs vbox_crtc_helper_funcs = {
 	.dpms = vbox_crtc_dpms,
 	.mode_fixup = vbox_crtc_mode_fixup,
 	.mode_set = vbox_crtc_mode_set,
-	/* .mode_set_base = vbox_crtc_mode_set_base, */
 	.disable = vbox_crtc_disable,
 	.prepare = vbox_crtc_prepare,
 	.commit = vbox_crtc_commit,
