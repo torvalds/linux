@@ -553,7 +553,7 @@ static int amdgpu_bo_create_shadow(struct amdgpu_device *adev,
 	if (!r) {
 		bo->shadow->parent = amdgpu_bo_ref(bo);
 		mutex_lock(&adev->shadow_list_lock);
-		list_add_tail(&bo->shadow_list, &adev->shadow_list);
+		list_add_tail(&bo->shadow->shadow_list, &adev->shadow_list);
 		mutex_unlock(&adev->shadow_list_lock);
 	}
 
@@ -685,13 +685,10 @@ retry:
 }
 
 /**
- * amdgpu_bo_restore_from_shadow - restore an &amdgpu_bo buffer object
- * @adev: amdgpu device object
- * @ring: amdgpu_ring for the engine handling the buffer operations
- * @bo: &amdgpu_bo buffer to be restored
- * @resv: reservation object with embedded fence
+ * amdgpu_bo_restore_shadow - restore an &amdgpu_bo shadow
+ *
+ * @shadow: &amdgpu_bo shadow to be restored
  * @fence: dma_fence associated with the operation
- * @direct: whether to submit the job directly
  *
  * Copies a buffer object's shadow content back to the object.
  * This is used for recovering a buffer from its shadow in case of a gpu
@@ -700,36 +697,19 @@ retry:
  * Returns:
  * 0 for success or a negative error code on failure.
  */
-int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
-				  struct amdgpu_ring *ring,
-				  struct amdgpu_bo *bo,
-				  struct reservation_object *resv,
-				  struct dma_fence **fence,
-				  bool direct)
+int amdgpu_bo_restore_shadow(struct amdgpu_bo *shadow, struct dma_fence **fence)
 
 {
-	struct amdgpu_bo *shadow = bo->shadow;
-	uint64_t bo_addr, shadow_addr;
-	int r;
+	struct amdgpu_device *adev = amdgpu_ttm_adev(shadow->tbo.bdev);
+	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
+	uint64_t shadow_addr, parent_addr;
 
-	if (!shadow)
-		return -EINVAL;
+	shadow_addr = amdgpu_bo_gpu_offset(shadow);
+	parent_addr = amdgpu_bo_gpu_offset(shadow->parent);
 
-	bo_addr = amdgpu_bo_gpu_offset(bo);
-	shadow_addr = amdgpu_bo_gpu_offset(bo->shadow);
-
-	r = reservation_object_reserve_shared(bo->tbo.resv);
-	if (r)
-		goto err;
-
-	r = amdgpu_copy_buffer(ring, shadow_addr, bo_addr,
-			       amdgpu_bo_size(bo), resv, fence,
-			       direct, false);
-	if (!r)
-		amdgpu_bo_fence(bo, *fence, true);
-
-err:
-	return r;
+	return amdgpu_copy_buffer(ring, shadow_addr, parent_addr,
+				  amdgpu_bo_size(shadow), NULL, fence,
+				  true, false);
 }
 
 /**

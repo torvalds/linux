@@ -2951,54 +2951,6 @@ static int amdgpu_device_ip_post_soft_reset(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_device_recover_vram_from_shadow - restore shadowed VRAM buffers
- *
- * @adev: amdgpu_device pointer
- * @ring: amdgpu_ring for the engine handling the buffer operations
- * @bo: amdgpu_bo buffer whose shadow is being restored
- * @fence: dma_fence associated with the operation
- *
- * Restores the VRAM buffer contents from the shadow in GTT.  Used to
- * restore things like GPUVM page tables after a GPU reset where
- * the contents of VRAM might be lost.
- * Returns 0 on success, negative error code on failure.
- */
-static int amdgpu_device_recover_vram_from_shadow(struct amdgpu_device *adev,
-						  struct amdgpu_ring *ring,
-						  struct amdgpu_bo *bo,
-						  struct dma_fence **fence)
-{
-	uint32_t domain;
-	int r;
-
-	if (!bo->shadow)
-		return 0;
-
-	r = amdgpu_bo_reserve(bo, true);
-	if (r)
-		return r;
-	domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
-	/* if bo has been evicted, then no need to recover */
-	if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
-		r = amdgpu_bo_validate(bo->shadow);
-		if (r) {
-			DRM_ERROR("bo validate failed!\n");
-			goto err;
-		}
-
-		r = amdgpu_bo_restore_from_shadow(adev, ring, bo,
-						 NULL, fence, true);
-		if (r) {
-			DRM_ERROR("recover page table failed!\n");
-			goto err;
-		}
-	}
-err:
-	amdgpu_bo_unreserve(bo);
-	return r;
-}
-
-/**
  * amdgpu_device_recover_vram - Recover some VRAM contents
  *
  * @adev: amdgpu_device pointer
@@ -3006,16 +2958,15 @@ err:
  * Restores the contents of VRAM buffers from the shadows in GTT.  Used to
  * restore things like GPUVM page tables after a GPU reset where
  * the contents of VRAM might be lost.
- * Returns 0 on success, 1 on failure.
+ *
+ * Returns:
+ * 0 on success, negative error code on failure.
  */
 static int amdgpu_device_recover_vram(struct amdgpu_device *adev)
 {
-	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
-	struct amdgpu_bo *bo, *tmp;
 	struct dma_fence *fence = NULL, *next = NULL;
-	long r = 1;
-	int i = 0;
-	long tmo;
+	struct amdgpu_bo *shadow;
+	long r = 1, tmo;
 
 	if (amdgpu_sriov_runtime(adev))
 		tmo = msecs_to_jiffies(8000);
@@ -3024,44 +2975,40 @@ static int amdgpu_device_recover_vram(struct amdgpu_device *adev)
 
 	DRM_INFO("recover vram bo from shadow start\n");
 	mutex_lock(&adev->shadow_list_lock);
-	list_for_each_entry_safe(bo, tmp, &adev->shadow_list, shadow_list) {
-		next = NULL;
-		amdgpu_device_recover_vram_from_shadow(adev, ring, bo, &next);
+	list_for_each_entry(shadow, &adev->shadow_list, shadow_list) {
+
+		/* No need to recover an evicted BO */
+		if (shadow->tbo.mem.mem_type != TTM_PL_TT ||
+		    shadow->parent->tbo.mem.mem_type != TTM_PL_VRAM)
+			continue;
+
+		r = amdgpu_bo_restore_shadow(shadow, &next);
+		if (r)
+			break;
+
 		if (fence) {
 			r = dma_fence_wait_timeout(fence, false, tmo);
-			if (r == 0)
-				pr_err("wait fence %p[%d] timeout\n", fence, i);
-			else if (r < 0)
-				pr_err("wait fence %p[%d] interrupted\n", fence, i);
-			if (r < 1) {
-				dma_fence_put(fence);
-				fence = next;
+			dma_fence_put(fence);
+			fence = next;
+			if (r <= 0)
 				break;
-			}
-			i++;
+		} else {
+			fence = next;
 		}
-
-		dma_fence_put(fence);
-		fence = next;
 	}
 	mutex_unlock(&adev->shadow_list_lock);
 
-	if (fence) {
-		r = dma_fence_wait_timeout(fence, false, tmo);
-		if (r == 0)
-			pr_err("wait fence %p[%d] timeout\n", fence, i);
-		else if (r < 0)
-			pr_err("wait fence %p[%d] interrupted\n", fence, i);
-
-	}
+	if (fence)
+		tmo = dma_fence_wait_timeout(fence, false, tmo);
 	dma_fence_put(fence);
 
-	if (r > 0)
-		DRM_INFO("recover vram bo from shadow done\n");
-	else
+	if (r <= 0 || tmo <= 0) {
 		DRM_ERROR("recover vram bo from shadow failed\n");
+		return -EIO;
+	}
 
-	return (r > 0) ? 0 : 1;
+	DRM_INFO("recover vram bo from shadow done\n");
+	return 0;
 }
 
 /**

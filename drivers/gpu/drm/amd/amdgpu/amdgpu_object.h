@@ -273,12 +273,8 @@ int amdgpu_bo_backup_to_shadow(struct amdgpu_device *adev,
 			       struct reservation_object *resv,
 			       struct dma_fence **fence, bool direct);
 int amdgpu_bo_validate(struct amdgpu_bo *bo);
-int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
-				  struct amdgpu_ring *ring,
-				  struct amdgpu_bo *bo,
-				  struct reservation_object *resv,
-				  struct dma_fence **fence,
-				  bool direct);
+int amdgpu_bo_restore_shadow(struct amdgpu_bo *shadow,
+			     struct dma_fence **fence);
 uint32_t amdgpu_bo_get_preferred_pin_domain(struct amdgpu_device *adev,
 					    uint32_t domain);
 
