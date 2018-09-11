@@ -149,6 +149,31 @@ int ishtp_fw_cl_by_uuid(struct ishtp_device *dev, const uuid_le *uuid)
 EXPORT_SYMBOL(ishtp_fw_cl_by_uuid);
 
 /**
+ * ishtp_fw_cl_get_client() - return client information to client
+ * @dev: the ishtp device structure
+ * @uuid: uuid of the client to search
+ *
+ * Search firmware client using UUID and reture related client information.
+ *
+ * Return: pointer of client information on success, NULL on failure.
+ */
+struct ishtp_fw_client *ishtp_fw_cl_get_client(struct ishtp_device *dev,
+						const uuid_le *uuid)
+{
+	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->fw_clients_lock, flags);
+	i = ishtp_fw_cl_by_uuid(dev, uuid);
+	spin_unlock_irqrestore(&dev->fw_clients_lock, flags);
+	if (i < 0 || dev->fw_clients[i].props.fixed_address)
+		return NULL;
+
+	return &dev->fw_clients[i];
+}
+EXPORT_SYMBOL(ishtp_fw_cl_get_client);
+
+/**
  * ishtp_fw_cl_by_id() - return index to fw_clients for client_id
  * @dev: the ishtp device structure
  * @client_id: fw client id to search
