@@ -1015,15 +1015,18 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 {
 	int i;
 
-	if (wilc && (wilc->vif[0]->ndev || wilc->vif[1]->ndev))
+	if (!wilc)
+		return;
+
+	if (wilc->vif[0]->ndev || wilc->vif[1]->ndev)
 		unregister_inetaddr_notifier(&g_dev_notifier);
 
-	if (wilc && wilc->firmware) {
+	if (wilc->firmware) {
 		release_firmware(wilc->firmware);
 		wilc->firmware = NULL;
 	}
 
-	if (wilc && (wilc->vif[0]->ndev || wilc->vif[1]->ndev)) {
+	if (wilc->vif[0]->ndev || wilc->vif[1]->ndev) {
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
 			if (wilc->vif[i]->ndev)
 				if (wilc->vif[i]->mac_opened)
