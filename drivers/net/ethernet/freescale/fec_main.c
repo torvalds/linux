@@ -2229,13 +2229,8 @@ static int fec_enet_set_pauseparam(struct net_device *ndev,
 	fep->pause_flag |= pause->rx_pause ? FEC_PAUSE_FLAG_ENABLE : 0;
 	fep->pause_flag |= pause->autoneg ? FEC_PAUSE_FLAG_AUTONEG : 0;
 
-	if (pause->rx_pause || pause->autoneg) {
-		ndev->phydev->supported |= ADVERTISED_Pause;
-		ndev->phydev->advertising |= ADVERTISED_Pause;
-	} else {
-		ndev->phydev->supported &= ~ADVERTISED_Pause;
-		ndev->phydev->advertising &= ~ADVERTISED_Pause;
-	}
+	phy_set_sym_pause(ndev->phydev, pause->rx_pause, pause->tx_pause,
+			  pause->autoneg);
 
 	if (pause->autoneg) {
 		if (netif_running(ndev))
