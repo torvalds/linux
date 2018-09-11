@@ -942,17 +942,18 @@ static void soc_remove_dai(struct snd_soc_dai *dai, int order)
 {
 	int err;
 
-	if (dai && dai->probed &&
-			dai->driver->remove_order == order) {
-		if (dai->driver->remove) {
-			err = dai->driver->remove(dai);
-			if (err < 0)
-				dev_err(dai->dev,
-					"ASoC: failed to remove %s: %d\n",
-					dai->name, err);
-		}
-		dai->probed = 0;
+	if (!dai || !dai->probed ||
+	    dai->driver->remove_order != order)
+		return;
+
+	if (dai->driver->remove) {
+		err = dai->driver->remove(dai);
+		if (err < 0)
+			dev_err(dai->dev,
+				"ASoC: failed to remove %s: %d\n",
+				dai->name, err);
 	}
+	dai->probed = 0;
 }
 
 static void soc_remove_link_dais(struct snd_soc_card *card,
