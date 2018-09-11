@@ -320,7 +320,7 @@ do_get_report:
  */
 static void ish_cl_event_cb(struct ishtp_cl_device *device)
 {
-	struct ishtp_cl	*hid_ishtp_cl = device->driver_data;
+	struct ishtp_cl	*hid_ishtp_cl = ishtp_get_drvdata(device);
 	struct ishtp_cl_rb *rb_in_proc;
 	size_t r_length;
 	unsigned long flags;
@@ -765,7 +765,7 @@ static void hid_ishtp_cl_reset_handler(struct work_struct *work)
 	if (!hid_ishtp_cl)
 		return;
 
-	cl_device->driver_data = hid_ishtp_cl;
+	ishtp_set_drvdata(cl_device, hid_ishtp_cl);
 	hid_ishtp_cl->client_data = client_data;
 	client_data->hid_ishtp_cl = hid_ishtp_cl;
 
@@ -814,7 +814,7 @@ static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 	if (!hid_ishtp_cl)
 		return -ENOMEM;
 
-	cl_device->driver_data = hid_ishtp_cl;
+	ishtp_set_drvdata(cl_device, hid_ishtp_cl);
 	hid_ishtp_cl->client_data = client_data;
 	client_data->hid_ishtp_cl = hid_ishtp_cl;
 	client_data->cl_device = cl_device;
@@ -844,7 +844,7 @@ static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
  */
 static int hid_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
 {
-	struct ishtp_cl *hid_ishtp_cl = cl_device->driver_data;
+	struct ishtp_cl *hid_ishtp_cl = ishtp_get_drvdata(cl_device);
 	struct ishtp_cl_data *client_data = hid_ishtp_cl->client_data;
 
 	hid_ishtp_trace(client_data, "%s hid_ishtp_cl %p\n", __func__,
@@ -874,7 +874,7 @@ static int hid_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
  */
 static int hid_ishtp_cl_reset(struct ishtp_cl_device *cl_device)
 {
-	struct ishtp_cl *hid_ishtp_cl = cl_device->driver_data;
+	struct ishtp_cl *hid_ishtp_cl = ishtp_get_drvdata(cl_device);
 	struct ishtp_cl_data *client_data = hid_ishtp_cl->client_data;
 
 	hid_ishtp_trace(client_data, "%s hid_ishtp_cl %p\n", __func__,
@@ -898,7 +898,7 @@ static int hid_ishtp_cl_reset(struct ishtp_cl_device *cl_device)
 static int hid_ishtp_cl_suspend(struct device *device)
 {
 	struct ishtp_cl_device *cl_device = to_ishtp_cl_device(device);
-	struct ishtp_cl *hid_ishtp_cl = cl_device->driver_data;
+	struct ishtp_cl *hid_ishtp_cl = ishtp_get_drvdata(cl_device);
 	struct ishtp_cl_data *client_data = hid_ishtp_cl->client_data;
 
 	hid_ishtp_trace(client_data, "%s hid_ishtp_cl %p\n", __func__,
@@ -919,7 +919,7 @@ static int hid_ishtp_cl_suspend(struct device *device)
 static int hid_ishtp_cl_resume(struct device *device)
 {
 	struct ishtp_cl_device *cl_device = to_ishtp_cl_device(device);
-	struct ishtp_cl *hid_ishtp_cl = cl_device->driver_data;
+	struct ishtp_cl *hid_ishtp_cl = ishtp_get_drvdata(cl_device);
 	struct ishtp_cl_data *client_data = hid_ishtp_cl->client_data;
 
 	hid_ishtp_trace(client_data, "%s hid_ishtp_cl %p\n", __func__,
