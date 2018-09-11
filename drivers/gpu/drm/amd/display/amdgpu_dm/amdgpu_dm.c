@@ -4079,6 +4079,7 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 	/* TODO eliminate or rename surface_update */
 	struct dc_surface_update surface_updates[1] = { {0} };
 	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(crtc->state);
+	struct dc_stream_status *stream_status;
 
 
 	/* Prepare wait for target vblank early - before the fence-waits */
@@ -4134,7 +4135,19 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
-	surface_updates->surface = dc_stream_get_status(acrtc_state->stream)->plane_states[0];
+	stream_status = dc_stream_get_status(acrtc_state->stream);
+	if (!stream_status) {
+		DRM_ERROR("No stream status for CRTC: id=%d\n",
+			acrtc->crtc_id);
+		return;
+	}
+
+	surface_updates->surface = stream_status->plane_states[0];
+	if (!surface_updates->surface) {
+		DRM_ERROR("No surface for CRTC: id=%d\n",
+			acrtc->crtc_id);
+		return;
+	}
 	surface_updates->flip_addr = &addr;
 
 	dc_commit_updates_for_stream(adev->dm.dc,
