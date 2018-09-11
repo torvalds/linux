@@ -25,7 +25,11 @@ Required properties:
 
   - reg: Base address and length of the register for the USBHS
   - interrupts: Interrupt specifier for the USBHS
-  - clocks: A list of phandle + clock specifier pairs
+  - clocks: A list of phandle + clock specifier pairs.
+	    - In case of "renesas,rcar-gen3-usbhs", two clocks are required.
+	      First clock should be peripheral and second one should be host.
+	    - In case of except above, one clock is required. First clock
+	      should be peripheral.
 
 Optional properties:
   - renesas,buswait: Integer to use BUSWAIT register
