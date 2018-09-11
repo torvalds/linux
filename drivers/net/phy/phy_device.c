@@ -1765,6 +1765,24 @@ int phy_set_max_speed(struct phy_device *phydev, u32 max_speed)
 }
 EXPORT_SYMBOL(phy_set_max_speed);
 
+/**
+ * phy_remove_link_mode - Remove a supported link mode
+ * @phydev: phy_device structure to remove link mode from
+ * @link_mode: Link mode to be removed
+ *
+ * Description: Some MACs don't support all link modes which the PHY
+ * does.  e.g. a 1G MAC often does not support 1000Half. Add a helper
+ * to remove a link mode.
+ */
+void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode)
+{
+	WARN_ON(link_mode > 31);
+
+	phydev->supported &= ~BIT(link_mode);
+	phydev->advertising = phydev->supported;
+}
+EXPORT_SYMBOL(phy_remove_link_mode);
+
 static void of_set_phy_supported(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->mdio.dev.of_node;

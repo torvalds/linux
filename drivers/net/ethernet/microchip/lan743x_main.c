@@ -1013,7 +1013,7 @@ static int lan743x_phy_open(struct lan743x_adapter *adapter)
 		goto return_error;
 
 	/* MAC doesn't support 1000T Half */
-	phydev->supported &= ~SUPPORTED_1000baseT_Half;
+	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
 
 	/* support both flow controls */
 	phy->fc_request_control = (FLOW_CTRL_RX | FLOW_CTRL_TX);

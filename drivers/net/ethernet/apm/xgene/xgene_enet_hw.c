@@ -895,9 +895,9 @@ int xgene_enet_phy_connect(struct net_device *ndev)
 	}
 
 	pdata->phy_speed = SPEED_UNKNOWN;
-	phy_dev->supported &= ~SUPPORTED_10baseT_Half &
-			      ~SUPPORTED_100baseT_Half &
-			      ~SUPPORTED_1000baseT_Half;
+	phy_remove_link_mode(phy_dev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
+	phy_remove_link_mode(phy_dev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
+	phy_remove_link_mode(phy_dev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
 	phy_dev->supported |= SUPPORTED_Pause |
 			      SUPPORTED_Asym_Pause;
 	phy_dev->advertising = phy_dev->supported;
