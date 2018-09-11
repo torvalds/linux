@@ -693,6 +693,11 @@ static const struct of_device_id cpg_mssr_match[] = {
 		.compatible = "renesas,r8a7743-cpg-mssr",
 		.data = &r8a7743_cpg_mssr_info,
 	},
+	/* RZ/G1N is (almost) identical to RZ/G1M w.r.t. clocks. */
+	{
+		.compatible = "renesas,r8a7744-cpg-mssr",
+		.data = &r8a7743_cpg_mssr_info,
+	},
 #endif
 #ifdef CONFIG_CLK_R8A7745
 	{
