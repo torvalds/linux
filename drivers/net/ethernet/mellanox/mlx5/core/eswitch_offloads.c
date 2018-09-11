@@ -442,9 +442,11 @@ int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 	fwd  = !!((attr->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) &&
 		   !attr->dest_chain);
 
+	mutex_lock(&esw->state_lock);
+
 	err = esw_add_vlan_action_check(attr, push, pop, fwd);
 	if (err)
-		return err;
+		goto unlock;
 
 	attr->vlan_handled = false;
 
@@ -457,11 +459,11 @@ int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 			attr->vlan_handled = true;
 		}
 
-		return 0;
+		goto unlock;
 	}
 
 	if (!push && !pop)
-		return 0;
+		goto unlock;
 
 	if (!(offloads->vlan_push_pop_refcount)) {
 		/* it's the 1st vlan rule, apply global vlan pop policy */
@@ -486,6 +488,8 @@ skip_set_push:
 out:
 	if (!err)
 		attr->vlan_handled = true;
+unlock:
+	mutex_unlock(&esw->state_lock);
 	return err;
 }
 
@@ -508,6 +512,8 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 	pop  = !!(attr->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP);
 	fwd  = !!(attr->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST);
 
+	mutex_lock(&esw->state_lock);
+
 	vport = esw_vlan_action_get_vport(attr, push, pop);
 
 	if (!push && !pop && fwd) {
@@ -515,7 +521,7 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 		if (attr->dests[0].rep->vport == MLX5_VPORT_UPLINK)
 			vport->vlan_refcount--;
 
-		return 0;
+		goto out;
 	}
 
 	if (push) {
@@ -533,12 +539,13 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 skip_unset_push:
 	offloads->vlan_push_pop_refcount--;
 	if (offloads->vlan_push_pop_refcount)
-		return 0;
+		goto out;
 
 	/* no more vlan rules, stop global vlan pop policy */
 	err = esw_set_global_vlan_pop(esw, 0);
 
 out:
+	mutex_unlock(&esw->state_lock);
 	return err;
 }
 
