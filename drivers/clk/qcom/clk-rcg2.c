@@ -443,7 +443,8 @@ static int __clk_rcg2_set_rate(struct clk_hw *hw, unsigned long rate,
 	}
 
 	if (rcg->flags & FORCE_ENABLE_RCG) {
-		rcg->current_freq = clk_get_rate(hw->clk);
+		rcg->current_freq = DIV_ROUND_CLOSEST_ULL(
+					clk_get_rate(hw->clk), 1000) * 1000;
 		if (rcg->current_freq == cxo_f.freq)
 			curr_src_index = 0;
 		else {
