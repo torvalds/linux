@@ -2624,7 +2624,7 @@ static int dispc_ovl_setup_common(struct dispc_device *dispc,
 	unsigned int offset0, offset1;
 	s32 row_inc;
 	s32 pix_inc;
-	u16 frame_width, frame_height;
+	u16 frame_width;
 	unsigned int field_offset = 0;
 	u16 in_height = height;
 	u16 in_width = width;
@@ -2714,13 +2714,10 @@ static int dispc_ovl_setup_common(struct dispc_device *dispc,
 	row_inc = 0;
 	pix_inc = 0;
 
-	if (plane == OMAP_DSS_WB) {
+	if (plane == OMAP_DSS_WB)
 		frame_width = out_width;
-		frame_height = out_height;
-	} else {
+	else
 		frame_width = in_width;
-		frame_height = height;
-	}
 
 	calc_offset(screen_width, frame_width,
 			fourcc, fieldmode, field_offset,
