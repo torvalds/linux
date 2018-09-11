@@ -1285,6 +1285,12 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (r)
 		goto out;
 
+	r = amdgpu_cs_dependencies(adev, &parser);
+	if (r) {
+		DRM_ERROR("Failed in the dependencies handling %d!\n", r);
+		goto out;
+	}
+
 	r = amdgpu_cs_parser_bos(&parser, data);
 	if (r) {
 		if (r == -ENOMEM)
@@ -1295,12 +1301,6 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	}
 
 	reserved_buffers = true;
-
-	r = amdgpu_cs_dependencies(adev, &parser);
-	if (r) {
-		DRM_ERROR("Failed in the dependencies handling %d!\n", r);
-		goto out;
-	}
 
 	for (i = 0; i < parser.job->num_ibs; i++)
 		trace_amdgpu_cs(&parser, i);
