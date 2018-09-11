@@ -1570,6 +1570,15 @@ void qlt_stop_phase2(struct qla_tgt *tgt)
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf00c, "Stop of tgt %p finished\n",
 	    tgt);
+
+	switch (vha->qlini_mode) {
+	case QLA2XXX_INI_MODE_EXCLUSIVE:
+		vha->flags.online = 1;
+		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		break;
+	default:
+		break;
+	}
 }
 EXPORT_SYMBOL(qlt_stop_phase2);
 
@@ -6617,6 +6626,9 @@ int qlt_lport_register(void *target_lport_ptr, u64 phys_wwpn,
 		if (!(host->hostt->supported_mode & MODE_TARGET))
 			continue;
 
+		if (vha->qlini_mode == QLA2XXX_INI_MODE_ENABLED)
+			continue;
+
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 		if ((!npiv_wwpn || !npiv_wwnn) && host->active_mode & MODE_TARGET) {
 			pr_debug("MODE_TARGET already active on qla2xxx(%d)\n",
@@ -6679,15 +6691,15 @@ void qlt_lport_deregister(struct scsi_qla_host *vha)
 EXPORT_SYMBOL(qlt_lport_deregister);
 
 /* Must be called under HW lock */
-static void qlt_set_mode(struct scsi_qla_host *vha)
+void qlt_set_mode(struct scsi_qla_host *vha)
 {
-	switch (ql2x_ini_mode) {
+	switch (vha->qlini_mode) {
 	case QLA2XXX_INI_MODE_DISABLED:
 	case QLA2XXX_INI_MODE_EXCLUSIVE:
 		vha->host->active_mode = MODE_TARGET;
 		break;
 	case QLA2XXX_INI_MODE_ENABLED:
-		vha->host->active_mode = MODE_UNKNOWN;
+		vha->host->active_mode = MODE_INITIATOR;
 		break;
 	case QLA2XXX_INI_MODE_DUAL:
 		vha->host->active_mode = MODE_DUAL;
@@ -6700,7 +6712,7 @@ static void qlt_set_mode(struct scsi_qla_host *vha)
 /* Must be called under HW lock */
 static void qlt_clear_mode(struct scsi_qla_host *vha)
 {
-	switch (ql2x_ini_mode) {
+	switch (vha->qlini_mode) {
 	case QLA2XXX_INI_MODE_DISABLED:
 		vha->host->active_mode = MODE_UNKNOWN;
 		break;
@@ -6736,6 +6748,8 @@ qlt_enable_vha(struct scsi_qla_host *vha)
 		dump_stack();
 		return;
 	}
+	if (vha->qlini_mode == QLA2XXX_INI_MODE_ENABLED)
+		return;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	tgt->tgt_stopped = 0;
@@ -6975,7 +6989,7 @@ qlt_24xx_config_nvram_stage1(struct scsi_qla_host *vha, struct nvram_24xx *nv)
 		if (qla_tgt_mode_enabled(vha))
 			nv->exchange_count = cpu_to_le16(0xFFFF);
 		else			/* dual */
-			nv->exchange_count = cpu_to_le16(ql2xexchoffld);
+			nv->exchange_count = cpu_to_le16(vha->ql2xexchoffld);
 
 		/* Enable target mode */
 		nv->firmware_options_1 |= cpu_to_le32(BIT_4);
@@ -7081,7 +7095,7 @@ qlt_81xx_config_nvram_stage1(struct scsi_qla_host *vha, struct nvram_81xx *nv)
 		if (qla_tgt_mode_enabled(vha))
 			nv->exchange_count = cpu_to_le16(0xFFFF);
 		else			/* dual */
-			nv->exchange_count = cpu_to_le16(ql2xexchoffld);
+			nv->exchange_count = cpu_to_le16(vha->ql2xexchoffld);
 
 		/* Enable target mode */
 		nv->firmware_options_1 |= cpu_to_le32(BIT_4);

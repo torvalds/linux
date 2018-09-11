@@ -4376,6 +4376,13 @@ typedef struct scsi_qla_host {
 	atomic_t	vref_count;
 	struct qla8044_reset_template reset_tmplt;
 	uint16_t	bbcr;
+
+	uint16_t u_ql2xexchoffld;
+	uint16_t u_ql2xiniexchg;
+	uint16_t qlini_mode;
+	uint16_t ql2xexchoffld;
+	uint16_t ql2xiniexchg;
+
 	struct name_list_extended gnl;
 	/* Count of active session/fcport */
 	int fcport_count;

@@ -4056,6 +4056,7 @@ next_check:
 		ql_dbg(ql_dbg_init, vha, 0x00d3,
 		    "Init Firmware -- success.\n");
 		QLA_FW_STARTED(ha);
+		vha->u_ql2xexchoffld = vha->u_ql2xiniexchg = 0;
 	}
 
 	return (rval);
@@ -6700,6 +6701,20 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 			clear_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
 			status = 0;
 			return status;
+		}
+
+		switch (vha->qlini_mode) {
+		case QLA2XXX_INI_MODE_DISABLED:
+			if (!qla_tgt_mode_enabled(vha))
+				return 0;
+			break;
+		case QLA2XXX_INI_MODE_DUAL:
+			if (!qla_dual_mode_enabled(vha))
+				return 0;
+			break;
+		case QLA2XXX_INI_MODE_ENABLED:
+		default:
+			break;
 		}
 
 		ha->isp_ops->get_flash_version(vha, req->ring);

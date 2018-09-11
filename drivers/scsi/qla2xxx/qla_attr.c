@@ -1632,6 +1632,433 @@ qla2x00_max_speed_sup_show(struct device *dev, struct device_attribute *attr,
 	    ha->max_speed_sup ? "32Gps" : "16Gps");
 }
 
+/* ----- */
+
+static ssize_t
+qlini_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	int len = 0;
+
+	len += scnprintf(buf + len, PAGE_SIZE-len,
+	    "Supported options: enabled | disabled | dual | exclusive\n");
+
+	/* --- */
+	len += scnprintf(buf + len, PAGE_SIZE-len, "Current selection: ");
+
+	switch (vha->qlini_mode) {
+	case QLA2XXX_INI_MODE_EXCLUSIVE:
+		len += scnprintf(buf + len, PAGE_SIZE-len,
+		    QLA2XXX_INI_MODE_STR_EXCLUSIVE);
+		break;
+	case QLA2XXX_INI_MODE_DISABLED:
+		len += scnprintf(buf + len, PAGE_SIZE-len,
+		    QLA2XXX_INI_MODE_STR_DISABLED);
+		break;
+	case QLA2XXX_INI_MODE_ENABLED:
+		len += scnprintf(buf + len, PAGE_SIZE-len,
+		    QLA2XXX_INI_MODE_STR_ENABLED);
+		break;
+	case QLA2XXX_INI_MODE_DUAL:
+		len += scnprintf(buf + len, PAGE_SIZE-len,
+		    QLA2XXX_INI_MODE_STR_DUAL);
+		break;
+	}
+	len += scnprintf(buf + len, PAGE_SIZE-len, "\n");
+
+	return len;
+}
+
+static char *mode_to_str[] = {
+	"exclusive",
+	"disabled",
+	"enabled",
+	"dual",
+};
+
+#define NEED_EXCH_OFFLOAD(_exchg) ((_exchg) > FW_DEF_EXCHANGES_CNT)
+static int qla_set_ini_mode(scsi_qla_host_t *vha, int op)
+{
+	int rc = 0;
+	enum {
+		NO_ACTION,
+		MODE_CHANGE_ACCEPT,
+		MODE_CHANGE_NO_ACTION,
+		TARGET_STILL_ACTIVE,
+	};
+	int action = NO_ACTION;
+	int set_mode = 0;
+	u8  eo_toggle = 0;	/* exchange offload flipped */
+
+	switch (vha->qlini_mode) {
+	case QLA2XXX_INI_MODE_DISABLED:
+		switch (op) {
+		case QLA2XXX_INI_MODE_DISABLED:
+			if (qla_tgt_mode_enabled(vha)) {
+				if (NEED_EXCH_OFFLOAD(vha->u_ql2xexchoffld) !=
+				    vha->hw->flags.exchoffld_enabled)
+					eo_toggle = 1;
+				if (((vha->ql2xexchoffld !=
+				    vha->u_ql2xexchoffld) &&
+				    NEED_EXCH_OFFLOAD(vha->u_ql2xexchoffld)) ||
+				    eo_toggle) {
+					/*
+					 * The number of exchange to be offload
+					 * was tweaked or offload option was
+					 * flipped
+					 */
+					action = MODE_CHANGE_ACCEPT;
+				} else {
+					action = MODE_CHANGE_NO_ACTION;
+				}
+			} else {
+				action = MODE_CHANGE_NO_ACTION;
+			}
+			break;
+		case QLA2XXX_INI_MODE_EXCLUSIVE:
+			if (qla_tgt_mode_enabled(vha)) {
+				if (NEED_EXCH_OFFLOAD(vha->u_ql2xexchoffld) !=
+				    vha->hw->flags.exchoffld_enabled)
+					eo_toggle = 1;
+				if (((vha->ql2xexchoffld !=
+				    vha->u_ql2xexchoffld) &&
+				    NEED_EXCH_OFFLOAD(vha->u_ql2xexchoffld)) ||
+				    eo_toggle) {
+					/*
+					 * The number of exchange to be offload
+					 * was tweaked or offload option was
+					 * flipped
+					 */
+					action = MODE_CHANGE_ACCEPT;
+				} else {
+					action = MODE_CHANGE_NO_ACTION;
+				}
+			} else {
+				action = MODE_CHANGE_ACCEPT;
+			}
+			break;
+		case QLA2XXX_INI_MODE_DUAL:
+			action = MODE_CHANGE_ACCEPT;
+			/* active_mode is target only, reset it to dual */
+			if (qla_tgt_mode_enabled(vha)) {
+				set_mode = 1;
+				action = MODE_CHANGE_ACCEPT;
+			} else {
+				action = MODE_CHANGE_NO_ACTION;
+			}
+			break;
+
+		case QLA2XXX_INI_MODE_ENABLED:
+			if (qla_tgt_mode_enabled(vha))
+				action = TARGET_STILL_ACTIVE;
+			else {
+				action = MODE_CHANGE_ACCEPT;
+				set_mode = 1;
+			}
+			break;
+		}
+		break;
+
+	case QLA2XXX_INI_MODE_EXCLUSIVE:
+		switch (op) {
+		case QLA2XXX_INI_MODE_EXCLUSIVE:
+			if (qla_tgt_mode_enabled(vha)) {
+				if (NEED_EXCH_OFFLOAD(vha->u_ql2xexchoffld) !=
+				    vha->hw->flags.exchoffld_enabled)
+					eo_toggle = 1;
+				if (((vha->ql2xexchoffld !=
+				    vha->u_ql2xexchoffld) &&
+				    NEED_EXCH_OFFLOAD(vha->u_ql2xexchoffld)) ||
+				    eo_toggle)
+					/*
+					 * The number of exchange to be offload
+					 * was tweaked or offload option was
+					 * flipped
+					 */
+					action = MODE_CHANGE_ACCEPT;
+				else
+					action = NO_ACTION;
+			} else
+				action = NO_ACTION;
+
+			break;
+
+		case QLA2XXX_INI_MODE_DISABLED:
+			if (qla_tgt_mode_enabled(vha)) {
+				if (NEED_EXCH_OFFLOAD(vha->u_ql2xexchoffld) !=
+				    vha->hw->flags.exchoffld_enabled)
+					eo_toggle = 1;
+				if (((vha->ql2xexchoffld !=
+				      vha->u_ql2xexchoffld) &&
+				    NEED_EXCH_OFFLOAD(vha->u_ql2xexchoffld)) ||
+				    eo_toggle)
+					action = MODE_CHANGE_ACCEPT;
+				else
+					action = MODE_CHANGE_NO_ACTION;
+			} else
+				action = MODE_CHANGE_NO_ACTION;
+			break;
+
+		case QLA2XXX_INI_MODE_DUAL: /* exclusive -> dual */
+			if (qla_tgt_mode_enabled(vha)) {
+				action = MODE_CHANGE_ACCEPT;
+				set_mode = 1;
+			} else
+				action = MODE_CHANGE_ACCEPT;
+			break;
+
+		case QLA2XXX_INI_MODE_ENABLED:
+			if (qla_tgt_mode_enabled(vha))
+				action = TARGET_STILL_ACTIVE;
+			else {
+				if (vha->hw->flags.fw_started)
+					action = MODE_CHANGE_NO_ACTION;
+				else
+					action = MODE_CHANGE_ACCEPT;
+			}
+			break;
+		}
+		break;
+
+	case QLA2XXX_INI_MODE_ENABLED:
+		switch (op) {
+		case QLA2XXX_INI_MODE_ENABLED:
+			if (NEED_EXCH_OFFLOAD(vha->u_ql2xiniexchg) !=
+			    vha->hw->flags.exchoffld_enabled)
+				eo_toggle = 1;
+			if (((vha->ql2xiniexchg != vha->u_ql2xiniexchg) &&
+				NEED_EXCH_OFFLOAD(vha->u_ql2xiniexchg)) ||
+			    eo_toggle)
+				action = MODE_CHANGE_ACCEPT;
+			else
+				action = NO_ACTION;
+			break;
+		case QLA2XXX_INI_MODE_DUAL:
+		case QLA2XXX_INI_MODE_DISABLED:
+			action = MODE_CHANGE_ACCEPT;
+			break;
+		default:
+			action = MODE_CHANGE_NO_ACTION;
+			break;
+		}
+		break;
+
+	case QLA2XXX_INI_MODE_DUAL:
+		switch (op) {
+		case QLA2XXX_INI_MODE_DUAL:
+			if (qla_tgt_mode_enabled(vha) ||
+			    qla_dual_mode_enabled(vha)) {
+				if (NEED_EXCH_OFFLOAD(vha->u_ql2xexchoffld +
+					vha->u_ql2xiniexchg) !=
+				    vha->hw->flags.exchoffld_enabled)
+					eo_toggle = 1;
+
+				if ((((vha->ql2xexchoffld +
+				       vha->ql2xiniexchg) !=
+				    (vha->u_ql2xiniexchg +
+				     vha->u_ql2xexchoffld)) &&
+				    NEED_EXCH_OFFLOAD(vha->u_ql2xiniexchg +
+					vha->u_ql2xexchoffld)) || eo_toggle)
+					action = MODE_CHANGE_ACCEPT;
+				else
+					action = NO_ACTION;
+			} else {
+				if (NEED_EXCH_OFFLOAD(vha->u_ql2xexchoffld +
+					vha->u_ql2xiniexchg) !=
+				    vha->hw->flags.exchoffld_enabled)
+					eo_toggle = 1;
+
+				if ((((vha->ql2xexchoffld + vha->ql2xiniexchg)
+				    != (vha->u_ql2xiniexchg +
+					vha->u_ql2xexchoffld)) &&
+				    NEED_EXCH_OFFLOAD(vha->u_ql2xiniexchg +
+					vha->u_ql2xexchoffld)) || eo_toggle)
+					action = MODE_CHANGE_NO_ACTION;
+				else
+					action = NO_ACTION;
+			}
+			break;
+
+		case QLA2XXX_INI_MODE_DISABLED:
+			if (qla_tgt_mode_enabled(vha) ||
+			    qla_dual_mode_enabled(vha)) {
+				/* turning off initiator mode */
+				set_mode = 1;
+				action = MODE_CHANGE_ACCEPT;
+			} else {
+				action = MODE_CHANGE_NO_ACTION;
+			}
+			break;
+
+		case QLA2XXX_INI_MODE_EXCLUSIVE:
+			if (qla_tgt_mode_enabled(vha) ||
+			    qla_dual_mode_enabled(vha)) {
+				set_mode = 1;
+				action = MODE_CHANGE_ACCEPT;
+			} else {
+				action = MODE_CHANGE_ACCEPT;
+			}
+			break;
+
+		case QLA2XXX_INI_MODE_ENABLED:
+			if (qla_tgt_mode_enabled(vha) ||
+			    qla_dual_mode_enabled(vha)) {
+				action = TARGET_STILL_ACTIVE;
+			} else {
+				action = MODE_CHANGE_ACCEPT;
+			}
+		}
+		break;
+	}
+
+	switch (action) {
+	case MODE_CHANGE_ACCEPT:
+		ql_log(ql_log_warn, vha, 0xffff,
+		    "Mode change accepted. From %s to %s, Tgt exchg %d|%d. ini exchg %d|%d\n",
+		    mode_to_str[vha->qlini_mode], mode_to_str[op],
+		    vha->ql2xexchoffld, vha->u_ql2xexchoffld,
+		    vha->ql2xiniexchg, vha->u_ql2xiniexchg);
+
+		vha->qlini_mode = op;
+		vha->ql2xexchoffld = vha->u_ql2xexchoffld;
+		vha->ql2xiniexchg = vha->u_ql2xiniexchg;
+		if (set_mode)
+			qlt_set_mode(vha);
+		vha->flags.online = 1;
+		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		break;
+
+	case MODE_CHANGE_NO_ACTION:
+		ql_log(ql_log_warn, vha, 0xffff,
+		    "Mode is set. No action taken. From %s to %s, Tgt exchg %d|%d. ini exchg %d|%d\n",
+		    mode_to_str[vha->qlini_mode], mode_to_str[op],
+		    vha->ql2xexchoffld, vha->u_ql2xexchoffld,
+		    vha->ql2xiniexchg, vha->u_ql2xiniexchg);
+		vha->qlini_mode = op;
+		vha->ql2xexchoffld = vha->u_ql2xexchoffld;
+		vha->ql2xiniexchg = vha->u_ql2xiniexchg;
+		break;
+
+	case TARGET_STILL_ACTIVE:
+		ql_log(ql_log_warn, vha, 0xffff,
+		    "Target Mode is active. Unable to change Mode.\n");
+		break;
+
+	case NO_ACTION:
+	default:
+		ql_log(ql_log_warn, vha, 0xffff,
+		    "Mode unchange. No action taken. %d|%d pct %d|%d.\n",
+		    vha->qlini_mode, op,
+		    vha->ql2xexchoffld, vha->u_ql2xexchoffld);
+		break;
+	}
+
+	return rc;
+}
+
+static ssize_t
+qlini_mode_store(struct device *dev, struct device_attribute *attr,
+    const char *buf, size_t count)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	int ini;
+
+	if (!buf)
+		return -EINVAL;
+
+	if (strncasecmp(QLA2XXX_INI_MODE_STR_EXCLUSIVE, buf,
+		strlen(QLA2XXX_INI_MODE_STR_EXCLUSIVE)) == 0)
+		ini = QLA2XXX_INI_MODE_EXCLUSIVE;
+	else if (strncasecmp(QLA2XXX_INI_MODE_STR_DISABLED, buf,
+		strlen(QLA2XXX_INI_MODE_STR_DISABLED)) == 0)
+		ini = QLA2XXX_INI_MODE_DISABLED;
+	else if (strncasecmp(QLA2XXX_INI_MODE_STR_ENABLED, buf,
+		  strlen(QLA2XXX_INI_MODE_STR_ENABLED)) == 0)
+		ini = QLA2XXX_INI_MODE_ENABLED;
+	else if (strncasecmp(QLA2XXX_INI_MODE_STR_DUAL, buf,
+		strlen(QLA2XXX_INI_MODE_STR_DUAL)) == 0)
+		ini = QLA2XXX_INI_MODE_DUAL;
+	else
+		return -EINVAL;
+
+	qla_set_ini_mode(vha, ini);
+	return strlen(buf);
+}
+
+static ssize_t
+ql2xexchoffld_show(struct device *dev, struct device_attribute *attr,
+    char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	int len = 0;
+
+	len += scnprintf(buf + len, PAGE_SIZE-len,
+		"target exchange: new %d : current: %d\n\n",
+		vha->u_ql2xexchoffld, vha->ql2xexchoffld);
+
+	len += scnprintf(buf + len, PAGE_SIZE-len,
+	    "Please (re)set operating mode via \"/sys/class/scsi_host/host%ld/qlini_mode\" to load new setting.\n",
+	    vha->host_no);
+
+	return len;
+}
+
+static ssize_t
+ql2xexchoffld_store(struct device *dev, struct device_attribute *attr,
+    const char *buf, size_t count)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	int val = 0;
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	if (val > FW_MAX_EXCHANGES_CNT)
+		val = FW_MAX_EXCHANGES_CNT;
+	else if (val < 0)
+		val = 0;
+
+	vha->u_ql2xexchoffld = val;
+	return strlen(buf);
+}
+
+static ssize_t
+ql2xiniexchg_show(struct device *dev, struct device_attribute *attr,
+    char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	int len = 0;
+
+	len += scnprintf(buf + len, PAGE_SIZE-len,
+		"target exchange: new %d : current: %d\n\n",
+		vha->u_ql2xiniexchg, vha->ql2xiniexchg);
+
+	len += scnprintf(buf + len, PAGE_SIZE-len,
+	    "Please (re)set operating mode via \"/sys/class/scsi_host/host%ld/qlini_mode\" to load new setting.\n",
+	    vha->host_no);
+
+	return len;
+}
+
+static ssize_t
+ql2xiniexchg_store(struct device *dev, struct device_attribute *attr,
+    const char *buf, size_t count)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	int val = 0;
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	if (val > FW_MAX_EXCHANGES_CNT)
+		val = FW_MAX_EXCHANGES_CNT;
+	else if (val < 0)
+		val = 0;
+
+	vha->u_ql2xiniexchg = val;
+	return strlen(buf);
+}
+
 static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show, NULL);
 static DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
 static DEVICE_ATTR(serial_num, S_IRUGO, qla2x00_serial_num_show, NULL);
@@ -1682,6 +2109,10 @@ static DEVICE_ATTR(max_speed_sup, S_IRUGO, qla2x00_max_speed_sup_show, NULL);
 static DEVICE_ATTR(zio_threshold, 0644,
     qla_zio_threshold_show,
     qla_zio_threshold_store);
+static DEVICE_ATTR_RW(qlini_mode);
+static DEVICE_ATTR_RW(ql2xexchoffld);
+static DEVICE_ATTR_RW(ql2xiniexchg);
+
 
 struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_driver_version,
@@ -1719,8 +2150,26 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_min_link_speed,
 	&dev_attr_max_speed_sup,
 	&dev_attr_zio_threshold,
+	NULL, /* reserve for qlini_mode */
+	NULL, /* reserve for ql2xiniexchg */
+	NULL, /* reserve for ql2xexchoffld */
 	NULL,
 };
+
+void qla_insert_tgt_attrs(void)
+{
+	struct device_attribute **attr;
+
+	/* advance to empty slot */
+	for (attr = &qla2x00_host_attrs[0]; *attr; ++attr)
+		continue;
+
+	*attr = &dev_attr_qlini_mode;
+	attr++;
+	*attr = &dev_attr_ql2xiniexchg;
+	attr++;
+	*attr = &dev_attr_ql2xexchoffld;
+}
 
 /* Host attributes. */
 

@@ -318,13 +318,13 @@ static inline bool
 qla_is_exch_offld_enabled(struct scsi_qla_host *vha)
 {
 	if (qla_ini_mode_enabled(vha) &&
-	    (ql2xiniexchg > FW_DEF_EXCHANGES_CNT))
+	    (vha->ql2xiniexchg > FW_DEF_EXCHANGES_CNT))
 		return true;
 	else if (qla_tgt_mode_enabled(vha) &&
-	    (ql2xexchoffld > FW_DEF_EXCHANGES_CNT))
+	    (vha->ql2xexchoffld > FW_DEF_EXCHANGES_CNT))
 		return true;
 	else if (qla_dual_mode_enabled(vha) &&
-	    ((ql2xiniexchg + ql2xexchoffld) > FW_DEF_EXCHANGES_CNT))
+	    ((vha->ql2xiniexchg + vha->ql2xexchoffld) > FW_DEF_EXCHANGES_CNT))
 		return true;
 	else
 		return false;

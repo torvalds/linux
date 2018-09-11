@@ -4290,29 +4290,34 @@ static void
 qla2x00_number_of_exch(scsi_qla_host_t *vha, u32 *ret_cnt, u16 max_cnt)
 {
 	u32 temp;
+	struct init_cb_81xx *icb = (struct init_cb_81xx *)&vha->hw->init_cb;
 	*ret_cnt = FW_DEF_EXCHANGES_CNT;
 
 	if (max_cnt > vha->hw->max_exchg)
 		max_cnt = vha->hw->max_exchg;
 
 	if (qla_ini_mode_enabled(vha)) {
-		if (ql2xiniexchg > max_cnt)
-			ql2xiniexchg = max_cnt;
+		if (vha->ql2xiniexchg > max_cnt)
+			vha->ql2xiniexchg = max_cnt;
 
-		if (ql2xiniexchg > FW_DEF_EXCHANGES_CNT)
-			*ret_cnt = ql2xiniexchg;
+		if (vha->ql2xiniexchg > FW_DEF_EXCHANGES_CNT)
+			*ret_cnt = vha->ql2xiniexchg;
+
 	} else if (qla_tgt_mode_enabled(vha)) {
-		if (ql2xexchoffld > max_cnt)
-			ql2xexchoffld = max_cnt;
+		if (vha->ql2xexchoffld > max_cnt) {
+			vha->ql2xexchoffld = max_cnt;
+			icb->exchange_count = cpu_to_le16(vha->ql2xexchoffld);
+		}
 
-		if (ql2xexchoffld > FW_DEF_EXCHANGES_CNT)
-			*ret_cnt = ql2xexchoffld;
+		if (vha->ql2xexchoffld > FW_DEF_EXCHANGES_CNT)
+			*ret_cnt = vha->ql2xexchoffld;
 	} else if (qla_dual_mode_enabled(vha)) {
-		temp = ql2xiniexchg + ql2xexchoffld;
+		temp = vha->ql2xiniexchg + vha->ql2xexchoffld;
 		if (temp > max_cnt) {
-			ql2xiniexchg -= (temp - max_cnt)/2;
-			ql2xexchoffld -= (((temp - max_cnt)/2) + 1);
+			vha->ql2xiniexchg -= (temp - max_cnt)/2;
+			vha->ql2xexchoffld -= (((temp - max_cnt)/2) + 1);
 			temp = max_cnt;
+			icb->exchange_count = cpu_to_le16(vha->ql2xexchoffld);
 		}
 
 		if (temp > FW_DEF_EXCHANGES_CNT)
@@ -4350,6 +4355,12 @@ qla2x00_set_exchoffld_buffer(scsi_qla_host_t *vha)
 
 	if (totsz != ha->exchoffld_size) {
 		qla2x00_free_exchoffld_buffer(ha);
+		if (actual_cnt <= FW_DEF_EXCHANGES_CNT) {
+			ha->exchoffld_size = 0;
+			ha->flags.exchoffld_enabled = 0;
+			return QLA_SUCCESS;
+		}
+
 		ha->exchoffld_size = totsz;
 
 		ql_log(ql_log_info, vha, 0xd016,
@@ -4382,6 +4393,15 @@ qla2x00_set_exchoffld_buffer(scsi_qla_host_t *vha)
 
 			return -ENOMEM;
 		}
+	} else if (!ha->exchoffld_buf || (actual_cnt <= FW_DEF_EXCHANGES_CNT)) {
+		/* pathological case */
+		qla2x00_free_exchoffld_buffer(ha);
+		ha->exchoffld_size = 0;
+		ha->flags.exchoffld_enabled = 0;
+		ql_log(ql_log_info, vha, 0xd016,
+		    "Exchange offload not enable: offld size=%d, actual count=%d entry sz=0x%x, total sz=0x%x.\n",
+		    ha->exchoffld_size, actual_cnt, size, totsz);
+		return 0;
 	}
 
 	/* Now configure the dma buffer */
@@ -4397,7 +4417,7 @@ qla2x00_set_exchoffld_buffer(scsi_qla_host_t *vha)
 		if (qla_ini_mode_enabled(vha))
 			icb->exchange_count = 0;
 		else
-			icb->exchange_count = cpu_to_le16(ql2xexchoffld);
+			icb->exchange_count = cpu_to_le16(vha->ql2xexchoffld);
 	}
 
 	return rval;
@@ -4604,6 +4624,10 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 	vha->host = host;
 	vha->host_no = host->host_no;
 	vha->hw = ha;
+
+	vha->qlini_mode = ql2x_ini_mode;
+	vha->ql2xexchoffld = ql2xexchoffld;
+	vha->ql2xiniexchg = ql2xiniexchg;
 
 	INIT_LIST_HEAD(&vha->vp_fcports);
 	INIT_LIST_HEAD(&vha->work_list);
@@ -6081,15 +6105,17 @@ qla2x00_do_dpc(void *data)
 		    !test_bit(UNLOADING, &base_vha->dpc_flags)) {
 			bool do_reset = true;
 
-			switch (ql2x_ini_mode) {
+			switch (base_vha->qlini_mode) {
 			case QLA2XXX_INI_MODE_ENABLED:
 				break;
 			case QLA2XXX_INI_MODE_DISABLED:
-				if (!qla_tgt_mode_enabled(base_vha))
+				if (!qla_tgt_mode_enabled(base_vha) &&
+				    !ha->flags.fw_started)
 					do_reset = false;
 				break;
 			case QLA2XXX_INI_MODE_DUAL:
-				if (!qla_dual_mode_enabled(base_vha))
+				if (!qla_dual_mode_enabled(base_vha) &&
+				    !ha->flags.fw_started)
 					do_reset = false;
 				break;
 			default:
@@ -7019,6 +7045,9 @@ qla2x00_module_init(void)
 		strcat(qla2x00_version_str, "-debug");
 	if (ql2xextended_error_logging == 1)
 		ql2xextended_error_logging = QL_DBG_DEFAULT1_MASK;
+
+	if (ql2x_ini_mode == QLA2XXX_INI_MODE_DUAL)
+		qla_insert_tgt_attrs();
 
 	qla2xxx_transport_template =
 	    fc_attach_transport(&qla2xxx_transport_functions);
