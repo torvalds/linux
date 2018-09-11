@@ -492,6 +492,10 @@ static void gmc_v9_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid,
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t reg;
 
+	/* Do nothing because there's no lut register for mmhub1. */
+	if (ring->funcs->vmhub == AMDGPU_MMHUB_1)
+		return;
+
 	if (ring->funcs->vmhub == AMDGPU_GFXHUB_0)
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT) + vmid;
 	else
