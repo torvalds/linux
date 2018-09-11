@@ -598,12 +598,13 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 
 	if (adev->flags & AMD_IS_APU)
 		adev->nbio_funcs = &nbio_v7_0_funcs;
-	else if (adev->asic_type == CHIP_VEGA20)
+	else if (adev->asic_type == CHIP_VEGA20 ||
+		adev->asic_type == CHIP_ARCTURUS)
 		adev->nbio_funcs = &nbio_v7_4_funcs;
 	else
 		adev->nbio_funcs = &nbio_v6_1_funcs;
 
-	if (adev->asic_type == CHIP_VEGA20)
+	if (adev->asic_type == CHIP_VEGA20 || adev->asic_type == CHIP_ARCTURUS)
 		adev->df_funcs = &df_v3_6_funcs;
 	else
 		adev->df_funcs = &df_v1_7_funcs;
@@ -674,6 +675,15 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_device_ip_block_add(adev, &dm_ip_block);
 #endif
 		amdgpu_device_ip_block_add(adev, &vcn_v1_0_ip_block);
+		break;
+	case CHIP_ARCTURUS:
+		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
+		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
+			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
 		break;
 	default:
 		return -EINVAL;
@@ -1000,6 +1010,10 @@ static int soc15_common_early_init(void *handle)
 			adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
 				AMD_PG_SUPPORT_CP |
 				AMD_PG_SUPPORT_RLC_SMU_HS;
+		break;
+	case CHIP_ARCTURUS:
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
 		break;
 	default:
 		/* FIXME: not supported yet */
