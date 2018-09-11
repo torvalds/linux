@@ -1640,9 +1640,10 @@ static int rkisp1_querycap(struct file *file, void *priv,
 {
 	struct rkisp1_stream *stream = video_drvdata(file);
 	struct device *dev = stream->ispdev->dev;
+	struct video_device *vdev = video_devdata(file);
 
 	strlcpy(cap->driver, dev->driver->name, sizeof(cap->driver));
-	strlcpy(cap->card, dev->driver->name, sizeof(cap->card));
+	strlcpy(cap->card, vdev->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "platform:%s", dev_name(dev));
 
