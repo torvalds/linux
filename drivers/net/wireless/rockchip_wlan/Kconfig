@@ -22,6 +22,12 @@ config WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
 	---help---
 	  Wifi driver will be load (use late_initcall) when kernel bootup
 
+config WIFI_GENERATE_RANDOM_MAC_ADDR
+	bool "Wifi generate random mac address and save to vendor storage for cob chip"
+	default n
+	help
+	  Wifi generate random mac address and save to vendor storage for cob chip
+
 source "drivers/net/wireless/rockchip_wlan/rkwifi/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/cywdhd/Kconfig"
 

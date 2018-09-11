@@ -488,7 +488,7 @@ static int get_wifi_addr_vendor(unsigned char *addr)
 	if (ret != 6 || is_zero_ether_addr(addr)) {
 		LOG("%s: rk_vendor_read wifi mac address failed (%d)\n",
 		    __func__, ret);
-#ifdef RANDOM_ADDRESS_SAVE
+#ifdef CONFIG_WIFI_GENERATE_RANDOM_MAC_ADDR
 		random_ether_addr(addr);
 		LOG("%s: generate random wifi mac address: "
 		    "%02x:%02x:%02x:%02x:%02x:%02x\n",
