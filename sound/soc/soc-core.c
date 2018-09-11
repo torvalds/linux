@@ -2519,8 +2519,6 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_bclk_ratio);
  */
 int snd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	if (dai->driver == NULL)
-		return -EINVAL;
 	if (dai->driver->ops->set_fmt == NULL)
 		return -ENOTSUPP;
 	return dai->driver->ops->set_fmt(dai, fmt);
@@ -2667,9 +2665,6 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_tristate);
 int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute,
 			     int direction)
 {
-	if (!dai->driver)
-		return -ENOTSUPP;
-
 	if (dai->driver->ops->mute_stream)
 		return dai->driver->ops->mute_stream(dai, mute, direction);
 	else if (direction == SNDRV_PCM_STREAM_PLAYBACK &&
