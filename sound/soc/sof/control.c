@@ -278,13 +278,13 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	struct snd_sof_control *scontrol = be->dobj.private;
 	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
-	u32 header[2];
+	struct snd_ctl_tlv header;
+	struct snd_ctl_tlv *tlvd = (struct snd_ctl_tlv *)binary_data;
 	int ret;
 	int err;
-	int length;
-	const int max_length = SOF_IPC_MSG_MAX_SIZE -
-		sizeof(struct sof_ipc_ctrl_data) -
-		sizeof(struct sof_abi_hdr);
+	int max_length = SOF_IPC_MSG_MAX_SIZE -
+		sizeof(const struct sof_ipc_ctrl_data) -
+		sizeof(const struct sof_abi_hdr);
 
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
@@ -293,24 +293,35 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 		return ret;
 	}
 
-	/* the first two ints of the bytes data contain a dummy tag
-	 * and the size, so copy from the 3rd int
-	 * TODO: or should we send the size as well so the firmware
-	 * can allocate memory accordingly?
+	/* The beginning of bytes data contains a header from where
+	 * the length (as bytes) is needed to know the correct copy
+	 * length of data from tlvd->tlv.
 	 */
-	if (copy_from_user(&header, binary_data, 2*sizeof(u32)))
+	if (copy_from_user(&header, tlvd, sizeof(const struct snd_ctl_tlv)))
 		return -EFAULT;
 
-	length = header[1];
-	dev_dbg(sdev->dev, "size of bytes put data is %d\n", length);
-	if (length > max_length) {
-		dev_err(sdev->dev, "error: size is too large, bytes max is %d\n",
-			max_length);
+	/* The maximum length that can be copied is limited by IPC max
+	 * length and topology defined length for ext bytes control.
+	 */
+	if (max_length > be->max)
+		max_length = be->max;
+
+	dev_dbg(sdev->dev, "size of bytes put data is %d, max is %d\n",
+		header.length, max_length);
+	if (header.length > max_length) {
+		dev_err(sdev->dev, "error: size is too large\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (copy_from_user(cdata->data->data, binary_data + 2, length))
+	/* Check that header id matches the command */
+	if (header.numid != scontrol->cmd) {
+		dev_err(sdev->dev, "error: incorred numid %d\n", header.numid);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (copy_from_user(cdata->data->data, tlvd->tlv, header.length))
 		return -EFAULT;
 
 	/* set the ABI header values */
@@ -341,25 +352,58 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	struct snd_sof_control *scontrol = be->dobj.private;
 	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
-	unsigned int tag = 0;
+	struct snd_ctl_tlv header;
+	struct snd_ctl_tlv *tlvd = (struct snd_ctl_tlv *)binary_data;
+	int max_length = SOF_IPC_MSG_MAX_SIZE -
+		sizeof(const struct sof_ipc_ctrl_data) -
+		sizeof(const struct sof_abi_hdr);
+	int ret;
 
-	pm_runtime_get_sync(sdev->dev);
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: bytes get failed to resume %d\n",
+			ret);
+		return ret;
+	}
 
-	dev_dbg(sdev->dev, "getting data and command is %d\n", scontrol->cmd);
-	/* get all the mixer data from DSP */
-	snd_sof_ipc_get_comp_data(sdev->ipc, scontrol, SOF_IPC_COMP_GET_DATA,
-				  SOF_CTRL_TYPE_DATA_GET, scontrol->cmd);
+	/* Decrement size to fit the ext bytes header and get the the
+	 * upper limit from ext bytes control size from topology and
+	 * SOF IPC max. size limit.
+	 */
+	size -= sizeof(const struct snd_ctl_tlv);
+	if (max_length > be->max)
+		max_length = be->max;
 
-	/* TODO: replace 252 with actual size */
-	if (copy_to_user(binary_data, &tag, sizeof(u32)))
+	dev_dbg(sdev->dev, "request size minus header is %d\n", size);
+	dev_dbg(sdev->dev, "max size is %d\n", max_length);
+
+	/* Prevent read of other kernel data */
+	if (size > max_length) {
+		dev_err(sdev->dev, "error: size is too large\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* set the ABI header values */
+	cdata->data->magic = SOF_ABI_MAGIC;
+	cdata->data->abi = SOF_ABI_VERSION;
+	cdata->data->comp_abi = SOF_ABI_VERSION;
+
+	/* get all the component data from DSP */
+	ret = snd_sof_ipc_get_comp_data(sdev->ipc, scontrol,
+					SOF_IPC_COMP_GET_DATA,
+					SOF_CTRL_TYPE_DATA_GET, scontrol->cmd);
+
+	header.numid = scontrol->cmd;
+	header.length = size;
+	if (copy_to_user(tlvd, &header, sizeof(const struct snd_ctl_tlv)))
 		return -EFAULT;
-	if (copy_to_user(binary_data + 1, &size, sizeof(u32)))
-		return -EFAULT;
-	if (copy_to_user(binary_data + 2, cdata->data->data,
-			 SOF_IPC_MSG_MAX_SIZE - sizeof(struct sof_ipc_ctrl_data)))
+
+	if (copy_to_user(tlvd->tlv, cdata->data->data, size))
 		return -EFAULT;
 
+out:
 	pm_runtime_mark_last_busy(sdev->dev);
 	pm_runtime_put_autosuspend(sdev->dev);
-	return 0;
+	return ret;
 }
