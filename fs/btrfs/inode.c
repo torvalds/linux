@@ -3935,9 +3935,7 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_path *path;
 	int ret = 0;
-	struct extent_buffer *leaf;
 	struct btrfs_dir_item *di;
-	struct btrfs_key key;
 	u64 index;
 	u64 ino = btrfs_ino(inode);
 	u64 dir_ino = btrfs_ino(dir);
@@ -3955,8 +3953,6 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		ret = di ? PTR_ERR(di) : -ENOENT;
 		goto err;
 	}
-	leaf = path->nodes[0];
-	btrfs_dir_item_key_to_cpu(leaf, di, &key);
 	ret = btrfs_delete_one_dir_name(trans, root, path, di);
 	if (ret)
 		goto err;
