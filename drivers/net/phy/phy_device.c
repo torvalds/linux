@@ -1783,6 +1783,19 @@ void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode)
 }
 EXPORT_SYMBOL(phy_remove_link_mode);
 
+/**
+ * phy_support_asym_pause - Enable support of asym pause
+ * @phydev: target phy_device struct
+ *
+ * Description: Called by the MAC to indicate is supports Asym Pause.
+ */
+void phy_support_asym_pause(struct phy_device *phydev)
+{
+	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	phydev->advertising = phydev->supported;
+}
+EXPORT_SYMBOL(phy_support_asym_pause);
+
 static void of_set_phy_supported(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->mdio.dev.of_node;

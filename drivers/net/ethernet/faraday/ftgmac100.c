@@ -1079,8 +1079,7 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv, phy_interface_t intf)
 	/* Indicate that we support PAUSE frames (see comment in
 	 * Documentation/networking/phy.txt)
 	 */
-	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-	phydev->advertising = phydev->supported;
+	phy_support_asym_pause(phydev);
 
 	/* Display what we found */
 	phy_attached_info(phydev);

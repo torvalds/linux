@@ -2491,8 +2491,7 @@ static int dpaa_phy_init(struct net_device *net_dev)
 
 	/* Remove any features not supported by the controller */
 	phy_dev->supported &= mac_dev->if_support;
-	phy_dev->supported |= (SUPPORTED_Pause | SUPPORTED_Asym_Pause);
-	phy_dev->advertising = phy_dev->supported;
+	phy_support_asym_pause(phy_dev);
 
 	mac_dev->phy_dev = phy_dev;
 	net_dev->phydev = phy_dev;

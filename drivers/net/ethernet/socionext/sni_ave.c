@@ -1225,7 +1225,8 @@ static int ave_init(struct net_device *ndev)
 
 	if (!phy_interface_is_rgmii(phydev))
 		phy_set_max_speed(phydev, SPEED_100);
-	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+
+	phy_support_asym_pause(phydev);
 
 	phy_attached_info(phydev);
 

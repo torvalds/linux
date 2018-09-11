@@ -288,9 +288,7 @@ static int dnet_mii_probe(struct net_device *dev)
 	else
 		phy_set_max_speed(phydev, SPEED_100);
 
-	phydev->supported |= SUPPORTED_Asym_Pause | SUPPORTED_Pause;
-
-	phydev->advertising = phydev->supported;
+	phy_support_asym_pause(phydev);
 
 	bp->link = 0;
 	bp->speed = 0;

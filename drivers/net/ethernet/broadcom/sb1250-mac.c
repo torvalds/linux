@@ -2358,12 +2358,9 @@ static int sbmac_mii_probe(struct net_device *dev)
 
 	/* Remove any features not supported by the controller */
 	phy_set_max_speed(phy_dev, SPEED_1000);
-	phy_dev->supported |= SUPPORTED_Pause |
-			      SUPPORTED_Asym_Pause;
+	phy_support_asym_pause(phy_dev);
 
 	phy_attached_info(phy_dev);
-
-	phy_dev->advertising = phy_dev->supported;
 
 	sc->phy_dev = phy_dev;
 
