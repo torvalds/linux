@@ -612,6 +612,12 @@ static void pseries_print_mce_info(struct pt_regs *regs,
 		break;
 	}
 
+#ifdef CONFIG_PPC_BOOK3S_64
+	/* Display faulty slb contents for SLB errors. */
+	if (error_type == MC_ERROR_TYPE_SLB)
+		slb_dump_contents(local_paca->mce_faulty_slbs);
+#endif
+
 	printk("%s%s Machine check interrupt [%s]\n", level, sevstr,
 	       disposition == RTAS_DISP_FULLY_RECOVERED ?
 	       "Recovered" : "Not recovered");
@@ -675,7 +681,16 @@ static int mce_handle_error(struct rtas_error_log *errp)
 		switch (error_type) {
 		case	MC_ERROR_TYPE_SLB:
 		case	MC_ERROR_TYPE_ERAT:
-			/* Store the old slb content someplace. */
+			/*
+			 * Store the old slb content in paca before flushing.
+			 * Print this when we go to virtual mode.
+			 * There are chances that we may hit MCE again if there
+			 * is a parity error on the SLB entry we trying to read
+			 * for saving. Hence limit the slb saving to single
+			 * level of recursion.
+			 */
+			if (local_paca->in_mce == 1)
+				slb_save_contents(local_paca->mce_faulty_slbs);
 			flush_and_reload_slb();
 			disposition = RTAS_DISP_FULLY_RECOVERED;
 			rtas_set_disposition_recovered(errp);
