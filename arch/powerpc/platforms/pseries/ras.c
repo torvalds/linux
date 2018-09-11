@@ -50,6 +50,101 @@ static irqreturn_t ras_hotplug_interrupt(int irq, void *dev_id);
 static irqreturn_t ras_epow_interrupt(int irq, void *dev_id);
 static irqreturn_t ras_error_interrupt(int irq, void *dev_id);
 
+/* RTAS pseries MCE errorlog section. */
+struct pseries_mc_errorlog {
+	__be32	fru_id;
+	__be32	proc_id;
+	u8	error_type;
+	/*
+	 * sub_err_type (1 byte). Bit fields depends on error_type
+	 *
+	 *   MSB0
+	 *   |
+	 *   V
+	 *   01234567
+	 *   XXXXXXXX
+	 *
+	 * For error_type == MC_ERROR_TYPE_UE
+	 *   XXXXXXXX
+	 *   X		1: Permanent or Transient UE.
+	 *    X		1: Effective address provided.
+	 *     X	1: Logical address provided.
+	 *      XX	2: Reserved.
+	 *        XXX	3: Type of UE error.
+	 *
+	 * For error_type != MC_ERROR_TYPE_UE
+	 *   XXXXXXXX
+	 *   X		1: Effective address provided.
+	 *    XXXXX	5: Reserved.
+	 *         XX	2: Type of SLB/ERAT/TLB error.
+	 */
+	u8	sub_err_type;
+	u8	reserved_1[6];
+	__be64	effective_address;
+	__be64	logical_address;
+} __packed;
+
+/* RTAS pseries MCE error types */
+#define MC_ERROR_TYPE_UE		0x00
+#define MC_ERROR_TYPE_SLB		0x01
+#define MC_ERROR_TYPE_ERAT		0x02
+#define MC_ERROR_TYPE_TLB		0x04
+#define MC_ERROR_TYPE_D_CACHE		0x05
+#define MC_ERROR_TYPE_I_CACHE		0x07
+
+/* RTAS pseries MCE error sub types */
+#define MC_ERROR_UE_INDETERMINATE		0
+#define MC_ERROR_UE_IFETCH			1
+#define MC_ERROR_UE_PAGE_TABLE_WALK_IFETCH	2
+#define MC_ERROR_UE_LOAD_STORE			3
+#define MC_ERROR_UE_PAGE_TABLE_WALK_LOAD_STORE	4
+
+#define MC_ERROR_SLB_PARITY		0
+#define MC_ERROR_SLB_MULTIHIT		1
+#define MC_ERROR_SLB_INDETERMINATE	2
+
+#define MC_ERROR_ERAT_PARITY		1
+#define MC_ERROR_ERAT_MULTIHIT		2
+#define MC_ERROR_ERAT_INDETERMINATE	3
+
+#define MC_ERROR_TLB_PARITY		1
+#define MC_ERROR_TLB_MULTIHIT		2
+#define MC_ERROR_TLB_INDETERMINATE	3
+
+static inline u8 rtas_mc_error_sub_type(const struct pseries_mc_errorlog *mlog)
+{
+	switch (mlog->error_type) {
+	case	MC_ERROR_TYPE_UE:
+		return (mlog->sub_err_type & 0x07);
+	case	MC_ERROR_TYPE_SLB:
+	case	MC_ERROR_TYPE_ERAT:
+	case	MC_ERROR_TYPE_TLB:
+		return (mlog->sub_err_type & 0x03);
+	default:
+		return 0;
+	}
+}
+
+static
+inline u64 rtas_mc_get_effective_addr(const struct pseries_mc_errorlog *mlog)
+{
+	__be64 addr = 0;
+
+	switch (mlog->error_type) {
+	case	MC_ERROR_TYPE_UE:
+		if (mlog->sub_err_type & 0x40)
+			addr = mlog->effective_address;
+		break;
+	case	MC_ERROR_TYPE_SLB:
+	case	MC_ERROR_TYPE_ERAT:
+	case	MC_ERROR_TYPE_TLB:
+		if (mlog->sub_err_type & 0x80)
+			addr = mlog->effective_address;
+	default:
+		break;
+	}
+	return be64_to_cpu(addr);
+}
 
 /*
  * Enable the hotplug interrupt late because processing them may touch other
