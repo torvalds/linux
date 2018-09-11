@@ -575,6 +575,13 @@ restore_link:
 	return err;
 }
 
+static int mv88e6xxx_phy_is_internal(struct dsa_switch *ds, int port)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+
+	return port < chip->info->num_internal_phys;
+}
+
 /* We expect the switch to perform auto negotiation if there is a real
  * phy. However, in the case of a fixed link phy, we force the port
  * settings from the fixed link settings.
@@ -585,7 +592,8 @@ static void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
-	if (!phy_is_pseudo_fixed_link(phydev))
+	if (!phy_is_pseudo_fixed_link(phydev) &&
+	    mv88e6xxx_phy_is_internal(ds, port))
 		return;
 
 	mutex_lock(&chip->reg_lock);
@@ -709,11 +717,15 @@ static void mv88e6xxx_mac_config(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int speed, duplex, link, pause, err;
 
-	if (mode == MLO_AN_PHY)
+	if ((mode == MLO_AN_PHY) && mv88e6xxx_phy_is_internal(ds, port))
 		return;
 
 	if (mode == MLO_AN_FIXED) {
 		link = LINK_FORCED_UP;
+		speed = state->speed;
+		duplex = state->duplex;
+	} else if (!mv88e6xxx_phy_is_internal(ds, port)) {
+		link = state->link;
 		speed = state->speed;
 		duplex = state->duplex;
 	} else {
