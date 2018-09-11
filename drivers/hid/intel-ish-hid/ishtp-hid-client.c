@@ -323,20 +323,11 @@ static void ish_cl_event_cb(struct ishtp_cl_device *device)
 	struct ishtp_cl	*hid_ishtp_cl = ishtp_get_drvdata(device);
 	struct ishtp_cl_rb *rb_in_proc;
 	size_t r_length;
-	unsigned long flags;
 
 	if (!hid_ishtp_cl)
 		return;
 
-	spin_lock_irqsave(&hid_ishtp_cl->in_process_spinlock, flags);
-	while (!list_empty(&hid_ishtp_cl->in_process_list.list)) {
-		rb_in_proc = list_entry(
-			hid_ishtp_cl->in_process_list.list.next,
-			struct ishtp_cl_rb, list);
-		list_del_init(&rb_in_proc->list);
-		spin_unlock_irqrestore(&hid_ishtp_cl->in_process_spinlock,
-			flags);
-
+	while ((rb_in_proc = ishtp_cl_rx_get_rb(hid_ishtp_cl)) != NULL) {
 		if (!rb_in_proc->buffer.data)
 			return;
 
@@ -346,9 +337,7 @@ static void ish_cl_event_cb(struct ishtp_cl_device *device)
 		process_recv(hid_ishtp_cl, rb_in_proc->buffer.data, r_length);
 
 		ishtp_cl_io_rb_recycle(rb_in_proc);
-		spin_lock_irqsave(&hid_ishtp_cl->in_process_spinlock, flags);
 	}
-	spin_unlock_irqrestore(&hid_ishtp_cl->in_process_spinlock, flags);
 }
 
 /**
