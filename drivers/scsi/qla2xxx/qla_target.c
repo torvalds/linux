@@ -1260,9 +1260,6 @@ void qlt_schedule_sess_for_deletion(struct fc_port *sess)
 		break;
 	}
 
-	if (sess->deleted == QLA_SESS_DELETED)
-		sess->logout_on_delete = 0;
-
 	spin_lock_irqsave(&sess->vha->work_lock, flags);
 	if (sess->deleted == QLA_SESS_DELETION_IN_PROGRESS) {
 		spin_unlock_irqrestore(&sess->vha->work_lock, flags);
@@ -4080,7 +4077,6 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 				 * Session is already logged out, but we need
 				 * to notify initiator, who's not aware of this
 				 */
-				cmd->sess->logout_on_delete = 0;
 				cmd->sess->send_els_logo = 1;
 				ql_dbg(ql_dbg_disc, vha, 0x20f8,
 				    "%s %d %8phC post del sess\n",
