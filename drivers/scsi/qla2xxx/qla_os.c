@@ -206,7 +206,7 @@ int ql2xasynctmfenable = 1;
 module_param(ql2xasynctmfenable, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xasynctmfenable,
 		"Enables issue of TM IOCBs asynchronously via IOCB mechanism"
-		"Default is 0 - Issue TM IOCBs via mailbox mechanism.");
+		"Default is 1 - Issue TM IOCBs via mailbox mechanism.");
 
 int ql2xdontresethba;
 module_param(ql2xdontresethba, int, S_IRUGO|S_IWUSR);
