@@ -287,7 +287,8 @@ static int vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 
 		list_for_each_entry(crtci, &vbox->dev->mode_config.crtc_list,
 				    head) {
-			vbox_set_view(crtc);
+			if (crtci == crtc)
+				continue;
 			vbox_do_modeset(crtci, &crtci->mode);
 		}
 	}
