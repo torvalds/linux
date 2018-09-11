@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/init.h>
-#include <linux/module.h>
+#include <linux/cred.h>
 #include <linux/device.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/miscdevice.h>
 #include <linux/dma-buf.h>
 #include <linux/highmem.h>
-#include <linux/cred.h>
-#include <linux/shmem_fs.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/memfd.h>
-
-#include <uapi/linux/udmabuf.h>
+#include <linux/miscdevice.h>
+#include <linux/module.h>
+#include <linux/shmem_fs.h>
+#include <linux/slab.h>
+#include <linux/udmabuf.h>
 
 struct udmabuf {
 	u32 pagecount;
