@@ -60,11 +60,13 @@ struct rds_sock *rds_find_bound(__be32 addr, __be16 port)
 	u64 key = ((u64)addr << 32) | port;
 	struct rds_sock *rs;
 
-	rs = rhashtable_lookup_fast(&bind_hash_table, &key, ht_parms);
+	rcu_read_lock();
+	rs = rhashtable_lookup(&bind_hash_table, &key, ht_parms);
 	if (rs && !sock_flag(rds_rs_to_sk(rs), SOCK_DEAD))
 		rds_sock_addref(rs);
 	else
 		rs = NULL;
+	rcu_read_unlock();
 
 	rdsdebug("returning rs %p for %pI4:%u\n", rs, &addr,
 		ntohs(port));
@@ -157,6 +159,7 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		goto out;
 	}
 
+	sock_set_flag(sk, SOCK_RCU_FREE);
 	ret = rds_add_bound(rs, sin->sin_addr.s_addr, &sin->sin_port);
 	if (ret)
 		goto out;
