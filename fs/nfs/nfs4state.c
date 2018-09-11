@@ -1617,46 +1617,42 @@ restart:
 		refcount_inc(&state->count);
 		spin_unlock(&sp->so_lock);
 		status = __nfs4_reclaim_open_state(sp, state, ops);
-		if (status >= 0) {
-			nfs4_put_open_state(state);
-			spin_lock(&sp->so_lock);
-			goto restart;
-		}
 
 		switch (status) {
-			default:
-				printk(KERN_ERR "NFS: %s: unhandled error %d\n",
-					__func__, status);
-				/* Fall through */
-			case -ENOENT:
-			case -ENOMEM:
-			case -EACCES:
-			case -EROFS:
-			case -EIO:
-			case -ESTALE:
-				/* Open state on this file cannot be recovered */
-				nfs4_state_mark_recovery_failed(state, status);
+		default:
+			if (status >= 0)
 				break;
-			case -EAGAIN:
-				ssleep(1);
-				/* Fall through */
-			case -NFS4ERR_ADMIN_REVOKED:
-			case -NFS4ERR_STALE_STATEID:
-			case -NFS4ERR_OLD_STATEID:
-			case -NFS4ERR_BAD_STATEID:
-			case -NFS4ERR_RECLAIM_BAD:
-			case -NFS4ERR_RECLAIM_CONFLICT:
-				nfs4_state_mark_reclaim_nograce(sp->so_server->nfs_client, state);
-				break;
-			case -NFS4ERR_EXPIRED:
-			case -NFS4ERR_NO_GRACE:
-				nfs4_state_mark_reclaim_nograce(sp->so_server->nfs_client, state);
-			case -NFS4ERR_STALE_CLIENTID:
-			case -NFS4ERR_BADSESSION:
-			case -NFS4ERR_BADSLOT:
-			case -NFS4ERR_BAD_HIGH_SLOT:
-			case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
-				goto out_err;
+			printk(KERN_ERR "NFS: %s: unhandled error %d\n", __func__, status);
+			/* Fall through */
+		case -ENOENT:
+		case -ENOMEM:
+		case -EACCES:
+		case -EROFS:
+		case -EIO:
+		case -ESTALE:
+			/* Open state on this file cannot be recovered */
+			nfs4_state_mark_recovery_failed(state, status);
+			break;
+		case -EAGAIN:
+			ssleep(1);
+			/* Fall through */
+		case -NFS4ERR_ADMIN_REVOKED:
+		case -NFS4ERR_STALE_STATEID:
+		case -NFS4ERR_OLD_STATEID:
+		case -NFS4ERR_BAD_STATEID:
+		case -NFS4ERR_RECLAIM_BAD:
+		case -NFS4ERR_RECLAIM_CONFLICT:
+			nfs4_state_mark_reclaim_nograce(sp->so_server->nfs_client, state);
+			break;
+		case -NFS4ERR_EXPIRED:
+		case -NFS4ERR_NO_GRACE:
+			nfs4_state_mark_reclaim_nograce(sp->so_server->nfs_client, state);
+		case -NFS4ERR_STALE_CLIENTID:
+		case -NFS4ERR_BADSESSION:
+		case -NFS4ERR_BADSLOT:
+		case -NFS4ERR_BAD_HIGH_SLOT:
+		case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
+			goto out_err;
 		}
 		nfs4_put_open_state(state);
 		spin_lock(&sp->so_lock);
