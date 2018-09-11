@@ -22,6 +22,25 @@
 #include "hbm.h"
 #include "client.h"
 
+int ishtp_cl_get_tx_free_buffer_size(struct ishtp_cl *cl)
+{
+	unsigned long tx_free_flags;
+	int size;
+
+	spin_lock_irqsave(&cl->tx_free_list_spinlock, tx_free_flags);
+	size = cl->tx_ring_free_size * cl->device->fw_client->props.max_msg_length;
+	spin_unlock_irqrestore(&cl->tx_free_list_spinlock, tx_free_flags);
+
+	return size;
+}
+EXPORT_SYMBOL(ishtp_cl_get_tx_free_buffer_size);
+
+int ishtp_cl_get_tx_free_rings(struct ishtp_cl *cl)
+{
+	return cl->tx_ring_free_size;
+}
+EXPORT_SYMBOL(ishtp_cl_get_tx_free_rings);
+
 /**
  * ishtp_read_list_flush() - Flush read queue
  * @cl: ishtp client instance
@@ -90,6 +109,7 @@ static void ishtp_cl_init(struct ishtp_cl *cl, struct ishtp_device *dev)
 
 	cl->rx_ring_size = CL_DEF_RX_RING_SIZE;
 	cl->tx_ring_size = CL_DEF_TX_RING_SIZE;
+	cl->tx_ring_free_size = cl->tx_ring_size;
 
 	/* dma */
 	cl->last_tx_path = CL_TX_PATH_IPC;
@@ -577,6 +597,8 @@ int ishtp_cl_send(struct ishtp_cl *cl, uint8_t *buf, size_t length)
 	 * max ISHTP message size per client
 	 */
 	list_del_init(&cl_msg->list);
+	--cl->tx_ring_free_size;
+
 	spin_unlock_irqrestore(&cl->tx_free_list_spinlock, tx_free_flags);
 	memcpy(cl_msg->send_buf.data, buf, length);
 	cl_msg->send_buf.size = length;
@@ -685,6 +707,7 @@ static void ipc_tx_callback(void *prm)
 		ishtp_write_message(dev, &ishtp_hdr, pmsg);
 		spin_lock_irqsave(&cl->tx_free_list_spinlock, tx_free_flags);
 		list_add_tail(&cl_msg->list, &cl->tx_free_list.list);
+		++cl->tx_ring_free_size;
 		spin_unlock_irqrestore(&cl->tx_free_list_spinlock,
 			tx_free_flags);
 	} else {
@@ -778,6 +801,7 @@ static void ishtp_cl_send_msg_dma(struct ishtp_device *dev,
 	ishtp_write_message(dev, &hdr, (unsigned char *)&dma_xfer);
 	spin_lock_irqsave(&cl->tx_free_list_spinlock, tx_free_flags);
 	list_add_tail(&cl_msg->list, &cl->tx_free_list.list);
+	++cl->tx_ring_free_size;
 	spin_unlock_irqrestore(&cl->tx_free_list_spinlock, tx_free_flags);
 	++cl->send_msg_cnt_dma;
 }

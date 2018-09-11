@@ -69,6 +69,8 @@ int ishtp_cl_alloc_tx_ring(struct ishtp_cl *cl)
 	int	j;
 	unsigned long	flags;
 
+	cl->tx_ring_free_size = 0;
+
 	/* Allocate pool to free Tx bufs */
 	for (j = 0; j < cl->tx_ring_size; ++j) {
 		struct ishtp_cl_tx_ring	*tx_buf;
@@ -85,6 +87,7 @@ int ishtp_cl_alloc_tx_ring(struct ishtp_cl *cl)
 
 		spin_lock_irqsave(&cl->tx_free_list_spinlock, flags);
 		list_add_tail(&tx_buf->list, &cl->tx_free_list.list);
+		++cl->tx_ring_free_size;
 		spin_unlock_irqrestore(&cl->tx_free_list_spinlock, flags);
 	}
 	return	0;
@@ -144,6 +147,7 @@ void ishtp_cl_free_tx_ring(struct ishtp_cl *cl)
 		tx_buf = list_entry(cl->tx_free_list.list.next,
 				    struct ishtp_cl_tx_ring, list);
 		list_del(&tx_buf->list);
+		--cl->tx_ring_free_size;
 		kfree(tx_buf->send_buf.data);
 		kfree(tx_buf);
 	}
