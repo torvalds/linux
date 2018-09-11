@@ -128,7 +128,7 @@ static long udmabuf_create(const struct udmabuf_create_list *head,
 	int seals, ret = -EINVAL;
 	u32 i, flags;
 
-	ubuf = kzalloc(sizeof(struct udmabuf), GFP_KERNEL);
+	ubuf = kzalloc(sizeof(*ubuf), GFP_KERNEL);
 	if (!ubuf)
 		return -ENOMEM;
 
@@ -142,7 +142,7 @@ static long udmabuf_create(const struct udmabuf_create_list *head,
 		if (ubuf->pagecount > pglimit)
 			goto err;
 	}
-	ubuf->pages = kmalloc_array(ubuf->pagecount, sizeof(struct page *),
+	ubuf->pages = kmalloc_array(ubuf->pagecount, sizeof(*ubuf->pages),
 				    GFP_KERNEL);
 	if (!ubuf->pages) {
 		ret = -ENOMEM;
@@ -211,7 +211,7 @@ static long udmabuf_ioctl_create(struct file *filp, unsigned long arg)
 	struct udmabuf_create_item list;
 
 	if (copy_from_user(&create, (void __user *)arg,
-			   sizeof(struct udmabuf_create)))
+			   sizeof(create)))
 		return -EFAULT;
 
 	head.flags  = create.flags;
