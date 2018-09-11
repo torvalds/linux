@@ -526,7 +526,7 @@ int octeon_retry_droq_refill(struct octeon_droq *droq)
 static inline u32
 octeon_droq_get_bufcount(u32 buf_size, u32 total_len)
 {
-	return ((total_len + buf_size - 1) / buf_size);
+	return DIV_ROUND_UP(total_len, buf_size);
 }
 
 static int

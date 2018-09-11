@@ -73,7 +73,7 @@ static int get_pas_size(struct mlx5_srq_attr *in)
 	u32 rq_sz	  = 1 << (log_srq_size + 4 + log_rq_stride);
 	u32 page_size	  = 1 << log_page_size;
 	u32 rq_sz_po      = rq_sz + (page_offset * po_quanta);
-	u32 rq_num_pas	  = (rq_sz_po + page_size - 1) / page_size;
+	u32 rq_num_pas    = DIV_ROUND_UP(rq_sz_po, page_size);
 
 	return rq_num_pas * sizeof(u64);
 }

@@ -230,7 +230,7 @@ static unsigned int gfar_usecs2ticks(struct gfar_private *priv,
 
 	/* Make sure we return a number greater than 0
 	 * if usecs > 0 */
-	return (usecs * 1000 + count - 1) / count;
+	return DIV_ROUND_UP(usecs * 1000, count);
 }
 
 /* Convert ethernet clock ticks to microseconds */

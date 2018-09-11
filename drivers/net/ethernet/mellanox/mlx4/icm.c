@@ -406,7 +406,7 @@ int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 	obj_per_chunk = MLX4_TABLE_CHUNK_SIZE / obj_size;
 	if (WARN_ON(!obj_per_chunk))
 		return -EINVAL;
-	num_icm = (nobj + obj_per_chunk - 1) / obj_per_chunk;
+	num_icm = DIV_ROUND_UP(nobj, obj_per_chunk);
 
 	table->icm      = kvcalloc(num_icm, sizeof(*table->icm), GFP_KERNEL);
 	if (!table->icm)
