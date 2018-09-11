@@ -101,6 +101,9 @@ void	ishtp_reset_compl_handler(struct ishtp_device *dev);
 void	ishtp_put_device(struct ishtp_cl_device *);
 void	ishtp_get_device(struct ishtp_cl_device *);
 
+void	ishtp_set_drvdata(struct ishtp_cl_device *cl_device, void *data);
+void	*ishtp_get_drvdata(struct ishtp_cl_device *cl_device);
+
 int	__ishtp_cl_driver_register(struct ishtp_cl_driver *driver,
 				   struct module *owner);
 #define ishtp_cl_driver_register(driver)		\

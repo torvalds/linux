@@ -564,6 +564,33 @@ void ishtp_put_device(struct ishtp_cl_device *cl_device)
 EXPORT_SYMBOL(ishtp_put_device);
 
 /**
+ * ishtp_set_drvdata() - set client driver data
+ * @cl_device:	client device instance
+ * @data:	driver data need to be set
+ *
+ * Set client driver data to cl_device->driver_data.
+ */
+void ishtp_set_drvdata(struct ishtp_cl_device *cl_device, void *data)
+{
+	cl_device->driver_data = data;
+}
+EXPORT_SYMBOL(ishtp_set_drvdata);
+
+/**
+ * ishtp_get_drvdata() - get client driver data
+ * @cl_device:	client device instance
+ *
+ * Get client driver data from cl_device->driver_data.
+ *
+ * Return: pointer of driver data
+ */
+void *ishtp_get_drvdata(struct ishtp_cl_device *cl_device)
+{
+	return cl_device->driver_data;
+}
+EXPORT_SYMBOL(ishtp_get_drvdata);
+
+/**
  * ishtp_bus_new_client() - Create a new client
  * @dev:	ISHTP device instance
  *
