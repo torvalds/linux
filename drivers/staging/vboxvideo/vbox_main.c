@@ -482,23 +482,11 @@ int vbox_dumb_create(struct drm_file *file,
 	return 0;
 }
 
-static void vbox_bo_unref(struct vbox_bo **bo)
-{
-	struct ttm_buffer_object *tbo;
-
-	if ((*bo) == NULL)
-		return;
-
-	tbo = &((*bo)->bo);
-	ttm_bo_put(tbo);
-	*bo = NULL;
-}
-
 void vbox_gem_free_object(struct drm_gem_object *obj)
 {
 	struct vbox_bo *vbox_bo = gem_to_vbox_bo(obj);
 
-	vbox_bo_unref(&vbox_bo);
+	ttm_bo_put(&vbox_bo->bo);
 }
 
 static inline u64 vbox_bo_mmap_offset(struct vbox_bo *bo)
