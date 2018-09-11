@@ -9,6 +9,7 @@
 #include <linux/kexec.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
+#include <linux/libfdt.h>
 
 #include <asm/cacheflush.h>
 #include <asm/page.h>
@@ -28,7 +29,6 @@ atomic_t kexec_ready_to_reboot = ATOMIC_INIT(0);
 void (*_crash_smp_send_stop)(void) = NULL;
 #endif
 
-int (*_machine_kexec_prepare)(struct kimage *) = NULL;
 void (*_machine_kexec_shutdown)(void) = NULL;
 void (*_machine_crash_shutdown)(struct pt_regs *regs) = NULL;
 
@@ -51,6 +51,46 @@ static void kexec_image_info(const struct kimage *kimage)
 			(unsigned long)kimage->segment[i].memsz /  PAGE_SIZE);
 	}
 }
+
+#ifdef CONFIG_UHI_BOOT
+
+static int uhi_machine_kexec_prepare(struct kimage *kimage)
+{
+	int i;
+
+	/*
+	 * In case DTB file is not passed to the new kernel, a flat device
+	 * tree will be created by kexec tool. It holds modified command
+	 * line for the new kernel.
+	 */
+	for (i = 0; i < kimage->nr_segments; i++) {
+		struct fdt_header fdt;
+
+		if (kimage->segment[i].memsz <= sizeof(fdt))
+			continue;
+
+		if (copy_from_user(&fdt, kimage->segment[i].buf, sizeof(fdt)))
+			continue;
+
+		if (fdt_check_header(&fdt))
+			continue;
+
+		kexec_args[0] = -2;
+		kexec_args[1] = (unsigned long)
+			phys_to_virt((unsigned long)kimage->segment[i].mem);
+		break;
+	}
+
+	return 0;
+}
+
+int (*_machine_kexec_prepare)(struct kimage *) = uhi_machine_kexec_prepare;
+
+#else
+
+int (*_machine_kexec_prepare)(struct kimage *) = NULL;
+
+#endif /* CONFIG_UHI_BOOT */
 
 int
 machine_kexec_prepare(struct kimage *kimage)

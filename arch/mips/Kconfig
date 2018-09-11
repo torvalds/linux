@@ -133,6 +133,7 @@ config MIPS_GENERIC
 	select USB_UHCI_BIG_ENDIAN_DESC if CPU_BIG_ENDIAN
 	select USB_UHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USE_OF
+	select UHI_BOOT
 	help
 	  Select this to build a kernel which aims to support multiple boards,
 	  generally using a flattened device tree passed from the bootloader
@@ -2898,6 +2899,9 @@ config USE_OF
 	select OF
 	select OF_EARLY_FLATTREE
 	select IRQ_DOMAIN
+
+config UHI_BOOT
+	bool
 
 config BUILTIN_DTB
 	bool
