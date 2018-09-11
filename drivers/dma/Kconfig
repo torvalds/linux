@@ -447,7 +447,7 @@ config PL330_DMA
 
 config PXA_DMA
 	bool "PXA DMA support"
-	depends on (ARCH_MMP || ARCH_PXA || COMPILE_TEST)
+	depends on (ARCH_MMP || ARCH_PXA)
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -465,7 +465,7 @@ config SIRF_DMA
 
 config STE_DMA40
 	bool "ST-Ericsson DMA40 support"
-	depends on ARCH_U8500 || COMPILE_TEST
+	depends on ARCH_U8500
 	select DMA_ENGINE
 	help
 	  Support for ST-Ericsson DMA40 controller
