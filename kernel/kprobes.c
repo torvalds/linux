@@ -1704,7 +1704,6 @@ noclean:
 	return 0;
 
 disarmed:
-	BUG_ON(!kprobe_disarmed(ap));
 	hlist_del_rcu(&ap->hlist);
 	return 0;
 }
