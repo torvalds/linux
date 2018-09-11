@@ -215,9 +215,9 @@ static int at91_usart_spi_setup(struct spi_device *spi)
 	return 0;
 }
 
-int at91_usart_spi_transfer_one(struct spi_controller *ctlr,
-				struct spi_device *spi,
-				struct spi_transfer *xfer)
+static int at91_usart_spi_transfer_one(struct spi_controller *ctlr,
+				       struct spi_device *spi,
+				       struct spi_transfer *xfer)
 {
 	struct at91_usart_spi *aus = spi_master_get_devdata(ctlr);
 
@@ -242,8 +242,8 @@ int at91_usart_spi_transfer_one(struct spi_controller *ctlr,
 	return 0;
 }
 
-int at91_usart_spi_prepare_message(struct spi_controller *ctlr,
-				   struct spi_message *message)
+static int at91_usart_spi_prepare_message(struct spi_controller *ctlr,
+					  struct spi_message *message)
 {
 	struct at91_usart_spi *aus = spi_master_get_devdata(ctlr);
 	struct spi_device *spi = message->spi;
@@ -256,8 +256,8 @@ int at91_usart_spi_prepare_message(struct spi_controller *ctlr,
 	return 0;
 }
 
-int at91_usart_spi_unprepare_message(struct spi_controller *ctlr,
-				     struct spi_message *message)
+static int at91_usart_spi_unprepare_message(struct spi_controller *ctlr,
+					    struct spi_message *message)
 {
 	struct at91_usart_spi *aus = spi_master_get_devdata(ctlr);
 

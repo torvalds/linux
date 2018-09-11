@@ -9536,7 +9536,7 @@ F:	drivers/mtd/nand/raw/atmel/*
 F:	Documentation/devicetree/bindings/mtd/atmel-nand.txt
 
 MICROCHIP AT91 USART MFD DRIVER
-M:	Radu Pirea <radu.pirea@microchip.com>
+M:	Radu Pirea <radu_nicolae.pirea@upb.ro>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 F:	drivers/mfd/at91-usart.c
@@ -9544,7 +9544,7 @@ F:	include/dt-bindings/mfd/at91-usart.h
 F:	Documentation/devicetree/bindings/mfd/atmel-usart.txt
 
 MICROCHIP AT91 USART SPI DRIVER
-M:	Radu Pirea <radu.pirea@microchip.com>
+M:	Radu Pirea <radu_nicolae.pirea@upb.ro>
 L:	linux-spi@vger.kernel.org
 S:	Supported
 F:	drivers/spi/spi-at91-usart.c

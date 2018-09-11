@@ -78,7 +78,7 @@ Example:
 		compatible = "atmel,at91rm9200-usart", "atmel,at91sam9260-usart";
 		atmel,usart-mode = <AT91_USART_MODE_SPI>;
 		reg = <0xf001c000 0x100>;
-		interrupts = <12 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <12 IRQ_TYPE_LEVEL_HIGH 5>;
 		clocks = <&usart0_clk>;
 		clock-names = "usart";
 		cs-gpios = <&pioB 3 0>;
