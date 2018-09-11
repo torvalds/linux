@@ -251,6 +251,14 @@ static int rk817_reset(struct snd_soc_codec *codec)
 {
 	snd_soc_write(codec, RK817_CODEC_DTOP_LPT_SRST, 0x40);
 	snd_soc_write(codec, RK817_CODEC_DDAC_POPD_DACST, 0x02);
+	snd_soc_write(codec, RK817_CODEC_DTOP_DIGEN_CLKE, 0x0f);
+	snd_soc_write(codec, RK817_CODEC_APLL_CFG0, 0x04);
+	snd_soc_write(codec, RK817_CODEC_APLL_CFG1, 0x58);
+	snd_soc_write(codec, RK817_CODEC_APLL_CFG2, 0x2d);
+	snd_soc_write(codec, RK817_CODEC_APLL_CFG3, 0x0c);
+	snd_soc_write(codec, RK817_CODEC_APLL_CFG4, 0xa5);
+	snd_soc_write(codec, RK817_CODEC_APLL_CFG5, 0x00);
+	snd_soc_write(codec, RK817_CODEC_DTOP_DIGEN_CLKE, 0x00);
 
 	return 0;
 }
