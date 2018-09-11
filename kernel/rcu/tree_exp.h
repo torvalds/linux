@@ -450,10 +450,12 @@ static void sync_rcu_exp_select_cpus(smp_call_func_t func)
 		}
 		INIT_WORK(&rnp->rew.rew_work, sync_rcu_exp_select_node_cpus);
 		preempt_disable();
-		cpu = cpumask_next(rnp->grplo - 1, cpu_online_mask);
+		cpu = find_next_bit(&rnp->ffmask, BITS_PER_LONG, -1);
 		/* If all offline, queue the work on an unbound CPU. */
-		if (unlikely(cpu > rnp->grphi))
+		if (unlikely(cpu > rnp->grphi - rnp->grplo))
 			cpu = WORK_CPU_UNBOUND;
+		else
+			cpu += rnp->grplo;
 		queue_work_on(cpu, rcu_par_gp_wq, &rnp->rew.rew_work);
 		preempt_enable();
 		rnp->exp_need_flush = true;
