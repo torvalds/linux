@@ -123,6 +123,7 @@
 	no-1-8-v;
 	keep-power-in-suspend;
 	no-sdio;
+	no-sd;
 	status = "okay";
 };
 
