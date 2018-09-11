@@ -141,6 +141,7 @@ extern const struct clk_ops clk_dyn_rcg_ops;
  * @enable_safe_config: When set, the RCG is parked at CXO when it's disabled
  * @clkr: regmap clock handle
  * @cfg_off: defines the cfg register offset from the CMD_RCGR + CFG_REG
+ * @flags: additional flag parameters for the RCG
  */
 struct clk_rcg2 {
 	u32			cmd_rcgr;
@@ -153,6 +154,8 @@ struct clk_rcg2 {
 	bool			enable_safe_config;
 	struct clk_regmap	clkr;
 	u8			cfg_off;
+	u8			flags;
+#define FORCE_ENABLE_RCG	BIT(0)
 };
 
 #define to_clk_rcg2(_hw) container_of(to_clk_regmap(_hw), struct clk_rcg2, clkr)
