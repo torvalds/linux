@@ -2289,34 +2289,6 @@ static int tioccons(struct file *file)
 }
 
 /**
- *	fionbio		-	non blocking ioctl
- *	@file: file to set blocking value
- *	@p: user parameter
- *
- *	Historical tty interfaces had a blocking control ioctl before
- *	the generic functionality existed. This piece of history is preserved
- *	in the expected tty API of posix OS's.
- *
- *	Locking: none, the open file handle ensures it won't go away.
- */
-
-static int fionbio(struct file *file, int __user *p)
-{
-	int nonblock;
-
-	if (get_user(nonblock, p))
-		return -EFAULT;
-
-	spin_lock(&file->f_lock);
-	if (nonblock)
-		file->f_flags |= O_NONBLOCK;
-	else
-		file->f_flags &= ~O_NONBLOCK;
-	spin_unlock(&file->f_lock);
-	return 0;
-}
-
-/**
  *	tiocsetd	-	set line discipline
  *	@tty: tty device
  *	@p: pointer to user data
@@ -2562,8 +2534,6 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return tiocswinsz(real_tty, p);
 	case TIOCCONS:
 		return real_tty != tty ? -EINVAL : tioccons(file);
-	case FIONBIO:
-		return fionbio(file, p);
 	case TIOCEXCL:
 		set_bit(TTY_EXCLUSIVE, &tty->flags);
 		return 0;
