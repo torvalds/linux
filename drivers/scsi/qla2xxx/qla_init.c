@@ -1850,6 +1850,8 @@ qla24xx_async_abort_cmd(srb_t *cmd_sp, bool wait)
 		wait_for_completion(&abt_iocb->u.abt.comp);
 		rval = abt_iocb->u.abt.comp_status == CS_COMPLETE ?
 			QLA_SUCCESS : QLA_FUNCTION_FAILED;
+	} else {
+		goto done;
 	}
 
 done_free_sp:
