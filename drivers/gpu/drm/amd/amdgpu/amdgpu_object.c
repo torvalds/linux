@@ -51,18 +51,6 @@
  *
  */
 
-static bool amdgpu_bo_need_backup(struct amdgpu_device *adev)
-{
-	if (adev->flags & AMD_IS_APU)
-		return false;
-
-	if (amdgpu_gpu_recovery == 0 ||
-	    (amdgpu_gpu_recovery == -1  && !amdgpu_sriov_vf(adev)))
-		return false;
-
-	return true;
-}
-
 /**
  * amdgpu_bo_subtract_pin_size - Remove BO from pin_size accounting
  *
@@ -599,7 +587,7 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 	if (r)
 		return r;
 
-	if ((flags & AMDGPU_GEM_CREATE_SHADOW) && amdgpu_bo_need_backup(adev)) {
+	if ((flags & AMDGPU_GEM_CREATE_SHADOW) && !(adev->flags & AMD_IS_APU)) {
 		if (!bp->resv)
 			WARN_ON(reservation_object_lock((*bo_ptr)->tbo.resv,
 							NULL));
