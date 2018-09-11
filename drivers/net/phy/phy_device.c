@@ -1784,6 +1784,20 @@ void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode)
 EXPORT_SYMBOL(phy_remove_link_mode);
 
 /**
+ * phy_support_sym_pause - Enable support of symmetrical pause
+ * @phydev: target phy_device struct
+ *
+ * Description: Called by the MAC to indicate is supports symmetrical
+ * Pause, but not asym pause.
+ */
+void phy_support_sym_pause(struct phy_device *phydev)
+{
+	phydev->supported |= SUPPORTED_Pause;
+	phydev->advertising = phydev->supported;
+}
+EXPORT_SYMBOL(phy_support_sym_pause);
+
+/**
  * phy_support_asym_pause - Enable support of asym pause
  * @phydev: target phy_device struct
  *

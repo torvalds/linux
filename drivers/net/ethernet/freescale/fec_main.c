@@ -1950,13 +1950,11 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 		phy_remove_link_mode(phy_dev,
 				     ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
 #if !defined(CONFIG_M5272)
-		phy_dev->supported |= SUPPORTED_Pause;
+		phy_support_sym_pause(phy_dev);
 #endif
 	}
 	else
 		phy_set_max_speed(phy_dev, 100);
-
-	phy_dev->advertising = phy_dev->supported;
 
 	fep->link = 0;
 	fep->full_duplex = 0;

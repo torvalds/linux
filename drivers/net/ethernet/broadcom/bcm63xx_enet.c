@@ -890,7 +890,7 @@ static int bcm_enet_open(struct net_device *dev)
 		}
 
 		/* mask with MAC supported features */
-		phydev->supported |= SUPPORTED_Pause;
+		phy_support_sym_pause(phydev);
 		phy_set_max_speed(phydev, SPEED_100);
 
 		if (priv->pause_auto && priv->pause_rx && priv->pause_tx)
