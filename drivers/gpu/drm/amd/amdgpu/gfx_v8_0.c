@@ -5080,6 +5080,55 @@ static int gfx_v8_0_kcq_disable(struct amdgpu_device *adev)
 	return r;
 }
 
+static bool gfx_v8_0_is_idle(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (REG_GET_FIELD(RREG32(mmGRBM_STATUS), GRBM_STATUS, GUI_ACTIVE)
+		|| RREG32(mmGRBM_STATUS2) != 0x8)
+		return false;
+	else
+		return true;
+}
+
+static bool gfx_v8_0_rlc_is_idle(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (RREG32(mmGRBM_STATUS2) != 0x8)
+		return false;
+	else
+		return true;
+}
+
+static int gfx_v8_0_wait_for_rlc_idle(void *handle)
+{
+	unsigned int i;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (gfx_v8_0_rlc_is_idle(handle))
+			return 0;
+
+		udelay(1);
+	}
+	return -ETIMEDOUT;
+}
+
+static int gfx_v8_0_wait_for_idle(void *handle)
+{
+	unsigned int i;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (gfx_v8_0_is_idle(handle))
+			return 0;
+
+		udelay(1);
+	}
+	return -ETIMEDOUT;
+}
+
 static int gfx_v8_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -5098,9 +5147,16 @@ static int gfx_v8_0_hw_fini(void *handle)
 		pr_debug("For SRIOV client, shouldn't do anything.\n");
 		return 0;
 	}
-	gfx_v8_0_cp_enable(adev, false);
-	gfx_v8_0_rlc_stop(adev);
-
+	adev->gfx.rlc.funcs->enter_safe_mode(adev);
+	if (!gfx_v8_0_wait_for_idle(adev))
+		gfx_v8_0_cp_enable(adev, false);
+	else
+		pr_err("cp is busy, skip halt cp\n");
+	if (!gfx_v8_0_wait_for_rlc_idle(adev))
+		gfx_v8_0_rlc_stop(adev);
+	else
+		pr_err("rlc is busy, skip halt rlc\n");
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
 	return 0;
 }
 
@@ -5119,30 +5175,6 @@ static int gfx_v8_0_resume(void *handle)
 	r = gfx_v8_0_hw_init(adev);
 	adev->gfx.in_suspend = false;
 	return r;
-}
-
-static bool gfx_v8_0_is_idle(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (REG_GET_FIELD(RREG32(mmGRBM_STATUS), GRBM_STATUS, GUI_ACTIVE))
-		return false;
-	else
-		return true;
-}
-
-static int gfx_v8_0_wait_for_idle(void *handle)
-{
-	unsigned i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	for (i = 0; i < adev->usec_timeout; i++) {
-		if (gfx_v8_0_is_idle(handle))
-			return 0;
-
-		udelay(1);
-	}
-	return -ETIMEDOUT;
 }
 
 static bool gfx_v8_0_check_soft_reset(void *handle)
