@@ -381,8 +381,32 @@ static int kcm_parse_func_strparser(struct strparser *strp, struct sk_buff *skb)
 {
 	struct kcm_psock *psock = container_of(strp, struct kcm_psock, strp);
 	struct bpf_prog *prog = psock->bpf_prog;
+	struct sk_buff *clone_skb = NULL;
+	struct strp_msg *stm;
+	int rc;
 
-	return (*prog->bpf_func)(skb, prog->insnsi);
+	stm = strp_msg(skb);
+	if (stm->offset) {
+		skb = clone_skb = skb_clone(skb, GFP_ATOMIC);
+		if (!clone_skb)
+			return -ENOMEM;
+
+		if (!pskb_pull(clone_skb, stm->offset)) {
+			rc = -ENOMEM;
+			goto out;
+		}
+
+		/* reset cloned skb's offset for bpf programs using it */
+		stm = strp_msg(clone_skb);
+		stm->offset = 0;
+	}
+
+	rc = (*prog->bpf_func)(skb, prog->insnsi);
+out:
+	if (clone_skb)
+		kfree_skb(clone_skb);
+
+	return rc;
 }
 
 static int kcm_read_sock_done(struct strparser *strp, int err)
