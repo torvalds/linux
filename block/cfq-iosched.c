@@ -3753,7 +3753,7 @@ static void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
 	uint64_t serial_nr;
 
 	rcu_read_lock();
-	serial_nr = bio_blkcg(bio)->css.serial_nr;
+	serial_nr = __bio_blkcg(bio)->css.serial_nr;
 	rcu_read_unlock();
 
 	/*
@@ -3818,7 +3818,7 @@ cfq_get_queue(struct cfq_data *cfqd, bool is_sync, struct cfq_io_cq *cic,
 	struct cfq_group *cfqg;
 
 	rcu_read_lock();
-	cfqg = cfq_lookup_cfqg(cfqd, bio_blkcg(bio));
+	cfqg = cfq_lookup_cfqg(cfqd, __bio_blkcg(bio));
 	if (!cfqg) {
 		cfqq = &cfqd->oom_cfqq;
 		goto out;
