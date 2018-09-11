@@ -1850,11 +1850,12 @@ static void qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	struct sts_entry_24xx *sts = (struct sts_entry_24xx *)tsk;
 	uint16_t        state_flags;
 	struct nvmefc_fcp_req *fd;
-	uint16_t        ret = 0;
+	uint16_t        ret = QLA_SUCCESS;
+	uint16_t	comp_status = le16_to_cpu(sts->comp_status);
 
 	iocb = &sp->u.iocb_cmd;
 	fcport = sp->fcport;
-	iocb->u.nvme.comp_status = le16_to_cpu(sts->comp_status);
+	iocb->u.nvme.comp_status = comp_status;
 	state_flags  = le16_to_cpu(sts->state_flags);
 	fd = iocb->u.nvme.desc;
 
@@ -1892,28 +1893,35 @@ static void qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	fd->transferred_length = fd->payload_length -
 	    le32_to_cpu(sts->residual_len);
 
-	switch (le16_to_cpu(sts->comp_status)) {
+	if (unlikely(comp_status != CS_COMPLETE))
+		ql_log(ql_log_warn, fcport->vha, 0x5060,
+		   "NVME-%s ERR Handling - hdl=%x status(%x) tr_len:%x resid=%x  ox_id=%x\n",
+		   sp->name, sp->handle, comp_status,
+		   fd->transferred_length, le32_to_cpu(sts->residual_len),
+		   sts->ox_id);
+
+	/*
+	 * If transport error then Failure (HBA rejects request)
+	 * otherwise transport will handle.
+	 */
+	switch (comp_status) {
 	case CS_COMPLETE:
-		ret = QLA_SUCCESS;
 		break;
-	case CS_ABORTED:
+
 	case CS_RESET:
 	case CS_PORT_UNAVAILABLE:
 	case CS_PORT_LOGGED_OUT:
+		fcport->nvme_flag |= NVME_FLAG_RESETTING;
+		/* fall through */
+	case CS_ABORTED:
 	case CS_PORT_BUSY:
-		ql_log(ql_log_warn, fcport->vha, 0x5060,
-		    "NVME-%s ERR Handling - hdl=%x completion status(%x) resid=%x  ox_id=%x\n",
-		    sp->name, sp->handle, sts->comp_status,
-		    le32_to_cpu(sts->residual_len), sts->ox_id);
 		fd->transferred_length = 0;
 		iocb->u.nvme.rsp_pyld_len = 0;
 		ret = QLA_ABORTED;
 		break;
+	case CS_DATA_UNDERRUN:
+		break;
 	default:
-		ql_log(ql_log_warn, fcport->vha, 0x5060,
-		    "NVME-%s error - hdl=%x completion status(%x) resid=%x  ox_id=%x\n",
-		    sp->name, sp->handle, sts->comp_status,
-		    le32_to_cpu(sts->residual_len), sts->ox_id);
 		ret = QLA_FUNCTION_FAILED;
 		break;
 	}
