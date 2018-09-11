@@ -13,7 +13,7 @@
 #include <linux/udmabuf.h>
 
 struct udmabuf {
-	u32 pagecount;
+	pgoff_t pagecount;
 	struct page **pages;
 };
 
