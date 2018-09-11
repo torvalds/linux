@@ -47,8 +47,9 @@ static int ti_lmu_enable_hw(struct ti_lmu *lmu, enum ti_lmu_id id)
 	return 0;
 }
 
-static void ti_lmu_disable_hw(struct ti_lmu *lmu)
+static void ti_lmu_disable_hw(void *data)
 {
+	struct ti_lmu *lmu = data;
 	if (lmu->en_gpio)
 		gpiod_set_value(lmu->en_gpio, 0);
 }
@@ -205,6 +206,10 @@ static int ti_lmu_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	if (ret)
 		return ret;
 
+	ret = devm_add_action_or_reset(dev, ti_lmu_disable_hw, lmu);
+	if (ret)
+		return ret;
+
 	/*
 	 * Fault circuit(open/short) can be detected by ti-lmu-fault-monitor.
 	 * After fault detection is done, some devices should re-initialize
@@ -214,17 +219,8 @@ static int ti_lmu_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 
 	i2c_set_clientdata(cl, lmu);
 
-	return mfd_add_devices(lmu->dev, 0, data->cells,
-			       data->num_cells, NULL, 0, NULL);
-}
-
-static int ti_lmu_remove(struct i2c_client *cl)
-{
-	struct ti_lmu *lmu = i2c_get_clientdata(cl);
-
-	ti_lmu_disable_hw(lmu);
-	mfd_remove_devices(lmu->dev);
-	return 0;
+	return devm_mfd_add_devices(lmu->dev, 0, data->cells,
+				    data->num_cells, NULL, 0, NULL);
 }
 
 static const struct i2c_device_id ti_lmu_ids[] = {
@@ -240,7 +236,6 @@ MODULE_DEVICE_TABLE(i2c, ti_lmu_ids);
 
 static struct i2c_driver ti_lmu_driver = {
 	.probe = ti_lmu_probe,
-	.remove = ti_lmu_remove,
 	.driver = {
 		.name = "ti-lmu",
 		.of_match_table = ti_lmu_of_match,
