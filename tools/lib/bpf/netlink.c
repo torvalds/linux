@@ -65,17 +65,22 @@ static int bpf_netlink_recv(int sock, __u32 nl_pid, int seq,
 			    __dump_nlmsg_t _fn, dump_nlmsg_t fn,
 			    void *cookie)
 {
+	bool multipart = true;
 	struct nlmsgerr *err;
 	struct nlmsghdr *nh;
 	char buf[4096];
 	int len, ret;
 
-	while (1) {
+	while (multipart) {
+		multipart = false;
 		len = recv(sock, buf, sizeof(buf), 0);
 		if (len < 0) {
 			ret = -errno;
 			goto done;
 		}
+
+		if (len == 0)
+			break;
 
 		for (nh = (struct nlmsghdr *)buf; NLMSG_OK(nh, len);
 		     nh = NLMSG_NEXT(nh, len)) {
@@ -87,6 +92,8 @@ static int bpf_netlink_recv(int sock, __u32 nl_pid, int seq,
 				ret = -LIBBPF_ERRNO__INVSEQ;
 				goto done;
 			}
+			if (nh->nlmsg_flags & NLM_F_MULTI)
+				multipart = true;
 			switch (nh->nlmsg_type) {
 			case NLMSG_ERROR:
 				err = (struct nlmsgerr *)NLMSG_DATA(nh);
