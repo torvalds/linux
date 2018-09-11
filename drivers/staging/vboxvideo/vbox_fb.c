@@ -66,26 +66,6 @@ static struct fb_ops vboxfb_ops = {
 	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
-static int vboxfb_create_object(struct vbox_fbdev *fbdev,
-				struct DRM_MODE_FB_CMD *mode_cmd,
-				struct drm_gem_object **gobj_p)
-{
-	struct drm_device *dev = fbdev->helper.dev;
-	u32 size;
-	struct drm_gem_object *gobj;
-	u32 pitch = mode_cmd->pitches[0];
-	int ret;
-
-	size = pitch * mode_cmd->height;
-	ret = vbox_gem_create(dev, size, true, &gobj);
-	if (ret)
-		return ret;
-
-	*gobj_p = gobj;
-
-	return 0;
-}
-
 static int vboxfb_create(struct drm_fb_helper *helper,
 			 struct drm_fb_helper_surface_size *sizes)
 {
@@ -109,7 +89,7 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 
 	size = pitch * mode_cmd.height;
 
-	ret = vboxfb_create_object(fbdev, &mode_cmd, &gobj);
+	ret = vbox_gem_create(fbdev->helper.dev, size, true, &gobj);
 	if (ret) {
 		DRM_ERROR("failed to create fbcon backing object %d\n", ret);
 		return ret;
