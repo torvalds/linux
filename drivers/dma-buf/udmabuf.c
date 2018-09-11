@@ -25,9 +25,6 @@ static int udmabuf_vm_fault(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	struct udmabuf *ubuf = vma->vm_private_data;
 
-	if (WARN_ON(vmf->pgoff >= ubuf->pagecount))
-		return VM_FAULT_SIGBUS;
-
 	vmf->page = ubuf->pages[vmf->pgoff];
 	get_page(vmf->page);
 	return 0;
