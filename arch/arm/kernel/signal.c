@@ -77,8 +77,6 @@ static int preserve_iwmmxt_context(struct iwmmxt_sigframe __user *frame)
 		kframe->magic = IWMMXT_MAGIC;
 		kframe->size = IWMMXT_STORAGE_SIZE;
 		iwmmxt_task_copy(current_thread_info(), &kframe->storage);
-
-		err = __copy_to_user(frame, kframe, sizeof(*frame));
 	} else {
 		/*
 		 * For bug-compatibility with older kernels, some space
@@ -86,9 +84,13 @@ static int preserve_iwmmxt_context(struct iwmmxt_sigframe __user *frame)
 		 * Set the magic and size appropriately so that properly
 		 * written userspace can skip it reliably:
 		 */
-		__put_user_error(DUMMY_MAGIC, &frame->magic, err);
-		__put_user_error(IWMMXT_STORAGE_SIZE, &frame->size, err);
+		*kframe = (struct iwmmxt_sigframe) {
+			.magic = DUMMY_MAGIC,
+			.size  = IWMMXT_STORAGE_SIZE,
+		};
 	}
+
+	err = __copy_to_user(frame, kframe, sizeof(*kframe));
 
 	return err;
 }
