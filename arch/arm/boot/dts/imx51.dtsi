@@ -608,7 +608,7 @@
 				status = "disabled";
 			};
 
-			vpu@83ff4000 {
+			vpu: vpu@83ff4000 {
 				compatible = "fsl,imx51-vpu", "cnm,codahx4";
 				reg = <0x83ff4000 0x1000>;
 				interrupts = <9>;
