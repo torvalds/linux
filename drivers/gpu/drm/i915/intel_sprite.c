@@ -259,9 +259,8 @@ skl_update_plane(struct intel_plane *plane,
 	u32 plane_ctl = plane_state->ctl;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	u32 surf_addr = plane_state->color_plane[0].offset;
-	unsigned int rotation = plane_state->base.rotation;
-	u32 stride = skl_plane_stride(fb, 0, rotation);
-	u32 aux_stride = skl_plane_stride(fb, 1, rotation);
+	u32 stride = skl_plane_stride(plane_state, 0);
+	u32 aux_stride = skl_plane_stride(plane_state, 1);
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
 	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
@@ -592,7 +591,8 @@ vlv_update_plane(struct intel_plane *plane,
 		I915_WRITE_FW(SPKEYMAXVAL(pipe, plane_id), key->max_value);
 		I915_WRITE_FW(SPKEYMSK(pipe, plane_id), key->channel_mask);
 	}
-	I915_WRITE_FW(SPSTRIDE(pipe, plane_id), fb->pitches[0]);
+	I915_WRITE_FW(SPSTRIDE(pipe, plane_id),
+		      plane_state->color_plane[0].stride);
 	I915_WRITE_FW(SPPOS(pipe, plane_id), (crtc_y << 16) | crtc_x);
 
 	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
@@ -754,7 +754,7 @@ ivb_update_plane(struct intel_plane *plane,
 		I915_WRITE_FW(SPRKEYMSK(pipe), key->channel_mask);
 	}
 
-	I915_WRITE_FW(SPRSTRIDE(pipe), fb->pitches[0]);
+	I915_WRITE_FW(SPRSTRIDE(pipe), plane_state->color_plane[0].stride);
 	I915_WRITE_FW(SPRPOS(pipe), (crtc_y << 16) | crtc_x);
 
 	/* HSW consolidates SPRTILEOFF and SPRLINOFF into a single SPROFFSET
@@ -926,7 +926,7 @@ g4x_update_plane(struct intel_plane *plane,
 		I915_WRITE_FW(DVSKEYMSK(pipe), key->channel_mask);
 	}
 
-	I915_WRITE_FW(DVSSTRIDE(pipe), fb->pitches[0]);
+	I915_WRITE_FW(DVSSTRIDE(pipe), plane_state->color_plane[0].stride);
 	I915_WRITE_FW(DVSPOS(pipe), (crtc_y << 16) | crtc_x);
 
 	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
