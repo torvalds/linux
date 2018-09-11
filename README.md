@@ -49,19 +49,19 @@ Kernel breakdown features by version
 | PCIe     |  Y  |  Y  |  Y  |  Y  |     |   ?  |    |
 | SATA     |  Y  |  Y  |  Y  |  Y?  |     |  Y   |    |
 | 2 GMAC   |  Y  |  Y  |  Y  |  N  |     |     |    |
-| DSA      |  N  |  Y  |  Y  |  Y  |  Y  |   Y  |    |
-| USB      |  Y  |  Y  |  Y  |  Y?  |     |  ?   |    |
+| DSA      |  N  |  Y  |  Y  |  Y  |  Y  |   Y  |  Y  |
+| USB      |  Y  |  Y  |  Y  |  Y?  |     |  ?   |  Y  |
 | VLAN     |     |     |  Y  |     |     |  ?   |    |
 | HW NAT   |     |  Y  |  Y |     |     |     |    |
 | HW QOS   |     |  Y  |  ? |     |     |     |    |
 | Crypto   |  Y  |  Y  |  Y  |  Y?  |     |     |    |
-| WIFI     |     |     |  Y  |  Y |  Y  |   Y  |  Y  |
+| WIFI     |     |  Y  |  Y  |  Y |  Y  |   Y  |  Y  |
 | BT       |     |     |     |     |     |     |    |
 | VIDEO    |  Y  |  N  |  Y  |  Y  |     |     |  Y  |
 | ACPI |  ?  |  N  |  Y  |  N  |     |     |  Y  |
 ||| other Options ||||     |    |
 | OpenVPN  |  ?  |  Y  |  Y  |  ?  |     |   ?  |    |
-| iptables |  ?  |  ?  |  Y  |  ?  |     |   ?  |    |
+| iptables |  ?  |  Y  |  Y  |  ?  |     |   ?  |  Y  |
 | LXC / Docker |  ?  |  ?  |  Y  |  ?  |     |  ?   |    |
 
 ? = unsure
