@@ -30,6 +30,7 @@
 #include "vid.h"
 #include "amdgpu.h"
 #include "amdgpu_display.h"
+#include "amdgpu_ucode.h"
 #include "atom.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_pm.h"
@@ -50,6 +51,7 @@
 #include <linux/version.h>
 #include <linux/types.h>
 #include <linux/pm_runtime.h>
+#include <linux/firmware.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
@@ -70,6 +72,9 @@
 #endif
 
 #include "modules/inc/mod_freesync.h"
+
+#define FIRMWARE_RAVEN_DMCU		"amdgpu/raven_dmcu.bin"
+MODULE_FIRMWARE(FIRMWARE_RAVEN_DMCU);
 
 /* basic init/fini API */
 static int amdgpu_dm_init(struct amdgpu_device *adev);
@@ -514,13 +519,97 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 	return;
 }
 
+static int load_dmcu_fw(struct amdgpu_device *adev)
+{
+	const char *fw_name_dmcu;
+	int r;
+	const struct dmcu_firmware_header_v1_0 *hdr;
+
+	switch(adev->asic_type) {
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+	case CHIP_KAVERI:
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
+	case CHIP_VEGA10:
+	case CHIP_VEGA12:
+	case CHIP_VEGA20:
+		return 0;
+	case CHIP_RAVEN:
+		fw_name_dmcu = FIRMWARE_RAVEN_DMCU;
+		break;
+	default:
+		DRM_ERROR("Unsupported ASIC type: 0x%X\n", adev->asic_type);
+		return -1;
+	}
+
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
+		DRM_DEBUG_KMS("dm: DMCU firmware not supported on direct or SMU loading\n");
+		return 0;
+	}
+
+	r = request_firmware_direct(&adev->dm.fw_dmcu, fw_name_dmcu, adev->dev);
+	if (r == -ENOENT) {
+		/* DMCU firmware is not necessary, so don't raise a fuss if it's missing */
+		DRM_DEBUG_KMS("dm: DMCU firmware not found\n");
+		adev->dm.fw_dmcu = NULL;
+		return 0;
+	}
+	if (r) {
+		dev_err(adev->dev, "amdgpu_dm: Can't load firmware \"%s\"\n",
+			fw_name_dmcu);
+		return r;
+	}
+
+	r = amdgpu_ucode_validate(adev->dm.fw_dmcu);
+	if (r) {
+		dev_err(adev->dev, "amdgpu_dm: Can't validate firmware \"%s\"\n",
+			fw_name_dmcu);
+		release_firmware(adev->dm.fw_dmcu);
+		adev->dm.fw_dmcu = NULL;
+		return r;
+	}
+
+	hdr = (const struct dmcu_firmware_header_v1_0 *)adev->dm.fw_dmcu->data;
+	adev->firmware.ucode[AMDGPU_UCODE_ID_DMCU_ERAM].ucode_id = AMDGPU_UCODE_ID_DMCU_ERAM;
+	adev->firmware.ucode[AMDGPU_UCODE_ID_DMCU_ERAM].fw = adev->dm.fw_dmcu;
+	adev->firmware.fw_size +=
+		ALIGN(le32_to_cpu(hdr->header.ucode_size_bytes) - le32_to_cpu(hdr->intv_size_bytes), PAGE_SIZE);
+
+	adev->firmware.ucode[AMDGPU_UCODE_ID_DMCU_INTV].ucode_id = AMDGPU_UCODE_ID_DMCU_INTV;
+	adev->firmware.ucode[AMDGPU_UCODE_ID_DMCU_INTV].fw = adev->dm.fw_dmcu;
+	adev->firmware.fw_size +=
+		ALIGN(le32_to_cpu(hdr->intv_size_bytes), PAGE_SIZE);
+
+	DRM_DEBUG_KMS("PSP loading DMCU firmware\n");
+
+	return 0;
+}
+
 static int dm_sw_init(void *handle)
 {
-	return 0;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return load_dmcu_fw(adev);
 }
 
 static int dm_sw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if(adev->dm.fw_dmcu) {
+		release_firmware(adev->dm.fw_dmcu);
+		adev->dm.fw_dmcu = NULL;
+	}
+
 	return 0;
 }
 

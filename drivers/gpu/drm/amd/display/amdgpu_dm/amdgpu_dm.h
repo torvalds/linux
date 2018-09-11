@@ -129,6 +129,8 @@ struct amdgpu_display_manager {
 	struct drm_atomic_state *cached_state;
 
 	struct dm_comressor_info compressor;
+
+	const struct firmware *fw_dmcu;
 };
 
 struct amdgpu_dm_connector {
