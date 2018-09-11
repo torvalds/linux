@@ -19,14 +19,18 @@ extern const size_t relocate_new_kernel_size;
 extern unsigned long kexec_start_address;
 extern unsigned long kexec_indirection_page;
 
-int (*_machine_kexec_prepare)(struct kimage *) = NULL;
-void (*_machine_kexec_shutdown)(void) = NULL;
-void (*_machine_crash_shutdown)(struct pt_regs *regs) = NULL;
+static unsigned long reboot_code_buffer;
+
 #ifdef CONFIG_SMP
-void (*relocated_kexec_smp_wait) (void *);
+static void (*relocated_kexec_smp_wait)(void *);
+
 atomic_t kexec_ready_to_reboot = ATOMIC_INIT(0);
 void (*_crash_smp_send_stop)(void) = NULL;
 #endif
+
+int (*_machine_kexec_prepare)(struct kimage *) = NULL;
+void (*_machine_kexec_shutdown)(void) = NULL;
+void (*_machine_crash_shutdown)(struct pt_regs *regs) = NULL;
 
 static void kexec_image_info(const struct kimage *kimage)
 {
@@ -51,10 +55,16 @@ static void kexec_image_info(const struct kimage *kimage)
 int
 machine_kexec_prepare(struct kimage *kimage)
 {
+#ifdef CONFIG_SMP
+	if (!kexec_nonboot_cpu_func())
+		return -EINVAL;
+#endif
+
 	kexec_image_info(kimage);
 
 	if (_machine_kexec_prepare)
 		return _machine_kexec_prepare(kimage);
+
 	return 0;
 }
 
@@ -63,11 +73,41 @@ machine_kexec_cleanup(struct kimage *kimage)
 {
 }
 
+#ifdef CONFIG_SMP
+static void kexec_shutdown_secondary(void *param)
+{
+	int cpu = smp_processor_id();
+
+	if (!cpu_online(cpu))
+		return;
+
+	/* We won't be sent IPIs any more. */
+	set_cpu_online(cpu, false);
+
+	local_irq_disable();
+	while (!atomic_read(&kexec_ready_to_reboot))
+		cpu_relax();
+
+	kexec_reboot();
+
+	/* NOTREACHED */
+}
+#endif
+
 void
 machine_shutdown(void)
 {
 	if (_machine_kexec_shutdown)
 		_machine_kexec_shutdown();
+
+#ifdef CONFIG_SMP
+	smp_call_function(kexec_shutdown_secondary, NULL, 0);
+
+	while (num_online_cpus() > 1) {
+		cpu_relax();
+		mdelay(1);
+	}
+#endif
 }
 
 void
@@ -79,12 +119,47 @@ machine_crash_shutdown(struct pt_regs *regs)
 		default_machine_crash_shutdown(regs);
 }
 
-typedef void (*noretfun_t)(void) __noreturn;
+#ifdef CONFIG_SMP
+void kexec_nonboot_cpu_jump(void)
+{
+	local_flush_icache_range((unsigned long)relocated_kexec_smp_wait,
+				 reboot_code_buffer + relocate_new_kernel_size);
+
+	relocated_kexec_smp_wait(NULL);
+}
+#endif
+
+void kexec_reboot(void)
+{
+	void (*do_kexec)(void) __noreturn;
+
+#ifdef CONFIG_SMP
+	if (smp_processor_id() > 0) {
+		/*
+		 * Instead of cpu_relax() or wait, this is needed for kexec
+		 * smp reboot. Kdump usually doesn't require an smp new
+		 * kernel, but kexec may do.
+		 */
+		kexec_nonboot_cpu();
+
+		/* NOTREACHED */
+	}
+#endif
+
+	/*
+	 * Make sure we get correct instructions written by the
+	 * machine_kexec() CPU.
+	 */
+	local_flush_icache_range(reboot_code_buffer,
+				 reboot_code_buffer + relocate_new_kernel_size);
+
+	do_kexec = (void *)reboot_code_buffer;
+	do_kexec();
+}
 
 void
 machine_kexec(struct kimage *image)
 {
-	unsigned long reboot_code_buffer;
 	unsigned long entry;
 	unsigned long *ptr;
 
@@ -128,6 +203,7 @@ machine_kexec(struct kimage *image)
 
 	printk("Will call new kernel at %08lx\n", image->start);
 	printk("Bye ...\n");
+	/* Make reboot code buffer available to the boot CPU. */
 	__flush_cache_all();
 #ifdef CONFIG_SMP
 	/* All secondary cpus now may jump to kexec_wait cycle */
@@ -136,5 +212,5 @@ machine_kexec(struct kimage *image)
 	smp_wmb();
 	atomic_set(&kexec_ready_to_reboot, 1);
 #endif
-	((noretfun_t) reboot_code_buffer)();
+	kexec_reboot();
 }

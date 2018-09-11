@@ -21,6 +21,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/smp.h>
 #include <linux/cpufreq.h>
+#include <linux/kexec.h>
 #include <asm/processor.h>
 #include <asm/time.h>
 #include <asm/clock.h>
@@ -748,5 +749,8 @@ const struct plat_smp_ops loongson3_smp_ops = {
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable = loongson3_cpu_disable,
 	.cpu_die = loongson3_cpu_die,
+#endif
+#ifdef CONFIG_KEXEC
+	.kexec_nonboot_cpu = kexec_nonboot_cpu_jump,
 #endif
 };
