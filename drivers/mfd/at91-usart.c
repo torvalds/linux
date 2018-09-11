@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/mfd/core.h>
+#include <linux/of.h>
 #include <linux/property.h>
 
 static struct mfd_cell at91_usart_spi_subdev = {
