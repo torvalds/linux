@@ -4195,9 +4195,8 @@ int ext4_update_disksize_before_punch(struct inode *inode, loff_t offset,
 	return 0;
 }
 
-static void ext4_wait_dax_page(struct ext4_inode_info *ei, bool *did_unlock)
+static void ext4_wait_dax_page(struct ext4_inode_info *ei)
 {
-	*did_unlock = true;
 	up_write(&ei->i_mmap_sem);
 	schedule();
 	down_write(&ei->i_mmap_sem);
@@ -4207,14 +4206,12 @@ int ext4_break_layouts(struct inode *inode)
 {
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	struct page *page;
-	bool retry;
 	int error;
 
 	if (WARN_ON_ONCE(!rwsem_is_locked(&ei->i_mmap_sem)))
 		return -EINVAL;
 
 	do {
-		retry = false;
 		page = dax_layout_busy_page(inode->i_mapping);
 		if (!page)
 			return 0;
@@ -4222,8 +4219,8 @@ int ext4_break_layouts(struct inode *inode)
 		error = ___wait_var_event(&page->_refcount,
 				atomic_read(&page->_refcount) == 1,
 				TASK_INTERRUPTIBLE, 0, 0,
-				ext4_wait_dax_page(ei, &retry));
-	} while (error == 0 && retry);
+				ext4_wait_dax_page(ei));
+	} while (error == 0);
 
 	return error;
 }
