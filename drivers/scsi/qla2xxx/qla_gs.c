@@ -3800,7 +3800,7 @@ static int qla2x00_post_gnnft_gpnft_done_work(struct scsi_qla_host *vha,
 	return qla2x00_post_work(vha, e);
 }
 
-static int qla2x00_post_nvme_gpnft_done_work(struct scsi_qla_host *vha,
+static int qla2x00_post_nvme_gpnft_work(struct scsi_qla_host *vha,
     srb_t *sp, int cmd)
 {
 	struct qla_work_evt *e;
@@ -3930,6 +3930,7 @@ static void qla2x00_async_gpnft_gnnft_sp_done(void *s, int res)
 	    "Async done-%s res %x FC4Type %x\n",
 	    sp->name, res, sp->gen2);
 
+	del_timer(&sp->u.iocb_cmd.timer);
 	sp->rc = res;
 	if (res) {
 		unsigned long flags;
@@ -3945,48 +3946,44 @@ static void qla2x00_async_gpnft_gnnft_sp_done(void *s, int res)
 		if (rc) {
 			/* Cleanup here to prevent memory leak */
 			qla24xx_sp_unmap(vha, sp);
-		}
 
-		spin_lock_irqsave(&vha->work_lock, flags);
-		vha->scan.scan_flags &= ~SF_SCANNING;
-		vha->scan.scan_retry++;
-		spin_unlock_irqrestore(&vha->work_lock, flags);
+			spin_lock_irqsave(&vha->work_lock, flags);
+			vha->scan.scan_flags &= ~SF_SCANNING;
+			vha->scan.scan_retry++;
+			spin_unlock_irqrestore(&vha->work_lock, flags);
 
-		if (vha->scan.scan_retry < MAX_SCAN_RETRIES) {
-			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
-			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
-			qla2xxx_wake_dpc(vha);
-		} else {
-			ql_dbg(ql_dbg_disc, vha, 0xffff,
-			    "Async done-%s rescan failed on all retries.\n",
-			    name);
+			if (vha->scan.scan_retry < MAX_SCAN_RETRIES) {
+				set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+				qla2xxx_wake_dpc(vha);
+			} else {
+				ql_dbg(ql_dbg_disc, vha, 0xffff,
+				    "Async done-%s rescan failed on all retries.\n",
+				    name);
+			}
 		}
 		return;
 	}
 
-	if (!res)
-		qla2x00_find_free_fcp_nvme_slot(vha, sp);
+	qla2x00_find_free_fcp_nvme_slot(vha, sp);
 
 	if ((fc4_type == FC4_TYPE_FCP_SCSI) && vha->flags.nvme_enabled &&
 	    cmd == GNN_FT_CMD) {
-		del_timer(&sp->u.iocb_cmd.timer);
 		spin_lock_irqsave(&vha->work_lock, flags);
 		vha->scan.scan_flags &= ~SF_SCANNING;
 		spin_unlock_irqrestore(&vha->work_lock, flags);
 
 		sp->rc = res;
-		rc = qla2x00_post_nvme_gpnft_done_work(vha, sp, QLA_EVT_GPNFT);
+		rc = qla2x00_post_nvme_gpnft_work(vha, sp, QLA_EVT_GPNFT);
 		if (rc) {
 			qla24xx_sp_unmap(vha, sp);
 			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
-			return;
 		}
 		return;
 	}
 
 	if (cmd == GPN_FT_CMD) {
-		del_timer(&sp->u.iocb_cmd.timer);
 		rc = qla2x00_post_gnnft_gpnft_done_work(vha, sp,
 		    QLA_EVT_GPNFT_DONE);
 	} else {
