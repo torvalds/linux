@@ -3167,6 +3167,7 @@ static void nfp_net_stat64(struct net_device *netdev,
 	struct nfp_net *nn = netdev_priv(netdev);
 	int r;
 
+	/* Collect software stats */
 	for (r = 0; r < nn->max_r_vecs; r++) {
 		struct nfp_net_r_vector *r_vec = &nn->r_vecs[r];
 		u64 data[3];
@@ -3192,6 +3193,14 @@ static void nfp_net_stat64(struct net_device *netdev,
 		stats->tx_bytes += data[1];
 		stats->tx_errors += data[2];
 	}
+
+	/* Add in device stats */
+	stats->multicast += nn_readq(nn, NFP_NET_CFG_STATS_RX_MC_FRAMES);
+	stats->rx_dropped += nn_readq(nn, NFP_NET_CFG_STATS_RX_DISCARDS);
+	stats->rx_errors += nn_readq(nn, NFP_NET_CFG_STATS_RX_ERRORS);
+
+	stats->tx_dropped += nn_readq(nn, NFP_NET_CFG_STATS_TX_DISCARDS);
+	stats->tx_errors += nn_readq(nn, NFP_NET_CFG_STATS_TX_ERRORS);
 }
 
 static int nfp_net_set_features(struct net_device *netdev,
