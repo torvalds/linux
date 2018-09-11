@@ -276,7 +276,7 @@ static void creg_cmd_done(struct work_struct *work)
 		st = -EIO;
 	}
 
-	if ((cmd->op == CREG_OP_READ)) {
+	if (cmd->op == CREG_OP_READ) {
 		unsigned int cnt8 = ioread32(card->regmap + CREG_CNT);
 
 		/* Paranoid Sanity Checks */
