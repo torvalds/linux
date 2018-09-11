@@ -900,6 +900,7 @@ struct qla_tgt_cmd {
 	unsigned int aborted:1;
 	unsigned int data_work:1;
 	unsigned int data_work_free:1;
+	unsigned int released:1;
 
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
 	int sg_cnt;		/* SG segments count */

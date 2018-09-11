@@ -3383,7 +3383,9 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 
 
 	cmd->state = QLA_TGT_STATE_PROCESSED; /* Mid-level is done processing */
+	spin_lock(&cmd->cmd_lock);
 	cmd->cmd_sent_to_fw = 1;
+	spin_unlock(&cmd->cmd_lock);
 	cmd->ctio_flags = le16_to_cpu(pkt->u.status0.flags);
 
 	/* Memory Barrier */
@@ -3462,7 +3464,9 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 		qlt_load_data_segments(&prm);
 
 	cmd->state = QLA_TGT_STATE_NEED_DATA;
+	spin_lock(&cmd->cmd_lock);
 	cmd->cmd_sent_to_fw = 1;
+	spin_unlock(&cmd->cmd_lock);
 	cmd->ctio_flags = le16_to_cpu(pkt->u.status0.flags);
 
 	/* Memory Barrier */
