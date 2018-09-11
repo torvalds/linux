@@ -845,7 +845,6 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	struct snd_soc_component *component;
 	struct snd_soc_dai **codec_dais;
 	struct device_node *platform_of_node;
-	const char *platform_name;
 	int i;
 
 	if (dai_link->ignore)
@@ -892,11 +891,6 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	/* Single codec links expect codec and codec_dai in runtime data */
 	rtd->codec_dai = codec_dais[0];
 
-	/* if there's no platform we match on the empty platform */
-	platform_name = dai_link->platform->name;
-	if (!platform_name && !dai_link->platform->of_node)
-		platform_name = "snd-soc-dummy";
-
 	/* find one from the set of registered platforms */
 	list_for_each_entry(component, &component_list, list) {
 		platform_of_node = component->dev->of_node;
@@ -907,7 +901,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 			if (platform_of_node != dai_link->platform->of_node)
 				continue;
 		} else {
-			if (strcmp(component->name, platform_name))
+			if (strcmp(component->name, dai_link->platform->name))
 				continue;
 		}
 
@@ -1020,24 +1014,31 @@ static void soc_remove_dai_links(struct snd_soc_card *card)
 static int snd_soc_init_platform(struct snd_soc_card *card,
 				 struct snd_soc_dai_link *dai_link)
 {
+	struct snd_soc_dai_link_component *platform = dai_link->platform;
+
 	/*
 	 * FIXME
 	 *
 	 * this function should be removed in the future
 	 */
 	/* convert Legacy platform link */
-	if (dai_link->platform)
-		return 0;
-
-	dai_link->platform = devm_kzalloc(card->dev,
+	if (!platform) {
+		platform = devm_kzalloc(card->dev,
 				sizeof(struct snd_soc_dai_link_component),
 				GFP_KERNEL);
-	if (!dai_link->platform)
-		return -ENOMEM;
+		if (!platform)
+			return -ENOMEM;
 
-	dai_link->platform->name	= dai_link->platform_name;
-	dai_link->platform->of_node	= dai_link->platform_of_node;
-	dai_link->platform->dai_name	= NULL;
+		dai_link->platform	= platform;
+		platform->name		= dai_link->platform_name;
+		platform->of_node	= dai_link->platform_of_node;
+		platform->dai_name	= NULL;
+	}
+
+	/* if there's no platform we match on the empty platform */
+	if (!platform->name &&
+	    !platform->of_node)
+		platform->name = "snd-soc-dummy";
 
 	return 0;
 }
