@@ -1051,7 +1051,7 @@ static int smsc911x_mii_probe(struct net_device *dev)
 	phy_set_max_speed(phydev, SPEED_100);
 
 	/* mask with MAC supported features */
-	phydev->supported &= (SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+	phydev->supported |= (SUPPORTED_Pause | SUPPORTED_Asym_Pause);
 	phydev->advertising = phydev->supported;
 
 	pdata->last_duplex = -1;

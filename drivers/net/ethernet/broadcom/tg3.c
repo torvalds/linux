@@ -2123,14 +2123,14 @@ static int tg3_phy_init(struct tg3 *tp)
 	case PHY_INTERFACE_MODE_RGMII:
 		if (!(tp->phy_flags & TG3_PHYFLG_10_100_ONLY)) {
 			phy_set_max_speed(phydev, SPEED_1000);
-			phydev->supported &= (SUPPORTED_Pause |
+			phydev->supported |= (SUPPORTED_Pause |
 					      SUPPORTED_Asym_Pause);
 			break;
 		}
 		/* fallthru */
 	case PHY_INTERFACE_MODE_MII:
 		phy_set_max_speed(phydev, SPEED_100);
-		phydev->supported &= (SUPPORTED_Pause |
+		phydev->supported |= (SUPPORTED_Pause |
 				      SUPPORTED_Asym_Pause);
 		break;
 	default:
