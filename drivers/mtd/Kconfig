@@ -144,7 +144,7 @@ config MTD_BCM63XX_PARTS
 	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
 	select CRC32
 	help
-	  This provides partions parsing for BCM63xx devices with CFE
+	  This provides partition parsing for BCM63xx devices with CFE
 	  bootloaders.
 
 config MTD_BCM47XX_PARTS
