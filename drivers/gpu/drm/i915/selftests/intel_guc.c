@@ -65,6 +65,40 @@ static int check_all_doorbells(struct intel_guc *guc)
 	return 0;
 }
 
+static int ring_doorbell_nop(struct intel_guc_client *client)
+{
+	struct guc_process_desc *desc = __get_process_desc(client);
+	int err;
+
+	client->use_nop_wqi = true;
+
+	spin_lock_irq(&client->wq_lock);
+
+	guc_wq_item_append(client, 0, 0, 0, 0);
+	guc_ring_doorbell(client);
+
+	spin_unlock_irq(&client->wq_lock);
+
+	client->use_nop_wqi = false;
+
+	/* if there are no issues GuC will update the WQ head and keep the
+	 * WQ in active status
+	 */
+	err = wait_for(READ_ONCE(desc->head) == READ_ONCE(desc->tail), 10);
+	if (err) {
+		pr_err("doorbell %u ring failed!\n", client->doorbell_id);
+		return -EIO;
+	}
+
+	if (desc->wq_status != WQ_STATUS_ACTIVE) {
+		pr_err("doorbell %u ring put WQ in bad state (%u)!\n",
+		       client->doorbell_id, desc->wq_status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 /*
  * Basic client sanity check, handy to validate create_clients.
  */
@@ -330,6 +364,10 @@ static int igt_guc_doorbells(void *arg)
 		}
 
 		err = check_all_doorbells(guc);
+		if (err)
+			goto out;
+
+		err = ring_doorbell_nop(clients[i]);
 		if (err)
 			goto out;
 	}

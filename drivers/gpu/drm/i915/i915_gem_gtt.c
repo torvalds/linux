@@ -173,19 +173,11 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 		return 0;
 	}
 
-	/* Early VLV doesn't have this */
-	if (IS_VALLEYVIEW(dev_priv) && dev_priv->drm.pdev->revision < 0xb) {
-		DRM_DEBUG_DRIVER("disabling PPGTT on pre-B3 step VLV\n");
-		return 0;
-	}
+	if (has_full_48bit_ppgtt)
+		return 3;
 
-	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
-		if (has_full_48bit_ppgtt)
-			return 3;
-
-		if (has_full_ppgtt)
-			return 2;
-	}
+	if (has_full_ppgtt)
+		return 2;
 
 	return 1;
 }
@@ -1258,9 +1250,6 @@ static void gen8_free_page_tables(struct i915_address_space *vm,
 				  struct i915_page_directory *pd)
 {
 	int i;
-
-	if (!px_page(pd))
-		return;
 
 	for (i = 0; i < I915_PDES; i++) {
 		if (pd->page_table[i] != vm->scratch_pt)
@@ -2348,7 +2337,7 @@ static bool needs_idle_maps(struct drm_i915_private *dev_priv)
 	return IS_GEN5(dev_priv) && IS_MOBILE(dev_priv) && intel_vtd_active();
 }
 
-static void gen6_check_and_clear_faults(struct drm_i915_private *dev_priv)
+static void gen6_check_faults(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -2366,15 +2355,11 @@ static void gen6_check_and_clear_faults(struct drm_i915_private *dev_priv)
 					 fault & RING_FAULT_GTTSEL_MASK ? "GGTT" : "PPGTT",
 					 RING_FAULT_SRCID(fault),
 					 RING_FAULT_FAULT_TYPE(fault));
-			I915_WRITE(RING_FAULT_REG(engine),
-				   fault & ~RING_FAULT_VALID);
 		}
 	}
-
-	POSTING_READ(RING_FAULT_REG(dev_priv->engine[RCS]));
 }
 
-static void gen8_check_and_clear_faults(struct drm_i915_private *dev_priv)
+static void gen8_check_faults(struct drm_i915_private *dev_priv)
 {
 	u32 fault = I915_READ(GEN8_RING_FAULT_REG);
 
@@ -2399,22 +2384,20 @@ static void gen8_check_and_clear_faults(struct drm_i915_private *dev_priv)
 				 GEN8_RING_FAULT_ENGINE_ID(fault),
 				 RING_FAULT_SRCID(fault),
 				 RING_FAULT_FAULT_TYPE(fault));
-		I915_WRITE(GEN8_RING_FAULT_REG,
-			   fault & ~RING_FAULT_VALID);
 	}
-
-	POSTING_READ(GEN8_RING_FAULT_REG);
 }
 
 void i915_check_and_clear_faults(struct drm_i915_private *dev_priv)
 {
 	/* From GEN8 onwards we only have one 'All Engine Fault Register' */
 	if (INTEL_GEN(dev_priv) >= 8)
-		gen8_check_and_clear_faults(dev_priv);
+		gen8_check_faults(dev_priv);
 	else if (INTEL_GEN(dev_priv) >= 6)
-		gen6_check_and_clear_faults(dev_priv);
+		gen6_check_faults(dev_priv);
 	else
 		return;
+
+	i915_clear_error_registers(dev_priv);
 }
 
 void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv)
@@ -2936,6 +2919,15 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	unsigned long hole_start, hole_end;
 	struct drm_mm_node *entry;
 	int ret;
+
+	/*
+	 * GuC requires all resources that we're sharing with it to be placed in
+	 * non-WOPCM memory. If GuC is not present or not in use we still need a
+	 * small bias as ring wraparound at offset 0 sometimes hangs. No idea
+	 * why.
+	 */
+	ggtt->pin_bias = max_t(u32, I915_GTT_PAGE_SIZE,
+			       intel_guc_reserved_gtt_size(&dev_priv->guc));
 
 	ret = intel_vgt_balloon(dev_priv);
 	if (ret)
@@ -3612,6 +3604,8 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	i915_address_space_init(&ggtt->vm, dev_priv);
 
+	ggtt->vm.is_ggtt = true;
+
 	/* Only VLV supports read-only GGTT mappings */
 	ggtt->vm.has_read_only = IS_VALLEYVIEW(dev_priv);
 
@@ -3662,6 +3656,10 @@ void i915_ggtt_enable_guc(struct drm_i915_private *i915)
 
 void i915_ggtt_disable_guc(struct drm_i915_private *i915)
 {
+	/* XXX Temporary pardon for error unload */
+	if (i915->ggtt.invalidate == gen6_ggtt_invalidate)
+		return;
+
 	/* We should only be called after i915_ggtt_enable_guc() */
 	GEM_BUG_ON(i915->ggtt.invalidate != guc_ggtt_invalidate);
 

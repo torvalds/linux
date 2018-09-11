@@ -134,8 +134,16 @@ struct i915_gem_context {
 	 * functions like fault reporting, PASID, scheduling. The
 	 * &drm_i915_private.context_hw_ida is used to assign a unqiue
 	 * id for the lifetime of the context.
+	 *
+	 * @hw_id_pin_count: - number of times this context had been pinned
+	 * for use (should be, at most, once per engine).
+	 *
+	 * @hw_id_link: - all contexts with an assigned id are tracked
+	 * for possible repossession.
 	 */
 	unsigned int hw_id;
+	atomic_t hw_id_pin_count;
+	struct list_head hw_id_link;
 
 	/**
 	 * @user_handle: userspace identifier
@@ -146,9 +154,6 @@ struct i915_gem_context {
 	u32 user_handle;
 
 	struct i915_sched_attr sched;
-
-	/** ggtt_offset_bias: placement restriction for context objects */
-	u32 ggtt_offset_bias;
 
 	/** engine: per-engine logical HW state */
 	struct intel_context {
@@ -255,6 +260,21 @@ static inline bool i915_gem_context_force_single_submission(const struct i915_ge
 static inline void i915_gem_context_set_force_single_submission(struct i915_gem_context *ctx)
 {
 	__set_bit(CONTEXT_FORCE_SINGLE_SUBMISSION, &ctx->flags);
+}
+
+int __i915_gem_context_pin_hw_id(struct i915_gem_context *ctx);
+static inline int i915_gem_context_pin_hw_id(struct i915_gem_context *ctx)
+{
+	if (atomic_inc_not_zero(&ctx->hw_id_pin_count))
+		return 0;
+
+	return __i915_gem_context_pin_hw_id(ctx);
+}
+
+static inline void i915_gem_context_unpin_hw_id(struct i915_gem_context *ctx)
+{
+	GEM_BUG_ON(atomic_read(&ctx->hw_id_pin_count) == 0u);
+	atomic_dec(&ctx->hw_id_pin_count);
 }
 
 static inline bool i915_gem_context_is_default(const struct i915_gem_context *c)

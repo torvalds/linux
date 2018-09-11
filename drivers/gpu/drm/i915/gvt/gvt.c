@@ -189,7 +189,6 @@ static const struct intel_gvt_ops intel_gvt_ops = {
 
 /**
  * intel_gvt_init_host - Load MPT modules and detect if we're running in host
- * @gvt: intel gvt device
  *
  * This function is called at the driver loading stage. If failed to find a
  * loadable MPT module or detect currently we're running in a VM, then GVT-g
@@ -303,7 +302,7 @@ static int init_service_thread(struct intel_gvt *gvt)
 
 /**
  * intel_gvt_clean_device - clean a GVT device
- * @gvt: intel gvt device
+ * @dev_priv: i915 private
  *
  * This function is called at the driver unloading stage, to free the
  * resources owned by a GVT device.

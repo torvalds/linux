@@ -43,6 +43,7 @@ mock_context(struct drm_i915_private *i915,
 
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
 	INIT_LIST_HEAD(&ctx->handles_list);
+	INIT_LIST_HEAD(&ctx->hw_id_link);
 
 	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++) {
 		struct intel_context *ce = &ctx->__engine[n];
@@ -50,11 +51,9 @@ mock_context(struct drm_i915_private *i915,
 		ce->gem_context = ctx;
 	}
 
-	ret = ida_simple_get(&i915->contexts.hw_ida,
-			     0, MAX_CONTEXT_HW_ID, GFP_KERNEL);
+	ret = i915_gem_context_pin_hw_id(ctx);
 	if (ret < 0)
 		goto err_handles;
-	ctx->hw_id = ret;
 
 	if (name) {
 		ctx->name = kstrdup(name, GFP_KERNEL);
@@ -85,11 +84,7 @@ void mock_context_close(struct i915_gem_context *ctx)
 
 void mock_init_contexts(struct drm_i915_private *i915)
 {
-	INIT_LIST_HEAD(&i915->contexts.list);
-	ida_init(&i915->contexts.hw_ida);
-
-	INIT_WORK(&i915->contexts.free_work, contexts_free_worker);
-	init_llist_head(&i915->contexts.free_list);
+	init_contexts(i915);
 }
 
 struct i915_gem_context *
