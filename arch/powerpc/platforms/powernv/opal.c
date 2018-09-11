@@ -578,6 +578,8 @@ int opal_machine_check(struct pt_regs *regs)
 {
 	struct machine_check_event evt;
 
+	__this_cpu_inc(irq_stat.mce_exceptions);
+
 	if (!get_mce_event(&evt, MCE_EVENT_RELEASE))
 		return 0;
 
