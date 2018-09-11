@@ -941,8 +941,7 @@ static int xemaclite_open(struct net_device *dev)
 		}
 
 		/* EmacLite doesn't support giga-bit speeds */
-		lp->phy_dev->supported &= (PHY_BASIC_FEATURES);
-		lp->phy_dev->advertising = lp->phy_dev->supported;
+		phy_set_max_speed(lp->phy_dev, SPEED_100);
 
 		/* Don't advertise 1000BASE-T Full/Half duplex speeds */
 		phy_write(lp->phy_dev, MII_CTRL1000, 0);

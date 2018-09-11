@@ -987,8 +987,7 @@ static int stmmac_init_phy(struct net_device *dev)
 	if ((interface == PHY_INTERFACE_MODE_MII) ||
 	    (interface == PHY_INTERFACE_MODE_RMII) ||
 		(max_speed < 1000 && max_speed > 0))
-		phydev->advertising &= ~(SUPPORTED_1000baseT_Half |
-					 SUPPORTED_1000baseT_Full);
+		phy_set_max_speed(phydev, SPEED_100);
 
 	/*
 	 * Half-duplex mode not supported with multiqueue

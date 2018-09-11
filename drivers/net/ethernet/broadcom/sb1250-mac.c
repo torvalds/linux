@@ -2357,15 +2357,8 @@ static int sbmac_mii_probe(struct net_device *dev)
 	}
 
 	/* Remove any features not supported by the controller */
-	phy_dev->supported &= SUPPORTED_10baseT_Half |
-			      SUPPORTED_10baseT_Full |
-			      SUPPORTED_100baseT_Half |
-			      SUPPORTED_100baseT_Full |
-			      SUPPORTED_1000baseT_Half |
-			      SUPPORTED_1000baseT_Full |
-			      SUPPORTED_Autoneg |
-			      SUPPORTED_MII |
-			      SUPPORTED_Pause |
+	phy_set_max_speed(phy_dev, SPEED_1000);
+	phy_dev->supported |= SUPPORTED_Pause |
 			      SUPPORTED_Asym_Pause;
 
 	phy_attached_info(phy_dev);
