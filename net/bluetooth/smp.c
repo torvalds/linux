@@ -2700,7 +2700,13 @@ static int smp_cmd_public_key(struct l2cap_conn *conn, struct sk_buff *skb)
 	 * key was set/generated.
 	 */
 	if (test_bit(SMP_FLAG_LOCAL_OOB, &smp->flags)) {
-		struct smp_dev *smp_dev = chan->data;
+		struct l2cap_chan *hchan = hdev->smp_data;
+		struct smp_dev *smp_dev;
+
+		if (!hchan || !hchan->data)
+			return SMP_UNSPECIFIED;
+
+		smp_dev = hchan->data;
 
 		tfm_ecdh = smp_dev->tfm_ecdh;
 	} else {
