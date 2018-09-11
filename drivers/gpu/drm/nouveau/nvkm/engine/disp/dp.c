@@ -28,6 +28,7 @@
 
 #include <subdev/bios.h>
 #include <subdev/bios/init.h>
+#include <subdev/gpio.h>
 #include <subdev/i2c.h>
 
 #include <nvif/event.h>
@@ -412,13 +413,9 @@ nvkm_dp_train(struct nvkm_dp *dp, u32 dataKBps)
 }
 
 static void
-nvkm_dp_release(struct nvkm_outp *outp, struct nvkm_ior *ior)
+nvkm_dp_disable(struct nvkm_outp *outp, struct nvkm_ior *ior)
 {
 	struct nvkm_dp *dp = nvkm_dp(outp);
-
-	/* Prevent link from being retrained if sink sends an IRQ. */
-	atomic_set(&dp->lt.done, 0);
-	ior->dp.nr = 0;
 
 	/* Execute DisableLT script from DP Info Table. */
 	nvbios_init(&ior->disp->engine.subdev, dp->info.script[4],
@@ -426,6 +423,16 @@ nvkm_dp_release(struct nvkm_outp *outp, struct nvkm_ior *ior)
 		init.or   = ior->id;
 		init.link = ior->arm.link;
 	);
+}
+
+static void
+nvkm_dp_release(struct nvkm_outp *outp)
+{
+	struct nvkm_dp *dp = nvkm_dp(outp);
+
+	/* Prevent link from being retrained if sink sends an IRQ. */
+	atomic_set(&dp->lt.done, 0);
+	dp->outp.ior->dp.nr = 0;
 }
 
 static int
@@ -491,7 +498,7 @@ done:
 	return ret;
 }
 
-static void
+static bool
 nvkm_dp_enable(struct nvkm_dp *dp, bool enable)
 {
 	struct nvkm_i2c_aux *aux = dp->aux;
@@ -505,7 +512,7 @@ nvkm_dp_enable(struct nvkm_dp *dp, bool enable)
 
 		if (!nvkm_rdaux(aux, DPCD_RC00_DPCD_REV, dp->dpcd,
 				sizeof(dp->dpcd)))
-			return;
+			return true;
 	}
 
 	if (dp->present) {
@@ -515,6 +522,7 @@ nvkm_dp_enable(struct nvkm_dp *dp, bool enable)
 	}
 
 	atomic_set(&dp->lt.done, 0);
+	return false;
 }
 
 static int
@@ -555,9 +563,38 @@ nvkm_dp_fini(struct nvkm_outp *outp)
 static void
 nvkm_dp_init(struct nvkm_outp *outp)
 {
+	struct nvkm_gpio *gpio = outp->disp->engine.subdev.device->gpio;
 	struct nvkm_dp *dp = nvkm_dp(outp);
+
 	nvkm_notify_put(&dp->outp.conn->hpd);
-	nvkm_dp_enable(dp, true);
+
+	/* eDP panels need powering on by us (if the VBIOS doesn't default it
+	 * to on) before doing any AUX channel transactions.  LVDS panel power
+	 * is handled by the SOR itself, and not required for LVDS DDC.
+	 */
+	if (dp->outp.conn->info.type == DCB_CONNECTOR_eDP) {
+		int power = nvkm_gpio_get(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff);
+		if (power == 0)
+			nvkm_gpio_set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, 1);
+
+		/* We delay here unconditionally, even if already powered,
+		 * because some laptop panels having a significant resume
+		 * delay before the panel begins responding.
+		 *
+		 * This is likely a bit of a hack, but no better idea for
+		 * handling this at the moment.
+		 */
+		msleep(300);
+
+		/* If the eDP panel can't be detected, we need to restore
+		 * the panel power GPIO to avoid breaking another output.
+		 */
+		if (!nvkm_dp_enable(dp, true) && power == 0)
+			nvkm_gpio_set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, 0);
+	} else {
+		nvkm_dp_enable(dp, true);
+	}
+
 	nvkm_notify_get(&dp->hpd);
 }
 
@@ -576,6 +613,7 @@ nvkm_dp_func = {
 	.fini = nvkm_dp_fini,
 	.acquire = nvkm_dp_acquire,
 	.release = nvkm_dp_release,
+	.disable = nvkm_dp_disable,
 };
 
 static int
