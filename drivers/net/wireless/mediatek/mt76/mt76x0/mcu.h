@@ -41,7 +41,6 @@ enum mcu_calibrate {
 	MCU_CAL_TX_GROUP_DELAY,
 };
 
-int mt76x0_mcu_init(struct mt76x0_dev *dev);
 int mt76x0_mcu_cmd_init(struct mt76x0_dev *dev);
 
 #endif

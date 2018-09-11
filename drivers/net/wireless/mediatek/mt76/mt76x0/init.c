@@ -396,15 +396,6 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 
 	dev->beacon_offsets = beacon_offsets;
 
-	mt76x0_chip_onoff(dev, true, true);
-
-	if (!mt76x02_wait_for_mac(&dev->mt76))
-		return -ETIMEDOUT;
-
-	ret = mt76x0_mcu_init(dev);
-	if (ret)
-		return ret;
-
 	if (!mt76_poll_msec(dev, MT_WPDMA_GLO_CFG,
 			    MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
 			    MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 100))
