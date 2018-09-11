@@ -68,5 +68,19 @@ config SND_SOC_SOF_DEBUG_VERBOSE_IPC
 	  if you are trying to debug IPC with the DSP firmware.
           If unsure select "N".
 
+config SND_SOC_SOF_DEBUG_FORCE_IPC_POSITION
+	bool "SOF force to use IPC for position update on SKL+"
+	depends on SND_SOC_SOF_DEBUG
+	default y
+	help
+	  This option force to handle stream position update IPCs and run pcm
+	  elapse to inform ALSA about that, on platforms (e.g. Intel SKL+) that
+	  with other approach (e.g. HDAC DPIB/posbuf) to elapse PCM.
+	  On platforms (e.g. Intel SKL-) where position update IPC is the only
+	  one choice, this setting won't impact anything.
+	  if you are trying to debug pointer update with position IPCs or where
+	  DPIB/posbuf is not ready, select "Y".
+          If unsure select "N".
+
 source "sound/soc/sof/intel/Kconfig"
 source "sound/soc/sof/xtensa/Kconfig"
