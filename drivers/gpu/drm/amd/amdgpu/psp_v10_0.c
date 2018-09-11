@@ -91,6 +91,12 @@ psp_v10_0_get_fw_type(struct amdgpu_firmware_info *ucode, enum psp_gfx_fw_type *
 	case AMDGPU_UCODE_ID_VCN:
 		*type = GFX_FW_TYPE_VCN;
 		break;
+	case AMDGPU_UCODE_ID_DMCU_ERAM:
+		*type = GFX_FW_TYPE_DMCU_ERAM;
+		break;
+	case AMDGPU_UCODE_ID_DMCU_INTV:
+		*type = GFX_FW_TYPE_DMCU_ISR;
+		break;
 	case AMDGPU_UCODE_ID_MAXIMUM:
 	default:
 		return -EINVAL;
