@@ -737,6 +737,24 @@ static struct snd_soc_component *soc_find_component(
 	return NULL;
 }
 
+static int snd_soc_is_matching_component(
+	const struct snd_soc_dai_link_component *dlc,
+	struct snd_soc_component *component)
+{
+	struct device_node *component_of_node;
+
+	component_of_node = component->dev->of_node;
+	if (!component_of_node && component->dev->parent)
+		component_of_node = component->dev->parent->of_node;
+
+	if (dlc->of_node && component_of_node != dlc->of_node)
+		return 0;
+	if (dlc->name && strcmp(component->name, dlc->name))
+		return 0;
+
+	return 1;
+}
+
 /**
  * snd_soc_find_dai - Find a registered DAI
  *
@@ -753,19 +771,12 @@ struct snd_soc_dai *snd_soc_find_dai(
 {
 	struct snd_soc_component *component;
 	struct snd_soc_dai *dai;
-	struct device_node *component_of_node;
 
 	lockdep_assert_held(&client_mutex);
 
 	/* Find CPU DAI from registered DAIs*/
 	list_for_each_entry(component, &component_list, list) {
-		component_of_node = component->dev->of_node;
-		if (!component_of_node && component->dev->parent)
-			component_of_node = component->dev->parent->of_node;
-
-		if (dlc->of_node && component_of_node != dlc->of_node)
-			continue;
-		if (dlc->name && strcmp(component->name, dlc->name))
+		if (!snd_soc_is_matching_component(dlc, component))
 			continue;
 		list_for_each_entry(dai, &component->dai_list, list) {
 			if (dlc->dai_name && strcmp(dai->name, dlc->dai_name)
@@ -844,7 +855,6 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	struct snd_soc_dai_link_component cpu_dai_component;
 	struct snd_soc_component *component;
 	struct snd_soc_dai **codec_dais;
-	struct device_node *platform_of_node;
 	int i;
 
 	if (dai_link->ignore)
@@ -893,17 +903,9 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 
 	/* find one from the set of registered platforms */
 	list_for_each_entry(component, &component_list, list) {
-		platform_of_node = component->dev->of_node;
-		if (!platform_of_node && component->dev->parent->of_node)
-			platform_of_node = component->dev->parent->of_node;
-
-		if (dai_link->platform->of_node) {
-			if (platform_of_node != dai_link->platform->of_node)
-				continue;
-		} else {
-			if (strcmp(component->name, dai_link->platform->name))
-				continue;
-		}
+		if (!snd_soc_is_matching_component(dai_link->platform,
+						   component))
+			continue;
 
 		snd_soc_rtdcom_add(rtd, component);
 	}
