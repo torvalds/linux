@@ -1270,7 +1270,7 @@ struct dpcd_quirk {
 
 static const struct dpcd_quirk dpcd_quirk_list[] = {
 	/* Analogix 7737 needs reduced M and N at HBR2 link rates */
-	{ OUI(0x00, 0x22, 0xb9), DEVICE_ID_ANY, true, BIT(DP_DPCD_QUIRK_LIMITED_M_N) },
+	{ OUI(0x00, 0x22, 0xb9), DEVICE_ID_ANY, true, BIT(DP_DPCD_QUIRK_CONSTANT_N) },
 };
 
 #undef OUI
