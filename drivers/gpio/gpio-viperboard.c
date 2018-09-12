@@ -19,9 +19,8 @@
 #include <linux/types.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
-
 #include <linux/usb.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 #include <linux/mfd/viperboard.h>
 
