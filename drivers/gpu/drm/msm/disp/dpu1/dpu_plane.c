@@ -1082,29 +1082,12 @@ static int dpu_plane_sspp_atomic_check(struct drm_plane *plane,
 		struct drm_plane_state *state)
 {
 	int ret = 0;
-	struct dpu_plane *pdpu;
-	struct dpu_plane_state *pstate;
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
 	const struct dpu_format *fmt;
 	struct drm_rect src, dst, fb_rect = { 0 };
 	uint32_t max_upscale = 1, max_downscale = 1;
 	uint32_t min_src_size, max_linewidth;
 	int hscale = 1, vscale = 1;
-
-	if (!plane || !state) {
-		DPU_ERROR("invalid arg(s), plane %d state %d\n",
-				plane != 0, state != 0);
-		ret = -EINVAL;
-		goto exit;
-	}
-
-	pdpu = to_dpu_plane(plane);
-	pstate = to_dpu_plane_state(state);
-
-	if (!pdpu->pipe_sblk) {
-		DPU_ERROR_PLANE(pdpu, "invalid catalog\n");
-		ret = -EINVAL;
-		goto exit;
-	}
 
 	src.x1 = state->src_x >> 16;
 	src.y1 = state->src_y >> 16;
