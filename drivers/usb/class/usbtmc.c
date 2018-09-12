@@ -131,6 +131,7 @@ struct usbtmc_file_data {
 	u8             srq_byte;
 	atomic_t       srq_asserted;
 	atomic_t       closing;
+	u8             bmTransferAttributes; /* member of DEV_DEP_MSG_IN */
 
 	u8             eom_val;
 	u8             term_char;
@@ -1435,6 +1436,8 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 				       (buffer[6] << 16) +
 				       (buffer[7] << 24);
 
+			file_data->bmTransferAttributes = buffer[8];
+
 			if (n_characters > this_part) {
 				dev_err(dev, "Device wants to return more data than requested: %u > %zu\n", n_characters, count);
 				if (data->auto_abort)
@@ -2197,6 +2200,11 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case USBTMC488_IOCTL_WAIT_SRQ:
 		retval = usbtmc488_ioctl_wait_srq(file_data,
 						  (__u32 __user *)arg);
+		break;
+
+	case USBTMC_IOCTL_MSG_IN_ATTR:
+		retval = put_user(file_data->bmTransferAttributes,
+				  (__u8 __user *)arg);
 		break;
 
 	case USBTMC_IOCTL_CANCEL_IO:
