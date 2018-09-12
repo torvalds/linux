@@ -1632,20 +1632,17 @@ exit:
 
 static int usbtmc_ioctl_clear(struct usbtmc_device_data *data)
 {
-	struct usb_host_interface *current_setting;
-	struct usb_endpoint_descriptor *desc;
 	struct device *dev;
 	u8 *buffer;
 	int rv;
 	int n;
 	int actual = 0;
-	int max_size;
 
 	dev = &data->intf->dev;
 
 	dev_dbg(dev, "Sending INITIATE_CLEAR request\n");
 
-	buffer = kmalloc(USBTMC_SIZE_IOBUFFER, GFP_KERNEL);
+	buffer = kmalloc(USBTMC_BUFSIZE, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -1653,7 +1650,7 @@ static int usbtmc_ioctl_clear(struct usbtmc_device_data *data)
 			     usb_rcvctrlpipe(data->usb_dev, 0),
 			     USBTMC_REQUEST_INITIATE_CLEAR,
 			     USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			     0, 0, buffer, 1, USBTMC_TIMEOUT);
+			     0, 0, buffer, 1, USB_CTRL_GET_TIMEOUT);
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
 		goto exit;
@@ -1667,22 +1664,6 @@ static int usbtmc_ioctl_clear(struct usbtmc_device_data *data)
 		goto exit;
 	}
 
-	max_size = 0;
-	current_setting = data->intf->cur_altsetting;
-	for (n = 0; n < current_setting->desc.bNumEndpoints; n++) {
-		desc = &current_setting->endpoint[n].desc;
-		if (desc->bEndpointAddress == data->bulk_in)
-			max_size = usb_endpoint_maxp(desc);
-	}
-
-	if (max_size == 0) {
-		dev_err(dev, "Couldn't get wMaxPacketSize\n");
-		rv = -EPERM;
-		goto exit;
-	}
-
-	dev_dbg(dev, "wMaxPacketSize is %d\n", max_size);
-
 	n = 0;
 
 usbtmc_clear_check_status:
@@ -1693,7 +1674,7 @@ usbtmc_clear_check_status:
 			     usb_rcvctrlpipe(data->usb_dev, 0),
 			     USBTMC_REQUEST_CHECK_CLEAR_STATUS,
 			     USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			     0, 0, buffer, 2, USBTMC_TIMEOUT);
+			     0, 0, buffer, 2, USB_CTRL_GET_TIMEOUT);
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
 		goto exit;
@@ -1710,15 +1691,19 @@ usbtmc_clear_check_status:
 		goto exit;
 	}
 
-	if (buffer[1] == 1)
+	if ((buffer[1] & 1) != 0) {
 		do {
 			dev_dbg(dev, "Reading from bulk in EP\n");
 
 			rv = usb_bulk_msg(data->usb_dev,
 					  usb_rcvbulkpipe(data->usb_dev,
 							  data->bulk_in),
-					  buffer, USBTMC_SIZE_IOBUFFER,
-					  &actual, USBTMC_TIMEOUT);
+					  buffer, USBTMC_BUFSIZE,
+					  &actual, USB_CTRL_GET_TIMEOUT);
+
+			print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE,
+					     16, 1, buffer, actual, true);
+
 			n++;
 
 			if (rv < 0) {
@@ -1726,10 +1711,15 @@ usbtmc_clear_check_status:
 					rv);
 				goto exit;
 			}
-		} while ((actual == max_size) &&
+		} while ((actual == USBTMC_BUFSIZE) &&
 			  (n < USBTMC_MAX_READS_TO_CLEAR_BULK_IN));
+	} else {
+		/* do not stress device with subsequent requests */
+		msleep(50);
+		n++;
+	}
 
-	if (actual == max_size) {
+	if (n >= USBTMC_MAX_READS_TO_CLEAR_BULK_IN) {
 		dev_err(dev, "Couldn't clear device buffer within %d cycles\n",
 			USBTMC_MAX_READS_TO_CLEAR_BULK_IN);
 		rv = -EPERM;
@@ -1743,7 +1733,7 @@ usbtmc_clear_bulk_out_halt:
 	rv = usb_clear_halt(data->usb_dev,
 			    usb_sndbulkpipe(data->usb_dev, data->bulk_out));
 	if (rv < 0) {
-		dev_err(dev, "usb_control_msg returned %d\n", rv);
+		dev_err(dev, "usb_clear_halt returned %d\n", rv);
 		goto exit;
 	}
 	rv = 0;
