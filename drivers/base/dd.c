@@ -966,6 +966,13 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 			dev->bus->remove(dev);
 		else if (drv->remove)
 			drv->remove(dev);
+		/*
+		 * A concurrent invocation of the same function might
+		 * have released the driver successfully while this one
+		 * was waiting, so check for that.
+		 */
+		if (dev->driver != drv)
+			return;
 
 		device_links_driver_cleanup(dev);
 		arch_teardown_dma_ops(dev);

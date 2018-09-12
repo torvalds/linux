@@ -929,6 +929,10 @@ void *vfio_del_group_dev(struct device *dev)
 	unsigned int i = 0;
 	long ret;
 	bool interrupted = false;
+	bool locked = true;
+	struct device_driver *drv;
+
+	drv = dev->driver;
 
 	/*
 	 * The group exists so long as we have a device reference.  Get
@@ -969,8 +973,11 @@ void *vfio_del_group_dev(struct device *dev)
 		if (!device)
 			break;
 
-		if (device->ops->request)
+		if (device->ops->request) {
+			device_unlock(dev);
+			locked = false;
 			device->ops->request(device_data, i++);
+		}
 
 		vfio_device_put(device);
 
@@ -987,6 +994,20 @@ void *vfio_del_group_dev(struct device *dev)
 					 " \"%s\" (%d) "
 					 "blocked until device is released",
 					 current->comm, task_pid_nr(current));
+			}
+		}
+
+		if (!locked) {
+			device_lock(dev);
+			locked = true;
+			/*
+			 * A concurrent operation may have released the driver
+			 * successfully while we had dropped the lock,
+			 * check for that.
+			 */
+			if (dev->driver != drv) {
+				vfio_group_put(group);
+				return NULL;
 			}
 		}
 	} while (ret <= 0);
