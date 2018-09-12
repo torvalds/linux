@@ -681,7 +681,7 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
 
 	/* Check if the request is finished successfully */
 	if (active_flag) {
-		rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
+		rc = eeh_wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
 		if (rc < 0)
 			return rc;
 
@@ -920,16 +920,15 @@ int eeh_pe_reset_full(struct eeh_pe *pe)
 			break;
 
 		/* Wait until the PE is in a functioning state */
-		state = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
-		if (eeh_state_active(state))
-			break;
-
+		state = eeh_wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
 		if (state < 0) {
 			pr_warn("%s: Unrecoverable slot failure on PHB#%x-PE#%x",
 				__func__, pe->phb->global_number, pe->addr);
 			ret = -ENOTRECOVERABLE;
 			break;
 		}
+		if (eeh_state_active(state))
+			break;
 
 		/* Set error in case this is our last attempt */
 		ret = -EIO;

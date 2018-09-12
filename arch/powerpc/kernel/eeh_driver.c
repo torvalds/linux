@@ -836,7 +836,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	/* Get the current PCI slot state. This can take a long time,
 	 * sometimes over 300 seconds for certain systems.
 	 */
-	rc = eeh_ops->wait_state(pe, MAX_WAIT_FOR_RECOVERY*1000);
+	rc = eeh_wait_state(pe, MAX_WAIT_FOR_RECOVERY*1000);
 	if (rc < 0 || rc == EEH_STATE_NOT_SUPPORT) {
 		pr_warn("EEH: Permanent failure\n");
 		goto hard_fail;

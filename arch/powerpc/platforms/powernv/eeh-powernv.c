@@ -1134,43 +1134,6 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 }
 
 /**
- * pnv_eeh_wait_state - Wait for PE state
- * @pe: EEH PE
- * @max_wait: maximal period in millisecond
- *
- * Wait for the state of associated PE. It might take some time
- * to retrieve the PE's state.
- */
-static int pnv_eeh_wait_state(struct eeh_pe *pe, int max_wait)
-{
-	int ret;
-	int mwait;
-
-	while (1) {
-		ret = pnv_eeh_get_state(pe, &mwait);
-
-		/*
-		 * If the PE's state is temporarily unavailable,
-		 * we have to wait for the specified time. Otherwise,
-		 * the PE's state will be returned immediately.
-		 */
-		if (ret != EEH_STATE_UNAVAILABLE)
-			return ret;
-
-		if (max_wait <= 0) {
-			pr_warn("%s: Timeout getting PE#%x's state (%d)\n",
-				__func__, pe->addr, max_wait);
-			return EEH_STATE_NOT_SUPPORT;
-		}
-
-		max_wait -= mwait;
-		msleep(mwait);
-	}
-
-	return EEH_STATE_NOT_SUPPORT;
-}
-
-/**
  * pnv_eeh_get_log - Retrieve error log
  * @pe: EEH PE
  * @severity: temporary or permanent error log
@@ -1688,7 +1651,6 @@ static struct eeh_ops pnv_eeh_ops = {
 	.get_pe_addr            = pnv_eeh_get_pe_addr,
 	.get_state              = pnv_eeh_get_state,
 	.reset                  = pnv_eeh_reset,
-	.wait_state             = pnv_eeh_wait_state,
 	.get_log                = pnv_eeh_get_log,
 	.configure_bridge       = pnv_eeh_configure_bridge,
 	.err_inject		= pnv_eeh_err_inject,
