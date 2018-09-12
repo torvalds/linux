@@ -1877,7 +1877,22 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	serial8250_modem_status(up);
 	if ((!up->dma || up->dma->tx_err) && (status & UART_LSR_THRE))
 		serial8250_tx_chars(up);
+#ifdef CONFIG_ARCH_ROCKCHIP
+	if (status & UART_LSR_BRK_ERROR_BITS) {
 
+		if (status & UART_LSR_OE)
+			pr_err("%s: Overrun error!\n", port->name);
+		if (status & UART_LSR_PE)
+			pr_err("%s: Parity error!\n", port->name);
+		if (status & UART_LSR_FE)
+			pr_err("%s: Frame error!\n", port->name);
+		if (status & UART_LSR_BI)
+			pr_err("%s: Break interrupt!\n", port->name);
+
+		pr_err("%s: maybe rx pin is low or baudrate is not correct!\n",
+			port->name);
+	}
+#endif
 	spin_unlock_irqrestore(&port->lock, flags);
 	return 1;
 }
