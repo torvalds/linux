@@ -619,7 +619,7 @@ static inline struct sk_buff *tap_alloc_skb(struct sock *sk, size_t prepad,
 #define TAP_RESERVE HH_DATA_OFF(ETH_HLEN)
 
 /* Get packet from user space buffer */
-static ssize_t tap_get_user(struct tap_queue *q, struct msghdr *m,
+static ssize_t tap_get_user(struct tap_queue *q, void *msg_control,
 			    struct iov_iter *from, int noblock)
 {
 	int good_linear = SKB_MAX_HEAD(TAP_RESERVE);
@@ -663,7 +663,7 @@ static ssize_t tap_get_user(struct tap_queue *q, struct msghdr *m,
 	if (unlikely(len < ETH_HLEN))
 		goto err;
 
-	if (m && m->msg_control && sock_flag(&q->sk, SOCK_ZEROCOPY)) {
+	if (msg_control && sock_flag(&q->sk, SOCK_ZEROCOPY)) {
 		struct iov_iter i;
 
 		copylen = vnet_hdr.hdr_len ?
@@ -724,11 +724,11 @@ static ssize_t tap_get_user(struct tap_queue *q, struct msghdr *m,
 	tap = rcu_dereference(q->tap);
 	/* copy skb_ubuf_info for callback when skb has no error */
 	if (zerocopy) {
-		skb_shinfo(skb)->destructor_arg = m->msg_control;
+		skb_shinfo(skb)->destructor_arg = msg_control;
 		skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
 		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
-	} else if (m && m->msg_control) {
-		struct ubuf_info *uarg = m->msg_control;
+	} else if (msg_control) {
+		struct ubuf_info *uarg = msg_control;
 		uarg->callback(uarg, false);
 	}
 
@@ -1150,7 +1150,13 @@ static int tap_sendmsg(struct socket *sock, struct msghdr *m,
 		       size_t total_len)
 {
 	struct tap_queue *q = container_of(sock, struct tap_queue, sock);
-	return tap_get_user(q, m, &m->msg_iter, m->msg_flags & MSG_DONTWAIT);
+	struct tun_msg_ctl *ctl = m->msg_control;
+
+	if (ctl && ctl->type != TUN_MSG_UBUF)
+		return -EINVAL;
+
+	return tap_get_user(q, ctl ? ctl->ptr : NULL, &m->msg_iter,
+			    m->msg_flags & MSG_DONTWAIT);
 }
 
 static int tap_recvmsg(struct socket *sock, struct msghdr *m,

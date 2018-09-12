@@ -620,6 +620,7 @@ static void handle_tx_zerocopy(struct vhost_net *net, struct socket *sock)
 		.msg_controllen = 0,
 		.msg_flags = MSG_DONTWAIT,
 	};
+	struct tun_msg_ctl ctl;
 	size_t len, total_len = 0;
 	int err;
 	struct vhost_net_ubuf_ref *uninitialized_var(ubufs);
@@ -664,8 +665,10 @@ static void handle_tx_zerocopy(struct vhost_net *net, struct socket *sock)
 			ubuf->ctx = nvq->ubufs;
 			ubuf->desc = nvq->upend_idx;
 			refcount_set(&ubuf->refcnt, 1);
-			msg.msg_control = ubuf;
-			msg.msg_controllen = sizeof(ubuf);
+			msg.msg_control = &ctl;
+			ctl.type = TUN_MSG_UBUF;
+			ctl.ptr = ubuf;
+			msg.msg_controllen = sizeof(ctl);
 			ubufs = nvq->ubufs;
 			atomic_inc(&ubufs->refcount);
 			nvq->upend_idx = (nvq->upend_idx + 1) % UIO_MAXIOV;
