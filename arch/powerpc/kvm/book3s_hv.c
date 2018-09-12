@@ -104,6 +104,10 @@ static bool indep_threads_mode = true;
 module_param(indep_threads_mode, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(indep_threads_mode, "Independent-threads mode (only on POWER9)");
 
+static bool one_vm_per_core;
+module_param(one_vm_per_core, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(one_vm_per_core, "Only run vCPUs from the same VM on a core (requires indep_threads_mode=N)");
+
 #ifdef CONFIG_KVM_XICS
 static struct kernel_param_ops module_param_ops = {
 	.set = param_set_int,
@@ -2491,6 +2495,10 @@ static bool can_dynamic_split(struct kvmppc_vcore *vc, struct core_info *cip)
 	int sub;
 
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
+		return false;
+
+	/* In one_vm_per_core mode, require all vcores to be from the same vm */
+	if (one_vm_per_core && vc->kvm != cip->vc[0]->kvm)
 		return false;
 
 	/* Some POWER9 chips require all threads to be in the same MMU mode */
