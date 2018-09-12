@@ -1660,7 +1660,6 @@ static int tun_xdp_act(struct tun_struct *tun, struct bpf_prog *xdp_prog,
 	switch (act) {
 	case XDP_REDIRECT:
 		err = xdp_do_redirect(tun->dev, xdp, xdp_prog);
-		xdp_do_flush_map();
 		if (err)
 			return err;
 		break;
@@ -1749,6 +1748,8 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 		err = tun_xdp_act(tun, xdp_prog, &xdp, act);
 		if (err < 0)
 			goto err_xdp;
+		if (err == XDP_REDIRECT)
+			xdp_do_flush_map();
 		if (err != XDP_PASS)
 			goto out;
 
