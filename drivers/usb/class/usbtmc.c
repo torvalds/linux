@@ -2306,7 +2306,9 @@ static void usbtmc_free_int(struct usbtmc_device_data *data)
 		return;
 	usb_kill_urb(data->iin_urb);
 	kfree(data->iin_buffer);
+	data->iin_buffer = NULL;
 	usb_free_urb(data->iin_urb);
+	data->iin_urb = NULL;
 	kref_put(&data->kref, usbtmc_delete);
 }
 
@@ -2488,13 +2490,25 @@ static int usbtmc_suspend(struct usb_interface *intf, pm_message_t message)
 				       file_elem);
 		usbtmc_draw_down(file_data);
 	}
+
+	if (data->iin_ep_present && data->iin_urb)
+		usb_kill_urb(data->iin_urb);
+
 	mutex_unlock(&data->io_mutex);
 	return 0;
 }
 
 static int usbtmc_resume(struct usb_interface *intf)
 {
-	return 0;
+	struct usbtmc_device_data *data = usb_get_intfdata(intf);
+	int retcode = 0;
+
+	if (data->iin_ep_present && data->iin_urb)
+		retcode = usb_submit_urb(data->iin_urb, GFP_KERNEL);
+	if (retcode)
+		dev_err(&intf->dev, "Failed to submit iin_urb\n");
+
+	return retcode;
 }
 
 static int usbtmc_pre_reset(struct usb_interface *intf)
