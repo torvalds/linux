@@ -293,17 +293,18 @@ static ssize_t parse_container(u8 *ucode, ssize_t size, struct cont_desc *desc)
 	u16 eq_id;
 	u8 *buf;
 
-	/* Am I looking at an equivalence table header? */
-	if (hdr[0] != UCODE_MAGIC ||
-	    hdr[1] != UCODE_EQUIV_CPU_TABLE_TYPE ||
-	    hdr[2] == 0)
-		return CONTAINER_HDR_SZ;
+	if (!verify_equivalence_table(ucode, size, true))
+		return 0;
 
 	buf = ucode;
 
 	eq = (struct equiv_cpu_entry *)(buf + CONTAINER_HDR_SZ);
 
-	/* Find the equivalence ID of our CPU in this table: */
+	/*
+	 * Find the equivalence ID of our CPU in this table. Even if this table
+	 * doesn't contain a patch for the CPU, scan through the whole container
+	 * so that it can be skipped in case there are other containers appended.
+	 */
 	eq_id = find_equiv_id(eq, desc->cpuid_1_eax);
 
 	buf  += hdr[2] + CONTAINER_HDR_SZ;
@@ -316,29 +317,29 @@ static ssize_t parse_container(u8 *ucode, ssize_t size, struct cont_desc *desc)
 	while (size > 0) {
 		struct microcode_amd *mc;
 		u32 patch_size;
+		int ret;
 
-		hdr = (u32 *)buf;
+		ret = verify_patch(x86_family(desc->cpuid_1_eax), buf, size, &patch_size, true);
+		if (ret < 0) {
+			/*
+			 * Patch verification failed, skip to the next
+			 * container, if there's one:
+			 */
+			goto out;
+		} else if (ret > 0) {
+			goto skip;
+		}
 
-		if (hdr[0] != UCODE_UCODE_TYPE)
-			break;
-
-		/* Sanity-check patch size. */
-		patch_size = hdr[1];
-		if (patch_size > PATCH_MAX_SIZE)
-			break;
-
-		/* Skip patch section header: */
-		buf  += SECTION_HDR_SIZE;
-		size -= SECTION_HDR_SIZE;
-
-		mc = (struct microcode_amd *)buf;
+		mc = (struct microcode_amd *)(buf + SECTION_HDR_SIZE);
 		if (eq_id == mc->hdr.processor_rev_id) {
 			desc->psize = patch_size;
 			desc->mc = mc;
 		}
 
-		buf  += patch_size;
-		size -= patch_size;
+skip:
+		/* Skip patch section header too: */
+		buf  += patch_size + SECTION_HDR_SIZE;
+		size -= patch_size + SECTION_HDR_SIZE;
 	}
 
 	/*
@@ -355,6 +356,7 @@ static ssize_t parse_container(u8 *ucode, ssize_t size, struct cont_desc *desc)
 		return 0;
 	}
 
+out:
 	return orig_size - size;
 }
 
