@@ -173,7 +173,7 @@ struct lio {
 	struct cavium_wq	txq_status_wq;
 
 	/* work queue for  rxq oom status */
-	struct cavium_wq	rxq_status_wq;
+	struct cavium_wq rxq_status_wq[MAX_POSSIBLE_OCTEON_OUTPUT_QUEUES];
 
 	/* work queue for  link status */
 	struct cavium_wq	link_status_wq;

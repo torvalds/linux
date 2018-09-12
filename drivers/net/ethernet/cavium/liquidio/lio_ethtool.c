@@ -1115,6 +1115,8 @@ static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs)
 	 * steps like updating sriov_info for the octeon device need to be done.
 	 */
 	if (queue_count_update) {
+		cleanup_rx_oom_poll_fn(netdev);
+
 		lio_delete_glists(lio);
 
 		/* Delete mbox for PF which is SRIOV disabled because sriov_info
@@ -1212,6 +1214,11 @@ static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs)
 		if (lio_setup_glists(oct, lio, num_qs)) {
 			dev_err(&oct->pci_dev->dev, "Gather list allocation failed\n");
 			return -1;
+		}
+
+		if (setup_rx_oom_poll_fn(netdev)) {
+			dev_err(&oct->pci_dev->dev, "lio_setup_rx_oom_poll_fn failed\n");
+			return 1;
 		}
 
 		/* Send firmware the information about new number of queues

@@ -70,6 +70,10 @@ void octeon_update_tx_completion_counters(void *buf, int reqtype,
 void octeon_report_tx_completion_to_bql(void *txq, unsigned int pkts_compl,
 					unsigned int bytes_compl);
 void octeon_pf_changed_vf_macaddr(struct octeon_device *oct, u8 *mac);
+
+void octeon_schedule_rxq_oom_work(struct octeon_device *oct,
+				  struct octeon_droq *droq);
+
 /** Swap 8B blocks */
 static inline void octeon_swap_8B_data(u64 *data, u32 blocks)
 {
