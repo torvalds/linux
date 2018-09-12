@@ -186,8 +186,7 @@ __verify_patch_section(const u8 *buf, size_t buf_size, u32 *sh_psize, bool early
  * exceed the per-family maximum). @sh_psize is the size read from the section
  * header.
  */
-static unsigned int
-__verify_patch_size(u8 family, u32 sh_psize, unsigned int buf_size)
+static unsigned int __verify_patch_size(u8 family, u32 sh_psize, size_t buf_size)
 {
 	u32 max_size;
 
@@ -285,10 +284,10 @@ verify_patch(u8 family, const u8 *buf, size_t buf_size, u32 *patch_size, bool ea
  * Returns the amount of bytes consumed while scanning. @desc contains all the
  * data we're going to use in later stages of the application.
  */
-static ssize_t parse_container(u8 *ucode, ssize_t size, struct cont_desc *desc)
+static size_t parse_container(u8 *ucode, size_t size, struct cont_desc *desc)
 {
 	struct equiv_cpu_entry *eq;
-	ssize_t orig_size = size;
+	size_t orig_size = size;
 	u32 *hdr = (u32 *)ucode;
 	u16 eq_id;
 	u8 *buf;
@@ -366,15 +365,18 @@ out:
  */
 static void scan_containers(u8 *ucode, size_t size, struct cont_desc *desc)
 {
-	ssize_t rem = size;
-
-	while (rem >= 0) {
-		ssize_t s = parse_container(ucode, rem, desc);
+	while (size) {
+		size_t s = parse_container(ucode, size, desc);
 		if (!s)
 			return;
 
-		ucode += s;
-		rem   -= s;
+		/* catch wraparound */
+		if (size >= s) {
+			ucode += s;
+			size  -= s;
+		} else {
+			return;
+		}
 	}
 }
 
