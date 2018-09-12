@@ -60,6 +60,8 @@ static struct fb_ops rockchip_drm_fbdev_ops = {
 	.fb_set_par	= drm_fb_helper_set_par,
 	.fb_blank	= drm_fb_helper_blank,
 	.fb_pan_display	= drm_fb_helper_pan_display,
+	.fb_read	= drm_fb_helper_sys_read,
+	.fb_write	= drm_fb_helper_sys_write,
 	.fb_setcmap	= drm_fb_helper_setcmap,
 	.fb_dmabuf_export	= rockchip_fbdev_get_dma_buf,
 };
