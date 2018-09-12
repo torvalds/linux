@@ -1115,13 +1115,13 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 		 | BIT(DPU_SSPP_CSC_10BIT))))) {
 		DPU_ERROR_PLANE(pdpu,
 				"plane doesn't have scaler/csc for yuv\n");
-		ret = -EINVAL;
+		return -EINVAL;
 
 	/* check src bounds */
 	} else if (!dpu_plane_validate_src(&src, &fb_rect, min_src_size)) {
 		DPU_ERROR_PLANE(pdpu, "invalid source " DRM_RECT_FMT "\n",
 				DRM_RECT_ARG(&src));
-		ret = -E2BIG;
+		return -E2BIG;
 
 	/* valid yuv image */
 	} else if (DPU_FORMAT_IS_YUV(fmt) &&
@@ -1130,22 +1130,22 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 		    drm_rect_height(&src) & 0x1)) {
 		DPU_ERROR_PLANE(pdpu, "invalid yuv source " DRM_RECT_FMT "\n",
 				DRM_RECT_ARG(&src));
-		ret = -EINVAL;
+		return -EINVAL;
 
 	/* min dst support */
 	} else if (drm_rect_width(&dst) < 0x1 || drm_rect_height(&dst) < 0x1) {
 		DPU_ERROR_PLANE(pdpu, "invalid dest rect " DRM_RECT_FMT "\n",
 				DRM_RECT_ARG(&dst));
-		ret = -EINVAL;
+		return -EINVAL;
 
 	/* check decimated source width */
 	} else if (drm_rect_width(&src) > max_linewidth) {
 		DPU_ERROR_PLANE(pdpu, "invalid src " DRM_RECT_FMT " line:%u\n",
 				DRM_RECT_ARG(&src), max_linewidth);
-		ret = -E2BIG;
+		return -E2BIG;
 	}
 
-	return ret;
+	return 0;
 }
 
 void dpu_plane_flush(struct drm_plane *plane)
