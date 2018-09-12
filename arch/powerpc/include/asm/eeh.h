@@ -241,11 +241,7 @@ static inline bool eeh_has_flag(int flag)
 
 static inline bool eeh_enabled(void)
 {
-	if (eeh_has_flag(EEH_FORCE_DISABLED) ||
-	    !eeh_has_flag(EEH_ENABLED))
-		return false;
-
-	return true;
+	return eeh_has_flag(EEH_ENABLED) && !eeh_has_flag(EEH_FORCE_DISABLED);
 }
 
 static inline void eeh_serialize_lock(unsigned long *flags)
