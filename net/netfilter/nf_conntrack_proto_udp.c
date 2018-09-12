@@ -290,7 +290,7 @@ static int udp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 	return 0;
 }
 
-static int udp_init_net(struct net *net, u_int16_t proto)
+static int udp_init_net(struct net *net)
 {
 	struct nf_udp_net *un = udp_pernet(net);
 	struct nf_proto_net *pn = &un->pn;

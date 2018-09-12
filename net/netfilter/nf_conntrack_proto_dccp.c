@@ -812,7 +812,7 @@ static int dccp_kmemdup_sysctl_table(struct net *net, struct nf_proto_net *pn,
 	return 0;
 }
 
-static int dccp_init_net(struct net *net, u_int16_t proto)
+static int dccp_init_net(struct net *net)
 {
 	struct nf_dccp_net *dn = dccp_pernet(net);
 	struct nf_proto_net *pn = &dn->pn;

@@ -84,7 +84,7 @@ struct nf_conntrack_l4proto {
 #endif
 	unsigned int	*net_id;
 	/* Init l4proto pernet data */
-	int (*init_net)(struct net *net, u_int16_t proto);
+	int (*init_net)(struct net *net);
 
 	/* Return the per-net protocol part. */
 	struct nf_proto_net *(*get_net_proto)(struct net *net);

@@ -1506,7 +1506,7 @@ static int tcp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 	return 0;
 }
 
-static int tcp_init_net(struct net *net, u_int16_t proto)
+static int tcp_init_net(struct net *net)
 {
 	struct nf_tcp_net *tn = tcp_pernet(net);
 	struct nf_proto_net *pn = &tn->pn;

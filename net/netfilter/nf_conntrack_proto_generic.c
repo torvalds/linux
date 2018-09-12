@@ -136,7 +136,7 @@ static int generic_kmemdup_sysctl_table(struct nf_proto_net *pn,
 	return 0;
 }
 
-static int generic_init_net(struct net *net, u_int16_t proto)
+static int generic_init_net(struct net *net)
 {
 	struct nf_generic_net *gn = generic_pernet(net);
 	struct nf_proto_net *pn = &gn->pn;

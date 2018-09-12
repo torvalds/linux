@@ -332,7 +332,7 @@ static int icmp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 	return 0;
 }
 
-static int icmp_init_net(struct net *net, u_int16_t proto)
+static int icmp_init_net(struct net *net)
 {
 	struct nf_icmp_net *in = icmp_pernet(net);
 	struct nf_proto_net *pn = &in->pn;

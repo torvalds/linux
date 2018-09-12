@@ -274,7 +274,7 @@ int nf_ct_l4proto_pernet_register_one(struct net *net,
 	struct nf_proto_net *pn = NULL;
 
 	if (l4proto->init_net) {
-		ret = l4proto->init_net(net, l4proto->l3proto);
+		ret = l4proto->init_net(net);
 		if (ret < 0)
 			goto out;
 	}
@@ -988,8 +988,7 @@ int nf_conntrack_proto_pernet_init(struct net *net)
 	struct nf_proto_net *pn = nf_ct_l4proto_net(net,
 					&nf_conntrack_l4proto_generic);
 
-	err = nf_conntrack_l4proto_generic.init_net(net,
-					nf_conntrack_l4proto_generic.l3proto);
+	err = nf_conntrack_l4proto_generic.init_net(net);
 	if (err < 0)
 		return err;
 	err = nf_ct_l4proto_register_sysctl(net,
