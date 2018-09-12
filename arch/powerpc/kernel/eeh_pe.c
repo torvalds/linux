@@ -456,7 +456,8 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 	int cnt;
 	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
-	if (!edev->pe) {
+	pe = eeh_dev_to_pe(edev);
+	if (!pe) {
 		pr_debug("%s: No PE found for device %04x:%02x:%02x.%01x\n",
 			 __func__,  pdn->phb->global_number,
 			 pdn->busno,
@@ -466,7 +467,6 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 	}
 
 	/* Remove the EEH device */
-	pe = eeh_dev_to_pe(edev);
 	edev->pe = NULL;
 	list_del(&edev->entry);
 
