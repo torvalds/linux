@@ -358,3 +358,7 @@ void caam_strstatus(struct device *jrdev, u32 status, bool qi_v2)
 		dev_err(jrdev, "%d: unknown error source\n", ssrc);
 }
 EXPORT_SYMBOL(caam_strstatus);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("FSL CAAM error reporting");
+MODULE_AUTHOR("Freescale Semiconductor");

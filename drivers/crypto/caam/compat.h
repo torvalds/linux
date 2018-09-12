@@ -17,6 +17,7 @@
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/iommu.h>
 #include <linux/spinlock.h>
 #include <linux/rtnetlink.h>
 #include <linux/in.h>
