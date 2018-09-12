@@ -1786,24 +1786,20 @@ static int mos7720_tiocmset(struct tty_struct *tty,
 	return 0;
 }
 
-static int get_serial_info(struct moschip_port *mos7720_port,
-			   struct serial_struct __user *retinfo)
+static int get_serial_info(struct tty_struct *tty,
+			   struct serial_struct *ss)
 {
-	struct serial_struct tmp;
+	struct usb_serial_port *port = tty->driver_data;
+	struct moschip_port *mos7720_port = usb_get_serial_port_data(port);
 
-	memset(&tmp, 0, sizeof(tmp));
-
-	tmp.type		= PORT_16550A;
-	tmp.line		= mos7720_port->port->minor;
-	tmp.port		= mos7720_port->port->port_number;
-	tmp.irq			= 0;
-	tmp.xmit_fifo_size	= NUM_URBS * URB_TRANSFER_BUFFER_SIZE;
-	tmp.baud_base		= 9600;
-	tmp.close_delay		= 5*HZ;
-	tmp.closing_wait	= 30*HZ;
-
-	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
-		return -EFAULT;
+	ss->type		= PORT_16550A;
+	ss->line		= mos7720_port->port->minor;
+	ss->port		= mos7720_port->port->port_number;
+	ss->irq			= 0;
+	ss->xmit_fifo_size	= NUM_URBS * URB_TRANSFER_BUFFER_SIZE;
+	ss->baud_base		= 9600;
+	ss->close_delay		= 5*HZ;
+	ss->closing_wait	= 30*HZ;
 	return 0;
 }
 
@@ -1822,11 +1818,6 @@ static int mos7720_ioctl(struct tty_struct *tty,
 		dev_dbg(&port->dev, "%s TIOCSERGETLSR\n", __func__);
 		return get_lsr_info(tty, mos7720_port,
 					(unsigned int __user *)arg);
-
-	case TIOCGSERIAL:
-		dev_dbg(&port->dev, "%s TIOCGSERIAL\n", __func__);
-		return get_serial_info(mos7720_port,
-				       (struct serial_struct __user *)arg);
 	}
 
 	return -ENOIOCTLCMD;
@@ -1963,6 +1954,7 @@ static struct usb_serial_driver moschip7720_2port_driver = {
 	.ioctl			= mos7720_ioctl,
 	.tiocmget		= mos7720_tiocmget,
 	.tiocmset		= mos7720_tiocmset,
+	.get_serial		= get_serial_info,
 	.set_termios		= mos7720_set_termios,
 	.write			= mos7720_write,
 	.write_room		= mos7720_write_room,
