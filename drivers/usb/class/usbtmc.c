@@ -1509,94 +1509,136 @@ static ssize_t usbtmc_write(struct file *filp, const char __user *buf,
 {
 	struct usbtmc_file_data *file_data;
 	struct usbtmc_device_data *data;
+	struct urb *urb = NULL;
+	ssize_t retval = 0;
 	u8 *buffer;
-	int retval;
-	int actual;
-	unsigned long int n_bytes;
-	int remaining;
-	int done;
-	int this_part;
+	u32 remaining, done;
+	u32 transfersize, aligned, buflen;
 
 	file_data = filp->private_data;
 	data = file_data->data;
 
-	buffer = kmalloc(USBTMC_SIZE_IOBUFFER, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-
 	mutex_lock(&data->io_mutex);
+
 	if (data->zombie) {
 		retval = -ENODEV;
 		goto exit;
 	}
 
-	remaining = count;
 	done = 0;
 
-	while (remaining > 0) {
-		if (remaining > USBTMC_SIZE_IOBUFFER - USBTMC_HEADER_SIZE) {
-			this_part = USBTMC_SIZE_IOBUFFER - USBTMC_HEADER_SIZE;
-			buffer[8] = 0;
-		} else {
-			this_part = remaining;
-			buffer[8] = file_data->eom_val;
-		}
+	spin_lock_irq(&file_data->err_lock);
+	file_data->out_transfer_size = 0;
+	file_data->out_status = 0;
+	spin_unlock_irq(&file_data->err_lock);
 
-		/* Setup IO buffer for DEV_DEP_MSG_OUT message */
-		buffer[0] = 1;
-		buffer[1] = data->bTag;
-		buffer[2] = ~data->bTag;
-		buffer[3] = 0; /* Reserved */
-		buffer[4] = this_part >> 0;
-		buffer[5] = this_part >> 8;
-		buffer[6] = this_part >> 16;
-		buffer[7] = this_part >> 24;
-		/* buffer[8] is set above... */
-		buffer[9] = 0; /* Reserved */
-		buffer[10] = 0; /* Reserved */
-		buffer[11] = 0; /* Reserved */
+	if (!count)
+		goto exit;
 
-		if (copy_from_user(&buffer[USBTMC_HEADER_SIZE], buf + done, this_part)) {
-			retval = -EFAULT;
-			goto exit;
-		}
-
-		n_bytes = roundup(USBTMC_HEADER_SIZE + this_part, 4);
-		memset(buffer + USBTMC_HEADER_SIZE + this_part, 0, n_bytes - (USBTMC_HEADER_SIZE + this_part));
-
-		do {
-			retval = usb_bulk_msg(data->usb_dev,
-					      usb_sndbulkpipe(data->usb_dev,
-							      data->bulk_out),
-					      buffer, n_bytes,
-					      &actual, file_data->timeout);
-			if (retval != 0)
-				break;
-			n_bytes -= actual;
-		} while (n_bytes);
-
-		data->bTag_last_write = data->bTag;
-		data->bTag++;
-
-		if (!data->bTag)
-			data->bTag++;
-
-		if (retval < 0) {
-			dev_err(&data->intf->dev,
-				"Unable to send data, error %d\n", retval);
-			if (file_data->auto_abort)
-				usbtmc_ioctl_abort_bulk_out(data);
-			goto exit;
-		}
-
-		remaining -= this_part;
-		done += this_part;
+	if (down_trylock(&file_data->limit_write_sem)) {
+		/* previous calls were async */
+		retval = -EBUSY;
+		goto exit;
 	}
 
-	retval = count;
+	urb = usbtmc_create_urb();
+	if (!urb) {
+		retval = -ENOMEM;
+		up(&file_data->limit_write_sem);
+		goto exit;
+	}
+
+	buffer = urb->transfer_buffer;
+	buflen = urb->transfer_buffer_length;
+
+	if (count > INT_MAX) {
+		transfersize = INT_MAX;
+		buffer[8] = 0;
+	} else {
+		transfersize = count;
+		buffer[8] = file_data->eom_val;
+	}
+
+	/* Setup IO buffer for DEV_DEP_MSG_OUT message */
+	buffer[0] = 1;
+	buffer[1] = data->bTag;
+	buffer[2] = ~data->bTag;
+	buffer[3] = 0; /* Reserved */
+	buffer[4] = transfersize >> 0;
+	buffer[5] = transfersize >> 8;
+	buffer[6] = transfersize >> 16;
+	buffer[7] = transfersize >> 24;
+	/* buffer[8] is set above... */
+	buffer[9] = 0; /* Reserved */
+	buffer[10] = 0; /* Reserved */
+	buffer[11] = 0; /* Reserved */
+
+	remaining = transfersize;
+
+	if (transfersize + USBTMC_HEADER_SIZE > buflen) {
+		transfersize = buflen - USBTMC_HEADER_SIZE;
+		aligned = buflen;
+	} else {
+		aligned = (transfersize + (USBTMC_HEADER_SIZE + 3)) & ~3;
+	}
+
+	if (copy_from_user(&buffer[USBTMC_HEADER_SIZE], buf, transfersize)) {
+		retval = -EFAULT;
+		up(&file_data->limit_write_sem);
+		goto exit;
+	}
+
+	dev_dbg(&data->intf->dev, "%s(size:%u align:%u)\n", __func__,
+		(unsigned int)transfersize, (unsigned int)aligned);
+
+	print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE,
+			     16, 1, buffer, aligned, true);
+
+	usb_fill_bulk_urb(urb, data->usb_dev,
+		usb_sndbulkpipe(data->usb_dev, data->bulk_out),
+		urb->transfer_buffer, aligned,
+		usbtmc_write_bulk_cb, file_data);
+
+	usb_anchor_urb(urb, &file_data->submitted);
+	retval = usb_submit_urb(urb, GFP_KERNEL);
+	if (unlikely(retval)) {
+		usb_unanchor_urb(urb);
+		up(&file_data->limit_write_sem);
+		goto exit;
+	}
+
+	remaining -= transfersize;
+
+	data->bTag_last_write = data->bTag;
+	data->bTag++;
+
+	if (!data->bTag)
+		data->bTag++;
+
+	/* call generic_write even when remaining = 0 */
+	retval = usbtmc_generic_write(file_data, buf + transfersize, remaining,
+				      &done, USBTMC_FLAG_APPEND);
+	/* truncate alignment bytes */
+	if (done > remaining)
+		done = remaining;
+
+	/*add size of first urb*/
+	done += transfersize;
+
+	if (retval < 0) {
+		usb_kill_anchored_urbs(&file_data->submitted);
+
+		dev_err(&data->intf->dev,
+			"Unable to send data, error %d\n", (int)retval);
+		if (file_data->auto_abort)
+			usbtmc_ioctl_abort_bulk_out(data);
+		goto exit;
+	}
+
+	retval = done;
 exit:
+	usb_free_urb(urb);
 	mutex_unlock(&data->io_mutex);
-	kfree(buffer);
 	return retval;
 }
 
