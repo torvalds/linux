@@ -693,9 +693,14 @@ static int eb_reserve(struct i915_execbuffer *eb)
 			eb_unreserve_vma(vma, &eb->flags[i]);
 
 			if (flags & EXEC_OBJECT_PINNED)
+				/* Pinned must have their slot */
 				list_add(&vma->exec_link, &eb->unbound);
 			else if (flags & __EXEC_OBJECT_NEEDS_MAP)
+				/* Map require the lowest 256MiB (aperture) */
 				list_add_tail(&vma->exec_link, &eb->unbound);
+			else if (!(flags & EXEC_OBJECT_SUPPORTS_48B_ADDRESS))
+				/* Prioritise 4GiB region for restricted bo */
+				list_add(&vma->exec_link, &last);
 			else
 				list_add_tail(&vma->exec_link, &last);
 		}
