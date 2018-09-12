@@ -180,6 +180,8 @@ static const unsigned long top_clk_regs[] __initconst = {
 static const struct samsung_clk_reg_dump top_suspend_regs[] = {
 	/* force all aclk clocks enabled */
 	{ ENABLE_ACLK_TOP, 0x67ecffed },
+	/* force all sclk_uart clocks enabled */
+	{ ENABLE_SCLK_TOP_PERIC, 0x38 },
 	/* ISP PLL has to be enabled for suspend: reset value + ENABLE bit */
 	{ ISP_PLL_CON0, 0x85cc0502 },
 	/* ISP PLL has to be enabled for suspend: reset value + ENABLE bit */
