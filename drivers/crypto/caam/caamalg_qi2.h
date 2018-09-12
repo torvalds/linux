@@ -140,6 +140,24 @@ struct aead_edesc {
 	struct dpaa2_sg_entry sgt[0];
 };
 
+/*
+ * skcipher_edesc - s/w-extended skcipher descriptor
+ * @src_nents: number of segments in input scatterlist
+ * @dst_nents: number of segments in output scatterlist
+ * @iv_dma: dma address of iv for checking continuity and link table
+ * @qm_sg_bytes: length of dma mapped qm_sg space
+ * @qm_sg_dma: I/O virtual address of h/w link table
+ * @sgt: the h/w link table, followed by IV
+ */
+struct skcipher_edesc {
+	int src_nents;
+	int dst_nents;
+	dma_addr_t iv_dma;
+	int qm_sg_bytes;
+	dma_addr_t qm_sg_dma;
+	struct dpaa2_sg_entry sgt[0];
+};
+
 /**
  * caam_flc - Flow Context (FLC)
  * @flc: Flow Context options
@@ -167,7 +185,7 @@ enum optype {
  * @flc_dma: I/O virtual address of Flow Context
  * @cbk: Callback function to invoke when job is completed
  * @ctx: arbit context attached with request by the application
- * @edesc: extended descriptor; points to aead_edesc
+ * @edesc: extended descriptor; points to one of {skcipher,aead}_edesc
  */
 struct caam_request {
 	struct dpaa2_fl_entry fd_flt[2];

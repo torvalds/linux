@@ -157,6 +157,7 @@ config CRYPTO_DEV_FSL_DPAA2_CAAM
 	tristate "QorIQ DPAA2 CAAM (DPSECI) driver"
 	depends on FSL_MC_DPIO
 	select CRYPTO_DEV_FSL_CAAM_COMMON
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_AUTHENC
 	select CRYPTO_AEAD
 	help
