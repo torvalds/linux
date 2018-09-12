@@ -102,11 +102,6 @@ struct usbtmc_device_data {
 	/* coalesced usb488_caps from usbtmc_dev_capabilities */
 	__u8 usb488_caps;
 
-	/* attributes from the USB TMC spec for this device */
-	u8 TermChar;
-	bool TermCharEnabled;
-	bool auto_abort;
-
 	bool zombie; /* fd of disconnected device */
 
 	struct usbtmc_dev_capabilities	capabilities;
@@ -196,11 +191,10 @@ static int usbtmc_open(struct inode *inode, struct file *filp)
 
 	atomic_set(&file_data->closing, 0);
 
-	/* copy default values from device settings */
 	file_data->timeout = USBTMC_TIMEOUT;
-	file_data->term_char = data->TermChar;
-	file_data->term_char_enabled = data->TermCharEnabled;
-	file_data->auto_abort = data->auto_abort;
+	file_data->term_char = '\n';
+	file_data->term_char_enabled = 0;
+	file_data->auto_abort = 0;
 	file_data->eom_val = 1;
 
 	INIT_LIST_HEAD(&file_data->file_elem);
@@ -1851,72 +1845,6 @@ static const struct attribute_group capability_attr_grp = {
 	.attrs = capability_attrs,
 };
 
-static ssize_t TermChar_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	struct usb_interface *intf = to_usb_interface(dev);
-	struct usbtmc_device_data *data = usb_get_intfdata(intf);
-
-	return sprintf(buf, "%c\n", data->TermChar);
-}
-
-static ssize_t TermChar_store(struct device *dev,
-			      struct device_attribute *attr,
-			      const char *buf, size_t count)
-{
-	struct usb_interface *intf = to_usb_interface(dev);
-	struct usbtmc_device_data *data = usb_get_intfdata(intf);
-
-	if (count < 1)
-		return -EINVAL;
-	data->TermChar = buf[0];
-	return count;
-}
-static DEVICE_ATTR_RW(TermChar);
-
-#define data_attribute(name)						\
-static ssize_t name##_show(struct device *dev,				\
-			   struct device_attribute *attr, char *buf)	\
-{									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct usbtmc_device_data *data = usb_get_intfdata(intf);	\
-									\
-	return sprintf(buf, "%d\n", data->name);			\
-}									\
-static ssize_t name##_store(struct device *dev,				\
-			    struct device_attribute *attr,		\
-			    const char *buf, size_t count)		\
-{									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct usbtmc_device_data *data = usb_get_intfdata(intf);	\
-	ssize_t result;							\
-	unsigned val;							\
-									\
-	result = sscanf(buf, "%u\n", &val);				\
-	if (result != 1)						\
-		result = -EINVAL;					\
-	data->name = val;						\
-	if (result < 0)							\
-		return result;						\
-	else								\
-		return count;						\
-}									\
-static DEVICE_ATTR_RW(name)
-
-data_attribute(TermCharEnabled);
-data_attribute(auto_abort);
-
-static struct attribute *data_attrs[] = {
-	&dev_attr_TermChar.attr,
-	&dev_attr_TermCharEnabled.attr,
-	&dev_attr_auto_abort.attr,
-	NULL,
-};
-
-static const struct attribute_group data_attr_grp = {
-	.attrs = data_attrs,
-};
-
 static int usbtmc_ioctl_indicator_pulse(struct usbtmc_device_data *data)
 {
 	struct device *dev;
@@ -2420,8 +2348,6 @@ static int usbtmc_probe(struct usb_interface *intf,
 
 	/* Initialize USBTMC bTag and other fields */
 	data->bTag	= 1;
-	data->TermCharEnabled = 0;
-	data->TermChar = '\n';
 	/*  2 <= bTag <= 127   USBTMC-USB488 subclass specification 4.3.1 */
 	data->iin_bTag = 2;
 
@@ -2495,8 +2421,6 @@ static int usbtmc_probe(struct usb_interface *intf,
 		}
 	}
 
-	retcode = sysfs_create_group(&intf->dev.kobj, &data_attr_grp);
-
 	retcode = usb_register_dev(intf, &usbtmc_class);
 	if (retcode) {
 		dev_err(&intf->dev, "Not able to get a minor (base %u, slice default): %d\n",
@@ -2510,7 +2434,6 @@ static int usbtmc_probe(struct usb_interface *intf,
 
 error_register:
 	sysfs_remove_group(&intf->dev.kobj, &capability_attr_grp);
-	sysfs_remove_group(&intf->dev.kobj, &data_attr_grp);
 	usbtmc_free_int(data);
 err_put:
 	kref_put(&data->kref, usbtmc_delete);
@@ -2524,7 +2447,6 @@ static void usbtmc_disconnect(struct usb_interface *intf)
 
 	usb_deregister_dev(intf, &usbtmc_class);
 	sysfs_remove_group(&intf->dev.kobj, &capability_attr_grp);
-	sysfs_remove_group(&intf->dev.kobj, &data_attr_grp);
 	mutex_lock(&data->io_mutex);
 	data->zombie = 1;
 	wake_up_interruptible_all(&data->waitq);
