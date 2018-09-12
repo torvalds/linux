@@ -147,7 +147,6 @@ struct eeh_dev {
 	struct pci_dev *pdev;		/* Associated PCI device	*/
 	bool in_error;			/* Error flag for edev		*/
 	struct pci_dev *physfn;		/* Associated SRIOV PF		*/
-	struct pci_bus *bus;		/* PCI bus for partial hotplug	*/
 };
 
 static inline struct pci_dn *eeh_dev_to_pdn(struct eeh_dev *edev)

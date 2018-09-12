@@ -543,7 +543,6 @@ static void *eeh_rmv_device(struct eeh_dev *edev, void *userdata)
 	/* Remove it from PCI subsystem */
 	pr_debug("EEH: Removing %s without EEH sensitive driver\n",
 		 pci_name(dev));
-	edev->bus = dev->bus;
 	edev->mode |= EEH_DEV_DISCONNECTED;
 	if (removed)
 		(*removed)++;
