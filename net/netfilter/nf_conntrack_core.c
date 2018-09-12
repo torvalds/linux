@@ -1370,12 +1370,6 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 
 	timeout_ext = tmpl ? nf_ct_timeout_find(tmpl) : NULL;
 
-	if (!l4proto->new(ct, skb, dataoff)) {
-		nf_conntrack_free(ct);
-		pr_debug("can't track with proto module\n");
-		return NULL;
-	}
-
 	if (timeout_ext)
 		nf_ct_timeout_ext_add(ct, rcu_dereference(timeout_ext->timeout),
 				      GFP_ATOMIC);

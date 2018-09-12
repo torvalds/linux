@@ -70,13 +70,6 @@ static int udp_packet(struct nf_conn *ct,
 	return NF_ACCEPT;
 }
 
-/* Called when a new connection for this protocol found. */
-static bool udp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		    unsigned int dataoff)
-{
-	return true;
-}
-
 #ifdef CONFIG_NF_CT_PROTO_UDPLITE
 static void udplite_error_log(const struct sk_buff *skb,
 			      const struct nf_hook_state *state,
@@ -288,7 +281,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 =
 	.l4proto		= IPPROTO_UDP,
 	.allow_clash		= true,
 	.packet			= udp_packet,
-	.new			= udp_new,
 	.error			= udp_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
@@ -317,7 +309,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 =
 	.l4proto		= IPPROTO_UDPLITE,
 	.allow_clash		= true,
 	.packet			= udp_packet,
-	.new			= udp_new,
 	.error			= udplite_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
@@ -346,7 +337,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 =
 	.l4proto		= IPPROTO_UDP,
 	.allow_clash		= true,
 	.packet			= udp_packet,
-	.new			= udp_new,
 	.error			= udp_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
@@ -375,7 +365,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 =
 	.l4proto		= IPPROTO_UDPLITE,
 	.allow_clash		= true,
 	.packet			= udp_packet,
-	.new			= udp_new,
 	.error			= udplite_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,

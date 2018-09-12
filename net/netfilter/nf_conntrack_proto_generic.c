@@ -51,24 +51,17 @@ static int generic_packet(struct nf_conn *ct,
 {
 	const unsigned int *timeout = nf_ct_timeout_lookup(ct);
 
+	if (!nf_generic_should_process(nf_ct_protonum(ct))) {
+		pr_warn_once("conntrack: generic helper won't handle protocol %d. Please consider loading the specific helper module.\n",
+			     nf_ct_protonum(ct));
+		return -NF_ACCEPT;
+	}
+
 	if (!timeout)
 		timeout = &generic_pernet(nf_ct_net(ct))->timeout;
 
 	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
 	return NF_ACCEPT;
-}
-
-/* Called when a new connection for this protocol found. */
-static bool generic_new(struct nf_conn *ct, const struct sk_buff *skb,
-			unsigned int dataoff)
-{
-	bool ret;
-
-	ret = nf_generic_should_process(nf_ct_protonum(ct));
-	if (!ret)
-		pr_warn_once("conntrack: generic helper won't handle protocol %d. Please consider loading the specific helper module.\n",
-			     nf_ct_protonum(ct));
-	return ret;
 }
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
@@ -164,7 +157,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic =
 	.l4proto		= 255,
 	.pkt_to_tuple		= generic_pkt_to_tuple,
 	.packet			= generic_packet,
-	.new			= generic_new,
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	.ctnl_timeout		= {
 		.nlattr_to_obj	= generic_timeout_nlattr_to_obj,

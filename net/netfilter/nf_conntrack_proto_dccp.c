@@ -389,17 +389,14 @@ static inline struct nf_dccp_net *dccp_pernet(struct net *net)
 	return &net->ct.nf_ct_proto.dccp;
 }
 
-static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		     unsigned int dataoff)
+static noinline bool
+dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
+	 const struct dccp_hdr *dh)
 {
 	struct net *net = nf_ct_net(ct);
 	struct nf_dccp_net *dn;
-	struct dccp_hdr _dh, *dh;
 	const char *msg;
 	u_int8_t state;
-
-	dh = skb_header_pointer(skb, dataoff, sizeof(_dh), &_dh);
-	BUG_ON(dh == NULL);
 
 	state = dccp_state_table[CT_DCCP_ROLE_CLIENT][dh->dccph_type][CT_DCCP_NONE];
 	switch (state) {
@@ -449,8 +446,12 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 	unsigned int *timeouts;
 
 	dh = skb_header_pointer(skb, dataoff, sizeof(_dh), &_dh);
-	BUG_ON(dh == NULL);
+	if (!dh)
+		return NF_DROP;
+
 	type = dh->dccph_type;
+	if (!nf_ct_is_confirmed(ct) && !dccp_new(ct, skb, dh))
+		return -NF_ACCEPT;
 
 	if (type == DCCP_PKT_RESET &&
 	    !test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
@@ -850,7 +851,6 @@ static struct nf_proto_net *dccp_get_net_proto(struct net *net)
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 = {
 	.l3proto		= AF_INET,
 	.l4proto		= IPPROTO_DCCP,
-	.new			= dccp_new,
 	.packet			= dccp_packet,
 	.error			= dccp_error,
 	.can_early_drop		= dccp_can_early_drop,
@@ -883,7 +883,6 @@ EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_dccp4);
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 = {
 	.l3proto		= AF_INET6,
 	.l4proto		= IPPROTO_DCCP,
-	.new			= dccp_new,
 	.packet			= dccp_packet,
 	.error			= dccp_error,
 	.can_early_drop		= dccp_can_early_drop,

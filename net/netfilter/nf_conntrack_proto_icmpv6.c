@@ -98,6 +98,22 @@ static int icmpv6_packet(struct nf_conn *ct,
 		       const struct nf_hook_state *state)
 {
 	unsigned int *timeout = nf_ct_timeout_lookup(ct);
+	static const u8 valid_new[] = {
+		[ICMPV6_ECHO_REQUEST - 128] = 1,
+		[ICMPV6_NI_QUERY - 128] = 1
+	};
+
+	if (!nf_ct_is_confirmed(ct)) {
+		int type = ct->tuplehash[0].tuple.dst.u.icmp.type - 128;
+
+		if (type < 0 || type >= sizeof(valid_new) || !valid_new[type]) {
+			/* Can't create a new ICMPv6 `conn' with this. */
+			pr_debug("icmpv6: can't create new conn with type %u\n",
+				 type + 128);
+			nf_ct_dump_tuple_ipv6(&ct->tuplehash[0].tuple);
+			return -NF_ACCEPT;
+		}
+	}
 
 	if (!timeout)
 		timeout = icmpv6_get_timeouts(nf_ct_net(ct));
@@ -108,26 +124,6 @@ static int icmpv6_packet(struct nf_conn *ct,
 	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
 
 	return NF_ACCEPT;
-}
-
-/* Called when a new connection for this protocol found. */
-static bool icmpv6_new(struct nf_conn *ct, const struct sk_buff *skb,
-		       unsigned int dataoff)
-{
-	static const u_int8_t valid_new[] = {
-		[ICMPV6_ECHO_REQUEST - 128] = 1,
-		[ICMPV6_NI_QUERY - 128] = 1
-	};
-	int type = ct->tuplehash[0].tuple.dst.u.icmp.type - 128;
-
-	if (type < 0 || type >= sizeof(valid_new) || !valid_new[type]) {
-		/* Can't create a new ICMPv6 `conn' with this. */
-		pr_debug("icmpv6: can't create new conn with type %u\n",
-			 type + 128);
-		nf_ct_dump_tuple_ipv6(&ct->tuplehash[0].tuple);
-		return false;
-	}
-	return true;
 }
 
 static int
@@ -370,7 +366,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 	.pkt_to_tuple		= icmpv6_pkt_to_tuple,
 	.invert_tuple		= icmpv6_invert_tuple,
 	.packet			= icmpv6_packet,
-	.new			= icmpv6_new,
 	.error			= icmpv6_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= icmpv6_tuple_to_nlattr,

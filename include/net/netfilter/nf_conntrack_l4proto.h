@@ -48,11 +48,6 @@ struct nf_conntrack_l4proto {
 		      enum ip_conntrack_info ctinfo,
 		      const struct nf_hook_state *state);
 
-	/* Called when a new connection for this protocol found;
-	 * returns TRUE if it's OK.  If so, packet() called next. */
-	bool (*new)(struct nf_conn *ct, const struct sk_buff *skb,
-		    unsigned int dataoff);
-
 	/* Called when a conntrack entry is destroyed */
 	void (*destroy)(struct nf_conn *ct);
 

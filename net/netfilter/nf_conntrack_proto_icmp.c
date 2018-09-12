@@ -72,11 +72,6 @@ static bool icmp_invert_tuple(struct nf_conntrack_tuple *tuple,
 	return true;
 }
 
-static unsigned int *icmp_get_timeouts(struct net *net)
-{
-	return &icmp_pernet(net)->timeout;
-}
-
 /* Returns verdict for packet, or -1 for invalid. */
 static int icmp_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
@@ -88,19 +83,6 @@ static int icmp_packet(struct nf_conn *ct,
 	   successful reply to avoid excessive conntrackd traffic
 	   and also to handle correctly ICMP echo reply duplicates. */
 	unsigned int *timeout = nf_ct_timeout_lookup(ct);
-
-	if (!timeout)
-		timeout = icmp_get_timeouts(nf_ct_net(ct));
-
-	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
-
-	return NF_ACCEPT;
-}
-
-/* Called when a new connection for this protocol found. */
-static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		     unsigned int dataoff)
-{
 	static const u_int8_t valid_new[] = {
 		[ICMP_ECHO] = 1,
 		[ICMP_TIMESTAMP] = 1,
@@ -114,9 +96,14 @@ static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		pr_debug("icmp: can't create new conn with type %u\n",
 			 ct->tuplehash[0].tuple.dst.u.icmp.type);
 		nf_ct_dump_tuple_ip(&ct->tuplehash[0].tuple);
-		return false;
+		return -NF_ACCEPT;
 	}
-	return true;
+
+	if (!timeout)
+		timeout = &icmp_pernet(nf_ct_net(ct))->timeout;
+
+	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
+	return NF_ACCEPT;
 }
 
 /* Returns conntrack if it dealt with ICMP, and filled in skb fields */
@@ -368,7 +355,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 	.pkt_to_tuple		= icmp_pkt_to_tuple,
 	.invert_tuple		= icmp_invert_tuple,
 	.packet			= icmp_packet,
-	.new			= icmp_new,
 	.error			= icmp_error,
 	.destroy		= NULL,
 	.me			= NULL,

@@ -238,6 +238,18 @@ static int gre_packet(struct nf_conn *ct,
 		      enum ip_conntrack_info ctinfo,
 		      const struct nf_hook_state *state)
 {
+	if (!nf_ct_is_confirmed(ct)) {
+		unsigned int *timeouts = nf_ct_timeout_lookup(ct);
+
+		if (!timeouts)
+			timeouts = gre_get_timeouts(nf_ct_net(ct));
+
+		/* initialize to sane value.  Ideally a conntrack helper
+		 * (e.g. in case of pptp) is increasing them */
+		ct->proto.gre.stream_timeout = timeouts[GRE_CT_REPLIED];
+		ct->proto.gre.timeout = timeouts[GRE_CT_UNREPLIED];
+	}
+
 	/* If we've seen traffic both ways, this is a GRE connection.
 	 * Extend timeout. */
 	if (ct->status & IPS_SEEN_REPLY) {
@@ -251,26 +263,6 @@ static int gre_packet(struct nf_conn *ct,
 				   ct->proto.gre.timeout);
 
 	return NF_ACCEPT;
-}
-
-/* Called when a new connection for this protocol found. */
-static bool gre_new(struct nf_conn *ct, const struct sk_buff *skb,
-		    unsigned int dataoff)
-{
-	unsigned int *timeouts = nf_ct_timeout_lookup(ct);
-
-	if (!timeouts)
-		timeouts = gre_get_timeouts(nf_ct_net(ct));
-
-	pr_debug(": ");
-	nf_ct_dump_tuple(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
-
-	/* initialize to sane value.  Ideally a conntrack helper
-	 * (e.g. in case of pptp) is increasing them */
-	ct->proto.gre.stream_timeout = timeouts[GRE_CT_REPLIED];
-	ct->proto.gre.timeout = timeouts[GRE_CT_UNREPLIED];
-
-	return true;
 }
 
 /* Called when a conntrack entry has already been removed from the hashes
@@ -359,7 +351,6 @@ static const struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 = {
 	.print_conntrack = gre_print_conntrack,
 #endif
 	.packet		 = gre_packet,
-	.new		 = gre_new,
 	.destroy	 = gre_destroy,
 	.me 		 = THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)

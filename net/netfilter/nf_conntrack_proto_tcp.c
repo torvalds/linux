@@ -770,6 +770,78 @@ static int tcp_error(struct nf_conn *tmpl,
 	return NF_ACCEPT;
 }
 
+static noinline bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
+			     unsigned int dataoff,
+			     const struct tcphdr *th)
+{
+	enum tcp_conntrack new_state;
+	struct net *net = nf_ct_net(ct);
+	const struct nf_tcp_net *tn = tcp_pernet(net);
+	const struct ip_ct_tcp_state *sender = &ct->proto.tcp.seen[0];
+	const struct ip_ct_tcp_state *receiver = &ct->proto.tcp.seen[1];
+
+	/* Don't need lock here: this conntrack not in circulation yet */
+	new_state = tcp_conntracks[0][get_conntrack_index(th)][TCP_CONNTRACK_NONE];
+
+	/* Invalid: delete conntrack */
+	if (new_state >= TCP_CONNTRACK_MAX) {
+		pr_debug("nf_ct_tcp: invalid new deleting.\n");
+		return false;
+	}
+
+	if (new_state == TCP_CONNTRACK_SYN_SENT) {
+		memset(&ct->proto.tcp, 0, sizeof(ct->proto.tcp));
+		/* SYN packet */
+		ct->proto.tcp.seen[0].td_end =
+			segment_seq_plus_len(ntohl(th->seq), skb->len,
+					     dataoff, th);
+		ct->proto.tcp.seen[0].td_maxwin = ntohs(th->window);
+		if (ct->proto.tcp.seen[0].td_maxwin == 0)
+			ct->proto.tcp.seen[0].td_maxwin = 1;
+		ct->proto.tcp.seen[0].td_maxend =
+			ct->proto.tcp.seen[0].td_end;
+
+		tcp_options(skb, dataoff, th, &ct->proto.tcp.seen[0]);
+	} else if (tn->tcp_loose == 0) {
+		/* Don't try to pick up connections. */
+		return false;
+	} else {
+		memset(&ct->proto.tcp, 0, sizeof(ct->proto.tcp));
+		/*
+		 * We are in the middle of a connection,
+		 * its history is lost for us.
+		 * Let's try to use the data from the packet.
+		 */
+		ct->proto.tcp.seen[0].td_end =
+			segment_seq_plus_len(ntohl(th->seq), skb->len,
+					     dataoff, th);
+		ct->proto.tcp.seen[0].td_maxwin = ntohs(th->window);
+		if (ct->proto.tcp.seen[0].td_maxwin == 0)
+			ct->proto.tcp.seen[0].td_maxwin = 1;
+		ct->proto.tcp.seen[0].td_maxend =
+			ct->proto.tcp.seen[0].td_end +
+			ct->proto.tcp.seen[0].td_maxwin;
+
+		/* We assume SACK and liberal window checking to handle
+		 * window scaling */
+		ct->proto.tcp.seen[0].flags =
+		ct->proto.tcp.seen[1].flags = IP_CT_TCP_FLAG_SACK_PERM |
+					      IP_CT_TCP_FLAG_BE_LIBERAL;
+	}
+
+	/* tcp_packet will set them */
+	ct->proto.tcp.last_index = TCP_NONE_SET;
+
+	pr_debug("%s: sender end=%u maxend=%u maxwin=%u scale=%i "
+		 "receiver end=%u maxend=%u maxwin=%u scale=%i\n",
+		 __func__,
+		 sender->td_end, sender->td_maxend, sender->td_maxwin,
+		 sender->td_scale,
+		 receiver->td_end, receiver->td_maxend, receiver->td_maxwin,
+		 receiver->td_scale);
+	return true;
+}
+
 /* Returns verdict for packet, or -1 for invalid. */
 static int tcp_packet(struct nf_conn *ct,
 		      const struct sk_buff *skb,
@@ -788,7 +860,11 @@ static int tcp_packet(struct nf_conn *ct,
 	unsigned long timeout;
 
 	th = skb_header_pointer(skb, dataoff, sizeof(_tcph), &_tcph);
-	BUG_ON(th == NULL);
+	if (th == NULL)
+		return -NF_ACCEPT;
+
+	if (!nf_ct_is_confirmed(ct) && !tcp_new(ct, skb, dataoff, th))
+		return -NF_ACCEPT;
 
 	spin_lock_bh(&ct->lock);
 	old_state = ct->proto.tcp.state;
@@ -1067,82 +1143,6 @@ static int tcp_packet(struct nf_conn *ct,
 	nf_ct_refresh_acct(ct, ctinfo, skb, timeout);
 
 	return NF_ACCEPT;
-}
-
-/* Called when a new connection for this protocol found. */
-static bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		    unsigned int dataoff)
-{
-	enum tcp_conntrack new_state;
-	const struct tcphdr *th;
-	struct tcphdr _tcph;
-	struct net *net = nf_ct_net(ct);
-	struct nf_tcp_net *tn = tcp_pernet(net);
-	const struct ip_ct_tcp_state *sender = &ct->proto.tcp.seen[0];
-	const struct ip_ct_tcp_state *receiver = &ct->proto.tcp.seen[1];
-
-	th = skb_header_pointer(skb, dataoff, sizeof(_tcph), &_tcph);
-	BUG_ON(th == NULL);
-
-	/* Don't need lock here: this conntrack not in circulation yet */
-	new_state = tcp_conntracks[0][get_conntrack_index(th)][TCP_CONNTRACK_NONE];
-
-	/* Invalid: delete conntrack */
-	if (new_state >= TCP_CONNTRACK_MAX) {
-		pr_debug("nf_ct_tcp: invalid new deleting.\n");
-		return false;
-	}
-
-	if (new_state == TCP_CONNTRACK_SYN_SENT) {
-		memset(&ct->proto.tcp, 0, sizeof(ct->proto.tcp));
-		/* SYN packet */
-		ct->proto.tcp.seen[0].td_end =
-			segment_seq_plus_len(ntohl(th->seq), skb->len,
-					     dataoff, th);
-		ct->proto.tcp.seen[0].td_maxwin = ntohs(th->window);
-		if (ct->proto.tcp.seen[0].td_maxwin == 0)
-			ct->proto.tcp.seen[0].td_maxwin = 1;
-		ct->proto.tcp.seen[0].td_maxend =
-			ct->proto.tcp.seen[0].td_end;
-
-		tcp_options(skb, dataoff, th, &ct->proto.tcp.seen[0]);
-	} else if (tn->tcp_loose == 0) {
-		/* Don't try to pick up connections. */
-		return false;
-	} else {
-		memset(&ct->proto.tcp, 0, sizeof(ct->proto.tcp));
-		/*
-		 * We are in the middle of a connection,
-		 * its history is lost for us.
-		 * Let's try to use the data from the packet.
-		 */
-		ct->proto.tcp.seen[0].td_end =
-			segment_seq_plus_len(ntohl(th->seq), skb->len,
-					     dataoff, th);
-		ct->proto.tcp.seen[0].td_maxwin = ntohs(th->window);
-		if (ct->proto.tcp.seen[0].td_maxwin == 0)
-			ct->proto.tcp.seen[0].td_maxwin = 1;
-		ct->proto.tcp.seen[0].td_maxend =
-			ct->proto.tcp.seen[0].td_end +
-			ct->proto.tcp.seen[0].td_maxwin;
-
-		/* We assume SACK and liberal window checking to handle
-		 * window scaling */
-		ct->proto.tcp.seen[0].flags =
-		ct->proto.tcp.seen[1].flags = IP_CT_TCP_FLAG_SACK_PERM |
-					      IP_CT_TCP_FLAG_BE_LIBERAL;
-	}
-
-	/* tcp_packet will set them */
-	ct->proto.tcp.last_index = TCP_NONE_SET;
-
-	pr_debug("tcp_new: sender end=%u maxend=%u maxwin=%u scale=%i "
-		 "receiver end=%u maxend=%u maxwin=%u scale=%i\n",
-		 sender->td_end, sender->td_maxend, sender->td_maxwin,
-		 sender->td_scale,
-		 receiver->td_end, receiver->td_maxend, receiver->td_maxwin,
-		 receiver->td_scale);
-	return true;
 }
 
 static bool tcp_can_early_drop(const struct nf_conn *ct)
@@ -1548,7 +1548,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 =
 	.print_conntrack 	= tcp_print_conntrack,
 #endif
 	.packet 		= tcp_packet,
-	.new 			= tcp_new,
 	.error			= tcp_error,
 	.can_early_drop		= tcp_can_early_drop,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -1583,7 +1582,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 =
 	.print_conntrack 	= tcp_print_conntrack,
 #endif
 	.packet 		= tcp_packet,
-	.new 			= tcp_new,
 	.error			= tcp_error,
 	.can_early_drop		= tcp_can_early_drop,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)

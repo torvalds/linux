@@ -273,6 +273,63 @@ static int sctp_new_state(enum ip_conntrack_dir dir,
 	return sctp_conntracks[dir][i][cur_state];
 }
 
+/* Don't need lock here: this conntrack not in circulation yet */
+static noinline bool
+sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
+	 const struct sctphdr *sh, unsigned int dataoff)
+{
+	enum sctp_conntrack new_state;
+	const struct sctp_chunkhdr *sch;
+	struct sctp_chunkhdr _sch;
+	u32 offset, count;
+
+	memset(&ct->proto.sctp, 0, sizeof(ct->proto.sctp));
+	new_state = SCTP_CONNTRACK_MAX;
+	for_each_sctp_chunk(skb, sch, _sch, offset, dataoff, count) {
+		new_state = sctp_new_state(IP_CT_DIR_ORIGINAL,
+					   SCTP_CONNTRACK_NONE, sch->type);
+
+		/* Invalid: delete conntrack */
+		if (new_state == SCTP_CONNTRACK_NONE ||
+		    new_state == SCTP_CONNTRACK_MAX) {
+			pr_debug("nf_conntrack_sctp: invalid new deleting.\n");
+			return false;
+		}
+
+		/* Copy the vtag into the state info */
+		if (sch->type == SCTP_CID_INIT) {
+			struct sctp_inithdr _inithdr, *ih;
+			/* Sec 8.5.1 (A) */
+			if (sh->vtag)
+				return false;
+
+			ih = skb_header_pointer(skb, offset + sizeof(_sch),
+						sizeof(_inithdr), &_inithdr);
+			if (!ih)
+				return false;
+
+			pr_debug("Setting vtag %x for new conn\n",
+				 ih->init_tag);
+
+			ct->proto.sctp.vtag[IP_CT_DIR_REPLY] = ih->init_tag;
+		} else if (sch->type == SCTP_CID_HEARTBEAT) {
+			pr_debug("Setting vtag %x for secondary conntrack\n",
+				 sh->vtag);
+			ct->proto.sctp.vtag[IP_CT_DIR_ORIGINAL] = sh->vtag;
+		} else {
+		/* If it is a shutdown ack OOTB packet, we expect a return
+		   shutdown complete, otherwise an ABORT Sec 8.4 (5) and (8) */
+			pr_debug("Setting vtag %x for new conn OOTB\n",
+				 sh->vtag);
+			ct->proto.sctp.vtag[IP_CT_DIR_REPLY] = sh->vtag;
+		}
+
+		ct->proto.sctp.state = new_state;
+	}
+
+	return true;
+}
+
 /* Returns verdict for packet, or -NF_ACCEPT for invalid. */
 static int sctp_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
@@ -296,6 +353,17 @@ static int sctp_packet(struct nf_conn *ct,
 
 	if (do_basic_checks(ct, skb, dataoff, map) != 0)
 		goto out;
+
+	if (!nf_ct_is_confirmed(ct)) {
+		/* If an OOTB packet has any of these chunks discard (Sec 8.4) */
+		if (test_bit(SCTP_CID_ABORT, map) ||
+		    test_bit(SCTP_CID_SHUTDOWN_COMPLETE, map) ||
+		    test_bit(SCTP_CID_COOKIE_ACK, map))
+			return -NF_ACCEPT;
+
+		if (!sctp_new(ct, skb, sh, dataoff))
+			return -NF_ACCEPT;
+	}
 
 	/* Check the verification tag (Sec 8.5) */
 	if (!test_bit(SCTP_CID_INIT, map) &&
@@ -396,80 +464,6 @@ out_unlock:
 	spin_unlock_bh(&ct->lock);
 out:
 	return -NF_ACCEPT;
-}
-
-/* Called when a new connection for this protocol found. */
-static bool sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		     unsigned int dataoff)
-{
-	enum sctp_conntrack new_state;
-	const struct sctphdr *sh;
-	struct sctphdr _sctph;
-	const struct sctp_chunkhdr *sch;
-	struct sctp_chunkhdr _sch;
-	u_int32_t offset, count;
-	unsigned long map[256 / sizeof(unsigned long)] = { 0 };
-
-	sh = skb_header_pointer(skb, dataoff, sizeof(_sctph), &_sctph);
-	if (sh == NULL)
-		return false;
-
-	if (do_basic_checks(ct, skb, dataoff, map) != 0)
-		return false;
-
-	/* If an OOTB packet has any of these chunks discard (Sec 8.4) */
-	if (test_bit(SCTP_CID_ABORT, map) ||
-	    test_bit(SCTP_CID_SHUTDOWN_COMPLETE, map) ||
-	    test_bit(SCTP_CID_COOKIE_ACK, map))
-		return false;
-
-	memset(&ct->proto.sctp, 0, sizeof(ct->proto.sctp));
-	new_state = SCTP_CONNTRACK_MAX;
-	for_each_sctp_chunk (skb, sch, _sch, offset, dataoff, count) {
-		/* Don't need lock here: this conntrack not in circulation yet */
-		new_state = sctp_new_state(IP_CT_DIR_ORIGINAL,
-					   SCTP_CONNTRACK_NONE, sch->type);
-
-		/* Invalid: delete conntrack */
-		if (new_state == SCTP_CONNTRACK_NONE ||
-		    new_state == SCTP_CONNTRACK_MAX) {
-			pr_debug("nf_conntrack_sctp: invalid new deleting.\n");
-			return false;
-		}
-
-		/* Copy the vtag into the state info */
-		if (sch->type == SCTP_CID_INIT) {
-			struct sctp_inithdr _inithdr, *ih;
-			/* Sec 8.5.1 (A) */
-			if (sh->vtag)
-				return false;
-
-			ih = skb_header_pointer(skb, offset + sizeof(_sch),
-						sizeof(_inithdr), &_inithdr);
-			if (!ih)
-				return false;
-
-			pr_debug("Setting vtag %x for new conn\n",
-				 ih->init_tag);
-
-			ct->proto.sctp.vtag[IP_CT_DIR_REPLY] = ih->init_tag;
-		} else if (sch->type == SCTP_CID_HEARTBEAT) {
-			pr_debug("Setting vtag %x for secondary conntrack\n",
-				 sh->vtag);
-			ct->proto.sctp.vtag[IP_CT_DIR_ORIGINAL] = sh->vtag;
-		}
-		/* If it is a shutdown ack OOTB packet, we expect a return
-		   shutdown complete, otherwise an ABORT Sec 8.4 (5) and (8) */
-		else {
-			pr_debug("Setting vtag %x for new conn OOTB\n",
-				 sh->vtag);
-			ct->proto.sctp.vtag[IP_CT_DIR_REPLY] = sh->vtag;
-		}
-
-		ct->proto.sctp.state = new_state;
-	}
-
-	return true;
 }
 
 static int sctp_error(struct nf_conn *tpl, struct sk_buff *skb,
@@ -769,7 +763,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 = {
 	.print_conntrack	= sctp_print_conntrack,
 #endif
 	.packet 		= sctp_packet,
-	.new 			= sctp_new,
 	.error			= sctp_error,
 	.can_early_drop		= sctp_can_early_drop,
 	.me 			= THIS_MODULE,
@@ -803,7 +796,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 = {
 	.print_conntrack	= sctp_print_conntrack,
 #endif
 	.packet 		= sctp_packet,
-	.new 			= sctp_new,
 	.error			= sctp_error,
 	.can_early_drop		= sctp_can_early_drop,
 	.me 			= THIS_MODULE,
