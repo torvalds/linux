@@ -1146,14 +1146,84 @@ static const struct file_operations tap_fops = {
 #endif
 };
 
+static int tap_get_user_xdp(struct tap_queue *q, struct xdp_buff *xdp)
+{
+	struct tun_xdp_hdr *hdr = xdp->data_hard_start;
+	struct virtio_net_hdr *gso = &hdr->gso;
+	int buflen = hdr->buflen;
+	int vnet_hdr_len = 0;
+	struct tap_dev *tap;
+	struct sk_buff *skb;
+	int err, depth;
+
+	if (q->flags & IFF_VNET_HDR)
+		vnet_hdr_len = READ_ONCE(q->vnet_hdr_sz);
+
+	skb = build_skb(xdp->data_hard_start, buflen);
+	if (!skb) {
+		err = -ENOMEM;
+		goto err;
+	}
+
+	skb_reserve(skb, xdp->data - xdp->data_hard_start);
+	skb_put(skb, xdp->data_end - xdp->data);
+
+	skb_set_network_header(skb, ETH_HLEN);
+	skb_reset_mac_header(skb);
+	skb->protocol = eth_hdr(skb)->h_proto;
+
+	if (vnet_hdr_len) {
+		err = virtio_net_hdr_to_skb(skb, gso, tap_is_little_endian(q));
+		if (err)
+			goto err_kfree;
+	}
+
+	skb_probe_transport_header(skb, ETH_HLEN);
+
+	/* Move network header to the right position for VLAN tagged packets */
+	if ((skb->protocol == htons(ETH_P_8021Q) ||
+	     skb->protocol == htons(ETH_P_8021AD)) &&
+	    __vlan_get_protocol(skb, skb->protocol, &depth) != 0)
+		skb_set_network_header(skb, depth);
+
+	rcu_read_lock();
+	tap = rcu_dereference(q->tap);
+	if (tap) {
+		skb->dev = tap->dev;
+		dev_queue_xmit(skb);
+	} else {
+		kfree_skb(skb);
+	}
+	rcu_read_unlock();
+
+	return 0;
+
+err_kfree:
+	kfree_skb(skb);
+err:
+	rcu_read_lock();
+		tap = rcu_dereference(q->tap);
+	if (tap && tap->count_tx_dropped)
+		tap->count_tx_dropped(tap);
+	rcu_read_unlock();
+	return err;
+}
+
 static int tap_sendmsg(struct socket *sock, struct msghdr *m,
 		       size_t total_len)
 {
 	struct tap_queue *q = container_of(sock, struct tap_queue, sock);
 	struct tun_msg_ctl *ctl = m->msg_control;
+	struct xdp_buff *xdp;
+	int i;
 
-	if (ctl && ctl->type != TUN_MSG_UBUF)
-		return -EINVAL;
+	if (ctl && (ctl->type == TUN_MSG_PTR)) {
+		for (i = 0; i < ctl->num; i++) {
+			xdp = &((struct xdp_buff *)ctl->ptr)[i];
+			tap_get_user_xdp(q, xdp);
+		}
+		return 0;
+	}
 
 	return tap_get_user(q, ctl ? ctl->ptr : NULL, &m->msg_iter,
 			    m->msg_flags & MSG_DONTWAIT);
