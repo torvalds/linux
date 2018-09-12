@@ -60,6 +60,9 @@ __HEAD
 	.long	0x02000690,0x60000050
 	.long	0x020006e0,0x20000050
 
+	.org	0x1a0
+	.quad	0,iplstart
+
 	.org	0x200
 
 #
