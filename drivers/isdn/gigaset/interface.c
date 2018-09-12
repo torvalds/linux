@@ -206,7 +206,7 @@ static int if_ioctl(struct tty_struct *tty,
 				? -EFAULT : 0;
 			if (retval >= 0) {
 				gigaset_dbg_buffer(DEBUG_IF, "GIGASET_BRKCHARS",
-						   6, (const unsigned char *) arg);
+						   6, buf);
 				retval = cs->ops->brkchars(cs, buf);
 			}
 			break;
