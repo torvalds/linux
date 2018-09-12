@@ -34,6 +34,8 @@ Optional properties
 - clock-names: May contain "cec" as defined in dw_hdmi.txt.
 - clock-names: May contain "grf", power for grf io.
 - clock-names: May contain "vpll", external clock for some hdmi phy.
+- phys: from general PHY binding: the phandle for the PHY device.
+- phy-names: Should be "hdmi" if phys references an external phy.
 
 Example:
 
