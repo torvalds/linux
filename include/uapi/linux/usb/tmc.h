@@ -4,6 +4,7 @@
  * Copyright (C) 2008 Novell, Inc.
  * Copyright (C) 2008 Greg Kroah-Hartman <gregkh@suse.de>
  * Copyright (C) 2015 Dave Penkler <dpenkler@gmail.com>
+ * Copyright (C) 2018 IVI Foundation, Inc.
  *
  * This file holds USB constants defined by the USB Device Class
  * and USB488 Subclass Definitions for Test and Measurement devices
@@ -40,6 +41,19 @@
 #define USBTMC488_REQUEST_GOTO_LOCAL			161
 #define USBTMC488_REQUEST_LOCAL_LOCKOUT			162
 
+struct usbtmc_request {
+	__u8 bRequestType;
+	__u8 bRequest;
+	__u16 wValue;
+	__u16 wIndex;
+	__u16 wLength;
+} __attribute__ ((packed));
+
+struct usbtmc_ctrlrequest {
+	struct usbtmc_request req;
+	void __user *data; /* pointer to user space */
+} __attribute__ ((packed));
+
 struct usbtmc_termchar {
 	__u8 term_char;
 	__u8 term_char_enabled;
@@ -53,6 +67,7 @@ struct usbtmc_termchar {
 #define USBTMC_IOCTL_ABORT_BULK_IN	_IO(USBTMC_IOC_NR, 4)
 #define USBTMC_IOCTL_CLEAR_OUT_HALT	_IO(USBTMC_IOC_NR, 6)
 #define USBTMC_IOCTL_CLEAR_IN_HALT	_IO(USBTMC_IOC_NR, 7)
+#define USBTMC_IOCTL_CTRL_REQUEST	_IOWR(USBTMC_IOC_NR, 8, struct usbtmc_ctrlrequest)
 #define USBTMC_IOCTL_GET_TIMEOUT	_IOR(USBTMC_IOC_NR, 9, __u32)
 #define USBTMC_IOCTL_SET_TIMEOUT	_IOW(USBTMC_IOC_NR, 10, __u32)
 #define USBTMC_IOCTL_EOM_ENABLE	        _IOW(USBTMC_IOC_NR, 11, __u8)

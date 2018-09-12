@@ -5,6 +5,7 @@
  * Copyright (C) 2007 Stefan Kopp, Gechingen, Germany
  * Copyright (C) 2008 Novell, Inc.
  * Copyright (C) 2008 Greg Kroah-Hartman <gregkh@suse.de>
+ * Copyright (C) 2018 IVI Foundation, Inc.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -35,6 +36,9 @@
 #define USBTMC_MIN_TIMEOUT	100
 /* Default USB timeout (in milliseconds) */
 #define USBTMC_TIMEOUT		5000
+
+/* I/O buffer size used in generic read/write functions */
+#define USBTMC_BUFSIZE		(4096)
 
 /*
  * Maximum number of read cycles to empty bulk in endpoint during CLEAR and
@@ -1250,6 +1254,67 @@ exit:
 	return rv;
 }
 
+static int usbtmc_ioctl_request(struct usbtmc_device_data *data,
+				void __user *arg)
+{
+	struct device *dev = &data->intf->dev;
+	struct usbtmc_ctrlrequest request;
+	u8 *buffer = NULL;
+	int rv;
+	unsigned long res;
+
+	res = copy_from_user(&request, arg, sizeof(struct usbtmc_ctrlrequest));
+	if (res)
+		return -EFAULT;
+
+	buffer = kmalloc(request.req.wLength, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	if (request.req.wLength > USBTMC_BUFSIZE)
+		return -EMSGSIZE;
+
+	if (request.req.wLength) {
+		buffer = kmalloc(request.req.wLength, GFP_KERNEL);
+		if (!buffer)
+			return -ENOMEM;
+
+		if ((request.req.bRequestType & USB_DIR_IN) == 0) {
+			/* Send control data to device */
+			res = copy_from_user(buffer, request.data,
+					     request.req.wLength);
+			if (res) {
+				rv = -EFAULT;
+				goto exit;
+			}
+		}
+	}
+
+	rv = usb_control_msg(data->usb_dev,
+			usb_rcvctrlpipe(data->usb_dev, 0),
+			request.req.bRequest,
+			request.req.bRequestType,
+			request.req.wValue,
+			request.req.wIndex,
+			buffer, request.req.wLength, USB_CTRL_GET_TIMEOUT);
+
+	if (rv < 0) {
+		dev_err(dev, "%s failed %d\n", __func__, rv);
+		goto exit;
+	}
+
+	if (rv && (request.req.bRequestType & USB_DIR_IN)) {
+		/* Read control data from device */
+		res = copy_to_user(request.data, buffer, rv);
+		if (res)
+			rv = -EFAULT;
+	}
+
+ exit:
+	kfree(buffer);
+	return rv;
+}
+
 /*
  * Get the usb timeout value
  */
@@ -1364,6 +1429,10 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case USBTMC_IOCTL_ABORT_BULK_IN:
 		retval = usbtmc_ioctl_abort_bulk_in(data);
+		break;
+
+	case USBTMC_IOCTL_CTRL_REQUEST:
+		retval = usbtmc_ioctl_request(data, (void __user *)arg);
 		break;
 
 	case USBTMC_IOCTL_GET_TIMEOUT:
