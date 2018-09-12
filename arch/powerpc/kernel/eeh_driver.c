@@ -35,8 +35,8 @@
 #include <asm/rtas.h>
 
 struct eeh_rmv_data {
-	struct list_head edev_list;
-	int removed;
+	struct list_head removed_vf_list;
+	int removed_dev_count;
 };
 
 static int eeh_result_priority(enum pci_ers_result result)
@@ -502,7 +502,6 @@ static void *eeh_rmv_device(struct eeh_dev *edev, void *userdata)
 	struct pci_driver *driver;
 	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
 	struct eeh_rmv_data *rmv_data = (struct eeh_rmv_data *)userdata;
-	int *removed = rmv_data ? &rmv_data->removed : NULL;
 
 	/*
 	 * Actually, we should remove the PCI bridges as well.
@@ -524,7 +523,7 @@ static void *eeh_rmv_device(struct eeh_dev *edev, void *userdata)
 	if (eeh_dev_removed(edev))
 		return NULL;
 
-	if (removed) {
+	if (rmv_data) {
 		if (eeh_pe_passed(edev->pe))
 			return NULL;
 		driver = eeh_pcid_get(dev);
@@ -543,8 +542,8 @@ static void *eeh_rmv_device(struct eeh_dev *edev, void *userdata)
 	pr_debug("EEH: Removing %s without EEH sensitive driver\n",
 		 pci_name(dev));
 	edev->mode |= EEH_DEV_DISCONNECTED;
-	if (removed)
-		(*removed)++;
+	if (rmv_data)
+		rmv_data->removed_dev_count++;
 
 	if (edev->physfn) {
 #ifdef CONFIG_PCI_IOV
@@ -560,7 +559,7 @@ static void *eeh_rmv_device(struct eeh_dev *edev, void *userdata)
 		pdn->pe_number = IODA_INVALID_PE;
 #endif
 		if (rmv_data)
-			list_add(&edev->rmv_entry, &rmv_data->edev_list);
+			list_add(&edev->rmv_entry, &rmv_data->removed_vf_list);
 	} else {
 		pci_lock_rescan_remove();
 		pci_stop_and_remove_bus_device(dev);
@@ -729,7 +728,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 	 * the device up before the scripts have taken it down,
 	 * potentially weird things happen.
 	 */
-	if (!driver_eeh_aware || rmv_data->removed) {
+	if (!driver_eeh_aware || rmv_data->removed_dev_count) {
 		pr_info("EEH: Sleep 5s ahead of %s hotplug\n",
 			(driver_eeh_aware ? "partial" : "complete"));
 		ssleep(5);
@@ -791,7 +790,8 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	struct eeh_pe *tmp_pe;
 	int rc = 0;
 	enum pci_ers_result result = PCI_ERS_RESULT_NONE;
-	struct eeh_rmv_data rmv_data = {LIST_HEAD_INIT(rmv_data.edev_list), 0};
+	struct eeh_rmv_data rmv_data =
+		{LIST_HEAD_INIT(rmv_data.removed_vf_list), 0};
 
 	bus = eeh_pe_bus_get(pe);
 	if (!bus) {
@@ -934,7 +934,8 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	 * For those hot removed VFs, we should add back them after PF get
 	 * recovered properly.
 	 */
-	list_for_each_entry_safe(edev, tmp, &rmv_data.edev_list, rmv_entry) {
+	list_for_each_entry_safe(edev, tmp, &rmv_data.removed_vf_list,
+				 rmv_entry) {
 		eeh_add_virt_device(edev);
 		list_del(&edev->rmv_entry);
 	}
