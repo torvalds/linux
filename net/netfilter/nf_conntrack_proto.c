@@ -43,7 +43,7 @@
 
 extern unsigned int nf_conntrack_net_id;
 
-static struct nf_conntrack_l4proto __rcu *nf_ct_protos[MAX_NF_CT_PROTO] __read_mostly;
+static struct nf_conntrack_l4proto __rcu *nf_ct_protos[MAX_NF_CT_PROTO + 1] __read_mostly;
 
 static DEFINE_MUTEX(nf_ct_proto_mutex);
 

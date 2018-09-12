@@ -102,7 +102,7 @@ int nf_conntrack_icmpv6_error(struct nf_conn *tmpl,
 /* Existing built-in generic protocol */
 extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
 
-#define MAX_NF_CT_PROTO 256
+#define MAX_NF_CT_PROTO IPPROTO_UDPLITE
 
 const struct nf_conntrack_l4proto *__nf_ct_l4proto_find(u8 l4proto);
 
