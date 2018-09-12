@@ -974,10 +974,10 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	pm_runtime_get_sync(dev->dev);
 
-	if (adev->asic_type != CHIP_RAVEN && adev->asic_type != CHIP_PICASSO) {
+	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_UVD) != NULL)
 		amdgpu_uvd_free_handles(adev, file_priv);
+	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_VCE) != NULL)
 		amdgpu_vce_free_handles(adev, file_priv);
-	}
 
 	amdgpu_vm_bo_rmv(adev, fpriv->prt_va);
 
