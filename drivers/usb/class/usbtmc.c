@@ -22,6 +22,10 @@
 #include <linux/compat.h>
 #include <linux/usb/tmc.h>
 
+/* Increment API VERSION when changing tmc.h with new flags or ioctls
+ * or when changing a significant behavior of the driver.
+ */
+#define USBTMC_API_VERSION (2)
 
 #define USBTMC_HEADER_SIZE	12
 #define USBTMC_MINOR_BASE	176
@@ -2177,6 +2181,11 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case USBTMC_IOCTL_WRITE_RESULT:
 		retval = usbtmc_ioctl_write_result(file_data,
 						   (void __user *)arg);
+		break;
+
+	case USBTMC_IOCTL_API_VERSION:
+		retval = put_user(USBTMC_API_VERSION,
+				  (__u32 __user *)arg);
 		break;
 
 	case USBTMC488_IOCTL_GET_CAPS:
