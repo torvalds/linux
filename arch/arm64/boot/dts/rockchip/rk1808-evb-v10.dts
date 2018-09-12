@@ -152,6 +152,15 @@
 	#sound-dai-cells = <0>;
 };
 
+/*
+ * set max voltage to 850mv to fit for npu power supply request,
+ * we can change max voltage when we get more imformation.
+ */
+&vdd_npu {
+	regulator-min-microvolt = <850000>;
+	regulator-max-microvolt = <850000>;
+};
+
 &vop_lite {
 	status = "okay";
 };

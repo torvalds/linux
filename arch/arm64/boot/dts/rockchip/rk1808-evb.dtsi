@@ -212,6 +212,24 @@
 &i2c0 {
 	status = "okay";
 
+	vdd_npu: syr837@40 {
+		compatible = "silergy,syr827";
+		reg = <0x40>;
+		vin-supply = <&vcc5v0_sys>;
+		regulator-compatible = "fan53555-reg";
+		pinctrl-0 = <&vsel_gpio>;
+		vsel-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vdd_npu";
+		regulator-min-microvolt = <712500>;
+		regulator-max-microvolt = <1500000>;
+		regulator-ramp-delay = <1000>;
+		fcs,suspend-voltage-selector = <1>;
+		regulator-boot-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+
 	rk809: pmic@20 {
 		compatible = "rockchip,rk809";
 		reg = <0x20>;
@@ -584,6 +602,11 @@
 		soc_slppin_rst: soc_slppin_rst {
 			rockchip,pins =
 				<0 RK_PA4 2 &pcfg_pull_none>;
+		};
+
+		vsel_gpio: vsel-gpio {
+			rockchip,pins =
+				<0 RK_PA5 0 &pcfg_pull_down>;
 		};
 	};
 
