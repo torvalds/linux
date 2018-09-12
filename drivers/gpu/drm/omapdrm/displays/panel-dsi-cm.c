@@ -1117,6 +1117,9 @@ static int dsicm_get_modes(struct omap_dss_device *dssdev,
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
+	connector->display_info.width_mm = ddata->width_mm;
+	connector->display_info.height_mm = ddata->height_mm;
+
 	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
@@ -1142,15 +1145,6 @@ static int dsicm_check_timings(struct omap_dss_device *dssdev,
 	return ret;
 }
 
-static void dsicm_get_size(struct omap_dss_device *dssdev,
-			  unsigned int *width, unsigned int *height)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	*width = ddata->width_mm;
-	*height = ddata->height_mm;
-}
-
 static const struct omap_dss_device_ops dsicm_ops = {
 	.connect	= dsicm_connect,
 	.disconnect	= dsicm_disconnect,
@@ -1165,8 +1159,6 @@ static const struct omap_dss_device_ops dsicm_ops = {
 static const struct omap_dss_driver dsicm_dss_driver = {
 	.update		= dsicm_update,
 	.sync		= dsicm_sync,
-
-	.get_size	= dsicm_get_size,
 
 	.enable_te	= dsicm_enable_te,
 	.get_te		= dsicm_get_te,

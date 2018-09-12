@@ -457,9 +457,6 @@ struct omap_dss_driver {
 	int (*memory_read)(struct omap_dss_device *dssdev,
 			void *buf, size_t size,
 			u16 x, u16 y, u16 w, u16 h);
-
-	void (*get_size)(struct omap_dss_device *dssdev,
-			 unsigned int *width, unsigned int *height);
 };
 
 struct dss_device *omapdss_get_dss(void);

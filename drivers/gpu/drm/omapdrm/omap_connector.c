@@ -225,19 +225,8 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 		return omap_connector_get_modes_edid(connector, dssdev);
 
 	/*
-	 * Otherwise we have either a fixed resolution panel or an output that
-	 * doesn't support modes discovery (e.g. DVI or VGA with the DDC bus
-	 * unconnected, or analog TV). Start by querying the size.
-	 */
-	dssdev = omap_connector->display;
-	if (dssdev->driver && dssdev->driver->get_size)
-		dssdev->driver->get_size(dssdev,
-					 &connector->display_info.width_mm,
-					 &connector->display_info.height_mm);
-
-	/*
-	 * If the display pipeline reports modes (e.g. with a fixed resolution
-	 * panel or an analog TV output), query it.
+	 * Otherwise if the display pipeline reports modes (e.g. with a fixed
+	 * resolution panel or an analog TV output), query it.
 	 */
 	for (dssdev = omap_connector->display; dssdev; dssdev = dssdev->src) {
 		if (dssdev->ops->get_modes)
