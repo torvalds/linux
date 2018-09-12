@@ -1745,12 +1745,9 @@ static int usbtmc_ioctl_clear_out_halt(struct usbtmc_device_data *data)
 	rv = usb_clear_halt(data->usb_dev,
 			    usb_sndbulkpipe(data->usb_dev, data->bulk_out));
 
-	if (rv < 0) {
-		dev_err(&data->usb_dev->dev, "usb_control_msg returned %d\n",
-			rv);
-		return rv;
-	}
-	return 0;
+	if (rv < 0)
+		dev_err(&data->usb_dev->dev, "%s returned %d\n", __func__, rv);
+	return rv;
 }
 
 static int usbtmc_ioctl_clear_in_halt(struct usbtmc_device_data *data)
@@ -1760,12 +1757,9 @@ static int usbtmc_ioctl_clear_in_halt(struct usbtmc_device_data *data)
 	rv = usb_clear_halt(data->usb_dev,
 			    usb_rcvbulkpipe(data->usb_dev, data->bulk_in));
 
-	if (rv < 0) {
-		dev_err(&data->usb_dev->dev, "usb_control_msg returned %d\n",
-			rv);
-		return rv;
-	}
-	return 0;
+	if (rv < 0)
+		dev_err(&data->usb_dev->dev, "%s returned %d\n", __func__, rv);
+	return rv;
 }
 
 static int usbtmc_ioctl_cancel_io(struct usbtmc_file_data *file_data)
@@ -2189,11 +2183,8 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case USBTMC488_IOCTL_GET_CAPS:
-		retval = copy_to_user((void __user *)arg,
-				&data->usb488_caps,
-				sizeof(data->usb488_caps));
-		if (retval)
-			retval = -EFAULT;
+		retval = put_user(data->usb488_caps,
+				  (unsigned char __user *)arg);
 		break;
 
 	case USBTMC488_IOCTL_READ_STB:
