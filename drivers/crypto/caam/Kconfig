@@ -160,6 +160,7 @@ config CRYPTO_DEV_FSL_DPAA2_CAAM
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_AUTHENC
 	select CRYPTO_AEAD
+	select CRYPTO_HASH
 	help
 	  CAAM driver for QorIQ Data Path Acceleration Architecture 2.
 	  It handles DPSECI DPAA2 objects that sit on the Management Complex
@@ -174,4 +175,5 @@ config CRYPTO_DEV_FSL_CAAM_CRYPTO_API_DESC
 		      CRYPTO_DEV_FSL_DPAA2_CAAM)
 
 config CRYPTO_DEV_FSL_CAAM_AHASH_API_DESC
-	def_tristate (CRYPTO_DEV_FSL_CAAM_AHASH_API)
+	def_tristate (CRYPTO_DEV_FSL_CAAM_AHASH_API || \
+		      CRYPTO_DEV_FSL_DPAA2_CAAM)
