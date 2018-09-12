@@ -1615,9 +1615,6 @@ namespacecheck:
 export_report:
 	$(PERL) $(srctree)/scripts/export_report.pl
 
-endif #ifeq ($(config-targets),1)
-endif #ifeq ($(mixed-targets),1)
-
 PHONY += checkstack kernelrelease kernelversion image_name
 
 # UML needs a little special treatment here.  It wants to use the host
@@ -1732,6 +1729,8 @@ ifneq ($(cmd_files),)
   include $(cmd_files)
 endif
 
+endif   # ifeq ($(config-targets),1)
+endif   # ifeq ($(mixed-targets),1)
 endif	# skip-makefile
 
 PHONY += FORCE
