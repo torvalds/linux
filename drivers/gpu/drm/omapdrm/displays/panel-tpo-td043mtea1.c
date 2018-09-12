@@ -347,12 +347,12 @@ static void tpo_td043_disable(struct omap_dss_device *dssdev)
 		tpo_td043_power_off(ddata);
 }
 
-static void tpo_td043_get_timings(struct omap_dss_device *dssdev,
-				  struct videomode *vm)
+static int tpo_td043_get_modes(struct omap_dss_device *dssdev,
+			       struct drm_connector *connector)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*vm = ddata->vm;
+	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
 static const struct omap_dss_device_ops tpo_td043_ops = {
@@ -362,7 +362,7 @@ static const struct omap_dss_device_ops tpo_td043_ops = {
 	.enable		= tpo_td043_enable,
 	.disable	= tpo_td043_disable,
 
-	.get_timings	= tpo_td043_get_timings,
+	.get_modes	= tpo_td043_get_modes,
 };
 
 static int tpo_td043_probe(struct spi_device *spi)

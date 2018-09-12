@@ -111,12 +111,12 @@ static void sharp_ls_post_disable(struct omap_dss_device *dssdev)
 		regulator_disable(ddata->vcc);
 }
 
-static void sharp_ls_get_timings(struct omap_dss_device *dssdev,
-				 struct videomode *vm)
+static int sharp_ls_get_modes(struct omap_dss_device *dssdev,
+			      struct drm_connector *connector)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*vm = ddata->vm;
+	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
 static const struct omap_dss_device_ops sharp_ls_ops = {
@@ -128,7 +128,7 @@ static const struct omap_dss_device_ops sharp_ls_ops = {
 	.disable	= sharp_ls_disable,
 	.post_disable	= sharp_ls_post_disable,
 
-	.get_timings	= sharp_ls_get_timings,
+	.get_modes	= sharp_ls_get_modes,
 };
 
 static  int sharp_ls_get_gpio_of(struct device *dev, int index, int val,

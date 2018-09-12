@@ -24,6 +24,8 @@
 #include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
 
+#include <drm/drm_connector.h>
+
 #include <video/mipi_display.h>
 #include <video/of_display_timing.h>
 
@@ -1110,12 +1112,12 @@ static void dsicm_ulps_work(struct work_struct *work)
 	mutex_unlock(&ddata->lock);
 }
 
-static void dsicm_get_timings(struct omap_dss_device *dssdev,
-			      struct videomode *vm)
+static int dsicm_get_modes(struct omap_dss_device *dssdev,
+			   struct drm_connector *connector)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*vm = ddata->vm;
+	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
 static int dsicm_check_timings(struct omap_dss_device *dssdev,
@@ -1156,7 +1158,7 @@ static const struct omap_dss_device_ops dsicm_ops = {
 	.enable		= dsicm_enable,
 	.disable	= dsicm_disable,
 
-	.get_timings	= dsicm_get_timings,
+	.get_modes	= dsicm_get_modes,
 	.check_timings	= dsicm_check_timings,
 };
 

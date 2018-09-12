@@ -212,8 +212,6 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev;
-	struct drm_display_mode *mode;
-	struct videomode vm = {0};
 
 	DBG("%s", omap_connector->display->name);
 
@@ -238,31 +236,20 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 					 &connector->display_info.height_mm);
 
 	/*
-	 * Iterate over the pipeline to find the first device that can provide
-	 * timing information. If we can't find any, we just let the KMS core
-	 * add the default modes.
+	 * If the display pipeline reports modes (e.g. with a fixed resolution
+	 * panel or an analog TV output), query it.
 	 */
 	for (dssdev = omap_connector->display; dssdev; dssdev = dssdev->src) {
-		if (dssdev->ops->get_timings)
-			break;
+		if (dssdev->ops->get_modes)
+			return dssdev->ops->get_modes(dssdev, connector);
 	}
-	if (!dssdev)
-		return 0;
 
-	/* Add a single mode corresponding to the fixed panel timings. */
-	mode = drm_mode_create(connector->dev);
-	if (!mode)
-		return 0;
-
-	dssdev->ops->get_timings(dssdev, &vm);
-
-	drm_display_mode_from_videomode(&vm, mode);
-
-	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-	drm_mode_set_name(mode);
-	drm_mode_probed_add(connector, mode);
-
-	return 1;
+	/*
+	 * We can't retrieve modes, which can happen for instance for a DVI or
+	 * VGA output with the DDC bus unconnected. The KMS core will add the
+	 * default modes.
+	 */
+	return 0;
 }
 
 static int omap_connector_mode_valid(struct drm_connector *connector,

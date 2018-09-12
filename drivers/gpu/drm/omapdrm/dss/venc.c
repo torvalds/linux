@@ -548,14 +548,17 @@ static void venc_display_disable(struct omap_dss_device *dssdev)
 	mutex_unlock(&venc->venc_lock);
 }
 
-static void venc_get_timings(struct omap_dss_device *dssdev,
-			     struct videomode *vm)
+static int venc_get_modes(struct omap_dss_device *dssdev,
+			  struct drm_connector *connector)
 {
 	struct venc_device *venc = dssdev_to_venc(dssdev);
+	int r;
 
 	mutex_lock(&venc->venc_lock);
-	*vm = venc->vm;
+	r = omapdss_display_get_modes(connector, &venc->vm);
 	mutex_unlock(&venc->venc_lock);
+
+	return r;
 }
 
 static void venc_set_timings(struct omap_dss_device *dssdev,
@@ -690,8 +693,9 @@ static const struct omap_dss_device_ops venc_ops = {
 	.disable = venc_display_disable,
 
 	.check_timings = venc_check_timings,
-	.get_timings = venc_get_timings,
 	.set_timings = venc_set_timings,
+
+	.get_modes = venc_get_modes,
 };
 
 /* -----------------------------------------------------------------------------

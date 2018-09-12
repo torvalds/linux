@@ -67,6 +67,7 @@ struct dss_lcd_mgr_config;
 struct snd_aes_iec958;
 struct snd_cea_861_aud_if;
 struct hdmi_avi_infoframe;
+struct drm_connector;
 
 enum omap_display_type {
 	OMAP_DISPLAY_TYPE_NONE		= 0,
@@ -366,8 +367,6 @@ struct omap_dss_device_ops {
 
 	int (*check_timings)(struct omap_dss_device *dssdev,
 			     struct videomode *vm);
-	void (*get_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
 	void (*set_timings)(struct omap_dss_device *dssdev,
 			    const struct videomode *vm);
 
@@ -380,6 +379,9 @@ struct omap_dss_device_ops {
 	void (*unregister_hpd_cb)(struct omap_dss_device *dssdev);
 
 	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
+
+	int (*get_modes)(struct omap_dss_device *dssdev,
+			 struct drm_connector *connector);
 
 	union {
 		const struct omapdss_hdmi_ops hdmi;
@@ -469,6 +471,8 @@ static inline bool omapdss_is_initialized(void)
 
 void omapdss_display_init(struct omap_dss_device *dssdev);
 struct omap_dss_device *omapdss_display_get(struct omap_dss_device *output);
+int omapdss_display_get_modes(struct drm_connector *connector,
+			      const struct videomode *vm);
 
 void omapdss_device_register(struct omap_dss_device *dssdev);
 void omapdss_device_unregister(struct omap_dss_device *dssdev);

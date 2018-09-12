@@ -139,12 +139,12 @@ static void lb035q02_disable(struct omap_dss_device *dssdev)
 		gpiod_set_value_cansleep(ddata->enable_gpio, 0);
 }
 
-static void lb035q02_get_timings(struct omap_dss_device *dssdev,
-				 struct videomode *vm)
+static int lb035q02_get_modes(struct omap_dss_device *dssdev,
+			      struct drm_connector *connector)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*vm = ddata->vm;
+	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
 static const struct omap_dss_device_ops lb035q02_ops = {
@@ -154,7 +154,7 @@ static const struct omap_dss_device_ops lb035q02_ops = {
 	.enable		= lb035q02_enable,
 	.disable	= lb035q02_disable,
 
-	.get_timings	= lb035q02_get_timings,
+	.get_modes	= lb035q02_get_modes,
 };
 
 static int lb035q02_probe_of(struct spi_device *spi)

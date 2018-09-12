@@ -68,12 +68,12 @@ static void panel_dpi_disable(struct omap_dss_device *dssdev)
 	regulator_disable(ddata->vcc_supply);
 }
 
-static void panel_dpi_get_timings(struct omap_dss_device *dssdev,
-				  struct videomode *vm)
+static int panel_dpi_get_modes(struct omap_dss_device *dssdev,
+			       struct drm_connector *connector)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*vm = ddata->vm;
+	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
 static const struct omap_dss_device_ops panel_dpi_ops = {
@@ -83,7 +83,7 @@ static const struct omap_dss_device_ops panel_dpi_ops = {
 	.enable		= panel_dpi_enable,
 	.disable	= panel_dpi_disable,
 
-	.get_timings	= panel_dpi_get_timings,
+	.get_modes	= panel_dpi_get_modes,
 };
 
 static int panel_dpi_probe_of(struct platform_device *pdev)

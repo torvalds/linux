@@ -272,12 +272,12 @@ static void td028ttec1_panel_disable(struct omap_dss_device *dssdev)
 	jbt_reg_write_1(ddata, JBT_REG_POWER_ON_OFF, 0x00);
 }
 
-static void td028ttec1_panel_get_timings(struct omap_dss_device *dssdev,
-					 struct videomode *vm)
+static int td028ttec1_panel_get_modes(struct omap_dss_device *dssdev,
+				      struct drm_connector *connector)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*vm = ddata->vm;
+	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
 static const struct omap_dss_device_ops td028ttec1_ops = {
@@ -287,7 +287,7 @@ static const struct omap_dss_device_ops td028ttec1_ops = {
 	.enable		= td028ttec1_panel_enable,
 	.disable	= td028ttec1_panel_disable,
 
-	.get_timings	= td028ttec1_panel_get_timings,
+	.get_modes	= td028ttec1_panel_get_modes,
 };
 
 static int td028ttec1_panel_probe(struct spi_device *spi)

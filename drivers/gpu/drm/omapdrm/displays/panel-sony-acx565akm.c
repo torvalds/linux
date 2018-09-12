@@ -596,12 +596,12 @@ static void acx565akm_disable(struct omap_dss_device *dssdev)
 	mutex_unlock(&ddata->mutex);
 }
 
-static void acx565akm_get_timings(struct omap_dss_device *dssdev,
-				  struct videomode *vm)
+static int acx565akm_get_modes(struct omap_dss_device *dssdev,
+			       struct drm_connector *connector)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*vm = ddata->vm;
+	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
 static const struct omap_dss_device_ops acx565akm_ops = {
@@ -611,7 +611,7 @@ static const struct omap_dss_device_ops acx565akm_ops = {
 	.enable		= acx565akm_enable,
 	.disable	= acx565akm_disable,
 
-	.get_timings	= acx565akm_get_timings,
+	.get_modes	= acx565akm_get_modes,
 };
 
 static int acx565akm_probe(struct spi_device *spi)

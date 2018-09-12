@@ -132,12 +132,12 @@ static void nec_8048_disable(struct omap_dss_device *dssdev)
 	gpiod_set_value_cansleep(ddata->res_gpio, 0);
 }
 
-static void nec_8048_get_timings(struct omap_dss_device *dssdev,
-				 struct videomode *vm)
+static int nec_8048_get_modes(struct omap_dss_device *dssdev,
+			      struct drm_connector *connector)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*vm = ddata->vm;
+	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
 static const struct omap_dss_device_ops nec_8048_ops = {
@@ -147,7 +147,7 @@ static const struct omap_dss_device_ops nec_8048_ops = {
 	.enable		= nec_8048_enable,
 	.disable	= nec_8048_disable,
 
-	.get_timings	= nec_8048_get_timings,
+	.get_modes	= nec_8048_get_modes,
 };
 
 static int nec_8048_probe(struct spi_device *spi)
