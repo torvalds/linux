@@ -30,12 +30,6 @@
 #define USBTMC_HEADER_SIZE	12
 #define USBTMC_MINOR_BASE	176
 
-/*
- * Size of driver internal IO buffer. Must be multiple of 4 and at least as
- * large as wMaxPacketSize (which is usually 512 bytes).
- */
-#define USBTMC_SIZE_IOBUFFER	2048
-
 /* Minimum USB timeout (in milliseconds) */
 #define USBTMC_MIN_TIMEOUT	100
 /* Default USB timeout (in milliseconds) */
