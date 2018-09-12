@@ -2499,8 +2499,8 @@ static int usbtmc_probe(struct usb_interface *intf,
 
 	retcode = usb_register_dev(intf, &usbtmc_class);
 	if (retcode) {
-		dev_err(&intf->dev, "Not able to get a minor"
-			" (base %u, slice default): %d\n", USBTMC_MINOR_BASE,
+		dev_err(&intf->dev, "Not able to get a minor (base %u, slice default): %d\n",
+			USBTMC_MINOR_BASE,
 			retcode);
 		goto error_register;
 	}
