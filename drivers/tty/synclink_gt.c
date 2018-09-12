@@ -1029,8 +1029,7 @@ static int ioctl(struct tty_struct *tty,
 		return -ENODEV;
 	DBGINFO(("%s ioctl() cmd=%08X\n", info->device_name, cmd));
 
-	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
-	    (cmd != TIOCMIWAIT)) {
+	if (cmd != TIOCMIWAIT) {
 		if (tty_io_error(tty))
 		    return -EIO;
 	}
