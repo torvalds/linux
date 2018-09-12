@@ -99,6 +99,7 @@ struct usbtmc_message {
 
 /* Cancel and cleanup asynchronous calls */
 #define USBTMC_IOCTL_CANCEL_IO		_IO(USBTMC_IOC_NR, 35)
+#define USBTMC_IOCTL_CLEANUP_IO		_IO(USBTMC_IOC_NR, 36)
 
 /* Driver encoded usb488 capabilities */
 #define USBTMC488_CAPABILITY_TRIGGER         1

@@ -1706,6 +1706,21 @@ static int usbtmc_ioctl_cancel_io(struct usbtmc_file_data *file_data)
 	return 0;
 }
 
+static int usbtmc_ioctl_cleanup_io(struct usbtmc_file_data *file_data)
+{
+	usb_kill_anchored_urbs(&file_data->submitted);
+	usb_scuttle_anchored_urbs(&file_data->in_anchor);
+	spin_lock_irq(&file_data->err_lock);
+	file_data->in_status = 0;
+	file_data->in_transfer_size = 0;
+	file_data->out_status = 0;
+	file_data->out_transfer_size = 0;
+	spin_unlock_irq(&file_data->err_lock);
+
+	file_data->in_urbs_used = 0;
+	return 0;
+}
+
 static int get_capabilities(struct usbtmc_device_data *data)
 {
 	struct device *dev = &data->usb_dev->dev;
@@ -2129,6 +2144,10 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case USBTMC_IOCTL_CANCEL_IO:
 		retval = usbtmc_ioctl_cancel_io(file_data);
+		break;
+
+	case USBTMC_IOCTL_CLEANUP_IO:
+		retval = usbtmc_ioctl_cleanup_io(file_data);
 		break;
 	}
 
