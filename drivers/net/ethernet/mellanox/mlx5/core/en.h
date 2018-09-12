@@ -961,7 +961,11 @@ int mlx5e_ethtool_flash_device(struct mlx5e_priv *priv,
 			       struct ethtool_flash *flash);
 
 /* mlx5e generic netdev management API */
-int mlx5e_netdev_init(struct net_device *netdev, struct mlx5e_priv *priv);
+int mlx5e_netdev_init(struct net_device *netdev,
+		      struct mlx5e_priv *priv,
+		      struct mlx5_core_dev *mdev,
+		      const struct mlx5e_profile *profile,
+		      void *ppriv);
 void mlx5e_netdev_cleanup(struct net_device *netdev, struct mlx5e_priv *priv);
 struct net_device*
 mlx5e_create_netdev(struct mlx5_core_dev *mdev, const struct mlx5e_profile *profile,

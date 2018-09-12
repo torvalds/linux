@@ -4560,32 +4560,6 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 	mlx5e_build_rss_params(params);
 }
 
-static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
-					struct net_device *netdev,
-					const struct mlx5e_profile *profile,
-					void *ppriv)
-{
-	struct mlx5e_priv *priv = netdev_priv(netdev);
-
-	priv->mdev        = mdev;
-	priv->netdev      = netdev;
-	priv->profile     = profile;
-	priv->ppriv       = ppriv;
-	priv->msglevel    = MLX5E_MSG_LEVEL;
-	priv->max_opened_tc = 1;
-
-	mlx5e_build_nic_params(mdev, &priv->channels.params,
-			       profile->max_nch(mdev), netdev->mtu);
-
-	mutex_init(&priv->state_lock);
-
-	INIT_WORK(&priv->update_carrier_work, mlx5e_update_carrier_work);
-	INIT_WORK(&priv->set_rx_mode_work, mlx5e_set_rx_mode_work);
-	INIT_WORK(&priv->tx_timeout_work, mlx5e_tx_timeout_work);
-
-	mlx5e_timestamp_init(priv);
-}
-
 static void mlx5e_set_netdev_dev_addr(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
@@ -4756,11 +4730,15 @@ static int mlx5e_nic_init(struct mlx5_core_dev *mdev,
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	int err;
 
-	err = mlx5e_netdev_init(netdev, priv);
+	err = mlx5e_netdev_init(netdev, priv, mdev, profile, ppriv);
 	if (err)
 		return err;
 
-	mlx5e_build_nic_netdev_priv(mdev, netdev, profile, ppriv);
+	mlx5e_build_nic_params(mdev, &priv->channels.params,
+			       profile->max_nch(mdev), netdev->mtu);
+
+	mlx5e_timestamp_init(priv);
+
 	err = mlx5e_ipsec_init(priv);
 	if (err)
 		mlx5_core_err(mdev, "IPSec initialization failed, %d\n", err);
@@ -4950,15 +4928,36 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 /* mlx5e generic netdev management API (move to en_common.c) */
 
 /* mlx5e_netdev_init/cleanup must be called from profile->init/cleanup callbacks */
-int mlx5e_netdev_init(struct net_device *netdev, struct mlx5e_priv *priv)
+int mlx5e_netdev_init(struct net_device *netdev,
+		      struct mlx5e_priv *priv,
+		      struct mlx5_core_dev *mdev,
+		      const struct mlx5e_profile *profile,
+		      void *ppriv)
 {
-	netif_carrier_off(netdev);
+	/* priv init */
+	priv->mdev        = mdev;
+	priv->netdev      = netdev;
+	priv->profile     = profile;
+	priv->ppriv       = ppriv;
+	priv->msglevel    = MLX5E_MSG_LEVEL;
+	priv->max_opened_tc = 1;
 
+	mutex_init(&priv->state_lock);
+	INIT_WORK(&priv->update_carrier_work, mlx5e_update_carrier_work);
+	INIT_WORK(&priv->set_rx_mode_work, mlx5e_set_rx_mode_work);
+	INIT_WORK(&priv->tx_timeout_work, mlx5e_tx_timeout_work);
 	INIT_DELAYED_WORK(&priv->update_stats_work, mlx5e_update_stats_work);
 
 	priv->wq = create_singlethread_workqueue("mlx5e");
 	if (!priv->wq)
 		return -ENOMEM;
+
+	/* netdev init */
+	netif_carrier_off(netdev);
+
+#ifdef CONFIG_MLX5_EN_ARFS
+	netdev->rx_cpu_rmap = mdev->rmap;
+#endif
 
 	return 0;
 }
@@ -4983,10 +4982,6 @@ struct net_device *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
 		mlx5_core_err(mdev, "alloc_etherdev_mqs() failed\n");
 		return NULL;
 	}
-
-#ifdef CONFIG_MLX5_EN_ARFS
-	netdev->rx_cpu_rmap = mdev->rmap;
-#endif
 
 	err = profile->init(mdev, netdev, profile, ppriv);
 	if (err) {

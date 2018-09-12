@@ -1086,16 +1086,10 @@ static int mlx5e_init_rep(struct mlx5_core_dev *mdev,
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	int err;
 
-	priv->mdev                         = mdev;
-	priv->netdev                       = netdev;
-	priv->profile                      = profile;
-	priv->ppriv                        = ppriv;
-
-	err = mlx5e_netdev_init(netdev, priv);
+	err = mlx5e_netdev_init(netdev, priv, mdev, profile, ppriv);
 	if (err)
 		return err;
 
-	mutex_init(&priv->state_lock);
 
 	priv->channels.params.num_channels = profile->max_nch(mdev);
 

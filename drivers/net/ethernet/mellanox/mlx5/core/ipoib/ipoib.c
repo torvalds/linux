@@ -80,15 +80,7 @@ int mlx5i_init(struct mlx5_core_dev *mdev,
 	u16 max_mtu;
 	int err;
 
-	/* priv init */
-	priv->mdev        = mdev;
-	priv->netdev      = netdev;
-	priv->profile     = profile;
-	priv->ppriv       = ppriv;
-	priv->max_opened_tc = 1;
-	mutex_init(&priv->state_lock);
-
-	err = mlx5e_netdev_init(netdev, priv);
+	err = mlx5e_netdev_init(netdev, priv, mdev, profile, ppriv);
 	if (err)
 		return err;
 
