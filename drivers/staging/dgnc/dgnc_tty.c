@@ -2080,31 +2080,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	}
 
 	switch (cmd) {
-	/* Here are all the standard ioctl's that we MUST implement */
-	case TIOCGSOFTCAR:
-
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-
-		return put_user(C_CLOCAL(tty) ? 1 : 0,
-				(unsigned long __user *)arg);
-
-	case TIOCSSOFTCAR:
-
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		rc = get_user(arg, (unsigned long __user *)arg);
-		if (rc)
-			return rc;
-
-		spin_lock_irqsave(&ch->ch_lock, flags);
-		tty->termios.c_cflag = ((tty->termios.c_cflag & ~CLOCAL) |
-				       (arg ? CLOCAL : 0));
-		ch_bd_ops->param(tty);
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-
-		return 0;
-
 		/* Here are any additional ioctl's that we want to implement */
-
 	case TCFLSH:
 		/*
 		 * The linux tty driver doesn't have a flush
