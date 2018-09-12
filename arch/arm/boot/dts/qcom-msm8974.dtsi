@@ -794,10 +794,11 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
-			port {
-				etr_in: endpoint {
-					slave-mode;
-					remote-endpoint = <&replicator_out0>;
+			in-ports {
+				port {
+					etr_in: endpoint {
+						remote-endpoint = <&replicator_out0>;
+					};
 				};
 			};
 		};
@@ -809,10 +810,11 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
-			port {
-				tpiu_in: endpoint {
-					 slave-mode;
-					 remote-endpoint = <&replicator_out1>;
+			in-ports {
+				port {
+					tpiu_in: endpoint {
+						remote-endpoint = <&replicator_out1>;
+					};
 				 };
 			};
 		};
@@ -824,7 +826,7 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
-			ports {
+			out-ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -840,10 +842,11 @@
 						remote-endpoint = <&tpiu_in>;
 					};
 				};
-				port@2 {
-					reg = <0>;
+			};
+
+			in-ports {
+				port {
 					replicator_in: endpoint {
-						slave-mode;
 						remote-endpoint = <&etf_out>;
 					};
 				};
@@ -857,20 +860,17 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
+			out-ports {
+				port {
 					etf_out: endpoint {
 						remote-endpoint = <&replicator_in>;
 					};
 				};
-				port@1 {
-					reg = <0>;
+			};
+
+			in-ports {
+				port {
 					etf_in: endpoint {
-						slave-mode;
 						remote-endpoint = <&merger_out>;
 					};
 				};
@@ -884,7 +884,7 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
-			ports {
+			in-ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -897,12 +897,13 @@
 				port@1 {
 					reg = <1>;
 					merger_in1: endpoint {
-						slave-mode;
 						remote-endpoint = <&funnel1_out>;
 					};
 				};
-				port@8 {
-					reg = <0>;
+			};
+
+			out-ports {
+				port {
 					merger_out: endpoint {
 						remote-endpoint = <&etf_in>;
 					};
@@ -917,7 +918,7 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
-			ports {
+			in-ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -934,12 +935,13 @@
 				port@5 {
 					reg = <5>;
 					funnel1_in5: endpoint {
-						slave-mode;
 						remote-endpoint = <&kpss_out>;
 					};
 				};
-				port@8 {
-					reg = <0>;
+			};
+
+			out-ports {
+				port {
 					funnel1_out: endpoint {
 						remote-endpoint = <&merger_in1>;
 					};
@@ -954,40 +956,38 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
-			ports {
+			in-ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				port@0 {
 					reg = <0>;
 					kpss_in0: endpoint {
-						slave-mode;
 						remote-endpoint = <&etm0_out>;
 					};
 				};
 				port@1 {
 					reg = <1>;
 					kpss_in1: endpoint {
-						slave-mode;
 						remote-endpoint = <&etm1_out>;
 					};
 				};
 				port@2 {
 					reg = <2>;
 					kpss_in2: endpoint {
-						slave-mode;
 						remote-endpoint = <&etm2_out>;
 					};
 				};
 				port@3 {
 					reg = <3>;
 					kpss_in3: endpoint {
-						slave-mode;
 						remote-endpoint = <&etm3_out>;
 					};
 				};
-				port@8 {
-					reg = <0>;
+			};
+
+			out-ports {
+				port {
 					kpss_out: endpoint {
 						remote-endpoint = <&funnel1_in5>;
 					};
@@ -1004,9 +1004,11 @@
 
 			cpu = <&CPU0>;
 
-			port {
-				etm0_out: endpoint {
-					remote-endpoint = <&kpss_in0>;
+			out-ports {
+				port {
+					etm0_out: endpoint {
+						remote-endpoint = <&kpss_in0>;
+					};
 				};
 			};
 		};
@@ -1020,9 +1022,11 @@
 
 			cpu = <&CPU1>;
 
-			port {
-				etm1_out: endpoint {
-					remote-endpoint = <&kpss_in1>;
+			out-ports {
+				port {
+					etm1_out: endpoint {
+						remote-endpoint = <&kpss_in1>;
+					};
 				};
 			};
 		};
@@ -1036,9 +1040,11 @@
 
 			cpu = <&CPU2>;
 
-			port {
-				etm2_out: endpoint {
-					remote-endpoint = <&kpss_in2>;
+			out-ports {
+				port {
+					etm2_out: endpoint {
+						remote-endpoint = <&kpss_in2>;
+					};
 				};
 			};
 		};
@@ -1052,9 +1058,11 @@
 
 			cpu = <&CPU3>;
 
-			port {
-				etm3_out: endpoint {
-					remote-endpoint = <&kpss_in3>;
+			out-ports {
+				port {
+					etm3_out: endpoint {
+						remote-endpoint = <&kpss_in3>;
+					};
 				};
 			};
 		};
