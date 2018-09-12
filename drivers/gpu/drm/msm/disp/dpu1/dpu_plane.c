@@ -140,11 +140,6 @@ static bool dpu_plane_enabled(struct drm_plane_state *state)
 	return state && state->fb && state->crtc;
 }
 
-static bool dpu_plane_sspp_enabled(struct drm_plane_state *state)
-{
-	return state && state->crtc;
-}
-
 /**
  * _dpu_plane_calc_fill_level - calculate fill level of the given source format
  * @plane:		Pointer to drm plane
@@ -1400,7 +1395,7 @@ static void dpu_plane_atomic_update(struct drm_plane *plane,
 
 	DPU_DEBUG_PLANE(pdpu, "\n");
 
-	if (!dpu_plane_sspp_enabled(state)) {
+	if (!dpu_plane_enabled(state)) {
 		_dpu_plane_atomic_disable(plane, old_state);
 	} else {
 		int ret;
