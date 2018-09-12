@@ -469,10 +469,9 @@ static enum pci_ers_result eeh_report_failure(struct eeh_dev *edev,
 	return rc;
 }
 
-static void *eeh_add_virt_device(void *data, void *userdata)
+static void *eeh_add_virt_device(struct eeh_dev *edev)
 {
 	struct pci_driver *driver;
-	struct eeh_dev *edev = (struct eeh_dev *)data;
 	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
 	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
@@ -743,7 +742,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 		edev = list_first_entry(&pe->edevs, struct eeh_dev, list);
 		eeh_pe_traverse(pe, eeh_pe_detach_dev, NULL);
 		if (pe->type & EEH_PE_VF) {
-			eeh_add_virt_device(edev, NULL);
+			eeh_add_virt_device(edev);
 		} else {
 			if (!driver_eeh_aware)
 				eeh_pe_state_clear(pe, EEH_PE_PRI_BUS);
@@ -936,7 +935,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	 * recovered properly.
 	 */
 	list_for_each_entry_safe(edev, tmp, &rmv_data.edev_list, rmv_list) {
-		eeh_add_virt_device(edev, NULL);
+		eeh_add_virt_device(edev);
 		list_del(&edev->rmv_list);
 	}
 
