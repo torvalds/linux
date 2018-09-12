@@ -306,16 +306,18 @@ struct mlx5e_cq {
 	struct mlx5_core_cq        mcq;
 	struct mlx5e_channel      *channel;
 
+	/* control */
+	struct mlx5_core_dev      *mdev;
+	struct mlx5_wq_ctrl        wq_ctrl;
+} ____cacheline_aligned_in_smp;
+
+struct mlx5e_cq_decomp {
 	/* cqe decompression */
 	struct mlx5_cqe64          title;
 	struct mlx5_mini_cqe8      mini_arr[MLX5_MINI_CQE_ARRAY_SIZE];
 	u8                         mini_arr_idx;
-	u16                        decmprs_left;
-	u16                        decmprs_wqe_counter;
-
-	/* control */
-	struct mlx5_core_dev      *mdev;
-	struct mlx5_wq_ctrl        wq_ctrl;
+	u16                        left;
+	u16                        wqe_counter;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_tx_wqe_info {
@@ -578,6 +580,7 @@ struct mlx5e_rq {
 	struct net_device     *netdev;
 	struct mlx5e_rq_stats *stats;
 	struct mlx5e_cq        cq;
+	struct mlx5e_cq_decomp cqd;
 	struct mlx5e_page_cache page_cache;
 	struct hwtstamp_config *tstamp;
 	struct mlx5_clock      *clock;
