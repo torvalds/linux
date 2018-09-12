@@ -407,14 +407,17 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np,
 	opp_table = _managed_opp(opp_np);
 	if (opp_table) {
 		/* OPPs are already managed */
-		if (!_add_opp_dev(dev, opp_table))
+		if (!_add_opp_dev(dev, opp_table)) {
 			ret = -ENOMEM;
-		else if (!opp_table->parsed_static_opps)
-			goto initialize_static_opps;
-		else
-			kref_get(&opp_table->list_kref);
+			goto put_opp_table;
+		}
 
-		goto put_opp_table;
+		if (opp_table->parsed_static_opps) {
+			kref_get(&opp_table->list_kref);
+			return 0;
+		}
+
+		goto initialize_static_opps;
 	}
 
 	opp_table = dev_pm_opp_get_opp_table_indexed(dev, index);
@@ -432,17 +435,15 @@ initialize_static_opps:
 		if (ret) {
 			dev_err(dev, "%s: Failed to add OPP, %d\n", __func__,
 				ret);
-			_dev_pm_opp_remove_table(opp_table, dev);
 			of_node_put(np);
-			goto put_opp_table;
+			goto put_list_kref;
 		}
 	}
 
 	/* There should be one of more OPP defined */
 	if (WARN_ON(!count)) {
 		ret = -ENOENT;
-		_put_opp_list_kref(opp_table);
-		goto put_opp_table;
+		goto put_list_kref;
 	}
 
 	list_for_each_entry(opp, &opp_table->opp_list, node)
@@ -453,8 +454,7 @@ initialize_static_opps:
 		dev_err(dev, "Not all nodes have performance state set (%d: %d)\n",
 			count, pstate_count);
 		ret = -ENOENT;
-		_dev_pm_opp_remove_table(opp_table, dev);
-		goto put_opp_table;
+		goto put_list_kref;
 	}
 
 	if (pstate_count)
@@ -462,6 +462,10 @@ initialize_static_opps:
 
 	opp_table->parsed_static_opps = true;
 
+	return 0;
+
+put_list_kref:
+	_put_opp_list_kref(opp_table);
 put_opp_table:
 	dev_pm_opp_put_opp_table(opp_table);
 
@@ -507,13 +511,13 @@ static int _of_add_opp_table_v1(struct device *dev)
 		if (ret) {
 			dev_err(dev, "%s: Failed to add OPP %ld (%d)\n",
 				__func__, freq, ret);
-			_dev_pm_opp_remove_table(opp_table, dev);
-			break;
+			_put_opp_list_kref(opp_table);
+			dev_pm_opp_put_opp_table(opp_table);
+			return ret;
 		}
 		nr -= 2;
 	}
 
-	dev_pm_opp_put_opp_table(opp_table);
 	return ret;
 }
 
