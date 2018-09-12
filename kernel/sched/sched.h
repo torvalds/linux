@@ -2262,7 +2262,14 @@ static inline unsigned long schedutil_energy_util(int cpu, unsigned long cfs)
 
 	return schedutil_freq_util(cpu, cfs, max, ENERGY_UTIL);
 }
+#else /* CONFIG_CPU_FREQ_GOV_SCHEDUTIL */
+static inline unsigned long schedutil_energy_util(int cpu, unsigned long cfs)
+{
+	return cfs;
+}
+#endif
 
+#ifdef CONFIG_SMP
 static inline unsigned long cpu_bw_dl(struct rq *rq)
 {
 	return (rq->dl.running_bw * SCHED_CAPACITY_SCALE) >> BW_SHIFT;
@@ -2288,11 +2295,6 @@ static inline unsigned long cpu_util_cfs(struct rq *rq)
 static inline unsigned long cpu_util_rt(struct rq *rq)
 {
 	return READ_ONCE(rq->avg_rt.util_avg);
-}
-#else /* CONFIG_CPU_FREQ_GOV_SCHEDUTIL */
-static inline unsigned long schedutil_energy_util(int cpu, unsigned long cfs)
-{
-	return cfs;
 }
 #endif
 
