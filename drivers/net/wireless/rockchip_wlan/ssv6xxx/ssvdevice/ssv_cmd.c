@@ -384,7 +384,7 @@ static int ssv_cmd_dump(int argc, char *argv[])
     int s;
  if(!ssv6xxx_result_buf)
  {
-  strcpy(ssv6xxx_result_buf, "ssv6xxx_result_buf = NULL!!\n");
+  printk("ssv6xxx_result_buf = NULL!!\n");
   return -1;
  }
     if (argc != 2)
