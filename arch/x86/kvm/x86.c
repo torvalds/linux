@@ -7835,6 +7835,29 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+/* Swap (qemu) user FPU context for the guest FPU context. */
+static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
+{
+	preempt_disable();
+	copy_fpregs_to_fpstate(&vcpu->arch.user_fpu);
+	/* PKRU is separately restored in kvm_x86_ops->run.  */
+	__copy_kernel_to_fpregs(&vcpu->arch.guest_fpu.state,
+				~XFEATURE_MASK_PKRU);
+	preempt_enable();
+	trace_kvm_fpu(1);
+}
+
+/* When vcpu_run ends, restore user space FPU context. */
+static void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
+{
+	preempt_disable();
+	copy_fpregs_to_fpstate(&vcpu->arch.guest_fpu);
+	copy_kernel_to_fpregs(&vcpu->arch.user_fpu.state);
+	preempt_enable();
+	++vcpu->stat.fpu_reload;
+	trace_kvm_fpu(0);
+}
+
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int r;
@@ -8410,29 +8433,6 @@ static void fx_init(struct kvm_vcpu *vcpu)
 	vcpu->arch.xcr0 = XFEATURE_MASK_FP;
 
 	vcpu->arch.cr0 |= X86_CR0_ET;
-}
-
-/* Swap (qemu) user FPU context for the guest FPU context. */
-void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
-{
-	preempt_disable();
-	copy_fpregs_to_fpstate(&vcpu->arch.user_fpu);
-	/* PKRU is separately restored in kvm_x86_ops->run.  */
-	__copy_kernel_to_fpregs(&vcpu->arch.guest_fpu.state,
-				~XFEATURE_MASK_PKRU);
-	preempt_enable();
-	trace_kvm_fpu(1);
-}
-
-/* When vcpu_run ends, restore user space FPU context. */
-void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
-{
-	preempt_disable();
-	copy_fpregs_to_fpstate(&vcpu->arch.guest_fpu);
-	copy_kernel_to_fpregs(&vcpu->arch.user_fpu.state);
-	preempt_enable();
-	++vcpu->stat.fpu_reload;
-	trace_kvm_fpu(0);
 }
 
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
