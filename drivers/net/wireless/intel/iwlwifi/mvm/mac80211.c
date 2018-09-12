@@ -395,6 +395,21 @@ int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm)
 	return ret;
 }
 
+const static u8 he_if_types_ext_capa_sta[] = {
+	 [0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
+	 [7] = WLAN_EXT_CAPA8_OPMODE_NOTIF,
+	 [9] = WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT,
+};
+
+const static struct wiphy_iftype_ext_capab he_iftypes_ext_capa[] = {
+	{
+		.iftype = NL80211_IFTYPE_STATION,
+		.extended_capabilities = he_if_types_ext_capa_sta,
+		.extended_capabilities_mask = he_if_types_ext_capa_sta,
+		.extended_capabilities_len = sizeof(he_if_types_ext_capa_sta),
+	},
+};
+
 int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 {
 	struct ieee80211_hw *hw = mvm->hw;
@@ -671,6 +686,13 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 			NL80211_EXT_FEATURE_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION);
 		wiphy_ext_feature_set(hw->wiphy,
 			NL80211_EXT_FEATURE_OCE_PROBE_REQ_HIGH_TX_RATE);
+	}
+
+	if (mvm->nvm_data->sku_cap_11ax_enable &&
+	    !iwlwifi_mod_params.disable_11ax) {
+		hw->wiphy->iftype_ext_capab = he_iftypes_ext_capa;
+		hw->wiphy->num_iftype_ext_capab =
+			ARRAY_SIZE(he_iftypes_ext_capa);
 	}
 
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
