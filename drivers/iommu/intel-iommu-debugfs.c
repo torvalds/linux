@@ -131,6 +131,69 @@ out:
 }
 DEFINE_SHOW_ATTRIBUTE(iommu_regset);
 
+static void ctx_tbl_entry_show(struct seq_file *m, struct intel_iommu *iommu,
+			       int bus)
+{
+	struct context_entry *context;
+	int devfn;
+
+	seq_printf(m, " Context Table Entries for Bus: %d\n", bus);
+	seq_puts(m, "  Entry\tB:D.F\tHigh\tLow\n");
+
+	for (devfn = 0; devfn < 256; devfn++) {
+		context = iommu_context_addr(iommu, bus, devfn, 0);
+		if (!context)
+			return;
+
+		if (!context_present(context))
+			continue;
+
+		seq_printf(m, "  %-5d\t%02x:%02x.%x\t%-6llx\t%llx\n", devfn,
+			   bus, PCI_SLOT(devfn), PCI_FUNC(devfn),
+			   context[0].hi, context[0].lo);
+	}
+}
+
+static void root_tbl_entry_show(struct seq_file *m, struct intel_iommu *iommu)
+{
+	unsigned long flags;
+	int bus;
+
+	spin_lock_irqsave(&iommu->lock, flags);
+	seq_printf(m, "IOMMU %s: Root Table Address:%llx\n", iommu->name,
+		   (u64)virt_to_phys(iommu->root_entry));
+	seq_puts(m, "Root Table Entries:\n");
+
+	for (bus = 0; bus < 256; bus++) {
+		if (!(iommu->root_entry[bus].lo & 1))
+			continue;
+
+		seq_printf(m, " Bus: %d H: %llx L: %llx\n", bus,
+			   iommu->root_entry[bus].hi,
+			   iommu->root_entry[bus].lo);
+
+		ctx_tbl_entry_show(m, iommu, bus);
+		seq_putc(m, '\n');
+	}
+	spin_unlock_irqrestore(&iommu->lock, flags);
+}
+
+static int dmar_translation_struct_show(struct seq_file *m, void *unused)
+{
+	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
+
+	rcu_read_lock();
+	for_each_active_iommu(iommu, drhd) {
+		root_tbl_entry_show(m, iommu);
+		seq_putc(m, '\n');
+	}
+	rcu_read_unlock();
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(dmar_translation_struct);
+
 #ifdef CONFIG_IRQ_REMAP
 static void ir_tbl_remap_entry_show(struct seq_file *m,
 				    struct intel_iommu *iommu)
@@ -242,6 +305,8 @@ void __init intel_iommu_debugfs_init(void)
 
 	debugfs_create_file("iommu_regset", 0444, intel_iommu_debug, NULL,
 			    &iommu_regset_fops);
+	debugfs_create_file("dmar_translation_struct", 0444, intel_iommu_debug,
+			    NULL, &dmar_translation_struct_fops);
 #ifdef CONFIG_IRQ_REMAP
 	debugfs_create_file("ir_translation_struct", 0444, intel_iommu_debug,
 			    NULL, &ir_translation_struct_fops);
