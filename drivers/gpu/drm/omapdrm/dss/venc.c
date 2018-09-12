@@ -551,14 +551,27 @@ static void venc_display_disable(struct omap_dss_device *dssdev)
 static int venc_get_modes(struct omap_dss_device *dssdev,
 			  struct drm_connector *connector)
 {
-	struct venc_device *venc = dssdev_to_venc(dssdev);
-	int r;
+	static const struct videomode *modes[] = {
+		&omap_dss_pal_vm,
+		&omap_dss_ntsc_vm,
+	};
+	unsigned int i;
 
-	mutex_lock(&venc->venc_lock);
-	r = omapdss_display_get_modes(connector, &venc->vm);
-	mutex_unlock(&venc->venc_lock);
+	for (i = 0; i < ARRAY_SIZE(modes); ++i) {
+		struct drm_display_mode *mode;
 
-	return r;
+		mode = drm_mode_create(connector->dev);
+		if (!mode)
+			return i;
+
+		drm_display_mode_from_videomode(modes[i], mode);
+
+		mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
+		drm_mode_set_name(mode);
+		drm_mode_probed_add(connector, mode);
+	}
+
+	return ARRAY_SIZE(modes);
 }
 
 static void venc_set_timings(struct omap_dss_device *dssdev,
