@@ -1081,13 +1081,27 @@ static bool dpu_plane_validate_src(struct drm_rect *src,
 static int dpu_plane_sspp_atomic_check(struct drm_plane *plane,
 		struct drm_plane_state *state)
 {
-	int ret = 0;
+	int ret = 0, min_scale;
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
+	const struct drm_crtc_state *crtc_state = NULL;
 	const struct dpu_format *fmt;
 	struct drm_rect src, dst, fb_rect = { 0 };
-	uint32_t max_upscale = 1, max_downscale = 1;
 	uint32_t min_src_size, max_linewidth;
-	int hscale = 1, vscale = 1;
+
+	if (state->crtc)
+		crtc_state = drm_atomic_get_new_crtc_state(state->state,
+							   state->crtc);
+
+	min_scale = FRAC_16_16(1, pdpu->pipe_sblk->maxdwnscale);
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state, min_scale,
+					  pdpu->pipe_sblk->maxupscale << 16,
+					  true, true);
+	if (ret) {
+		DPU_ERROR_PLANE(pdpu, "Check plane state failed (%d)\n", ret);
+		return ret;
+	}
+	if (!state->visible)
+		return 0;
 
 	src.x1 = state->src_x >> 16;
 	src.y1 = state->src_y >> 16;
@@ -1100,25 +1114,6 @@ static int dpu_plane_sspp_atomic_check(struct drm_plane *plane,
 	fb_rect.y2 = state->fb->height;
 
 	max_linewidth = pdpu->pipe_sblk->common->maxlinewidth;
-
-	if (pdpu->features & DPU_SSPP_SCALER) {
-		max_downscale = pdpu->pipe_sblk->maxdwnscale;
-		max_upscale = pdpu->pipe_sblk->maxupscale;
-	}
-	if (drm_rect_width(&src) < drm_rect_width(&dst))
-		hscale = drm_rect_calc_hscale(&src, &dst, 1, max_upscale);
-	else
-		hscale = drm_rect_calc_hscale(&dst, &src, 1, max_downscale);
-	if (drm_rect_height(&src) < drm_rect_height(&dst))
-		vscale = drm_rect_calc_vscale(&src, &dst, 1, max_upscale);
-	else
-		vscale = drm_rect_calc_vscale(&dst, &src, 1, max_downscale);
-
-	DPU_DEBUG_PLANE(pdpu, "check %d -> %d\n",
-		dpu_plane_enabled(plane->state), dpu_plane_enabled(state));
-
-	if (!dpu_plane_enabled(state))
-		goto exit;
 
 	fmt = to_dpu_format(msm_framebuffer_format(state->fb));
 
@@ -1158,16 +1153,8 @@ static int dpu_plane_sspp_atomic_check(struct drm_plane *plane,
 		DPU_ERROR_PLANE(pdpu, "invalid src " DRM_RECT_FMT " line:%u\n",
 				DRM_RECT_ARG(&src), max_linewidth);
 		ret = -E2BIG;
-
-	/* check scaler capability */
-	} else if (hscale < 0 || vscale < 0) {
-		DPU_ERROR_PLANE(pdpu, "invalid scaling requested src="
-				DRM_RECT_FMT " dst=" DRM_RECT_FMT "\n",
-				DRM_RECT_ARG(&src), DRM_RECT_ARG(&dst));
-		ret = -E2BIG;
 	}
 
-exit:
 	return ret;
 }
 
@@ -1239,7 +1226,6 @@ static int dpu_plane_sspp_atomic_update(struct drm_plane *plane,
 	const struct dpu_format *fmt;
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;
-	int ret, min_scale;
 
 	if (!plane) {
 		DPU_ERROR("invalid plane\n");
@@ -1277,15 +1263,6 @@ static int dpu_plane_sspp_atomic_update(struct drm_plane *plane,
 
 	pdpu->is_rt_pipe = (dpu_crtc_get_client_type(crtc) != NRT_CLIENT);
 	_dpu_plane_set_qos_ctrl(plane, false, DPU_PLANE_QOS_PANIC_CTRL);
-
-	min_scale = FRAC_16_16(1, pdpu->pipe_sblk->maxdwnscale);
-	ret = drm_atomic_helper_check_plane_state(state, crtc->state, min_scale,
-					  pdpu->pipe_sblk->maxupscale << 16,
-					  true, false);
-	if (ret) {
-		DPU_ERROR_PLANE(pdpu, "Check plane state failed (%d)\n", ret);
-		return ret;
-	}
 
 	DPU_DEBUG_PLANE(pdpu, "FB[%u] " DRM_RECT_FP_FMT "->crtc%u " DRM_RECT_FMT
 			", %4.4s ubwc %d\n", fb->base.id, DRM_RECT_FP_ARG(&state->src),
