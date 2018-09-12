@@ -70,22 +70,22 @@ struct llcc_slice_config {
 /**
  * llcc_drv_data - Data associated with the llcc driver
  * @regmap: regmap associated with the llcc device
+ * @bcast_regmap: regmap associated with llcc broadcast offset
  * @cfg: pointer to the data structure for slice configuration
  * @lock: mutex associated with each slice
  * @cfg_size: size of the config data table
  * @max_slices: max slices as read from device tree
- * @bcast_off: Offset of the broadcast bank
  * @num_banks: Number of llcc banks
  * @bitmap: Bit map to track the active slice ids
  * @offsets: Pointer to the bank offsets array
  */
 struct llcc_drv_data {
 	struct regmap *regmap;
+	struct regmap *bcast_regmap;
 	const struct llcc_slice_config *cfg;
 	struct mutex lock;
 	u32 cfg_size;
 	u32 max_slices;
-	u32 bcast_off;
 	u32 num_banks;
 	unsigned long *bitmap;
 	u32 *offsets;
