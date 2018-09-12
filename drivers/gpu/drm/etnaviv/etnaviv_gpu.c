@@ -976,7 +976,6 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 
 void etnaviv_gpu_recover_hang(struct etnaviv_gpu *gpu)
 {
-	unsigned long flags;
 	unsigned int i = 0;
 
 	dev_err(gpu->dev, "recover hung GPU!\n");
@@ -989,11 +988,11 @@ void etnaviv_gpu_recover_hang(struct etnaviv_gpu *gpu)
 	etnaviv_hw_reset(gpu);
 
 	/* complete all events, the GPU won't do it after the reset */
-	spin_lock_irqsave(&gpu->event_spinlock, flags);
+	spin_lock(&gpu->event_spinlock);
 	for_each_set_bit_from(i, gpu->event_bitmap, ETNA_NR_EVENTS)
 		complete(&gpu->event_free);
 	bitmap_zero(gpu->event_bitmap, ETNA_NR_EVENTS);
-	spin_unlock_irqrestore(&gpu->event_spinlock, flags);
+	spin_unlock(&gpu->event_spinlock);
 
 	etnaviv_gpu_hw_init(gpu);
 	gpu->lastctx = NULL;
@@ -1083,7 +1082,7 @@ static inline bool fence_after(u32 a, u32 b)
 static int event_alloc(struct etnaviv_gpu *gpu, unsigned nr_events,
 	unsigned int *events)
 {
-	unsigned long flags, timeout = msecs_to_jiffies(10 * 10000);
+	unsigned long timeout = msecs_to_jiffies(10 * 10000);
 	unsigned i, acquired = 0;
 
 	for (i = 0; i < nr_events; i++) {
@@ -1100,7 +1099,7 @@ static int event_alloc(struct etnaviv_gpu *gpu, unsigned nr_events,
 		timeout = ret;
 	}
 
-	spin_lock_irqsave(&gpu->event_spinlock, flags);
+	spin_lock(&gpu->event_spinlock);
 
 	for (i = 0; i < nr_events; i++) {
 		int event = find_first_zero_bit(gpu->event_bitmap, ETNA_NR_EVENTS);
@@ -1110,7 +1109,7 @@ static int event_alloc(struct etnaviv_gpu *gpu, unsigned nr_events,
 		set_bit(event, gpu->event_bitmap);
 	}
 
-	spin_unlock_irqrestore(&gpu->event_spinlock, flags);
+	spin_unlock(&gpu->event_spinlock);
 
 	return 0;
 
@@ -1123,18 +1122,11 @@ out:
 
 static void event_free(struct etnaviv_gpu *gpu, unsigned int event)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&gpu->event_spinlock, flags);
-
 	if (!test_bit(event, gpu->event_bitmap)) {
 		dev_warn(gpu->dev, "event %u is already marked as free",
 			 event);
-		spin_unlock_irqrestore(&gpu->event_spinlock, flags);
 	} else {
 		clear_bit(event, gpu->event_bitmap);
-		spin_unlock_irqrestore(&gpu->event_spinlock, flags);
-
 		complete(&gpu->event_free);
 	}
 }
