@@ -371,44 +371,6 @@ static int giu_set_direction(struct gpio_chip *chip, unsigned pin, int dir)
 	return 0;
 }
 
-int vr41xx_gpio_pullupdown(unsigned int pin, gpio_pull_t pull)
-{
-	u16 reg, mask;
-	unsigned long flags;
-
-	if ((giu_flags & GPIO_HAS_PULLUPDOWN_IO) != GPIO_HAS_PULLUPDOWN_IO)
-		return -EPERM;
-
-	if (pin >= 15)
-		return -EINVAL;
-
-	mask = 1 << pin;
-
-	spin_lock_irqsave(&giu_lock, flags);
-
-	if (pull == GPIO_PULL_UP || pull == GPIO_PULL_DOWN) {
-		reg = giu_read(GIUTERMUPDN);
-		if (pull == GPIO_PULL_UP)
-			reg |= mask;
-		else
-			reg &= ~mask;
-		giu_write(GIUTERMUPDN, reg);
-
-		reg = giu_read(GIUUSEUPDN);
-		reg |= mask;
-		giu_write(GIUUSEUPDN, reg);
-	} else {
-		reg = giu_read(GIUUSEUPDN);
-		reg &= ~mask;
-		giu_write(GIUUSEUPDN, reg);
-	}
-
-	spin_unlock_irqrestore(&giu_lock, flags);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(vr41xx_gpio_pullupdown);
-
 static int vr41xx_gpio_get(struct gpio_chip *chip, unsigned pin)
 {
 	u16 reg, mask;
