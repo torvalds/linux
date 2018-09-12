@@ -404,7 +404,7 @@ static void *eeh_dev_restore_state(struct eeh_dev *edev, void *userdata)
 	 * EEH device is created.
 	 */
 	if (edev->pe && (edev->pe->state & EEH_PE_CFG_RESTRICTED)) {
-		if (list_is_last(&edev->list, &edev->pe->edevs))
+		if (list_is_last(&edev->entry, &edev->pe->edevs))
 			eeh_pe_restore_bars(edev->pe);
 
 		return NULL;
@@ -560,7 +560,7 @@ static void *eeh_rmv_device(struct eeh_dev *edev, void *userdata)
 		pdn->pe_number = IODA_INVALID_PE;
 #endif
 		if (rmv_data)
-			list_add(&edev->rmv_list, &rmv_data->edev_list);
+			list_add(&edev->rmv_entry, &rmv_data->edev_list);
 	} else {
 		pci_lock_rescan_remove();
 		pci_stop_and_remove_bus_device(dev);
@@ -739,7 +739,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 		 * PE. We should disconnect it so the binding can be
 		 * rebuilt when adding PCI devices.
 		 */
-		edev = list_first_entry(&pe->edevs, struct eeh_dev, list);
+		edev = list_first_entry(&pe->edevs, struct eeh_dev, entry);
 		eeh_pe_traverse(pe, eeh_pe_detach_dev, NULL);
 		if (pe->type & EEH_PE_VF) {
 			eeh_add_virt_device(edev);
@@ -934,9 +934,9 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	 * For those hot removed VFs, we should add back them after PF get
 	 * recovered properly.
 	 */
-	list_for_each_entry_safe(edev, tmp, &rmv_data.edev_list, rmv_list) {
+	list_for_each_entry_safe(edev, tmp, &rmv_data.edev_list, rmv_entry) {
 		eeh_add_virt_device(edev);
-		list_del(&edev->rmv_list);
+		list_del(&edev->rmv_entry);
 	}
 
 	/* Tell all device drivers that they can resume operations */

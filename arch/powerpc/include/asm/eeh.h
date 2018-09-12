@@ -98,13 +98,13 @@ struct eeh_pe {
 	atomic_t pass_dev_cnt;		/* Count of passed through devs	*/
 	struct eeh_pe *parent;		/* Parent PE			*/
 	void *data;			/* PE auxillary data		*/
-	struct list_head child_list;	/* Link PE to the child list	*/
-	struct list_head edevs;		/* Link list of EEH devices	*/
-	struct list_head child;		/* Child PEs			*/
+	struct list_head child_list;	/* List of PEs below this PE	*/
+	struct list_head child;		/* Memb. child_list/eeh_phb_pe	*/
+	struct list_head edevs;		/* List of eeh_dev in this PE	*/
 };
 
 #define eeh_pe_for_each_dev(pe, edev, tmp) \
-		list_for_each_entry_safe(edev, tmp, &pe->edevs, list)
+		list_for_each_entry_safe(edev, tmp, &pe->edevs, entry)
 
 #define eeh_for_each_pe(root, pe) \
 	for (pe = root; pe; pe = eeh_pe_next(pe, root))
@@ -141,8 +141,8 @@ struct eeh_dev {
 	int aer_cap;			/* Saved AER capability		*/
 	int af_cap;			/* Saved AF capability		*/
 	struct eeh_pe *pe;		/* Associated PE		*/
-	struct list_head list;		/* Form link list in the PE	*/
-	struct list_head rmv_list;	/* Record the removed edevs	*/
+	struct list_head entry;		/* Membership in eeh_pe.edevs	*/
+	struct list_head rmv_entry;	/* Membership in rmv_list	*/
 	struct pci_dn *pdn;		/* Associated PCI device node	*/
 	struct pci_dev *pdev;		/* Associated PCI device	*/
 	bool in_error;			/* Error flag for edev		*/

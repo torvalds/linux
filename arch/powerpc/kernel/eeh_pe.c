@@ -75,7 +75,6 @@ static struct eeh_pe *eeh_pe_alloc(struct pci_controller *phb, int type)
 	pe->type = type;
 	pe->phb = phb;
 	INIT_LIST_HEAD(&pe->child_list);
-	INIT_LIST_HEAD(&pe->child);
 	INIT_LIST_HEAD(&pe->edevs);
 
 	pe->data = (void *)pe + ALIGN(sizeof(struct eeh_pe),
@@ -360,7 +359,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 		edev->pe = pe;
 
 		/* Put the edev to PE */
-		list_add_tail(&edev->list, &pe->edevs);
+		list_add_tail(&edev->entry, &pe->edevs);
 		pr_debug("EEH: Add %04x:%02x:%02x.%01x to Bus PE#%x\n",
 			 pdn->phb->global_number,
 			 pdn->busno,
@@ -369,7 +368,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 			 pe->addr);
 		return 0;
 	} else if (pe && (pe->type & EEH_PE_INVALID)) {
-		list_add_tail(&edev->list, &pe->edevs);
+		list_add_tail(&edev->entry, &pe->edevs);
 		edev->pe = pe;
 		/*
 		 * We're running to here because of PCI hotplug caused by
@@ -429,7 +428,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	 * link the EEH device accordingly.
 	 */
 	list_add_tail(&pe->child, &parent->child_list);
-	list_add_tail(&edev->list, &pe->edevs);
+	list_add_tail(&edev->entry, &pe->edevs);
 	edev->pe = pe;
 	pr_debug("EEH: Add %04x:%02x:%02x.%01x to "
 		 "Device PE#%x, Parent PE#%x\n",
@@ -469,7 +468,7 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 	/* Remove the EEH device */
 	pe = eeh_dev_to_pe(edev);
 	edev->pe = NULL;
-	list_del(&edev->list);
+	list_del(&edev->entry);
 
 	/*
 	 * Check if the parent PE includes any EEH devices.
@@ -945,7 +944,7 @@ struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe)
 		return pe->bus;
 
 	/* Retrieve the parent PCI bus of first (top) PCI device */
-	edev = list_first_entry_or_null(&pe->edevs, struct eeh_dev, list);
+	edev = list_first_entry_or_null(&pe->edevs, struct eeh_dev, entry);
 	pdev = eeh_dev_to_pci_dev(edev);
 	if (pdev)
 		return pdev->bus;

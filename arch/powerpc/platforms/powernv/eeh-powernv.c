@@ -1040,7 +1040,7 @@ static int pnv_eeh_reset_vf_pe(struct eeh_pe *pe, int option)
 	int ret;
 
 	/* The VF PE should have only one child device */
-	edev = list_first_entry_or_null(&pe->edevs, struct eeh_dev, list);
+	edev = list_first_entry_or_null(&pe->edevs, struct eeh_dev, entry);
 	pdn = eeh_dev_to_pdn(edev);
 	if (!pdn)
 		return -ENXIO;
