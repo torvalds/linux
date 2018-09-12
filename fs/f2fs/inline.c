@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * fs/f2fs/inline.c
  * Copyright (c) 2013, Intel Corporation
  * Authors: Huajun Li <huajun.li@intel.com>
  *          Haicheng Li <haicheng.li@intel.com>
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/fs.h>
