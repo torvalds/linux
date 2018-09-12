@@ -521,7 +521,7 @@ static int usbtmc488_ioctl_read_stb(struct usbtmc_file_data *file_data,
 			USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			data->iin_bTag,
 			data->ifnum,
-			buffer, 0x03, USBTMC_TIMEOUT);
+			buffer, 0x03, USB_CTRL_GET_TIMEOUT);
 	if (rv < 0) {
 		dev_err(dev, "stb usb_control_msg returned %d\n", rv);
 		goto exit;
@@ -655,7 +655,7 @@ static int usbtmc488_ioctl_simple(struct usbtmc_device_data *data,
 			USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			wValue,
 			data->ifnum,
-			buffer, 0x01, USBTMC_TIMEOUT);
+			buffer, 0x01, USB_CTRL_GET_TIMEOUT);
 	if (rv < 0) {
 		dev_err(dev, "simple usb_control_msg failed %d\n", rv);
 		goto exit;
@@ -1802,7 +1802,7 @@ static int get_capabilities(struct usbtmc_device_data *data)
 	rv = usb_control_msg(data->usb_dev, usb_rcvctrlpipe(data->usb_dev, 0),
 			     USBTMC_REQUEST_GET_CAPABILITIES,
 			     USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			     0, 0, buffer, 0x18, USBTMC_TIMEOUT);
+			     0, 0, buffer, 0x18, USB_CTRL_GET_TIMEOUT);
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
 		goto err_out;
@@ -1941,7 +1941,7 @@ static int usbtmc_ioctl_indicator_pulse(struct usbtmc_device_data *data)
 			     usb_rcvctrlpipe(data->usb_dev, 0),
 			     USBTMC_REQUEST_INDICATOR_PULSE,
 			     USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			     0, 0, buffer, 0x01, USBTMC_TIMEOUT);
+			     0, 0, buffer, 0x01, USB_CTRL_GET_TIMEOUT);
 
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
