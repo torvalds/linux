@@ -48,15 +48,23 @@ struct tsens_ops {
 	int (*get_trend)(struct tsens_device *, int, enum thermal_trend *);
 };
 
+enum reg_list {
+	SROT_CTRL_OFFSET,
+
+	REG_ARRAY_SIZE,
+};
+
 /**
  * struct tsens_data - tsens instance specific data
  * @num_sensors: Max number of sensors supported by platform
  * @ops: operations the tsens instance supports
  * @hw_ids: Subset of sensors ids supported by platform, if not the first n
+ * @reg_offsets: Register offsets for commonly used registers
  */
 struct tsens_data {
 	const u32		num_sensors;
 	const struct tsens_ops	*ops;
+	const u16		reg_offsets[REG_ARRAY_SIZE];
 	unsigned int		*hw_ids;
 };
 
@@ -72,6 +80,7 @@ struct tsens_device {
 	struct regmap			*tm_map;
 	struct regmap			*srot_map;
 	u32				tm_offset;
+	u16				reg_offsets[REG_ARRAY_SIZE];
 	struct tsens_context		ctx;
 	const struct tsens_ops		*ops;
 	struct tsens_sensor		sensor[0];

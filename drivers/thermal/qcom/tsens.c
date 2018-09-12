@@ -144,6 +144,9 @@ static int tsens_probe(struct platform_device *pdev)
 		else
 			tmdev->sensor[i].hw_id = i;
 	}
+	for (i = 0; i < REG_ARRAY_SIZE; i++) {
+		tmdev->reg_offsets[i] = data->reg_offsets[i];
+	}
 
 	if (!tmdev->ops || !tmdev->ops->init || !tmdev->ops->get_temp)
 		return -EINVAL;

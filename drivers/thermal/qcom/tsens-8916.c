@@ -100,5 +100,6 @@ static const struct tsens_ops ops_8916 = {
 const struct tsens_data data_8916 = {
 	.num_sensors	= 5,
 	.ops		= &ops_8916,
+	.reg_offsets	= { [SROT_CTRL_OFFSET] = 0x0 },
 	.hw_ids		= (unsigned int []){0, 1, 2, 4, 5 },
 };
