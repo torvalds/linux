@@ -894,6 +894,26 @@ static ssize_t usbtmc_ioctl_generic_write(struct usbtmc_file_data *file_data,
 }
 
 /*
+ * Get the generic write result
+ */
+static ssize_t usbtmc_ioctl_write_result(struct usbtmc_file_data *file_data,
+				void __user *arg)
+{
+	u32 transferred;
+	int retval;
+
+	spin_lock_irq(&file_data->err_lock);
+	transferred = file_data->out_transfer_size;
+	retval = file_data->out_status;
+	spin_unlock_irq(&file_data->err_lock);
+
+	if (put_user(transferred, (__u32 __user *)arg))
+		return -EFAULT;
+
+	return retval;
+}
+
+/*
  * Sends a REQUEST_DEV_DEP_MSG_IN message on the Bulk-OUT endpoint.
  * @transfer_size: number of bytes to request from the device.
  *
@@ -1746,6 +1766,11 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case USBTMC_IOCTL_WRITE:
 		retval = usbtmc_ioctl_generic_write(file_data,
 						    (void __user *)arg);
+		break;
+
+	case USBTMC_IOCTL_WRITE_RESULT:
+		retval = usbtmc_ioctl_write_result(file_data,
+						   (void __user *)arg);
 		break;
 
 	case USBTMC488_IOCTL_GET_CAPS:
