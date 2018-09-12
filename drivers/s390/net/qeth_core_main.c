@@ -5768,8 +5768,10 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 	qeth_update_from_chp_desc(card);
 
 	card->dev = qeth_alloc_netdev(card);
-	if (!card->dev)
+	if (!card->dev) {
+		rc = -ENOMEM;
 		goto err_card;
+	}
 
 	qeth_determine_capabilities(card);
 	enforced_disc = qeth_enforce_discipline(card);
