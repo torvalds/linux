@@ -2126,6 +2126,10 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case USBTMC488_IOCTL_TRIGGER:
 		retval = usbtmc488_ioctl_trigger(file_data);
 		break;
+
+	case USBTMC_IOCTL_CANCEL_IO:
+		retval = usbtmc_ioctl_cancel_io(file_data);
+		break;
 	}
 
 skip_io_on_zombie:

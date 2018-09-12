@@ -97,6 +97,9 @@ struct usbtmc_message {
 #define USBTMC488_IOCTL_LOCAL_LOCKOUT	_IO(USBTMC_IOC_NR, 21)
 #define USBTMC488_IOCTL_TRIGGER		_IO(USBTMC_IOC_NR, 22)
 
+/* Cancel and cleanup asynchronous calls */
+#define USBTMC_IOCTL_CANCEL_IO		_IO(USBTMC_IOC_NR, 35)
+
 /* Driver encoded usb488 capabilities */
 #define USBTMC488_CAPABILITY_TRIGGER         1
 #define USBTMC488_CAPABILITY_SIMPLE          2
