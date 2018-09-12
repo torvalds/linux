@@ -331,7 +331,8 @@ static int macii_reset_bus(void)
 		return 0;
 
 	/* Command = 0, Address = ignored */
-	adb_request(&req, NULL, 0, 1, ADB_BUSRESET);
+	adb_request(&req, NULL, ADBREQ_NOSEND, 1, ADB_BUSRESET);
+	macii_send_request(&req, 1);
 
 	/* Don't want any more requests during the Global Reset low time. */
 	udelay(3000);
