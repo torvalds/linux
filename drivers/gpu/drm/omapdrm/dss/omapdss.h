@@ -414,8 +414,6 @@ struct omap_dss_device {
 
 	struct list_head list;
 
-	unsigned int alias_id;
-
 	enum omap_display_type type;
 	/*
 	 * DSS output type that this device generates (for DSS internal devices)

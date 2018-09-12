@@ -155,9 +155,9 @@ static int omap_compare_pipes(const void *a, const void *b)
 	const struct omap_drm_pipeline *pipe1 = a;
 	const struct omap_drm_pipeline *pipe2 = b;
 
-	if (pipe1->display->alias_id > pipe2->display->alias_id)
+	if (pipe1->alias_id > pipe2->alias_id)
 		return 1;
-	else if (pipe1->display->alias_id < pipe2->display->alias_id)
+	else if (pipe1->alias_id < pipe2->alias_id)
 		return -1;
 	return 0;
 }
@@ -182,10 +182,15 @@ static int omap_connect_pipelines(struct drm_device *ddev)
 				 output->name);
 		} else {
 			struct omap_drm_pipeline *pipe;
+			int id;
 
 			pipe = &priv->pipes[priv->num_pipes++];
 			pipe->output = omapdss_device_get(output);
 			pipe->display = omapdss_display_get(output);
+
+			id = of_alias_get_id(pipe->display->dev->of_node,
+					     "display");
+			pipe->alias_id = id >= 0 ? id : priv->num_pipes - 1;
 
 			if (priv->num_pipes == ARRAY_SIZE(priv->pipes)) {
 				/* To balance the 'for_each_dss_output' loop */

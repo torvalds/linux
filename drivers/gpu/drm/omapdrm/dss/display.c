@@ -42,8 +42,6 @@ void omapdss_display_init(struct omap_dss_device *dssdev)
 	if (id < 0)
 		id = disp_num_counter++;
 
-	dssdev->alias_id = id;
-
 	/* Use 'label' property for name, if it exists */
 	of_property_read_string(dssdev->dev->of_node, "label", &dssdev->name);
 
