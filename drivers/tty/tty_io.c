@@ -2474,7 +2474,7 @@ static int tty_tiocsserial(struct tty_struct *tty, struct serial_struct __user *
 		pr_warn("%s: '%s' is using deprecated serial flags (with no effect): %.8x\n",
 			__func__, get_task_comm(comm, current), flags);
 	if (!tty->ops->set_serial)
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 	return tty->ops->set_serial(tty, &v);
 }
 
@@ -2485,7 +2485,7 @@ static int tty_tiocgserial(struct tty_struct *tty, struct serial_struct __user *
 
 	memset(&v, 0, sizeof(struct serial_struct));
 	if (!tty->ops->get_serial)
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 	err = tty->ops->get_serial(tty, &v);
 	if (!err && copy_to_user(ss, &v, sizeof(struct serial_struct)))
 		err = -EFAULT;
@@ -2621,15 +2621,9 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	case TIOCSSERIAL:
-		retval = tty_tiocsserial(tty, p);
-		if (retval != -ENOIOCTLCMD)
-			return retval;
-		break;
+		return tty_tiocsserial(tty, p);
 	case TIOCGSERIAL:
-		retval = tty_tiocgserial(tty, p);
-		if (retval != -ENOIOCTLCMD)
-			return retval;
-		break;
+		return tty_tiocgserial(tty, p);
 	case TIOCGPTPEER:
 		/* Special because the struct file is needed */
 		return ptm_open_peer(file, tty, (int)arg);

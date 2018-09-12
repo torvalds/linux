@@ -402,7 +402,7 @@ static int serial_get_serial(struct tty_struct *tty, struct serial_struct *ss)
 
 	if (port->serial->type->get_serial)
 		return port->serial->type->get_serial(tty, ss);
-	return -ENOIOCTLCMD;
+	return -ENOTTY;
 }
 
 static int serial_set_serial(struct tty_struct *tty, struct serial_struct *ss)
@@ -411,7 +411,7 @@ static int serial_set_serial(struct tty_struct *tty, struct serial_struct *ss)
 
 	if (port->serial->type->set_serial)
 		return port->serial->type->set_serial(tty, ss);
-	return -ENOIOCTLCMD;
+	return -ENOTTY;
 }
 
 static int serial_ioctl(struct tty_struct *tty,
