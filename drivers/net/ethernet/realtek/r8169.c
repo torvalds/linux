@@ -13,6 +13,7 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/ethtool.h>
 #include <linux/phy.h>
@@ -665,6 +666,7 @@ struct rtl8169_private {
 
 	u16 event_slow;
 	const struct rtl_coalesce_info *coalesce_info;
+	struct clk *clk;
 
 	struct mdio_ops {
 		void (*write)(struct rtl8169_private *, int, int);
@@ -7262,6 +7264,11 @@ static int rtl_jumbo_max(struct rtl8169_private *tp)
 	}
 }
 
+static void rtl_disable_clk(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct rtl_cfg_info *cfg = rtl_cfg_infos + ent->driver_data;
@@ -7281,6 +7288,32 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->pci_dev = pdev;
 	tp->msg_enable = netif_msg_init(debug.msg_enable, R8169_MSG_DEFAULT);
 	tp->supports_gmii = cfg->has_gmii;
+
+	/* Get the *optional* external "ether_clk" used on some boards */
+	tp->clk = devm_clk_get(&pdev->dev, "ether_clk");
+	if (IS_ERR(tp->clk)) {
+		rc = PTR_ERR(tp->clk);
+		if (rc == -ENOENT) {
+			/* clk-core allows NULL (for suspend / resume) */
+			tp->clk = NULL;
+		} else if (rc == -EPROBE_DEFER) {
+			return rc;
+		} else {
+			dev_err(&pdev->dev, "failed to get clk: %d\n", rc);
+			return rc;
+		}
+	} else {
+		rc = clk_prepare_enable(tp->clk);
+		if (rc) {
+			dev_err(&pdev->dev, "failed to enable clk: %d\n", rc);
+			return rc;
+		}
+
+		rc = devm_add_action_or_reset(&pdev->dev, rtl_disable_clk,
+					      tp->clk);
+		if (rc)
+			return rc;
+	}
 
 	/* enable device (incl. PCI PM wakeup and hotplug setup) */
 	rc = pcim_enable_device(pdev);
