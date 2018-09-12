@@ -435,7 +435,7 @@ static u64 dccp_ack_seq(const struct dccp_hdr *dh)
 		     ntohl(dhack->dccph_ack_nr_low);
 }
 
-static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
+static int dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
 		       unsigned int dataoff, enum ip_conntrack_info ctinfo,
 		       const struct nf_hook_state *state)
 {

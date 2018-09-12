@@ -74,7 +74,7 @@ static bool icmp_invert_tuple(struct nf_conntrack_tuple *tuple,
 
 /* Returns verdict for packet, or -1 for invalid. */
 static int icmp_packet(struct nf_conn *ct,
-		       const struct sk_buff *skb,
+		       struct sk_buff *skb,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
 		       const struct nf_hook_state *state)

@@ -92,10 +92,10 @@ static unsigned int *icmpv6_get_timeouts(struct net *net)
 
 /* Returns verdict for packet, or -1 for invalid. */
 static int icmpv6_packet(struct nf_conn *ct,
-		       const struct sk_buff *skb,
-		       unsigned int dataoff,
-		       enum ip_conntrack_info ctinfo,
-		       const struct nf_hook_state *state)
+		         struct sk_buff *skb,
+		         unsigned int dataoff,
+		         enum ip_conntrack_info ctinfo,
+		         const struct nf_hook_state *state)
 {
 	unsigned int *timeout = nf_ct_timeout_lookup(ct);
 	static const u8 valid_new[] = {

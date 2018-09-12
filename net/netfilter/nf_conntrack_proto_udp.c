@@ -42,14 +42,64 @@ static unsigned int *udp_get_timeouts(struct net *net)
 	return udp_pernet(net)->timeouts;
 }
 
+static void udp_error_log(const struct sk_buff *skb,
+			  const struct nf_hook_state *state,
+			  const char *msg)
+{
+	nf_l4proto_log_invalid(skb, state->net, state->pf,
+			       IPPROTO_UDP, "%s", msg);
+}
+
+static bool udp_error(struct sk_buff *skb,
+		      unsigned int dataoff,
+		      const struct nf_hook_state *state)
+{
+	unsigned int udplen = skb->len - dataoff;
+	const struct udphdr *hdr;
+	struct udphdr _hdr;
+
+	/* Header is too small? */
+	hdr = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
+	if (!hdr) {
+		udp_error_log(skb, state, "short packet");
+		return true;
+	}
+
+	/* Truncated/malformed packets */
+	if (ntohs(hdr->len) > udplen || ntohs(hdr->len) < sizeof(*hdr)) {
+		udp_error_log(skb, state, "truncated/malformed packet");
+		return true;
+	}
+
+	/* Packet with no checksum */
+	if (!hdr->check)
+		return false;
+
+	/* Checksum invalid? Ignore.
+	 * We skip checking packets on the outgoing path
+	 * because the checksum is assumed to be correct.
+	 * FIXME: Source route IP option packets --RR */
+	if (state->hook == NF_INET_PRE_ROUTING &&
+	    state->net->ct.sysctl_checksum &&
+	    nf_checksum(skb, state->hook, dataoff, IPPROTO_UDP, state->pf)) {
+		udp_error_log(skb, state, "bad checksum");
+		return true;
+	}
+
+	return false;
+}
+
 /* Returns verdict for packet, and may modify conntracktype */
 static int udp_packet(struct nf_conn *ct,
-		      const struct sk_buff *skb,
+		      struct sk_buff *skb,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
 		      const struct nf_hook_state *state)
 {
 	unsigned int *timeouts;
+
+	if (udp_error(skb, dataoff, state))
+		return -NF_ACCEPT;
 
 	timeouts = nf_ct_timeout_lookup(ct);
 	if (!timeouts)
@@ -79,9 +129,9 @@ static void udplite_error_log(const struct sk_buff *skb,
 			       IPPROTO_UDPLITE, "%s", msg);
 }
 
-static int udplite_error(struct nf_conn *tmpl, struct sk_buff *skb,
-			 unsigned int dataoff,
-			 const struct nf_hook_state *state)
+static bool udplite_error(struct sk_buff *skb,
+			  unsigned int dataoff,
+			  const struct nf_hook_state *state)
 {
 	unsigned int udplen = skb->len - dataoff;
 	const struct udphdr *hdr;
@@ -92,7 +142,7 @@ static int udplite_error(struct nf_conn *tmpl, struct sk_buff *skb,
 	hdr = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
 	if (!hdr) {
 		udplite_error_log(skb, state, "short packet");
-		return -NF_ACCEPT;
+		return true;
 	}
 
 	cscov = ntohs(hdr->len);
@@ -100,13 +150,13 @@ static int udplite_error(struct nf_conn *tmpl, struct sk_buff *skb,
 		cscov = udplen;
 	} else if (cscov < sizeof(*hdr) || cscov > udplen) {
 		udplite_error_log(skb, state, "invalid checksum coverage");
-		return -NF_ACCEPT;
+		return true;
 	}
 
 	/* UDPLITE mandates checksums */
 	if (!hdr->check) {
 		udplite_error_log(skb, state, "checksum missing");
-		return -NF_ACCEPT;
+		return true;
 	}
 
 	/* Checksum invalid? Ignore. */
@@ -115,58 +165,43 @@ static int udplite_error(struct nf_conn *tmpl, struct sk_buff *skb,
 	    nf_checksum_partial(skb, state->hook, dataoff, cscov, IPPROTO_UDP,
 				state->pf)) {
 		udplite_error_log(skb, state, "bad checksum");
-		return -NF_ACCEPT;
+		return true;
 	}
 
+	return false;
+}
+
+/* Returns verdict for packet, and may modify conntracktype */
+static int udplite_packet(struct nf_conn *ct,
+			  struct sk_buff *skb,
+			  unsigned int dataoff,
+			  enum ip_conntrack_info ctinfo,
+			  const struct nf_hook_state *state)
+{
+	unsigned int *timeouts;
+
+	if (udplite_error(skb, dataoff, state))
+		return -NF_ACCEPT;
+
+	timeouts = nf_ct_timeout_lookup(ct);
+	if (!timeouts)
+		timeouts = udp_get_timeouts(nf_ct_net(ct));
+
+	/* If we've seen traffic both ways, this is some kind of UDP
+	   stream.  Extend timeout. */
+	if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
+		nf_ct_refresh_acct(ct, ctinfo, skb,
+				   timeouts[UDP_CT_REPLIED]);
+		/* Also, more likely to be important, and not a probe */
+		if (!test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
+			nf_conntrack_event_cache(IPCT_ASSURED, ct);
+	} else {
+		nf_ct_refresh_acct(ct, ctinfo, skb,
+				   timeouts[UDP_CT_UNREPLIED]);
+	}
 	return NF_ACCEPT;
 }
 #endif
-
-static void udp_error_log(const struct sk_buff *skb,
-			  const struct nf_hook_state *state,
-			  const char *msg)
-{
-	nf_l4proto_log_invalid(skb, state->net, state->pf,
-			       IPPROTO_UDP, "%s", msg);
-}
-
-static int udp_error(struct nf_conn *tmpl, struct sk_buff *skb,
-		     unsigned int dataoff,
-		     const struct nf_hook_state *state)
-{
-	unsigned int udplen = skb->len - dataoff;
-	const struct udphdr *hdr;
-	struct udphdr _hdr;
-
-	/* Header is too small? */
-	hdr = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
-	if (hdr == NULL) {
-		udp_error_log(skb, state, "short packet");
-		return -NF_ACCEPT;
-	}
-
-	/* Truncated/malformed packets */
-	if (ntohs(hdr->len) > udplen || ntohs(hdr->len) < sizeof(*hdr)) {
-		udp_error_log(skb, state, "truncated/malformed packet");
-		return -NF_ACCEPT;
-	}
-
-	/* Packet with no checksum */
-	if (!hdr->check)
-		return NF_ACCEPT;
-
-	/* Checksum invalid? Ignore.
-	 * We skip checking packets on the outgoing path
-	 * because the checksum is assumed to be correct.
-	 * FIXME: Source route IP option packets --RR */
-	if (state->net->ct.sysctl_checksum && state->hook == NF_INET_PRE_ROUTING &&
-	    nf_checksum(skb, state->hook, dataoff, IPPROTO_UDP, state->pf)) {
-		udp_error_log(skb, state, "bad checksum");
-		return -NF_ACCEPT;
-	}
-
-	return NF_ACCEPT;
-}
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 
@@ -281,7 +316,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 =
 	.l4proto		= IPPROTO_UDP,
 	.allow_clash		= true,
 	.packet			= udp_packet,
-	.error			= udp_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
@@ -308,8 +342,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 =
 	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_UDPLITE,
 	.allow_clash		= true,
-	.packet			= udp_packet,
-	.error			= udplite_error,
+	.packet			= udplite_packet,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
@@ -337,7 +370,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 =
 	.l4proto		= IPPROTO_UDP,
 	.allow_clash		= true,
 	.packet			= udp_packet,
-	.error			= udp_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
@@ -364,8 +396,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 =
 	.l3proto		= PF_INET6,
 	.l4proto		= IPPROTO_UDPLITE,
 	.allow_clash		= true,
-	.packet			= udp_packet,
-	.error			= udplite_error,
+	.packet			= udplite_packet,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,

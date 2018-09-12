@@ -44,7 +44,7 @@ static bool generic_pkt_to_tuple(const struct sk_buff *skb,
 
 /* Returns verdict for packet, or -1 for invalid. */
 static int generic_packet(struct nf_conn *ct,
-			  const struct sk_buff *skb,
+			  struct sk_buff *skb,
 			  unsigned int dataoff,
 			  enum ip_conntrack_info ctinfo,
 			  const struct nf_hook_state *state)
