@@ -621,6 +621,12 @@ extern int intel_iommu_enable_pasid(struct intel_iommu *iommu, struct intel_svm_
 extern struct intel_iommu *intel_svm_device_to_iommu(struct device *dev);
 #endif
 
+#ifdef CONFIG_INTEL_IOMMU_DEBUGFS
+void intel_iommu_debugfs_init(void);
+#else
+static inline void intel_iommu_debugfs_init(void) {}
+#endif /* CONFIG_INTEL_IOMMU_DEBUGFS */
+
 extern const struct attribute_group *intel_iommu_groups[];
 bool context_present(struct context_entry *context);
 struct context_entry *iommu_context_addr(struct intel_iommu *iommu, u8 bus,
