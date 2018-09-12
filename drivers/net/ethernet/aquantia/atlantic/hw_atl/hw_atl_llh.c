@@ -1460,3 +1460,11 @@ void hw_atl_reg_glb_cpu_scratch_scp_set(struct aq_hw_s *aq_hw,
 	aq_hw_write_reg(aq_hw, HW_ATL_GLB_CPU_SCRATCH_SCP_ADR(scratch_scp),
 			glb_cpu_scratch_scp);
 }
+
+void hw_atl_mcp_up_force_intr_set(struct aq_hw_s *aq_hw, u32 up_force_intr)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_MCP_UP_FORCE_INTERRUPT_ADR,
+			    HW_ATL_MCP_UP_FORCE_INTERRUPT_MSK,
+			    HW_ATL_MCP_UP_FORCE_INTERRUPT_SHIFT,
+			    up_force_intr);
+}
