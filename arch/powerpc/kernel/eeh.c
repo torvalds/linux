@@ -1041,6 +1041,11 @@ void eeh_probe_devices(void)
 		pdn = hose->pci_data;
 		traverse_pci_dn(pdn, eeh_ops->probe, NULL);
 	}
+	if (eeh_enabled())
+		pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
+	else
+		pr_info("EEH: No capable adapters found\n");
+
 }
 
 /**
@@ -1084,18 +1089,7 @@ static int eeh_init(void)
 		eeh_dev_phb_init_dynamic(hose);
 
 	/* Initialize EEH event */
-	ret = eeh_event_init();
-	if (ret)
-		return ret;
-
-	eeh_probe_devices();
-
-	if (eeh_enabled())
-		pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
-	else if (!eeh_has_flag(EEH_POSTPONED_PROBE))
-		pr_info("EEH: No capable adapters found\n");
-
-	return ret;
+	return eeh_event_init();
 }
 
 core_initcall_sync(eeh_init);

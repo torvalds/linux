@@ -43,7 +43,6 @@ struct pci_dn;
 #define EEH_VALID_PE_ZERO	0x10	/* PE#0 is valid		     */
 #define EEH_ENABLE_IO_FOR_LOG	0x20	/* Enable IO for log		     */
 #define EEH_EARLY_DUMP_LOG	0x40	/* Dump log immediately		     */
-#define EEH_POSTPONED_PROBE	0x80    /* Powernv may postpone device probe */
 
 /*
  * Delay for PE reset, all in ms
