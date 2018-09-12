@@ -1136,7 +1136,6 @@ void tls_sw_free_resources_rx(struct sock *sk)
 
 int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 {
-	char keyval[TLS_CIPHER_AES_GCM_128_KEY_SIZE];
 	struct tls_crypto_info *crypto_info;
 	struct tls12_crypto_info_aes_gcm_128 *gcm_128_info;
 	struct tls_sw_context_tx *sw_ctx_tx = NULL;
@@ -1265,9 +1264,7 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 
 	ctx->push_pending_record = tls_sw_push_pending_record;
 
-	memcpy(keyval, gcm_128_info->key, TLS_CIPHER_AES_GCM_128_KEY_SIZE);
-
-	rc = crypto_aead_setkey(*aead, keyval,
+	rc = crypto_aead_setkey(*aead, gcm_128_info->key,
 				TLS_CIPHER_AES_GCM_128_KEY_SIZE);
 	if (rc)
 		goto free_aead;
