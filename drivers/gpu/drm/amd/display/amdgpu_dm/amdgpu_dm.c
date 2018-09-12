@@ -338,14 +338,6 @@ static int dm_set_powergating_state(void *handle,
 /* Prototypes of private functions */
 static int dm_early_init(void* handle);
 
-static void hotplug_notify_work_func(struct work_struct *work)
-{
-	struct amdgpu_display_manager *dm = container_of(work, struct amdgpu_display_manager, mst_hotplug_work);
-	struct drm_device *dev = dm->ddev;
-
-	drm_kms_helper_hotplug_event(dev);
-}
-
 /* Allocate memory for FBC compressed data  */
 static void amdgpu_dm_fbc_init(struct drm_connector *connector)
 {
@@ -446,8 +438,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		DRM_INFO("Display Core failed to initialize with v%s!\n", DC_VER);
 		goto error;
 	}
-
-	INIT_WORK(&adev->dm.mst_hotplug_work, hotplug_notify_work_func);
 
 	adev->dm.freesync_module = mod_freesync_create(adev->dm.dc);
 	if (!adev->dm.freesync_module) {
