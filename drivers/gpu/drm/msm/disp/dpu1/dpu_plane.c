@@ -1078,8 +1078,8 @@ static bool dpu_plane_validate_src(struct drm_rect *src,
 		drm_rect_equals(fb_rect, src);
 }
 
-static int dpu_plane_sspp_atomic_check(struct drm_plane *plane,
-		struct drm_plane_state *state)
+static int dpu_plane_atomic_check(struct drm_plane *plane,
+				  struct drm_plane_state *state)
 {
 	int ret = 0, min_scale;
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
@@ -1156,17 +1156,6 @@ static int dpu_plane_sspp_atomic_check(struct drm_plane *plane,
 	}
 
 	return ret;
-}
-
-static int dpu_plane_atomic_check(struct drm_plane *plane,
-		struct drm_plane_state *state)
-{
-	if (!state->fb)
-		return 0;
-
-	DPU_DEBUG_PLANE(to_dpu_plane(plane), "\n");
-
-	return dpu_plane_sspp_atomic_check(plane, state);
 }
 
 void dpu_plane_flush(struct drm_plane *plane)
