@@ -199,9 +199,8 @@ int omapdss_device_connect(struct dss_device *dss,
 	}
 
 	if (src) {
-		WARN_ON(src->dst);
+		WARN_ON(dst->src);
 		dst->src = src;
-		src->dst = dst;
 	}
 
 	return 0;
@@ -219,11 +218,10 @@ void omapdss_device_disconnect(struct omap_dss_device *src,
 	}
 
 	if (src) {
-		if (WARN_ON(dst != src->dst))
+		if (WARN_ON(dst->src != src))
 			return;
 
 		dst->src = NULL;
-		src->dst = NULL;
 	}
 
 	WARN_ON(dst->state != OMAP_DSS_DISPLAY_DISABLED);
