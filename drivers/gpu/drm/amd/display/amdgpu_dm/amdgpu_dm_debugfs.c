@@ -801,8 +801,5 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 		adev,
 		&dtn_log_fops);
 
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(ent);
 }
