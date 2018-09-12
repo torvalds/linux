@@ -180,12 +180,90 @@ static int mlx5e_rep_get_sset_count(struct net_device *dev, int sset)
 	}
 }
 
+static int mlx5e_replace_rep_vport_rx_rule(struct mlx5e_priv *priv,
+					   struct mlx5_flow_destination *dest)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	struct mlx5_eswitch_rep *rep = rpriv->rep;
+	struct mlx5_flow_handle *flow_rule;
+
+	flow_rule = mlx5_eswitch_create_vport_rx_rule(esw,
+						      rep->vport,
+						      dest);
+	if (IS_ERR(flow_rule))
+		return PTR_ERR(flow_rule);
+
+	mlx5_del_flow_rules(rpriv->vport_rx_rule);
+	rpriv->vport_rx_rule = flow_rule;
+	return 0;
+}
+
+static void mlx5e_rep_get_channels(struct net_device *dev,
+				   struct ethtool_channels *ch)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	mlx5e_ethtool_get_channels(priv, ch);
+}
+
+static int mlx5e_rep_set_channels(struct net_device *dev,
+				  struct ethtool_channels *ch)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	u16 curr_channels_amount = priv->channels.params.num_channels;
+	u32 new_channels_amount = ch->combined_count;
+	struct mlx5_flow_destination new_dest;
+	int err = 0;
+
+	err = mlx5e_ethtool_set_channels(priv, ch);
+	if (err)
+		return err;
+
+	if (curr_channels_amount == 1 && new_channels_amount > 1) {
+		new_dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+		new_dest.ft = priv->fs.ttc.ft.t;
+	} else if (new_channels_amount == 1 && curr_channels_amount > 1) {
+		new_dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
+		new_dest.tir_num = priv->direct_tir[0].tirn;
+	} else {
+		return 0;
+	}
+
+	err = mlx5e_replace_rep_vport_rx_rule(priv, &new_dest);
+	if (err) {
+		netdev_warn(priv->netdev, "Failed to update vport rx rule, when going from (%d) channels to (%d) channels\n",
+			    curr_channels_amount, new_channels_amount);
+		return err;
+	}
+
+	return 0;
+}
+
+static u32 mlx5e_rep_get_rxfh_key_size(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	return mlx5e_ethtool_get_rxfh_key_size(priv);
+}
+
+static u32 mlx5e_rep_get_rxfh_indir_size(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	return mlx5e_ethtool_get_rxfh_indir_size(priv);
+}
+
 static const struct ethtool_ops mlx5e_rep_ethtool_ops = {
 	.get_drvinfo	   = mlx5e_rep_get_drvinfo,
 	.get_link	   = ethtool_op_get_link,
 	.get_strings       = mlx5e_rep_get_strings,
 	.get_sset_count    = mlx5e_rep_get_sset_count,
 	.get_ethtool_stats = mlx5e_rep_get_ethtool_stats,
+	.get_channels      = mlx5e_rep_get_channels,
+	.set_channels      = mlx5e_rep_set_channels,
+	.get_rxfh_key_size   = mlx5e_rep_get_rxfh_key_size,
+	.get_rxfh_indir_size = mlx5e_rep_get_rxfh_indir_size,
 };
 
 int mlx5e_attr_get(struct net_device *dev, struct switchdev_attr *attr)
@@ -943,6 +1021,9 @@ static void mlx5e_build_rep_params(struct mlx5_core_dev *mdev,
 	params->num_tc                = 1;
 
 	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
+
+	/* RSS */
+	mlx5e_build_rss_params(params);
 }
 
 static void mlx5e_build_rep_netdev(struct net_device *netdev)
@@ -995,12 +1076,34 @@ static void mlx5e_init_rep(struct mlx5_core_dev *mdev,
 
 	INIT_DELAYED_WORK(&priv->update_stats_work, mlx5e_update_stats_work);
 
-	priv->channels.params.num_channels = profile->max_nch(mdev);
+	priv->channels.params.num_channels = 1;
 
 	mlx5e_build_rep_params(mdev, &priv->channels.params, netdev->mtu);
 	mlx5e_build_rep_netdev(netdev);
 
 	mlx5e_timestamp_init(priv);
+}
+
+static int mlx5e_create_rep_ttc_table(struct mlx5e_priv *priv)
+{
+	struct ttc_params ttc_params = {};
+	int tt, err;
+
+	priv->fs.ns = mlx5_get_flow_namespace(priv->mdev,
+					      MLX5_FLOW_NAMESPACE_KERNEL);
+
+	/* The inner_ttc in the ttc params is intentionally not set */
+	ttc_params.any_tt_tirn = priv->direct_tir[0].tirn;
+	mlx5e_set_ttc_ft_params(&ttc_params);
+	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
+		ttc_params.indir_tirn[tt] = priv->indir_tir[tt].tirn;
+
+	err = mlx5e_create_ttc_table(priv, &ttc_params, &priv->fs.ttc);
+	if (err) {
+		netdev_err(priv->netdev, "Failed to create rep ttc table, err=%d\n", err);
+		return err;
+	}
+	return 0;
 }
 
 static int mlx5e_create_rep_vport_rx_rule(struct mlx5e_priv *priv)
@@ -1035,24 +1138,42 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 		return err;
 	}
 
-	err = mlx5e_create_direct_rqts(priv);
+	err = mlx5e_create_indirect_rqt(priv);
 	if (err)
 		goto err_close_drop_rq;
 
-	err = mlx5e_create_direct_tirs(priv);
+	err = mlx5e_create_direct_rqts(priv);
+	if (err)
+		goto err_destroy_indirect_rqts;
+
+	err = mlx5e_create_indirect_tirs(priv, false);
 	if (err)
 		goto err_destroy_direct_rqts;
 
-	err = mlx5e_create_rep_vport_rx_rule(priv);
+	err = mlx5e_create_direct_tirs(priv);
+	if (err)
+		goto err_destroy_indirect_tirs;
+
+	err = mlx5e_create_rep_ttc_table(priv);
 	if (err)
 		goto err_destroy_direct_tirs;
 
+	err = mlx5e_create_rep_vport_rx_rule(priv);
+	if (err)
+		goto err_destroy_ttc_table;
+
 	return 0;
 
+err_destroy_ttc_table:
+	mlx5e_destroy_ttc_table(priv, &priv->fs.ttc);
 err_destroy_direct_tirs:
 	mlx5e_destroy_direct_tirs(priv);
+err_destroy_indirect_tirs:
+	mlx5e_destroy_indirect_tirs(priv, false);
 err_destroy_direct_rqts:
 	mlx5e_destroy_direct_rqts(priv);
+err_destroy_indirect_rqts:
+	mlx5e_destroy_rqt(priv, &priv->indir_rqt);
 err_close_drop_rq:
 	mlx5e_close_drop_rq(&priv->drop_rq);
 	return err;
@@ -1063,8 +1184,11 @@ static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 
 	mlx5_del_flow_rules(rpriv->vport_rx_rule);
+	mlx5e_destroy_ttc_table(priv, &priv->fs.ttc);
 	mlx5e_destroy_direct_tirs(priv);
+	mlx5e_destroy_indirect_tirs(priv, false);
 	mlx5e_destroy_direct_rqts(priv);
+	mlx5e_destroy_rqt(priv, &priv->indir_rqt);
 	mlx5e_close_drop_rq(&priv->drop_rq);
 }
 
@@ -1080,12 +1204,6 @@ static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
 	return 0;
 }
 
-static int mlx5e_get_rep_max_num_channels(struct mlx5_core_dev *mdev)
-{
-#define	MLX5E_PORT_REPRESENTOR_NCH 1
-	return MLX5E_PORT_REPRESENTOR_NCH;
-}
-
 static const struct mlx5e_profile mlx5e_rep_profile = {
 	.init			= mlx5e_init_rep,
 	.init_rx		= mlx5e_init_rep_rx,
@@ -1093,7 +1211,7 @@ static const struct mlx5e_profile mlx5e_rep_profile = {
 	.init_tx		= mlx5e_init_rep_tx,
 	.cleanup_tx		= mlx5e_cleanup_nic_tx,
 	.update_stats           = mlx5e_rep_update_hw_counters,
-	.max_nch		= mlx5e_get_rep_max_num_channels,
+	.max_nch		= mlx5e_get_max_num_channels,
 	.update_carrier		= NULL,
 	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe_rep,
 	.rx_handlers.handle_rx_cqe_mpwqe = mlx5e_handle_rx_cqe_mpwrq,
