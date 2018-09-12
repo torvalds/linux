@@ -1587,8 +1587,10 @@ redirty_out:
 	return AOP_WRITEPAGE_ACTIVATE;
 }
 
-void f2fs_move_node_page(struct page *node_page, int gc_type)
+int f2fs_move_node_page(struct page *node_page, int gc_type)
 {
+	int err = 0;
+
 	if (gc_type == FG_GC) {
 		struct writeback_control wbc = {
 			.sync_mode = WB_SYNC_ALL,
@@ -1600,12 +1602,16 @@ void f2fs_move_node_page(struct page *node_page, int gc_type)
 		f2fs_wait_on_page_writeback(node_page, NODE, true);
 
 		f2fs_bug_on(F2FS_P_SB(node_page), PageWriteback(node_page));
-		if (!clear_page_dirty_for_io(node_page))
+		if (!clear_page_dirty_for_io(node_page)) {
+			err = -EAGAIN;
 			goto out_page;
+		}
 
 		if (__write_node_page(node_page, false, NULL,
-					&wbc, false, FS_GC_NODE_IO, NULL))
+					&wbc, false, FS_GC_NODE_IO, NULL)) {
+			err = -EAGAIN;
 			unlock_page(node_page);
+		}
 		goto release_page;
 	} else {
 		/* set page dirty and write it */
@@ -1616,6 +1622,7 @@ out_page:
 	unlock_page(node_page);
 release_page:
 	f2fs_put_page(node_page, 0);
+	return err;
 }
 
 static int f2fs_write_node_page(struct page *page,
