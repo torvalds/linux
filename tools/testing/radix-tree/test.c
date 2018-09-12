@@ -25,11 +25,6 @@ int item_tag_get(struct radix_tree_root *root, unsigned long index, int tag)
 	return radix_tree_tag_get(root, index, tag);
 }
 
-int __item_insert(struct radix_tree_root *root, struct item *item)
-{
-	return __radix_tree_insert(root, item->index, item->order, item);
-}
-
 struct item *item_create(unsigned long index, unsigned int order)
 {
 	struct item *ret = malloc(sizeof(*ret));
@@ -43,7 +38,7 @@ int item_insert_order(struct radix_tree_root *root, unsigned long index,
 			unsigned order)
 {
 	struct item *item = item_create(index, order);
-	int err = __item_insert(root, item);
+	int err = __radix_tree_insert(root, item->index, item->order, item);
 	if (err)
 		free(item);
 	return err;
