@@ -752,19 +752,9 @@ static int venc_init_output(struct venc_device *venc)
 	out->owner = THIS_MODULE;
 	out->of_ports = BIT(0);
 
-	out->next = omapdss_of_find_connected_device(out->dev->of_node, 0);
-	if (IS_ERR(out->next)) {
-		if (PTR_ERR(out->next) != -EPROBE_DEFER)
-			dev_err(out->dev, "failed to find video sink\n");
-		return PTR_ERR(out->next);
-	}
-
-	r = omapdss_output_validate(out);
-	if (r) {
-		omapdss_device_put(out->next);
-		out->next = NULL;
+	r = omapdss_device_init_output(out);
+	if (r < 0)
 		return r;
-	}
 
 	omapdss_device_register(out);
 
@@ -773,9 +763,8 @@ static int venc_init_output(struct venc_device *venc)
 
 static void venc_uninit_output(struct venc_device *venc)
 {
-	if (venc->output.next)
-		omapdss_device_put(venc->output.next);
 	omapdss_device_unregister(&venc->output);
+	omapdss_device_cleanup_output(&venc->output);
 }
 
 static int venc_probe_of(struct venc_device *venc)

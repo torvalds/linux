@@ -5131,19 +5131,9 @@ static int dsi_init_output(struct dsi_data *dsi)
 		       | DRM_BUS_FLAG_DE_HIGH
 		       | DRM_BUS_FLAG_SYNC_NEGEDGE;
 
-	out->next = omapdss_of_find_connected_device(out->dev->of_node, 0);
-	if (IS_ERR(out->next)) {
-		if (PTR_ERR(out->next) != -EPROBE_DEFER)
-			dev_err(out->dev, "failed to find video sink\n");
-		return PTR_ERR(out->next);
-	}
-
-	r = omapdss_output_validate(out);
-	if (r) {
-		omapdss_device_put(out->next);
-		out->next = NULL;
+	r = omapdss_device_init_output(out);
+	if (r < 0)
 		return r;
-	}
 
 	omapdss_device_register(out);
 
@@ -5154,9 +5144,8 @@ static void dsi_uninit_output(struct dsi_data *dsi)
 {
 	struct omap_dss_device *out = &dsi->output;
 
-	if (out->next)
-		omapdss_device_put(out->next);
 	omapdss_device_unregister(out);
+	omapdss_device_cleanup_output(out);
 }
 
 static int dsi_probe_of(struct dsi_data *dsi)

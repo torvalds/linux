@@ -24,8 +24,15 @@
 #include "dss.h"
 #include "omapdss.h"
 
-int omapdss_output_validate(struct omap_dss_device *out)
+int omapdss_device_init_output(struct omap_dss_device *out)
 {
+	out->next = omapdss_of_find_connected_device(out->dev->of_node, 0);
+	if (IS_ERR(out->next)) {
+		if (PTR_ERR(out->next) != -EPROBE_DEFER)
+			dev_err(out->dev, "failed to find video sink\n");
+		return PTR_ERR(out->next);
+	}
+
 	if (out->next && out->output_type != out->next->type) {
 		dev_err(out->dev, "output type and display type don't match\n");
 		return -EINVAL;
@@ -33,7 +40,14 @@ int omapdss_output_validate(struct omap_dss_device *out)
 
 	return 0;
 }
-EXPORT_SYMBOL(omapdss_output_validate);
+EXPORT_SYMBOL(omapdss_device_init_output);
+
+void omapdss_device_cleanup_output(struct omap_dss_device *out)
+{
+	if (out->next)
+		omapdss_device_put(out->next);
+}
+EXPORT_SYMBOL(omapdss_device_cleanup_output);
 
 int dss_install_mgr_ops(struct dss_device *dss,
 			const struct dss_mgr_ops *mgr_ops,

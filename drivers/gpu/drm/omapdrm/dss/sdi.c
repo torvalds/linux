@@ -281,19 +281,9 @@ static int sdi_init_output(struct sdi_device *sdi)
 	out->bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE	/* 15.5.9.1.2 */
 		       | DRM_BUS_FLAG_SYNC_POSEDGE;
 
-	out->next = omapdss_of_find_connected_device(out->dev->of_node, 1);
-	if (IS_ERR(out->next)) {
-		if (PTR_ERR(out->next) != -EPROBE_DEFER)
-			dev_err(out->dev, "failed to find video sink\n");
-		return PTR_ERR(out->next);
-	}
-
-	r = omapdss_output_validate(out);
-	if (r) {
-		omapdss_device_put(out->next);
-		out->next = NULL;
+	r = omapdss_device_init_output(out);
+	if (r < 0)
 		return r;
-	}
 
 	omapdss_device_register(out);
 
@@ -302,9 +292,8 @@ static int sdi_init_output(struct sdi_device *sdi)
 
 static void sdi_uninit_output(struct sdi_device *sdi)
 {
-	if (sdi->output.next)
-		omapdss_device_put(sdi->output.next);
 	omapdss_device_unregister(&sdi->output);
+	omapdss_device_cleanup_output(&sdi->output);
 }
 
 int sdi_init_port(struct dss_device *dss, struct platform_device *pdev,

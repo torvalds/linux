@@ -687,19 +687,9 @@ static int hdmi4_init_output(struct omap_hdmi *hdmi)
 	out->of_ports = BIT(0);
 	out->ops_flags = OMAP_DSS_DEVICE_OP_EDID;
 
-	out->next = omapdss_of_find_connected_device(out->dev->of_node, 0);
-	if (IS_ERR(out->next)) {
-		if (PTR_ERR(out->next) != -EPROBE_DEFER)
-			dev_err(out->dev, "failed to find video sink\n");
-		return PTR_ERR(out->next);
-	}
-
-	r = omapdss_output_validate(out);
-	if (r) {
-		omapdss_device_put(out->next);
-		out->next = NULL;
+	r = omapdss_device_init_output(out);
+	if (r < 0)
 		return r;
-	}
 
 	omapdss_device_register(out);
 
@@ -710,9 +700,8 @@ static void hdmi4_uninit_output(struct omap_hdmi *hdmi)
 {
 	struct omap_dss_device *out = &hdmi->output;
 
-	if (out->next)
-		omapdss_device_put(out->next);
 	omapdss_device_unregister(out);
+	omapdss_device_cleanup_output(out);
 }
 
 static int hdmi4_probe_of(struct omap_hdmi *hdmi)

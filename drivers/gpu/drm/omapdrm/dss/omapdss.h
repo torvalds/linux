@@ -493,7 +493,8 @@ int omap_dss_get_num_overlays(void);
 #define for_each_dss_output(d) \
 	while ((d = omapdss_device_next_output(d)) != NULL)
 struct omap_dss_device *omapdss_device_next_output(struct omap_dss_device *from);
-int omapdss_output_validate(struct omap_dss_device *out);
+int omapdss_device_init_output(struct omap_dss_device *out);
+void omapdss_device_cleanup_output(struct omap_dss_device *out);
 
 typedef void (*omap_dispc_isr_t) (void *arg, u32 mask);
 int omap_dispc_register_isr(omap_dispc_isr_t isr, void *arg, u32 mask);
