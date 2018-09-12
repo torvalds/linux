@@ -184,11 +184,10 @@ static void icmpv6_error_log(const struct sk_buff *skb,
 			       IPPROTO_ICMPV6, "%s", msg);
 }
 
-static int
-icmpv6_error(struct nf_conn *tmpl,
-	     struct sk_buff *skb,
-	     unsigned int dataoff,
-	     const struct nf_hook_state *state)
+int nf_conntrack_icmpv6_error(struct nf_conn *tmpl,
+			      struct sk_buff *skb,
+			      unsigned int dataoff,
+			      const struct nf_hook_state *state)
 {
 	const struct icmp6hdr *icmp6h;
 	struct icmp6hdr _ih;
@@ -366,7 +365,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 	.pkt_to_tuple		= icmpv6_pkt_to_tuple,
 	.invert_tuple		= icmpv6_invert_tuple,
 	.packet			= icmpv6_packet,
-	.error			= icmpv6_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= icmpv6_tuple_to_nlattr,
 	.nlattr_tuple_size	= icmpv6_nlattr_tuple_size,

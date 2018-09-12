@@ -51,10 +51,6 @@ struct nf_conntrack_l4proto {
 	/* Called when a conntrack entry is destroyed */
 	void (*destroy)(struct nf_conn *ct);
 
-	int (*error)(struct nf_conn *tmpl, struct sk_buff *skb,
-		     unsigned int dataoff,
-		     const struct nf_hook_state *state);
-
 	/* called by gc worker if table is full */
 	bool (*can_early_drop)(const struct nf_conn *ct);
 
@@ -97,6 +93,15 @@ struct nf_conntrack_l4proto {
 	struct module *me;
 };
 
+int nf_conntrack_icmpv4_error(struct nf_conn *tmpl,
+			      struct sk_buff *skb,
+			      unsigned int dataoff,
+			      const struct nf_hook_state *state);
+
+int nf_conntrack_icmpv6_error(struct nf_conn *tmpl,
+			      struct sk_buff *skb,
+			      unsigned int dataoff,
+			      const struct nf_hook_state *state);
 /* Existing built-in generic protocol */
 extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
 

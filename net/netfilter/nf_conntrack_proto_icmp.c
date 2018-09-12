@@ -165,10 +165,9 @@ static void icmp_error_log(const struct sk_buff *skb,
 }
 
 /* Small and modified version of icmp_rcv */
-static int
-icmp_error(struct nf_conn *tmpl,
-	   struct sk_buff *skb, unsigned int dataoff,
-	   const struct nf_hook_state *state)
+int nf_conntrack_icmpv4_error(struct nf_conn *tmpl,
+			      struct sk_buff *skb, unsigned int dataoff,
+			      const struct nf_hook_state *state)
 {
 	const struct icmphdr *icmph;
 	struct icmphdr _ih;
@@ -355,7 +354,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 	.pkt_to_tuple		= icmp_pkt_to_tuple,
 	.invert_tuple		= icmp_invert_tuple,
 	.packet			= icmp_packet,
-	.error			= icmp_error,
 	.destroy		= NULL,
 	.me			= NULL,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
