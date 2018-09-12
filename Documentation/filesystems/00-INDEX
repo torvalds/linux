@@ -101,8 +101,6 @@ omfs.txt
 	- info on the Optimized MPEG FileSystem.
 path-lookup.txt
 	- info on path walking and name lookup locking.
-pohmelfs/
-	- directory containing pohmelfs filesystem documentation.
 porting
 	- various information on filesystem porting.
 proc.txt
