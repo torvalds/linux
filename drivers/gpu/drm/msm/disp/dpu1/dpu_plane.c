@@ -1194,45 +1194,17 @@ void dpu_plane_set_error(struct drm_plane *plane, bool error)
 	pdpu->is_error = error;
 }
 
-static int dpu_plane_sspp_atomic_update(struct drm_plane *plane,
-				struct drm_plane_state *old_state)
+static void dpu_plane_sspp_atomic_update(struct drm_plane *plane,
+					 struct drm_plane_state *old_state)
 {
-	uint32_t nplanes, src_flags;
-	struct dpu_plane *pdpu;
-	struct drm_plane_state *state;
-	struct dpu_plane_state *pstate;
-	struct dpu_plane_state *old_pstate;
-	const struct dpu_format *fmt;
-	struct drm_crtc *crtc;
-	struct drm_framebuffer *fb;
-
-	if (!plane) {
-		DPU_ERROR("invalid plane\n");
-		return -EINVAL;
-	} else if (!plane->state) {
-		DPU_ERROR("invalid plane state\n");
-		return -EINVAL;
-	} else if (!old_state) {
-		DPU_ERROR("invalid old state\n");
-		return -EINVAL;
-	}
-
-	pdpu = to_dpu_plane(plane);
-	state = plane->state;
-
-	pstate = to_dpu_plane_state(state);
-
-	old_pstate = to_dpu_plane_state(old_state);
-
-	crtc = state->crtc;
-	fb = state->fb;
-	if (!crtc || !fb) {
-		DPU_ERROR_PLANE(pdpu, "invalid crtc %d or fb %d\n",
-				crtc != 0, fb != 0);
-		return -EINVAL;
-	}
-	fmt = to_dpu_format(msm_framebuffer_format(fb));
-	nplanes = fmt->num_planes;
+	uint32_t src_flags;
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
+	struct drm_plane_state *state = plane->state;
+	struct dpu_plane_state *pstate = to_dpu_plane_state(state);
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_framebuffer *fb = state->fb;
+	const struct dpu_format *fmt =
+		to_dpu_format(msm_framebuffer_format(fb));
 
 	memset(&(pdpu->pipe_cfg), 0, sizeof(struct dpu_hw_pipe_cfg));
 
@@ -1263,7 +1235,7 @@ static int dpu_plane_sspp_atomic_update(struct drm_plane *plane,
 	/* override for color fill */
 	if (pdpu->color_fill & DPU_PLANE_COLOR_FILL_FLAG) {
 		/* skip remaining processing on color fill */
-		return 0;
+		return;
 	}
 
 	if (pdpu->pipe_hw->ops.setup_rects) {
@@ -1334,7 +1306,6 @@ static int dpu_plane_sspp_atomic_update(struct drm_plane *plane,
 	}
 
 	_dpu_plane_set_qos_remap(plane);
-	return 0;
 }
 
 static void _dpu_plane_atomic_disable(struct drm_plane *plane,
@@ -1373,31 +1344,17 @@ static void _dpu_plane_atomic_disable(struct drm_plane *plane,
 static void dpu_plane_atomic_update(struct drm_plane *plane,
 				struct drm_plane_state *old_state)
 {
-	struct dpu_plane *pdpu;
-	struct drm_plane_state *state;
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
+	struct drm_plane_state *state = plane->state;
 
-	if (!plane) {
-		DPU_ERROR("invalid plane\n");
-		return;
-	} else if (!plane->state) {
-		DPU_ERROR("invalid plane state\n");
-		return;
-	}
-
-	pdpu = to_dpu_plane(plane);
 	pdpu->is_error = false;
-	state = plane->state;
 
 	DPU_DEBUG_PLANE(pdpu, "\n");
 
 	if (!state->visible) {
 		_dpu_plane_atomic_disable(plane, old_state);
 	} else {
-		int ret;
-
-		ret = dpu_plane_sspp_atomic_update(plane, old_state);
-		/* atomic_check should have ensured that this doesn't fail */
-		WARN_ON(ret < 0);
+		dpu_plane_sspp_atomic_update(plane, old_state);
 	}
 }
 
