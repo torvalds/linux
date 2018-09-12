@@ -633,6 +633,8 @@ struct caam_job_ring {
 #define JRSTA_DECOERR_INVSIGN       0x86
 #define JRSTA_DECOERR_DSASIGN       0x87
 
+#define JRSTA_QIERR_ERROR_MASK      0x00ff
+
 #define JRSTA_CCBERR_JUMP           0x08000000
 #define JRSTA_CCBERR_INDEX_MASK     0xff00
 #define JRSTA_CCBERR_INDEX_SHIFT    8
