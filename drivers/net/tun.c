@@ -1635,6 +1635,23 @@ static bool tun_can_build_skb(struct tun_struct *tun, struct tun_file *tfile,
 	return true;
 }
 
+static struct sk_buff *__tun_build_skb(struct page_frag *alloc_frag, char *buf,
+				       int buflen, int len, int pad, int delta)
+{
+	struct sk_buff *skb = build_skb(buf, buflen);
+
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	skb_reserve(skb, pad - delta);
+	skb_put(skb, len);
+
+	get_page(alloc_frag->page);
+	alloc_frag->offset += buflen;
+
+	return skb;
+}
+
 static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 				     struct tun_file *tfile,
 				     struct iov_iter *from,
@@ -1642,7 +1659,6 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 				     int len, int *skb_xdp)
 {
 	struct page_frag *alloc_frag = &current->task_frag;
-	struct sk_buff *skb;
 	struct bpf_prog *xdp_prog;
 	int buflen = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	unsigned int delta = 0;
@@ -1672,10 +1688,12 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 	 * of xdp_prog above, this should be rare and for simplicity
 	 * we do XDP on skb in case the headroom is not enough.
 	 */
-	if (hdr->gso_type || !xdp_prog)
+	if (hdr->gso_type || !xdp_prog) {
 		*skb_xdp = 1;
-	else
-		*skb_xdp = 0;
+		return __tun_build_skb(alloc_frag, buf, buflen, len, pad, delta);
+	}
+
+	*skb_xdp = 0;
 
 	local_bh_disable();
 	rcu_read_lock();
@@ -1719,22 +1737,13 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 			trace_xdp_exception(tun->dev, xdp_prog, act);
 			/* fall through */
 		case XDP_DROP:
-			goto err_xdp;
+			goto out;
 		}
 	}
 	rcu_read_unlock();
 	local_bh_enable();
 
-	skb = build_skb(buf, buflen);
-	if (!skb)
-		return ERR_PTR(-ENOMEM);
-
-	skb_reserve(skb, pad - delta);
-	skb_put(skb, len);
-	get_page(alloc_frag->page);
-	alloc_frag->offset += buflen;
-
-	return skb;
+	return __tun_build_skb(alloc_frag, buf, buflen, len, pad, delta);
 
 err_redirect:
 	put_page(alloc_frag->page);
