@@ -64,6 +64,7 @@ struct usbtmc_termchar {
  */
 #define USBTMC_FLAG_ASYNC		0x0001
 #define USBTMC_FLAG_APPEND		0x0002
+#define USBTMC_FLAG_IGNORE_TRAILER	0x0004
 
 struct usbtmc_message {
 	__u32 transfer_size; /* size of bytes to transfer */
@@ -86,6 +87,7 @@ struct usbtmc_message {
 #define USBTMC_IOCTL_EOM_ENABLE	        _IOW(USBTMC_IOC_NR, 11, __u8)
 #define USBTMC_IOCTL_CONFIG_TERMCHAR	_IOW(USBTMC_IOC_NR, 12, struct usbtmc_termchar)
 #define USBTMC_IOCTL_WRITE		_IOWR(USBTMC_IOC_NR, 13, struct usbtmc_message)
+#define USBTMC_IOCTL_READ		_IOWR(USBTMC_IOC_NR, 14, struct usbtmc_message)
 #define USBTMC_IOCTL_WRITE_RESULT	_IOWR(USBTMC_IOC_NR, 15, __u32)
 
 #define USBTMC488_IOCTL_GET_CAPS	_IOR(USBTMC_IOC_NR, 17, unsigned char)

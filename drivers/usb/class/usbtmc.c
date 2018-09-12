@@ -85,6 +85,9 @@ struct usbtmc_device_data {
 	u8 bTag_last_write;	/* needed for abort */
 	u8 bTag_last_read;	/* needed for abort */
 
+	/* packet size of IN bulk */
+	u16            wMaxPacketSize;
+
 	/* data for interrupt in endpoint handling */
 	u8             bNotify1;
 	u8             bNotify2;
@@ -140,6 +143,13 @@ struct usbtmc_file_data {
 	struct semaphore limit_write_sem;
 	u32 out_transfer_size;
 	int out_status;
+
+	/* data for generic_read */
+	u32 in_transfer_size;
+	int in_status;
+	int in_urbs_used;
+	struct usb_anchor in_anchor;
+	wait_queue_head_t wait_bulk_in;
 };
 
 /* Forward declarations */
@@ -173,6 +183,8 @@ static int usbtmc_open(struct inode *inode, struct file *filp)
 	spin_lock_init(&file_data->err_lock);
 	sema_init(&file_data->limit_write_sem, MAX_URBS_IN_FLIGHT);
 	init_usb_anchor(&file_data->submitted);
+	init_usb_anchor(&file_data->in_anchor);
+	init_waitqueue_head(&file_data->wait_bulk_in);
 
 	data = usb_get_intfdata(intf);
 	/* Protect reference to data from file structure until release */
@@ -219,6 +231,9 @@ static int usbtmc_flush(struct file *file, fl_owner_t id)
 	usbtmc_draw_down(file_data);
 
 	spin_lock_irq(&file_data->err_lock);
+	file_data->in_status = 0;
+	file_data->in_transfer_size = 0;
+	file_data->in_urbs_used = 0;
 	file_data->out_status = 0;
 	file_data->out_transfer_size = 0;
 	spin_unlock_irq(&file_data->err_lock);
@@ -680,6 +695,307 @@ static struct urb *usbtmc_create_urb(void)
 	urb->transfer_buffer_length = bufsize;
 	urb->transfer_flags |= URB_FREE_BUFFER;
 	return urb;
+}
+
+static void usbtmc_read_bulk_cb(struct urb *urb)
+{
+	struct usbtmc_file_data *file_data = urb->context;
+	int status = urb->status;
+	unsigned long flags;
+
+	/* sync/async unlink faults aren't errors */
+	if (status) {
+		if (!(/* status == -ENOENT || */
+			status == -ECONNRESET ||
+			status == -EREMOTEIO || /* Short packet */
+			status == -ESHUTDOWN))
+			dev_err(&file_data->data->intf->dev,
+			"%s - nonzero read bulk status received: %d\n",
+			__func__, status);
+
+		spin_lock_irqsave(&file_data->err_lock, flags);
+		if (!file_data->in_status)
+			file_data->in_status = status;
+		spin_unlock_irqrestore(&file_data->err_lock, flags);
+	}
+
+	spin_lock_irqsave(&file_data->err_lock, flags);
+	file_data->in_transfer_size += urb->actual_length;
+	dev_dbg(&file_data->data->intf->dev,
+		"%s - total size: %u current: %d status: %d\n",
+		__func__, file_data->in_transfer_size,
+		urb->actual_length, status);
+	spin_unlock_irqrestore(&file_data->err_lock, flags);
+	usb_anchor_urb(urb, &file_data->in_anchor);
+
+	wake_up_interruptible(&file_data->wait_bulk_in);
+	wake_up_interruptible(&file_data->data->waitq);
+}
+
+static inline bool usbtmc_do_transfer(struct usbtmc_file_data *file_data)
+{
+	bool data_or_error;
+
+	spin_lock_irq(&file_data->err_lock);
+	data_or_error = !usb_anchor_empty(&file_data->in_anchor)
+			|| file_data->in_status;
+	spin_unlock_irq(&file_data->err_lock);
+	dev_dbg(&file_data->data->intf->dev, "%s: returns %d\n", __func__,
+		data_or_error);
+	return data_or_error;
+}
+
+static ssize_t usbtmc_generic_read(struct usbtmc_file_data *file_data,
+				   void __user *user_buffer,
+				   u32 transfer_size,
+				   u32 *transferred,
+				   u32 flags)
+{
+	struct usbtmc_device_data *data = file_data->data;
+	struct device *dev = &data->intf->dev;
+	u32 done = 0;
+	u32 remaining;
+	const u32 bufsize = USBTMC_BUFSIZE;
+	int retval = 0;
+	u32 max_transfer_size;
+	unsigned long expire;
+	int bufcount = 1;
+	int again = 0;
+
+	/* mutex already locked */
+
+	*transferred = done;
+
+	max_transfer_size = transfer_size;
+
+	if (flags & USBTMC_FLAG_IGNORE_TRAILER) {
+		/* The device may send extra alignment bytes (up to
+		 * wMaxPacketSize – 1) to avoid sending a zero-length
+		 * packet
+		 */
+		remaining = transfer_size;
+		if ((max_transfer_size % data->wMaxPacketSize) == 0)
+			max_transfer_size += (data->wMaxPacketSize - 1);
+	} else {
+		/* round down to bufsize to avoid truncated data left */
+		if (max_transfer_size > bufsize) {
+			max_transfer_size =
+				roundup(max_transfer_size + 1 - bufsize,
+					bufsize);
+		}
+		remaining = max_transfer_size;
+	}
+
+	spin_lock_irq(&file_data->err_lock);
+
+	if (file_data->in_status) {
+		/* return the very first error */
+		retval = file_data->in_status;
+		spin_unlock_irq(&file_data->err_lock);
+		goto error;
+	}
+
+	if (flags & USBTMC_FLAG_ASYNC) {
+		if (usb_anchor_empty(&file_data->in_anchor))
+			again = 1;
+
+		if (file_data->in_urbs_used == 0) {
+			file_data->in_transfer_size = 0;
+			file_data->in_status = 0;
+		}
+	} else {
+		file_data->in_transfer_size = 0;
+		file_data->in_status = 0;
+	}
+
+	if (max_transfer_size == 0) {
+		bufcount = 0;
+	} else {
+		bufcount = roundup(max_transfer_size, bufsize) / bufsize;
+		if (bufcount > file_data->in_urbs_used)
+			bufcount -= file_data->in_urbs_used;
+		else
+			bufcount = 0;
+
+		if (bufcount + file_data->in_urbs_used > MAX_URBS_IN_FLIGHT) {
+			bufcount = MAX_URBS_IN_FLIGHT -
+					file_data->in_urbs_used;
+		}
+	}
+	spin_unlock_irq(&file_data->err_lock);
+
+	dev_dbg(dev, "%s: requested=%u flags=0x%X size=%u bufs=%d used=%d\n",
+		__func__, transfer_size, flags,
+		max_transfer_size, bufcount, file_data->in_urbs_used);
+
+	while (bufcount > 0) {
+		u8 *dmabuf = NULL;
+		struct urb *urb = usbtmc_create_urb();
+
+		if (!urb) {
+			retval = -ENOMEM;
+			goto error;
+		}
+
+		dmabuf = urb->transfer_buffer;
+
+		usb_fill_bulk_urb(urb, data->usb_dev,
+			usb_rcvbulkpipe(data->usb_dev, data->bulk_in),
+			dmabuf, bufsize,
+			usbtmc_read_bulk_cb, file_data);
+
+		usb_anchor_urb(urb, &file_data->submitted);
+		retval = usb_submit_urb(urb, GFP_KERNEL);
+		/* urb is anchored. We can release our reference. */
+		usb_free_urb(urb);
+		if (unlikely(retval)) {
+			usb_unanchor_urb(urb);
+			goto error;
+		}
+		file_data->in_urbs_used++;
+		bufcount--;
+	}
+
+	if (again) {
+		dev_dbg(dev, "%s: ret=again\n", __func__);
+		return -EAGAIN;
+	}
+
+	if (user_buffer == NULL)
+		return -EINVAL;
+
+	expire = msecs_to_jiffies(file_data->timeout);
+
+	while (max_transfer_size > 0) {
+		u32 this_part;
+		struct urb *urb = NULL;
+
+		if (!(flags & USBTMC_FLAG_ASYNC)) {
+			dev_dbg(dev, "%s: before wait time %lu\n",
+				__func__, expire);
+			retval = wait_event_interruptible_timeout(
+				file_data->wait_bulk_in,
+				usbtmc_do_transfer(file_data),
+				expire);
+
+			dev_dbg(dev, "%s: wait returned %d\n",
+				__func__, retval);
+
+			if (retval <= 0) {
+				if (retval == 0)
+					retval = -ETIMEDOUT;
+				goto error;
+			}
+		}
+
+		urb = usb_get_from_anchor(&file_data->in_anchor);
+		if (!urb) {
+			if (!(flags & USBTMC_FLAG_ASYNC)) {
+				/* synchronous case: must not happen */
+				retval = -EFAULT;
+				goto error;
+			}
+
+			/* asynchronous case: ready, do not block or wait */
+			*transferred = done;
+			dev_dbg(dev, "%s: (async) done=%u ret=0\n",
+				__func__, done);
+			return 0;
+		}
+
+		file_data->in_urbs_used--;
+
+		if (max_transfer_size > urb->actual_length)
+			max_transfer_size -= urb->actual_length;
+		else
+			max_transfer_size = 0;
+
+		if (remaining > urb->actual_length)
+			this_part = urb->actual_length;
+		else
+			this_part = remaining;
+
+		print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE, 16, 1,
+			urb->transfer_buffer, urb->actual_length, true);
+
+		if (copy_to_user(user_buffer + done,
+				 urb->transfer_buffer, this_part)) {
+			usb_free_urb(urb);
+			retval = -EFAULT;
+			goto error;
+		}
+
+		remaining -= this_part;
+		done += this_part;
+
+		spin_lock_irq(&file_data->err_lock);
+		if (urb->status) {
+			/* return the very first error */
+			retval = file_data->in_status;
+			spin_unlock_irq(&file_data->err_lock);
+			usb_free_urb(urb);
+			goto error;
+		}
+		spin_unlock_irq(&file_data->err_lock);
+
+		if (urb->actual_length < bufsize) {
+			/* short packet or ZLP received => ready */
+			usb_free_urb(urb);
+			retval = 1;
+			break;
+		}
+
+		if (!(flags & USBTMC_FLAG_ASYNC) &&
+		    max_transfer_size > (bufsize * file_data->in_urbs_used)) {
+			/* resubmit, since other buffers still not enough */
+			usb_anchor_urb(urb, &file_data->submitted);
+			retval = usb_submit_urb(urb, GFP_KERNEL);
+			if (unlikely(retval)) {
+				usb_unanchor_urb(urb);
+				usb_free_urb(urb);
+				goto error;
+			}
+			file_data->in_urbs_used++;
+		}
+		usb_free_urb(urb);
+		retval = 0;
+	}
+
+error:
+	*transferred = done;
+
+	dev_dbg(dev, "%s: before kill\n", __func__);
+	/* Attention: killing urbs can take long time (2 ms) */
+	usb_kill_anchored_urbs(&file_data->submitted);
+	dev_dbg(dev, "%s: after kill\n", __func__);
+	usb_scuttle_anchored_urbs(&file_data->in_anchor);
+	file_data->in_urbs_used = 0;
+	file_data->in_status = 0; /* no spinlock needed here */
+	dev_dbg(dev, "%s: done=%u ret=%d\n", __func__, done, retval);
+
+	return retval;
+}
+
+static ssize_t usbtmc_ioctl_generic_read(struct usbtmc_file_data *file_data,
+					 void __user *arg)
+{
+	struct usbtmc_message msg;
+	ssize_t retval = 0;
+
+	/* mutex already locked */
+
+	if (copy_from_user(&msg, arg, sizeof(struct usbtmc_message)))
+		return -EFAULT;
+
+	retval = usbtmc_generic_read(file_data, msg.message,
+				     msg.transfer_size, &msg.transferred,
+				     msg.flags);
+
+	if (put_user(msg.transferred,
+		     &((struct usbtmc_message __user *)arg)->transferred))
+		return -EFAULT;
+
+	return retval;
 }
 
 static void usbtmc_write_bulk_cb(struct urb *urb)
@@ -1383,6 +1699,7 @@ static int usbtmc_ioctl_clear_in_halt(struct usbtmc_device_data *data)
 static int usbtmc_ioctl_cancel_io(struct usbtmc_file_data *file_data)
 {
 	spin_lock_irq(&file_data->err_lock);
+	file_data->in_status = -ECANCELED;
 	file_data->out_status = -ECANCELED;
 	spin_unlock_irq(&file_data->err_lock);
 	usb_kill_anchored_urbs(&file_data->submitted);
@@ -1768,6 +2085,11 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 						    (void __user *)arg);
 		break;
 
+	case USBTMC_IOCTL_READ:
+		retval = usbtmc_ioctl_generic_read(file_data,
+						   (void __user *)arg);
+		break;
+
 	case USBTMC_IOCTL_WRITE_RESULT:
 		retval = usbtmc_ioctl_write_result(file_data,
 						   (void __user *)arg);
@@ -1833,15 +2155,24 @@ static __poll_t usbtmc_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &data->waitq, wait);
 
+	/* Note that EPOLLPRI is now assigned to SRQ, and
+	 * EPOLLIN|EPOLLRDNORM to normal read data.
+	 */
 	mask = 0;
 	if (atomic_read(&file_data->srq_asserted))
 		mask |= EPOLLPRI;
 
+	/* Note that the anchor submitted includes all urbs for BULK IN
+	 * and OUT. So EPOLLOUT is signaled when BULK OUT is empty and
+	 * all BULK IN urbs are completed and moved to in_anchor.
+	 */
 	if (usb_anchor_empty(&file_data->submitted))
 		mask |= (EPOLLOUT | EPOLLWRNORM);
+	if (!usb_anchor_empty(&file_data->in_anchor))
+		mask |= (EPOLLIN | EPOLLRDNORM);
 
 	spin_lock_irq(&file_data->err_lock);
-	if (file_data->out_status)
+	if (file_data->in_status || file_data->out_status)
 		mask |= EPOLLERR;
 	spin_unlock_irq(&file_data->err_lock);
 
@@ -2003,6 +2334,7 @@ static int usbtmc_probe(struct usb_interface *intf,
 	}
 
 	data->bulk_in = bulk_in->bEndpointAddress;
+	data->wMaxPacketSize = usb_endpoint_maxp(bulk_in);
 	dev_dbg(&intf->dev, "Found bulk in endpoint at %u\n", data->bulk_in);
 
 	data->bulk_out = bulk_out->bEndpointAddress;
@@ -2099,6 +2431,7 @@ static void usbtmc_disconnect(struct usb_interface *intf)
 				       struct usbtmc_file_data,
 				       file_elem);
 		usb_kill_anchored_urbs(&file_data->submitted);
+		usb_scuttle_anchored_urbs(&file_data->in_anchor);
 	}
 	mutex_unlock(&data->io_mutex);
 	usbtmc_free_int(data);
@@ -2112,6 +2445,7 @@ static void usbtmc_draw_down(struct usbtmc_file_data *file_data)
 	time = usb_wait_anchor_empty_timeout(&file_data->submitted, 1000);
 	if (!time)
 		usb_kill_anchored_urbs(&file_data->submitted);
+	usb_scuttle_anchored_urbs(&file_data->in_anchor);
 }
 
 static int usbtmc_suspend(struct usb_interface *intf, pm_message_t message)
