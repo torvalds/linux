@@ -247,23 +247,18 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
 
-static void ttm_bo_bulk_move_helper(struct ttm_lru_bulk_move_pos *pos,
-				    struct list_head *lru, bool is_swap)
+static void ttm_list_move_bulk_tail(struct list_head *list,
+				    struct list_head *first,
+				    struct list_head *last)
 {
-	struct list_head *list;
-	LIST_HEAD(entries);
-	LIST_HEAD(before);
+	first->prev->next = last->next;
+	last->next->prev = first->prev;
 
-	reservation_object_assert_held(pos->last->resv);
-	list = is_swap ? &pos->last->swap : &pos->last->lru;
-	list_cut_position(&entries, lru, list);
+	list->prev->next = first;
+	first->prev = list->prev;
 
-	reservation_object_assert_held(pos->first->resv);
-	list = is_swap ? pos->first->swap.prev : pos->first->lru.prev;
-	list_cut_position(&before, &entries, list);
-
-	list_splice(&before, lru);
-	list_splice_tail(&entries, lru);
+	last->next = list;
+	list->prev = last;
 }
 
 void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk)
@@ -271,23 +266,33 @@ void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk)
 	unsigned i;
 
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		struct ttm_lru_bulk_move_pos *pos = &bulk->tt[i];
 		struct ttm_mem_type_manager *man;
 
-		if (!bulk->tt[i].first)
+		if (!pos->first)
 			continue;
 
-		man = &bulk->tt[i].first->bdev->man[TTM_PL_TT];
-		ttm_bo_bulk_move_helper(&bulk->tt[i], &man->lru[i], false);
+		reservation_object_assert_held(pos->first->resv);
+		reservation_object_assert_held(pos->last->resv);
+
+		man = &pos->first->bdev->man[TTM_PL_TT];
+		ttm_list_move_bulk_tail(&man->lru[i], &pos->first->lru,
+					&pos->last->lru);
 	}
 
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		struct ttm_lru_bulk_move_pos *pos = &bulk->vram[i];
 		struct ttm_mem_type_manager *man;
 
-		if (!bulk->vram[i].first)
+		if (!pos->first)
 			continue;
 
-		man = &bulk->vram[i].first->bdev->man[TTM_PL_VRAM];
-		ttm_bo_bulk_move_helper(&bulk->vram[i], &man->lru[i], false);
+		reservation_object_assert_held(pos->first->resv);
+		reservation_object_assert_held(pos->last->resv);
+
+		man = &pos->first->bdev->man[TTM_PL_VRAM];
+		ttm_list_move_bulk_tail(&man->lru[i], &pos->first->lru,
+					&pos->last->lru);
 	}
 
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
@@ -297,8 +302,12 @@ void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk)
 		if (!pos->first)
 			continue;
 
+		reservation_object_assert_held(pos->first->resv);
+		reservation_object_assert_held(pos->last->resv);
+
 		lru = &pos->first->bdev->glob->swap_lru[i];
-		ttm_bo_bulk_move_helper(&bulk->swap[i], lru, true);
+		ttm_list_move_bulk_tail(lru, &pos->first->swap,
+					&pos->last->swap);
 	}
 }
 EXPORT_SYMBOL(ttm_bo_bulk_move_lru_tail);
