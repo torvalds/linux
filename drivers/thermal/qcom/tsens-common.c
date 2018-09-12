@@ -99,8 +99,7 @@ int get_temp_common(struct tsens_device *tmdev, int id, int *temp)
 	int last_temp = 0, ret;
 
 	status_reg = tmdev->tm_offset + STATUS_OFFSET + s->hw_id * SN_ADDR_OFFSET;
-	ret = regmap_read(tmdev->map, status_reg, &code);
-
+	ret = regmap_read(tmdev->tm_map, status_reg, &code);
 	if (ret)
 		return ret;
 	last_temp = code & SN_ST_TEMP_MASK;
@@ -118,7 +117,7 @@ static const struct regmap_config tsens_config = {
 
 int __init init_common(struct tsens_device *tmdev)
 {
-	void __iomem *base;
+	void __iomem *tm_base;
 	struct resource *res;
 	struct platform_device *op = of_find_device_by_node(tmdev->dev->of_node);
 
@@ -134,13 +133,13 @@ int __init init_common(struct tsens_device *tmdev)
 	}
 
 	res = platform_get_resource(op, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&op->dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	tm_base = devm_ioremap_resource(&op->dev, res);
+	if (IS_ERR(tm_base))
+		return PTR_ERR(tm_base);
 
-	tmdev->map = devm_regmap_init_mmio(tmdev->dev, base, &tsens_config);
-	if (IS_ERR(tmdev->map))
-		return PTR_ERR(tmdev->map);
+	tmdev->tm_map = devm_regmap_init_mmio(tmdev->dev, tm_base, &tsens_config);
+	if (IS_ERR(tmdev->tm_map))
+		return PTR_ERR(tmdev->tm_map);
 
 	return 0;
 }
