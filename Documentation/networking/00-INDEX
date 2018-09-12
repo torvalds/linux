@@ -198,8 +198,6 @@ tc-actions-env-rules.txt
 	- rules for traffic control (tc) actions.
 timestamping.txt
 	- overview of network packet timestamping variants.
-tcp.txt
-	- short blurb on how TCP output takes place.
 tcp-thin.txt
 	- kernel tuning options for low rate 'thin' TCP streams.
 team.txt
