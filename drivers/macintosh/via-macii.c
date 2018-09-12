@@ -216,22 +216,23 @@ static void macii_queue_poll(void)
 static int macii_send_request(struct adb_request *req, int sync)
 {
 	int err;
-	unsigned long flags;
 
-	local_irq_save(flags);
 	err = macii_write(req);
-	local_irq_restore(flags);
+	if (err)
+		return err;
 
-	if (!err && sync)
+	if (sync)
 		while (!req->complete)
 			macii_poll();
 
-	return err;
+	return 0;
 }
 
 /* Send an ADB request (append to request queue) */
 static int macii_write(struct adb_request *req)
 {
+	unsigned long flags;
+
 	if (req->nbytes < 2 || req->data[0] != ADB_PACKET || req->nbytes > 15) {
 		req->complete = 1;
 		return -EINVAL;
@@ -242,6 +243,8 @@ static int macii_write(struct adb_request *req)
 	req->complete = 0;
 	req->reply_len = 0;
 
+	local_irq_save(flags);
+
 	if (current_req != NULL) {
 		last_req->next = req;
 		last_req = req;
@@ -250,6 +253,9 @@ static int macii_write(struct adb_request *req)
 		last_req = req;
 		if (macii_state == idle) macii_start();
 	}
+
+	local_irq_restore(flags);
+
 	return 0;
 }
 
@@ -293,9 +299,7 @@ static inline int need_autopoll(void) {
 /* Prod the chip without interrupts */
 static void macii_poll(void)
 {
-	disable_irq(IRQ_MAC_ADB);
 	macii_interrupt(0, NULL);
-	enable_irq(IRQ_MAC_ADB);
 }
 
 /* Reset the bus */
@@ -358,13 +362,18 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 {
 	int x;
 	struct adb_request *req;
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	if (!arg) {
 		/* Clear the SR IRQ flag when polling. */
 		if (via[IFR] & SR_INT)
 			via[IFR] = SR_INT;
-		else
+		else {
+			local_irq_restore(flags);
 			return IRQ_NONE;
+		}
 	}
 
 	last_status = status;
@@ -512,5 +521,6 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 		break;
 	}
 
+	local_irq_restore(flags);
 	return IRQ_HANDLED;
 }
