@@ -37,7 +37,6 @@
 struct omap_encoder {
 	struct drm_encoder base;
 	struct omap_dss_device *output;
-	struct omap_dss_device *display;
 };
 
 static void omap_encoder_destroy(struct drm_encoder *encoder)
@@ -247,8 +246,7 @@ static const struct drm_encoder_helper_funcs omap_encoder_helper_funcs = {
 
 /* initialize encoder */
 struct drm_encoder *omap_encoder_init(struct drm_device *dev,
-				      struct omap_dss_device *output,
-				      struct omap_dss_device *display)
+				      struct omap_dss_device *output)
 {
 	struct drm_encoder *encoder = NULL;
 	struct omap_encoder *omap_encoder;
@@ -258,7 +256,6 @@ struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 		goto fail;
 
 	omap_encoder->output = output;
-	omap_encoder->display = display;
 
 	encoder = &omap_encoder->base;
 
