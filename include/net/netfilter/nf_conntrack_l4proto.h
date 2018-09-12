@@ -45,7 +45,8 @@ struct nf_conntrack_l4proto {
 	int (*packet)(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
-		      enum ip_conntrack_info ctinfo);
+		      enum ip_conntrack_info ctinfo,
+		      const struct nf_hook_state *state);
 
 	/* Called when a new connection for this protocol found;
 	 * returns TRUE if it's OK.  If so, packet() called next. */
@@ -55,9 +56,9 @@ struct nf_conntrack_l4proto {
 	/* Called when a conntrack entry is destroyed */
 	void (*destroy)(struct nf_conn *ct);
 
-	int (*error)(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
+	int (*error)(struct nf_conn *tmpl, struct sk_buff *skb,
 		     unsigned int dataoff,
-		     u_int8_t pf, unsigned int hooknum);
+		     const struct nf_hook_state *state);
 
 	/* called by gc worker if table is full */
 	bool (*can_early_drop)(const struct nf_conn *ct);

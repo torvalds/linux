@@ -235,7 +235,8 @@ static unsigned int *gre_get_timeouts(struct net *net)
 static int gre_packet(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
-		      enum ip_conntrack_info ctinfo)
+		      enum ip_conntrack_info ctinfo,
+		      const struct nf_hook_state *state)
 {
 	/* If we've seen traffic both ways, this is a GRE connection.
 	 * Extend timeout. */

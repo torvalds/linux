@@ -717,18 +717,18 @@ static const u8 tcp_valid_flags[(TCPHDR_FIN|TCPHDR_SYN|TCPHDR_RST|TCPHDR_ACK|
 	[TCPHDR_ACK|TCPHDR_URG]			= 1,
 };
 
-static void tcp_error_log(const struct sk_buff *skb, struct net *net,
-			  u8 pf, const char *msg)
+static void tcp_error_log(const struct sk_buff *skb,
+			  const struct nf_hook_state *state,
+			  const char *msg)
 {
-	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_TCP, "%s", msg);
+	nf_l4proto_log_invalid(skb, state->net, state->pf, IPPROTO_TCP, "%s", msg);
 }
 
 /* Protect conntrack agaist broken packets. Code taken from ipt_unclean.c.  */
-static int tcp_error(struct net *net, struct nf_conn *tmpl,
+static int tcp_error(struct nf_conn *tmpl,
 		     struct sk_buff *skb,
 		     unsigned int dataoff,
-		     u_int8_t pf,
-		     unsigned int hooknum)
+		     const struct nf_hook_state *state)
 {
 	const struct tcphdr *th;
 	struct tcphdr _tcph;
@@ -738,13 +738,13 @@ static int tcp_error(struct net *net, struct nf_conn *tmpl,
 	/* Smaller that minimal TCP header? */
 	th = skb_header_pointer(skb, dataoff, sizeof(_tcph), &_tcph);
 	if (th == NULL) {
-		tcp_error_log(skb, net, pf, "short packet");
+		tcp_error_log(skb, state, "short packet");
 		return -NF_ACCEPT;
 	}
 
 	/* Not whole TCP header or malformed packet */
 	if (th->doff*4 < sizeof(struct tcphdr) || tcplen < th->doff*4) {
-		tcp_error_log(skb, net, pf, "truncated packet");
+		tcp_error_log(skb, state, "truncated packet");
 		return -NF_ACCEPT;
 	}
 
@@ -753,16 +753,17 @@ static int tcp_error(struct net *net, struct nf_conn *tmpl,
 	 * because the checksum is assumed to be correct.
 	 */
 	/* FIXME: Source route IP option packets --RR */
-	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
-	    nf_checksum(skb, hooknum, dataoff, IPPROTO_TCP, pf)) {
-		tcp_error_log(skb, net, pf, "bad checksum");
+	if (state->net->ct.sysctl_checksum &&
+	    state->hook == NF_INET_PRE_ROUTING &&
+	    nf_checksum(skb, state->hook, dataoff, IPPROTO_TCP, state->pf)) {
+		tcp_error_log(skb, state, "bad checksum");
 		return -NF_ACCEPT;
 	}
 
 	/* Check TCP flags. */
 	tcpflags = (tcp_flag_byte(th) & ~(TCPHDR_ECE|TCPHDR_CWR|TCPHDR_PSH));
 	if (!tcp_valid_flags[tcpflags]) {
-		tcp_error_log(skb, net, pf, "invalid tcp flag combination");
+		tcp_error_log(skb, state, "invalid tcp flag combination");
 		return -NF_ACCEPT;
 	}
 
@@ -773,7 +774,8 @@ static int tcp_error(struct net *net, struct nf_conn *tmpl,
 static int tcp_packet(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
-		      enum ip_conntrack_info ctinfo)
+		      enum ip_conntrack_info ctinfo,
+		      const struct nf_hook_state *state)
 {
 	struct net *net = nf_ct_net(ct);
 	struct nf_tcp_net *tn = tcp_pernet(net);

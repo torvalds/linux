@@ -455,7 +455,7 @@ static unsigned int ipv4_conntrack_in(void *priv,
 				      struct sk_buff *skb,
 				      const struct nf_hook_state *state)
 {
-	return nf_conntrack_in(state->net, PF_INET, state->hook, skb);
+	return nf_conntrack_in(skb, state);
 }
 
 static unsigned int ipv4_conntrack_local(void *priv,
@@ -477,7 +477,7 @@ static unsigned int ipv4_conntrack_local(void *priv,
 		return NF_ACCEPT;
 	}
 
-	return nf_conntrack_in(state->net, PF_INET, state->hook, skb);
+	return nf_conntrack_in(skb, state);
 }
 
 /* Connection tracking may drop packets, but never alters them, so
@@ -690,14 +690,14 @@ static unsigned int ipv6_conntrack_in(void *priv,
 				      struct sk_buff *skb,
 				      const struct nf_hook_state *state)
 {
-	return nf_conntrack_in(state->net, PF_INET6, state->hook, skb);
+	return nf_conntrack_in(skb, state);
 }
 
 static unsigned int ipv6_conntrack_local(void *priv,
 					 struct sk_buff *skb,
 					 const struct nf_hook_state *state)
 {
-	return nf_conntrack_in(state->net, PF_INET6, state->hook, skb);
+	return nf_conntrack_in(skb, state);
 }
 
 static unsigned int ipv6_helper(void *priv,

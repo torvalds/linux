@@ -277,7 +277,8 @@ static int sctp_new_state(enum ip_conntrack_dir dir,
 static int sctp_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
-		       enum ip_conntrack_info ctinfo)
+		       enum ip_conntrack_info ctinfo,
+		       const struct nf_hook_state *state)
 {
 	enum sctp_conntrack new_state, old_state;
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
@@ -471,9 +472,9 @@ static bool sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 }
 
-static int sctp_error(struct net *net, struct nf_conn *tpl, struct sk_buff *skb,
+static int sctp_error(struct nf_conn *tpl, struct sk_buff *skb,
 		      unsigned int dataoff,
-		      u8 pf, unsigned int hooknum)
+		      const struct nf_hook_state *state)
 {
 	const struct sctphdr *sh;
 	const char *logmsg;
@@ -482,7 +483,8 @@ static int sctp_error(struct net *net, struct nf_conn *tpl, struct sk_buff *skb,
 		logmsg = "nf_ct_sctp: short packet ";
 		goto out_invalid;
 	}
-	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
+	if (state->hook == NF_INET_PRE_ROUTING &&
+	    state->net->ct.sysctl_checksum &&
 	    skb->ip_summed == CHECKSUM_NONE) {
 		if (!skb_make_writable(skb, dataoff + sizeof(struct sctphdr))) {
 			logmsg = "nf_ct_sctp: failed to read header ";
@@ -497,7 +499,7 @@ static int sctp_error(struct net *net, struct nf_conn *tpl, struct sk_buff *skb,
 	}
 	return NF_ACCEPT;
 out_invalid:
-	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_SCTP, "%s", logmsg);
+	nf_l4proto_log_invalid(skb, state->net, state->pf, IPPROTO_SCTP, "%s", logmsg);
 	return -NF_ACCEPT;
 }
 

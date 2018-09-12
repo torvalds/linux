@@ -46,7 +46,8 @@ static bool generic_pkt_to_tuple(const struct sk_buff *skb,
 static int generic_packet(struct nf_conn *ct,
 			  const struct sk_buff *skb,
 			  unsigned int dataoff,
-			  enum ip_conntrack_info ctinfo)
+			  enum ip_conntrack_info ctinfo,
+			  const struct nf_hook_state *state)
 {
 	const unsigned int *timeout = nf_ct_timeout_lookup(ct);
 

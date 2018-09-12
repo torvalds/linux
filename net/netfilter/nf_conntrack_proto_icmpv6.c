@@ -94,7 +94,8 @@ static unsigned int *icmpv6_get_timeouts(struct net *net)
 static int icmpv6_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
-		       enum ip_conntrack_info ctinfo)
+		       enum ip_conntrack_info ctinfo,
+		       const struct nf_hook_state *state)
 {
 	unsigned int *timeout = nf_ct_timeout_lookup(ct);
 
@@ -179,16 +180,19 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 	return NF_ACCEPT;
 }
 
-static void icmpv6_error_log(const struct sk_buff *skb, struct net *net,
-			     u8 pf, const char *msg)
+static void icmpv6_error_log(const struct sk_buff *skb,
+			     const struct nf_hook_state *state,
+			     const char *msg)
 {
-	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_ICMPV6, "%s", msg);
+	nf_l4proto_log_invalid(skb, state->net, state->pf,
+			       IPPROTO_ICMPV6, "%s", msg);
 }
 
 static int
-icmpv6_error(struct net *net, struct nf_conn *tmpl,
-	     struct sk_buff *skb, unsigned int dataoff,
-	     u8 pf, unsigned int hooknum)
+icmpv6_error(struct nf_conn *tmpl,
+	     struct sk_buff *skb,
+	     unsigned int dataoff,
+	     const struct nf_hook_state *state)
 {
 	const struct icmp6hdr *icmp6h;
 	struct icmp6hdr _ih;
@@ -196,13 +200,14 @@ icmpv6_error(struct net *net, struct nf_conn *tmpl,
 
 	icmp6h = skb_header_pointer(skb, dataoff, sizeof(_ih), &_ih);
 	if (icmp6h == NULL) {
-		icmpv6_error_log(skb, net, pf, "short packet");
+		icmpv6_error_log(skb, state, "short packet");
 		return -NF_ACCEPT;
 	}
 
-	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
-	    nf_ip6_checksum(skb, hooknum, dataoff, IPPROTO_ICMPV6)) {
-		icmpv6_error_log(skb, net, pf, "ICMPv6 checksum failed");
+	if (state->hook == NF_INET_PRE_ROUTING &&
+	    state->net->ct.sysctl_checksum &&
+	    nf_ip6_checksum(skb, state->hook, dataoff, IPPROTO_ICMPV6)) {
+		icmpv6_error_log(skb, state, "ICMPv6 checksum failed");
 		return -NF_ACCEPT;
 	}
 
@@ -217,7 +222,7 @@ icmpv6_error(struct net *net, struct nf_conn *tmpl,
 	if (icmp6h->icmp6_type >= 128)
 		return NF_ACCEPT;
 
-	return icmpv6_error_message(net, tmpl, skb, dataoff);
+	return icmpv6_error_message(state->net, tmpl, skb, dataoff);
 }
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)

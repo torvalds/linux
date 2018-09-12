@@ -439,7 +439,8 @@ static u64 dccp_ack_seq(const struct dccp_hdr *dh)
 }
 
 static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
-		       unsigned int dataoff, enum ip_conntrack_info ctinfo)
+		       unsigned int dataoff, enum ip_conntrack_info ctinfo,
+		       const struct nf_hook_state *state)
 {
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	struct dccp_hdr _dh, *dh;
@@ -527,9 +528,9 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 	return NF_ACCEPT;
 }
 
-static int dccp_error(struct net *net, struct nf_conn *tmpl,
+static int dccp_error(struct nf_conn *tmpl,
 		      struct sk_buff *skb, unsigned int dataoff,
-		      u_int8_t pf, unsigned int hooknum)
+		      const struct nf_hook_state *state)
 {
 	struct dccp_hdr _dh, *dh;
 	unsigned int dccp_len = skb->len - dataoff;
@@ -557,9 +558,10 @@ static int dccp_error(struct net *net, struct nf_conn *tmpl,
 		}
 	}
 
-	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
-	    nf_checksum_partial(skb, hooknum, dataoff, cscov, IPPROTO_DCCP,
-				pf)) {
+	if (state->hook == NF_INET_PRE_ROUTING &&
+	    state->net->ct.sysctl_checksum &&
+	    nf_checksum_partial(skb, state->hook, dataoff, cscov,
+				IPPROTO_DCCP, state->pf)) {
 		msg = "nf_ct_dccp: bad checksum ";
 		goto out_invalid;
 	}
@@ -572,7 +574,8 @@ static int dccp_error(struct net *net, struct nf_conn *tmpl,
 	return NF_ACCEPT;
 
 out_invalid:
-	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_DCCP, "%s", msg);
+	nf_l4proto_log_invalid(skb, state->net, state->pf,
+			       IPPROTO_DCCP, "%s", msg);
 	return -NF_ACCEPT;
 }
 
