@@ -497,6 +497,17 @@
 	status = "okay";
 };
 
+&sdio {
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	supports-sdio;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	status = "disabled";
+};
+
 &sdmmc {
 	bus-width = <4>;
 	cap-mmc-highspeed;
