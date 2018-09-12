@@ -1680,107 +1680,6 @@ static void gen8_update_reg_state_unlocked(struct i915_gem_context *ctx,
 }
 
 /*
- * Same as gen8_update_reg_state_unlocked only through the batchbuffer. This
- * is only used by the kernel context.
- */
-static int gen8_emit_oa_config(struct i915_request *rq,
-			       const struct i915_oa_config *oa_config)
-{
-	struct drm_i915_private *dev_priv = rq->i915;
-	/* The MMIO offsets for Flex EU registers aren't contiguous */
-	u32 flex_mmio[] = {
-		i915_mmio_reg_offset(EU_PERF_CNTL0),
-		i915_mmio_reg_offset(EU_PERF_CNTL1),
-		i915_mmio_reg_offset(EU_PERF_CNTL2),
-		i915_mmio_reg_offset(EU_PERF_CNTL3),
-		i915_mmio_reg_offset(EU_PERF_CNTL4),
-		i915_mmio_reg_offset(EU_PERF_CNTL5),
-		i915_mmio_reg_offset(EU_PERF_CNTL6),
-	};
-	u32 *cs;
-	int i;
-
-	cs = intel_ring_begin(rq, ARRAY_SIZE(flex_mmio) * 2 + 4);
-	if (IS_ERR(cs))
-		return PTR_ERR(cs);
-
-	*cs++ = MI_LOAD_REGISTER_IMM(ARRAY_SIZE(flex_mmio) + 1);
-
-	*cs++ = i915_mmio_reg_offset(GEN8_OACTXCONTROL);
-	*cs++ = (dev_priv->perf.oa.period_exponent << GEN8_OA_TIMER_PERIOD_SHIFT) |
-		(dev_priv->perf.oa.periodic ? GEN8_OA_TIMER_ENABLE : 0) |
-		GEN8_OA_COUNTER_RESUME;
-
-	for (i = 0; i < ARRAY_SIZE(flex_mmio); i++) {
-		u32 mmio = flex_mmio[i];
-
-		/*
-		 * This arbitrary default will select the 'EU FPU0 Pipeline
-		 * Active' event. In the future it's anticipated that there
-		 * will be an explicit 'No Event' we can select, but not
-		 * yet...
-		 */
-		u32 value = 0;
-
-		if (oa_config) {
-			u32 j;
-
-			for (j = 0; j < oa_config->flex_regs_len; j++) {
-				if (i915_mmio_reg_offset(oa_config->flex_regs[j].addr) == mmio) {
-					value = oa_config->flex_regs[j].value;
-					break;
-				}
-			}
-		}
-
-		*cs++ = mmio;
-		*cs++ = value;
-	}
-
-	*cs++ = MI_NOOP;
-	intel_ring_advance(rq, cs);
-
-	return 0;
-}
-
-static int gen8_switch_to_updated_kernel_context(struct drm_i915_private *dev_priv,
-						 const struct i915_oa_config *oa_config)
-{
-	struct intel_engine_cs *engine = dev_priv->engine[RCS];
-	struct i915_timeline *timeline;
-	struct i915_request *rq;
-	int ret;
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	i915_retire_requests(dev_priv);
-
-	rq = i915_request_alloc(engine, dev_priv->kernel_context);
-	if (IS_ERR(rq))
-		return PTR_ERR(rq);
-
-	ret = gen8_emit_oa_config(rq, oa_config);
-	if (ret) {
-		i915_request_add(rq);
-		return ret;
-	}
-
-	/* Queue this switch after all other activity */
-	list_for_each_entry(timeline, &dev_priv->gt.timelines, link) {
-		struct i915_request *prev;
-
-		prev = i915_gem_active_raw(&timeline->last_request,
-					   &dev_priv->drm.struct_mutex);
-		if (prev)
-			i915_request_await_dma_fence(rq, &prev->fence);
-	}
-
-	i915_request_add(rq);
-
-	return 0;
-}
-
-/*
  * Manages updating the per-context aspects of the OA stream
  * configuration across all contexts.
  *
@@ -1809,15 +1708,10 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 {
 	struct intel_engine_cs *engine = dev_priv->engine[RCS];
 	struct i915_gem_context *ctx;
+	struct i915_request *rq;
 	int ret;
-	unsigned int wait_flags = I915_WAIT_LOCKED;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	/* Switch away from any user context. */
-	ret = gen8_switch_to_updated_kernel_context(dev_priv, oa_config);
-	if (ret)
-		return ret;
 
 	/*
 	 * The OA register config is setup through the context image. This image
@@ -1833,7 +1727,7 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 	 * the GPU from any submitted work.
 	 */
 	ret = i915_gem_wait_for_idle(dev_priv,
-				     wait_flags,
+				     I915_WAIT_LOCKED,
 				     MAX_SCHEDULE_TIMEOUT);
 	if (ret)
 		return ret;
@@ -1859,7 +1753,17 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 		i915_gem_object_unpin_map(ce->state->obj);
 	}
 
-	return ret;
+	/*
+	 * Apply the configuration by doing one context restore of the edited
+	 * context image.
+	 */
+	rq = i915_request_alloc(engine, dev_priv->kernel_context);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	i915_request_add(rq);
+
+	return 0;
 }
 
 static int gen8_enable_metric_set(struct drm_i915_private *dev_priv,
