@@ -1551,7 +1551,7 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	unsigned char status;
 	unsigned long flags;
 	struct uart_8250_port *up = up_to_u8250p(port);
-	int dma_err = 0;
+	int dma_err = 0, idx;
 
 	if (iir & UART_IIR_NO_INT)
 		return 0;
@@ -1573,7 +1573,24 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	if ((!up->dma || (up->dma && up->dma->tx_err)) &&
 	    (status & UART_LSR_THRE))
 		serial8250_tx_chars(up);
+#ifdef CONFIG_ARCH_ROCKCHIP
+	if (status & UART_LSR_BRK_ERROR_BITS) {
 
+		idx = serial_index(port);
+
+		if (status & UART_LSR_OE)
+			pr_err("ttyS%d: Overrun error!\n", idx);
+		if (status & UART_LSR_PE)
+			pr_err("ttyS%d: Parity error!\n", idx);
+		if (status & UART_LSR_FE)
+			pr_err("ttyS%d: Frame error!\n", idx);
+		if (status & UART_LSR_BI)
+			pr_err("ttyS%d: Break interrupt!\n", idx);
+
+		pr_err("ttyS%d: maybe rx pin is low or baudrate is not correct!\n",
+			idx);
+	}
+#endif
 	spin_unlock_irqrestore(&port->lock, flags);
 	return 1;
 }
