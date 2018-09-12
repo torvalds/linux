@@ -2651,6 +2651,81 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 #ifdef CONFIG_COMPAT
+
+struct serial_struct32 {
+        compat_int_t    type;
+        compat_int_t    line;
+        compat_uint_t   port;
+        compat_int_t    irq;
+        compat_int_t    flags;
+        compat_int_t    xmit_fifo_size;
+        compat_int_t    custom_divisor;
+        compat_int_t    baud_base;
+        unsigned short  close_delay;
+        char    io_type;
+        char    reserved_char[1];
+        compat_int_t    hub6;
+        unsigned short  closing_wait; /* time to wait before closing */
+        unsigned short  closing_wait2; /* no longer used... */
+        compat_uint_t   iomem_base;
+        unsigned short  iomem_reg_shift;
+        unsigned int    port_high;
+     /* compat_ulong_t  iomap_base FIXME */
+        compat_int_t    reserved[1];
+};
+
+static int compat_tty_tiocsserial(struct tty_struct *tty,
+		struct serial_struct32 __user *ss)
+{
+	static DEFINE_RATELIMIT_STATE(depr_flags,
+			DEFAULT_RATELIMIT_INTERVAL,
+			DEFAULT_RATELIMIT_BURST);
+	char comm[TASK_COMM_LEN];
+	struct serial_struct32 v32;
+	struct serial_struct v;
+	int flags;
+
+	if (copy_from_user(&v32, ss, sizeof(struct serial_struct32)))
+		return -EFAULT;
+
+	memcpy(&v, &v32, offsetof(struct serial_struct32, iomem_base));
+	v.iomem_base = compat_ptr(v32.iomem_base);
+	v.iomem_reg_shift = v32.iomem_reg_shift;
+	v.port_high = v32.port_high;
+	v.iomap_base = 0;
+
+	flags = v.flags & ASYNC_DEPRECATED;
+
+	if (flags && __ratelimit(&depr_flags))
+		pr_warn("%s: '%s' is using deprecated serial flags (with no effect): %.8x\n",
+			__func__, get_task_comm(comm, current), flags);
+	if (!tty->ops->set_serial)
+		return -ENOTTY;
+	return tty->ops->set_serial(tty, &v);
+}
+
+static int compat_tty_tiocgserial(struct tty_struct *tty,
+			struct serial_struct32 __user *ss)
+{
+	struct serial_struct32 v32;
+	struct serial_struct v;
+	int err;
+	memset(&v, 0, sizeof(struct serial_struct));
+
+	if (!tty->ops->set_serial)
+		return -ENOTTY;
+	err = tty->ops->get_serial(tty, &v);
+	if (!err) {
+		memcpy(&v32, &v, offsetof(struct serial_struct32, iomem_base));
+		v32.iomem_base = (unsigned long)v.iomem_base >> 32 ?
+			0xfffffff : ptr_to_compat(v.iomem_base);
+		v32.iomem_reg_shift = v.iomem_reg_shift;
+		v32.port_high = v.port_high;
+		if (copy_to_user(ss, &v32, sizeof(struct serial_struct32)))
+			err = -EFAULT;
+	}
+	return err;
+}
 static long tty_compat_ioctl(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
@@ -2736,6 +2811,12 @@ static long tty_compat_ioctl(struct file *file, unsigned int cmd,
 	if (tty_paranoia_check(tty, file_inode(file), "tty_ioctl"))
 		return -EINVAL;
 
+	switch (cmd) {
+	case TIOCSSERIAL:
+		return compat_tty_tiocsserial(tty, compat_ptr(arg));
+	case TIOCGSERIAL:
+		return compat_tty_tiocgserial(tty, compat_ptr(arg));
+	}
 	if (tty->ops->compat_ioctl) {
 		retval = tty->ops->compat_ioctl(tty, cmd, arg);
 		if (retval != -ENOIOCTLCMD)

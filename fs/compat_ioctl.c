@@ -560,69 +560,6 @@ static int mt_ioctl_trans(struct file *file,
 #define HIDPGETCONNLIST	_IOR('H', 210, int)
 #define HIDPGETCONNINFO	_IOR('H', 211, int)
 
-
-struct serial_struct32 {
-        compat_int_t    type;
-        compat_int_t    line;
-        compat_uint_t   port;
-        compat_int_t    irq;
-        compat_int_t    flags;
-        compat_int_t    xmit_fifo_size;
-        compat_int_t    custom_divisor;
-        compat_int_t    baud_base;
-        unsigned short  close_delay;
-        char    io_type;
-        char    reserved_char[1];
-        compat_int_t    hub6;
-        unsigned short  closing_wait; /* time to wait before closing */
-        unsigned short  closing_wait2; /* no longer used... */
-        compat_uint_t   iomem_base;
-        unsigned short  iomem_reg_shift;
-        unsigned int    port_high;
-     /* compat_ulong_t  iomap_base FIXME */
-        compat_int_t    reserved[1];
-};
-
-static int serial_struct_ioctl(struct file *file,
-		unsigned cmd, struct serial_struct32 __user *ss32)
-{
-        typedef struct serial_struct32 SS32;
-        int err;
-	struct serial_struct __user *ss = compat_alloc_user_space(sizeof(*ss));
-        __u32 udata;
-	unsigned int base;
-	unsigned char *iomem_base;
-
-	if (ss == NULL)
-		return -EFAULT;
-        if (cmd == TIOCSSERIAL) {
-		if (copy_in_user(ss, ss32, offsetof(SS32, iomem_base)) ||
-		    get_user(udata, &ss32->iomem_base))
-			return -EFAULT;
-		iomem_base = compat_ptr(udata);
-		if (put_user(iomem_base, &ss->iomem_base) ||
-		    convert_in_user(&ss32->iomem_reg_shift,
-		      &ss->iomem_reg_shift) ||
-		    convert_in_user(&ss32->port_high, &ss->port_high) ||
-		    put_user(0UL, &ss->iomap_base))
-			return -EFAULT;
-        }
-	err = do_ioctl(file, cmd, (unsigned long)ss);
-        if (cmd == TIOCGSERIAL && err >= 0) {
-		if (copy_in_user(ss32, ss, offsetof(SS32, iomem_base)) ||
-		    get_user(iomem_base, &ss->iomem_base))
-			return -EFAULT;
-		base = (unsigned long)iomem_base  >> 32 ?
-			0xffffffff : (unsigned)(unsigned long)iomem_base;
-		if (put_user(base, &ss32->iomem_base) ||
-		    convert_in_user(&ss->iomem_reg_shift,
-		      &ss32->iomem_reg_shift) ||
-		    convert_in_user(&ss->port_high, &ss32->port_high))
-			return -EFAULT;
-        }
-        return err;
-}
-
 #define RTC_IRQP_READ32		_IOR('p', 0x0b, compat_ulong_t)
 #define RTC_IRQP_SET32		_IOW('p', 0x0c, compat_ulong_t)
 #define RTC_EPOCH_READ32	_IOR('p', 0x0d, compat_ulong_t)
@@ -1242,10 +1179,6 @@ static long do_ioctl_trans(unsigned int cmd,
 	case MTIOCPOS32:
 		return mt_ioctl_trans(file, cmd, argp);
 #endif
-	/* Serial */
-	case TIOCGSERIAL:
-	case TIOCSSERIAL:
-		return serial_struct_ioctl(file, cmd, argp);
 	/* Not implemented in the native kernel */
 	case RTC_IRQP_READ32:
 	case RTC_IRQP_SET32:
