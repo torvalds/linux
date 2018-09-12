@@ -2157,11 +2157,6 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		/* pretend we didn't recognize this */
 		return -ENOIOCTLCMD;
 
-	case TCXONC:
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		/* Make the ld do it */
-		return -ENOIOCTLCMD;
-
 	case DIGI_GETA:
 		/* get information for ditty */
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
