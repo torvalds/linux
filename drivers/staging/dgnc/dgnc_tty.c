@@ -60,10 +60,6 @@ static void dgnc_tty_unthrottle(struct tty_struct *tty);
 static void dgnc_tty_flush_chars(struct tty_struct *tty);
 static void dgnc_tty_flush_buffer(struct tty_struct *tty);
 static void dgnc_tty_hangup(struct tty_struct *tty);
-static int dgnc_set_modem_info(struct channel_t *ch, unsigned int command,
-			       unsigned int __user *value);
-static int dgnc_get_modem_info(struct channel_t *ch,
-			       unsigned int __user *value);
 static int dgnc_tty_tiocmget(struct tty_struct *tty);
 static int dgnc_tty_tiocmset(struct tty_struct *tty, unsigned int set,
 			     unsigned int clear);
@@ -1701,106 +1697,6 @@ static void dgnc_tty_send_xchar(struct tty_struct *tty, char c)
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
-/* Return modem signals to ld. */
-static inline int dgnc_get_mstat(struct channel_t *ch)
-{
-	unsigned char mstat;
-	unsigned long flags;
-	int rc;
-
-	if (!ch)
-		return -ENXIO;
-
-	spin_lock_irqsave(&ch->ch_lock, flags);
-
-	mstat = ch->ch_mostat | ch->ch_mistat;
-
-	spin_unlock_irqrestore(&ch->ch_lock, flags);
-
-	rc = 0;
-
-	if (mstat & UART_MCR_DTR)
-		rc |= TIOCM_DTR;
-	if (mstat & UART_MCR_RTS)
-		rc |= TIOCM_RTS;
-	if (mstat & UART_MSR_CTS)
-		rc |= TIOCM_CTS;
-	if (mstat & UART_MSR_DSR)
-		rc |= TIOCM_DSR;
-	if (mstat & UART_MSR_RI)
-		rc |= TIOCM_RI;
-	if (mstat & UART_MSR_DCD)
-		rc |= TIOCM_CD;
-
-	return rc;
-}
-
-/* Return modem signals to ld. */
-static int dgnc_get_modem_info(struct channel_t *ch,
-			       unsigned int  __user *value)
-{
-	return put_user(dgnc_get_mstat(ch), value);
-}
-
-/* Set modem signals, called by ld. */
-static int dgnc_set_modem_info(struct channel_t *ch,
-			       unsigned int command,
-			       unsigned int __user *value)
-{
-	int rc;
-	unsigned int arg = 0;
-	unsigned long flags;
-
-	rc = get_user(arg, value);
-	if (rc)
-		return rc;
-
-	switch (command) {
-	case TIOCMBIS:
-		if (arg & TIOCM_RTS)
-			ch->ch_mostat |= UART_MCR_RTS;
-
-		if (arg & TIOCM_DTR)
-			ch->ch_mostat |= UART_MCR_DTR;
-
-		break;
-
-	case TIOCMBIC:
-		if (arg & TIOCM_RTS)
-			ch->ch_mostat &= ~(UART_MCR_RTS);
-
-		if (arg & TIOCM_DTR)
-			ch->ch_mostat &= ~(UART_MCR_DTR);
-
-		break;
-
-	case TIOCMSET:
-
-		if (arg & TIOCM_RTS)
-			ch->ch_mostat |= UART_MCR_RTS;
-		else
-			ch->ch_mostat &= ~(UART_MCR_RTS);
-
-		if (arg & TIOCM_DTR)
-			ch->ch_mostat |= UART_MCR_DTR;
-		else
-			ch->ch_mostat &= ~(UART_MCR_DTR);
-
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	spin_lock_irqsave(&ch->ch_lock, flags);
-
-	ch->ch_bd->bd_ops->assert_modem_signals(ch);
-
-	spin_unlock_irqrestore(&ch->ch_lock, flags);
-
-	return 0;
-}
-
 /* Ioctl to get the information for ditty. */
 static int dgnc_tty_digigeta(struct tty_struct *tty,
 			     struct digi_t __user *retinfo)
@@ -2281,16 +2177,6 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
 
 		return 0;
-
-	case TIOCMGET:
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return dgnc_get_modem_info(ch, uarg);
-
-	case TIOCMBIS:
-	case TIOCMBIC:
-	case TIOCMSET:
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return dgnc_set_modem_info(ch, cmd, uarg);
 
 		/* Here are any additional ioctl's that we want to implement */
 
