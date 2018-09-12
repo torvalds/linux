@@ -4775,12 +4775,14 @@ static void rtl_pcie_state_l2l3_enable(struct rtl8169_private *tp, bool enable)
 static void rtl_hw_aspm_clkreq_enable(struct rtl8169_private *tp, bool enable)
 {
 	if (enable) {
-		RTL_W8(tp, Config2, RTL_R8(tp, Config2) | ClkReqEn);
 		RTL_W8(tp, Config5, RTL_R8(tp, Config5) | ASPM_en);
+		RTL_W8(tp, Config2, RTL_R8(tp, Config2) | ClkReqEn);
 	} else {
 		RTL_W8(tp, Config2, RTL_R8(tp, Config2) & ~ClkReqEn);
 		RTL_W8(tp, Config5, RTL_R8(tp, Config5) & ~ASPM_en);
 	}
+
+	udelay(10);
 }
 
 static void rtl_hw_start_8168bb(struct rtl8169_private *tp)
