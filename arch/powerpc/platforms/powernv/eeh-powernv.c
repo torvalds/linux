@@ -590,7 +590,7 @@ static int pnv_eeh_get_phb_state(struct eeh_pe *pe)
 			  EEH_STATE_MMIO_ENABLED |
 			  EEH_STATE_DMA_ENABLED);
 	} else if (!(pe->state & EEH_PE_ISOLATED)) {
-		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+		eeh_pe_mark_isolated(pe);
 		pnv_eeh_get_phb_diag(pe);
 
 		if (eeh_has_flag(EEH_EARLY_DUMP_LOG))
@@ -692,7 +692,7 @@ static int pnv_eeh_get_pe_state(struct eeh_pe *pe)
 		if (phb->freeze_pe)
 			phb->freeze_pe(phb, pe->addr);
 
-		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+		eeh_pe_mark_isolated(pe);
 		pnv_eeh_get_phb_diag(pe);
 
 		if (eeh_has_flag(EEH_EARLY_DUMP_LOG))
@@ -1597,7 +1597,7 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 		if ((ret == EEH_NEXT_ERR_FROZEN_PE  ||
 		    ret == EEH_NEXT_ERR_FENCED_PHB) &&
 		    !((*pe)->state & EEH_PE_ISOLATED)) {
-			eeh_pe_state_mark(*pe, EEH_PE_ISOLATED);
+			eeh_pe_mark_isolated(*pe);
 			pnv_eeh_get_phb_diag(*pe);
 
 			if (eeh_has_flag(EEH_EARLY_DUMP_LOG))
@@ -1626,7 +1626,7 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 			}
 
 			/* We possibly migrate to another PE */
-			eeh_pe_state_mark(*pe, EEH_PE_ISOLATED);
+			eeh_pe_mark_isolated(*pe);
 		}
 
 		/*

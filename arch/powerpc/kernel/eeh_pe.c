@@ -540,44 +540,6 @@ void eeh_pe_update_time_stamp(struct eeh_pe *pe)
 }
 
 /**
- * __eeh_pe_state_mark - Mark the state for the PE
- * @data: EEH PE
- * @flag: state
- *
- * The function is used to mark the indicated state for the given
- * PE. Also, the associated PCI devices will be put into IO frozen
- * state as well.
- */
-static void *__eeh_pe_state_mark(struct eeh_pe *pe, void *flag)
-{
-	int state = *((int *)flag);
-	struct eeh_dev *edev, *tmp;
-	struct pci_dev *pdev;
-
-	/* Keep the state of permanently removed PE intact */
-	if (pe->state & EEH_PE_REMOVED)
-		return NULL;
-
-	pe->state |= state;
-
-	/* Offline PCI devices if applicable */
-	if (!(state & EEH_PE_ISOLATED))
-		return NULL;
-
-	eeh_pe_for_each_dev(pe, edev, tmp) {
-		pdev = eeh_dev_to_pci_dev(edev);
-		if (pdev)
-			pdev->error_state = pci_channel_io_frozen;
-	}
-
-	/* Block PCI config access if required */
-	if (pe->state & EEH_PE_CFG_RESTRICTED)
-		pe->state |= EEH_PE_CFG_BLOCKED;
-
-	return NULL;
-}
-
-/**
  * eeh_pe_state_mark - Mark specified state for PE and its associated device
  * @pe: EEH PE
  *
@@ -585,11 +547,43 @@ static void *__eeh_pe_state_mark(struct eeh_pe *pe, void *flag)
  * is used to mark appropriate state for the affected PEs and the
  * associated devices.
  */
-void eeh_pe_state_mark(struct eeh_pe *pe, int state)
+void eeh_pe_state_mark(struct eeh_pe *root, int state)
 {
-	eeh_pe_traverse(pe, __eeh_pe_state_mark, &state);
+	struct eeh_pe *pe;
+
+	eeh_for_each_pe(root, pe)
+		if (!(pe->state & EEH_PE_REMOVED))
+			pe->state |= state;
 }
 EXPORT_SYMBOL_GPL(eeh_pe_state_mark);
+
+/**
+ * eeh_pe_mark_isolated
+ * @pe: EEH PE
+ *
+ * Record that a PE has been isolated by marking the PE and it's children as
+ * EEH_PE_ISOLATED (and EEH_PE_CFG_BLOCKED, if required) and their PCI devices
+ * as pci_channel_io_frozen.
+ */
+void eeh_pe_mark_isolated(struct eeh_pe *root)
+{
+	struct eeh_pe *pe;
+	struct eeh_dev *edev;
+	struct pci_dev *pdev;
+
+	eeh_pe_state_mark(root, EEH_PE_ISOLATED);
+	eeh_for_each_pe(root, pe) {
+		list_for_each_entry(edev, &pe->edevs, entry) {
+			pdev = eeh_dev_to_pci_dev(edev);
+			if (pdev)
+				pdev->error_state = pci_channel_io_frozen;
+		}
+		/* Block PCI config access if required */
+		if (pe->state & EEH_PE_CFG_RESTRICTED)
+			pe->state |= EEH_PE_CFG_BLOCKED;
+	}
+}
+EXPORT_SYMBOL_GPL(eeh_pe_mark_isolated);
 
 static void *__eeh_pe_dev_mode_mark(struct eeh_dev *edev, void *flag)
 {

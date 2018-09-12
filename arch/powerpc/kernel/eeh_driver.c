@@ -1029,7 +1029,7 @@ void eeh_handle_special_event(void)
 				phb_pe = eeh_phb_pe_get(hose);
 				if (!phb_pe) continue;
 
-				eeh_pe_state_mark(phb_pe, EEH_PE_ISOLATED);
+				eeh_pe_mark_isolated(phb_pe);
 			}
 
 			eeh_serialize_unlock(flags);
@@ -1044,11 +1044,9 @@ void eeh_handle_special_event(void)
 			/* Purge all events of the PHB */
 			eeh_remove_event(pe, true);
 
-			if (rc == EEH_NEXT_ERR_DEAD_PHB)
-				eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
-			else
-				eeh_pe_state_mark(pe,
-					EEH_PE_ISOLATED | EEH_PE_RECOVERING);
+			if (rc != EEH_NEXT_ERR_DEAD_PHB)
+				eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
+			eeh_pe_mark_isolated(pe);
 
 			eeh_serialize_unlock(flags);
 
