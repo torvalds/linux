@@ -2639,9 +2639,9 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 		max_size = max(max_size, offset + size);
 	}
 
-	if (max_size * tile_size > obj->base.size) {
-		DRM_DEBUG_KMS("fb too big for bo (need %u bytes, have %zu bytes)\n",
-			      max_size * tile_size, obj->base.size);
+	if (mul_u32_u32(max_size, tile_size) > obj->base.size) {
+		DRM_DEBUG_KMS("fb too big for bo (need %llu bytes, have %zu bytes)\n",
+			      mul_u32_u32(max_size, tile_size), obj->base.size);
 		return -EINVAL;
 	}
 
