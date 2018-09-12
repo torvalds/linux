@@ -901,6 +901,20 @@
 		};
 	};
 
+	sdio: dwmmc@ffc60000 {
+		compatible = "rockchip,rk1808-dw-mshc", "rockchip,rk3288-dw-mshc";
+		reg = <0x0 0xffc60000 0x0 0x4000>;
+		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>,
+			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
+		max-frequency = <150000000>;
+		fifo-depth = <0x100>;
+		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc1_clk &sdmmc1_cmd &sdmmc1_bus4>;
+		status = "disabled";
+	};
+
 	sdmmc: dwmmc@ffcf0000 {
 		compatible = "rockchip,rk1808-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xffcf0000 0x0 0x4000>;
