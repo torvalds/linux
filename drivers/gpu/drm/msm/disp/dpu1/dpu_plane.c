@@ -135,11 +135,6 @@ static struct dpu_kms *_dpu_plane_get_kms(struct drm_plane *plane)
 	return to_dpu_kms(priv->kms);
 }
 
-static bool dpu_plane_enabled(struct drm_plane_state *state)
-{
-	return state && state->fb && state->crtc;
-}
-
 /**
  * _dpu_plane_calc_fill_level - calculate fill level of the given source format
  * @plane:		Pointer to drm plane
@@ -165,7 +160,7 @@ static inline int _dpu_plane_calc_fill_level(struct drm_plane *plane,
 	fixed_buff_size = pdpu->pipe_sblk->common->pixel_ram_size;
 
 	list_for_each_entry(tmp, &pdpu->mplane_list, mplane_list) {
-		if (!dpu_plane_enabled(tmp->base.state))
+		if (!tmp->base.state->visible)
 			continue;
 		DPU_DEBUG("plane%d/%d src_width:%d/%d\n",
 				pdpu->base.base.id, tmp->base.base.id,
@@ -1395,7 +1390,7 @@ static void dpu_plane_atomic_update(struct drm_plane *plane,
 
 	DPU_DEBUG_PLANE(pdpu, "\n");
 
-	if (!dpu_plane_enabled(state)) {
+	if (!state->visible) {
 		_dpu_plane_atomic_disable(plane, old_state);
 	} else {
 		int ret;
