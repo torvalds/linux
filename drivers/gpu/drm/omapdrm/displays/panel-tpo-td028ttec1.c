@@ -323,6 +323,7 @@ static int td028ttec1_panel_probe(struct spi_device *spi)
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
+	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_MODES;
 
 	/*
 	 * Note: According to the panel documentation:

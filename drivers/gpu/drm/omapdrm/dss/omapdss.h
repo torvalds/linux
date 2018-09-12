@@ -393,12 +393,14 @@ struct omap_dss_device_ops {
  * enum omap_dss_device_ops_flag - Indicates which device ops are supported
  * @OMAP_DSS_DEVICE_OP_DETECT: The device supports output connection detection
  * @OMAP_DSS_DEVICE_OP_HPD: The device supports all hot-plug-related operations
- * @OMAP_DSS_DEVICE_OP_EDID: The device supports readind EDID
+ * @OMAP_DSS_DEVICE_OP_EDID: The device supports reading EDID
+ * @OMAP_DSS_DEVICE_OP_MODES: The device supports reading modes
  */
 enum omap_dss_device_ops_flag {
 	OMAP_DSS_DEVICE_OP_DETECT = BIT(0),
 	OMAP_DSS_DEVICE_OP_HPD = BIT(1),
 	OMAP_DSS_DEVICE_OP_EDID = BIT(2),
+	OMAP_DSS_DEVICE_OP_MODES = BIT(3),
 };
 
 struct omap_dss_device {

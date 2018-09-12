@@ -228,10 +228,10 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 	 * Otherwise if the display pipeline reports modes (e.g. with a fixed
 	 * resolution panel or an analog TV output), query it.
 	 */
-	for (dssdev = omap_connector->display; dssdev; dssdev = dssdev->src) {
-		if (dssdev->ops->get_modes)
-			return dssdev->ops->get_modes(dssdev, connector);
-	}
+	dssdev = omap_connector_find_device(connector,
+					    OMAP_DSS_DEVICE_OP_MODES);
+	if (dssdev)
+		return dssdev->ops->get_modes(dssdev, connector);
 
 	/*
 	 * We can't retrieve modes, which can happen for instance for a DVI or

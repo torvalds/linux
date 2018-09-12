@@ -755,6 +755,7 @@ static int venc_init_output(struct venc_device *venc)
 	out->ops = &venc_ops;
 	out->owner = THIS_MODULE;
 	out->of_ports = BIT(0);
+	out->ops_flags = OMAP_DSS_DEVICE_OP_MODES;
 
 	r = omapdss_device_init_output(out);
 	if (r < 0)

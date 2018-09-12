@@ -194,6 +194,7 @@ static int nec_8048_probe(struct spi_device *spi)
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
+	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_MODES;
 	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_SYNC_POSEDGE
 			  | DRM_BUS_FLAG_PIXDATA_POSEDGE;
 
