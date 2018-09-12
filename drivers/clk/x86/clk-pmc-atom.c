@@ -55,6 +55,7 @@ struct clk_plt_data {
 	u8 nparents;
 	struct clk_plt *clks[PMC_CLK_NUM];
 	struct clk_lookup *mclk_lookup;
+	struct clk_lookup *ether_clk_lookup;
 };
 
 /* Return an index in parent table */
@@ -351,11 +352,20 @@ static int plt_clk_probe(struct platform_device *pdev)
 		goto err_unreg_clk_plt;
 	}
 
+	data->ether_clk_lookup = clkdev_hw_create(&data->clks[4]->hw,
+						  "ether_clk", NULL);
+	if (!data->ether_clk_lookup) {
+		err = -ENOMEM;
+		goto err_drop_mclk;
+	}
+
 	plt_clk_free_parent_names_loop(parent_names, data->nparents);
 
 	platform_set_drvdata(pdev, data);
 	return 0;
 
+err_drop_mclk:
+	clkdev_drop(data->mclk_lookup);
 err_unreg_clk_plt:
 	plt_clk_unregister_loop(data, i);
 	plt_clk_unregister_parents(data);
@@ -369,6 +379,7 @@ static int plt_clk_remove(struct platform_device *pdev)
 
 	data = platform_get_drvdata(pdev);
 
+	clkdev_drop(data->ether_clk_lookup);
 	clkdev_drop(data->mclk_lookup);
 	plt_clk_unregister_loop(data, PMC_CLK_NUM);
 	plt_clk_unregister_parents(data);
