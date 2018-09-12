@@ -435,6 +435,48 @@ static u64 dccp_ack_seq(const struct dccp_hdr *dh)
 		     ntohl(dhack->dccph_ack_nr_low);
 }
 
+static bool dccp_error(const struct dccp_hdr *dh,
+		       struct sk_buff *skb, unsigned int dataoff,
+		       const struct nf_hook_state *state)
+{
+	unsigned int dccp_len = skb->len - dataoff;
+	unsigned int cscov;
+	const char *msg;
+
+	if (dh->dccph_doff * 4 < sizeof(struct dccp_hdr) ||
+	    dh->dccph_doff * 4 > dccp_len) {
+		msg = "nf_ct_dccp: truncated/malformed packet ";
+		goto out_invalid;
+	}
+
+	cscov = dccp_len;
+	if (dh->dccph_cscov) {
+		cscov = (dh->dccph_cscov - 1) * 4;
+		if (cscov > dccp_len) {
+			msg = "nf_ct_dccp: bad checksum coverage ";
+			goto out_invalid;
+		}
+	}
+
+	if (state->hook == NF_INET_PRE_ROUTING &&
+	    state->net->ct.sysctl_checksum &&
+	    nf_checksum_partial(skb, state->hook, dataoff, cscov,
+				IPPROTO_DCCP, state->pf)) {
+		msg = "nf_ct_dccp: bad checksum ";
+		goto out_invalid;
+	}
+
+	if (dh->dccph_type >= DCCP_PKT_INVALID) {
+		msg = "nf_ct_dccp: reserved packet type ";
+		goto out_invalid;
+	}
+	return false;
+out_invalid:
+	nf_l4proto_log_invalid(skb, state->net, state->pf,
+			       IPPROTO_DCCP, "%s", msg);
+	return true;
+}
+
 static int dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
 		       unsigned int dataoff, enum ip_conntrack_info ctinfo,
 		       const struct nf_hook_state *state)
@@ -448,6 +490,9 @@ static int dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
 	dh = skb_header_pointer(skb, dataoff, sizeof(_dh), &_dh);
 	if (!dh)
 		return NF_DROP;
+
+	if (dccp_error(dh, skb, dataoff, state))
+		return -NF_ACCEPT;
 
 	type = dh->dccph_type;
 	if (!nf_ct_is_confirmed(ct) && !dccp_new(ct, skb, dh))
@@ -527,57 +572,6 @@ static int dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
 	nf_ct_refresh_acct(ct, ctinfo, skb, timeouts[new_state]);
 
 	return NF_ACCEPT;
-}
-
-static int dccp_error(struct nf_conn *tmpl,
-		      struct sk_buff *skb, unsigned int dataoff,
-		      const struct nf_hook_state *state)
-{
-	struct dccp_hdr _dh, *dh;
-	unsigned int dccp_len = skb->len - dataoff;
-	unsigned int cscov;
-	const char *msg;
-
-	dh = skb_header_pointer(skb, dataoff, sizeof(_dh), &_dh);
-	if (dh == NULL) {
-		msg = "nf_ct_dccp: short packet ";
-		goto out_invalid;
-	}
-
-	if (dh->dccph_doff * 4 < sizeof(struct dccp_hdr) ||
-	    dh->dccph_doff * 4 > dccp_len) {
-		msg = "nf_ct_dccp: truncated/malformed packet ";
-		goto out_invalid;
-	}
-
-	cscov = dccp_len;
-	if (dh->dccph_cscov) {
-		cscov = (dh->dccph_cscov - 1) * 4;
-		if (cscov > dccp_len) {
-			msg = "nf_ct_dccp: bad checksum coverage ";
-			goto out_invalid;
-		}
-	}
-
-	if (state->hook == NF_INET_PRE_ROUTING &&
-	    state->net->ct.sysctl_checksum &&
-	    nf_checksum_partial(skb, state->hook, dataoff, cscov,
-				IPPROTO_DCCP, state->pf)) {
-		msg = "nf_ct_dccp: bad checksum ";
-		goto out_invalid;
-	}
-
-	if (dh->dccph_type >= DCCP_PKT_INVALID) {
-		msg = "nf_ct_dccp: reserved packet type ";
-		goto out_invalid;
-	}
-
-	return NF_ACCEPT;
-
-out_invalid:
-	nf_l4proto_log_invalid(skb, state->net, state->pf,
-			       IPPROTO_DCCP, "%s", msg);
-	return -NF_ACCEPT;
 }
 
 static bool dccp_can_early_drop(const struct nf_conn *ct)
@@ -852,7 +846,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 = {
 	.l3proto		= AF_INET,
 	.l4proto		= IPPROTO_DCCP,
 	.packet			= dccp_packet,
-	.error			= dccp_error,
 	.can_early_drop		= dccp_can_early_drop,
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack	= dccp_print_conntrack,
@@ -884,7 +877,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 = {
 	.l3proto		= AF_INET6,
 	.l4proto		= IPPROTO_DCCP,
 	.packet			= dccp_packet,
-	.error			= dccp_error,
 	.can_early_drop		= dccp_can_early_drop,
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack	= dccp_print_conntrack,

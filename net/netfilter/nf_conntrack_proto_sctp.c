@@ -330,6 +330,37 @@ sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 }
 
+static bool sctp_error(struct sk_buff *skb,
+		       unsigned int dataoff,
+		       const struct nf_hook_state *state)
+{
+	const struct sctphdr *sh;
+	const char *logmsg;
+
+	if (skb->len < dataoff + sizeof(struct sctphdr)) {
+		logmsg = "nf_ct_sctp: short packet ";
+		goto out_invalid;
+	}
+	if (state->hook == NF_INET_PRE_ROUTING &&
+	    state->net->ct.sysctl_checksum &&
+	    skb->ip_summed == CHECKSUM_NONE) {
+		if (!skb_make_writable(skb, dataoff + sizeof(struct sctphdr))) {
+			logmsg = "nf_ct_sctp: failed to read header ";
+			goto out_invalid;
+		}
+		sh = (const struct sctphdr *)(skb->data + dataoff);
+		if (sh->checksum != sctp_compute_cksum(skb, dataoff)) {
+			logmsg = "nf_ct_sctp: bad CRC ";
+			goto out_invalid;
+		}
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
+	return false;
+out_invalid:
+	nf_l4proto_log_invalid(skb, state->net, state->pf, IPPROTO_SCTP, "%s", logmsg);
+	return true;
+}
+
 /* Returns verdict for packet, or -NF_ACCEPT for invalid. */
 static int sctp_packet(struct nf_conn *ct,
 		       struct sk_buff *skb,
@@ -346,6 +377,9 @@ static int sctp_packet(struct nf_conn *ct,
 	u_int32_t offset, count;
 	unsigned int *timeouts;
 	unsigned long map[256 / sizeof(unsigned long)] = { 0 };
+
+	if (sctp_error(skb, dataoff, state))
+		return -NF_ACCEPT;
 
 	sh = skb_header_pointer(skb, dataoff, sizeof(_sctph), &_sctph);
 	if (sh == NULL)
@@ -463,37 +497,6 @@ static int sctp_packet(struct nf_conn *ct,
 out_unlock:
 	spin_unlock_bh(&ct->lock);
 out:
-	return -NF_ACCEPT;
-}
-
-static int sctp_error(struct nf_conn *tpl, struct sk_buff *skb,
-		      unsigned int dataoff,
-		      const struct nf_hook_state *state)
-{
-	const struct sctphdr *sh;
-	const char *logmsg;
-
-	if (skb->len < dataoff + sizeof(struct sctphdr)) {
-		logmsg = "nf_ct_sctp: short packet ";
-		goto out_invalid;
-	}
-	if (state->hook == NF_INET_PRE_ROUTING &&
-	    state->net->ct.sysctl_checksum &&
-	    skb->ip_summed == CHECKSUM_NONE) {
-		if (!skb_make_writable(skb, dataoff + sizeof(struct sctphdr))) {
-			logmsg = "nf_ct_sctp: failed to read header ";
-			goto out_invalid;
-		}
-		sh = (const struct sctphdr *)(skb->data + dataoff);
-		if (sh->checksum != sctp_compute_cksum(skb, dataoff)) {
-			logmsg = "nf_ct_sctp: bad CRC ";
-			goto out_invalid;
-		}
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	}
-	return NF_ACCEPT;
-out_invalid:
-	nf_l4proto_log_invalid(skb, state->net, state->pf, IPPROTO_SCTP, "%s", logmsg);
 	return -NF_ACCEPT;
 }
 
@@ -763,7 +766,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 = {
 	.print_conntrack	= sctp_print_conntrack,
 #endif
 	.packet 		= sctp_packet,
-	.error			= sctp_error,
 	.can_early_drop		= sctp_can_early_drop,
 	.me 			= THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -796,7 +798,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 = {
 	.print_conntrack	= sctp_print_conntrack,
 #endif
 	.packet 		= sctp_packet,
-	.error			= sctp_error,
 	.can_early_drop		= sctp_can_early_drop,
 	.me 			= THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)

@@ -725,27 +725,18 @@ static void tcp_error_log(const struct sk_buff *skb,
 }
 
 /* Protect conntrack agaist broken packets. Code taken from ipt_unclean.c.  */
-static int tcp_error(struct nf_conn *tmpl,
-		     struct sk_buff *skb,
-		     unsigned int dataoff,
-		     const struct nf_hook_state *state)
+static bool tcp_error(const struct tcphdr *th,
+		      struct sk_buff *skb,
+		      unsigned int dataoff,
+		      const struct nf_hook_state *state)
 {
-	const struct tcphdr *th;
-	struct tcphdr _tcph;
 	unsigned int tcplen = skb->len - dataoff;
-	u_int8_t tcpflags;
-
-	/* Smaller that minimal TCP header? */
-	th = skb_header_pointer(skb, dataoff, sizeof(_tcph), &_tcph);
-	if (th == NULL) {
-		tcp_error_log(skb, state, "short packet");
-		return -NF_ACCEPT;
-	}
+	u8 tcpflags;
 
 	/* Not whole TCP header or malformed packet */
 	if (th->doff*4 < sizeof(struct tcphdr) || tcplen < th->doff*4) {
 		tcp_error_log(skb, state, "truncated packet");
-		return -NF_ACCEPT;
+		return true;
 	}
 
 	/* Checksum invalid? Ignore.
@@ -757,17 +748,17 @@ static int tcp_error(struct nf_conn *tmpl,
 	    state->hook == NF_INET_PRE_ROUTING &&
 	    nf_checksum(skb, state->hook, dataoff, IPPROTO_TCP, state->pf)) {
 		tcp_error_log(skb, state, "bad checksum");
-		return -NF_ACCEPT;
+		return true;
 	}
 
 	/* Check TCP flags. */
 	tcpflags = (tcp_flag_byte(th) & ~(TCPHDR_ECE|TCPHDR_CWR|TCPHDR_PSH));
 	if (!tcp_valid_flags[tcpflags]) {
 		tcp_error_log(skb, state, "invalid tcp flag combination");
-		return -NF_ACCEPT;
+		return true;
 	}
 
-	return NF_ACCEPT;
+	return false;
 }
 
 static noinline bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
@@ -861,6 +852,9 @@ static int tcp_packet(struct nf_conn *ct,
 
 	th = skb_header_pointer(skb, dataoff, sizeof(_tcph), &_tcph);
 	if (th == NULL)
+		return -NF_ACCEPT;
+
+	if (tcp_error(th, skb, dataoff, state))
 		return -NF_ACCEPT;
 
 	if (!nf_ct_is_confirmed(ct) && !tcp_new(ct, skb, dataoff, th))
@@ -1548,7 +1542,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 =
 	.print_conntrack 	= tcp_print_conntrack,
 #endif
 	.packet 		= tcp_packet,
-	.error			= tcp_error,
 	.can_early_drop		= tcp_can_early_drop,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= tcp_to_nlattr,
@@ -1582,7 +1575,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 =
 	.print_conntrack 	= tcp_print_conntrack,
 #endif
 	.packet 		= tcp_packet,
-	.error			= tcp_error,
 	.can_early_drop		= tcp_can_early_drop,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.nlattr_size		= TCP_NLATTR_SIZE,
