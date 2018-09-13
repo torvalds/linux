@@ -287,7 +287,7 @@ struct dc_state {
 	struct dcn_bw_internal_vars dcn_bw_vars;
 #endif
 
-	struct dccg *dis_clk;
+	struct dccg *dccg;
 
 	struct kref refcount;
 };

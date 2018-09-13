@@ -40,7 +40,7 @@
 #include "dcn10/dcn10_opp.h"
 #include "dcn10/dcn10_link_encoder.h"
 #include "dcn10/dcn10_stream_encoder.h"
-#include "dce/dce_clocks.h"
+#include "../dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"

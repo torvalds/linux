@@ -31,6 +31,7 @@
 #include "resource.h"
 #include "dce110/dce110_resource.h"
 
+#include "../dce/dce_clocks.h"
 #include "include/irq_service_interface.h"
 #include "dce/dce_audio.h"
 #include "dce110/dce110_timing_generator.h"
@@ -45,7 +46,6 @@
 #include "dce110/dce110_transform_v.h"
 #include "dce/dce_opp.h"
 #include "dce110/dce110_opp_v.h"
-#include "dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_hwseq.h"
 #include "dce110/dce110_hw_sequencer.h"
@@ -1173,12 +1173,12 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 			&clks);
 
 	dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-		clks.clocks_in_khz[0] * MEMORY_TYPE_MULTIPLIER, 1000);
+		clks.clocks_in_khz[0] * MEMORY_TYPE_MULTIPLIER_CZ, 1000);
 	dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-		clks.clocks_in_khz[clks.num_levels>>1] * MEMORY_TYPE_MULTIPLIER,
+		clks.clocks_in_khz[clks.num_levels>>1] * MEMORY_TYPE_MULTIPLIER_CZ,
 		1000);
 	dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-		clks.clocks_in_khz[clks.num_levels-1] * MEMORY_TYPE_MULTIPLIER,
+		clks.clocks_in_khz[clks.num_levels-1] * MEMORY_TYPE_MULTIPLIER_CZ,
 		1000);
 }
 

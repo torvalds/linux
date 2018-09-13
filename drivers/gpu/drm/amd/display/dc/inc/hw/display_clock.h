@@ -38,26 +38,19 @@ struct state_dependent_clocks {
 
 struct dccg {
 	struct dc_context *ctx;
-	const struct display_clock_funcs *funcs;
+	const struct dccg_funcs *funcs;
 
 	enum dm_pp_clocks_state max_clks_state;
 	enum dm_pp_clocks_state cur_min_clks_state;
 	struct dc_clocks clks;
 };
 
-struct display_clock_funcs {
+struct dccg_funcs {
 	void (*update_clocks)(struct dccg *dccg,
-			struct dc_clocks *new_clocks,
+			struct dc_state *context,
 			bool safe_to_lower);
-	int (*set_dispclk)(struct dccg *dccg,
-		int requested_clock_khz);
 
 	int (*get_dp_ref_clk_frequency)(struct dccg *dccg);
-
-	bool (*update_dfs_bypass)(struct dccg *dccg,
-		struct dc *dc,
-		struct dc_state *context,
-		int requested_clock_khz);
 };
 
 #endif /* __DISPLAY_CLOCK_H__ */

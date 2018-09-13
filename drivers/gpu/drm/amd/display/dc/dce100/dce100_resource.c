@@ -22,6 +22,7 @@
  * Authors: AMD
  *
  */
+#include "../dce/dce_clocks.h"
 #include "dm_services.h"
 
 #include "link_encoder.h"
@@ -40,7 +41,6 @@
 #include "dce/dce_ipp.h"
 #include "dce/dce_transform.h"
 #include "dce/dce_opp.h"
-#include "dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
@@ -767,7 +767,7 @@ bool dce100_validate_bandwidth(
 	if (at_least_one_pipe) {
 		/* TODO implement when needed but for now hardcode max value*/
 		context->bw.dce.dispclk_khz = 681000;
-		context->bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER;
+		context->bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER_CZ;
 	} else {
 		context->bw.dce.dispclk_khz = 0;
 		context->bw.dce.yclk_khz = 0;

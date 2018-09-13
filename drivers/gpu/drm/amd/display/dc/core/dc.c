@@ -957,8 +957,6 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	}
 
 	/* Program hardware */
-	dc->hwss.ready_shared_resources(dc, context);
-
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		pipe = &context->res_ctx.pipe_ctx[i];
 		dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe);
@@ -1019,8 +1017,6 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	dc->current_state = context;
 
 	dc_retain_state(dc->current_state);
-
-	dc->hwss.optimize_shared_resources(dc);
 
 	return result;
 }
@@ -1448,12 +1444,8 @@ static void commit_planes_do_stream_update(struct dc *dc,
 			if (stream_update->dpms_off) {
 				if (*stream_update->dpms_off) {
 					core_link_disable_stream(pipe_ctx, KEEP_ACQUIRED_RESOURCE);
-					dc->hwss.pplib_apply_display_requirements(
-						dc, dc->current_state);
 					notify_display_count_to_smu(dc, dc->current_state);
 				} else {
-					dc->hwss.pplib_apply_display_requirements(
-						dc, dc->current_state);
 					notify_display_count_to_smu(dc, dc->current_state);
 					core_link_enable_stream(dc->current_state, pipe_ctx);
 				}

@@ -210,11 +210,6 @@ struct hw_sequencer_funcs {
 			struct resource_pool *res_pool,
 			struct pipe_ctx *pipe_ctx);
 
-	void (*ready_shared_resources)(struct dc *dc, struct dc_state *context);
-	void (*optimize_shared_resources)(struct dc *dc);
-	void (*pplib_apply_display_requirements)(
-			struct dc *dc,
-			struct dc_state *context);
 	void (*edp_power_control)(
 			struct dc_link *link,
 			bool enable);

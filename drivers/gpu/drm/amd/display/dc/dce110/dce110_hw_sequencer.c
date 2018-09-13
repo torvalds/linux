@@ -1192,8 +1192,8 @@ static void build_audio_output(
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT ||
 			pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 		audio_output->pll_info.dp_dto_source_clock_in_khz =
-				state->dis_clk->funcs->get_dp_ref_clk_frequency(
-						state->dis_clk);
+				state->dccg->funcs->get_dp_ref_clk_frequency(
+						state->dccg);
 	}
 
 	audio_output->pll_info.feed_back_divider =
@@ -1741,34 +1741,6 @@ static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
 	for (i = 0; i < num_pipes; i++)
 		pipe_ctx[i]->stream_res.tg->funcs->
 			set_static_screen_control(pipe_ctx[i]->stream_res.tg, value);
-}
-
-/* unit: in_khz before mode set, get pixel clock from context. ASIC register
- * may not be programmed yet
- */
-static uint32_t get_max_pixel_clock_for_all_paths(
-	struct dc *dc,
-	struct dc_state *context)
-{
-	uint32_t max_pix_clk = 0;
-	int i;
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (pipe_ctx->stream == NULL)
-			continue;
-
-		/* do not check under lay */
-		if (pipe_ctx->top_pipe)
-			continue;
-
-		if (pipe_ctx->stream_res.pix_clk_params.requested_pix_clk > max_pix_clk)
-			max_pix_clk =
-				pipe_ctx->stream_res.pix_clk_params.requested_pix_clk;
-	}
-
-	return max_pix_clk;
 }
 
 /*
@@ -2380,191 +2352,22 @@ static void init_hw(struct dc *dc)
 
 }
 
-void dce110_fill_display_configs(
-	const struct dc_state *context,
-	struct dm_pp_display_configuration *pp_display_cfg)
-{
-	int j;
-	int num_cfgs = 0;
-
-	for (j = 0; j < context->stream_count; j++) {
-		int k;
-
-		const struct dc_stream_state *stream = context->streams[j];
-		struct dm_pp_single_disp_config *cfg =
-			&pp_display_cfg->disp_configs[num_cfgs];
-		const struct pipe_ctx *pipe_ctx = NULL;
-
-		for (k = 0; k < MAX_PIPES; k++)
-			if (stream == context->res_ctx.pipe_ctx[k].stream) {
-				pipe_ctx = &context->res_ctx.pipe_ctx[k];
-				break;
-			}
-
-		ASSERT(pipe_ctx != NULL);
-
-		/* only notify active stream */
-		if (stream->dpms_off)
-			continue;
-
-		num_cfgs++;
-		cfg->signal = pipe_ctx->stream->signal;
-		cfg->pipe_idx = pipe_ctx->stream_res.tg->inst;
-		cfg->src_height = stream->src.height;
-		cfg->src_width = stream->src.width;
-		cfg->ddi_channel_mapping =
-			stream->sink->link->ddi_channel_mapping.raw;
-		cfg->transmitter =
-			stream->sink->link->link_enc->transmitter;
-		cfg->link_settings.lane_count =
-			stream->sink->link->cur_link_settings.lane_count;
-		cfg->link_settings.link_rate =
-			stream->sink->link->cur_link_settings.link_rate;
-		cfg->link_settings.link_spread =
-			stream->sink->link->cur_link_settings.link_spread;
-		cfg->sym_clock = stream->phy_pix_clk;
-		/* Round v_refresh*/
-		cfg->v_refresh = stream->timing.pix_clk_khz * 1000;
-		cfg->v_refresh /= stream->timing.h_total;
-		cfg->v_refresh = (cfg->v_refresh + stream->timing.v_total / 2)
-							/ stream->timing.v_total;
-	}
-
-	pp_display_cfg->display_count = num_cfgs;
-}
-
-uint32_t dce110_get_min_vblank_time_us(const struct dc_state *context)
-{
-	uint8_t j;
-	uint32_t min_vertical_blank_time = -1;
-
-	for (j = 0; j < context->stream_count; j++) {
-		struct dc_stream_state *stream = context->streams[j];
-		uint32_t vertical_blank_in_pixels = 0;
-		uint32_t vertical_blank_time = 0;
-
-		vertical_blank_in_pixels = stream->timing.h_total *
-			(stream->timing.v_total
-			 - stream->timing.v_addressable);
-
-		vertical_blank_time = vertical_blank_in_pixels
-			* 1000 / stream->timing.pix_clk_khz;
-
-		if (min_vertical_blank_time > vertical_blank_time)
-			min_vertical_blank_time = vertical_blank_time;
-	}
-
-	return min_vertical_blank_time;
-}
-
-static int determine_sclk_from_bounding_box(
-		const struct dc *dc,
-		int required_sclk)
-{
-	int i;
-
-	/*
-	 * Some asics do not give us sclk levels, so we just report the actual
-	 * required sclk
-	 */
-	if (dc->sclk_lvls.num_levels == 0)
-		return required_sclk;
-
-	for (i = 0; i < dc->sclk_lvls.num_levels; i++) {
-		if (dc->sclk_lvls.clocks_in_khz[i] >= required_sclk)
-			return dc->sclk_lvls.clocks_in_khz[i];
-	}
-	/*
-	 * even maximum level could not satisfy requirement, this
-	 * is unexpected at this stage, should have been caught at
-	 * validation time
-	 */
-	ASSERT(0);
-	return dc->sclk_lvls.clocks_in_khz[dc->sclk_lvls.num_levels - 1];
-}
-
-static void pplib_apply_display_requirements(
-	struct dc *dc,
-	struct dc_state *context)
-{
-	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
-
-	pp_display_cfg->all_displays_in_sync =
-		context->bw.dce.all_displays_in_sync;
-	pp_display_cfg->nb_pstate_switch_disable =
-			context->bw.dce.nbp_state_change_enable == false;
-	pp_display_cfg->cpu_cc6_disable =
-			context->bw.dce.cpuc_state_change_enable == false;
-	pp_display_cfg->cpu_pstate_disable =
-			context->bw.dce.cpup_state_change_enable == false;
-	pp_display_cfg->cpu_pstate_separation_time =
-			context->bw.dce.blackout_recovery_time_us;
-
-	pp_display_cfg->min_memory_clock_khz = context->bw.dce.yclk_khz
-		/ MEMORY_TYPE_MULTIPLIER;
-
-	pp_display_cfg->min_engine_clock_khz = determine_sclk_from_bounding_box(
-			dc,
-			context->bw.dce.sclk_khz);
-
-	pp_display_cfg->min_engine_clock_deep_sleep_khz
-			= context->bw.dce.sclk_deep_sleep_khz;
-
-	pp_display_cfg->avail_mclk_switch_time_us =
-						dce110_get_min_vblank_time_us(context);
-	/* TODO: dce11.2*/
-	pp_display_cfg->avail_mclk_switch_time_in_disp_active_us = 0;
-
-	pp_display_cfg->disp_clk_khz = dc->res_pool->dccg->clks.dispclk_khz;
-
-	dce110_fill_display_configs(context, pp_display_cfg);
-
-	/* TODO: is this still applicable?*/
-	if (pp_display_cfg->display_count == 1) {
-		const struct dc_crtc_timing *timing =
-			&context->streams[0]->timing;
-
-		pp_display_cfg->crtc_index =
-			pp_display_cfg->disp_configs[0].pipe_idx;
-		pp_display_cfg->line_time_in_us = timing->h_total * 1000
-							/ timing->pix_clk_khz;
-	}
-
-	if (memcmp(&dc->prev_display_config, pp_display_cfg, sizeof(
-			struct dm_pp_display_configuration)) !=  0)
-		dm_pp_apply_display_requirements(dc->ctx, pp_display_cfg);
-
-	dc->prev_display_config = *pp_display_cfg;
-}
-
-static void dce110_set_bandwidth(
+void dce110_set_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
 		bool decrease_allowed)
 {
-	struct dc_clocks req_clks;
 	struct dccg *dccg = dc->res_pool->dccg;
-
-	req_clks.dispclk_khz = context->bw.dce.dispclk_khz;
-	req_clks.phyclk_khz = get_max_pixel_clock_for_all_paths(dc, context);
 
 	if (decrease_allowed)
 		dce110_set_displaymarks(dc, context);
 	else
 		dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
 
-	if (dccg->funcs->update_dfs_bypass)
-		dccg->funcs->update_dfs_bypass(
-			dccg,
-			dc,
-			context,
-			req_clks.dispclk_khz);
-
 	dccg->funcs->update_clocks(
 			dccg,
-			&req_clks,
+			context,
 			decrease_allowed);
-	pplib_apply_display_requirements(dc, context);
 }
 
 static void dce110_program_front_end_for_pipe(
@@ -2839,10 +2642,6 @@ void dce110_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
 				pipe_ctx->plane_res.xfm, attributes);
 }
 
-static void ready_shared_resources(struct dc *dc, struct dc_state *context) {}
-
-static void optimize_shared_resources(struct dc *dc) {}
-
 static const struct hw_sequencer_funcs dce110_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.program_csc_matrix = program_csc_matrix,
@@ -2877,9 +2676,6 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.setup_stereo = NULL,
 	.set_avmute = dce110_set_avmute,
 	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect,
-	.ready_shared_resources = ready_shared_resources,
-	.optimize_shared_resources = optimize_shared_resources,
-	.pplib_apply_display_requirements = pplib_apply_display_requirements,
 	.edp_backlight_control = hwss_edp_backlight_control,
 	.edp_power_control = hwss_edp_power_control,
 	.edp_wait_for_hpd_ready = hwss_edp_wait_for_hpd_ready,

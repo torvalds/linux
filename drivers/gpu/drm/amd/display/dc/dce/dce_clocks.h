@@ -29,6 +29,8 @@
 
 #include "display_clock.h"
 
+#define MEMORY_TYPE_MULTIPLIER_CZ 4
+
 #define CLK_COMMON_REG_LIST_DCE_BASE() \
 	.DPREFCLK_CNTL = mmDPREFCLK_CNTL, \
 	.DENTIST_DISPCLK_CNTL = mmDENTIST_DISPCLK_CNTL
@@ -69,8 +71,8 @@ struct dccg_registers {
 struct dce_dccg {
 	struct dccg base;
 	const struct dccg_registers *regs;
-	const struct dccg_shift *clk_shift;
-	const struct dccg_mask *clk_mask;
+	const struct dccg_shift *dccg_shift;
+	const struct dccg_mask *dccg_mask;
 
 	struct state_dependent_clocks max_clks_by_state[DM_PP_CLOCKS_MAX_STATES];
 

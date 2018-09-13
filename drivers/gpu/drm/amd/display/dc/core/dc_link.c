@@ -1357,28 +1357,13 @@ static enum dc_status enable_link_dp(
 	struct dc_link *link = stream->sink->link;
 	struct dc_link_settings link_settings = {0};
 	enum dp_panel_mode panel_mode;
-	enum dc_link_rate max_link_rate = LINK_RATE_HIGH2;
 
 	/* get link settings for video mode timing */
 	decide_link_settings(stream, &link_settings);
 
-	/* raise clock state for HBR3 if required. Confirmed with HW DCE/DPCS
-	 * logic for HBR3 still needs Nominal (0.8V) on VDDC rail
-	 */
-	if (link->link_enc->features.flags.bits.IS_HBR3_CAPABLE)
-		max_link_rate = LINK_RATE_HIGH3;
-
-	if (link_settings.link_rate == max_link_rate) {
-		struct dc_clocks clocks = state->bw.dcn.clk;
-
-		/* dce/dcn compat, do not update dispclk */
-		clocks.dispclk_khz = 0;
-		/* 27mhz = 27000000hz= 27000khz */
-		clocks.phyclk_khz = link_settings.link_rate * 27000;
-
-		state->dis_clk->funcs->update_clocks(
-				state->dis_clk, &clocks, false);
-	}
+	pipe_ctx->stream_res.pix_clk_params.requested_sym_clk =
+			link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
+	state->dccg->funcs->update_clocks(state->dccg, state, false);
 
 	dp_enable_link_phy(
 		link,

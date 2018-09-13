@@ -304,11 +304,6 @@ struct dc {
 	struct hw_sequencer_funcs hwss;
 	struct dce_hwseq *hwseq;
 
-	/* temp store of dm_pp_display_configuration
-	 * to compare to see if display config changed
-	 */
-	struct dm_pp_display_configuration prev_display_config;
-
 	bool optimized_required;
 
 	/* FBC compressor */

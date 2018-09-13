@@ -2257,46 +2257,6 @@ static void program_all_pipe_in_tree(
 	}
 }
 
-static void dcn10_pplib_apply_display_requirements(
-	struct dc *dc,
-	struct dc_state *context)
-{
-	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
-
-	pp_display_cfg->min_engine_clock_khz = dc->res_pool->dccg->clks.dcfclk_khz;
-	pp_display_cfg->min_memory_clock_khz = dc->res_pool->dccg->clks.fclk_khz;
-	pp_display_cfg->min_engine_clock_deep_sleep_khz = dc->res_pool->dccg->clks.dcfclk_deep_sleep_khz;
-	pp_display_cfg->min_dcfc_deep_sleep_clock_khz = dc->res_pool->dccg->clks.dcfclk_deep_sleep_khz;
-	pp_display_cfg->min_dcfclock_khz = dc->res_pool->dccg->clks.dcfclk_khz;
-	pp_display_cfg->disp_clk_khz = dc->res_pool->dccg->clks.dispclk_khz;
-	dce110_fill_display_configs(context, pp_display_cfg);
-
-	if (memcmp(&dc->prev_display_config, pp_display_cfg, sizeof(
-			struct dm_pp_display_configuration)) !=  0)
-		dm_pp_apply_display_requirements(dc->ctx, pp_display_cfg);
-
-	dc->prev_display_config = *pp_display_cfg;
-}
-
-static void optimize_shared_resources(struct dc *dc)
-{
-	if (dc->current_state->stream_count == 0) {
-		/* S0i2 message */
-		dcn10_pplib_apply_display_requirements(dc, dc->current_state);
-	}
-
-	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
-		dcn_bw_notify_pplib_of_wm_ranges(dc);
-}
-
-static void ready_shared_resources(struct dc *dc, struct dc_state *context)
-{
-	/* S0i2 message */
-	if (dc->current_state->stream_count == 0 &&
-			context->stream_count != 0)
-		dcn10_pplib_apply_display_requirements(dc, context);
-}
-
 static struct pipe_ctx *find_top_pipe_for_stream(
 		struct dc *dc,
 		struct dc_state *context,
@@ -2412,16 +2372,17 @@ static void dcn10_set_bandwidth(
 
 		dc->res_pool->dccg->funcs->update_clocks(
 				dc->res_pool->dccg,
-				&context->bw.dcn.clk,
+				context,
 				safe_to_lower);
-
-		dcn10_pplib_apply_display_requirements(dc, context);
 	}
 
 	hubbub1_program_watermarks(dc->res_pool->hubbub,
 			&context->bw.dcn.watermarks,
 			dc->res_pool->ref_clock_inKhz / 1000,
 			true);
+
+	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
+		dcn_bw_notify_pplib_of_wm_ranges(dc);
 
 	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
@@ -2732,10 +2693,6 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.log_hw_state = dcn10_log_hw_state,
 	.get_hw_state = dcn10_get_hw_state,
 	.wait_for_mpcc_disconnect = dcn10_wait_for_mpcc_disconnect,
-	.ready_shared_resources = ready_shared_resources,
-	.optimize_shared_resources = optimize_shared_resources,
-	.pplib_apply_display_requirements =
-			dcn10_pplib_apply_display_requirements,
 	.edp_backlight_control = hwss_edp_backlight_control,
 	.edp_power_control = hwss_edp_power_control,
 	.edp_wait_for_hpd_ready = hwss_edp_wait_for_hpd_ready,
