@@ -7016,6 +7016,20 @@ F:	drivers/crypto/vmx/aes*
 F:	drivers/crypto/vmx/ghash*
 F:	drivers/crypto/vmx/ppc-xlate.pl
 
+IBM Power PCI Hotplug Driver for RPA-compliant PPC64 platform
+M:	Tyrel Datwyler <tyreld@linux.vnet.ibm.com>
+L:	linux-pci@vger.kernel.org
+L:	linuxppc-dev@lists.ozlabs.org
+S:	Supported
+F:	drivers/pci/hotplug/rpaphp*
+
+IBM Power IO DLPAR Driver for RPA-compliant PPC64 platform
+M:	Tyrel Datwyler <tyreld@linux.vnet.ibm.com>
+L:	linux-pci@vger.kernel.org
+L:	linuxppc-dev@lists.ozlabs.org
+S:	Supported
+F:	drivers/pci/hotplug/rpadlpar*
+
 IBM ServeRAID RAID DRIVER
 S:	Orphan
 F:	drivers/scsi/ips.*
@@ -11154,7 +11168,7 @@ F:	drivers/pci/controller/dwc/pci-exynos.c
 
 PCI DRIVER FOR SYNOPSYS DESIGNWARE
 M:	Jingoo Han <jingoohan1@gmail.com>
-M:	Joao Pinto <Joao.Pinto@synopsys.com>
+M:	Gustavo Pimentel <gustavo.pimentel@synopsys.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pci/designware-pcie.txt
