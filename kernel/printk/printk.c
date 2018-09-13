@@ -423,6 +423,7 @@ static u32 log_next_idx;
 /* the next printk record to write to the console */
 static u64 console_seq;
 static u32 console_idx;
+static u64 exclusive_console_stop_seq;
 
 /* the next printk record to read after the last 'clear' command */
 static u64 clear_seq;
@@ -2014,6 +2015,7 @@ static u64 syslog_seq;
 static u32 syslog_idx;
 static u64 console_seq;
 static u32 console_idx;
+static u64 exclusive_console_stop_seq;
 static u64 log_first_seq;
 static u32 log_first_idx;
 static u64 log_next_seq;
@@ -2381,6 +2383,12 @@ skip:
 			goto skip;
 		}
 
+		/* Output to all consoles once old messages replayed. */
+		if (unlikely(exclusive_console &&
+			     console_seq >= exclusive_console_stop_seq)) {
+			exclusive_console = NULL;
+		}
+
 		len += msg_print_text(msg,
 				console_msg_format & MSG_FORMAT_SYSLOG,
 				text + len,
@@ -2422,10 +2430,6 @@ skip:
 	}
 
 	console_locked = 0;
-
-	/* Release the exclusive_console once it is used */
-	if (unlikely(exclusive_console))
-		exclusive_console = NULL;
 
 	raw_spin_unlock(&logbuf_lock);
 
@@ -2711,6 +2715,7 @@ void register_console(struct console *newcon)
 		 * the already-registered consoles.
 		 */
 		exclusive_console = newcon;
+		exclusive_console_stop_seq = console_seq;
 	}
 	console_unlock();
 	console_sysfs_notify();
