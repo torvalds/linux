@@ -1615,7 +1615,7 @@ static int vmw_kms_check_topology(struct drm_device *dev,
 		struct drm_connector_state *conn_state;
 		struct vmw_connector_state *vmw_conn_state;
 
-		if (!new_crtc_state->enable && old_crtc_state->enable) {
+		if (!new_crtc_state->enable) {
 			rects[i].x1 = 0;
 			rects[i].y1 = 0;
 			rects[i].x2 = 0;
