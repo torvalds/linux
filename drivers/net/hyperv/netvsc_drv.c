@@ -2110,17 +2110,15 @@ static int netvsc_remove(struct hv_device *dev)
 
 	cancel_delayed_work_sync(&ndev_ctx->dwork);
 
-	rcu_read_lock();
-	nvdev = rcu_dereference(ndev_ctx->nvdev);
-
-	if  (nvdev)
+	rtnl_lock();
+	nvdev = rtnl_dereference(ndev_ctx->nvdev);
+	if (nvdev)
 		cancel_work_sync(&nvdev->subchan_work);
 
 	/*
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed. Also blocks mtu and channel changes.
 	 */
-	rtnl_lock();
 	vf_netdev = rtnl_dereference(ndev_ctx->vf_netdev);
 	if (vf_netdev)
 		netvsc_unregister_vf(vf_netdev);
@@ -2132,7 +2130,6 @@ static int netvsc_remove(struct hv_device *dev)
 	list_del(&ndev_ctx->list);
 
 	rtnl_unlock();
-	rcu_read_unlock();
 
 	hv_set_drvdata(dev, NULL);
 
