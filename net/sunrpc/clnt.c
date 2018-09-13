@@ -1753,6 +1753,8 @@ rpc_xdr_encode(struct rpc_task *task)
 
 	task->tk_status = rpcauth_wrap_req(task, encode, req, p,
 			task->tk_msg.rpc_argp);
+	if (task->tk_status == 0)
+		xprt_request_prepare(req);
 }
 
 /*
@@ -1768,7 +1770,7 @@ call_encode(struct rpc_task *task)
 	/* Did the encode result in an error condition? */
 	if (task->tk_status != 0) {
 		/* Was the error nonfatal? */
-		if (task->tk_status == -EAGAIN)
+		if (task->tk_status == -EAGAIN || task->tk_status == -ENOMEM)
 			rpc_delay(task, HZ >> 4);
 		else
 			rpc_exit(task, task->tk_status);

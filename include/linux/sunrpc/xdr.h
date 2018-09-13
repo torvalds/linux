@@ -18,6 +18,7 @@
 #include <asm/unaligned.h>
 #include <linux/scatterlist.h>
 
+struct bio_vec;
 struct rpc_rqst;
 
 /*
@@ -52,6 +53,7 @@ struct xdr_buf {
 	struct kvec	head[1],	/* RPC header + non-page data */
 			tail[1];	/* Appended after page data */
 
+	struct bio_vec	*bvec;
 	struct page **	pages;		/* Array of pages */
 	unsigned int	page_base,	/* Start of page data */
 			page_len,	/* Length of page data */
@@ -70,6 +72,8 @@ xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
 	buf->head[0].iov_base = start;
 	buf->head[0].iov_len = len;
 	buf->tail[0].iov_len = 0;
+	buf->bvec = NULL;
+	buf->pages = NULL;
 	buf->page_len = 0;
 	buf->flags = 0;
 	buf->len = 0;
@@ -116,6 +120,9 @@ __be32 *xdr_decode_netobj(__be32 *p, struct xdr_netobj *);
 void	xdr_inline_pages(struct xdr_buf *, unsigned int,
 			 struct page **, unsigned int, unsigned int);
 void	xdr_terminate_string(struct xdr_buf *, const u32);
+size_t	xdr_buf_pagecount(struct xdr_buf *buf);
+int	xdr_alloc_bvec(struct xdr_buf *buf, gfp_t gfp);
+void	xdr_free_bvec(struct xdr_buf *buf);
 
 static inline __be32 *xdr_encode_array(__be32 *p, const void *s, unsigned int len)
 {

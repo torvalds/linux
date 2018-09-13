@@ -1264,6 +1264,22 @@ xprt_request_dequeue_transmit(struct rpc_task *task)
 }
 
 /**
+ * xprt_request_prepare - prepare an encoded request for transport
+ * @req: pointer to rpc_rqst
+ *
+ * Calls into the transport layer to do whatever is needed to prepare
+ * the request for transmission or receive.
+ */
+void
+xprt_request_prepare(struct rpc_rqst *req)
+{
+	struct rpc_xprt *xprt = req->rq_xprt;
+
+	if (xprt->ops->prepare_request)
+		xprt->ops->prepare_request(req);
+}
+
+/**
  * xprt_request_need_retransmit - Test if a task needs retransmission
  * @task: pointer to rpc_task
  *
@@ -1727,6 +1743,7 @@ void xprt_release(struct rpc_task *task)
 	if (req->rq_buffer)
 		xprt->ops->buf_free(task);
 	xprt_inject_disconnect(xprt);
+	xdr_free_bvec(&req->rq_rcv_buf);
 	if (req->rq_cred != NULL)
 		put_rpccred(req->rq_cred);
 	task->tk_rqstp = NULL;
