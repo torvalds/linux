@@ -27,12 +27,10 @@ typedef int (*event_attr_op)(struct perf_tool *tool,
 			     struct perf_evlist **pevlist);
 
 typedef int (*event_op2)(struct perf_session *session, union perf_event *event);
+typedef s64 (*event_op3)(struct perf_session *session, union perf_event *event);
 
 typedef int (*event_oe)(struct perf_tool *tool, union perf_event *event,
 			struct ordered_events *oe);
-
-typedef s64 (*event_op3)(struct perf_tool *tool, union perf_event *event,
-			 struct perf_session *session);
 
 enum show_feature_header {
 	SHOW_FEAT_NO_HEADER = 0,
