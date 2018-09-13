@@ -130,6 +130,7 @@ static void oxfw_free(struct snd_oxfw *oxfw)
 
 	kfree(oxfw->spec);
 	mutex_destroy(&oxfw->mutex);
+	kfree(oxfw);
 }
 
 /*
