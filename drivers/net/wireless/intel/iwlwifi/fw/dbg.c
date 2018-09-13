@@ -828,7 +828,13 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 			sizeof(dump_info->dev_human_readable) - 1);
 		strncpy(dump_info->bus_human_readable, fwrt->dev->bus->name,
 			sizeof(dump_info->bus_human_readable) - 1);
-		dump_info->rt_status = cpu_to_le32(fwrt->dump.rt_status);
+		dump_info->num_of_lmacs = fwrt->smem_cfg.num_lmacs;
+		dump_info->lmac_err_id[0] =
+			cpu_to_le32(fwrt->dump.lmac_err_id[0]);
+		if (fwrt->smem_cfg.num_lmacs > 1)
+			dump_info->lmac_err_id[1] =
+				cpu_to_le32(fwrt->dump.lmac_err_id[1]);
+		dump_info->umac_err_id = cpu_to_le32(fwrt->dump.umac_err_id);
 
 		dump_data = iwl_fw_error_next_data(dump_data);
 	}

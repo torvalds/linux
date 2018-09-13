@@ -463,6 +463,9 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 	iwl_trans_read_mem_bytes(trans, mvm->umac_error_event_table, &table,
 				 sizeof(table));
 
+	if (table.valid)
+		mvm->fwrt.dump.umac_err_id = table.error_id;
+
 	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
 		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
 		IWL_ERR(trans, "Status: 0x%08lX, count: %d\n",
@@ -486,11 +489,11 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 	IWL_ERR(mvm, "0x%08X | isr status reg\n", table.nic_isr_pref);
 }
 
-static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
+static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u8 lmac_num)
 {
 	struct iwl_trans *trans = mvm->trans;
 	struct iwl_error_event_table table;
-	u32 val;
+	u32 val, base = mvm->error_event_table[lmac_num];
 
 	if (mvm->fwrt.cur_fw_img == IWL_UCODE_INIT) {
 		if (!base)
@@ -541,7 +544,7 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
 
 	if (table.valid)
-		mvm->fwrt.dump.rt_status = table.error_id;
+		mvm->fwrt.dump.lmac_err_id[lmac_num] = table.error_id;
 
 	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
 		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
@@ -598,10 +601,10 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 		return;
 	}
 
-	iwl_mvm_dump_lmac_error_log(mvm, mvm->error_event_table[0]);
+	iwl_mvm_dump_lmac_error_log(mvm, 0);
 
 	if (mvm->error_event_table[1])
-		iwl_mvm_dump_lmac_error_log(mvm, mvm->error_event_table[1]);
+		iwl_mvm_dump_lmac_error_log(mvm, 1);
 
 	iwl_mvm_dump_umac_error_log(mvm);
 }
