@@ -20,6 +20,25 @@
 
 #include "test.h"
 
+static int item_insert_order(struct xarray *xa, unsigned long index,
+			unsigned order)
+{
+	XA_STATE_ORDER(xas, xa, index, order);
+	struct item *item = item_create(index, order);
+
+	do {
+		xas_lock(&xas);
+		xas_store(&xas, item);
+		xas_unlock(&xas);
+	} while (xas_nomem(&xas, GFP_KERNEL));
+
+	if (!xas_error(&xas))
+		return 0;
+
+	free(item);
+	return xas_error(&xas);
+}
+
 void multiorder_iteration(void)
 {
 	RADIX_TREE(tree, GFP_KERNEL);

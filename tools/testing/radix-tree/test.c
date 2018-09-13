@@ -34,19 +34,13 @@ struct item *item_create(unsigned long index, unsigned int order)
 	return ret;
 }
 
-int item_insert_order(struct radix_tree_root *root, unsigned long index,
-			unsigned order)
+int item_insert(struct radix_tree_root *root, unsigned long index)
 {
-	struct item *item = item_create(index, order);
-	int err = __radix_tree_insert(root, item->index, item->order, item);
+	struct item *item = item_create(index, 0);
+	int err = radix_tree_insert(root, item->index, item);
 	if (err)
 		free(item);
 	return err;
-}
-
-int item_insert(struct radix_tree_root *root, unsigned long index)
-{
-	return item_insert_order(root, index, 0);
 }
 
 void item_sanity(struct item *item, unsigned long index)
