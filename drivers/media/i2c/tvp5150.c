@@ -1534,7 +1534,7 @@ static int tvp5150_probe(struct i2c_client *c,
 			27000000, 1, 27000000);
 	v4l2_ctrl_new_std_menu_items(&core->hdl, &tvp5150_ctrl_ops,
 				     V4L2_CID_TEST_PATTERN,
-				     ARRAY_SIZE(tvp5150_test_patterns),
+				     ARRAY_SIZE(tvp5150_test_patterns) - 1,
 				     0, 0, tvp5150_test_patterns);
 	sd->ctrl_handler = &core->hdl;
 	if (core->hdl.error) {
