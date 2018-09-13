@@ -466,6 +466,7 @@ nouveau_fbcon_set_suspend_work(struct work_struct *work)
 	console_unlock();
 
 	if (state == FBINFO_STATE_RUNNING) {
+		nouveau_fbcon_hotplug_resume(drm->fbcon);
 		pm_runtime_mark_last_busy(drm->dev->dev);
 		pm_runtime_put_sync(drm->dev->dev);
 	}
@@ -487,6 +488,61 @@ nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
 	schedule_work(&drm->fbcon_work);
 }
 
+void
+nouveau_fbcon_output_poll_changed(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_fbdev *fbcon = drm->fbcon;
+	int ret;
+
+	if (!fbcon)
+		return;
+
+	mutex_lock(&fbcon->hotplug_lock);
+
+	ret = pm_runtime_get(dev->dev);
+	if (ret == 1 || ret == -EACCES) {
+		drm_fb_helper_hotplug_event(&fbcon->helper);
+
+		pm_runtime_mark_last_busy(dev->dev);
+		pm_runtime_put_autosuspend(dev->dev);
+	} else if (ret == 0) {
+		/* If the GPU was already in the process of suspending before
+		 * this event happened, then we can't block here as we'll
+		 * deadlock the runtime pmops since they wait for us to
+		 * finish. So, just defer this event for when we runtime
+		 * resume again. It will be handled by fbcon_work.
+		 */
+		NV_DEBUG(drm, "fbcon HPD event deferred until runtime resume\n");
+		fbcon->hotplug_waiting = true;
+		pm_runtime_put_noidle(drm->dev->dev);
+	} else {
+		DRM_WARN("fbcon HPD event lost due to RPM failure: %d\n",
+			 ret);
+	}
+
+	mutex_unlock(&fbcon->hotplug_lock);
+}
+
+void
+nouveau_fbcon_hotplug_resume(struct nouveau_fbdev *fbcon)
+{
+	struct nouveau_drm *drm;
+
+	if (!fbcon)
+		return;
+	drm = nouveau_drm(fbcon->helper.dev);
+
+	mutex_lock(&fbcon->hotplug_lock);
+	if (fbcon->hotplug_waiting) {
+		fbcon->hotplug_waiting = false;
+
+		NV_DEBUG(drm, "Handling deferred fbcon HPD events\n");
+		drm_fb_helper_hotplug_event(&fbcon->helper);
+	}
+	mutex_unlock(&fbcon->hotplug_lock);
+}
+
 int
 nouveau_fbcon_init(struct drm_device *dev)
 {
@@ -505,6 +561,7 @@ nouveau_fbcon_init(struct drm_device *dev)
 
 	drm->fbcon = fbcon;
 	INIT_WORK(&drm->fbcon_work, nouveau_fbcon_set_suspend_work);
+	mutex_init(&fbcon->hotplug_lock);
 
 	drm_fb_helper_prepare(dev, &fbcon->helper, &nouveau_fbcon_helper_funcs);
 
