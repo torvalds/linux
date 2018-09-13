@@ -279,7 +279,7 @@ free_microvolt:
  */
 void dev_pm_opp_of_remove_table(struct device *dev)
 {
-	_dev_pm_opp_find_and_remove_table(dev, false);
+	_dev_pm_opp_find_and_remove_table(dev);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
 
@@ -432,7 +432,7 @@ initialize_static_opps:
 		if (ret) {
 			dev_err(dev, "%s: Failed to add OPP, %d\n", __func__,
 				ret);
-			_dev_pm_opp_remove_table(opp_table, dev, false);
+			_dev_pm_opp_remove_table(opp_table, dev);
 			of_node_put(np);
 			goto put_opp_table;
 		}
@@ -453,7 +453,7 @@ initialize_static_opps:
 		dev_err(dev, "Not all nodes have performance state set (%d: %d)\n",
 			count, pstate_count);
 		ret = -ENOENT;
-		_dev_pm_opp_remove_table(opp_table, dev, false);
+		_dev_pm_opp_remove_table(opp_table, dev);
 		goto put_opp_table;
 	}
 
@@ -507,7 +507,7 @@ static int _of_add_opp_table_v1(struct device *dev)
 		if (ret) {
 			dev_err(dev, "%s: Failed to add OPP %ld (%d)\n",
 				__func__, freq, ret);
-			_dev_pm_opp_remove_table(opp_table, dev, false);
+			_dev_pm_opp_remove_table(opp_table, dev);
 			break;
 		}
 		nr -= 2;
@@ -618,7 +618,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_indexed);
  */
 void dev_pm_opp_of_cpumask_remove_table(const struct cpumask *cpumask)
 {
-	_dev_pm_opp_cpumask_remove_table(cpumask, true, -1);
+	_dev_pm_opp_cpumask_remove_table(cpumask, -1);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_cpumask_remove_table);
 
@@ -653,7 +653,7 @@ int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask)
 				 __func__, cpu, ret);
 
 			/* Free all other OPPs */
-			_dev_pm_opp_cpumask_remove_table(cpumask, true, cpu);
+			_dev_pm_opp_cpumask_remove_table(cpumask, cpu);
 			break;
 		}
 	}

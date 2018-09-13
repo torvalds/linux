@@ -1759,14 +1759,10 @@ int dev_pm_opp_unregister_notifier(struct device *dev,
 EXPORT_SYMBOL(dev_pm_opp_unregister_notifier);
 
 /*
- * Free OPPs either created using static entries present in DT or even the
- * dynamically added entries based on remove_all param.
+ * Free OPPs either created using static entries present in DT.
  */
-void _dev_pm_opp_remove_table(struct opp_table *opp_table, struct device *dev,
-			      bool remove_all)
+void _dev_pm_opp_remove_table(struct opp_table *opp_table, struct device *dev)
 {
-	struct dev_pm_opp *opp, *tmp;
-
 	/* Protect dev_list */
 	mutex_lock(&opp_table->lock);
 
@@ -1774,12 +1770,6 @@ void _dev_pm_opp_remove_table(struct opp_table *opp_table, struct device *dev,
 	if (list_is_singular(&opp_table->dev_list)) {
 		/* Free static OPPs */
 		_put_opp_list_kref(opp_table);
-
-		/* Free dynamic OPPs */
-		list_for_each_entry_safe(opp, tmp, &opp_table->opp_list, node) {
-			if (remove_all)
-				dev_pm_opp_put(opp);
-		}
 
 		/*
 		 * The OPP table is getting removed, drop the performance state
@@ -1795,7 +1785,7 @@ void _dev_pm_opp_remove_table(struct opp_table *opp_table, struct device *dev,
 	mutex_unlock(&opp_table->lock);
 }
 
-void _dev_pm_opp_find_and_remove_table(struct device *dev, bool remove_all)
+void _dev_pm_opp_find_and_remove_table(struct device *dev)
 {
 	struct opp_table *opp_table;
 
@@ -1812,7 +1802,7 @@ void _dev_pm_opp_find_and_remove_table(struct device *dev, bool remove_all)
 		return;
 	}
 
-	_dev_pm_opp_remove_table(opp_table, dev, remove_all);
+	_dev_pm_opp_remove_table(opp_table, dev);
 
 	dev_pm_opp_put_opp_table(opp_table);
 }
@@ -1826,6 +1816,6 @@ void _dev_pm_opp_find_and_remove_table(struct device *dev, bool remove_all)
  */
 void dev_pm_opp_remove_table(struct device *dev)
 {
-	_dev_pm_opp_find_and_remove_table(dev, true);
+	_dev_pm_opp_find_and_remove_table(dev);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_remove_table);
