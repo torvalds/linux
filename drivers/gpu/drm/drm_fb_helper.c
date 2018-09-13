@@ -2673,6 +2673,8 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper,
 
 	info = fb_helper->fbdev;
 	info->var.pixclock = 0;
+	/* don't leak any physical addresses to userspace */
+	info->flags |= FBINFO_HIDE_SMEM_START;
 
 	/* Need to drop locks to avoid recursive deadlock in
 	 * register_framebuffer. This is ok because the only thing left to do is
@@ -2821,7 +2823,9 @@ EXPORT_SYMBOL(drm_fb_helper_hotplug_event);
  * The caller must to provide a &drm_fb_helper_funcs->fb_probe callback
  * function.
  *
- * See also: drm_fb_helper_initial_config()
+ * Use drm_fb_helper_fbdev_teardown() to destroy the fbdev.
+ *
+ * See also: drm_fb_helper_initial_config(), drm_fbdev_generic_setup().
  *
  * Returns:
  * Zero on success or negative error code on failure.
@@ -3037,7 +3041,7 @@ static struct fb_deferred_io drm_fbdev_defio = {
  * @fb_helper: fbdev helper structure
  * @sizes: describes fbdev size and scanout surface size
  *
- * This function uses the client API to crate a framebuffer backed by a dumb buffer.
+ * This function uses the client API to create a framebuffer backed by a dumb buffer.
  *
  * The _sys_ versions are used for &fb_ops.fb_read, fb_write, fb_fillrect,
  * fb_copyarea, fb_imageblit.
@@ -3165,8 +3169,10 @@ static int drm_fbdev_client_hotplug(struct drm_client_dev *client)
 	if (dev->fb_helper)
 		return drm_fb_helper_hotplug_event(dev->fb_helper);
 
-	if (!dev->mode_config.num_connector)
+	if (!dev->mode_config.num_connector) {
+		DRM_DEV_DEBUG(dev->dev, "No connectors found, will not create framebuffer!\n");
 		return 0;
+	}
 
 	ret = drm_fb_helper_fbdev_setup(dev, fb_helper, &drm_fb_helper_generic_funcs,
 					fb_helper->preferred_bpp, 0);
@@ -3187,13 +3193,14 @@ static const struct drm_client_funcs drm_fbdev_client_funcs = {
 };
 
 /**
- * drm_fb_helper_generic_fbdev_setup() - Setup generic fbdev emulation
+ * drm_fbdev_generic_setup() - Setup generic fbdev emulation
  * @dev: DRM device
  * @preferred_bpp: Preferred bits per pixel for the device.
  *                 @dev->mode_config.preferred_depth is used if this is zero.
  *
  * This function sets up generic fbdev emulation for drivers that supports
- * dumb buffers with a virtual address and that can be mmap'ed.
+ * dumb buffers with a virtual address and that can be mmap'ed. If the driver
+ * does not support these functions, it could use drm_fb_helper_fbdev_setup().
  *
  * Restore, hotplug events and teardown are all taken care of. Drivers that do
  * suspend/resume need to call drm_fb_helper_set_suspend_unlocked() themselves.
@@ -3206,6 +3213,8 @@ static const struct drm_client_funcs drm_fbdev_client_funcs = {
  * This function is safe to call even when there are no connectors present.
  * Setup will be retried on the next hotplug event.
  *
+ * The fbdev is destroyed by drm_dev_unregister().
+ *
  * Returns:
  * Zero on success or negative error code on failure.
  */
@@ -3213,6 +3222,8 @@ int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 {
 	struct drm_fb_helper *fb_helper;
 	int ret;
+
+	WARN(dev->fb_helper, "fb_helper is already set!\n");
 
 	if (!drm_fbdev_emulation)
 		return 0;
@@ -3224,12 +3235,15 @@ int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 	ret = drm_client_new(dev, &fb_helper->client, "fbdev", &drm_fbdev_client_funcs);
 	if (ret) {
 		kfree(fb_helper);
+		DRM_DEV_ERROR(dev->dev, "Failed to register client: %d\n", ret);
 		return ret;
 	}
 
 	fb_helper->preferred_bpp = preferred_bpp;
 
-	drm_fbdev_client_hotplug(&fb_helper->client);
+	ret = drm_fbdev_client_hotplug(&fb_helper->client);
+	if (ret)
+		DRM_DEV_DEBUG(dev->dev, "client hotplug ret=%d\n", ret);
 
 	return 0;
 }

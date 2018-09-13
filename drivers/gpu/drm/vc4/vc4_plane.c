@@ -22,6 +22,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_atomic_uapi.h>
 
 #include "uapi/drm/vc4_drm.h"
 #include "vc4_drv.h"

@@ -75,11 +75,8 @@ virtio_gpu_framebuffer_init(struct drm_device *dev,
 			    struct drm_gem_object *obj)
 {
 	int ret;
-	struct virtio_gpu_object *bo;
 
 	vgfb->base.obj[0] = obj;
-
-	bo = gem_to_virtio_gpu_obj(obj);
 
 	drm_helper_mode_fill_fb_struct(dev, &vgfb->base, mode_cmd);
 

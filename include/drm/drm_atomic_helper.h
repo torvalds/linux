@@ -31,6 +31,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_modeset_helper.h>
+#include <drm/drm_util.h>
 
 struct drm_atomic_state;
 struct drm_private_obj;

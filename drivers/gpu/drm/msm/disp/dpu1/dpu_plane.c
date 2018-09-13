@@ -21,6 +21,8 @@
 #include <linux/debugfs.h>
 #include <linux/dma-buf.h>
 
+#include <drm/drm_atomic_uapi.h>
+
 #include "msm_drv.h"
 #include "dpu_kms.h"
 #include "dpu_formats.h"

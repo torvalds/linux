@@ -104,6 +104,10 @@ EXPORT_SYMBOL(drm_bridge_remove);
  * If non-NULL the previous bridge must be already attached by a call to this
  * function.
  *
+ * Note that bridges attached to encoders are auto-detached during encoder
+ * cleanup in drm_encoder_cleanup(), so drm_bridge_attach() should generally
+ * *not* be balanced with a drm_bridge_detach() in driver code.
+ *
  * RETURNS:
  * Zero on success, error code on failure
  */

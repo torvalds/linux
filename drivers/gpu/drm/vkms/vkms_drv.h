@@ -7,8 +7,8 @@
 #include <drm/drm_encoder.h>
 #include <linux/hrtimer.h>
 
-#define XRES_MIN    32
-#define YRES_MIN    32
+#define XRES_MIN    20
+#define YRES_MIN    20
 
 #define XRES_DEF  1024
 #define YRES_DEF   768
@@ -16,13 +16,22 @@
 #define XRES_MAX  8192
 #define YRES_MAX  8192
 
+extern bool enable_cursor;
+
 static const u32 vkms_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };
 
+static const u32 vkms_cursor_formats[] = {
+	DRM_FORMAT_ARGB8888,
+};
+
 struct vkms_crc_data {
-	struct drm_rect src;
 	struct drm_framebuffer fb;
+	struct drm_rect src, dst;
+	unsigned int offset;
+	unsigned int pitch;
+	unsigned int cpp;
 };
 
 /**
@@ -104,7 +113,8 @@ bool vkms_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 
 int vkms_output_init(struct vkms_device *vkmsdev);
 
-struct drm_plane *vkms_plane_init(struct vkms_device *vkmsdev);
+struct drm_plane *vkms_plane_init(struct vkms_device *vkmsdev,
+				  enum drm_plane_type type);
 
 /* Gem stuff */
 struct drm_gem_object *vkms_gem_create(struct drm_device *dev,

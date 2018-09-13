@@ -25,6 +25,8 @@
 #ifndef _INTEL_DISPLAY_H_
 #define _INTEL_DISPLAY_H_
 
+#include <drm/drm_util.h>
+
 enum i915_gpio {
 	GPIOA,
 	GPIOB,
