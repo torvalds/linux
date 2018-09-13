@@ -1139,7 +1139,7 @@ int vb2_request_validate(struct media_request *req)
 	struct media_request_object *obj;
 	int ret = 0;
 
-	if (!vb2_request_has_buffers(req))
+	if (!vb2_request_buffer_cnt(req))
 		return -ENOENT;
 
 	list_for_each_entry(obj, &req->objects, list) {

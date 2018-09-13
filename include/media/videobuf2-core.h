@@ -1191,10 +1191,10 @@ int vb2_verify_memory_type(struct vb2_queue *q,
 bool vb2_request_object_is_buffer(struct media_request_object *obj);
 
 /**
- * vb2_request_has_buffers() - return true if the request contains buffers
+ * vb2_request_buffer_cnt() - return the number of buffers in the request
  *
  * @req:	the request.
  */
-bool vb2_request_has_buffers(struct media_request *req);
+unsigned int vb2_request_buffer_cnt(struct media_request *req);
 
 #endif /* _MEDIA_VIDEOBUF2_CORE_H */

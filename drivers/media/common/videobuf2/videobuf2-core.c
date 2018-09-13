@@ -1368,23 +1368,21 @@ bool vb2_request_object_is_buffer(struct media_request_object *obj)
 }
 EXPORT_SYMBOL_GPL(vb2_request_object_is_buffer);
 
-bool vb2_request_has_buffers(struct media_request *req)
+unsigned int vb2_request_buffer_cnt(struct media_request *req)
 {
 	struct media_request_object *obj;
 	unsigned long flags;
-	bool has_buffers = false;
+	unsigned int buffer_cnt = 0;
 
 	spin_lock_irqsave(&req->lock, flags);
-	list_for_each_entry(obj, &req->objects, list) {
-		if (vb2_request_object_is_buffer(obj)) {
-			has_buffers = true;
-			break;
-		}
-	}
+	list_for_each_entry(obj, &req->objects, list)
+		if (vb2_request_object_is_buffer(obj))
+			buffer_cnt++;
 	spin_unlock_irqrestore(&req->lock, flags);
-	return has_buffers;
+
+	return buffer_cnt;
 }
-EXPORT_SYMBOL_GPL(vb2_request_has_buffers);
+EXPORT_SYMBOL_GPL(vb2_request_buffer_cnt);
 
 int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb)
 {
