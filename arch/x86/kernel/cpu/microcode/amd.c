@@ -39,6 +39,7 @@
 #include <asm/msr.h>
 
 static struct equiv_cpu_table {
+	unsigned int num_entries;
 	struct equiv_cpu_entry *entry;
 } equiv_table;
 
@@ -67,13 +68,19 @@ ucode_path[] __maybe_unused = "kernel/x86/microcode/AuthenticAMD.bin";
 
 static u16 find_equiv_id(struct equiv_cpu_table *et, u32 sig)
 {
-	struct equiv_cpu_entry *entry = et->entry;
+	unsigned int i;
 
-	for (; entry && entry->installed_cpu; entry++) {
-		if (sig == entry->installed_cpu)
-			return entry->equiv_cpu;
+	if (!et || !et->num_entries)
+		return 0;
+
+	for (i = 0; i < et->num_entries; i++) {
+		struct equiv_cpu_entry *e = &et->entry[i];
+
+		if (sig == e->installed_cpu)
+			return e->equiv_cpu;
+
+		e++;
 	}
-
 	return 0;
 }
 
@@ -302,6 +309,7 @@ static size_t parse_container(u8 *ucode, size_t size, struct cont_desc *desc)
 	buf = ucode;
 
 	table.entry = (struct equiv_cpu_entry *)(buf + CONTAINER_HDR_SZ);
+	table.num_entries = hdr[2] / sizeof(struct equiv_cpu_entry);
 
 	/*
 	 * Find the equivalence ID of our CPU in this table. Even if this table
@@ -728,6 +736,7 @@ static size_t install_equiv_cpu_table(const u8 *buf, size_t buf_size)
 	}
 
 	memcpy(equiv_table.entry, buf + CONTAINER_HDR_SZ, equiv_tbl_len);
+	equiv_table.num_entries = equiv_tbl_len / sizeof(struct equiv_cpu_entry);
 
 	/* add header length */
 	return equiv_tbl_len + CONTAINER_HDR_SZ;
@@ -736,7 +745,7 @@ static size_t install_equiv_cpu_table(const u8 *buf, size_t buf_size)
 static void free_equiv_cpu_table(void)
 {
 	vfree(equiv_table.entry);
-	equiv_table.entry = NULL;
+	memset(&equiv_table, 0, sizeof(equiv_table));
 }
 
 static void cleanup(void)
