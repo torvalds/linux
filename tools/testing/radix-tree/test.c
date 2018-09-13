@@ -252,31 +252,19 @@ void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag)
 	verify_node(node, tag, !!root_tag_get(root, tag));
 }
 
-void item_kill_tree(struct radix_tree_root *root)
+void item_kill_tree(struct xarray *xa)
 {
-	struct radix_tree_iter iter;
-	void **slot;
-	struct item *items[32];
-	int nfound;
+	XA_STATE(xas, xa, 0);
+	void *entry;
 
-	radix_tree_for_each_slot(slot, root, &iter, 0) {
-		if (xa_is_value(*slot))
-			radix_tree_delete(root, iter.index);
-	}
-
-	while ((nfound = radix_tree_gang_lookup(root, (void **)items, 0, 32))) {
-		int i;
-
-		for (i = 0; i < nfound; i++) {
-			void *ret;
-
-			ret = radix_tree_delete(root, items[i]->index);
-			assert(ret == items[i]);
-			free(items[i]);
+	xas_for_each(&xas, entry, ULONG_MAX) {
+		if (!xa_is_value(entry)) {
+			item_free(entry, xas.xa_index);
 		}
+		xas_store(&xas, NULL);
 	}
-	assert(radix_tree_gang_lookup(root, (void **)items, 0, 32) == 0);
-	assert(root->xa_head == NULL);
+
+	assert(xa_empty(xa));
 }
 
 void tree_verify_min_height(struct radix_tree_root *root, int maxindex)
