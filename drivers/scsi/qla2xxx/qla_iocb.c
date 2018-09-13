@@ -2641,7 +2641,6 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	struct qla_hw_data *ha = vha->hw;
 	int rval = QLA_SUCCESS;
 	void	*ptr, *resp_ptr;
-	dma_addr_t ptr_dma;
 
 	/* Alloc SRB structure */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
@@ -2673,7 +2672,6 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	ptr = elsio->u.els_plogi.els_plogi_pyld =
 	    dma_alloc_coherent(&ha->pdev->dev, DMA_POOL_SIZE,
 		&elsio->u.els_plogi.els_plogi_pyld_dma, GFP_KERNEL);
-	ptr_dma = elsio->u.els_plogi.els_plogi_pyld_dma;
 
 	if (!elsio->u.els_plogi.els_plogi_pyld) {
 		rval = QLA_FUNCTION_FAILED;
