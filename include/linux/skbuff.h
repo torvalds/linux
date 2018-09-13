@@ -678,6 +678,7 @@ struct sk_buff {
 		 * UDP receive path is one user.
 		 */
 		unsigned long		dev_scratch;
+		int			ip_defrag_offset;
 	};
 	/*
 	 * This is the control buffer. It is free to use for every
