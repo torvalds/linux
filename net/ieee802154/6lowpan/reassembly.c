@@ -93,10 +93,10 @@ static void lowpan_frag_expire(unsigned long data)
 	if (fq->q.flags & INET_FRAG_COMPLETE)
 		goto out;
 
-	inet_frag_kill(&fq->q, &lowpan_frags);
+	inet_frag_kill(&fq->q);
 out:
 	spin_unlock(&fq->q.lock);
-	inet_frag_put(&fq->q, &lowpan_frags);
+	inet_frag_put(&fq->q);
 }
 
 static inline struct lowpan_frag_queue *
@@ -229,7 +229,7 @@ static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *prev,
 	struct sk_buff *fp, *head = fq->q.fragments;
 	int sum_truesize;
 
-	inet_frag_kill(&fq->q, &lowpan_frags);
+	inet_frag_kill(&fq->q);
 
 	/* Make the one we just received the head. */
 	if (prev) {
@@ -437,7 +437,7 @@ int lowpan_frag_rcv(struct sk_buff *skb, u8 frag_type)
 		ret = lowpan_frag_queue(fq, skb, frag_type);
 		spin_unlock(&fq->q.lock);
 
-		inet_frag_put(&fq->q, &lowpan_frags);
+		inet_frag_put(&fq->q);
 		return ret;
 	}
 
@@ -585,13 +585,14 @@ static int __net_init lowpan_frags_init_net(struct net *net)
 	ieee802154_lowpan->frags.high_thresh = IPV6_FRAG_HIGH_THRESH;
 	ieee802154_lowpan->frags.low_thresh = IPV6_FRAG_LOW_THRESH;
 	ieee802154_lowpan->frags.timeout = IPV6_FRAG_TIMEOUT;
+	ieee802154_lowpan->frags.f = &lowpan_frags;
 
 	res = inet_frags_init_net(&ieee802154_lowpan->frags);
 	if (res < 0)
 		return res;
 	res = lowpan_frags_ns_sysctl_register(net);
 	if (res < 0)
-		inet_frags_exit_net(&ieee802154_lowpan->frags, &lowpan_frags);
+		inet_frags_exit_net(&ieee802154_lowpan->frags);
 	return res;
 }
 
@@ -601,7 +602,7 @@ static void __net_exit lowpan_frags_exit_net(struct net *net)
 		net_ieee802154_lowpan(net);
 
 	lowpan_frags_ns_sysctl_unregister(net);
-	inet_frags_exit_net(&ieee802154_lowpan->frags, &lowpan_frags);
+	inet_frags_exit_net(&ieee802154_lowpan->frags);
 }
 
 static struct pernet_operations lowpan_frags_ops = {

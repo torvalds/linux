@@ -177,7 +177,7 @@ static void nf_ct_frag6_expire(unsigned long data)
 	fq = container_of((struct inet_frag_queue *)data, struct frag_queue, q);
 	net = container_of(fq->q.net, struct net, nf_frag.frags);
 
-	ip6_expire_frag_queue(net, fq, &nf_frags);
+	ip6_expire_frag_queue(net, fq);
 }
 
 /* Creation primitives. */
@@ -263,7 +263,7 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 			 * this case. -DaveM
 			 */
 			pr_debug("end of fragment not rounded to 8 bytes.\n");
-			inet_frag_kill(&fq->q, &nf_frags);
+			inet_frag_kill(&fq->q);
 			return -EPROTO;
 		}
 		if (end > fq->q.len) {
@@ -356,7 +356,7 @@ found:
 	return 0;
 
 discard_fq:
-	inet_frag_kill(&fq->q, &nf_frags);
+	inet_frag_kill(&fq->q);
 err:
 	return -EINVAL;
 }
@@ -378,7 +378,7 @@ nf_ct_frag6_reasm(struct frag_queue *fq, struct sk_buff *prev,  struct net_devic
 	int    payload_len;
 	u8 ecn;
 
-	inet_frag_kill(&fq->q, &nf_frags);
+	inet_frag_kill(&fq->q);
 
 	WARN_ON(head == NULL);
 	WARN_ON(NFCT_FRAG6_CB(head)->offset != 0);
@@ -623,7 +623,7 @@ int nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 user)
 
 out_unlock:
 	spin_unlock_bh(&fq->q.lock);
-	inet_frag_put(&fq->q, &nf_frags);
+	inet_frag_put(&fq->q);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_ct_frag6_gather);
@@ -635,19 +635,21 @@ static int nf_ct_net_init(struct net *net)
 	net->nf_frag.frags.high_thresh = IPV6_FRAG_HIGH_THRESH;
 	net->nf_frag.frags.low_thresh = IPV6_FRAG_LOW_THRESH;
 	net->nf_frag.frags.timeout = IPV6_FRAG_TIMEOUT;
+	net->nf_frag.frags.f = &nf_frags;
+
 	res = inet_frags_init_net(&net->nf_frag.frags);
 	if (res < 0)
 		return res;
 	res = nf_ct_frag6_sysctl_register(net);
 	if (res < 0)
-		inet_frags_exit_net(&net->nf_frag.frags, &nf_frags);
+		inet_frags_exit_net(&net->nf_frag.frags);
 	return res;
 }
 
 static void nf_ct_net_exit(struct net *net)
 {
 	nf_ct_frags6_sysctl_unregister(net);
-	inet_frags_exit_net(&net->nf_frag.frags, &nf_frags);
+	inet_frags_exit_net(&net->nf_frag.frags);
 }
 
 static struct pernet_operations nf_ct_net_ops = {
