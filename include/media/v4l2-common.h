@@ -295,7 +295,7 @@ struct v4l2_priv_tun_config {
  * @height:	pointer to height that will be adjusted if needed.
  * @hmin:	minimum height.
  * @hmax:	maximum height.
- * @halign:	least significant bit on width.
+ * @halign:	least significant bit on height.
  * @salign:	least significant bit for the image size (e. g.
  *		:math:`width * height`).
  *
