@@ -837,7 +837,7 @@ v4l2_hdmi_rx_colorimetry(const struct hdmi_avi_infoframe *avi,
 		switch (avi->colorimetry) {
 		case HDMI_COLORIMETRY_EXTENDED:
 			switch (avi->extended_colorimetry) {
-			case HDMI_EXTENDED_COLORIMETRY_ADOBE_RGB:
+			case HDMI_EXTENDED_COLORIMETRY_OPRGB:
 				c.colorspace = V4L2_COLORSPACE_OPRGB;
 				c.xfer_func = V4L2_XFER_FUNC_OPRGB;
 				break;
@@ -908,7 +908,7 @@ v4l2_hdmi_rx_colorimetry(const struct hdmi_avi_infoframe *avi,
 				c.ycbcr_enc = V4L2_YCBCR_ENC_601;
 				c.xfer_func = V4L2_XFER_FUNC_SRGB;
 				break;
-			case HDMI_EXTENDED_COLORIMETRY_ADOBE_YCC_601:
+			case HDMI_EXTENDED_COLORIMETRY_OPYCC_601:
 				c.colorspace = V4L2_COLORSPACE_OPRGB;
 				c.ycbcr_enc = V4L2_YCBCR_ENC_601;
 				c.xfer_func = V4L2_XFER_FUNC_OPRGB;
