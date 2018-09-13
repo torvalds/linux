@@ -248,7 +248,7 @@ static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_
 
 	/* Other caps only work with KMS drivers */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	switch (req->capability) {
 	case DRM_CAP_DUMB_BUFFER:
@@ -319,7 +319,7 @@ drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		break;
 	case DRM_CLIENT_CAP_ATOMIC:
 		if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
-			return -EINVAL;
+			return -EOPNOTSUPP;
 		if (req->value > 1)
 			return -EINVAL;
 		file_priv->atomic = req->value;

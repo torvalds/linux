@@ -182,14 +182,14 @@ int drm_irq_by_busid(struct drm_device *dev, void *data,
 	struct drm_irq_busid *p = data;
 
 	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	/* UMS was only ever support on PCI devices. */
 	if (WARN_ON(!dev->pdev))
 		return -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	return drm_pci_irq_by_busid(dev, p);
 }

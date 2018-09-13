@@ -1725,7 +1725,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	LIST_HEAD(export_list);
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	memset(&u_mode, 0, sizeof(struct drm_mode_modeinfo));
 

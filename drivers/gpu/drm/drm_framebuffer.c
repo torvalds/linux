@@ -113,6 +113,9 @@ int drm_mode_addfb(struct drm_device *dev, struct drm_mode_fb_cmd *or,
 	struct drm_mode_fb_cmd2 r = {};
 	int ret;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EOPNOTSUPP;
+
 	r.pixel_format = drm_mode_legacy_fb_format(or->bpp, or->depth);
 	if (r.pixel_format == DRM_FORMAT_INVALID) {
 		DRM_DEBUG("bad {bpp:%d, depth:%d}\n", or->bpp, or->depth);
@@ -352,7 +355,7 @@ int drm_mode_addfb2(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	fb = drm_internal_framebuffer_create(dev, r, file_priv);
 	if (IS_ERR(fb))
@@ -387,7 +390,7 @@ int drm_mode_addfb2_ioctl(struct drm_device *dev,
 		 * ADDFB.
 		 */
 		DRM_DEBUG_KMS("addfb2 broken on bigendian");
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 #endif
 	return drm_mode_addfb2(dev, data, file_priv);
@@ -432,7 +435,7 @@ int drm_mode_rmfb(struct drm_device *dev, u32 fb_id,
 	int found = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	fb = drm_framebuffer_lookup(dev, file_priv, fb_id);
 	if (!fb)
@@ -509,7 +512,7 @@ int drm_mode_getfb(struct drm_device *dev,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	fb = drm_framebuffer_lookup(dev, file_priv, r->fb_id);
 	if (!fb)
@@ -582,7 +585,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	fb = drm_framebuffer_lookup(dev, file_priv, r->fb_id);
 	if (!fb)
