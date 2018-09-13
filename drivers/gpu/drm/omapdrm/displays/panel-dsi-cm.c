@@ -43,6 +43,7 @@
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
+	struct omap_dss_device *src;
 
 	struct videomode vm;
 
@@ -143,7 +144,7 @@ static void hw_guard_wait(struct panel_drv_data *ddata)
 
 static int dsicm_dcs_read_1(struct panel_drv_data *ddata, u8 dcs_cmd, u8 *data)
 {
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	int r;
 	u8 buf[1];
 
@@ -159,14 +160,14 @@ static int dsicm_dcs_read_1(struct panel_drv_data *ddata, u8 dcs_cmd, u8 *data)
 
 static int dsicm_dcs_write_0(struct panel_drv_data *ddata, u8 dcs_cmd)
 {
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 
 	return src->ops->dsi.dcs_write(src, ddata->channel, &dcs_cmd, 1);
 }
 
 static int dsicm_dcs_write_1(struct panel_drv_data *ddata, u8 dcs_cmd, u8 param)
 {
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	u8 buf[2] = { dcs_cmd, param };
 
 	return src->ops->dsi.dcs_write(src, ddata->channel, buf, 2);
@@ -175,7 +176,7 @@ static int dsicm_dcs_write_1(struct panel_drv_data *ddata, u8 dcs_cmd, u8 param)
 static int dsicm_sleep_in(struct panel_drv_data *ddata)
 
 {
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	u8 cmd;
 	int r;
 
@@ -230,7 +231,7 @@ static int dsicm_get_id(struct panel_drv_data *ddata, u8 *id1, u8 *id2, u8 *id3)
 static int dsicm_set_update_window(struct panel_drv_data *ddata,
 		u16 x, u16 y, u16 w, u16 h)
 {
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	int r;
 	u16 x1 = x;
 	u16 x2 = x + w - 1;
@@ -277,7 +278,7 @@ static void dsicm_cancel_ulps_work(struct panel_drv_data *ddata)
 
 static int dsicm_enter_ulps(struct panel_drv_data *ddata)
 {
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	int r;
 
 	if (ddata->ulps_enabled)
@@ -311,7 +312,7 @@ err:
 
 static int dsicm_exit_ulps(struct panel_drv_data *ddata)
 {
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	int r;
 
 	if (!ddata->ulps_enabled)
@@ -363,7 +364,7 @@ static int dsicm_wake_up(struct panel_drv_data *ddata)
 static int dsicm_bl_update_status(struct backlight_device *dev)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(&dev->dev);
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	int r = 0;
 	int level;
 
@@ -411,7 +412,7 @@ static ssize_t dsicm_num_errors_show(struct device *dev,
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	u8 errors = 0;
 	int r;
 
@@ -443,7 +444,7 @@ static ssize_t dsicm_hw_revision_show(struct device *dev,
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	u8 id1, id2, id3;
 	int r;
 
@@ -475,7 +476,7 @@ static ssize_t dsicm_store_ulps(struct device *dev,
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	unsigned long t;
 	int r;
 
@@ -525,7 +526,7 @@ static ssize_t dsicm_store_ulps_timeout(struct device *dev,
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	unsigned long t;
 	int r;
 
@@ -600,7 +601,7 @@ static void dsicm_hw_reset(struct panel_drv_data *ddata)
 
 static int dsicm_power_on(struct panel_drv_data *ddata)
 {
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	u8 id1, id2, id3;
 	int r;
 	struct omap_dss_dsi_config dsi_config = {
@@ -715,7 +716,7 @@ err_vpnl:
 
 static void dsicm_power_off(struct panel_drv_data *ddata)
 {
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	int r;
 
 	src->ops->dsi.disable_video_output(src, ddata->channel);
@@ -769,6 +770,7 @@ static int dsicm_connect(struct omap_dss_device *src,
 		return r;
 	}
 
+	ddata->src = src;
 	return 0;
 }
 
@@ -778,12 +780,13 @@ static void dsicm_disconnect(struct omap_dss_device *src,
 	struct panel_drv_data *ddata = to_panel_data(dst);
 
 	src->ops->dsi.release_vc(src, ddata->channel);
+	ddata->src = NULL;
 }
 
 static void dsicm_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
+	struct omap_dss_device *src = ddata->src;
 	int r;
 
 	mutex_lock(&ddata->lock);
@@ -810,7 +813,7 @@ err:
 static void dsicm_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
+	struct omap_dss_device *src = ddata->src;
 	int r;
 
 	dsicm_bl_power(ddata, false);
@@ -833,7 +836,7 @@ static void dsicm_disable(struct omap_dss_device *dssdev)
 static void dsicm_framedone_cb(int err, void *data)
 {
 	struct panel_drv_data *ddata = data;
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 
 	dev_dbg(&ddata->pdev->dev, "framedone, err %d\n", err);
 	src->ops->dsi.bus_unlock(src);
@@ -842,7 +845,7 @@ static void dsicm_framedone_cb(int err, void *data)
 static irqreturn_t dsicm_te_isr(int irq, void *data)
 {
 	struct panel_drv_data *ddata = data;
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	int old;
 	int r;
 
@@ -868,7 +871,7 @@ static void dsicm_te_timeout_work_callback(struct work_struct *work)
 {
 	struct panel_drv_data *ddata = container_of(work, struct panel_drv_data,
 					te_timeout_work.work);
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 
 	dev_err(&ddata->pdev->dev, "TE not received for 250ms!\n");
 
@@ -880,7 +883,7 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 				    u16 x, u16 y, u16 w, u16 h)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
+	struct omap_dss_device *src = ddata->src;
 	int r;
 
 	dev_dbg(&ddata->pdev->dev, "update %d, %d, %d x %d\n", x, y, w, h);
@@ -926,7 +929,7 @@ err:
 static int dsicm_sync(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
+	struct omap_dss_device *src = ddata->src;
 
 	dev_dbg(&ddata->pdev->dev, "sync\n");
 
@@ -942,7 +945,7 @@ static int dsicm_sync(struct omap_dss_device *dssdev)
 
 static int _dsicm_enable_te(struct panel_drv_data *ddata, bool enable)
 {
-	struct omap_dss_device *src = ddata->dssdev.src;
+	struct omap_dss_device *src = ddata->src;
 	int r;
 
 	if (enable)
@@ -962,7 +965,7 @@ static int _dsicm_enable_te(struct panel_drv_data *ddata, bool enable)
 static int dsicm_enable_te(struct omap_dss_device *dssdev, bool enable)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
+	struct omap_dss_device *src = ddata->src;
 	int r;
 
 	mutex_lock(&ddata->lock);
@@ -1013,7 +1016,7 @@ static int dsicm_memory_read(struct omap_dss_device *dssdev,
 		u16 x, u16 y, u16 w, u16 h)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
+	struct omap_dss_device *src = ddata->src;
 	int r;
 	int first = 1;
 	int plen;
@@ -1095,7 +1098,7 @@ static void dsicm_ulps_work(struct work_struct *work)
 	struct panel_drv_data *ddata = container_of(work, struct panel_drv_data,
 			ulps_work.work);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
-	struct omap_dss_device *src = dssdev->src;
+	struct omap_dss_device *src = ddata->src;
 
 	mutex_lock(&ddata->lock);
 
@@ -1352,7 +1355,7 @@ static int __exit dsicm_remove(struct platform_device *pdev)
 
 	if (omapdss_device_is_enabled(dssdev))
 		dsicm_disable(dssdev);
-	omapdss_device_disconnect(dssdev->src, dssdev);
+	omapdss_device_disconnect(ddata->src, dssdev);
 
 	sysfs_remove_group(&pdev->dev.kobj, &dsicm_attr_group);
 
