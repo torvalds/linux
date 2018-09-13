@@ -663,22 +663,26 @@ struct sk_buff {
 			struct sk_buff		*prev;
 
 			union {
-				ktime_t		tstamp;
-				u64		skb_mstamp;
+				struct net_device	*dev;
+				/* Some protocols might use this space to store information,
+				 * while device pointer would be NULL.
+				 * UDP receive path is one user.
+				 */
+				unsigned long		dev_scratch;
 			};
 		};
-		struct rb_node	rbnode; /* used in netem & tcp stack */
+		struct rb_node		rbnode; /* used in netem, ip4 defrag, and tcp stack */
+		struct list_head	list;
 	};
-	struct sock		*sk;
 
 	union {
-		struct net_device	*dev;
-		/* Some protocols might use this space to store information,
-		 * while device pointer would be NULL.
-		 * UDP receive path is one user.
-		 */
-		unsigned long		dev_scratch;
+		struct sock		*sk;
 		int			ip_defrag_offset;
+	};
+
+	union {
+		ktime_t		tstamp;
+		u64		skb_mstamp;
 	};
 	/*
 	 * This is the control buffer. It is free to use for every

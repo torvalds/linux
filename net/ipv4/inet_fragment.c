@@ -136,12 +136,16 @@ void inet_frag_destroy(struct inet_frag_queue *q)
 	fp = q->fragments;
 	nf = q->net;
 	f = nf->f;
-	while (fp) {
-		struct sk_buff *xp = fp->next;
+	if (fp) {
+		do {
+			struct sk_buff *xp = fp->next;
 
-		sum_truesize += fp->truesize;
-		kfree_skb(fp);
-		fp = xp;
+			sum_truesize += fp->truesize;
+			kfree_skb(fp);
+			fp = xp;
+		} while (fp);
+	} else {
+		sum_truesize = skb_rbtree_purge(&q->rb_fragments);
 	}
 	sum = sum_truesize + f->qsize;
 
