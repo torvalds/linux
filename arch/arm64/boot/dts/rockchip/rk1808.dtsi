@@ -887,12 +887,11 @@
 		phy-names = "mipi_dphy";
 		power-domains = <&power RK1808_PD_VIO>;
 		rockchip,grf = <&grf>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 
 		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
 			port {
 				dsi_in_vop_lite: endpoint {
 					remote-endpoint = <&vop_lite_out_dsi>;
