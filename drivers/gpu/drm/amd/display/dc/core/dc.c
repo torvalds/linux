@@ -60,6 +60,7 @@
 #define DC_LOGGER \
 	dc->ctx->logger
 
+const static char DC_BUILD_ID[] = "production-build";
 
 /*******************************************************************************
  * Private functions
@@ -757,6 +758,8 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 		dc->versions.dmcu_version = dc->res_pool->dmcu->dmcu_version;
 
 	dc->config = init_params->flags;
+
+	dc->build_id = DC_BUILD_ID;
 
 	DC_LOG_DC("Display Core initialized\n");
 

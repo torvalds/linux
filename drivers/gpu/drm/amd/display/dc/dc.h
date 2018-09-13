@@ -315,6 +315,8 @@ struct dc {
 	struct compressor *fbc_compressor;
 
 	struct dc_debug_data debug_data;
+
+	const char *build_id;
 };
 
 enum frame_buffer_mode {
