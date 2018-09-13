@@ -17,15 +17,15 @@ Required properties:
 The CEU supports a single parallel input and should contain a single 'port'
 subnode with a single 'endpoint'. Connection to input devices are modeled
 according to the video interfaces OF bindings specified in:
-Documentation/devicetree/bindings/media/video-interfaces.txt
+[1] Documentation/devicetree/bindings/media/video-interfaces.txt
 
 Optional endpoint properties applicable to parallel input bus described in
 the above mentioned "video-interfaces.txt" file are supported.
 
-- hsync-active: Active state of the HSYNC signal, 0/1 for LOW/HIGH respectively.
-  If property is not present, default is active high.
-- vsync-active: Active state of the VSYNC signal, 0/1 for LOW/HIGH respectively.
-  If property is not present, default is active high.
+- hsync-active: See [1] for description. If property is not present,
+  default is active high.
+- vsync-active: See [1] for description. If property is not present,
+  default is active high.
 
 Example:
 
