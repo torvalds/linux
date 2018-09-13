@@ -725,7 +725,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	} else {
 		ret = imx_init_from_tempmon_data(pdev);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to init from from fsl,tempmon-data\n");
+			dev_err(&pdev->dev, "failed to init from fsl,tempmon-data\n");
 			return ret;
 		}
 	}
