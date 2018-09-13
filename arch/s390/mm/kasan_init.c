@@ -5,6 +5,7 @@
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/kasan.h>
+#include <asm/mem_detect.h>
 #include <asm/processor.h>
 #include <asm/sclp.h>
 #include <asm/facility.h>
@@ -233,6 +234,18 @@ static void __init kasan_early_detect_facilities(void)
 	}
 }
 
+static unsigned long __init get_mem_detect_end(void)
+{
+	unsigned long start;
+	unsigned long end;
+
+	if (mem_detect.count) {
+		__get_mem_detect_block(mem_detect.count - 1, &start, &end);
+		return end;
+	}
+	return 0;
+}
+
 void __init kasan_early_init(void)
 {
 	unsigned long untracked_mem_end;
@@ -251,6 +264,11 @@ void __init kasan_early_init(void)
 	if (!has_nx)
 		pgt_prot &= ~_PAGE_NOEXEC;
 	pte_z = __pte(__pa(kasan_zero_page) | pgt_prot);
+
+	memsize = get_mem_detect_end();
+	if (!memsize)
+		kasan_early_panic("cannot detect physical memory size\n");
+	memsize = min(memsize, KASAN_SHADOW_START);
 
 	if (IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING)) {
 		/* 4 level paging */
@@ -276,7 +294,6 @@ void __init kasan_early_init(void)
 	crst_table_init((unsigned long *)kasan_zero_pmd, pmd_val(pmd_z));
 	memset64((u64 *)kasan_zero_pte, pte_val(pte_z), PTRS_PER_PTE);
 
-	memsize = min(max_physmem_end, KASAN_SHADOW_START);
 	shadow_alloc_size = memsize >> KASAN_SHADOW_SCALE_SHIFT;
 	pgalloc_low = round_up((unsigned long)_end, _SEGMENT_SIZE);
 	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD)) {
