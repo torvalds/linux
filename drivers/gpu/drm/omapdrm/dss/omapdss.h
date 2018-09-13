@@ -19,7 +19,6 @@
 #define __OMAP_DRM_DSS_H
 
 #include <linux/list.h>
-#include <linux/kobject.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <video/videomode.h>
@@ -404,7 +403,6 @@ enum omap_dss_device_type {
 };
 
 struct omap_dss_device {
-	struct kobject kobj;
 	struct device *dev;
 
 	struct module *owner;
