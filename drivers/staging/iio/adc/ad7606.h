@@ -11,10 +11,8 @@
 
 /**
  * struct ad7606_chip_info - chip specific information
- * @name:		identification string for chip
  * @channels:		channel specification
  * @num_channels:	number of channels
- * @lock		protect sensor state
  */
 
 struct ad7606_chip_info {
