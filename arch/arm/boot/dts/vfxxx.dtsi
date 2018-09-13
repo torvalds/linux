@@ -190,7 +190,7 @@
 				status = "disabled";
 			};
 
-			dspi0: dspi0@4002c000 {
+			dspi0: spi@4002c000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,vf610-dspi";
@@ -205,7 +205,7 @@
 				status = "disabled";
 			};
 
-			dspi1: dspi1@4002d000 {
+			dspi1: spi@4002d000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,vf610-dspi";
@@ -339,7 +339,7 @@
 				status = "disabled";
 			};
 
-			qspi0: quadspi@40044000 {
+			qspi0: spi@40044000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,vf610-qspi";
@@ -569,7 +569,7 @@
 				status = "disabled";
 			};
 
-			dspi2: dspi2@400ac000 {
+			dspi2: spi@400ac000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,vf610-dspi";
@@ -584,7 +584,7 @@
 				status = "disabled";
 			};
 
-			dspi3: dspi3@400ad000 {
+			dspi3: spi@400ad000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,vf610-dspi";
@@ -665,7 +665,7 @@
 				status = "disabled";
 			};
 
-			qspi1: quadspi@400c4000 {
+			qspi1: spi@400c4000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,vf610-qspi";

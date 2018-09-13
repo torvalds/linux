@@ -642,7 +642,7 @@
 				status = "disabled";
 			};
 
-			ecspi4: ecspi@30630000 {
+			ecspi4: spi@30630000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx7d-ecspi", "fsl,imx51-ecspi";
@@ -723,7 +723,7 @@
 				reg = <0x30800000 0x100000>;
 				ranges;
 
-				ecspi1: ecspi@30820000 {
+				ecspi1: spi@30820000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx7d-ecspi", "fsl,imx51-ecspi";
@@ -735,7 +735,7 @@
 					status = "disabled";
 				};
 
-				ecspi2: ecspi@30830000 {
+				ecspi2: spi@30830000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx7d-ecspi", "fsl,imx51-ecspi";
@@ -747,7 +747,7 @@
 					status = "disabled";
 				};
 
-				ecspi3: ecspi@30840000 {
+				ecspi3: spi@30840000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx7d-ecspi", "fsl,imx51-ecspi";
