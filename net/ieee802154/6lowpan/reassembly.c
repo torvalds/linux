@@ -37,47 +37,15 @@ static struct inet_frags lowpan_frags;
 static int lowpan_frag_reasm(struct lowpan_frag_queue *fq,
 			     struct sk_buff *prev, struct net_device *ldev);
 
-static unsigned int lowpan_hash_frag(u16 tag, u16 d_size,
-				     const struct ieee802154_addr *saddr,
-				     const struct ieee802154_addr *daddr)
-{
-	net_get_random_once(&lowpan_frags.rnd, sizeof(lowpan_frags.rnd));
-	return jhash_3words(ieee802154_addr_hash(saddr),
-			    ieee802154_addr_hash(daddr),
-			    (__force u32)(tag + (d_size << 16)),
-			    lowpan_frags.rnd);
-}
-
-static unsigned int lowpan_hashfn(const struct inet_frag_queue *q)
-{
-	const struct lowpan_frag_queue *fq;
-
-	fq = container_of(q, struct lowpan_frag_queue, q);
-	return lowpan_hash_frag(fq->tag, fq->d_size, &fq->saddr, &fq->daddr);
-}
-
-static bool lowpan_frag_match(const struct inet_frag_queue *q, const void *a)
-{
-	const struct lowpan_frag_queue *fq;
-	const struct lowpan_create_arg *arg = a;
-
-	fq = container_of(q, struct lowpan_frag_queue, q);
-	return	fq->tag == arg->tag && fq->d_size == arg->d_size &&
-		ieee802154_addr_equal(&fq->saddr, arg->src) &&
-		ieee802154_addr_equal(&fq->daddr, arg->dst);
-}
-
 static void lowpan_frag_init(struct inet_frag_queue *q, const void *a)
 {
-	const struct lowpan_create_arg *arg = a;
+	const struct frag_lowpan_compare_key *key = a;
 	struct lowpan_frag_queue *fq;
 
 	fq = container_of(q, struct lowpan_frag_queue, q);
 
-	fq->tag = arg->tag;
-	fq->d_size = arg->d_size;
-	fq->saddr = *arg->src;
-	fq->daddr = *arg->dst;
+	BUILD_BUG_ON(sizeof(*key) > sizeof(q->key));
+	memcpy(&q->key, key, sizeof(*key));
 }
 
 static void lowpan_frag_expire(struct timer_list *t)
@@ -105,21 +73,17 @@ fq_find(struct net *net, const struct lowpan_802154_cb *cb,
 	const struct ieee802154_addr *src,
 	const struct ieee802154_addr *dst)
 {
-	struct inet_frag_queue *q;
-	struct lowpan_create_arg arg;
-	unsigned int hash;
 	struct netns_ieee802154_lowpan *ieee802154_lowpan =
 		net_ieee802154_lowpan(net);
+	struct frag_lowpan_compare_key key = {
+		.tag = cb->d_tag,
+		.d_size = cb->d_size,
+		.src = *src,
+		.dst = *dst,
+	};
+	struct inet_frag_queue *q;
 
-	arg.tag = cb->d_tag;
-	arg.d_size = cb->d_size;
-	arg.src = src;
-	arg.dst = dst;
-
-	hash = lowpan_hash_frag(cb->d_tag, cb->d_size, src, dst);
-
-	q = inet_frag_find(&ieee802154_lowpan->frags,
-			   &lowpan_frags, &arg, hash);
+	q = inet_frag_find(&ieee802154_lowpan->frags, &key);
 	if (IS_ERR_OR_NULL(q)) {
 		inet_frag_maybe_warn_overflow(q, pr_fmt());
 		return NULL;
@@ -611,17 +575,46 @@ static struct pernet_operations lowpan_frags_ops = {
 	.exit = lowpan_frags_exit_net,
 };
 
+static u32 lowpan_key_hashfn(const void *data, u32 len, u32 seed)
+{
+	return jhash2(data,
+		      sizeof(struct frag_lowpan_compare_key) / sizeof(u32), seed);
+}
+
+static u32 lowpan_obj_hashfn(const void *data, u32 len, u32 seed)
+{
+	const struct inet_frag_queue *fq = data;
+
+	return jhash2((const u32 *)&fq->key,
+		      sizeof(struct frag_lowpan_compare_key) / sizeof(u32), seed);
+}
+
+static int lowpan_obj_cmpfn(struct rhashtable_compare_arg *arg, const void *ptr)
+{
+	const struct frag_lowpan_compare_key *key = arg->key;
+	const struct inet_frag_queue *fq = ptr;
+
+	return !!memcmp(&fq->key, key, sizeof(*key));
+}
+
+static const struct rhashtable_params lowpan_rhash_params = {
+	.head_offset		= offsetof(struct inet_frag_queue, node),
+	.hashfn			= lowpan_key_hashfn,
+	.obj_hashfn		= lowpan_obj_hashfn,
+	.obj_cmpfn		= lowpan_obj_cmpfn,
+	.automatic_shrinking	= true,
+};
+
 int __init lowpan_net_frag_init(void)
 {
 	int ret;
 
-	lowpan_frags.hashfn = lowpan_hashfn;
 	lowpan_frags.constructor = lowpan_frag_init;
 	lowpan_frags.destructor = NULL;
 	lowpan_frags.qsize = sizeof(struct frag_queue);
-	lowpan_frags.match = lowpan_frag_match;
 	lowpan_frags.frag_expire = lowpan_frag_expire;
 	lowpan_frags.frags_cache_name = lowpan_frags_cache_name;
+	lowpan_frags.rhash_params = lowpan_rhash_params;
 	ret = inet_frags_init(&lowpan_frags);
 	if (ret)
 		goto out;
