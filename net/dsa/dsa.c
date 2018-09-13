@@ -52,6 +52,9 @@ const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
 #ifdef CONFIG_NET_DSA_TAG_EDSA
 	[DSA_TAG_PROTO_EDSA] = &edsa_netdev_ops,
 #endif
+#ifdef CONFIG_NET_DSA_TAG_GSWIP
+	[DSA_TAG_PROTO_GSWIP] = &gswip_netdev_ops,
+#endif
 #ifdef CONFIG_NET_DSA_TAG_KSZ
 	[DSA_TAG_PROTO_KSZ] = &ksz_netdev_ops,
 #endif
