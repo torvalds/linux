@@ -322,11 +322,6 @@ static int rs_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 	case TIOCSERCONFIG:
 	case TIOCSERGETLSR: /* Get line status register */
 		return -EINVAL;
-	case TIOCSERGWILD:
-	case TIOCSERSWILD:
-		/* "setserial -W" is called in Debian boot */
-		printk (KERN_INFO "TIOCSER?WILD ioctl obsolete, ignored.\n");
-		return 0;
 	}
 	return -ENOIOCTLCMD;
 }

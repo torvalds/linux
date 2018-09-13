@@ -1324,11 +1324,6 @@ uart_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 		ret = uart_do_autoconfig(tty, state);
 		up_write(&tty->termios_rwsem);
 		break;
-
-	case TIOCSERGWILD: /* obsolete */
-	case TIOCSERSWILD: /* obsolete */
-		ret = 0;
-		break;
 	}
 
 	if (ret != -ENOIOCTLCMD)

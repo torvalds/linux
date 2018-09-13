@@ -1274,12 +1274,6 @@ static int rs_ioctl(struct tty_struct *tty,
 			finish_wait(&info->tport.delta_msr_wait, &wait);
 			return ret;
 
-		case TIOCSERGWILD:
-		case TIOCSERSWILD:
-			/* "setserial -W" is called in Debian boot */
-			printk ("TIOCSER?WILD ioctl obsolete, ignored.\n");
-			return 0;
-
 		default:
 			return -ENOIOCTLCMD;
 		}
