@@ -1049,13 +1049,11 @@ int pm8001_I_T_nexus_event_handler(struct domain_device *dev)
 	struct pm8001_device *pm8001_dev;
 	struct pm8001_hba_info *pm8001_ha;
 	struct sas_phy *phy;
-	u32 device_id = 0;
 
 	if (!dev || !dev->lldd_dev)
 		return -1;
 
 	pm8001_dev = dev->lldd_dev;
-	device_id = pm8001_dev->device_id;
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
 
 	PM8001_EH_DBG(pm8001_ha,
@@ -1188,7 +1186,6 @@ int pm8001_abort_task(struct sas_task *task)
 {
 	unsigned long flags;
 	u32 tag;
-	u32 device_id;
 	struct domain_device *dev ;
 	struct pm8001_hba_info *pm8001_ha;
 	struct scsi_lun lun;
@@ -1202,7 +1199,6 @@ int pm8001_abort_task(struct sas_task *task)
 	dev = task->dev;
 	pm8001_dev = dev->lldd_dev;
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
-	device_id = pm8001_dev->device_id;
 	phy_id = pm8001_dev->attached_phy;
 	rc = pm8001_find_tag(task, &tag);
 	if (rc == 0) {
