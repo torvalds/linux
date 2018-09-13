@@ -1613,11 +1613,6 @@ static inline bool is_page_fault(u32 intr_info)
 	return is_exception_n(intr_info, PF_VECTOR);
 }
 
-static inline bool is_no_device(u32 intr_info)
-{
-	return is_exception_n(intr_info, NM_VECTOR);
-}
-
 static inline bool is_invalid_opcode(u32 intr_info)
 {
 	return is_exception_n(intr_info, UD_VECTOR);
@@ -9653,9 +9648,6 @@ static bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 			return false;
 		else if (is_page_fault(intr_info))
 			return !vmx->vcpu.arch.apf.host_apf_reason && enable_ept;
-		else if (is_no_device(intr_info) &&
-			 !(vmcs12->guest_cr0 & X86_CR0_TS))
-			return false;
 		else if (is_debug(intr_info) &&
 			 vcpu->guest_debug &
 			 (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
