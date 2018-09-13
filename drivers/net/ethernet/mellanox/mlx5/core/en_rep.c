@@ -180,6 +180,22 @@ static int mlx5e_rep_get_sset_count(struct net_device *dev, int sset)
 	}
 }
 
+static void mlx5e_rep_get_ringparam(struct net_device *dev,
+				struct ethtool_ringparam *param)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	mlx5e_ethtool_get_ringparam(priv, param);
+}
+
+static int mlx5e_rep_set_ringparam(struct net_device *dev,
+			       struct ethtool_ringparam *param)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	return mlx5e_ethtool_set_ringparam(priv, param);
+}
+
 static int mlx5e_replace_rep_vport_rx_rule(struct mlx5e_priv *priv,
 					   struct mlx5_flow_destination *dest)
 {
@@ -260,6 +276,8 @@ static const struct ethtool_ops mlx5e_rep_ethtool_ops = {
 	.get_strings       = mlx5e_rep_get_strings,
 	.get_sset_count    = mlx5e_rep_get_sset_count,
 	.get_ethtool_stats = mlx5e_rep_get_ethtool_stats,
+	.get_ringparam     = mlx5e_rep_get_ringparam,
+	.set_ringparam     = mlx5e_rep_set_ringparam,
 	.get_channels      = mlx5e_rep_get_channels,
 	.set_channels      = mlx5e_rep_set_channels,
 	.get_rxfh_key_size   = mlx5e_rep_get_rxfh_key_size,
