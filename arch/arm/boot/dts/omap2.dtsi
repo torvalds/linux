@@ -114,7 +114,7 @@
 			dma-names = "tx", "rx";
 		};
 
-		mcspi1: mcspi@48098000 {
+		mcspi1: spi@48098000 {
 			compatible = "ti,omap2-mcspi";
 			ti,hwmods = "mcspi1";
 			reg = <0x48098000 0x100>;
@@ -125,7 +125,7 @@
 				    "tx2", "rx2", "tx3", "rx3";
 		};
 
-		mcspi2: mcspi@4809a000 {
+		mcspi2: spi@4809a000 {
 			compatible = "ti,omap2-mcspi";
 			ti,hwmods = "mcspi2";
 			reg = <0x4809a000 0x100>;

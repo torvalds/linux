@@ -518,7 +518,7 @@
 	};
 
 	/* touch controller */
-	ads7846@0 {
+	touchscreen@1 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&ads7846_pins>;
 
