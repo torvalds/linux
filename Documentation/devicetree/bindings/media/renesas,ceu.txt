@@ -26,6 +26,10 @@ the above mentioned "video-interfaces.txt" file are supported.
   default is active high.
 - vsync-active: See [1] for description. If property is not present,
   default is active high.
+- bus-width: See [1] for description. Accepted values are '8' and '16'.
+  If property is not present, default is '8'.
+- field-even-active: See [1] for description. If property is not present,
+  an even field is identified by a logic 0 (active-low signal).
 
 Example:
 
