@@ -487,6 +487,16 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	sdev->hda = hdev;
 	hdev->desc = chip;
 
+	/*
+	 * use position update IPC if either it is forced
+	 * or we don't have other choice
+	 */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_FORCE_IPC_POSITION)
+	hdev->no_ipc_position = 0;
+#else
+	hdev->no_ipc_position = sdev->ops->pcm_pointer ? 1 : 0;
+#endif
+
 	/* set up HDA base */
 	ret = hda_init(sdev);
 	if (ret < 0)
