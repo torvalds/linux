@@ -1404,22 +1404,17 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	*srf_out = NULL;
 
 	if (for_scanout) {
-		uint32_t max_width, max_height;
-
 		if (!svga3dsurface_is_screen_target_format(format)) {
 			DRM_ERROR("Invalid Screen Target surface format.");
 			return -EINVAL;
 		}
 
-		max_width = min(dev_priv->texture_max_width,
-				dev_priv->stdu_max_width);
-		max_height = min(dev_priv->texture_max_height,
-				 dev_priv->stdu_max_height);
-
-		if (size.width > max_width || size.height > max_height) {
+		if (size.width > dev_priv->texture_max_width ||
+		    size.height > dev_priv->texture_max_height) {
 			DRM_ERROR("%ux%u\n, exceeds max surface size %ux%u",
 				  size.width, size.height,
-				  max_width, max_height);
+				  dev_priv->texture_max_width,
+				  dev_priv->texture_max_height);
 			return -EINVAL;
 		}
 	} else {
@@ -1495,8 +1490,17 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	if (srf->flags & SVGA3D_SURFACE_BIND_STREAM_OUTPUT)
 		srf->res.backup_size += sizeof(SVGA3dDXSOState);
 
+	/*
+	 * Don't set SVGA3D_SURFACE_SCREENTARGET flag for a scanout surface with
+	 * size greater than STDU max width/height. This is really a workaround
+	 * to support creation of big framebuffer requested by some user-space
+	 * for whole topology. That big framebuffer won't really be used for
+	 * binding with screen target as during prepare_fb a separate surface is
+	 * created so it's safe to ignore SVGA3D_SURFACE_SCREENTARGET flag.
+	 */
 	if (dev_priv->active_display_unit == vmw_du_screen_target &&
-	    for_scanout)
+	    for_scanout && size.width <= dev_priv->stdu_max_width &&
+	    size.height <= dev_priv->stdu_max_height)
 		srf->flags |= SVGA3D_SURFACE_SCREENTARGET;
 
 	/*
