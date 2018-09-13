@@ -615,14 +615,6 @@ int __init lowpan_net_frag_init(void)
 {
 	int ret;
 
-	ret = lowpan_frags_sysctl_register();
-	if (ret)
-		return ret;
-
-	ret = register_pernet_subsys(&lowpan_frags_ops);
-	if (ret)
-		goto err_pernet;
-
 	lowpan_frags.hashfn = lowpan_hashfn;
 	lowpan_frags.constructor = lowpan_frag_init;
 	lowpan_frags.destructor = NULL;
@@ -632,11 +624,21 @@ int __init lowpan_net_frag_init(void)
 	lowpan_frags.frags_cache_name = lowpan_frags_cache_name;
 	ret = inet_frags_init(&lowpan_frags);
 	if (ret)
-		goto err_pernet;
+		goto out;
 
+	ret = lowpan_frags_sysctl_register();
+	if (ret)
+		goto err_sysctl;
+
+	ret = register_pernet_subsys(&lowpan_frags_ops);
+	if (ret)
+		goto err_pernet;
+out:
 	return ret;
 err_pernet:
 	lowpan_frags_sysctl_unregister();
+err_sysctl:
+	inet_frags_fini(&lowpan_frags);
 	return ret;
 }
 
