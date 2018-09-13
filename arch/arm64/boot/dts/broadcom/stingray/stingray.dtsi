@@ -520,7 +520,7 @@
 			status = "disabled";
 		};
 
-		ssp0: ssp@180000 {
+		ssp0: spi@180000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x00180000 0x1000>;
 			interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
@@ -532,7 +532,7 @@
 			status = "disabled";
 		};
 
-		ssp1: ssp@190000 {
+		ssp1: spi@190000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x00190000 0x1000>;
 			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
