@@ -1184,6 +1184,7 @@ static int __init css_bus_init(void)
 	ret = cio_dma_pool_init();
 	if (ret)
 		goto out_unregister_pmn;
+	airq_init();
 	css_init_done = 1;
 
 	/* Enable default isc for I/O subchannels. */
