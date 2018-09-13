@@ -69,6 +69,7 @@ struct amdgpu_vcn {
 	struct amdgpu_ring	ring_jpeg;
 	struct amdgpu_irq_src	irq;
 	unsigned		num_enc_rings;
+	enum amd_powergating_state cur_state;
 };
 
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);

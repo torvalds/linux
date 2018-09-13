@@ -1633,12 +1633,20 @@ static int vcn_v1_0_set_powergating_state(void *handle,
 	 * revisit this when there is a cleaner line between
 	 * the smc and the hw blocks
 	 */
+	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if(state == adev->vcn.cur_state)
+		return 0;
+
 	if (state == AMD_PG_STATE_GATE)
-		return vcn_v1_0_stop(adev);
+		ret = vcn_v1_0_stop(adev);
 	else
-		return vcn_v1_0_start(adev);
+		ret = vcn_v1_0_start(adev);
+
+	if(!ret)
+		adev->vcn.cur_state = state;
+	return ret;
 }
 
 static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
