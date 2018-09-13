@@ -17,8 +17,6 @@
 #include <dt-bindings/pinctrl/at91.h>
 #include <linux/clk.h>
 #include <linux/gpio/driver.h>
-/* FIXME: needed for gpio_to_irq(), get rid of this */
-#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/init.h>
@@ -264,6 +262,13 @@ static struct irq_chip atmel_gpio_irq_chip = {
 	.irq_set_wake	= atmel_gpio_irq_set_wake,
 };
 
+static int atmel_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	struct atmel_pioctrl *atmel_pioctrl = gpiochip_get_data(chip);
+
+	return irq_find_mapping(atmel_pioctrl->irq_domain, offset);
+}
+
 static void atmel_gpio_irq_handler(struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
@@ -297,8 +302,9 @@ static void atmel_gpio_irq_handler(struct irq_desc *desc)
 			break;
 
 		for_each_set_bit(n, &isr, BITS_PER_LONG)
-			generic_handle_irq(gpio_to_irq(bank *
-					ATMEL_PIO_NPINS_PER_BANK + n));
+			generic_handle_irq(atmel_gpio_to_irq(
+					atmel_pioctrl->gpio_chip,
+					bank * ATMEL_PIO_NPINS_PER_BANK + n));
 	}
 
 	chained_irq_exit(chip, desc);
@@ -358,13 +364,6 @@ static void atmel_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 	atmel_gpio_write(atmel_pioctrl, pin->bank,
 			 val ? ATMEL_PIO_SODR : ATMEL_PIO_CODR,
 			 BIT(pin->line));
-}
-
-static int atmel_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
-{
-	struct atmel_pioctrl *atmel_pioctrl = gpiochip_get_data(chip);
-
-	return irq_find_mapping(atmel_pioctrl->irq_domain, offset);
 }
 
 static struct gpio_chip atmel_gpio_chip = {
