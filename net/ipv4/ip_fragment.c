@@ -221,10 +221,9 @@ static struct ipq *ip_find(struct net *net, struct iphdr *iph,
 	struct inet_frag_queue *q;
 
 	q = inet_frag_find(&net->ipv4.frags, &key);
-	if (IS_ERR_OR_NULL(q)) {
-		inet_frag_maybe_warn_overflow(q, pr_fmt());
+	if (!q)
 		return NULL;
-	}
+
 	return container_of(q, struct ipq, q);
 }
 

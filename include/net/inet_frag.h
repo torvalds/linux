@@ -110,8 +110,6 @@ void inet_frags_exit_net(struct netns_frags *nf);
 void inet_frag_kill(struct inet_frag_queue *q);
 void inet_frag_destroy(struct inet_frag_queue *q);
 struct inet_frag_queue *inet_frag_find(struct netns_frags *nf, void *key);
-void inet_frag_maybe_warn_overflow(struct inet_frag_queue *q,
-				   const char *prefix);
 
 static inline void inet_frag_put(struct inet_frag_queue *q)
 {
