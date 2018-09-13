@@ -1722,7 +1722,7 @@ int vidioc_s_edid(struct file *file, void *_fh,
 		return -E2BIG;
 	}
 	phys_addr = cec_get_edid_phys_addr(edid->edid, edid->blocks * 128, NULL);
-	ret = cec_phys_addr_validate(phys_addr, &phys_addr, NULL);
+	ret = v4l2_phys_addr_validate(phys_addr, &phys_addr, NULL);
 	if (ret)
 		return ret;
 
@@ -1738,7 +1738,7 @@ set_phys_addr:
 
 	for (i = 0; i < MAX_OUTPUTS && dev->cec_tx_adap[i]; i++)
 		cec_s_phys_addr(dev->cec_tx_adap[i],
-				cec_phys_addr_for_input(phys_addr, i + 1),
+				v4l2_phys_addr_for_input(phys_addr, i + 1),
 				false);
 	return 0;
 }

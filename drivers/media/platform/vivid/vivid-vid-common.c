@@ -863,7 +863,7 @@ int vidioc_g_edid(struct file *file, void *_fh,
 	if (edid->blocks > dev->edid_blocks - edid->start_block)
 		edid->blocks = dev->edid_blocks - edid->start_block;
 	if (adap)
-		cec_set_edid_phys_addr(dev->edid, dev->edid_blocks * 128, adap->phys_addr);
+		v4l2_set_edid_phys_addr(dev->edid, dev->edid_blocks * 128, adap->phys_addr);
 	memcpy(edid->edid, dev->edid + edid->start_block * 128, edid->blocks * 128);
 	return 0;
 }

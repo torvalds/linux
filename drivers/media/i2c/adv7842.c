@@ -789,8 +789,8 @@ static int edid_write_hdmi_segment(struct v4l2_subdev *sd, u8 port)
 	if (!state->hdmi_edid.present)
 		return 0;
 
-	pa = cec_get_edid_phys_addr(edid, 256, &spa_loc);
-	err = cec_phys_addr_validate(pa, &pa, NULL);
+	pa = v4l2_get_edid_phys_addr(edid, 256, &spa_loc);
+	err = v4l2_phys_addr_validate(pa, &pa, NULL);
 	if (err)
 		return err;
 

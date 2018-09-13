@@ -245,4 +245,10 @@ v4l2_hdmi_rx_colorimetry(const struct hdmi_avi_infoframe *avi,
 			 const struct hdmi_vendor_infoframe *hdmi,
 			 unsigned int height);
 
+u16 v4l2_get_edid_phys_addr(const u8 *edid, unsigned int size,
+			    unsigned int *offset);
+void v4l2_set_edid_phys_addr(u8 *edid, unsigned int size, u16 phys_addr);
+u16 v4l2_phys_addr_for_input(u16 phys_addr, u8 input);
+int v4l2_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port);
+
 #endif
