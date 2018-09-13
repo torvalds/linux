@@ -613,8 +613,8 @@
 
 #define EXIT_DATA							\
 	*(.exit.data .exit.data.*)					\
-	*(.fini_array)							\
-	*(.dtors)							\
+	*(.fini_array .fini_array.*)					\
+	*(.dtors .dtors.*)						\
 	MEM_DISCARD(exit.data*)						\
 	MEM_DISCARD(exit.rodata*)
 
