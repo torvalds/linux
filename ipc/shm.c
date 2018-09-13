@@ -199,6 +199,7 @@ static inline struct shmid_kernel *shm_lock(struct ipc_namespace *ns, int id)
 	}
 
 	ipc_unlock_object(ipcp);
+	ipcp = ERR_PTR(-EIDRM);
 err:
 	rcu_read_unlock();
 	/*

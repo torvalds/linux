@@ -166,6 +166,8 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 	struct intel_connector *connector =
 		to_intel_connector(old_conn_state->connector);
 
+	intel_ddi_disable_pipe_clock(old_crtc_state);
+
 	/* this can fail */
 	drm_dp_check_act_status(&intel_dp->mst_mgr);
 	/* and this can also fail */
@@ -252,6 +254,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	I915_WRITE(DP_TP_STATUS(port), temp);
 
 	ret = drm_dp_update_payload_part1(&intel_dp->mst_mgr);
+
+	intel_ddi_enable_pipe_clock(pipe_config);
 }
 
 static void intel_mst_enable_dp(struct intel_encoder *encoder,

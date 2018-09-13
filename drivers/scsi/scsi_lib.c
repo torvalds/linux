@@ -345,8 +345,7 @@ static void scsi_dec_host_busy(struct Scsi_Host *shost)
 	unsigned long flags;
 
 	rcu_read_lock();
-	if (!shost->use_blk_mq)
-		atomic_dec(&shost->host_busy);
+	atomic_dec(&shost->host_busy);
 	if (unlikely(scsi_host_in_recovery(shost))) {
 		spin_lock_irqsave(shost->host_lock, flags);
 		if (shost->host_failed || shost->host_eh_scheduled)
@@ -445,12 +444,7 @@ static inline bool scsi_target_is_busy(struct scsi_target *starget)
 
 static inline bool scsi_host_is_busy(struct Scsi_Host *shost)
 {
-	/*
-	 * blk-mq can handle host queue busy efficiently via host-wide driver
-	 * tag allocation
-	 */
-
-	if (!shost->use_blk_mq && shost->can_queue > 0 &&
+	if (shost->can_queue > 0 &&
 	    atomic_read(&shost->host_busy) >= shost->can_queue)
 		return true;
 	if (atomic_read(&shost->host_blocked) > 0)
@@ -1606,10 +1600,7 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 	if (scsi_host_in_recovery(shost))
 		return 0;
 
-	if (!shost->use_blk_mq)
-		busy = atomic_inc_return(&shost->host_busy) - 1;
-	else
-		busy = 0;
+	busy = atomic_inc_return(&shost->host_busy) - 1;
 	if (atomic_read(&shost->host_blocked) > 0) {
 		if (busy)
 			goto starved;
@@ -1625,7 +1616,7 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 				     "unblocking host at zero depth\n"));
 	}
 
-	if (!shost->use_blk_mq && shost->can_queue > 0 && busy >= shost->can_queue)
+	if (shost->can_queue > 0 && busy >= shost->can_queue)
 		goto starved;
 	if (shost->host_self_blocked)
 		goto starved;
@@ -1711,9 +1702,7 @@ static void scsi_kill_request(struct request *req, struct request_queue *q)
 	 * with the locks as normal issue path does.
 	 */
 	atomic_inc(&sdev->device_busy);
-
-	if (!shost->use_blk_mq)
-		atomic_inc(&shost->host_busy);
+	atomic_inc(&shost->host_busy);
 	if (starget->can_queue > 0)
 		atomic_inc(&starget->target_busy);
 

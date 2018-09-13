@@ -138,8 +138,8 @@ no_work_pending:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	lwi	$p0, [$sp+(#IPSW_OFFSET)]
 	andi	$p0, $p0, #0x1
-	la	$r10, trace_hardirqs_off
-	la	$r9, trace_hardirqs_on
+	la	$r10, __trace_hardirqs_off
+	la	$r9, __trace_hardirqs_on
 	cmovz	$r9, $p0, $r10
 	jral	$r9
 #endif

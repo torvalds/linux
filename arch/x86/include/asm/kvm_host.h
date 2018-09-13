@@ -1237,19 +1237,12 @@ enum emulation_result {
 #define EMULTYPE_NO_DECODE	    (1 << 0)
 #define EMULTYPE_TRAP_UD	    (1 << 1)
 #define EMULTYPE_SKIP		    (1 << 2)
-#define EMULTYPE_RETRY		    (1 << 3)
-#define EMULTYPE_NO_REEXECUTE	    (1 << 4)
-#define EMULTYPE_NO_UD_ON_FAIL	    (1 << 5)
-#define EMULTYPE_VMWARE		    (1 << 6)
-int x86_emulate_instruction(struct kvm_vcpu *vcpu, unsigned long cr2,
-			    int emulation_type, void *insn, int insn_len);
-
-static inline int emulate_instruction(struct kvm_vcpu *vcpu,
-			int emulation_type)
-{
-	return x86_emulate_instruction(vcpu, 0,
-			emulation_type | EMULTYPE_NO_REEXECUTE, NULL, 0);
-}
+#define EMULTYPE_ALLOW_RETRY	    (1 << 3)
+#define EMULTYPE_NO_UD_ON_FAIL	    (1 << 4)
+#define EMULTYPE_VMWARE		    (1 << 5)
+int kvm_emulate_instruction(struct kvm_vcpu *vcpu, int emulation_type);
+int kvm_emulate_instruction_from_buffer(struct kvm_vcpu *vcpu,
+					void *insn, int insn_len);
 
 void kvm_enable_efer_bits(u64);
 bool kvm_valid_efer(struct kvm_vcpu *vcpu, u64 efer);
@@ -1450,7 +1443,6 @@ asmlinkage void kvm_spurious_fault(void);
 	____kvm_handle_fault_on_reboot(insn, "")
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
-int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
 int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end);
 int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end);
 int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
@@ -1463,7 +1455,7 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event);
 void kvm_vcpu_reload_apic_access_page(struct kvm_vcpu *vcpu);
 
 int kvm_pv_send_ipi(struct kvm *kvm, unsigned long ipi_bitmap_low,
-    		    unsigned long ipi_bitmap_high, int min,
+		    unsigned long ipi_bitmap_high, u32 min,
 		    unsigned long icr, int op_64_bit);
 
 u64 kvm_get_arch_capabilities(void);

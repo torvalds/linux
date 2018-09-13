@@ -69,5 +69,6 @@ int tipc_nl_sk_walk(struct sk_buff *skb, struct netlink_callback *cb,
 				       struct netlink_callback *cb,
 				       struct tipc_sock *tsk));
 int tipc_dump_start(struct netlink_callback *cb);
+int __tipc_dump_start(struct netlink_callback *cb, struct net *net);
 int tipc_dump_done(struct netlink_callback *cb);
 #endif

@@ -140,6 +140,7 @@
 
 #define SBREG_BAR		0x10
 #define SBREG_SMBCTRL		0xc6000c
+#define SBREG_SMBCTRL_DNV	0xcf000c
 
 /* Host status bits for SMBPCISTS */
 #define SMBPCISTS_INTS		BIT(3)
@@ -1399,7 +1400,11 @@ static void i801_add_tco(struct i801_priv *priv)
 	spin_unlock(&p2sb_spinlock);
 
 	res = &tco_res[ICH_RES_MEM_OFF];
-	res->start = (resource_size_t)base64_addr + SBREG_SMBCTRL;
+	if (pci_dev->device == PCI_DEVICE_ID_INTEL_DNV_SMBUS)
+		res->start = (resource_size_t)base64_addr + SBREG_SMBCTRL_DNV;
+	else
+		res->start = (resource_size_t)base64_addr + SBREG_SMBCTRL;
+
 	res->end = res->start + 3;
 	res->flags = IORESOURCE_MEM;
 
