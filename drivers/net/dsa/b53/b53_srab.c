@@ -415,7 +415,13 @@ static int b53_srab_irq_enable(struct b53_device *dev, int port)
 {
 	struct b53_srab_priv *priv = dev->priv;
 	struct b53_srab_port_priv *p = &priv->port_intrs[port];
-	int ret;
+	int ret = 0;
+
+	/* Interrupt is optional and was not specified, do not make
+	 * this fatal
+	 */
+	if (p->irq == -ENXIO)
+		return ret;
 
 	ret = request_threaded_irq(p->irq, b53_srab_port_isr,
 				   b53_srab_port_thread, 0,
