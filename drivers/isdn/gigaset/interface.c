@@ -233,6 +233,14 @@ static int if_ioctl(struct tty_struct *tty,
 	return retval;
 }
 
+#ifdef CONFIG_COMPAT
+static long if_compat_ioctl(struct tty_struct *tty,
+		    unsigned int cmd, unsigned long arg)
+{
+	return if_ioctl(tty, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
+
 static int if_tiocmget(struct tty_struct *tty)
 {
 	struct cardstate *cs = tty->driver_data;
@@ -472,6 +480,9 @@ static const struct tty_operations if_ops = {
 	.open =			if_open,
 	.close =		if_close,
 	.ioctl =		if_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =		if_compat_ioctl,
+#endif
 	.write =		if_write,
 	.write_room =		if_write_room,
 	.chars_in_buffer =	if_chars_in_buffer,
