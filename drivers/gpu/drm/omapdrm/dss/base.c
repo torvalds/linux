@@ -176,7 +176,7 @@ EXPORT_SYMBOL(omapdss_device_next_output);
 
 static bool omapdss_device_is_connected(struct omap_dss_device *dssdev)
 {
-	return dssdev->src;
+	return dssdev->dss;
 }
 
 int omapdss_device_connect(struct dss_device *dss,
@@ -198,11 +198,6 @@ int omapdss_device_connect(struct dss_device *dss,
 		return ret;
 	}
 
-	if (src) {
-		WARN_ON(dst->src);
-		dst->src = src;
-	}
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(omapdss_device_connect);
@@ -215,13 +210,6 @@ void omapdss_device_disconnect(struct omap_dss_device *src,
 	if (!dst->id && !omapdss_device_is_connected(dst)) {
 		WARN_ON(dst->output_type);
 		return;
-	}
-
-	if (src) {
-		if (WARN_ON(dst->src != src))
-			return;
-
-		dst->src = NULL;
 	}
 
 	WARN_ON(dst->state != OMAP_DSS_DISPLAY_DISABLED);
