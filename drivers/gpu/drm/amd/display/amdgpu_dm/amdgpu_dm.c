@@ -589,6 +589,8 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 	adev->firmware.fw_size +=
 		ALIGN(le32_to_cpu(hdr->intv_size_bytes), PAGE_SIZE);
 
+	adev->dm.dmcu_fw_version = le32_to_cpu(hdr->header.ucode_version);
+
 	DRM_DEBUG_KMS("PSP loading DMCU firmware\n");
 
 	return 0;

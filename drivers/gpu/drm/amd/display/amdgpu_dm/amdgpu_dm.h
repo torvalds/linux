@@ -131,6 +131,7 @@ struct amdgpu_display_manager {
 	struct dm_comressor_info compressor;
 
 	const struct firmware *fw_dmcu;
+	uint32_t dmcu_fw_version;
 };
 
 struct amdgpu_dm_connector {
