@@ -254,20 +254,17 @@ int nf_flow_table_iterate(struct nf_flowtable *flow_table,
 	struct flow_offload_tuple_rhash *tuplehash;
 	struct rhashtable_iter hti;
 	struct flow_offload *flow;
-	int err;
+	int err = 0;
 
-	err = rhashtable_walk_init(&flow_table->rhashtable, &hti, GFP_KERNEL);
-	if (err)
-		return err;
-
+	rhashtable_walk_enter(&flow_table->rhashtable, &hti);
 	rhashtable_walk_start(&hti);
 
 	while ((tuplehash = rhashtable_walk_next(&hti))) {
 		if (IS_ERR(tuplehash)) {
-			err = PTR_ERR(tuplehash);
-			if (err != -EAGAIN)
-				goto out;
-
+			if (PTR_ERR(tuplehash) != -EAGAIN) {
+				err = PTR_ERR(tuplehash);
+				break;
+			}
 			continue;
 		}
 		if (tuplehash->tuple.dir)
@@ -277,7 +274,6 @@ int nf_flow_table_iterate(struct nf_flowtable *flow_table,
 
 		iter(flow, data);
 	}
-out:
 	rhashtable_walk_stop(&hti);
 	rhashtable_walk_exit(&hti);
 
@@ -290,25 +286,19 @@ static inline bool nf_flow_has_expired(const struct flow_offload *flow)
 	return (__s32)(flow->timeout - (u32)jiffies) <= 0;
 }
 
-static int nf_flow_offload_gc_step(struct nf_flowtable *flow_table)
+static void nf_flow_offload_gc_step(struct nf_flowtable *flow_table)
 {
 	struct flow_offload_tuple_rhash *tuplehash;
 	struct rhashtable_iter hti;
 	struct flow_offload *flow;
-	int err;
 
-	err = rhashtable_walk_init(&flow_table->rhashtable, &hti, GFP_KERNEL);
-	if (err)
-		return 0;
-
+	rhashtable_walk_enter(&flow_table->rhashtable, &hti);
 	rhashtable_walk_start(&hti);
 
 	while ((tuplehash = rhashtable_walk_next(&hti))) {
 		if (IS_ERR(tuplehash)) {
-			err = PTR_ERR(tuplehash);
-			if (err != -EAGAIN)
-				goto out;
-
+			if (PTR_ERR(tuplehash) != -EAGAIN)
+				break;
 			continue;
 		}
 		if (tuplehash->tuple.dir)
@@ -321,11 +311,8 @@ static int nf_flow_offload_gc_step(struct nf_flowtable *flow_table)
 				    FLOW_OFFLOAD_TEARDOWN)))
 			flow_offload_del(flow_table, flow);
 	}
-out:
 	rhashtable_walk_stop(&hti);
 	rhashtable_walk_exit(&hti);
-
-	return 1;
 }
 
 static void nf_flow_offload_work_gc(struct work_struct *work)
@@ -514,7 +501,7 @@ void nf_flow_table_free(struct nf_flowtable *flow_table)
 	mutex_unlock(&flowtable_lock);
 	cancel_delayed_work_sync(&flow_table->gc_work);
 	nf_flow_table_iterate(flow_table, nf_flow_table_do_cleanup, NULL);
-	WARN_ON(!nf_flow_offload_gc_step(flow_table));
+	nf_flow_offload_gc_step(flow_table);
 	rhashtable_destroy(&flow_table->rhashtable);
 }
 EXPORT_SYMBOL_GPL(nf_flow_table_free);

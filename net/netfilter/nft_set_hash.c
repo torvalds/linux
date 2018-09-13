@@ -244,21 +244,15 @@ static void nft_rhash_walk(const struct nft_ctx *ctx, struct nft_set *set,
 	struct nft_rhash_elem *he;
 	struct rhashtable_iter hti;
 	struct nft_set_elem elem;
-	int err;
 
-	err = rhashtable_walk_init(&priv->ht, &hti, GFP_ATOMIC);
-	iter->err = err;
-	if (err)
-		return;
-
+	rhashtable_walk_enter(&priv->ht, &hti);
 	rhashtable_walk_start(&hti);
 
 	while ((he = rhashtable_walk_next(&hti))) {
 		if (IS_ERR(he)) {
-			err = PTR_ERR(he);
-			if (err != -EAGAIN) {
-				iter->err = err;
-				goto out;
+			if (PTR_ERR(he) != -EAGAIN) {
+				iter->err = PTR_ERR(he);
+				break;
 			}
 
 			continue;
@@ -275,13 +269,11 @@ static void nft_rhash_walk(const struct nft_ctx *ctx, struct nft_set *set,
 
 		iter->err = iter->fn(ctx, set, iter, &elem);
 		if (iter->err < 0)
-			goto out;
+			break;
 
 cont:
 		iter->count++;
 	}
-
-out:
 	rhashtable_walk_stop(&hti);
 	rhashtable_walk_exit(&hti);
 }
@@ -293,21 +285,17 @@ static void nft_rhash_gc(struct work_struct *work)
 	struct nft_rhash *priv;
 	struct nft_set_gc_batch *gcb = NULL;
 	struct rhashtable_iter hti;
-	int err;
 
 	priv = container_of(work, struct nft_rhash, gc_work.work);
 	set  = nft_set_container_of(priv);
 
-	err = rhashtable_walk_init(&priv->ht, &hti, GFP_KERNEL);
-	if (err)
-		goto schedule;
-
+	rhashtable_walk_enter(&priv->ht, &hti);
 	rhashtable_walk_start(&hti);
 
 	while ((he = rhashtable_walk_next(&hti))) {
 		if (IS_ERR(he)) {
 			if (PTR_ERR(he) != -EAGAIN)
-				goto out;
+				break;
 			continue;
 		}
 
@@ -326,17 +314,15 @@ gc:
 
 		gcb = nft_set_gc_batch_check(set, gcb, GFP_ATOMIC);
 		if (gcb == NULL)
-			goto out;
+			break;
 		rhashtable_remove_fast(&priv->ht, &he->node, nft_rhash_params);
 		atomic_dec(&set->nelems);
 		nft_set_gc_batch_add(gcb, he);
 	}
-out:
 	rhashtable_walk_stop(&hti);
 	rhashtable_walk_exit(&hti);
 
 	nft_set_gc_batch_complete(gcb);
-schedule:
 	queue_delayed_work(system_power_efficient_wq, &priv->gc_work,
 			   nft_set_gc_interval(set));
 }
