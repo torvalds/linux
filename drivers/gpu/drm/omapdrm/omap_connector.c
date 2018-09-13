@@ -36,18 +36,22 @@ struct omap_connector {
 };
 
 static void omap_connector_hpd_notify(struct drm_connector *connector,
-				      struct omap_dss_device *src,
 				      enum drm_connector_status status)
 {
-	if (status == connector_status_disconnected) {
-		/*
-		 * If the source is an HDMI encoder, notify it of disconnection.
-		 * This is required to let the HDMI encoder reset any internal
-		 * state related to connection status, such as the CEC address.
-		 */
-		if (src && src->type == OMAP_DISPLAY_TYPE_HDMI &&
-		    src->ops->hdmi.lost_hotplug)
-			src->ops->hdmi.lost_hotplug(src);
+	struct omap_connector *omap_connector = to_omap_connector(connector);
+	struct omap_dss_device *dssdev;
+
+	if (status != connector_status_disconnected)
+		return;
+
+	/*
+	 * Notify all devics in the pipeline of disconnection. This is required
+	 * to let the HDMI encoders reset their internal state related to
+	 * connection status, such as the CEC address.
+	 */
+	for (dssdev = omap_connector->output; dssdev; dssdev = dssdev->next) {
+		if (dssdev->ops && dssdev->ops->hdmi.lost_hotplug)
+			dssdev->ops->hdmi.lost_hotplug(dssdev);
 	}
 }
 
@@ -67,7 +71,7 @@ static void omap_connector_hpd_cb(void *cb_data,
 	if (old_status == status)
 		return;
 
-	omap_connector_hpd_notify(connector, omap_connector->hpd, status);
+	omap_connector_hpd_notify(connector, status);
 
 	drm_kms_helper_hotplug_event(dev);
 }
@@ -128,7 +132,7 @@ static enum drm_connector_status omap_connector_detect(
 		       ? connector_status_connected
 		       : connector_status_disconnected;
 
-		omap_connector_hpd_notify(connector, dssdev->src, status);
+		omap_connector_hpd_notify(connector, status);
 	} else {
 		switch (omap_connector->display->type) {
 		case OMAP_DISPLAY_TYPE_DPI:
