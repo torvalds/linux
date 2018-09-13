@@ -110,7 +110,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, parm->index, NULL, a,
-				     &act_police_ops, bind, false);
+				     &act_police_ops, bind, true);
 		if (ret) {
 			tcf_idr_cleanup(tn, parm->index);
 			return ret;
@@ -137,7 +137,8 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	}
 
 	if (est) {
-		err = gen_replace_estimator(&police->tcf_bstats, NULL,
+		err = gen_replace_estimator(&police->tcf_bstats,
+					    police->common.cpu_bstats,
 					    &police->tcf_rate_est,
 					    &police->tcf_lock,
 					    NULL, est);
@@ -207,32 +208,27 @@ static int tcf_police_act(struct sk_buff *skb, const struct tc_action *a,
 			  struct tcf_result *res)
 {
 	struct tcf_police *police = to_police(a);
-	s64 now;
-	s64 toks;
-	s64 ptoks = 0;
+	s64 now, toks, ptoks = 0;
+	int ret;
+
+	tcf_lastuse_update(&police->tcf_tm);
+	bstats_cpu_update(this_cpu_ptr(police->common.cpu_bstats), skb);
 
 	spin_lock(&police->tcf_lock);
-
-	bstats_update(&police->tcf_bstats, skb);
-	tcf_lastuse_update(&police->tcf_tm);
-
 	if (police->tcfp_ewma_rate) {
 		struct gnet_stats_rate_est64 sample;
 
 		if (!gen_estimator_read(&police->tcf_rate_est, &sample) ||
 		    sample.bps >= police->tcfp_ewma_rate) {
-			police->tcf_qstats.overlimits++;
-			if (police->tcf_action == TC_ACT_SHOT)
-				police->tcf_qstats.drops++;
-			spin_unlock(&police->tcf_lock);
-			return police->tcf_action;
+			ret = police->tcf_action;
+			goto inc_overlimits;
 		}
 	}
 
 	if (qdisc_pkt_len(skb) <= police->tcfp_mtu) {
 		if (!police->rate_present) {
-			spin_unlock(&police->tcf_lock);
-			return police->tcfp_result;
+			ret = police->tcfp_result;
+			goto unlock;
 		}
 
 		now = ktime_get_ns();
@@ -253,18 +249,20 @@ static int tcf_police_act(struct sk_buff *skb, const struct tc_action *a,
 			police->tcfp_t_c = now;
 			police->tcfp_toks = toks;
 			police->tcfp_ptoks = ptoks;
-			if (police->tcfp_result == TC_ACT_SHOT)
-				police->tcf_qstats.drops++;
-			spin_unlock(&police->tcf_lock);
-			return police->tcfp_result;
+			ret = police->tcfp_result;
+			goto inc_drops;
 		}
 	}
+	ret = police->tcf_action;
 
-	police->tcf_qstats.overlimits++;
-	if (police->tcf_action == TC_ACT_SHOT)
-		police->tcf_qstats.drops++;
+inc_overlimits:
+	qstats_overlimit_inc(this_cpu_ptr(police->common.cpu_qstats));
+inc_drops:
+	if (ret == TC_ACT_SHOT)
+		qstats_drop_inc(this_cpu_ptr(police->common.cpu_qstats));
+unlock:
 	spin_unlock(&police->tcf_lock);
-	return police->tcf_action;
+	return ret;
 }
 
 static int tcf_police_dump(struct sk_buff *skb, struct tc_action *a,
