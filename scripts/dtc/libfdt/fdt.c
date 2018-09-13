@@ -55,7 +55,12 @@
 
 #include "libfdt_internal.h"
 
-int fdt_check_header(const void *fdt)
+/*
+ * Minimal sanity check for a read-only tree. fdt_ro_probe_() checks
+ * that the given buffer contains what appears to be a flattened
+ * device tree with sane information in its header.
+ */
+int fdt_ro_probe_(const void *fdt)
 {
 	if (fdt_magic(fdt) == FDT_MAGIC) {
 		/* Complete tree */
@@ -70,6 +75,78 @@ int fdt_check_header(const void *fdt)
 	} else {
 		return -FDT_ERR_BADMAGIC;
 	}
+
+	return 0;
+}
+
+static int check_off_(uint32_t hdrsize, uint32_t totalsize, uint32_t off)
+{
+	return (off >= hdrsize) && (off <= totalsize);
+}
+
+static int check_block_(uint32_t hdrsize, uint32_t totalsize,
+			uint32_t base, uint32_t size)
+{
+	if (!check_off_(hdrsize, totalsize, base))
+		return 0; /* block start out of bounds */
+	if ((base + size) < base)
+		return 0; /* overflow */
+	if (!check_off_(hdrsize, totalsize, base + size))
+		return 0; /* block end out of bounds */
+	return 1;
+}
+
+size_t fdt_header_size_(uint32_t version)
+{
+	if (version <= 1)
+		return FDT_V1_SIZE;
+	else if (version <= 2)
+		return FDT_V2_SIZE;
+	else if (version <= 3)
+		return FDT_V3_SIZE;
+	else if (version <= 16)
+		return FDT_V16_SIZE;
+	else
+		return FDT_V17_SIZE;
+}
+
+int fdt_check_header(const void *fdt)
+{
+	size_t hdrsize;
+
+	if (fdt_magic(fdt) != FDT_MAGIC)
+		return -FDT_ERR_BADMAGIC;
+	hdrsize = fdt_header_size(fdt);
+	if ((fdt_version(fdt) < FDT_FIRST_SUPPORTED_VERSION)
+	    || (fdt_last_comp_version(fdt) > FDT_LAST_SUPPORTED_VERSION))
+		return -FDT_ERR_BADVERSION;
+	if (fdt_version(fdt) < fdt_last_comp_version(fdt))
+		return -FDT_ERR_BADVERSION;
+
+	if ((fdt_totalsize(fdt) < hdrsize)
+	    || (fdt_totalsize(fdt) > INT_MAX))
+		return -FDT_ERR_TRUNCATED;
+
+	/* Bounds check memrsv block */
+	if (!check_off_(hdrsize, fdt_totalsize(fdt), fdt_off_mem_rsvmap(fdt)))
+		return -FDT_ERR_TRUNCATED;
+
+	/* Bounds check structure block */
+	if (fdt_version(fdt) < 17) {
+		if (!check_off_(hdrsize, fdt_totalsize(fdt),
+				fdt_off_dt_struct(fdt)))
+			return -FDT_ERR_TRUNCATED;
+	} else {
+		if (!check_block_(hdrsize, fdt_totalsize(fdt),
+				  fdt_off_dt_struct(fdt),
+				  fdt_size_dt_struct(fdt)))
+			return -FDT_ERR_TRUNCATED;
+	}
+
+	/* Bounds check strings block */
+	if (!check_block_(hdrsize, fdt_totalsize(fdt),
+			  fdt_off_dt_strings(fdt), fdt_size_dt_strings(fdt)))
+		return -FDT_ERR_TRUNCATED;
 
 	return 0;
 }
@@ -244,7 +321,7 @@ const char *fdt_find_string_(const char *strtab, int tabsize, const char *s)
 
 int fdt_move(const void *fdt, void *buf, int bufsize)
 {
-	FDT_CHECK_HEADER(fdt);
+	FDT_RO_PROBE(fdt);
 
 	if (fdt_totalsize(fdt) > bufsize)
 		return -FDT_ERR_NOSPACE;
