@@ -428,16 +428,13 @@ struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
  * Removes @em from @tree.  No reference counts are dropped, and no checks
  * are done to see if the range is in use
  */
-int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
+void remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 {
-	int ret = 0;
-
 	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &em->flags));
 	rb_erase(&em->rb_node, &tree->map);
 	if (!test_bit(EXTENT_FLAG_LOGGING, &em->flags))
 		list_del_init(&em->list);
 	RB_CLEAR_NODE(&em->rb_node);
-	return ret;
 }
 
 void replace_extent_mapping(struct extent_map_tree *tree,
