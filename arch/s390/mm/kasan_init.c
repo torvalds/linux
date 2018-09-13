@@ -331,7 +331,8 @@ void __init kasan_early_init(void)
 	kasan_early_vmemmap_populate(__sha(0), __sha(memsize), POPULATE_MAP);
 	if (IS_ENABLED(CONFIG_MODULES))
 		untracked_mem_end = vmax - MODULES_LEN;
-	kasan_early_vmemmap_populate(__sha(memsize), __sha(untracked_mem_end),
+	kasan_early_vmemmap_populate(__sha(max_physmem_end),
+				     __sha(untracked_mem_end),
 				     POPULATE_ZERO_SHADOW);
 	/* memory allocated for identity mapping structs will be freed later */
 	pgalloc_freeable = pgalloc_pos;
