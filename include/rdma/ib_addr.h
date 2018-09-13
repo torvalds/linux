@@ -46,7 +46,6 @@
 #include <net/ip.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
-#include <net/ipv6.h>
 #include <net/net_namespace.h>
 
 /**
