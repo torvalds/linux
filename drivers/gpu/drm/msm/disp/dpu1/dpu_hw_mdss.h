@@ -232,12 +232,6 @@ enum dpu_wb {
 	WB_MAX
 };
 
-enum dpu_ad {
-	AD_0 = 0x1,
-	AD_1,
-	AD_MAX
-};
-
 enum dpu_cwb {
 	CWB_0 = 0x1,
 	CWB_1,
