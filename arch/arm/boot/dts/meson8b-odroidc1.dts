@@ -101,6 +101,25 @@
 		states = <3300000 0
 			  1800000 1>;
 	};
+
+	vcck: regulator-vcck {
+		/* Monolithic Power Systems MP2161 */
+		compatible = "pwm-regulator";
+
+		regulator-name = "VCCK";
+		regulator-min-microvolt = <860000>;
+		regulator-max-microvolt = <1140000>;
+
+		pwms = <&pwm_cd 0 12218 0>;
+		pwm-dutycycle-range = <91 0>;
+
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};
+
+&cpu0 {
+	cpu-supply = <&vcck>;
 };
 
 &ethmac {
@@ -178,6 +197,14 @@
 		vmmc-supply = <&tflash_vdd>;
 		vqmmc-supply = <&tf_io>;
 	};
+};
+
+&pwm_cd {
+	status = "okay";
+	pinctrl-0 = <&pwm_c1_pins>;
+	pinctrl-names = "default";
+	clocks = <&clkc CLKID_XTAL>;
+	clock-names = "clkin0";
 };
 
 &uart_AO {
