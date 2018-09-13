@@ -9,7 +9,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include "pinctrl-abx500.h"

@@ -11,7 +11,6 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
 #include <linux/gpio/driver.h>
 #include <linux/acpi.h>
 #include <linux/platform_device.h>
@@ -1360,9 +1359,9 @@ static int byt_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 	raw_spin_unlock_irqrestore(&vg->lock, flags);
 
 	if (!(value & BYT_OUTPUT_EN))
-		return GPIOF_DIR_OUT;
+		return 0;
 	if (!(value & BYT_INPUT_EN))
-		return GPIOF_DIR_IN;
+		return 1;
 
 	return -EINVAL;
 }

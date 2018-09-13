@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -1487,7 +1487,7 @@ static int alt_gpio_irq_type(struct irq_data *d, unsigned type)
 		return 0;
 	case IRQ_TYPE_NONE:
 	default:
-		pr_warn("AT91: No type for irq %d\n", gpio_to_irq(d->irq));
+		pr_warn("AT91: No type for GPIO irq offset %d\n", d->irq);
 		return -EINVAL;
 	}
 

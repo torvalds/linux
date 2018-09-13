@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/gpio.h>
 #include <linux/gpio/driver.h>
 #include <linux/acpi.h>
 #include <linux/pinctrl/pinctrl.h>
