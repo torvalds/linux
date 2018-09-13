@@ -92,7 +92,6 @@ static struct phy_driver et1011c_driver[] = { {
 	.name		= "ET1011C",
 	.phy_id_mask	= 0xfffffff0,
 	.features	= PHY_GBIT_FEATURES,
-	.flags		= PHY_POLL,
 	.config_aneg	= et1011c_config_aneg,
 	.read_status	= et1011c_read_status,
 } };
