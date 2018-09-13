@@ -187,6 +187,9 @@ struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx);
 int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 			  struct net *net);
 
+void cfg80211_init_wdev(struct cfg80211_registered_device *rdev,
+			struct wireless_dev *wdev);
+
 static inline void wdev_lock(struct wireless_dev *wdev)
 	__acquires(wdev)
 {

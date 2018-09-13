@@ -1153,6 +1153,28 @@ void cfg80211_stop_iface(struct wiphy *wiphy, struct wireless_dev *wdev,
 }
 EXPORT_SYMBOL(cfg80211_stop_iface);
 
+void cfg80211_init_wdev(struct cfg80211_registered_device *rdev,
+			struct wireless_dev *wdev)
+{
+	mutex_init(&wdev->mtx);
+	INIT_LIST_HEAD(&wdev->event_list);
+	spin_lock_init(&wdev->event_lock);
+	INIT_LIST_HEAD(&wdev->mgmt_registrations);
+	spin_lock_init(&wdev->mgmt_registrations_lock);
+
+	/*
+	 * We get here also when the interface changes network namespaces,
+	 * as it's registered into the new one, but we don't want it to
+	 * change ID in that case. Checking if the ID is already assigned
+	 * works, because 0 isn't considered a valid ID and the memory is
+	 * 0-initialized.
+	 */
+	if (!wdev->identifier)
+		wdev->identifier = ++rdev->wdev_id;
+	list_add_rcu(&wdev->list, &rdev->wiphy.wdev_list);
+	rdev->devlist_generation++;
+}
+
 static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 					 unsigned long state, void *ptr)
 {
@@ -1178,23 +1200,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		 * called within code protected by it when interfaces
 		 * are added with nl80211.
 		 */
-		mutex_init(&wdev->mtx);
-		INIT_LIST_HEAD(&wdev->event_list);
-		spin_lock_init(&wdev->event_lock);
-		INIT_LIST_HEAD(&wdev->mgmt_registrations);
-		spin_lock_init(&wdev->mgmt_registrations_lock);
-
-		/*
-		 * We get here also when the interface changes network namespaces,
-		 * as it's registered into the new one, but we don't want it to
-		 * change ID in that case. Checking if the ID is already assigned
-		 * works, because 0 isn't considered a valid ID and the memory is
-		 * 0-initialized.
-		 */
-		if (!wdev->identifier)
-			wdev->identifier = ++rdev->wdev_id;
-		list_add_rcu(&wdev->list, &rdev->wiphy.wdev_list);
-		rdev->devlist_generation++;
+		cfg80211_init_wdev(rdev, wdev);
 		/* can only change netns with wiphy */
 		dev->features |= NETIF_F_NETNS_LOCAL;
 
