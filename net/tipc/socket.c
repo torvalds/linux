@@ -576,6 +576,7 @@ static int tipc_release(struct socket *sock)
 	sk_stop_timer(sk, &sk->sk_timer);
 	tipc_sk_remove(tsk);
 
+	sock_orphan(sk);
 	/* Reject any messages that accumulated in backlog queue */
 	release_sock(sk);
 	tipc_dest_list_purge(&tsk->cong_links);
@@ -3229,7 +3230,7 @@ int tipc_nl_sk_walk(struct sk_buff *skb, struct netlink_callback *cb,
 				       struct netlink_callback *cb,
 				       struct tipc_sock *tsk))
 {
-	struct rhashtable_iter *iter = (void *)cb->args[0];
+	struct rhashtable_iter *iter = (void *)cb->args[4];
 	struct tipc_sock *tsk;
 	int err;
 
@@ -3265,8 +3266,14 @@ EXPORT_SYMBOL(tipc_nl_sk_walk);
 
 int tipc_dump_start(struct netlink_callback *cb)
 {
-	struct rhashtable_iter *iter = (void *)cb->args[0];
-	struct net *net = sock_net(cb->skb->sk);
+	return __tipc_dump_start(cb, sock_net(cb->skb->sk));
+}
+EXPORT_SYMBOL(tipc_dump_start);
+
+int __tipc_dump_start(struct netlink_callback *cb, struct net *net)
+{
+	/* tipc_nl_name_table_dump() uses cb->args[0...3]. */
+	struct rhashtable_iter *iter = (void *)cb->args[4];
 	struct tipc_net *tn = tipc_net(net);
 
 	if (!iter) {
@@ -3274,17 +3281,16 @@ int tipc_dump_start(struct netlink_callback *cb)
 		if (!iter)
 			return -ENOMEM;
 
-		cb->args[0] = (long)iter;
+		cb->args[4] = (long)iter;
 	}
 
 	rhashtable_walk_enter(&tn->sk_rht, iter);
 	return 0;
 }
-EXPORT_SYMBOL(tipc_dump_start);
 
 int tipc_dump_done(struct netlink_callback *cb)
 {
-	struct rhashtable_iter *hti = (void *)cb->args[0];
+	struct rhashtable_iter *hti = (void *)cb->args[4];
 
 	rhashtable_walk_exit(hti);
 	kfree(hti);

@@ -130,7 +130,7 @@ ltq_dma_alloc(struct ltq_dma_channel *ch)
 	unsigned long flags;
 
 	ch->desc = 0;
-	ch->desc_base = dma_zalloc_coherent(NULL,
+	ch->desc_base = dma_zalloc_coherent(ch->dev,
 				LTQ_DESC_NUM * LTQ_DESC_SIZE,
 				&ch->phys, GFP_ATOMIC);
 
@@ -182,7 +182,7 @@ ltq_dma_free(struct ltq_dma_channel *ch)
 	if (!ch->desc_base)
 		return;
 	ltq_dma_close(ch);
-	dma_free_coherent(NULL, LTQ_DESC_NUM * LTQ_DESC_SIZE,
+	dma_free_coherent(ch->dev, LTQ_DESC_NUM * LTQ_DESC_SIZE,
 		ch->desc_base, ch->phys);
 }
 EXPORT_SYMBOL_GPL(ltq_dma_free);
