@@ -57,6 +57,10 @@
 		mmc0 = &sd_card_slot;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory {
 		reg = <0x40000000 0x40000000>;
 	};
