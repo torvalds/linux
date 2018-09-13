@@ -3468,8 +3468,6 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 
 		/* this will do delete_inode and everything for us */
 		iput(inode);
-		if (ret)
-			goto out;
 	}
 	/* release the path since we're done with it */
 	btrfs_release_path(path);
