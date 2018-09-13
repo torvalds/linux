@@ -27,30 +27,24 @@ and bit-banged data signals:
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
-	gpio2: gpio2 {
-		gpio-controller;
-		#gpio-cells = <1>;
-	};
 	[...]
 
-	enable-gpios = <&gpio2 2>;
 	data-gpios = <&gpio1 12 0>,
 		     <&gpio1 13 0>,
 		     <&gpio1 14 0>,
 		     <&gpio1 15 0>;
 
-Note that gpio-specifier length is controller dependent.  In the
-above example, &gpio1 uses 2 cells to specify a gpio, while &gpio2
-only uses one.
+In the above example, &gpio1 uses 2 cells to specify a gpio. The first cell is
+a local offset to the GPIO line and the second cell represent consumer flags,
+such as if the consumer desire the line to be active low (inverted) or open
+drain. This is the recommended practice.
 
-gpio-specifier may encode: bank, pin position inside the bank,
-whether pin is open-drain and whether pin is logically inverted.
+The exact meaning of each specifier cell is controller specific, and must be
+documented in the device tree binding for the device, but it is strongly
+recommended to use the two-cell approach.
 
-Exact meaning of each specifier cell is controller specific, and must
-be documented in the device tree binding for the device.
-
-Most controllers are however specifying a generic flag bitfield
-in the last cell, so for these, use the macros defined in
+Most controllers are specifying a generic flag bitfield in the last cell, so
+for these, use the macros defined in
 include/dt-bindings/gpio/gpio.h whenever possible:
 
 Example of a node using GPIOs:
