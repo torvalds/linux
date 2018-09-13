@@ -569,11 +569,11 @@ typedef struct {
   uint16_t      GfxclkFmin;
   uint16_t      GfxclkFmax;
   uint16_t      GfxclkFreq1;
-  int16_t      GfxclkOffsetVolt1;
+  uint16_t      GfxclkVolt1;
   uint16_t      GfxclkFreq2;
-  int16_t      GfxclkOffsetVolt2;
+  uint16_t      GfxclkVolt2;
   uint16_t      GfxclkFreq3;
-  int16_t      GfxclkOffsetVolt3;
+  uint16_t      GfxclkVolt3;
   uint16_t      UclkFmax;
   int16_t       OverDrivePct;
   uint16_t      FanMaximumRpm;

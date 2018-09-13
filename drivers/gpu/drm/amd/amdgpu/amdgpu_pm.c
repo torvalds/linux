@@ -502,7 +502,7 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  *
  * - maximum memory clock labeled OD_MCLK
  *
- * - three <frequency, voltage offset> points labeled OD_VDDC_CURVE.
+ * - three <frequency, voltage> points labeled OD_VDDC_CURVE.
  *   They can be used to calibrate the sclk voltage curve.
  *
  * - a list of valid ranges for sclk, mclk, and voltage curve points
@@ -519,11 +519,11 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  *   "m 1 800" will update maximum mclk to be 800Mhz.
  *
  *   For sclk voltage curve, enter the new values by writing a
- *   string that contains "vc point clock voff" to the file. The
- *   points are indexed by 0, 1 and 2. E.g., "vc 0 300 10" will
- *   update point1 with clock set as 300Mhz and voltage increased
- *   by 10mV. "vc 2 1000 -10" will update point3 with clock set
- *   as 1000Mhz and voltage drop by 10mV.
+ *   string that contains "vc point clock voltage" to the file. The
+ *   points are indexed by 0, 1 and 2. E.g., "vc 0 300 600" will
+ *   update point1 with clock set as 300Mhz and voltage as
+ *   600mV. "vc 2 1000 1000" will update point3 with clock set
+ *   as 1000Mhz and voltage 1000mV.
  *
  * - When you have edited all of the states as needed, write "c" (commit)
  *   to the file to commit your changes
