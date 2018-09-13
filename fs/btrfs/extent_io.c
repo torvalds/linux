@@ -5160,11 +5160,11 @@ void clear_extent_buffer_dirty(struct extent_buffer *eb)
 	WARN_ON(atomic_read(&eb->refs) == 0);
 }
 
-int set_extent_buffer_dirty(struct extent_buffer *eb)
+bool set_extent_buffer_dirty(struct extent_buffer *eb)
 {
 	int i;
 	int num_pages;
-	int was_dirty = 0;
+	bool was_dirty;
 
 	check_buffer_tree_ref(eb);
 
@@ -5174,8 +5174,9 @@ int set_extent_buffer_dirty(struct extent_buffer *eb)
 	WARN_ON(atomic_read(&eb->refs) == 0);
 	WARN_ON(!test_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags));
 
-	for (i = 0; i < num_pages; i++)
-		set_page_dirty(eb->pages[i]);
+	if (!was_dirty)
+		for (i = 0; i < num_pages; i++)
+			set_page_dirty(eb->pages[i]);
 
 #ifdef CONFIG_BTRFS_DEBUG
 	for (i = 0; i < num_pages; i++)
