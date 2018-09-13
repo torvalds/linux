@@ -38,7 +38,9 @@
 #include <asm/cpu.h>
 #include <asm/msr.h>
 
-static struct equiv_cpu_entry *equiv_cpu_table;
+static struct equiv_cpu_table {
+	struct equiv_cpu_entry *entry;
+} equiv_table;
 
 /*
  * This points to the current valid container of microcode patches which we will
@@ -63,11 +65,13 @@ static u8 amd_ucode_patch[PATCH_MAX_SIZE];
 static const char
 ucode_path[] __maybe_unused = "kernel/x86/microcode/AuthenticAMD.bin";
 
-static u16 find_equiv_id(struct equiv_cpu_entry *equiv_table, u32 sig)
+static u16 find_equiv_id(struct equiv_cpu_table *et, u32 sig)
 {
-	for (; equiv_table && equiv_table->installed_cpu; equiv_table++) {
-		if (sig == equiv_table->installed_cpu)
-			return equiv_table->equiv_cpu;
+	struct equiv_cpu_entry *entry = et->entry;
+
+	for (; entry && entry->installed_cpu; entry++) {
+		if (sig == entry->installed_cpu)
+			return entry->equiv_cpu;
 	}
 
 	return 0;
@@ -286,7 +290,7 @@ verify_patch(u8 family, const u8 *buf, size_t buf_size, u32 *patch_size, bool ea
  */
 static size_t parse_container(u8 *ucode, size_t size, struct cont_desc *desc)
 {
-	struct equiv_cpu_entry *eq;
+	struct equiv_cpu_table table;
 	size_t orig_size = size;
 	u32 *hdr = (u32 *)ucode;
 	u16 eq_id;
@@ -297,14 +301,14 @@ static size_t parse_container(u8 *ucode, size_t size, struct cont_desc *desc)
 
 	buf = ucode;
 
-	eq = (struct equiv_cpu_entry *)(buf + CONTAINER_HDR_SZ);
+	table.entry = (struct equiv_cpu_entry *)(buf + CONTAINER_HDR_SZ);
 
 	/*
 	 * Find the equivalence ID of our CPU in this table. Even if this table
 	 * doesn't contain a patch for the CPU, scan through the whole container
 	 * so that it can be skipped in case there are other containers appended.
 	 */
-	eq_id = find_equiv_id(eq, desc->cpuid_1_eax);
+	eq_id = find_equiv_id(&table, desc->cpuid_1_eax);
 
 	buf  += hdr[2] + CONTAINER_HDR_SZ;
 	size -= hdr[2] + CONTAINER_HDR_SZ;
@@ -573,7 +577,7 @@ void reload_ucode_amd(void)
 static u16 __find_equiv_id(unsigned int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	return find_equiv_id(equiv_cpu_table, uci->cpu_sig.sig);
+	return find_equiv_id(&equiv_table, uci->cpu_sig.sig);
 }
 
 /*
@@ -717,13 +721,13 @@ static size_t install_equiv_cpu_table(const u8 *buf, size_t buf_size)
 	hdr = (const u32 *)buf;
 	equiv_tbl_len = hdr[2];
 
-	equiv_cpu_table = vmalloc(equiv_tbl_len);
-	if (!equiv_cpu_table) {
+	equiv_table.entry = vmalloc(equiv_tbl_len);
+	if (!equiv_table.entry) {
 		pr_err("failed to allocate equivalent CPU table\n");
 		return 0;
 	}
 
-	memcpy(equiv_cpu_table, buf + CONTAINER_HDR_SZ, equiv_tbl_len);
+	memcpy(equiv_table.entry, buf + CONTAINER_HDR_SZ, equiv_tbl_len);
 
 	/* add header length */
 	return equiv_tbl_len + CONTAINER_HDR_SZ;
@@ -731,8 +735,8 @@ static size_t install_equiv_cpu_table(const u8 *buf, size_t buf_size)
 
 static void free_equiv_cpu_table(void)
 {
-	vfree(equiv_cpu_table);
-	equiv_cpu_table = NULL;
+	vfree(equiv_table.entry);
+	equiv_table.entry = NULL;
 }
 
 static void cleanup(void)
