@@ -120,6 +120,9 @@ struct resource_funcs {
 				struct dc *dc,
 				struct dc_state *new_ctx,
 				struct dc_stream_state *stream);
+	enum dc_status (*get_default_swizzle_mode)(
+			struct dc_plane_state *plane_state);
+
 };
 
 struct audio_support{

@@ -1113,32 +1113,6 @@ static bool is_surface_in_context(
 	return false;
 }
 
-static unsigned int pixel_format_to_bpp(enum surface_pixel_format format)
-{
-	switch (format) {
-	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
-	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
-		return 12;
-	case SURFACE_PIXEL_FORMAT_GRPH_ARGB1555:
-	case SURFACE_PIXEL_FORMAT_GRPH_RGB565:
-	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
-	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
-		return 16;
-	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
-	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
-	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
-	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
-		return 32;
-	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
-	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
-	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
-		return 64;
-	default:
-		ASSERT_CRITICAL(false);
-		return -1;
-	}
-}
-
 static enum surface_update_type get_plane_info_update_type(const struct dc_surface_update *u)
 {
 	union surface_update_flags *update_flags = &u->surface->update_flags;
@@ -1172,8 +1146,8 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 			|| u->plane_info->dcc.grph.meta_pitch != u->surface->dcc.grph.meta_pitch)
 		update_flags->bits.dcc_change = 1;
 
-	if (pixel_format_to_bpp(u->plane_info->format) !=
-			pixel_format_to_bpp(u->surface->format))
+	if (resource_pixel_format_to_bpp(u->plane_info->format) !=
+			resource_pixel_format_to_bpp(u->surface->format))
 		/* different bytes per element will require full bandwidth
 		 * and DML calculation
 		 */

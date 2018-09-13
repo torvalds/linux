@@ -2099,6 +2099,14 @@ enum dc_status dc_validate_global_state(
 			if (pipe_ctx->stream != stream)
 				continue;
 
+			if (dc->res_pool->funcs->get_default_swizzle_mode &&
+					pipe_ctx->plane_state &&
+					pipe_ctx->plane_state->tiling_info.gfx9.swizzle == DC_SW_UNKNOWN) {
+				result = dc->res_pool->funcs->get_default_swizzle_mode(pipe_ctx->plane_state);
+				if (result != DC_OK)
+					return result;
+			}
+
 			/* Switch to dp clock source only if there is
 			 * no non dp stream that shares the same timing
 			 * with the dp stream.
@@ -2887,4 +2895,33 @@ enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *pla
 		return dc->res_pool->funcs->validate_plane(plane_state, &dc->caps);
 
 	return res;
+}
+
+unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
+{
+	switch (format) {
+	case SURFACE_PIXEL_FORMAT_GRPH_PALETA_256_COLORS:
+		return 8;
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
+		return 12;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB1555:
+	case SURFACE_PIXEL_FORMAT_GRPH_RGB565:
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
+		return 16;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS:
+		return 32;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
+		return 64;
+	default:
+		ASSERT_CRITICAL(false);
+		return -1;
+	}
 }
