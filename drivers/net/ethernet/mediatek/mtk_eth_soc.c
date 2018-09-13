@@ -355,12 +355,8 @@ static int mtk_phy_connect(struct net_device *dev)
 	dev->phydev->speed = 0;
 	dev->phydev->duplex = 0;
 
-	if (of_phy_is_fixed_link(mac->of_node))
-		dev->phydev->supported |=
-		SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-
-	dev->phydev->supported &= PHY_GBIT_FEATURES | SUPPORTED_Pause |
-				   SUPPORTED_Asym_Pause;
+	phy_set_max_speed(dev->phydev, SPEED_1000);
+	phy_support_asym_pause(dev->phydev);
 	dev->phydev->advertising = dev->phydev->supported |
 				    ADVERTISED_Autoneg;
 	phy_start_aneg(dev->phydev);

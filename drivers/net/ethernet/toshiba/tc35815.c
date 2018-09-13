@@ -628,7 +628,7 @@ static int tc_mii_probe(struct net_device *dev)
 	phy_attached_info(phydev);
 
 	/* mask with MAC supported features */
-	phydev->supported &= PHY_BASIC_FEATURES;
+	phy_set_max_speed(phydev, SPEED_100);
 	dropmask = 0;
 	if (options.speed == 10)
 		dropmask |= SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full;

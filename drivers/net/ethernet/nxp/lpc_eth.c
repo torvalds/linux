@@ -797,8 +797,7 @@ static int lpc_mii_probe(struct net_device *ndev)
 		return PTR_ERR(phydev);
 	}
 
-	/* mask with MAC supported features */
-	phydev->supported &= PHY_BASIC_FEATURES;
+	phy_set_max_speed(phydev, SPEED_100);
 
 	phydev->advertising = phydev->supported;
 

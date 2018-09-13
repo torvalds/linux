@@ -1765,6 +1765,124 @@ int phy_set_max_speed(struct phy_device *phydev, u32 max_speed)
 }
 EXPORT_SYMBOL(phy_set_max_speed);
 
+/**
+ * phy_remove_link_mode - Remove a supported link mode
+ * @phydev: phy_device structure to remove link mode from
+ * @link_mode: Link mode to be removed
+ *
+ * Description: Some MACs don't support all link modes which the PHY
+ * does.  e.g. a 1G MAC often does not support 1000Half. Add a helper
+ * to remove a link mode.
+ */
+void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode)
+{
+	WARN_ON(link_mode > 31);
+
+	phydev->supported &= ~BIT(link_mode);
+	phydev->advertising = phydev->supported;
+}
+EXPORT_SYMBOL(phy_remove_link_mode);
+
+/**
+ * phy_support_sym_pause - Enable support of symmetrical pause
+ * @phydev: target phy_device struct
+ *
+ * Description: Called by the MAC to indicate is supports symmetrical
+ * Pause, but not asym pause.
+ */
+void phy_support_sym_pause(struct phy_device *phydev)
+{
+	phydev->supported |= SUPPORTED_Pause;
+	phydev->advertising = phydev->supported;
+}
+EXPORT_SYMBOL(phy_support_sym_pause);
+
+/**
+ * phy_support_asym_pause - Enable support of asym pause
+ * @phydev: target phy_device struct
+ *
+ * Description: Called by the MAC to indicate is supports Asym Pause.
+ */
+void phy_support_asym_pause(struct phy_device *phydev)
+{
+	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	phydev->advertising = phydev->supported;
+}
+EXPORT_SYMBOL(phy_support_asym_pause);
+
+/**
+ * phy_set_sym_pause - Configure symmetric Pause
+ * @phydev: target phy_device struct
+ * @rx: Receiver Pause is supported
+ * @tx: Transmit Pause is supported
+ * @autoneg: Auto neg should be used
+ *
+ * Description: Configure advertised Pause support depending on if
+ * receiver pause and pause auto neg is supported. Generally called
+ * from the set_pauseparam .ndo.
+ */
+void phy_set_sym_pause(struct phy_device *phydev, bool rx, bool tx,
+		       bool autoneg)
+{
+	phydev->supported &= ~SUPPORTED_Pause;
+
+	if (rx && tx && autoneg)
+		phydev->supported |= SUPPORTED_Pause;
+
+	phydev->advertising = phydev->supported;
+}
+EXPORT_SYMBOL(phy_set_sym_pause);
+
+/**
+ * phy_set_asym_pause - Configure Pause and Asym Pause
+ * @phydev: target phy_device struct
+ * @rx: Receiver Pause is supported
+ * @tx: Transmit Pause is supported
+ *
+ * Description: Configure advertised Pause support depending on if
+ * transmit and receiver pause is supported. If there has been a
+ * change in adverting, trigger a new autoneg. Generally called from
+ * the set_pauseparam .ndo.
+ */
+void phy_set_asym_pause(struct phy_device *phydev, bool rx, bool tx)
+{
+	u16 oldadv = phydev->advertising;
+	u16 newadv = oldadv &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+
+	if (rx)
+		newadv |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	if (tx)
+		newadv ^= SUPPORTED_Asym_Pause;
+
+	if (oldadv != newadv) {
+		phydev->advertising = newadv;
+
+		if (phydev->autoneg)
+			phy_start_aneg(phydev);
+	}
+}
+EXPORT_SYMBOL(phy_set_asym_pause);
+
+/**
+ * phy_validate_pause - Test if the PHY/MAC support the pause configuration
+ * @phydev: phy_device struct
+ * @pp: requested pause configuration
+ *
+ * Description: Test if the PHY/MAC combination supports the Pause
+ * configuration the user is requesting. Returns True if it is
+ * supported, false otherwise.
+ */
+bool phy_validate_pause(struct phy_device *phydev,
+			struct ethtool_pauseparam *pp)
+{
+	if (!(phydev->supported & SUPPORTED_Pause) ||
+	    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
+	     pp->rx_pause != pp->tx_pause))
+		return false;
+	return true;
+}
+EXPORT_SYMBOL(phy_validate_pause);
+
 static void of_set_phy_supported(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->mdio.dev.of_node;

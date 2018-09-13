@@ -2166,7 +2166,7 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 	}
 
 	/* MAC doesn't support 1000T Half */
-	phydev->supported &= ~SUPPORTED_1000baseT_Half;
+	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
 
 	/* support both flow controls */
 	dev->fc_request_control = (FLOW_CTRL_RX | FLOW_CTRL_TX);

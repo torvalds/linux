@@ -890,19 +890,10 @@ static int bcm_enet_open(struct net_device *dev)
 		}
 
 		/* mask with MAC supported features */
-		phydev->supported &= (SUPPORTED_10baseT_Half |
-				      SUPPORTED_10baseT_Full |
-				      SUPPORTED_100baseT_Half |
-				      SUPPORTED_100baseT_Full |
-				      SUPPORTED_Autoneg |
-				      SUPPORTED_Pause |
-				      SUPPORTED_MII);
-		phydev->advertising = phydev->supported;
-
-		if (priv->pause_auto && priv->pause_rx && priv->pause_tx)
-			phydev->advertising |= SUPPORTED_Pause;
-		else
-			phydev->advertising &= ~SUPPORTED_Pause;
+		phy_support_sym_pause(phydev);
+		phy_set_max_speed(phydev, SPEED_100);
+		phy_set_sym_pause(phydev, priv->pause_rx, priv->pause_rx,
+				  priv->pause_auto);
 
 		phy_attached_info(phydev);
 
