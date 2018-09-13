@@ -423,7 +423,7 @@ static void emac_hash_mc(struct emac_instance *dev)
 {
 	const int regs = EMAC_XAHT_REGS(dev);
 	u32 *gaht_base = emac_gaht_base(dev);
-	u32 gaht_temp[regs];
+	u32 gaht_temp[EMAC_XAHT_MAX_REGS];
 	struct netdev_hw_addr *ha;
 	int i;
 
@@ -2963,6 +2963,10 @@ static int emac_init_config(struct emac_instance *dev)
 		dev->xaht_slots_shift = EMAC4_XAHT_SLOTS_SHIFT;
 		dev->xaht_width_shift = EMAC4_XAHT_WIDTH_SHIFT;
 	}
+
+	/* This should never happen */
+	if (WARN_ON(EMAC_XAHT_REGS(dev) > EMAC_XAHT_MAX_REGS))
+		return -ENXIO;
 
 	DBG(dev, "features     : 0x%08x / 0x%08x\n", dev->features, EMAC_FTRS_POSSIBLE);
 	DBG(dev, "tx_fifo_size : %d (%d gige)\n", dev->tx_fifo_size, dev->tx_fifo_size_gige);

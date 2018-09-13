@@ -390,6 +390,9 @@ static inline int emac_has_feature(struct emac_instance *dev,
 #define	EMAC4SYNC_XAHT_SLOTS_SHIFT	8
 #define	EMAC4SYNC_XAHT_WIDTH_SHIFT	5
 
+/* The largest span between slots and widths above is 3 */
+#define	EMAC_XAHT_MAX_REGS		(1 << 3)
+
 #define	EMAC_XAHT_SLOTS(dev)         	(1 << (dev)->xaht_slots_shift)
 #define	EMAC_XAHT_WIDTH(dev)         	(1 << (dev)->xaht_width_shift)
 #define	EMAC_XAHT_REGS(dev)          	(1 << ((dev)->xaht_slots_shift - \
