@@ -2214,12 +2214,16 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 	if (dev_priv->assume_16bpp)
 		assumed_bpp = 2;
 
+	max_width  = min(max_width,  dev_priv->texture_max_width);
+	max_height = min(max_height, dev_priv->texture_max_height);
+
+	/*
+	 * For STDU extra limit for a mode on SVGA_REG_SCREENTARGET_MAX_WIDTH/
+	 * HEIGHT registers.
+	 */
 	if (dev_priv->active_display_unit == vmw_du_screen_target) {
 		max_width  = min(max_width,  dev_priv->stdu_max_width);
-		max_width  = min(max_width,  dev_priv->texture_max_width);
-
 		max_height = min(max_height, dev_priv->stdu_max_height);
-		max_height = min(max_height, dev_priv->texture_max_height);
 	}
 
 	/* Add preferred mode */
