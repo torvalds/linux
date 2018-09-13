@@ -55,6 +55,7 @@ static int ad7606_spi_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad7606_id[] = {
+	{"ad7605-4", ID_AD7605_4},
 	{"ad7606-8", ID_AD7606_8},
 	{"ad7606-6", ID_AD7606_6},
 	{"ad7606-4", ID_AD7606_4},

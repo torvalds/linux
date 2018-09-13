@@ -13,11 +13,13 @@
  * struct ad7606_chip_info - chip specific information
  * @channels:		channel specification
  * @num_channels:	number of channels
+ * @has_oversampling:   whether the device has oversampling support
  */
 
 struct ad7606_chip_info {
 	const struct iio_chan_spec	*channels;
 	unsigned int			num_channels;
+	bool				has_oversampling;
 };
 
 /**
@@ -88,6 +90,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 int ad7606_remove(struct device *dev, int irq);
 
 enum ad7606_supported_device_ids {
+	ID_AD7605_4,
 	ID_AD7606_8,
 	ID_AD7606_6,
 	ID_AD7606_4

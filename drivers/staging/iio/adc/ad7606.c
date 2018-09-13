@@ -276,7 +276,7 @@ static const struct attribute_group ad7606_attribute_group_range = {
 	.attrs = ad7606_attributes_range,
 };
 
-#define AD7606_CHANNEL(num)					\
+#define AD760X_CHANNEL(num, mask)				\
 	{							\
 		.type = IIO_VOLTAGE,				\
 		.indexed = 1,					\
@@ -284,8 +284,7 @@ static const struct attribute_group ad7606_attribute_group_range = {
 		.address = num,					\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),\
-		.info_mask_shared_by_all =			\
-			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
+		.info_mask_shared_by_all = mask,		\
 		.scan_index = num,				\
 		.scan_type = {					\
 			.sign = 's',				\
@@ -294,6 +293,20 @@ static const struct attribute_group ad7606_attribute_group_range = {
 			.endianness = IIO_CPU,			\
 		},						\
 	}
+
+#define AD7605_CHANNEL(num)	\
+	AD760X_CHANNEL(num, 0)
+
+#define AD7606_CHANNEL(num)	\
+	AD760X_CHANNEL(num, BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO))
+
+static const struct iio_chan_spec ad7605_channels[] = {
+	IIO_CHAN_SOFT_TIMESTAMP(4),
+	AD7605_CHANNEL(0),
+	AD7605_CHANNEL(1),
+	AD7605_CHANNEL(2),
+	AD7605_CHANNEL(3),
+};
 
 static const struct iio_chan_spec ad7606_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(8),
@@ -311,17 +324,24 @@ static const struct ad7606_chip_info ad7606_chip_info_tbl[] = {
 	/*
 	 * More devices added in future
 	 */
+	[ID_AD7605_4] = {
+		.channels = ad7605_channels,
+		.num_channels = 5,
+	},
 	[ID_AD7606_8] = {
 		.channels = ad7606_channels,
 		.num_channels = 9,
+		.has_oversampling = true,
 	},
 	[ID_AD7606_6] = {
 		.channels = ad7606_channels,
 		.num_channels = 7,
+		.has_oversampling = true,
 	},
 	[ID_AD7606_4] = {
 		.channels = ad7606_channels,
 		.num_channels = 5,
+		.has_oversampling = true,
 	},
 };
 
@@ -351,6 +371,9 @@ static int ad7606_request_gpios(struct ad7606_state *st)
 						    GPIOD_IN);
 	if (IS_ERR(st->gpio_frstdata))
 		return PTR_ERR(st->gpio_frstdata);
+
+	if (!st->chip_info->has_oversampling)
+		return 0;
 
 	st->gpio_os = devm_gpiod_get_array_optional(dev, "oversampling-ratio",
 			GPIOD_OUT_LOW);
@@ -430,11 +453,11 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		return ret;
 	}
 
+	st->chip_info = &ad7606_chip_info_tbl[id];
+
 	ret = ad7606_request_gpios(st);
 	if (ret)
 		goto error_disable_reg;
-
-	st->chip_info = &ad7606_chip_info_tbl[id];
 
 	indio_dev->dev.parent = dev;
 	if (st->gpio_os) {

@@ -79,6 +79,9 @@ static int ad7606_par_remove(struct platform_device *pdev)
 
 static const struct platform_device_id ad7606_driver_ids[] = {
 	{
+		.name		= "ad7605-4",
+		.driver_data	= ID_AD7605_4,
+	}, {
 		.name		= "ad7606-8",
 		.driver_data	= ID_AD7606_8,
 	}, {
