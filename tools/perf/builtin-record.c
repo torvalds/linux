@@ -106,9 +106,12 @@ static bool switch_output_time(struct record *rec)
 	       trigger_is_ready(&switch_output_trigger);
 }
 
-static int record__write(struct record *rec, void *bf, size_t size)
+static int record__write(struct record *rec, struct perf_mmap *map __maybe_unused,
+			 void *bf, size_t size)
 {
-	if (perf_data__write(rec->session->data, bf, size) < 0) {
+	struct perf_data_file *file = &rec->session->data->file;
+
+	if (perf_data_file__write(file, bf, size) < 0) {
 		pr_err("failed to write perf data, error: %m\n");
 		return -1;
 	}
@@ -127,15 +130,15 @@ static int process_synthesized_event(struct perf_tool *tool,
 				     struct machine *machine __maybe_unused)
 {
 	struct record *rec = container_of(tool, struct record, tool);
-	return record__write(rec, event, event->header.size);
+	return record__write(rec, NULL, event, event->header.size);
 }
 
-static int record__pushfn(void *to, void *bf, size_t size)
+static int record__pushfn(struct perf_mmap *map, void *to, void *bf, size_t size)
 {
 	struct record *rec = to;
 
 	rec->samples++;
-	return record__write(rec, bf, size);
+	return record__write(rec, map, bf, size);
 }
 
 static volatile int done;
@@ -170,6 +173,7 @@ static void record__sig_exit(void)
 #ifdef HAVE_AUXTRACE_SUPPORT
 
 static int record__process_auxtrace(struct perf_tool *tool,
+				    struct perf_mmap *map,
 				    union perf_event *event, void *data1,
 				    size_t len1, void *data2, size_t len2)
 {
@@ -197,11 +201,11 @@ static int record__process_auxtrace(struct perf_tool *tool,
 	if (padding)
 		padding = 8 - padding;
 
-	record__write(rec, event, event->header.size);
-	record__write(rec, data1, len1);
+	record__write(rec, map, event, event->header.size);
+	record__write(rec, map, data1, len1);
 	if (len2)
-		record__write(rec, data2, len2);
-	record__write(rec, &pad, padding);
+		record__write(rec, map, data2, len2);
+	record__write(rec, map, &pad, padding);
 
 	return 0;
 }
@@ -549,7 +553,7 @@ static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evli
 	 * at least one event.
 	 */
 	if (bytes_written != rec->bytes_written)
-		rc = record__write(rec, &finished_round_event, sizeof(finished_round_event));
+		rc = record__write(rec, NULL, &finished_round_event, sizeof(finished_round_event));
 
 	if (overwrite)
 		perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_EMPTY);

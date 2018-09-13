@@ -1285,7 +1285,7 @@ static int __auxtrace_mmap__read(struct perf_mmap *map,
 	ev.auxtrace.tid = mm->tid;
 	ev.auxtrace.cpu = mm->cpu;
 
-	if (fn(tool, &ev, data1, len1, data2, len2))
+	if (fn(tool, map, &ev, data1, len1, data2, len2))
 		return -1;
 
 	mm->prev = head;
