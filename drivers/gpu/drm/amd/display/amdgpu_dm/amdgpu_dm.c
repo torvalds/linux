@@ -1215,8 +1215,7 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 	if (adev->asic_type == CHIP_VEGA10 ||
 	    adev->asic_type == CHIP_VEGA12 ||
 	    adev->asic_type == CHIP_VEGA20 ||
-	    adev->asic_type == CHIP_RAVEN  ||
-	    adev->asic_type == CHIP_PICASSO)
+	    adev->asic_type == CHIP_RAVEN)
 		client_id = SOC15_IH_CLIENTID_DCE;
 
 	int_params.requested_polarity = INTERRUPT_POLARITY_DEFAULT;
@@ -1635,7 +1634,6 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		break;
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case CHIP_RAVEN:
-	case CHIP_PICASSO:
 		if (dcn10_register_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
 			goto fail;
@@ -1862,7 +1860,6 @@ static int dm_early_init(void *handle)
 		break;
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case CHIP_RAVEN:
-	case CHIP_PICASSO:
 		adev->mode_info.num_crtc = 4;
 		adev->mode_info.num_hpd = 4;
 		adev->mode_info.num_dig = 4;
@@ -2111,8 +2108,7 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 	if (adev->asic_type == CHIP_VEGA10 ||
 	    adev->asic_type == CHIP_VEGA12 ||
 	    adev->asic_type == CHIP_VEGA20 ||
-	    adev->asic_type == CHIP_RAVEN  ||
-	    adev->asic_type == CHIP_PICASSO) {
+	    adev->asic_type == CHIP_RAVEN) {
 		/* Fill GFX9 params */
 		plane_state->tiling_info.gfx9.num_pipes =
 			adev->gfx.config.gb_addr_config_fields.num_pipes;

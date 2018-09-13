@@ -91,7 +91,6 @@ static const char *amdgpu_asic_name[] = {
 	"VEGA12",
 	"VEGA20",
 	"RAVEN",
-	"PICASSO",
 	"LAST",
 };
 
@@ -1337,11 +1336,10 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 	case CHIP_RAVEN:
 		if (adev->rev_id >= 8)
 			chip_name = "raven2";
+		else if (adev->pdev->device == 0x15d8)
+			chip_name = "picasso";
 		else
 			chip_name = "raven";
-		break;
-	case CHIP_PICASSO:
-		chip_name = "picasso";
 		break;
 	}
 
@@ -1468,8 +1466,7 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
-	case CHIP_PICASSO:
-		if ((adev->asic_type == CHIP_RAVEN) || (adev->asic_type == CHIP_PICASSO))
+		if (adev->asic_type == CHIP_RAVEN)
 			adev->family = AMDGPU_FAMILY_RV;
 		else
 			adev->family = AMDGPU_FAMILY_AI;
@@ -2183,7 +2180,6 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_VEGA20:
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case CHIP_RAVEN:
-	case CHIP_PICASSO:
 #endif
 		return amdgpu_dc != 0;
 #endif

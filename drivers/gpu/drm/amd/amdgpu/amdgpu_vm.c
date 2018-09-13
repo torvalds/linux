@@ -2981,7 +2981,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
 						AMDGPU_VM_USE_CPU_FOR_COMPUTE);
 
-		if (adev->asic_type == CHIP_RAVEN || adev->asic_type == CHIP_PICASSO)
+		if (adev->asic_type == CHIP_RAVEN)
 			vm->pte_support_ats = true;
 	} else {
 		vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
@@ -3073,7 +3073,7 @@ error_free_sched_entity:
  */
 int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm, unsigned int pasid)
 {
-	bool pte_support_ats = (adev->asic_type == CHIP_RAVEN || adev->asic_type == CHIP_PICASSO);
+	bool pte_support_ats = (adev->asic_type == CHIP_RAVEN);
 	int r;
 
 	r = amdgpu_bo_reserve(vm->root.base.bo, true);

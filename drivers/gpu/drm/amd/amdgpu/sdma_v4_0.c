@@ -229,7 +229,6 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 						ARRAY_SIZE(golden_settings_sdma1_4_2));
 		break;
 	case CHIP_RAVEN:
-	case CHIP_PICASSO:
 		soc15_program_register_sequence(adev,
 						golden_settings_sdma_4_1,
 						ARRAY_SIZE(golden_settings_sdma_4_1));
@@ -283,11 +282,10 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_RAVEN:
 		if (adev->rev_id >= 8)
 			chip_name = "raven2";
+		else if (adev->pdev->device == 0x15d8)
+			chip_name = "picasso";
 		else
 			chip_name = "raven";
-		break;
-	case CHIP_PICASSO:
-		chip_name = "picasso";
 		break;
 	default:
 		BUG();
@@ -869,7 +867,6 @@ static void sdma_v4_0_init_pg(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
-	case CHIP_PICASSO:
 		sdma_v4_1_init_power_gating(adev);
 		sdma_v4_1_update_power_gating(adev, true);
 		break;
@@ -1277,7 +1274,7 @@ static int sdma_v4_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->asic_type == CHIP_RAVEN || adev->asic_type == CHIP_PICASSO)
+	if (adev->asic_type == CHIP_RAVEN)
 		adev->sdma.num_instances = 1;
 	else
 		adev->sdma.num_instances = 2;
@@ -1620,7 +1617,6 @@ static int sdma_v4_0_set_clockgating_state(void *handle,
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
-	case CHIP_PICASSO:
 		sdma_v4_0_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		sdma_v4_0_update_medium_grain_light_sleep(adev,
@@ -1639,7 +1635,6 @@ static int sdma_v4_0_set_powergating_state(void *handle,
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
-	case CHIP_PICASSO:
 		sdma_v4_1_update_power_gating(adev,
 				state == AMD_PG_STATE_GATE ? true : false);
 		break;
