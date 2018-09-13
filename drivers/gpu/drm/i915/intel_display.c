@@ -6154,8 +6154,8 @@ static void i9xx_pfit_disable(struct intel_crtc *crtc)
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
 
-	DRM_DEBUG_DRIVER("disabling pfit, current: 0x%08x\n",
-			 I915_READ(PFIT_CONTROL));
+	DRM_DEBUG_KMS("disabling pfit, current: 0x%08x\n",
+		      I915_READ(PFIT_CONTROL));
 	I915_WRITE(PFIT_CONTROL, 0);
 }
 
@@ -8677,8 +8677,8 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 	ironlake_compute_dpll(crtc, crtc_state, NULL);
 
 	if (!intel_get_shared_dpll(crtc, crtc_state, NULL)) {
-		DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
-				 pipe_name(crtc->pipe));
+		DRM_DEBUG_KMS("failed to find PLL for pipe %c\n",
+			      pipe_name(crtc->pipe));
 		return -EINVAL;
 	}
 
@@ -9245,8 +9245,8 @@ static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
 			intel_get_crtc_new_encoder(state, crtc_state);
 
 		if (!intel_get_shared_dpll(crtc, crtc_state, encoder)) {
-			DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
-					 pipe_name(crtc->pipe));
+			DRM_DEBUG_KMS("failed to find PLL for pipe %c\n",
+				      pipe_name(crtc->pipe));
 			return -EINVAL;
 		}
 	}
