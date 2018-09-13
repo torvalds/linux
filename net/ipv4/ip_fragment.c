@@ -83,11 +83,6 @@ static u8 ip4_frag_ecn(u8 tos)
 
 static struct inet_frags ip4_frags;
 
-int ip_frag_mem(struct net *net)
-{
-	return sum_frag_mem_limit(&net->ipv4.frags);
-}
-
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 			 struct net_device *dev);
 
