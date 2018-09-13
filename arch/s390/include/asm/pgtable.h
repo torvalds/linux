@@ -601,6 +601,14 @@ static inline int pgd_bad(pgd_t pgd)
 	return (pgd_val(pgd) & mask) != 0;
 }
 
+static inline unsigned long pgd_pfn(pgd_t pgd)
+{
+	unsigned long origin_mask;
+
+	origin_mask = _REGION_ENTRY_ORIGIN;
+	return (pgd_val(pgd) & origin_mask) >> PAGE_SHIFT;
+}
+
 static inline int p4d_folded(p4d_t p4d)
 {
 	return (p4d_val(p4d) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R2;
@@ -1212,7 +1220,8 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 
 #define pmd_page(pmd) pfn_to_page(pmd_pfn(pmd))
 #define pud_page(pud) pfn_to_page(pud_pfn(pud))
-#define p4d_page(pud) pfn_to_page(p4d_pfn(p4d))
+#define p4d_page(p4d) pfn_to_page(p4d_pfn(p4d))
+#define pgd_page(pgd) pfn_to_page(pgd_pfn(pgd))
 
 /* Find an entry in the lowest level page table.. */
 #define pte_offset(pmd, addr) ((pte_t *) pmd_deref(*(pmd)) + pte_index(addr))
