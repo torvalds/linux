@@ -59,12 +59,6 @@
 #include <net/net_namespace.h>
 #include <linux/u64_stats_sync.h>
 
-struct pcpu_lstats {
-	u64			packets;
-	u64			bytes;
-	struct u64_stats_sync	syncp;
-};
-
 /* The higher levels take care of making this non-reentrant (it's
  * called with bh's disabled).
  */
