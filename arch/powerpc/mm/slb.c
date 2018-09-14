@@ -128,12 +128,20 @@ void slb_flush_all_realmode(void)
 	asm volatile("slbmte %0,%0; slbia" : : "r" (0));
 }
 
-static void __slb_flush_and_rebolt(void)
+void slb_flush_and_rebolt(void)
 {
 	/* If you change this make sure you change SLB_NUM_BOLTED
 	 * and PR KVM appropriately too. */
 	unsigned long linear_llp, lflags;
 	unsigned long ksp_esid_data, ksp_vsid_data;
+
+	WARN_ON(!irqs_disabled());
+
+	/*
+	 * We can't take a PMU exception in the following code, so hard
+	 * disable interrupts.
+	 */
+	hard_irq_disable();
 
 	linear_llp = mmu_psize_defs[mmu_linear_psize].sllp;
 	lflags = SLB_VSID_KERNEL | linear_llp;
@@ -160,20 +168,7 @@ static void __slb_flush_and_rebolt(void)
 		     :: "r"(ksp_vsid_data),
 		        "r"(ksp_esid_data)
 		     : "memory");
-}
 
-void slb_flush_and_rebolt(void)
-{
-
-	WARN_ON(!irqs_disabled());
-
-	/*
-	 * We can't take a PMU exception in the following code, so hard
-	 * disable interrupts.
-	 */
-	hard_irq_disable();
-
-	__slb_flush_and_rebolt();
 	get_paca()->slb_cache_ptr = 0;
 }
 
@@ -318,7 +313,20 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 
 		asm volatile("isync" : : : "memory");
 	} else {
-		__slb_flush_and_rebolt();
+		struct slb_shadow *p = get_slb_shadow();
+		unsigned long ksp_esid_data =
+			be64_to_cpu(p->save_area[KSTACK_INDEX].esid);
+		unsigned long ksp_vsid_data =
+			be64_to_cpu(p->save_area[KSTACK_INDEX].vsid);
+
+		asm volatile("isync\n"
+			     PPC_SLBIA(1) "\n"
+			     "slbmte	%0,%1\n"
+			     "isync"
+			     :: "r"(ksp_vsid_data),
+				"r"(ksp_esid_data));
+
+		asm volatile("isync" : : : "memory");
 	}
 
 	get_paca()->slb_cache_ptr = 0;
