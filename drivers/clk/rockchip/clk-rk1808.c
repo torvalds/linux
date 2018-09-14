@@ -723,6 +723,8 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 			RK1808_CLKGATE_CON(15), 1, GFLAGS),
 	GATE(0, "msclk_sub", "msclk_bus_pre", CLK_IGNORE_UNUSED,
 			RK1808_CLKGATE_CON(15), 2, GFLAGS),
+	GATE(ACLK_DMAC, "aclk_dmac", "msclk_bus_pre", CLK_IGNORE_UNUSED,
+			RK1808_CLKGATE_CON(14), 15, GFLAGS),
 	GATE(HCLK_ROM, "hclk_rom", "msclk_bus_pre", CLK_IGNORE_UNUSED,
 			RK1808_CLKGATE_CON(15), 4, GFLAGS),
 	GATE(ACLK_CRYPTO, "aclk_crypto", "msclk_bus_pre", 0,

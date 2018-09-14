@@ -137,6 +137,7 @@
 #define HSCLK_BUS_PRE		171
 #define ACLK_CRYPTO		172
 #define ACLK_DCF		173
+#define ACLK_DMAC		174
 
 /* hclk gates */
 #define HCLK_NPU		199
