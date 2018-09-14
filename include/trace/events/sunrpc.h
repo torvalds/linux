@@ -470,14 +470,14 @@ TRACE_EVENT(xprt_ping,
 			__get_str(addr), __get_str(port), __entry->status)
 );
 
-TRACE_EVENT(xs_tcp_data_ready,
-	TP_PROTO(struct rpc_xprt *xprt, int err, unsigned int total),
+TRACE_EVENT(xs_stream_read_data,
+	TP_PROTO(struct rpc_xprt *xprt, ssize_t err, size_t total),
 
 	TP_ARGS(xprt, err, total),
 
 	TP_STRUCT__entry(
-		__field(int, err)
-		__field(unsigned int, total)
+		__field(ssize_t, err)
+		__field(size_t, total)
 		__string(addr, xprt ? xprt->address_strings[RPC_DISPLAY_ADDR] :
 				"(null)")
 		__string(port, xprt ? xprt->address_strings[RPC_DISPLAY_PORT] :
@@ -493,11 +493,11 @@ TRACE_EVENT(xs_tcp_data_ready,
 			xprt->address_strings[RPC_DISPLAY_PORT] : "(null)");
 	),
 
-	TP_printk("peer=[%s]:%s err=%d total=%u", __get_str(addr),
+	TP_printk("peer=[%s]:%s err=%zd total=%zu", __get_str(addr),
 			__get_str(port), __entry->err, __entry->total)
 );
 
-TRACE_EVENT(xs_tcp_data_recv,
+TRACE_EVENT(xs_stream_read_request,
 	TP_PROTO(struct sock_xprt *xs),
 
 	TP_ARGS(xs),
@@ -508,7 +508,7 @@ TRACE_EVENT(xs_tcp_data_recv,
 		__field(u32, xid)
 		__field(unsigned long, copied)
 		__field(unsigned int, reclen)
-		__field(unsigned long, offset)
+		__field(unsigned int, offset)
 	),
 
 	TP_fast_assign(
@@ -520,7 +520,7 @@ TRACE_EVENT(xs_tcp_data_recv,
 		__entry->offset = xs->recv.offset;
 	),
 
-	TP_printk("peer=[%s]:%s xid=0x%08x copied=%lu reclen=%u offset=%lu",
+	TP_printk("peer=[%s]:%s xid=0x%08x copied=%lu reclen=%u offset=%u",
 			__get_str(addr), __get_str(port), __entry->xid,
 			__entry->copied, __entry->reclen, __entry->offset)
 );

@@ -626,7 +626,7 @@ xs_read_stream(struct sock_xprt *transport, int flags)
 			return -EAGAIN;
 	}
 	if (xs_read_stream_request_done(transport)) {
-		trace_xs_tcp_data_recv(transport);
+		trace_xs_stream_read_request(transport);
 		transport->recv.copied = 0;
 	}
 	transport->recv.offset = 0;
@@ -640,6 +640,34 @@ out_err:
 		return -ESHUTDOWN;
 	}
 	return ret;
+}
+
+static void xs_stream_data_receive(struct sock_xprt *transport)
+{
+	size_t read = 0;
+	ssize_t ret = 0;
+
+	mutex_lock(&transport->recv_mutex);
+	if (transport->sock == NULL)
+		goto out;
+	clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state);
+	for (;;) {
+		ret = xs_read_stream(transport, MSG_DONTWAIT);
+		if (ret <= 0)
+			break;
+		read += ret;
+		cond_resched();
+	}
+out:
+	mutex_unlock(&transport->recv_mutex);
+	trace_xs_stream_read_data(&transport->xprt, ret, read);
+}
+
+static void xs_stream_data_receive_workfn(struct work_struct *work)
+{
+	struct sock_xprt *transport =
+		container_of(work, struct sock_xprt, recv_worker);
+	xs_stream_data_receive(transport);
 }
 
 #define XS_SENDMSG_FLAGS	(MSG_DONTWAIT | MSG_NOSIGNAL)
@@ -1497,45 +1525,6 @@ static size_t xs_tcp_bc_maxpayload(struct rpc_xprt *xprt)
 	return PAGE_SIZE;
 }
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
-
-static void xs_tcp_data_receive(struct sock_xprt *transport)
-{
-	struct rpc_xprt *xprt = &transport->xprt;
-	struct sock *sk;
-	size_t read = 0;
-	ssize_t ret = 0;
-
-restart:
-	mutex_lock(&transport->recv_mutex);
-	sk = transport->inet;
-	if (sk == NULL)
-		goto out;
-
-	for (;;) {
-		clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state);
-		ret = xs_read_stream(transport, MSG_DONTWAIT | MSG_NOSIGNAL);
-		if (ret < 0)
-			break;
-		read += ret;
-		if (need_resched()) {
-			mutex_unlock(&transport->recv_mutex);
-			cond_resched();
-			goto restart;
-		}
-	}
-	if (test_bit(XPRT_SOCK_DATA_READY, &transport->sock_state))
-		queue_work(xprtiod_workqueue, &transport->recv_worker);
-out:
-	mutex_unlock(&transport->recv_mutex);
-	trace_xs_tcp_data_ready(xprt, ret, read);
-}
-
-static void xs_tcp_data_receive_workfn(struct work_struct *work)
-{
-	struct sock_xprt *transport =
-		container_of(work, struct sock_xprt, recv_worker);
-	xs_tcp_data_receive(transport);
-}
 
 /**
  * xs_tcp_state_change - callback to handle TCP socket state changes
@@ -3066,7 +3055,7 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 	xprt->connect_timeout = xprt->timeout->to_initval *
 		(xprt->timeout->to_retries + 1);
 
-	INIT_WORK(&transport->recv_worker, xs_tcp_data_receive_workfn);
+	INIT_WORK(&transport->recv_worker, xs_stream_data_receive_workfn);
 	INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_setup_socket);
 
 	switch (addr->sa_family) {
