@@ -69,7 +69,8 @@ static size_t xdr_skb_read_and_csum_bits(struct xdr_skb_reader *desc, void *to, 
  * @copy_actor: virtual method for copying data
  *
  */
-ssize_t xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base, struct xdr_skb_reader *desc, xdr_skb_read_actor copy_actor)
+static ssize_t
+xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base, struct xdr_skb_reader *desc, xdr_skb_read_actor copy_actor)
 {
 	struct page	**ppage = xdr->pages;
 	unsigned int	len, pglen = xdr->page_len;
@@ -140,7 +141,6 @@ copy_tail:
 out:
 	return copied;
 }
-EXPORT_SYMBOL_GPL(xdr_partial_copy_from_skb);
 
 /**
  * csum_partial_copy_to_xdr - checksum and copy data
