@@ -2077,7 +2077,7 @@ out:
 static inline enum intel_display_power_domain
 intel_ddi_main_link_aux_domain(struct intel_dp *intel_dp)
 {
-	/* CNL HW requires corresponding AUX IOs to be powered up for PSR with
+	/* CNL+ HW requires corresponding AUX IOs to be powered up for PSR with
 	 * DC states enabled at the same time, while for driver initiated AUX
 	 * transfers we need the same AUX IOs to be powered but with DC states
 	 * disabled. Accordingly use the AUX power domain here which leaves DC
