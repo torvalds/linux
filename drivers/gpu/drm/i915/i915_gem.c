@@ -3438,6 +3438,9 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	i915_retire_requests(i915);
 	GEM_BUG_ON(i915->gt.active_requests);
 
+	if (!intel_gpu_reset(i915, ALL_ENGINES))
+		intel_engines_sanitize(i915);
+
 	/*
 	 * Undo nop_submit_request. We prevent all new i915 requests from
 	 * being queued (by disallowing execbuf whilst wedged) so having
