@@ -31,31 +31,27 @@ enum {
 	BD718XX_REGULATOR_AMOUNT,
 };
 
-/* Common voltage configurations
- *
- * Note, we support only one range of voltages for each buck/LDO until we
- * get pickable ranges support. (See range selection bits for BUCK5 and
- * LDO1. On BD71847 also the second no DVS buck and LDO5)
- */
-
+/* Common voltage configurations */
 #define BD718XX_DVS_BUCK_VOLTAGE_NUM		0x3D
-#define BD718XX_1ST_NODVS_BUCK_VOLTAGE_NUM	0x08
 #define BD718XX_4TH_NODVS_BUCK_VOLTAGE_NUM	0x3D
 
-#define BD718XX_LDO1_VOLTAGE_NUM	0x04
+#define BD718XX_LDO1_VOLTAGE_NUM	0x08
 #define BD718XX_LDO2_VOLTAGE_NUM	0x02
 #define BD718XX_LDO3_VOLTAGE_NUM	0x10
 #define BD718XX_LDO4_VOLTAGE_NUM	0x0A
-#define BD718XX_LDO5_VOLTAGE_NUM	0x10
 #define BD718XX_LDO6_VOLTAGE_NUM	0x0A
 
 /* BD71837 specific voltage configurations */
+#define BD71837_BUCK5_VOLTAGE_NUM	0x10
 #define BD71837_BUCK6_VOLTAGE_NUM	0x04
 #define BD71837_BUCK7_VOLTAGE_NUM	0x08
+#define BD71837_LDO5_VOLTAGE_NUM	0x10
 #define BD71837_LDO7_VOLTAGE_NUM	0x10
 
 /* BD71847 specific voltage configurations */
-#define BD71847_BUCK4_VOLTAGE_NUM	0x04
+#define BD71847_BUCK3_VOLTAGE_NUM	0x18
+#define BD71847_BUCK4_VOLTAGE_NUM	0x08
+#define BD71847_LDO5_VOLTAGE_NUM	0x20
 
 /* Registers specific to BD71837 */
 enum {
@@ -139,12 +135,20 @@ enum {
 #define DVS_BUCK_IDLE_MASK	0x3F
 
 #define BD718XX_1ST_NODVS_BUCK_MASK	0x07
-#define BD71847_BUCK4_MASK		0x03
-#define BD71837_BUCK6_MASK		0x03
 #define BD718XX_3RD_NODVS_BUCK_MASK	0x07
 #define BD718XX_4TH_NODVS_BUCK_MASK	0x3F
 
+#define BD71847_BUCK3_MASK		0x07
+#define BD71847_BUCK3_RANGE_MASK	0xC0
+#define BD71847_BUCK4_MASK		0x03
+#define BD71847_BUCK4_RANGE_MASK	0x40
+
+#define BD71837_BUCK5_MASK		0x07
+#define BD71837_BUCK5_RANGE_MASK	0x80
+#define BD71837_BUCK6_MASK		0x03
+
 #define BD718XX_LDO1_MASK		0x03
+#define BD718XX_LDO1_RANGE_MASK		0x20
 #define BD718XX_LDO2_MASK		0x20
 #define BD718XX_LDO3_MASK		0x0F
 #define BD718XX_LDO4_MASK		0x0F
@@ -152,9 +156,9 @@ enum {
 
 #define BD71837_LDO5_MASK		0x0F
 #define BD71847_LDO5_MASK		0x0F
+#define BD71847_LDO5_RANGE_MASK		0x20
 
 #define BD71837_LDO7_MASK		0x0F
-
 
 /* BD718XX Voltage monitoring masks */
 #define BD718XX_BUCK1_VRMON80           0x1
