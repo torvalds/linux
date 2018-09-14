@@ -342,6 +342,14 @@ static unsigned int uds_max_width(struct vsp1_entity *entity,
 					    UDS_PAD_SOURCE);
 	hscale = output->width / input->width;
 
+	/*
+	 * The maximum width of the UDS is 304 pixels. These are input pixels
+	 * in the event of up-scaling, and output pixels in the event of
+	 * downscaling.
+	 *
+	 * To support overlapping partition windows we clamp at units of 256 and
+	 * the remaining pixels are reserved.
+	 */
 	if (hscale <= 2)
 		return 256;
 	else if (hscale <= 4)
