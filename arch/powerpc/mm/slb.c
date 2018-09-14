@@ -122,6 +122,9 @@ void slb_restore_bolted_realmode(void)
 {
 	__slb_restore_bolted_realmode();
 	get_paca()->slb_cache_ptr = 0;
+
+	get_paca()->slb_kern_bitmap = (1U << SLB_NUM_BOLTED) - 1;
+	get_paca()->slb_used_bitmap = get_paca()->slb_kern_bitmap;
 }
 
 /*
@@ -129,9 +132,6 @@ void slb_restore_bolted_realmode(void)
  */
 void slb_flush_all_realmode(void)
 {
-	/*
-	 * This flushes all SLB entries including 0, so it must be realmode.
-	 */
 	asm volatile("slbmte %0,%0; slbia" : : "r" (0));
 }
 
@@ -177,6 +177,9 @@ void slb_flush_and_rebolt(void)
 		     : "memory");
 
 	get_paca()->slb_cache_ptr = 0;
+
+	get_paca()->slb_kern_bitmap = (1U << SLB_NUM_BOLTED) - 1;
+	get_paca()->slb_used_bitmap = get_paca()->slb_kern_bitmap;
 }
 
 void slb_save_contents(struct slb_entry *slb_ptr)
@@ -209,7 +212,7 @@ void slb_dump_contents(struct slb_entry *slb_ptr)
 		return;
 
 	pr_err("SLB contents of cpu 0x%x\n", smp_processor_id());
-	pr_err("Last SLB entry inserted at slot %lld\n", get_paca()->stab_rr);
+	pr_err("Last SLB entry inserted at slot %u\n", get_paca()->stab_rr);
 
 	for (i = 0; i < mmu_slb_size; i++) {
 		e = slb_ptr->esid;
@@ -342,10 +345,13 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 				     "isync"
 				     :: "r"(ksp_vsid_data),
 					"r"(ksp_esid_data));
+
+			get_paca()->slb_kern_bitmap = (1U << SLB_NUM_BOLTED) - 1;
 		}
 
 		get_paca()->slb_cache_ptr = 0;
 	}
+	get_paca()->slb_used_bitmap = get_paca()->slb_kern_bitmap;
 
 	/*
 	 * preload some userspace segments into the SLB.
@@ -418,6 +424,8 @@ void slb_initialize(void)
 	}
 
 	get_paca()->stab_rr = SLB_NUM_BOLTED - 1;
+	get_paca()->slb_kern_bitmap = (1U << SLB_NUM_BOLTED) - 1;
+	get_paca()->slb_used_bitmap = get_paca()->slb_kern_bitmap;
 
 	lflags = SLB_VSID_KERNEL | linear_llp;
 
@@ -469,17 +477,47 @@ static void slb_cache_update(unsigned long esid_data)
 	}
 }
 
-static enum slb_index alloc_slb_index(void)
+static enum slb_index alloc_slb_index(bool kernel)
 {
 	enum slb_index index;
 
-	/* round-robin replacement of slb starting at SLB_NUM_BOLTED. */
-	index = get_paca()->stab_rr;
-	if (index < (mmu_slb_size - 1))
-		index++;
-	else
-		index = SLB_NUM_BOLTED;
-	get_paca()->stab_rr = index;
+	/*
+	 * The allocation bitmaps can become out of synch with the SLB
+	 * when the _switch code does slbie when bolting a new stack
+	 * segment and it must not be anywhere else in the SLB. This leaves
+	 * a kernel allocated entry that is unused in the SLB. With very
+	 * large systems or small segment sizes, the bitmaps could slowly
+	 * fill with these entries. They will eventually be cleared out
+	 * by the round robin allocator in that case, so it's probably not
+	 * worth accounting for.
+	 */
+
+	/*
+	 * SLBs beyond 32 entries are allocated with stab_rr only
+	 * POWER7/8/9 have 32 SLB entries, this could be expanded if a
+	 * future CPU has more.
+	 */
+	if (get_paca()->slb_used_bitmap != U32_MAX) {
+		index = ffz(get_paca()->slb_used_bitmap);
+		get_paca()->slb_used_bitmap |= 1U << index;
+		if (kernel)
+			get_paca()->slb_kern_bitmap |= 1U << index;
+	} else {
+		/* round-robin replacement of slb starting at SLB_NUM_BOLTED. */
+		index = get_paca()->stab_rr;
+		if (index < (mmu_slb_size - 1))
+			index++;
+		else
+			index = SLB_NUM_BOLTED;
+		get_paca()->stab_rr = index;
+		if (index < 32) {
+			if (kernel)
+				get_paca()->slb_kern_bitmap |= 1U << index;
+			else
+				get_paca()->slb_kern_bitmap &= ~(1U << index);
+		}
+	}
+	BUG_ON(index < SLB_NUM_BOLTED);
 
 	return index;
 }
@@ -495,7 +533,7 @@ static long slb_insert_entry(unsigned long ea, unsigned long context,
 	if (!vsid)
 		return -EFAULT;
 
-	index = alloc_slb_index();
+	index = alloc_slb_index(kernel);
 
 	vsid_data = __mk_vsid_data(vsid, ssize, flags);
 	esid_data = mk_esid_data(ea, ssize, index);

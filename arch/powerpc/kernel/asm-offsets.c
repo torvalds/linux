@@ -173,7 +173,6 @@ int main(void)
 	OFFSET(PACAKSAVE, paca_struct, kstack);
 	OFFSET(PACACURRENT, paca_struct, __current);
 	OFFSET(PACASAVEDMSR, paca_struct, saved_msr);
-	OFFSET(PACASTABRR, paca_struct, stab_rr);
 	OFFSET(PACAR1, paca_struct, saved_r1);
 	OFFSET(PACATOC, paca_struct, kernel_toc);
 	OFFSET(PACAKBASE, paca_struct, kernelbase);
@@ -203,6 +202,7 @@ int main(void)
 #ifdef CONFIG_PPC_BOOK3S_64
 	OFFSET(PACASLBCACHE, paca_struct, slb_cache);
 	OFFSET(PACASLBCACHEPTR, paca_struct, slb_cache_ptr);
+	OFFSET(PACASTABRR, paca_struct, stab_rr);
 	OFFSET(PACAVMALLOCSLLP, paca_struct, vmalloc_sllp);
 #ifdef CONFIG_PPC_MM_SLICES
 	OFFSET(MMUPSIZESLLP, mmu_psize_def, sllp);

@@ -113,7 +113,10 @@ struct paca_struct {
  				 * on the linear mapping */
 	/* SLB related definitions */
 	u16 vmalloc_sllp;
-	u16 slb_cache_ptr;
+	u8 slb_cache_ptr;
+	u8 stab_rr;			/* stab/slb round-robin counter */
+	u32 slb_used_bitmap;		/* Bitmaps for first 32 SLB entries. */
+	u32 slb_kern_bitmap;
 	u32 slb_cache[SLB_CACHE_ENTRIES];
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
@@ -148,7 +151,6 @@ struct paca_struct {
 	 */
 	struct task_struct *__current;	/* Pointer to current */
 	u64 kstack;			/* Saved Kernel stack addr */
-	u64 stab_rr;			/* stab/slb round-robin counter */
 	u64 saved_r1;			/* r1 save for RTAS calls or PM or EE=0 */
 	u64 saved_msr;			/* MSR saved here by enter_rtas */
 	u16 trap_save;			/* Used when bad stack is encountered */

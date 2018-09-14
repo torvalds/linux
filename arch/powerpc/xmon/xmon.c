@@ -2393,6 +2393,9 @@ static void dump_one_paca(int cpu)
 		}
 	}
 	DUMP(p, vmalloc_sllp, "%#-*x");
+	DUMP(p, stab_rr, "%#-*x");
+	DUMP(p, slb_used_bitmap, "%#-*x");
+	DUMP(p, slb_kern_bitmap, "%#-*x");
 
 	if (!early_cpu_has_feature(CPU_FTR_ARCH_300)) {
 		DUMP(p, slb_cache_ptr, "%#-*x");
@@ -2415,7 +2418,6 @@ static void dump_one_paca(int cpu)
 	DUMP(p, __current, "%-*px");
 	DUMP(p, kstack, "%#-*llx");
 	printf(" %-*s = 0x%016llx\n", 25, "kstack_base", p->kstack & ~(THREAD_SIZE - 1));
-	DUMP(p, stab_rr, "%#-*llx");
 	DUMP(p, saved_r1, "%#-*llx");
 	DUMP(p, trap_save, "%#-*x");
 	DUMP(p, irq_soft_mask, "%#-*x");
