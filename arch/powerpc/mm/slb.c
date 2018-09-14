@@ -257,41 +257,119 @@ void slb_vmalloc_update(void)
 	slb_flush_and_rebolt();
 }
 
-/* Helper function to compare esids.  There are four cases to handle.
- * 1. The system is not 1T segment size capable.  Use the GET_ESID compare.
- * 2. The system is 1T capable, both addresses are < 1T, use the GET_ESID compare.
- * 3. The system is 1T capable, only one of the two addresses is > 1T.  This is not a match.
- * 4. The system is 1T capable, both addresses are > 1T, use the GET_ESID_1T macro to compare.
- */
-static inline int esids_match(unsigned long addr1, unsigned long addr2)
+static bool preload_hit(struct thread_info *ti, unsigned long esid)
 {
-	int esid_1t_count;
+	u8 i;
 
-	/* System is not 1T segment size capable. */
-	if (!mmu_has_feature(MMU_FTR_1T_SEGMENT))
-		return (GET_ESID(addr1) == GET_ESID(addr2));
+	for (i = 0; i < ti->slb_preload_nr; i++) {
+		u8 idx;
 
-	esid_1t_count = (((addr1 >> SID_SHIFT_1T) != 0) +
-				((addr2 >> SID_SHIFT_1T) != 0));
-
-	/* both addresses are < 1T */
-	if (esid_1t_count == 0)
-		return (GET_ESID(addr1) == GET_ESID(addr2));
-
-	/* One address < 1T, the other > 1T.  Not a match */
-	if (esid_1t_count == 1)
-		return 0;
-
-	/* Both addresses are > 1T. */
-	return (GET_ESID_1T(addr1) == GET_ESID_1T(addr2));
+		idx = (ti->slb_preload_tail + i) % SLB_PRELOAD_NR;
+		if (esid == ti->slb_preload_esid[idx])
+			return true;
+	}
+	return false;
 }
+
+static bool preload_add(struct thread_info *ti, unsigned long ea)
+{
+	unsigned long esid;
+	u8 idx;
+
+	if (mmu_has_feature(MMU_FTR_1T_SEGMENT)) {
+		/* EAs are stored >> 28 so 256MB segments don't need clearing */
+		if (ea & ESID_MASK_1T)
+			ea &= ESID_MASK_1T;
+	}
+
+	esid = ea >> SID_SHIFT;
+
+	if (preload_hit(ti, esid))
+		return false;
+
+	idx = (ti->slb_preload_tail + ti->slb_preload_nr) % SLB_PRELOAD_NR;
+	ti->slb_preload_esid[idx] = esid;
+	if (ti->slb_preload_nr == SLB_PRELOAD_NR)
+		ti->slb_preload_tail = (ti->slb_preload_tail + 1) % SLB_PRELOAD_NR;
+	else
+		ti->slb_preload_nr++;
+
+	return true;
+}
+
+static void preload_age(struct thread_info *ti)
+{
+	if (!ti->slb_preload_nr)
+		return;
+	ti->slb_preload_nr--;
+	ti->slb_preload_tail = (ti->slb_preload_tail + 1) % SLB_PRELOAD_NR;
+}
+
+void slb_setup_new_exec(void)
+{
+	struct thread_info *ti = current_thread_info();
+	struct mm_struct *mm = current->mm;
+	unsigned long exec = 0x10000000;
+
+	/*
+	 * We have no good place to clear the slb preload cache on exec,
+	 * flush_thread is about the earliest arch hook but that happens
+	 * after we switch to the mm and have aleady preloaded the SLBEs.
+	 *
+	 * For the most part that's probably okay to use entries from the
+	 * previous exec, they will age out if unused. It may turn out to
+	 * be an advantage to clear the cache before switching to it,
+	 * however.
+	 */
+
+	/*
+	 * preload some userspace segments into the SLB.
+	 * Almost all 32 and 64bit PowerPC executables are linked at
+	 * 0x10000000 so it makes sense to preload this segment.
+	 */
+	if (!is_kernel_addr(exec)) {
+		if (preload_add(ti, exec))
+			slb_allocate_user(mm, exec);
+	}
+
+	/* Libraries and mmaps. */
+	if (!is_kernel_addr(mm->mmap_base)) {
+		if (preload_add(ti, mm->mmap_base))
+			slb_allocate_user(mm, mm->mmap_base);
+	}
+}
+
+void preload_new_slb_context(unsigned long start, unsigned long sp)
+{
+	struct thread_info *ti = current_thread_info();
+	struct mm_struct *mm = current->mm;
+	unsigned long heap = mm->start_brk;
+
+	/* Userspace entry address. */
+	if (!is_kernel_addr(start)) {
+		if (preload_add(ti, start))
+			slb_allocate_user(mm, start);
+	}
+
+	/* Top of stack, grows down. */
+	if (!is_kernel_addr(sp)) {
+		if (preload_add(ti, sp))
+			slb_allocate_user(mm, sp);
+	}
+
+	/* Bottom of heap, grows up. */
+	if (heap && !is_kernel_addr(heap)) {
+		if (preload_add(ti, heap))
+			slb_allocate_user(mm, heap);
+	}
+}
+
 
 /* Flush all user entries from the segment table of the current processor. */
 void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 {
-	unsigned long pc = KSTK_EIP(tsk);
-	unsigned long stack = KSTK_ESP(tsk);
-	unsigned long exec_base;
+	struct thread_info *ti = task_thread_info(tsk);
+	u8 i;
 
 	/*
 	 * We need interrupts hard-disabled here, not just soft-disabled,
@@ -314,7 +392,6 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 		if (!mmu_has_feature(MMU_FTR_NO_SLBIE_B) &&
 		    offset <= SLB_CACHE_ENTRIES) {
 			unsigned long slbie_data = 0;
-			int i;
 
 			asm volatile("isync" : : : "memory");
 			for (i = 0; i < offset; i++) {
@@ -354,24 +431,28 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	get_paca()->slb_used_bitmap = get_paca()->slb_kern_bitmap;
 
 	/*
-	 * preload some userspace segments into the SLB.
-	 * Almost all 32 and 64bit PowerPC executables are linked at
-	 * 0x10000000 so it makes sense to preload this segment.
+	 * We gradually age out SLBs after a number of context switches to
+	 * reduce reload overhead of unused entries (like we do with FP/VEC
+	 * reload). Each time we wrap 256 switches, take an entry out of the
+	 * SLB preload cache.
 	 */
-	exec_base = 0x10000000;
+	tsk->thread.load_slb++;
+	if (!tsk->thread.load_slb) {
+		unsigned long pc = KSTK_EIP(tsk);
 
-	if (is_kernel_addr(pc) || is_kernel_addr(stack) ||
-	    is_kernel_addr(exec_base))
-		return;
+		preload_age(ti);
+		preload_add(ti, pc);
+	}
 
-	slb_allocate_user(mm, pc);
+	for (i = 0; i < ti->slb_preload_nr; i++) {
+		unsigned long ea;
+		u8 idx;
 
-	if (!esids_match(pc, stack))
-		slb_allocate_user(mm, stack);
+		idx = (ti->slb_preload_tail + i) % SLB_PRELOAD_NR;
+		ea = (unsigned long)ti->slb_preload_esid[idx] << SID_SHIFT;
 
-	if (!esids_match(pc, exec_base) &&
-	    !esids_match(stack, exec_base))
-		slb_allocate_user(mm, exec_base);
+		slb_allocate_user(mm, ea);
+	}
 }
 
 void slb_set_size(u16 size)
@@ -644,11 +725,16 @@ long do_slb_fault(struct pt_regs *regs, unsigned long ea)
 		return slb_allocate_kernel(ea, id);
 	} else {
 		struct mm_struct *mm = current->mm;
+		long err;
 
 		if (unlikely(!mm))
 			return -EFAULT;
 
-		return slb_allocate_user(mm, ea);
+		err = slb_allocate_user(mm, ea);
+		if (!err)
+			preload_add(current_thread_info(), ea);
+
+		return err;
 	}
 }
 

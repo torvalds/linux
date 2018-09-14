@@ -29,6 +29,7 @@
 #include <asm/page.h>
 #include <asm/accounting.h>
 
+#define SLB_PRELOAD_NR	16U
 /*
  * low level task data.
  */
@@ -44,6 +45,10 @@ struct thread_info {
 #if defined(CONFIG_VIRT_CPU_ACCOUNTING_NATIVE) && defined(CONFIG_PPC32)
 	struct cpu_accounting_data accounting;
 #endif
+	u8 slb_preload_nr;
+	u8 slb_preload_tail;
+	u32 slb_preload_esid[SLB_PRELOAD_NR];
+
 	/* low level flags - has atomic operations done on it */
 	unsigned long	flags ____cacheline_aligned_in_smp;
 };
