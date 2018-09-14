@@ -264,6 +264,9 @@ static void __ieee80211_wake_txqs(struct ieee80211_sub_if_data *sdata, int ac)
 		for (i = 0; i < ARRAY_SIZE(sta->sta.txq); i++) {
 			struct ieee80211_txq *txq = sta->sta.txq[i];
 
+			if (!txq)
+				continue;
+
 			txqi = to_txq_info(txq);
 
 			if (ac != txq->ac)
