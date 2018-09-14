@@ -274,10 +274,12 @@ void optc1_program_timing(
 	 * program the reg for interrupt postition.
 	 */
 	vertical_line_start = asic_blank_end - optc->dlg_otg_param.vstartup_start + 1;
-	if (vertical_line_start < 0) {
-		ASSERT(0);
+	v_fp2 = 0;
+	if (vertical_line_start < 0)
+		v_fp2 = -vertical_line_start;
+	if (vertical_line_start < 0)
 		vertical_line_start = 0;
-	}
+
 	REG_SET(OTG_VERTICAL_INTERRUPT2_POSITION, 0,
 			OTG_VERTICAL_INTERRUPT2_LINE_START, vertical_line_start);
 
@@ -296,9 +298,6 @@ void optc1_program_timing(
 		if (patched_crtc_timing.flags.INTERLACE == 1)
 			field_num = 1;
 	}
-	v_fp2 = 0;
-	if (optc->dlg_otg_param.vstartup_start > asic_blank_end)
-		v_fp2 = optc->dlg_otg_param.vstartup_start > asic_blank_end;
 
 	/* Interlace */
 	if (patched_crtc_timing.flags.INTERLACE == 1) {
