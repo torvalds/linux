@@ -1053,6 +1053,7 @@ static int cif_isp10_v4l2_open(
 
 	/* First open of the device, so initialize everything */
 	node->owner = NULL;
+	dev->img_src_exps.inited = false;
 
 	cif_isp10_init_vb2_queue(to_vb2_queue(file), dev, buf_type);
 	vdev->queue = to_vb2_queue(file);

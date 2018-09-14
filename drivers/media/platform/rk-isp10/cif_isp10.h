@@ -242,6 +242,8 @@ enum cif_isp10_image_effect {
 	(!CIF_ISP10_PIX_FMT_IS_YUV(pix_fmt) ||\
 	!CIF_ISP10_PIX_FMT_YUV_GET_NUM_CPLANES(pix_fmt))
 
+#define CIF_ISP10_IMG_SRC_DATA_NUM	6
+
 enum cif_isp10_pix_fmt {
 	/* YUV */
 	CIF_YUV400			= 0x10008000,
@@ -568,8 +570,10 @@ struct cif_isp10_img_src_exps {
 	struct list_head list;
 
 	struct mutex mutex;	/* protect frm_exp */
-	struct cif_isp10_img_src_data data[2];
+	struct cif_isp10_img_src_data data[CIF_ISP10_IMG_SRC_DATA_NUM];
+	unsigned char exp_idx;
 	unsigned char exp_valid_frms[2];
+	bool inited;
 };
 
 enum cif_isp10_isp_vs_cmd {
