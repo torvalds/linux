@@ -596,27 +596,35 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 
 
 EXC_REAL_BEGIN(data_access_slb, 0x380, 0x80)
-	SET_SCRATCH0(r13)
-	EXCEPTION_PROLOG_0(PACA_EXSLB)
-	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST_PR, 0x380)
-	mr	r12,r3	/* save r3 */
-	mfspr	r3,SPRN_DAR
-	mfspr	r11,SPRN_SRR1
-	crset	4*cr6+eq
-	BRANCH_TO_COMMON(r10, slb_miss_common)
+EXCEPTION_PROLOG(PACA_EXSLB, data_access_slb_common, EXC_STD, KVMTEST_PR, 0x380);
 EXC_REAL_END(data_access_slb, 0x380, 0x80)
 
 EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x80)
-	SET_SCRATCH0(r13)
-	EXCEPTION_PROLOG_0(PACA_EXSLB)
-	EXCEPTION_PROLOG_1(PACA_EXSLB, NOTEST, 0x380)
-	mr	r12,r3	/* save r3 */
-	mfspr	r3,SPRN_DAR
-	mfspr	r11,SPRN_SRR1
-	crset	4*cr6+eq
-	BRANCH_TO_COMMON(r10, slb_miss_common)
+EXCEPTION_RELON_PROLOG(PACA_EXSLB, data_access_slb_common, EXC_STD, NOTEST, 0x380);
 EXC_VIRT_END(data_access_slb, 0x4380, 0x80)
+
 TRAMP_KVM_SKIP(PACA_EXSLB, 0x380)
+
+EXC_COMMON_BEGIN(data_access_slb_common)
+	mfspr	r10,SPRN_DAR
+	std	r10,PACA_EXSLB+EX_DAR(r13)
+	EXCEPTION_PROLOG_COMMON(0x380, PACA_EXSLB)
+	ld	r4,PACA_EXSLB+EX_DAR(r13)
+	std	r4,_DAR(r1)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	do_slb_fault
+	cmpdi	r3,0
+	bne-	1f
+	b	fast_exception_return
+1:	/* Error case */
+	std	r3,RESULT(r1)
+	bl	save_nvgprs
+	RECONCILE_IRQ_STATE(r10, r11)
+	ld	r4,_DAR(r1)
+	ld	r5,RESULT(r1)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	do_bad_slb_fault
+	b	ret_from_except
 
 
 EXC_REAL(instruction_access, 0x400, 0x80)
@@ -640,159 +648,33 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 
 
 EXC_REAL_BEGIN(instruction_access_slb, 0x480, 0x80)
-	SET_SCRATCH0(r13)
-	EXCEPTION_PROLOG_0(PACA_EXSLB)
-	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST_PR, 0x480)
-	mr	r12,r3	/* save r3 */
-	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
-	mfspr	r11,SPRN_SRR1
-	crclr	4*cr6+eq
-	BRANCH_TO_COMMON(r10, slb_miss_common)
+EXCEPTION_PROLOG(PACA_EXSLB, instruction_access_slb_common, EXC_STD, KVMTEST_PR, 0x480);
 EXC_REAL_END(instruction_access_slb, 0x480, 0x80)
 
 EXC_VIRT_BEGIN(instruction_access_slb, 0x4480, 0x80)
-	SET_SCRATCH0(r13)
-	EXCEPTION_PROLOG_0(PACA_EXSLB)
-	EXCEPTION_PROLOG_1(PACA_EXSLB, NOTEST, 0x480)
-	mr	r12,r3	/* save r3 */
-	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
-	mfspr	r11,SPRN_SRR1
-	crclr	4*cr6+eq
-	BRANCH_TO_COMMON(r10, slb_miss_common)
+EXCEPTION_RELON_PROLOG(PACA_EXSLB, instruction_access_slb_common, EXC_STD, NOTEST, 0x480);
 EXC_VIRT_END(instruction_access_slb, 0x4480, 0x80)
+
 TRAMP_KVM(PACA_EXSLB, 0x480)
 
-
-/*
- * This handler is used by the 0x380 and 0x480 SLB miss interrupts, as well as
- * the virtual mode 0x4380 and 0x4480 interrupts if AIL is enabled.
- */
-EXC_COMMON_BEGIN(slb_miss_common)
-	/*
-	 * r13 points to the PACA, r9 contains the saved CR,
-	 * r12 contains the saved r3,
-	 * r11 contain the saved SRR1, SRR0 is still ready for return
-	 * r3 has the faulting address
-	 * r9 - r13 are saved in paca->exslb.
- 	 * cr6.eq is set for a D-SLB miss, clear for a I-SLB miss
-	 * We assume we aren't going to take any exceptions during this
-	 * procedure.
-	 */
-	mflr	r10
-	stw	r9,PACA_EXSLB+EX_CCR(r13)	/* save CR in exc. frame */
-	std	r10,PACA_EXSLB+EX_LR(r13)	/* save LR */
-
-	andi.	r9,r11,MSR_PR	// Check for exception from userspace
-	cmpdi	cr4,r9,MSR_PR	// And save the result in CR4 for later
-
-	/*
-	 * Test MSR_RI before calling slb_allocate_realmode, because the
-	 * MSR in r11 gets clobbered. However we still want to allocate
-	 * SLB in case MSR_RI=0, to minimise the risk of getting stuck in
-	 * recursive SLB faults. So use cr5 for this, which is preserved.
-	 */
-	andi.	r11,r11,MSR_RI	/* check for unrecoverable exception */
-	cmpdi	cr5,r11,MSR_RI
-
-	crset	4*cr0+eq
-#ifdef CONFIG_PPC_BOOK3S_64
-BEGIN_MMU_FTR_SECTION
-	bl	slb_allocate
-END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
-#endif
-
-	ld	r10,PACA_EXSLB+EX_LR(r13)
-	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
-	mtlr	r10
-
-	/*
-	 * Large address, check whether we have to allocate new contexts.
-	 */
-	beq-	8f
-
-	bne-	cr5,2f		/* if unrecoverable exception, oops */
-
-	/* All done -- return from exception. */
-
-	bne	cr4,1f		/* returning to kernel */
-
-	mtcrf	0x80,r9
-	mtcrf	0x08,r9		/* MSR[PR] indication is in cr4 */
-	mtcrf	0x04,r9		/* MSR[RI] indication is in cr5 */
-	mtcrf	0x02,r9		/* I/D indication is in cr6 */
-	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
-
-	RESTORE_CTR(r9, PACA_EXSLB)
-	RESTORE_PPR_PACA(PACA_EXSLB, r9)
-	mr	r3,r12
-	ld	r9,PACA_EXSLB+EX_R9(r13)
-	ld	r10,PACA_EXSLB+EX_R10(r13)
-	ld	r11,PACA_EXSLB+EX_R11(r13)
-	ld	r12,PACA_EXSLB+EX_R12(r13)
-	ld	r13,PACA_EXSLB+EX_R13(r13)
-	RFI_TO_USER
-	b	.	/* prevent speculative execution */
-1:
-	mtcrf	0x80,r9
-	mtcrf	0x08,r9		/* MSR[PR] indication is in cr4 */
-	mtcrf	0x04,r9		/* MSR[RI] indication is in cr5 */
-	mtcrf	0x02,r9		/* I/D indication is in cr6 */
-	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
-
-	RESTORE_CTR(r9, PACA_EXSLB)
-	RESTORE_PPR_PACA(PACA_EXSLB, r9)
-	mr	r3,r12
-	ld	r9,PACA_EXSLB+EX_R9(r13)
-	ld	r10,PACA_EXSLB+EX_R10(r13)
-	ld	r11,PACA_EXSLB+EX_R11(r13)
-	ld	r12,PACA_EXSLB+EX_R12(r13)
-	ld	r13,PACA_EXSLB+EX_R13(r13)
-	RFI_TO_KERNEL
-	b	.	/* prevent speculative execution */
-
-
-2:	std     r3,PACA_EXSLB+EX_DAR(r13)
-	mr	r3,r12
-	mfspr	r11,SPRN_SRR0
-	mfspr	r12,SPRN_SRR1
-	LOAD_HANDLER(r10,unrecov_slb)
-	mtspr	SPRN_SRR0,r10
-	ld	r10,PACAKMSR(r13)
-	mtspr	SPRN_SRR1,r10
-	RFI_TO_KERNEL
-	b	.
-
-8:	std     r3,PACA_EXSLB+EX_DAR(r13)
-	mr	r3,r12
-	mfspr	r11,SPRN_SRR0
-	mfspr	r12,SPRN_SRR1
-	LOAD_HANDLER(r10, large_addr_slb)
-	mtspr	SPRN_SRR0,r10
-	ld	r10,PACAKMSR(r13)
-	mtspr	SPRN_SRR1,r10
-	RFI_TO_KERNEL
-	b	.
-
-EXC_COMMON_BEGIN(unrecov_slb)
-	EXCEPTION_PROLOG_COMMON(0x4100, PACA_EXSLB)
-	RECONCILE_IRQ_STATE(r10, r11)
+EXC_COMMON_BEGIN(instruction_access_slb_common)
+	EXCEPTION_PROLOG_COMMON(0x480, PACA_EXSLB)
+	ld	r4,_NIP(r1)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	do_slb_fault
+	cmpdi	r3,0
+	bne-	1f
+	b	fast_exception_return
+1:	/* Error case */
+	std	r3,RESULT(r1)
 	bl	save_nvgprs
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	unrecoverable_exception
-	b	1b
-
-EXC_COMMON_BEGIN(large_addr_slb)
-	EXCEPTION_PROLOG_COMMON(0x380, PACA_EXSLB)
 	RECONCILE_IRQ_STATE(r10, r11)
-	ld	r3, PACA_EXSLB+EX_DAR(r13)
-	std	r3, _DAR(r1)
-	beq	cr6, 2f
-	li	r10, 0x481		/* fix trap number for I-SLB miss */
-	std	r10, _TRAP(r1)
-2:	bl	save_nvgprs
-	addi	r3, r1, STACK_FRAME_OVERHEAD
-	bl	slb_miss_large_addr
+	ld	r4,_NIP(r1)
+	ld	r5,RESULT(r1)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	do_bad_slb_fault
 	b	ret_from_except
+
 
 EXC_REAL_BEGIN(hardware_interrupt, 0x500, 0x100)
 	.globl hardware_interrupt_hv;
