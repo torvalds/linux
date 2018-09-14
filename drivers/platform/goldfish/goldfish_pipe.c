@@ -163,6 +163,9 @@ struct goldfish_pipe {
 
 	/* Pointer to the parent goldfish_pipe_dev instance */
 	struct goldfish_pipe_dev *dev;
+
+	/* A buffer of pages, too large to fit into a stack frame */
+	struct page *pages[MAX_BUFFERS_PER_COMMAND];
 };
 
 /* The global driver data. Holds a reference to the i/o page used to
@@ -340,21 +343,23 @@ static int transfer_max_buffers(struct goldfish_pipe *pipe,
 				s32 *consumed_size,
 				int *status)
 {
-	static struct page *pages[MAX_BUFFERS_PER_COMMAND];
 	unsigned long first_page = address & PAGE_MASK;
 	unsigned int iter_last_page_size;
-	int pages_count = pin_user_pages(first_page, last_page,
-					 last_page_size, is_write,
-					 pages, &iter_last_page_size);
-
-	if (pages_count < 0)
-		return pages_count;
+	int pages_count;
 
 	/* Serialize access to the pipe command buffers */
 	if (mutex_lock_interruptible(&pipe->lock))
 		return -ERESTARTSYS;
 
-	populate_rw_params(pages, pages_count, address, address_end,
+	pages_count = pin_user_pages(first_page, last_page,
+				     last_page_size, is_write,
+				     pipe->pages, &iter_last_page_size);
+	if (pages_count < 0) {
+		mutex_unlock(&pipe->lock);
+		return pages_count;
+	}
+
+	populate_rw_params(pipe->pages, pages_count, address, address_end,
 			   first_page, last_page, iter_last_page_size, is_write,
 			   pipe->command_buffer);
 
@@ -364,10 +369,9 @@ static int transfer_max_buffers(struct goldfish_pipe *pipe,
 
 	*consumed_size = pipe->command_buffer->rw_params.consumed_size;
 
-	release_user_pages(pages, pages_count, is_write, *consumed_size);
+	release_user_pages(pipe->pages, pages_count, is_write, *consumed_size);
 
 	mutex_unlock(&pipe->lock);
-
 	return 0;
 }
 
