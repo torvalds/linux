@@ -1482,6 +1482,15 @@ void flush_thread(void)
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 }
 
+#ifdef CONFIG_PPC_BOOK3S_64
+void arch_setup_new_exec(void)
+{
+	if (radix_enabled())
+		return;
+	hash__setup_new_exec();
+}
+#endif
+
 int set_thread_uses_vas(void)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
