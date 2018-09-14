@@ -36,8 +36,45 @@
 #include <linux/suspend.h>
 
 #define CONFIG_BLUEDROID        1 /* bleuz 0, bluedroid 1 */
+//#define CONFIG_SCO_OVER_HCI
 
+#ifdef CONFIG_SCO_OVER_HCI
+#include <linux/usb/audio.h>
+#include <sound/core.h>
+#include <sound/initval.h>
+#include <sound/pcm.h>
+#include <sound/pcm_params.h>
 
+#define RTK_SCO_ID "snd_sco_rtk"
+enum {
+	USB_CAPTURE_RUNNING,
+	USB_PLAYBACK_RUNNING,
+	ALSA_CAPTURE_OPEN,
+	ALSA_PLAYBACK_OPEN,
+	ALSA_CAPTURE_RUNNING,
+	ALSA_PLAYBACK_RUNNING,
+	CAPTURE_URB_COMPLETED,
+	PLAYBACK_URB_COMPLETED,
+	DISCONNECTED,
+};
+
+// RTK sound card
+typedef struct RTK_sco_card {
+    struct snd_card *card;
+    struct snd_pcm *pcm;
+    struct usb_device *dev;
+    struct btusb_data *usb_data;
+    unsigned long states;
+    struct rtk_sco_stream {
+		    struct snd_pcm_substream *substream;
+		    unsigned int sco_packet_bytes;
+		    snd_pcm_uframes_t buffer_pos;
+	  } capture, playback;
+    spinlock_t capture_lock;
+    spinlock_t playback_lock;
+    struct work_struct send_sco_work;
+} RTK_sco_card_t;
+#endif
 /* Some Android system may use standard Linux kernel, while
  * standard Linux may also implement early suspend feature.
  * So exclude earysuspend.h from CONFIG_BLUEDROID.
@@ -96,12 +133,9 @@
 #define GET_DRV_DATA(x)        x->driver_data
 #endif
 
-#define SCO_NUM    hdev->conn_hash.sco_num
-
-
 #define BTUSB_RPM        (0 * USB_RPM) /* 1 SS enable; 0 SS disable */
 #define BTUSB_WAKEUP_HOST        0    /* 1  enable; 0  disable */
-#define BTUSB_MAX_ISOC_FRAMES    10
+#define BTUSB_MAX_ISOC_FRAMES    48
 #define BTUSB_INTR_RUNNING        0
 #define BTUSB_BULK_RUNNING        1
 #define BTUSB_ISOC_RUNNING        2
@@ -445,9 +479,7 @@ struct hci_dev {
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 4, 0)
     void (*destruct)(struct hci_dev *hdev);
 #endif
-#if LINUX_VERSION_CODE > KERNEL_VERSION(3, 7, 1)
     __u16               voice_setting;
-#endif
     void (*notify)(struct hci_dev *hdev, unsigned int evt);
     int (*ioctl)(struct hci_dev *hdev, unsigned int cmd, unsigned long arg);
 };
@@ -630,7 +662,11 @@ typedef struct {
 
 //Define ioctl cmd the same as HCIDEVUP in the kernel
 #define DOWN_FW_CFG  _IOW('H', 201, int)
-
+#ifdef CONFIG_SCO_OVER_HCI
+#define SET_ISO_CFG  _IOW('H', 202, int)
+#endif
+#define GET_USB_INFO            _IOW('H', 203, int)
+#define RESET_CONTROLLER        _IOW('H', 204, int)
 
 /*  for altsettings*/
 #include <linux/fs.h>
@@ -643,6 +679,7 @@ static inline int getmacaddr(uint8_t * vnd_local_bd_addr)
     mm_segment_t oldfs;
     char buf[FACTORY_BT_BDADDR_STORAGE_LEN];
     int32_t i = 0;
+    int ret = -1;
     memset(buf, 0, FACTORY_BT_BDADDR_STORAGE_LEN);
     bdaddr_file = filp_open(BDADDR_FILE, O_RDONLY, 0);
     if (IS_ERR(bdaddr_file)){
@@ -651,25 +688,29 @@ static inline int getmacaddr(uint8_t * vnd_local_bd_addr)
     }
     oldfs = get_fs(); set_fs(KERNEL_DS);
     bdaddr_file->f_op->llseek(bdaddr_file, 0, 0);
-    bdaddr_file->f_op->read(bdaddr_file, buf, FACTORY_BT_BDADDR_STORAGE_LEN, &bdaddr_file->f_pos);
-    for (i = 0; i < 6; i++) {
-     if(buf[3*i]>'9')
-     {
-         if(buf[3*i]>'Z')
-              buf[3*i] -=('a'-'A'); //change  a to A
-         buf[3*i] -= ('A'-'9'-1);
-     }
-     if(buf[3*i+1]>'9')
-     {
-        if(buf[3*i+1]>'Z')
-              buf[3*i+1] -=('a'-'A'); //change  a to A
-         buf[3*i+1] -= ('A'-'9'-1);
-     }
-     vnd_local_bd_addr[5-i] = ((uint8_t)buf[3*i]-'0')*16 + ((uint8_t)buf[3*i+1]-'0');
-    }
+    ret = vfs_read(bdaddr_file, buf, FACTORY_BT_BDADDR_STORAGE_LEN, &bdaddr_file->f_pos);
     set_fs(oldfs);
     filp_close(bdaddr_file, NULL);
-    return 0;
+    if(ret == FACTORY_BT_BDADDR_STORAGE_LEN)
+    {
+        for (i = 0; i < 6; i++) {
+            if(buf[3*i]>'9')
+            {
+                if(buf[3*i]>'Z')
+                    buf[3*i] -=('a'-'A'); //change  a to A
+                buf[3*i] -= ('A'-'9'-1);
+            }
+            if(buf[3*i+1]>'9')
+            {
+                if(buf[3*i+1]>'Z')
+                    buf[3*i+1] -=('a'-'A'); //change  a to A
+                buf[3*i+1] -= ('A'-'9'-1);
+            }
+            vnd_local_bd_addr[5-i] = ((uint8_t)buf[3*i]-'0')*16 + ((uint8_t)buf[3*i+1]-'0');
+        }
+        return 0;
+    }
+    return -1;
 }
 
 static inline int getAltSettings(patch_info *patch_entry, unsigned short *offset, int max_group_cnt)

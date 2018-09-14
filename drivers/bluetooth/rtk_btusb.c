@@ -39,8 +39,8 @@
 
 #include "rtk_btusb.h"
 
-#define RTKBT_RELEASE_NAME "20170109_TV_ANDROID_6.x"
-#define VERSION "4.1.2"
+#define RTKBT_RELEASE_NAME "20180702_BT_ANDROID_8.1"
+#define VERSION "4.1.5"
 
 #define SUSPNED_DW_FW 0
 #define SET_WAKEUP_DEVICE 0
@@ -53,6 +53,8 @@ static volatile uint16_t    dlfw_dis_state = 0;
 #if SUSPNED_DW_FW
 static firmware_info *fw_info_4_suspend = NULL;
 #endif
+
+static uint32_t usb_info;
 
 static patch_info fw_patch_table[] = {
 /* { vid, pid, lmp_sub_default, lmp_sub, everion, mp_fw_name, fw_name, config_name, fw_cache, fw_len, mac_offset } */
@@ -101,15 +103,17 @@ static patch_info fw_patch_table[] = {
 { 0x13D3, 0x3461, 0x8821, 0, 0, "mp_rtl8821a_fw", "rtl8821a_fw", "rtl8821a_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_1_2, MAX_PATCH_SIZE_24K}, /* RTL8821AE */
 { 0x13D3, 0x3462, 0x8821, 0, 0, "mp_rtl8821a_fw", "rtl8821a_fw", "rtl8821a_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_1_2, MAX_PATCH_SIZE_24K}, /* RTL8821AE */
 
-{ 0x0BDA, 0xB822, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8822BU */
+{ 0x0BDA, 0xB822, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8822BE */
 { 0x0BDA, 0xB82C, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8822BU */
-{ 0x0BDA, 0xb023, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8822BE */
+{ 0x0BDA, 0xB023, 0x8822, 0, 0, "mp_rtl8822b_fw", "rtl8822b_fw", "rtl8822b_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8822BE */
 { 0x0BDA, 0xB703, 0x8703, 0, 0, "mp_rtl8723c_fw", "rtl8723c_fw", "rtl8723c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_24K}, /* RTL8723CU */
 /* todo: RTL8703BU */
 
 { 0x0BDA, 0xD723, 0x8723, 0, 0, "mp_rtl8723d_fw", "rtl8723d_fw", "rtl8723d_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_40K}, /* RTL8723DU */
+{ 0x0BDA, 0xD720, 0x8723, 0, 0, "mp_rtl8723d_fw", "rtl8723d_fw", "rtl8723d_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_40K}, /* RTL8723DE */
 { 0x0BDA, 0xB820, 0x8821, 0, 0, "mp_rtl8821c_fw", "rtl8821c_fw", "rtl8821c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_40K}, /* RTL8821CU */
 { 0x0BDA, 0xC820, 0x8821, 0, 0, "mp_rtl8821c_fw", "rtl8821c_fw", "rtl8821c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_40K}, /* RTL8821CU */
+{ 0x0BDA, 0xC821, 0x8821, 0, 0, "mp_rtl8821c_fw", "rtl8821c_fw", "rtl8821c_config", NULL, 0 ,CONFIG_MAC_OFFSET_GEN_3PLUS, MAX_PATCH_SIZE_40K}, /* RTL8821CE */
 /* todo: RTL8703CU */
 
 /* NOTE: must append patch entries above the null entry */
@@ -148,6 +152,7 @@ struct btusb_data {
     unsigned int sco_num;
     int isoc_altsetting;
     int suspend_count;
+    uint16_t sco_handle;
 //#ifdef CONFIG_HAS_EARLYSUSPEND
 #if 0
     struct early_suspend early_suspend;
@@ -156,21 +161,28 @@ struct btusb_data {
     struct notifier_block reboot_notifier;
 #endif
     firmware_info *fw_info;
+
+#ifdef CONFIG_SCO_OVER_HCI
+    RTK_sco_card_t  *pSCOSnd;
+#endif
 };
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 1)
 static bool reset_on_close = 0;
 #endif
 
 int download_patch(firmware_info *fw_info, int cached);
+int reset_controller(firmware_info* fw_info);
 
 static inline int check_set_dlfw_state_value(uint16_t change_value)
 {
+    int state;
     spin_lock(&dlfw_lock);
     if(!dlfw_dis_state) {
         dlfw_dis_state = change_value;
     }
+    state = dlfw_dis_state;
     spin_unlock(&dlfw_lock);
-    return dlfw_dis_state;
+    return state;
 }
 
 static inline void set_dlfw_state_value(uint16_t change_value)
@@ -316,12 +328,12 @@ static void print_command(struct sk_buff *skb)
 
 #if CONFIG_BLUEDROID
 /* Global parameters for bt usb char driver */
-#define BT_CHAR_DEVICE_NAME "rtk_btusb"
+#define BT_CHAR_DEVICE_NAME "rtkbt_dev"
 struct mutex btchr_mutex;
 static struct sk_buff_head btchr_readq;
 static wait_queue_head_t btchr_read_wait;
 static wait_queue_head_t bt_dlfw_wait;
-static int bt_char_dev_registered;
+static bool bt_char_dev_registered;
 static dev_t bt_devid; /* bt char device number */
 static struct cdev bt_char_dev; /* bt character device structure */
 static struct class *bt_char_class; /* device class for usb char driver */
@@ -493,7 +505,7 @@ static struct sk_buff *rtk_dequeue_try(unsigned int deq_len)
 
     skb = rtk_skb_queue[rtk_skb_queue_front];
     if (deq_len >= skb->len) {
-
+        rtk_skb_queue[rtk_skb_queue_front] = NULL;
         rtk_skb_queue_front++;
         rtk_skb_queue_front %= QUEUE_SIZE;
 
@@ -513,6 +525,22 @@ static struct sk_buff *rtk_dequeue_try(unsigned int deq_len)
 static inline int is_queue_empty(void)
 {
     return (rtk_skb_queue_front == rtk_skb_queue_rear) ? 1 : 0;
+}
+
+static void rtk_clear_queue(void)
+{
+    struct sk_buff *skb;
+    spin_lock(&queue_lock);
+    while(!is_queue_empty()) {
+        skb = rtk_skb_queue[rtk_skb_queue_front];
+        rtk_skb_queue[rtk_skb_queue_front] = NULL;
+        rtk_skb_queue_front++;
+        rtk_skb_queue_front %= QUEUE_SIZE;
+        if (skb) {
+            kfree_skb(skb);
+        }
+    }
+    spin_unlock(&queue_lock);
 }
 
 /*
@@ -552,6 +580,14 @@ static int hci_dev_open(__u16 dev)
         ret = -EALREADY;
         goto done;
     }
+/*
+    ret = hdev->open(hdev);
+    if(ret < 0){
+        RTKBT_ERR("%s:Failed in hdev->open(hdev):%d",__func__,ret);
+        goto done;
+    }
+    set_bit(HCI_UP, &hdev->flags);
+*/
 
 done:
     return ret;
@@ -658,6 +694,69 @@ static void hci_unregister_dev(struct hci_dev *hdev)
         kfree_skb(hdev->reassembly[i]);
 }
 
+
+#ifdef CONFIG_SCO_OVER_HCI
+/* copy data from the URB buffer into the ALSA ring buffer */
+static bool rtk_copy_capture_data_to_alsa(struct btusb_data *data, uint8_t* p_data, unsigned int frames)
+{
+  	struct snd_pcm_runtime *runtime;
+  	unsigned int frame_bytes, frames1;
+  	u8 *dest;
+    RTK_sco_card_t  *pSCOSnd = data->pSCOSnd;
+
+  	runtime = pSCOSnd->capture.substream->runtime;
+  	frame_bytes = 2;
+
+  	dest = runtime->dma_area + pSCOSnd->capture.buffer_pos * frame_bytes;
+  	if (pSCOSnd->capture.buffer_pos + frames <= runtime->buffer_size) {
+  		memcpy(dest, p_data, frames * frame_bytes);
+  	} else {
+  		/* wrap around at end of ring buffer */
+  		frames1 = runtime->buffer_size - pSCOSnd->capture.buffer_pos;
+  		memcpy(dest, p_data, frames1 * frame_bytes);
+  		memcpy(runtime->dma_area,
+  		       p_data + frames1 * frame_bytes,
+  		       (frames - frames1) * frame_bytes);
+  	}
+
+  	pSCOSnd->capture.buffer_pos += frames;
+  	if (pSCOSnd->capture.buffer_pos >= runtime->buffer_size) {
+  		pSCOSnd->capture.buffer_pos -= runtime->buffer_size;
+  	}
+
+    if((pSCOSnd->capture.buffer_pos%runtime->period_size) == 0) {
+        snd_pcm_period_elapsed(pSCOSnd->capture.substream);
+    }
+
+  	return false;
+}
+
+
+static void hci_send_to_alsa_ringbuffer(struct hci_dev *hdev, struct sk_buff *skb)
+{
+    struct btusb_data *data = GET_DRV_DATA(hdev);
+    RTK_sco_card_t  *pSCOSnd = data->pSCOSnd;
+    uint8_t* p_data;
+    int sco_length = skb->len - HCI_SCO_HDR_SIZE;
+
+    RTKBT_DBG("%s", __func__);
+
+    if (!hdev) {
+        RTKBT_ERR("%s: Frame for unknown HCI device", __func__);
+        return;
+    }
+
+    if (!test_bit(ALSA_CAPTURE_RUNNING, &pSCOSnd->states)) {
+        //RTKBT_WARN("%s: ALSA is not running", __func__);
+        return;
+    }
+
+    p_data = (uint8_t *)skb->data + HCI_SCO_HDR_SIZE;
+    rtk_copy_capture_data_to_alsa(data, p_data, sco_length/2);
+}
+
+#endif
+
 static void hci_send_to_stack(struct hci_dev *hdev, struct sk_buff *skb)
 {
     struct sk_buff *rtk_skb_copy = NULL;
@@ -711,9 +810,14 @@ static int hci_recv_frame(struct sk_buff *skb)
     __net_timestamp(skb);
 
     if (atomic_read(&hdev->promisc)) {
+#ifdef CONFIG_SCO_OVER_HCI
+        if(bt_cb(skb)->pkt_type == HCI_SCODATA_PKT)
+            hci_send_to_alsa_ringbuffer(hdev, skb);
+#endif
         /* Send copy to the sockets */
         hci_send_to_stack(hdev, skb);
     }
+
     kfree_skb(skb);
     return 0;
 }
@@ -900,6 +1004,7 @@ static int btchr_open(struct inode *inode_p, struct file  *file_p)
     hci_dev_open(0);
     mutex_unlock(&btchr_mutex);
 
+    rtk_clear_queue();
     return nonseekable_open(inode_p, file_p);
 }
 
@@ -1036,6 +1141,11 @@ static unsigned int btchr_poll(struct file *file_p, poll_table *wait)
 
     RTKBT_DBG("%s: BT usb char device is polling", __func__);
 
+    if(!bt_char_dev_registered) {
+        RTKBT_ERR("%s: char device has not registered!", __func__);
+        return POLLERR | POLLHUP;
+    }
+
     poll_wait(file_p, &btchr_read_wait, wait);
 
     hdev = hci_dev_get(0);
@@ -1062,11 +1172,15 @@ static unsigned int btchr_poll(struct file *file_p, poll_table *wait)
 
     return POLLOUT | POLLWRNORM;
 }
-static long btchr_ioctl(struct file *file_p,unsigned int cmd, unsigned long arg){
+static long btchr_ioctl(struct file *file_p, unsigned int cmd, unsigned long arg){
     int ret = 0;
     struct hci_dev *hdev;
     struct btusb_data *data;
     firmware_info *fw_info;
+
+    if(!bt_char_dev_registered) {
+        return -ENODEV;
+    }
 
     if(check_set_dlfw_state_value(1) != 1) {
         RTKBT_ERR("%s bt controller is disconnecting!", __func__);
@@ -1106,6 +1220,24 @@ static long btchr_ioctl(struct file *file_p,unsigned int cmd, unsigned long arg)
             set_dlfw_state_value(0);
             wake_up_interruptible(&bt_dlfw_wait);
             return 1;
+        case GET_USB_INFO:
+            ret = hdev->open(hdev);
+            if(ret < 0){
+                RTKBT_ERR("%s:Failed in hdev->open(hdev):%d",__func__,ret);
+                //goto done;
+            }
+            set_bit(HCI_UP, &hdev->flags);
+            return usb_info;
+        case RESET_CONTROLLER:
+            reset_controller(fw_info);
+            return 1;
+
+#ifdef CONFIG_SCO_OVER_HCI
+        case SET_ISO_CFG:
+            hdev->voice_setting = *(__u16 *)arg;
+            RTKBT_INFO(" voice settings = 0x%04x", hdev->voice_setting);
+            return 1;
+#endif
         default:
             RTKBT_ERR("%s:Failed with wrong Cmd:%d",__func__,cmd);
             goto failed;
@@ -1277,6 +1409,7 @@ static patch_info *get_fw_table_entry(struct usb_device* udev)
     uint32_t i;
 
     RTKBT_INFO("%s: Product id = 0x%04x, fw table entry size %d", __func__, pid, entry_size);
+    usb_info = (uint32_t)(vid<<16) | pid;
 
     for (i = 0; i < entry_size; i++, patch_entry++) {
         if ((vid == patch_entry->vid)&&(pid == patch_entry->pid))
@@ -1373,7 +1506,7 @@ int reset_controller(firmware_info* fw_info)
 
     //sleep 1s for firmware reset.
     msleep(1000);
-    RTKBT_INFO("%s: Wait fw reset for 1ms",__func__);
+    RTKBT_INFO("%s: Wait fw reset for 1000ms",__func__);
 
     return ret_val;
 }
@@ -1618,7 +1751,7 @@ void rtk_update_altsettings(patch_info *patch_entry, const unsigned char* org_co
 
     if (config->data_len != org_config_len - sizeof(struct rtk_bt_vendor_config))
     {
-        RTKBT_ERR("rtk_update_altsettings: config len(%x) is not right(%x)", config->data_len, (unsigned int)(org_config_len-sizeof(struct rtk_bt_vendor_config)));
+        RTKBT_ERR("rtk_update_altsettings: config len(%x) is not right(%x)", config->data_len, org_config_len-(int)sizeof(struct rtk_bt_vendor_config));
         return;
     }
 
@@ -2526,7 +2659,6 @@ void check_sco_event(struct urb *urb)
 {
     u8* opcode = (u8*)(urb->transfer_buffer);
     u8 status;
-    static uint16_t sco_handle = 0;
     uint16_t handle;
     struct hci_dev *hdev = urb->context;
     struct btusb_data *data = GET_DRV_DATA(hdev);
@@ -2535,19 +2667,21 @@ void check_sco_event(struct urb *urb)
     case HCI_EV_SYNC_CONN_COMPLETE:
         RTKBT_INFO("%s: HCI_EV_SYNC_CONN_COMPLETE(0x%02x)", __func__, *opcode);
         status = *(opcode + 2);
-        sco_handle = *(opcode + 3) | *(opcode + 4) << 8;
+        data->sco_handle = *(opcode + 3) | *(opcode + 4) << 8;
+        //hdev->voice_setting = *(uint16_t*)&opcode[15];
         if (status == 0) {
             hdev->conn_hash.sco_num++;
-            schedule_work(&data->work);
+            hdev->notify(hdev, 0);
         }
         break;
     case HCI_EV_DISCONN_COMPLETE:
-        RTKBT_INFO("%s: HCI_EV_DISCONN_COMPLETE(0x%02x)", __func__, *opcode);
         status = *(opcode + 2);
         handle = *(opcode + 3) | *(opcode + 4) << 8;
-        if (status == 0 && sco_handle == handle) {
+        if (status == 0 && data->sco_handle == handle) {
+            RTKBT_INFO("%s: SCO HCI_EV_DISCONN_COMPLETE(0x%02x)", __func__, *opcode);
             hdev->conn_hash.sco_num--;
-            schedule_work(&data->work);
+            hdev->notify(hdev, 0);
+            data->sco_handle = 0;
         }
         break;
     default:
@@ -2565,7 +2699,9 @@ static void btusb_intr_complete(struct urb *urb)
     RTKBT_DBG("%s: urb %p status %d count %d ", __func__,
             urb, urb->status, urb->actual_length);
 
-//    check_sco_event(urb);
+#ifdef CONFIG_SCO_OVER_HCI
+    check_sco_event(urb);
+#endif
 
     if (!test_bit(HCI_RUNNING, &hdev->flags))
         return;
@@ -3031,6 +3167,156 @@ static int btusb_flush(struct hci_dev *hdev)
     return 0;
 }
 
+#ifdef CONFIG_SCO_OVER_HCI
+static void btusb_isoc_snd_tx_complete(struct urb *urb);
+
+static int snd_send_sco_frame(struct sk_buff *skb)
+{
+    struct hci_dev *hdev = (struct hci_dev *) skb->dev;
+
+    struct btusb_data *data = GET_DRV_DATA(hdev);
+    //struct usb_ctrlrequest *dr;
+    struct urb *urb;
+    unsigned int pipe;
+    int err;
+
+    RTKBT_DBG("%s:pkt type %d, packet_len : %d",
+            __func__,bt_cb(skb)->pkt_type, skb->len);
+
+    if (!hdev && !test_bit(HCI_RUNNING, &hdev->flags))
+        return -EBUSY;
+
+    if (!data->isoc_tx_ep || hdev->conn_hash.sco_num < 1) {
+        kfree(skb);
+        return -ENODEV;
+    }
+
+    urb = usb_alloc_urb(BTUSB_MAX_ISOC_FRAMES, GFP_ATOMIC);
+    if (!urb) {
+        RTKBT_ERR("%s: Failed to allocate mem for sco pkts", __func__);
+        kfree(skb);
+        return -ENOMEM;
+    }
+
+    pipe = usb_sndisocpipe(data->udev, data->isoc_tx_ep->bEndpointAddress);
+
+    usb_fill_int_urb(urb, data->udev, pipe,
+            skb->data, skb->len, btusb_isoc_snd_tx_complete,
+            skb, data->isoc_tx_ep->bInterval);
+
+    urb->transfer_flags  = URB_ISO_ASAP;
+
+    fill_isoc_descriptor(urb, skb->len,
+            le16_to_cpu(data->isoc_tx_ep->wMaxPacketSize));
+
+    hdev->stat.sco_tx++;
+
+    usb_anchor_urb(urb, &data->tx_anchor);
+
+    err = usb_submit_urb(urb, GFP_ATOMIC);
+    if (err < 0) {
+        RTKBT_ERR("%s: Failed to submit urb %p, pkt type %d, err %d",
+                __func__, urb, bt_cb(skb)->pkt_type, err);
+        kfree(urb->setup_packet);
+        usb_unanchor_urb(urb);
+    } else
+        usb_mark_last_busy(data->udev);
+    usb_free_urb(urb);
+
+    return err;
+
+}
+
+static bool snd_copy_send_sco_data( RTK_sco_card_t *pSCOSnd)
+{
+    struct snd_pcm_runtime *runtime = pSCOSnd->playback.substream->runtime;
+  	unsigned int frame_bytes = 2, frames1;
+    const u8 *source;
+
+    snd_pcm_uframes_t period_size = runtime->period_size;
+    int i, count;
+    u8 buffer[period_size * 3];
+    int sco_packet_bytes = pSCOSnd->playback.sco_packet_bytes;
+    struct sk_buff *skb;
+
+    count = frames_to_bytes(runtime, period_size)/sco_packet_bytes;
+    skb = bt_skb_alloc(((sco_packet_bytes + HCI_SCO_HDR_SIZE) * count), GFP_ATOMIC);
+    skb->dev = (void *)hci_dev_get(0);
+    bt_cb(skb)->pkt_type = HCI_SCODATA_PKT;
+    skb_put(skb, ((sco_packet_bytes + HCI_SCO_HDR_SIZE) * count));
+    if(!skb)
+        return false;
+
+    RTKBT_DBG("%s, buffer_pos: %d", __FUNCTION__, pSCOSnd->playback.buffer_pos);
+
+    source = runtime->dma_area + pSCOSnd->playback.buffer_pos * frame_bytes;
+
+    if (pSCOSnd->playback.buffer_pos + period_size <= runtime->buffer_size) {
+      memcpy(buffer, source, period_size * frame_bytes);
+    } else {
+      /* wrap around at end of ring buffer */
+      frames1 = runtime->buffer_size - pSCOSnd->playback.buffer_pos;
+      memcpy(buffer, source, frames1 * frame_bytes);
+      memcpy(&buffer[frames1 * frame_bytes],
+             runtime->dma_area, (period_size - frames1) * frame_bytes);
+    }
+
+    pSCOSnd->playback.buffer_pos += period_size;
+    if ( pSCOSnd->playback.buffer_pos >= runtime->buffer_size)
+       pSCOSnd->playback.buffer_pos -= runtime->buffer_size;
+
+    for(i = 0; i < count; i++) {
+        *((__u16 *)(skb->data + i * (sco_packet_bytes + HCI_SCO_HDR_SIZE))) = pSCOSnd->usb_data->sco_handle;
+        *((__u8 *)(skb->data + i*(sco_packet_bytes + HCI_SCO_HDR_SIZE) + 2)) = sco_packet_bytes;
+        memcpy((skb->data + i * (sco_packet_bytes + HCI_SCO_HDR_SIZE) + HCI_SCO_HDR_SIZE),
+          &buffer[sco_packet_bytes * i], sco_packet_bytes);
+    }
+
+    if(test_bit(ALSA_PLAYBACK_RUNNING, &pSCOSnd->states)) {
+        snd_pcm_period_elapsed(pSCOSnd->playback.substream);
+    }
+    snd_send_sco_frame(skb);
+    return true;
+}
+
+static void btusb_isoc_snd_tx_complete(struct urb *urb)
+{
+    struct sk_buff *skb = urb->context;
+    struct hci_dev *hdev = (struct hci_dev *) skb->dev;
+    struct btusb_data *data = GET_DRV_DATA(hdev);
+    RTK_sco_card_t  *pSCOSnd = data->pSCOSnd;
+
+    RTKBT_DBG("%s: status %d count %d",
+            __func__,urb->status, urb->actual_length);
+
+    if (skb && hdev) {
+        if (!test_bit(HCI_RUNNING, &hdev->flags))
+            goto done;
+
+        if (!urb->status)
+            hdev->stat.byte_tx += urb->transfer_buffer_length;
+        else
+            hdev->stat.err_tx++;
+    } else
+        RTKBT_ERR("%s: skb 0x%p hdev 0x%p", __func__, skb, hdev);
+
+done:
+    kfree(urb->setup_packet);
+    kfree_skb(skb);
+    if(test_bit(ALSA_PLAYBACK_RUNNING, &pSCOSnd->states)){
+        snd_copy_send_sco_data(pSCOSnd);
+        //schedule_work(&pSCOSnd->send_sco_work);
+    }
+}
+
+static void playback_work(struct work_struct *work)
+{
+    RTK_sco_card_t *pSCOSnd = container_of(work, RTK_sco_card_t, send_sco_work);
+
+    snd_copy_send_sco_data(pSCOSnd);
+}
+
+#endif
 
 static int btusb_send_frame(struct sk_buff *skb)
 {
@@ -3098,7 +3384,7 @@ static int btusb_send_frame(struct sk_buff *skb)
 
     case HCI_SCODATA_PKT:
         print_sco(skb, 1);
-        if (!data->isoc_tx_ep || SCO_NUM < 1) {
+        if (!data->isoc_tx_ep || hdev->conn_hash.sco_num < 1) {
             kfree(skb);
             return -ENODEV;
         }
@@ -3178,8 +3464,10 @@ static void btusb_notify(struct hci_dev *hdev, unsigned int evt)
 
     RTKBT_DBG("%s: name %s, evt %d", __func__, hdev->name, evt);
 
-    if (SCO_NUM != data->sco_num) {
-        data->sco_num = SCO_NUM;
+    RTKBT_INFO("%s: hdev->conn_hash.sco_num= %d, data->sco_num = %d", __func__, hdev->conn_hash.sco_num,
+      data->sco_num);
+    if (hdev->conn_hash.sco_num != data->sco_num) {
+        data->sco_num = hdev->conn_hash.sco_num;
         schedule_work(&data->work);
     }
 }
@@ -3228,10 +3516,23 @@ static inline int set_isoc_interface(struct hci_dev *hdev, int altsetting)
     return 0;
 }
 
+static int check_controller_support_msbc( struct usb_device *udev)
+{
+    //fix this in the future,when new card support msbc decode and encode
+    RTKBT_INFO("%s:pid = 0x%02x, vid = 0x%02x",__func__,udev->descriptor.idProduct, udev->descriptor.idVendor);
+    switch (udev->descriptor.idProduct) {
+
+        default:
+          return 0;
+    }
+    return 0;
+}
+
 static void btusb_work(struct work_struct *work)
 {
     struct btusb_data *data = container_of(work, struct btusb_data, work);
     struct hci_dev *hdev = data->hdev;
+
     int err;
     int new_alts;
     if (data->sco_num > 0) {
@@ -3246,18 +3547,28 @@ static void btusb_work(struct work_struct *work)
 
             set_bit(BTUSB_DID_ISO_RESUME, &data->flags);
         }
-#if LINUX_VERSION_CODE > KERNEL_VERSION(3, 7, 1)
-        if (hdev->voice_setting & 0x0020) {
-            static const int alts[3] = { 2, 4, 5 };
-            new_alts = alts[data->sco_num - 1];
+
+        RTKBT_INFO("%s voice settings = 0x%04x", __func__, hdev->voice_setting);
+        if (!(hdev->voice_setting & 0x0003)) {
+            if(data->sco_num == 1)
+                new_alts = 2;
+            else {
+              RTKBT_ERR("%s: we don't support mutiple sco link for cvsd", __func__);
+              return;
+            }
         } else{
-            new_alts = data->sco_num;
+            if(check_controller_support_msbc(data->udev)) {
+                if(data->sco_num == 1)
+                    new_alts = 4;
+                else {
+                    RTKBT_ERR("%s: we don't support mutiple sco link for msbc", __func__);
+                    return;
+                }
+            } else {
+                new_alts = 2;
+            }
         }
         if (data->isoc_altsetting != new_alts) {
-#else
-        if (data->isoc_altsetting != 2) {
-            new_alts = 2;
-#endif
 
             clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
             mdelay(URB_CANCELING_DELAY_MS);
@@ -3273,8 +3584,18 @@ static void btusb_work(struct work_struct *work)
             else
                 btusb_submit_isoc_urb(hdev, GFP_KERNEL);
         }
+#ifdef CONFIG_SCO_OVER_HCI
+        if(test_bit(BTUSB_ISOC_RUNNING, &data->flags)) {
+            set_bit(USB_CAPTURE_RUNNING, &data->pSCOSnd->states);
+            set_bit(USB_PLAYBACK_RUNNING, &data->pSCOSnd->states);
+        }
+#endif
     } else {
         clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
+#ifdef CONFIG_SCO_OVER_HCI
+        clear_bit(USB_CAPTURE_RUNNING, &data->pSCOSnd->states);
+        clear_bit(USB_PLAYBACK_RUNNING, &data->pSCOSnd->states);
+#endif
         mdelay(URB_CANCELING_DELAY_MS);
         usb_kill_anchored_urbs(&data->isoc_anchor);
 
@@ -3452,6 +3773,337 @@ int bt_reboot_notify(struct notifier_block *notifier, ulong pm_event, void *unus
 
 #endif
 
+#ifdef CONFIG_SCO_OVER_HCI
+static const struct snd_pcm_hardware snd_card_sco_capture_default =
+{
+    .info               = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_NONINTERLEAVED |
+                            SNDRV_PCM_ACCESS_RW_INTERLEAVED | SNDRV_PCM_INFO_FIFO_IN_FRAMES),
+    .formats            = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8,
+    .rates              = (SNDRV_PCM_RATE_8000),
+    .rate_min           = 8000,
+    .rate_max           = 8000,
+    .channels_min       = 1,
+    .channels_max       = 1,
+    .buffer_bytes_max   = 8 * 768,
+    .period_bytes_min   = 48,
+    .period_bytes_max   = 768,
+    .periods_min        = 1,
+    .periods_max        = 8,
+    .fifo_size          = 8,
+
+};
+
+static int snd_sco_capture_pcm_open(struct snd_pcm_substream * substream)
+{
+    RTK_sco_card_t  *pSCOSnd = substream->private_data;
+
+    RTKBT_INFO("%s", __FUNCTION__);
+    pSCOSnd->capture.substream = substream;
+
+    memcpy(&substream->runtime->hw, &snd_card_sco_capture_default, sizeof(struct snd_pcm_hardware));
+
+    if(check_controller_support_msbc(pSCOSnd->dev)) {
+        substream->runtime->hw.rates |= SNDRV_PCM_RATE_16000;
+        substream->runtime->hw.rate_max = 16000;
+        substream->runtime->hw.period_bytes_min = 96;
+        substream->runtime->hw.period_bytes_max = 16 * 96;
+        substream->runtime->hw.buffer_bytes_max = 8 * 16 * 96;
+    }
+    set_bit(ALSA_CAPTURE_OPEN, &pSCOSnd->states);
+    return 0;
+}
+
+static int snd_sco_capture_pcm_close(struct snd_pcm_substream *substream)
+{
+	RTK_sco_card_t *pSCOSnd = substream->private_data;
+
+	clear_bit(ALSA_CAPTURE_OPEN, &pSCOSnd->states);
+	return 0;
+}
+
+static int snd_sco_capture_ioctl(struct snd_pcm_substream *substream,  unsigned int cmd, void *arg)
+{
+    RTKBT_DBG("%s, cmd = %d", __FUNCTION__, cmd);
+    switch (cmd)
+    {
+        default:
+            return snd_pcm_lib_ioctl(substream, cmd, arg);
+    }
+    return 0;
+}
+
+static int snd_sco_capture_pcm_hw_params(struct snd_pcm_substream * substream, struct snd_pcm_hw_params * hw_params)
+{
+
+    int err;
+    struct snd_pcm_runtime *runtime = substream->runtime;
+    err = snd_pcm_lib_alloc_vmalloc_buffer(substream, params_buffer_bytes(hw_params));
+    RTKBT_INFO("%s,err : %d,  runtime state : %d", __FUNCTION__, err, runtime->status->state);
+    return err;
+}
+
+static int snd_sco_capture_pcm_hw_free(struct snd_pcm_substream * substream)
+{
+    RTKBT_DBG("%s", __FUNCTION__);
+    return snd_pcm_lib_free_vmalloc_buffer(substream);;
+}
+
+static int snd_sco_capture_pcm_prepare(struct snd_pcm_substream *substream)
+{
+    RTK_sco_card_t *pSCOSnd = substream->private_data;
+    struct snd_pcm_runtime *runtime = substream->runtime;
+
+    RTKBT_INFO("%s", __FUNCTION__);
+    if (test_bit(DISCONNECTED, &pSCOSnd->states))
+		    return -ENODEV;
+	  if (!test_bit(USB_CAPTURE_RUNNING, &pSCOSnd->states))
+		    return -EIO;
+
+    if(runtime->rate == 8000) {
+        if(pSCOSnd->usb_data->isoc_altsetting != 2)
+            return -ENOEXEC;
+        pSCOSnd->capture.sco_packet_bytes = 48;
+    }
+    else if(runtime->rate == 16000 && check_controller_support_msbc(pSCOSnd->dev)) {
+        if(pSCOSnd->usb_data->isoc_altsetting != 4)
+            return -ENOEXEC;
+        pSCOSnd->capture.sco_packet_bytes = 96;
+    }
+    else if(pSCOSnd->usb_data->isoc_altsetting == 2) {
+        pSCOSnd->capture.sco_packet_bytes = 48;
+    }
+    else if(pSCOSnd->usb_data->isoc_altsetting == 1) {
+        pSCOSnd->capture.sco_packet_bytes = 24;
+    }
+    return 0;
+}
+
+static int snd_sco_capture_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
+{
+	  RTK_sco_card_t *pSCOSnd = substream->private_data;
+    RTKBT_INFO("%s, cmd : %d", __FUNCTION__, cmd);
+
+	  switch (cmd) {
+	    case SNDRV_PCM_TRIGGER_START:
+		      if (!test_bit(USB_CAPTURE_RUNNING, &pSCOSnd->states))
+			      return -EIO;
+		      set_bit(ALSA_CAPTURE_RUNNING, &pSCOSnd->states);
+		      return 0;
+	    case SNDRV_PCM_TRIGGER_STOP:
+		      clear_bit(ALSA_CAPTURE_RUNNING, &pSCOSnd->states);
+		      return 0;
+	    default:
+		      return -EINVAL;
+	  }
+}
+
+static snd_pcm_uframes_t snd_sco_capture_pcm_pointer(struct snd_pcm_substream *substream)
+{
+	  RTK_sco_card_t *pSCOSnd = substream->private_data;
+
+	  return pSCOSnd->capture.buffer_pos;
+}
+
+
+static struct snd_pcm_ops snd_sco_capture_pcm_ops = {
+	.open =         snd_sco_capture_pcm_open,
+	.close =        snd_sco_capture_pcm_close,
+	.ioctl =        snd_sco_capture_ioctl,
+	.hw_params =    snd_sco_capture_pcm_hw_params,
+	.hw_free =      snd_sco_capture_pcm_hw_free,
+	.prepare =      snd_sco_capture_pcm_prepare,
+	.trigger =      snd_sco_capture_pcm_trigger,
+	.pointer =      snd_sco_capture_pcm_pointer,
+};
+
+
+static const struct snd_pcm_hardware snd_card_sco_playback_default =
+{
+    .info               = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_NONINTERLEAVED |
+                            SNDRV_PCM_ACCESS_RW_INTERLEAVED | SNDRV_PCM_INFO_FIFO_IN_FRAMES),
+    .formats            = SNDRV_PCM_FMTBIT_S16_LE,
+    .rates              = (SNDRV_PCM_RATE_8000),
+    .rate_min           = 8000,
+    .rate_max           = 8000,
+    .channels_min       = 1,
+    .channels_max       = 1,
+    .buffer_bytes_max   = 8 * 768,
+    .period_bytes_min   = 48,
+    .period_bytes_max   = 768,
+    .periods_min        = 1,
+    .periods_max        = 8,
+    .fifo_size          = 8,
+};
+
+static int snd_sco_playback_pcm_open(struct snd_pcm_substream * substream)
+{
+    RTK_sco_card_t *pSCOSnd = substream->private_data;
+    int err = 0;
+
+    RTKBT_INFO("%s, rate : %d", __FUNCTION__, substream->runtime->rate);
+    memcpy(&substream->runtime->hw, &snd_card_sco_playback_default, sizeof(struct snd_pcm_hardware));
+    if(check_controller_support_msbc(pSCOSnd->dev)) {
+        substream->runtime->hw.rates |= SNDRV_PCM_RATE_16000;
+        substream->runtime->hw.rate_max = 16000;
+        substream->runtime->hw.period_bytes_min = 96;
+        substream->runtime->hw.period_bytes_max = 16 * 96;
+        substream->runtime->hw.buffer_bytes_max = 8 * 16 * 96;
+    }
+    pSCOSnd->playback.substream = substream;
+    set_bit(ALSA_PLAYBACK_OPEN, &pSCOSnd->states);
+
+    return err;
+}
+
+static int snd_sco_playback_pcm_close(struct snd_pcm_substream *substream)
+{
+    RTK_sco_card_t *pSCOSnd = substream->private_data;
+
+	  clear_bit(ALSA_PLAYBACK_OPEN, &pSCOSnd->states);
+    cancel_work_sync(&pSCOSnd->send_sco_work);
+	  return 0;
+}
+
+static int snd_sco_playback_ioctl(struct snd_pcm_substream *substream,  unsigned int cmd, void *arg)
+{
+    RTKBT_DBG("%s, cmd : %d", __FUNCTION__, cmd);
+    switch (cmd)
+    {
+        default:
+            return snd_pcm_lib_ioctl(substream, cmd, arg);
+            break;
+    }
+    return 0;
+}
+
+static int snd_sco_playback_pcm_hw_params(struct snd_pcm_substream * substream, struct snd_pcm_hw_params * hw_params)
+{
+    int err;
+    err = snd_pcm_lib_alloc_vmalloc_buffer(substream, params_buffer_bytes(hw_params));
+    return err;
+}
+
+static int snd_sco_palyback_pcm_hw_free(struct snd_pcm_substream * substream)
+{
+    RTKBT_DBG("%s", __FUNCTION__);
+    return snd_pcm_lib_free_vmalloc_buffer(substream);
+}
+
+static int snd_sco_playback_pcm_prepare(struct snd_pcm_substream *substream)
+{
+	  RTK_sco_card_t *pSCOSnd = substream->private_data;
+    struct snd_pcm_runtime *runtime = substream->runtime;
+
+    RTKBT_INFO("%s, bound_rate = %d", __FUNCTION__, runtime->rate);
+
+	  if (test_bit(DISCONNECTED, &pSCOSnd->states))
+		    return -ENODEV;
+	  if (!test_bit(USB_PLAYBACK_RUNNING, &pSCOSnd->states))
+		    return -EIO;
+
+    if(runtime->rate == 8000) {
+        if(pSCOSnd->usb_data->isoc_altsetting != 2)
+            return -ENOEXEC;
+        pSCOSnd->playback.sco_packet_bytes = 48;
+    }
+    else if(runtime->rate == 16000) {
+        if(pSCOSnd->usb_data->isoc_altsetting != 4)
+            return -ENOEXEC;
+        pSCOSnd->playback.sco_packet_bytes = 96;
+    }
+
+  	return 0;
+}
+
+static int snd_sco_playback_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
+{
+  	RTK_sco_card_t *pSCOSnd = substream->private_data;
+
+    RTKBT_INFO("%s, cmd = %d", __FUNCTION__, cmd);
+  	switch (cmd) {
+      	case SNDRV_PCM_TRIGGER_START:
+      		if (!test_bit(USB_PLAYBACK_RUNNING, &pSCOSnd->states))
+      			return -EIO;
+      		set_bit(ALSA_PLAYBACK_RUNNING, &pSCOSnd->states);
+          schedule_work(&pSCOSnd->send_sco_work);
+      		return 0;
+      	case SNDRV_PCM_TRIGGER_STOP:
+      		clear_bit(ALSA_PLAYBACK_RUNNING, &pSCOSnd->states);
+      		return 0;
+      	default:
+      		return -EINVAL;
+  	}
+}
+
+static snd_pcm_uframes_t snd_sco_playback_pcm_pointer(struct snd_pcm_substream *substream)
+{
+  	RTK_sco_card_t *pSCOSnd = substream->private_data;
+
+  	return pSCOSnd->playback.buffer_pos;
+}
+
+
+static struct snd_pcm_ops snd_sco_playback_pcm_ops = {
+	.open =         snd_sco_playback_pcm_open,
+	.close =        snd_sco_playback_pcm_close,
+	.ioctl =        snd_sco_playback_ioctl,
+	.hw_params =    snd_sco_playback_pcm_hw_params,
+	.hw_free =      snd_sco_palyback_pcm_hw_free,
+	.prepare =      snd_sco_playback_pcm_prepare,
+	.trigger =      snd_sco_playback_pcm_trigger,
+	.pointer =      snd_sco_playback_pcm_pointer,
+};
+
+
+static RTK_sco_card_t* btusb_snd_init(struct usb_interface *intf, const struct usb_device_id *id, struct btusb_data *data)
+{
+    struct snd_card *card;
+    RTK_sco_card_t  *pSCOSnd;
+    int err=0;
+    RTKBT_INFO("%s", __func__);
+    err = snd_card_new(&intf->dev,
+     -1, RTK_SCO_ID, THIS_MODULE,
+     sizeof(RTK_sco_card_t), &card);
+    if (err < 0) {
+        RTKBT_ERR("%s: sco snd card create fail", __func__);
+        return NULL;
+    }
+    // private data
+    pSCOSnd = (RTK_sco_card_t *)card->private_data;
+    pSCOSnd->card = card;
+    pSCOSnd->dev = interface_to_usbdev(intf);
+    pSCOSnd->usb_data = data;
+
+    strcpy(card->driver, RTK_SCO_ID);
+    strcpy(card->shortname, "Realtek sco snd");
+    sprintf(card->longname, "Realtek sco over hci: VID:0x%04x, PID:0x%04x",
+        id->idVendor, pSCOSnd->dev->descriptor.idProduct);
+
+    err = snd_pcm_new(card, RTK_SCO_ID, 0, 1, 1, &pSCOSnd->pcm);
+    if (err < 0) {
+        RTKBT_ERR("%s: sco snd card new pcm fail", __func__);
+        return NULL;
+    }
+    pSCOSnd->pcm->private_data = pSCOSnd;
+    sprintf(pSCOSnd->pcm->name, "sco_pcm:VID:0x%04x, PID:0x%04x",
+      id->idVendor, pSCOSnd->dev->descriptor.idProduct);
+
+    snd_pcm_set_ops(pSCOSnd->pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_sco_playback_pcm_ops);
+    snd_pcm_set_ops(pSCOSnd->pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_sco_capture_pcm_ops);
+
+    err = snd_card_register(card);
+    if (err < 0) {
+        RTKBT_ERR("%s: sco snd card register card fail", __func__);
+        return NULL;
+    }
+
+    spin_lock_init(&pSCOSnd->capture_lock);
+    spin_lock_init(&pSCOSnd->playback_lock);
+    INIT_WORK(&pSCOSnd->send_sco_work, playback_work);
+    return pSCOSnd;
+}
+#endif
+
 static int btusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
     struct usb_device *udev = interface_to_usbdev(intf);
@@ -3530,20 +4182,6 @@ static int btusb_probe(struct usb_interface *intf, const struct usb_device_id *i
         goto end;
     }
 
-    RTKBT_INFO("%s: download begining...", __func__);
-
-#if CONFIG_BLUEDROID
-    mutex_lock(&btchr_mutex);
-#endif
-
-
-
-#if CONFIG_BLUEDROID
-    mutex_unlock(&btchr_mutex);
-#endif
-
-    RTKBT_INFO("%s: download ending...", __func__);
-
     hdev = hci_alloc_dev();
     if (!hdev) {
         rtk_free(data);
@@ -3590,6 +4228,9 @@ static int btusb_probe(struct usb_interface *intf, const struct usb_device_id *i
             data = NULL;
             return err;
         }
+#ifdef CONFIG_SCO_OVER_HCI
+        data->pSCOSnd = btusb_snd_init(intf, id, data);
+#endif
     }
 
     err = hci_register_dev(hdev);
@@ -3638,6 +4279,9 @@ static void btusb_disconnect(struct usb_interface *intf)
     struct btusb_data *data;
     struct hci_dev *hdev = NULL;
 
+    if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
+        return;
+
     wait_event_interruptible(bt_dlfw_wait, (check_set_dlfw_state_value(2) == 2));
 
     RTKBT_INFO("%s: usb_interface %p, bInterfaceNumber %d",
@@ -3645,15 +4289,25 @@ static void btusb_disconnect(struct usb_interface *intf)
 
     data = usb_get_intfdata(intf);
 
-    if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
-        return;
-
     if (data)
         hdev = data->hdev;
     else {
         RTKBT_WARN("%s: Failed to get bt usb data[Null]", __func__);
         return;
     }
+
+#ifdef CONFIG_SCO_OVER_HCI
+    if (intf->cur_altsetting->desc.bInterfaceNumber == 0) {
+        RTK_sco_card_t *pSCOSnd = data->pSCOSnd;
+        if(!pSCOSnd) {
+            RTKBT_ERR("%s: sco private data is null", __func__);
+            return;
+        }
+        set_bit(DISCONNECTED, &pSCOSnd->states);
+        snd_card_disconnect(pSCOSnd->card);
+        snd_card_free_when_closed(pSCOSnd->card);
+    }
+#endif
 
 //#ifdef CONFIG_HAS_EARLYSUSPEND
 #if 0
@@ -3868,7 +4522,7 @@ static int __init btusb_init(void)
         /* usb register will go on, even bt char register failed */
         RTKBT_ERR("Failed to register usb char device interfaces");
     } else
-        bt_char_dev_registered = 1;
+        bt_char_dev_registered = true;
 #endif
     err = usb_register(&btusb_driver);
     if (err < 0)
@@ -3878,10 +4532,19 @@ static int __init btusb_init(void)
 
 static void __exit btusb_exit(void)
 {
+    struct hci_dev *hdev;
     RTKBT_INFO("Realtek Bluetooth USB driver module exit");
 #if CONFIG_BLUEDROID
-    if (bt_char_dev_registered > 0)
+    hdev = hci_dev_get(0);
+    if (bt_char_dev_registered) {
+        bt_char_dev_registered = false;
+        while(hdev && atomic_read(&hdev->promisc)) {
+            RTKBT_ERR("%s: rtkbt driver is being removed, but application is still running!", __func__);
+            RTKBT_ERR("%s: wait bt application to stop, or the driver can't be removed", __func__);
+            mdelay(100);
+        }
         btchr_exit();
+    }
 #endif
     usb_deregister(&btusb_driver);
 }
