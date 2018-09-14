@@ -207,23 +207,6 @@ static bool slice_check_range_fits(struct mm_struct *mm,
 	return true;
 }
 
-static void slice_flush_segments(void *parm)
-{
-#ifdef CONFIG_PPC64
-	struct mm_struct *mm = parm;
-	unsigned long flags;
-
-	if (mm != current->active_mm)
-		return;
-
-	copy_mm_to_paca(current->active_mm);
-
-	local_irq_save(flags);
-	slb_flush_and_rebolt();
-	local_irq_restore(flags);
-#endif
-}
-
 static void slice_convert(struct mm_struct *mm,
 				const struct slice_mask *mask, int psize)
 {
@@ -289,6 +272,9 @@ static void slice_convert(struct mm_struct *mm,
 	spin_unlock_irqrestore(&slice_convert_lock, flags);
 
 	copro_flush_all_slbs(mm);
+#ifdef CONFIG_PPC64
+	core_flush_all_slbs(mm);
+#endif
 }
 
 /*
@@ -502,8 +488,9 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 		 * be already initialised beyond the old address limit.
 		 */
 		mm->context.slb_addr_limit = high_limit;
-
-		on_each_cpu(slice_flush_segments, mm, 1);
+#ifdef CONFIG_PPC64
+		core_flush_all_slbs(mm);
+#endif
 	}
 
 	/* Sanity checks */
@@ -665,8 +652,10 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 		(SLICE_NUM_HIGH &&
 		 !bitmap_empty(potential_mask.high_slices, SLICE_NUM_HIGH))) {
 		slice_convert(mm, &potential_mask, psize);
+#ifdef CONFIG_PPC64
 		if (psize > MMU_PAGE_BASE)
-			on_each_cpu(slice_flush_segments, mm, 1);
+			core_flush_all_slbs(mm);
+#endif
 	}
 	return newaddr;
 

@@ -501,6 +501,7 @@ struct slb_entry {
 };
 
 extern void slb_initialize(void);
+extern void core_flush_all_slbs(struct mm_struct *mm);
 extern void slb_flush_and_rebolt(void);
 void slb_flush_all_realmode(void);
 void __slb_restore_bolted_realmode(void);

@@ -1088,16 +1088,16 @@ unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 }
 
 #ifdef CONFIG_PPC_MM_SLICES
-static unsigned int get_paca_psize(unsigned long addr)
+static unsigned int get_psize(struct mm_struct *mm, unsigned long addr)
 {
 	unsigned char *psizes;
 	unsigned long index, mask_index;
 
 	if (addr < SLICE_LOW_TOP) {
-		psizes = get_paca()->mm_ctx_low_slices_psize;
+		psizes = mm->context.low_slices_psize;
 		index = GET_LOW_SLICE_INDEX(addr);
 	} else {
-		psizes = get_paca()->mm_ctx_high_slices_psize;
+		psizes = mm->context.high_slices_psize;
 		index = GET_HIGH_SLICE_INDEX(addr);
 	}
 	mask_index = index & 0x1;
@@ -1105,9 +1105,9 @@ static unsigned int get_paca_psize(unsigned long addr)
 }
 
 #else
-unsigned int get_paca_psize(unsigned long addr)
+unsigned int get_psize(struct mm_struct *mm, unsigned long addr)
 {
-	return get_paca()->mm_ctx_user_psize;
+	return mm->context.user_psize;
 }
 #endif
 
@@ -1118,15 +1118,11 @@ unsigned int get_paca_psize(unsigned long addr)
 #ifdef CONFIG_PPC_64K_PAGES
 void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 {
-	if (get_slice_psize(mm, addr) == MMU_PAGE_4K)
+	if (get_psize(mm, addr) == MMU_PAGE_4K)
 		return;
 	slice_set_range_psize(mm, addr, 1, MMU_PAGE_4K);
 	copro_flush_all_slbs(mm);
-	if ((get_paca_psize(addr) != MMU_PAGE_4K) && (current->mm == mm)) {
-
-		copy_mm_to_paca(mm);
-		slb_flush_and_rebolt();
-	}
+	core_flush_all_slbs(mm);
 }
 #endif /* CONFIG_PPC_64K_PAGES */
 
@@ -1191,22 +1187,6 @@ void hash_failure_debug(unsigned long ea, unsigned long access,
 		trap, vsid, ssize, psize, lpsize, pte);
 }
 
-static void check_paca_psize(unsigned long ea, struct mm_struct *mm,
-			     int psize, bool user_region)
-{
-	if (user_region) {
-		if (psize != get_paca_psize(ea)) {
-			copy_mm_to_paca(mm);
-			slb_flush_and_rebolt();
-		}
-	} else if (get_paca()->vmalloc_sllp !=
-		   mmu_psize_defs[mmu_vmalloc_psize].sllp) {
-		get_paca()->vmalloc_sllp =
-			mmu_psize_defs[mmu_vmalloc_psize].sllp;
-		slb_vmalloc_update();
-	}
-}
-
 /* Result code is:
  *  0 - handled
  *  1 - normal page fault
@@ -1239,7 +1219,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 			rc = 1;
 			goto bail;
 		}
-		psize = get_slice_psize(mm, ea);
+		psize = get_psize(mm, ea);
 		ssize = user_segment_size(ea);
 		vsid = get_user_vsid(&mm->context, ea, ssize);
 		break;
@@ -1327,9 +1307,6 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 			WARN_ON(1);
 		}
 #endif
-		if (current->mm == mm)
-			check_paca_psize(ea, mm, psize, user_region);
-
 		goto bail;
 	}
 
@@ -1364,14 +1341,13 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 			       "to 4kB pages because of "
 			       "non-cacheable mapping\n");
 			psize = mmu_vmalloc_psize = MMU_PAGE_4K;
+			slb_vmalloc_update();
 			copro_flush_all_slbs(mm);
+			core_flush_all_slbs(mm);
 		}
 	}
 
 #endif /* CONFIG_PPC_64K_PAGES */
-
-	if (current->mm == mm)
-		check_paca_psize(ea, mm, psize, user_region);
 
 #ifdef CONFIG_PPC_64K_PAGES
 	if (psize == MMU_PAGE_64K)
@@ -1460,7 +1436,7 @@ int __hash_page(unsigned long ea, unsigned long msr, unsigned long trap,
 #ifdef CONFIG_PPC_MM_SLICES
 static bool should_hash_preload(struct mm_struct *mm, unsigned long ea)
 {
-	int psize = get_slice_psize(mm, ea);
+	int psize = get_psize(mm, ea);
 
 	/* We only prefault standard pages for now */
 	if (unlikely(psize != mm->context.user_psize))

@@ -54,8 +54,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		 * MMU context id, which is then moved to SPRN_PID.
 		 *
 		 * For the hash MMU it is either the first load from slb_cache
-		 * in switch_slb(), and/or the store of paca->mm_ctx_id in
-		 * copy_mm_to_paca().
+		 * in switch_slb(), and/or load of MMU context id.
 		 *
 		 * On the other side, the barrier is in mm/tlb-radix.c for
 		 * radix which orders earlier stores to clear the PTEs vs

@@ -347,8 +347,6 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 		get_paca()->slb_cache_ptr = 0;
 	}
 
-	copy_mm_to_paca(mm);
-
 	/*
 	 * preload some userspace segments into the SLB.
 	 * Almost all 32 and 64bit PowerPC executables are linked at
@@ -373,6 +371,24 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 void slb_set_size(u16 size)
 {
 	mmu_slb_size = size;
+}
+
+static void cpu_flush_slb(void *parm)
+{
+	struct mm_struct *mm = parm;
+	unsigned long flags;
+
+	if (mm != current->active_mm)
+		return;
+
+	local_irq_save(flags);
+	slb_flush_and_rebolt();
+	local_irq_restore(flags);
+}
+
+void core_flush_all_slbs(struct mm_struct *mm)
+{
+	on_each_cpu(cpu_flush_slb, mm, 1);
 }
 
 void slb_initialize(void)
