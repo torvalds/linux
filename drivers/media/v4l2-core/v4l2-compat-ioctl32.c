@@ -244,6 +244,7 @@ struct v4l2_format32 {
  *		return: number of created buffers
  * @memory:	buffer memory type
  * @format:	frame format, for which buffers are requested
+ * @capabilities: capabilities of this buffer type.
  * @reserved:	future extensions
  */
 struct v4l2_create_buffers32 {
