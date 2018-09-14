@@ -250,6 +250,11 @@ int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 	bool free = false;
 	int r;
 
+	if (!size) {
+		amdgpu_bo_unref(bo_ptr);
+		return 0;
+	}
+
 	memset(&bp, 0, sizeof(bp));
 	bp.size = size;
 	bp.byte_align = align;
