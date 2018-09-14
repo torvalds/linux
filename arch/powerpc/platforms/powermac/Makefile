@@ -3,7 +3,7 @@ CFLAGS_bootx_init.o  		+= -fPIC
 
 ifdef CONFIG_FUNCTION_TRACER
 # Do not trace early boot code
-CFLAGS_REMOVE_bootx_init.o = -mno-sched-epilog $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_bootx_init.o = $(CC_FLAGS_FTRACE)
 endif
 
 obj-y				+= pic.o setup.o time.o feature.o pci.o \
