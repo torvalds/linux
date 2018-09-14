@@ -64,7 +64,7 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
-				     &act_sample_ops, bind, false);
+				     &act_sample_ops, bind, true);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
