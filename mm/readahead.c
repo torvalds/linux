@@ -20,6 +20,7 @@
 #include <linux/file.h>
 #include <linux/mm_inline.h>
 #include <linux/blk-cgroup.h>
+#include <linux/fadvise.h>
 
 #include "internal.h"
 
@@ -575,24 +576,6 @@ page_cache_async_readahead(struct address_space *mapping,
 }
 EXPORT_SYMBOL_GPL(page_cache_async_readahead);
 
-static ssize_t
-do_readahead(struct address_space *mapping, struct file *filp,
-	     pgoff_t index, unsigned long nr)
-{
-	if (!mapping || !mapping->a_ops)
-		return -EINVAL;
-
-	/*
-	 * Readahead doesn't make sense for DAX inodes, but we don't want it
-	 * to report a failure either.  Instead, we just return success and
-	 * don't do any work.
-	 */
-	if (dax_mapping(mapping))
-		return 0;
-
-	return force_page_cache_readahead(mapping, filp, index, nr);
-}
-
 ssize_t ksys_readahead(int fd, loff_t offset, size_t count)
 {
 	ssize_t ret;
@@ -600,16 +583,22 @@ ssize_t ksys_readahead(int fd, loff_t offset, size_t count)
 
 	ret = -EBADF;
 	f = fdget(fd);
-	if (f.file) {
-		if (f.file->f_mode & FMODE_READ) {
-			struct address_space *mapping = f.file->f_mapping;
-			pgoff_t start = offset >> PAGE_SHIFT;
-			pgoff_t end = (offset + count - 1) >> PAGE_SHIFT;
-			unsigned long len = end - start + 1;
-			ret = do_readahead(mapping, f.file, start, len);
-		}
-		fdput(f);
-	}
+	if (!f.file || !(f.file->f_mode & FMODE_READ))
+		goto out;
+
+	/*
+	 * The readahead() syscall is intended to run only on files
+	 * that can execute readahead. If readahead is not possible
+	 * on this file, then we must return -EINVAL.
+	 */
+	ret = -EINVAL;
+	if (!f.file->f_mapping || !f.file->f_mapping->a_ops ||
+	    !S_ISREG(file_inode(f.file)->i_mode))
+		goto out;
+
+	ret = vfs_fadvise(f.file, offset, count, POSIX_FADV_WILLNEED);
+out:
+	fdput(f);
 	return ret;
 }
 
