@@ -502,7 +502,7 @@ static const s8 NCT6779_BEEP_BITS[] = {
 	30, 31 };			/* intrusion0, intrusion1 */
 
 static const u16 NCT6779_REG_FAN[] = {
-	0x4b0, 0x4b2, 0x4b4, 0x4b6, 0x4b8, 0x4ba, 0x660 };
+	0x4c0, 0x4c2, 0x4c4, 0x4c6, 0x4c8, 0x4ca, 0x660 };
 static const u16 NCT6779_REG_FAN_PULSES[NUM_FAN] = {
 	0x644, 0x645, 0x646, 0x647, 0x648, 0x649 };
 
@@ -924,6 +924,11 @@ static unsigned int fan_from_reg16(u16 reg, unsigned int divreg)
 	return 1350000U / (reg << divreg);
 }
 
+static unsigned int fan_from_reg_rpm(u16 reg, unsigned int divreg)
+{
+	return reg;
+}
+
 static u16 fan_to_reg(u32 fan, unsigned int divreg)
 {
 	if (!fan)
@@ -1284,7 +1289,7 @@ static bool is_word_sized(struct nct6775_data *data, u16 reg)
 	case nct6795:
 	case nct6796:
 		return reg == 0x150 || reg == 0x153 || reg == 0x155 ||
-		  ((reg & 0xfff0) == 0x4b0 && (reg & 0x000f) < 0x0b) ||
+		  (reg & 0xfff0) == 0x4c0 ||
 		  reg == 0x402 ||
 		  reg == 0x63a || reg == 0x63c || reg == 0x63e ||
 		  reg == 0x640 || reg == 0x642 || reg == 0x64a ||
@@ -3868,7 +3873,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->ALARM_BITS = NCT6779_ALARM_BITS;
 		data->BEEP_BITS = NCT6779_BEEP_BITS;
 
-		data->fan_from_reg = fan_from_reg13;
+		data->fan_from_reg = fan_from_reg_rpm;
 		data->fan_from_reg_min = fan_from_reg13;
 		data->target_temp_mask = 0xff;
 		data->tolerance_mask = 0x07;
@@ -3949,7 +3954,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->ALARM_BITS = NCT6791_ALARM_BITS;
 		data->BEEP_BITS = NCT6779_BEEP_BITS;
 
-		data->fan_from_reg = fan_from_reg13;
+		data->fan_from_reg = fan_from_reg_rpm;
 		data->fan_from_reg_min = fan_from_reg13;
 		data->target_temp_mask = 0xff;
 		data->tolerance_mask = 0x07;
