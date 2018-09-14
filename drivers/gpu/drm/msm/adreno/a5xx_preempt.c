@@ -208,6 +208,13 @@ void a5xx_preempt_hw_init(struct msm_gpu *gpu)
 	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
 	int i;
 
+	/* Always come up on rb 0 */
+	a5xx_gpu->cur_ring = gpu->rb[0];
+
+	/* No preemption if we only have one ring */
+	if (gpu->nr_rings == 1)
+		return;
+
 	for (i = 0; i < gpu->nr_rings; i++) {
 		a5xx_gpu->preempt[i]->wptr = 0;
 		a5xx_gpu->preempt[i]->rptr = 0;
@@ -220,9 +227,6 @@ void a5xx_preempt_hw_init(struct msm_gpu *gpu)
 
 	/* Reset the preemption state */
 	set_preempt_state(a5xx_gpu, PREEMPT_NONE);
-
-	/* Always come up on rb 0 */
-	a5xx_gpu->cur_ring = gpu->rb[0];
 }
 
 static int preempt_init_ring(struct a5xx_gpu *a5xx_gpu,
