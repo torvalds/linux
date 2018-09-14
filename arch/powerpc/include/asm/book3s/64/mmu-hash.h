@@ -487,6 +487,8 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 extern void pseries_add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages);
 extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
 
+extern void hash__setup_new_exec(void);
+
 #ifdef CONFIG_PPC_PSERIES
 void hpte_init_pseries(void);
 #else
