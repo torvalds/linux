@@ -30,8 +30,7 @@
 
 enum slb_index {
 	LINEAR_INDEX	= 0, /* Kernel linear map  (0xc000000000000000) */
-	VMALLOC_INDEX	= 1, /* Kernel virtual map (0xd000000000000000) */
-	KSTACK_INDEX	= 2, /* Kernel stack map */
+	KSTACK_INDEX	= 1, /* Kernel stack map */
 };
 
 extern void slb_allocate(unsigned long ea);
@@ -133,13 +132,11 @@ static void __slb_flush_and_rebolt(void)
 {
 	/* If you change this make sure you change SLB_NUM_BOLTED
 	 * and PR KVM appropriately too. */
-	unsigned long linear_llp, vmalloc_llp, lflags, vflags;
+	unsigned long linear_llp, lflags;
 	unsigned long ksp_esid_data, ksp_vsid_data;
 
 	linear_llp = mmu_psize_defs[mmu_linear_psize].sllp;
-	vmalloc_llp = mmu_psize_defs[mmu_vmalloc_psize].sllp;
 	lflags = SLB_VSID_KERNEL | linear_llp;
-	vflags = SLB_VSID_KERNEL | vmalloc_llp;
 
 	ksp_esid_data = mk_esid_data(get_paca()->kstack, mmu_kernel_ssize, KSTACK_INDEX);
 	if ((ksp_esid_data & ~0xfffffffUL) <= PAGE_OFFSET) {
@@ -157,14 +154,10 @@ static void __slb_flush_and_rebolt(void)
 	 * the stack between the slbia and rebolting it. */
 	asm volatile("isync\n"
 		     "slbia\n"
-		     /* Slot 1 - first VMALLOC segment */
+		     /* Slot 1 - kernel stack */
 		     "slbmte	%0,%1\n"
-		     /* Slot 2 - kernel stack */
-		     "slbmte	%2,%3\n"
 		     "isync"
-		     :: "r"(mk_vsid_data(VMALLOC_START, mmu_kernel_ssize, vflags)),
-		        "r"(mk_esid_data(VMALLOC_START, mmu_kernel_ssize, VMALLOC_INDEX)),
-		        "r"(ksp_vsid_data),
+		     :: "r"(ksp_vsid_data),
 		        "r"(ksp_esid_data)
 		     : "memory");
 }
@@ -256,10 +249,6 @@ void slb_dump_contents(struct slb_entry *slb_ptr)
 
 void slb_vmalloc_update(void)
 {
-	unsigned long vflags;
-
-	vflags = SLB_VSID_KERNEL | mmu_psize_defs[mmu_vmalloc_psize].sllp;
-	slb_shadow_update(VMALLOC_START, mmu_kernel_ssize, vflags, VMALLOC_INDEX);
 	slb_flush_and_rebolt();
 }
 
@@ -394,7 +383,7 @@ void slb_set_size(u16 size)
 void slb_initialize(void)
 {
 	unsigned long linear_llp, vmalloc_llp, io_llp;
-	unsigned long lflags, vflags;
+	unsigned long lflags;
 	static int slb_encoding_inited;
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 	unsigned long vmemmap_llp;
@@ -430,14 +419,12 @@ void slb_initialize(void)
 	get_paca()->stab_rr = SLB_NUM_BOLTED - 1;
 
 	lflags = SLB_VSID_KERNEL | linear_llp;
-	vflags = SLB_VSID_KERNEL | vmalloc_llp;
 
 	/* Invalidate the entire SLB (even entry 0) & all the ERATS */
 	asm volatile("isync":::"memory");
 	asm volatile("slbmte  %0,%0"::"r" (0) : "memory");
 	asm volatile("isync; slbia; isync":::"memory");
 	create_shadowed_slbe(PAGE_OFFSET, mmu_kernel_ssize, lflags, LINEAR_INDEX);
-	create_shadowed_slbe(VMALLOC_START, mmu_kernel_ssize, vflags, VMALLOC_INDEX);
 
 	/* For the boot cpu, we're running on the stack in init_thread_union,
 	 * which is in the first segment of the linear mapping, and also

@@ -30,7 +30,7 @@
  * SLB
  */
 
-#define SLB_NUM_BOLTED		3
+#define SLB_NUM_BOLTED		2
 #define SLB_CACHE_ENTRIES	8
 #define SLB_MIN_SIZE		32
 
