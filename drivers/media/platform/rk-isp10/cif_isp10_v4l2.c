@@ -906,16 +906,19 @@ static void cif_isp10_v4l2_vb2_queue(struct vb2_buffer *vb)
 	enum cif_isp10_stream_id strm = to_cif_isp10_stream_id(queue);
 	struct cif_isp10_stream *stream = to_stream_by_id(dev, strm);
 	u32 size;
+	unsigned long lock_flags = 0;
 
 	cif_isp10_pltfrm_pr_dbg(NULL,
 		"buffer type %s\n",
 		cif_isp10_v4l2_buf_type_string(queue->type));
 
+	spin_lock_irqsave(&dev->vbq_lock, lock_flags);
 	list_add_tail(&ispbuf->queue, &stream->buf_queue);
 
 	cif_isp10_calc_min_out_buff_size(dev, strm, &size, false);
 	//size = PAGE_ALIGN(size);
 	vb2_set_plane_payload(vb, 0, size);
+	spin_unlock_irqrestore(&dev->vbq_lock, lock_flags);
 }
 
 static void cif_isp10_v4l2_vb2_stop_streaming(struct vb2_queue *queue)
