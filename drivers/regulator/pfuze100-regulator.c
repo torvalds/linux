@@ -576,7 +576,7 @@ static struct pfuze_chip *syspm_pfuze_chip;
 
 static void pfuze_power_off_prepare(void)
 {
-	dev_info(syspm_pfuze_chip->dev, "Configure standy mode for power off");
+	dev_info(syspm_pfuze_chip->dev, "Configure standby mode for power off");
 
 	/* Switch from default mode: APS/APS to APS/Off */
 	regmap_update_bits(syspm_pfuze_chip->regmap, PFUZE100_SW1ABMODE,
