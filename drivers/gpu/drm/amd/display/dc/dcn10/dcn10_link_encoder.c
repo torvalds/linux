@@ -606,6 +606,9 @@ bool dcn10_link_encoder_validate_dp_output(
 	const struct dcn10_link_encoder *enc10,
 	const struct dc_crtc_timing *crtc_timing)
 {
+	if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		return false;
+
 	/* default RGB only */
 	if (crtc_timing->pixel_encoding == PIXEL_ENCODING_RGB)
 		return true;
