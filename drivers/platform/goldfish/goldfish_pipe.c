@@ -59,7 +59,6 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-#include <linux/goldfish.h>
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/acpi.h>
