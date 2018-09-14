@@ -1215,7 +1215,7 @@ static int rs_ioctl(struct tty_struct *tty,
 	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
 		return -ENODEV;
 
-	if ((cmd != TIOCSERCONFIG) && (cmd != TIOCSERGSTRUCT) &&
+	if ((cmd != TIOCSERCONFIG) &&
 	    (cmd != TIOCMIWAIT) && (cmd != TIOCGICOUNT)) {
 		if (tty_io_error(tty))
 		    return -EIO;
@@ -1227,12 +1227,6 @@ static int rs_ioctl(struct tty_struct *tty,
 
 		case TIOCSERGETLSR: /* Get line status register */
 			return get_lsr_info(info, argp);
-
-		case TIOCSERGSTRUCT:
-			if (copy_to_user(argp,
-					 info, sizeof(struct serial_state)))
-				return -EFAULT;
-			return 0;
 
 		/*
 		 * Wait for any of the 4 modem inputs (DCD,RI,DSR,CTS) to change

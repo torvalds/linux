@@ -309,14 +309,12 @@ static int rs_getserial(struct tty_struct *tty, struct serial_struct *ss)
 
 static int rs_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 {
-	if ((cmd != TIOCSERCONFIG) && (cmd != TIOCSERGSTRUCT) &&
-	    (cmd != TIOCMIWAIT)) {
+	if ((cmd != TIOCSERCONFIG) && (cmd != TIOCMIWAIT)) {
 		if (tty_io_error(tty))
 		    return -EIO;
 	}
 
 	switch (cmd) {
-	case TIOCSERGSTRUCT:
 	case TIOCMIWAIT:
 		return 0;
 	case TIOCSERCONFIG:
