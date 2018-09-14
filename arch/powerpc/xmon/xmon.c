@@ -2393,10 +2393,13 @@ static void dump_one_paca(int cpu)
 		}
 	}
 	DUMP(p, vmalloc_sllp, "%#-*x");
-	DUMP(p, slb_cache_ptr, "%#-*x");
-	for (i = 0; i < SLB_CACHE_ENTRIES; i++)
-		printf(" %-*s[%d] = 0x%016x\n",
-		       22, "slb_cache", i, p->slb_cache[i]);
+
+	if (!early_cpu_has_feature(CPU_FTR_ARCH_300)) {
+		DUMP(p, slb_cache_ptr, "%#-*x");
+		for (i = 0; i < SLB_CACHE_ENTRIES; i++)
+			printf(" %-*s[%d] = 0x%016x\n",
+			       22, "slb_cache", i, p->slb_cache[i]);
+	}
 
 	DUMP(p, rfi_flush_fallback_area, "%-*px");
 #endif

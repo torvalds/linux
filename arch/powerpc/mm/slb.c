@@ -279,7 +279,6 @@ static inline int esids_match(unsigned long addr1, unsigned long addr2)
 /* Flush all user entries from the segment table of the current processor. */
 void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 {
-	unsigned long offset;
 	unsigned long pc = KSTK_EIP(tsk);
 	unsigned long stack = KSTK_ESP(tsk);
 	unsigned long exec_base;
@@ -291,45 +290,56 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	 * which would update the slb_cache/slb_cache_ptr fields in the PACA.
 	 */
 	hard_irq_disable();
-	offset = get_paca()->slb_cache_ptr;
-	if (!mmu_has_feature(MMU_FTR_NO_SLBIE_B) &&
-	    offset <= SLB_CACHE_ENTRIES) {
-		unsigned long slbie_data = 0;
-		int i;
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		/*
+		 * SLBIA IH=3 invalidates all Class=1 SLBEs and their
+		 * associated lookaside structures, which matches what
+		 * switch_slb wants. So ARCH_300 does not use the slb
+		 * cache.
+		 */
+		asm volatile("isync ; " PPC_SLBIA(3)" ; isync");
+	} else {
+		unsigned long offset = get_paca()->slb_cache_ptr;
 
-		asm volatile("isync" : : : "memory");
-		for (i = 0; i < offset; i++) {
-			slbie_data = (unsigned long)get_paca()->slb_cache[i]
-				<< SID_SHIFT; /* EA */
-			slbie_data |= user_segment_size(slbie_data)
-				<< SLBIE_SSIZE_SHIFT;
-			slbie_data |= SLBIE_C; /* C set for user addresses */
-			asm volatile("slbie %0" : : "r" (slbie_data));
+		if (!mmu_has_feature(MMU_FTR_NO_SLBIE_B) &&
+		    offset <= SLB_CACHE_ENTRIES) {
+			unsigned long slbie_data = 0;
+			int i;
+
+			asm volatile("isync" : : : "memory");
+			for (i = 0; i < offset; i++) {
+				/* EA */
+				slbie_data = (unsigned long)
+					get_paca()->slb_cache[i] << SID_SHIFT;
+				slbie_data |= user_segment_size(slbie_data)
+						<< SLBIE_SSIZE_SHIFT;
+				slbie_data |= SLBIE_C; /* user slbs have C=1 */
+				asm volatile("slbie %0" : : "r" (slbie_data));
+			}
+
+			/* Workaround POWER5 < DD2.1 issue */
+			if (!cpu_has_feature(CPU_FTR_ARCH_207S) && offset == 1)
+				asm volatile("slbie %0" : : "r" (slbie_data));
+
+			asm volatile("isync" : : : "memory");
+		} else {
+			struct slb_shadow *p = get_slb_shadow();
+			unsigned long ksp_esid_data =
+				be64_to_cpu(p->save_area[KSTACK_INDEX].esid);
+			unsigned long ksp_vsid_data =
+				be64_to_cpu(p->save_area[KSTACK_INDEX].vsid);
+
+			asm volatile("isync\n"
+				     PPC_SLBIA(1) "\n"
+				     "slbmte	%0,%1\n"
+				     "isync"
+				     :: "r"(ksp_vsid_data),
+					"r"(ksp_esid_data));
 		}
 
-		/* Workaround POWER5 < DD2.1 issue */
-		if (!cpu_has_feature(CPU_FTR_ARCH_207S) && offset == 1)
-			asm volatile("slbie %0" : : "r" (slbie_data));
-
-		asm volatile("isync" : : : "memory");
-	} else {
-		struct slb_shadow *p = get_slb_shadow();
-		unsigned long ksp_esid_data =
-			be64_to_cpu(p->save_area[KSTACK_INDEX].esid);
-		unsigned long ksp_vsid_data =
-			be64_to_cpu(p->save_area[KSTACK_INDEX].vsid);
-
-		asm volatile("isync\n"
-			     PPC_SLBIA(1) "\n"
-			     "slbmte	%0,%1\n"
-			     "isync"
-			     :: "r"(ksp_vsid_data),
-				"r"(ksp_esid_data));
-
-		asm volatile("isync" : : : "memory");
+		get_paca()->slb_cache_ptr = 0;
 	}
 
-	get_paca()->slb_cache_ptr = 0;
 	copy_mm_to_paca(mm);
 
 	/*
@@ -454,6 +464,9 @@ static void insert_slb_entry(unsigned long vsid, unsigned long ea,
 	unsigned long flags, vsid_data, esid_data;
 	enum slb_index index;
 	int slb_cache_index;
+
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		return; /* ISAv3.0B and later does not use slb_cache */
 
 	/*
 	 * We are irq disabled, hence should be safe to access PACA.
