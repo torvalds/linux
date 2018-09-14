@@ -82,8 +82,6 @@ enum {
 };
 
 struct goldfish_pipe_dev;
-struct goldfish_pipe;
-struct goldfish_pipe_command;
 
 /* A per-pipe command structure, shared with the host */
 struct goldfish_pipe_command {
