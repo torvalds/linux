@@ -35,7 +35,7 @@ TEST_GEN_FILES = test_pkt_access.o test_xdp.o test_l4lb.o test_tcp_estats.o test
 	test_get_stack_rawtp.o test_sockmap_kern.o test_sockhash_kern.o \
 	test_lwt_seg6local.o sendmsg4_prog.o sendmsg6_prog.o test_lirc_mode2_kern.o \
 	get_cgroup_id_kern.o socket_cookie_prog.o test_select_reuseport_kern.o \
-	test_skb_cgroup_id_kern.o
+	test_skb_cgroup_id_kern.o bpf_flow.o
 
 # Order correspond to 'make run_tests' order
 TEST_PROGS := test_kmod.sh \
