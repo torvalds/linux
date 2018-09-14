@@ -241,7 +241,7 @@ source "security/integrity/Kconfig"
 
 config LSM
 	string "Ordered list of enabled LSMs"
-	default "loadpin,integrity,selinux,smack,tomoyo,apparmor"
+	default "yama,loadpin,integrity,selinux,smack,tomoyo,apparmor"
 	help
 	  A comma-separated list of LSMs, in initialization order.
 	  Any LSMs left off this list will be ignored. This can be
