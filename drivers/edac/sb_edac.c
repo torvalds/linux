@@ -1027,14 +1027,14 @@ static u8 ibridge_get_ha(u8 bank)
 	case 9 ... 16:
 		return (bank - 9) / 4;
 	default:
-		return -EINVAL;
+		return 0xff;
 	}
 }
 
 /* Not used, but included for safety/symmetry */
 static u8 knl_get_ha(u8 bank)
 {
-	return -EINVAL;
+	return 0xff;
 }
 
 static u64 haswell_get_tolm(struct sbridge_pvt *pvt)
