@@ -864,10 +864,9 @@ static void vmbus_device_release(struct device *device)
 	struct vmbus_channel *channel = hv_dev->channel;
 
 	mutex_lock(&vmbus_connection.channel_mutex);
-	hv_process_channel_removal(channel->offermsg.child_relid);
+	hv_process_channel_removal(channel);
 	mutex_unlock(&vmbus_connection.channel_mutex);
 	kfree(hv_dev);
-
 }
 
 /* The one and only one */

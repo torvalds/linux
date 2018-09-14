@@ -690,8 +690,7 @@ void vmbus_close(struct vmbus_channel *channel)
 			wait_for_completion(&cur_channel->rescind_event);
 			mutex_lock(&vmbus_connection.channel_mutex);
 			vmbus_close_internal(cur_channel);
-			hv_process_channel_removal(
-					   cur_channel->offermsg.child_relid);
+			hv_process_channel_removal(cur_channel);
 		} else {
 			mutex_lock(&vmbus_connection.channel_mutex);
 			vmbus_close_internal(cur_channel);

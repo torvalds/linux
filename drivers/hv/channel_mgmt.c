@@ -385,21 +385,14 @@ static void vmbus_release_relid(u32 relid)
 	trace_vmbus_release_relid(&msg, ret);
 }
 
-void hv_process_channel_removal(u32 relid)
+void hv_process_channel_removal(struct vmbus_channel *channel)
 {
+	struct vmbus_channel *primary_channel;
 	unsigned long flags;
-	struct vmbus_channel *primary_channel, *channel;
 
 	BUG_ON(!mutex_is_locked(&vmbus_connection.channel_mutex));
-
-	/*
-	 * Make sure channel is valid as we may have raced.
-	 */
-	channel = relid2channel(relid);
-	if (!channel)
-		return;
-
 	BUG_ON(!channel->rescind);
+
 	if (channel->target_cpu != get_cpu()) {
 		put_cpu();
 		smp_call_function_single(channel->target_cpu,
@@ -429,7 +422,7 @@ void hv_process_channel_removal(u32 relid)
 		cpumask_clear_cpu(channel->target_cpu,
 				  &primary_channel->alloced_cpus_in_node);
 
-	vmbus_release_relid(relid);
+	vmbus_release_relid(channel->offermsg.child_relid);
 
 	free_channel(channel);
 }
@@ -943,7 +936,7 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 			 * The channel is currently not open;
 			 * it is safe for us to cleanup the channel.
 			 */
-			hv_process_channel_removal(rescind->child_relid);
+			hv_process_channel_removal(channel);
 		} else {
 			complete(&channel->rescind_event);
 		}
