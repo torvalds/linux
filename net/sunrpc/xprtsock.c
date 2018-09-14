@@ -1344,25 +1344,18 @@ static void xs_udp_data_receive(struct sock_xprt *transport)
 	struct sock *sk;
 	int err;
 
-restart:
 	mutex_lock(&transport->recv_mutex);
 	sk = transport->inet;
 	if (sk == NULL)
 		goto out;
+	clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state);
 	for (;;) {
 		skb = skb_recv_udp(sk, 0, 1, &err);
-		if (skb != NULL) {
-			xs_udp_data_read_skb(&transport->xprt, sk, skb);
-			consume_skb(skb);
-			continue;
-		}
-		if (!test_and_clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state))
+		if (skb == NULL)
 			break;
-		if (need_resched()) {
-			mutex_unlock(&transport->recv_mutex);
-			cond_resched();
-			goto restart;
-		}
+		xs_udp_data_read_skb(&transport->xprt, sk, skb);
+		consume_skb(skb);
+		cond_resched();
 	}
 out:
 	mutex_unlock(&transport->recv_mutex);
