@@ -122,25 +122,32 @@ static int skb_nsg(struct sk_buff *skb, int offset, int len)
 static void tls_decrypt_done(struct crypto_async_request *req, int err)
 {
 	struct aead_request *aead_req = (struct aead_request *)req;
-	struct decrypt_req_ctx *req_ctx =
-			(struct decrypt_req_ctx *)(aead_req + 1);
-
 	struct scatterlist *sgout = aead_req->dst;
-
-	struct tls_context *tls_ctx = tls_get_ctx(req_ctx->sk);
-	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
-	int pending = atomic_dec_return(&ctx->decrypt_pending);
+	struct tls_sw_context_rx *ctx;
+	struct tls_context *tls_ctx;
 	struct scatterlist *sg;
+	struct sk_buff *skb;
 	unsigned int pages;
+	int pending;
+
+	skb = (struct sk_buff *)req->data;
+	tls_ctx = tls_get_ctx(skb->sk);
+	ctx = tls_sw_ctx_rx(tls_ctx);
+	pending = atomic_dec_return(&ctx->decrypt_pending);
 
 	/* Propagate if there was an err */
 	if (err) {
 		ctx->async_wait.err = err;
-		tls_err_abort(req_ctx->sk, err);
+		tls_err_abort(skb->sk, err);
 	}
 
+	/* After using skb->sk to propagate sk through crypto async callback
+	 * we need to NULL it again.
+	 */
+	skb->sk = NULL;
+
 	/* Release the skb, pages and memory allocated for crypto req */
-	kfree_skb(req->data);
+	kfree_skb(skb);
 
 	/* Skip the first S/G entry as it points to AAD */
 	for_each_sg(sg_next(sgout), sg, UINT_MAX, pages) {
@@ -175,11 +182,13 @@ static int tls_do_decryption(struct sock *sk,
 			       (u8 *)iv_recv);
 
 	if (async) {
-		struct decrypt_req_ctx *req_ctx;
-
-		req_ctx = (struct decrypt_req_ctx *)(aead_req + 1);
-		req_ctx->sk = sk;
-
+		/* Using skb->sk to push sk through to crypto async callback
+		 * handler. This allows propagating errors up to the socket
+		 * if needed. It _must_ be cleared in the async handler
+		 * before kfree_skb is called. We _know_ skb->sk is NULL
+		 * because it is a clone from strparser.
+		 */
+		skb->sk = sk;
 		aead_request_set_callback(aead_req,
 					  CRYPTO_TFM_REQ_MAY_BACKLOG,
 					  tls_decrypt_done, skb);
@@ -1463,8 +1472,6 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		goto free_aead;
 
 	if (sw_ctx_rx) {
-		(*aead)->reqsize = sizeof(struct decrypt_req_ctx);
-
 		/* Set up strparser */
 		memset(&cb, 0, sizeof(cb));
 		cb.rcv_msg = tls_queue;

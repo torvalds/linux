@@ -128,10 +128,6 @@ struct tls_sw_context_rx {
 	bool async_notify;
 };
 
-struct decrypt_req_ctx {
-	struct sock *sk;
-};
-
 struct tls_record_info {
 	struct list_head list;
 	u32 end_seq;
