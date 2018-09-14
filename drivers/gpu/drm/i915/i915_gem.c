@@ -5418,6 +5418,8 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 		struct i915_vma *state;
 		void *vaddr;
 
+		GEM_BUG_ON(to_intel_context(ctx, engine)->pin_count);
+
 		state = to_intel_context(ctx, engine)->state;
 		if (!state)
 			continue;
@@ -5442,7 +5444,7 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 
 		/* Check we can acquire the image of the context state */
 		vaddr = i915_gem_object_pin_map(engine->default_state,
-						I915_MAP_WB);
+						I915_MAP_FORCE_WB);
 		if (IS_ERR(vaddr)) {
 			err = PTR_ERR(vaddr);
 			goto err_active;

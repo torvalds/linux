@@ -1707,6 +1707,7 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 				       const struct i915_oa_config *oa_config)
 {
 	struct intel_engine_cs *engine = dev_priv->engine[RCS];
+	unsigned int map_type = i915_coherent_map_type(dev_priv);
 	struct i915_gem_context *ctx;
 	struct i915_request *rq;
 	int ret;
@@ -1741,7 +1742,7 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 		if (!ce->state)
 			continue;
 
-		regs = i915_gem_object_pin_map(ce->state->obj, I915_MAP_WB);
+		regs = i915_gem_object_pin_map(ce->state->obj, map_type);
 		if (IS_ERR(regs))
 			return PTR_ERR(regs);
 
