@@ -293,7 +293,7 @@ bool mcf_edma_filter_fn(struct dma_chan *chan, void *param)
 	if (chan->device->dev->driver == &mcf_edma_driver.driver) {
 		struct fsl_edma_chan *mcf_chan = to_fsl_edma_chan(chan);
 
-		return (mcf_chan->slave_id == (u32)param);
+		return (mcf_chan->slave_id == (uintptr_t)param);
 	}
 
 	return false;
