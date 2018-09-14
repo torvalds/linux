@@ -148,10 +148,10 @@ static const struct sof_ops_table mach_ops[] = {
 	{&cnl_desc, &sof_cnl_ops},
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_SKYLAKE)
-	{&skl_desc, &sof_apl_ops},
+	{&skl_desc, &sof_skl_ops},
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_KABYLAKE)
-	{&kbl_desc, &sof_apl_ops},
+	{&kbl_desc, &sof_skl_ops},
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_ICELAKE)
 	{&icl_desc, &sof_cnl_ops},
