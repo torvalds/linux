@@ -207,8 +207,6 @@ superio_exit(int ioreg)
 
 #define NUM_FAN		7
 
-#define TEMP_SOURCE_VIRTUAL	0x1f
-
 /* Common and NCT6775 specific data */
 
 /* Voltage min/max registers for nr=7..14 are in bank 5 */
@@ -374,6 +372,7 @@ static const char *const nct6775_temp_label[] = {
 };
 
 #define NCT6775_TEMP_MASK	0x001ffffe
+#define NCT6775_VIRT_TEMP_MASK	0x00000000
 
 static const u16 NCT6775_REG_TEMP_ALTERNATE[32] = {
 	[13] = 0x661,
@@ -462,6 +461,7 @@ static const char *const nct6776_temp_label[] = {
 };
 
 #define NCT6776_TEMP_MASK	0x007ffffe
+#define NCT6776_VIRT_TEMP_MASK	0x00000000
 
 static const u16 NCT6776_REG_TEMP_ALTERNATE[32] = {
 	[14] = 0x401,
@@ -560,7 +560,9 @@ static const char *const nct6779_temp_label[] = {
 };
 
 #define NCT6779_TEMP_MASK	0x07ffff7e
+#define NCT6779_VIRT_TEMP_MASK	0x00000000
 #define NCT6791_TEMP_MASK	0x87ffff7e
+#define NCT6791_VIRT_TEMP_MASK	0x80000000
 
 static const u16 NCT6779_REG_TEMP_ALTERNATE[32]
 	= { 0x490, 0x491, 0x492, 0x493, 0x494, 0x495, 0, 0,
@@ -639,6 +641,7 @@ static const char *const nct6792_temp_label[] = {
 };
 
 #define NCT6792_TEMP_MASK	0x9fffff7e
+#define NCT6792_VIRT_TEMP_MASK	0x80000000
 
 static const char *const nct6793_temp_label[] = {
 	"",
@@ -676,6 +679,7 @@ static const char *const nct6793_temp_label[] = {
 };
 
 #define NCT6793_TEMP_MASK	0xbfff037e
+#define NCT6793_VIRT_TEMP_MASK	0x80000000
 
 static const char *const nct6795_temp_label[] = {
 	"",
@@ -713,6 +717,7 @@ static const char *const nct6795_temp_label[] = {
 };
 
 #define NCT6795_TEMP_MASK	0xbfffff7e
+#define NCT6795_VIRT_TEMP_MASK	0x80000000
 
 static const char *const nct6796_temp_label[] = {
 	"",
@@ -725,8 +730,8 @@ static const char *const nct6796_temp_label[] = {
 	"AUXTIN4",
 	"SMBUSMASTER 0",
 	"SMBUSMASTER 1",
-	"",
-	"",
+	"Virtual_TEMP",
+	"Virtual_TEMP",
 	"",
 	"",
 	"",
@@ -749,7 +754,8 @@ static const char *const nct6796_temp_label[] = {
 	"Virtual_TEMP"
 };
 
-#define NCT6796_TEMP_MASK	0xbfff03fe
+#define NCT6796_TEMP_MASK	0xbfff0ffe
+#define NCT6796_VIRT_TEMP_MASK	0x80000c00
 
 /* NCT6102D/NCT6106D specific data */
 
@@ -970,6 +976,7 @@ struct nct6775_data {
 	u16 reg_temp_config[NUM_TEMP];
 	const char * const *temp_label;
 	u32 temp_mask;
+	u32 virt_temp_mask;
 
 	u16 REG_CONFIG;
 	u16 REG_VBAT;
@@ -3644,6 +3651,7 @@ static int nct6775_probe(struct platform_device *pdev)
 
 		data->temp_label = nct6776_temp_label;
 		data->temp_mask = NCT6776_TEMP_MASK;
+		data->virt_temp_mask = NCT6776_VIRT_TEMP_MASK;
 
 		data->REG_VBAT = NCT6106_REG_VBAT;
 		data->REG_DIODE = NCT6106_REG_DIODE;
@@ -3722,6 +3730,7 @@ static int nct6775_probe(struct platform_device *pdev)
 
 		data->temp_label = nct6775_temp_label;
 		data->temp_mask = NCT6775_TEMP_MASK;
+		data->virt_temp_mask = NCT6775_VIRT_TEMP_MASK;
 
 		data->REG_CONFIG = NCT6775_REG_CONFIG;
 		data->REG_VBAT = NCT6775_REG_VBAT;
@@ -3794,6 +3803,7 @@ static int nct6775_probe(struct platform_device *pdev)
 
 		data->temp_label = nct6776_temp_label;
 		data->temp_mask = NCT6776_TEMP_MASK;
+		data->virt_temp_mask = NCT6776_VIRT_TEMP_MASK;
 
 		data->REG_CONFIG = NCT6775_REG_CONFIG;
 		data->REG_VBAT = NCT6775_REG_VBAT;
@@ -3866,6 +3876,7 @@ static int nct6775_probe(struct platform_device *pdev)
 
 		data->temp_label = nct6779_temp_label;
 		data->temp_mask = NCT6779_TEMP_MASK;
+		data->virt_temp_mask = NCT6779_VIRT_TEMP_MASK;
 
 		data->REG_CONFIG = NCT6775_REG_CONFIG;
 		data->REG_VBAT = NCT6775_REG_VBAT;
@@ -3949,22 +3960,27 @@ static int nct6775_probe(struct platform_device *pdev)
 		case nct6791:
 			data->temp_label = nct6779_temp_label;
 			data->temp_mask = NCT6791_TEMP_MASK;
+			data->virt_temp_mask = NCT6791_VIRT_TEMP_MASK;
 			break;
 		case nct6792:
 			data->temp_label = nct6792_temp_label;
 			data->temp_mask = NCT6792_TEMP_MASK;
+			data->virt_temp_mask = NCT6792_VIRT_TEMP_MASK;
 			break;
 		case nct6793:
 			data->temp_label = nct6793_temp_label;
 			data->temp_mask = NCT6793_TEMP_MASK;
+			data->virt_temp_mask = NCT6793_VIRT_TEMP_MASK;
 			break;
 		case nct6795:
 			data->temp_label = nct6795_temp_label;
 			data->temp_mask = NCT6795_TEMP_MASK;
+			data->virt_temp_mask = NCT6795_VIRT_TEMP_MASK;
 			break;
 		case nct6796:
 			data->temp_label = nct6796_temp_label;
 			data->temp_mask = NCT6796_TEMP_MASK;
+			data->virt_temp_mask = NCT6796_VIRT_TEMP_MASK;
 			break;
 		}
 
@@ -4148,7 +4164,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		 * for each fan reflects a different temperature, and there
 		 * are no duplicates.
 		 */
-		if (src != TEMP_SOURCE_VIRTUAL) {
+		if (!(data->virt_temp_mask & BIT(src))) {
 			if (mask & BIT(src))
 				continue;
 			mask |= BIT(src);
