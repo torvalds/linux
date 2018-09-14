@@ -12,6 +12,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
+#include <asm/ptrace.h>
 #include "sizes.h"
 
 __HEAD
@@ -20,7 +21,6 @@ ENTRY(startup_decompressor)
 .LPG1:
 	# setup stack
 	lg	%r15,.Lstack-.LPG1(%r13)
-	aghi	%r15,-160
 	brasl	%r14,decompress_kernel
 	# Set up registers for memory mover. We move the decompressed image to
 	# 0x100000, where startup_continue of the decompressed image is supposed
@@ -45,7 +45,7 @@ mover_end:
 
 	.align	8
 .Lstack:
-	.quad	0x8000 + (1<<(PAGE_SHIFT+THREAD_SIZE_ORDER))
+	.quad	0x8000 + THREAD_SIZE - STACK_FRAME_OVERHEAD
 .Loffset:
 	.quad	0x100000
 .Lmvsize:
