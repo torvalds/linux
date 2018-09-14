@@ -65,6 +65,10 @@
 	};
 };
 
+&cif_new {
+	memory-region = <&cma_region>;
+};
+
 &dfi {
 	status = "okay";
 };
