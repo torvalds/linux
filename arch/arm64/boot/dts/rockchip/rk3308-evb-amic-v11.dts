@@ -24,6 +24,7 @@
 
 &acodec {
 	rockchip,en-always-grps = <1 2 3>;
+	rockchip,adc-grps-route = <1 2 3 0>;
 };
 
 &acodec_sound {
@@ -47,6 +48,7 @@
 &vad {
 	status = "okay";
 	rockchip,audio-src = <&i2s_8ch_2>;
+	rockchip,det-channel = <0>;
 	rockchip,buffer-time-ms = <200>;
 	rockchip,mode = <1>;
 	#sound-dai-cells = <0>;
