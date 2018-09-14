@@ -298,7 +298,6 @@ static void scale_change(struct iolatency_grp *iolat, bool up)
 	unsigned long qd = blk_queue_depth(iolat->blkiolat->rqos.q);
 	unsigned long scale = scale_amount(qd, up);
 	unsigned long old = iolat->rq_depth.max_depth;
-	bool changed = false;
 
 	if (old > qd)
 		old = qd;
@@ -308,7 +307,6 @@ static void scale_change(struct iolatency_grp *iolat, bool up)
 			return;
 
 		if (old < qd) {
-			changed = true;
 			old += scale;
 			old = min(old, qd);
 			iolat->rq_depth.max_depth = old;
@@ -316,7 +314,6 @@ static void scale_change(struct iolatency_grp *iolat, bool up)
 		}
 	} else if (old > 1) {
 		old >>= 1;
-		changed = true;
 		iolat->rq_depth.max_depth = max(old, 1UL);
 	}
 }
@@ -761,7 +758,6 @@ static ssize_t iolatency_set_limit(struct kernfs_open_file *of, char *buf,
 {
 	struct blkcg *blkcg = css_to_blkcg(of_css(of));
 	struct blkcg_gq *blkg;
-	struct blk_iolatency *blkiolat;
 	struct blkg_conf_ctx ctx;
 	struct iolatency_grp *iolat;
 	char *p, *tok;
@@ -774,7 +770,6 @@ static ssize_t iolatency_set_limit(struct kernfs_open_file *of, char *buf,
 		return ret;
 
 	iolat = blkg_to_lat(ctx.blkg);
-	blkiolat = iolat->blkiolat;
 	p = ctx.body;
 
 	ret = -EINVAL;
