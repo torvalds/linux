@@ -2879,7 +2879,7 @@ static int v4l2_ctrl_request_clone(struct v4l2_ctrl_handler *hdl,
 				   const struct v4l2_ctrl_handler *from)
 {
 	struct v4l2_ctrl_ref *ref;
-	int err;
+	int err = 0;
 
 	if (WARN_ON(!hdl || hdl == from))
 		return -EINVAL;
