@@ -244,16 +244,10 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 			return -EINVAL;
 		}
 		flags |= AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
-		if (args->in.domains == AMDGPU_GEM_DOMAIN_GDS)
-			size = size << AMDGPU_GDS_SHIFT;
-		else if (args->in.domains == AMDGPU_GEM_DOMAIN_GWS)
-			size = size << AMDGPU_GWS_SHIFT;
-		else if (args->in.domains == AMDGPU_GEM_DOMAIN_OA)
-			size = size << AMDGPU_OA_SHIFT;
-		else
-			return -EINVAL;
+		/* GDS allocations must be DW aligned */
+		if (args->in.domains & AMDGPU_GEM_DOMAIN_GDS)
+			size = ALIGN(size, 4);
 	}
-	size = roundup(size, PAGE_SIZE);
 
 	if (flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID) {
 		r = amdgpu_bo_reserve(vm->root.base.bo, false);

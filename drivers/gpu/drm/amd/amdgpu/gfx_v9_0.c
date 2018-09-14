@@ -1527,8 +1527,7 @@ static int gfx_v9_0_ngg_en(struct amdgpu_device *adev)
 	gfx_v9_0_write_data_to_reg(ring, 0, false,
 				   SOC15_REG_OFFSET(GC, 0, mmGDS_VMID0_SIZE),
 			           (adev->gds.mem.total_size +
-				    adev->gfx.ngg.gds_reserve_size) >>
-				   AMDGPU_GDS_SHIFT);
+				    adev->gfx.ngg.gds_reserve_size));
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_DMA_DATA, 5));
 	amdgpu_ring_write(ring, (PACKET3_DMA_DATA_CP_SYNC |
@@ -3471,15 +3470,6 @@ static void gfx_v9_0_ring_emit_gds_switch(struct amdgpu_ring *ring,
 					  uint32_t oa_base, uint32_t oa_size)
 {
 	struct amdgpu_device *adev = ring->adev;
-
-	gds_base = gds_base >> AMDGPU_GDS_SHIFT;
-	gds_size = gds_size >> AMDGPU_GDS_SHIFT;
-
-	gws_base = gws_base >> AMDGPU_GWS_SHIFT;
-	gws_size = gws_size >> AMDGPU_GWS_SHIFT;
-
-	oa_base = oa_base >> AMDGPU_OA_SHIFT;
-	oa_size = oa_size >> AMDGPU_OA_SHIFT;
 
 	/* GDS Base */
 	gfx_v9_0_write_data_to_reg(ring, 0, false,

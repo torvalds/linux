@@ -1845,19 +1845,10 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		 (unsigned)(gtt_size / (1024 * 1024)));
 
 	/* Initialize various on-chip memory pools */
-	adev->gds.mem.total_size = adev->gds.mem.total_size << AMDGPU_GDS_SHIFT;
-	adev->gds.mem.gfx_partition_size = adev->gds.mem.gfx_partition_size << AMDGPU_GDS_SHIFT;
-	adev->gds.mem.cs_partition_size = adev->gds.mem.cs_partition_size << AMDGPU_GDS_SHIFT;
-	adev->gds.gws.total_size = adev->gds.gws.total_size << AMDGPU_GWS_SHIFT;
-	adev->gds.gws.gfx_partition_size = adev->gds.gws.gfx_partition_size << AMDGPU_GWS_SHIFT;
-	adev->gds.gws.cs_partition_size = adev->gds.gws.cs_partition_size << AMDGPU_GWS_SHIFT;
-	adev->gds.oa.total_size = adev->gds.oa.total_size << AMDGPU_OA_SHIFT;
-	adev->gds.oa.gfx_partition_size = adev->gds.oa.gfx_partition_size << AMDGPU_OA_SHIFT;
-	adev->gds.oa.cs_partition_size = adev->gds.oa.cs_partition_size << AMDGPU_OA_SHIFT;
 	/* GDS Memory */
 	if (adev->gds.mem.total_size) {
 		r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_GDS,
-				   adev->gds.mem.total_size >> PAGE_SHIFT);
+				   adev->gds.mem.total_size);
 		if (r) {
 			DRM_ERROR("Failed initializing GDS heap.\n");
 			return r;
@@ -1867,7 +1858,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	/* GWS */
 	if (adev->gds.gws.total_size) {
 		r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_GWS,
-				   adev->gds.gws.total_size >> PAGE_SHIFT);
+				   adev->gds.gws.total_size);
 		if (r) {
 			DRM_ERROR("Failed initializing gws heap.\n");
 			return r;
@@ -1877,7 +1868,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	/* OA */
 	if (adev->gds.oa.total_size) {
 		r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_OA,
-				   adev->gds.oa.total_size >> PAGE_SHIFT);
+				   adev->gds.oa.total_size);
 		if (r) {
 			DRM_ERROR("Failed initializing oa heap.\n");
 			return r;

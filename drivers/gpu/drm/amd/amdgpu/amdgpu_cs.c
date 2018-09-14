@@ -721,16 +721,16 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		e->bo_va = amdgpu_vm_bo_find(vm, ttm_to_amdgpu_bo(e->tv.bo));
 
 	if (gds) {
-		p->job->gds_base = amdgpu_bo_gpu_offset(gds);
-		p->job->gds_size = amdgpu_bo_size(gds);
+		p->job->gds_base = amdgpu_bo_gpu_offset(gds) >> PAGE_SHIFT;
+		p->job->gds_size = amdgpu_bo_size(gds) >> PAGE_SHIFT;
 	}
 	if (gws) {
-		p->job->gws_base = amdgpu_bo_gpu_offset(gws);
-		p->job->gws_size = amdgpu_bo_size(gws);
+		p->job->gws_base = amdgpu_bo_gpu_offset(gws) >> PAGE_SHIFT;
+		p->job->gws_size = amdgpu_bo_size(gws) >> PAGE_SHIFT;
 	}
 	if (oa) {
-		p->job->oa_base = amdgpu_bo_gpu_offset(oa);
-		p->job->oa_size = amdgpu_bo_size(oa);
+		p->job->oa_base = amdgpu_bo_gpu_offset(oa) >> PAGE_SHIFT;
+		p->job->oa_size = amdgpu_bo_size(oa) >> PAGE_SHIFT;
 	}
 
 	if (!r && p->uf_entry.tv.bo) {

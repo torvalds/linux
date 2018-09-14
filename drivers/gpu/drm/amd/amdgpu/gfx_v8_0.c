@@ -5396,15 +5396,6 @@ static void gfx_v8_0_ring_emit_gds_switch(struct amdgpu_ring *ring,
 					  uint32_t gws_base, uint32_t gws_size,
 					  uint32_t oa_base, uint32_t oa_size)
 {
-	gds_base = gds_base >> AMDGPU_GDS_SHIFT;
-	gds_size = gds_size >> AMDGPU_GDS_SHIFT;
-
-	gws_base = gws_base >> AMDGPU_GWS_SHIFT;
-	gws_size = gws_size >> AMDGPU_GWS_SHIFT;
-
-	oa_base = oa_base >> AMDGPU_OA_SHIFT;
-	oa_size = oa_size >> AMDGPU_OA_SHIFT;
-
 	/* GDS Base */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
