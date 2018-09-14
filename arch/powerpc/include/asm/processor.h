@@ -273,6 +273,7 @@ struct thread_struct {
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 	struct arch_hw_breakpoint hw_brk; /* info on the hardware breakpoint */
 	unsigned long	trap_nr;	/* last trap # on this thread */
+	u8 load_slb;			/* Ages out SLB preload cache entries */
 	u8 load_fp;
 #ifdef CONFIG_ALTIVEC
 	u8 load_vec;
