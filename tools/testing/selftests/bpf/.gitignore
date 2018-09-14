@@ -23,3 +23,5 @@ test_skb_cgroup_id_user
 test_socket_cookie
 test_cgroup_storage
 test_select_reuseport
+test_flow_dissector
+flow_dissector_load
