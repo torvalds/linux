@@ -114,6 +114,24 @@ void cxgb4_dcb_reset(struct net_device *dev)
 	cxgb4_dcb_state_init(dev);
 }
 
+/* update the dcb port support, if version is IEEE then set it to
+ * FW_PORT_DCB_VER_IEEE and if DCB_CAP_DCBX_VER_CEE is already set then
+ * clear that. and if it is set to CEE then set dcb supported to
+ * DCB_CAP_DCBX_VER_CEE & if DCB_CAP_DCBX_VER_IEEE is set, clear it
+ */
+static inline void cxgb4_dcb_update_support(struct port_dcb_info *dcb)
+{
+	if (dcb->dcb_version == FW_PORT_DCB_VER_IEEE) {
+		if (dcb->supported & DCB_CAP_DCBX_VER_CEE)
+			dcb->supported &= ~DCB_CAP_DCBX_VER_CEE;
+		dcb->supported |= DCB_CAP_DCBX_VER_IEEE;
+	} else if (dcb->dcb_version == FW_PORT_DCB_VER_CEE1D01) {
+		if (dcb->supported & DCB_CAP_DCBX_VER_IEEE)
+			dcb->supported &= ~DCB_CAP_DCBX_VER_IEEE;
+		dcb->supported |= DCB_CAP_DCBX_VER_CEE;
+	}
+}
+
 /* Finite State machine for Data Center Bridging.
  */
 void cxgb4_dcb_state_fsm(struct net_device *dev,
@@ -165,6 +183,15 @@ void cxgb4_dcb_state_fsm(struct net_device *dev,
 	}
 
 	case CXGB4_DCB_STATE_FW_INCOMPLETE: {
+		if (transition_to != CXGB4_DCB_INPUT_FW_DISABLED) {
+			/* during this CXGB4_DCB_STATE_FW_INCOMPLETE state,
+			 * check if the dcb version is changed (there can be
+			 * mismatch in default config & the negotiated switch
+			 * configuration at FW, so update the dcb support
+			 * accordingly.
+			 */
+			cxgb4_dcb_update_support(dcb);
+		}
 		switch (transition_to) {
 		case CXGB4_DCB_INPUT_FW_ENABLED: {
 			/* we're alreaady in firmware DCB mode */
