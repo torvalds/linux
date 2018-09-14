@@ -61,8 +61,10 @@ static struct sg_table *map_udmabuf(struct dma_buf_attachment *at,
 					GFP_KERNEL);
 	if (ret < 0)
 		goto err;
-	if (!dma_map_sg(at->dev, sg->sgl, sg->nents, direction))
+	if (!dma_map_sg(at->dev, sg->sgl, sg->nents, direction)) {
+		ret = -EINVAL;
 		goto err;
+	}
 	return sg;
 
 err:
