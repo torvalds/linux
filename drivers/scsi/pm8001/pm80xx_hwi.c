@@ -4676,9 +4676,8 @@ void mpi_set_phy_profile_req(struct pm8001_hba_info *pm8001_ha,
 void pm8001_set_phy_profile(struct pm8001_hba_info *pm8001_ha,
 	u32 length, u8 *buf)
 {
-	u32 page_code, i;
+	u32 i;
 
-	page_code = SAS_PHY_ANALOG_SETTINGS_PAGE;
 	for (i = 0; i < pm8001_ha->chip->n_phy; i++) {
 		mpi_set_phy_profile_req(pm8001_ha,
 			SAS_PHY_ANALOG_SETTINGS_PAGE, i, length, (u32 *)buf);
