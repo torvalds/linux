@@ -1845,34 +1845,25 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		 (unsigned)(gtt_size / (1024 * 1024)));
 
 	/* Initialize various on-chip memory pools */
-	/* GDS Memory */
-	if (adev->gds.mem.total_size) {
-		r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_GDS,
-				   adev->gds.mem.total_size);
-		if (r) {
-			DRM_ERROR("Failed initializing GDS heap.\n");
-			return r;
-		}
+	r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_GDS,
+			   adev->gds.mem.total_size);
+	if (r) {
+		DRM_ERROR("Failed initializing GDS heap.\n");
+		return r;
 	}
 
-	/* GWS */
-	if (adev->gds.gws.total_size) {
-		r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_GWS,
-				   adev->gds.gws.total_size);
-		if (r) {
-			DRM_ERROR("Failed initializing gws heap.\n");
-			return r;
-		}
+	r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_GWS,
+			   adev->gds.gws.total_size);
+	if (r) {
+		DRM_ERROR("Failed initializing gws heap.\n");
+		return r;
 	}
 
-	/* OA */
-	if (adev->gds.oa.total_size) {
-		r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_OA,
-				   adev->gds.oa.total_size);
-		if (r) {
-			DRM_ERROR("Failed initializing oa heap.\n");
-			return r;
-		}
+	r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_OA,
+			   adev->gds.oa.total_size);
+	if (r) {
+		DRM_ERROR("Failed initializing oa heap.\n");
+		return r;
 	}
 
 	/* Register debugfs entries for amdgpu_ttm */
@@ -1909,12 +1900,9 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 
 	ttm_bo_clean_mm(&adev->mman.bdev, TTM_PL_VRAM);
 	ttm_bo_clean_mm(&adev->mman.bdev, TTM_PL_TT);
-	if (adev->gds.mem.total_size)
-		ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_GDS);
-	if (adev->gds.gws.total_size)
-		ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_GWS);
-	if (adev->gds.oa.total_size)
-		ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_OA);
+	ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_GDS);
+	ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_GWS);
+	ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_OA);
 	ttm_bo_device_release(&adev->mman.bdev);
 	amdgpu_ttm_global_fini(adev);
 	adev->mman.initialized = false;
