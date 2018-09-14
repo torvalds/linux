@@ -2401,10 +2401,7 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 			p++;
 
 			for (j = 0; j < noc; j++) {
-				if (fcn <= 14)
-					channel = fcn + j; /*  2.4 GHz */
-				else
-					channel = fcn + j*4; /*  5 GHz */
+				channel = fcn + j;
 
 				chplan_ap.Channel[i++] = channel;
 			}
@@ -2479,14 +2476,6 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 			/*  skip AP 2.4G channel plan */
 			while ((j < chplan_ap.Len) && (chplan_ap.Channel[j] <= 14))
 				j++;
-		}
-
-		/*  keep original STA 5G channel plan */
-		while ((i < MAX_CHANNEL_NUM) && (chplan_sta[i].ChannelNum != 0)) {
-			chplan_new[k].ChannelNum = chplan_sta[i].ChannelNum;
-			chplan_new[k].ScanType = chplan_sta[i].ScanType;
-			i++;
-			k++;
 		}
 
 		pmlmeext->update_channel_plan_by_ap_done = 1;
