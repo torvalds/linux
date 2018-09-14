@@ -74,11 +74,11 @@
 #define DSI_DBI_CMDSIZE			0x28
 
 #define DSI_PCKHDL_CFG			0x2c
-#define EN_CRC_RX			BIT(4)
-#define EN_ECC_RX			BIT(3)
-#define EN_BTA				BIT(2)
-#define EN_EOTP_RX			BIT(1)
-#define EN_EOTP_TX			BIT(0)
+#define CRC_RX_EN			BIT(4)
+#define ECC_RX_EN			BIT(3)
+#define BTA_EN				BIT(2)
+#define EOTP_RX_EN			BIT(1)
+#define EOTP_TX_EN			BIT(0)
 
 #define DSI_MODE_CFG			0x34
 #define ENABLE_VIDEO_MODE		0
@@ -1083,8 +1083,12 @@ static void dw_mipi_dsi_dpi_config(struct dw_mipi_dsi *dsi,
 
 static void dw_mipi_dsi_packet_handler_config(struct dw_mipi_dsi *dsi)
 {
-	regmap_write(dsi->regmap, DSI_PCKHDL_CFG,
-		     EN_CRC_RX | EN_ECC_RX | EN_BTA);
+	u32 val = CRC_RX_EN | ECC_RX_EN | BTA_EN | EOTP_TX_EN;
+
+	if (dsi->mode_flags & MIPI_DSI_MODE_EOT_PACKET)
+		val &= ~EOTP_TX_EN;
+
+	regmap_write(dsi->regmap, DSI_PCKHDL_CFG, val);
 }
 
 static void dw_mipi_dsi_video_packet_config(struct dw_mipi_dsi *dsi,
