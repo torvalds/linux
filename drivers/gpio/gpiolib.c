@@ -1858,6 +1858,16 @@ static void gpiochip_set_irq_hooks(struct gpio_chip *gpiochip)
 	}
 	if (WARN_ON(gpiochip->irq.irq_enable))
 		return;
+	/* Check if the irqchip already has this hook... */
+	if (irqchip->irq_enable == gpiochip_irq_enable) {
+		/*
+		 * ...and if so, give a gentle warning that this is bad
+		 * practice.
+		 */
+		chip_info(gpiochip,
+			  "detected irqchip that is shared with multiple gpiochips: please fix the driver.\n");
+		return;
+	}
 	gpiochip->irq.irq_enable = irqchip->irq_enable;
 	gpiochip->irq.irq_disable = irqchip->irq_disable;
 	irqchip->irq_enable = gpiochip_irq_enable;
