@@ -224,10 +224,10 @@ hv_uio_probe(struct hv_device *dev,
 	/* mem resources */
 	pdata->info.mem[TXRX_RING_MAP].name = "txrx_rings";
 	pdata->info.mem[TXRX_RING_MAP].addr
-		= (uintptr_t)page_address(dev->channel->ringbuffer_page);
+		= (uintptr_t)virt_to_phys(page_address(dev->channel->ringbuffer_page));
 	pdata->info.mem[TXRX_RING_MAP].size
 		= dev->channel->ringbuffer_pagecount << PAGE_SHIFT;
-	pdata->info.mem[TXRX_RING_MAP].memtype = UIO_MEM_LOGICAL;
+	pdata->info.mem[TXRX_RING_MAP].memtype = UIO_MEM_IOVA;
 
 	pdata->info.mem[INT_PAGE_MAP].name = "int_page";
 	pdata->info.mem[INT_PAGE_MAP].addr
