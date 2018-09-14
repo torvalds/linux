@@ -423,7 +423,7 @@ EXPORT_SYMBOL_GPL(psp_copy_user_blob);
 static int sev_get_api_version(void)
 {
 	struct sev_user_data_status *status;
-	int error, ret;
+	int error = 0, ret;
 
 	status = &psp_master->status_cmd_buf;
 	ret = sev_platform_status(status, &error);
