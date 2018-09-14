@@ -496,7 +496,6 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		newtp->snd_cwnd_cnt = 0;
 
 		tcp_init_xmit_timers(newsk);
-		__skb_queue_head_init(&newtp->out_of_order_queue);
 		newtp->write_seq = newtp->pushed_seq = treq->snt_isn + 1;
 
 		newtp->rx_opt.saw_tstamp = 0;
