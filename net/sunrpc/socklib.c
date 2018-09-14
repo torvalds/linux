@@ -26,7 +26,8 @@
  * Possibly called several times to iterate over an sk_buff and copy
  * data out of it.
  */
-size_t xdr_skb_read_bits(struct xdr_skb_reader *desc, void *to, size_t len)
+static size_t
+xdr_skb_read_bits(struct xdr_skb_reader *desc, void *to, size_t len)
 {
 	if (len > desc->count)
 		len = desc->count;
@@ -36,7 +37,6 @@ size_t xdr_skb_read_bits(struct xdr_skb_reader *desc, void *to, size_t len)
 	desc->offset += len;
 	return len;
 }
-EXPORT_SYMBOL_GPL(xdr_skb_read_bits);
 
 /**
  * xdr_skb_read_and_csum_bits - copy and checksum from skb to buffer
