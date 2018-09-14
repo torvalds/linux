@@ -101,6 +101,14 @@ struct i915_request {
 	struct intel_signal_node signaling;
 
 	/*
+	 * The rcu epoch of when this request was allocated. Used to judiciously
+	 * apply backpressure on future allocations to ensure that under
+	 * mempressure there is sufficient RCU ticks for us to reclaim our
+	 * RCU protected slabs.
+	 */
+	unsigned long rcustate;
+
+	/*
 	 * Fences for the various phases in the request's lifetime.
 	 *
 	 * The submit fence is used to await upon all of the request's
