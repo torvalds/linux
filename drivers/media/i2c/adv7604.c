@@ -2476,7 +2476,7 @@ static int adv76xx_log_status(struct v4l2_subdev *sd)
 		"YCbCr Bt.601 (16-235)", "YCbCr Bt.709 (16-235)",
 		"xvYCC Bt.601", "xvYCC Bt.709",
 		"YCbCr Bt.601 (0-255)", "YCbCr Bt.709 (0-255)",
-		"sYCC", "Adobe YCC 601", "AdobeRGB", "invalid", "invalid",
+		"sYCC", "opYCC 601", "opRGB", "invalid", "invalid",
 		"invalid", "invalid", "invalid"
 	};
 	static const char * const rgb_quantization_range_txt[] = {
