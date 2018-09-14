@@ -609,22 +609,7 @@ bool dcn10_link_encoder_validate_dp_output(
 	if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		return false;
 
-	/* default RGB only */
-	if (crtc_timing->pixel_encoding == PIXEL_ENCODING_RGB)
-		return true;
-
-	if (enc10->base.features.flags.bits.IS_YCBCR_CAPABLE)
-		return true;
-
-	/* for DCE 8.x or later DP Y-only feature,
-	 * we need ASIC cap + FeatureSupportDPYonly, not support 666
-	 */
-	if (crtc_timing->flags.Y_ONLY &&
-		enc10->base.features.flags.bits.IS_YCBCR_CAPABLE &&
-		crtc_timing->display_color_depth != COLOR_DEPTH_666)
-		return true;
-
-	return false;
+	return true;
 }
 
 void dcn10_link_encoder_construct(

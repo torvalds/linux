@@ -555,8 +555,7 @@ static const struct encoder_feature_support link_enc_feature = {
 		.flags.bits.IS_HBR2_CAPABLE = true,
 		.flags.bits.IS_HBR3_CAPABLE = true,
 		.flags.bits.IS_TPS3_CAPABLE = true,
-		.flags.bits.IS_TPS4_CAPABLE = true,
-		.flags.bits.IS_YCBCR_CAPABLE = true
+		.flags.bits.IS_TPS4_CAPABLE = true
 };
 
 struct link_encoder *dce112_link_encoder_create(

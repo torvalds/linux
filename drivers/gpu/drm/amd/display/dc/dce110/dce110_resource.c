@@ -570,8 +570,7 @@ static const struct encoder_feature_support link_enc_feature = {
 		.max_hdmi_deep_color = COLOR_DEPTH_121212,
 		.max_hdmi_pixel_clock = 594000,
 		.flags.bits.IS_HBR2_CAPABLE = true,
-		.flags.bits.IS_TPS3_CAPABLE = true,
-		.flags.bits.IS_YCBCR_CAPABLE = true
+		.flags.bits.IS_TPS3_CAPABLE = true
 };
 
 static struct link_encoder *dce110_link_encoder_create(
