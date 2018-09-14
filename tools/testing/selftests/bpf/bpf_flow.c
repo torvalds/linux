@@ -117,7 +117,7 @@ static __always_inline int parse_eth_proto(struct __sk_buff *skb, __be16 proto)
 }
 
 SEC("dissect")
-int dissect(struct __sk_buff *skb)
+int _dissect(struct __sk_buff *skb)
 {
 	if (!skb->vlan_present)
 		return parse_eth_proto(skb, skb->protocol);
