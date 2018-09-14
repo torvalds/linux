@@ -143,8 +143,7 @@ static int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 	spin_unlock(&mgr->lock);
 
 	if (!r)
-		mem->start = node->node.start +
-			(adev->gmc.gart_start >> PAGE_SHIFT);
+		mem->start = node->node.start;
 
 	return r;
 }

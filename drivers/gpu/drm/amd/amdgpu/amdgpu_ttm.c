@@ -188,7 +188,7 @@ static int amdgpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	case TTM_PL_TT:
 		/* GTT memory  */
 		man->func = &amdgpu_gtt_mgr_func;
-		man->gpu_offset = 0;
+		man->gpu_offset = adev->gmc.gart_start;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE | TTM_MEMTYPE_FLAG_CMA;
@@ -1060,7 +1060,7 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 	flags = amdgpu_ttm_tt_pte_flags(adev, ttm, bo_mem);
 
 	/* bind pages into GART page tables */
-	gtt->offset = ((u64)bo_mem->start << PAGE_SHIFT) - adev->gmc.gart_start;
+	gtt->offset = (u64)bo_mem->start << PAGE_SHIFT;
 	r = amdgpu_gart_bind(adev, gtt->offset, ttm->num_pages,
 		ttm->pages, gtt->ttm.dma_address, flags);
 
@@ -1112,8 +1112,7 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 		flags = amdgpu_ttm_tt_pte_flags(adev, bo->ttm, &tmp);
 
 		/* Bind pages */
-		gtt->offset = ((u64)tmp.start << PAGE_SHIFT) -
-			adev->gmc.gart_start;
+		gtt->offset = (u64)tmp.start << PAGE_SHIFT;
 		r = amdgpu_ttm_gart_bind(adev, bo, flags);
 		if (unlikely(r)) {
 			ttm_bo_mem_put(bo, &tmp);
