@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2018 ROHM Semiconductors
-// bd71837-regulator.c ROHM BD71837MWV regulator driver
+// bd71837-regulator.c ROHM BD71837MWV/BD71847MWV regulator driver
 
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -17,7 +17,7 @@
 
 struct bd718xx_pmic {
 	struct bd718xx_regulator_data *rdata;
-	struct bd71837 *mfd;
+	struct bd718xx *mfd;
 	struct platform_device *pdev;
 	struct regulator_dev *rdev[BD718XX_REGULATOR_AMOUNT];
 };
@@ -30,11 +30,11 @@ struct bd718xx_pmic {
  * 10: 2.50mV/usec	10mV 4uS
  * 11: 1.25mV/usec	10mV 8uS
  */
-static int bd71837_buck1234_set_ramp_delay(struct regulator_dev *rdev,
+static int bd718xx_buck1234_set_ramp_delay(struct regulator_dev *rdev,
 					   int ramp_delay)
 {
 	struct bd718xx_pmic *pmic = rdev_get_drvdata(rdev);
-	struct bd71837 *mfd = pmic->mfd;
+	struct bd718xx *mfd = pmic->mfd;
 	int id = rdev->desc->id;
 	unsigned int ramp_value = BUCK_RAMPRATE_10P00MV;
 
@@ -124,7 +124,7 @@ static struct regulator_ops bd718xx_dvs_buck_regulator_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
-	.set_ramp_delay = bd71837_buck1234_set_ramp_delay,
+	.set_ramp_delay = bd718xx_buck1234_set_ramp_delay,
 };
 
 /*
@@ -378,7 +378,7 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 		.desc = {
 			.name = "buck5",
 			.of_match = of_match_ptr("BUCK5"),
-				.regulators_node = of_match_ptr("regulators"),
+			.regulators_node = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK5,
 			.ops = &bd718xx_buck_regulator_nolinear_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -404,7 +404,7 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 			.id = BD718XX_BUCK6,
 			.ops = &bd718xx_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
-			.n_voltages = BD71837_4TH_NODVS_BUCK_VOLTAGE_NUM,
+			.n_voltages = BD718XX_4TH_NODVS_BUCK_VOLTAGE_NUM,
 			.linear_ranges = bd718xx_4th_nodvs_buck_volts,
 			.n_linear_ranges =
 				ARRAY_SIZE(bd718xx_4th_nodvs_buck_volts),
@@ -732,7 +732,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 			.id = BD718XX_BUCK8,
 			.ops = &bd718xx_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
-			.n_voltages = BD71837_4TH_NODVS_BUCK_VOLTAGE_NUM,
+			.n_voltages = BD718XX_4TH_NODVS_BUCK_VOLTAGE_NUM,
 			.linear_ranges = bd718xx_4th_nodvs_buck_volts,
 			.n_linear_ranges =
 				ARRAY_SIZE(bd718xx_4th_nodvs_buck_volts),
@@ -923,7 +923,7 @@ struct bd718xx_pmic_inits {
 	unsigned int r_amount;
 };
 
-static int bd71837_probe(struct platform_device *pdev)
+static int bd718xx_probe(struct platform_device *pdev)
 {
 	struct bd718xx_pmic *pmic;
 	struct regulator_config config = { 0 };
@@ -1027,15 +1027,15 @@ err:
 	return err;
 }
 
-static struct platform_driver bd71837_regulator = {
+static struct platform_driver bd718xx_regulator = {
 	.driver = {
 		.name = "bd718xx-pmic",
 	},
-	.probe = bd71837_probe,
+	.probe = bd718xx_probe,
 };
 
-module_platform_driver(bd71837_regulator);
+module_platform_driver(bd718xx_regulator);
 
 MODULE_AUTHOR("Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>");
-MODULE_DESCRIPTION("BD71837 voltage regulator driver");
+MODULE_DESCRIPTION("BD71837/BD71847 voltage regulator driver");
 MODULE_LICENSE("GPL");

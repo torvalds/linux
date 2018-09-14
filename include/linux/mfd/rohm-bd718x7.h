@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Copyright (C) 2018 ROHM Semiconductors */
 
-#ifndef __LINUX_MFD_BD71837_H__
-#define __LINUX_MFD_BD71837_H__
+#ifndef __LINUX_MFD_BD718XX_H__
+#define __LINUX_MFD_BD718XX_H__
 
 #include <linux/regmap.h>
 
@@ -40,7 +40,7 @@ enum {
 
 #define BD718XX_DVS_BUCK_VOLTAGE_NUM		0x3D
 #define BD718XX_1ST_NODVS_BUCK_VOLTAGE_NUM	0x08
-#define BD71837_4TH_NODVS_BUCK_VOLTAGE_NUM	0x3D
+#define BD718XX_4TH_NODVS_BUCK_VOLTAGE_NUM	0x3D
 
 #define BD718XX_LDO1_VOLTAGE_NUM	0x04
 #define BD718XX_LDO2_VOLTAGE_NUM	0x02
@@ -183,7 +183,7 @@ enum {
 #define BD71837_BUCK4_VRMON130          0x80
 #define BD71837_LDO7_VRMON80            0x40
 
-/* BD71837_REG_IRQ bits */
+/* BD718XX_REG_IRQ bits */
 #define IRQ_SWRST		0x40
 #define IRQ_PWRON_S		0x20
 #define IRQ_PWRON_L		0x10
@@ -192,31 +192,31 @@ enum {
 #define IRQ_ON_REQ		0x02
 #define IRQ_STBY_REQ		0x01
 
-/* BD71837_REG_OUT32K bits */
-#define BD71837_OUT32K_EN	0x01
+/* BD718XX_REG_OUT32K bits */
+#define BD718XX_OUT32K_EN	0x01
 
-/* BD71837 gated clock rate */
-#define BD71837_CLK_RATE 32768
+/* BD7183XX gated clock rate */
+#define BD718XX_CLK_RATE 32768
 
-/* ROHM BD71837 irqs */
+/* ROHM BD718XX irqs */
 enum {
-	BD71837_INT_STBY_REQ,
-	BD71837_INT_ON_REQ,
-	BD71837_INT_WDOG,
-	BD71837_INT_PWRBTN,
-	BD71837_INT_PWRBTN_L,
-	BD71837_INT_PWRBTN_S,
-	BD71837_INT_SWRST
+	BD718XX_INT_STBY_REQ,
+	BD718XX_INT_ON_REQ,
+	BD718XX_INT_WDOG,
+	BD718XX_INT_PWRBTN,
+	BD718XX_INT_PWRBTN_L,
+	BD718XX_INT_PWRBTN_S,
+	BD718XX_INT_SWRST
 };
 
-/* ROHM BD71837 interrupt masks */
-#define BD71837_INT_SWRST_MASK		0x40
-#define BD71837_INT_PWRBTN_S_MASK	0x20
-#define BD71837_INT_PWRBTN_L_MASK	0x10
-#define BD71837_INT_PWRBTN_MASK		0x8
-#define BD71837_INT_WDOG_MASK		0x4
-#define BD71837_INT_ON_REQ_MASK		0x2
-#define BD71837_INT_STBY_REQ_MASK	0x1
+/* ROHM BD718XX interrupt masks */
+#define BD718XX_INT_SWRST_MASK		0x40
+#define BD718XX_INT_PWRBTN_S_MASK	0x20
+#define BD718XX_INT_PWRBTN_L_MASK	0x10
+#define BD718XX_INT_PWRBTN_MASK		0x8
+#define BD718XX_INT_WDOG_MASK		0x4
+#define BD718XX_INT_ON_REQ_MASK		0x2
+#define BD718XX_INT_STBY_REQ_MASK	0x1
 
 /* Register write induced reset settings */
 
@@ -226,13 +226,13 @@ enum {
  * write 1 to it we will trigger the action. So always write 0 to it when
  * changning SWRESET action - no matter what we read from it.
  */
-#define BD71837_SWRESET_TYPE_MASK	7
-#define BD71837_SWRESET_TYPE_DISABLED	0
-#define BD71837_SWRESET_TYPE_COLD	4
-#define BD71837_SWRESET_TYPE_WARM	6
+#define BD718XX_SWRESET_TYPE_MASK	7
+#define BD718XX_SWRESET_TYPE_DISABLED	0
+#define BD718XX_SWRESET_TYPE_COLD	4
+#define BD718XX_SWRESET_TYPE_WARM	6
 
-#define BD71837_SWRESET_RESET_MASK	1
-#define BD71837_SWRESET_RESET		1
+#define BD718XX_SWRESET_RESET_MASK	1
+#define BD718XX_SWRESET_RESET		1
 
 /* Poweroff state transition conditions */
 
@@ -320,7 +320,7 @@ enum {
 struct bd718xx_pmic;
 struct bd718xx_clk;
 
-struct bd71837 {
+struct bd718xx {
 	unsigned int chip_type;
 	struct device *dev;
 	struct regmap *regmap;
@@ -333,4 +333,4 @@ struct bd71837 {
 	struct bd718xx_clk *clk;
 };
 
-#endif /* __LINUX_MFD_BD71837_H__ */
+#endif /* __LINUX_MFD_BD718XX_H__ */
