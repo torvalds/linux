@@ -296,7 +296,6 @@ static inline int esids_match(unsigned long addr1, unsigned long addr2)
 void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 {
 	unsigned long offset;
-	unsigned long slbie_data = 0;
 	unsigned long pc = KSTK_EIP(tsk);
 	unsigned long stack = KSTK_ESP(tsk);
 	unsigned long exec_base;
@@ -311,7 +310,9 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	offset = get_paca()->slb_cache_ptr;
 	if (!mmu_has_feature(MMU_FTR_NO_SLBIE_B) &&
 	    offset <= SLB_CACHE_ENTRIES) {
+		unsigned long slbie_data = 0;
 		int i;
+
 		asm volatile("isync" : : : "memory");
 		for (i = 0; i < offset; i++) {
 			slbie_data = (unsigned long)get_paca()->slb_cache[i]
@@ -321,15 +322,14 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 			slbie_data |= SLBIE_C; /* C set for user addresses */
 			asm volatile("slbie %0" : : "r" (slbie_data));
 		}
+
+		/* Workaround POWER5 < DD2.1 issue */
+		if (!cpu_has_feature(CPU_FTR_ARCH_207S) && offset == 1)
+			asm volatile("slbie %0" : : "r" (slbie_data));
+
 		asm volatile("isync" : : : "memory");
 	} else {
 		__slb_flush_and_rebolt();
-	}
-
-	if (!cpu_has_feature(CPU_FTR_ARCH_207S)) {
-		/* Workaround POWER5 < DD2.1 issue */
-		if (offset == 1 || offset > SLB_CACHE_ENTRIES)
-			asm volatile("slbie %0" : : "r" (slbie_data));
 	}
 
 	get_paca()->slb_cache_ptr = 0;
