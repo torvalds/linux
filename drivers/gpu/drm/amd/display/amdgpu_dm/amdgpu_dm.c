@@ -76,6 +76,16 @@
 #define FIRMWARE_RAVEN_DMCU		"amdgpu/raven_dmcu.bin"
 MODULE_FIRMWARE(FIRMWARE_RAVEN_DMCU);
 
+/**
+ * DOC: overview
+ *
+ * The AMDgpu display manager, **amdgpu_dm** (or even simpler,
+ * **dm**) sits between DRM and DC. It acts as a liason, converting DRM
+ * requests into DC requests, and DC responses into DRM responses.
+ *
+ * The root control structure is &struct amdgpu_display_manager.
+ */
+
 /* basic init/fini API */
 static int amdgpu_dm_init(struct amdgpu_device *adev);
 static void amdgpu_dm_fini(struct amdgpu_device *adev);
@@ -379,11 +389,6 @@ static void amdgpu_dm_fbc_init(struct drm_connector *connector)
 
 }
 
-/*
- * Init display KMS
- *
- * Returns 0 on success
- */
 static int amdgpu_dm_init(struct amdgpu_device *adev)
 {
 	struct dc_init_data init_data;
@@ -660,6 +665,26 @@ static void s3_handle_mst(struct drm_device *dev, bool suspend)
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 }
 
+/**
+ * dm_hw_init() - Initialize DC device
+ * @handle: The base driver device containing the amdpgu_dm device.
+ *
+ * Initialize the &struct amdgpu_display_manager device. This involves calling
+ * the initializers of each DM component, then populating the struct with them.
+ *
+ * Although the function implies hardware initialization, both hardware and
+ * software are initialized here. Splitting them out to their relevant init
+ * hooks is a future TODO item.
+ *
+ * Some notable things that are initialized here:
+ *
+ * - Display Core, both software and hardware
+ * - DC modules that we need (freesync and color management)
+ * - DRM software states
+ * - Interrupt sources and handlers
+ * - Vblank support
+ * - Debug FS entries, if enabled
+ */
 static int dm_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -670,6 +695,14 @@ static int dm_hw_init(void *handle)
 	return 0;
 }
 
+/**
+ * dm_hw_fini() - Teardown DC device
+ * @handle: The base driver device containing the amdpgu_dm device.
+ *
+ * Teardown components within &struct amdgpu_display_manager that require
+ * cleanup. This involves cleaning up the DRM device, DC, and any modules that
+ * were loaded. Also flush IRQ workqueues and disable them.
+ */
 static int dm_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -895,6 +928,16 @@ static int dm_resume(void *handle)
 	return ret;
 }
 
+/**
+ * DOC: DM Lifecycle
+ *
+ * DM (and consequently DC) is registered in the amdgpu base driver as a IP
+ * block. When CONFIG_DRM_AMD_DC is enabled, the DM device IP block is added to
+ * the base driver's device list to be initialized and torn down accordingly.
+ *
+ * The functions to do so are provided as hooks in &struct amd_ip_funcs.
+ */
+
 static const struct amd_ip_funcs amdgpu_dm_funcs = {
 	.name = "dm",
 	.early_init = dm_early_init,
@@ -961,6 +1004,12 @@ dm_atomic_state_alloc_free(struct drm_atomic_state *state)
 	drm_atomic_state_default_release(state);
 	kfree(dm_state);
 }
+
+/**
+ * DOC: atomic
+ *
+ * *WIP*
+ */
 
 static const struct drm_mode_config_funcs amdgpu_dm_mode_funcs = {
 	.fb_create = amdgpu_display_user_framebuffer_create,
@@ -4542,6 +4591,14 @@ static int amdgpu_dm_atomic_commit(struct drm_device *dev,
 	/*TODO Handle EINTR, reenable IRQ*/
 }
 
+/**
+ * amdgpu_dm_atomic_commit_tail() - AMDgpu DM's commit tail implementation.
+ * @state: The atomic state to commit
+ *
+ * This will tell DC to commit the constructed DC state from atomic_check,
+ * programming the hardware. Any failures here implies a hardware failure, since
+ * atomic check should have filtered anything non-kosher.
+ */
 static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
@@ -5394,6 +5451,31 @@ ret:
 	return update_type;
 }
 
+/**
+ * amdgpu_dm_atomic_check() - Atomic check implementation for AMDgpu DM.
+ * @dev: The DRM device
+ * @state: The atomic state to commit
+ *
+ * Validate that the given atomic state is programmable by DC into hardware.
+ * This involves constructing a &struct dc_state reflecting the new hardware
+ * state we wish to commit, then querying DC to see if it is programmable. It's
+ * important not to modify the existing DC state. Otherwise, atomic_check
+ * may unexpectedly commit hardware changes.
+ *
+ * When validating the DC state, it's important that the right locks are
+ * acquired. For full updates case which removes/adds/updates streams on one
+ * CRTC while flipping on another CRTC, acquiring global lock will guarantee
+ * that any such full update commit will wait for completion of any outstanding
+ * flip using DRMs synchronization events. See
+ * dm_determine_update_type_for_commit()
+ *
+ * Note that DM adds the affected connectors for all CRTCs in state, when that
+ * might not seem necessary. This is because DC stream creation requires the
+ * DC sink, which is tied to the DRM connector state. Cleaning this up should
+ * be possible but non-trivial - a possible TODO item.
+ *
+ * Return: -Error code if validation failed.
+ */
 static int amdgpu_dm_atomic_check(struct drm_device *dev,
 				  struct drm_atomic_state *state)
 {
@@ -5496,15 +5578,6 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		lock_and_validation_needed = true;
 	}
 
-	/*
-	 * For full updates case when
-	 * removing/adding/updating streams on one CRTC while flipping
-	 * on another CRTC,
-	 * acquiring global lock  will guarantee that any such full
-	 * update commit
-	 * will wait for completion of any outstanding flip using DRMs
-	 * synchronization events.
-	 */
 	update_type = dm_determine_update_type_for_commit(dc, state);
 
 	if (overall_update_type < update_type)
