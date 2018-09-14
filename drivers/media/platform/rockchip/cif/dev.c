@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/reset.h>
 #include <linux/pm_runtime.h>
 #include <linux/pinctrl/consumer.h>
@@ -486,8 +487,15 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 		goto err_unreg_media_dev;
 
 	cif_dev->iommu_en = is_iommu_enable(dev);
-	if (cif_dev->iommu_en)
+	if (cif_dev->iommu_en) {
 		rkcif_iommu_init(cif_dev);
+	} else {
+		ret = of_reserved_mem_device_init(dev);
+		if (ret)
+			v4l2_warn(v4l2_dev,
+				  "No reserved memory region assign to CIF\n");
+	}
+
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
