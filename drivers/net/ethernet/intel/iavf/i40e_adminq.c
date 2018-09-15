@@ -8,16 +8,6 @@
 #include "i40e_prototype.h"
 
 /**
- * i40e_is_nvm_update_op - return true if this is an NVM update operation
- * @desc: API request descriptor
- **/
-static inline bool i40e_is_nvm_update_op(struct i40e_aq_desc *desc)
-{
-	return (desc->opcode == i40e_aqc_opc_nvm_erase) ||
-	       (desc->opcode == i40e_aqc_opc_nvm_update);
-}
-
-/**
  *  i40e_adminq_init_regs - Initialize AdminQ registers
  *  @hw: pointer to the hardware structure
  *
@@ -569,9 +559,6 @@ i40e_status i40evf_shutdown_adminq(struct i40e_hw *hw)
 	i40e_shutdown_asq(hw);
 	i40e_shutdown_arq(hw);
 
-	if (hw->nvm_buff.va)
-		i40e_free_virt_mem(hw, &hw->nvm_buff);
-
 	return ret_code;
 }
 
@@ -950,18 +937,4 @@ clean_arq_element_err:
 	mutex_unlock(&hw->aq.arq_mutex);
 
 	return ret_code;
-}
-
-void i40evf_resume_aq(struct i40e_hw *hw)
-{
-	/* Registers are reset after PF reset */
-	hw->aq.asq.next_to_use = 0;
-	hw->aq.asq.next_to_clean = 0;
-
-	i40e_config_asq_regs(hw);
-
-	hw->aq.arq.next_to_use = 0;
-	hw->aq.arq.next_to_clean = 0;
-
-	i40e_config_arq_regs(hw);
 }

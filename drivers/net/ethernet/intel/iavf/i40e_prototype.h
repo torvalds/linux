@@ -60,71 +60,12 @@ static inline struct i40e_rx_ptype_decoded decode_rx_desc_ptype(u8 ptype)
 	return i40evf_ptype_lookup[ptype];
 }
 
-/* prototype for functions used for SW locks */
-
 /* i40e_common for VF drivers*/
 void i40e_vf_parse_hw_config(struct i40e_hw *hw,
 			     struct virtchnl_vf_resource *msg);
 i40e_status i40e_vf_reset(struct i40e_hw *hw);
 i40e_status i40e_aq_send_msg_to_pf(struct i40e_hw *hw,
-				enum virtchnl_ops v_opcode,
-				i40e_status v_retval,
-				u8 *msg, u16 msglen,
-				struct i40e_asq_cmd_details *cmd_details);
-i40e_status i40e_set_filter_control(struct i40e_hw *hw,
-				struct i40e_filter_control_settings *settings);
-i40e_status i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
-				u8 *mac_addr, u16 ethtype, u16 flags,
-				u16 vsi_seid, u16 queue, bool is_add,
-				struct i40e_control_filter_stats *stats,
-				struct i40e_asq_cmd_details *cmd_details);
-void i40e_add_filter_to_drop_tx_flow_control_frames(struct i40e_hw *hw,
-						    u16 vsi_seid);
-i40e_status i40evf_aq_rx_ctl_read_register(struct i40e_hw *hw,
-				u32 reg_addr, u32 *reg_val,
-				struct i40e_asq_cmd_details *cmd_details);
-u32 i40evf_read_rx_ctl(struct i40e_hw *hw, u32 reg_addr);
-i40e_status i40evf_aq_rx_ctl_write_register(struct i40e_hw *hw,
-				u32 reg_addr, u32 reg_val,
-				struct i40e_asq_cmd_details *cmd_details);
-void i40evf_write_rx_ctl(struct i40e_hw *hw, u32 reg_addr, u32 reg_val);
-i40e_status i40e_aq_set_phy_register(struct i40e_hw *hw,
-				     u8 phy_select, u8 dev_addr,
-				     u32 reg_addr, u32 reg_val,
-				     struct i40e_asq_cmd_details *cmd_details);
-i40e_status i40e_aq_get_phy_register(struct i40e_hw *hw,
-				     u8 phy_select, u8 dev_addr,
-				     u32 reg_addr, u32 *reg_val,
-				     struct i40e_asq_cmd_details *cmd_details);
-
-i40e_status i40e_read_phy_register(struct i40e_hw *hw, u8 page,
-				   u16 reg, u8 phy_addr, u16 *value);
-i40e_status i40e_write_phy_register(struct i40e_hw *hw, u8 page,
-				    u16 reg, u8 phy_addr, u16 value);
-i40e_status i40e_read_phy_register(struct i40e_hw *hw, u8 page, u16 reg,
-				   u8 phy_addr, u16 *value);
-i40e_status i40e_write_phy_register(struct i40e_hw *hw, u8 page, u16 reg,
-				    u8 phy_addr, u16 value);
-u8 i40e_get_phy_address(struct i40e_hw *hw, u8 dev_num);
-i40e_status i40e_blink_phy_link_led(struct i40e_hw *hw,
-				    u32 time, u32 interval);
-i40e_status i40evf_aq_write_ddp(struct i40e_hw *hw, void *buff,
-				u16 buff_size, u32 track_id,
-				u32 *error_offset, u32 *error_info,
-				struct i40e_asq_cmd_details *
-				cmd_details);
-i40e_status i40evf_aq_get_ddp_list(struct i40e_hw *hw, void *buff,
-				   u16 buff_size, u8 flags,
-				   struct i40e_asq_cmd_details *
-				   cmd_details);
-struct i40e_generic_seg_header *
-i40evf_find_segment_in_package(u32 segment_type,
-			       struct i40e_package_header *pkg_header);
-enum i40e_status_code
-i40evf_write_profile(struct i40e_hw *hw, struct i40e_profile_segment *i40e_seg,
-		     u32 track_id);
-enum i40e_status_code
-i40evf_add_pinfo_to_list(struct i40e_hw *hw,
-			 struct i40e_profile_segment *profile,
-			 u8 *profile_info_sec, u32 track_id);
+				   enum virtchnl_ops v_opcode,
+				   i40e_status v_retval, u8 *msg, u16 msglen,
+				   struct i40e_asq_cmd_details *cmd_details);
 #endif /* _I40E_PROTOTYPE_H_ */
