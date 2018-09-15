@@ -152,7 +152,7 @@ static inline void add_uuid(char *str, uuid_le uuid)
  * Also verify that the final entry in the table is all zeros.
  * Ignore both checks if build host differ from target host and size differs.
  **/
-static void device_id_check(const char *modname, const char *device_id,
+static void device_id_check(const char *mod_name, const char *device_id,
 			    unsigned long size, unsigned long id_size,
 			    void *symval)
 {
@@ -164,20 +164,20 @@ static void device_id_check(const char *modname, const char *device_id,
 		      "section __mod_%s__<identifier>_device_table=%lu.\n"
 		      "Fix definition of struct %s_device_id "
 		      "in mod_devicetable.h\n",
-		      modname, device_id, id_size, device_id, size, device_id);
+		      mod_name, device_id, id_size, device_id, size, device_id);
 	}
 	/* Verify last one is a terminator */
 	for (i = 0; i < id_size; i++ ) {
 		if (*(uint8_t*)(symval+size-id_size+i)) {
 			fprintf(stderr,"%s: struct %s_device_id is %lu bytes.  "
 				"The last of %lu is:\n",
-				modname, device_id, id_size, size / id_size);
+				mod_name, device_id, id_size, size / id_size);
 			for (i = 0; i < id_size; i++ )
 				fprintf(stderr,"0x%02x ",
 					*(uint8_t*)(symval+size-id_size+i) );
 			fprintf(stderr,"\n");
 			fatal("%s: struct %s_device_id is not terminated "
-				"with a NULL entry!\n", modname, device_id);
+				"with a NULL entry!\n", mod_name, device_id);
 		}
 	}
 }
