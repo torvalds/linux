@@ -5,7 +5,7 @@
 #include <linux/errno.h>
 
 #include "iavf.h"
-#include "i40e_prototype.h"
+#include "iavf_prototype.h"
 #include "iavf_client.h"
 
 static

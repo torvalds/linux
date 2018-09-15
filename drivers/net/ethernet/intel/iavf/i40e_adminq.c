@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
-#include "i40e_status.h"
-#include "i40e_type.h"
-#include "i40e_register.h"
+#include "iavf_status.h"
+#include "iavf_type.h"
+#include "iavf_register.h"
 #include "i40e_adminq.h"
-#include "i40e_prototype.h"
+#include "iavf_prototype.h"
 
 /**
  *  i40e_adminq_init_regs - Initialize AdminQ registers

@@ -2,7 +2,7 @@
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include "iavf.h"
-#include "i40e_prototype.h"
+#include "iavf_prototype.h"
 #include "iavf_client.h"
 
 /* busy wait delay in msec */

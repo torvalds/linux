@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
-#include "i40e_type.h"
+#include "iavf_type.h"
 #include "i40e_adminq.h"
-#include "i40e_prototype.h"
+#include "iavf_prototype.h"
 #include <linux/avf/virtchnl.h>
 
 /**

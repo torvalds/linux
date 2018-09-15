@@ -34,7 +34,7 @@
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
 
-#include "i40e_type.h"
+#include "iavf_type.h"
 #include <linux/avf/virtchnl.h>
 #include "iavf_txrx.h"
 
@@ -298,7 +298,7 @@ struct iavf_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 
-	struct iavf_hw hw; /* defined in i40e_type.h */
+	struct iavf_hw hw; /* defined in iavf_type.h */
 
 	enum iavf_state_t state;
 	unsigned long crit_section;

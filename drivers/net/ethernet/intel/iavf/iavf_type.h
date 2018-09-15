@@ -4,11 +4,11 @@
 #ifndef _IAVF_TYPE_H_
 #define _IAVF_TYPE_H_
 
-#include "i40e_status.h"
-#include "i40e_osdep.h"
-#include "i40e_register.h"
+#include "iavf_status.h"
+#include "iavf_osdep.h"
+#include "iavf_register.h"
 #include "i40e_adminq.h"
-#include "i40e_devids.h"
+#include "iavf_devids.h"
 
 #define IAVF_RXQ_CTX_DBUFF_SHIFT 7
 

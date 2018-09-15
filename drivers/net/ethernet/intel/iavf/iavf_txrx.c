@@ -6,7 +6,7 @@
 
 #include "iavf.h"
 #include "iavf_trace.h"
-#include "i40e_prototype.h"
+#include "iavf_prototype.h"
 
 static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
 				u32 td_tag)

@@ -4,8 +4,8 @@
 #ifndef _IAVF_PROTOTYPE_H_
 #define _IAVF_PROTOTYPE_H_
 
-#include "i40e_type.h"
-#include "i40e_alloc.h"
+#include "iavf_type.h"
+#include "iavf_alloc.h"
 #include <linux/avf/virtchnl.h>
 
 /* Prototypes for shared code functions that are not in

@@ -4,8 +4,8 @@
 #ifndef _IAVF_ADMINQ_H_
 #define _IAVF_ADMINQ_H_
 
-#include "i40e_osdep.h"
-#include "i40e_status.h"
+#include "iavf_osdep.h"
+#include "iavf_status.h"
 #include "i40e_adminq_cmd.h"
 
 #define IAVF_ADMINQ_DESC(R, i)   \
