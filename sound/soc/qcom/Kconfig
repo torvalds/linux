@@ -41,6 +41,9 @@ config SND_SOC_APQ8016_SBC
           APQ8016 SOC-based systems.
           Say Y if you want to use audio devices on MI2S.
 
+config SND_SOC_QCOM_COMMON
+	tristate
+
 config SND_SOC_QDSP6_COMMON
 	tristate
 
@@ -86,7 +89,18 @@ config SND_SOC_MSM8996
 	tristate "SoC Machine driver for MSM8996 and APQ8096 boards"
 	depends on QCOM_APR
 	select SND_SOC_QDSP6
+	select SND_SOC_QCOM_COMMON
 	help
           Support for Qualcomm Technologies LPASS audio block in
           APQ8096 SoC-based systems.
           Say Y if you want to use audio device on this SoCs
+
+config SND_SOC_SDM845
+	tristate "SoC Machine driver for SDM845 boards"
+	depends on QCOM_APR
+	select SND_SOC_QDSP6
+	select SND_SOC_QCOM_COMMON
+	help
+	  To add support for audio on Qualcomm Technologies Inc.
+	  SDM845 SoC-based systems.
+	  Say Y if you want to use audio device on this SoCs.

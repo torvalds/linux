@@ -74,8 +74,7 @@ static int hns_roce_set_mac(struct hns_roce_dev *hr_dev, u8 port, u8 *addr)
 	return hr_dev->hw->set_mac(hr_dev, phy_port, addr);
 }
 
-static int hns_roce_add_gid(const union ib_gid *gid,
-			    const struct ib_gid_attr *attr, void **context)
+static int hns_roce_add_gid(const struct ib_gid_attr *attr, void **context)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(attr->device);
 	u8 port = attr->port_num - 1;
@@ -87,8 +86,7 @@ static int hns_roce_add_gid(const union ib_gid *gid,
 
 	spin_lock_irqsave(&hr_dev->iboe.lock, flags);
 
-	ret = hr_dev->hw->set_gid(hr_dev, port, attr->index,
-				  (union ib_gid *)gid, attr);
+	ret = hr_dev->hw->set_gid(hr_dev, port, attr->index, &attr->gid, attr);
 
 	spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
 
@@ -208,7 +206,8 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 	props->max_qp_wr = hr_dev->caps.max_wqes;
 	props->device_cap_flags = IB_DEVICE_PORT_ACTIVE_EVENT |
 				  IB_DEVICE_RC_RNR_NAK_GEN;
-	props->max_sge = max(hr_dev->caps.max_sq_sg, hr_dev->caps.max_rq_sg);
+	props->max_send_sge = hr_dev->caps.max_sq_sg;
+	props->max_recv_sge = hr_dev->caps.max_rq_sg;
 	props->max_sge_rd = 1;
 	props->max_cq = hr_dev->caps.num_cqs;
 	props->max_cqe = hr_dev->caps.max_cqes;
@@ -534,6 +533,9 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		(1ULL << IB_USER_VERBS_CMD_MODIFY_QP) |
 		(1ULL << IB_USER_VERBS_CMD_QUERY_QP) |
 		(1ULL << IB_USER_VERBS_CMD_DESTROY_QP);
+
+	ib_dev->uverbs_ex_cmd_mask |=
+		(1ULL << IB_USER_VERBS_EX_CMD_MODIFY_CQ);
 
 	/* HCA||device||port */
 	ib_dev->modify_device		= hns_roce_modify_device;
@@ -887,8 +889,7 @@ error_failed_cmd_init:
 
 error_failed_cmq_init:
 	if (hr_dev->hw->reset) {
-		ret = hr_dev->hw->reset(hr_dev, false);
-		if (ret)
+		if (hr_dev->hw->reset(hr_dev, false))
 			dev_err(dev, "Dereset RoCE engine failed!\n");
 	}
 

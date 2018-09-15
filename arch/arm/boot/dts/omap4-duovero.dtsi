@@ -248,6 +248,7 @@
 	ti,bus-width = <4>;
 	ti,non-removable;
 	cap-power-off-card;
+	keep-power-in-suspend;
 };
 
 &twl_usb_comparator {

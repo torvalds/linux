@@ -265,3 +265,11 @@
 	/* Supplied by VDA_1V8_PHY */
 	vdda_video-supply = <&lp8732_ldo1_reg>;
 };
+
+&extcon_usb1 {
+	vbus-gpio = <&pcf_lcd 14 GPIO_ACTIVE_HIGH>;
+};
+
+&extcon_usb2 {
+	vbus-gpio = <&pcf_lcd 15 GPIO_ACTIVE_HIGH>;
+};

@@ -394,10 +394,10 @@ extern int uv_hub_info_version(void)
 EXPORT_SYMBOL(uv_hub_info_version);
 
 /* Default UV memory block size is 2GB */
-static unsigned long mem_block_size = (2UL << 30);
+static unsigned long mem_block_size __initdata = (2UL << 30);
 
 /* Kernel parameter to specify UV mem block size */
-static int parse_mem_block_size(char *ptr)
+static int __init parse_mem_block_size(char *ptr)
 {
 	unsigned long size = memparse(ptr, NULL);
 

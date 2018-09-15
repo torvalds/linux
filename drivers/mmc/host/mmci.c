@@ -48,78 +48,6 @@
 
 static unsigned int fmax = 515633;
 
-/**
- * struct variant_data - MMCI variant-specific quirks
- * @clkreg: default value for MCICLOCK register
- * @clkreg_enable: enable value for MMCICLOCK register
- * @clkreg_8bit_bus_enable: enable value for 8 bit bus
- * @clkreg_neg_edge_enable: enable value for inverted data/cmd output
- * @datalength_bits: number of bits in the MMCIDATALENGTH register
- * @fifosize: number of bytes that can be written when MMCI_TXFIFOEMPTY
- *	      is asserted (likewise for RX)
- * @fifohalfsize: number of bytes that can be written when MCI_TXFIFOHALFEMPTY
- *		  is asserted (likewise for RX)
- * @data_cmd_enable: enable value for data commands.
- * @st_sdio: enable ST specific SDIO logic
- * @st_clkdiv: true if using a ST-specific clock divider algorithm
- * @datactrl_mask_ddrmode: ddr mode mask in datactrl register.
- * @blksz_datactrl16: true if Block size is at b16..b30 position in datactrl register
- * @blksz_datactrl4: true if Block size is at b4..b16 position in datactrl
- *		     register
- * @datactrl_mask_sdio: SDIO enable mask in datactrl register
- * @pwrreg_powerup: power up value for MMCIPOWER register
- * @f_max: maximum clk frequency supported by the controller.
- * @signal_direction: input/out direction of bus signals can be indicated
- * @pwrreg_clkgate: MMCIPOWER register must be used to gate the clock
- * @busy_detect: true if the variant supports busy detection on DAT0.
- * @busy_dpsm_flag: bitmask enabling busy detection in the DPSM
- * @busy_detect_flag: bitmask identifying the bit in the MMCISTATUS register
- *		      indicating that the card is busy
- * @busy_detect_mask: bitmask identifying the bit in the MMCIMASK0 to mask for
- *		      getting busy end detection interrupts
- * @pwrreg_nopower: bits in MMCIPOWER don't controls ext. power supply
- * @explicit_mclk_control: enable explicit mclk control in driver.
- * @qcom_fifo: enables qcom specific fifo pio read logic.
- * @qcom_dml: enables qcom specific dma glue for dma transfers.
- * @reversed_irq_handling: handle data irq before cmd irq.
- * @mmcimask1: true if variant have a MMCIMASK1 register.
- * @start_err: bitmask identifying the STARTBITERR bit inside MMCISTATUS
- *	       register.
- * @opendrain: bitmask identifying the OPENDRAIN bit inside MMCIPOWER register
- */
-struct variant_data {
-	unsigned int		clkreg;
-	unsigned int		clkreg_enable;
-	unsigned int		clkreg_8bit_bus_enable;
-	unsigned int		clkreg_neg_edge_enable;
-	unsigned int		datalength_bits;
-	unsigned int		fifosize;
-	unsigned int		fifohalfsize;
-	unsigned int		data_cmd_enable;
-	unsigned int		datactrl_mask_ddrmode;
-	unsigned int		datactrl_mask_sdio;
-	bool			st_sdio;
-	bool			st_clkdiv;
-	bool			blksz_datactrl16;
-	bool			blksz_datactrl4;
-	u32			pwrreg_powerup;
-	u32			f_max;
-	bool			signal_direction;
-	bool			pwrreg_clkgate;
-	bool			busy_detect;
-	u32			busy_dpsm_flag;
-	u32			busy_detect_flag;
-	u32			busy_detect_mask;
-	bool			pwrreg_nopower;
-	bool			explicit_mclk_control;
-	bool			qcom_fifo;
-	bool			qcom_dml;
-	bool			reversed_irq_handling;
-	bool			mmcimask1;
-	u32			start_err;
-	u32			opendrain;
-};
-
 static struct variant_data variant_arm = {
 	.fifosize		= 16 * 4,
 	.fifohalfsize		= 8 * 4,
@@ -280,6 +208,7 @@ static struct variant_data variant_qcom = {
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
 	.opendrain		= MCI_ROD,
+	.init			= qcom_variant_init,
 };
 
 /* Busy detection for the ST Micro variant */
@@ -489,7 +418,6 @@ static void mmci_init_sg(struct mmci_host *host, struct mmc_data *data)
 static void mmci_dma_setup(struct mmci_host *host)
 {
 	const char *rxname, *txname;
-	struct variant_data *variant = host->variant;
 
 	host->dma_rx_channel = dma_request_slave_channel(mmc_dev(host->mmc), "rx");
 	host->dma_tx_channel = dma_request_slave_channel(mmc_dev(host->mmc), "tx");
@@ -537,9 +465,8 @@ static void mmci_dma_setup(struct mmci_host *host)
 			host->mmc->max_seg_size = max_seg_size;
 	}
 
-	if (variant->qcom_dml && host->dma_rx_channel && host->dma_tx_channel)
-		if (dml_hw_init(host, host->mmc->parent->of_node))
-			variant->qcom_dml = false;
+	if (host->ops && host->ops->dma_setup)
+		host->ops->dma_setup(host);
 }
 
 /*
@@ -1705,6 +1632,9 @@ static int mmci_probe(struct amba_device *dev,
 		ret = PTR_ERR(host->base);
 		goto clk_disable;
 	}
+
+	if (variant->init)
+		variant->init(host);
 
 	/*
 	 * The ARM and ST versions of the block have slightly different

@@ -416,7 +416,8 @@ static int rsi_mac80211_add_interface(struct ieee80211_hw *hw,
 
 	/* Get free vap index */
 	for (i = 0; i < RSI_MAX_VIFS; i++) {
-		if (!adapter->vifs[i]) {
+		if (!adapter->vifs[i] ||
+		    !memcmp(vif->addr, adapter->vifs[i]->addr, ETH_ALEN)) {
 			vap_idx = i;
 			break;
 		}

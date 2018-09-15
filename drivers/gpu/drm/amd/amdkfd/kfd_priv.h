@@ -73,7 +73,7 @@
 
 /*
  * When working with cp scheduler we should assign the HIQ manually or via
- * the radeon driver to a fixed hqd slot, here are the fixed HIQ hqd slot
+ * the amdgpu driver to a fixed hqd slot, here are the fixed HIQ hqd slot
  * definitions for Kaveri. In Kaveri only the first ME queues participates
  * in the cp scheduling taking that in mind we set the HIQ slot in the
  * second ME.
@@ -142,7 +142,12 @@ extern int ignore_crat;
 /*
  * Set sh_mem_config.retry_disable on Vega10
  */
-extern int vega10_noretry;
+extern int noretry;
+
+/*
+ * Halt if HWS hang is detected
+ */
+extern int halt_if_hws_hang;
 
 /**
  * enum kfd_sched_policy
@@ -180,9 +185,10 @@ enum cache_policy {
 
 struct kfd_event_interrupt_class {
 	bool (*interrupt_isr)(struct kfd_dev *dev,
-				const uint32_t *ih_ring_entry);
+			const uint32_t *ih_ring_entry, uint32_t *patched_ihre,
+			bool *patched_flag);
 	void (*interrupt_wq)(struct kfd_dev *dev,
-				const uint32_t *ih_ring_entry);
+			const uint32_t *ih_ring_entry);
 };
 
 struct kfd_device_info {
@@ -197,6 +203,7 @@ struct kfd_device_info {
 	bool supports_cwsr;
 	bool needs_iommu_device;
 	bool needs_pci_atomics;
+	unsigned int num_sdma_engines;
 };
 
 struct kfd_mem_obj {
@@ -415,6 +422,9 @@ struct queue_properties {
 	uint32_t ctl_stack_size;
 	uint64_t tba_addr;
 	uint64_t tma_addr;
+	/* Relevant for CU */
+	uint32_t cu_mask_count; /* Must be a multiple of 32 */
+	uint32_t *cu_mask;
 };
 
 /**
@@ -806,11 +816,17 @@ int kfd_interrupt_init(struct kfd_dev *dev);
 void kfd_interrupt_exit(struct kfd_dev *dev);
 void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry);
 bool enqueue_ih_ring_entry(struct kfd_dev *kfd,	const void *ih_ring_entry);
-bool interrupt_is_wanted(struct kfd_dev *dev, const uint32_t *ih_ring_entry);
+bool interrupt_is_wanted(struct kfd_dev *dev,
+				const uint32_t *ih_ring_entry,
+				uint32_t *patched_ihre, bool *flag);
 
 /* Power Management */
 void kgd2kfd_suspend(struct kfd_dev *kfd);
 int kgd2kfd_resume(struct kfd_dev *kfd);
+
+/* GPU reset */
+int kgd2kfd_pre_reset(struct kfd_dev *kfd);
+int kgd2kfd_post_reset(struct kfd_dev *kfd);
 
 /* amdkfd Apertures */
 int kfd_init_apertures(struct kfd_process *process);
@@ -838,6 +854,7 @@ void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 					enum kfd_queue_type type);
 void kernel_queue_uninit(struct kernel_queue *kq);
+int kfd_process_vm_fault(struct device_queue_manager *dqm, unsigned int pasid);
 
 /* Process Queue Manager */
 struct process_queue_node {
@@ -857,6 +874,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			    unsigned int *qid);
 int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid);
 int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
+			struct queue_properties *p);
+int pqm_set_cu_mask(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
 struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
 						unsigned int qid);
@@ -964,9 +983,16 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 		     uint64_t *event_page_offset, uint32_t *event_slot_index);
 int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);
 
+void kfd_signal_vm_fault_event(struct kfd_dev *dev, unsigned int pasid,
+				struct kfd_vm_fault_info *info);
+
+void kfd_signal_reset_event(struct kfd_dev *dev);
+
 void kfd_flush_tlb(struct kfd_process_device *pdd);
 
 int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p);
+
+bool kfd_is_locked(void);
 
 /* Debugfs */
 #if defined(CONFIG_DEBUG_FS)
@@ -979,6 +1005,10 @@ int kfd_debugfs_hqds_by_device(struct seq_file *m, void *data);
 int dqm_debugfs_hqds(struct seq_file *m, void *data);
 int kfd_debugfs_rls_by_device(struct seq_file *m, void *data);
 int pm_debugfs_runlist(struct seq_file *m, void *data);
+
+int kfd_debugfs_hang_hws(struct kfd_dev *dev);
+int pm_debugfs_hang_hws(struct packet_manager *pm);
+int dqm_debugfs_execute_queues(struct device_queue_manager *dqm);
 
 #else
 

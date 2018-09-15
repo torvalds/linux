@@ -149,6 +149,18 @@ config BLK_WBT
 	dynamically on an algorithm loosely based on CoDel, factoring in
 	the realtime performance of the disk.
 
+config BLK_CGROUP_IOLATENCY
+	bool "Enable support for latency based cgroup IO protection"
+	depends on BLK_CGROUP=y
+	default n
+	---help---
+	Enabling this option enables the .latency interface for IO throttling.
+	The IO controller will attempt to maintain average IO latencies below
+	the configured latency target, throttling anybody with a higher latency
+	target than the victimized group.
+
+	Note, this is an experimental interface and could be changed someday.
+
 config BLK_WBT_SQ
 	bool "Single queue writeback throttling"
 	default n
@@ -176,6 +188,10 @@ config BLK_DEBUG_FS
 
 	Unless you are building a kernel for a tiny system, you should
 	say Y here.
+
+config BLK_DEBUG_FS_ZONED
+       bool
+       default BLK_DEBUG_FS && BLK_DEV_ZONED
 
 config BLK_SED_OPAL
 	bool "Logic for interfacing with Opal enabled SEDs"

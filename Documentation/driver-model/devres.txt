@@ -240,6 +240,7 @@ CLOCK
   devm_of_clk_add_hw_provider()
 
 DMA
+  dmaenginem_async_device_register()
   dmam_alloc_coherent()
   dmam_alloc_attrs()
   dmam_declare_coherent_memory()

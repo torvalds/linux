@@ -59,13 +59,13 @@ int gnet_stats_finish_copy(struct gnet_dump *d);
 int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 		      struct gnet_stats_basic_cpu __percpu *cpu_bstats,
 		      struct net_rate_estimator __rcu **rate_est,
-		      spinlock_t *stats_lock,
+		      spinlock_t *lock,
 		      seqcount_t *running, struct nlattr *opt);
 void gen_kill_estimator(struct net_rate_estimator __rcu **ptr);
 int gen_replace_estimator(struct gnet_stats_basic_packed *bstats,
 			  struct gnet_stats_basic_cpu __percpu *cpu_bstats,
 			  struct net_rate_estimator __rcu **ptr,
-			  spinlock_t *stats_lock,
+			  spinlock_t *lock,
 			  seqcount_t *running, struct nlattr *opt);
 bool gen_estimator_active(struct net_rate_estimator __rcu **ptr);
 bool gen_estimator_read(struct net_rate_estimator __rcu **ptr,

@@ -206,7 +206,8 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 	/* Carefully retire all requests without writing to the rings */
 	ret = i915_gem_wait_for_idle(i915,
 				     I915_WAIT_INTERRUPTIBLE |
-				     I915_WAIT_LOCKED);
+				     I915_WAIT_LOCKED,
+				     MAX_SCHEDULE_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -320,6 +321,7 @@ static void advance_ring(struct i915_request *request)
 		 * is just about to be. Either works, if we miss the last two
 		 * noops - they are safe to be replayed on a reset.
 		 */
+		GEM_TRACE("marking %s as inactive\n", ring->timeline->name);
 		tail = READ_ONCE(request->tail);
 		list_del(&ring->active_link);
 	} else {
@@ -383,8 +385,8 @@ static void __retire_engine_request(struct intel_engine_cs *engine,
 	 * the subsequent request.
 	 */
 	if (engine->last_retired_context)
-		intel_context_unpin(engine->last_retired_context, engine);
-	engine->last_retired_context = rq->ctx;
+		intel_context_unpin(engine->last_retired_context);
+	engine->last_retired_context = rq->hw_context;
 }
 
 static void __retire_engine_upto(struct intel_engine_cs *engine,
@@ -455,8 +457,8 @@ static void i915_request_retire(struct i915_request *request)
 	i915_request_remove_from_client(request);
 
 	/* Retirement decays the ban score as it is a sign of ctx progress */
-	atomic_dec_if_positive(&request->ctx->ban_score);
-	intel_context_unpin(request->ctx, request->engine);
+	atomic_dec_if_positive(&request->gem_context->ban_score);
+	intel_context_unpin(request->hw_context);
 
 	__retire_engine_upto(request->engine, request);
 
@@ -502,7 +504,7 @@ static void move_to_timeline(struct i915_request *request,
 	GEM_BUG_ON(request->timeline == &request->engine->timeline);
 	lockdep_assert_held(&request->engine->timeline.lock);
 
-	spin_lock_nested(&request->timeline->lock, SINGLE_DEPTH_NESTING);
+	spin_lock(&request->timeline->lock);
 	list_move_tail(&request->link, &timeline->requests);
 	spin_unlock(&request->timeline->lock);
 }
@@ -657,7 +659,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 {
 	struct drm_i915_private *i915 = engine->i915;
 	struct i915_request *rq;
-	struct intel_ring *ring;
+	struct intel_context *ce;
 	int ret;
 
 	lockdep_assert_held(&i915->drm.struct_mutex);
@@ -681,22 +683,21 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 * GGTT space, so do this first before we reserve a seqno for
 	 * ourselves.
 	 */
-	ring = intel_context_pin(ctx, engine);
-	if (IS_ERR(ring))
-		return ERR_CAST(ring);
-	GEM_BUG_ON(!ring);
+	ce = intel_context_pin(ctx, engine);
+	if (IS_ERR(ce))
+		return ERR_CAST(ce);
 
 	ret = reserve_gt(i915);
 	if (ret)
 		goto err_unpin;
 
-	ret = intel_ring_wait_for_space(ring, MIN_SPACE_FOR_ADD_REQUEST);
+	ret = intel_ring_wait_for_space(ce->ring, MIN_SPACE_FOR_ADD_REQUEST);
 	if (ret)
 		goto err_unreserve;
 
 	/* Move our oldest request to the slab-cache (if not in use!) */
-	rq = list_first_entry(&ring->request_list, typeof(*rq), ring_link);
-	if (!list_is_last(&rq->ring_link, &ring->request_list) &&
+	rq = list_first_entry(&ce->ring->request_list, typeof(*rq), ring_link);
+	if (!list_is_last(&rq->ring_link, &ce->ring->request_list) &&
 	    i915_request_completed(rq))
 		i915_request_retire(rq);
 
@@ -735,7 +736,8 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 		/* Ratelimit ourselves to prevent oom from malicious clients */
 		ret = i915_gem_wait_for_idle(i915,
 					     I915_WAIT_LOCKED |
-					     I915_WAIT_INTERRUPTIBLE);
+					     I915_WAIT_INTERRUPTIBLE,
+					     MAX_SCHEDULE_TIMEOUT);
 		if (ret)
 			goto err_unreserve;
 
@@ -760,9 +762,10 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	INIT_LIST_HEAD(&rq->active_list);
 	rq->i915 = i915;
 	rq->engine = engine;
-	rq->ctx = ctx;
-	rq->ring = ring;
-	rq->timeline = ring->timeline;
+	rq->gem_context = ctx;
+	rq->hw_context = ce;
+	rq->ring = ce->ring;
+	rq->timeline = ce->ring->timeline;
 	GEM_BUG_ON(rq->timeline == &engine->timeline);
 
 	spin_lock_init(&rq->lock);
@@ -814,14 +817,16 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 		goto err_unwind;
 
 	/* Keep a second pin for the dual retirement along engine and ring */
-	__intel_context_pin(rq->ctx, engine);
+	__intel_context_pin(ce);
+
+	rq->infix = rq->ring->emit; /* end of header; start of user payload */
 
 	/* Check that we didn't interrupt ourselves with a new request */
 	GEM_BUG_ON(rq->timeline->seqno != rq->fence.seqno);
 	return rq;
 
 err_unwind:
-	rq->ring->emit = rq->head;
+	ce->ring->emit = rq->head;
 
 	/* Make sure we didn't add ourselves to external state before freeing */
 	GEM_BUG_ON(!list_empty(&rq->active_list));
@@ -832,7 +837,7 @@ err_unwind:
 err_unreserve:
 	unreserve_gt(i915);
 err_unpin:
-	intel_context_unpin(ctx, engine);
+	intel_context_unpin(ce);
 	return ERR_PTR(ret);
 }
 
@@ -1010,19 +1015,39 @@ i915_request_await_object(struct i915_request *to,
 	return ret;
 }
 
+void i915_request_skip(struct i915_request *rq, int error)
+{
+	void *vaddr = rq->ring->vaddr;
+	u32 head;
+
+	GEM_BUG_ON(!IS_ERR_VALUE((long)error));
+	dma_fence_set_error(&rq->fence, error);
+
+	/*
+	 * As this request likely depends on state from the lost
+	 * context, clear out all the user operations leaving the
+	 * breadcrumb at the end (so we get the fence notifications).
+	 */
+	head = rq->infix;
+	if (rq->postfix < head) {
+		memset(vaddr + head, 0, rq->ring->size - head);
+		head = 0;
+	}
+	memset(vaddr + head, 0, rq->postfix - head);
+}
+
 /*
  * NB: This function is not allowed to fail. Doing so would mean the the
  * request is not being tracked for completion but the work itself is
  * going to happen on the hardware. This would be a Bad Thing(tm).
  */
-void __i915_request_add(struct i915_request *request, bool flush_caches)
+void i915_request_add(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
-	struct intel_ring *ring = request->ring;
 	struct i915_timeline *timeline = request->timeline;
+	struct intel_ring *ring = request->ring;
 	struct i915_request *prev;
 	u32 *cs;
-	int err;
 
 	GEM_TRACE("%s fence %llx:%d\n",
 		  engine->name, request->fence.context, request->fence.seqno);
@@ -1043,20 +1068,7 @@ void __i915_request_add(struct i915_request *request, bool flush_caches)
 	 * know that it is time to use that space up.
 	 */
 	request->reserved_space = 0;
-
-	/*
-	 * Emit any outstanding flushes - execbuf can fail to emit the flush
-	 * after having emitted the batchbuffer command. Hence we need to fix
-	 * things up similar to emitting the lazy request. The difference here
-	 * is that the flush _must_ happen before the next request, no matter
-	 * what.
-	 */
-	if (flush_caches) {
-		err = engine->emit_flush(request, EMIT_FLUSH);
-
-		/* Not allowed to fail! */
-		WARN(err, "engine->emit_flush() failed: %d!\n", err);
-	}
+	engine->emit_flush(request, EMIT_FLUSH);
 
 	/*
 	 * Record the position of the start of the breadcrumb so that
@@ -1095,8 +1107,10 @@ void __i915_request_add(struct i915_request *request, bool flush_caches)
 	i915_gem_active_set(&timeline->last_request, request);
 
 	list_add_tail(&request->ring_link, &ring->request_list);
-	if (list_is_first(&request->ring_link, &ring->request_list))
+	if (list_is_first(&request->ring_link, &ring->request_list)) {
+		GEM_TRACE("marking %s as active\n", ring->timeline->name);
 		list_add(&ring->active_link, &request->i915->gt.active_rings);
+	}
 	request->emitted_jiffies = jiffies;
 
 	/*
@@ -1113,7 +1127,7 @@ void __i915_request_add(struct i915_request *request, bool flush_caches)
 	local_bh_disable();
 	rcu_read_lock(); /* RCU serialisation for set-wedged protection */
 	if (engine->schedule)
-		engine->schedule(request, &request->ctx->sched);
+		engine->schedule(request, &request->gem_context->sched);
 	rcu_read_unlock();
 	i915_sw_fence_commit(&request->submit);
 	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
@@ -1205,7 +1219,7 @@ static bool __i915_spin_request(const struct i915_request *rq,
 	 * takes to sleep on a request, on the order of a microsecond.
 	 */
 
-	irq = atomic_read(&engine->irq_count);
+	irq = READ_ONCE(engine->breadcrumbs.irq_count);
 	timeout_us += local_clock_us(&cpu);
 	do {
 		if (i915_seqno_passed(intel_engine_get_seqno(engine), seqno))
@@ -1217,7 +1231,7 @@ static bool __i915_spin_request(const struct i915_request *rq,
 		 * assume we won't see one in the near future but require
 		 * the engine->seqno_barrier() to fixup coherency.
 		 */
-		if (atomic_read(&engine->irq_count) != irq)
+		if (READ_ONCE(engine->breadcrumbs.irq_count) != irq)
 			break;
 
 		if (signal_pending_state(state, current))
@@ -1294,7 +1308,7 @@ long i915_request_wait(struct i915_request *rq,
 	if (flags & I915_WAIT_LOCKED)
 		add_wait_queue(errq, &reset);
 
-	intel_wait_init(&wait, rq);
+	intel_wait_init(&wait);
 
 restart:
 	do {

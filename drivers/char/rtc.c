@@ -193,14 +193,6 @@ static unsigned long rtc_freq;		/* Current periodic IRQ rate	*/
 static unsigned long rtc_irq_data;	/* our output to the world	*/
 static unsigned long rtc_max_user_freq = 64; /* > this, need CAP_SYS_RESOURCE */
 
-#ifdef RTC_IRQ
-/*
- * rtc_task_lock nests inside rtc_lock.
- */
-static DEFINE_SPINLOCK(rtc_task_lock);
-static rtc_task_t *rtc_callback;
-#endif
-
 /*
  *	If this driver ever becomes modularised, it will be really nice
  *	to make the epoch retain its value across module reload...
@@ -264,11 +256,6 @@ static irqreturn_t rtc_interrupt(int irq, void *dev_id)
 
 	spin_unlock(&rtc_lock);
 
-	/* Now do the rest of the actions */
-	spin_lock(&rtc_task_lock);
-	if (rtc_callback)
-		rtc_callback->func(rtc_callback->private_data);
-	spin_unlock(&rtc_task_lock);
 	wake_up_interruptible(&rtc_wait);
 
 	kill_fasync(&rtc_async_queue, SIGIO, POLL_IN);

@@ -236,17 +236,20 @@ static int nfp_pcie_sriov_read_nfd_limit(struct nfp_pf *pf)
 	int err;
 
 	pf->limit_vfs = nfp_rtsym_read_le(pf->rtbl, "nfd_vf_cfg_max_vfs", &err);
-	if (!err)
-		return pci_sriov_set_totalvfs(pf->pdev, pf->limit_vfs);
+	if (err) {
+		/* For backwards compatibility if symbol not found allow all */
+		pf->limit_vfs = ~0;
+		if (err == -ENOENT)
+			return 0;
 
-	pf->limit_vfs = ~0;
-	pci_sriov_set_totalvfs(pf->pdev, 0); /* 0 is unset */
-	/* Allow any setting for backwards compatibility if symbol not found */
-	if (err == -ENOENT)
-		return 0;
+		nfp_warn(pf->cpp, "Warning: VF limit read failed: %d\n", err);
+		return err;
+	}
 
-	nfp_warn(pf->cpp, "Warning: VF limit read failed: %d\n", err);
-	return err;
+	err = pci_sriov_set_totalvfs(pf->pdev, pf->limit_vfs);
+	if (err)
+		nfp_warn(pf->cpp, "Failed to set VF count in sysfs: %d\n", err);
+	return 0;
 }
 
 static int nfp_pcie_sriov_enable(struct pci_dev *pdev, int num_vfs)
@@ -668,7 +671,7 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 
 	err = nfp_net_pci_probe(pf);
 	if (err)
-		goto err_sriov_unlimit;
+		goto err_fw_unload;
 
 	err = nfp_hwmon_register(pf);
 	if (err) {
@@ -680,8 +683,6 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 
 err_net_remove:
 	nfp_net_pci_remove(pf);
-err_sriov_unlimit:
-	pci_sriov_set_totalvfs(pf->pdev, 0);
 err_fw_unload:
 	kfree(pf->rtbl);
 	nfp_mip_close(pf->mip);
@@ -715,7 +716,6 @@ static void nfp_pci_remove(struct pci_dev *pdev)
 	nfp_hwmon_unregister(pf);
 
 	nfp_pcie_sriov_disable(pdev);
-	pci_sriov_set_totalvfs(pf->pdev, 0);
 
 	nfp_net_pci_remove(pf);
 

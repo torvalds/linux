@@ -48,8 +48,8 @@ void __trace_opal_exit(long opcode, unsigned long retval);
 /* VMX copying */
 int enter_vmx_usercopy(void);
 int exit_vmx_usercopy(void);
-int enter_vmx_copy(void);
-void * exit_vmx_copy(void *dest);
+int enter_vmx_ops(void);
+void *exit_vmx_ops(void *dest);
 
 /* Traps */
 long machine_check_early(struct pt_regs *regs);
@@ -142,5 +142,12 @@ void tm_abort(uint8_t cause);
 struct kvm_vcpu;
 void _kvmppc_restore_tm_pr(struct kvm_vcpu *vcpu, u64 guest_msr);
 void _kvmppc_save_tm_pr(struct kvm_vcpu *vcpu, u64 guest_msr);
+
+/* Patch sites */
+extern s32 patch__call_flush_count_cache;
+extern s32 patch__flush_count_cache_return;
+extern s32 patch__memset_nocache, patch__memcpy_nocache;
+
+extern long flush_count_cache;
 
 #endif /* _ASM_POWERPC_ASM_PROTOTYPES_H */

@@ -192,7 +192,7 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr);
  * @timeout_ms: Time to wait for resolution to complete.
  */
 int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
-		      struct sockaddr *dst_addr, int timeout_ms);
+		      const struct sockaddr *dst_addr, int timeout_ms);
 
 /**
  * rdma_resolve_route - Resolve the RDMA address bound to the RDMA identifier

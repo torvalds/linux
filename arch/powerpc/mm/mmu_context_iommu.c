@@ -19,6 +19,7 @@
 #include <linux/hugetlb.h>
 #include <linux/swap.h>
 #include <asm/mmu_context.h>
+#include <asm/pte-walk.h>
 
 static DEFINE_MUTEX(mem_list_mutex);
 
@@ -27,6 +28,7 @@ struct mm_iommu_table_group_mem_t {
 	struct rcu_head rcu;
 	unsigned long used;
 	atomic64_t mapped;
+	unsigned int pageshift;
 	u64 ua;			/* userspace address */
 	u64 entries;		/* number of entries in hpas[] */
 	u64 *hpas;		/* vmalloc'ed */
@@ -125,6 +127,9 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
 {
 	struct mm_iommu_table_group_mem_t *mem;
 	long i, j, ret = 0, locked_entries = 0;
+	unsigned int pageshift;
+	unsigned long flags;
+	unsigned long cur_ua;
 	struct page *page = NULL;
 
 	mutex_lock(&mem_list_mutex);
@@ -159,6 +164,12 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
 		goto unlock_exit;
 	}
 
+	/*
+	 * For a starting point for a maximum page size calculation
+	 * we use @ua and @entries natural alignment to allow IOMMU pages
+	 * smaller than huge pages but still bigger than PAGE_SIZE.
+	 */
+	mem->pageshift = __ffs(ua | (entries << PAGE_SHIFT));
 	mem->hpas = vzalloc(array_size(entries, sizeof(mem->hpas[0])));
 	if (!mem->hpas) {
 		kfree(mem);
@@ -167,7 +178,8 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
 	}
 
 	for (i = 0; i < entries; ++i) {
-		if (1 != get_user_pages_fast(ua + (i << PAGE_SHIFT),
+		cur_ua = ua + (i << PAGE_SHIFT);
+		if (1 != get_user_pages_fast(cur_ua,
 					1/* pages */, 1/* iswrite */, &page)) {
 			ret = -EFAULT;
 			for (j = 0; j < i; ++j)
@@ -186,7 +198,7 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
 		if (is_migrate_cma_page(page)) {
 			if (mm_iommu_move_page_from_cma(page))
 				goto populate;
-			if (1 != get_user_pages_fast(ua + (i << PAGE_SHIFT),
+			if (1 != get_user_pages_fast(cur_ua,
 						1/* pages */, 1/* iswrite */,
 						&page)) {
 				ret = -EFAULT;
@@ -199,6 +211,24 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
 			}
 		}
 populate:
+		pageshift = PAGE_SHIFT;
+		if (mem->pageshift > PAGE_SHIFT && PageCompound(page)) {
+			pte_t *pte;
+			struct page *head = compound_head(page);
+			unsigned int compshift = compound_order(head);
+			unsigned int pteshift;
+
+			local_irq_save(flags); /* disables as well */
+			pte = find_linux_pte(mm->pgd, cur_ua, NULL, &pteshift);
+
+			/* Double check it is still the same pinned page */
+			if (pte && pte_page(*pte) == head &&
+			    pteshift == compshift + PAGE_SHIFT)
+				pageshift = max_t(unsigned int, pteshift,
+						PAGE_SHIFT);
+			local_irq_restore(flags);
+		}
+		mem->pageshift = min(mem->pageshift, pageshift);
 		mem->hpas[i] = page_to_pfn(page) << PAGE_SHIFT;
 	}
 
@@ -349,12 +379,15 @@ struct mm_iommu_table_group_mem_t *mm_iommu_find(struct mm_struct *mm,
 EXPORT_SYMBOL_GPL(mm_iommu_find);
 
 long mm_iommu_ua_to_hpa(struct mm_iommu_table_group_mem_t *mem,
-		unsigned long ua, unsigned long *hpa)
+		unsigned long ua, unsigned int pageshift, unsigned long *hpa)
 {
 	const long entry = (ua - mem->ua) >> PAGE_SHIFT;
 	u64 *va = &mem->hpas[entry];
 
 	if (entry >= mem->entries)
+		return -EFAULT;
+
+	if (pageshift > mem->pageshift)
 		return -EFAULT;
 
 	*hpa = *va | (ua & ~PAGE_MASK);
@@ -364,13 +397,16 @@ long mm_iommu_ua_to_hpa(struct mm_iommu_table_group_mem_t *mem,
 EXPORT_SYMBOL_GPL(mm_iommu_ua_to_hpa);
 
 long mm_iommu_ua_to_hpa_rm(struct mm_iommu_table_group_mem_t *mem,
-		unsigned long ua, unsigned long *hpa)
+		unsigned long ua, unsigned int pageshift, unsigned long *hpa)
 {
 	const long entry = (ua - mem->ua) >> PAGE_SHIFT;
 	void *va = &mem->hpas[entry];
 	unsigned long *pa;
 
 	if (entry >= mem->entries)
+		return -EFAULT;
+
+	if (pageshift > mem->pageshift)
 		return -EFAULT;
 
 	pa = (void *) vmalloc_to_phys(va);

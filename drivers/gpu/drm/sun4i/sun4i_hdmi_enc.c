@@ -220,7 +220,7 @@ static int sun4i_hdmi_get_modes(struct drm_connector *connector)
 	DRM_DEBUG_DRIVER("Monitor is %s monitor\n",
 			 hdmi->hdmi_monitor ? "an HDMI" : "a DVI");
 
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 	cec_s_phys_addr_from_edid(hdmi->cec_adap, edid);
 	ret = drm_add_edid_modes(connector, edid);
 	kfree(edid);
@@ -623,7 +623,7 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 	ret = cec_register_adapter(hdmi->cec_adap, dev);
 	if (ret < 0)
 		goto err_cleanup_connector;
-	drm_mode_connector_attach_encoder(&hdmi->connector, &hdmi->encoder);
+	drm_connector_attach_encoder(&hdmi->connector, &hdmi->encoder);
 
 	return 0;
 

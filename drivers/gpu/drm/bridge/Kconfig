@@ -82,9 +82,11 @@ config DRM_PARADE_PS8622
 
 config DRM_SIL_SII8620
 	tristate "Silicon Image SII8620 HDMI/MHL bridge"
-	depends on OF && RC_CORE
+	depends on OF
 	select DRM_KMS_HELPER
 	imply EXTCON
+	select INPUT
+	select RC_CORE
 	help
 	  Silicon Image SII8620 HDMI/MHL bridge chip driver.
 

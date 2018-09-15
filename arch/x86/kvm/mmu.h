@@ -61,9 +61,10 @@ void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask, u64 mmio_value);
 void
 reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu, struct kvm_mmu *context);
 
+void kvm_init_mmu(struct kvm_vcpu *vcpu, bool reset_roots);
 void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu);
 void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
-			     bool accessed_dirty);
+			     bool accessed_dirty, gpa_t new_eptp);
 bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu);
 int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 				u64 fault_address, char *insn, int insn_len);
@@ -83,6 +84,27 @@ static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 		return 0;
 
 	return kvm_mmu_load(vcpu);
+}
+
+static inline unsigned long kvm_get_pcid(struct kvm_vcpu *vcpu, gpa_t cr3)
+{
+	BUILD_BUG_ON((X86_CR3_PCID_MASK & PAGE_MASK) != 0);
+
+	return kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE)
+	       ? cr3 & X86_CR3_PCID_MASK
+	       : 0;
+}
+
+static inline unsigned long kvm_get_active_pcid(struct kvm_vcpu *vcpu)
+{
+	return kvm_get_pcid(vcpu, kvm_read_cr3(vcpu));
+}
+
+static inline void kvm_mmu_load_cr3(struct kvm_vcpu *vcpu)
+{
+	if (VALID_PAGE(vcpu->arch.mmu.root_hpa))
+		vcpu->arch.mmu.set_cr3(vcpu, vcpu->arch.mmu.root_hpa |
+					     kvm_get_active_pcid(vcpu));
 }
 
 /*

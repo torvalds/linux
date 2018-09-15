@@ -16,7 +16,6 @@ Required properties:
 - reg: I2C bus address of the device
 
 Optional properties:
-- interrupt-parent: phandle for the interrupt controller.
 - interrupts: rtc alarm interrupt.
 - clock-output-names: From common clock binding to override the default output
                       clock name

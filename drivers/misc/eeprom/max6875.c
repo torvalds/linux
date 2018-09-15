@@ -148,7 +148,8 @@ static int max6875_probe(struct i2c_client *client,
 	if (client->addr & 1)
 		return -ENODEV;
 
-	if (!(data = kzalloc(sizeof(struct max6875_data), GFP_KERNEL)))
+	data = kzalloc(sizeof(struct max6875_data), GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
 
 	/* A fake client is created on the odd address */

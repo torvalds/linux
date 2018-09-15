@@ -120,7 +120,6 @@ static struct drm_driver st7735r_driver = {
 				  DRIVER_ATOMIC,
 	.fops			= &st7735r_fops,
 	TINYDRM_GEM_DRIVER_OPS,
-	.lastclose		= drm_fb_helper_lastclose,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "st7735r",
 	.desc			= "Sitronix ST7735R",

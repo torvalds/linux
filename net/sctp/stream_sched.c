@@ -161,7 +161,7 @@ int sctp_sched_set_sched(struct sctp_association *asoc,
 
 		/* Give the next scheduler a clean slate. */
 		for (i = 0; i < asoc->stream.outcnt; i++) {
-			void *p = asoc->stream.out[i].ext;
+			void *p = SCTP_SO(&asoc->stream, i)->ext;
 
 			if (!p)
 				continue;
@@ -175,7 +175,7 @@ int sctp_sched_set_sched(struct sctp_association *asoc,
 	asoc->outqueue.sched = n;
 	n->init(&asoc->stream);
 	for (i = 0; i < asoc->stream.outcnt; i++) {
-		if (!asoc->stream.out[i].ext)
+		if (!SCTP_SO(&asoc->stream, i)->ext)
 			continue;
 
 		ret = n->init_sid(&asoc->stream, i, GFP_KERNEL);
@@ -217,7 +217,7 @@ int sctp_sched_set_value(struct sctp_association *asoc, __u16 sid,
 	if (sid >= asoc->stream.outcnt)
 		return -EINVAL;
 
-	if (!asoc->stream.out[sid].ext) {
+	if (!SCTP_SO(&asoc->stream, sid)->ext) {
 		int ret;
 
 		ret = sctp_stream_init_ext(&asoc->stream, sid);
@@ -234,7 +234,7 @@ int sctp_sched_get_value(struct sctp_association *asoc, __u16 sid,
 	if (sid >= asoc->stream.outcnt)
 		return -EINVAL;
 
-	if (!asoc->stream.out[sid].ext)
+	if (!SCTP_SO(&asoc->stream, sid)->ext)
 		return 0;
 
 	return asoc->outqueue.sched->get(&asoc->stream, sid, value);
@@ -252,7 +252,7 @@ void sctp_sched_dequeue_done(struct sctp_outq *q, struct sctp_chunk *ch)
 		 * priority stream comes in.
 		 */
 		sid = sctp_chunk_stream_no(ch);
-		sout = &q->asoc->stream.out[sid];
+		sout = SCTP_SO(&q->asoc->stream, sid);
 		q->asoc->stream.out_curr = sout;
 		return;
 	}
@@ -272,8 +272,9 @@ void sctp_sched_dequeue_common(struct sctp_outq *q, struct sctp_chunk *ch)
 int sctp_sched_init_sid(struct sctp_stream *stream, __u16 sid, gfp_t gfp)
 {
 	struct sctp_sched_ops *sched = sctp_sched_ops_from_stream(stream);
+	struct sctp_stream_out_ext *ext = SCTP_SO(stream, sid)->ext;
 
-	INIT_LIST_HEAD(&stream->out[sid].ext->outq);
+	INIT_LIST_HEAD(&ext->outq);
 	return sched->init_sid(stream, sid, gfp);
 }
 

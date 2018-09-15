@@ -24,7 +24,7 @@ static unsigned int skbmod_net_id;
 static struct tc_action_ops act_skbmod_ops;
 
 #define MAX_EDIT_LEN ETH_HLEN
-static int tcf_skbmod_run(struct sk_buff *skb, const struct tc_action *a,
+static int tcf_skbmod_act(struct sk_buff *skb, const struct tc_action *a,
 			  struct tcf_result *res)
 {
 	struct tcf_skbmod *d = to_skbmod(a);
@@ -41,20 +41,14 @@ static int tcf_skbmod_run(struct sk_buff *skb, const struct tc_action *a,
 	 * then MAX_EDIT_LEN needs to change appropriately
 	*/
 	err = skb_ensure_writable(skb, MAX_EDIT_LEN);
-	if (unlikely(err)) { /* best policy is to drop on the floor */
-		qstats_overlimit_inc(this_cpu_ptr(d->common.cpu_qstats));
-		return TC_ACT_SHOT;
-	}
+	if (unlikely(err)) /* best policy is to drop on the floor */
+		goto drop;
 
-	rcu_read_lock();
 	action = READ_ONCE(d->tcf_action);
-	if (unlikely(action == TC_ACT_SHOT)) {
-		qstats_overlimit_inc(this_cpu_ptr(d->common.cpu_qstats));
-		rcu_read_unlock();
-		return action;
-	}
+	if (unlikely(action == TC_ACT_SHOT))
+		goto drop;
 
-	p = rcu_dereference(d->skbmod_p);
+	p = rcu_dereference_bh(d->skbmod_p);
 	flags = p->flags;
 	if (flags & SKBMOD_F_DMAC)
 		ether_addr_copy(eth_hdr(skb)->h_dest, p->eth_dst);
@@ -62,7 +56,6 @@ static int tcf_skbmod_run(struct sk_buff *skb, const struct tc_action *a,
 		ether_addr_copy(eth_hdr(skb)->h_source, p->eth_src);
 	if (flags & SKBMOD_F_ETYPE)
 		eth_hdr(skb)->h_proto = p->eth_type;
-	rcu_read_unlock();
 
 	if (flags & SKBMOD_F_SWAPMAC) {
 		u16 tmpaddr[ETH_ALEN / 2]; /* ether_addr_copy() requirement */
@@ -73,6 +66,10 @@ static int tcf_skbmod_run(struct sk_buff *skb, const struct tc_action *a,
 	}
 
 	return action;
+
+drop:
+	qstats_overlimit_inc(this_cpu_ptr(d->common.cpu_qstats));
+	return TC_ACT_SHOT;
 }
 
 static const struct nla_policy skbmod_policy[TCA_SKBMOD_MAX + 1] = {
@@ -84,7 +81,8 @@ static const struct nla_policy skbmod_policy[TCA_SKBMOD_MAX + 1] = {
 
 static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a,
-			   int ovr, int bind, struct netlink_ext_ack *extack)
+			   int ovr, int bind, bool rtnl_held,
+			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, skbmod_net_id);
 	struct nlattr *tb[TCA_SKBMOD_MAX + 1];
@@ -127,46 +125,50 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 	if (parm->flags & SKBMOD_F_SWAPMAC)
 		lflags = SKBMOD_F_SWAPMAC;
 
-	exists = tcf_idr_check(tn, parm->index, a, bind);
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (err < 0)
+		return err;
+	exists = err;
 	if (exists && bind)
 		return 0;
 
 	if (!lflags) {
 		if (exists)
 			tcf_idr_release(*a, bind);
+		else
+			tcf_idr_cleanup(tn, parm->index);
 		return -EINVAL;
 	}
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_skbmod_ops, bind, true);
-		if (ret)
+		if (ret) {
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
+		}
 
 		ret = ACT_P_CREATED;
-	} else {
+	} else if (!ovr) {
 		tcf_idr_release(*a, bind);
-		if (!ovr)
-			return -EEXIST;
+		return -EEXIST;
 	}
 
 	d = to_skbmod(*a);
 
-	ASSERT_RTNL();
 	p = kzalloc(sizeof(struct tcf_skbmod_params), GFP_KERNEL);
 	if (unlikely(!p)) {
-		if (ret == ACT_P_CREATED)
-			tcf_idr_release(*a, bind);
+		tcf_idr_release(*a, bind);
 		return -ENOMEM;
 	}
 
 	p->flags = lflags;
 	d->tcf_action = parm->action;
 
-	p_old = rtnl_dereference(d->skbmod_p);
-
 	if (ovr)
 		spin_lock_bh(&d->tcf_lock);
+	/* Protected by tcf_lock if overwriting existing action. */
+	p_old = rcu_dereference_protected(d->skbmod_p, 1);
 
 	if (lflags & SKBMOD_F_DMAC)
 		ether_addr_copy(p->eth_dst, daddr);
@@ -202,15 +204,18 @@ static int tcf_skbmod_dump(struct sk_buff *skb, struct tc_action *a,
 {
 	struct tcf_skbmod *d = to_skbmod(a);
 	unsigned char *b = skb_tail_pointer(skb);
-	struct tcf_skbmod_params  *p = rtnl_dereference(d->skbmod_p);
+	struct tcf_skbmod_params  *p;
 	struct tc_skbmod opt = {
 		.index   = d->tcf_index,
-		.refcnt  = d->tcf_refcnt - ref,
-		.bindcnt = d->tcf_bindcnt - bind,
-		.action  = d->tcf_action,
+		.refcnt  = refcount_read(&d->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&d->tcf_bindcnt) - bind,
 	};
 	struct tcf_t t;
 
+	spin_lock_bh(&d->tcf_lock);
+	opt.action = d->tcf_action;
+	p = rcu_dereference_protected(d->skbmod_p,
+				      lockdep_is_held(&d->tcf_lock));
 	opt.flags  = p->flags;
 	if (nla_put(skb, TCA_SKBMOD_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
@@ -228,8 +233,10 @@ static int tcf_skbmod_dump(struct sk_buff *skb, struct tc_action *a,
 	if (nla_put_64bit(skb, TCA_SKBMOD_TM, sizeof(t), &t, TCA_SKBMOD_PAD))
 		goto nla_put_failure;
 
+	spin_unlock_bh(&d->tcf_lock);
 	return skb->len;
 nla_put_failure:
+	spin_unlock_bh(&d->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -252,16 +259,24 @@ static int tcf_skbmod_search(struct net *net, struct tc_action **a, u32 index,
 	return tcf_idr_search(tn, a, index);
 }
 
+static int tcf_skbmod_delete(struct net *net, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, skbmod_net_id);
+
+	return tcf_idr_delete_index(tn, index);
+}
+
 static struct tc_action_ops act_skbmod_ops = {
 	.kind		=	"skbmod",
 	.type		=	TCA_ACT_SKBMOD,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_skbmod_run,
+	.act		=	tcf_skbmod_act,
 	.dump		=	tcf_skbmod_dump,
 	.init		=	tcf_skbmod_init,
 	.cleanup	=	tcf_skbmod_cleanup,
 	.walk		=	tcf_skbmod_walker,
 	.lookup		=	tcf_skbmod_search,
+	.delete		=	tcf_skbmod_delete,
 	.size		=	sizeof(struct tcf_skbmod),
 };
 

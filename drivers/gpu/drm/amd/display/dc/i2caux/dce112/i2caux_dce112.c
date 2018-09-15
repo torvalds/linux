@@ -93,6 +93,7 @@ static void construct(
 {
 	dal_i2caux_dce110_construct(i2caux_dce110,
 				    ctx,
+				    ARRAY_SIZE(dce112_aux_regs),
 				    dce112_aux_regs,
 				    dce112_hw_engine_regs,
 				    &i2c_shift,

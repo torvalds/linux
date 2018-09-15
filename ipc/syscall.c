@@ -35,7 +35,7 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 			        (const struct __kernel_timespec __user *)fifth);
 		else if (IS_ENABLED(CONFIG_COMPAT_32BIT_TIME))
 			return compat_ksys_semtimedop(first, ptr, second,
-			        (const struct compat_timespec __user *)fifth);
+			        (const struct old_timespec32 __user *)fifth);
 		else
 			return -ENOSYS;
 

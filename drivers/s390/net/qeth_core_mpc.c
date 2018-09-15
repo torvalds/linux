@@ -146,17 +146,6 @@ unsigned char IPA_PDU_HEADER[] = {
 };
 EXPORT_SYMBOL_GPL(IPA_PDU_HEADER);
 
-unsigned char WRITE_CCW[] = {
-	0x01, CCW_FLAG_SLI, 0, 0,
-	0, 0, 0, 0
-};
-
-unsigned char READ_CCW[] = {
-	0x02, CCW_FLAG_SLI, 0, 0,
-	0, 0, 0, 0
-};
-
-
 struct ipa_rc_msg {
 	enum qeth_ipa_return_codes rc;
 	char *msg;

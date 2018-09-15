@@ -812,7 +812,6 @@ ff_layout_pg_get_read(struct nfs_pageio_descriptor *pgio,
 		      struct nfs_page *req,
 		      bool strict_iomode)
 {
-retry_strict:
 	pnfs_put_lseg(pgio->pg_lseg);
 	pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 					   req->wb_context,
@@ -824,16 +823,6 @@ retry_strict:
 	if (IS_ERR(pgio->pg_lseg)) {
 		pgio->pg_error = PTR_ERR(pgio->pg_lseg);
 		pgio->pg_lseg = NULL;
-	}
-
-	/* If we don't have checking, do get a IOMODE_RW
-	 * segment, and the server wants to avoid READs
-	 * there, then retry!
-	 */
-	if (pgio->pg_lseg && !strict_iomode &&
-	    ff_layout_avoid_read_on_rw(pgio->pg_lseg)) {
-		strict_iomode = true;
-		goto retry_strict;
 	}
 }
 
@@ -849,14 +838,16 @@ ff_layout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 retry:
 	pnfs_generic_pg_check_layout(pgio);
 	/* Use full layout for now */
-	if (!pgio->pg_lseg)
+	if (!pgio->pg_lseg) {
 		ff_layout_pg_get_read(pgio, req, false);
-	else if (ff_layout_avoid_read_on_rw(pgio->pg_lseg))
+		if (!pgio->pg_lseg)
+			goto out_nolseg;
+	}
+	if (ff_layout_avoid_read_on_rw(pgio->pg_lseg)) {
 		ff_layout_pg_get_read(pgio, req, true);
-
-	/* If no lseg, fall back to read through mds */
-	if (pgio->pg_lseg == NULL)
-		goto out_mds;
+		if (!pgio->pg_lseg)
+			goto out_nolseg;
+	}
 
 	ds = ff_layout_choose_best_ds_for_read(pgio->pg_lseg, 0, &ds_idx);
 	if (!ds) {
@@ -878,6 +869,9 @@ retry:
 	pgm->pg_bsize = mirror->mirror_ds->ds_versions[0].rsize;
 
 	return;
+out_nolseg:
+	if (pgio->pg_error < 0)
+		return;
 out_mds:
 	pnfs_put_lseg(pgio->pg_lseg);
 	pgio->pg_lseg = NULL;
@@ -1323,6 +1317,7 @@ static void ff_layout_read_record_layoutstats_done(struct rpc_task *task,
 			FF_LAYOUT_COMP(hdr->lseg, hdr->pgio_mirror_idx),
 			hdr->args.count,
 			hdr->res.count);
+	set_bit(NFS_LSEG_LAYOUTRETURN, &hdr->lseg->pls_flags);
 }
 
 static int ff_layout_read_prepare_common(struct rpc_task *task,
@@ -1507,6 +1502,7 @@ static void ff_layout_write_record_layoutstats_done(struct rpc_task *task,
 			FF_LAYOUT_COMP(hdr->lseg, hdr->pgio_mirror_idx),
 			hdr->args.count, hdr->res.count,
 			hdr->res.verf->committed);
+	set_bit(NFS_LSEG_LAYOUTRETURN, &hdr->lseg->pls_flags);
 }
 
 static int ff_layout_write_prepare_common(struct rpc_task *task,
@@ -1615,6 +1611,7 @@ static void ff_layout_commit_record_layoutstats_done(struct rpc_task *task,
 	nfs4_ff_layout_stat_io_end_write(task,
 			FF_LAYOUT_COMP(cdata->lseg, cdata->ds_commit_index),
 			count, count, NFS_FILE_SYNC);
+	set_bit(NFS_LSEG_LAYOUTRETURN, &cdata->lseg->pls_flags);
 }
 
 static void ff_layout_commit_prepare_common(struct rpc_task *task,

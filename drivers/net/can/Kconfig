@@ -73,6 +73,12 @@ config CAN_CALC_BITTIMING
 config CAN_LEDS
 	bool "Enable LED triggers for Netlink based drivers"
 	depends on LEDS_CLASS
+	# The netdev trigger (LEDS_TRIGGER_NETDEV) should be able to do
+	# everything that this driver is doing. This is marked as broken
+	# because it uses stuff that is intended to be changed or removed.
+	# Please consider switching to the netdev trigger and confirm it
+	# fulfills your needs instead of fixing this driver.
+	depends on BROKEN
 	select LEDS_TRIGGERS
 	---help---
 	  This option adds two LED triggers for packet receive and transmit

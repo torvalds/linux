@@ -56,7 +56,7 @@ struct tc_police_compat {
 static unsigned int police_net_id;
 static struct tc_action_ops act_police_ops;
 
-static int tcf_act_police_walker(struct net *net, struct sk_buff *skb,
+static int tcf_police_walker(struct net *net, struct sk_buff *skb,
 				 struct netlink_callback *cb, int type,
 				 const struct tc_action_ops *ops,
 				 struct netlink_ext_ack *extack)
@@ -73,9 +73,9 @@ static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
 	[TCA_POLICE_RESULT]	= { .type = NLA_U32 },
 };
 
-static int tcf_act_police_init(struct net *net, struct nlattr *nla,
+static int tcf_police_init(struct net *net, struct nlattr *nla,
 			       struct nlattr *est, struct tc_action **a,
-			       int ovr, int bind,
+			       int ovr, int bind, bool rtnl_held,
 			       struct netlink_ext_ack *extack)
 {
 	int ret = 0, err;
@@ -101,20 +101,24 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 
 	parm = nla_data(tb[TCA_POLICE_TBF]);
-	exists = tcf_idr_check(tn, parm->index, a, bind);
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (err < 0)
+		return err;
+	exists = err;
 	if (exists && bind)
 		return 0;
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, parm->index, NULL, a,
 				     &act_police_ops, bind, false);
-		if (ret)
+		if (ret) {
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
+		}
 		ret = ACT_P_CREATED;
-	} else {
+	} else if (!ovr) {
 		tcf_idr_release(*a, bind);
-		if (!ovr)
-			return -EEXIST;
+		return -EEXIST;
 	}
 
 	police = to_police(*a);
@@ -195,12 +199,11 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 failure:
 	qdisc_put_rtab(P_tab);
 	qdisc_put_rtab(R_tab);
-	if (ret == ACT_P_CREATED)
-		tcf_idr_release(*a, bind);
+	tcf_idr_release(*a, bind);
 	return err;
 }
 
-static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
+static int tcf_police_act(struct sk_buff *skb, const struct tc_action *a,
 			  struct tcf_result *res)
 {
 	struct tcf_police *police = to_police(a);
@@ -264,21 +267,22 @@ static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 	return police->tcf_action;
 }
 
-static int tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a,
+static int tcf_police_dump(struct sk_buff *skb, struct tc_action *a,
 			       int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_police *police = to_police(a);
 	struct tc_police opt = {
 		.index = police->tcf_index,
-		.action = police->tcf_action,
-		.mtu = police->tcfp_mtu,
-		.burst = PSCHED_NS2TICKS(police->tcfp_burst),
-		.refcnt = police->tcf_refcnt - ref,
-		.bindcnt = police->tcf_bindcnt - bind,
+		.refcnt = refcount_read(&police->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&police->tcf_bindcnt) - bind,
 	};
 	struct tcf_t t;
 
+	spin_lock_bh(&police->tcf_lock);
+	opt.action = police->tcf_action;
+	opt.mtu = police->tcfp_mtu;
+	opt.burst = PSCHED_NS2TICKS(police->tcfp_burst);
 	if (police->rate_present)
 		psched_ratecfg_getrate(&opt.rate, &police->rate);
 	if (police->peak_present)
@@ -298,10 +302,12 @@ static int tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a,
 	t.expires = jiffies_to_clock_t(police->tcf_tm.expires);
 	if (nla_put_64bit(skb, TCA_POLICE_TM, sizeof(t), &t, TCA_POLICE_PAD))
 		goto nla_put_failure;
+	spin_unlock_bh(&police->tcf_lock);
 
 	return skb->len;
 
 nla_put_failure:
+	spin_unlock_bh(&police->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -314,6 +320,13 @@ static int tcf_police_search(struct net *net, struct tc_action **a, u32 index,
 	return tcf_idr_search(tn, a, index);
 }
 
+static int tcf_police_delete(struct net *net, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, police_net_id);
+
+	return tcf_idr_delete_index(tn, index);
+}
+
 MODULE_AUTHOR("Alexey Kuznetsov");
 MODULE_DESCRIPTION("Policing actions");
 MODULE_LICENSE("GPL");
@@ -322,11 +335,12 @@ static struct tc_action_ops act_police_ops = {
 	.kind		=	"police",
 	.type		=	TCA_ID_POLICE,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_act_police,
-	.dump		=	tcf_act_police_dump,
-	.init		=	tcf_act_police_init,
-	.walk		=	tcf_act_police_walker,
+	.act		=	tcf_police_act,
+	.dump		=	tcf_police_dump,
+	.init		=	tcf_police_init,
+	.walk		=	tcf_police_walker,
 	.lookup		=	tcf_police_search,
+	.delete		=	tcf_police_delete,
 	.size		=	sizeof(struct tcf_police),
 };
 

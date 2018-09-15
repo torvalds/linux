@@ -78,6 +78,71 @@
 /* Offset 0x12: Lock Status */
 #define MV88E6XXX_TAI_LOCK_STATUS		0x12
 
+/* Offset 0x00: Ether Type */
+#define MV88E6XXX_PTP_GC_ETYPE			0x00
+
+/* 6165 Global Control Registers */
+/* Offset 0x00: Ether Type */
+#define MV88E6XXX_PTP_GC_ETYPE			0x00
+
+/* Offset 0x01: Message ID */
+#define MV88E6XXX_PTP_GC_MESSAGE_ID		0x01
+
+/* Offset 0x02: Time Stamp Arrive Time */
+#define MV88E6XXX_PTP_GC_TS_ARR_PTR		0x02
+
+/* Offset 0x03: Port Arrival Interrupt Enable */
+#define MV88E6XXX_PTP_GC_PORT_ARR_INT_EN	0x03
+
+/* Offset 0x04: Port Departure Interrupt Enable */
+#define MV88E6XXX_PTP_GC_PORT_DEP_INT_EN	0x04
+
+/* Offset 0x05: Configuration */
+#define MV88E6XXX_PTP_GC_CONFIG			0x05
+#define MV88E6XXX_PTP_GC_CONFIG_DIS_OVERWRITE	BIT(1)
+#define MV88E6XXX_PTP_GC_CONFIG_DIS_TS		BIT(0)
+
+/* Offset 0x8: Interrupt Status */
+#define MV88E6XXX_PTP_GC_INT_STATUS		0x08
+
+/* Offset 0x9/0xa: Global Time */
+#define MV88E6XXX_PTP_GC_TIME_LO		0x09
+#define MV88E6XXX_PTP_GC_TIME_HI		0x0A
+
+/* 6165 Per Port Registers */
+/* Offset 0: Arrival Time 0 Status */
+#define MV88E6165_PORT_PTP_ARR0_STS	0x00
+
+/* Offset 0x01/0x02: PTP Arrival 0 Time */
+#define MV88E6165_PORT_PTP_ARR0_TIME_LO	0x01
+#define MV88E6165_PORT_PTP_ARR0_TIME_HI	0x02
+
+/* Offset 0x03: PTP Arrival 0 Sequence ID */
+#define MV88E6165_PORT_PTP_ARR0_SEQID	0x03
+
+/* Offset 0x04: PTP Arrival 1 Status */
+#define MV88E6165_PORT_PTP_ARR1_STS	0x04
+
+/* Offset 0x05/0x6E: PTP Arrival 1 Time */
+#define MV88E6165_PORT_PTP_ARR1_TIME_LO	0x05
+#define MV88E6165_PORT_PTP_ARR1_TIME_HI	0x06
+
+/* Offset 0x07: PTP Arrival 1 Sequence ID */
+#define MV88E6165_PORT_PTP_ARR1_SEQID	0x07
+
+/* Offset 0x08: PTP Departure Status */
+#define MV88E6165_PORT_PTP_DEP_STS	0x08
+
+/* Offset 0x09/0x0a: PTP Deperture Time */
+#define MV88E6165_PORT_PTP_DEP_TIME_LO	0x09
+#define MV88E6165_PORT_PTP_DEP_TIME_HI	0x0a
+
+/* Offset 0x0b: PTP Departure Sequence ID */
+#define MV88E6165_PORT_PTP_DEP_SEQID	0x0b
+
+/* Offset 0x0d: Port Status */
+#define MV88E6164_PORT_STATUS		0x0d
+
 #ifdef CONFIG_NET_DSA_MV88E6XXX_PTP
 
 long mv88e6xxx_hwtstamp_work(struct ptp_clock_info *ptp);
@@ -86,6 +151,9 @@ void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip);
 
 #define ptp_to_chip(ptp) container_of(ptp, struct mv88e6xxx_chip,	\
 				      ptp_clock_info)
+
+extern const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops;
+extern const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops;
 
 #else /* !CONFIG_NET_DSA_MV88E6XXX_PTP */
 
@@ -102,6 +170,9 @@ static inline int mv88e6xxx_ptp_setup(struct mv88e6xxx_chip *chip)
 static inline void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip)
 {
 }
+
+static const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops = {};
+static const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops = {};
 
 #endif /* CONFIG_NET_DSA_MV88E6XXX_PTP */
 

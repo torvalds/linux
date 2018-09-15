@@ -25,6 +25,7 @@
 
 #include "css.h"
 #include "cio.h"
+#include "blacklist.h"
 #include "cio_debug.h"
 #include "ioasm.h"
 #include "chsc.h"
@@ -168,18 +169,53 @@ static void css_subchannel_release(struct device *dev)
 	kfree(sch);
 }
 
-struct subchannel *css_alloc_subchannel(struct subchannel_id schid)
+static int css_validate_subchannel(struct subchannel_id schid,
+				   struct schib *schib)
+{
+	int err;
+
+	switch (schib->pmcw.st) {
+	case SUBCHANNEL_TYPE_IO:
+	case SUBCHANNEL_TYPE_MSG:
+		if (!css_sch_is_valid(schib))
+			err = -ENODEV;
+		else if (is_blacklisted(schid.ssid, schib->pmcw.dev)) {
+			CIO_MSG_EVENT(6, "Blacklisted device detected "
+				      "at devno %04X, subchannel set %x\n",
+				      schib->pmcw.dev, schid.ssid);
+			err = -ENODEV;
+		} else
+			err = 0;
+		break;
+	default:
+		err = 0;
+	}
+	if (err)
+		goto out;
+
+	CIO_MSG_EVENT(4, "Subchannel 0.%x.%04x reports subchannel type %04X\n",
+		      schid.ssid, schid.sch_no, schib->pmcw.st);
+out:
+	return err;
+}
+
+struct subchannel *css_alloc_subchannel(struct subchannel_id schid,
+					struct schib *schib)
 {
 	struct subchannel *sch;
 	int ret;
+
+	ret = css_validate_subchannel(schid, schib);
+	if (ret < 0)
+		return ERR_PTR(ret);
 
 	sch = kzalloc(sizeof(*sch), GFP_KERNEL | GFP_DMA);
 	if (!sch)
 		return ERR_PTR(-ENOMEM);
 
-	ret = cio_validate_subchannel(sch, schid);
-	if (ret < 0)
-		goto err;
+	sch->schid = schid;
+	sch->schib = *schib;
+	sch->st = schib->pmcw.st;
 
 	ret = css_sch_create_locks(sch);
 	if (ret)
@@ -244,8 +280,7 @@ static void ssd_register_chpids(struct chsc_ssd_info *ssd)
 	for (i = 0; i < 8; i++) {
 		mask = 0x80 >> i;
 		if (ssd->path_mask & mask)
-			if (!chp_is_registered(ssd->chpid[i]))
-				chp_new(ssd->chpid[i]);
+			chp_new(ssd->chpid[i]);
 	}
 }
 
@@ -382,12 +417,12 @@ int css_register_subchannel(struct subchannel *sch)
 	return ret;
 }
 
-static int css_probe_device(struct subchannel_id schid)
+static int css_probe_device(struct subchannel_id schid, struct schib *schib)
 {
 	struct subchannel *sch;
 	int ret;
 
-	sch = css_alloc_subchannel(schid);
+	sch = css_alloc_subchannel(schid, schib);
 	if (IS_ERR(sch))
 		return PTR_ERR(sch);
 
@@ -436,23 +471,23 @@ EXPORT_SYMBOL_GPL(css_sch_is_valid);
 static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
 {
 	struct schib schib;
+	int ccode;
 
 	if (!slow) {
 		/* Will be done on the slow path. */
 		return -EAGAIN;
 	}
-	if (stsch(schid, &schib)) {
-		/* Subchannel is not provided. */
-		return -ENXIO;
-	}
-	if (!css_sch_is_valid(&schib)) {
-		/* Unusable - ignore. */
-		return 0;
-	}
-	CIO_MSG_EVENT(4, "event: sch 0.%x.%04x, new\n", schid.ssid,
-		      schid.sch_no);
+	/*
+	 * The first subchannel that is not-operational (ccode==3)
+	 * indicates that there aren't any more devices available.
+	 * If stsch gets an exception, it means the current subchannel set
+	 * is not valid.
+	 */
+	ccode = stsch(schid, &schib);
+	if (ccode)
+		return (ccode == 3) ? -ENXIO : ccode;
 
-	return css_probe_device(schid);
+	return css_probe_device(schid, &schib);
 }
 
 static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
@@ -1081,6 +1116,11 @@ static int __init channel_subsystem_init(void)
 	if (ret)
 		goto out_wq;
 
+	/* Register subchannels which are already in use. */
+	cio_register_early_subchannels();
+	/* Start initial subchannel evaluation. */
+	css_schedule_eval_all();
+
 	return ret;
 out_wq:
 	destroy_workqueue(cio_work_q);
@@ -1120,10 +1160,6 @@ int css_complete_work(void)
  */
 static int __init channel_subsystem_init_sync(void)
 {
-	/* Register subchannels which are already in use. */
-	cio_register_early_subchannels();
-	/* Start initial subchannel evaluation. */
-	css_schedule_eval_all();
 	css_complete_work();
 	return 0;
 }

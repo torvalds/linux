@@ -7,8 +7,6 @@ Required properties:
   - compatible : "picochip,spacc-ipsec" for the IPSEC offload engine
     "picochip,spacc-l2" for the femtocell layer 2 ciphering engine.
   - reg : Offset and length of the register set for this device
-  - interrupt-parent : The interrupt controller that controls the SPAcc
-    interrupt.
   - interrupts : The interrupt line from the SPAcc.
   - ref-clock : The input clock that drives the SPAcc.
 

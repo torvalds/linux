@@ -80,6 +80,18 @@ struct armada_37xx_pmx_func {
 	unsigned int		ngroups;
 };
 
+struct armada_37xx_pm_state {
+	u32 out_en_l;
+	u32 out_en_h;
+	u32 out_val_l;
+	u32 out_val_h;
+	u32 irq_en_l;
+	u32 irq_en_h;
+	u32 irq_pol_l;
+	u32 irq_pol_h;
+	u32 selection;
+};
+
 struct armada_37xx_pinctrl {
 	struct regmap			*regmap;
 	void __iomem			*base;
@@ -94,6 +106,7 @@ struct armada_37xx_pinctrl {
 	unsigned int			ngroups;
 	struct armada_37xx_pmx_func	*funcs;
 	unsigned int			nfuncs;
+	struct armada_37xx_pm_state	pm;
 };
 
 #define PIN_GRP(_name, _start, _nr, _mask, _func1, _func2)	\
@@ -996,6 +1009,110 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	return 0;
 }
 
+#if defined(CONFIG_PM)
+static int armada_3700_pinctrl_suspend(struct device *dev)
+{
+	struct armada_37xx_pinctrl *info = dev_get_drvdata(dev);
+
+	/* Save GPIO state */
+	regmap_read(info->regmap, OUTPUT_EN, &info->pm.out_en_l);
+	regmap_read(info->regmap, OUTPUT_EN + sizeof(u32), &info->pm.out_en_h);
+	regmap_read(info->regmap, OUTPUT_VAL, &info->pm.out_val_l);
+	regmap_read(info->regmap, OUTPUT_VAL + sizeof(u32),
+		    &info->pm.out_val_h);
+
+	info->pm.irq_en_l = readl(info->base + IRQ_EN);
+	info->pm.irq_en_h = readl(info->base + IRQ_EN + sizeof(u32));
+	info->pm.irq_pol_l = readl(info->base + IRQ_POL);
+	info->pm.irq_pol_h = readl(info->base + IRQ_POL + sizeof(u32));
+
+	/* Save pinctrl state */
+	regmap_read(info->regmap, SELECTION, &info->pm.selection);
+
+	return 0;
+}
+
+static int armada_3700_pinctrl_resume(struct device *dev)
+{
+	struct armada_37xx_pinctrl *info = dev_get_drvdata(dev);
+	struct gpio_chip *gc;
+	struct irq_domain *d;
+	int i;
+
+	/* Restore GPIO state */
+	regmap_write(info->regmap, OUTPUT_EN, info->pm.out_en_l);
+	regmap_write(info->regmap, OUTPUT_EN + sizeof(u32),
+		     info->pm.out_en_h);
+	regmap_write(info->regmap, OUTPUT_VAL, info->pm.out_val_l);
+	regmap_write(info->regmap, OUTPUT_VAL + sizeof(u32),
+		     info->pm.out_val_h);
+
+	/*
+	 * Input levels may change during suspend, which is not monitored at
+	 * that time. GPIOs used for both-edge IRQs may not be synchronized
+	 * anymore with their polarities (rising/falling edge) and must be
+	 * re-configured manually.
+	 */
+	gc = &info->gpio_chip;
+	d = gc->irq.domain;
+	for (i = 0; i < gc->ngpio; i++) {
+		u32 irq_bit = BIT(i % GPIO_PER_REG);
+		u32 mask, *irq_pol, input_reg, virq, type, level;
+
+		if (i < GPIO_PER_REG) {
+			mask = info->pm.irq_en_l;
+			irq_pol = &info->pm.irq_pol_l;
+			input_reg = INPUT_VAL;
+		} else {
+			mask = info->pm.irq_en_h;
+			irq_pol = &info->pm.irq_pol_h;
+			input_reg = INPUT_VAL + sizeof(u32);
+		}
+
+		if (!(mask & irq_bit))
+			continue;
+
+		virq = irq_find_mapping(d, i);
+		type = irq_get_trigger_type(virq);
+
+		/*
+		 * Synchronize level and polarity for both-edge irqs:
+		 *     - a high input level expects a falling edge,
+		 *     - a low input level exepects a rising edge.
+		 */
+		if ((type & IRQ_TYPE_SENSE_MASK) ==
+		    IRQ_TYPE_EDGE_BOTH) {
+			regmap_read(info->regmap, input_reg, &level);
+			if ((*irq_pol ^ level) & irq_bit)
+				*irq_pol ^= irq_bit;
+		}
+	}
+
+	writel(info->pm.irq_en_l, info->base + IRQ_EN);
+	writel(info->pm.irq_en_h, info->base + IRQ_EN + sizeof(u32));
+	writel(info->pm.irq_pol_l, info->base + IRQ_POL);
+	writel(info->pm.irq_pol_h, info->base + IRQ_POL + sizeof(u32));
+
+	/* Restore pinctrl state */
+	regmap_write(info->regmap, SELECTION, info->pm.selection);
+
+	return 0;
+}
+
+/*
+ * Since pinctrl is an infrastructure module, its resume should be issued prior
+ * to other IO drivers.
+ */
+static const struct dev_pm_ops armada_3700_pinctrl_pm_ops = {
+	.suspend_late = armada_3700_pinctrl_suspend,
+	.resume_early = armada_3700_pinctrl_resume,
+};
+
+#define PINCTRL_ARMADA_37XX_DEV_PM_OPS (&armada_3700_pinctrl_pm_ops)
+#else
+#define PINCTRL_ARMADA_37XX_DEV_PM_OPS NULL
+#endif /* CONFIG_PM */
+
 static const struct of_device_id armada_37xx_pinctrl_of_match[] = {
 	{
 		.compatible = "marvell,armada3710-sb-pinctrl",
@@ -1049,6 +1166,7 @@ static struct platform_driver armada_37xx_pinctrl_driver = {
 	.driver = {
 		.name = "armada-37xx-pinctrl",
 		.of_match_table = armada_37xx_pinctrl_of_match,
+		.pm = PINCTRL_ARMADA_37XX_DEV_PM_OPS,
 	},
 };
 

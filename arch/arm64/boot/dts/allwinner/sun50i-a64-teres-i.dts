@@ -38,6 +38,7 @@
 			gpios = <&r_pio 0 8 GPIO_ACTIVE_LOW>; /* PL8 */
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
+			wakeup-source;
 		};
 	};
 
@@ -210,7 +211,7 @@
 &reg_dldo3 {
 	regulator-min-microvolt = <1200000>;
 	regulator-max-microvolt = <1200000>;
-	regulator-name = "eDP12";
+	regulator-name = "vdd-edp";
 };
 
 &reg_dldo4 {
@@ -251,6 +252,10 @@
 
 &reg_rtc_ldo {
 	regulator-name = "vcc-rtc";
+};
+
+&simplefb_hdmi {
+	vcc-hdmi-supply = <&reg_dldo1>;
 };
 
 &uart0 {

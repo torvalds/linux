@@ -813,7 +813,7 @@ mwifiex_hscfg_write(struct file *file, const char __user *ubuf,
 			      MWIFIEX_SYNC_CMD, &hscfg);
 
 	mwifiex_enable_hs(priv->adapter);
-	priv->adapter->hs_enabling = false;
+	clear_bit(MWIFIEX_IS_HS_ENABLING, &priv->adapter->work_flags);
 	ret = count;
 done:
 	kfree(buf);

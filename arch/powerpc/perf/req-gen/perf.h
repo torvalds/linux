@@ -3,6 +3,7 @@
 #define LINUX_POWERPC_PERF_REQ_GEN_PERF_H_
 
 #include <linux/perf_event.h>
+#include <linux/stringify.h>
 
 #ifndef REQUEST_FILE
 #error "REQUEST_FILE must be defined before including"

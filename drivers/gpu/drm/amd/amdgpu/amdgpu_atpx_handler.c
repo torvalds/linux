@@ -32,7 +32,7 @@ struct amdgpu_atpx_functions {
 	bool switch_start;
 	bool switch_end;
 	bool disp_connectors_mapping;
-	bool disp_detetion_ports;
+	bool disp_detection_ports;
 };
 
 struct amdgpu_atpx {
@@ -89,6 +89,12 @@ bool amdgpu_is_atpx_hybrid(void) {
 bool amdgpu_atpx_dgpu_req_power_for_displays(void) {
 	return amdgpu_atpx_priv.atpx.dgpu_req_power_for_displays;
 }
+
+#if defined(CONFIG_ACPI)
+void *amdgpu_atpx_get_dhandle(void) {
+	return amdgpu_atpx_priv.dhandle;
+}
+#endif
 
 /**
  * amdgpu_atpx_call - call an ATPX method
@@ -156,7 +162,7 @@ static void amdgpu_atpx_parse_functions(struct amdgpu_atpx_functions *f, u32 mas
 	f->switch_start = mask & ATPX_GRAPHICS_DEVICE_SWITCH_START_NOTIFICATION_SUPPORTED;
 	f->switch_end = mask & ATPX_GRAPHICS_DEVICE_SWITCH_END_NOTIFICATION_SUPPORTED;
 	f->disp_connectors_mapping = mask & ATPX_GET_DISPLAY_CONNECTORS_MAPPING_SUPPORTED;
-	f->disp_detetion_ports = mask & ATPX_GET_DISPLAY_DETECTION_PORTS_SUPPORTED;
+	f->disp_detection_ports = mask & ATPX_GET_DISPLAY_DETECTION_PORTS_SUPPORTED;
 }
 
 /**
@@ -569,6 +575,7 @@ static const struct amdgpu_px_quirk amdgpu_px_quirk_list[] = {
 	{ 0x1002, 0x6900, 0x1002, 0x0124, AMDGPU_PX_QUIRK_FORCE_ATPX },
 	{ 0x1002, 0x6900, 0x1028, 0x0812, AMDGPU_PX_QUIRK_FORCE_ATPX },
 	{ 0x1002, 0x6900, 0x1028, 0x0813, AMDGPU_PX_QUIRK_FORCE_ATPX },
+	{ 0x1002, 0x6900, 0x1025, 0x125A, AMDGPU_PX_QUIRK_FORCE_ATPX },
 	{ 0, 0, 0, 0, 0 },
 };
 

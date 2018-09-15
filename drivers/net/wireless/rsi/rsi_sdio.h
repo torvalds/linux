@@ -28,6 +28,9 @@
 #include <linux/mmc/sdio_ids.h>
 #include "rsi_main.h"
 
+#define RSI_SDIO_VID_9113    0x041B
+#define RSI_SDIO_PID_9113    0x9330
+
 enum sdio_interrupt_type {
 	BUFFER_FULL         = 0x0,
 	BUFFER_AVAILABLE    = 0x2,

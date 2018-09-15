@@ -9,6 +9,8 @@
 #include <asm/hyperv-tlfs.h>
 #include <asm/nospec-branch.h>
 
+#define VP_INVAL	U32_MAX
+
 struct ms_hyperv_info {
 	u32 features;
 	u32 misc_features;
@@ -19,7 +21,6 @@ struct ms_hyperv_info {
 };
 
 extern struct ms_hyperv_info ms_hyperv;
-
 
 /*
  * Generate the guest ID.
@@ -75,8 +76,10 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 	}
 }
 
-#define hv_init_timer(timer, tick) wrmsrl(timer, tick)
-#define hv_init_timer_config(config, val) wrmsrl(config, val)
+#define hv_init_timer(timer, tick) \
+	wrmsrl(HV_X64_MSR_STIMER0_COUNT + (2*timer), tick)
+#define hv_init_timer_config(timer, val) \
+	wrmsrl(HV_X64_MSR_STIMER0_CONFIG + (2*timer), val)
 
 #define hv_get_simp(val) rdmsrl(HV_X64_MSR_SIMP, val)
 #define hv_set_simp(val) wrmsrl(HV_X64_MSR_SIMP, val)
@@ -89,8 +92,13 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 
 #define hv_get_vp_index(index) rdmsrl(HV_X64_MSR_VP_INDEX, index)
 
-#define hv_get_synint_state(int_num, val) rdmsrl(int_num, val)
-#define hv_set_synint_state(int_num, val) wrmsrl(int_num, val)
+#define hv_get_synint_state(int_num, val) \
+	rdmsrl(HV_X64_MSR_SINT0 + int_num, val)
+#define hv_set_synint_state(int_num, val) \
+	wrmsrl(HV_X64_MSR_SINT0 + int_num, val)
+
+#define hv_get_crash_ctl(val) \
+	rdmsrl(HV_X64_MSR_CRASH_CTL, val)
 
 void hyperv_callback_vector(void);
 void hyperv_reenlightenment_vector(void);
@@ -193,6 +201,40 @@ static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
 		return hv_status;
 }
 
+/* Fast hypercall with 16 bytes of input */
+static inline u64 hv_do_fast_hypercall16(u16 code, u64 input1, u64 input2)
+{
+	u64 hv_status, control = (u64)code | HV_HYPERCALL_FAST_BIT;
+
+#ifdef CONFIG_X86_64
+	{
+		__asm__ __volatile__("mov %4, %%r8\n"
+				     CALL_NOSPEC
+				     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
+				       "+c" (control), "+d" (input1)
+				     : "r" (input2),
+				       THUNK_TARGET(hv_hypercall_pg)
+				     : "cc", "r8", "r9", "r10", "r11");
+	}
+#else
+	{
+		u32 input1_hi = upper_32_bits(input1);
+		u32 input1_lo = lower_32_bits(input1);
+		u32 input2_hi = upper_32_bits(input2);
+		u32 input2_lo = lower_32_bits(input2);
+
+		__asm__ __volatile__ (CALL_NOSPEC
+				      : "=A"(hv_status),
+					"+c"(input1_lo), ASM_CALL_CONSTRAINT
+				      :	"A" (control), "b" (input1_hi),
+					"D"(input2_hi), "S"(input2_lo),
+					THUNK_TARGET(hv_hypercall_pg)
+				      : "cc");
+	}
+#endif
+		return hv_status;
+}
+
 /*
  * Rep hypercalls. Callers of this functions are supposed to ensure that
  * rep_count and varhead_size comply with Hyper-V hypercall definition.
@@ -281,6 +323,8 @@ static inline int cpumask_to_vpset(struct hv_vpset *vpset,
 	 */
 	for_each_cpu(cpu, cpus) {
 		vcpu = hv_cpu_number_to_vp_number(cpu);
+		if (vcpu == VP_INVAL)
+			return -1;
 		vcpu_bank = vcpu / 64;
 		vcpu_offset = vcpu % 64;
 		__set_bit(vcpu_offset, (unsigned long *)
@@ -295,6 +339,7 @@ static inline int cpumask_to_vpset(struct hv_vpset *vpset,
 void __init hyperv_init(void);
 void hyperv_setup_mmu_ops(void);
 void hyperv_report_panic(struct pt_regs *regs, long err);
+void hyperv_report_panic_msg(phys_addr_t pa, size_t size);
 bool hv_is_hyperv_initialized(void);
 void hyperv_cleanup(void);
 
@@ -302,6 +347,7 @@ void hyperv_reenlightenment_intr(struct pt_regs *regs);
 void set_hv_tscchange_cb(void (*cb)(void));
 void clear_hv_tscchange_cb(void);
 void hyperv_stop_tsc_emulation(void);
+int hyperv_flush_guest_mapping(u64 as);
 
 #ifdef CONFIG_X86_64
 void hv_apic_init(void);
@@ -321,6 +367,7 @@ static inline struct hv_vp_assist_page *hv_get_vp_assist_page(unsigned int cpu)
 {
 	return NULL;
 }
+static inline int hyperv_flush_guest_mapping(u64 as) { return -1; }
 #endif /* CONFIG_HYPERV */
 
 #ifdef CONFIG_HYPERV_TSCPAGE

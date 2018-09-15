@@ -82,7 +82,7 @@ static void ahci_mvebu_regret_option(struct ahci_host_priv *hpriv)
  *
  * Return: 0 on success; Error code otherwise.
  */
-int ahci_mvebu_stop_engine(struct ata_port *ap)
+static int ahci_mvebu_stop_engine(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ahci_port_base(ap);
 	u32 tmp, port_fbs;
@@ -158,7 +158,7 @@ static int ahci_mvebu_probe(struct platform_device *pdev)
 	const struct mbus_dram_target_info *dram;
 	int rc;
 
-	hpriv = ahci_platform_get_resources(pdev);
+	hpriv = ahci_platform_get_resources(pdev, 0);
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 

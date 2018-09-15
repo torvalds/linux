@@ -36,12 +36,14 @@
 #include "mmc.h"
 
 /* Synopsys Core versions */
-#define	DWMAC_CORE_3_40	0x34
-#define	DWMAC_CORE_3_50	0x35
-#define	DWMAC_CORE_4_00	0x40
-#define DWMAC_CORE_4_10	0x41
-#define DWMAC_CORE_5_00 0x50
-#define DWMAC_CORE_5_10 0x51
+#define	DWMAC_CORE_3_40		0x34
+#define	DWMAC_CORE_3_50		0x35
+#define	DWMAC_CORE_4_00		0x40
+#define DWMAC_CORE_4_10		0x41
+#define DWMAC_CORE_5_00		0x50
+#define DWMAC_CORE_5_10		0x51
+#define DWXGMAC_CORE_2_10	0x21
+
 #define STMMAC_CHAN0	0	/* Always supported and default for all chips */
 
 /* These need to be power of two, and >= 4 */
@@ -398,6 +400,8 @@ struct mac_link {
 	u32 speed10;
 	u32 speed100;
 	u32 speed1000;
+	u32 speed2500;
+	u32 speed10000;
 	u32 duplex;
 };
 
@@ -439,6 +443,7 @@ struct stmmac_rx_routing {
 int dwmac100_setup(struct stmmac_priv *priv);
 int dwmac1000_setup(struct stmmac_priv *priv);
 int dwmac4_setup(struct stmmac_priv *priv);
+int dwxgmac2_setup(struct stmmac_priv *priv);
 
 void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 			 unsigned int high, unsigned int low);

@@ -709,7 +709,7 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 	drm_connector_helper_add(drm_connector,
 			&sti_hda_connector_helper_funcs);
 
-	err = drm_mode_connector_attach_encoder(drm_connector, encoder);
+	err = drm_connector_attach_encoder(drm_connector, encoder);
 	if (err) {
 		DRM_ERROR("Failed to attach a connector to a encoder\n");
 		goto err_sysfs;

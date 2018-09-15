@@ -4,12 +4,15 @@ config ZONE_DMA
 
 config XTENSA
 	def_bool y
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
 	select COMMON_CLK
+	select DMA_NONCOHERENT_OPS
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_SHOW
@@ -60,9 +63,6 @@ config HZ
 	int
 	default 100
 
-source "init/Kconfig"
-source "kernel/Kconfig.freezer"
-
 config LOCKDEP_SUPPORT
 	def_bool y
 
@@ -73,9 +73,6 @@ config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
 config MMU
-	def_bool n
-
-config VARIANT_IRQ_SWITCH
 	def_bool n
 
 config HAVE_XTENSA_GPIO32
@@ -176,8 +173,6 @@ config XTENSA_UNALIGNED_USER
 
 	  Say Y here to enable unaligned memory access in user space.
 
-source "kernel/Kconfig.preempt"
-
 config HAVE_SMP
 	bool "System Supports SMP (MX)"
 	depends on XTENSA_VARIANT_CUSTOM
@@ -248,6 +243,23 @@ config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	  address at 0x00003000 instead of the mapped std of 0xD0003000.
 
 	  If in doubt, say Y.
+
+config MEMMAP_CACHEATTR
+	hex "Cache attributes for the memory address space"
+	depends on !MMU
+	default 0x22222222
+	help
+	  These cache attributes are set up for noMMU systems. Each hex digit
+	  specifies cache attributes for the corresponding 512MB memory
+	  region: bits 0..3 -- for addresses 0x00000000..0x1fffffff,
+	  bits 4..7 -- for addresses 0x20000000..0x3fffffff, and so on.
+
+	  Cache attribute values are specific for the MMU type, so e.g.
+	  for region protection MMUs: 2 is cache bypass, 4 is WB cached,
+	  1 is WT cached, f is illegal. For ful MMU: bit 0 makes it executable,
+	  bit 1 makes it writable, bits 2..3 meaning is 0: cache bypass,
+	  1: WB cache, 2: WT cache, 3: special (c and e are illegal, f is
+	  reserved).
 
 config KSEG_PADDR
 	hex "Physical address of the KSEG mapping"
@@ -418,6 +430,10 @@ config XTENSA_PLATFORM_XTFPGA
 
 endchoice
 
+config PLATFORM_NR_IRQS
+	int
+	default 3 if XTENSA_PLATFORM_XT2000
+	default 0
 
 config XTENSA_CPU_CLOCK
 	int "CPU clock rate [MHz]"
@@ -455,6 +471,15 @@ config BUILTIN_DTB
 	string "DTB to build into the kernel image"
 	depends on OF
 
+config PARSE_BOOTPARAM
+	bool "Parse bootparam block"
+	default y
+	help
+	  Parse parameters passed to the kernel from the bootloader. It may
+	  be disabled if the kernel is known to run without the bootloader.
+
+	  If unsure, say Y.
+
 config BLK_DEV_SIMDISK
 	tristate "Host file-based simulated block device support"
 	default n
@@ -491,8 +516,6 @@ config SIMDISK1_FILENAME
 	  Another simulated disk in a host file for a buildroot-independent
 	  storage.
 
-source "mm/Kconfig"
-
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
 	default "11"
@@ -513,25 +536,13 @@ config PLATFORM_WANT_DEFAULT_MEM
 	def_bool n
 
 config DEFAULT_MEM_START
-	hex "Physical address of the default memory area start"
-	depends on PLATFORM_WANT_DEFAULT_MEM
-	default 0x00000000 if MMU
-	default 0x60000000 if !MMU
+	hex
+	prompt "PAGE_OFFSET/PHYS_OFFSET" if !MMU && PLATFORM_WANT_DEFAULT_MEM
+	default 0x60000000 if PLATFORM_WANT_DEFAULT_MEM
+	default 0x00000000
 	help
-	  This is the base address of the default memory area.
-	  Default memory area has platform-specific meaning, it may be used
-	  for e.g. early cache initialization.
-
-	  If unsure, leave the default value here.
-
-config DEFAULT_MEM_SIZE
-	hex "Maximal size of the default memory area"
-	depends on PLATFORM_WANT_DEFAULT_MEM
-	default 0x04000000
-	help
-	  This is the size of the default memory area.
-	  Default memory area has platform-specific meaning, it may be used
-	  for e.g. early cache initialization.
+	  This is the base address used for both PAGE_OFFSET and PHYS_OFFSET
+	  in noMMU configurations.
 
 	  If unsure, leave the default value here.
 
@@ -567,30 +578,8 @@ config XTFPGA_LCD_8BIT_ACCESS
 
 endmenu
 
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
 menu "Power management options"
 
 source "kernel/power/Kconfig"
 
 endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/xtensa/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
-
-

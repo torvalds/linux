@@ -44,6 +44,7 @@
 #define TGEC_TX_IPG_LENGTH_MASK	0x000003ff
 
 /* Command and Configuration Register (COMMAND_CONFIG) */
+#define CMD_CFG_EN_TIMESTAMP		0x00100000
 #define CMD_CFG_NO_LEN_CHK		0x00020000
 #define CMD_CFG_PAUSE_IGNORE		0x00000100
 #define CMF_CFG_CRC_FWD			0x00000040
@@ -584,6 +585,26 @@ int tgec_set_allmulti(struct fman_mac *tgec, bool enable)
 	}
 
 	tgec->allmulti_enabled = enable;
+
+	return 0;
+}
+
+int tgec_set_tstamp(struct fman_mac *tgec, bool enable)
+{
+	struct tgec_regs __iomem *regs = tgec->regs;
+	u32 tmp;
+
+	if (!is_init_done(tgec->cfg))
+		return -EINVAL;
+
+	tmp = ioread32be(&regs->command_config);
+
+	if (enable)
+		tmp |= CMD_CFG_EN_TIMESTAMP;
+	else
+		tmp &= ~CMD_CFG_EN_TIMESTAMP;
+
+	iowrite32be(tmp, &regs->command_config);
 
 	return 0;
 }

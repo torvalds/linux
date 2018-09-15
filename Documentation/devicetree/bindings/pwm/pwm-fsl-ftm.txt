@@ -16,7 +16,10 @@ modes in device tree.
 
 
 Required properties:
-- compatible: Should be "fsl,vf610-ftm-pwm".
+- compatible : should be "fsl,<soc>-ftm-pwm" and one of the following
+   compatible strings:
+  - "fsl,vf610-ftm-pwm" for PWM compatible with the one integrated on VF610
+  - "fsl,imx8qm-ftm-pwm" for PWM compatible with the one integrated on i.MX8QM
 - reg: Physical base address and length of the controller's registers
 - #pwm-cells: Should be 3. See pwm.txt in this directory for a description of
   the cells format.

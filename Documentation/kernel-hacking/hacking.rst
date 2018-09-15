@@ -1,3 +1,5 @@
+.. _kernel_hacking_hack:
+
 ============================================
 Unreliable Guide To Hacking The Linux Kernel
 ============================================

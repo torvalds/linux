@@ -3,7 +3,6 @@ ST-Ericsson COH 901 331 Real Time Clock
 Required properties:
 - compatible: must be "stericsson,coh901331"
 - reg: address range of rtc register set.
-- interrupt-parent: phandle for the interrupt controller.
 - interrupts: rtc alarm interrupt.
 - clocks: phandle to the rtc clock source
 

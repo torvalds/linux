@@ -11,8 +11,10 @@
 #include <link.h>
 #include <sched.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
 #include <unistd.h>
 
 #include "utils.h"
@@ -103,4 +105,19 @@ int pick_online_cpu(void)
 
 	printf("No cpus in affinity mask?!\n");
 	return -1;
+}
+
+bool is_ppc64le(void)
+{
+	struct utsname uts;
+	int rc;
+
+	errno = 0;
+	rc = uname(&uts);
+	if (rc) {
+		perror("uname");
+		return false;
+	}
+
+	return strcmp(uts.machine, "ppc64le") == 0;
 }

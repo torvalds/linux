@@ -3,6 +3,8 @@
 #define _ASM_POWERPC_BOOK3S_64_HASH_H
 #ifdef __KERNEL__
 
+#include <asm/asm-const.h>
+
 /*
  * Common bits between 4K and 64K pages in a linux-style PTE.
  * Additional bits may be defined in pgtable-hash64-*.h

@@ -130,6 +130,7 @@ void blk_free_flush_queue(struct blk_flush_queue *q);
 int blk_init_rl(struct request_list *rl, struct request_queue *q,
 		gfp_t gfp_mask);
 void blk_exit_rl(struct request_queue *q, struct request_list *rl);
+void blk_exit_queue(struct request_queue *q);
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 			struct bio *bio);
 void blk_queue_bypass_start(struct request_queue *q);
@@ -233,6 +234,8 @@ static inline void elv_deactivate_rq(struct request_queue *q, struct request *rq
 
 int elevator_init(struct request_queue *);
 int elevator_init_mq(struct request_queue *q);
+int elevator_switch_mq(struct request_queue *q,
+			      struct elevator_type *new_e);
 void elevator_exit(struct request_queue *, struct elevator_queue *);
 int elv_register_queue(struct request_queue *q);
 void elv_unregister_queue(struct request_queue *q);
@@ -296,7 +299,7 @@ extern int blk_update_nr_requests(struct request_queue *, unsigned int);
  *	b) the queue had IO stats enabled when this request was started, and
  *	c) it's a file system request
  */
-static inline int blk_do_io_stat(struct request *rq)
+static inline bool blk_do_io_stat(struct request *rq)
 {
 	return rq->rq_disk &&
 	       (rq->rq_flags & RQF_IO_STAT) &&
@@ -411,5 +414,11 @@ static inline void blk_queue_bounce(struct request_queue *q, struct bio **bio)
 #endif /* CONFIG_BOUNCE */
 
 extern void blk_drain_queue(struct request_queue *q);
+
+#ifdef CONFIG_BLK_CGROUP_IOLATENCY
+extern int blk_iolatency_init(struct request_queue *q);
+#else
+static inline int blk_iolatency_init(struct request_queue *q) { return 0; }
+#endif
 
 #endif /* BLK_INTERNAL_H */

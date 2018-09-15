@@ -59,7 +59,8 @@ int intel_digital_connector_atomic_get_property(struct drm_connector *connector,
 	else if (property == dev_priv->broadcast_rgb_property)
 		*val = intel_conn_state->broadcast_rgb;
 	else {
-		DRM_DEBUG_ATOMIC("Unknown property %s\n", property->name);
+		DRM_DEBUG_ATOMIC("Unknown property [PROP:%d:%s]\n",
+				 property->base.id, property->name);
 		return -EINVAL;
 	}
 
@@ -95,7 +96,8 @@ int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
 		return 0;
 	}
 
-	DRM_DEBUG_ATOMIC("Unknown property %s\n", property->name);
+	DRM_DEBUG_ATOMIC("Unknown property [PROP:%d:%s]\n",
+			 property->base.id, property->name);
 	return -EINVAL;
 }
 
@@ -124,6 +126,7 @@ int intel_digital_connector_atomic_check(struct drm_connector *conn,
 	if (new_conn_state->force_audio != old_conn_state->force_audio ||
 	    new_conn_state->broadcast_rgb != old_conn_state->broadcast_rgb ||
 	    new_conn_state->base.picture_aspect_ratio != old_conn_state->base.picture_aspect_ratio ||
+	    new_conn_state->base.content_type != old_conn_state->base.content_type ||
 	    new_conn_state->base.scaling_mode != old_conn_state->base.scaling_mode)
 		crtc_state->mode_changed = true;
 

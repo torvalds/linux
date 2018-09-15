@@ -8,8 +8,6 @@ Required properties:
 
  - compatible		: "analogix,anx7814"
  - reg			: I2C address of the device
- - interrupt-parent	: Should be the phandle of the interrupt controller
-			  that services interrupts for this device
  - interrupts		: Should contain the INTP interrupt
  - hpd-gpios		: Which GPIO to use for hpd
  - pd-gpios		: Which GPIO to use for power down

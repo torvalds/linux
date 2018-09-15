@@ -148,7 +148,6 @@ struct cc_alg_template {
 	char name[CRYPTO_MAX_ALG_NAME];
 	char driver_name[CRYPTO_MAX_ALG_NAME];
 	unsigned int blocksize;
-	u32 type;
 	union {
 		struct skcipher_alg skcipher;
 		struct aead_alg aead;

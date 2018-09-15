@@ -1096,7 +1096,7 @@ static __poll_t wl1273_fm_fops_poll(struct file *file,
 	struct wl1273_core *core = radio->core;
 
 	if (radio->owner && radio->owner != file)
-		return -EBUSY;
+		return EPOLLERR;
 
 	radio->owner = file;
 

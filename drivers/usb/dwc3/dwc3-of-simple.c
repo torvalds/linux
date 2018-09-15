@@ -28,6 +28,7 @@ struct dwc3_of_simple {
 	int			num_clocks;
 	struct reset_control	*resets;
 	bool			pulse_resets;
+	bool			need_reset;
 };
 
 static int dwc3_of_simple_clk_init(struct dwc3_of_simple *simple, int count)
@@ -92,6 +93,13 @@ static int dwc3_of_simple_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, simple);
 	simple->dev = dev;
+
+	/*
+	 * Some controllers need to toggle the usb3-otg reset before trying to
+	 * initialize the PHY, otherwise the PHY times out.
+	 */
+	if (of_device_is_compatible(np, "rockchip,rk3399-dwc3"))
+		simple->need_reset = true;
 
 	if (of_device_is_compatible(np, "amlogic,meson-axg-dwc3") ||
 	    of_device_is_compatible(np, "amlogic,meson-gxl-dwc3")) {
@@ -201,9 +209,30 @@ static int dwc3_of_simple_runtime_resume(struct device *dev)
 
 	return 0;
 }
+
+static int dwc3_of_simple_suspend(struct device *dev)
+{
+	struct dwc3_of_simple *simple = dev_get_drvdata(dev);
+
+	if (simple->need_reset)
+		reset_control_assert(simple->resets);
+
+	return 0;
+}
+
+static int dwc3_of_simple_resume(struct device *dev)
+{
+	struct dwc3_of_simple *simple = dev_get_drvdata(dev);
+
+	if (simple->need_reset)
+		reset_control_deassert(simple->resets);
+
+	return 0;
+}
 #endif
 
 static const struct dev_pm_ops dwc3_of_simple_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(dwc3_of_simple_suspend, dwc3_of_simple_resume)
 	SET_RUNTIME_PM_OPS(dwc3_of_simple_runtime_suspend,
 			dwc3_of_simple_runtime_resume, NULL)
 };

@@ -149,7 +149,7 @@ static void phydm_traffic_load_decision(void *dm_void)
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;
 
-	/*---TP & Trafic-load calculation---*/
+	/*---TP & Traffic-load calculation---*/
 
 	if (dm->last_tx_ok_cnt > *dm->num_tx_bytes_unicast)
 		dm->last_tx_ok_cnt = *dm->num_tx_bytes_unicast;

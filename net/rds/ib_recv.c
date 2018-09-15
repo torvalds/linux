@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -98,12 +98,12 @@ static void rds_ib_cache_xfer_to_ready(struct rds_ib_refill_cache *cache)
 	}
 }
 
-static int rds_ib_recv_alloc_cache(struct rds_ib_refill_cache *cache)
+static int rds_ib_recv_alloc_cache(struct rds_ib_refill_cache *cache, gfp_t gfp)
 {
 	struct rds_ib_cache_head *head;
 	int cpu;
 
-	cache->percpu = alloc_percpu(struct rds_ib_cache_head);
+	cache->percpu = alloc_percpu_gfp(struct rds_ib_cache_head, gfp);
 	if (!cache->percpu)
 	       return -ENOMEM;
 
@@ -118,13 +118,13 @@ static int rds_ib_recv_alloc_cache(struct rds_ib_refill_cache *cache)
 	return 0;
 }
 
-int rds_ib_recv_alloc_caches(struct rds_ib_connection *ic)
+int rds_ib_recv_alloc_caches(struct rds_ib_connection *ic, gfp_t gfp)
 {
 	int ret;
 
-	ret = rds_ib_recv_alloc_cache(&ic->i_cache_incs);
+	ret = rds_ib_recv_alloc_cache(&ic->i_cache_incs, gfp);
 	if (!ret) {
-		ret = rds_ib_recv_alloc_cache(&ic->i_cache_frags);
+		ret = rds_ib_recv_alloc_cache(&ic->i_cache_frags, gfp);
 		if (ret)
 			free_percpu(ic->i_cache_incs.percpu);
 	}
@@ -266,7 +266,7 @@ static struct rds_ib_incoming *rds_ib_refill_one_inc(struct rds_ib_connection *i
 		rds_ib_stats_inc(s_ib_rx_total_incs);
 	}
 	INIT_LIST_HEAD(&ibinc->ii_frags);
-	rds_inc_init(&ibinc->ii_inc, ic->conn, ic->conn->c_faddr);
+	rds_inc_init(&ibinc->ii_inc, ic->conn, &ic->conn->c_faddr);
 
 	return ibinc;
 }
@@ -376,14 +376,11 @@ static void release_refill(struct rds_connection *conn)
  * This tries to allocate and post unused work requests after making sure that
  * they have all the allocations they need to queue received fragments into
  * sockets.
- *
- * -1 is returned if posting fails due to temporary resource exhaustion.
  */
 void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	struct rds_ib_recv_work *recv;
-	struct ib_recv_wr *failed_wr;
 	unsigned int posted = 0;
 	int ret = 0;
 	bool can_wait = !!(gfp & __GFP_DIRECT_RECLAIM);
@@ -417,10 +414,10 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 				&recv->r_frag->f_sg));
 
 		/* XXX when can this fail? */
-		ret = ib_post_recv(ic->i_cm_id->qp, &recv->r_wr, &failed_wr);
+		ret = ib_post_recv(ic->i_cm_id->qp, &recv->r_wr, NULL);
 		if (ret) {
 			rds_ib_conn_error(conn, "recv post on "
-			       "%pI4 returned %d, disconnecting and "
+			       "%pI6c returned %d, disconnecting and "
 			       "reconnecting\n", &conn->c_faddr,
 			       ret);
 			break;
@@ -650,7 +647,6 @@ static u64 rds_ib_get_ack(struct rds_ib_connection *ic)
 static void rds_ib_send_ack(struct rds_ib_connection *ic, unsigned int adv_credits)
 {
 	struct rds_header *hdr = ic->i_ack;
-	struct ib_send_wr *failed_wr;
 	u64 seq;
 	int ret;
 
@@ -663,7 +659,7 @@ static void rds_ib_send_ack(struct rds_ib_connection *ic, unsigned int adv_credi
 	rds_message_make_checksum(hdr);
 	ic->i_ack_queued = jiffies;
 
-	ret = ib_post_send(ic->i_cm_id->qp, &ic->i_ack_wr, &failed_wr);
+	ret = ib_post_send(ic->i_cm_id->qp, &ic->i_ack_wr, NULL);
 	if (unlikely(ret)) {
 		/* Failed to send. Release the WR, and
 		 * force another ACK.
@@ -850,7 +846,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 
 	if (data_len < sizeof(struct rds_header)) {
 		rds_ib_conn_error(conn, "incoming message "
-		       "from %pI4 didn't include a "
+		       "from %pI6c didn't include a "
 		       "header, disconnecting and "
 		       "reconnecting\n",
 		       &conn->c_faddr);
@@ -863,7 +859,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 	/* Validate the checksum. */
 	if (!rds_message_verify_checksum(ihdr)) {
 		rds_ib_conn_error(conn, "incoming message "
-		       "from %pI4 has corrupted header - "
+		       "from %pI6c has corrupted header - "
 		       "forcing a reconnect\n",
 		       &conn->c_faddr);
 		rds_stats_inc(s_recv_drop_bad_checksum);
@@ -943,10 +939,10 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 		ic->i_recv_data_rem = 0;
 		ic->i_ibinc = NULL;
 
-		if (ibinc->ii_inc.i_hdr.h_flags == RDS_FLAG_CONG_BITMAP)
+		if (ibinc->ii_inc.i_hdr.h_flags == RDS_FLAG_CONG_BITMAP) {
 			rds_ib_cong_recv(conn, ibinc);
-		else {
-			rds_recv_incoming(conn, conn->c_faddr, conn->c_laddr,
+		} else {
+			rds_recv_incoming(conn, &conn->c_faddr, &conn->c_laddr,
 					  &ibinc->ii_inc, GFP_ATOMIC);
 			state->ack_next = be64_to_cpu(hdr->h_sequence);
 			state->ack_next_valid = 1;
@@ -990,7 +986,7 @@ void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
 	} else {
 		/* We expect errors as the qp is drained during shutdown */
 		if (rds_conn_up(conn) || rds_conn_connecting(conn))
-			rds_ib_conn_error(conn, "recv completion on <%pI4,%pI4> had status %u (%s), disconnecting and reconnecting\n",
+			rds_ib_conn_error(conn, "recv completion on <%pI6c,%pI6c> had status %u (%s), disconnecting and reconnecting\n",
 					  &conn->c_laddr, &conn->c_faddr,
 					  wc->status,
 					  ib_wc_status_msg(wc->status));
@@ -1025,7 +1021,6 @@ int rds_ib_recv_path(struct rds_conn_path *cp)
 {
 	struct rds_connection *conn = cp->cp_conn;
 	struct rds_ib_connection *ic = conn->c_transport_data;
-	int ret = 0;
 
 	rdsdebug("conn %p\n", conn);
 	if (rds_conn_up(conn)) {
@@ -1034,7 +1029,7 @@ int rds_ib_recv_path(struct rds_conn_path *cp)
 		rds_ib_stats_inc(s_ib_rx_refill_from_thread);
 	}
 
-	return ret;
+	return 0;
 }
 
 int rds_ib_recv_init(void)

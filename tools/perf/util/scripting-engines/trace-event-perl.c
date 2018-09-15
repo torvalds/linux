@@ -535,7 +535,7 @@ static int perl_stop_script(void)
 	return 0;
 }
 
-static int perl_generate_script(struct pevent *pevent, const char *outfile)
+static int perl_generate_script(struct tep_handle *pevent, const char *outfile)
 {
 	struct event_format *event = NULL;
 	struct format_field *f;

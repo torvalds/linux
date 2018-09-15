@@ -23,7 +23,7 @@ struct cache_stats {
 	unsigned long cache_miss_collisions;
 	unsigned long sectors_bypassed;
 
-	unsigned		rescale;
+	unsigned int		rescale;
 };
 
 struct cache_accounting {
@@ -53,10 +53,13 @@ void bch_cache_accounting_clear(struct cache_accounting *acc);
 
 void bch_cache_accounting_destroy(struct cache_accounting *acc);
 
-void bch_mark_cache_accounting(struct cache_set *, struct bcache_device *,
-			       bool, bool);
-void bch_mark_cache_readahead(struct cache_set *, struct bcache_device *);
-void bch_mark_cache_miss_collision(struct cache_set *, struct bcache_device *);
-void bch_mark_sectors_bypassed(struct cache_set *, struct cached_dev *, int);
+void bch_mark_cache_accounting(struct cache_set *c, struct bcache_device *d,
+			       bool hit, bool bypass);
+void bch_mark_cache_readahead(struct cache_set *c, struct bcache_device *d);
+void bch_mark_cache_miss_collision(struct cache_set *c,
+				   struct bcache_device *d);
+void bch_mark_sectors_bypassed(struct cache_set *c,
+			       struct cached_dev *dc,
+			       int sectors);
 
 #endif /* _BCACHE_STATS_H_ */

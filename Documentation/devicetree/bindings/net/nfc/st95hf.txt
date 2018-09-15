@@ -17,9 +17,6 @@ Required properties:
 
 - enable-gpio: GPIO line to enable ST95HF transceiver.
 
-- interrupt-parent : Standard way to specify the controller to which
-	ST95HF transceiver's interrupt is routed.
-
 - interrupts : Standard way to define ST95HF transceiver's out
 	interrupt.
 

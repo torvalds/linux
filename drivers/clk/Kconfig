@@ -45,6 +45,12 @@ config COMMON_CLK_MAX77686
 	  This driver supports Maxim 77620/77686/77802 crystal oscillator
 	  clock.
 
+config COMMON_CLK_MAX9485
+	tristate "Maxim 9485 Programmable Clock Generator"
+	depends on I2C
+	help
+	  This driver supports Maxim 9485 Programmable Audio Clock Generator
+
 config COMMON_CLK_RK808
 	tristate "Clock driver for RK805/RK808/RK818"
 	depends on MFD_RK808

@@ -45,7 +45,10 @@ struct cosm_msg {
 	u64 id;
 	union {
 		u64 shutdown_status;
-		struct timespec64 timespec;
+		struct {
+			u64 tv_sec;
+			u64 tv_nsec;
+		} timespec;
 	};
 };
 

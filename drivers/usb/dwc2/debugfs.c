@@ -69,7 +69,7 @@ static int testmode_show(struct seq_file *s, void *unused)
 	int dctl;
 
 	spin_lock_irqsave(&hsotg->lock, flags);
-	dctl = dwc2_readl(hsotg->regs + DCTL);
+	dctl = dwc2_readl(hsotg, DCTL);
 	dctl &= DCTL_TSTCTL_MASK;
 	dctl >>= DCTL_TSTCTL_SHIFT;
 	spin_unlock_irqrestore(&hsotg->lock, flags);
@@ -126,42 +126,41 @@ static const struct file_operations testmode_fops = {
 static int state_show(struct seq_file *seq, void *v)
 {
 	struct dwc2_hsotg *hsotg = seq->private;
-	void __iomem *regs = hsotg->regs;
 	int idx;
 
 	seq_printf(seq, "DCFG=0x%08x, DCTL=0x%08x, DSTS=0x%08x\n",
-		   dwc2_readl(regs + DCFG),
-		 dwc2_readl(regs + DCTL),
-		 dwc2_readl(regs + DSTS));
+		   dwc2_readl(hsotg, DCFG),
+		 dwc2_readl(hsotg, DCTL),
+		 dwc2_readl(hsotg, DSTS));
 
 	seq_printf(seq, "DIEPMSK=0x%08x, DOEPMASK=0x%08x\n",
-		   dwc2_readl(regs + DIEPMSK), dwc2_readl(regs + DOEPMSK));
+		   dwc2_readl(hsotg, DIEPMSK), dwc2_readl(hsotg, DOEPMSK));
 
 	seq_printf(seq, "GINTMSK=0x%08x, GINTSTS=0x%08x\n",
-		   dwc2_readl(regs + GINTMSK),
-		   dwc2_readl(regs + GINTSTS));
+		   dwc2_readl(hsotg, GINTMSK),
+		   dwc2_readl(hsotg, GINTSTS));
 
 	seq_printf(seq, "DAINTMSK=0x%08x, DAINT=0x%08x\n",
-		   dwc2_readl(regs + DAINTMSK),
-		   dwc2_readl(regs + DAINT));
+		   dwc2_readl(hsotg, DAINTMSK),
+		   dwc2_readl(hsotg, DAINT));
 
 	seq_printf(seq, "GNPTXSTS=0x%08x, GRXSTSR=%08x\n",
-		   dwc2_readl(regs + GNPTXSTS),
-		   dwc2_readl(regs + GRXSTSR));
+		   dwc2_readl(hsotg, GNPTXSTS),
+		   dwc2_readl(hsotg, GRXSTSR));
 
 	seq_puts(seq, "\nEndpoint status:\n");
 
 	for (idx = 0; idx < hsotg->num_of_eps; idx++) {
 		u32 in, out;
 
-		in = dwc2_readl(regs + DIEPCTL(idx));
-		out = dwc2_readl(regs + DOEPCTL(idx));
+		in = dwc2_readl(hsotg, DIEPCTL(idx));
+		out = dwc2_readl(hsotg, DOEPCTL(idx));
 
 		seq_printf(seq, "ep%d: DIEPCTL=0x%08x, DOEPCTL=0x%08x",
 			   idx, in, out);
 
-		in = dwc2_readl(regs + DIEPTSIZ(idx));
-		out = dwc2_readl(regs + DOEPTSIZ(idx));
+		in = dwc2_readl(hsotg, DIEPTSIZ(idx));
+		out = dwc2_readl(hsotg, DOEPTSIZ(idx));
 
 		seq_printf(seq, ", DIEPTSIZ=0x%08x, DOEPTSIZ=0x%08x",
 			   in, out);
@@ -184,14 +183,13 @@ DEFINE_SHOW_ATTRIBUTE(state);
 static int fifo_show(struct seq_file *seq, void *v)
 {
 	struct dwc2_hsotg *hsotg = seq->private;
-	void __iomem *regs = hsotg->regs;
 	u32 val;
 	int idx;
 
 	seq_puts(seq, "Non-periodic FIFOs:\n");
-	seq_printf(seq, "RXFIFO: Size %d\n", dwc2_readl(regs + GRXFSIZ));
+	seq_printf(seq, "RXFIFO: Size %d\n", dwc2_readl(hsotg, GRXFSIZ));
 
-	val = dwc2_readl(regs + GNPTXFSIZ);
+	val = dwc2_readl(hsotg, GNPTXFSIZ);
 	seq_printf(seq, "NPTXFIFO: Size %d, Start 0x%08x\n",
 		   val >> FIFOSIZE_DEPTH_SHIFT,
 		   val & FIFOSIZE_STARTADDR_MASK);
@@ -199,7 +197,7 @@ static int fifo_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nPeriodic TXFIFOs:\n");
 
 	for (idx = 1; idx < hsotg->num_of_eps; idx++) {
-		val = dwc2_readl(regs + DPTXFSIZN(idx));
+		val = dwc2_readl(hsotg, DPTXFSIZN(idx));
 
 		seq_printf(seq, "\tDPTXFIFO%2d: Size %d, Start 0x%08x\n", idx,
 			   val >> FIFOSIZE_DEPTH_SHIFT,
@@ -228,7 +226,6 @@ static int ep_show(struct seq_file *seq, void *v)
 	struct dwc2_hsotg_ep *ep = seq->private;
 	struct dwc2_hsotg *hsotg = ep->parent;
 	struct dwc2_hsotg_req *req;
-	void __iomem *regs = hsotg->regs;
 	int index = ep->index;
 	int show_limit = 15;
 	unsigned long flags;
@@ -239,20 +236,20 @@ static int ep_show(struct seq_file *seq, void *v)
 	/* first show the register state */
 
 	seq_printf(seq, "\tDIEPCTL=0x%08x, DOEPCTL=0x%08x\n",
-		   dwc2_readl(regs + DIEPCTL(index)),
-		   dwc2_readl(regs + DOEPCTL(index)));
+		   dwc2_readl(hsotg, DIEPCTL(index)),
+		   dwc2_readl(hsotg, DOEPCTL(index)));
 
 	seq_printf(seq, "\tDIEPDMA=0x%08x, DOEPDMA=0x%08x\n",
-		   dwc2_readl(regs + DIEPDMA(index)),
-		   dwc2_readl(regs + DOEPDMA(index)));
+		   dwc2_readl(hsotg, DIEPDMA(index)),
+		   dwc2_readl(hsotg, DOEPDMA(index)));
 
 	seq_printf(seq, "\tDIEPINT=0x%08x, DOEPINT=0x%08x\n",
-		   dwc2_readl(regs + DIEPINT(index)),
-		   dwc2_readl(regs + DOEPINT(index)));
+		   dwc2_readl(hsotg, DIEPINT(index)),
+		   dwc2_readl(hsotg, DOEPINT(index)));
 
 	seq_printf(seq, "\tDIEPTSIZ=0x%08x, DOEPTSIZ=0x%08x\n",
-		   dwc2_readl(regs + DIEPTSIZ(index)),
-		   dwc2_readl(regs + DOEPTSIZ(index)));
+		   dwc2_readl(hsotg, DIEPTSIZ(index)),
+		   dwc2_readl(hsotg, DOEPTSIZ(index)));
 
 	seq_puts(seq, "\n");
 	seq_printf(seq, "mps %d\n", ep->ep.maxpacket);

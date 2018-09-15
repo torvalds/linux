@@ -219,7 +219,7 @@ static bool cs4270_reg_is_volatile(struct device *dev, unsigned int reg)
 {
 	/* Unreadable registers are considered volatile */
 	if ((reg < CS4270_FIRSTREG) || (reg > CS4270_LASTREG))
-		return 1;
+		return true;
 
 	return reg == CS4270_CHIPID;
 }

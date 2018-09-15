@@ -85,12 +85,12 @@ static __net_init int rxrpc_init_net(struct net *net)
 	hash_init(rxnet->peer_hash);
 	spin_lock_init(&rxnet->peer_hash_lock);
 	for (i = 0; i < ARRAY_SIZE(rxnet->peer_keepalive); i++)
-		INIT_HLIST_HEAD(&rxnet->peer_keepalive[i]);
-	INIT_HLIST_HEAD(&rxnet->peer_keepalive_new);
+		INIT_LIST_HEAD(&rxnet->peer_keepalive[i]);
+	INIT_LIST_HEAD(&rxnet->peer_keepalive_new);
 	timer_setup(&rxnet->peer_keepalive_timer,
 		    rxrpc_peer_keepalive_timeout, 0);
 	INIT_WORK(&rxnet->peer_keepalive_work, rxrpc_peer_keepalive_worker);
-	rxnet->peer_keepalive_base = ktime_add(ktime_get_real(), NSEC_PER_SEC);
+	rxnet->peer_keepalive_base = ktime_get_seconds();
 
 	ret = -ENOMEM;
 	rxnet->proc_net = proc_net_mkdir(net, "rxrpc", net->proc_net);

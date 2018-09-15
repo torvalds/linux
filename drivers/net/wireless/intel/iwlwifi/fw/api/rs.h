@@ -314,8 +314,11 @@ enum {
 	IWL_RATE_MCS_8_INDEX,
 	IWL_RATE_MCS_9_INDEX,
 	IWL_LAST_VHT_RATE = IWL_RATE_MCS_9_INDEX,
+	IWL_RATE_MCS_10_INDEX,
+	IWL_RATE_MCS_11_INDEX,
+	IWL_LAST_HE_RATE = IWL_RATE_MCS_11_INDEX,
 	IWL_RATE_COUNT_LEGACY = IWL_LAST_NON_HT_RATE + 1,
-	IWL_RATE_COUNT = IWL_LAST_VHT_RATE + 1,
+	IWL_RATE_COUNT = IWL_LAST_HE_RATE + 1,
 };
 
 #define IWL_RATE_BIT_MSK(r) BIT(IWL_RATE_##r##M_INDEX)
@@ -440,8 +443,8 @@ enum {
 #define RATE_LEGACY_RATE_MSK 0xff
 
 /* Bit 10 - OFDM HE */
-#define RATE_MCS_OFDM_HE_POS		10
-#define RATE_MCS_OFDM_HE_MSK		BIT(RATE_MCS_OFDM_HE_POS)
+#define RATE_MCS_HE_POS		10
+#define RATE_MCS_HE_MSK		BIT(RATE_MCS_HE_POS)
 
 /*
  * Bit 11-12: (0) 20MHz, (1) 40MHz, (2) 80MHz, (3) 160MHz
@@ -482,15 +485,33 @@ enum {
 #define RATE_MCS_BF_MSK			(1 << RATE_MCS_BF_POS)
 
 /*
- * Bit 20-21: HE guard interval and LTF type.
- * (0) 1xLTF+1.6us, (1) 2xLTF+0.8us,
- * (2) 2xLTF+1.6us, (3) 4xLTF+3.2us
+ * Bit 20-21: HE LTF type and guard interval
+ * HE (ext) SU:
+ *	0			1xLTF+0.8us
+ *	1			2xLTF+0.8us
+ *	2			2xLTF+1.6us
+ *	3 & SGI (bit 13) clear	4xLTF+3.2us
+ *	3 & SGI (bit 13) set	4xLTF+0.8us
+ * HE MU:
+ *	0			4xLTF+0.8us
+ *	1			2xLTF+0.8us
+ *	2			2xLTF+1.6us
+ *	3			4xLTF+3.2us
+ * HE TRIG:
+ *	0			1xLTF+1.6us
+ *	1			2xLTF+1.6us
+ *	2			4xLTF+3.2us
+ *	3			(does not occur)
  */
 #define RATE_MCS_HE_GI_LTF_POS		20
 #define RATE_MCS_HE_GI_LTF_MSK		(3 << RATE_MCS_HE_GI_LTF_POS)
 
 /* Bit 22-23: HE type. (0) SU, (1) SU_EXT, (2) MU, (3) trigger based */
 #define RATE_MCS_HE_TYPE_POS		22
+#define RATE_MCS_HE_TYPE_SU		(0 << RATE_MCS_HE_TYPE_POS)
+#define RATE_MCS_HE_TYPE_EXT_SU		(1 << RATE_MCS_HE_TYPE_POS)
+#define RATE_MCS_HE_TYPE_MU		(2 << RATE_MCS_HE_TYPE_POS)
+#define RATE_MCS_HE_TYPE_TRIG		(3 << RATE_MCS_HE_TYPE_POS)
 #define RATE_MCS_HE_TYPE_MSK		(3 << RATE_MCS_HE_TYPE_POS)
 
 /* Bit 24-25: (0) 20MHz (no dup), (1) 2x20MHz, (2) 4x20MHz, 3 8x20MHz */
@@ -501,6 +522,9 @@ enum {
 #define RATE_MCS_LDPC_POS		27
 #define RATE_MCS_LDPC_MSK		(1 << RATE_MCS_LDPC_POS)
 
+/* Bit 28: (1) 106-tone RX (8 MHz RU), (0) normal bandwidth */
+#define RATE_MCS_HE_106T_POS		28
+#define RATE_MCS_HE_106T_MSK		(1 << RATE_MCS_HE_106T_POS)
 
 /* Link Quality definitions */
 

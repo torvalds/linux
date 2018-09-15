@@ -1880,6 +1880,9 @@ qla24xx_beacon_off(struct scsi_qla_host *vha)
 	if (IS_P3P_TYPE(ha))
 		return QLA_SUCCESS;
 
+	if (!ha->flags.fw_started)
+		return QLA_SUCCESS;
+
 	ha->beacon_blink_led = 0;
 
 	if (IS_QLA2031(ha) || IS_QLA27XX(ha))

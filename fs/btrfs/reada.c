@@ -7,7 +7,6 @@
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
-#include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include "ctree.h"
@@ -355,7 +354,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 		dev = bbio->stripes[nzones].dev;
 
 		/* cannot read ahead on missing device. */
-		 if (!dev->bdev)
+		if (!dev->bdev)
 			continue;
 
 		zone = reada_find_zone(dev, logical, bbio);

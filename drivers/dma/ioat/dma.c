@@ -688,6 +688,12 @@ static void ioat_restart_channel(struct ioatdma_chan *ioat_chan)
 {
 	u64 phys_complete;
 
+	/* set the completion address register again */
+	writel(lower_32_bits(ioat_chan->completion_dma),
+	       ioat_chan->reg_base + IOAT_CHANCMP_OFFSET_LOW);
+	writel(upper_32_bits(ioat_chan->completion_dma),
+	       ioat_chan->reg_base + IOAT_CHANCMP_OFFSET_HIGH);
+
 	ioat_quiesce(ioat_chan, 0);
 	if (ioat_cleanup_preamble(ioat_chan, &phys_complete))
 		__cleanup(ioat_chan, phys_complete);

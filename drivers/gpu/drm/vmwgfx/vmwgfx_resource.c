@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -27,36 +27,12 @@
 
 #include "vmwgfx_drv.h"
 #include <drm/vmwgfx_drm.h>
-#include <drm/ttm/ttm_object.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/drmP.h>
 #include "vmwgfx_resource_priv.h"
 #include "vmwgfx_binding.h"
 
 #define VMW_RES_EVICT_ERR_COUNT 10
-
-struct vmw_user_dma_buffer {
-	struct ttm_prime_object prime;
-	struct vmw_dma_buffer dma;
-};
-
-struct vmw_bo_user_rep {
-	uint32_t handle;
-	uint64_t map_handle;
-};
-
-static inline struct vmw_dma_buffer *
-vmw_dma_buffer(struct ttm_buffer_object *bo)
-{
-	return container_of(bo, struct vmw_dma_buffer, base);
-}
-
-static inline struct vmw_user_dma_buffer *
-vmw_user_dma_buffer(struct ttm_buffer_object *bo)
-{
-	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
-	return container_of(vmw_bo, struct vmw_user_dma_buffer, dma);
-}
 
 struct vmw_resource *vmw_resource_reference(struct vmw_resource *res)
 {
@@ -116,7 +92,7 @@ static void vmw_resource_release(struct kref *kref)
 		res->backup_dirty = false;
 		list_del_init(&res->mob_head);
 		ttm_bo_unreserve(bo);
-		vmw_dmabuf_unreference(&res->backup);
+		vmw_bo_unreference(&res->backup);
 	}
 
 	if (likely(res->hw_destroy != NULL)) {
@@ -287,7 +263,7 @@ out_bad_resource:
 }
 
 /**
- * Helper function that looks either a surface or dmabuf.
+ * Helper function that looks either a surface or bo.
  *
  * The pointer this pointed at by out_surf and out_buf needs to be null.
  */
@@ -295,7 +271,7 @@ int vmw_user_lookup_handle(struct vmw_private *dev_priv,
 			   struct ttm_object_file *tfile,
 			   uint32_t handle,
 			   struct vmw_surface **out_surf,
-			   struct vmw_dma_buffer **out_buf)
+			   struct vmw_buffer_object **out_buf)
 {
 	struct vmw_resource *res;
 	int ret;
@@ -311,510 +287,8 @@ int vmw_user_lookup_handle(struct vmw_private *dev_priv,
 	}
 
 	*out_surf = NULL;
-	ret = vmw_user_dmabuf_lookup(tfile, handle, out_buf, NULL);
+	ret = vmw_user_bo_lookup(tfile, handle, out_buf, NULL);
 	return ret;
-}
-
-/**
- * Buffer management.
- */
-
-/**
- * vmw_dmabuf_acc_size - Calculate the pinned memory usage of buffers
- *
- * @dev_priv: Pointer to a struct vmw_private identifying the device.
- * @size: The requested buffer size.
- * @user: Whether this is an ordinary dma buffer or a user dma buffer.
- */
-static size_t vmw_dmabuf_acc_size(struct vmw_private *dev_priv, size_t size,
-				  bool user)
-{
-	static size_t struct_size, user_struct_size;
-	size_t num_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
-	size_t page_array_size = ttm_round_pot(num_pages * sizeof(void *));
-
-	if (unlikely(struct_size == 0)) {
-		size_t backend_size = ttm_round_pot(vmw_tt_size);
-
-		struct_size = backend_size +
-			ttm_round_pot(sizeof(struct vmw_dma_buffer));
-		user_struct_size = backend_size +
-			ttm_round_pot(sizeof(struct vmw_user_dma_buffer));
-	}
-
-	if (dev_priv->map_mode == vmw_dma_alloc_coherent)
-		page_array_size +=
-			ttm_round_pot(num_pages * sizeof(dma_addr_t));
-
-	return ((user) ? user_struct_size : struct_size) +
-		page_array_size;
-}
-
-void vmw_dmabuf_bo_free(struct ttm_buffer_object *bo)
-{
-	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
-
-	vmw_dma_buffer_unmap(vmw_bo);
-	kfree(vmw_bo);
-}
-
-static void vmw_user_dmabuf_destroy(struct ttm_buffer_object *bo)
-{
-	struct vmw_user_dma_buffer *vmw_user_bo = vmw_user_dma_buffer(bo);
-
-	vmw_dma_buffer_unmap(&vmw_user_bo->dma);
-	ttm_prime_object_kfree(vmw_user_bo, prime);
-}
-
-int vmw_dmabuf_init(struct vmw_private *dev_priv,
-		    struct vmw_dma_buffer *vmw_bo,
-		    size_t size, struct ttm_placement *placement,
-		    bool interruptible,
-		    void (*bo_free) (struct ttm_buffer_object *bo))
-{
-	struct ttm_bo_device *bdev = &dev_priv->bdev;
-	size_t acc_size;
-	int ret;
-	bool user = (bo_free == &vmw_user_dmabuf_destroy);
-
-	BUG_ON(!bo_free && (!user && (bo_free != vmw_dmabuf_bo_free)));
-
-	acc_size = vmw_dmabuf_acc_size(dev_priv, size, user);
-	memset(vmw_bo, 0, sizeof(*vmw_bo));
-
-	INIT_LIST_HEAD(&vmw_bo->res_list);
-
-	ret = ttm_bo_init(bdev, &vmw_bo->base, size,
-			  ttm_bo_type_device, placement,
-			  0, interruptible, acc_size,
-			  NULL, NULL, bo_free);
-	return ret;
-}
-
-static void vmw_user_dmabuf_release(struct ttm_base_object **p_base)
-{
-	struct vmw_user_dma_buffer *vmw_user_bo;
-	struct ttm_base_object *base = *p_base;
-	struct ttm_buffer_object *bo;
-
-	*p_base = NULL;
-
-	if (unlikely(base == NULL))
-		return;
-
-	vmw_user_bo = container_of(base, struct vmw_user_dma_buffer,
-				   prime.base);
-	bo = &vmw_user_bo->dma.base;
-	ttm_bo_unref(&bo);
-}
-
-static void vmw_user_dmabuf_ref_obj_release(struct ttm_base_object *base,
-					    enum ttm_ref_type ref_type)
-{
-	struct vmw_user_dma_buffer *user_bo;
-	user_bo = container_of(base, struct vmw_user_dma_buffer, prime.base);
-
-	switch (ref_type) {
-	case TTM_REF_SYNCCPU_WRITE:
-		ttm_bo_synccpu_write_release(&user_bo->dma.base);
-		break;
-	default:
-		BUG();
-	}
-}
-
-/**
- * vmw_user_dmabuf_alloc - Allocate a user dma buffer
- *
- * @dev_priv: Pointer to a struct device private.
- * @tfile: Pointer to a struct ttm_object_file on which to register the user
- * object.
- * @size: Size of the dma buffer.
- * @shareable: Boolean whether the buffer is shareable with other open files.
- * @handle: Pointer to where the handle value should be assigned.
- * @p_dma_buf: Pointer to where the refcounted struct vmw_dma_buffer pointer
- * should be assigned.
- */
-int vmw_user_dmabuf_alloc(struct vmw_private *dev_priv,
-			  struct ttm_object_file *tfile,
-			  uint32_t size,
-			  bool shareable,
-			  uint32_t *handle,
-			  struct vmw_dma_buffer **p_dma_buf,
-			  struct ttm_base_object **p_base)
-{
-	struct vmw_user_dma_buffer *user_bo;
-	struct ttm_buffer_object *tmp;
-	int ret;
-
-	user_bo = kzalloc(sizeof(*user_bo), GFP_KERNEL);
-	if (unlikely(!user_bo)) {
-		DRM_ERROR("Failed to allocate a buffer.\n");
-		return -ENOMEM;
-	}
-
-	ret = vmw_dmabuf_init(dev_priv, &user_bo->dma, size,
-			      (dev_priv->has_mob) ?
-			      &vmw_sys_placement :
-			      &vmw_vram_sys_placement, true,
-			      &vmw_user_dmabuf_destroy);
-	if (unlikely(ret != 0))
-		return ret;
-
-	tmp = ttm_bo_reference(&user_bo->dma.base);
-	ret = ttm_prime_object_init(tfile,
-				    size,
-				    &user_bo->prime,
-				    shareable,
-				    ttm_buffer_type,
-				    &vmw_user_dmabuf_release,
-				    &vmw_user_dmabuf_ref_obj_release);
-	if (unlikely(ret != 0)) {
-		ttm_bo_unref(&tmp);
-		goto out_no_base_object;
-	}
-
-	*p_dma_buf = &user_bo->dma;
-	if (p_base) {
-		*p_base = &user_bo->prime.base;
-		kref_get(&(*p_base)->refcount);
-	}
-	*handle = user_bo->prime.base.hash.key;
-
-out_no_base_object:
-	return ret;
-}
-
-/**
- * vmw_user_dmabuf_verify_access - verify access permissions on this
- * buffer object.
- *
- * @bo: Pointer to the buffer object being accessed
- * @tfile: Identifying the caller.
- */
-int vmw_user_dmabuf_verify_access(struct ttm_buffer_object *bo,
-				  struct ttm_object_file *tfile)
-{
-	struct vmw_user_dma_buffer *vmw_user_bo;
-
-	if (unlikely(bo->destroy != vmw_user_dmabuf_destroy))
-		return -EPERM;
-
-	vmw_user_bo = vmw_user_dma_buffer(bo);
-
-	/* Check that the caller has opened the object. */
-	if (likely(ttm_ref_object_exists(tfile, &vmw_user_bo->prime.base)))
-		return 0;
-
-	DRM_ERROR("Could not grant buffer access.\n");
-	return -EPERM;
-}
-
-/**
- * vmw_user_dmabuf_synccpu_grab - Grab a struct vmw_user_dma_buffer for cpu
- * access, idling previous GPU operations on the buffer and optionally
- * blocking it for further command submissions.
- *
- * @user_bo: Pointer to the buffer object being grabbed for CPU access
- * @tfile: Identifying the caller.
- * @flags: Flags indicating how the grab should be performed.
- *
- * A blocking grab will be automatically released when @tfile is closed.
- */
-static int vmw_user_dmabuf_synccpu_grab(struct vmw_user_dma_buffer *user_bo,
-					struct ttm_object_file *tfile,
-					uint32_t flags)
-{
-	struct ttm_buffer_object *bo = &user_bo->dma.base;
-	bool existed;
-	int ret;
-
-	if (flags & drm_vmw_synccpu_allow_cs) {
-		bool nonblock = !!(flags & drm_vmw_synccpu_dontblock);
-		long lret;
-
-		lret = reservation_object_wait_timeout_rcu(bo->resv, true, true,
-							   nonblock ? 0 : MAX_SCHEDULE_TIMEOUT);
-		if (!lret)
-			return -EBUSY;
-		else if (lret < 0)
-			return lret;
-		return 0;
-	}
-
-	ret = ttm_bo_synccpu_write_grab
-		(bo, !!(flags & drm_vmw_synccpu_dontblock));
-	if (unlikely(ret != 0))
-		return ret;
-
-	ret = ttm_ref_object_add(tfile, &user_bo->prime.base,
-				 TTM_REF_SYNCCPU_WRITE, &existed, false);
-	if (ret != 0 || existed)
-		ttm_bo_synccpu_write_release(&user_bo->dma.base);
-
-	return ret;
-}
-
-/**
- * vmw_user_dmabuf_synccpu_release - Release a previous grab for CPU access,
- * and unblock command submission on the buffer if blocked.
- *
- * @handle: Handle identifying the buffer object.
- * @tfile: Identifying the caller.
- * @flags: Flags indicating the type of release.
- */
-static int vmw_user_dmabuf_synccpu_release(uint32_t handle,
-					   struct ttm_object_file *tfile,
-					   uint32_t flags)
-{
-	if (!(flags & drm_vmw_synccpu_allow_cs))
-		return ttm_ref_object_base_unref(tfile, handle,
-						 TTM_REF_SYNCCPU_WRITE);
-
-	return 0;
-}
-
-/**
- * vmw_user_dmabuf_synccpu_release - ioctl function implementing the synccpu
- * functionality.
- *
- * @dev: Identifies the drm device.
- * @data: Pointer to the ioctl argument.
- * @file_priv: Identifies the caller.
- *
- * This function checks the ioctl arguments for validity and calls the
- * relevant synccpu functions.
- */
-int vmw_user_dmabuf_synccpu_ioctl(struct drm_device *dev, void *data,
-				  struct drm_file *file_priv)
-{
-	struct drm_vmw_synccpu_arg *arg =
-		(struct drm_vmw_synccpu_arg *) data;
-	struct vmw_dma_buffer *dma_buf;
-	struct vmw_user_dma_buffer *user_bo;
-	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	struct ttm_base_object *buffer_base;
-	int ret;
-
-	if ((arg->flags & (drm_vmw_synccpu_read | drm_vmw_synccpu_write)) == 0
-	    || (arg->flags & ~(drm_vmw_synccpu_read | drm_vmw_synccpu_write |
-			       drm_vmw_synccpu_dontblock |
-			       drm_vmw_synccpu_allow_cs)) != 0) {
-		DRM_ERROR("Illegal synccpu flags.\n");
-		return -EINVAL;
-	}
-
-	switch (arg->op) {
-	case drm_vmw_synccpu_grab:
-		ret = vmw_user_dmabuf_lookup(tfile, arg->handle, &dma_buf,
-					     &buffer_base);
-		if (unlikely(ret != 0))
-			return ret;
-
-		user_bo = container_of(dma_buf, struct vmw_user_dma_buffer,
-				       dma);
-		ret = vmw_user_dmabuf_synccpu_grab(user_bo, tfile, arg->flags);
-		vmw_dmabuf_unreference(&dma_buf);
-		ttm_base_object_unref(&buffer_base);
-		if (unlikely(ret != 0 && ret != -ERESTARTSYS &&
-			     ret != -EBUSY)) {
-			DRM_ERROR("Failed synccpu grab on handle 0x%08x.\n",
-				  (unsigned int) arg->handle);
-			return ret;
-		}
-		break;
-	case drm_vmw_synccpu_release:
-		ret = vmw_user_dmabuf_synccpu_release(arg->handle, tfile,
-						      arg->flags);
-		if (unlikely(ret != 0)) {
-			DRM_ERROR("Failed synccpu release on handle 0x%08x.\n",
-				  (unsigned int) arg->handle);
-			return ret;
-		}
-		break;
-	default:
-		DRM_ERROR("Invalid synccpu operation.\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int vmw_dmabuf_alloc_ioctl(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv)
-{
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	union drm_vmw_alloc_dmabuf_arg *arg =
-	    (union drm_vmw_alloc_dmabuf_arg *)data;
-	struct drm_vmw_alloc_dmabuf_req *req = &arg->req;
-	struct drm_vmw_dmabuf_rep *rep = &arg->rep;
-	struct vmw_dma_buffer *dma_buf;
-	uint32_t handle;
-	int ret;
-
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ret = vmw_user_dmabuf_alloc(dev_priv, vmw_fpriv(file_priv)->tfile,
-				    req->size, false, &handle, &dma_buf,
-				    NULL);
-	if (unlikely(ret != 0))
-		goto out_no_dmabuf;
-
-	rep->handle = handle;
-	rep->map_handle = drm_vma_node_offset_addr(&dma_buf->base.vma_node);
-	rep->cur_gmr_id = handle;
-	rep->cur_gmr_offset = 0;
-
-	vmw_dmabuf_unreference(&dma_buf);
-
-out_no_dmabuf:
-	ttm_read_unlock(&dev_priv->reservation_sem);
-
-	return ret;
-}
-
-int vmw_dmabuf_unref_ioctl(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv)
-{
-	struct drm_vmw_unref_dmabuf_arg *arg =
-	    (struct drm_vmw_unref_dmabuf_arg *)data;
-
-	return ttm_ref_object_base_unref(vmw_fpriv(file_priv)->tfile,
-					 arg->handle,
-					 TTM_REF_USAGE);
-}
-
-int vmw_user_dmabuf_lookup(struct ttm_object_file *tfile,
-			   uint32_t handle, struct vmw_dma_buffer **out,
-			   struct ttm_base_object **p_base)
-{
-	struct vmw_user_dma_buffer *vmw_user_bo;
-	struct ttm_base_object *base;
-
-	base = ttm_base_object_lookup(tfile, handle);
-	if (unlikely(base == NULL)) {
-		pr_err("Invalid buffer object handle 0x%08lx\n",
-		       (unsigned long)handle);
-		return -ESRCH;
-	}
-
-	if (unlikely(ttm_base_object_type(base) != ttm_buffer_type)) {
-		ttm_base_object_unref(&base);
-		pr_err("Invalid buffer object handle 0x%08lx\n",
-		       (unsigned long)handle);
-		return -EINVAL;
-	}
-
-	vmw_user_bo = container_of(base, struct vmw_user_dma_buffer,
-				   prime.base);
-	(void)ttm_bo_reference(&vmw_user_bo->dma.base);
-	if (p_base)
-		*p_base = base;
-	else
-		ttm_base_object_unref(&base);
-	*out = &vmw_user_bo->dma;
-
-	return 0;
-}
-
-int vmw_user_dmabuf_reference(struct ttm_object_file *tfile,
-			      struct vmw_dma_buffer *dma_buf,
-			      uint32_t *handle)
-{
-	struct vmw_user_dma_buffer *user_bo;
-
-	if (dma_buf->base.destroy != vmw_user_dmabuf_destroy)
-		return -EINVAL;
-
-	user_bo = container_of(dma_buf, struct vmw_user_dma_buffer, dma);
-
-	*handle = user_bo->prime.base.hash.key;
-	return ttm_ref_object_add(tfile, &user_bo->prime.base,
-				  TTM_REF_USAGE, NULL, false);
-}
-
-/**
- * vmw_dumb_create - Create a dumb kms buffer
- *
- * @file_priv: Pointer to a struct drm_file identifying the caller.
- * @dev: Pointer to the drm device.
- * @args: Pointer to a struct drm_mode_create_dumb structure
- *
- * This is a driver callback for the core drm create_dumb functionality.
- * Note that this is very similar to the vmw_dmabuf_alloc ioctl, except
- * that the arguments have a different format.
- */
-int vmw_dumb_create(struct drm_file *file_priv,
-		    struct drm_device *dev,
-		    struct drm_mode_create_dumb *args)
-{
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct vmw_dma_buffer *dma_buf;
-	int ret;
-
-	args->pitch = args->width * ((args->bpp + 7) / 8);
-	args->size = args->pitch * args->height;
-
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ret = vmw_user_dmabuf_alloc(dev_priv, vmw_fpriv(file_priv)->tfile,
-				    args->size, false, &args->handle,
-				    &dma_buf, NULL);
-	if (unlikely(ret != 0))
-		goto out_no_dmabuf;
-
-	vmw_dmabuf_unreference(&dma_buf);
-out_no_dmabuf:
-	ttm_read_unlock(&dev_priv->reservation_sem);
-	return ret;
-}
-
-/**
- * vmw_dumb_map_offset - Return the address space offset of a dumb buffer
- *
- * @file_priv: Pointer to a struct drm_file identifying the caller.
- * @dev: Pointer to the drm device.
- * @handle: Handle identifying the dumb buffer.
- * @offset: The address space offset returned.
- *
- * This is a driver callback for the core drm dumb_map_offset functionality.
- */
-int vmw_dumb_map_offset(struct drm_file *file_priv,
-			struct drm_device *dev, uint32_t handle,
-			uint64_t *offset)
-{
-	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	struct vmw_dma_buffer *out_buf;
-	int ret;
-
-	ret = vmw_user_dmabuf_lookup(tfile, handle, &out_buf, NULL);
-	if (ret != 0)
-		return -EINVAL;
-
-	*offset = drm_vma_node_offset_addr(&out_buf->base.vma_node);
-	vmw_dmabuf_unreference(&out_buf);
-	return 0;
-}
-
-/**
- * vmw_dumb_destroy - Destroy a dumb boffer
- *
- * @file_priv: Pointer to a struct drm_file identifying the caller.
- * @dev: Pointer to the drm device.
- * @handle: Handle identifying the dumb buffer.
- *
- * This is a driver callback for the core drm dumb_destroy functionality.
- */
-int vmw_dumb_destroy(struct drm_file *file_priv,
-		     struct drm_device *dev,
-		     uint32_t handle)
-{
-	return ttm_ref_object_base_unref(vmw_fpriv(file_priv)->tfile,
-					 handle, TTM_REF_USAGE);
 }
 
 /**
@@ -829,7 +303,7 @@ static int vmw_resource_buf_alloc(struct vmw_resource *res,
 {
 	unsigned long size =
 		(res->backup_size + PAGE_SIZE - 1) & PAGE_MASK;
-	struct vmw_dma_buffer *backup;
+	struct vmw_buffer_object *backup;
 	int ret;
 
 	if (likely(res->backup)) {
@@ -841,16 +315,16 @@ static int vmw_resource_buf_alloc(struct vmw_resource *res,
 	if (unlikely(!backup))
 		return -ENOMEM;
 
-	ret = vmw_dmabuf_init(res->dev_priv, backup, res->backup_size,
+	ret = vmw_bo_init(res->dev_priv, backup, res->backup_size,
 			      res->func->backup_placement,
 			      interruptible,
-			      &vmw_dmabuf_bo_free);
+			      &vmw_bo_bo_free);
 	if (unlikely(ret != 0))
-		goto out_no_dmabuf;
+		goto out_no_bo;
 
 	res->backup = backup;
 
-out_no_dmabuf:
+out_no_bo:
 	return ret;
 }
 
@@ -919,7 +393,7 @@ out_bind_failed:
  */
 void vmw_resource_unreserve(struct vmw_resource *res,
 			    bool switch_backup,
-			    struct vmw_dma_buffer *new_backup,
+			    struct vmw_buffer_object *new_backup,
 			    unsigned long new_backup_offset)
 {
 	struct vmw_private *dev_priv = res->dev_priv;
@@ -931,11 +405,11 @@ void vmw_resource_unreserve(struct vmw_resource *res,
 		if (res->backup) {
 			lockdep_assert_held(&res->backup->base.resv->lock.base);
 			list_del_init(&res->mob_head);
-			vmw_dmabuf_unreference(&res->backup);
+			vmw_bo_unreference(&res->backup);
 		}
 
 		if (new_backup) {
-			res->backup = vmw_dmabuf_reference(new_backup);
+			res->backup = vmw_bo_reference(new_backup);
 			lockdep_assert_held(&new_backup->base.resv->lock.base);
 			list_add_tail(&res->mob_head, &new_backup->res_list);
 		} else {
@@ -959,6 +433,7 @@ void vmw_resource_unreserve(struct vmw_resource *res,
  *                             for a resource and in that case, allocate
  *                             one, reserve and validate it.
  *
+ * @ticket:         The ww aqcquire context to use, or NULL if trylocking.
  * @res:            The resource for which to allocate a backup buffer.
  * @interruptible:  Whether any sleeps during allocation should be
  *                  performed while interruptible.
@@ -966,7 +441,8 @@ void vmw_resource_unreserve(struct vmw_resource *res,
  *                  reserved and validated backup buffer.
  */
 static int
-vmw_resource_check_buffer(struct vmw_resource *res,
+vmw_resource_check_buffer(struct ww_acquire_ctx *ticket,
+			  struct vmw_resource *res,
 			  bool interruptible,
 			  struct ttm_validate_buffer *val_buf)
 {
@@ -985,7 +461,7 @@ vmw_resource_check_buffer(struct vmw_resource *res,
 	val_buf->bo = ttm_bo_reference(&res->backup->base);
 	val_buf->shared = false;
 	list_add_tail(&val_buf->head, &val_list);
-	ret = ttm_eu_reserve_buffers(NULL, &val_list, interruptible, NULL);
+	ret = ttm_eu_reserve_buffers(ticket, &val_list, interruptible, NULL);
 	if (unlikely(ret != 0))
 		goto out_no_reserve;
 
@@ -1003,11 +479,11 @@ vmw_resource_check_buffer(struct vmw_resource *res,
 	return 0;
 
 out_no_validate:
-	ttm_eu_backoff_reservation(NULL, &val_list);
+	ttm_eu_backoff_reservation(ticket, &val_list);
 out_no_reserve:
 	ttm_bo_unref(&val_buf->bo);
 	if (backup_dirty)
-		vmw_dmabuf_unreference(&res->backup);
+		vmw_bo_unreference(&res->backup);
 
 	return ret;
 }
@@ -1050,10 +526,12 @@ int vmw_resource_reserve(struct vmw_resource *res, bool interruptible,
  * vmw_resource_backoff_reservation - Unreserve and unreference a
  *                                    backup buffer
  *.
+ * @ticket:         The ww acquire ctx used for reservation.
  * @val_buf:        Backup buffer information.
  */
 static void
-vmw_resource_backoff_reservation(struct ttm_validate_buffer *val_buf)
+vmw_resource_backoff_reservation(struct ww_acquire_ctx *ticket,
+				 struct ttm_validate_buffer *val_buf)
 {
 	struct list_head val_list;
 
@@ -1062,7 +540,7 @@ vmw_resource_backoff_reservation(struct ttm_validate_buffer *val_buf)
 
 	INIT_LIST_HEAD(&val_list);
 	list_add_tail(&val_buf->head, &val_list);
-	ttm_eu_backoff_reservation(NULL, &val_list);
+	ttm_eu_backoff_reservation(ticket, &val_list);
 	ttm_bo_unref(&val_buf->bo);
 }
 
@@ -1070,10 +548,12 @@ vmw_resource_backoff_reservation(struct ttm_validate_buffer *val_buf)
  * vmw_resource_do_evict - Evict a resource, and transfer its data
  *                         to a backup buffer.
  *
+ * @ticket:         The ww acquire ticket to use, or NULL if trylocking.
  * @res:            The resource to evict.
  * @interruptible:  Whether to wait interruptible.
  */
-static int vmw_resource_do_evict(struct vmw_resource *res, bool interruptible)
+static int vmw_resource_do_evict(struct ww_acquire_ctx *ticket,
+				 struct vmw_resource *res, bool interruptible)
 {
 	struct ttm_validate_buffer val_buf;
 	const struct vmw_res_func *func = res->func;
@@ -1083,7 +563,7 @@ static int vmw_resource_do_evict(struct vmw_resource *res, bool interruptible)
 
 	val_buf.bo = NULL;
 	val_buf.shared = false;
-	ret = vmw_resource_check_buffer(res, interruptible, &val_buf);
+	ret = vmw_resource_check_buffer(ticket, res, interruptible, &val_buf);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -1098,7 +578,7 @@ static int vmw_resource_do_evict(struct vmw_resource *res, bool interruptible)
 	res->backup_dirty = true;
 	res->res_dirty = false;
 out_no_unbind:
-	vmw_resource_backoff_reservation(&val_buf);
+	vmw_resource_backoff_reservation(ticket, &val_buf);
 
 	return ret;
 }
@@ -1152,7 +632,8 @@ int vmw_resource_validate(struct vmw_resource *res)
 
 		write_unlock(&dev_priv->resource_lock);
 
-		ret = vmw_resource_do_evict(evict_res, true);
+		/* Trylock backup buffers with a NULL ticket. */
+		ret = vmw_resource_do_evict(NULL, evict_res, true);
 		if (unlikely(ret != 0)) {
 			write_lock(&dev_priv->resource_lock);
 			list_add_tail(&evict_res->lru_head, lru_list);
@@ -1171,7 +652,7 @@ int vmw_resource_validate(struct vmw_resource *res)
 		goto out_no_validate;
 	else if (!res->func->needs_backup && res->backup) {
 		list_del_init(&res->mob_head);
-		vmw_dmabuf_unreference(&res->backup);
+		vmw_bo_unreference(&res->backup);
 	}
 
 	return 0;
@@ -1180,109 +661,39 @@ out_no_validate:
 	return ret;
 }
 
-/**
- * vmw_fence_single_bo - Utility function to fence a single TTM buffer
- *                       object without unreserving it.
- *
- * @bo:             Pointer to the struct ttm_buffer_object to fence.
- * @fence:          Pointer to the fence. If NULL, this function will
- *                  insert a fence into the command stream..
- *
- * Contrary to the ttm_eu version of this function, it takes only
- * a single buffer object instead of a list, and it also doesn't
- * unreserve the buffer object, which needs to be done separately.
- */
-void vmw_fence_single_bo(struct ttm_buffer_object *bo,
-			 struct vmw_fence_obj *fence)
-{
-	struct ttm_bo_device *bdev = bo->bdev;
-
-	struct vmw_private *dev_priv =
-		container_of(bdev, struct vmw_private, bdev);
-
-	if (fence == NULL) {
-		vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
-		reservation_object_add_excl_fence(bo->resv, &fence->base);
-		dma_fence_put(&fence->base);
-	} else
-		reservation_object_add_excl_fence(bo->resv, &fence->base);
-}
 
 /**
- * vmw_resource_move_notify - TTM move_notify_callback
+ * vmw_resource_unbind_list
  *
- * @bo: The TTM buffer object about to move.
- * @mem: The struct ttm_mem_reg indicating to what memory
- *       region the move is taking place.
+ * @vbo: Pointer to the current backing MOB.
  *
  * Evicts the Guest Backed hardware resource if the backup
  * buffer is being moved out of MOB memory.
- * Note that this function should not race with the resource
- * validation code as long as it accesses only members of struct
- * resource that remain static while bo::res is !NULL and
- * while we have @bo reserved. struct resource::backup is *not* a
- * static member. The resource validation code will take care
- * to set @bo::res to NULL, while having @bo reserved when the
- * buffer is no longer bound to the resource, so @bo:res can be
- * used to determine whether there is a need to unbind and whether
- * it is safe to unbind.
+ * Note that this function will not race with the resource
+ * validation code, since resource validation and eviction
+ * both require the backup buffer to be reserved.
  */
-void vmw_resource_move_notify(struct ttm_buffer_object *bo,
-			      struct ttm_mem_reg *mem)
+void vmw_resource_unbind_list(struct vmw_buffer_object *vbo)
 {
-	struct vmw_dma_buffer *dma_buf;
 
-	if (mem == NULL)
-		return;
+	struct vmw_resource *res, *next;
+	struct ttm_validate_buffer val_buf = {
+		.bo = &vbo->base,
+		.shared = false
+	};
 
-	if (bo->destroy != vmw_dmabuf_bo_free &&
-	    bo->destroy != vmw_user_dmabuf_destroy)
-		return;
+	lockdep_assert_held(&vbo->base.resv->lock.base);
+	list_for_each_entry_safe(res, next, &vbo->res_list, mob_head) {
+		if (!res->func->unbind)
+			continue;
 
-	dma_buf = container_of(bo, struct vmw_dma_buffer, base);
-
-	/*
-	 * Kill any cached kernel maps before move. An optimization could
-	 * be to do this iff source or destination memory type is VRAM.
-	 */
-	vmw_dma_buffer_unmap(dma_buf);
-
-	if (mem->mem_type != VMW_PL_MOB) {
-		struct vmw_resource *res, *n;
-		struct ttm_validate_buffer val_buf;
-
-		val_buf.bo = bo;
-		val_buf.shared = false;
-
-		list_for_each_entry_safe(res, n, &dma_buf->res_list, mob_head) {
-
-			if (unlikely(res->func->unbind == NULL))
-				continue;
-
-			(void) res->func->unbind(res, true, &val_buf);
-			res->backup_dirty = true;
-			res->res_dirty = false;
-			list_del_init(&res->mob_head);
-		}
-
-		(void) ttm_bo_wait(bo, false, false);
+		(void) res->func->unbind(res, true, &val_buf);
+		res->backup_dirty = true;
+		res->res_dirty = false;
+		list_del_init(&res->mob_head);
 	}
-}
 
-
-/**
- * vmw_resource_swap_notify - swapout notify callback.
- *
- * @bo: The buffer object to be swapped out.
- */
-void vmw_resource_swap_notify(struct ttm_buffer_object *bo)
-{
-	if (bo->destroy != vmw_dmabuf_bo_free &&
-	    bo->destroy != vmw_user_dmabuf_destroy)
-		return;
-
-	/* Kill any cached kernel maps before swapout */
-	vmw_dma_buffer_unmap(vmw_dma_buffer(bo));
+	(void) ttm_bo_wait(&vbo->base, false, false);
 }
 
 
@@ -1294,7 +705,7 @@ void vmw_resource_swap_notify(struct ttm_buffer_object *bo)
  * Read back cached states from the device if they exist.  This function
  * assumings binding_mutex is held.
  */
-int vmw_query_readback_all(struct vmw_dma_buffer *dx_query_mob)
+int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob)
 {
 	struct vmw_resource *dx_query_ctx;
 	struct vmw_private *dev_priv;
@@ -1344,7 +755,7 @@ int vmw_query_readback_all(struct vmw_dma_buffer *dx_query_mob)
 void vmw_query_move_notify(struct ttm_buffer_object *bo,
 			   struct ttm_mem_reg *mem)
 {
-	struct vmw_dma_buffer *dx_query_mob;
+	struct vmw_buffer_object *dx_query_mob;
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct vmw_private *dev_priv;
 
@@ -1353,7 +764,7 @@ void vmw_query_move_notify(struct ttm_buffer_object *bo,
 
 	mutex_lock(&dev_priv->binding_mutex);
 
-	dx_query_mob = container_of(bo, struct vmw_dma_buffer, base);
+	dx_query_mob = container_of(bo, struct vmw_buffer_object, base);
 	if (mem == NULL || !dx_query_mob || !dx_query_mob->dx_query_ctx) {
 		mutex_unlock(&dev_priv->binding_mutex);
 		return;
@@ -1368,7 +779,7 @@ void vmw_query_move_notify(struct ttm_buffer_object *bo,
 
 		/* Create a fence and attach the BO to it */
 		(void) vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
-		vmw_fence_single_bo(bo, fence);
+		vmw_bo_fence_single(bo, fence);
 
 		if (fence != NULL)
 			vmw_fence_obj_unreference(&fence);
@@ -1405,6 +816,7 @@ static void vmw_resource_evict_type(struct vmw_private *dev_priv,
 	struct vmw_resource *evict_res;
 	unsigned err_count = 0;
 	int ret;
+	struct ww_acquire_ctx ticket;
 
 	do {
 		write_lock(&dev_priv->resource_lock);
@@ -1418,7 +830,8 @@ static void vmw_resource_evict_type(struct vmw_private *dev_priv,
 		list_del_init(&evict_res->lru_head);
 		write_unlock(&dev_priv->resource_lock);
 
-		ret = vmw_resource_do_evict(evict_res, false);
+		/* Wait lock backup buffers with a ticket. */
+		ret = vmw_resource_do_evict(&ticket, evict_res, false);
 		if (unlikely(ret != 0)) {
 			write_lock(&dev_priv->resource_lock);
 			list_add_tail(&evict_res->lru_head, lru_list);
@@ -1481,7 +894,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 		goto out_no_reserve;
 
 	if (res->pin_count == 0) {
-		struct vmw_dma_buffer *vbo = NULL;
+		struct vmw_buffer_object *vbo = NULL;
 
 		if (res->backup) {
 			vbo = res->backup;
@@ -1539,7 +952,7 @@ void vmw_resource_unpin(struct vmw_resource *res)
 
 	WARN_ON(res->pin_count == 0);
 	if (--res->pin_count == 0 && res->backup) {
-		struct vmw_dma_buffer *vbo = res->backup;
+		struct vmw_buffer_object *vbo = res->backup;
 
 		(void) ttm_bo_reserve(&vbo->base, false, false, NULL);
 		vmw_bo_pin_reserved(vbo, false);

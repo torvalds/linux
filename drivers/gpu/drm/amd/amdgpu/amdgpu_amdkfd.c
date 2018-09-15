@@ -243,6 +243,33 @@ int amdgpu_amdkfd_resume(struct amdgpu_device *adev)
 	return r;
 }
 
+int amdgpu_amdkfd_pre_reset(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (adev->kfd)
+		r = kgd2kfd->pre_reset(adev->kfd);
+
+	return r;
+}
+
+int amdgpu_amdkfd_post_reset(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (adev->kfd)
+		r = kgd2kfd->post_reset(adev->kfd);
+
+	return r;
+}
+
+void amdgpu_amdkfd_gpu_reset(struct kgd_dev *kgd)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+
+	amdgpu_device_gpu_recover(adev, NULL, false);
+}
+
 int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 			void **mem_obj, uint64_t *gpu_addr,
 			void **cpu_ptr)
@@ -251,7 +278,6 @@ int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 	struct amdgpu_bo *bo = NULL;
 	struct amdgpu_bo_param bp;
 	int r;
-	uint64_t gpu_addr_tmp = 0;
 	void *cpu_ptr_tmp = NULL;
 
 	memset(&bp, 0, sizeof(bp));
@@ -275,11 +301,16 @@ int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 		goto allocate_mem_reserve_bo_failed;
 	}
 
-	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT,
-				&gpu_addr_tmp);
+	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to pin bo for amdkfd\n", r);
 		goto allocate_mem_pin_bo_failed;
+	}
+
+	r = amdgpu_ttm_alloc_gart(&bo->tbo);
+	if (r) {
+		dev_err(adev->dev, "%p bind failed\n", bo);
+		goto allocate_mem_kmap_bo_failed;
 	}
 
 	r = amdgpu_bo_kmap(bo, &cpu_ptr_tmp);
@@ -290,7 +321,7 @@ int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 	}
 
 	*mem_obj = bo;
-	*gpu_addr = gpu_addr_tmp;
+	*gpu_addr = amdgpu_bo_gpu_offset(bo);
 	*cpu_ptr = cpu_ptr_tmp;
 
 	amdgpu_bo_unreserve(bo);
@@ -455,6 +486,14 @@ err_ib_sched:
 	amdgpu_job_free(job);
 err:
 	return ret;
+}
+
+void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+
+	amdgpu_dpm_switch_power_profile(adev,
+					PP_SMC_POWER_PROFILE_COMPUTE, !idle);
 }
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid)

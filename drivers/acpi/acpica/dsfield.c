@@ -15,6 +15,10 @@
 #include "acnamesp.h"
 #include "acparser.h"
 
+#ifdef ACPI_EXEC_APP
+#include "aecommon.h"
+#endif
+
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dsfield")
 
@@ -259,6 +263,13 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 	u64 position;
 	union acpi_parse_object *child;
 
+#ifdef ACPI_EXEC_APP
+	u64 value = 0;
+	union acpi_operand_object *result_desc;
+	union acpi_operand_object *obj_desc;
+	char *name_path;
+#endif
+
 	ACPI_FUNCTION_TRACE_PTR(ds_get_field_names, info);
 
 	/* First field starts at bit zero */
@@ -391,6 +402,25 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 					if (ACPI_FAILURE(status)) {
 						return_ACPI_STATUS(status);
 					}
+#ifdef ACPI_EXEC_APP
+					name_path =
+					    acpi_ns_get_external_pathname(info->
+									  field_node);
+					obj_desc =
+					    acpi_ut_create_integer_object
+					    (value);
+					if (ACPI_SUCCESS
+					    (ae_lookup_init_file_entry
+					     (name_path, &value))) {
+						acpi_ex_write_data_to_field
+						    (obj_desc,
+						     acpi_ns_get_attached_object
+						     (info->field_node),
+						     &result_desc);
+					}
+					acpi_ut_remove_reference(obj_desc);
+					ACPI_FREE(name_path);
+#endif
 				}
 			}
 
@@ -573,7 +603,9 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 	    !(walk_state->parse_flags & ACPI_PARSE_MODULE_LEVEL)) {
 		flags |= ACPI_NS_TEMPORARY;
 	}
-
+#ifdef ACPI_EXEC_APP
+	flags |= ACPI_NS_OVERRIDE_IF_FOUND;
+#endif
 	/*
 	 * Walk the list of entries in the field_list
 	 * Note: field_list can be of zero length. In this case, Arg will be NULL.

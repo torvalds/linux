@@ -7,8 +7,6 @@ Required properties:
      specific registers.
 
 Optional properties:
-- interrupt-parent: Should be the phandle for the interrupt controller. Use in
-    conjunction with "interrupts".
 - interrupts: Interrupt mapping for GPIO IRQ. Use in conjunction with
     "interrupt-parent". If an interrupt is not provided the driver will switch
     automatically to polling.

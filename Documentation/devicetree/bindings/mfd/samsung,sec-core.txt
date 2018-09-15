@@ -31,8 +31,6 @@ Required properties:
  - reg: Specifies the I2C slave address of the pmic block. It should be 0x66.
 
 Optional properties:
- - interrupt-parent: Specifies the phandle of the interrupt controller to which
-   the interrupts from s2mps11 are delivered to.
  - interrupts: Interrupt specifiers for interrupt sources.
  - samsung,s2mps11-wrstbi-ground: Indicates that WRSTBI pin of PMIC is pulled
    down. When the system is suspended it will always go down thus triggerring

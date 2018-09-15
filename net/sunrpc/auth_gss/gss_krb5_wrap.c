@@ -440,7 +440,6 @@ static u32
 gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
 		     struct xdr_buf *buf, struct page **pages)
 {
-	int		blocksize;
 	u8		*ptr, *plainhdr;
 	s32		now;
 	u8		flags = 0x00;
@@ -473,7 +472,6 @@ gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
 	*ptr++ = 0xff;
 	be16ptr = (__be16 *)ptr;
 
-	blocksize = crypto_skcipher_blocksize(kctx->acceptor_enc);
 	*be16ptr++ = 0;
 	/* "inner" token header always uses 0 for RRC */
 	*be16ptr++ = 0;
@@ -623,4 +621,3 @@ gss_unwrap_kerberos(struct gss_ctx *gctx, int offset, struct xdr_buf *buf)
 		return gss_unwrap_kerberos_v2(kctx, offset, buf);
 	}
 }
-

@@ -127,7 +127,7 @@ enum stu300_error {
 
 /*
  * The number of address send athemps tried before giving up.
- * If the first one failes it seems like 5 to 8 attempts are required.
+ * If the first one fails it seems like 5 to 8 attempts are required.
  */
 #define NUM_ADDR_RESEND_ATTEMPTS 12
 
@@ -673,12 +673,6 @@ static int stu300_xfer_msg(struct i2c_adapter *adap,
 			msg->addr, msg->len, msg->flags, stop);
 	}
 
-	/* Zero-length messages are not supported by this hardware */
-	if (msg->len == 0) {
-		ret = -EINVAL;
-		goto exit_disable;
-	}
-
 	/*
 	 * For some reason, sending the address sometimes fails when running
 	 * on  the 13 MHz clock. No interrupt arrives. This is a work around,
@@ -863,6 +857,10 @@ static const struct i2c_algorithm stu300_algo = {
 	.functionality	= stu300_func,
 };
 
+static const struct i2c_adapter_quirks stu300_quirks = {
+	.flags = I2C_AQ_NO_ZERO_LEN,
+};
+
 static int stu300_probe(struct platform_device *pdev)
 {
 	struct stu300_dev *dev;
@@ -920,6 +918,8 @@ static int stu300_probe(struct platform_device *pdev)
 	adap->algo = &stu300_algo;
 	adap->dev.parent = &pdev->dev;
 	adap->dev.of_node = pdev->dev.of_node;
+	adap->quirks = &stu300_quirks;
+
 	i2c_set_adapdata(adap, dev);
 
 	/* i2c device drivers may be active on return from add_adapter() */

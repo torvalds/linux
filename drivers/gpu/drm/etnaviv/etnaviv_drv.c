@@ -49,12 +49,12 @@ static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 
 	for (i = 0; i < ETNA_MAX_PIPES; i++) {
 		struct etnaviv_gpu *gpu = priv->gpu[i];
+		struct drm_sched_rq *rq;
 
 		if (gpu) {
-			drm_sched_entity_init(&gpu->sched,
-				&ctx->sched_entity[i],
-				&gpu->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL],
-				NULL);
+			rq = &gpu->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+			drm_sched_entity_init(&ctx->sched_entity[i],
+					      &rq, 1, NULL);
 			}
 	}
 
@@ -78,8 +78,7 @@ static void etnaviv_postclose(struct drm_device *dev, struct drm_file *file)
 				gpu->lastctx = NULL;
 			mutex_unlock(&gpu->lock);
 
-			drm_sched_entity_fini(&gpu->sched,
-					      &ctx->sched_entity[i]);
+			drm_sched_entity_destroy(&ctx->sched_entity[i]);
 		}
 	}
 
@@ -631,8 +630,11 @@ static struct platform_driver etnaviv_platform_driver = {
 	},
 };
 
+static struct platform_device *etnaviv_drm;
+
 static int __init etnaviv_init(void)
 {
+	struct platform_device *pdev;
 	int ret;
 	struct device_node *np;
 
@@ -644,7 +646,7 @@ static int __init etnaviv_init(void)
 
 	ret = platform_driver_register(&etnaviv_platform_driver);
 	if (ret != 0)
-		platform_driver_unregister(&etnaviv_gpu_driver);
+		goto unregister_gpu_driver;
 
 	/*
 	 * If the DT contains at least one available GPU device, instantiate
@@ -653,20 +655,33 @@ static int __init etnaviv_init(void)
 	for_each_compatible_node(np, NULL, "vivante,gc") {
 		if (!of_device_is_available(np))
 			continue;
-
-		platform_device_register_simple("etnaviv", -1, NULL, 0);
+		pdev = platform_device_register_simple("etnaviv", -1,
+						       NULL, 0);
+		if (IS_ERR(pdev)) {
+			ret = PTR_ERR(pdev);
+			of_node_put(np);
+			goto unregister_platform_driver;
+		}
+		etnaviv_drm = pdev;
 		of_node_put(np);
 		break;
 	}
 
+	return 0;
+
+unregister_platform_driver:
+	platform_driver_unregister(&etnaviv_platform_driver);
+unregister_gpu_driver:
+	platform_driver_unregister(&etnaviv_gpu_driver);
 	return ret;
 }
 module_init(etnaviv_init);
 
 static void __exit etnaviv_exit(void)
 {
-	platform_driver_unregister(&etnaviv_gpu_driver);
+	platform_device_unregister(etnaviv_drm);
 	platform_driver_unregister(&etnaviv_platform_driver);
+	platform_driver_unregister(&etnaviv_gpu_driver);
 }
 module_exit(etnaviv_exit);
 

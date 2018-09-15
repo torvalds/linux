@@ -34,6 +34,7 @@ enum {
 #define R_DACSR         0x19
 #define R_PWRM1         0x1A
 #define R_PWRM2         0x1B
+#define R_CTL		0x1C
 #define R_CONFIG0       0x1F
 #define R_CONFIG1       0x20
 #define R_DMICCTL       0x24
@@ -1110,6 +1111,13 @@ enum {
 #define RV_PWRM2_VREF_DISABLE \
 	 RV(FV_PWRM2_VREF_DISABLE, FB_PWRM2_VREF)
 
+/******************************
+ *      R_CTL (0x1C)          *
+ ******************************/
+
+/* Fiel Offsets */
+#define FB_CTL_HPSWEN                        7
+#define FB_CTL_HPSWPOL                       6
 
 /******************************
  *      R_CONFIG0 (0x1F)      *

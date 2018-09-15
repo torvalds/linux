@@ -112,8 +112,11 @@ DEFINE_EVENT(filelock_lock, locks_remove_posix,
 		TP_PROTO(struct inode *inode, struct file_lock *fl, int ret),
 		TP_ARGS(inode, fl, ret));
 
-DECLARE_EVENT_CLASS(filelock_lease,
+DEFINE_EVENT(filelock_lock, flock_lock_inode,
+		TP_PROTO(struct inode *inode, struct file_lock *fl, int ret),
+		TP_ARGS(inode, fl, ret));
 
+DECLARE_EVENT_CLASS(filelock_lease,
 	TP_PROTO(struct inode *inode, struct file_lock *fl),
 
 	TP_ARGS(inode, fl),

@@ -89,8 +89,8 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	aq_nic_rss_init(self, cfg->num_rss_queues);
 
 	/*descriptors */
-	cfg->rxds = min(cfg->aq_hw_caps->rxds, AQ_CFG_RXDS_DEF);
-	cfg->txds = min(cfg->aq_hw_caps->txds, AQ_CFG_TXDS_DEF);
+	cfg->rxds = min(cfg->aq_hw_caps->rxds_max, AQ_CFG_RXDS_DEF);
+	cfg->txds = min(cfg->aq_hw_caps->txds_max, AQ_CFG_TXDS_DEF);
 
 	/*rss rings */
 	cfg->vecs = min(cfg->aq_hw_caps->vecs, AQ_CFG_VECS_DEF);
@@ -563,34 +563,41 @@ err_exit:
 
 int aq_nic_set_multicast_list(struct aq_nic_s *self, struct net_device *ndev)
 {
+	unsigned int packet_filter = self->packet_filter;
 	struct netdev_hw_addr *ha = NULL;
 	unsigned int i = 0U;
 
-	self->mc_list.count = 0U;
-
-	netdev_for_each_mc_addr(ha, ndev) {
-		ether_addr_copy(self->mc_list.ar[i++], ha->addr);
-		++self->mc_list.count;
-
-		if (i >= AQ_CFG_MULTICAST_ADDRESS_MAX)
-			break;
-	}
-
-	if (i >= AQ_CFG_MULTICAST_ADDRESS_MAX) {
-		/* Number of filters is too big: atlantic does not support this.
-		 * Force all multi filter to support this.
-		 * With this we disable all UC filters and setup "all pass"
-		 * multicast mask
-		 */
-		self->packet_filter |= IFF_ALLMULTI;
-		self->aq_nic_cfg.mc_list_count = 0;
-		return self->aq_hw_ops->hw_packet_filter_set(self->aq_hw,
-							     self->packet_filter);
+	self->mc_list.count = 0;
+	if (netdev_uc_count(ndev) > AQ_HW_MULTICAST_ADDRESS_MAX) {
+		packet_filter |= IFF_PROMISC;
 	} else {
-		return self->aq_hw_ops->hw_multicast_list_set(self->aq_hw,
-						    self->mc_list.ar,
-						    self->mc_list.count);
+		netdev_for_each_uc_addr(ha, ndev) {
+			ether_addr_copy(self->mc_list.ar[i++], ha->addr);
+
+			if (i >= AQ_HW_MULTICAST_ADDRESS_MAX)
+				break;
+		}
 	}
+
+	if (i + netdev_mc_count(ndev) > AQ_HW_MULTICAST_ADDRESS_MAX) {
+		packet_filter |= IFF_ALLMULTI;
+	} else {
+		netdev_for_each_mc_addr(ha, ndev) {
+			ether_addr_copy(self->mc_list.ar[i++], ha->addr);
+
+			if (i >= AQ_HW_MULTICAST_ADDRESS_MAX)
+				break;
+		}
+	}
+
+	if (i > 0 && i < AQ_HW_MULTICAST_ADDRESS_MAX) {
+		packet_filter |= IFF_MULTICAST;
+		self->mc_list.count = i;
+		self->aq_hw_ops->hw_multicast_list_set(self->aq_hw,
+						       self->mc_list.ar,
+						       self->mc_list.count);
+	}
+	return aq_nic_set_packet_filter(self, packet_filter);
 }
 
 int aq_nic_set_mtu(struct aq_nic_s *self, int new_mtu)
@@ -761,9 +768,13 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     100baseT_Full);
 
-	if (self->aq_nic_cfg.flow_control)
+	if (self->aq_nic_cfg.flow_control & AQ_NIC_FC_RX)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     Pause);
+
+	if (self->aq_nic_cfg.flow_control & AQ_NIC_FC_TX)
+		ethtool_link_ksettings_add_link_mode(cmd, advertising,
+						     Asym_Pause);
 
 	if (self->aq_nic_cfg.aq_hw_caps->media_type == AQ_HW_MEDIA_TYPE_FIBRE)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising, FIBRE);
@@ -879,7 +890,7 @@ void aq_nic_deinit(struct aq_nic_s *self)
 		aq_vec_deinit(aq_vec);
 
 	if (self->power_state == AQ_HW_POWER_STATE_D0) {
-		(void)self->aq_hw_ops->hw_deinit(self->aq_hw);
+		(void)self->aq_fw_ops->deinit(self->aq_hw);
 	} else {
 		(void)self->aq_hw_ops->hw_set_power(self->aq_hw,
 						   self->power_state);

@@ -331,7 +331,8 @@ static void init_mlme_ext_priv_value(struct adapter *padapter)
 
 static int has_channel(RT_CHANNEL_INFO *channel_set,
 					   u8 chanset_size,
-					   u8 chan) {
+					   u8 chan)
+{
 	int i;
 
 	for (i = 0; i < chanset_size; i++) {
@@ -345,7 +346,8 @@ static int has_channel(RT_CHANNEL_INFO *channel_set,
 
 static void init_channel_list(struct adapter *padapter, RT_CHANNEL_INFO *channel_set,
 							  u8 chanset_size,
-							  struct p2p_channels *channel_list) {
+							  struct p2p_channels *channel_list)
+{
 
 	struct p2p_oper_class_map op_class[] = {
 		{ IEEE80211G,  81,   1,  13,  1, BW20 },

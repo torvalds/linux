@@ -92,7 +92,7 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
  *   VRP0 VRP1 VRP2 VRP3 VRP4 VRP5 PRP0 PRP1 PKP0 PKP1 PKP2 PKP3 PKP4 CGM
  *   VRN0 VRN1 VRN2 VRN3 VRN4 VRN5 PRN0 PRN1 PKN0 PKN1 PKN2 PKN3 PKN4 CGM
  */
-#define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
+#define CURVE(num, idx)  curves[(num) * par->gamma.num_values + (idx)]
 static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	unsigned long mask[] = {

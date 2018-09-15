@@ -275,7 +275,6 @@ int rtsx_send_cmd(struct rtsx_chip *chip, u8 card, int timeout)
 		dev_dbg(rtsx_dev(chip), "chip->int_reg = 0x%x\n",
 			chip->int_reg);
 		err = -ETIMEDOUT;
-		rtsx_trace(chip);
 		goto finish_send_cmd;
 	}
 

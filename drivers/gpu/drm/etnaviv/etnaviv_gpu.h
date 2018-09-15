@@ -118,7 +118,7 @@ struct etnaviv_gpu {
 	u32 idle_mask;
 
 	/* Fencing support */
-	struct mutex fence_idr_lock;
+	struct mutex fence_lock;
 	struct idr fence_idr;
 	u32 next_fence;
 	u32 active_fence;
@@ -130,6 +130,9 @@ struct etnaviv_gpu {
 	/* worker for handling 'sync' points: */
 	struct work_struct sync_point_work;
 	int sync_point_event;
+
+	/* hang detection */
+	u32 hangcheck_dma_addr;
 
 	void __iomem *mmio;
 	int irq;

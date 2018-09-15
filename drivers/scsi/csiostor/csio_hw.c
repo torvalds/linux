@@ -761,27 +761,116 @@ out:
 static int
 csio_hw_get_flash_params(struct csio_hw *hw)
 {
+	/* Table for non-Numonix supported flash parts.  Numonix parts are left
+	 * to the preexisting code.  All flash parts have 64KB sectors.
+	 */
+	static struct flash_desc {
+		u32 vendor_and_model_id;
+		u32 size_mb;
+	} supported_flash[] = {
+		{ 0x150201, 4 << 20 },       /* Spansion 4MB S25FL032P */
+	};
+
+	u32 part, manufacturer;
+	u32 density, size = 0;
+	u32 flashid = 0;
 	int ret;
-	uint32_t info = 0;
 
 	ret = csio_hw_sf1_write(hw, 1, 1, 0, SF_RD_ID);
 	if (!ret)
-		ret = csio_hw_sf1_read(hw, 3, 0, 1, &info);
+		ret = csio_hw_sf1_read(hw, 3, 0, 1, &flashid);
 	csio_wr_reg32(hw, 0, SF_OP_A);    /* unlock SF */
-	if (ret != 0)
+	if (ret)
 		return ret;
 
-	if ((info & 0xff) != 0x20)		/* not a Numonix flash */
-		return -EINVAL;
-	info >>= 16;				/* log2 of size */
-	if (info >= 0x14 && info < 0x18)
-		hw->params.sf_nsec = 1 << (info - 16);
-	else if (info == 0x18)
-		hw->params.sf_nsec = 64;
-	else
-		return -EINVAL;
-	hw->params.sf_size = 1 << info;
+	/* Check to see if it's one of our non-standard supported Flash parts.
+	 */
+	for (part = 0; part < ARRAY_SIZE(supported_flash); part++)
+		if (supported_flash[part].vendor_and_model_id == flashid) {
+			hw->params.sf_size = supported_flash[part].size_mb;
+			hw->params.sf_nsec =
+				hw->params.sf_size / SF_SEC_SIZE;
+			goto found;
+		}
 
+	/* Decode Flash part size.  The code below looks repetative with
+	 * common encodings, but that's not guaranteed in the JEDEC
+	 * specification for the Read JADEC ID command.  The only thing that
+	 * we're guaranteed by the JADEC specification is where the
+	 * Manufacturer ID is in the returned result.  After that each
+	 * Manufacturer ~could~ encode things completely differently.
+	 * Note, all Flash parts must have 64KB sectors.
+	 */
+	manufacturer = flashid & 0xff;
+	switch (manufacturer) {
+	case 0x20: { /* Micron/Numonix */
+		/* This Density -> Size decoding table is taken from Micron
+		 * Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x14 ... 0x19: /* 1MB - 32MB */
+			size = 1 << density;
+			break;
+		case 0x20: /* 64MB */
+			size = 1 << 26;
+			break;
+		case 0x21: /* 128MB */
+			size = 1 << 27;
+			break;
+		case 0x22: /* 256MB */
+			size = 1 << 28;
+		}
+		break;
+	}
+	case 0x9d: { /* ISSI -- Integrated Silicon Solution, Inc. */
+		/* This Density -> Size decoding table is taken from ISSI
+		 * Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x16: /* 32 MB */
+			size = 1 << 25;
+			break;
+		case 0x17: /* 64MB */
+			size = 1 << 26;
+		}
+		break;
+	}
+	case 0xc2: /* Macronix */
+	case 0xef: /* Winbond */ {
+		/* This Density -> Size decoding table is taken from
+		 * Macronix and Winbond Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x17: /* 8MB */
+		case 0x18: /* 16MB */
+			size = 1 << density;
+		}
+	}
+	}
+
+	/* If we didn't recognize the FLASH part, that's no real issue: the
+	 * Hardware/Software contract says that Hardware will _*ALWAYS*_
+	 * use a FLASH part which is at least 4MB in size and has 64KB
+	 * sectors.  The unrecognized FLASH part is likely to be much larger
+	 * than 4MB, but that's all we really need.
+	 */
+	if (size == 0) {
+		csio_warn(hw, "Unknown Flash Part, ID = %#x, assuming 4MB\n",
+			  flashid);
+		size = 1 << 22;
+	}
+
+	/* Store decoded Flash size */
+	hw->params.sf_size = size;
+	hw->params.sf_nsec = size / SF_SEC_SIZE;
+
+found:
+	if (hw->params.sf_size < FLASH_MIN_SIZE)
+		csio_warn(hw, "WARNING: Flash Part ID %#x, size %#x < %#x\n",
+			  flashid, hw->params.sf_size, FLASH_MIN_SIZE);
 	return 0;
 }
 

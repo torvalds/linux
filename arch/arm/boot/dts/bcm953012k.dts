@@ -113,3 +113,7 @@
 &uart1 {
 	status = "okay";
 };
+
+&usb3_phy {
+	status = "okay";
+};

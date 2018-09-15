@@ -58,7 +58,7 @@ void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
 	}
 
 	if (xive_enabled()) {
-		xive_kexec_teardown_cpu(secondary);
+		xive_teardown_cpu();
 
 		if (!secondary)
 			xive_shutdown();

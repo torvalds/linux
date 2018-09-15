@@ -383,4 +383,46 @@ static inline u32 ath10k_ce_interrupt_summary(struct ath10k *ar)
 		return CE_INTERRUPT_SUMMARY;
 }
 
+/* Host software's Copy Engine configuration. */
+#define CE_ATTR_FLAGS 0
+
+/*
+ * Configuration information for a Copy Engine pipe.
+ * Passed from Host to Target during startup (one per CE).
+ *
+ * NOTE: Structure is shared between Host software and Target firmware!
+ */
+struct ce_pipe_config {
+	__le32 pipenum;
+	__le32 pipedir;
+	__le32 nentries;
+	__le32 nbytes_max;
+	__le32 flags;
+	__le32 reserved;
+};
+
+/*
+ * Directions for interconnect pipe configuration.
+ * These definitions may be used during configuration and are shared
+ * between Host and Target.
+ *
+ * Pipe Directions are relative to the Host, so PIPEDIR_IN means
+ * "coming IN over air through Target to Host" as with a WiFi Rx operation.
+ * Conversely, PIPEDIR_OUT means "going OUT from Host through Target over air"
+ * as with a WiFi Tx operation. This is somewhat awkward for the "middle-man"
+ * Target since things that are "PIPEDIR_OUT" are coming IN to the Target
+ * over the interconnect.
+ */
+#define PIPEDIR_NONE    0
+#define PIPEDIR_IN      1  /* Target-->Host, WiFi Rx direction */
+#define PIPEDIR_OUT     2  /* Host->Target, WiFi Tx direction */
+#define PIPEDIR_INOUT   3  /* bidirectional */
+
+/* Establish a mapping between a service/direction and a pipe. */
+struct service_to_pipe {
+	__le32 service_id;
+	__le32 pipedir;
+	__le32 pipenum;
+};
+
 #endif /* _CE_H_ */

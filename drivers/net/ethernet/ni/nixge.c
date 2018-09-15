@@ -155,7 +155,6 @@ struct nixge_priv {
 
 	int tx_irq;
 	int rx_irq;
-	u32 last_link;
 
 	/* Buffer descriptors */
 	struct nixge_hw_dma_bd *tx_bd_v;
@@ -504,7 +503,6 @@ static int nixge_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	tx_skb->skb = skb;
 
 	cur_p->cntrl |= XAXIDMA_BD_CTRL_TXEOF_MASK;
-	cur_p->app4 = (unsigned long)skb;
 
 	tail_p = priv->tx_bd_p + sizeof(*priv->tx_bd_v) * priv->tx_bd_tail;
 	/* Start the transfer */
@@ -740,22 +738,12 @@ static void nixge_dma_err_handler(unsigned long data)
 		cur_p->phys = 0;
 		cur_p->cntrl = 0;
 		cur_p->status = 0;
-		cur_p->app0 = 0;
-		cur_p->app1 = 0;
-		cur_p->app2 = 0;
-		cur_p->app3 = 0;
-		cur_p->app4 = 0;
 		cur_p->sw_id_offset = 0;
 	}
 
 	for (i = 0; i < RX_BD_NUM; i++) {
 		cur_p = &lp->rx_bd_v[i];
 		cur_p->status = 0;
-		cur_p->app0 = 0;
-		cur_p->app1 = 0;
-		cur_p->app2 = 0;
-		cur_p->app3 = 0;
-		cur_p->app4 = 0;
 	}
 
 	lp->tx_bd_ci = 0;

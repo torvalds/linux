@@ -22,28 +22,11 @@
 #include "x86.h"
 
 #define VCPU_ID 5
-#define PORT_HOST_SYNC 0x1000
-
-static void __exit_to_l0(uint16_t port, uint64_t arg0, uint64_t arg1)
-{
-	        __asm__ __volatile__("in %[port], %%al"
-				     :
-				     : [port]"d"(port), "D"(arg0), "S"(arg1)
-				     : "rax");
-}
-
-#define exit_to_l0(_port, _arg0, _arg1) \
-        __exit_to_l0(_port, (uint64_t) (_arg0), (uint64_t) (_arg1))
-
-#define GUEST_ASSERT(_condition) do { \
-	if (!(_condition)) \
-		exit_to_l0(PORT_ABORT, "Failed guest assert: " #_condition, 0);\
-} while (0)
 
 void guest_code(void)
 {
 	for (;;) {
-		exit_to_l0(PORT_HOST_SYNC, "hello", 0);
+		GUEST_SYNC(0);
 		asm volatile ("inc %r11");
 	}
 }
@@ -111,7 +94,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Create VM */
-	vm = vm_create_default(VCPU_ID, guest_code);
+	vm = vm_create_default(VCPU_ID, 0, guest_code);
 
 	run = vcpu_state(vm, VCPU_ID);
 

@@ -194,7 +194,7 @@ static inline int qt2_getregister(struct usb_device *dev,
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
 			      QT_SET_GET_REGISTER, 0xc0, reg,
 			      uart, data, sizeof(*data), QT2_USB_TIMEOUT);
-	if (ret < sizeof(*data)) {
+	if (ret < (int)sizeof(*data)) {
 		if (ret >= 0)
 			ret = -EIO;
 	}
@@ -621,16 +621,17 @@ static void qt2_write_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port;
 	struct qt2_port_private *port_priv;
+	unsigned long flags;
 
 	port = urb->context;
 	port_priv = usb_get_serial_port_data(port);
 
-	spin_lock(&port_priv->urb_lock);
+	spin_lock_irqsave(&port_priv->urb_lock, flags);
 
 	port_priv->urb_in_use = false;
 	usb_serial_port_softint(port);
 
-	spin_unlock(&port_priv->urb_lock);
+	spin_unlock_irqrestore(&port_priv->urb_lock, flags);
 
 }
 

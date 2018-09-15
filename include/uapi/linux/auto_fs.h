@@ -23,7 +23,7 @@
 #define AUTOFS_MIN_PROTO_VERSION	3
 #define AUTOFS_MAX_PROTO_VERSION	5
 
-#define AUTOFS_PROTO_SUBVERSION		2
+#define AUTOFS_PROTO_SUBVERSION		3
 
 /*
  * The wait_queue_token (autofs_wqt_t) is part of a structure which is passed
@@ -90,8 +90,10 @@ enum {
 /* autofs version 4 and later definitions */
 
 /* Mask for expire behaviour */
-#define AUTOFS_EXP_IMMEDIATE		1
-#define AUTOFS_EXP_LEAVES		2
+#define AUTOFS_EXP_NORMAL		0x00
+#define AUTOFS_EXP_IMMEDIATE		0x01
+#define AUTOFS_EXP_LEAVES		0x02
+#define AUTOFS_EXP_FORCED		0x04
 
 #define AUTOFS_TYPE_ANY			0U
 #define AUTOFS_TYPE_INDIRECT		1U

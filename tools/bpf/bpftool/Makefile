@@ -23,10 +23,10 @@ endif
 
 LIBBPF = $(BPF_PATH)libbpf.a
 
-BPFTOOL_VERSION=$(shell make --no-print-directory -sC ../../.. kernelversion)
+BPFTOOL_VERSION := $(shell make --no-print-directory -sC ../../.. kernelversion)
 
 $(LIBBPF): FORCE
-	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(OUTPUT) $(OUTPUT)libbpf.a FEATURES_DUMP=$(FEATURE_DUMP_EXPORT)
+	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(OUTPUT) $(OUTPUT)libbpf.a
 
 $(LIBBPF)-clean:
 	$(call QUIET_CLEAN, libbpf)
@@ -52,7 +52,7 @@ INSTALL ?= install
 RM ?= rm -f
 
 FEATURE_USER = .bpftool
-FEATURE_TESTS = libbfd disassembler-four-args
+FEATURE_TESTS = libbfd disassembler-four-args reallocarray
 FEATURE_DISPLAY = libbfd disassembler-four-args
 
 check_feat := 1
@@ -73,6 +73,10 @@ endif
 
 ifeq ($(feature-disassembler-four-args), 1)
 CFLAGS += -DDISASM_FOUR_ARGS_SIGNATURE
+endif
+
+ifeq ($(feature-reallocarray), 0)
+CFLAGS += -DCOMPAT_NEED_REALLOCARRAY
 endif
 
 include $(wildcard $(OUTPUT)*.d)

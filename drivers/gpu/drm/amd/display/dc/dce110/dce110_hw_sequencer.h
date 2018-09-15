@@ -49,6 +49,10 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings);
 
 void dce110_blank_stream(struct pipe_ctx *pipe_ctx);
+
+void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx);
+void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option);
+
 void dce110_update_info_frame(struct pipe_ctx *pipe_ctx);
 
 void dce110_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
@@ -56,9 +60,18 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context);
 
 void dce110_power_down(struct dc *dc);
 
+void dce110_set_safe_displaymarks(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool);
+
 void dce110_fill_display_configs(
 	const struct dc_state *context,
 	struct dm_pp_display_configuration *pp_display_cfg);
+
+void dce110_set_bandwidth(
+		struct dc *dc,
+		struct dc_state *context,
+		bool decrease_allowed);
 
 uint32_t dce110_get_min_vblank_time_us(const struct dc_state *context);
 

@@ -457,7 +457,6 @@ static const struct snd_pcm_ops pcm_ops = {
 	.trigger    = pcm_trigger,
 	.pointer    = pcm_pointer,
 	.page       = snd_pcm_lib_get_vmalloc_page,
-	.mmap       = snd_pcm_lib_mmap_vmalloc,
 };
 
 static int split_arg_list(char *buf, char **card_name, u16 *ch_num,

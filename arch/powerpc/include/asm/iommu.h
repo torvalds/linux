@@ -30,6 +30,7 @@
 #include <asm/machdep.h>
 #include <asm/types.h>
 #include <asm/pci-bridge.h>
+#include <asm/asm-const.h>
 
 #define IOMMU_PAGE_SHIFT_4K      12
 #define IOMMU_PAGE_SIZE_4K       (ASM_CONST(1) << IOMMU_PAGE_SHIFT_4K)
@@ -69,6 +70,8 @@ struct iommu_table_ops {
 			long index,
 			unsigned long *hpa,
 			enum dma_data_direction *direction);
+
+	__be64 *(*useraddrptr)(struct iommu_table *tbl, long index, bool alloc);
 #endif
 	void (*clear)(struct iommu_table *tbl,
 			long index, long npages);
@@ -117,15 +120,16 @@ struct iommu_table {
 	unsigned long *it_map;       /* A simple allocation bitmap for now */
 	unsigned long  it_page_shift;/* table iommu page size */
 	struct list_head it_group_list;/* List of iommu_table_group_link */
-	unsigned long *it_userspace; /* userspace view of the table */
+	__be64 *it_userspace; /* userspace view of the table */
 	struct iommu_table_ops *it_ops;
 	struct kref    it_kref;
+	int it_nid;
 };
 
+#define IOMMU_TABLE_USERSPACE_ENTRY_RM(tbl, entry) \
+		((tbl)->it_ops->useraddrptr((tbl), (entry), false))
 #define IOMMU_TABLE_USERSPACE_ENTRY(tbl, entry) \
-		((tbl)->it_userspace ? \
-			&((tbl)->it_userspace[(entry) - (tbl)->it_offset]) : \
-			NULL)
+		((tbl)->it_ops->useraddrptr((tbl), (entry), true))
 
 /* Pure 2^n version of get_order */
 static inline __attribute_const__

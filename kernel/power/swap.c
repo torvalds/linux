@@ -923,7 +923,7 @@ int swsusp_write(unsigned int flags)
 	}
 	memset(&snapshot, 0, sizeof(struct snapshot_handle));
 	error = snapshot_read_next(&snapshot);
-	if (error < PAGE_SIZE) {
+	if (error < (int)PAGE_SIZE) {
 		if (error >= 0)
 			error = -EFAULT;
 
@@ -1483,7 +1483,7 @@ int swsusp_read(unsigned int *flags_p)
 
 	memset(&snapshot, 0, sizeof(struct snapshot_handle));
 	error = snapshot_write_next(&snapshot);
-	if (error < PAGE_SIZE)
+	if (error < (int)PAGE_SIZE)
 		return error < 0 ? error : -EFAULT;
 	header = (struct swsusp_info *)data_of(snapshot);
 	error = get_swap_reader(&handle, flags_p);

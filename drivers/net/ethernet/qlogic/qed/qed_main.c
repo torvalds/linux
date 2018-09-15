@@ -371,7 +371,7 @@ static struct qed_dev *qed_probe(struct pci_dev *pdev,
 		goto err2;
 	}
 
-	DP_INFO(cdev, "qed_probe completed successffuly\n");
+	DP_INFO(cdev, "qed_probe completed successfully\n");
 
 	return cdev;
 
@@ -789,6 +789,14 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 	/* We want a minimum of one slowpath and one fastpath vector per hwfn */
 	cdev->int_params.in.min_msix_cnt = cdev->num_hwfns * 2;
 
+	if (is_kdump_kernel()) {
+		DP_INFO(cdev,
+			"Kdump kernel: Limit the max number of requested MSI-X vectors to %hd\n",
+			cdev->int_params.in.min_msix_cnt);
+		cdev->int_params.in.num_vectors =
+			cdev->int_params.in.min_msix_cnt;
+	}
+
 	rc = qed_set_int_mode(cdev, false);
 	if (rc)  {
 		DP_ERR(cdev, "qed_slowpath_setup_int ERR\n");
@@ -940,13 +948,14 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 		params->eth_pf_params.num_arfs_filters = 0;
 
 	/* In case we might support RDMA, don't allow qede to be greedy
-	 * with the L2 contexts. Allow for 64 queues [rx, tx, xdp] per hwfn.
+	 * with the L2 contexts. Allow for 64 queues [rx, tx cos, xdp]
+	 * per hwfn.
 	 */
 	if (QED_IS_RDMA_PERSONALITY(QED_LEADING_HWFN(cdev))) {
 		u16 *num_cons;
 
 		num_cons = &params->eth_pf_params.num_cons;
-		*num_cons = min_t(u16, *num_cons, 192);
+		*num_cons = min_t(u16, *num_cons, QED_MAX_L2_CONS);
 	}
 
 	for (i = 0; i < cdev->num_hwfns; i++) {
@@ -2094,6 +2103,28 @@ out:
 	return status;
 }
 
+static int qed_read_module_eeprom(struct qed_dev *cdev, char *buf,
+				  u8 dev_addr, u32 offset, u32 len)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int rc = 0;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	rc = qed_mcp_phy_sfp_read(hwfn, ptt, MFW_PORT(hwfn), dev_addr,
+				  offset, len, buf);
+
+	qed_ptt_release(hwfn, ptt);
+
+	return rc;
+}
+
 static struct qed_selftest_ops qed_selftest_ops_pass = {
 	.selftest_memory = &qed_selftest_memory,
 	.selftest_interrupt = &qed_selftest_interrupt,
@@ -2136,6 +2167,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.update_mac = &qed_update_mac,
 	.update_mtu = &qed_update_mtu,
 	.update_wol = &qed_update_wol,
+	.read_module_eeprom = &qed_read_module_eeprom,
 };
 
 void qed_get_protocol_stats(struct qed_dev *cdev,

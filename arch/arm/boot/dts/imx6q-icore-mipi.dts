@@ -20,6 +20,14 @@
 	status = "okay";
 };
 
+&mipi_csi {
+	status = "okay";
+};
+
+&ov5640 {
+	status = "okay";
+};
+
 &usdhc3 {
 	status = "okay";
 };

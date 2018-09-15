@@ -162,7 +162,7 @@ static int verify_firmware(struct intel_gvt *gvt,
 
 	h = (struct gvt_firmware_header *)fw->data;
 
-	crc32_start = offsetof(struct gvt_firmware_header, crc32) + 4;
+	crc32_start = offsetofend(struct gvt_firmware_header, crc32);
 	mem = fw->data + crc32_start;
 
 #define VERIFY(s, a, b) do { \

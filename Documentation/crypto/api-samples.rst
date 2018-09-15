@@ -162,7 +162,7 @@ Code Example For Use of Operational State Memory With SHASH
         char *hash_alg_name = "sha1-padlock-nano";
         int ret;
 
-        alg = crypto_alloc_shash(hash_alg_name, CRYPTO_ALG_TYPE_SHASH, 0);
+        alg = crypto_alloc_shash(hash_alg_name, 0, 0);
         if (IS_ERR(alg)) {
                 pr_info("can't alloc alg %s\n", hash_alg_name);
                 return PTR_ERR(alg);

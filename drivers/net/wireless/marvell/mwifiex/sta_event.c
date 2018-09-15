@@ -224,7 +224,8 @@ void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code,
 	adapter->tx_lock_flag = false;
 	adapter->pps_uapsd_mode = false;
 
-	if (adapter->is_cmd_timedout && adapter->curr_cmd)
+	if (test_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags) &&
+	    adapter->curr_cmd)
 		return;
 	priv->media_connected = false;
 	mwifiex_dbg(adapter, MSG,

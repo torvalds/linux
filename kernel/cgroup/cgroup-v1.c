@@ -135,7 +135,7 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 		if (task) {
 			ret = cgroup_migrate(task, false, &mgctx);
 			if (!ret)
-				trace_cgroup_transfer_tasks(to, task, false);
+				TRACE_CGROUP_PATH(transfer_tasks, to, task, false);
 			put_task_struct(task);
 		}
 	} while (task && !ret);
@@ -865,7 +865,7 @@ static int cgroup1_rename(struct kernfs_node *kn, struct kernfs_node *new_parent
 
 	ret = kernfs_rename(kn, new_parent, new_name_str);
 	if (!ret)
-		trace_cgroup_rename(cgrp);
+		TRACE_CGROUP_PATH(rename, cgrp);
 
 	mutex_unlock(&cgroup_mutex);
 

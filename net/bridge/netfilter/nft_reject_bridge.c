@@ -89,8 +89,7 @@ static void nft_reject_br_send_v4_tcp_reset(struct net *net,
 	niph = nf_reject_iphdr_put(nskb, oldskb, IPPROTO_TCP,
 				   net->ipv4.sysctl_ip_default_ttl);
 	nf_reject_ip_tcphdr_put(nskb, oldskb, oth);
-	niph->ttl	= net->ipv4.sysctl_ip_default_ttl;
-	niph->tot_len	= htons(nskb->len);
+	niph->tot_len = htons(nskb->len);
 	ip_send_check(niph);
 
 	nft_reject_br_push_etherhdr(oldskb, nskb);

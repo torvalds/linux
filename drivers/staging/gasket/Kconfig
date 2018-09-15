@@ -1,0 +1,23 @@
+menu "Gasket devices"
+
+config STAGING_GASKET_FRAMEWORK
+	tristate "Gasket framework"
+	depends on PCI && (X86_64 || ARM64)
+	help
+	  This framework supports Gasket-compatible devices, such as Apex.
+	  It is required for any of the following module(s).
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called "gasket".
+
+config STAGING_APEX_DRIVER
+	tristate "Apex Driver"
+	depends on STAGING_GASKET_FRAMEWORK
+	help
+	  This driver supports the Apex device.  Say Y if you want to
+	  include this driver in the kernel.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called "apex".
+
+endmenu

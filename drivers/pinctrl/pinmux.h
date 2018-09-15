@@ -150,13 +150,6 @@ int pinmux_generic_add_function(struct pinctrl_dev *pctldev,
 int pinmux_generic_remove_function(struct pinctrl_dev *pctldev,
 				   unsigned int selector);
 
-static inline int
-pinmux_generic_remove_last_function(struct pinctrl_dev *pctldev)
-{
-	return pinmux_generic_remove_function(pctldev,
-					      pctldev->num_functions - 1);
-}
-
 void pinmux_generic_free_functions(struct pinctrl_dev *pctldev);
 
 #else

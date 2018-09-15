@@ -37,6 +37,8 @@ struct i915_timeline {
 	u32 seqno;
 
 	spinlock_t lock;
+#define TIMELINE_CLIENT 0 /* default subclass */
+#define TIMELINE_ENGINE 1
 
 	/**
 	 * List of breadcrumbs associated with GPU requests currently

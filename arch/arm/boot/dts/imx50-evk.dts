@@ -98,14 +98,6 @@
 	status = "okay";
 };
 
-&usbh2 {
-	status = "okay";
-};
-
-&usbh3 {
-	status = "okay";
-};
-
 &usbotg {
 	status = "okay";
 };

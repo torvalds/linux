@@ -68,4 +68,11 @@ config DRM_SUN8I_MIXER
 	  graphics mixture and feed graphics to TCON, If M is
 	  selected the module will be called sun8i-mixer.
 
+config DRM_SUN8I_TCON_TOP
+	tristate
+	default DRM_SUN4I if DRM_SUN8I_MIXER!=n
+	help
+	  TCON TOP is responsible for configuring display pipeline for
+	  HTMI, TVE and LCD.
+
 endif

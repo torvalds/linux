@@ -94,8 +94,7 @@ static void set_baseline_state(struct led_netdev_data *trigger_data)
 static ssize_t device_name_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct led_netdev_data *trigger_data = led_cdev->trigger_data;
+	struct led_netdev_data *trigger_data = led_trigger_get_drvdata(dev);
 	ssize_t len;
 
 	spin_lock_bh(&trigger_data->lock);
@@ -109,8 +108,7 @@ static ssize_t device_name_store(struct device *dev,
 				 struct device_attribute *attr, const char *buf,
 				 size_t size)
 {
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct led_netdev_data *trigger_data = led_cdev->trigger_data;
+	struct led_netdev_data *trigger_data = led_trigger_get_drvdata(dev);
 
 	if (size >= IFNAMSIZ)
 		return -EINVAL;
@@ -150,8 +148,7 @@ static DEVICE_ATTR_RW(device_name);
 static ssize_t netdev_led_attr_show(struct device *dev, char *buf,
 	enum netdev_led_attr attr)
 {
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct led_netdev_data *trigger_data = led_cdev->trigger_data;
+	struct led_netdev_data *trigger_data = led_trigger_get_drvdata(dev);
 	int bit;
 
 	switch (attr) {
@@ -174,8 +171,7 @@ static ssize_t netdev_led_attr_show(struct device *dev, char *buf,
 static ssize_t netdev_led_attr_store(struct device *dev, const char *buf,
 	size_t size, enum netdev_led_attr attr)
 {
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct led_netdev_data *trigger_data = led_cdev->trigger_data;
+	struct led_netdev_data *trigger_data = led_trigger_get_drvdata(dev);
 	unsigned long state;
 	int ret;
 	int bit;
@@ -255,8 +251,7 @@ static DEVICE_ATTR_RW(rx);
 static ssize_t interval_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct led_netdev_data *trigger_data = led_cdev->trigger_data;
+	struct led_netdev_data *trigger_data = led_trigger_get_drvdata(dev);
 
 	return sprintf(buf, "%u\n",
 		       jiffies_to_msecs(atomic_read(&trigger_data->interval)));
@@ -266,8 +261,7 @@ static ssize_t interval_store(struct device *dev,
 			      struct device_attribute *attr, const char *buf,
 			      size_t size)
 {
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct led_netdev_data *trigger_data = led_cdev->trigger_data;
+	struct led_netdev_data *trigger_data = led_trigger_get_drvdata(dev);
 	unsigned long value;
 	int ret;
 
@@ -288,15 +282,23 @@ static ssize_t interval_store(struct device *dev,
 
 static DEVICE_ATTR_RW(interval);
 
+static struct attribute *netdev_trig_attrs[] = {
+	&dev_attr_device_name.attr,
+	&dev_attr_link.attr,
+	&dev_attr_rx.attr,
+	&dev_attr_tx.attr,
+	&dev_attr_interval.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(netdev_trig);
+
 static int netdev_trig_notify(struct notifier_block *nb,
 			      unsigned long evt, void *dv)
 {
 	struct net_device *dev =
 		netdev_notifier_info_to_dev((struct netdev_notifier_info *)dv);
-	struct led_netdev_data *trigger_data = container_of(nb,
-							    struct
-							    led_netdev_data,
-							    notifier);
+	struct led_netdev_data *trigger_data =
+		container_of(nb, struct led_netdev_data, notifier);
 
 	if (evt != NETDEV_UP && evt != NETDEV_DOWN && evt != NETDEV_CHANGE
 	    && evt != NETDEV_REGISTER && evt != NETDEV_UNREGISTER
@@ -342,10 +344,8 @@ static int netdev_trig_notify(struct notifier_block *nb,
 /* here's the real work! */
 static void netdev_trig_work(struct work_struct *work)
 {
-	struct led_netdev_data *trigger_data = container_of(work,
-							    struct
-							    led_netdev_data,
-							    work.work);
+	struct led_netdev_data *trigger_data =
+		container_of(work, struct led_netdev_data, work.work);
 	struct rtnl_link_stats64 *dev_stats;
 	unsigned int new_activity;
 	struct rtnl_link_stats64 temp;
@@ -388,14 +388,14 @@ static void netdev_trig_work(struct work_struct *work)
 			(atomic_read(&trigger_data->interval)*2));
 }
 
-static void netdev_trig_activate(struct led_classdev *led_cdev)
+static int netdev_trig_activate(struct led_classdev *led_cdev)
 {
 	struct led_netdev_data *trigger_data;
 	int rc;
 
 	trigger_data = kzalloc(sizeof(struct led_netdev_data), GFP_KERNEL);
 	if (!trigger_data)
-		return;
+		return -ENOMEM;
 
 	spin_lock_init(&trigger_data->lock);
 
@@ -412,69 +412,34 @@ static void netdev_trig_activate(struct led_classdev *led_cdev)
 	atomic_set(&trigger_data->interval, msecs_to_jiffies(50));
 	trigger_data->last_activity = 0;
 
-	led_cdev->trigger_data = trigger_data;
+	led_set_trigger_data(led_cdev, trigger_data);
 
-	rc = device_create_file(led_cdev->dev, &dev_attr_device_name);
-	if (rc)
-		goto err_out;
-	rc = device_create_file(led_cdev->dev, &dev_attr_link);
-	if (rc)
-		goto err_out_device_name;
-	rc = device_create_file(led_cdev->dev, &dev_attr_rx);
-	if (rc)
-		goto err_out_link;
-	rc = device_create_file(led_cdev->dev, &dev_attr_tx);
-	if (rc)
-		goto err_out_rx;
-	rc = device_create_file(led_cdev->dev, &dev_attr_interval);
-	if (rc)
-		goto err_out_tx;
 	rc = register_netdevice_notifier(&trigger_data->notifier);
 	if (rc)
-		goto err_out_interval;
-	return;
+		kfree(trigger_data);
 
-err_out_interval:
-	device_remove_file(led_cdev->dev, &dev_attr_interval);
-err_out_tx:
-	device_remove_file(led_cdev->dev, &dev_attr_tx);
-err_out_rx:
-	device_remove_file(led_cdev->dev, &dev_attr_rx);
-err_out_link:
-	device_remove_file(led_cdev->dev, &dev_attr_link);
-err_out_device_name:
-	device_remove_file(led_cdev->dev, &dev_attr_device_name);
-err_out:
-	led_cdev->trigger_data = NULL;
-	kfree(trigger_data);
+	return rc;
 }
 
 static void netdev_trig_deactivate(struct led_classdev *led_cdev)
 {
-	struct led_netdev_data *trigger_data = led_cdev->trigger_data;
+	struct led_netdev_data *trigger_data = led_get_trigger_data(led_cdev);
 
-	if (trigger_data) {
-		unregister_netdevice_notifier(&trigger_data->notifier);
+	unregister_netdevice_notifier(&trigger_data->notifier);
 
-		device_remove_file(led_cdev->dev, &dev_attr_device_name);
-		device_remove_file(led_cdev->dev, &dev_attr_link);
-		device_remove_file(led_cdev->dev, &dev_attr_rx);
-		device_remove_file(led_cdev->dev, &dev_attr_tx);
-		device_remove_file(led_cdev->dev, &dev_attr_interval);
+	cancel_delayed_work_sync(&trigger_data->work);
 
-		cancel_delayed_work_sync(&trigger_data->work);
+	if (trigger_data->net_dev)
+		dev_put(trigger_data->net_dev);
 
-		if (trigger_data->net_dev)
-			dev_put(trigger_data->net_dev);
-
-		kfree(trigger_data);
-	}
+	kfree(trigger_data);
 }
 
 static struct led_trigger netdev_led_trigger = {
 	.name = "netdev",
 	.activate = netdev_trig_activate,
 	.deactivate = netdev_trig_deactivate,
+	.groups = netdev_trig_groups,
 };
 
 static int __init netdev_trig_init(void)

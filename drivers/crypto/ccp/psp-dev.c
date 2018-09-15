@@ -62,14 +62,14 @@ static irqreturn_t psp_irq_handler(int irq, void *data)
 	int reg;
 
 	/* Read the interrupt status: */
-	status = ioread32(psp->io_regs + PSP_P2CMSG_INTSTS);
+	status = ioread32(psp->io_regs + psp->vdata->intsts_reg);
 
 	/* Check if it is command completion: */
-	if (!(status & BIT(PSP_CMD_COMPLETE_REG)))
+	if (!(status & PSP_CMD_COMPLETE))
 		goto done;
 
 	/* Check if it is SEV command completion: */
-	reg = ioread32(psp->io_regs + PSP_CMDRESP);
+	reg = ioread32(psp->io_regs + psp->vdata->cmdresp_reg);
 	if (reg & PSP_CMDRESP_RESP) {
 		psp->sev_int_rcvd = 1;
 		wake_up(&psp->sev_int_queue);
@@ -77,17 +77,15 @@ static irqreturn_t psp_irq_handler(int irq, void *data)
 
 done:
 	/* Clear the interrupt status by writing the same value we read. */
-	iowrite32(status, psp->io_regs + PSP_P2CMSG_INTSTS);
+	iowrite32(status, psp->io_regs + psp->vdata->intsts_reg);
 
 	return IRQ_HANDLED;
 }
 
 static void sev_wait_cmd_ioc(struct psp_device *psp, unsigned int *reg)
 {
-	psp->sev_int_rcvd = 0;
-
 	wait_event(psp->sev_int_queue, psp->sev_int_rcvd);
-	*reg = ioread32(psp->io_regs + PSP_CMDRESP);
+	*reg = ioread32(psp->io_regs + psp->vdata->cmdresp_reg);
 }
 
 static int sev_cmd_buffer_len(int cmd)
@@ -145,13 +143,15 @@ static int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret)
 	print_hex_dump_debug("(in):  ", DUMP_PREFIX_OFFSET, 16, 2, data,
 			     sev_cmd_buffer_len(cmd), false);
 
-	iowrite32(phys_lsb, psp->io_regs + PSP_CMDBUFF_ADDR_LO);
-	iowrite32(phys_msb, psp->io_regs + PSP_CMDBUFF_ADDR_HI);
+	iowrite32(phys_lsb, psp->io_regs + psp->vdata->cmdbuff_addr_lo_reg);
+	iowrite32(phys_msb, psp->io_regs + psp->vdata->cmdbuff_addr_hi_reg);
+
+	psp->sev_int_rcvd = 0;
 
 	reg = cmd;
 	reg <<= PSP_CMDRESP_CMD_SHIFT;
 	reg |= PSP_CMDRESP_IOC;
-	iowrite32(reg, psp->io_regs + PSP_CMDRESP);
+	iowrite32(reg, psp->io_regs + psp->vdata->cmdresp_reg);
 
 	/* wait for command completion */
 	sev_wait_cmd_ioc(psp, &reg);
@@ -789,7 +789,7 @@ static int sev_misc_init(struct psp_device *psp)
 static int sev_init(struct psp_device *psp)
 {
 	/* Check if device supports SEV feature */
-	if (!(ioread32(psp->io_regs + PSP_FEATURE_REG) & 1)) {
+	if (!(ioread32(psp->io_regs + psp->vdata->feature_reg) & 1)) {
 		dev_dbg(psp->dev, "device does not support SEV\n");
 		return 1;
 	}
@@ -817,11 +817,11 @@ int psp_dev_init(struct sp_device *sp)
 		goto e_err;
 	}
 
-	psp->io_regs = sp->io_map + psp->vdata->offset;
+	psp->io_regs = sp->io_map;
 
 	/* Disable and clear interrupts until ready */
-	iowrite32(0, psp->io_regs + PSP_P2CMSG_INTEN);
-	iowrite32(-1, psp->io_regs + PSP_P2CMSG_INTSTS);
+	iowrite32(0, psp->io_regs + psp->vdata->inten_reg);
+	iowrite32(-1, psp->io_regs + psp->vdata->intsts_reg);
 
 	/* Request an irq */
 	ret = sp_request_psp_irq(psp->sp, psp_irq_handler, psp->name, psp);
@@ -838,7 +838,9 @@ int psp_dev_init(struct sp_device *sp)
 		sp->set_psp_master_device(sp);
 
 	/* Enable interrupt */
-	iowrite32(-1, psp->io_regs + PSP_P2CMSG_INTEN);
+	iowrite32(-1, psp->io_regs + psp->vdata->inten_reg);
+
+	dev_notice(dev, "psp enabled\n");
 
 	return 0;
 
@@ -855,6 +857,9 @@ e_err:
 void psp_dev_destroy(struct sp_device *sp)
 {
 	struct psp_device *psp = sp->psp_data;
+
+	if (!psp)
+		return;
 
 	if (psp->sev_misc)
 		kref_put(&misc_dev->refcount, sev_exit);

@@ -2392,7 +2392,7 @@ static int snd_audiopci_probe(struct pci_dev *pci,
 	static int dev;
 	struct snd_card *card;
 	struct ensoniq *ensoniq;
-	int err, pcm_devs[2];
+	int err;
 
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
@@ -2412,7 +2412,6 @@ static int snd_audiopci_probe(struct pci_dev *pci,
 	}
 	card->private_data = ensoniq;
 
-	pcm_devs[0] = 0; pcm_devs[1] = 1;
 #ifdef CHIP1370
 	if ((err = snd_ensoniq_1370_mixer(ensoniq)) < 0) {
 		snd_card_free(card);

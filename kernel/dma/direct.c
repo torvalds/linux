@@ -78,7 +78,8 @@ void *dma_direct_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 again:
 	/* CMA can be used only in the context which permits sleeping */
 	if (gfpflags_allow_blocking(gfp)) {
-		page = dma_alloc_from_contiguous(dev, count, page_order, gfp);
+		page = dma_alloc_from_contiguous(dev, count, page_order,
+						 gfp & __GFP_NOWARN);
 		if (page && !dma_coherent_ok(dev, page_to_phys(page), size)) {
 			dma_release_from_contiguous(dev, page, count);
 			page = NULL;
@@ -180,10 +181,10 @@ int dma_direct_supported(struct device *dev, u64 mask)
 		return 0;
 #endif
 	/*
-	 * Various PCI/PCIe bridges have broken support for > 32bit DMA even
-	 * if the device itself might support it.
+	 * Upstream PCI/PCIe bridges or SoC interconnects may not carry
+	 * as many DMA address bits as the device itself supports.
 	 */
-	if (dev->dma_32bit_limit && mask > DMA_BIT_MASK(32))
+	if (dev->bus_dma_mask && mask > dev->bus_dma_mask)
 		return 0;
 	return 1;
 }

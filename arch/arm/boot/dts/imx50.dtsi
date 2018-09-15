@@ -209,24 +209,6 @@
 				status = "disabled";
 			};
 
-			usbh2: usb@53f80400 {
-				compatible = "fsl,imx50-usb", "fsl,imx27-usb";
-				reg = <0x53f80400 0x0200>;
-				interrupts = <16>;
-				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
-				dr_mode = "host";
-				status = "disabled";
-			};
-
-			usbh3: usb@53f80600 {
-				compatible = "fsl,imx50-usb", "fsl,imx27-usb";
-				reg = <0x53f80600 0x0200>;
-				interrupts = <17>;
-				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
-				dr_mode = "host";
-				status = "disabled";
-			};
-
 			gpio1: gpio@53f84000 {
 				compatible = "fsl,imx50-gpio", "fsl,imx35-gpio";
 				reg = <0x53f84000 0x4000>;

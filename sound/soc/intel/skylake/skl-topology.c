@@ -108,6 +108,9 @@ static int is_skl_dsp_widget_type(struct snd_soc_dapm_widget *w,
 	case snd_soc_dapm_aif_out:
 	case snd_soc_dapm_dai_out:
 	case snd_soc_dapm_switch:
+	case snd_soc_dapm_output:
+	case snd_soc_dapm_mux:
+
 		return false;
 	default:
 		return true;
@@ -934,7 +937,7 @@ static int skl_tplg_find_moduleid_from_uuid(struct skl *skl,
 	struct soc_bytes_ext *sb = (void *) k->private_value;
 	struct skl_algo_data *bc = (struct skl_algo_data *)sb->dobj.private;
 	struct skl_kpb_params *uuid_params, *params;
-	struct hdac_bus *bus = ebus_to_hbus(skl_to_ebus(skl));
+	struct hdac_bus *bus = skl_to_bus(skl);
 	int i, size, module_id;
 
 	if (bc->set_params == SKL_PARAM_BIND && bc->max) {
@@ -3024,14 +3027,13 @@ void skl_cleanup_resources(struct skl *skl)
  * information to the driver about module and pipeline parameters which DSP
  * FW expects like ids, resource values, formats etc
  */
-static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
+static int skl_tplg_widget_load(struct snd_soc_component *cmpnt, int index,
 				struct snd_soc_dapm_widget *w,
 				struct snd_soc_tplg_dapm_widget *tplg_w)
 {
 	int ret;
-	struct hdac_ext_bus *ebus = snd_soc_component_get_drvdata(cmpnt);
-	struct skl *skl = ebus_to_skl(ebus);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = snd_soc_component_get_drvdata(cmpnt);
+	struct skl *skl = bus_to_skl(bus);
 	struct skl_module_cfg *mconfig;
 
 	if (!tplg_w->priv.size)
@@ -3131,14 +3133,14 @@ static int skl_init_enum_data(struct device *dev, struct soc_enum *se,
 }
 
 static int skl_tplg_control_load(struct snd_soc_component *cmpnt,
+				int index,
 				struct snd_kcontrol_new *kctl,
 				struct snd_soc_tplg_ctl_hdr *hdr)
 {
 	struct soc_bytes_ext *sb;
 	struct snd_soc_tplg_bytes_control *tplg_bc;
 	struct snd_soc_tplg_enum_control *tplg_ec;
-	struct hdac_ext_bus *ebus  = snd_soc_component_get_drvdata(cmpnt);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus  = snd_soc_component_get_drvdata(cmpnt);
 	struct soc_enum *se;
 
 	switch (hdr->ops.info) {
@@ -3619,12 +3621,11 @@ static int skl_tplg_get_manifest_data(struct snd_soc_tplg_manifest *manifest,
 	return 0;
 }
 
-static int skl_manifest_load(struct snd_soc_component *cmpnt,
+static int skl_manifest_load(struct snd_soc_component *cmpnt, int index,
 				struct snd_soc_tplg_manifest *manifest)
 {
-	struct hdac_ext_bus *ebus = snd_soc_component_get_drvdata(cmpnt);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	struct skl *skl = ebus_to_skl(ebus);
+	struct hdac_bus *bus = snd_soc_component_get_drvdata(cmpnt);
+	struct skl *skl = bus_to_skl(bus);
 
 	/* proceed only if we have private data defined */
 	if (manifest->priv.size == 0)
@@ -3713,12 +3714,11 @@ static void skl_tplg_set_pipe_type(struct skl *skl, struct skl_pipe *pipe)
 /*
  * SKL topology init routine
  */
-int skl_tplg_init(struct snd_soc_component *component, struct hdac_ext_bus *ebus)
+int skl_tplg_init(struct snd_soc_component *component, struct hdac_bus *bus)
 {
 	int ret;
 	const struct firmware *fw;
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	struct skl *skl = ebus_to_skl(ebus);
+	struct skl *skl = bus_to_skl(bus);
 	struct skl_pipeline *ppl;
 
 	ret = request_firmware(&fw, skl->tplg_name, bus->dev);

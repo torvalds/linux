@@ -1479,7 +1479,7 @@ static int exynos_dsi_create_connector(struct drm_encoder *encoder)
 
 	connector->status = connector_status_disconnected;
 	drm_connector_helper_add(connector, &exynos_dsi_connector_helper_funcs);
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
 }
@@ -1519,6 +1519,9 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
 	dsi->panel = of_drm_find_panel(device->dev.of_node);
+	if (IS_ERR(dsi->panel))
+		dsi->panel = NULL;
+
 	if (dsi->panel) {
 		drm_panel_attach(dsi->panel, &dsi->connector);
 		dsi->connector.status = connector_status_connected;
@@ -1860,6 +1863,8 @@ err_clk:
 
 static const struct dev_pm_ops exynos_dsi_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos_dsi_suspend, exynos_dsi_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 struct platform_driver dsi_driver = {

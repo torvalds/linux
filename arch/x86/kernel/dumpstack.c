@@ -22,8 +22,6 @@
 #include <asm/stacktrace.h>
 #include <asm/unwind.h>
 
-#define OPCODE_BUFSIZE 64
-
 int panic_on_unrecovered_nmi;
 int panic_on_io_nmi;
 static int die_counter;
@@ -93,26 +91,18 @@ static void printk_stack_address(unsigned long address, int reliable,
  */
 void show_opcodes(u8 *rip, const char *loglvl)
 {
-	unsigned int code_prologue = OPCODE_BUFSIZE * 2 / 3;
+#define PROLOGUE_SIZE 42
+#define EPILOGUE_SIZE 21
+#define OPCODE_BUFSIZE (PROLOGUE_SIZE + 1 + EPILOGUE_SIZE)
 	u8 opcodes[OPCODE_BUFSIZE];
-	u8 *ip;
-	int i;
 
-	printk("%sCode: ", loglvl);
-
-	ip = (u8 *)rip - code_prologue;
-	if (probe_kernel_read(opcodes, ip, OPCODE_BUFSIZE)) {
-		pr_cont("Bad RIP value.\n");
-		return;
+	if (probe_kernel_read(opcodes, rip - PROLOGUE_SIZE, OPCODE_BUFSIZE)) {
+		printk("%sCode: Bad RIP value.\n", loglvl);
+	} else {
+		printk("%sCode: %" __stringify(PROLOGUE_SIZE) "ph <%02x> %"
+		       __stringify(EPILOGUE_SIZE) "ph\n", loglvl, opcodes,
+		       opcodes[PROLOGUE_SIZE], opcodes + PROLOGUE_SIZE + 1);
 	}
-
-	for (i = 0; i < OPCODE_BUFSIZE; i++, ip++) {
-		if (ip == rip)
-			pr_cont("<%02x> ", opcodes[i]);
-		else
-			pr_cont("%02x ", opcodes[i]);
-	}
-	pr_cont("\n");
 }
 
 void show_ip(struct pt_regs *regs, const char *loglvl)

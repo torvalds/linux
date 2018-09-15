@@ -2,6 +2,9 @@
 #ifndef LINUX_IOMAP_H
 #define LINUX_IOMAP_H 1
 
+#include <linux/atomic.h>
+#include <linux/bitmap.h>
+#include <linux/mm.h>
 #include <linux/types.h>
 
 struct address_space;
@@ -9,6 +12,7 @@ struct fiemap_extent_info;
 struct inode;
 struct iov_iter;
 struct kiocb;
+struct page;
 struct vm_area_struct;
 struct vm_fault;
 
@@ -29,6 +33,7 @@ struct vm_fault;
  */
 #define IOMAP_F_NEW		0x01	/* blocks have been newly allocated */
 #define IOMAP_F_DIRTY		0x02	/* uncommitted metadata */
+#define IOMAP_F_BUFFER_HEAD	0x04	/* file system requires buffer heads */
 
 /*
  * Flags that only need to be reported for IOMAP_REPORT requests:
@@ -55,6 +60,16 @@ struct iomap {
 	u16			flags;	/* flags for mapping */
 	struct block_device	*bdev;	/* block device for I/O */
 	struct dax_device	*dax_dev; /* dax_dev for dax operations */
+	void			*inline_data;
+	void			*private; /* filesystem private */
+
+	/*
+	 * Called when finished processing a page in the mapping returned in
+	 * this iomap.  At least for now this is only supported in the buffered
+	 * write path.
+	 */
+	void (*page_done)(struct inode *inode, loff_t pos, unsigned copied,
+			struct page *page, struct iomap *iomap);
 };
 
 /*
@@ -86,8 +101,40 @@ struct iomap_ops {
 			ssize_t written, unsigned flags, struct iomap *iomap);
 };
 
+/*
+ * Structure allocate for each page when block size < PAGE_SIZE to track
+ * sub-page uptodate status and I/O completions.
+ */
+struct iomap_page {
+	atomic_t		read_count;
+	atomic_t		write_count;
+	DECLARE_BITMAP(uptodate, PAGE_SIZE / 512);
+};
+
+static inline struct iomap_page *to_iomap_page(struct page *page)
+{
+	if (page_has_private(page))
+		return (struct iomap_page *)page_private(page);
+	return NULL;
+}
+
 ssize_t iomap_file_buffered_write(struct kiocb *iocb, struct iov_iter *from,
 		const struct iomap_ops *ops);
+int iomap_readpage(struct page *page, const struct iomap_ops *ops);
+int iomap_readpages(struct address_space *mapping, struct list_head *pages,
+		unsigned nr_pages, const struct iomap_ops *ops);
+int iomap_set_page_dirty(struct page *page);
+int iomap_is_partially_uptodate(struct page *page, unsigned long from,
+		unsigned long count);
+int iomap_releasepage(struct page *page, gfp_t gfp_mask);
+void iomap_invalidatepage(struct page *page, unsigned int offset,
+		unsigned int len);
+#ifdef CONFIG_MIGRATION
+int iomap_migrate_page(struct address_space *mapping, struct page *newpage,
+		struct page *page, enum migrate_mode mode);
+#else
+#define iomap_migrate_page NULL
+#endif
 int iomap_file_dirty(struct inode *inode, loff_t pos, loff_t len,
 		const struct iomap_ops *ops);
 int iomap_zero_range(struct inode *inode, loff_t pos, loff_t len,

@@ -1227,10 +1227,9 @@ static void __init init_mtd_structs(struct mtd_info *mtd)
 	 * required within a nand driver because they are performed by the nand
 	 * infrastructure code as part of nand_scan().  In this case they need
 	 * to be initialized here because we skip call to nand_scan_ident() (the
-	 * first half of nand_scan()).  The call to nand_scan_ident() is skipped
-	 * because for this device the chip id is not read in the manner of a
-	 * standard nand device.  Unfortunately, nand_scan_ident() does other
-	 * things as well, such as call nand_set_defaults().
+	 * first half of nand_scan()).  The call to nand_scan_ident() could be
+	 * skipped because for this device the chip id is not read in the manner
+	 * of a standard nand device.
 	 */
 
 	struct nand_chip *nand = mtd_to_nand(mtd);
@@ -1257,8 +1256,8 @@ static void __init init_mtd_structs(struct mtd_info *mtd)
 	nand->ecc.strength = DOCG4_T;
 	nand->options = NAND_BUSWIDTH_16 | NAND_NO_SUBPAGE_WRITE;
 	nand->IO_ADDR_R = nand->IO_ADDR_W = doc->virtadr + DOC_IOSPACE_DATA;
-	nand->controller = &nand->hwcontrol;
-	nand_hw_control_init(nand->controller);
+	nand->controller = &nand->dummy_controller;
+	nand_controller_init(nand->controller);
 
 	/* methods */
 	nand->cmdfunc = docg4_command;
@@ -1315,6 +1314,40 @@ static int __init read_id_reg(struct mtd_info *mtd)
 
 static char const *part_probes[] = { "cmdlinepart", "saftlpart", NULL };
 
+static int docg4_attach_chip(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct docg4_priv *doc = (struct docg4_priv *)(chip + 1);
+	int ret;
+
+	init_mtd_structs(mtd);
+
+	/* Initialize kernel BCH algorithm */
+	doc->bch = init_bch(DOCG4_M, DOCG4_T, DOCG4_PRIMITIVE_POLY);
+	if (!doc->bch)
+		return -EINVAL;
+
+	reset(mtd);
+
+	ret = read_id_reg(mtd);
+	if (ret)
+		free_bch(doc->bch);
+
+	return ret;
+}
+
+static void docg4_detach_chip(struct nand_chip *chip)
+{
+	struct docg4_priv *doc = (struct docg4_priv *)(chip + 1);
+
+	free_bch(doc->bch);
+}
+
+static const struct nand_controller_ops docg4_controller_ops = {
+	.attach_chip = docg4_attach_chip,
+	.detach_chip = docg4_detach_chip,
+};
+
 static int __init probe_docg4(struct platform_device *pdev)
 {
 	struct mtd_info *mtd;
@@ -1341,7 +1374,7 @@ static int __init probe_docg4(struct platform_device *pdev)
 	nand = kzalloc(len, GFP_KERNEL);
 	if (nand == NULL) {
 		retval = -ENOMEM;
-		goto fail_unmap;
+		goto unmap;
 	}
 
 	mtd = nand_to_mtd(nand);
@@ -1350,46 +1383,35 @@ static int __init probe_docg4(struct platform_device *pdev)
 	mtd->dev.parent = &pdev->dev;
 	doc->virtadr = virtadr;
 	doc->dev = dev;
-
-	init_mtd_structs(mtd);
-
-	/* initialize kernel bch algorithm */
-	doc->bch = init_bch(DOCG4_M, DOCG4_T, DOCG4_PRIMITIVE_POLY);
-	if (doc->bch == NULL) {
-		retval = -EINVAL;
-		goto fail;
-	}
-
 	platform_set_drvdata(pdev, doc);
 
-	reset(mtd);
-	retval = read_id_reg(mtd);
-	if (retval == -ENODEV) {
-		dev_warn(dev, "No diskonchip G4 device found.\n");
-		goto fail;
-	}
-
-	retval = nand_scan_tail(mtd);
+	/*
+	 * Running nand_scan() with maxchips == 0 will skip nand_scan_ident(),
+	 * which is a specific operation with this driver and done in the
+	 * ->attach_chip callback.
+	 */
+	nand->dummy_controller.ops = &docg4_controller_ops;
+	retval = nand_scan(mtd, 0);
 	if (retval)
-		goto fail;
+		goto free_nand;
 
 	retval = read_factory_bbt(mtd);
 	if (retval)
-		goto fail;
+		goto cleanup_nand;
 
 	retval = mtd_device_parse_register(mtd, part_probes, NULL, NULL, 0);
 	if (retval)
-		goto fail;
+		goto cleanup_nand;
 
 	doc->mtd = mtd;
+
 	return 0;
 
-fail:
-	nand_release(mtd); /* deletes partitions and mtd devices */
-	free_bch(doc->bch);
+cleanup_nand:
+	nand_cleanup(nand);
+free_nand:
 	kfree(nand);
-
-fail_unmap:
+unmap:
 	iounmap(virtadr);
 
 	return retval;
@@ -1399,7 +1421,6 @@ static int __exit cleanup_docg4(struct platform_device *pdev)
 {
 	struct docg4_priv *doc = platform_get_drvdata(pdev);
 	nand_release(doc->mtd);
-	free_bch(doc->bch);
 	kfree(mtd_to_nand(doc->mtd));
 	iounmap(doc->virtadr);
 	return 0;

@@ -395,6 +395,8 @@ VMA Offset Manager
 .. kernel-doc:: drivers/gpu/drm/drm_vma_manager.c
    :export:
 
+.. _prime_buffer_sharing:
+
 PRIME Buffer Sharing
 ====================
 
@@ -495,4 +497,22 @@ DRM Sync Objects
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_syncobj.c
+   :export:
+
+GPU Scheduler
+=============
+
+Overview
+--------
+
+.. kernel-doc:: drivers/gpu/drm/scheduler/gpu_scheduler.c
+   :doc: Overview
+
+Scheduler Function References
+-----------------------------
+
+.. kernel-doc:: include/drm/gpu_scheduler.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/scheduler/gpu_scheduler.c
    :export:

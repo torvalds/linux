@@ -120,6 +120,8 @@ struct cudbg_mem_desc {
 	u32 idx;
 };
 
+#define CUDBG_MEMINFO_REV 1
+
 struct cudbg_meminfo {
 	struct cudbg_mem_desc avail[4];
 	struct cudbg_mem_desc mem[ARRAY_SIZE(cudbg_region) + 3];
@@ -137,6 +139,9 @@ struct cudbg_meminfo {
 	u32 port_alloc[4];
 	u32 loopback_used[NCHAN];
 	u32 loopback_alloc[NCHAN];
+	u32 p_structs_free_cnt;
+	u32 free_rx_cnt;
+	u32 free_tx_cnt;
 };
 
 struct cudbg_cim_pif_la {
@@ -281,12 +286,18 @@ struct cudbg_tid_data {
 
 #define CUDBG_NUM_ULPTX 11
 #define CUDBG_NUM_ULPTX_READ 512
+#define CUDBG_NUM_ULPTX_ASIC 6
+#define CUDBG_NUM_ULPTX_ASIC_READ 128
+
+#define CUDBG_ULPTX_LA_REV 1
 
 struct cudbg_ulptx_la {
 	u32 rdptr[CUDBG_NUM_ULPTX];
 	u32 wrptr[CUDBG_NUM_ULPTX];
 	u32 rddata[CUDBG_NUM_ULPTX];
 	u32 rd_data[CUDBG_NUM_ULPTX][CUDBG_NUM_ULPTX_READ];
+	u32 rdptr_asic[CUDBG_NUM_ULPTX_ASIC_READ];
+	u32 rddata_asic[CUDBG_NUM_ULPTX_ASIC_READ][CUDBG_NUM_ULPTX_ASIC];
 };
 
 #define CUDBG_CHAC_PBT_ADDR 0x2800

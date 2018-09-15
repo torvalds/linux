@@ -95,7 +95,6 @@ static void
 cifs_revalidate_cache(struct inode *inode, struct cifs_fattr *fattr)
 {
 	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
-	struct timespec ts;
 
 	cifs_dbg(FYI, "%s: revalidating inode %llu\n",
 		 __func__, cifs_i->uniqueid);
@@ -114,8 +113,7 @@ cifs_revalidate_cache(struct inode *inode, struct cifs_fattr *fattr)
 	}
 
 	 /* revalidate if mtime or size have changed */
-	ts = timespec64_to_timespec(inode->i_mtime);
-	if (timespec_equal(&ts, &fattr->cf_mtime) &&
+	if (timespec64_equal(&inode->i_mtime, &fattr->cf_mtime) &&
 	    cifs_i->server_eof == fattr->cf_eof) {
 		cifs_dbg(FYI, "%s: inode %llu is unchanged\n",
 			 __func__, cifs_i->uniqueid);
@@ -164,9 +162,9 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 	cifs_revalidate_cache(inode, fattr);
 
 	spin_lock(&inode->i_lock);
-	inode->i_atime = timespec_to_timespec64(fattr->cf_atime);
-	inode->i_mtime = timespec_to_timespec64(fattr->cf_mtime);
-	inode->i_ctime = timespec_to_timespec64(fattr->cf_ctime);
+	inode->i_atime = fattr->cf_atime;
+	inode->i_mtime = fattr->cf_mtime;
+	inode->i_ctime = fattr->cf_ctime;
 	inode->i_rdev = fattr->cf_rdev;
 	cifs_nlink_fattr_to_inode(inode, fattr);
 	inode->i_uid = fattr->cf_uid;
@@ -327,8 +325,8 @@ cifs_create_dfs_fattr(struct cifs_fattr *fattr, struct super_block *sb)
 	fattr->cf_mode = S_IFDIR | S_IXUGO | S_IRWXU;
 	fattr->cf_uid = cifs_sb->mnt_uid;
 	fattr->cf_gid = cifs_sb->mnt_gid;
-	ktime_get_real_ts(&fattr->cf_mtime);
-	fattr->cf_mtime = timespec_trunc(fattr->cf_mtime, sb->s_time_gran);
+	ktime_get_real_ts64(&fattr->cf_mtime);
+	fattr->cf_mtime = timespec64_trunc(fattr->cf_mtime, sb->s_time_gran);
 	fattr->cf_atime = fattr->cf_ctime = fattr->cf_mtime;
 	fattr->cf_nlink = 2;
 	fattr->cf_flags |= CIFS_FATTR_DFS_REFERRAL;
@@ -604,8 +602,8 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 	if (info->LastAccessTime)
 		fattr->cf_atime = cifs_NTtimeToUnix(info->LastAccessTime);
 	else {
-		ktime_get_real_ts(&fattr->cf_atime);
-		fattr->cf_atime = timespec_trunc(fattr->cf_atime, sb->s_time_gran);
+		ktime_get_real_ts64(&fattr->cf_atime);
+		fattr->cf_atime = timespec64_trunc(fattr->cf_atime, sb->s_time_gran);
 	}
 
 	fattr->cf_ctime = cifs_NTtimeToUnix(info->ChangeTime);
@@ -1122,17 +1120,19 @@ cifs_set_file_info(struct inode *inode, struct iattr *attrs, unsigned int xid,
 	if (!server->ops->set_file_info)
 		return -ENOSYS;
 
+	info_buf.Pad = 0;
+
 	if (attrs->ia_valid & ATTR_ATIME) {
 		set_time = true;
 		info_buf.LastAccessTime =
-			cpu_to_le64(cifs_UnixTimeToNT(timespec64_to_timespec(attrs->ia_atime)));
+			cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_atime));
 	} else
 		info_buf.LastAccessTime = 0;
 
 	if (attrs->ia_valid & ATTR_MTIME) {
 		set_time = true;
 		info_buf.LastWriteTime =
-		    cpu_to_le64(cifs_UnixTimeToNT(timespec64_to_timespec(attrs->ia_mtime)));
+		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_mtime));
 	} else
 		info_buf.LastWriteTime = 0;
 
@@ -1145,7 +1145,7 @@ cifs_set_file_info(struct inode *inode, struct iattr *attrs, unsigned int xid,
 	if (set_time && (attrs->ia_valid & ATTR_CTIME)) {
 		cifs_dbg(FYI, "CIFS - CTIME changed\n");
 		info_buf.ChangeTime =
-		    cpu_to_le64(cifs_UnixTimeToNT(timespec64_to_timespec(attrs->ia_ctime)));
+		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_ctime));
 	} else
 		info_buf.ChangeTime = 0;
 
@@ -1577,14 +1577,12 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
 
 	server = tcon->ses->server;
 
-#ifdef CONFIG_CIFS_SMB311
 	if ((server->ops->posix_mkdir) && (tcon->posix_extensions)) {
 		rc = server->ops->posix_mkdir(xid, inode, mode, tcon, full_path,
 					      cifs_sb);
 		d_drop(direntry); /* for time being always refresh inode info */
 		goto mkdir_out;
 	}
-#endif /* SMB311 */
 
 	if (cap_unix(tcon->ses) && (CIFS_UNIX_POSIX_PATH_OPS_CAP &
 				le64_to_cpu(tcon->fsUnixInfo.Capability))) {
@@ -2071,8 +2069,8 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
 	/* old CIFS Unix Extensions doesn't return create time */
 	if (CIFS_I(inode)->createtime) {
 		stat->result_mask |= STATX_BTIME;
-		stat->btime = timespec_to_timespec64(
-		      cifs_NTtimeToUnix(cpu_to_le64(CIFS_I(inode)->createtime)));
+		stat->btime =
+		      cifs_NTtimeToUnix(cpu_to_le64(CIFS_I(inode)->createtime));
 	}
 
 	stat->attributes_mask |= (STATX_ATTR_COMPRESSED | STATX_ATTR_ENCRYPTED);
@@ -2278,17 +2276,17 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		args->gid = INVALID_GID; /* no change */
 
 	if (attrs->ia_valid & ATTR_ATIME)
-		args->atime = cifs_UnixTimeToNT(timespec64_to_timespec(attrs->ia_atime));
+		args->atime = cifs_UnixTimeToNT(attrs->ia_atime);
 	else
 		args->atime = NO_CHANGE_64;
 
 	if (attrs->ia_valid & ATTR_MTIME)
-		args->mtime = cifs_UnixTimeToNT(timespec64_to_timespec(attrs->ia_mtime));
+		args->mtime = cifs_UnixTimeToNT(attrs->ia_mtime);
 	else
 		args->mtime = NO_CHANGE_64;
 
 	if (attrs->ia_valid & ATTR_CTIME)
-		args->ctime = cifs_UnixTimeToNT(timespec64_to_timespec(attrs->ia_ctime));
+		args->ctime = cifs_UnixTimeToNT(attrs->ia_ctime);
 	else
 		args->ctime = NO_CHANGE_64;
 

@@ -100,11 +100,11 @@ speed_t tty_termios_input_baud_rate(struct ktermios *termios)
 
 	if (cbaud == B0)
 		return tty_termios_baud_rate(termios);
-
+#ifdef BOTHER
 	/* Magic token for arbitrary speed via c_ispeed*/
 	if (cbaud == BOTHER)
 		return termios->c_ispeed;
-
+#endif
 	if (cbaud & CBAUDEX) {
 		cbaud &= ~CBAUDEX;
 
@@ -114,9 +114,9 @@ speed_t tty_termios_input_baud_rate(struct ktermios *termios)
 			cbaud += 15;
 	}
 	return baud_table[cbaud];
-#else
+#else	/* IBSHIFT */
 	return tty_termios_baud_rate(termios);
-#endif
+#endif	/* IBSHIFT */
 }
 EXPORT_SYMBOL(tty_termios_input_baud_rate);
 
@@ -156,19 +156,27 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 	termios->c_ispeed = ibaud;
 	termios->c_ospeed = obaud;
 
+#ifdef IBSHIFT
+	if ((termios->c_cflag >> IBSHIFT) & CBAUD)
+		ibinput = 1;	/* An input speed was specified */
+#endif
 #ifdef BOTHER
 	/* If the user asked for a precise weird speed give a precise weird
 	   answer. If they asked for a Bfoo speed they may have problems
 	   digesting non-exact replies so fuzz a bit */
 
-	if ((termios->c_cflag & CBAUD) == BOTHER)
+	if ((termios->c_cflag & CBAUD) == BOTHER) {
 		oclose = 0;
+		if (!ibinput)
+			iclose = 0;
+	}
 	if (((termios->c_cflag >> IBSHIFT) & CBAUD) == BOTHER)
 		iclose = 0;
-	if ((termios->c_cflag >> IBSHIFT) & CBAUD)
-		ibinput = 1;	/* An input speed was specified */
 #endif
 	termios->c_cflag &= ~CBAUD;
+#ifdef IBSHIFT
+	termios->c_cflag &= ~(CBAUD << IBSHIFT);
+#endif
 
 	/*
 	 *	Our goal is to find a close match to the standard baud rate

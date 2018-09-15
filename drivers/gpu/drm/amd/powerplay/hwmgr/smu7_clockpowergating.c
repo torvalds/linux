@@ -39,13 +39,6 @@ static int smu7_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 			PPSMC_MSG_VCEDPM_Disable);
 }
 
-static int smu7_enable_disable_samu_dpm(struct pp_hwmgr *hwmgr, bool enable)
-{
-	return smum_send_msg_to_smc(hwmgr, enable ?
-			PPSMC_MSG_SAMUDPM_Enable :
-			PPSMC_MSG_SAMUDPM_Disable);
-}
-
 static int smu7_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	if (!bgate)
@@ -58,13 +51,6 @@ static int smu7_update_vce_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 	if (!bgate)
 		smum_update_smc_table(hwmgr, SMU_VCE_TABLE);
 	return smu7_enable_disable_vce_dpm(hwmgr, !bgate);
-}
-
-static int smu7_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate)
-{
-	if (!bgate)
-		smum_update_smc_table(hwmgr, SMU_SAMU_TABLE);
-	return smu7_enable_disable_samu_dpm(hwmgr, !bgate);
 }
 
 int smu7_powerdown_uvd(struct pp_hwmgr *hwmgr)
@@ -107,35 +93,15 @@ static int smu7_powerup_vce(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int smu7_powerdown_samu(struct pp_hwmgr *hwmgr)
-{
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_SamuPowerGating))
-		return smum_send_msg_to_smc(hwmgr,
-				PPSMC_MSG_SAMPowerOFF);
-	return 0;
-}
-
-static int smu7_powerup_samu(struct pp_hwmgr *hwmgr)
-{
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_SamuPowerGating))
-		return smum_send_msg_to_smc(hwmgr,
-				PPSMC_MSG_SAMPowerON);
-	return 0;
-}
-
 int smu7_disable_clock_power_gating(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	data->uvd_power_gated = false;
 	data->vce_power_gated = false;
-	data->samu_power_gated = false;
 
 	smu7_powerup_uvd(hwmgr);
 	smu7_powerup_vce(hwmgr);
-	smu7_powerup_samu(hwmgr);
 
 	return 0;
 }
@@ -193,26 +159,6 @@ void smu7_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 						AMD_PG_STATE_UNGATE);
 		smu7_update_vce_dpm(hwmgr, false);
 	}
-}
-
-int smu7_powergate_samu(struct pp_hwmgr *hwmgr, bool bgate)
-{
-	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-
-	if (data->samu_power_gated == bgate)
-		return 0;
-
-	data->samu_power_gated = bgate;
-
-	if (bgate) {
-		smu7_update_samu_dpm(hwmgr, true);
-		smu7_powerdown_samu(hwmgr);
-	} else {
-		smu7_powerup_samu(hwmgr);
-		smu7_update_samu_dpm(hwmgr, false);
-	}
-
-	return 0;
 }
 
 int smu7_update_clock_gatings(struct pp_hwmgr *hwmgr,
@@ -470,7 +416,7 @@ int smu7_update_clock_gatings(struct pp_hwmgr *hwmgr,
  * Powerplay will only control the static per CU Power Gating.
  * Dynamic per CU Power Gating will be done in gfx.
  */
-int smu7_enable_per_cu_power_gating(struct pp_hwmgr *hwmgr, bool enable)
+int smu7_powergate_gfx(struct pp_hwmgr *hwmgr, bool enable)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
 

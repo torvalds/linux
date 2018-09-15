@@ -75,10 +75,23 @@ static int ipvlan_set_port_mode(struct ipvl_port *port, u16 nval)
 {
 	struct ipvl_dev *ipvlan;
 	struct net_device *mdev = port->dev;
-	int err = 0;
+	unsigned int flags;
+	int err;
 
 	ASSERT_RTNL();
 	if (port->mode != nval) {
+		list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
+			flags = ipvlan->dev->flags;
+			if (nval == IPVLAN_MODE_L3 || nval == IPVLAN_MODE_L3S) {
+				err = dev_change_flags(ipvlan->dev,
+						       flags | IFF_NOARP);
+			} else {
+				err = dev_change_flags(ipvlan->dev,
+						       flags & ~IFF_NOARP);
+			}
+			if (unlikely(err))
+				goto fail;
+		}
 		if (nval == IPVLAN_MODE_L3S) {
 			/* New mode is L3S */
 			err = ipvlan_register_nf_hook(read_pnet(&port->pnet));
@@ -86,21 +99,28 @@ static int ipvlan_set_port_mode(struct ipvl_port *port, u16 nval)
 				mdev->l3mdev_ops = &ipvl_l3mdev_ops;
 				mdev->priv_flags |= IFF_L3MDEV_MASTER;
 			} else
-				return err;
+				goto fail;
 		} else if (port->mode == IPVLAN_MODE_L3S) {
 			/* Old mode was L3S */
 			mdev->priv_flags &= ~IFF_L3MDEV_MASTER;
 			ipvlan_unregister_nf_hook(read_pnet(&port->pnet));
 			mdev->l3mdev_ops = NULL;
 		}
-		list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
-			if (nval == IPVLAN_MODE_L3 || nval == IPVLAN_MODE_L3S)
-				ipvlan->dev->flags |= IFF_NOARP;
-			else
-				ipvlan->dev->flags &= ~IFF_NOARP;
-		}
 		port->mode = nval;
 	}
+	return 0;
+
+fail:
+	/* Undo the flags changes that have been done so far. */
+	list_for_each_entry_continue_reverse(ipvlan, &port->ipvlans, pnode) {
+		flags = ipvlan->dev->flags;
+		if (port->mode == IPVLAN_MODE_L3 ||
+		    port->mode == IPVLAN_MODE_L3S)
+			dev_change_flags(ipvlan->dev, flags | IFF_NOARP);
+		else
+			dev_change_flags(ipvlan->dev, flags & ~IFF_NOARP);
+	}
+
 	return err;
 }
 

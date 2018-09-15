@@ -7,6 +7,8 @@
 #include <linux/clk-provider.h>
 #include "clk-regmap.h"
 
+#define F(f, s, h, m, n) { (f), (s), (2 * (h) - 1), (m), (n) }
+
 struct freq_tbl {
 	unsigned long freq;
 	u8 src;

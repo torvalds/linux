@@ -41,7 +41,6 @@ Mandatory subnodes:
 - For "faraday,ftpci100" a node representing the interrupt-controller inside the
   host bridge is mandatory. It has the following mandatory properties:
   - interrupt: see interrupt-controller/interrupts.txt
-  - interrupt-parent: see interrupt-controller/interrupts.txt
   - interrupt-controller: see interrupt-controller/interrupts.txt
   - #address-cells: set to <0>
   - #interrupt-cells: set to <1>

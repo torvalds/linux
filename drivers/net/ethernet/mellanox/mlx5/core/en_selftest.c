@@ -74,7 +74,7 @@ static int mlx5e_test_link_state(struct mlx5e_priv *priv)
 	if (!netif_carrier_ok(priv->netdev))
 		return 1;
 
-	port_state = mlx5_query_vport_state(priv->mdev, MLX5_QUERY_VPORT_STATE_IN_OP_MOD_VNIC_VPORT, 0);
+	port_state = mlx5_query_vport_state(priv->mdev, MLX5_VPORT_STATE_OP_MOD_VNIC_VPORT, 0);
 	return port_state == VPORT_STATE_UP ? 0 : 1;
 }
 

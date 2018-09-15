@@ -696,10 +696,11 @@ void mwifiex_11n_delba(struct mwifiex_private *priv, int tid)
 				"Send delba to tid=%d, %pM\n",
 				tid, rx_reor_tbl_ptr->ta);
 			mwifiex_send_delba(priv, tid, rx_reor_tbl_ptr->ta, 0);
-			goto exit;
+			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
+					       flags);
+			return;
 		}
 	}
-exit:
 	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 }
 

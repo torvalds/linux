@@ -205,7 +205,7 @@ nouveau_user_framebuffer_destroy(struct drm_framebuffer *drm_fb)
 	struct nouveau_framebuffer *fb = nouveau_framebuffer(drm_fb);
 
 	if (fb->nvbo)
-		drm_gem_object_unreference_unlocked(&fb->nvbo->gem);
+		drm_gem_object_put_unlocked(&fb->nvbo->gem);
 
 	drm_framebuffer_cleanup(drm_fb);
 	kfree(fb);
@@ -287,7 +287,7 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 	if (ret == 0)
 		return &fb->base;
 
-	drm_gem_object_unreference_unlocked(gem);
+	drm_gem_object_put_unlocked(gem);
 	return ERR_PTR(ret);
 }
 
@@ -404,6 +404,7 @@ nouveau_display_init(struct drm_device *dev)
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 	int ret;
 
 	ret = disp->init(dev);
@@ -411,10 +412,12 @@ nouveau_display_init(struct drm_device *dev)
 		return ret;
 
 	/* enable hotplug interrupts */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
 		nvif_notify_get(&conn->hpd);
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	/* enable flip completion events */
 	nvif_notify_get(&drm->flip);
@@ -427,6 +430,7 @@ nouveau_display_fini(struct drm_device *dev, bool suspend)
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 
 	if (!suspend) {
 		if (drm_drv_uses_atomic_modeset(dev))
@@ -439,10 +443,12 @@ nouveau_display_fini(struct drm_device *dev, bool suspend)
 	nvif_notify_put(&drm->flip);
 
 	/* disable hotplug interrupts */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
 		nvif_notify_put(&conn->hpd);
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	drm_kms_helper_poll_disable(dev);
 	disp->fini(dev);
@@ -939,7 +945,7 @@ nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 		return ret;
 
 	ret = drm_gem_handle_create(file_priv, &bo->gem, &args->handle);
-	drm_gem_object_unreference_unlocked(&bo->gem);
+	drm_gem_object_put_unlocked(&bo->gem);
 	return ret;
 }
 
@@ -954,7 +960,7 @@ nouveau_display_dumb_map_offset(struct drm_file *file_priv,
 	if (gem) {
 		struct nouveau_bo *bo = nouveau_gem_object(gem);
 		*poffset = drm_vma_node_offset_addr(&bo->bo.vma_node);
-		drm_gem_object_unreference_unlocked(gem);
+		drm_gem_object_put_unlocked(gem);
 		return 0;
 	}
 

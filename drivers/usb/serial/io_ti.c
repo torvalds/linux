@@ -1729,6 +1729,7 @@ static void edge_bulk_in_callback(struct urb *urb)
 	struct edgeport_port *edge_port = urb->context;
 	struct device *dev = &edge_port->port->dev;
 	unsigned char *data = urb->transfer_buffer;
+	unsigned long flags;
 	int retval = 0;
 	int port_number;
 	int status = urb->status;
@@ -1780,13 +1781,13 @@ static void edge_bulk_in_callback(struct urb *urb)
 
 exit:
 	/* continue read unless stopped */
-	spin_lock(&edge_port->ep_lock);
+	spin_lock_irqsave(&edge_port->ep_lock, flags);
 	if (edge_port->ep_read_urb_state == EDGE_READ_URB_RUNNING)
 		retval = usb_submit_urb(urb, GFP_ATOMIC);
 	else if (edge_port->ep_read_urb_state == EDGE_READ_URB_STOPPING)
 		edge_port->ep_read_urb_state = EDGE_READ_URB_STOPPED;
 
-	spin_unlock(&edge_port->ep_lock);
+	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 	if (retval)
 		dev_err(dev, "%s - usb_submit_urb failed with result %d\n", __func__, retval);
 }

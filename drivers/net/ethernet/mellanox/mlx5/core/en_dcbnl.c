@@ -275,7 +275,8 @@ int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets)
 }
 
 static int mlx5e_dbcnl_validate_ets(struct net_device *netdev,
-				    struct ieee_ets *ets)
+				    struct ieee_ets *ets,
+				    bool zero_sum_allowed)
 {
 	bool have_ets_tc = false;
 	int bw_sum = 0;
@@ -300,8 +301,9 @@ static int mlx5e_dbcnl_validate_ets(struct net_device *netdev,
 	}
 
 	if (have_ets_tc && bw_sum != 100) {
-		netdev_err(netdev,
-			   "Failed to validate ETS: BW sum is illegal\n");
+		if (bw_sum || (!bw_sum && !zero_sum_allowed))
+			netdev_err(netdev,
+				   "Failed to validate ETS: BW sum is illegal\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -316,7 +318,7 @@ static int mlx5e_dcbnl_ieee_setets(struct net_device *netdev,
 	if (!MLX5_CAP_GEN(priv->mdev, ets))
 		return -EOPNOTSUPP;
 
-	err = mlx5e_dbcnl_validate_ets(netdev, ets);
+	err = mlx5e_dbcnl_validate_ets(netdev, ets, false);
 	if (err)
 		return err;
 
@@ -441,16 +443,12 @@ static int mlx5e_dcbnl_ieee_setapp(struct net_device *dev, struct dcb_app *app)
 	bool is_new;
 	int err;
 
-	if (app->selector != IEEE_8021QAZ_APP_SEL_DSCP)
-		return -EINVAL;
+	if (!MLX5_CAP_GEN(priv->mdev, vport_group_manager) ||
+	    !MLX5_DSCP_SUPPORTED(priv->mdev))
+		return -EOPNOTSUPP;
 
-	if (!MLX5_CAP_GEN(priv->mdev, vport_group_manager))
-		return -EINVAL;
-
-	if (!MLX5_DSCP_SUPPORTED(priv->mdev))
-		return -EINVAL;
-
-	if (app->protocol >= MLX5E_MAX_DSCP)
+	if ((app->selector != IEEE_8021QAZ_APP_SEL_DSCP) ||
+	    (app->protocol >= MLX5E_MAX_DSCP))
 		return -EINVAL;
 
 	/* Save the old entry info */
@@ -498,16 +496,12 @@ static int mlx5e_dcbnl_ieee_delapp(struct net_device *dev, struct dcb_app *app)
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	int err;
 
-	if (app->selector != IEEE_8021QAZ_APP_SEL_DSCP)
-		return -EINVAL;
+	if  (!MLX5_CAP_GEN(priv->mdev, vport_group_manager) ||
+	     !MLX5_DSCP_SUPPORTED(priv->mdev))
+		return -EOPNOTSUPP;
 
-	if (!MLX5_CAP_GEN(priv->mdev, vport_group_manager))
-		return -EINVAL;
-
-	if (!MLX5_DSCP_SUPPORTED(priv->mdev))
-		return -EINVAL;
-
-	if (app->protocol >= MLX5E_MAX_DSCP)
+	if ((app->selector != IEEE_8021QAZ_APP_SEL_DSCP) ||
+	    (app->protocol >= MLX5E_MAX_DSCP))
 		return -EINVAL;
 
 	/* Skip if no dscp app entry */
@@ -642,12 +636,9 @@ static u8 mlx5e_dcbnl_setall(struct net_device *netdev)
 			  ets.prio_tc[i]);
 	}
 
-	err = mlx5e_dbcnl_validate_ets(netdev, &ets);
-	if (err) {
-		netdev_err(netdev,
-			   "%s, Failed to validate ETS: %d\n", __func__, err);
+	err = mlx5e_dbcnl_validate_ets(netdev, &ets, true);
+	if (err)
 		goto out;
-	}
 
 	err = mlx5e_dcbnl_ieee_setets_core(priv, &ets);
 	if (err) {
@@ -1147,7 +1138,7 @@ static int mlx5e_set_trust_state(struct mlx5e_priv *priv, u8 trust_state)
 {
 	int err;
 
-	err =  mlx5_set_trust_state(priv->mdev, trust_state);
+	err = mlx5_set_trust_state(priv->mdev, trust_state);
 	if (err)
 		return err;
 	priv->dcbx_dp.trust_state = trust_state;
@@ -1172,6 +1163,8 @@ static int mlx5e_trust_initialize(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
+
+	priv->dcbx_dp.trust_state = MLX5_QPTS_TRUST_PCP;
 
 	if (!MLX5_DSCP_SUPPORTED(mdev))
 		return 0;

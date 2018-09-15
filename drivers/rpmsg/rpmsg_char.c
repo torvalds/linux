@@ -285,6 +285,7 @@ static const struct file_operations rpmsg_eptdev_fops = {
 	.write = rpmsg_eptdev_write,
 	.poll = rpmsg_eptdev_poll,
 	.unlocked_ioctl = rpmsg_eptdev_ioctl,
+	.compat_ioctl = rpmsg_eptdev_ioctl,
 };
 
 static ssize_t name_show(struct device *dev, struct device_attribute *attr,
@@ -445,6 +446,7 @@ static const struct file_operations rpmsg_ctrldev_fops = {
 	.open = rpmsg_ctrldev_open,
 	.release = rpmsg_ctrldev_release,
 	.unlocked_ioctl = rpmsg_ctrldev_ioctl,
+	.compat_ioctl = rpmsg_ctrldev_ioctl,
 };
 
 static void rpmsg_ctrldev_release_device(struct device *dev)

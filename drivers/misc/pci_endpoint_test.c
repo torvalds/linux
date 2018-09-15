@@ -35,38 +35,45 @@
 
 #include <uapi/linux/pcitest.h>
 
-#define DRV_MODULE_NAME			"pci-endpoint-test"
+#define DRV_MODULE_NAME				"pci-endpoint-test"
 
-#define PCI_ENDPOINT_TEST_MAGIC		0x0
+#define IRQ_TYPE_UNDEFINED			-1
+#define IRQ_TYPE_LEGACY				0
+#define IRQ_TYPE_MSI				1
+#define IRQ_TYPE_MSIX				2
 
-#define PCI_ENDPOINT_TEST_COMMAND	0x4
-#define COMMAND_RAISE_LEGACY_IRQ	BIT(0)
-#define COMMAND_RAISE_MSI_IRQ		BIT(1)
-#define MSI_NUMBER_SHIFT		2
-/* 6 bits for MSI number */
-#define COMMAND_READ                    BIT(8)
-#define COMMAND_WRITE                   BIT(9)
-#define COMMAND_COPY                    BIT(10)
+#define PCI_ENDPOINT_TEST_MAGIC			0x0
 
-#define PCI_ENDPOINT_TEST_STATUS	0x8
-#define STATUS_READ_SUCCESS             BIT(0)
-#define STATUS_READ_FAIL                BIT(1)
-#define STATUS_WRITE_SUCCESS            BIT(2)
-#define STATUS_WRITE_FAIL               BIT(3)
-#define STATUS_COPY_SUCCESS             BIT(4)
-#define STATUS_COPY_FAIL                BIT(5)
-#define STATUS_IRQ_RAISED               BIT(6)
-#define STATUS_SRC_ADDR_INVALID         BIT(7)
-#define STATUS_DST_ADDR_INVALID         BIT(8)
+#define PCI_ENDPOINT_TEST_COMMAND		0x4
+#define COMMAND_RAISE_LEGACY_IRQ		BIT(0)
+#define COMMAND_RAISE_MSI_IRQ			BIT(1)
+#define COMMAND_RAISE_MSIX_IRQ			BIT(2)
+#define COMMAND_READ				BIT(3)
+#define COMMAND_WRITE				BIT(4)
+#define COMMAND_COPY				BIT(5)
 
-#define PCI_ENDPOINT_TEST_LOWER_SRC_ADDR	0xc
+#define PCI_ENDPOINT_TEST_STATUS		0x8
+#define STATUS_READ_SUCCESS			BIT(0)
+#define STATUS_READ_FAIL			BIT(1)
+#define STATUS_WRITE_SUCCESS			BIT(2)
+#define STATUS_WRITE_FAIL			BIT(3)
+#define STATUS_COPY_SUCCESS			BIT(4)
+#define STATUS_COPY_FAIL			BIT(5)
+#define STATUS_IRQ_RAISED			BIT(6)
+#define STATUS_SRC_ADDR_INVALID			BIT(7)
+#define STATUS_DST_ADDR_INVALID			BIT(8)
+
+#define PCI_ENDPOINT_TEST_LOWER_SRC_ADDR	0x0c
 #define PCI_ENDPOINT_TEST_UPPER_SRC_ADDR	0x10
 
 #define PCI_ENDPOINT_TEST_LOWER_DST_ADDR	0x14
 #define PCI_ENDPOINT_TEST_UPPER_DST_ADDR	0x18
 
-#define PCI_ENDPOINT_TEST_SIZE		0x1c
-#define PCI_ENDPOINT_TEST_CHECKSUM	0x20
+#define PCI_ENDPOINT_TEST_SIZE			0x1c
+#define PCI_ENDPOINT_TEST_CHECKSUM		0x20
+
+#define PCI_ENDPOINT_TEST_IRQ_TYPE		0x24
+#define PCI_ENDPOINT_TEST_IRQ_NUMBER		0x28
 
 static DEFINE_IDA(pci_endpoint_test_ida);
 
@@ -76,6 +83,10 @@ static DEFINE_IDA(pci_endpoint_test_ida);
 static bool no_msi;
 module_param(no_msi, bool, 0444);
 MODULE_PARM_DESC(no_msi, "Disable MSI interrupt in pci_endpoint_test");
+
+static int irq_type = IRQ_TYPE_MSI;
+module_param(irq_type, int, 0444);
+MODULE_PARM_DESC(irq_type, "IRQ mode selection in pci_endpoint_test (0 - Legacy, 1 - MSI, 2 - MSI-X)");
 
 enum pci_barno {
 	BAR_0,
@@ -103,7 +114,7 @@ struct pci_endpoint_test {
 struct pci_endpoint_test_data {
 	enum pci_barno test_reg_bar;
 	size_t alignment;
-	bool no_msi;
+	int irq_type;
 };
 
 static inline u32 pci_endpoint_test_readl(struct pci_endpoint_test *test,
@@ -147,6 +158,100 @@ static irqreturn_t pci_endpoint_test_irqhandler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void pci_endpoint_test_free_irq_vectors(struct pci_endpoint_test *test)
+{
+	struct pci_dev *pdev = test->pdev;
+
+	pci_free_irq_vectors(pdev);
+}
+
+static bool pci_endpoint_test_alloc_irq_vectors(struct pci_endpoint_test *test,
+						int type)
+{
+	int irq = -1;
+	struct pci_dev *pdev = test->pdev;
+	struct device *dev = &pdev->dev;
+	bool res = true;
+
+	switch (type) {
+	case IRQ_TYPE_LEGACY:
+		irq = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_LEGACY);
+		if (irq < 0)
+			dev_err(dev, "Failed to get Legacy interrupt\n");
+		break;
+	case IRQ_TYPE_MSI:
+		irq = pci_alloc_irq_vectors(pdev, 1, 32, PCI_IRQ_MSI);
+		if (irq < 0)
+			dev_err(dev, "Failed to get MSI interrupts\n");
+		break;
+	case IRQ_TYPE_MSIX:
+		irq = pci_alloc_irq_vectors(pdev, 1, 2048, PCI_IRQ_MSIX);
+		if (irq < 0)
+			dev_err(dev, "Failed to get MSI-X interrupts\n");
+		break;
+	default:
+		dev_err(dev, "Invalid IRQ type selected\n");
+	}
+
+	if (irq < 0) {
+		irq = 0;
+		res = false;
+	}
+	test->num_irqs = irq;
+
+	return res;
+}
+
+static void pci_endpoint_test_release_irq(struct pci_endpoint_test *test)
+{
+	int i;
+	struct pci_dev *pdev = test->pdev;
+	struct device *dev = &pdev->dev;
+
+	for (i = 0; i < test->num_irqs; i++)
+		devm_free_irq(dev, pci_irq_vector(pdev, i), test);
+
+	test->num_irqs = 0;
+}
+
+static bool pci_endpoint_test_request_irq(struct pci_endpoint_test *test)
+{
+	int i;
+	int err;
+	struct pci_dev *pdev = test->pdev;
+	struct device *dev = &pdev->dev;
+
+	for (i = 0; i < test->num_irqs; i++) {
+		err = devm_request_irq(dev, pci_irq_vector(pdev, i),
+				       pci_endpoint_test_irqhandler,
+				       IRQF_SHARED, DRV_MODULE_NAME, test);
+		if (err)
+			goto fail;
+	}
+
+	return true;
+
+fail:
+	switch (irq_type) {
+	case IRQ_TYPE_LEGACY:
+		dev_err(dev, "Failed to request IRQ %d for Legacy\n",
+			pci_irq_vector(pdev, i));
+		break;
+	case IRQ_TYPE_MSI:
+		dev_err(dev, "Failed to request IRQ %d for MSI %d\n",
+			pci_irq_vector(pdev, i),
+			i + 1);
+		break;
+	case IRQ_TYPE_MSIX:
+		dev_err(dev, "Failed to request IRQ %d for MSI-X %d\n",
+			pci_irq_vector(pdev, i),
+			i + 1);
+		break;
+	}
+
+	return false;
+}
+
 static bool pci_endpoint_test_bar(struct pci_endpoint_test *test,
 				  enum pci_barno barno)
 {
@@ -179,6 +284,9 @@ static bool pci_endpoint_test_legacy_irq(struct pci_endpoint_test *test)
 {
 	u32 val;
 
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_TYPE,
+				 IRQ_TYPE_LEGACY);
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_NUMBER, 0);
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND,
 				 COMMAND_RAISE_LEGACY_IRQ);
 	val = wait_for_completion_timeout(&test->irq_raised,
@@ -190,14 +298,18 @@ static bool pci_endpoint_test_legacy_irq(struct pci_endpoint_test *test)
 }
 
 static bool pci_endpoint_test_msi_irq(struct pci_endpoint_test *test,
-				      u8 msi_num)
+				       u16 msi_num, bool msix)
 {
 	u32 val;
 	struct pci_dev *pdev = test->pdev;
 
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_TYPE,
+				 msix == false ? IRQ_TYPE_MSI :
+				 IRQ_TYPE_MSIX);
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_NUMBER, msi_num);
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND,
-				 msi_num << MSI_NUMBER_SHIFT |
-				 COMMAND_RAISE_MSI_IRQ);
+				 msix == false ? COMMAND_RAISE_MSI_IRQ :
+				 COMMAND_RAISE_MSIX_IRQ);
 	val = wait_for_completion_timeout(&test->irq_raised,
 					  msecs_to_jiffies(1000));
 	if (!val)
@@ -229,6 +341,11 @@ static bool pci_endpoint_test_copy(struct pci_endpoint_test *test, size_t size)
 
 	if (size > SIZE_MAX - alignment)
 		goto err;
+
+	if (irq_type < IRQ_TYPE_LEGACY || irq_type > IRQ_TYPE_MSIX) {
+		dev_err(dev, "Invalid IRQ type option\n");
+		goto err;
+	}
 
 	orig_src_addr = dma_alloc_coherent(dev, size + alignment,
 					   &orig_src_phys_addr, GFP_KERNEL);
@@ -281,8 +398,10 @@ static bool pci_endpoint_test_copy(struct pci_endpoint_test *test, size_t size)
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_SIZE,
 				 size);
 
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_TYPE, irq_type);
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_NUMBER, 1);
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND,
-				 1 << MSI_NUMBER_SHIFT | COMMAND_COPY);
+				 COMMAND_COPY);
 
 	wait_for_completion(&test->irq_raised);
 
@@ -318,6 +437,11 @@ static bool pci_endpoint_test_write(struct pci_endpoint_test *test, size_t size)
 	if (size > SIZE_MAX - alignment)
 		goto err;
 
+	if (irq_type < IRQ_TYPE_LEGACY || irq_type > IRQ_TYPE_MSIX) {
+		dev_err(dev, "Invalid IRQ type option\n");
+		goto err;
+	}
+
 	orig_addr = dma_alloc_coherent(dev, size + alignment, &orig_phys_addr,
 				       GFP_KERNEL);
 	if (!orig_addr) {
@@ -348,8 +472,10 @@ static bool pci_endpoint_test_write(struct pci_endpoint_test *test, size_t size)
 
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_SIZE, size);
 
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_TYPE, irq_type);
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_NUMBER, 1);
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND,
-				 1 << MSI_NUMBER_SHIFT | COMMAND_READ);
+				 COMMAND_READ);
 
 	wait_for_completion(&test->irq_raised);
 
@@ -379,6 +505,11 @@ static bool pci_endpoint_test_read(struct pci_endpoint_test *test, size_t size)
 	if (size > SIZE_MAX - alignment)
 		goto err;
 
+	if (irq_type < IRQ_TYPE_LEGACY || irq_type > IRQ_TYPE_MSIX) {
+		dev_err(dev, "Invalid IRQ type option\n");
+		goto err;
+	}
+
 	orig_addr = dma_alloc_coherent(dev, size + alignment, &orig_phys_addr,
 				       GFP_KERNEL);
 	if (!orig_addr) {
@@ -403,8 +534,10 @@ static bool pci_endpoint_test_read(struct pci_endpoint_test *test, size_t size)
 
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_SIZE, size);
 
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_TYPE, irq_type);
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_NUMBER, 1);
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND,
-				 1 << MSI_NUMBER_SHIFT | COMMAND_WRITE);
+				 COMMAND_WRITE);
 
 	wait_for_completion(&test->irq_raised);
 
@@ -415,6 +548,38 @@ static bool pci_endpoint_test_read(struct pci_endpoint_test *test, size_t size)
 	dma_free_coherent(dev, size + alignment, orig_addr, orig_phys_addr);
 err:
 	return ret;
+}
+
+static bool pci_endpoint_test_set_irq(struct pci_endpoint_test *test,
+				      int req_irq_type)
+{
+	struct pci_dev *pdev = test->pdev;
+	struct device *dev = &pdev->dev;
+
+	if (req_irq_type < IRQ_TYPE_LEGACY || req_irq_type > IRQ_TYPE_MSIX) {
+		dev_err(dev, "Invalid IRQ type option\n");
+		return false;
+	}
+
+	if (irq_type == req_irq_type)
+		return true;
+
+	pci_endpoint_test_release_irq(test);
+	pci_endpoint_test_free_irq_vectors(test);
+
+	if (!pci_endpoint_test_alloc_irq_vectors(test, req_irq_type))
+		goto err;
+
+	if (!pci_endpoint_test_request_irq(test))
+		goto err;
+
+	irq_type = req_irq_type;
+	return true;
+
+err:
+	pci_endpoint_test_free_irq_vectors(test);
+	irq_type = IRQ_TYPE_UNDEFINED;
+	return false;
 }
 
 static long pci_endpoint_test_ioctl(struct file *file, unsigned int cmd,
@@ -436,7 +601,8 @@ static long pci_endpoint_test_ioctl(struct file *file, unsigned int cmd,
 		ret = pci_endpoint_test_legacy_irq(test);
 		break;
 	case PCITEST_MSI:
-		ret = pci_endpoint_test_msi_irq(test, arg);
+	case PCITEST_MSIX:
+		ret = pci_endpoint_test_msi_irq(test, arg, cmd == PCITEST_MSIX);
 		break;
 	case PCITEST_WRITE:
 		ret = pci_endpoint_test_write(test, arg);
@@ -446,6 +612,12 @@ static long pci_endpoint_test_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case PCITEST_COPY:
 		ret = pci_endpoint_test_copy(test, arg);
+		break;
+	case PCITEST_SET_IRQTYPE:
+		ret = pci_endpoint_test_set_irq(test, arg);
+		break;
+	case PCITEST_GET_IRQTYPE:
+		ret = irq_type;
 		break;
 	}
 
@@ -462,9 +634,7 @@ static const struct file_operations pci_endpoint_test_fops = {
 static int pci_endpoint_test_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *ent)
 {
-	int i;
 	int err;
-	int irq = 0;
 	int id;
 	char name[20];
 	enum pci_barno bar;
@@ -486,11 +656,14 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	test->alignment = 0;
 	test->pdev = pdev;
 
+	if (no_msi)
+		irq_type = IRQ_TYPE_LEGACY;
+
 	data = (struct pci_endpoint_test_data *)ent->driver_data;
 	if (data) {
 		test_reg_bar = data->test_reg_bar;
 		test->alignment = data->alignment;
-		no_msi = data->no_msi;
+		irq_type = data->irq_type;
 	}
 
 	init_completion(&test->irq_raised);
@@ -510,28 +683,11 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	if (!no_msi) {
-		irq = pci_alloc_irq_vectors(pdev, 1, 32, PCI_IRQ_MSI);
-		if (irq < 0)
-			dev_err(dev, "Failed to get MSI interrupts\n");
-		test->num_irqs = irq;
-	}
+	if (!pci_endpoint_test_alloc_irq_vectors(test, irq_type))
+		goto err_disable_irq;
 
-	err = devm_request_irq(dev, pdev->irq, pci_endpoint_test_irqhandler,
-			       IRQF_SHARED, DRV_MODULE_NAME, test);
-	if (err) {
-		dev_err(dev, "Failed to request IRQ %d\n", pdev->irq);
-		goto err_disable_msi;
-	}
-
-	for (i = 1; i < irq; i++) {
-		err = devm_request_irq(dev, pci_irq_vector(pdev, i),
-				       pci_endpoint_test_irqhandler,
-				       IRQF_SHARED, DRV_MODULE_NAME, test);
-		if (err)
-			dev_err(dev, "failed to request IRQ %d for MSI %d\n",
-				pci_irq_vector(pdev, i), i + 1);
-	}
+	if (!pci_endpoint_test_request_irq(test))
+		goto err_disable_irq;
 
 	for (bar = BAR_0; bar <= BAR_5; bar++) {
 		if (pci_resource_flags(pdev, bar) & IORESOURCE_MEM) {
@@ -590,12 +746,10 @@ err_iounmap:
 		if (test->bar[bar])
 			pci_iounmap(pdev, test->bar[bar]);
 	}
+	pci_endpoint_test_release_irq(test);
 
-	for (i = 0; i < irq; i++)
-		devm_free_irq(&pdev->dev, pci_irq_vector(pdev, i), test);
-
-err_disable_msi:
-	pci_disable_msi(pdev);
+err_disable_irq:
+	pci_endpoint_test_free_irq_vectors(test);
 	pci_release_regions(pdev);
 
 err_disable_pdev:
@@ -607,7 +761,6 @@ err_disable_pdev:
 static void pci_endpoint_test_remove(struct pci_dev *pdev)
 {
 	int id;
-	int i;
 	enum pci_barno bar;
 	struct pci_endpoint_test *test = pci_get_drvdata(pdev);
 	struct miscdevice *misc_device = &test->miscdev;
@@ -624,9 +777,10 @@ static void pci_endpoint_test_remove(struct pci_dev *pdev)
 		if (test->bar[bar])
 			pci_iounmap(pdev, test->bar[bar]);
 	}
-	for (i = 0; i < test->num_irqs; i++)
-		devm_free_irq(&pdev->dev, pci_irq_vector(pdev, i), test);
-	pci_disable_msi(pdev);
+
+	pci_endpoint_test_release_irq(test);
+	pci_endpoint_test_free_irq_vectors(test);
+
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }

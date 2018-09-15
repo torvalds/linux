@@ -214,11 +214,6 @@ static int netup_i2c_xfer(struct i2c_adapter *adap,
 	struct netup_i2c *i2c = i2c_get_adapdata(adap);
 	u16 reg;
 
-	if (num <= 0) {
-		dev_dbg(i2c->adap.dev.parent,
-			"%s(): num == %d\n", __func__, num);
-		return -EINVAL;
-	}
 	spin_lock_irqsave(&i2c->lock, flags);
 	if (i2c->state != STATE_DONE) {
 		dev_dbg(i2c->adap.dev.parent,

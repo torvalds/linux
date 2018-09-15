@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -1485,17 +1486,9 @@ static int arm_ccn_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ccn);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
-	if (!devm_request_mem_region(ccn->dev, res->start,
-			resource_size(res), pdev->name))
-		return -EBUSY;
-
-	ccn->base = devm_ioremap(ccn->dev, res->start,
-				resource_size(res));
-	if (!ccn->base)
-		return -EFAULT;
+	ccn->base = devm_ioremap_resource(ccn->dev, res);
+	if (IS_ERR(ccn->base))
+		return PTR_ERR(ccn->base);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res)

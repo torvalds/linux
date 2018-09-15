@@ -100,7 +100,7 @@ static int sctp_sched_rr_init(struct sctp_stream *stream)
 static int sctp_sched_rr_init_sid(struct sctp_stream *stream, __u16 sid,
 				  gfp_t gfp)
 {
-	INIT_LIST_HEAD(&stream->out[sid].ext->rr_list);
+	INIT_LIST_HEAD(&SCTP_SO(stream, sid)->ext->rr_list);
 
 	return 0;
 }
@@ -120,7 +120,7 @@ static void sctp_sched_rr_enqueue(struct sctp_outq *q,
 	ch = list_first_entry(&msg->chunks, struct sctp_chunk, frag_list);
 	sid = sctp_chunk_stream_no(ch);
 	stream = &q->asoc->stream;
-	sctp_sched_rr_sched(stream, stream->out[sid].ext);
+	sctp_sched_rr_sched(stream, SCTP_SO(stream, sid)->ext);
 }
 
 static struct sctp_chunk *sctp_sched_rr_dequeue(struct sctp_outq *q)
@@ -154,7 +154,7 @@ static void sctp_sched_rr_dequeue_done(struct sctp_outq *q,
 
 	/* Last chunk on that msg, move to the next stream */
 	sid = sctp_chunk_stream_no(ch);
-	soute = q->asoc->stream.out[sid].ext;
+	soute = SCTP_SO(&q->asoc->stream, sid)->ext;
 
 	sctp_sched_rr_next_stream(&q->asoc->stream);
 
@@ -173,7 +173,7 @@ static void sctp_sched_rr_sched_all(struct sctp_stream *stream)
 		__u16 sid;
 
 		sid = sctp_chunk_stream_no(ch);
-		soute = stream->out[sid].ext;
+		soute = SCTP_SO(stream, sid)->ext;
 		if (soute)
 			sctp_sched_rr_sched(stream, soute);
 	}

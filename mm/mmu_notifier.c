@@ -174,18 +174,29 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
 	srcu_read_unlock(&srcu, id);
 }
 
-void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-				  unsigned long start, unsigned long end)
+int __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+				  unsigned long start, unsigned long end,
+				  bool blockable)
 {
 	struct mmu_notifier *mn;
+	int ret = 0;
 	int id;
 
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
-		if (mn->ops->invalidate_range_start)
-			mn->ops->invalidate_range_start(mn, mm, start, end);
+		if (mn->ops->invalidate_range_start) {
+			int _ret = mn->ops->invalidate_range_start(mn, mm, start, end, blockable);
+			if (_ret) {
+				pr_info("%pS callback failed with %d in %sblockable context.\n",
+						mn->ops->invalidate_range_start, _ret,
+						!blockable ? "non-" : "");
+				ret = _ret;
+			}
+		}
 	}
 	srcu_read_unlock(&srcu, id);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start);
 

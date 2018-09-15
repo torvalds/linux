@@ -24,15 +24,19 @@ config SND_PXA2XX_AC97
 config SND_PXA2XX_SOC_AC97
 	tristate
 	select AC97_BUS
+	select SND_PXA2XX_LIB
 	select SND_PXA2XX_LIB_AC97
 	select SND_SOC_AC97_BUS
 
 config SND_PXA2XX_SOC_I2S
+	select SND_PXA2XX_LIB
 	tristate
 
 config SND_PXA_SOC_SSP
-	tristate
+	tristate "Soc Audio via PXA2xx/PXA3xx SSP ports"
+	depends on PLAT_PXA
 	select PXA_SSP
+	select SND_PXA2XX_LIB
 
 config SND_MMP_SOC_SSPA
 	tristate

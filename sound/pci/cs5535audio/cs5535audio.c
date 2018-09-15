@@ -192,8 +192,6 @@ static void process_bm0_irq(struct cs5535audio *cs5535au)
 	bm_stat = cs_readb(cs5535au, ACC_BM0_STATUS);
 	spin_unlock(&cs5535au->reg_lock);
 	if (bm_stat & EOP) {
-		struct cs5535audio_dma *dma;
-		dma = cs5535au->playback_substream->runtime->private_data;
 		snd_pcm_period_elapsed(cs5535au->playback_substream);
 	} else {
 		dev_err(cs5535au->card->dev,
@@ -208,11 +206,8 @@ static void process_bm1_irq(struct cs5535audio *cs5535au)
 	spin_lock(&cs5535au->reg_lock);
 	bm_stat = cs_readb(cs5535au, ACC_BM1_STATUS);
 	spin_unlock(&cs5535au->reg_lock);
-	if (bm_stat & EOP) {
-		struct cs5535audio_dma *dma;
-		dma = cs5535au->capture_substream->runtime->private_data;
+	if (bm_stat & EOP)
 		snd_pcm_period_elapsed(cs5535au->capture_substream);
-	}
 }
 
 static irqreturn_t snd_cs5535audio_interrupt(int irq, void *dev_id)

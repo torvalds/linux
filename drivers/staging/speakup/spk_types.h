@@ -160,6 +160,8 @@ struct spk_io_ops {
 };
 
 struct spk_synth {
+	struct list_head node;
+
 	const char *name;
 	const char *version;
 	const char *long_name;

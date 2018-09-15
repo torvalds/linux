@@ -59,7 +59,7 @@
  *   %r9
  */
 __load_partial:
-	xor %r9, %r9
+	xor %r9d, %r9d
 	pxor MSG, MSG
 
 	mov LEN, %r8
@@ -543,6 +543,7 @@ ENTRY(crypto_aegis256_aesni_enc_tail)
 	state_store0
 
 	FRAME_END
+	ret
 ENDPROC(crypto_aegis256_aesni_enc_tail)
 
 /*

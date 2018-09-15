@@ -364,8 +364,8 @@ struct nfp_cpp_operations {
 	int (*init)(struct nfp_cpp *cpp);
 	void (*free)(struct nfp_cpp *cpp);
 
-	void (*read_serial)(struct device *dev, u8 *serial);
-	u16 (*get_interface)(struct device *dev);
+	int (*read_serial)(struct device *dev, u8 *serial);
+	int (*get_interface)(struct device *dev);
 
 	int (*area_init)(struct nfp_cpp_area *area,
 			 u32 dest, unsigned long long address,

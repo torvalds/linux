@@ -12,6 +12,8 @@
  * GNU General Public License version 2 for more details.
  */
 
+#include <linux/bitmap.h>
+#include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
@@ -90,6 +92,25 @@ static int pisosr_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return (gpio->buffer[offset / 8] >> (offset % 8)) & 0x1;
 }
 
+static int pisosr_gpio_get_multiple(struct gpio_chip *chip,
+				    unsigned long *mask, unsigned long *bits)
+{
+	struct pisosr_gpio *gpio = gpiochip_get_data(chip);
+	unsigned int nbytes = DIV_ROUND_UP(chip->ngpio, 8);
+	unsigned int i, j;
+
+	pisosr_gpio_refresh(gpio);
+
+	bitmap_zero(bits, chip->ngpio);
+	for (i = 0; i < nbytes; i++) {
+		j = i / sizeof(unsigned long);
+		bits[j] |= ((unsigned long) gpio->buffer[i])
+			   << (8 * (i % sizeof(unsigned long)));
+	}
+
+	return 0;
+}
+
 static const struct gpio_chip template_chip = {
 	.label			= "pisosr-gpio",
 	.owner			= THIS_MODULE,
@@ -97,6 +118,7 @@ static const struct gpio_chip template_chip = {
 	.direction_input	= pisosr_gpio_direction_input,
 	.direction_output	= pisosr_gpio_direction_output,
 	.get			= pisosr_gpio_get,
+	.get_multiple		= pisosr_gpio_get_multiple,
 	.base			= -1,
 	.ngpio			= DEFAULT_NGPIO,
 	.can_sleep		= true,

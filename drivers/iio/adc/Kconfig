@@ -157,7 +157,6 @@ config AT91_SAMA5D2_ADC
 	tristate "Atmel AT91 SAMA5D2 ADC"
 	depends on ARCH_AT91 || COMPILE_TEST
 	depends on HAS_IOMEM
-	depends on HAS_DMA
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
@@ -621,6 +620,16 @@ config ROCKCHIP_SARADC
 	  To compile this driver as a module, choose M here: the
 	  module will be called rockchip_saradc.
 
+config SC27XX_ADC
+	tristate "Spreadtrum SC27xx series PMICs ADC"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	help
+	  Say yes here to build support for the integrated ADC inside the
+	  Spreadtrum SC27xx series PMICs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sc27xx_adc.
+
 config SPEAR_ADC
 	tristate "ST SPEAr ADC"
 	depends on PLAT_SPEAR || COMPILE_TEST
@@ -647,7 +656,6 @@ config SD_ADC_MODULATOR
 config STM32_ADC_CORE
 	tristate "STMicroelectronics STM32 adc core"
 	depends on ARCH_STM32 || COMPILE_TEST
-	depends on HAS_DMA
 	depends on OF
 	depends on REGULATOR
 	select IIO_BUFFER
@@ -717,6 +725,7 @@ config SUN4I_GPADC
 	depends on IIO
 	depends on MFD_SUN4I_GPADC || MACH_SUN8I
 	depends on THERMAL || !THERMAL_OF
+	select REGMAP_IRQ
 	help
 	  Say yes here to build support for Allwinner (A10, A13 and A31) SoCs
 	  GPADC. This ADC provides 4 channels which can be used as an ADC or as

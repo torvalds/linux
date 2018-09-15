@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -241,7 +241,7 @@ bail:
 	smp_wmb();
 	qp->s_flags &= ~(RVT_S_RESP_PENDING
 				| RVT_S_ACK_PENDING
-				| RVT_S_AHG_VALID);
+				| HFI1_S_AHG_VALID);
 	return 0;
 }
 
@@ -271,7 +271,7 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 
 	lockdep_assert_held(&qp->s_lock);
 	ps->s_txreq = get_txreq(ps->dev, qp);
-	if (IS_ERR(ps->s_txreq))
+	if (!ps->s_txreq)
 		goto bail_no_tx;
 
 	if (priv->hdr_type == HFI1_PKT_TYPE_9B) {
@@ -1024,7 +1024,7 @@ done:
 	if ((cmp_psn(qp->s_psn, qp->s_sending_hpsn) <= 0) &&
 	    (cmp_psn(qp->s_sending_psn, qp->s_sending_hpsn) <= 0))
 		qp->s_flags |= RVT_S_WAIT_PSN;
-	qp->s_flags &= ~RVT_S_AHG_VALID;
+	qp->s_flags &= ~HFI1_S_AHG_VALID;
 }
 
 /*

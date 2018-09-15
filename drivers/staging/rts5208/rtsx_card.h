@@ -1063,7 +1063,6 @@ static inline int card_power_off_all(struct rtsx_chip *chip)
 
 	retval = rtsx_write_register(chip, CARD_PWR_CTL, 0x0F, 0x0F);
 	if (retval) {
-		rtsx_trace(chip);
 		return retval;
 	}
 

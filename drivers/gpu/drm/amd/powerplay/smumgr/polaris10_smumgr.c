@@ -1204,7 +1204,6 @@ static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	SMIO_Pattern vol_level;
 	uint32_t mvdd;
-	uint16_t us_mvdd;
 
 	table->ACPILevel.Flags &= ~PPSMC_SWSTATE_FLAG_DC;
 
@@ -1255,16 +1254,11 @@ static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 			"in Clock Dependency Table",
 			);
 
-	us_mvdd = 0;
-	if ((SMU7_VOLTAGE_CONTROL_NONE == data->mvdd_control) ||
-			(data->mclk_dpm_key_disabled))
-		us_mvdd = data->vbios_boot_state.mvdd_bootup_value;
-	else {
-		if (!polaris10_populate_mvdd_value(hwmgr,
+	if (!((SMU7_VOLTAGE_CONTROL_NONE == data->mvdd_control) ||
+			(data->mclk_dpm_key_disabled)))
+		polaris10_populate_mvdd_value(hwmgr,
 				data->dpm_table.mclk_table.dpm_levels[0].value,
-				&vol_level))
-			us_mvdd = vol_level.Voltage;
-	}
+				&vol_level);
 
 	if (0 == polaris10_populate_mvdd_value(hwmgr, 0, &vol_level))
 		table->MemoryACPILevel.MinMvdd = PP_HOST_TO_SMC_UL(vol_level.Voltage);
@@ -1333,55 +1327,6 @@ static int polaris10_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 
 		CONVERT_FROM_HOST_TO_SMC_UL(table->VceLevel[count].Frequency);
 		CONVERT_FROM_HOST_TO_SMC_UL(table->VceLevel[count].MinVoltage);
-	}
-	return result;
-}
-
-
-static int polaris10_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
-		SMU74_Discrete_DpmTable *table)
-{
-	int result = -EINVAL;
-	uint8_t count;
-	struct pp_atomctrl_clock_dividers_vi dividers;
-	struct phm_ppt_v1_information *table_info =
-			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	struct phm_ppt_v1_mm_clock_voltage_dependency_table *mm_table =
-			table_info->mm_dep_table;
-	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	uint32_t vddci;
-
-	table->SamuBootLevel = 0;
-	table->SamuLevelCount = (uint8_t)(mm_table->count);
-
-	for (count = 0; count < table->SamuLevelCount; count++) {
-		/* not sure whether we need evclk or not */
-		table->SamuLevel[count].MinVoltage = 0;
-		table->SamuLevel[count].Frequency = mm_table->entries[count].samclock;
-		table->SamuLevel[count].MinVoltage |= (mm_table->entries[count].vddc *
-				VOLTAGE_SCALE) << VDDC_SHIFT;
-
-		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control)
-			vddci = (uint32_t)phm_find_closest_vddci(&(data->vddci_voltage_table),
-						mm_table->entries[count].vddc - VDDC_VDDCI_DELTA);
-		else if (SMU7_VOLTAGE_CONTROL_BY_SVID2 == data->vddci_control)
-			vddci = mm_table->entries[count].vddc - VDDC_VDDCI_DELTA;
-		else
-			vddci = (data->vbios_boot_state.vddci_bootup_value * VOLTAGE_SCALE) << VDDCI_SHIFT;
-
-		table->SamuLevel[count].MinVoltage |= (vddci * VOLTAGE_SCALE) << VDDCI_SHIFT;
-		table->SamuLevel[count].MinVoltage |= 1 << PHASES_SHIFT;
-
-		/* retrieve divider value for VBIOS */
-		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
-				table->SamuLevel[count].Frequency, &dividers);
-		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for samu clock", return result);
-
-		table->SamuLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
-
-		CONVERT_FROM_HOST_TO_SMC_UL(table->SamuLevel[count].Frequency);
-		CONVERT_FROM_HOST_TO_SMC_UL(table->SamuLevel[count].MinVoltage);
 	}
 	return result;
 }
@@ -1566,7 +1511,7 @@ static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 	uint32_t ro, efuse, volt_without_cks, volt_with_cks, value, max, min;
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
-	uint8_t i, stretch_amount, stretch_amount2, volt_offset = 0;
+	uint8_t i, stretch_amount, volt_offset = 0;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_clock_voltage_dependency_table *sclk_table =
@@ -1617,11 +1562,7 @@ static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 
 	smu_data->smc_state_table.LdoRefSel = (table_info->cac_dtp_table->ucCKS_LDO_REFSEL != 0) ? table_info->cac_dtp_table->ucCKS_LDO_REFSEL : 6;
 	/* Populate CKS Lookup Table */
-	if (stretch_amount == 1 || stretch_amount == 2 || stretch_amount == 5)
-		stretch_amount2 = 0;
-	else if (stretch_amount == 3 || stretch_amount == 4)
-		stretch_amount2 = 1;
-	else {
+	if (stretch_amount == 0 || stretch_amount > 5) {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ClockStretcher);
 		PP_ASSERT_WITH_CODE(false,
@@ -1864,10 +1805,6 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = polaris10_populate_smc_vce_level(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to initialize VCE Level!", return result);
-
-	result = polaris10_populate_smc_samu_level(hwmgr, table);
-	PP_ASSERT_WITH_CODE(0 == result,
-			"Failed to initialize SAMU Level!", return result);
 
 	/* Since only the initial state is completely set up at this point
 	 * (the other states are just copies of the boot state) we only
@@ -2222,34 +2159,6 @@ static int polaris10_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int polaris10_update_samu_smc_table(struct pp_hwmgr *hwmgr)
-{
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
-	uint32_t mm_boot_level_offset, mm_boot_level_value;
-
-
-	smu_data->smc_state_table.SamuBootLevel = 0;
-	mm_boot_level_offset = smu_data->smu7_data.dpm_table_start +
-				offsetof(SMU74_Discrete_DpmTable, SamuBootLevel);
-
-	mm_boot_level_offset /= 4;
-	mm_boot_level_offset *= 4;
-	mm_boot_level_value = cgs_read_ind_register(hwmgr->device,
-			CGS_IND_REG__SMC, mm_boot_level_offset);
-	mm_boot_level_value &= 0xFFFFFF00;
-	mm_boot_level_value |= smu_data->smc_state_table.SamuBootLevel << 0;
-	cgs_write_ind_register(hwmgr->device,
-			CGS_IND_REG__SMC, mm_boot_level_offset, mm_boot_level_value);
-
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_StablePState))
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_SAMUDPM_SetEnabledMask,
-				(uint32_t)(1 << smu_data->smc_state_table.SamuBootLevel));
-	return 0;
-}
-
-
 static int polaris10_update_bif_smc_table(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
@@ -2275,9 +2184,6 @@ static int polaris10_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 		break;
 	case SMU_VCE_TABLE:
 		polaris10_update_vce_smc_table(hwmgr);
-		break;
-	case SMU_SAMU_TABLE:
-		polaris10_update_samu_smc_table(hwmgr);
 		break;
 	case SMU_BIF_TABLE:
 		polaris10_update_bif_smc_table(hwmgr);
@@ -2357,8 +2263,6 @@ static uint32_t polaris10_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU74_Discrete_DpmTable, UvdBootLevel);
 		case VceBootLevel:
 			return offsetof(SMU74_Discrete_DpmTable, VceBootLevel);
-		case SamuBootLevel:
-			return offsetof(SMU74_Discrete_DpmTable, SamuBootLevel);
 		case LowSclkInterruptThreshold:
 			return offsetof(SMU74_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}

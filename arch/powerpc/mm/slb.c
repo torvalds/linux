@@ -70,7 +70,7 @@ static inline void slb_shadow_update(unsigned long ea, int ssize,
 
 static inline void slb_shadow_clear(enum slb_index index)
 {
-	WRITE_ONCE(get_slb_shadow()->save_area[index].esid, 0);
+	WRITE_ONCE(get_slb_shadow()->save_area[index].esid, cpu_to_be64(index));
 }
 
 static inline void create_shadowed_slbe(unsigned long ea, int ssize,
@@ -88,6 +88,45 @@ static inline void create_shadowed_slbe(unsigned long ea, int ssize,
 		     : "r" (mk_vsid_data(ea, ssize, flags)),
 		       "r" (mk_esid_data(ea, ssize, index))
 		     : "memory" );
+}
+
+/*
+ * Insert bolted entries into SLB (which may not be empty, so don't clear
+ * slb_cache_ptr).
+ */
+void __slb_restore_bolted_realmode(void)
+{
+	struct slb_shadow *p = get_slb_shadow();
+	enum slb_index index;
+
+	 /* No isync needed because realmode. */
+	for (index = 0; index < SLB_NUM_BOLTED; index++) {
+		asm volatile("slbmte  %0,%1" :
+		     : "r" (be64_to_cpu(p->save_area[index].vsid)),
+		       "r" (be64_to_cpu(p->save_area[index].esid)));
+	}
+}
+
+/*
+ * Insert the bolted entries into an empty SLB.
+ * This is not the same as rebolt because the bolted segments are not
+ * changed, just loaded from the shadow area.
+ */
+void slb_restore_bolted_realmode(void)
+{
+	__slb_restore_bolted_realmode();
+	get_paca()->slb_cache_ptr = 0;
+}
+
+/*
+ * This flushes all SLB entries including 0, so it must be realmode.
+ */
+void slb_flush_all_realmode(void)
+{
+	/*
+	 * This flushes all SLB entries including 0, so it must be realmode.
+	 */
+	asm volatile("slbmte %0,%0; slbia" : : "r" (0));
 }
 
 static void __slb_flush_and_rebolt(void)

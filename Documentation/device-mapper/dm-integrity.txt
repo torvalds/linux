@@ -113,6 +113,10 @@ internal_hash:algorithm(:key)	(the key is optional)
 	from an upper layer target, such as dm-crypt. The upper layer
 	target should check the validity of the integrity tags.
 
+recalculate
+	Recalculate the integrity tags automatically. It is only valid
+	when using internal hash.
+
 journal_crypt:algorithm(:key)	(the key is optional)
 	Encrypt the journal using given algorithm to make sure that the
 	attacker can't read the journal. You can use a block cipher here

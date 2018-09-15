@@ -84,9 +84,6 @@ static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
 	return dir + idx;
 }
 
-pte_t *huge_pte_offset_and_shift(struct mm_struct *mm,
-				 unsigned long addr, unsigned *shift);
-
 void flush_dcache_icache_hugepage(struct page *page);
 
 int slice_is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,

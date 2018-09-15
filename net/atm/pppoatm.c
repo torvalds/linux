@@ -244,7 +244,7 @@ static int pppoatm_may_send(struct pppoatm_vcc *pvcc, int size)
 	 * the packet count limit, so...
 	 */
 	if (atm_may_send(pvcc->atmvcc, size) &&
-	    atomic_inc_not_zero_hint(&pvcc->inflight, NONE_INFLIGHT))
+	    atomic_inc_not_zero(&pvcc->inflight))
 		return 1;
 
 	/*

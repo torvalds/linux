@@ -522,6 +522,7 @@ static int tdfxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	case 32:
 		var->transp.offset = 24;
 		var->transp.length = 8;
+		/* fall through */
 	case 24:
 		var->red.offset = 16;
 		var->green.offset = 8;

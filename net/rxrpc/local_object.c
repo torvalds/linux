@@ -305,7 +305,7 @@ struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local)
 	const void *here = __builtin_return_address(0);
 
 	if (local) {
-		int n = __atomic_add_unless(&local->usage, 1, 0);
+		int n = atomic_fetch_add_unless(&local->usage, 1, 0);
 		if (n > 0)
 			trace_rxrpc_local(local, rxrpc_local_got, n + 1, here);
 		else

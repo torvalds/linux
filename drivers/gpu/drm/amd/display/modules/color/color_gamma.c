@@ -131,6 +131,63 @@ static void compute_de_pq(struct fixed31_32 in_x, struct fixed31_32 *out_y)
 			dc_fixpt_div(dc_fixpt_one, m1));
 
 }
+
+/*de gamma, none linear to linear*/
+static void compute_hlg_oetf(struct fixed31_32 in_x, bool is_light0_12, struct fixed31_32 *out_y)
+{
+	struct fixed31_32 a;
+	struct fixed31_32 b;
+	struct fixed31_32 c;
+	struct fixed31_32 threshold;
+	struct fixed31_32 reference_white_level;
+
+	a = dc_fixpt_from_fraction(17883277, 100000000);
+	if (is_light0_12) {
+		/*light 0-12*/
+		b = dc_fixpt_from_fraction(28466892, 100000000);
+		c = dc_fixpt_from_fraction(55991073, 100000000);
+		threshold = dc_fixpt_one;
+		reference_white_level = dc_fixpt_half;
+	} else {
+		/*light 0-1*/
+		b = dc_fixpt_from_fraction(2372241, 100000000);
+		c = dc_fixpt_add(dc_fixpt_one, dc_fixpt_from_fraction(429347, 100000000));
+		threshold = dc_fixpt_from_fraction(1, 12);
+		reference_white_level = dc_fixpt_pow(dc_fixpt_from_fraction(3, 1), dc_fixpt_half);
+	}
+	if (dc_fixpt_lt(threshold, in_x))
+		*out_y = dc_fixpt_add(c, dc_fixpt_mul(a, dc_fixpt_log(dc_fixpt_sub(in_x, b))));
+	else
+		*out_y = dc_fixpt_mul(dc_fixpt_pow(in_x, dc_fixpt_half), reference_white_level);
+}
+
+/*re gamma, linear to none linear*/
+static void compute_hlg_eotf(struct fixed31_32 in_x, bool is_light0_12, struct fixed31_32 *out_y)
+{
+	struct fixed31_32 a;
+	struct fixed31_32 b;
+	struct fixed31_32 c;
+	struct fixed31_32 reference_white_level;
+
+	a = dc_fixpt_from_fraction(17883277, 100000000);
+	if (is_light0_12) {
+		/*light 0-12*/
+		b = dc_fixpt_from_fraction(28466892, 100000000);
+		c = dc_fixpt_from_fraction(55991073, 100000000);
+		reference_white_level = dc_fixpt_from_fraction(4, 1);
+	} else {
+		/*light 0-1*/
+		b = dc_fixpt_from_fraction(2372241, 100000000);
+		c = dc_fixpt_add(dc_fixpt_one, dc_fixpt_from_fraction(429347, 100000000));
+		reference_white_level = dc_fixpt_from_fraction(1, 3);
+	}
+	if (dc_fixpt_lt(dc_fixpt_half, in_x))
+		*out_y = dc_fixpt_add(dc_fixpt_exp(dc_fixpt_div(dc_fixpt_sub(in_x, c), a)), b);
+	else
+		*out_y = dc_fixpt_mul(dc_fixpt_pow(in_x, dc_fixpt_from_fraction(2, 1)), reference_white_level);
+}
+
+
 /* one-time pre-compute PQ values - only for sdr_white_level 80 */
 void precompute_pq(void)
 {
@@ -691,6 +748,48 @@ static void build_degamma(struct pwl_float_data_ex *curve,
 	}
 }
 
+static void build_hlg_degamma(struct pwl_float_data_ex *degamma,
+		uint32_t hw_points_num,
+		const struct hw_x_point *coordinate_x, bool is_light0_12)
+{
+	uint32_t i;
+
+	struct pwl_float_data_ex *rgb = degamma;
+	const struct hw_x_point *coord_x = coordinate_x;
+
+	i = 0;
+
+	while (i != hw_points_num + 1) {
+		compute_hlg_oetf(coord_x->x, is_light0_12, &rgb->r);
+		rgb->g = rgb->r;
+		rgb->b = rgb->r;
+		++coord_x;
+		++rgb;
+		++i;
+	}
+}
+
+static void build_hlg_regamma(struct pwl_float_data_ex *regamma,
+		uint32_t hw_points_num,
+		const struct hw_x_point *coordinate_x, bool is_light0_12)
+{
+	uint32_t i;
+
+	struct pwl_float_data_ex *rgb = regamma;
+	const struct hw_x_point *coord_x = coordinate_x;
+
+	i = 0;
+
+	while (i != hw_points_num + 1) {
+		compute_hlg_eotf(coord_x->x, is_light0_12, &rgb->r);
+		rgb->g = rgb->r;
+		rgb->b = rgb->r;
+		++coord_x;
+		++rgb;
+		++i;
+	}
+}
+
 static void scale_gamma(struct pwl_float_data *pwl_rgb,
 		const struct dc_gamma *ramp,
 		struct dividers dividers)
@@ -898,7 +997,9 @@ static void scale_user_regamma_ramp(struct pwl_float_data *pwl_rgb,
  * norm_y = 4095*regamma_y, and index is just truncating to nearest integer
  * lut1 = lut1D[index], lut2 = lut1D[index+1]
  *
- *adjustedY is then linearly interpolating regamma Y between lut1 and lut2
+ * adjustedY is then linearly interpolating regamma Y between lut1 and lut2
+ *
+ * Custom degamma on Linux uses the same interpolation math, so is handled here
  */
 static void apply_lut_1d(
 		const struct dc_gamma *ramp,
@@ -919,7 +1020,7 @@ static void apply_lut_1d(
 	struct fixed31_32 delta_lut;
 	struct fixed31_32 delta_index;
 
-	if (ramp->type != GAMMA_CS_TFM_1D)
+	if (ramp->type != GAMMA_CS_TFM_1D && ramp->type != GAMMA_CUSTOM)
 		return; // this is not expected
 
 	for (i = 0; i < num_hw_points; i++) {
@@ -1537,7 +1638,9 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 	map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
 			coordinates_x, axix_x, curve,
 			MAX_HW_POINTS, tf_pts,
-			mapUserRamp);
+			mapUserRamp && ramp->type != GAMMA_CUSTOM);
+	if (ramp->type == GAMMA_CUSTOM)
+		apply_lut_1d(ramp, MAX_HW_POINTS, tf_pts);
 
 	ret = true;
 
@@ -1622,6 +1725,25 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
 		ret = true;
 
 		kvfree(rgb_regamma);
+	} else if (trans == TRANSFER_FUNCTION_HLG ||
+		trans == TRANSFER_FUNCTION_HLG12) {
+		rgb_regamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
+				       sizeof(*rgb_regamma),
+				       GFP_KERNEL);
+		if (!rgb_regamma)
+			goto rgb_regamma_alloc_fail;
+
+		build_hlg_regamma(rgb_regamma,
+				MAX_HW_POINTS,
+				coordinates_x,
+				trans == TRANSFER_FUNCTION_HLG12 ? true:false);
+		for (i = 0; i <= MAX_HW_POINTS ; i++) {
+			points->red[i]    = rgb_regamma[i].r;
+			points->green[i]  = rgb_regamma[i].g;
+			points->blue[i]   = rgb_regamma[i].b;
+		}
+		ret = true;
+		kvfree(rgb_regamma);
 	}
 rgb_regamma_alloc_fail:
 	return ret;
@@ -1681,6 +1803,25 @@ bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 		}
 		ret = true;
 
+		kvfree(rgb_degamma);
+	} else if (trans == TRANSFER_FUNCTION_HLG ||
+		trans == TRANSFER_FUNCTION_HLG12) {
+		rgb_degamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
+				       sizeof(*rgb_degamma),
+				       GFP_KERNEL);
+		if (!rgb_degamma)
+			goto rgb_degamma_alloc_fail;
+
+		build_hlg_degamma(rgb_degamma,
+				MAX_HW_POINTS,
+				coordinates_x,
+				trans == TRANSFER_FUNCTION_HLG12 ? true:false);
+		for (i = 0; i <= MAX_HW_POINTS ; i++) {
+			points->red[i]    = rgb_degamma[i].r;
+			points->green[i]  = rgb_degamma[i].g;
+			points->blue[i]   = rgb_degamma[i].b;
+		}
+		ret = true;
 		kvfree(rgb_degamma);
 	}
 	points->end_exponent = 0;

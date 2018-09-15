@@ -98,59 +98,6 @@ int nf_ip_reroute(struct sk_buff *skb, const struct nf_queue_entry *entry)
 }
 EXPORT_SYMBOL_GPL(nf_ip_reroute);
 
-__sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
-			    unsigned int dataoff, u_int8_t protocol)
-{
-	const struct iphdr *iph = ip_hdr(skb);
-	__sum16 csum = 0;
-
-	switch (skb->ip_summed) {
-	case CHECKSUM_COMPLETE:
-		if (hook != NF_INET_PRE_ROUTING && hook != NF_INET_LOCAL_IN)
-			break;
-		if ((protocol == 0 && !csum_fold(skb->csum)) ||
-		    !csum_tcpudp_magic(iph->saddr, iph->daddr,
-				       skb->len - dataoff, protocol,
-				       skb->csum)) {
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
-			break;
-		}
-		/* fall through */
-	case CHECKSUM_NONE:
-		if (protocol == 0)
-			skb->csum = 0;
-		else
-			skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr,
-						       skb->len - dataoff,
-						       protocol, 0);
-		csum = __skb_checksum_complete(skb);
-	}
-	return csum;
-}
-EXPORT_SYMBOL(nf_ip_checksum);
-
-__sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
-			       unsigned int dataoff, unsigned int len,
-			       u_int8_t protocol)
-{
-	const struct iphdr *iph = ip_hdr(skb);
-	__sum16 csum = 0;
-
-	switch (skb->ip_summed) {
-	case CHECKSUM_COMPLETE:
-		if (len == skb->len - dataoff)
-			return nf_ip_checksum(skb, hook, dataoff, protocol);
-		/* fall through */
-	case CHECKSUM_NONE:
-		skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr, protocol,
-					       skb->len - dataoff, 0);
-		skb->ip_summed = CHECKSUM_NONE;
-		return __skb_checksum_complete_head(skb, dataoff + len);
-	}
-	return csum;
-}
-EXPORT_SYMBOL_GPL(nf_ip_checksum_partial);
-
 int nf_ip_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
 		bool strict __always_unused)
 {

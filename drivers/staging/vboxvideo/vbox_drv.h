@@ -126,7 +126,7 @@ struct vbox_private {
 #undef CURSOR_PIXEL_COUNT
 #undef CURSOR_DATA_SIZE
 
-int vbox_driver_load(struct drm_device *dev, unsigned long flags);
+int vbox_driver_load(struct drm_device *dev);
 void vbox_driver_unload(struct drm_device *dev);
 void vbox_driver_lastclose(struct drm_device *dev);
 

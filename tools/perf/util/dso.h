@@ -175,6 +175,7 @@ struct dso {
 	u16		 short_name_len;
 	void		*dwfl;			/* DWARF debug info */
 	struct auxtrace_cache *auxtrace_cache;
+	int		 comp;
 
 	/* dso data file */
 	struct {
@@ -250,9 +251,7 @@ int dso__kernel_module_get_build_id(struct dso *dso, const char *root_dir);
 char dso__symtab_origin(const struct dso *dso);
 int dso__read_binary_type_filename(const struct dso *dso, enum dso_binary_type type,
 				   char *root_dir, char *filename, size_t size);
-bool is_supported_compression(const char *ext);
 bool is_kernel_module(const char *pathname, int cpumode);
-bool decompress_to_file(const char *ext, const char *filename, int output_fd);
 bool dso__needs_decompress(struct dso *dso);
 int dso__decompress_kmodule_fd(struct dso *dso, const char *name);
 int dso__decompress_kmodule_path(struct dso *dso, const char *name,
@@ -263,17 +262,15 @@ int dso__decompress_kmodule_path(struct dso *dso, const char *name,
 
 struct kmod_path {
 	char *name;
-	char *ext;
-	bool  comp;
+	int   comp;
 	bool  kmod;
 };
 
 int __kmod_path__parse(struct kmod_path *m, const char *path,
-		     bool alloc_name, bool alloc_ext);
+		     bool alloc_name);
 
-#define kmod_path__parse(__m, __p)      __kmod_path__parse(__m, __p, false, false)
-#define kmod_path__parse_name(__m, __p) __kmod_path__parse(__m, __p, true , false)
-#define kmod_path__parse_ext(__m, __p)  __kmod_path__parse(__m, __p, false, true)
+#define kmod_path__parse(__m, __p)      __kmod_path__parse(__m, __p, false)
+#define kmod_path__parse_name(__m, __p) __kmod_path__parse(__m, __p, true)
 
 void dso__set_module_info(struct dso *dso, struct kmod_path *m,
 			  struct machine *machine);

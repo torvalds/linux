@@ -4203,7 +4203,6 @@ static int chcr_unregister_alg(void)
 #define SZ_AHASH_CTX sizeof(struct chcr_context)
 #define SZ_AHASH_H_CTX (sizeof(struct chcr_context) + sizeof(struct hmac_ctx))
 #define SZ_AHASH_REQ_CTX sizeof(struct chcr_ahash_req_ctx)
-#define AHASH_CRA_FLAGS (CRYPTO_ALG_TYPE_AHASH | CRYPTO_ALG_ASYNC)
 
 /*
  *	chcr_register_alg - Register crypto algorithms with kernel framework.
@@ -4237,8 +4236,7 @@ static int chcr_register_alg(void)
 			break;
 		case CRYPTO_ALG_TYPE_AEAD:
 			driver_algs[i].alg.aead.base.cra_flags =
-				CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC |
-				CRYPTO_ALG_NEED_FALLBACK;
+				CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK;
 			driver_algs[i].alg.aead.encrypt = chcr_aead_encrypt;
 			driver_algs[i].alg.aead.decrypt = chcr_aead_decrypt;
 			driver_algs[i].alg.aead.init = chcr_aead_cra_init;
@@ -4258,10 +4256,9 @@ static int chcr_register_alg(void)
 			a_hash->halg.statesize = SZ_AHASH_REQ_CTX;
 			a_hash->halg.base.cra_priority = CHCR_CRA_PRIORITY;
 			a_hash->halg.base.cra_module = THIS_MODULE;
-			a_hash->halg.base.cra_flags = AHASH_CRA_FLAGS;
+			a_hash->halg.base.cra_flags = CRYPTO_ALG_ASYNC;
 			a_hash->halg.base.cra_alignmask = 0;
 			a_hash->halg.base.cra_exit = NULL;
-			a_hash->halg.base.cra_type = &crypto_ahash_type;
 
 			if (driver_algs[i].type == CRYPTO_ALG_TYPE_HMAC) {
 				a_hash->halg.base.cra_init = chcr_hmac_cra_init;

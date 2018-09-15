@@ -2185,7 +2185,7 @@ static int __init dell_init(void)
 		dell_fill_request(&buffer, token->location, 0, 0, 0);
 		ret = dell_send_request(&buffer,
 					CLASS_TOKEN_READ, SELECT_TOKEN_AC);
-		if (ret)
+		if (ret == 0)
 			max_intensity = buffer.output[3];
 	}
 

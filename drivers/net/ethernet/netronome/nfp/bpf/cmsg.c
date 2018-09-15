@@ -43,8 +43,6 @@
 #include "fw.h"
 #include "main.h"
 
-#define cmsg_warn(bpf, msg...)	nn_dp_warn(&(bpf)->app->ctrl->dp, msg)
-
 #define NFP_BPF_TAG_ALLOC_SPAN	(U16_MAX / 4)
 
 static bool nfp_bpf_all_tags_busy(struct nfp_app_bpf *bpf)
@@ -441,7 +439,10 @@ void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb)
 	}
 
 	if (nfp_bpf_cmsg_get_type(skb) == CMSG_TYPE_BPF_EVENT) {
-		nfp_bpf_event_output(bpf, skb);
+		if (!nfp_bpf_event_output(bpf, skb->data, skb->len))
+			dev_consume_skb_any(skb);
+		else
+			dev_kfree_skb_any(skb);
 		return;
 	}
 
@@ -464,4 +465,22 @@ err_unlock:
 	nfp_ctrl_unlock(bpf->app->ctrl);
 err_free:
 	dev_kfree_skb_any(skb);
+}
+
+void
+nfp_bpf_ctrl_msg_rx_raw(struct nfp_app *app, const void *data, unsigned int len)
+{
+	struct nfp_app_bpf *bpf = app->priv;
+	const struct cmsg_hdr *hdr = data;
+
+	if (unlikely(len < sizeof(struct cmsg_reply_map_simple))) {
+		cmsg_warn(bpf, "cmsg drop - too short %d!\n", len);
+		return;
+	}
+
+	if (hdr->type == CMSG_TYPE_BPF_EVENT)
+		nfp_bpf_event_output(bpf, data, len);
+	else
+		cmsg_warn(bpf, "cmsg drop - msg type %d with raw buffer!\n",
+			  hdr->type);
 }

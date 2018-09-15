@@ -394,9 +394,8 @@ static int sst25l_probe(struct spi_device *spi)
 	      flash->mtd.numeraseregions);
 
 
-	ret = mtd_device_parse_register(&flash->mtd, NULL, NULL,
-					data ? data->parts : NULL,
-					data ? data->nr_parts : 0);
+	ret = mtd_device_register(&flash->mtd, data ? data->parts : NULL,
+				  data ? data->nr_parts : 0);
 	if (ret)
 		return -ENODEV;
 

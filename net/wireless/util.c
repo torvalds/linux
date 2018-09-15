@@ -4,6 +4,7 @@
  *
  * Copyright 2007-2009	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright 2017	Intel Deutschland GmbH
  */
 #include <linux/export.h>
 #include <linux/bitops.h>
@@ -1142,6 +1143,85 @@ static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
 	return 0;
 }
 
+static u32 cfg80211_calculate_bitrate_he(struct rate_info *rate)
+{
+#define SCALE 2048
+	u16 mcs_divisors[12] = {
+		34133, /* 16.666666... */
+		17067, /*  8.333333... */
+		11378, /*  5.555555... */
+		 8533, /*  4.166666... */
+		 5689, /*  2.777777... */
+		 4267, /*  2.083333... */
+		 3923, /*  1.851851... */
+		 3413, /*  1.666666... */
+		 2844, /*  1.388888... */
+		 2560, /*  1.250000... */
+		 2276, /*  1.111111... */
+		 2048, /*  1.000000... */
+	};
+	u32 rates_160M[3] = { 960777777, 907400000, 816666666 };
+	u32 rates_969[3] =  { 480388888, 453700000, 408333333 };
+	u32 rates_484[3] =  { 229411111, 216666666, 195000000 };
+	u32 rates_242[3] =  { 114711111, 108333333,  97500000 };
+	u32 rates_106[3] =  {  40000000,  37777777,  34000000 };
+	u32 rates_52[3]  =  {  18820000,  17777777,  16000000 };
+	u32 rates_26[3]  =  {   9411111,   8888888,   8000000 };
+	u64 tmp;
+	u32 result;
+
+	if (WARN_ON_ONCE(rate->mcs > 11))
+		return 0;
+
+	if (WARN_ON_ONCE(rate->he_gi > NL80211_RATE_INFO_HE_GI_3_2))
+		return 0;
+	if (WARN_ON_ONCE(rate->he_ru_alloc >
+			 NL80211_RATE_INFO_HE_RU_ALLOC_2x996))
+		return 0;
+	if (WARN_ON_ONCE(rate->nss < 1 || rate->nss > 8))
+		return 0;
+
+	if (rate->bw == RATE_INFO_BW_160)
+		result = rates_160M[rate->he_gi];
+	else if (rate->bw == RATE_INFO_BW_80 ||
+		 (rate->bw == RATE_INFO_BW_HE_RU &&
+		  rate->he_ru_alloc == NL80211_RATE_INFO_HE_RU_ALLOC_996))
+		result = rates_969[rate->he_gi];
+	else if (rate->bw == RATE_INFO_BW_40 ||
+		 (rate->bw == RATE_INFO_BW_HE_RU &&
+		  rate->he_ru_alloc == NL80211_RATE_INFO_HE_RU_ALLOC_484))
+		result = rates_484[rate->he_gi];
+	else if (rate->bw == RATE_INFO_BW_20 ||
+		 (rate->bw == RATE_INFO_BW_HE_RU &&
+		  rate->he_ru_alloc == NL80211_RATE_INFO_HE_RU_ALLOC_242))
+		result = rates_242[rate->he_gi];
+	else if (rate->bw == RATE_INFO_BW_HE_RU &&
+		 rate->he_ru_alloc == NL80211_RATE_INFO_HE_RU_ALLOC_106)
+		result = rates_106[rate->he_gi];
+	else if (rate->bw == RATE_INFO_BW_HE_RU &&
+		 rate->he_ru_alloc == NL80211_RATE_INFO_HE_RU_ALLOC_52)
+		result = rates_52[rate->he_gi];
+	else if (rate->bw == RATE_INFO_BW_HE_RU &&
+		 rate->he_ru_alloc == NL80211_RATE_INFO_HE_RU_ALLOC_26)
+		result = rates_26[rate->he_gi];
+	else if (WARN(1, "invalid HE MCS: bw:%d, ru:%d\n",
+		      rate->bw, rate->he_ru_alloc))
+		return 0;
+
+	/* now scale to the appropriate MCS */
+	tmp = result;
+	tmp *= SCALE;
+	do_div(tmp, mcs_divisors[rate->mcs]);
+	result = tmp;
+
+	/* and take NSS, DCM into account */
+	result = (result * rate->nss) / 8;
+	if (rate->he_dcm)
+		result /= 2;
+
+	return result;
+}
+
 u32 cfg80211_calculate_bitrate(struct rate_info *rate)
 {
 	if (rate->flags & RATE_INFO_FLAGS_MCS)
@@ -1150,6 +1230,8 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate)
 		return cfg80211_calculate_bitrate_60g(rate);
 	if (rate->flags & RATE_INFO_FLAGS_VHT_MCS)
 		return cfg80211_calculate_bitrate_vht(rate);
+	if (rate->flags & RATE_INFO_FLAGS_HE_MCS)
+		return cfg80211_calculate_bitrate_he(rate);
 
 	return rate->legacy;
 }
@@ -1791,8 +1873,9 @@ bool cfg80211_does_bw_fit_range(const struct ieee80211_freq_range *freq_range,
 
 int cfg80211_sinfo_alloc_tid_stats(struct station_info *sinfo, gfp_t gfp)
 {
-	sinfo->pertid = kcalloc(sizeof(*(sinfo->pertid)),
-				IEEE80211_NUM_TIDS + 1, gfp);
+	sinfo->pertid = kcalloc(IEEE80211_NUM_TIDS + 1,
+				sizeof(*(sinfo->pertid)),
+				gfp);
 	if (!sinfo->pertid)
 		return -ENOMEM;
 

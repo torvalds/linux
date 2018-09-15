@@ -138,10 +138,16 @@ static void unmask_giuint_low(struct irq_data *d)
 
 static unsigned int startup_giuint(struct irq_data *data)
 {
-	if (gpiochip_lock_as_irq(&vr41xx_gpio_chip, data->hwirq))
+	int ret;
+
+	ret = gpiochip_lock_as_irq(&vr41xx_gpio_chip, irqd_to_hwirq(data));
+	if (ret) {
 		dev_err(vr41xx_gpio_chip.parent,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			data->hwirq);
+		return ret;
+	}
+
 	/* Satisfy the .enable semantics by unmasking the line */
 	unmask_giuint_low(data);
 	return 0;

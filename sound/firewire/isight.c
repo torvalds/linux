@@ -454,7 +454,6 @@ static int isight_create_pcm(struct isight *isight)
 		.trigger   = isight_trigger,
 		.pointer   = isight_pointer,
 		.page      = snd_pcm_lib_get_vmalloc_page,
-		.mmap      = snd_pcm_lib_mmap_vmalloc,
 	};
 	struct snd_pcm *pcm;
 	int err;

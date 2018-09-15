@@ -51,6 +51,18 @@ config DRM_I915_DEBUG_GEM
 
           If in doubt, say "N".
 
+config DRM_I915_ERRLOG_GEM
+	bool "Insert extra logging (very verbose) for common GEM errors"
+	default n
+	depends on DRM_I915_DEBUG_GEM
+	help
+	  Enable additional logging that may help track down the cause of
+	  principally userspace errors.
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
 config DRM_I915_TRACE_GEM
 	bool "Insert extra ftrace output from the GEM internals"
 	depends on DRM_I915_DEBUG_GEM

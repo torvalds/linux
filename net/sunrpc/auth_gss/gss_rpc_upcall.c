@@ -234,6 +234,35 @@ static int gssp_alloc_receive_pages(struct gssx_arg_accept_sec_context *arg)
 	return 0;
 }
 
+static char *gssp_stringify(struct xdr_netobj *netobj)
+{
+	return kstrndup(netobj->data, netobj->len, GFP_KERNEL);
+}
+
+static void gssp_hostbased_service(char **principal)
+{
+	char *c;
+
+	if (!*principal)
+		return;
+
+	/* terminate and remove realm part */
+	c = strchr(*principal, '@');
+	if (c) {
+		*c = '\0';
+
+		/* change service-hostname delimiter */
+		c = strchr(*principal, '/');
+		if (c)
+			*c = '@';
+	}
+	if (!c) {
+		/* not a service principal */
+		kfree(*principal);
+		*principal = NULL;
+	}
+}
+
 /*
  * Public functions
  */
@@ -262,6 +291,7 @@ int gssp_accept_sec_context_upcall(struct net *net,
 		 */
 		.exported_context_token.len = GSSX_max_output_handle_sz,
 		.mech.len = GSS_OID_MAX_LEN,
+		.targ_name.display_name.len = GSSX_max_princ_sz,
 		.src_name.display_name.len = GSSX_max_princ_sz
 	};
 	struct gssx_res_accept_sec_context res = {
@@ -275,6 +305,7 @@ int gssp_accept_sec_context_upcall(struct net *net,
 		.rpc_cred = NULL, /* FIXME ? */
 	};
 	struct xdr_netobj client_name = { 0 , NULL };
+	struct xdr_netobj target_name = { 0, NULL };
 	int ret;
 
 	if (data->in_handle.len != 0)
@@ -284,8 +315,6 @@ int gssp_accept_sec_context_upcall(struct net *net,
 	ret = gssp_alloc_receive_pages(&arg);
 	if (ret)
 		return ret;
-
-	/* use nfs/ for targ_name ? */
 
 	ret = gssp_call(net, &msg);
 
@@ -304,6 +333,7 @@ int gssp_accept_sec_context_upcall(struct net *net,
 			kfree(rctxh.mech.data);
 		}
 		client_name = rctxh.src_name.display_name;
+		target_name = rctxh.targ_name.display_name;
 	}
 
 	if (res.options.count == 1) {
@@ -325,32 +355,22 @@ int gssp_accept_sec_context_upcall(struct net *net,
 	}
 
 	/* convert to GSS_NT_HOSTBASED_SERVICE form and set into creds */
-	if (data->found_creds && client_name.data != NULL) {
-		char *c;
-
-		data->creds.cr_raw_principal = kstrndup(client_name.data,
-						client_name.len, GFP_KERNEL);
-
-		data->creds.cr_principal = kstrndup(client_name.data,
-						client_name.len, GFP_KERNEL);
-		if (data->creds.cr_principal) {
-			/* terminate and remove realm part */
-			c = strchr(data->creds.cr_principal, '@');
-			if (c) {
-				*c = '\0';
-
-				/* change service-hostname delimiter */
-				c = strchr(data->creds.cr_principal, '/');
-				if (c) *c = '@';
-			}
-			if (!c) {
-				/* not a service principal */
-				kfree(data->creds.cr_principal);
-				data->creds.cr_principal = NULL;
-			}
+	if (data->found_creds) {
+		if (client_name.data) {
+			data->creds.cr_raw_principal =
+					gssp_stringify(&client_name);
+			data->creds.cr_principal =
+					gssp_stringify(&client_name);
+			gssp_hostbased_service(&data->creds.cr_principal);
+		}
+		if (target_name.data) {
+			data->creds.cr_targ_princ =
+					gssp_stringify(&target_name);
+			gssp_hostbased_service(&data->creds.cr_targ_princ);
 		}
 	}
 	kfree(client_name.data);
+	kfree(target_name.data);
 
 	return ret;
 }

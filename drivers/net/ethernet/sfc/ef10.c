@@ -4288,9 +4288,9 @@ static int efx_ef10_filter_pri(struct efx_ef10_filter_table *table,
 	return -EPROTONOSUPPORT;
 }
 
-static s32 efx_ef10_filter_insert(struct efx_nic *efx,
-				  struct efx_filter_spec *spec,
-				  bool replace_equal)
+static s32 efx_ef10_filter_insert_locked(struct efx_nic *efx,
+					 struct efx_filter_spec *spec,
+					 bool replace_equal)
 {
 	DECLARE_BITMAP(mc_rem_map, EFX_EF10_FILTER_SEARCH_LIMIT);
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
@@ -4307,7 +4307,7 @@ static s32 efx_ef10_filter_insert(struct efx_nic *efx,
 	bool is_mc_recip;
 	s32 rc;
 
-	down_read(&efx->filter_sem);
+	WARN_ON(!rwsem_is_locked(&efx->filter_sem));
 	table = efx->filter_state;
 	down_write(&table->lock);
 
@@ -4498,8 +4498,20 @@ out_unlock:
 	if (rss_locked)
 		mutex_unlock(&efx->rss_lock);
 	up_write(&table->lock);
-	up_read(&efx->filter_sem);
 	return rc;
+}
+
+static s32 efx_ef10_filter_insert(struct efx_nic *efx,
+				  struct efx_filter_spec *spec,
+				  bool replace_equal)
+{
+	s32 ret;
+
+	down_read(&efx->filter_sem);
+	ret = efx_ef10_filter_insert_locked(efx, spec, replace_equal);
+	up_read(&efx->filter_sem);
+
+	return ret;
 }
 
 static void efx_ef10_filter_update_rx_scatter(struct efx_nic *efx)
@@ -5285,7 +5297,7 @@ static int efx_ef10_filter_insert_addr_list(struct efx_nic *efx,
 		EFX_WARN_ON_PARANOID(ids[i] != EFX_EF10_FILTER_ID_INVALID);
 		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO, filter_flags, 0);
 		efx_filter_set_eth_local(&spec, vlan->vid, addr_list[i].addr);
-		rc = efx_ef10_filter_insert(efx, &spec, true);
+		rc = efx_ef10_filter_insert_locked(efx, &spec, true);
 		if (rc < 0) {
 			if (rollback) {
 				netif_info(efx, drv, efx->net_dev,
@@ -5314,7 +5326,7 @@ static int efx_ef10_filter_insert_addr_list(struct efx_nic *efx,
 		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO, filter_flags, 0);
 		eth_broadcast_addr(baddr);
 		efx_filter_set_eth_local(&spec, vlan->vid, baddr);
-		rc = efx_ef10_filter_insert(efx, &spec, true);
+		rc = efx_ef10_filter_insert_locked(efx, &spec, true);
 		if (rc < 0) {
 			netif_warn(efx, drv, efx->net_dev,
 				   "Broadcast filter insert failed rc=%d\n", rc);
@@ -5370,7 +5382,7 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx,
 	if (vlan->vid != EFX_FILTER_VID_UNSPEC)
 		efx_filter_set_eth_local(&spec, vlan->vid, NULL);
 
-	rc = efx_ef10_filter_insert(efx, &spec, true);
+	rc = efx_ef10_filter_insert_locked(efx, &spec, true);
 	if (rc < 0) {
 		const char *um = multicast ? "Multicast" : "Unicast";
 		const char *encap_name = "";
@@ -5430,7 +5442,7 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx,
 					   filter_flags, 0);
 			eth_broadcast_addr(baddr);
 			efx_filter_set_eth_local(&spec, vlan->vid, baddr);
-			rc = efx_ef10_filter_insert(efx, &spec, true);
+			rc = efx_ef10_filter_insert_locked(efx, &spec, true);
 			if (rc < 0) {
 				netif_warn(efx, drv, efx->net_dev,
 					   "Broadcast filter insert failed rc=%d\n",

@@ -16,6 +16,7 @@
 
 #include "chip.h"
 #include "global2.h"
+#include "hwtstamp.h"
 #include "ptp.h"
 
 /* Raw timestamps are in units of 8-ns clock periods. */
@@ -50,7 +51,7 @@ static int mv88e6xxx_tai_write(struct mv88e6xxx_chip *chip, int addr, u16 data)
 }
 
 /* TODO: places where this are called should be using pinctrl */
-static int mv88e6xxx_set_gpio_func(struct mv88e6xxx_chip *chip, int pin,
+static int mv88e6352_set_gpio_func(struct mv88e6xxx_chip *chip, int pin,
 				   int func, int input)
 {
 	int err;
@@ -65,7 +66,7 @@ static int mv88e6xxx_set_gpio_func(struct mv88e6xxx_chip *chip, int pin,
 	return chip->info->ops->gpio_ops->set_pctl(chip, pin, func);
 }
 
-static u64 mv88e6xxx_ptp_clock_read(const struct cyclecounter *cc)
+static u64 mv88e6352_ptp_clock_read(const struct cyclecounter *cc)
 {
 	struct mv88e6xxx_chip *chip = cc_to_chip(cc);
 	u16 phc_time[2];
@@ -79,13 +80,27 @@ static u64 mv88e6xxx_ptp_clock_read(const struct cyclecounter *cc)
 		return ((u32)phc_time[1] << 16) | phc_time[0];
 }
 
-/* mv88e6xxx_config_eventcap - configure TAI event capture
+static u64 mv88e6165_ptp_clock_read(const struct cyclecounter *cc)
+{
+	struct mv88e6xxx_chip *chip = cc_to_chip(cc);
+	u16 phc_time[2];
+	int err;
+
+	err = mv88e6xxx_tai_read(chip, MV88E6XXX_PTP_GC_TIME_LO, phc_time,
+				 ARRAY_SIZE(phc_time));
+	if (err)
+		return 0;
+	else
+		return ((u32)phc_time[1] << 16) | phc_time[0];
+}
+
+/* mv88e6352_config_eventcap - configure TAI event capture
  * @event: PTP_CLOCK_PPS (internal) or PTP_CLOCK_EXTTS (external)
  * @rising: zero for falling-edge trigger, else rising-edge trigger
  *
  * This will also reset the capture sequence counter.
  */
-static int mv88e6xxx_config_eventcap(struct mv88e6xxx_chip *chip, int event,
+static int mv88e6352_config_eventcap(struct mv88e6xxx_chip *chip, int event,
 				     int rising)
 {
 	u16 global_config;
@@ -118,7 +133,7 @@ static int mv88e6xxx_config_eventcap(struct mv88e6xxx_chip *chip, int event,
 	return err;
 }
 
-static void mv88e6xxx_tai_event_work(struct work_struct *ugly)
+static void mv88e6352_tai_event_work(struct work_struct *ugly)
 {
 	struct delayed_work *dw = to_delayed_work(ugly);
 	struct mv88e6xxx_chip *chip = dw_tai_event_to_chip(dw);
@@ -232,7 +247,7 @@ static int mv88e6xxx_ptp_settime(struct ptp_clock_info *ptp,
 	return 0;
 }
 
-static int mv88e6xxx_ptp_enable_extts(struct mv88e6xxx_chip *chip,
+static int mv88e6352_ptp_enable_extts(struct mv88e6xxx_chip *chip,
 				      struct ptp_clock_request *rq, int on)
 {
 	int rising = (rq->extts.flags & PTP_RISING_EDGE);
@@ -250,18 +265,18 @@ static int mv88e6xxx_ptp_enable_extts(struct mv88e6xxx_chip *chip,
 	if (on) {
 		func = MV88E6352_G2_SCRATCH_GPIO_PCTL_EVREQ;
 
-		err = mv88e6xxx_set_gpio_func(chip, pin, func, true);
+		err = mv88e6352_set_gpio_func(chip, pin, func, true);
 		if (err)
 			goto out;
 
 		schedule_delayed_work(&chip->tai_event_work,
 				      TAI_EVENT_WORK_INTERVAL);
 
-		err = mv88e6xxx_config_eventcap(chip, PTP_CLOCK_EXTTS, rising);
+		err = mv88e6352_config_eventcap(chip, PTP_CLOCK_EXTTS, rising);
 	} else {
 		func = MV88E6352_G2_SCRATCH_GPIO_PCTL_GPIO;
 
-		err = mv88e6xxx_set_gpio_func(chip, pin, func, true);
+		err = mv88e6352_set_gpio_func(chip, pin, func, true);
 
 		cancel_delayed_work_sync(&chip->tai_event_work);
 	}
@@ -272,20 +287,20 @@ out:
 	return err;
 }
 
-static int mv88e6xxx_ptp_enable(struct ptp_clock_info *ptp,
+static int mv88e6352_ptp_enable(struct ptp_clock_info *ptp,
 				struct ptp_clock_request *rq, int on)
 {
 	struct mv88e6xxx_chip *chip = ptp_to_chip(ptp);
 
 	switch (rq->type) {
 	case PTP_CLK_REQ_EXTTS:
-		return mv88e6xxx_ptp_enable_extts(chip, rq, on);
+		return mv88e6352_ptp_enable_extts(chip, rq, on);
 	default:
 		return -EOPNOTSUPP;
 	}
 }
 
-static int mv88e6xxx_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
+static int mv88e6352_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
 				enum ptp_pin_function func, unsigned int chan)
 {
 	switch (func) {
@@ -296,6 +311,55 @@ static int mv88e6xxx_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
 	case PTP_PF_PHYSYNC:
 		return -EOPNOTSUPP;
 	}
+	return 0;
+}
+
+const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops = {
+	.clock_read = mv88e6352_ptp_clock_read,
+	.ptp_enable = mv88e6352_ptp_enable,
+	.ptp_verify = mv88e6352_ptp_verify,
+	.event_work = mv88e6352_tai_event_work,
+	.port_enable = mv88e6352_hwtstamp_port_enable,
+	.port_disable = mv88e6352_hwtstamp_port_disable,
+	.n_ext_ts = 1,
+	.arr0_sts_reg = MV88E6XXX_PORT_PTP_ARR0_STS,
+	.arr1_sts_reg = MV88E6XXX_PORT_PTP_ARR1_STS,
+	.dep_sts_reg = MV88E6XXX_PORT_PTP_DEP_STS,
+	.rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ),
+};
+
+const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops = {
+	.clock_read = mv88e6165_ptp_clock_read,
+	.global_enable = mv88e6165_global_enable,
+	.global_disable = mv88e6165_global_disable,
+	.arr0_sts_reg = MV88E6165_PORT_PTP_ARR0_STS,
+	.arr1_sts_reg = MV88E6165_PORT_PTP_ARR1_STS,
+	.dep_sts_reg = MV88E6165_PORT_PTP_DEP_STS,
+	.rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ),
+};
+
+static u64 mv88e6xxx_ptp_clock_read(const struct cyclecounter *cc)
+{
+	struct mv88e6xxx_chip *chip = cc_to_chip(cc);
+
+	if (chip->info->ops->ptp_ops->clock_read)
+		return chip->info->ops->ptp_ops->clock_read(cc);
+
 	return 0;
 }
 
@@ -317,6 +381,7 @@ static void mv88e6xxx_ptp_overflow_check(struct work_struct *work)
 
 int mv88e6xxx_ptp_setup(struct mv88e6xxx_chip *chip)
 {
+	const struct mv88e6xxx_ptp_ops *ptp_ops = chip->info->ops->ptp_ops;
 	int i;
 
 	/* Set up the cycle counter */
@@ -330,14 +395,15 @@ int mv88e6xxx_ptp_setup(struct mv88e6xxx_chip *chip)
 			 ktime_to_ns(ktime_get_real()));
 
 	INIT_DELAYED_WORK(&chip->overflow_work, mv88e6xxx_ptp_overflow_check);
-	INIT_DELAYED_WORK(&chip->tai_event_work, mv88e6xxx_tai_event_work);
+	if (ptp_ops->event_work)
+		INIT_DELAYED_WORK(&chip->tai_event_work, ptp_ops->event_work);
 
 	chip->ptp_clock_info.owner = THIS_MODULE;
 	snprintf(chip->ptp_clock_info.name, sizeof(chip->ptp_clock_info.name),
 		 dev_name(chip->dev));
 	chip->ptp_clock_info.max_adj	= 1000000;
 
-	chip->ptp_clock_info.n_ext_ts	= 1;
+	chip->ptp_clock_info.n_ext_ts	= ptp_ops->n_ext_ts;
 	chip->ptp_clock_info.n_per_out	= 0;
 	chip->ptp_clock_info.n_pins	= mv88e6xxx_num_gpio(chip);
 	chip->ptp_clock_info.pps	= 0;
@@ -355,8 +421,8 @@ int mv88e6xxx_ptp_setup(struct mv88e6xxx_chip *chip)
 	chip->ptp_clock_info.adjtime	= mv88e6xxx_ptp_adjtime;
 	chip->ptp_clock_info.gettime64	= mv88e6xxx_ptp_gettime;
 	chip->ptp_clock_info.settime64	= mv88e6xxx_ptp_settime;
-	chip->ptp_clock_info.enable	= mv88e6xxx_ptp_enable;
-	chip->ptp_clock_info.verify	= mv88e6xxx_ptp_verify;
+	chip->ptp_clock_info.enable	= ptp_ops->ptp_enable;
+	chip->ptp_clock_info.verify	= ptp_ops->ptp_verify;
 	chip->ptp_clock_info.do_aux_work = mv88e6xxx_hwtstamp_work;
 
 	chip->ptp_clock = ptp_clock_register(&chip->ptp_clock_info, chip->dev);
@@ -373,7 +439,8 @@ void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip)
 {
 	if (chip->ptp_clock) {
 		cancel_delayed_work_sync(&chip->overflow_work);
-		cancel_delayed_work_sync(&chip->tai_event_work);
+		if (chip->info->ops->ptp_ops->event_work)
+			cancel_delayed_work_sync(&chip->tai_event_work);
 
 		ptp_clock_unregister(chip->ptp_clock);
 		chip->ptp_clock = NULL;

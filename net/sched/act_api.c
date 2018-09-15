@@ -36,7 +36,7 @@ static int tcf_action_goto_chain_init(struct tc_action *a, struct tcf_proto *tp)
 
 	if (!tp)
 		return -EINVAL;
-	a->goto_chain = tcf_chain_get(tp->chain->block, chain_index, true);
+	a->goto_chain = tcf_chain_get_by_act(tp->chain->block, chain_index);
 	if (!a->goto_chain)
 		return -ENOMEM;
 	return 0;
@@ -44,7 +44,7 @@ static int tcf_action_goto_chain_init(struct tc_action *a, struct tcf_proto *tp)
 
 static void tcf_action_goto_chain_fini(struct tc_action *a)
 {
-	tcf_chain_put(a->goto_chain);
+	tcf_chain_put_by_act(a->goto_chain);
 }
 
 static void tcf_action_goto_chain_exec(const struct tc_action *a,
@@ -53,6 +53,24 @@ static void tcf_action_goto_chain_exec(const struct tc_action *a,
 	const struct tcf_chain *chain = a->goto_chain;
 
 	res->goto_tp = rcu_dereference_bh(chain->filter_chain);
+}
+
+static void tcf_free_cookie_rcu(struct rcu_head *p)
+{
+	struct tc_cookie *cookie = container_of(p, struct tc_cookie, rcu);
+
+	kfree(cookie->data);
+	kfree(cookie);
+}
+
+static void tcf_set_action_cookie(struct tc_cookie __rcu **old_cookie,
+				  struct tc_cookie *new_cookie)
+{
+	struct tc_cookie *old;
+
+	old = xchg((__force struct tc_cookie **)old_cookie, new_cookie);
+	if (old)
+		call_rcu(&old->rcu, tcf_free_cookie_rcu);
 }
 
 /* XXX: For standalone actions, we don't need a RCU grace period either, because
@@ -65,44 +83,64 @@ static void free_tcf(struct tc_action *p)
 	free_percpu(p->cpu_bstats);
 	free_percpu(p->cpu_qstats);
 
-	if (p->act_cookie) {
-		kfree(p->act_cookie->data);
-		kfree(p->act_cookie);
-	}
+	tcf_set_action_cookie(&p->act_cookie, NULL);
 	if (p->goto_chain)
 		tcf_action_goto_chain_fini(p);
 
 	kfree(p);
 }
 
-static void tcf_idr_remove(struct tcf_idrinfo *idrinfo, struct tc_action *p)
+static void tcf_action_cleanup(struct tc_action *p)
 {
-	spin_lock(&idrinfo->lock);
-	idr_remove(&idrinfo->action_idr, p->tcfa_index);
-	spin_unlock(&idrinfo->lock);
+	if (p->ops->cleanup)
+		p->ops->cleanup(p);
+
 	gen_kill_estimator(&p->tcfa_rate_est);
 	free_tcf(p);
+}
+
+static int __tcf_action_put(struct tc_action *p, bool bind)
+{
+	struct tcf_idrinfo *idrinfo = p->idrinfo;
+
+	if (refcount_dec_and_lock(&p->tcfa_refcnt, &idrinfo->lock)) {
+		if (bind)
+			atomic_dec(&p->tcfa_bindcnt);
+		idr_remove(&idrinfo->action_idr, p->tcfa_index);
+		spin_unlock(&idrinfo->lock);
+
+		tcf_action_cleanup(p);
+		return 1;
+	}
+
+	if (bind)
+		atomic_dec(&p->tcfa_bindcnt);
+
+	return 0;
 }
 
 int __tcf_idr_release(struct tc_action *p, bool bind, bool strict)
 {
 	int ret = 0;
 
-	ASSERT_RTNL();
-
+	/* Release with strict==1 and bind==0 is only called through act API
+	 * interface (classifiers always bind). Only case when action with
+	 * positive reference count and zero bind count can exist is when it was
+	 * also created with act API (unbinding last classifier will destroy the
+	 * action if it was created by classifier). So only case when bind count
+	 * can be changed after initial check is when unbound action is
+	 * destroyed by act API while classifier binds to action with same id
+	 * concurrently. This result either creation of new action(same behavior
+	 * as before), or reusing existing action if concurrent process
+	 * increments reference count before action is deleted. Both scenarios
+	 * are acceptable.
+	 */
 	if (p) {
-		if (bind)
-			p->tcfa_bindcnt--;
-		else if (strict && p->tcfa_bindcnt > 0)
+		if (!bind && strict && atomic_read(&p->tcfa_bindcnt) > 0)
 			return -EPERM;
 
-		p->tcfa_refcnt--;
-		if (p->tcfa_bindcnt <= 0 && p->tcfa_refcnt <= 0) {
-			if (p->ops->cleanup)
-				p->ops->cleanup(p);
-			tcf_idr_remove(p->idrinfo, p);
+		if (__tcf_action_put(p, bind))
 			ret = ACT_P_DELETED;
-		}
 	}
 
 	return ret;
@@ -111,10 +149,15 @@ EXPORT_SYMBOL(__tcf_idr_release);
 
 static size_t tcf_action_shared_attrs_size(const struct tc_action *act)
 {
+	struct tc_cookie *act_cookie;
 	u32 cookie_len = 0;
 
-	if (act->act_cookie)
-		cookie_len = nla_total_size(act->act_cookie->len);
+	rcu_read_lock();
+	act_cookie = rcu_dereference(act->act_cookie);
+
+	if (act_cookie)
+		cookie_len = nla_total_size(act_cookie->len);
+	rcu_read_unlock();
 
 	return  nla_total_size(0) /* action number nested */
 		+ nla_total_size(IFNAMSIZ) /* TCA_ACT_KIND */
@@ -257,46 +300,77 @@ int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(tcf_generic_walker);
 
-static struct tc_action *tcf_idr_lookup(u32 index, struct tcf_idrinfo *idrinfo)
+static bool __tcf_idr_check(struct tc_action_net *tn, u32 index,
+			    struct tc_action **a, int bind)
 {
-	struct tc_action *p = NULL;
+	struct tcf_idrinfo *idrinfo = tn->idrinfo;
+	struct tc_action *p;
 
 	spin_lock(&idrinfo->lock);
 	p = idr_find(&idrinfo->action_idr, index);
+	if (IS_ERR(p)) {
+		p = NULL;
+	} else if (p) {
+		refcount_inc(&p->tcfa_refcnt);
+		if (bind)
+			atomic_inc(&p->tcfa_bindcnt);
+	}
 	spin_unlock(&idrinfo->lock);
 
-	return p;
+	if (p) {
+		*a = p;
+		return true;
+	}
+	return false;
 }
 
 int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index)
 {
-	struct tcf_idrinfo *idrinfo = tn->idrinfo;
-	struct tc_action *p = tcf_idr_lookup(index, idrinfo);
-
-	if (p) {
-		*a = p;
-		return 1;
-	}
-	return 0;
+	return __tcf_idr_check(tn, index, a, 0);
 }
 EXPORT_SYMBOL(tcf_idr_search);
 
 bool tcf_idr_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
 		   int bind)
 {
-	struct tcf_idrinfo *idrinfo = tn->idrinfo;
-	struct tc_action *p = tcf_idr_lookup(index, idrinfo);
-
-	if (index && p) {
-		if (bind)
-			p->tcfa_bindcnt++;
-		p->tcfa_refcnt++;
-		*a = p;
-		return true;
-	}
-	return false;
+	return __tcf_idr_check(tn, index, a, bind);
 }
 EXPORT_SYMBOL(tcf_idr_check);
+
+int tcf_idr_delete_index(struct tc_action_net *tn, u32 index)
+{
+	struct tcf_idrinfo *idrinfo = tn->idrinfo;
+	struct tc_action *p;
+	int ret = 0;
+
+	spin_lock(&idrinfo->lock);
+	p = idr_find(&idrinfo->action_idr, index);
+	if (!p) {
+		spin_unlock(&idrinfo->lock);
+		return -ENOENT;
+	}
+
+	if (!atomic_read(&p->tcfa_bindcnt)) {
+		if (refcount_dec_and_test(&p->tcfa_refcnt)) {
+			struct module *owner = p->ops->owner;
+
+			WARN_ON(p != idr_remove(&idrinfo->action_idr,
+						p->tcfa_index));
+			spin_unlock(&idrinfo->lock);
+
+			tcf_action_cleanup(p);
+			module_put(owner);
+			return 0;
+		}
+		ret = 0;
+	} else {
+		ret = -EPERM;
+	}
+
+	spin_unlock(&idrinfo->lock);
+	return ret;
+}
+EXPORT_SYMBOL(tcf_idr_delete_index);
 
 int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		   struct tc_action **a, const struct tc_action_ops *ops,
@@ -304,14 +378,13 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 {
 	struct tc_action *p = kzalloc(ops->size, GFP_KERNEL);
 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
-	struct idr *idr = &idrinfo->action_idr;
 	int err = -ENOMEM;
 
 	if (unlikely(!p))
 		return -ENOMEM;
-	p->tcfa_refcnt = 1;
+	refcount_set(&p->tcfa_refcnt, 1);
 	if (bind)
-		p->tcfa_bindcnt = 1;
+		atomic_set(&p->tcfa_bindcnt, 1);
 
 	if (cpustats) {
 		p->cpu_bstats = netdev_alloc_pcpu_stats(struct gnet_stats_basic_cpu);
@@ -322,20 +395,6 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 			goto err2;
 	}
 	spin_lock_init(&p->tcfa_lock);
-	idr_preload(GFP_KERNEL);
-	spin_lock(&idrinfo->lock);
-	/* user doesn't specify an index */
-	if (!index) {
-		index = 1;
-		err = idr_alloc_u32(idr, NULL, &index, UINT_MAX, GFP_ATOMIC);
-	} else {
-		err = idr_alloc_u32(idr, NULL, &index, index, GFP_ATOMIC);
-	}
-	spin_unlock(&idrinfo->lock);
-	idr_preload_end();
-	if (err)
-		goto err3;
-
 	p->tcfa_index = index;
 	p->tcfa_tm.install = jiffies;
 	p->tcfa_tm.lastuse = jiffies;
@@ -345,7 +404,7 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 					&p->tcfa_rate_est,
 					&p->tcfa_lock, NULL, est);
 		if (err)
-			goto err4;
+			goto err3;
 	}
 
 	p->idrinfo = idrinfo;
@@ -353,8 +412,6 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 	INIT_LIST_HEAD(&p->list);
 	*a = p;
 	return 0;
-err4:
-	idr_remove(idr, index);
 err3:
 	free_percpu(p->cpu_qstats);
 err2:
@@ -370,10 +427,77 @@ void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a)
 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
 
 	spin_lock(&idrinfo->lock);
-	idr_replace(&idrinfo->action_idr, a, a->tcfa_index);
+	/* Replace ERR_PTR(-EBUSY) allocated by tcf_idr_check_alloc */
+	WARN_ON(!IS_ERR(idr_replace(&idrinfo->action_idr, a, a->tcfa_index)));
 	spin_unlock(&idrinfo->lock);
 }
 EXPORT_SYMBOL(tcf_idr_insert);
+
+/* Cleanup idr index that was allocated but not initialized. */
+
+void tcf_idr_cleanup(struct tc_action_net *tn, u32 index)
+{
+	struct tcf_idrinfo *idrinfo = tn->idrinfo;
+
+	spin_lock(&idrinfo->lock);
+	/* Remove ERR_PTR(-EBUSY) allocated by tcf_idr_check_alloc */
+	WARN_ON(!IS_ERR(idr_remove(&idrinfo->action_idr, index)));
+	spin_unlock(&idrinfo->lock);
+}
+EXPORT_SYMBOL(tcf_idr_cleanup);
+
+/* Check if action with specified index exists. If actions is found, increments
+ * its reference and bind counters, and return 1. Otherwise insert temporary
+ * error pointer (to prevent concurrent users from inserting actions with same
+ * index) and return 0.
+ */
+
+int tcf_idr_check_alloc(struct tc_action_net *tn, u32 *index,
+			struct tc_action **a, int bind)
+{
+	struct tcf_idrinfo *idrinfo = tn->idrinfo;
+	struct tc_action *p;
+	int ret;
+
+again:
+	spin_lock(&idrinfo->lock);
+	if (*index) {
+		p = idr_find(&idrinfo->action_idr, *index);
+		if (IS_ERR(p)) {
+			/* This means that another process allocated
+			 * index but did not assign the pointer yet.
+			 */
+			spin_unlock(&idrinfo->lock);
+			goto again;
+		}
+
+		if (p) {
+			refcount_inc(&p->tcfa_refcnt);
+			if (bind)
+				atomic_inc(&p->tcfa_bindcnt);
+			*a = p;
+			ret = 1;
+		} else {
+			*a = NULL;
+			ret = idr_alloc_u32(&idrinfo->action_idr, NULL, index,
+					    *index, GFP_ATOMIC);
+			if (!ret)
+				idr_replace(&idrinfo->action_idr,
+					    ERR_PTR(-EBUSY), *index);
+		}
+	} else {
+		*index = 1;
+		*a = NULL;
+		ret = idr_alloc_u32(&idrinfo->action_idr, NULL, index,
+				    UINT_MAX, GFP_ATOMIC);
+		if (!ret)
+			idr_replace(&idrinfo->action_idr, ERR_PTR(-EBUSY),
+				    *index);
+	}
+	spin_unlock(&idrinfo->lock);
+	return ret;
+}
+EXPORT_SYMBOL(tcf_idr_check_alloc);
 
 void tcf_idrinfo_destroy(const struct tc_action_ops *ops,
 			 struct tcf_idrinfo *idrinfo)
@@ -538,13 +662,15 @@ repeat:
 }
 EXPORT_SYMBOL(tcf_action_exec);
 
-int tcf_action_destroy(struct list_head *actions, int bind)
+int tcf_action_destroy(struct tc_action *actions[], int bind)
 {
 	const struct tc_action_ops *ops;
-	struct tc_action *a, *tmp;
-	int ret = 0;
+	struct tc_action *a;
+	int ret = 0, i;
 
-	list_for_each_entry_safe(a, tmp, actions, list) {
+	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
+		a = actions[i];
+		actions[i] = NULL;
 		ops = a->ops;
 		ret = __tcf_idr_release(a, bind, true);
 		if (ret == ACT_P_DELETED)
@@ -553,6 +679,24 @@ int tcf_action_destroy(struct list_head *actions, int bind)
 			return ret;
 	}
 	return ret;
+}
+
+static int tcf_action_put(struct tc_action *p)
+{
+	return __tcf_action_put(p, false);
+}
+
+static void tcf_action_put_many(struct tc_action *actions[])
+{
+	int i;
+
+	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
+		struct tc_action *a = actions[i];
+		const struct tc_action_ops *ops = a->ops;
+
+		if (tcf_action_put(a))
+			module_put(ops->owner);
+	}
 }
 
 int
@@ -567,16 +711,22 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	int err = -EINVAL;
 	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
+	struct tc_cookie *cookie;
 
 	if (nla_put_string(skb, TCA_KIND, a->ops->kind))
 		goto nla_put_failure;
 	if (tcf_action_copy_stats(skb, a, 0))
 		goto nla_put_failure;
-	if (a->act_cookie) {
-		if (nla_put(skb, TCA_ACT_COOKIE, a->act_cookie->len,
-			    a->act_cookie->data))
+
+	rcu_read_lock();
+	cookie = rcu_dereference(a->act_cookie);
+	if (cookie) {
+		if (nla_put(skb, TCA_ACT_COOKIE, cookie->len, cookie->data)) {
+			rcu_read_unlock();
 			goto nla_put_failure;
+		}
 	}
+	rcu_read_unlock();
 
 	nest = nla_nest_start(skb, TCA_OPTIONS);
 	if (nest == NULL)
@@ -593,14 +743,15 @@ nla_put_failure:
 }
 EXPORT_SYMBOL(tcf_action_dump_1);
 
-int tcf_action_dump(struct sk_buff *skb, struct list_head *actions,
+int tcf_action_dump(struct sk_buff *skb, struct tc_action *actions[],
 		    int bind, int ref)
 {
 	struct tc_action *a;
-	int err = -EINVAL;
+	int err = -EINVAL, i;
 	struct nlattr *nest;
 
-	list_for_each_entry(a, actions, list) {
+	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
+		a = actions[i];
 		nest = nla_nest_start(skb, a->order);
 		if (nest == NULL)
 			goto nla_put_failure;
@@ -635,9 +786,19 @@ static struct tc_cookie *nla_memdup_cookie(struct nlattr **tb)
 	return c;
 }
 
+static bool tcf_action_valid(int action)
+{
+	int opcode = TC_ACT_EXT_OPCODE(action);
+
+	if (!opcode)
+		return action <= TC_ACT_VALUE_MAX;
+	return opcode <= TC_ACT_EXT_OPCODE_MAX || action == TC_ACT_UNSPEC;
+}
+
 struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 				    struct nlattr *nla, struct nlattr *est,
 				    char *name, int ovr, int bind,
+				    bool rtnl_held,
 				    struct netlink_ext_ack *extack)
 {
 	struct tc_action *a;
@@ -688,9 +849,11 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 	a_o = tc_lookup_action_n(act_name);
 	if (a_o == NULL) {
 #ifdef CONFIG_MODULES
-		rtnl_unlock();
+		if (rtnl_held)
+			rtnl_unlock();
 		request_module("act_%s", act_name);
-		rtnl_lock();
+		if (rtnl_held)
+			rtnl_lock();
 
 		a_o = tc_lookup_action_n(act_name);
 
@@ -713,19 +876,15 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 	/* backward compatibility for policer */
 	if (name == NULL)
 		err = a_o->init(net, tb[TCA_ACT_OPTIONS], est, &a, ovr, bind,
-				extack);
+				rtnl_held, extack);
 	else
-		err = a_o->init(net, nla, est, &a, ovr, bind, extack);
+		err = a_o->init(net, nla, est, &a, ovr, bind, rtnl_held,
+				extack);
 	if (err < 0)
 		goto err_mod;
 
-	if (name == NULL && tb[TCA_ACT_COOKIE]) {
-		if (a->act_cookie) {
-			kfree(a->act_cookie->data);
-			kfree(a->act_cookie);
-		}
-		a->act_cookie = cookie;
-	}
+	if (!name && tb[TCA_ACT_COOKIE])
+		tcf_set_action_cookie(&a->act_cookie, cookie);
 
 	/* module count goes up only when brand new policy is created
 	 * if it exists and is only bound to in a_o->init() then
@@ -737,13 +896,17 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 	if (TC_ACT_EXT_CMP(a->tcfa_action, TC_ACT_GOTO_CHAIN)) {
 		err = tcf_action_goto_chain_init(a, tp);
 		if (err) {
-			LIST_HEAD(actions);
+			struct tc_action *actions[] = { a, NULL };
 
-			list_add_tail(&a->list, &actions);
-			tcf_action_destroy(&actions, bind);
+			tcf_action_destroy(actions, bind);
 			NL_SET_ERR_MSG(extack, "Failed to init TC action chain");
 			return ERR_PTR(err);
 		}
+	}
+
+	if (!tcf_action_valid(a->tcfa_action)) {
+		NL_SET_ERR_MSG(extack, "invalid action value, using TC_ACT_UNSPEC instead");
+		a->tcfa_action = TC_ACT_UNSPEC;
 	}
 
 	return a;
@@ -758,21 +921,12 @@ err_out:
 	return ERR_PTR(err);
 }
 
-static void cleanup_a(struct list_head *actions, int ovr)
-{
-	struct tc_action *a;
-
-	if (!ovr)
-		return;
-
-	list_for_each_entry(a, actions, list)
-		a->tcfa_refcnt--;
-}
+/* Returns numbers of initialized actions or negative error. */
 
 int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 		    struct nlattr *est, char *name, int ovr, int bind,
-		    struct list_head *actions, size_t *attr_size,
-		    struct netlink_ext_ack *extack)
+		    struct tc_action *actions[], size_t *attr_size,
+		    bool rtnl_held, struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *act;
@@ -786,25 +940,19 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 
 	for (i = 1; i <= TCA_ACT_MAX_PRIO && tb[i]; i++) {
 		act = tcf_action_init_1(net, tp, tb[i], est, name, ovr, bind,
-					extack);
+					rtnl_held, extack);
 		if (IS_ERR(act)) {
 			err = PTR_ERR(act);
 			goto err;
 		}
 		act->order = i;
 		sz += tcf_action_fill_size(act);
-		if (ovr)
-			act->tcfa_refcnt++;
-		list_add_tail(&act->list, actions);
+		/* Start from index 0 */
+		actions[i - 1] = act;
 	}
 
 	*attr_size = tcf_action_full_attrs_size(sz);
-
-	/* Remove the temp refcnt which was necessary to protect against
-	 * destroying an existing action which was being replaced
-	 */
-	cleanup_a(actions, ovr);
-	return 0;
+	return i - 1;
 
 err:
 	tcf_action_destroy(actions, bind);
@@ -855,7 +1003,7 @@ errout:
 	return -1;
 }
 
-static int tca_get_fill(struct sk_buff *skb, struct list_head *actions,
+static int tca_get_fill(struct sk_buff *skb, struct tc_action *actions[],
 			u32 portid, u32 seq, u16 flags, int event, int bind,
 			int ref)
 {
@@ -891,7 +1039,7 @@ out_nlmsg_trim:
 
 static int
 tcf_get_notify(struct net *net, u32 portid, struct nlmsghdr *n,
-	       struct list_head *actions, int event,
+	       struct tc_action *actions[], int event,
 	       struct netlink_ext_ack *extack)
 {
 	struct sk_buff *skb;
@@ -900,7 +1048,7 @@ tcf_get_notify(struct net *net, u32 portid, struct nlmsghdr *n,
 	if (!skb)
 		return -ENOBUFS;
 	if (tca_get_fill(skb, actions, portid, n->nlmsg_seq, 0, event,
-			 0, 0) <= 0) {
+			 0, 1) <= 0) {
 		NL_SET_ERR_MSG(extack, "Failed to fill netlink attributes while adding TC action");
 		kfree_skb(skb);
 		return -EINVAL;
@@ -1027,9 +1175,41 @@ err_out:
 	return err;
 }
 
+static int tcf_action_delete(struct net *net, struct tc_action *actions[],
+			     int *acts_deleted, struct netlink_ext_ack *extack)
+{
+	u32 act_index;
+	int ret, i;
+
+	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
+		struct tc_action *a = actions[i];
+		const struct tc_action_ops *ops = a->ops;
+
+		/* Actions can be deleted concurrently so we must save their
+		 * type and id to search again after reference is released.
+		 */
+		act_index = a->tcfa_index;
+
+		if (tcf_action_put(a)) {
+			/* last reference, action was deleted concurrently */
+			module_put(ops->owner);
+		} else  {
+			/* now do the delete */
+			ret = ops->delete(net, act_index);
+			if (ret < 0) {
+				*acts_deleted = i + 1;
+				return ret;
+			}
+		}
+	}
+	*acts_deleted = i;
+	return 0;
+}
+
 static int
-tcf_del_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
-	       u32 portid, size_t attr_size, struct netlink_ext_ack *extack)
+tcf_del_notify(struct net *net, struct nlmsghdr *n, struct tc_action *actions[],
+	       int *acts_deleted, u32 portid, size_t attr_size,
+	       struct netlink_ext_ack *extack)
 {
 	int ret;
 	struct sk_buff *skb;
@@ -1040,14 +1220,14 @@ tcf_del_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
 		return -ENOBUFS;
 
 	if (tca_get_fill(skb, actions, portid, n->nlmsg_seq, 0, RTM_DELACTION,
-			 0, 1) <= 0) {
+			 0, 2) <= 0) {
 		NL_SET_ERR_MSG(extack, "Failed to fill netlink TC action attributes");
 		kfree_skb(skb);
 		return -EINVAL;
 	}
 
 	/* now do the delete */
-	ret = tcf_action_destroy(actions, 0);
+	ret = tcf_action_delete(net, actions, acts_deleted, extack);
 	if (ret < 0) {
 		NL_SET_ERR_MSG(extack, "Failed to delete TC action");
 		kfree_skb(skb);
@@ -1069,7 +1249,8 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *act;
 	size_t attr_size = 0;
-	LIST_HEAD(actions);
+	struct tc_action *actions[TCA_ACT_MAX_PRIO + 1] = {};
+	int acts_deleted = 0;
 
 	ret = nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL, extack);
 	if (ret < 0)
@@ -1091,27 +1272,27 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 		}
 		act->order = i;
 		attr_size += tcf_action_fill_size(act);
-		list_add_tail(&act->list, &actions);
+		actions[i - 1] = act;
 	}
 
 	attr_size = tcf_action_full_attrs_size(attr_size);
 
 	if (event == RTM_GETACTION)
-		ret = tcf_get_notify(net, portid, n, &actions, event, extack);
+		ret = tcf_get_notify(net, portid, n, actions, event, extack);
 	else { /* delete */
-		ret = tcf_del_notify(net, n, &actions, portid, attr_size, extack);
+		ret = tcf_del_notify(net, n, actions, &acts_deleted, portid,
+				     attr_size, extack);
 		if (ret)
 			goto err;
 		return ret;
 	}
 err:
-	if (event != RTM_GETACTION)
-		tcf_action_destroy(&actions, 0);
+	tcf_action_put_many(&actions[acts_deleted]);
 	return ret;
 }
 
 static int
-tcf_add_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
+tcf_add_notify(struct net *net, struct nlmsghdr *n, struct tc_action *actions[],
 	       u32 portid, size_t attr_size, struct netlink_ext_ack *extack)
 {
 	struct sk_buff *skb;
@@ -1142,14 +1323,17 @@ static int tcf_action_add(struct net *net, struct nlattr *nla,
 {
 	size_t attr_size = 0;
 	int ret = 0;
-	LIST_HEAD(actions);
+	struct tc_action *actions[TCA_ACT_MAX_PRIO] = {};
 
-	ret = tcf_action_init(net, NULL, nla, NULL, NULL, ovr, 0, &actions,
-			      &attr_size, extack);
-	if (ret)
+	ret = tcf_action_init(net, NULL, nla, NULL, NULL, ovr, 0, actions,
+			      &attr_size, true, extack);
+	if (ret < 0)
 		return ret;
+	ret = tcf_add_notify(net, n, actions, portid, attr_size, extack);
+	if (ovr)
+		tcf_action_put_many(actions);
 
-	return tcf_add_notify(net, n, &actions, portid, attr_size, extack);
+	return ret;
 }
 
 static u32 tcaa_root_flags_allowed = TCA_FLAG_LARGE_DUMP_ON;

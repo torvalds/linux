@@ -157,7 +157,6 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 	struct amdgpu_bo *new_abo;
 	unsigned long flags;
 	u64 tiling_flags;
-	u64 base;
 	int i, r;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
@@ -189,10 +188,16 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 		goto cleanup;
 	}
 
-	r = amdgpu_bo_pin(new_abo, amdgpu_display_supported_domains(adev), &base);
+	r = amdgpu_bo_pin(new_abo, amdgpu_display_supported_domains(adev));
 	if (unlikely(r != 0)) {
 		DRM_ERROR("failed to pin new abo buffer before flip\n");
 		goto unreserve;
+	}
+
+	r = amdgpu_ttm_alloc_gart(&new_abo->tbo);
+	if (unlikely(r != 0)) {
+		DRM_ERROR("%p bind failed\n", new_abo);
+		goto unpin;
 	}
 
 	r = reservation_object_get_fences_rcu(new_abo->tbo.resv, &work->excl,
@@ -206,7 +211,7 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 	amdgpu_bo_get_tiling_flags(new_abo, &tiling_flags);
 	amdgpu_bo_unreserve(new_abo);
 
-	work->base = base;
+	work->base = amdgpu_bo_gpu_offset(new_abo);
 	work->target_vblank = target - (uint32_t)drm_crtc_vblank_count(crtc) +
 		amdgpu_get_vblank_counter_kms(dev, work->crtc_id);
 

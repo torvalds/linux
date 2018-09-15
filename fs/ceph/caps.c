@@ -156,6 +156,37 @@ void ceph_adjust_min_caps(struct ceph_mds_client *mdsc, int delta)
 	spin_unlock(&mdsc->caps_list_lock);
 }
 
+static void __ceph_unreserve_caps(struct ceph_mds_client *mdsc, int nr_caps)
+{
+	struct ceph_cap *cap;
+	int i;
+
+	if (nr_caps) {
+		BUG_ON(mdsc->caps_reserve_count < nr_caps);
+		mdsc->caps_reserve_count -= nr_caps;
+		if (mdsc->caps_avail_count >=
+		    mdsc->caps_reserve_count + mdsc->caps_min_count) {
+			mdsc->caps_total_count -= nr_caps;
+			for (i = 0; i < nr_caps; i++) {
+				cap = list_first_entry(&mdsc->caps_list,
+					struct ceph_cap, caps_item);
+				list_del(&cap->caps_item);
+				kmem_cache_free(ceph_cap_cachep, cap);
+			}
+		} else {
+			mdsc->caps_avail_count += nr_caps;
+		}
+
+		dout("%s: caps %d = %d used + %d resv + %d avail\n",
+		     __func__,
+		     mdsc->caps_total_count, mdsc->caps_use_count,
+		     mdsc->caps_reserve_count, mdsc->caps_avail_count);
+		BUG_ON(mdsc->caps_total_count != mdsc->caps_use_count +
+						 mdsc->caps_reserve_count +
+						 mdsc->caps_avail_count);
+	}
+}
+
 /*
  * Called under mdsc->mutex.
  */
@@ -167,6 +198,7 @@ int ceph_reserve_caps(struct ceph_mds_client *mdsc,
 	int have;
 	int alloc = 0;
 	int max_caps;
+	int err = 0;
 	bool trimmed = false;
 	struct ceph_mds_session *s;
 	LIST_HEAD(newcaps);
@@ -233,9 +265,14 @@ int ceph_reserve_caps(struct ceph_mds_client *mdsc,
 
 		pr_warn("reserve caps ctx=%p ENOMEM need=%d got=%d\n",
 			ctx, need, have + alloc);
-		goto out_nomem;
+		err = -ENOMEM;
+		break;
 	}
-	BUG_ON(have + alloc != need);
+
+	if (!err) {
+		BUG_ON(have + alloc != need);
+		ctx->count = need;
+	}
 
 	spin_lock(&mdsc->caps_list_lock);
 	mdsc->caps_total_count += alloc;
@@ -245,77 +282,26 @@ int ceph_reserve_caps(struct ceph_mds_client *mdsc,
 	BUG_ON(mdsc->caps_total_count != mdsc->caps_use_count +
 					 mdsc->caps_reserve_count +
 					 mdsc->caps_avail_count);
+
+	if (err)
+		__ceph_unreserve_caps(mdsc, have + alloc);
+
 	spin_unlock(&mdsc->caps_list_lock);
 
-	ctx->count = need;
 	dout("reserve caps ctx=%p %d = %d used + %d resv + %d avail\n",
 	     ctx, mdsc->caps_total_count, mdsc->caps_use_count,
 	     mdsc->caps_reserve_count, mdsc->caps_avail_count);
-	return 0;
-
-out_nomem:
-
-	spin_lock(&mdsc->caps_list_lock);
-	mdsc->caps_avail_count += have;
-	mdsc->caps_reserve_count -= have;
-
-	while (!list_empty(&newcaps)) {
-		cap = list_first_entry(&newcaps,
-				struct ceph_cap, caps_item);
-		list_del(&cap->caps_item);
-
-		/* Keep some preallocated caps around (ceph_min_count), to
-		 * avoid lots of free/alloc churn. */
-		if (mdsc->caps_avail_count >=
-		    mdsc->caps_reserve_count + mdsc->caps_min_count) {
-			kmem_cache_free(ceph_cap_cachep, cap);
-		} else {
-			mdsc->caps_avail_count++;
-			mdsc->caps_total_count++;
-			list_add(&cap->caps_item, &mdsc->caps_list);
-		}
-	}
-
-	BUG_ON(mdsc->caps_total_count != mdsc->caps_use_count +
-					 mdsc->caps_reserve_count +
-					 mdsc->caps_avail_count);
-	spin_unlock(&mdsc->caps_list_lock);
-	return -ENOMEM;
+	return err;
 }
 
-int ceph_unreserve_caps(struct ceph_mds_client *mdsc,
+void ceph_unreserve_caps(struct ceph_mds_client *mdsc,
 			struct ceph_cap_reservation *ctx)
 {
-	int i;
-	struct ceph_cap *cap;
-
 	dout("unreserve caps ctx=%p count=%d\n", ctx, ctx->count);
-	if (ctx->count) {
-		spin_lock(&mdsc->caps_list_lock);
-		BUG_ON(mdsc->caps_reserve_count < ctx->count);
-		mdsc->caps_reserve_count -= ctx->count;
-		if (mdsc->caps_avail_count >=
-		    mdsc->caps_reserve_count + mdsc->caps_min_count) {
-			mdsc->caps_total_count -= ctx->count;
-			for (i = 0; i < ctx->count; i++) {
-				cap = list_first_entry(&mdsc->caps_list,
-					struct ceph_cap, caps_item);
-				list_del(&cap->caps_item);
-				kmem_cache_free(ceph_cap_cachep, cap);
-			}
-		} else {
-			mdsc->caps_avail_count += ctx->count;
-		}
-		ctx->count = 0;
-		dout("unreserve caps %d = %d used + %d resv + %d avail\n",
-		     mdsc->caps_total_count, mdsc->caps_use_count,
-		     mdsc->caps_reserve_count, mdsc->caps_avail_count);
-		BUG_ON(mdsc->caps_total_count != mdsc->caps_use_count +
-						 mdsc->caps_reserve_count +
-						 mdsc->caps_avail_count);
-		spin_unlock(&mdsc->caps_list_lock);
-	}
-	return 0;
+	spin_lock(&mdsc->caps_list_lock);
+	__ceph_unreserve_caps(mdsc, ctx->count);
+	ctx->count = 0;
+	spin_unlock(&mdsc->caps_list_lock);
 }
 
 struct ceph_cap *ceph_get_cap(struct ceph_mds_client *mdsc,
@@ -1125,7 +1111,7 @@ struct cap_msg_args {
 	u64			flush_tid, oldest_flush_tid, size, max_size;
 	u64			xattr_version;
 	struct ceph_buffer	*xattr_buf;
-	struct timespec		atime, mtime, ctime;
+	struct timespec64	atime, mtime, ctime;
 	int			op, caps, wanted, dirty;
 	u32			seq, issue_seq, mseq, time_warp_seq;
 	u32			flags;
@@ -1146,7 +1132,7 @@ static int send_cap_msg(struct cap_msg_args *arg)
 	struct ceph_msg *msg;
 	void *p;
 	size_t extra_len;
-	struct timespec zerotime = {0};
+	struct timespec64 zerotime = {0};
 	struct ceph_osd_client *osdc = &arg->session->s_mdsc->fsc->client->osdc;
 
 	dout("send_cap_msg %s %llx %llx caps %s wanted %s dirty %s"
@@ -1186,9 +1172,9 @@ static int send_cap_msg(struct cap_msg_args *arg)
 
 	fc->size = cpu_to_le64(arg->size);
 	fc->max_size = cpu_to_le64(arg->max_size);
-	ceph_encode_timespec(&fc->mtime, &arg->mtime);
-	ceph_encode_timespec(&fc->atime, &arg->atime);
-	ceph_encode_timespec(&fc->ctime, &arg->ctime);
+	ceph_encode_timespec64(&fc->mtime, &arg->mtime);
+	ceph_encode_timespec64(&fc->atime, &arg->atime);
+	ceph_encode_timespec64(&fc->ctime, &arg->ctime);
 	fc->time_warp_seq = cpu_to_le32(arg->time_warp_seq);
 
 	fc->uid = cpu_to_le32(from_kuid(&init_user_ns, arg->uid));
@@ -1237,7 +1223,7 @@ static int send_cap_msg(struct cap_msg_args *arg)
 	 * We just zero these out for now, as the MDS ignores them unless
 	 * the requisite feature flags are set (which we don't do yet).
 	 */
-	ceph_encode_timespec(p, &zerotime);
+	ceph_encode_timespec64(p, &zerotime);
 	p += sizeof(struct ceph_timespec);
 	ceph_encode_64(&p, 0);
 
@@ -1360,9 +1346,9 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 		arg.xattr_buf = NULL;
 	}
 
-	arg.mtime = timespec64_to_timespec(inode->i_mtime);
-	arg.atime = timespec64_to_timespec(inode->i_atime);
-	arg.ctime = timespec64_to_timespec(inode->i_ctime);
+	arg.mtime = inode->i_mtime;
+	arg.atime = inode->i_atime;
+	arg.ctime = inode->i_ctime;
 
 	arg.op = op;
 	arg.caps = cap->implemented;
@@ -3148,11 +3134,11 @@ static void handle_cap_grant(struct inode *inode,
 	}
 
 	if (newcaps & CEPH_CAP_ANY_RD) {
-		struct timespec mtime, atime, ctime;
+		struct timespec64 mtime, atime, ctime;
 		/* ctime/mtime/atime? */
-		ceph_decode_timespec(&mtime, &grant->mtime);
-		ceph_decode_timespec(&atime, &grant->atime);
-		ceph_decode_timespec(&ctime, &grant->ctime);
+		ceph_decode_timespec64(&mtime, &grant->mtime);
+		ceph_decode_timespec64(&atime, &grant->atime);
+		ceph_decode_timespec64(&ctime, &grant->ctime);
 		ceph_fill_file_time(inode, extra_info->issued,
 				    le32_to_cpu(grant->time_warp_seq),
 				    &ctime, &mtime, &atime);

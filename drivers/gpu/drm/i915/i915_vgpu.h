@@ -36,6 +36,12 @@ intel_vgpu_has_hwsp_emulation(struct drm_i915_private *dev_priv)
 	return dev_priv->vgpu.caps & VGT_CAPS_HWSP_EMULATION;
 }
 
+static inline bool
+intel_vgpu_has_huge_gtt(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->vgpu.caps & VGT_CAPS_HUGE_GTT;
+}
+
 int intel_vgt_balloon(struct drm_i915_private *dev_priv);
 void intel_vgt_deballoon(struct drm_i915_private *dev_priv);
 

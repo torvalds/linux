@@ -42,6 +42,8 @@
 #include <asm/ppc-pci.h>
 #include <asm/eeh.h>
 
+#include "../../../drivers/pci/pci.h"
+
 /* hose_spinlock protects accesses to the the phb_bitmap. */
 static DEFINE_SPINLOCK(hose_spinlock);
 LIST_HEAD(hose_list);
@@ -366,9 +368,6 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 
 	pr_debug("PCI: Try to map irq for %s...\n", pci_name(pci_dev));
 
-#ifdef DEBUG
-	memset(&oirq, 0xff, sizeof(oirq));
-#endif
 	/* Try to get a mapping from the device-tree */
 	virq = of_irq_parse_and_map_pci(pci_dev, 0, 0);
 	if (virq <= 0) {
@@ -1014,7 +1013,7 @@ void pcibios_setup_bus_devices(struct pci_bus *bus)
 		/* Cardbus can call us to add new devices to a bus, so ignore
 		 * those who are already fully discovered
 		 */
-		if (dev->is_added)
+		if (pci_dev_is_added(dev))
 			continue;
 
 		pcibios_setup_device(dev);

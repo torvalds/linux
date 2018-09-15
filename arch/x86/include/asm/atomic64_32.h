@@ -158,6 +158,7 @@ static inline long long arch_atomic64_inc_return(atomic64_t *v)
 			     "S" (v) : "memory", "ecx");
 	return a;
 }
+#define arch_atomic64_inc_return arch_atomic64_inc_return
 
 static inline long long arch_atomic64_dec_return(atomic64_t *v)
 {
@@ -166,6 +167,7 @@ static inline long long arch_atomic64_dec_return(atomic64_t *v)
 			     "S" (v) : "memory", "ecx");
 	return a;
 }
+#define arch_atomic64_dec_return arch_atomic64_dec_return
 
 /**
  * arch_atomic64_add - add integer to atomic64 variable
@@ -198,25 +200,12 @@ static inline long long arch_atomic64_sub(long long i, atomic64_t *v)
 }
 
 /**
- * arch_atomic64_sub_and_test - subtract value from variable and test result
- * @i: integer value to subtract
- * @v: pointer to type atomic64_t
- *
- * Atomically subtracts @i from @v and returns
- * true if the result is zero, or false for all
- * other cases.
- */
-static inline int arch_atomic64_sub_and_test(long long i, atomic64_t *v)
-{
-	return arch_atomic64_sub_return(i, v) == 0;
-}
-
-/**
  * arch_atomic64_inc - increment atomic64 variable
  * @v: pointer to type atomic64_t
  *
  * Atomically increments @v by 1.
  */
+#define arch_atomic64_inc arch_atomic64_inc
 static inline void arch_atomic64_inc(atomic64_t *v)
 {
 	__alternative_atomic64(inc, inc_return, /* no output */,
@@ -229,50 +218,11 @@ static inline void arch_atomic64_inc(atomic64_t *v)
  *
  * Atomically decrements @v by 1.
  */
+#define arch_atomic64_dec arch_atomic64_dec
 static inline void arch_atomic64_dec(atomic64_t *v)
 {
 	__alternative_atomic64(dec, dec_return, /* no output */,
 			       "S" (v) : "memory", "eax", "ecx", "edx");
-}
-
-/**
- * arch_atomic64_dec_and_test - decrement and test
- * @v: pointer to type atomic64_t
- *
- * Atomically decrements @v by 1 and
- * returns true if the result is 0, or false for all other
- * cases.
- */
-static inline int arch_atomic64_dec_and_test(atomic64_t *v)
-{
-	return arch_atomic64_dec_return(v) == 0;
-}
-
-/**
- * atomic64_inc_and_test - increment and test
- * @v: pointer to type atomic64_t
- *
- * Atomically increments @v by 1
- * and returns true if the result is zero, or false for all
- * other cases.
- */
-static inline int arch_atomic64_inc_and_test(atomic64_t *v)
-{
-	return arch_atomic64_inc_return(v) == 0;
-}
-
-/**
- * arch_atomic64_add_negative - add and test if negative
- * @i: integer value to add
- * @v: pointer to type atomic64_t
- *
- * Atomically adds @i to @v and returns true
- * if the result is negative, or false when
- * result is greater than or equal to zero.
- */
-static inline int arch_atomic64_add_negative(long long i, atomic64_t *v)
-{
-	return arch_atomic64_add_return(i, v) < 0;
 }
 
 /**
@@ -295,7 +245,7 @@ static inline int arch_atomic64_add_unless(atomic64_t *v, long long a,
 	return (int)a;
 }
 
-
+#define arch_atomic64_inc_not_zero arch_atomic64_inc_not_zero
 static inline int arch_atomic64_inc_not_zero(atomic64_t *v)
 {
 	int r;
@@ -304,6 +254,7 @@ static inline int arch_atomic64_inc_not_zero(atomic64_t *v)
 	return r;
 }
 
+#define arch_atomic64_dec_if_positive arch_atomic64_dec_if_positive
 static inline long long arch_atomic64_dec_if_positive(atomic64_t *v)
 {
 	long long r;

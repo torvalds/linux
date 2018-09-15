@@ -43,7 +43,7 @@ struct jfs_inode_info {
 	pxd_t	ixpxd;		/* inode extent descriptor	*/
 	dxd_t	acl;		/* dxd describing acl	*/
 	dxd_t	ea;		/* dxd describing ea	*/
-	time_t	otime;		/* time created	*/
+	time64_t otime;		/* time created	*/
 	uint	next_index;	/* next available directory entry index */
 	int	acltype;	/* Type of ACL	*/
 	short	btorder;	/* access order	*/
@@ -87,6 +87,7 @@ struct jfs_inode_info {
 		struct {
 			unchar _unused[16];	/* 16: */
 			dxd_t _dxd;		/* 16: */
+			/* _inline may overflow into _inline_ea when needed */
 			unchar _inline[128];	/* 128: inline symlink */
 			/* _inline_ea may overlay the last part of
 			 * file._xtroot if maxentry = XTROOTINITSLOT

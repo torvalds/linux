@@ -50,7 +50,7 @@ static int param_set_hashtbl_sz(const char *val, const struct kernel_param *kp)
 	if (!val)
 		goto out_inval;
 	ret = kstrtoul(val, 0, &num);
-	if (ret == -EINVAL)
+	if (ret)
 		goto out_inval;
 	nbits = fls(num - 1);
 	if (nbits > MAX_HASHTABLE_BITS || nbits < 2)
@@ -253,7 +253,7 @@ rpcauth_list_flavors(rpc_authflavor_t *array, int size)
 EXPORT_SYMBOL_GPL(rpcauth_list_flavors);
 
 struct rpc_auth *
-rpcauth_create(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
+rpcauth_create(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {
 	struct rpc_auth		*auth;
 	const struct rpc_authops *ops;

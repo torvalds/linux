@@ -12,7 +12,7 @@ Required Properties:
 Optional Properties:
 
 - reset-gpios: gpio phandle GPIO connected to the reset pin
-- interrupts, interrupt-parent: GPIO connected to the interrupt pin
+- interrupts: GPIO connected to the interrupt pin
 - data-lanes: should be <1 2 3 4> for four-lane operation,
 	      or <1 2> for two-lane operation
 - clock-lanes: should be <0>

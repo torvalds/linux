@@ -68,7 +68,7 @@ static inline int ceph_pagelist_encode_8(struct ceph_pagelist *pl, u8 v)
 	return ceph_pagelist_append(pl, &v, 1);
 }
 static inline int ceph_pagelist_encode_string(struct ceph_pagelist *pl,
-					      char *s, size_t len)
+					      char *s, u32 len)
 {
 	int ret = ceph_pagelist_encode_32(pl, len);
 	if (ret)

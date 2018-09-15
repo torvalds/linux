@@ -16,8 +16,6 @@ Required properties:
 - compatible : Should be "dlg,da9063" or "dlg,da9063l"
 - reg : Specifies the I2C slave address (this defaults to 0x58 but it can be
   modified to match the chip's OTP settings).
-- interrupt-parent : Specifies the reference to the interrupt controller for
-  the DA9063.
 - interrupts : IRQ line information.
 - interrupt-controller
 

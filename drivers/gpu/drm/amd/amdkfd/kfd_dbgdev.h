@@ -60,6 +60,9 @@ enum {
 	SH_REG_SIZE = SH_REG_END - SH_REG_BASE
 };
 
+/* SQ_CMD definitions */
+#define SQ_CMD						0x8DEC
+
 enum SQ_IND_CMD_CMD {
 	SQ_IND_CMD_CMD_NULL = 0x00000000,
 	SQ_IND_CMD_CMD_HALT = 0x00000001,
@@ -189,5 +192,39 @@ union ULARGE_INTEGER {
 
 void kfd_dbgdev_init(struct kfd_dbgdev *pdbgdev, struct kfd_dev *pdev,
 			enum DBGDEV_TYPE type);
+
+union TCP_WATCH_CNTL_BITS {
+	struct {
+		uint32_t mask:24;
+		uint32_t vmid:4;
+		uint32_t atc:1;
+		uint32_t mode:2;
+		uint32_t valid:1;
+	} bitfields, bits;
+	uint32_t u32All;
+	signed int i32All;
+	float f32All;
+};
+
+enum {
+	ADDRESS_WATCH_REG_CNTL_ATC_BIT = 0x10000000UL,
+	ADDRESS_WATCH_REG_CNTL_DEFAULT_MASK = 0x00FFFFFF,
+	ADDRESS_WATCH_REG_ADDLOW_MASK_EXTENSION = 0x03000000,
+	/* extend the mask to 26 bits in order to match the low address field */
+	ADDRESS_WATCH_REG_ADDLOW_SHIFT = 6,
+	ADDRESS_WATCH_REG_ADDHIGH_MASK = 0xFFFF
+};
+
+enum {
+	MAX_TRAPID = 8,		/* 3 bits in the bitfield. */
+	MAX_WATCH_ADDRESSES = 4
+};
+
+enum {
+	ADDRESS_WATCH_REG_ADDR_HI = 0,
+	ADDRESS_WATCH_REG_ADDR_LO,
+	ADDRESS_WATCH_REG_CNTL,
+	ADDRESS_WATCH_REG_MAX
+};
 
 #endif	/* KFD_DBGDEV_H_ */

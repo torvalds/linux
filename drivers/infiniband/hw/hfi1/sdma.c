@@ -1351,7 +1351,7 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 	struct hfi1_pportdata *ppd = dd->pport + port;
 	u32 per_sdma_credits;
 	uint idle_cnt = sdma_idle_cnt;
-	size_t num_engines = dd->chip_sdma_engines;
+	size_t num_engines = chip_sdma_engines(dd);
 	int ret = -ENOMEM;
 
 	if (!HFI1_CAP_IS_KSET(SDMA)) {
@@ -1360,18 +1360,18 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 	}
 	if (mod_num_sdma &&
 	    /* can't exceed chip support */
-	    mod_num_sdma <= dd->chip_sdma_engines &&
+	    mod_num_sdma <= chip_sdma_engines(dd) &&
 	    /* count must be >= vls */
 	    mod_num_sdma >= num_vls)
 		num_engines = mod_num_sdma;
 
 	dd_dev_info(dd, "SDMA mod_num_sdma: %u\n", mod_num_sdma);
-	dd_dev_info(dd, "SDMA chip_sdma_engines: %u\n", dd->chip_sdma_engines);
+	dd_dev_info(dd, "SDMA chip_sdma_engines: %u\n", chip_sdma_engines(dd));
 	dd_dev_info(dd, "SDMA chip_sdma_mem_size: %u\n",
-		    dd->chip_sdma_mem_size);
+		    chip_sdma_mem_size(dd));
 
 	per_sdma_credits =
-		dd->chip_sdma_mem_size / (num_engines * SDMA_BLOCK_SIZE);
+		chip_sdma_mem_size(dd) / (num_engines * SDMA_BLOCK_SIZE);
 
 	/* set up freeze waitqueue */
 	init_waitqueue_head(&dd->sdma_unfreeze_wq);

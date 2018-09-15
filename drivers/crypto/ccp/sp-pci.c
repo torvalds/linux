@@ -269,31 +269,54 @@ static int sp_pci_resume(struct pci_dev *pdev)
 #endif
 
 #ifdef CONFIG_CRYPTO_DEV_SP_PSP
-static const struct psp_vdata psp_entry = {
-	.offset = 0x10500,
+static const struct psp_vdata pspv1 = {
+	.cmdresp_reg		= 0x10580,
+	.cmdbuff_addr_lo_reg	= 0x105e0,
+	.cmdbuff_addr_hi_reg	= 0x105e4,
+	.feature_reg		= 0x105fc,
+	.inten_reg		= 0x10610,
+	.intsts_reg		= 0x10614,
+};
+
+static const struct psp_vdata pspv2 = {
+	.cmdresp_reg		= 0x10980,
+	.cmdbuff_addr_lo_reg	= 0x109e0,
+	.cmdbuff_addr_hi_reg	= 0x109e4,
+	.feature_reg		= 0x109fc,
+	.inten_reg		= 0x10690,
+	.intsts_reg		= 0x10694,
 };
 #endif
 
 static const struct sp_dev_vdata dev_vdata[] = {
-	{
+	{	/* 0 */
 		.bar = 2,
 #ifdef CONFIG_CRYPTO_DEV_SP_CCP
 		.ccp_vdata = &ccpv3,
 #endif
 	},
-	{
+	{	/* 1 */
 		.bar = 2,
 #ifdef CONFIG_CRYPTO_DEV_SP_CCP
 		.ccp_vdata = &ccpv5a,
 #endif
 #ifdef CONFIG_CRYPTO_DEV_SP_PSP
-		.psp_vdata = &psp_entry
+		.psp_vdata = &pspv1,
 #endif
 	},
-	{
+	{	/* 2 */
 		.bar = 2,
 #ifdef CONFIG_CRYPTO_DEV_SP_CCP
 		.ccp_vdata = &ccpv5b,
+#endif
+	},
+	{	/* 3 */
+		.bar = 2,
+#ifdef CONFIG_CRYPTO_DEV_SP_CCP
+		.ccp_vdata = &ccpv5a,
+#endif
+#ifdef CONFIG_CRYPTO_DEV_SP_PSP
+		.psp_vdata = &pspv2,
 #endif
 	},
 };
@@ -301,6 +324,7 @@ static const struct pci_device_id sp_pci_table[] = {
 	{ PCI_VDEVICE(AMD, 0x1537), (kernel_ulong_t)&dev_vdata[0] },
 	{ PCI_VDEVICE(AMD, 0x1456), (kernel_ulong_t)&dev_vdata[1] },
 	{ PCI_VDEVICE(AMD, 0x1468), (kernel_ulong_t)&dev_vdata[2] },
+	{ PCI_VDEVICE(AMD, 0x1486), (kernel_ulong_t)&dev_vdata[3] },
 	/* Last entry must be zero */
 	{ 0, }
 };

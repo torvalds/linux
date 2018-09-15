@@ -130,15 +130,10 @@ static int exynos_ohci_probe(struct platform_device *pdev)
 
 	exynos_ohci = to_exynos_ohci(hcd);
 
-	if (of_device_is_compatible(pdev->dev.of_node,
-					"samsung,exynos5440-ohci"))
-		goto skip_phy;
-
 	err = exynos_ohci_get_phy(&pdev->dev, exynos_ohci);
 	if (err)
 		goto fail_clk;
 
-skip_phy:
 	exynos_ohci->clk = devm_clk_get(&pdev->dev, "usbhost");
 
 	if (IS_ERR(exynos_ohci->clk)) {
@@ -270,7 +265,6 @@ static const struct dev_pm_ops exynos_ohci_pm_ops = {
 #ifdef CONFIG_OF
 static const struct of_device_id exynos_ohci_match[] = {
 	{ .compatible = "samsung,exynos4210-ohci" },
-	{ .compatible = "samsung,exynos5440-ohci" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_ohci_match);

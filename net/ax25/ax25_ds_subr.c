@@ -205,4 +205,3 @@ void ax25_dama_off(ax25_cb *ax25)
 	ax25->condition &= ~AX25_COND_DAMA_MODE;
 	ax25_dev_dama_off(ax25->ax25_dev);
 }
-

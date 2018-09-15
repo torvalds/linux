@@ -31,7 +31,6 @@ struct g2d_dev {
 	struct g2d_ctx		*curr;
 	struct g2d_variant	*variant;
 	int irq;
-	wait_queue_head_t	irq_queue;
 };
 
 struct g2d_frame {

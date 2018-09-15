@@ -22,6 +22,7 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/of_irq.h>
 
 #include <asm/machdep.h>
 #include <asm/opal.h>
@@ -38,8 +39,8 @@ struct opal_event_irqchip {
 };
 static struct opal_event_irqchip opal_event_irqchip;
 static u64 last_outstanding_events;
-static unsigned int opal_irq_count;
-static unsigned int *opal_irqs;
+static int opal_irq_count;
+static struct resource *opal_irqs;
 
 void opal_handle_events(void)
 {
@@ -165,24 +166,23 @@ void opal_event_shutdown(void)
 
 	/* First free interrupts, which will also mask them */
 	for (i = 0; i < opal_irq_count; i++) {
-		if (!opal_irqs[i])
+		if (!opal_irqs || !opal_irqs[i].start)
 			continue;
 
 		if (in_interrupt() || irqs_disabled())
-			disable_irq_nosync(opal_irqs[i]);
+			disable_irq_nosync(opal_irqs[i].start);
 		else
-			free_irq(opal_irqs[i], NULL);
+			free_irq(opal_irqs[i].start, NULL);
 
-		opal_irqs[i] = 0;
+		opal_irqs[i].start = 0;
 	}
 }
 
 int __init opal_event_init(void)
 {
 	struct device_node *dn, *opal_node;
-	const char **names;
-	u32 *irqs;
-	int i, rc;
+	bool old_style = false;
+	int i, rc = 0;
 
 	opal_node = of_find_node_by_path("/ibm,opal");
 	if (!opal_node) {
@@ -207,67 +207,91 @@ int __init opal_event_init(void)
 		goto out;
 	}
 
-	/* Get opal-interrupts property and names if present */
-	rc = of_property_count_u32_elems(opal_node, "opal-interrupts");
-	if (rc < 0)
-		goto out;
+	/* Look for new-style (standard) "interrupts" property */
+	opal_irq_count = of_irq_count(opal_node);
 
-	opal_irq_count = rc;
-	pr_debug("Found %d interrupts reserved for OPAL\n", opal_irq_count);
-
-	irqs = kcalloc(opal_irq_count, sizeof(*irqs), GFP_KERNEL);
-	names = kcalloc(opal_irq_count, sizeof(*names), GFP_KERNEL);
-	opal_irqs = kcalloc(opal_irq_count, sizeof(*opal_irqs), GFP_KERNEL);
-
-	if (WARN_ON(!irqs || !names || !opal_irqs))
-		goto out_free;
-
-	rc = of_property_read_u32_array(opal_node, "opal-interrupts",
-					irqs, opal_irq_count);
-	if (rc < 0) {
-		pr_err("Error %d reading opal-interrupts array\n", rc);
-		goto out_free;
+	/* Absent ? Look for the old one */
+	if (opal_irq_count < 1) {
+		/* Get opal-interrupts property and names if present */
+		rc = of_property_count_u32_elems(opal_node, "opal-interrupts");
+		if (rc > 0)
+			opal_irq_count = rc;
+		old_style = true;
 	}
 
-	/* It's not an error for the names to be missing */
-	of_property_read_string_array(opal_node, "opal-interrupts-names",
-				      names, opal_irq_count);
+	/* No interrupts ? Bail out */
+	if (!opal_irq_count)
+		goto out;
+
+	pr_debug("OPAL: Found %d interrupts reserved for OPAL using %s scheme\n",
+		 opal_irq_count, old_style ? "old" : "new");
+
+	/* Allocate an IRQ resources array */
+	opal_irqs = kcalloc(opal_irq_count, sizeof(struct resource), GFP_KERNEL);
+	if (WARN_ON(!opal_irqs)) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	/* Build the resources array */
+	if (old_style) {
+		/* Old style "opal-interrupts" property */
+		for (i = 0; i < opal_irq_count; i++) {
+			struct resource *r = &opal_irqs[i];
+			const char *name = NULL;
+			u32 hw_irq;
+			int virq;
+
+			rc = of_property_read_u32_index(opal_node, "opal-interrupts",
+							i, &hw_irq);
+			if (WARN_ON(rc < 0)) {
+				opal_irq_count = i;
+				break;
+			}
+			of_property_read_string_index(opal_node, "opal-interrupts-names",
+						      i, &name);
+			virq = irq_create_mapping(NULL, hw_irq);
+			if (!virq) {
+				pr_warn("Failed to map OPAL irq 0x%x\n", hw_irq);
+				continue;
+			}
+			r->start = r->end = virq;
+			r->flags = IORESOURCE_IRQ | IRQ_TYPE_LEVEL_LOW;
+			r->name = name;
+		}
+	} else {
+		/* new style standard "interrupts" property */
+		rc = of_irq_to_resource_table(opal_node, opal_irqs, opal_irq_count);
+		if (WARN_ON(rc < 0)) {
+			opal_irq_count = 0;
+			kfree(opal_irqs);
+			goto out;
+		}
+		if (WARN_ON(rc < opal_irq_count))
+			opal_irq_count = rc;
+	}
 
 	/* Install interrupt handlers */
 	for (i = 0; i < opal_irq_count; i++) {
-		unsigned int virq;
-		char *name;
+		struct resource *r = &opal_irqs[i];
+		const char *name;
 
-		/* Get hardware and virtual IRQ */
-		virq = irq_create_mapping(NULL, irqs[i]);
-		if (!virq) {
-			pr_warn("Failed to map irq 0x%x\n", irqs[i]);
-			continue;
-		}
-
-		if (names[i] && strlen(names[i]))
-			name = kasprintf(GFP_KERNEL, "opal-%s", names[i]);
+		/* Prefix name */
+		if (r->name && strlen(r->name))
+			name = kasprintf(GFP_KERNEL, "opal-%s", r->name);
 		else
 			name = kasprintf(GFP_KERNEL, "opal");
 
 		/* Install interrupt handler */
-		rc = request_irq(virq, opal_interrupt, IRQF_TRIGGER_LOW,
+		rc = request_irq(r->start, opal_interrupt, r->flags & IRQD_TRIGGER_MASK,
 				 name, NULL);
 		if (rc) {
-			irq_dispose_mapping(virq);
-			pr_warn("Error %d requesting irq %d (0x%x)\n",
-				 rc, virq, irqs[i]);
+			pr_warn("Error %d requesting OPAL irq %d\n", rc, (int)r->start);
 			continue;
 		}
-
-		/* Cache IRQ */
-		opal_irqs[i] = virq;
 	}
-
-out_free:
-	kfree(irqs);
-	kfree(names);
-out:
+	rc = 0;
+ out:
 	of_node_put(opal_node);
 	return rc;
 }

@@ -25,50 +25,6 @@
 #include <linux/preempt.h>
 #include <linux/ftrace.h>
 
-/*
- * This is called from ftrace code after invoking registered handlers to
- * disambiguate regs->nip changes done by jprobes and livepatch. We check if
- * there is an active jprobe at the provided address (mcount location).
- */
-int __is_active_jprobe(unsigned long addr)
-{
-	if (!preemptible()) {
-		struct kprobe *p = raw_cpu_read(current_kprobe);
-		return (p && (unsigned long)p->addr == addr) ? 1 : 0;
-	}
-
-	return 0;
-}
-
-static nokprobe_inline
-int __skip_singlestep(struct kprobe *p, struct pt_regs *regs,
-		      struct kprobe_ctlblk *kcb, unsigned long orig_nip)
-{
-	/*
-	 * Emulate singlestep (and also recover regs->nip)
-	 * as if there is a nop
-	 */
-	regs->nip = (unsigned long)p->addr + MCOUNT_INSN_SIZE;
-	if (unlikely(p->post_handler)) {
-		kcb->kprobe_status = KPROBE_HIT_SSDONE;
-		p->post_handler(p, regs, 0);
-	}
-	__this_cpu_write(current_kprobe, NULL);
-	if (orig_nip)
-		regs->nip = orig_nip;
-	return 1;
-}
-
-int skip_singlestep(struct kprobe *p, struct pt_regs *regs,
-		    struct kprobe_ctlblk *kcb)
-{
-	if (kprobe_ftrace(p))
-		return __skip_singlestep(p, regs, kcb, 0);
-	else
-		return 0;
-}
-NOKPROBE_SYMBOL(skip_singlestep);
-
 /* Ftrace callback handler for kprobes */
 void kprobe_ftrace_handler(unsigned long nip, unsigned long parent_nip,
 			   struct ftrace_ops *ops, struct pt_regs *regs)
@@ -76,18 +32,14 @@ void kprobe_ftrace_handler(unsigned long nip, unsigned long parent_nip,
 	struct kprobe *p;
 	struct kprobe_ctlblk *kcb;
 
-	preempt_disable();
-
 	p = get_kprobe((kprobe_opcode_t *)nip);
 	if (unlikely(!p) || kprobe_disabled(p))
-		goto end;
+		return;
 
 	kcb = get_kprobe_ctlblk();
 	if (kprobe_running()) {
 		kprobes_inc_nmissed_count(p);
 	} else {
-		unsigned long orig_nip = regs->nip;
-
 		/*
 		 * On powerpc, NIP is *before* this instruction for the
 		 * pre handler
@@ -96,19 +48,23 @@ void kprobe_ftrace_handler(unsigned long nip, unsigned long parent_nip,
 
 		__this_cpu_write(current_kprobe, p);
 		kcb->kprobe_status = KPROBE_HIT_ACTIVE;
-		if (!p->pre_handler || !p->pre_handler(p, regs))
-			__skip_singlestep(p, regs, kcb, orig_nip);
-		else {
+		if (!p->pre_handler || !p->pre_handler(p, regs)) {
 			/*
-			 * If pre_handler returns !0, it sets regs->nip and
-			 * resets current kprobe. In this case, we should not
-			 * re-enable preemption.
+			 * Emulate singlestep (and also recover regs->nip)
+			 * as if there is a nop
 			 */
-			return;
+			regs->nip += MCOUNT_INSN_SIZE;
+			if (unlikely(p->post_handler)) {
+				kcb->kprobe_status = KPROBE_HIT_SSDONE;
+				p->post_handler(p, regs, 0);
+			}
 		}
+		/*
+		 * If pre_handler returns !0, it changes regs->nip. We have to
+		 * skip emulating post_handler.
+		 */
+		__this_cpu_write(current_kprobe, NULL);
 	}
-end:
-	preempt_enable_no_resched();
 }
 NOKPROBE_SYMBOL(kprobe_ftrace_handler);
 

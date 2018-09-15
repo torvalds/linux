@@ -40,17 +40,6 @@
 
 #include <asm/cmpxchg.h>
 
-#define ___atomic_add_unless(v, a, u, sfx)				\
-({									\
-	typeof((v)->counter) c, old;					\
-									\
-	c = atomic##sfx##_read(v);					\
-	while (c != (u) &&						\
-	      (old = atomic##sfx##_cmpxchg((v), c, c + (a))) != c)	\
-		c = old;						\
-	c;								\
- })
-
 #define ATOMIC_INIT(i)	{ (i) }
 
 #define atomic_read(v)			READ_ONCE((v)->counter)
@@ -61,20 +50,10 @@
 #define atomic_add_return_release	atomic_add_return_release
 #define atomic_add_return		atomic_add_return
 
-#define atomic_inc_return_relaxed(v)	atomic_add_return_relaxed(1, (v))
-#define atomic_inc_return_acquire(v)	atomic_add_return_acquire(1, (v))
-#define atomic_inc_return_release(v)	atomic_add_return_release(1, (v))
-#define atomic_inc_return(v)		atomic_add_return(1, (v))
-
 #define atomic_sub_return_relaxed	atomic_sub_return_relaxed
 #define atomic_sub_return_acquire	atomic_sub_return_acquire
 #define atomic_sub_return_release	atomic_sub_return_release
 #define atomic_sub_return		atomic_sub_return
-
-#define atomic_dec_return_relaxed(v)	atomic_sub_return_relaxed(1, (v))
-#define atomic_dec_return_acquire(v)	atomic_sub_return_acquire(1, (v))
-#define atomic_dec_return_release(v)	atomic_sub_return_release(1, (v))
-#define atomic_dec_return(v)		atomic_sub_return(1, (v))
 
 #define atomic_fetch_add_relaxed	atomic_fetch_add_relaxed
 #define atomic_fetch_add_acquire	atomic_fetch_add_acquire
@@ -119,13 +98,6 @@
 	cmpxchg_release(&((v)->counter), (old), (new))
 #define atomic_cmpxchg(v, old, new)	cmpxchg(&((v)->counter), (old), (new))
 
-#define atomic_inc(v)			atomic_add(1, (v))
-#define atomic_dec(v)			atomic_sub(1, (v))
-#define atomic_inc_and_test(v)		(atomic_inc_return(v) == 0)
-#define atomic_dec_and_test(v)		(atomic_dec_return(v) == 0)
-#define atomic_sub_and_test(i, v)	(atomic_sub_return((i), (v)) == 0)
-#define atomic_add_negative(i, v)	(atomic_add_return((i), (v)) < 0)
-#define __atomic_add_unless(v, a, u)	___atomic_add_unless(v, a, u,)
 #define atomic_andnot			atomic_andnot
 
 /*
@@ -140,20 +112,10 @@
 #define atomic64_add_return_release	atomic64_add_return_release
 #define atomic64_add_return		atomic64_add_return
 
-#define atomic64_inc_return_relaxed(v)	atomic64_add_return_relaxed(1, (v))
-#define atomic64_inc_return_acquire(v)	atomic64_add_return_acquire(1, (v))
-#define atomic64_inc_return_release(v)	atomic64_add_return_release(1, (v))
-#define atomic64_inc_return(v)		atomic64_add_return(1, (v))
-
 #define atomic64_sub_return_relaxed	atomic64_sub_return_relaxed
 #define atomic64_sub_return_acquire	atomic64_sub_return_acquire
 #define atomic64_sub_return_release	atomic64_sub_return_release
 #define atomic64_sub_return		atomic64_sub_return
-
-#define atomic64_dec_return_relaxed(v)	atomic64_sub_return_relaxed(1, (v))
-#define atomic64_dec_return_acquire(v)	atomic64_sub_return_acquire(1, (v))
-#define atomic64_dec_return_release(v)	atomic64_sub_return_release(1, (v))
-#define atomic64_dec_return(v)		atomic64_sub_return(1, (v))
 
 #define atomic64_fetch_add_relaxed	atomic64_fetch_add_relaxed
 #define atomic64_fetch_add_acquire	atomic64_fetch_add_acquire
@@ -195,16 +157,9 @@
 #define atomic64_cmpxchg_release	atomic_cmpxchg_release
 #define atomic64_cmpxchg		atomic_cmpxchg
 
-#define atomic64_inc(v)			atomic64_add(1, (v))
-#define atomic64_dec(v)			atomic64_sub(1, (v))
-#define atomic64_inc_and_test(v)	(atomic64_inc_return(v) == 0)
-#define atomic64_dec_and_test(v)	(atomic64_dec_return(v) == 0)
-#define atomic64_sub_and_test(i, v)	(atomic64_sub_return((i), (v)) == 0)
-#define atomic64_add_negative(i, v)	(atomic64_add_return((i), (v)) < 0)
-#define atomic64_add_unless(v, a, u)	(___atomic_add_unless(v, a, u, 64) != u)
 #define atomic64_andnot			atomic64_andnot
 
-#define atomic64_inc_not_zero(v)	atomic64_add_unless((v), 1, 0)
+#define atomic64_dec_if_positive	atomic64_dec_if_positive
 
 #endif
 #endif

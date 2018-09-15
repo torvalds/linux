@@ -10,7 +10,7 @@
 #include <linux/time64.h>
 
 struct timespec;
-struct compat_timespec;
+struct old_timespec32;
 struct pollfd;
 
 enum timespec_type {
@@ -40,7 +40,7 @@ struct restart_block {
 			enum timespec_type type;
 			union {
 				struct __kernel_timespec __user *rmtp;
-				struct compat_timespec __user *compat_rmtp;
+				struct old_timespec32 __user *compat_rmtp;
 			};
 			u64 expires;
 		} nanosleep;

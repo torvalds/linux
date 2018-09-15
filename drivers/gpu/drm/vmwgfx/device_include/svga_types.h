@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**********************************************************
- * Copyright 2015 VMware, Inc.  All rights reserved.
+ * Copyright 2015 VMware, Inc.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -40,7 +41,10 @@ typedef uint64 PPN64;
 
 typedef bool Bool;
 
+#define MAX_UINT64 U64_MAX
 #define MAX_UINT32 U32_MAX
 #define MAX_UINT16 U16_MAX
+
+#define CONST64U(x) x##ULL
 
 #endif
