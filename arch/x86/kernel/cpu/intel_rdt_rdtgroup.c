@@ -2370,7 +2370,7 @@ static int rdtgroup_init_alloc(struct rdtgroup *rdtgrp)
 			d->new_ctrl = r->cache.shareable_bits;
 			used_b = r->cache.shareable_bits;
 			ctrl = d->ctrl_val;
-			for (i = 0; i < r->num_closid; i++, ctrl++) {
+			for (i = 0; i < closids_supported(); i++, ctrl++) {
 				if (closid_allocated(i) && i != closid) {
 					mode = rdtgroup_mode_by_closid(i);
 					if (mode == RDT_MODE_PSEUDO_LOCKSETUP)
