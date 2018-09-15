@@ -35,7 +35,7 @@ typedef void (*I40E_ADMINQ_CALLBACK)(struct iavf_hw *, struct i40e_aq_desc *);
 #define I40E_QTX_CTL_PF_QUEUE	0x2
 
 /* debug masks - set these bits in hw->debug_mask to control output */
-enum i40e_debug_mask {
+enum iavf_debug_mask {
 	I40E_DEBUG_INIT			= 0x00000001,
 	I40E_DEBUG_RELEASE		= 0x00000002,
 

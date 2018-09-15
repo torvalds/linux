@@ -257,7 +257,7 @@ const char *iavf_stat_str(struct iavf_hw *hw, iavf_status stat_err)
  *
  * Dumps debug log about adminq command with descriptor contents.
  **/
-void iavf_debug_aq(struct iavf_hw *hw, enum i40e_debug_mask mask, void *desc,
+void iavf_debug_aq(struct iavf_hw *hw, enum iavf_debug_mask mask, void *desc,
 		   void *buffer, u16 buf_len)
 {
 	struct i40e_aq_desc *aq_desc = (struct i40e_aq_desc *)desc;
@@ -266,26 +266,26 @@ void iavf_debug_aq(struct iavf_hw *hw, enum i40e_debug_mask mask, void *desc,
 	if ((!(mask & hw->debug_mask)) || !desc)
 		return;
 
-	i40e_debug(hw, mask,
+	iavf_debug(hw, mask,
 		   "AQ CMD: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
 		   le16_to_cpu(aq_desc->opcode),
 		   le16_to_cpu(aq_desc->flags),
 		   le16_to_cpu(aq_desc->datalen),
 		   le16_to_cpu(aq_desc->retval));
-	i40e_debug(hw, mask, "\tcookie (h,l) 0x%08X 0x%08X\n",
+	iavf_debug(hw, mask, "\tcookie (h,l) 0x%08X 0x%08X\n",
 		   le32_to_cpu(aq_desc->cookie_high),
 		   le32_to_cpu(aq_desc->cookie_low));
-	i40e_debug(hw, mask, "\tparam (0,1)  0x%08X 0x%08X\n",
+	iavf_debug(hw, mask, "\tparam (0,1)  0x%08X 0x%08X\n",
 		   le32_to_cpu(aq_desc->params.internal.param0),
 		   le32_to_cpu(aq_desc->params.internal.param1));
-	i40e_debug(hw, mask, "\taddr (h,l)   0x%08X 0x%08X\n",
+	iavf_debug(hw, mask, "\taddr (h,l)   0x%08X 0x%08X\n",
 		   le32_to_cpu(aq_desc->params.external.addr_high),
 		   le32_to_cpu(aq_desc->params.external.addr_low));
 
 	if (buffer && aq_desc->datalen) {
 		u16 len = le16_to_cpu(aq_desc->datalen);
 
-		i40e_debug(hw, mask, "AQ CMD Buffer:\n");
+		iavf_debug(hw, mask, "AQ CMD Buffer:\n");
 		if (buf_len < len)
 			len = buf_len;
 		/* write the full 16-byte chunks */

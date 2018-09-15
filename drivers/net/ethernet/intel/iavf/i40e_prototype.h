@@ -29,7 +29,7 @@ iavf_status iavf_asq_send_command(struct iavf_hw *hw, struct i40e_aq_desc *desc,
 bool iavf_asq_done(struct iavf_hw *hw);
 
 /* debug function for adminq */
-void iavf_debug_aq(struct iavf_hw *hw, enum i40e_debug_mask mask,
+void iavf_debug_aq(struct iavf_hw *hw, enum iavf_debug_mask mask,
 		   void *desc, void *buffer, u16 buf_len);
 
 void i40e_idle_aq(struct iavf_hw *hw);
