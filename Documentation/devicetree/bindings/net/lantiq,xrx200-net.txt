@@ -11,11 +11,11 @@ Required properties:
 
 Example:
 
-eth0: eth@E10B308 {
+ethernet@e10b308 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	compatible = "lantiq,xrx200-net";
-	reg = <0xE10B308 0x30>;
+	reg = <0xe10b308 0xcf8>;
 	interrupts = <73>, <72>;
 	interrupt-names = "tx", "rx";
 };
