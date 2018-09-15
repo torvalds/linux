@@ -1031,14 +1031,25 @@ static bool rdtgroup_mode_test_exclusive(struct rdtgroup *rdtgrp)
 {
 	int closid = rdtgrp->closid;
 	struct rdt_resource *r;
+	bool has_cache = false;
 	struct rdt_domain *d;
 
 	for_each_alloc_enabled_rdt_resource(r) {
+		if (r->rid == RDT_RESOURCE_MBA)
+			continue;
+		has_cache = true;
 		list_for_each_entry(d, &r->domains, list) {
 			if (rdtgroup_cbm_overlaps(r, d, d->ctrl_val[closid],
-						  rdtgrp->closid, false))
+						  rdtgrp->closid, false)) {
+				rdt_last_cmd_puts("schemata overlaps\n");
 				return false;
+			}
 		}
+	}
+
+	if (!has_cache) {
+		rdt_last_cmd_puts("cannot be exclusive without CAT/CDP\n");
+		return false;
 	}
 
 	return true;
@@ -1092,7 +1103,6 @@ static ssize_t rdtgroup_mode_write(struct kernfs_open_file *of,
 		rdtgrp->mode = RDT_MODE_SHAREABLE;
 	} else if (!strcmp(buf, "exclusive")) {
 		if (!rdtgroup_mode_test_exclusive(rdtgrp)) {
-			rdt_last_cmd_printf("schemata overlaps\n");
 			ret = -EINVAL;
 			goto out;
 		}
