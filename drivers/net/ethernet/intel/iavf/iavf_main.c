@@ -41,10 +41,10 @@ static const char iavf_copyright[] =
  *   Class, Class Mask, private data (not used) }
  */
 static const struct pci_device_id iavf_pci_tbl[] = {
-	{PCI_VDEVICE(INTEL, I40E_DEV_ID_VF), 0},
-	{PCI_VDEVICE(INTEL, I40E_DEV_ID_VF_HV), 0},
-	{PCI_VDEVICE(INTEL, I40E_DEV_ID_X722_VF), 0},
-	{PCI_VDEVICE(INTEL, I40E_DEV_ID_ADAPTIVE_VF), 0},
+	{PCI_VDEVICE(INTEL, IAVF_DEV_ID_VF), 0},
+	{PCI_VDEVICE(INTEL, IAVF_DEV_ID_VF_HV), 0},
+	{PCI_VDEVICE(INTEL, IAVF_DEV_ID_X722_VF), 0},
+	{PCI_VDEVICE(INTEL, IAVF_DEV_ID_ADAPTIVE_VF), 0},
 	/* required last entry */
 	{0, }
 };

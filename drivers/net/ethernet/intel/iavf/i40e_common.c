@@ -19,33 +19,12 @@ iavf_status i40e_set_mac_type(struct i40e_hw *hw)
 
 	if (hw->vendor_id == PCI_VENDOR_ID_INTEL) {
 		switch (hw->device_id) {
-		case I40E_DEV_ID_SFP_XL710:
-		case I40E_DEV_ID_QEMU:
-		case I40E_DEV_ID_KX_B:
-		case I40E_DEV_ID_KX_C:
-		case I40E_DEV_ID_QSFP_A:
-		case I40E_DEV_ID_QSFP_B:
-		case I40E_DEV_ID_QSFP_C:
-		case I40E_DEV_ID_10G_BASE_T:
-		case I40E_DEV_ID_10G_BASE_T4:
-		case I40E_DEV_ID_20G_KR2:
-		case I40E_DEV_ID_20G_KR2_A:
-		case I40E_DEV_ID_25G_B:
-		case I40E_DEV_ID_25G_SFP28:
-			hw->mac.type = I40E_MAC_XL710;
-			break;
-		case I40E_DEV_ID_SFP_X722:
-		case I40E_DEV_ID_1G_BASE_T_X722:
-		case I40E_DEV_ID_10G_BASE_T_X722:
-		case I40E_DEV_ID_SFP_I_X722:
-			hw->mac.type = I40E_MAC_X722;
-			break;
-		case I40E_DEV_ID_X722_VF:
+		case IAVF_DEV_ID_X722_VF:
 			hw->mac.type = I40E_MAC_X722_VF;
 			break;
-		case I40E_DEV_ID_VF:
-		case I40E_DEV_ID_VF_HV:
-		case I40E_DEV_ID_ADAPTIVE_VF:
+		case IAVF_DEV_ID_VF:
+		case IAVF_DEV_ID_VF_HV:
+		case IAVF_DEV_ID_ADAPTIVE_VF:
 			hw->mac.type = I40E_MAC_VF;
 			break;
 		default:

@@ -16,18 +16,16 @@
 static void i40e_adminq_init_regs(struct i40e_hw *hw)
 {
 	/* set head and tail registers in our local struct */
-	if (i40e_is_vf(hw)) {
-		hw->aq.asq.tail = IAVF_VF_ATQT1;
-		hw->aq.asq.head = IAVF_VF_ATQH1;
-		hw->aq.asq.len  = IAVF_VF_ATQLEN1;
-		hw->aq.asq.bal  = IAVF_VF_ATQBAL1;
-		hw->aq.asq.bah  = IAVF_VF_ATQBAH1;
-		hw->aq.arq.tail = IAVF_VF_ARQT1;
-		hw->aq.arq.head = IAVF_VF_ARQH1;
-		hw->aq.arq.len  = IAVF_VF_ARQLEN1;
-		hw->aq.arq.bal  = IAVF_VF_ARQBAL1;
-		hw->aq.arq.bah  = IAVF_VF_ARQBAH1;
-	}
+	hw->aq.asq.tail = IAVF_VF_ATQT1;
+	hw->aq.asq.head = IAVF_VF_ATQH1;
+	hw->aq.asq.len  = IAVF_VF_ATQLEN1;
+	hw->aq.asq.bal  = IAVF_VF_ATQBAL1;
+	hw->aq.asq.bah  = IAVF_VF_ATQBAH1;
+	hw->aq.arq.tail = IAVF_VF_ARQT1;
+	hw->aq.arq.head = IAVF_VF_ARQH1;
+	hw->aq.arq.len  = IAVF_VF_ARQLEN1;
+	hw->aq.arq.bal  = IAVF_VF_ARQBAL1;
+	hw->aq.arq.bah  = IAVF_VF_ARQBAH1;
 }
 
 /**
