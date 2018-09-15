@@ -135,7 +135,7 @@ void iavf_notify_client_open(struct i40e_vsi *vsi)
 static int iavf_client_release_qvlist(struct i40e_info *ldev)
 {
 	struct iavf_adapter *adapter = ldev->vf;
-	i40e_status err;
+	iavf_status err;
 
 	if (adapter->aq_required)
 		return -EAGAIN;
@@ -420,7 +420,7 @@ static u32 iavf_client_virtchnl_send(struct i40e_info *ldev,
 				     u8 *msg, u16 len)
 {
 	struct iavf_adapter *adapter = ldev->vf;
-	i40e_status err;
+	iavf_status err;
 
 	if (adapter->aq_required)
 		return -EAGAIN;
@@ -449,7 +449,7 @@ static int iavf_client_setup_qvlist(struct i40e_info *ldev,
 	struct virtchnl_iwarp_qvlist_info *v_qvlist_info;
 	struct iavf_adapter *adapter = ldev->vf;
 	struct i40e_qv_info *qv_info;
-	i40e_status err;
+	iavf_status err;
 	u32 v_idx, i;
 	u32 msg_size;
 

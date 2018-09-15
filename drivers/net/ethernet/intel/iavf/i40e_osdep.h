@@ -48,5 +48,5 @@ struct i40e_virt_mem {
 extern void iavf_debug_d(void *hw, u32 mask, char *fmt_str, ...)
 	__attribute__ ((format(gnu_printf, 3, 4)));
 
-typedef enum i40e_status_code i40e_status;
+typedef enum i40e_status_code iavf_status;
 #endif /* _I40E_OSDEP_H_ */

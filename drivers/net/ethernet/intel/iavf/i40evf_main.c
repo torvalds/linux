@@ -66,7 +66,7 @@ static struct workqueue_struct *iavf_wq;
  * @size: size of memory requested
  * @alignment: what to align the allocation to
  **/
-i40e_status iavf_allocate_dma_mem_d(struct i40e_hw *hw,
+iavf_status iavf_allocate_dma_mem_d(struct i40e_hw *hw,
 				    struct i40e_dma_mem *mem,
 				    u64 size, u32 alignment)
 {
@@ -89,7 +89,7 @@ i40e_status iavf_allocate_dma_mem_d(struct i40e_hw *hw,
  * @hw:   pointer to the HW structure
  * @mem:  ptr to mem struct to free
  **/
-i40e_status iavf_free_dma_mem_d(struct i40e_hw *hw, struct i40e_dma_mem *mem)
+iavf_status iavf_free_dma_mem_d(struct i40e_hw *hw, struct i40e_dma_mem *mem)
 {
 	struct iavf_adapter *adapter = (struct iavf_adapter *)hw->back;
 
@@ -106,7 +106,7 @@ i40e_status iavf_free_dma_mem_d(struct i40e_hw *hw, struct i40e_dma_mem *mem)
  * @mem:  ptr to mem struct to fill out
  * @size: size of memory requested
  **/
-i40e_status iavf_allocate_virt_mem_d(struct i40e_hw *hw,
+iavf_status iavf_allocate_virt_mem_d(struct i40e_hw *hw,
 				     struct i40e_virt_mem *mem, u32 size)
 {
 	if (!mem)
@@ -126,7 +126,7 @@ i40e_status iavf_allocate_virt_mem_d(struct i40e_hw *hw,
  * @hw:   pointer to the HW structure
  * @mem:  ptr to mem struct to free
  **/
-i40e_status iavf_free_virt_mem_d(struct i40e_hw *hw,
+iavf_status iavf_free_virt_mem_d(struct i40e_hw *hw,
 				 struct i40e_virt_mem *mem)
 {
 	if (!mem)
@@ -469,6 +469,7 @@ iavf_request_traffic_irqs(struct iavf_adapter *adapter, char *basename)
 
 	for (vector = 0; vector < q_vectors; vector++) {
 		struct i40e_q_vector *q_vector = &adapter->q_vectors[vector];
+
 		irq_num = adapter->msix_entries[vector + NONQ_VECS].vector;
 
 		if (q_vector->tx.ring && q_vector->rx.ring) {
@@ -1427,6 +1428,7 @@ static void iavf_free_q_vectors(struct iavf_adapter *adapter)
 
 	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
 		struct i40e_q_vector *q_vector = &adapter->q_vectors[q_idx];
+
 		if (q_idx < napi_vectors)
 			netif_napi_del(&q_vector->napi);
 	}
@@ -2048,7 +2050,7 @@ static void iavf_adminq_task(struct work_struct *work)
 	struct i40e_hw *hw = &adapter->hw;
 	struct i40e_arq_event_info event;
 	enum virtchnl_ops v_op;
-	i40e_status ret, v_ret;
+	iavf_status ret, v_ret;
 	u32 val, oldval;
 	u16 pending;
 
@@ -2063,7 +2065,7 @@ static void iavf_adminq_task(struct work_struct *work)
 	do {
 		ret = iavf_clean_arq_element(hw, &event, &pending);
 		v_op = (enum virtchnl_ops)le32_to_cpu(event.desc.cookie_high);
-		v_ret = (i40e_status)le32_to_cpu(event.desc.cookie_low);
+		v_ret = (iavf_status)le32_to_cpu(event.desc.cookie_low);
 
 		if (ret || !v_op)
 			break; /* No event to process or error cleaning ARQ */
