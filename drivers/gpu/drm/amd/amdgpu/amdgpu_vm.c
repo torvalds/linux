@@ -191,6 +191,26 @@ static unsigned amdgpu_vm_num_entries(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_vm_entries_mask - the mask to get the entry number of a PD/PT
+ *
+ * @adev: amdgpu_device pointer
+ * @level: VMPT level
+ *
+ * Returns:
+ * The mask to extract the entry number of a PD/PT from an address.
+ */
+static uint32_t amdgpu_vm_entries_mask(struct amdgpu_device *adev,
+				       unsigned int level)
+{
+	if (level <= adev->vm_manager.root_level)
+		return 0xffffffff;
+	else if (level != AMDGPU_VM_PTB)
+		return 0x1ff;
+	else
+		return AMDGPU_VM_PTE_COUNT(adev) - 1;
+}
+
+/**
  * amdgpu_vm_bo_size - returns the size of the BOs in bytes
  *
  * @adev: amdgpu_device pointer
@@ -399,17 +419,17 @@ static void amdgpu_vm_pt_start(struct amdgpu_device *adev,
 static bool amdgpu_vm_pt_descendant(struct amdgpu_device *adev,
 				    struct amdgpu_vm_pt_cursor *cursor)
 {
-	unsigned num_entries, shift, idx;
+	unsigned mask, shift, idx;
 
 	if (!cursor->entry->entries)
 		return false;
 
 	BUG_ON(!cursor->entry->base.bo);
-	num_entries = amdgpu_vm_num_entries(adev, cursor->level);
+	mask = amdgpu_vm_entries_mask(adev, cursor->level);
 	shift = amdgpu_vm_level_shift(adev, cursor->level);
 
 	++cursor->level;
-	idx = (cursor->pfn >> shift) % num_entries;
+	idx = (cursor->pfn >> shift) & mask;
 	cursor->parent = cursor->entry;
 	cursor->entry = &cursor->entry->entries[idx];
 	return true;
@@ -1599,7 +1619,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	amdgpu_vm_pt_start(adev, params->vm, start, &cursor);
 	while (cursor.pfn < end) {
 		struct amdgpu_bo *pt = cursor.entry->base.bo;
-		unsigned shift, parent_shift, num_entries;
+		unsigned shift, parent_shift, mask;
 		uint64_t incr, entry_end, pe_start;
 
 		if (!pt)
@@ -1654,9 +1674,9 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 
 		/* Looks good so far, calculate parameters for the update */
 		incr = AMDGPU_GPU_PAGE_SIZE << shift;
-		num_entries = amdgpu_vm_num_entries(adev, cursor.level);
-		pe_start = ((cursor.pfn >> shift) & (num_entries - 1)) * 8;
-		entry_end = num_entries << shift;
+		mask = amdgpu_vm_entries_mask(adev, cursor.level);
+		pe_start = ((cursor.pfn >> shift) & mask) * 8;
+		entry_end = (mask + 1) << shift;
 		entry_end += cursor.pfn & ~(entry_end - 1);
 		entry_end = min(entry_end, end);
 
