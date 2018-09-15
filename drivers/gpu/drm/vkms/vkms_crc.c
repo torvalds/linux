@@ -125,6 +125,7 @@ static uint32_t _vkms_get_crc(struct vkms_crc_data *primary_crc,
 	mutex_lock(&vkms_obj->pages_lock);
 	if (WARN_ON(!vkms_obj->vaddr)) {
 		mutex_unlock(&vkms_obj->pages_lock);
+		kfree(vaddr_out);
 		return crc;
 	}
 
