@@ -934,10 +934,10 @@ static int gswip_gphy_fw_probe(struct gswip_priv *priv,
 	}
 
 	gphy_fw->reset = of_reset_control_array_get_exclusive(gphy_fw_np);
-	if (IS_ERR(priv->gphy_fw)) {
-		if (PTR_ERR(priv->gphy_fw) != -EPROBE_DEFER)
+	if (IS_ERR(gphy_fw->reset)) {
+		if (PTR_ERR(gphy_fw->reset) != -EPROBE_DEFER)
 			dev_err(dev, "Failed to lookup gphy reset\n");
-		return PTR_ERR(priv->gphy_fw);
+		return PTR_ERR(gphy_fw->reset);
 	}
 
 	return gswip_gphy_fw_load(priv, gphy_fw);
