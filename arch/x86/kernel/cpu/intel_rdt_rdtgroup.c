@@ -1155,8 +1155,8 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 	struct rdt_resource *r;
 	struct rdt_domain *d;
 	unsigned int size;
-	bool sep = false;
-	u32 cbm;
+	bool sep;
+	u32 ctrl;
 
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (!rdtgrp) {
@@ -1174,6 +1174,7 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 	}
 
 	for_each_alloc_enabled_rdt_resource(r) {
+		sep = false;
 		seq_printf(s, "%*s:", max_name_width, r->name);
 		list_for_each_entry(d, &r->domains, list) {
 			if (sep)
@@ -1181,8 +1182,13 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 			if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP) {
 				size = 0;
 			} else {
-				cbm = d->ctrl_val[rdtgrp->closid];
-				size = rdtgroup_cbm_to_size(r, d, cbm);
+				ctrl = (!is_mba_sc(r) ?
+						d->ctrl_val[rdtgrp->closid] :
+						d->mbps_val[rdtgrp->closid]);
+				if (r->rid == RDT_RESOURCE_MBA)
+					size = ctrl;
+				else
+					size = rdtgroup_cbm_to_size(r, d, ctrl);
 			}
 			seq_printf(s, "%d=%u", d->id, size);
 			sep = true;
