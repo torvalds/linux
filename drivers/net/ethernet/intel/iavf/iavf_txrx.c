@@ -4,7 +4,7 @@
 #include <linux/prefetch.h>
 #include <net/busy_poll.h>
 
-#include "i40evf.h"
+#include "iavf.h"
 #include "i40e_trace.h"
 #include "i40e_prototype.h"
 

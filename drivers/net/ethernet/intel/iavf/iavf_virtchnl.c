@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
-#include "i40evf.h"
+#include "iavf.h"
 #include "i40e_prototype.h"
-#include "i40evf_client.h"
+#include "iavf_client.h"
 
 /* busy wait delay in msec */
 #define IAVF_BUSY_WAIT_DELAY 10

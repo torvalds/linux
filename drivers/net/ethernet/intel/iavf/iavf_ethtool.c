@@ -2,7 +2,7 @@
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 /* ethtool support for iavf */
-#include "i40evf.h"
+#include "iavf.h"
 
 #include <linux/uaccess.h>
 

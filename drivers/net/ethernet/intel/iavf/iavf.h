@@ -36,7 +36,7 @@
 
 #include "i40e_type.h"
 #include <linux/avf/virtchnl.h>
-#include "i40e_txrx.h"
+#include "iavf_txrx.h"
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
 #define PFX "iavf: "

@@ -4,9 +4,9 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 
-#include "i40evf.h"
+#include "iavf.h"
 #include "i40e_prototype.h"
-#include "i40evf_client.h"
+#include "iavf_client.h"
 
 static
 const char iavf_client_interface_version_str[] = IAVF_CLIENT_VERSION_STR;
