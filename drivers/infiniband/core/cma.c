@@ -639,6 +639,58 @@ static void cma_bind_sgid_attr(struct rdma_id_private *id_priv,
 	id_priv->id.route.addr.dev_addr.sgid_attr = sgid_attr;
 }
 
+/**
+ * cma_acquire_dev_by_src_ip - Acquire cma device, port, gid attribute
+ * based on source ip address.
+ * @id_priv:	cm_id which should be bound to cma device
+ *
+ * cma_acquire_dev_by_src_ip() binds cm id to cma device, port and GID attribute
+ * based on source IP address. It returns 0 on success or error code otherwise.
+ * It is applicable to active and passive side cm_id.
+ */
+static int cma_acquire_dev_by_src_ip(struct rdma_id_private *id_priv)
+{
+	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
+	const struct ib_gid_attr *sgid_attr;
+	union ib_gid gid, iboe_gid, *gidp;
+	struct cma_device *cma_dev;
+	enum ib_gid_type gid_type;
+	int ret = -ENODEV;
+	u8 port;
+
+	if (dev_addr->dev_type != ARPHRD_INFINIBAND &&
+	    id_priv->id.ps == RDMA_PS_IPOIB)
+		return -EINVAL;
+
+	rdma_ip2gid((struct sockaddr *)&id_priv->id.route.addr.src_addr,
+		    &iboe_gid);
+
+	memcpy(&gid, dev_addr->src_dev_addr +
+	       rdma_addr_gid_offset(dev_addr), sizeof(gid));
+
+	mutex_lock(&lock);
+	list_for_each_entry(cma_dev, &dev_list, list) {
+		for (port = rdma_start_port(cma_dev->device);
+		     port <= rdma_end_port(cma_dev->device); port++) {
+			gidp = rdma_protocol_roce(cma_dev->device, port) ?
+			       &iboe_gid : &gid;
+			gid_type = cma_dev->default_gid_type[port - 1];
+			sgid_attr = cma_validate_port(cma_dev->device, port,
+						      gid_type, gidp, id_priv);
+			if (!IS_ERR(sgid_attr)) {
+				id_priv->id.port_num = port;
+				cma_bind_sgid_attr(id_priv, sgid_attr);
+				cma_attach_to_dev(id_priv, cma_dev);
+				ret = 0;
+				goto out;
+			}
+		}
+	}
+out:
+	mutex_unlock(&lock);
+	return ret;
+}
+
 static int cma_acquire_dev(struct rdma_id_private *id_priv,
 			   const struct rdma_id_private *listen_id_priv)
 {
@@ -661,26 +713,22 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv,
 	memcpy(&gid, dev_addr->src_dev_addr +
 	       rdma_addr_gid_offset(dev_addr), sizeof gid);
 
-	if (listen_id_priv) {
-		cma_dev = listen_id_priv->cma_dev;
-		port = listen_id_priv->id.port_num;
-		gidp = rdma_protocol_roce(cma_dev->device, port) ?
-		       &iboe_gid : &gid;
-		gid_type = listen_id_priv->gid_type;
-		sgid_attr = cma_validate_port(cma_dev->device, port,
-					      gid_type, gidp, id_priv);
-		if (!IS_ERR(sgid_attr)) {
-			id_priv->id.port_num = port;
-			cma_bind_sgid_attr(id_priv, sgid_attr);
-			ret = 0;
-			goto out;
-		}
+	cma_dev = listen_id_priv->cma_dev;
+	port = listen_id_priv->id.port_num;
+	gidp = rdma_protocol_roce(cma_dev->device, port) ? &iboe_gid : &gid;
+	gid_type = listen_id_priv->gid_type;
+	sgid_attr = cma_validate_port(cma_dev->device, port,
+				      gid_type, gidp, id_priv);
+	if (!IS_ERR(sgid_attr)) {
+		id_priv->id.port_num = port;
+		cma_bind_sgid_attr(id_priv, sgid_attr);
+		ret = 0;
+		goto out;
 	}
 
 	list_for_each_entry(cma_dev, &dev_list, list) {
 		for (port = 1; port <= cma_dev->device->phys_port_cnt; ++port) {
-			if (listen_id_priv &&
-			    listen_id_priv->cma_dev == cma_dev &&
+			if (listen_id_priv->cma_dev == cma_dev &&
 			    listen_id_priv->id.port_num == port)
 				continue;
 
@@ -2878,7 +2926,7 @@ static void addr_handler(int status, struct sockaddr *src_addr,
 
 	memcpy(cma_src_addr(id_priv), src_addr, rdma_addr_size(src_addr));
 	if (!status && !id_priv->cma_dev) {
-		status = cma_acquire_dev(id_priv, NULL);
+		status = cma_acquire_dev_by_src_ip(id_priv);
 		if (status)
 			pr_debug_ratelimited("RDMA CM: ADDR_ERROR: failed to acquire device. status %d\n",
 					     status);
@@ -3427,7 +3475,7 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 		if (ret)
 			goto err1;
 
-		ret = cma_acquire_dev(id_priv, NULL);
+		ret = cma_acquire_dev_by_src_ip(id_priv);
 		if (ret)
 			goto err1;
 	}
