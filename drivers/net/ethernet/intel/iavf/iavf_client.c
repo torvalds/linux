@@ -11,7 +11,7 @@
 static
 const char iavf_client_interface_version_str[] = IAVF_CLIENT_VERSION_STR;
 static struct i40e_client *vf_registered_client;
-static LIST_HEAD(iavf_devices);
+static LIST_HEAD(i40e_devices);
 static DEFINE_MUTEX(iavf_device_mutex);
 
 static u32 iavf_client_virtchnl_send(struct i40e_info *ldev,
@@ -33,7 +33,7 @@ static struct i40e_ops iavf_lan_ops = {
  * @params: client param struct
  **/
 static
-void iavf_client_get_params(struct i40e_vsi *vsi, struct i40e_params *params)
+void iavf_client_get_params(struct iavf_vsi *vsi, struct i40e_params *params)
 {
 	int i;
 
@@ -41,7 +41,7 @@ void iavf_client_get_params(struct i40e_vsi *vsi, struct i40e_params *params)
 	params->mtu = vsi->netdev->mtu;
 	params->link_up = vsi->back->link_up;
 
-	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
+	for (i = 0; i < IAVF_MAX_USER_PRIORITY; i++) {
 		params->qos.prio_qos[i].tc = 0;
 		params->qos.prio_qos[i].qs_handle = vsi->qs_handle;
 	}
@@ -55,7 +55,7 @@ void iavf_client_get_params(struct i40e_vsi *vsi, struct i40e_params *params)
  *
  * If there is a client to this VSI, call the client
  **/
-void iavf_notify_client_message(struct i40e_vsi *vsi, u8 *msg, u16 len)
+void iavf_notify_client_message(struct iavf_vsi *vsi, u8 *msg, u16 len)
 {
 	struct i40e_client_instance *cinst;
 
@@ -79,7 +79,7 @@ void iavf_notify_client_message(struct i40e_vsi *vsi, u8 *msg, u16 len)
  *
  * If there is a client to this VSI, call the client
  **/
-void iavf_notify_client_l2_params(struct i40e_vsi *vsi)
+void iavf_notify_client_l2_params(struct iavf_vsi *vsi)
 {
 	struct i40e_client_instance *cinst;
 	struct i40e_params params;
@@ -107,7 +107,7 @@ void iavf_notify_client_l2_params(struct i40e_vsi *vsi)
  *
  * If there is a client to this netdev, call the client with open
  **/
-void iavf_notify_client_open(struct i40e_vsi *vsi)
+void iavf_notify_client_open(struct iavf_vsi *vsi)
 {
 	struct iavf_adapter *adapter = vsi->back;
 	struct i40e_client_instance *cinst = adapter->cinst;
@@ -159,7 +159,7 @@ static int iavf_client_release_qvlist(struct i40e_info *ldev)
  *
  * If there is a client to this netdev, call the client with close
  **/
-void iavf_notify_client_close(struct i40e_vsi *vsi, bool reset)
+void iavf_notify_client_close(struct iavf_vsi *vsi, bool reset)
 {
 	struct iavf_adapter *adapter = vsi->back;
 	struct i40e_client_instance *cinst = adapter->cinst;
@@ -185,7 +185,7 @@ static struct i40e_client_instance *
 iavf_client_add_instance(struct iavf_adapter *adapter)
 {
 	struct i40e_client_instance *cinst = NULL;
-	struct i40e_vsi *vsi = &adapter->vsi;
+	struct iavf_vsi *vsi = &adapter->vsi;
 	struct netdev_hw_addr *mac = NULL;
 	struct i40e_params params;
 
@@ -295,7 +295,7 @@ int iavf_lan_add_device(struct iavf_adapter *adapter)
 	int ret = 0;
 
 	mutex_lock(&iavf_device_mutex);
-	list_for_each_entry(ldev, &iavf_devices, list) {
+	list_for_each_entry(ldev, &i40e_devices, list) {
 		if (ldev->vf == adapter) {
 			ret = -EEXIST;
 			goto out;
@@ -308,7 +308,7 @@ int iavf_lan_add_device(struct iavf_adapter *adapter)
 	}
 	ldev->vf = adapter;
 	INIT_LIST_HEAD(&ldev->list);
-	list_add(&ldev->list, &iavf_devices);
+	list_add(&ldev->list, &i40e_devices);
 	dev_info(&adapter->pdev->dev, "Added LAN device bus=0x%02x dev=0x%02x func=0x%02x\n",
 		 adapter->hw.bus.bus_id, adapter->hw.bus.device,
 		 adapter->hw.bus.func);
@@ -335,7 +335,7 @@ int iavf_lan_del_device(struct iavf_adapter *adapter)
 	int ret = -ENODEV;
 
 	mutex_lock(&iavf_device_mutex);
-	list_for_each_entry_safe(ldev, tmp, &iavf_devices, list) {
+	list_for_each_entry_safe(ldev, tmp, &i40e_devices, list) {
 		if (ldev->vf == adapter) {
 			dev_info(&adapter->pdev->dev,
 				 "Deleted LAN device bus=0x%02x dev=0x%02x func=0x%02x\n",
@@ -364,7 +364,7 @@ static void iavf_client_release(struct i40e_client *client)
 	struct iavf_adapter *adapter;
 
 	mutex_lock(&iavf_device_mutex);
-	list_for_each_entry(ldev, &iavf_devices, list) {
+	list_for_each_entry(ldev, &i40e_devices, list) {
 		adapter = ldev->vf;
 		cinst = adapter->cinst;
 		if (!cinst)
@@ -398,7 +398,7 @@ static void iavf_client_prepare(struct i40e_client *client)
 	struct iavf_adapter *adapter;
 
 	mutex_lock(&iavf_device_mutex);
-	list_for_each_entry(ldev, &iavf_devices, list) {
+	list_for_each_entry(ldev, &i40e_devices, list) {
 		adapter = ldev->vf;
 		/* Signal the watchdog to service the client */
 		adapter->flags |= IAVF_FLAG_SERVICE_CLIENT_REQUESTED;

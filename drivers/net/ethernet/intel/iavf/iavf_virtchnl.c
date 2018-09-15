@@ -195,7 +195,7 @@ int iavf_get_vf_config(struct iavf_adapter *adapter)
 	u16 len;
 
 	len =  sizeof(struct virtchnl_vf_resource) +
-		I40E_MAX_VF_VSI * sizeof(struct virtchnl_vsi_resource);
+		IAVF_MAX_VF_VSI * sizeof(struct virtchnl_vsi_resource);
 	event.buf_len = len;
 	event.msg_buf = kzalloc(event.buf_len, GFP_KERNEL);
 	if (!event.msg_buf) {
@@ -242,7 +242,7 @@ void iavf_configure_queues(struct iavf_adapter *adapter)
 	struct virtchnl_vsi_queue_config_info *vqci;
 	struct virtchnl_queue_pair_info *vqpi;
 	int pairs = adapter->num_active_queues;
-	int i, len, max_frame = I40E_MAX_RXBUFFER;
+	int i, len, max_frame = IAVF_MAX_RXBUFFER;
 
 	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
@@ -260,7 +260,7 @@ void iavf_configure_queues(struct iavf_adapter *adapter)
 	/* Limit maximum frame size when jumbo frames is not enabled */
 	if (!(adapter->flags & IAVF_FLAG_LEGACY_RX) &&
 	    (adapter->netdev->mtu <= ETH_DATA_LEN))
-		max_frame = I40E_RXBUFFER_1536 - NET_IP_ALIGN;
+		max_frame = IAVF_RXBUFFER_1536 - NET_IP_ALIGN;
 
 	vqci->vsi_id = adapter->vsi_res->vsi_id;
 	vqci->num_queue_pairs = pairs;
@@ -280,7 +280,7 @@ void iavf_configure_queues(struct iavf_adapter *adapter)
 		vqpi->rxq.max_pkt_size = max_frame;
 		vqpi->rxq.databuffer_size =
 			ALIGN(adapter->rx_rings[i].rx_buf_len,
-			      BIT_ULL(I40E_RXQ_CTX_DBUFF_SHIFT));
+			      BIT_ULL(IAVF_RXQ_CTX_DBUFF_SHIFT));
 		vqpi++;
 	}
 
@@ -352,7 +352,7 @@ void iavf_map_queues(struct iavf_adapter *adapter)
 	struct virtchnl_irq_map_info *vimi;
 	struct virtchnl_vector_map *vecmap;
 	int v_idx, q_vectors, len;
-	struct i40e_q_vector *q_vector;
+	struct iavf_q_vector *q_vector;
 
 	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
@@ -381,8 +381,8 @@ void iavf_map_queues(struct iavf_adapter *adapter)
 		vecmap->vector_id = v_idx + NONQ_VECS;
 		vecmap->txq_map = q_vector->ring_mask;
 		vecmap->rxq_map = q_vector->ring_mask;
-		vecmap->rxitr_idx = I40E_RX_ITR;
-		vecmap->txitr_idx = I40E_TX_ITR;
+		vecmap->rxitr_idx = IAVF_RX_ITR;
+		vecmap->txitr_idx = IAVF_TX_ITR;
 	}
 	/* Misc vector last - this is only for AdminQ messages */
 	vecmap = &vimi->vecmap[v_idx];
@@ -1325,8 +1325,8 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 	}
 	switch (v_opcode) {
 	case VIRTCHNL_OP_GET_STATS: {
-		struct i40e_eth_stats *stats =
-			(struct i40e_eth_stats *)msg;
+		struct iavf_eth_stats *stats =
+			(struct iavf_eth_stats *)msg;
 		netdev->stats.rx_packets = stats->rx_unicast +
 					   stats->rx_multicast +
 					   stats->rx_broadcast;
@@ -1343,7 +1343,7 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 		break;
 	case VIRTCHNL_OP_GET_VF_RESOURCES: {
 		u16 len = sizeof(struct virtchnl_vf_resource) +
-			  I40E_MAX_VF_VSI *
+			  IAVF_MAX_VF_VSI *
 			  sizeof(struct virtchnl_vsi_resource);
 		memcpy(adapter->vf_res, msg, min(msglen, len));
 		iavf_validate_num_queues(adapter);

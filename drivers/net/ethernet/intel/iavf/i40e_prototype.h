@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
-#ifndef _I40E_PROTOTYPE_H_
-#define _I40E_PROTOTYPE_H_
+#ifndef _IAVF_PROTOTYPE_H_
+#define _IAVF_PROTOTYPE_H_
 
 #include "i40e_type.h"
 #include "i40e_alloc.h"
@@ -48,16 +48,15 @@ iavf_status iavf_aq_get_rss_key(struct iavf_hw *hw, u16 seid,
 iavf_status iavf_aq_set_rss_key(struct iavf_hw *hw, u16 seid,
 				struct i40e_aqc_get_set_rss_key_data *key);
 
-iavf_status i40e_set_mac_type(struct iavf_hw *hw);
+iavf_status iavf_set_mac_type(struct iavf_hw *hw);
 
-extern struct i40e_rx_ptype_decoded iavf_ptype_lookup[];
+extern struct iavf_rx_ptype_decoded iavf_ptype_lookup[];
 
-static inline struct i40e_rx_ptype_decoded decode_rx_desc_ptype(u8 ptype)
+static inline struct iavf_rx_ptype_decoded decode_rx_desc_ptype(u8 ptype)
 {
 	return iavf_ptype_lookup[ptype];
 }
 
-/* i40e_common for VF drivers*/
 void iavf_vf_parse_hw_config(struct iavf_hw *hw,
 			     struct virtchnl_vf_resource *msg);
 iavf_status iavf_vf_reset(struct iavf_hw *hw);
@@ -65,4 +64,4 @@ iavf_status iavf_aq_send_msg_to_pf(struct iavf_hw *hw,
 				   enum virtchnl_ops v_opcode,
 				   iavf_status v_retval, u8 *msg, u16 msglen,
 				   struct i40e_asq_cmd_details *cmd_details);
-#endif /* _I40E_PROTOTYPE_H_ */
+#endif /* _IAVF_PROTOTYPE_H_ */

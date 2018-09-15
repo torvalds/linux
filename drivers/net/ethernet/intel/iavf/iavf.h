@@ -43,19 +43,19 @@
 
 /* VSI state flags shared with common code */
 enum iavf_vsi_state_t {
-	__I40E_VSI_DOWN,
+	__IAVF_VSI_DOWN,
 	/* This must be last as it determines the size of the BITMAP */
-	__I40E_VSI_STATE_SIZE__,
+	__IAVF_VSI_STATE_SIZE__,
 };
 
 /* dummy struct to make common code less painful */
-struct i40e_vsi {
+struct iavf_vsi {
 	struct iavf_adapter *back;
 	struct net_device *netdev;
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 seid;
 	u16 id;
-	DECLARE_BITMAP(state, __I40E_VSI_STATE_SIZE__);
+	DECLARE_BITMAP(state, __IAVF_VSI_STATE_SIZE__);
 	int base_vector;
 	u16 work_limit;
 	u16 qs_handle;
@@ -77,10 +77,10 @@ struct i40e_vsi {
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 
-#define IAVF_RX_DESC(R, i) (&(((union i40e_32byte_rx_desc *)((R)->desc))[i]))
-#define IAVF_TX_DESC(R, i) (&(((struct i40e_tx_desc *)((R)->desc))[i]))
+#define IAVF_RX_DESC(R, i) (&(((union iavf_32byte_rx_desc *)((R)->desc))[i]))
+#define IAVF_TX_DESC(R, i) (&(((struct iavf_tx_desc *)((R)->desc))[i]))
 #define IAVF_TX_CTXTDESC(R, i) \
-	(&(((struct i40e_tx_context_desc *)((R)->desc))[i]))
+	(&(((struct iavf_tx_context_desc *)((R)->desc))[i]))
 #define IAVF_MAX_REQ_QUEUES 4
 
 #define IAVF_HKEY_ARRAY_SIZE ((IAVF_VFQF_HKEY_MAX_INDEX + 1) * 4)
@@ -90,12 +90,12 @@ struct i40e_vsi {
 /* MAX_MSIX_Q_VECTORS of these are allocated,
  * but we only use one per queue-specific vector.
  */
-struct i40e_q_vector {
+struct iavf_q_vector {
 	struct iavf_adapter *adapter;
-	struct i40e_vsi *vsi;
+	struct iavf_vsi *vsi;
 	struct napi_struct napi;
-	struct i40e_ring_container rx;
-	struct i40e_ring_container tx;
+	struct iavf_ring_container rx;
+	struct iavf_ring_container tx;
 	u32 ring_mask;
 	u8 itr_countdown;	/* when 0 should adjust adaptive ITR */
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
@@ -118,13 +118,6 @@ struct i40e_q_vector {
 #define IAVF_DESC_UNUSED(R) \
 	((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
 	(R)->next_to_clean - (R)->next_to_use - 1)
-
-#define IAVF_RX_DESC_ADV(R, i)	\
-	(&(((union i40e_adv_rx_desc *)((R).desc))[i]))
-#define IAVF_TX_DESC_ADV(R, i)	\
-	(&(((union i40e_adv_tx_desc *)((R).desc))[i]))
-#define IAVF_TX_CTXTDESC_ADV(R, i)	\
-	(&(((struct i40e_adv_tx_context_desc *)((R).desc))[i]))
 
 #define OTHER_VECTOR 1
 #define NONQ_VECS (OTHER_VECTOR)
@@ -209,7 +202,7 @@ enum iavf_critical_section_t {
 #define IAVF_CF_FLAGS_IMAC_IVLAN_TEN_ID	(IAVF_CLOUD_FIELD_IMAC |\
 						 IAVF_CLOUD_FIELD_IVLAN |\
 						 IAVF_CLOUD_FIELD_TEN_ID)
-#define IAVF_CF_FLAGS_IIP	I40E_CLOUD_FIELD_IIP
+#define IAVF_CF_FLAGS_IIP	IAVF_CLOUD_FIELD_IIP
 
 /* bookkeeping of cloud filters */
 struct iavf_cloud_filter {
@@ -229,7 +222,7 @@ struct iavf_adapter {
 	struct delayed_work client_task;
 	struct delayed_work init_task;
 	wait_queue_head_t down_waitqueue;
-	struct i40e_q_vector *q_vectors;
+	struct iavf_q_vector *q_vectors;
 	struct list_head vlan_filter_list;
 	struct list_head mac_filter_list;
 	/* Lock to protect accesses to MAC and VLAN lists */
@@ -239,12 +232,12 @@ struct iavf_adapter {
 	int num_req_queues;
 
 	/* TX */
-	struct i40e_ring *tx_rings;
+	struct iavf_ring *tx_rings;
 	u32 tx_timeout_count;
 	u32 tx_desc_count;
 
 	/* RX */
-	struct i40e_ring *rx_rings;
+	struct iavf_ring *rx_rings;
 	u64 hw_csum_rx_error;
 	u32 rx_desc_count;
 	int num_msix_vectors;
@@ -271,9 +264,7 @@ struct iavf_adapter {
 #define IAVF_FLAG_REINIT_ITR_NEEDED		BIT(16)
 #define IAVF_FLAG_QUEUES_DISABLED		BIT(17)
 /* duplicates for common code */
-#define I40E_FLAG_DCB_ENABLED			0
-#define I40E_FLAG_RX_CSUM_ENABLED		IAVF_FLAG_RX_CSUM_ENABLED
-#define I40E_FLAG_LEGACY_RX			IAVF_FLAG_LEGACY_RX
+#define IAVF_FLAG_DCB_ENABLED			0
 	/* flags for admin queue service task */
 	u32 aq_required;
 #define IAVF_FLAG_AQ_ENABLE_QUEUES		BIT(0)
@@ -338,8 +329,8 @@ struct iavf_adapter {
 #define PF_IS_V11(_a) (((_a)->pf_version.major == 1) && \
 		       ((_a)->pf_version.minor == 1))
 	u16 msg_enable;
-	struct i40e_eth_stats current_stats;
-	struct i40e_vsi vsi;
+	struct iavf_eth_stats current_stats;
+	struct iavf_vsi vsi;
 	u32 aq_wait_count;
 	/* RSS stuff */
 	u64 hena;
@@ -359,7 +350,7 @@ struct iavf_adapter {
 
 /* Ethtool Private Flags */
 
-/* lan device */
+/* lan device, used by client interface */
 struct i40e_device {
 	struct list_head list;
 	struct iavf_adapter *vf;
@@ -382,8 +373,8 @@ void iavf_irq_enable_queues(struct iavf_adapter *adapter, u32 mask);
 void iavf_free_all_tx_resources(struct iavf_adapter *adapter);
 void iavf_free_all_rx_resources(struct iavf_adapter *adapter);
 
-void i40e_napi_add_all(struct iavf_adapter *adapter);
-void i40e_napi_del_all(struct iavf_adapter *adapter);
+void iavf_napi_add_all(struct iavf_adapter *adapter);
+void iavf_napi_del_all(struct iavf_adapter *adapter);
 
 int iavf_send_api_ver(struct iavf_adapter *adapter);
 int iavf_verify_api_ver(struct iavf_adapter *adapter);
@@ -416,10 +407,10 @@ int iavf_config_rss(struct iavf_adapter *adapter);
 int iavf_lan_add_device(struct iavf_adapter *adapter);
 int iavf_lan_del_device(struct iavf_adapter *adapter);
 void iavf_client_subtask(struct iavf_adapter *adapter);
-void iavf_notify_client_message(struct i40e_vsi *vsi, u8 *msg, u16 len);
-void iavf_notify_client_l2_params(struct i40e_vsi *vsi);
-void iavf_notify_client_open(struct i40e_vsi *vsi);
-void iavf_notify_client_close(struct i40e_vsi *vsi, bool reset);
+void iavf_notify_client_message(struct iavf_vsi *vsi, u8 *msg, u16 len);
+void iavf_notify_client_l2_params(struct iavf_vsi *vsi);
+void iavf_notify_client_open(struct iavf_vsi *vsi);
+void iavf_notify_client_close(struct iavf_vsi *vsi, bool reset);
 void iavf_enable_channels(struct iavf_adapter *adapter);
 void iavf_disable_channels(struct iavf_adapter *adapter);
 void iavf_add_cloud_filter(struct iavf_adapter *adapter);

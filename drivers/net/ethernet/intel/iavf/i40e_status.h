@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
-#ifndef _I40E_STATUS_H_
-#define _I40E_STATUS_H_
+#ifndef _IAVF_STATUS_H_
+#define _IAVF_STATUS_H_
 
 /* Error Codes */
-enum i40e_status_code {
+enum iavf_status_code {
 	I40E_SUCCESS				= 0,
 	I40E_ERR_NVM				= -1,
 	I40E_ERR_NVM_CHECKSUM			= -2,
@@ -75,4 +75,4 @@ enum i40e_status_code {
 	I40E_ERR_ADMIN_QUEUE_CRITICAL_ERROR	= -66,
 };
 
-#endif /* _I40E_STATUS_H_ */
+#endif /* _IAVF_STATUS_H_ */

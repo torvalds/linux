@@ -5,7 +5,9 @@
 #define _I40E_ADMINQ_CMD_H_
 
 /* This header file defines the i40e Admin Queue commands and is shared between
- * i40e Firmware and Software.
+ * i40e Firmware and Software.  Do not change the names in this file to IAVF
+ * because this file should be diff-able against the i40e version, even
+ * though many parts have been removed in this VF version.
  *
  * This file needs to comply with the Linux Kernel coding style.
  */

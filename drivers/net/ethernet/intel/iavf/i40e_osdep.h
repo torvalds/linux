@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
-#ifndef _I40E_OSDEP_H_
-#define _I40E_OSDEP_H_
+#ifndef _IAVF_OSDEP_H_
+#define _IAVF_OSDEP_H_
 
 #include <linux/types.h>
 #include <linux/if_ether.h>
@@ -27,26 +27,26 @@
 #define iavf_flush(a)		readl((a)->hw_addr + IAVF_VFGEN_RSTAT)
 
 /* memory allocation tracking */
-struct i40e_dma_mem {
+struct iavf_dma_mem {
 	void *va;
 	dma_addr_t pa;
 	u32 size;
 };
 
-#define i40e_allocate_dma_mem(h, m, unused, s, a) \
+#define iavf_allocate_dma_mem(h, m, unused, s, a) \
 	iavf_allocate_dma_mem_d(h, m, s, a)
-#define i40e_free_dma_mem(h, m) iavf_free_dma_mem_d(h, m)
+#define iavf_free_dma_mem(h, m) iavf_free_dma_mem_d(h, m)
 
-struct i40e_virt_mem {
+struct iavf_virt_mem {
 	void *va;
 	u32 size;
 };
-#define i40e_allocate_virt_mem(h, m, s) iavf_allocate_virt_mem_d(h, m, s)
-#define i40e_free_virt_mem(h, m) iavf_free_virt_mem_d(h, m)
+#define iavf_allocate_virt_mem(h, m, s) iavf_allocate_virt_mem_d(h, m, s)
+#define iavf_free_virt_mem(h, m) iavf_free_virt_mem_d(h, m)
 
 #define iavf_debug(h, m, s, ...)  iavf_debug_d(h, m, s, ##__VA_ARGS__)
 extern void iavf_debug_d(void *hw, u32 mask, char *fmt_str, ...)
 	__attribute__ ((format(gnu_printf, 3, 4)));
 
-typedef enum i40e_status_code iavf_status;
-#endif /* _I40E_OSDEP_H_ */
+typedef enum iavf_status_code iavf_status;
+#endif /* _IAVF_OSDEP_H_ */

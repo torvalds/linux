@@ -67,7 +67,7 @@ static struct workqueue_struct *iavf_wq;
  * @alignment: what to align the allocation to
  **/
 iavf_status iavf_allocate_dma_mem_d(struct iavf_hw *hw,
-				    struct i40e_dma_mem *mem,
+				    struct iavf_dma_mem *mem,
 				    u64 size, u32 alignment)
 {
 	struct iavf_adapter *adapter = (struct iavf_adapter *)hw->back;
@@ -89,7 +89,7 @@ iavf_status iavf_allocate_dma_mem_d(struct iavf_hw *hw,
  * @hw:   pointer to the HW structure
  * @mem:  ptr to mem struct to free
  **/
-iavf_status iavf_free_dma_mem_d(struct iavf_hw *hw, struct i40e_dma_mem *mem)
+iavf_status iavf_free_dma_mem_d(struct iavf_hw *hw, struct iavf_dma_mem *mem)
 {
 	struct iavf_adapter *adapter = (struct iavf_adapter *)hw->back;
 
@@ -107,7 +107,7 @@ iavf_status iavf_free_dma_mem_d(struct iavf_hw *hw, struct i40e_dma_mem *mem)
  * @size: size of memory requested
  **/
 iavf_status iavf_allocate_virt_mem_d(struct iavf_hw *hw,
-				     struct i40e_virt_mem *mem, u32 size)
+				     struct iavf_virt_mem *mem, u32 size)
 {
 	if (!mem)
 		return I40E_ERR_PARAM;
@@ -126,8 +126,7 @@ iavf_status iavf_allocate_virt_mem_d(struct iavf_hw *hw,
  * @hw:   pointer to the HW structure
  * @mem:  ptr to mem struct to free
  **/
-iavf_status iavf_free_virt_mem_d(struct iavf_hw *hw,
-				 struct i40e_virt_mem *mem)
+iavf_status iavf_free_virt_mem_d(struct iavf_hw *hw, struct iavf_virt_mem *mem)
 {
 	if (!mem)
 		return I40E_ERR_PARAM;
@@ -300,7 +299,7 @@ static irqreturn_t iavf_msix_aq(int irq, void *data)
  **/
 static irqreturn_t iavf_msix_clean_rings(int irq, void *data)
 {
-	struct i40e_q_vector *q_vector = data;
+	struct iavf_q_vector *q_vector = data;
 
 	if (!q_vector->tx.ring && !q_vector->rx.ring)
 		return IRQ_HANDLED;
@@ -319,8 +318,8 @@ static irqreturn_t iavf_msix_clean_rings(int irq, void *data)
 static void
 iavf_map_vector_to_rxq(struct iavf_adapter *adapter, int v_idx, int r_idx)
 {
-	struct i40e_q_vector *q_vector = &adapter->q_vectors[v_idx];
-	struct i40e_ring *rx_ring = &adapter->rx_rings[r_idx];
+	struct iavf_q_vector *q_vector = &adapter->q_vectors[v_idx];
+	struct iavf_ring *rx_ring = &adapter->rx_rings[r_idx];
 	struct iavf_hw *hw = &adapter->hw;
 
 	rx_ring->q_vector = q_vector;
@@ -331,7 +330,7 @@ iavf_map_vector_to_rxq(struct iavf_adapter *adapter, int v_idx, int r_idx)
 	q_vector->rx.next_update = jiffies + 1;
 	q_vector->rx.target_itr = ITR_TO_REG(rx_ring->itr_setting);
 	q_vector->ring_mask |= BIT(r_idx);
-	wr32(hw, IAVF_VFINT_ITRN1(I40E_RX_ITR, q_vector->reg_idx),
+	wr32(hw, IAVF_VFINT_ITRN1(IAVF_RX_ITR, q_vector->reg_idx),
 	     q_vector->rx.current_itr);
 	q_vector->rx.current_itr = q_vector->rx.target_itr;
 }
@@ -345,8 +344,8 @@ iavf_map_vector_to_rxq(struct iavf_adapter *adapter, int v_idx, int r_idx)
 static void
 iavf_map_vector_to_txq(struct iavf_adapter *adapter, int v_idx, int t_idx)
 {
-	struct i40e_q_vector *q_vector = &adapter->q_vectors[v_idx];
-	struct i40e_ring *tx_ring = &adapter->tx_rings[t_idx];
+	struct iavf_q_vector *q_vector = &adapter->q_vectors[v_idx];
+	struct iavf_ring *tx_ring = &adapter->tx_rings[t_idx];
 	struct iavf_hw *hw = &adapter->hw;
 
 	tx_ring->q_vector = q_vector;
@@ -357,7 +356,7 @@ iavf_map_vector_to_txq(struct iavf_adapter *adapter, int v_idx, int t_idx)
 	q_vector->tx.next_update = jiffies + 1;
 	q_vector->tx.target_itr = ITR_TO_REG(tx_ring->itr_setting);
 	q_vector->num_ringpairs++;
-	wr32(hw, IAVF_VFINT_ITRN1(I40E_TX_ITR, q_vector->reg_idx),
+	wr32(hw, IAVF_VFINT_ITRN1(IAVF_TX_ITR, q_vector->reg_idx),
 	     q_vector->tx.target_itr);
 	q_vector->tx.current_itr = q_vector->tx.target_itr;
 }
@@ -409,7 +408,7 @@ static void iavf_netpoll(struct net_device *netdev)
 	int i;
 
 	/* if interface is down do nothing */
-	if (test_bit(__I40E_VSI_DOWN, adapter->vsi.state))
+	if (test_bit(__IAVF_VSI_DOWN, adapter->vsi.state))
 		return;
 
 	for (i = 0; i < q_vectors; i++)
@@ -428,8 +427,8 @@ static void iavf_netpoll(struct net_device *netdev)
 static void iavf_irq_affinity_notify(struct irq_affinity_notify *notify,
 				     const cpumask_t *mask)
 {
-	struct i40e_q_vector *q_vector =
-		container_of(notify, struct i40e_q_vector, affinity_notify);
+	struct iavf_q_vector *q_vector =
+		container_of(notify, struct iavf_q_vector, affinity_notify);
 
 	cpumask_copy(&q_vector->affinity_mask, mask);
 }
@@ -465,7 +464,7 @@ iavf_request_traffic_irqs(struct iavf_adapter *adapter, char *basename)
 	q_vectors = adapter->num_msix_vectors - NONQ_VECS;
 
 	for (vector = 0; vector < q_vectors; vector++) {
-		struct i40e_q_vector *q_vector = &adapter->q_vectors[vector];
+		struct iavf_q_vector *q_vector = &adapter->q_vectors[vector];
 
 		irq_num = adapter->msix_entries[vector + NONQ_VECS].vector;
 
@@ -609,7 +608,7 @@ static void iavf_configure_tx(struct iavf_adapter *adapter)
  **/
 static void iavf_configure_rx(struct iavf_adapter *adapter)
 {
-	unsigned int rx_buf_len = I40E_RXBUFFER_2048;
+	unsigned int rx_buf_len = IAVF_RXBUFFER_2048;
 	struct iavf_hw *hw = &adapter->hw;
 	int i;
 
@@ -622,15 +621,15 @@ static void iavf_configure_rx(struct iavf_adapter *adapter)
 		 * an order 1 page, so we might as well increase the size
 		 * of our Rx buffer to make better use of the available space
 		 */
-		rx_buf_len = I40E_RXBUFFER_3072;
+		rx_buf_len = IAVF_RXBUFFER_3072;
 
 		/* We use a 1536 buffer size for configurations with
 		 * standard Ethernet mtu.  On x86 this gives us enough room
 		 * for shared info and 192 bytes of padding.
 		 */
-		if (!I40E_2K_TOO_SMALL_WITH_PADDING &&
+		if (!IAVF_2K_TOO_SMALL_WITH_PADDING &&
 		    (netdev->mtu <= ETH_DATA_LEN))
-			rx_buf_len = I40E_RXBUFFER_1536 - NET_IP_ALIGN;
+			rx_buf_len = IAVF_RXBUFFER_1536 - NET_IP_ALIGN;
 	}
 #endif
 
@@ -779,7 +778,7 @@ iavf_mac_filter *iavf_find_filter(struct iavf_adapter *adapter,
 }
 
 /**
- * i40e_add_filter - Add a mac filter to the filter list
+ * iavf_add_filter - Add a mac filter to the filter list
  * @adapter: board private structure
  * @macaddr: the MAC address
  *
@@ -937,7 +936,7 @@ static void iavf_set_rx_mode(struct net_device *netdev)
 static void iavf_napi_enable_all(struct iavf_adapter *adapter)
 {
 	int q_idx;
-	struct i40e_q_vector *q_vector;
+	struct iavf_q_vector *q_vector;
 	int q_vectors = adapter->num_msix_vectors - NONQ_VECS;
 
 	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
@@ -956,7 +955,7 @@ static void iavf_napi_enable_all(struct iavf_adapter *adapter)
 static void iavf_napi_disable_all(struct iavf_adapter *adapter)
 {
 	int q_idx;
-	struct i40e_q_vector *q_vector;
+	struct iavf_q_vector *q_vector;
 	int q_vectors = adapter->num_msix_vectors - NONQ_VECS;
 
 	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
@@ -981,9 +980,9 @@ static void iavf_configure(struct iavf_adapter *adapter)
 	adapter->aq_required |= IAVF_FLAG_AQ_CONFIGURE_QUEUES;
 
 	for (i = 0; i < adapter->num_active_queues; i++) {
-		struct i40e_ring *ring = &adapter->rx_rings[i];
+		struct iavf_ring *ring = &adapter->rx_rings[i];
 
-		iavf_alloc_rx_buffers(ring, I40E_DESC_UNUSED(ring));
+		iavf_alloc_rx_buffers(ring, IAVF_DESC_UNUSED(ring));
 	}
 }
 
@@ -996,7 +995,7 @@ static void iavf_configure(struct iavf_adapter *adapter)
 static void iavf_up_complete(struct iavf_adapter *adapter)
 {
 	adapter->state = __IAVF_RUNNING;
-	clear_bit(__I40E_VSI_DOWN, adapter->vsi.state);
+	clear_bit(__IAVF_VSI_DOWN, adapter->vsi.state);
 
 	iavf_napi_enable_all(adapter);
 
@@ -1007,7 +1006,7 @@ static void iavf_up_complete(struct iavf_adapter *adapter)
 }
 
 /**
- * i40e_down - Shutdown the connection processing
+ * iavf_down - Shutdown the connection processing
  * @adapter: board private structure
  *
  * Expects to be called while holding the __IAVF_IN_CRITICAL_TASK bit lock.
@@ -1159,17 +1158,17 @@ static int iavf_alloc_queues(struct iavf_adapter *adapter)
 
 
 	adapter->tx_rings = kcalloc(num_active_queues,
-				    sizeof(struct i40e_ring), GFP_KERNEL);
+				    sizeof(struct iavf_ring), GFP_KERNEL);
 	if (!adapter->tx_rings)
 		goto err_out;
 	adapter->rx_rings = kcalloc(num_active_queues,
-				    sizeof(struct i40e_ring), GFP_KERNEL);
+				    sizeof(struct iavf_ring), GFP_KERNEL);
 	if (!adapter->rx_rings)
 		goto err_out;
 
 	for (i = 0; i < num_active_queues; i++) {
-		struct i40e_ring *tx_ring;
-		struct i40e_ring *rx_ring;
+		struct iavf_ring *tx_ring;
+		struct iavf_ring *rx_ring;
 
 		tx_ring = &adapter->tx_rings[i];
 
@@ -1177,16 +1176,16 @@ static int iavf_alloc_queues(struct iavf_adapter *adapter)
 		tx_ring->netdev = adapter->netdev;
 		tx_ring->dev = &adapter->pdev->dev;
 		tx_ring->count = adapter->tx_desc_count;
-		tx_ring->itr_setting = I40E_ITR_TX_DEF;
+		tx_ring->itr_setting = IAVF_ITR_TX_DEF;
 		if (adapter->flags & IAVF_FLAG_WB_ON_ITR_CAPABLE)
-			tx_ring->flags |= I40E_TXR_FLAGS_WB_ON_ITR;
+			tx_ring->flags |= IAVF_TXR_FLAGS_WB_ON_ITR;
 
 		rx_ring = &adapter->rx_rings[i];
 		rx_ring->queue_index = i;
 		rx_ring->netdev = adapter->netdev;
 		rx_ring->dev = &adapter->pdev->dev;
 		rx_ring->count = adapter->rx_desc_count;
-		rx_ring->itr_setting = I40E_ITR_RX_DEF;
+		rx_ring->itr_setting = IAVF_ITR_RX_DEF;
 	}
 
 	adapter->num_active_queues = num_active_queues;
@@ -1244,7 +1243,7 @@ out:
 }
 
 /**
- * i40e_config_rss_aq - Configure RSS keys and lut by using AQ commands
+ * iavf_config_rss_aq - Configure RSS keys and lut by using AQ commands
  * @adapter: board private structure
  *
  * Return 0 on success, negative on failure
@@ -1356,9 +1355,9 @@ static int iavf_init_rss(struct iavf_adapter *adapter)
 		/* Enable PCTYPES for RSS, TCP/UDP with IPv4/IPv6 */
 		if (adapter->vf_res->vf_cap_flags &
 		    VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
-			adapter->hena = I40E_DEFAULT_RSS_HENA_EXPANDED;
+			adapter->hena = IAVF_DEFAULT_RSS_HENA_EXPANDED;
 		else
-			adapter->hena = I40E_DEFAULT_RSS_HENA;
+			adapter->hena = IAVF_DEFAULT_RSS_HENA;
 
 		wr32(hw, IAVF_VFQF_HENA(0), (u32)adapter->hena);
 		wr32(hw, IAVF_VFQF_HENA(1), (u32)(adapter->hena >> 32));
@@ -1381,7 +1380,7 @@ static int iavf_init_rss(struct iavf_adapter *adapter)
 static int iavf_alloc_q_vectors(struct iavf_adapter *adapter)
 {
 	int q_idx = 0, num_q_vectors;
-	struct i40e_q_vector *q_vector;
+	struct iavf_q_vector *q_vector;
 
 	num_q_vectors = adapter->num_msix_vectors - NONQ_VECS;
 	adapter->q_vectors = kcalloc(num_q_vectors, sizeof(*q_vector),
@@ -1423,7 +1422,7 @@ static void iavf_free_q_vectors(struct iavf_adapter *adapter)
 	napi_vectors = adapter->num_active_queues;
 
 	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
-		struct i40e_q_vector *q_vector = &adapter->q_vectors[q_idx];
+		struct iavf_q_vector *q_vector = &adapter->q_vectors[q_idx];
 
 		if (q_idx < napi_vectors)
 			netif_napi_del(&q_vector->napi);
@@ -1543,7 +1542,7 @@ static int iavf_reinit_interrupt_scheme(struct iavf_adapter *adapter)
 	if (err)
 		goto err;
 
-	set_bit(__I40E_VSI_DOWN, adapter->vsi.state);
+	set_bit(__IAVF_VSI_DOWN, adapter->vsi.state);
 
 	iavf_map_rings_to_vectors(adapter);
 
@@ -1783,7 +1782,7 @@ static void iavf_disable_vf(struct iavf_adapter *adapter)
 	 * tasks have finished, since we're not holding the rtnl_lock here.
 	 */
 	if (adapter->state == __IAVF_RUNNING) {
-		set_bit(__I40E_VSI_DOWN, adapter->vsi.state);
+		set_bit(__IAVF_VSI_DOWN, adapter->vsi.state);
 		netif_carrier_off(adapter->netdev);
 		netif_tx_disable(adapter->netdev);
 		adapter->link_up = false;
@@ -3056,7 +3055,7 @@ static int iavf_close(struct net_device *netdev)
 				&adapter->crit_section))
 		usleep_range(500, 1000);
 
-	set_bit(__I40E_VSI_DOWN, adapter->vsi.state);
+	set_bit(__IAVF_VSI_DOWN, adapter->vsi.state);
 	if (CLIENT_ENABLED(adapter))
 		adapter->flags |= IAVF_FLAG_CLIENT_NEEDS_CLOSE;
 
@@ -3108,7 +3107,7 @@ static int iavf_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 /**
- * i40e_set_features - set the netdev feature flags
+ * iavf_set_features - set the netdev feature flags
  * @netdev: ptr to the netdev being adjusted
  * @features: the feature set that the stack is suggesting
  * Note: expects to be called while under rtnl_lock()
@@ -3268,7 +3267,7 @@ int iavf_process_config(struct iavf_adapter *adapter)
 	struct virtchnl_vf_resource *vfres = adapter->vf_res;
 	int i, num_req_queues = adapter->num_req_queues;
 	struct net_device *netdev = adapter->netdev;
-	struct i40e_vsi *vsi = &adapter->vsi;
+	struct iavf_vsi *vsi = &adapter->vsi;
 	netdev_features_t hw_enc_features;
 	netdev_features_t hw_features;
 
@@ -3381,7 +3380,7 @@ int iavf_process_config(struct iavf_adapter *adapter)
 
 	adapter->vsi.back = adapter;
 	adapter->vsi.base_vector = 1;
-	adapter->vsi.work_limit = I40E_DEFAULT_IRQ_WORK;
+	adapter->vsi.work_limit = IAVF_DEFAULT_IRQ_WORK;
 	vsi->netdev = adapter->netdev;
 	vsi->qs_handle = adapter->vsi_res->qset_handle;
 	if (vfres->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_RSS_PF) {
@@ -3422,7 +3421,7 @@ static void iavf_init_task(struct work_struct *work)
 		/* driver loaded, probe complete */
 		adapter->flags &= ~IAVF_FLAG_PF_COMMS_FAILED;
 		adapter->flags &= ~IAVF_FLAG_RESET_PENDING;
-		err = i40e_set_mac_type(hw);
+		err = iavf_set_mac_type(hw);
 		if (err) {
 			dev_err(&pdev->dev, "Failed to set MAC type (%d)\n",
 				err);
@@ -3486,7 +3485,7 @@ static void iavf_init_task(struct work_struct *work)
 		/* aq msg sent, awaiting reply */
 		if (!adapter->vf_res) {
 			bufsz = sizeof(struct virtchnl_vf_resource) +
-				(I40E_MAX_VF_VSI *
+				(IAVF_MAX_VF_VSI *
 				 sizeof(struct virtchnl_vsi_resource));
 			adapter->vf_res = kzalloc(bufsz, GFP_KERNEL);
 			if (!adapter->vf_res)
@@ -3528,7 +3527,7 @@ static void iavf_init_task(struct work_struct *work)
 
 	/* MTU range: 68 - 9710 */
 	netdev->min_mtu = ETH_MIN_MTU;
-	netdev->max_mtu = I40E_MAX_RXBUFFER - I40E_PACKET_HDR_PAD;
+	netdev->max_mtu = IAVF_MAX_RXBUFFER - IAVF_PACKET_HDR_PAD;
 
 	if (!is_valid_ether_addr(adapter->hw.mac.addr)) {
 		dev_info(&pdev->dev, "Invalid MAC address %pM, using random\n",
@@ -3582,7 +3581,7 @@ static void iavf_init_task(struct work_struct *work)
 		dev_info(&pdev->dev, "GRO is enabled\n");
 
 	adapter->state = __IAVF_DOWN;
-	set_bit(__I40E_VSI_DOWN, adapter->vsi.state);
+	set_bit(__IAVF_VSI_DOWN, adapter->vsi.state);
 	iavf_misc_irq_enable(adapter);
 	wake_up(&adapter->down_waitqueue);
 
@@ -3968,9 +3967,9 @@ static struct pci_driver iavf_driver = {
 };
 
 /**
- * i40e_init_module - Driver Registration Routine
+ * iavf_init_module - Driver Registration Routine
  *
- * i40e_init_module is the first routine called when the driver is
+ * iavf_init_module is the first routine called when the driver is
  * loaded. All it does is register with the PCI subsystem.
  **/
 static int __init iavf_init_module(void)
@@ -3995,9 +3994,9 @@ static int __init iavf_init_module(void)
 module_init(iavf_init_module);
 
 /**
- * i40e_exit_module - Driver Exit Cleanup Routine
+ * iavf_exit_module - Driver Exit Cleanup Routine
  *
- * i40e_exit_module is called just before the driver is removed
+ * iavf_exit_module is called just before the driver is removed
  * from memory.
  **/
 static void __exit iavf_exit_module(void)

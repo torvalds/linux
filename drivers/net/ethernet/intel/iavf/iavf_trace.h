@@ -59,9 +59,9 @@
 DECLARE_EVENT_CLASS(
 	iavf_tx_template,
 
-	TP_PROTO(struct i40e_ring *ring,
-		 struct i40e_tx_desc *desc,
-		 struct i40e_tx_buffer *buf),
+	TP_PROTO(struct iavf_ring *ring,
+		 struct iavf_tx_desc *desc,
+		 struct iavf_tx_buffer *buf),
 
 	TP_ARGS(ring, desc, buf),
 
@@ -94,25 +94,25 @@ DECLARE_EVENT_CLASS(
 
 DEFINE_EVENT(
 	iavf_tx_template, iavf_clean_tx_irq,
-	TP_PROTO(struct i40e_ring *ring,
-		 struct i40e_tx_desc *desc,
-		 struct i40e_tx_buffer *buf),
+	TP_PROTO(struct iavf_ring *ring,
+		 struct iavf_tx_desc *desc,
+		 struct iavf_tx_buffer *buf),
 
 	TP_ARGS(ring, desc, buf));
 
 DEFINE_EVENT(
 	iavf_tx_template, iavf_clean_tx_irq_unmap,
-	TP_PROTO(struct i40e_ring *ring,
-		 struct i40e_tx_desc *desc,
-		 struct i40e_tx_buffer *buf),
+	TP_PROTO(struct iavf_ring *ring,
+		 struct iavf_tx_desc *desc,
+		 struct iavf_tx_buffer *buf),
 
 	TP_ARGS(ring, desc, buf));
 
 DECLARE_EVENT_CLASS(
 	iavf_rx_template,
 
-	TP_PROTO(struct i40e_ring *ring,
-		 union i40e_32byte_rx_desc *desc,
+	TP_PROTO(struct iavf_ring *ring,
+		 union iavf_32byte_rx_desc *desc,
 		 struct sk_buff *skb),
 
 	TP_ARGS(ring, desc, skb),
@@ -139,16 +139,16 @@ DECLARE_EVENT_CLASS(
 
 DEFINE_EVENT(
 	iavf_rx_template, iavf_clean_rx_irq,
-	TP_PROTO(struct i40e_ring *ring,
-		 union i40e_32byte_rx_desc *desc,
+	TP_PROTO(struct iavf_ring *ring,
+		 union iavf_32byte_rx_desc *desc,
 		 struct sk_buff *skb),
 
 	TP_ARGS(ring, desc, skb));
 
 DEFINE_EVENT(
 	iavf_rx_template, iavf_clean_rx_irq_rx,
-	TP_PROTO(struct i40e_ring *ring,
-		 union i40e_32byte_rx_desc *desc,
+	TP_PROTO(struct iavf_ring *ring,
+		 union iavf_32byte_rx_desc *desc,
 		 struct sk_buff *skb),
 
 	TP_ARGS(ring, desc, skb));
@@ -157,7 +157,7 @@ DECLARE_EVENT_CLASS(
 	iavf_xmit_template,
 
 	TP_PROTO(struct sk_buff *skb,
-		 struct i40e_ring *ring),
+		 struct iavf_ring *ring),
 
 	TP_ARGS(skb, ring),
 
@@ -182,14 +182,14 @@ DECLARE_EVENT_CLASS(
 DEFINE_EVENT(
 	iavf_xmit_template, iavf_xmit_frame_ring,
 	TP_PROTO(struct sk_buff *skb,
-		 struct i40e_ring *ring),
+		 struct iavf_ring *ring),
 
 	TP_ARGS(skb, ring));
 
 DEFINE_EVENT(
 	iavf_xmit_template, iavf_xmit_frame_ring_drop,
 	TP_PROTO(struct sk_buff *skb,
-		 struct i40e_ring *ring),
+		 struct iavf_ring *ring),
 
 	TP_ARGS(skb, ring));
 
