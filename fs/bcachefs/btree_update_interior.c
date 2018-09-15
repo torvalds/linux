@@ -1550,7 +1550,13 @@ void bch2_btree_insert_node(struct btree_update *as, struct btree *b,
 
 	btree_node_interior_verify(b);
 
-	bch2_foreground_maybe_merge(c, iter, b->level, flags);
+	/*
+	 * when called from the btree_split path the new nodes aren't added to
+	 * the btree iterator yet, so the merge path's unlock/wait/relock dance
+	 * won't work:
+	 */
+	bch2_foreground_maybe_merge(c, iter, b->level,
+				    flags|BTREE_INSERT_NOUNLOCK);
 	return;
 split:
 	btree_split(as, b, iter, keys, flags);
