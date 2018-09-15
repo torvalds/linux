@@ -62,11 +62,11 @@ i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 }
 
 /**
- * i40evf_aq_str - convert AQ err code to a string
+ * iavf_aq_str - convert AQ err code to a string
  * @hw: pointer to the HW structure
  * @aq_err: the AQ error code to convert
  **/
-const char *i40evf_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
+const char *iavf_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
 {
 	switch (aq_err) {
 	case I40E_AQ_RC_OK:
@@ -122,11 +122,11 @@ const char *i40evf_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
 }
 
 /**
- * i40evf_stat_str - convert status err code to a string
+ * iavf_stat_str - convert status err code to a string
  * @hw: pointer to the HW structure
  * @stat_err: the status error code to convert
  **/
-const char *i40evf_stat_str(struct i40e_hw *hw, i40e_status stat_err)
+const char *iavf_stat_str(struct i40e_hw *hw, i40e_status stat_err)
 {
 	switch (stat_err) {
 	case 0:
@@ -270,7 +270,7 @@ const char *i40evf_stat_str(struct i40e_hw *hw, i40e_status stat_err)
 }
 
 /**
- * i40evf_debug_aq
+ * iavf_debug_aq
  * @hw: debug mask related to admin queue
  * @mask: debug mask
  * @desc: pointer to admin queue descriptor
@@ -279,7 +279,7 @@ const char *i40evf_stat_str(struct i40e_hw *hw, i40e_status stat_err)
  *
  * Dumps debug log about adminq command with descriptor contents.
  **/
-void i40evf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
+void iavf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 		   void *buffer, u16 buf_len)
 {
 	struct i40e_aq_desc *aq_desc = (struct i40e_aq_desc *)desc;
@@ -315,7 +315,7 @@ void i40evf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 			char prefix[27];
 
 			snprintf(prefix, sizeof(prefix),
-				 "i40evf %02x:%02x.%x: \t0x",
+				 "iavf %02x:%02x.%x: \t0x",
 				 hw->bus.bus_id,
 				 hw->bus.device,
 				 hw->bus.func);
@@ -327,12 +327,12 @@ void i40evf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 }
 
 /**
- * i40evf_check_asq_alive
+ * iavf_check_asq_alive
  * @hw: pointer to the hw struct
  *
  * Returns true if Queue is enabled else false.
  **/
-bool i40evf_check_asq_alive(struct i40e_hw *hw)
+bool iavf_check_asq_alive(struct i40e_hw *hw)
 {
 	if (hw->aq.asq.len)
 		return !!(rd32(hw, hw->aq.asq.len) &
@@ -342,27 +342,27 @@ bool i40evf_check_asq_alive(struct i40e_hw *hw)
 }
 
 /**
- * i40evf_aq_queue_shutdown
+ * iavf_aq_queue_shutdown
  * @hw: pointer to the hw struct
  * @unloading: is the driver unloading itself
  *
  * Tell the Firmware that we're shutting down the AdminQ and whether
  * or not the driver is unloading as well.
  **/
-i40e_status i40evf_aq_queue_shutdown(struct i40e_hw *hw,
-					     bool unloading)
+i40e_status iavf_aq_queue_shutdown(struct i40e_hw *hw,
+				   bool unloading)
 {
 	struct i40e_aq_desc desc;
 	struct i40e_aqc_queue_shutdown *cmd =
 		(struct i40e_aqc_queue_shutdown *)&desc.params.raw;
 	i40e_status status;
 
-	i40evf_fill_default_direct_cmd_desc(&desc,
+	iavf_fill_default_direct_cmd_desc(&desc,
 					  i40e_aqc_opc_queue_shutdown);
 
 	if (unloading)
 		cmd->driver_unloading = cpu_to_le32(I40E_AQ_DRIVER_UNLOADING);
-	status = i40evf_asq_send_command(hw, &desc, NULL, 0, NULL);
+	status = iavf_asq_send_command(hw, &desc, NULL, 0, NULL);
 
 	return status;
 }
@@ -389,11 +389,11 @@ static i40e_status i40e_aq_get_set_rss_lut(struct i40e_hw *hw,
 		   (struct i40e_aqc_get_set_rss_lut *)&desc.params.raw;
 
 	if (set)
-		i40evf_fill_default_direct_cmd_desc(&desc,
-						    i40e_aqc_opc_set_rss_lut);
+		iavf_fill_default_direct_cmd_desc(&desc,
+						  i40e_aqc_opc_set_rss_lut);
 	else
-		i40evf_fill_default_direct_cmd_desc(&desc,
-						    i40e_aqc_opc_get_rss_lut);
+		iavf_fill_default_direct_cmd_desc(&desc,
+						  i40e_aqc_opc_get_rss_lut);
 
 	/* Indirect command */
 	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
@@ -416,13 +416,13 @@ static i40e_status i40e_aq_get_set_rss_lut(struct i40e_hw *hw,
 					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT) &
 					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK));
 
-	status = i40evf_asq_send_command(hw, &desc, lut, lut_size, NULL);
+	status = iavf_asq_send_command(hw, &desc, lut, lut_size, NULL);
 
 	return status;
 }
 
 /**
- * i40evf_aq_get_rss_lut
+ * iavf_aq_get_rss_lut
  * @hw: pointer to the hardware structure
  * @vsi_id: vsi fw index
  * @pf_lut: for PF table set true, for VSI table set false
@@ -431,15 +431,15 @@ static i40e_status i40e_aq_get_set_rss_lut(struct i40e_hw *hw,
  *
  * get the RSS lookup table, PF or VSI type
  **/
-i40e_status i40evf_aq_get_rss_lut(struct i40e_hw *hw, u16 vsi_id,
-				  bool pf_lut, u8 *lut, u16 lut_size)
+i40e_status iavf_aq_get_rss_lut(struct i40e_hw *hw, u16 vsi_id,
+				bool pf_lut, u8 *lut, u16 lut_size)
 {
 	return i40e_aq_get_set_rss_lut(hw, vsi_id, pf_lut, lut, lut_size,
 				       false);
 }
 
 /**
- * i40evf_aq_set_rss_lut
+ * iavf_aq_set_rss_lut
  * @hw: pointer to the hardware structure
  * @vsi_id: vsi fw index
  * @pf_lut: for PF table set true, for VSI table set false
@@ -448,8 +448,8 @@ i40e_status i40evf_aq_get_rss_lut(struct i40e_hw *hw, u16 vsi_id,
  *
  * set the RSS lookup table, PF or VSI type
  **/
-i40e_status i40evf_aq_set_rss_lut(struct i40e_hw *hw, u16 vsi_id,
-				  bool pf_lut, u8 *lut, u16 lut_size)
+i40e_status iavf_aq_set_rss_lut(struct i40e_hw *hw, u16 vsi_id,
+				bool pf_lut, u8 *lut, u16 lut_size)
 {
 	return i40e_aq_get_set_rss_lut(hw, vsi_id, pf_lut, lut, lut_size, true);
 }
@@ -463,8 +463,7 @@ i40e_status i40evf_aq_set_rss_lut(struct i40e_hw *hw, u16 vsi_id,
  *
  * get the RSS key per VSI
  **/
-static i40e_status i40e_aq_get_set_rss_key(struct i40e_hw *hw,
-				      u16 vsi_id,
+static i40e_status i40e_aq_get_set_rss_key(struct i40e_hw *hw, u16 vsi_id,
 				      struct i40e_aqc_get_set_rss_key_data *key,
 				      bool set)
 {
@@ -475,11 +474,11 @@ static i40e_status i40e_aq_get_set_rss_key(struct i40e_hw *hw,
 	u16 key_size = sizeof(struct i40e_aqc_get_set_rss_key_data);
 
 	if (set)
-		i40evf_fill_default_direct_cmd_desc(&desc,
-						    i40e_aqc_opc_set_rss_key);
+		iavf_fill_default_direct_cmd_desc(&desc,
+						  i40e_aqc_opc_set_rss_key);
 	else
-		i40evf_fill_default_direct_cmd_desc(&desc,
-						    i40e_aqc_opc_get_rss_key);
+		iavf_fill_default_direct_cmd_desc(&desc,
+						  i40e_aqc_opc_get_rss_key);
 
 	/* Indirect command */
 	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
@@ -491,41 +490,39 @@ static i40e_status i40e_aq_get_set_rss_key(struct i40e_hw *hw,
 					  I40E_AQC_SET_RSS_KEY_VSI_ID_MASK));
 	cmd_resp->vsi_id |= cpu_to_le16((u16)I40E_AQC_SET_RSS_KEY_VSI_VALID);
 
-	status = i40evf_asq_send_command(hw, &desc, key, key_size, NULL);
+	status = iavf_asq_send_command(hw, &desc, key, key_size, NULL);
 
 	return status;
 }
 
 /**
- * i40evf_aq_get_rss_key
+ * iavf_aq_get_rss_key
  * @hw: pointer to the hw struct
  * @vsi_id: vsi fw index
  * @key: pointer to key info struct
  *
  **/
-i40e_status i40evf_aq_get_rss_key(struct i40e_hw *hw,
-				  u16 vsi_id,
-				  struct i40e_aqc_get_set_rss_key_data *key)
+i40e_status iavf_aq_get_rss_key(struct i40e_hw *hw, u16 vsi_id,
+				struct i40e_aqc_get_set_rss_key_data *key)
 {
 	return i40e_aq_get_set_rss_key(hw, vsi_id, key, false);
 }
 
 /**
- * i40evf_aq_set_rss_key
+ * iavf_aq_set_rss_key
  * @hw: pointer to the hw struct
  * @vsi_id: vsi fw index
  * @key: pointer to key info struct
  *
  * set the RSS key per VSI
  **/
-i40e_status i40evf_aq_set_rss_key(struct i40e_hw *hw,
-				  u16 vsi_id,
-				  struct i40e_aqc_get_set_rss_key_data *key)
+i40e_status iavf_aq_set_rss_key(struct i40e_hw *hw, u16 vsi_id,
+				struct i40e_aqc_get_set_rss_key_data *key)
 {
 	return i40e_aq_get_set_rss_key(hw, vsi_id, key, true);
 }
 
-/* The i40evf_ptype_lookup table is used to convert from the 8-bit ptype in the
+/* The iavf_ptype_lookup table is used to convert from the 8-bit ptype in the
  * hardware to a bit-field that can be used by SW to more easily determine the
  * packet type.
  *
@@ -538,10 +535,10 @@ i40e_status i40evf_aq_set_rss_key(struct i40e_hw *hw,
  *
  * Typical work flow:
  *
- * IF NOT i40evf_ptype_lookup[ptype].known
+ * IF NOT iavf_ptype_lookup[ptype].known
  * THEN
  *      Packet is unknown
- * ELSE IF i40evf_ptype_lookup[ptype].outer_ip == I40E_RX_PTYPE_OUTER_IP
+ * ELSE IF iavf_ptype_lookup[ptype].outer_ip == I40E_RX_PTYPE_OUTER_IP
  *      Use the rest of the fields to look at the tunnels, inner protocols, etc
  * ELSE
  *      Use the enum i40e_rx_l2_ptype to decode the packet type
@@ -570,7 +567,7 @@ i40e_status i40evf_aq_set_rss_key(struct i40e_hw *hw,
 #define I40E_RX_PTYPE_INNER_PROT_TS	I40E_RX_PTYPE_INNER_PROT_TIMESYNC
 
 /* Lookup table mapping the HW PTYPE to the bit field for decoding */
-struct i40e_rx_ptype_decoded i40evf_ptype_lookup[] = {
+struct i40e_rx_ptype_decoded iavf_ptype_lookup[] = {
 	/* L2 Packet types */
 	I40E_PTT_UNUSED_ENTRY(0),
 	I40E_PTT(1,  L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY2),
@@ -891,7 +888,7 @@ struct i40e_rx_ptype_decoded i40evf_ptype_lookup[] = {
 };
 
 /**
- * i40e_aq_send_msg_to_pf
+ * iavf_aq_send_msg_to_pf
  * @hw: pointer to the hardware structure
  * @v_opcode: opcodes for VF-PF communication
  * @v_retval: return error code
@@ -900,20 +897,19 @@ struct i40e_rx_ptype_decoded i40evf_ptype_lookup[] = {
  * @cmd_details: pointer to command details
  *
  * Send message to PF driver using admin queue. By default, this message
- * is sent asynchronously, i.e. i40evf_asq_send_command() does not wait for
+ * is sent asynchronously, i.e. iavf_asq_send_command() does not wait for
  * completion before returning.
  **/
-i40e_status i40e_aq_send_msg_to_pf(struct i40e_hw *hw,
-				enum virtchnl_ops v_opcode,
-				i40e_status v_retval,
-				u8 *msg, u16 msglen,
-				struct i40e_asq_cmd_details *cmd_details)
+i40e_status iavf_aq_send_msg_to_pf(struct i40e_hw *hw,
+				   enum virtchnl_ops v_opcode,
+				   i40e_status v_retval, u8 *msg, u16 msglen,
+				   struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
 	struct i40e_asq_cmd_details details;
 	i40e_status status;
 
-	i40evf_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_send_msg_to_pf);
+	iavf_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_send_msg_to_pf);
 	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_SI);
 	desc.cookie_high = cpu_to_le32(v_opcode);
 	desc.cookie_low = cpu_to_le32(v_retval);
@@ -929,19 +925,19 @@ i40e_status i40e_aq_send_msg_to_pf(struct i40e_hw *hw,
 		details.async = true;
 		cmd_details = &details;
 	}
-	status = i40evf_asq_send_command(hw, &desc, msg, msglen, cmd_details);
+	status = iavf_asq_send_command(hw, &desc, msg, msglen, cmd_details);
 	return status;
 }
 
 /**
- * i40e_vf_parse_hw_config
+ * iavf_vf_parse_hw_config
  * @hw: pointer to the hardware structure
  * @msg: pointer to the virtual channel VF resource structure
  *
  * Given a VF resource message from the PF, populate the hw struct
  * with appropriate information.
  **/
-void i40e_vf_parse_hw_config(struct i40e_hw *hw,
+void iavf_vf_parse_hw_config(struct i40e_hw *hw,
 			     struct virtchnl_vf_resource *msg)
 {
 	struct virtchnl_vsi_resource *vsi_res;
@@ -968,15 +964,15 @@ void i40e_vf_parse_hw_config(struct i40e_hw *hw,
 }
 
 /**
- * i40e_vf_reset
+ * iavf_vf_reset
  * @hw: pointer to the hardware structure
  *
  * Send a VF_RESET message to the PF. Does not wait for response from PF
  * as none will be forthcoming. Immediately after calling this function,
  * the admin queue should be shut down and (optionally) reinitialized.
  **/
-i40e_status i40e_vf_reset(struct i40e_hw *hw)
+i40e_status iavf_vf_reset(struct i40e_hw *hw)
 {
-	return i40e_aq_send_msg_to_pf(hw, VIRTCHNL_OP_RESET_VF,
+	return iavf_aq_send_msg_to_pf(hw, VIRTCHNL_OP_RESET_VF,
 				      0, NULL, 0, NULL);
 }

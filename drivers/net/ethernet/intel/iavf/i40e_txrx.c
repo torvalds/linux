@@ -52,10 +52,10 @@ static void i40e_unmap_and_free_tx_resource(struct i40e_ring *ring,
 }
 
 /**
- * i40evf_clean_tx_ring - Free any empty Tx buffers
+ * iavf_clean_tx_ring - Free any empty Tx buffers
  * @tx_ring: ring to be cleaned
  **/
-void i40evf_clean_tx_ring(struct i40e_ring *tx_ring)
+void iavf_clean_tx_ring(struct i40e_ring *tx_ring)
 {
 	unsigned long bi_size;
 	u16 i;
@@ -85,14 +85,14 @@ void i40evf_clean_tx_ring(struct i40e_ring *tx_ring)
 }
 
 /**
- * i40evf_free_tx_resources - Free Tx resources per queue
+ * iavf_free_tx_resources - Free Tx resources per queue
  * @tx_ring: Tx descriptor ring for a specific queue
  *
  * Free all transmit software resources
  **/
-void i40evf_free_tx_resources(struct i40e_ring *tx_ring)
+void iavf_free_tx_resources(struct i40e_ring *tx_ring)
 {
-	i40evf_clean_tx_ring(tx_ring);
+	iavf_clean_tx_ring(tx_ring);
 	kfree(tx_ring->tx_bi);
 	tx_ring->tx_bi = NULL;
 
@@ -104,14 +104,14 @@ void i40evf_free_tx_resources(struct i40e_ring *tx_ring)
 }
 
 /**
- * i40evf_get_tx_pending - how many Tx descriptors not processed
+ * iavf_get_tx_pending - how many Tx descriptors not processed
  * @ring: the ring of descriptors
  * @in_sw: is tx_pending being checked in SW or HW
  *
  * Since there is no access to the ring head register
  * in XL710, we need to use our local copies
  **/
-u32 i40evf_get_tx_pending(struct i40e_ring *ring, bool in_sw)
+u32 iavf_get_tx_pending(struct i40e_ring *ring, bool in_sw)
 {
 	u32 head, tail;
 
@@ -126,13 +126,13 @@ u32 i40evf_get_tx_pending(struct i40e_ring *ring, bool in_sw)
 }
 
 /**
- * i40evf_detect_recover_hung - Function to detect and recover hung_queues
+ * iavf_detect_recover_hung - Function to detect and recover hung_queues
  * @vsi:  pointer to vsi struct with tx queues
  *
  * VSI has netdev and netdev has TX queues. This function is to check each of
  * those TX queues if they are hung, trigger recovery by issuing SW interrupt.
  **/
-void i40evf_detect_recover_hung(struct i40e_vsi *vsi)
+void iavf_detect_recover_hung(struct i40e_vsi *vsi)
 {
 	struct i40e_ring *tx_ring = NULL;
 	struct net_device *netdev;
@@ -164,16 +164,16 @@ void i40evf_detect_recover_hung(struct i40e_vsi *vsi)
 			 */
 			packets = tx_ring->stats.packets & INT_MAX;
 			if (tx_ring->tx_stats.prev_pkt_ctr == packets) {
-				i40evf_force_wb(vsi, tx_ring->q_vector);
+				iavf_force_wb(vsi, tx_ring->q_vector);
 				continue;
 			}
 
 			/* Memory barrier between read of packet count and call
-			 * to i40evf_get_tx_pending()
+			 * to iavf_get_tx_pending()
 			 */
 			smp_rmb();
 			tx_ring->tx_stats.prev_pkt_ctr =
-			  i40evf_get_tx_pending(tx_ring, true) ? packets : -1;
+			  iavf_get_tx_pending(tx_ring, true) ? packets : -1;
 		}
 	}
 }
@@ -292,7 +292,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 		 * them to be written back in case we stay in NAPI.
 		 * In this mode on X722 we do not enable Interrupt.
 		 */
-		unsigned int j = i40evf_get_tx_pending(tx_ring, false);
+		unsigned int j = iavf_get_tx_pending(tx_ring, false);
 
 		if (budget &&
 		    ((j / WB_STRIDE) == 0) && (j > 0) &&
@@ -325,7 +325,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 }
 
 /**
- * i40evf_enable_wb_on_itr - Arm hardware to do a wb, interrupts are not enabled
+ * iavf_enable_wb_on_itr - Arm hardware to do a wb, interrupts are not enabled
  * @vsi: the VSI we care about
  * @q_vector: the vector on which to enable writeback
  *
@@ -351,12 +351,12 @@ static void i40e_enable_wb_on_itr(struct i40e_vsi *vsi,
 }
 
 /**
- * i40evf_force_wb - Issue SW Interrupt so HW does a wb
+ * iavf_force_wb - Issue SW Interrupt so HW does a wb
  * @vsi: the VSI we care about
  * @q_vector: the vector  on which to force writeback
  *
  **/
-void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
+void iavf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 {
 	u32 val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
 		  I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK | /* set noitr */
@@ -607,12 +607,12 @@ clear_counts:
 }
 
 /**
- * i40evf_setup_tx_descriptors - Allocate the Tx descriptors
+ * iavf_setup_tx_descriptors - Allocate the Tx descriptors
  * @tx_ring: the tx ring to set up
  *
  * Return 0 on success, negative on error
  **/
-int i40evf_setup_tx_descriptors(struct i40e_ring *tx_ring)
+int iavf_setup_tx_descriptors(struct i40e_ring *tx_ring)
 {
 	struct device *dev = tx_ring->dev;
 	int bi_size;
@@ -650,10 +650,10 @@ err:
 }
 
 /**
- * i40evf_clean_rx_ring - Free Rx buffers
+ * iavf_clean_rx_ring - Free Rx buffers
  * @rx_ring: ring to be cleaned
  **/
-void i40evf_clean_rx_ring(struct i40e_ring *rx_ring)
+void iavf_clean_rx_ring(struct i40e_ring *rx_ring)
 {
 	unsigned long bi_size;
 	u16 i;
@@ -707,14 +707,14 @@ void i40evf_clean_rx_ring(struct i40e_ring *rx_ring)
 }
 
 /**
- * i40evf_free_rx_resources - Free Rx resources
+ * iavf_free_rx_resources - Free Rx resources
  * @rx_ring: ring to clean the resources from
  *
  * Free all receive software resources
  **/
-void i40evf_free_rx_resources(struct i40e_ring *rx_ring)
+void iavf_free_rx_resources(struct i40e_ring *rx_ring)
 {
-	i40evf_clean_rx_ring(rx_ring);
+	iavf_clean_rx_ring(rx_ring);
 	kfree(rx_ring->rx_bi);
 	rx_ring->rx_bi = NULL;
 
@@ -726,12 +726,12 @@ void i40evf_free_rx_resources(struct i40e_ring *rx_ring)
 }
 
 /**
- * i40evf_setup_rx_descriptors - Allocate Rx descriptors
+ * iavf_setup_rx_descriptors - Allocate Rx descriptors
  * @rx_ring: Rx descriptor ring (for a specific queue) to setup
  *
  * Returns 0 on success, negative on failure
  **/
-int i40evf_setup_rx_descriptors(struct i40e_ring *rx_ring)
+int iavf_setup_rx_descriptors(struct i40e_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
 	int bi_size;
@@ -871,13 +871,13 @@ static void i40e_receive_skb(struct i40e_ring *rx_ring,
 }
 
 /**
- * i40evf_alloc_rx_buffers - Replace used receive buffers
+ * iavf_alloc_rx_buffers - Replace used receive buffers
  * @rx_ring: ring to place buffers on
  * @cleaned_count: number of buffers to replace
  *
  * Returns false if all allocations were successful, true if any fail
  **/
-bool i40evf_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
+bool iavf_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 {
 	u16 ntu = rx_ring->next_to_use;
 	union i40e_rx_desc *rx_desc;
@@ -1069,7 +1069,7 @@ static inline void i40e_rx_hash(struct i40e_ring *ring,
 }
 
 /**
- * i40evf_process_skb_fields - Populate skb header fields from Rx descriptor
+ * iavf_process_skb_fields - Populate skb header fields from Rx descriptor
  * @rx_ring: rx descriptor ring packet is being transacted on
  * @rx_desc: pointer to the EOP Rx descriptor
  * @skb: pointer to current skb being populated
@@ -1080,9 +1080,9 @@ static inline void i40e_rx_hash(struct i40e_ring *ring,
  * other fields within the skb.
  **/
 static inline
-void i40evf_process_skb_fields(struct i40e_ring *rx_ring,
-			       union i40e_rx_desc *rx_desc, struct sk_buff *skb,
-			       u8 rx_ptype)
+void iavf_process_skb_fields(struct i40e_ring *rx_ring,
+			     union i40e_rx_desc *rx_desc, struct sk_buff *skb,
+			     u8 rx_ptype)
 {
 	i40e_rx_hash(rx_ring, rx_desc, skb, rx_ptype);
 
@@ -1479,7 +1479,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= I40E_RX_BUFFER_WRITE) {
 			failure = failure ||
-				  i40evf_alloc_rx_buffers(rx_ring, cleaned_count);
+				  iavf_alloc_rx_buffers(rx_ring, cleaned_count);
 			cleaned_count = 0;
 		}
 
@@ -1551,7 +1551,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 			   I40E_RXD_QW1_PTYPE_SHIFT;
 
 		/* populate checksum, VLAN, and protocol */
-		i40evf_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
+		iavf_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
 
 
 		vlan_tag = (qword & BIT(I40E_RX_DESC_STATUS_L2TAG1P_SHIFT)) ?
@@ -1676,7 +1676,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 }
 
 /**
- * i40evf_napi_poll - NAPI polling Rx/Tx cleanup routine
+ * iavf_napi_poll - NAPI polling Rx/Tx cleanup routine
  * @napi: napi struct with our devices info in it
  * @budget: amount of work driver is allowed to do this pass, in packets
  *
@@ -1684,7 +1684,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
  *
  * Returns the amount of work done
  **/
-int i40evf_napi_poll(struct napi_struct *napi, int budget)
+int iavf_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct i40e_q_vector *q_vector =
 			       container_of(napi, struct i40e_q_vector, napi);
@@ -1746,7 +1746,7 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 			napi_complete_done(napi, work_done);
 
 			/* Force an interrupt */
-			i40evf_force_wb(vsi, q_vector);
+			iavf_force_wb(vsi, q_vector);
 
 			/* Return budget-1 so that polling stops */
 			return budget - 1;
@@ -1771,7 +1771,7 @@ tx_only:
 }
 
 /**
- * i40evf_tx_prepare_vlan_flags - prepare generic TX VLAN tagging flags for HW
+ * iavf_tx_prepare_vlan_flags - prepare generic TX VLAN tagging flags for HW
  * @skb:     send buffer
  * @tx_ring: ring to send buffer on
  * @flags:   the tx flags to be set
@@ -1782,9 +1782,9 @@ tx_only:
  * Returns error code indicate the frame should be dropped upon error and the
  * otherwise  returns 0 to indicate the flags has been set properly.
  **/
-static inline int i40evf_tx_prepare_vlan_flags(struct sk_buff *skb,
-					       struct i40e_ring *tx_ring,
-					       u32 *flags)
+static inline int iavf_tx_prepare_vlan_flags(struct sk_buff *skb,
+					     struct i40e_ring *tx_ring,
+					     u32 *flags)
 {
 	__be16 protocol = skb->protocol;
 	u32  tx_flags = 0;
@@ -2130,7 +2130,7 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
 }
 
 /**
- * __i40evf_chk_linearize - Check if there are more than 8 buffers per packet
+ * __iavf_chk_linearize - Check if there are more than 8 buffers per packet
  * @skb:      send buffer
  *
  * Note: Our HW can't DMA more than 8 buffers to build a packet on the wire
@@ -2142,7 +2142,7 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
  * the segment payload in the first descriptor, and another 7 for the
  * fragments.
  **/
-bool __i40evf_chk_linearize(struct sk_buff *skb)
+bool __iavf_chk_linearize(struct sk_buff *skb)
 {
 	const struct skb_frag_struct *frag, *stale;
 	int nr_frags, sum;
@@ -2214,13 +2214,13 @@ bool __i40evf_chk_linearize(struct sk_buff *skb)
 }
 
 /**
- * __i40evf_maybe_stop_tx - 2nd level check for tx stop conditions
+ * __iavf_maybe_stop_tx - 2nd level check for tx stop conditions
  * @tx_ring: the ring to be checked
  * @size:    the size buffer we want to assure is available
  *
  * Returns -EBUSY if a stop is needed, else 0
  **/
-int __i40evf_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
+int __iavf_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
 {
 	netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
 	/* Memory barrier before checking head and tail */
@@ -2237,7 +2237,7 @@ int __i40evf_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
 }
 
 /**
- * i40evf_tx_map - Build the Tx descriptor
+ * iavf_tx_map - Build the Tx descriptor
  * @tx_ring:  ring to send buffer on
  * @skb:      send buffer
  * @first:    first buffer info buffer to use
@@ -2246,9 +2246,9 @@ int __i40evf_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
  * @td_cmd:   the command field in the descriptor
  * @td_offset: offset for checksum or crc
  **/
-static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
-				 struct i40e_tx_buffer *first, u32 tx_flags,
-				 const u8 hdr_len, u32 td_cmd, u32 td_offset)
+static inline void iavf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
+			       struct i40e_tx_buffer *first, u32 tx_flags,
+			       const u8 hdr_len, u32 td_cmd, u32 td_offset)
 {
 	unsigned int data_len = skb->data_len;
 	unsigned int size = skb_headlen(skb);
@@ -2437,7 +2437,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	first->gso_segs = 1;
 
 	/* prepare the xmit flags */
-	if (i40evf_tx_prepare_vlan_flags(skb, tx_ring, &tx_flags))
+	if (iavf_tx_prepare_vlan_flags(skb, tx_ring, &tx_flags))
 		goto out_drop;
 
 	/* obtain protocol of skb */
@@ -2470,8 +2470,8 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	i40e_create_tx_ctx(tx_ring, cd_type_cmd_tso_mss,
 			   cd_tunneling, cd_l2tag2);
 
-	i40evf_tx_map(tx_ring, skb, first, tx_flags, hdr_len,
-		      td_cmd, td_offset);
+	iavf_tx_map(tx_ring, skb, first, tx_flags, hdr_len,
+		    td_cmd, td_offset);
 
 	return NETDEV_TX_OK;
 
@@ -2483,15 +2483,15 @@ out_drop:
 }
 
 /**
- * i40evf_xmit_frame - Selects the correct VSI and Tx queue to send buffer
+ * iavf_xmit_frame - Selects the correct VSI and Tx queue to send buffer
  * @skb:    send buffer
  * @netdev: network interface device structure
  *
  * Returns NETDEV_TX_OK if sent, else an error code
  **/
-netdev_tx_t i40evf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+netdev_tx_t iavf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
-	struct i40evf_adapter *adapter = netdev_priv(netdev);
+	struct iavf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_ring *tx_ring = &adapter->tx_rings[skb->queue_mapping];
 
 	/* hardware can't handle really short frames, hardware padding works

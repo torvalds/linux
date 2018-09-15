@@ -495,7 +495,7 @@ shutdown_arq_out:
 }
 
 /**
- *  i40evf_init_adminq - main initialization routine for Admin Queue
+ *  iavf_init_adminq - main initialization routine for Admin Queue
  *  @hw: pointer to the hardware structure
  *
  *  Prior to calling this function, drivers *MUST* set the following fields
@@ -505,7 +505,7 @@ shutdown_arq_out:
  *     - hw->aq.arq_buf_size
  *     - hw->aq.asq_buf_size
  **/
-i40e_status i40evf_init_adminq(struct i40e_hw *hw)
+i40e_status iavf_init_adminq(struct i40e_hw *hw)
 {
 	i40e_status ret_code;
 
@@ -546,15 +546,15 @@ init_adminq_exit:
 }
 
 /**
- *  i40evf_shutdown_adminq - shutdown routine for the Admin Queue
+ *  iavf_shutdown_adminq - shutdown routine for the Admin Queue
  *  @hw: pointer to the hardware structure
  **/
-i40e_status i40evf_shutdown_adminq(struct i40e_hw *hw)
+i40e_status iavf_shutdown_adminq(struct i40e_hw *hw)
 {
 	i40e_status ret_code = 0;
 
-	if (i40evf_check_asq_alive(hw))
-		i40evf_aq_queue_shutdown(hw, true);
+	if (iavf_check_asq_alive(hw))
+		iavf_aq_queue_shutdown(hw, true);
 
 	i40e_shutdown_asq(hw);
 	i40e_shutdown_arq(hw);
@@ -604,13 +604,13 @@ static u16 i40e_clean_asq(struct i40e_hw *hw)
 }
 
 /**
- *  i40evf_asq_done - check if FW has processed the Admin Send Queue
+ *  iavf_asq_done - check if FW has processed the Admin Send Queue
  *  @hw: pointer to the hw struct
  *
  *  Returns true if the firmware has processed all descriptors on the
  *  admin send queue. Returns false if there are still requests pending.
  **/
-bool i40evf_asq_done(struct i40e_hw *hw)
+bool iavf_asq_done(struct i40e_hw *hw)
 {
 	/* AQ designers suggest use of head for better
 	 * timing reliability than DD bit
@@ -620,7 +620,7 @@ bool i40evf_asq_done(struct i40e_hw *hw)
 }
 
 /**
- *  i40evf_asq_send_command - send command to Admin Queue
+ *  iavf_asq_send_command - send command to Admin Queue
  *  @hw: pointer to the hw struct
  *  @desc: prefilled descriptor describing the command (non DMA mem)
  *  @buff: buffer to use for indirect commands
@@ -630,11 +630,11 @@ bool i40evf_asq_done(struct i40e_hw *hw)
  *  This is the main send command driver routine for the Admin Queue send
  *  queue.  It runs the queue, cleans the queue, etc
  **/
-i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
-				struct i40e_aq_desc *desc,
-				void *buff, /* can be NULL */
-				u16  buff_size,
-				struct i40e_asq_cmd_details *cmd_details)
+i40e_status iavf_asq_send_command(struct i40e_hw *hw,
+				  struct i40e_aq_desc *desc,
+				  void *buff, /* can be NULL */
+				  u16  buff_size,
+				  struct i40e_asq_cmd_details *cmd_details)
 {
 	i40e_status status = 0;
 	struct i40e_dma_mem *dma_buff = NULL;
@@ -741,8 +741,8 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 
 	/* bump the tail */
 	i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE, "AQTX: desc and buffer:\n");
-	i40evf_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc_on_ring,
-			buff, buff_size);
+	iavf_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc_on_ring,
+		      buff, buff_size);
 	(hw->aq.asq.next_to_use)++;
 	if (hw->aq.asq.next_to_use == hw->aq.asq.count)
 		hw->aq.asq.next_to_use = 0;
@@ -759,7 +759,7 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 			/* AQ designers suggest use of head for better
 			 * timing reliability than DD bit
 			 */
-			if (i40evf_asq_done(hw))
+			if (iavf_asq_done(hw))
 				break;
 			udelay(50);
 			total_delay += 50;
@@ -767,7 +767,7 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 	}
 
 	/* if ready, copy the desc back to temp */
-	if (i40evf_asq_done(hw)) {
+	if (iavf_asq_done(hw)) {
 		*desc = *desc_on_ring;
 		if (buff != NULL)
 			memcpy(buff, dma_buff->va, buff_size);
@@ -793,8 +793,8 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 
 	i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 		   "AQTX: desc and buffer writeback:\n");
-	i40evf_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, buff,
-			buff_size);
+	iavf_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, buff,
+		      buff_size);
 
 	/* save writeback aq if requested */
 	if (details->wb_desc)
@@ -820,13 +820,13 @@ asq_send_command_error:
 }
 
 /**
- *  i40evf_fill_default_direct_cmd_desc - AQ descriptor helper function
+ *  iavf_fill_default_direct_cmd_desc - AQ descriptor helper function
  *  @desc:     pointer to the temp descriptor (non DMA mem)
  *  @opcode:   the opcode can be used to decide which flags to turn off or on
  *
  *  Fill the desc with default values
  **/
-void i40evf_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc,
+void iavf_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc,
 				       u16 opcode)
 {
 	/* zero out the desc */
@@ -836,7 +836,7 @@ void i40evf_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc,
 }
 
 /**
- *  i40evf_clean_arq_element
+ *  iavf_clean_arq_element
  *  @hw: pointer to the hw struct
  *  @e: event info from the receive descriptor, includes any buffers
  *  @pending: number of events that could be left to process
@@ -845,9 +845,9 @@ void i40evf_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc,
  *  the contents through e.  It can also return how many events are
  *  left to process through 'pending'
  **/
-i40e_status i40evf_clean_arq_element(struct i40e_hw *hw,
-					     struct i40e_arq_event_info *e,
-					     u16 *pending)
+i40e_status iavf_clean_arq_element(struct i40e_hw *hw,
+				   struct i40e_arq_event_info *e,
+				   u16 *pending)
 {
 	i40e_status ret_code = 0;
 	u16 ntc = hw->aq.arq.next_to_clean;
@@ -902,8 +902,8 @@ i40e_status i40evf_clean_arq_element(struct i40e_hw *hw,
 		       e->msg_len);
 
 	i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE, "AQRX: desc and buffer:\n");
-	i40evf_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, e->msg_buf,
-			hw->aq.arq_buf_size);
+	iavf_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, e->msg_buf,
+		      hw->aq.arq_buf_size);
 
 	/* Restore the original datalen and buffer address in the desc,
 	 * FW updates datalen to indicate the event message

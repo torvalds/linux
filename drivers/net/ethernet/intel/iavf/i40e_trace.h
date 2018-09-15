@@ -3,7 +3,7 @@
 
 /* Modeled on trace-events-sample.h */
 
-/* The trace subsystem name for i40evf will be "i40evf".
+/* The trace subsystem name for iavf will be "iavf".
  *
  * This file is named i40e_trace.h.
  *
@@ -12,7 +12,7 @@
  * of this file.
  */
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM i40evf
+#define TRACE_SYSTEM iavf
 
 /* See trace-events-sample.h for a detailed description of why this
  * guard clause is different from most normal include files.
@@ -42,7 +42,7 @@
  * Similarly, i40e_trace_enabled(trace_name) wraps references to
  * trace_i40e{,vf}_<trace_name>_enabled() functions.
  */
-#define _I40E_TRACE_NAME(trace_name) (trace_ ## i40evf ## _ ## trace_name)
+#define _I40E_TRACE_NAME(trace_name) (trace_ ## iavf ## _ ## trace_name)
 #define I40E_TRACE_NAME(trace_name) _I40E_TRACE_NAME(trace_name)
 
 #define i40e_trace(trace_name, args...) I40E_TRACE_NAME(trace_name)(args)
@@ -50,14 +50,14 @@
 #define i40e_trace_enabled(trace_name) I40E_TRACE_NAME(trace_name##_enabled)()
 
 /* Events common to PF and VF. Corresponding versions will be defined
- * for both, named trace_i40e_* and trace_i40evf_*. The i40e_trace()
+ * for both, named trace_i40e_* and trace_iavf_*. The i40e_trace()
  * macro above will select the right trace point name for the driver
  * being built from shared code.
  */
 
 /* Events related to a vsi & ring */
 DECLARE_EVENT_CLASS(
-	i40evf_tx_template,
+	iavf_tx_template,
 
 	TP_PROTO(struct i40e_ring *ring,
 		 struct i40e_tx_desc *desc,
@@ -93,7 +93,7 @@ DECLARE_EVENT_CLASS(
 );
 
 DEFINE_EVENT(
-	i40evf_tx_template, i40evf_clean_tx_irq,
+	iavf_tx_template, iavf_clean_tx_irq,
 	TP_PROTO(struct i40e_ring *ring,
 		 struct i40e_tx_desc *desc,
 		 struct i40e_tx_buffer *buf),
@@ -101,7 +101,7 @@ DEFINE_EVENT(
 	TP_ARGS(ring, desc, buf));
 
 DEFINE_EVENT(
-	i40evf_tx_template, i40evf_clean_tx_irq_unmap,
+	iavf_tx_template, iavf_clean_tx_irq_unmap,
 	TP_PROTO(struct i40e_ring *ring,
 		 struct i40e_tx_desc *desc,
 		 struct i40e_tx_buffer *buf),
@@ -109,7 +109,7 @@ DEFINE_EVENT(
 	TP_ARGS(ring, desc, buf));
 
 DECLARE_EVENT_CLASS(
-	i40evf_rx_template,
+	iavf_rx_template,
 
 	TP_PROTO(struct i40e_ring *ring,
 		 union i40e_32byte_rx_desc *desc,
@@ -138,7 +138,7 @@ DECLARE_EVENT_CLASS(
 );
 
 DEFINE_EVENT(
-	i40evf_rx_template, i40evf_clean_rx_irq,
+	iavf_rx_template, iavf_clean_rx_irq,
 	TP_PROTO(struct i40e_ring *ring,
 		 union i40e_32byte_rx_desc *desc,
 		 struct sk_buff *skb),
@@ -146,7 +146,7 @@ DEFINE_EVENT(
 	TP_ARGS(ring, desc, skb));
 
 DEFINE_EVENT(
-	i40evf_rx_template, i40evf_clean_rx_irq_rx,
+	iavf_rx_template, iavf_clean_rx_irq_rx,
 	TP_PROTO(struct i40e_ring *ring,
 		 union i40e_32byte_rx_desc *desc,
 		 struct sk_buff *skb),
@@ -154,7 +154,7 @@ DEFINE_EVENT(
 	TP_ARGS(ring, desc, skb));
 
 DECLARE_EVENT_CLASS(
-	i40evf_xmit_template,
+	iavf_xmit_template,
 
 	TP_PROTO(struct sk_buff *skb,
 		 struct i40e_ring *ring),
@@ -180,14 +180,14 @@ DECLARE_EVENT_CLASS(
 );
 
 DEFINE_EVENT(
-	i40evf_xmit_template, i40evf_xmit_frame_ring,
+	iavf_xmit_template, iavf_xmit_frame_ring,
 	TP_PROTO(struct sk_buff *skb,
 		 struct i40e_ring *ring),
 
 	TP_ARGS(skb, ring));
 
 DEFINE_EVENT(
-	i40evf_xmit_template, i40evf_xmit_frame_ring_drop,
+	iavf_xmit_template, iavf_xmit_frame_ring_drop,
 	TP_PROTO(struct sk_buff *skb,
 		 struct i40e_ring *ring),
 

@@ -130,7 +130,6 @@ static inline int i40e_aq_rc_to_posix(int aq_ret, int aq_rc)
 #define I40E_AQ_LARGE_BUF	512
 #define I40E_ASQ_CMD_TIMEOUT	250000  /* usecs */
 
-void i40evf_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc,
-				       u16 opcode);
+void iavf_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc, u16 opcode);
 
 #endif /* _I40E_ADMINQ_H_ */
