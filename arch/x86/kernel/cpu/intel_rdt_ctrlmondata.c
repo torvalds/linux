@@ -195,6 +195,12 @@ static int parse_line(char *line, struct rdt_resource *r,
 	struct rdt_domain *d;
 	unsigned long dom_id;
 
+	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP &&
+	    r->rid == RDT_RESOURCE_MBA) {
+		rdt_last_cmd_puts("Cannot pseudo-lock MBA resource\n");
+		return -EINVAL;
+	}
+
 next:
 	if (!line || line[0] == '\0')
 		return 0;
