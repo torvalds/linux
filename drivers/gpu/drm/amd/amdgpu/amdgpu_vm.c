@@ -961,8 +961,7 @@ error_free_pt:
  * amdgpu_vm_free_pts - free PD/PT levels
  *
  * @adev: amdgpu device structure
- * @parent: PD/PT starting level to free
- * @level: level of parent structure
+ * @vm: amdgpu vm structure
  *
  * Free the page directory or page table level and all sub levels.
  */
