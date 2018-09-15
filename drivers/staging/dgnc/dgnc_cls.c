@@ -388,7 +388,7 @@ static void cls_assert_modem_signals(struct channel_t *ch)
 	writeb(out, &ch->ch_cls_uart->mcr);
 
 	/* Give time for the UART to actually drop the signals */
-	usleep_range(10, 20);
+	udelay(20);
 }
 
 static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
