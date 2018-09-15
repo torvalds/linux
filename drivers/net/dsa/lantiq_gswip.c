@@ -1044,18 +1044,18 @@ static int gswip_probe(struct platform_device *pdev)
 
 	gswip_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->gswip = devm_ioremap_resource(dev, gswip_res);
-	if (!priv->gswip)
-		return -ENOMEM;
+	if (IS_ERR(priv->gswip))
+		return PTR_ERR(priv->gswip);
 
 	mdio_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	priv->mdio = devm_ioremap_resource(dev, mdio_res);
-	if (!priv->mdio)
-		return -ENOMEM;
+	if (IS_ERR(priv->mdio))
+		return PTR_ERR(priv->mdio);
 
 	mii_res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	priv->mii = devm_ioremap_resource(dev, mii_res);
-	if (!priv->mii)
-		return -ENOMEM;
+	if (IS_ERR(priv->mii))
+		return PTR_ERR(priv->mii);
 
 	priv->hw_info = of_device_get_match_data(dev);
 	if (!priv->hw_info)
