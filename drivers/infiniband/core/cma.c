@@ -1460,17 +1460,34 @@ static bool cma_protocol_roce(const struct rdma_cm_id *id)
 	return rdma_protocol_roce(device, port_num);
 }
 
+static bool cma_is_req_ipv6_ll(const struct cma_req_info *req)
+{
+	const struct sockaddr *daddr =
+			(const struct sockaddr *)&req->listen_addr_storage;
+	const struct sockaddr_in6 *daddr6 = (const struct sockaddr_in6 *)daddr;
+
+	/* Returns true if the req is for IPv6 link local */
+	return (daddr->sa_family == AF_INET6 &&
+		(ipv6_addr_type(&daddr6->sin6_addr) & IPV6_ADDR_LINKLOCAL));
+}
+
 static bool cma_match_net_dev(const struct rdma_cm_id *id,
 			      const struct net_device *net_dev,
-			      u8 port_num)
+			      const struct cma_req_info *req)
 {
 	const struct rdma_addr *addr = &id->route.addr;
 
 	if (!net_dev)
 		/* This request is an AF_IB request */
-		return (!id->port_num || id->port_num == port_num) &&
+		return (!id->port_num || id->port_num == req->port) &&
 		       (addr->src_addr.ss_family == AF_IB);
 
+	/*
+	 * If the request is not for IPv6 link local, allow matching
+	 * request to any netdevice of the one or multiport rdma device.
+	 */
+	if (!cma_is_req_ipv6_ll(req))
+		return true;
 	/*
 	 * Net namespaces must match, and if the listner is listening
 	 * on a specific netdevice than netdevice must match as well.
@@ -1498,13 +1515,14 @@ static struct rdma_id_private *cma_find_listener(
 	hlist_for_each_entry(id_priv, &bind_list->owners, node) {
 		if (cma_match_private_data(id_priv, ib_event->private_data)) {
 			if (id_priv->id.device == cm_id->device &&
-			    cma_match_net_dev(&id_priv->id, net_dev, req->port))
+			    cma_match_net_dev(&id_priv->id, net_dev, req))
 				return id_priv;
 			list_for_each_entry(id_priv_dev,
 					    &id_priv->listen_list,
 					    listen_list) {
 				if (id_priv_dev->id.device == cm_id->device &&
-				    cma_match_net_dev(&id_priv_dev->id, net_dev, req->port))
+				    cma_match_net_dev(&id_priv_dev->id,
+						      net_dev, req))
 					return id_priv_dev;
 			}
 		}
