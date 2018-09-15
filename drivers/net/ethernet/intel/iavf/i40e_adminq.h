@@ -8,10 +8,10 @@
 #include "i40e_status.h"
 #include "i40e_adminq_cmd.h"
 
-#define I40E_ADMINQ_DESC(R, i)   \
+#define IAVF_ADMINQ_DESC(R, i)   \
 	(&(((struct i40e_aq_desc *)((R).desc_buf.va))[i]))
 
-#define I40E_ADMINQ_DESC_ALIGNMENT 4096
+#define IAVF_ADMINQ_DESC_ALIGNMENT 4096
 
 struct i40e_adminq_ring {
 	struct i40e_virt_mem dma_head;	/* space for dma structures */
