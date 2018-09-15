@@ -1627,7 +1627,7 @@ static inline u32 i40e_buildreg_itr(const int type, u16 itr)
 static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 					  struct i40e_q_vector *q_vector)
 {
-	struct i40e_hw *hw = &vsi->back->hw;
+	struct iavf_hw *hw = &vsi->back->hw;
 	u32 intval;
 
 	/* These will do nothing if dynamic updates are not enabled */

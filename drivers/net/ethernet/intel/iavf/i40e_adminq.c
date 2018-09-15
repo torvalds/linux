@@ -13,7 +13,7 @@
  *
  *  This assumes the alloc_asq and alloc_arq functions have already been called
  **/
-static void i40e_adminq_init_regs(struct i40e_hw *hw)
+static void i40e_adminq_init_regs(struct iavf_hw *hw)
 {
 	/* set head and tail registers in our local struct */
 	hw->aq.asq.tail = IAVF_VF_ATQT1;
@@ -32,7 +32,7 @@ static void i40e_adminq_init_regs(struct i40e_hw *hw)
  *  i40e_alloc_adminq_asq_ring - Allocate Admin Queue send rings
  *  @hw: pointer to the hardware structure
  **/
-static iavf_status i40e_alloc_adminq_asq_ring(struct i40e_hw *hw)
+static iavf_status i40e_alloc_adminq_asq_ring(struct iavf_hw *hw)
 {
 	iavf_status ret_code;
 
@@ -59,7 +59,7 @@ static iavf_status i40e_alloc_adminq_asq_ring(struct i40e_hw *hw)
  *  i40e_alloc_adminq_arq_ring - Allocate Admin Queue receive rings
  *  @hw: pointer to the hardware structure
  **/
-static iavf_status i40e_alloc_adminq_arq_ring(struct i40e_hw *hw)
+static iavf_status i40e_alloc_adminq_arq_ring(struct iavf_hw *hw)
 {
 	iavf_status ret_code;
 
@@ -79,7 +79,7 @@ static iavf_status i40e_alloc_adminq_arq_ring(struct i40e_hw *hw)
  *  This assumes the posted send buffers have already been cleaned
  *  and de-allocated
  **/
-static void i40e_free_adminq_asq(struct i40e_hw *hw)
+static void i40e_free_adminq_asq(struct iavf_hw *hw)
 {
 	i40e_free_dma_mem(hw, &hw->aq.asq.desc_buf);
 }
@@ -91,7 +91,7 @@ static void i40e_free_adminq_asq(struct i40e_hw *hw)
  *  This assumes the posted receive buffers have already been cleaned
  *  and de-allocated
  **/
-static void i40e_free_adminq_arq(struct i40e_hw *hw)
+static void i40e_free_adminq_arq(struct iavf_hw *hw)
 {
 	i40e_free_dma_mem(hw, &hw->aq.arq.desc_buf);
 }
@@ -100,7 +100,7 @@ static void i40e_free_adminq_arq(struct i40e_hw *hw)
  *  i40e_alloc_arq_bufs - Allocate pre-posted buffers for the receive queue
  *  @hw: pointer to the hardware structure
  **/
-static iavf_status i40e_alloc_arq_bufs(struct i40e_hw *hw)
+static iavf_status i40e_alloc_arq_bufs(struct iavf_hw *hw)
 {
 	struct i40e_aq_desc *desc;
 	struct i40e_dma_mem *bi;
@@ -168,7 +168,7 @@ unwind_alloc_arq_bufs:
  *  i40e_alloc_asq_bufs - Allocate empty buffer structs for the send queue
  *  @hw: pointer to the hardware structure
  **/
-static iavf_status i40e_alloc_asq_bufs(struct i40e_hw *hw)
+static iavf_status i40e_alloc_asq_bufs(struct iavf_hw *hw)
 {
 	struct i40e_dma_mem *bi;
 	iavf_status ret_code;
@@ -209,7 +209,7 @@ unwind_alloc_asq_bufs:
  *  i40e_free_arq_bufs - Free receive queue buffer info elements
  *  @hw: pointer to the hardware structure
  **/
-static void i40e_free_arq_bufs(struct i40e_hw *hw)
+static void i40e_free_arq_bufs(struct iavf_hw *hw)
 {
 	int i;
 
@@ -228,7 +228,7 @@ static void i40e_free_arq_bufs(struct i40e_hw *hw)
  *  i40e_free_asq_bufs - Free send queue buffer info elements
  *  @hw: pointer to the hardware structure
  **/
-static void i40e_free_asq_bufs(struct i40e_hw *hw)
+static void i40e_free_asq_bufs(struct iavf_hw *hw)
 {
 	int i;
 
@@ -253,7 +253,7 @@ static void i40e_free_asq_bufs(struct i40e_hw *hw)
  *
  *  Configure base address and length registers for the transmit queue
  **/
-static iavf_status i40e_config_asq_regs(struct i40e_hw *hw)
+static iavf_status i40e_config_asq_regs(struct iavf_hw *hw)
 {
 	iavf_status ret_code = 0;
 	u32 reg = 0;
@@ -282,7 +282,7 @@ static iavf_status i40e_config_asq_regs(struct i40e_hw *hw)
  *
  * Configure base address and length registers for the receive (event queue)
  **/
-static iavf_status i40e_config_arq_regs(struct i40e_hw *hw)
+static iavf_status i40e_config_arq_regs(struct iavf_hw *hw)
 {
 	iavf_status ret_code = 0;
 	u32 reg = 0;
@@ -321,7 +321,7 @@ static iavf_status i40e_config_arq_regs(struct i40e_hw *hw)
  *  Do *NOT* hold the lock when calling this as the memory allocation routines
  *  called are not going to be atomic context safe
  **/
-static iavf_status i40e_init_asq(struct i40e_hw *hw)
+static iavf_status i40e_init_asq(struct iavf_hw *hw)
 {
 	iavf_status ret_code = 0;
 
@@ -380,7 +380,7 @@ init_adminq_exit:
  *  Do *NOT* hold the lock when calling this as the memory allocation routines
  *  called are not going to be atomic context safe
  **/
-static iavf_status i40e_init_arq(struct i40e_hw *hw)
+static iavf_status i40e_init_arq(struct iavf_hw *hw)
 {
 	iavf_status ret_code = 0;
 
@@ -432,7 +432,7 @@ init_adminq_exit:
  *
  *  The main shutdown routine for the Admin Send Queue
  **/
-static iavf_status i40e_shutdown_asq(struct i40e_hw *hw)
+static iavf_status i40e_shutdown_asq(struct iavf_hw *hw)
 {
 	iavf_status ret_code = 0;
 
@@ -466,7 +466,7 @@ shutdown_asq_out:
  *
  *  The main shutdown routine for the Admin Receive Queue
  **/
-static iavf_status i40e_shutdown_arq(struct i40e_hw *hw)
+static iavf_status i40e_shutdown_arq(struct iavf_hw *hw)
 {
 	iavf_status ret_code = 0;
 
@@ -505,7 +505,7 @@ shutdown_arq_out:
  *     - hw->aq.arq_buf_size
  *     - hw->aq.asq_buf_size
  **/
-iavf_status iavf_init_adminq(struct i40e_hw *hw)
+iavf_status iavf_init_adminq(struct iavf_hw *hw)
 {
 	iavf_status ret_code;
 
@@ -549,7 +549,7 @@ init_adminq_exit:
  *  iavf_shutdown_adminq - shutdown routine for the Admin Queue
  *  @hw: pointer to the hardware structure
  **/
-iavf_status iavf_shutdown_adminq(struct i40e_hw *hw)
+iavf_status iavf_shutdown_adminq(struct iavf_hw *hw)
 {
 	iavf_status ret_code = 0;
 
@@ -568,7 +568,7 @@ iavf_status iavf_shutdown_adminq(struct i40e_hw *hw)
  *
  *  returns the number of free desc
  **/
-static u16 i40e_clean_asq(struct i40e_hw *hw)
+static u16 i40e_clean_asq(struct iavf_hw *hw)
 {
 	struct i40e_adminq_ring *asq = &hw->aq.asq;
 	struct i40e_asq_cmd_details *details;
@@ -610,7 +610,7 @@ static u16 i40e_clean_asq(struct i40e_hw *hw)
  *  Returns true if the firmware has processed all descriptors on the
  *  admin send queue. Returns false if there are still requests pending.
  **/
-bool iavf_asq_done(struct i40e_hw *hw)
+bool iavf_asq_done(struct iavf_hw *hw)
 {
 	/* AQ designers suggest use of head for better
 	 * timing reliability than DD bit
@@ -629,8 +629,7 @@ bool iavf_asq_done(struct i40e_hw *hw)
  *  This is the main send command driver routine for the Admin Queue send
  *  queue.  It runs the queue, cleans the queue, etc
  **/
-iavf_status iavf_asq_send_command(struct i40e_hw *hw,
-				  struct i40e_aq_desc *desc,
+iavf_status iavf_asq_send_command(struct iavf_hw *hw, struct i40e_aq_desc *desc,
 				  void *buff, /* can be NULL */
 				  u16  buff_size,
 				  struct i40e_asq_cmd_details *cmd_details)
@@ -842,7 +841,7 @@ void iavf_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc, u16 opcode)
  *  the contents through e.  It can also return how many events are
  *  left to process through 'pending'
  **/
-iavf_status iavf_clean_arq_element(struct i40e_hw *hw,
+iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
 				   struct i40e_arq_event_info *e,
 				   u16 *pending)
 {

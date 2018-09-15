@@ -13,7 +13,7 @@
  * This function sets the mac type of the adapter based on the
  * vendor ID and device ID stored in the hw structure.
  **/
-iavf_status i40e_set_mac_type(struct i40e_hw *hw)
+iavf_status i40e_set_mac_type(struct iavf_hw *hw)
 {
 	iavf_status status = 0;
 
@@ -44,7 +44,7 @@ iavf_status i40e_set_mac_type(struct i40e_hw *hw)
  * @hw: pointer to the HW structure
  * @aq_err: the AQ error code to convert
  **/
-const char *iavf_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
+const char *iavf_aq_str(struct iavf_hw *hw, enum i40e_admin_queue_err aq_err)
 {
 	switch (aq_err) {
 	case I40E_AQ_RC_OK:
@@ -104,7 +104,7 @@ const char *iavf_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
  * @hw: pointer to the HW structure
  * @stat_err: the status error code to convert
  **/
-const char *iavf_stat_str(struct i40e_hw *hw, iavf_status stat_err)
+const char *iavf_stat_str(struct iavf_hw *hw, iavf_status stat_err)
 {
 	switch (stat_err) {
 	case 0:
@@ -257,7 +257,7 @@ const char *iavf_stat_str(struct i40e_hw *hw, iavf_status stat_err)
  *
  * Dumps debug log about adminq command with descriptor contents.
  **/
-void iavf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
+void iavf_debug_aq(struct iavf_hw *hw, enum i40e_debug_mask mask, void *desc,
 		   void *buffer, u16 buf_len)
 {
 	struct i40e_aq_desc *aq_desc = (struct i40e_aq_desc *)desc;
@@ -310,7 +310,7 @@ void iavf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
  *
  * Returns true if Queue is enabled else false.
  **/
-bool iavf_check_asq_alive(struct i40e_hw *hw)
+bool iavf_check_asq_alive(struct iavf_hw *hw)
 {
 	if (hw->aq.asq.len)
 		return !!(rd32(hw, hw->aq.asq.len) &
@@ -327,7 +327,7 @@ bool iavf_check_asq_alive(struct i40e_hw *hw)
  * Tell the Firmware that we're shutting down the AdminQ and whether
  * or not the driver is unloading as well.
  **/
-iavf_status iavf_aq_queue_shutdown(struct i40e_hw *hw, bool unloading)
+iavf_status iavf_aq_queue_shutdown(struct iavf_hw *hw, bool unloading)
 {
 	struct i40e_aq_desc desc;
 	struct i40e_aqc_queue_shutdown *cmd =
@@ -354,7 +354,7 @@ iavf_status iavf_aq_queue_shutdown(struct i40e_hw *hw, bool unloading)
  *
  * Internal function to get or set RSS look up table
  **/
-static iavf_status i40e_aq_get_set_rss_lut(struct i40e_hw *hw,
+static iavf_status i40e_aq_get_set_rss_lut(struct iavf_hw *hw,
 					   u16 vsi_id, bool pf_lut,
 					   u8 *lut, u16 lut_size,
 					   bool set)
@@ -407,7 +407,7 @@ static iavf_status i40e_aq_get_set_rss_lut(struct i40e_hw *hw,
  *
  * get the RSS lookup table, PF or VSI type
  **/
-iavf_status iavf_aq_get_rss_lut(struct i40e_hw *hw, u16 vsi_id,
+iavf_status iavf_aq_get_rss_lut(struct iavf_hw *hw, u16 vsi_id,
 				bool pf_lut, u8 *lut, u16 lut_size)
 {
 	return i40e_aq_get_set_rss_lut(hw, vsi_id, pf_lut, lut, lut_size,
@@ -424,7 +424,7 @@ iavf_status iavf_aq_get_rss_lut(struct i40e_hw *hw, u16 vsi_id,
  *
  * set the RSS lookup table, PF or VSI type
  **/
-iavf_status iavf_aq_set_rss_lut(struct i40e_hw *hw, u16 vsi_id,
+iavf_status iavf_aq_set_rss_lut(struct iavf_hw *hw, u16 vsi_id,
 				bool pf_lut, u8 *lut, u16 lut_size)
 {
 	return i40e_aq_get_set_rss_lut(hw, vsi_id, pf_lut, lut, lut_size, true);
@@ -440,7 +440,7 @@ iavf_status iavf_aq_set_rss_lut(struct i40e_hw *hw, u16 vsi_id,
  * get the RSS key per VSI
  **/
 static
-iavf_status i40e_aq_get_set_rss_key(struct i40e_hw *hw, u16 vsi_id,
+iavf_status i40e_aq_get_set_rss_key(struct iavf_hw *hw, u16 vsi_id,
 				    struct i40e_aqc_get_set_rss_key_data *key,
 				    bool set)
 {
@@ -479,7 +479,7 @@ iavf_status i40e_aq_get_set_rss_key(struct i40e_hw *hw, u16 vsi_id,
  * @key: pointer to key info struct
  *
  **/
-iavf_status iavf_aq_get_rss_key(struct i40e_hw *hw, u16 vsi_id,
+iavf_status iavf_aq_get_rss_key(struct iavf_hw *hw, u16 vsi_id,
 				struct i40e_aqc_get_set_rss_key_data *key)
 {
 	return i40e_aq_get_set_rss_key(hw, vsi_id, key, false);
@@ -493,7 +493,7 @@ iavf_status iavf_aq_get_rss_key(struct i40e_hw *hw, u16 vsi_id,
  *
  * set the RSS key per VSI
  **/
-iavf_status iavf_aq_set_rss_key(struct i40e_hw *hw, u16 vsi_id,
+iavf_status iavf_aq_set_rss_key(struct iavf_hw *hw, u16 vsi_id,
 				struct i40e_aqc_get_set_rss_key_data *key)
 {
 	return i40e_aq_get_set_rss_key(hw, vsi_id, key, true);
@@ -877,7 +877,7 @@ struct i40e_rx_ptype_decoded iavf_ptype_lookup[] = {
  * is sent asynchronously, i.e. iavf_asq_send_command() does not wait for
  * completion before returning.
  **/
-iavf_status iavf_aq_send_msg_to_pf(struct i40e_hw *hw,
+iavf_status iavf_aq_send_msg_to_pf(struct iavf_hw *hw,
 				   enum virtchnl_ops v_opcode,
 				   iavf_status v_retval, u8 *msg, u16 msglen,
 				   struct i40e_asq_cmd_details *cmd_details)
@@ -914,7 +914,7 @@ iavf_status iavf_aq_send_msg_to_pf(struct i40e_hw *hw,
  * Given a VF resource message from the PF, populate the hw struct
  * with appropriate information.
  **/
-void iavf_vf_parse_hw_config(struct i40e_hw *hw,
+void iavf_vf_parse_hw_config(struct iavf_hw *hw,
 			     struct virtchnl_vf_resource *msg)
 {
 	struct virtchnl_vsi_resource *vsi_res;
@@ -948,7 +948,7 @@ void iavf_vf_parse_hw_config(struct i40e_hw *hw,
  * as none will be forthcoming. Immediately after calling this function,
  * the admin queue should be shut down and (optionally) reinitialized.
  **/
-iavf_status iavf_vf_reset(struct i40e_hw *hw)
+iavf_status iavf_vf_reset(struct iavf_hw *hw)
 {
 	return iavf_aq_send_msg_to_pf(hw, VIRTCHNL_OP_RESET_VF,
 				      0, NULL, 0, NULL);

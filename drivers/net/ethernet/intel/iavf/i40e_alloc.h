@@ -4,7 +4,7 @@
 #ifndef _I40E_ALLOC_H_
 #define _I40E_ALLOC_H_
 
-struct i40e_hw;
+struct iavf_hw;
 
 /* Memory allocation types */
 enum i40e_memory_type {
@@ -20,12 +20,12 @@ enum i40e_memory_type {
 };
 
 /* prototype for functions used for dynamic memory allocation */
-iavf_status i40e_allocate_dma_mem(struct i40e_hw *hw, struct i40e_dma_mem *mem,
+iavf_status i40e_allocate_dma_mem(struct iavf_hw *hw, struct i40e_dma_mem *mem,
 				  enum i40e_memory_type type,
 				  u64 size, u32 alignment);
-iavf_status i40e_free_dma_mem(struct i40e_hw *hw, struct i40e_dma_mem *mem);
-iavf_status i40e_allocate_virt_mem(struct i40e_hw *hw,
+iavf_status i40e_free_dma_mem(struct iavf_hw *hw, struct i40e_dma_mem *mem);
+iavf_status i40e_allocate_virt_mem(struct iavf_hw *hw,
 				   struct i40e_virt_mem *mem, u32 size);
-iavf_status i40e_free_virt_mem(struct i40e_hw *hw, struct i40e_virt_mem *mem);
+iavf_status i40e_free_virt_mem(struct iavf_hw *hw, struct i40e_virt_mem *mem);
 
 #endif /* _I40E_ALLOC_H_ */

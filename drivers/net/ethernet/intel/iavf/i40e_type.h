@@ -20,8 +20,8 @@
 #define I40E_MAX_CHAINED_RX_BUFFERS	5
 
 /* forward declaration */
-struct i40e_hw;
-typedef void (*I40E_ADMINQ_CALLBACK)(struct i40e_hw *, struct i40e_aq_desc *);
+struct iavf_hw;
+typedef void (*I40E_ADMINQ_CALLBACK)(struct iavf_hw *, struct i40e_aq_desc *);
 
 /* Data type manipulation macros. */
 
@@ -99,7 +99,7 @@ enum i40e_queue_type {
 
 #define I40E_HW_CAP_MAX_GPIO		30
 /* Capabilities of a PF or a VF or the whole device */
-struct i40e_hw_capabilities {
+struct iavf_hw_capabilities {
 	bool dcb;
 	bool fcoe;
 	u32 num_vsis;
@@ -167,7 +167,7 @@ struct i40e_bus_info {
 #define I40E_MAX_TRAFFIC_CLASS		8
 #define I40E_MAX_USER_PRIORITY		8
 /* Port hardware description */
-struct i40e_hw {
+struct iavf_hw {
 	u8 __iomem *hw_addr;
 	void *back;
 
@@ -183,7 +183,7 @@ struct i40e_hw {
 	u8 revision_id;
 
 	/* capabilities for entire device and PCI func */
-	struct i40e_hw_capabilities dev_caps;
+	struct iavf_hw_capabilities dev_caps;
 
 	/* Admin Queue info */
 	struct i40e_adminq_info aq;

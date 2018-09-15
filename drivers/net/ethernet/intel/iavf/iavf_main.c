@@ -66,7 +66,7 @@ static struct workqueue_struct *iavf_wq;
  * @size: size of memory requested
  * @alignment: what to align the allocation to
  **/
-iavf_status iavf_allocate_dma_mem_d(struct i40e_hw *hw,
+iavf_status iavf_allocate_dma_mem_d(struct iavf_hw *hw,
 				    struct i40e_dma_mem *mem,
 				    u64 size, u32 alignment)
 {
@@ -89,7 +89,7 @@ iavf_status iavf_allocate_dma_mem_d(struct i40e_hw *hw,
  * @hw:   pointer to the HW structure
  * @mem:  ptr to mem struct to free
  **/
-iavf_status iavf_free_dma_mem_d(struct i40e_hw *hw, struct i40e_dma_mem *mem)
+iavf_status iavf_free_dma_mem_d(struct iavf_hw *hw, struct i40e_dma_mem *mem)
 {
 	struct iavf_adapter *adapter = (struct iavf_adapter *)hw->back;
 
@@ -106,7 +106,7 @@ iavf_status iavf_free_dma_mem_d(struct i40e_hw *hw, struct i40e_dma_mem *mem)
  * @mem:  ptr to mem struct to fill out
  * @size: size of memory requested
  **/
-iavf_status iavf_allocate_virt_mem_d(struct i40e_hw *hw,
+iavf_status iavf_allocate_virt_mem_d(struct iavf_hw *hw,
 				     struct i40e_virt_mem *mem, u32 size)
 {
 	if (!mem)
@@ -126,7 +126,7 @@ iavf_status iavf_allocate_virt_mem_d(struct i40e_hw *hw,
  * @hw:   pointer to the HW structure
  * @mem:  ptr to mem struct to free
  **/
-iavf_status iavf_free_virt_mem_d(struct i40e_hw *hw,
+iavf_status iavf_free_virt_mem_d(struct iavf_hw *hw,
 				 struct i40e_virt_mem *mem)
 {
 	if (!mem)
@@ -149,7 +149,7 @@ void iavf_debug_d(void *hw, u32 mask, char *fmt_str, ...)
 	char buf[512];
 	va_list argptr;
 
-	if (!(mask & ((struct i40e_hw *)hw)->debug_mask))
+	if (!(mask & ((struct iavf_hw *)hw)->debug_mask))
 		return;
 
 	va_start(argptr, fmt_str);
@@ -191,7 +191,7 @@ static void iavf_tx_timeout(struct net_device *netdev)
  **/
 static void iavf_misc_irq_disable(struct iavf_adapter *adapter)
 {
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 
 	if (!adapter->msix_entries)
 		return;
@@ -209,7 +209,7 @@ static void iavf_misc_irq_disable(struct iavf_adapter *adapter)
  **/
 static void iavf_misc_irq_enable(struct iavf_adapter *adapter)
 {
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 
 	wr32(hw, IAVF_VFINT_DYN_CTL01, IAVF_VFINT_DYN_CTL01_INTENA_MASK |
 				       IAVF_VFINT_DYN_CTL01_ITR_INDX_MASK);
@@ -225,7 +225,7 @@ static void iavf_misc_irq_enable(struct iavf_adapter *adapter)
 static void iavf_irq_disable(struct iavf_adapter *adapter)
 {
 	int i;
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 
 	if (!adapter->msix_entries)
 		return;
@@ -244,7 +244,7 @@ static void iavf_irq_disable(struct iavf_adapter *adapter)
  **/
 void iavf_irq_enable_queues(struct iavf_adapter *adapter, u32 mask)
 {
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	int i;
 
 	for (i = 1; i < adapter->num_msix_vectors; i++) {
@@ -263,7 +263,7 @@ void iavf_irq_enable_queues(struct iavf_adapter *adapter, u32 mask)
  **/
 void iavf_irq_enable(struct iavf_adapter *adapter, bool flush)
 {
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 
 	iavf_misc_irq_enable(adapter);
 	iavf_irq_enable_queues(adapter, ~0);
@@ -281,7 +281,7 @@ static irqreturn_t iavf_msix_aq(int irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct iavf_adapter *adapter = netdev_priv(netdev);
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 
 	/* handle non-queue interrupts, these reads clear the registers */
 	rd32(hw, IAVF_VFINT_ICR01);
@@ -321,7 +321,7 @@ iavf_map_vector_to_rxq(struct iavf_adapter *adapter, int v_idx, int r_idx)
 {
 	struct i40e_q_vector *q_vector = &adapter->q_vectors[v_idx];
 	struct i40e_ring *rx_ring = &adapter->rx_rings[r_idx];
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 
 	rx_ring->q_vector = q_vector;
 	rx_ring->next = q_vector->rx.ring;
@@ -347,7 +347,7 @@ iavf_map_vector_to_txq(struct iavf_adapter *adapter, int v_idx, int t_idx)
 {
 	struct i40e_q_vector *q_vector = &adapter->q_vectors[v_idx];
 	struct i40e_ring *tx_ring = &adapter->tx_rings[t_idx];
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 
 	tx_ring->q_vector = q_vector;
 	tx_ring->next = q_vector->tx.ring;
@@ -594,7 +594,7 @@ static void iavf_free_misc_irq(struct iavf_adapter *adapter)
  **/
 static void iavf_configure_tx(struct iavf_adapter *adapter)
 {
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	int i;
 
 	for (i = 0; i < adapter->num_active_queues; i++)
@@ -610,7 +610,7 @@ static void iavf_configure_tx(struct iavf_adapter *adapter)
 static void iavf_configure_rx(struct iavf_adapter *adapter)
 {
 	unsigned int rx_buf_len = I40E_RXBUFFER_2048;
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	int i;
 
 	/* Legacy Rx will always default to a 2048 buffer size. */
@@ -822,7 +822,7 @@ iavf_mac_filter *iavf_add_filter(struct iavf_adapter *adapter,
 static int iavf_set_mac(struct net_device *netdev, void *p)
 {
 	struct iavf_adapter *adapter = netdev_priv(netdev);
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	struct iavf_mac_filter *f;
 	struct sockaddr *addr = p;
 
@@ -1253,7 +1253,7 @@ static int iavf_config_rss_aq(struct iavf_adapter *adapter)
 {
 	struct i40e_aqc_get_set_rss_key_data *rss_key =
 		(struct i40e_aqc_get_set_rss_key_data *)adapter->rss_key;
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	int ret = 0;
 
 	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
@@ -1292,7 +1292,7 @@ static int iavf_config_rss_aq(struct iavf_adapter *adapter)
  **/
 static int iavf_config_rss_reg(struct iavf_adapter *adapter)
 {
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	u32 *dw;
 	u16 i;
 
@@ -1349,7 +1349,7 @@ static void iavf_fill_rss_lut(struct iavf_adapter *adapter)
  **/
 static int iavf_init_rss(struct iavf_adapter *adapter)
 {
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	int ret;
 
 	if (!RSS_PF(adapter)) {
@@ -1577,7 +1577,7 @@ static void iavf_watchdog_task(struct work_struct *work)
 	struct iavf_adapter *adapter = container_of(work,
 						      struct iavf_adapter,
 						      watchdog_task);
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	u32 reg_val;
 
 	if (test_and_set_bit(__IAVF_IN_CRITICAL_TASK, &adapter->crit_section))
@@ -1848,7 +1848,7 @@ static void iavf_reset_task(struct work_struct *work)
 						      reset_task);
 	struct virtchnl_vf_resource *vfres = adapter->vf_res;
 	struct net_device *netdev = adapter->netdev;
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	struct iavf_vlan_filter *vlf;
 	struct iavf_cloud_filter *cf;
 	struct iavf_mac_filter *f;
@@ -2043,7 +2043,7 @@ static void iavf_adminq_task(struct work_struct *work)
 {
 	struct iavf_adapter *adapter =
 		container_of(work, struct iavf_adapter, adminq_task);
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	struct i40e_arq_event_info event;
 	enum virtchnl_ops v_op;
 	iavf_status ret, v_ret;
@@ -3240,7 +3240,7 @@ static const struct net_device_ops iavf_netdev_ops = {
  *
  * Returns 0 if device is ready to use, or -EBUSY if it's in reset.
  **/
-static int iavf_check_reset_complete(struct i40e_hw *hw)
+static int iavf_check_reset_complete(struct iavf_hw *hw)
 {
 	u32 rstat;
 	int i;
@@ -3413,7 +3413,7 @@ static void iavf_init_task(struct work_struct *work)
 						      struct iavf_adapter,
 						      init_task.work);
 	struct net_device *netdev = adapter->netdev;
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
 	int err, bufsz;
 
@@ -3663,7 +3663,7 @@ static int iavf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
 	struct iavf_adapter *adapter = NULL;
-	struct i40e_hw *hw = NULL;
+	struct iavf_hw *hw = NULL;
 	int err;
 
 	err = pci_enable_device(pdev);
@@ -3869,7 +3869,7 @@ static void iavf_remove(struct pci_dev *pdev)
 	struct iavf_vlan_filter *vlf, *vlftmp;
 	struct iavf_mac_filter *f, *ftmp;
 	struct iavf_cloud_filter *cf, *cftmp;
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	int err;
 	/* Indicate we are in remove and not to run reset_task */
 	set_bit(__IAVF_IN_REMOVE_TASK, &adapter->crit_section);

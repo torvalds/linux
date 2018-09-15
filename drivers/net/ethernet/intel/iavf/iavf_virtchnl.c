@@ -21,7 +21,7 @@
 static int iavf_send_pf_msg(struct iavf_adapter *adapter,
 			    enum virtchnl_ops op, u8 *msg, u16 len)
 {
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	iavf_status err;
 
 	if (adapter->flags & IAVF_FLAG_PF_COMMS_FAILED)
@@ -66,7 +66,7 @@ int iavf_send_api_ver(struct iavf_adapter *adapter)
 int iavf_verify_api_ver(struct iavf_adapter *adapter)
 {
 	struct virtchnl_version_info *pf_vvi;
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	struct i40e_arq_event_info event;
 	enum virtchnl_ops op;
 	iavf_status err;
@@ -188,7 +188,7 @@ static void iavf_validate_num_queues(struct iavf_adapter *adapter)
  **/
 int iavf_get_vf_config(struct iavf_adapter *adapter)
 {
-	struct i40e_hw *hw = &adapter->hw;
+	struct iavf_hw *hw = &adapter->hw;
 	struct i40e_arq_event_info event;
 	enum virtchnl_ops op;
 	iavf_status err;

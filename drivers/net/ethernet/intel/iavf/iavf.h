@@ -307,7 +307,7 @@ struct iavf_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 
-	struct i40e_hw hw; /* defined in i40e_type.h */
+	struct iavf_hw hw; /* defined in i40e_type.h */
 
 	enum iavf_state_t state;
 	unsigned long crit_section;
