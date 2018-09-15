@@ -5,7 +5,7 @@
 #include <net/busy_poll.h>
 
 #include "iavf.h"
-#include "i40e_trace.h"
+#include "iavf_trace.h"
 #include "i40e_prototype.h"
 
 static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
@@ -211,7 +211,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 		/* prevent any other reads prior to eop_desc */
 		smp_rmb();
 
-		i40e_trace(clean_tx_irq, tx_ring, tx_desc, tx_buf);
+		iavf_trace(clean_tx_irq, tx_ring, tx_desc, tx_buf);
 		/* if the descriptor isn't done, no work yet to do */
 		if (!(eop_desc->cmd_type_offset_bsz &
 		      cpu_to_le64(IAVF_TX_DESC_DTYPE_DESC_DONE)))
@@ -239,7 +239,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 
 		/* unmap remaining buffers */
 		while (tx_desc != eop_desc) {
-			i40e_trace(clean_tx_irq_unmap,
+			iavf_trace(clean_tx_irq_unmap,
 				   tx_ring, tx_desc, tx_buf);
 
 			tx_buf++;
@@ -1503,7 +1503,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		if (!size)
 			break;
 
-		i40e_trace(clean_rx_irq, rx_ring, rx_desc, skb);
+		iavf_trace(clean_rx_irq, rx_ring, rx_desc, skb);
 		rx_buffer = i40e_get_rx_buffer(rx_ring, size);
 
 		/* retrieve a buffer from the ring */
@@ -1557,7 +1557,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		vlan_tag = (qword & BIT(IAVF_RX_DESC_STATUS_L2TAG1P_SHIFT)) ?
 			   le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1) : 0;
 
-		i40e_trace(clean_rx_irq_rx, rx_ring, rx_desc, skb);
+		iavf_trace(clean_rx_irq_rx, rx_ring, rx_desc, skb);
 		i40e_receive_skb(rx_ring, skb, vlan_tag);
 		skb = NULL;
 
@@ -2407,7 +2407,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	/* prefetch the data, we'll need it later */
 	prefetch(skb->data);
 
-	i40e_trace(xmit_frame_ring, skb, tx_ring);
+	iavf_trace(xmit_frame_ring, skb, tx_ring);
 
 	count = i40e_xmit_descriptor_count(skb);
 	if (i40e_chk_linearize(skb, count)) {
@@ -2476,7 +2476,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 out_drop:
-	i40e_trace(xmit_frame_ring_drop, first->skb, tx_ring);
+	iavf_trace(xmit_frame_ring_drop, first->skb, tx_ring);
 	dev_kfree_skb_any(first->skb);
 	first->skb = NULL;
 	return NETDEV_TX_OK;

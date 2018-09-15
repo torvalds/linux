@@ -5,7 +5,7 @@
 
 /* The trace subsystem name for iavf will be "iavf".
  *
- * This file is named i40e_trace.h.
+ * This file is named iavf_trace.h.
  *
  * Since this include file's name is different from the trace
  * subsystem name, we'll have to define TRACE_INCLUDE_FILE at the end
@@ -23,14 +23,14 @@
 #include <linux/tracepoint.h>
 
 /**
- * i40e_trace() macro enables shared code to refer to trace points
+ * iavf_trace() macro enables shared code to refer to trace points
  * like:
  *
- * trace_i40e{,vf}_example(args...)
+ * trace_iavf{,vf}_example(args...)
  *
  * ... as:
  *
- * i40e_trace(example, args...)
+ * iavf_trace(example, args...)
  *
  * ... to resolve to the PF or VF version of the tracepoint without
  * ifdefs, and to allow tracepoints to be disabled entirely at build
@@ -39,18 +39,18 @@
  * Trace point should always be referred to in the driver via this
  * macro.
  *
- * Similarly, i40e_trace_enabled(trace_name) wraps references to
- * trace_i40e{,vf}_<trace_name>_enabled() functions.
+ * Similarly, iavf_trace_enabled(trace_name) wraps references to
+ * trace_iavf{,vf}_<trace_name>_enabled() functions.
  */
-#define _I40E_TRACE_NAME(trace_name) (trace_ ## iavf ## _ ## trace_name)
-#define I40E_TRACE_NAME(trace_name) _I40E_TRACE_NAME(trace_name)
+#define _IAVF_TRACE_NAME(trace_name) (trace_ ## iavf ## _ ## trace_name)
+#define IAVF_TRACE_NAME(trace_name) _IAVF_TRACE_NAME(trace_name)
 
-#define i40e_trace(trace_name, args...) I40E_TRACE_NAME(trace_name)(args)
+#define iavf_trace(trace_name, args...) IAVF_TRACE_NAME(trace_name)(args)
 
-#define i40e_trace_enabled(trace_name) I40E_TRACE_NAME(trace_name##_enabled)()
+#define iavf_trace_enabled(trace_name) IAVF_TRACE_NAME(trace_name##_enabled)()
 
 /* Events common to PF and VF. Corresponding versions will be defined
- * for both, named trace_i40e_* and trace_iavf_*. The i40e_trace()
+ * for both, named trace_iavf_* and trace_iavf_*. The iavf_trace()
  * macro above will select the right trace point name for the driver
  * being built from shared code.
  */
@@ -195,8 +195,8 @@ DEFINE_EVENT(
 
 /* Events unique to the VF. */
 
-#endif /* _I40E_TRACE_H_ */
-/* This must be outside ifdef _I40E_TRACE_H */
+#endif /* _IAVF_TRACE_H_ */
+/* This must be outside ifdef _IAVF_TRACE_H */
 
 /* This trace include file is not located in the .../include/trace
  * with the kernel tracepoint definitions, because we're a loadable
@@ -205,5 +205,5 @@ DEFINE_EVENT(
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_FILE i40e_trace
+#define TRACE_INCLUDE_FILE iavf_trace
 #include <trace/define_trace.h>

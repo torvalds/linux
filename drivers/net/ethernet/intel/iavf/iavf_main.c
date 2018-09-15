@@ -9,7 +9,7 @@
  * CREATE_TRACE_POINTS defined
  */
 #define CREATE_TRACE_POINTS
-#include "i40e_trace.h"
+#include "iavf_trace.h"
 
 static int iavf_setup_all_tx_resources(struct iavf_adapter *adapter);
 static int iavf_setup_all_rx_resources(struct iavf_adapter *adapter);
