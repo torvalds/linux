@@ -809,7 +809,7 @@ static int rdt_bit_usage_show(struct kernfs_open_file *of,
 		sw_shareable = 0;
 		exclusive = 0;
 		seq_printf(seq, "%d=", dom->id);
-		for (i = 0; i < r->num_closid; i++, ctrl++) {
+		for (i = 0; i < closids_supported(); i++, ctrl++) {
 			if (!closid_allocated(i))
 				continue;
 			mode = rdtgroup_mode_by_closid(i);
