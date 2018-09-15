@@ -97,6 +97,12 @@ void rdt_last_cmd_printf(const char *fmt, ...)
  *   limited as the number of resources grows.
  */
 static int closid_free_map;
+static int closid_free_map_len;
+
+int closids_supported(void)
+{
+	return closid_free_map_len;
+}
 
 static void closid_init(void)
 {
@@ -111,6 +117,7 @@ static void closid_init(void)
 
 	/* CLOSID 0 is always reserved for the default group */
 	closid_free_map &= ~1;
+	closid_free_map_len = rdt_min_closid;
 }
 
 static int closid_alloc(void)
