@@ -11,14 +11,14 @@
 static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
 				u32 td_tag)
 {
-	return cpu_to_le64(I40E_TX_DESC_DTYPE_DATA |
+	return cpu_to_le64(IAVF_TX_DESC_DTYPE_DATA |
 			   ((u64)td_cmd  << I40E_TXD_QW1_CMD_SHIFT) |
 			   ((u64)td_offset << I40E_TXD_QW1_OFFSET_SHIFT) |
 			   ((u64)size  << I40E_TXD_QW1_TX_BUF_SZ_SHIFT) |
 			   ((u64)td_tag  << I40E_TXD_QW1_L2TAG1_SHIFT));
 }
 
-#define I40E_TXD_CMD (I40E_TX_DESC_CMD_EOP | I40E_TX_DESC_CMD_RS)
+#define I40E_TXD_CMD (IAVF_TX_DESC_CMD_EOP | IAVF_TX_DESC_CMD_RS)
 
 /**
  * i40e_unmap_and_free_tx_resource - Release a Tx buffer
@@ -198,7 +198,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 	unsigned int budget = vsi->work_limit;
 
 	tx_buf = &tx_ring->tx_bi[i];
-	tx_desc = I40E_TX_DESC(tx_ring, i);
+	tx_desc = IAVF_TX_DESC(tx_ring, i);
 	i -= tx_ring->count;
 
 	do {
@@ -214,7 +214,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 		i40e_trace(clean_tx_irq, tx_ring, tx_desc, tx_buf);
 		/* if the descriptor isn't done, no work yet to do */
 		if (!(eop_desc->cmd_type_offset_bsz &
-		      cpu_to_le64(I40E_TX_DESC_DTYPE_DESC_DONE)))
+		      cpu_to_le64(IAVF_TX_DESC_DTYPE_DESC_DONE)))
 			break;
 
 		/* clear next_to_watch to prevent false hangs */
@@ -248,7 +248,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 			if (unlikely(!i)) {
 				i -= tx_ring->count;
 				tx_buf = tx_ring->tx_bi;
-				tx_desc = I40E_TX_DESC(tx_ring, 0);
+				tx_desc = IAVF_TX_DESC(tx_ring, 0);
 			}
 
 			/* unmap any remaining paged data */
@@ -268,7 +268,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 		if (unlikely(!i)) {
 			i -= tx_ring->count;
 			tx_buf = tx_ring->tx_bi;
-			tx_desc = I40E_TX_DESC(tx_ring, 0);
+			tx_desc = IAVF_TX_DESC(tx_ring, 0);
 		}
 
 		prefetch(tx_desc);
@@ -342,11 +342,11 @@ static void i40e_enable_wb_on_itr(struct i40e_vsi *vsi,
 	if (q_vector->arm_wb_state)
 		return;
 
-	val = I40E_VFINT_DYN_CTLN1_WB_ON_ITR_MASK |
-	      I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK; /* set noitr */
+	val = IAVF_VFINT_DYN_CTLN1_WB_ON_ITR_MASK |
+	      IAVF_VFINT_DYN_CTLN1_ITR_INDX_MASK; /* set noitr */
 
 	wr32(&vsi->back->hw,
-	     I40E_VFINT_DYN_CTLN1(q_vector->reg_idx), val);
+	     IAVF_VFINT_DYN_CTLN1(q_vector->reg_idx), val);
 	q_vector->arm_wb_state = true;
 }
 
@@ -358,14 +358,14 @@ static void i40e_enable_wb_on_itr(struct i40e_vsi *vsi,
  **/
 void iavf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 {
-	u32 val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-		  I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK | /* set noitr */
-		  I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
-		  I40E_VFINT_DYN_CTLN1_SW_ITR_INDX_ENA_MASK
+	u32 val = IAVF_VFINT_DYN_CTLN1_INTENA_MASK |
+		  IAVF_VFINT_DYN_CTLN1_ITR_INDX_MASK | /* set noitr */
+		  IAVF_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
+		  IAVF_VFINT_DYN_CTLN1_SW_ITR_INDX_ENA_MASK
 		  /* allow 00 to be written to the index */;
 
 	wr32(&vsi->back->hw,
-	     I40E_VFINT_DYN_CTLN1(q_vector->reg_idx),
+	     IAVF_VFINT_DYN_CTLN1(q_vector->reg_idx),
 	     val);
 }
 
@@ -887,7 +887,7 @@ bool iavf_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 	if (!rx_ring->netdev || !cleaned_count)
 		return false;
 
-	rx_desc = I40E_RX_DESC(rx_ring, ntu);
+	rx_desc = IAVF_RX_DESC(rx_ring, ntu);
 	bi = &rx_ring->rx_bi[ntu];
 
 	do {
@@ -909,7 +909,7 @@ bool iavf_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 		bi++;
 		ntu++;
 		if (unlikely(ntu == rx_ring->count)) {
-			rx_desc = I40E_RX_DESC(rx_ring, 0);
+			rx_desc = IAVF_RX_DESC(rx_ring, 0);
 			bi = rx_ring->rx_bi;
 			ntu = 0;
 		}
@@ -968,7 +968,7 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 		return;
 
 	/* did the hardware decode the packet and checksum? */
-	if (!(rx_status & BIT(I40E_RX_DESC_STATUS_L3L4P_SHIFT)))
+	if (!(rx_status & BIT(IAVF_RX_DESC_STATUS_L3L4P_SHIFT)))
 		return;
 
 	/* both known and outer_ip must be set for the below code to work */
@@ -981,25 +981,25 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	       (decoded.outer_ip_ver == I40E_RX_PTYPE_OUTER_IPV6);
 
 	if (ipv4 &&
-	    (rx_error & (BIT(I40E_RX_DESC_ERROR_IPE_SHIFT) |
-			 BIT(I40E_RX_DESC_ERROR_EIPE_SHIFT))))
+	    (rx_error & (BIT(IAVF_RX_DESC_ERROR_IPE_SHIFT) |
+			 BIT(IAVF_RX_DESC_ERROR_EIPE_SHIFT))))
 		goto checksum_fail;
 
 	/* likely incorrect csum if alternate IP extension headers found */
 	if (ipv6 &&
-	    rx_status & BIT(I40E_RX_DESC_STATUS_IPV6EXADD_SHIFT))
+	    rx_status & BIT(IAVF_RX_DESC_STATUS_IPV6EXADD_SHIFT))
 		/* don't increment checksum err here, non-fatal err */
 		return;
 
 	/* there was some L4 error, count error and punt packet to the stack */
-	if (rx_error & BIT(I40E_RX_DESC_ERROR_L4E_SHIFT))
+	if (rx_error & BIT(IAVF_RX_DESC_ERROR_L4E_SHIFT))
 		goto checksum_fail;
 
 	/* handle packets that were not able to be checksummed due
 	 * to arrival speed, in this case the stack can compute
 	 * the csum.
 	 */
-	if (rx_error & BIT(I40E_RX_DESC_ERROR_PPRS_SHIFT))
+	if (rx_error & BIT(IAVF_RX_DESC_ERROR_PPRS_SHIFT))
 		return;
 
 	/* Only report checksum unnecessary for TCP, UDP, or SCTP */
@@ -1056,8 +1056,8 @@ static inline void i40e_rx_hash(struct i40e_ring *ring,
 {
 	u32 hash;
 	const __le64 rss_mask =
-		cpu_to_le64((u64)I40E_RX_DESC_FLTSTAT_RSS_HASH <<
-			    I40E_RX_DESC_STATUS_FLTSTAT_SHIFT);
+		cpu_to_le64((u64)IAVF_RX_DESC_FLTSTAT_RSS_HASH <<
+			    IAVF_RX_DESC_STATUS_FLTSTAT_SHIFT);
 
 	if (ring->netdev->features & NETIF_F_RXHASH)
 		return;
@@ -1437,10 +1437,10 @@ static bool i40e_is_non_eop(struct i40e_ring *rx_ring,
 	ntc = (ntc < rx_ring->count) ? ntc : 0;
 	rx_ring->next_to_clean = ntc;
 
-	prefetch(I40E_RX_DESC(rx_ring, ntc));
+	prefetch(IAVF_RX_DESC(rx_ring, ntc));
 
 	/* if we are the last buffer then there is nothing else to do */
-#define I40E_RXD_EOF BIT(I40E_RX_DESC_STATUS_EOF_SHIFT)
+#define I40E_RXD_EOF BIT(IAVF_RX_DESC_STATUS_EOF_SHIFT)
 	if (likely(i40e_test_staterr(rx_desc, I40E_RXD_EOF)))
 		return false;
 
@@ -1483,7 +1483,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 			cleaned_count = 0;
 		}
 
-		rx_desc = I40E_RX_DESC(rx_ring, rx_ring->next_to_clean);
+		rx_desc = IAVF_RX_DESC(rx_ring, rx_ring->next_to_clean);
 
 		/* status_error_len will always be zero for unused descriptors
 		 * because it's cleared in cleanup, and overlaps with hdr_addr
@@ -1529,7 +1529,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 
 		/* ERR_MASK will only have valid bits if EOP set, and
 		 * what we are doing here is actually checking
-		 * I40E_RX_DESC_ERROR_RXE_SHIFT, since it is the zeroth bit in
+		 * IAVF_RX_DESC_ERROR_RXE_SHIFT, since it is the zeroth bit in
 		 * the error field
 		 */
 		if (unlikely(i40e_test_staterr(rx_desc, BIT(I40E_RXD_QW1_ERROR_SHIFT)))) {
@@ -1554,7 +1554,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		iavf_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
 
 
-		vlan_tag = (qword & BIT(I40E_RX_DESC_STATUS_L2TAG1P_SHIFT)) ?
+		vlan_tag = (qword & BIT(IAVF_RX_DESC_STATUS_L2TAG1P_SHIFT)) ?
 			   le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1) : 0;
 
 		i40e_trace(clean_rx_irq_rx, rx_ring, rx_desc, skb);
@@ -1599,15 +1599,15 @@ static inline u32 i40e_buildreg_itr(const int type, u16 itr)
 	 */
 	itr &= I40E_ITR_MASK;
 
-	val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-	      (type << I40E_VFINT_DYN_CTLN1_ITR_INDX_SHIFT) |
-	      (itr << (I40E_VFINT_DYN_CTLN1_INTERVAL_SHIFT - 1));
+	val = IAVF_VFINT_DYN_CTLN1_INTENA_MASK |
+	      (type << IAVF_VFINT_DYN_CTLN1_ITR_INDX_SHIFT) |
+	      (itr << (IAVF_VFINT_DYN_CTLN1_INTERVAL_SHIFT - 1));
 
 	return val;
 }
 
 /* a small macro to shorten up some long lines */
-#define INTREG I40E_VFINT_DYN_CTLN1
+#define INTREG IAVF_VFINT_DYN_CTLN1
 
 /* The act of updating the ITR will cause it to immediately trigger. In order
  * to prevent this from throwing off adaptive update statistics we defer the
@@ -1968,7 +1968,7 @@ static int i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 	l4.hdr = skb_transport_header(skb);
 
 	/* compute outer L2 header size */
-	offset = ((ip.hdr - skb->data) / 2) << I40E_TX_DESC_LENGTH_MACLEN_SHIFT;
+	offset = ((ip.hdr - skb->data) / 2) << IAVF_TX_DESC_LENGTH_MACLEN_SHIFT;
 
 	if (skb->encapsulation) {
 		u32 tunnel = 0;
@@ -2051,10 +2051,10 @@ static int i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 		 * need the hardware to recompute it is in the case of TSO.
 		 */
 		cmd |= (*tx_flags & I40E_TX_FLAGS_TSO) ?
-		       I40E_TX_DESC_CMD_IIPT_IPV4_CSUM :
-		       I40E_TX_DESC_CMD_IIPT_IPV4;
+		       IAVF_TX_DESC_CMD_IIPT_IPV4_CSUM :
+		       IAVF_TX_DESC_CMD_IIPT_IPV4;
 	} else if (*tx_flags & I40E_TX_FLAGS_IPV6) {
-		cmd |= I40E_TX_DESC_CMD_IIPT_IPV6;
+		cmd |= IAVF_TX_DESC_CMD_IIPT_IPV6;
 
 		exthdr = ip.hdr + sizeof(*ip.v6);
 		l4_proto = ip.v6->nexthdr;
@@ -2064,26 +2064,26 @@ static int i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 	}
 
 	/* compute inner L3 header size */
-	offset |= ((l4.hdr - ip.hdr) / 4) << I40E_TX_DESC_LENGTH_IPLEN_SHIFT;
+	offset |= ((l4.hdr - ip.hdr) / 4) << IAVF_TX_DESC_LENGTH_IPLEN_SHIFT;
 
 	/* Enable L4 checksum offloads */
 	switch (l4_proto) {
 	case IPPROTO_TCP:
 		/* enable checksum offloads */
-		cmd |= I40E_TX_DESC_CMD_L4T_EOFT_TCP;
-		offset |= l4.tcp->doff << I40E_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
+		cmd |= IAVF_TX_DESC_CMD_L4T_EOFT_TCP;
+		offset |= l4.tcp->doff << IAVF_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
 		break;
 	case IPPROTO_SCTP:
 		/* enable SCTP checksum offload */
-		cmd |= I40E_TX_DESC_CMD_L4T_EOFT_SCTP;
+		cmd |= IAVF_TX_DESC_CMD_L4T_EOFT_SCTP;
 		offset |= (sizeof(struct sctphdr) >> 2) <<
-			  I40E_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
+			  IAVF_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
 		break;
 	case IPPROTO_UDP:
 		/* enable UDP checksum offload */
-		cmd |= I40E_TX_DESC_CMD_L4T_EOFT_UDP;
+		cmd |= IAVF_TX_DESC_CMD_L4T_EOFT_UDP;
 		offset |= (sizeof(struct udphdr) >> 2) <<
-			  I40E_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
+			  IAVF_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
 		break;
 	default:
 		if (*tx_flags & I40E_TX_FLAGS_TSO)
@@ -2112,12 +2112,12 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
 	struct i40e_tx_context_desc *context_desc;
 	int i = tx_ring->next_to_use;
 
-	if ((cd_type_cmd_tso_mss == I40E_TX_DESC_DTYPE_CONTEXT) &&
+	if ((cd_type_cmd_tso_mss == IAVF_TX_DESC_DTYPE_CONTEXT) &&
 	    !cd_tunneling && !cd_l2tag2)
 		return;
 
 	/* grab the next descriptor */
-	context_desc = I40E_TX_CTXTDESC(tx_ring, i);
+	context_desc = IAVF_TX_CTXTDESC(tx_ring, i);
 
 	i++;
 	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
@@ -2260,7 +2260,7 @@ static inline void iavf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	dma_addr_t dma;
 
 	if (tx_flags & I40E_TX_FLAGS_HW_VLAN) {
-		td_cmd |= I40E_TX_DESC_CMD_IL2TAG1;
+		td_cmd |= IAVF_TX_DESC_CMD_IL2TAG1;
 		td_tag = (tx_flags & I40E_TX_FLAGS_VLAN_MASK) >>
 			 I40E_TX_FLAGS_VLAN_SHIFT;
 	}
@@ -2269,7 +2269,7 @@ static inline void iavf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	dma = dma_map_single(tx_ring->dev, skb->data, size, DMA_TO_DEVICE);
 
-	tx_desc = I40E_TX_DESC(tx_ring, i);
+	tx_desc = IAVF_TX_DESC(tx_ring, i);
 	tx_bi = first;
 
 	for (frag = &skb_shinfo(skb)->frags[0];; frag++) {
@@ -2295,7 +2295,7 @@ static inline void iavf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 			i++;
 
 			if (i == tx_ring->count) {
-				tx_desc = I40E_TX_DESC(tx_ring, 0);
+				tx_desc = IAVF_TX_DESC(tx_ring, 0);
 				i = 0;
 			}
 
@@ -2316,7 +2316,7 @@ static inline void iavf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		i++;
 
 		if (i == tx_ring->count) {
-			tx_desc = I40E_TX_DESC(tx_ring, 0);
+			tx_desc = IAVF_TX_DESC(tx_ring, 0);
 			i = 0;
 		}
 
@@ -2394,7 +2394,7 @@ dma_error:
 static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 					struct i40e_ring *tx_ring)
 {
-	u64 cd_type_cmd_tso_mss = I40E_TX_DESC_DTYPE_CONTEXT;
+	u64 cd_type_cmd_tso_mss = IAVF_TX_DESC_DTYPE_CONTEXT;
 	u32 cd_tunneling = 0, cd_l2tag2 = 0;
 	struct i40e_tx_buffer *first;
 	u32 td_offset = 0;
@@ -2465,7 +2465,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	skb_tx_timestamp(skb);
 
 	/* always enable CRC insertion offload */
-	td_cmd |= I40E_TX_DESC_CMD_ICRC;
+	td_cmd |= IAVF_TX_DESC_CMD_ICRC;
 
 	i40e_create_tx_ctx(tx_ring, cd_type_cmd_tso_mss,
 			   cd_tunneling, cd_l2tag2);

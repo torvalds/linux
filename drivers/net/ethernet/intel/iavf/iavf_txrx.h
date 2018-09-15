@@ -186,7 +186,7 @@ static inline bool i40e_test_staterr(union i40e_rx_desc *rx_desc,
 		(i)++;				\
 		if ((i) == (r)->count)		\
 			i = 0;			\
-		(n) = I40E_RX_DESC((r), (i));	\
+		(n) = IAVF_RX_DESC((r), (i));	\
 	} while (0)
 
 #define I40E_RX_NEXT_DESC_PREFETCH(r, i, n)		\

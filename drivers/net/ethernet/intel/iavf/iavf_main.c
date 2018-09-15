@@ -196,10 +196,9 @@ static void iavf_misc_irq_disable(struct iavf_adapter *adapter)
 	if (!adapter->msix_entries)
 		return;
 
-	wr32(hw, I40E_VFINT_DYN_CTL01, 0);
+	wr32(hw, IAVF_VFINT_DYN_CTL01, 0);
 
-	/* read flush */
-	rd32(hw, I40E_VFGEN_RSTAT);
+	iavf_flush(hw);
 
 	synchronize_irq(adapter->msix_entries[0].vector);
 }
@@ -212,12 +211,11 @@ static void iavf_misc_irq_enable(struct iavf_adapter *adapter)
 {
 	struct i40e_hw *hw = &adapter->hw;
 
-	wr32(hw, I40E_VFINT_DYN_CTL01, I40E_VFINT_DYN_CTL01_INTENA_MASK |
-				       I40E_VFINT_DYN_CTL01_ITR_INDX_MASK);
-	wr32(hw, I40E_VFINT_ICR0_ENA1, I40E_VFINT_ICR0_ENA1_ADMINQ_MASK);
+	wr32(hw, IAVF_VFINT_DYN_CTL01, IAVF_VFINT_DYN_CTL01_INTENA_MASK |
+				       IAVF_VFINT_DYN_CTL01_ITR_INDX_MASK);
+	wr32(hw, IAVF_VFINT_ICR0_ENA1, IAVF_VFINT_ICR0_ENA1_ADMINQ_MASK);
 
-	/* read flush */
-	rd32(hw, I40E_VFGEN_RSTAT);
+	iavf_flush(hw);
 }
 
 /**
@@ -233,11 +231,10 @@ static void iavf_irq_disable(struct iavf_adapter *adapter)
 		return;
 
 	for (i = 1; i < adapter->num_msix_vectors; i++) {
-		wr32(hw, I40E_VFINT_DYN_CTLN1(i - 1), 0);
+		wr32(hw, IAVF_VFINT_DYN_CTLN1(i - 1), 0);
 		synchronize_irq(adapter->msix_entries[i].vector);
 	}
-	/* read flush */
-	rd32(hw, I40E_VFGEN_RSTAT);
+	iavf_flush(hw);
 }
 
 /**
@@ -252,9 +249,9 @@ void iavf_irq_enable_queues(struct iavf_adapter *adapter, u32 mask)
 
 	for (i = 1; i < adapter->num_msix_vectors; i++) {
 		if (mask & BIT(i - 1)) {
-			wr32(hw, I40E_VFINT_DYN_CTLN1(i - 1),
-			     I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-			     I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK);
+			wr32(hw, IAVF_VFINT_DYN_CTLN1(i - 1),
+			     IAVF_VFINT_DYN_CTLN1_INTENA_MASK |
+			     IAVF_VFINT_DYN_CTLN1_ITR_INDX_MASK);
 		}
 	}
 }
@@ -272,7 +269,7 @@ void iavf_irq_enable(struct iavf_adapter *adapter, bool flush)
 	iavf_irq_enable_queues(adapter, ~0);
 
 	if (flush)
-		rd32(hw, I40E_VFGEN_RSTAT);
+		iavf_flush(hw);
 }
 
 /**
@@ -287,8 +284,8 @@ static irqreturn_t iavf_msix_aq(int irq, void *data)
 	struct i40e_hw *hw = &adapter->hw;
 
 	/* handle non-queue interrupts, these reads clear the registers */
-	rd32(hw, I40E_VFINT_ICR01);
-	rd32(hw, I40E_VFINT_ICR0_ENA1);
+	rd32(hw, IAVF_VFINT_ICR01);
+	rd32(hw, IAVF_VFINT_ICR0_ENA1);
 
 	/* schedule work on the private workqueue */
 	schedule_work(&adapter->adminq_task);
@@ -334,7 +331,7 @@ iavf_map_vector_to_rxq(struct iavf_adapter *adapter, int v_idx, int r_idx)
 	q_vector->rx.next_update = jiffies + 1;
 	q_vector->rx.target_itr = ITR_TO_REG(rx_ring->itr_setting);
 	q_vector->ring_mask |= BIT(r_idx);
-	wr32(hw, I40E_VFINT_ITRN1(I40E_RX_ITR, q_vector->reg_idx),
+	wr32(hw, IAVF_VFINT_ITRN1(I40E_RX_ITR, q_vector->reg_idx),
 	     q_vector->rx.current_itr);
 	q_vector->rx.current_itr = q_vector->rx.target_itr;
 }
@@ -360,7 +357,7 @@ iavf_map_vector_to_txq(struct iavf_adapter *adapter, int v_idx, int t_idx)
 	q_vector->tx.next_update = jiffies + 1;
 	q_vector->tx.target_itr = ITR_TO_REG(tx_ring->itr_setting);
 	q_vector->num_ringpairs++;
-	wr32(hw, I40E_VFINT_ITRN1(I40E_TX_ITR, q_vector->reg_idx),
+	wr32(hw, IAVF_VFINT_ITRN1(I40E_TX_ITR, q_vector->reg_idx),
 	     q_vector->tx.target_itr);
 	q_vector->tx.current_itr = q_vector->tx.target_itr;
 }
@@ -601,7 +598,7 @@ static void iavf_configure_tx(struct iavf_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_active_queues; i++)
-		adapter->tx_rings[i].tail = hw->hw_addr + I40E_QTX_TAIL1(i);
+		adapter->tx_rings[i].tail = hw->hw_addr + IAVF_QTX_TAIL1(i);
 }
 
 /**
@@ -638,7 +635,7 @@ static void iavf_configure_rx(struct iavf_adapter *adapter)
 #endif
 
 	for (i = 0; i < adapter->num_active_queues; i++) {
-		adapter->rx_rings[i].tail = hw->hw_addr + I40E_QRX_TAIL1(i);
+		adapter->rx_rings[i].tail = hw->hw_addr + IAVF_QRX_TAIL1(i);
 		adapter->rx_rings[i].rx_buf_len = rx_buf_len;
 
 		if (adapter->flags & IAVF_FLAG_LEGACY_RX)
@@ -1301,13 +1298,13 @@ static int iavf_config_rss_reg(struct iavf_adapter *adapter)
 
 	dw = (u32 *)adapter->rss_key;
 	for (i = 0; i <= adapter->rss_key_size / 4; i++)
-		wr32(hw, I40E_VFQF_HKEY(i), dw[i]);
+		wr32(hw, IAVF_VFQF_HKEY(i), dw[i]);
 
 	dw = (u32 *)adapter->rss_lut;
 	for (i = 0; i <= adapter->rss_lut_size / 4; i++)
-		wr32(hw, I40E_VFQF_HLUT(i), dw[i]);
+		wr32(hw, IAVF_VFQF_HLUT(i), dw[i]);
 
-	i40e_flush(hw);
+	iavf_flush(hw);
 
 	return 0;
 }
@@ -1363,12 +1360,11 @@ static int iavf_init_rss(struct iavf_adapter *adapter)
 		else
 			adapter->hena = I40E_DEFAULT_RSS_HENA;
 
-		wr32(hw, I40E_VFQF_HENA(0), (u32)adapter->hena);
-		wr32(hw, I40E_VFQF_HENA(1), (u32)(adapter->hena >> 32));
+		wr32(hw, IAVF_VFQF_HENA(0), (u32)adapter->hena);
+		wr32(hw, IAVF_VFQF_HENA(1), (u32)(adapter->hena >> 32));
 	}
 
 	iavf_fill_rss_lut(adapter);
-
 	netdev_rss_key_fill((void *)adapter->rss_key, adapter->rss_key_size);
 	ret = iavf_config_rss(adapter);
 
@@ -1588,8 +1584,8 @@ static void iavf_watchdog_task(struct work_struct *work)
 		goto restart_watchdog;
 
 	if (adapter->flags & IAVF_FLAG_PF_COMMS_FAILED) {
-		reg_val = rd32(hw, I40E_VFGEN_RSTAT) &
-			  I40E_VFGEN_RSTAT_VFR_STATE_MASK;
+		reg_val = rd32(hw, IAVF_VFGEN_RSTAT) &
+			  IAVF_VFGEN_RSTAT_VFR_STATE_MASK;
 		if ((reg_val == VIRTCHNL_VFR_VFACTIVE) ||
 		    (reg_val == VIRTCHNL_VFR_COMPLETED)) {
 			/* A chance for redemption! */
@@ -1616,7 +1612,7 @@ static void iavf_watchdog_task(struct work_struct *work)
 		goto watchdog_done;
 
 	/* check for reset */
-	reg_val = rd32(hw, I40E_VF_ARQLEN1) & I40E_VF_ARQLEN1_ARQENABLE_MASK;
+	reg_val = rd32(hw, IAVF_VF_ARQLEN1) & IAVF_VF_ARQLEN1_ARQENABLE_MASK;
 	if (!(adapter->flags & IAVF_FLAG_RESET_PENDING) && !reg_val) {
 		adapter->state = __IAVF_RESETTING;
 		adapter->flags |= IAVF_FLAG_RESET_PENDING;
@@ -1891,8 +1887,8 @@ static void iavf_reset_task(struct work_struct *work)
 
 	/* poll until we see the reset actually happen */
 	for (i = 0; i < IAVF_RESET_WAIT_COUNT; i++) {
-		reg_val = rd32(hw, I40E_VF_ARQLEN1) &
-			  I40E_VF_ARQLEN1_ARQENABLE_MASK;
+		reg_val = rd32(hw, IAVF_VF_ARQLEN1) &
+			  IAVF_VF_ARQLEN1_ARQENABLE_MASK;
 		if (!reg_val)
 			break;
 		usleep_range(5000, 10000);
@@ -1907,8 +1903,8 @@ static void iavf_reset_task(struct work_struct *work)
 		/* sleep first to make sure a minimum wait time is met */
 		msleep(IAVF_RESET_WAIT_MS);
 
-		reg_val = rd32(hw, I40E_VFGEN_RSTAT) &
-			  I40E_VFGEN_RSTAT_VFR_STATE_MASK;
+		reg_val = rd32(hw, IAVF_VFGEN_RSTAT) &
+			  IAVF_VFGEN_RSTAT_VFR_STATE_MASK;
 		if (reg_val == VIRTCHNL_VFR_VFACTIVE)
 			break;
 	}
@@ -2086,34 +2082,34 @@ static void iavf_adminq_task(struct work_struct *work)
 	if (val == 0xdeadbeef) /* indicates device in reset */
 		goto freedom;
 	oldval = val;
-	if (val & I40E_VF_ARQLEN1_ARQVFE_MASK) {
+	if (val & IAVF_VF_ARQLEN1_ARQVFE_MASK) {
 		dev_info(&adapter->pdev->dev, "ARQ VF Error detected\n");
-		val &= ~I40E_VF_ARQLEN1_ARQVFE_MASK;
+		val &= ~IAVF_VF_ARQLEN1_ARQVFE_MASK;
 	}
-	if (val & I40E_VF_ARQLEN1_ARQOVFL_MASK) {
+	if (val & IAVF_VF_ARQLEN1_ARQOVFL_MASK) {
 		dev_info(&adapter->pdev->dev, "ARQ Overflow Error detected\n");
-		val &= ~I40E_VF_ARQLEN1_ARQOVFL_MASK;
+		val &= ~IAVF_VF_ARQLEN1_ARQOVFL_MASK;
 	}
-	if (val & I40E_VF_ARQLEN1_ARQCRIT_MASK) {
+	if (val & IAVF_VF_ARQLEN1_ARQCRIT_MASK) {
 		dev_info(&adapter->pdev->dev, "ARQ Critical Error detected\n");
-		val &= ~I40E_VF_ARQLEN1_ARQCRIT_MASK;
+		val &= ~IAVF_VF_ARQLEN1_ARQCRIT_MASK;
 	}
 	if (oldval != val)
 		wr32(hw, hw->aq.arq.len, val);
 
 	val = rd32(hw, hw->aq.asq.len);
 	oldval = val;
-	if (val & I40E_VF_ATQLEN1_ATQVFE_MASK) {
+	if (val & IAVF_VF_ATQLEN1_ATQVFE_MASK) {
 		dev_info(&adapter->pdev->dev, "ASQ VF Error detected\n");
-		val &= ~I40E_VF_ATQLEN1_ATQVFE_MASK;
+		val &= ~IAVF_VF_ATQLEN1_ATQVFE_MASK;
 	}
-	if (val & I40E_VF_ATQLEN1_ATQOVFL_MASK) {
+	if (val & IAVF_VF_ATQLEN1_ATQOVFL_MASK) {
 		dev_info(&adapter->pdev->dev, "ASQ Overflow Error detected\n");
-		val &= ~I40E_VF_ATQLEN1_ATQOVFL_MASK;
+		val &= ~IAVF_VF_ATQLEN1_ATQOVFL_MASK;
 	}
-	if (val & I40E_VF_ATQLEN1_ATQCRIT_MASK) {
+	if (val & IAVF_VF_ATQLEN1_ATQCRIT_MASK) {
 		dev_info(&adapter->pdev->dev, "ASQ Critical Error detected\n");
-		val &= ~I40E_VF_ATQLEN1_ATQCRIT_MASK;
+		val &= ~IAVF_VF_ATQLEN1_ATQCRIT_MASK;
 	}
 	if (oldval != val)
 		wr32(hw, hw->aq.asq.len, val);
@@ -3250,8 +3246,8 @@ static int iavf_check_reset_complete(struct i40e_hw *hw)
 	int i;
 
 	for (i = 0; i < 100; i++) {
-		rstat = rd32(hw, I40E_VFGEN_RSTAT) &
-			    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
+		rstat = rd32(hw, IAVF_VFGEN_RSTAT) &
+			     IAVF_VFGEN_RSTAT_VFR_STATE_MASK;
 		if ((rstat == VIRTCHNL_VFR_VFACTIVE) ||
 		    (rstat == VIRTCHNL_VFR_COMPLETED))
 			return 0;

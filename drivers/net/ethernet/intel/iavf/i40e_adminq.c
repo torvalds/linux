@@ -17,16 +17,16 @@ static void i40e_adminq_init_regs(struct i40e_hw *hw)
 {
 	/* set head and tail registers in our local struct */
 	if (i40e_is_vf(hw)) {
-		hw->aq.asq.tail = I40E_VF_ATQT1;
-		hw->aq.asq.head = I40E_VF_ATQH1;
-		hw->aq.asq.len  = I40E_VF_ATQLEN1;
-		hw->aq.asq.bal  = I40E_VF_ATQBAL1;
-		hw->aq.asq.bah  = I40E_VF_ATQBAH1;
-		hw->aq.arq.tail = I40E_VF_ARQT1;
-		hw->aq.arq.head = I40E_VF_ARQH1;
-		hw->aq.arq.len  = I40E_VF_ARQLEN1;
-		hw->aq.arq.bal  = I40E_VF_ARQBAL1;
-		hw->aq.arq.bah  = I40E_VF_ARQBAH1;
+		hw->aq.asq.tail = IAVF_VF_ATQT1;
+		hw->aq.asq.head = IAVF_VF_ATQH1;
+		hw->aq.asq.len  = IAVF_VF_ATQLEN1;
+		hw->aq.asq.bal  = IAVF_VF_ATQBAL1;
+		hw->aq.asq.bah  = IAVF_VF_ATQBAH1;
+		hw->aq.arq.tail = IAVF_VF_ARQT1;
+		hw->aq.arq.head = IAVF_VF_ARQH1;
+		hw->aq.arq.len  = IAVF_VF_ARQLEN1;
+		hw->aq.arq.bal  = IAVF_VF_ARQBAL1;
+		hw->aq.arq.bah  = IAVF_VF_ARQBAH1;
 	}
 }
 
@@ -266,7 +266,7 @@ static iavf_status i40e_config_asq_regs(struct i40e_hw *hw)
 
 	/* set starting point */
 	wr32(hw, hw->aq.asq.len, (hw->aq.num_asq_entries |
-				  I40E_VF_ATQLEN1_ATQENABLE_MASK));
+				  IAVF_VF_ATQLEN1_ATQENABLE_MASK));
 	wr32(hw, hw->aq.asq.bal, lower_32_bits(hw->aq.asq.desc_buf.pa));
 	wr32(hw, hw->aq.asq.bah, upper_32_bits(hw->aq.asq.desc_buf.pa));
 
@@ -295,7 +295,7 @@ static iavf_status i40e_config_arq_regs(struct i40e_hw *hw)
 
 	/* set starting point */
 	wr32(hw, hw->aq.arq.len, (hw->aq.num_arq_entries |
-				  I40E_VF_ARQLEN1_ARQENABLE_MASK));
+				  IAVF_VF_ARQLEN1_ARQENABLE_MASK));
 	wr32(hw, hw->aq.arq.bal, lower_32_bits(hw->aq.arq.desc_buf.pa));
 	wr32(hw, hw->aq.arq.bah, upper_32_bits(hw->aq.arq.desc_buf.pa));
 
@@ -803,7 +803,7 @@ iavf_status iavf_asq_send_command(struct i40e_hw *hw,
 	/* update the error if time out occurred */
 	if ((!cmd_completed) &&
 	    (!details->async && !details->postpone)) {
-		if (rd32(hw, hw->aq.asq.len) & I40E_VF_ATQLEN1_ATQCRIT_MASK) {
+		if (rd32(hw, hw->aq.asq.len) & IAVF_VF_ATQLEN1_ATQCRIT_MASK) {
 			i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 				   "AQTX: AQ Critical error.\n");
 			status = I40E_ERR_ADMIN_QUEUE_CRITICAL_ERROR;
@@ -871,7 +871,7 @@ iavf_status iavf_clean_arq_element(struct i40e_hw *hw,
 	}
 
 	/* set next_to_use to head */
-	ntu = rd32(hw, hw->aq.arq.head) & I40E_VF_ARQH1_ARQH_MASK;
+	ntu = rd32(hw, hw->aq.arq.head) & IAVF_VF_ARQH1_ARQH_MASK;
 	if (ntu == ntc) {
 		/* nothing to do - shouldn't need to update ring's values */
 		ret_code = I40E_ERR_ADMIN_QUEUE_NO_WORK;
