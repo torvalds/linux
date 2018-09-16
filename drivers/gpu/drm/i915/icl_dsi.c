@@ -277,6 +277,22 @@ static void gen11_dsi_enable_ddi_buffer(struct intel_encoder *encoder)
 	}
 }
 
+static void gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	u32 tmp;
+	enum port port;
+
+	/* Program T-INIT master registers */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp = I915_READ(ICL_DSI_T_INIT_MASTER(port));
+		tmp &= ~MASTER_INIT_TIMER_MASK;
+		tmp |= intel_dsi->init_count;
+		I915_WRITE(ICL_DSI_T_INIT_MASTER(port), tmp);
+	}
+}
+
 static void gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder)
 {
 	/* step 4a: power up all lanes of the DDI used by DSI */
@@ -290,6 +306,9 @@ static void gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder)
 
 	/* enable DDI buffer */
 	gen11_dsi_enable_ddi_buffer(encoder);
+
+	/* setup D-PHY timings */
+	gen11_dsi_setup_dphy_timings(encoder);
 }
 
 static void __attribute__((unused))
