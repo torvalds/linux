@@ -43,8 +43,23 @@ static int slim_device_probe(struct device *dev)
 {
 	struct slim_device	*sbdev = to_slim_device(dev);
 	struct slim_driver	*sbdrv = to_slim_driver(dev->driver);
+	int ret;
 
-	return sbdrv->probe(sbdev);
+	ret = sbdrv->probe(sbdev);
+	if (ret)
+		return ret;
+
+	/* try getting the logical address after probe */
+	ret = slim_get_logical_addr(sbdev);
+	if (!ret) {
+		if (sbdrv->device_status)
+			sbdrv->device_status(sbdev, sbdev->status);
+	} else {
+		dev_err(&sbdev->dev, "Failed to get logical address\n");
+		ret = -EPROBE_DEFER;
+	}
+
+	return ret;
 }
 
 static int slim_device_remove(struct device *dev)
