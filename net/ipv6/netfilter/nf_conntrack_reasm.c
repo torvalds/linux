@@ -445,6 +445,7 @@ nf_ct_frag6_reasm(struct frag_queue *fq, struct sk_buff *prev,  struct net_devic
 		else if (head->ip_summed == CHECKSUM_COMPLETE)
 			head->csum = csum_add(head->csum, fp->csum);
 		head->truesize += fp->truesize;
+		fp->sk = NULL;
 	}
 	sub_frag_mem_limit(fq->q.net, head->truesize);
 

@@ -208,7 +208,7 @@ static int cbc_paes_crypt(struct blkcipher_desc *desc, unsigned long modifier,
 			      walk->dst.virt.addr, walk->src.virt.addr, n);
 		if (k)
 			ret = blkcipher_walk_done(desc, walk, nbytes - k);
-		if (n < k) {
+		if (k < n) {
 			if (__cbc_paes_set_key(ctx) != 0)
 				return blkcipher_walk_done(desc, walk, -EIO);
 			memcpy(param.key, ctx->pk.protkey, MAXPROTKEYSIZE);

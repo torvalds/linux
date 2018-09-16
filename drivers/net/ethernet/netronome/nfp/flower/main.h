@@ -70,6 +70,7 @@ struct nfp_app;
 #define NFP_FL_FEATS_GENEVE		BIT(0)
 #define NFP_FL_NBI_MTU_SETTING		BIT(1)
 #define NFP_FL_FEATS_GENEVE_OPT		BIT(2)
+#define NFP_FL_FEATS_VLAN_PCP		BIT(3)
 #define NFP_FL_FEATS_LAG		BIT(31)
 
 struct nfp_fl_mask_id {

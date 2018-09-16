@@ -1368,6 +1368,9 @@ static ssize_t vmbus_chan_attr_show(struct kobject *kobj,
 	if (!attribute->show)
 		return -EIO;
 
+	if (chan->state != CHANNEL_OPENED_STATE)
+		return -EINVAL;
+
 	return attribute->show(chan, buf);
 }
 

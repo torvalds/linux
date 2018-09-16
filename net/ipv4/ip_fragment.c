@@ -599,6 +599,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 			nextp = &fp->next;
 			fp->prev = NULL;
 			memset(&fp->rbnode, 0, sizeof(fp->rbnode));
+			fp->sk = NULL;
 			head->data_len += fp->len;
 			head->len += fp->len;
 			if (head->ip_summed != fp->ip_summed)
