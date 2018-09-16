@@ -376,8 +376,7 @@ static struct vdoa_data *coda_get_vdoa_data(void)
 		vdoa_data = ERR_PTR(-EPROBE_DEFER);
 
 out:
-	if (vdoa_node)
-		of_node_put(vdoa_node);
+	of_node_put(vdoa_node);
 
 	return vdoa_data;
 }
