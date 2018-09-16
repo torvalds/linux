@@ -1500,7 +1500,6 @@ struct ib_ucontext {
 
 	bool cleanup_retryable;
 
-	struct pid             *tgid;
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	void (*invalidate_range)(struct ib_umem_odp *umem_odp,
 				 unsigned long start, unsigned long end);

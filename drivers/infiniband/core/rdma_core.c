@@ -816,7 +816,6 @@ static void ufile_destroy_ucontext(struct ib_uverbs_file *ufile,
 			ib_dev->disassociate_ucontext(ucontext);
 	}
 
-	put_pid(ucontext->tgid);
 	ib_rdmacg_uncharge(&ucontext->cg_obj, ib_dev,
 			   RDMACG_RESOURCE_HCA_HANDLE);
 

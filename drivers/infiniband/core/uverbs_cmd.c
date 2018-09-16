@@ -117,9 +117,6 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 	/* ufile is required when some objects are released */
 	ucontext->ufile = file;
 
-	rcu_read_lock();
-	ucontext->tgid = get_task_pid(current->group_leader, PIDTYPE_PID);
-	rcu_read_unlock();
 	ucontext->closing = false;
 	ucontext->cleanup_retryable = false;
 
@@ -169,7 +166,6 @@ err_fd:
 	put_unused_fd(resp.async_fd);
 
 err_free:
-	put_pid(ucontext->tgid);
 	ib_dev->dealloc_ucontext(ucontext);
 
 err_alloc:
