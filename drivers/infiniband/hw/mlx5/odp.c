@@ -371,11 +371,12 @@ static struct ib_umem_odp *implicit_mr_get_data(struct mlx5_ib_mr *mr,
 	struct ib_ucontext *ctx = mr->ibmr.pd->uobject->context;
 	struct mlx5_ib_dev *dev = to_mdev(mr->ibmr.pd->device);
 	struct ib_umem_odp *odp, *result = NULL;
+	struct ib_umem_odp *odp_mr = to_ib_umem_odp(mr->umem);
 	u64 addr = io_virt & MLX5_IMR_MTT_MASK;
 	int nentries = 0, start_idx = 0, ret;
 	struct mlx5_ib_mr *mtt;
 
-	mutex_lock(&mr->umem->odp_data->umem_mutex);
+	mutex_lock(&odp_mr->umem_mutex);
 	odp = odp_lookup(ctx, addr, 1, mr);
 
 	mlx5_ib_dbg(dev, "io_virt:%llx bcnt:%zx addr:%llx odp:%p\n",
@@ -388,14 +389,14 @@ next_mr:
 	} else {
 		odp = ib_alloc_odp_umem(ctx, addr, MLX5_IMR_MTT_SIZE);
 		if (IS_ERR(odp)) {
-			mutex_unlock(&mr->umem->odp_data->umem_mutex);
+			mutex_unlock(&odp_mr->umem_mutex);
 			return ERR_CAST(odp);
 		}
 
 		mtt = implicit_mr_alloc(mr->ibmr.pd, &odp->umem, 0,
 					mr->access_flags);
 		if (IS_ERR(mtt)) {
-			mutex_unlock(&mr->umem->odp_data->umem_mutex);
+			mutex_unlock(&odp_mr->umem_mutex);
 			ib_umem_release(&odp->umem);
 			return ERR_CAST(mtt);
 		}
@@ -433,7 +434,7 @@ next_mr:
 		}
 	}
 
-	mutex_unlock(&mr->umem->odp_data->umem_mutex);
+	mutex_unlock(&odp_mr->umem_mutex);
 	return result;
 }
 
@@ -498,6 +499,7 @@ void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 static int pagefault_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr,
 			u64 io_virt, size_t bcnt, u32 *bytes_mapped)
 {
+	struct ib_umem_odp *odp_mr = to_ib_umem_odp(mr->umem);
 	u64 access_mask = ODP_READ_ALLOWED_BIT;
 	int npages = 0, page_shift, np;
 	u64 start_idx, page_mask;
@@ -506,7 +508,7 @@ static int pagefault_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr,
 	size_t size;
 	int ret;
 
-	if (!mr->umem->odp_data->page_list) {
+	if (!odp_mr->page_list) {
 		odp = implicit_mr_get_data(mr, io_virt, bcnt);
 
 		if (IS_ERR(odp))
@@ -514,7 +516,7 @@ static int pagefault_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr,
 		mr = odp->private;
 
 	} else {
-		odp = mr->umem->odp_data;
+		odp = odp_mr;
 	}
 
 next_mr:

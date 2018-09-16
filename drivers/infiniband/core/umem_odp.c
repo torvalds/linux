@@ -291,6 +291,7 @@ struct ib_umem_odp *ib_alloc_odp_umem(struct ib_ucontext *context,
 	umem->address    = addr;
 	umem->page_shift = PAGE_SHIFT;
 	umem->writable   = 1;
+	umem->is_odp = 1;
 
 	mutex_init(&odp_data->umem_mutex);
 	init_completion(&odp_data->notifier_completion);
@@ -318,8 +319,6 @@ struct ib_umem_odp *ib_alloc_odp_umem(struct ib_ucontext *context,
 		list_add(&odp_data->no_private_counters,
 			 &context->no_private_counters);
 	up_write(&context->umem_rwsem);
-
-	umem->odp_data = odp_data;
 
 	return odp_data;
 
