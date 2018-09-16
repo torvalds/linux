@@ -80,81 +80,27 @@ INTERVAL_TREE_DEFINE(struct umem_odp_node, rb, u64, __subtree_last,
 static void ib_umem_notifier_start_account(struct ib_umem_odp *umem_odp)
 {
 	mutex_lock(&umem_odp->umem_mutex);
-
-	/* Only update private counters for this umem if it has them.
-	 * Otherwise skip it. All page faults will be delayed for this umem. */
-	if (umem_odp->mn_counters_active) {
-		int notifiers_count = umem_odp->notifiers_count++;
-
-		if (notifiers_count == 0)
-			/* Initialize the completion object for waiting on
-			 * notifiers. Since notifier_count is zero, no one
-			 * should be waiting right now. */
-			reinit_completion(&umem_odp->notifier_completion);
-	}
+	if (umem_odp->notifiers_count++ == 0)
+		/*
+		 * Initialize the completion object for waiting on
+		 * notifiers. Since notifier_count is zero, no one should be
+		 * waiting right now.
+		 */
+		reinit_completion(&umem_odp->notifier_completion);
 	mutex_unlock(&umem_odp->umem_mutex);
 }
 
 static void ib_umem_notifier_end_account(struct ib_umem_odp *umem_odp)
 {
 	mutex_lock(&umem_odp->umem_mutex);
-
-	/* Only update private counters for this umem if it has them.
-	 * Otherwise skip it. All page faults will be delayed for this umem. */
-	if (umem_odp->mn_counters_active) {
-		/*
-		 * This sequence increase will notify the QP page fault that
-		 * the page that is going to be mapped in the spte could have
-		 * been freed.
-		 */
-		++umem_odp->notifiers_seq;
-		if (--umem_odp->notifiers_count == 0)
-			complete_all(&umem_odp->notifier_completion);
-	}
+	/*
+	 * This sequence increase will notify the QP page fault that the page
+	 * that is going to be mapped in the spte could have been freed.
+	 */
+	++umem_odp->notifiers_seq;
+	if (--umem_odp->notifiers_count == 0)
+		complete_all(&umem_odp->notifier_completion);
 	mutex_unlock(&umem_odp->umem_mutex);
-}
-
-/* Account for a new mmu notifier in an ib_ucontext. */
-static void
-ib_ucontext_notifier_start_account(struct ib_ucontext_per_mm *per_mm)
-{
-	atomic_inc(&per_mm->notifier_count);
-}
-
-/* Account for a terminating mmu notifier in an ib_ucontext.
- *
- * Must be called with the ib_ucontext->umem_rwsem semaphore unlocked, since
- * the function takes the semaphore itself. */
-static void ib_ucontext_notifier_end_account(struct ib_ucontext_per_mm *per_mm)
-{
-	int zero_notifiers = atomic_dec_and_test(&per_mm->notifier_count);
-
-	if (zero_notifiers &&
-	    !list_empty(&per_mm->no_private_counters)) {
-		/* No currently running mmu notifiers. Now is the chance to
-		 * add private accounting to all previously added umems. */
-		struct ib_umem_odp *odp_data, *next;
-
-		/* Prevent concurrent mmu notifiers from working on the
-		 * no_private_counters list. */
-		down_write(&per_mm->umem_rwsem);
-
-		/* Read the notifier_count again, with the umem_rwsem
-		 * semaphore taken for write. */
-		if (!atomic_read(&per_mm->notifier_count)) {
-			list_for_each_entry_safe(odp_data, next,
-						 &per_mm->no_private_counters,
-						 no_private_counters) {
-				mutex_lock(&odp_data->umem_mutex);
-				odp_data->mn_counters_active = true;
-				list_del(&odp_data->no_private_counters);
-				complete_all(&odp_data->notifier_completion);
-				mutex_unlock(&odp_data->umem_mutex);
-			}
-		}
-
-		up_write(&per_mm->umem_rwsem);
-	}
 }
 
 static int ib_umem_notifier_release_trampoline(struct ib_umem_odp *umem_odp,
@@ -186,7 +132,6 @@ static void ib_umem_notifier_release(struct mmu_notifier *mn,
 	if (!per_mm->context->invalidate_range)
 		return;
 
-	ib_ucontext_notifier_start_account(per_mm);
 	down_read(&per_mm->umem_rwsem);
 	rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, 0,
 				      ULLONG_MAX,
@@ -231,14 +176,9 @@ static int ib_umem_notifier_invalidate_range_start(struct mmu_notifier *mn,
 	else if (!down_read_trylock(&per_mm->umem_rwsem))
 		return -EAGAIN;
 
-	ib_ucontext_notifier_start_account(per_mm);
-	ret = rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, start,
-				      end,
-				      invalidate_range_start_trampoline,
-				      blockable, NULL);
-	up_read(&per_mm->umem_rwsem);
-
-	return ret;
+	return rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, start, end,
+					     invalidate_range_start_trampoline,
+					     blockable, NULL);
 }
 
 static int invalidate_range_end_trampoline(struct ib_umem_odp *item, u64 start,
@@ -259,17 +199,10 @@ static void ib_umem_notifier_invalidate_range_end(struct mmu_notifier *mn,
 	if (!per_mm->context->invalidate_range)
 		return;
 
-	/*
-	 * TODO: we currently bail out if there is any sleepable work to be done
-	 * in ib_umem_notifier_invalidate_range_start so we shouldn't really block
-	 * here. But this is ugly and fragile.
-	 */
-	down_read(&per_mm->umem_rwsem);
 	rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, start,
 				      end,
 				      invalidate_range_end_trampoline, true, NULL);
 	up_read(&per_mm->umem_rwsem);
-	ib_ucontext_notifier_end_account(per_mm);
 }
 
 static const struct mmu_notifier_ops ib_umem_notifiers = {
@@ -287,12 +220,6 @@ static void add_umem_to_per_mm(struct ib_umem_odp *umem_odp)
 	if (likely(ib_umem_start(umem) != ib_umem_end(umem)))
 		rbt_ib_umem_insert(&umem_odp->interval_tree,
 				   &per_mm->umem_tree);
-
-	if (likely(!atomic_read(&per_mm->notifier_count)))
-		umem_odp->mn_counters_active = true;
-	else
-		list_add(&umem_odp->no_private_counters,
-			 &per_mm->no_private_counters);
 	up_write(&per_mm->umem_rwsem);
 }
 
@@ -305,10 +232,7 @@ static void remove_umem_from_per_mm(struct ib_umem_odp *umem_odp)
 	if (likely(ib_umem_start(umem) != ib_umem_end(umem)))
 		rbt_ib_umem_remove(&umem_odp->interval_tree,
 				   &per_mm->umem_tree);
-	if (!umem_odp->mn_counters_active) {
-		list_del(&umem_odp->no_private_counters);
-		complete_all(&umem_odp->notifier_completion);
-	}
+	complete_all(&umem_odp->notifier_completion);
 
 	up_write(&per_mm->umem_rwsem);
 }
@@ -327,7 +251,6 @@ static struct ib_ucontext_per_mm *alloc_per_mm(struct ib_ucontext *ctx,
 	per_mm->mm = mm;
 	per_mm->umem_tree = RB_ROOT_CACHED;
 	init_rwsem(&per_mm->umem_rwsem);
-	INIT_LIST_HEAD(&per_mm->no_private_counters);
 
 	rcu_read_lock();
 	per_mm->tgid = get_task_pid(current->group_leader, PIDTYPE_PID);

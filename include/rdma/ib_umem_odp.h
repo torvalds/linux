@@ -67,14 +67,8 @@ struct ib_umem_odp {
 	struct mutex		umem_mutex;
 	void			*private; /* for the HW driver to use. */
 
-	/* When false, use the notifier counter in the ucontext struct. */
-	bool mn_counters_active;
 	int notifiers_seq;
 	int notifiers_count;
-
-	/* A linked list of umems that don't have private mmu notifier
-	 * counters yet. */
-	struct list_head no_private_counters;
 
 	/* Tree tracking */
 	struct umem_odp_node	interval_tree;
@@ -99,11 +93,8 @@ struct ib_ucontext_per_mm {
 	struct rb_root_cached umem_tree;
 	/* Protects umem_tree */
 	struct rw_semaphore umem_rwsem;
-	atomic_t notifier_count;
 
 	struct mmu_notifier mn;
-	/* A list of umems that don't have private mmu notifier counters yet. */
-	struct list_head no_private_counters;
 	unsigned int odp_mrs_count;
 
 	struct list_head ucontext_list;
@@ -161,12 +152,6 @@ static inline int ib_umem_mmu_notifier_retry(struct ib_umem_odp *umem_odp,
 	 * the relevant locks taken (umem_odp->umem_mutex
 	 * and the ucontext umem_mutex semaphore locked for read).
 	 */
-
-	/* Do not allow page faults while the new ib_umem hasn't seen a state
-	 * with zero notifiers yet, and doesn't have its own valid set of
-	 * private counters. */
-	if (!umem_odp->mn_counters_active)
-		return 1;
 
 	if (unlikely(umem_odp->notifiers_count))
 		return 1;
