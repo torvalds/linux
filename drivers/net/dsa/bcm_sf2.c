@@ -465,8 +465,7 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 static void bcm_sf2_mdio_unregister(struct bcm_sf2_priv *priv)
 {
 	mdiobus_unregister(priv->slave_mii_bus);
-	if (priv->master_mii_dn)
-		of_node_put(priv->master_mii_dn);
+	of_node_put(priv->master_mii_dn);
 }
 
 static u32 bcm_sf2_sw_get_phy_flags(struct dsa_switch *ds, int port)
