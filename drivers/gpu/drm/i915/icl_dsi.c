@@ -258,6 +258,25 @@ static void gen11_dsi_voltage_swing_program_seq(struct intel_encoder *encoder)
 	}
 }
 
+static void gen11_dsi_enable_ddi_buffer(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	u32 tmp;
+	enum port port;
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp = I915_READ(DDI_BUF_CTL(port));
+		tmp |= DDI_BUF_CTL_ENABLE;
+		I915_WRITE(DDI_BUF_CTL(port), tmp);
+
+		if (wait_for_us(!(I915_READ(DDI_BUF_CTL(port)) &
+				  DDI_BUF_IS_IDLE),
+				  500))
+			DRM_ERROR("DDI port:%c buffer idle\n", port_name(port));
+	}
+}
+
 static void gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder)
 {
 	/* step 4a: power up all lanes of the DDI used by DSI */
@@ -268,6 +287,9 @@ static void gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder)
 
 	/* step 4c: configure voltage swing and skew */
 	gen11_dsi_voltage_swing_program_seq(encoder);
+
+	/* enable DDI buffer */
+	gen11_dsi_enable_ddi_buffer(encoder);
 }
 
 static void __attribute__((unused))
