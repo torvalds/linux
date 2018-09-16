@@ -1004,6 +1004,7 @@ static int qcom_slim_ngd_get_laddr(struct slim_controller *ctrl,
 				   struct slim_eaddr *ea, u8 *laddr)
 {
 	struct slim_val_inf msg =  {0};
+	u8 failed_ea[6] = {0, 0, 0, 0, 0, 0};
 	struct slim_msg_txn txn;
 	u8 wbuf[10] = {0};
 	u8 rbuf[10] = {0};
@@ -1033,6 +1034,9 @@ static int qcom_slim_ngd_get_laddr(struct slim_controller *ctrl,
 		slim_free_txn_tid(ctrl, &txn);
 		return ret;
 	}
+
+	if (!memcmp(rbuf, failed_ea, 6))
+		return -ENXIO;
 
 	*laddr = rbuf[6];
 
