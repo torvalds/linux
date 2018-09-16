@@ -5131,6 +5131,17 @@ void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 	mlxsw_sp_vr_put(vr);
 }
 
+void mlxsw_sp_rif_destroy_by_dev(struct mlxsw_sp *mlxsw_sp,
+				 struct net_device *dev)
+{
+	struct mlxsw_sp_rif *rif;
+
+	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	if (!rif)
+		return;
+	mlxsw_sp_rif_destroy(rif);
+}
+
 static void
 mlxsw_sp_rif_subport_params_init(struct mlxsw_sp_rif_params *params,
 				 struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)

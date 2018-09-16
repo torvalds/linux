@@ -788,6 +788,21 @@ ctnetlink_alloc_filter(const struct nlattr * const cda[])
 #endif
 }
 
+static int ctnetlink_start(struct netlink_callback *cb)
+{
+	const struct nlattr * const *cda = cb->data;
+	struct ctnetlink_filter *filter = NULL;
+
+	if (cda[CTA_MARK] && cda[CTA_MARK_MASK]) {
+		filter = ctnetlink_alloc_filter(cda);
+		if (IS_ERR(filter))
+			return PTR_ERR(filter);
+	}
+
+	cb->data = filter;
+	return 0;
+}
+
 static int ctnetlink_filter_match(struct nf_conn *ct, void *data)
 {
 	struct ctnetlink_filter *filter = data;
@@ -1194,19 +1209,12 @@ static int ctnetlink_get_conntrack(struct net *net, struct sock *ctnl,
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
+			.start = ctnetlink_start,
 			.dump = ctnetlink_dump_table,
 			.done = ctnetlink_done,
+			.data = (void *)cda,
 		};
 
-		if (cda[CTA_MARK] && cda[CTA_MARK_MASK]) {
-			struct ctnetlink_filter *filter;
-
-			filter = ctnetlink_alloc_filter(cda);
-			if (IS_ERR(filter))
-				return PTR_ERR(filter);
-
-			c.data = filter;
-		}
 		return netlink_dump_start(ctnl, skb, nlh, &c);
 	}
 

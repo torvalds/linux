@@ -3113,7 +3113,7 @@ static void gfx_v9_0_enter_rlc_safe_mode(struct amdgpu_device *adev)
 
 		/* wait for RLC_SAFE_MODE */
 		for (i = 0; i < adev->usec_timeout; i++) {
-			if (!REG_GET_FIELD(SOC15_REG_OFFSET(GC, 0, mmRLC_SAFE_MODE), RLC_SAFE_MODE, CMD))
+			if (!REG_GET_FIELD(RREG32_SOC15(GC, 0, mmRLC_SAFE_MODE), RLC_SAFE_MODE, CMD))
 				break;
 			udelay(1);
 		}

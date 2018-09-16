@@ -17,7 +17,7 @@
 ENTRY(memmove)
 	ltgr	%r4,%r4
 	lgr	%r1,%r2
-	bzr	%r14
+	jz	.Lmemmove_exit
 	aghi	%r4,-1
 	clgr	%r2,%r3
 	jnh	.Lmemmove_forward
@@ -36,6 +36,7 @@ ENTRY(memmove)
 .Lmemmove_forward_remainder:
 	larl	%r5,.Lmemmove_mvc
 	ex	%r4,0(%r5)
+.Lmemmove_exit:
 	BR_EX	%r14
 .Lmemmove_reverse:
 	ic	%r0,0(%r4,%r3)
@@ -65,7 +66,7 @@ EXPORT_SYMBOL(memmove)
  */
 ENTRY(memset)
 	ltgr	%r4,%r4
-	bzr	%r14
+	jz	.Lmemset_exit
 	ltgr	%r3,%r3
 	jnz	.Lmemset_fill
 	aghi	%r4,-1
@@ -80,12 +81,13 @@ ENTRY(memset)
 .Lmemset_clear_remainder:
 	larl	%r3,.Lmemset_xc
 	ex	%r4,0(%r3)
+.Lmemset_exit:
 	BR_EX	%r14
 .Lmemset_fill:
 	stc	%r3,0(%r2)
 	cghi	%r4,1
 	lgr	%r1,%r2
-	ber	%r14
+	je	.Lmemset_fill_exit
 	aghi	%r4,-2
 	srlg	%r3,%r4,8
 	ltgr	%r3,%r3
@@ -97,6 +99,7 @@ ENTRY(memset)
 .Lmemset_fill_remainder:
 	larl	%r3,.Lmemset_mvc
 	ex	%r4,0(%r3)
+.Lmemset_fill_exit:
 	BR_EX	%r14
 .Lmemset_xc:
 	xc	0(1,%r1),0(%r1)
@@ -111,7 +114,7 @@ EXPORT_SYMBOL(memset)
  */
 ENTRY(memcpy)
 	ltgr	%r4,%r4
-	bzr	%r14
+	jz	.Lmemcpy_exit
 	aghi	%r4,-1
 	srlg	%r5,%r4,8
 	ltgr	%r5,%r5
@@ -120,6 +123,7 @@ ENTRY(memcpy)
 .Lmemcpy_remainder:
 	larl	%r5,.Lmemcpy_mvc
 	ex	%r4,0(%r5)
+.Lmemcpy_exit:
 	BR_EX	%r14
 .Lmemcpy_loop:
 	mvc	0(256,%r1),0(%r3)

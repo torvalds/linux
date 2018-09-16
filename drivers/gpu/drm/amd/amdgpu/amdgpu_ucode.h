@@ -172,6 +172,7 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_SMC,
 	AMDGPU_UCODE_ID_UVD,
 	AMDGPU_UCODE_ID_VCE,
+	AMDGPU_UCODE_ID_VCN,
 	AMDGPU_UCODE_ID_MAXIMUM,
 };
 
@@ -204,6 +205,9 @@ struct amdgpu_firmware_info {
 	void *kaddr;
 	/* ucode_size_bytes */
 	uint32_t ucode_size;
+	/* starting tmr mc address */
+	uint32_t tmr_mc_addr_lo;
+	uint32_t tmr_mc_addr_hi;
 };
 
 void amdgpu_ucode_print_mc_hdr(const struct common_firmware_header *hdr);

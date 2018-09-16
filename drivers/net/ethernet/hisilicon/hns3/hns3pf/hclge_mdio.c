@@ -187,6 +187,8 @@ int hclge_mac_start_phy(struct hclge_dev *hdev)
 	if (!phydev)
 		return 0;
 
+	phydev->supported &= ~SUPPORTED_FIBRE;
+
 	ret = phy_connect_direct(netdev, phydev,
 				 hclge_mac_adjust_link,
 				 PHY_INTERFACE_MODE_SGMII);

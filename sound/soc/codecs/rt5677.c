@@ -5017,7 +5017,7 @@ static const struct i2c_device_id rt5677_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, rt5677_i2c_id);
 
 static const struct of_device_id rt5677_of_match[] = {
-	{ .compatible = "realtek,rt5677", RT5677 },
+	{ .compatible = "realtek,rt5677", .data = (const void *)RT5677 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rt5677_of_match);
