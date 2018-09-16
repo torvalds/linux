@@ -149,13 +149,8 @@ static u16 rs_fw_set_config_flags(struct iwl_mvm *mvm,
 
 	if (he_cap && he_cap->has_he &&
 	    (he_cap->he_cap_elem.phy_cap_info[3] &
-	     IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_MASK)) {
+	     IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_MASK))
 		flags |= IWL_TLC_MNG_CFG_FLAGS_HE_DCM_NSS_1_MSK;
-
-		if (he_cap->he_cap_elem.phy_cap_info[3] &
-		    IEEE80211_HE_PHY_CAP3_DCM_MAX_TX_NSS_2)
-			flags |= IWL_TLC_MNG_CFG_FLAGS_HE_DCM_NSS_2_MSK;
-	}
 
 	return flags;
 }
