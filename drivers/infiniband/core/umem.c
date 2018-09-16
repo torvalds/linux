@@ -262,7 +262,7 @@ void ib_umem_release(struct ib_umem *umem)
 	struct ib_ucontext *context = umem->context;
 
 	if (umem->odp_data) {
-		ib_umem_odp_release(umem);
+		ib_umem_odp_release(to_ib_umem_odp(umem));
 		return;
 	}
 

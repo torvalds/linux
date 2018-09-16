@@ -69,6 +69,8 @@
 
 #define IB_FW_VERSION_NAME_MAX	ETHTOOL_FWVERS_LEN
 
+struct ib_umem_odp;
+
 extern struct workqueue_struct *ib_wq;
 extern struct workqueue_struct *ib_comp_wq;
 extern struct workqueue_struct *ib_comp_unbound_wq;
@@ -1506,7 +1508,7 @@ struct ib_ucontext {
 	 * mmu notifiers registration.
 	 */
 	struct rw_semaphore	umem_rwsem;
-	void (*invalidate_range)(struct ib_umem *umem,
+	void (*invalidate_range)(struct ib_umem_odp *umem_odp,
 				 unsigned long start, unsigned long end);
 
 	struct mmu_notifier	mn;

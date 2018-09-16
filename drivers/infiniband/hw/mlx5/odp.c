@@ -170,22 +170,24 @@ static void mr_leaf_free_action(struct work_struct *work)
 		wake_up(&imr->q_leaf_free);
 }
 
-void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
+void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
 			      unsigned long end)
 {
 	struct mlx5_ib_mr *mr;
 	const u64 umr_block_mask = (MLX5_UMR_MTT_ALIGNMENT /
 				    sizeof(struct mlx5_mtt)) - 1;
 	u64 idx = 0, blk_start_idx = 0;
+	struct ib_umem *umem;
 	int in_block = 0;
 	u64 addr;
 
-	if (!umem || !umem->odp_data) {
+	if (!umem_odp) {
 		pr_err("invalidation called on NULL umem or non-ODP umem\n");
 		return;
 	}
+	umem = umem_odp->umem;
 
-	mr = umem->odp_data->private;
+	mr = umem_odp->private;
 
 	if (!mr || !mr->ibmr.pd)
 		return;
@@ -208,7 +210,7 @@ void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
 		 * estimate the cost of another UMR vs. the cost of bigger
 		 * UMR.
 		 */
-		if (umem->odp_data->dma_list[idx] &
+		if (umem_odp->dma_list[idx] &
 		    (ODP_READ_ALLOWED_BIT | ODP_WRITE_ALLOWED_BIT)) {
 			if (!in_block) {
 				blk_start_idx = idx;
@@ -237,13 +239,13 @@ void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
 	 * needed.
 	 */
 
-	ib_umem_odp_unmap_dma_pages(umem, start, end);
+	ib_umem_odp_unmap_dma_pages(umem_odp, start, end);
 
 	if (unlikely(!umem->npages && mr->parent &&
-		     !umem->odp_data->dying)) {
-		WRITE_ONCE(umem->odp_data->dying, 1);
+		     !umem_odp->dying)) {
+		WRITE_ONCE(umem_odp->dying, 1);
 		atomic_inc(&mr->parent->num_leaf_free);
-		schedule_work(&umem->odp_data->work);
+		schedule_work(&umem_odp->work);
 	}
 }
 
@@ -372,7 +374,6 @@ static struct ib_umem_odp *implicit_mr_get_data(struct mlx5_ib_mr *mr,
 	u64 addr = io_virt & MLX5_IMR_MTT_MASK;
 	int nentries = 0, start_idx = 0, ret;
 	struct mlx5_ib_mr *mtt;
-	struct ib_umem *umem;
 
 	mutex_lock(&mr->umem->odp_data->umem_mutex);
 	odp = odp_lookup(ctx, addr, 1, mr);
@@ -385,22 +386,22 @@ next_mr:
 		if (nentries)
 			nentries++;
 	} else {
-		umem = ib_alloc_odp_umem(ctx, addr, MLX5_IMR_MTT_SIZE);
-		if (IS_ERR(umem)) {
+		odp = ib_alloc_odp_umem(ctx, addr, MLX5_IMR_MTT_SIZE);
+		if (IS_ERR(odp)) {
 			mutex_unlock(&mr->umem->odp_data->umem_mutex);
-			return ERR_CAST(umem);
+			return ERR_CAST(odp);
 		}
 
-		mtt = implicit_mr_alloc(mr->ibmr.pd, umem, 0, mr->access_flags);
+		mtt = implicit_mr_alloc(mr->ibmr.pd, odp->umem, 0,
+					mr->access_flags);
 		if (IS_ERR(mtt)) {
 			mutex_unlock(&mr->umem->odp_data->umem_mutex);
-			ib_umem_release(umem);
+			ib_umem_release(odp->umem);
 			return ERR_CAST(mtt);
 		}
 
-		odp = umem->odp_data;
 		odp->private = mtt;
-		mtt->umem = umem;
+		mtt->umem = odp->umem;
 		mtt->mmkey.iova = addr;
 		mtt->parent = mr;
 		INIT_WORK(&odp->work, mr_leaf_free_action);
@@ -460,24 +461,24 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	return imr;
 }
 
-static int mr_leaf_free(struct ib_umem *umem, u64 start,
-			u64 end, void *cookie)
+static int mr_leaf_free(struct ib_umem_odp *umem_odp, u64 start, u64 end,
+			void *cookie)
 {
-	struct mlx5_ib_mr *mr = umem->odp_data->private, *imr = cookie;
+	struct mlx5_ib_mr *mr = umem_odp->private, *imr = cookie;
+	struct ib_umem *umem = umem_odp->umem;
 
 	if (mr->parent != imr)
 		return 0;
 
-	ib_umem_odp_unmap_dma_pages(umem,
-				    ib_umem_start(umem),
+	ib_umem_odp_unmap_dma_pages(umem_odp, ib_umem_start(umem),
 				    ib_umem_end(umem));
 
-	if (umem->odp_data->dying)
+	if (umem_odp->dying)
 		return 0;
 
-	WRITE_ONCE(umem->odp_data->dying, 1);
+	WRITE_ONCE(umem_odp->dying, 1);
 	atomic_inc(&imr->num_leaf_free);
-	schedule_work(&umem->odp_data->work);
+	schedule_work(&umem_odp->work);
 
 	return 0;
 }
@@ -533,7 +534,7 @@ next_mr:
 	 */
 	smp_rmb();
 
-	ret = ib_umem_odp_map_dma_pages(mr->umem, io_virt, size,
+	ret = ib_umem_odp_map_dma_pages(to_ib_umem_odp(mr->umem), io_virt, size,
 					access_mask, current_seq);
 
 	if (ret < 0)
@@ -542,7 +543,8 @@ next_mr:
 	np = ret;
 
 	mutex_lock(&odp->umem_mutex);
-	if (!ib_umem_mmu_notifier_retry(mr->umem, current_seq)) {
+	if (!ib_umem_mmu_notifier_retry(to_ib_umem_odp(mr->umem),
+					current_seq)) {
 		/*
 		 * No need to check whether the MTTs really belong to
 		 * this MR, since ib_umem_odp_map_dma_pages already
