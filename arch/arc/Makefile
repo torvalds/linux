@@ -6,14 +6,6 @@
 # published by the Free Software Foundation.
 #
 
-ifeq ($(CROSS_COMPILE),)
-ifndef CONFIG_CPU_BIG_ENDIAN
-CROSS_COMPILE := arc-linux-
-else
-CROSS_COMPILE := arceb-linux-
-endif
-endif
-
 KBUILD_DEFCONFIG := nsim_700_defconfig
 
 cflags-y	+= -fno-common -pipe -fno-builtin -mmedium-calls -D__linux__
@@ -73,7 +65,7 @@ ldflags-$(CONFIG_CPU_BIG_ENDIAN)	+= -EB
 # --build-id w/o "-marclinux". Default arc-elf32-ld is OK
 ldflags-$(upto_gcc44)			+= -marclinux
 
-LIBGCC	:= $(shell $(CC) $(cflags-y) --print-libgcc-file-name)
+LIBGCC	= $(shell $(CC) $(cflags-y) --print-libgcc-file-name)
 
 # Modules with short calls might break for calls into builtin-kernel
 KBUILD_CFLAGS_MODULE	+= -mlong-calls -mno-millicode
