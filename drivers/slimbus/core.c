@@ -32,6 +32,10 @@ static int slim_device_match(struct device *dev, struct device_driver *drv)
 	struct slim_device *sbdev = to_slim_device(dev);
 	struct slim_driver *sbdrv = to_slim_driver(drv);
 
+	/* Attempt an OF style match first */
+	if (of_driver_match_device(dev, drv))
+		return 1;
+
 	return !!slim_match(sbdrv->id_table, sbdev);
 }
 
@@ -77,7 +81,7 @@ EXPORT_SYMBOL_GPL(slimbus_bus);
 int __slim_driver_register(struct slim_driver *drv, struct module *owner)
 {
 	/* ID table and probe are mandatory */
-	if (!drv->id_table || !drv->probe)
+	if (!(drv->driver.of_match_table || drv->id_table) || !drv->probe)
 		return -EINVAL;
 
 	drv->driver.bus = &slimbus_bus;
