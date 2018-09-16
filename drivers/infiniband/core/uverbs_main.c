@@ -45,6 +45,7 @@
 #include <linux/cdev.h>
 #include <linux/anon_inodes.h>
 #include <linux/slab.h>
+#include <linux/sched/mm.h>
 
 #include <linux/uaccess.h>
 
@@ -812,6 +813,226 @@ out:
 }
 
 /*
+ * Each time we map IO memory into user space this keeps track of the mapping.
+ * When the device is hot-unplugged we 'zap' the mmaps in user space to point
+ * to the zero page and allow the hot unplug to proceed.
+ *
+ * This is necessary for cases like PCI physical hot unplug as the actual BAR
+ * memory may vanish after this and access to it from userspace could MCE.
+ *
+ * RDMA drivers supporting disassociation must have their user space designed
+ * to cope in some way with their IO pages going to the zero page.
+ */
+struct rdma_umap_priv {
+	struct vm_area_struct *vma;
+	struct list_head list;
+};
+
+static const struct vm_operations_struct rdma_umap_ops;
+
+static void rdma_umap_priv_init(struct rdma_umap_priv *priv,
+				struct vm_area_struct *vma)
+{
+	struct ib_uverbs_file *ufile = vma->vm_file->private_data;
+
+	priv->vma = vma;
+	vma->vm_private_data = priv;
+	vma->vm_ops = &rdma_umap_ops;
+
+	mutex_lock(&ufile->umap_lock);
+	list_add(&priv->list, &ufile->umaps);
+	mutex_unlock(&ufile->umap_lock);
+}
+
+/*
+ * The VMA has been dup'd, initialize the vm_private_data with a new tracking
+ * struct
+ */
+static void rdma_umap_open(struct vm_area_struct *vma)
+{
+	struct ib_uverbs_file *ufile = vma->vm_file->private_data;
+	struct rdma_umap_priv *opriv = vma->vm_private_data;
+	struct rdma_umap_priv *priv;
+
+	if (!opriv)
+		return;
+
+	/* We are racing with disassociation */
+	if (!down_read_trylock(&ufile->hw_destroy_rwsem))
+		goto out_zap;
+	/*
+	 * Disassociation already completed, the VMA should already be zapped.
+	 */
+	if (!ufile->ucontext)
+		goto out_unlock;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		goto out_unlock;
+	rdma_umap_priv_init(priv, vma);
+
+	up_read(&ufile->hw_destroy_rwsem);
+	return;
+
+out_unlock:
+	up_read(&ufile->hw_destroy_rwsem);
+out_zap:
+	/*
+	 * We can't allow the VMA to be created with the actual IO pages, that
+	 * would break our API contract, and it can't be stopped at this
+	 * point, so zap it.
+	 */
+	vma->vm_private_data = NULL;
+	zap_vma_ptes(vma, vma->vm_start, vma->vm_end - vma->vm_start);
+}
+
+static void rdma_umap_close(struct vm_area_struct *vma)
+{
+	struct ib_uverbs_file *ufile = vma->vm_file->private_data;
+	struct rdma_umap_priv *priv = vma->vm_private_data;
+
+	if (!priv)
+		return;
+
+	/*
+	 * The vma holds a reference on the struct file that created it, which
+	 * in turn means that the ib_uverbs_file is guaranteed to exist at
+	 * this point.
+	 */
+	mutex_lock(&ufile->umap_lock);
+	list_del(&priv->list);
+	mutex_unlock(&ufile->umap_lock);
+	kfree(priv);
+}
+
+static const struct vm_operations_struct rdma_umap_ops = {
+	.open = rdma_umap_open,
+	.close = rdma_umap_close,
+};
+
+static struct rdma_umap_priv *rdma_user_mmap_pre(struct ib_ucontext *ucontext,
+						 struct vm_area_struct *vma,
+						 unsigned long size)
+{
+	struct ib_uverbs_file *ufile = ucontext->ufile;
+	struct rdma_umap_priv *priv;
+
+	if (vma->vm_end - vma->vm_start != size)
+		return ERR_PTR(-EINVAL);
+
+	/* Driver is using this wrong, must be called by ib_uverbs_mmap */
+	if (WARN_ON(!vma->vm_file ||
+		    vma->vm_file->private_data != ufile))
+		return ERR_PTR(-EINVAL);
+	lockdep_assert_held(&ufile->device->disassociate_srcu);
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return ERR_PTR(-ENOMEM);
+	return priv;
+}
+
+/*
+ * Map IO memory into a process. This is to be called by drivers as part of
+ * their mmap() functions if they wish to send something like PCI-E BAR memory
+ * to userspace.
+ */
+int rdma_user_mmap_io(struct ib_ucontext *ucontext, struct vm_area_struct *vma,
+		      unsigned long pfn, unsigned long size, pgprot_t prot)
+{
+	struct rdma_umap_priv *priv = rdma_user_mmap_pre(ucontext, vma, size);
+
+	if (IS_ERR(priv))
+		return PTR_ERR(priv);
+
+	vma->vm_page_prot = prot;
+	if (io_remap_pfn_range(vma, vma->vm_start, pfn, size, prot)) {
+		kfree(priv);
+		return -EAGAIN;
+	}
+
+	rdma_umap_priv_init(priv, vma);
+	return 0;
+}
+EXPORT_SYMBOL(rdma_user_mmap_io);
+
+/*
+ * The page case is here for a slightly different reason, the driver expects
+ * to be able to free the page it is sharing to user space when it destroys
+ * its ucontext, which means we need to zap the user space references.
+ *
+ * We could handle this differently by providing an API to allocate a shared
+ * page and then only freeing the shared page when the last ufile is
+ * destroyed.
+ */
+int rdma_user_mmap_page(struct ib_ucontext *ucontext,
+			struct vm_area_struct *vma, struct page *page,
+			unsigned long size)
+{
+	struct rdma_umap_priv *priv = rdma_user_mmap_pre(ucontext, vma, size);
+
+	if (IS_ERR(priv))
+		return PTR_ERR(priv);
+
+	if (remap_pfn_range(vma, vma->vm_start, page_to_pfn(page), size,
+			    vma->vm_page_prot)) {
+		kfree(priv);
+		return -EAGAIN;
+	}
+
+	rdma_umap_priv_init(priv, vma);
+	return 0;
+}
+EXPORT_SYMBOL(rdma_user_mmap_page);
+
+void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
+{
+	struct rdma_umap_priv *priv, *next_priv;
+
+	lockdep_assert_held(&ufile->hw_destroy_rwsem);
+
+	while (1) {
+		struct mm_struct *mm = NULL;
+
+		/* Get an arbitrary mm pointer that hasn't been cleaned yet */
+		mutex_lock(&ufile->umap_lock);
+		if (!list_empty(&ufile->umaps)) {
+			mm = list_first_entry(&ufile->umaps,
+					      struct rdma_umap_priv, list)
+				     ->vma->vm_mm;
+			mmget(mm);
+		}
+		mutex_unlock(&ufile->umap_lock);
+		if (!mm)
+			return;
+
+		/*
+		 * The umap_lock is nested under mmap_sem since it used within
+		 * the vma_ops callbacks, so we have to clean the list one mm
+		 * at a time to get the lock ordering right. Typically there
+		 * will only be one mm, so no big deal.
+		 */
+		down_write(&mm->mmap_sem);
+		mutex_lock(&ufile->umap_lock);
+		list_for_each_entry_safe (priv, next_priv, &ufile->umaps,
+					  list) {
+			struct vm_area_struct *vma = priv->vma;
+
+			if (vma->vm_mm != mm)
+				continue;
+			list_del_init(&priv->list);
+
+			zap_vma_ptes(vma, vma->vm_start,
+				     vma->vm_end - vma->vm_start);
+			vma->vm_flags &= ~(VM_SHARED | VM_MAYSHARE);
+		}
+		mutex_unlock(&ufile->umap_lock);
+		up_write(&mm->mmap_sem);
+		mmput(mm);
+	}
+}
+
+/*
  * ib_uverbs_open() does not need the BKL:
  *
  *  - the ib_uverbs_device structures are properly reference counted and
@@ -872,6 +1093,8 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	spin_lock_init(&file->uobjects_lock);
 	INIT_LIST_HEAD(&file->uobjects);
 	init_rwsem(&file->hw_destroy_rwsem);
+	mutex_init(&file->umap_lock);
+	INIT_LIST_HEAD(&file->umaps);
 
 	filp->private_data = file;
 	list_add_tail(&file->list, &dev->uverbs_file_list);

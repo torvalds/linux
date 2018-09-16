@@ -842,8 +842,10 @@ static void ufile_destroy_ucontext(struct ib_uverbs_file *ufile,
 	struct ib_ucontext *ucontext = ufile->ucontext;
 	int ret;
 
-	if (reason == RDMA_REMOVE_DRIVER_REMOVE)
+	if (reason == RDMA_REMOVE_DRIVER_REMOVE) {
+		uverbs_user_mmap_disassociate(ufile);
 		ufile_disassociate_ucontext(ucontext);
+	}
 
 	put_pid(ucontext->tgid);
 	ib_rdmacg_uncharge(&ucontext->cg_obj, ucontext->device,

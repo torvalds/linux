@@ -158,6 +158,9 @@ struct ib_uverbs_file {
 	spinlock_t		uobjects_lock;
 	struct list_head	uobjects;
 
+	struct mutex umap_lock;
+	struct list_head umaps;
+
 	u64 uverbs_cmd_mask;
 	u64 uverbs_ex_cmd_mask;
 

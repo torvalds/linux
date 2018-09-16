@@ -2646,6 +2646,28 @@ void *ib_get_client_data(struct ib_device *device, struct ib_client *client);
 void  ib_set_client_data(struct ib_device *device, struct ib_client *client,
 			 void *data);
 
+#if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
+int rdma_user_mmap_io(struct ib_ucontext *ucontext, struct vm_area_struct *vma,
+		      unsigned long pfn, unsigned long size, pgprot_t prot);
+int rdma_user_mmap_page(struct ib_ucontext *ucontext,
+			struct vm_area_struct *vma, struct page *page,
+			unsigned long size);
+#else
+static inline int rdma_user_mmap_io(struct ib_ucontext *ucontext,
+				    struct vm_area_struct *vma,
+				    unsigned long pfn, unsigned long size,
+				    pgprot_t prot)
+{
+	return -EINVAL;
+}
+static inline int rdma_user_mmap_page(struct ib_ucontext *ucontext,
+				struct vm_area_struct *vma, struct page *page,
+				unsigned long size)
+{
+	return -EINVAL;
+}
+#endif
+
 static inline int ib_copy_from_udata(void *dest, struct ib_udata *udata, size_t len)
 {
 	return copy_from_user(dest, udata->inbuf, len) ? -EFAULT : 0;
