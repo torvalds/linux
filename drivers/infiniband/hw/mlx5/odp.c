@@ -64,7 +64,7 @@ static int check_parent(struct ib_umem_odp *odp,
 static struct ib_umem_odp *odp_next(struct ib_umem_odp *odp)
 {
 	struct mlx5_ib_mr *mr = odp->private, *parent = mr->parent;
-	struct ib_ucontext *ctx = odp->umem->context;
+	struct ib_ucontext *ctx = odp->umem.context;
 	struct rb_node *rb;
 
 	down_read(&ctx->umem_rwsem);
@@ -102,7 +102,7 @@ static struct ib_umem_odp *odp_lookup(struct ib_ucontext *ctx,
 		if (!rb)
 			goto not_found;
 		odp = rb_entry(rb, struct ib_umem_odp, interval_tree.rb);
-		if (ib_umem_start(odp->umem) > start + length)
+		if (ib_umem_start(&odp->umem) > start + length)
 			goto not_found;
 	}
 not_found:
@@ -137,7 +137,7 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 	for (i = 0; i < nentries; i++, pklm++) {
 		pklm->bcount = cpu_to_be32(MLX5_IMR_MTT_SIZE);
 		va = (offset + i) * MLX5_IMR_MTT_SIZE;
-		if (odp && odp->umem->address == va) {
+		if (odp && odp->umem.address == va) {
 			struct mlx5_ib_mr *mtt = odp->private;
 
 			pklm->key = cpu_to_be32(mtt->ibmr.lkey);
@@ -153,13 +153,13 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 static void mr_leaf_free_action(struct work_struct *work)
 {
 	struct ib_umem_odp *odp = container_of(work, struct ib_umem_odp, work);
-	int idx = ib_umem_start(odp->umem) >> MLX5_IMR_MTT_SHIFT;
+	int idx = ib_umem_start(&odp->umem) >> MLX5_IMR_MTT_SHIFT;
 	struct mlx5_ib_mr *mr = odp->private, *imr = mr->parent;
 
 	mr->parent = NULL;
 	synchronize_srcu(&mr->dev->mr_srcu);
 
-	ib_umem_release(odp->umem);
+	ib_umem_release(&odp->umem);
 	if (imr->live)
 		mlx5_ib_update_xlt(imr, idx, 1, 0,
 				   MLX5_IB_UPD_XLT_INDIRECT |
@@ -185,7 +185,7 @@ void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
 		pr_err("invalidation called on NULL umem or non-ODP umem\n");
 		return;
 	}
-	umem = umem_odp->umem;
+	umem = &umem_odp->umem;
 
 	mr = umem_odp->private;
 
@@ -392,16 +392,16 @@ next_mr:
 			return ERR_CAST(odp);
 		}
 
-		mtt = implicit_mr_alloc(mr->ibmr.pd, odp->umem, 0,
+		mtt = implicit_mr_alloc(mr->ibmr.pd, &odp->umem, 0,
 					mr->access_flags);
 		if (IS_ERR(mtt)) {
 			mutex_unlock(&mr->umem->odp_data->umem_mutex);
-			ib_umem_release(odp->umem);
+			ib_umem_release(&odp->umem);
 			return ERR_CAST(mtt);
 		}
 
 		odp->private = mtt;
-		mtt->umem = odp->umem;
+		mtt->umem = &odp->umem;
 		mtt->mmkey.iova = addr;
 		mtt->parent = mr;
 		INIT_WORK(&odp->work, mr_leaf_free_action);
@@ -418,7 +418,7 @@ next_mr:
 	addr += MLX5_IMR_MTT_SIZE;
 	if (unlikely(addr < io_virt + bcnt)) {
 		odp = odp_next(odp);
-		if (odp && odp->umem->address != addr)
+		if (odp && odp->umem.address != addr)
 			odp = NULL;
 		goto next_mr;
 	}
@@ -465,7 +465,7 @@ static int mr_leaf_free(struct ib_umem_odp *umem_odp, u64 start, u64 end,
 			void *cookie)
 {
 	struct mlx5_ib_mr *mr = umem_odp->private, *imr = cookie;
-	struct ib_umem *umem = umem_odp->umem;
+	struct ib_umem *umem = &umem_odp->umem;
 
 	if (mr->parent != imr)
 		return 0;
@@ -518,7 +518,7 @@ static int pagefault_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr,
 	}
 
 next_mr:
-	size = min_t(size_t, bcnt, ib_umem_end(odp->umem) - io_virt);
+	size = min_t(size_t, bcnt, ib_umem_end(&odp->umem) - io_virt);
 
 	page_shift = mr->umem->page_shift;
 	page_mask = ~(BIT(page_shift) - 1);
@@ -577,7 +577,7 @@ next_mr:
 
 		io_virt += size;
 		next = odp_next(odp);
-		if (unlikely(!next || next->umem->address != io_virt)) {
+		if (unlikely(!next || next->umem.address != io_virt)) {
 			mlx5_ib_dbg(dev, "next implicit leaf removed at 0x%llx. got %p\n",
 				    io_virt, next);
 			return -EAGAIN;
