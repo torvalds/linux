@@ -44,6 +44,8 @@ struct umem_odp_node {
 
 struct ib_umem_odp {
 	struct ib_umem umem;
+	struct ib_ucontext_per_mm *per_mm;
+
 	/*
 	 * An array of the pages included in the on-demand paging umem.
 	 * Indices of pages that are currently not mapped into the device will

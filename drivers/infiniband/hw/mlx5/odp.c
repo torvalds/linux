@@ -61,13 +61,21 @@ static int check_parent(struct ib_umem_odp *odp,
 	return mr && mr->parent == parent && !odp->dying;
 }
 
+struct ib_ucontext_per_mm *mr_to_per_mm(struct mlx5_ib_mr *mr)
+{
+	if (WARN_ON(!mr || !mr->umem || !mr->umem->is_odp))
+		return NULL;
+
+	return to_ib_umem_odp(mr->umem)->per_mm;
+}
+
 static struct ib_umem_odp *odp_next(struct ib_umem_odp *odp)
 {
 	struct mlx5_ib_mr *mr = odp->private, *parent = mr->parent;
-	struct ib_ucontext *ctx = odp->umem.context;
+	struct ib_ucontext_per_mm *per_mm = odp->per_mm;
 	struct rb_node *rb;
 
-	down_read(&ctx->umem_rwsem);
+	down_read(&per_mm->umem_rwsem);
 	while (1) {
 		rb = rb_next(&odp->interval_tree.rb);
 		if (!rb)
@@ -79,19 +87,19 @@ static struct ib_umem_odp *odp_next(struct ib_umem_odp *odp)
 not_found:
 	odp = NULL;
 end:
-	up_read(&ctx->umem_rwsem);
+	up_read(&per_mm->umem_rwsem);
 	return odp;
 }
 
-static struct ib_umem_odp *odp_lookup(struct ib_ucontext *ctx,
-				      u64 start, u64 length,
+static struct ib_umem_odp *odp_lookup(u64 start, u64 length,
 				      struct mlx5_ib_mr *parent)
 {
+	struct ib_ucontext_per_mm *per_mm = mr_to_per_mm(parent);
 	struct ib_umem_odp *odp;
 	struct rb_node *rb;
 
-	down_read(&ctx->umem_rwsem);
-	odp = rbt_ib_umem_lookup(&ctx->umem_tree, start, length);
+	down_read(&per_mm->umem_rwsem);
+	odp = rbt_ib_umem_lookup(&per_mm->umem_tree, start, length);
 	if (!odp)
 		goto end;
 
@@ -108,7 +116,7 @@ static struct ib_umem_odp *odp_lookup(struct ib_ucontext *ctx,
 not_found:
 	odp = NULL;
 end:
-	up_read(&ctx->umem_rwsem);
+	up_read(&per_mm->umem_rwsem);
 	return odp;
 }
 
@@ -116,7 +124,6 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 			   size_t nentries, struct mlx5_ib_mr *mr, int flags)
 {
 	struct ib_pd *pd = mr->ibmr.pd;
-	struct ib_ucontext *ctx = pd->uobject->context;
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct ib_umem_odp *odp;
 	unsigned long va;
@@ -131,8 +138,8 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 		return;
 	}
 
-	odp = odp_lookup(ctx, offset * MLX5_IMR_MTT_SIZE,
-			     nentries * MLX5_IMR_MTT_SIZE, mr);
+	odp = odp_lookup(offset * MLX5_IMR_MTT_SIZE,
+			 nentries * MLX5_IMR_MTT_SIZE, mr);
 
 	for (i = 0; i < nentries; i++, pklm++) {
 		pklm->bcount = cpu_to_be32(MLX5_IMR_MTT_SIZE);
@@ -368,7 +375,6 @@ fail:
 static struct ib_umem_odp *implicit_mr_get_data(struct mlx5_ib_mr *mr,
 						u64 io_virt, size_t bcnt)
 {
-	struct ib_ucontext *ctx = mr->ibmr.pd->uobject->context;
 	struct mlx5_ib_dev *dev = to_mdev(mr->ibmr.pd->device);
 	struct ib_umem_odp *odp, *result = NULL;
 	struct ib_umem_odp *odp_mr = to_ib_umem_odp(mr->umem);
@@ -377,7 +383,7 @@ static struct ib_umem_odp *implicit_mr_get_data(struct mlx5_ib_mr *mr,
 	struct mlx5_ib_mr *mtt;
 
 	mutex_lock(&odp_mr->umem_mutex);
-	odp = odp_lookup(ctx, addr, 1, mr);
+	odp = odp_lookup(addr, 1, mr);
 
 	mlx5_ib_dbg(dev, "io_virt:%llx bcnt:%zx addr:%llx odp:%p\n",
 		    io_virt, bcnt, addr, odp);
@@ -387,7 +393,8 @@ next_mr:
 		if (nentries)
 			nentries++;
 	} else {
-		odp = ib_alloc_odp_umem(ctx, addr, MLX5_IMR_MTT_SIZE);
+		odp = ib_alloc_odp_umem(odp_mr->umem.context, addr,
+					MLX5_IMR_MTT_SIZE);
 		if (IS_ERR(odp)) {
 			mutex_unlock(&odp_mr->umem_mutex);
 			return ERR_CAST(odp);
@@ -486,12 +493,12 @@ static int mr_leaf_free(struct ib_umem_odp *umem_odp, u64 start, u64 end,
 
 void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 {
-	struct ib_ucontext *ctx = imr->ibmr.pd->uobject->context;
+	struct ib_ucontext_per_mm *per_mm = mr_to_per_mm(imr);
 
-	down_read(&ctx->umem_rwsem);
-	rbt_ib_umem_for_each_in_range(&ctx->umem_tree, 0, ULLONG_MAX,
+	down_read(&per_mm->umem_rwsem);
+	rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, 0, ULLONG_MAX,
 				      mr_leaf_free, true, imr);
-	up_read(&ctx->umem_rwsem);
+	up_read(&per_mm->umem_rwsem);
 
 	wait_event(imr->q_leaf_free, !atomic_read(&imr->num_leaf_free));
 }
