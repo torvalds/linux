@@ -82,9 +82,9 @@ struct amdgpu_ih_funcs {
 #define amdgpu_ih_decode_iv(adev, iv) (adev)->irq.ih_funcs->decode_iv((adev), (iv))
 #define amdgpu_ih_set_rptr(adev) (adev)->irq.ih_funcs->set_rptr((adev))
 
-int amdgpu_ih_ring_init(struct amdgpu_device *adev, unsigned ring_size,
-			bool use_bus_addr);
-void amdgpu_ih_ring_fini(struct amdgpu_device *adev);
-int amdgpu_ih_process(struct amdgpu_device *adev);
+int amdgpu_ih_ring_init(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
+			unsigned ring_size, bool use_bus_addr);
+void amdgpu_ih_ring_fini(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih);
+int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih);
 
 #endif

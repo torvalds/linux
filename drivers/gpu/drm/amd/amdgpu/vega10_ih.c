@@ -380,7 +380,7 @@ static int vega10_ih_sw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_ih_ring_init(adev, 256 * 1024, true);
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 256 * 1024, true);
 	if (r)
 		return r;
 
@@ -397,7 +397,7 @@ static int vega10_ih_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	amdgpu_irq_fini(adev);
-	amdgpu_ih_ring_fini(adev);
+	amdgpu_ih_ring_fini(adev, &adev->irq.ih);
 
 	return 0;
 }
