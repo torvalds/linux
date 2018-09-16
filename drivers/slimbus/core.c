@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/idr.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slimbus.h>
 #include "slimbus.h"
@@ -76,11 +77,24 @@ static int slim_device_remove(struct device *dev)
 	return 0;
 }
 
+static int slim_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct slim_device *sbdev = to_slim_device(dev);
+	int ret;
+
+	ret = of_device_uevent_modalias(dev, env);
+	if (ret != -ENODEV)
+		return ret;
+
+	return add_uevent_var(env, "MODALIAS=slim:%s", dev_name(&sbdev->dev));
+}
+
 struct bus_type slimbus_bus = {
 	.name		= "slimbus",
 	.match		= slim_device_match,
 	.probe		= slim_device_probe,
 	.remove		= slim_device_remove,
+	.uevent		= slim_device_uevent,
 };
 EXPORT_SYMBOL_GPL(slimbus_bus);
 
