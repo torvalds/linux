@@ -1749,8 +1749,6 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 			goto out_mdev;
 	}
 
-	INIT_LIST_HEAD(&context->vma_private_list);
-	mutex_init(&context->vma_private_list_mutex);
 	INIT_LIST_HEAD(&context->db_page_list);
 	mutex_init(&context->db_page_mutex);
 
@@ -1908,94 +1906,9 @@ static int get_extended_index(unsigned long offset)
 	return get_arg(offset) | ((offset >> 16) & 0xff) << 8;
 }
 
-static void  mlx5_ib_vma_open(struct vm_area_struct *area)
-{
-	/* vma_open is called when a new VMA is created on top of our VMA.  This
-	 * is done through either mremap flow or split_vma (usually due to
-	 * mlock, madvise, munmap, etc.) We do not support a clone of the VMA,
-	 * as this VMA is strongly hardware related.  Therefore we set the
-	 * vm_ops of the newly created/cloned VMA to NULL, to prevent it from
-	 * calling us again and trying to do incorrect actions.  We assume that
-	 * the original VMA size is exactly a single page, and therefore all
-	 * "splitting" operation will not happen to it.
-	 */
-	area->vm_ops = NULL;
-}
-
-static void  mlx5_ib_vma_close(struct vm_area_struct *area)
-{
-	struct mlx5_ib_vma_private_data *mlx5_ib_vma_priv_data;
-
-	/* It's guaranteed that all VMAs opened on a FD are closed before the
-	 * file itself is closed, therefore no sync is needed with the regular
-	 * closing flow. (e.g. mlx5 ib_dealloc_ucontext)
-	 * However need a sync with accessing the vma as part of
-	 * mlx5_ib_disassociate_ucontext.
-	 * The close operation is usually called under mm->mmap_sem except when
-	 * process is exiting.
-	 * The exiting case is handled explicitly as part of
-	 * mlx5_ib_disassociate_ucontext.
-	 */
-	mlx5_ib_vma_priv_data = (struct mlx5_ib_vma_private_data *)area->vm_private_data;
-
-	/* setting the vma context pointer to null in the mlx5_ib driver's
-	 * private data, to protect a race condition in
-	 * mlx5_ib_disassociate_ucontext().
-	 */
-	mlx5_ib_vma_priv_data->vma = NULL;
-	mutex_lock(mlx5_ib_vma_priv_data->vma_private_list_mutex);
-	list_del(&mlx5_ib_vma_priv_data->list);
-	mutex_unlock(mlx5_ib_vma_priv_data->vma_private_list_mutex);
-	kfree(mlx5_ib_vma_priv_data);
-}
-
-static const struct vm_operations_struct mlx5_ib_vm_ops = {
-	.open = mlx5_ib_vma_open,
-	.close = mlx5_ib_vma_close
-};
-
-static int mlx5_ib_set_vma_data(struct vm_area_struct *vma,
-				struct mlx5_ib_ucontext *ctx)
-{
-	struct mlx5_ib_vma_private_data *vma_prv;
-	struct list_head *vma_head = &ctx->vma_private_list;
-
-	vma_prv = kzalloc(sizeof(*vma_prv), GFP_KERNEL);
-	if (!vma_prv)
-		return -ENOMEM;
-
-	vma_prv->vma = vma;
-	vma_prv->vma_private_list_mutex = &ctx->vma_private_list_mutex;
-	vma->vm_private_data = vma_prv;
-	vma->vm_ops =  &mlx5_ib_vm_ops;
-
-	mutex_lock(&ctx->vma_private_list_mutex);
-	list_add(&vma_prv->list, vma_head);
-	mutex_unlock(&ctx->vma_private_list_mutex);
-
-	return 0;
-}
 
 static void mlx5_ib_disassociate_ucontext(struct ib_ucontext *ibcontext)
 {
-	struct vm_area_struct *vma;
-	struct mlx5_ib_vma_private_data *vma_private, *n;
-	struct mlx5_ib_ucontext *context = to_mucontext(ibcontext);
-
-	mutex_lock(&context->vma_private_list_mutex);
-	list_for_each_entry_safe(vma_private, n, &context->vma_private_list,
-				 list) {
-		vma = vma_private->vma;
-		zap_vma_ptes(vma, vma->vm_start, PAGE_SIZE);
-		/* context going to be destroyed, should
-		 * not access ops any more.
-		 */
-		vma->vm_flags &= ~(VM_SHARED | VM_MAYSHARE);
-		vma->vm_ops = NULL;
-		list_del(&vma_private->list);
-		kfree(vma_private);
-	}
-	mutex_unlock(&context->vma_private_list_mutex);
 }
 
 static inline char *mmap_cmd2str(enum mlx5_ib_mmap_cmd cmd)
@@ -2018,9 +1931,6 @@ static int mlx5_ib_mmap_clock_info_page(struct mlx5_ib_dev *dev,
 					struct vm_area_struct *vma,
 					struct mlx5_ib_ucontext *context)
 {
-	phys_addr_t pfn;
-	int err;
-
 	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
 		return -EINVAL;
 
@@ -2033,13 +1943,8 @@ static int mlx5_ib_mmap_clock_info_page(struct mlx5_ib_dev *dev,
 	if (!dev->mdev->clock_info_page)
 		return -EOPNOTSUPP;
 
-	pfn = page_to_pfn(dev->mdev->clock_info_page);
-	err = remap_pfn_range(vma, vma->vm_start, pfn, PAGE_SIZE,
-			      vma->vm_page_prot);
-	if (err)
-		return err;
-
-	return mlx5_ib_set_vma_data(vma, context);
+	return rdma_user_mmap_page(&context->ibucontext, vma,
+				   dev->mdev->clock_info_page, PAGE_SIZE);
 }
 
 static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
@@ -2129,20 +2034,14 @@ static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 	pfn = uar_index2pfn(dev, uar_index);
 	mlx5_ib_dbg(dev, "uar idx 0x%lx, pfn %pa\n", idx, &pfn);
 
-	vma->vm_page_prot = prot;
-	err = io_remap_pfn_range(vma, vma->vm_start, pfn,
-				 PAGE_SIZE, vma->vm_page_prot);
+	err = rdma_user_mmap_io(&context->ibucontext, vma, pfn, PAGE_SIZE,
+				prot);
 	if (err) {
 		mlx5_ib_err(dev,
-			    "io_remap_pfn_range failed with error=%d, mmap_cmd=%s\n",
+			    "rdma_user_mmap_io failed with error=%d, mmap_cmd=%s\n",
 			    err, mmap_cmd2str(cmd));
-		err = -EAGAIN;
 		goto err;
 	}
-
-	err = mlx5_ib_set_vma_data(vma, context);
-	if (err)
-		goto err;
 
 	if (dyn_uar)
 		bfregi->sys_pages[idx] = uar_index;
@@ -2168,7 +2067,6 @@ static int dm_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	size_t map_size = vma->vm_end - vma->vm_start;
 	u32 npages = map_size >> PAGE_SHIFT;
 	phys_addr_t pfn;
-	pgprot_t prot;
 
 	if (find_next_zero_bit(mctx->dm_pages, page_idx + npages, page_idx) !=
 	    page_idx + npages)
@@ -2178,14 +2076,8 @@ static int dm_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	      MLX5_CAP64_DEV_MEM(dev->mdev, memic_bar_start_addr)) >>
 	      PAGE_SHIFT) +
 	      page_idx;
-	prot = pgprot_writecombine(vma->vm_page_prot);
-	vma->vm_page_prot = prot;
-
-	if (io_remap_pfn_range(vma, vma->vm_start, pfn, map_size,
-			       vma->vm_page_prot))
-		return -EAGAIN;
-
-	return mlx5_ib_set_vma_data(vma, mctx);
+	return rdma_user_mmap_io(context, vma, pfn, map_size,
+				 pgprot_writecombine(vma->vm_page_prot));
 }
 
 static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)

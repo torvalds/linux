@@ -116,13 +116,6 @@ enum {
 	MLX5_MEMIC_BASE_SIZE	= 1 << MLX5_MEMIC_BASE_ALIGN,
 };
 
-struct mlx5_ib_vma_private_data {
-	struct list_head list;
-	struct vm_area_struct *vma;
-	/* protect vma_private_list add/del */
-	struct mutex *vma_private_list_mutex;
-};
-
 struct mlx5_ib_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct list_head	db_page_list;
@@ -134,9 +127,6 @@ struct mlx5_ib_ucontext {
 	u8			cqe_version;
 	/* Transport Domain number */
 	u32			tdn;
-	struct list_head	vma_private_list;
-	/* protect vma_private_list add/del */
-	struct mutex		vma_private_list_mutex;
 
 	u64			lib_caps;
 	DECLARE_BITMAP(dm_pages, MLX5_MAX_MEMIC_PAGES);
