@@ -707,7 +707,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	dma_addr_t mapped_addr;
 	unsigned int nr_frags;
 	int i, n_desc = 1;
-	u32 txd3 = 0, txd4 = 0, fport;
+	u32 txd3 = 0, txd4 = 0, fport = 0;
 
 	itxd = ring->next_free;
 	if (itxd == ring->last_free)
