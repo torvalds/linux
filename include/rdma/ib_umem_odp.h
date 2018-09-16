@@ -99,6 +99,7 @@ struct ib_ucontext_per_mm {
 	unsigned int odp_mrs_count;
 
 	struct list_head ucontext_list;
+	struct rcu_head rcu;
 };
 
 int ib_umem_odp_get(struct ib_umem_odp *umem_odp, int access);

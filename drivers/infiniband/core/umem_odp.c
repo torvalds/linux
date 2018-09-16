@@ -307,6 +307,11 @@ found:
 	return 0;
 }
 
+static void free_per_mm(struct rcu_head *rcu)
+{
+	kfree(container_of(rcu, struct ib_ucontext_per_mm, rcu));
+}
+
 void put_per_mm(struct ib_umem_odp *umem_odp)
 {
 	struct ib_ucontext_per_mm *per_mm = umem_odp->per_mm;
@@ -334,9 +339,10 @@ void put_per_mm(struct ib_umem_odp *umem_odp)
 	per_mm->active = false;
 	up_write(&per_mm->umem_rwsem);
 
-	mmu_notifier_unregister(&per_mm->mn, per_mm->mm);
+	WARN_ON(!RB_EMPTY_ROOT(&per_mm->umem_tree.rb_root));
+	mmu_notifier_unregister_no_release(&per_mm->mn, per_mm->mm);
 	put_pid(per_mm->tgid);
-	kfree(per_mm);
+	mmu_notifier_call_srcu(&per_mm->rcu, free_per_mm);
 }
 
 struct ib_umem_odp *ib_alloc_odp_umem(struct ib_ucontext_per_mm *per_mm,
