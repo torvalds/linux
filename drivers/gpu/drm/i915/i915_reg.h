@@ -10286,6 +10286,64 @@ enum skl_power_gate {
 						   _ICL_DSI_T_INIT_MASTER_0,\
 						   _ICL_DSI_T_INIT_MASTER_1)
 
+#define _DPHY_CLK_TIMING_PARAM_0	0x162180
+#define _DPHY_CLK_TIMING_PARAM_1	0x6c180
+#define DPHY_CLK_TIMING_PARAM(port)	_MMIO_PORT(port,	\
+						   _DPHY_CLK_TIMING_PARAM_0,\
+						   _DPHY_CLK_TIMING_PARAM_1)
+#define _DSI_CLK_TIMING_PARAM_0		0x6b080
+#define _DSI_CLK_TIMING_PARAM_1		0x6b880
+#define DSI_CLK_TIMING_PARAM(port)	_MMIO_PORT(port,	\
+						   _DSI_CLK_TIMING_PARAM_0,\
+						   _DSI_CLK_TIMING_PARAM_1)
+#define  CLK_PREPARE_OVERRIDE		(1 << 31)
+#define  CLK_PREPARE(x)		((x) << 28)
+#define  CLK_PREPARE_MASK		(0x7 << 28)
+#define  CLK_PREPARE_SHIFT		28
+#define  CLK_ZERO_OVERRIDE		(1 << 27)
+#define  CLK_ZERO(x)			((x) << 20)
+#define  CLK_ZERO_MASK			(0xf << 20)
+#define  CLK_ZERO_SHIFT		20
+#define  CLK_PRE_OVERRIDE		(1 << 19)
+#define  CLK_PRE(x)			((x) << 16)
+#define  CLK_PRE_MASK			(0x3 << 16)
+#define  CLK_PRE_SHIFT			16
+#define  CLK_POST_OVERRIDE		(1 << 15)
+#define  CLK_POST(x)			((x) << 8)
+#define  CLK_POST_MASK			(0x7 << 8)
+#define  CLK_POST_SHIFT		8
+#define  CLK_TRAIL_OVERRIDE		(1 << 7)
+#define  CLK_TRAIL(x)			((x) << 0)
+#define  CLK_TRAIL_MASK		(0xf << 0)
+#define  CLK_TRAIL_SHIFT		0
+
+#define _DPHY_DATA_TIMING_PARAM_0	0x162184
+#define _DPHY_DATA_TIMING_PARAM_1	0x6c184
+#define DPHY_DATA_TIMING_PARAM(port)	_MMIO_PORT(port,	\
+						   _DPHY_DATA_TIMING_PARAM_0,\
+						   _DPHY_DATA_TIMING_PARAM_1)
+#define _DSI_DATA_TIMING_PARAM_0	0x6B084
+#define _DSI_DATA_TIMING_PARAM_1	0x6B884
+#define DSI_DATA_TIMING_PARAM(port)	_MMIO_PORT(port,	\
+						   _DSI_DATA_TIMING_PARAM_0,\
+						   _DSI_DATA_TIMING_PARAM_1)
+#define  HS_PREPARE_OVERRIDE		(1 << 31)
+#define  HS_PREPARE(x)			((x) << 24)
+#define  HS_PREPARE_MASK		(0x7 << 24)
+#define  HS_PREPARE_SHIFT		24
+#define  HS_ZERO_OVERRIDE		(1 << 23)
+#define  HS_ZERO(x)			((x) << 16)
+#define  HS_ZERO_MASK			(0xf << 16)
+#define  HS_ZERO_SHIFT			16
+#define  HS_TRAIL_OVERRIDE		(1 << 15)
+#define  HS_TRAIL(x)			((x) << 8)
+#define  HS_TRAIL_MASK			(0x7 << 8)
+#define  HS_TRAIL_SHIFT		8
+#define  HS_EXIT_OVERRIDE		(1 << 7)
+#define  HS_EXIT(x)			((x) << 0)
+#define  HS_EXIT_MASK			(0x7 << 0)
+#define  HS_EXIT_SHIFT			0
+
 /* bits 31:0 */
 #define _MIPIA_DBI_BW_CTRL		(dev_priv->mipi_mmio_base + 0xb084)
 #define _MIPIC_DBI_BW_CTRL		(dev_priv->mipi_mmio_base + 0xb884)
