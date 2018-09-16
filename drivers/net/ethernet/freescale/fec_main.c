@@ -2054,8 +2054,7 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 
 	node = of_get_child_by_name(pdev->dev.of_node, "mdio");
 	err = of_mdiobus_register(fep->mii_bus, node);
-	if (node)
-		of_node_put(node);
+	of_node_put(node);
 	if (err)
 		goto err_out_free_mdiobus;
 
