@@ -42,14 +42,13 @@ struct ib_umem_odp;
 
 struct ib_umem {
 	struct ib_ucontext     *context;
+	struct mm_struct       *owning_mm;
 	size_t			length;
 	unsigned long		address;
 	int			page_shift;
 	int                     writable;
 	int                     hugetlb;
 	struct work_struct	work;
-	struct mm_struct       *mm;
-	unsigned long		diff;
 	struct ib_umem_odp     *odp_data;
 	struct sg_table sg_head;
 	int             nmap;
