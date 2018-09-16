@@ -1747,14 +1747,10 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	}
 
 cleanup_exit:
-	if (remote_ep)
-		of_node_put(remote_ep);
-	if (sensor_node)
-		of_node_put(sensor_node);
-	if (ep_node)
-		of_node_put(ep_node);
-	if (port)
-		of_node_put(port);
+	of_node_put(remote_ep);
+	of_node_put(sensor_node);
+	of_node_put(ep_node);
+	of_node_put(port);
 
 	return ret;
 }
