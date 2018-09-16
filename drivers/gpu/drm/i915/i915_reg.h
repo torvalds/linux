@@ -10344,6 +10344,29 @@ enum skl_power_gate {
 #define  HS_EXIT_MASK			(0x7 << 0)
 #define  HS_EXIT_SHIFT			0
 
+#define _DPHY_TA_TIMING_PARAM_0		0x162188
+#define _DPHY_TA_TIMING_PARAM_1		0x6c188
+#define DPHY_TA_TIMING_PARAM(port)	_MMIO_PORT(port,	\
+						   _DPHY_TA_TIMING_PARAM_0,\
+						   _DPHY_TA_TIMING_PARAM_1)
+#define _DSI_TA_TIMING_PARAM_0		0x6b098
+#define _DSI_TA_TIMING_PARAM_1		0x6b898
+#define DSI_TA_TIMING_PARAM(port)	_MMIO_PORT(port,	\
+						   _DSI_TA_TIMING_PARAM_0,\
+						   _DSI_TA_TIMING_PARAM_1)
+#define  TA_SURE_OVERRIDE		(1 << 31)
+#define  TA_SURE(x)			((x) << 16)
+#define  TA_SURE_MASK			(0x1f << 16)
+#define  TA_SURE_SHIFT			16
+#define  TA_GO_OVERRIDE		(1 << 15)
+#define  TA_GO(x)			((x) << 8)
+#define  TA_GO_MASK			(0xf << 8)
+#define  TA_GO_SHIFT			8
+#define  TA_GET_OVERRIDE		(1 << 7)
+#define  TA_GET(x)			((x) << 0)
+#define  TA_GET_MASK			(0xf << 0)
+#define  TA_GET_SHIFT			0
+
 /* bits 31:0 */
 #define _MIPIA_DBI_BW_CTRL		(dev_priv->mipi_mmio_base + 0xb084)
 #define _MIPIC_DBI_BW_CTRL		(dev_priv->mipi_mmio_base + 0xb884)
