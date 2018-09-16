@@ -1364,10 +1364,12 @@ static void nfs3_xdr_enc_getacl3args(struct rpc_rqst *req,
 
 	encode_nfs_fh3(xdr, args->fh);
 	encode_uint32(xdr, args->mask);
-	if (args->mask & (NFS_ACL | NFS_DFACL))
+	if (args->mask & (NFS_ACL | NFS_DFACL)) {
 		prepare_reply_buffer(req, args->pages, 0,
 					NFSACL_MAXPAGES << PAGE_SHIFT,
 					ACL3_getaclres_sz);
+		req->rq_rcv_buf.flags |= XDRBUF_SPARSE_PAGES;
+	}
 }
 
 static void nfs3_xdr_enc_setacl3args(struct rpc_rqst *req,
