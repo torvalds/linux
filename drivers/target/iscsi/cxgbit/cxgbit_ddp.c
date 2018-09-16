@@ -207,8 +207,8 @@ cxgbit_ddp_reserve(struct cxgbit_sock *csk, struct cxgbi_task_tag_info *ttinfo,
 	ret = dma_map_sg(&ppm->pdev->dev, sgl, sgcnt, DMA_FROM_DEVICE);
 	sgl->offset = sg_offset;
 	if (!ret) {
-		pr_info("%s: 0x%x, xfer %u, sgl %u dma mapping err.\n",
-			__func__, 0, xferlen, sgcnt);
+		pr_debug("%s: 0x%x, xfer %u, sgl %u dma mapping err.\n",
+			 __func__, 0, xferlen, sgcnt);
 		goto rel_ppods;
 	}
 
@@ -250,8 +250,8 @@ cxgbit_get_r2t_ttt(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 
 	ret = cxgbit_ddp_reserve(csk, ttinfo, cmd->se_cmd.data_length);
 	if (ret < 0) {
-		pr_info("csk 0x%p, cmd 0x%p, xfer len %u, sgcnt %u no ddp.\n",
-			csk, cmd, cmd->se_cmd.data_length, ttinfo->nents);
+		pr_debug("csk 0x%p, cmd 0x%p, xfer len %u, sgcnt %u no ddp.\n",
+			 csk, cmd, cmd->se_cmd.data_length, ttinfo->nents);
 
 		ttinfo->sgl = NULL;
 		ttinfo->nents = 0;

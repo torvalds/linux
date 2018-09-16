@@ -724,6 +724,7 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 	dgid = (union ib_gid *) &addr->sib_addr;
 	pkey = ntohs(addr->sib_pkey);
 
+	mutex_lock(&lock);
 	list_for_each_entry(cur_dev, &dev_list, list) {
 		for (p = 1; p <= cur_dev->device->phys_port_cnt; ++p) {
 			if (!rdma_cap_af_ib(cur_dev->device, p))
@@ -750,18 +751,19 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 					cma_dev = cur_dev;
 					sgid = gid;
 					id_priv->id.port_num = p;
+					goto found;
 				}
 			}
 		}
 	}
-
-	if (!cma_dev)
-		return -ENODEV;
+	mutex_unlock(&lock);
+	return -ENODEV;
 
 found:
 	cma_attach_to_dev(id_priv, cma_dev);
-	addr = (struct sockaddr_ib *) cma_src_addr(id_priv);
-	memcpy(&addr->sib_addr, &sgid, sizeof sgid);
+	mutex_unlock(&lock);
+	addr = (struct sockaddr_ib *)cma_src_addr(id_priv);
+	memcpy(&addr->sib_addr, &sgid, sizeof(sgid));
 	cma_translate_ib(addr, &id_priv->id.route.addr.dev_addr);
 	return 0;
 }

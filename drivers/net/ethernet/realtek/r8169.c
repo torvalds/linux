@@ -218,6 +218,7 @@ static const struct pci_device_id rtl8169_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8161), 0, 0, RTL_CFG_1 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8167), 0, 0, RTL_CFG_0 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8168), 0, 0, RTL_CFG_1 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NCUBE,	0x8168), 0, 0, RTL_CFG_1 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8169), 0, 0, RTL_CFG_0 },
 	{ PCI_VENDOR_ID_DLINK,			0x4300,
 		PCI_VENDOR_ID_DLINK, 0x4b10,		 0, 0, RTL_CFG_1 },
@@ -630,7 +631,7 @@ struct rtl8169_tc_offsets {
 };
 
 enum rtl_flag {
-	RTL_FLAG_TASK_ENABLED,
+	RTL_FLAG_TASK_ENABLED = 0,
 	RTL_FLAG_TASK_SLOW_PENDING,
 	RTL_FLAG_TASK_RESET_PENDING,
 	RTL_FLAG_MAX
@@ -4522,7 +4523,7 @@ static void rtl8169_hw_reset(struct rtl8169_private *tp)
 	rtl_hw_reset(tp);
 }
 
-static void rtl_set_rx_tx_config_registers(struct rtl8169_private *tp)
+static void rtl_set_tx_config_registers(struct rtl8169_private *tp)
 {
 	/* Set DMA burst size and Interframe Gap Time */
 	RTL_W32(tp, TxConfig, (TX_DMA_BURST << TxDMAShift) |
@@ -4633,12 +4634,14 @@ static void rtl_hw_start(struct  rtl8169_private *tp)
 
 	rtl_set_rx_max_size(tp);
 	rtl_set_rx_tx_desc_registers(tp);
-	rtl_set_rx_tx_config_registers(tp);
 	RTL_W8(tp, Cfg9346, Cfg9346_Lock);
 
 	/* Initially a 10 us delay. Turned it into a PCI commit. - FR */
 	RTL_R8(tp, IntrMask);
 	RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
+	rtl_init_rxcfg(tp);
+	rtl_set_tx_config_registers(tp);
+
 	rtl_set_rx_mode(tp->dev);
 	/* no early-rx interrupts */
 	RTL_W16(tp, MultiIntr, RTL_R16(tp, MultiIntr) & 0xf000);
@@ -6652,7 +6655,8 @@ static int rtl8169_close(struct net_device *dev)
 	rtl8169_update_counters(tp);
 
 	rtl_lock_work(tp);
-	clear_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags);
+	/* Clear all task flags */
+	bitmap_zero(tp->wk.flags, RTL_FLAG_MAX);
 
 	rtl8169_down(dev);
 	rtl_unlock_work(tp);
@@ -6835,7 +6839,9 @@ static void rtl8169_net_suspend(struct net_device *dev)
 
 	rtl_lock_work(tp);
 	napi_disable(&tp->napi);
-	clear_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags);
+	/* Clear all task flags */
+	bitmap_zero(tp->wk.flags, RTL_FLAG_MAX);
+
 	rtl_unlock_work(tp);
 
 	rtl_pll_power_down(tp);

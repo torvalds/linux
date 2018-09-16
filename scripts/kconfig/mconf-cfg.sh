@@ -4,20 +4,23 @@
 PKG="ncursesw"
 PKG2="ncurses"
 
-if pkg-config --exists $PKG; then
-	echo cflags=\"$(pkg-config --cflags $PKG)\"
-	echo libs=\"$(pkg-config --libs $PKG)\"
-	exit 0
+if [ -n "$(command -v pkg-config)" ]; then
+	if pkg-config --exists $PKG; then
+		echo cflags=\"$(pkg-config --cflags $PKG)\"
+		echo libs=\"$(pkg-config --libs $PKG)\"
+		exit 0
+	fi
+
+	if pkg-config --exists $PKG2; then
+		echo cflags=\"$(pkg-config --cflags $PKG2)\"
+		echo libs=\"$(pkg-config --libs $PKG2)\"
+		exit 0
+	fi
 fi
 
-if pkg-config --exists $PKG2; then
-	echo cflags=\"$(pkg-config --cflags $PKG2)\"
-	echo libs=\"$(pkg-config --libs $PKG2)\"
-	exit 0
-fi
-
-# Unfortunately, some distributions (e.g. openSUSE) cannot find ncurses
-# by pkg-config.
+# Check the default paths in case pkg-config is not installed.
+# (Even if it is installed, some distributions such as openSUSE cannot
+# find ncurses by pkg-config.)
 if [ -f /usr/include/ncursesw/ncurses.h ]; then
 	echo cflags=\"-D_GNU_SOURCE -I/usr/include/ncursesw\"
 	echo libs=\"-lncursesw\"

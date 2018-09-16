@@ -39,6 +39,7 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 {
 	struct drm_gem_object *gobj;
 	unsigned long size;
+	int r;
 
 	gobj = drm_gem_object_lookup(p->filp, data->handle);
 	if (gobj == NULL)
@@ -50,20 +51,26 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 	p->uf_entry.tv.shared = true;
 	p->uf_entry.user_pages = NULL;
 
+	drm_gem_object_put_unlocked(gobj);
+
 	size = amdgpu_bo_size(p->uf_entry.robj);
-	if (size != PAGE_SIZE || (data->offset + 8) > size)
-		return -EINVAL;
+	if (size != PAGE_SIZE || (data->offset + 8) > size) {
+		r = -EINVAL;
+		goto error_unref;
+	}
+
+	if (amdgpu_ttm_tt_get_usermm(p->uf_entry.robj->tbo.ttm)) {
+		r = -EINVAL;
+		goto error_unref;
+	}
 
 	*offset = data->offset;
 
-	drm_gem_object_put_unlocked(gobj);
-
-	if (amdgpu_ttm_tt_get_usermm(p->uf_entry.robj->tbo.ttm)) {
-		amdgpu_bo_unref(&p->uf_entry.robj);
-		return -EINVAL;
-	}
-
 	return 0;
+
+error_unref:
+	amdgpu_bo_unref(&p->uf_entry.robj);
+	return r;
 }
 
 static int amdgpu_cs_bo_handles_chunk(struct amdgpu_cs_parser *p,
@@ -1262,10 +1269,10 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 error_abort:
 	dma_fence_put(&job->base.s_fence->finished);
 	job->base.s_fence = NULL;
+	amdgpu_mn_unlock(p->mn);
 
 error_unlock:
 	amdgpu_job_free(job);
-	amdgpu_mn_unlock(p->mn);
 	return r;
 }
 

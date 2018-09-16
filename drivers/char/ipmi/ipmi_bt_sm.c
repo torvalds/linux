@@ -59,8 +59,6 @@ enum bt_states {
 	BT_STATE_RESET3,
 	BT_STATE_RESTART,
 	BT_STATE_PRINTME,
-	BT_STATE_CAPABILITIES_BEGIN,
-	BT_STATE_CAPABILITIES_END,
 	BT_STATE_LONG_BUSY	/* BT doesn't get hosed :-) */
 };
 
@@ -86,7 +84,6 @@ struct si_sm_data {
 	int		error_retries;	/* end of "common" fields */
 	int		nonzero_status;	/* hung BMCs stay all 0 */
 	enum bt_states	complete;	/* to divert the state machine */
-	int		BT_CAP_outreqs;
 	long		BT_CAP_req2rsp;
 	int		BT_CAP_retries;	/* Recommended retries */
 };
@@ -137,8 +134,6 @@ static char *state2txt(unsigned char state)
 	case BT_STATE_RESET3:		return("RESET3");
 	case BT_STATE_RESTART:		return("RESTART");
 	case BT_STATE_LONG_BUSY:	return("LONG_BUSY");
-	case BT_STATE_CAPABILITIES_BEGIN: return("CAP_BEGIN");
-	case BT_STATE_CAPABILITIES_END:	return("CAP_END");
 	}
 	return("BAD STATE");
 }
@@ -185,7 +180,6 @@ static unsigned int bt_init_data(struct si_sm_data *bt, struct si_sm_io *io)
 	bt->complete = BT_STATE_IDLE;	/* end here */
 	bt->BT_CAP_req2rsp = BT_NORMAL_TIMEOUT * USEC_PER_SEC;
 	bt->BT_CAP_retries = BT_NORMAL_RETRY_LIMIT;
-	/* BT_CAP_outreqs == zero is a flag to read BT Capabilities */
 	return 3; /* We claim 3 bytes of space; ought to check SPMI table */
 }
 
@@ -451,7 +445,7 @@ static enum si_sm_result error_recovery(struct si_sm_data *bt,
 
 static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 {
-	unsigned char status, BT_CAP[8];
+	unsigned char status;
 	static enum bt_states last_printed = BT_STATE_PRINTME;
 	int i;
 
@@ -504,12 +498,6 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 		if (status & BT_H_BUSY)		/* clear a leftover H_BUSY */
 			BT_CONTROL(BT_H_BUSY);
 
-		bt->timeout = bt->BT_CAP_req2rsp;
-
-		/* Read BT capabilities if it hasn't been done yet */
-		if (!bt->BT_CAP_outreqs)
-			BT_STATE_CHANGE(BT_STATE_CAPABILITIES_BEGIN,
-					SI_SM_CALL_WITHOUT_DELAY);
 		BT_SI_SM_RETURN(SI_SM_IDLE);
 
 	case BT_STATE_XACTION_START:
@@ -614,37 +602,6 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 		BT_STATE_CHANGE(BT_STATE_XACTION_START,
 				SI_SM_CALL_WITH_DELAY);
 
-	/*
-	 * Get BT Capabilities, using timing of upper level state machine.
-	 * Set outreqs to prevent infinite loop on timeout.
-	 */
-	case BT_STATE_CAPABILITIES_BEGIN:
-		bt->BT_CAP_outreqs = 1;
-		{
-			unsigned char GetBT_CAP[] = { 0x18, 0x36 };
-			bt->state = BT_STATE_IDLE;
-			bt_start_transaction(bt, GetBT_CAP, sizeof(GetBT_CAP));
-		}
-		bt->complete = BT_STATE_CAPABILITIES_END;
-		BT_STATE_CHANGE(BT_STATE_XACTION_START,
-				SI_SM_CALL_WITH_DELAY);
-
-	case BT_STATE_CAPABILITIES_END:
-		i = bt_get_result(bt, BT_CAP, sizeof(BT_CAP));
-		bt_init_data(bt, bt->io);
-		if ((i == 8) && !BT_CAP[2]) {
-			bt->BT_CAP_outreqs = BT_CAP[3];
-			bt->BT_CAP_req2rsp = BT_CAP[6] * USEC_PER_SEC;
-			bt->BT_CAP_retries = BT_CAP[7];
-		} else
-			printk(KERN_WARNING "IPMI BT: using default values\n");
-		if (!bt->BT_CAP_outreqs)
-			bt->BT_CAP_outreqs = 1;
-		printk(KERN_WARNING "IPMI BT: req2rsp=%ld secs retries=%d\n",
-			bt->BT_CAP_req2rsp / USEC_PER_SEC, bt->BT_CAP_retries);
-		bt->timeout = bt->BT_CAP_req2rsp;
-		return SI_SM_CALL_WITHOUT_DELAY;
-
 	default:	/* should never occur */
 		return error_recovery(bt,
 				      status,
@@ -655,6 +612,11 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 
 static int bt_detect(struct si_sm_data *bt)
 {
+	unsigned char GetBT_CAP[] = { 0x18, 0x36 };
+	unsigned char BT_CAP[8];
+	enum si_sm_result smi_result;
+	int rv;
+
 	/*
 	 * It's impossible for the BT status and interrupt registers to be
 	 * all 1's, (assuming a properly functioning, self-initialized BMC)
@@ -665,6 +627,48 @@ static int bt_detect(struct si_sm_data *bt)
 	if ((BT_STATUS == 0xFF) && (BT_INTMASK_R == 0xFF))
 		return 1;
 	reset_flags(bt);
+
+	/*
+	 * Try getting the BT capabilities here.
+	 */
+	rv = bt_start_transaction(bt, GetBT_CAP, sizeof(GetBT_CAP));
+	if (rv) {
+		dev_warn(bt->io->dev,
+			 "Can't start capabilities transaction: %d\n", rv);
+		goto out_no_bt_cap;
+	}
+
+	smi_result = SI_SM_CALL_WITHOUT_DELAY;
+	for (;;) {
+		if (smi_result == SI_SM_CALL_WITH_DELAY ||
+		    smi_result == SI_SM_CALL_WITH_TICK_DELAY) {
+			schedule_timeout_uninterruptible(1);
+			smi_result = bt_event(bt, jiffies_to_usecs(1));
+		} else if (smi_result == SI_SM_CALL_WITHOUT_DELAY) {
+			smi_result = bt_event(bt, 0);
+		} else
+			break;
+	}
+
+	rv = bt_get_result(bt, BT_CAP, sizeof(BT_CAP));
+	bt_init_data(bt, bt->io);
+	if (rv < 8) {
+		dev_warn(bt->io->dev, "bt cap response too short: %d\n", rv);
+		goto out_no_bt_cap;
+	}
+
+	if (BT_CAP[2]) {
+		dev_warn(bt->io->dev, "Error fetching bt cap: %x\n", BT_CAP[2]);
+out_no_bt_cap:
+		dev_warn(bt->io->dev, "using default values\n");
+	} else {
+		bt->BT_CAP_req2rsp = BT_CAP[6] * USEC_PER_SEC;
+		bt->BT_CAP_retries = BT_CAP[7];
+	}
+
+	dev_info(bt->io->dev, "req2rsp=%ld secs retries=%d\n",
+		 bt->BT_CAP_req2rsp / USEC_PER_SEC, bt->BT_CAP_retries);
+
 	return 0;
 }
 

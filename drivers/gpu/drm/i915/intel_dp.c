@@ -4160,18 +4160,6 @@ intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 	return !drm_dp_channel_eq_ok(link_status, intel_dp->lane_count);
 }
 
-/*
- * If display is now connected check links status,
- * there has been known issues of link loss triggering
- * long pulse.
- *
- * Some sinks (eg. ASUS PB287Q) seem to perform some
- * weird HPD ping pong during modesets. So we can apparently
- * end up with HPD going low during a modeset, and then
- * going back up soon after. And once that happens we must
- * retrain the link to get a picture. That's in case no
- * userspace component reacted to intermittent HPD dip.
- */
 int intel_dp_retrain_link(struct intel_encoder *encoder,
 			  struct drm_modeset_acquire_ctx *ctx)
 {
@@ -4661,7 +4649,8 @@ intel_dp_unset_edid(struct intel_dp *intel_dp)
 }
 
 static int
-intel_dp_long_pulse(struct intel_connector *connector)
+intel_dp_long_pulse(struct intel_connector *connector,
+		    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_dp *intel_dp = intel_attached_dp(&connector->base);
@@ -4720,6 +4709,22 @@ intel_dp_long_pulse(struct intel_connector *connector)
 		 */
 		status = connector_status_disconnected;
 		goto out;
+	} else {
+		/*
+		 * If display is now connected check links status,
+		 * there has been known issues of link loss triggering
+		 * long pulse.
+		 *
+		 * Some sinks (eg. ASUS PB287Q) seem to perform some
+		 * weird HPD ping pong during modesets. So we can apparently
+		 * end up with HPD going low during a modeset, and then
+		 * going back up soon after. And once that happens we must
+		 * retrain the link to get a picture. That's in case no
+		 * userspace component reacted to intermittent HPD dip.
+		 */
+		struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+
+		intel_dp_retrain_link(encoder, ctx);
 	}
 
 	/*
@@ -4781,7 +4786,7 @@ intel_dp_detect(struct drm_connector *connector,
 				return ret;
 		}
 
-		status = intel_dp_long_pulse(intel_dp->attached_connector);
+		status = intel_dp_long_pulse(intel_dp->attached_connector, ctx);
 	}
 
 	intel_dp->detect_done = false;

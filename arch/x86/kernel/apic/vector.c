@@ -413,7 +413,7 @@ static int activate_managed(struct irq_data *irqd)
 	if (WARN_ON_ONCE(cpumask_empty(vector_searchmask))) {
 		/* Something in the core code broke! Survive gracefully */
 		pr_err("Managed startup for irq %u, but no CPU\n", irqd->irq);
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	ret = assign_managed_vector(irqd, vector_searchmask);

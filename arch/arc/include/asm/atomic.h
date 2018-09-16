@@ -84,7 +84,7 @@ static inline int atomic_fetch_##op(int i, atomic_t *v)			\
 	"1:	llock   %[orig], [%[ctr]]		\n"		\
 	"	" #asm_op " %[val], %[orig], %[i]	\n"		\
 	"	scond   %[val], [%[ctr]]		\n"		\
-	"						\n"		\
+	"	bnz     1b				\n"		\
 	: [val]	"=&r"	(val),						\
 	  [orig] "=&r" (orig)						\
 	: [ctr]	"r"	(&v->counter),					\

@@ -1252,7 +1252,7 @@ replay:
 	}
 	chain = tcf_chain_get(block, chain_index, true);
 	if (!chain) {
-		NL_SET_ERR_MSG(extack, "Cannot find specified filter chain");
+		NL_SET_ERR_MSG(extack, "Cannot create specified filter chain");
 		err = -ENOMEM;
 		goto errout;
 	}
@@ -1399,7 +1399,7 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 			goto errout;
 		}
 		NL_SET_ERR_MSG(extack, "Cannot find specified filter chain");
-		err = -EINVAL;
+		err = -ENOENT;
 		goto errout;
 	}
 

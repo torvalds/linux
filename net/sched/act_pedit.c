@@ -109,16 +109,18 @@ static int tcf_pedit_key_ex_dump(struct sk_buff *skb,
 {
 	struct nlattr *keys_start = nla_nest_start(skb, TCA_PEDIT_KEYS_EX);
 
+	if (!keys_start)
+		goto nla_failure;
 	for (; n > 0; n--) {
 		struct nlattr *key_start;
 
 		key_start = nla_nest_start(skb, TCA_PEDIT_KEY_EX);
+		if (!key_start)
+			goto nla_failure;
 
 		if (nla_put_u16(skb, TCA_PEDIT_KEY_EX_HTYPE, keys_ex->htype) ||
-		    nla_put_u16(skb, TCA_PEDIT_KEY_EX_CMD, keys_ex->cmd)) {
-			nlmsg_trim(skb, keys_start);
-			return -EINVAL;
-		}
+		    nla_put_u16(skb, TCA_PEDIT_KEY_EX_CMD, keys_ex->cmd))
+			goto nla_failure;
 
 		nla_nest_end(skb, key_start);
 
@@ -128,6 +130,9 @@ static int tcf_pedit_key_ex_dump(struct sk_buff *skb,
 	nla_nest_end(skb, keys_start);
 
 	return 0;
+nla_failure:
+	nla_nest_cancel(skb, keys_start);
+	return -EINVAL;
 }
 
 static int tcf_pedit_init(struct net *net, struct nlattr *nla,
@@ -418,7 +423,10 @@ static int tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,
 	opt->bindcnt = atomic_read(&p->tcf_bindcnt) - bind;
 
 	if (p->tcfp_keys_ex) {
-		tcf_pedit_key_ex_dump(skb, p->tcfp_keys_ex, p->tcfp_nkeys);
+		if (tcf_pedit_key_ex_dump(skb,
+					  p->tcfp_keys_ex,
+					  p->tcfp_nkeys))
+			goto nla_put_failure;
 
 		if (nla_put(skb, TCA_PEDIT_PARMS_EX, s, opt))
 			goto nla_put_failure;
