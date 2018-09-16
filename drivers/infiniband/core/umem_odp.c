@@ -129,15 +129,11 @@ static void ib_umem_notifier_release(struct mmu_notifier *mn,
 	struct ib_ucontext_per_mm *per_mm =
 		container_of(mn, struct ib_ucontext_per_mm, mn);
 
-	if (!per_mm->context->invalidate_range)
-		return;
-
 	down_read(&per_mm->umem_rwsem);
-	rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, 0,
-				      ULLONG_MAX,
-				      ib_umem_notifier_release_trampoline,
-				      true,
-				      NULL);
+	if (per_mm->active)
+		rbt_ib_umem_for_each_in_range(
+			&per_mm->umem_tree, 0, ULLONG_MAX,
+			ib_umem_notifier_release_trampoline, true, NULL);
 	up_read(&per_mm->umem_rwsem);
 }
 
@@ -166,15 +162,21 @@ static int ib_umem_notifier_invalidate_range_start(struct mmu_notifier *mn,
 {
 	struct ib_ucontext_per_mm *per_mm =
 		container_of(mn, struct ib_ucontext_per_mm, mn);
-	int ret;
-
-	if (!per_mm->context->invalidate_range)
-		return 0;
 
 	if (blockable)
 		down_read(&per_mm->umem_rwsem);
 	else if (!down_read_trylock(&per_mm->umem_rwsem))
 		return -EAGAIN;
+
+	if (!per_mm->active) {
+		up_read(&per_mm->umem_rwsem);
+		/*
+		 * At this point active is permanently set and visible to this
+		 * CPU without a lock, that fact is relied on to skip the unlock
+		 * in range_end.
+		 */
+		return 0;
+	}
 
 	return rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, start, end,
 					     invalidate_range_start_trampoline,
@@ -196,7 +198,7 @@ static void ib_umem_notifier_invalidate_range_end(struct mmu_notifier *mn,
 	struct ib_ucontext_per_mm *per_mm =
 		container_of(mn, struct ib_ucontext_per_mm, mn);
 
-	if (!per_mm->context->invalidate_range)
+	if (unlikely(!per_mm->active))
 		return;
 
 	rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, start,
@@ -251,6 +253,7 @@ static struct ib_ucontext_per_mm *alloc_per_mm(struct ib_ucontext *ctx,
 	per_mm->mm = mm;
 	per_mm->umem_tree = RB_ROOT_CACHED;
 	init_rwsem(&per_mm->umem_rwsem);
+	per_mm->active = ctx->invalidate_range;
 
 	rcu_read_lock();
 	per_mm->tgid = get_task_pid(current->group_leader, PIDTYPE_PID);
@@ -320,6 +323,16 @@ void put_per_mm(struct ib_umem_odp *umem_odp)
 
 	if (!need_free)
 		return;
+
+	/*
+	 * NOTE! mmu_notifier_unregister() can happen between a start/end
+	 * callback, resulting in an start/end, and thus an unbalanced
+	 * lock. This doesn't really matter to us since we are about to kfree
+	 * the memory that holds the lock, however LOCKDEP doesn't like this.
+	 */
+	down_write(&per_mm->umem_rwsem);
+	per_mm->active = false;
+	up_write(&per_mm->umem_rwsem);
 
 	mmu_notifier_unregister(&per_mm->mn, per_mm->mm);
 	put_pid(per_mm->tgid);

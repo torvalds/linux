@@ -89,6 +89,7 @@ struct ib_ucontext_per_mm {
 	struct ib_ucontext *context;
 	struct mm_struct *mm;
 	struct pid *tgid;
+	bool active;
 
 	struct rb_root_cached umem_tree;
 	/* Protects umem_tree */
