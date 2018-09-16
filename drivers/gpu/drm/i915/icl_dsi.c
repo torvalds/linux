@@ -105,10 +105,49 @@ static void gen11_dsi_power_up_lanes(struct intel_encoder *encoder)
 	}
 }
 
+static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
+	u32 tmp;
+	int lane;
+
+	/* Step 4b(i) set loadgen select for transmit and aux lanes */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp = I915_READ(ICL_PORT_TX_DW4_AUX(port));
+		tmp &= ~LOADGEN_SELECT;
+		I915_WRITE(ICL_PORT_TX_DW4_AUX(port), tmp);
+		for (lane = 0; lane <= 3; lane++) {
+			tmp = I915_READ(ICL_PORT_TX_DW4_LN(port, lane));
+			tmp &= ~LOADGEN_SELECT;
+			if (lane != 2)
+				tmp |= LOADGEN_SELECT;
+			I915_WRITE(ICL_PORT_TX_DW4_LN(port, lane), tmp);
+		}
+	}
+
+	/* Step 4b(ii) set latency optimization for transmit and aux lanes */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp = I915_READ(ICL_PORT_TX_DW2_AUX(port));
+		tmp &= ~FRC_LATENCY_OPTIM_MASK;
+		tmp |= FRC_LATENCY_OPTIM_VAL(0x5);
+		I915_WRITE(ICL_PORT_TX_DW2_AUX(port), tmp);
+		tmp = I915_READ(ICL_PORT_TX_DW2_LN0(port));
+		tmp &= ~FRC_LATENCY_OPTIM_MASK;
+		tmp |= FRC_LATENCY_OPTIM_VAL(0x5);
+		I915_WRITE(ICL_PORT_TX_DW2_GRP(port), tmp);
+	}
+
+}
+
 static void gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder)
 {
 	/* step 4a: power up all lanes of the DDI used by DSI */
 	gen11_dsi_power_up_lanes(encoder);
+
+	/* step 4b: configure lane sequencing of the Combo-PHY transmitters */
+	gen11_dsi_config_phy_lanes_sequence(encoder);
 }
 
 static void __attribute__((unused))
