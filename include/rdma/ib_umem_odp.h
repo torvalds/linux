@@ -91,8 +91,26 @@ static inline struct ib_umem_odp *to_ib_umem_odp(struct ib_umem *umem)
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 
+struct ib_ucontext_per_mm {
+	struct ib_ucontext *context;
+	struct mm_struct *mm;
+	struct pid *tgid;
+
+	struct rb_root_cached umem_tree;
+	/* Protects umem_tree */
+	struct rw_semaphore umem_rwsem;
+	atomic_t notifier_count;
+
+	struct mmu_notifier mn;
+	/* A list of umems that don't have private mmu notifier counters yet. */
+	struct list_head no_private_counters;
+	unsigned int odp_mrs_count;
+
+	struct list_head ucontext_list;
+};
+
 int ib_umem_odp_get(struct ib_umem_odp *umem_odp, int access);
-struct ib_umem_odp *ib_alloc_odp_umem(struct ib_ucontext *context,
+struct ib_umem_odp *ib_alloc_odp_umem(struct ib_ucontext_per_mm *per_mm,
 				      unsigned long addr, size_t size);
 void ib_umem_odp_release(struct ib_umem_odp *umem_odp);
 

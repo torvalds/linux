@@ -393,7 +393,7 @@ next_mr:
 		if (nentries)
 			nentries++;
 	} else {
-		odp = ib_alloc_odp_umem(odp_mr->umem.context, addr,
+		odp = ib_alloc_odp_umem(odp_mr->per_mm, addr,
 					MLX5_IMR_MTT_SIZE);
 		if (IS_ERR(odp)) {
 			mutex_unlock(&odp_mr->umem_mutex);

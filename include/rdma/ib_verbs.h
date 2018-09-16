@@ -1488,25 +1488,6 @@ struct ib_rdmacg_object {
 #endif
 };
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-struct ib_ucontext_per_mm {
-	struct ib_ucontext *context;
-
-	struct rb_root_cached umem_tree;
-	/*
-	 * Protects .umem_rbroot and tree, as well as odp_mrs_count and
-	 * mmu notifiers registration.
-	 */
-	struct rw_semaphore umem_rwsem;
-
-	struct mmu_notifier mn;
-	atomic_t notifier_count;
-	/* A list of umems that don't have private mmu notifier counters yet. */
-	struct list_head no_private_counters;
-	unsigned int odp_mrs_count;
-};
-#endif
-
 struct ib_ucontext {
 	struct ib_device       *device;
 	struct ib_uverbs_file  *ufile;
@@ -1523,7 +1504,8 @@ struct ib_ucontext {
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	void (*invalidate_range)(struct ib_umem_odp *umem_odp,
 				 unsigned long start, unsigned long end);
-	struct ib_ucontext_per_mm per_mm;
+	struct mutex per_mm_list_lock;
+	struct list_head per_mm_list;
 #endif
 
 	struct ib_rdmacg_object	cg_obj;

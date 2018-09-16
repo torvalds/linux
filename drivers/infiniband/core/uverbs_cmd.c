@@ -124,12 +124,8 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 	ucontext->cleanup_retryable = false;
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	ucontext->per_mm.umem_tree = RB_ROOT_CACHED;
-	init_rwsem(&ucontext->per_mm.umem_rwsem);
-	ucontext->per_mm.odp_mrs_count = 0;
-	INIT_LIST_HEAD(&ucontext->per_mm.no_private_counters);
-	ucontext->per_mm.context = ucontext;
-
+	mutex_init(&ucontext->per_mm_list_lock);
+	INIT_LIST_HEAD(&ucontext->per_mm_list);
 	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_ON_DEMAND_PAGING))
 		ucontext->invalidate_range = NULL;
 

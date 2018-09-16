@@ -1861,6 +1861,13 @@ static int mlx5_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 	struct mlx5_ib_dev *dev = to_mdev(ibcontext->device);
 	struct mlx5_bfreg_info *bfregi;
 
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	/* All umem's must be destroyed before destroying the ucontext. */
+	mutex_lock(&ibcontext->per_mm_list_lock);
+	WARN_ON(!list_empty(&ibcontext->per_mm_list));
+	mutex_unlock(&ibcontext->per_mm_list_lock);
+#endif
+
 	if (context->devx_uid)
 		mlx5_ib_devx_destroy(dev, context);
 
