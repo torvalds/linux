@@ -4010,19 +4010,23 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			break;
 
 		BUILD_BUG_ON(sizeof(user_data_size) != sizeof(user_kvm_nested_state->size));
+		r = -EFAULT;
 		if (get_user(user_data_size, &user_kvm_nested_state->size))
-			return -EFAULT;
+			break;
 
 		r = kvm_x86_ops->get_nested_state(vcpu, user_kvm_nested_state,
 						  user_data_size);
 		if (r < 0)
-			return r;
+			break;
 
 		if (r > user_data_size) {
 			if (put_user(r, &user_kvm_nested_state->size))
-				return -EFAULT;
-			return -E2BIG;
+				r = -EFAULT;
+			else
+				r = -E2BIG;
+			break;
 		}
+
 		r = 0;
 		break;
 	}
@@ -4034,19 +4038,21 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (!kvm_x86_ops->set_nested_state)
 			break;
 
+		r = -EFAULT;
 		if (copy_from_user(&kvm_state, user_kvm_nested_state, sizeof(kvm_state)))
-			return -EFAULT;
+			break;
 
+		r = -EINVAL;
 		if (kvm_state.size < sizeof(kvm_state))
-			return -EINVAL;
+			break;
 
 		if (kvm_state.flags &
 		    ~(KVM_STATE_NESTED_RUN_PENDING | KVM_STATE_NESTED_GUEST_MODE))
-			return -EINVAL;
+			break;
 
 		/* nested_run_pending implies guest_mode.  */
 		if (kvm_state.flags == KVM_STATE_NESTED_RUN_PENDING)
-			return -EINVAL;
+			break;
 
 		r = kvm_x86_ops->set_nested_state(vcpu, user_kvm_nested_state, &kvm_state);
 		break;
