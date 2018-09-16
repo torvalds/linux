@@ -27,6 +27,71 @@
 
 #include "intel_dsi.h"
 
+static void dsi_program_swing_and_deemphasis(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
+	u32 tmp;
+	int lane;
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+
+		/*
+		 * Program voltage swing and pre-emphasis level values as per
+		 * table in BSPEC under DDI buffer programing
+		 */
+		tmp = I915_READ(ICL_PORT_TX_DW5_LN0(port));
+		tmp &= ~(SCALING_MODE_SEL_MASK | RTERM_SELECT_MASK);
+		tmp |= SCALING_MODE_SEL(0x2);
+		tmp |= TAP2_DISABLE | TAP3_DISABLE;
+		tmp |= RTERM_SELECT(0x6);
+		I915_WRITE(ICL_PORT_TX_DW5_GRP(port), tmp);
+
+		tmp = I915_READ(ICL_PORT_TX_DW5_AUX(port));
+		tmp &= ~(SCALING_MODE_SEL_MASK | RTERM_SELECT_MASK);
+		tmp |= SCALING_MODE_SEL(0x2);
+		tmp |= TAP2_DISABLE | TAP3_DISABLE;
+		tmp |= RTERM_SELECT(0x6);
+		I915_WRITE(ICL_PORT_TX_DW5_AUX(port), tmp);
+
+		tmp = I915_READ(ICL_PORT_TX_DW2_LN0(port));
+		tmp &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
+			 RCOMP_SCALAR_MASK);
+		tmp |= SWING_SEL_UPPER(0x2);
+		tmp |= SWING_SEL_LOWER(0x2);
+		tmp |= RCOMP_SCALAR(0x98);
+		I915_WRITE(ICL_PORT_TX_DW2_GRP(port), tmp);
+
+		tmp = I915_READ(ICL_PORT_TX_DW2_AUX(port));
+		tmp &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
+			 RCOMP_SCALAR_MASK);
+		tmp |= SWING_SEL_UPPER(0x2);
+		tmp |= SWING_SEL_LOWER(0x2);
+		tmp |= RCOMP_SCALAR(0x98);
+		I915_WRITE(ICL_PORT_TX_DW2_AUX(port), tmp);
+
+		tmp = I915_READ(ICL_PORT_TX_DW4_AUX(port));
+		tmp &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
+			 CURSOR_COEFF_MASK);
+		tmp |= POST_CURSOR_1(0x0);
+		tmp |= POST_CURSOR_2(0x0);
+		tmp |= CURSOR_COEFF(0x3f);
+		I915_WRITE(ICL_PORT_TX_DW4_AUX(port), tmp);
+
+		for (lane = 0; lane <= 3; lane++) {
+			/* Bspec: must not use GRP register for write */
+			tmp = I915_READ(ICL_PORT_TX_DW4_LN(port, lane));
+			tmp &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
+				 CURSOR_COEFF_MASK);
+			tmp |= POST_CURSOR_1(0x0);
+			tmp |= POST_CURSOR_2(0x0);
+			tmp |= CURSOR_COEFF(0x3f);
+			I915_WRITE(ICL_PORT_TX_DW4_LN(port, lane), tmp);
+		}
+	}
+}
+
 static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -141,6 +206,58 @@ static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)
 
 }
 
+static void gen11_dsi_voltage_swing_program_seq(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	u32 tmp;
+	enum port port;
+
+	/* clear common keeper enable bit */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp = I915_READ(ICL_PORT_PCS_DW1_LN0(port));
+		tmp &= ~COMMON_KEEPER_EN;
+		I915_WRITE(ICL_PORT_PCS_DW1_GRP(port), tmp);
+		tmp = I915_READ(ICL_PORT_PCS_DW1_AUX(port));
+		tmp &= ~COMMON_KEEPER_EN;
+		I915_WRITE(ICL_PORT_PCS_DW1_AUX(port), tmp);
+	}
+
+	/*
+	 * Set SUS Clock Config bitfield to 11b
+	 * Note: loadgen select program is done
+	 * as part of lane phy sequence configuration
+	 */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp = I915_READ(ICL_PORT_CL_DW5(port));
+		tmp |= SUS_CLOCK_CONFIG;
+		I915_WRITE(ICL_PORT_CL_DW5(port), tmp);
+	}
+
+	/* Clear training enable to change swing values */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp = I915_READ(ICL_PORT_TX_DW5_LN0(port));
+		tmp &= ~TX_TRAINING_EN;
+		I915_WRITE(ICL_PORT_TX_DW5_GRP(port), tmp);
+		tmp = I915_READ(ICL_PORT_TX_DW5_AUX(port));
+		tmp &= ~TX_TRAINING_EN;
+		I915_WRITE(ICL_PORT_TX_DW5_AUX(port), tmp);
+	}
+
+	/* Program swing and de-emphasis */
+	dsi_program_swing_and_deemphasis(encoder);
+
+	/* Set training enable to trigger update */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp = I915_READ(ICL_PORT_TX_DW5_LN0(port));
+		tmp |= TX_TRAINING_EN;
+		I915_WRITE(ICL_PORT_TX_DW5_GRP(port), tmp);
+		tmp = I915_READ(ICL_PORT_TX_DW5_AUX(port));
+		tmp |= TX_TRAINING_EN;
+		I915_WRITE(ICL_PORT_TX_DW5_AUX(port), tmp);
+	}
+}
+
 static void gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder)
 {
 	/* step 4a: power up all lanes of the DDI used by DSI */
@@ -148,6 +265,9 @@ static void gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder)
 
 	/* step 4b: configure lane sequencing of the Combo-PHY transmitters */
 	gen11_dsi_config_phy_lanes_sequence(encoder);
+
+	/* step 4c: configure voltage swing and skew */
+	gen11_dsi_voltage_swing_program_seq(encoder);
 }
 
 static void __attribute__((unused))
