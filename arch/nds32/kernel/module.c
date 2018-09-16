@@ -40,7 +40,7 @@ void do_reloc16(unsigned int val, unsigned int *loc, unsigned int val_mask,
 
 	tmp2 = tmp & loc_mask;
 	if (partial_in_place) {
-		tmp &= (!loc_mask);
+		tmp &= (~loc_mask);
 		tmp =
 		    tmp2 | ((tmp + ((val & val_mask) >> val_shift)) & val_mask);
 	} else {
@@ -70,7 +70,7 @@ void do_reloc32(unsigned int val, unsigned int *loc, unsigned int val_mask,
 
 	tmp2 = tmp & loc_mask;
 	if (partial_in_place) {
-		tmp &= (!loc_mask);
+		tmp &= (~loc_mask);
 		tmp =
 		    tmp2 | ((tmp + ((val & val_mask) >> val_shift)) & val_mask);
 	} else {

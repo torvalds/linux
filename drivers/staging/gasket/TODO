@@ -1,9 +1,22 @@
 This is a list of things that need to be done to get this driver out of the
 staging directory.
+
+- Implement the gasket framework's functionality through UIO instead of
+  introducing a new user-space drivers framework that is quite similar.
+
+  UIO provides the necessary bits to implement user-space drivers. Meanwhile
+  the gasket APIs adds some extra conveniences like PCI BAR mapping, and
+  MSI interrupts. Add these features to the UIO subsystem, then re-implement
+  the Apex driver as a basic UIO driver instead (include/linux/uio_driver.h)
+
 - Document sysfs files with Documentation/ABI/ entries.
+
 - Use misc interface instead of major number for driver version description.
+
 - Add descriptions of module_param's
+
 - apex_get_status() should actually check status.
+
 - "drivers" should never be dealing with "raw" sysfs calls or mess around with
   kobjects at all. The driver core should handle all of this for you
   automaically. There should not be a need for raw attribute macros.

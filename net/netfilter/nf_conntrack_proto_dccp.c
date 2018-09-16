@@ -675,7 +675,7 @@ static int nlattr_to_dccp(struct nlattr *cda[], struct nf_conn *ct)
 }
 #endif
 
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
@@ -697,6 +697,8 @@ static int dccp_timeout_nlattr_to_obj(struct nlattr *tb[],
 			timeouts[i] = ntohl(nla_get_be32(tb[i])) * HZ;
 		}
 	}
+
+	timeouts[CTA_TIMEOUT_DCCP_UNSPEC] = timeouts[CTA_TIMEOUT_DCCP_REQUEST];
 	return 0;
 }
 
@@ -726,7 +728,7 @@ dccp_timeout_nla_policy[CTA_TIMEOUT_DCCP_MAX+1] = {
 	[CTA_TIMEOUT_DCCP_CLOSING]	= { .type = NLA_U32 },
 	[CTA_TIMEOUT_DCCP_TIMEWAIT]	= { .type = NLA_U32 },
 };
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
 #ifdef CONFIG_SYSCTL
 /* template, data assigned later */
@@ -827,6 +829,11 @@ static int dccp_init_net(struct net *net, u_int16_t proto)
 		dn->dccp_timeout[CT_DCCP_CLOSEREQ]	= 64 * HZ;
 		dn->dccp_timeout[CT_DCCP_CLOSING]	= 64 * HZ;
 		dn->dccp_timeout[CT_DCCP_TIMEWAIT]	= 2 * DCCP_MSL;
+
+		/* timeouts[0] is unused, make it same as SYN_SENT so
+		 * ->timeouts[0] contains 'new' timeout, like udp or icmp.
+		 */
+		dn->dccp_timeout[CT_DCCP_NONE] = dn->dccp_timeout[CT_DCCP_REQUEST];
 	}
 
 	return dccp_kmemdup_sysctl_table(net, pn, dn);
@@ -856,7 +863,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 = {
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	.ctnl_timeout		= {
 		.nlattr_to_obj	= dccp_timeout_nlattr_to_obj,
 		.obj_to_nlattr	= dccp_timeout_obj_to_nlattr,
@@ -864,7 +871,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 = {
 		.obj_size	= sizeof(unsigned int) * CT_DCCP_MAX,
 		.nla_policy	= dccp_timeout_nla_policy,
 	},
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 	.init_net		= dccp_init_net,
 	.get_net_proto		= dccp_get_net_proto,
 };
@@ -889,7 +896,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 = {
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	.ctnl_timeout		= {
 		.nlattr_to_obj	= dccp_timeout_nlattr_to_obj,
 		.obj_to_nlattr	= dccp_timeout_obj_to_nlattr,
@@ -897,7 +904,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 = {
 		.obj_size	= sizeof(unsigned int) * CT_DCCP_MAX,
 		.nla_policy	= dccp_timeout_nla_policy,
 	},
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 	.init_net		= dccp_init_net,
 	.get_net_proto		= dccp_get_net_proto,
 };

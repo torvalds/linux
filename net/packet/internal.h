@@ -64,6 +64,7 @@ struct packet_ring_buffer {
 	unsigned int		frame_size;
 	unsigned int		frame_max;
 
+	unsigned int		pg_vec_order;
 	unsigned int		pg_vec_pages;
 	unsigned int		pg_vec_len;
 

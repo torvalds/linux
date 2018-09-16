@@ -1161,14 +1161,17 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 		props_res = (struct hbm_props_response *)mei_msg;
 
-		if (props_res->status) {
+		if (props_res->status == MEI_HBMS_CLIENT_NOT_FOUND) {
+			dev_dbg(dev->dev, "hbm: properties response: %d CLIENT_NOT_FOUND\n",
+				props_res->me_addr);
+		} else if (props_res->status) {
 			dev_err(dev->dev, "hbm: properties response: wrong status = %d %s\n",
 				props_res->status,
 				mei_hbm_status_str(props_res->status));
 			return -EPROTO;
+		} else {
+			mei_hbm_me_cl_add(dev, props_res);
 		}
-
-		mei_hbm_me_cl_add(dev, props_res);
 
 		/* request property for the next client */
 		if (mei_hbm_prop_req(dev, props_res->me_addr + 1))

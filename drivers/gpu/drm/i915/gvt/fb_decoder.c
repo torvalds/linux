@@ -220,8 +220,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	if (IS_SKYLAKE(dev_priv)
 		|| IS_KABYLAKE(dev_priv)
 		|| IS_BROXTON(dev_priv)) {
-		plane->tiled = (val & PLANE_CTL_TILED_MASK) >>
-		_PLANE_CTL_TILED_SHIFT;
+		plane->tiled = val & PLANE_CTL_TILED_MASK;
 		fmt = skl_format_to_drm(
 			val & PLANE_CTL_FORMAT_MASK,
 			val & PLANE_CTL_ORDER_RGBX,
@@ -260,7 +259,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 		return  -EINVAL;
 	}
 
-	plane->stride = intel_vgpu_get_stride(vgpu, pipe, (plane->tiled << 10),
+	plane->stride = intel_vgpu_get_stride(vgpu, pipe, plane->tiled,
 		(IS_SKYLAKE(dev_priv)
 		|| IS_KABYLAKE(dev_priv)
 		|| IS_BROXTON(dev_priv)) ?

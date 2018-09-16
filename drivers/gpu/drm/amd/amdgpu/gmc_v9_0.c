@@ -942,26 +942,12 @@ static int gmc_v9_0_sw_init(void *handle)
 	return 0;
 }
 
-/**
- * gmc_v9_0_gart_fini - vm fini callback
- *
- * @adev: amdgpu_device pointer
- *
- * Tears down the driver GART/VM setup (CIK).
- */
-static void gmc_v9_0_gart_fini(struct amdgpu_device *adev)
-{
-	amdgpu_gart_table_vram_free(adev);
-	amdgpu_gart_fini(adev);
-}
-
 static int gmc_v9_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	amdgpu_gem_force_release(adev);
 	amdgpu_vm_manager_fini(adev);
-	gmc_v9_0_gart_fini(adev);
 
 	/*
 	* TODO:
@@ -974,7 +960,9 @@ static int gmc_v9_0_sw_fini(void *handle)
 	*/
 	amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, NULL);
 
+	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_fini(adev);
+	amdgpu_gart_fini(adev);
 
 	return 0;
 }
