@@ -42,12 +42,12 @@
 #define DBG_BUGON(...)          ((void)0)
 #endif
 
-#ifdef CONFIG_EROFS_FAULT_INJECTION
 enum {
 	FAULT_KMALLOC,
 	FAULT_MAX,
 };
 
+#ifdef CONFIG_EROFS_FAULT_INJECTION
 extern char *erofs_fault_name[FAULT_MAX];
 #define IS_FAULT_SET(fi, type) ((fi)->inject_type & (1 << (type)))
 
@@ -143,17 +143,24 @@ static inline bool time_to_inject(struct erofs_sb_info *sbi, int type)
 	}
 	return false;
 }
+#else
+static inline bool time_to_inject(struct erofs_sb_info *sbi, int type)
+{
+	return false;
+}
+
+static inline void erofs_show_injection_info(int type)
+{
+}
 #endif
 
 static inline void *erofs_kmalloc(struct erofs_sb_info *sbi,
 					size_t size, gfp_t flags)
 {
-#ifdef CONFIG_EROFS_FAULT_INJECTION
 	if (time_to_inject(sbi, FAULT_KMALLOC)) {
 		erofs_show_injection_info(FAULT_KMALLOC);
 		return NULL;
 	}
-#endif
 	return kmalloc(size, flags);
 }
 
