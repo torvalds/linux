@@ -33,7 +33,6 @@
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
 #include <net/ip6_fib.h>
-#include <net/ip6_checksum.h>
 #include <net/iucv/af_iucv.h>
 #include <linux/hashtable.h>
 
@@ -2118,70 +2117,6 @@ static void qeth_l3_fill_tso_ext(struct qeth_hdr_tso *hdr,
 	ext->dg_hdr_len = proto_len;
 }
 
-static void qeth_tso_fill_header(struct qeth_card *card,
-		struct qeth_hdr *qhdr, struct sk_buff *skb)
-{
-	struct qeth_hdr_tso *hdr = (struct qeth_hdr_tso *)qhdr;
-	struct tcphdr *tcph = tcp_hdr(skb);
-	struct iphdr *iph = ip_hdr(skb);
-	struct ipv6hdr *ip6h = ipv6_hdr(skb);
-
-	/*set values which are fix for the first approach ...*/
-	hdr->ext.hdr_tot_len = (__u16) sizeof(struct qeth_hdr_ext_tso);
-	hdr->ext.imb_hdr_no  = 1;
-	hdr->ext.hdr_type    = 1;
-	hdr->ext.hdr_version = 1;
-	hdr->ext.hdr_len     = 28;
-	/*insert non-fix values */
-	hdr->ext.mss = skb_shinfo(skb)->gso_size;
-	hdr->ext.dg_hdr_len = (__u16)(ip_hdrlen(skb) + tcp_hdrlen(skb));
-	hdr->ext.payload_len = (__u16)(skb->len - hdr->ext.dg_hdr_len -
-				       sizeof(struct qeth_hdr_tso));
-	tcph->check = 0;
-	if (be16_to_cpu(skb->protocol) == ETH_P_IPV6) {
-		ip6h->payload_len = 0;
-		tcph->check = ~csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
-					       0, IPPROTO_TCP, 0);
-	} else {
-		/*OSA want us to set these values ...*/
-		tcph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
-					 0, IPPROTO_TCP, 0);
-		iph->tot_len = 0;
-		iph->check = 0;
-	}
-}
-
-/**
- * qeth_l3_get_elements_no_tso() - find number of SBALEs for skb data for tso
- * @card:			   qeth card structure, to check max. elems.
- * @skb:			   SKB address
- * @extra_elems:		   extra elems needed, to check against max.
- *
- * Returns the number of pages, and thus QDIO buffer elements, needed to cover
- * skb data, including linear part and fragments, but excluding TCP header.
- * Checks if the result plus extra_elems fits under the limit for the card.
- * Returns 0 if it does not.
- * Note: extra_elems is not included in the returned result.
- */
-static int qeth_l3_get_elements_no_tso(struct qeth_card *card,
-			struct sk_buff *skb, int extra_elems)
-{
-	addr_t start = (addr_t)tcp_hdr(skb) + tcp_hdrlen(skb);
-	addr_t end = (addr_t)skb->data + skb_headlen(skb);
-	int elements = qeth_get_elements_for_frags(skb);
-
-	if (start != end)
-		elements += qeth_get_elements_for_range(start, end);
-
-	if ((elements + extra_elems) > QETH_MAX_BUFFER_ELEMENTS(card)) {
-		QETH_DBF_MESSAGE(2,
-	"Invalid size of TSO IP packet (Number=%d / Length=%d). Discarded.\n",
-				elements + extra_elems, skb->len);
-		return 0;
-	}
-	return elements;
-}
-
 static void qeth_l3_fixup_headers(struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
@@ -2196,9 +2131,8 @@ static void qeth_l3_fixup_headers(struct sk_buff *skb)
 	}
 }
 
-static int qeth_l3_xmit_offload(struct qeth_card *card, struct sk_buff *skb,
-				struct qeth_qdio_out_q *queue, int ipv,
-				int cast_type)
+static int qeth_l3_xmit(struct qeth_card *card, struct sk_buff *skb,
+			struct qeth_qdio_out_q *queue, int ipv, int cast_type)
 {
 	unsigned int hw_hdr_len, proto_len, frame_len, elements;
 	unsigned char eth_hdr[ETH_HLEN];
@@ -2282,81 +2216,6 @@ static int qeth_l3_xmit_offload(struct qeth_card *card, struct sk_buff *skb,
 	return rc;
 }
 
-static int qeth_l3_xmit(struct qeth_card *card, struct sk_buff *skb,
-			struct qeth_qdio_out_q *queue, int ipv, int cast_type)
-{
-	struct qeth_hdr *hdr = NULL;
-	struct sk_buff *new_skb = NULL;
-	int tx_bytes = skb->len;
-	unsigned int hd_len;
-	int elements, rc;
-	bool is_sg;
-
-	/* create a clone with writeable headroom */
-	new_skb = skb_realloc_headroom(skb, sizeof(struct qeth_hdr_tso));
-	if (!new_skb)
-		return -ENOMEM;
-
-	skb_pull(new_skb, ETH_HLEN);
-
-	/* fix hardware limitation: as long as we do not have sbal
-	 * chaining we can not send long frag lists
-	 */
-	if (!qeth_l3_get_elements_no_tso(card, new_skb, 1)) {
-		rc = skb_linearize(new_skb);
-
-		if (card->options.performance_stats) {
-			if (rc)
-				card->perf_stats.tx_linfail++;
-			else
-				card->perf_stats.tx_lin++;
-		}
-		if (rc)
-			goto out;
-	}
-
-	hdr = skb_push(new_skb, sizeof(struct qeth_hdr_tso));
-	memset(hdr, 0, sizeof(struct qeth_hdr_tso));
-	qeth_l3_fill_header(card, hdr, new_skb, ipv, cast_type,
-			    new_skb->len - sizeof(struct qeth_hdr_tso));
-	qeth_tso_fill_header(card, hdr, new_skb);
-
-	elements = qeth_l3_get_elements_no_tso(card, new_skb, 1);
-	if (!elements) {
-		rc = -E2BIG;
-		goto out;
-	}
-	elements++;
-
-	hd_len = sizeof(struct qeth_hdr_tso) + ip_hdrlen(new_skb) +
-		 tcp_hdrlen(new_skb);
-
-	if (qeth_hdr_chk_and_bounce(new_skb, &hdr, hd_len)) {
-		rc = -EINVAL;
-		goto out;
-	}
-
-	is_sg = skb_is_nonlinear(new_skb);
-	rc = qeth_do_send_packet(card, queue, new_skb, hdr, hd_len, hd_len,
-				 elements);
-out:
-	if (!rc) {
-		if (new_skb != skb)
-			dev_kfree_skb_any(skb);
-		if (card->options.performance_stats) {
-			card->perf_stats.buf_elements_sent += elements;
-			if (is_sg)
-				card->perf_stats.sg_skbs_sent++;
-			card->perf_stats.large_send_bytes += tx_bytes;
-			card->perf_stats.large_send_cnt++;
-		}
-	} else {
-		if (new_skb != skb)
-			dev_kfree_skb_any(new_skb);
-	}
-	return rc;
-}
-
 static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 					   struct net_device *dev)
 {
@@ -2392,9 +2251,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	}
 	netif_stop_queue(dev);
 
-	if (IS_IQD(card) || (!skb_is_gso(skb) && ipv == 4))
-		rc = qeth_l3_xmit_offload(card, skb, queue, ipv, cast_type);
-	else if (skb_is_gso(skb))
+	if (ipv == 4 || IS_IQD(card))
 		rc = qeth_l3_xmit(card, skb, queue, ipv, cast_type);
 	else
 		rc = qeth_xmit(card, skb, queue, ipv, cast_type,
@@ -2560,6 +2417,8 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 		card->dev->needed_headroom = sizeof(struct qeth_hdr);
 		/* allow for de-acceleration of NETIF_F_HW_VLAN_CTAG_TX: */
 		card->dev->needed_headroom += VLAN_HLEN;
+		if (qeth_is_supported(card, IPA_OUTBOUND_TSO))
+			card->dev->needed_headroom = sizeof(struct qeth_hdr_tso);
 
 		/*IPv6 address autoconfiguration stuff*/
 		qeth_l3_get_unique_id(card);
