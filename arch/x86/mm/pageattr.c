@@ -101,6 +101,95 @@ void arch_report_meminfo(struct seq_file *m)
 static inline void split_page_count(int level) { }
 #endif
 
+#ifdef CONFIG_X86_CPA_STATISTICS
+
+static unsigned long cpa_1g_checked;
+static unsigned long cpa_1g_sameprot;
+static unsigned long cpa_1g_preserved;
+static unsigned long cpa_2m_checked;
+static unsigned long cpa_2m_sameprot;
+static unsigned long cpa_2m_preserved;
+static unsigned long cpa_4k_checked;
+static unsigned long cpa_4k_install;
+
+static inline void cpa_inc_1g_checked(void)
+{
+	cpa_1g_checked++;
+}
+
+static inline void cpa_inc_2m_checked(void)
+{
+	cpa_2m_checked++;
+}
+
+static inline void cpa_inc_4k_checked(void)
+{
+	cpa_4k_checked++;
+}
+
+static inline void cpa_inc_4k_install(void)
+{
+	cpa_4k_install++;
+}
+
+static inline void cpa_inc_lp_sameprot(int level)
+{
+	if (level == PG_LEVEL_1G)
+		cpa_1g_sameprot++;
+	else
+		cpa_2m_sameprot++;
+}
+
+static inline void cpa_inc_lp_preserved(int level)
+{
+	if (level == PG_LEVEL_1G)
+		cpa_1g_preserved++;
+	else
+		cpa_2m_preserved++;
+}
+
+static int cpastats_show(struct seq_file *m, void *p)
+{
+	seq_printf(m, "1G pages checked:     %16lu\n", cpa_1g_checked);
+	seq_printf(m, "1G pages sameprot:    %16lu\n", cpa_1g_sameprot);
+	seq_printf(m, "1G pages preserved:   %16lu\n", cpa_1g_preserved);
+	seq_printf(m, "2M pages checked:     %16lu\n", cpa_2m_checked);
+	seq_printf(m, "2M pages sameprot:    %16lu\n", cpa_2m_sameprot);
+	seq_printf(m, "2M pages preserved:   %16lu\n", cpa_2m_preserved);
+	seq_printf(m, "4K pages checked:     %16lu\n", cpa_4k_checked);
+	seq_printf(m, "4K pages set-checked: %16lu\n", cpa_4k_install);
+	return 0;
+}
+
+static int cpastats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, cpastats_show, NULL);
+}
+
+static const struct file_operations cpastats_fops = {
+	.open		= cpastats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init cpa_stats_init(void)
+{
+	debugfs_create_file("cpa_stats", S_IRUSR, arch_debugfs_dir, NULL,
+			    &cpastats_fops);
+	return 0;
+}
+late_initcall(cpa_stats_init);
+#else
+static inline void cpa_inc_1g_checked(void) { }
+static inline void cpa_inc_2m_checked(void) { }
+static inline void cpa_inc_4k_checked(void) { }
+static inline void cpa_inc_4k_install(void) { }
+static inline void cpa_inc_lp_sameprot(int level) { }
+static inline void cpa_inc_lp_preserved(int level) { }
+#endif
+
+
 static inline int
 within(unsigned long addr, unsigned long start, unsigned long end)
 {
@@ -664,10 +753,12 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 	case PG_LEVEL_2M:
 		old_prot = pmd_pgprot(*(pmd_t *)kpte);
 		old_pfn = pmd_pfn(*(pmd_t *)kpte);
+		cpa_inc_2m_checked();
 		break;
 	case PG_LEVEL_1G:
 		old_prot = pud_pgprot(*(pud_t *)kpte);
 		old_pfn = pud_pfn(*(pud_t *)kpte);
+		cpa_inc_1g_checked();
 		break;
 	default:
 		return -EINVAL;
@@ -732,14 +823,16 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 	for (i = 0, addr = lpaddr; i < numpages; i++, addr += PAGE_SIZE, pfn++) {
 		pgprot_t chk_prot = static_protections(req_prot, addr, pfn, 1,
 						       CPA_DETECT);
-
+		cpa_inc_4k_checked();
 		if (pgprot_val(chk_prot) != pgprot_val(new_prot))
 			return 1;
 	}
 
 	/* If there are no changes, return. */
-	if (pgprot_val(new_prot) == pgprot_val(old_prot))
+	if (pgprot_val(new_prot) == pgprot_val(old_prot)) {
+		cpa_inc_lp_sameprot(level);
 		return 0;
+	}
 
 	/*
 	 * Verify that the address is aligned and the number of pages
@@ -752,6 +845,7 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 	new_pte = pfn_pte(old_pfn, new_prot);
 	__set_pmd_pte(kpte, address, new_pte);
 	cpa->flags |= CPA_FLUSHTLB;
+	cpa_inc_lp_preserved(level);
 	return 0;
 }
 
@@ -1341,6 +1435,7 @@ repeat:
 		pgprot_val(new_prot) &= ~pgprot_val(cpa->mask_clr);
 		pgprot_val(new_prot) |= pgprot_val(cpa->mask_set);
 
+		cpa_inc_4k_install();
 		new_prot = static_protections(new_prot, address, pfn, 1,
 					      CPA_PROTECT);
 
