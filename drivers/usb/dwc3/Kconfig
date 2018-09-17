@@ -98,8 +98,8 @@ config USB_DWC3_OF_SIMPLE
 
 config USB_DWC3_ROCKCHIP
 	tristate "Rockchip Platforms"
-	depends on EXTCON && (ARCH_ROCKCHIP || COMPILE_TEST)
-	depends on OF
+	depends on OF && EXTCON && (ARCH_ROCKCHIP || COMPILE_TEST)
+	depends on USB=y || USB=USB_DWC3
 	default USB_DWC3
 	help
 	  Support of USB2/3 functionality in Rockchip platforms.
@@ -108,6 +108,7 @@ config USB_DWC3_ROCKCHIP
 config USB_DWC3_ROCKCHIP_INNO
 	tristate "Rockchip Platforms with INNO PHY"
 	depends on OF && COMMON_CLK && ARCH_ROCKCHIP
+	depends on USB=y || USB=USB_DWC3
 	default USB_DWC3
 	help
 	  Support of USB2/3 functionality in Rockchip platforms
