@@ -1544,6 +1544,14 @@ static int vega20_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			"[EnableDPMTasks] Failed to populate umdpstate clocks!",
 			return result);
 
+	result = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetPptLimit,
+			POWER_SOURCE_AC << 16);
+	PP_ASSERT_WITH_CODE(!result,
+			"[GetPptLimit] get default PPT limit failed!",
+			return result);
+	hwmgr->power_limit =
+		hwmgr->default_power_limit = smum_get_argument(hwmgr);
+
 	return 0;
 }
 

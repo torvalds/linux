@@ -269,6 +269,12 @@ typedef enum {
 } PPCLK_e;
 
 typedef enum {
+  POWER_SOURCE_AC,
+  POWER_SOURCE_DC,
+  POWER_SOURCE_COUNT,
+} POWER_SOURCE_e;
+
+typedef enum {
   VOLTAGE_MODE_AVFS = 0,
   VOLTAGE_MODE_AVFS_SS,
   VOLTAGE_MODE_SS,
