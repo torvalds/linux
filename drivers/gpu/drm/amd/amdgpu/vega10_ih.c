@@ -191,14 +191,15 @@ static void vega10_ih_irq_disable(struct amdgpu_device *adev)
  * ring buffer overflow and deal with it.
  * Returns the value of the wptr.
  */
-static u32 vega10_ih_get_wptr(struct amdgpu_device *adev)
+static u32 vega10_ih_get_wptr(struct amdgpu_device *adev,
+			      struct amdgpu_ih_ring *ih)
 {
 	u32 wptr, tmp;
 
-	if (adev->irq.ih.use_bus_addr)
-		wptr = le32_to_cpu(adev->irq.ih.ring[adev->irq.ih.wptr_offs]);
+	if (ih->use_bus_addr)
+		wptr = le32_to_cpu(ih->ring[ih->wptr_offs]);
 	else
-		wptr = le32_to_cpu(adev->wb.wb[adev->irq.ih.wptr_offs]);
+		wptr = le32_to_cpu(adev->wb.wb[ih->wptr_offs]);
 
 	if (REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW)) {
 		wptr = REG_SET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW, 0);
@@ -207,16 +208,16 @@ static u32 vega10_ih_get_wptr(struct amdgpu_device *adev)
 		 * from the last not overwritten vector (wptr + 32). Hopefully
 		 * this should allow us to catchup.
 		 */
-		tmp = (wptr + 32) & adev->irq.ih.ptr_mask;
+		tmp = (wptr + 32) & ih->ptr_mask;
 		dev_warn(adev->dev, "IH ring buffer overflow (0x%08X, 0x%08X, 0x%08X)\n",
-			wptr, adev->irq.ih.rptr, tmp);
-		adev->irq.ih.rptr = tmp;
+			 wptr, ih->rptr, tmp);
+		ih->rptr = tmp;
 
 		tmp = RREG32_NO_KIQ(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL));
 		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
 		WREG32_NO_KIQ(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL), tmp);
 	}
-	return (wptr & adev->irq.ih.ptr_mask);
+	return (wptr & ih->ptr_mask);
 }
 
 /**
@@ -228,20 +229,21 @@ static u32 vega10_ih_get_wptr(struct amdgpu_device *adev)
  * position and also advance the position.
  */
 static void vega10_ih_decode_iv(struct amdgpu_device *adev,
-				 struct amdgpu_iv_entry *entry)
+				struct amdgpu_ih_ring *ih,
+				struct amdgpu_iv_entry *entry)
 {
 	/* wptr/rptr are in bytes! */
-	u32 ring_index = adev->irq.ih.rptr >> 2;
+	u32 ring_index = ih->rptr >> 2;
 	uint32_t dw[8];
 
-	dw[0] = le32_to_cpu(adev->irq.ih.ring[ring_index + 0]);
-	dw[1] = le32_to_cpu(adev->irq.ih.ring[ring_index + 1]);
-	dw[2] = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]);
-	dw[3] = le32_to_cpu(adev->irq.ih.ring[ring_index + 3]);
-	dw[4] = le32_to_cpu(adev->irq.ih.ring[ring_index + 4]);
-	dw[5] = le32_to_cpu(adev->irq.ih.ring[ring_index + 5]);
-	dw[6] = le32_to_cpu(adev->irq.ih.ring[ring_index + 6]);
-	dw[7] = le32_to_cpu(adev->irq.ih.ring[ring_index + 7]);
+	dw[0] = le32_to_cpu(ih->ring[ring_index + 0]);
+	dw[1] = le32_to_cpu(ih->ring[ring_index + 1]);
+	dw[2] = le32_to_cpu(ih->ring[ring_index + 2]);
+	dw[3] = le32_to_cpu(ih->ring[ring_index + 3]);
+	dw[4] = le32_to_cpu(ih->ring[ring_index + 4]);
+	dw[5] = le32_to_cpu(ih->ring[ring_index + 5]);
+	dw[6] = le32_to_cpu(ih->ring[ring_index + 6]);
+	dw[7] = le32_to_cpu(ih->ring[ring_index + 7]);
 
 	entry->client_id = dw[0] & 0xff;
 	entry->src_id = (dw[0] >> 8) & 0xff;
@@ -257,9 +259,8 @@ static void vega10_ih_decode_iv(struct amdgpu_device *adev,
 	entry->src_data[2] = dw[6];
 	entry->src_data[3] = dw[7];
 
-
 	/* wptr/rptr are in bytes! */
-	adev->irq.ih.rptr += 32;
+	ih->rptr += 32;
 }
 
 /**
@@ -269,17 +270,18 @@ static void vega10_ih_decode_iv(struct amdgpu_device *adev,
  *
  * Set the IH ring buffer rptr.
  */
-static void vega10_ih_set_rptr(struct amdgpu_device *adev)
+static void vega10_ih_set_rptr(struct amdgpu_device *adev,
+			       struct amdgpu_ih_ring *ih)
 {
-	if (adev->irq.ih.use_doorbell) {
+	if (ih->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
-		if (adev->irq.ih.use_bus_addr)
-			adev->irq.ih.ring[adev->irq.ih.rptr_offs] = adev->irq.ih.rptr;
+		if (ih->use_bus_addr)
+			ih->ring[ih->rptr_offs] = ih->rptr;
 		else
-			adev->wb.wb[adev->irq.ih.rptr_offs] = adev->irq.ih.rptr;
-		WDOORBELL32(adev->irq.ih.doorbell_index, adev->irq.ih.rptr);
+			adev->wb.wb[ih->rptr_offs] = ih->rptr;
+		WDOORBELL32(ih->doorbell_index, ih->rptr);
 	} else {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, adev->irq.ih.rptr);
+		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, ih->rptr);
 	}
 }
 

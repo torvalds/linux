@@ -137,7 +137,7 @@ int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
 	if (!ih->enabled || adev->shutdown)
 		return IRQ_NONE;
 
-	wptr = amdgpu_ih_get_wptr(adev);
+	wptr = amdgpu_ih_get_wptr(adev, ih);
 
 restart_ih:
 	/* is somebody else already processing irqs? */
@@ -154,11 +154,11 @@ restart_ih:
 		ih->rptr &= ih->ptr_mask;
 	}
 
-	amdgpu_ih_set_rptr(adev);
+	amdgpu_ih_set_rptr(adev, ih);
 	atomic_set(&ih->lock, 0);
 
 	/* make sure wptr hasn't changed while processing */
-	wptr = amdgpu_ih_get_wptr(adev);
+	wptr = amdgpu_ih_get_wptr(adev, ih);
 	if (wptr != ih->rptr)
 		goto restart_ih;
 

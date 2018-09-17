@@ -185,11 +185,12 @@ static void cz_ih_irq_disable(struct amdgpu_device *adev)
  * Used by cz_irq_process(VI).
  * Returns the value of the wptr.
  */
-static u32 cz_ih_get_wptr(struct amdgpu_device *adev)
+static u32 cz_ih_get_wptr(struct amdgpu_device *adev,
+			  struct amdgpu_ih_ring *ih)
 {
 	u32 wptr, tmp;
 
-	wptr = le32_to_cpu(adev->wb.wb[adev->irq.ih.wptr_offs]);
+	wptr = le32_to_cpu(adev->wb.wb[ih->wptr_offs]);
 
 	if (REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW)) {
 		wptr = REG_SET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW, 0);
@@ -198,13 +199,13 @@ static u32 cz_ih_get_wptr(struct amdgpu_device *adev)
 		 * this should allow us to catchup.
 		 */
 		dev_warn(adev->dev, "IH ring buffer overflow (0x%08X, 0x%08X, 0x%08X)\n",
-			wptr, adev->irq.ih.rptr, (wptr + 16) & adev->irq.ih.ptr_mask);
-		adev->irq.ih.rptr = (wptr + 16) & adev->irq.ih.ptr_mask;
+			wptr, ih->rptr, (wptr + 16) & ih->ptr_mask);
+		ih->rptr = (wptr + 16) & ih->ptr_mask;
 		tmp = RREG32(mmIH_RB_CNTL);
 		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
 		WREG32(mmIH_RB_CNTL, tmp);
 	}
-	return (wptr & adev->irq.ih.ptr_mask);
+	return (wptr & ih->ptr_mask);
 }
 
 /**
@@ -216,16 +217,17 @@ static u32 cz_ih_get_wptr(struct amdgpu_device *adev)
  * position and also advance the position.
  */
 static void cz_ih_decode_iv(struct amdgpu_device *adev,
-				 struct amdgpu_iv_entry *entry)
+			    struct amdgpu_ih_ring *ih,
+			    struct amdgpu_iv_entry *entry)
 {
 	/* wptr/rptr are in bytes! */
-	u32 ring_index = adev->irq.ih.rptr >> 2;
+	u32 ring_index = ih->rptr >> 2;
 	uint32_t dw[4];
 
-	dw[0] = le32_to_cpu(adev->irq.ih.ring[ring_index + 0]);
-	dw[1] = le32_to_cpu(adev->irq.ih.ring[ring_index + 1]);
-	dw[2] = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]);
-	dw[3] = le32_to_cpu(adev->irq.ih.ring[ring_index + 3]);
+	dw[0] = le32_to_cpu(ih->ring[ring_index + 0]);
+	dw[1] = le32_to_cpu(ih->ring[ring_index + 1]);
+	dw[2] = le32_to_cpu(ih->ring[ring_index + 2]);
+	dw[3] = le32_to_cpu(ih->ring[ring_index + 3]);
 
 	entry->client_id = AMDGPU_IRQ_CLIENTID_LEGACY;
 	entry->src_id = dw[0] & 0xff;
@@ -235,7 +237,7 @@ static void cz_ih_decode_iv(struct amdgpu_device *adev,
 	entry->pasid = (dw[2] >> 16) & 0xffff;
 
 	/* wptr/rptr are in bytes! */
-	adev->irq.ih.rptr += 16;
+	ih->rptr += 16;
 }
 
 /**
@@ -245,9 +247,10 @@ static void cz_ih_decode_iv(struct amdgpu_device *adev,
  *
  * Set the IH ring buffer rptr.
  */
-static void cz_ih_set_rptr(struct amdgpu_device *adev)
+static void cz_ih_set_rptr(struct amdgpu_device *adev,
+			   struct amdgpu_ih_ring *ih)
 {
-	WREG32(mmIH_RB_RPTR, adev->irq.ih.rptr);
+	WREG32(mmIH_RB_RPTR, ih->rptr);
 }
 
 static int cz_ih_early_init(void *handle)
