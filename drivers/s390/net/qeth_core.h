@@ -26,6 +26,7 @@
 #include <net/ipv6.h>
 #include <net/if_inet6.h>
 #include <net/addrconf.h>
+#include <net/tcp.h>
 
 #include <asm/debug.h>
 #include <asm/qdio.h>

@@ -3845,7 +3845,8 @@ int qeth_hdr_chk_and_bounce(struct sk_buff *skb, struct qeth_hdr **hdr, int len)
 }
 EXPORT_SYMBOL_GPL(qeth_hdr_chk_and_bounce);
 
-#define QETH_HDR_CACHE_OBJ_SIZE		(sizeof(struct qeth_hdr) + ETH_HLEN)
+#define QETH_HDR_CACHE_OBJ_SIZE		(sizeof(struct qeth_hdr_tso) + \
+					 MAX_TCP_HEADER)
 
 /**
  * qeth_add_hw_header() - add a HW header to an skb.
@@ -3880,7 +3881,11 @@ check_layout:
 	if (qeth_get_elements_for_range(start, end + contiguous) == 1) {
 		/* Push HW header into same page as first protocol header. */
 		push_ok = true;
-		__elements = qeth_count_elements(skb, 0);
+		/* ... but TSO always needs a separate element for headers: */
+		if (skb_is_gso(skb))
+			__elements = 1 + qeth_count_elements(skb, proto_len);
+		else
+			__elements = qeth_count_elements(skb, 0);
 	} else if (!proto_len && qeth_get_elements_for_range(start, end) == 1) {
 		/* Push HW header into a new page. */
 		push_ok = true;
@@ -4193,6 +4198,7 @@ int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 		hd_len = hw_hdr_len + proto_len;
 		data_offset = proto_len;
 	}
+	memset(hdr, 0, hw_hdr_len);
 	fill_header(card, hdr, skb, ipv, cast_type, frame_len);
 
 	is_sg = skb_is_nonlinear(skb);
