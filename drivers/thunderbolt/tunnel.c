@@ -611,7 +611,7 @@ int tb_tunnel_restart(struct tb_tunnel *tunnel)
 {
 	int res, i;
 
-	tb_tunnel_info(tunnel, "activating\n");
+	tb_tunnel_dbg(tunnel, "activating\n");
 
 	/*
 	 * Make sure all paths are properly disabled before enabling
@@ -660,8 +660,6 @@ int tb_tunnel_activate(struct tb_tunnel *tunnel)
 {
 	int i;
 
-	tb_tunnel_info(tunnel, "activating\n");
-
 	for (i = 0; i < tunnel->npaths; i++) {
 		if (tunnel->paths[i]->activated) {
 			tb_tunnel_WARN(tunnel,
@@ -681,7 +679,7 @@ void tb_tunnel_deactivate(struct tb_tunnel *tunnel)
 {
 	int i;
 
-	tb_tunnel_info(tunnel, "deactivating\n");
+	tb_tunnel_dbg(tunnel, "deactivating\n");
 
 	if (tunnel->activate)
 		tunnel->activate(tunnel, false);

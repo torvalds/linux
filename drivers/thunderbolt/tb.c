@@ -556,18 +556,17 @@ static void tb_handle_hotplug(struct work_struct *work)
 		} else if (tb_port_is_dpout(port)) {
 			tb_teardown_dp(tb, port);
 		} else {
-			tb_port_info(port,
-				     "got unplug event for disconnected port, ignoring\n");
+			tb_port_dbg(port,
+				   "got unplug event for disconnected port, ignoring\n");
 		}
 	} else if (port->remote) {
-		tb_port_info(port,
-			     "got plug event for connected port, ignoring\n");
+		tb_port_dbg(port, "got plug event for connected port, ignoring\n");
 	} else {
 		if (tb_port_is_null(port)) {
-			tb_port_info(port, "hotplug: scanning\n");
+			tb_port_dbg(port, "hotplug: scanning\n");
 			tb_scan_port(port);
 			if (!port->remote)
-				tb_port_info(port, "hotplug: no switch found\n");
+				tb_port_dbg(port, "hotplug: no switch found\n");
 		} else if (tb_port_is_dpout(port)) {
 			tb_tunnel_dp(tb, port);
 		}

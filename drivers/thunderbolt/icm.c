@@ -1568,7 +1568,7 @@ static int icm_firmware_start(struct tb *tb, struct tb_nhi *nhi)
 	if (val & REG_FW_STS_ICM_EN)
 		return 0;
 
-	dev_info(&nhi->pdev->dev, "starting ICM firmware\n");
+	dev_dbg(&nhi->pdev->dev, "starting ICM firmware\n");
 
 	ret = icm_firmware_reset(tb, nhi);
 	if (ret)

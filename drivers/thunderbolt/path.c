@@ -500,8 +500,8 @@ int tb_path_activate(struct tb_path *path)
 					    & out_mask;
 		hop.unknown3 = 0;
 
-		tb_port_info(path->hops[i].in_port, "Writing hop %d, index %d",
-			     i, path->hops[i].in_hop_index);
+		tb_port_dbg(path->hops[i].in_port, "Writing hop %d, index %d\n",
+			    i, path->hops[i].in_hop_index);
 		tb_dump_hop(path->hops[i].in_port, &hop);
 		res = tb_port_write(path->hops[i].in_port, &hop, TB_CFG_HOPS,
 				    2 * path->hops[i].in_hop_index, 2);
@@ -512,7 +512,7 @@ int tb_path_activate(struct tb_path *path)
 		}
 	}
 	path->activated = true;
-	tb_info(path->tb, "path activation complete\n");
+	tb_dbg(path->tb, "path activation complete\n");
 	return 0;
 err:
 	tb_WARN(path->tb, "path activation failed\n");
