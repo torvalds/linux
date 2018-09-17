@@ -2847,6 +2847,8 @@ store_temp_tolerance(struct device *dev, struct device_attribute *attr,
  * Fan speed tolerance is a tricky beast, since the associated register is
  * a tick counter, but the value is reported and configured as rpm.
  * Compute resulting low and high rpm values and report the difference.
+ * A fan speed tolerance only makes sense if a fan target speed has been
+ * configured, so only display values other than 0 if that is the case.
  */
 static ssize_t
 show_speed_tolerance(struct device *dev, struct device_attribute *attr,
@@ -2855,19 +2857,23 @@ show_speed_tolerance(struct device *dev, struct device_attribute *attr,
 	struct nct6775_data *data = nct6775_update_device(dev);
 	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
 	int nr = sattr->index;
-	int low = data->target_speed[nr] - data->target_speed_tolerance[nr];
-	int high = data->target_speed[nr] + data->target_speed_tolerance[nr];
-	int tolerance;
+	int target = data->target_speed[nr];
+	int tolerance = 0;
 
-	if (low <= 0)
-		low = 1;
-	if (high > 0xffff)
-		high = 0xffff;
-	if (high < low)
-		high = low;
+	if (target) {
+		int low = target - data->target_speed_tolerance[nr];
+		int high = target + data->target_speed_tolerance[nr];
 
-	tolerance = (fan_from_reg16(low, data->fan_div[nr])
-		     - fan_from_reg16(high, data->fan_div[nr])) / 2;
+		if (low <= 0)
+			low = 1;
+		if (high > 0xffff)
+			high = 0xffff;
+		if (high < low)
+			high = low;
+
+		tolerance = (fan_from_reg16(low, data->fan_div[nr])
+			     - fan_from_reg16(high, data->fan_div[nr])) / 2;
+	}
 
 	return sprintf(buf, "%d\n", tolerance);
 }
