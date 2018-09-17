@@ -241,29 +241,27 @@ notrace static void do_coarse(clockid_t clk, struct timespec *ts)
 
 notrace int __vdso_clock_gettime(clockid_t clock, struct timespec *ts)
 {
-	switch (clock) {
-	case CLOCK_REALTIME:
-		if (do_hres(CLOCK_REALTIME, ts) == VCLOCK_NONE)
-			goto fallback;
-		break;
-	case CLOCK_MONOTONIC:
-		if (do_hres(CLOCK_MONOTONIC, ts) == VCLOCK_NONE)
-			goto fallback;
-		break;
-	case CLOCK_REALTIME_COARSE:
-		do_coarse(CLOCK_REALTIME_COARSE, ts);
-		break;
-	case CLOCK_MONOTONIC_COARSE:
-		do_coarse(CLOCK_MONOTONIC_COARSE, ts);
-		break;
-	default:
-		goto fallback;
-	}
+	unsigned int msk;
 
-	return 0;
-fallback:
+	/* Sort out negative (CPU/FD) and invalid clocks */
+	if (unlikely((unsigned int) clock >= MAX_CLOCKS))
+		return vdso_fallback_gettime(clock, ts);
+
+	/*
+	 * Convert the clockid to a bitmask and use it to check which
+	 * clocks are handled in the VDSO directly.
+	 */
+	msk = 1U << clock;
+	if (likely(msk & VGTOD_HRES)) {
+		if (do_hres(clock, ts) != VCLOCK_NONE)
+			return 0;
+	} else if (msk & VGTOD_COARSE) {
+		do_coarse(clock, ts);
+		return 0;
+	}
 	return vdso_fallback_gettime(clock, ts);
 }
+
 int clock_gettime(clockid_t, struct timespec *)
 	__attribute__((weak, alias("__vdso_clock_gettime")));
 
