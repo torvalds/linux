@@ -854,10 +854,28 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 	}
 
 	/*
-	 * Make sure that the requested pgprot does not violate the static
-	 * protections. Check the full large page whether one of the pages
-	 * in it results in a different pgprot than the first one of the
-	 * requested range. If yes, then the page needs to be split.
+	 * Optimization: Check whether the requested pgprot is conflicting
+	 * with a static protection requirement in the large page. If not,
+	 * then checking whether the requested range is fully covering the
+	 * large page can be done right here.
+	 */
+	new_prot = static_protections(req_prot, lpaddr, old_pfn, numpages,
+				      CPA_DETECT);
+
+	if (pgprot_val(req_prot) == pgprot_val(new_prot)) {
+		if (address != lpaddr || cpa->numpages != numpages)
+			return 1;
+		goto setlp;
+	}
+
+	/*
+	 * Slow path. The full large page check above established that the
+	 * requested pgprot cannot be applied to the full large page due to
+	 * conflicting requirements of static protection regions. It might
+	 * turn out that the whole requested range is covered by the
+	 * modified protection of the first 4k segment at @address. This
+	 * might result in the ability to preserve the large page
+	 * nevertheless.
 	 */
 	new_prot = static_protections(req_prot, address, pfn, 1, CPA_DETECT);
 	pfn = old_pfn;
@@ -882,6 +900,7 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 	if (address != lpaddr || cpa->numpages != numpages)
 		return 1;
 
+setlp:
 	/* All checks passed. Update the large page mapping. */
 	new_pte = pfn_pte(old_pfn, new_prot);
 	__set_pmd_pte(kpte, address, new_pte);
