@@ -193,14 +193,20 @@ static int qeth_l2_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 	return RTN_UNICAST;
 }
 
-static void qeth_l2_fill_header(struct qeth_hdr *hdr, struct sk_buff *skb,
-				int cast_type, unsigned int data_len)
+static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
+				struct sk_buff *skb, int ipv, int cast_type,
+				unsigned int data_len)
 {
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)skb_mac_header(skb);
 
-	memset(hdr, 0, sizeof(struct qeth_hdr));
 	hdr->hdr.l2.id = QETH_HEADER_TYPE_LAYER2;
 	hdr->hdr.l2.pkt_length = data_len;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		qeth_tx_csum(skb, &hdr->hdr.l2.flags[1], ipv);
+		if (card->options.performance_stats)
+			card->perf_stats.tx_csum++;
+	}
 
 	/* set byte byte 3 to casting flags */
 	if (cast_type == RTN_MULTICAST)
@@ -641,82 +647,41 @@ static void qeth_l2_set_rx_mode(struct net_device *dev)
 		qeth_promisc_to_bridge(card);
 }
 
-static int qeth_l2_xmit(struct qeth_card *card, struct sk_buff *skb,
-			struct qeth_qdio_out_q *queue, int cast_type, int ipv)
-{
-	const unsigned int proto_len = IS_IQD(card) ? ETH_HLEN : 0;
-	const unsigned int hw_hdr_len = sizeof(struct qeth_hdr);
-	unsigned int frame_len = skb->len;
-	unsigned int data_offset = 0;
-	struct qeth_hdr *hdr = NULL;
-	unsigned int hd_len = 0;
-	unsigned int elements;
-	int push_len, rc;
-	bool is_sg;
-
-	rc = skb_cow_head(skb, hw_hdr_len);
-	if (rc)
-		return rc;
-
-	push_len = qeth_add_hw_header(card, skb, &hdr, hw_hdr_len, proto_len,
-				      &elements);
-	if (push_len < 0)
-		return push_len;
-	if (!push_len) {
-		/* HW header needs its own buffer element. */
-		hd_len = hw_hdr_len + proto_len;
-		data_offset = proto_len;
-	}
-	qeth_l2_fill_header(hdr, skb, cast_type, frame_len);
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		qeth_tx_csum(skb, &hdr->hdr.l2.flags[1], ipv);
-		if (card->options.performance_stats)
-			card->perf_stats.tx_csum++;
-	}
-
-	is_sg = skb_is_nonlinear(skb);
-	if (IS_IQD(card)) {
-		rc = qeth_do_send_packet_fast(queue, skb, hdr, data_offset,
-					      hd_len);
-	} else {
-		/* TODO: drop skb_orphan() once TX completion is fast enough */
-		skb_orphan(skb);
-		rc = qeth_do_send_packet(card, queue, skb, hdr, data_offset,
-					 hd_len, elements);
-	}
-
-	if (!rc) {
-		if (card->options.performance_stats) {
-			card->perf_stats.buf_elements_sent += elements;
-			if (is_sg)
-				card->perf_stats.sg_skbs_sent++;
-		}
-	} else {
-		if (!push_len)
-			kmem_cache_free(qeth_core_header_cache, hdr);
-		if (rc == -EBUSY)
-			/* roll back to ETH header */
-			skb_pull(skb, push_len);
-	}
-	return rc;
-}
-
 static int qeth_l2_xmit_osn(struct qeth_card *card, struct sk_buff *skb,
 			    struct qeth_qdio_out_q *queue)
 {
-	unsigned int elements;
-	struct qeth_hdr *hdr;
+	struct qeth_hdr *hdr = (struct qeth_hdr *)skb->data;
+	addr_t end = (addr_t)(skb->data + sizeof(*hdr));
+	addr_t start = (addr_t)skb->data;
+	unsigned int elements = 0;
+	unsigned int hd_len = 0;
+	int rc;
 
 	if (skb->protocol == htons(ETH_P_IPV6))
 		return -EPROTONOSUPPORT;
 
-	hdr = (struct qeth_hdr *)skb->data;
-	elements = qeth_get_elements_no(card, skb, 0, 0);
-	if (!elements)
-		return -E2BIG;
-	if (qeth_hdr_chk_and_bounce(skb, &hdr, sizeof(*hdr)))
-		return -EINVAL;
-	return qeth_do_send_packet(card, queue, skb, hdr, 0, 0, elements);
+	if (qeth_get_elements_for_range(start, end) > 1) {
+		/* Misaligned HW header, move it to its own buffer element. */
+		hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
+		if (!hdr)
+			return -ENOMEM;
+		hd_len = sizeof(*hdr);
+		skb_copy_from_linear_data(skb, (char *)hdr, hd_len);
+		elements++;
+	}
+
+	elements += qeth_count_elements(skb, hd_len);
+	if (elements > QETH_MAX_BUFFER_ELEMENTS(card)) {
+		rc = -E2BIG;
+		goto out;
+	}
+
+	rc = qeth_do_send_packet(card, queue, skb, hdr, hd_len, hd_len,
+				 elements);
+out:
+	if (rc && hd_len)
+		kmem_cache_free(qeth_core_header_cache, hdr);
+	return rc;
 }
 
 static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
@@ -745,7 +710,8 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	if (IS_OSN(card))
 		rc = qeth_l2_xmit_osn(card, skb, queue);
 	else
-		rc = qeth_l2_xmit(card, skb, queue, cast_type, ipv);
+		rc = qeth_xmit(card, skb, queue, ipv, cast_type,
+			       qeth_l2_fill_header);
 
 	if (!rc) {
 		card->stats.tx_packets++;
@@ -789,7 +755,10 @@ static int __qeth_l2_open(struct net_device *dev)
 
 	if (qdio_stop_irq(card->data.ccwdev, 0) >= 0) {
 		napi_enable(&card->napi);
+		local_bh_disable();
 		napi_schedule(&card->napi);
+		/* kick-start the NAPI softirq: */
+		local_bh_enable();
 	} else
 		rc = -EIO;
 	return rc;
@@ -1240,7 +1209,6 @@ static int qeth_osn_send_control_data(struct qeth_card *card, int len,
 			   struct qeth_cmd_buffer *iob)
 {
 	struct qeth_channel *channel = iob->channel;
-	unsigned long flags;
 	int rc = 0;
 
 	QETH_CARD_TEXT(card, 5, "osndctrd");
@@ -1249,10 +1217,10 @@ static int qeth_osn_send_control_data(struct qeth_card *card, int len,
 		   atomic_cmpxchg(&channel->irq_pending, 0, 1) == 0);
 	qeth_prepare_control_data(card, len, iob);
 	QETH_CARD_TEXT(card, 6, "osnoirqp");
-	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
+	spin_lock_irq(get_ccwdev_lock(channel->ccwdev));
 	rc = ccw_device_start_timeout(channel->ccwdev, channel->ccw,
 				      (addr_t) iob, 0, 0, QETH_IPA_TIMEOUT);
-	spin_unlock_irqrestore(get_ccwdev_lock(channel->ccwdev), flags);
+	spin_unlock_irq(get_ccwdev_lock(channel->ccwdev));
 	if (rc) {
 		QETH_DBF_MESSAGE(2, "qeth_osn_send_control_data: "
 			   "ccw_device_start rc = %i\n", rc);
