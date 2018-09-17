@@ -95,19 +95,8 @@
 #define SPRD_IMSR_BREAK_DETECT		BIT(7)
 #define SPRD_IMSR_TIMEOUT		BIT(13)
 
-struct reg_backup {
-	u32 ien;
-	u32 ctrl0;
-	u32 ctrl1;
-	u32 ctrl2;
-	u32 clkd0;
-	u32 clkd1;
-	u32 dspwait;
-};
-
 struct sprd_uart_port {
 	struct uart_port port;
-	struct reg_backup reg_bak;
 	char name[16];
 };
 
