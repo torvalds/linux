@@ -649,8 +649,8 @@ static inline void __sdhci_adma_write_desc(struct sdhci_host *host,
 {
 	if (host->ops->adma_write_desc)
 		host->ops->adma_write_desc(host, desc, addr, len, cmd);
-
-	sdhci_adma_write_desc(host, desc, addr, len, cmd);
+	else
+		sdhci_adma_write_desc(host, desc, addr, len, cmd);
 }
 
 static void sdhci_adma_mark_end(void *desc)
