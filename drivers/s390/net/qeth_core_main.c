@@ -3058,7 +3058,7 @@ static int qeth_query_ipassists_cb(struct qeth_card *card,
 		QETH_DBF_TEXT(SETUP, 2, "ipaunsup");
 		card->options.ipa4.supported_funcs |= IPA_SETADAPTERPARMS;
 		card->options.ipa6.supported_funcs |= IPA_SETADAPTERPARMS;
-		return -0;
+		return 0;
 	default:
 		if (cmd->hdr.return_code) {
 			QETH_DBF_MESSAGE(1, "%s IPA_CMD_QIPASSIST: Unhandled "
