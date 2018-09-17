@@ -14,11 +14,6 @@
 
 #include "adv748x.h"
 
-static bool is_txa(struct adv748x_csi2 *tx)
-{
-	return tx == &tx->state->txa;
-}
-
 static int adv748x_csi2_set_virtual_channel(struct adv748x_csi2 *tx,
 					    unsigned int vc)
 {

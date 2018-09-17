@@ -358,7 +358,7 @@ static int adv748x_hdmi_s_stream(struct v4l2_subdev *sd, int enable)
 
 	mutex_lock(&state->mutex);
 
-	ret = adv748x_txa_power(state, enable);
+	ret = adv748x_tx_power(&state->txa, enable);
 	if (ret)
 		goto done;
 

@@ -288,11 +288,16 @@ static const struct adv748x_reg_value adv748x_power_down_txb_1lane[] = {
 	{ADV748X_PAGE_EOR, 0xff, 0xff}	/* End of register table */
 };
 
-int adv748x_txa_power(struct adv748x_state *state, bool on)
+int adv748x_tx_power(struct adv748x_csi2 *tx, bool on)
 {
+	struct adv748x_state *state = tx->state;
+	const struct adv748x_reg_value *reglist;
 	int val;
 
-	val = txa_read(state, ADV748X_CSI_FS_AS_LS);
+	if (!is_tx_enabled(tx))
+		return 0;
+
+	val = tx_read(tx, ADV748X_CSI_FS_AS_LS);
 	if (val < 0)
 		return val;
 
@@ -305,31 +310,13 @@ int adv748x_txa_power(struct adv748x_state *state, bool on)
 			"Enabling with unknown bit set");
 
 	if (on)
-		return adv748x_write_regs(state, adv748x_power_up_txa_4lane);
+		reglist = is_txa(tx) ? adv748x_power_up_txa_4lane :
+				       adv748x_power_up_txb_1lane;
+	else
+		reglist = is_txa(tx) ? adv748x_power_down_txa_4lane :
+				       adv748x_power_down_txb_1lane;
 
-	return adv748x_write_regs(state, adv748x_power_down_txa_4lane);
-}
-
-int adv748x_txb_power(struct adv748x_state *state, bool on)
-{
-	int val;
-
-	val = txb_read(state, ADV748X_CSI_FS_AS_LS);
-	if (val < 0)
-		return val;
-
-	/*
-	 * This test against BIT(6) is not documented by the datasheet, but was
-	 * specified in the downstream driver.
-	 * Track with a WARN_ONCE to determine if it is ever set by HW.
-	 */
-	WARN_ONCE((on && val & ADV748X_CSI_FS_AS_LS_UNKNOWN),
-			"Enabling with unknown bit set");
-
-	if (on)
-		return adv748x_write_regs(state, adv748x_power_up_txb_1lane);
-
-	return adv748x_write_regs(state, adv748x_power_down_txb_1lane);
+	return adv748x_write_regs(state, reglist);
 }
 
 /* -----------------------------------------------------------------------------
@@ -478,6 +465,7 @@ static const struct adv748x_reg_value adv748x_init_txb_1lane[] = {
 static int adv748x_reset(struct adv748x_state *state)
 {
 	int ret;
+	u8 regval = ADV748X_IO_10_PIX_OUT_EN;
 
 	ret = adv748x_write_regs(state, adv748x_sw_reset);
 	if (ret < 0)
@@ -492,22 +480,24 @@ static int adv748x_reset(struct adv748x_state *state)
 	if (ret)
 		return ret;
 
-	adv748x_txa_power(state, 0);
+	adv748x_tx_power(&state->txa, 0);
 
 	/* Init and power down TXB */
 	ret = adv748x_write_regs(state, adv748x_init_txb_1lane);
 	if (ret)
 		return ret;
 
-	adv748x_txb_power(state, 0);
+	adv748x_tx_power(&state->txb, 0);
 
 	/* Disable chip powerdown & Enable HDMI Rx block */
 	io_write(state, ADV748X_IO_PD, ADV748X_IO_PD_RX_EN);
 
-	/* Enable 4-lane CSI Tx & Pixel Port */
-	io_write(state, ADV748X_IO_10, ADV748X_IO_10_CSI4_EN |
-				       ADV748X_IO_10_CSI1_EN |
-				       ADV748X_IO_10_PIX_OUT_EN);
+	/* Conditionally enable TXa and TXb. */
+	if (is_tx_enabled(&state->txa))
+		regval |= ADV748X_IO_10_CSI4_EN;
+	if (is_tx_enabled(&state->txb))
+		regval |= ADV748X_IO_10_CSI1_EN;
+	io_write(state, ADV748X_IO_10, regval);
 
 	/* Use vid_std and v_freq as freerun resolution for CP */
 	cp_clrset(state, ADV748X_CP_CLMP_POS, ADV748X_CP_CLMP_POS_DIS_AUTO,
