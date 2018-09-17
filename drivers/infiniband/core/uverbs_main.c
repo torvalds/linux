@@ -1028,6 +1028,12 @@ static void ib_uverbs_add_one(struct ib_device *device)
 		return;
 	}
 
+	device_initialize(&uverbs_dev->dev);
+	uverbs_dev->dev.class = uverbs_class;
+	uverbs_dev->dev.parent = device->dev.parent;
+	uverbs_dev->dev.release = ib_uverbs_release_dev;
+	uverbs_dev->groups[0] = &dev_attr_group;
+	uverbs_dev->dev.groups = uverbs_dev->groups;
 	atomic_set(&uverbs_dev->refcount, 1);
 	init_completion(&uverbs_dev->comp);
 	uverbs_dev->xrcd_tree = RB_ROOT;
@@ -1035,6 +1041,8 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	mutex_init(&uverbs_dev->lists_mutex);
 	INIT_LIST_HEAD(&uverbs_dev->uverbs_file_list);
 	INIT_LIST_HEAD(&uverbs_dev->uverbs_events_file_list);
+	rcu_assign_pointer(uverbs_dev->ib_dev, device);
+	uverbs_dev->num_comp_vectors = device->num_comp_vectors;
 
 	devnum = find_first_zero_bit(dev_map, IB_UVERBS_MAX_DEVICES);
 	if (devnum >= IB_UVERBS_MAX_DEVICES)
@@ -1046,19 +1054,10 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	else
 		base = IB_UVERBS_BASE_DEV + devnum;
 
-	rcu_assign_pointer(uverbs_dev->ib_dev, device);
-	uverbs_dev->num_comp_vectors = device->num_comp_vectors;
-
 	if (ib_uverbs_create_uapi(device, uverbs_dev))
 		goto err_uapi;
 
-	device_initialize(&uverbs_dev->dev);
-	uverbs_dev->dev.class = uverbs_class;
-	uverbs_dev->dev.parent = device->dev.parent;
 	uverbs_dev->dev.devt = base;
-	uverbs_dev->dev.release = ib_uverbs_release_dev;
-	uverbs_dev->groups[0] = &dev_attr_group;
-	uverbs_dev->dev.groups = uverbs_dev->groups;
 	dev_set_name(&uverbs_dev->dev, "uverbs%d", uverbs_dev->devnum);
 
 	cdev_init(&uverbs_dev->cdev,
@@ -1067,20 +1066,18 @@ static void ib_uverbs_add_one(struct ib_device *device)
 
 	ret = cdev_device_add(&uverbs_dev->cdev, &uverbs_dev->dev);
 	if (ret)
-		goto err_cdev;
+		goto err_uapi;
 
 	ib_set_client_data(device, &uverbs_client, uverbs_dev);
 	return;
 
-err_cdev:
-	cdev_del(&uverbs_dev->cdev);
-	put_device(&uverbs_dev->dev);
 err_uapi:
 	clear_bit(devnum, dev_map);
 err:
 	if (atomic_dec_and_test(&uverbs_dev->refcount))
 		ib_uverbs_comp_dev(uverbs_dev);
 	wait_for_completion(&uverbs_dev->comp);
+	put_device(&uverbs_dev->dev);
 	return;
 }
 
