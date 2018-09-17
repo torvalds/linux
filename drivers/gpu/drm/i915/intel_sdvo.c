@@ -105,11 +105,6 @@ struct intel_sdvo {
 	bool has_hdmi_audio;
 	bool rgb_quant_range_selectable;
 
-	/**
-	 * This is sdvo fixed pannel mode pointer
-	 */
-	struct drm_display_mode *sdvo_lvds_fixed_mode;
-
 	/* DDC bus used by this SDVO encoder */
 	uint8_t ddc_bus;
 
@@ -765,10 +760,14 @@ intel_sdvo_create_preferred_input_timing(struct intel_sdvo *intel_sdvo,
 	args.height = height;
 	args.interlace = 0;
 
-	if (IS_LVDS(intel_sdvo_connector) &&
-	   (intel_sdvo->sdvo_lvds_fixed_mode->hdisplay != width ||
-	    intel_sdvo->sdvo_lvds_fixed_mode->vdisplay != height))
-		args.scaled = 1;
+	if (IS_LVDS(intel_sdvo_connector)) {
+		const struct drm_display_mode *fixed_mode =
+			intel_sdvo_connector->base.panel.fixed_mode;
+
+		if (fixed_mode->hdisplay != width ||
+		    fixed_mode->vdisplay != height)
+			args.scaled = 1;
+	}
 
 	return intel_sdvo_set_value(intel_sdvo,
 				    SDVO_CMD_CREATE_PREFERRED_INPUT_TIMING,
@@ -1145,7 +1144,7 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 		pipe_config->sdvo_tv_clock = true;
 	} else if (IS_LVDS(intel_sdvo_connector)) {
 		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo,
-							     intel_sdvo->sdvo_lvds_fixed_mode))
+							     intel_sdvo_connector->base.panel.fixed_mode))
 			return false;
 
 		(void) intel_sdvo_get_preferred_input_mode(intel_sdvo,
@@ -1302,7 +1301,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 	/* lvds has a special fixed output timing. */
 	if (IS_LVDS(intel_sdvo_connector))
 		intel_sdvo_get_dtd_from_mode(&output_dtd,
-					     intel_sdvo->sdvo_lvds_fixed_mode);
+					     intel_sdvo_connector->base.panel.fixed_mode);
 	else
 		intel_sdvo_get_dtd_from_mode(&output_dtd, mode);
 	if (!intel_sdvo_set_output_timing(intel_sdvo, &output_dtd))
@@ -1643,10 +1642,13 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 		return MODE_CLOCK_HIGH;
 
 	if (IS_LVDS(intel_sdvo_connector)) {
-		if (mode->hdisplay > intel_sdvo->sdvo_lvds_fixed_mode->hdisplay)
+		const struct drm_display_mode *fixed_mode =
+			intel_sdvo_connector->base.panel.fixed_mode;
+
+		if (mode->hdisplay > fixed_mode->hdisplay)
 			return MODE_PANEL;
 
-		if (mode->vdisplay > intel_sdvo->sdvo_lvds_fixed_mode->vdisplay)
+		if (mode->vdisplay > fixed_mode->vdisplay)
 			return MODE_PANEL;
 	}
 
@@ -2260,10 +2262,6 @@ static void intel_sdvo_enc_destroy(struct drm_encoder *encoder)
 {
 	struct intel_sdvo *intel_sdvo = to_sdvo(to_intel_encoder(encoder));
 
-	if (intel_sdvo->sdvo_lvds_fixed_mode != NULL)
-		drm_mode_destroy(encoder->dev,
-				 intel_sdvo->sdvo_lvds_fixed_mode);
-
 	i2c_del_adapter(&intel_sdvo->ddc);
 	intel_encoder_destroy(encoder);
 }
@@ -2656,13 +2654,16 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 
 	list_for_each_entry(mode, &connector->probed_modes, head) {
 		if (mode->type & DRM_MODE_TYPE_PREFERRED) {
-			intel_sdvo->sdvo_lvds_fixed_mode =
+			struct drm_display_mode *fixed_mode =
 				drm_mode_duplicate(connector->dev, mode);
+
+			intel_panel_init(&intel_connector->panel,
+					 fixed_mode, NULL);
 			break;
 		}
 	}
 
-	if (!intel_sdvo->sdvo_lvds_fixed_mode)
+	if (!intel_connector->panel.fixed_mode)
 		goto err;
 
 	return true;
