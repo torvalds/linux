@@ -567,9 +567,9 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	struct drm_mode_crtc *crtc_req = data;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
-	struct drm_connector **connector_set = NULL, *connector;
-	struct drm_framebuffer *fb = NULL;
-	struct drm_display_mode *mode = NULL;
+	struct drm_connector **connector_set, *connector;
+	struct drm_framebuffer *fb;
+	struct drm_display_mode *mode;
 	struct drm_mode_set set;
 	uint32_t __user *set_connectors_ptr;
 	struct drm_modeset_acquire_ctx ctx;
@@ -598,6 +598,10 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	mutex_lock(&crtc->dev->mode_config.mutex);
 	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
 retry:
+	connector_set = NULL;
+	fb = NULL;
+	mode = NULL;
+
 	ret = drm_modeset_lock_all_ctx(crtc->dev, &ctx);
 	if (ret)
 		goto out;
