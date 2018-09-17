@@ -2055,6 +2055,11 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 
 	if (!skb_is_gso(skb) && skb->ip_summed == CHECKSUM_PARTIAL) {
 		qeth_tx_csum(skb, &hdr->hdr.l3.ext_flags, ipv);
+		/* some HW requires combined L3+L4 csum offload: */
+		if (ipv == 4) {
+			hdr->hdr.l3.ext_flags |= QETH_HDR_EXT_CSUM_HDR_REQ;
+			ip_hdr(skb)->check = 0;
+		}
 		if (card->options.performance_stats)
 			card->perf_stats.tx_csum++;
 	}

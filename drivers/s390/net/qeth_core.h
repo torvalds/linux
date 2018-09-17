@@ -892,11 +892,6 @@ static inline void qeth_tx_csum(struct sk_buff *skb, u8 *flags, int ipv)
 	if ((ipv == 4 && ip_hdr(skb)->protocol == IPPROTO_UDP) ||
 	    (ipv == 6 && ipv6_hdr(skb)->nexthdr == IPPROTO_UDP))
 		*flags |= QETH_HDR_EXT_UDP;
-	if (ipv == 4) {
-		/* some HW requires combined L3+L4 csum offload: */
-		*flags |= QETH_HDR_EXT_CSUM_HDR_REQ;
-		ip_hdr(skb)->check = 0;
-	}
 }
 
 static inline void qeth_put_buffer_pool_entry(struct qeth_card *card,
