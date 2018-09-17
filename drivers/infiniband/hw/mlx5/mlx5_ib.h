@@ -862,6 +862,8 @@ struct mlx5_ib_lb_state {
 	/* protect the user_td */
 	struct mutex		mutex;
 	u32			user_td;
+	int			qps;
+	bool			enabled;
 };
 
 struct mlx5_ib_dev {
@@ -1020,6 +1022,8 @@ int mlx5_ib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr);
 int mlx5_ib_destroy_srq(struct ib_srq *srq);
 int mlx5_ib_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 			  const struct ib_recv_wr **bad_wr);
+int mlx5_ib_enable_lb(struct mlx5_ib_dev *dev, bool td, bool qp);
+void mlx5_ib_disable_lb(struct mlx5_ib_dev *dev, bool td, bool qp);
 struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *init_attr,
 				struct ib_udata *udata);

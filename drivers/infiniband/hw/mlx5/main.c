@@ -1571,28 +1571,44 @@ static void deallocate_uars(struct mlx5_ib_dev *dev,
 			mlx5_cmd_free_uar(dev->mdev, bfregi->sys_pages[i]);
 }
 
-static int mlx5_ib_enable_lb(struct mlx5_ib_dev *dev)
+int mlx5_ib_enable_lb(struct mlx5_ib_dev *dev, bool td, bool qp)
 {
 	int err = 0;
 
 	mutex_lock(&dev->lb.mutex);
-	dev->lb.user_td++;
+	if (td)
+		dev->lb.user_td++;
+	if (qp)
+		dev->lb.qps++;
 
-	if (dev->lb.user_td == 2)
-		err = mlx5_nic_vport_update_local_lb(dev->mdev, true);
+	if (dev->lb.user_td == 2 ||
+	    dev->lb.qps == 1) {
+		if (!dev->lb.enabled) {
+			err = mlx5_nic_vport_update_local_lb(dev->mdev, true);
+			dev->lb.enabled = true;
+		}
+	}
 
 	mutex_unlock(&dev->lb.mutex);
 
 	return err;
 }
 
-static void mlx5_ib_disable_lb(struct mlx5_ib_dev *dev)
+void mlx5_ib_disable_lb(struct mlx5_ib_dev *dev, bool td, bool qp)
 {
 	mutex_lock(&dev->lb.mutex);
-	dev->lb.user_td--;
+	if (td)
+		dev->lb.user_td--;
+	if (qp)
+		dev->lb.qps--;
 
-	if (dev->lb.user_td < 2)
-		mlx5_nic_vport_update_local_lb(dev->mdev, false);
+	if (dev->lb.user_td == 1 &&
+	    dev->lb.qps == 0) {
+		if (dev->lb.enabled) {
+			mlx5_nic_vport_update_local_lb(dev->mdev, false);
+			dev->lb.enabled = false;
+		}
+	}
 
 	mutex_unlock(&dev->lb.mutex);
 }
@@ -1613,7 +1629,7 @@ static int mlx5_ib_alloc_transport_domain(struct mlx5_ib_dev *dev, u32 *tdn)
 	     !MLX5_CAP_GEN(dev->mdev, disable_local_lb_mc)))
 		return err;
 
-	return mlx5_ib_enable_lb(dev);
+	return mlx5_ib_enable_lb(dev, true, false);
 }
 
 static void mlx5_ib_dealloc_transport_domain(struct mlx5_ib_dev *dev, u32 tdn)
@@ -1628,7 +1644,7 @@ static void mlx5_ib_dealloc_transport_domain(struct mlx5_ib_dev *dev, u32 tdn)
 	     !MLX5_CAP_GEN(dev->mdev, disable_local_lb_mc)))
 		return;
 
-	mlx5_ib_disable_lb(dev);
+	mlx5_ib_disable_lb(dev, true, false);
 }
 
 static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
