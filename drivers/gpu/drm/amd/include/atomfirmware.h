@@ -179,7 +179,7 @@ enum atom_voltage_type
 
 enum atom_dgpu_vram_type{
   ATOM_DGPU_VRAM_TYPE_GDDR5 = 0x50,
-  ATOM_DGPU_VRAM_TYPE_HBM   = 0x60,
+  ATOM_DGPU_VRAM_TYPE_HBM2  = 0x60,
 };
 
 enum atom_dp_vs_preemph_def{
@@ -1699,10 +1699,10 @@ struct atom_vram_module_v9
 {
   // Design Specific Values
   uint32_t  memory_size;                   // Total memory size in unit of MB for CONFIG_MEMSIZE zeros
-  uint32_t  channel_enable;                // for 32 channel ASIC usage
-  uint32_t  umcch_addrcfg;
-  uint32_t  umcch_addrsel;
-  uint32_t  umcch_colsel;
+  uint32_t  channel_enable;                // bit vector, each bit indicate specific channel enable or not
+  uint32_t  max_mem_clk;                   // max memory clock of this memory in unit of 10kHz, =0 means it is not defined
+  uint16_t  reserved[3];
+  uint16_t  mem_voltage;                   // mem_voltage
   uint16_t  vram_module_size;              // Size of atom_vram_module_v9
   uint8_t   ext_memory_id;                 // Current memory module ID
   uint8_t   memory_type;                   // enum of atom_dgpu_vram_type
@@ -1712,20 +1712,22 @@ struct atom_vram_module_v9
   uint8_t   tunningset_id;                 // MC phy registers set per. 
   uint8_t   vender_rev_id;                 // [7:4] Revision, [3:0] Vendor code
   uint8_t   refreshrate;                   // [1:0]=RefreshFactor (00=8ms, 01=16ms, 10=32ms,11=64ms)
-  uint16_t  vram_rsd2;                     // reserved
+  uint8_t   hbm_ven_rev_id;				   // hbm_ven_rev_id
+  uint8_t   vram_rsd2;					   // reserved
   char    dram_pnstring[20];               // part number end with '0'. 
 };
 
-
 struct atom_vram_info_header_v2_3
 {
-  struct   atom_common_table_header  table_header;
+  struct   atom_common_table_header table_header;
   uint16_t mem_adjust_tbloffset;                         // offset of atom_umc_init_reg_block structure for memory vendor specific UMC adjust setting
   uint16_t mem_clk_patch_tbloffset;                      // offset of atom_umc_init_reg_block structure for memory clock specific UMC setting
   uint16_t mc_adjust_pertile_tbloffset;                  // offset of atom_umc_init_reg_block structure for Per Byte Offset Preset Settings
   uint16_t mc_phyinit_tbloffset;                         // offset of atom_umc_init_reg_block structure for MC phy init set
   uint16_t dram_data_remap_tbloffset;                    // reserved for now
-  uint16_t vram_rsd2[3];
+  uint16_t tmrs_seq_offset;                              // offset of HBM tmrs
+  uint16_t post_ucode_init_offset;                       // offset of atom_umc_init_reg_block structure for MC phy init after MC uCode complete umc init
+  uint16_t vram_rsd2;
   uint8_t  vram_module_num;                              // indicate number of VRAM module
   uint8_t  vram_rsd1[2];
   uint8_t  mc_phy_tile_num;                              // indicate the MCD tile number which use in DramDataRemapTbl and usMcAdjustPerTileTblOffset

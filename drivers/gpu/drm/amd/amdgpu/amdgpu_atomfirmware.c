@@ -174,7 +174,7 @@ static int convert_atom_mem_type_to_vram_type (struct amdgpu_device *adev,
 		case ATOM_DGPU_VRAM_TYPE_GDDR5:
 			vram_type = AMDGPU_VRAM_TYPE_GDDR5;
 			break;
-		case ATOM_DGPU_VRAM_TYPE_HBM:
+		case ATOM_DGPU_VRAM_TYPE_HBM2:
 			vram_type = AMDGPU_VRAM_TYPE_HBM;
 			break;
 		default:
