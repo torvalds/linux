@@ -615,32 +615,24 @@ static void gswip_phylink_validate(struct dsa_switch *ds, int port,
 		if (!phy_interface_mode_is_rgmii(state->interface) &&
 		    state->interface != PHY_INTERFACE_MODE_MII &&
 		    state->interface != PHY_INTERFACE_MODE_REVMII &&
-		    state->interface != PHY_INTERFACE_MODE_RMII) {
-			bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
-			dev_err(ds->dev,
-			"Unsupported interface: %d\n", state->interface);
-			return;
-		}
+		    state->interface != PHY_INTERFACE_MODE_RMII)
+			goto unsupported;
 		break;
 	case 2:
 	case 3:
 	case 4:
-		if (state->interface != PHY_INTERFACE_MODE_INTERNAL) {
-			bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
-			dev_err(ds->dev,
-			"Unsupported interface: %d\n", state->interface);
-			return;
-		}
+		if (state->interface != PHY_INTERFACE_MODE_INTERNAL)
+			goto unsupported;
 		break;
 	case 5:
 		if (!phy_interface_mode_is_rgmii(state->interface) &&
-		    state->interface != PHY_INTERFACE_MODE_INTERNAL) {
-			bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
-			dev_err(ds->dev,
-			"Unsupported interface: %d\n", state->interface);
-			return;
-		}
+		    state->interface != PHY_INTERFACE_MODE_INTERNAL)
+			goto unsupported;
 		break;
+	default:
+		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		dev_err(ds->dev, "Unsupported port: %i\n", port);
+		return;
 	}
 
 	/* Allow all the expected bits */
@@ -667,6 +659,12 @@ static void gswip_phylink_validate(struct dsa_switch *ds, int port,
 		   __ETHTOOL_LINK_MODE_MASK_NBITS);
 	bitmap_and(state->advertising, state->advertising, mask,
 		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	return;
+
+unsupported:
+	bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	dev_err(ds->dev, "Unsupported interface: %d\n", state->interface);
+	return;
 }
 
 static void gswip_phylink_mac_config(struct dsa_switch *ds, int port,
@@ -970,7 +968,7 @@ static int gswip_gphy_fw_list(struct gswip_priv *priv,
 	int err;
 	int i = 0;
 
-	/* The The VRX200 rev 1.1 uses the GSWIP 2.0 and needs the older
+	/* The VRX200 rev 1.1 uses the GSWIP 2.0 and needs the older
 	 * GPHY firmware. The VRX200 rev 1.2 uses the GSWIP 2.1 and also
 	 * needs a different GPHY firmware.
 	 */
@@ -1097,7 +1095,7 @@ static int gswip_probe(struct platform_device *pdev)
 		dev_err(dev, "dsa switch register failed: %i\n", err);
 		goto mdio_bus;
 	}
-	if (priv->ds->dst->cpu_dp->index != priv->hw_info->cpu_port) {
+	if (!dsa_is_cpu_port(priv->ds, priv->hw_info->cpu_port)) {
 		dev_err(dev, "wrong CPU port defined, HW only supports port: %i",
 			priv->hw_info->cpu_port);
 		err = -EINVAL;
