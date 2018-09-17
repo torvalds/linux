@@ -290,10 +290,6 @@ snd_bebob_maudio_special_discover(struct snd_bebob *bebob, bool is1814)
 		bebob->midi_output_ports = 2;
 	}
 end:
-	if (err < 0) {
-		kfree(params);
-		bebob->maudio_special_quirk = NULL;
-	}
 	mutex_unlock(&bebob->mutex);
 	return err;
 }
