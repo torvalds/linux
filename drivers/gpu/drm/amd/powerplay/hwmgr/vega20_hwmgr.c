@@ -514,6 +514,47 @@ static int vega20_setup_single_dpm_table(struct pp_hwmgr *hwmgr,
 	return ret;
 }
 
+static int vega20_setup_gfxclk_dpm_table(struct pp_hwmgr *hwmgr)
+{
+	struct vega20_hwmgr *data =
+			(struct vega20_hwmgr *)(hwmgr->backend);
+	struct vega20_single_dpm_table *dpm_table;
+	int ret = 0;
+
+	dpm_table = &(data->dpm_table.gfx_table);
+	if (data->smu_features[GNLD_DPM_GFXCLK].enabled) {
+		ret = vega20_setup_single_dpm_table(hwmgr, dpm_table, PPCLK_GFXCLK);
+		PP_ASSERT_WITH_CODE(!ret,
+				"[SetupDefaultDpmTable] failed to get gfxclk dpm levels!",
+				return ret);
+	} else {
+		dpm_table->count = 1;
+		dpm_table->dpm_levels[0].value = data->vbios_boot_state.gfx_clock / 100;
+	}
+
+	return ret;
+}
+
+static int vega20_setup_memclk_dpm_table(struct pp_hwmgr *hwmgr)
+{
+	struct vega20_hwmgr *data =
+			(struct vega20_hwmgr *)(hwmgr->backend);
+	struct vega20_single_dpm_table *dpm_table;
+	int ret = 0;
+
+	dpm_table = &(data->dpm_table.mem_table);
+	if (data->smu_features[GNLD_DPM_UCLK].enabled) {
+		ret = vega20_setup_single_dpm_table(hwmgr, dpm_table, PPCLK_UCLK);
+		PP_ASSERT_WITH_CODE(!ret,
+				"[SetupDefaultDpmTable] failed to get memclk dpm levels!",
+				return ret);
+	} else {
+		dpm_table->count = 1;
+		dpm_table->dpm_levels[0].value = data->vbios_boot_state.mem_clock / 100;
+	}
+
+	return ret;
+}
 
 /*
  * This function is to initialize all DPM state tables
@@ -547,28 +588,16 @@ static int vega20_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 
 	/* gfxclk */
 	dpm_table = &(data->dpm_table.gfx_table);
-	if (data->smu_features[GNLD_DPM_GFXCLK].enabled) {
-		ret = vega20_setup_single_dpm_table(hwmgr, dpm_table, PPCLK_GFXCLK);
-		PP_ASSERT_WITH_CODE(!ret,
-				"[SetupDefaultDpmTable] failed to get gfxclk dpm levels!",
-				return ret);
-	} else {
-		dpm_table->count = 1;
-		dpm_table->dpm_levels[0].value = data->vbios_boot_state.gfx_clock / 100;
-	}
+	ret = vega20_setup_gfxclk_dpm_table(hwmgr);
+	if (ret)
+		return ret;
 	vega20_init_dpm_state(&(dpm_table->dpm_state));
 
 	/* memclk */
 	dpm_table = &(data->dpm_table.mem_table);
-	if (data->smu_features[GNLD_DPM_UCLK].enabled) {
-		ret = vega20_setup_single_dpm_table(hwmgr, dpm_table, PPCLK_UCLK);
-		PP_ASSERT_WITH_CODE(!ret,
-				"[SetupDefaultDpmTable] failed to get memclk dpm levels!",
-				return ret);
-	} else {
-		dpm_table->count = 1;
-		dpm_table->dpm_levels[0].value = data->vbios_boot_state.mem_clock / 100;
-	}
+	ret = vega20_setup_memclk_dpm_table(hwmgr);
+	if (ret)
+		return ret;
 	vega20_init_dpm_state(&(dpm_table->dpm_state));
 
 	/* eclk */
@@ -1181,6 +1210,9 @@ static int vega20_od8_set_settings(
 {
 	OverDriveTable_t od_table;
 	int ret = 0;
+	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
+	struct vega20_od8_single_setting *od8_settings =
+			data->od8_settings.od8_settings_array;
 
 	ret = vega20_copy_table_from_smc(hwmgr, (uint8_t *)(&od_table), TABLE_OVERDRIVE);
 	PP_ASSERT_WITH_CODE(!ret,
@@ -1192,6 +1224,10 @@ static int vega20_od8_set_settings(
 		od_table.GfxclkFmin = (uint16_t)value;
 		break;
 	case OD8_SETTING_GFXCLK_FMAX:
+		if (value < od8_settings[OD8_SETTING_GFXCLK_FMAX].min_value ||
+		    value > od8_settings[OD8_SETTING_GFXCLK_FMAX].max_value)
+			return -EINVAL;
+
 		od_table.GfxclkFmax = (uint16_t)value;
 		break;
 	case OD8_SETTING_GFXCLK_FREQ1:
@@ -1213,6 +1249,9 @@ static int vega20_od8_set_settings(
 		od_table.GfxclkVolt3 = (uint16_t)value;
 		break;
 	case OD8_SETTING_UCLK_FMAX:
+		if (value < od8_settings[OD8_SETTING_UCLK_FMAX].min_value ||
+		    value > od8_settings[OD8_SETTING_UCLK_FMAX].max_value)
+			return -EINVAL;
 		od_table.UclkFmax = (uint16_t)value;
 		break;
 	case OD8_SETTING_POWER_PERCENTAGE:
@@ -1262,8 +1301,6 @@ static int vega20_set_sclk_od(
 		struct pp_hwmgr *hwmgr, uint32_t value)
 {
 	struct vega20_hwmgr *data = hwmgr->backend;
-	struct vega20_single_dpm_table *sclk_table =
-			&(data->dpm_table.gfx_table);
 	struct vega20_single_dpm_table *golden_sclk_table =
 			&(data->golden_dpm_table.gfx_table);
 	uint32_t od_sclk;
@@ -1278,8 +1315,8 @@ static int vega20_set_sclk_od(
 			"[SetSclkOD] failed to set od gfxclk!",
 			return ret);
 
-	/* refresh gfxclk table */
-	ret = vega20_setup_single_dpm_table(hwmgr, sclk_table, PPCLK_GFXCLK);
+	/* retrieve updated gfxclk table */
+	ret = vega20_setup_gfxclk_dpm_table(hwmgr);
 	PP_ASSERT_WITH_CODE(!ret,
 			"[SetSclkOD] failed to refresh gfxclk table!",
 			return ret);
@@ -1309,8 +1346,6 @@ static int vega20_set_mclk_od(
 		struct pp_hwmgr *hwmgr, uint32_t value)
 {
 	struct vega20_hwmgr *data = hwmgr->backend;
-	struct vega20_single_dpm_table *mclk_table =
-			&(data->dpm_table.mem_table);
 	struct vega20_single_dpm_table *golden_mclk_table =
 			&(data->golden_dpm_table.mem_table);
 	uint32_t od_mclk;
@@ -1325,8 +1360,8 @@ static int vega20_set_mclk_od(
 			"[SetMclkOD] failed to set od memclk!",
 			return ret);
 
-	/* refresh memclk table */
-	ret = vega20_setup_single_dpm_table(hwmgr, mclk_table, PPCLK_UCLK);
+	/* retrieve updated memclk table */
+	ret = vega20_setup_memclk_dpm_table(hwmgr);
 	PP_ASSERT_WITH_CODE(!ret,
 			"[SetMclkOD] failed to refresh memclk table!",
 			return ret);
@@ -2451,6 +2486,10 @@ static int vega20_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 				return -EINVAL;
 			}
 
+			if ((input_index == 0 && od_table->GfxclkFmin != input_clk) ||
+			    (input_index == 1 && od_table->GfxclkFmax != input_clk))
+				data->gfxclk_overdrive = true;
+
 			if (input_index == 0)
 				od_table->GfxclkFmin = input_clk;
 			else
@@ -2494,6 +2533,9 @@ static int vega20_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 					od8_settings[OD8_SETTING_UCLK_FMAX].max_value);
 				return -EINVAL;
 			}
+
+			if (input_index == 1 && od_table->UclkFmax != input_clk)
+				data->memclk_overdrive = true;
 
 			od_table->UclkFmax = input_clk;
 		}
@@ -2567,6 +2609,9 @@ static int vega20_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 		break;
 
 	case PP_OD_RESTORE_DEFAULT_TABLE:
+		data->gfxclk_overdrive = false;
+		data->memclk_overdrive = false;
+
 		ret = vega20_copy_table_from_smc(hwmgr,
 				(uint8_t *)od_table,
 				TABLE_OVERDRIVE);
@@ -2583,6 +2628,23 @@ static int vega20_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 				"Failed to import overdrive table!",
 				return ret);
 
+		/* retrieve updated gfxclk table */
+		if (data->gfxclk_overdrive) {
+			data->gfxclk_overdrive = false;
+
+			ret = vega20_setup_gfxclk_dpm_table(hwmgr);
+			if (ret)
+				return ret;
+		}
+
+		/* retrieve updated memclk table */
+		if (data->memclk_overdrive) {
+			data->memclk_overdrive = false;
+
+			ret = vega20_setup_memclk_dpm_table(hwmgr);
+			if (ret)
+				return ret;
+		}
 		break;
 
 	default:

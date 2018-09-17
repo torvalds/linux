@@ -502,6 +502,8 @@ struct vega20_hwmgr {
 
 	/* ---- Overdrive next setting ---- */
 	struct vega20_odn_data         odn_data;
+	bool                           gfxclk_overdrive;
+	bool                           memclk_overdrive;
 
 	/* ---- Overdrive8 Setting ---- */
 	struct vega20_od8_settings     od8_settings;
