@@ -2705,7 +2705,7 @@ _base_request_irq(struct MPT3SAS_ADAPTER *ioc, u8 index)
 	r = request_irq(pci_irq_vector(pdev, index), _base_interrupt,
 			IRQF_SHARED, reply_q->name, reply_q);
 	if (r) {
-		pr_err(MPT3SAS_FMT "unable to allocate interrupt %d!\n",
+		pr_err("%s: unable to allocate interrupt %d!\n",
 		       reply_q->name, pci_irq_vector(pdev, index));
 		kfree(reply_q);
 		return -EBUSY;
@@ -3034,10 +3034,10 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 	}
 
 	list_for_each_entry(reply_q, &ioc->reply_queue_list, list)
-		pr_info(MPT3SAS_FMT "%s: IRQ %d\n",
-		    reply_q->name,  ((ioc->msix_enable) ? "PCI-MSI-X enabled" :
-		    "IO-APIC enabled"),
-		    pci_irq_vector(ioc->pdev, reply_q->msix_index));
+		pr_info("%s: %s enabled: IRQ %d\n",
+			reply_q->name,
+			ioc->msix_enable ? "PCI-MSI-X" : "IO-APIC",
+			pci_irq_vector(ioc->pdev, reply_q->msix_index));
 
 	ioc_info(ioc, "iomem(%pap), mapped(0x%p), size(%d)\n",
 		 &chip_phys, ioc->chip, memap_sz);
