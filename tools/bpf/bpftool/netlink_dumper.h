@@ -50,13 +50,13 @@
 		fprintf(stderr, "\n");			\
 }
 
-#define NET_START_ARRAY(name, newline)			\
+#define NET_START_ARRAY(name, fmt_str)			\
 {							\
 	if (json_output) {				\
 		jsonw_name(json_wtr, name);		\
 		jsonw_start_array(json_wtr);		\
 	} else {					\
-		fprintf(stderr, "%s [%s", name, newline);\
+		fprintf(stderr, fmt_str, name);		\
 	}						\
 }
 
@@ -65,31 +65,23 @@
 	if (json_output)				\
 		jsonw_end_array(json_wtr);		\
 	else						\
-		fprintf(stderr, "]%s", endstr);		\
+		fprintf(stderr, "%s", endstr);		\
 }
 
-#define NET_DUMP_UINT(name, val)			\
+#define NET_DUMP_UINT(name, fmt_str, val)		\
 {							\
 	if (json_output)				\
 		jsonw_uint_field(json_wtr, name, val);	\
 	else						\
-		fprintf(stderr, "%s %d ", name, val);	\
+		fprintf(stderr, fmt_str, val);		\
 }
 
-#define NET_DUMP_LLUINT(name, val)			\
-{							\
-	if (json_output)				\
-		jsonw_lluint_field(json_wtr, name, val);\
-	else						\
-		fprintf(stderr, "%s %lld ", name, val);	\
-}
-
-#define NET_DUMP_STR(name, str)				\
+#define NET_DUMP_STR(name, fmt_str, str)		\
 {							\
 	if (json_output)				\
 		jsonw_string_field(json_wtr, name, str);\
 	else						\
-		fprintf(stderr, "%s %s ", name, str);	\
+		fprintf(stderr, fmt_str, str);		\
 }
 
 #define NET_DUMP_STR_ONLY(str)				\

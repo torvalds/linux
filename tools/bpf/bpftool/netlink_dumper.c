@@ -12,12 +12,18 @@
 #include "netlink_dumper.h"
 
 static void xdp_dump_prog_id(struct nlattr **tb, int attr,
-			     const char *type)
+			     const char *mode,
+			     bool new_json_object)
 {
 	if (!tb[attr])
 		return;
 
-	NET_DUMP_UINT(type, nla_getattr_u32(tb[attr]))
+	if (new_json_object)
+		NET_START_OBJECT
+	NET_DUMP_STR("mode", " %s", mode);
+	NET_DUMP_UINT("id", " id %u", nla_getattr_u32(tb[attr]))
+	if (new_json_object)
+		NET_END_OBJECT
 }
 
 static int do_xdp_dump_one(struct nlattr *attr, unsigned int ifindex,
@@ -37,18 +43,26 @@ static int do_xdp_dump_one(struct nlattr *attr, unsigned int ifindex,
 		return 0;
 
 	NET_START_OBJECT;
-	NET_DUMP_UINT("ifindex", ifindex);
-
 	if (name)
-		NET_DUMP_STR("devname", name);
-
-	if (tb[IFLA_XDP_PROG_ID])
-		NET_DUMP_UINT("prog_id", nla_getattr_u32(tb[IFLA_XDP_PROG_ID]));
+		NET_DUMP_STR("devname", "%s", name);
+	NET_DUMP_UINT("ifindex", "(%d)", ifindex);
 
 	if (mode == XDP_ATTACHED_MULTI) {
-		xdp_dump_prog_id(tb, IFLA_XDP_SKB_PROG_ID, "generic_prog_id");
-		xdp_dump_prog_id(tb, IFLA_XDP_DRV_PROG_ID, "drv_prog_id");
-		xdp_dump_prog_id(tb, IFLA_XDP_HW_PROG_ID, "offload_prog_id");
+		if (json_output) {
+			jsonw_name(json_wtr, "multi_attachments");
+			jsonw_start_array(json_wtr);
+		}
+		xdp_dump_prog_id(tb, IFLA_XDP_SKB_PROG_ID, "generic", true);
+		xdp_dump_prog_id(tb, IFLA_XDP_DRV_PROG_ID, "driver", true);
+		xdp_dump_prog_id(tb, IFLA_XDP_HW_PROG_ID, "offload", true);
+		if (json_output)
+			jsonw_end_array(json_wtr);
+	} else if (mode == XDP_ATTACHED_DRV) {
+		xdp_dump_prog_id(tb, IFLA_XDP_PROG_ID, "driver", false);
+	} else if (mode == XDP_ATTACHED_SKB) {
+		xdp_dump_prog_id(tb, IFLA_XDP_PROG_ID, "generic", false);
+	} else if (mode == XDP_ATTACHED_HW) {
+		xdp_dump_prog_id(tb, IFLA_XDP_PROG_ID, "offload", false);
 	}
 
 	NET_END_OBJECT_FINAL;
@@ -64,26 +78,9 @@ int do_xdp_dump(struct ifinfomsg *ifinfo, struct nlattr **tb)
 			       nla_getattr_str(tb[IFLA_IFNAME]));
 }
 
-static char *hexstring_n2a(const unsigned char *str, int len,
-			   char *buf, int blen)
-{
-	char *ptr = buf;
-	int i;
-
-	for (i = 0; i < len; i++) {
-		if (blen < 3)
-			break;
-		sprintf(ptr, "%02x", str[i]);
-		ptr += 2;
-		blen -= 2;
-	}
-	return buf;
-}
-
 static int do_bpf_dump_one_act(struct nlattr *attr)
 {
 	struct nlattr *tb[TCA_ACT_BPF_MAX + 1];
-	char buf[256];
 
 	if (nla_parse_nested(tb, TCA_ACT_BPF_MAX, attr, NULL) < 0)
 		return -LIBBPF_ERRNO__NLPARSE;
@@ -93,13 +90,11 @@ static int do_bpf_dump_one_act(struct nlattr *attr)
 
 	NET_START_OBJECT_NESTED2;
 	if (tb[TCA_ACT_BPF_NAME])
-		NET_DUMP_STR("name", nla_getattr_str(tb[TCA_ACT_BPF_NAME]));
+		NET_DUMP_STR("name", "%s",
+			     nla_getattr_str(tb[TCA_ACT_BPF_NAME]));
 	if (tb[TCA_ACT_BPF_ID])
-		NET_DUMP_UINT("bpf_id", nla_getattr_u32(tb[TCA_ACT_BPF_ID]));
-	if (tb[TCA_ACT_BPF_TAG])
-		NET_DUMP_STR("tag", hexstring_n2a(nla_data(tb[TCA_ACT_BPF_TAG]),
-						  nla_len(tb[TCA_ACT_BPF_TAG]),
-						  buf, sizeof(buf)));
+		NET_DUMP_UINT("id", " id %u",
+			      nla_getattr_u32(tb[TCA_ACT_BPF_ID]));
 	NET_END_OBJECT_NESTED;
 	return 0;
 }
@@ -128,13 +123,13 @@ static int do_bpf_act_dump(struct nlattr *attr)
 	if (nla_parse_nested(tb, TCA_ACT_MAX_PRIO, attr, NULL) < 0)
 		return -LIBBPF_ERRNO__NLPARSE;
 
-	NET_START_ARRAY("act", "");
+	NET_START_ARRAY("act", " %s [");
 	for (act = 0; act <= TCA_ACT_MAX_PRIO; act++) {
 		ret = do_dump_one_act(tb[act]);
 		if (ret)
 			break;
 	}
-	NET_END_ARRAY(" ");
+	NET_END_ARRAY("] ");
 
 	return ret;
 }
@@ -142,20 +137,15 @@ static int do_bpf_act_dump(struct nlattr *attr)
 static int do_bpf_filter_dump(struct nlattr *attr)
 {
 	struct nlattr *tb[TCA_BPF_MAX + 1];
-	char buf[256];
 	int ret;
 
 	if (nla_parse_nested(tb, TCA_BPF_MAX, attr, NULL) < 0)
 		return -LIBBPF_ERRNO__NLPARSE;
 
 	if (tb[TCA_BPF_NAME])
-		NET_DUMP_STR("name", nla_getattr_str(tb[TCA_BPF_NAME]));
+		NET_DUMP_STR("name", " %s", nla_getattr_str(tb[TCA_BPF_NAME]));
 	if (tb[TCA_BPF_ID])
-		NET_DUMP_UINT("prog_id", nla_getattr_u32(tb[TCA_BPF_ID]));
-	if (tb[TCA_BPF_TAG])
-		NET_DUMP_STR("tag", hexstring_n2a(nla_data(tb[TCA_BPF_TAG]),
-						  nla_len(tb[TCA_BPF_TAG]),
-						  buf, sizeof(buf)));
+		NET_DUMP_UINT("id", " id %u", nla_getattr_u32(tb[TCA_BPF_ID]));
 	if (tb[TCA_BPF_ACT]) {
 		ret = do_bpf_act_dump(tb[TCA_BPF_ACT]);
 		if (ret)
@@ -165,14 +155,17 @@ static int do_bpf_filter_dump(struct nlattr *attr)
 	return 0;
 }
 
-int do_filter_dump(struct tcmsg *info, struct nlattr **tb, const char *kind)
+int do_filter_dump(struct tcmsg *info, struct nlattr **tb, const char *kind,
+		   const char *devname, int ifindex)
 {
 	int ret = 0;
 
 	if (tb[TCA_OPTIONS] && strcmp(nla_data(tb[TCA_KIND]), "bpf") == 0) {
 		NET_START_OBJECT;
-		NET_DUMP_UINT("ifindex", info->tcm_ifindex);
-		NET_DUMP_STR("kind", kind);
+		if (devname[0] != '\0')
+			NET_DUMP_STR("devname", "%s", devname);
+		NET_DUMP_UINT("ifindex", "(%u)", ifindex);
+		NET_DUMP_STR("kind", " %s", kind);
 		ret = do_bpf_filter_dump(tb[TCA_OPTIONS]);
 		NET_END_OBJECT_FINAL;
 	}

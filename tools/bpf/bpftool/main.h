@@ -171,5 +171,6 @@ struct nlattr;
 struct ifinfomsg;
 struct tcmsg;
 int do_xdp_dump(struct ifinfomsg *ifinfo, struct nlattr **tb);
-int do_filter_dump(struct tcmsg *ifinfo, struct nlattr **tb, const char *kind);
+int do_filter_dump(struct tcmsg *ifinfo, struct nlattr **tb, const char *kind,
+		   const char *devname, int ifindex);
 #endif
