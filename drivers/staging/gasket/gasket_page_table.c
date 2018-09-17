@@ -1353,6 +1353,11 @@ int gasket_free_coherent_memory(struct gasket_dev *gasket_dev, u64 size,
 		gasket_dev->coherent_buffer.virt_base = NULL;
 		gasket_dev->coherent_buffer.phys_base = 0;
 	}
+
+	kfree(gasket_dev->page_table[index]->coherent_pages);
+	gasket_dev->page_table[index]->coherent_pages = NULL;
+	gasket_dev->page_table[index]->num_coherent_pages = 0;
+
 	return 0;
 }
 
