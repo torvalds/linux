@@ -37,12 +37,6 @@
 #define VETH_XDP_TX		BIT(0)
 #define VETH_XDP_REDIR		BIT(1)
 
-struct pcpu_vstats {
-	u64			packets;
-	u64			bytes;
-	struct u64_stats_sync	syncp;
-};
-
 struct veth_rq {
 	struct napi_struct	xdp_napi;
 	struct net_device	*dev;
@@ -217,7 +211,7 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb_tx_timestamp(skb);
 	if (likely(veth_forward_skb(rcv, skb, rq, rcv_xdp) == NET_RX_SUCCESS)) {
-		struct pcpu_vstats *stats = this_cpu_ptr(dev->vstats);
+		struct pcpu_lstats *stats = this_cpu_ptr(dev->lstats);
 
 		u64_stats_update_begin(&stats->syncp);
 		stats->bytes += length;
@@ -236,7 +230,7 @@ drop:
 	return NETDEV_TX_OK;
 }
 
-static u64 veth_stats_one(struct pcpu_vstats *result, struct net_device *dev)
+static u64 veth_stats_one(struct pcpu_lstats *result, struct net_device *dev)
 {
 	struct veth_priv *priv = netdev_priv(dev);
 	int cpu;
@@ -244,7 +238,7 @@ static u64 veth_stats_one(struct pcpu_vstats *result, struct net_device *dev)
 	result->packets = 0;
 	result->bytes = 0;
 	for_each_possible_cpu(cpu) {
-		struct pcpu_vstats *stats = per_cpu_ptr(dev->vstats, cpu);
+		struct pcpu_lstats *stats = per_cpu_ptr(dev->lstats, cpu);
 		u64 packets, bytes;
 		unsigned int start;
 
@@ -264,7 +258,7 @@ static void veth_get_stats64(struct net_device *dev,
 {
 	struct veth_priv *priv = netdev_priv(dev);
 	struct net_device *peer;
-	struct pcpu_vstats one;
+	struct pcpu_lstats one;
 
 	tot->tx_dropped = veth_stats_one(&one, dev);
 	tot->tx_bytes = one.bytes;
@@ -830,13 +824,13 @@ static int veth_dev_init(struct net_device *dev)
 {
 	int err;
 
-	dev->vstats = netdev_alloc_pcpu_stats(struct pcpu_vstats);
-	if (!dev->vstats)
+	dev->lstats = netdev_alloc_pcpu_stats(struct pcpu_lstats);
+	if (!dev->lstats)
 		return -ENOMEM;
 
 	err = veth_alloc_queues(dev);
 	if (err) {
-		free_percpu(dev->vstats);
+		free_percpu(dev->lstats);
 		return err;
 	}
 
@@ -846,7 +840,7 @@ static int veth_dev_init(struct net_device *dev)
 static void veth_dev_free(struct net_device *dev)
 {
 	veth_free_queues(dev);
-	free_percpu(dev->vstats);
+	free_percpu(dev->lstats);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
