@@ -421,12 +421,10 @@ _config_request(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 		    (mpi_reply->Header.PageType & 0xF)) {
 			_debug_dump_mf(mpi_request, ioc->request_sz/4);
 			_debug_dump_reply(mpi_reply, ioc->request_sz/4);
-			panic(KERN_WARNING MPT3SAS_FMT "%s: Firmware BUG:" \
-			    " mpi_reply mismatch: Requested PageType(0x%02x)" \
-			    " Reply PageType(0x%02x)\n", \
-			    ioc->name, __func__,
-			    (mpi_request->Header.PageType & 0xF),
-			    (mpi_reply->Header.PageType & 0xF));
+			panic("%s: %s: Firmware BUG: mpi_reply mismatch: Requested PageType(0x%02x) Reply PageType(0x%02x)\n",
+			      ioc->name, __func__,
+			      mpi_request->Header.PageType & 0xF,
+			      mpi_reply->Header.PageType & 0xF);
 		}
 
 		if (((mpi_request->Header.PageType & 0xF) ==
@@ -434,11 +432,10 @@ _config_request(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 		    mpi_request->ExtPageType != mpi_reply->ExtPageType) {
 			_debug_dump_mf(mpi_request, ioc->request_sz/4);
 			_debug_dump_reply(mpi_reply, ioc->request_sz/4);
-			panic(KERN_WARNING MPT3SAS_FMT "%s: Firmware BUG:" \
-			    " mpi_reply mismatch: Requested ExtPageType(0x%02x)"
-			    " Reply ExtPageType(0x%02x)\n",
-			    ioc->name, __func__, mpi_request->ExtPageType,
-			    mpi_reply->ExtPageType);
+			panic("%s: %s: Firmware BUG: mpi_reply mismatch: Requested ExtPageType(0x%02x) Reply ExtPageType(0x%02x)\n",
+			      ioc->name, __func__,
+			      mpi_request->ExtPageType,
+			      mpi_reply->ExtPageType);
 		}
 		ioc_status = le16_to_cpu(mpi_reply->IOCStatus)
 		    & MPI2_IOCSTATUS_MASK;
@@ -461,14 +458,10 @@ _config_request(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 				_debug_dump_reply(mpi_reply, ioc->request_sz/4);
 				_debug_dump_config(p, min_t(u16, mem.sz,
 				    config_page_sz)/4);
-				panic(KERN_WARNING MPT3SAS_FMT
-					"%s: Firmware BUG:" \
-				    " config page mismatch:"
-				    " Requested PageType(0x%02x)"
-				    " Reply PageType(0x%02x)\n",
-				    ioc->name, __func__,
-				    (mpi_request->Header.PageType & 0xF),
-				    (p[3] & 0xF));
+				panic("%s: %s: Firmware BUG: config page mismatch: Requested PageType(0x%02x) Reply PageType(0x%02x)\n",
+				      ioc->name, __func__,
+				      mpi_request->Header.PageType & 0xF,
+				      p[3] & 0xF);
 			}
 
 			if (((mpi_request->Header.PageType & 0xF) ==
@@ -478,13 +471,9 @@ _config_request(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 				_debug_dump_reply(mpi_reply, ioc->request_sz/4);
 				_debug_dump_config(p, min_t(u16, mem.sz,
 				    config_page_sz)/4);
-				panic(KERN_WARNING MPT3SAS_FMT
-					"%s: Firmware BUG:" \
-				    " config page mismatch:"
-				    " Requested ExtPageType(0x%02x)"
-				    " Reply ExtPageType(0x%02x)\n",
-				    ioc->name, __func__,
-				    mpi_request->ExtPageType, p[6]);
+				panic("%s: %s: Firmware BUG: config page mismatch: Requested ExtPageType(0x%02x) Reply ExtPageType(0x%02x)\n",
+				      ioc->name, __func__,
+				      mpi_request->ExtPageType, p[6]);
 			}
 		}
 		memcpy(config_page, mem.page, min_t(u16, mem.sz,
