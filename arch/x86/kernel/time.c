@@ -120,4 +120,10 @@ void clocksource_arch_init(struct clocksource *cs)
 			cs->name, cs->archdata.vclock_mode);
 		cs->archdata.vclock_mode = VCLOCK_NONE;
 	}
+
+	if (cs->mask != CLOCKSOURCE_MASK(64)) {
+		pr_warn("clocksource %s registered with invalid mask %016llx. Disabling vclock.\n",
+			cs->name, cs->mask);
+		cs->archdata.vclock_mode = VCLOCK_NONE;
+	}
 }

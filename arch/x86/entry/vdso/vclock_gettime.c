@@ -201,7 +201,7 @@ notrace static inline u64 vgetsns(int *mode)
 #endif
 	else
 		return 0;
-	v = (cycles - gtod->cycle_last) & gtod->mask;
+	v = cycles - gtod->cycle_last;
 	return v * gtod->mult;
 }
 
