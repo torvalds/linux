@@ -421,18 +421,18 @@ pte_t *lookup_address_in_pgd(pgd_t *pgd, unsigned long address,
  */
 pte_t *lookup_address(unsigned long address, unsigned int *level)
 {
-        return lookup_address_in_pgd(pgd_offset_k(address), address, level);
+	return lookup_address_in_pgd(pgd_offset_k(address), address, level);
 }
 EXPORT_SYMBOL_GPL(lookup_address);
 
 static pte_t *_lookup_address_cpa(struct cpa_data *cpa, unsigned long address,
 				  unsigned int *level)
 {
-        if (cpa->pgd)
+	if (cpa->pgd)
 		return lookup_address_in_pgd(cpa->pgd + pgd_index(address),
 					       address, level);
 
-        return lookup_address(address, level);
+	return lookup_address(address, level);
 }
 
 /*
@@ -549,27 +549,22 @@ static pgprot_t pgprot_clear_protnone_bits(pgprot_t prot)
 	return prot;
 }
 
-static int
-try_preserve_large_page(pte_t *kpte, unsigned long address,
-			struct cpa_data *cpa)
+static int __should_split_large_page(pte_t *kpte, unsigned long address,
+				     struct cpa_data *cpa)
 {
-	unsigned long nextpage_addr, numpages, pmask, psize, addr, pfn, old_pfn;
-	pte_t new_pte, old_pte, *tmp;
+	unsigned long numpages, pmask, psize, lpaddr, addr, pfn, old_pfn;
 	pgprot_t old_prot, new_prot, req_prot;
-	int i, do_split = 1;
+	pte_t new_pte, old_pte, *tmp;
 	enum pg_level level;
+	int i;
 
-	if (cpa->force_split)
-		return 1;
-
-	spin_lock(&pgd_lock);
 	/*
 	 * Check for races, another CPU might have split this page
 	 * up already:
 	 */
 	tmp = _lookup_address_cpa(cpa, address, &level);
 	if (tmp != kpte)
-		goto out_unlock;
+		return 1;
 
 	switch (level) {
 	case PG_LEVEL_2M:
@@ -581,8 +576,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 		old_pfn = pud_pfn(*(pud_t *)kpte);
 		break;
 	default:
-		do_split = -EINVAL;
-		goto out_unlock;
+		return -EINVAL;
 	}
 
 	psize = page_level_size(level);
@@ -592,8 +586,8 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	 * Calculate the number of pages, which fit into this large
 	 * page starting at address:
 	 */
-	nextpage_addr = (address + psize) & pmask;
-	numpages = (nextpage_addr - address) >> PAGE_SHIFT;
+	lpaddr = (address + psize) & pmask;
+	numpages = (lpaddr - address) >> PAGE_SHIFT;
 	if (numpages < cpa->numpages)
 		cpa->numpages = numpages;
 
@@ -620,57 +614,62 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 		pgprot_val(req_prot) |= _PAGE_PSE;
 
 	/*
-	 * old_pfn points to the large page base pfn. So we need
-	 * to add the offset of the virtual address:
+	 * old_pfn points to the large page base pfn. So we need to add the
+	 * offset of the virtual address:
 	 */
 	pfn = old_pfn + ((address & (psize - 1)) >> PAGE_SHIFT);
 	cpa->pfn = pfn;
 
-	new_prot = static_protections(req_prot, address, pfn);
+	/*
+	 * Calculate the large page base address and the number of 4K pages
+	 * in the large page
+	 */
+	lpaddr = address & pmask;
+	numpages = psize >> PAGE_SHIFT;
 
 	/*
-	 * We need to check the full range, whether
-	 * static_protection() requires a different pgprot for one of
-	 * the pages in the range we try to preserve:
+	 * Make sure that the requested pgprot does not violate the static
+	 * protections. Check the full large page whether one of the pages
+	 * in it results in a different pgprot than the first one of the
+	 * requested range. If yes, then the page needs to be split.
 	 */
-	addr = address & pmask;
+	new_prot = static_protections(req_prot, address, pfn);
 	pfn = old_pfn;
-	for (i = 0; i < (psize >> PAGE_SHIFT); i++, addr += PAGE_SIZE, pfn++) {
+	for (i = 0, addr = lpaddr; i < numpages; i++, addr += PAGE_SIZE, pfn++) {
 		pgprot_t chk_prot = static_protections(req_prot, addr, pfn);
 
 		if (pgprot_val(chk_prot) != pgprot_val(new_prot))
-			goto out_unlock;
+			return 1;
 	}
+
+	/* If there are no changes, return. */
+	if (pgprot_val(new_prot) == pgprot_val(old_prot))
+		return 0;
 
 	/*
-	 * If there are no changes, return. maxpages has been updated
-	 * above:
+	 * Verify that the address is aligned and the number of pages
+	 * covers the full page.
 	 */
-	if (pgprot_val(new_prot) == pgprot_val(old_prot)) {
-		do_split = 0;
-		goto out_unlock;
-	}
+	if (address != lpaddr || cpa->numpages != numpages)
+		return 1;
 
-	/*
-	 * We need to change the attributes. Check, whether we can
-	 * change the large page in one go. We request a split, when
-	 * the address is not aligned and the number of pages is
-	 * smaller than the number of pages in the large page. Note
-	 * that we limited the number of possible pages already to
-	 * the number of pages in the large page.
-	 */
-	if (address == (address & pmask) && cpa->numpages == (psize >> PAGE_SHIFT)) {
-		/*
-		 * The address is aligned and the number of pages
-		 * covers the full page.
-		 */
-		new_pte = pfn_pte(old_pfn, new_prot);
-		__set_pmd_pte(kpte, address, new_pte);
-		cpa->flags |= CPA_FLUSHTLB;
-		do_split = 0;
-	}
+	/* All checks passed. Update the large page mapping. */
+	new_pte = pfn_pte(old_pfn, new_prot);
+	__set_pmd_pte(kpte, address, new_pte);
+	cpa->flags |= CPA_FLUSHTLB;
+	return 0;
+}
 
-out_unlock:
+static int should_split_large_page(pte_t *kpte, unsigned long address,
+				   struct cpa_data *cpa)
+{
+	int do_split;
+
+	if (cpa->force_split)
+		return 1;
+
+	spin_lock(&pgd_lock);
+	do_split = __should_split_large_page(kpte, address, cpa);
 	spin_unlock(&pgd_lock);
 
 	return do_split;
@@ -1273,7 +1272,7 @@ repeat:
 	 * Check, whether we can keep the large page intact
 	 * and just change the pte:
 	 */
-	do_split = try_preserve_large_page(kpte, address, cpa);
+	do_split = should_split_large_page(kpte, address, cpa);
 	/*
 	 * When the range fits into the existing large page,
 	 * return. cp->numpages and cpa->tlbflush have been updated in
@@ -1288,23 +1287,23 @@ repeat:
 	err = split_large_page(cpa, kpte, address);
 	if (!err) {
 		/*
-	 	 * Do a global flush tlb after splitting the large page
-	 	 * and before we do the actual change page attribute in the PTE.
-	 	 *
-	 	 * With out this, we violate the TLB application note, that says
-	 	 * "The TLBs may contain both ordinary and large-page
+		 * Do a global flush tlb after splitting the large page
+		 * and before we do the actual change page attribute in the PTE.
+		 *
+		 * With out this, we violate the TLB application note, that says
+		 * "The TLBs may contain both ordinary and large-page
 		 *  translations for a 4-KByte range of linear addresses. This
 		 *  may occur if software modifies the paging structures so that
 		 *  the page size used for the address range changes. If the two
 		 *  translations differ with respect to page frame or attributes
 		 *  (e.g., permissions), processor behavior is undefined and may
 		 *  be implementation-specific."
-	 	 *
-	 	 * We do this global tlb flush inside the cpa_lock, so that we
+		 *
+		 * We do this global tlb flush inside the cpa_lock, so that we
 		 * don't allow any other cpu, with stale tlb entries change the
 		 * page attribute in parallel, that also falls into the
 		 * just split large page entry.
-	 	 */
+		 */
 		flush_tlb_all();
 		goto repeat;
 	}
