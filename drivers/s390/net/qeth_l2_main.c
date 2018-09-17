@@ -650,19 +650,38 @@ static void qeth_l2_set_rx_mode(struct net_device *dev)
 static int qeth_l2_xmit_osn(struct qeth_card *card, struct sk_buff *skb,
 			    struct qeth_qdio_out_q *queue)
 {
-	unsigned int elements;
-	struct qeth_hdr *hdr;
+	struct qeth_hdr *hdr = (struct qeth_hdr *)skb->data;
+	addr_t end = (addr_t)(skb->data + sizeof(*hdr));
+	addr_t start = (addr_t)skb->data;
+	unsigned int elements = 0;
+	unsigned int hd_len = 0;
+	int rc;
 
 	if (skb->protocol == htons(ETH_P_IPV6))
 		return -EPROTONOSUPPORT;
 
-	hdr = (struct qeth_hdr *)skb->data;
-	elements = qeth_count_elements(skb, 0);
-	if (elements > QETH_MAX_BUFFER_ELEMENTS(card))
-		return -E2BIG;
-	if (qeth_hdr_chk_and_bounce(skb, &hdr, sizeof(*hdr)))
-		return -EINVAL;
-	return qeth_do_send_packet(card, queue, skb, hdr, 0, 0, elements);
+	if (qeth_get_elements_for_range(start, end) > 1) {
+		/* Misaligned HW header, move it to its own buffer element. */
+		hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
+		if (!hdr)
+			return -ENOMEM;
+		hd_len = sizeof(*hdr);
+		skb_copy_from_linear_data(skb, (char *)hdr, hd_len);
+		elements++;
+	}
+
+	elements += qeth_count_elements(skb, hd_len);
+	if (elements > QETH_MAX_BUFFER_ELEMENTS(card)) {
+		rc = -E2BIG;
+		goto out;
+	}
+
+	rc = qeth_do_send_packet(card, queue, skb, hdr, hd_len, hd_len,
+				 elements);
+out:
+	if (rc && hd_len)
+		kmem_cache_free(qeth_core_header_cache, hdr);
+	return rc;
 }
 
 static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
