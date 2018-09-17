@@ -658,8 +658,8 @@ static int qeth_l2_xmit_osn(struct qeth_card *card, struct sk_buff *skb,
 		return -EPROTONOSUPPORT;
 
 	hdr = (struct qeth_hdr *)skb->data;
-	elements = qeth_get_elements_no(card, skb, 0, 0);
-	if (!elements)
+	elements = qeth_count_elements(skb, 0);
+	if (elements > QETH_MAX_BUFFER_ELEMENTS(card))
 		return -E2BIG;
 	if (qeth_hdr_chk_and_bounce(skb, &hdr, sizeof(*hdr)))
 		return -EINVAL;

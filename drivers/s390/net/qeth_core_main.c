@@ -3802,7 +3802,16 @@ int qeth_get_elements_for_frags(struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(qeth_get_elements_for_frags);
 
-static unsigned int qeth_count_elements(struct sk_buff *skb, int data_offset)
+/**
+ * qeth_count_elements() -	Counts the number of QDIO buffer elements needed
+ *				to transmit an skb.
+ * @skb:			the skb to operate on.
+ * @data_offset:		skip this part of the skb's linear data
+ *
+ * Returns the number of pages, and thus QDIO buffer elements, needed to map the
+ * skb's data (both its linear part and paged fragments).
+ */
+unsigned int qeth_count_elements(struct sk_buff *skb, unsigned int data_offset)
 {
 	unsigned int elements = qeth_get_elements_for_frags(skb);
 	addr_t end = (addr_t)skb->data + skb_headlen(skb);
@@ -3812,33 +3821,7 @@ static unsigned int qeth_count_elements(struct sk_buff *skb, int data_offset)
 		elements += qeth_get_elements_for_range(start, end);
 	return elements;
 }
-
-/**
- * qeth_get_elements_no() -	find number of SBALEs for skb data, inc. frags.
- * @card:			qeth card structure, to check max. elems.
- * @skb:			SKB address
- * @extra_elems:		extra elems needed, to check against max.
- * @data_offset:		range starts at skb->data + data_offset
- *
- * Returns the number of pages, and thus QDIO buffer elements, needed to cover
- * skb data, including linear part and fragments. Checks if the result plus
- * extra_elems fits under the limit for the card. Returns 0 if it does not.
- * Note: extra_elems is not included in the returned result.
- */
-int qeth_get_elements_no(struct qeth_card *card,
-		     struct sk_buff *skb, int extra_elems, int data_offset)
-{
-	int elements = qeth_count_elements(skb, data_offset);
-
-	if ((elements + extra_elems) > QETH_MAX_BUFFER_ELEMENTS(card)) {
-		QETH_DBF_MESSAGE(2, "Invalid size of IP packet "
-			"(Number=%d / Length=%d). Discarded.\n",
-			elements + extra_elems, skb->len);
-		return 0;
-	}
-	return elements;
-}
-EXPORT_SYMBOL_GPL(qeth_get_elements_no);
+EXPORT_SYMBOL_GPL(qeth_count_elements);
 
 int qeth_hdr_chk_and_bounce(struct sk_buff *skb, struct qeth_hdr **hdr, int len)
 {

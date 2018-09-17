@@ -2140,7 +2140,6 @@ static void qeth_tso_fill_header(struct qeth_card *card,
  *
  * Returns the number of pages, and thus QDIO buffer elements, needed to cover
  * skb data, including linear part and fragments, but excluding TCP header.
- * (Exclusion of TCP header distinguishes it from qeth_get_elements_no().)
  * Checks if the result plus extra_elems fits under the limit for the card.
  * Returns 0 if it does not.
  * Note: extra_elems is not included in the returned result.

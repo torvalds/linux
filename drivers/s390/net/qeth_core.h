@@ -1007,8 +1007,7 @@ int qeth_query_switch_attributes(struct qeth_card *card,
 int qeth_send_control_data(struct qeth_card *, int, struct qeth_cmd_buffer *,
 	int (*reply_cb)(struct qeth_card *, struct qeth_reply*, unsigned long),
 	void *reply_param);
-int qeth_get_elements_no(struct qeth_card *card, struct sk_buff *skb,
-			 int extra_elems, int data_offset);
+unsigned int qeth_count_elements(struct sk_buff *skb, unsigned int data_offset);
 int qeth_get_elements_for_frags(struct sk_buff *);
 int qeth_do_send_packet_fast(struct qeth_qdio_out_q *queue, struct sk_buff *skb,
 			     struct qeth_hdr *hdr, unsigned int offset,
