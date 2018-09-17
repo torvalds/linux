@@ -18,14 +18,26 @@
 #define TB_PCI_PATH_DOWN		0
 #define TB_PCI_PATH_UP			1
 
+/* DP adapters use HopID 8 for AUX and 9 for Video */
+#define TB_DP_AUX_TX_HOPID		8
+#define TB_DP_AUX_RX_HOPID		8
+#define TB_DP_VIDEO_HOPID		9
+
+#define TB_DP_VIDEO_PATH_OUT		0
+#define TB_DP_AUX_PATH_OUT		1
+#define TB_DP_AUX_PATH_IN		2
+
+static const char * const tb_tunnel_names[] = { "PCI", "DP" };
+
 #define __TB_TUNNEL_PRINT(level, tunnel, fmt, arg...)                   \
 	do {                                                            \
 		struct tb_tunnel *__tunnel = (tunnel);                  \
-		level(__tunnel->tb, "%llx:%x <-> %llx:%x (PCI): " fmt,  \
+		level(__tunnel->tb, "%llx:%x <-> %llx:%x (%s): " fmt,   \
 		      tb_route(__tunnel->src_port->sw),                 \
 		      __tunnel->src_port->port,                         \
 		      tb_route(__tunnel->dst_port->sw),                 \
 		      __tunnel->dst_port->port,                         \
+		      tb_tunnel_names[__tunnel->type],			\
 		      ## arg);                                          \
 	} while (0)
 
@@ -38,7 +50,8 @@
 #define tb_tunnel_dbg(tunnel, fmt, arg...) \
 	__TB_TUNNEL_PRINT(tb_dbg, tunnel, fmt, ##arg)
 
-static struct tb_tunnel *tb_tunnel_alloc(struct tb *tb, size_t npaths)
+static struct tb_tunnel *tb_tunnel_alloc(struct tb *tb, size_t npaths,
+					 enum tb_tunnel_type type)
 {
 	struct tb_tunnel *tunnel;
 
@@ -55,6 +68,7 @@ static struct tb_tunnel *tb_tunnel_alloc(struct tb *tb, size_t npaths)
 	INIT_LIST_HEAD(&tunnel->list);
 	tunnel->tb = tb;
 	tunnel->npaths = npaths;
+	tunnel->type = type;
 
 	return tunnel;
 }
@@ -104,7 +118,7 @@ struct tb_tunnel *tb_tunnel_discover_pci(struct tb *tb, struct tb_port *down)
 	if (!tb_pci_port_is_enabled(down))
 		return NULL;
 
-	tunnel = tb_tunnel_alloc(tb, 2);
+	tunnel = tb_tunnel_alloc(tb, 2, TB_TUNNEL_PCI);
 	if (!tunnel)
 		return NULL;
 
@@ -179,7 +193,7 @@ struct tb_tunnel *tb_tunnel_alloc_pci(struct tb *tb, struct tb_port *up,
 	struct tb_tunnel *tunnel;
 	struct tb_path *path;
 
-	tunnel = tb_tunnel_alloc(tb, 2);
+	tunnel = tb_tunnel_alloc(tb, 2, TB_TUNNEL_PCI);
 	if (!tunnel)
 		return NULL;
 
@@ -206,6 +220,255 @@ struct tb_tunnel *tb_tunnel_alloc_pci(struct tb *tb, struct tb_port *up,
 	tunnel->paths[TB_PCI_PATH_DOWN] = path;
 
 	return tunnel;
+}
+
+static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
+{
+	struct tb_port *out = tunnel->dst_port;
+	struct tb_port *in = tunnel->src_port;
+	u32 in_dp_cap, out_dp_cap;
+	int ret;
+
+	/*
+	 * Copy DP_LOCAL_CAP register to DP_REMOTE_CAP register for
+	 * newer generation hardware.
+	 */
+	if (in->sw->generation < 2 || out->sw->generation < 2)
+		return 0;
+
+	/* Read both DP_LOCAL_CAP registers */
+	ret = tb_port_read(in, &in_dp_cap, TB_CFG_PORT,
+			   in->cap_adap + TB_DP_LOCAL_CAP, 1);
+	if (ret)
+		return ret;
+
+	ret = tb_port_read(out, &out_dp_cap, TB_CFG_PORT,
+			   out->cap_adap + TB_DP_LOCAL_CAP, 1);
+	if (ret)
+		return ret;
+
+	/* Write IN local caps to OUT remote caps */
+	ret = tb_port_write(out, &in_dp_cap, TB_CFG_PORT,
+			    out->cap_adap + TB_DP_REMOTE_CAP, 1);
+	if (ret)
+		return ret;
+
+	return tb_port_write(in, &out_dp_cap, TB_CFG_PORT,
+			     in->cap_adap + TB_DP_REMOTE_CAP, 1);
+}
+
+static int tb_dp_activate(struct tb_tunnel *tunnel, bool active)
+{
+	int ret;
+
+	if (active) {
+		struct tb_path **paths;
+		int last;
+
+		paths = tunnel->paths;
+		last = paths[TB_DP_VIDEO_PATH_OUT]->path_length - 1;
+
+		tb_dp_port_set_hops(tunnel->src_port,
+			paths[TB_DP_VIDEO_PATH_OUT]->hops[0].in_hop_index,
+			paths[TB_DP_AUX_PATH_OUT]->hops[0].in_hop_index,
+			paths[TB_DP_AUX_PATH_IN]->hops[last].next_hop_index);
+
+		tb_dp_port_set_hops(tunnel->dst_port,
+			paths[TB_DP_VIDEO_PATH_OUT]->hops[last].next_hop_index,
+			paths[TB_DP_AUX_PATH_IN]->hops[0].in_hop_index,
+			paths[TB_DP_AUX_PATH_OUT]->hops[last].next_hop_index);
+	} else {
+		tb_dp_port_hpd_clear(tunnel->src_port);
+		tb_dp_port_set_hops(tunnel->src_port, 0, 0, 0);
+		if (tb_port_is_dpout(tunnel->dst_port))
+			tb_dp_port_set_hops(tunnel->dst_port, 0, 0, 0);
+	}
+
+	ret = tb_dp_port_enable(tunnel->src_port, active);
+	if (ret)
+		return ret;
+
+	if (tb_port_is_dpout(tunnel->dst_port))
+		return tb_dp_port_enable(tunnel->dst_port, active);
+
+	return 0;
+}
+
+static void tb_dp_init_aux_path(struct tb_path *path)
+{
+	int i;
+
+	path->egress_fc_enable = TB_PATH_SOURCE | TB_PATH_INTERNAL;
+	path->egress_shared_buffer = TB_PATH_NONE;
+	path->ingress_fc_enable = TB_PATH_ALL;
+	path->ingress_shared_buffer = TB_PATH_NONE;
+	path->priority = 2;
+	path->weight = 1;
+
+	for (i = 0; i < path->path_length; i++)
+		path->hops[i].initial_credits = 1;
+}
+
+static void tb_dp_init_video_path(struct tb_path *path, bool discover)
+{
+	u32 nfc_credits = path->hops[0].in_port->config.nfc_credits;
+
+	path->egress_fc_enable = TB_PATH_NONE;
+	path->egress_shared_buffer = TB_PATH_NONE;
+	path->ingress_fc_enable = TB_PATH_NONE;
+	path->ingress_shared_buffer = TB_PATH_NONE;
+	path->priority = 1;
+	path->weight = 1;
+
+	if (discover) {
+		path->nfc_credits = nfc_credits & TB_PORT_NFC_CREDITS_MASK;
+	} else {
+		u32 max_credits;
+
+		max_credits = (nfc_credits & TB_PORT_MAX_CREDITS_MASK) >>
+			TB_PORT_MAX_CREDITS_SHIFT;
+		/* Leave some credits for AUX path */
+		path->nfc_credits = min(max_credits - 2, 12U);
+	}
+}
+
+/**
+ * tb_tunnel_discover_dp() - Discover existing Display Port tunnels
+ * @tb: Pointer to the domain structure
+ * @in: DP in adapter
+ *
+ * If @in adapter is active, follows the tunnel to the DP out adapter
+ * and back. Returns the discovered tunnel or %NULL if there was no
+ * tunnel.
+ *
+ * Return: DP tunnel or %NULL if no tunnel found.
+ */
+struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in)
+{
+	struct tb_tunnel *tunnel;
+	struct tb_port *port;
+	struct tb_path *path;
+
+	if (!tb_dp_port_is_enabled(in))
+		return NULL;
+
+	tunnel = tb_tunnel_alloc(tb, 3, TB_TUNNEL_DP);
+	if (!tunnel)
+		return NULL;
+
+	tunnel->init = tb_dp_xchg_caps;
+	tunnel->activate = tb_dp_activate;
+	tunnel->src_port = in;
+
+	path = tb_path_discover(in, TB_DP_VIDEO_HOPID, NULL, -1,
+				&tunnel->dst_port, "Video");
+	if (!path) {
+		/* Just disable the DP IN port */
+		tb_dp_port_enable(in, false);
+		goto err_free;
+	}
+	tunnel->paths[TB_DP_VIDEO_PATH_OUT] = path;
+	tb_dp_init_video_path(tunnel->paths[TB_DP_VIDEO_PATH_OUT], true);
+
+	path = tb_path_discover(in, TB_DP_AUX_TX_HOPID, NULL, -1, NULL, "AUX TX");
+	if (!path)
+		goto err_deactivate;
+	tunnel->paths[TB_DP_AUX_PATH_OUT] = path;
+	tb_dp_init_aux_path(tunnel->paths[TB_DP_AUX_PATH_OUT]);
+
+	path = tb_path_discover(tunnel->dst_port, -1, in, TB_DP_AUX_RX_HOPID,
+				&port, "AUX RX");
+	if (!path)
+		goto err_deactivate;
+	tunnel->paths[TB_DP_AUX_PATH_IN] = path;
+	tb_dp_init_aux_path(tunnel->paths[TB_DP_AUX_PATH_IN]);
+
+	/* Validate that the tunnel is complete */
+	if (!tb_port_is_dpout(tunnel->dst_port)) {
+		tb_port_warn(in, "path does not end on a DP adapter, cleaning up\n");
+		goto err_deactivate;
+	}
+
+	if (!tb_dp_port_is_enabled(tunnel->dst_port))
+		goto err_deactivate;
+
+	if (!tb_dp_port_hpd_is_active(tunnel->dst_port))
+		goto err_deactivate;
+
+	if (port != tunnel->src_port) {
+		tb_tunnel_warn(tunnel, "path is not complete, cleaning up\n");
+		goto err_deactivate;
+	}
+
+	tb_tunnel_dbg(tunnel, "discovered\n");
+	return tunnel;
+
+err_deactivate:
+	tb_tunnel_deactivate(tunnel);
+err_free:
+	tb_tunnel_free(tunnel);
+
+	return NULL;
+}
+
+/**
+ * tb_tunnel_alloc_dp() - allocate a Display Port tunnel
+ * @tb: Pointer to the domain structure
+ * @in: DP in adapter port
+ * @out: DP out adapter port
+ *
+ * Allocates a tunnel between @in and @out that is capable of tunneling
+ * Display Port traffic.
+ *
+ * Return: Returns a tb_tunnel on success or NULL on failure.
+ */
+struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
+				     struct tb_port *out)
+{
+	struct tb_tunnel *tunnel;
+	struct tb_path **paths;
+	struct tb_path *path;
+
+	if (WARN_ON(!in->cap_adap || !out->cap_adap))
+		return NULL;
+
+	tunnel = tb_tunnel_alloc(tb, 3, TB_TUNNEL_DP);
+	if (!tunnel)
+		return NULL;
+
+	tunnel->init = tb_dp_xchg_caps;
+	tunnel->activate = tb_dp_activate;
+	tunnel->src_port = in;
+	tunnel->dst_port = out;
+
+	paths = tunnel->paths;
+
+	path = tb_path_alloc(tb, in, TB_DP_VIDEO_HOPID, out, TB_DP_VIDEO_HOPID,
+			     1, "Video");
+	if (!path)
+		goto err_free;
+	tb_dp_init_video_path(path, false);
+	paths[TB_DP_VIDEO_PATH_OUT] = path;
+
+	path = tb_path_alloc(tb, in, TB_DP_AUX_TX_HOPID, out,
+			     TB_DP_AUX_TX_HOPID, 1, "AUX TX");
+	if (!path)
+		goto err_free;
+	tb_dp_init_aux_path(path);
+	paths[TB_DP_AUX_PATH_OUT] = path;
+
+	path = tb_path_alloc(tb, out, TB_DP_AUX_RX_HOPID, in,
+			     TB_DP_AUX_RX_HOPID, 1, "AUX RX");
+	if (!path)
+		goto err_free;
+	tb_dp_init_aux_path(path);
+	paths[TB_DP_AUX_PATH_IN] = path;
+
+	return tunnel;
+
+err_free:
+	tb_tunnel_free(tunnel);
+	return NULL;
 }
 
 /**
@@ -276,6 +539,12 @@ int tb_tunnel_restart(struct tb_tunnel *tunnel)
 			tb_path_deactivate(tunnel->paths[i]);
 			tunnel->paths[i]->activated = false;
 		}
+	}
+
+	if (tunnel->init) {
+		res = tunnel->init(tunnel);
+		if (res)
+			return res;
 	}
 
 	for (i = 0; i < tunnel->npaths; i++) {

@@ -747,6 +747,10 @@ bool tb_port_is_enabled(struct tb_port *port)
 	case TB_TYPE_PCIE_DOWN:
 		return tb_pci_port_is_enabled(port);
 
+	case TB_TYPE_DP_HDMI_IN:
+	case TB_TYPE_DP_HDMI_OUT:
+		return tb_dp_port_is_enabled(port);
+
 	default:
 		return false;
 	}
@@ -777,6 +781,113 @@ int tb_pci_port_enable(struct tb_port *port, bool enable)
 	if (!port->cap_adap)
 		return -ENXIO;
 	return tb_port_write(port, &word, TB_CFG_PORT, port->cap_adap, 1);
+}
+
+/**
+ * tb_dp_port_hpd_is_active() - Is HPD already active
+ * @port: DP out port to check
+ *
+ * Checks if the DP OUT adapter port has HDP bit already set.
+ */
+int tb_dp_port_hpd_is_active(struct tb_port *port)
+{
+	u32 data;
+	int ret;
+
+	ret = tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap + 2, 1);
+	if (ret)
+		return ret;
+
+	return !!(data & TB_DP_HDP);
+}
+
+/**
+ * tb_dp_port_hpd_clear() - Clear HPD from DP IN port
+ * @port: Port to clear HPD
+ *
+ * If the DP IN port has HDP set, this function can be used to clear it.
+ */
+int tb_dp_port_hpd_clear(struct tb_port *port)
+{
+	u32 data;
+	int ret;
+
+	ret = tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap + 3, 1);
+	if (ret)
+		return ret;
+
+	data |= TB_DP_HPDC;
+	return tb_port_write(port, &data, TB_CFG_PORT, port->cap_adap + 3, 1);
+}
+
+/**
+ * tb_dp_port_set_hops() - Set video/aux Hop IDs for DP port
+ * @port: DP IN/OUT port to set hops
+ * @video: Video Hop ID
+ * @aux_tx: AUX TX Hop ID
+ * @aux_rx: AUX RX Hop ID
+ *
+ * Programs specified Hop IDs for DP IN/OUT port.
+ */
+int tb_dp_port_set_hops(struct tb_port *port, unsigned int video,
+			unsigned int aux_tx, unsigned int aux_rx)
+{
+	u32 data[2];
+	int ret;
+
+	ret = tb_port_read(port, data, TB_CFG_PORT, port->cap_adap,
+			   ARRAY_SIZE(data));
+	if (ret)
+		return ret;
+
+	data[0] &= ~TB_DP_VIDEO_HOPID_MASK;
+	data[1] &= ~(TB_DP_AUX_RX_HOPID_MASK | TB_DP_AUX_TX_HOPID_MASK);
+
+	data[0] |= (video << TB_DP_VIDEO_HOPID_SHIFT) & TB_DP_VIDEO_HOPID_MASK;
+	data[1] |= aux_tx & TB_DP_AUX_TX_HOPID_MASK;
+	data[1] |= (aux_rx << TB_DP_AUX_RX_HOPID_SHIFT) & TB_DP_AUX_RX_HOPID_MASK;
+
+	return tb_port_write(port, data, TB_CFG_PORT, port->cap_adap,
+			     ARRAY_SIZE(data));
+}
+
+/**
+ * tb_dp_port_is_enabled() - Is DP adapter port enabled
+ * @port: DP adapter port to check
+ */
+bool tb_dp_port_is_enabled(struct tb_port *port)
+{
+	u32 data;
+
+	if (tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap, 1))
+		return false;
+
+	return !!(data & (TB_DP_VIDEO_EN | TB_DP_AUX_EN));
+}
+
+/**
+ * tb_dp_port_enable() - Enables/disables DP paths of a port
+ * @port: DP IN/OUT port
+ * @enable: Enable/disable DP path
+ *
+ * Once Hop IDs are programmed DP paths can be enabled or disabled by
+ * calling this function.
+ */
+int tb_dp_port_enable(struct tb_port *port, bool enable)
+{
+	u32 data;
+	int ret;
+
+	ret = tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap, 1);
+	if (ret)
+		return ret;
+
+	if (enable)
+		data |= TB_DP_VIDEO_EN | TB_DP_AUX_EN;
+	else
+		data &= ~(TB_DP_VIDEO_EN | TB_DP_AUX_EN);
+
+	return tb_port_write(port, &data, TB_CFG_PORT, port->cap_adap, 1);
 }
 
 /* switch utility functions */

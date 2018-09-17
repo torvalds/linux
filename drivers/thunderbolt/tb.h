@@ -365,6 +365,16 @@ static inline bool tb_port_is_pcie_up(const struct tb_port *port)
 	return port && port->config.type == TB_TYPE_PCIE_UP;
 }
 
+static inline bool tb_port_is_dpin(const struct tb_port *port)
+{
+	return port && port->config.type == TB_TYPE_DP_HDMI_IN;
+}
+
+static inline bool tb_port_is_dpout(const struct tb_port *port)
+{
+	return port && port->config.type == TB_TYPE_DP_HDMI_OUT;
+}
+
 static inline int tb_sw_read(struct tb_switch *sw, void *buffer,
 			     enum tb_cfg_space space, u32 offset, u32 length)
 {
@@ -580,6 +590,13 @@ bool tb_port_is_enabled(struct tb_port *port);
 
 bool tb_pci_port_is_enabled(struct tb_port *port);
 int tb_pci_port_enable(struct tb_port *port, bool enable);
+
+int tb_dp_port_hpd_is_active(struct tb_port *port);
+int tb_dp_port_hpd_clear(struct tb_port *port);
+int tb_dp_port_set_hops(struct tb_port *port, unsigned int video,
+			unsigned int aux_tx, unsigned int aux_rx);
+bool tb_dp_port_is_enabled(struct tb_port *port);
+int tb_dp_port_enable(struct tb_port *port, bool enable);
 
 struct tb_path *tb_path_discover(struct tb_port *src, int src_hopid,
 				 struct tb_port *dst, int dst_hopid,

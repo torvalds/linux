@@ -28,6 +28,32 @@ struct tb_cm {
 	bool hotplug_active;
 };
 
+struct tb_hotplug_event {
+	struct work_struct work;
+	struct tb *tb;
+	u64 route;
+	u8 port;
+	bool unplug;
+};
+
+static void tb_handle_hotplug(struct work_struct *work);
+
+static void tb_queue_hotplug(struct tb *tb, u64 route, u8 port, bool unplug)
+{
+	struct tb_hotplug_event *ev;
+
+	ev = kmalloc(sizeof(*ev), GFP_KERNEL);
+	if (!ev)
+		return;
+
+	ev->tb = tb;
+	ev->route = route;
+	ev->port = port;
+	ev->unplug = unplug;
+	INIT_WORK(&ev->work, tb_handle_hotplug);
+	queue_work(tb->wq, &ev->work);
+}
+
 /* enumeration & hot plug handling */
 
 static void tb_discover_tunnels(struct tb_switch *sw)
@@ -42,6 +68,10 @@ static void tb_discover_tunnels(struct tb_switch *sw)
 
 		port = &sw->ports[i];
 		switch (port->config.type) {
+		case TB_TYPE_DP_HDMI_IN:
+			tunnel = tb_tunnel_discover_dp(tb, port);
+			break;
+
 		case TB_TYPE_PCIE_DOWN:
 			tunnel = tb_tunnel_discover_pci(tb, port);
 			break;
@@ -50,16 +80,19 @@ static void tb_discover_tunnels(struct tb_switch *sw)
 			break;
 		}
 
-		if (tunnel) {
+		if (!tunnel)
+			continue;
+
+		if (tb_tunnel_is_pci(tunnel)) {
 			struct tb_switch *parent = tunnel->dst_port->sw;
 
 			while (parent != tunnel->src_port->sw) {
 				parent->boot = true;
 				parent = tb_switch_parent(parent);
 			}
-
-			list_add_tail(&tunnel->list, &tcm->tunnel_list);
 		}
+
+		list_add_tail(&tunnel->list, &tcm->tunnel_list);
 	}
 
 	for (i = 1; i <= sw->config.max_port_number; i++) {
@@ -91,6 +124,15 @@ static void tb_scan_port(struct tb_port *port)
 
 	if (tb_is_upstream_port(port))
 		return;
+
+	if (tb_port_is_dpout(port) && tb_dp_port_hpd_is_active(port) == 1 &&
+	    !tb_dp_port_is_enabled(port)) {
+		tb_port_dbg(port, "DP adapter HPD set, queuing hotplug\n");
+		tb_queue_hotplug(port->sw->tb, tb_route(port->sw), port->port,
+				 false);
+		return;
+	}
+
 	if (port->config.type != TB_TYPE_PORT)
 		return;
 	if (port->dual_link_port && port->link_nr)
@@ -137,6 +179,26 @@ static void tb_scan_port(struct tb_port *port)
 	}
 
 	tb_scan_switch(sw);
+}
+
+static int tb_free_tunnel(struct tb *tb, enum tb_tunnel_type type,
+			  struct tb_port *src_port, struct tb_port *dst_port)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_tunnel *tunnel;
+
+	list_for_each_entry(tunnel, &tcm->tunnel_list, list) {
+		if (tunnel->type == type &&
+		    ((src_port && src_port == tunnel->src_port) ||
+		     (dst_port && dst_port == tunnel->dst_port))) {
+			tb_tunnel_deactivate(tunnel);
+			list_del(&tunnel->list);
+			tb_tunnel_free(tunnel);
+			return 0;
+		}
+	}
+
+	return -ENODEV;
 }
 
 /**
@@ -257,6 +319,44 @@ out:
 	return tb_find_unused_port(sw, TB_TYPE_PCIE_DOWN);
 }
 
+static int tb_tunnel_dp(struct tb *tb, struct tb_port *out)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_switch *sw = out->sw;
+	struct tb_tunnel *tunnel;
+	struct tb_port *in;
+
+	if (tb_port_is_enabled(out))
+		return 0;
+
+	do {
+		sw = tb_to_switch(sw->dev.parent);
+		if (!sw)
+			return 0;
+		in = tb_find_unused_port(sw, TB_TYPE_DP_HDMI_IN);
+	} while (!in);
+
+	tunnel = tb_tunnel_alloc_dp(tb, in, out);
+	if (!tunnel) {
+		tb_port_dbg(out, "DP tunnel allocation failed\n");
+		return -ENOMEM;
+	}
+
+	if (tb_tunnel_activate(tunnel)) {
+		tb_port_info(out, "DP tunnel activation failed, aborting\n");
+		tb_tunnel_free(tunnel);
+		return -EIO;
+	}
+
+	list_add_tail(&tunnel->list, &tcm->tunnel_list);
+	return 0;
+}
+
+static void tb_teardown_dp(struct tb *tb, struct tb_port *out)
+{
+	tb_free_tunnel(tb, TB_TUNNEL_DP, NULL, out);
+}
+
 static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
 {
 	struct tb_port *up, *down, *port;
@@ -294,14 +394,6 @@ static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
 }
 
 /* hotplug handling */
-
-struct tb_hotplug_event {
-	struct work_struct work;
-	struct tb *tb;
-	u64 route;
-	u8 port;
-	bool unplug;
-};
 
 /**
  * tb_handle_hotplug() - handle hotplug event
@@ -347,6 +439,8 @@ static void tb_handle_hotplug(struct work_struct *work)
 			port->remote = NULL;
 			if (port->dual_link_port)
 				port->dual_link_port->remote = NULL;
+		} else if (tb_port_is_dpout(port)) {
+			tb_teardown_dp(tb, port);
 		} else {
 			tb_port_info(port,
 				     "got unplug event for disconnected port, ignoring\n");
@@ -360,6 +454,8 @@ static void tb_handle_hotplug(struct work_struct *work)
 			tb_scan_port(port);
 			if (!port->remote)
 				tb_port_info(port, "hotplug: no switch found\n");
+		} else if (tb_port_is_dpout(port)) {
+			tb_tunnel_dp(tb, port);
 		}
 	}
 
@@ -379,7 +475,6 @@ static void tb_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 			    const void *buf, size_t size)
 {
 	const struct cfg_event_pkg *pkg = buf;
-	struct tb_hotplug_event *ev;
 	u64 route;
 
 	if (type != TB_CFG_PKG_EVENT) {
@@ -395,15 +490,7 @@ static void tb_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 			pkg->port);
 	}
 
-	ev = kmalloc(sizeof(*ev), GFP_KERNEL);
-	if (!ev)
-		return;
-	INIT_WORK(&ev->work, tb_handle_hotplug);
-	ev->tb = tb;
-	ev->route = route;
-	ev->port = pkg->port;
-	ev->unplug = pkg->unplug;
-	queue_work(tb->wq, &ev->work);
+	tb_queue_hotplug(tb, route, pkg->port, pkg->unplug);
 }
 
 static void tb_stop(struct tb *tb)

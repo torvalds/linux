@@ -11,6 +11,11 @@
 
 #include "tb.h"
 
+enum tb_tunnel_type {
+	TB_TUNNEL_PCI,
+	TB_TUNNEL_DP,
+};
+
 /**
  * struct tb_tunnel - Tunnel between two ports
  * @tb: Pointer to the domain
@@ -19,8 +24,10 @@
  *	      tunnels may be %NULL or null adapter port instead.
  * @paths: All paths required by the tunnel
  * @npaths: Number of paths in @paths
+ * @init: Optional tunnel specific initialization
  * @activate: Optional tunnel specific activation/deactivation
  * @list: Tunnels are linked using this field
+ * @type: Type of the tunnel
  */
 struct tb_tunnel {
 	struct tb *tb;
@@ -28,18 +35,34 @@ struct tb_tunnel {
 	struct tb_port *dst_port;
 	struct tb_path **paths;
 	size_t npaths;
+	int (*init)(struct tb_tunnel *tunnel);
 	int (*activate)(struct tb_tunnel *tunnel, bool activate);
 	struct list_head list;
+	enum tb_tunnel_type type;
 };
 
 struct tb_tunnel *tb_tunnel_discover_pci(struct tb *tb, struct tb_port *down);
 struct tb_tunnel *tb_tunnel_alloc_pci(struct tb *tb, struct tb_port *up,
 				      struct tb_port *down);
+struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in);
+struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
+				     struct tb_port *out);
+
 void tb_tunnel_free(struct tb_tunnel *tunnel);
 int tb_tunnel_activate(struct tb_tunnel *tunnel);
 int tb_tunnel_restart(struct tb_tunnel *tunnel);
 void tb_tunnel_deactivate(struct tb_tunnel *tunnel);
 bool tb_tunnel_is_invalid(struct tb_tunnel *tunnel);
+
+static inline bool tb_tunnel_is_pci(const struct tb_tunnel *tunnel)
+{
+	return tunnel->type == TB_TUNNEL_PCI;
+}
+
+static inline bool tb_tunnel_is_dp(const struct tb_tunnel *tunnel)
+{
+	return tunnel->type == TB_TUNNEL_DP;
+}
 
 #endif
 
