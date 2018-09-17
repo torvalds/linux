@@ -2056,10 +2056,8 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	if (!skb_is_gso(skb) && skb->ip_summed == CHECKSUM_PARTIAL) {
 		qeth_tx_csum(skb, &hdr->hdr.l3.ext_flags, ipv);
 		/* some HW requires combined L3+L4 csum offload: */
-		if (ipv == 4) {
+		if (ipv == 4)
 			hdr->hdr.l3.ext_flags |= QETH_HDR_EXT_CSUM_HDR_REQ;
-			ip_hdr(skb)->check = 0;
-		}
 		if (card->options.performance_stats)
 			card->perf_stats.tx_csum++;
 	}
@@ -2168,6 +2166,15 @@ static int qeth_l3_get_elements_no_tso(struct qeth_card *card,
 	return elements;
 }
 
+static void qeth_l3_fixup_headers(struct sk_buff *skb)
+{
+	struct iphdr *iph = ip_hdr(skb);
+
+	/* this is safe, IPv6 traffic takes a different path */
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		iph->check = 0;
+}
+
 static int qeth_l3_xmit_offload(struct qeth_card *card, struct sk_buff *skb,
 				struct qeth_qdio_out_q *queue, int ipv,
 				int cast_type)
@@ -2188,6 +2195,7 @@ static int qeth_l3_xmit_offload(struct qeth_card *card, struct sk_buff *skb,
 	skb_pull(skb, ETH_HLEN);
 	frame_len = skb->len;
 
+	qeth_l3_fixup_headers(skb);
 	push_len = qeth_add_hw_header(card, skb, &hdr, hw_hdr_len, 0,
 				      &elements);
 	if (push_len < 0)
