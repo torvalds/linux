@@ -271,6 +271,8 @@ error:
 	if (oxfw->has_output)
 		snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->tx_stream);
 	snd_card_free(oxfw->card);
+	kfree(oxfw->spec);
+	oxfw->spec = NULL;
 	dev_info(&oxfw->unit->device,
 		 "Sound card registration failed: %d\n", err);
 }
