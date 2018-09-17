@@ -946,8 +946,6 @@ static void ip6_rt_init_dst_reject(struct rt6_info *rt, struct fib6_info *ort)
 
 static void ip6_rt_init_dst(struct rt6_info *rt, struct fib6_info *ort)
 {
-	rt->dst.flags |= fib6_info_dst_flags(ort);
-
 	if (ort->fib6_flags & RTF_REJECT) {
 		ip6_rt_init_dst_reject(rt, ort);
 		return;
