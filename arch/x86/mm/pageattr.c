@@ -526,6 +526,13 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long start,
 	pgprotval_t forbidden, res;
 	unsigned long end;
 
+	/*
+	 * There is no point in checking RW/NX conflicts when the requested
+	 * mapping is setting the page !PRESENT.
+	 */
+	if (!(pgprot_val(prot) & _PAGE_PRESENT))
+		return prot;
+
 	/* Operate on the virtual address */
 	end = start + npg * PAGE_SIZE - 1;
 
