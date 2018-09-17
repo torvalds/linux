@@ -1702,6 +1702,38 @@
 					/* d17 */
 					<1 RK_PC5 RK_FUNC_1 &pcfg_pull_none>;
 			};
+
+			lcdc_rgb888_m0: lcdc-rgb888-m0 {
+				rockchip,pins =
+					/* d18 */
+					<1 RK_PC6 RK_FUNC_2 &pcfg_pull_none>,
+					/* d19 */
+					<1 RK_PC7 RK_FUNC_2 &pcfg_pull_none>,
+					/* d20 */
+					<2 RK_PB1 RK_FUNC_4 &pcfg_pull_none>,
+					/* d21 */
+					<2 RK_PB2 RK_FUNC_4 &pcfg_pull_none>,
+					/* d22 */
+					<2 RK_PB7 RK_FUNC_4 &pcfg_pull_none>,
+					/* d23 */
+					<2 RK_PC0 RK_FUNC_4 &pcfg_pull_none>;
+			};
+
+			lcdc_rgb888_m1: lcdc-rgb888-m1 {
+				rockchip,pins =
+					/* d18 */
+					<3 RK_PA6 RK_FUNC_2 &pcfg_pull_none>,
+					/* d19 */
+					<3 RK_PA7 RK_FUNC_2 &pcfg_pull_none>,
+					/* d20 */
+					<3 RK_PB0 RK_FUNC_2 &pcfg_pull_none>,
+					/* d21 */
+					<3 RK_PB1 RK_FUNC_2 &pcfg_pull_none>,
+					/* d22 */
+					<3 RK_PB2 RK_FUNC_2 &pcfg_pull_none>,
+					/* d23 */
+					<3 RK_PB3 RK_FUNC_2 &pcfg_pull_none>;
+			};
 		};
 
 		pdm_m0 {
