@@ -77,9 +77,8 @@ static notrace const struct pvclock_vsyscall_time_info *get_pvti0(void)
 static notrace u64 vread_pvclock(void)
 {
 	const struct pvclock_vcpu_time_info *pvti = &get_pvti0()->pvti;
-	u64 ret;
-	u64 last;
 	u32 version;
+	u64 ret;
 
 	/*
 	 * Note: The kernel and hypervisor must guarantee that cpu ID
@@ -112,13 +111,7 @@ static notrace u64 vread_pvclock(void)
 		ret = __pvclock_read_cycles(pvti, rdtsc_ordered());
 	} while (pvclock_read_retry(pvti, version));
 
-	/* refer to vread_tsc() comment for rationale */
-	last = gtod->cycle_last;
-
-	if (likely(ret >= last))
-		return ret;
-
-	return last;
+	return ret;
 }
 #endif
 #ifdef CONFIG_HYPERV_TSCPAGE
@@ -131,30 +124,10 @@ static notrace u64 vread_hvclock(void)
 }
 #endif
 
-notrace static u64 vread_tsc(void)
-{
-	u64 ret = (u64)rdtsc_ordered();
-	u64 last = gtod->cycle_last;
-
-	if (likely(ret >= last))
-		return ret;
-
-	/*
-	 * GCC likes to generate cmov here, but this branch is extremely
-	 * predictable (it's just a function of time and the likely is
-	 * very likely) and there's a data dependence, so force GCC
-	 * to generate a branch instead.  I don't barrier() because
-	 * we don't actually need a barrier, and if this function
-	 * ever gets inlined it will generate worse code.
-	 */
-	asm volatile ("");
-	return last;
-}
-
 notrace static inline u64 vgetcyc(int mode)
 {
 	if (mode == VCLOCK_TSC)
-		return vread_tsc();
+		return (u64)rdtsc_ordered();
 #ifdef CONFIG_PARAVIRT_CLOCK
 	else if (mode == VCLOCK_PVCLOCK)
 		return vread_pvclock();
@@ -169,17 +142,19 @@ notrace static inline u64 vgetcyc(int mode)
 notrace static int do_hres(clockid_t clk, struct timespec *ts)
 {
 	struct vgtod_ts *base = &gtod->basetime[clk];
+	u64 cycles, last, ns;
 	unsigned int seq;
-	u64 cycles, ns;
 
 	do {
 		seq = gtod_read_begin(gtod);
 		ts->tv_sec = base->sec;
 		ns = base->nsec;
+		last = gtod->cycle_last;
 		cycles = vgetcyc(gtod->vclock_mode);
 		if (unlikely((s64)cycles < 0))
 			return vdso_fallback_gettime(clk, ts);
-		ns += (cycles - gtod->cycle_last) * gtod->mult;
+		if (cycles > last)
+			ns += (cycles - last) * gtod->mult;
 		ns >>= gtod->shift;
 	} while (unlikely(gtod_read_retry(gtod, seq)));
 
