@@ -4176,6 +4176,65 @@ out:
 }
 EXPORT_SYMBOL_GPL(qeth_do_send_packet);
 
+int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
+	      struct qeth_qdio_out_q *queue, int ipv, int cast_type,
+	      void (*fill_header)(struct qeth_card *card, struct qeth_hdr *hdr,
+				  struct sk_buff *skb, int ipv, int cast_type,
+				  unsigned int data_len))
+{
+	const unsigned int proto_len = IS_IQD(card) ? ETH_HLEN : 0;
+	const unsigned int hw_hdr_len = sizeof(struct qeth_hdr);
+	unsigned int frame_len = skb->len;
+	unsigned int data_offset = 0;
+	struct qeth_hdr *hdr = NULL;
+	unsigned int hd_len = 0;
+	unsigned int elements;
+	int push_len, rc;
+	bool is_sg;
+
+	rc = skb_cow_head(skb, hw_hdr_len);
+	if (rc)
+		return rc;
+
+	push_len = qeth_add_hw_header(card, skb, &hdr, hw_hdr_len, proto_len,
+				      &elements);
+	if (push_len < 0)
+		return push_len;
+	if (!push_len) {
+		/* HW header needs its own buffer element. */
+		hd_len = hw_hdr_len + proto_len;
+		data_offset = proto_len;
+	}
+	fill_header(card, hdr, skb, ipv, cast_type, frame_len);
+
+	is_sg = skb_is_nonlinear(skb);
+	if (IS_IQD(card)) {
+		rc = qeth_do_send_packet_fast(queue, skb, hdr, data_offset,
+					      hd_len);
+	} else {
+		/* TODO: drop skb_orphan() once TX completion is fast enough */
+		skb_orphan(skb);
+		rc = qeth_do_send_packet(card, queue, skb, hdr, data_offset,
+					 hd_len, elements);
+	}
+
+	if (!rc) {
+		if (card->options.performance_stats) {
+			card->perf_stats.buf_elements_sent += elements;
+			if (is_sg)
+				card->perf_stats.sg_skbs_sent++;
+		}
+	} else {
+		if (!push_len)
+			kmem_cache_free(qeth_core_header_cache, hdr);
+		if (rc == -EBUSY)
+			/* roll back to ETH header */
+			skb_pull(skb, push_len);
+	}
+	return rc;
+}
+EXPORT_SYMBOL_GPL(qeth_xmit);
+
 static int qeth_setadp_promisc_mode_cb(struct qeth_card *card,
 		struct qeth_reply *reply, unsigned long data)
 {

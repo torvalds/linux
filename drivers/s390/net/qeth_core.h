@@ -1052,6 +1052,11 @@ int qeth_vm_request_mac(struct qeth_card *card);
 int qeth_add_hw_header(struct qeth_card *card, struct sk_buff *skb,
 		       struct qeth_hdr **hdr, unsigned int hdr_len,
 		       unsigned int proto_len, unsigned int *elements);
+int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
+	      struct qeth_qdio_out_q *queue, int ipv, int cast_type,
+	      void (*fill_header)(struct qeth_card *card, struct qeth_hdr *hdr,
+				  struct sk_buff *skb, int ipv, int cast_type,
+				  unsigned int data_len));
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);
