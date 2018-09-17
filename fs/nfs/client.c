@@ -660,6 +660,7 @@ static int nfs_init_server(struct nfs_server *server,
 		.net = data->net,
 		.timeparms = &timeparms,
 		.cred = server->cred,
+		.nconnect = data->nfs_server.nconnect,
 	};
 	struct nfs_client *clp;
 	int error;
