@@ -904,22 +904,16 @@ bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 
 static void
 __bad_area(struct pt_regs *regs, unsigned long error_code,
-	   unsigned long address,  struct vm_area_struct *vma, int si_code)
+	   unsigned long address, u32 *pkey, int si_code)
 {
 	struct mm_struct *mm = current->mm;
-	u32 pkey;
-
-	if (vma)
-		pkey = vma_pkey(vma);
-
 	/*
 	 * Something tried to access memory that isn't in our memory map..
 	 * Fix it, but check if it's kernel or user first..
 	 */
 	up_read(&mm->mmap_sem);
 
-	__bad_area_nosemaphore(regs, error_code, address,
-			       (vma) ? &pkey : NULL, si_code);
+	__bad_area_nosemaphore(regs, error_code, address, pkey, si_code);
 }
 
 static noinline void
@@ -954,10 +948,12 @@ bad_area_access_error(struct pt_regs *regs, unsigned long error_code,
 	 * But, doing it this way allows compiler optimizations
 	 * if pkeys are compiled out.
 	 */
-	if (bad_area_access_from_pkeys(error_code, vma))
-		__bad_area(regs, error_code, address, vma, SEGV_PKUERR);
-	else
-		__bad_area(regs, error_code, address, vma, SEGV_ACCERR);
+	if (bad_area_access_from_pkeys(error_code, vma)) {
+		u32 pkey = vma_pkey(vma);
+		__bad_area(regs, error_code, address, &pkey, SEGV_PKUERR);
+	} else {
+		__bad_area(regs, error_code, address, NULL, SEGV_ACCERR);
+	}
 }
 
 static void
