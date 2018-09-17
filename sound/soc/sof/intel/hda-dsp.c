@@ -26,6 +26,7 @@
 #include <linux/firmware.h>
 #include <linux/pci.h>
 #include <sound/hdaudio_ext.h>
+#include <sound/hda_register.h>
 #include <sound/sof.h>
 #include <sound/pcm_params.h>
 #include <linux/pm_runtime.h>
@@ -257,15 +258,84 @@ int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
 int hda_dsp_suspend(struct snd_sof_dev *sdev, int state)
 {
 	const struct sof_intel_dsp_desc *chip = sdev->hda->desc;
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	int ret = 0;
+
+	/* power down all hda link */
+	snd_hdac_ext_bus_link_power_down_all(bus);
 
 	/* power down DSP */
-	return hda_dsp_core_reset_power_down(sdev, chip->cores_mask);
+	ret = hda_dsp_core_reset_power_down(sdev, chip->cores_mask);
+	if (ret < 0) {
+		dev_err(sdev->dev,
+			"error: failed to power down core during suspend\n");
+		return ret;
+	}
+
+	/* disable ppcap interrupt */
+	snd_hdac_ext_bus_ppcap_int_enable(bus, false);
+	snd_hdac_ext_bus_ppcap_enable(bus, false);
+
+	/* disable hda bus irw and i/o */
+	snd_hdac_bus_stop_chip(bus);
+
+	/* disable LP retention mode */
+	snd_sof_pci_update_bits(sdev, PCI_TCSEL,
+				PCI_CGCTL_LSRMD_MASK, PCI_CGCTL_LSRMD_MASK);
+
+	return 0;
 }
 
 int hda_dsp_resume(struct snd_sof_dev *sdev)
 {
 	const struct sof_intel_dsp_desc *chip = sdev->hda->desc;
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct hdac_ext_link *hlink = NULL;
+	int ret;
+
+	/*
+	 * clear TCSEL to clear playback on some HD Audio
+	 * codecs. PCI TCSEL is defined in the Intel manuals.
+	 */
+	snd_sof_pci_update_bits(sdev, PCI_TCSEL, 0x07, 0);
+
+	/* reset and start hda controller */
+	ret = hda_dsp_ctrl_init_chip(sdev, true);
+	if (ret < 0) {
+		dev_err(sdev->dev,
+			"error: failed to start controller after resume\n");
+		return ret;
+	}
+
+	hda_dsp_ctrl_misc_clock_gating(sdev, false);
+
+	/* Reset stream-to-link mapping */
+	list_for_each_entry(hlink, &bus->hlink_list, list)
+		bus->io_ops->reg_writel(0, hlink->ml_addr + AZX_REG_ML_LOSIDV);
+
+	hda_dsp_ctrl_misc_clock_gating(sdev, true);
+
+	/* enable ppcap interrupt */
+	snd_hdac_ext_bus_ppcap_enable(bus, true);
+	snd_hdac_ext_bus_ppcap_int_enable(bus, true);
 
 	/* power up the DSP */
-	return hda_dsp_core_power_up(sdev, chip->cores_mask);
+	ret = hda_dsp_core_power_up(sdev, chip->cores_mask);
+	if (ret < 0) {
+		dev_err(sdev->dev,
+			"error: failed to power up core after resume\n");
+		return ret;
+	}
+
+	/* turn off the links that were off before suspend */
+	list_for_each_entry(hlink, &bus->hlink_list, list) {
+		if (!hlink->ref_count)
+			snd_hdac_ext_bus_link_power_down(hlink);
+	}
+
+	/* check dma status and clean up CORB/RIRB buffers */
+	if (!bus->cmd_dma_state)
+		snd_hdac_bus_stop_cmd_io(bus);
+
+	return 0;
 }
