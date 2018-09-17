@@ -639,7 +639,6 @@ struct qeth_reply {
 	atomic_t received;
 	int rc;
 	void *param;
-	struct qeth_card *card;
 	refcount_t refcnt;
 };
 
