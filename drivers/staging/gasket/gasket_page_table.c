@@ -612,7 +612,7 @@ static void gasket_perform_unmapping(struct gasket_page_table *pg_tbl,
 		if (ptes[i].status == PTE_INUSE) {
 			if (ptes[i].dma_addr) {
 				dma_unmap_page(pg_tbl->device, ptes[i].dma_addr,
-					       PAGE_SIZE, DMA_FROM_DEVICE);
+					       PAGE_SIZE, DMA_BIDIRECTIONAL);
 			}
 			if (gasket_release_page(ptes[i].page))
 				--pg_tbl->num_active_pages;
