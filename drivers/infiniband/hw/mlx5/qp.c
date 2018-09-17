@@ -1258,8 +1258,9 @@ static bool tunnel_offload_supported(struct mlx5_core_dev *dev)
 
 static int create_raw_packet_qp_tir(struct mlx5_ib_dev *dev,
 				    struct mlx5_ib_rq *rq, u32 tdn,
-				    bool tunnel_offload_en)
+				    u32 *qp_flags_en)
 {
+	u8 lb_flag = 0;
 	u32 *in;
 	void *tirc;
 	int inlen;
@@ -1274,12 +1275,21 @@ static int create_raw_packet_qp_tir(struct mlx5_ib_dev *dev,
 	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_DIRECT);
 	MLX5_SET(tirc, tirc, inline_rqn, rq->base.mqp.qpn);
 	MLX5_SET(tirc, tirc, transport_domain, tdn);
-	if (tunnel_offload_en)
+	if (*qp_flags_en & MLX5_QP_FLAG_TUNNEL_OFFLOADS)
 		MLX5_SET(tirc, tirc, tunneled_offload_en, 1);
 
-	if (dev->rep)
-		MLX5_SET(tirc, tirc, self_lb_block,
-			 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST);
+	if (*qp_flags_en & MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC)
+		lb_flag |= MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST;
+
+	if (*qp_flags_en & MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC)
+		lb_flag |= MLX5_TIRC_SELF_LB_BLOCK_BLOCK_MULTICAST;
+
+	if (dev->rep) {
+		lb_flag |= MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST;
+		*qp_flags_en |= MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC;
+	}
+
+	MLX5_SET(tirc, tirc, self_lb_block, lb_flag);
 
 	err = mlx5_core_create_tir(dev->mdev, in, inlen, &rq->tirn);
 
@@ -1332,8 +1342,7 @@ static int create_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 			goto err_destroy_sq;
 
 
-		err = create_raw_packet_qp_tir(dev, rq, tdn,
-					       qp->tunnel_offload_en);
+		err = create_raw_packet_qp_tir(dev, rq, tdn, &qp->flags_en);
 		if (err)
 			goto err_destroy_rq;
 	}
@@ -1410,6 +1419,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	u32 tdn = mucontext->tdn;
 	struct mlx5_ib_create_qp_rss ucmd = {};
 	size_t required_cmd_sz;
+	u8 lb_flag = 0;
 
 	if (init_attr->qp_type != IB_QPT_RAW_PACKET)
 		return -EOPNOTSUPP;
@@ -1444,7 +1454,9 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		return -EOPNOTSUPP;
 	}
 
-	if (ucmd.flags & ~MLX5_QP_FLAG_TUNNEL_OFFLOADS) {
+	if (ucmd.flags & ~(MLX5_QP_FLAG_TUNNEL_OFFLOADS |
+			   MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC |
+			   MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC)) {
 		mlx5_ib_dbg(dev, "invalid flags\n");
 		return -EOPNOTSUPP;
 	}
@@ -1459,6 +1471,16 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	    !(ucmd.flags & MLX5_QP_FLAG_TUNNEL_OFFLOADS)) {
 		mlx5_ib_dbg(dev, "Tunnel offloads must be set for inner RSS\n");
 		return -EOPNOTSUPP;
+	}
+
+	if (ucmd.flags & MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC || dev->rep) {
+		lb_flag |= MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST;
+		qp->flags_en |= MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC;
+	}
+
+	if (ucmd.flags & MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC) {
+		lb_flag |= MLX5_TIRC_SELF_LB_BLOCK_BLOCK_MULTICAST;
+		qp->flags_en |= MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC;
 	}
 
 	err = ib_copy_to_udata(udata, &resp, min(udata->outlen, sizeof(resp)));
@@ -1483,6 +1505,8 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 
 	if (ucmd.flags & MLX5_QP_FLAG_TUNNEL_OFFLOADS)
 		MLX5_SET(tirc, tirc, tunneled_offload_en, 1);
+
+	MLX5_SET(tirc, tirc, self_lb_block, lb_flag);
 
 	if (ucmd.rx_hash_fields_mask & MLX5_RX_HASH_INNER)
 		hfso = MLX5_ADDR_OF(tirc, tirc, rx_hash_field_selector_inner);
@@ -1580,10 +1604,6 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	MLX5_SET(rx_hash_field_select, hfso, selected_fields, selected_fields);
 
 create_tir:
-	if (dev->rep)
-		MLX5_SET(tirc, tirc, self_lb_block,
-			 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST);
-
 	err = mlx5_core_create_tir(dev->mdev, in, inlen, &qp->rss_qp.tirn);
 
 	if (err)
@@ -1710,7 +1730,23 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 				mlx5_ib_dbg(dev, "Tunnel offload isn't supported\n");
 				return -EOPNOTSUPP;
 			}
-			qp->tunnel_offload_en = true;
+			qp->flags_en |= MLX5_QP_FLAG_TUNNEL_OFFLOADS;
+		}
+
+		if (ucmd.flags & MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC) {
+			if (init_attr->qp_type != IB_QPT_RAW_PACKET) {
+				mlx5_ib_dbg(dev, "Self-LB UC isn't supported\n");
+				return -EOPNOTSUPP;
+			}
+			qp->flags_en |= MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC;
+		}
+
+		if (ucmd.flags & MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC) {
+			if (init_attr->qp_type != IB_QPT_RAW_PACKET) {
+				mlx5_ib_dbg(dev, "Self-LB UM isn't supported\n");
+				return -EOPNOTSUPP;
+			}
+			qp->flags_en |= MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC;
 		}
 
 		if (init_attr->create_flags & IB_QP_CREATE_SOURCE_QPN) {
