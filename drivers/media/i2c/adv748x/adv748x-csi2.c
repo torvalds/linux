@@ -78,15 +78,15 @@ static int adv748x_csi2_registered(struct v4l2_subdev *sd)
 	 *
 	 * Link HDMI->TXA, and AFE->TXB directly.
 	 */
-	if (is_txa(tx)) {
+	if (is_txa(tx) && is_hdmi_enabled(state))
 		return adv748x_csi2_register_link(tx, sd->v4l2_dev,
 						  &state->hdmi.sd,
 						  ADV748X_HDMI_SOURCE);
-	} else {
+	if (!is_txa(tx) && is_afe_enabled(state))
 		return adv748x_csi2_register_link(tx, sd->v4l2_dev,
 						  &state->afe.sd,
 						  ADV748X_AFE_SOURCE);
-	}
+	return 0;
 }
 
 static const struct v4l2_subdev_internal_ops adv748x_csi2_internal_ops = {

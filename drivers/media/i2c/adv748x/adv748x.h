@@ -90,6 +90,16 @@ struct adv748x_csi2 {
 #define adv748x_sd_to_csi2(sd) container_of(sd, struct adv748x_csi2, sd)
 #define is_tx_enabled(_tx) ((_tx)->state->endpoints[(_tx)->port] != NULL)
 #define is_txa(_tx) ((_tx) == &(_tx)->state->txa)
+#define is_afe_enabled(_state)					\
+	((_state)->endpoints[ADV748X_PORT_AIN0] != NULL ||	\
+	 (_state)->endpoints[ADV748X_PORT_AIN1] != NULL ||	\
+	 (_state)->endpoints[ADV748X_PORT_AIN2] != NULL ||	\
+	 (_state)->endpoints[ADV748X_PORT_AIN3] != NULL ||	\
+	 (_state)->endpoints[ADV748X_PORT_AIN4] != NULL ||	\
+	 (_state)->endpoints[ADV748X_PORT_AIN5] != NULL ||	\
+	 (_state)->endpoints[ADV748X_PORT_AIN6] != NULL ||	\
+	 (_state)->endpoints[ADV748X_PORT_AIN7] != NULL)
+#define is_hdmi_enabled(_state) ((_state)->endpoints[ADV748X_PORT_HDMI] != NULL)
 
 enum adv748x_hdmi_pads {
 	ADV748X_HDMI_SINK,
