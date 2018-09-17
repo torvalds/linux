@@ -2819,9 +2819,8 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 	ioc->reply_queue_count = min_t(int, ioc->cpu_count,
 		ioc->msix_vector_count);
 
-	printk(MPT3SAS_FMT "MSI-X vectors supported: %d, no of cores"
-	  ": %d, max_msix_vectors: %d\n", ioc->name, ioc->msix_vector_count,
-	  ioc->cpu_count, max_msix_vectors);
+	ioc_info(ioc, "MSI-X vectors supported: %d, no of cores: %d, max_msix_vectors: %d\n",
+		 ioc->msix_vector_count, ioc->cpu_count, max_msix_vectors);
 
 	if (!ioc->rdpq_array_enable && max_msix_vectors == -1)
 		local_max_msix_vectors = (reset_devices) ? 1 : 8;
@@ -2886,8 +2885,7 @@ mpt3sas_base_unmap_resources(struct MPT3SAS_ADAPTER *ioc)
 {
 	struct pci_dev *pdev = ioc->pdev;
 
-	dexitprintk(ioc, printk(MPT3SAS_FMT "%s\n",
-		ioc->name, __func__));
+	dexitprintk(ioc, ioc_info(ioc, "%s\n", __func__));
 
 	_base_free_irq(ioc);
 	_base_disable_msix(ioc);
@@ -3007,9 +3005,8 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 		     ioc->combined_reply_index_count,
 		     sizeof(resource_size_t *), GFP_KERNEL);
 		if (!ioc->replyPostRegisterIndex) {
-			dfailprintk(ioc, printk(MPT3SAS_FMT
-			"allocation for reply Post Register Index failed!!!\n",
-								   ioc->name));
+			dfailprintk(ioc,
+				    ioc_warn(ioc, "allocation for reply Post Register Index failed!!!\n"));
 			r = -ENOMEM;
 			goto out_fail;
 		}
@@ -5438,26 +5435,26 @@ _base_wait_for_iocstate(struct MPT3SAS_ADAPTER *ioc, int timeout)
 	u32 ioc_state;
 	int rc;
 
-	dinitprintk(ioc, printk(MPT3SAS_FMT "%s\n", ioc->name,
-	    __func__));
+	dinitprintk(ioc, ioc_info(ioc, "%s\n", __func__));
 
 	if (ioc->pci_error_recovery) {
-		dfailprintk(ioc, printk(MPT3SAS_FMT
-		    "%s: host in pci error recovery\n", ioc->name, __func__));
+		dfailprintk(ioc,
+			    ioc_info(ioc, "%s: host in pci error recovery\n",
+				     __func__));
 		return -EFAULT;
 	}
 
 	ioc_state = mpt3sas_base_get_iocstate(ioc, 0);
-	dhsprintk(ioc, printk(MPT3SAS_FMT "%s: ioc_state(0x%08x)\n",
-	    ioc->name, __func__, ioc_state));
+	dhsprintk(ioc,
+		  ioc_info(ioc, "%s: ioc_state(0x%08x)\n",
+			   __func__, ioc_state));
 
 	if (((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_READY) ||
 	    (ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_OPERATIONAL)
 		return 0;
 
 	if (ioc_state & MPI2_DOORBELL_USED) {
-		dhsprintk(ioc, printk(MPT3SAS_FMT
-		    "unexpected doorbell active!\n", ioc->name));
+		dhsprintk(ioc, ioc_info(ioc, "unexpected doorbell active!\n"));
 		goto issue_diag_reset;
 	}
 
@@ -5469,9 +5466,9 @@ _base_wait_for_iocstate(struct MPT3SAS_ADAPTER *ioc, int timeout)
 
 	ioc_state = _base_wait_on_iocstate(ioc, MPI2_IOC_STATE_READY, timeout);
 	if (ioc_state) {
-		dfailprintk(ioc, printk(MPT3SAS_FMT
-		    "%s: failed going to ready state (ioc_state=0x%x)\n",
-		    ioc->name, __func__, ioc_state));
+		dfailprintk(ioc,
+			    ioc_info(ioc, "%s: failed going to ready state (ioc_state=0x%x)\n",
+				     __func__, ioc_state));
 		return -EFAULT;
 	}
 
@@ -5498,9 +5495,9 @@ _base_get_ioc_facts(struct MPT3SAS_ADAPTER *ioc)
 
 	r = _base_wait_for_iocstate(ioc, 10);
 	if (r) {
-		dfailprintk(ioc, printk(MPT3SAS_FMT
-		    "%s: failed getting to correct state\n",
-		    ioc->name, __func__));
+		dfailprintk(ioc,
+			    ioc_info(ioc, "%s: failed getting to correct state\n",
+				     __func__));
 		return r;
 	}
 	mpi_reply_sz = sizeof(Mpi2IOCFactsReply_t);

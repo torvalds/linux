@@ -717,9 +717,9 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 		sas_device = mpt3sas_get_sdev_by_addr(ioc,
 				    mpt3sas_port->remote_identify.sas_address);
 		if (!sas_device) {
-			dfailprintk(ioc, printk(MPT3SAS_FMT
-				"failure at %s:%d/%s()!\n",
-				ioc->name, __FILE__, __LINE__, __func__));
+			dfailprintk(ioc,
+				    ioc_info(ioc, "failure at %s:%d/%s()!\n",
+					     __FILE__, __LINE__, __func__));
 			goto out_fail;
 		}
 		sas_device->pend_sas_rphy_add = 1;

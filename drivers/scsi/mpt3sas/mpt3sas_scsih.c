@@ -4999,16 +4999,16 @@ _scsih_turn_off_pfa_led(struct MPT3SAS_ADAPTER *ioc,
 	mpi_request.Flags = MPI2_SEP_REQ_FLAGS_ENCLOSURE_SLOT_ADDRESS;
 	if ((mpt3sas_base_scsi_enclosure_processor(ioc, &mpi_reply,
 		&mpi_request)) != 0) {
-		printk(MPT3SAS_FMT "failure at %s:%d/%s()!\n", ioc->name,
-		__FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		return;
 	}
 
 	if (mpi_reply.IOCStatus || mpi_reply.IOCLogInfo) {
-		dewtprintk(ioc, printk(MPT3SAS_FMT
-		 "enclosure_processor: ioc_status (0x%04x), loginfo(0x%08x)\n",
-		 ioc->name, le16_to_cpu(mpi_reply.IOCStatus),
-		 le32_to_cpu(mpi_reply.IOCLogInfo)));
+		dewtprintk(ioc,
+			   ioc_info(ioc, "enclosure_processor: ioc_status (0x%04x), loginfo(0x%08x)\n",
+				    le16_to_cpu(mpi_reply.IOCStatus),
+				    le32_to_cpu(mpi_reply.IOCLogInfo)));
 		return;
 	}
 }
