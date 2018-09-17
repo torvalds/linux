@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/log2.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/mii.h>
@@ -3844,6 +3845,8 @@ int qeth_hdr_chk_and_bounce(struct sk_buff *skb, struct qeth_hdr **hdr, int len)
 }
 EXPORT_SYMBOL_GPL(qeth_hdr_chk_and_bounce);
 
+#define QETH_HDR_CACHE_OBJ_SIZE		(sizeof(struct qeth_hdr) + ETH_HLEN)
+
 /**
  * qeth_add_hw_header() - add a HW header to an skb.
  * @skb: skb that the HW header should be added to.
@@ -3918,6 +3921,8 @@ check_layout:
 		return hdr_len;
 	}
 	/* fall back */
+	if (hdr_len + proto_len > QETH_HDR_CACHE_OBJ_SIZE)
+		return -E2BIG;
 	*hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
 	if (!*hdr)
 		return -ENOMEM;
@@ -6661,8 +6666,10 @@ static int __init qeth_core_init(void)
 	rc = PTR_ERR_OR_ZERO(qeth_core_root_dev);
 	if (rc)
 		goto register_err;
-	qeth_core_header_cache = kmem_cache_create("qeth_hdr",
-			sizeof(struct qeth_hdr) + ETH_HLEN, 64, 0, NULL);
+	qeth_core_header_cache =
+		kmem_cache_create("qeth_hdr", QETH_HDR_CACHE_OBJ_SIZE,
+				  roundup_pow_of_two(QETH_HDR_CACHE_OBJ_SIZE),
+				  0, NULL);
 	if (!qeth_core_header_cache) {
 		rc = -ENOMEM;
 		goto slab_err;
