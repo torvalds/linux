@@ -684,16 +684,6 @@ dsps_dma_controller_create(struct musb *musb, void __iomem *base)
 	return controller;
 }
 
-static void dsps_dma_controller_destroy(struct dma_controller *c)
-{
-	struct musb *musb = c->musb;
-	struct dsps_glue *glue = dev_get_drvdata(musb->controller->parent);
-	void __iomem *usbss_base = glue->usbss_base;
-
-	musb_writel(usbss_base, USBSS_IRQ_CLEARR, USBSS_IRQ_PD_COMP);
-	cppi41_dma_controller_destroy(c);
-}
-
 #ifdef CONFIG_PM_SLEEP
 static void dsps_dma_controller_suspend(struct dsps_glue *glue)
 {
@@ -723,7 +713,7 @@ static struct musb_platform_ops dsps_ops = {
 
 #ifdef CONFIG_USB_TI_CPPI41_DMA
 	.dma_init	= dsps_dma_controller_create,
-	.dma_exit	= dsps_dma_controller_destroy,
+	.dma_exit	= cppi41_dma_controller_destroy,
 #endif
 	.enable		= dsps_musb_enable,
 	.disable	= dsps_musb_disable,
