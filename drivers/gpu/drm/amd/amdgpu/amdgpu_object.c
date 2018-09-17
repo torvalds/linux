@@ -348,7 +348,8 @@ int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
 	if (r)
 		return r;
 
-	amdgpu_bo_unreserve(*bo_ptr);
+	if (*bo_ptr)
+		amdgpu_bo_unreserve(*bo_ptr);
 
 	return 0;
 }
