@@ -628,14 +628,14 @@ static int bq25890_hw_init(struct bq25890_device *bq)
 	if (ret < 0) {
 		dev_dbg(bq->dev, "Reset failed %d\n", ret);
 		return ret;
-	};
+	}
 
 	/* disable watchdog */
 	ret = bq25890_field_write(bq, F_WD, 0);
 	if (ret < 0) {
 		dev_dbg(bq->dev, "Disabling watchdog failed %d\n", ret);
 		return ret;
-	};
+	}
 
 	/* initialize currents/voltages and other parameters */
 	for (i = 0; i < ARRAY_SIZE(init_data); i++) {
@@ -644,7 +644,7 @@ static int bq25890_hw_init(struct bq25890_device *bq)
 		if (ret < 0) {
 			dev_dbg(bq->dev, "Writing init data failed %d\n", ret);
 			return ret;
-		};
+		}
 	}
 
 	/* Configure ADC for continuous conversions. This does not enable it. */
@@ -652,13 +652,13 @@ static int bq25890_hw_init(struct bq25890_device *bq)
 	if (ret < 0) {
 		dev_dbg(bq->dev, "Config ADC failed %d\n", ret);
 		return ret;
-	};
+	}
 
 	ret = bq25890_get_chip_state(bq, &state);
 	if (ret < 0) {
 		dev_dbg(bq->dev, "Get state failed %d\n", ret);
 		return ret;
-	};
+	}
 
 	mutex_lock(&bq->lock);
 	bq->state = state;
