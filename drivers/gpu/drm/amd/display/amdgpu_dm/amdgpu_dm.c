@@ -1204,7 +1204,7 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 	struct dc_interrupt_params int_params = {0};
 	int r;
 	int i;
-	unsigned client_id = AMDGPU_IH_CLIENTID_LEGACY;
+	unsigned client_id = AMDGPU_IRQ_CLIENTID_LEGACY;
 
 	if (adev->asic_type == CHIP_VEGA10 ||
 	    adev->asic_type == CHIP_VEGA12 ||

@@ -124,7 +124,7 @@ void amdgpu_irq_disable_all(struct amdgpu_device *adev)
 	int r;
 
 	spin_lock_irqsave(&adev->irq.lock, irqflags);
-	for (i = 0; i < AMDGPU_IH_CLIENTID_MAX; ++i) {
+	for (i = 0; i < AMDGPU_IRQ_CLIENTID_MAX; ++i) {
 		if (!adev->irq.client[i].sources)
 			continue;
 
@@ -302,7 +302,7 @@ void amdgpu_irq_fini(struct amdgpu_device *adev)
 		cancel_work_sync(&adev->reset_work);
 	}
 
-	for (i = 0; i < AMDGPU_IH_CLIENTID_MAX; ++i) {
+	for (i = 0; i < AMDGPU_IRQ_CLIENTID_MAX; ++i) {
 		if (!adev->irq.client[i].sources)
 			continue;
 
@@ -342,7 +342,7 @@ int amdgpu_irq_add_id(struct amdgpu_device *adev,
 		      unsigned client_id, unsigned src_id,
 		      struct amdgpu_irq_src *source)
 {
-	if (client_id >= AMDGPU_IH_CLIENTID_MAX)
+	if (client_id >= AMDGPU_IRQ_CLIENTID_MAX)
 		return -EINVAL;
 
 	if (src_id >= AMDGPU_MAX_IRQ_SRC_ID)
@@ -396,7 +396,7 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 
 	trace_amdgpu_iv(entry);
 
-	if (client_id >= AMDGPU_IH_CLIENTID_MAX) {
+	if (client_id >= AMDGPU_IRQ_CLIENTID_MAX) {
 		DRM_DEBUG("Invalid client_id in IV: %d\n", client_id);
 		return;
 	}
@@ -469,7 +469,7 @@ void amdgpu_irq_gpu_reset_resume_helper(struct amdgpu_device *adev)
 {
 	int i, j, k;
 
-	for (i = 0; i < AMDGPU_IH_CLIENTID_MAX; ++i) {
+	for (i = 0; i < AMDGPU_IRQ_CLIENTID_MAX; ++i) {
 		if (!adev->irq.client[i].sources)
 			continue;
 

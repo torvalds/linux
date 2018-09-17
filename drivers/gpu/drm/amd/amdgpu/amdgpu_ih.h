@@ -24,12 +24,8 @@
 #ifndef __AMDGPU_IH_H__
 #define __AMDGPU_IH_H__
 
-#include "soc15_ih_clientid.h"
-
 struct amdgpu_device;
-
-#define AMDGPU_IH_CLIENTID_LEGACY 0
-#define AMDGPU_IH_CLIENTID_MAX SOC15_IH_CLIENTID_MAX
+struct amdgpu_iv_entry;
 
 /*
  * R6xx+ IH ring
@@ -49,22 +45,6 @@ struct amdgpu_ih_ring {
 	bool			use_doorbell;
 	bool			use_bus_addr;
 	dma_addr_t		rb_dma_addr; /* only used when use_bus_addr = true */
-};
-
-#define AMDGPU_IH_SRC_DATA_MAX_SIZE_DW 4
-
-struct amdgpu_iv_entry {
-	unsigned client_id;
-	unsigned src_id;
-	unsigned ring_id;
-	unsigned vmid;
-	unsigned vmid_src;
-	uint64_t timestamp;
-	unsigned timestamp_src;
-	unsigned pasid;
-	unsigned pasid_src;
-	unsigned src_data[AMDGPU_IH_SRC_DATA_MAX_SIZE_DW];
-	const uint32_t *iv_entry;
 };
 
 /* provided by the ih block */

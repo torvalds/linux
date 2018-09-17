@@ -4106,17 +4106,17 @@ static int smu7_register_irq_handlers(struct pp_hwmgr *hwmgr)
 	source->funcs = &smu7_irq_funcs;
 
 	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
-			AMDGPU_IH_CLIENTID_LEGACY,
+			AMDGPU_IRQ_CLIENTID_LEGACY,
 			VISLANDS30_IV_SRCID_CG_TSS_THERMAL_LOW_TO_HIGH,
 			source);
 	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
-			AMDGPU_IH_CLIENTID_LEGACY,
+			AMDGPU_IRQ_CLIENTID_LEGACY,
 			VISLANDS30_IV_SRCID_CG_TSS_THERMAL_HIGH_TO_LOW,
 			source);
 
 	/* Register CTF(GPIO_19) interrupt */
 	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
-			AMDGPU_IH_CLIENTID_LEGACY,
+			AMDGPU_IRQ_CLIENTID_LEGACY,
 			VISLANDS30_IV_SRCID_GPIO_19,
 			source);
 

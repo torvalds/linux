@@ -859,11 +859,11 @@ static int gmc_v6_0_sw_init(void *handle)
 		adev->gmc.vram_type = gmc_v6_0_convert_vram_type(tmp);
 	}
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 146, &adev->gmc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 146, &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 147, &adev->gmc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 147, &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
