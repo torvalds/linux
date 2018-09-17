@@ -244,6 +244,7 @@ static int lio_get_link_ksettings(struct net_device *netdev,
 		    linfo->link.s.if_mode == INTERFACE_MODE_XLAUI ||
 		    linfo->link.s.if_mode == INTERFACE_MODE_XFI) {
 			dev_dbg(&oct->pci_dev->dev, "ecmd->base.transceiver is XCVR_EXTERNAL\n");
+			ecmd->base.transceiver = XCVR_EXTERNAL;
 		} else {
 			dev_err(&oct->pci_dev->dev, "Unknown link interface mode: %d\n",
 				linfo->link.s.if_mode);
@@ -277,10 +278,12 @@ static int lio_get_link_ksettings(struct net_device *netdev,
 						 10000baseCR_Full);
 				}
 
-				if (oct->no_speed_setting == 0)
+				if (oct->no_speed_setting == 0) {
 					liquidio_get_speed(lio);
-				else
+					liquidio_get_fec(lio);
+				} else {
 					oct->speed_setting = 25;
+				}
 
 				if (oct->speed_setting == 10) {
 					ethtool_link_ksettings_add_link_mode
@@ -303,6 +306,24 @@ static int lio_get_link_ksettings(struct net_device *netdev,
 					ethtool_link_ksettings_add_link_mode
 						(ecmd, advertising,
 						 25000baseCR_Full);
+				}
+
+				if (oct->no_speed_setting)
+					break;
+
+				ethtool_link_ksettings_add_link_mode
+					(ecmd, supported, FEC_RS);
+				ethtool_link_ksettings_add_link_mode
+					(ecmd, supported, FEC_NONE);
+					/*FEC_OFF*/
+				if (oct->props[lio->ifidx].fec == 1) {
+					/* ETHTOOL_FEC_RS */
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, advertising, FEC_RS);
+				} else {
+					/* ETHTOOL_FEC_OFF */
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, advertising, FEC_NONE);
 				}
 			} else { /* VF */
 				if (linfo->link.s.speed == 10000) {
@@ -3029,9 +3050,60 @@ static int lio_set_priv_flags(struct net_device *netdev, u32 flags)
 	return 0;
 }
 
+static int lio_get_fecparam(struct net_device *netdev,
+			    struct ethtool_fecparam *fec)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+
+	fec->active_fec = ETHTOOL_FEC_NONE;
+	fec->fec = ETHTOOL_FEC_NONE;
+
+	if (oct->subsystem_id == OCTEON_CN2350_25GB_SUBSYS_ID ||
+	    oct->subsystem_id == OCTEON_CN2360_25GB_SUBSYS_ID) {
+		if (oct->no_speed_setting == 1)
+			return 0;
+
+		liquidio_get_fec(lio);
+		fec->fec = (ETHTOOL_FEC_RS | ETHTOOL_FEC_OFF);
+		if (oct->props[lio->ifidx].fec == 1)
+			fec->active_fec = ETHTOOL_FEC_RS;
+		else
+			fec->active_fec = ETHTOOL_FEC_OFF;
+	}
+
+	return 0;
+}
+
+static int lio_set_fecparam(struct net_device *netdev,
+			    struct ethtool_fecparam *fec)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+
+	if (oct->subsystem_id == OCTEON_CN2350_25GB_SUBSYS_ID ||
+	    oct->subsystem_id == OCTEON_CN2360_25GB_SUBSYS_ID) {
+		if (oct->no_speed_setting == 1)
+			return -EOPNOTSUPP;
+
+		if (fec->fec & ETHTOOL_FEC_OFF)
+			liquidio_set_fec(lio, 0);
+		else if (fec->fec & ETHTOOL_FEC_RS)
+			liquidio_set_fec(lio, 1);
+		else
+			return -EOPNOTSUPP;
+	} else {
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static const struct ethtool_ops lio_ethtool_ops = {
 	.get_link_ksettings	= lio_get_link_ksettings,
 	.set_link_ksettings	= lio_set_link_ksettings,
+	.get_fecparam		= lio_get_fecparam,
+	.set_fecparam		= lio_set_fecparam,
 	.get_link		= ethtool_op_get_link,
 	.get_drvinfo		= lio_get_drvinfo,
 	.get_ringparam		= lio_ethtool_get_ringparam,

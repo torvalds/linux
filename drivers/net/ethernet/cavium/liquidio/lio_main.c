@@ -3761,6 +3761,14 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 			octeon_dev->speed_setting = 10;
 		}
 		octeon_dev->speed_boot = octeon_dev->speed_setting;
+
+		/* don't read FEC setting if unsupported by f/w (see above) */
+		if (octeon_dev->speed_boot == 25 &&
+		    !octeon_dev->no_speed_setting) {
+			liquidio_get_fec(lio);
+			octeon_dev->props[lio->ifidx].fec_boot =
+				octeon_dev->props[lio->ifidx].fec;
+		}
 	}
 
 	devlink = devlink_alloc(&liquidio_devlink_ops,

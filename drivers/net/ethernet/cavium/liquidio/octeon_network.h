@@ -84,7 +84,10 @@ struct oct_nic_stats_ctrl {
 
 struct oct_nic_seapi_resp {
 	u64 rh;
-	u32 speed;
+	union {
+		u32 fec_setting;
+		u32 speed;
+	};
 	u64 status;
 };
 
@@ -236,6 +239,8 @@ int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_qs);
 
 int liquidio_get_speed(struct lio *lio);
 int liquidio_set_speed(struct lio *lio, int speed);
+int liquidio_get_fec(struct lio *lio);
+int liquidio_set_fec(struct lio *lio, int on_off);
 
 /**
  * \brief Net device change_mtu

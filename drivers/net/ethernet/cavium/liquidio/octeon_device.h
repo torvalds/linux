@@ -316,6 +316,8 @@ struct octdev_props {
 	 * device pointer (used for OS specific calls).
 	 */
 	int    rx_on;
+	int    fec;
+	int    fec_boot;
 	int    napi_enabled;
 	int    gmxport;
 	struct net_device *netdev;

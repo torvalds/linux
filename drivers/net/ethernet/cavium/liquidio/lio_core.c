@@ -1654,3 +1654,151 @@ int liquidio_get_speed(struct lio *lio)
 
 	return retval;
 }
+
+int liquidio_set_fec(struct lio *lio, int on_off)
+{
+	struct oct_nic_seapi_resp *resp;
+	struct octeon_soft_command *sc;
+	struct octeon_device *oct;
+	union octnet_cmd *ncmd;
+	int retval;
+	u32 var;
+
+	oct = lio->oct_dev;
+
+	if (oct->props[lio->ifidx].fec == on_off)
+		return 0;
+
+	if (!OCTEON_CN23XX_PF(oct)) {
+		dev_err(&oct->pci_dev->dev, "%s: SET FEC only for PF\n",
+			__func__);
+		return -1;
+	}
+
+	if (oct->speed_boot != 25)  {
+		dev_err(&oct->pci_dev->dev,
+			"Set FEC only when link speed is 25G during insmod\n");
+		return -1;
+	}
+
+	sc = octeon_alloc_soft_command(oct, OCTNET_CMD_SIZE,
+				       sizeof(struct oct_nic_seapi_resp), 0);
+
+	ncmd = sc->virtdptr;
+	resp = sc->virtrptr;
+	memset(resp, 0, sizeof(struct oct_nic_seapi_resp));
+
+	init_completion(&sc->complete);
+	sc->sc_status = OCTEON_REQUEST_PENDING;
+
+	ncmd->u64 = 0;
+	ncmd->s.cmd = SEAPI_CMD_FEC_SET;
+	ncmd->s.param1 = on_off;
+	/* SEAPI_CMD_FEC_DISABLE(0) or SEAPI_CMD_FEC_RS(1) */
+
+	octeon_swap_8B_data((u64 *)ncmd, (OCTNET_CMD_SIZE >> 3));
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+
+	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
+				    OPCODE_NIC_UBOOT_CTL, 0, 0, 0);
+
+	retval = octeon_send_soft_command(oct, sc);
+	if (retval == IQ_SEND_FAILED) {
+		dev_info(&oct->pci_dev->dev, "Failed to send soft command\n");
+		octeon_free_soft_command(oct, sc);
+		return -EIO;
+	}
+
+	retval = wait_for_sc_completion_timeout(oct, sc, 0);
+	if (retval)
+		return (-EIO);
+
+	var = be32_to_cpu(resp->fec_setting);
+	resp->fec_setting = var;
+	if (var != on_off) {
+		dev_err(&oct->pci_dev->dev,
+			"Setting failed fec= %x, expect %x\n",
+			var, on_off);
+		oct->props[lio->ifidx].fec = var;
+		if (resp->fec_setting == SEAPI_CMD_FEC_SET_RS)
+			oct->props[lio->ifidx].fec = 1;
+		else
+			oct->props[lio->ifidx].fec = 0;
+	}
+
+	WRITE_ONCE(sc->caller_is_done, true);
+
+	if (oct->props[lio->ifidx].fec !=
+	    oct->props[lio->ifidx].fec_boot) {
+		dev_dbg(&oct->pci_dev->dev,
+			"Reloade driver to chang fec to %s\n",
+			oct->props[lio->ifidx].fec ? "on" : "off");
+	}
+
+	return retval;
+}
+
+int liquidio_get_fec(struct lio *lio)
+{
+	struct oct_nic_seapi_resp *resp;
+	struct octeon_soft_command *sc;
+	struct octeon_device *oct;
+	union octnet_cmd *ncmd;
+	int retval;
+	u32 var;
+
+	oct = lio->oct_dev;
+
+	sc = octeon_alloc_soft_command(oct, OCTNET_CMD_SIZE,
+				       sizeof(struct oct_nic_seapi_resp), 0);
+	if (!sc)
+		return -ENOMEM;
+
+	ncmd = sc->virtdptr;
+	resp = sc->virtrptr;
+	memset(resp, 0, sizeof(struct oct_nic_seapi_resp));
+
+	init_completion(&sc->complete);
+	sc->sc_status = OCTEON_REQUEST_PENDING;
+
+	ncmd->u64 = 0;
+	ncmd->s.cmd = SEAPI_CMD_FEC_GET;
+
+	octeon_swap_8B_data((u64 *)ncmd, (OCTNET_CMD_SIZE >> 3));
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+
+	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
+				    OPCODE_NIC_UBOOT_CTL, 0, 0, 0);
+
+	retval = octeon_send_soft_command(oct, sc);
+	if (retval == IQ_SEND_FAILED) {
+		dev_info(&oct->pci_dev->dev,
+			 "%s: Failed to send soft command\n", __func__);
+		octeon_free_soft_command(oct, sc);
+		return -EIO;
+	}
+
+	retval = wait_for_sc_completion_timeout(oct, sc, 0);
+	if (retval)
+		return retval;
+
+	var = be32_to_cpu(resp->fec_setting);
+	resp->fec_setting = var;
+	if (resp->fec_setting == SEAPI_CMD_FEC_SET_RS)
+		oct->props[lio->ifidx].fec = 1;
+	else
+		oct->props[lio->ifidx].fec = 0;
+
+	WRITE_ONCE(sc->caller_is_done, true);
+
+	if (oct->props[lio->ifidx].fec !=
+	    oct->props[lio->ifidx].fec_boot) {
+		dev_dbg(&oct->pci_dev->dev,
+			"Reloade driver to chang fec to %s\n",
+			oct->props[lio->ifidx].fec ? "on" : "off");
+	}
+
+	return retval;
+}

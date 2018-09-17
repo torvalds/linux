@@ -260,6 +260,11 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 
 #define   OCTNET_CMD_FAIL 0x1
 
+#define   SEAPI_CMD_FEC_SET             0x0
+#define   SEAPI_CMD_FEC_SET_DISABLE       0x0
+#define   SEAPI_CMD_FEC_SET_RS            0x1
+#define   SEAPI_CMD_FEC_GET             0x1
+
 #define   SEAPI_CMD_SPEED_SET           0x2
 #define   SEAPI_CMD_SPEED_GET           0x3
 
