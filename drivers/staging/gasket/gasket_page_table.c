@@ -1287,7 +1287,7 @@ int gasket_alloc_coherent_memory(struct gasket_dev *gasket_dev, u64 size,
 		return -EINVAL;
 
 	mem = dma_alloc_coherent(gasket_get_device(gasket_dev),
-				 num_pages * PAGE_SIZE, &handle, 0);
+				 num_pages * PAGE_SIZE, &handle, GFP_KERNEL);
 	if (!mem)
 		goto nomem;
 
