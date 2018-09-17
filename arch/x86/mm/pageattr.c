@@ -286,6 +286,98 @@ static void cpa_flush_array(unsigned long *start, int numpages, int cache,
 	}
 }
 
+#ifdef CONFIG_PCI_BIOS
+/*
+ * The BIOS area between 640k and 1Mb needs to be executable for PCI BIOS
+ * based config access (CONFIG_PCI_GOBIOS) support.
+ */
+#define BIOS_PFN	PFN_DOWN(BIOS_BEGIN)
+#define BIOS_PFN_END	PFN_DOWN(BIOS_END)
+
+static pgprotval_t protect_pci_bios(unsigned long pfn)
+{
+	if (pcibios_enabled && within(pfn, BIOS_PFN, BIOS_PFN_END))
+		return _PAGE_NX;
+	return 0;
+}
+#else
+static pgprotval_t protect_pci_bios(unsigned long pfn)
+{
+	return 0;
+}
+#endif
+
+/*
+ * The .rodata section needs to be read-only. Using the pfn catches all
+ * aliases.  This also includes __ro_after_init, so do not enforce until
+ * kernel_set_to_readonly is true.
+ */
+static pgprotval_t protect_rodata(unsigned long pfn)
+{
+	unsigned long start_pfn = __pa_symbol(__start_rodata) >> PAGE_SHIFT;
+	unsigned long end_pfn = __pa_symbol(__end_rodata) >> PAGE_SHIFT;
+
+	if (kernel_set_to_readonly && within(pfn, start_pfn, end_pfn))
+		return _PAGE_RW;
+	return 0;
+}
+
+/*
+ * Protect kernel text against becoming non executable by forbidding
+ * _PAGE_NX.  This protects only the high kernel mapping (_text -> _etext)
+ * out of which the kernel actually executes.  Do not protect the low
+ * mapping.
+ *
+ * This does not cover __inittext since that is gone after boot.
+ */
+static pgprotval_t protect_kernel_text(unsigned long address)
+{
+	if (within(address, (unsigned long)_text, (unsigned long)_etext))
+		return _PAGE_NX;
+	return 0;
+}
+
+#if defined(CONFIG_X86_64)
+/*
+ * Once the kernel maps the text as RO (kernel_set_to_readonly is set),
+ * kernel text mappings for the large page aligned text, rodata sections
+ * will be always read-only. For the kernel identity mappings covering the
+ * holes caused by this alignment can be anything that user asks.
+ *
+ * This will preserve the large page mappings for kernel text/data at no
+ * extra cost.
+ */
+static pgprotval_t protect_kernel_text_ro(unsigned long address)
+{
+	unsigned long end = (unsigned long)__end_rodata_hpage_align;
+	unsigned long start = (unsigned long)_text;
+	unsigned int level;
+
+	if (!kernel_set_to_readonly || !within(address, start, end))
+		return 0;
+	/*
+	 * Don't enforce the !RW mapping for the kernel text mapping, if
+	 * the current mapping is already using small page mapping.  No
+	 * need to work hard to preserve large page mappings in this case.
+	 *
+	 * This also fixes the Linux Xen paravirt guest boot failure caused
+	 * by unexpected read-only mappings for kernel identity
+	 * mappings. In this paravirt guest case, the kernel text mapping
+	 * and the kernel identity mapping share the same page-table pages,
+	 * so the protections for kernel text and identity mappings have to
+	 * be the same.
+	 */
+	if (lookup_address(address, &level) && (level != PG_LEVEL_4K))
+		return _PAGE_RW;
+	return 0;
+}
+#else
+static pgprotval_t protect_kernel_text_ro(unsigned long address)
+{
+	return 0;
+}
+#endif
+
 /*
  * Certain areas of memory on x86 require very specific protection flags,
  * for example the BIOS area or kernel text. Callers don't always get this
@@ -293,77 +385,19 @@ static void cpa_flush_array(unsigned long *start, int numpages, int cache,
  * checks and fixes these known static required protection bits.
  */
 static inline pgprot_t static_protections(pgprot_t prot, unsigned long address,
-				   unsigned long pfn)
+					  unsigned long pfn)
 {
-	pgprot_t forbidden = __pgprot(0);
+	pgprotval_t forbidden;
 
-	/*
-	 * The BIOS area between 640k and 1Mb needs to be executable for
-	 * PCI BIOS based config access (CONFIG_PCI_GOBIOS) support.
-	 */
-#ifdef CONFIG_PCI_BIOS
-	if (pcibios_enabled && within(pfn, BIOS_BEGIN >> PAGE_SHIFT, BIOS_END >> PAGE_SHIFT))
-		pgprot_val(forbidden) |= _PAGE_NX;
-#endif
+	/* Operate on the virtual address */
+	forbidden  = protect_kernel_text(address);
+	forbidden |= protect_kernel_text_ro(address);
 
-	/*
-	 * The kernel text needs to be executable for obvious reasons
-	 * Does not cover __inittext since that is gone later on. On
-	 * 64bit we do not enforce !NX on the low mapping
-	 */
-	if (within(address, (unsigned long)_text, (unsigned long)_etext))
-		pgprot_val(forbidden) |= _PAGE_NX;
+	/* Check the PFN directly */
+	forbidden |= protect_pci_bios(pfn);
+	forbidden |= protect_rodata(pfn);
 
-	/*
-	 * The .rodata section needs to be read-only. Using the pfn
-	 * catches all aliases.  This also includes __ro_after_init,
-	 * so do not enforce until kernel_set_to_readonly is true.
-	 */
-	if (kernel_set_to_readonly &&
-	    within(pfn, __pa_symbol(__start_rodata) >> PAGE_SHIFT,
-		   __pa_symbol(__end_rodata) >> PAGE_SHIFT))
-		pgprot_val(forbidden) |= _PAGE_RW;
-
-#if defined(CONFIG_X86_64)
-	/*
-	 * Once the kernel maps the text as RO (kernel_set_to_readonly is set),
-	 * kernel text mappings for the large page aligned text, rodata sections
-	 * will be always read-only. For the kernel identity mappings covering
-	 * the holes caused by this alignment can be anything that user asks.
-	 *
-	 * This will preserve the large page mappings for kernel text/data
-	 * at no extra cost.
-	 */
-	if (kernel_set_to_readonly &&
-	    within(address, (unsigned long)_text,
-		   (unsigned long)__end_rodata_hpage_align)) {
-		unsigned int level;
-
-		/*
-		 * Don't enforce the !RW mapping for the kernel text mapping,
-		 * if the current mapping is already using small page mapping.
-		 * No need to work hard to preserve large page mappings in this
-		 * case.
-		 *
-		 * This also fixes the Linux Xen paravirt guest boot failure
-		 * (because of unexpected read-only mappings for kernel identity
-		 * mappings). In this paravirt guest case, the kernel text
-		 * mapping and the kernel identity mapping share the same
-		 * page-table pages. Thus we can't really use different
-		 * protections for the kernel text and identity mappings. Also,
-		 * these shared mappings are made of small page mappings.
-		 * Thus this don't enforce !RW mapping for small page kernel
-		 * text mapping logic will help Linux Xen parvirt guest boot
-		 * as well.
-		 */
-		if (lookup_address(address, &level) && (level != PG_LEVEL_4K))
-			pgprot_val(forbidden) |= _PAGE_RW;
-	}
-#endif
-
-	prot = __pgprot(pgprot_val(prot) & ~pgprot_val(forbidden));
-
-	return prot;
+	return __pgprot(pgprot_val(prot) & ~forbidden);
 }
 
 /*
