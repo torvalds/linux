@@ -103,12 +103,12 @@ config USB_DWC3_OF_SIMPLE
 	 Say 'Y' or 'M' if you have one such device.
 
 config USB_DWC3_ROCKCHIP
-       tristate "Rockchip Platforms"
-       depends on EXTCON && (ARCH_ROCKCHIP || COMPILE_TEST)
-       depends on OF
-       default USB_DWC3
-       help
-         Support of USB2/3 functionality in Rockchip
+	tristate "Rockchip Platforms"
+	depends on OF && EXTCON && (ARCH_ROCKCHIP || COMPILE_TEST)
+	depends on USB=y || USB=USB_DWC3
+	default USB_DWC3
+	help
+	  Support of USB2/3 functionality in Rockchip platforms.
 
 config USB_DWC3_ST
 	tristate "STMicroelectronics Platforms"
