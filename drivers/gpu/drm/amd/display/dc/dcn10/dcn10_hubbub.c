@@ -87,6 +87,23 @@ void hubbub1_wm_read_state(struct hubbub *hubbub,
 	s->dram_clk_chanage = REG_READ(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D);
 }
 
+void hubbub1_disable_allow_self_refresh(struct hubbub *hubbub)
+{
+	REG_UPDATE(DCHUBBUB_ARB_DRAM_STATE_CNTL,
+			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE, 0);
+}
+
+bool hububu1_is_allow_self_refresh_enabled(struct hubbub *hubbub)
+{
+	uint32_t enable = 0;
+
+	REG_GET(DCHUBBUB_ARB_DRAM_STATE_CNTL,
+			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE, &enable);
+
+	return true ? false : enable;
+}
+
+
 bool hubbub1_verify_allow_pstate_change_high(
 	struct hubbub *hubbub)
 {
