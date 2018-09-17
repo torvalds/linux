@@ -3702,8 +3702,7 @@ static const struct amdgpu_display_funcs dce_v11_0_display_funcs = {
 
 static void dce_v11_0_set_display_funcs(struct amdgpu_device *adev)
 {
-	if (adev->mode_info.funcs == NULL)
-		adev->mode_info.funcs = &dce_v11_0_display_funcs;
+	adev->mode_info.funcs = &dce_v11_0_display_funcs;
 }
 
 static const struct amdgpu_irq_src_funcs dce_v11_0_crtc_irq_funcs = {

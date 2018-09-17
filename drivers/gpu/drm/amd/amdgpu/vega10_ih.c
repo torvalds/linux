@@ -494,8 +494,7 @@ static const struct amdgpu_ih_funcs vega10_ih_funcs = {
 
 static void vega10_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 {
-	if (adev->irq.ih_funcs == NULL)
-		adev->irq.ih_funcs = &vega10_ih_funcs;
+	adev->irq.ih_funcs = &vega10_ih_funcs;
 }
 
 const struct amdgpu_ip_block_version vega10_ih_ip_block =

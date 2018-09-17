@@ -1388,8 +1388,7 @@ static const struct amdgpu_irq_src_funcs gmc_v7_0_irq_funcs = {
 
 static void gmc_v7_0_set_gmc_funcs(struct amdgpu_device *adev)
 {
-	if (adev->gmc.gmc_funcs == NULL)
-		adev->gmc.gmc_funcs = &gmc_v7_0_gmc_funcs;
+	adev->gmc.gmc_funcs = &gmc_v7_0_gmc_funcs;
 }
 
 static void gmc_v7_0_set_irq_funcs(struct amdgpu_device *adev)

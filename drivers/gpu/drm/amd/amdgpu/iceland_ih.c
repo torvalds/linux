@@ -447,8 +447,7 @@ static const struct amdgpu_ih_funcs iceland_ih_funcs = {
 
 static void iceland_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 {
-	if (adev->irq.ih_funcs == NULL)
-		adev->irq.ih_funcs = &iceland_ih_funcs;
+	adev->irq.ih_funcs = &iceland_ih_funcs;
 }
 
 const struct amdgpu_ip_block_version iceland_ih_ip_block =
