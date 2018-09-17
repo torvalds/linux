@@ -380,14 +380,39 @@ static void malidp500_modeset(struct malidp_hw_device *hwdev, struct videomode *
 		malidp_hw_clearbits(hwdev, MALIDP_DISP_FUNC_ILACED, MALIDP_DE_DISPLAY_FUNC);
 }
 
-static int malidp500_rotmem_required(struct malidp_hw_device *hwdev, u16 w, u16 h, u32 fmt)
+int malidp_format_get_bpp(u32 fmt)
+{
+	int bpp = drm_format_plane_cpp(fmt, 0) * 8;
+
+	if (bpp == 0) {
+		switch (fmt) {
+		case DRM_FORMAT_VUY101010:
+			bpp = 30;
+		case DRM_FORMAT_YUV420_10BIT:
+			bpp = 15;
+			break;
+		case DRM_FORMAT_YUV420_8BIT:
+			bpp = 12;
+			break;
+		default:
+			bpp = 0;
+		}
+	}
+
+	return bpp;
+}
+
+static int malidp500_rotmem_required(struct malidp_hw_device *hwdev, u16 w,
+				     u16 h, u32 fmt, bool has_modifier)
 {
 	/*
 	 * Each layer needs enough rotation memory to fit 8 lines
 	 * worth of pixel data. Required size is then:
 	 *    size = rotated_width * (bpp / 8) * 8;
 	 */
-	return w * drm_format_plane_cpp(fmt, 0) * 8;
+	int bpp = malidp_format_get_bpp(fmt);
+
+	return w * bpp;
 }
 
 static void malidp500_se_write_pp_coefftab(struct malidp_hw_device *hwdev,
@@ -665,9 +690,9 @@ static void malidp550_modeset(struct malidp_hw_device *hwdev, struct videomode *
 		malidp_hw_clearbits(hwdev, MALIDP_DISP_FUNC_ILACED, MALIDP_DE_DISPLAY_FUNC);
 }
 
-static int malidp550_rotmem_required(struct malidp_hw_device *hwdev, u16 w, u16 h, u32 fmt)
+static int malidpx50_get_bytes_per_column(u32 fmt)
 {
-	u32 bytes_per_col;
+	u32 bytes_per_column;
 
 	switch (fmt) {
 	/* 8 lines at 4 bytes per pixel */
@@ -693,19 +718,77 @@ static int malidp550_rotmem_required(struct malidp_hw_device *hwdev, u16 w, u16 
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_X0L0:
-	case DRM_FORMAT_X0L2:
-		bytes_per_col = 32;
+		bytes_per_column = 32;
 		break;
 	/* 16 lines at 1.5 bytes per pixel */
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_YUV420:
-		bytes_per_col = 24;
+	/* 8 lines at 3 bytes per pixel */
+	case DRM_FORMAT_VUY888:
+	/* 16 lines at 12 bits per pixel */
+	case DRM_FORMAT_YUV420_8BIT:
+	/* 8 lines at 3 bytes per pixel */
+	case DRM_FORMAT_P010:
+		bytes_per_column = 24;
+		break;
+	/* 8 lines at 30 bits per pixel */
+	case DRM_FORMAT_VUY101010:
+	/* 16 lines at 15 bits per pixel */
+	case DRM_FORMAT_YUV420_10BIT:
+		bytes_per_column = 30;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return w * bytes_per_col;
+	return bytes_per_column;
+}
+
+static int malidp550_rotmem_required(struct malidp_hw_device *hwdev, u16 w,
+				     u16 h, u32 fmt, bool has_modifier)
+{
+	int bytes_per_column = 0;
+
+	switch (fmt) {
+	/* 8 lines at 15 bits per pixel */
+	case DRM_FORMAT_YUV420_10BIT:
+		bytes_per_column = 15;
+		break;
+	/* Uncompressed YUV 420 10 bit single plane cannot be rotated */
+	case DRM_FORMAT_X0L2:
+		if (has_modifier)
+			bytes_per_column = 8;
+		else
+			return -EINVAL;
+		break;
+	default:
+		bytes_per_column = malidpx50_get_bytes_per_column(fmt);
+	}
+
+	if (bytes_per_column == -EINVAL)
+		return bytes_per_column;
+
+	return w * bytes_per_column;
+}
+
+static int malidp650_rotmem_required(struct malidp_hw_device *hwdev, u16 w,
+				     u16 h, u32 fmt, bool has_modifier)
+{
+	int bytes_per_column = 0;
+
+	switch (fmt) {
+	/* 16 lines at 2 bytes per pixel */
+	case DRM_FORMAT_X0L2:
+		bytes_per_column = 32;
+		break;
+	default:
+		bytes_per_column = malidpx50_get_bytes_per_column(fmt);
+	}
+
+	if (bytes_per_column == -EINVAL)
+		return bytes_per_column;
+
+	return w * bytes_per_column;
 }
 
 static int malidp550_se_set_scaling_coeffs(struct malidp_hw_device *hwdev,
@@ -984,7 +1067,7 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 		.in_config_mode = malidp550_in_config_mode,
 		.set_config_valid = malidp550_set_config_valid,
 		.modeset = malidp550_modeset,
-		.rotmem_required = malidp550_rotmem_required,
+		.rotmem_required = malidp650_rotmem_required,
 		.se_set_scaling_coeffs = malidp550_se_set_scaling_coeffs,
 		.se_calc_mclk = malidp550_se_calc_mclk,
 		.enable_memwrite = malidp550_enable_memwrite,
