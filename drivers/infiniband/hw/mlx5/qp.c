@@ -1279,7 +1279,7 @@ static int create_raw_packet_qp_tir(struct mlx5_ib_dev *dev,
 
 	if (dev->rep)
 		MLX5_SET(tirc, tirc, self_lb_block,
-			 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST_);
+			 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST);
 
 	err = mlx5_core_create_tir(dev->mdev, in, inlen, &rq->tirn);
 
@@ -1582,7 +1582,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 create_tir:
 	if (dev->rep)
 		MLX5_SET(tirc, tirc, self_lb_block,
-			 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST_);
+			 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST);
 
 	err = mlx5_core_create_tir(dev->mdev, in, inlen, &qp->rss_qp.tirn);
 
