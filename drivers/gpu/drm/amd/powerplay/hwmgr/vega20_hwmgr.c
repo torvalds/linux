@@ -46,6 +46,9 @@
 #include "ppinterrupt.h"
 #include "pp_overdriver.h"
 #include "pp_thermal.h"
+#include "soc15_common.h"
+#include "smuio/smuio_9_0_offset.h"
+#include "smuio/smuio_9_0_sh_mask.h"
 
 static void vega20_set_default_registry_data(struct pp_hwmgr *hwmgr)
 {
@@ -1915,6 +1918,8 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			      void *value, int *size)
 {
 	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
+	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t val_vid;
 	int ret = 0;
 
 	switch (idx) {
@@ -1948,6 +1953,13 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	case AMDGPU_PP_SENSOR_GPU_POWER:
 		*size = 16;
 		ret = vega20_get_gpu_power(hwmgr, (uint32_t *)value);
+		break;
+	case AMDGPU_PP_SENSOR_VDDGFX:
+		val_vid = (RREG32_SOC15(SMUIO, 0, mmSMUSVI0_TEL_PLANE0) &
+			SMUSVI0_TEL_PLANE0__SVI0_PLANE0_VDDCOR_MASK) >>
+			SMUSVI0_TEL_PLANE0__SVI0_PLANE0_VDDCOR__SHIFT;
+		*((uint32_t *)value) =
+			(uint32_t)convert_to_vddc((uint8_t)val_vid);
 		break;
 	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
 		ret = vega20_get_enabled_smc_features(hwmgr, (uint64_t *)value);
