@@ -1230,8 +1230,6 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 			dpu_enc->phys_encs[i]->connector = NULL;
 	}
 
-	dpu_enc->cur_master = NULL;
-
 	DPU_DEBUG_ENC(dpu_enc, "encoder disabled\n");
 
 	dpu_rm_release(&dpu_kms->rm, drm_enc);
@@ -2072,6 +2070,8 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 				dpu_enc != 0, dpu_kms != 0);
 		return -EINVAL;
 	}
+
+	dpu_enc->cur_master = NULL;
 
 	memset(&phys_params, 0, sizeof(phys_params));
 	phys_params.dpu_kms = dpu_kms;
