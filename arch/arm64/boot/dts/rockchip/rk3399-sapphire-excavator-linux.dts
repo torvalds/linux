@@ -335,7 +335,7 @@
 				"rockchip,camera_sleep";
 		pinctrl-0 = <&cam0_default_pins>;
 		pinctrl-1 = <&cam0_sleep_pins>;
-		rockchip,pd-gpio = <&gpio3 4 GPIO_ACTIVE_LOW>;
+		rockchip,pd-gpio = <&gpio1 4 GPIO_ACTIVE_LOW>;
 		//rockchip,pwr-gpio = <&gpio3 13 0>;
 		/* mipi switch control*/
 		rockchip,rst-gpio = <&gpio2 10 GPIO_ACTIVE_LOW>;
