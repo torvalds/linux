@@ -42,6 +42,13 @@ struct cpa_data {
 	struct page	**pages;
 };
 
+enum cpa_warn {
+	CPA_PROTECT,
+	CPA_DETECT,
+};
+
+static const int cpa_warn_level = CPA_PROTECT;
+
 /*
  * Serialize cpa() (for !DEBUG_PAGEALLOC which uses large identity mappings)
  * using cpa_lock. So that we don't allow any other cpu, with stale large tlb
@@ -395,6 +402,28 @@ static pgprotval_t protect_kernel_text_ro(unsigned long start,
 }
 #endif
 
+static inline bool conflicts(pgprot_t prot, pgprotval_t val)
+{
+	return (pgprot_val(prot) & ~val) != pgprot_val(prot);
+}
+
+static inline void check_conflict(int warnlvl, pgprot_t prot, pgprotval_t val,
+				  unsigned long start, unsigned long end,
+				  unsigned long pfn, const char *txt)
+{
+	static const char *lvltxt[] = {
+		[CPA_PROTECT]	= "protect",
+		[CPA_DETECT]	= "detect",
+	};
+
+	if (warnlvl > cpa_warn_level || !conflicts(prot, val))
+		return;
+
+	pr_warn("CPA %8s %10s: 0x%016lx - 0x%016lx PFN %lx req %016llx prevent %016llx\n",
+		lvltxt[warnlvl], txt, start, end, pfn, (unsigned long long)pgprot_val(prot),
+		(unsigned long long)val);
+}
+
 /*
  * Certain areas of memory on x86 require very specific protection flags,
  * for example the BIOS area or kernel text. Callers don't always get this
@@ -402,19 +431,31 @@ static pgprotval_t protect_kernel_text_ro(unsigned long start,
  * checks and fixes these known static required protection bits.
  */
 static inline pgprot_t static_protections(pgprot_t prot, unsigned long start,
-					  unsigned long pfn, unsigned long npg)
+					  unsigned long pfn, unsigned long npg,
+					  int warnlvl)
 {
-	pgprotval_t forbidden;
+	pgprotval_t forbidden, res;
 	unsigned long end;
 
 	/* Operate on the virtual address */
 	end = start + npg * PAGE_SIZE - 1;
-	forbidden  = protect_kernel_text(start, end);
-	forbidden |= protect_kernel_text_ro(start, end);
+
+	res = protect_kernel_text(start, end);
+	check_conflict(warnlvl, prot, res, start, end, pfn, "Text NX");
+	forbidden = res;
+
+	res = protect_kernel_text_ro(start, end);
+	check_conflict(warnlvl, prot, res, start, end, pfn, "Text RO");
+	forbidden |= res;
 
 	/* Check the PFN directly */
-	forbidden |= protect_pci_bios(pfn, pfn + npg - 1);
-	forbidden |= protect_rodata(pfn, pfn + npg - 1);
+	res = protect_pci_bios(pfn, pfn + npg - 1);
+	check_conflict(warnlvl, prot, res, start, end, pfn, "PCIBIOS NX");
+	forbidden |= res;
+
+	res = protect_rodata(pfn, pfn + npg - 1);
+	check_conflict(warnlvl, prot, res, start, end, pfn, "Rodata RO");
+	forbidden |= res;
 
 	return __pgprot(pgprot_val(prot) & ~forbidden);
 }
@@ -686,10 +727,11 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 	 * in it results in a different pgprot than the first one of the
 	 * requested range. If yes, then the page needs to be split.
 	 */
-	new_prot = static_protections(req_prot, address, pfn, 1);
+	new_prot = static_protections(req_prot, address, pfn, 1, CPA_DETECT);
 	pfn = old_pfn;
 	for (i = 0, addr = lpaddr; i < numpages; i++, addr += PAGE_SIZE, pfn++) {
-		pgprot_t chk_prot = static_protections(req_prot, addr, pfn, 1);
+		pgprot_t chk_prot = static_protections(req_prot, addr, pfn, 1,
+						       CPA_DETECT);
 
 		if (pgprot_val(chk_prot) != pgprot_val(new_prot))
 			return 1;
@@ -1299,7 +1341,8 @@ repeat:
 		pgprot_val(new_prot) &= ~pgprot_val(cpa->mask_clr);
 		pgprot_val(new_prot) |= pgprot_val(cpa->mask_set);
 
-		new_prot = static_protections(new_prot, address, pfn, 1);
+		new_prot = static_protections(new_prot, address, pfn, 1,
+					      CPA_PROTECT);
 
 		new_prot = pgprot_clear_protnone_bits(new_prot);
 
