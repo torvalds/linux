@@ -854,6 +854,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 			return err;
 	}
 
+	mutex_lock(&priv->fs.tc.t_lock);
 	if (IS_ERR_OR_NULL(priv->fs.tc.t)) {
 		int tc_grp_size, tc_tbl_size;
 		u32 max_flow_counter;
@@ -873,6 +874,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 							    MLX5E_TC_TABLE_NUM_GROUPS,
 							    MLX5E_TC_FT_LEVEL, 0);
 		if (IS_ERR(priv->fs.tc.t)) {
+			mutex_unlock(&priv->fs.tc.t_lock);
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Failed to create tc offload table\n");
 			netdev_err(priv->netdev,
@@ -886,6 +888,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 
 	flow->rule[0] = mlx5_add_flow_rules(priv->fs.tc.t, &parse_attr->spec,
 					    &flow_act, dest, dest_ix);
+	mutex_unlock(&priv->fs.tc.t_lock);
 
 	if (IS_ERR(flow->rule[0]))
 		return PTR_ERR(flow->rule[0]);
@@ -904,10 +907,12 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 		mlx5_del_flow_rules(flow->rule[0]);
 	mlx5_fc_destroy(priv->mdev, counter);
 
+	mutex_lock(&priv->fs.tc.t_lock);
 	if (!mlx5e_tc_num_filters(priv, MLX5_TC_FLAG(NIC_OFFLOAD)) && priv->fs.tc.t) {
 		mlx5_destroy_flow_table(priv->fs.tc.t);
 		priv->fs.tc.t = NULL;
 	}
+	mutex_unlock(&priv->fs.tc.t_lock);
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		mlx5e_detach_mod_hdr(priv, flow);
@@ -3684,6 +3689,7 @@ int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
 	int err;
 
+	mutex_init(&tc->t_lock);
 	hash_init(tc->mod_hdr_tbl);
 	hash_init(tc->hairpin_tbl);
 
@@ -3722,6 +3728,7 @@ void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv)
 		mlx5_destroy_flow_table(tc->t);
 		tc->t = NULL;
 	}
+	mutex_destroy(&tc->t_lock);
 }
 
 int mlx5e_tc_esw_init(struct rhashtable *tc_ht)
