@@ -710,14 +710,11 @@ static int sprd_probe(struct platform_device *pdev)
 		up->uartclk = clk_get_rate(clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "not provide mem resource\n");
-		return -ENODEV;
-	}
-	up->mapbase = res->start;
 	up->membase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(up->membase))
 		return PTR_ERR(up->membase);
+
+	up->mapbase = res->start;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
