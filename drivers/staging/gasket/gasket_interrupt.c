@@ -478,11 +478,6 @@ int gasket_interrupt_system_status(struct gasket_dev *gasket_dev)
 		return GASKET_STATUS_DEAD;
 	}
 
-	if (!gasket_dev->interrupt_data->msix_configured) {
-		dev_dbg(gasket_dev->dev, "Interrupt not initialized\n");
-		return GASKET_STATUS_LAMED;
-	}
-
 	if (gasket_dev->interrupt_data->num_configured !=
 		gasket_dev->interrupt_data->num_interrupts) {
 		dev_dbg(gasket_dev->dev,
