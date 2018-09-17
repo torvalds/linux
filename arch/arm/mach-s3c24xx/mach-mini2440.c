@@ -684,14 +684,14 @@ static void __init mini2440_init(void)
 		pr_info("MINI2440: LCD");
 		for (li = 0; li < ARRAY_SIZE(mini2440_lcd_cfg); li++)
 			if (li == features.lcd_index)
-				pr_info(" [%d:%dx%d]", li,
+				pr_cont(" [%d:%dx%d]", li,
 					mini2440_lcd_cfg[li].width,
 					mini2440_lcd_cfg[li].height);
 			else
-				pr_info(" %d:%dx%d", li,
+				pr_cont(" %d:%dx%d", li,
 					mini2440_lcd_cfg[li].width,
 					mini2440_lcd_cfg[li].height);
-		pr_info("\n");
+		pr_cont("\n");
 		s3c24xx_fb_set_platdata(&mini2440_fb_info);
 	}
 
