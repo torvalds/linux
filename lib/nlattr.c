@@ -69,7 +69,8 @@ static int validate_nla_bitfield32(const struct nlattr *nla,
 }
 
 static int validate_nla(const struct nlattr *nla, int maxtype,
-			const struct nla_policy *policy)
+			const struct nla_policy *policy,
+			const char **error_msg)
 {
 	const struct nla_policy *pt;
 	int minlen = 0, attrlen = nla_len(nla), type = nla_type(nla);
@@ -87,6 +88,11 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 	}
 
 	switch (pt->type) {
+	case NLA_REJECT:
+		if (pt->validation_data && error_msg)
+			*error_msg = pt->validation_data;
+		return -EINVAL;
+
 	case NLA_FLAG:
 		if (attrlen > 0)
 			return -ERANGE;
@@ -180,11 +186,10 @@ int nla_validate(const struct nlattr *head, int len, int maxtype,
 	int rem;
 
 	nla_for_each_attr(nla, head, len, rem) {
-		int err = validate_nla(nla, maxtype, policy);
+		int err = validate_nla(nla, maxtype, policy, NULL);
 
 		if (err < 0) {
-			if (extack)
-				extack->bad_attr = nla;
+			NL_SET_BAD_ATTR(extack, nla);
 			return err;
 		}
 	}
@@ -250,11 +255,15 @@ int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
 		u16 type = nla_type(nla);
 
 		if (type > 0 && type <= maxtype) {
+			static const char _msg[] = "Attribute failed policy validation";
+			const char *msg = _msg;
+
 			if (policy) {
-				err = validate_nla(nla, maxtype, policy);
+				err = validate_nla(nla, maxtype, policy, &msg);
 				if (err < 0) {
-					NL_SET_ERR_MSG_ATTR(extack, nla,
-							    "Attribute failed policy validation");
+					NL_SET_BAD_ATTR(extack, nla);
+					if (extack)
+						extack->_msg = msg;
 					goto errout;
 				}
 			}
