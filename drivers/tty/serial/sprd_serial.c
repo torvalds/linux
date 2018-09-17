@@ -109,12 +109,14 @@ struct sprd_uart_port {
 static struct sprd_uart_port *sprd_port[UART_NR_MAX];
 static int sprd_ports_num;
 
-static inline unsigned int serial_in(struct uart_port *port, int offset)
+static inline unsigned int serial_in(struct uart_port *port,
+				     unsigned int offset)
 {
 	return readl_relaxed(port->membase + offset);
 }
 
-static inline void serial_out(struct uart_port *port, int offset, int value)
+static inline void serial_out(struct uart_port *port, unsigned int offset,
+			      int value)
 {
 	writel_relaxed(value, port->membase + offset);
 }
@@ -598,8 +600,7 @@ static void sprd_putc(struct uart_port *port, int c)
 	writeb(c, port->membase + SPRD_TXD);
 }
 
-static void sprd_early_write(struct console *con, const char *s,
-				    unsigned n)
+static void sprd_early_write(struct console *con, const char *s, unsigned int n)
 {
 	struct earlycon_device *dev = con->data;
 
