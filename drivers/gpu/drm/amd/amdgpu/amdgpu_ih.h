@@ -85,6 +85,8 @@ struct amdgpu_ih_funcs {
 int amdgpu_ih_ring_init(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
 			unsigned ring_size, bool use_bus_addr);
 void amdgpu_ih_ring_fini(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih);
-int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih);
+int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
+		      void (*callback)(struct amdgpu_device *adev,
+				       struct amdgpu_ih_ring *ih));
 
 #endif

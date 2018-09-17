@@ -51,6 +51,7 @@
 #include "atom.h"
 #include "amdgpu_connectors.h"
 #include "amdgpu_trace.h"
+#include "amdgpu_amdkfd.h"
 
 #include <linux/pm_runtime.h>
 
@@ -147,6 +148,34 @@ void amdgpu_irq_disable_all(struct amdgpu_device *adev)
 }
 
 /**
+ * amdgpu_irq_callback - callback from the IH ring
+ *
+ * @adev: amdgpu device pointer
+ * @ih: amdgpu ih ring
+ *
+ * Callback from IH ring processing to handle the entry at the current position
+ * and advance the read pointer.
+ */
+static void amdgpu_irq_callback(struct amdgpu_device *adev,
+				struct amdgpu_ih_ring *ih)
+{
+	u32 ring_index = ih->rptr >> 2;
+	struct amdgpu_iv_entry entry;
+
+	/* Prescreening of high-frequency interrupts */
+	if (!amdgpu_ih_prescreen_iv(adev))
+		return;
+
+	/* Before dispatching irq to IP blocks, send it to amdkfd */
+	amdgpu_amdkfd_interrupt(adev, (const void *) &ih->ring[ring_index]);
+
+	entry.iv_entry = (const uint32_t *)&ih->ring[ring_index];
+	amdgpu_ih_decode_iv(adev, &entry);
+
+	amdgpu_irq_dispatch(adev, &entry);
+}
+
+/**
  * amdgpu_irq_handler - IRQ handler
  *
  * @irq: IRQ number (unused)
@@ -163,7 +192,7 @@ irqreturn_t amdgpu_irq_handler(int irq, void *arg)
 	struct amdgpu_device *adev = dev->dev_private;
 	irqreturn_t ret;
 
-	ret = amdgpu_ih_process(adev, &adev->irq.ih);
+	ret = amdgpu_ih_process(adev, &adev->irq.ih, amdgpu_irq_callback);
 	if (ret == IRQ_HANDLED)
 		pm_runtime_mark_last_busy(dev->dev);
 	return ret;

@@ -24,7 +24,6 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_ih.h"
-#include "amdgpu_amdkfd.h"
 
 /**
  * amdgpu_ih_ring_init - initialize the IH state
@@ -129,9 +128,10 @@ void amdgpu_ih_ring_fini(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih)
  * Interrupt hander (VI), walk the IH ring.
  * Returns irq process return code.
  */
-int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih)
+int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
+		      void (*callback)(struct amdgpu_device *adev,
+				       struct amdgpu_ih_ring *ih))
 {
-	struct amdgpu_iv_entry entry;
 	u32 wptr;
 
 	if (!ih->enabled || adev->shutdown)
@@ -150,24 +150,10 @@ restart_ih:
 	rmb();
 
 	while (ih->rptr != wptr) {
-		u32 ring_index = ih->rptr >> 2;
-
-		/* Prescreening of high-frequency interrupts */
-		if (!amdgpu_ih_prescreen_iv(adev)) {
-			ih->rptr &= ih->ptr_mask;
-			continue;
-		}
-
-		/* Before dispatching irq to IP blocks, send it to amdkfd */
-		amdgpu_amdkfd_interrupt(adev,
-					(const void *) &ih->ring[ring_index]);
-
-		entry.iv_entry = (const uint32_t *)&ih->ring[ring_index];
-		amdgpu_ih_decode_iv(adev, &entry);
+		callback(adev, ih);
 		ih->rptr &= ih->ptr_mask;
-
-		amdgpu_irq_dispatch(adev, &entry);
 	}
+
 	amdgpu_ih_set_rptr(adev);
 	atomic_set(&ih->lock, 0);
 
