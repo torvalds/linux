@@ -661,6 +661,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 {
 	unsigned int num_buffers, allocated_buffers, num_planes = 0;
 	unsigned plane_sizes[VB2_MAX_PLANES] = { };
+	unsigned int i;
 	int ret;
 
 	if (q->streaming) {
@@ -717,6 +718,14 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 		       plane_sizes, q->alloc_devs);
 	if (ret)
 		return ret;
+
+	/* Check that driver has set sane values */
+	if (WARN_ON(!num_planes))
+		return -EINVAL;
+
+	for (i = 0; i < num_planes; i++)
+		if (WARN_ON(!plane_sizes[i]))
+			return -EINVAL;
 
 	/* Finally, allocate buffers and video memory */
 	allocated_buffers =
