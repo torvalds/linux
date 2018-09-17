@@ -49,17 +49,6 @@ notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 	return ret;
 }
 
-notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
-{
-	long ret;
-
-	asm ("syscall" : "=a" (ret), "=m" (*tv), "=m" (*tz) :
-	     "0" (__NR_gettimeofday), "D" (tv), "S" (tz) :
-	     "memory", "rcx", "r11");
-	return ret;
-}
-
-
 #else
 
 notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
@@ -77,21 +66,6 @@ notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 	return ret;
 }
 
-notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
-{
-	long ret;
-
-	asm (
-		"mov %%ebx, %%edx \n"
-		"mov %[tv], %%ebx \n"
-		"call __kernel_vsyscall \n"
-		"mov %%edx, %%ebx \n"
-		: "=a" (ret), "=m" (*tv), "=m" (*tz)
-		: "0" (__NR_gettimeofday), [tv] "g" (tv), "c" (tz)
-		: "memory", "edx");
-	return ret;
-}
-
 #endif
 
 #ifdef CONFIG_PARAVIRT_CLOCK
@@ -100,7 +74,7 @@ static notrace const struct pvclock_vsyscall_time_info *get_pvti0(void)
 	return (const struct pvclock_vsyscall_time_info *)&pvclock_page;
 }
 
-static notrace u64 vread_pvclock(int *mode)
+static notrace u64 vread_pvclock(void)
 {
 	const struct pvclock_vcpu_time_info *pvti = &get_pvti0()->pvti;
 	u64 ret;
@@ -132,10 +106,8 @@ static notrace u64 vread_pvclock(int *mode)
 	do {
 		version = pvclock_read_begin(pvti);
 
-		if (unlikely(!(pvti->flags & PVCLOCK_TSC_STABLE_BIT))) {
-			*mode = VCLOCK_NONE;
-			return 0;
-		}
+		if (unlikely(!(pvti->flags & PVCLOCK_TSC_STABLE_BIT)))
+			return U64_MAX;
 
 		ret = __pvclock_read_cycles(pvti, rdtsc_ordered());
 	} while (pvclock_read_retry(pvti, version));
@@ -150,17 +122,12 @@ static notrace u64 vread_pvclock(int *mode)
 }
 #endif
 #ifdef CONFIG_HYPERV_TSCPAGE
-static notrace u64 vread_hvclock(int *mode)
+static notrace u64 vread_hvclock(void)
 {
 	const struct ms_hyperv_tsc_page *tsc_pg =
 		(const struct ms_hyperv_tsc_page *)&hvclock_page;
-	u64 current_tick = hv_read_tsc_page(tsc_pg);
 
-	if (current_tick != U64_MAX)
-		return current_tick;
-
-	*mode = VCLOCK_NONE;
-	return 0;
+	return hv_read_tsc_page(tsc_pg);
 }
 #endif
 
@@ -184,47 +151,42 @@ notrace static u64 vread_tsc(void)
 	return last;
 }
 
-notrace static inline u64 vgetsns(int *mode)
+notrace static inline u64 vgetcyc(int mode)
 {
-	u64 v;
-	cycles_t cycles;
-
-	if (gtod->vclock_mode == VCLOCK_TSC)
-		cycles = vread_tsc();
+	if (mode == VCLOCK_TSC)
+		return vread_tsc();
 #ifdef CONFIG_PARAVIRT_CLOCK
-	else if (gtod->vclock_mode == VCLOCK_PVCLOCK)
-		cycles = vread_pvclock(mode);
+	else if (mode == VCLOCK_PVCLOCK)
+		return vread_pvclock();
 #endif
 #ifdef CONFIG_HYPERV_TSCPAGE
-	else if (gtod->vclock_mode == VCLOCK_HVCLOCK)
-		cycles = vread_hvclock(mode);
+	else if (mode == VCLOCK_HVCLOCK)
+		return vread_hvclock();
 #endif
-	else
-		return 0;
-	v = cycles - gtod->cycle_last;
-	return v * gtod->mult;
+	return U64_MAX;
 }
 
 notrace static int do_hres(clockid_t clk, struct timespec *ts)
 {
 	struct vgtod_ts *base = &gtod->basetime[clk];
 	unsigned int seq;
-	int mode;
-	u64 ns;
+	u64 cycles, ns;
 
 	do {
 		seq = gtod_read_begin(gtod);
-		mode = gtod->vclock_mode;
 		ts->tv_sec = base->sec;
 		ns = base->nsec;
-		ns += vgetsns(&mode);
+		cycles = vgetcyc(gtod->vclock_mode);
+		if (unlikely((s64)cycles < 0))
+			return vdso_fallback_gettime(clk, ts);
+		ns += (cycles - gtod->cycle_last) * gtod->mult;
 		ns >>= gtod->shift;
 	} while (unlikely(gtod_read_retry(gtod, seq)));
 
 	ts->tv_sec += __iter_div_u64_rem(ns, NSEC_PER_SEC, &ns);
 	ts->tv_nsec = ns;
 
-	return mode;
+	return 0;
 }
 
 notrace static void do_coarse(clockid_t clk, struct timespec *ts)
@@ -253,8 +215,7 @@ notrace int __vdso_clock_gettime(clockid_t clock, struct timespec *ts)
 	 */
 	msk = 1U << clock;
 	if (likely(msk & VGTOD_HRES)) {
-		if (do_hres(clock, ts) != VCLOCK_NONE)
-			return 0;
+		return do_hres(clock, ts);
 	} else if (msk & VGTOD_COARSE) {
 		do_coarse(clock, ts);
 		return 0;
@@ -270,8 +231,7 @@ notrace int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 	if (likely(tv != NULL)) {
 		struct timespec *ts = (struct timespec *) tv;
 
-		if (unlikely(do_hres(CLOCK_REALTIME, ts) == VCLOCK_NONE))
-			return vdso_fallback_gtod(tv, tz);
+		do_hres(CLOCK_REALTIME, ts);
 		tv->tv_usec /= 1000;
 	}
 	if (unlikely(tz != NULL)) {
