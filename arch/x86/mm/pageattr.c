@@ -286,22 +286,29 @@ static void cpa_flush_array(unsigned long *start, int numpages, int cache,
 	}
 }
 
+static bool overlaps(unsigned long r1_start, unsigned long r1_end,
+		     unsigned long r2_start, unsigned long r2_end)
+{
+	return (r1_start <= r2_end && r1_end >= r2_start) ||
+		(r2_start <= r1_end && r2_end >= r1_start);
+}
+
 #ifdef CONFIG_PCI_BIOS
 /*
  * The BIOS area between 640k and 1Mb needs to be executable for PCI BIOS
  * based config access (CONFIG_PCI_GOBIOS) support.
  */
 #define BIOS_PFN	PFN_DOWN(BIOS_BEGIN)
-#define BIOS_PFN_END	PFN_DOWN(BIOS_END)
+#define BIOS_PFN_END	PFN_DOWN(BIOS_END - 1)
 
-static pgprotval_t protect_pci_bios(unsigned long pfn)
+static pgprotval_t protect_pci_bios(unsigned long spfn, unsigned long epfn)
 {
-	if (pcibios_enabled && within(pfn, BIOS_PFN, BIOS_PFN_END))
+	if (pcibios_enabled && overlaps(spfn, epfn, BIOS_PFN, BIOS_PFN_END))
 		return _PAGE_NX;
 	return 0;
 }
 #else
-static pgprotval_t protect_pci_bios(unsigned long pfn)
+static pgprotval_t protect_pci_bios(unsigned long spfn, unsigned long epfn)
 {
 	return 0;
 }
@@ -312,12 +319,17 @@ static pgprotval_t protect_pci_bios(unsigned long pfn)
  * aliases.  This also includes __ro_after_init, so do not enforce until
  * kernel_set_to_readonly is true.
  */
-static pgprotval_t protect_rodata(unsigned long pfn)
+static pgprotval_t protect_rodata(unsigned long spfn, unsigned long epfn)
 {
-	unsigned long start_pfn = __pa_symbol(__start_rodata) >> PAGE_SHIFT;
-	unsigned long end_pfn = __pa_symbol(__end_rodata) >> PAGE_SHIFT;
+	unsigned long epfn_ro, spfn_ro = PFN_DOWN(__pa_symbol(__start_rodata));
 
-	if (kernel_set_to_readonly && within(pfn, start_pfn, end_pfn))
+	/*
+	 * Note: __end_rodata is at page aligned and not inclusive, so
+	 * subtract 1 to get the last enforced PFN in the rodata area.
+	 */
+	epfn_ro = PFN_DOWN(__pa_symbol(__end_rodata)) - 1;
+
+	if (kernel_set_to_readonly && overlaps(spfn, epfn, spfn_ro, epfn_ro))
 		return _PAGE_RW;
 	return 0;
 }
@@ -330,9 +342,12 @@ static pgprotval_t protect_rodata(unsigned long pfn)
  *
  * This does not cover __inittext since that is gone after boot.
  */
-static pgprotval_t protect_kernel_text(unsigned long address)
+static pgprotval_t protect_kernel_text(unsigned long start, unsigned long end)
 {
-	if (within(address, (unsigned long)_text, (unsigned long)_etext))
+	unsigned long t_end = (unsigned long)_etext - 1;
+	unsigned long t_start = (unsigned long)_text;
+
+	if (overlaps(start, end, t_start, t_end))
 		return _PAGE_NX;
 	return 0;
 }
@@ -347,13 +362,14 @@ static pgprotval_t protect_kernel_text(unsigned long address)
  * This will preserve the large page mappings for kernel text/data at no
  * extra cost.
  */
-static pgprotval_t protect_kernel_text_ro(unsigned long address)
+static pgprotval_t protect_kernel_text_ro(unsigned long start,
+					  unsigned long end)
 {
-	unsigned long end = (unsigned long)__end_rodata_hpage_align;
-	unsigned long start = (unsigned long)_text;
+	unsigned long t_end = (unsigned long)__end_rodata_hpage_align - 1;
+	unsigned long t_start = (unsigned long)_text;
 	unsigned int level;
 
-	if (!kernel_set_to_readonly || !within(address, start, end))
+	if (!kernel_set_to_readonly || !overlaps(start, end, t_start, t_end))
 		return 0;
 	/*
 	 * Don't enforce the !RW mapping for the kernel text mapping, if
@@ -367,12 +383,13 @@ static pgprotval_t protect_kernel_text_ro(unsigned long address)
 	 * so the protections for kernel text and identity mappings have to
 	 * be the same.
 	 */
-	if (lookup_address(address, &level) && (level != PG_LEVEL_4K))
+	if (lookup_address(start, &level) && (level != PG_LEVEL_4K))
 		return _PAGE_RW;
 	return 0;
 }
 #else
-static pgprotval_t protect_kernel_text_ro(unsigned long address)
+static pgprotval_t protect_kernel_text_ro(unsigned long start,
+					  unsigned long end)
 {
 	return 0;
 }
@@ -384,18 +401,20 @@ static pgprotval_t protect_kernel_text_ro(unsigned long address)
  * right (again, ioremap() on BIOS memory is not uncommon) so this function
  * checks and fixes these known static required protection bits.
  */
-static inline pgprot_t static_protections(pgprot_t prot, unsigned long address,
-					  unsigned long pfn)
+static inline pgprot_t static_protections(pgprot_t prot, unsigned long start,
+					  unsigned long pfn, unsigned long npg)
 {
 	pgprotval_t forbidden;
+	unsigned long end;
 
 	/* Operate on the virtual address */
-	forbidden  = protect_kernel_text(address);
-	forbidden |= protect_kernel_text_ro(address);
+	end = start + npg * PAGE_SIZE - 1;
+	forbidden  = protect_kernel_text(start, end);
+	forbidden |= protect_kernel_text_ro(start, end);
 
 	/* Check the PFN directly */
-	forbidden |= protect_pci_bios(pfn);
-	forbidden |= protect_rodata(pfn);
+	forbidden |= protect_pci_bios(pfn, pfn + npg - 1);
+	forbidden |= protect_rodata(pfn, pfn + npg - 1);
 
 	return __pgprot(pgprot_val(prot) & ~forbidden);
 }
@@ -667,10 +686,10 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 	 * in it results in a different pgprot than the first one of the
 	 * requested range. If yes, then the page needs to be split.
 	 */
-	new_prot = static_protections(req_prot, address, pfn);
+	new_prot = static_protections(req_prot, address, pfn, 1);
 	pfn = old_pfn;
 	for (i = 0, addr = lpaddr; i < numpages; i++, addr += PAGE_SIZE, pfn++) {
-		pgprot_t chk_prot = static_protections(req_prot, addr, pfn);
+		pgprot_t chk_prot = static_protections(req_prot, addr, pfn, 1);
 
 		if (pgprot_val(chk_prot) != pgprot_val(new_prot))
 			return 1;
@@ -1280,7 +1299,7 @@ repeat:
 		pgprot_val(new_prot) &= ~pgprot_val(cpa->mask_clr);
 		pgprot_val(new_prot) |= pgprot_val(cpa->mask_set);
 
-		new_prot = static_protections(new_prot, address, pfn);
+		new_prot = static_protections(new_prot, address, pfn, 1);
 
 		new_prot = pgprot_clear_protnone_bits(new_prot);
 
