@@ -158,8 +158,6 @@ struct mpt3sas_nvme_cmd {
 /*
  * logging format
  */
-#define MPT3SAS_FMT			"%s: "
-
 #define ioc_err(ioc, fmt, ...)						\
 	pr_err("%s: " fmt, (ioc)->name, ##__VA_ARGS__)
 #define ioc_notice(ioc, fmt, ...)					\
