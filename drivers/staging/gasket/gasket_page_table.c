@@ -433,6 +433,19 @@ static int is_coherent(struct gasket_page_table *pg_tbl, ulong host_addr)
 	return min <= host_addr && host_addr < max;
 }
 
+/* Safely return a page to the OS. */
+static bool gasket_release_page(struct page *page)
+{
+	if (!page)
+		return false;
+
+	if (!PageReserved(page))
+		SetPageDirty(page);
+	put_page(page);
+
+	return true;
+}
+
 /*
  * Get and map last level page table buffers.
  *
@@ -500,6 +513,13 @@ static int gasket_perform_mapping(struct gasket_page_table *pg_tbl,
 					(unsigned long long)ptes[i].dma_addr,
 					(void *)page_to_pfn(page),
 					(void *)page_to_phys(page));
+
+				/* clean up */
+				if (gasket_release_page(ptes[i].page))
+					--pg_tbl->num_active_pages;
+
+				memset(&ptes[i], 0,
+				       sizeof(struct gasket_page_table_entry));
 				return -1;
 			}
 		}
@@ -569,19 +589,6 @@ static int gasket_alloc_simple_entries(struct gasket_page_table *pg_tbl,
 		return -EBUSY;
 
 	return 0;
-}
-
-/* Safely return a page to the OS. */
-static bool gasket_release_page(struct page *page)
-{
-	if (!page)
-		return false;
-
-	if (!PageReserved(page))
-		SetPageDirty(page);
-	put_page(page);
-
-	return true;
 }
 
 /*
