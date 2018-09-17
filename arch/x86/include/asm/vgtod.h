@@ -15,9 +15,9 @@ typedef unsigned long gtod_long_t;
  * so be carefull by modifying this structure.
  */
 struct vsyscall_gtod_data {
-	unsigned seq;
+	unsigned int seq;
 
-	int vclock_mode;
+	int	vclock_mode;
 	u64	cycle_last;
 	u64	mask;
 	u32	mult;
@@ -44,9 +44,9 @@ static inline bool vclock_was_used(int vclock)
 	return READ_ONCE(vclocks_used) & (1 << vclock);
 }
 
-static inline unsigned gtod_read_begin(const struct vsyscall_gtod_data *s)
+static inline unsigned int gtod_read_begin(const struct vsyscall_gtod_data *s)
 {
-	unsigned ret;
+	unsigned int ret;
 
 repeat:
 	ret = READ_ONCE(s->seq);
@@ -59,7 +59,7 @@ repeat:
 }
 
 static inline int gtod_read_retry(const struct vsyscall_gtod_data *s,
-					unsigned start)
+				  unsigned int start)
 {
 	smp_rmb();
 	return unlikely(s->seq != start);

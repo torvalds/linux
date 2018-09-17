@@ -208,7 +208,7 @@ notrace static inline u64 vgetsns(int *mode)
 /* Code size doesn't matter (vdso is 4k anyway) and this is faster. */
 notrace static int __always_inline do_realtime(struct timespec *ts)
 {
-	unsigned long seq;
+	unsigned int seq;
 	u64 ns;
 	int mode;
 
@@ -229,7 +229,7 @@ notrace static int __always_inline do_realtime(struct timespec *ts)
 
 notrace static int __always_inline do_monotonic(struct timespec *ts)
 {
-	unsigned long seq;
+	unsigned int seq;
 	u64 ns;
 	int mode;
 
@@ -250,7 +250,7 @@ notrace static int __always_inline do_monotonic(struct timespec *ts)
 
 notrace static void do_realtime_coarse(struct timespec *ts)
 {
-	unsigned long seq;
+	unsigned int seq;
 	do {
 		seq = gtod_read_begin(gtod);
 		ts->tv_sec = gtod->wall_time_coarse_sec;
@@ -260,7 +260,7 @@ notrace static void do_realtime_coarse(struct timespec *ts)
 
 notrace static void do_monotonic_coarse(struct timespec *ts)
 {
-	unsigned long seq;
+	unsigned int seq;
 	do {
 		seq = gtod_read_begin(gtod);
 		ts->tv_sec = gtod->monotonic_time_coarse_sec;
