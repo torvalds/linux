@@ -12,6 +12,10 @@ config CLOCKSOURCE_WATCHDOG
 config ARCH_CLOCKSOURCE_DATA
 	bool
 
+# Architecture has extra clocksource init called from registration
+config ARCH_CLOCKSOURCE_INIT
+	bool
+
 # Clocksources require validation of the clocksource against the last
 # cycle update - x86/TSC misfeature
 config CLOCKSOURCE_VALIDATE_LAST_CYCLE
