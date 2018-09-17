@@ -17,8 +17,6 @@
  * option) any later version.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -137,26 +135,27 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	struct mpc8xxx_wdt_ddata *ddata;
 	u32 freq = fsl_get_sys_freq();
 	bool enabled;
+	struct device *dev = &ofdev->dev;
 
-	wdt_type = of_device_get_match_data(&ofdev->dev);
+	wdt_type = of_device_get_match_data(dev);
 	if (!wdt_type)
 		return -EINVAL;
 
 	if (!freq || freq == -1)
 		return -EINVAL;
 
-	ddata = devm_kzalloc(&ofdev->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
 		return -ENOMEM;
 
 	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
-	ddata->base = devm_ioremap_resource(&ofdev->dev, res);
+	ddata->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ddata->base))
 		return PTR_ERR(ddata->base);
 
 	enabled = in_be32(&ddata->base->swcrr) & SWCRR_SWEN;
 	if (!enabled && wdt_type->hw_enabled) {
-		pr_info("could not be enabled in software\n");
+		dev_info(dev, "could not be enabled in software\n");
 		return -ENODEV;
 	}
 
@@ -166,7 +165,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	ddata->wdd.ops = &mpc8xxx_wdt_ops,
 
 	ddata->wdd.timeout = WATCHDOG_TIMEOUT;
-	watchdog_init_timeout(&ddata->wdd, timeout, &ofdev->dev);
+	watchdog_init_timeout(&ddata->wdd, timeout, dev);
 
 	watchdog_set_nowayout(&ddata->wdd, nowayout);
 
@@ -189,12 +188,13 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 
 	ret = watchdog_register_device(&ddata->wdd);
 	if (ret) {
-		pr_err("cannot register watchdog device (err=%d)\n", ret);
+		dev_err(dev, "cannot register watchdog device (err=%d)\n", ret);
 		return ret;
 	}
 
-	pr_info("WDT driver for MPC8xxx initialized. mode:%s timeout=%d sec\n",
-		reset ? "reset" : "interrupt", ddata->wdd.timeout);
+	dev_info(dev,
+		 "WDT driver for MPC8xxx initialized. mode:%s timeout=%d sec\n",
+		 reset ? "reset" : "interrupt", ddata->wdd.timeout);
 
 	platform_set_drvdata(ofdev, ddata);
 	return 0;
@@ -204,8 +204,8 @@ static int mpc8xxx_wdt_remove(struct platform_device *ofdev)
 {
 	struct mpc8xxx_wdt_ddata *ddata = platform_get_drvdata(ofdev);
 
-	pr_crit("Watchdog removed, expect the %s soon!\n",
-		reset ? "reset" : "machine check exception");
+	dev_crit(&ofdev->dev, "Watchdog removed, expect the %s soon!\n",
+		 reset ? "reset" : "machine check exception");
 	watchdog_unregister_device(&ddata->wdd);
 
 	return 0;
