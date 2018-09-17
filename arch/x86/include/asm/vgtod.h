@@ -5,33 +5,37 @@
 #include <linux/compiler.h>
 #include <linux/clocksource.h>
 
+#include <uapi/linux/time.h>
+
 #ifdef BUILD_VDSO32_64
 typedef u64 gtod_long_t;
 #else
 typedef unsigned long gtod_long_t;
 #endif
+
+struct vgtod_ts {
+	u64		sec;
+	u64		nsec;
+};
+
+#define VGTOD_BASES	(CLOCK_MONOTONIC_COARSE + 1)
+#define VGTOD_HRES	(BIT(CLOCK_REALTIME) | BIT(CLOCK_MONOTONIC))
+#define VGTOD_COARSE	(BIT(CLOCK_REALTIME_COARSE) | BIT(CLOCK_MONOTONIC_COARSE))
+
 /*
  * vsyscall_gtod_data will be accessed by 32 and 64 bit code at the same time
  * so be carefull by modifying this structure.
  */
 struct vsyscall_gtod_data {
-	unsigned int seq;
+	unsigned int	seq;
 
-	int	vclock_mode;
-	u64	cycle_last;
-	u64	mask;
-	u32	mult;
-	u32	shift;
+	int		vclock_mode;
+	u64		cycle_last;
+	u64		mask;
+	u32		mult;
+	u32		shift;
 
-	/* open coded 'struct timespec' */
-	u64		wall_time_snsec;
-	gtod_long_t	wall_time_sec;
-	gtod_long_t	monotonic_time_sec;
-	u64		monotonic_time_snsec;
-	gtod_long_t	wall_time_coarse_sec;
-	gtod_long_t	wall_time_coarse_nsec;
-	gtod_long_t	monotonic_time_coarse_sec;
-	gtod_long_t	monotonic_time_coarse_nsec;
+	struct vgtod_ts	basetime[VGTOD_BASES];
 
 	int		tz_minuteswest;
 	int		tz_dsttime;
