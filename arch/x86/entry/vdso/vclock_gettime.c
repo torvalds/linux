@@ -227,21 +227,9 @@ notrace static int do_hres(clockid_t clk, struct timespec *ts)
 	return mode;
 }
 
-notrace static void do_realtime_coarse(struct timespec *ts)
+notrace static void do_coarse(clockid_t clk, struct timespec *ts)
 {
-	struct vgtod_ts *base = &gtod->basetime[CLOCK_REALTIME_COARSE];
-	unsigned int seq;
-
-	do {
-		seq = gtod_read_begin(gtod);
-		ts->tv_sec = base->sec;
-		ts->tv_nsec = base->nsec;
-	} while (unlikely(gtod_read_retry(gtod, seq)));
-}
-
-notrace static void do_monotonic_coarse(struct timespec *ts)
-{
-	struct vgtod_ts *base = &gtod->basetime[CLOCK_MONOTONIC_COARSE];
+	struct vgtod_ts *base = &gtod->basetime[clk];
 	unsigned int seq;
 
 	do {
@@ -263,10 +251,10 @@ notrace int __vdso_clock_gettime(clockid_t clock, struct timespec *ts)
 			goto fallback;
 		break;
 	case CLOCK_REALTIME_COARSE:
-		do_realtime_coarse(ts);
+		do_coarse(CLOCK_REALTIME_COARSE, ts);
 		break;
 	case CLOCK_MONOTONIC_COARSE:
-		do_monotonic_coarse(ts);
+		do_coarse(CLOCK_MONOTONIC_COARSE, ts);
 		break;
 	default:
 		goto fallback;
