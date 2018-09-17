@@ -382,8 +382,6 @@ static const struct adv748x_reg_value adv748x_init_txa_4lane[] = {
 
 	{ADV748X_PAGE_IO, 0x0c, 0xe0},	/* Enable LLC_DLL & Double LLC Timing */
 	{ADV748X_PAGE_IO, 0x0e, 0xdd},	/* LLC/PIX/SPI PINS TRISTATED AUD */
-	/* Outputs Enabled */
-	{ADV748X_PAGE_IO, 0x10, 0xa0},	/* Enable 4-lane CSI Tx & Pixel Port */
 
 	{ADV748X_PAGE_TXA, 0x00, 0x84},	/* Enable 4-lane MIPI */
 	{ADV748X_PAGE_TXA, 0x00, 0xa4},	/* Set Auto DPHY Timing */
@@ -437,10 +435,6 @@ static const struct adv748x_reg_value adv748x_init_txb_1lane[] = {
 	{ADV748X_PAGE_SDP, 0x31, 0x12},	/* ADI Required Write */
 	{ADV748X_PAGE_SDP, 0xe6, 0x4f},  /* V bit end pos manually in NTSC */
 
-	/* Enable 1-Lane MIPI Tx, */
-	/* enable pixel output and route SD through Pixel port */
-	{ADV748X_PAGE_IO, 0x10, 0x70},
-
 	{ADV748X_PAGE_TXB, 0x00, 0x81},	/* Enable 1-lane MIPI */
 	{ADV748X_PAGE_TXB, 0x00, 0xa1},	/* Set Auto DPHY Timing */
 	{ADV748X_PAGE_TXB, 0xd2, 0x40},	/* ADI Required Write */
@@ -465,7 +459,7 @@ static const struct adv748x_reg_value adv748x_init_txb_1lane[] = {
 static int adv748x_reset(struct adv748x_state *state)
 {
 	int ret;
-	u8 regval = ADV748X_IO_10_PIX_OUT_EN;
+	u8 regval = 0;
 
 	ret = adv748x_write_regs(state, adv748x_sw_reset);
 	if (ret < 0)
