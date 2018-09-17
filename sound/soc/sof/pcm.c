@@ -691,6 +691,7 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 
 	/* load the default topology */
 	sdev->component = component;
+	sdev->card = component->card;
 
 	switch (plat_data->type) {
 	case SOF_DEVICE_SPI:
