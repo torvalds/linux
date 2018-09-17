@@ -478,7 +478,7 @@ static int rsnd_status_update(u32 *status,
 			(func_call && (mod)->ops->fn) ? #fn : "");	\
 		if (func_call && (mod)->ops->fn)			\
 			tmp = (mod)->ops->fn(mod, io, param);		\
-		if (tmp)						\
+		if (tmp && (tmp != -EPROBE_DEFER))			\
 			dev_err(dev, "%s[%d] : %s error %d\n",		\
 				rsnd_mod_name(mod), rsnd_mod_id(mod),	\
 						     #fn, tmp);		\
@@ -958,12 +958,23 @@ static void rsnd_soc_dai_shutdown(struct snd_pcm_substream *substream,
 	rsnd_dai_stream_quit(io);
 }
 
+static int rsnd_soc_dai_prepare(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct rsnd_priv *priv = rsnd_dai_to_priv(dai);
+	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
+
+	return rsnd_dai_call(prepare, io, priv);
+}
+
 static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	.startup	= rsnd_soc_dai_startup,
 	.shutdown	= rsnd_soc_dai_shutdown,
 	.trigger	= rsnd_soc_dai_trigger,
 	.set_fmt	= rsnd_soc_dai_set_fmt,
 	.set_tdm_slot	= rsnd_soc_set_dai_tdm_slot,
+	.prepare	= rsnd_soc_dai_prepare,
 };
 
 void rsnd_parse_connect_common(struct rsnd_dai *rdai,
@@ -1549,6 +1560,14 @@ exit_snd_probe:
 		rsnd_dai_call(remove, &rdai->playback, priv);
 		rsnd_dai_call(remove, &rdai->capture, priv);
 	}
+
+	/*
+	 * adg is very special mod which can't use rsnd_dai_call(remove),
+	 * and it registers ADG clock on probe.
+	 * It should be unregister if probe failed.
+	 * Mainly it is assuming -EPROBE_DEFER case
+	 */
+	rsnd_adg_remove(priv);
 
 	return ret;
 }
