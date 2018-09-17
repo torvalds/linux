@@ -759,8 +759,7 @@ static struct nf_proto_net *sctp_get_net_proto(struct net *net)
 	return &net->ct.nf_ct_proto.sctp.pn;
 }
 
-const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 = {
-	.l3proto		= PF_INET,
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp = {
 	.l4proto 		= IPPROTO_SCTP,
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack	= sctp_print_conntrack,
@@ -789,36 +788,3 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 = {
 	.init_net		= sctp_init_net,
 	.get_net_proto		= sctp_get_net_proto,
 };
-EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_sctp4);
-
-const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 = {
-	.l3proto		= PF_INET6,
-	.l4proto 		= IPPROTO_SCTP,
-#ifdef CONFIG_NF_CONNTRACK_PROCFS
-	.print_conntrack	= sctp_print_conntrack,
-#endif
-	.packet 		= sctp_packet,
-	.can_early_drop		= sctp_can_early_drop,
-	.me 			= THIS_MODULE,
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-	.nlattr_size		= SCTP_NLATTR_SIZE,
-	.to_nlattr		= sctp_to_nlattr,
-	.from_nlattr		= nlattr_to_sctp,
-	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
-	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
-	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
-	.nla_policy		= nf_ct_port_nla_policy,
-#endif
-#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-	.ctnl_timeout		= {
-		.nlattr_to_obj	= sctp_timeout_nlattr_to_obj,
-		.obj_to_nlattr	= sctp_timeout_obj_to_nlattr,
-		.nlattr_max	= CTA_TIMEOUT_SCTP_MAX,
-		.obj_size	= sizeof(unsigned int) * SCTP_CONNTRACK_MAX,
-		.nla_policy	= sctp_timeout_nla_policy,
-	},
-#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= sctp_init_net,
-	.get_net_proto		= sctp_get_net_proto,
-};
-EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_sctp6);

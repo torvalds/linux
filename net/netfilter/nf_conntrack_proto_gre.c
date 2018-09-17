@@ -238,6 +238,9 @@ static int gre_packet(struct nf_conn *ct,
 		      enum ip_conntrack_info ctinfo,
 		      const struct nf_hook_state *state)
 {
+	if (state->pf != NFPROTO_IPV4)
+		return -NF_ACCEPT;
+
 	if (!nf_ct_is_confirmed(ct)) {
 		unsigned int *timeouts = nf_ct_timeout_lookup(ct);
 
@@ -344,7 +347,6 @@ static int gre_init_net(struct net *net)
 
 /* protocol helper struct */
 static const struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 = {
-	.l3proto	 = AF_INET,
 	.l4proto	 = IPPROTO_GRE,
 	.pkt_to_tuple	 = gre_pkt_to_tuple,
 #ifdef CONFIG_NF_CONNTRACK_PROCFS

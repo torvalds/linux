@@ -103,6 +103,9 @@ static int icmpv6_packet(struct nf_conn *ct,
 		[ICMPV6_NI_QUERY - 128] = 1
 	};
 
+	if (state->pf != NFPROTO_IPV6)
+		return -NF_ACCEPT;
+
 	if (!nf_ct_is_confirmed(ct)) {
 		int type = ct->tuplehash[0].tuple.dst.u.icmp.type - 128;
 
@@ -150,7 +153,7 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 	}
 
 	/* rcu_read_lock()ed by nf_hook_thresh */
-	inproto = __nf_ct_l4proto_find(PF_INET6, origtuple.dst.protonum);
+	inproto = __nf_ct_l4proto_find(origtuple.dst.protonum);
 
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
 	   been preserved inside the ICMP. */
@@ -360,7 +363,6 @@ static struct nf_proto_net *icmpv6_get_net_proto(struct net *net)
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 {
-	.l3proto		= PF_INET6,
 	.l4proto		= IPPROTO_ICMPV6,
 	.pkt_to_tuple		= icmpv6_pkt_to_tuple,
 	.invert_tuple		= icmpv6_invert_tuple,

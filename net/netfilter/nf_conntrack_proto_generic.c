@@ -153,7 +153,6 @@ static struct nf_proto_net *generic_get_net_proto(struct net *net)
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic =
 {
-	.l3proto		= PF_UNSPEC,
 	.l4proto		= 255,
 	.pkt_to_tuple		= generic_pkt_to_tuple,
 	.packet			= generic_packet,

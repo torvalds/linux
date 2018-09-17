@@ -90,6 +90,9 @@ static int icmp_packet(struct nf_conn *ct,
 		[ICMP_ADDRESS] = 1
 	};
 
+	if (state->pf != NFPROTO_IPV4)
+		return -NF_ACCEPT;
+
 	if (ct->tuplehash[0].tuple.dst.u.icmp.type >= sizeof(valid_new) ||
 	    !valid_new[ct->tuplehash[0].tuple.dst.u.icmp.type]) {
 		/* Can't create a new ICMP `conn' with this. */
@@ -131,7 +134,7 @@ icmp_error_message(struct nf_conn *tmpl, struct sk_buff *skb,
 	}
 
 	/* rcu_read_lock()ed by nf_hook_thresh */
-	innerproto = __nf_ct_l4proto_find(PF_INET, origtuple.dst.protonum);
+	innerproto = __nf_ct_l4proto_find(origtuple.dst.protonum);
 
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
 	   been preserved inside the ICMP. */
@@ -349,7 +352,6 @@ static struct nf_proto_net *icmp_get_net_proto(struct net *net)
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 {
-	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_ICMP,
 	.pkt_to_tuple		= icmp_pkt_to_tuple,
 	.invert_tuple		= icmp_invert_tuple,

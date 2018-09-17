@@ -18,9 +18,6 @@
 struct seq_file;
 
 struct nf_conntrack_l4proto {
-	/* L3 Protocol number. */
-	u_int16_t l3proto;
-
 	/* L4 Protocol number. */
 	u_int8_t l4proto;
 
@@ -107,11 +104,9 @@ extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
 
 #define MAX_NF_CT_PROTO 256
 
-const struct nf_conntrack_l4proto *__nf_ct_l4proto_find(u_int16_t l3proto,
-						  u_int8_t l4proto);
+const struct nf_conntrack_l4proto *__nf_ct_l4proto_find(u8 l4proto);
 
-const struct nf_conntrack_l4proto *nf_ct_l4proto_find_get(u_int16_t l3proto,
-						    u_int8_t l4proto);
+const struct nf_conntrack_l4proto *nf_ct_l4proto_find_get(u8 l4proto);
 void nf_ct_l4proto_put(const struct nf_conntrack_l4proto *p);
 
 /* Protocol pernet registration. */

@@ -310,9 +310,8 @@ static struct nf_proto_net *udp_get_net_proto(struct net *net)
 	return &net->ct.nf_ct_proto.udp.pn;
 }
 
-const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 =
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp =
 {
-	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_UDP,
 	.allow_clash		= true,
 	.packet			= udp_packet,
@@ -334,12 +333,10 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 =
 	.init_net		= udp_init_net,
 	.get_net_proto		= udp_get_net_proto,
 };
-EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udp4);
 
 #ifdef CONFIG_NF_CT_PROTO_UDPLITE
-const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 =
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite =
 {
-	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_UDPLITE,
 	.allow_clash		= true,
 	.packet			= udplite_packet,
@@ -361,59 +358,4 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 =
 	.init_net		= udp_init_net,
 	.get_net_proto		= udp_get_net_proto,
 };
-EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udplite4);
-#endif
-
-const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 =
-{
-	.l3proto		= PF_INET6,
-	.l4proto		= IPPROTO_UDP,
-	.allow_clash		= true,
-	.packet			= udp_packet,
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
-	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
-	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
-	.nla_policy		= nf_ct_port_nla_policy,
-#endif
-#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-	.ctnl_timeout		= {
-		.nlattr_to_obj	= udp_timeout_nlattr_to_obj,
-		.obj_to_nlattr	= udp_timeout_obj_to_nlattr,
-		.nlattr_max	= CTA_TIMEOUT_UDP_MAX,
-		.obj_size	= sizeof(unsigned int) * CTA_TIMEOUT_UDP_MAX,
-		.nla_policy	= udp_timeout_nla_policy,
-	},
-#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= udp_init_net,
-	.get_net_proto		= udp_get_net_proto,
-};
-EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udp6);
-
-#ifdef CONFIG_NF_CT_PROTO_UDPLITE
-const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 =
-{
-	.l3proto		= PF_INET6,
-	.l4proto		= IPPROTO_UDPLITE,
-	.allow_clash		= true,
-	.packet			= udplite_packet,
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
-	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
-	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
-	.nla_policy		= nf_ct_port_nla_policy,
-#endif
-#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-	.ctnl_timeout		= {
-		.nlattr_to_obj	= udp_timeout_nlattr_to_obj,
-		.obj_to_nlattr	= udp_timeout_obj_to_nlattr,
-		.nlattr_max	= CTA_TIMEOUT_UDP_MAX,
-		.obj_size	= sizeof(unsigned int) * CTA_TIMEOUT_UDP_MAX,
-		.nla_policy	= udp_timeout_nla_policy,
-	},
-#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= udp_init_net,
-	.get_net_proto		= udp_get_net_proto,
-};
-EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udplite6);
 #endif
