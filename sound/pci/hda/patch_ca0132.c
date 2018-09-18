@@ -81,12 +81,12 @@
 #define SCP_GET    1
 
 #define EFX_FILE   "ctefx.bin"
-#define SBZ_EFX_FILE   "ctefx-sbz.bin"
+#define DESKTOP_EFX_FILE   "ctefx-desktop.bin"
 #define R3DI_EFX_FILE  "ctefx-r3di.bin"
 
 #ifdef CONFIG_SND_HDA_CODEC_CA0132_DSP
 MODULE_FIRMWARE(EFX_FILE);
-MODULE_FIRMWARE(SBZ_EFX_FILE);
+MODULE_FIRMWARE(DESKTOP_EFX_FILE);
 MODULE_FIRMWARE(R3DI_EFX_FILE);
 #endif
 
@@ -6770,12 +6770,14 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
 	 */
 	switch (spec->quirk) {
 	case QUIRK_SBZ:
-		if (request_firmware(&fw_entry, SBZ_EFX_FILE,
+	case QUIRK_R3D:
+	case QUIRK_AE5:
+		if (request_firmware(&fw_entry, DESKTOP_EFX_FILE,
 					codec->card->dev) != 0) {
-			codec_dbg(codec, "SBZ alt firmware not detected. ");
+			codec_dbg(codec, "Desktop firmware not found. ");
 			spec->alt_firmware_present = false;
 		} else {
-			codec_dbg(codec, "Sound Blaster Z firmware selected.");
+			codec_dbg(codec, "Desktop firmware selected.");
 			spec->alt_firmware_present = true;
 		}
 		break;
