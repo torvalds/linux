@@ -742,7 +742,7 @@ static int byt_rt5651_suspend(struct snd_soc_card *card)
 	if (!BYT_RT5651_JDSRC(byt_rt5651_quirk))
 		return 0;
 
-	list_for_each_entry(component, &card->component_dev_list, card_list) {
+	for_each_card_components(card, component) {
 		if (!strcmp(component->name, byt_rt5651_codec_name)) {
 			dev_dbg(component->dev, "disabling jack detect before suspend\n");
 			snd_soc_component_set_jack(component, NULL, NULL);
@@ -761,7 +761,7 @@ static int byt_rt5651_resume(struct snd_soc_card *card)
 	if (!BYT_RT5651_JDSRC(byt_rt5651_quirk))
 		return 0;
 
-	list_for_each_entry(component, &card->component_dev_list, card_list) {
+	for_each_card_components(card, component) {
 		if (!strcmp(component->name, byt_rt5651_codec_name)) {
 			dev_dbg(component->dev, "re-enabling jack detect after resume\n");
 			snd_soc_component_set_jack(component, &priv->jack, NULL);
