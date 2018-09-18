@@ -127,6 +127,7 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 	struct kvm_run *run;
 	struct kvm_x86_state *state;
+	struct ucall uc;
 	int stage;
 
 	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
@@ -155,23 +156,23 @@ int main(int argc, char *argv[])
 
 		memset(&regs1, 0, sizeof(regs1));
 		vcpu_regs_get(vm, VCPU_ID, &regs1);
-		switch (run->io.port) {
-		case GUEST_PORT_ABORT:
-			TEST_ASSERT(false, "%s at %s:%d", (const char *) regs1.rdi,
-				    __FILE__, regs1.rsi);
+		switch (get_ucall(vm, VCPU_ID, &uc)) {
+		case UCALL_ABORT:
+			TEST_ASSERT(false, "%s at %s:%d", (const char *)uc.args[0],
+				    __FILE__, uc.args[1]);
 			/* NOT REACHED */
-		case GUEST_PORT_SYNC:
+		case UCALL_SYNC:
 			break;
-		case GUEST_PORT_DONE:
+		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_ASSERT(false, "Unknown port 0x%x.", run->io.port);
+			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
 		}
 
-		/* PORT_SYNC is handled here.  */
-		TEST_ASSERT(!strcmp((const char *)regs1.rdi, "hello") &&
-			    regs1.rsi == stage, "Unexpected register values vmexit #%lx, got %lx",
-			    stage, (ulong) regs1.rsi);
+		/* UCALL_SYNC is handled here.  */
+		TEST_ASSERT(!strcmp((const char *)uc.args[0], "hello") &&
+			    uc.args[1] == stage, "Unexpected register values vmexit #%lx, got %lx",
+			    stage, (ulong)uc.args[1]);
 
 		state = vcpu_save_state(vm, VCPU_ID);
 		kvm_vm_release(vm);

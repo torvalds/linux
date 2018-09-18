@@ -3,7 +3,7 @@ all:
 top_srcdir = ../../../../
 UNAME_M := $(shell uname -m)
 
-LIBKVM = lib/assert.c lib/elf.c lib/io.c lib/kvm_util.c lib/sparsebit.c
+LIBKVM = lib/assert.c lib/elf.c lib/io.c lib/kvm_util.c lib/ucall.c lib/sparsebit.c
 LIBKVM_x86_64 = lib/x86.c lib/vmx.c
 
 TEST_GEN_PROGS_x86_64 = platform_info_test

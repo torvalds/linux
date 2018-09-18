@@ -146,26 +146,25 @@ int main(int argc, char *argv[])
 
 	for (;;) {
 		volatile struct kvm_run *run = vcpu_state(vm, VCPU_ID);
-		struct guest_args args;
+		struct ucall uc;
 
 		vcpu_run(vm, VCPU_ID);
-		guest_args_read(vm, VCPU_ID, &args);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			    "Got exit_reason other than KVM_EXIT_IO: %u (%s)\n",
 			    run->exit_reason,
 			    exit_reason_str(run->exit_reason));
 
-		switch (args.port) {
-		case GUEST_PORT_ABORT:
-			TEST_ASSERT(false, "%s", (const char *) args.arg0);
+		switch (get_ucall(vm, VCPU_ID, &uc)) {
+		case UCALL_ABORT:
+			TEST_ASSERT(false, "%s", (const char *)uc.args[0]);
 			/* NOT REACHED */
-		case GUEST_PORT_SYNC:
-			report(args.arg1);
+		case UCALL_SYNC:
+			report(uc.args[1]);
 			break;
-		case GUEST_PORT_DONE:
+		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_ASSERT(false, "Unknown port 0x%x.", args.port);
+			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
 		}
 	}
 

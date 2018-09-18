@@ -47,6 +47,7 @@ struct kvm_vm {
 	int fd;
 	unsigned int page_size;
 	unsigned int page_shift;
+	unsigned int va_bits;
 	uint64_t max_gfn;
 	struct vcpu *vcpu_head;
 	struct userspace_mem_region *userspace_mem_region_head;

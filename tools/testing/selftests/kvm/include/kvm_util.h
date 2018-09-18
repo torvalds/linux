@@ -152,43 +152,49 @@ allocate_kvm_dirty_log(struct kvm_userspace_memory_region *region);
 
 int vm_create_device(struct kvm_vm *vm, struct kvm_create_device *cd);
 
-#define GUEST_PORT_SYNC         0x1000
-#define GUEST_PORT_ABORT        0x1001
-#define GUEST_PORT_DONE         0x1002
+#define sync_global_to_guest(vm, g) ({				\
+	typeof(g) *_p = addr_gva2hva(vm, (vm_vaddr_t)&(g));	\
+	memcpy(_p, &(g), sizeof(g));				\
+})
 
-static inline void __exit_to_l0(uint16_t port, uint64_t arg0, uint64_t arg1)
-{
-	__asm__ __volatile__("in %[port], %%al"
-			     :
-			     : [port]"d"(port), "D"(arg0), "S"(arg1)
-			     : "rax");
-}
+#define sync_global_from_guest(vm, g) ({			\
+	typeof(g) *_p = addr_gva2hva(vm, (vm_vaddr_t)&(g));	\
+	memcpy(&(g), _p, sizeof(g));				\
+})
 
-/*
- * Allows to pass three arguments to the host: port is 16bit wide,
- * arg0 & arg1 are 64bit wide
- */
-#define GUEST_SYNC_ARGS(_port, _arg0, _arg1) \
-	__exit_to_l0(_port, (uint64_t) (_arg0), (uint64_t) (_arg1))
+/* ucall implementation types */
+typedef enum {
+	UCALL_PIO,
+	UCALL_MMIO,
+} ucall_type_t;
 
-#define GUEST_ASSERT(_condition) do {				\
-		if (!(_condition))				\
-			GUEST_SYNC_ARGS(GUEST_PORT_ABORT,	\
-					"Failed guest assert: "	\
-					#_condition, __LINE__);	\
-	} while (0)
+/* Common ucalls */
+enum {
+	UCALL_NONE,
+	UCALL_SYNC,
+	UCALL_ABORT,
+	UCALL_DONE,
+};
 
-#define GUEST_SYNC(stage)  GUEST_SYNC_ARGS(GUEST_PORT_SYNC, "hello", stage)
+#define UCALL_MAX_ARGS 6
 
-#define GUEST_DONE()  GUEST_SYNC_ARGS(GUEST_PORT_DONE, 0, 0)
+struct ucall {
+	uint64_t cmd;
+	uint64_t args[UCALL_MAX_ARGS];
+};
 
-struct guest_args {
-	uint64_t arg0;
-	uint64_t arg1;
-	uint16_t port;
-} __attribute__ ((packed));
+void ucall_init(struct kvm_vm *vm, ucall_type_t type, void *arg);
+void ucall_uninit(struct kvm_vm *vm);
+void ucall(uint64_t cmd, int nargs, ...);
+uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc);
 
-void guest_args_read(struct kvm_vm *vm, uint32_t vcpu_id,
-		     struct guest_args *args);
+#define GUEST_SYNC(stage)	ucall(UCALL_SYNC, 2, "hello", stage)
+#define GUEST_DONE()		ucall(UCALL_DONE, 0)
+#define GUEST_ASSERT(_condition) do {			\
+	if (!(_condition))				\
+		ucall(UCALL_ABORT, 2,			\
+			"Failed guest assert: "		\
+			#_condition, __LINE__);		\
+} while (0)
 
 #endif /* SELFTEST_KVM_UTIL_H */

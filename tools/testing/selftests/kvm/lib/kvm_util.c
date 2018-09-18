@@ -133,6 +133,7 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	case VM_MODE_FLAT48PG:
 		vm->page_size = 0x1000;
 		vm->page_shift = 12;
+		vm->va_bits = 48;
 
 		/* Limit to 48-bit canonical virtual addresses. */
 		vm->vpages_valid = sparsebit_alloc();
@@ -1668,18 +1669,4 @@ vm_paddr_t vm_phy_page_alloc(struct kvm_vm *vm,
 void *addr_gva2hva(struct kvm_vm *vm, vm_vaddr_t gva)
 {
 	return addr_gpa2hva(vm, addr_gva2gpa(vm, gva));
-}
-
-void guest_args_read(struct kvm_vm *vm, uint32_t vcpu_id,
-		     struct guest_args *args)
-{
-	struct kvm_run *run = vcpu_state(vm, vcpu_id);
-	struct kvm_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-	vcpu_regs_get(vm, vcpu_id, &regs);
-
-	args->port = run->io.port;
-	args->arg0 = regs.rdi;
-	args->arg1 = regs.rsi;
 }

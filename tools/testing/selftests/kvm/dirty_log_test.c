@@ -110,7 +110,7 @@ void *vcpu_worker(void *data)
 	uint64_t loops, *guest_array, pages_count = 0;
 	struct kvm_vm *vm = data;
 	struct kvm_run *run;
-	struct guest_args args;
+	struct ucall uc;
 
 	run = vcpu_state(vm, VCPU_ID);
 
@@ -124,9 +124,8 @@ void *vcpu_worker(void *data)
 	while (!READ_ONCE(host_quit)) {
 		/* Let the guest to dirty these random pages */
 		ret = _vcpu_run(vm, VCPU_ID);
-		guest_args_read(vm, VCPU_ID, &args);
 		if (run->exit_reason == KVM_EXIT_IO &&
-		    args.port == GUEST_PORT_SYNC) {
+		    get_ucall(vm, VCPU_ID, &uc) == UCALL_SYNC) {
 			pages_count += TEST_PAGES_PER_LOOP;
 			generate_random_array(guest_array, TEST_PAGES_PER_LOOP);
 		} else {
