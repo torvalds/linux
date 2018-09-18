@@ -84,6 +84,8 @@ struct ipu_image_convert_dma_chan {
 struct ipu_image_tile {
 	u32 width;
 	u32 height;
+	u32 left;
+	u32 top;
 	/* size and strides are in bytes */
 	u32 size;
 	u32 stride;
@@ -433,13 +435,17 @@ static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 static void calc_tile_dimensions(struct ipu_image_convert_ctx *ctx,
 				 struct ipu_image_convert_image *image)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ctx->num_tiles; i++) {
 		struct ipu_image_tile *tile = &image->tile[i];
+		const unsigned int row = i / image->num_cols;
+		const unsigned int col = i % image->num_cols;
 
 		tile->height = image->base.pix.height / image->num_rows;
 		tile->width = image->base.pix.width / image->num_cols;
+		tile->left = col * tile->width;
+		tile->top = row * tile->height;
 		tile->size = ((tile->height * image->fmt->bpp) >> 3) *
 			tile->width;
 
@@ -535,7 +541,7 @@ static int calc_tile_offsets_planar(struct ipu_image_convert_ctx *ctx,
 	struct ipu_image_convert_priv *priv = chan->priv;
 	const struct ipu_image_pixfmt *fmt = image->fmt;
 	unsigned int row, col, tile = 0;
-	u32 H, w, h, y_stride, uv_stride;
+	u32 H, top, y_stride, uv_stride;
 	u32 uv_row_off, uv_col_off, uv_off, u_off, v_off, tmp;
 	u32 y_row_off, y_col_off, y_off;
 	u32 y_size, uv_size;
@@ -552,13 +558,12 @@ static int calc_tile_offsets_planar(struct ipu_image_convert_ctx *ctx,
 	uv_size = y_size / (fmt->uv_width_dec * fmt->uv_height_dec);
 
 	for (row = 0; row < image->num_rows; row++) {
-		w = image->tile[tile].width;
-		h = image->tile[tile].height;
-		y_row_off = row * h * y_stride;
-		uv_row_off = (row * h * uv_stride) / fmt->uv_height_dec;
+		top = image->tile[tile].top;
+		y_row_off = top * y_stride;
+		uv_row_off = (top * uv_stride) / fmt->uv_height_dec;
 
 		for (col = 0; col < image->num_cols; col++) {
-			y_col_off = col * w;
+			y_col_off = image->tile[tile].left;
 			uv_col_off = y_col_off / fmt->uv_width_dec;
 			if (fmt->uv_packed)
 				uv_col_off *= 2;
@@ -601,7 +606,7 @@ static int calc_tile_offsets_packed(struct ipu_image_convert_ctx *ctx,
 	struct ipu_image_convert_priv *priv = chan->priv;
 	const struct ipu_image_pixfmt *fmt = image->fmt;
 	unsigned int row, col, tile = 0;
-	u32 w, h, bpp, stride, offset;
+	u32 bpp, stride, offset;
 	u32 row_off, col_off;
 
 	/* setup some convenience vars */
@@ -609,12 +614,10 @@ static int calc_tile_offsets_packed(struct ipu_image_convert_ctx *ctx,
 	bpp = fmt->bpp;
 
 	for (row = 0; row < image->num_rows; row++) {
-		w = image->tile[tile].width;
-		h = image->tile[tile].height;
-		row_off = row * h * stride;
+		row_off = image->tile[tile].top * stride;
 
 		for (col = 0; col < image->num_cols; col++) {
-			col_off = (col * w * bpp) >> 3;
+			col_off = (image->tile[tile].left * bpp) >> 3;
 
 			offset = row_off + col_off;
 
