@@ -1125,6 +1125,12 @@ struct snd_soc_card {
 	     ((i) < (card)->num_links) && ((link) = &(card)->dai_link[i]); \
 	     (i)++)
 
+#define for_each_card_links(card, link)				\
+	list_for_each_entry(dai_link, &(card)->dai_link_list, list)
+#define for_each_card_links_safe(card, link, _link)			\
+	list_for_each_entry_safe(link, _link, &(card)->dai_link_list, list)
+
+
 /* SoC machine DAI configuration, glues a codec and cpu DAI together */
 struct snd_soc_pcm_runtime {
 	struct device *dev;

@@ -816,7 +816,7 @@ struct snd_soc_dai_link *snd_soc_find_dai_link(struct snd_soc_card *card,
 
 	lockdep_assert_held(&client_mutex);
 
-	list_for_each_entry_safe(link, _link, &card->dai_link_list, list) {
+	for_each_card_links_safe(card, link, _link) {
 		if (link->id != id)
 			continue;
 
@@ -1004,7 +1004,7 @@ static void soc_remove_dai_links(struct snd_soc_card *card)
 			soc_remove_link_components(card, rtd, order);
 	}
 
-	list_for_each_entry_safe(link, _link, &card->dai_link_list, list) {
+	for_each_card_links_safe(card, link, _link) {
 		if (link->dobj.type == SND_SOC_DOBJ_DAI_LINK)
 			dev_warn(card->dev, "Topology forgot to remove link %s?\n",
 				link->name);
@@ -1219,7 +1219,7 @@ void snd_soc_remove_dai_link(struct snd_soc_card *card,
 	if (dai_link->dobj.type && card->remove_dai_link)
 		card->remove_dai_link(card, dai_link);
 
-	list_for_each_entry_safe(link, _link, &card->dai_link_list, list) {
+	for_each_card_links_safe(card, link, _link) {
 		if (link == dai_link) {
 			list_del(&link->list);
 			return;
@@ -2033,7 +2033,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	/* Find new DAI links added during probing components and bind them.
 	 * Components with topology may bring new DAIs and DAI links.
 	 */
-	list_for_each_entry(dai_link, &card->dai_link_list, list) {
+	for_each_card_links(card, dai_link) {
 		if (soc_is_dai_link_bound(card, dai_link))
 			continue;
 
