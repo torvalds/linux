@@ -3240,18 +3240,29 @@ static void icl_mbus_init(struct drm_i915_private *dev_priv)
 	I915_WRITE(MBUS_ABOX_CTL, val);
 }
 
+static void intel_pch_reset_handshake(struct drm_i915_private *dev_priv,
+				      bool enable)
+{
+	u32 val = I915_READ(HSW_NDE_RSTWRN_OPT);
+
+	if (enable)
+		val |= RESET_PCH_HANDSHAKE_ENABLE;
+	else
+		val &= ~RESET_PCH_HANDSHAKE_ENABLE;
+
+	I915_WRITE(HSW_NDE_RSTWRN_OPT, val);
+}
+
 static void skl_display_core_init(struct drm_i915_private *dev_priv,
 				   bool resume)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
-	uint32_t val;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	/* enable PCH reset handshake */
-	val = I915_READ(HSW_NDE_RSTWRN_OPT);
-	I915_WRITE(HSW_NDE_RSTWRN_OPT, val | RESET_PCH_HANDSHAKE_ENABLE);
+	intel_pch_reset_handshake(dev_priv, true);
 
 	/* enable PG1 and Misc I/O */
 	mutex_lock(&power_domains->lock);
@@ -3307,7 +3318,6 @@ void bxt_display_core_init(struct drm_i915_private *dev_priv,
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
-	uint32_t val;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
@@ -3317,9 +3327,7 @@ void bxt_display_core_init(struct drm_i915_private *dev_priv,
 	 * Move the handshake programming to initialization sequence.
 	 * Previously was left up to BIOS.
 	 */
-	val = I915_READ(HSW_NDE_RSTWRN_OPT);
-	val &= ~RESET_PCH_HANDSHAKE_ENABLE;
-	I915_WRITE(HSW_NDE_RSTWRN_OPT, val);
+	intel_pch_reset_handshake(dev_priv, false);
 
 	/* Enable PG1 */
 	mutex_lock(&power_domains->lock);
@@ -3440,9 +3448,7 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	/* 1. Enable PCH Reset Handshake */
-	val = I915_READ(HSW_NDE_RSTWRN_OPT);
-	val |= RESET_PCH_HANDSHAKE_ENABLE;
-	I915_WRITE(HSW_NDE_RSTWRN_OPT, val);
+	intel_pch_reset_handshake(dev_priv, true);
 
 	/* 2. Enable Comp */
 	val = I915_READ(CHICKEN_MISC_2);
@@ -3525,9 +3531,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	/* 1. Enable PCH reset handshake. */
-	val = I915_READ(HSW_NDE_RSTWRN_OPT);
-	val |= RESET_PCH_HANDSHAKE_ENABLE;
-	I915_WRITE(HSW_NDE_RSTWRN_OPT, val);
+	intel_pch_reset_handshake(dev_priv, true);
 
 	for (port = PORT_A; port <= PORT_B; port++) {
 		/* 2. Enable DDI combo PHY comp. */
