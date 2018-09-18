@@ -306,6 +306,12 @@ drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	struct drm_set_client_cap *req = data;
 
+	/* No render-only settable capabilities for now */
+
+	/* Below caps that only works with KMS drivers */
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EOPNOTSUPP;
+
 	switch (req->capability) {
 	case DRM_CLIENT_CAP_STEREO_3D:
 		if (req->value > 1)
