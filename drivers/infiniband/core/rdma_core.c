@@ -882,6 +882,8 @@ static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 		WARN_ON(uverbs_try_lock_object(obj, UVERBS_LOOKUP_WRITE));
 		if (!uverbs_destroy_uobject(obj, reason))
 			ret = 0;
+		else
+			atomic_set(&obj->usecnt, 0);
 	}
 	return ret;
 }

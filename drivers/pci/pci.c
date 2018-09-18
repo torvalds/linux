@@ -4547,6 +4547,7 @@ int pci_bridge_secondary_bus_reset(struct pci_dev *dev)
 
 	return pci_dev_wait(dev, "bus reset", PCIE_RESET_READY_POLL_MS);
 }
+EXPORT_SYMBOL_GPL(pci_bridge_secondary_bus_reset);
 
 static int pci_parent_bus_reset(struct pci_dev *dev, int probe)
 {
@@ -5200,7 +5201,7 @@ static int __pci_reset_bus(struct pci_bus *bus)
  */
 int pci_reset_bus(struct pci_dev *pdev)
 {
-	return pci_probe_reset_slot(pdev->slot) ?
+	return (!pci_probe_reset_slot(pdev->slot)) ?
 	    __pci_reset_slot(pdev->slot) : __pci_reset_bus(pdev->bus);
 }
 EXPORT_SYMBOL_GPL(pci_reset_bus);
