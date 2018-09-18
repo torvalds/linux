@@ -230,9 +230,11 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 
 	switch (mode) {
 	case VM_MODE_P52V48_4K:
+	case VM_MODE_P40V48_4K:
 		guest_page_shift = 12;
 		break;
 	case VM_MODE_P52V48_64K:
+	case VM_MODE_P40V48_64K:
 		guest_page_shift = 16;
 		break;
 	default:
@@ -317,11 +319,16 @@ static struct vm_guest_modes {
 	bool supported;
 	bool enabled;
 } vm_guest_modes[NUM_VM_MODES] = {
+#if defined(__x86_64__)
 	{ VM_MODE_P52V48_4K,	1, 1, },
-#ifdef __aarch64__
-	{ VM_MODE_P52V48_64K,	1, 1, },
-#else
 	{ VM_MODE_P52V48_64K,	0, 0, },
+	{ VM_MODE_P40V48_4K,	0, 0, },
+	{ VM_MODE_P40V48_64K,	0, 0, },
+#elif defined(__aarch64__)
+	{ VM_MODE_P52V48_4K,	0, 0, },
+	{ VM_MODE_P52V48_64K,	0, 0, },
+	{ VM_MODE_P40V48_4K,	1, 1, },
+	{ VM_MODE_P40V48_64K,	1, 1, },
 #endif
 };
 

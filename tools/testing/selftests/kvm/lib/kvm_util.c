@@ -99,6 +99,8 @@ static void vm_open(struct kvm_vm *vm, int perm)
 const char * const vm_guest_mode_string[] = {
 	"PA-bits:52, VA-bits:48, 4K pages",
 	"PA-bits:52, VA-bits:48, 64K pages",
+	"PA-bits:40, VA-bits:48, 4K pages",
+	"PA-bits:40, VA-bits:48, 64K pages",
 };
 
 /*
@@ -145,6 +147,20 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 		vm->page_size = 0x10000;
 		vm->page_shift = 16;
 		vm->va_bits = 48;
+		break;
+	case VM_MODE_P40V48_4K:
+		vm->pgtable_levels = 4;
+		vm->pa_bits = 40;
+		vm->va_bits = 48;
+		vm->page_size = 0x1000;
+		vm->page_shift = 12;
+		break;
+	case VM_MODE_P40V48_64K:
+		vm->pgtable_levels = 3;
+		vm->pa_bits = 40;
+		vm->va_bits = 48;
+		vm->page_size = 0x10000;
+		vm->page_shift = 16;
 		break;
 	default:
 		TEST_ASSERT(false, "Unknown guest mode, mode: 0x%x", mode);

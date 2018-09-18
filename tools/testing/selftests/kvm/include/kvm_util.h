@@ -36,6 +36,8 @@ typedef uint64_t vm_vaddr_t; /* Virtual Machine (Guest) virtual address */
 enum vm_guest_mode {
 	VM_MODE_P52V48_4K,
 	VM_MODE_P52V48_64K,
+	VM_MODE_P40V48_4K,
+	VM_MODE_P40V48_64K,
 	NUM_VM_MODES,
 };
 
