@@ -941,7 +941,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		dc->hwss.enable_accelerated_mode(dc, context);
 
-	dc->hwss.set_bandwidth(dc, context, false);
+	dc->hwss.prepare_bandwidth(dc, context);
 
 	/* re-program planes for existing stream, in case we need to
 	 * free up plane resource for later use
@@ -1010,7 +1010,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
 	/* pplib is notified if disp_num changed */
-	dc->hwss.set_bandwidth(dc, context, true);
+	dc->hwss.optimize_bandwidth(dc, context);
 
 	dc_release_state(dc->current_state);
 
@@ -1059,7 +1059,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 
 	dc->optimized_required = false;
 
-	dc->hwss.set_bandwidth(dc, context, true);
+	dc->hwss.optimize_bandwidth(dc, context);
 	return true;
 }
 
@@ -1479,7 +1479,7 @@ static void commit_planes_for_stream(struct dc *dc,
 	struct pipe_ctx *top_pipe_to_program = NULL;
 
 	if (update_type == UPDATE_TYPE_FULL) {
-		dc->hwss.set_bandwidth(dc, context, false);
+		dc->hwss.prepare_bandwidth(dc, context);
 		context_clock_trace(dc, context);
 	}
 

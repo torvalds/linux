@@ -105,22 +105,16 @@ bool dce100_enable_display_power_gating(
 		return false;
 }
 
-void dce100_set_bandwidth(
+void dce100_prepare_bandwidth(
 		struct dc *dc,
-		struct dc_state *context,
-		bool decrease_allowed)
+		struct dc_state *context)
 {
-	int dispclk_khz = context->bw.dce.dispclk_khz;
-
-	context->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz * 115 / 100;
-
 	dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
 
 	dc->res_pool->dccg->funcs->update_clocks(
 			dc->res_pool->dccg,
 			context,
-			decrease_allowed);
-	context->bw.dce.dispclk_khz = dispclk_khz;
+			false);
 }
 
 /**************************************************************************/
@@ -130,6 +124,7 @@ void dce100_hw_sequencer_construct(struct dc *dc)
 	dce110_hw_sequencer_construct(dc);
 
 	dc->hwss.enable_display_power_gating = dce100_enable_display_power_gating;
-	dc->hwss.set_bandwidth = dce100_set_bandwidth;
+	dc->hwss.prepare_bandwidth = dce100_prepare_bandwidth;
+	dc->hwss.optimize_bandwidth = dce100_prepare_bandwidth;
 }
 

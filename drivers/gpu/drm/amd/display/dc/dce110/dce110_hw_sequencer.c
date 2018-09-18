@@ -2352,22 +2352,33 @@ static void init_hw(struct dc *dc)
 
 }
 
-void dce110_set_bandwidth(
+
+void dce110_prepare_bandwidth(
 		struct dc *dc,
-		struct dc_state *context,
-		bool decrease_allowed)
+		struct dc_state *context)
 {
 	struct dccg *dccg = dc->res_pool->dccg;
 
-	if (decrease_allowed)
-		dce110_set_displaymarks(dc, context);
-	else
-		dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
+	dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
 
 	dccg->funcs->update_clocks(
 			dccg,
 			context,
-			decrease_allowed);
+			false);
+}
+
+void dce110_optimize_bandwidth(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	struct dccg *dccg = dc->res_pool->dccg;
+
+	dce110_set_displaymarks(dc, context);
+
+	dccg->funcs->update_clocks(
+			dccg,
+			context,
+			true);
 }
 
 static void dce110_program_front_end_for_pipe(
@@ -2667,7 +2678,8 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.enable_display_power_gating = dce110_enable_display_power_gating,
 	.disable_plane = dce110_power_down_fe,
 	.pipe_control_lock = dce_pipe_control_lock,
-	.set_bandwidth = dce110_set_bandwidth,
+	.prepare_bandwidth = dce110_prepare_bandwidth,
+	.optimize_bandwidth = dce110_optimize_bandwidth,
 	.set_drr = set_drr,
 	.get_position = get_position,
 	.set_static_screen_control = set_static_screen_control,

@@ -63,10 +63,13 @@ void dce110_set_safe_displaymarks(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool);
 
-void dce110_set_bandwidth(
+void dce110_prepare_bandwidth(
 		struct dc *dc,
-		struct dc_state *context,
-		bool decrease_allowed);
+		struct dc_state *context);
+
+void dce110_optimize_bandwidth(
+		struct dc *dc,
+		struct dc_state *context);
 
 void dp_receiver_power_ctrl(struct dc_link *link, bool on);
 

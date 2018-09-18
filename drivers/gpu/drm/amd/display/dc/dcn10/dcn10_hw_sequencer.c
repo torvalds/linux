@@ -2358,10 +2358,9 @@ static void dcn10_apply_ctx_for_surface(
 		hubbub1_wm_change_req_wa(dc->res_pool->hubbub);
 }
 
-static void dcn10_set_bandwidth(
+static void dcn10_prepare_bandwidth(
 		struct dc *dc,
-		struct dc_state *context,
-		bool safe_to_lower)
+		struct dc_state *context)
 {
 	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
@@ -2373,7 +2372,36 @@ static void dcn10_set_bandwidth(
 		dc->res_pool->dccg->funcs->update_clocks(
 				dc->res_pool->dccg,
 				context,
-				safe_to_lower);
+				false);
+	}
+
+	hubbub1_program_watermarks(dc->res_pool->hubbub,
+			&context->bw.dcn.watermarks,
+			dc->res_pool->ref_clock_inKhz / 1000,
+			true);
+
+	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
+		dcn_bw_notify_pplib_of_wm_ranges(dc);
+
+	if (dc->debug.sanity_checks)
+		dcn10_verify_allow_pstate_change_high(dc);
+}
+
+static void dcn10_optimize_bandwidth(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	if (dc->debug.sanity_checks)
+		dcn10_verify_allow_pstate_change_high(dc);
+
+	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+		if (context->stream_count == 0)
+			context->bw.dcn.clk.phyclk_khz = 0;
+
+		dc->res_pool->dccg->funcs->update_clocks(
+				dc->res_pool->dccg,
+				context,
+				true);
 	}
 
 	hubbub1_program_watermarks(dc->res_pool->hubbub,
@@ -2682,7 +2710,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.disable_plane = dcn10_disable_plane,
 	.blank_pixel_data = dcn10_blank_pixel_data,
 	.pipe_control_lock = dcn10_pipe_control_lock,
-	.set_bandwidth = dcn10_set_bandwidth,
+	.prepare_bandwidth = dcn10_prepare_bandwidth,
+	.optimize_bandwidth = dcn10_optimize_bandwidth,
 	.reset_hw_ctx_wrap = reset_hw_ctx_wrap,
 	.enable_stream_timing = dcn10_enable_stream_timing,
 	.set_drr = set_drr,
