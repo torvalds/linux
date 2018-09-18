@@ -54,6 +54,7 @@
 #include <asm/vdso.h>
 #include <asm/intel_rdt_sched.h>
 #include <asm/unistd.h>
+#include <asm/fsgsbase.h>
 #ifdef CONFIG_IA32_EMULATION
 /* Not included via unistd.h */
 #include <asm/unistd_32_ia32.h>
@@ -284,6 +285,129 @@ static __always_inline void load_seg_legacy(unsigned short prev_index,
 		 */
 		loadseg(which, next_index);
 	}
+}
+
+unsigned long x86_fsgsbase_read_task(struct task_struct *task,
+				     unsigned short selector)
+{
+	unsigned short idx = selector >> 3;
+	unsigned long base;
+
+	if (likely((selector & SEGMENT_TI_MASK) == 0)) {
+		if (unlikely(idx >= GDT_ENTRIES))
+			return 0;
+
+		/*
+		 * There are no user segments in the GDT with nonzero bases
+		 * other than the TLS segments.
+		 */
+		if (idx < GDT_ENTRY_TLS_MIN || idx > GDT_ENTRY_TLS_MAX)
+			return 0;
+
+		idx -= GDT_ENTRY_TLS_MIN;
+		base = get_desc_base(&task->thread.tls_array[idx]);
+	} else {
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
+		struct ldt_struct *ldt;
+
+		/*
+		 * If performance here mattered, we could protect the LDT
+		 * with RCU.  This is a slow path, though, so we can just
+		 * take the mutex.
+		 */
+		mutex_lock(&task->mm->context.lock);
+		ldt = task->mm->context.ldt;
+		if (unlikely(idx >= ldt->nr_entries))
+			base = 0;
+		else
+			base = get_desc_base(ldt->entries + idx);
+		mutex_unlock(&task->mm->context.lock);
+#else
+		base = 0;
+#endif
+	}
+
+	return base;
+}
+
+void x86_fsbase_write_cpu(unsigned long fsbase)
+{
+	/*
+	 * Set the selector to 0 as a notion, that the segment base is
+	 * overwritten, which will be checked for skipping the segment load
+	 * during context switch.
+	 */
+	loadseg(FS, 0);
+	wrmsrl(MSR_FS_BASE, fsbase);
+}
+
+void x86_gsbase_write_cpu_inactive(unsigned long gsbase)
+{
+	/* Set the selector to 0 for the same reason as %fs above. */
+	loadseg(GS, 0);
+	wrmsrl(MSR_KERNEL_GS_BASE, gsbase);
+}
+
+unsigned long x86_fsbase_read_task(struct task_struct *task)
+{
+	unsigned long fsbase;
+
+	if (task == current)
+		fsbase = x86_fsbase_read_cpu();
+	else if (task->thread.fsindex == 0)
+		fsbase = task->thread.fsbase;
+	else
+		fsbase = x86_fsgsbase_read_task(task, task->thread.fsindex);
+
+	return fsbase;
+}
+
+unsigned long x86_gsbase_read_task(struct task_struct *task)
+{
+	unsigned long gsbase;
+
+	if (task == current)
+		gsbase = x86_gsbase_read_cpu_inactive();
+	else if (task->thread.gsindex == 0)
+		gsbase = task->thread.gsbase;
+	else
+		gsbase = x86_fsgsbase_read_task(task, task->thread.gsindex);
+
+	return gsbase;
+}
+
+int x86_fsbase_write_task(struct task_struct *task, unsigned long fsbase)
+{
+	/*
+	 * Not strictly needed for %fs, but do it for symmetry
+	 * with %gs
+	 */
+	if (unlikely(fsbase >= TASK_SIZE_MAX))
+		return -EPERM;
+
+	preempt_disable();
+	task->thread.fsbase = fsbase;
+	if (task == current)
+		x86_fsbase_write_cpu(fsbase);
+	task->thread.fsindex = 0;
+	preempt_enable();
+
+	return 0;
+}
+
+int x86_gsbase_write_task(struct task_struct *task, unsigned long gsbase)
+{
+	if (unlikely(gsbase >= TASK_SIZE_MAX))
+		return -EPERM;
+
+	preempt_disable();
+	task->thread.gsbase = gsbase;
+	if (task == current)
+		x86_gsbase_write_cpu_inactive(gsbase);
+	task->thread.gsindex = 0;
+	preempt_enable();
+
+	return 0;
 }
 
 int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
