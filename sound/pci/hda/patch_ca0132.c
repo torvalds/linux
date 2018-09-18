@@ -1056,6 +1056,21 @@ static const struct hda_pintbl r3d_pincfgs[] = {
 	{}
 };
 
+/* Sound Blaster AE-5 pin configs taken from Windows Driver */
+static const struct hda_pintbl ae5_pincfgs[] = {
+	{ 0x0b, 0x01017010 }, /* Port G -- Lineout FRONT L/R */
+	{ 0x0c, 0x014510f0 }, /* SPDIF Out 1 */
+	{ 0x0d, 0x014510f0 }, /* Digital Out */
+	{ 0x0e, 0x01c510f0 }, /* SPDIF In */
+	{ 0x0f, 0x01017114 }, /* Port A -- Rear L/R. */
+	{ 0x10, 0x01017012 }, /* Port D -- Center/LFE or FP Hp */
+	{ 0x11, 0x01a170ff }, /* Port B -- LineMicIn2 / Rear Headphone */
+	{ 0x12, 0x01a170f0 }, /* Port C -- LineIn1 */
+	{ 0x13, 0x908700f0 }, /* What U Hear In*/
+	{ 0x18, 0x50d000f0 }, /* N/A */
+	{}
+};
+
 /* Recon3D integrated pin configs taken from Windows Driver */
 static const struct hda_pintbl r3di_pincfgs[] = {
 	{ 0x0b, 0x01014110 }, /* Port G -- Lineout FRONT L/R */
@@ -7435,9 +7450,29 @@ static void ca0132_config(struct hda_codec *codec)
 
 	switch (spec->quirk) {
 	case QUIRK_ALIENWARE:
-		codec_dbg(codec, "ca0132_config: QUIRK_ALIENWARE applied.\n");
+		codec_dbg(codec, "%s: QUIRK_ALIENWARE applied.\n", __func__);
 		snd_hda_apply_pincfgs(codec, alienware_pincfgs);
+		break;
+	case QUIRK_SBZ:
+		codec_dbg(codec, "%s: QUIRK_SBZ applied.\n", __func__);
+		snd_hda_apply_pincfgs(codec, sbz_pincfgs);
+		break;
+	case QUIRK_R3D:
+		codec_dbg(codec, "%s: QUIRK_R3D applied.\n", __func__);
+		snd_hda_apply_pincfgs(codec, r3d_pincfgs);
+		break;
+	case QUIRK_R3DI:
+		codec_dbg(codec, "%s: QUIRK_R3DI applied.\n", __func__);
+		snd_hda_apply_pincfgs(codec, r3di_pincfgs);
+		break;
+	case QUIRK_AE5:
+		codec_dbg(codec, "%s: QUIRK_AE5 applied.\n", __func__);
+		snd_hda_apply_pincfgs(codec, r3di_pincfgs);
+		break;
+	}
 
+	switch (spec->quirk) {
+	case QUIRK_ALIENWARE:
 		spec->num_outputs = 2;
 		spec->out_pins[0] = 0x0b; /* speaker out */
 		spec->out_pins[1] = 0x0f;
@@ -7457,15 +7492,6 @@ static void ca0132_config(struct hda_codec *codec)
 		break;
 	case QUIRK_SBZ:
 	case QUIRK_R3D:
-		if (spec->quirk == QUIRK_SBZ) {
-			codec_dbg(codec, "%s: QUIRK_SBZ applied.\n", __func__);
-			snd_hda_apply_pincfgs(codec, sbz_pincfgs);
-		}
-		if (spec->quirk == QUIRK_R3D) {
-			codec_dbg(codec, "%s: QUIRK_R3D applied.\n", __func__);
-			snd_hda_apply_pincfgs(codec, r3d_pincfgs);
-		}
-
 		spec->num_outputs = 2;
 		spec->out_pins[0] = 0x0B; /* Line out */
 		spec->out_pins[1] = 0x0F; /* Rear headphone out */
@@ -7490,10 +7516,31 @@ static void ca0132_config(struct hda_codec *codec)
 		spec->multiout.dig_out_nid = spec->dig_out;
 		spec->dig_in = 0x09;
 		break;
-	case QUIRK_R3DI:
-		codec_dbg(codec, "%s: QUIRK_R3DI applied.\n", __func__);
-		snd_hda_apply_pincfgs(codec, r3di_pincfgs);
+	case QUIRK_AE5:
+		spec->num_outputs = 2;
+		spec->out_pins[0] = 0x0B; /* Line out */
+		spec->out_pins[1] = 0x11; /* Rear headphone out */
+		spec->out_pins[2] = 0x10; /* Front Headphone / Center/LFE*/
+		spec->out_pins[3] = 0x0F; /* Rear surround */
+		spec->shared_out_nid = 0x2;
+		spec->unsol_tag_hp = spec->out_pins[1];
+		spec->unsol_tag_front_hp = spec->out_pins[2];
 
+		spec->adcs[0] = 0x7; /* Rear Mic / Line-in */
+		spec->adcs[1] = 0x8; /* Front Mic, but only if no DSP */
+		spec->adcs[2] = 0xa; /* what u hear */
+
+		spec->num_inputs = 2;
+		spec->input_pins[0] = 0x12; /* Rear Mic / Line-in */
+		spec->input_pins[1] = 0x13; /* What U Hear */
+		spec->shared_mic_nid = 0x7;
+		spec->unsol_tag_amic1 = spec->input_pins[0];
+
+		/* SPDIF I/O */
+		spec->dig_out = 0x05;
+		spec->multiout.dig_out_nid = spec->dig_out;
+		break;
+	case QUIRK_R3DI:
 		spec->num_outputs = 2;
 		spec->out_pins[0] = 0x0B; /* Line out */
 		spec->out_pins[1] = 0x0F; /* Rear headphone out */
