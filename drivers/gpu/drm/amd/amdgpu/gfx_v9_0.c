@@ -945,9 +945,12 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 		BUG();
 	}
 
-	r = gfx_v9_0_init_cp_gfx_microcode(adev, chip_name);
-	if (r)
-		return r;
+	/* No CPG in Arcturus */
+	if (adev->asic_type != CHIP_ARCTURUS) {
+		r = gfx_v9_0_init_cp_gfx_microcode(adev, chip_name);
+		if (r)
+			return r;
+	}
 
 	r = gfx_v9_0_init_rlc_microcode(adev, chip_name);
 	if (r)
@@ -3323,10 +3326,12 @@ static int gfx_v9_0_cp_resume(struct amdgpu_device *adev)
 		gfx_v9_0_enable_gui_idle_interrupt(adev, false);
 
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
-		/* legacy firmware loading */
-		r = gfx_v9_0_cp_gfx_load_microcode(adev);
-		if (r)
-			return r;
+		if (adev->asic_type != CHIP_ARCTURUS) {
+			/* legacy firmware loading */
+			r = gfx_v9_0_cp_gfx_load_microcode(adev);
+			if (r)
+				return r;
+		}
 
 		r = gfx_v9_0_cp_compute_load_microcode(adev);
 		if (r)
