@@ -4510,7 +4510,8 @@ Do not enable KVM_FEATURE_PV_UNHALT if you disable HLT exits.
 Architectures: s390
 Parameters: none
 Returns: 0 on success, -EINVAL if hpage module parameter was not set
-	 or cmma is enabled
+	 or cmma is enabled, or the VM has the KVM_VM_S390_UCONTROL
+	 flag set
 
 With this capability the KVM support for memory backing with 1m pages
 through hugetlbfs can be enabled for a VM. After the capability is
