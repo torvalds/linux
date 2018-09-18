@@ -103,8 +103,7 @@ static bool store_updates_sp(unsigned int inst)
  */
 
 static int
-__bad_area_nosemaphore(struct pt_regs *regs, unsigned long address, int si_code,
-		int pkey)
+__bad_area_nosemaphore(struct pt_regs *regs, unsigned long address, int si_code)
 {
 	/*
 	 * If we are in kernel mode, bail out with a SEGV, this will
@@ -114,14 +113,14 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long address, int si_code,
 	if (!user_mode(regs))
 		return SIGSEGV;
 
-	_exception_pkey(SIGSEGV, regs, si_code, address, pkey);
+	_exception(SIGSEGV, regs, si_code, address);
 
 	return 0;
 }
 
 static noinline int bad_area_nosemaphore(struct pt_regs *regs, unsigned long address)
 {
-	return __bad_area_nosemaphore(regs, address, SEGV_MAPERR, 0);
+	return __bad_area_nosemaphore(regs, address, SEGV_MAPERR);
 }
 
 static int __bad_area(struct pt_regs *regs, unsigned long address, int si_code)
@@ -134,7 +133,7 @@ static int __bad_area(struct pt_regs *regs, unsigned long address, int si_code)
 	 */
 	up_read(&mm->mmap_sem);
 
-	return __bad_area_nosemaphore(regs, address, si_code, 0);
+	return __bad_area_nosemaphore(regs, address, si_code);
 }
 
 static noinline int bad_area(struct pt_regs *regs, unsigned long address)
