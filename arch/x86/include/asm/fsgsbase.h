@@ -8,9 +8,6 @@
 
 #include <asm/msr-index.h>
 
-unsigned long x86_fsgsbase_read_task(struct task_struct *task,
-				     unsigned short selector);
-
 /*
  * Read/write a task's fsbase or gsbase. This returns the value that
  * the FS/GS base would have (if the task were to be resumed). These
