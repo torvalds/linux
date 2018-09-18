@@ -896,7 +896,9 @@ static void destruct(struct dcn10_resource_pool *pool)
 			kfree(DCN10TG_FROM_TG(pool->base.timing_generators[i]));
 			pool->base.timing_generators[i] = NULL;
 		}
+	}
 
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		if (pool->base.engines[i] != NULL)
 			pool->base.engines[i]->funcs->destroy_engine(&pool->base.engines[i]);
 		if (pool->base.hw_i2cs[i] != NULL) {
