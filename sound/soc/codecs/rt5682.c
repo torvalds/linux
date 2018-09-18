@@ -2468,17 +2468,22 @@ static void rt5682_calibrate(struct rt5682_priv *rt5682)
 	mutex_lock(&rt5682->calibrate_mutex);
 
 	rt5682_reset(rt5682->regmap);
-	regmap_write(rt5682->regmap, RT5682_PWR_ANLG_1, 0xa2bf);
+	regmap_write(rt5682->regmap, RT5682_PWR_ANLG_1, 0xa2af);
 	usleep_range(15000, 20000);
-	regmap_write(rt5682->regmap, RT5682_PWR_ANLG_1, 0xf2bf);
+	regmap_write(rt5682->regmap, RT5682_PWR_ANLG_1, 0xf2af);
 	regmap_write(rt5682->regmap, RT5682_MICBIAS_2, 0x0300);
 	regmap_write(rt5682->regmap, RT5682_GLB_CLK, 0x8000);
 	regmap_write(rt5682->regmap, RT5682_PWR_DIG_1, 0x0100);
+	regmap_write(rt5682->regmap, RT5682_HP_IMP_SENS_CTRL_19, 0x3800);
 	regmap_write(rt5682->regmap, RT5682_CHOP_DAC, 0x3000);
+	regmap_write(rt5682->regmap, RT5682_CALIB_ADC_CTRL, 0x7005);
+	regmap_write(rt5682->regmap, RT5682_STO1_ADC_MIXER, 0x686c);
+	regmap_write(rt5682->regmap, RT5682_CAL_REC, 0x0d0d);
 	regmap_write(rt5682->regmap, RT5682_HP_CALIB_CTRL_2, 0x0321);
 	regmap_write(rt5682->regmap, RT5682_HP_LOGIC_CTRL_2, 0x0004);
 	regmap_write(rt5682->regmap, RT5682_HP_CALIB_CTRL_1, 0x7c00);
 	regmap_write(rt5682->regmap, RT5682_HP_CALIB_CTRL_3, 0x06a1);
+	regmap_write(rt5682->regmap, RT5682_A_DAC1_MUX, 0x0311);
 	regmap_write(rt5682->regmap, RT5682_HP_CALIB_CTRL_1, 0x7c00);
 
 	regmap_write(rt5682->regmap, RT5682_HP_CALIB_CTRL_1, 0xfc00);
@@ -2495,8 +2500,12 @@ static void rt5682_calibrate(struct rt5682_priv *rt5682)
 		pr_err("HP Calibration Failure\n");
 
 	/* restore settings */
+	regmap_write(rt5682->regmap, RT5682_PWR_ANLG_1, 0x02af);
+	regmap_write(rt5682->regmap, RT5682_MICBIAS_2, 0x0080);
 	regmap_write(rt5682->regmap, RT5682_GLB_CLK, 0x0000);
 	regmap_write(rt5682->regmap, RT5682_PWR_DIG_1, 0x0000);
+	regmap_write(rt5682->regmap, RT5682_CHOP_DAC, 0x2000);
+	regmap_write(rt5682->regmap, RT5682_CALIB_ADC_CTRL, 0x2005);
 
 	mutex_unlock(&rt5682->calibrate_mutex);
 
