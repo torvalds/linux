@@ -342,7 +342,7 @@ struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 {
 	struct snd_soc_pcm_runtime *rtd;
 
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		if (rtd->dai_link->no_pcm &&
 			!strcmp(rtd->dai_link->name, dai_link))
 			return rtd->pcm->streams[stream].substream;
@@ -399,7 +399,7 @@ static void soc_remove_pcm_runtimes(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd, *_rtd;
 
-	list_for_each_entry_safe(rtd, _rtd, &card->rtd_list, list) {
+	for_each_card_rtds_safe(card, rtd, _rtd) {
 		list_del(&rtd->list);
 		soc_free_pcm_runtime(rtd);
 	}
@@ -412,7 +412,7 @@ struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
 {
 	struct snd_soc_pcm_runtime *rtd;
 
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		if (!strcmp(rtd->dai_link->name, dai_link))
 			return rtd;
 	}
@@ -452,7 +452,7 @@ int snd_soc_suspend(struct device *dev)
 	snd_power_change_state(card->snd_card, SNDRV_CTL_POWER_D3hot);
 
 	/* mute any active DACs */
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		struct snd_soc_dai *dai;
 
 		if (rtd->dai_link->ignore_suspend)
@@ -467,7 +467,7 @@ int snd_soc_suspend(struct device *dev)
 	}
 
 	/* suspend all pcms */
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		if (rtd->dai_link->ignore_suspend)
 			continue;
 
@@ -477,7 +477,7 @@ int snd_soc_suspend(struct device *dev)
 	if (card->suspend_pre)
 		card->suspend_pre(card);
 
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 
 		if (rtd->dai_link->ignore_suspend)
@@ -488,10 +488,10 @@ int snd_soc_suspend(struct device *dev)
 	}
 
 	/* close any waiting streams */
-	list_for_each_entry(rtd, &card->rtd_list, list)
+	for_each_card_rtds(card, rtd)
 		flush_delayed_work(&rtd->delayed_work);
 
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 
 		if (rtd->dai_link->ignore_suspend)
 			continue;
@@ -548,7 +548,7 @@ int snd_soc_suspend(struct device *dev)
 		}
 	}
 
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 
 		if (rtd->dai_link->ignore_suspend)
@@ -592,7 +592,7 @@ static void soc_resume_deferred(struct work_struct *work)
 		card->resume_pre(card);
 
 	/* resume control bus DAIs */
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 
 		if (rtd->dai_link->ignore_suspend)
@@ -610,7 +610,7 @@ static void soc_resume_deferred(struct work_struct *work)
 		}
 	}
 
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 
 		if (rtd->dai_link->ignore_suspend)
 			continue;
@@ -625,7 +625,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	}
 
 	/* unmute any active DACs */
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		struct snd_soc_dai *dai;
 
 		if (rtd->dai_link->ignore_suspend)
@@ -639,7 +639,7 @@ static void soc_resume_deferred(struct work_struct *work)
 		}
 	}
 
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 
 		if (rtd->dai_link->ignore_suspend)
@@ -674,7 +674,7 @@ int snd_soc_resume(struct device *dev)
 		return 0;
 
 	/* activate pins from sleep state */
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		struct snd_soc_dai *codec_dai;
 		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 		int j;
@@ -694,7 +694,7 @@ int snd_soc_resume(struct device *dev)
 	 * have that problem and may take a substantial amount of time to resume
 	 * due to I/O costs and anti-pop so handle them out of line.
 	 */
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 		bus_control |= cpu_dai->driver->bus_control;
 	}
@@ -839,7 +839,7 @@ static bool soc_is_dai_link_bound(struct snd_soc_card *card,
 {
 	struct snd_soc_pcm_runtime *rtd;
 
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		if (rtd->dai_link == dai_link)
 			return true;
 	}
@@ -994,13 +994,13 @@ static void soc_remove_dai_links(struct snd_soc_card *card)
 
 	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
 			order++) {
-		list_for_each_entry(rtd, &card->rtd_list, list)
+		for_each_card_rtds(card, rtd)
 			soc_remove_link_dais(card, rtd, order);
 	}
 
 	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
 			order++) {
-		list_for_each_entry(rtd, &card->rtd_list, list)
+		for_each_card_rtds(card, rtd)
 			soc_remove_link_components(card, rtd, order);
 	}
 
@@ -2014,7 +2014,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	/* probe all components used by DAI links on this card */
 	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
 			order++) {
-		list_for_each_entry(rtd, &card->rtd_list, list) {
+		for_each_card_rtds(card, rtd) {
 			ret = soc_probe_link_components(card, rtd, order);
 			if (ret < 0) {
 				dev_err(card->dev,
@@ -2048,7 +2048,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	/* probe all DAI links on this card */
 	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
 			order++) {
-		list_for_each_entry(rtd, &card->rtd_list, list) {
+		for_each_card_rtds(card, rtd) {
 			ret = soc_probe_link_dais(card, rtd, order);
 			if (ret < 0) {
 				dev_err(card->dev,
@@ -2169,7 +2169,7 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 	struct snd_soc_pcm_runtime *rtd;
 
 	/* make sure any delayed work runs */
-	list_for_each_entry(rtd, &card->rtd_list, list)
+	for_each_card_rtds(card, rtd)
 		flush_delayed_work(&rtd->delayed_work);
 
 	/* free the ALSA card at first; this syncs with pending operations */
@@ -2211,13 +2211,13 @@ int snd_soc_poweroff(struct device *dev)
 
 	/* Flush out pmdown_time work - we actually do want to run it
 	 * now, we're shutting down so no imminent restart. */
-	list_for_each_entry(rtd, &card->rtd_list, list)
+	for_each_card_rtds(card, rtd)
 		flush_delayed_work(&rtd->delayed_work);
 
 	snd_soc_dapm_shutdown(card);
 
 	/* deactivate pins to sleep state */
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 		struct snd_soc_dai *codec_dai;
 		int i;
@@ -2686,7 +2686,7 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 		return ret;
 
 	/* deactivate pins to sleep state */
-	list_for_each_entry(rtd, &card->rtd_list, list)  {
+	for_each_card_rtds(card, rtd)  {
 		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 		struct snd_soc_dai *codec_dai;
 		int j;

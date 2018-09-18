@@ -1307,7 +1307,7 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 	dev_dbg(card->dev, "ASoC: find BE for widget %s\n", widget->name);
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		list_for_each_entry(be, &card->rtd_list, list) {
+		for_each_card_rtds(card, be) {
 
 			if (!be->dai_link->no_pcm)
 				continue;
@@ -1326,7 +1326,7 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 		}
 	} else {
 
-		list_for_each_entry(be, &card->rtd_list, list) {
+		for_each_card_rtds(card, be) {
 
 			if (!be->dai_link->no_pcm)
 				continue;
@@ -1382,7 +1382,7 @@ static bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget,
 	int i;
 
 	if (dir == SND_SOC_DAPM_DIR_OUT) {
-		list_for_each_entry(rtd, &card->rtd_list, list) {
+		for_each_card_rtds(card, rtd) {
 			if (!rtd->dai_link->no_pcm)
 				continue;
 
@@ -1395,7 +1395,7 @@ static bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget,
 			}
 		}
 	} else { /* SND_SOC_DAPM_DIR_IN */
-		list_for_each_entry(rtd, &card->rtd_list, list) {
+		for_each_card_rtds(card, rtd) {
 			if (!rtd->dai_link->no_pcm)
 				continue;
 
@@ -2761,14 +2761,14 @@ int soc_dpcm_runtime_update(struct snd_soc_card *card)
 
 	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
 	/* shutdown all old paths first */
-	list_for_each_entry(fe, &card->rtd_list, list) {
+	for_each_card_rtds(card, fe) {
 		ret = soc_dpcm_fe_runtime_update(fe, 0);
 		if (ret)
 			goto out;
 	}
 
 	/* bring new paths up */
-	list_for_each_entry(fe, &card->rtd_list, list) {
+	for_each_card_rtds(card, fe) {
 		ret = soc_dpcm_fe_runtime_update(fe, 1);
 		if (ret)
 			goto out;
