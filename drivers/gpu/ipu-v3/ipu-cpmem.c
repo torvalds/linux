@@ -259,6 +259,8 @@ EXPORT_SYMBOL_GPL(ipu_cpmem_set_high_priority);
 
 void ipu_cpmem_set_buffer(struct ipuv3_channel *ch, int bufnum, dma_addr_t buf)
 {
+	WARN_ON_ONCE(buf & 0x7);
+
 	if (bufnum)
 		ipu_ch_param_write_field(ch, IPU_FIELD_EBA1, buf >> 3);
 	else
@@ -268,6 +270,8 @@ EXPORT_SYMBOL_GPL(ipu_cpmem_set_buffer);
 
 void ipu_cpmem_set_uv_offset(struct ipuv3_channel *ch, u32 u_off, u32 v_off)
 {
+	WARN_ON_ONCE((u_off & 0x7) || (v_off & 0x7));
+
 	ipu_ch_param_write_field(ch, IPU_FIELD_UBO, u_off / 8);
 	ipu_ch_param_write_field(ch, IPU_FIELD_VBO, v_off / 8);
 }
@@ -435,6 +439,8 @@ void ipu_cpmem_set_yuv_planar_full(struct ipuv3_channel *ch,
 				   unsigned int uv_stride,
 				   unsigned int u_offset, unsigned int v_offset)
 {
+	WARN_ON_ONCE((u_offset & 0x7) || (v_offset & 0x7));
+
 	ipu_ch_param_write_field(ch, IPU_FIELD_SLUV, uv_stride - 1);
 	ipu_ch_param_write_field(ch, IPU_FIELD_UBO, u_offset / 8);
 	ipu_ch_param_write_field(ch, IPU_FIELD_VBO, v_offset / 8);
