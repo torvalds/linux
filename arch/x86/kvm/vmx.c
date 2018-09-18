@@ -5398,9 +5398,10 @@ static int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		 * To use VMXON (and later other VMX instructions), a guest
 		 * must first be able to turn on cr4.VMXE (see handle_vmon()).
 		 * So basically the check on whether to allow nested VMX
-		 * is here.
+		 * is here.  We operate under the default treatment of SMM,
+		 * so VMX cannot be enabled under SMM.
 		 */
-		if (!nested_vmx_allowed(vcpu))
+		if (!nested_vmx_allowed(vcpu) || is_smm(vcpu))
 			return 1;
 	}
 
@@ -13975,6 +13976,14 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 
 	if (kvm_state->vmx.smm.flags &
 	    ~(KVM_STATE_NESTED_SMM_GUEST_MODE | KVM_STATE_NESTED_SMM_VMXON))
+		return -EINVAL;
+
+	/*
+	 * SMM temporarily disables VMX, so we cannot be in guest mode,
+	 * nor can VMLAUNCH/VMRESUME be pending.  Outside SMM, SMM flags
+	 * must be zero.
+	 */
+	if (is_smm(vcpu) ? kvm_state->flags : kvm_state->vmx.smm.flags)
 		return -EINVAL;
 
 	if ((kvm_state->vmx.smm.flags & KVM_STATE_NESTED_SMM_GUEST_MODE) &&
