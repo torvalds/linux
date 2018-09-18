@@ -404,11 +404,9 @@ EXPORT_SYMBOL_GPL(asoc_simple_card_canonicalize_cpu);
 int asoc_simple_card_clean_reference(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *dai_link;
-	int num_links;
+	int i;
 
-	for (num_links = 0, dai_link = card->dai_link;
-	     num_links < card->num_links;
-	     num_links++, dai_link++) {
+	for_each_card_prelinks(card, i, dai_link) {
 		of_node_put(dai_link->cpu_of_node);
 		of_node_put(dai_link->codecs->of_node);
 	}

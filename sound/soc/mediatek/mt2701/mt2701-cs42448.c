@@ -299,6 +299,7 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 		devm_kzalloc(&pdev->dev, sizeof(struct mt2701_cs42448_private),
 			     GFP_KERNEL);
 	struct device *dev = &pdev->dev;
+	struct snd_soc_dai_link *dai_link;
 
 	if (!priv)
 		return -ENOMEM;
@@ -309,10 +310,10 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < card->num_links; i++) {
-		if (mt2701_cs42448_dai_links[i].platform_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_links->platform_name)
 			continue;
-		mt2701_cs42448_dai_links[i].platform_of_node = platform_node;
+		dai_links->platform_of_node = platform_node;
 	}
 
 	card->dev = dev;
@@ -324,10 +325,10 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 			"Property 'audio-codec' missing or invalid\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < card->num_links; i++) {
-		if (mt2701_cs42448_dai_links[i].codec_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_links->codec_name)
 			continue;
-		mt2701_cs42448_dai_links[i].codec_of_node = codec_node;
+		dai_links->codec_of_node = codec_node;
 	}
 
 	codec_node_bt_mrg = of_parse_phandle(pdev->dev.of_node,
