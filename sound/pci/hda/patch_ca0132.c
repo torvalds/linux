@@ -7597,7 +7597,11 @@ static int ca0132_prepare_verbs(struct hda_codec *codec)
 	struct ca0132_spec *spec = codec->spec;
 
 	spec->chip_init_verbs = ca0132_init_verbs0;
-	if (spec->quirk == QUIRK_SBZ || spec->quirk == QUIRK_R3D)
+	/*
+	 * Since desktop cards use pci_mmio, this can be used to determine
+	 * whether or not to use these verbs instead of a separate bool.
+	 */
+	if (spec->use_pci_mmio)
 		spec->desktop_init_verbs = ca0132_init_verbs1;
 	spec->spec_init_verbs = kcalloc(NUM_SPEC_VERBS,
 					sizeof(struct hda_verb),
@@ -7671,6 +7675,10 @@ static int patch_ca0132(struct hda_codec *codec)
 		spec->mixers[0] = r3di_mixer;
 		snd_hda_codec_set_name(codec, "Recon3Di");
 		break;
+	case QUIRK_AE5:
+		spec->mixers[0] = desktop_mixer;
+		snd_hda_codec_set_name(codec, "Sound BlasterX AE-5");
+		break;
 	default:
 		spec->mixers[0] = ca0132_mixer;
 		break;
@@ -7680,6 +7688,7 @@ static int patch_ca0132(struct hda_codec *codec)
 	switch (spec->quirk) {
 	case QUIRK_SBZ:
 	case QUIRK_R3D:
+	case QUIRK_AE5:
 		spec->use_alt_controls = true;
 		spec->use_alt_functions = true;
 		spec->use_pci_mmio = true;
