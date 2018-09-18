@@ -6381,13 +6381,9 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 		return -EINVAL;
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
-	ioc = kmalloc(sizeof(*ioc), GFP_KERNEL);
-	if (!ioc) {
-		status = -ENOMEM;
-		goto cleanup1;
-	}
-	if (copy_from_user(ioc, argp, sizeof(*ioc))) {
-		status = -EFAULT;
+	ioc = vmemdup_user(argp, sizeof(*ioc));
+	if (IS_ERR(ioc)) {
+		status = PTR_ERR(ioc);
 		goto cleanup1;
 	}
 	if ((ioc->buf_size < 1) &&
@@ -6505,7 +6501,7 @@ cleanup1:
 		kfree(buff);
 	}
 	kfree(buff_size);
-	kfree(ioc);
+	kvfree(ioc);
 	return status;
 }
 
