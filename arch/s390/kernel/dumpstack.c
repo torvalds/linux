@@ -77,11 +77,11 @@ void dump_trace(dump_trace_func_t func, void *data, struct task_struct *task,
 	frame_size = STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
 #ifdef CONFIG_CHECK_STACK
 	sp = __dump_trace(func, data, sp,
-			  S390_lowcore.nodat_stack + frame_size - STACK_SIZE,
+			  S390_lowcore.nodat_stack + frame_size - THREAD_SIZE,
 			  S390_lowcore.nodat_stack + frame_size);
 #endif
 	sp = __dump_trace(func, data, sp,
-			  S390_lowcore.async_stack + frame_size - STACK_SIZE,
+			  S390_lowcore.async_stack + frame_size - THREAD_SIZE,
 			  S390_lowcore.async_stack + frame_size);
 	task = task ?: current;
 	__dump_trace(func, data, sp,

@@ -308,13 +308,13 @@ unsigned long stack_alloc(void)
 {
 #ifdef CONFIG_VMAP_STACK
 	return (unsigned long)
-		__vmalloc_node_range(STACK_SIZE, STACK_SIZE,
+		__vmalloc_node_range(THREAD_SIZE, THREAD_SIZE,
 				     VMALLOC_START, VMALLOC_END,
 				     THREADINFO_GFP,
 				     PAGE_KERNEL, 0, NUMA_NO_NODE,
 				     __builtin_return_address(0));
 #else
-	return __get_free_pages(GFP_KERNEL, STACK_ORDER);
+	return __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
 #endif
 }
 
@@ -323,7 +323,7 @@ void stack_free(unsigned long stack)
 #ifdef CONFIG_VMAP_STACK
 	vfree((void *) stack);
 #else
-	free_pages(stack, STACK_ORDER);
+	free_pages(stack, THREAD_SIZE_ORDER);
 #endif
 }
 
@@ -331,7 +331,7 @@ int __init arch_early_irq_init(void)
 {
 	unsigned long stack;
 
-	stack = __get_free_pages(GFP_KERNEL, STACK_ORDER);
+	stack = __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
 	if (!stack)
 		panic("Couldn't allocate async stack");
 	S390_lowcore.async_stack = stack + STACK_INIT_OFFSET;
@@ -347,7 +347,7 @@ static int __init async_stack_realloc(void)
 	if (!new)
 		panic("Couldn't allocate async stack");
 	S390_lowcore.async_stack = new + STACK_INIT_OFFSET;
-	free_pages(old, STACK_ORDER);
+	free_pages(old, THREAD_SIZE_ORDER);
 	return 0;
 }
 early_initcall(async_stack_realloc);
@@ -428,7 +428,7 @@ static void __init setup_lowcore(void)
 	 * Allocate the global restart stack which is the same for
 	 * all CPUs in cast *one* of them does a PSW restart.
 	 */
-	restart_stack = memblock_virt_alloc(STACK_SIZE, STACK_SIZE);
+	restart_stack = memblock_virt_alloc(THREAD_SIZE, THREAD_SIZE);
 	restart_stack += STACK_INIT_OFFSET;
 
 	/*
