@@ -343,11 +343,6 @@ err_free_vboxbo:
 	return ret;
 }
 
-static inline u64 vbox_bo_gpu_offset(struct vbox_bo *bo)
-{
-	return bo->bo.offset;
-}
-
 int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag, u64 *gpu_addr)
 {
 	struct ttm_operation_ctx ctx = { false, false };

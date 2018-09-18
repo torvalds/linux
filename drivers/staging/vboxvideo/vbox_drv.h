@@ -220,6 +220,11 @@ static inline struct vbox_bo *vbox_bo(struct ttm_buffer_object *bo)
 
 #define to_vbox_obj(x) container_of(x, struct vbox_gem_object, base)
 
+static inline u64 vbox_bo_gpu_offset(struct vbox_bo *bo)
+{
+	return bo->bo.offset;
+}
+
 int vbox_dumb_create(struct drm_file *file,
 		     struct drm_device *dev,
 		     struct drm_mode_create_dumb *args);

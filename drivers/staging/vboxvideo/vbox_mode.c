@@ -255,28 +255,18 @@ static void vbox_fb_unpin(struct drm_framebuffer *fb)
 	vbox_bo_unreserve(bo);
 }
 
-static int vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
-				       struct drm_framebuffer *old_fb,
-				       struct drm_framebuffer *new_fb,
-				       struct drm_display_mode *mode,
-				       int x, int y)
+static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
+					struct drm_framebuffer *fb,
+					struct drm_display_mode *mode,
+					int x, int y)
 {
+	struct vbox_bo *bo = gem_to_vbox_bo(to_vbox_framebuffer(fb)->obj);
 	struct vbox_private *vbox = crtc->dev->dev_private;
 	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
-	u64 gpu_addr;
-	int ret;
 
-	/* Prepare: pin the new framebuffer bo */
-	ret = vbox_fb_pin(new_fb, TTM_PL_FLAG_VRAM, &gpu_addr);
-	if (ret) {
-		DRM_WARN("Error %d pinning new fb, out of video mem?\n", ret);
-		return ret;
-	}
-
-	/* Commit: Update hardware to use the new fb */
 	mutex_lock(&vbox->hw_mutex);
 
-	vbox_crtc->fb_offset = gpu_addr;
+	vbox_crtc->fb_offset = vbox_bo_gpu_offset(bo);
 
 	/* vbox_do_modeset() checks vbox->single_framebuffer so update it now */
 	if (mode && vbox_set_up_input_mapping(vbox)) {
@@ -299,11 +289,6 @@ static int vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 					   vbox->input_mapping_height);
 
 	mutex_unlock(&vbox->hw_mutex);
-
-	/* Cleanup: unpin the old fb */
-	vbox_fb_unpin(old_fb);
-
-	return 0;
 }
 
 static int vbox_crtc_mode_set(struct drm_crtc *crtc,
@@ -311,8 +296,19 @@ static int vbox_crtc_mode_set(struct drm_crtc *crtc,
 			      struct drm_display_mode *adjusted_mode,
 			      int x, int y, struct drm_framebuffer *old_fb)
 {
-	return vbox_crtc_set_base_and_mode(crtc, old_fb, CRTC_FB(crtc),
-					   mode, x, y);
+	int ret;
+
+	ret = vbox_fb_pin(CRTC_FB(crtc), TTM_PL_FLAG_VRAM, NULL);
+	if (ret) {
+		DRM_WARN("Error %d pinning new fb, out of video mem?\n", ret);
+		return ret;
+	}
+
+	vbox_crtc_set_base_and_mode(crtc, CRTC_FB(crtc), mode, x, y);
+
+	vbox_fb_unpin(old_fb);
+
+	return 0;
 }
 
 static int vbox_crtc_page_flip(struct drm_crtc *crtc,
@@ -324,9 +320,15 @@ static int vbox_crtc_page_flip(struct drm_crtc *crtc,
 	unsigned long flags;
 	int rc;
 
-	rc = vbox_crtc_set_base_and_mode(crtc, CRTC_FB(crtc), fb, NULL, 0, 0);
-	if (rc)
+	rc = vbox_fb_pin(fb, TTM_PL_FLAG_VRAM, NULL);
+	if (rc) {
+		DRM_WARN("Error %d pinning new fb, out of video mem?\n", rc);
 		return rc;
+	}
+
+	vbox_crtc_set_base_and_mode(crtc, fb, NULL, 0, 0);
+
+	vbox_fb_unpin(CRTC_FB(crtc));
 
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 
