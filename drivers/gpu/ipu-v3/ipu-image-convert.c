@@ -37,17 +37,36 @@
  * when double_buffering boolean is set).
  *
  * Note that the input frame must be split up into the same number
- * of tiles as the output frame.
+ * of tiles as the output frame:
  *
- * FIXME: at this point there is no attempt to deal with visible seams
- * at the tile boundaries when upscaling. The seams are caused by a reset
- * of the bilinear upscale interpolation when starting a new tile. The
- * seams are barely visible for small upscale factors, but become
- * increasingly visible as the upscale factor gets larger, since more
- * interpolated pixels get thrown out at the tile boundaries. A possilble
- * fix might be to overlap tiles of different sizes, but this must be done
- * while also maintaining the IDMAC dma buffer address alignment and 8x8 IRT
- * alignment restrictions of each tile.
+ *                       +---------+-----+
+ *   +-----+---+         |  A      | B   |
+ *   | A   | B |         |         |     |
+ *   +-----+---+   -->   +---------+-----+
+ *   | C   | D |         |  C      | D   |
+ *   +-----+---+         |         |     |
+ *                       +---------+-----+
+ *
+ * Clockwise 90° rotations are handled by first rescaling into a
+ * reusable temporary tile buffer and then rotating with the 8x8
+ * block rotator, writing to the correct destination:
+ *
+ *                                         +-----+-----+
+ *                                         |     |     |
+ *   +-----+---+         +---------+       | C   | A   |
+ *   | A   | B |         | A,B, |  |       |     |     |
+ *   +-----+---+   -->   | C,D  |  |  -->  |     |     |
+ *   | C   | D |         +---------+       +-----+-----+
+ *   +-----+---+                           | D   | B   |
+ *                                         |     |     |
+ *                                         +-----+-----+
+ *
+ * If the 8x8 block rotator is used, horizontal or vertical flipping
+ * is done during the rotation step, otherwise flipping is done
+ * during the scaling step.
+ * With rotation or flipping, tile order changes between input and
+ * output image. Tiles are numbered row major from top left to bottom
+ * right for both input and output image.
  */
 
 #define MAX_STRIPES_W    4
