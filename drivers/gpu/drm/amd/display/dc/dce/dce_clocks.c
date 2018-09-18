@@ -244,7 +244,7 @@ static enum dm_pp_clocks_state dce_get_required_clocks_state(
 	 * lowest RequiredState with the lowest state that satisfies
 	 * all required clocks
 	 */
-	for (i = dccg->max_clks_state; i >= DM_PP_CLOCKS_STATE_ULTRA_LOW; i--)
+	for (i = dccg_dce->max_clks_state; i >= DM_PP_CLOCKS_STATE_ULTRA_LOW; i--)
 		if (context->bw.dce.dispclk_khz >
 				dccg_dce->max_clks_by_state[i].display_clk_khz
 			|| max_pix_clk >
@@ -252,13 +252,13 @@ static enum dm_pp_clocks_state dce_get_required_clocks_state(
 			break;
 
 	low_req_clk = i + 1;
-	if (low_req_clk > dccg->max_clks_state) {
+	if (low_req_clk > dccg_dce->max_clks_state) {
 		/* set max clock state for high phyclock, invalid on exceeding display clock */
-		if (dccg_dce->max_clks_by_state[dccg->max_clks_state].display_clk_khz
+		if (dccg_dce->max_clks_by_state[dccg_dce->max_clks_state].display_clk_khz
 				< context->bw.dce.dispclk_khz)
 			low_req_clk = DM_PP_CLOCKS_STATE_INVALID;
 		else
-			low_req_clk = dccg->max_clks_state;
+			low_req_clk = dccg_dce->max_clks_state;
 	}
 
 	return low_req_clk;
@@ -298,7 +298,7 @@ static int dce_set_clock(
 	/* from power down, we need mark the clock state as ClocksStateNominal
 	 * from HWReset, so when resume we will call pplib voltage regulator.*/
 	if (requested_clk_khz == 0)
-		dccg->cur_min_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
+		dccg_dce->cur_min_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
 
 	dmcu->funcs->set_psr_wait_loop(dmcu, actual_clock / 1000 / 7);
 
@@ -333,7 +333,7 @@ static int dce112_set_clock(
 	/* from power down, we need mark the clock state as ClocksStateNominal
 	 * from HWReset, so when resume we will call pplib voltage regulator.*/
 	if (requested_clk_khz == 0)
-		dccg->cur_min_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
+		dccg_dce->cur_min_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
 
 	/*Program DP ref Clock*/
 	/*VBIOS will determine DPREFCLK frequency, so we don't set it*/
@@ -839,9 +839,9 @@ static void dce_update_clocks(struct dccg *dccg,
 			struct dc_state *context,
 			bool safe_to_lower)
 {
+	struct dce_dccg *dccg_dce = TO_DCE_DCCG(dccg);
 	struct dm_pp_power_level_change_request level_change_req;
 	int unpatched_disp_clk = context->bw.dce.dispclk_khz;
-	struct dce_dccg *dccg_dce = TO_DCE_DCCG(dccg);
 
 	/*TODO: W/A for dal3 linux, investigate why this works */
 	if (!dccg_dce->dfs_bypass_active)
@@ -849,10 +849,10 @@ static void dce_update_clocks(struct dccg *dccg,
 
 	level_change_req.power_level = dce_get_required_clocks_state(dccg, context);
 	/* get max clock state from PPLIB */
-	if ((level_change_req.power_level < dccg->cur_min_clks_state && safe_to_lower)
-			|| level_change_req.power_level > dccg->cur_min_clks_state) {
+	if ((level_change_req.power_level < dccg_dce->cur_min_clks_state && safe_to_lower)
+			|| level_change_req.power_level > dccg_dce->cur_min_clks_state) {
 		if (dm_pp_apply_power_level_change_request(dccg->ctx, &level_change_req))
-			dccg->cur_min_clks_state = level_change_req.power_level;
+			dccg_dce->cur_min_clks_state = level_change_req.power_level;
 	}
 
 	if (should_set_clock(safe_to_lower, context->bw.dce.dispclk_khz, dccg->clks.dispclk_khz)) {
@@ -868,14 +868,15 @@ static void dce11_update_clocks(struct dccg *dccg,
 			struct dc_state *context,
 			bool safe_to_lower)
 {
+	struct dce_dccg *dccg_dce = TO_DCE_DCCG(dccg);
 	struct dm_pp_power_level_change_request level_change_req;
 
 	level_change_req.power_level = dce_get_required_clocks_state(dccg, context);
 	/* get max clock state from PPLIB */
-	if ((level_change_req.power_level < dccg->cur_min_clks_state && safe_to_lower)
-			|| level_change_req.power_level > dccg->cur_min_clks_state) {
+	if ((level_change_req.power_level < dccg_dce->cur_min_clks_state && safe_to_lower)
+			|| level_change_req.power_level > dccg_dce->cur_min_clks_state) {
 		if (dm_pp_apply_power_level_change_request(dccg->ctx, &level_change_req))
-			dccg->cur_min_clks_state = level_change_req.power_level;
+			dccg_dce->cur_min_clks_state = level_change_req.power_level;
 	}
 
 	if (should_set_clock(safe_to_lower, context->bw.dce.dispclk_khz, dccg->clks.dispclk_khz)) {
@@ -889,14 +890,15 @@ static void dce112_update_clocks(struct dccg *dccg,
 			struct dc_state *context,
 			bool safe_to_lower)
 {
+	struct dce_dccg *dccg_dce = TO_DCE_DCCG(dccg);
 	struct dm_pp_power_level_change_request level_change_req;
 
 	level_change_req.power_level = dce_get_required_clocks_state(dccg, context);
 	/* get max clock state from PPLIB */
-	if ((level_change_req.power_level < dccg->cur_min_clks_state && safe_to_lower)
-			|| level_change_req.power_level > dccg->cur_min_clks_state) {
+	if ((level_change_req.power_level < dccg_dce->cur_min_clks_state && safe_to_lower)
+			|| level_change_req.power_level > dccg_dce->cur_min_clks_state) {
 		if (dm_pp_apply_power_level_change_request(dccg->ctx, &level_change_req))
-			dccg->cur_min_clks_state = level_change_req.power_level;
+			dccg_dce->cur_min_clks_state = level_change_req.power_level;
 	}
 
 	if (should_set_clock(safe_to_lower, context->bw.dce.dispclk_khz, dccg->clks.dispclk_khz)) {
@@ -910,12 +912,14 @@ static void dce12_update_clocks(struct dccg *dccg,
 			struct dc_state *context,
 			bool safe_to_lower)
 {
+	struct dce_dccg *dccg_dce = TO_DCE_DCCG(dccg);
 	struct dm_pp_clock_for_voltage_req clock_voltage_req = {0};
 	int max_pix_clk = get_max_pixel_clock_for_all_paths(context);
 	int unpatched_disp_clk = context->bw.dce.dispclk_khz;
 
-	/* W/A for dal3 linux */
-	context->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz * 115 / 100;
+	/*TODO: W/A for dal3 linux, investigate why this works */
+	if (!dccg_dce->dfs_bypass_active)
+		context->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz * 115 / 100;
 
 	if (should_set_clock(safe_to_lower, context->bw.dce.dispclk_khz, dccg->clks.dispclk_khz)) {
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAY_CLK;
@@ -973,6 +977,7 @@ static void dce_dccg_construct(
 	const struct dccg_mask *clk_mask)
 {
 	struct dccg *base = &dccg_dce->base;
+	struct dm_pp_static_clock_info static_clk_info = {0};
 
 	base->ctx = ctx;
 	base->funcs = &dce_funcs;
@@ -987,8 +992,12 @@ static void dce_dccg_construct(
 	dccg_dce->dprefclk_ss_divider = 1000;
 	dccg_dce->ss_on_dprefclk = false;
 
-	base->max_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
-	base->cur_min_clks_state = DM_PP_CLOCKS_STATE_INVALID;
+
+	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
+		dccg_dce->max_clks_state = static_clk_info.max_clocks_state;
+	else
+		dccg_dce->max_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
+	dccg_dce->cur_min_clks_state = DM_PP_CLOCKS_STATE_INVALID;
 
 	dce_clock_read_integrated_info(dccg_dce);
 	dce_clock_read_ss_info(dccg_dce);

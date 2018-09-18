@@ -29,19 +29,10 @@
 #include "dm_services_types.h"
 #include "dc.h"
 
-/* Structure containing all state-dependent clocks
- * (dependent on "enum clocks_state") */
-struct state_dependent_clocks {
-	int display_clk_khz;
-	int pixel_clk_khz;
-};
-
 struct dccg {
 	struct dc_context *ctx;
 	const struct dccg_funcs *funcs;
 
-	enum dm_pp_clocks_state max_clks_state;
-	enum dm_pp_clocks_state cur_min_clks_state;
 	struct dc_clocks clks;
 };
 

@@ -1201,7 +1201,6 @@ static bool construct(
 	struct dc_context *ctx = dc->ctx;
 	struct dc_firmware_info info;
 	struct dc_bios *bp;
-	struct dm_pp_static_clock_info static_clk_info = {0};
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -1286,13 +1285,6 @@ static bool construct(
 		BREAK_TO_DEBUGGER();
 		goto res_create_fail;
 	}
-
-	/* get static clock information for PPLIB or firmware, save
-	 * max_clock_state
-	 */
-	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
-		pool->base.dccg->max_clks_state =
-				static_clk_info.max_clocks_state;
 
 	{
 		struct irq_service_init_data init_data;

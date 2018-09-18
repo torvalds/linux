@@ -68,6 +68,11 @@ struct dccg_registers {
 	uint32_t DENTIST_DISPCLK_CNTL;
 };
 
+struct state_dependent_clocks {
+	int display_clk_khz;
+	int pixel_clk_khz;
+};
+
 struct dce_dccg {
 	struct dccg base;
 	const struct dccg_registers *regs;
@@ -93,6 +98,9 @@ struct dce_dccg {
 	/* DPREFCLK SS percentage Divider (100 or 1000) */
 	int dprefclk_ss_divider;
 	int dprefclk_khz;
+
+	enum dm_pp_clocks_state max_clks_state;
+	enum dm_pp_clocks_state cur_min_clks_state;
 };
 
 
