@@ -2013,15 +2013,14 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	int ret = 0;
 
 	/* allocate memory for sroute and connect */
-	sroute = kzalloc(sizeof(*sroute), GFP_KERNEL);
+	sroute = devm_kzalloc(sdev->dev, sizeof(*sroute), GFP_KERNEL);
 	if (!sroute)
 		return -ENOMEM;
 
 	sroute->sdev = sdev;
 
-	connect = kzalloc(sizeof(*connect), GFP_KERNEL);
+	connect = devm_kzalloc(sdev->dev, sizeof(*connect), GFP_KERNEL);
 	if (!connect) {
-		kfree(sroute);
 		return -ENOMEM;
 	}
 
@@ -2134,11 +2133,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 		list_add(&sroute->list, &sdev->route_list);
 	}
 
-	return ret;
-
 err:
-	kfree(connect);
-	kfree(sroute);
 	return ret;
 }
 
