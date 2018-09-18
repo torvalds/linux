@@ -224,6 +224,47 @@
 #define GDT_ENTRY_TLS_ENTRIES		3
 #define TLS_SIZE			(GDT_ENTRY_TLS_ENTRIES* 8)
 
+#ifdef CONFIG_X86_64
+
+/* Bit size and mask of CPU number stored in the per CPU data (and TSC_AUX) */
+#define VDSO_CPU_SIZE			12
+#define VDSO_CPU_MASK			0xfff
+
+#ifndef __ASSEMBLY__
+
+/* Helper functions to store/load CPU and node numbers */
+
+static inline unsigned long vdso_encode_cpu_node(int cpu, unsigned long node)
+{
+	return ((node << VDSO_CPU_SIZE) | cpu);
+}
+
+static inline void vdso_read_cpu_node(unsigned *cpu, unsigned *node)
+{
+	unsigned int p;
+
+	/*
+	 * Load CPU and node number from GDT.  LSL is faster than RDTSCP
+	 * and works on all CPUs.  This is volatile so that it orders
+	 * correctly with respect to barrier() and to keep GCC from cleverly
+	 * hoisting it out of the calling function.
+	 *
+	 * If RDPID is available, use it.
+	 */
+	alternative_io ("lsl %[seg],%[p]",
+			".byte 0xf3,0x0f,0xc7,0xf8", /* RDPID %eax/rax */
+			X86_FEATURE_RDPID,
+			[p] "=a" (p), [seg] "r" (__CPU_NUMBER_SEG));
+
+	if (cpu)
+		*cpu = (p & VDSO_CPU_MASK);
+	if (node)
+		*node = (p >> VDSO_CPU_SIZE);
+}
+
+#endif /* !__ASSEMBLY__ */
+#endif /* CONFIG_X86_64 */
+
 #ifdef __KERNEL__
 
 /*
