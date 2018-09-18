@@ -378,6 +378,14 @@
 	mali-supply = <&vdd_log>;
 };
 
+&hevc {
+	status = "okay";
+};
+
+&hevc_mmu {
+	status = "okay";
+};
+
 &hdmi {
 	status = "okay";
 };
@@ -670,6 +678,18 @@
 };
 
 &vop_mmu {
+	status = "okay";
+};
+
+&vpu {
+	status = "okay";
+};
+
+&vpu_combo {
+	status = "okay";
+};
+
+&vpu_mmu {
 	status = "okay";
 };
 
