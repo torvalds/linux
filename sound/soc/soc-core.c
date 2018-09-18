@@ -992,14 +992,12 @@ static void soc_remove_dai_links(struct snd_soc_card *card)
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link *link, *_link;
 
-	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
-			order++) {
+	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd)
 			soc_remove_link_dais(card, rtd, order);
 	}
 
-	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
-			order++) {
+	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd)
 			soc_remove_link_components(card, rtd, order);
 	}
@@ -1617,8 +1615,7 @@ static int soc_probe_aux_devices(struct snd_soc_card *card)
 	int order;
 	int ret;
 
-	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
-		order++) {
+	for_each_comp_order(order) {
 		list_for_each_entry(comp, &card->aux_comp_list, card_aux_list) {
 			if (comp->driver->probe_order == order) {
 				ret = soc_probe_component(card,	comp);
@@ -1640,8 +1637,7 @@ static void soc_remove_aux_devices(struct snd_soc_card *card)
 	struct snd_soc_component *comp, *_comp;
 	int order;
 
-	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
-		order++) {
+	for_each_comp_order(order) {
 		list_for_each_entry_safe(comp, _comp,
 			&card->aux_comp_list, card_aux_list) {
 
@@ -2013,8 +2009,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 
 	/* probe all components used by DAI links on this card */
-	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
-			order++) {
+	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd) {
 			ret = soc_probe_link_components(card, rtd, order);
 			if (ret < 0) {
@@ -2047,8 +2042,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 
 	/* probe all DAI links on this card */
-	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
-			order++) {
+	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd) {
 			ret = soc_probe_link_dais(card, rtd, order);
 			if (ret < 0) {
