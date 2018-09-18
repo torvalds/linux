@@ -241,6 +241,16 @@ static void tls_write_space(struct sock *sk)
 	ctx->sk_write_space(sk);
 }
 
+static void tls_ctx_free(struct tls_context *ctx)
+{
+	if (!ctx)
+		return;
+
+	memzero_explicit(&ctx->crypto_send, sizeof(ctx->crypto_send));
+	memzero_explicit(&ctx->crypto_recv, sizeof(ctx->crypto_recv));
+	kfree(ctx);
+}
+
 static void tls_sk_proto_close(struct sock *sk, long timeout)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
@@ -294,7 +304,7 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 #else
 	{
 #endif
-		kfree(ctx);
+		tls_ctx_free(ctx);
 		ctx = NULL;
 	}
 
@@ -305,7 +315,7 @@ skip_tx_cleanup:
 	 * for sk->sk_prot->unhash [tls_hw_unhash]
 	 */
 	if (free_ctx)
-		kfree(ctx);
+		tls_ctx_free(ctx);
 }
 
 static int do_tls_getsockopt_tx(struct sock *sk, char __user *optval,
@@ -330,7 +340,7 @@ static int do_tls_getsockopt_tx(struct sock *sk, char __user *optval,
 	}
 
 	/* get user crypto info */
-	crypto_info = &ctx->crypto_send;
+	crypto_info = &ctx->crypto_send.info;
 
 	if (!TLS_CRYPTO_INFO_READY(crypto_info)) {
 		rc = -EBUSY;
@@ -417,9 +427,9 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 	}
 
 	if (tx)
-		crypto_info = &ctx->crypto_send;
+		crypto_info = &ctx->crypto_send.info;
 	else
-		crypto_info = &ctx->crypto_recv;
+		crypto_info = &ctx->crypto_recv.info;
 
 	/* Currently we don't support set crypto info more than one time */
 	if (TLS_CRYPTO_INFO_READY(crypto_info)) {
@@ -499,7 +509,7 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 	goto out;
 
 err_crypto_info:
-	memset(crypto_info, 0, sizeof(*crypto_info));
+	memzero_explicit(crypto_info, sizeof(union tls_crypto_context));
 out:
 	return rc;
 }

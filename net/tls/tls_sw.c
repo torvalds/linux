@@ -1109,6 +1109,13 @@ pick_next_record:
 			} else {
 				break;
 			}
+		} else {
+			/* MSG_PEEK right now cannot look beyond current skb
+			 * from strparser, meaning we cannot advance skb here
+			 * and thus unpause strparser since we'd loose original
+			 * one.
+			 */
+			break;
 		}
 
 		/* If we have a new message from strparser, continue now. */
@@ -1250,8 +1257,8 @@ static int tls_read_size(struct strparser *strp, struct sk_buff *skb)
 		goto read_failure;
 	}
 
-	if (header[1] != TLS_VERSION_MINOR(tls_ctx->crypto_recv.version) ||
-	    header[2] != TLS_VERSION_MAJOR(tls_ctx->crypto_recv.version)) {
+	if (header[1] != TLS_VERSION_MINOR(tls_ctx->crypto_recv.info.version) ||
+	    header[2] != TLS_VERSION_MAJOR(tls_ctx->crypto_recv.info.version)) {
 		ret = -EINVAL;
 		goto read_failure;
 	}
@@ -1331,7 +1338,6 @@ void tls_sw_free_resources_rx(struct sock *sk)
 
 int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 {
-	char keyval[TLS_CIPHER_AES_GCM_128_KEY_SIZE];
 	struct tls_crypto_info *crypto_info;
 	struct tls12_crypto_info_aes_gcm_128 *gcm_128_info;
 	struct tls_sw_context_tx *sw_ctx_tx = NULL;
@@ -1376,12 +1382,12 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 
 	if (tx) {
 		crypto_init_wait(&sw_ctx_tx->async_wait);
-		crypto_info = &ctx->crypto_send;
+		crypto_info = &ctx->crypto_send.info;
 		cctx = &ctx->tx;
 		aead = &sw_ctx_tx->aead_send;
 	} else {
 		crypto_init_wait(&sw_ctx_rx->async_wait);
-		crypto_info = &ctx->crypto_recv;
+		crypto_info = &ctx->crypto_recv.info;
 		cctx = &ctx->rx;
 		aead = &sw_ctx_rx->aead_recv;
 	}
@@ -1460,9 +1466,7 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 
 	ctx->push_pending_record = tls_sw_push_pending_record;
 
-	memcpy(keyval, gcm_128_info->key, TLS_CIPHER_AES_GCM_128_KEY_SIZE);
-
-	rc = crypto_aead_setkey(*aead, keyval,
+	rc = crypto_aead_setkey(*aead, gcm_128_info->key,
 				TLS_CIPHER_AES_GCM_128_KEY_SIZE);
 	if (rc)
 		goto free_aead;

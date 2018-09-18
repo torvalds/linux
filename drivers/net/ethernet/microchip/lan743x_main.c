@@ -2847,7 +2847,7 @@ static void lan743x_pcidev_shutdown(struct pci_dev *pdev)
 	lan743x_hardware_cleanup(adapter);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static u16 lan743x_pm_wakeframe_crc16(const u8 *buf, int len)
 {
 	return bitrev16(crc16(0xFFFF, buf, len));
@@ -3013,7 +3013,7 @@ static int lan743x_pm_resume(struct device *dev)
 static const struct dev_pm_ops lan743x_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(lan743x_pm_suspend, lan743x_pm_resume)
 };
-#endif /*CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct pci_device_id lan743x_pcidev_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SMSC, PCI_DEVICE_ID_SMSC_LAN7430) },
@@ -3025,7 +3025,7 @@ static struct pci_driver lan743x_pcidev_driver = {
 	.id_table = lan743x_pcidev_tbl,
 	.probe    = lan743x_pcidev_probe,
 	.remove   = lan743x_pcidev_remove,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.driver.pm = &lan743x_pm_ops,
 #endif
 	.shutdown = lan743x_pcidev_shutdown,

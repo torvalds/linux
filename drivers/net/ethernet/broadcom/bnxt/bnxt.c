@@ -8027,7 +8027,7 @@ static int bnxt_change_mac_addr(struct net_device *dev, void *p)
 	if (ether_addr_equal(addr->sa_data, dev->dev_addr))
 		return 0;
 
-	rc = bnxt_approve_mac(bp, addr->sa_data);
+	rc = bnxt_approve_mac(bp, addr->sa_data, true);
 	if (rc)
 		return rc;
 
@@ -8827,14 +8827,19 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 	} else {
 #ifdef CONFIG_BNXT_SRIOV
 		struct bnxt_vf_info *vf = &bp->vf;
+		bool strict_approval = true;
 
 		if (is_valid_ether_addr(vf->mac_addr)) {
 			/* overwrite netdev dev_addr with admin VF MAC */
 			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
+			/* Older PF driver or firmware may not approve this
+			 * correctly.
+			 */
+			strict_approval = false;
 		} else {
 			eth_hw_addr_random(bp->dev);
 		}
-		rc = bnxt_approve_mac(bp, bp->dev->dev_addr);
+		rc = bnxt_approve_mac(bp, bp->dev->dev_addr, strict_approval);
 #endif
 	}
 	return rc;

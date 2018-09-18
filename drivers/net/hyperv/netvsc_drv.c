@@ -1894,20 +1894,6 @@ out_unlock:
 	rtnl_unlock();
 }
 
-static struct net_device *get_netvsc_bymac(const u8 *mac)
-{
-	struct net_device_context *ndev_ctx;
-
-	list_for_each_entry(ndev_ctx, &netvsc_dev_list, list) {
-		struct net_device *dev = hv_get_drvdata(ndev_ctx->device_ctx);
-
-		if (ether_addr_equal(mac, dev->perm_addr))
-			return dev;
-	}
-
-	return NULL;
-}
-
 static struct net_device *get_netvsc_byref(struct net_device *vf_netdev)
 {
 	struct net_device_context *net_device_ctx;
@@ -2036,26 +2022,48 @@ static void netvsc_vf_setup(struct work_struct *w)
 	rtnl_unlock();
 }
 
+/* Find netvsc by VMBus serial number.
+ * The PCI hyperv controller records the serial number as the slot.
+ */
+static struct net_device *get_netvsc_byslot(const struct net_device *vf_netdev)
+{
+	struct device *parent = vf_netdev->dev.parent;
+	struct net_device_context *ndev_ctx;
+	struct pci_dev *pdev;
+
+	if (!parent || !dev_is_pci(parent))
+		return NULL; /* not a PCI device */
+
+	pdev = to_pci_dev(parent);
+	if (!pdev->slot) {
+		netdev_notice(vf_netdev, "no PCI slot information\n");
+		return NULL;
+	}
+
+	list_for_each_entry(ndev_ctx, &netvsc_dev_list, list) {
+		if (!ndev_ctx->vf_alloc)
+			continue;
+
+		if (ndev_ctx->vf_serial == pdev->slot->number)
+			return hv_get_drvdata(ndev_ctx->device_ctx);
+	}
+
+	netdev_notice(vf_netdev,
+		      "no netdev found for slot %u\n", pdev->slot->number);
+	return NULL;
+}
+
 static int netvsc_register_vf(struct net_device *vf_netdev)
 {
-	struct net_device *ndev;
 	struct net_device_context *net_device_ctx;
-	struct device *pdev = vf_netdev->dev.parent;
 	struct netvsc_device *netvsc_dev;
+	struct net_device *ndev;
 	int ret;
 
 	if (vf_netdev->addr_len != ETH_ALEN)
 		return NOTIFY_DONE;
 
-	if (!pdev || !dev_is_pci(pdev) || dev_is_pf(pdev))
-		return NOTIFY_DONE;
-
-	/*
-	 * We will use the MAC address to locate the synthetic interface to
-	 * associate with the VF interface. If we don't find a matching
-	 * synthetic interface, move on.
-	 */
-	ndev = get_netvsc_bymac(vf_netdev->perm_addr);
+	ndev = get_netvsc_byslot(vf_netdev);
 	if (!ndev)
 		return NOTIFY_DONE;
 
@@ -2272,17 +2280,15 @@ static int netvsc_remove(struct hv_device *dev)
 
 	cancel_delayed_work_sync(&ndev_ctx->dwork);
 
-	rcu_read_lock();
-	nvdev = rcu_dereference(ndev_ctx->nvdev);
-
-	if  (nvdev)
+	rtnl_lock();
+	nvdev = rtnl_dereference(ndev_ctx->nvdev);
+	if (nvdev)
 		cancel_work_sync(&nvdev->subchan_work);
 
 	/*
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed. Also blocks mtu and channel changes.
 	 */
-	rtnl_lock();
 	vf_netdev = rtnl_dereference(ndev_ctx->vf_netdev);
 	if (vf_netdev)
 		netvsc_unregister_vf(vf_netdev);
@@ -2294,7 +2300,6 @@ static int netvsc_remove(struct hv_device *dev)
 	list_del(&ndev_ctx->list);
 
 	rtnl_unlock();
-	rcu_read_unlock();
 
 	hv_set_drvdata(dev, NULL);
 
