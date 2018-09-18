@@ -5,10 +5,14 @@
  * Copyright (C) 2018, Red Hat, Inc.
  */
 
+#define _GNU_SOURCE /* for program_invocation_name */
+
 #include "kvm_util.h"
 #include "../kvm_util_internal.h"
+#include "processor.h"
 
 #define KVM_GUEST_PAGE_TABLE_MIN_PADDR		0x180000
+#define DEFAULT_ARM64_GUEST_STACK_VADDR_MIN	0xac0000
 
 static uint64_t page_align(struct kvm_vm *vm, uint64_t v)
 {
@@ -213,4 +217,83 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 		printf("%*spgd: %lx: %lx at %p\n", indent, "", pgd, *ptep, ptep);
 		pte_dump(stream, vm, indent + 1, pte_addr(vm, *ptep), level);
 	}
+}
+
+struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
+				 void *guest_code)
+{
+	uint64_t ptrs_per_4k_pte = 512;
+	uint64_t extra_pg_pages = (extra_mem_pages / ptrs_per_4k_pte) * 2;
+	struct kvm_vm *vm;
+
+	vm = vm_create(VM_MODE_FLAT48PG, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages, O_RDWR);
+
+	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
+	vm_vcpu_add_default(vm, vcpuid, guest_code);
+
+	return vm;
+}
+
+void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
+{
+	size_t stack_size = vm->page_size == 4096 ?
+					DEFAULT_STACK_PGS * vm->page_size :
+					vm->page_size;
+	uint64_t stack_vaddr = vm_vaddr_alloc(vm, stack_size,
+					DEFAULT_ARM64_GUEST_STACK_VADDR_MIN, 0, 0);
+
+	vm_vcpu_add(vm, vcpuid, 0, 0);
+
+	set_reg(vm, vcpuid, ARM64_CORE_REG(sp_el1), stack_vaddr + stack_size);
+	set_reg(vm, vcpuid, ARM64_CORE_REG(regs.pc), (uint64_t)guest_code);
+}
+
+void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_memslot)
+{
+	struct kvm_vcpu_init init;
+	uint64_t sctlr_el1, tcr_el1;
+
+	memset(&init, 0, sizeof(init));
+	init.target = KVM_ARM_TARGET_GENERIC_V8;
+	vcpu_ioctl(vm, vcpuid, KVM_ARM_VCPU_INIT, &init);
+
+	/*
+	 * Enable FP/ASIMD to avoid trapping when accessing Q0-Q15
+	 * registers, which the variable argument list macros do.
+	 */
+	set_reg(vm, vcpuid, ARM64_SYS_REG(CPACR_EL1), 3 << 20);
+
+	get_reg(vm, vcpuid, ARM64_SYS_REG(SCTLR_EL1), &sctlr_el1);
+	get_reg(vm, vcpuid, ARM64_SYS_REG(TCR_EL1), &tcr_el1);
+
+	switch (vm->mode) {
+	case VM_MODE_FLAT48PG:
+		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
+		tcr_el1 |= 6ul << 32; /* IPS = 52 bits */
+		break;
+	default:
+		TEST_ASSERT(false, "Unknown guest mode, mode: 0x%x", vm->mode);
+	}
+
+	sctlr_el1 |= (1 << 0) | (1 << 2) | (1 << 12) /* M | C | I */;
+	/* TCR_EL1 |= IRGN0:WBWA | ORGN0:WBWA | SH0:Inner-Shareable */;
+	tcr_el1 |= (1 << 8) | (1 << 10) | (3 << 12);
+	tcr_el1 |= (64 - vm->va_bits) /* T0SZ */;
+
+	set_reg(vm, vcpuid, ARM64_SYS_REG(SCTLR_EL1), sctlr_el1);
+	set_reg(vm, vcpuid, ARM64_SYS_REG(TCR_EL1), tcr_el1);
+	set_reg(vm, vcpuid, ARM64_SYS_REG(MAIR_EL1), DEFAULT_MAIR_EL1);
+	set_reg(vm, vcpuid, ARM64_SYS_REG(TTBR0_EL1), vm->pgd);
+}
+
+void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid, uint8_t indent)
+{
+	uint64_t pstate, pc;
+
+	get_reg(vm, vcpuid, ARM64_CORE_REG(regs.pstate), &pstate);
+	get_reg(vm, vcpuid, ARM64_CORE_REG(regs.pc), &pc);
+
+        fprintf(stream, "%*spstate: 0x%.16llx pc: 0x%.16llx\n",
+                indent, "", pstate, pc);
+
 }
