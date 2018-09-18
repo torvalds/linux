@@ -36,12 +36,30 @@ enum kvm_arch_timer_regs {
 };
 
 struct arch_timer_context {
+	struct kvm_vcpu			*vcpu;
+
 	/* Registers: control register, timer value */
 	u32				cnt_ctl;
 	u64				cnt_cval;
 
 	/* Timer IRQ */
 	struct kvm_irq_level		irq;
+
+	/* Virtual offset */
+	u64				cntvoff;
+
+	/* Emulated Timer (may be unused) */
+	struct hrtimer			hrtimer;
+};
+
+struct arch_timer_cpu {
+	struct arch_timer_context timers[NR_KVM_TIMERS];
+
+	/* Background timer used when the guest is not running */
+	struct hrtimer			bg_timer;
+
+	/* Is the timer enabled */
+	bool			enabled;
 
 	/*
 	 * We have multiple paths which can save/restore the timer state
@@ -52,23 +70,6 @@ struct arch_timer_context {
 	 * loaded == false: State is stored in memory.
 	 */
 	bool			loaded;
-
-	/* Virtual offset */
-	u64			cntvoff;
-};
-
-struct arch_timer_cpu {
-	struct arch_timer_context	vtimer;
-	struct arch_timer_context	ptimer;
-
-	/* Background timer used when the guest is not running */
-	struct hrtimer			bg_timer;
-
-	/* Physical timer emulation */
-	struct hrtimer			phys_timer;
-
-	/* Is the timer enabled */
-	bool			enabled;
 };
 
 int kvm_timer_hyp_init(bool);
@@ -98,10 +99,10 @@ void kvm_timer_init_vhe(void);
 
 bool kvm_arch_timer_get_input_level(int vintid);
 
-#define vcpu_vtimer(v)	(&(v)->arch.timer_cpu.vtimer)
-#define vcpu_ptimer(v)	(&(v)->arch.timer_cpu.ptimer)
-#define vcpu_get_timer(v,t)					\
-	(t == TIMER_VTIMER ? vcpu_vtimer(v) : vcpu_ptimer(v))
+#define vcpu_timer(v)	(&(v)->arch.timer_cpu)
+#define vcpu_get_timer(v,t)	(&vcpu_timer(v)->timers[(t)])
+#define vcpu_vtimer(v)	(&(v)->arch.timer_cpu.timers[TIMER_VTIMER])
+#define vcpu_ptimer(v)	(&(v)->arch.timer_cpu.timers[TIMER_PTIMER])
 
 u64 kvm_arm_timer_read_sysreg(struct kvm_vcpu *vcpu,
 			      enum kvm_arch_timers tmr,
