@@ -1009,6 +1009,7 @@ enum {
 	QUIRK_SBZ,
 	QUIRK_R3DI,
 	QUIRK_R3D,
+	QUIRK_AE5,
 };
 
 static const struct hda_pintbl alienware_pincfgs[] = {
@@ -1081,6 +1082,7 @@ static const struct snd_pci_quirk ca0132_quirks[] = {
 	SND_PCI_QUIRK(0x1458, 0xA026, "Gigabyte G1.Sniper Z97", QUIRK_R3DI),
 	SND_PCI_QUIRK(0x1458, 0xA036, "Gigabyte GA-Z170X-Gaming 7", QUIRK_R3DI),
 	SND_PCI_QUIRK(0x1102, 0x0013, "Recon3D", QUIRK_R3D),
+	SND_PCI_QUIRK(0x1102, 0x0051, "Sound Blaster AE-5", QUIRK_AE5),
 	{}
 };
 
