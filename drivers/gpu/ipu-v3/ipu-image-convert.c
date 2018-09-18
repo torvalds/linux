@@ -308,12 +308,11 @@ static void dump_format(struct ipu_image_convert_ctx *ctx,
 	struct ipu_image_convert_priv *priv = chan->priv;
 
 	dev_dbg(priv->ipu->dev,
-		"task %u: ctx %p: %s format: %dx%d (%dx%d tiles of size %dx%d), %c%c%c%c\n",
+		"task %u: ctx %p: %s format: %dx%d (%dx%d tiles), %c%c%c%c\n",
 		chan->ic_task, ctx,
 		ic_image->type == IMAGE_CONVERT_OUT ? "Output" : "Input",
 		ic_image->base.pix.width, ic_image->base.pix.height,
 		ic_image->num_cols, ic_image->num_rows,
-		ic_image->tile[0].width, ic_image->tile[0].height,
 		ic_image->fmt->fourcc & 0xff,
 		(ic_image->fmt->fourcc >> 8) & 0xff,
 		(ic_image->fmt->fourcc >> 16) & 0xff,
@@ -789,6 +788,8 @@ static void find_seams(struct ipu_image_convert_ctx *ctx,
 static void calc_tile_dimensions(struct ipu_image_convert_ctx *ctx,
 				 struct ipu_image_convert_image *image)
 {
+	struct ipu_image_convert_chan *chan = ctx->chan;
+	struct ipu_image_convert_priv *priv = chan->priv;
 	unsigned int i;
 
 	for (i = 0; i < ctx->num_tiles; i++) {
@@ -813,6 +814,13 @@ static void calc_tile_dimensions(struct ipu_image_convert_ctx *ctx,
 			tile->rot_stride =
 				(image->fmt->bpp * tile->height) >> 3;
 		}
+
+		dev_dbg(priv->ipu->dev,
+			"task %u: ctx %p: %s@[%u,%u]: %ux%u@%u,%u\n",
+			chan->ic_task, ctx,
+			image->type == IMAGE_CONVERT_IN ? "Input" : "Output",
+			row, col,
+			tile->width, tile->height, tile->left, tile->top);
 	}
 }
 
