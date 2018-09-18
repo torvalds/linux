@@ -13,15 +13,11 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
-#include <linux/usb/otg.h>
-#include <linux/usb/usb_phy_generic.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/regulator/consumer.h>
 
 struct dwc3_exynos {
-	struct platform_device	*usb2_phy;
-	struct platform_device	*usb3_phy;
 	struct device		*dev;
 
 	struct clk		*clk;
@@ -31,61 +27,6 @@ struct dwc3_exynos {
 	struct regulator	*vdd33;
 	struct regulator	*vdd10;
 };
-
-static int dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
-{
-	struct usb_phy_generic_platform_data pdata;
-	struct platform_device	*pdev;
-	int			ret;
-
-	memset(&pdata, 0x00, sizeof(pdata));
-
-	pdev = platform_device_alloc("usb_phy_generic", PLATFORM_DEVID_AUTO);
-	if (!pdev)
-		return -ENOMEM;
-
-	exynos->usb2_phy = pdev;
-	pdata.type = USB_PHY_TYPE_USB2;
-	pdata.gpio_reset = -1;
-
-	ret = platform_device_add_data(exynos->usb2_phy, &pdata, sizeof(pdata));
-	if (ret)
-		goto err1;
-
-	pdev = platform_device_alloc("usb_phy_generic", PLATFORM_DEVID_AUTO);
-	if (!pdev) {
-		ret = -ENOMEM;
-		goto err1;
-	}
-
-	exynos->usb3_phy = pdev;
-	pdata.type = USB_PHY_TYPE_USB3;
-
-	ret = platform_device_add_data(exynos->usb3_phy, &pdata, sizeof(pdata));
-	if (ret)
-		goto err2;
-
-	ret = platform_device_add(exynos->usb2_phy);
-	if (ret)
-		goto err2;
-
-	ret = platform_device_add(exynos->usb3_phy);
-	if (ret)
-		goto err3;
-
-	return 0;
-
-err3:
-	platform_device_del(exynos->usb2_phy);
-
-err2:
-	platform_device_put(exynos->usb3_phy);
-
-err1:
-	platform_device_put(exynos->usb2_phy);
-
-	return ret;
-}
 
 static int dwc3_exynos_remove_child(struct device *dev, void *unused)
 {
@@ -164,12 +105,6 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 		goto vdd10_err;
 	}
 
-	ret = dwc3_exynos_register_phys(exynos);
-	if (ret) {
-		dev_err(dev, "couldn't register PHYs\n");
-		goto phys_err;
-	}
-
 	if (node) {
 		ret = of_platform_populate(node, NULL, NULL, dev);
 		if (ret) {
@@ -185,9 +120,6 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	return 0;
 
 populate_err:
-	platform_device_unregister(exynos->usb2_phy);
-	platform_device_unregister(exynos->usb3_phy);
-phys_err:
 	regulator_disable(exynos->vdd10);
 vdd10_err:
 	regulator_disable(exynos->vdd33);
@@ -205,8 +137,6 @@ static int dwc3_exynos_remove(struct platform_device *pdev)
 	struct dwc3_exynos	*exynos = platform_get_drvdata(pdev);
 
 	device_for_each_child(&pdev->dev, NULL, dwc3_exynos_remove_child);
-	platform_device_unregister(exynos->usb2_phy);
-	platform_device_unregister(exynos->usb3_phy);
 
 	clk_disable_unprepare(exynos->axius_clk);
 	clk_disable_unprepare(exynos->susp_clk);
@@ -257,11 +187,6 @@ static int dwc3_exynos_resume(struct device *dev)
 
 	clk_enable(exynos->clk);
 	clk_enable(exynos->axius_clk);
-
-	/* runtime set active to reflect active state. */
-	pm_runtime_disable(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
 
 	return 0;
 }
