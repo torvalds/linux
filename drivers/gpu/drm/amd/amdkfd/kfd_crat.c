@@ -753,11 +753,9 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 		return -ENODATA;
 	}
 
-	pcrat_image = kmalloc(crat_table->length, GFP_KERNEL);
+	pcrat_image = kmemdup(crat_table, crat_table->length, GFP_KERNEL);
 	if (!pcrat_image)
 		return -ENOMEM;
-
-	memcpy(pcrat_image, crat_table, crat_table->length);
 
 	*crat_image = pcrat_image;
 	*size = crat_table->length;
