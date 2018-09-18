@@ -1151,6 +1151,24 @@ static irqreturn_t do_bh(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static bool ic_settings_changed(struct ipu_image_convert_ctx *ctx)
+{
+	unsigned int cur_tile = ctx->next_tile - 1;
+	unsigned int next_tile = ctx->next_tile;
+
+	if (ctx->resize_coeffs_h[cur_tile % ctx->in.num_cols] !=
+	    ctx->resize_coeffs_h[next_tile % ctx->in.num_cols] ||
+	    ctx->resize_coeffs_v[cur_tile / ctx->in.num_cols] !=
+	    ctx->resize_coeffs_v[next_tile / ctx->in.num_cols] ||
+	    ctx->in.tile[cur_tile].width != ctx->in.tile[next_tile].width ||
+	    ctx->in.tile[cur_tile].height != ctx->in.tile[next_tile].height ||
+	    ctx->out.tile[cur_tile].width != ctx->out.tile[next_tile].width ||
+	    ctx->out.tile[cur_tile].height != ctx->out.tile[next_tile].height)
+		return true;
+
+	return false;
+}
+
 /* hold irqlock when calling */
 static irqreturn_t do_irq(struct ipu_image_convert_run *run)
 {
@@ -1194,27 +1212,32 @@ static irqreturn_t do_irq(struct ipu_image_convert_run *run)
 	 * not done, place the next tile buffers.
 	 */
 	if (!ctx->double_buffering) {
+		if (ic_settings_changed(ctx)) {
+			convert_stop(run);
+			convert_start(run, ctx->next_tile);
+		} else {
+			src_tile = &s_image->tile[ctx->next_tile];
+			dst_idx = ctx->out_tile_map[ctx->next_tile];
+			dst_tile = &d_image->tile[dst_idx];
 
-		src_tile = &s_image->tile[ctx->next_tile];
-		dst_idx = ctx->out_tile_map[ctx->next_tile];
-		dst_tile = &d_image->tile[dst_idx];
+			ipu_cpmem_set_buffer(chan->in_chan, 0,
+					     s_image->base.phys0 +
+					     src_tile->offset);
+			ipu_cpmem_set_buffer(outch, 0,
+					     d_image->base.phys0 +
+					     dst_tile->offset);
+			if (s_image->fmt->planar)
+				ipu_cpmem_set_uv_offset(chan->in_chan,
+							src_tile->u_off,
+							src_tile->v_off);
+			if (d_image->fmt->planar)
+				ipu_cpmem_set_uv_offset(outch,
+							dst_tile->u_off,
+							dst_tile->v_off);
 
-		ipu_cpmem_set_buffer(chan->in_chan, 0,
-				     s_image->base.phys0 + src_tile->offset);
-		ipu_cpmem_set_buffer(outch, 0,
-				     d_image->base.phys0 + dst_tile->offset);
-		if (s_image->fmt->planar)
-			ipu_cpmem_set_uv_offset(chan->in_chan,
-						src_tile->u_off,
-						src_tile->v_off);
-		if (d_image->fmt->planar)
-			ipu_cpmem_set_uv_offset(outch,
-						dst_tile->u_off,
-						dst_tile->v_off);
-
-		ipu_idmac_select_buffer(chan->in_chan, 0);
-		ipu_idmac_select_buffer(outch, 0);
-
+			ipu_idmac_select_buffer(chan->in_chan, 0);
+			ipu_idmac_select_buffer(outch, 0);
+		}
 	} else if (ctx->next_tile < ctx->num_tiles - 1) {
 
 		src_tile = &s_image->tile[ctx->next_tile + 1];
