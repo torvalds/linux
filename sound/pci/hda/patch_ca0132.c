@@ -6524,6 +6524,151 @@ static void ca0132_alt_dsp_initial_mic_setup(struct hda_codec *codec)
 	}
 }
 
+static void ae5_post_dsp_register_set(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	chipio_8051_write_direct(codec, 0x93, 0x10);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x44);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc2);
+
+	writeb(0xff, spec->mem_base + 0x304);
+	writeb(0xff, spec->mem_base + 0x304);
+	writeb(0xff, spec->mem_base + 0x304);
+	writeb(0xff, spec->mem_base + 0x304);
+	writeb(0x00, spec->mem_base + 0x100);
+	writeb(0xff, spec->mem_base + 0x304);
+	writeb(0x00, spec->mem_base + 0x100);
+	writeb(0xff, spec->mem_base + 0x304);
+	writeb(0x00, spec->mem_base + 0x100);
+	writeb(0xff, spec->mem_base + 0x304);
+	writeb(0x00, spec->mem_base + 0x100);
+	writeb(0xff, spec->mem_base + 0x304);
+
+	ca0113_mmio_command_set(codec, 0x30, 0x2b, 0x3f);
+	ca0113_mmio_command_set(codec, 0x30, 0x2d, 0x3f);
+	ca0113_mmio_command_set(codec, 0x48, 0x07, 0x83);
+}
+
+static void ae5_post_dsp_param_setup(struct hda_codec *codec)
+{
+	/*
+	 * Param3 in the 8051's memory is represented by the ascii string 'mch'
+	 * which seems to be 'multichannel'. This is also mentioned in the
+	 * AE-5's registry values in Windows.
+	 */
+	chipio_set_control_param(codec, 3, 0);
+	/*
+	 * I believe ASI is 'audio serial interface' and that it's used to
+	 * change colors on the external LED strip connected to the AE-5.
+	 */
+	chipio_set_control_flag(codec, CONTROL_FLAG_ASI_96KHZ, 1);
+
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0, 0x724, 0x83);
+	chipio_set_control_param(codec, CONTROL_PARAM_ASI, 0);
+
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x92);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_HIGH, 0xfa);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_DATA_WRITE, 0x22);
+}
+
+static void ae5_post_dsp_pll_setup(struct hda_codec *codec)
+{
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x41);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc8);
+
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x45);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xcc);
+
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x40);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xcb);
+
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x43);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc7);
+
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x51);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0x8d);
+}
+
+static void ae5_post_dsp_stream_setup(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	mutex_lock(&spec->chipio_mutex);
+
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0, 0x725, 0x81);
+
+	chipio_set_conn_rate_no_mutex(codec, 0x70, SR_96_000);
+
+	chipio_set_stream_channels(codec, 0x0C, 6);
+	chipio_set_stream_control(codec, 0x0C, 1);
+
+	chipio_set_stream_source_dest(codec, 0x5, 0x43, 0x0);
+
+	chipio_set_stream_source_dest(codec, 0x18, 0x9, 0xd0);
+	chipio_set_conn_rate_no_mutex(codec, 0xd0, SR_96_000);
+	chipio_set_stream_channels(codec, 0x18, 6);
+	chipio_set_stream_control(codec, 0x18, 1);
+
+	chipio_set_control_param_no_mutex(codec, CONTROL_PARAM_ASI, 4);
+
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x43);
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc7);
+
+	ca0113_mmio_command_set(codec, 0x48, 0x01, 0x80);
+
+	mutex_unlock(&spec->chipio_mutex);
+}
+
+static void ae5_post_dsp_startup_data(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	mutex_lock(&spec->chipio_mutex);
+
+	chipio_write_no_mutex(codec, 0x189000, 0x0001f101);
+	chipio_write_no_mutex(codec, 0x189004, 0x0001f101);
+	chipio_write_no_mutex(codec, 0x189024, 0x00014004);
+	chipio_write_no_mutex(codec, 0x189028, 0x0002000f);
+
+	ca0113_mmio_command_set(codec, 0x48, 0x0a, 0x05);
+	chipio_set_control_param_no_mutex(codec, CONTROL_PARAM_ASI, 7);
+	ca0113_mmio_command_set(codec, 0x48, 0x0b, 0x12);
+	ca0113_mmio_command_set(codec, 0x48, 0x04, 0x00);
+	ca0113_mmio_command_set(codec, 0x48, 0x06, 0x48);
+	ca0113_mmio_command_set(codec, 0x48, 0x0a, 0x05);
+	ca0113_mmio_command_set(codec, 0x48, 0x07, 0x83);
+	ca0113_mmio_command_set(codec, 0x48, 0x0f, 0x00);
+	ca0113_mmio_command_set(codec, 0x48, 0x10, 0x00);
+	ca0113_mmio_gpio_set(codec, 0, true);
+	ca0113_mmio_gpio_set(codec, 1, true);
+	ca0113_mmio_command_set(codec, 0x48, 0x07, 0x80);
+
+	chipio_write_no_mutex(codec, 0x18b03c, 0x00000012);
+
+	ca0113_mmio_command_set(codec, 0x48, 0x0f, 0x00);
+	ca0113_mmio_command_set(codec, 0x48, 0x10, 0x00);
+
+	mutex_unlock(&spec->chipio_mutex);
+}
+
 /*
  * Setup default parameters for DSP
  */
@@ -6655,6 +6800,73 @@ static void sbz_setup_defaults(struct hda_codec *codec)
 	dspio_set_uint_param(codec, 0x32, 0x00, tmp);
 
 	ca0132_alt_dsp_initial_mic_setup(codec);
+
+	/* out, in effects + voicefx */
+	num_fx = OUT_EFFECTS_COUNT + IN_EFFECTS_COUNT + 1;
+	for (idx = 0; idx < num_fx; idx++) {
+		for (i = 0; i <= ca0132_effects[idx].params; i++) {
+			dspio_set_uint_param(codec,
+					ca0132_effects[idx].mid,
+					ca0132_effects[idx].reqs[i],
+					ca0132_effects[idx].def_vals[i]);
+		}
+	}
+
+	ca0132_alt_create_dummy_stream(codec);
+}
+
+/*
+ * Setup default parameters for the Sound BlasterX AE-5 DSP.
+ */
+static void ae5_setup_defaults(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+	unsigned int tmp;
+	int num_fx;
+	int idx, i;
+
+	if (spec->dsp_state != DSP_DOWNLOADED)
+		return;
+
+	ca0132_alt_dsp_scp_startup(codec);
+	ca0132_alt_init_analog_mics(codec);
+	chipio_set_stream_control(codec, 0x03, 1);
+	chipio_set_stream_control(codec, 0x04, 1);
+
+	/* New, unknown SCP req's */
+	tmp = FLOAT_ZERO;
+	dspio_set_uint_param(codec, 0x96, 0x29, tmp);
+	dspio_set_uint_param(codec, 0x96, 0x2a, tmp);
+	dspio_set_uint_param(codec, 0x80, 0x0d, tmp);
+	dspio_set_uint_param(codec, 0x80, 0x0e, tmp);
+
+	ca0113_mmio_command_set(codec, 0x30, 0x2e, 0x3f);
+	ca0113_mmio_gpio_set(codec, 0, false);
+	ca0113_mmio_command_set(codec, 0x30, 0x28, 0x00);
+
+	/* Internal loopback off */
+	tmp = FLOAT_ONE;
+	dspio_set_uint_param(codec, 0x37, 0x08, tmp);
+	dspio_set_uint_param(codec, 0x37, 0x10, tmp);
+
+	/*remove DSP headroom*/
+	tmp = FLOAT_ZERO;
+	dspio_set_uint_param(codec, 0x96, 0x3C, tmp);
+
+	/* set WUH source */
+	tmp = FLOAT_TWO;
+	dspio_set_uint_param(codec, 0x31, 0x00, tmp);
+	chipio_set_conn_rate(codec, MEM_CONNID_WUH, SR_48_000);
+
+	/* Set speaker source? */
+	dspio_set_uint_param(codec, 0x32, 0x00, tmp);
+
+	ca0132_alt_dsp_initial_mic_setup(codec);
+	ae5_post_dsp_register_set(codec);
+	ae5_post_dsp_param_setup(codec);
+	ae5_post_dsp_pll_setup(codec);
+	ae5_post_dsp_stream_setup(codec);
+	ae5_post_dsp_startup_data(codec);
 
 	/* out, in effects + voicefx */
 	num_fx = OUT_EFFECTS_COUNT + IN_EFFECTS_COUNT + 1;
@@ -7489,6 +7701,9 @@ static int ca0132_init(struct hda_codec *codec)
 		break;
 	case QUIRK_SBZ:
 		sbz_setup_defaults(codec);
+		break;
+	case QUIRK_AE5:
+		ae5_setup_defaults(codec);
 		break;
 	default:
 		ca0132_setup_defaults(codec);
