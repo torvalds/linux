@@ -178,6 +178,7 @@ static int mt8173_rt5650_rt5514_dev_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt8173_rt5650_rt5514_card;
 	struct device_node *platform_node;
+	struct snd_soc_dai_link *dai_link;
 	int i, ret;
 
 	platform_node = of_parse_phandle(pdev->dev.of_node,
@@ -187,10 +188,10 @@ static int mt8173_rt5650_rt5514_dev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	for (i = 0; i < card->num_links; i++) {
-		if (mt8173_rt5650_rt5514_dais[i].platform_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_link->platform_name)
 			continue;
-		mt8173_rt5650_rt5514_dais[i].platform_of_node = platform_node;
+		dai_link->platform_of_node = platform_node;
 	}
 
 	mt8173_rt5650_rt5514_codecs[0].of_node =

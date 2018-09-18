@@ -1889,9 +1889,7 @@ static void soc_check_tplg_fes(struct snd_soc_card *card)
 			continue;
 
 		/* machine matches, so override the rtd data */
-		for (i = 0; i < card->num_links; i++) {
-
-			dai_link = &card->dai_link[i];
+		for_each_card_prelinks(card, i, dai_link) {
 
 			/* ignore this FE */
 			if (dai_link->dynamic) {
@@ -1955,8 +1953,8 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	soc_check_tplg_fes(card);
 
 	/* bind DAIs */
-	for (i = 0; i < card->num_links; i++) {
-		ret = soc_bind_dai_link(card, &card->dai_link[i]);
+	for_each_card_prelinks(card, i, dai_link) {
+		ret = soc_bind_dai_link(card, dai_link);
 		if (ret != 0)
 			goto base_error;
 	}
@@ -1969,8 +1967,8 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 
 	/* add predefined DAI links to the list */
-	for (i = 0; i < card->num_links; i++)
-		snd_soc_add_dai_link(card, card->dai_link+i);
+	for_each_card_prelinks(card, i, dai_link)
+		snd_soc_add_dai_link(card, dai_link);
 
 	/* card bind complete so register a sound card */
 	ret = snd_card_new(card->dev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
@@ -2714,12 +2712,12 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 int snd_soc_register_card(struct snd_soc_card *card)
 {
 	int i, ret;
+	struct snd_soc_dai_link *link;
 
 	if (!card->name || !card->dev)
 		return -EINVAL;
 
-	for (i = 0; i < card->num_links; i++) {
-		struct snd_soc_dai_link *link = &card->dai_link[i];
+	for_each_card_prelinks(card, i, link) {
 
 		ret = soc_init_dai_link(card, link);
 		if (ret) {

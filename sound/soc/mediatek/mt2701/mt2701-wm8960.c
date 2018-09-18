@@ -97,6 +97,7 @@ static int mt2701_wm8960_machine_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt2701_wm8960_card;
 	struct device_node *platform_node, *codec_node;
+	struct snd_soc_dai_link *dai_link;
 	int ret, i;
 
 	platform_node = of_parse_phandle(pdev->dev.of_node,
@@ -105,10 +106,10 @@ static int mt2701_wm8960_machine_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < card->num_links; i++) {
-		if (mt2701_wm8960_dai_links[i].platform_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_links->platform_name)
 			continue;
-		mt2701_wm8960_dai_links[i].platform_of_node = platform_node;
+		dai_links->platform_of_node = platform_node;
 	}
 
 	card->dev = &pdev->dev;
@@ -120,10 +121,10 @@ static int mt2701_wm8960_machine_probe(struct platform_device *pdev)
 			"Property 'audio-codec' missing or invalid\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < card->num_links; i++) {
-		if (mt2701_wm8960_dai_links[i].codec_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_links->codec_name)
 			continue;
-		mt2701_wm8960_dai_links[i].codec_of_node = codec_node;
+		dai_links->codec_of_node = codec_node;
 	}
 
 	ret = snd_soc_of_parse_audio_routing(card, "audio-routing");

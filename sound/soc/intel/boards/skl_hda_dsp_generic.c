@@ -104,6 +104,7 @@ static struct snd_soc_card hda_soc_card = {
 static int skl_hda_fill_card_info(struct skl_machine_pdata *pdata)
 {
 	struct snd_soc_card *card = &hda_soc_card;
+	struct snd_soc_dai_link *dai_link;
 	u32 codec_count, codec_mask;
 	int i, num_links, num_route;
 
@@ -125,8 +126,8 @@ static int skl_hda_fill_card_info(struct skl_machine_pdata *pdata)
 	card->num_links = num_links;
 	card->num_dapm_routes = num_route;
 
-	for (i = 0; i < num_links; i++)
-		skl_hda_be_dai_links[i].platform_name = pdata->platform;
+	for_each_card_prelinks(card, i, dai_link)
+		dai_link->platform_name = pdata->platform;
 
 	return 0;
 }

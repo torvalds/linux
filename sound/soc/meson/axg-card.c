@@ -101,8 +101,7 @@ static void axg_card_clean_references(struct axg_card *priv)
 	int i, j;
 
 	if (card->dai_link) {
-		for (i = 0; i < card->num_links; i++) {
-			link = &card->dai_link[i];
+		for_each_card_prelinks(card, i, link) {
 			of_node_put(link->cpu_of_node);
 			for_each_link_codecs(link, j, codec)
 				of_node_put(codec->of_node);
