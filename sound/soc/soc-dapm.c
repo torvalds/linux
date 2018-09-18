@@ -4183,7 +4183,7 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 	struct snd_soc_pcm_runtime *rtd;
 
 	/* for each BE DAI link... */
-	list_for_each_entry(rtd, &card->rtd_list, list)  {
+	for_each_card_rtds(card, rtd)  {
 		/*
 		 * dynamic FE links have no fixed DAI mapping.
 		 * CODEC<->CODEC links have no direct connection.
