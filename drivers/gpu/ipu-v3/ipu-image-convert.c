@@ -1467,9 +1467,7 @@ static int fill_image(struct ipu_image_convert_ctx *ctx,
 	else
 		ic_image->stride  = ic_image->base.pix.bytesperline;
 
-	calc_tile_dimensions(ctx, ic_image);
-
-	return calc_tile_offsets(ctx, ic_image);
+	return 0;
 }
 
 /* borrowed from drivers/media/v4l2-core/v4l2-common.c */
@@ -1673,14 +1671,24 @@ ipu_image_convert_prepare(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 	ctx->num_tiles = d_image->num_cols * d_image->num_rows;
 	ctx->rot_mode = rot_mode;
 
-	ret = calc_image_resize_coefficients(ctx, in, out);
-	if (ret)
-		goto out_free;
-
 	ret = fill_image(ctx, s_image, in, IMAGE_CONVERT_IN);
 	if (ret)
 		goto out_free;
 	ret = fill_image(ctx, d_image, out, IMAGE_CONVERT_OUT);
+	if (ret)
+		goto out_free;
+
+	ret = calc_image_resize_coefficients(ctx, in, out);
+	if (ret)
+		goto out_free;
+
+	calc_tile_dimensions(ctx, s_image);
+	ret = calc_tile_offsets(ctx, s_image);
+	if (ret)
+		goto out_free;
+
+	calc_tile_dimensions(ctx, d_image);
+	ret = calc_tile_offsets(ctx, d_image);
 	if (ret)
 		goto out_free;
 
