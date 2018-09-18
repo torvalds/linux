@@ -3530,6 +3530,17 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 			pwm6pin = !dsw_en && (cr2d & BIT(0));
 			break;
 		case nct6793:
+			fan5pin |= cr1b & BIT(5);
+			fan5pin |= creb & BIT(5);
+
+			fan6pin = creb & BIT(3);
+
+			pwm5pin |= cr2d & BIT(7);
+			pwm5pin |= (creb & BIT(4)) && !(cr2a & BIT(0));
+
+			pwm6pin = !dsw_en && (cr2d & BIT(0));
+			pwm6pin |= creb & BIT(2);
+			break;
 		case nct6795:
 		case nct6796:
 			pwm5pin |= cr2d & BIT(7);
@@ -3546,11 +3557,9 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 				pwm6pin |= creb & BIT(2);
 			}
 
-			if (data->kind == nct6795 || data->kind == nct6796) {
-				fan6pin |= (cr2a & BIT(4)) &&
-						(!dsw_en || (cred & BIT(4)));
-				pwm6pin |= (cr2a & BIT(3)) && (cred & BIT(2));
-			}
+			fan6pin |= (cr2a & BIT(4)) &&
+					(!dsw_en || (cred & BIT(4)));
+			pwm6pin |= (cr2a & BIT(3)) && (cred & BIT(2));
 
 			if (data->kind == nct6796) {
 				fan7pin = !(cr2b & BIT(2));
