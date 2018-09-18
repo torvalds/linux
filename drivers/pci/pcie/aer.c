@@ -1547,18 +1547,6 @@ static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 	return rc ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
 }
 
-/**
- * aer_error_resume - clean up corresponding error status bits
- * @dev: pointer to Root Port's pci_dev data structure
- *
- * Invoked by Port Bus driver during nonfatal recovery.
- */
-static void aer_error_resume(struct pci_dev *dev)
-{
-	pci_aer_clear_device_status(dev);
-	pci_cleanup_aer_uncorrect_error_status(dev);
-}
-
 static struct pcie_port_service_driver aerdriver = {
 	.name		= "aer",
 	.port_type	= PCI_EXP_TYPE_ROOT_PORT,
@@ -1566,7 +1554,6 @@ static struct pcie_port_service_driver aerdriver = {
 
 	.probe		= aer_probe,
 	.remove		= aer_remove,
-	.error_resume	= aer_error_resume,
 	.reset_link	= aer_root_reset,
 };
 
