@@ -276,9 +276,6 @@ static int vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 	/* Commit: Update hardware to use the new fb */
 	mutex_lock(&vbox->hw_mutex);
 
-	if (&vbox->fbdev->afb == to_vbox_framebuffer(new_fb))
-		vbox_fbdev_set_base(vbox, gpu_addr);
-
 	vbox_crtc->fb_offset = gpu_addr;
 
 	/* vbox_do_modeset() checks vbox->single_framebuffer so update it now */

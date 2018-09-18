@@ -80,6 +80,7 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 	struct drm_gem_object *gobj;
 	struct vbox_bo *bo;
 	int size, ret;
+	u64 gpu_addr;
 	u32 pitch;
 
 	mode_cmd.width = sizes->surface_width;
@@ -107,7 +108,7 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 	if (ret)
 		return ret;
 
-	ret = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM, NULL);
+	ret = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM, &gpu_addr);
 	if (ret) {
 		vbox_bo_unreserve(bo);
 		return ret;
@@ -151,6 +152,9 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &fbdev->helper, sizes->fb_width,
 			       sizes->fb_height);
+
+	info->fix.smem_start = info->apertures->ranges[0].base + gpu_addr;
+	info->fix.smem_len = vbox->available_vram_size - gpu_addr;
 
 	info->screen_base = (char __iomem *)bo->kmap.virtual;
 	info->screen_size = size;
@@ -240,12 +244,4 @@ int vbox_fbdev_init(struct vbox_private *vbox)
 err_fini:
 	drm_fb_helper_fini(&fbdev->helper);
 	return ret;
-}
-
-void vbox_fbdev_set_base(struct vbox_private *vbox, unsigned long gpu_addr)
-{
-	struct fb_info *fbdev = vbox->fbdev->helper.fbdev;
-
-	fbdev->fix.smem_start = fbdev->apertures->ranges[0].base + gpu_addr;
-	fbdev->fix.smem_len = vbox->available_vram_size - gpu_addr;
 }

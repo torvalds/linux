@@ -201,7 +201,6 @@ int vbox_framebuffer_init(struct vbox_private *vbox,
 
 int vbox_fbdev_init(struct vbox_private *vbox);
 void vbox_fbdev_fini(struct vbox_private *vbox);
-void vbox_fbdev_set_base(struct vbox_private *vbox, unsigned long gpu_addr);
 
 struct vbox_bo {
 	struct ttm_buffer_object bo;
