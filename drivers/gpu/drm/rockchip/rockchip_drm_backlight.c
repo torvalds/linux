@@ -250,7 +250,7 @@ int of_rockchip_drm_sub_backlight_register(struct device *dev,
 
 	pwm = devm_pwm_get(dev, NULL);
 	if (IS_ERR(pwm)) {
-		dev_err(dev, "unable to request PWM\n");
+		dev_dbg(dev, "unable to request PWM\n");
 		return PTR_ERR(pwm);
 	}
 

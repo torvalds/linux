@@ -4484,34 +4484,31 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gamma_lut");
-	vop->lut_regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(vop->lut_regs)) {
-		dev_warn(vop->dev, "failed to get vop lut registers\n");
-		vop->lut_regs = NULL;
-	}
-	if (vop->lut_regs) {
+	if (res) {
 		vop->lut_len = resource_size(res) / sizeof(*vop->lut);
 		if (vop->lut_len != 256 && vop->lut_len != 1024) {
 			dev_err(vop->dev, "unsupport lut sizes %d\n",
 				vop->lut_len);
 			return -EINVAL;
 		}
+
+		vop->lut_regs = devm_ioremap_resource(dev, res);
+		if (IS_ERR(vop->lut_regs))
+			return PTR_ERR(vop->lut_regs);
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cabc_lut");
-	vop->cabc_lut_regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(vop->cabc_lut_regs)) {
-		dev_warn(vop->dev, "failed to get vop cabc lut registers\n");
-		vop->cabc_lut_regs = NULL;
-	}
-
-	if (vop->cabc_lut_regs) {
+	if (res) {
 		vop->cabc_lut_len = resource_size(res) >> 2;
 		if (vop->cabc_lut_len != 128) {
 			dev_err(vop->dev, "unsupport cabc lut sizes %d\n",
 				vop->cabc_lut_len);
 			return -EINVAL;
 		}
+
+		vop->cabc_lut_regs = devm_ioremap_resource(dev, res);
+		if (IS_ERR(vop->cabc_lut_regs))
+			return PTR_ERR(vop->cabc_lut_regs);
 	}
 
 	vop->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
@@ -4577,8 +4574,8 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 
 	mcu = of_get_child_by_name(dev->of_node, "mcu-timing");
 	if (!mcu) {
-		DRM_INFO("no mcu-timing node found in %s\n",
-			 dev->of_node->full_name);
+		dev_dbg(dev, "no mcu-timing node found in %s\n",
+			dev->of_node->full_name);
 	} else {
 		u32 val;
 
