@@ -7665,6 +7665,31 @@ static void r3d_exit_chip(struct hda_codec *codec)
 	snd_hda_codec_write(codec, 0x01, 0, 0x794, 0x5b);
 }
 
+static void ae5_exit_chip(struct hda_codec *codec)
+{
+	chipio_set_stream_control(codec, 0x03, 0);
+	chipio_set_stream_control(codec, 0x04, 0);
+
+	ca0113_mmio_command_set(codec, 0x30, 0x32, 0x3f);
+	ca0113_mmio_command_set(codec, 0x48, 0x07, 0x83);
+	ca0113_mmio_command_set(codec, 0x48, 0x07, 0x83);
+	ca0113_mmio_command_set(codec, 0x30, 0x30, 0x00);
+	ca0113_mmio_command_set(codec, 0x30, 0x2b, 0x00);
+	ca0113_mmio_command_set(codec, 0x30, 0x2d, 0x00);
+	ca0113_mmio_gpio_set(codec, 0, false);
+	ca0113_mmio_gpio_set(codec, 1, false);
+
+	snd_hda_codec_write(codec, 0x01, 0, 0x793, 0x00);
+	snd_hda_codec_write(codec, 0x01, 0, 0x794, 0x53);
+
+	chipio_set_control_param(codec, CONTROL_PARAM_ASI, 0);
+
+	chipio_set_stream_control(codec, 0x18, 0);
+	chipio_set_stream_control(codec, 0x0c, 0);
+
+	snd_hda_codec_write(codec, 0x01, 0, 0x724, 0x83);
+}
+
 static void ca0132_exit_chip(struct hda_codec *codec)
 {
 	/* put any chip cleanup stuffs here. */
@@ -8108,6 +8133,9 @@ static void ca0132_free(struct hda_codec *codec)
 		break;
 	case QUIRK_R3D:
 		r3d_exit_chip(codec);
+		break;
+	case QUIRK_AE5:
+		ae5_exit_chip(codec);
 		break;
 	case QUIRK_R3DI:
 		r3di_gpio_shutdown(codec);
