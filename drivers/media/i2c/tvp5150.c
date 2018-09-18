@@ -1790,7 +1790,7 @@ static int tvp5150_probe(struct i2c_client *c,
 						tvp5150_isr, IRQF_TRIGGER_HIGH |
 						IRQF_ONESHOT, "tvp5150", core);
 		if (res)
-			return res;
+			goto err;
 	}
 
 	res = v4l2_async_register_subdev(sd);
