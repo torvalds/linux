@@ -620,7 +620,7 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 	/* create capture streams */
 	for (i = 0; i < num_capture; i++) {
 
-		stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+		stream = devm_kzalloc(sdev->dev, sizeof(*stream), GFP_KERNEL);
 		if (!stream)
 			return -ENOMEM;
 
@@ -666,7 +666,6 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 					  HDA_DSP_BDL_SIZE, &hstream->bdl);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: stream bdl dma alloc failed\n");
-			kfree(stream);
 			return -ENOMEM;
 		}
 		hstream->posbuf = (__le32 *)(bus->posbuf.area +
@@ -678,7 +677,7 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 	/* create playback streams */
 	for (i = num_capture; i < num_total; i++) {
 
-		stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+		stream = devm_kzalloc(sdev->dev, sizeof(*stream), GFP_KERNEL);
 		if (!stream)
 			return -ENOMEM;
 
@@ -725,7 +724,6 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 					  HDA_DSP_BDL_SIZE, &hstream->bdl);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: stream bdl dma alloc failed\n");
-			kfree(stream);
 			return -ENOMEM;
 		}
 
