@@ -379,12 +379,7 @@ static int alloc_dma_buf(struct ipu_image_convert_priv *priv,
 
 static inline int num_stripes(int dim)
 {
-	if (dim <= 1024)
-		return 1;
-	else if (dim <= 2048)
-		return 2;
-	else
-		return 4;
+	return (dim - 1) / 1024 + 1;
 }
 
 /*
