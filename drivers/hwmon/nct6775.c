@@ -3522,9 +3522,12 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 
 		switch (data->kind) {
 		case nct6791:
-		case nct6792:
 			fan6pin = cr2d & BIT(1);
 			pwm6pin = cr2d & BIT(0);
+			break;
+		case nct6792:
+			fan6pin = !dsw_en && (cr2d & BIT(1));
+			pwm6pin = !dsw_en && (cr2d & BIT(0));
 			break;
 		case nct6793:
 		case nct6795:
