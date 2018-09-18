@@ -2289,6 +2289,25 @@ static uint32_t vega20_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 		return AMD_FAN_CTRL_AUTO;
 }
 
+static void vega20_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
+{
+	switch (mode) {
+	case AMD_FAN_CTRL_NONE:
+		vega20_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
+		break;
+	case AMD_FAN_CTRL_MANUAL:
+		if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
+			vega20_fan_ctrl_stop_smc_fan_control(hwmgr);
+		break;
+	case AMD_FAN_CTRL_AUTO:
+		if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
+			vega20_fan_ctrl_start_smc_fan_control(hwmgr);
+		break;
+	default:
+		break;
+	}
+}
+
 static int vega20_get_dal_power_level(struct pp_hwmgr *hwmgr,
 		struct amd_pp_simple_clock_info *info)
 {
@@ -3452,12 +3471,20 @@ static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 	.disable_smc_firmware_ctf =
 		vega20_thermal_disable_alert,
 	/* fan control related */
+	.get_fan_speed_percent =
+		vega20_fan_ctrl_get_fan_speed_percent,
+	.set_fan_speed_percent =
+		vega20_fan_ctrl_set_fan_speed_percent,
 	.get_fan_speed_info =
 		vega20_fan_ctrl_get_fan_speed_info,
 	.get_fan_speed_rpm =
 		vega20_fan_ctrl_get_fan_speed_rpm,
+	.set_fan_speed_rpm =
+		vega20_fan_ctrl_set_fan_speed_rpm,
 	.get_fan_control_mode =
 		vega20_get_fan_control_mode,
+	.set_fan_control_mode =
+		vega20_set_fan_control_mode,
 	/* smu memory related */
 	.notify_cac_buffer_info =
 		vega20_notify_cac_buffer_info,

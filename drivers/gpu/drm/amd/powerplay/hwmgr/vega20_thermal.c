@@ -29,6 +29,78 @@
 #include "soc15_common.h"
 #include "pp_debug.h"
 
+static int vega20_disable_fan_control_feature(struct pp_hwmgr *hwmgr)
+{
+	struct vega20_hwmgr *data = hwmgr->backend;
+	int ret = 0;
+
+	if (data->smu_features[GNLD_FAN_CONTROL].supported) {
+		ret = vega20_enable_smc_features(
+				hwmgr, false,
+				data->smu_features[GNLD_FAN_CONTROL].
+				smu_feature_bitmap);
+		PP_ASSERT_WITH_CODE(!ret,
+				"Disable FAN CONTROL feature Failed!",
+				return ret);
+		data->smu_features[GNLD_FAN_CONTROL].enabled = false;
+	}
+
+	return ret;
+}
+
+int vega20_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr)
+{
+	struct vega20_hwmgr *data = hwmgr->backend;
+
+	if (data->smu_features[GNLD_FAN_CONTROL].supported)
+		return vega20_disable_fan_control_feature(hwmgr);
+
+	return 0;
+}
+
+static int vega20_enable_fan_control_feature(struct pp_hwmgr *hwmgr)
+{
+	struct vega20_hwmgr *data = hwmgr->backend;
+	int ret = 0;
+
+	if (data->smu_features[GNLD_FAN_CONTROL].supported) {
+		ret = vega20_enable_smc_features(
+				hwmgr, true,
+				data->smu_features[GNLD_FAN_CONTROL].
+				smu_feature_bitmap);
+		PP_ASSERT_WITH_CODE(!ret,
+				"Enable FAN CONTROL feature Failed!",
+				return ret);
+		data->smu_features[GNLD_FAN_CONTROL].enabled = true;
+	}
+
+	return ret;
+}
+
+int vega20_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
+{
+	struct vega20_hwmgr *data = hwmgr->backend;
+
+	if (data->smu_features[GNLD_FAN_CONTROL].supported)
+		return vega20_enable_fan_control_feature(hwmgr);
+
+	return 0;
+}
+
+static int vega20_fan_ctrl_set_static_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
+{
+	struct amdgpu_device *adev = hwmgr->adev;
+
+	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL2,
+			REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL2),
+				CG_FDO_CTRL2, TMIN, 0));
+	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL2,
+			REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL2),
+				CG_FDO_CTRL2, FDO_PWM_MODE, mode));
+
+	return 0;
+}
+
 static int vega20_get_current_rpm(struct pp_hwmgr *hwmgr, uint32_t *current_rpm)
 {
 	int ret = 0;
@@ -42,12 +114,62 @@ static int vega20_get_current_rpm(struct pp_hwmgr *hwmgr, uint32_t *current_rpm)
 	return 0;
 }
 
+int vega20_fan_ctrl_get_fan_speed_percent(struct pp_hwmgr *hwmgr,
+		uint32_t *speed)
+{
+	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
+	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
+	uint32_t current_rpm, percent = 0;
+	int ret = 0;
+
+	ret = vega20_get_current_rpm(hwmgr, &current_rpm);
+	if (ret)
+		return ret;
+
+	percent = current_rpm * 100 / pp_table->FanMaximumRpm;
+
+	*speed = percent > 100 ? 100 : percent;
+
+	return 0;
+}
+
+int vega20_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
+		uint32_t speed)
+{
+	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t duty100;
+	uint32_t duty;
+	uint64_t tmp64;
+
+	if (speed > 100)
+		speed = 100;
+
+	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
+		vega20_fan_ctrl_stop_smc_fan_control(hwmgr);
+
+	duty100 = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL1),
+				    CG_FDO_CTRL1, FMAX_DUTY100);
+
+	if (duty100 == 0)
+		return -EINVAL;
+
+	tmp64 = (uint64_t)speed * duty100;
+	do_div(tmp64, 100);
+	duty = (uint32_t)tmp64;
+
+	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL0,
+		REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL0),
+			CG_FDO_CTRL0, FDO_STATIC_DUTY, duty));
+
+	return vega20_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC);
+}
+
 int vega20_fan_ctrl_get_fan_speed_info(struct pp_hwmgr *hwmgr,
 		struct phm_fan_speed_info *fan_speed_info)
 {
 	memset(fan_speed_info, 0, sizeof(*fan_speed_info));
-	fan_speed_info->supports_percent_read = false;
-	fan_speed_info->supports_percent_write = false;
+	fan_speed_info->supports_percent_read = true;
+	fan_speed_info->supports_percent_write = true;
 	fan_speed_info->supports_rpm_read = true;
 	fan_speed_info->supports_rpm_write = true;
 
@@ -59,6 +181,31 @@ int vega20_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
 	*speed = 0;
 
 	return vega20_get_current_rpm(hwmgr, speed);
+}
+
+int vega20_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
+{
+	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t tach_period, crystal_clock_freq;
+	int result = 0;
+
+	if (!speed)
+		return -EINVAL;
+
+	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl)) {
+		result = vega20_fan_ctrl_stop_smc_fan_control(hwmgr);
+		if (result)
+			return result;
+	}
+
+	crystal_clock_freq = amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
+	tach_period = 60 * crystal_clock_freq * 10000 / (8 * speed);
+	WREG32_SOC15(THM, 0, mmCG_TACH_CTRL,
+			REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_TACH_CTRL),
+				CG_TACH_CTRL, TARGET_PERIOD,
+				tach_period));
+
+	return vega20_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC_RPM);
 }
 
 /**
