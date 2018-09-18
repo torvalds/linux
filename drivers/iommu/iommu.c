@@ -1425,7 +1425,7 @@ struct iommu_domain *iommu_get_dma_domain(struct device *dev)
 }
 
 /*
- * IOMMU groups are really the natrual working unit of the IOMMU, but
+ * IOMMU groups are really the natural working unit of the IOMMU, but
  * the IOMMU API works on domains and devices.  Bridge that gap by
  * iterating over the devices in a group.  Ideally we'd have a single
  * device which represents the requestor ID of the group, but we also
