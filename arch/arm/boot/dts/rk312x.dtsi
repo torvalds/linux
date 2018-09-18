@@ -465,14 +465,34 @@
 		};
 	};
 
-	vpu: vpu_service@10104000 {
-		compatible = "rockchip,vpu_service";
+	hevc: hevc_service@10104000 {
+		compatible = "rockchip,sub";
+		reg = <0x10104000 0x400>;
+		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec";
+		power-domains = <&power RK3128_PD_VIDEO>;
+		dev_mode = <1>;
+		name = "hevc_service";
+		iommus = <&hevc_mmu>;
+		status = "disabled";
+	};
+
+	hevc_mmu: iommu@10104440 {
+		compatible = "rockchip,iommu";
+		reg = <0x10104440 0x40>, <0x10104480 0x40>;
+		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "hevc_mmu";
+		power-domains = <&power RK3128_PD_VIDEO>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	vpu: vpu_service@10106000 {
+		compatible = "rockchip,sub";
+		reg = <0x10106000 0x800>;
 		rockchip,grf = <&grf>;
-		iommus = <&vpu_mmu>;
-		iommu_enabled = <1>;
-		reg = <0x10104000 0x800>;
 		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
-			<GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_enc", "irq_dec";
 		clocks = <&cru ACLK_VDPU>, <&cru HCLK_VDPU>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
@@ -481,20 +501,40 @@
 		power-domains = <&power RK3128_PD_VIDEO>;
 		name = "vpu_service";
 		dev_mode = <0>;
+		iommus = <&vpu_mmu>;
 		/* 0 means ion, 1 means drm */
 		allocator = <1>;
 		status = "disabled";
 	};
 
-	vpu_mmu: iommu@10104800 {
+	vpu_mmu: iommu@10106800 {
 		compatible = "rockchip,iommu";
-		reg = <0x10104800 0x40>;
+		reg = <0x10106800 0x40>;
 		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vpu_mmu";
 		clocks = <&cru ACLK_VDPU>, <&cru HCLK_VDPU>;
 		clock-names = "aclk", "hclk";
 		power-domains = <&power RK3128_PD_VIDEO>;
 		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	vpu_combo: vpu_combo {
+		compatible = "rockchip,vpu_combo";
+		subcnt = <2>;
+		rockchip,sub = <&vpu>, <&hevc>;
+		rockchip,grf = <&grf>;
+		clocks = <&cru ACLK_VDPU>, <&cru HCLK_VDPU>,
+			 <&cru SCLK_HEVC_CORE>;
+		clock-names = "aclk_vcodec", "hclk_vcodec",
+			      "clk_core";
+		resets = <&cru SRST_VCODEC_H>, <&cru SRST_VCODEC_A>,
+		         <&cru SRST_HEVC_CORE>;
+		reset-names = "video_h", "video_a", "video";
+		mode_bit = <15>;
+		mode_ctrl = <0x144>;
+		name = "vpu_combo";
+		status = "disabled";
 	};
 
 	iep: iep@10108000 {
