@@ -12,6 +12,14 @@
 	compatible = "rockchip,rk3326-863-lp3-v10", "rockchip,rk3326";
 };
 
+&cif {
+	status = "okay";
+};
+
+&cif_sensor {
+	status = "okay";
+};
+
 &firmware_android {
 	compatible = "android,firmware";
 	fstab {
