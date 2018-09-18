@@ -154,7 +154,7 @@ static ssize_t uvcg_control_header_##cname##_show(			\
 	opts = to_f_uvc_opts(opts_item);				\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", le##bits##_to_cpu(ch->desc.aname));\
+	result = sprintf(page, "%u\n", le##bits##_to_cpu(ch->desc.aname));\
 	mutex_unlock(&opts->lock);					\
 									\
 	mutex_unlock(su_mutex);						\
@@ -274,7 +274,7 @@ static ssize_t uvcg_default_processing_##cname##_show(			\
 	pd = &opts->uvc_processing;					\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", le##bits##_to_cpu(pd->aname));	\
+	result = sprintf(page, "%u\n", le##bits##_to_cpu(pd->aname));	\
 	mutex_unlock(&opts->lock);					\
 									\
 	mutex_unlock(su_mutex);						\
@@ -309,7 +309,7 @@ static ssize_t uvcg_default_processing_bm_controls_show(
 
 	mutex_lock(&opts->lock);
 	for (result = 0, i = 0; i < pd->bControlSize; ++i) {
-		result += sprintf(pg, "%d\n", pd->bmControls[i]);
+		result += sprintf(pg, "%u\n", pd->bmControls[i]);
 		pg = page + result;
 	}
 	mutex_unlock(&opts->lock);
@@ -378,7 +378,7 @@ static ssize_t uvcg_default_camera_##cname##_show(			\
 	cd = &opts->uvc_camera_terminal;				\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", le##bits##_to_cpu(cd->aname));	\
+	result = sprintf(page, "%u\n", le##bits##_to_cpu(cd->aname));	\
 	mutex_unlock(&opts->lock);					\
 									\
 	mutex_unlock(su_mutex);						\
@@ -421,7 +421,7 @@ static ssize_t uvcg_default_camera_bm_controls_show(
 
 	mutex_lock(&opts->lock);
 	for (result = 0, i = 0; i < cd->bControlSize; ++i) {
-		result += sprintf(pg, "%d\n", cd->bmControls[i]);
+		result += sprintf(pg, "%u\n", cd->bmControls[i]);
 		pg = page + result;
 	}
 	mutex_unlock(&opts->lock);
@@ -492,7 +492,7 @@ static ssize_t uvcg_default_output_##cname##_show(			\
 	cd = &opts->uvc_output_terminal;				\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", le##bits##_to_cpu(cd->aname));	\
+	result = sprintf(page, "%u\n", le##bits##_to_cpu(cd->aname));	\
 	mutex_unlock(&opts->lock);					\
 									\
 	mutex_unlock(su_mutex);						\
@@ -995,7 +995,7 @@ static ssize_t uvcg_streaming_header_##cname##_show(			\
 	opts = to_f_uvc_opts(opts_item);				\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", le##bits##_to_cpu(sh->desc.aname));\
+	result = sprintf(page, "%u\n", le##bits##_to_cpu(sh->desc.aname));\
 	mutex_unlock(&opts->lock);					\
 									\
 	mutex_unlock(su_mutex);						\
@@ -1104,7 +1104,7 @@ static ssize_t uvcg_frame_##cname##_show(struct config_item *item, char *page)\
 	opts = to_f_uvc_opts(opts_item);				\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", f->frame.cname);			\
+	result = sprintf(page, "%u\n", f->frame.cname);			\
 	mutex_unlock(&opts->lock);					\
 									\
 	mutex_unlock(su_mutex);						\
@@ -1173,7 +1173,7 @@ static ssize_t uvcg_frame_b_frame_index_show(struct config_item *item,
 	opts = to_f_uvc_opts(opts_item);
 
 	mutex_lock(&opts->lock);
-	result = sprintf(page, "%d\n", f->frame.b_frame_index);
+	result = sprintf(page, "%u\n", f->frame.b_frame_index);
 	mutex_unlock(&opts->lock);
 
 out:
@@ -1210,7 +1210,7 @@ static ssize_t uvcg_frame_dw_frame_interval_show(struct config_item *item,
 
 	mutex_lock(&opts->lock);
 	for (result = 0, i = 0; i < frm->frame.b_frame_interval_type; ++i) {
-		result += sprintf(pg, "%d\n", frm->dw_frame_interval[i]);
+		result += sprintf(pg, "%u\n", frm->dw_frame_interval[i]);
 		pg = page + result;
 	}
 	mutex_unlock(&opts->lock);
@@ -1512,7 +1512,7 @@ static ssize_t uvcg_uncompressed_##cname##_show(			\
 	opts = to_f_uvc_opts(opts_item);				\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", le##bits##_to_cpu(u->desc.aname));\
+	result = sprintf(page, "%u\n", le##bits##_to_cpu(u->desc.aname));\
 	mutex_unlock(&opts->lock);					\
 									\
 	mutex_unlock(su_mutex);						\
@@ -1537,7 +1537,7 @@ static ssize_t uvcg_uncompressed_##cname##_show(			\
 	opts = to_f_uvc_opts(opts_item);				\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", le##bits##_to_cpu(u->desc.aname));\
+	result = sprintf(page, "%u\n", le##bits##_to_cpu(u->desc.aname));\
 	mutex_unlock(&opts->lock);					\
 									\
 	mutex_unlock(su_mutex);						\
@@ -1710,7 +1710,7 @@ static ssize_t uvcg_mjpeg_##cname##_show(struct config_item *item, char *page)\
 	opts = to_f_uvc_opts(opts_item);				\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", le##bits##_to_cpu(u->desc.aname));\
+	result = sprintf(page, "%u\n", le##bits##_to_cpu(u->desc.aname));\
 	mutex_unlock(&opts->lock);					\
 									\
 	mutex_unlock(su_mutex);						\
@@ -1734,7 +1734,7 @@ static ssize_t uvcg_mjpeg_##cname##_show(struct config_item *item, char *page)\
 	opts = to_f_uvc_opts(opts_item);				\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", le##bits##_to_cpu(u->desc.aname));\
+	result = sprintf(page, "%u\n", le##bits##_to_cpu(u->desc.aname));\
 	mutex_unlock(&opts->lock);					\
 									\
 	mutex_unlock(su_mutex);						\
@@ -1886,7 +1886,7 @@ static ssize_t uvcg_default_color_matching_##cname##_show(		\
 	cd = &opts->uvc_color_matching;					\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", le##bits##_to_cpu(cd->aname));	\
+	result = sprintf(page, "%u\n", le##bits##_to_cpu(cd->aname));	\
 	mutex_unlock(&opts->lock);					\
 									\
 	mutex_unlock(su_mutex);						\
@@ -2395,7 +2395,7 @@ static ssize_t f_uvc_opts_##cname##_show(				\
 	int result;							\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", opts->cname);			\
+	result = sprintf(page, "%u\n", opts->cname);			\
 	mutex_unlock(&opts->lock);					\
 									\
 	return result;							\
