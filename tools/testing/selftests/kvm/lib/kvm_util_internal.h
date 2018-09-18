@@ -49,6 +49,7 @@ struct kvm_vm {
 	unsigned int pgtable_levels;
 	unsigned int page_size;
 	unsigned int page_shift;
+	unsigned int pa_bits;
 	unsigned int va_bits;
 	uint64_t max_gfn;
 	struct vcpu *vcpu_head;

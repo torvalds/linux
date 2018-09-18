@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 
 #define KVM_UTIL_PGS_PER_HUGEPG 512
-#define KVM_UTIL_MIN_PADDR      0x2000
+#define KVM_UTIL_MIN_PFN	2
 
 /* Aligns x up to the next multiple of size. Size must be a power of 2. */
 static void *align(void *x, size_t size)
@@ -96,11 +96,16 @@ static void vm_open(struct kvm_vm *vm, int perm)
 		"rc: %i errno: %i", vm->fd, errno);
 }
 
+const char * const vm_guest_mode_string[] = {
+	"PA-bits:52, VA-bits:48, 4K pages",
+	"PA-bits:52, VA-bits:48, 64K pages",
+};
+
 /*
  * VM Create
  *
  * Input Args:
- *   mode - VM Mode (e.g. VM_MODE_FLAT48PG)
+ *   mode - VM Mode (e.g. VM_MODE_P52V48_4K)
  *   phy_pages - Physical memory pages
  *   perm - permission
  *
@@ -109,7 +114,7 @@ static void vm_open(struct kvm_vm *vm, int perm)
  * Return:
  *   Pointer to opaque structure that describes the created VM.
  *
- * Creates a VM with the mode specified by mode (e.g. VM_MODE_FLAT48PG).
+ * Creates a VM with the mode specified by mode (e.g. VM_MODE_P52V48_4K).
  * When phy_pages is non-zero, a memory region of phy_pages physical pages
  * is created and mapped starting at guest physical address 0.  The file
  * descriptor to control the created VM is created with the permissions
@@ -128,27 +133,33 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 
 	/* Setup mode specific traits. */
 	switch (vm->mode) {
-	case VM_MODE_FLAT48PG:
+	case VM_MODE_P52V48_4K:
 		vm->pgtable_levels = 4;
 		vm->page_size = 0x1000;
 		vm->page_shift = 12;
 		vm->va_bits = 48;
-
-		/* Limit to 48-bit canonical virtual addresses. */
-		vm->vpages_valid = sparsebit_alloc();
-		sparsebit_set_num(vm->vpages_valid,
-			0, (1ULL << (48 - 1)) >> vm->page_shift);
-		sparsebit_set_num(vm->vpages_valid,
-			(~((1ULL << (48 - 1)) - 1)) >> vm->page_shift,
-			(1ULL << (48 - 1)) >> vm->page_shift);
-
-		/* Limit physical addresses to 52-bits. */
-		vm->max_gfn = ((1ULL << 52) >> vm->page_shift) - 1;
 		break;
-
+	case VM_MODE_P52V48_64K:
+		vm->pgtable_levels = 3;
+		vm->pa_bits = 52;
+		vm->page_size = 0x10000;
+		vm->page_shift = 16;
+		vm->va_bits = 48;
+		break;
 	default:
 		TEST_ASSERT(false, "Unknown guest mode, mode: 0x%x", mode);
 	}
+
+	/* Limit to VA-bit canonical virtual addresses. */
+	vm->vpages_valid = sparsebit_alloc();
+	sparsebit_set_num(vm->vpages_valid,
+		0, (1ULL << (vm->va_bits - 1)) >> vm->page_shift);
+	sparsebit_set_num(vm->vpages_valid,
+		(~((1ULL << (vm->va_bits - 1)) - 1)) >> vm->page_shift,
+		(1ULL << (vm->va_bits - 1)) >> vm->page_shift);
+
+	/* Limit physical addresses to PA-bits. */
+	vm->max_gfn = ((1ULL << vm->pa_bits) >> vm->page_shift) - 1;
 
 	/* Allocate and setup memory for guest. */
 	vm->vpages_mapped = sparsebit_alloc();
@@ -868,7 +879,8 @@ vm_vaddr_t vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min,
 		pages--, vaddr += vm->page_size) {
 		vm_paddr_t paddr;
 
-		paddr = vm_phy_page_alloc(vm, KVM_UTIL_MIN_PADDR, data_memslot);
+		paddr = vm_phy_page_alloc(vm,
+				KVM_UTIL_MIN_PFN * vm->page_size, data_memslot);
 
 		virt_pg_map(vm, vaddr, paddr, pgd_memslot);
 

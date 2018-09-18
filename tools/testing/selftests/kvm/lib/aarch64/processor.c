@@ -226,7 +226,7 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
 	uint64_t extra_pg_pages = (extra_mem_pages / ptrs_per_4k_pte) * 2;
 	struct kvm_vm *vm;
 
-	vm = vm_create(VM_MODE_FLAT48PG, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages, O_RDWR);
+	vm = vm_create(VM_MODE_P52V48_4K, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages, O_RDWR);
 
 	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
 	vm_vcpu_add_default(vm, vcpuid, guest_code);
@@ -267,8 +267,12 @@ void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_memslot)
 	get_reg(vm, vcpuid, ARM64_SYS_REG(TCR_EL1), &tcr_el1);
 
 	switch (vm->mode) {
-	case VM_MODE_FLAT48PG:
+	case VM_MODE_P52V48_4K:
 		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
+		tcr_el1 |= 6ul << 32; /* IPS = 52 bits */
+		break;
+	case VM_MODE_P52V48_64K:
+		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
 		tcr_el1 |= 6ul << 32; /* IPS = 52 bits */
 		break;
 	default:

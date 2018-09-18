@@ -231,7 +231,7 @@ void virt_pgd_alloc(struct kvm_vm *vm, uint32_t pgd_memslot)
 {
 	int rc;
 
-	TEST_ASSERT(vm->mode == VM_MODE_FLAT48PG, "Attempt to use "
+	TEST_ASSERT(vm->mode == VM_MODE_P52V48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
 
 	/* If needed, create page map l4 table. */
@@ -264,7 +264,7 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 	uint16_t index[4];
 	struct pageMapL4Entry *pml4e;
 
-	TEST_ASSERT(vm->mode == VM_MODE_FLAT48PG, "Attempt to use "
+	TEST_ASSERT(vm->mode == VM_MODE_P52V48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
 
 	TEST_ASSERT((vaddr % vm->page_size) == 0,
@@ -551,7 +551,7 @@ vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 	struct pageTableEntry *pte;
 	void *hva;
 
-	TEST_ASSERT(vm->mode == VM_MODE_FLAT48PG, "Attempt to use "
+	TEST_ASSERT(vm->mode == VM_MODE_P52V48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
 
 	index[0] = (gva >> 12) & 0x1ffu;
@@ -624,7 +624,7 @@ void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_memslot)
 	kvm_setup_gdt(vm, &sregs.gdt, gdt_memslot, pgd_memslot);
 
 	switch (vm->mode) {
-	case VM_MODE_FLAT48PG:
+	case VM_MODE_P52V48_4K:
 		sregs.cr0 = X86_CR0_PE | X86_CR0_NE | X86_CR0_PG;
 		sregs.cr4 |= X86_CR4_PAE | X86_CR4_OSFXSR;
 		sregs.efer |= (EFER_LME | EFER_LMA | EFER_NX);
@@ -823,7 +823,7 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
 	uint64_t extra_pg_pages = extra_mem_pages / 512 * 2;
 
 	/* Create VM */
-	vm = vm_create(VM_MODE_FLAT48PG,
+	vm = vm_create(VM_MODE_P52V48_4K,
 		       DEFAULT_GUEST_PHY_PAGES + extra_pg_pages,
 		       O_RDWR);
 

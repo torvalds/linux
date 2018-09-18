@@ -34,8 +34,13 @@ typedef uint64_t vm_vaddr_t; /* Virtual Machine (Guest) virtual address */
 #define DEFAULT_STACK_PGS		5
 
 enum vm_guest_mode {
-	VM_MODE_FLAT48PG,
+	VM_MODE_P52V48_4K,
+	VM_MODE_P52V48_64K,
+	NUM_VM_MODES,
 };
+
+#define vm_guest_mode_string(m) vm_guest_mode_string[m]
+extern const char * const vm_guest_mode_string[];
 
 enum vm_mem_backing_src_type {
 	VM_MEM_SRC_ANONYMOUS,
