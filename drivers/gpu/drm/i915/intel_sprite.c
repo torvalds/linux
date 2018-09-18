@@ -1190,8 +1190,7 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 		return 0;
 
 	if (rotation & ~(DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180) &&
-	    (fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS &&
-	     fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS)) {
+	    is_ccs_modifier(fb->modifier)) {
 		DRM_DEBUG_KMS("RC support only with 0/180 degree rotation (%x)\n",
 			      rotation);
 		return -EINVAL;
