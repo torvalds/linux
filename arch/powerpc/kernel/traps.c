@@ -362,20 +362,20 @@ static bool exception_common(int signr, struct pt_regs *regs, int code,
 	return true;
 }
 
-void _exception_pkey(int signr, struct pt_regs *regs, int code, unsigned long addr, int key)
+void _exception_pkey(struct pt_regs *regs, unsigned long addr, int key)
 {
 	siginfo_t info;
 
-	if (!exception_common(signr, regs, code, addr))
+	if (!exception_common(SIGSEGV, regs, SEGV_PKUERR, addr))
 		return;
 
 	clear_siginfo(&info);
-	info.si_signo = signr;
-	info.si_code = code;
+	info.si_signo = SIGSEGV;
+	info.si_code = SEGV_PKUERR;
 	info.si_addr = (void __user *) addr;
 	info.si_pkey = key;
 
-	force_sig_info(signr, &info, current);
+	force_sig_info(info.si_signo, &info, current);
 }
 
 void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)

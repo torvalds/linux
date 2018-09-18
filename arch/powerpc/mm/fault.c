@@ -152,7 +152,7 @@ static int bad_key_fault_exception(struct pt_regs *regs, unsigned long address,
 	if (!user_mode(regs))
 		return SIGSEGV;
 
-	_exception_pkey(SIGSEGV, regs, SEGV_PKUERR, address, pkey);
+	_exception_pkey(regs, address, pkey);
 
 	return 0;
 }
