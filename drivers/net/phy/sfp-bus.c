@@ -349,6 +349,7 @@ static int sfp_register_bus(struct sfp_bus *bus)
 	}
 	if (bus->started)
 		bus->socket_ops->start(bus->sfp);
+	bus->netdev->sfp_bus = bus;
 	bus->registered = true;
 	return 0;
 }
@@ -357,6 +358,7 @@ static void sfp_unregister_bus(struct sfp_bus *bus)
 {
 	const struct sfp_upstream_ops *ops = bus->upstream_ops;
 
+	bus->netdev->sfp_bus = NULL;
 	if (bus->registered) {
 		if (bus->started)
 			bus->socket_ops->stop(bus->sfp);
@@ -438,7 +440,6 @@ static void sfp_upstream_clear(struct sfp_bus *bus)
 {
 	bus->upstream_ops = NULL;
 	bus->upstream = NULL;
-	bus->netdev->sfp_bus = NULL;
 	bus->netdev = NULL;
 }
 
@@ -467,7 +468,6 @@ struct sfp_bus *sfp_register_upstream(struct fwnode_handle *fwnode,
 		bus->upstream_ops = ops;
 		bus->upstream = upstream;
 		bus->netdev = ndev;
-		ndev->sfp_bus = bus;
 
 		if (bus->sfp) {
 			ret = sfp_register_bus(bus);
