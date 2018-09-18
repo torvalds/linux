@@ -15,6 +15,7 @@
 
 #include "test_util.h"
 #include "kvm_util.h"
+#include "processor.h"
 
 #define  DEBUG                 printf
 

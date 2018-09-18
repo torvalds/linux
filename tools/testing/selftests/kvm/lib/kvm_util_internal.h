@@ -11,18 +11,19 @@
 
 #include "sparsebit.h"
 
+#define KVM_DEV_PATH		"/dev/kvm"
+
 #ifndef BITS_PER_BYTE
-#define BITS_PER_BYTE           8
+#define BITS_PER_BYTE		8
 #endif
 
 #ifndef BITS_PER_LONG
-#define BITS_PER_LONG (BITS_PER_BYTE * sizeof(long))
+#define BITS_PER_LONG		(BITS_PER_BYTE * sizeof(long))
 #endif
 
 #define DIV_ROUND_UP(n, d)	(((n) + (d) - 1) / (d))
-#define BITS_TO_LONGS(nr)       DIV_ROUND_UP(nr, BITS_PER_LONG)
+#define BITS_TO_LONGS(nr)	DIV_ROUND_UP(nr, BITS_PER_LONG)
 
-/* Concrete definition of struct kvm_vm. */
 struct userspace_mem_region {
 	struct userspace_mem_region *next, *prev;
 	struct kvm_userspace_memory_region region;
@@ -53,7 +54,6 @@ struct kvm_vm {
 	struct userspace_mem_region *userspace_mem_region_head;
 	struct sparsebit *vpages_valid;
 	struct sparsebit *vpages_mapped;
-
 	bool has_irqchip;
 	bool pgd_created;
 	vm_paddr_t pgd;
@@ -61,13 +61,11 @@ struct kvm_vm {
 	vm_vaddr_t tss;
 };
 
-struct vcpu *vcpu_find(struct kvm_vm *vm,
-	uint32_t vcpuid);
-void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_memslot);
+struct vcpu *vcpu_find(struct kvm_vm *vm, uint32_t vcpuid);
+void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot,
+		int gdt_memslot);
 void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent);
-void regs_dump(FILE *stream, struct kvm_regs *regs,
-	uint8_t indent);
-void sregs_dump(FILE *stream, struct kvm_sregs *sregs,
-	uint8_t indent);
+void regs_dump(FILE *stream, struct kvm_regs *regs, uint8_t indent);
+void sregs_dump(FILE *stream, struct kvm_sregs *sregs, uint8_t indent);
 
 #endif /* SELFTEST_KVM_UTIL_INTERNAL_H */

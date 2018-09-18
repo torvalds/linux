@@ -305,7 +305,25 @@ static inline unsigned long get_xmm(int n)
 
 struct kvm_x86_state;
 struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid);
-void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *state);
+void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid,
+		     struct kvm_x86_state *state);
+
+struct kvm_cpuid2 *kvm_get_supported_cpuid(void);
+void vcpu_set_cpuid(struct kvm_vm *vm, uint32_t vcpuid,
+		    struct kvm_cpuid2 *cpuid);
+
+struct kvm_cpuid_entry2 *
+kvm_get_supported_cpuid_index(uint32_t function, uint32_t index);
+
+static inline struct kvm_cpuid_entry2 *
+kvm_get_supported_cpuid_entry(uint32_t function)
+{
+	return kvm_get_supported_cpuid_index(function, 0);
+}
+
+uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index);
+void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
+	  	  uint64_t msr_value);
 
 /*
  * Basic CPU control in CR0
