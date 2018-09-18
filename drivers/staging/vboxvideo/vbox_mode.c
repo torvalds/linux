@@ -382,21 +382,91 @@ static const struct drm_crtc_funcs vbox_crtc_funcs = {
 	.destroy = vbox_crtc_destroy,
 };
 
+static const uint32_t vbox_primary_plane_formats[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+};
+
+static const struct drm_plane_funcs vbox_primary_plane_funcs = {
+	.update_plane	= drm_primary_helper_update,
+	.disable_plane	= drm_primary_helper_disable,
+	.destroy	= drm_primary_helper_destroy,
+};
+
+static struct drm_plane *vbox_create_plane(struct vbox_private *vbox,
+					   unsigned int possible_crtcs,
+					   enum drm_plane_type type)
+{
+	const struct drm_plane_helper_funcs *helper_funcs = NULL;
+	const struct drm_plane_funcs *funcs;
+	struct drm_plane *plane;
+	const uint32_t *formats;
+	int num_formats;
+	int err;
+
+	if (type == DRM_PLANE_TYPE_PRIMARY) {
+		funcs = &vbox_primary_plane_funcs;
+		formats = vbox_primary_plane_formats;
+		num_formats = ARRAY_SIZE(vbox_primary_plane_formats);
+	} else {
+		return ERR_PTR(-EINVAL);
+	}
+
+	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
+	if (!plane)
+		return ERR_PTR(-ENOMEM);
+
+	err = drm_universal_plane_init(&vbox->ddev, plane, possible_crtcs,
+				       funcs, formats, num_formats,
+				       NULL, type, NULL);
+	if (err)
+		goto free_plane;
+
+	drm_plane_helper_add(plane, helper_funcs);
+
+	return plane;
+
+free_plane:
+	kfree(plane);
+	return ERR_PTR(-EINVAL);
+}
+
 static struct vbox_crtc *vbox_crtc_init(struct drm_device *dev, unsigned int i)
 {
+	struct vbox_private *vbox =
+		container_of(dev, struct vbox_private, ddev);
 	struct vbox_crtc *vbox_crtc;
+	struct drm_plane *primary;
+	int ret;
 
 	vbox_crtc = kzalloc(sizeof(*vbox_crtc), GFP_KERNEL);
 	if (!vbox_crtc)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
+
+	primary = vbox_create_plane(vbox, 1 << i, DRM_PLANE_TYPE_PRIMARY);
+	if (IS_ERR(primary)) {
+		ret = PTR_ERR(primary);
+		goto free_mem;
+	}
 
 	vbox_crtc->crtc_id = i;
 
-	drm_crtc_init(dev, &vbox_crtc->base, &vbox_crtc_funcs);
+	ret = drm_crtc_init_with_planes(dev, &vbox_crtc->base, primary, NULL,
+					&vbox_crtc_funcs, NULL);
+	if (ret)
+		goto clean_primary;
+
 	drm_mode_crtc_set_gamma_size(&vbox_crtc->base, 256);
 	drm_crtc_helper_add(&vbox_crtc->base, &vbox_crtc_helper_funcs);
 
 	return vbox_crtc;
+
+clean_primary:
+	drm_plane_cleanup(primary);
+	kfree(primary);
+free_mem:
+	kfree(vbox_crtc);
+	return ERR_PTR(ret);
 }
 
 static void vbox_encoder_destroy(struct drm_encoder *encoder)
@@ -750,8 +820,8 @@ int vbox_mode_init(struct vbox_private *vbox)
 	/* vbox_cursor_init(dev); */
 	for (i = 0; i < vbox->num_crtcs; ++i) {
 		vbox_crtc = vbox_crtc_init(dev, i);
-		if (!vbox_crtc) {
-			ret = -ENOMEM;
+		if (IS_ERR(vbox_crtc)) {
+			ret = PTR_ERR(vbox_crtc);
 			goto err_drm_mode_cleanup;
 		}
 		encoder = vbox_encoder_init(dev, i);
