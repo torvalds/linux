@@ -1063,7 +1063,6 @@ static DECLARE_WORK(aer_recover_work, aer_recover_work_func);
 void aer_recover_queue(int domain, unsigned int bus, unsigned int devfn,
 		       int severity, struct aer_capability_regs *aer_regs)
 {
-	unsigned long flags;
 	struct aer_recover_entry entry = {
 		.bus		= bus,
 		.devfn		= devfn,
@@ -1072,13 +1071,12 @@ void aer_recover_queue(int domain, unsigned int bus, unsigned int devfn,
 		.regs		= aer_regs,
 	};
 
-	spin_lock_irqsave(&aer_recover_ring_lock, flags);
-	if (kfifo_put(&aer_recover_ring, entry))
+	if (kfifo_in_spinlocked(&aer_recover_ring, &entry, sizeof(entry),
+				 &aer_recover_ring_lock))
 		schedule_work(&aer_recover_work);
 	else
 		pr_err("AER recover: Buffer overflow when recovering AER for %04x:%02x:%02x:%x\n",
 		       domain, bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
-	spin_unlock_irqrestore(&aer_recover_ring_lock, flags);
 }
 EXPORT_SYMBOL_GPL(aer_recover_queue);
 #endif
