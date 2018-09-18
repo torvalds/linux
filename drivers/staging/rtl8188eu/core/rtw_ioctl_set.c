@@ -17,8 +17,8 @@ u8 rtw_do_join(struct adapter *padapter)
 {
 	struct list_head *plist, *phead;
 	u8 *pibss = NULL;
-	struct	mlme_priv	*pmlmepriv = &padapter->mlmepriv;
-	struct __queue *queue	= &pmlmepriv->scanned_queue;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct __queue *queue = &pmlmepriv->scanned_queue;
 	u8 ret = _SUCCESS;
 
 	spin_lock_bh(&pmlmepriv->scanned_queue.lock);
@@ -308,8 +308,8 @@ exit:
 u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 	enum ndis_802_11_network_infra networktype)
 {
-	struct	mlme_priv	*pmlmepriv = &padapter->mlmepriv;
-	struct	wlan_network	*cur_network = &pmlmepriv->cur_network;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct wlan_network *cur_network = &pmlmepriv->cur_network;
 	enum ndis_802_11_network_infra *pold_state = &cur_network->network.InfrastructureMode;
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_notice_,
@@ -394,8 +394,8 @@ u8 rtw_set_802_11_disassociate(struct adapter *padapter)
 
 u8 rtw_set_802_11_bssid_list_scan(struct adapter *padapter, struct ndis_802_11_ssid *pssid, int ssid_max_num)
 {
-	struct	mlme_priv		*pmlmepriv = &padapter->mlmepriv;
-	u8	res = true;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	u8 res = true;
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("+%s(), fw_state =%x\n", __func__, get_fwstate(pmlmepriv)));
 
@@ -467,9 +467,9 @@ u8 rtw_set_802_11_authentication_mode(struct adapter *padapter, enum ndis_802_11
 
 u8 rtw_set_802_11_add_wep(struct adapter *padapter, struct ndis_802_11_wep *wep)
 {
-	int		keyid, res;
+	int keyid, res;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
-	u8		ret = _SUCCESS;
+	u8 ret = _SUCCESS;
 
 	keyid = wep->KeyIndex & 0x3fffffff;
 
@@ -535,16 +535,16 @@ exit:
 */
 u16 rtw_get_cur_max_rate(struct adapter *adapter)
 {
-	int	i = 0;
-	u8	*p;
-	u16	rate = 0, max_rate = 0;
-	struct mlme_ext_priv	*pmlmeext = &adapter->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
+	int i = 0;
+	u8 *p;
+	u16 rate = 0, max_rate = 0;
+	struct mlme_ext_priv *pmlmeext = &adapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct registry_priv *pregistrypriv = &adapter->registrypriv;
-	struct mlme_priv	*pmlmepriv = &adapter->mlmepriv;
-	struct wlan_bssid_ex  *pcur_bss = &pmlmepriv->cur_network.network;
-	u8	bw_40MHz = 0, short_GI_20 = 0, short_GI_40 = 0;
-	u32	ht_ielen = 0;
+	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
+	struct wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
+	u8 bw_40MHz = 0, short_GI_20 = 0, short_GI_40 = 0;
+	u32 ht_ielen = 0;
 
 	if (!check_fwstate(pmlmepriv, _FW_LINKED) &&
 	    !check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE))
