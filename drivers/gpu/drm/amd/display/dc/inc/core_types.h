@@ -180,13 +180,8 @@ struct resource_pool {
 	const struct resource_caps *res_cap;
 };
 
-struct dcn_fe_clocks {
-	int dppclk_khz;
-};
-
 struct dcn_fe_bandwidth {
-	struct dcn_fe_clocks calc;
-	struct dcn_fe_clocks cur;
+	int dppclk_khz;
 };
 
 struct stream_resource {

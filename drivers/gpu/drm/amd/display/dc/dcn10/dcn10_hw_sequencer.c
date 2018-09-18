@@ -2048,7 +2048,7 @@ void update_dchubp_dpp(
 			dc->res_pool->dccg->funcs->update_dpp_dto(
 					dc->res_pool->dccg,
 					dpp->inst,
-					pipe_ctx->plane_res.bw.calc.dppclk_khz);
+					pipe_ctx->plane_res.bw.dppclk_khz);
 		else
 			dc->res_pool->clk_mgr->clks.dppclk_khz = should_divided_by_2 ?
 						dc->res_pool->clk_mgr->clks.dispclk_khz / 2 :
