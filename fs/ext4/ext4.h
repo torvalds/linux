@@ -45,15 +45,6 @@
 
 #include <linux/compiler.h>
 
-/* Until this gets included into linux/compiler-gcc.h */
-#ifndef __nonstring
-#if defined(GCC_VERSION) && (GCC_VERSION >= 80000)
-#define __nonstring __attribute__((nonstring))
-#else
-#define __nonstring
-#endif
-#endif
-
 /*
  * The fourth extended filesystem constants/structures
  */
