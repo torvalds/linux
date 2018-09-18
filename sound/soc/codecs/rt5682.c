@@ -67,7 +67,7 @@ struct rt5682_priv {
 };
 
 static const struct reg_sequence patch_list[] = {
-	{0x01c1, 0x1000},
+	{RT5682_HP_IMP_SENS_CTRL_19, 0x1000},
 	{RT5682_DAC_ADC_DIG_VOL1, 0xa020},
 };
 
@@ -2584,7 +2584,7 @@ static int rt5682_i2c_probe(struct i2c_client *i2c,
 
 	rt5682_calibrate(rt5682);
 
-	ret = regmap_register_patch(rt5682->regmap, patch_list,
+	ret = regmap_multi_reg_write(rt5682->regmap, patch_list,
 				    ARRAY_SIZE(patch_list));
 	if (ret != 0)
 		dev_warn(&i2c->dev, "Failed to apply regmap patch: %d\n", ret);
@@ -2659,9 +2659,15 @@ static int rt5682_i2c_probe(struct i2c_client *i2c,
 
 	}
 
-	return devm_snd_soc_register_component(&i2c->dev,
-			&soc_component_dev_rt5682,
+	return snd_soc_register_component(&i2c->dev, &soc_component_dev_rt5682,
 			rt5682_dai, ARRAY_SIZE(rt5682_dai));
+}
+
+static int rt5682_i2c_remove(struct i2c_client *i2c)
+{
+	snd_soc_unregister_component(&i2c->dev);
+
+	return 0;
 }
 
 static void rt5682_i2c_shutdown(struct i2c_client *client)
@@ -2694,6 +2700,7 @@ static struct i2c_driver rt5682_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(rt5682_acpi_match),
 	},
 	.probe = rt5682_i2c_probe,
+	.remove = rt5682_i2c_remove,
 	.shutdown = rt5682_i2c_shutdown,
 	.id_table = rt5682_i2c_id,
 };
