@@ -742,7 +742,10 @@ static void smc_connect_work(struct work_struct *work)
 		smc->sk.sk_err = -rc;
 
 out:
-	smc->sk.sk_state_change(&smc->sk);
+	if (smc->sk.sk_err)
+		smc->sk.sk_state_change(&smc->sk);
+	else
+		smc->sk.sk_write_space(&smc->sk);
 	kfree(smc->connect_info);
 	smc->connect_info = NULL;
 	release_sock(&smc->sk);
@@ -1529,7 +1532,7 @@ static __poll_t smc_poll(struct file *file, struct socket *sock,
 		return EPOLLNVAL;
 
 	smc = smc_sk(sock->sk);
-	if ((sk->sk_state == SMC_INIT) || smc->use_fallback) {
+	if (smc->use_fallback) {
 		/* delegate to CLC child sock */
 		mask = smc->clcsock->ops->poll(file, smc->clcsock, wait);
 		sk->sk_err = smc->clcsock->sk->sk_err;
