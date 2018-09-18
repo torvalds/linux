@@ -152,22 +152,6 @@ static int vbox_drm_thaw(struct vbox_private *vbox)
 	return 0;
 }
 
-static int vbox_drm_resume(struct vbox_private *vbox)
-{
-	int ret;
-
-	if (pci_enable_device(vbox->ddev.pdev))
-		return -EIO;
-
-	ret = vbox_drm_thaw(vbox);
-	if (ret)
-		return ret;
-
-	drm_kms_helper_poll_enable(&vbox->ddev);
-
-	return 0;
-}
-
 static int vbox_pm_suspend(struct device *dev)
 {
 	struct vbox_private *vbox = dev_get_drvdata(dev);
@@ -186,8 +170,18 @@ static int vbox_pm_suspend(struct device *dev)
 static int vbox_pm_resume(struct device *dev)
 {
 	struct vbox_private *vbox = dev_get_drvdata(dev);
+	int ret;
 
-	return vbox_drm_resume(vbox);
+	if (pci_enable_device(vbox->ddev.pdev))
+		return -EIO;
+
+	ret = vbox_drm_thaw(vbox);
+	if (ret)
+		return ret;
+
+	drm_kms_helper_poll_enable(&vbox->ddev);
+
+	return 0;
 }
 
 static int vbox_pm_freeze(struct device *dev)
