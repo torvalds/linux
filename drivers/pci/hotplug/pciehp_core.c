@@ -51,7 +51,6 @@ static int get_adapter_status(struct hotplug_slot *slot, u8 *value);
 
 static int init_slot(struct controller *ctrl)
 {
-	struct slot *slot = ctrl->slot;
 	struct hotplug_slot *hotplug = NULL;
 	struct hotplug_slot_info *info = NULL;
 	struct hotplug_slot_ops *ops = NULL;
@@ -88,9 +87,9 @@ static int init_slot(struct controller *ctrl)
 
 	/* register this slot with the hotplug pci core */
 	hotplug->info = info;
-	hotplug->private = slot;
+	hotplug->private = ctrl;
 	hotplug->ops = ops;
-	slot->hotplug_slot = hotplug;
+	ctrl->hotplug_slot = hotplug;
 	snprintf(name, SLOT_NAME_SIZE, "%u", PSN(ctrl));
 
 	retval = pci_hp_initialize(hotplug,
@@ -108,7 +107,7 @@ out:
 
 static void cleanup_slot(struct controller *ctrl)
 {
-	struct hotplug_slot *hotplug_slot = ctrl->slot->hotplug_slot;
+	struct hotplug_slot *hotplug_slot = ctrl->hotplug_slot;
 
 	pci_hp_destroy(hotplug_slot);
 	kfree(hotplug_slot->ops);
@@ -121,44 +120,44 @@ static void cleanup_slot(struct controller *ctrl)
  */
 static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 {
-	struct slot *slot = hotplug_slot->private;
-	struct pci_dev *pdev = slot->ctrl->pcie->port;
+	struct controller *ctrl = hotplug_slot->private;
+	struct pci_dev *pdev = ctrl->pcie->port;
 
 	pci_config_pm_runtime_get(pdev);
-	pciehp_set_attention_status(slot, status);
+	pciehp_set_attention_status(ctrl, status);
 	pci_config_pm_runtime_put(pdev);
 	return 0;
 }
 
 static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	struct slot *slot = hotplug_slot->private;
-	struct pci_dev *pdev = slot->ctrl->pcie->port;
+	struct controller *ctrl = hotplug_slot->private;
+	struct pci_dev *pdev = ctrl->pcie->port;
 
 	pci_config_pm_runtime_get(pdev);
-	pciehp_get_power_status(slot, value);
+	pciehp_get_power_status(ctrl, value);
 	pci_config_pm_runtime_put(pdev);
 	return 0;
 }
 
 static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	struct slot *slot = hotplug_slot->private;
-	struct pci_dev *pdev = slot->ctrl->pcie->port;
+	struct controller *ctrl = hotplug_slot->private;
+	struct pci_dev *pdev = ctrl->pcie->port;
 
 	pci_config_pm_runtime_get(pdev);
-	pciehp_get_latch_status(slot, value);
+	pciehp_get_latch_status(ctrl, value);
 	pci_config_pm_runtime_put(pdev);
 	return 0;
 }
 
 static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	struct slot *slot = hotplug_slot->private;
-	struct pci_dev *pdev = slot->ctrl->pcie->port;
+	struct controller *ctrl = hotplug_slot->private;
+	struct pci_dev *pdev = ctrl->pcie->port;
 
 	pci_config_pm_runtime_get(pdev);
-	*value = pciehp_card_present_or_link_active(slot->ctrl);
+	*value = pciehp_card_present_or_link_active(ctrl);
 	pci_config_pm_runtime_put(pdev);
 	return 0;
 }
@@ -175,20 +174,19 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
  */
 static void pciehp_check_presence(struct controller *ctrl)
 {
-	struct slot *slot = ctrl->slot;
 	bool occupied;
 
 	down_read(&ctrl->reset_lock);
-	mutex_lock(&slot->lock);
+	mutex_lock(&ctrl->lock);
 
 	occupied = pciehp_card_present_or_link_active(ctrl);
-	if ((occupied && (slot->state == OFF_STATE ||
-			  slot->state == BLINKINGON_STATE)) ||
-	    (!occupied && (slot->state == ON_STATE ||
-			   slot->state == BLINKINGOFF_STATE)))
+	if ((occupied && (ctrl->state == OFF_STATE ||
+			  ctrl->state == BLINKINGON_STATE)) ||
+	    (!occupied && (ctrl->state == ON_STATE ||
+			   ctrl->state == BLINKINGOFF_STATE)))
 		pciehp_request(ctrl, PCI_EXP_SLTSTA_PDC);
 
-	mutex_unlock(&slot->lock);
+	mutex_unlock(&ctrl->lock);
 	up_read(&ctrl->reset_lock);
 }
 
@@ -196,7 +194,6 @@ static int pciehp_probe(struct pcie_device *dev)
 {
 	int rc;
 	struct controller *ctrl;
-	struct slot *slot;
 
 	/* If this is not a "hotplug" service, we have no business here. */
 	if (dev->service != PCIE_PORT_SERVICE_HP)
@@ -234,8 +231,7 @@ static int pciehp_probe(struct pcie_device *dev)
 	}
 
 	/* Publish to user space */
-	slot = ctrl->slot;
-	rc = pci_hp_add(slot->hotplug_slot);
+	rc = pci_hp_add(ctrl->hotplug_slot);
 	if (rc) {
 		ctrl_err(ctrl, "Publication to user space failed (%d)\n", rc);
 		goto err_out_shutdown_notification;
@@ -258,7 +254,7 @@ static void pciehp_remove(struct pcie_device *dev)
 {
 	struct controller *ctrl = get_service_data(dev);
 
-	pci_hp_del(ctrl->slot->hotplug_slot);
+	pci_hp_del(ctrl->hotplug_slot);
 	pcie_shutdown_notification(ctrl);
 	cleanup_slot(ctrl);
 	pciehp_release_ctrl(ctrl);
@@ -273,14 +269,13 @@ static int pciehp_suspend(struct pcie_device *dev)
 static int pciehp_resume_noirq(struct pcie_device *dev)
 {
 	struct controller *ctrl = get_service_data(dev);
-	struct slot *slot = ctrl->slot;
 
 	/* pci_restore_state() just wrote to the Slot Control register */
 	ctrl->cmd_started = jiffies;
 	ctrl->cmd_busy = true;
 
 	/* clear spurious events from rediscovery of inserted card */
-	if (slot->state == ON_STATE || slot->state == BLINKINGOFF_STATE)
+	if (ctrl->state == ON_STATE || ctrl->state == BLINKINGOFF_STATE)
 		pcie_clear_hotplug_events(ctrl);
 
 	return 0;
