@@ -110,12 +110,9 @@ struct ir_raw_event_ctrl {
 		unsigned int pulse_len;
 	} sharp;
 	struct mce_kbd_dec {
-		struct input_dev *idev;
 		/* locks key up timer */
 		spinlock_t keylock;
 		struct timer_list rx_timeout;
-		char name[64];
-		char phys[64];
 		int state;
 		u8 header;
 		u32 body;
