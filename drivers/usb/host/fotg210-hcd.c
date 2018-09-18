@@ -5636,6 +5636,7 @@ static int fotg210_hcd_probe(struct platform_device *pdev)
 		goto failed_dis_clk;
 	}
 	device_wakeup_enable(hcd->self.controller);
+	platform_set_drvdata(pdev, hcd);
 
 	return retval;
 
@@ -5656,15 +5657,11 @@ fail_create_hcd:
  */
 static int fotg210_hcd_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct fotg210_hcd *fotg210 = hcd_to_fotg210(hcd);
 
 	if (!IS_ERR(fotg210->pclk))
 		clk_disable_unprepare(fotg210->pclk);
-
-	if (!hcd)
-		return 0;
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
