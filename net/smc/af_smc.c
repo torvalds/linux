@@ -1153,9 +1153,9 @@ static int smc_listen_rdma_reg(struct smc_sock *new_smc, int local_contact)
 }
 
 /* listen worker: finish RDMA setup */
-static void smc_listen_rdma_finish(struct smc_sock *new_smc,
-				   struct smc_clc_msg_accept_confirm *cclc,
-				   int local_contact)
+static int smc_listen_rdma_finish(struct smc_sock *new_smc,
+				  struct smc_clc_msg_accept_confirm *cclc,
+				  int local_contact)
 {
 	struct smc_link *link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
 	int reason_code = 0;
@@ -1178,11 +1178,12 @@ static void smc_listen_rdma_finish(struct smc_sock *new_smc,
 		if (reason_code)
 			goto decline;
 	}
-	return;
+	return 0;
 
 decline:
 	mutex_unlock(&smc_create_lgr_pending);
 	smc_listen_decline(new_smc, reason_code, local_contact);
+	return reason_code;
 }
 
 /* setup for RDMA connection of server */
@@ -1279,8 +1280,10 @@ static void smc_listen_work(struct work_struct *work)
 	}
 
 	/* finish worker */
-	if (!ism_supported)
-		smc_listen_rdma_finish(new_smc, &cclc, local_contact);
+	if (!ism_supported) {
+		if (smc_listen_rdma_finish(new_smc, &cclc, local_contact))
+			return;
+	}
 	smc_conn_save_peer_info(new_smc, &cclc);
 	mutex_unlock(&smc_create_lgr_pending);
 	smc_listen_out_connected(new_smc);
