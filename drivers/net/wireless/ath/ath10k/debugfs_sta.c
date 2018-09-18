@@ -460,6 +460,33 @@ static const struct file_operations fops_peer_debug_trigger = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_dbg_sta_read_peer_ps_state(struct file *file,
+						 char __user *user_buf,
+						 size_t count, loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k *ar = arsta->arvif->ar;
+	char buf[20];
+	int len = 0;
+
+	spin_lock_bh(&ar->data_lock);
+
+	len = scnprintf(buf, sizeof(buf) - len, "%d\n",
+			arsta->peer_ps_state);
+
+	spin_unlock_bh(&ar->data_lock);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_peer_ps_state = {
+	.open = simple_open,
+	.read = ath10k_dbg_sta_read_peer_ps_state,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static char *get_err_str(enum ath10k_pkt_rx_err i)
 {
 	switch (i) {
@@ -738,4 +765,6 @@ void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	    ath10k_debug_is_extd_tx_stats_enabled(ar))
 		debugfs_create_file("tx_stats", 0400, dir, sta,
 				    &fops_tx_stats);
+	debugfs_create_file("peer_ps_state", 0400, dir, sta,
+			    &fops_peer_ps_state);
 }

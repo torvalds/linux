@@ -1307,7 +1307,8 @@ static struct wmi_pdev_param_map wmi_10_2_4_pdev_param_map = {
 	.set_mcast2ucast_mode = WMI_PDEV_PARAM_UNSUPPORTED,
 	.set_mcast2ucast_buffer = WMI_PDEV_PARAM_UNSUPPORTED,
 	.remove_mcast2ucast_buffer = WMI_PDEV_PARAM_UNSUPPORTED,
-	.peer_sta_ps_statechg_enable = WMI_PDEV_PARAM_UNSUPPORTED,
+	.peer_sta_ps_statechg_enable =
+				WMI_10X_PDEV_PARAM_PEER_STA_PS_STATECHG_ENABLE,
 	.igmpmld_ac_override = WMI_PDEV_PARAM_UNSUPPORTED,
 	.block_interbss = WMI_PDEV_PARAM_UNSUPPORTED,
 	.set_disable_reset_cmdid = WMI_PDEV_PARAM_UNSUPPORTED,
@@ -5048,6 +5049,36 @@ ath10k_wmi_handle_tdls_peer_event(struct ath10k *ar, struct sk_buff *skb)
 	}
 }
 
+static void
+ath10k_wmi_event_peer_sta_ps_state_chg(struct ath10k *ar, struct sk_buff *skb)
+{
+	struct wmi_peer_sta_ps_state_chg_event *ev;
+	struct ieee80211_sta *sta;
+	struct ath10k_sta *arsta;
+	u8 peer_addr[ETH_ALEN];
+
+	lockdep_assert_held(&ar->data_lock);
+
+	ev = (struct wmi_peer_sta_ps_state_chg_event *)skb->data;
+	ether_addr_copy(peer_addr, ev->peer_macaddr.addr);
+
+	rcu_read_lock();
+
+	sta = ieee80211_find_sta_by_ifaddr(ar->hw, peer_addr, NULL);
+
+	if (!sta) {
+		ath10k_warn(ar, "failed to find station entry %pM\n",
+			    peer_addr);
+		goto exit;
+	}
+
+	arsta = (struct ath10k_sta *)sta->drv_priv;
+	arsta->peer_ps_state = __le32_to_cpu(ev->peer_ps_state);
+
+exit:
+	rcu_read_unlock();
+}
+
 void ath10k_wmi_event_pdev_ftm_intg(struct ath10k *ar, struct sk_buff *skb)
 {
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "WMI_PDEV_FTM_INTG_EVENTID\n");
@@ -5978,6 +6009,9 @@ static void ath10k_wmi_10_2_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_dbg(ar, ATH10K_DBG_WMI,
 			   "received event id %d not implemented\n", id);
 		break;
+	case WMI_10_2_PEER_STA_PS_STATECHG_EVENTID:
+		ath10k_wmi_event_peer_sta_ps_state_chg(ar, skb);
+		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
 		break;
@@ -6094,6 +6128,9 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_4_DFS_STATUS_CHECK_EVENTID:
 		ath10k_wmi_event_dfs_status_check(ar, skb);
+		break;
+	case WMI_10_4_PEER_STA_PS_STATECHG_EVENTID:
+		ath10k_wmi_event_peer_sta_ps_state_chg(ar, skb);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);

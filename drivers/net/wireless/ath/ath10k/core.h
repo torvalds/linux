@@ -505,6 +505,8 @@ struct ath10k_sta {
 	/* Protected with ar->data_lock */
 	struct ath10k_sta_tid_stats tid_stats[IEEE80211_NUM_TIDS + 1];
 #endif
+	/* Protected with ar->data_lock */
+	u32 peer_ps_state;
 };
 
 #define ATH10K_VDEV_SETUP_TIMEOUT_HZ (5 * HZ)
@@ -946,6 +948,8 @@ struct ath10k {
 	u32 low_5ghz_chan;
 	u32 high_5ghz_chan;
 	bool ani_enabled;
+	/* protected by conf_mutex */
+	u8 ps_state_enable;
 
 	bool p2p;
 
