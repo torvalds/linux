@@ -3215,6 +3215,7 @@ static void ca0132_gpio_init(struct hda_codec *codec)
 
 	switch (spec->quirk) {
 	case QUIRK_SBZ:
+	case QUIRK_AE5:
 		snd_hda_codec_write(codec, 0x01, 0, 0x793, 0x00);
 		snd_hda_codec_write(codec, 0x01, 0, 0x794, 0x53);
 		snd_hda_codec_write(codec, 0x01, 0, 0x790, 0x23);
@@ -7431,6 +7432,17 @@ static void ca0132_alt_init(struct hda_codec *codec)
 		r3d_pre_dsp_setup(codec);
 		snd_hda_sequence_write(codec, spec->chip_init_verbs);
 		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
+		break;
+	case QUIRK_AE5:
+		ca0132_gpio_init(codec);
+		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+				VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x49);
+		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+				VENDOR_CHIPIO_PLL_PMU_WRITE, 0x88);
+		chipio_write(codec, 0x18b030, 0x00000020);
+		snd_hda_sequence_write(codec, spec->chip_init_verbs);
+		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
+		ca0113_mmio_command_set(codec, 0x30, 0x32, 0x3f);
 		break;
 	}
 }
