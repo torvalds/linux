@@ -685,6 +685,9 @@ enum hda_cmd_vendor_io {
 	VENDOR_CHIPIO_DATA_LOW               = 0x300,
 	VENDOR_CHIPIO_DATA_HIGH              = 0x400,
 
+	VENDOR_CHIPIO_8051_WRITE_DIRECT      = 0x500,
+	VENDOR_CHIPIO_8051_READ_DIRECT       = 0xD00,
+
 	VENDOR_CHIPIO_GET_PARAMETER          = 0xF00,
 	VENDOR_CHIPIO_STATUS                 = 0xF01,
 	VENDOR_CHIPIO_HIC_POST_READ          = 0x702,
@@ -692,6 +695,9 @@ enum hda_cmd_vendor_io {
 
 	VENDOR_CHIPIO_8051_DATA_WRITE        = 0x707,
 	VENDOR_CHIPIO_8051_DATA_READ         = 0xF07,
+	VENDOR_CHIPIO_8051_PMEM_READ         = 0xF08,
+	VENDOR_CHIPIO_8051_IRAM_WRITE        = 0x709,
+	VENDOR_CHIPIO_8051_IRAM_READ         = 0xF09,
 
 	VENDOR_CHIPIO_CT_EXTENSIONS_ENABLE   = 0x70A,
 	VENDOR_CHIPIO_CT_EXTENSIONS_GET      = 0xF0A,
@@ -797,6 +803,12 @@ enum control_param_id {
 	/* Port D output stage gain setting to use when 16 Ohm output
 	 * impedance is selected*/
 	CONTROL_PARAM_PORTD_160OHM_GAIN        = 10,
+
+	/*
+	 * This control param name was found in the 8051 memory, and makes
+	 * sense given the fact the AE-5 uses it and has the ASI flag set.
+	 */
+	CONTROL_PARAM_ASI                      = 23,
 
 	/* Stream Control */
 
@@ -7140,11 +7152,6 @@ static void sbz_pre_dsp_setup(struct hda_codec *codec)
 	writel(0x00820680, spec->mem_base + 0x01C);
 	writel(0x00820680, spec->mem_base + 0x01C);
 
-	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xfc);
-	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xfd);
-	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xfe);
-	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xff);
-
 	chipio_write(codec, 0x18b0a4, 0x000000c2);
 
 	snd_hda_codec_write(codec, 0x11, 0,
@@ -7153,12 +7160,6 @@ static void sbz_pre_dsp_setup(struct hda_codec *codec)
 
 static void r3d_pre_dsp_setup(struct hda_codec *codec)
 {
-
-	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xfc);
-	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xfd);
-	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xfe);
-	snd_hda_codec_write(codec, 0x15, 0, 0xd00, 0xff);
-
 	chipio_write(codec, 0x18b0a4, 0x000000c2);
 
 	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
