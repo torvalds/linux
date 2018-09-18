@@ -1105,7 +1105,7 @@ static struct uvcg_frame *to_uvcg_frame(struct config_item *item)
 	return container_of(item, struct uvcg_frame, item);
 }
 
-#define UVCG_FRAME_ATTR(cname, aname, to_cpu_endian, to_little_endian, bits) \
+#define UVCG_FRAME_ATTR(cname, aname, bits) \
 static ssize_t uvcg_frame_##cname##_show(struct config_item *item, char *page)\
 {									\
 	struct uvcg_frame *f = to_uvcg_frame(item);			\
@@ -1120,7 +1120,7 @@ static ssize_t uvcg_frame_##cname##_show(struct config_item *item, char *page)\
 	opts = to_f_uvc_opts(opts_item);				\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", to_cpu_endian(f->frame.cname));	\
+	result = sprintf(page, "%d\n", f->frame.cname);			\
 	mutex_unlock(&opts->lock);					\
 									\
 	mutex_unlock(su_mutex);						\
@@ -1154,7 +1154,7 @@ static ssize_t  uvcg_frame_##cname##_store(struct config_item *item,	\
 		goto end;						\
 	}								\
 									\
-	f->frame.cname = to_little_endian(num);				\
+	f->frame.cname = num;						\
 	ret = len;							\
 end:									\
 	mutex_unlock(&opts->lock);					\
@@ -1199,20 +1199,13 @@ out:
 
 UVC_ATTR_RO(uvcg_frame_, b_frame_index, bFrameIndex);
 
-#define noop_conversion(x) (x)
-
-UVCG_FRAME_ATTR(bm_capabilities, bmCapabilities, noop_conversion,
-		noop_conversion, 8);
-UVCG_FRAME_ATTR(w_width, wWidth, le16_to_cpu, cpu_to_le16, 16);
-UVCG_FRAME_ATTR(w_height, wHeight, le16_to_cpu, cpu_to_le16, 16);
-UVCG_FRAME_ATTR(dw_min_bit_rate, dwMinBitRate, le32_to_cpu, cpu_to_le32, 32);
-UVCG_FRAME_ATTR(dw_max_bit_rate, dwMaxBitRate, le32_to_cpu, cpu_to_le32, 32);
-UVCG_FRAME_ATTR(dw_max_video_frame_buffer_size, dwMaxVideoFrameBufferSize,
-		le32_to_cpu, cpu_to_le32, 32);
-UVCG_FRAME_ATTR(dw_default_frame_interval, dwDefaultFrameInterval,
-		le32_to_cpu, cpu_to_le32, 32);
-
-#undef noop_conversion
+UVCG_FRAME_ATTR(bm_capabilities, bmCapabilities, 8);
+UVCG_FRAME_ATTR(w_width, wWidth, 16);
+UVCG_FRAME_ATTR(w_height, wHeight, 16);
+UVCG_FRAME_ATTR(dw_min_bit_rate, dwMinBitRate, 32);
+UVCG_FRAME_ATTR(dw_max_bit_rate, dwMaxBitRate, 32);
+UVCG_FRAME_ATTR(dw_max_video_frame_buffer_size, dwMaxVideoFrameBufferSize, 32);
+UVCG_FRAME_ATTR(dw_default_frame_interval, dwDefaultFrameInterval, 32);
 
 #undef UVCG_FRAME_ATTR
 
@@ -1233,8 +1226,7 @@ static ssize_t uvcg_frame_dw_frame_interval_show(struct config_item *item,
 
 	mutex_lock(&opts->lock);
 	for (result = 0, i = 0; i < frm->frame.b_frame_interval_type; ++i) {
-		result += sprintf(pg, "%d\n",
-				  le32_to_cpu(frm->dw_frame_interval[i]));
+		result += sprintf(pg, "%d\n", frm->dw_frame_interval[i]);
 		pg = page + result;
 	}
 	mutex_unlock(&opts->lock);
@@ -1259,7 +1251,7 @@ static inline int __uvcg_fill_frm_intrv(char *buf, void *priv)
 		return ret;
 
 	interv = priv;
-	**interv = cpu_to_le32(num);
+	**interv = num;
 	++*interv;
 
 	return 0;
@@ -1381,12 +1373,12 @@ static struct config_item *uvcg_frame_make(struct config_group *group,
 
 	h->frame.b_descriptor_type		= USB_DT_CS_INTERFACE;
 	h->frame.b_frame_index			= 1;
-	h->frame.w_width			= cpu_to_le16(640);
-	h->frame.w_height			= cpu_to_le16(360);
-	h->frame.dw_min_bit_rate		= cpu_to_le32(18432000);
-	h->frame.dw_max_bit_rate		= cpu_to_le32(55296000);
-	h->frame.dw_max_video_frame_buffer_size	= cpu_to_le32(460800);
-	h->frame.dw_default_frame_interval	= cpu_to_le32(666666);
+	h->frame.w_width			= 640;
+	h->frame.w_height			= 360;
+	h->frame.dw_min_bit_rate		= 18432000;
+	h->frame.dw_max_bit_rate		= 55296000;
+	h->frame.dw_max_video_frame_buffer_size	= 460800;
+	h->frame.dw_default_frame_interval	= 666666;
 
 	opts_item = group->cg_item.ci_parent->ci_parent->ci_parent;
 	opts = to_f_uvc_opts(opts_item);
@@ -2427,7 +2419,7 @@ static struct configfs_item_operations uvc_func_item_ops = {
 	.release	= uvc_func_item_release,
 };
 
-#define UVCG_OPTS_ATTR(cname, aname, conv, str2u, uxx, vnoc, limit)	\
+#define UVCG_OPTS_ATTR(cname, aname, str2u, uxx, limit)			\
 static ssize_t f_uvc_opts_##cname##_show(				\
 	struct config_item *item, char *page)				\
 {									\
@@ -2435,7 +2427,7 @@ static ssize_t f_uvc_opts_##cname##_show(				\
 	int result;							\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", conv(opts->cname));		\
+	result = sprintf(page, "%d\n", opts->cname);			\
 	mutex_unlock(&opts->lock);					\
 									\
 	return result;							\
@@ -2463,7 +2455,7 @@ f_uvc_opts_##cname##_store(struct config_item *item,			\
 		ret = -EINVAL;						\
 		goto end;						\
 	}								\
-	opts->cname = vnoc(num);					\
+	opts->cname = num;						\
 	ret = len;							\
 end:									\
 	mutex_unlock(&opts->lock);					\
@@ -2474,12 +2466,9 @@ UVC_ATTR(f_uvc_opts_, cname, cname)
 
 #define identity_conv(x) (x)
 
-UVCG_OPTS_ATTR(streaming_interval, streaming_interval, identity_conv,
-	       kstrtou8, u8, identity_conv, 16);
-UVCG_OPTS_ATTR(streaming_maxpacket, streaming_maxpacket, le16_to_cpu,
-	       kstrtou16, u16, le16_to_cpu, 3072);
-UVCG_OPTS_ATTR(streaming_maxburst, streaming_maxburst, identity_conv,
-	       kstrtou8, u8, identity_conv, 15);
+UVCG_OPTS_ATTR(streaming_interval, streaming_interval, kstrtou8, u8, 16);
+UVCG_OPTS_ATTR(streaming_maxpacket, streaming_maxpacket, kstrtou16, u16, 3072);
+UVCG_OPTS_ATTR(streaming_maxburst, streaming_maxburst, kstrtou8, u8, 15);
 
 #undef identity_conv
 
