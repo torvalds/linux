@@ -63,6 +63,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 	if (err < 0) {
 		dev_err(sdev->dev, "error: debugFS failed to resume %d\n",
 			err);
+		kfree(buf);
 		return err;
 	}
 
