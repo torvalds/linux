@@ -29,7 +29,7 @@ include ../lib.mk
 
 STATIC_LIBS := $(OUTPUT)/libkvm.a
 LIBKVM_OBJ := $(patsubst %.c, $(OUTPUT)/%.o, $(LIBKVM))
-EXTRA_CLEAN += $(LIBKVM_OBJ) $(STATIC_LIBS)
+EXTRA_CLEAN += $(LIBKVM_OBJ) $(STATIC_LIBS) cscope.*
 
 x := $(shell mkdir -p $(sort $(dir $(LIBKVM_OBJ))))
 $(LIBKVM_OBJ): $(OUTPUT)/%.o: %.c
@@ -41,3 +41,12 @@ $(OUTPUT)/libkvm.a: $(LIBKVM_OBJ)
 all: $(STATIC_LIBS)
 $(TEST_GEN_PROGS): $(STATIC_LIBS)
 $(STATIC_LIBS):| khdr
+
+cscope: include_paths = $(LINUX_TOOL_INCLUDE) $(LINUX_HDR_PATH) include lib ..
+cscope:
+	$(RM) cscope.*
+	(find $(include_paths) -name '*.h' \
+		-exec realpath --relative-base=$(PWD) {} \;; \
+	find . -name '*.c' \
+		-exec realpath --relative-base=$(PWD) {} \;) | sort -u > cscope.files
+	cscope -b
