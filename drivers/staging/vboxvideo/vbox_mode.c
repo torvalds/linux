@@ -189,17 +189,17 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 		}
 	}
 	if (single_framebuffer) {
+		vbox->single_framebuffer = true;
 		list_for_each_entry(crtci, &vbox->ddev.mode_config.crtc_list,
 				    head) {
-			if (to_vbox_crtc(crtci)->crtc_id != 0)
+			if (!CRTC_FB(crtci))
 				continue;
 
-			vbox->single_framebuffer = true;
 			vbox->input_mapping_width = CRTC_FB(crtci)->width;
 			vbox->input_mapping_height = CRTC_FB(crtci)->height;
-			return old_single_framebuffer !=
-			       vbox->single_framebuffer;
+			break;
 		}
+		return old_single_framebuffer != vbox->single_framebuffer;
 	}
 	/* Otherwise calculate the total span of all screens. */
 	list_for_each_entry(connectori, &vbox->ddev.mode_config.connector_list,
