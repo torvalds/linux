@@ -432,6 +432,33 @@ static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 	return 0;
 }
 
+/*
+ * We have to adjust the tile width such that the tile physaddrs and
+ * U and V plane offsets are multiples of 8 bytes as required by
+ * the IPU DMA Controller. For the planar formats, this corresponds
+ * to a pixel alignment of 16 (but use a more formal equation since
+ * the variables are available). For all the packed formats, 8 is
+ * good enough.
+ */
+static inline u32 tile_width_align(const struct ipu_image_pixfmt *fmt)
+{
+	return fmt->planar ? 8 * fmt->uv_width_dec : 8;
+}
+
+/*
+ * For tile height alignment, we have to ensure that the output tile
+ * heights are multiples of 8 lines if the IRT is required by the
+ * given rotation mode (the IRT performs rotations on 8x8 blocks
+ * at a time). If the IRT is not used, or for input image tiles,
+ * 2 lines are good enough.
+ */
+static inline u32 tile_height_align(enum ipu_image_convert_type type,
+				    enum ipu_rotate_mode rot_mode)
+{
+	return (type == IMAGE_CONVERT_OUT &&
+		ipu_rot_mode_is_irt(rot_mode)) ? 8 : 2;
+}
+
 static void calc_tile_dimensions(struct ipu_image_convert_ctx *ctx,
 				 struct ipu_image_convert_image *image)
 {
@@ -1485,33 +1512,6 @@ static unsigned int clamp_align(unsigned int x, unsigned int min,
 		x = (x + (1 << (align - 1))) & mask;
 
 	return x;
-}
-
-/*
- * We have to adjust the tile width such that the tile physaddrs and
- * U and V plane offsets are multiples of 8 bytes as required by
- * the IPU DMA Controller. For the planar formats, this corresponds
- * to a pixel alignment of 16 (but use a more formal equation since
- * the variables are available). For all the packed formats, 8 is
- * good enough.
- */
-static inline u32 tile_width_align(const struct ipu_image_pixfmt *fmt)
-{
-	return fmt->planar ? 8 * fmt->uv_width_dec : 8;
-}
-
-/*
- * For tile height alignment, we have to ensure that the output tile
- * heights are multiples of 8 lines if the IRT is required by the
- * given rotation mode (the IRT performs rotations on 8x8 blocks
- * at a time). If the IRT is not used, or for input image tiles,
- * 2 lines are good enough.
- */
-static inline u32 tile_height_align(enum ipu_image_convert_type type,
-				    enum ipu_rotate_mode rot_mode)
-{
-	return (type == IMAGE_CONVERT_OUT &&
-		ipu_rot_mode_is_irt(rot_mode)) ? 8 : 2;
 }
 
 /* Adjusts input/output images to IPU restrictions */
