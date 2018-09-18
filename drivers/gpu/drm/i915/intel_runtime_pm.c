@@ -3243,14 +3243,25 @@ static void icl_mbus_init(struct drm_i915_private *dev_priv)
 static void intel_pch_reset_handshake(struct drm_i915_private *dev_priv,
 				      bool enable)
 {
-	u32 val = I915_READ(HSW_NDE_RSTWRN_OPT);
+	i915_reg_t reg;
+	u32 reset_bits, val;
+
+	if (IS_IVYBRIDGE(dev_priv)) {
+		reg = GEN7_MSG_CTL;
+		reset_bits = WAIT_FOR_PCH_FLR_ACK | WAIT_FOR_PCH_RESET_ACK;
+	} else {
+		reg = HSW_NDE_RSTWRN_OPT;
+		reset_bits = RESET_PCH_HANDSHAKE_ENABLE;
+	}
+
+	val = I915_READ(reg);
 
 	if (enable)
-		val |= RESET_PCH_HANDSHAKE_ENABLE;
+		val |= reset_bits;
 	else
-		val &= ~RESET_PCH_HANDSHAKE_ENABLE;
+		val &= ~reset_bits;
 
-	I915_WRITE(HSW_NDE_RSTWRN_OPT, val);
+	I915_WRITE(reg, val);
 }
 
 static void skl_display_core_init(struct drm_i915_private *dev_priv,
@@ -3262,7 +3273,7 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	/* enable PCH reset handshake */
-	intel_pch_reset_handshake(dev_priv, true);
+	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
 	/* enable PG1 and Misc I/O */
 	mutex_lock(&power_domains->lock);
@@ -3448,7 +3459,7 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	/* 1. Enable PCH Reset Handshake */
-	intel_pch_reset_handshake(dev_priv, true);
+	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
 	/* 2. Enable Comp */
 	val = I915_READ(CHICKEN_MISC_2);
@@ -3531,7 +3542,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	/* 1. Enable PCH reset handshake. */
-	intel_pch_reset_handshake(dev_priv, true);
+	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
 	for (port = PORT_A; port <= PORT_B; port++) {
 		/* 2. Enable DDI combo PHY comp. */
@@ -3763,7 +3774,8 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 		mutex_lock(&power_domains->lock);
 		vlv_cmnlane_wa(dev_priv);
 		mutex_unlock(&power_domains->lock);
-	}
+	} else if (IS_IVYBRIDGE(dev_priv) || INTEL_GEN(dev_priv) >= 7)
+		intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
 	/*
 	 * Keep all power wells enabled for any dependent HW access during
