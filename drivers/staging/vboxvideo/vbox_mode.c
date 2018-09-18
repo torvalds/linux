@@ -696,6 +696,40 @@ static int vbox_connector_init(struct drm_device *dev,
 	return 0;
 }
 
+static struct drm_framebuffer *vbox_user_framebuffer_create(
+		struct drm_device *dev,
+		struct drm_file *filp,
+		const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	struct drm_gem_object *obj;
+	struct vbox_framebuffer *vbox_fb;
+	int ret = -ENOMEM;
+
+	obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
+	if (!obj)
+		return ERR_PTR(-ENOENT);
+
+	vbox_fb = kzalloc(sizeof(*vbox_fb), GFP_KERNEL);
+	if (!vbox_fb)
+		goto err_unref_obj;
+
+	ret = vbox_framebuffer_init(dev, vbox_fb, mode_cmd, obj);
+	if (ret)
+		goto err_free_vbox_fb;
+
+	return &vbox_fb->base;
+
+err_free_vbox_fb:
+	kfree(vbox_fb);
+err_unref_obj:
+	drm_gem_object_put_unlocked(obj);
+	return ERR_PTR(ret);
+}
+
+static const struct drm_mode_config_funcs vbox_mode_funcs = {
+	.fb_create = vbox_user_framebuffer_create,
+};
+
 int vbox_mode_init(struct drm_device *dev)
 {
 	struct vbox_private *vbox = dev->dev_private;
@@ -704,24 +738,42 @@ int vbox_mode_init(struct drm_device *dev)
 	unsigned int i;
 	int ret;
 
+	drm_mode_config_init(dev);
+
+	dev->mode_config.funcs = (void *)&vbox_mode_funcs;
+	dev->mode_config.min_width = 64;
+	dev->mode_config.min_height = 64;
+	dev->mode_config.preferred_depth = 24;
+	dev->mode_config.max_width = VBE_DISPI_MAX_XRES;
+	dev->mode_config.max_height = VBE_DISPI_MAX_YRES;
+
 	/* vbox_cursor_init(dev); */
 	for (i = 0; i < vbox->num_crtcs; ++i) {
 		vbox_crtc = vbox_crtc_init(dev, i);
-		if (!vbox_crtc)
-			return -ENOMEM;
+		if (!vbox_crtc) {
+			ret = -ENOMEM;
+			goto err_drm_mode_cleanup;
+		}
 		encoder = vbox_encoder_init(dev, i);
-		if (!encoder)
-			return -ENOMEM;
+		if (!encoder) {
+			ret = -ENOMEM;
+			goto err_drm_mode_cleanup;
+		}
 		ret = vbox_connector_init(dev, vbox_crtc, encoder);
 		if (ret)
-			return ret;
+			goto err_drm_mode_cleanup;
 	}
 
 	return 0;
+
+err_drm_mode_cleanup:
+	drm_mode_config_cleanup(dev);
+	return ret;
 }
 
 void vbox_mode_fini(struct drm_device *dev)
 {
+	drm_mode_config_cleanup(dev);
 	/* vbox_cursor_fini(dev); */
 }
 

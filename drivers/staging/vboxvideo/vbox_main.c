@@ -173,40 +173,6 @@ int vbox_framebuffer_init(struct drm_device *dev,
 	return 0;
 }
 
-static struct drm_framebuffer *vbox_user_framebuffer_create(
-		struct drm_device *dev,
-		struct drm_file *filp,
-		const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	struct drm_gem_object *obj;
-	struct vbox_framebuffer *vbox_fb;
-	int ret = -ENOMEM;
-
-	obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
-	if (!obj)
-		return ERR_PTR(-ENOENT);
-
-	vbox_fb = kzalloc(sizeof(*vbox_fb), GFP_KERNEL);
-	if (!vbox_fb)
-		goto err_unref_obj;
-
-	ret = vbox_framebuffer_init(dev, vbox_fb, mode_cmd, obj);
-	if (ret)
-		goto err_free_vbox_fb;
-
-	return &vbox_fb->base;
-
-err_free_vbox_fb:
-	kfree(vbox_fb);
-err_unref_obj:
-	drm_gem_object_put_unlocked(obj);
-	return ERR_PTR(ret);
-}
-
-static const struct drm_mode_config_funcs vbox_mode_funcs = {
-	.fb_create = vbox_user_framebuffer_create,
-};
-
 static int vbox_accel_init(struct vbox_private *vbox)
 {
 	unsigned int i;
@@ -375,15 +341,6 @@ int vbox_driver_load(struct drm_device *dev)
 	if (ret)
 		goto err_hw_fini;
 
-	drm_mode_config_init(dev);
-
-	dev->mode_config.funcs = (void *)&vbox_mode_funcs;
-	dev->mode_config.min_width = 64;
-	dev->mode_config.min_height = 64;
-	dev->mode_config.preferred_depth = 24;
-	dev->mode_config.max_width = VBE_DISPI_MAX_XRES;
-	dev->mode_config.max_height = VBE_DISPI_MAX_YRES;
-
 	ret = vbox_mode_init(dev);
 	if (ret)
 		goto err_drm_mode_cleanup;
@@ -403,7 +360,6 @@ err_irq_fini:
 err_mode_fini:
 	vbox_mode_fini(dev);
 err_drm_mode_cleanup:
-	drm_mode_config_cleanup(dev);
 	vbox_mm_fini(vbox);
 err_hw_fini:
 	vbox_hw_fini(vbox);
@@ -417,7 +373,6 @@ void vbox_driver_unload(struct drm_device *dev)
 	vbox_fbdev_fini(dev);
 	vbox_irq_fini(vbox);
 	vbox_mode_fini(dev);
-	drm_mode_config_cleanup(dev);
 	vbox_mm_fini(vbox);
 	vbox_hw_fini(vbox);
 }
