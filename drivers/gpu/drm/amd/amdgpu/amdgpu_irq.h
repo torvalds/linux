@@ -87,8 +87,8 @@ struct amdgpu_irq {
 	/* status, etc. */
 	bool				msi_enabled; /* msi enabled */
 
-	/* interrupt ring */
-	struct amdgpu_ih_ring		ih;
+	/* interrupt rings */
+	struct amdgpu_ih_ring		ih, ih1, ih2;
 	const struct amdgpu_ih_funcs	*ih_funcs;
 
 	/* gen irq stuff */
