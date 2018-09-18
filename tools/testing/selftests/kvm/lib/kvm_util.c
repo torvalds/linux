@@ -129,6 +129,7 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	/* Setup mode specific traits. */
 	switch (vm->mode) {
 	case VM_MODE_FLAT48PG:
+		vm->pgtable_levels = 4;
 		vm->page_size = 0x1000;
 		vm->page_shift = 12;
 		vm->va_bits = 48;

@@ -46,6 +46,7 @@ struct kvm_vm {
 	int mode;
 	int kvm_fd;
 	int fd;
+	unsigned int pgtable_levels;
 	unsigned int page_size;
 	unsigned int page_shift;
 	unsigned int va_bits;
