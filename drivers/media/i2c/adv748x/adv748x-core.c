@@ -281,7 +281,7 @@ static const struct adv748x_reg_value adv748x_power_down_txb_1lane[] = {
 
 	{ADV748X_PAGE_TXB, 0x31, 0x82},	/* ADI Required Write */
 	{ADV748X_PAGE_TXB, 0x1e, 0x00},	/* ADI Required Write */
-	{ADV748X_PAGE_TXB, 0x00, 0x81},	/* Enable 4-lane MIPI */
+	{ADV748X_PAGE_TXB, 0x00, 0x81},	/* Enable 1-lane MIPI */
 	{ADV748X_PAGE_TXB, 0xda, 0x01},	/* i2c_mipi_pll_en - 1'b1 */
 	{ADV748X_PAGE_TXB, 0xc1, 0x3b},	/* ADI Required Write */
 
