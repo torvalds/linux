@@ -418,8 +418,10 @@ int vbox_bo_push_sysram(struct vbox_bo *bo)
 	if (bo->pin_count)
 		return 0;
 
-	if (bo->kmap.virtual)
+	if (bo->kmap.virtual) {
 		ttm_bo_kunmap(&bo->kmap);
+		bo->kmap.virtual = NULL;
+	}
 
 	vbox_ttm_placement(bo, TTM_PL_FLAG_SYSTEM);
 
@@ -447,4 +449,28 @@ int vbox_mmap(struct file *filp, struct vm_area_struct *vma)
 	vbox = file_priv->minor->dev->dev_private;
 
 	return ttm_bo_mmap(filp, vma, &vbox->ttm.bdev);
+}
+
+void *vbox_bo_kmap(struct vbox_bo *bo)
+{
+	int ret;
+
+	if (bo->kmap.virtual)
+		return bo->kmap.virtual;
+
+	ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &bo->kmap);
+	if (ret) {
+		DRM_ERROR("Error kmapping bo: %d\n", ret);
+		return NULL;
+	}
+
+	return bo->kmap.virtual;
+}
+
+void vbox_bo_kunmap(struct vbox_bo *bo)
+{
+	if (bo->kmap.virtual) {
+		ttm_bo_kunmap(&bo->kmap);
+		bo->kmap.virtual = NULL;
+	}
 }

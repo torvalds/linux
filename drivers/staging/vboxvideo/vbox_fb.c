@@ -108,15 +108,14 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 	if (ret)
 		return ret;
 
-	ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &bo->kmap);
-	if (ret) {
-		DRM_ERROR("failed to kmap fbcon\n");
-		return ret;
-	}
-
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info))
-		return -PTR_ERR(info);
+		return PTR_ERR(info);
+
+	info->screen_size = size;
+	info->screen_base = (char __iomem *)vbox_bo_kmap(bo);
+	if (IS_ERR(info->screen_base))
+		return PTR_ERR(info->screen_base);
 
 	info->par = fbdev;
 
@@ -150,9 +149,6 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 	info->fix.smem_start = info->apertures->ranges[0].base + gpu_addr;
 	info->fix.smem_len = vbox->available_vram_size - gpu_addr;
 
-	info->screen_base = (char __iomem *)bo->kmap.virtual;
-	info->screen_size = size;
-
 #ifdef CONFIG_DRM_KMS_FB_HELPER
 	info->fbdefio = &vbox_defio;
 	fb_deferred_io_init(info);
@@ -184,8 +180,7 @@ void vbox_fbdev_fini(struct vbox_private *vbox)
 	if (afb->obj) {
 		struct vbox_bo *bo = gem_to_vbox_bo(afb->obj);
 
-		if (bo->kmap.virtual)
-			ttm_bo_kunmap(&bo->kmap);
+		vbox_bo_kunmap(bo);
 
 		if (bo->pin_count)
 			vbox_bo_unpin(bo);
