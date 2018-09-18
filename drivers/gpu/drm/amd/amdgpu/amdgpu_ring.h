@@ -77,7 +77,6 @@ struct amdgpu_fence_driver {
 	bool				initialized;
 	struct amdgpu_irq_src		*irq_src;
 	unsigned			irq_type;
-	struct timer_list		fallback_timer;
 	unsigned			num_fences_mask;
 	spinlock_t			lock;
 	struct dma_fence		**fences;
