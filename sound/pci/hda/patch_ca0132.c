@@ -4026,6 +4026,72 @@ exit:
 }
 
 /*
+ * These are the commands needed to setup output on each of the different card
+ * types.
+ */
+static void ca0132_alt_select_out_quirk_handler(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	switch (spec->cur_out_type) {
+	case SPEAKER_OUT:
+		switch (spec->quirk) {
+		case QUIRK_SBZ:
+			ca0113_mmio_gpio_set(codec, 7, false);
+			ca0113_mmio_gpio_set(codec, 4, true);
+			ca0113_mmio_gpio_set(codec, 1, true);
+			chipio_set_control_param(codec, 0x0D, 0x18);
+			break;
+		case QUIRK_R3DI:
+			chipio_set_control_param(codec, 0x0D, 0x24);
+			r3di_gpio_out_set(codec, R3DI_LINE_OUT);
+			break;
+		case QUIRK_R3D:
+			chipio_set_control_param(codec, 0x0D, 0x24);
+			ca0113_mmio_gpio_set(codec, 1, true);
+			break;
+		}
+		break;
+	case HEADPHONE_OUT:
+		switch (spec->quirk) {
+		case QUIRK_SBZ:
+			ca0113_mmio_gpio_set(codec, 7, true);
+			ca0113_mmio_gpio_set(codec, 4, true);
+			ca0113_mmio_gpio_set(codec, 1, false);
+			chipio_set_control_param(codec, 0x0D, 0x12);
+			break;
+		case QUIRK_R3DI:
+			chipio_set_control_param(codec, 0x0D, 0x21);
+			r3di_gpio_out_set(codec, R3DI_HEADPHONE_OUT);
+			break;
+		case QUIRK_R3D:
+			chipio_set_control_param(codec, 0x0D, 0x21);
+			ca0113_mmio_gpio_set(codec, 0x1, false);
+			break;
+		}
+		break;
+	case SURROUND_OUT:
+		switch (spec->quirk) {
+		case QUIRK_SBZ:
+			ca0113_mmio_gpio_set(codec, 7, false);
+			ca0113_mmio_gpio_set(codec, 4, true);
+			ca0113_mmio_gpio_set(codec, 1, true);
+			chipio_set_control_param(codec, 0x0D, 0x18);
+			break;
+		case QUIRK_R3DI:
+			chipio_set_control_param(codec, 0x0D, 0x24);
+			r3di_gpio_out_set(codec, R3DI_LINE_OUT);
+			break;
+		case QUIRK_R3D:
+			ca0113_mmio_gpio_set(codec, 1, true);
+			chipio_set_control_param(codec, 0x0D, 0x24);
+			break;
+		}
+		break;
+	}
+}
+
+/*
  * This function behaves similarly to the ca0132_select_out funciton above,
  * except with a few differences. It adds the ability to select the current
  * output with an enumerated control "output source" if the auto detect
@@ -4075,26 +4141,11 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 	if (err < 0)
 		goto exit;
 
+	ca0132_alt_select_out_quirk_handler(codec);
+
 	switch (spec->cur_out_type) {
 	case SPEAKER_OUT:
 		codec_dbg(codec, "%s speaker\n", __func__);
-		/*speaker out config*/
-		switch (spec->quirk) {
-		case QUIRK_SBZ:
-			ca0113_mmio_gpio_set(codec, 7, false);
-			ca0113_mmio_gpio_set(codec, 4, true);
-			ca0113_mmio_gpio_set(codec, 1, true);
-			chipio_set_control_param(codec, 0x0D, 0x18);
-			break;
-		case QUIRK_R3DI:
-			chipio_set_control_param(codec, 0x0D, 0x24);
-			r3di_gpio_out_set(codec, R3DI_LINE_OUT);
-			break;
-		case QUIRK_R3D:
-			chipio_set_control_param(codec, 0x0D, 0x24);
-			ca0113_mmio_gpio_set(codec, 1, true);
-			break;
-		}
 
 		/* disable headphone node */
 		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[1], 0,
@@ -4118,23 +4169,6 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 		break;
 	case HEADPHONE_OUT:
 		codec_dbg(codec, "%s hp\n", __func__);
-		/* Headphone out config*/
-		switch (spec->quirk) {
-		case QUIRK_SBZ:
-			ca0113_mmio_gpio_set(codec, 7, true);
-			ca0113_mmio_gpio_set(codec, 4, true);
-			ca0113_mmio_gpio_set(codec, 1, false);
-			chipio_set_control_param(codec, 0x0D, 0x12);
-			break;
-		case QUIRK_R3DI:
-			chipio_set_control_param(codec, 0x0D, 0x21);
-			r3di_gpio_out_set(codec, R3DI_HEADPHONE_OUT);
-			break;
-		case QUIRK_R3D:
-			chipio_set_control_param(codec, 0x0D, 0x21);
-			ca0113_mmio_gpio_set(codec, 0x1, false);
-			break;
-		}
 
 		snd_hda_codec_write(codec, spec->out_pins[0], 0,
 			AC_VERB_SET_EAPD_BTLENABLE, 0x00);
@@ -4164,23 +4198,7 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 		break;
 	case SURROUND_OUT:
 		codec_dbg(codec, "%s surround\n", __func__);
-		/* Surround out config*/
-		switch (spec->quirk) {
-		case QUIRK_SBZ:
-			ca0113_mmio_gpio_set(codec, 7, false);
-			ca0113_mmio_gpio_set(codec, 4, true);
-			ca0113_mmio_gpio_set(codec, 1, true);
-			chipio_set_control_param(codec, 0x0D, 0x18);
-			break;
-		case QUIRK_R3DI:
-			chipio_set_control_param(codec, 0x0D, 0x24);
-			r3di_gpio_out_set(codec, R3DI_LINE_OUT);
-			break;
-		case QUIRK_R3D:
-			ca0113_mmio_gpio_set(codec, 1, true);
-			chipio_set_control_param(codec, 0x0D, 0x24);
-			break;
-		}
+
 		/* enable line out node */
 		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[0], 0,
 				AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
