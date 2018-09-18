@@ -145,7 +145,17 @@ static noinline int bad_area(struct pt_regs *regs, unsigned long address)
 static int bad_key_fault_exception(struct pt_regs *regs, unsigned long address,
 				    int pkey)
 {
-	return __bad_area_nosemaphore(regs, address, SEGV_PKUERR, pkey);
+	/*
+	 * If we are in kernel mode, bail out with a SEGV, this will
+	 * be caught by the assembly which will restore the non-volatile
+	 * registers before calling bad_page_fault()
+	 */
+	if (!user_mode(regs))
+		return SIGSEGV;
+
+	_exception_pkey(SIGSEGV, regs, SEGV_PKUERR, address, pkey);
+
+	return 0;
 }
 
 static noinline int bad_access(struct pt_regs *regs, unsigned long address)
