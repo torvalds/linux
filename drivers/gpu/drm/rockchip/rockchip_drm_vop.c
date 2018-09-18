@@ -2345,7 +2345,8 @@ static size_t vop_plane_line_bandwidth(struct drm_plane_state *pstate)
 	int vskiplines = scl_get_vskiplines(src_height, dest_height);
 	size_t bandwidth;
 
-	if (!src_width || !src_height || !dest_width || !dest_height)
+	if (src_width <= 0 || src_height <= 0 || dest_width <= 0 ||
+	    dest_height <= 0)
 		return 0;
 
 	bandwidth = src_width * bpp / 8;
