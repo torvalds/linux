@@ -530,12 +530,7 @@ exit:
 	return ret;
 }
 
-/*
-* rtw_get_cur_max_rate -
-* @adapter: pointer to struct adapter structure
-*
-* Return 0 or 100Kbps
-*/
+/* Return 0 or 100Kbps */
 u16 rtw_get_cur_max_rate(struct adapter *adapter)
 {
 	int i = 0;
@@ -586,13 +581,7 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 	return max_rate;
 }
 
-/*
-* rtw_set_country -
-* @adapter: pointer to struct adapter structure
-* @country_code: string of country code
-*
-* Return _SUCCESS or _FAIL
-*/
+/* Return _SUCCESS or _FAIL */
 int rtw_set_country(struct adapter *adapter, const char *country_code)
 {
 	int i;
