@@ -3505,6 +3505,12 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 		int cr2d = superio_inb(sioreg, 0x2d);
 		int cr2f = superio_inb(sioreg, 0x2f);
 		bool dsw_en = cr2f & BIT(3);
+		int creb;
+		int cred;
+
+		superio_select(sioreg, NCT6775_LD_12);
+		creb = superio_inb(sioreg, 0xeb);
+		cred = superio_inb(sioreg, 0xed);
 
 		fan3pin = !(cr1c & BIT(5));
 		fan4pin = !(cr1c & BIT(6));
@@ -3529,10 +3535,7 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 			if (!fan5pin)
 				fan5pin = cr1b & BIT(5);
 
-			superio_select(sioreg, NCT6775_LD_12);
 			if (data->kind != nct6796) {
-				int creb = superio_inb(sioreg, 0xeb);
-
 				if (!dsw_en) {
 					fan6pin = cr2d & BIT(1);
 					pwm6pin = cr2d & BIT(0);
@@ -3550,8 +3553,6 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 			}
 
 			if (data->kind == nct6795 || data->kind == nct6796) {
-				int cred = superio_inb(sioreg, 0xed);
-
 				if (!fan6pin)
 					fan6pin = (cr2a & BIT(4)) &&
 					  (!dsw_en || (cred & BIT(4)));
