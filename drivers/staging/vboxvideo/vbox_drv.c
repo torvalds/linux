@@ -51,48 +51,89 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	struct vbox_private *vbox = NULL;
 	struct drm_device *dev = NULL;
 	int ret = 0;
 
+	if (!vbox_check_supported(VBE_DISPI_ID_HGSMI))
+		return -ENODEV;
+
 	dev = drm_dev_alloc(&driver, &pdev->dev);
-	if (IS_ERR(dev)) {
-		ret = PTR_ERR(dev);
-		goto err_drv_alloc;
-	}
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
 	ret = pci_enable_device(pdev);
 	if (ret)
-		goto err_pci_enable;
+		goto err_dev_put;
 
 	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
 
-	ret = vbox_driver_load(dev);
+	vbox = devm_kzalloc(&pdev->dev, sizeof(*vbox), GFP_KERNEL);
+	if (!vbox) {
+		ret = -ENOMEM;
+		goto err_pci_disable;
+	}
+
+	dev->dev_private = vbox;
+	vbox->dev = dev;
+
+	mutex_init(&vbox->hw_mutex);
+
+	ret = vbox_hw_init(vbox);
 	if (ret)
-		goto err_vbox_driver_load;
+		goto err_pci_disable;
+
+	ret = vbox_mm_init(vbox);
+	if (ret)
+		goto err_hw_fini;
+
+	ret = vbox_mode_init(dev);
+	if (ret)
+		goto err_mm_fini;
+
+	ret = vbox_irq_init(vbox);
+	if (ret)
+		goto err_mode_fini;
+
+	ret = vbox_fbdev_init(dev);
+	if (ret)
+		goto err_irq_fini;
 
 	ret = drm_dev_register(dev, 0);
 	if (ret)
-		goto err_drv_dev_register;
+		goto err_fbdev_fini;
 
-	return ret;
+	return 0;
 
- err_drv_dev_register:
-	vbox_driver_unload(dev);
- err_vbox_driver_load:
+err_fbdev_fini:
+	vbox_fbdev_fini(dev);
+err_irq_fini:
+	vbox_irq_fini(vbox);
+err_mode_fini:
+	vbox_mode_fini(dev);
+err_mm_fini:
+	vbox_mm_fini(vbox);
+err_hw_fini:
+	vbox_hw_fini(vbox);
+err_pci_disable:
 	pci_disable_device(pdev);
- err_pci_enable:
+err_dev_put:
 	drm_dev_put(dev);
- err_drv_alloc:
 	return ret;
 }
 
 static void vbox_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct vbox_private *vbox = dev->dev_private;
 
 	drm_dev_unregister(dev);
-	vbox_driver_unload(dev);
+	vbox_fbdev_fini(dev);
+	vbox_irq_fini(vbox);
+	vbox_mode_fini(dev);
+	vbox_mm_fini(vbox);
+	vbox_hw_fini(vbox);
 	drm_dev_put(dev);
 }
 

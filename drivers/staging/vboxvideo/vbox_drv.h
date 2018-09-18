@@ -126,8 +126,6 @@ struct vbox_private {
 #undef CURSOR_PIXEL_COUNT
 #undef CURSOR_DATA_SIZE
 
-int vbox_driver_load(struct drm_device *dev);
-void vbox_driver_unload(struct drm_device *dev);
 void vbox_driver_lastclose(struct drm_device *dev);
 
 struct vbox_gem_object;
@@ -176,6 +174,10 @@ struct vbox_fbdev {
 #define to_vbox_connector(x) container_of(x, struct vbox_connector, base)
 #define to_vbox_encoder(x) container_of(x, struct vbox_encoder, base)
 #define to_vbox_framebuffer(x) container_of(x, struct vbox_framebuffer, base)
+
+bool vbox_check_supported(u16 id);
+int vbox_hw_init(struct vbox_private *vbox);
+void vbox_hw_fini(struct vbox_private *vbox);
 
 int vbox_mode_init(struct drm_device *dev);
 void vbox_mode_fini(struct drm_device *dev);

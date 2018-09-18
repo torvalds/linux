@@ -228,7 +228,7 @@ static bool have_hgsmi_mode_hints(struct vbox_private *vbox)
 	return have_hints == VINF_SUCCESS && have_cursor == VINF_SUCCESS;
 }
 
-static bool vbox_check_supported(u16 id)
+bool vbox_check_supported(u16 id)
 {
 	u16 dispi_id;
 
@@ -242,7 +242,7 @@ static bool vbox_check_supported(u16 id)
  * Set up our heaps and data exchange buffers in VRAM before handing the rest
  * to the memory manager.
  */
-static int vbox_hw_init(struct vbox_private *vbox)
+int vbox_hw_init(struct vbox_private *vbox)
 {
 	int ret = -ENOMEM;
 
@@ -309,72 +309,11 @@ err_unmap_guest_heap:
 	return ret;
 }
 
-static void vbox_hw_fini(struct vbox_private *vbox)
+void vbox_hw_fini(struct vbox_private *vbox)
 {
 	vbox_accel_fini(vbox);
 	gen_pool_destroy(vbox->guest_pool);
 	pci_iounmap(vbox->dev->pdev, vbox->guest_heap);
-}
-
-int vbox_driver_load(struct drm_device *dev)
-{
-	struct vbox_private *vbox;
-	int ret = 0;
-
-	if (!vbox_check_supported(VBE_DISPI_ID_HGSMI))
-		return -ENODEV;
-
-	vbox = devm_kzalloc(dev->dev, sizeof(*vbox), GFP_KERNEL);
-	if (!vbox)
-		return -ENOMEM;
-
-	dev->dev_private = vbox;
-	vbox->dev = dev;
-
-	mutex_init(&vbox->hw_mutex);
-
-	ret = vbox_hw_init(vbox);
-	if (ret)
-		return ret;
-
-	ret = vbox_mm_init(vbox);
-	if (ret)
-		goto err_hw_fini;
-
-	ret = vbox_mode_init(dev);
-	if (ret)
-		goto err_drm_mode_cleanup;
-
-	ret = vbox_irq_init(vbox);
-	if (ret)
-		goto err_mode_fini;
-
-	ret = vbox_fbdev_init(dev);
-	if (ret)
-		goto err_irq_fini;
-
-	return 0;
-
-err_irq_fini:
-	vbox_irq_fini(vbox);
-err_mode_fini:
-	vbox_mode_fini(dev);
-err_drm_mode_cleanup:
-	vbox_mm_fini(vbox);
-err_hw_fini:
-	vbox_hw_fini(vbox);
-	return ret;
-}
-
-void vbox_driver_unload(struct drm_device *dev)
-{
-	struct vbox_private *vbox = dev->dev_private;
-
-	vbox_fbdev_fini(dev);
-	vbox_irq_fini(vbox);
-	vbox_mode_fini(dev);
-	vbox_mm_fini(vbox);
-	vbox_hw_fini(vbox);
 }
 
 /**
