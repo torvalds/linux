@@ -81,6 +81,14 @@ module_param(cifs_max_pending, uint, 0444);
 MODULE_PARM_DESC(cifs_max_pending, "Simultaneous requests to server for "
 				   "CIFS/SMB1 dialect (N/A for SMB3) "
 				   "Default: 32767 Range: 2 to 32767.");
+#ifdef CONFIG_CIFS_STATS2
+unsigned int slow_rsp_threshold = 1;
+module_param(slow_rsp_threshold, uint, 0644);
+MODULE_PARM_DESC(slow_rsp_threshold, "Amount of time (in seconds) to wait "
+				   "before logging that a response is delayed. "
+				   "Default: 1 (if set to 0 disables msg).");
+#endif /* STATS2 */
+
 module_param(enable_oplocks, bool, 0644);
 MODULE_PARM_DESC(enable_oplocks, "Enable or disable oplocks. Default: y/Y/1");
 
@@ -1418,6 +1426,11 @@ init_cifs(void)
 #ifdef CONFIG_CIFS_STATS2
 	atomic_set(&totBufAllocCount, 0);
 	atomic_set(&totSmBufAllocCount, 0);
+	if (slow_rsp_threshold < 1)
+		cifs_dbg(FYI, "slow_response_threshold msgs disabled\n");
+	else if (slow_rsp_threshold > 32767)
+		cifs_dbg(VFS,
+		       "slow response threshold set higher than recommended (0 to 32767)\n");
 #endif /* CONFIG_CIFS_STATS2 */
 
 	atomic_set(&midCount, 0);

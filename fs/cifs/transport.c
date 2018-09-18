@@ -113,9 +113,18 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 		cifs_small_buf_release(midEntry->resp_buf);
 #ifdef CONFIG_CIFS_STATS2
 	now = jiffies;
-	/* commands taking longer than one second are indications that
-	   something is wrong, unless it is quite a slow link or server */
-	if (time_after(now, midEntry->when_alloc + HZ) &&
+	/*
+	 * commands taking longer than one second (default) can be indications
+	 * that something is wrong, unless it is quite a slow link or a very
+	 * busy server. Note that this calc is unlikely or impossible to wrap
+	 * as long as slow_rsp_threshold is not set way above recommended max
+	 * value (32767 ie 9 hours) and is generally harmless even if wrong
+	 * since only affects debug counters - so leaving the calc as simple
+	 * comparison rather than doing multiple conversions and overflow
+	 * checks
+	 */
+	if ((slow_rsp_threshold != 0) &&
+	    time_after(now, midEntry->when_alloc + (slow_rsp_threshold * HZ)) &&
 	    (midEntry->command != command)) {
 		/* smb2slowcmd[NUMBER_OF_SMB2_COMMANDS] counts by command */
 		if ((le16_to_cpu(midEntry->command) < NUMBER_OF_SMB2_COMMANDS) &&

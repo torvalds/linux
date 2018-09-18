@@ -1715,6 +1715,7 @@ GLOBAL_EXTERN atomic_t bufAllocCount;    /* current number allocated  */
 #ifdef CONFIG_CIFS_STATS2
 GLOBAL_EXTERN atomic_t totBufAllocCount; /* total allocated over all time */
 GLOBAL_EXTERN atomic_t totSmBufAllocCount;
+extern unsigned int slow_rsp_threshold; /* number of secs before logging */
 #endif
 GLOBAL_EXTERN atomic_t smBufAllocCount;
 GLOBAL_EXTERN atomic_t midCount;
