@@ -240,8 +240,10 @@ static ssize_t ovl_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 		goto out_unlock;
 
 	old_cred = ovl_override_creds(file_inode(file)->i_sb);
+	file_start_write(real.file);
 	ret = vfs_iter_write(real.file, iter, &iocb->ki_pos,
 			     ovl_iocb_to_rwf(iocb));
+	file_end_write(real.file);
 	revert_creds(old_cred);
 
 	/* Update size */
