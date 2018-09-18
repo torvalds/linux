@@ -621,7 +621,7 @@ machine_err:
 	i = rtd->num_codecs;
 
 codec_dai_err:
-	for_each_rtd_codec_dai_reverse(rtd, i, codec_dai) {
+	for_each_rtd_codec_dai_rollback(rtd, i, codec_dai) {
 		if (codec_dai->driver->ops->shutdown)
 			codec_dai->driver->ops->shutdown(substream, codec_dai);
 	}
@@ -1015,7 +1015,7 @@ interface_err:
 	i = rtd->num_codecs;
 
 codec_err:
-	for_each_rtd_codec_dai_reverse(rtd, i, codec_dai) {
+	for_each_rtd_codec_dai_rollback(rtd, i, codec_dai) {
 		if (codec_dai->driver->ops->hw_free)
 			codec_dai->driver->ops->hw_free(substream, codec_dai);
 		codec_dai->rate = 0;
