@@ -441,9 +441,6 @@ static int davinci_spi_setup(struct spi_device *spi)
 
 		if (internal_cs) {
 			set_io_bits(dspi->base + SPIPC0, 1 << spi->chip_select);
-		} else if (spi->mode & SPI_CS_WORD) {
-			dev_err(&spi->dev, "SPI_CS_WORD can't be use with GPIO CS\n");
-			return -EINVAL;
 		}
 	}
 
