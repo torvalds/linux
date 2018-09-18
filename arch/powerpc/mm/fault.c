@@ -124,8 +124,7 @@ static noinline int bad_area_nosemaphore(struct pt_regs *regs, unsigned long add
 	return __bad_area_nosemaphore(regs, address, SEGV_MAPERR, 0);
 }
 
-static int __bad_area(struct pt_regs *regs, unsigned long address, int si_code,
-			int pkey)
+static int __bad_area(struct pt_regs *regs, unsigned long address, int si_code)
 {
 	struct mm_struct *mm = current->mm;
 
@@ -135,12 +134,12 @@ static int __bad_area(struct pt_regs *regs, unsigned long address, int si_code,
 	 */
 	up_read(&mm->mmap_sem);
 
-	return __bad_area_nosemaphore(regs, address, si_code, pkey);
+	return __bad_area_nosemaphore(regs, address, si_code, 0);
 }
 
 static noinline int bad_area(struct pt_regs *regs, unsigned long address)
 {
-	return __bad_area(regs, address, SEGV_MAPERR, 0);
+	return __bad_area(regs, address, SEGV_MAPERR);
 }
 
 static int bad_key_fault_exception(struct pt_regs *regs, unsigned long address,
@@ -151,7 +150,7 @@ static int bad_key_fault_exception(struct pt_regs *regs, unsigned long address,
 
 static noinline int bad_access(struct pt_regs *regs, unsigned long address)
 {
-	return __bad_area(regs, address, SEGV_ACCERR, 0);
+	return __bad_area(regs, address, SEGV_ACCERR);
 }
 
 static int do_sigbus(struct pt_regs *regs, unsigned long address,
