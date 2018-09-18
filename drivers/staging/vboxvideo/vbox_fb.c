@@ -104,18 +104,11 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 
 	bo = gem_to_vbox_bo(gobj);
 
-	ret = vbox_bo_reserve(bo, false);
+	ret = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM);
 	if (ret)
 		return ret;
 
-	ret = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM, &gpu_addr);
-	if (ret) {
-		vbox_bo_unreserve(bo);
-		return ret;
-	}
-
 	ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &bo->kmap);
-	vbox_bo_unreserve(bo);
 	if (ret) {
 		DRM_ERROR("failed to kmap fbcon\n");
 		return ret;
@@ -153,6 +146,7 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 	drm_fb_helper_fill_var(info, &fbdev->helper, sizes->fb_width,
 			       sizes->fb_height);
 
+	gpu_addr = vbox_bo_gpu_offset(bo);
 	info->fix.smem_start = info->apertures->ranges[0].base + gpu_addr;
 	info->fix.smem_len = vbox->available_vram_size - gpu_addr;
 
@@ -190,17 +184,12 @@ void vbox_fbdev_fini(struct vbox_private *vbox)
 	if (afb->obj) {
 		struct vbox_bo *bo = gem_to_vbox_bo(afb->obj);
 
-		if (!vbox_bo_reserve(bo, false)) {
-			if (bo->kmap.virtual)
-				ttm_bo_kunmap(&bo->kmap);
-			/*
-			 * QXL does this, but is it really needed before
-			 * freeing?
-			 */
-			if (bo->pin_count)
-				vbox_bo_unpin(bo);
-			vbox_bo_unreserve(bo);
-		}
+		if (bo->kmap.virtual)
+			ttm_bo_kunmap(&bo->kmap);
+
+		if (bo->pin_count)
+			vbox_bo_unpin(bo);
+
 		drm_gem_object_put_unlocked(afb->obj);
 		afb->obj = NULL;
 	}

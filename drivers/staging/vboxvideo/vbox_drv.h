@@ -245,7 +245,7 @@ int vbox_bo_create(struct vbox_private *vbox, int size, int align,
 int vbox_gem_create(struct vbox_private *vbox,
 		    u32 size, bool iskernel, struct drm_gem_object **obj);
 
-int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag, u64 *gpu_addr);
+int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag);
 int vbox_bo_unpin(struct vbox_bo *bo);
 
 static inline int vbox_bo_reserve(struct vbox_bo *bo, bool no_wait)

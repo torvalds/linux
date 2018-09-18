@@ -343,18 +343,19 @@ err_free_vboxbo:
 	return ret;
 }
 
-int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag, u64 *gpu_addr)
+int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag)
 {
 	struct ttm_operation_ctx ctx = { false, false };
 	int i, ret;
 
 	if (bo->pin_count) {
 		bo->pin_count++;
-		if (gpu_addr)
-			*gpu_addr = vbox_bo_gpu_offset(bo);
-
 		return 0;
 	}
+
+	ret = vbox_bo_reserve(bo, false);
+	if (ret)
+		return ret;
 
 	vbox_ttm_placement(bo, pl_flag);
 
@@ -362,15 +363,12 @@ int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag, u64 *gpu_addr)
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 
 	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
-	if (ret)
-		return ret;
+	if (ret == 0)
+		bo->pin_count = 1;
 
-	bo->pin_count = 1;
+	vbox_bo_unreserve(bo);
 
-	if (gpu_addr)
-		*gpu_addr = vbox_bo_gpu_offset(bo);
-
-	return 0;
+	return ret;
 }
 
 int vbox_bo_unpin(struct vbox_bo *bo)
@@ -386,14 +384,20 @@ int vbox_bo_unpin(struct vbox_bo *bo)
 	if (bo->pin_count)
 		return 0;
 
+	ret = vbox_bo_reserve(bo, false);
+	if (ret) {
+		DRM_ERROR("Error %d reserving bo, leaving it pinned\n", ret);
+		return ret;
+	}
+
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
 
 	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
-	if (ret)
-		return ret;
 
-	return 0;
+	vbox_bo_unreserve(bo);
+
+	return ret;
 }
 
 /*

@@ -221,40 +221,6 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 	return old_single_framebuffer != vbox->single_framebuffer;
 }
 
-static int vbox_fb_pin(struct drm_framebuffer *fb, u32 pl_flag, u64 *addr)
-{
-	struct vbox_bo *bo = gem_to_vbox_bo(to_vbox_framebuffer(fb)->obj);
-	int ret;
-
-	ret = vbox_bo_reserve(bo, false);
-	if (ret)
-		return ret;
-
-	ret = vbox_bo_pin(bo, pl_flag, addr);
-	vbox_bo_unreserve(bo);
-	return ret;
-}
-
-static void vbox_fb_unpin(struct drm_framebuffer *fb)
-{
-	struct vbox_bo *bo;
-	int ret;
-
-	if (!fb)
-		return;
-
-	bo = gem_to_vbox_bo(to_vbox_framebuffer(fb)->obj);
-
-	ret = vbox_bo_reserve(bo, false);
-	if (ret) {
-		DRM_ERROR("Error %d reserving fb bo, leaving it pinned\n", ret);
-		return;
-	}
-
-	vbox_bo_unpin(bo);
-	vbox_bo_unreserve(bo);
-}
-
 static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 					struct drm_framebuffer *fb,
 					struct drm_display_mode *mode,
@@ -296,17 +262,22 @@ static int vbox_crtc_mode_set(struct drm_crtc *crtc,
 			      struct drm_display_mode *adjusted_mode,
 			      int x, int y, struct drm_framebuffer *old_fb)
 {
+	struct drm_framebuffer *new_fb = CRTC_FB(crtc);
+	struct vbox_bo *bo = gem_to_vbox_bo(to_vbox_framebuffer(new_fb)->obj);
 	int ret;
 
-	ret = vbox_fb_pin(CRTC_FB(crtc), TTM_PL_FLAG_VRAM, NULL);
+	ret = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM);
 	if (ret) {
 		DRM_WARN("Error %d pinning new fb, out of video mem?\n", ret);
 		return ret;
 	}
 
-	vbox_crtc_set_base_and_mode(crtc, CRTC_FB(crtc), mode, x, y);
+	vbox_crtc_set_base_and_mode(crtc, new_fb, mode, x, y);
 
-	vbox_fb_unpin(old_fb);
+	if (old_fb) {
+		bo = gem_to_vbox_bo(to_vbox_framebuffer(old_fb)->obj);
+		vbox_bo_unpin(bo);
+	}
 
 	return 0;
 }
@@ -317,10 +288,12 @@ static int vbox_crtc_page_flip(struct drm_crtc *crtc,
 			       uint32_t page_flip_flags,
 			       struct drm_modeset_acquire_ctx *ctx)
 {
+	struct vbox_bo *bo = gem_to_vbox_bo(to_vbox_framebuffer(fb)->obj);
+	struct drm_framebuffer *old_fb = CRTC_FB(crtc);
 	unsigned long flags;
 	int rc;
 
-	rc = vbox_fb_pin(fb, TTM_PL_FLAG_VRAM, NULL);
+	rc = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM);
 	if (rc) {
 		DRM_WARN("Error %d pinning new fb, out of video mem?\n", rc);
 		return rc;
@@ -328,7 +301,10 @@ static int vbox_crtc_page_flip(struct drm_crtc *crtc,
 
 	vbox_crtc_set_base_and_mode(crtc, fb, NULL, 0, 0);
 
-	vbox_fb_unpin(CRTC_FB(crtc));
+	if (old_fb) {
+		bo = gem_to_vbox_bo(to_vbox_framebuffer(old_fb)->obj);
+		vbox_bo_unpin(bo);
+	}
 
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 
