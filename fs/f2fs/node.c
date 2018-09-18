@@ -126,6 +126,8 @@ static struct page *get_next_nat_page(struct f2fs_sb_info *sbi, nid_t nid)
 
 	/* get current nat block page with lock */
 	src_page = get_current_nat_page(sbi, nid);
+	if (IS_ERR(src_page))
+		return src_page;
 	dst_page = f2fs_grab_meta_page(sbi, dst_off);
 	f2fs_bug_on(sbi, PageDirty(src_page));
 
@@ -2265,15 +2267,19 @@ static int __f2fs_build_free_nids(struct f2fs_sb_info *sbi,
 						nm_i->nat_block_bitmap)) {
 			struct page *page = get_current_nat_page(sbi, nid);
 
-			ret = scan_nat_page(sbi, page, nid);
-			f2fs_put_page(page, 1);
+			if (IS_ERR(page)) {
+				ret = PTR_ERR(page);
+			} else {
+				ret = scan_nat_page(sbi, page, nid);
+				f2fs_put_page(page, 1);
+			}
 
 			if (ret) {
 				up_read(&nm_i->nat_tree_lock);
 				f2fs_bug_on(sbi, !mount);
 				f2fs_msg(sbi->sb, KERN_ERR,
 					"NAT is corrupt, run fsck to fix it");
-				return -EINVAL;
+				return ret;
 			}
 		}
 
@@ -2708,7 +2714,7 @@ static void __update_nat_bits(struct f2fs_sb_info *sbi, nid_t start_nid,
 		__clear_bit_le(nat_index, nm_i->full_nat_bits);
 }
 
-static void __flush_nat_entry_set(struct f2fs_sb_info *sbi,
+static int __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 		struct nat_entry_set *set, struct cp_control *cpc)
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
@@ -2732,6 +2738,9 @@ static void __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 		down_write(&curseg->journal_rwsem);
 	} else {
 		page = get_next_nat_page(sbi, start_nid);
+		if (IS_ERR(page))
+			return PTR_ERR(page);
+
 		nat_blk = page_address(page);
 		f2fs_bug_on(sbi, !nat_blk);
 	}
@@ -2777,12 +2786,13 @@ static void __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 		radix_tree_delete(&NM_I(sbi)->nat_set_root, set->set);
 		kmem_cache_free(nat_entry_set_slab, set);
 	}
+	return 0;
 }
 
 /*
  * This function is called during the checkpointing process.
  */
-void f2fs_flush_nat_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
+int f2fs_flush_nat_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
@@ -2792,6 +2802,7 @@ void f2fs_flush_nat_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	unsigned int found;
 	nid_t set_idx = 0;
 	LIST_HEAD(sets);
+	int err = 0;
 
 	/* during unmount, let's flush nat_bits before checking dirty_nat_cnt */
 	if (enabled_nat_bits(sbi, cpc)) {
@@ -2801,7 +2812,7 @@ void f2fs_flush_nat_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	}
 
 	if (!nm_i->dirty_nat_cnt)
-		return;
+		return 0;
 
 	down_write(&nm_i->nat_tree_lock);
 
@@ -2824,11 +2835,16 @@ void f2fs_flush_nat_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	}
 
 	/* flush dirty nats in nat entry set */
-	list_for_each_entry_safe(set, tmp, &sets, set_list)
-		__flush_nat_entry_set(sbi, set, cpc);
+	list_for_each_entry_safe(set, tmp, &sets, set_list) {
+		err = __flush_nat_entry_set(sbi, set, cpc);
+		if (err)
+			break;
+	}
 
 	up_write(&nm_i->nat_tree_lock);
 	/* Allow dirty nats by node block allocation in write_begin */
+
+	return err;
 }
 
 static int __get_nat_bitmaps(struct f2fs_sb_info *sbi)
