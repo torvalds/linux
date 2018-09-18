@@ -338,14 +338,12 @@ static void show_signal_msg(int signr, struct pt_regs *regs, int code,
 	show_user_instructions(regs);
 }
 
-void _exception_pkey(int signr, struct pt_regs *regs, int code,
-		     unsigned long addr, int key)
+static bool exception_common(int signr, struct pt_regs *regs, int code,
+			      unsigned long addr)
 {
-	siginfo_t info;
-
 	if (!user_mode(regs)) {
 		die("Exception in kernel mode", regs, signr);
-		return;
+		return false;
 	}
 
 	show_signal_msg(signr, regs, code, addr);
@@ -360,6 +358,16 @@ void _exception_pkey(int signr, struct pt_regs *regs, int code,
 	 * to capture the content, if the task gets killed.
 	 */
 	thread_pkey_regs_save(&current->thread);
+
+	return true;
+}
+
+void _exception_pkey(int signr, struct pt_regs *regs, int code, unsigned long addr, int key)
+{
+	siginfo_t info;
+
+	if (!exception_common(signr, regs, code, addr))
+		return;
 
 	clear_siginfo(&info);
 	info.si_signo = signr;
