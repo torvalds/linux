@@ -17,7 +17,7 @@
 #include "test_util.h"
 
 #include "kvm_util.h"
-#include "x86.h"
+#include "processor.h"
 #include "vmx.h"
 
 #define VCPU_ID		5

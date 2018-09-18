@@ -1,5 +1,5 @@
 /*
- * tools/testing/selftests/kvm/include/x86.h
+ * tools/testing/selftests/kvm/include/x86_64/processor.h
  *
  * Copyright (C) 2018, Google LLC.
  *
@@ -7,8 +7,8 @@
  *
  */
 
-#ifndef SELFTEST_KVM_X86_H
-#define SELFTEST_KVM_X86_H
+#ifndef SELFTEST_KVM_PROCESSOR_H
+#define SELFTEST_KVM_PROCESSOR_H
 
 #include <assert.h>
 #include <stdint.h>
@@ -1044,4 +1044,4 @@ void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *s
 #define MSR_VM_IGNNE                    0xc0010115
 #define MSR_VM_HSAVE_PA                 0xc0010117
 
-#endif /* !SELFTEST_KVM_X86_H */
+#endif /* SELFTEST_KVM_PROCESSOR_H */

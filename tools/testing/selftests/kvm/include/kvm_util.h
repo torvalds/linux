@@ -7,7 +7,7 @@
  *
  */
 #ifndef SELFTEST_KVM_UTIL_H
-#define SELFTEST_KVM_UTIL_H 1
+#define SELFTEST_KVM_UTIL_H
 
 #include "test_util.h"
 

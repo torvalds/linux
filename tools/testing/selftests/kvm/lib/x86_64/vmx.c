@@ -1,5 +1,5 @@
 /*
- * tools/testing/selftests/kvm/lib/x86.c
+ * tools/testing/selftests/kvm/lib/x86_64/vmx.c
  *
  * Copyright (C) 2018, Google LLC.
  *
@@ -10,7 +10,7 @@
 
 #include "test_util.h"
 #include "kvm_util.h"
-#include "x86.h"
+#include "processor.h"
 #include "vmx.h"
 
 /* Allocate memory regions for nested VMX tests.

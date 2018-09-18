@@ -1,5 +1,5 @@
 /*
- * gtests/tests/vmx_tsc_adjust_test.c
+ * vmx_tsc_adjust_test
  *
  * Copyright (C) 2018, Google LLC.
  *
@@ -22,13 +22,13 @@
 
 #include "test_util.h"
 #include "kvm_util.h"
-#include "x86.h"
+#include "processor.h"
 #include "vmx.h"
 
 #include <string.h>
 #include <sys/ioctl.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #ifndef MSR_IA32_TSC_ADJUST
 #define MSR_IA32_TSC_ADJUST 0x3b

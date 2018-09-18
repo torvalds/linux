@@ -1,13 +1,13 @@
 /*
- * tools/testing/selftests/kvm/lib/kvm_util.c
+ * tools/testing/selftests/kvm/lib/kvm_util_internal.h
  *
  * Copyright (C) 2018, Google LLC.
  *
  * This work is licensed under the terms of the GNU GPL, version 2.
  */
 
-#ifndef KVM_UTIL_INTERNAL_H
-#define KVM_UTIL_INTERNAL_H 1
+#ifndef SELFTEST_KVM_UTIL_INTERNAL_H
+#define SELFTEST_KVM_UTIL_INTERNAL_H
 
 #include "sparsebit.h"
 
@@ -70,4 +70,4 @@ void regs_dump(FILE *stream, struct kvm_regs *regs,
 void sregs_dump(FILE *stream, struct kvm_sregs *sregs,
 	uint8_t indent);
 
-#endif
+#endif /* SELFTEST_KVM_UTIL_INTERNAL_H */

@@ -17,7 +17,7 @@
 #include "test_util.h"
 
 #include "kvm_util.h"
-#include "x86.h"
+#include "processor.h"
 
 #define X86_FEATURE_XSAVE	(1<<26)
 #define X86_FEATURE_OSXSAVE	(1<<27)

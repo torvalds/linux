@@ -1,5 +1,5 @@
 /*
- * tools/testing/selftests/kvm/include/vmx.h
+ * tools/testing/selftests/kvm/include/x86_64/vmx.h
  *
  * Copyright (C) 2018, Google LLC.
  *
@@ -11,7 +11,7 @@
 #define SELFTEST_KVM_VMX_H
 
 #include <stdint.h>
-#include "x86.h"
+#include "processor.h"
 
 #define CPUID_VMX_BIT				5
 
@@ -549,4 +549,4 @@ struct vmx_pages *vcpu_alloc_vmx(struct kvm_vm *vm, vm_vaddr_t *p_vmx_gva);
 bool prepare_for_vmx_operation(struct vmx_pages *vmx);
 void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp);
 
-#endif /* !SELFTEST_KVM_VMX_H */
+#endif /* SELFTEST_KVM_VMX_H */

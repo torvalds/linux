@@ -1,5 +1,5 @@
 /*
- * tools/testing/selftests/kvm/lib/x86.c
+ * tools/testing/selftests/kvm/lib/x86_64/processor.c
  *
  * Copyright (C) 2018, Google LLC.
  *
@@ -10,8 +10,8 @@
 
 #include "test_util.h"
 #include "kvm_util.h"
-#include "kvm_util_internal.h"
-#include "x86.h"
+#include "../kvm_util_internal.h"
+#include "processor.h"
 
 /* Minimum physical address used for virtual translation tables. */
 #define KVM_GUEST_PAGE_TABLE_MIN_PADDR 0x180000
