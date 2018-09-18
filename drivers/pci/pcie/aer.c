@@ -30,7 +30,7 @@
 #include "../pci.h"
 #include "portdrv.h"
 
-#define AER_ERROR_SOURCES_MAX		100
+#define AER_ERROR_SOURCES_MAX		128
 
 #define AER_MAX_TYPEOF_COR_ERRS		16	/* as per PCI_ERR_COR_STATUS */
 #define AER_MAX_TYPEOF_UNCOR_ERRS	26	/* as per PCI_ERR_UNCOR_STATUS*/
@@ -43,14 +43,8 @@ struct aer_err_source {
 struct aer_rpc {
 	struct pci_dev *rpd;		/* Root Port device */
 	struct work_struct dpc_handler;
-	struct aer_err_source e_sources[AER_ERROR_SOURCES_MAX];
-	unsigned short prod_idx;	/* Error Producer Index */
-	unsigned short cons_idx;	/* Error Consumer Index */
+	DECLARE_KFIFO(aer_fifo, struct aer_err_source, AER_ERROR_SOURCES_MAX);
 	int isr;
-	spinlock_t e_lock;		/*
-					 * Lock access to Error Status/ID Regs
-					 * and error producer/consumer index
-					 */
 	struct mutex rpc_mutex;		/*
 					 * only one thread could do
 					 * recovery on the same
@@ -1218,35 +1212,6 @@ static void aer_isr_one_error(struct aer_rpc *rpc,
 }
 
 /**
- * get_e_source - retrieve an error source
- * @rpc: pointer to the root port which holds an error
- * @e_src: pointer to store retrieved error source
- *
- * Return 1 if an error source is retrieved, otherwise 0.
- *
- * Invoked by DPC handler to consume an error.
- */
-static int get_e_source(struct aer_rpc *rpc, struct aer_err_source *e_src)
-{
-	unsigned long flags;
-
-	/* Lock access to Root error producer/consumer index */
-	spin_lock_irqsave(&rpc->e_lock, flags);
-	if (rpc->prod_idx == rpc->cons_idx) {
-		spin_unlock_irqrestore(&rpc->e_lock, flags);
-		return 0;
-	}
-
-	*e_src = rpc->e_sources[rpc->cons_idx];
-	rpc->cons_idx++;
-	if (rpc->cons_idx == AER_ERROR_SOURCES_MAX)
-		rpc->cons_idx = 0;
-	spin_unlock_irqrestore(&rpc->e_lock, flags);
-
-	return 1;
-}
-
-/**
  * aer_isr - consume errors detected by root port
  * @work: definition of this work item
  *
@@ -1258,7 +1223,7 @@ static void aer_isr(struct work_struct *work)
 	struct aer_err_source uninitialized_var(e_src);
 
 	mutex_lock(&rpc->rpc_mutex);
-	while (get_e_source(rpc, &e_src))
+	while (kfifo_get(&rpc->aer_fifo, &e_src))
 		aer_isr_one_error(rpc, &e_src);
 	mutex_unlock(&rpc->rpc_mutex);
 }
@@ -1272,51 +1237,23 @@ static void aer_isr(struct work_struct *work)
  */
 irqreturn_t aer_irq(int irq, void *context)
 {
-	unsigned int status, id;
 	struct pcie_device *pdev = (struct pcie_device *)context;
 	struct aer_rpc *rpc = get_service_data(pdev);
-	int next_prod_idx;
-	unsigned long flags;
-	int pos;
+	struct pci_dev *rp = rpc->rpd;
+	struct aer_err_source e_src = {};
+	int pos = rp->aer_cap;
 
-	pos = pdev->port->aer_cap;
-	/*
-	 * Must lock access to Root Error Status Reg, Root Error ID Reg,
-	 * and Root error producer/consumer index
-	 */
-	spin_lock_irqsave(&rpc->e_lock, flags);
-
-	/* Read error status */
-	pci_read_config_dword(pdev->port, pos + PCI_ERR_ROOT_STATUS, &status);
-	if (!(status & (PCI_ERR_ROOT_UNCOR_RCV|PCI_ERR_ROOT_COR_RCV))) {
-		spin_unlock_irqrestore(&rpc->e_lock, flags);
+	pci_read_config_dword(rp, pos + PCI_ERR_ROOT_STATUS, &e_src.status);
+	if (!(e_src.status & (PCI_ERR_ROOT_UNCOR_RCV|PCI_ERR_ROOT_COR_RCV)))
 		return IRQ_NONE;
-	}
 
-	/* Read error source and clear error status */
-	pci_read_config_dword(pdev->port, pos + PCI_ERR_ROOT_ERR_SRC, &id);
-	pci_write_config_dword(pdev->port, pos + PCI_ERR_ROOT_STATUS, status);
+	pci_read_config_dword(rp, pos + PCI_ERR_ROOT_ERR_SRC, &e_src.id);
+	pci_write_config_dword(rp, pos + PCI_ERR_ROOT_STATUS, e_src.status);
 
-	/* Store error source for later DPC handler */
-	next_prod_idx = rpc->prod_idx + 1;
-	if (next_prod_idx == AER_ERROR_SOURCES_MAX)
-		next_prod_idx = 0;
-	if (next_prod_idx == rpc->cons_idx) {
-		/*
-		 * Error Storm Condition - possibly the same error occurred.
-		 * Drop the error.
-		 */
-		spin_unlock_irqrestore(&rpc->e_lock, flags);
+	if (!kfifo_put(&rpc->aer_fifo, e_src))
 		return IRQ_HANDLED;
-	}
-	rpc->e_sources[rpc->prod_idx].status =  status;
-	rpc->e_sources[rpc->prod_idx].id = id;
-	rpc->prod_idx = next_prod_idx;
-	spin_unlock_irqrestore(&rpc->e_lock, flags);
 
-	/*  Invoke DPC handler */
 	schedule_work(&rpc->dpc_handler);
-
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL_GPL(aer_irq);
@@ -1440,9 +1377,6 @@ static struct aer_rpc *aer_alloc_rpc(struct pcie_device *dev)
 	rpc = kzalloc(sizeof(struct aer_rpc), GFP_KERNEL);
 	if (!rpc)
 		return NULL;
-
-	/* Initialize Root lock access, e_lock, to Root Error Status Reg */
-	spin_lock_init(&rpc->e_lock);
 
 	rpc->rpd = dev->port;
 	INIT_WORK(&rpc->dpc_handler, aer_isr);
