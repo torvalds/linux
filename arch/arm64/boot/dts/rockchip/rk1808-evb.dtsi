@@ -109,6 +109,19 @@
 			compatible = "rockchip,drm-logo";
 			reg = <0x0 0x0 0x0 0x0>;
 		};
+
+		ramoops_mem: region@110000 {
+			reg = <0x0 0x110000 0x0 0xf0000>;
+		};
+	};
+
+	ramoops: ramoops {
+		compatible = "ramoops";
+		record-size = <0x0 0x30000>;
+		console-size = <0x0 0xc0000>;
+		ftrace-size = <0x0 0x00000>;
+		pmsg-size = <0x0 0x00000>;
+		memory-region = <&ramoops_mem>;
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
