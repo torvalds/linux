@@ -552,6 +552,8 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 {
 	struct smu10_hwmgr *data = hwmgr->backend;
 	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t min_sclk = hwmgr->display_config->min_core_set_clock;
+	uint32_t min_mclk = hwmgr->display_config->min_mem_set_clock/100;
 
 	if (hwmgr->smu_version < 0x1E3700) {
 		pr_info("smu firmware version too old, can not set dpm level\n");
@@ -562,6 +564,13 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	if ((adev->asic_type == CHIP_RAVEN) &&
 	    (adev->rev_id >= 8))
 		return 0;
+
+	if (min_sclk < data->gfx_min_freq_limit)
+		min_sclk = data->gfx_min_freq_limit;
+
+	min_sclk /= 100; /* transfer 10KHz to MHz */
+	if (min_mclk < data->clock_table.FClocks[0].Freq)
+		min_mclk = data->clock_table.FClocks[0].Freq;
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
@@ -595,18 +604,18 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
-						data->gfx_min_freq_limit/100);
+						min_sclk);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxGfxClk,
-						data->gfx_min_freq_limit/100);
+						min_sclk);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinFclkByFreq,
-						SMU10_UMD_PSTATE_MIN_FCLK);
+						min_mclk);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxFclkByFreq,
-						SMU10_UMD_PSTATE_MIN_FCLK);
+						min_mclk);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
@@ -638,12 +647,12 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
-						data->gfx_min_freq_limit/100);
+						min_sclk);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinFclkByFreq,
 						hwmgr->display_config->num_display > 3 ?
 						SMU10_UMD_PSTATE_PEAK_FCLK :
-						SMU10_UMD_PSTATE_MIN_FCLK);
+						min_mclk);
 
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinSocclkByFreq,
@@ -674,10 +683,10 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 						data->gfx_min_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinFclkByFreq,
-						SMU10_UMD_PSTATE_MIN_FCLK);
+						min_mclk);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxFclkByFreq,
-						SMU10_UMD_PSTATE_MIN_FCLK);
+						min_mclk);
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
