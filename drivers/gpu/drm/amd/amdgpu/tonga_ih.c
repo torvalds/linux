@@ -99,9 +99,9 @@ static void tonga_ih_disable_interrupts(struct amdgpu_device *adev)
  */
 static int tonga_ih_irq_init(struct amdgpu_device *adev)
 {
-	int rb_bufsz;
 	u32 interrupt_cntl, ih_rb_cntl, ih_doorbell_rtpr;
-	u64 wptr_off;
+	struct amdgpu_ih_ring *ih = &adev->irq.ih;
+	int rb_bufsz;
 
 	/* disable irqs */
 	tonga_ih_disable_interrupts(adev);
@@ -118,10 +118,7 @@ static int tonga_ih_irq_init(struct amdgpu_device *adev)
 	WREG32(mmINTERRUPT_CNTL, interrupt_cntl);
 
 	/* Ring Buffer base. [39:8] of 40-bit address of the beginning of the ring buffer*/
-	if (adev->irq.ih.use_bus_addr)
-		WREG32(mmIH_RB_BASE, adev->irq.ih.rb_dma_addr >> 8);
-	else
-		WREG32(mmIH_RB_BASE, adev->irq.ih.gpu_addr >> 8);
+	WREG32(mmIH_RB_BASE, ih->gpu_addr >> 8);
 
 	rb_bufsz = order_base_2(adev->irq.ih.ring_size / 4);
 	ih_rb_cntl = REG_SET_FIELD(0, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
@@ -136,12 +133,8 @@ static int tonga_ih_irq_init(struct amdgpu_device *adev)
 	WREG32(mmIH_RB_CNTL, ih_rb_cntl);
 
 	/* set the writeback address whether it's enabled or not */
-	if (adev->irq.ih.use_bus_addr)
-		wptr_off = adev->irq.ih.rb_dma_addr + (adev->irq.ih.wptr_offs * 4);
-	else
-		wptr_off = adev->wb.gpu_addr + (adev->irq.ih.wptr_offs * 4);
-	WREG32(mmIH_RB_WPTR_ADDR_LO, lower_32_bits(wptr_off));
-	WREG32(mmIH_RB_WPTR_ADDR_HI, upper_32_bits(wptr_off) & 0xFF);
+	WREG32(mmIH_RB_WPTR_ADDR_LO, lower_32_bits(ih->wptr_addr));
+	WREG32(mmIH_RB_WPTR_ADDR_HI, upper_32_bits(ih->wptr_addr) & 0xFF);
 
 	/* set rptr, wptr to 0 */
 	WREG32(mmIH_RB_RPTR, 0);
@@ -198,10 +191,7 @@ static u32 tonga_ih_get_wptr(struct amdgpu_device *adev,
 {
 	u32 wptr, tmp;
 
-	if (adev->irq.ih.use_bus_addr)
-		wptr = le32_to_cpu(ih->ring[ih->wptr_offs]);
-	else
-		wptr = le32_to_cpu(adev->wb.wb[ih->wptr_offs]);
+	wptr = le32_to_cpu(*ih->wptr_cpu);
 
 	if (REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW)) {
 		wptr = REG_SET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW, 0);
@@ -263,10 +253,7 @@ static void tonga_ih_set_rptr(struct amdgpu_device *adev,
 {
 	if (ih->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
-		if (ih->use_bus_addr)
-			ih->ring[ih->rptr_offs] = ih->rptr;
-		else
-			adev->wb.wb[ih->rptr_offs] = ih->rptr;
+		*ih->rptr_cpu = ih->rptr;
 		WDOORBELL32(ih->doorbell_index, ih->rptr);
 	} else {
 		WREG32(mmIH_RB_RPTR, ih->rptr);

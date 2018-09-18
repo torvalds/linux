@@ -31,20 +31,25 @@ struct amdgpu_iv_entry;
  * R6xx+ IH ring
  */
 struct amdgpu_ih_ring {
-	struct amdgpu_bo	*ring_obj;
-	volatile uint32_t	*ring;
-	unsigned		rptr;
 	unsigned		ring_size;
-	uint64_t		gpu_addr;
 	uint32_t		ptr_mask;
-	atomic_t		lock;
-	bool                    enabled;
-	unsigned		wptr_offs;
-	unsigned		rptr_offs;
 	u32			doorbell_index;
 	bool			use_doorbell;
 	bool			use_bus_addr;
-	dma_addr_t		rb_dma_addr; /* only used when use_bus_addr = true */
+
+	struct amdgpu_bo	*ring_obj;
+	volatile uint32_t	*ring;
+	uint64_t		gpu_addr;
+
+	uint64_t		wptr_addr;
+	volatile uint32_t	*wptr_cpu;
+
+	uint64_t		rptr_addr;
+	volatile uint32_t	*rptr_cpu;
+
+	bool                    enabled;
+	unsigned		rptr;
+	atomic_t		lock;
 };
 
 /* provided by the ih block */

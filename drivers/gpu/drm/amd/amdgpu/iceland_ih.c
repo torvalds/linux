@@ -103,9 +103,9 @@ static void iceland_ih_disable_interrupts(struct amdgpu_device *adev)
  */
 static int iceland_ih_irq_init(struct amdgpu_device *adev)
 {
+	struct amdgpu_ih_ring *ih = &adev->irq.ih;
 	int rb_bufsz;
 	u32 interrupt_cntl, ih_cntl, ih_rb_cntl;
-	u64 wptr_off;
 
 	/* disable irqs */
 	iceland_ih_disable_interrupts(adev);
@@ -133,9 +133,8 @@ static int iceland_ih_irq_init(struct amdgpu_device *adev)
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, WPTR_WRITEBACK_ENABLE, 1);
 
 	/* set the writeback address whether it's enabled or not */
-	wptr_off = adev->wb.gpu_addr + (adev->irq.ih.wptr_offs * 4);
-	WREG32(mmIH_RB_WPTR_ADDR_LO, lower_32_bits(wptr_off));
-	WREG32(mmIH_RB_WPTR_ADDR_HI, upper_32_bits(wptr_off) & 0xFF);
+	WREG32(mmIH_RB_WPTR_ADDR_LO, lower_32_bits(ih->wptr_addr));
+	WREG32(mmIH_RB_WPTR_ADDR_HI, upper_32_bits(ih->wptr_addr) & 0xFF);
 
 	WREG32(mmIH_RB_CNTL, ih_rb_cntl);
 
@@ -190,7 +189,7 @@ static u32 iceland_ih_get_wptr(struct amdgpu_device *adev,
 {
 	u32 wptr, tmp;
 
-	wptr = le32_to_cpu(adev->wb.wb[ih->wptr_offs]);
+	wptr = le32_to_cpu(*ih->wptr_cpu);
 
 	if (REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW)) {
 		wptr = REG_SET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW, 0);

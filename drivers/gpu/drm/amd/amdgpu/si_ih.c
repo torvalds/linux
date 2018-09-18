@@ -57,9 +57,9 @@ static void si_ih_disable_interrupts(struct amdgpu_device *adev)
 
 static int si_ih_irq_init(struct amdgpu_device *adev)
 {
+	struct amdgpu_ih_ring *ih = &adev->irq.ih;
 	int rb_bufsz;
 	u32 interrupt_cntl, ih_cntl, ih_rb_cntl;
-	u64 wptr_off;
 
 	si_ih_disable_interrupts(adev);
 	WREG32(INTERRUPT_CNTL2, adev->irq.ih.gpu_addr >> 8);
@@ -76,9 +76,8 @@ static int si_ih_irq_init(struct amdgpu_device *adev)
 		     (rb_bufsz << 1) |
 		     IH_WPTR_WRITEBACK_ENABLE;
 
-	wptr_off = adev->wb.gpu_addr + (adev->irq.ih.wptr_offs * 4);
-	WREG32(IH_RB_WPTR_ADDR_LO, lower_32_bits(wptr_off));
-	WREG32(IH_RB_WPTR_ADDR_HI, upper_32_bits(wptr_off) & 0xFF);
+	WREG32(IH_RB_WPTR_ADDR_LO, lower_32_bits(ih->wptr_addr));
+	WREG32(IH_RB_WPTR_ADDR_HI, upper_32_bits(ih->wptr_addr) & 0xFF);
 	WREG32(IH_RB_CNTL, ih_rb_cntl);
 	WREG32(IH_RB_RPTR, 0);
 	WREG32(IH_RB_WPTR, 0);
@@ -105,7 +104,7 @@ static u32 si_ih_get_wptr(struct amdgpu_device *adev,
 {
 	u32 wptr, tmp;
 
-	wptr = le32_to_cpu(adev->wb.wb[ih->wptr_offs]);
+	wptr = le32_to_cpu(*ih->wptr_cpu);
 
 	if (wptr & IH_RB_WPTR__RB_OVERFLOW_MASK) {
 		wptr &= ~IH_RB_WPTR__RB_OVERFLOW_MASK;
