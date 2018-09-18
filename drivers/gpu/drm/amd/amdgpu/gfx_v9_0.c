@@ -3342,18 +3342,22 @@ static int gfx_v9_0_cp_resume(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	r = gfx_v9_0_cp_gfx_resume(adev);
-	if (r)
-		return r;
+	if (adev->asic_type != CHIP_ARCTURUS) {
+		r = gfx_v9_0_cp_gfx_resume(adev);
+		if (r)
+			return r;
+	}
 
 	r = gfx_v9_0_kcq_resume(adev);
 	if (r)
 		return r;
 
-	ring = &adev->gfx.gfx_ring[0];
-	r = amdgpu_ring_test_helper(ring);
-	if (r)
-		return r;
+	if (adev->asic_type != CHIP_ARCTURUS) {
+		ring = &adev->gfx.gfx_ring[0];
+		r = amdgpu_ring_test_helper(ring);
+		if (r)
+			return r;
+	}
 
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		ring = &adev->gfx.compute_ring[i];
@@ -3367,7 +3371,8 @@ static int gfx_v9_0_cp_resume(struct amdgpu_device *adev)
 
 static void gfx_v9_0_cp_enable(struct amdgpu_device *adev, bool enable)
 {
-	gfx_v9_0_cp_gfx_enable(adev, enable);
+	if (adev->asic_type != CHIP_ARCTURUS)
+		gfx_v9_0_cp_gfx_enable(adev, enable);
 	gfx_v9_0_cp_compute_enable(adev, enable);
 }
 
@@ -3392,9 +3397,11 @@ static int gfx_v9_0_hw_init(void *handle)
 	if (r)
 		return r;
 
-	r = gfx_v9_0_ngg_en(adev);
-	if (r)
-		return r;
+	if (adev->asic_type != CHIP_ARCTURUS) {
+		r = gfx_v9_0_ngg_en(adev);
+		if (r)
+			return r;
+	}
 
 	return r;
 }
@@ -3542,8 +3549,9 @@ static int gfx_v9_0_soft_reset(void *handle)
 		/* stop the rlc */
 		adev->gfx.rlc.funcs->stop(adev);
 
-		/* Disable GFX parsing/prefetching */
-		gfx_v9_0_cp_gfx_enable(adev, false);
+		if (adev->asic_type != CHIP_ARCTURUS)
+			/* Disable GFX parsing/prefetching */
+			gfx_v9_0_cp_gfx_enable(adev, false);
 
 		/* Disable MEC parsing/prefetching */
 		gfx_v9_0_cp_compute_enable(adev, false);
@@ -3886,7 +3894,10 @@ static int gfx_v9_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	adev->gfx.num_gfx_rings = GFX9_NUM_GFX_RINGS;
+	if (adev->asic_type == CHIP_ARCTURUS)
+		adev->gfx.num_gfx_rings = 0;
+	else
+		adev->gfx.num_gfx_rings = GFX9_NUM_GFX_RINGS;
 	adev->gfx.num_compute_rings = AMDGPU_MAX_COMPUTE_RINGS;
 	gfx_v9_0_set_ring_funcs(adev);
 	gfx_v9_0_set_irq_funcs(adev);
