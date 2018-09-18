@@ -39,7 +39,6 @@
 #include <linux/if_vlan.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/numa.h>
 #include <linux/pci.h>
 #include <linux/utsname.h>
