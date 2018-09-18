@@ -13,6 +13,8 @@
 #include "unzip_vle.h"
 #include <linux/prefetch.h>
 
+#include <trace/events/erofs.h>
+
 static struct workqueue_struct *z_erofs_workqueue __read_mostly;
 static struct kmem_cache *z_erofs_workgroup_cachep __read_mostly;
 
@@ -612,6 +614,8 @@ static int z_erofs_do_read_page(struct z_erofs_vle_frontend *fe,
 	enum z_erofs_page_type page_type;
 	unsigned int cur, end, spiltted, index;
 	int err = 0;
+
+	trace_erofs_readpage(page, false);
 
 	/* register locked file pages as online pages in pack */
 	z_erofs_onlinepage_init(page);
@@ -1348,6 +1352,9 @@ static inline int __z_erofs_vle_normalaccess_readpages(
 	struct page *head = NULL;
 	LIST_HEAD(pagepool);
 
+	trace_erofs_readpages(mapping->host, lru_to_page(pages),
+			      nr_pages, false);
+
 #if (EROFS_FS_ZIP_CACHE_LVL >= 2)
 	f.cachedzone_la = (erofs_off_t)lru_to_page(pages)->index << PAGE_SHIFT;
 #endif
@@ -1571,6 +1578,8 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 	unsigned int cluster_type, logical_cluster_ofs;
 	int err = 0;
 
+	trace_z_erofs_map_blocks_iter_enter(inode, map, flags);
+
 	/* when trying to read beyond EOF, leave it unmapped */
 	if (unlikely(map->m_la >= inode->i_size)) {
 		DBG_BUGON(!initial);
@@ -1688,6 +1697,8 @@ out:
 	debugln("%s, m_la %llu m_pa %llu m_llen %llu m_plen %llu m_flags 0%o",
 		__func__, map->m_la, map->m_pa,
 		map->m_llen, map->m_plen, map->m_flags);
+
+	trace_z_erofs_map_blocks_iter_exit(inode, map, flags, err);
 
 	/* aggressively BUG_ON iff CONFIG_EROFS_FS_DEBUG is on */
 	DBG_BUGON(err < 0 && err != -ENOMEM);
