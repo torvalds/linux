@@ -221,7 +221,7 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 	return old_single_framebuffer != vbox->single_framebuffer;
 }
 
-static int vbox_fb_pin(struct drm_framebuffer *fb, u64 *addr)
+static int vbox_fb_pin(struct drm_framebuffer *fb, u32 pl_flag, u64 *addr)
 {
 	struct vbox_bo *bo = gem_to_vbox_bo(to_vbox_framebuffer(fb)->obj);
 	int ret;
@@ -230,7 +230,7 @@ static int vbox_fb_pin(struct drm_framebuffer *fb, u64 *addr)
 	if (ret)
 		return ret;
 
-	ret = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM, addr);
+	ret = vbox_bo_pin(bo, pl_flag, addr);
 	vbox_bo_unreserve(bo);
 	return ret;
 }
@@ -267,7 +267,7 @@ static int vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 	int ret;
 
 	/* Prepare: pin the new framebuffer bo */
-	ret = vbox_fb_pin(new_fb, &gpu_addr);
+	ret = vbox_fb_pin(new_fb, TTM_PL_FLAG_VRAM, &gpu_addr);
 	if (ret) {
 		DRM_WARN("Error %d pinning new fb, out of video mem?\n", ret);
 		return ret;
