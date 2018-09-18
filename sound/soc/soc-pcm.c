@@ -1252,7 +1252,7 @@ static void dpcm_be_reparent(struct snd_soc_pcm_runtime *fe,
 
 	be_substream = snd_soc_dpcm_get_substream(be, stream);
 
-	list_for_each_entry(dpcm, &be->dpcm[stream].fe_clients, list_fe) {
+	for_each_dpcm_fe(be, stream, dpcm) {
 		if (dpcm->fe == fe)
 			continue;
 
@@ -3219,7 +3219,7 @@ int snd_soc_dpcm_can_be_free_stop(struct snd_soc_pcm_runtime *fe,
 	struct snd_soc_dpcm *dpcm;
 	int state;
 
-	list_for_each_entry(dpcm, &be->dpcm[stream].fe_clients, list_fe) {
+	for_each_dpcm_fe(be, stream, dpcm) {
 
 		if (dpcm->fe == fe)
 			continue;
@@ -3246,7 +3246,7 @@ int snd_soc_dpcm_can_be_params(struct snd_soc_pcm_runtime *fe,
 	struct snd_soc_dpcm *dpcm;
 	int state;
 
-	list_for_each_entry(dpcm, &be->dpcm[stream].fe_clients, list_fe) {
+	for_each_dpcm_fe(be, stream, dpcm) {
 
 		if (dpcm->fe == fe)
 			continue;

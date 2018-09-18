@@ -103,6 +103,9 @@ struct snd_soc_dpcm_runtime {
 	int trigger_pending; /* trigger cmd + 1 if pending, 0 if not */
 };
 
+#define for_each_dpcm_fe(be, stream, dpcm)				\
+	list_for_each_entry(dpcm, &(be)->dpcm[stream].fe_clients, list_fe)
+
 /* can this BE stop and free */
 int snd_soc_dpcm_can_be_free_stop(struct snd_soc_pcm_runtime *fe,
 		struct snd_soc_pcm_runtime *be, int stream);
