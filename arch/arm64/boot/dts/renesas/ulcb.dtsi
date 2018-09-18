@@ -241,6 +241,8 @@
 &i2c_dvfs {
 	status = "okay";
 
+	clock-frequency = <400000>;
+
 	pmic: pmic@30 {
 		pinctrl-0 = <&irq0_pins>;
 		pinctrl-names = "default";
