@@ -115,6 +115,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 			payload_len = skb->len - nhoff - sizeof(*ipv6h);
 		ipv6h->payload_len = htons(payload_len);
 		skb->network_header = (u8 *)ipv6h - skb->head;
+		skb_reset_mac_len(skb);
 
 		if (udpfrag) {
 			int err = ip6_find_1stfragopt(skb, &prevhdr);

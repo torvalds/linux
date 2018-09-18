@@ -58,6 +58,8 @@ static struct {
  */
 static void mvpp2_mac_config(struct net_device *dev, unsigned int mode,
 			     const struct phylink_link_state *state);
+static void mvpp2_mac_link_up(struct net_device *dev, unsigned int mode,
+			      phy_interface_t interface, struct phy_device *phy);
 
 /* Queue modes */
 #define MVPP2_QDIST_SINGLE_MODE	0
@@ -3142,6 +3144,7 @@ static void mvpp2_start_dev(struct mvpp2_port *port)
 		mvpp22_mode_reconfigure(port);
 
 	if (port->phylink) {
+		netif_carrier_off(port->dev);
 		phylink_start(port->phylink);
 	} else {
 		/* Phylink isn't used as of now for ACPI, so the MAC has to be
@@ -3150,9 +3153,10 @@ static void mvpp2_start_dev(struct mvpp2_port *port)
 		 */
 		struct phylink_link_state state = {
 			.interface = port->phy_interface,
-			.link = 1,
 		};
 		mvpp2_mac_config(port->dev, MLO_AN_INBAND, &state);
+		mvpp2_mac_link_up(port->dev, MLO_AN_INBAND, port->phy_interface,
+				  NULL);
 	}
 
 	netif_tx_start_all_queues(port->dev);
@@ -4495,10 +4499,6 @@ static void mvpp2_mac_config(struct net_device *dev, unsigned int mode,
 		return;
 	}
 
-	netif_tx_stop_all_queues(port->dev);
-	if (!port->has_phy)
-		netif_carrier_off(port->dev);
-
 	/* Make sure the port is disabled when reconfiguring the mode */
 	mvpp2_port_disable(port);
 
@@ -4523,16 +4523,7 @@ static void mvpp2_mac_config(struct net_device *dev, unsigned int mode,
 	if (port->priv->hw_version == MVPP21 && port->flags & MVPP2_F_LOOPBACK)
 		mvpp2_port_loopback_set(port, state);
 
-	/* If the port already was up, make sure it's still in the same state */
-	if (state->link || !port->has_phy) {
-		mvpp2_port_enable(port);
-
-		mvpp2_egress_enable(port);
-		mvpp2_ingress_enable(port);
-		if (!port->has_phy)
-			netif_carrier_on(dev);
-		netif_tx_wake_all_queues(dev);
-	}
+	mvpp2_port_enable(port);
 }
 
 static void mvpp2_mac_link_up(struct net_device *dev, unsigned int mode,

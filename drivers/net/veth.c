@@ -463,6 +463,8 @@ static struct sk_buff *veth_xdp_rcv_skb(struct veth_rq *rq, struct sk_buff *skb,
 	int mac_len, delta, off;
 	struct xdp_buff xdp;
 
+	skb_orphan(skb);
+
 	rcu_read_lock();
 	xdp_prog = rcu_dereference(rq->xdp_prog);
 	if (unlikely(!xdp_prog)) {
@@ -508,8 +510,6 @@ static struct sk_buff *veth_xdp_rcv_skb(struct veth_rq *rq, struct sk_buff *skb,
 		skb_copy_header(nskb, skb);
 		head_off = skb_headroom(nskb) - skb_headroom(skb);
 		skb_headers_offset_update(nskb, head_off);
-		if (skb->sk)
-			skb_set_owner_w(nskb, skb->sk);
 		consume_skb(skb);
 		skb = nskb;
 	}
