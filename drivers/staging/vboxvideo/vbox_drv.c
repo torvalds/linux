@@ -51,34 +51,30 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	struct vbox_private *vbox = NULL;
-	struct drm_device *dev = NULL;
+	struct vbox_private *vbox;
 	int ret = 0;
 
 	if (!vbox_check_supported(VBE_DISPI_ID_HGSMI))
 		return -ENODEV;
 
-	dev = drm_dev_alloc(&driver, &pdev->dev);
-	if (IS_ERR(dev))
-		return PTR_ERR(dev);
+	vbox = kzalloc(sizeof(*vbox), GFP_KERNEL);
+	if (!vbox)
+		return -ENOMEM;
+
+	ret = drm_dev_init(&vbox->ddev, &driver, &pdev->dev);
+	if (ret) {
+		kfree(vbox);
+		return ret;
+	}
+
+	vbox->ddev.pdev = pdev;
+	vbox->ddev.dev_private = vbox;
+	pci_set_drvdata(pdev, vbox);
+	mutex_init(&vbox->hw_mutex);
 
 	ret = pci_enable_device(pdev);
 	if (ret)
 		goto err_dev_put;
-
-	dev->pdev = pdev;
-	pci_set_drvdata(pdev, dev);
-
-	vbox = devm_kzalloc(&pdev->dev, sizeof(*vbox), GFP_KERNEL);
-	if (!vbox) {
-		ret = -ENOMEM;
-		goto err_pci_disable;
-	}
-
-	dev->dev_private = vbox;
-	vbox->dev = dev;
-
-	mutex_init(&vbox->hw_mutex);
 
 	ret = vbox_hw_init(vbox);
 	if (ret)
@@ -88,7 +84,7 @@ static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto err_hw_fini;
 
-	ret = vbox_mode_init(dev);
+	ret = vbox_mode_init(vbox);
 	if (ret)
 		goto err_mm_fini;
 
@@ -96,22 +92,22 @@ static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto err_mode_fini;
 
-	ret = vbox_fbdev_init(dev);
+	ret = vbox_fbdev_init(vbox);
 	if (ret)
 		goto err_irq_fini;
 
-	ret = drm_dev_register(dev, 0);
+	ret = drm_dev_register(&vbox->ddev, 0);
 	if (ret)
 		goto err_fbdev_fini;
 
 	return 0;
 
 err_fbdev_fini:
-	vbox_fbdev_fini(dev);
+	vbox_fbdev_fini(vbox);
 err_irq_fini:
 	vbox_irq_fini(vbox);
 err_mode_fini:
-	vbox_mode_fini(dev);
+	vbox_mode_fini(vbox);
 err_mm_fini:
 	vbox_mm_fini(vbox);
 err_hw_fini:
@@ -119,110 +115,100 @@ err_hw_fini:
 err_pci_disable:
 	pci_disable_device(pdev);
 err_dev_put:
-	drm_dev_put(dev);
+	drm_dev_put(&vbox->ddev);
 	return ret;
 }
 
 static void vbox_pci_remove(struct pci_dev *pdev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct vbox_private *vbox = dev->dev_private;
+	struct vbox_private *vbox = pci_get_drvdata(pdev);
 
-	drm_dev_unregister(dev);
-	vbox_fbdev_fini(dev);
+	drm_dev_unregister(&vbox->ddev);
+	vbox_fbdev_fini(vbox);
 	vbox_irq_fini(vbox);
-	vbox_mode_fini(dev);
+	vbox_mode_fini(vbox);
 	vbox_mm_fini(vbox);
 	vbox_hw_fini(vbox);
-	drm_dev_put(dev);
+	drm_dev_put(&vbox->ddev);
 }
 
-static int vbox_drm_freeze(struct drm_device *dev)
+static int vbox_drm_freeze(struct vbox_private *vbox)
 {
-	struct vbox_private *vbox = dev->dev_private;
+	drm_kms_helper_poll_disable(&vbox->ddev);
 
-	drm_kms_helper_poll_disable(dev);
-
-	pci_save_state(dev->pdev);
+	pci_save_state(vbox->ddev.pdev);
 
 	drm_fb_helper_set_suspend_unlocked(&vbox->fbdev->helper, true);
 
 	return 0;
 }
 
-static int vbox_drm_thaw(struct drm_device *dev)
+static int vbox_drm_thaw(struct vbox_private *vbox)
 {
-	struct vbox_private *vbox = dev->dev_private;
-
-	drm_mode_config_reset(dev);
-	drm_helper_resume_force_mode(dev);
+	drm_mode_config_reset(&vbox->ddev);
+	drm_helper_resume_force_mode(&vbox->ddev);
 	drm_fb_helper_set_suspend_unlocked(&vbox->fbdev->helper, false);
 
 	return 0;
 }
 
-static int vbox_drm_resume(struct drm_device *dev)
+static int vbox_drm_resume(struct vbox_private *vbox)
 {
 	int ret;
 
-	if (pci_enable_device(dev->pdev))
+	if (pci_enable_device(vbox->ddev.pdev))
 		return -EIO;
 
-	ret = vbox_drm_thaw(dev);
+	ret = vbox_drm_thaw(vbox);
 	if (ret)
 		return ret;
 
-	drm_kms_helper_poll_enable(dev);
+	drm_kms_helper_poll_enable(&vbox->ddev);
 
 	return 0;
 }
 
 static int vbox_pm_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *ddev = pci_get_drvdata(pdev);
+	struct vbox_private *vbox = dev_get_drvdata(dev);
 	int error;
 
-	error = vbox_drm_freeze(ddev);
+	error = vbox_drm_freeze(vbox);
 	if (error)
 		return error;
 
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
+	pci_disable_device(vbox->ddev.pdev);
+	pci_set_power_state(vbox->ddev.pdev, PCI_D3hot);
 
 	return 0;
 }
 
 static int vbox_pm_resume(struct device *dev)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct vbox_private *vbox = dev_get_drvdata(dev);
 
-	return vbox_drm_resume(ddev);
+	return vbox_drm_resume(vbox);
 }
 
 static int vbox_pm_freeze(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *ddev = pci_get_drvdata(pdev);
+	struct vbox_private *vbox = dev_get_drvdata(dev);
 
-	if (!ddev || !ddev->dev_private)
-		return -ENODEV;
-
-	return vbox_drm_freeze(ddev);
+	return vbox_drm_freeze(vbox);
 }
 
 static int vbox_pm_thaw(struct device *dev)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct vbox_private *vbox = dev_get_drvdata(dev);
 
-	return vbox_drm_thaw(ddev);
+	return vbox_drm_thaw(vbox);
 }
 
 static int vbox_pm_poweroff(struct device *dev)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct vbox_private *vbox = dev_get_drvdata(dev);
 
-	return vbox_drm_freeze(ddev);
+	return vbox_drm_freeze(vbox);
 }
 
 static const struct dev_pm_ops vbox_pm_ops = {

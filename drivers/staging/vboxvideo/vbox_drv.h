@@ -75,7 +75,8 @@
 struct vbox_fbdev;
 
 struct vbox_private {
-	struct drm_device *dev;
+	/* Must be first; or we must define our own release callback */
+	struct drm_device ddev;
 
 	u8 __iomem *guest_heap;
 	u8 __iomem *vbva_buffers;
@@ -179,8 +180,8 @@ bool vbox_check_supported(u16 id);
 int vbox_hw_init(struct vbox_private *vbox);
 void vbox_hw_fini(struct vbox_private *vbox);
 
-int vbox_mode_init(struct drm_device *dev);
-void vbox_mode_fini(struct drm_device *dev);
+int vbox_mode_init(struct vbox_private *vbox);
+void vbox_mode_fini(struct vbox_private *vbox);
 
 #define DRM_MODE_FB_CMD drm_mode_fb_cmd2
 #define CRTC_FB(crtc) ((crtc)->primary->fb)
@@ -193,13 +194,13 @@ void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
 				       struct drm_clip_rect *rects,
 				       unsigned int num_rects);
 
-int vbox_framebuffer_init(struct drm_device *dev,
+int vbox_framebuffer_init(struct vbox_private *vbox,
 			  struct vbox_framebuffer *vbox_fb,
 			  const struct DRM_MODE_FB_CMD *mode_cmd,
 			  struct drm_gem_object *obj);
 
-int vbox_fbdev_init(struct drm_device *dev);
-void vbox_fbdev_fini(struct drm_device *dev);
+int vbox_fbdev_init(struct vbox_private *vbox);
+void vbox_fbdev_fini(struct vbox_private *vbox);
 void vbox_fbdev_set_base(struct vbox_private *vbox, unsigned long gpu_addr);
 
 struct vbox_bo {
@@ -234,10 +235,10 @@ int vbox_dumb_mmap_offset(struct drm_file *file,
 int vbox_mm_init(struct vbox_private *vbox);
 void vbox_mm_fini(struct vbox_private *vbox);
 
-int vbox_bo_create(struct drm_device *dev, int size, int align,
+int vbox_bo_create(struct vbox_private *vbox, int size, int align,
 		   u32 flags, struct vbox_bo **pvboxbo);
 
-int vbox_gem_create(struct drm_device *dev,
+int vbox_gem_create(struct vbox_private *vbox,
 		    u32 size, bool iskernel, struct drm_gem_object **obj);
 
 int vbox_bo_pin(struct vbox_bo *bo, u32 pl_flag, u64 *gpu_addr);

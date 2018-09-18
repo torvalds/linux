@@ -155,16 +155,16 @@ static const struct drm_framebuffer_funcs vbox_fb_funcs = {
 	.dirty = vbox_user_framebuffer_dirty,
 };
 
-int vbox_framebuffer_init(struct drm_device *dev,
+int vbox_framebuffer_init(struct vbox_private *vbox,
 			  struct vbox_framebuffer *vbox_fb,
 			  const struct DRM_MODE_FB_CMD *mode_cmd,
 			  struct drm_gem_object *obj)
 {
 	int ret;
 
-	drm_helper_mode_fill_fb_struct(dev, &vbox_fb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(&vbox->ddev, &vbox_fb->base, mode_cmd);
 	vbox_fb->obj = obj;
-	ret = drm_framebuffer_init(dev, &vbox_fb->base, &vbox_fb_funcs);
+	ret = drm_framebuffer_init(&vbox->ddev, &vbox_fb->base, &vbox_fb_funcs);
 	if (ret) {
 		DRM_ERROR("framebuffer init failed %d\n", ret);
 		return ret;
@@ -177,7 +177,7 @@ static int vbox_accel_init(struct vbox_private *vbox)
 {
 	unsigned int i;
 
-	vbox->vbva_info = devm_kcalloc(vbox->dev->dev, vbox->num_crtcs,
+	vbox->vbva_info = devm_kcalloc(vbox->ddev.dev, vbox->num_crtcs,
 				       sizeof(*vbox->vbva_info), GFP_KERNEL);
 	if (!vbox->vbva_info)
 		return -ENOMEM;
@@ -185,7 +185,7 @@ static int vbox_accel_init(struct vbox_private *vbox)
 	/* Take a command buffer for each screen from the end of usable VRAM. */
 	vbox->available_vram_size -= vbox->num_crtcs * VBVA_MIN_BUFFER_SIZE;
 
-	vbox->vbva_buffers = pci_iomap_range(vbox->dev->pdev, 0,
+	vbox->vbva_buffers = pci_iomap_range(vbox->ddev.pdev, 0,
 					     vbox->available_vram_size,
 					     vbox->num_crtcs *
 					     VBVA_MIN_BUFFER_SIZE);
@@ -204,7 +204,7 @@ static int vbox_accel_init(struct vbox_private *vbox)
 static void vbox_accel_fini(struct vbox_private *vbox)
 {
 	vbox_disable_accel(vbox);
-	pci_iounmap(vbox->dev->pdev, vbox->vbva_buffers);
+	pci_iounmap(vbox->ddev.pdev, vbox->vbva_buffers);
 }
 
 /** Do we support the 4.3 plus mode hint reporting interface? */
@@ -253,7 +253,7 @@ int vbox_hw_init(struct vbox_private *vbox)
 
 	/* Map guest-heap at end of vram */
 	vbox->guest_heap =
-	    pci_iomap_range(vbox->dev->pdev, 0, GUEST_HEAP_OFFSET(vbox),
+	    pci_iomap_range(vbox->ddev.pdev, 0, GUEST_HEAP_OFFSET(vbox),
 			    GUEST_HEAP_SIZE);
 	if (!vbox->guest_heap)
 		return -ENOMEM;
@@ -288,7 +288,7 @@ int vbox_hw_init(struct vbox_private *vbox)
 		goto err_destroy_guest_pool;
 	}
 
-	vbox->last_mode_hints = devm_kcalloc(vbox->dev->dev, vbox->num_crtcs,
+	vbox->last_mode_hints = devm_kcalloc(vbox->ddev.dev, vbox->num_crtcs,
 					     sizeof(struct vbva_modehint),
 					     GFP_KERNEL);
 	if (!vbox->last_mode_hints) {
@@ -305,7 +305,7 @@ int vbox_hw_init(struct vbox_private *vbox)
 err_destroy_guest_pool:
 	gen_pool_destroy(vbox->guest_pool);
 err_unmap_guest_heap:
-	pci_iounmap(vbox->dev->pdev, vbox->guest_heap);
+	pci_iounmap(vbox->ddev.pdev, vbox->guest_heap);
 	return ret;
 }
 
@@ -313,7 +313,7 @@ void vbox_hw_fini(struct vbox_private *vbox)
 {
 	vbox_accel_fini(vbox);
 	gen_pool_destroy(vbox->guest_pool);
-	pci_iounmap(vbox->dev->pdev, vbox->guest_heap);
+	pci_iounmap(vbox->ddev.pdev, vbox->guest_heap);
 }
 
 /**
@@ -328,7 +328,7 @@ void vbox_driver_lastclose(struct drm_device *dev)
 		drm_fb_helper_restore_fbdev_mode_unlocked(&vbox->fbdev->helper);
 }
 
-int vbox_gem_create(struct drm_device *dev,
+int vbox_gem_create(struct vbox_private *vbox,
 		    u32 size, bool iskernel, struct drm_gem_object **obj)
 {
 	struct vbox_bo *vboxbo;
@@ -340,7 +340,7 @@ int vbox_gem_create(struct drm_device *dev,
 	if (size == 0)
 		return -EINVAL;
 
-	ret = vbox_bo_create(dev, size, 0, 0, &vboxbo);
+	ret = vbox_bo_create(vbox, size, 0, 0, &vboxbo);
 	if (ret) {
 		if (ret != -ERESTARTSYS)
 			DRM_ERROR("failed to allocate GEM object\n");
@@ -355,14 +355,16 @@ int vbox_gem_create(struct drm_device *dev,
 int vbox_dumb_create(struct drm_file *file,
 		     struct drm_device *dev, struct drm_mode_create_dumb *args)
 {
-	int ret;
+	struct vbox_private *vbox =
+		container_of(dev, struct vbox_private, ddev);
 	struct drm_gem_object *gobj;
 	u32 handle;
+	int ret;
 
 	args->pitch = args->width * ((args->bpp + 7) / 8);
 	args->size = args->pitch * args->height;
 
-	ret = vbox_gem_create(dev, args->size, false, &gobj);
+	ret = vbox_gem_create(vbox, args->size, false, &gobj);
 	if (ret)
 		return ret;
 

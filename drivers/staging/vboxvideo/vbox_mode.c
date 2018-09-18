@@ -179,7 +179,7 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 	 * If so then screen layout can be deduced from the crtc offsets.
 	 * Same fall-back if this is the fbdev frame-buffer.
 	 */
-	list_for_each_entry(crtci, &vbox->dev->mode_config.crtc_list, head) {
+	list_for_each_entry(crtci, &vbox->ddev.mode_config.crtc_list, head) {
 		if (!fb1) {
 			fb1 = CRTC_FB(crtci);
 			if (to_vbox_framebuffer(fb1) == &vbox->fbdev->afb)
@@ -189,7 +189,7 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 		}
 	}
 	if (single_framebuffer) {
-		list_for_each_entry(crtci, &vbox->dev->mode_config.crtc_list,
+		list_for_each_entry(crtci, &vbox->ddev.mode_config.crtc_list,
 				    head) {
 			if (to_vbox_crtc(crtci)->crtc_id != 0)
 				continue;
@@ -202,7 +202,7 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 		}
 	}
 	/* Otherwise calculate the total span of all screens. */
-	list_for_each_entry(connectori, &vbox->dev->mode_config.connector_list,
+	list_for_each_entry(connectori, &vbox->ddev.mode_config.connector_list,
 			    head) {
 		struct vbox_connector *vbox_connector =
 		    to_vbox_connector(connectori);
@@ -285,7 +285,7 @@ static int vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 	if (mode && vbox_set_up_input_mapping(vbox)) {
 		struct drm_crtc *crtci;
 
-		list_for_each_entry(crtci, &vbox->dev->mode_config.crtc_list,
+		list_for_each_entry(crtci, &vbox->ddev.mode_config.crtc_list,
 				    head) {
 			if (crtci == crtc)
 				continue;
@@ -324,8 +324,6 @@ static int vbox_crtc_page_flip(struct drm_crtc *crtc,
 			       uint32_t page_flip_flags,
 			       struct drm_modeset_acquire_ctx *ctx)
 {
-	struct vbox_private *vbox = crtc->dev->dev_private;
-	struct drm_device *drm = vbox->dev;
 	unsigned long flags;
 	int rc;
 
@@ -333,12 +331,12 @@ static int vbox_crtc_page_flip(struct drm_crtc *crtc,
 	if (rc)
 		return rc;
 
-	spin_lock_irqsave(&drm->event_lock, flags);
+	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 
 	if (event)
 		drm_crtc_send_vblank_event(crtc, event);
 
-	spin_unlock_irqrestore(&drm->event_lock, flags);
+	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
 	return 0;
 }
@@ -593,19 +591,19 @@ static int vbox_get_modes(struct drm_connector *connector)
 
 	if (vbox_connector->vbox_crtc->x_hint != -1)
 		drm_object_property_set_value(&connector->base,
-			vbox->dev->mode_config.suggested_x_property,
+			vbox->ddev.mode_config.suggested_x_property,
 			vbox_connector->vbox_crtc->x_hint);
 	else
 		drm_object_property_set_value(&connector->base,
-			vbox->dev->mode_config.suggested_x_property, 0);
+			vbox->ddev.mode_config.suggested_x_property, 0);
 
 	if (vbox_connector->vbox_crtc->y_hint != -1)
 		drm_object_property_set_value(&connector->base,
-			vbox->dev->mode_config.suggested_y_property,
+			vbox->ddev.mode_config.suggested_y_property,
 			vbox_connector->vbox_crtc->y_hint);
 	else
 		drm_object_property_set_value(&connector->base,
-			vbox->dev->mode_config.suggested_y_property, 0);
+			vbox->ddev.mode_config.suggested_y_property, 0);
 
 	return num_modes;
 }
@@ -701,6 +699,8 @@ static struct drm_framebuffer *vbox_user_framebuffer_create(
 		struct drm_file *filp,
 		const struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	struct vbox_private *vbox =
+		container_of(dev, struct vbox_private, ddev);
 	struct drm_gem_object *obj;
 	struct vbox_framebuffer *vbox_fb;
 	int ret = -ENOMEM;
@@ -713,7 +713,7 @@ static struct drm_framebuffer *vbox_user_framebuffer_create(
 	if (!vbox_fb)
 		goto err_unref_obj;
 
-	ret = vbox_framebuffer_init(dev, vbox_fb, mode_cmd, obj);
+	ret = vbox_framebuffer_init(vbox, vbox_fb, mode_cmd, obj);
 	if (ret)
 		goto err_free_vbox_fb;
 
@@ -730,9 +730,9 @@ static const struct drm_mode_config_funcs vbox_mode_funcs = {
 	.fb_create = vbox_user_framebuffer_create,
 };
 
-int vbox_mode_init(struct drm_device *dev)
+int vbox_mode_init(struct vbox_private *vbox)
 {
-	struct vbox_private *vbox = dev->dev_private;
+	struct drm_device *dev = &vbox->ddev;
 	struct drm_encoder *encoder;
 	struct vbox_crtc *vbox_crtc;
 	unsigned int i;
@@ -771,9 +771,9 @@ err_drm_mode_cleanup:
 	return ret;
 }
 
-void vbox_mode_fini(struct drm_device *dev)
+void vbox_mode_fini(struct vbox_private *vbox)
 {
-	drm_mode_config_cleanup(dev);
+	drm_mode_config_cleanup(&vbox->ddev);
 	/* vbox_cursor_fini(dev); */
 }
 
@@ -824,7 +824,7 @@ static int vbox_cursor_set2(struct drm_crtc *crtc, struct drm_file *file_priv,
 
 		/* Hide cursor. */
 		vbox_crtc->cursor_enabled = false;
-		list_for_each_entry(crtci, &vbox->dev->mode_config.crtc_list,
+		list_for_each_entry(crtci, &vbox->ddev.mode_config.crtc_list,
 				    head) {
 			if (to_vbox_crtc(crtci)->cursor_enabled)
 				cursor_enabled = true;

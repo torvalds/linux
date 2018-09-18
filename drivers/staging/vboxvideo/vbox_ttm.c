@@ -169,7 +169,7 @@ static int vbox_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 		return 0;
 	case TTM_PL_VRAM:
 		mem->bus.offset = mem->start << PAGE_SHIFT;
-		mem->bus.base = pci_resource_start(vbox->dev->pdev, 0);
+		mem->bus.base = pci_resource_start(vbox->ddev.pdev, 0);
 		mem->bus.is_iomem = true;
 		break;
 	default:
@@ -224,7 +224,7 @@ static struct ttm_bo_driver vbox_bo_driver = {
 int vbox_mm_init(struct vbox_private *vbox)
 {
 	int ret;
-	struct drm_device *dev = vbox->dev;
+	struct drm_device *dev = &vbox->ddev;
 	struct ttm_bo_device *bdev = &vbox->ttm.bdev;
 
 	ret = vbox_ttm_global_init(vbox);
@@ -269,8 +269,8 @@ void vbox_mm_fini(struct vbox_private *vbox)
 {
 #ifdef DRM_MTRR_WC
 	drm_mtrr_del(vbox->fb_mtrr,
-		     pci_resource_start(vbox->dev->pdev, 0),
-		     pci_resource_len(vbox->dev->pdev, 0), DRM_MTRR_WC);
+		     pci_resource_start(vbox->ddev.pdev, 0),
+		     pci_resource_len(vbox->ddev.pdev, 0), DRM_MTRR_WC);
 #else
 	arch_phys_wc_del(vbox->fb_mtrr);
 #endif
@@ -305,10 +305,9 @@ void vbox_ttm_placement(struct vbox_bo *bo, int domain)
 	}
 }
 
-int vbox_bo_create(struct drm_device *dev, int size, int align,
+int vbox_bo_create(struct vbox_private *vbox, int size, int align,
 		   u32 flags, struct vbox_bo **pvboxbo)
 {
-	struct vbox_private *vbox = dev->dev_private;
 	struct vbox_bo *vboxbo;
 	size_t acc_size;
 	int ret;
@@ -317,7 +316,7 @@ int vbox_bo_create(struct drm_device *dev, int size, int align,
 	if (!vboxbo)
 		return -ENOMEM;
 
-	ret = drm_gem_object_init(dev, &vboxbo->gem, size);
+	ret = drm_gem_object_init(&vbox->ddev, &vboxbo->gem, size);
 	if (ret)
 		goto err_free_vboxbo;
 
