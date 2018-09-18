@@ -147,7 +147,8 @@ static int intel_th_remove(struct device *dev)
 			th->thdev[i] = NULL;
 		}
 
-		th->num_thdevs = lowest;
+		if (lowest >= 0)
+			th->num_thdevs = lowest;
 	}
 
 	if (thdrv->attr_group)
