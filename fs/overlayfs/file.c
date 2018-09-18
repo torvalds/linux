@@ -461,7 +461,7 @@ static ssize_t ovl_copyfile(struct file *file_in, loff_t pos_in,
 		break;
 
 	case OVL_CLONE:
-		ret = vfs_clone_file_range(real_in.file, pos_in,
+		ret = do_clone_file_range(real_in.file, pos_in,
 					   real_out.file, pos_out, len);
 		break;
 
