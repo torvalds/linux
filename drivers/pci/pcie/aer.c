@@ -1367,11 +1367,7 @@ static void aer_remove(struct pcie_device *dev)
 {
 	struct aer_rpc *rpc = get_service_data(dev);
 
-	if (rpc) {
-		aer_disable_rootport(rpc);
-		kfree(rpc);
-		set_service_data(dev, NULL);
-	}
+	aer_disable_rootport(rpc);
 }
 
 /**
@@ -1384,10 +1380,9 @@ static int aer_probe(struct pcie_device *dev)
 {
 	int status;
 	struct aer_rpc *rpc;
-	struct device *device = &dev->port->dev;
+	struct device *device = &dev->device;
 
-	/* Alloc rpc data structure */
-	rpc = kzalloc(sizeof(struct aer_rpc), GFP_KERNEL);
+	rpc = devm_kzalloc(device, sizeof(struct aer_rpc), GFP_KERNEL);
 	if (!rpc) {
 		dev_printk(KERN_DEBUG, device, "alloc AER rpc failed\n");
 		return -ENOMEM;
@@ -1395,13 +1390,11 @@ static int aer_probe(struct pcie_device *dev)
 	rpc->rpd = dev->port;
 	set_service_data(dev, rpc);
 
-	/* Request IRQ ISR */
-	status = request_threaded_irq(dev->irq, aer_irq, aer_isr,
-				      IRQF_SHARED, "aerdrv", dev);
+	status = devm_request_threaded_irq(device, dev->irq, aer_irq, aer_isr,
+					   IRQF_SHARED, "aerdrv", dev);
 	if (status) {
 		dev_printk(KERN_DEBUG, device, "request AER IRQ %d failed\n",
 			   dev->irq);
-		aer_remove(dev);
 		return status;
 	}
 
