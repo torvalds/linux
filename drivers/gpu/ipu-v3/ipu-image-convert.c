@@ -1990,6 +1990,7 @@ ipu_image_convert_prepare(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 	struct ipu_image_convert_chan *chan;
 	struct ipu_image_convert_ctx *ctx;
 	unsigned long flags;
+	unsigned int i;
 	bool get_res;
 	int ret;
 
@@ -2077,15 +2078,37 @@ ipu_image_convert_prepare(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 	 * for every tile, and therefore would have to be updated for
 	 * each buffer which is not possible. So double-buffering is
 	 * impossible when either the source or destination images are
-	 * a planar format (YUV420, YUV422P, etc.).
+	 * a planar format (YUV420, YUV422P, etc.). Further, differently
+	 * sized tiles or different resizing coefficients per tile
+	 * prevent double-buffering as well.
 	 */
 	ctx->double_buffering = (ctx->num_tiles > 1 &&
 				 !s_image->fmt->planar &&
 				 !d_image->fmt->planar);
+	for (i = 1; i < ctx->num_tiles; i++) {
+		if (ctx->in.tile[i].width != ctx->in.tile[0].width ||
+		    ctx->in.tile[i].height != ctx->in.tile[0].height ||
+		    ctx->out.tile[i].width != ctx->out.tile[0].width ||
+		    ctx->out.tile[i].height != ctx->out.tile[0].height) {
+			ctx->double_buffering = false;
+			break;
+		}
+	}
+	for (i = 1; i < ctx->in.num_cols; i++) {
+		if (ctx->resize_coeffs_h[i] != ctx->resize_coeffs_h[0]) {
+			ctx->double_buffering = false;
+			break;
+		}
+	}
+	for (i = 1; i < ctx->in.num_rows; i++) {
+		if (ctx->resize_coeffs_v[i] != ctx->resize_coeffs_v[0]) {
+			ctx->double_buffering = false;
+			break;
+		}
+	}
 
 	if (ipu_rot_mode_is_irt(ctx->rot_mode)) {
 		unsigned long intermediate_size = d_image->tile[0].size;
-		unsigned int i;
 
 		for (i = 1; i < ctx->num_tiles; i++) {
 			if (d_image->tile[i].size > intermediate_size)
