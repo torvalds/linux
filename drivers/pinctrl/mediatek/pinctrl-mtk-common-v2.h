@@ -9,6 +9,8 @@
 #ifndef __PINCTRL_MTK_COMMON_V2_H
 #define __PINCTRL_MTK_COMMON_V2_H
 
+#include <linux/gpio/driver.h>
+
 #define MTK_INPUT      0
 #define MTK_OUTPUT     1
 #define MTK_DISABLE    0

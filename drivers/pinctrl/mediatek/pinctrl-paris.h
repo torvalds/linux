@@ -9,8 +9,6 @@
 #ifndef __PINCTRL_PARIS_H
 #define __PINCTRL_PARIS_H
 
-#include <linux/gpio.h>
-#include <linux/gpio/driver.h>
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/of.h>

@@ -8,6 +8,7 @@
  *
  */
 
+#include <linux/gpio/driver.h>
 #include "pinctrl-moore.h"
 
 #define PINCTRL_PINCTRL_DEV		KBUILD_MODNAME
