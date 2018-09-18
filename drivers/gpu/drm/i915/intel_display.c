@@ -3151,6 +3151,10 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	plane_state->color_plane[0].stride = intel_fb_pitch(fb, 0, rotation);
 	plane_state->color_plane[1].stride = intel_fb_pitch(fb, 1, rotation);
 
+	ret = intel_plane_check_stride(plane_state);
+	if (ret)
+		return ret;
+
 	if (!plane_state->base.visible)
 		return 0;
 
@@ -3286,9 +3290,14 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 	int src_x = plane_state->base.src.x1 >> 16;
 	int src_y = plane_state->base.src.y1 >> 16;
 	u32 offset;
+	int ret;
 
 	intel_fill_fb_ggtt_view(&plane_state->view, fb, rotation);
 	plane_state->color_plane[0].stride = intel_fb_pitch(fb, 0, rotation);
+
+	ret = intel_plane_check_stride(plane_state);
+	if (ret)
+		return ret;
 
 	intel_add_fb_offsets(&src_x, &src_y, plane_state, 0);
 
@@ -9683,9 +9692,14 @@ static int intel_cursor_check_surface(struct intel_plane_state *plane_state)
 	unsigned int rotation = plane_state->base.rotation;
 	int src_x, src_y;
 	u32 offset;
+	int ret;
 
 	intel_fill_fb_ggtt_view(&plane_state->view, fb, rotation);
 	plane_state->color_plane[0].stride = intel_fb_pitch(fb, 0, rotation);
+
+	ret = intel_plane_check_stride(plane_state);
+	if (ret)
+		return ret;
 
 	src_x = plane_state->base.src_x >> 16;
 	src_y = plane_state->base.src_y >> 16;
