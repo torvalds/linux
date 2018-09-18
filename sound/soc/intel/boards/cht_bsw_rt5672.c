@@ -347,7 +347,7 @@ static int cht_suspend_pre(struct snd_soc_card *card)
 	struct snd_soc_component *component;
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(card);
 
-	list_for_each_entry(component, &card->component_dev_list, card_list) {
+	for_each_card_components(card, component) {
 		if (!strncmp(component->name,
 			     ctx->codec_name, sizeof(ctx->codec_name))) {
 
@@ -364,7 +364,7 @@ static int cht_resume_post(struct snd_soc_card *card)
 	struct snd_soc_component *component;
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(card);
 
-	list_for_each_entry(component, &card->component_dev_list, card_list) {
+	for_each_card_components(card, component) {
 		if (!strncmp(component->name,
 			     ctx->codec_name, sizeof(ctx->codec_name))) {
 

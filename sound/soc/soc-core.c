@@ -510,7 +510,7 @@ int snd_soc_suspend(struct device *dev)
 	snd_soc_dapm_sync(&card->dapm);
 
 	/* suspend all COMPONENTs */
-	list_for_each_entry(component, &card->component_dev_list, card_list) {
+	for_each_card_components(card, component) {
 		struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 
 		/* If there are paths active then the COMPONENT will be held with
@@ -602,7 +602,7 @@ static void soc_resume_deferred(struct work_struct *work)
 			cpu_dai->driver->resume(cpu_dai);
 	}
 
-	list_for_each_entry(component, &card->component_dev_list, card_list) {
+	for_each_card_components(card, component) {
 		if (component->suspended) {
 			if (component->driver->resume)
 				component->driver->resume(component);
@@ -1354,6 +1354,7 @@ static int soc_probe_component(struct snd_soc_card *card,
 					component->driver->num_dapm_routes);
 
 	list_add(&dapm->list, &card->dapm_list);
+	/* see for_each_card_components */
 	list_add(&component->card_list, &card->component_dev_list);
 
 	return 0;
