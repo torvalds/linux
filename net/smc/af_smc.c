@@ -1566,9 +1566,9 @@ static __poll_t smc_poll(struct file *file, struct socket *sock,
 				mask |= EPOLLIN | EPOLLRDNORM | EPOLLRDHUP;
 			if (sk->sk_state == SMC_APPCLOSEWAIT1)
 				mask |= EPOLLIN;
+			if (smc->conn.urg_state == SMC_URG_VALID)
+				mask |= EPOLLPRI;
 		}
-		if (smc->conn.urg_state == SMC_URG_VALID)
-			mask |= EPOLLPRI;
 	}
 
 	return mask;
