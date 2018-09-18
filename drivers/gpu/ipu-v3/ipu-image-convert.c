@@ -1915,10 +1915,18 @@ void ipu_image_convert_adjust(struct ipu_image *in, struct ipu_image *out,
 	out->pix.height = clamp_align(out->pix.height, MIN_H, MAX_H, h_align);
 
 	/* set input/output strides and image sizes */
-	in->pix.bytesperline = (in->pix.width * infmt->bpp) >> 3;
-	in->pix.sizeimage = in->pix.height * in->pix.bytesperline;
-	out->pix.bytesperline = (out->pix.width * outfmt->bpp) >> 3;
-	out->pix.sizeimage = out->pix.height * out->pix.bytesperline;
+	in->pix.bytesperline = infmt->planar ?
+		clamp_align(in->pix.width, 2 << w_align, MAX_W, w_align) :
+		clamp_align((in->pix.width * infmt->bpp) >> 3,
+			    2 << w_align, MAX_W, w_align);
+	in->pix.sizeimage = infmt->planar ?
+		(in->pix.height * in->pix.bytesperline * infmt->bpp) >> 3 :
+		in->pix.height * in->pix.bytesperline;
+	out->pix.bytesperline = outfmt->planar ? out->pix.width :
+		(out->pix.width * outfmt->bpp) >> 3;
+	out->pix.sizeimage = outfmt->planar ?
+		(out->pix.height * out->pix.bytesperline * outfmt->bpp) >> 3 :
+		out->pix.height * out->pix.bytesperline;
 }
 EXPORT_SYMBOL_GPL(ipu_image_convert_adjust);
 
