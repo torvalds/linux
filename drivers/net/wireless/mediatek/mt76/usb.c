@@ -383,9 +383,9 @@ static int mt76u_get_rx_entry_len(u8 *data, u32 data_len)
 	min_len = MT_DMA_HDR_LEN + MT_RX_RXWI_LEN +
 		  MT_FCE_INFO_LEN;
 
-	if (data_len < min_len || WARN_ON(!dma_len) ||
-	    WARN_ON(dma_len + MT_DMA_HDR_LEN > data_len) ||
-	    WARN_ON(dma_len & 0x3))
+	if (data_len < min_len || !dma_len ||
+	    dma_len + MT_DMA_HDR_LEN > data_len ||
+	    (dma_len & 0x3))
 		return -EINVAL;
 	return dma_len;
 }
