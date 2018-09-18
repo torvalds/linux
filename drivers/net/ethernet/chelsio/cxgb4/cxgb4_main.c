@@ -62,7 +62,6 @@
 #include <net/netevent.h>
 #include <net/addrconf.h>
 #include <net/bonding.h>
-#include <net/addrconf.h>
 #include <linux/uaccess.h>
 #include <linux/crash_dump.h>
 #include <net/udp_tunnel.h>
