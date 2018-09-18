@@ -749,7 +749,6 @@ static bool rt5682_readable_register(struct device *dev, unsigned int reg)
 	}
 }
 
-static const DECLARE_TLV_DB_SCALE(hp_vol_tlv, -2250, 150, 0);
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -6525, 75, 0);
 static const DECLARE_TLV_DB_SCALE(adc_vol_tlv, -1725, 75, 0);
 static const DECLARE_TLV_DB_SCALE(adc_bst_tlv, 0, 1200, 0);
@@ -1108,10 +1107,6 @@ static void rt5682_jack_detect_handler(struct work_struct *work)
 }
 
 static const struct snd_kcontrol_new rt5682_snd_controls[] = {
-	/* Headphone Output Volume */
-	SOC_DOUBLE_R_TLV("Headphone Playback Volume", RT5682_HPL_GAIN,
-		RT5682_HPR_GAIN, RT5682_G_HP_SFT, 15, 1, hp_vol_tlv),
-
 	/* DAC Digital Volume */
 	SOC_DOUBLE_TLV("DAC1 Playback Volume", RT5682_DAC1_DIG_VOL,
 		RT5682_L_VOL_SFT + 1, RT5682_R_VOL_SFT + 1, 86, 0, dac_vol_tlv),
