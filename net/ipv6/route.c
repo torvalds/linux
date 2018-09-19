@@ -2071,7 +2071,8 @@ struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
 {
 	bool any_src;
 
-	if (rt6_need_strict(&fl6->daddr)) {
+	if (ipv6_addr_type(&fl6->daddr) &
+	    (IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL)) {
 		struct dst_entry *dst;
 
 		dst = l3mdev_link_scope_lookup(net, fl6);

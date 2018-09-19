@@ -997,6 +997,7 @@ ipv6_add_addr(struct inet6_dev *idev, struct ifa6_config *cfg,
 	if (addr_type == IPV6_ADDR_ANY ||
 	    addr_type & IPV6_ADDR_MULTICAST ||
 	    (!(idev->dev->flags & IFF_LOOPBACK) &&
+	     !netif_is_l3_master(idev->dev) &&
 	     addr_type & IPV6_ADDR_LOOPBACK))
 		return ERR_PTR(-EADDRNOTAVAIL);
 
