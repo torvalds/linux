@@ -999,14 +999,24 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 	__set_pmd_pte(kpte, address, mk_pte(base, __pgprot(_KERNPG_TABLE)));
 
 	/*
-	 * Intel Atom errata AAH41 workaround.
+	 * Do a global flush tlb after splitting the large page
+	 * and before we do the actual change page attribute in the PTE.
 	 *
-	 * The real fix should be in hw or in a microcode update, but
-	 * we also probabilistically try to reduce the window of having
-	 * a large TLB mixed with 4K TLBs while instruction fetches are
-	 * going on.
+	 * Without this, we violate the TLB application note, that says:
+	 * "The TLBs may contain both ordinary and large-page
+	 *  translations for a 4-KByte range of linear addresses. This
+	 *  may occur if software modifies the paging structures so that
+	 *  the page size used for the address range changes. If the two
+	 *  translations differ with respect to page frame or attributes
+	 *  (e.g., permissions), processor behavior is undefined and may
+	 *  be implementation-specific."
+	 *
+	 * We do this global tlb flush inside the cpa_lock, so that we
+	 * don't allow any other cpu, with stale tlb entries change the
+	 * page attribute in parallel, that also falls into the
+	 * just split large page entry.
 	 */
-	__flush_tlb_all();
+	flush_tlb_all();
 	spin_unlock(&pgd_lock);
 
 	return 0;
@@ -1531,28 +1541,8 @@ repeat:
 	 * We have to split the large page:
 	 */
 	err = split_large_page(cpa, kpte, address);
-	if (!err) {
-		/*
-		 * Do a global flush tlb after splitting the large page
-		 * and before we do the actual change page attribute in the PTE.
-		 *
-		 * With out this, we violate the TLB application note, that says
-		 * "The TLBs may contain both ordinary and large-page
-		 *  translations for a 4-KByte range of linear addresses. This
-		 *  may occur if software modifies the paging structures so that
-		 *  the page size used for the address range changes. If the two
-		 *  translations differ with respect to page frame or attributes
-		 *  (e.g., permissions), processor behavior is undefined and may
-		 *  be implementation-specific."
-		 *
-		 * We do this global tlb flush inside the cpa_lock, so that we
-		 * don't allow any other cpu, with stale tlb entries change the
-		 * page attribute in parallel, that also falls into the
-		 * just split large page entry.
-		 */
-		flush_tlb_all();
+	if (!err)
 		goto repeat;
-	}
 
 	return err;
 }
