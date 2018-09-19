@@ -11,11 +11,11 @@ struct perf_sample;
 union perf_event;
 struct perf_tool;
 struct thread;
-struct plugin_list;
+struct tep_plugin_list;
 
 struct trace_event {
 	struct tep_handle	*pevent;
-	struct plugin_list	*plugin_list;
+	struct tep_plugin_list	*plugin_list;
 };
 
 int trace_event__init(struct trace_event *t);
