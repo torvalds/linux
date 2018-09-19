@@ -3274,10 +3274,18 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 
 	if (!s->tv_state)
 		return;
-
+	/*
+	 * The BCSH only need to config once except one of the following
+	 * condition changed:
+	 *   1. tv_state: include brightness,contrast,saturation and hue;
+	 *   2. yuv_overlay: it is related to BCSH r2y module;
+	 *   3. mode_update: it is indicate mode change and resume from suspend;
+	 *   4. bcsh_en: control the BCSH module enable or disable state;
+	 *   5. bus_format: it is related to BCSH y2r module;
+	 */
 	if (!memcmp(s->tv_state,
 		    &vop->active_tv_state, sizeof(*s->tv_state)) &&
-	    s->yuv_overlay == old_s->yuv_overlay &&
+	    s->yuv_overlay == old_s->yuv_overlay && vop->mode_update &&
 	    s->bcsh_en == old_s->bcsh_en && s->bus_format == old_s->bus_format)
 		return;
 
