@@ -686,37 +686,41 @@ TRACE_EVENT(dpu_crtc_setup_mixer,
 	TP_STRUCT__entry(
 		__field(	uint32_t,		crtc_id		)
 		__field(	uint32_t,		plane_id	)
-		__field(	struct drm_plane_state*,state		)
-		__field(	struct dpu_plane_state*,pstate		)
+		__field(	uint32_t,		fb_id		)
+		__field_struct(	struct drm_rect,	src_rect	)
+		__field_struct(	struct drm_rect,	dst_rect	)
 		__field(	uint32_t,		stage_idx	)
+		__field(	enum dpu_stage,		stage		)
 		__field(	enum dpu_sspp,		sspp		)
+		__field(	uint32_t,		multirect_idx	)
+		__field(	uint32_t,		multirect_mode	)
 		__field(	uint32_t,		pixel_format	)
 		__field(	uint64_t,		modifier	)
 	),
 	TP_fast_assign(
 		__entry->crtc_id = crtc_id;
 		__entry->plane_id = plane_id;
-		__entry->state = state;
-		__entry->pstate = pstate;
+		__entry->fb_id = state ? state->fb->base.id : 0;
+		__entry->src_rect = drm_plane_state_src(state);
+		__entry->dst_rect = drm_plane_state_dest(state);
 		__entry->stage_idx = stage_idx;
+		__entry->stage = pstate->stage;
 		__entry->sspp = sspp;
+		__entry->multirect_idx = pstate->multirect_index;
+		__entry->multirect_mode = pstate->multirect_mode;
 		__entry->pixel_format = pixel_format;
 		__entry->modifier = modifier;
 	),
-	TP_printk("crtc_id:%u plane_id:%u fb_id:%u src:{%ux%u+%ux%u} "
-		  "dst:{%ux%u+%ux%u} stage_idx:%u stage:%d, sspp:%d "
+	TP_printk("crtc_id:%u plane_id:%u fb_id:%u src:" DRM_RECT_FP_FMT
+		  " dst:" DRM_RECT_FMT " stage_idx:%u stage:%d, sspp:%d "
 		  "multirect_index:%d multirect_mode:%u pix_format:%u "
 		  "modifier:%llu",
-		  __entry->crtc_id, __entry->plane_id,
-		  __entry->state->fb ? __entry->state->fb->base.id : -1,
-		  __entry->state->src_w >> 16,  __entry->state->src_h >> 16,
-		  __entry->state->src_x >> 16,  __entry->state->src_y >> 16,
-		  __entry->state->crtc_w,  __entry->state->crtc_h,
-		  __entry->state->crtc_x,  __entry->state->crtc_y,
-		  __entry->stage_idx, __entry->pstate->stage, __entry->sspp,
-		  __entry->pstate->multirect_index,
-		  __entry->pstate->multirect_mode, __entry->pixel_format,
-		  __entry->modifier)
+		  __entry->crtc_id, __entry->plane_id, __entry->fb_id,
+		  DRM_RECT_FP_ARG(&__entry->src_rect),
+		  DRM_RECT_ARG(&__entry->dst_rect),
+		  __entry->stage_idx, __entry->stage, __entry->sspp,
+		  __entry->multirect_idx, __entry->multirect_mode,
+		  __entry->pixel_format, __entry->modifier)
 );
 
 TRACE_EVENT(dpu_crtc_setup_lm_bounds,
@@ -725,15 +729,15 @@ TRACE_EVENT(dpu_crtc_setup_lm_bounds,
 	TP_STRUCT__entry(
 		__field(	uint32_t,		drm_id	)
 		__field(	int,			mixer	)
-		__field(	struct drm_rect *,	bounds	)
+		__field_struct(	struct drm_rect,	bounds	)
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
 		__entry->mixer = mixer;
-		__entry->bounds = bounds;
+		__entry->bounds = *bounds;
 	),
 	TP_printk("id:%u mixer:%d bounds:" DRM_RECT_FMT, __entry->drm_id,
-		  __entry->mixer, DRM_RECT_ARG(__entry->bounds))
+		  __entry->mixer, DRM_RECT_ARG(&__entry->bounds))
 );
 
 TRACE_EVENT(dpu_crtc_vblank_enable,
@@ -744,21 +748,25 @@ TRACE_EVENT(dpu_crtc_vblank_enable,
 		__field(	uint32_t,		drm_id	)
 		__field(	uint32_t,		enc_id	)
 		__field(	bool,			enable	)
-		__field(	struct dpu_crtc *,	crtc	)
+		__field(	bool,			enabled )
+		__field(	bool,			suspend )
+		__field(	bool,			vblank_requested )
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
 		__entry->enc_id = enc_id;
 		__entry->enable = enable;
-		__entry->crtc = crtc;
+		__entry->enabled = crtc->enabled;
+		__entry->suspend = crtc->suspend;
+		__entry->vblank_requested = crtc->vblank_requested;
 	),
 	TP_printk("id:%u encoder:%u enable:%s state{enabled:%s suspend:%s "
 		  "vblank_req:%s}",
 		  __entry->drm_id, __entry->enc_id,
 		  __entry->enable ? "true" : "false",
-		  __entry->crtc->enabled ? "true" : "false",
-		  __entry->crtc->suspend ? "true" : "false",
-		  __entry->crtc->vblank_requested ? "true" : "false")
+		  __entry->enabled ? "true" : "false",
+		  __entry->suspend ? "true" : "false",
+		  __entry->vblank_requested ? "true" : "false")
 );
 
 DECLARE_EVENT_CLASS(dpu_crtc_enable_template,
@@ -767,18 +775,22 @@ DECLARE_EVENT_CLASS(dpu_crtc_enable_template,
 	TP_STRUCT__entry(
 		__field(	uint32_t,		drm_id	)
 		__field(	bool,			enable	)
-		__field(	struct dpu_crtc *,	crtc	)
+		__field(	bool,			enabled )
+		__field(	bool,			suspend )
+		__field(	bool,			vblank_requested )
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
 		__entry->enable = enable;
-		__entry->crtc = crtc;
+		__entry->enabled = crtc->enabled;
+		__entry->suspend = crtc->suspend;
+		__entry->vblank_requested = crtc->vblank_requested;
 	),
 	TP_printk("id:%u enable:%s state{enabled:%s suspend:%s vblank_req:%s}",
 		  __entry->drm_id, __entry->enable ? "true" : "false",
-		  __entry->crtc->enabled ? "true" : "false",
-		  __entry->crtc->suspend ? "true" : "false",
-		  __entry->crtc->vblank_requested ? "true" : "false")
+		  __entry->enabled ? "true" : "false",
+		  __entry->suspend ? "true" : "false",
+		  __entry->vblank_requested ? "true" : "false")
 );
 DEFINE_EVENT(dpu_crtc_enable_template, dpu_crtc_set_suspend,
 	TP_PROTO(uint32_t drm_id, bool enable, struct dpu_crtc *crtc),
@@ -818,24 +830,24 @@ TRACE_EVENT(dpu_plane_set_scanout,
 	TP_ARGS(index, layout, multirect_index),
 	TP_STRUCT__entry(
 		__field(	enum dpu_sspp,			index	)
-		__field(	struct dpu_hw_fmt_layout*,	layout	)
+		__field_struct(	struct dpu_hw_fmt_layout,	layout	)
 		__field(	enum dpu_sspp_multirect_index,	multirect_index)
 	),
 	TP_fast_assign(
 		__entry->index = index;
-		__entry->layout = layout;
+		__entry->layout = *layout;
 		__entry->multirect_index = multirect_index;
 	),
 	TP_printk("index:%d layout:{%ux%u @ [%u/%u, %u/%u, %u/%u, %u/%u]} "
-		  "multirect_index:%d", __entry->index, __entry->layout->width,
-		  __entry->layout->height, __entry->layout->plane_addr[0],
-		  __entry->layout->plane_size[0],
-		  __entry->layout->plane_addr[1],
-		  __entry->layout->plane_size[1],
-		  __entry->layout->plane_addr[2],
-		  __entry->layout->plane_size[2],
-		  __entry->layout->plane_addr[3],
-		  __entry->layout->plane_size[3], __entry->multirect_index)
+		  "multirect_index:%d", __entry->index, __entry->layout.width,
+		  __entry->layout.height, __entry->layout.plane_addr[0],
+		  __entry->layout.plane_size[0],
+		  __entry->layout.plane_addr[1],
+		  __entry->layout.plane_size[1],
+		  __entry->layout.plane_addr[2],
+		  __entry->layout.plane_size[2],
+		  __entry->layout.plane_addr[3],
+		  __entry->layout.plane_size[3], __entry->multirect_index)
 );
 
 TRACE_EVENT(dpu_plane_disable,
@@ -979,16 +991,16 @@ TRACE_EVENT(dpu_core_perf_update_clk,
 	TP_PROTO(struct drm_device *dev, bool stop_req, u64 clk_rate),
 	TP_ARGS(dev, stop_req, clk_rate),
 	TP_STRUCT__entry(
-		__field(	struct drm_device *,	dev		)
+		__string(	dev_name,		dev->unique	)
 		__field(	bool,			stop_req	)
 		__field(	u64,			clk_rate	)
 	),
 	TP_fast_assign(
-		__entry->dev = dev;
+		__assign_str(dev_name, dev->unique);
 		__entry->stop_req = stop_req;
 		__entry->clk_rate = clk_rate;
 	),
-	TP_printk("dev:%s stop_req:%s clk_rate:%llu", __entry->dev->unique,
+	TP_printk("dev:%s stop_req:%s clk_rate:%llu", __get_str(dev_name),
 		  __entry->stop_req ? "true" : "false", __entry->clk_rate)
 );
 
