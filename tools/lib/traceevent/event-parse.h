@@ -768,29 +768,29 @@ void tep_print_printk(struct tep_handle *pevent);
 
 /* ----------------------- filtering ----------------------- */
 
-enum filter_boolean_type {
-	FILTER_FALSE,
-	FILTER_TRUE,
+enum tep_filter_boolean_type {
+	TEP_FILTER_FALSE,
+	TEP_FILTER_TRUE,
 };
 
-enum filter_op_type {
-	FILTER_OP_AND = 1,
-	FILTER_OP_OR,
-	FILTER_OP_NOT,
+enum tep_filter_op_type {
+	TEP_FILTER_OP_AND = 1,
+	TEP_FILTER_OP_OR,
+	TEP_FILTER_OP_NOT,
 };
 
-enum filter_cmp_type {
-	FILTER_CMP_NONE,
-	FILTER_CMP_EQ,
-	FILTER_CMP_NE,
-	FILTER_CMP_GT,
-	FILTER_CMP_LT,
-	FILTER_CMP_GE,
-	FILTER_CMP_LE,
-	FILTER_CMP_MATCH,
-	FILTER_CMP_NOT_MATCH,
-	FILTER_CMP_REGEX,
-	FILTER_CMP_NOT_REGEX,
+enum tep_filter_cmp_type {
+	TEP_FILTER_CMP_NONE,
+	TEP_FILTER_CMP_EQ,
+	TEP_FILTER_CMP_NE,
+	TEP_FILTER_CMP_GT,
+	TEP_FILTER_CMP_LT,
+	TEP_FILTER_CMP_GE,
+	TEP_FILTER_CMP_LE,
+	TEP_FILTER_CMP_MATCH,
+	TEP_FILTER_CMP_NOT_MATCH,
+	TEP_FILTER_CMP_REGEX,
+	TEP_FILTER_CMP_NOT_REGEX,
 };
 
 enum filter_exp_type {
@@ -828,7 +828,7 @@ enum filter_value_type {
 struct fliter_arg;
 
 struct filter_arg_boolean {
-	enum filter_boolean_type	value;
+	enum tep_filter_boolean_type	value;
 };
 
 struct filter_arg_field {
@@ -844,7 +844,7 @@ struct filter_arg_value {
 };
 
 struct filter_arg_op {
-	enum filter_op_type	type;
+	enum tep_filter_op_type	type;
 	struct filter_arg	*left;
 	struct filter_arg	*right;
 };
@@ -856,13 +856,13 @@ struct filter_arg_exp {
 };
 
 struct filter_arg_num {
-	enum filter_cmp_type	type;
+	enum tep_filter_cmp_type	type;
 	struct filter_arg	*left;
 	struct filter_arg	*right;
 };
 
 struct filter_arg_str {
-	enum filter_cmp_type	type;
+	enum tep_filter_cmp_type	type;
 	struct tep_format_field	*field;
 	char			*val;
 	char			*buffer;
