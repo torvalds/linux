@@ -344,6 +344,7 @@ static void __unwind_incomplete_requests(struct intel_engine_cs *engine)
 			last_prio = rq_prio(rq);
 			p = lookup_priolist(engine, last_prio);
 		}
+		GEM_BUG_ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
 
 		GEM_BUG_ON(p->priority != rq_prio(rq));
 		list_add(&rq->sched.link, &p->requests);
