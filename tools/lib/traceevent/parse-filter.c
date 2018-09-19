@@ -26,7 +26,7 @@ static struct format_field cpu = {
 
 struct event_list {
 	struct event_list	*next;
-	struct event_format	*event;
+	struct tep_event_format	*event;
 };
 
 static void show_error(char *error_buf, const char *fmt, ...)
@@ -228,7 +228,7 @@ static void free_arg(struct filter_arg *arg)
 }
 
 static int add_event(struct event_list **events,
-		      struct event_format *event)
+		     struct tep_event_format *event)
 {
 	struct event_list *list;
 
@@ -242,7 +242,7 @@ static int add_event(struct event_list **events,
 	return 0;
 }
 
-static int event_match(struct event_format *event,
+static int event_match(struct tep_event_format *event,
 		       regex_t *sreg, regex_t *ereg)
 {
 	if (sreg) {
@@ -258,7 +258,7 @@ static enum tep_errno
 find_event(struct tep_handle *pevent, struct event_list **events,
 	   char *sys_name, char *event_name)
 {
-	struct event_format *event;
+	struct tep_event_format *event;
 	regex_t ereg;
 	regex_t sreg;
 	int match = 0;
@@ -333,7 +333,7 @@ static void free_events(struct event_list *events)
 }
 
 static enum tep_errno
-create_arg_item(struct event_format *event, const char *token,
+create_arg_item(struct tep_event_format *event, const char *token,
 		enum event_type type, struct filter_arg **parg, char *error_str)
 {
 	struct format_field *field;
@@ -939,7 +939,7 @@ static int collapse_tree(struct filter_arg *arg,
 }
 
 static enum tep_errno
-process_filter(struct event_format *event, struct filter_arg **parg,
+process_filter(struct tep_event_format *event, struct filter_arg **parg,
 	       char *error_str, int not)
 {
 	enum event_type type;
@@ -1179,7 +1179,7 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 }
 
 static enum tep_errno
-process_event(struct event_format *event, const char *filter_str,
+process_event(struct tep_event_format *event, const char *filter_str,
 	      struct filter_arg **parg, char *error_str)
 {
 	int ret;
@@ -1204,7 +1204,7 @@ process_event(struct event_format *event, const char *filter_str,
 }
 
 static enum tep_errno
-filter_event(struct event_filter *filter, struct event_format *event,
+filter_event(struct event_filter *filter, struct tep_event_format *event,
 	     const char *filter_str, char *error_str)
 {
 	struct filter_type *filter_type;
@@ -1456,7 +1456,7 @@ static int copy_filter_type(struct event_filter *filter,
 			     struct filter_type *filter_type)
 {
 	struct filter_arg *arg;
-	struct event_format *event;
+	struct tep_event_format *event;
 	const char *sys;
 	const char *name;
 	char *str;
@@ -1538,7 +1538,7 @@ int tep_update_trivial(struct event_filter *dest, struct event_filter *source,
 {
 	struct tep_handle *src_pevent;
 	struct tep_handle *dest_pevent;
-	struct event_format *event;
+	struct tep_event_format *event;
 	struct filter_type *filter_type;
 	struct filter_arg *arg;
 	char *str;
@@ -1682,11 +1682,11 @@ int tep_filter_event_has_trivial(struct event_filter *filter,
 	}
 }
 
-static int test_filter(struct event_format *event, struct filter_arg *arg,
+static int test_filter(struct tep_event_format *event, struct filter_arg *arg,
 		       struct tep_record *record, enum tep_errno *err);
 
 static const char *
-get_comm(struct event_format *event, struct tep_record *record)
+get_comm(struct tep_event_format *event, struct tep_record *record)
 {
 	const char *comm;
 	int pid;
@@ -1697,7 +1697,7 @@ get_comm(struct event_format *event, struct tep_record *record)
 }
 
 static unsigned long long
-get_value(struct event_format *event,
+get_value(struct tep_event_format *event,
 	  struct format_field *field, struct tep_record *record)
 {
 	unsigned long long val;
@@ -1733,11 +1733,11 @@ get_value(struct event_format *event,
 }
 
 static unsigned long long
-get_arg_value(struct event_format *event, struct filter_arg *arg,
+get_arg_value(struct tep_event_format *event, struct filter_arg *arg,
 	      struct tep_record *record, enum tep_errno *err);
 
 static unsigned long long
-get_exp_value(struct event_format *event, struct filter_arg *arg,
+get_exp_value(struct tep_event_format *event, struct filter_arg *arg,
 	      struct tep_record *record, enum tep_errno *err)
 {
 	unsigned long long lval, rval;
@@ -1792,7 +1792,7 @@ get_exp_value(struct event_format *event, struct filter_arg *arg,
 }
 
 static unsigned long long
-get_arg_value(struct event_format *event, struct filter_arg *arg,
+get_arg_value(struct tep_event_format *event, struct filter_arg *arg,
 	      struct tep_record *record, enum tep_errno *err)
 {
 	switch (arg->type) {
@@ -1816,7 +1816,7 @@ get_arg_value(struct event_format *event, struct filter_arg *arg,
 	return 0;
 }
 
-static int test_num(struct event_format *event, struct filter_arg *arg,
+static int test_num(struct tep_event_format *event, struct filter_arg *arg,
 		    struct tep_record *record, enum tep_errno *err)
 {
 	unsigned long long lval, rval;
@@ -1859,7 +1859,7 @@ static int test_num(struct event_format *event, struct filter_arg *arg,
 
 static const char *get_field_str(struct filter_arg *arg, struct tep_record *record)
 {
-	struct event_format *event;
+	struct tep_event_format *event;
 	struct tep_handle *pevent;
 	unsigned long long addr;
 	const char *val = NULL;
@@ -1907,7 +1907,7 @@ static const char *get_field_str(struct filter_arg *arg, struct tep_record *reco
 	return val;
 }
 
-static int test_str(struct event_format *event, struct filter_arg *arg,
+static int test_str(struct tep_event_format *event, struct filter_arg *arg,
 		    struct tep_record *record, enum tep_errno *err)
 {
 	const char *val;
@@ -1938,7 +1938,7 @@ static int test_str(struct event_format *event, struct filter_arg *arg,
 	}
 }
 
-static int test_op(struct event_format *event, struct filter_arg *arg,
+static int test_op(struct tep_event_format *event, struct filter_arg *arg,
 		   struct tep_record *record, enum tep_errno *err)
 {
 	switch (arg->op.type) {
@@ -1960,7 +1960,7 @@ static int test_op(struct event_format *event, struct filter_arg *arg,
 	}
 }
 
-static int test_filter(struct event_format *event, struct filter_arg *arg,
+static int test_filter(struct tep_event_format *event, struct filter_arg *arg,
 		       struct tep_record *record, enum tep_errno *err)
 {
 	if (*err) {

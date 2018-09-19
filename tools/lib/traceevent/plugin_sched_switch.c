@@ -67,7 +67,7 @@ static void write_and_save_comm(struct format_field *field,
 
 static int sched_wakeup_handler(struct trace_seq *s,
 				struct tep_record *record,
-				struct event_format *event, void *context)
+				struct tep_event_format *event, void *context)
 {
 	struct format_field *field;
 	unsigned long long val;
@@ -96,7 +96,7 @@ static int sched_wakeup_handler(struct trace_seq *s,
 
 static int sched_switch_handler(struct trace_seq *s,
 				struct tep_record *record,
-				struct event_format *event, void *context)
+				struct tep_event_format *event, void *context)
 {
 	struct format_field *field;
 	unsigned long long val;
