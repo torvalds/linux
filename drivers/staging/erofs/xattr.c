@@ -109,6 +109,13 @@ static int init_inode_xattrs(struct inode *inode)
 	return 0;
 }
 
+/*
+ * the general idea for these return values is
+ * if    0 is returned, go on processing the current xattr;
+ *       1 (> 0) is returned, skip this round to process the next xattr;
+ *    -err (< 0) is returned, an error (maybe ENOXATTR) occurred
+ *                            and need to be handled
+ */
 struct xattr_iter_handlers {
 	int (*entry)(struct xattr_iter *, struct erofs_xattr_entry *);
 	int (*name)(struct xattr_iter *, unsigned int, char *, unsigned int);
@@ -164,6 +171,10 @@ static int inline_xattr_iter_begin(struct xattr_iter *it,
 	return vi->xattr_isize - xattr_header_sz;
 }
 
+/*
+ * Regardless of success or failure, `xattr_foreach' will end up with
+ * `ofs' pointing to the next xattr item rather than an arbitrary position.
+ */
 static int xattr_foreach(struct xattr_iter *it,
 	const struct xattr_iter_handlers *op, unsigned int *tlimit)
 {
@@ -255,7 +266,7 @@ static int xattr_foreach(struct xattr_iter *it,
 	}
 
 out:
-	/* we assume that ofs is aligned with 4 bytes */
+	/* xattrs should be 4-byte aligned (on-disk constraint) */
 	it->ofs = EROFS_XATTR_ALIGN(it->ofs);
 	return err;
 }
