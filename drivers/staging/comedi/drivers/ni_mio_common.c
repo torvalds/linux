@@ -2464,6 +2464,7 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 
 	if (insn->n < 1)
@@ -2498,6 +2499,15 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 			}
 		}
 		return 2;
+	case INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS:
+		/* we don't care about actual channels */
+		/* data[3] : chanlist_len */
+		data[1] = ni_min_ai_scan_period_ns(dev, data[3]);
+		if (devpriv->is_611x || devpriv->is_6143)
+			data[2] = 0; /* simultaneous output */
+		else
+			data[2] = board->ai_speed;
+		return 0;
 	default:
 		break;
 	}
@@ -2834,6 +2844,11 @@ static int ni_ao_insn_config(struct comedi_device *dev,
 		return 0;
 	case INSN_CONFIG_ARM:
 		return ni_ao_arm(dev, s);
+	case INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS:
+		/* we don't care about actual channels */
+		data[1] = board->ao_speed;
+		data[2] = 0;
+		return 0;
 	default:
 		break;
 	}
@@ -3474,6 +3489,15 @@ static int ni_m_series_dio_insn_config(struct comedi_device *dev,
 				       unsigned int *data)
 {
 	int ret;
+
+	if (data[0] == INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS) {
+		const struct ni_board_struct *board = dev->board_ptr;
+
+		/* we don't care about actual channels */
+		data[1] = board->dio_speed;
+		data[2] = 0;
+		return 0;
+	}
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
 	if (ret)

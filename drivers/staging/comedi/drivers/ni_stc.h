@@ -953,6 +953,7 @@ struct ni_board_struct {
 	int reg_type;
 	unsigned int has_8255:1;
 	unsigned int has_32dio_chan:1;
+	unsigned int dio_speed; /* not for e-series */
 
 	enum caldac_enum caldac[3];
 };
