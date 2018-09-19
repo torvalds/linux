@@ -145,10 +145,14 @@ char *erofs_fault_name[FAULT_MAX] = {
 	[FAULT_KMALLOC]		= "kmalloc",
 };
 
-static void erofs_build_fault_attr(struct erofs_sb_info *sbi,
-						unsigned int rate)
+static int erofs_build_fault_attr(struct erofs_sb_info *sbi,
+				  substring_t *args)
 {
 	struct erofs_fault_info *ffi = &sbi->fault_info;
+	int rate = 0;
+
+	if (args->from && match_int(args, &rate))
+		return -EINVAL;
 
 	if (rate) {
 		atomic_set(&ffi->inject_ops, 0);
@@ -157,6 +161,16 @@ static void erofs_build_fault_attr(struct erofs_sb_info *sbi,
 	} else {
 		memset(ffi, 0, sizeof(struct erofs_fault_info));
 	}
+
+	set_opt(sbi, FAULT_INJECTION);
+	return 0;
+}
+#else
+static int erofs_build_fault_attr(struct erofs_sb_info *sbi,
+				  substring_t *args)
+{
+	infoln("fault_injection options not supported");
+	return 0;
 }
 #endif
 
@@ -198,7 +212,7 @@ static int parse_options(struct super_block *sb, char *options)
 {
 	substring_t args[MAX_OPT_ARGS];
 	char *p;
-	int arg = 0;
+	int err;
 
 	if (!options)
 		return 0;
@@ -243,18 +257,12 @@ static int parse_options(struct super_block *sb, char *options)
 			infoln("noacl options not supported");
 			break;
 #endif
-#ifdef CONFIG_EROFS_FAULT_INJECTION
 		case Opt_fault_injection:
-			if (args->from && match_int(args, &arg))
-				return -EINVAL;
-			erofs_build_fault_attr(EROFS_SB(sb), arg);
-			set_opt(EROFS_SB(sb), FAULT_INJECTION);
+			err = erofs_build_fault_attr(EROFS_SB(sb), args);
+			if (err)
+				return err;
 			break;
-#else
-		case Opt_fault_injection:
-			infoln("fault_injection options not supported");
-			break;
-#endif
+
 		default:
 			errln("Unrecognized mount option \"%s\" "
 					"or missing value", p);
