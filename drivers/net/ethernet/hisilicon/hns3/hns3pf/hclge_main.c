@@ -24,8 +24,6 @@
 #define HCLGE_NAME			"hclge"
 #define HCLGE_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
 #define HCLGE_MAC_STATS_FIELD_OFF(f) (offsetof(struct hclge_mac_stats, f))
-#define HCLGE_64BIT_STATS_FIELD_OFF(f) (offsetof(struct hclge_64_bit_stats, f))
-#define HCLGE_32BIT_STATS_FIELD_OFF(f) (offsetof(struct hclge_32_bit_stats, f))
 
 static int hclge_set_mta_filter_mode(struct hclge_dev *hdev,
 				     enum hclge_mta_dmac_sel_type mta_mac_sel,
@@ -54,170 +52,6 @@ static const char hns3_nic_test_strs[][ETH_GSTRING_LEN] = {
 	"Mac    Loopback test",
 	"Serdes Loopback test",
 	"Phy    Loopback test"
-};
-
-static const struct hclge_comm_stats_str g_all_64bit_stats_string[] = {
-	{"igu_rx_oversize_pkt",
-		HCLGE_64BIT_STATS_FIELD_OFF(igu_rx_oversize_pkt)},
-	{"igu_rx_undersize_pkt",
-		HCLGE_64BIT_STATS_FIELD_OFF(igu_rx_undersize_pkt)},
-	{"igu_rx_out_all_pkt",
-		HCLGE_64BIT_STATS_FIELD_OFF(igu_rx_out_all_pkt)},
-	{"igu_rx_uni_pkt",
-		HCLGE_64BIT_STATS_FIELD_OFF(igu_rx_uni_pkt)},
-	{"igu_rx_multi_pkt",
-		HCLGE_64BIT_STATS_FIELD_OFF(igu_rx_multi_pkt)},
-	{"igu_rx_broad_pkt",
-		HCLGE_64BIT_STATS_FIELD_OFF(igu_rx_broad_pkt)},
-	{"egu_tx_out_all_pkt",
-		HCLGE_64BIT_STATS_FIELD_OFF(egu_tx_out_all_pkt)},
-	{"egu_tx_uni_pkt",
-		HCLGE_64BIT_STATS_FIELD_OFF(egu_tx_uni_pkt)},
-	{"egu_tx_multi_pkt",
-		HCLGE_64BIT_STATS_FIELD_OFF(egu_tx_multi_pkt)},
-	{"egu_tx_broad_pkt",
-		HCLGE_64BIT_STATS_FIELD_OFF(egu_tx_broad_pkt)},
-	{"ssu_ppp_mac_key_num",
-		HCLGE_64BIT_STATS_FIELD_OFF(ssu_ppp_mac_key_num)},
-	{"ssu_ppp_host_key_num",
-		HCLGE_64BIT_STATS_FIELD_OFF(ssu_ppp_host_key_num)},
-	{"ppp_ssu_mac_rlt_num",
-		HCLGE_64BIT_STATS_FIELD_OFF(ppp_ssu_mac_rlt_num)},
-	{"ppp_ssu_host_rlt_num",
-		HCLGE_64BIT_STATS_FIELD_OFF(ppp_ssu_host_rlt_num)},
-	{"ssu_tx_in_num",
-		HCLGE_64BIT_STATS_FIELD_OFF(ssu_tx_in_num)},
-	{"ssu_tx_out_num",
-		HCLGE_64BIT_STATS_FIELD_OFF(ssu_tx_out_num)},
-	{"ssu_rx_in_num",
-		HCLGE_64BIT_STATS_FIELD_OFF(ssu_rx_in_num)},
-	{"ssu_rx_out_num",
-		HCLGE_64BIT_STATS_FIELD_OFF(ssu_rx_out_num)}
-};
-
-static const struct hclge_comm_stats_str g_all_32bit_stats_string[] = {
-	{"igu_rx_err_pkt",
-		HCLGE_32BIT_STATS_FIELD_OFF(igu_rx_err_pkt)},
-	{"igu_rx_no_eof_pkt",
-		HCLGE_32BIT_STATS_FIELD_OFF(igu_rx_no_eof_pkt)},
-	{"igu_rx_no_sof_pkt",
-		HCLGE_32BIT_STATS_FIELD_OFF(igu_rx_no_sof_pkt)},
-	{"egu_tx_1588_pkt",
-		HCLGE_32BIT_STATS_FIELD_OFF(egu_tx_1588_pkt)},
-	{"ssu_full_drop_num",
-		HCLGE_32BIT_STATS_FIELD_OFF(ssu_full_drop_num)},
-	{"ssu_part_drop_num",
-		HCLGE_32BIT_STATS_FIELD_OFF(ssu_part_drop_num)},
-	{"ppp_key_drop_num",
-		HCLGE_32BIT_STATS_FIELD_OFF(ppp_key_drop_num)},
-	{"ppp_rlt_drop_num",
-		HCLGE_32BIT_STATS_FIELD_OFF(ppp_rlt_drop_num)},
-	{"ssu_key_drop_num",
-		HCLGE_32BIT_STATS_FIELD_OFF(ssu_key_drop_num)},
-	{"pkt_curr_buf_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(pkt_curr_buf_cnt)},
-	{"qcn_fb_rcv_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(qcn_fb_rcv_cnt)},
-	{"qcn_fb_drop_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(qcn_fb_drop_cnt)},
-	{"qcn_fb_invaild_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(qcn_fb_invaild_cnt)},
-	{"rx_packet_tc0_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc0_in_cnt)},
-	{"rx_packet_tc1_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc1_in_cnt)},
-	{"rx_packet_tc2_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc2_in_cnt)},
-	{"rx_packet_tc3_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc3_in_cnt)},
-	{"rx_packet_tc4_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc4_in_cnt)},
-	{"rx_packet_tc5_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc5_in_cnt)},
-	{"rx_packet_tc6_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc6_in_cnt)},
-	{"rx_packet_tc7_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc7_in_cnt)},
-	{"rx_packet_tc0_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc0_out_cnt)},
-	{"rx_packet_tc1_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc1_out_cnt)},
-	{"rx_packet_tc2_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc2_out_cnt)},
-	{"rx_packet_tc3_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc3_out_cnt)},
-	{"rx_packet_tc4_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc4_out_cnt)},
-	{"rx_packet_tc5_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc5_out_cnt)},
-	{"rx_packet_tc6_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc6_out_cnt)},
-	{"rx_packet_tc7_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_packet_tc7_out_cnt)},
-	{"tx_packet_tc0_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc0_in_cnt)},
-	{"tx_packet_tc1_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc1_in_cnt)},
-	{"tx_packet_tc2_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc2_in_cnt)},
-	{"tx_packet_tc3_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc3_in_cnt)},
-	{"tx_packet_tc4_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc4_in_cnt)},
-	{"tx_packet_tc5_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc5_in_cnt)},
-	{"tx_packet_tc6_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc6_in_cnt)},
-	{"tx_packet_tc7_in_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc7_in_cnt)},
-	{"tx_packet_tc0_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc0_out_cnt)},
-	{"tx_packet_tc1_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc1_out_cnt)},
-	{"tx_packet_tc2_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc2_out_cnt)},
-	{"tx_packet_tc3_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc3_out_cnt)},
-	{"tx_packet_tc4_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc4_out_cnt)},
-	{"tx_packet_tc5_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc5_out_cnt)},
-	{"tx_packet_tc6_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc6_out_cnt)},
-	{"tx_packet_tc7_out_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_packet_tc7_out_cnt)},
-	{"pkt_curr_buf_tc0_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(pkt_curr_buf_tc0_cnt)},
-	{"pkt_curr_buf_tc1_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(pkt_curr_buf_tc1_cnt)},
-	{"pkt_curr_buf_tc2_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(pkt_curr_buf_tc2_cnt)},
-	{"pkt_curr_buf_tc3_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(pkt_curr_buf_tc3_cnt)},
-	{"pkt_curr_buf_tc4_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(pkt_curr_buf_tc4_cnt)},
-	{"pkt_curr_buf_tc5_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(pkt_curr_buf_tc5_cnt)},
-	{"pkt_curr_buf_tc6_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(pkt_curr_buf_tc6_cnt)},
-	{"pkt_curr_buf_tc7_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(pkt_curr_buf_tc7_cnt)},
-	{"mb_uncopy_num",
-		HCLGE_32BIT_STATS_FIELD_OFF(mb_uncopy_num)},
-	{"lo_pri_unicast_rlt_drop_num",
-		HCLGE_32BIT_STATS_FIELD_OFF(lo_pri_unicast_rlt_drop_num)},
-	{"hi_pri_multicast_rlt_drop_num",
-		HCLGE_32BIT_STATS_FIELD_OFF(hi_pri_multicast_rlt_drop_num)},
-	{"lo_pri_multicast_rlt_drop_num",
-		HCLGE_32BIT_STATS_FIELD_OFF(lo_pri_multicast_rlt_drop_num)},
-	{"rx_oq_drop_pkt_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(rx_oq_drop_pkt_cnt)},
-	{"tx_oq_drop_pkt_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(tx_oq_drop_pkt_cnt)},
-	{"nic_l2_err_drop_pkt_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(nic_l2_err_drop_pkt_cnt)},
-	{"roc_l2_err_drop_pkt_cnt",
-		HCLGE_32BIT_STATS_FIELD_OFF(roc_l2_err_drop_pkt_cnt)}
 };
 
 static const struct hclge_comm_stats_str g_mac_stats_string[] = {
@@ -393,109 +227,6 @@ static const struct hclge_mac_mgr_tbl_entry_cmd hclge_mgr_table[] = {
 		.i_port_bitmap = 0x1,
 	},
 };
-
-static int hclge_64_bit_update_stats(struct hclge_dev *hdev)
-{
-#define HCLGE_64_BIT_CMD_NUM 5
-#define HCLGE_64_BIT_RTN_DATANUM 4
-	u64 *data = (u64 *)(&hdev->hw_stats.all_64_bit_stats);
-	struct hclge_desc desc[HCLGE_64_BIT_CMD_NUM];
-	__le64 *desc_data;
-	int i, k, n;
-	int ret;
-
-	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_STATS_64_BIT, true);
-	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_64_BIT_CMD_NUM);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"Get 64 bit pkt stats fail, status = %d.\n", ret);
-		return ret;
-	}
-
-	for (i = 0; i < HCLGE_64_BIT_CMD_NUM; i++) {
-		if (unlikely(i == 0)) {
-			desc_data = (__le64 *)(&desc[i].data[0]);
-			n = HCLGE_64_BIT_RTN_DATANUM - 1;
-		} else {
-			desc_data = (__le64 *)(&desc[i]);
-			n = HCLGE_64_BIT_RTN_DATANUM;
-		}
-		for (k = 0; k < n; k++) {
-			*data++ += le64_to_cpu(*desc_data);
-			desc_data++;
-		}
-	}
-
-	return 0;
-}
-
-static void hclge_reset_partial_32bit_counter(struct hclge_32_bit_stats *stats)
-{
-	stats->pkt_curr_buf_cnt     = 0;
-	stats->pkt_curr_buf_tc0_cnt = 0;
-	stats->pkt_curr_buf_tc1_cnt = 0;
-	stats->pkt_curr_buf_tc2_cnt = 0;
-	stats->pkt_curr_buf_tc3_cnt = 0;
-	stats->pkt_curr_buf_tc4_cnt = 0;
-	stats->pkt_curr_buf_tc5_cnt = 0;
-	stats->pkt_curr_buf_tc6_cnt = 0;
-	stats->pkt_curr_buf_tc7_cnt = 0;
-}
-
-static int hclge_32_bit_update_stats(struct hclge_dev *hdev)
-{
-#define HCLGE_32_BIT_CMD_NUM 8
-#define HCLGE_32_BIT_RTN_DATANUM 8
-
-	struct hclge_desc desc[HCLGE_32_BIT_CMD_NUM];
-	struct hclge_32_bit_stats *all_32_bit_stats;
-	__le32 *desc_data;
-	int i, k, n;
-	u64 *data;
-	int ret;
-
-	all_32_bit_stats = &hdev->hw_stats.all_32_bit_stats;
-	data = (u64 *)(&all_32_bit_stats->egu_tx_1588_pkt);
-
-	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_STATS_32_BIT, true);
-	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_32_BIT_CMD_NUM);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"Get 32 bit pkt stats fail, status = %d.\n", ret);
-
-		return ret;
-	}
-
-	hclge_reset_partial_32bit_counter(all_32_bit_stats);
-	for (i = 0; i < HCLGE_32_BIT_CMD_NUM; i++) {
-		if (unlikely(i == 0)) {
-			__le16 *desc_data_16bit;
-
-			all_32_bit_stats->igu_rx_err_pkt +=
-				le32_to_cpu(desc[i].data[0]);
-
-			desc_data_16bit = (__le16 *)&desc[i].data[1];
-			all_32_bit_stats->igu_rx_no_eof_pkt +=
-				le16_to_cpu(*desc_data_16bit);
-
-			desc_data_16bit++;
-			all_32_bit_stats->igu_rx_no_sof_pkt +=
-				le16_to_cpu(*desc_data_16bit);
-
-			desc_data = &desc[i].data[2];
-			n = HCLGE_32_BIT_RTN_DATANUM - 4;
-		} else {
-			desc_data = (__le32 *)&desc[i];
-			n = HCLGE_32_BIT_RTN_DATANUM;
-		}
-		for (k = 0; k < n; k++) {
-			*data++ += le32_to_cpu(*desc_data);
-			desc_data++;
-		}
-	}
-
-	return 0;
-}
 
 static int hclge_mac_update_stats(struct hclge_dev *hdev)
 {
@@ -675,14 +406,8 @@ static void hclge_update_netstat(struct hclge_hw_stats *hw_stats,
 				 struct net_device_stats *net_stats)
 {
 	net_stats->tx_dropped = 0;
-	net_stats->rx_dropped = hw_stats->all_32_bit_stats.ssu_full_drop_num;
-	net_stats->rx_dropped += hw_stats->all_32_bit_stats.ppp_key_drop_num;
-	net_stats->rx_dropped += hw_stats->all_32_bit_stats.ssu_key_drop_num;
-
 	net_stats->rx_errors = hw_stats->mac_stats.mac_rx_oversize_pkt_num;
 	net_stats->rx_errors += hw_stats->mac_stats.mac_rx_undersize_pkt_num;
-	net_stats->rx_errors += hw_stats->all_32_bit_stats.igu_rx_no_eof_pkt;
-	net_stats->rx_errors += hw_stats->all_32_bit_stats.igu_rx_no_sof_pkt;
 	net_stats->rx_errors += hw_stats->mac_stats.mac_rx_fcs_err_pkt_num;
 
 	net_stats->multicast = hw_stats->mac_stats.mac_tx_multi_pkt_num;
@@ -717,12 +442,6 @@ static void hclge_update_stats_for_all(struct hclge_dev *hdev)
 		dev_err(&hdev->pdev->dev,
 			"Update MAC stats fail, status = %d.\n", status);
 
-	status = hclge_32_bit_update_stats(hdev);
-	if (status)
-		dev_err(&hdev->pdev->dev,
-			"Update 32 bit stats fail, status = %d.\n",
-			status);
-
 	hclge_update_netstat(&hdev->hw_stats, &handle->kinfo.netdev->stats);
 }
 
@@ -741,18 +460,6 @@ static void hclge_update_stats(struct hnae3_handle *handle,
 	if (status)
 		dev_err(&hdev->pdev->dev,
 			"Update MAC stats fail, status = %d.\n",
-			status);
-
-	status = hclge_32_bit_update_stats(hdev);
-	if (status)
-		dev_err(&hdev->pdev->dev,
-			"Update 32 bit stats fail, status = %d.\n",
-			status);
-
-	status = hclge_64_bit_update_stats(hdev);
-	if (status)
-		dev_err(&hdev->pdev->dev,
-			"Update 64 bit stats fail, status = %d.\n",
 			status);
 
 	status = hclge_tqps_update_stats(handle);
@@ -793,8 +500,6 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 		handle->flags |= HNAE3_SUPPORT_SERDES_LOOPBACK;
 	} else if (stringset == ETH_SS_STATS) {
 		count = ARRAY_SIZE(g_mac_stats_string) +
-			ARRAY_SIZE(g_all_32bit_stats_string) +
-			ARRAY_SIZE(g_all_64bit_stats_string) +
 			hclge_tqps_get_sset_count(handle, stringset);
 	}
 
@@ -812,16 +517,6 @@ static void hclge_get_strings(struct hnae3_handle *handle,
 		size = ARRAY_SIZE(g_mac_stats_string);
 		p = hclge_comm_get_strings(stringset,
 					   g_mac_stats_string,
-					   size,
-					   p);
-		size = ARRAY_SIZE(g_all_32bit_stats_string);
-		p = hclge_comm_get_strings(stringset,
-					   g_all_32bit_stats_string,
-					   size,
-					   p);
-		size = ARRAY_SIZE(g_all_64bit_stats_string);
-		p = hclge_comm_get_strings(stringset,
-					   g_all_64bit_stats_string,
 					   size,
 					   p);
 		p = hclge_tqps_get_strings(handle, p);
@@ -857,14 +552,6 @@ static void hclge_get_stats(struct hnae3_handle *handle, u64 *data)
 				 g_mac_stats_string,
 				 ARRAY_SIZE(g_mac_stats_string),
 				 data);
-	p = hclge_comm_get_stats(&hdev->hw_stats.all_32_bit_stats,
-				 g_all_32bit_stats_string,
-				 ARRAY_SIZE(g_all_32bit_stats_string),
-				 p);
-	p = hclge_comm_get_stats(&hdev->hw_stats.all_64_bit_stats,
-				 g_all_64bit_stats_string,
-				 ARRAY_SIZE(g_all_64bit_stats_string),
-				 p);
 	p = hclge_tqps_get_stats(handle, p);
 }
 
