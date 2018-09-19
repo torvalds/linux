@@ -1093,6 +1093,8 @@ enum {
 enum {
 	CP_TIME,
 	REQ_TIME,
+	DISCARD_TIME,
+	GC_TIME,
 	MAX_TIME,
 };
 
@@ -1344,7 +1346,15 @@ static inline bool time_to_inject(struct f2fs_sb_info *sbi, int type)
 
 static inline void f2fs_update_time(struct f2fs_sb_info *sbi, int type)
 {
-	sbi->last_time[type] = jiffies;
+	unsigned long now = jiffies;
+
+	sbi->last_time[type] = now;
+
+	/* DISCARD_TIME and GC_TIME are based on REQ_TIME */
+	if (type == REQ_TIME) {
+		sbi->last_time[DISCARD_TIME] = now;
+		sbi->last_time[GC_TIME] = now;
+	}
 }
 
 static inline bool f2fs_time_over(struct f2fs_sb_info *sbi, int type)
@@ -1354,7 +1364,21 @@ static inline bool f2fs_time_over(struct f2fs_sb_info *sbi, int type)
 	return time_after(jiffies, sbi->last_time[type] + interval);
 }
 
-static inline bool is_idle(struct f2fs_sb_info *sbi)
+static inline unsigned int f2fs_time_to_wait(struct f2fs_sb_info *sbi,
+						int type)
+{
+	unsigned long interval = sbi->interval_time[type] * HZ;
+	unsigned int wait_ms = 0;
+	long delta;
+
+	delta = (sbi->last_time[type] + interval) - jiffies;
+	if (delta > 0)
+		wait_ms = jiffies_to_msecs(delta);
+
+	return wait_ms;
+}
+
+static inline bool is_idle(struct f2fs_sb_info *sbi, int type)
 {
 	struct block_device *bdev = sbi->sb->s_bdev;
 	struct request_queue *q = bdev_get_queue(bdev);
@@ -1363,7 +1387,7 @@ static inline bool is_idle(struct f2fs_sb_info *sbi)
 	if (rl->count[BLK_RW_SYNC] || rl->count[BLK_RW_ASYNC])
 		return false;
 
-	return f2fs_time_over(sbi, REQ_TIME);
+	return f2fs_time_over(sbi, type);
 }
 
 /*
