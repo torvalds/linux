@@ -754,7 +754,7 @@ void hda_dsp_stream_free(struct snd_sof_dev *sdev)
 			snd_dma_free_pages(&s->bdl);
 		list_del(&s->list);
 		stream = stream_to_hdac_ext_stream(s);
-		kfree(stream);
+		devm_kfree(sdev->dev, stream);
 	}
 }
 
