@@ -293,12 +293,9 @@ z_erofs_vle_work_lookup(struct super_block *sb,
 	*grp_ret = grp = container_of(egrp,
 		struct z_erofs_vle_workgroup, obj);
 
-#ifndef CONFIG_EROFS_FS_ZIP_MULTIREF
 	work = z_erofs_vle_grab_work(grp, pageofs);
+	/* if multiref is disabled, `primary' is always true */
 	primary = true;
-#else
-	BUG();
-#endif
 
 	DBG_BUGON(work->pageofs != pageofs);
 
@@ -365,12 +362,9 @@ z_erofs_vle_work_register(struct super_block *sb,
 	struct z_erofs_vle_workgroup *grp = *grp_ret;
 	struct z_erofs_vle_work *work;
 
-#ifndef CONFIG_EROFS_FS_ZIP_MULTIREF
+	/* if multiref is disabled, grp should never be nullptr */
 	BUG_ON(grp != NULL);
-#else
-	if (grp != NULL)
-		goto skip;
-#endif
+
 	/* no available workgroup, let's allocate one */
 	grp = kmem_cache_zalloc(z_erofs_workgroup_cachep, GFP_NOFS);
 	if (unlikely(grp == NULL))
@@ -393,13 +387,7 @@ z_erofs_vle_work_register(struct super_block *sb,
 	*hosted = true;
 
 	newgrp = true;
-#ifdef CONFIG_EROFS_FS_ZIP_MULTIREF
-skip:
-	/* currently unimplemented */
-	BUG();
-#else
 	work = z_erofs_vle_grab_primary_work(grp);
-#endif
 	work->pageofs = pageofs;
 
 	mutex_init(&work->lock);
@@ -798,10 +786,8 @@ static int z_erofs_vle_unzip(struct super_block *sb,
 	const unsigned clusterpages = erofs_clusterpages(sbi);
 
 	struct z_erofs_pagevec_ctor ctor;
-	unsigned nr_pages;
-#ifndef CONFIG_EROFS_FS_ZIP_MULTIREF
-	unsigned sparsemem_pages = 0;
-#endif
+	unsigned int nr_pages;
+	unsigned int sparsemem_pages = 0;
 	struct page *pages_onstack[Z_EROFS_VLE_VMAP_ONSTACK_PAGES];
 	struct page **pages, **compressed_pages, *page;
 	unsigned i, llen;
@@ -813,11 +799,7 @@ static int z_erofs_vle_unzip(struct super_block *sb,
 	int err;
 
 	might_sleep();
-#ifndef CONFIG_EROFS_FS_ZIP_MULTIREF
 	work = z_erofs_vle_grab_primary_work(grp);
-#else
-	BUG();
-#endif
 	BUG_ON(!READ_ONCE(work->nr_pages));
 
 	mutex_lock(&work->lock);
@@ -868,13 +850,11 @@ repeat:
 			pagenr = z_erofs_onlinepage_index(page);
 
 		BUG_ON(pagenr >= nr_pages);
-
-#ifndef CONFIG_EROFS_FS_ZIP_MULTIREF
 		BUG_ON(pages[pagenr] != NULL);
-		++sparsemem_pages;
-#endif
+
 		pages[pagenr] = page;
 	}
+	sparsemem_pages = i;
 
 	z_erofs_pagevec_ctor_exit(&ctor, true);
 
@@ -904,10 +884,8 @@ repeat:
 		pagenr = z_erofs_onlinepage_index(page);
 
 		BUG_ON(pagenr >= nr_pages);
-#ifndef CONFIG_EROFS_FS_ZIP_MULTIREF
 		BUG_ON(pages[pagenr] != NULL);
 		++sparsemem_pages;
-#endif
 		pages[pagenr] = page;
 
 		overlapped = true;
@@ -933,12 +911,10 @@ repeat:
 	if (err != -ENOTSUPP)
 		goto out_percpu;
 
-#ifndef CONFIG_EROFS_FS_ZIP_MULTIREF
 	if (sparsemem_pages >= nr_pages) {
 		BUG_ON(sparsemem_pages > nr_pages);
 		goto skip_allocpage;
 	}
-#endif
 
 	for (i = 0; i < nr_pages; ++i) {
 		if (pages[i] != NULL)
@@ -947,9 +923,7 @@ repeat:
 		pages[i] = __stagingpage_alloc(page_pool, GFP_NOFS);
 	}
 
-#ifndef CONFIG_EROFS_FS_ZIP_MULTIREF
 skip_allocpage:
-#endif
 	vout = erofs_vmap(pages, nr_pages);
 
 	err = z_erofs_vle_unzip_vmap(compressed_pages,
