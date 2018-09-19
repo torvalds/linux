@@ -1562,9 +1562,14 @@ static void __ipu_image_convert_abort(struct ipu_image_convert_ctx *ctx)
 		return;
 	}
 
+	if (!active_run) {
+		empty_done_q(chan);
+		return;
+	}
+
 	dev_dbg(priv->ipu->dev,
-		"%s: task %u: wait for completion: %d runs, active run %p\n",
-		__func__, chan->ic_task, run_count, active_run);
+		"%s: task %u: wait for completion: %d runs\n",
+		__func__, chan->ic_task, run_count);
 
 	ret = wait_for_completion_timeout(&ctx->aborted,
 					  msecs_to_jiffies(10000));
