@@ -82,7 +82,7 @@ u32 mvpp2_read(struct mvpp2 *priv, u32 offset)
 	return readl(priv->swth_base[0] + offset);
 }
 
-u32 mvpp2_read_relaxed(struct mvpp2 *priv, u32 offset)
+static u32 mvpp2_read_relaxed(struct mvpp2 *priv, u32 offset)
 {
 	return readl_relaxed(priv->swth_base[0] + offset);
 }
