@@ -1531,7 +1531,6 @@ static void __ipu_image_convert_abort(struct ipu_image_convert_ctx *ctx)
 	struct ipu_image_convert_run *run, *active_run, *tmp;
 	unsigned long flags;
 	int run_count, ret;
-	bool need_abort;
 
 	spin_lock_irqsave(&chan->irqlock, flags);
 
@@ -1550,13 +1549,11 @@ static void __ipu_image_convert_abort(struct ipu_image_convert_ctx *ctx)
 	if (active_run)
 		reinit_completion(&ctx->aborted);
 
-	need_abort = (run_count || active_run);
-
 	ctx->aborting = true;
 
 	spin_unlock_irqrestore(&chan->irqlock, flags);
 
-	if (!need_abort) {
+	if (!run_count && !active_run) {
 		dev_dbg(priv->ipu->dev,
 			"%s: task %u: no abort needed for ctx %p\n",
 			__func__, chan->ic_task, ctx);
