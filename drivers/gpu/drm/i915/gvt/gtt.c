@@ -2259,16 +2259,18 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 		} else
 			ops->set_pfn(&m, dma_addr >> PAGE_SHIFT);
 	} else {
-		ggtt_get_host_entry(ggtt_mm, &m, g_gtt_index);
-		ggtt_invalidate_pte(vgpu, &m);
 		ops->set_pfn(&m, gvt->gtt.scratch_mfn);
 		ops->clear_present(&m);
 	}
 
 out:
+	ggtt_set_guest_entry(ggtt_mm, &e, g_gtt_index);
+
+	ggtt_get_host_entry(ggtt_mm, &e, g_gtt_index);
+	ggtt_invalidate_pte(vgpu, &e);
+
 	ggtt_set_host_entry(ggtt_mm, &m, g_gtt_index);
 	ggtt_invalidate(gvt->dev_priv);
-	ggtt_set_guest_entry(ggtt_mm, &e, g_gtt_index);
 	return 0;
 }
 
