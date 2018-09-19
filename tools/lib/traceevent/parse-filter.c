@@ -1716,7 +1716,7 @@ get_value(struct tep_event_format *event,
 
 	tep_read_number_field(field, record->data, &val);
 
-	if (!(field->flags & FIELD_IS_SIGNED))
+	if (!(field->flags & TEP_FIELD_IS_SIGNED))
 		return val;
 
 	switch (field->size) {
@@ -1867,11 +1867,11 @@ static const char *get_field_str(struct filter_arg *arg, struct tep_record *reco
 	char hex[64];
 
 	/* If the field is not a string convert it */
-	if (arg->str.field->flags & FIELD_IS_STRING) {
+	if (arg->str.field->flags & TEP_FIELD_IS_STRING) {
 		val = record->data + arg->str.field->offset;
 		size = arg->str.field->size;
 
-		if (arg->str.field->flags & FIELD_IS_DYNAMIC) {
+		if (arg->str.field->flags & TEP_FIELD_IS_DYNAMIC) {
 			addr = *(unsigned int *)val;
 			val = record->data + (addr & 0xffff);
 			size = addr >> 16;
@@ -1893,7 +1893,7 @@ static const char *get_field_str(struct filter_arg *arg, struct tep_record *reco
 		pevent = event->pevent;
 		addr = get_value(event, arg->str.field, record);
 
-		if (arg->str.field->flags & (FIELD_IS_POINTER | FIELD_IS_LONG))
+		if (arg->str.field->flags & (TEP_FIELD_IS_POINTER | TEP_FIELD_IS_LONG))
 			/* convert to a kernel symbol */
 			val = tep_find_function(pevent, addr);
 

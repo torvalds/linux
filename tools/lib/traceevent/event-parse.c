@@ -1301,7 +1301,7 @@ static int event_read_id(void)
 
 static int field_is_string(struct tep_format_field *field)
 {
-	if ((field->flags & FIELD_IS_ARRAY) &&
+	if ((field->flags & TEP_FIELD_IS_ARRAY) &&
 	    (strstr(field->type, "char") || strstr(field->type, "u8") ||
 	     strstr(field->type, "s8")))
 		return 1;
@@ -1328,7 +1328,7 @@ static int field_is_long(struct tep_format_field *field)
 
 static unsigned int type_size(const char *name)
 {
-	/* This covers all FIELD_IS_STRING types. */
+	/* This covers all TEP_FIELD_IS_STRING types. */
 	static struct {
 		const char *type;
 		unsigned int size;
@@ -1416,7 +1416,7 @@ static int event_read_fields(struct tep_event_format *event, struct tep_format_f
 			     type == EVENT_OP && strcmp(token, ".") == 0)) {
 
 				if (strcmp(token, "*") == 0)
-					field->flags |= FIELD_IS_POINTER;
+					field->flags |= TEP_FIELD_IS_POINTER;
 
 				if (field->type) {
 					char *new_type;
@@ -1455,7 +1455,7 @@ static int event_read_fields(struct tep_event_format *event, struct tep_format_f
 			char *new_brackets;
 			int len;
 
-			field->flags |= FIELD_IS_ARRAY;
+			field->flags |= TEP_FIELD_IS_ARRAY;
 
 			type = read_token(&token);
 
@@ -1544,11 +1544,11 @@ static int event_read_fields(struct tep_event_format *event, struct tep_format_f
 		}
 
 		if (field_is_string(field))
-			field->flags |= FIELD_IS_STRING;
+			field->flags |= TEP_FIELD_IS_STRING;
 		if (field_is_dynamic(field))
-			field->flags |= FIELD_IS_DYNAMIC;
+			field->flags |= TEP_FIELD_IS_DYNAMIC;
 		if (field_is_long(field))
-			field->flags |= FIELD_IS_LONG;
+			field->flags |= TEP_FIELD_IS_LONG;
 
 		if (test_type_token(type, token,  EVENT_OP, ";"))
 			goto fail;
@@ -1597,7 +1597,7 @@ static int event_read_fields(struct tep_event_format *event, struct tep_format_f
 				goto fail;
 
 			if (strtoul(token, NULL, 0))
-				field->flags |= FIELD_IS_SIGNED;
+				field->flags |= TEP_FIELD_IS_SIGNED;
 
 			free_token(token);
 			if (read_expected(EVENT_OP, ";") < 0)
@@ -1609,14 +1609,14 @@ static int event_read_fields(struct tep_event_format *event, struct tep_format_f
 
 		free_token(token);
 
-		if (field->flags & FIELD_IS_ARRAY) {
+		if (field->flags & TEP_FIELD_IS_ARRAY) {
 			if (field->arraylen)
 				field->elementsize = field->size / field->arraylen;
-			else if (field->flags & FIELD_IS_DYNAMIC)
+			else if (field->flags & TEP_FIELD_IS_DYNAMIC)
 				field->elementsize = size_dynamic;
-			else if (field->flags & FIELD_IS_STRING)
+			else if (field->flags & TEP_FIELD_IS_STRING)
 				field->elementsize = 1;
-			else if (field->flags & FIELD_IS_LONG)
+			else if (field->flags & TEP_FIELD_IS_LONG)
 				field->elementsize = event->pevent ?
 						     event->pevent->long_size :
 						     sizeof(long);
@@ -2089,11 +2089,11 @@ process_entry(struct tep_event_format *event __maybe_unused, struct print_arg *a
 
 	if (is_flag_field) {
 		arg->field.field = tep_find_any_field(event, arg->field.name);
-		arg->field.field->flags |= FIELD_IS_FLAG;
+		arg->field.field->flags |= TEP_FIELD_IS_FLAG;
 		is_flag_field = 0;
 	} else if (is_symbolic_field) {
 		arg->field.field = tep_find_any_field(event, arg->field.name);
-		arg->field.field->flags |= FIELD_IS_SYMBOLIC;
+		arg->field.field->flags |= TEP_FIELD_IS_SYMBOLIC;
 		is_symbolic_field = 0;
 	}
 
@@ -3901,7 +3901,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		 * and the size is the same as long_size, assume that it
 		 * is a pointer.
 		 */
-		if (!(field->flags & FIELD_IS_ARRAY) &&
+		if (!(field->flags & TEP_FIELD_IS_ARRAY) &&
 		    field->size == pevent->long_size) {
 
 			/* Handle heterogeneous recording and processing
@@ -4794,16 +4794,16 @@ void tep_print_field(struct trace_seq *s, void *data,
 	unsigned int offset, len, i;
 	struct tep_handle *pevent = field->event->pevent;
 
-	if (field->flags & FIELD_IS_ARRAY) {
+	if (field->flags & TEP_FIELD_IS_ARRAY) {
 		offset = field->offset;
 		len = field->size;
-		if (field->flags & FIELD_IS_DYNAMIC) {
+		if (field->flags & TEP_FIELD_IS_DYNAMIC) {
 			val = tep_read_number(pevent, data + offset, len);
 			offset = val;
 			len = offset >> 16;
 			offset &= 0xffff;
 		}
-		if (field->flags & FIELD_IS_STRING &&
+		if (field->flags & TEP_FIELD_IS_STRING &&
 		    is_printable_array(data + offset, len)) {
 			trace_seq_printf(s, "%s", (char *)data + offset);
 		} else {
@@ -4815,21 +4815,21 @@ void tep_print_field(struct trace_seq *s, void *data,
 						 *((unsigned char *)data + offset + i));
 			}
 			trace_seq_putc(s, ']');
-			field->flags &= ~FIELD_IS_STRING;
+			field->flags &= ~TEP_FIELD_IS_STRING;
 		}
 	} else {
 		val = tep_read_number(pevent, data + field->offset,
 				      field->size);
-		if (field->flags & FIELD_IS_POINTER) {
+		if (field->flags & TEP_FIELD_IS_POINTER) {
 			trace_seq_printf(s, "0x%llx", val);
-		} else if (field->flags & FIELD_IS_SIGNED) {
+		} else if (field->flags & TEP_FIELD_IS_SIGNED) {
 			switch (field->size) {
 			case 4:
 				/*
 				 * If field is long then print it in hex.
 				 * A long usually stores pointers.
 				 */
-				if (field->flags & FIELD_IS_LONG)
+				if (field->flags & TEP_FIELD_IS_LONG)
 					trace_seq_printf(s, "0x%x", (int)val);
 				else
 					trace_seq_printf(s, "%d", (int)val);
@@ -4844,7 +4844,7 @@ void tep_print_field(struct trace_seq *s, void *data,
 				trace_seq_printf(s, "%lld", val);
 			}
 		} else {
-			if (field->flags & FIELD_IS_LONG)
+			if (field->flags & TEP_FIELD_IS_LONG)
 				trace_seq_printf(s, "0x%llx", val);
 			else
 				trace_seq_printf(s, "%llu", val);
@@ -6288,7 +6288,7 @@ void *tep_get_field_raw(struct trace_seq *s, struct tep_event_format *event,
 		len = &dummy;
 
 	offset = field->offset;
-	if (field->flags & FIELD_IS_DYNAMIC) {
+	if (field->flags & TEP_FIELD_IS_DYNAMIC) {
 		offset = tep_read_number(event->pevent,
 					    data + offset, field->size);
 		*len = offset >> 16;

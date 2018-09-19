@@ -335,7 +335,7 @@ static void define_event_symbols(struct tep_event_format *event,
 static PyObject *get_field_numeric_entry(struct tep_event_format *event,
 		struct tep_format_field *field, void *data)
 {
-	bool is_array = field->flags & FIELD_IS_ARRAY;
+	bool is_array = field->flags & TEP_FIELD_IS_ARRAY;
 	PyObject *obj = NULL, *list = NULL;
 	unsigned long long val;
 	unsigned int item_size, n_items, i;
@@ -353,7 +353,7 @@ static PyObject *get_field_numeric_entry(struct tep_event_format *event,
 
 		val = read_size(event, data + field->offset + i * item_size,
 				item_size);
-		if (field->flags & FIELD_IS_SIGNED) {
+		if (field->flags & TEP_FIELD_IS_SIGNED) {
 			if ((long long)val >= LONG_MIN &&
 					(long long)val <= LONG_MAX)
 				obj = _PyLong_FromLong(val);
@@ -867,22 +867,22 @@ static void python_process_tracepoint(struct perf_sample *sample,
 		unsigned int offset, len;
 		unsigned long long val;
 
-		if (field->flags & FIELD_IS_ARRAY) {
+		if (field->flags & TEP_FIELD_IS_ARRAY) {
 			offset = field->offset;
 			len    = field->size;
-			if (field->flags & FIELD_IS_DYNAMIC) {
+			if (field->flags & TEP_FIELD_IS_DYNAMIC) {
 				val     = tep_read_number(scripting_context->pevent,
 							  data + offset, len);
 				offset  = val;
 				len     = offset >> 16;
 				offset &= 0xffff;
 			}
-			if (field->flags & FIELD_IS_STRING &&
+			if (field->flags & TEP_FIELD_IS_STRING &&
 			    is_printable_array(data + offset, len)) {
 				obj = _PyUnicode_FromString((char *) data + offset);
 			} else {
 				obj = PyByteArray_FromStringAndSize((const char *) data + offset, len);
-				field->flags &= ~FIELD_IS_STRING;
+				field->flags &= ~TEP_FIELD_IS_STRING;
 			}
 		} else { /* FIELD_IS_NUMERIC */
 			obj = get_field_numeric_entry(event, field, data);
@@ -1686,12 +1686,12 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 			count++;
 
 			fprintf(ofp, "%s=", f->name);
-			if (f->flags & FIELD_IS_STRING ||
-			    f->flags & FIELD_IS_FLAG ||
-			    f->flags & FIELD_IS_ARRAY ||
-			    f->flags & FIELD_IS_SYMBOLIC)
+			if (f->flags & TEP_FIELD_IS_STRING ||
+			    f->flags & TEP_FIELD_IS_FLAG ||
+			    f->flags & TEP_FIELD_IS_ARRAY ||
+			    f->flags & TEP_FIELD_IS_SYMBOLIC)
 				fprintf(ofp, "%%s");
-			else if (f->flags & FIELD_IS_SIGNED)
+			else if (f->flags & TEP_FIELD_IS_SIGNED)
 				fprintf(ofp, "%%d");
 			else
 				fprintf(ofp, "%%u");
@@ -1709,7 +1709,7 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 			if (++count % 5 == 0)
 				fprintf(ofp, "\n\t\t");
 
-			if (f->flags & FIELD_IS_FLAG) {
+			if (f->flags & TEP_FIELD_IS_FLAG) {
 				if ((count - 1) % 5 != 0) {
 					fprintf(ofp, "\n\t\t");
 					count = 4;
@@ -1719,7 +1719,7 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 					event->name);
 				fprintf(ofp, "\"%s\", %s)", f->name,
 					f->name);
-			} else if (f->flags & FIELD_IS_SYMBOLIC) {
+			} else if (f->flags & TEP_FIELD_IS_SYMBOLIC) {
 				if ((count - 1) % 5 != 0) {
 					fprintf(ofp, "\n\t\t");
 					count = 4;

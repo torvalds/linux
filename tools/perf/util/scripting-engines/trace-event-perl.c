@@ -388,9 +388,9 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 	/* common fields other than pid can be accessed via xsub fns */
 
 	for (field = event->format.fields; field; field = field->next) {
-		if (field->flags & FIELD_IS_STRING) {
+		if (field->flags & TEP_FIELD_IS_STRING) {
 			int offset;
-			if (field->flags & FIELD_IS_DYNAMIC) {
+			if (field->flags & TEP_FIELD_IS_DYNAMIC) {
 				offset = *(int *)(data + field->offset);
 				offset &= 0xffff;
 			} else
@@ -399,7 +399,7 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 		} else { /* FIELD_IS_NUMERIC */
 			val = read_size(event, data + field->offset,
 					field->size);
-			if (field->flags & FIELD_IS_SIGNED) {
+			if (field->flags & TEP_FIELD_IS_SIGNED) {
 				XPUSHs(sv_2mortal(newSViv(val)));
 			} else {
 				XPUSHs(sv_2mortal(newSVuv(val)));
@@ -646,11 +646,11 @@ sub print_backtrace\n\
 			count++;
 
 			fprintf(ofp, "%s=", f->name);
-			if (f->flags & FIELD_IS_STRING ||
-			    f->flags & FIELD_IS_FLAG ||
-			    f->flags & FIELD_IS_SYMBOLIC)
+			if (f->flags & TEP_FIELD_IS_STRING ||
+			    f->flags & TEP_FIELD_IS_FLAG ||
+			    f->flags & TEP_FIELD_IS_SYMBOLIC)
 				fprintf(ofp, "%%s");
-			else if (f->flags & FIELD_IS_SIGNED)
+			else if (f->flags & TEP_FIELD_IS_SIGNED)
 				fprintf(ofp, "%%d");
 			else
 				fprintf(ofp, "%%u");
@@ -668,7 +668,7 @@ sub print_backtrace\n\
 			if (++count % 5 == 0)
 				fprintf(ofp, "\n\t       ");
 
-			if (f->flags & FIELD_IS_FLAG) {
+			if (f->flags & TEP_FIELD_IS_FLAG) {
 				if ((count - 1) % 5 != 0) {
 					fprintf(ofp, "\n\t       ");
 					count = 4;
@@ -678,7 +678,7 @@ sub print_backtrace\n\
 					event->name);
 				fprintf(ofp, "\"%s\", $%s)", f->name,
 					f->name);
-			} else if (f->flags & FIELD_IS_SYMBOLIC) {
+			} else if (f->flags & TEP_FIELD_IS_SYMBOLIC) {
 				if ((count - 1) % 5 != 0) {
 					fprintf(ofp, "\n\t       ");
 					count = 4;
