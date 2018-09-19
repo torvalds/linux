@@ -378,10 +378,8 @@ static void Hal_ReadPowerValueFromPROM_8188E(struct txpowerinfo24g *pwrInfo24G, 
 	}
 }
 
-static u8 Hal_GetChnlGroup88E(u8 chnl, u8 *pGroup)
+static void Hal_GetChnlGroup88E(u8 chnl, u8 *pGroup)
 {
-	u8 bIn24G = true;
-
 	if (chnl < 3)			/*  Channel 1-2 */
 		*pGroup = 0;
 	else if (chnl < 6)		/*  Channel 3-5 */
@@ -394,8 +392,6 @@ static u8 Hal_GetChnlGroup88E(u8 chnl, u8 *pGroup)
 		*pGroup = 4;
 	else if (chnl == 14)		/*  Channel 14 */
 		*pGroup = 5;
-
-	return bIn24G;
 }
 
 void Hal_ReadPowerSavingMode88E(struct adapter *padapter, u8 *hwinfo, bool AutoLoadFail)
@@ -427,7 +423,7 @@ void Hal_ReadTxPowerInfo88E(struct adapter *padapter, u8 *PROMContent, bool Auto
 	struct hal_data_8188e *pHalData = padapter->HalData;
 	struct txpowerinfo24g pwrInfo24G;
 	u8 ch, group;
-	u8 bIn24G, TxCount;
+	u8 TxCount;
 
 	Hal_ReadPowerValueFromPROM_8188E(&pwrInfo24G, PROMContent, AutoLoadFail);
 
@@ -435,19 +431,16 @@ void Hal_ReadTxPowerInfo88E(struct adapter *padapter, u8 *PROMContent, bool Auto
 		pHalData->bTXPowerDataReadFromEEPORM = true;
 
 	for (ch = 0; ch < CHANNEL_MAX_NUMBER; ch++) {
-		bIn24G = Hal_GetChnlGroup88E(ch, &group);
-		if (bIn24G) {
-			pHalData->Index24G_CCK_Base[0][ch] = pwrInfo24G.IndexCCK_Base[0][group];
-			if (ch == 14)
-				pHalData->Index24G_BW40_Base[0][ch] = pwrInfo24G.IndexBW40_Base[0][4];
-			else
-				pHalData->Index24G_BW40_Base[0][ch] = pwrInfo24G.IndexBW40_Base[0][group];
-		}
-		if (bIn24G) {
-			DBG_88E("======= Path %d, Channel %d =======\n", 0, ch);
-			DBG_88E("Index24G_CCK_Base[%d][%d] = 0x%x\n", 0, ch, pHalData->Index24G_CCK_Base[0][ch]);
-			DBG_88E("Index24G_BW40_Base[%d][%d] = 0x%x\n", 0, ch, pHalData->Index24G_BW40_Base[0][ch]);
-		}
+		Hal_GetChnlGroup88E(ch, &group);
+		pHalData->Index24G_CCK_Base[0][ch] = pwrInfo24G.IndexCCK_Base[0][group];
+		if (ch == 14)
+			pHalData->Index24G_BW40_Base[0][ch] = pwrInfo24G.IndexBW40_Base[0][4];
+		else
+			pHalData->Index24G_BW40_Base[0][ch] = pwrInfo24G.IndexBW40_Base[0][group];
+
+		DBG_88E("======= Path %d, Channel %d =======\n", 0, ch);
+		DBG_88E("Index24G_CCK_Base[%d][%d] = 0x%x\n", 0, ch, pHalData->Index24G_CCK_Base[0][ch]);
+		DBG_88E("Index24G_BW40_Base[%d][%d] = 0x%x\n", 0, ch, pHalData->Index24G_BW40_Base[0][ch]);
 	}
 	for (TxCount = 0; TxCount < MAX_TX_COUNT; TxCount++) {
 		pHalData->CCK_24G_Diff[0][TxCount] = pwrInfo24G.CCK_Diff[0][TxCount];
