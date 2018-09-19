@@ -1033,6 +1033,27 @@ static inline void x86_assign_hw_event(struct perf_event *event,
 	}
 }
 
+/**
+ * x86_perf_rdpmc_index - Return PMC counter used for event
+ * @event: the perf_event to which the PMC counter was assigned
+ *
+ * The counter assigned to this performance event may change if interrupts
+ * are enabled. This counter should thus never be used while interrupts are
+ * enabled. Before this function is used to obtain the assigned counter the
+ * event should be checked for validity using, for example,
+ * perf_event_read_local(), within the same interrupt disabled section in
+ * which this counter is planned to be used.
+ *
+ * Return: The index of the performance monitoring counter assigned to
+ * @perf_event.
+ */
+int x86_perf_rdpmc_index(struct perf_event *event)
+{
+	lockdep_assert_irqs_disabled();
+
+	return event->hw.event_base_rdpmc;
+}
+
 static inline int match_prev_assignment(struct hw_perf_event *hwc,
 					struct cpu_hw_events *cpuc,
 					int i)
