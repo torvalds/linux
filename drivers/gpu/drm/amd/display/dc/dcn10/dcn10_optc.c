@@ -150,7 +150,7 @@ void optc1_program_vline_interrupt(
 		req_delta_lines--;
 
 	if (req_delta_lines > vsync_line)
-		start_line = dc_crtc_timing->v_total - (req_delta_lines - vsync_line) - 1;
+		start_line = dc_crtc_timing->v_total - (req_delta_lines - vsync_line) + 2;
 	else
 		start_line = vsync_line - req_delta_lines;
 
