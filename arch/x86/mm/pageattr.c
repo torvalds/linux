@@ -293,6 +293,11 @@ static void cpa_flush_range(unsigned long start, int numpages, int cache)
 	BUG_ON(irqs_disabled() && !early_boot_irqs_disabled);
 	WARN_ON(PAGE_ALIGN(start) != start);
 
+	if (!static_cpu_has(X86_FEATURE_CLFLUSH)) {
+		cpa_flush_all(cache);
+		return;
+	}
+
 	flush_tlb_kernel_range(start, start + PAGE_SIZE * numpages);
 
 	if (!cache)
@@ -2078,10 +2083,7 @@ static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
 	/*
 	 * Before changing the encryption attribute, we need to flush caches.
 	 */
-	if (static_cpu_has(X86_FEATURE_CLFLUSH))
-		cpa_flush_range(start, numpages, 1);
-	else
-		cpa_flush_all(1);
+	cpa_flush_range(start, numpages, 1);
 
 	ret = __change_page_attr_set_clr(&cpa, 1);
 
@@ -2092,10 +2094,7 @@ static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
 	 * in case TLB flushing gets optimized in the cpa_flush_range()
 	 * path use the same logic as above.
 	 */
-	if (static_cpu_has(X86_FEATURE_CLFLUSH))
-		cpa_flush_range(start, numpages, 0);
-	else
-		cpa_flush_all(0);
+	cpa_flush_range(start, numpages, 0);
 
 	return ret;
 }
