@@ -285,16 +285,6 @@ static void cpa_flush_all(unsigned long cache)
 	on_each_cpu(__cpa_flush_all, (void *) cache, 1);
 }
 
-static void __cpa_flush_range(void *arg)
-{
-	/*
-	 * We could optimize that further and do individual per page
-	 * tlb invalidates for a low number of pages. Caveat: we must
-	 * flush the high aliases on 64bit as well.
-	 */
-	__flush_tlb_all();
-}
-
 static void cpa_flush_range(unsigned long start, int numpages, int cache)
 {
 	unsigned int i, level;
@@ -303,7 +293,7 @@ static void cpa_flush_range(unsigned long start, int numpages, int cache)
 	BUG_ON(irqs_disabled() && !early_boot_irqs_disabled);
 	WARN_ON(PAGE_ALIGN(start) != start);
 
-	on_each_cpu(__cpa_flush_range, NULL, 1);
+	flush_tlb_all();
 
 	if (!cache)
 		return;
