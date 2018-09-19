@@ -220,8 +220,9 @@ static const struct nouveau_debugfs_files {
 int
 nouveau_drm_debugfs_init(struct drm_minor *minor)
 {
+	struct nouveau_drm *drm = nouveau_drm(minor->dev);
 	struct dentry *dentry;
-	int i;
+	int i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(nouveau_debugfs_files); i++) {
 		dentry = debugfs_create_file(nouveau_debugfs_files[i].name,
@@ -232,9 +233,23 @@ nouveau_drm_debugfs_init(struct drm_minor *minor)
 			return -ENOMEM;
 	}
 
-	return drm_debugfs_create_files(nouveau_debugfs_list,
-					NOUVEAU_DEBUGFS_ENTRIES,
-					minor->debugfs_root, minor);
+	ret = drm_debugfs_create_files(nouveau_debugfs_list,
+				       NOUVEAU_DEBUGFS_ENTRIES,
+				       minor->debugfs_root, minor);
+	if (ret)
+		return ret;
+
+	/* Set the size of the vbios since we know it, and it's confusing to
+	 * userspace if it wants to seek() but the file has a length of 0
+	 */
+	dentry = debugfs_lookup("vbios.rom", minor->debugfs_root);
+	if (!dentry)
+		return 0;
+
+	d_inode(dentry)->i_size = drm->vbios.length;
+	dput(dentry);
+
+	return 0;
 }
 
 int
