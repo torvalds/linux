@@ -390,6 +390,15 @@ static enum drm_mode_status omap_crtc_mode_valid(struct drm_crtc *crtc,
 					const struct drm_display_mode *mode)
 {
 	struct omap_drm_private *priv = crtc->dev->dev_private;
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct videomode vm = {0};
+	int r;
+
+	drm_display_mode_to_videomode(mode, &vm);
+	r = priv->dispc_ops->mgr_check_timings(priv->dispc, omap_crtc->channel,
+					       &vm);
+	if (r)
+		return r;
 
 	/* Check for bandwidth limit */
 	if (priv->max_bandwidth) {

@@ -245,8 +245,6 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
-	enum omap_channel channel = omap_connector->output->dispc_channel;
-	struct omap_drm_private *priv = connector->dev->dev_private;
 	struct omap_dss_device *dssdev;
 	struct videomode vm = {0};
 	struct drm_device *dev = connector->dev;
@@ -255,10 +253,6 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 
 	drm_display_mode_to_videomode(mode, &vm);
 	mode->vrefresh = drm_mode_vrefresh(mode);
-
-	r = priv->dispc_ops->mgr_check_timings(priv->dispc, channel, &vm);
-	if (r)
-		goto done;
 
 	for (dssdev = omap_connector->output; dssdev; dssdev = dssdev->next) {
 		if (!dssdev->ops->check_timings)
