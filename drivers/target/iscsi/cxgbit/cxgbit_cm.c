@@ -598,15 +598,25 @@ out:
 	mutex_unlock(&cdev_list_lock);
 }
 
+static void __cxgbit_free_conn(struct cxgbit_sock *csk);
+
 void cxgbit_free_np(struct iscsi_np *np)
 {
 	struct cxgbit_np *cnp = np->np_context;
+	struct cxgbit_sock *csk, *tmp;
 
 	cnp->com.state = CSK_STATE_DEAD;
 	if (cnp->com.cdev)
 		cxgbit_free_cdev_np(cnp);
 	else
 		cxgbit_free_all_np(cnp);
+
+	spin_lock_bh(&cnp->np_accept_lock);
+	list_for_each_entry_safe(csk, tmp, &cnp->np_accept_list, accept_node) {
+		list_del_init(&csk->accept_node);
+		__cxgbit_free_conn(csk);
+	}
+	spin_unlock_bh(&cnp->np_accept_lock);
 
 	np->np_context = NULL;
 	cxgbit_put_cnp(cnp);
@@ -705,9 +715,9 @@ void cxgbit_abort_conn(struct cxgbit_sock *csk)
 			      csk->tid, 600, __func__);
 }
 
-void cxgbit_free_conn(struct iscsi_conn *conn)
+static void __cxgbit_free_conn(struct cxgbit_sock *csk)
 {
-	struct cxgbit_sock *csk = conn->context;
+	struct iscsi_conn *conn = csk->conn;
 	bool release = false;
 
 	pr_debug("%s: state %d\n",
@@ -716,7 +726,7 @@ void cxgbit_free_conn(struct iscsi_conn *conn)
 	spin_lock_bh(&csk->lock);
 	switch (csk->com.state) {
 	case CSK_STATE_ESTABLISHED:
-		if (conn->conn_state == TARG_CONN_STATE_IN_LOGOUT) {
+		if (conn && (conn->conn_state == TARG_CONN_STATE_IN_LOGOUT)) {
 			csk->com.state = CSK_STATE_CLOSING;
 			cxgbit_send_halfclose(csk);
 		} else {
@@ -739,6 +749,11 @@ void cxgbit_free_conn(struct iscsi_conn *conn)
 
 	if (release)
 		cxgbit_put_csk(csk);
+}
+
+void cxgbit_free_conn(struct iscsi_conn *conn)
+{
+	__cxgbit_free_conn(conn->context);
 }
 
 static void cxgbit_set_emss(struct cxgbit_sock *csk, u16 opt)
@@ -803,6 +818,7 @@ void _cxgbit_free_csk(struct kref *kref)
 	spin_unlock_bh(&cdev->cskq.lock);
 
 	cxgbit_free_skb(csk);
+	cxgbit_put_cnp(csk->cnp);
 	cxgbit_put_cdev(cdev);
 
 	kfree(csk);
@@ -1351,6 +1367,7 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 		goto rel_skb;
 	}
 
+	cxgbit_get_cnp(cnp);
 	cxgbit_get_cdev(cdev);
 
 	spin_lock(&cdev->cskq.lock);
