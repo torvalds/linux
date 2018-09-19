@@ -47,13 +47,6 @@ static inline bool z_erofs_gather_if_stagingpage(struct list_head *page_pool,
 #define Z_EROFS_VLE_INLINE_PAGEVECS     3
 
 struct z_erofs_vle_work {
-	/* struct z_erofs_vle_work *left, *right; */
-
-#ifdef CONFIG_EROFS_FS_ZIP_MULTIREF
-	struct list_head list;
-
-	atomic_t refcount;
-#endif
 	struct mutex lock;
 
 	/* I: decompression offset in page */
@@ -107,10 +100,8 @@ static inline void z_erofs_vle_set_workgrp_fmt(
 	grp->flags = fmt | (grp->flags & ~Z_EROFS_VLE_WORKGRP_FMT_MASK);
 }
 
-#ifdef CONFIG_EROFS_FS_ZIP_MULTIREF
-#error multiref decompression is unimplemented yet
-#else
 
+/* definitions if multiref is disabled */
 #define z_erofs_vle_grab_primary_work(grp)	(&(grp)->work)
 #define z_erofs_vle_grab_work(grp, pageofs)	(&(grp)->work)
 #define z_erofs_vle_work_workgroup(wrk, primary)	\
@@ -118,7 +109,6 @@ static inline void z_erofs_vle_set_workgrp_fmt(
 		struct z_erofs_vle_workgroup, work) : \
 		({ BUG(); (void *)NULL; }))
 
-#endif
 
 #define Z_EROFS_WORKGROUP_SIZE       sizeof(struct z_erofs_vle_workgroup)
 
