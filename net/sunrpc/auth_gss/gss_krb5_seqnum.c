@@ -43,13 +43,12 @@ static s32
 krb5_make_rc4_seq_num(struct krb5_ctx *kctx, int direction, s32 seqnum,
 		      unsigned char *cksum, unsigned char *buf)
 {
-	struct crypto_skcipher *cipher;
+	struct crypto_sync_skcipher *cipher;
 	unsigned char plain[8];
 	s32 code;
 
 	dprintk("RPC:       %s:\n", __func__);
-	cipher = crypto_alloc_skcipher(kctx->gk5e->encrypt_name, 0,
-				       CRYPTO_ALG_ASYNC);
+	cipher = crypto_alloc_sync_skcipher(kctx->gk5e->encrypt_name, 0, 0);
 	if (IS_ERR(cipher))
 		return PTR_ERR(cipher);
 
@@ -68,12 +67,12 @@ krb5_make_rc4_seq_num(struct krb5_ctx *kctx, int direction, s32 seqnum,
 
 	code = krb5_encrypt(cipher, cksum, plain, buf, 8);
 out:
-	crypto_free_skcipher(cipher);
+	crypto_free_sync_skcipher(cipher);
 	return code;
 }
 s32
 krb5_make_seq_num(struct krb5_ctx *kctx,
-		struct crypto_skcipher *key,
+		struct crypto_sync_skcipher *key,
 		int direction,
 		u32 seqnum,
 		unsigned char *cksum, unsigned char *buf)
@@ -101,13 +100,12 @@ static s32
 krb5_get_rc4_seq_num(struct krb5_ctx *kctx, unsigned char *cksum,
 		     unsigned char *buf, int *direction, s32 *seqnum)
 {
-	struct crypto_skcipher *cipher;
+	struct crypto_sync_skcipher *cipher;
 	unsigned char plain[8];
 	s32 code;
 
 	dprintk("RPC:       %s:\n", __func__);
-	cipher = crypto_alloc_skcipher(kctx->gk5e->encrypt_name, 0,
-				       CRYPTO_ALG_ASYNC);
+	cipher = crypto_alloc_sync_skcipher(kctx->gk5e->encrypt_name, 0, 0);
 	if (IS_ERR(cipher))
 		return PTR_ERR(cipher);
 
@@ -130,7 +128,7 @@ krb5_get_rc4_seq_num(struct krb5_ctx *kctx, unsigned char *cksum,
 	*seqnum = ((plain[0] << 24) | (plain[1] << 16) |
 					(plain[2] << 8) | (plain[3]));
 out:
-	crypto_free_skcipher(cipher);
+	crypto_free_sync_skcipher(cipher);
 	return code;
 }
 
@@ -142,7 +140,7 @@ krb5_get_seq_num(struct krb5_ctx *kctx,
 {
 	s32 code;
 	unsigned char plain[8];
-	struct crypto_skcipher *key = kctx->seq;
+	struct crypto_sync_skcipher *key = kctx->seq;
 
 	dprintk("RPC:       krb5_get_seq_num:\n");
 
