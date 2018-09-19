@@ -165,11 +165,21 @@ static int erofs_build_fault_attr(struct erofs_sb_info *sbi,
 	set_opt(sbi, FAULT_INJECTION);
 	return 0;
 }
+
+static unsigned int erofs_get_fault_rate(struct erofs_sb_info *sbi)
+{
+	return sbi->fault_info.inject_rate;
+}
 #else
 static int erofs_build_fault_attr(struct erofs_sb_info *sbi,
 				  substring_t *args)
 {
 	infoln("fault_injection options not supported");
+	return 0;
+}
+
+static unsigned int erofs_get_fault_rate(struct erofs_sb_info *sbi)
+{
 	return 0;
 }
 #endif
@@ -631,11 +641,9 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 	else
 		seq_puts(seq, ",noacl");
 #endif
-#ifdef CONFIG_EROFS_FAULT_INJECTION
 	if (test_opt(sbi, FAULT_INJECTION))
 		seq_printf(seq, ",fault_injection=%u",
-				sbi->fault_info.inject_rate);
-#endif
+			erofs_get_fault_rate(sbi));
 	return 0;
 }
 
