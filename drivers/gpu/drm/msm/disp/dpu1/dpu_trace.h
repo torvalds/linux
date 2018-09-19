@@ -468,14 +468,16 @@ TRACE_EVENT(dpu_enc_frame_done_cb,
 
 TRACE_EVENT(dpu_enc_trigger_flush,
 	TP_PROTO(uint32_t drm_id, enum dpu_intf intf_idx,
-		 int pending_kickoff_cnt, int ctl_idx, u32 pending_flush_ret),
+		 int pending_kickoff_cnt, int ctl_idx, u32 extra_flush_bits,
+		 u32 pending_flush_ret),
 	TP_ARGS(drm_id, intf_idx, pending_kickoff_cnt, ctl_idx,
-		pending_flush_ret),
+		extra_flush_bits, pending_flush_ret),
 	TP_STRUCT__entry(
 		__field(	uint32_t,	drm_id			)
 		__field(	enum dpu_intf,	intf_idx		)
 		__field(	int,		pending_kickoff_cnt	)
 		__field(	int,		ctl_idx			)
+		__field(	u32,		extra_flush_bits	)
 		__field(	u32,		pending_flush_ret	)
 	),
 	TP_fast_assign(
@@ -483,12 +485,14 @@ TRACE_EVENT(dpu_enc_trigger_flush,
 		__entry->intf_idx = intf_idx;
 		__entry->pending_kickoff_cnt = pending_kickoff_cnt;
 		__entry->ctl_idx = ctl_idx;
+		__entry->extra_flush_bits = extra_flush_bits;
 		__entry->pending_flush_ret = pending_flush_ret;
 	),
 	TP_printk("id=%u, intf_idx=%d, pending_kickoff_cnt=%d ctl_idx=%d "
-		  "pending_flush_ret=%u", __entry->drm_id,
-		  __entry->intf_idx, __entry->pending_kickoff_cnt,
-		  __entry->ctl_idx, __entry->pending_flush_ret)
+		  "extra_flush_bits=0x%x pending_flush_ret=0x%x",
+		  __entry->drm_id, __entry->intf_idx,
+		  __entry->pending_kickoff_cnt, __entry->ctl_idx,
+		  __entry->extra_flush_bits, __entry->pending_flush_ret)
 );
 
 DECLARE_EVENT_CLASS(dpu_enc_ktime_template,
