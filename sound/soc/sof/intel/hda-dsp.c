@@ -210,6 +210,19 @@ bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev,
 	return is_enable;
 }
 
+int hda_dsp_core_stall_reset_skl(struct snd_sof_dev *sdev,
+				 unsigned int core_mask)
+{
+	/* stall core */
+	snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
+					 HDA_DSP_REG_ADSPCS,
+					 HDA_DSP_ADSPCS_CSTALL_MASK(core_mask),
+					 HDA_DSP_ADSPCS_CSTALL_MASK(core_mask));
+
+	/* set reset state */
+	return hda_dsp_core_reset_enter(sdev, core_mask);
+}
+
 int hda_dsp_enable_core(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
 	int ret;

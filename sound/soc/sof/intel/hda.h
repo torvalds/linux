@@ -384,6 +384,8 @@ int hda_dsp_core_reset_enter(struct snd_sof_dev *sdev,
 int hda_dsp_core_reset_leave(struct snd_sof_dev *sdev,
 			     unsigned int core_mask);
 int hda_dsp_core_stall_reset(struct snd_sof_dev *sdev, unsigned int core_mask);
+int hda_dsp_core_stall_reset_skl(struct snd_sof_dev *sdev,
+				 unsigned int core_mask);
 int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask);
 int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask);
 int hda_dsp_enable_core(struct snd_sof_dev *sdev, unsigned int core_mask);

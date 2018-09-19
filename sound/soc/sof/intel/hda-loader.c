@@ -468,9 +468,9 @@ int hda_dsp_cl_boot_firmware_skl(struct snd_sof_dev *sdev)
 irq_err:
 	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
 
-	/* disable DSP */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
-				SOF_HDA_PPCTL_GPROCEN, 0);
+	/* power down DSP */
+	hda_dsp_core_reset_power_down(sdev, HDA_DSP_CORE_MASK(0));
+
 	dev_err(sdev->dev, "error: load fw failed err: %d\n", ret);
 	return ret;
 }
