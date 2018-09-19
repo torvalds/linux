@@ -3998,7 +3998,10 @@ static int mvpp2_multi_queue_vectors_init(struct mvpp2_port *port,
 		v->sw_thread_id = i;
 		v->sw_thread_mask = BIT(i);
 
-		snprintf(irqname, sizeof(irqname), "tx-cpu%d", i);
+		if (port->flags & MVPP2_F_DT_COMPAT)
+			snprintf(irqname, sizeof(irqname), "tx-cpu%d", i);
+		else
+			snprintf(irqname, sizeof(irqname), "hif%d", i);
 
 		if (queue_mode == MVPP2_QDIST_MULTI_MODE) {
 			v->first_rxq = i * MVPP2_DEFAULT_RXQ;
@@ -4008,7 +4011,9 @@ static int mvpp2_multi_queue_vectors_init(struct mvpp2_port *port,
 			v->first_rxq = 0;
 			v->nrxqs = port->nrxqs;
 			v->type = MVPP2_QUEUE_VECTOR_SHARED;
-			strncpy(irqname, "rx-shared", sizeof(irqname));
+
+			if (port->flags & MVPP2_F_DT_COMPAT)
+				strncpy(irqname, "rx-shared", sizeof(irqname));
 		}
 
 		if (port_node)
@@ -4204,24 +4209,47 @@ err_free_percpu:
 	return err;
 }
 
-/* Checks if the port DT description has the TX interrupts
- * described. On PPv2.1, there are no such interrupts. On PPv2.2,
- * there are available, but we need to keep support for old DTs.
- */
-static bool mvpp2_port_has_tx_irqs(struct mvpp2 *priv,
-				   struct device_node *port_node)
+static bool mvpp22_port_has_legacy_tx_irqs(struct device_node *port_node,
+					   unsigned long *flags)
 {
-	char *irqs[5] = { "rx-shared", "tx-cpu0", "tx-cpu1",
-			  "tx-cpu2", "tx-cpu3" };
-	int ret, i;
+	char *irqs[5] = { "rx-shared", "tx-cpu0", "tx-cpu1", "tx-cpu2",
+			  "tx-cpu3" };
+	int i;
+
+	for (i = 0; i < 5; i++)
+		if (of_property_match_string(port_node, "interrupt-names",
+					     irqs[i]) < 0)
+			return false;
+
+	*flags |= MVPP2_F_DT_COMPAT;
+	return true;
+}
+
+/* Checks if the port dt description has the required Tx interrupts:
+ * - PPv2.1: there are no such interrupts.
+ * - PPv2.2:
+ *   - The old DTs have: "rx-shared", "tx-cpuX" with X in [0...3]
+ *   - The new ones have: "hifX" with X in [0..8]
+ *
+ * All those variants are supported to keep the backward compatibility.
+ */
+static bool mvpp2_port_has_irqs(struct mvpp2 *priv,
+				struct device_node *port_node,
+				unsigned long *flags)
+{
+	char name[5];
+	int i;
 
 	if (priv->hw_version == MVPP21)
 		return false;
 
-	for (i = 0; i < 5; i++) {
-		ret = of_property_match_string(port_node, "interrupt-names",
-					       irqs[i]);
-		if (ret < 0)
+	if (mvpp22_port_has_legacy_tx_irqs(port_node, flags))
+		return true;
+
+	for (i = 0; i < MVPP2_MAX_THREADS; i++) {
+		snprintf(name, 5, "hif%d", i);
+		if (of_property_match_string(port_node, "interrupt-names",
+					     name) < 0)
 			return false;
 	}
 
@@ -4599,6 +4627,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	struct phylink *phylink;
 	char *mac_from = "";
 	unsigned int ntxqs, nrxqs;
+	unsigned long flags = 0;
 	bool has_tx_irqs;
 	u32 id;
 	int features;
@@ -4606,7 +4635,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	int err, i, cpu;
 
 	if (port_node) {
-		has_tx_irqs = mvpp2_port_has_tx_irqs(priv, port_node);
+		has_tx_irqs = mvpp2_port_has_irqs(priv, port_node, &flags);
 	} else {
 		has_tx_irqs = true;
 		queue_mode = MVPP2_QDIST_MULTI_MODE;
@@ -4662,6 +4691,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	port->nrxqs = nrxqs;
 	port->priv = priv;
 	port->has_tx_irqs = has_tx_irqs;
+	port->flags = flags;
 
 	err = mvpp2_queue_vectors_init(port, port_node);
 	if (err)
