@@ -127,6 +127,7 @@ static const struct mssr_mod_clk r8a77970_mod_clks[] __initconst = {
 	DEF_MOD("cmt2",			 301,	R8A77970_CLK_R),
 	DEF_MOD("cmt1",			 302,	R8A77970_CLK_R),
 	DEF_MOD("cmt0",			 303,	R8A77970_CLK_R),
+	DEF_MOD("tpu0",			 304,	R8A77970_CLK_S2D4),
 	DEF_MOD("sd-if",		 314,	R8A77970_CLK_SD0),
 	DEF_MOD("rwdt",			 402,	R8A77970_CLK_R),
 	DEF_MOD("intc-ex",		 407,	R8A77970_CLK_CP),
