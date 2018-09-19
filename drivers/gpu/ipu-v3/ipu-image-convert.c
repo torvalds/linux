@@ -896,7 +896,7 @@ static irqreturn_t do_bh(int irq, void *dev_id)
 			dev_dbg(priv->ipu->dev,
 				"%s: task %u: signaling abort for ctx %p\n",
 				__func__, chan->ic_task, ctx);
-			complete(&ctx->aborted);
+			complete_all(&ctx->aborted);
 		}
 	}
 
@@ -1533,8 +1533,6 @@ static void __ipu_image_convert_abort(struct ipu_image_convert_ctx *ctx)
 	int run_count, ret;
 	bool need_abort;
 
-	reinit_completion(&ctx->aborted);
-
 	spin_lock_irqsave(&chan->irqlock, flags);
 
 	/* move all remaining pending runs in this context to done_q */
@@ -1548,6 +1546,9 @@ static void __ipu_image_convert_abort(struct ipu_image_convert_ctx *ctx)
 	run_count = get_run_count(ctx, &chan->done_q);
 	active_run = (chan->current_run && chan->current_run->ctx == ctx) ?
 		chan->current_run : NULL;
+
+	if (active_run)
+		reinit_completion(&ctx->aborted);
 
 	need_abort = (run_count || active_run);
 
