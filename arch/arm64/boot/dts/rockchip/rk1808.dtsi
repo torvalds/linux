@@ -90,7 +90,7 @@
 		#clock-cells = <0>;
 	};
 
-	usbdrd3: usb@fd000000 {
+	usbdrd3: usb {
 		compatible = "rockchip,rk1808-dwc3";
 		clocks = <&cru SCLK_USB3_OTG0_REF>, <&cru ACLK_USB3OTG>,
 			 <&cru SCLK_USB3_OTG0_SUSPEND>;
