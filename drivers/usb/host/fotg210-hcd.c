@@ -1286,7 +1286,7 @@ static void fotg210_iaa_watchdog(struct fotg210_hcd *fotg210)
 		 */
 		status = fotg210_readl(fotg210, &fotg210->regs->status);
 		if ((status & STS_IAA) || !(cmd & CMD_IAAD)) {
-			COUNT(fotg210->stats.lost_iaa);
+			INCR(fotg210->stats.lost_iaa);
 			fotg210_writel(fotg210, STS_IAA,
 					&fotg210->regs->status);
 		}
@@ -2205,12 +2205,12 @@ __acquires(fotg210->lock)
 	}
 
 	if (unlikely(urb->unlinked)) {
-		COUNT(fotg210->stats.unlink);
+		INCR(fotg210->stats.unlink);
 	} else {
 		/* report non-error and short read status as zero */
 		if (status == -EINPROGRESS || status == -EREMOTEIO)
 			status = 0;
-		COUNT(fotg210->stats.complete);
+		INCR(fotg210->stats.complete);
 	}
 
 #ifdef FOTG210_URB_TRACE
@@ -5154,9 +5154,9 @@ static irqreturn_t fotg210_irq(struct usb_hcd *hcd)
 	/* normal [4.15.1.2] or error [4.15.1.1] completion */
 	if (likely((status & (STS_INT|STS_ERR)) != 0)) {
 		if (likely((status & STS_ERR) == 0))
-			COUNT(fotg210->stats.normal);
+			INCR(fotg210->stats.normal);
 		else
-			COUNT(fotg210->stats.error);
+			INCR(fotg210->stats.error);
 		bh = 1;
 	}
 
@@ -5181,7 +5181,7 @@ static irqreturn_t fotg210_irq(struct usb_hcd *hcd)
 		if (cmd & CMD_IAAD)
 			fotg210_dbg(fotg210, "IAA with IAAD still set?\n");
 		if (fotg210->async_iaa) {
-			COUNT(fotg210->stats.iaa);
+			INCR(fotg210->stats.iaa);
 			end_unlink_async(fotg210);
 		} else
 			fotg210_dbg(fotg210, "IAA with nothing unlinked?\n");
