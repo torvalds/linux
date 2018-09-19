@@ -1361,9 +1361,9 @@ static void dpu_encoder_frame_done_callback(
 		/* One of the physical encoders has become idle */
 		for (i = 0; i < dpu_enc->num_phys_encs; i++) {
 			if (dpu_enc->phys_encs[i] == ready_phys) {
-				clear_bit(i, dpu_enc->frame_busy_mask);
 				trace_dpu_enc_frame_done_cb(DRMID(drm_enc), i,
 						dpu_enc->frame_busy_mask[0]);
+				clear_bit(i, dpu_enc->frame_busy_mask);
 			}
 		}
 
