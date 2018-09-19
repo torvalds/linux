@@ -3569,9 +3569,7 @@ void __drm_atomic_helper_plane_reset(struct drm_plane *plane,
 	state->plane = plane;
 	state->rotation = DRM_MODE_ROTATE_0;
 
-	/* Reset the alpha value to fully opaque if it matters */
-	if (plane->alpha_property)
-		state->alpha = plane->alpha_property->values[1];
+	state->alpha = DRM_BLEND_ALPHA_OPAQUE;
 	state->pixel_blend_mode = DRM_MODE_BLEND_PREMULTI;
 
 	plane->state = state;
