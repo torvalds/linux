@@ -1239,6 +1239,20 @@ static int hns3_nic_net_set_mac_address(struct net_device *netdev, void *p)
 	return 0;
 }
 
+static int hns3_nic_do_ioctl(struct net_device *netdev,
+			     struct ifreq *ifr, int cmd)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (!netif_running(netdev))
+		return -EINVAL;
+
+	if (!h->ae_algo->ops->do_ioctl)
+		return -EOPNOTSUPP;
+
+	return h->ae_algo->ops->do_ioctl(h, ifr, cmd);
+}
+
 static int hns3_nic_set_features(struct net_device *netdev,
 				 netdev_features_t features)
 {
@@ -1565,6 +1579,7 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_start_xmit		= hns3_nic_net_xmit,
 	.ndo_tx_timeout		= hns3_nic_net_timeout,
 	.ndo_set_mac_address	= hns3_nic_net_set_mac_address,
+	.ndo_do_ioctl		= hns3_nic_do_ioctl,
 	.ndo_change_mtu		= hns3_nic_change_mtu,
 	.ndo_set_features	= hns3_nic_set_features,
 	.ndo_get_stats64	= hns3_nic_get_stats64,

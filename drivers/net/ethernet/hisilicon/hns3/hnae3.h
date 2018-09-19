@@ -337,6 +337,8 @@ struct hnae3_ae_ops {
 	void (*get_mac_addr)(struct hnae3_handle *handle, u8 *p);
 	int (*set_mac_addr)(struct hnae3_handle *handle, void *p,
 			    bool is_first);
+	int (*do_ioctl)(struct hnae3_handle *handle,
+			struct ifreq *ifr, int cmd);
 	int (*add_uc_addr)(struct hnae3_handle *handle,
 			   const unsigned char *addr);
 	int (*rm_uc_addr)(struct hnae3_handle *handle,
