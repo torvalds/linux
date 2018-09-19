@@ -1,21 +1,21 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
-#ifndef _I40EVF_CLIENT_H_
-#define _I40EVF_CLIENT_H_
+#ifndef _IAVF_CLIENT_H_
+#define _IAVF_CLIENT_H_
 
-#define I40EVF_CLIENT_STR_LENGTH 10
+#define IAVF_CLIENT_STR_LENGTH 10
 
 /* Client interface version should be updated anytime there is a change in the
  * existing APIs or data structures.
  */
-#define I40EVF_CLIENT_VERSION_MAJOR 0
-#define I40EVF_CLIENT_VERSION_MINOR 01
-#define I40EVF_CLIENT_VERSION_BUILD 00
-#define I40EVF_CLIENT_VERSION_STR     \
-	__stringify(I40EVF_CLIENT_VERSION_MAJOR) "." \
-	__stringify(I40EVF_CLIENT_VERSION_MINOR) "." \
-	__stringify(I40EVF_CLIENT_VERSION_BUILD)
+#define IAVF_CLIENT_VERSION_MAJOR 0
+#define IAVF_CLIENT_VERSION_MINOR 01
+#define IAVF_CLIENT_VERSION_BUILD 00
+#define IAVF_CLIENT_VERSION_STR     \
+	__stringify(IAVF_CLIENT_VERSION_MAJOR) "." \
+	__stringify(IAVF_CLIENT_VERSION_MINOR) "." \
+	__stringify(IAVF_CLIENT_VERSION_BUILD)
 
 struct i40e_client_version {
 	u8 major;
@@ -90,7 +90,7 @@ struct i40e_info {
 #define I40E_CLIENT_FTYPE_PF 0
 #define I40E_CLIENT_FTYPE_VF 1
 	u8 ftype; /* function type, PF or VF */
-	void *vf; /* cast to i40evf_adapter */
+	void *vf; /* cast to iavf_adapter */
 
 	/* All L2 params that could change during the life span of the device
 	 * and needs to be communicated to the client when they change
@@ -151,7 +151,7 @@ struct i40e_client_instance {
 
 struct i40e_client {
 	struct list_head list;		/* list of registered clients */
-	char name[I40EVF_CLIENT_STR_LENGTH];
+	char name[IAVF_CLIENT_STR_LENGTH];
 	struct i40e_client_version version;
 	unsigned long state;		/* client state */
 	atomic_t ref_cnt;  /* Count of all the client devices of this kind */
@@ -164,6 +164,6 @@ struct i40e_client {
 };
 
 /* used by clients */
-int i40evf_register_client(struct i40e_client *client);
-int i40evf_unregister_client(struct i40e_client *client);
-#endif /* _I40EVF_CLIENT_H_ */
+int iavf_register_client(struct i40e_client *client);
+int iavf_unregister_client(struct i40e_client *client);
+#endif /* _IAVF_CLIENT_H_ */

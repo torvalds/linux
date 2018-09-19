@@ -3,16 +3,16 @@
 
 /* Modeled on trace-events-sample.h */
 
-/* The trace subsystem name for i40evf will be "i40evf".
+/* The trace subsystem name for iavf will be "iavf".
  *
- * This file is named i40e_trace.h.
+ * This file is named iavf_trace.h.
  *
  * Since this include file's name is different from the trace
  * subsystem name, we'll have to define TRACE_INCLUDE_FILE at the end
  * of this file.
  */
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM i40evf
+#define TRACE_SYSTEM iavf
 
 /* See trace-events-sample.h for a detailed description of why this
  * guard clause is different from most normal include files.
@@ -23,14 +23,14 @@
 #include <linux/tracepoint.h>
 
 /**
- * i40e_trace() macro enables shared code to refer to trace points
+ * iavf_trace() macro enables shared code to refer to trace points
  * like:
  *
- * trace_i40e{,vf}_example(args...)
+ * trace_iavf{,vf}_example(args...)
  *
  * ... as:
  *
- * i40e_trace(example, args...)
+ * iavf_trace(example, args...)
  *
  * ... to resolve to the PF or VF version of the tracepoint without
  * ifdefs, and to allow tracepoints to be disabled entirely at build
@@ -39,29 +39,29 @@
  * Trace point should always be referred to in the driver via this
  * macro.
  *
- * Similarly, i40e_trace_enabled(trace_name) wraps references to
- * trace_i40e{,vf}_<trace_name>_enabled() functions.
+ * Similarly, iavf_trace_enabled(trace_name) wraps references to
+ * trace_iavf{,vf}_<trace_name>_enabled() functions.
  */
-#define _I40E_TRACE_NAME(trace_name) (trace_ ## i40evf ## _ ## trace_name)
-#define I40E_TRACE_NAME(trace_name) _I40E_TRACE_NAME(trace_name)
+#define _IAVF_TRACE_NAME(trace_name) (trace_ ## iavf ## _ ## trace_name)
+#define IAVF_TRACE_NAME(trace_name) _IAVF_TRACE_NAME(trace_name)
 
-#define i40e_trace(trace_name, args...) I40E_TRACE_NAME(trace_name)(args)
+#define iavf_trace(trace_name, args...) IAVF_TRACE_NAME(trace_name)(args)
 
-#define i40e_trace_enabled(trace_name) I40E_TRACE_NAME(trace_name##_enabled)()
+#define iavf_trace_enabled(trace_name) IAVF_TRACE_NAME(trace_name##_enabled)()
 
 /* Events common to PF and VF. Corresponding versions will be defined
- * for both, named trace_i40e_* and trace_i40evf_*. The i40e_trace()
+ * for both, named trace_iavf_* and trace_iavf_*. The iavf_trace()
  * macro above will select the right trace point name for the driver
  * being built from shared code.
  */
 
 /* Events related to a vsi & ring */
 DECLARE_EVENT_CLASS(
-	i40evf_tx_template,
+	iavf_tx_template,
 
-	TP_PROTO(struct i40e_ring *ring,
-		 struct i40e_tx_desc *desc,
-		 struct i40e_tx_buffer *buf),
+	TP_PROTO(struct iavf_ring *ring,
+		 struct iavf_tx_desc *desc,
+		 struct iavf_tx_buffer *buf),
 
 	TP_ARGS(ring, desc, buf),
 
@@ -93,26 +93,26 @@ DECLARE_EVENT_CLASS(
 );
 
 DEFINE_EVENT(
-	i40evf_tx_template, i40evf_clean_tx_irq,
-	TP_PROTO(struct i40e_ring *ring,
-		 struct i40e_tx_desc *desc,
-		 struct i40e_tx_buffer *buf),
+	iavf_tx_template, iavf_clean_tx_irq,
+	TP_PROTO(struct iavf_ring *ring,
+		 struct iavf_tx_desc *desc,
+		 struct iavf_tx_buffer *buf),
 
 	TP_ARGS(ring, desc, buf));
 
 DEFINE_EVENT(
-	i40evf_tx_template, i40evf_clean_tx_irq_unmap,
-	TP_PROTO(struct i40e_ring *ring,
-		 struct i40e_tx_desc *desc,
-		 struct i40e_tx_buffer *buf),
+	iavf_tx_template, iavf_clean_tx_irq_unmap,
+	TP_PROTO(struct iavf_ring *ring,
+		 struct iavf_tx_desc *desc,
+		 struct iavf_tx_buffer *buf),
 
 	TP_ARGS(ring, desc, buf));
 
 DECLARE_EVENT_CLASS(
-	i40evf_rx_template,
+	iavf_rx_template,
 
-	TP_PROTO(struct i40e_ring *ring,
-		 union i40e_32byte_rx_desc *desc,
+	TP_PROTO(struct iavf_ring *ring,
+		 union iavf_32byte_rx_desc *desc,
 		 struct sk_buff *skb),
 
 	TP_ARGS(ring, desc, skb),
@@ -138,26 +138,26 @@ DECLARE_EVENT_CLASS(
 );
 
 DEFINE_EVENT(
-	i40evf_rx_template, i40evf_clean_rx_irq,
-	TP_PROTO(struct i40e_ring *ring,
-		 union i40e_32byte_rx_desc *desc,
+	iavf_rx_template, iavf_clean_rx_irq,
+	TP_PROTO(struct iavf_ring *ring,
+		 union iavf_32byte_rx_desc *desc,
 		 struct sk_buff *skb),
 
 	TP_ARGS(ring, desc, skb));
 
 DEFINE_EVENT(
-	i40evf_rx_template, i40evf_clean_rx_irq_rx,
-	TP_PROTO(struct i40e_ring *ring,
-		 union i40e_32byte_rx_desc *desc,
+	iavf_rx_template, iavf_clean_rx_irq_rx,
+	TP_PROTO(struct iavf_ring *ring,
+		 union iavf_32byte_rx_desc *desc,
 		 struct sk_buff *skb),
 
 	TP_ARGS(ring, desc, skb));
 
 DECLARE_EVENT_CLASS(
-	i40evf_xmit_template,
+	iavf_xmit_template,
 
 	TP_PROTO(struct sk_buff *skb,
-		 struct i40e_ring *ring),
+		 struct iavf_ring *ring),
 
 	TP_ARGS(skb, ring),
 
@@ -180,23 +180,23 @@ DECLARE_EVENT_CLASS(
 );
 
 DEFINE_EVENT(
-	i40evf_xmit_template, i40evf_xmit_frame_ring,
+	iavf_xmit_template, iavf_xmit_frame_ring,
 	TP_PROTO(struct sk_buff *skb,
-		 struct i40e_ring *ring),
+		 struct iavf_ring *ring),
 
 	TP_ARGS(skb, ring));
 
 DEFINE_EVENT(
-	i40evf_xmit_template, i40evf_xmit_frame_ring_drop,
+	iavf_xmit_template, iavf_xmit_frame_ring_drop,
 	TP_PROTO(struct sk_buff *skb,
-		 struct i40e_ring *ring),
+		 struct iavf_ring *ring),
 
 	TP_ARGS(skb, ring));
 
 /* Events unique to the VF. */
 
-#endif /* _I40E_TRACE_H_ */
-/* This must be outside ifdef _I40E_TRACE_H */
+#endif /* _IAVF_TRACE_H_ */
+/* This must be outside ifdef _IAVF_TRACE_H */
 
 /* This trace include file is not located in the .../include/trace
  * with the kernel tracepoint definitions, because we're a loadable
@@ -205,5 +205,5 @@ DEFINE_EVENT(
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_FILE i40e_trace
+#define TRACE_INCLUDE_FILE iavf_trace
 #include <trace/define_trace.h>

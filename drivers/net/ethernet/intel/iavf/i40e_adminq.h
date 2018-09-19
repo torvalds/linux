@@ -1,26 +1,26 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
-#ifndef _I40E_ADMINQ_H_
-#define _I40E_ADMINQ_H_
+#ifndef _IAVF_ADMINQ_H_
+#define _IAVF_ADMINQ_H_
 
-#include "i40e_osdep.h"
-#include "i40e_status.h"
+#include "iavf_osdep.h"
+#include "iavf_status.h"
 #include "i40e_adminq_cmd.h"
 
-#define I40E_ADMINQ_DESC(R, i)   \
+#define IAVF_ADMINQ_DESC(R, i)   \
 	(&(((struct i40e_aq_desc *)((R).desc_buf.va))[i]))
 
-#define I40E_ADMINQ_DESC_ALIGNMENT 4096
+#define IAVF_ADMINQ_DESC_ALIGNMENT 4096
 
-struct i40e_adminq_ring {
-	struct i40e_virt_mem dma_head;	/* space for dma structures */
-	struct i40e_dma_mem desc_buf;	/* descriptor ring memory */
-	struct i40e_virt_mem cmd_buf;	/* command buffer memory */
+struct iavf_adminq_ring {
+	struct iavf_virt_mem dma_head;	/* space for dma structures */
+	struct iavf_dma_mem desc_buf;	/* descriptor ring memory */
+	struct iavf_virt_mem cmd_buf;	/* command buffer memory */
 
 	union {
-		struct i40e_dma_mem *asq_bi;
-		struct i40e_dma_mem *arq_bi;
+		struct iavf_dma_mem *asq_bi;
+		struct iavf_dma_mem *arq_bi;
 	} r;
 
 	u16 count;		/* Number of descriptors */
@@ -61,9 +61,9 @@ struct i40e_arq_event_info {
 };
 
 /* Admin Queue information */
-struct i40e_adminq_info {
-	struct i40e_adminq_ring arq;    /* receive queue */
-	struct i40e_adminq_ring asq;    /* send queue */
+struct iavf_adminq_info {
+	struct iavf_adminq_ring arq;    /* receive queue */
+	struct iavf_adminq_ring asq;    /* send queue */
 	u32 asq_cmd_timeout;            /* send queue cmd write back timeout*/
 	u16 num_arq_entries;            /* receive queue depth */
 	u16 num_asq_entries;            /* send queue depth */
@@ -130,7 +130,6 @@ static inline int i40e_aq_rc_to_posix(int aq_ret, int aq_rc)
 #define I40E_AQ_LARGE_BUF	512
 #define I40E_ASQ_CMD_TIMEOUT	250000  /* usecs */
 
-void i40evf_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc,
-				       u16 opcode);
+void iavf_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc, u16 opcode);
 
-#endif /* _I40E_ADMINQ_H_ */
+#endif /* _IAVF_ADMINQ_H_ */
