@@ -507,13 +507,11 @@ extern struct inode *erofs_iget(struct super_block *sb,
 int erofs_namei(struct inode *dir, struct qstr *name,
 	erofs_nid_t *nid, unsigned *d_type);
 
+#ifdef CONFIG_EROFS_FS_XATTR
 /* xattr.c */
-#ifdef CONFIG_EROFS_FS_XATTR
 extern const struct xattr_handler *erofs_xattr_handlers[];
-#endif
 
-/* symlink */
-#ifdef CONFIG_EROFS_FS_XATTR
+/* symlink and special inode */
 extern const struct inode_operations erofs_symlink_xattr_iops;
 extern const struct inode_operations erofs_fast_symlink_xattr_iops;
 extern const struct inode_operations erofs_special_inode_operations;

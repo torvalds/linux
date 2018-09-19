@@ -260,22 +260,16 @@ struct inode *erofs_iget(struct super_block *sb,
 const struct inode_operations erofs_generic_xattr_iops = {
 	.listxattr = erofs_listxattr,
 };
-#endif
 
-#ifdef CONFIG_EROFS_FS_XATTR
 const struct inode_operations erofs_symlink_xattr_iops = {
 	.get_link = page_get_link,
 	.listxattr = erofs_listxattr,
 };
-#endif
 
 const struct inode_operations erofs_special_inode_operations = {
-#ifdef CONFIG_EROFS_FS_XATTR
 	.listxattr = erofs_listxattr,
-#endif
 };
 
-#ifdef CONFIG_EROFS_FS_XATTR
 const struct inode_operations erofs_fast_symlink_xattr_iops = {
 	.get_link = simple_get_link,
 	.listxattr = erofs_listxattr,
