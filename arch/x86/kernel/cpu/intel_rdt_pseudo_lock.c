@@ -886,31 +886,14 @@ static int measure_cycles_lat_fn(void *_plr)
 	struct pseudo_lock_region *plr = _plr;
 	unsigned long i;
 	u64 start, end;
-#ifdef CONFIG_KASAN
-	/*
-	 * The registers used for local register variables are also used
-	 * when KASAN is active. When KASAN is active we use a regular
-	 * variable to ensure we always use a valid pointer to access memory.
-	 * The cost is that accessing this pointer, which could be in
-	 * cache, will be included in the measurement of memory read latency.
-	 */
 	void *mem_r;
-#else
-#ifdef CONFIG_X86_64
-	register void *mem_r asm("rbx");
-#else
-	register void *mem_r asm("ebx");
-#endif /* CONFIG_X86_64 */
-#endif /* CONFIG_KASAN */
 
 	local_irq_disable();
 	/*
-	 * The wrmsr call may be reordered with the assignment below it.
-	 * Call wrmsr as directly as possible to avoid tracing clobbering
-	 * local register variable used for memory pointer.
+	 * Disable hardware prefetchers.
 	 */
-	__wrmsr(MSR_MISC_FEATURE_CONTROL, prefetch_disable_bits, 0x0);
-	mem_r = plr->kmem;
+	wrmsr(MSR_MISC_FEATURE_CONTROL, prefetch_disable_bits, 0x0);
+	mem_r = READ_ONCE(plr->kmem);
 	/*
 	 * Dummy execute of the time measurement to load the needed
 	 * instructions into the L1 instruction cache.
@@ -939,26 +922,10 @@ static int measure_cycles_perf_fn(void *_plr)
 	struct pseudo_lock_region *plr = _plr;
 	unsigned long long l2_hits, l2_miss;
 	u64 l2_hit_bits, l2_miss_bits;
-	unsigned long i;
-#ifdef CONFIG_KASAN
-	/*
-	 * The registers used for local register variables are also used
-	 * when KASAN is active. When KASAN is active we use regular variables
-	 * at the cost of including cache access latency to these variables
-	 * in the measurements.
-	 */
 	unsigned int line_size;
 	unsigned int size;
+	unsigned long i;
 	void *mem_r;
-#else
-	register unsigned int line_size asm("esi");
-	register unsigned int size asm("edi");
-#ifdef CONFIG_X86_64
-	register void *mem_r asm("rbx");
-#else
-	register void *mem_r asm("ebx");
-#endif /* CONFIG_X86_64 */
-#endif /* CONFIG_KASAN */
 
 	/*
 	 * Non-architectural event for the Goldmont Microarchitecture
@@ -1011,11 +978,9 @@ static int measure_cycles_perf_fn(void *_plr)
 
 	local_irq_disable();
 	/*
-	 * Call wrmsr direcly to avoid the local register variables from
-	 * being overwritten due to reordering of their assignment with
-	 * the wrmsr calls.
+	 * Disable hardware prefetchers.
 	 */
-	__wrmsr(MSR_MISC_FEATURE_CONTROL, prefetch_disable_bits, 0x0);
+	wrmsr(MSR_MISC_FEATURE_CONTROL, prefetch_disable_bits, 0x0);
 	/* Disable events and reset counters */
 	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0, 0x0);
 	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 1, 0x0);
@@ -1028,6 +993,9 @@ static int measure_cycles_perf_fn(void *_plr)
 		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_PERFCTR0 + 3, 0x0);
 	}
 	/* Set and enable the L2 counters */
+	mem_r = READ_ONCE(plr->kmem);
+	size = READ_ONCE(plr->size);
+	line_size = READ_ONCE(plr->line_size);
 	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0, l2_hit_bits);
 	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 1, l2_miss_bits);
 	if (l3_hit_bits > 0) {
@@ -1036,9 +1004,6 @@ static int measure_cycles_perf_fn(void *_plr)
 		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 3,
 				      l3_miss_bits);
 	}
-	mem_r = plr->kmem;
-	size = plr->size;
-	line_size = plr->line_size;
 	for (i = 0; i < size; i += line_size) {
 		asm volatile("mov (%0,%1,1), %%eax\n\t"
 			     :
