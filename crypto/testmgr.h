@@ -24,8 +24,6 @@
 #ifndef _CRYPTO_TESTMGR_H
 #define _CRYPTO_TESTMGR_H
 
-#include <linux/netlink.h>
-
 #define MAX_DIGEST_SIZE		64
 #define MAX_TAP			8
 
