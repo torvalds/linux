@@ -272,4 +272,20 @@ static inline int rtc_nvmem_register(struct rtc_device *rtc,
 static inline void rtc_nvmem_unregister(struct rtc_device *rtc) {}
 #endif
 
+#ifdef CONFIG_RTC_INTF_SYSFS
+int rtc_add_group(struct rtc_device *rtc, const struct attribute_group *grp);
+int rtc_add_groups(struct rtc_device *rtc, const struct attribute_group **grps);
+#else
+static inline
+int rtc_add_group(struct rtc_device *rtc, const struct attribute_group *grp)
+{
+	return 0;
+}
+
+static inline
+int rtc_add_groups(struct rtc_device *rtc, const struct attribute_group **grps)
+{
+	return 0;
+}
+#endif
 #endif /* _LINUX_RTC_H_ */
