@@ -1008,17 +1008,6 @@ config RTC_DRV_DS17885
 
 endchoice
 
-config RTC_DS1685_PROC_REGS
-	bool "Display register values in /proc"
-	depends on RTC_DRV_DS1685_FAMILY && PROC_FS
-	help
-	  Enable this to display a readout of all of the RTC registers in
-	  /proc/drivers/rtc.  Keep in mind that this can potentially lead
-	  to lost interrupts, as reading Control Register C will clear
-	  all pending IRQ flags.
-
-	  Unless you are debugging this driver, choose N.
-
 config RTC_DRV_DS1742
 	tristate "Maxim/Dallas DS1742/1743"
 	depends on HAS_IOMEM
