@@ -197,7 +197,7 @@ static void __exit test_exit(void)
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
 MODULE_DESCRIPTION("RTC test driver/device");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 module_init(test_init);
 module_exit(test_exit);
