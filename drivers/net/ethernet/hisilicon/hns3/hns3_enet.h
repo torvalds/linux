@@ -491,7 +491,9 @@ struct hns3_enet_tqp_vector {
 	struct hns3_enet_ring_group rx_group;
 	struct hns3_enet_ring_group tx_group;
 
+	cpumask_t affinity_mask;
 	u16 num_tqps;	/* total number of tqps in TQP vector */
+	struct irq_affinity_notify affinity_notify;
 
 	char name[HNAE3_INT_NAME_LEN];
 

@@ -66,6 +66,23 @@ static irqreturn_t hns3_irq_handle(int irq, void *vector)
 	return IRQ_HANDLED;
 }
 
+/* This callback function is used to set affinity changes to the irq affinity
+ * masks when the irq_set_affinity_notifier function is used.
+ */
+static void hns3_nic_irq_affinity_notify(struct irq_affinity_notify *notify,
+					 const cpumask_t *mask)
+{
+	struct hns3_enet_tqp_vector *tqp_vectors =
+		container_of(notify, struct hns3_enet_tqp_vector,
+			     affinity_notify);
+
+	tqp_vectors->affinity_mask = *mask;
+}
+
+static void hns3_nic_irq_affinity_release(struct kref *ref)
+{
+}
+
 static void hns3_nic_uninit_irq(struct hns3_nic_priv *priv)
 {
 	struct hns3_enet_tqp_vector *tqp_vectors;
@@ -76,6 +93,10 @@ static void hns3_nic_uninit_irq(struct hns3_nic_priv *priv)
 
 		if (tqp_vectors->irq_init_flag != HNS3_VECTOR_INITED)
 			continue;
+
+		/* clear the affinity notifier and affinity mask */
+		irq_set_affinity_notifier(tqp_vectors->vector_irq, NULL);
+		irq_set_affinity_hint(tqp_vectors->vector_irq, NULL);
 
 		/* release the irq resource */
 		free_irq(tqp_vectors->vector_irq, tqp_vectors);
@@ -126,6 +147,15 @@ static int hns3_nic_init_irq(struct hns3_nic_priv *priv)
 				   tqp_vectors->vector_irq);
 			return ret;
 		}
+
+		tqp_vectors->affinity_notify.notify =
+					hns3_nic_irq_affinity_notify;
+		tqp_vectors->affinity_notify.release =
+					hns3_nic_irq_affinity_release;
+		irq_set_affinity_notifier(tqp_vectors->vector_irq,
+					  &tqp_vectors->affinity_notify);
+		irq_set_affinity_hint(tqp_vectors->vector_irq,
+				      &tqp_vectors->affinity_mask);
 
 		tqp_vectors->irq_init_flag = HNS3_VECTOR_INITED;
 	}
@@ -2640,6 +2670,23 @@ static void hns3_add_ring_to_group(struct hns3_enet_ring_group *group,
 	group->count++;
 }
 
+static void hns3_nic_set_cpumask(struct hns3_nic_priv *priv)
+{
+	struct pci_dev *pdev = priv->ae_handle->pdev;
+	struct hns3_enet_tqp_vector *tqp_vector;
+	int num_vectors = priv->vector_num;
+	int numa_node;
+	int vector_i;
+
+	numa_node = dev_to_node(&pdev->dev);
+
+	for (vector_i = 0; vector_i < num_vectors; vector_i++) {
+		tqp_vector = &priv->tqp_vector[vector_i];
+		cpumask_set_cpu(cpumask_local_spread(vector_i, numa_node),
+				&tqp_vector->affinity_mask);
+	}
+}
+
 static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 {
 	struct hnae3_ring_chain_node vector_ring_chain;
@@ -2647,6 +2694,8 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 	struct hns3_enet_tqp_vector *tqp_vector;
 	int ret = 0;
 	u16 i;
+
+	hns3_nic_set_cpumask(priv);
 
 	for (i = 0; i < priv->vector_num; i++) {
 		tqp_vector = &priv->tqp_vector[i];
