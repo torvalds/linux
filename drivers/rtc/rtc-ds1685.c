@@ -866,30 +866,13 @@ ds1685_rtc_ops = {
 };
 /* ----------------------------------------------------------------------- */
 
-
-/* ----------------------------------------------------------------------- */
-/* SysFS interface */
-
-#ifdef CONFIG_SYSFS
-/**
- * ds1685_rtc_sysfs_nvram_read - reads rtc nvram via sysfs.
- * @file: pointer to file structure.
- * @kobj: pointer to kobject structure.
- * @bin_attr: pointer to bin_attribute structure.
- * @buf: pointer to char array to hold the output.
- * @pos: current file position pointer.
- * @size: size of the data to read.
- */
-static ssize_t
-ds1685_rtc_sysfs_nvram_read(struct file *filp, struct kobject *kobj,
-			    struct bin_attribute *bin_attr, char *buf,
-			    loff_t pos, size_t size)
+static int ds1685_nvram_read(void *priv, unsigned int pos, void *val,
+			     size_t size)
 {
-	struct platform_device *pdev =
-		to_platform_device(container_of(kobj, struct device, kobj));
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = priv;
 	ssize_t count;
 	unsigned long flags = 0;
+	u8 *buf = val;
 
 	spin_lock_irqsave(&rtc->lock, flags);
 	ds1685_rtc_switch_to_bank0(rtc);
@@ -943,33 +926,16 @@ ds1685_rtc_sysfs_nvram_read(struct file *filp, struct kobject *kobj,
 #endif /* !CONFIG_RTC_DRV_DS1689 */
 	spin_unlock_irqrestore(&rtc->lock, flags);
 
-	/*
-	 * XXX: Bug? this appears to cause the function to get executed
-	 * several times in succession.  But it's the only way to actually get
-	 * data written out to a file.
-	 */
-	return count;
+	return 0;
 }
 
-/**
- * ds1685_rtc_sysfs_nvram_write - writes rtc nvram via sysfs.
- * @file: pointer to file structure.
- * @kobj: pointer to kobject structure.
- * @bin_attr: pointer to bin_attribute structure.
- * @buf: pointer to char array to hold the input.
- * @pos: current file position pointer.
- * @size: size of the data to write.
- */
-static ssize_t
-ds1685_rtc_sysfs_nvram_write(struct file *filp, struct kobject *kobj,
-			     struct bin_attribute *bin_attr, char *buf,
-			     loff_t pos, size_t size)
+static int ds1685_nvram_write(void *priv, unsigned int pos, void *val,
+			      size_t size)
 {
-	struct platform_device *pdev =
-		to_platform_device(container_of(kobj, struct device, kobj));
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = priv;
 	ssize_t count;
 	unsigned long flags = 0;
+	u8 *buf = val;
 
 	spin_lock_irqsave(&rtc->lock, flags);
 	ds1685_rtc_switch_to_bank0(rtc);
@@ -1023,27 +989,13 @@ ds1685_rtc_sysfs_nvram_write(struct file *filp, struct kobject *kobj,
 #endif /* !CONFIG_RTC_DRV_DS1689 */
 	spin_unlock_irqrestore(&rtc->lock, flags);
 
-	return count;
+	return 0;
 }
 
-/**
- * struct ds1685_rtc_sysfs_nvram_attr - sysfs attributes for rtc nvram.
- * @attr: nvram attributes.
- * @read: nvram read function.
- * @write: nvram write function.
- * @size: nvram total size (bank0 + extended).
- */
-static struct bin_attribute
-ds1685_rtc_sysfs_nvram_attr = {
-	.attr = {
-		.name = "nvram",
-		.mode = S_IRUGO | S_IWUSR,
-	},
-	.read = ds1685_rtc_sysfs_nvram_read,
-	.write = ds1685_rtc_sysfs_nvram_write,
-	.size = NVRAM_TOTAL_SZ
-};
+/* ----------------------------------------------------------------------- */
+/* SysFS interface */
 
+#ifdef CONFIG_SYSFS
 /**
  * ds1685_rtc_sysfs_battery_show - sysfs file for main battery status.
  * @dev: pointer to device structure.
@@ -1136,11 +1088,6 @@ ds1685_rtc_sysfs_register(struct device *dev)
 {
 	int ret = 0;
 
-	sysfs_bin_attr_init(&ds1685_rtc_sysfs_nvram_attr);
-	ret = sysfs_create_bin_file(&dev->kobj, &ds1685_rtc_sysfs_nvram_attr);
-	if (ret)
-		return ret;
-
 	ret = sysfs_create_group(&dev->kobj, &ds1685_rtc_sysfs_misc_grp);
 	if (ret)
 		return ret;
@@ -1155,7 +1102,6 @@ ds1685_rtc_sysfs_register(struct device *dev)
 static int
 ds1685_rtc_sysfs_unregister(struct device *dev)
 {
-	sysfs_remove_bin_file(&dev->kobj, &ds1685_rtc_sysfs_nvram_attr);
 	sysfs_remove_group(&dev->kobj, &ds1685_rtc_sysfs_misc_grp);
 
 	return 0;
@@ -1181,6 +1127,12 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	u8 ctrla, ctrlb, hours;
 	unsigned char am_pm;
 	int ret = 0;
+	struct nvmem_config nvmem_cfg = {
+		.name = "ds1685_nvram",
+		.size = NVRAM_TOTAL_SZ,
+		.reg_read = ds1685_nvram_read,
+		.reg_write = ds1685_nvram_write,
+	};
 
 	/* Get the platform data. */
 	pdata = (struct ds1685_rtc_platform_data *) pdev->dev.platform_data;
@@ -1443,6 +1395,12 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 #endif
+
+	rtc_dev->nvram_old_abi = true;
+	nvmem_cfg.priv = rtc;
+	ret = rtc_nvmem_register(rtc_dev, &nvmem_cfg);
+	if (ret)
+		return ret;
 
 	return rtc_register_device(rtc_dev);
 }
