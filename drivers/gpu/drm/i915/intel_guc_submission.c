@@ -557,16 +557,36 @@ static void inject_preempt_context(struct work_struct *work)
 					     preempt_work[engine->id]);
 	struct intel_guc_client *client = guc->preempt_client;
 	struct guc_stage_desc *stage_desc = __get_stage_desc(client);
-	u32 ctx_desc = lower_32_bits(to_intel_context(client->owner,
-						      engine)->lrc_desc);
+	struct intel_context *ce = to_intel_context(client->owner, engine);
 	u32 data[7];
 
-	/*
-	 * The ring contains commands to write GUC_PREEMPT_FINISHED into HWSP.
-	 * See guc_fill_preempt_context().
-	 */
+	if (!ce->ring->emit) { /* recreate upon load/resume */
+		u32 addr = intel_hws_preempt_done_address(engine);
+		u32 *cs;
+
+		cs = ce->ring->vaddr;
+		if (engine->id == RCS) {
+			cs = gen8_emit_ggtt_write_rcs(cs,
+						      GUC_PREEMPT_FINISHED,
+						      addr);
+		} else {
+			cs = gen8_emit_ggtt_write(cs,
+						  GUC_PREEMPT_FINISHED,
+						  addr);
+			*cs++ = MI_NOOP;
+			*cs++ = MI_NOOP;
+		}
+		*cs++ = MI_USER_INTERRUPT;
+		*cs++ = MI_NOOP;
+
+		ce->ring->emit = GUC_PREEMPT_BREADCRUMB_BYTES;
+		GEM_BUG_ON((void *)cs - ce->ring->vaddr != ce->ring->emit);
+
+		flush_ggtt_writes(ce->ring->vma);
+	}
+
 	spin_lock_irq(&client->wq_lock);
-	guc_wq_item_append(client, engine->guc_id, ctx_desc,
+	guc_wq_item_append(client, engine->guc_id, lower_32_bits(ce->lrc_desc),
 			   GUC_PREEMPT_BREADCRUMB_BYTES / sizeof(u64), 0);
 	spin_unlock_irq(&client->wq_lock);
 
@@ -1044,50 +1064,6 @@ static inline bool ctx_save_restore_disabled(struct intel_context *ce)
 #undef SR_DISABLED
 }
 
-static void guc_fill_preempt_context(struct intel_guc *guc)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct intel_guc_client *client = guc->preempt_client;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, dev_priv, id) {
-		struct intel_context *ce =
-			to_intel_context(client->owner, engine);
-		u32 addr = intel_hws_preempt_done_address(engine);
-		u32 *cs;
-
-		GEM_BUG_ON(!ce->pin_count);
-
-		/*
-		 * We rely on this context image *not* being saved after
-		 * preemption. This ensures that the RING_HEAD / RING_TAIL
-		 * remain pointing at initial values forever.
-		 */
-		GEM_BUG_ON(!ctx_save_restore_disabled(ce));
-
-		cs = ce->ring->vaddr;
-		if (id == RCS) {
-			cs = gen8_emit_ggtt_write_rcs(cs,
-						      GUC_PREEMPT_FINISHED,
-						      addr);
-		} else {
-			cs = gen8_emit_ggtt_write(cs,
-						  GUC_PREEMPT_FINISHED,
-						  addr);
-			*cs++ = MI_NOOP;
-			*cs++ = MI_NOOP;
-		}
-		*cs++ = MI_USER_INTERRUPT;
-		*cs++ = MI_NOOP;
-
-		GEM_BUG_ON((void *)cs - ce->ring->vaddr !=
-			   GUC_PREEMPT_BREADCRUMB_BYTES);
-
-		flush_ggtt_writes(ce->ring->vma);
-	}
-}
-
 static int guc_clients_create(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
@@ -1118,8 +1094,6 @@ static int guc_clients_create(struct intel_guc *guc)
 			return PTR_ERR(client);
 		}
 		guc->preempt_client = client;
-
-		guc_fill_preempt_context(guc);
 	}
 
 	return 0;
