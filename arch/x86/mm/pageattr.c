@@ -293,7 +293,7 @@ static void cpa_flush_range(unsigned long start, int numpages, int cache)
 	BUG_ON(irqs_disabled() && !early_boot_irqs_disabled);
 	WARN_ON(PAGE_ALIGN(start) != start);
 
-	flush_tlb_all();
+	flush_tlb_kernel_range(start, start + PAGE_SIZE * numpages);
 
 	if (!cache)
 		return;
@@ -315,14 +315,15 @@ static void cpa_flush_range(unsigned long start, int numpages, int cache)
 	}
 }
 
-static void cpa_flush_array(unsigned long *start, int numpages, int cache,
+static void cpa_flush_array(unsigned long baddr, unsigned long *start,
+			    int numpages, int cache,
 			    int in_flags, struct page **pages)
 {
 	unsigned int i, level;
 
 	BUG_ON(irqs_disabled() && !early_boot_irqs_disabled);
 
-	flush_tlb_all();
+	flush_tlb_kernel_range(baddr, baddr + PAGE_SIZE * numpages);
 
 	if (!cache)
 		return;
@@ -1757,7 +1758,7 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 	 */
 	if (!ret && boot_cpu_has(X86_FEATURE_CLFLUSH)) {
 		if (cpa.flags & (CPA_PAGES_ARRAY | CPA_ARRAY)) {
-			cpa_flush_array(addr, numpages, cache,
+			cpa_flush_array(baddr, addr, numpages, cache,
 					cpa.flags, pages);
 		} else
 			cpa_flush_range(baddr, numpages, cache);
