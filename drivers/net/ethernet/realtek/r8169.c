@@ -4055,15 +4055,6 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 		RTL_W8(tp, 0x82, 0x01);
 	}
 
-	if (tp->mac_version == RTL_GIGA_MAC_VER_02) {
-		netif_dbg(tp, drv, dev,
-			  "Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
-		RTL_W8(tp, 0x82, 0x01);
-		netif_dbg(tp, drv, dev,
-			  "Set PHY Reg 0x0bh = 0x00h\n");
-		rtl_writephy(tp, 0x0b, 0x0000); //w 0x0b 15 0 0
-	}
-
 	/* We may have called phy_speed_down before */
 	phy_speed_up(dev->phydev);
 
