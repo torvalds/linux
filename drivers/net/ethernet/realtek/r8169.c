@@ -4048,15 +4048,12 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 	rtl_hw_phy_config(dev);
 
 	if (tp->mac_version <= RTL_GIGA_MAC_VER_06) {
+		pci_write_config_byte(tp->pci_dev, PCI_LATENCY_TIMER, 0x40);
+		pci_write_config_byte(tp->pci_dev, PCI_CACHE_LINE_SIZE, 0x08);
 		netif_dbg(tp, drv, dev,
 			  "Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
 		RTL_W8(tp, 0x82, 0x01);
 	}
-
-	pci_write_config_byte(tp->pci_dev, PCI_LATENCY_TIMER, 0x40);
-
-	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
-		pci_write_config_byte(tp->pci_dev, PCI_CACHE_LINE_SIZE, 0x08);
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_02) {
 		netif_dbg(tp, drv, dev,
