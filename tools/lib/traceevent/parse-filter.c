@@ -16,11 +16,11 @@
 #define COMM "COMM"
 #define CPU "CPU"
 
-static struct format_field comm = {
+static struct tep_format_field comm = {
 	.name = "COMM",
 };
 
-static struct format_field cpu = {
+static struct tep_format_field cpu = {
 	.name = "CPU",
 };
 
@@ -336,7 +336,7 @@ static enum tep_errno
 create_arg_item(struct tep_event_format *event, const char *token,
 		enum event_type type, struct filter_arg **parg, char *error_str)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	struct filter_arg *arg;
 
 	arg = allocate_arg();
@@ -1698,7 +1698,7 @@ get_comm(struct tep_event_format *event, struct tep_record *record)
 
 static unsigned long long
 get_value(struct tep_event_format *event,
-	  struct format_field *field, struct tep_record *record)
+	  struct tep_format_field *field, struct tep_record *record)
 {
 	unsigned long long val;
 

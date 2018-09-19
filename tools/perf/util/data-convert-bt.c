@@ -182,7 +182,7 @@ err_put_field:
 }
 
 static struct bt_ctf_field_type*
-get_tracepoint_field_type(struct ctf_writer *cw, struct format_field *field)
+get_tracepoint_field_type(struct ctf_writer *cw, struct tep_format_field *field)
 {
 	unsigned long flags = field->flags;
 
@@ -287,7 +287,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 				      struct bt_ctf_event_class *event_class,
 				      struct bt_ctf_event *event,
 				      struct perf_sample *sample,
-				      struct format_field *fmtf)
+				      struct tep_format_field *fmtf)
 {
 	struct bt_ctf_field_type *type;
 	struct bt_ctf_field *array_field;
@@ -396,10 +396,10 @@ err_put_field:
 static int add_tracepoint_fields_values(struct ctf_writer *cw,
 					struct bt_ctf_event_class *event_class,
 					struct bt_ctf_event *event,
-					struct format_field *fields,
+					struct tep_format_field *fields,
 					struct perf_sample *sample)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	int ret;
 
 	for (field = fields; field; field = field->next) {
@@ -417,8 +417,8 @@ static int add_tracepoint_values(struct ctf_writer *cw,
 				 struct perf_evsel *evsel,
 				 struct perf_sample *sample)
 {
-	struct format_field *common_fields = evsel->tp_format->format.common_fields;
-	struct format_field *fields        = evsel->tp_format->format.fields;
+	struct tep_format_field *common_fields = evsel->tp_format->format.common_fields;
+	struct tep_format_field *fields        = evsel->tp_format->format.fields;
 	int ret;
 
 	ret = add_tracepoint_fields_values(cw, event_class, event,
@@ -970,7 +970,7 @@ out:
 
 static int event_class_add_field(struct bt_ctf_event_class *event_class,
 		struct bt_ctf_field_type *type,
-		struct format_field *field)
+		struct tep_format_field *field)
 {
 	struct bt_ctf_field_type *t = NULL;
 	char *name;
@@ -1009,10 +1009,10 @@ static int event_class_add_field(struct bt_ctf_event_class *event_class,
 }
 
 static int add_tracepoint_fields_types(struct ctf_writer *cw,
-				       struct format_field *fields,
+				       struct tep_format_field *fields,
 				       struct bt_ctf_event_class *event_class)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	int ret;
 
 	for (field = fields; field; field = field->next) {
@@ -1055,8 +1055,8 @@ static int add_tracepoint_types(struct ctf_writer *cw,
 				struct perf_evsel *evsel,
 				struct bt_ctf_event_class *class)
 {
-	struct format_field *common_fields = evsel->tp_format->format.common_fields;
-	struct format_field *fields        = evsel->tp_format->format.fields;
+	struct tep_format_field *common_fields = evsel->tp_format->format.common_fields;
+	struct tep_format_field *fields        = evsel->tp_format->format.fields;
 	int ret;
 
 	ret = add_tracepoint_fields_types(cw, common_fields, class);

@@ -1299,7 +1299,7 @@ static int event_read_id(void)
 	return -1;
 }
 
-static int field_is_string(struct format_field *field)
+static int field_is_string(struct tep_format_field *field)
 {
 	if ((field->flags & FIELD_IS_ARRAY) &&
 	    (strstr(field->type, "char") || strstr(field->type, "u8") ||
@@ -1309,7 +1309,7 @@ static int field_is_string(struct format_field *field)
 	return 0;
 }
 
-static int field_is_dynamic(struct format_field *field)
+static int field_is_dynamic(struct tep_format_field *field)
 {
 	if (strncmp(field->type, "__data_loc", 10) == 0)
 		return 1;
@@ -1317,7 +1317,7 @@ static int field_is_dynamic(struct format_field *field)
 	return 0;
 }
 
-static int field_is_long(struct format_field *field)
+static int field_is_long(struct tep_format_field *field)
 {
 	/* includes long long */
 	if (strstr(field->type, "long"))
@@ -1354,9 +1354,9 @@ static unsigned int type_size(const char *name)
 	return 0;
 }
 
-static int event_read_fields(struct tep_event_format *event, struct format_field **fields)
+static int event_read_fields(struct tep_event_format *event, struct tep_format_field **fields)
 {
-	struct format_field *field = NULL;
+	struct tep_format_field *field = NULL;
 	enum event_type type;
 	char *token;
 	char *last_token;
@@ -2683,7 +2683,7 @@ out:
 static enum event_type
 process_dynamic_array(struct tep_event_format *event, struct print_arg *arg, char **tok)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	enum event_type type;
 	char *token;
 
@@ -2748,7 +2748,7 @@ static enum event_type
 process_dynamic_array_len(struct tep_event_format *event, struct print_arg *arg,
 			  char **tok)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	enum event_type type;
 	char *token;
 
@@ -3259,10 +3259,10 @@ static int event_read_print(struct tep_event_format *event)
  * Returns a common field from the event by the given @name.
  * This only searchs the common fields and not all field.
  */
-struct format_field *
+struct tep_format_field *
 tep_find_common_field(struct tep_event_format *event, const char *name)
 {
-	struct format_field *format;
+	struct tep_format_field *format;
 
 	for (format = event->format.common_fields;
 	     format; format = format->next) {
@@ -3281,10 +3281,10 @@ tep_find_common_field(struct tep_event_format *event, const char *name)
  * Returns a non-common field by the given @name.
  * This does not search common fields.
  */
-struct format_field *
+struct tep_format_field *
 tep_find_field(struct tep_event_format *event, const char *name)
 {
-	struct format_field *format;
+	struct tep_format_field *format;
 
 	for (format = event->format.fields;
 	     format; format = format->next) {
@@ -3304,10 +3304,10 @@ tep_find_field(struct tep_event_format *event, const char *name)
  * This searchs the common field names first, then
  * the non-common ones if a common one was not found.
  */
-struct format_field *
+struct tep_format_field *
 tep_find_any_field(struct tep_event_format *event, const char *name)
 {
-	struct format_field *format;
+	struct tep_format_field *format;
 
 	format = tep_find_common_field(event, name);
 	if (format)
@@ -3353,7 +3353,7 @@ unsigned long long tep_read_number(struct tep_handle *pevent,
  *
  * Returns 0 on success, -1 otherwise.
  */
-int tep_read_number_field(struct format_field *field, const void *data,
+int tep_read_number_field(struct tep_format_field *field, const void *data,
 			  unsigned long long *value)
 {
 	if (!field)
@@ -3375,7 +3375,7 @@ static int get_common_info(struct tep_handle *pevent,
 			   const char *type, int *offset, int *size)
 {
 	struct tep_event_format *event;
-	struct format_field *field;
+	struct tep_format_field *field;
 
 	/*
 	 * All events should have the same common elements.
@@ -3867,7 +3867,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 {
 	struct tep_handle *pevent = event->pevent;
 	struct print_flag_sym *flag;
-	struct format_field *field;
+	struct tep_format_field *field;
 	struct printk_map *printk;
 	long long val, fval;
 	unsigned long long addr;
@@ -4008,7 +4008,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 
 		if (arg->int_array.field->type == PRINT_DYNAMIC_ARRAY) {
 			unsigned long offset;
-			struct format_field *field =
+			struct tep_format_field *field =
 				arg->int_array.field->dynarray.field;
 			offset = tep_read_number(pevent,
 						 data + field->offset,
@@ -4056,7 +4056,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		int str_offset;
 
 		if (arg->string.offset == -1) {
-			struct format_field *f;
+			struct tep_format_field *f;
 
 			f = tep_find_any_field(event, arg->string.string);
 			arg->string.offset = f->offset;
@@ -4074,7 +4074,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		int bitmask_size;
 
 		if (arg->bitmask.offset == -1) {
-			struct format_field *f;
+			struct tep_format_field *f;
 
 			f = tep_find_any_field(event, arg->bitmask.bitmask);
 			arg->bitmask.offset = f->offset;
@@ -4215,7 +4215,7 @@ static void free_args(struct print_arg *args)
 static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struct tep_event_format *event)
 {
 	struct tep_handle *pevent = event->pevent;
-	struct format_field *field, *ip_field;
+	struct tep_format_field *field, *ip_field;
 	struct print_arg *args, *arg, **next;
 	unsigned long long ip, val;
 	char *ptr;
@@ -4393,7 +4393,7 @@ get_bprint_format(void *data, int size __maybe_unused,
 {
 	struct tep_handle *pevent = event->pevent;
 	unsigned long long addr;
-	struct format_field *field;
+	struct tep_format_field *field;
 	struct printk_map *printk;
 	char *format;
 
@@ -4788,7 +4788,7 @@ static int is_printable_array(char *p, unsigned int len)
 }
 
 void tep_print_field(struct trace_seq *s, void *data,
-		     struct format_field *field)
+		     struct tep_format_field *field)
 {
 	unsigned long long val;
 	unsigned int offset, len, i;
@@ -4855,7 +4855,7 @@ void tep_print_field(struct trace_seq *s, void *data,
 void tep_print_fields(struct trace_seq *s, void *data,
 		      int size __maybe_unused, struct tep_event_format *event)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 
 	field = event->format.fields;
 	while (field) {
@@ -5664,12 +5664,12 @@ struct tep_event_format **tep_list_events(struct tep_handle *pevent, enum event_
 	return events;
 }
 
-static struct format_field **
+static struct tep_format_field **
 get_event_fields(const char *type, const char *name,
-		 int count, struct format_field *list)
+		 int count, struct tep_format_field *list)
 {
-	struct format_field **fields;
-	struct format_field *field;
+	struct tep_format_field **fields;
+	struct tep_format_field *field;
 	int i = 0;
 
 	fields = malloc(sizeof(*fields) * (count + 1));
@@ -5702,7 +5702,7 @@ get_event_fields(const char *type, const char *name,
  * Returns an allocated array of fields. The last item in the array is NULL.
  * The array must be freed with free().
  */
-struct format_field **tep_event_common_fields(struct tep_event_format *event)
+struct tep_format_field **tep_event_common_fields(struct tep_event_format *event)
 {
 	return get_event_fields("common", event->name,
 				event->format.nr_common,
@@ -5716,7 +5716,7 @@ struct format_field **tep_event_common_fields(struct tep_event_format *event)
  * Returns an allocated array of fields. The last item in the array is NULL.
  * The array must be freed with free().
  */
-struct format_field **tep_event_fields(struct tep_event_format *event)
+struct tep_format_field **tep_event_fields(struct tep_event_format *event)
 {
 	return get_event_fields("event", event->name,
 				event->format.nr_fields,
@@ -6090,7 +6090,7 @@ enum tep_errno __tep_parse_format(struct tep_event_format **eventp,
 	}
 
 	if (!ret && (event->flags & EVENT_FL_ISFTRACE)) {
-		struct format_field *field;
+		struct tep_format_field *field;
 		struct print_arg *arg, **list;
 
 		/* old ftrace had no args */
@@ -6230,7 +6230,7 @@ int tep_strerror(struct tep_handle *pevent __maybe_unused,
 	return 0;
 }
 
-int get_field_val(struct trace_seq *s, struct format_field *field,
+int get_field_val(struct trace_seq *s, struct tep_format_field *field,
 		  const char *name, struct tep_record *record,
 		  unsigned long long *val, int err)
 {
@@ -6267,7 +6267,7 @@ void *tep_get_field_raw(struct trace_seq *s, struct tep_event_format *event,
 			const char *name, struct tep_record *record,
 			int *len, int err)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	void *data = record->data;
 	unsigned offset;
 	int dummy;
@@ -6314,7 +6314,7 @@ int tep_get_field_val(struct trace_seq *s, struct tep_event_format *event,
 		      const char *name, struct tep_record *record,
 		      unsigned long long *val, int err)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 
 	if (!event)
 		return -1;
@@ -6339,7 +6339,7 @@ int tep_get_common_field_val(struct trace_seq *s, struct tep_event_format *event
 			     const char *name, struct tep_record *record,
 			     unsigned long long *val, int err)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 
 	if (!event)
 		return -1;
@@ -6364,7 +6364,7 @@ int tep_get_any_field_val(struct trace_seq *s, struct tep_event_format *event,
 			  const char *name, struct tep_record *record,
 			  unsigned long long *val, int err)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 
 	if (!event)
 		return -1;
@@ -6389,7 +6389,7 @@ int tep_print_num_field(struct trace_seq *s, const char *fmt,
 			struct tep_event_format *event, const char *name,
 			struct tep_record *record, int err)
 {
-	struct format_field *field = tep_find_field(event, name);
+	struct tep_format_field *field = tep_find_field(event, name);
 	unsigned long long val;
 
 	if (!field)
@@ -6421,7 +6421,7 @@ int tep_print_func_field(struct trace_seq *s, const char *fmt,
 			 struct tep_event_format *event, const char *name,
 			 struct tep_record *record, int err)
 {
-	struct format_field *field = tep_find_field(event, name);
+	struct tep_format_field *field = tep_find_field(event, name);
 	struct tep_handle *pevent = event->pevent;
 	unsigned long long val;
 	struct func_map *func;
@@ -6758,7 +6758,7 @@ void tep_ref(struct tep_handle *pevent)
 	pevent->ref_count++;
 }
 
-void tep_free_format_field(struct format_field *field)
+void tep_free_format_field(struct tep_format_field *field)
 {
 	free(field->type);
 	if (field->alias != field->name)
@@ -6767,9 +6767,9 @@ void tep_free_format_field(struct format_field *field)
 	free(field);
 }
 
-static void free_format_fields(struct format_field *field)
+static void free_format_fields(struct tep_format_field *field)
 {
-	struct format_field *next;
+	struct tep_format_field *next;
 
 	while (field) {
 		next = field->next;
@@ -6778,7 +6778,7 @@ static void free_format_fields(struct format_field *field)
 	}
 }
 
-static void free_formats(struct format *format)
+static void free_formats(struct tep_format *format)
 {
 	free_format_fields(format->common_fields);
 	free_format_fields(format->fields);

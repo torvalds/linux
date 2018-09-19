@@ -181,7 +181,7 @@ static int __tp_field__init_uint(struct tp_field *field, int size, int offset, b
 	return 0;
 }
 
-static int tp_field__init_uint(struct tp_field *field, struct format_field *format_field, bool needs_swap)
+static int tp_field__init_uint(struct tp_field *field, struct tep_format_field *format_field, bool needs_swap)
 {
 	return __tp_field__init_uint(field, format_field->size, format_field->offset, needs_swap);
 }
@@ -198,7 +198,7 @@ static int __tp_field__init_ptr(struct tp_field *field, int offset)
 	return 0;
 }
 
-static int tp_field__init_ptr(struct tp_field *field, struct format_field *format_field)
+static int tp_field__init_ptr(struct tp_field *field, struct tep_format_field *format_field)
 {
 	return __tp_field__init_ptr(field, format_field->offset);
 }
@@ -214,7 +214,7 @@ static int perf_evsel__init_tp_uint_field(struct perf_evsel *evsel,
 					  struct tp_field *field,
 					  const char *name)
 {
-	struct format_field *format_field = perf_evsel__field(evsel, name);
+	struct tep_format_field *format_field = perf_evsel__field(evsel, name);
 
 	if (format_field == NULL)
 		return -1;
@@ -230,7 +230,7 @@ static int perf_evsel__init_tp_ptr_field(struct perf_evsel *evsel,
 					 struct tp_field *field,
 					 const char *name)
 {
-	struct format_field *format_field = perf_evsel__field(evsel, name);
+	struct tep_format_field *format_field = perf_evsel__field(evsel, name);
 
 	if (format_field == NULL)
 		return -1;
@@ -867,7 +867,7 @@ struct syscall {
 	int		    args_size;
 	bool		    is_exit;
 	bool		    is_open;
-	struct format_field *args;
+	struct tep_format_field *args;
 	const char	    *name;
 	struct syscall_fmt  *fmt;
 	struct syscall_arg_fmt *arg_fmt;
@@ -1279,7 +1279,7 @@ static int syscall__alloc_arg_fmts(struct syscall *sc, int nr_args)
 
 static int syscall__set_arg_fmts(struct syscall *sc)
 {
-	struct format_field *field, *last_field = NULL;
+	struct tep_format_field *field, *last_field = NULL;
 	int idx = 0, len;
 
 	for (field = sc->args; field; field = field->next, ++idx) {
@@ -1525,7 +1525,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 	ttrace->ret_scnprintf = NULL;
 
 	if (sc->args != NULL) {
-		struct format_field *field;
+		struct tep_format_field *field;
 
 		for (field = sc->args; field;
 		     field = field->next, ++arg.idx, bit <<= 1) {

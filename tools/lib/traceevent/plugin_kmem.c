@@ -27,7 +27,7 @@
 static int call_site_handler(struct trace_seq *s, struct tep_record *record,
 			     struct tep_event_format *event, void *context)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned long long val, addr;
 	void *data = record->data;
 	const char *func;

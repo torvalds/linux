@@ -339,7 +339,7 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 {
 	struct thread *thread = al->thread;
 	struct tep_event_format *event = evsel->tp_format;
-	struct format_field *field;
+	struct tep_format_field *field;
 	static char handler[256];
 	unsigned long long val;
 	unsigned long s, ns;
@@ -538,7 +538,7 @@ static int perl_stop_script(void)
 static int perl_generate_script(struct tep_handle *pevent, const char *outfile)
 {
 	struct tep_event_format *event = NULL;
-	struct format_field *f;
+	struct tep_format_field *f;
 	char fname[PATH_MAX];
 	int not_first, count;
 	FILE *ofp;

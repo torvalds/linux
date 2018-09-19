@@ -8,7 +8,7 @@
 static int perf_evsel__test_field(struct perf_evsel *evsel, const char *name,
 				  int size, bool should_be_signed)
 {
-	struct format_field *field = perf_evsel__field(evsel, name);
+	struct tep_format_field *field = perf_evsel__field(evsel, name);
 	int is_signed;
 	int ret = 0;
 

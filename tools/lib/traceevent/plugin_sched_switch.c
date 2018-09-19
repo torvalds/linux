@@ -45,7 +45,7 @@ static void write_state(struct trace_seq *s, int val)
 		trace_seq_putc(s, 'R');
 }
 
-static void write_and_save_comm(struct format_field *field,
+static void write_and_save_comm(struct tep_format_field *field,
 				struct tep_record *record,
 				struct trace_seq *s, int pid)
 {
@@ -69,7 +69,7 @@ static int sched_wakeup_handler(struct trace_seq *s,
 				struct tep_record *record,
 				struct tep_event_format *event, void *context)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned long long val;
 
 	if (tep_get_field_val(s, event, "pid", record, &val, 1))
@@ -98,7 +98,7 @@ static int sched_switch_handler(struct trace_seq *s,
 				struct tep_record *record,
 				struct tep_event_format *event, void *context)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned long long val;
 
 	if (tep_get_field_val(s, event, "prev_pid", record, &val, 1))

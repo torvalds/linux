@@ -29,7 +29,7 @@
 static void print_string(struct trace_seq *s, struct tep_event_format *event,
 			 const char *name, const void *data)
 {
-	struct format_field *f = tep_find_field(event, name);
+	struct tep_format_field *f = tep_find_field(event, name);
 	int offset;
 	int length;
 

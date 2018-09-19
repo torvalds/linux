@@ -34,7 +34,7 @@ static int get_common_field(struct scripting_context *context,
 {
 	struct tep_handle *pevent = context->pevent;
 	struct tep_event_format *event;
-	struct format_field *field;
+	struct tep_format_field *field;
 
 	if (!*size) {
 		if (!pevent->events)
@@ -96,7 +96,7 @@ int common_pc(struct scripting_context *context)
 unsigned long long
 raw_field_value(struct tep_event_format *event, const char *name, void *data)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned long long val;
 
 	field = tep_find_any_field(event, name);

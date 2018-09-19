@@ -333,7 +333,7 @@ static void define_event_symbols(struct tep_event_format *event,
 }
 
 static PyObject *get_field_numeric_entry(struct tep_event_format *event,
-		struct format_field *field, void *data)
+		struct tep_format_field *field, void *data)
 {
 	bool is_array = field->flags & FIELD_IS_ARRAY;
 	PyObject *obj = NULL, *list = NULL;
@@ -794,7 +794,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 	PyObject *handler, *context, *t, *obj = NULL, *callchain;
 	PyObject *dict = NULL, *all_entries_dict = NULL;
 	static char handler_name[256];
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned long s, ns;
 	unsigned n = 0;
 	int pid;
@@ -1591,7 +1591,7 @@ static int python_stop_script(void)
 static int python_generate_script(struct tep_handle *pevent, const char *outfile)
 {
 	struct tep_event_format *event = NULL;
-	struct format_field *f;
+	struct tep_format_field *f;
 	char fname[PATH_MAX];
 	int not_first, count;
 	FILE *ofp;

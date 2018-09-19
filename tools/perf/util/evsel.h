@@ -296,11 +296,11 @@ static inline char *perf_evsel__strval(struct perf_evsel *evsel,
 	return perf_evsel__rawptr(evsel, sample, name);
 }
 
-struct format_field;
+struct tep_format_field;
 
-u64 format_field__intval(struct format_field *field, struct perf_sample *sample, bool needs_swap);
+u64 format_field__intval(struct tep_format_field *field, struct perf_sample *sample, bool needs_swap);
 
-struct format_field *perf_evsel__field(struct perf_evsel *evsel, const char *name);
+struct tep_format_field *perf_evsel__field(struct perf_evsel *evsel, const char *name);
 
 #define perf_evsel__match(evsel, t, c)		\
 	(evsel->attr.type == PERF_TYPE_##t &&	\

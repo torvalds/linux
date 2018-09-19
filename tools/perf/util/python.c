@@ -340,7 +340,7 @@ static bool is_tracepoint(struct pyrf_event *pevent)
 }
 
 static PyObject*
-tracepoint_field(struct pyrf_event *pe, struct format_field *field)
+tracepoint_field(struct pyrf_event *pe, struct tep_format_field *field)
 {
 	struct tep_handle *pevent = field->event->pevent;
 	void *data = pe->sample.raw_data;
@@ -383,7 +383,7 @@ get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
 {
 	const char *str = _PyUnicode_AsString(PyObject_Str(attr_name));
 	struct perf_evsel *evsel = pevent->evsel;
-	struct format_field *field;
+	struct tep_format_field *field;
 
 	if (!evsel->tp_format) {
 		struct tep_event_format *tp_format;
