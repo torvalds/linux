@@ -9891,9 +9891,12 @@ F:	drivers/media/tuners/mxl5007t.*
 
 MXSFB DRM DRIVER
 M:	Marek Vasut <marex@denx.de>
+M:	Stefan Agner <stefan@agner.ch>
+L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/mxsfb/
 F:	Documentation/devicetree/bindings/display/mxsfb.txt
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
 M:	Chris Lee <christopher.lee@cspi.com>
