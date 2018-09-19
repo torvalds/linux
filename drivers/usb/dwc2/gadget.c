@@ -3107,6 +3107,8 @@ static void kill_all_requests(struct dwc2_hsotg *hsotg,
 		dwc2_hsotg_txfifo_flush(hsotg, ep->fifo_index);
 }
 
+static int dwc2_hsotg_ep_disable(struct usb_ep *ep);
+
 /**
  * dwc2_hsotg_disconnect - disconnect service
  * @hsotg: The device state.
@@ -3125,13 +3127,12 @@ void dwc2_hsotg_disconnect(struct dwc2_hsotg *hsotg)
 	hsotg->connected = 0;
 	hsotg->test_mode = 0;
 
+	/* all endpoints should be shutdown */
 	for (ep = 0; ep < hsotg->num_of_eps; ep++) {
 		if (hsotg->eps_in[ep])
-			kill_all_requests(hsotg, hsotg->eps_in[ep],
-					  -ESHUTDOWN);
+			dwc2_hsotg_ep_disable(&hsotg->eps_in[ep]->ep);
 		if (hsotg->eps_out[ep])
-			kill_all_requests(hsotg, hsotg->eps_out[ep],
-					  -ESHUTDOWN);
+			dwc2_hsotg_ep_disable(&hsotg->eps_out[ep]->ep);
 	}
 
 	call_gadget(hsotg, disconnect);
@@ -3189,13 +3190,23 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	u32 val;
 	u32 usbcfg;
 	u32 dcfg = 0;
+	int ep;
 
 	/* Kill any ep0 requests as controller will be reinitialized */
 	kill_all_requests(hsotg, hsotg->eps_out[0], -ECONNRESET);
 
-	if (!is_usb_reset)
+	if (!is_usb_reset) {
 		if (dwc2_core_reset(hsotg, true))
 			return;
+	} else {
+		/* all endpoints should be shutdown */
+		for (ep = 1; ep < hsotg->num_of_eps; ep++) {
+			if (hsotg->eps_in[ep])
+				dwc2_hsotg_ep_disable(&hsotg->eps_in[ep]->ep);
+			if (hsotg->eps_out[ep])
+				dwc2_hsotg_ep_disable(&hsotg->eps_out[ep]->ep);
+		}
+	}
 
 	/*
 	 * we must now enable ep0 ready for host detection and then
@@ -3996,6 +4007,7 @@ static int dwc2_hsotg_ep_disable(struct usb_ep *ep)
 	unsigned long flags;
 	u32 epctrl_reg;
 	u32 ctrl;
+	int locked;
 
 	dev_dbg(hsotg->dev, "%s(ep %p)\n", __func__, ep);
 
@@ -4011,7 +4023,9 @@ static int dwc2_hsotg_ep_disable(struct usb_ep *ep)
 
 	epctrl_reg = dir_in ? DIEPCTL(index) : DOEPCTL(index);
 
-	spin_lock_irqsave(&hsotg->lock, flags);
+	locked = spin_is_locked(&hsotg->lock);
+	if (!locked)
+		spin_lock_irqsave(&hsotg->lock, flags);
 
 	ctrl = dwc2_readl(hsotg, epctrl_reg);
 
@@ -4035,7 +4049,9 @@ static int dwc2_hsotg_ep_disable(struct usb_ep *ep)
 	hs_ep->fifo_index = 0;
 	hs_ep->fifo_size = 0;
 
-	spin_unlock_irqrestore(&hsotg->lock, flags);
+	if (!locked)
+		spin_unlock_irqrestore(&hsotg->lock, flags);
+
 	return 0;
 }
 
