@@ -323,7 +323,6 @@ struct venc_device {
 	struct platform_device *pdev;
 	void __iomem *base;
 	struct mutex venc_lock;
-	u32 wss_data;
 	struct regulator *vdda_dac_reg;
 	struct dss_device *dss;
 
@@ -367,8 +366,7 @@ static void venc_write_config(struct venc_device *venc,
 	venc_write_reg(venc, VENC_BLACK_LEVEL, config->black_level);
 	venc_write_reg(venc, VENC_BLANK_LEVEL, config->blank_level);
 	venc_write_reg(venc, VENC_M_CONTROL, config->m_control);
-	venc_write_reg(venc, VENC_BSTAMP_WSS_DATA, config->bstamp_wss_data |
-		       venc->wss_data);
+	venc_write_reg(venc, VENC_BSTAMP_WSS_DATA, config->bstamp_wss_data);
 	venc_write_reg(venc, VENC_S_CARR, config->s_carr);
 	venc_write_reg(venc, VENC_L21__WC_CTL, config->l21__wc_ctl);
 	venc_write_reg(venc, VENC_SAVID__EAVID, config->savid__eavid);
@@ -543,8 +541,6 @@ static int venc_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err0;
 
-	venc->wss_data = 0;
-
 	mutex_unlock(&venc->venc_lock);
 
 	return 0;
@@ -584,10 +580,6 @@ static void venc_set_timings(struct omap_dss_device *dssdev,
 	DSSDBG("venc_set_timings\n");
 
 	mutex_lock(&venc->venc_lock);
-
-	/* Reset WSS data when the TV standard changes. */
-	if (memcmp(&venc->vm, vm, sizeof(*vm)))
-		venc->wss_data = 0;
 
 	venc->vm = *vm;
 
@@ -878,7 +870,6 @@ static int venc_probe(struct platform_device *pdev)
 
 	mutex_init(&venc->venc_lock);
 
-	venc->wss_data = 0;
 	venc->vm = omap_dss_pal_vm;
 
 	venc_mem = platform_get_resource(venc->pdev, IORESOURCE_MEM, 0);
