@@ -195,6 +195,7 @@ err_request:
 	i915_request_add(rq);
 err_batch:
 	i915_vma_unpin(batch);
+	i915_vma_put(batch);
 err_vma:
 	i915_vma_unpin(vma);
 	return err;
