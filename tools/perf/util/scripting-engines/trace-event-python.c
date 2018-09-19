@@ -224,7 +224,7 @@ static void define_value(enum print_arg_type field_type,
 }
 
 static void define_values(enum print_arg_type field_type,
-			  struct print_flag_sym *field,
+			  struct tep_print_flag_sym *field,
 			  const char *ev_name,
 			  const char *field_name)
 {
@@ -266,7 +266,7 @@ static void define_field(enum print_arg_type field_type,
 
 static void define_event_symbols(struct tep_event_format *event,
 				 const char *ev_name,
-				 struct print_arg *args)
+				 struct tep_print_arg *args)
 {
 	if (args == NULL)
 		return;

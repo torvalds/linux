@@ -99,7 +99,7 @@ static void define_symbolic_value(const char *ev_name,
 	LEAVE;
 }
 
-static void define_symbolic_values(struct print_flag_sym *field,
+static void define_symbolic_values(struct tep_print_flag_sym *field,
 				   const char *ev_name,
 				   const char *field_name)
 {
@@ -157,7 +157,7 @@ static void define_flag_value(const char *ev_name,
 	LEAVE;
 }
 
-static void define_flag_values(struct print_flag_sym *field,
+static void define_flag_values(struct tep_print_flag_sym *field,
 			       const char *ev_name,
 			       const char *field_name)
 {
@@ -191,7 +191,7 @@ static void define_flag_field(const char *ev_name,
 
 static void define_event_symbols(struct tep_event_format *event,
 				 const char *ev_name,
-				 struct print_arg *args)
+				 struct tep_print_arg *args)
 {
 	if (args == NULL)
 		return;

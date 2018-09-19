@@ -161,77 +161,77 @@ struct tep_format {
 	struct tep_format_field	*fields;
 };
 
-struct print_arg_atom {
+struct tep_print_arg_atom {
 	char			*atom;
 };
 
-struct print_arg_string {
+struct tep_print_arg_string {
 	char			*string;
 	int			offset;
 };
 
-struct print_arg_bitmask {
+struct tep_print_arg_bitmask {
 	char			*bitmask;
 	int			offset;
 };
 
-struct print_arg_field {
+struct tep_print_arg_field {
 	char			*name;
 	struct tep_format_field	*field;
 };
 
-struct print_flag_sym {
-	struct print_flag_sym	*next;
-	char			*value;
-	char			*str;
+struct tep_print_flag_sym {
+	struct tep_print_flag_sym	*next;
+	char				*value;
+	char				*str;
 };
 
-struct print_arg_typecast {
+struct tep_print_arg_typecast {
 	char 			*type;
-	struct print_arg	*item;
+	struct tep_print_arg	*item;
 };
 
-struct print_arg_flags {
-	struct print_arg	*field;
-	char			*delim;
-	struct print_flag_sym	*flags;
+struct tep_print_arg_flags {
+	struct tep_print_arg		*field;
+	char				*delim;
+	struct tep_print_flag_sym	*flags;
 };
 
-struct print_arg_symbol {
-	struct print_arg	*field;
-	struct print_flag_sym	*symbols;
+struct tep_print_arg_symbol {
+	struct tep_print_arg		*field;
+	struct tep_print_flag_sym	*symbols;
 };
 
-struct print_arg_hex {
-	struct print_arg	*field;
-	struct print_arg	*size;
+struct tep_print_arg_hex {
+	struct tep_print_arg	*field;
+	struct tep_print_arg	*size;
 };
 
-struct print_arg_int_array {
-	struct print_arg	*field;
-	struct print_arg	*count;
-	struct print_arg	*el_size;
+struct tep_print_arg_int_array {
+	struct tep_print_arg	*field;
+	struct tep_print_arg	*count;
+	struct tep_print_arg	*el_size;
 };
 
-struct print_arg_dynarray {
+struct tep_print_arg_dynarray {
 	struct tep_format_field	*field;
-	struct print_arg	*index;
+	struct tep_print_arg	*index;
 };
 
-struct print_arg;
+struct tep_print_arg;
 
-struct print_arg_op {
+struct tep_print_arg_op {
 	char			*op;
 	int			prio;
-	struct print_arg	*left;
-	struct print_arg	*right;
+	struct tep_print_arg	*left;
+	struct tep_print_arg	*right;
 };
 
 struct tep_function_handler;
 
-struct print_arg_func {
+struct tep_print_arg_func {
 	struct tep_function_handler	*func;
-	struct print_arg		*args;
+	struct tep_print_arg		*args;
 };
 
 enum print_arg_type {
@@ -253,28 +253,28 @@ enum print_arg_type {
 	PRINT_HEX_STR,
 };
 
-struct print_arg {
-	struct print_arg		*next;
+struct tep_print_arg {
+	struct tep_print_arg		*next;
 	enum print_arg_type		type;
 	union {
-		struct print_arg_atom		atom;
-		struct print_arg_field		field;
-		struct print_arg_typecast	typecast;
-		struct print_arg_flags		flags;
-		struct print_arg_symbol		symbol;
-		struct print_arg_hex		hex;
-		struct print_arg_int_array	int_array;
-		struct print_arg_func		func;
-		struct print_arg_string		string;
-		struct print_arg_bitmask	bitmask;
-		struct print_arg_op		op;
-		struct print_arg_dynarray	dynarray;
+		struct tep_print_arg_atom	atom;
+		struct tep_print_arg_field	field;
+		struct tep_print_arg_typecast	typecast;
+		struct tep_print_arg_flags	flags;
+		struct tep_print_arg_symbol	symbol;
+		struct tep_print_arg_hex	hex;
+		struct tep_print_arg_int_array	int_array;
+		struct tep_print_arg_func	func;
+		struct tep_print_arg_string	string;
+		struct tep_print_arg_bitmask	bitmask;
+		struct tep_print_arg_op		op;
+		struct tep_print_arg_dynarray	dynarray;
 	};
 };
 
-struct print_fmt {
+struct tep_print_fmt {
 	char			*format;
-	struct print_arg	*args;
+	struct tep_print_arg	*args;
 };
 
 struct tep_event_format {
@@ -283,7 +283,7 @@ struct tep_event_format {
 	int			id;
 	int			flags;
 	struct tep_format	format;
-	struct print_fmt	print_fmt;
+	struct tep_print_fmt	print_fmt;
 	char			*system;
 	tep_event_handler_func	handler;
 	void			*context;
