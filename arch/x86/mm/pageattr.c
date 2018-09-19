@@ -328,6 +328,11 @@ static void cpa_flush_array(unsigned long baddr, unsigned long *start,
 
 	BUG_ON(irqs_disabled() && !early_boot_irqs_disabled);
 
+	if (!static_cpu_has(X86_FEATURE_CLFLUSH)) {
+		cpa_flush_all(cache);
+		return;
+	}
+
 	flush_tlb_kernel_range(baddr, baddr + PAGE_SIZE * numpages);
 
 	if (!cache)
@@ -1756,19 +1761,19 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 	cache = !!pgprot2cachemode(mask_set);
 
 	/*
-	 * On success we use CLFLUSH, when the CPU supports it to
-	 * avoid the WBINVD. If the CPU does not support it and in the
-	 * error case we fall back to cpa_flush_all (which uses
-	 * WBINVD):
+	 * On error; flush everything to be sure.
 	 */
-	if (!ret && boot_cpu_has(X86_FEATURE_CLFLUSH)) {
-		if (cpa.flags & (CPA_PAGES_ARRAY | CPA_ARRAY)) {
-			cpa_flush_array(baddr, addr, numpages, cache,
-					cpa.flags, pages);
-		} else
-			cpa_flush_range(baddr, numpages, cache);
-	} else
+	if (ret) {
 		cpa_flush_all(cache);
+		goto out;
+	}
+
+	if (cpa.flags & (CPA_PAGES_ARRAY | CPA_ARRAY)) {
+		cpa_flush_array(baddr, addr, numpages, cache,
+				cpa.flags, pages);
+	} else {
+		cpa_flush_range(baddr, numpages, cache);
+	}
 
 out:
 	return ret;
