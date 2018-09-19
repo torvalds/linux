@@ -467,7 +467,7 @@ int ixgbevf_ipsec_tx(struct ixgbevf_ring *tx_ring,
 	}
 
 	sa_idx = xs->xso.offload_handle - IXGBE_IPSEC_BASE_TX_INDEX;
-	if (unlikely(sa_idx > IXGBE_IPSEC_MAX_SA_COUNT)) {
+	if (unlikely(sa_idx >= IXGBE_IPSEC_MAX_SA_COUNT)) {
 		netdev_err(tx_ring->netdev, "%s: bad sa_idx=%d handle=%lu\n",
 			   __func__, sa_idx, xs->xso.offload_handle);
 		return 0;
