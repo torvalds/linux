@@ -41,4 +41,9 @@ enum mcu_calibrate {
 	MCU_CAL_TX_GROUP_DELAY,
 };
 
+static inline int mt76x0_firmware_running(struct mt76x0_dev *dev)
+{
+	return mt76_rr(dev, MT_MCU_COM_REG0) == 1;
+}
+
 #endif
