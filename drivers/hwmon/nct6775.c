@@ -3505,10 +3505,12 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 		int cr2d = superio_inb(sioreg, 0x2d);
 		int cr2f = superio_inb(sioreg, 0x2f);
 		bool dsw_en = cr2f & BIT(3);
+		int cre0;
 		int creb;
 		int cred;
 
 		superio_select(sioreg, NCT6775_LD_12);
+		cre0 = superio_inb(sioreg, 0xe0);
 		creb = superio_inb(sioreg, 0xeb);
 		cred = superio_inb(sioreg, 0xed);
 
@@ -3556,27 +3558,24 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 			pwm6pin |= creb & BIT(2);
 			break;
 		case nct6796:
-			pwm5pin |= cr2d & BIT(7);
 			fan5pin |= cr1b & BIT(5);
+			fan5pin |= (cre0 & BIT(3)) && !(cr1b & BIT(0));
+			fan5pin |= creb & BIT(5);
 
-			if (data->kind != nct6796) {
-				fan5pin |= creb & BIT(5);
-				pwm5pin |= (creb & BIT(4)) && !(cr2a & BIT(0));
-
-				fan6pin = !dsw_en && (cr2d & BIT(1));
-				fan6pin |= creb & BIT(3);
-
-				pwm6pin = !dsw_en && (cr2d & BIT(0));
-				pwm6pin |= creb & BIT(2);
-			}
-
-			fan6pin |= (cr2a & BIT(4)) &&
+			fan6pin = (cr2a & BIT(4)) &&
 					(!dsw_en || (cred & BIT(4)));
-			pwm6pin |= (cr2a & BIT(3)) && (cred & BIT(2));
+			fan6pin |= creb & BIT(3);
 
 			fan7pin = !(cr2b & BIT(2));
-			pwm7pin = !(cr1d & (BIT(2) | BIT(3)));
 
+			pwm5pin |= cr2d & BIT(7);
+			pwm5pin |= (cre0 & BIT(4)) && !(cr1b & BIT(0));
+			pwm5pin |= (creb & BIT(4)) && !(cr2a & BIT(0));
+
+			pwm6pin = (cr2a & BIT(3)) && (cred & BIT(2));
+			pwm6pin |= creb & BIT(2);
+
+			pwm7pin = !(cr1d & (BIT(2) | BIT(3)));
 			break;
 		default:	/* NCT6779D */
 			break;
