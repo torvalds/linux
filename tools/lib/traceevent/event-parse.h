@@ -793,30 +793,30 @@ enum tep_filter_cmp_type {
 	TEP_FILTER_CMP_NOT_REGEX,
 };
 
-enum filter_exp_type {
-	FILTER_EXP_NONE,
-	FILTER_EXP_ADD,
-	FILTER_EXP_SUB,
-	FILTER_EXP_MUL,
-	FILTER_EXP_DIV,
-	FILTER_EXP_MOD,
-	FILTER_EXP_RSHIFT,
-	FILTER_EXP_LSHIFT,
-	FILTER_EXP_AND,
-	FILTER_EXP_OR,
-	FILTER_EXP_XOR,
-	FILTER_EXP_NOT,
+enum tep_filter_exp_type {
+	TEP_FILTER_EXP_NONE,
+	TEP_FILTER_EXP_ADD,
+	TEP_FILTER_EXP_SUB,
+	TEP_FILTER_EXP_MUL,
+	TEP_FILTER_EXP_DIV,
+	TEP_FILTER_EXP_MOD,
+	TEP_FILTER_EXP_RSHIFT,
+	TEP_FILTER_EXP_LSHIFT,
+	TEP_FILTER_EXP_AND,
+	TEP_FILTER_EXP_OR,
+	TEP_FILTER_EXP_XOR,
+	TEP_FILTER_EXP_NOT,
 };
 
-enum filter_arg_type {
-	FILTER_ARG_NONE,
-	FILTER_ARG_BOOLEAN,
-	FILTER_ARG_VALUE,
-	FILTER_ARG_FIELD,
-	FILTER_ARG_EXP,
-	FILTER_ARG_OP,
-	FILTER_ARG_NUM,
-	FILTER_ARG_STR,
+enum tep_filter_arg_type {
+	TEP_FILTER_ARG_NONE,
+	TEP_FILTER_ARG_BOOLEAN,
+	TEP_FILTER_ARG_VALUE,
+	TEP_FILTER_ARG_FIELD,
+	TEP_FILTER_ARG_EXP,
+	TEP_FILTER_ARG_OP,
+	TEP_FILTER_ARG_NUM,
+	TEP_FILTER_ARG_STR,
 };
 
 enum filter_value_type {
@@ -850,9 +850,9 @@ struct filter_arg_op {
 };
 
 struct filter_arg_exp {
-	enum filter_exp_type	type;
-	struct filter_arg	*left;
-	struct filter_arg	*right;
+	enum tep_filter_exp_type	type;
+	struct filter_arg		*left;
+	struct filter_arg		*right;
 };
 
 struct filter_arg_num {
@@ -870,7 +870,7 @@ struct filter_arg_str {
 };
 
 struct filter_arg {
-	enum filter_arg_type	type;
+	enum tep_filter_arg_type		type;
 	union {
 		struct filter_arg_boolean	boolean;
 		struct filter_arg_field		field;
