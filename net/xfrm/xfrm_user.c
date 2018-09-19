@@ -1408,6 +1408,9 @@ static int validate_tmpl(int nr, struct xfrm_user_tmpl *ut, u16 family)
 		    (ut[i].family != prev_family))
 			return -EINVAL;
 
+		if (ut[i].mode >= XFRM_MODE_MAX)
+			return -EINVAL;
+
 		prev_family = ut[i].family;
 
 		switch (ut[i].family) {
