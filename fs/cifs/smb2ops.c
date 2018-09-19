@@ -110,6 +110,8 @@ smb2_set_credits(struct TCP_Server_Info *server, const int val)
 {
 	spin_lock(&server->req_lock);
 	server->credits = val;
+	if (val == 1)
+		server->reconnect_instance++;
 	spin_unlock(&server->req_lock);
 }
 
