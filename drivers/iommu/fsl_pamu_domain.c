@@ -814,11 +814,59 @@ static int configure_domain_dma_state(struct fsl_dma_domain *dma_domain, bool en
 	return 0;
 }
 
+static int fsl_pamu_set_windows(struct iommu_domain *domain, u32 w_count)
+{
+	struct fsl_dma_domain *dma_domain = to_fsl_dma_domain(domain);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&dma_domain->domain_lock, flags);
+	/* Ensure domain is inactive i.e. DMA should be disabled for the domain */
+	if (dma_domain->enabled) {
+		pr_debug("Can't set geometry attributes as domain is active\n");
+		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
+		return  -EBUSY;
+	}
+
+	/* Ensure that the geometry has been set for the domain */
+	if (!dma_domain->geom_size) {
+		pr_debug("Please configure geometry before setting the number of windows\n");
+		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
+		return -EINVAL;
+	}
+
+	/*
+	 * Ensure we have valid window count i.e. it should be less than
+	 * maximum permissible limit and should be a power of two.
+	 */
+	if (w_count > pamu_get_max_subwin_cnt() || !is_power_of_2(w_count)) {
+		pr_debug("Invalid window count\n");
+		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
+		return -EINVAL;
+	}
+
+	ret = pamu_set_domain_geometry(dma_domain, &domain->geometry,
+				       w_count > 1 ? w_count : 0);
+	if (!ret) {
+		kfree(dma_domain->win_arr);
+		dma_domain->win_arr = kcalloc(w_count,
+					      sizeof(*dma_domain->win_arr),
+					      GFP_ATOMIC);
+		if (!dma_domain->win_arr) {
+			spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
+			return -ENOMEM;
+		}
+		dma_domain->win_cnt = w_count;
+	}
+	spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
+
+	return ret;
+}
+
 static int fsl_pamu_set_domain_attr(struct iommu_domain *domain,
 				    enum iommu_attr attr_type, void *data)
 {
 	struct fsl_dma_domain *dma_domain = to_fsl_dma_domain(domain);
-	u32 *count;
 	int ret = 0;
 
 	switch (attr_type) {
@@ -832,13 +880,7 @@ static int fsl_pamu_set_domain_attr(struct iommu_domain *domain,
 		ret = configure_domain_dma_state(dma_domain, *(int *)data);
 		break;
 	case DOMAIN_ATTR_WINDOWS:
-		count = data;
-
-		if (domain->ops->domain_set_windows != NULL)
-			ret = domain->ops->domain_set_windows(domain, *count);
-		else
-			ret = -ENODEV;
-
+		ret = fsl_pamu_set_windows(domain, *(u32 *)data);
 		break;
 	default:
 		pr_debug("Unsupported attribute type\n");
@@ -853,7 +895,6 @@ static int fsl_pamu_get_domain_attr(struct iommu_domain *domain,
 				    enum iommu_attr attr_type, void *data)
 {
 	struct fsl_dma_domain *dma_domain = to_fsl_dma_domain(domain);
-	u32 *count;
 	int ret = 0;
 
 	switch (attr_type) {
@@ -868,13 +909,7 @@ static int fsl_pamu_get_domain_attr(struct iommu_domain *domain,
 		*(int *)data = DOMAIN_ATTR_FSL_PAMUV1;
 		break;
 	case DOMAIN_ATTR_WINDOWS:
-		count = data;
-
-		if (domain->ops->domain_get_windows != NULL)
-			*count = domain->ops->domain_get_windows(domain);
-		else
-			ret = -ENODEV;
-
+		*(u32 *)data = dma_domain->win_cnt;
 		break;
 	default:
 		pr_debug("Unsupported attribute type\n");
@@ -1014,62 +1049,6 @@ static void fsl_pamu_remove_device(struct device *dev)
 	iommu_group_remove_device(dev);
 }
 
-static int fsl_pamu_set_windows(struct iommu_domain *domain, u32 w_count)
-{
-	struct fsl_dma_domain *dma_domain = to_fsl_dma_domain(domain);
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&dma_domain->domain_lock, flags);
-	/* Ensure domain is inactive i.e. DMA should be disabled for the domain */
-	if (dma_domain->enabled) {
-		pr_debug("Can't set geometry attributes as domain is active\n");
-		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
-		return  -EBUSY;
-	}
-
-	/* Ensure that the geometry has been set for the domain */
-	if (!dma_domain->geom_size) {
-		pr_debug("Please configure geometry before setting the number of windows\n");
-		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
-		return -EINVAL;
-	}
-
-	/*
-	 * Ensure we have valid window count i.e. it should be less than
-	 * maximum permissible limit and should be a power of two.
-	 */
-	if (w_count > pamu_get_max_subwin_cnt() || !is_power_of_2(w_count)) {
-		pr_debug("Invalid window count\n");
-		spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
-		return -EINVAL;
-	}
-
-	ret = pamu_set_domain_geometry(dma_domain, &domain->geometry,
-				       w_count > 1 ? w_count : 0);
-	if (!ret) {
-		kfree(dma_domain->win_arr);
-		dma_domain->win_arr = kcalloc(w_count,
-					      sizeof(*dma_domain->win_arr),
-					      GFP_ATOMIC);
-		if (!dma_domain->win_arr) {
-			spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
-			return -ENOMEM;
-		}
-		dma_domain->win_cnt = w_count;
-	}
-	spin_unlock_irqrestore(&dma_domain->domain_lock, flags);
-
-	return ret;
-}
-
-static u32 fsl_pamu_get_windows(struct iommu_domain *domain)
-{
-	struct fsl_dma_domain *dma_domain = to_fsl_dma_domain(domain);
-
-	return dma_domain->win_cnt;
-}
-
 static const struct iommu_ops fsl_pamu_ops = {
 	.capable	= fsl_pamu_capable,
 	.domain_alloc	= fsl_pamu_domain_alloc,
@@ -1078,8 +1057,6 @@ static const struct iommu_ops fsl_pamu_ops = {
 	.detach_dev	= fsl_pamu_detach_device,
 	.domain_window_enable = fsl_pamu_window_enable,
 	.domain_window_disable = fsl_pamu_window_disable,
-	.domain_get_windows = fsl_pamu_get_windows,
-	.domain_set_windows = fsl_pamu_set_windows,
 	.iova_to_phys	= fsl_pamu_iova_to_phys,
 	.domain_set_attr = fsl_pamu_set_domain_attr,
 	.domain_get_attr = fsl_pamu_get_domain_attr,
