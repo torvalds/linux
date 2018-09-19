@@ -10,12 +10,11 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/i2c.h>
 #include <linux/bcd.h>
-#include <linux/rtc.h>
-#include "rtc-core.h"
+#include <linux/i2c.h>
+#include <linux/module.h>
 #include <linux/of_irq.h>
+#include <linux/rtc.h>
 
 /* Register map */
 /* rtc section */
