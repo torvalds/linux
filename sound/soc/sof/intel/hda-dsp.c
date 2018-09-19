@@ -275,8 +275,10 @@ static int hda_suspend(struct snd_sof_dev *sdev, int state)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	int ret = 0;
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* power down all hda link */
 	snd_hdac_ext_bus_link_power_down_all(bus);
+#endif
 
 	/* power down DSP */
 	ret = hda_dsp_core_reset_power_down(sdev, chip->cores_mask);
@@ -286,18 +288,25 @@ static int hda_suspend(struct snd_sof_dev *sdev, int state)
 		return ret;
 	}
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* disable ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_int_enable(bus, false);
 	snd_hdac_ext_bus_ppcap_enable(bus, false);
 
 	/* disable hda bus irw and i/o */
 	snd_hdac_bus_stop_chip(bus);
+#endif
 
 	/* disable LP retention mode */
 	snd_sof_pci_update_bits(sdev, PCI_TCSEL,
 				PCI_CGCTL_LSRMD_MASK, PCI_CGCTL_LSRMD_MASK);
 
-	return 0;
+	/* reset HDA controller */
+	ret = hda_dsp_ctrl_link_reset(sdev);
+	if (ret < 0)
+		dev_err(sdev->dev, "error: failed to reset HDA controller\n");
+
+	return ret;
 }
 
 static int hda_resume(struct snd_sof_dev *sdev)
@@ -313,6 +322,7 @@ static int hda_resume(struct snd_sof_dev *sdev)
 	 */
 	snd_sof_pci_update_bits(sdev, PCI_TCSEL, 0x07, 0);
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* reset and start hda controller */
 	ret = hda_dsp_ctrl_init_chip(sdev, true);
 	if (ret < 0) {
@@ -332,6 +342,7 @@ static int hda_resume(struct snd_sof_dev *sdev)
 	/* enable ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_enable(bus, true);
 	snd_hdac_ext_bus_ppcap_int_enable(bus, true);
+#endif
 
 	/* power up the DSP */
 	ret = hda_dsp_core_power_up(sdev, chip->cores_mask);
@@ -341,6 +352,7 @@ static int hda_resume(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* turn off the links that were off before suspend */
 	list_for_each_entry(hlink, &bus->hlink_list, list) {
 		if (!hlink->ref_count)
@@ -350,6 +362,7 @@ static int hda_resume(struct snd_sof_dev *sdev)
 	/* check dma status and clean up CORB/RIRB buffers */
 	if (!bus->cmd_dma_state)
 		snd_hdac_bus_stop_cmd_io(bus);
+#endif
 
 	return 0;
 }
