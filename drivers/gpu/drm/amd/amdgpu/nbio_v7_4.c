@@ -86,10 +86,24 @@ static u32 nbio_v7_4_get_memsize(struct amdgpu_device *adev)
 static void nbio_v7_4_sdma_doorbell_range(struct amdgpu_device *adev, int instance,
 			bool use_doorbell, int doorbell_index, int doorbell_size)
 {
-	u32 reg = instance == 0 ? SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE) :
-			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA1_DOORBELL_RANGE);
+	u32 reg, doorbell_range;
 
-	u32 doorbell_range = RREG32(reg);
+	if (instance < 2)
+		reg = instance +
+			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE);
+	else
+		/*
+		 * These registers address of SDMA2~7 is not consecutive
+		 * from SDMA0~1. Need plus 4 dwords offset.
+		 *
+		 *   BIF_SDMA0_DOORBELL_RANGE:  0x3bc0
+		 *   BIF_SDMA1_DOORBELL_RANGE:  0x3bc4
+		 *   BIF_SDMA2_DOORBELL_RANGE:  0x3bd8
+		 */
+		reg = instance + 0x4 +
+			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE);
+
+	doorbell_range = RREG32(reg);
 
 	if (use_doorbell) {
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, OFFSET, doorbell_index);
