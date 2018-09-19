@@ -985,8 +985,10 @@ static void gfx_v9_0_init_lbpw(struct amdgpu_device *adev)
 	data |= 0x00C00000;
 	WREG32_SOC15(GC, 0, mmRLC_GPM_GENERAL_7, data);
 
-	/* set RLC_LB_ALWAYS_ACTIVE_CU_MASK = 0xFFF */
-	WREG32_SOC15(GC, 0, mmRLC_LB_ALWAYS_ACTIVE_CU_MASK, 0xFFF);
+	/*
+	 * RLC_LB_ALWAYS_ACTIVE_CU_MASK = 0xF (4 CUs AON for Raven),
+	 * programmed in gfx_v9_0_init_always_on_cu_mask()
+	 */
 
 	/* set RLC_LB_CNTL = 0x8000_0095, 31 bit is reserved,
 	 * but used for RLC_LB_CNTL configuration */
@@ -995,6 +997,8 @@ static void gfx_v9_0_init_lbpw(struct amdgpu_device *adev)
 	data |= REG_SET_FIELD(data, RLC_LB_CNTL, RESERVED, 0x80000);
 	WREG32_SOC15(GC, 0, mmRLC_LB_CNTL, data);
 	mutex_unlock(&adev->grbm_idx_mutex);
+
+	gfx_v9_0_init_always_on_cu_mask(adev);
 }
 
 static void gfx_v9_4_init_lbpw(struct amdgpu_device *adev)
