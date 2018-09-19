@@ -291,7 +291,7 @@ static bool __cpa_flush_range(unsigned long start, int numpages, int cache)
 
 	WARN_ON(PAGE_ALIGN(start) != start);
 
-	if (!static_cpu_has(X86_FEATURE_CLFLUSH)) {
+	if (cache && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		cpa_flush_all(cache);
 		return true;
 	}
