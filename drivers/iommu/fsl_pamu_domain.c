@@ -818,6 +818,7 @@ static int fsl_pamu_set_domain_attr(struct iommu_domain *domain,
 				    enum iommu_attr attr_type, void *data)
 {
 	struct fsl_dma_domain *dma_domain = to_fsl_dma_domain(domain);
+	u32 *count;
 	int ret = 0;
 
 	switch (attr_type) {
@@ -829,6 +830,15 @@ static int fsl_pamu_set_domain_attr(struct iommu_domain *domain,
 		break;
 	case DOMAIN_ATTR_FSL_PAMU_ENABLE:
 		ret = configure_domain_dma_state(dma_domain, *(int *)data);
+		break;
+	case DOMAIN_ATTR_WINDOWS:
+		count = data;
+
+		if (domain->ops->domain_set_windows != NULL)
+			ret = domain->ops->domain_set_windows(domain, *count);
+		else
+			ret = -ENODEV;
+
 		break;
 	default:
 		pr_debug("Unsupported attribute type\n");
@@ -843,6 +853,7 @@ static int fsl_pamu_get_domain_attr(struct iommu_domain *domain,
 				    enum iommu_attr attr_type, void *data)
 {
 	struct fsl_dma_domain *dma_domain = to_fsl_dma_domain(domain);
+	u32 *count;
 	int ret = 0;
 
 	switch (attr_type) {
@@ -855,6 +866,15 @@ static int fsl_pamu_get_domain_attr(struct iommu_domain *domain,
 		break;
 	case DOMAIN_ATTR_FSL_PAMUV1:
 		*(int *)data = DOMAIN_ATTR_FSL_PAMUV1;
+		break;
+	case DOMAIN_ATTR_WINDOWS:
+		count = data;
+
+		if (domain->ops->domain_get_windows != NULL)
+			*count = domain->ops->domain_get_windows(domain);
+		else
+			ret = -ENODEV;
+
 		break;
 	default:
 		pr_debug("Unsupported attribute type\n");
