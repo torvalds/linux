@@ -87,9 +87,9 @@ static u32 mvpp2_read_relaxed(struct mvpp2 *priv, u32 offset)
 	return readl_relaxed(priv->swth_base[0] + offset);
 }
 
-static inline u32 mvpp2_cpu_to_thread(int cpu)
+static inline u32 mvpp2_cpu_to_thread(struct mvpp2 *priv, int cpu)
 {
-	return cpu;
+	return cpu % priv->nthreads;
 }
 
 /* These accessors should be used to access:
@@ -391,7 +391,7 @@ static void mvpp2_bm_bufs_get_addrs(struct device *dev, struct mvpp2 *priv,
 				    dma_addr_t *dma_addr,
 				    phys_addr_t *phys_addr)
 {
-	unsigned int thread = mvpp2_cpu_to_thread(get_cpu());
+	unsigned int thread = mvpp2_cpu_to_thread(priv, get_cpu());
 
 	*dma_addr = mvpp2_percpu_read(priv, thread,
 				      MVPP2_BM_PHY_ALLOC_REG(bm_pool->id));
@@ -632,7 +632,11 @@ static inline void mvpp2_bm_pool_put(struct mvpp2_port *port, int pool,
 				     dma_addr_t buf_dma_addr,
 				     phys_addr_t buf_phys_addr)
 {
-	unsigned int thread = mvpp2_cpu_to_thread(get_cpu());
+	unsigned int thread = mvpp2_cpu_to_thread(port->priv, get_cpu());
+	unsigned long flags = 0;
+
+	if (test_bit(thread, &port->priv->lock_map))
+		spin_lock_irqsave(&port->bm_lock[thread], flags);
 
 	if (port->priv->hw_version == MVPP22) {
 		u32 val = 0;
@@ -659,6 +663,9 @@ static inline void mvpp2_bm_pool_put(struct mvpp2_port *port, int pool,
 				   MVPP2_BM_VIRT_RLS_REG, buf_phys_addr);
 	mvpp2_percpu_write_relaxed(port->priv, thread,
 				   MVPP2_BM_PHY_RLS_REG(pool), buf_dma_addr);
+
+	if (test_bit(thread, &port->priv->lock_map))
+		spin_unlock_irqrestore(&port->bm_lock[thread], flags);
 
 	put_cpu();
 }
@@ -900,7 +907,12 @@ static void mvpp2_interrupts_mask(void *arg)
 {
 	struct mvpp2_port *port = arg;
 
-	mvpp2_percpu_write(port->priv, mvpp2_cpu_to_thread(smp_processor_id()),
+	/* If the thread isn't used, don't do anything */
+	if (smp_processor_id() > port->priv->nthreads)
+		return;
+
+	mvpp2_percpu_write(port->priv,
+			   mvpp2_cpu_to_thread(port->priv, smp_processor_id()),
 			   MVPP2_ISR_RX_TX_MASK_REG(port->id), 0);
 }
 
@@ -913,12 +925,17 @@ static void mvpp2_interrupts_unmask(void *arg)
 	struct mvpp2_port *port = arg;
 	u32 val;
 
+	/* If the thread isn't used, don't do anything */
+	if (smp_processor_id() > port->priv->nthreads)
+		return;
+
 	val = MVPP2_CAUSE_MISC_SUM_MASK |
 		MVPP2_CAUSE_RXQ_OCCUP_DESC_ALL_MASK(port->priv->hw_version);
 	if (port->has_tx_irqs)
 		val |= MVPP2_CAUSE_TXQ_OCCUP_DESC_ALL_MASK;
 
-	mvpp2_percpu_write(port->priv, mvpp2_cpu_to_thread(smp_processor_id()),
+	mvpp2_percpu_write(port->priv,
+			   mvpp2_cpu_to_thread(port->priv, smp_processor_id()),
 			   MVPP2_ISR_RX_TX_MASK_REG(port->id), val);
 }
 
@@ -1630,7 +1647,8 @@ mvpp2_txq_next_desc_get(struct mvpp2_tx_queue *txq)
 static void mvpp2_aggr_txq_pend_desc_add(struct mvpp2_port *port, int pending)
 {
 	/* aggregated access - relevant TXQ number is written in TX desc */
-	mvpp2_percpu_write(port->priv, mvpp2_cpu_to_thread(smp_processor_id()),
+	mvpp2_percpu_write(port->priv,
+			   mvpp2_cpu_to_thread(port->priv, smp_processor_id()),
 			   MVPP2_AGGR_TXQ_UPDATE_REG, pending);
 }
 
@@ -1640,13 +1658,14 @@ static void mvpp2_aggr_txq_pend_desc_add(struct mvpp2_port *port, int pending)
  * Called only from mvpp2_tx(), so migration is disabled, using
  * smp_processor_id() is OK.
  */
-static int mvpp2_aggr_desc_num_check(struct mvpp2 *priv,
+static int mvpp2_aggr_desc_num_check(struct mvpp2_port *port,
 				     struct mvpp2_tx_queue *aggr_txq, int num)
 {
 	if ((aggr_txq->count + num) > MVPP2_AGGR_TXQ_SIZE) {
 		/* Update number of occupied aggregated Tx descriptors */
-		unsigned int thread = mvpp2_cpu_to_thread(smp_processor_id());
-		u32 val = mvpp2_read_relaxed(priv,
+		unsigned int thread =
+			mvpp2_cpu_to_thread(port->priv, smp_processor_id());
+		u32 val = mvpp2_read_relaxed(port->priv,
 					     MVPP2_AGGR_TXQ_STATUS_REG(thread));
 
 		aggr_txq->count = val & MVPP2_AGGR_TXQ_PENDING_MASK;
@@ -1663,11 +1682,12 @@ static int mvpp2_aggr_desc_num_check(struct mvpp2 *priv,
  * only by mvpp2_tx(), so migration is disabled, using
  * smp_processor_id() is OK.
  */
-static int mvpp2_txq_alloc_reserved_desc(struct mvpp2 *priv,
+static int mvpp2_txq_alloc_reserved_desc(struct mvpp2_port *port,
 					 struct mvpp2_tx_queue *txq, int num)
 {
+	unsigned int thread = mvpp2_cpu_to_thread(port->priv, smp_processor_id());
+	struct mvpp2 *priv = port->priv;
 	u32 val;
-	unsigned int thread = mvpp2_cpu_to_thread(smp_processor_id());
 
 	val = (txq->id << MVPP2_TXQ_RSVD_REQ_Q_OFFSET) | num;
 	mvpp2_percpu_write_relaxed(priv, thread, MVPP2_TXQ_RSVD_REQ_REG, val);
@@ -1685,7 +1705,6 @@ static int mvpp2_txq_reserved_desc_num_proc(struct mvpp2_port *port,
 					    struct mvpp2_txq_pcpu *txq_pcpu,
 					    int num)
 {
-	struct mvpp2 *priv = port->priv;
 	int req, desc_count;
 	unsigned int thread;
 
@@ -1698,7 +1717,7 @@ static int mvpp2_txq_reserved_desc_num_proc(struct mvpp2_port *port,
 
 	desc_count = 0;
 	/* Compute total of used descriptors */
-	for (thread = 0; thread < port->nthreads; thread++) {
+	for (thread = 0; thread < port->priv->nthreads; thread++) {
 		struct mvpp2_txq_pcpu *txq_pcpu_aux;
 
 		txq_pcpu_aux = per_cpu_ptr(txq->pcpu, thread);
@@ -1713,7 +1732,7 @@ static int mvpp2_txq_reserved_desc_num_proc(struct mvpp2_port *port,
 	   (txq->size - (MVPP2_MAX_THREADS * MVPP2_CPU_DESC_CHUNK)))
 		return -ENOMEM;
 
-	txq_pcpu->reserved_num += mvpp2_txq_alloc_reserved_desc(priv, txq, req);
+	txq_pcpu->reserved_num += mvpp2_txq_alloc_reserved_desc(port, txq, req);
 
 	/* OK, the descriptor could have been updated: check again. */
 	if (txq_pcpu->reserved_num < num)
@@ -1780,7 +1799,7 @@ static inline int mvpp2_txq_sent_desc_proc(struct mvpp2_port *port,
 
 	/* Reading status reg resets transmitted descriptor counter */
 	val = mvpp2_percpu_read_relaxed(port->priv,
-					mvpp2_cpu_to_thread(smp_processor_id()),
+					mvpp2_cpu_to_thread(port->priv, smp_processor_id()),
 					MVPP2_TXQ_SENT_REG(txq->id));
 
 	return (val & MVPP2_TRANSMITTED_COUNT_MASK) >>
@@ -1795,11 +1814,15 @@ static void mvpp2_txq_sent_counter_clear(void *arg)
 	struct mvpp2_port *port = arg;
 	int queue;
 
+	/* If the thread isn't used, don't do anything */
+	if (smp_processor_id() > port->priv->nthreads)
+		return;
+
 	for (queue = 0; queue < port->ntxqs; queue++) {
 		int id = port->txqs[queue]->id;
 
 		mvpp2_percpu_read(port->priv,
-				  mvpp2_cpu_to_thread(smp_processor_id()),
+				  mvpp2_cpu_to_thread(port->priv, smp_processor_id()),
 				  MVPP2_TXQ_SENT_REG(id));
 	}
 }
@@ -1859,7 +1882,7 @@ static void mvpp2_txp_max_tx_size_set(struct mvpp2_port *port)
 static void mvpp2_rx_pkts_coal_set(struct mvpp2_port *port,
 				   struct mvpp2_rx_queue *rxq)
 {
-	unsigned int thread = mvpp2_cpu_to_thread(get_cpu());
+	unsigned int thread = mvpp2_cpu_to_thread(port->priv, get_cpu());
 
 	if (rxq->pkts_coal > MVPP2_OCCUPIED_THRESH_MASK)
 		rxq->pkts_coal = MVPP2_OCCUPIED_THRESH_MASK;
@@ -1875,7 +1898,7 @@ static void mvpp2_rx_pkts_coal_set(struct mvpp2_port *port,
 static void mvpp2_tx_pkts_coal_set(struct mvpp2_port *port,
 				   struct mvpp2_tx_queue *txq)
 {
-	unsigned int thread = mvpp2_cpu_to_thread(get_cpu());
+	unsigned int thread = mvpp2_cpu_to_thread(port->priv, get_cpu());
 	u32 val;
 
 	if (txq->done_pkts_coal > MVPP2_TXQ_THRESH_MASK)
@@ -1984,7 +2007,7 @@ static void mvpp2_txq_done(struct mvpp2_port *port, struct mvpp2_tx_queue *txq,
 	struct netdev_queue *nq = netdev_get_tx_queue(port->dev, txq->log_id);
 	int tx_done;
 
-	if (txq_pcpu->thread != mvpp2_cpu_to_thread(smp_processor_id()))
+	if (txq_pcpu->thread != mvpp2_cpu_to_thread(port->priv, smp_processor_id()))
 		netdev_err(port->dev, "wrong cpu on the end of Tx processing\n");
 
 	tx_done = mvpp2_txq_sent_desc_proc(port, txq);
@@ -2084,7 +2107,7 @@ static int mvpp2_rxq_init(struct mvpp2_port *port,
 	mvpp2_write(port->priv, MVPP2_RXQ_STATUS_REG(rxq->id), 0);
 
 	/* Set Rx descriptors queue starting address - indirect access */
-	thread = mvpp2_cpu_to_thread(get_cpu());
+	thread = mvpp2_cpu_to_thread(port->priv, get_cpu());
 	mvpp2_percpu_write(port->priv, thread, MVPP2_RXQ_NUM_REG, rxq->id);
 	if (port->priv->hw_version == MVPP21)
 		rxq_dma = rxq->descs_dma;
@@ -2156,7 +2179,7 @@ static void mvpp2_rxq_deinit(struct mvpp2_port *port,
 	 * free descriptor number
 	 */
 	mvpp2_write(port->priv, MVPP2_RXQ_STATUS_REG(rxq->id), 0);
-	thread = mvpp2_cpu_to_thread(get_cpu());
+	thread = mvpp2_cpu_to_thread(port->priv, get_cpu());
 	mvpp2_percpu_write(port->priv, thread, MVPP2_RXQ_NUM_REG, rxq->id);
 	mvpp2_percpu_write(port->priv, thread, MVPP2_RXQ_DESC_ADDR_REG, 0);
 	mvpp2_percpu_write(port->priv, thread, MVPP2_RXQ_DESC_SIZE_REG, 0);
@@ -2184,7 +2207,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 	txq->last_desc = txq->size - 1;
 
 	/* Set Tx descriptors queue starting address - indirect access */
-	thread = mvpp2_cpu_to_thread(get_cpu());
+	thread = mvpp2_cpu_to_thread(port->priv, get_cpu());
 	mvpp2_percpu_write(port->priv, thread, MVPP2_TXQ_NUM_REG, txq->id);
 	mvpp2_percpu_write(port->priv, thread, MVPP2_TXQ_DESC_ADDR_REG,
 			   txq->descs_dma);
@@ -2225,7 +2248,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 	mvpp2_write(port->priv, MVPP2_TXQ_SCHED_TOKEN_SIZE_REG(txq->log_id),
 		    val);
 
-	for (thread = 0; thread < port->nthreads; thread++) {
+	for (thread = 0; thread < port->priv->nthreads; thread++) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, thread);
 		txq_pcpu->size = txq->size;
 		txq_pcpu->buffs = kmalloc_array(txq_pcpu->size,
@@ -2262,7 +2285,7 @@ static void mvpp2_txq_deinit(struct mvpp2_port *port,
 	struct mvpp2_txq_pcpu *txq_pcpu;
 	unsigned int thread;
 
-	for (thread = 0; thread < port->nthreads; thread++) {
+	for (thread = 0; thread < port->priv->nthreads; thread++) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, thread);
 		kfree(txq_pcpu->buffs);
 
@@ -2289,7 +2312,7 @@ static void mvpp2_txq_deinit(struct mvpp2_port *port,
 	mvpp2_write(port->priv, MVPP2_TXQ_SCHED_TOKEN_CNTR_REG(txq->id), 0);
 
 	/* Set Tx descriptors queue starting address and size */
-	thread = mvpp2_cpu_to_thread(get_cpu());
+	thread = mvpp2_cpu_to_thread(port->priv, get_cpu());
 	mvpp2_percpu_write(port->priv, thread, MVPP2_TXQ_NUM_REG, txq->id);
 	mvpp2_percpu_write(port->priv, thread, MVPP2_TXQ_DESC_ADDR_REG, 0);
 	mvpp2_percpu_write(port->priv, thread, MVPP2_TXQ_DESC_SIZE_REG, 0);
@@ -2301,7 +2324,7 @@ static void mvpp2_txq_clean(struct mvpp2_port *port, struct mvpp2_tx_queue *txq)
 {
 	struct mvpp2_txq_pcpu *txq_pcpu;
 	int delay, pending;
-	unsigned int thread = mvpp2_cpu_to_thread(get_cpu());
+	unsigned int thread = mvpp2_cpu_to_thread(port->priv, get_cpu());
 	u32 val;
 
 	mvpp2_percpu_write(port->priv, thread, MVPP2_TXQ_NUM_REG, txq->id);
@@ -2332,7 +2355,7 @@ static void mvpp2_txq_clean(struct mvpp2_port *port, struct mvpp2_tx_queue *txq)
 	mvpp2_percpu_write(port->priv, thread, MVPP2_TXQ_PREF_BUF_REG, val);
 	put_cpu();
 
-	for (thread = 0; thread < port->nthreads; thread++) {
+	for (thread = 0; thread < port->priv->nthreads; thread++) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, thread);
 
 		/* Release all packets */
@@ -2518,7 +2541,7 @@ static void mvpp2_tx_proc_cb(unsigned long data)
 	unsigned int tx_todo, cause;
 
 	port_pcpu = per_cpu_ptr(port->pcpu,
-				mvpp2_cpu_to_thread(smp_processor_id()));
+				mvpp2_cpu_to_thread(port->priv, smp_processor_id()));
 
 	if (!netif_running(dev))
 		return;
@@ -2527,7 +2550,7 @@ static void mvpp2_tx_proc_cb(unsigned long data)
 	/* Process all the Tx queues */
 	cause = (1 << port->ntxqs) - 1;
 	tx_todo = mvpp2_tx_done(port, cause,
-				mvpp2_cpu_to_thread(smp_processor_id()));
+				mvpp2_cpu_to_thread(port->priv, smp_processor_id()));
 
 	/* Set the timer in case not all the packets were processed */
 	if (tx_todo)
@@ -2743,7 +2766,7 @@ static inline void
 tx_desc_unmap_put(struct mvpp2_port *port, struct mvpp2_tx_queue *txq,
 		  struct mvpp2_tx_desc *desc)
 {
-	unsigned int thread = mvpp2_cpu_to_thread(smp_processor_id());
+	unsigned int thread = mvpp2_cpu_to_thread(port->priv, smp_processor_id());
 	struct mvpp2_txq_pcpu *txq_pcpu = per_cpu_ptr(txq->pcpu, thread);
 
 	dma_addr_t buf_dma_addr =
@@ -2761,7 +2784,7 @@ static int mvpp2_tx_frag_process(struct mvpp2_port *port, struct sk_buff *skb,
 				 struct mvpp2_tx_queue *aggr_txq,
 				 struct mvpp2_tx_queue *txq)
 {
-	unsigned int thread = mvpp2_cpu_to_thread(smp_processor_id());
+	unsigned int thread = mvpp2_cpu_to_thread(port->priv, smp_processor_id());
 	struct mvpp2_txq_pcpu *txq_pcpu = per_cpu_ptr(txq->pcpu, thread);
 	struct mvpp2_tx_desc *tx_desc;
 	int i;
@@ -2881,8 +2904,7 @@ static int mvpp2_tx_tso(struct sk_buff *skb, struct net_device *dev,
 	int i, len, descs = 0;
 
 	/* Check number of available descriptors */
-	if (mvpp2_aggr_desc_num_check(port->priv, aggr_txq,
-				      tso_count_descs(skb)) ||
+	if (mvpp2_aggr_desc_num_check(port, aggr_txq, tso_count_descs(skb)) ||
 	    mvpp2_txq_reserved_desc_num_proc(port, txq, txq_pcpu,
 					     tso_count_descs(skb)))
 		return 0;
@@ -2930,17 +2952,21 @@ static int mvpp2_tx(struct sk_buff *skb, struct net_device *dev)
 	struct mvpp2_txq_pcpu *txq_pcpu;
 	struct mvpp2_tx_desc *tx_desc;
 	dma_addr_t buf_dma_addr;
+	unsigned long flags = 0;
 	unsigned int thread;
 	int frags = 0;
 	u16 txq_id;
 	u32 tx_cmd;
 
-	thread = mvpp2_cpu_to_thread(smp_processor_id());
+	thread = mvpp2_cpu_to_thread(port->priv, smp_processor_id());
 
 	txq_id = skb_get_queue_mapping(skb);
 	txq = port->txqs[txq_id];
 	txq_pcpu = per_cpu_ptr(txq->pcpu, thread);
 	aggr_txq = &port->priv->aggr_txqs[thread];
+
+	if (test_bit(thread, &port->priv->lock_map))
+		spin_lock_irqsave(&port->tx_lock[thread], flags);
 
 	if (skb_is_gso(skb)) {
 		frags = mvpp2_tx_tso(skb, dev, txq, aggr_txq, txq_pcpu);
@@ -2949,7 +2975,7 @@ static int mvpp2_tx(struct sk_buff *skb, struct net_device *dev)
 	frags = skb_shinfo(skb)->nr_frags + 1;
 
 	/* Check number of available descriptors */
-	if (mvpp2_aggr_desc_num_check(port->priv, aggr_txq, frags) ||
+	if (mvpp2_aggr_desc_num_check(port, aggr_txq, frags) ||
 	    mvpp2_txq_reserved_desc_num_proc(port, txq, txq_pcpu, frags)) {
 		frags = 0;
 		goto out;
@@ -3027,6 +3053,9 @@ out:
 		mvpp2_timer_set(port_pcpu);
 	}
 
+	if (test_bit(thread, &port->priv->lock_map))
+		spin_unlock_irqrestore(&port->tx_lock[thread], flags);
+
 	return NETDEV_TX_OK;
 }
 
@@ -3046,7 +3075,7 @@ static int mvpp2_poll(struct napi_struct *napi, int budget)
 	int rx_done = 0;
 	struct mvpp2_port *port = netdev_priv(napi->dev);
 	struct mvpp2_queue_vector *qv;
-	unsigned int thread = mvpp2_cpu_to_thread(smp_processor_id());
+	unsigned int thread = mvpp2_cpu_to_thread(port->priv, smp_processor_id());
 
 	qv = container_of(napi, struct mvpp2_queue_vector, napi);
 
@@ -3267,9 +3296,18 @@ static int mvpp2_irqs_init(struct mvpp2_port *port)
 		if (err)
 			goto err;
 
-		if (qv->type == MVPP2_QUEUE_VECTOR_PRIVATE)
-			irq_set_affinity_hint(qv->irq,
-					      cpumask_of(qv->sw_thread_id));
+		if (qv->type == MVPP2_QUEUE_VECTOR_PRIVATE) {
+			unsigned long mask = 0;
+			unsigned int cpu;
+
+			for_each_present_cpu(cpu) {
+				if (mvpp2_cpu_to_thread(port->priv, cpu) ==
+				    qv->sw_thread_id)
+					mask |= BIT(cpu);
+			}
+
+			irq_set_affinity_hint(qv->irq, to_cpumask(&mask));
+		}
 	}
 
 	return 0;
@@ -3417,7 +3455,7 @@ static int mvpp2_stop(struct net_device *dev)
 
 	mvpp2_stop_dev(port);
 
-	/* Mask interrupts on all CPUs */
+	/* Mask interrupts on all threads */
 	on_each_cpu(mvpp2_interrupts_mask, port, 1);
 	mvpp2_shared_interrupt_mask_unmask(port, true);
 
@@ -3428,7 +3466,7 @@ static int mvpp2_stop(struct net_device *dev)
 
 	mvpp2_irqs_deinit(port);
 	if (!port->has_tx_irqs) {
-		for (thread = 0; thread < port->nthreads; thread++) {
+		for (thread = 0; thread < port->priv->nthreads; thread++) {
 			port_pcpu = per_cpu_ptr(port->pcpu, thread);
 
 			hrtimer_cancel(&port_pcpu->tx_done_timer);
@@ -4001,12 +4039,18 @@ static int mvpp2_simple_queue_vectors_init(struct mvpp2_port *port,
 static int mvpp2_multi_queue_vectors_init(struct mvpp2_port *port,
 					  struct device_node *port_node)
 {
+	struct mvpp2 *priv = port->priv;
 	struct mvpp2_queue_vector *v;
 	int i, ret;
 
-	port->nqvecs = num_possible_cpus();
-	if (queue_mode == MVPP2_QDIST_SINGLE_MODE)
-		port->nqvecs += 1;
+	switch (queue_mode) {
+	case MVPP2_QDIST_SINGLE_MODE:
+		port->nqvecs = priv->nthreads + 1;
+		break;
+	case MVPP2_QDIST_MULTI_MODE:
+		port->nqvecs = priv->nthreads;
+		break;
+	}
 
 	for (i = 0; i < port->nqvecs; i++) {
 		char irqname[16];
@@ -4155,7 +4199,7 @@ static int mvpp2_port_init(struct mvpp2_port *port)
 		txq->id = queue_phy_id;
 		txq->log_id = queue;
 		txq->done_pkts_coal = MVPP2_TXDONE_COAL_PKTS_THRESH;
-		for (thread = 0; thread < port->nthreads; thread++) {
+		for (thread = 0; thread < priv->nthreads; thread++) {
 			txq_pcpu = per_cpu_ptr(txq->pcpu, thread);
 			txq_pcpu->thread = thread;
 		}
@@ -4715,9 +4759,6 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	port->has_tx_irqs = has_tx_irqs;
 	port->flags = flags;
 
-	port->nthreads = min_t(unsigned int, num_present_cpus(),
-			       MVPP2_MAX_THREADS);
-
 	err = mvpp2_queue_vectors_init(port, port_node);
 	if (err)
 		goto err_free_netdev;
@@ -4813,7 +4854,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	}
 
 	if (!port->has_tx_irqs) {
-		for (thread = 0; thread < port->nthreads; thread++) {
+		for (thread = 0; thread < priv->nthreads; thread++) {
 			port_pcpu = per_cpu_ptr(port->pcpu, thread);
 
 			hrtimer_init(&port_pcpu->tx_done_timer, CLOCK_MONOTONIC,
@@ -5151,7 +5192,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 	struct mvpp2 *priv;
 	struct resource *res;
 	void __iomem *base;
-	int i;
+	int i, shared;
 	int err;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -5215,6 +5256,15 @@ static int mvpp2_probe(struct platform_device *pdev)
 	}
 
 	mvpp2_setup_bm_pool();
+
+
+	priv->nthreads = min_t(unsigned int, num_present_cpus(),
+			       MVPP2_MAX_THREADS);
+
+	shared = num_present_cpus() - priv->nthreads;
+	if (shared > 0)
+		bitmap_fill(&priv->lock_map,
+			    min_t(int, shared, MVPP2_MAX_THREADS));
 
 	for (i = 0; i < MVPP2_MAX_THREADS; i++) {
 		u32 addr_space_sz;

@@ -736,6 +736,11 @@ struct mvpp2 {
 	int port_count;
 	struct mvpp2_port *port_list[MVPP2_MAX_PORTS];
 
+	/* Number of Tx threads used */
+	unsigned int nthreads;
+	/* Map of threads needing locking */
+	unsigned long lock_map;
+
 	/* Aggregated TXQs */
 	struct mvpp2_tx_queue *aggr_txqs;
 
@@ -814,9 +819,6 @@ struct mvpp2_port {
 	void __iomem *base;
 	void __iomem *stats_base;
 
-	/* Number of threads used on the port */
-	unsigned int nthreads;
-
 	struct mvpp2_rx_queue **rxqs;
 	unsigned int nrxqs;
 	struct mvpp2_tx_queue **txqs;
@@ -827,6 +829,12 @@ struct mvpp2_port {
 
 	/* Per-CPU port control */
 	struct mvpp2_port_pcpu __percpu *pcpu;
+
+	/* Protect the BM refills and the Tx paths when a thread is used on more
+	 * than a single CPU.
+	 */
+	spinlock_t bm_lock[MVPP2_MAX_THREADS];
+	spinlock_t tx_lock[MVPP2_MAX_THREADS];
 
 	/* Flags */
 	unsigned long flags;
