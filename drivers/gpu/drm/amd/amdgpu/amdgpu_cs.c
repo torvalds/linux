@@ -50,7 +50,7 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 	bo = amdgpu_bo_ref(gem_to_amdgpu_bo(gobj));
 	p->uf_entry.priority = 0;
 	p->uf_entry.tv.bo = &bo->tbo;
-	p->uf_entry.tv.shared = true;
+	p->uf_entry.tv.num_shared = 1;
 	p->uf_entry.user_pages = NULL;
 
 	drm_gem_object_put_unlocked(gobj);
