@@ -364,24 +364,35 @@ static int crypto_ahash_op(struct ahash_request *req,
 
 int crypto_ahash_final(struct ahash_request *req)
 {
-	return crypto_ahash_op(req, crypto_ahash_reqtfm(req)->final);
+	int ret;
+
+	ret = crypto_ahash_op(req, crypto_ahash_reqtfm(req)->final);
+	crypto_stat_ahash_final(req, ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_final);
 
 int crypto_ahash_finup(struct ahash_request *req)
 {
-	return crypto_ahash_op(req, crypto_ahash_reqtfm(req)->finup);
+	int ret;
+
+	ret = crypto_ahash_op(req, crypto_ahash_reqtfm(req)->finup);
+	crypto_stat_ahash_final(req, ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_finup);
 
 int crypto_ahash_digest(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	int ret;
 
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
-
-	return crypto_ahash_op(req, tfm->digest);
+		ret = -ENOKEY;
+	else
+		ret = crypto_ahash_op(req, tfm->digest);
+	crypto_stat_ahash_final(req, ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_digest);
 
