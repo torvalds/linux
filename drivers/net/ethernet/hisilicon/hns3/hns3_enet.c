@@ -1074,7 +1074,7 @@ static int hns3_nic_maybe_stop_tx(struct sk_buff **out_skb, int *bnum,
 	/* No. of segments (plus a header) */
 	buf_num = skb_shinfo(skb)->nr_frags + 1;
 
-	if (buf_num > ring_space(ring))
+	if (unlikely(ring_space(ring) < buf_num))
 		return -EBUSY;
 
 	*bnum = buf_num;
