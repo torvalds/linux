@@ -36,6 +36,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_encoder.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
@@ -132,6 +133,13 @@ struct virtio_gpu_framebuffer {
 };
 #define to_virtio_gpu_framebuffer(x) \
 	container_of(x, struct virtio_gpu_framebuffer, base)
+
+struct virtio_gpu_fbdev {
+	struct drm_fb_helper           helper;
+	struct virtio_gpu_framebuffer  vgfb;
+	struct virtio_gpu_device       *vgdev;
+	struct delayed_work            work;
+};
 
 struct virtio_gpu_mman {
 	struct ttm_bo_global_ref        bo_global_ref;
