@@ -490,6 +490,15 @@ void virtio_gpu_cmd_transfer_to_host_2d(struct virtio_gpu_device *vgdev,
 {
 	struct virtio_gpu_transfer_to_host_2d *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
+	struct virtio_gpu_fbdev *vgfbdev = vgdev->vgfbdev;
+	struct virtio_gpu_framebuffer *fb = &vgfbdev->vgfb;
+	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(fb->base.obj[0]);
+	bool use_dma_api = !virtio_has_iommu_quirk(vgdev->vdev);
+
+	if (use_dma_api)
+		dma_sync_sg_for_device(vgdev->vdev->dev.parent,
+				       obj->pages->sgl, obj->pages->nents,
+				       DMA_TO_DEVICE);
 
 	cmd_p = virtio_gpu_alloc_cmd(vgdev, &vbuf, sizeof(*cmd_p));
 	memset(cmd_p, 0, sizeof(*cmd_p));
@@ -789,6 +798,15 @@ void virtio_gpu_cmd_transfer_to_host_3d(struct virtio_gpu_device *vgdev,
 {
 	struct virtio_gpu_transfer_host_3d *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
+	struct virtio_gpu_fbdev *vgfbdev = vgdev->vgfbdev;
+	struct virtio_gpu_framebuffer *fb = &vgfbdev->vgfb;
+	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(fb->base.obj[0]);
+	bool use_dma_api = !virtio_has_iommu_quirk(vgdev->vdev);
+
+	if (use_dma_api)
+		dma_sync_sg_for_device(vgdev->vdev->dev.parent,
+				       obj->pages->sgl, obj->pages->nents,
+				       DMA_TO_DEVICE);
 
 	cmd_p = virtio_gpu_alloc_cmd(vgdev, &vbuf, sizeof(*cmd_p));
 	memset(cmd_p, 0, sizeof(*cmd_p));
