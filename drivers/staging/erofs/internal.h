@@ -95,6 +95,9 @@ struct erofs_sb_info {
 	/* the dedicated workstation for compression */
 	struct radix_tree_root workstn_tree;
 
+	/* threshold for decompression synchronously */
+	unsigned int max_sync_decompress_pages;
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	struct inode *managed_cache;
 #endif
@@ -272,6 +275,14 @@ extern int erofs_try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
 extern int erofs_try_to_free_cached_page(struct address_space *mapping,
 	struct page *page);
 #endif
+
+#define DEFAULT_MAX_SYNC_DECOMPRESS_PAGES	3
+
+static inline bool __should_decompress_synchronously(struct erofs_sb_info *sbi,
+						     unsigned int nr)
+{
+	return nr <= sbi->max_sync_decompress_pages;
+}
 
 #endif
 
