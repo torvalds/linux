@@ -1955,7 +1955,7 @@ static int is_valid_clean_head(struct hns3_enet_ring *ring, int h)
 	return u > c ? (h > c && h <= u) : (h > c || h <= u);
 }
 
-bool hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
+void hns3_clean_tx_ring(struct hns3_enet_ring *ring)
 {
 	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
 	struct netdev_queue *dev_queue;
@@ -1966,7 +1966,7 @@ bool hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
 	rmb(); /* Make sure head is ready before touch any data */
 
 	if (is_ring_empty(ring) || head == ring->next_to_clean)
-		return true; /* no data to poll */
+		return; /* no data to poll */
 
 	if (unlikely(!is_valid_clean_head(ring, head))) {
 		netdev_err(netdev, "wrong head (%d, %d-%d)\n", head,
@@ -1975,16 +1975,15 @@ bool hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.io_err_cnt++;
 		u64_stats_update_end(&ring->syncp);
-		return true;
+		return;
 	}
 
 	bytes = 0;
 	pkts = 0;
-	while (head != ring->next_to_clean && budget) {
+	while (head != ring->next_to_clean) {
 		hns3_nic_reclaim_one_desc(ring, &bytes, &pkts);
 		/* Issue prefetch for next Tx descriptor */
 		prefetch(&ring->desc_cb[ring->next_to_clean]);
-		budget--;
 	}
 
 	ring->tqp_vector->tx_group.total_bytes += bytes;
@@ -2009,8 +2008,6 @@ bool hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
 			ring->stats.restart_queue++;
 		}
 	}
-
-	return !!budget;
 }
 
 static int hns3_desc_unused(struct hns3_enet_ring *ring)
@@ -2544,10 +2541,8 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 	/* Since the actual Tx work is minimal, we can give the Tx a larger
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
-	hns3_for_each_ring(ring, tqp_vector->tx_group) {
-		if (!hns3_clean_tx_ring(ring, budget))
-			clean_complete = false;
-	}
+	hns3_for_each_ring(ring, tqp_vector->tx_group)
+		hns3_clean_tx_ring(ring);
 
 	/* make sure rx ring budget not smaller than 1 */
 	rx_budget = max(budget / tqp_vector->num_tqps, 1);
