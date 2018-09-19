@@ -54,6 +54,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/pinctrl-tegra-io-pad.h>
+#include <dt-bindings/gpio/tegra186-gpio.h>
 
 #define PMC_CNTRL			0x0
 #define  PMC_CNTRL_INTR_POLARITY	BIT(17) /* inverts INTR polarity */
@@ -2437,6 +2438,11 @@ static void tegra186_pmc_setup_irq_polarity(struct tegra_pmc *pmc,
 	iounmap(wake);
 }
 
+static const struct tegra_wake_event tegra186_wake_events[] = {
+	TEGRA_WAKE_GPIO("power", 29, 1, TEGRA_AON_GPIO(FF, 0)),
+	TEGRA_WAKE_IRQ("rtc", 73, 10),
+};
+
 static const struct tegra_pmc_soc tegra186_pmc_soc = {
 	.num_powergates = 0,
 	.powergates = NULL,
@@ -2456,6 +2462,8 @@ static const struct tegra_pmc_soc tegra186_pmc_soc = {
 	.num_reset_sources = 14,
 	.reset_levels = tegra186_reset_levels,
 	.num_reset_levels = 3,
+	.num_wake_events = ARRAY_SIZE(tegra186_wake_events),
+	.wake_events = tegra186_wake_events,
 };
 
 static const struct tegra_io_pad_soc tegra194_io_pads[] = {
