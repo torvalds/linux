@@ -79,6 +79,7 @@ struct fl_flow_tmplt {
 	struct fl_flow_key mask;
 	struct flow_dissector dissector;
 	struct tcf_chain *chain;
+	struct rcu_work rwork;
 };
 
 struct cls_fl_head {
@@ -1437,12 +1438,20 @@ errout_tb:
 	return ERR_PTR(err);
 }
 
+static void fl_tmplt_destroy_work(struct work_struct *work)
+{
+	struct fl_flow_tmplt *tmplt = container_of(to_rcu_work(work),
+						 struct fl_flow_tmplt, rwork);
+
+	fl_hw_destroy_tmplt(tmplt->chain, tmplt);
+	kfree(tmplt);
+}
+
 static void fl_tmplt_destroy(void *tmplt_priv)
 {
 	struct fl_flow_tmplt *tmplt = tmplt_priv;
 
-	fl_hw_destroy_tmplt(tmplt->chain, tmplt);
-	kfree(tmplt);
+	tcf_queue_work(&tmplt->rwork, fl_tmplt_destroy_work);
 }
 
 static int fl_dump_key_val(struct sk_buff *skb,
