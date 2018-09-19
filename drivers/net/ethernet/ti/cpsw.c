@@ -484,13 +484,13 @@ enum {
 };
 
 #define CPSW_STAT(m)		CPSW_STATS,				\
-				sizeof(((struct cpsw_hw_stats *)0)->m), \
+				FIELD_SIZEOF(struct cpsw_hw_stats, m), \
 				offsetof(struct cpsw_hw_stats, m)
 #define CPDMA_RX_STAT(m)	CPDMA_RX_STATS,				   \
-				sizeof(((struct cpdma_chan_stats *)0)->m), \
+				FIELD_SIZEOF(struct cpdma_chan_stats, m), \
 				offsetof(struct cpdma_chan_stats, m)
 #define CPDMA_TX_STAT(m)	CPDMA_TX_STATS,				   \
-				sizeof(((struct cpdma_chan_stats *)0)->m), \
+				FIELD_SIZEOF(struct cpdma_chan_stats, m), \
 				offsetof(struct cpdma_chan_stats, m)
 
 static const struct cpsw_stats cpsw_gstrings_stats[] = {
