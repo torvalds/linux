@@ -4240,6 +4240,10 @@ static bool mvpp2_port_has_irqs(struct mvpp2 *priv,
 	char name[5];
 	int i;
 
+	/* ACPI */
+	if (!port_node)
+		return true;
+
 	if (priv->hw_version == MVPP21)
 		return false;
 
@@ -4634,15 +4638,12 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	int phy_mode;
 	int err, i, cpu;
 
-	if (port_node) {
-		has_tx_irqs = mvpp2_port_has_irqs(priv, port_node, &flags);
-	} else {
-		has_tx_irqs = true;
-		queue_mode = MVPP2_QDIST_MULTI_MODE;
+	has_tx_irqs = mvpp2_port_has_irqs(priv, port_node, &flags);
+	if (!has_tx_irqs && queue_mode == MVPP2_QDIST_MULTI_MODE) {
+		dev_err(&pdev->dev,
+			"not enough IRQs to support multi queue mode\n");
+		return -EINVAL;
 	}
-
-	if (!has_tx_irqs)
-		queue_mode = MVPP2_QDIST_SINGLE_MODE;
 
 	ntxqs = MVPP2_MAX_TXQ;
 	if (priv->hw_version == MVPP22 && queue_mode == MVPP2_QDIST_MULTI_MODE)
