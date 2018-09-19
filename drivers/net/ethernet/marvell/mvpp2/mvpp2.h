@@ -1099,13 +1099,6 @@ u32 mvpp2_read(struct mvpp2 *priv, u32 offset);
 
 u32 mvpp2_read_relaxed(struct mvpp2 *priv, u32 offset);
 
-void mvpp2_percpu_write(struct mvpp2 *priv, unsigned int cpu, u32 offset,
-			u32 data);
-u32 mvpp2_percpu_read(struct mvpp2 *priv, unsigned int cpu, u32 offset);
-
-void mvpp2_percpu_write_relaxed(struct mvpp2 *priv, unsigned int cpu,
-				u32 offset, u32 data);
-
 void mvpp2_dbgfs_init(struct mvpp2 *priv, const char *name);
 
 void mvpp2_dbgfs_cleanup(struct mvpp2 *priv);

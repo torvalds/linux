@@ -122,19 +122,19 @@ u32 mvpp2_read_relaxed(struct mvpp2 *priv, u32 offset)
  *   MVPP2_TXQ_PREF_BUF_REG    (related to MVPP2_TXQ_NUM_REG)
  *   MVPP2_TXQ_PREF_BUF_REG    (related to MVPP2_TXQ_NUM_REG)
  */
-void mvpp2_percpu_write(struct mvpp2 *priv, unsigned int cpu,
+static void mvpp2_percpu_write(struct mvpp2 *priv, unsigned int cpu,
 			       u32 offset, u32 data)
 {
 	writel(data, priv->swth_base[cpu] + offset);
 }
 
-u32 mvpp2_percpu_read(struct mvpp2 *priv, unsigned int cpu,
+static u32 mvpp2_percpu_read(struct mvpp2 *priv, unsigned int cpu,
 			     u32 offset)
 {
 	return readl(priv->swth_base[cpu] + offset);
 }
 
-void mvpp2_percpu_write_relaxed(struct mvpp2 *priv, unsigned int cpu,
+static void mvpp2_percpu_write_relaxed(struct mvpp2 *priv, unsigned int cpu,
 				       u32 offset, u32 data)
 {
 	writel_relaxed(data, priv->swth_base[cpu] + offset);
