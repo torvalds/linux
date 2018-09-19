@@ -301,6 +301,8 @@ enum comedi_io_direction {
  * @INSN_CONFIG_PWM_SET_H_BRIDGE: Set PWM H bridge duty cycle and polarity for
  *				a relay simultaneously.
  * @INSN_CONFIG_PWM_GET_H_BRIDGE: Get PWM H bridge duty cycle and polarity.
+ * @INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS: Get the hardware timing restraints,
+ *				regardless of trigger sources.
  */
 enum configuration_ids {
 	INSN_CONFIG_DIO_INPUT = COMEDI_INPUT,
@@ -344,7 +346,8 @@ enum configuration_ids {
 	INSN_CONFIG_PWM_GET_PERIOD = 5001,
 	INSN_CONFIG_GET_PWM_STATUS = 5002,
 	INSN_CONFIG_PWM_SET_H_BRIDGE = 5003,
-	INSN_CONFIG_PWM_GET_H_BRIDGE = 5004
+	INSN_CONFIG_PWM_GET_H_BRIDGE = 5004,
+	INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS = 5005,
 };
 
 /**
