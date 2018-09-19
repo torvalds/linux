@@ -234,28 +234,28 @@ struct tep_print_arg_func {
 	struct tep_print_arg		*args;
 };
 
-enum print_arg_type {
-	PRINT_NULL,
-	PRINT_ATOM,
-	PRINT_FIELD,
-	PRINT_FLAGS,
-	PRINT_SYMBOL,
-	PRINT_HEX,
-	PRINT_INT_ARRAY,
-	PRINT_TYPE,
-	PRINT_STRING,
-	PRINT_BSTRING,
-	PRINT_DYNAMIC_ARRAY,
-	PRINT_OP,
-	PRINT_FUNC,
-	PRINT_BITMASK,
-	PRINT_DYNAMIC_ARRAY_LEN,
-	PRINT_HEX_STR,
+enum tep_print_arg_type {
+	TEP_PRINT_NULL,
+	TEP_PRINT_ATOM,
+	TEP_PRINT_FIELD,
+	TEP_PRINT_FLAGS,
+	TEP_PRINT_SYMBOL,
+	TEP_PRINT_HEX,
+	TEP_PRINT_INT_ARRAY,
+	TEP_PRINT_TYPE,
+	TEP_PRINT_STRING,
+	TEP_PRINT_BSTRING,
+	TEP_PRINT_DYNAMIC_ARRAY,
+	TEP_PRINT_OP,
+	TEP_PRINT_FUNC,
+	TEP_PRINT_BITMASK,
+	TEP_PRINT_DYNAMIC_ARRAY_LEN,
+	TEP_PRINT_HEX_STR,
 };
 
 struct tep_print_arg {
 	struct tep_print_arg		*next;
-	enum print_arg_type		type;
+	enum tep_print_arg_type		type;
 	union {
 		struct tep_print_arg_atom	atom;
 		struct tep_print_arg_field	field;

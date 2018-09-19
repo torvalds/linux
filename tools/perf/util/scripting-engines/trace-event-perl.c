@@ -197,54 +197,54 @@ static void define_event_symbols(struct tep_event_format *event,
 		return;
 
 	switch (args->type) {
-	case PRINT_NULL:
+	case TEP_PRINT_NULL:
 		break;
-	case PRINT_ATOM:
+	case TEP_PRINT_ATOM:
 		define_flag_value(ev_name, cur_field_name, "0",
 				  args->atom.atom);
 		zero_flag_atom = 0;
 		break;
-	case PRINT_FIELD:
+	case TEP_PRINT_FIELD:
 		free(cur_field_name);
 		cur_field_name = strdup(args->field.name);
 		break;
-	case PRINT_FLAGS:
+	case TEP_PRINT_FLAGS:
 		define_event_symbols(event, ev_name, args->flags.field);
 		define_flag_field(ev_name, cur_field_name, args->flags.delim);
 		define_flag_values(args->flags.flags, ev_name, cur_field_name);
 		break;
-	case PRINT_SYMBOL:
+	case TEP_PRINT_SYMBOL:
 		define_event_symbols(event, ev_name, args->symbol.field);
 		define_symbolic_field(ev_name, cur_field_name);
 		define_symbolic_values(args->symbol.symbols, ev_name,
 				       cur_field_name);
 		break;
-	case PRINT_HEX:
-	case PRINT_HEX_STR:
+	case TEP_PRINT_HEX:
+	case TEP_PRINT_HEX_STR:
 		define_event_symbols(event, ev_name, args->hex.field);
 		define_event_symbols(event, ev_name, args->hex.size);
 		break;
-	case PRINT_INT_ARRAY:
+	case TEP_PRINT_INT_ARRAY:
 		define_event_symbols(event, ev_name, args->int_array.field);
 		define_event_symbols(event, ev_name, args->int_array.count);
 		define_event_symbols(event, ev_name, args->int_array.el_size);
 		break;
-	case PRINT_BSTRING:
-	case PRINT_DYNAMIC_ARRAY:
-	case PRINT_DYNAMIC_ARRAY_LEN:
-	case PRINT_STRING:
-	case PRINT_BITMASK:
+	case TEP_PRINT_BSTRING:
+	case TEP_PRINT_DYNAMIC_ARRAY:
+	case TEP_PRINT_DYNAMIC_ARRAY_LEN:
+	case TEP_PRINT_STRING:
+	case TEP_PRINT_BITMASK:
 		break;
-	case PRINT_TYPE:
+	case TEP_PRINT_TYPE:
 		define_event_symbols(event, ev_name, args->typecast.item);
 		break;
-	case PRINT_OP:
+	case TEP_PRINT_OP:
 		if (strcmp(args->op.op, ":") == 0)
 			zero_flag_atom = 1;
 		define_event_symbols(event, ev_name, args->op.left);
 		define_event_symbols(event, ev_name, args->op.right);
 		break;
-	case PRINT_FUNC:
+	case TEP_PRINT_FUNC:
 	default:
 		pr_err("Unsupported print arg type\n");
 		/* we should warn... */
