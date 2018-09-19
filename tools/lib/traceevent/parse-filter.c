@@ -61,15 +61,15 @@ static void free_token(char *token)
 	tep_free_token(token);
 }
 
-static enum event_type read_token(char **tok)
+static enum tep_event_type read_token(char **tok)
 {
-	enum event_type type;
+	enum tep_event_type type;
 	char *token = NULL;
 
 	do {
 		free_token(token);
 		type = tep_read_token(&token);
-	} while (type == EVENT_NEWLINE || type == EVENT_SPACE);
+	} while (type == TEP_EVENT_NEWLINE || type == TEP_EVENT_SPACE);
 
 	/* If token is = or ! check to see if the next char is ~ */
 	if (token &&
@@ -79,7 +79,7 @@ static enum event_type read_token(char **tok)
 		*tok = malloc(3);
 		if (*tok == NULL) {
 			free_token(token);
-			return EVENT_ERROR;
+			return TEP_EVENT_ERROR;
 		}
 		sprintf(*tok, "%c%c", *token, '~');
 		free_token(token);
@@ -334,7 +334,7 @@ static void free_events(struct event_list *events)
 
 static enum tep_errno
 create_arg_item(struct tep_event_format *event, const char *token,
-		enum event_type type, struct filter_arg **parg, char *error_str)
+		enum tep_event_type type, struct filter_arg **parg, char *error_str)
 {
 	struct tep_format_field *field;
 	struct filter_arg *arg;
@@ -347,11 +347,11 @@ create_arg_item(struct tep_event_format *event, const char *token,
 
 	switch (type) {
 
-	case EVENT_SQUOTE:
-	case EVENT_DQUOTE:
+	case TEP_EVENT_SQUOTE:
+	case TEP_EVENT_DQUOTE:
 		arg->type = FILTER_ARG_VALUE;
 		arg->value.type =
-			type == EVENT_DQUOTE ? FILTER_STRING : FILTER_CHAR;
+			type == TEP_EVENT_DQUOTE ? FILTER_STRING : FILTER_CHAR;
 		arg->value.str = strdup(token);
 		if (!arg->value.str) {
 			free_arg(arg);
@@ -359,7 +359,7 @@ create_arg_item(struct tep_event_format *event, const char *token,
 			return TEP_ERRNO__MEM_ALLOC_FAILED;
 		}
 		break;
-	case EVENT_ITEM:
+	case TEP_EVENT_ITEM:
 		/* if it is a number, then convert it */
 		if (isdigit(token[0])) {
 			arg->type = FILTER_ARG_VALUE;
@@ -942,7 +942,7 @@ static enum tep_errno
 process_filter(struct tep_event_format *event, struct filter_arg **parg,
 	       char *error_str, int not)
 {
-	enum event_type type;
+	enum tep_event_type type;
 	char *token = NULL;
 	struct filter_arg *current_op = NULL;
 	struct filter_arg *current_exp = NULL;
@@ -960,9 +960,9 @@ process_filter(struct tep_event_format *event, struct filter_arg **parg,
 		free(token);
 		type = read_token(&token);
 		switch (type) {
-		case EVENT_SQUOTE:
-		case EVENT_DQUOTE:
-		case EVENT_ITEM:
+		case TEP_EVENT_SQUOTE:
+		case TEP_EVENT_DQUOTE:
+		case TEP_EVENT_ITEM:
 			ret = create_arg_item(event, token, type, &arg, error_str);
 			if (ret < 0)
 				goto fail;
@@ -987,7 +987,7 @@ process_filter(struct tep_event_format *event, struct filter_arg **parg,
 			arg = NULL;
 			break;
 
-		case EVENT_DELIM:
+		case TEP_EVENT_DELIM:
 			if (*token == ',') {
 				show_error(error_str, "Illegal token ','");
 				ret = TEP_ERRNO__ILLEGAL_TOKEN;
@@ -1054,7 +1054,7 @@ process_filter(struct tep_event_format *event, struct filter_arg **parg,
 			}
 			break;
 
-		case EVENT_OP:
+		case TEP_EVENT_OP:
 			op_type = process_op(token, &btype, &ctype, &etype);
 
 			/* All expect a left arg except for NOT */
@@ -1139,14 +1139,14 @@ process_filter(struct tep_event_format *event, struct filter_arg **parg,
 			if (ret < 0)
 				goto fail_syntax;
 			break;
-		case EVENT_NONE:
+		case TEP_EVENT_NONE:
 			break;
-		case EVENT_ERROR:
+		case TEP_EVENT_ERROR:
 			goto fail_alloc;
 		default:
 			goto fail_syntax;
 		}
-	} while (type != EVENT_NONE);
+	} while (type != TEP_EVENT_NONE);
 
 	if (!current_op && !current_exp)
 		goto fail_syntax;

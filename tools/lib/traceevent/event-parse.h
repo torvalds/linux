@@ -301,22 +301,22 @@ enum {
 	EVENT_FL_FAILED		= 0x80000000
 };
 
-enum event_sort_type {
-	EVENT_SORT_ID,
-	EVENT_SORT_NAME,
-	EVENT_SORT_SYSTEM,
+enum tep_event_sort_type {
+	TEP_EVENT_SORT_ID,
+	TEP_EVENT_SORT_NAME,
+	TEP_EVENT_SORT_SYSTEM,
 };
 
-enum event_type {
-	EVENT_ERROR,
-	EVENT_NONE,
-	EVENT_SPACE,
-	EVENT_NEWLINE,
-	EVENT_OP,
-	EVENT_DELIM,
-	EVENT_ITEM,
-	EVENT_DQUOTE,
-	EVENT_SQUOTE,
+enum tep_event_type {
+	TEP_EVENT_ERROR,
+	TEP_EVENT_NONE,
+	TEP_EVENT_SPACE,
+	TEP_EVENT_NEWLINE,
+	TEP_EVENT_OP,
+	TEP_EVENT_DELIM,
+	TEP_EVENT_ITEM,
+	TEP_EVENT_DQUOTE,
+	TEP_EVENT_SQUOTE,
 };
 
 typedef unsigned long long (*tep_func_handler)(struct trace_seq *s,
@@ -454,7 +454,7 @@ struct tep_handle {
 	struct tep_event_format **events;
 	int nr_events;
 	struct tep_event_format **sort_events;
-	enum event_sort_type last_type;
+	enum tep_event_sort_type last_type;
 
 	int type_offset;
 	int type_size;
@@ -685,7 +685,7 @@ void tep_event_info(struct trace_seq *s, struct tep_event_format *event,
 int tep_strerror(struct tep_handle *pevent, enum tep_errno errnum,
 		    char *buf, size_t buflen);
 
-struct tep_event_format **tep_list_events(struct tep_handle *pevent, enum event_sort_type);
+struct tep_event_format **tep_list_events(struct tep_handle *pevent, enum tep_event_sort_type);
 struct tep_format_field **tep_event_common_fields(struct tep_event_format *event);
 struct tep_format_field **tep_event_fields(struct tep_event_format *event);
 
@@ -756,7 +756,7 @@ void tep_unref(struct tep_handle *pevent);
 
 /* access to the internal parser */
 void tep_buffer_init(const char *buf, unsigned long long size);
-enum event_type tep_read_token(char **tok);
+enum tep_event_type tep_read_token(char **tok);
 void tep_free_token(char *token);
 int tep_peek_char(void);
 const char *tep_get_input_buf(void);
