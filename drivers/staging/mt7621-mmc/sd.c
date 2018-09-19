@@ -278,8 +278,6 @@ static void msdc_tasklet_card(struct work_struct *work)
 		host->mmc->f_max = HOST_MAX_MCLK;
 		mmc_detect_change(host->mmc, msecs_to_jiffies(20));
 	}
-
-	IRQ_MSG("card found<%s>", inserted ? "inserted" : "removed");
 #endif
 
 	spin_unlock(&host->lock);
@@ -1638,15 +1636,8 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 	if (intsts & MSDC_INT_CDSC) {
 		if (host->mmc->caps & MMC_CAP_NEEDS_POLL)
 			return IRQ_HANDLED;
-		IRQ_MSG("MSDC_INT_CDSC irq<0x%.8x>", intsts);
 		schedule_delayed_work(&host->card_delaywork, HZ);
 		/* tuning when plug card ? */
-	}
-
-	/* sdio interrupt */
-	if (intsts & MSDC_INT_SDIOIRQ) {
-		IRQ_MSG("XXX MSDC_INT_SDIOIRQ");  /* seems not sdio irq */
-		//mmc_signal_sdio_irq(host->mmc);
 	}
 
 	/* transfer complete interrupt */
@@ -1662,13 +1653,10 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 			msdc_clr_fifo(host);
 			msdc_clr_int();
 
-			if (intsts & MSDC_INT_DATTMO) {
-				IRQ_MSG("XXX CMD<%d> MSDC_INT_DATTMO", host->mrq->cmd->opcode);
+			if (intsts & MSDC_INT_DATTMO)
 				data->error = -ETIMEDOUT;
-			} else if (intsts & MSDC_INT_DATCRCERR) {
-				IRQ_MSG("XXX CMD<%d> MSDC_INT_DATCRCERR, SDC_DCRC_STS<0x%x>", host->mrq->cmd->opcode, readl(host->base + SDC_DCRC_STS));
+			else if (intsts & MSDC_INT_DATCRCERR)
 				data->error = -EIO;
-			}
 
 			//if(readl(MSDC_INTEN) & MSDC_INT_XFER_COMPL) {
 			complete(&host->xfer_done); /* Read CRC come fast, XFER_COMPL not enabled */
@@ -1698,16 +1686,8 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 				break;
 			}
 		} else if ((intsts & MSDC_INT_RSPCRCERR) || (intsts & MSDC_INT_ACMDCRCERR)) {
-			if (intsts & MSDC_INT_ACMDCRCERR)
-				IRQ_MSG("XXX CMD<%d> MSDC_INT_ACMDCRCERR", cmd->opcode);
-			else
-				IRQ_MSG("XXX CMD<%d> MSDC_INT_RSPCRCERR", cmd->opcode);
 			cmd->error = -EIO;
 		} else if ((intsts & MSDC_INT_CMDTMO) || (intsts & MSDC_INT_ACMDTMO)) {
-			if (intsts & MSDC_INT_ACMDTMO)
-				IRQ_MSG("XXX CMD<%d> MSDC_INT_ACMDTMO", cmd->opcode);
-			else
-				IRQ_MSG("XXX CMD<%d> MSDC_INT_CMDTMO", cmd->opcode);
 			cmd->error = -ETIMEDOUT;
 			msdc_reset_hw(host);
 			msdc_clr_fifo(host);
