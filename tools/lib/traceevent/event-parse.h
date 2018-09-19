@@ -819,13 +819,13 @@ enum tep_filter_arg_type {
 	TEP_FILTER_ARG_STR,
 };
 
-enum filter_value_type {
-	FILTER_NUMBER,
-	FILTER_STRING,
-	FILTER_CHAR
+enum tep_filter_value_type {
+	TEP_FILTER_NUMBER,
+	TEP_FILTER_STRING,
+	TEP_FILTER_CHAR
 };
 
-struct fliter_arg;
+struct tep_filter_arg;
 
 struct filter_arg_boolean {
 	enum tep_filter_boolean_type	value;
@@ -836,7 +836,7 @@ struct filter_arg_field {
 };
 
 struct filter_arg_value {
-	enum filter_value_type	type;
+	enum tep_filter_value_type	type;
 	union {
 		char			*str;
 		unsigned long long	val;
@@ -845,20 +845,20 @@ struct filter_arg_value {
 
 struct filter_arg_op {
 	enum tep_filter_op_type	type;
-	struct filter_arg	*left;
-	struct filter_arg	*right;
+	struct tep_filter_arg	*left;
+	struct tep_filter_arg	*right;
 };
 
 struct filter_arg_exp {
 	enum tep_filter_exp_type	type;
-	struct filter_arg		*left;
-	struct filter_arg		*right;
+	struct tep_filter_arg		*left;
+	struct tep_filter_arg		*right;
 };
 
 struct filter_arg_num {
 	enum tep_filter_cmp_type	type;
-	struct filter_arg	*left;
-	struct filter_arg	*right;
+	struct tep_filter_arg	*left;
+	struct tep_filter_arg	*right;
 };
 
 struct filter_arg_str {
@@ -869,7 +869,7 @@ struct filter_arg_str {
 	regex_t			reg;
 };
 
-struct filter_arg {
+struct tep_filter_arg {
 	enum tep_filter_arg_type		type;
 	union {
 		struct filter_arg_boolean	boolean;
@@ -885,7 +885,7 @@ struct filter_arg {
 struct filter_type {
 	int			event_id;
 	struct tep_event_format	*event;
-	struct filter_arg	*filter;
+	struct tep_filter_arg	*filter;
 };
 
 #define TEP_FILTER_ERROR_BUFSZ  1024
