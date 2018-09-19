@@ -422,18 +422,6 @@ skip:
 	return work;
 }
 
-static inline void __update_workgrp_llen(struct z_erofs_vle_workgroup *grp,
-					 unsigned int llen)
-{
-	while (1) {
-		unsigned int orig_llen = grp->llen;
-
-		if (orig_llen >= llen || orig_llen ==
-			cmpxchg(&grp->llen, orig_llen, llen))
-			break;
-	}
-}
-
 #define builder_is_followed(builder) \
 	((builder)->role >= Z_EROFS_VLE_WORK_PRIMARY_FOLLOWED)
 
@@ -466,7 +454,13 @@ static int z_erofs_vle_work_iter_begin(struct z_erofs_vle_work_builder *builder,
 repeat:
 	work = z_erofs_vle_work_lookup(&finder);
 	if (work != NULL) {
-		__update_workgrp_llen(grp, map->m_llen);
+		unsigned int orig_llen;
+
+		/* increase workgroup `llen' if needed */
+		while ((orig_llen = READ_ONCE(grp->llen)) < map->m_llen &&
+		       orig_llen != cmpxchg_relaxed(&grp->llen,
+						    orig_llen, map->m_llen))
+			cpu_relax();
 		goto got_it;
 	}
 
