@@ -2008,8 +2008,8 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 				skb_add_rx_frag(rxq->skb, frag_num, page,
 						frag_offset, frag_size,
 						PAGE_SIZE);
-				dma_unmap_single(dev->dev.parent, phys_addr,
-						 PAGE_SIZE, DMA_FROM_DEVICE);
+				dma_unmap_page(dev->dev.parent, phys_addr,
+					       PAGE_SIZE, DMA_FROM_DEVICE);
 				rxq->left_size -= frag_size;
 			}
 		} else {
