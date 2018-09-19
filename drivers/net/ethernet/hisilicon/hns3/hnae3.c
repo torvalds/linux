@@ -29,8 +29,8 @@ static bool hnae3_client_match(enum hnae3_client_type client_type,
 	return false;
 }
 
-static void hnae3_set_client_init_flag(struct hnae3_client *client,
-				       struct hnae3_ae_dev *ae_dev, int inited)
+void hnae3_set_client_init_flag(struct hnae3_client *client,
+				struct hnae3_ae_dev *ae_dev, int inited)
 {
 	switch (client->type) {
 	case HNAE3_CLIENT_KNIC:
@@ -46,6 +46,7 @@ static void hnae3_set_client_init_flag(struct hnae3_client *client,
 		break;
 	}
 }
+EXPORT_SYMBOL(hnae3_set_client_init_flag);
 
 static int hnae3_get_client_init_flag(struct hnae3_client *client,
 				       struct hnae3_ae_dev *ae_dev)
@@ -86,14 +87,11 @@ static int hnae3_match_n_instantiate(struct hnae3_client *client,
 	/* now, (un-)instantiate client by calling lower layer */
 	if (is_reg) {
 		ret = ae_dev->ops->init_client_instance(client, ae_dev);
-		if (ret) {
+		if (ret)
 			dev_err(&ae_dev->pdev->dev,
 				"fail to instantiate client, ret = %d\n", ret);
-			return ret;
-		}
 
-		hnae3_set_client_init_flag(client, ae_dev, 1);
-		return 0;
+		return ret;
 	}
 
 	if (hnae3_get_client_init_flag(client, ae_dev)) {
