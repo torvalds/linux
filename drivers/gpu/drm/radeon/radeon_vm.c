@@ -831,7 +831,7 @@ static int radeon_vm_update_ptes(struct radeon_device *rdev,
 		int r;
 
 		radeon_sync_resv(rdev, &ib->sync, pt->tbo.resv, true);
-		r = reservation_object_reserve_shared(pt->tbo.resv);
+		r = reservation_object_reserve_shared(pt->tbo.resv, 1);
 		if (r)
 			return r;
 

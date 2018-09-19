@@ -892,7 +892,7 @@ static void export_fence(struct i915_vma *vma,
 	reservation_object_lock(resv, NULL);
 	if (flags & EXEC_OBJECT_WRITE)
 		reservation_object_add_excl_fence(resv, &rq->fence);
-	else if (reservation_object_reserve_shared(resv) == 0)
+	else if (reservation_object_reserve_shared(resv, 1) == 0)
 		reservation_object_add_shared_fence(resv, &rq->fence);
 	reservation_object_unlock(resv);
 }

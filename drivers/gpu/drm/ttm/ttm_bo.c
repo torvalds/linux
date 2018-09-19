@@ -872,7 +872,7 @@ static int ttm_bo_add_move_fence(struct ttm_buffer_object *bo,
 	if (fence) {
 		reservation_object_add_shared_fence(bo->resv, fence);
 
-		ret = reservation_object_reserve_shared(bo->resv);
+		ret = reservation_object_reserve_shared(bo->resv, 1);
 		if (unlikely(ret))
 			return ret;
 
@@ -977,7 +977,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 	bool has_erestartsys = false;
 	int i, ret;
 
-	ret = reservation_object_reserve_shared(bo->resv);
+	ret = reservation_object_reserve_shared(bo->resv, 1);
 	if (unlikely(ret))
 		return ret;
 

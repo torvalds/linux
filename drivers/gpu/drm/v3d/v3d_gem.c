@@ -305,7 +305,7 @@ retry:
 	for (i = 0; i < exec->bo_count; i++) {
 		bo = to_v3d_bo(&exec->bo[i]->base);
 
-		ret = reservation_object_reserve_shared(bo->resv);
+		ret = reservation_object_reserve_shared(bo->resv, 1);
 		if (ret) {
 			v3d_unlock_bo_reservations(dev, exec, acquire_ctx);
 			return ret;
