@@ -260,18 +260,22 @@ enum nidio_boardid {
 struct nidio_board {
 	const char *name;
 	unsigned int uses_firmware:1;
+	unsigned int dio_speed;
 };
 
 static const struct nidio_board nidio_boards[] = {
 	[BOARD_PCIDIO_32HS] = {
 		.name		= "pci-dio-32hs",
+		.dio_speed	= 50,
 	},
 	[BOARD_PXI6533] = {
 		.name		= "pxi-6533",
+		.dio_speed	= 50,
 	},
 	[BOARD_PCI6534] = {
 		.name		= "pci-6534",
 		.uses_firmware	= 1,
+		.dio_speed	= 50,
 	},
 };
 
@@ -466,6 +470,15 @@ static int ni_pcidio_insn_config(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	int ret;
+
+	if (data[0] == INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS) {
+		const struct nidio_board *board = dev->board_ptr;
+
+		/* we don't care about actual channels */
+		data[1] = board->dio_speed;
+		data[2] = 0;
+		return 0;
+	}
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
 	if (ret)
