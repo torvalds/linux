@@ -814,6 +814,9 @@ struct mvpp2_port {
 	void __iomem *base;
 	void __iomem *stats_base;
 
+	/* Number of threads used on the port */
+	unsigned int nthreads;
+
 	struct mvpp2_rx_queue **rxqs;
 	unsigned int nrxqs;
 	struct mvpp2_tx_queue **txqs;
@@ -971,7 +974,7 @@ struct mvpp2_txq_pcpu_buf {
 
 /* Per-CPU Tx queue control */
 struct mvpp2_txq_pcpu {
-	unsigned int cpu;
+	unsigned int thread;
 
 	/* Number of Tx DMA descriptors in the descriptor ring */
 	int size;
