@@ -47,8 +47,7 @@
 /* quirks to control the device */
 #define I2C_HID_QUIRK_SET_PWR_WAKEUP_DEV	BIT(0)
 #define I2C_HID_QUIRK_NO_IRQ_AFTER_RESET	BIT(1)
-#define I2C_HID_QUIRK_RESEND_REPORT_DESCR	BIT(2)
-#define I2C_HID_QUIRK_NO_RUNTIME_PM		BIT(3)
+#define I2C_HID_QUIRK_NO_RUNTIME_PM		BIT(2)
 
 /* flags */
 #define I2C_HID_STARTED		0
@@ -172,8 +171,6 @@ static const struct i2c_hid_quirks {
 	{ I2C_VENDOR_ID_HANTICK, I2C_PRODUCT_ID_HANTICK_5288,
 		I2C_HID_QUIRK_NO_IRQ_AFTER_RESET |
 		I2C_HID_QUIRK_NO_RUNTIME_PM },
-	{ USB_VENDOR_ID_SIS_TOUCH, USB_DEVICE_ID_SIS10FB_TOUCH,
-		I2C_HID_QUIRK_RESEND_REPORT_DESCR },
 	{ 0, 0 }
 };
 
@@ -1241,21 +1238,12 @@ static int i2c_hid_resume(struct device *dev)
 
 	/* Instead of resetting device, simply powers the device on. This
 	 * solves "incomplete reports" on Raydium devices 2386:3118 and
-	 * 2386:4B33
+	 * 2386:4B33 and fixes various SIS touchscreens no longer sending
+	 * data after a suspend/resume.
 	 */
 	ret = i2c_hid_set_power(client, I2C_HID_PWR_ON);
 	if (ret)
 		return ret;
-
-	/* Some devices need to re-send report descr cmd
-	 * after resume, after this it will be back normal.
-	 * otherwise it issues too many incomplete reports.
-	 */
-	if (ihid->quirks & I2C_HID_QUIRK_RESEND_REPORT_DESCR) {
-		ret = i2c_hid_command(client, &hid_report_descr_cmd, NULL, 0);
-		if (ret)
-			return ret;
-	}
 
 	if (hid->driver && hid->driver->reset_resume) {
 		ret = hid->driver->reset_resume(hid);
