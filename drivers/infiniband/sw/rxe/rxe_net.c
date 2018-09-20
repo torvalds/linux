@@ -615,7 +615,7 @@ void rxe_port_up(struct rxe_dev *rxe)
 	port->attr.phys_state = IB_PHYS_STATE_LINK_UP;
 
 	rxe_port_event(rxe, IB_EVENT_PORT_ACTIVE);
-	pr_info("set %s active\n", rxe->ib_dev.name);
+	dev_info(&rxe->ib_dev.dev, "set active\n");
 }
 
 /* Caller must hold net_info_lock */
@@ -628,7 +628,7 @@ void rxe_port_down(struct rxe_dev *rxe)
 	port->attr.phys_state = IB_PHYS_STATE_LINK_DOWN;
 
 	rxe_port_event(rxe, IB_EVENT_PORT_ERR);
-	pr_info("set %s down\n", rxe->ib_dev.name);
+	dev_info(&rxe->ib_dev.dev, "set down\n");
 }
 
 static int rxe_notify(struct notifier_block *not_blk,

@@ -50,17 +50,17 @@
 #include <rdma/uverbs_ioctl.h>
 #include <rdma/mlx5_user_ioctl_cmds.h>
 
-#define mlx5_ib_dbg(dev, format, arg...)				\
-pr_debug("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
-	 __LINE__, current->pid, ##arg)
+#define mlx5_ib_dbg(_dev, format, arg...)                                      \
+	dev_dbg(&(_dev)->ib_dev.dev, "%s:%d:(pid %d): " format, __func__,      \
+		__LINE__, current->pid, ##arg)
 
-#define mlx5_ib_err(dev, format, arg...)				\
-pr_err("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
-	__LINE__, current->pid, ##arg)
+#define mlx5_ib_err(_dev, format, arg...)                                      \
+	dev_err(&(_dev)->ib_dev.dev, "%s:%d:(pid %d): " format, __func__,      \
+		__LINE__, current->pid, ##arg)
 
-#define mlx5_ib_warn(dev, format, arg...)				\
-pr_warn("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
-	__LINE__, current->pid, ##arg)
+#define mlx5_ib_warn(_dev, format, arg...)                                     \
+	dev_warn(&(_dev)->ib_dev.dev, "%s:%d:(pid %d): " format, __func__,     \
+		 __LINE__, current->pid, ##arg)
 
 #define field_avail(type, fld, sz) (offsetof(type, fld) +		\
 				    sizeof(((type *)0)->fld) <= (sz))
