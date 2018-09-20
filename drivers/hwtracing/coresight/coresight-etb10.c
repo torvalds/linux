@@ -5,7 +5,6 @@
  * Description: CoreSight Embedded Trace Buffer driver
  */
 
-#include <asm/local.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -72,8 +71,8 @@
  * @miscdev:	specifics to handle "/dev/xyz.etb" entry.
  * @spinlock:	only one at a time pls.
  * @reading:	synchronise user space access to etb buffer.
- * @mode:	this ETB is being used.
  * @buf:	area of memory where ETB buffer content gets sent.
+ * @mode:	this ETB is being used.
  * @buffer_depth: size of @buf.
  * @trigger_cntr: amount of words to store after a trigger.
  */
@@ -85,8 +84,8 @@ struct etb_drvdata {
 	struct miscdevice	miscdev;
 	spinlock_t		spinlock;
 	local_t			reading;
-	local_t			mode;
 	u8			*buf;
+	u32			mode;
 	u32			buffer_depth;
 	u32			trigger_cntr;
 };
@@ -138,9 +137,30 @@ static void etb_enable_hw(struct etb_drvdata *drvdata)
 static int etb_enable(struct coresight_device *csdev, u32 mode, void *data)
 {
 	int ret = 0;
-	u32 val;
 	unsigned long flags;
 	struct etb_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	spin_lock_irqsave(&drvdata->spinlock, flags);
+
+	/*
+	 * When accessing from Perf, a HW buffer can be handled
+	 * by a single trace entity.  In sysFS mode many tracers
+	 * can be logging to the same HW buffer.
+	 */
+	if (drvdata->mode == CS_MODE_PERF) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	/* Don't let perf disturb sysFS sessions */
+	if (drvdata->mode == CS_MODE_SYSFS && mode == CS_MODE_PERF) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	/* Nothing to do, the tracer is already enabled. */
+	if (drvdata->mode == CS_MODE_SYSFS && mode == CS_MODE_SYSFS)
+		goto out;
 
 	/*
 	 * We don't have an internal state to clean up if we fail to setup
@@ -153,29 +173,12 @@ static int etb_enable(struct coresight_device *csdev, u32 mode, void *data)
 			goto out;
 	}
 
-	val = local_cmpxchg(&drvdata->mode,
-			    CS_MODE_DISABLED, mode);
-	/*
-	 * When accessing from Perf, a HW buffer can be handled
-	 * by a single trace entity.  In sysFS mode many tracers
-	 * can be logging to the same HW buffer.
-	 */
-	if (val == CS_MODE_PERF)
-		return -EBUSY;
-
-	/* Don't let perf disturb sysFS sessions */
-	if (val == CS_MODE_SYSFS && mode == CS_MODE_PERF)
-		return -EBUSY;
-
-	/* Nothing to do, the tracer is already enabled. */
-	if (val == CS_MODE_SYSFS)
-		goto out;
-
-	spin_lock_irqsave(&drvdata->spinlock, flags);
+	drvdata->mode = mode;
 	etb_enable_hw(drvdata);
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 out:
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+
 	if (!ret)
 		dev_dbg(drvdata->dev, "ETB enabled\n");
 	return ret;
@@ -277,11 +280,14 @@ static void etb_disable(struct coresight_device *csdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
-	etb_disable_hw(drvdata);
-	etb_dump_hw(drvdata);
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
-	local_set(&drvdata->mode, CS_MODE_DISABLED);
+	/* Disable the ETB only if it needs to */
+	if (drvdata->mode != CS_MODE_DISABLED) {
+		etb_disable_hw(drvdata);
+		etb_dump_hw(drvdata);
+		drvdata->mode = CS_MODE_DISABLED;
+	}
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	dev_dbg(drvdata->dev, "ETB disabled\n");
 }
@@ -488,7 +494,7 @@ static void etb_dump(struct etb_drvdata *drvdata)
 	unsigned long flags;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (local_read(&drvdata->mode) == CS_MODE_SYSFS) {
+	if (drvdata->mode == CS_MODE_SYSFS) {
 		etb_disable_hw(drvdata);
 		etb_dump_hw(drvdata);
 		etb_enable_hw(drvdata);
