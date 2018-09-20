@@ -739,6 +739,7 @@ static void ath10k_snoc_hif_stop(struct ath10k *ar)
 
 static int ath10k_snoc_hif_start(struct ath10k *ar)
 {
+	napi_enable(&ar->napi);
 	ath10k_snoc_irq_enable(ar);
 	ath10k_snoc_rx_post(ar);
 
@@ -801,7 +802,6 @@ static int ath10k_snoc_hif_power_up(struct ath10k *ar)
 		goto err_wlan_enable;
 	}
 
-	napi_enable(&ar->napi);
 	return 0;
 
 err_wlan_enable:
