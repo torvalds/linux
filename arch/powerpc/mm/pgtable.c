@@ -188,11 +188,10 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 		pte_t pte)
 {
 	/*
-	 * When handling numa faults, we already have the pte marked
-	 * _PAGE_PRESENT, but we can be sure that it is not in hpte.
-	 * Hence we can use set_pte_at for them.
+	 * Make sure hardware valid bit is not set. We don't do
+	 * tlb flush for this update.
 	 */
-	VM_WARN_ON(pte_present(*ptep) && !pte_protnone(*ptep));
+	VM_WARN_ON(pte_val(*ptep) & _PAGE_PRESENT);
 
 	/* Add the pte bit when trying to set a pte */
 	pte = __pte(pte_val(pte) | _PAGE_PTE);

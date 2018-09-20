@@ -875,8 +875,16 @@ static inline int pmd_none(pmd_t pmd)
 
 static inline int pmd_present(pmd_t pmd)
 {
+	/*
+	 * A pmd is considerent present if _PAGE_PRESENT is set.
+	 * We also need to consider the pmd present which is marked
+	 * invalid during a split. Hence we look for _PAGE_INVALID
+	 * if we find _PAGE_PRESENT cleared.
+	 */
+	if (pmd_raw(pmd) & cpu_to_be64(_PAGE_PRESENT | _PAGE_INVALID))
+		return true;
 
-	return !pmd_none(pmd);
+	return false;
 }
 
 static inline int pmd_bad(pmd_t pmd)
@@ -903,7 +911,7 @@ static inline int pud_none(pud_t pud)
 
 static inline int pud_present(pud_t pud)
 {
-	return !pud_none(pud);
+	return (pud_raw(pud) & cpu_to_be64(_PAGE_PRESENT));
 }
 
 extern struct page *pud_page(pud_t pud);
@@ -950,7 +958,7 @@ static inline int pgd_none(pgd_t pgd)
 
 static inline int pgd_present(pgd_t pgd)
 {
-	return !pgd_none(pgd);
+	return (pgd_raw(pgd) & cpu_to_be64(_PAGE_PRESENT));
 }
 
 static inline pte_t pgd_pte(pgd_t pgd)

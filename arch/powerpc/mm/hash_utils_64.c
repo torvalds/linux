@@ -1001,9 +1001,9 @@ void __init hash__early_init_mmu(void)
 	 * 4k use hugepd format, so for hash set then to
 	 * zero
 	 */
-	__pmd_val_bits = 0;
-	__pud_val_bits = 0;
-	__pgd_val_bits = 0;
+	__pmd_val_bits = HASH_PMD_VAL_BITS;
+	__pud_val_bits = HASH_PUD_VAL_BITS;
+	__pgd_val_bits = HASH_PGD_VAL_BITS;
 
 	__kernel_virt_start = H_KERN_VIRT_START;
 	__kernel_virt_size = H_KERN_VIRT_SIZE;
