@@ -752,7 +752,7 @@ int pltfrm_rk3399_cfg(struct pltfrm_soc_cfg_para *cfg)
 		break;
 
 	case PLTFRM_CLKRST:
-		write_cifisp_reg(VI_IRCL, 0x80);
+		write_cifisp_reg(VI_IRCL, 0xf7f);
 		usleep_range(10, 15);
 		write_cifisp_reg(VI_IRCL, 0x00);
 		ret = 0;
