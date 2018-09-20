@@ -734,7 +734,7 @@ static long slb_allocate_user(struct mm_struct *mm, unsigned long ea)
 	if (ea >= mm->context.slb_addr_limit)
 		return -EFAULT;
 
-	context = get_ea_context(&mm->context, ea);
+	context = get_user_context(&mm->context, ea);
 	if (!context)
 		return -EFAULT;
 
