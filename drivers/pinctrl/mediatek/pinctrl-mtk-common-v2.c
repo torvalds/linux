@@ -34,7 +34,7 @@ struct mtk_drive_desc {
 };
 
 /* The groups of drive strength */
-const struct mtk_drive_desc mtk_drive[] = {
+static const struct mtk_drive_desc mtk_drive[] = {
 	[DRV_GRP0] = { 4, 16, 4, 1 },
 	[DRV_GRP1] = { 4, 16, 4, 2 },
 	[DRV_GRP2] = { 2, 8, 2, 1 },
