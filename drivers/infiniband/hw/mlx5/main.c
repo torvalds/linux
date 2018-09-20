@@ -1759,12 +1759,6 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 #endif
 
 	if (req.flags & MLX5_IB_ALLOC_UCTX_DEVX) {
-		/* Block DEVX on Infiniband as of SELinux */
-		if (mlx5_ib_port_link_layer(ibdev, 1) != IB_LINK_LAYER_ETHERNET) {
-			err = -EPERM;
-			goto out_uars;
-		}
-
 		err = mlx5_ib_devx_create(dev);
 		if (err < 0)
 			goto out_uars;
