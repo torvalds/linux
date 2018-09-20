@@ -19,11 +19,6 @@
 #include "portdrv.h"
 #include "../pci.h"
 
-struct aer_broadcast_data {
-	enum pci_channel_state state;
-	enum pci_ers_result result;
-};
-
 static pci_ers_result_t merge_result(enum pci_ers_result orig,
 				  enum pci_ers_result new)
 {
@@ -49,16 +44,15 @@ static pci_ers_result_t merge_result(enum pci_ers_result orig,
 	return orig;
 }
 
-static int report_error_detected(struct pci_dev *dev, void *data)
+static int report_error_detected(struct pci_dev *dev,
+				 enum pci_channel_state state,
+				 enum pci_ers_result *result)
 {
 	pci_ers_result_t vote;
 	const struct pci_error_handlers *err_handler;
-	struct aer_broadcast_data *result_data;
-
-	result_data = (struct aer_broadcast_data *) data;
 
 	device_lock(&dev->dev);
-	dev->error_state = result_data->state;
+	dev->error_state = state;
 
 	if (!dev->driver ||
 		!dev->driver->err_handler ||
@@ -75,22 +69,29 @@ static int report_error_detected(struct pci_dev *dev, void *data)
 			vote = PCI_ERS_RESULT_NONE;
 	} else {
 		err_handler = dev->driver->err_handler;
-		vote = err_handler->error_detected(dev, result_data->state);
+		vote = err_handler->error_detected(dev, state);
 		pci_uevent_ers(dev, PCI_ERS_RESULT_NONE);
 	}
 
-	result_data->result = merge_result(result_data->result, vote);
+	*result = merge_result(*result, vote);
 	device_unlock(&dev->dev);
 	return 0;
 }
 
+static int report_frozen_detected(struct pci_dev *dev, void *data)
+{
+	return report_error_detected(dev, pci_channel_io_frozen, data);
+}
+
+static int report_normal_detected(struct pci_dev *dev, void *data)
+{
+	return report_error_detected(dev, pci_channel_io_normal, data);
+}
+
 static int report_mmio_enabled(struct pci_dev *dev, void *data)
 {
-	pci_ers_result_t vote;
+	pci_ers_result_t vote, *result = data;
 	const struct pci_error_handlers *err_handler;
-	struct aer_broadcast_data *result_data;
-
-	result_data = (struct aer_broadcast_data *) data;
 
 	device_lock(&dev->dev);
 	if (!dev->driver ||
@@ -100,7 +101,7 @@ static int report_mmio_enabled(struct pci_dev *dev, void *data)
 
 	err_handler = dev->driver->err_handler;
 	vote = err_handler->mmio_enabled(dev);
-	result_data->result = merge_result(result_data->result, vote);
+	*result = merge_result(*result, vote);
 out:
 	device_unlock(&dev->dev);
 	return 0;
@@ -108,11 +109,8 @@ out:
 
 static int report_slot_reset(struct pci_dev *dev, void *data)
 {
-	pci_ers_result_t vote;
+	pci_ers_result_t vote, *result = data;
 	const struct pci_error_handlers *err_handler;
-	struct aer_broadcast_data *result_data;
-
-	result_data = (struct aer_broadcast_data *) data;
 
 	device_lock(&dev->dev);
 	if (!dev->driver ||
@@ -122,7 +120,7 @@ static int report_slot_reset(struct pci_dev *dev, void *data)
 
 	err_handler = dev->driver->err_handler;
 	vote = err_handler->slot_reset(dev);
-	result_data->result = merge_result(result_data->result, vote);
+	*result = merge_result(*result, vote);
 out:
 	device_unlock(&dev->dev);
 	return 0;
@@ -189,39 +187,11 @@ static pci_ers_result_t reset_link(struct pci_dev *dev, u32 service)
 	return status;
 }
 
-/**
- * broadcast_error_message - handle message broadcast to downstream drivers
- * @dev: pointer to from where in a hierarchy message is broadcasted down
- * @state: error state
- * @error_mesg: message to print
- * @cb: callback to be broadcasted
- *
- * Invoked during error recovery process. Once being invoked, the content
- * of error severity will be broadcasted to all downstream drivers in a
- * hierarchy in question.
- */
-static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
-	enum pci_channel_state state,
-	char *error_mesg,
-	int (*cb)(struct pci_dev *, void *))
-{
-	struct aer_broadcast_data result_data;
-
-	pci_printk(KERN_DEBUG, dev, "broadcast %s message\n", error_mesg);
-	result_data.state = state;
-	if (cb == report_error_detected)
-		result_data.result = PCI_ERS_RESULT_CAN_RECOVER;
-	else
-		result_data.result = PCI_ERS_RESULT_RECOVERED;
-
-	pci_walk_bus(dev->subordinate, cb, &result_data);
-	return result_data.result;
-}
-
 void pcie_do_recovery(struct pci_dev *dev, enum pci_channel_state state,
 		      u32 service)
 {
-	pci_ers_result_t status;
+	pci_ers_result_t status = PCI_ERS_RESULT_CAN_RECOVER;
+	struct pci_bus *bus;
 
 	/*
 	 * Error recovery runs on all subordinates of the first downstream port.
@@ -230,21 +200,23 @@ void pcie_do_recovery(struct pci_dev *dev, enum pci_channel_state state,
 	if (!(pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT ||
 	      pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM))
 		dev = dev->bus->self;
+	bus = dev->subordinate;
 
-	status = broadcast_error_message(dev,
-			state,
-			"error_detected",
-			report_error_detected);
+	pci_dbg(dev, "broadcast error_detected message\n");
+	if (state == pci_channel_io_frozen)
+		pci_walk_bus(bus, report_frozen_detected, &status);
+	else
+		pci_walk_bus(bus, report_normal_detected, &status);
 
 	if (state == pci_channel_io_frozen &&
 	    reset_link(dev, service) != PCI_ERS_RESULT_RECOVERED)
 		goto failed;
 
-	if (status == PCI_ERS_RESULT_CAN_RECOVER)
-		status = broadcast_error_message(dev,
-				state,
-				"mmio_enabled",
-				report_mmio_enabled);
+	if (status == PCI_ERS_RESULT_CAN_RECOVER) {
+		status = PCI_ERS_RESULT_RECOVERED;
+		pci_dbg(dev, "broadcast mmio_enabled message\n");
+		pci_walk_bus(bus, report_mmio_enabled, &status);
+	}
 
 	if (status == PCI_ERS_RESULT_NEED_RESET) {
 		/*
@@ -252,19 +224,16 @@ void pcie_do_recovery(struct pci_dev *dev, enum pci_channel_state state,
 		 * functions to reset slot before calling
 		 * drivers' slot_reset callbacks?
 		 */
-		status = broadcast_error_message(dev,
-				state,
-				"slot_reset",
-				report_slot_reset);
+		status = PCI_ERS_RESULT_RECOVERED;
+		pci_dbg(dev, "broadcast slot_reset message\n");
+		pci_walk_bus(bus, report_slot_reset, &status);
 	}
 
 	if (status != PCI_ERS_RESULT_RECOVERED)
 		goto failed;
 
-	broadcast_error_message(dev,
-				state,
-				"resume",
-				report_resume);
+	pci_dbg(dev, "broadcast resume message\n");
+	pci_walk_bus(bus, report_resume, &status);
 
 	pci_aer_clear_device_status(dev);
 	pci_cleanup_aer_uncorrect_error_status(dev);
