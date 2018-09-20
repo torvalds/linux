@@ -106,7 +106,7 @@ static unsigned int etb_get_buffer_depth(struct etb_drvdata *drvdata)
 	return depth;
 }
 
-static void etb_enable_hw(struct etb_drvdata *drvdata)
+static void __etb_enable_hw(struct etb_drvdata *drvdata)
 {
 	int i;
 	u32 depth;
@@ -134,6 +134,12 @@ static void etb_enable_hw(struct etb_drvdata *drvdata)
 	CS_LOCK(drvdata->base);
 }
 
+static int etb_enable_hw(struct etb_drvdata *drvdata)
+{
+	__etb_enable_hw(drvdata);
+	return 0;
+}
+
 static int etb_enable_sysfs(struct coresight_device *csdev)
 {
 	int ret = 0;
@@ -152,8 +158,9 @@ static int etb_enable_sysfs(struct coresight_device *csdev)
 	if (drvdata->mode == CS_MODE_SYSFS)
 		goto out;
 
-	drvdata->mode = CS_MODE_SYSFS;
-	etb_enable_hw(drvdata);
+	ret = etb_enable_hw(drvdata);
+	if (!ret)
+		drvdata->mode = CS_MODE_SYSFS;
 
 out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
@@ -183,8 +190,9 @@ static int etb_enable_perf(struct coresight_device *csdev, void *data)
 	if (ret)
 		goto out;
 
-	drvdata->mode = CS_MODE_PERF;
-	etb_enable_hw(drvdata);
+	ret = etb_enable_hw(drvdata);
+	if (!ret)
+		drvdata->mode = CS_MODE_PERF;
 
 out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
