@@ -9,10 +9,13 @@
 #define ICE_VLAN_PRIORITY_S		12
 #define ICE_VLAN_M			0xFFF
 #define ICE_PRIORITY_M			0x7000
-#define ICE_MAX_VLAN_PER_VF		8 /* restriction for non-trusted VF */
 
-/* Restrict number of MACs a non-trusted VF can program */
+/* Restrict number of MAC Addr and VLAN that non-trusted VF can programmed */
+#define ICE_MAX_VLAN_PER_VF		8
 #define ICE_MAX_MACADDR_PER_VF		12
+
+/* Malicious Driver Detection */
+#define ICE_DFLT_NUM_MDD_EVENTS_ALLOWED		3
 #define ICE_DFLT_NUM_INVAL_MSGS_ALLOWED		10
 
 /* Static VF transaction/status register def */
@@ -56,6 +59,7 @@ struct ice_vf {
 	u8 trusted;
 	u16 lan_vsi_idx;		/* index into PF struct */
 	u16 lan_vsi_num;		/* ID as used by firmware */
+	u64 num_mdd_events;		/* number of mdd events detected */
 	u64 num_inval_msgs;		/* number of continuous invalid msgs */
 	u64 num_valid_msgs;		/* number of valid msgs detected */
 	unsigned long vf_caps;		/* vf's adv. capabilities */

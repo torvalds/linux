@@ -219,6 +219,14 @@
 #define PF_MDET_TX_PQM_VALID_M			BIT(0)
 #define PF_MDET_TX_TCLAN			0x000FC000
 #define PF_MDET_TX_TCLAN_VALID_M		BIT(0)
+#define VP_MDET_RX(_VF)				(0x00294400 + ((_VF) * 4))
+#define VP_MDET_RX_VALID_M			BIT(0)
+#define VP_MDET_TX_PQM(_VF)			(0x002D2000 + ((_VF) * 4))
+#define VP_MDET_TX_PQM_VALID_M			BIT(0)
+#define VP_MDET_TX_TCLAN(_VF)			(0x000FB800 + ((_VF) * 4))
+#define VP_MDET_TX_TCLAN_VALID_M		BIT(0)
+#define VP_MDET_TX_TDPU(_VF)			(0x00040000 + ((_VF) * 4))
+#define VP_MDET_TX_TDPU_VALID_M			BIT(0)
 #define GLNVM_FLA				0x000B6108
 #define GLNVM_FLA_LOCKED_M			BIT(6)
 #define GLNVM_GENS				0x000B6100
