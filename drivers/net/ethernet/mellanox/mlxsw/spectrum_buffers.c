@@ -55,10 +55,12 @@ static const struct mlxsw_sp_sb_pool_des mlxsw_sp_sb_pool_dess[] = {
 
 #define MLXSW_SP_SB_POOL_DESS_LEN ARRAY_SIZE(mlxsw_sp_sb_pool_dess)
 
-#define MLXSW_SP_SB_TC_COUNT	8
+#define MLXSW_SP_SB_ING_TC_COUNT 8
+#define MLXSW_SP_SB_EG_TC_COUNT 16
 
 struct mlxsw_sp_sb_port {
-	struct mlxsw_sp_sb_cm cms[2][MLXSW_SP_SB_TC_COUNT];
+	struct mlxsw_sp_sb_cm ing_cms[MLXSW_SP_SB_ING_TC_COUNT];
+	struct mlxsw_sp_sb_cm eg_cms[MLXSW_SP_SB_EG_TC_COUNT];
 	struct mlxsw_sp_sb_pm pms[MLXSW_SP_SB_POOL_DESS_LEN];
 };
 
@@ -84,11 +86,25 @@ static struct mlxsw_sp_sb_pr *mlxsw_sp_sb_pr_get(struct mlxsw_sp *mlxsw_sp,
 	return &mlxsw_sp->sb->prs[pool_index];
 }
 
+static bool mlxsw_sp_sb_cm_exists(u8 pg_buff, enum mlxsw_reg_sbxx_dir dir)
+{
+	if (dir == MLXSW_REG_SBXX_DIR_INGRESS)
+		return pg_buff < MLXSW_SP_SB_ING_TC_COUNT;
+	else
+		return pg_buff < MLXSW_SP_SB_EG_TC_COUNT;
+}
+
 static struct mlxsw_sp_sb_cm *mlxsw_sp_sb_cm_get(struct mlxsw_sp *mlxsw_sp,
 						 u8 local_port, u8 pg_buff,
 						 enum mlxsw_reg_sbxx_dir dir)
 {
-	return &mlxsw_sp->sb->ports[local_port].cms[dir][pg_buff];
+	struct mlxsw_sp_sb_port *sb_port = &mlxsw_sp->sb->ports[local_port];
+
+	WARN_ON(!mlxsw_sp_sb_cm_exists(pg_buff, dir));
+	if (dir == MLXSW_REG_SBXX_DIR_INGRESS)
+		return &sb_port->ing_cms[pg_buff];
+	else
+		return &sb_port->eg_cms[pg_buff];
 }
 
 static struct mlxsw_sp_sb_pm *mlxsw_sp_sb_pm_get(struct mlxsw_sp *mlxsw_sp,
@@ -131,7 +147,7 @@ static int mlxsw_sp_sb_cm_write(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbcm), sbcm_pl);
 	if (err)
 		return err;
-	if (pg_buff < MLXSW_SP_SB_TC_COUNT) {
+	if (mlxsw_sp_sb_cm_exists(pg_buff, des->dir)) {
 		struct mlxsw_sp_sb_cm *cm;
 
 		cm = mlxsw_sp_sb_cm_get(mlxsw_sp, local_port, pg_buff,
@@ -601,8 +617,8 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 	err = devlink_sb_register(priv_to_devlink(mlxsw_sp->core), 0, sb_size,
 				  ing_pool_count,
 				  eg_pool_count,
-				  MLXSW_SP_SB_TC_COUNT,
-				  MLXSW_SP_SB_TC_COUNT);
+				  MLXSW_SP_SB_ING_TC_COUNT,
+				  MLXSW_SP_SB_EG_TC_COUNT);
 	if (err)
 		goto err_devlink_sb_register;
 
@@ -784,7 +800,8 @@ int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
 }
 
 #define MASKED_COUNT_MAX \
-	(MLXSW_REG_SBSR_REC_MAX_COUNT / (MLXSW_SP_SB_TC_COUNT * 2))
+	(MLXSW_REG_SBSR_REC_MAX_COUNT / \
+	 (MLXSW_SP_SB_ING_TC_COUNT + MLXSW_SP_SB_EG_TC_COUNT))
 
 struct mlxsw_sp_sb_sr_occ_query_cb_ctx {
 	u8 masked_count;
@@ -810,7 +827,7 @@ static void mlxsw_sp_sb_sr_occ_query_cb(struct mlxsw_core *mlxsw_core,
 	     local_port < mlxsw_core_max_ports(mlxsw_core); local_port++) {
 		if (!mlxsw_sp->ports[local_port])
 			continue;
-		for (i = 0; i < MLXSW_SP_SB_TC_COUNT; i++) {
+		for (i = 0; i < MLXSW_SP_SB_ING_TC_COUNT; i++) {
 			cm = mlxsw_sp_sb_cm_get(mlxsw_sp, local_port, i,
 						MLXSW_REG_SBXX_DIR_INGRESS);
 			mlxsw_reg_sbsr_rec_unpack(sbsr_pl, rec_index++,
@@ -824,7 +841,7 @@ static void mlxsw_sp_sb_sr_occ_query_cb(struct mlxsw_core *mlxsw_core,
 	     local_port < mlxsw_core_max_ports(mlxsw_core); local_port++) {
 		if (!mlxsw_sp->ports[local_port])
 			continue;
-		for (i = 0; i < MLXSW_SP_SB_TC_COUNT; i++) {
+		for (i = 0; i < MLXSW_SP_SB_EG_TC_COUNT; i++) {
 			cm = mlxsw_sp_sb_cm_get(mlxsw_sp, local_port, i,
 						MLXSW_REG_SBXX_DIR_EGRESS);
 			mlxsw_reg_sbsr_rec_unpack(sbsr_pl, rec_index++,
@@ -859,10 +876,10 @@ next_batch:
 	local_port_1 = local_port;
 	masked_count = 0;
 	mlxsw_reg_sbsr_pack(sbsr_pl, false);
-	for (i = 0; i < MLXSW_SP_SB_TC_COUNT; i++) {
+	for (i = 0; i < MLXSW_SP_SB_ING_TC_COUNT; i++)
 		mlxsw_reg_sbsr_pg_buff_mask_set(sbsr_pl, i, 1);
+	for (i = 0; i < MLXSW_SP_SB_EG_TC_COUNT; i++)
 		mlxsw_reg_sbsr_tclass_mask_set(sbsr_pl, i, 1);
-	}
 	for (; local_port < mlxsw_core_max_ports(mlxsw_core); local_port++) {
 		if (!mlxsw_sp->ports[local_port])
 			continue;
@@ -918,10 +935,10 @@ next_batch:
 	local_port++;
 	masked_count = 0;
 	mlxsw_reg_sbsr_pack(sbsr_pl, true);
-	for (i = 0; i < MLXSW_SP_SB_TC_COUNT; i++) {
+	for (i = 0; i < MLXSW_SP_SB_ING_TC_COUNT; i++)
 		mlxsw_reg_sbsr_pg_buff_mask_set(sbsr_pl, i, 1);
+	for (i = 0; i < MLXSW_SP_SB_EG_TC_COUNT; i++)
 		mlxsw_reg_sbsr_tclass_mask_set(sbsr_pl, i, 1);
-	}
 	for (; local_port < mlxsw_core_max_ports(mlxsw_core); local_port++) {
 		if (!mlxsw_sp->ports[local_port])
 			continue;
