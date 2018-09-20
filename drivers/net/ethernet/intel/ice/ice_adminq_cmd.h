@@ -1446,6 +1446,7 @@ enum ice_adminq_opc {
 	ice_aqc_opc_nvm_read				= 0x0701,
 
 	/* PF/VF mailbox commands */
+	ice_mbx_opc_send_msg_to_pf			= 0x0801,
 	ice_mbx_opc_send_msg_to_vf			= 0x0802,
 
 	/* RSS commands */

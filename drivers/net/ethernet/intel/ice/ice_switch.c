@@ -187,6 +187,7 @@ ice_aq_add_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
 	if (!vsi_ctx->alloc_from_pool)
 		cmd->vsi_num = cpu_to_le16(vsi_ctx->vsi_num |
 					   ICE_AQ_VSI_IS_VALID);
+	cmd->vf_id = vsi_ctx->vf_num;
 
 	cmd->vsi_flags = cpu_to_le16(vsi_ctx->flags);
 

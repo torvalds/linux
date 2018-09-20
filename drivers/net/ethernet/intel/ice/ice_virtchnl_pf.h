@@ -9,6 +9,11 @@
 #define ICE_VLAN_PRIORITY_S		12
 #define ICE_VLAN_M			0xFFF
 #define ICE_PRIORITY_M			0x7000
+#define ICE_MAX_VLAN_PER_VF		8 /* restriction for non-trusted VF */
+
+/* Restrict number of MACs a non-trusted VF can program */
+#define ICE_MAX_MACADDR_PER_VF		12
+#define ICE_DFLT_NUM_INVAL_MSGS_ALLOWED		10
 
 /* Static VF transaction/status register def */
 #define VF_DEVICE_STATUS		0xAA
@@ -44,12 +49,15 @@ struct ice_vf {
 	u32 driver_caps;		/* reported by VF driver */
 	int first_vector_idx;		/* first vector index of this VF */
 	struct ice_sw *vf_sw_id;	/* switch id the VF VSIs connect to */
+	struct virtchnl_version_info vf_ver;
 	struct virtchnl_ether_addr dflt_lan_addr;
 	u16 port_vlan_id;
 	u8 pf_set_mac;			/* VF MAC address set by VMM admin */
 	u8 trusted;
 	u16 lan_vsi_idx;		/* index into PF struct */
 	u16 lan_vsi_num;		/* ID as used by firmware */
+	u64 num_inval_msgs;		/* number of continuous invalid msgs */
+	u64 num_valid_msgs;		/* number of valid msgs detected */
 	unsigned long vf_caps;		/* vf's adv. capabilities */
 	DECLARE_BITMAP(vf_states, ICE_VF_STATES_NBITS);	/* VF runtime states */
 	unsigned int tx_rate;		/* Tx bandwidth limit in Mbps */
@@ -58,6 +66,7 @@ struct ice_vf {
 	u8 spoofchk;
 	u16 num_mac;
 	u16 num_vlan;
+	u8 num_req_qs;		/* num of queue pairs requested by VF */
 };
 
 #ifdef CONFIG_PCI_IOV
@@ -68,6 +77,7 @@ int ice_get_vf_cfg(struct net_device *netdev, int vf_id,
 		   struct ifla_vf_info *ivi);
 
 void ice_free_vfs(struct ice_pf *pf);
+void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event);
 void ice_vc_notify_reset(struct ice_pf *pf);
 bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr);
 
@@ -85,6 +95,7 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena);
 #else /* CONFIG_PCI_IOV */
 #define ice_process_vflr_event(pf) do {} while (0)
 #define ice_free_vfs(pf) do {} while (0)
+#define ice_vc_process_vf_msg(pf, event) do {} while (0)
 #define ice_vc_notify_reset(pf) do {} while (0)
 static inline bool
 ice_reset_all_vfs(struct ice_pf __always_unused *pf,
