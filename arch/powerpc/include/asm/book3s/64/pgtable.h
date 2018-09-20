@@ -1136,6 +1136,10 @@ pmd_hugepage_update(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp,
 	return hash__pmd_hugepage_update(mm, addr, pmdp, clr, set);
 }
 
+/*
+ * returns true for pmd migration entries, THP, devmap, hugetlb
+ * But compile time dependent on THP config
+ */
 static inline int pmd_large(pmd_t pmd)
 {
 	return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
@@ -1170,8 +1174,22 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 		pmd_hugepage_update(mm, addr, pmdp, 0, _PAGE_PRIVILEGED);
 }
 
+/*
+ * Only returns true for a THP. False for pmd migration entry.
+ * We also need to return true when we come across a pte that
+ * in between a thp split. While splitting THP, we mark the pmd
+ * invalid (pmdp_invalidate()) before we set it with pte page
+ * address. A pmd_trans_huge() check against a pmd entry during that time
+ * should return true.
+ * We should not call this on a hugetlb entry. We should check for HugeTLB
+ * entry using vma->vm_flags
+ * The page table walk rule is explained in Documentation/vm/transhuge.rst
+ */
 static inline int pmd_trans_huge(pmd_t pmd)
 {
+	if (!pmd_present(pmd))
+		return false;
+
 	if (radix_enabled())
 		return radix__pmd_trans_huge(pmd);
 	return hash__pmd_trans_huge(pmd);
