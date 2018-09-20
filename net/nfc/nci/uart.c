@@ -192,10 +192,8 @@ static void nci_uart_tty_close(struct tty_struct *tty)
 	if (!nu)
 		return;
 
-	if (nu->tx_skb)
-		kfree_skb(nu->tx_skb);
-	if (nu->rx_skb)
-		kfree_skb(nu->rx_skb);
+	kfree_skb(nu->tx_skb);
+	kfree_skb(nu->rx_skb);
 
 	skb_queue_purge(&nu->tx_q);
 
