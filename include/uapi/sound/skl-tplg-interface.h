@@ -10,6 +10,8 @@
 #ifndef __HDA_TPLG_INTERFACE_H__
 #define __HDA_TPLG_INTERFACE_H__
 
+#include <linux/types.h>
+
 /*
  * Default types range from 0~12. type can range from 0 to 0xff
  * SST types start at higher to avoid any overlapping in future
@@ -143,10 +145,10 @@ enum skl_module_param_type {
 };
 
 struct skl_dfw_algo_data {
-	u32 set_params:2;
-	u32 rsvd:30;
-	u32 param_id;
-	u32 max;
+	__u32 set_params:2;
+	__u32 rsvd:30;
+	__u32 param_id;
+	__u32 max;
 	char params[0];
 } __packed;
 
@@ -163,68 +165,68 @@ enum skl_tuple_type {
 /* v4 configuration data */
 
 struct skl_dfw_v4_module_pin {
-	u16 module_id;
-	u16 instance_id;
+	__u16 module_id;
+	__u16 instance_id;
 } __packed;
 
 struct skl_dfw_v4_module_fmt {
-	u32 channels;
-	u32 freq;
-	u32 bit_depth;
-	u32 valid_bit_depth;
-	u32 ch_cfg;
-	u32 interleaving_style;
-	u32 sample_type;
-	u32 ch_map;
+	__u32 channels;
+	__u32 freq;
+	__u32 bit_depth;
+	__u32 valid_bit_depth;
+	__u32 ch_cfg;
+	__u32 interleaving_style;
+	__u32 sample_type;
+	__u32 ch_map;
 } __packed;
 
 struct skl_dfw_v4_module_caps {
-	u32 set_params:2;
-	u32 rsvd:30;
-	u32 param_id;
-	u32 caps_size;
-	u32 caps[HDA_SST_CFG_MAX];
+	__u32 set_params:2;
+	__u32 rsvd:30;
+	__u32 param_id;
+	__u32 caps_size;
+	__u32 caps[HDA_SST_CFG_MAX];
 } __packed;
 
 struct skl_dfw_v4_pipe {
-	u8 pipe_id;
-	u8 pipe_priority;
-	u16 conn_type:4;
-	u16 rsvd:4;
-	u16 memory_pages:8;
+	__u8 pipe_id;
+	__u8 pipe_priority;
+	__u16 conn_type:4;
+	__u16 rsvd:4;
+	__u16 memory_pages:8;
 } __packed;
 
 struct skl_dfw_v4_module {
 	char uuid[SKL_UUID_STR_SZ];
 
-	u16 module_id;
-	u16 instance_id;
-	u32 max_mcps;
-	u32 mem_pages;
-	u32 obs;
-	u32 ibs;
-	u32 vbus_id;
+	__u16 module_id;
+	__u16 instance_id;
+	__u32 max_mcps;
+	__u32 mem_pages;
+	__u32 obs;
+	__u32 ibs;
+	__u32 vbus_id;
 
-	u32 max_in_queue:8;
-	u32 max_out_queue:8;
-	u32 time_slot:8;
-	u32 core_id:4;
-	u32 rsvd1:4;
+	__u32 max_in_queue:8;
+	__u32 max_out_queue:8;
+	__u32 time_slot:8;
+	__u32 core_id:4;
+	__u32 rsvd1:4;
 
-	u32 module_type:8;
-	u32 conn_type:4;
-	u32 dev_type:4;
-	u32 hw_conn_type:4;
-	u32 rsvd2:12;
+	__u32 module_type:8;
+	__u32 conn_type:4;
+	__u32 dev_type:4;
+	__u32 hw_conn_type:4;
+	__u32 rsvd2:12;
 
-	u32 params_fixup:8;
-	u32 converter:8;
-	u32 input_pin_type:1;
-	u32 output_pin_type:1;
-	u32 is_dynamic_in_pin:1;
-	u32 is_dynamic_out_pin:1;
-	u32 is_loadable:1;
-	u32 rsvd3:11;
+	__u32 params_fixup:8;
+	__u32 converter:8;
+	__u32 input_pin_type:1;
+	__u32 output_pin_type:1;
+	__u32 is_dynamic_in_pin:1;
+	__u32 is_dynamic_out_pin:1;
+	__u32 is_loadable:1;
+	__u32 rsvd3:11;
 
 	struct skl_dfw_v4_pipe pipe;
 	struct skl_dfw_v4_module_fmt in_fmt[MAX_IN_QUEUE];
