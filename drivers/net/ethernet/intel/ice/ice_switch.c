@@ -1422,8 +1422,8 @@ ice_rem_update_vsi_list(struct ice_hw *hw, u16 vsi_handle,
 	fm_list->vsi_count--;
 	clear_bit(vsi_handle, fm_list->vsi_list_info->vsi_map);
 
-	if ((fm_list->vsi_count == 1 && lkup_type != ICE_SW_LKUP_VLAN) ||
-	    (fm_list->vsi_count == 0 && lkup_type == ICE_SW_LKUP_VLAN)) {
+	if (fm_list->vsi_count == 1 && lkup_type != ICE_SW_LKUP_VLAN) {
+		struct ice_fltr_info tmp_fltr_info = fm_list->fltr_info;
 		struct ice_vsi_list_map_info *vsi_list_info =
 			fm_list->vsi_list_info;
 		u16 rem_vsi_handle;
@@ -1432,6 +1432,8 @@ ice_rem_update_vsi_list(struct ice_hw *hw, u16 vsi_handle,
 						ICE_MAX_VSI);
 		if (!ice_is_vsi_valid(hw, rem_vsi_handle))
 			return ICE_ERR_OUT_OF_RANGE;
+
+		/* Make sure VSI list is empty before removing it below */
 		status = ice_update_vsi_list_rule(hw, &rem_vsi_handle, 1,
 						  vsi_list_id, true,
 						  ice_aqc_opc_update_sw_rules,
@@ -1439,16 +1441,34 @@ ice_rem_update_vsi_list(struct ice_hw *hw, u16 vsi_handle,
 		if (status)
 			return status;
 
+		tmp_fltr_info.fltr_act = ICE_FWD_TO_VSI;
+		tmp_fltr_info.fwd_id.hw_vsi_id =
+			ice_get_hw_vsi_num(hw, rem_vsi_handle);
+		tmp_fltr_info.vsi_handle = rem_vsi_handle;
+		status = ice_update_pkt_fwd_rule(hw, &tmp_fltr_info);
+		if (status) {
+			ice_debug(hw, ICE_DBG_SW,
+				  "Failed to update pkt fwd rule to FWD_TO_VSI on HW VSI %d, error %d\n",
+				  tmp_fltr_info.fwd_id.hw_vsi_id, status);
+			return status;
+		}
+
+		fm_list->fltr_info = tmp_fltr_info;
+	}
+
+	if ((fm_list->vsi_count == 1 && lkup_type != ICE_SW_LKUP_VLAN) ||
+	    (fm_list->vsi_count == 0 && lkup_type == ICE_SW_LKUP_VLAN)) {
+		struct ice_vsi_list_map_info *vsi_list_info =
+			fm_list->vsi_list_info;
+
 		/* Remove the VSI list since it is no longer used */
 		status = ice_remove_vsi_list_rule(hw, vsi_list_id, lkup_type);
-		if (status)
+		if (status) {
+			ice_debug(hw, ICE_DBG_SW,
+				  "Failed to remove VSI list %d, error %d\n",
+				  vsi_list_id, status);
 			return status;
-
-		/* Change the list entry action from VSI_LIST to VSI */
-		fm_list->fltr_info.fltr_act = ICE_FWD_TO_VSI;
-		fm_list->fltr_info.fwd_id.hw_vsi_id =
-			ice_get_hw_vsi_num(hw, rem_vsi_handle);
-		fm_list->fltr_info.vsi_handle = rem_vsi_handle;
+		}
 
 		list_del(&vsi_list_info->list_entry);
 		devm_kfree(ice_hw_to_dev(hw), vsi_list_info);
