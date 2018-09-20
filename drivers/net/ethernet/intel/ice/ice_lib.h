@@ -6,6 +6,12 @@
 
 #include "ice.h"
 
+int ice_vsi_setup_vector_base(struct ice_vsi *vsi);
+
+int ice_vsi_alloc_q_vectors(struct ice_vsi *vsi);
+
+int ice_vsi_get_qs(struct ice_vsi *vsi);
+
 void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi);
 
 int ice_vsi_alloc_rings(struct ice_vsi *vsi);
@@ -17,10 +23,6 @@ void ice_vsi_set_num_qs(struct ice_vsi *vsi);
 int ice_get_free_slot(void *array, int size, int curr);
 
 int ice_vsi_init(struct ice_vsi *vsi);
-
-void ice_vsi_free_arrays(struct ice_vsi *vsi, bool free_qvectors);
-
-void ice_vsi_clear_rings(struct ice_vsi *vsi);
 
 int ice_vsi_alloc_arrays(struct ice_vsi *vsi, bool alloc_qvectors);
 
@@ -57,6 +59,8 @@ void ice_vsi_delete(struct ice_vsi *vsi);
 
 int ice_vsi_clear(struct ice_vsi *vsi);
 
+int ice_vsi_release(struct ice_vsi *vsi);
+
 void ice_vsi_close(struct ice_vsi *vsi);
 
 int ice_free_res(struct ice_res_tracker *res, u16 index, u16 id);
@@ -64,7 +68,11 @@ int ice_free_res(struct ice_res_tracker *res, u16 index, u16 id);
 int
 ice_get_res(struct ice_pf *pf, struct ice_res_tracker *res, u16 needed, u16 id);
 
+int ice_vsi_rebuild(struct ice_vsi *vsi);
+
 bool ice_is_reset_recovery_pending(unsigned long *state);
+
+void ice_vsi_free_q_vectors(struct ice_vsi *vsi);
 
 void ice_vsi_put_qs(struct ice_vsi *vsi);
 
