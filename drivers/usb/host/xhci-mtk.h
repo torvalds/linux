@@ -20,6 +20,19 @@
 #define XHCI_MTK_MAX_ESIT	64
 
 /**
+ * @split_bit_map: used to avoid split microframes overlay
+ * @ep_list: Endpoints using this TT
+ * @usb_tt: usb TT related
+ * @tt_port: TT port number
+ */
+struct mu3h_sch_tt {
+	DECLARE_BITMAP(split_bit_map, XHCI_MTK_MAX_ESIT);
+	struct list_head ep_list;
+	struct usb_tt *usb_tt;
+	int tt_port;
+};
+
+/**
  * struct mu3h_sch_bw_info: schedule information for bandwidth domain
  *
  * @bus_bw: array to keep track of bandwidth already used at each uframes
@@ -41,6 +54,10 @@ struct mu3h_sch_bw_info {
  *		(@repeat==1) scheduled within the interval
  * @bw_cost_per_microframe: bandwidth cost per microframe
  * @endpoint: linked into bandwidth domain which it belongs to
+ * @tt_endpoint: linked into mu3h_sch_tt's list which it belongs to
+ * @sch_tt: mu3h_sch_tt linked into
+ * @ep_type: endpoint type
+ * @maxpkt: max packet size of endpoint
  * @ep: address of usb_host_endpoint struct
  * @offset: which uframe of the interval that transfer should be
  *		scheduled first time within the interval
@@ -64,6 +81,10 @@ struct mu3h_sch_ep_info {
 	u32 num_budget_microframes;
 	u32 bw_cost_per_microframe;
 	struct list_head endpoint;
+	struct list_head tt_endpoint;
+	struct mu3h_sch_tt *sch_tt;
+	u32 ep_type;
+	u32 maxpkt;
 	void *ep;
 	/*
 	 * mtk xHCI scheduling information put into reserved DWs
