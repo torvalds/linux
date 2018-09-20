@@ -165,7 +165,7 @@ static struct ib_device *__ib_device_get_by_name(const char *name)
 	struct ib_device *device;
 
 	list_for_each_entry(device, &device_list, core_list)
-		if (!strncmp(name, device->name, IB_DEVICE_NAME_MAX))
+		if (!strcmp(name, dev_name(&device->dev)))
 			return device;
 
 	return NULL;
@@ -184,7 +184,7 @@ static int alloc_name(struct ib_device *ibdev, const char *name)
 	list_for_each_entry(device, &device_list, core_list) {
 		char buf[IB_DEVICE_NAME_MAX];
 
-		if (sscanf(device->name, name, &i) != 1)
+		if (sscanf(dev_name(&device->dev), name, &i) != 1)
 			continue;
 		if (i < 0 || i >= PAGE_SIZE * 8)
 			continue;
@@ -219,9 +219,7 @@ static void ib_device_release(struct device *device)
 static int ib_device_uevent(struct device *device,
 			    struct kobj_uevent_env *env)
 {
-	struct ib_device *dev = container_of(device, struct ib_device, dev);
-
-	if (add_uevent_var(env, "NAME=%s", dev->name))
+	if (add_uevent_var(env, "NAME=%s", dev_name(device)))
 		return -ENOMEM;
 
 	/*

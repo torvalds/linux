@@ -1132,7 +1132,7 @@ static ssize_t show_ibdev(struct device *dev, struct device_attribute *attr,
 	if (!port)
 		return -ENODEV;
 
-	return sprintf(buf, "%s\n", port->ib_dev->name);
+	return sprintf(buf, "%s\n", dev_name(&port->ib_dev->dev));
 }
 static DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
 

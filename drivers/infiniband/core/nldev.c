@@ -179,7 +179,8 @@ static int fill_nldev_handle(struct sk_buff *msg, struct ib_device *device)
 {
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_DEV_INDEX, device->index))
 		return -EMSGSIZE;
-	if (nla_put_string(msg, RDMA_NLDEV_ATTR_DEV_NAME, device->name))
+	if (nla_put_string(msg, RDMA_NLDEV_ATTR_DEV_NAME,
+			   dev_name(&device->dev)))
 		return -EMSGSIZE;
 
 	return 0;

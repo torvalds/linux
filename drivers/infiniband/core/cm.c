@@ -4367,7 +4367,7 @@ static void cm_add_one(struct ib_device *ib_device)
 	cm_dev->going_down = 0;
 	cm_dev->device = device_create(&cm_class, &ib_device->dev,
 				       MKDEV(0, 0), NULL,
-				       "%s", ib_device->name);
+				       "%s", dev_name(&ib_device->dev));
 	if (IS_ERR(cm_dev->device)) {
 		kfree(cm_dev);
 		return;
