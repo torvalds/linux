@@ -925,6 +925,7 @@ struct mlx5_ib_dev {
 	struct list_head	ib_dev_list;
 	u64			sys_image_guid;
 	struct mlx5_memic	memic;
+	u16			devx_whitelist_uid;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
@@ -1249,10 +1250,8 @@ void mlx5_ib_put_native_port_mdev(struct mlx5_ib_dev *dev,
 				  u8 port_num);
 
 #if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
-int mlx5_ib_devx_create(struct mlx5_ib_dev *dev,
-			struct mlx5_ib_ucontext *context);
-void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev,
-			  struct mlx5_ib_ucontext *context);
+int mlx5_ib_devx_create(struct mlx5_ib_dev *dev);
+void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid);
 const struct uverbs_object_tree_def *mlx5_ib_get_devx_tree(void);
 struct mlx5_ib_flow_handler *mlx5_ib_raw_fs_rule_add(
 	struct mlx5_ib_dev *dev, struct mlx5_ib_flow_matcher *fs_matcher,
@@ -1263,10 +1262,8 @@ int mlx5_ib_get_flow_trees(const struct uverbs_object_tree_def **root);
 void mlx5_ib_destroy_flow_action_raw(struct mlx5_ib_flow_action *maction);
 #else
 static inline int
-mlx5_ib_devx_create(struct mlx5_ib_dev *dev,
-		    struct mlx5_ib_ucontext *context) { return -EOPNOTSUPP; };
-static inline void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev,
-					struct mlx5_ib_ucontext *context) {}
+mlx5_ib_devx_create(struct mlx5_ib_dev *dev) { return -EOPNOTSUPP; };
+static inline void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid) {}
 static inline const struct uverbs_object_tree_def *
 mlx5_ib_get_devx_tree(void) { return NULL; }
 static inline bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id,

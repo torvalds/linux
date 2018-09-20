@@ -1765,9 +1765,10 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 			goto out_uars;
 		}
 
-		err = mlx5_ib_devx_create(dev, context);
-		if (err)
+		err = mlx5_ib_devx_create(dev);
+		if (err < 0)
 			goto out_uars;
+		context->devx_uid = err;
 	}
 
 	err = mlx5_ib_alloc_transport_domain(dev, &context->tdn,
@@ -1870,7 +1871,7 @@ out_mdev:
 	mlx5_ib_dealloc_transport_domain(dev, context->tdn, context->devx_uid);
 out_devx:
 	if (req.flags & MLX5_IB_ALLOC_UCTX_DEVX)
-		mlx5_ib_devx_destroy(dev, context);
+		mlx5_ib_devx_destroy(dev, context->devx_uid);
 
 out_uars:
 	deallocate_uars(dev, context);
@@ -1904,7 +1905,7 @@ static int mlx5_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 	mlx5_ib_dealloc_transport_domain(dev, context->tdn, context->devx_uid);
 
 	if (context->devx_uid)
-		mlx5_ib_devx_destroy(dev, context);
+		mlx5_ib_devx_destroy(dev, context->devx_uid);
 
 	deallocate_uars(dev, context);
 	kfree(bfregi->sys_pages);
@@ -6189,6 +6190,8 @@ void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
 			profile->stage[stage].cleanup(dev);
 	}
 
+	if (dev->devx_whitelist_uid)
+		mlx5_ib_devx_destroy(dev, dev->devx_whitelist_uid);
 	ib_dealloc_device((struct ib_device *)dev);
 }
 
@@ -6197,6 +6200,7 @@ void *__mlx5_ib_add(struct mlx5_ib_dev *dev,
 {
 	int err;
 	int i;
+	int uid;
 
 	for (i = 0; i < MLX5_IB_STAGE_MAX; i++) {
 		if (profile->stage[i].init) {
@@ -6205,6 +6209,10 @@ void *__mlx5_ib_add(struct mlx5_ib_dev *dev,
 				goto err_out;
 		}
 	}
+
+	uid = mlx5_ib_devx_create(dev);
+	if (uid > 0)
+		dev->devx_whitelist_uid = uid;
 
 	dev->profile = profile;
 	dev->ib_active = true;
