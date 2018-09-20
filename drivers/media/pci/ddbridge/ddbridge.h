@@ -20,11 +20,9 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
-#include <linux/io.h>
 #include <linux/pci.h>
 #include <linux/timer.h>
 #include <linux/i2c.h>
