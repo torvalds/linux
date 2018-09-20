@@ -79,6 +79,8 @@ enum spi_mem_data_dir {
  * @dummy.buswidth: number of IO lanes used to transmit the dummy bytes
  * @data.buswidth: number of IO lanes used to send/receive the data
  * @data.dir: direction of the transfer
+ * @data.nbytes: number of data bytes to send/receive. Can be zero if the
+ *		 operation does not involve transferring data
  * @data.buf.in: input buffer
  * @data.buf.out: output buffer
  */
