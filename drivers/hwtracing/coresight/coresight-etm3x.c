@@ -357,7 +357,7 @@ static int etm_parse_event_config(struct etm_drvdata *drvdata,
 
 static int etm_enable_hw(struct etm_drvdata *drvdata)
 {
-	int i;
+	int i, rc;
 	u32 etmcr;
 	struct etm_config *config = &drvdata->config;
 
@@ -369,6 +369,9 @@ static int etm_enable_hw(struct etm_drvdata *drvdata)
 	etm_set_pwrup(drvdata);
 	/* Make sure all registers are accessible */
 	etm_os_unlock(drvdata);
+	rc = coresight_claim_device_unlocked(drvdata->base);
+	if (rc)
+		goto done;
 
 	etm_set_prog(drvdata);
 
@@ -417,10 +420,15 @@ static int etm_enable_hw(struct etm_drvdata *drvdata)
 	etm_writel(drvdata, 0x0, ETMVMIDCVR);
 
 	etm_clr_prog(drvdata);
+
+done:
+	if (rc)
+		etm_set_pwrdwn(drvdata);
 	CS_LOCK(drvdata->base);
 
-	dev_dbg(drvdata->dev, "cpu: %d enable smp call done\n", drvdata->cpu);
-	return 0;
+	dev_dbg(drvdata->dev, "cpu: %d enable smp call done: %d\n",
+		drvdata->cpu, rc);
+	return rc;
 }
 
 struct etm_enable_arg {
@@ -568,6 +576,8 @@ static void etm_disable_hw(void *info)
 
 	for (i = 0; i < drvdata->nr_cntr; i++)
 		config->cntr_val[i] = etm_readl(drvdata, ETMCNTVRn(i));
+
+	coresight_disclaim_device_unlocked(drvdata->base);
 
 	etm_set_pwrdwn(drvdata);
 	CS_LOCK(drvdata->base);
