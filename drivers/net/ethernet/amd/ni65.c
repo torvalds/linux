@@ -435,10 +435,8 @@ static int __init ni65_probe1(struct net_device *dev,int ioaddr)
 		}
 		if(cards[i].vendor_id) {
 			for(j=0;j<3;j++)
-				if(inb(ioaddr+cards[i].addr_offset+j) != cards[i].vendor_id[j]) {
+				if(inb(ioaddr+cards[i].addr_offset+j) != cards[i].vendor_id[j])
 					release_region(ioaddr, cards[i].total_size);
-					continue;
-			  }
 		}
 		break;
 	}
