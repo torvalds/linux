@@ -190,6 +190,7 @@ qed_dcbx_dp_protocol(struct qed_hwfn *p_hwfn, struct qed_dcbx_results *p_data)
 
 static void
 qed_dcbx_set_params(struct qed_dcbx_results *p_data,
+		    struct qed_hwfn *p_hwfn,
 		    struct qed_hw_info *p_info,
 		    bool enable,
 		    u8 prio,
@@ -205,6 +206,11 @@ qed_dcbx_set_params(struct qed_dcbx_results *p_data,
 		p_data->arr[type].update = UPDATE_DCB;
 	else
 		p_data->arr[type].update = DONT_UPDATE_DCB_DSCP;
+
+	/* Do not add vlan tag 0 when DCB is enabled and port in UFP/OV mode */
+	if ((test_bit(QED_MF_8021Q_TAGGING, &p_hwfn->cdev->mf_bits) ||
+	     test_bit(QED_MF_8021AD_TAGGING, &p_hwfn->cdev->mf_bits)))
+		p_data->arr[type].dont_add_vlan0 = true;
 
 	/* QM reconf data */
 	if (p_info->personality == personality)
@@ -231,7 +237,7 @@ qed_dcbx_update_app_info(struct qed_dcbx_results *p_data,
 
 		personality = qed_dcbx_app_update[i].personality;
 
-		qed_dcbx_set_params(p_data, p_info, enable,
+		qed_dcbx_set_params(p_data, p_hwfn, p_info, enable,
 				    prio, tc, type, personality);
 	}
 }
@@ -954,6 +960,7 @@ static void qed_dcbx_update_protocol_data(struct protocol_dcb_data *p_data,
 	p_data->dcb_enable_flag = p_src->arr[type].enable;
 	p_data->dcb_priority = p_src->arr[type].priority;
 	p_data->dcb_tc = p_src->arr[type].tc;
+	p_data->dcb_dont_add_vlan0 = p_src->arr[type].dont_add_vlan0;
 }
 
 /* Set pf update ramrod command params */
