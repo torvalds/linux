@@ -1549,6 +1549,31 @@ out:
 	return status;
 }
 
+#ifdef CONFIG_NFS_V4_2
+static void nfs42_complete_copies(struct nfs4_state_owner *sp, struct nfs4_state *state)
+{
+	struct nfs4_copy_state *copy;
+
+	if (!test_bit(NFS_CLNT_DST_SSC_COPY_STATE, &state->flags))
+		return;
+
+	spin_lock(&sp->so_server->nfs_client->cl_lock);
+	list_for_each_entry(copy, &sp->so_server->ss_copies, copies) {
+		if (nfs4_stateid_match_other(&state->stateid, &copy->parent_state->stateid))
+			continue;
+		copy->flags = 1;
+		complete(&copy->completion);
+		break;
+	}
+	spin_unlock(&sp->so_server->nfs_client->cl_lock);
+}
+#else /* !CONFIG_NFS_V4_2 */
+static inline void nfs42_complete_copies(struct nfs4_state_owner *sp,
+					 struct nfs4_state *state)
+{
+}
+#endif /* CONFIG_NFS_V4_2 */
+
 static int __nfs4_reclaim_open_state(struct nfs4_state_owner *sp, struct nfs4_state *state,
 				     const struct nfs4_state_recovery_ops *ops)
 {
@@ -1572,21 +1597,7 @@ static int __nfs4_reclaim_open_state(struct nfs4_state_owner *sp, struct nfs4_st
 		spin_unlock(&state->state_lock);
 	}
 
-#ifdef CONFIG_NFS_V4_2
-	if (test_bit(NFS_CLNT_DST_SSC_COPY_STATE, &state->flags)) {
-		struct nfs4_copy_state *copy;
-		spin_lock(&sp->so_server->nfs_client->cl_lock);
-		list_for_each_entry(copy, &sp->so_server->ss_copies, copies) {
-			if (nfs4_stateid_match_other(&state->stateid, &copy->parent_state->stateid))
-				continue;
-			copy->flags = 1;
-			complete(&copy->completion);
-			break;
-		}
-		spin_unlock(&sp->so_server->nfs_client->cl_lock);
-	}
-#endif /* CONFIG_NFS_V4_2 */
-
+	nfs42_complete_copies(sp, state);
 	clear_bit(NFS_STATE_RECLAIM_NOGRACE, &state->flags);
 	return status;
 }
