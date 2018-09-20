@@ -78,6 +78,7 @@ int ice_get_vf_cfg(struct net_device *netdev, int vf_id,
 
 void ice_free_vfs(struct ice_pf *pf);
 void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event);
+void ice_vc_notify_link_state(struct ice_pf *pf);
 void ice_vc_notify_reset(struct ice_pf *pf);
 bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr);
 
@@ -96,7 +97,9 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena);
 #define ice_process_vflr_event(pf) do {} while (0)
 #define ice_free_vfs(pf) do {} while (0)
 #define ice_vc_process_vf_msg(pf, event) do {} while (0)
+#define ice_vc_notify_link_state(pf) do {} while (0)
 #define ice_vc_notify_reset(pf) do {} while (0)
+
 static inline bool
 ice_reset_all_vfs(struct ice_pf __always_unused *pf,
 		  bool __always_unused is_vflr)

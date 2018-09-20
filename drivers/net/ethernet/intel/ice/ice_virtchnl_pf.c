@@ -888,6 +888,18 @@ static bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 }
 
 /**
+ * ice_vc_notify_link_state - Inform all VFs on a PF of link status
+ * @pf: pointer to the PF structure
+ */
+void ice_vc_notify_link_state(struct ice_pf *pf)
+{
+	int i;
+
+	for (i = 0; i < pf->num_alloc_vfs; i++)
+		ice_vc_notify_vf_link_state(&pf->vf[i]);
+}
+
+/**
  * ice_vc_notify_reset - Send pending reset message to all VFs
  * @pf: pointer to the PF structure
  *

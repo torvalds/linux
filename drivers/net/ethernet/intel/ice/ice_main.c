@@ -665,6 +665,8 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi)
 		}
 	}
 
+	ice_vc_notify_link_state(pf);
+
 	return 0;
 }
 
