@@ -59,6 +59,8 @@ static int read_txpower(struct seq_file *file, void *data)
 			    ARRAY_SIZE(dev->rate_power.cck));
 	mt76_seq_puts_array(file, "OFDM", dev->rate_power.ofdm,
 			    ARRAY_SIZE(dev->rate_power.ofdm));
+	mt76_seq_puts_array(file, "STBC", dev->rate_power.stbc,
+			    ARRAY_SIZE(dev->rate_power.stbc));
 	mt76_seq_puts_array(file, "HT", dev->rate_power.ht,
 			    ARRAY_SIZE(dev->rate_power.ht));
 	mt76_seq_puts_array(file, "VHT", dev->rate_power.vht,

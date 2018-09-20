@@ -227,15 +227,15 @@ void mt76x2_phy_set_txpower(struct mt76x2_dev *dev)
 	mt76_wr(dev, MT_TX_PWR_CFG_2,
 		mt76x2_tx_power_mask(t.ht[4], t.ht[6], t.ht[8], t.ht[10]));
 	mt76_wr(dev, MT_TX_PWR_CFG_3,
-		mt76x2_tx_power_mask(t.ht[12], t.ht[14], t.ht[0], t.ht[2]));
+		mt76x2_tx_power_mask(t.ht[12], t.ht[14], t.stbc[0], t.stbc[2]));
 	mt76_wr(dev, MT_TX_PWR_CFG_4,
-		mt76x2_tx_power_mask(t.ht[4], t.ht[6], 0, 0));
+		mt76x2_tx_power_mask(t.stbc[4], t.stbc[6], 0, 0));
 	mt76_wr(dev, MT_TX_PWR_CFG_7,
-		mt76x2_tx_power_mask(t.ofdm[6], t.vht[8], t.ht[6], t.vht[8]));
+		mt76x2_tx_power_mask(t.ofdm[7], t.vht[8], t.ht[7], t.vht[9]));
 	mt76_wr(dev, MT_TX_PWR_CFG_8,
-		mt76x2_tx_power_mask(t.ht[14], 0, t.vht[8], t.vht[8]));
+		mt76x2_tx_power_mask(t.ht[14], 0, t.vht[8], t.vht[9]));
 	mt76_wr(dev, MT_TX_PWR_CFG_9,
-		mt76x2_tx_power_mask(t.ht[6], 0, t.vht[8], t.vht[8]));
+		mt76x2_tx_power_mask(t.ht[7], 0, t.stbc[8], t.stbc[9]));
 }
 EXPORT_SYMBOL_GPL(mt76x2_phy_set_txpower);
 

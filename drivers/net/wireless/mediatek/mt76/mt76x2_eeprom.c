@@ -482,6 +482,10 @@ void mt76x2_get_rate_power(struct mt76x2_dev *dev, struct mt76_rate_power *t,
 	if (!is_5ghz)
 		val >>= 8;
 	t->vht[8] = t->vht[9] = mt76x2_rate_power_val(val >> 8);
+
+	memcpy(t->stbc, t->ht, sizeof(t->stbc[0]) * 8);
+	t->stbc[8] = t->vht[8];
+	t->stbc[9] = t->vht[9];
 }
 EXPORT_SYMBOL_GPL(mt76x2_get_rate_power);
 

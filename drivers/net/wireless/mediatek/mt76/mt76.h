@@ -423,10 +423,11 @@ struct mt76_rate_power {
 		struct {
 			s8 cck[4];
 			s8 ofdm[8];
+			s8 stbc[10];
 			s8 ht[16];
 			s8 vht[10];
 		};
-		s8 all[38];
+		s8 all[48];
 	};
 };
 
