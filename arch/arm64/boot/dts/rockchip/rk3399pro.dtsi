@@ -20,7 +20,7 @@
 
 &dmc {
 	status = "okay";
-	center-supply = <&vdd_center>;
+	center-supply = <&vdd_log>;
 	upthreshold = <40>;
 	downdifferential = <20>;
 	system-status-freq = <
