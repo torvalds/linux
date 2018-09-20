@@ -633,6 +633,37 @@ static void vmballoon_add_page(struct vmballoon *b, int idx, struct page *p)
 		b->page = p;
 }
 
+/**
+ * vmballoon_change - retrieve the required balloon change
+ *
+ * @b: pointer for the balloon.
+ *
+ * Return: the required change for the balloon size. A positive number
+ * indicates inflation, a negative number indicates a deflation.
+ */
+static int64_t vmballoon_change(struct vmballoon *b)
+{
+	int64_t size, target;
+
+	size = b->size;
+	target = b->target;
+
+	/*
+	 * We must cast first because of int sizes
+	 * Otherwise we might get huge positives instead of negatives
+	 */
+
+	if (b->reset_required)
+		return 0;
+
+	/* consider a 2MB slack on deflate, unless the balloon is emptied */
+	if (target < size && size - target < vmballoon_page_size(true) &&
+	    target != 0)
+		return 0;
+
+	return target - size;
+}
+
 /*
  * Inflate the balloon towards its target size. Note that we try to limit
  * the rate of allocation to make sure we are not choking the rest of the
@@ -643,8 +674,6 @@ static void vmballoon_inflate(struct vmballoon *b)
 	unsigned int num_pages = 0;
 	int error = 0;
 	bool is_2m_pages;
-
-	pr_debug("%s - size: %d, target %d\n", __func__, b->size, b->target);
 
 	/*
 	 * First try NOSLEEP page allocations to inflate balloon.
@@ -667,11 +696,8 @@ static void vmballoon_inflate(struct vmballoon *b)
 	 */
 	is_2m_pages = b->supported_page_sizes == VMW_BALLOON_NUM_PAGE_SIZES;
 
-	pr_debug("%s - goal: %d",  __func__, b->target - b->size);
-
-	while (!b->reset_required &&
-		b->size + num_pages * vmballoon_page_size(is_2m_pages)
-		< b->target) {
+	while ((int64_t)(num_pages * vmballoon_page_size(is_2m_pages)) <
+	       vmballoon_change(b)) {
 		struct page *page;
 
 		STATS_INC(b->stats.alloc[is_2m_pages]);
@@ -742,8 +768,6 @@ static void vmballoon_deflate(struct vmballoon *b)
 {
 	unsigned is_2m_pages;
 
-	pr_debug("%s - size: %d, target %d\n", __func__, b->size, b->target);
-
 	/* free pages to reach target */
 	for (is_2m_pages = 0; is_2m_pages < b->supported_page_sizes;
 			is_2m_pages++) {
@@ -753,11 +777,9 @@ static void vmballoon_deflate(struct vmballoon *b)
 				&b->page_sizes[is_2m_pages];
 
 		list_for_each_entry_safe(page, next, &page_size->pages, lru) {
-			if (b->reset_required ||
-				(b->target > 0 &&
-					b->size - num_pages
-					* vmballoon_page_size(is_2m_pages)
-				< b->target + vmballoon_page_size(true)))
+			if ((int64_t)(num_pages *
+				      vmballoon_page_size(is_2m_pages)) >=
+					-vmballoon_change(b))
 				break;
 
 			list_del(&page->lru);
@@ -921,28 +943,35 @@ static void vmballoon_reset(struct vmballoon *b)
 		pr_err("failed to send guest ID to the host\n");
 }
 
-/*
- * Balloon work function: reset protocol, if needed, get the new size and
- * adjust balloon as needed. Repeat in 1 sec.
+/**
+ * vmballoon_work - periodic balloon worker for reset, inflation and deflation.
+ *
+ * @work: pointer to the &work_struct which is provided by the workqueue.
+ *
+ * Resets the protocol if needed, gets the new size and adjusts balloon as
+ * needed. Repeat in 1 sec.
  */
 static void vmballoon_work(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct vmballoon *b = container_of(dwork, struct vmballoon, dwork);
+	int64_t change = 0;
 
 	STATS_INC(b->stats.timer);
 
 	if (b->reset_required)
 		vmballoon_reset(b);
 
-	if (!b->reset_required && vmballoon_send_get_target(b)) {
-		unsigned long target = b->target;
+	if (vmballoon_send_get_target(b))
+		change = vmballoon_change(b);
 
-		/* update target, adjust size */
-		if (b->size < target)
+	if (change != 0) {
+		pr_debug("%s - size: %u, target %u", __func__,
+			 b->size, b->target);
+
+		if (change > 0)
 			vmballoon_inflate(b);
-		else if (target == 0 ||
-				b->size > target + vmballoon_page_size(true))
+		else  /* (change < 0) */
 			vmballoon_deflate(b);
 	}
 
