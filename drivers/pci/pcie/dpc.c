@@ -44,6 +44,58 @@ static const char * const rp_pio_error_string[] = {
 	"Memory Request Completion Timeout",		 /* Bit Position 18 */
 };
 
+static struct dpc_dev *to_dpc_dev(struct pci_dev *dev)
+{
+	struct device *device;
+
+	device = pcie_port_find_device(dev, PCIE_PORT_SERVICE_DPC);
+	if (!device)
+		return NULL;
+	return get_service_data(to_pcie_device(device));
+}
+
+void pci_save_dpc_state(struct pci_dev *dev)
+{
+	struct dpc_dev *dpc;
+	struct pci_cap_saved_state *save_state;
+	u16 *cap;
+
+	if (!pci_is_pcie(dev))
+		return;
+
+	dpc = to_dpc_dev(dev);
+	if (!dpc)
+		return;
+
+	save_state = pci_find_saved_ext_cap(dev, PCI_EXT_CAP_ID_DPC);
+	if (!save_state)
+		return;
+
+	cap = (u16 *)&save_state->cap.data[0];
+	pci_read_config_word(dev, dpc->cap_pos + PCI_EXP_DPC_CTL, cap);
+}
+
+void pci_restore_dpc_state(struct pci_dev *dev)
+{
+	struct dpc_dev *dpc;
+	struct pci_cap_saved_state *save_state;
+	u16 *cap;
+
+	if (!pci_is_pcie(dev))
+		return;
+
+	dpc = to_dpc_dev(dev);
+	if (!dpc)
+		return;
+
+	save_state = pci_find_saved_ext_cap(dev, PCI_EXT_CAP_ID_DPC);
+	if (!save_state)
+		return;
+
+	cap = (u16 *)&save_state->cap.data[0];
+	pci_write_config_word(dev, dpc->cap_pos + PCI_EXP_DPC_CTL, *cap);
+}
+
 static int dpc_wait_rp_inactive(struct dpc_dev *dpc)
 {
 	unsigned long timeout = jiffies + HZ;
@@ -67,18 +119,13 @@ static int dpc_wait_rp_inactive(struct dpc_dev *dpc)
 static pci_ers_result_t dpc_reset_link(struct pci_dev *pdev)
 {
 	struct dpc_dev *dpc;
-	struct pcie_device *pciedev;
-	struct device *devdpc;
-
 	u16 cap;
 
 	/*
 	 * DPC disables the Link automatically in hardware, so it has
 	 * already been reset by the time we get here.
 	 */
-	devdpc = pcie_port_find_device(pdev, PCIE_PORT_SERVICE_DPC);
-	pciedev = to_pcie_device(devdpc);
-	dpc = get_service_data(pciedev);
+	dpc = to_dpc_dev(pdev);
 	cap = dpc->cap_pos;
 
 	/*
@@ -259,6 +306,8 @@ static int dpc_probe(struct pcie_device *dev)
 		FLAG(cap, PCI_EXP_DPC_CAP_POISONED_TLP),
 		FLAG(cap, PCI_EXP_DPC_CAP_SW_TRIGGER), dpc->rp_log_size,
 		FLAG(cap, PCI_EXP_DPC_CAP_DL_ACTIVE));
+
+	pci_add_ext_cap_save_buffer(pdev, PCI_EXT_CAP_ID_DPC, sizeof(u16));
 	return status;
 }
 
