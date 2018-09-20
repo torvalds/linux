@@ -3219,6 +3219,10 @@ static void ice_rebuild(struct ice_pf *pf)
 		goto err_vsi_rebuild;
 	}
 
+	err = ice_update_link_info(hw->port_info);
+	if (err)
+		dev_err(&pf->pdev->dev, "Get link status error %d\n", err);
+
 	/* Replay all VSIs Configuration, including filters after reset */
 	if (ice_vsi_replay_all(pf)) {
 		dev_err(&pf->pdev->dev,

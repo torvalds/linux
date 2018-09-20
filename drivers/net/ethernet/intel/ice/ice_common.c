@@ -1740,8 +1740,7 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
  * ice_update_link_info - update status of the HW network link
  * @pi: port info structure of the interested logical port
  */
-static enum ice_status
-ice_update_link_info(struct ice_port_info *pi)
+enum ice_status ice_update_link_info(struct ice_port_info *pi)
 {
 	struct ice_aqc_get_phy_caps_data *pcaps;
 	struct ice_phy_info *phy_info;
