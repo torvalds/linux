@@ -233,7 +233,7 @@ static int ice_vsi_ctrl_rx_rings(struct ice_vsi *vsi, bool ena)
  * On error: returns error code (negative)
  * On success: returns 0
  */
-int ice_vsi_alloc_arrays(struct ice_vsi *vsi, bool alloc_qvectors)
+static int ice_vsi_alloc_arrays(struct ice_vsi *vsi, bool alloc_qvectors)
 {
 	struct ice_pf *pf = vsi->back;
 
@@ -274,7 +274,7 @@ err_txrings:
  *
  * Return 0 on success and a negative value on error
  */
-void ice_vsi_set_num_qs(struct ice_vsi *vsi)
+static void ice_vsi_set_num_qs(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 
@@ -301,7 +301,7 @@ void ice_vsi_set_num_qs(struct ice_vsi *vsi)
  * void * is being used to keep the functionality generic. This lets us use this
  * function on any array of pointers.
  */
-int ice_get_free_slot(void *array, int size, int curr)
+static int ice_get_free_slot(void *array, int size, int curr)
 {
 	int **tmp_array = (int **)array;
 	int next;
@@ -424,6 +424,70 @@ irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
 }
 
 /**
+ * ice_vsi_alloc - Allocates the next available struct VSI in the PF
+ * @pf: board private structure
+ * @type: type of VSI
+ *
+ * returns a pointer to a VSI on success, NULL on failure.
+ */
+static struct ice_vsi *ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type)
+{
+	struct ice_vsi *vsi = NULL;
+
+	/* Need to protect the allocation of the VSIs at the PF level */
+	mutex_lock(&pf->sw_mutex);
+
+	/* If we have already allocated our maximum number of VSIs,
+	 * pf->next_vsi will be ICE_NO_VSI. If not, pf->next_vsi index
+	 * is available to be populated
+	 */
+	if (pf->next_vsi == ICE_NO_VSI) {
+		dev_dbg(&pf->pdev->dev, "out of VSI slots!\n");
+		goto unlock_pf;
+	}
+
+	vsi = devm_kzalloc(&pf->pdev->dev, sizeof(*vsi), GFP_KERNEL);
+	if (!vsi)
+		goto unlock_pf;
+
+	vsi->type = type;
+	vsi->back = pf;
+	set_bit(__ICE_DOWN, vsi->state);
+	vsi->idx = pf->next_vsi;
+	vsi->work_lmt = ICE_DFLT_IRQ_WORK;
+
+	ice_vsi_set_num_qs(vsi);
+
+	switch (vsi->type) {
+	case ICE_VSI_PF:
+		if (ice_vsi_alloc_arrays(vsi, true))
+			goto err_rings;
+
+		/* Setup default MSIX irq handler for VSI */
+		vsi->irq_handler = ice_msix_clean_rings;
+		break;
+	default:
+		dev_warn(&pf->pdev->dev, "Unknown VSI type %d\n", vsi->type);
+		goto unlock_pf;
+	}
+
+	/* fill VSI slot in the PF struct */
+	pf->vsi[pf->next_vsi] = vsi;
+
+	/* prepare pf->next_vsi for next use */
+	pf->next_vsi = ice_get_free_slot(pf->vsi, pf->num_alloc_vsi,
+					 pf->next_vsi);
+	goto unlock_pf;
+
+err_rings:
+	devm_kfree(&pf->pdev->dev, vsi);
+	vsi = NULL;
+unlock_pf:
+	mutex_unlock(&pf->sw_mutex);
+	return vsi;
+}
+
+/**
  * ice_vsi_get_qs_contig - Assign a contiguous chunk of queues to VSI
  * @vsi: the VSI getting queues
  *
@@ -533,7 +597,7 @@ err_scatter_tx:
  *
  * Returns 0 on success and a negative value on error
  */
-int ice_vsi_get_qs(struct ice_vsi *vsi)
+static int ice_vsi_get_qs(struct ice_vsi *vsi)
 {
 	int ret = 0;
 
@@ -602,7 +666,7 @@ static void ice_rss_clean(struct ice_vsi *vsi)
  * ice_vsi_set_rss_params - Setup RSS capabilities per VSI type
  * @vsi: the VSI being configured
  */
-void ice_vsi_set_rss_params(struct ice_vsi *vsi)
+static void ice_vsi_set_rss_params(struct ice_vsi *vsi)
 {
 	struct ice_hw_common_caps *cap;
 	struct ice_pf *pf = vsi->back;
@@ -793,7 +857,7 @@ static void ice_set_rss_vsi_ctx(struct ice_vsi_ctx *ctxt, struct ice_vsi *vsi)
  * This initializes a VSI context depending on the VSI type to be added and
  * passes it down to the add_vsi aq command to create a new VSI.
  */
-int ice_vsi_init(struct ice_vsi *vsi)
+static int ice_vsi_init(struct ice_vsi *vsi)
 {
 	struct ice_vsi_ctx ctxt = { 0 };
 	struct ice_pf *pf = vsi->back;
@@ -922,7 +986,7 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, int v_idx)
  * We allocate one q_vector per queue interrupt.  If allocation fails we
  * return -ENOMEM.
  */
-int ice_vsi_alloc_q_vectors(struct ice_vsi *vsi)
+static int ice_vsi_alloc_q_vectors(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 	int v_idx = 0, num_q_vectors;
@@ -970,7 +1034,7 @@ err_out:
  *
  * Returns 0 on success or negative on failure
  */
-int ice_vsi_setup_vector_base(struct ice_vsi *vsi)
+static int ice_vsi_setup_vector_base(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 	int num_q_vectors = 0;
@@ -1038,7 +1102,7 @@ static void ice_vsi_clear_rings(struct ice_vsi *vsi)
  * ice_vsi_alloc_rings - Allocates Tx and Rx rings for the VSI
  * @vsi: VSI which is having rings allocated
  */
-int ice_vsi_alloc_rings(struct ice_vsi *vsi)
+static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 	int i;
@@ -1096,7 +1160,7 @@ err_out:
  * through the MSI-X enabling code. On a constrained vector budget, we map Tx
  * and Rx rings to the vector as "efficiently" as possible.
  */
-void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
+static void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
 {
 	int q_vectors = vsi->num_q_vectors;
 	int tx_rings_rem, rx_rings_rem;
@@ -1140,6 +1204,69 @@ void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
 		}
 		rx_rings_rem -= rx_rings_per_v;
 	}
+}
+
+/**
+ * ice_vsi_cfg_rss_lut_key - Configure RSS params for a VSI
+ * @vsi: VSI to be configured
+ */
+static int ice_vsi_cfg_rss_lut_key(struct ice_vsi *vsi)
+{
+	u8 seed[ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE];
+	struct ice_aqc_get_set_rss_keys *key;
+	struct ice_pf *pf = vsi->back;
+	enum ice_status status;
+	int err = 0;
+	u8 *lut;
+
+	vsi->rss_size = min_t(int, vsi->rss_size, vsi->num_rxq);
+
+	lut = devm_kzalloc(&pf->pdev->dev, vsi->rss_table_size, GFP_KERNEL);
+	if (!lut)
+		return -ENOMEM;
+
+	if (vsi->rss_lut_user)
+		memcpy(lut, vsi->rss_lut_user, vsi->rss_table_size);
+	else
+		ice_fill_rss_lut(lut, vsi->rss_table_size, vsi->rss_size);
+
+	status = ice_aq_set_rss_lut(&pf->hw, vsi->vsi_num, vsi->rss_lut_type,
+				    lut, vsi->rss_table_size);
+
+	if (status) {
+		dev_err(&vsi->back->pdev->dev,
+			"set_rss_lut failed, error %d\n", status);
+		err = -EIO;
+		goto ice_vsi_cfg_rss_exit;
+	}
+
+	key = devm_kzalloc(&vsi->back->pdev->dev, sizeof(*key), GFP_KERNEL);
+	if (!key) {
+		err = -ENOMEM;
+		goto ice_vsi_cfg_rss_exit;
+	}
+
+	if (vsi->rss_hkey_user)
+		memcpy(seed, vsi->rss_hkey_user,
+		       ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE);
+	else
+		netdev_rss_key_fill((void *)seed,
+				    ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE);
+	memcpy(&key->standard_rss_key, seed,
+	       ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE);
+
+	status = ice_aq_set_rss_key(&pf->hw, vsi->vsi_num, key);
+
+	if (status) {
+		dev_err(&vsi->back->pdev->dev, "set_rss_key failed, error %d\n",
+			status);
+		err = -EIO;
+	}
+
+	devm_kfree(&pf->pdev->dev, key);
+ice_vsi_cfg_rss_exit:
+	devm_kfree(&pf->pdev->dev, lut);
+	return err;
 }
 
 /**
@@ -1720,6 +1847,112 @@ int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena)
 err_out:
 	devm_kfree(dev, ctxt);
 	return -EIO;
+}
+
+/**
+ * ice_vsi_setup - Set up a VSI by a given type
+ * @pf: board private structure
+ * @pi: pointer to the port_info instance
+ * @type: VSI type
+ * @vf_id: defines VF id to which this VSI connects. This field is meant to be
+ *         used only for ICE_VSI_VF VSI type. For other VSI types, should
+ *         fill-in ICE_INVAL_VFID as input.
+ *
+ * This allocates the sw VSI structure and its queue resources.
+ *
+ * Returns pointer to the successfully allocated and configured VSI sw struct on
+ * success, NULL on failure.
+ */
+struct ice_vsi *
+ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
+	      enum ice_vsi_type type, u16 __always_unused vf_id)
+{
+	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
+	struct device *dev = &pf->pdev->dev;
+	struct ice_vsi *vsi;
+	int ret, i;
+
+	vsi = ice_vsi_alloc(pf, type);
+	if (!vsi) {
+		dev_err(dev, "could not allocate VSI\n");
+		return NULL;
+	}
+
+	vsi->port_info = pi;
+	vsi->vsw = pf->first_sw;
+
+	if (ice_vsi_get_qs(vsi)) {
+		dev_err(dev, "Failed to allocate queues. vsi->idx = %d\n",
+			vsi->idx);
+		goto unroll_get_qs;
+	}
+
+	/* set RSS capabilities */
+	ice_vsi_set_rss_params(vsi);
+
+	/* create the VSI */
+	ret = ice_vsi_init(vsi);
+	if (ret)
+		goto unroll_get_qs;
+
+	switch (vsi->type) {
+	case ICE_VSI_PF:
+		ret = ice_vsi_alloc_q_vectors(vsi);
+		if (ret)
+			goto unroll_vsi_init;
+
+		ret = ice_vsi_setup_vector_base(vsi);
+		if (ret)
+			goto unroll_alloc_q_vector;
+
+		ret = ice_vsi_alloc_rings(vsi);
+		if (ret)
+			goto unroll_vector_base;
+
+		ice_vsi_map_rings_to_vectors(vsi);
+
+		/* Do not exit if configuring RSS had an issue, at least
+		 * receive traffic on first queue. Hence no need to capture
+		 * return value
+		 */
+		if (test_bit(ICE_FLAG_RSS_ENA, pf->flags))
+			ice_vsi_cfg_rss_lut_key(vsi);
+		break;
+	default:
+		/* if VSI type is not recognized, clean up the resources and
+		 * exit
+		 */
+		goto unroll_vsi_init;
+	}
+
+	ice_vsi_set_tc_cfg(vsi);
+
+	/* configure VSI nodes based on number of queues and TC's */
+	for (i = 0; i < vsi->tc_cfg.numtc; i++)
+		max_txqs[i] = vsi->num_txq;
+
+	ret = ice_cfg_vsi_lan(vsi->port_info, vsi->vsi_num,
+			      vsi->tc_cfg.ena_tc, max_txqs);
+	if (ret) {
+		dev_info(&pf->pdev->dev, "Failed VSI lan queue config\n");
+		goto unroll_vector_base;
+	}
+
+	return vsi;
+
+unroll_vector_base:
+	ice_free_res(vsi->back->irq_tracker, vsi->base_vector, vsi->idx);
+unroll_alloc_q_vector:
+	ice_vsi_free_q_vectors(vsi);
+unroll_vsi_init:
+	ice_vsi_delete(vsi);
+unroll_get_qs:
+	ice_vsi_put_qs(vsi);
+	pf->q_left_tx += vsi->alloc_txq;
+	pf->q_left_rx += vsi->alloc_rxq;
+	ice_vsi_clear(vsi);
+
+	return NULL;
 }
 
 /**

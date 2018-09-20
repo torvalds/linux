@@ -6,26 +6,6 @@
 
 #include "ice.h"
 
-int ice_vsi_setup_vector_base(struct ice_vsi *vsi);
-
-int ice_vsi_alloc_q_vectors(struct ice_vsi *vsi);
-
-int ice_vsi_get_qs(struct ice_vsi *vsi);
-
-void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi);
-
-int ice_vsi_alloc_rings(struct ice_vsi *vsi);
-
-void ice_vsi_set_rss_params(struct ice_vsi *vsi);
-
-void ice_vsi_set_num_qs(struct ice_vsi *vsi);
-
-int ice_get_free_slot(void *array, int size, int curr);
-
-int ice_vsi_init(struct ice_vsi *vsi);
-
-int ice_vsi_alloc_arrays(struct ice_vsi *vsi, bool alloc_qvectors);
-
 int ice_add_mac_to_list(struct ice_vsi *vsi, struct list_head *add_list,
 			const u8 *macaddr);
 
@@ -59,6 +39,10 @@ void ice_vsi_delete(struct ice_vsi *vsi);
 
 int ice_vsi_clear(struct ice_vsi *vsi);
 
+struct ice_vsi *
+ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
+	      enum ice_vsi_type type, u16 vf_id);
+
 int ice_vsi_release(struct ice_vsi *vsi);
 
 void ice_vsi_close(struct ice_vsi *vsi);
@@ -83,6 +67,8 @@ void ice_vsi_free_irq(struct ice_vsi *vsi);
 void ice_vsi_free_rx_rings(struct ice_vsi *vsi);
 
 void ice_vsi_free_tx_rings(struct ice_vsi *vsi);
+
+int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc);
 
 irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data);
 #endif /* !_ICE_LIB_H_ */
