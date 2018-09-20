@@ -127,11 +127,9 @@ static void free_event_data(struct work_struct *work)
 
 	event_data = container_of(work, struct etm_event_data, work);
 	mask = &event_data->mask;
-	/*
-	 * First deal with the sink configuration.  See comment in
-	 * etm_setup_aux() about why we take the first available path.
-	 */
-	if (event_data->snk_config) {
+
+	/* Free the sink buffers, if there are any */
+	if (event_data->snk_config && !WARN_ON(cpumask_empty(mask))) {
 		cpu = cpumask_first(mask);
 		sink = coresight_get_sink(etm_event_cpu_path(event_data, cpu));
 		if (sink_ops(sink)->free_buffer)
@@ -166,7 +164,7 @@ static void *alloc_event_data(int cpu)
 	if (cpu != -1)
 		cpumask_set_cpu(cpu, mask);
 	else
-		cpumask_copy(mask, cpu_online_mask);
+		cpumask_copy(mask, cpu_present_mask);
 
 	/*
 	 * Each CPU has a single path between source and destination.  As such
@@ -218,19 +216,32 @@ static void *etm_setup_aux(int event_cpu, void **pages,
 	 * on the cmd line.  As such the "enable_sink" flag in sysFS is reset.
 	 */
 	sink = coresight_get_enabled_sink(true);
-	if (!sink)
+	if (!sink || !sink_ops(sink)->alloc_buffer)
 		goto err;
 
 	mask = &event_data->mask;
 
-	/* Setup the path for each CPU in a trace session */
+	/*
+	 * Setup the path for each CPU in a trace session. We try to build
+	 * trace path for each CPU in the mask. If we don't find an ETM
+	 * for the CPU or fail to build a path, we clear the CPU from the
+	 * mask and continue with the rest. If ever we try to trace on those
+	 * CPUs, we can handle it and fail the session.
+	 */
 	for_each_cpu(cpu, mask) {
 		struct list_head *path;
 		struct coresight_device *csdev;
 
 		csdev = per_cpu(csdev_src, cpu);
-		if (!csdev)
-			goto err;
+		/*
+		 * If there is no ETM associated with this CPU clear it from
+		 * the mask and continue with the rest. If ever we try to trace
+		 * on this CPU, we handle it accordingly.
+		 */
+		if (!csdev) {
+			cpumask_clear_cpu(cpu, mask);
+			continue;
+		}
 
 		/*
 		 * Building a path doesn't enable it, it simply builds a
@@ -238,17 +249,20 @@ static void *etm_setup_aux(int event_cpu, void **pages,
 		 * referenced later when the path is actually needed.
 		 */
 		path = coresight_build_path(csdev, sink);
-		if (IS_ERR(path))
-			goto err;
+		if (IS_ERR(path)) {
+			cpumask_clear_cpu(cpu, mask);
+			continue;
+		}
 
 		*etm_event_cpu_path_ptr(event_data, cpu) = path;
 	}
 
-	if (!sink_ops(sink)->alloc_buffer)
+	/* If we don't have any CPUs ready for tracing, abort */
+	cpu = cpumask_first(mask);
+	if (cpu >= nr_cpu_ids)
 		goto err;
 
-	cpu = cpumask_first(mask);
-	/* Get the AUX specific data from the sink buffer */
+	/* Allocate the sink buffer for this session */
 	event_data->snk_config =
 			sink_ops(sink)->alloc_buffer(sink, cpu, pages,
 						     nr_pages, overwrite);
