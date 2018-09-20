@@ -62,11 +62,6 @@ do {									\
  * struct controller - PCIe hotplug controller
  * @pcie: pointer to the controller's PCIe port service device
  * @slot_cap: cached copy of the Slot Capabilities register
- * @link_active_reporting: cached copy of Data Link Layer Link Active Reporting
- *	Capable bit in Link Capabilities register; if this bit is zero, the
- *	Data Link Layer Link Active bit in the Link Status register will never
- *	be set and the driver is thus confined to wait 1 second before assuming
- *	the link to a hotplugged device is up and accessing it
  * @slot_ctrl: cached copy of the Slot Control register
  * @ctrl_lock: serializes writes to the Slot Control register
  * @cmd_started: jiffies when the Slot Control register was last written;
@@ -103,7 +98,6 @@ struct controller {
 	struct pcie_device *pcie;
 
 	u32 slot_cap;				/* capabilities and quirks */
-	unsigned int link_active_reporting:1;
 
 	u16 slot_ctrl;				/* control register access */
 	struct mutex ctrl_lock;

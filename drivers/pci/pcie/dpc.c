@@ -140,9 +140,11 @@ static pci_ers_result_t dpc_reset_link(struct pci_dev *pdev)
 	pci_write_config_word(pdev, cap + PCI_EXP_DPC_STATUS,
 			      PCI_EXP_DPC_STATUS_TRIGGER);
 
+	if (!pcie_wait_for_link(pdev, true))
+		return PCI_ERS_RESULT_DISCONNECT;
+
 	return PCI_ERS_RESULT_RECOVERED;
 }
-
 
 static void dpc_process_rp_pio_error(struct dpc_dev *dpc)
 {

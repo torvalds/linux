@@ -214,13 +214,6 @@ bool pciehp_check_link_active(struct controller *ctrl)
 	return ret;
 }
 
-static void pcie_wait_link_active(struct controller *ctrl)
-{
-	struct pci_dev *pdev = ctrl_dev(ctrl);
-
-	pcie_wait_for_link(pdev, true);
-}
-
 static bool pci_bus_check_dev(struct pci_bus *bus, int devfn)
 {
 	u32 l;
@@ -253,18 +246,9 @@ int pciehp_check_link_status(struct controller *ctrl)
 	bool found;
 	u16 lnk_status;
 
-	/*
-	 * Data Link Layer Link Active Reporting must be capable for
-	 * hot-plug capable downstream port. But old controller might
-	 * not implement it. In this case, we wait for 1000 ms.
-	*/
-	if (ctrl->link_active_reporting)
-		pcie_wait_link_active(ctrl);
-	else
-		msleep(1000);
+	if (!pcie_wait_for_link(pdev, true))
+		return -1;
 
-	/* wait 100ms before read pci conf, and try in 1s */
-	msleep(100);
 	found = pci_bus_check_dev(ctrl->pcie->port->subordinate,
 					PCI_DEVFN(0, 0));
 
@@ -865,8 +849,6 @@ struct controller *pcie_init(struct pcie_device *dev)
 
 	/* Check if Data Link Layer Link Active Reporting is implemented */
 	pcie_capability_read_dword(pdev, PCI_EXP_LNKCAP, &link_cap);
-	if (link_cap & PCI_EXP_LNKCAP_DLLLARC)
-		ctrl->link_active_reporting = 1;
 
 	/* Clear all remaining event bits in Slot Status register. */
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA,
