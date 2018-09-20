@@ -556,4 +556,3 @@ err:
 	iounmap(d->base);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mxs_pinctrl_probe);
