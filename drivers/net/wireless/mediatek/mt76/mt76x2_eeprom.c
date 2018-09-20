@@ -21,7 +21,7 @@
 #define EE_FIELD(_name, _value) [MT_EE_##_name] = (_value) | 1
 
 static int
-mt76x2_eeprom_copy(struct mt76x2_dev *dev, enum mt76x2_eeprom_field field,
+mt76x2_eeprom_copy(struct mt76x2_dev *dev, enum mt76x02_eeprom_field field,
 		   void *dest, int len)
 {
 	if (field + len > dev->mt76.eeprom.size)

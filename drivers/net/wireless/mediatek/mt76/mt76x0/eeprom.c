@@ -245,8 +245,8 @@ mt76x0_set_lna_gain(struct mt76x0_dev *dev, u8 *eeprom)
 {
 	u8 gain;
 
-	dev->ee->lna_gain_2ghz = eeprom[MT_EE_LNA_GAIN_2GHZ];
-	dev->ee->lna_gain_5ghz[0] = eeprom[MT_EE_LNA_GAIN_5GHZ_0];
+	dev->ee->lna_gain_2ghz = eeprom[MT_EE_LNA_GAIN];
+	dev->ee->lna_gain_5ghz[0] = eeprom[MT_EE_LNA_GAIN + 1];
 
 	gain = eeprom[MT_EE_LNA_GAIN_5GHZ_1];
 	if (gain == 0xff || gain == 0)
@@ -268,7 +268,7 @@ mt76x0_set_rssi_offset(struct mt76x0_dev *dev, u8 *eeprom)
 	s8 *rssi_offset = dev->ee->rssi_offset_2ghz;
 
 	for (i = 0; i < 2; i++) {
-		rssi_offset[i] = eeprom[MT_EE_RSSI_OFFSET + i];
+		rssi_offset[i] = eeprom[MT_EE_RSSI_OFFSET_2G_0 + i];
 
 		if (rssi_offset[i] < -10 || rssi_offset[i] > 10) {
 			dev_warn(dev->mt76.dev,
@@ -281,7 +281,7 @@ mt76x0_set_rssi_offset(struct mt76x0_dev *dev, u8 *eeprom)
 	rssi_offset = dev->ee->rssi_offset_5ghz;
 
 	for (i = 0; i < 3; i++) {
-		rssi_offset[i] = eeprom[MT_EE_RSSI_OFFSET_5GHZ + i];
+		rssi_offset[i] = eeprom[MT_EE_RSSI_OFFSET_5G_0 + i];
 
 		if (rssi_offset[i] < -10 || rssi_offset[i] > 10) {
 			dev_warn(dev->mt76.dev,
@@ -377,7 +377,7 @@ mt76x0_set_tx_power_per_chan(struct mt76x0_dev *dev, u8 *eeprom)
 	u8 tx_pwr;
 
 	for (i = 0; i < 14; i++) {
-		tx_pwr = eeprom[MT_EE_TX_POWER_OFFSET_2GHZ + i];
+		tx_pwr = eeprom[MT_EE_TX_POWER_DELTA_BW80 + i];
 		if (tx_pwr <= 0x3f && tx_pwr > 0)
 			dev->ee->tx_pwr_per_chan[i] = tx_pwr;
 		else
@@ -385,7 +385,7 @@ mt76x0_set_tx_power_per_chan(struct mt76x0_dev *dev, u8 *eeprom)
 	}
 
 	for (i = 0; i < 40; i++) {
-		tx_pwr = eeprom[MT_EE_TX_POWER_OFFSET_5GHZ + i];
+		tx_pwr = eeprom[MT_EE_TX_POWER_0_GRP4_TSSI_SLOPE + 2 + i];
 		if (tx_pwr <= 0x3f && tx_pwr > 0)
 			dev->ee->tx_pwr_per_chan[14 + i] = tx_pwr;
 		else
@@ -422,12 +422,12 @@ mt76x0_eeprom_init(struct mt76x0_dev *dev)
 			goto out;
 	}
 
-	if (eeprom[MT_EE_VERSION_EE] > MT76X0U_EE_MAX_VER)
+	if (eeprom[MT_EE_VERSION + 1] > MT76X0U_EE_MAX_VER)
 		dev_warn(dev->mt76.dev,
 			 "Warning: unsupported EEPROM version %02hhx\n",
-			 eeprom[MT_EE_VERSION_EE]);
+			 eeprom[MT_EE_VERSION + 1]);
 	dev_info(dev->mt76.dev, "EEPROM ver:%02hhx fae:%02hhx\n",
-		 eeprom[MT_EE_VERSION_EE], eeprom[MT_EE_VERSION_FAE]);
+		 eeprom[MT_EE_VERSION + 1], eeprom[MT_EE_VERSION]);
 
 	mt76x0_set_macaddr(dev, eeprom);
 	mt76x0_set_chip_cap(dev, eeprom);
