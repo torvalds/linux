@@ -84,6 +84,7 @@ enum ice_media_type {
 
 enum ice_vsi_type {
 	ICE_VSI_PF = 0,
+	ICE_VSI_VF,
 };
 
 struct ice_link_status {
@@ -127,6 +128,8 @@ struct ice_hw_common_caps {
 	/* Max MTU for function or device */
 	u16 max_mtu;
 
+	/* Virtualization support */
+	u8 sr_iov_1_1;			/* SR-IOV enabled */
 	/* RSS related capabilities */
 	u16 rss_table_size;		/* 512 for PFs and 64 for VFs */
 	u8 rss_table_entry_width;	/* RSS Entry width in bits */
@@ -135,12 +138,15 @@ struct ice_hw_common_caps {
 /* Function specific capabilities */
 struct ice_hw_func_caps {
 	struct ice_hw_common_caps common_cap;
+	u32 num_allocd_vfs;		/* Number of allocated VFs */
+	u32 vf_base_id;			/* Logical ID of the first VF */
 	u32 guaranteed_num_vsi;
 };
 
 /* Device wide capabilities */
 struct ice_hw_dev_caps {
 	struct ice_hw_common_caps common_cap;
+	u32 num_vfs_exposed;		/* Total number of VFs exposed */
 	u32 num_vsi_allocd_to_host;	/* Excluding EMP VSI */
 };
 
@@ -321,6 +327,7 @@ struct ice_hw {
 
 	/* Control Queue info */
 	struct ice_ctl_q_info adminq;
+	struct ice_ctl_q_info mailboxq;
 
 	u8 api_branch;		/* API branch version */
 	u8 api_maj_ver;		/* API major version */

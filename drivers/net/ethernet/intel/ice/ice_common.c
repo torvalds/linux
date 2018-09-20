@@ -1406,6 +1406,28 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 		u16 cap = le16_to_cpu(cap_resp->cap);
 
 		switch (cap) {
+		case ICE_AQC_CAPS_SRIOV:
+			caps->sr_iov_1_1 = (number == 1);
+			ice_debug(hw, ICE_DBG_INIT,
+				  "HW caps: SR-IOV = %d\n", caps->sr_iov_1_1);
+			break;
+		case ICE_AQC_CAPS_VF:
+			if (dev_p) {
+				dev_p->num_vfs_exposed = number;
+				ice_debug(hw, ICE_DBG_INIT,
+					  "HW caps: VFs exposed = %d\n",
+					  dev_p->num_vfs_exposed);
+			} else if (func_p) {
+				func_p->num_allocd_vfs = number;
+				func_p->vf_base_id = logical_id;
+				ice_debug(hw, ICE_DBG_INIT,
+					  "HW caps: VFs allocated = %d\n",
+					  func_p->num_allocd_vfs);
+				ice_debug(hw, ICE_DBG_INIT,
+					  "HW caps: VF base_id = %d\n",
+					  func_p->vf_base_id);
+			}
+			break;
 		case ICE_AQC_CAPS_VSI:
 			if (dev_p) {
 				dev_p->num_vsi_allocd_to_host = number;

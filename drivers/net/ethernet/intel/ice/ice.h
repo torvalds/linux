@@ -46,6 +46,7 @@ extern const char ice_drv_ver[];
 #define ICE_INT_NAME_STR_LEN	(IFNAMSIZ + 16)
 #define ICE_ETHTOOL_FWVER_LEN	32
 #define ICE_AQ_LEN		64
+#define ICE_MBXQ_LEN		64
 #define ICE_MIN_MSIX		2
 #define ICE_NO_VSI		0xffff
 #define ICE_MAX_VSI_ALLOC	130
@@ -63,6 +64,7 @@ extern const char ice_drv_ver[];
 #define ICE_RES_MISC_VEC_ID	(ICE_RES_VALID_BIT - 1)
 #define ICE_INVAL_Q_INDEX	0xffff
 #define ICE_INVAL_VFID		256
+#define ICE_MAX_VF_COUNT	256
 
 #define ICE_VSIQF_HKEY_ARRAY_SIZE	((VSIQF_HKEY_MAX_INDEX + 1) *	4)
 
@@ -134,6 +136,7 @@ enum ice_state {
 	__ICE_SUSPENDED,		/* set on module remove path */
 	__ICE_RESET_FAILED,		/* set by reset/rebuild */
 	__ICE_ADMINQ_EVENT_PENDING,
+	__ICE_MAILBOXQ_EVENT_PENDING,
 	__ICE_MDD_EVENT_PENDING,
 	__ICE_FLTR_OVERFLOW_PROMISC,
 	__ICE_CFG_BUSY,
@@ -240,6 +243,7 @@ enum ice_pf_flags {
 	ICE_FLAG_MSIX_ENA,
 	ICE_FLAG_FLTR_SYNC,
 	ICE_FLAG_RSS_ENA,
+	ICE_FLAG_SRIOV_CAPABLE,
 	ICE_PF_FLAGS_NBITS		/* must be last */
 };
 
@@ -255,6 +259,7 @@ struct ice_pf {
 
 	struct ice_vsi **vsi;		/* VSIs created by the driver */
 	struct ice_sw *first_sw;	/* first switch created by firmware */
+	u16 num_vfs_supported;		/* num VFs supported for this PF */
 	DECLARE_BITMAP(state, __ICE_STATE_NBITS);
 	DECLARE_BITMAP(avail_txqs, ICE_MAX_TXQS);
 	DECLARE_BITMAP(avail_rxqs, ICE_MAX_RXQS);

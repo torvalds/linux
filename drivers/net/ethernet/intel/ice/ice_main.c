@@ -711,6 +711,10 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 		cq = &hw->adminq;
 		qtype = "Admin";
 		break;
+	case ICE_CTL_Q_MAILBOX:
+		cq = &hw->mailboxq;
+		qtype = "Mailbox";
+		break;
 	default:
 		dev_warn(&pf->pdev->dev, "Unknown control queue type 0x%x\n",
 			 q_type);
@@ -846,6 +850,28 @@ static void ice_clean_adminq_subtask(struct ice_pf *pf)
 	 */
 	if (ice_ctrlq_pending(hw, &hw->adminq))
 		__ice_clean_ctrlq(pf, ICE_CTL_Q_ADMIN);
+
+	ice_flush(hw);
+}
+
+/**
+ * ice_clean_mailboxq_subtask - clean the MailboxQ rings
+ * @pf: board private structure
+ */
+static void ice_clean_mailboxq_subtask(struct ice_pf *pf)
+{
+	struct ice_hw *hw = &pf->hw;
+
+	if (!test_bit(__ICE_MAILBOXQ_EVENT_PENDING, pf->state))
+		return;
+
+	if (__ice_clean_ctrlq(pf, ICE_CTL_Q_MAILBOX))
+		return;
+
+	clear_bit(__ICE_MAILBOXQ_EVENT_PENDING, pf->state);
+
+	if (ice_ctrlq_pending(hw, &hw->mailboxq))
+		__ice_clean_ctrlq(pf, ICE_CTL_Q_MAILBOX);
 
 	ice_flush(hw);
 }
@@ -1040,6 +1066,7 @@ static void ice_service_task(struct work_struct *work)
 	ice_handle_mdd_event(pf);
 	ice_watchdog_subtask(pf);
 	ice_clean_adminq_subtask(pf);
+	ice_clean_mailboxq_subtask(pf);
 
 	/* Clear __ICE_SERVICE_SCHED flag to allow scheduling next event */
 	ice_service_task_complete(pf);
@@ -1050,6 +1077,7 @@ static void ice_service_task(struct work_struct *work)
 	 */
 	if (time_after(jiffies, (start_time + pf->serv_tmr_period)) ||
 	    test_bit(__ICE_MDD_EVENT_PENDING, pf->state) ||
+	    test_bit(__ICE_MAILBOXQ_EVENT_PENDING, pf->state) ||
 	    test_bit(__ICE_ADMINQ_EVENT_PENDING, pf->state))
 		mod_timer(&pf->serv_tmr, jiffies);
 }
@@ -1064,6 +1092,10 @@ static void ice_set_ctrlq_len(struct ice_hw *hw)
 	hw->adminq.num_sq_entries = ICE_AQ_LEN;
 	hw->adminq.rq_buf_size = ICE_AQ_MAX_BUF_LEN;
 	hw->adminq.sq_buf_size = ICE_AQ_MAX_BUF_LEN;
+	hw->mailboxq.num_rq_entries = ICE_MBXQ_LEN;
+	hw->mailboxq.num_sq_entries = ICE_MBXQ_LEN;
+	hw->mailboxq.rq_buf_size = ICE_MBXQ_MAX_BUF_LEN;
+	hw->mailboxq.sq_buf_size = ICE_MBXQ_MAX_BUF_LEN;
 }
 
 /**
@@ -1220,6 +1252,7 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 	u32 oicr, ena_mask;
 
 	set_bit(__ICE_ADMINQ_EVENT_PENDING, pf->state);
+	set_bit(__ICE_MAILBOXQ_EVENT_PENDING, pf->state);
 
 	oicr = rd32(hw, PFINT_OICR);
 	ena_mask = rd32(hw, PFINT_OICR_ENA);
@@ -1405,6 +1438,11 @@ skip_req_irq:
 	val = ((pf->hw_oicr_idx & PFINT_FW_CTL_MSIX_INDX_M) |
 	       PFINT_FW_CTL_CAUSE_ENA_M);
 	wr32(hw, PFINT_FW_CTL, val);
+
+	/* This enables Mailbox queue Interrupt causes */
+	val = ((pf->hw_oicr_idx & PFINT_MBX_CTL_MSIX_INDX_M) |
+	       PFINT_MBX_CTL_CAUSE_ENA_M);
+	wr32(hw, PFINT_MBX_CTL, val);
 
 	itr_gran = hw->itr_gran;
 
@@ -1775,6 +1813,15 @@ static void ice_init_pf(struct ice_pf *pf)
 {
 	bitmap_zero(pf->flags, ICE_PF_FLAGS_NBITS);
 	set_bit(ICE_FLAG_MSIX_ENA, pf->flags);
+#ifdef CONFIG_PCI_IOV
+	if (pf->hw.func_caps.common_cap.sr_iov_1_1) {
+		struct ice_hw *hw = &pf->hw;
+
+		set_bit(ICE_FLAG_SRIOV_CAPABLE, pf->flags);
+		pf->num_vfs_supported = min_t(int, hw->func_caps.num_allocd_vfs,
+					      ICE_MAX_VF_COUNT);
+	}
+#endif /* CONFIG_PCI_IOV */
 
 	mutex_init(&pf->sw_mutex);
 	mutex_init(&pf->avail_q_mutex);
