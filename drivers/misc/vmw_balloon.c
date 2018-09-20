@@ -420,16 +420,18 @@ static bool vmballoon_send_get_target(struct vmballoon *b)
  * check the return value and maybe submit a different page.
  */
 static int vmballoon_send_lock_page(struct vmballoon *b, unsigned long pfn,
-				    unsigned int *hv_status)
+				    unsigned int *hv_status, bool lock)
 {
-	unsigned long status;
+	unsigned long status, cmd;
 	u32 pfn32;
 
 	pfn32 = (u32)pfn;
 	if (pfn32 != pfn)
 		return -EINVAL;
 
-	*hv_status = status = vmballoon_cmd(b, VMW_BALLOON_CMD_LOCK, pfn, 0);
+	cmd = lock ? VMW_BALLOON_CMD_LOCK : VMW_BALLOON_CMD_UNLOCK;
+
+	*hv_status = status = vmballoon_cmd(b, cmd, pfn, 0);
 
 	if (status == VMW_BALLOON_SUCCESS)
 		return 0;
@@ -438,13 +440,18 @@ static int vmballoon_send_lock_page(struct vmballoon *b, unsigned long pfn,
 }
 
 static int vmballoon_send_batched_lock(struct vmballoon *b,
-				       unsigned int num_pages, bool is_2m_pages)
+				       unsigned int num_pages, bool is_2m_pages,
+				       bool lock)
 {
 	unsigned long pfn = PHYS_PFN(virt_to_phys(b->batch_page));
 	unsigned long status, cmd;
 
-	cmd = is_2m_pages ? VMW_BALLOON_CMD_BATCHED_2M_LOCK :
-			    VMW_BALLOON_CMD_BATCHED_LOCK;
+	if (lock)
+		cmd = is_2m_pages ? VMW_BALLOON_CMD_BATCHED_2M_LOCK :
+				    VMW_BALLOON_CMD_BATCHED_LOCK;
+	else
+		cmd = is_2m_pages ? VMW_BALLOON_CMD_BATCHED_2M_UNLOCK :
+				    VMW_BALLOON_CMD_BATCHED_UNLOCK;
 
 	status = vmballoon_cmd(b, cmd, pfn, num_pages);
 
@@ -452,37 +459,6 @@ static int vmballoon_send_batched_lock(struct vmballoon *b,
 		return 0;
 
 	return 1;
-}
-
-/*
- * Notify the host that guest intends to release given page back into
- * the pool of available (to the guest) pages.
- */
-static bool vmballoon_send_unlock_page(struct vmballoon *b, unsigned long pfn)
-{
-	unsigned long status;
-	u32 pfn32;
-
-	pfn32 = (u32)pfn;
-	if (pfn32 != pfn)
-		return false;
-
-	status = vmballoon_cmd(b, VMW_BALLOON_CMD_UNLOCK, pfn, 0);
-	return status == VMW_BALLOON_SUCCESS;
-}
-
-static bool vmballoon_send_batched_unlock(struct vmballoon *b,
-		unsigned int num_pages, bool is_2m_pages)
-{
-	unsigned long pfn = PHYS_PFN(virt_to_phys(b->batch_page));
-	unsigned long status, cmd;
-
-	cmd = is_2m_pages ? VMW_BALLOON_CMD_BATCHED_2M_UNLOCK :
-			    VMW_BALLOON_CMD_BATCHED_UNLOCK;
-
-	status = vmballoon_cmd(b, cmd, pfn, num_pages);
-
-	return status == VMW_BALLOON_SUCCESS;
 }
 
 static struct page *vmballoon_alloc_page(gfp_t flags, bool is_2m_page)
@@ -546,7 +522,8 @@ static int vmballoon_lock_page(struct vmballoon *b, unsigned int num_pages,
 
 	/* is_2m_pages can never happen as 2m pages support implies batching */
 
-	locked = vmballoon_send_lock_page(b, page_to_pfn(page), &hv_status);
+	locked = vmballoon_send_lock_page(b, page_to_pfn(page), &hv_status,
+					  true);
 
 	if (locked) {
 		STATS_INC(b->stats.refused_alloc[false]);
@@ -587,7 +564,7 @@ static int vmballoon_lock_batched_page(struct vmballoon *b,
 	int locked, i;
 	u16 size_per_page = vmballoon_page_size(is_2m_pages);
 
-	locked = vmballoon_send_batched_lock(b, num_pages, is_2m_pages);
+	locked = vmballoon_send_batched_lock(b, num_pages, is_2m_pages, true);
 
 	if (locked > 0) {
 		for (i = 0; i < num_pages; i++) {
@@ -645,10 +622,12 @@ static int vmballoon_unlock_page(struct vmballoon *b, unsigned int num_pages,
 {
 	struct page *page = b->page;
 	struct vmballoon_page_size *page_size = &b->page_sizes[false];
+	unsigned int hv_status;
 
 	/* is_2m_pages can never happen as 2m pages support implies batching */
 
-	if (!vmballoon_send_unlock_page(b, page_to_pfn(page))) {
+	if (!vmballoon_send_lock_page(b, page_to_pfn(page), &hv_status,
+				      false)) {
 		list_add(&page->lru, &page_size->pages);
 		return -EIO;
 	}
@@ -670,7 +649,8 @@ static int vmballoon_unlock_batched_page(struct vmballoon *b,
 	bool hv_success;
 	u16 size_per_page = vmballoon_page_size(is_2m_pages);
 
-	hv_success = vmballoon_send_batched_unlock(b, num_pages, is_2m_pages);
+	hv_success = vmballoon_send_batched_lock(b, num_pages, is_2m_pages,
+						 false);
 
 	if (!hv_success)
 		ret = -EIO;
