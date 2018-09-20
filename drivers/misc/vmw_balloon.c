@@ -218,7 +218,8 @@ enum vmballoon_stat_page {
 enum vmballoon_stat_general {
 	VMW_BALLOON_STAT_TIMER,
 	VMW_BALLOON_STAT_DOORBELL,
-	VMW_BALLOON_STAT_LAST = VMW_BALLOON_STAT_DOORBELL
+	VMW_BALLOON_STAT_RESET,
+	VMW_BALLOON_STAT_LAST = VMW_BALLOON_STAT_RESET
 };
 
 #define VMW_BALLOON_STAT_NUM		(VMW_BALLOON_STAT_LAST + 1)
@@ -1303,6 +1304,7 @@ static void vmballoon_reset(struct vmballoon *b)
 		vmballoon_deinit_batching(b);
 	}
 
+	vmballoon_stats_gen_inc(b, VMW_BALLOON_STAT_RESET);
 	b->reset_required = false;
 
 	error = vmballoon_vmci_init(b);
@@ -1380,7 +1382,8 @@ static const char * const vmballoon_stat_page_names[] = {
 
 static const char * const vmballoon_stat_names[] = {
 	[VMW_BALLOON_STAT_TIMER]		= "timer",
-	[VMW_BALLOON_STAT_DOORBELL]		= "doorbell"
+	[VMW_BALLOON_STAT_DOORBELL]		= "doorbell",
+	[VMW_BALLOON_STAT_RESET]		= "reset",
 };
 
 static int vmballoon_enable_stats(struct vmballoon *b)
