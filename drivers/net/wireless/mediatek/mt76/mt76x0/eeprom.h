@@ -33,11 +33,10 @@ struct mt76x0_caldata {
 	s8 lna_gain;
 
 	s16 temp_offset;
+	u8 freq_offset;
 };
 
 struct mt76x0_eeprom_params {
-	u8 rf_freq_off;
-
 	/* TX_PWR_CFG_* values from EEPROM for 20 and 40 Mhz bandwidths. */
 	u32 tx_pwr_cfg_2g[5][2];
 	u32 tx_pwr_cfg_5g[5][2];

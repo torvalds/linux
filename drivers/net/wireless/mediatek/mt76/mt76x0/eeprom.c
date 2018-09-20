@@ -103,23 +103,21 @@ static void mt76x0_set_temp_offset(struct mt76x0_dev *dev)
 		dev->caldata.temp_offset = -10;
 }
 
-static void
-mt76x0_set_rf_freq_off(struct mt76x0_dev *dev, u8 *eeprom)
+static void mt76x0_set_freq_offset(struct mt76x0_dev *dev)
 {
-	u8 comp;
+	struct mt76x0_caldata *caldata = &dev->caldata;
+	u8 val;
 
-	comp = eeprom[MT_EE_FREQ_OFFSET_COMPENSATION];
-	if (!mt76x02_field_valid(comp))
-		comp = 0;
+	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_FREQ_OFFSET);
+	if (!mt76x02_field_valid(val))
+		val = 0;
+	caldata->freq_offset = val;
 
-	dev->ee->rf_freq_off = eeprom[MT_EE_FREQ_OFFSET];
-	if (!mt76x02_field_valid(dev->ee->rf_freq_off))
-		dev->ee->rf_freq_off = 0;
+	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_TSSI_BOUND4) >> 8;
+	if (!mt76x02_field_valid(val))
+		val = 0;
 
-	if (comp & BIT(7))
-		dev->ee->rf_freq_off -= comp & 0x7f;
-	else
-		dev->ee->rf_freq_off += comp;
+	caldata->freq_offset -= mt76x02_sign_extend(val, 8);
 }
 
 void mt76x0_read_rx_gain(struct mt76x0_dev *dev)
@@ -286,7 +284,7 @@ mt76x0_eeprom_init(struct mt76x0_dev *dev)
 
 	mt76x02_mac_setaddr(&dev->mt76, eeprom + MT_EE_MAC_ADDR);
 	mt76x0_set_chip_cap(dev, eeprom);
-	mt76x0_set_rf_freq_off(dev, eeprom);
+	mt76x0_set_freq_offset(dev);
 	mt76x0_set_temp_offset(dev);
 	dev->chainmask = 0x0101;
 
