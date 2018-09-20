@@ -946,9 +946,9 @@ static void soc_remove_dai(struct snd_soc_dai *dai, int order)
 {
 	int err;
 
-	if (dai && dai->probed &&
-			dai->driver->remove_order == order) {
-		if (dai->driver->remove) {
+	if (dai && dai->probed) {
+		if (dai->driver && dai->driver->remove_order == order &&
+		    dai->driver->remove) {
 			err = dai->driver->remove(dai);
 			if (err < 0)
 				dev_err(dai->dev,
