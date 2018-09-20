@@ -31,18 +31,15 @@
 /* Convert between a 140 based task->prio, and our 102 based cpupri */
 static int convert_prio(int prio)
 {
-	int cpupri;
 
 	if (prio == CPUPRI_INVALID)
-		cpupri = CPUPRI_INVALID;
+		return CPUPRI_INVALID;
 	else if (prio == MAX_PRIO)
-		cpupri = CPUPRI_IDLE;
+		return CPUPRI_IDLE;
 	else if (prio >= MAX_RT_PRIO)
-		cpupri = CPUPRI_NORMAL;
+		return CPUPRI_NORMAL;
 	else
-		cpupri = MAX_RT_PRIO - prio + 1;
-
-	return cpupri;
+		return MAX_RT_PRIO - prio + 1;
 }
 
 /**

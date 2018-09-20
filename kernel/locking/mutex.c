@@ -82,16 +82,13 @@ static inline struct task_struct *__mutex_trylock_or_owner(struct mutex *lock)
 	unsigned long owner, curr = (unsigned long)current;
 
 	owner = atomic_long_read(&lock->owner);
-	for (;;) { /* must loop, can race against a flag */
+	while (1) { /* must loop, can race against a flag */
 		unsigned long old, flags = __owner_flags(owner);
 		unsigned long task = owner & ~MUTEX_FLAGS;
 
 		if (task) {
-			if (likely(task != curr))
-				break;
-
-			if (likely(!(flags & MUTEX_FLAG_PICKUP)))
-				break;
+			if (likely(task != curr) || likely(!(flags & MUTEX_FLAG_PICKUP)))
+				break
 
 			flags &= ~MUTEX_FLAG_PICKUP;
 		} else {
@@ -141,20 +138,14 @@ static __always_inline bool __mutex_trylock_fast(struct mutex *lock)
 	unsigned long curr = (unsigned long)current;
 	unsigned long zero = 0UL;
 
-	if (atomic_long_try_cmpxchg_acquire(&lock->owner, &zero, curr))
-		return true;
-
-	return false;
+	return atomic_long_try_cmpxchg_acquire(&lock->owner, &zero, curr);
 }
 
 static __always_inline bool __mutex_unlock_fast(struct mutex *lock)
 {
 	unsigned long curr = (unsigned long)current;
 
-	if (atomic_long_cmpxchg_release(&lock->owner, curr, 0UL) == curr)
-		return true;
-
-	return false;
+	return atomic_long_cmpxchg_release(&lock->owner, curr, 0UL) == curr;
 }
 #endif
 
@@ -631,7 +622,7 @@ mutex_optimistic_spin(struct mutex *lock, struct ww_acquire_ctx *ww_ctx,
 			goto fail;
 	}
 
-	for (;;) {
+	while (1) {
 		struct task_struct *owner;
 
 		/* Try to acquire the mutex... */
@@ -972,7 +963,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	waiter.task = current;
 
 	set_current_state(state);
-	for (;;) {
+	while (1) {
 		/*
 		 * Once we hold wait_lock, we're serialized against
 		 * mutex_unlock() handing the lock off to us, do a trylock
