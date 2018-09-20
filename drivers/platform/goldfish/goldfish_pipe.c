@@ -210,7 +210,7 @@ struct goldfish_pipe_dev {
 	unsigned char __iomem *base;
 };
 
-struct goldfish_pipe_dev goldfish_pipe_dev;
+static struct goldfish_pipe_dev goldfish_pipe_dev;
 
 static int goldfish_pipe_cmd_locked(struct goldfish_pipe *pipe,
 				    enum PipeCmdCode cmd)
