@@ -5035,6 +5035,18 @@ static int smu7_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw
 	return 0;
 }
 
+static int smu7_power_off_asic(struct pp_hwmgr *hwmgr)
+{
+	int result;
+
+	result = smu7_disable_dpm_tasks(hwmgr);
+	PP_ASSERT_WITH_CODE((0 == result),
+			"[disable_dpm_tasks] Failed to disable DPM!",
+			);
+
+	return result;
+}
+
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
 	.backend_fini = &smu7_hwmgr_backend_fini,
@@ -5092,6 +5104,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_power_profile_mode = smu7_get_power_profile_mode,
 	.set_power_profile_mode = smu7_set_power_profile_mode,
 	.get_performance_level = smu7_get_performance_level,
+	.power_off_asic = smu7_power_off_asic,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,
