@@ -2251,6 +2251,7 @@ static struct ib_qp *mlx5_ib_create_dct(struct ib_pd *pd,
 		goto err_free;
 	}
 
+	MLX5_SET(create_dct_in, qp->dct.in, uid, to_mpd(pd)->uid);
 	dctc = MLX5_ADDR_OF(create_dct_in, qp->dct.in, dct_context_entry);
 	qp->qp_sub_type = MLX5_IB_QPT_DCT;
 	MLX5_SET(dctc, dctc, pd, to_mpd(pd)->pdn);
