@@ -55,40 +55,6 @@ mt76x2_stop(struct ieee80211_hw *hw)
 }
 
 static int
-mt76x2_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-{
-	struct mt76x2_dev *dev = hw->priv;
-	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
-	unsigned int idx = 0;
-
-	if (vif->addr[0] & BIT(1))
-		idx = 1 + (((dev->mt76.macaddr[0] ^ vif->addr[0]) >> 2) & 7);
-
-	/*
-	 * Client mode typically only has one configurable BSSID register,
-	 * which is used for bssidx=0. This is linked to the MAC address.
-	 * Since mac80211 allows changing interface types, and we cannot
-	 * force the use of the primary MAC address for a station mode
-	 * interface, we need some other way of configuring a per-interface
-	 * remote BSSID.
-	 * The hardware provides an AP-Client feature, where bssidx 0-7 are
-	 * used for AP mode and bssidx 8-15 for client mode.
-	 * We shift the station interface bss index by 8 to force the
-	 * hardware to recognize the BSSID.
-	 * The resulting bssidx mismatch for unicast frames is ignored by hw.
-	 */
-	if (vif->type == NL80211_IFTYPE_STATION)
-		idx += 8;
-
-	mvif->idx = idx;
-	mvif->group_wcid.idx = MT_VIF_WCID(idx);
-	mvif->group_wcid.hw_key_idx = -1;
-	mt76x02_txq_init(&dev->mt76, vif->txq);
-
-	return 0;
-}
-
-static int
 mt76x2_set_channel(struct mt76x2_dev *dev, struct cfg80211_chan_def *chandef)
 {
 	int ret;
@@ -318,22 +284,22 @@ const struct ieee80211_ops mt76x2_ops = {
 	.tx = mt76x2_tx,
 	.start = mt76x2_start,
 	.stop = mt76x2_stop,
-	.add_interface = mt76x2_add_interface,
-	.remove_interface = mt76x2_remove_interface,
+	.add_interface = mt76x02_add_interface,
+	.remove_interface = mt76x02_remove_interface,
 	.config = mt76x2_config,
 	.configure_filter = mt76x02_configure_filter,
 	.bss_info_changed = mt76x2_bss_info_changed,
-	.sta_add = mt76x2_sta_add,
-	.sta_remove = mt76x2_sta_remove,
-	.set_key = mt76x2_set_key,
-	.conf_tx = mt76x2_conf_tx,
+	.sta_add = mt76x02_sta_add,
+	.sta_remove = mt76x02_sta_remove,
+	.set_key = mt76x02_set_key,
+	.conf_tx = mt76x02_conf_tx,
 	.sw_scan_start = mt76x2_sw_scan,
 	.sw_scan_complete = mt76x2_sw_scan_complete,
 	.flush = mt76x2_flush,
-	.ampdu_action = mt76x2_ampdu_action,
+	.ampdu_action = mt76x02_ampdu_action,
 	.get_txpower = mt76x2_get_txpower,
 	.wake_tx_queue = mt76_wake_tx_queue,
-	.sta_rate_tbl_update = mt76x2_sta_rate_tbl_update,
+	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
 	.release_buffered_frames = mt76_release_buffered_frames,
 	.set_coverage_class = mt76x2_set_coverage_class,
 	.get_survey = mt76_get_survey,

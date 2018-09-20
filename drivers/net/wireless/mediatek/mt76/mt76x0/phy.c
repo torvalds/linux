@@ -117,7 +117,7 @@ rf_wr(struct mt76x0_dev *dev, u32 offset, u8 val)
 			.value = val,
 		};
 
-		return mt76x0_write_reg_pairs(dev, MT_MCU_MEMMAP_RF, &pair, 1);
+		return mt76_wr_rp(dev, MT_MCU_MEMMAP_RF, &pair, 1);
 	} else {
 		WARN_ON_ONCE(1);
 		return mt76x0_rf_csr_wr(dev, offset, val);
@@ -135,7 +135,7 @@ rf_rr(struct mt76x0_dev *dev, u32 offset)
 			.reg = offset,
 		};
 
-		ret = mt76x0_read_reg_pairs(dev, MT_MCU_MEMMAP_RF, &pair, 1);
+		ret = mt76_rd_rp(dev, MT_MCU_MEMMAP_RF, &pair, 1);
 		val = pair.value;
 	} else {
 		WARN_ON_ONCE(1);
@@ -175,8 +175,9 @@ rf_clear(struct mt76x0_dev *dev, u32 offset, u8 mask)
 }
 #endif
 
-#define RF_RANDOM_WRITE(dev, tab) \
-	mt76x0_write_reg_pairs(dev, MT_MCU_MEMMAP_RF, tab, ARRAY_SIZE(tab));
+#define RF_RANDOM_WRITE(dev, tab)		\
+	mt76_wr_rp(dev, MT_MCU_MEMMAP_RF,	\
+		   tab, ARRAY_SIZE(tab))
 
 int mt76x0_wait_bbp_ready(struct mt76x0_dev *dev)
 {
@@ -225,7 +226,7 @@ mt76x0_bbp_set_ctrlch(struct mt76x0_dev *dev, enum nl80211_chan_width width,
 	mt76_rmw_field(dev, MT_BBP(TXBE, 0), MT_BBP_TXBE_R0_CTRL_CHAN, ctrl);
 }
 
-int mt76x0_phy_get_rssi(struct mt76x0_dev *dev, struct mt76x0_rxwi *rxwi)
+int mt76x0_phy_get_rssi(struct mt76x0_dev *dev, struct mt76x02_rxwi *rxwi)
 {
 	s8 lna_gain, rssi_offset;
 	int val;
@@ -640,7 +641,7 @@ mt76x0_bbp_set_bw(struct mt76x0_dev *dev, enum nl80211_chan_width width)
 		return ;
 	}
 
-	mt76x0_mcu_function_select(dev, BW_SETTING, bw);
+	mt76x02_mcu_function_select(&dev->mt76, BW_SETTING, bw, false);
 }
 
 static void
@@ -757,10 +758,10 @@ __mt76x0_phy_set_channel(struct mt76x0_dev *dev,
 	/* Vendor driver don't do it */
 	/* mt76x0_phy_set_tx_power(dev, channel, rf_bw_band); */
 
+	mt76x0_vco_cal(dev, channel);
 	if (scan)
-		mt76x0_vco_cal(dev, channel);
+		mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXDCOC, 1, false);
 
-	mt76x0_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1);
 	mt76x0_phy_set_chan_pwr(dev, channel);
 
 	dev->mt76.chandef = *chandef;
@@ -785,7 +786,7 @@ void mt76x0_phy_recalibrate_after_assoc(struct mt76x0_dev *dev)
 	u8 channel = dev->mt76.chandef.chan->hw_value;
 	int is_5ghz = (dev->mt76.chandef.chan->band == NL80211_BAND_5GHZ) ? 1 : 0;
 
-	mt76x0_mcu_calibrate(dev, MCU_CAL_R, 0);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_R, 0, false);
 
 	mt76x0_vco_cal(dev, channel);
 
@@ -797,20 +798,22 @@ void mt76x0_phy_recalibrate_after_assoc(struct mt76x0_dev *dev)
 	reg_val &= 0xffffff7e;
 	mt76_wr(dev, 0x2124, reg_val);
 
-	mt76x0_mcu_calibrate(dev, MCU_CAL_RXDCOC, 0);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXDCOC, 0, false);
 
-	mt76x0_mcu_calibrate(dev, MCU_CAL_LC, is_5ghz);
-	mt76x0_mcu_calibrate(dev, MCU_CAL_LOFT, is_5ghz);
-	mt76x0_mcu_calibrate(dev, MCU_CAL_TXIQ, is_5ghz);
-	mt76x0_mcu_calibrate(dev, MCU_CAL_TX_GROUP_DELAY, is_5ghz);
-	mt76x0_mcu_calibrate(dev, MCU_CAL_RXIQ, is_5ghz);
-	mt76x0_mcu_calibrate(dev, MCU_CAL_RX_GROUP_DELAY, is_5ghz);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_LC, is_5ghz, false);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_LOFT, is_5ghz, false);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TXIQ, is_5ghz, false);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TX_GROUP_DELAY,
+			      is_5ghz, false);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXIQ, is_5ghz, false);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RX_GROUP_DELAY,
+			      is_5ghz, false);
 
 	mt76_wr(dev, 0x2124, reg_val);
 	mt76_wr(dev, MT_TX_ALC_CFG_0, tx_alc);
 	msleep(100);
 
-	mt76x0_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXDCOC, 1, false);
 }
 
 void mt76x0_agc_save(struct mt76x0_dev *dev)

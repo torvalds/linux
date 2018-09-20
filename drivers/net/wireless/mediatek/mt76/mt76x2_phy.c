@@ -37,7 +37,7 @@ mt76x2_phy_tssi_init_cal(struct mt76x2_dev *dev)
 	if (mt76x2_ext_pa_enabled(dev, chan->band))
 		flag |= BIT(8);
 
-	mt76x2_mcu_calibrate(dev, MCU_CAL_TSSI, flag);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TSSI, flag, true);
 	dev->cal.tssi_cal_done = true;
 	return true;
 }
@@ -61,13 +61,13 @@ mt76x2_phy_channel_calibrate(struct mt76x2_dev *dev, bool mac_stopped)
 		mt76x2_mac_stop(dev, false);
 
 	if (is_5ghz)
-		mt76x2_mcu_calibrate(dev, MCU_CAL_LC, 0);
+		mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_LC, 0, true);
 
-	mt76x2_mcu_calibrate(dev, MCU_CAL_TX_LOFT, is_5ghz);
-	mt76x2_mcu_calibrate(dev, MCU_CAL_TXIQ, is_5ghz);
-	mt76x2_mcu_calibrate(dev, MCU_CAL_RXIQC_FI, is_5ghz);
-	mt76x2_mcu_calibrate(dev, MCU_CAL_TEMP_SENSOR, 0);
-	mt76x2_mcu_calibrate(dev, MCU_CAL_TX_SHAPING, 0);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TX_LOFT, is_5ghz, true);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TXIQ, is_5ghz, true);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXIQC_FI, is_5ghz, true);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TEMP_SENSOR, 0, true);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TX_SHAPING, 0, true);
 
 	if (!mac_stopped)
 		mt76x2_mac_resume(dev);
@@ -363,14 +363,14 @@ int mt76x2_phy_set_channel(struct mt76x2_dev *dev,
 		u8 val = mt76x2_eeprom_get(dev, MT_EE_BT_RCAL_RESULT);
 
 		if (val != 0xff)
-			mt76x2_mcu_calibrate(dev, MCU_CAL_R, 0);
+			mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_R, 0, true);
 	}
 
-	mt76x2_mcu_calibrate(dev, MCU_CAL_RXDCOC, channel);
+	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXDCOC, channel, true);
 
 	/* Rx LPF calibration */
 	if (!dev->cal.init_cal_done)
-		mt76x2_mcu_calibrate(dev, MCU_CAL_RC, 0);
+		mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RC, 0, true);
 
 	dev->cal.init_cal_done = true;
 
@@ -401,47 +401,6 @@ int mt76x2_phy_set_channel(struct mt76x2_dev *dev,
 				     MT_CALIBRATE_INTERVAL);
 
 	return 0;
-}
-
-static void
-mt76x2_phy_tssi_compensate(struct mt76x2_dev *dev)
-{
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
-	struct mt76x2_tx_power_info txp;
-	struct mt76x2_tssi_comp t = {};
-
-	if (!dev->cal.tssi_cal_done)
-		return;
-
-	if (!dev->cal.tssi_comp_pending) {
-		/* TSSI trigger */
-		t.cal_mode = BIT(0);
-		mt76x2_mcu_tssi_comp(dev, &t);
-		dev->cal.tssi_comp_pending = true;
-	} else {
-		if (mt76_rr(dev, MT_BBP(CORE, 34)) & BIT(4))
-			return;
-
-		dev->cal.tssi_comp_pending = false;
-		mt76x2_get_power_info(dev, &txp, chan);
-
-		if (mt76x2_ext_pa_enabled(dev, chan->band))
-			t.pa_mode = 1;
-
-		t.cal_mode = BIT(1);
-		t.slope0 = txp.chain[0].tssi_slope;
-		t.offset0 = txp.chain[0].tssi_offset;
-		t.slope1 = txp.chain[1].tssi_slope;
-		t.offset1 = txp.chain[1].tssi_offset;
-		mt76x2_mcu_tssi_comp(dev, &t);
-
-		if (t.pa_mode || dev->cal.dpd_cal_done)
-			return;
-
-		usleep_range(10000, 20000);
-		mt76x2_mcu_calibrate(dev, MCU_CAL_DPD, chan->hw_value);
-		dev->cal.dpd_cal_done = true;
-	}
 }
 
 static void
@@ -478,7 +437,7 @@ void mt76x2_phy_calibrate(struct work_struct *work)
 
 	dev = container_of(work, struct mt76x2_dev, cal_work.work);
 	mt76x2_phy_channel_calibrate(dev, false);
-	mt76x2_phy_tssi_compensate(dev);
+	mt76x2_phy_tssi_compensate(dev, true);
 	mt76x2_phy_temp_compensate(dev);
 	mt76x2_phy_update_channel_gain(dev);
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->cal_work,
@@ -489,7 +448,7 @@ int mt76x2_phy_start(struct mt76x2_dev *dev)
 {
 	int ret;
 
-	ret = mt76x2_mcu_set_radio_state(dev, true);
+	ret = mt76x02_mcu_set_radio_state(&dev->mt76, true, true);
 	if (ret)
 		return ret;
 

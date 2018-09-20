@@ -15,7 +15,8 @@
  */
 
 #include "mt76x2.h"
-#include "mt76x2_dma.h"
+#include "mt76x02_util.h"
+#include "mt76x02_dma.h"
 
 struct beacon_bc_data {
 	struct mt76x2_dev *dev;
@@ -38,7 +39,7 @@ int mt76x2_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,
 
 	mt76x2_mac_write_txwi(dev, txwi, skb, wcid, sta, skb->len);
 
-	ret = mt76x2_insert_hdr_pad(skb);
+	ret = mt76x02_insert_hdr_pad(skb);
 	if (ret < 0)
 		return ret;
 

@@ -15,37 +15,7 @@
  */
 
 #include "mt76x2.h"
-#include "mt76x2_dma.h"
-
-int
-mt76x2_tx_queue_mcu(struct mt76x2_dev *dev, enum mt76_txq_id qid,
-		    struct sk_buff *skb, int cmd, int seq)
-{
-	struct mt76_queue *q = &dev->mt76.q_tx[qid];
-	struct mt76_queue_buf buf;
-	dma_addr_t addr;
-	u32 tx_info;
-
-	tx_info = MT_MCU_MSG_TYPE_CMD |
-		  FIELD_PREP(MT_MCU_MSG_CMD_TYPE, cmd) |
-		  FIELD_PREP(MT_MCU_MSG_CMD_SEQ, seq) |
-		  FIELD_PREP(MT_MCU_MSG_PORT, CPU_TX_PORT) |
-		  FIELD_PREP(MT_MCU_MSG_LEN, skb->len);
-
-	addr = dma_map_single(dev->mt76.dev, skb->data, skb->len,
-			      DMA_TO_DEVICE);
-	if (dma_mapping_error(dev->mt76.dev, addr))
-		return -ENOMEM;
-
-	buf.addr = addr;
-	buf.len = skb->len;
-	spin_lock_bh(&q->lock);
-	mt76_queue_add_buf(dev, q, &buf, 1, tx_info, skb, NULL);
-	mt76_queue_kick(dev, q);
-	spin_unlock_bh(&q->lock);
-
-	return 0;
-}
+#include "mt76x02_dma.h"
 
 static int
 mt76x2_init_tx_queue(struct mt76x2_dev *dev, struct mt76_queue *q,
@@ -53,7 +23,7 @@ mt76x2_init_tx_queue(struct mt76x2_dev *dev, struct mt76_queue *q,
 {
 	int ret;
 
-	q->regs = dev->mt76.regs + MT_TX_RING_BASE + idx * MT_RING_SIZE;
+	q->regs = dev->mt76.mmio.regs + MT_TX_RING_BASE + idx * MT_RING_SIZE;
 	q->ndesc = n_desc;
 	q->hw_idx = idx;
 
@@ -72,7 +42,7 @@ mt76x2_init_rx_queue(struct mt76x2_dev *dev, struct mt76_queue *q,
 {
 	int ret;
 
-	q->regs = dev->mt76.regs + MT_RX_RING_BASE + idx * MT_RING_SIZE;
+	q->regs = dev->mt76.mmio.regs + MT_RX_RING_BASE + idx * MT_RING_SIZE;
 	q->ndesc = n_desc;
 	q->buf_size = bufsize;
 
@@ -102,32 +72,23 @@ mt76x2_tx_tasklet(unsigned long data)
 
 int mt76x2_dma_init(struct mt76x2_dev *dev)
 {
-	static const u8 wmm_queue_map[] = {
-		[IEEE80211_AC_BE] = 0,
-		[IEEE80211_AC_BK] = 1,
-		[IEEE80211_AC_VI] = 2,
-		[IEEE80211_AC_VO] = 3,
-	};
 	int ret;
 	int i;
 	struct mt76_txwi_cache __maybe_unused *t;
 	struct mt76_queue *q;
 
-	BUILD_BUG_ON(sizeof(t->txwi) < sizeof(struct mt76x2_txwi));
-	BUILD_BUG_ON(sizeof(struct mt76x2_rxwi) > MT_RX_HEADROOM);
+	BUILD_BUG_ON(sizeof(t->txwi) < sizeof(struct mt76x02_txwi));
+	BUILD_BUG_ON(sizeof(struct mt76x02_rxwi) > MT_RX_HEADROOM);
 
 	mt76_dma_attach(&dev->mt76);
-
-	init_waitqueue_head(&dev->mcu.wait);
-	skb_queue_head_init(&dev->mcu.res_q);
 
 	tasklet_init(&dev->tx_tasklet, mt76x2_tx_tasklet, (unsigned long) dev);
 
 	mt76_wr(dev, MT_WPDMA_RST_IDX, ~0);
 
-	for (i = 0; i < ARRAY_SIZE(wmm_queue_map); i++) {
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		ret = mt76x2_init_tx_queue(dev, &dev->mt76.q_tx[i],
-					   wmm_queue_map[i], MT_TX_RING_SIZE);
+					   mt76_ac_to_hwq(i), MT_TX_RING_SIZE);
 		if (ret)
 			return ret;
 	}
@@ -148,7 +109,7 @@ int mt76x2_dma_init(struct mt76x2_dev *dev)
 		return ret;
 
 	q = &dev->mt76.q_rx[MT_RXQ_MAIN];
-	q->buf_offset = MT_RX_HEADROOM - sizeof(struct mt76x2_rxwi);
+	q->buf_offset = MT_RX_HEADROOM - sizeof(struct mt76x02_rxwi);
 	ret = mt76x2_init_rx_queue(dev, q, 0, MT76x2_RX_RING_SIZE, MT_RX_BUF_SIZE);
 	if (ret)
 		return ret;

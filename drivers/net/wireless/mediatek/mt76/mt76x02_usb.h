@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
+ * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,16 +14,16 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef __MT76x2_DMA_H
-#define __MT76x2_DMA_H
+#ifndef __MT76x02_USB_H
+#define __MT76x0x_USB_H
 
-#include "dma.h"
+#include "mt76.h"
 
-enum mt76x2_qsel {
-	MT_QSEL_MGMT,
-	MT_QSEL_HCCA,
-	MT_QSEL_EDCA,
-	MT_QSEL_EDCA_2,
-};
+void mt76x02u_init_mcu(struct mt76_dev *dev);
+void mt76x02u_mcu_fw_reset(struct mt76_dev *dev);
+int mt76x02u_mcu_fw_send_data(struct mt76_dev *dev, const void *data,
+			      int data_len, u32 max_payload, u32 offset);
 
-#endif
+int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags);
+int mt76x02u_set_txinfo(struct sk_buff *skb, struct mt76_wcid *wcid, u8 ep);
+#endif /* __MT76x02_USB_H */

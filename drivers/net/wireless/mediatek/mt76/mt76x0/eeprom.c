@@ -123,18 +123,19 @@ mt76x0_set_chip_cap(struct mt76x0_dev *dev, u8 *eeprom)
 
 	switch (FIELD_GET(MT_EE_NIC_CONF_0_BOARD_TYPE, nic_conf0)) {
 	case BOARD_TYPE_5GHZ:
-		dev->ee->has_5ghz = true;
+		dev->mt76.cap.has_5ghz = true;
 		break;
 	case BOARD_TYPE_2GHZ:
-		dev->ee->has_2ghz = true;
+		dev->mt76.cap.has_2ghz = true;
 		break;
 	default:
-		dev->ee->has_2ghz = true;
-		dev->ee->has_5ghz = true;
+		dev->mt76.cap.has_2ghz = true;
+		dev->mt76.cap.has_5ghz = true;
 		break;
 	}
 
-	dev_dbg(dev->mt76.dev, "Has 2GHZ %d 5GHZ %d\n", dev->ee->has_2ghz, dev->ee->has_5ghz);
+	dev_dbg(dev->mt76.dev, "Has 2GHZ %d 5GHZ %d\n",
+		dev->mt76.cap.has_2ghz, dev->mt76.cap.has_5ghz);
 
 	if (!field_valid(nic_conf1 & 0xff))
 		nic_conf1 &= 0xff00;
@@ -159,18 +160,19 @@ static int
 mt76x0_set_macaddr(struct mt76x0_dev *dev, const u8 *eeprom)
 {
 	const void *src = eeprom + MT_EE_MAC_ADDR;
+	u8 *dst = dev->mt76.macaddr;
 
-	ether_addr_copy(dev->macaddr, src);
+	ether_addr_copy(dev->mt76.macaddr, src);
 
-	if (!is_valid_ether_addr(dev->macaddr)) {
-		eth_random_addr(dev->macaddr);
+	if (!is_valid_ether_addr(dst)) {
+		eth_random_addr(dst);
 		dev_info(dev->mt76.dev,
 			 "Invalid MAC address, using random address %pM\n",
-			 dev->macaddr);
+			 dst);
 	}
 
-	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->macaddr));
-	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(dev->macaddr + 4) |
+	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dst));
+	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(dst + 4) |
 		FIELD_PREP(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
 
 	return 0;
@@ -443,3 +445,5 @@ out:
 	kfree(eeprom);
 	return ret;
 }
+
+MODULE_LICENSE("Dual BSD/GPL");

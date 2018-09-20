@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
+#include "mt76x02_usb.h"
 #include "mt76x2u.h"
 
 static const struct usb_device_id mt76x2u_device_table[] = {
@@ -46,6 +47,7 @@ static int mt76x2u_probe(struct usb_interface *intf,
 	udev = usb_get_dev(udev);
 	usb_reset_device(udev);
 
+	mt76x02u_init_mcu(&dev->mt76);
 	err = mt76u_init(&dev->mt76, intf);
 	if (err < 0)
 		goto err;
