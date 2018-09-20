@@ -121,24 +121,6 @@ enum vmwballoon_capabilities {
 
 #define VMW_BALLOON_SUCCESS_WITH_CAPABILITIES	(0x03000000)
 
-/* Batch page description */
-
-/*
- * Layout of a page in the batch page:
- *
- * +-------------+----------+--------+
- * |             |          |        |
- * | Page number | Reserved | Status |
- * |             |          |        |
- * +-------------+----------+--------+
- * 64  PAGE_SHIFT          6         0
- *
- * The reserved field should be set to 0.
- */
-#define VMW_BALLOON_BATCH_MAX_PAGES	(PAGE_SIZE / sizeof(u64))
-#define VMW_BALLOON_BATCH_STATUS_MASK	((1UL << 5) - 1)
-#define VMW_BALLOON_BATCH_PAGE_MASK	(~((1UL << PAGE_SHIFT) - 1))
-
 #define VMW_BALLOON_CMD_WITH_TARGET_MASK			\
 	((1UL << VMW_BALLOON_CMD_GET_TARGET)		|	\
 	 (1UL << VMW_BALLOON_CMD_LOCK)			|	\
@@ -160,27 +142,6 @@ static const char * const vmballoon_cmd_names[] = {
 	[VMW_BALLOON_CMD_BATCHED_2M_UNLOCK]	= "2m-unlock",
 	[VMW_BALLOON_CMD_VMCI_DOORBELL_SET]	= "doorbellSet"
 };
-
-struct vmballoon_batch_page {
-	u64 pages[VMW_BALLOON_BATCH_MAX_PAGES];
-};
-
-static u64 vmballoon_batch_get_pa(struct vmballoon_batch_page *batch, int idx)
-{
-	return batch->pages[idx] & VMW_BALLOON_BATCH_PAGE_MASK;
-}
-
-static int vmballoon_batch_get_status(struct vmballoon_batch_page *batch,
-				int idx)
-{
-	return (int)(batch->pages[idx] & VMW_BALLOON_BATCH_STATUS_MASK);
-}
-
-static void vmballoon_batch_set_pa(struct vmballoon_batch_page *batch, int idx,
-				u64 pa)
-{
-	batch->pages[idx] = pa;
-}
 
 #ifdef CONFIG_DEBUG_FS
 struct vmballoon_stats {
@@ -225,6 +186,19 @@ struct vmballoon_page_size {
 	unsigned int n_refused_pages;
 };
 
+/**
+ * struct vmballoon_batch_entry - a batch entry for lock or unlock.
+ *
+ * @status: the status of the operation, which is written by the hypervisor.
+ * @reserved: reserved for future use. Must be set to zero.
+ * @pfn: the physical frame number of the page to be locked or unlocked.
+ */
+struct vmballoon_batch_entry {
+	u64 status : 5;
+	u64 reserved : PAGE_SHIFT - 5;
+	u64 pfn : 52;
+} __packed;
+
 struct vmballoon {
 	struct vmballoon_page_size page_sizes[VMW_BALLOON_NUM_PAGE_SIZES];
 
@@ -240,7 +214,14 @@ struct vmballoon {
 
 	unsigned long capabilities;
 
-	struct vmballoon_batch_page *batch_page;
+	/**
+	 * @batch_page: pointer to communication batch page.
+	 *
+	 * When batching is used, batch_page points to a page, which holds up to
+	 * %VMW_BALLOON_BATCH_MAX_PAGES entries for locking or unlocking.
+	 */
+	struct vmballoon_batch_entry *batch_page;
+
 	unsigned int batch_max_pages;
 	struct page *page;
 
@@ -568,8 +549,7 @@ static int vmballoon_lock_batched_page(struct vmballoon *b,
 
 	if (locked > 0) {
 		for (i = 0; i < num_pages; i++) {
-			u64 pa = vmballoon_batch_get_pa(b->batch_page, i);
-			struct page *p = pfn_to_page(pa >> PAGE_SHIFT);
+			struct page *p = pfn_to_page(b->batch_page[i].pfn);
 
 			vmballoon_free_page(p, is_2m_pages);
 		}
@@ -578,12 +558,11 @@ static int vmballoon_lock_batched_page(struct vmballoon *b,
 	}
 
 	for (i = 0; i < num_pages; i++) {
-		u64 pa = vmballoon_batch_get_pa(b->batch_page, i);
-		struct page *p = pfn_to_page(pa >> PAGE_SHIFT);
+		struct page *p = pfn_to_page(b->batch_page[i].pfn);
 		struct vmballoon_page_size *page_size =
 				&b->page_sizes[is_2m_pages];
 
-		locked = vmballoon_batch_get_status(b->batch_page, i);
+		locked = b->batch_page[i].status;
 
 		switch (locked) {
 		case VMW_BALLOON_SUCCESS:
@@ -656,12 +635,11 @@ static int vmballoon_unlock_batched_page(struct vmballoon *b,
 		ret = -EIO;
 
 	for (i = 0; i < num_pages; i++) {
-		u64 pa = vmballoon_batch_get_pa(b->batch_page, i);
-		struct page *p = pfn_to_page(pa >> PAGE_SHIFT);
+		struct page *p = pfn_to_page(b->batch_page[i].pfn);
 		struct vmballoon_page_size *page_size =
 				&b->page_sizes[is_2m_pages];
 
-		locked = vmballoon_batch_get_status(b->batch_page, i);
+		locked = b->batch_page[i].status;
 		if (!hv_success || locked != VMW_BALLOON_SUCCESS) {
 			/*
 			 * That page wasn't successfully unlocked by the
@@ -710,8 +688,8 @@ static void vmballoon_add_page(struct vmballoon *b, int idx, struct page *p)
 static void vmballoon_add_batched_page(struct vmballoon *b, int idx,
 				struct page *p)
 {
-	vmballoon_batch_set_pa(b->batch_page, idx,
-			(u64)page_to_pfn(p) << PAGE_SHIFT);
+	b->batch_page[idx] = (struct vmballoon_batch_entry)
+					{ .pfn = page_to_pfn(p) };
 }
 
 /*
@@ -967,7 +945,8 @@ static void vmballoon_reset(struct vmballoon *b)
 
 	if ((b->capabilities & VMW_BALLOON_BATCHED_CMDS) != 0) {
 		b->ops = &vmballoon_batched_ops;
-		b->batch_max_pages = VMW_BALLOON_BATCH_MAX_PAGES;
+		b->batch_max_pages = PAGE_SIZE / sizeof(struct
+							vmballoon_batch_entry);
 		if (!vmballoon_init_batching(b)) {
 			/*
 			 * We failed to initialize batching, inform the monitor
