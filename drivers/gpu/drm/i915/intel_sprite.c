@@ -253,10 +253,17 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 	src->y2 = (src_y + src_h) << 16;
 
 	if (fb->format->is_yuv &&
-	    fb->format->format != DRM_FORMAT_NV12 &&
 	    (src_x & 1 || src_w & 1)) {
 		DRM_DEBUG_KMS("src x/w (%u, %u) must be a multiple of 2 for YUV planes\n",
 			      src_x, src_w);
+		return -EINVAL;
+	}
+
+	if (fb->format->is_yuv &&
+	    fb->format->num_planes > 1 &&
+	    (src_y & 1 || src_h & 1)) {
+		DRM_DEBUG_KMS("src y/h (%u, %u) must be a multiple of 2 for planar YUV planes\n",
+			      src_y, src_h);
 		return -EINVAL;
 	}
 
