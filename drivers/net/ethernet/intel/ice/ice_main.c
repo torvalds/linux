@@ -3426,9 +3426,9 @@ static int ice_vsi_update_bridge_mode(struct ice_vsi *vsi, u16 bmode)
 	else
 		/* change from VEB to VEPA mode */
 		ctxt.info.sw_flags &= ~ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
-	ctxt.vsi_num = vsi->vsi_num;
 	ctxt.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SW_VALID);
-	status = ice_aq_update_vsi(hw, &ctxt, NULL);
+
+	status = ice_update_vsi(hw, vsi->idx, &ctxt, NULL);
 	if (status) {
 		dev_err(dev, "update VSI for bridge mode failed, bmode = %d err %d aq_err %d\n",
 			bmode, status, hw->adminq.sq_last_status);

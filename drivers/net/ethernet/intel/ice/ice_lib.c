@@ -1290,10 +1290,10 @@ int ice_add_mac_to_list(struct ice_vsi *vsi, struct list_head *add_list,
 		return -ENOMEM;
 
 	tmp->fltr_info.flag = ICE_FLTR_TX;
-	tmp->fltr_info.src = vsi->vsi_num;
+	tmp->fltr_info.src_id = ICE_SRC_ID_VSI;
 	tmp->fltr_info.lkup_type = ICE_SW_LKUP_MAC;
 	tmp->fltr_info.fltr_act = ICE_FWD_TO_VSI;
-	tmp->fltr_info.fwd_id.vsi_id = vsi->vsi_num;
+	tmp->fltr_info.vsi_handle = vsi->idx;
 	ether_addr_copy(tmp->fltr_info.l_data.mac.mac_addr, macaddr);
 
 	INIT_LIST_HEAD(&tmp->list_entry);
@@ -1394,8 +1394,8 @@ int ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid)
 	tmp->fltr_info.lkup_type = ICE_SW_LKUP_VLAN;
 	tmp->fltr_info.fltr_act = ICE_FWD_TO_VSI;
 	tmp->fltr_info.flag = ICE_FLTR_TX;
-	tmp->fltr_info.src = vsi->vsi_num;
-	tmp->fltr_info.fwd_id.vsi_id = vsi->vsi_num;
+	tmp->fltr_info.src_id = ICE_SRC_ID_VSI;
+	tmp->fltr_info.vsi_handle = vsi->idx;
 	tmp->fltr_info.l_data.vlan.vlan_id = vid;
 
 	INIT_LIST_HEAD(&tmp->list_entry);
@@ -1431,11 +1431,11 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
 		return -ENOMEM;
 
 	list->fltr_info.lkup_type = ICE_SW_LKUP_VLAN;
-	list->fltr_info.fwd_id.vsi_id = vsi->vsi_num;
+	list->fltr_info.vsi_handle = vsi->idx;
 	list->fltr_info.fltr_act = ICE_FWD_TO_VSI;
 	list->fltr_info.l_data.vlan.vlan_id = vid;
 	list->fltr_info.flag = ICE_FLTR_TX;
-	list->fltr_info.src = vsi->vsi_num;
+	list->fltr_info.src_id = ICE_SRC_ID_VSI;
 
 	INIT_LIST_HEAD(&list->list_entry);
 	list_add(&list->list_entry, &tmp_add_list);
@@ -1636,9 +1636,8 @@ int ice_vsi_manage_vlan_insertion(struct ice_vsi *vsi)
 	ctxt.info.vlan_flags = ICE_AQ_VSI_VLAN_MODE_ALL;
 
 	ctxt.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID);
-	ctxt.vsi_num = vsi->vsi_num;
 
-	status = ice_aq_update_vsi(hw, &ctxt, NULL);
+	status = ice_update_vsi(hw, vsi->idx, &ctxt, NULL);
 	if (status) {
 		dev_err(dev, "update VSI for VLAN insert failed, err %d aq_err %d\n",
 			status, hw->adminq.sq_last_status);
@@ -1677,9 +1676,8 @@ int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 	ctxt.info.vlan_flags |= ICE_AQ_VSI_VLAN_MODE_ALL;
 
 	ctxt.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID);
-	ctxt.vsi_num = vsi->vsi_num;
 
-	status = ice_aq_update_vsi(hw, &ctxt, NULL);
+	status = ice_update_vsi(hw, vsi->idx, &ctxt, NULL);
 	if (status) {
 		dev_err(dev, "update VSI for VLAN strip failed, ena = %d err %d aq_err %d\n",
 			ena, status, hw->adminq.sq_last_status);
@@ -1829,11 +1827,11 @@ int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena)
 
 	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID |
 						ICE_AQ_VSI_PROP_SW_VALID);
-	ctxt->vsi_num = vsi->vsi_num;
-	status = ice_aq_update_vsi(&vsi->back->hw, ctxt, NULL);
+
+	status = ice_update_vsi(&vsi->back->hw, vsi->idx, ctxt, NULL);
 	if (status) {
-		netdev_err(vsi->netdev, "%sabling VLAN pruning on VSI %d failed, err = %d, aq_err = %d\n",
-			   ena ? "Ena" : "Dis", vsi->vsi_num, status,
+		netdev_err(vsi->netdev, "%sabling VLAN pruning on VSI handle: %d, VSI HW ID: %d failed, err = %d, aq_err = %d\n",
+			   ena ? "Ena" : "Dis", vsi->idx, vsi->vsi_num, status,
 			   vsi->back->hw.adminq.sq_last_status);
 		goto err_out;
 	}
@@ -2267,7 +2265,7 @@ int ice_vsi_release(struct ice_vsi *vsi)
 	ice_free_res(vsi->back->irq_tracker, vsi->base_vector, vsi->idx);
 	pf->num_avail_msix += vsi->num_q_vectors;
 
-	ice_remove_vsi_fltr(&pf->hw, vsi->vsi_num);
+	ice_remove_vsi_fltr(&pf->hw, vsi->idx);
 	ice_vsi_delete(vsi);
 	ice_vsi_free_q_vectors(vsi);
 	ice_vsi_clear_rings(vsi);
