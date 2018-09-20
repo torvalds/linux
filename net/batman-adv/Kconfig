@@ -106,3 +106,14 @@ config BATMAN_ADV_DEBUG
 	  say N here. This enables compilation of support for
 	  outputting debugging information to the kernel log. The
 	  output is controlled via the module parameter debug.
+
+config BATMAN_ADV_TRACING
+	bool "B.A.T.M.A.N. tracing support"
+	depends on BATMAN_ADV
+	depends on EVENT_TRACING
+	help
+	  This is an option for use by developers; most people should
+	  say N here. Select this option to gather traces like the debug
+	  messages using the generic tracing infrastructure of the kernel.
+	  BATMAN_ADV_DEBUG must also be selected to get trace events for
+	  batadv_dbg.
