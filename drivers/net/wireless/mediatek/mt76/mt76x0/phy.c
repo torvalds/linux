@@ -836,7 +836,7 @@ static void mt76x0_temp_sensor(struct mt76x0_dev *dev)
 	else
 		sval |= 0xffffff00; /* Negative */
 
-	temp = (35 * (sval - dev->ee->temp_off))/ 10 + 25;
+	temp = (35 * (sval - dev->caldata.temp_offset)) / 10 + 25;
 
 done:
 	rf_wr(dev, MT_RF(7, 73), rf_b7_73);

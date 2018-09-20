@@ -92,15 +92,15 @@ mt76x0_set_chip_cap(struct mt76x0_dev *dev, u8 *eeprom)
 			"Error: device has more than 1 RX/TX stream!\n");
 }
 
-static void
-mt76x0_set_temp_offset(struct mt76x0_dev *dev, u8 *eeprom)
+static void mt76x0_set_temp_offset(struct mt76x0_dev *dev)
 {
-	u8 temp = eeprom[MT_EE_TEMP_OFFSET];
+	u8 val;
 
-	if (mt76x02_field_valid(temp))
-		dev->ee->temp_off = mt76x02_sign_extend(temp, 8);
+	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_2G_TARGET_POWER) >> 8;
+	if (mt76x02_field_valid(val))
+		dev->caldata.temp_offset = mt76x02_sign_extend(val, 8);
 	else
-		dev->ee->temp_off = -10;
+		dev->caldata.temp_offset = -10;
 }
 
 static void
@@ -287,7 +287,7 @@ mt76x0_eeprom_init(struct mt76x0_dev *dev)
 	mt76x02_mac_setaddr(&dev->mt76, eeprom + MT_EE_MAC_ADDR);
 	mt76x0_set_chip_cap(dev, eeprom);
 	mt76x0_set_rf_freq_off(dev, eeprom);
-	mt76x0_set_temp_offset(dev, eeprom);
+	mt76x0_set_temp_offset(dev);
 	dev->chainmask = 0x0101;
 
 	mt76x0_set_tx_power_per_rate(dev, eeprom);

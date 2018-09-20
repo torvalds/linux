@@ -105,7 +105,8 @@ mt76x0_eeprom_param_read(struct seq_file *file, void *data)
 	seq_printf(file, "RF freq offset: %hhx\n", dev->ee->rf_freq_off);
 	seq_printf(file, "RSSI offset: %hhx %hhx\n",
 		   dev->caldata.rssi_offset[0], dev->caldata.rssi_offset[1]);
-	seq_printf(file, "Temperature offset: %hhx\n", dev->ee->temp_off);
+	seq_printf(file, "Temperature offset: %hhx\n",
+		   dev->caldata.temp_offset);
 	seq_printf(file, "LNA gain: %x\n", dev->caldata.lna_gain);
 
 	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_0);

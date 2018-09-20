@@ -31,11 +31,12 @@ struct reg_channel_bounds {
 struct mt76x0_caldata {
 	s8 rssi_offset[2];
 	s8 lna_gain;
+
+	s16 temp_offset;
 };
 
 struct mt76x0_eeprom_params {
 	u8 rf_freq_off;
-	s16 temp_off;
 
 	/* TX_PWR_CFG_* values from EEPROM for 20 and 40 Mhz bandwidths. */
 	u32 tx_pwr_cfg_2g[5][2];
