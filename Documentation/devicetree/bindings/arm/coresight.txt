@@ -132,7 +132,7 @@ Example:
 
 		clocks = <&oscclk6a>;
 		clock-names = "apb_pclk";
-		out-ports {
+		in-ports {
 			port {
 				tpiu_in_port: endpoint@0 {
 					remote-endpoint = <&replicator_out_port1>;
