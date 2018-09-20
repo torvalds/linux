@@ -652,6 +652,11 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 				 struct old_timespec32 __user *tsp,
 				 const compat_sigset_t __user *sigmask,
 				 compat_size_t sigsetsize);
+asmlinkage long compat_sys_ppoll_time64(struct pollfd __user *ufds,
+				 unsigned int nfds,
+				 struct __kernel_timespec __user *tsp,
+				 const compat_sigset_t __user *sigmask,
+				 compat_size_t sigsetsize);
 
 /* fs/signalfd.c */
 asmlinkage long compat_sys_signalfd4(int ufd,
