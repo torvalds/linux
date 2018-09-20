@@ -150,12 +150,18 @@ struct ice_mac_info {
 	u8 perm_addr[ETH_ALEN];
 };
 
-/* Various RESET request, These are not tied with HW reset types */
+/* Reset types used to determine which kind of reset was requested. These
+ * defines match what the RESET_TYPE field of the GLGEN_RSTAT register.
+ * ICE_RESET_PFR does not match any RESET_TYPE field in the GLGEN_RSTAT register
+ * because its reset source is different than the other types listed.
+ */
 enum ice_reset_req {
+	ICE_RESET_POR	= 0,
 	ICE_RESET_INVAL	= 0,
-	ICE_RESET_PFR	= 1,
-	ICE_RESET_CORER	= 2,
-	ICE_RESET_GLOBR	= 3,
+	ICE_RESET_CORER	= 1,
+	ICE_RESET_GLOBR	= 2,
+	ICE_RESET_EMPR	= 3,
+	ICE_RESET_PFR	= 4,
 };
 
 /* Bus parameters */

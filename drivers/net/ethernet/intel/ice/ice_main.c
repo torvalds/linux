@@ -1241,8 +1241,11 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 			pf->corer_count++;
 		else if (reset == ICE_RESET_GLOBR)
 			pf->globr_count++;
-		else
+		else if (reset == ICE_RESET_EMPR)
 			pf->empr_count++;
+		else
+			dev_dbg(&pf->pdev->dev, "Invalid reset type %d\n",
+				reset);
 
 		/* If a reset cycle isn't already in progress, we set a bit in
 		 * pf->state so that the service task can start a reset/rebuild.
