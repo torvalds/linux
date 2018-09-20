@@ -2254,21 +2254,29 @@ static struct ib_pd *mlx5_ib_alloc_pd(struct ib_device *ibdev,
 	struct mlx5_ib_alloc_pd_resp resp;
 	struct mlx5_ib_pd *pd;
 	int err;
+	u32 out[MLX5_ST_SZ_DW(alloc_pd_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(alloc_pd_in)]   = {};
+	u16 uid = 0;
 
 	pd = kmalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
-	err = mlx5_core_alloc_pd(to_mdev(ibdev)->mdev, &pd->pdn);
+	MLX5_SET(alloc_pd_in, in, opcode, MLX5_CMD_OP_ALLOC_PD);
+	MLX5_SET(alloc_pd_in, in, uid, uid);
+	err = mlx5_cmd_exec(to_mdev(ibdev)->mdev, in, sizeof(in),
+			    out, sizeof(out));
 	if (err) {
 		kfree(pd);
 		return ERR_PTR(err);
 	}
 
+	pd->pdn = MLX5_GET(alloc_pd_out, out, pd);
+	pd->uid = uid;
 	if (context) {
 		resp.pdn = pd->pdn;
 		if (ib_copy_to_udata(udata, &resp, sizeof(resp))) {
-			mlx5_core_dealloc_pd(to_mdev(ibdev)->mdev, pd->pdn);
+			mlx5_cmd_dealloc_pd(to_mdev(ibdev)->mdev, pd->pdn, uid);
 			kfree(pd);
 			return ERR_PTR(-EFAULT);
 		}
@@ -2282,7 +2290,7 @@ static int mlx5_ib_dealloc_pd(struct ib_pd *pd)
 	struct mlx5_ib_dev *mdev = to_mdev(pd->device);
 	struct mlx5_ib_pd *mpd = to_mpd(pd);
 
-	mlx5_core_dealloc_pd(mdev->mdev, mpd->pdn);
+	mlx5_cmd_dealloc_pd(mdev->mdev, mpd->pdn, mpd->uid);
 	kfree(mpd);
 
 	return 0;

@@ -197,3 +197,14 @@ int mlx5_cmd_query_ext_ppcnt_counters(struct mlx5_core_dev *dev, void *out)
 	return  mlx5_core_access_reg(dev, in, sz, out, sz, MLX5_REG_PPCNT,
 				     0, 0);
 }
+
+void mlx5_cmd_dealloc_pd(struct mlx5_core_dev *dev, u32 pdn, u16 uid)
+{
+	u32 out[MLX5_ST_SZ_DW(dealloc_pd_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(dealloc_pd_in)]   = {};
+
+	MLX5_SET(dealloc_pd_in, in, opcode, MLX5_CMD_OP_DEALLOC_PD);
+	MLX5_SET(dealloc_pd_in, in, pd, pdn);
+	MLX5_SET(dealloc_pd_in, in, uid, uid);
+	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
