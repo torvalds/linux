@@ -1613,14 +1613,15 @@ void mlx5_ib_disable_lb(struct mlx5_ib_dev *dev, bool td, bool qp)
 	mutex_unlock(&dev->lb.mutex);
 }
 
-static int mlx5_ib_alloc_transport_domain(struct mlx5_ib_dev *dev, u32 *tdn)
+static int mlx5_ib_alloc_transport_domain(struct mlx5_ib_dev *dev, u32 *tdn,
+					  u16 uid)
 {
 	int err;
 
 	if (!MLX5_CAP_GEN(dev->mdev, log_max_transport_domain))
 		return 0;
 
-	err = mlx5_core_alloc_transport_domain(dev->mdev, tdn);
+	err = mlx5_cmd_alloc_transport_domain(dev->mdev, tdn, uid);
 	if (err)
 		return err;
 
@@ -1632,12 +1633,13 @@ static int mlx5_ib_alloc_transport_domain(struct mlx5_ib_dev *dev, u32 *tdn)
 	return mlx5_ib_enable_lb(dev, true, false);
 }
 
-static void mlx5_ib_dealloc_transport_domain(struct mlx5_ib_dev *dev, u32 tdn)
+static void mlx5_ib_dealloc_transport_domain(struct mlx5_ib_dev *dev, u32 tdn,
+					     u16 uid)
 {
 	if (!MLX5_CAP_GEN(dev->mdev, log_max_transport_domain))
 		return;
 
-	mlx5_core_dealloc_transport_domain(dev->mdev, tdn);
+	mlx5_cmd_dealloc_transport_domain(dev->mdev, tdn, uid);
 
 	if ((MLX5_CAP_GEN(dev->mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH) ||
 	    (!MLX5_CAP_GEN(dev->mdev, disable_local_lb_uc) &&
@@ -1756,21 +1758,22 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	context->ibucontext.invalidate_range = &mlx5_ib_invalidate_range;
 #endif
 
-	err = mlx5_ib_alloc_transport_domain(dev, &context->tdn);
-	if (err)
-		goto out_uars;
-
 	if (req.flags & MLX5_IB_ALLOC_UCTX_DEVX) {
 		/* Block DEVX on Infiniband as of SELinux */
 		if (mlx5_ib_port_link_layer(ibdev, 1) != IB_LINK_LAYER_ETHERNET) {
 			err = -EPERM;
-			goto out_td;
+			goto out_uars;
 		}
 
 		err = mlx5_ib_devx_create(dev, context);
 		if (err)
-			goto out_td;
+			goto out_uars;
 	}
+
+	err = mlx5_ib_alloc_transport_domain(dev, &context->tdn,
+					     context->devx_uid);
+	if (err)
+		goto out_devx;
 
 	if (MLX5_CAP_GEN(dev->mdev, dump_fill_mkey)) {
 		err = mlx5_cmd_dump_fill_mkey(dev->mdev, &dump_fill_mkey);
@@ -1864,10 +1867,10 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	return &context->ibucontext;
 
 out_mdev:
+	mlx5_ib_dealloc_transport_domain(dev, context->tdn, context->devx_uid);
+out_devx:
 	if (req.flags & MLX5_IB_ALLOC_UCTX_DEVX)
 		mlx5_ib_devx_destroy(dev, context);
-out_td:
-	mlx5_ib_dealloc_transport_domain(dev, context->tdn);
 
 out_uars:
 	deallocate_uars(dev, context);
@@ -1897,11 +1900,11 @@ static int mlx5_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 	mutex_unlock(&ibcontext->per_mm_list_lock);
 #endif
 
+	bfregi = &context->bfregi;
+	mlx5_ib_dealloc_transport_domain(dev, context->tdn, context->devx_uid);
+
 	if (context->devx_uid)
 		mlx5_ib_devx_destroy(dev, context);
-
-	bfregi = &context->bfregi;
-	mlx5_ib_dealloc_transport_domain(dev, context->tdn);
 
 	deallocate_uars(dev, context);
 	kfree(bfregi->sys_pages);
