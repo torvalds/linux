@@ -1204,7 +1204,6 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 		ring->vsi = vsi;
 		ring->dev = &pf->pdev->dev;
 		ring->count = vsi->num_desc;
-		ring->itr_setting = ICE_DFLT_TX_ITR;
 		vsi->tx_rings[i] = ring;
 	}
 
@@ -1224,7 +1223,6 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 		ring->netdev = vsi->netdev;
 		ring->dev = &pf->pdev->dev;
 		ring->count = vsi->num_desc;
-		ring->itr_setting = ICE_DFLT_RX_ITR;
 		vsi->rx_rings[i] = ring;
 	}
 
@@ -1261,6 +1259,7 @@ static void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
 		tx_rings_per_v = DIV_ROUND_UP(tx_rings_rem, q_vectors - v_id);
 		q_vector->num_ring_tx = tx_rings_per_v;
 		q_vector->tx.ring = NULL;
+		q_vector->tx.itr_idx = ICE_TX_ITR;
 		q_base = vsi->num_txq - tx_rings_rem;
 
 		for (q_id = q_base; q_id < (q_base + tx_rings_per_v); q_id++) {
@@ -1276,6 +1275,7 @@ static void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
 		rx_rings_per_v = DIV_ROUND_UP(rx_rings_rem, q_vectors - v_id);
 		q_vector->num_ring_rx = rx_rings_per_v;
 		q_vector->rx.ring = NULL;
+		q_vector->rx.itr_idx = ICE_RX_ITR;
 		q_base = vsi->num_rxq - rx_rings_rem;
 
 		for (q_id = q_base; q_id < (q_base + rx_rings_per_v); q_id++) {
@@ -1684,6 +1684,37 @@ static u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
 }
 
 /**
+ * ice_cfg_itr - configure the initial interrupt throttle values
+ * @hw: pointer to the HW structure
+ * @q_vector: interrupt vector that's being configured
+ * @vector: HW vector index to apply the interrupt throttling to
+ *
+ * Configure interrupt throttling values for the ring containers that are
+ * associated with the interrupt vector passed in.
+ */
+static void
+ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector, u16 vector)
+{
+	u8 itr_gran = hw->itr_gran;
+
+	if (q_vector->num_ring_rx) {
+		struct ice_ring_container *rc = &q_vector->rx;
+
+		rc->itr = ITR_TO_REG(ICE_DFLT_RX_ITR, itr_gran);
+		rc->latency_range = ICE_LOW_LATENCY;
+		wr32(hw, GLINT_ITR(rc->itr_idx, vector), rc->itr);
+	}
+
+	if (q_vector->num_ring_tx) {
+		struct ice_ring_container *rc = &q_vector->tx;
+
+		rc->itr = ITR_TO_REG(ICE_DFLT_TX_ITR, itr_gran);
+		rc->latency_range = ICE_LOW_LATENCY;
+		wr32(hw, GLINT_ITR(rc->itr_idx, vector), rc->itr);
+	}
+}
+
+/**
  * ice_vsi_cfg_msix - MSIX mode Interrupt Config in the HW
  * @vsi: the VSI being configured
  */
@@ -1693,31 +1724,13 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 	u16 vector = vsi->hw_base_vector;
 	struct ice_hw *hw = &pf->hw;
 	u32 txq = 0, rxq = 0;
-	int i, q, itr;
-	u8 itr_gran;
+	int i, q;
 
 	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[i];
 
-		itr_gran = hw->itr_gran;
+		ice_cfg_itr(hw, q_vector, vector);
 
-		q_vector->intrl = ICE_DFLT_INTRL;
-
-		if (q_vector->num_ring_rx) {
-			q_vector->rx.itr =
-				ITR_TO_REG(vsi->rx_rings[rxq]->itr_setting,
-					   itr_gran);
-			q_vector->rx.latency_range = ICE_LOW_LATENCY;
-		}
-
-		if (q_vector->num_ring_tx) {
-			q_vector->tx.itr =
-				ITR_TO_REG(vsi->tx_rings[txq]->itr_setting,
-					   itr_gran);
-			q_vector->tx.latency_range = ICE_LOW_LATENCY;
-		}
-		wr32(hw, GLINT_ITR(ICE_RX_ITR, vector), q_vector->rx.itr);
-		wr32(hw, GLINT_ITR(ICE_TX_ITR, vector), q_vector->tx.itr);
 		wr32(hw, GLINT_RATE(vector),
 		     ice_intrl_usec_to_reg(q_vector->intrl, hw->intrl_gran));
 
@@ -1733,32 +1746,32 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 		 * tracked for this PF.
 		 */
 		for (q = 0; q < q_vector->num_ring_tx; q++) {
+			int itr_idx = q_vector->tx.itr_idx;
 			u32 val;
 
-			itr = ICE_ITR_NONE;
 			if (vsi->type == ICE_VSI_VF)
 				val = QINT_TQCTL_CAUSE_ENA_M |
-				      (itr << QINT_TQCTL_ITR_INDX_S)  |
+				      (itr_idx << QINT_TQCTL_ITR_INDX_S)  |
 				      ((i + 1) << QINT_TQCTL_MSIX_INDX_S);
 			else
 				val = QINT_TQCTL_CAUSE_ENA_M |
-				      (itr << QINT_TQCTL_ITR_INDX_S)  |
+				      (itr_idx << QINT_TQCTL_ITR_INDX_S)  |
 				      (vector << QINT_TQCTL_MSIX_INDX_S);
 			wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), val);
 			txq++;
 		}
 
 		for (q = 0; q < q_vector->num_ring_rx; q++) {
+			int itr_idx = q_vector->rx.itr_idx;
 			u32 val;
 
-			itr = ICE_ITR_NONE;
 			if (vsi->type == ICE_VSI_VF)
 				val = QINT_RQCTL_CAUSE_ENA_M |
-				      (itr << QINT_RQCTL_ITR_INDX_S)  |
+				      (itr_idx << QINT_RQCTL_ITR_INDX_S)  |
 				      ((i + 1) << QINT_RQCTL_MSIX_INDX_S);
 			else
 				val = QINT_RQCTL_CAUSE_ENA_M |
-				      (itr << QINT_RQCTL_ITR_INDX_S)  |
+				      (itr_idx << QINT_RQCTL_ITR_INDX_S)  |
 				      (vector << QINT_RQCTL_MSIX_INDX_S);
 			wr32(hw, QINT_RQCTL(vsi->rxq_map[rxq]), val);
 			rxq++;
@@ -2157,8 +2170,8 @@ static void ice_vsi_release_msix(struct ice_vsi *vsi)
 	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[i];
 
-		wr32(hw, GLINT_ITR(ICE_RX_ITR, vector), 0);
-		wr32(hw, GLINT_ITR(ICE_TX_ITR, vector), 0);
+		wr32(hw, GLINT_ITR(ICE_IDX_ITR0, vector), 0);
+		wr32(hw, GLINT_ITR(ICE_IDX_ITR1, vector), 0);
 		for (q = 0; q < q_vector->num_ring_tx; q++) {
 			wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), 0);
 			txq++;

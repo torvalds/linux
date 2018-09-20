@@ -1678,26 +1678,30 @@ static int ice_vc_cfg_irq_map_msg(struct ice_vf *vf, u8 *msg)
 		/* lookout for the invalid queue index */
 		qmap = map->rxq_map;
 		for_each_set_bit(vsi_q_id, &qmap, ICE_MAX_BASE_QS_PER_VF) {
+			struct ice_q_vector *q_vector;
+
 			if (!ice_vc_isvalid_q_id(vf, vsi_id, vsi_q_id)) {
 				aq_ret = ICE_ERR_PARAM;
 				goto error_param;
 			}
-			vsi->q_vectors[i]->num_ring_rx++;
-			vsi->rx_rings[vsi_q_id]->itr_setting =
-				map->rxitr_idx;
-			vsi->rx_rings[vsi_q_id]->q_vector = vsi->q_vectors[i];
+			q_vector = vsi->q_vectors[i];
+			q_vector->num_ring_rx++;
+			q_vector->rx.itr_idx = map->rxitr_idx;
+			vsi->rx_rings[vsi_q_id]->q_vector = q_vector;
 		}
 
 		qmap = map->txq_map;
 		for_each_set_bit(vsi_q_id, &qmap, ICE_MAX_BASE_QS_PER_VF) {
+			struct ice_q_vector *q_vector;
+
 			if (!ice_vc_isvalid_q_id(vf, vsi_id, vsi_q_id)) {
 				aq_ret = ICE_ERR_PARAM;
 				goto error_param;
 			}
-			vsi->q_vectors[i]->num_ring_tx++;
-			vsi->tx_rings[vsi_q_id]->itr_setting =
-				map->txitr_idx;
-			vsi->tx_rings[vsi_q_id]->q_vector = vsi->q_vectors[i];
+			q_vector = vsi->q_vectors[i];
+			q_vector->num_ring_tx++;
+			q_vector->tx.itr_idx = map->txitr_idx;
+			vsi->tx_rings[vsi_q_id]->q_vector = q_vector;
 		}
 	}
 
