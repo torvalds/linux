@@ -283,7 +283,7 @@ ice_aq_update_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
  *
  * check whether the VSI is valid or not
  */
-static bool ice_is_vsi_valid(struct ice_hw *hw, u16 vsi_handle)
+bool ice_is_vsi_valid(struct ice_hw *hw, u16 vsi_handle)
 {
 	return vsi_handle < ICE_MAX_VSI && hw->vsi_ctx[vsi_handle];
 }
@@ -296,7 +296,7 @@ static bool ice_is_vsi_valid(struct ice_hw *hw, u16 vsi_handle)
  * return the hw VSI number
  * Caution: call this function only if VSI is valid (ice_is_vsi_valid)
  */
-static u16 ice_get_hw_vsi_num(struct ice_hw *hw, u16 vsi_handle)
+u16 ice_get_hw_vsi_num(struct ice_hw *hw, u16 vsi_handle)
 {
 	return hw->vsi_ctx[vsi_handle]->vsi_num;
 }
@@ -308,7 +308,7 @@ static u16 ice_get_hw_vsi_num(struct ice_hw *hw, u16 vsi_handle)
  *
  * return the VSI context entry for a given VSI handle
  */
-static struct ice_vsi_ctx *ice_get_vsi_ctx(struct ice_hw *hw, u16 vsi_handle)
+struct ice_vsi_ctx *ice_get_vsi_ctx(struct ice_hw *hw, u16 vsi_handle)
 {
 	return (vsi_handle >= ICE_MAX_VSI) ? NULL : hw->vsi_ctx[vsi_handle];
 }

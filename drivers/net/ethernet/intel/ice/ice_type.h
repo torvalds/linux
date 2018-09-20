@@ -186,7 +186,7 @@ struct ice_sched_node {
 	struct ice_sched_node **children;
 	struct ice_aqc_txsched_elem_data info;
 	u32 agg_id;			/* aggregator group id */
-	u16 vsi_id;
+	u16 vsi_handle;
 	u8 in_use;			/* suspended or in use */
 	u8 tx_sched_layer;		/* Logical Layer (1-9) */
 	u8 num_children;
@@ -245,8 +245,6 @@ struct ice_port_info {
 	struct ice_mac_info mac;
 	struct ice_phy_info phy;
 	struct mutex sched_lock;	/* protect access to TXSched tree */
-	struct ice_sched_tx_policy sched_policy;
-	struct list_head vsi_info_list;
 	struct list_head agg_list;	/* lists all aggregator */
 	u8 lport;
 #define ICE_LPORT_MASK		0xff

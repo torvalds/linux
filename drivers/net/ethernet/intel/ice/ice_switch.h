@@ -17,6 +17,7 @@ struct ice_vsi_ctx {
 	u16 vsis_unallocated;
 	u16 flags;
 	struct ice_aqc_vsi_props info;
+	struct ice_sched_vsi_info sched;
 	u8 alloc_from_pool;
 };
 
@@ -185,6 +186,8 @@ ice_free_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
 enum ice_status
 ice_update_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
 	       struct ice_sq_cd *cd);
+bool ice_is_vsi_valid(struct ice_hw *hw, u16 vsi_handle);
+struct ice_vsi_ctx *ice_get_vsi_ctx(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw);
 
 /* Switch/bridge related commands */
@@ -196,6 +199,8 @@ enum ice_status ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);
 enum ice_status ice_remove_vlan(struct ice_hw *hw, struct list_head *v_list);
 enum ice_status
 ice_cfg_dflt_vsi(struct ice_hw *hw, u16 vsi_handle, bool set, u8 direction);
+
+u16 ice_get_hw_vsi_num(struct ice_hw *hw, u16 vsi_handle);
 
 enum ice_status ice_replay_all_fltr(struct ice_hw *hw);
 

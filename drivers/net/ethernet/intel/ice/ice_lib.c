@@ -137,7 +137,7 @@ ice_setup_tx_ctx(struct ice_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf_q)
 	}
 
 	/* make sure the context is associated with the right VSI */
-	tlan_ctx->src_vsi = vsi->vsi_num;
+	tlan_ctx->src_vsi = ice_get_hw_vsi_num(hw, vsi->idx);
 
 	tlan_ctx->tso_ena = ICE_TX_LEGACY;
 	tlan_ctx->tso_qnum = pf_q;
@@ -1230,8 +1230,8 @@ static int ice_vsi_cfg_rss_lut_key(struct ice_vsi *vsi)
 	else
 		ice_fill_rss_lut(lut, vsi->rss_table_size, vsi->rss_size);
 
-	status = ice_aq_set_rss_lut(&pf->hw, vsi->vsi_num, vsi->rss_lut_type,
-				    lut, vsi->rss_table_size);
+	status = ice_aq_set_rss_lut(&pf->hw, vsi->idx, vsi->rss_lut_type, lut,
+				    vsi->rss_table_size);
 
 	if (status) {
 		dev_err(&vsi->back->pdev->dev,
@@ -1255,7 +1255,7 @@ static int ice_vsi_cfg_rss_lut_key(struct ice_vsi *vsi)
 	memcpy(&key->standard_rss_key, seed,
 	       ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE);
 
-	status = ice_aq_set_rss_key(&pf->hw, vsi->vsi_num, key);
+	status = ice_aq_set_rss_key(&pf->hw, vsi->idx, key);
 
 	if (status) {
 		dev_err(&vsi->back->pdev->dev, "set_rss_key failed, error %d\n",
@@ -1524,7 +1524,7 @@ int ice_vsi_cfg_txqs(struct ice_vsi *vsi)
 		 * comm scheduler queue doorbell.
 		 */
 		vsi->tx_rings[i]->tail = pf->hw.hw_addr + QTX_COMM_DBELL(pf_q);
-		status = ice_ena_vsi_txq(vsi->port_info, vsi->vsi_num, tc,
+		status = ice_ena_vsi_txq(vsi->port_info, vsi->idx, tc,
 					 num_q_grps, qg_buf, buf_len, NULL);
 		if (status) {
 			dev_err(&vsi->back->pdev->dev,
@@ -1929,8 +1929,8 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	for (i = 0; i < vsi->tc_cfg.numtc; i++)
 		max_txqs[i] = vsi->num_txq;
 
-	ret = ice_cfg_vsi_lan(vsi->port_info, vsi->vsi_num,
-			      vsi->tc_cfg.ena_tc, max_txqs);
+	ret = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
+			      max_txqs);
 	if (ret) {
 		dev_info(&pf->pdev->dev, "Failed VSI lan queue config\n");
 		goto unroll_vector_base;
@@ -2340,8 +2340,8 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 	for (i = 0; i < vsi->tc_cfg.numtc; i++)
 		max_txqs[i] = vsi->num_txq;
 
-	ret = ice_cfg_vsi_lan(vsi->port_info, vsi->vsi_num,
-			      vsi->tc_cfg.ena_tc, max_txqs);
+	ret = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
+			      max_txqs);
 	if (ret) {
 		dev_info(&vsi->back->pdev->dev,
 			 "Failed VSI lan queue config\n");

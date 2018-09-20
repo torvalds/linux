@@ -2055,7 +2055,7 @@ ice_aq_get_set_rss_lut_exit:
 /**
  * ice_aq_get_rss_lut
  * @hw: pointer to the hardware structure
- * @vsi_id: VSI FW index
+ * @vsi_handle: software VSI handle
  * @lut_type: LUT table type
  * @lut: pointer to the LUT buffer provided by the caller
  * @lut_size: size of the LUT buffer
@@ -2063,17 +2063,20 @@ ice_aq_get_set_rss_lut_exit:
  * get the RSS lookup table, PF or VSI type
  */
 enum ice_status
-ice_aq_get_rss_lut(struct ice_hw *hw, u16 vsi_id, u8 lut_type, u8 *lut,
-		   u16 lut_size)
+ice_aq_get_rss_lut(struct ice_hw *hw, u16 vsi_handle, u8 lut_type,
+		   u8 *lut, u16 lut_size)
 {
-	return __ice_aq_get_set_rss_lut(hw, vsi_id, lut_type, lut, lut_size, 0,
-					false);
+	if (!ice_is_vsi_valid(hw, vsi_handle) || !lut)
+		return ICE_ERR_PARAM;
+
+	return __ice_aq_get_set_rss_lut(hw, ice_get_hw_vsi_num(hw, vsi_handle),
+					lut_type, lut, lut_size, 0, false);
 }
 
 /**
  * ice_aq_set_rss_lut
  * @hw: pointer to the hardware structure
- * @vsi_id: VSI FW index
+ * @vsi_handle: software VSI handle
  * @lut_type: LUT table type
  * @lut: pointer to the LUT buffer provided by the caller
  * @lut_size: size of the LUT buffer
@@ -2081,11 +2084,14 @@ ice_aq_get_rss_lut(struct ice_hw *hw, u16 vsi_id, u8 lut_type, u8 *lut,
  * set the RSS lookup table, PF or VSI type
  */
 enum ice_status
-ice_aq_set_rss_lut(struct ice_hw *hw, u16 vsi_id, u8 lut_type, u8 *lut,
-		   u16 lut_size)
+ice_aq_set_rss_lut(struct ice_hw *hw, u16 vsi_handle, u8 lut_type,
+		   u8 *lut, u16 lut_size)
 {
-	return __ice_aq_get_set_rss_lut(hw, vsi_id, lut_type, lut, lut_size, 0,
-					true);
+	if (!ice_is_vsi_valid(hw, vsi_handle) || !lut)
+		return ICE_ERR_PARAM;
+
+	return __ice_aq_get_set_rss_lut(hw, ice_get_hw_vsi_num(hw, vsi_handle),
+					lut_type, lut, lut_size, 0, true);
 }
 
 /**
@@ -2126,31 +2132,39 @@ ice_status __ice_aq_get_set_rss_key(struct ice_hw *hw, u16 vsi_id,
 /**
  * ice_aq_get_rss_key
  * @hw: pointer to the hw struct
- * @vsi_id: VSI FW index
+ * @vsi_handle: software VSI handle
  * @key: pointer to key info struct
  *
  * get the RSS key per VSI
  */
 enum ice_status
-ice_aq_get_rss_key(struct ice_hw *hw, u16 vsi_id,
+ice_aq_get_rss_key(struct ice_hw *hw, u16 vsi_handle,
 		   struct ice_aqc_get_set_rss_keys *key)
 {
-	return __ice_aq_get_set_rss_key(hw, vsi_id, key, false);
+	if (!ice_is_vsi_valid(hw, vsi_handle) || !key)
+		return ICE_ERR_PARAM;
+
+	return __ice_aq_get_set_rss_key(hw, ice_get_hw_vsi_num(hw, vsi_handle),
+					key, false);
 }
 
 /**
  * ice_aq_set_rss_key
  * @hw: pointer to the hw struct
- * @vsi_id: VSI FW index
+ * @vsi_handle: software VSI handle
  * @keys: pointer to key info struct
  *
  * set the RSS key per VSI
  */
 enum ice_status
-ice_aq_set_rss_key(struct ice_hw *hw, u16 vsi_id,
+ice_aq_set_rss_key(struct ice_hw *hw, u16 vsi_handle,
 		   struct ice_aqc_get_set_rss_keys *keys)
 {
-	return __ice_aq_get_set_rss_key(hw, vsi_id, keys, true);
+	if (!ice_is_vsi_valid(hw, vsi_handle) || !keys)
+		return ICE_ERR_PARAM;
+
+	return __ice_aq_get_set_rss_key(hw, ice_get_hw_vsi_num(hw, vsi_handle),
+					keys, true);
 }
 
 /**
@@ -2489,7 +2503,7 @@ ice_set_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 /**
  * ice_ena_vsi_txq
  * @pi: port information structure
- * @vsi_id: VSI id
+ * @vsi_handle: software VSI handle
  * @tc: tc number
  * @num_qgrps: Number of added queue groups
  * @buf: list of queue groups to be added
@@ -2499,7 +2513,7 @@ ice_set_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
  * This function adds one lan q
  */
 enum ice_status
-ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_id, u8 tc, u8 num_qgrps,
+ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u8 num_qgrps,
 		struct ice_aqc_add_tx_qgrp *buf, u16 buf_size,
 		struct ice_sq_cd *cd)
 {
@@ -2516,15 +2530,19 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_id, u8 tc, u8 num_qgrps,
 
 	hw = pi->hw;
 
+	if (!ice_is_vsi_valid(hw, vsi_handle))
+		return ICE_ERR_PARAM;
+
 	mutex_lock(&pi->sched_lock);
 
 	/* find a parent node */
-	parent = ice_sched_get_free_qparent(pi, vsi_id, tc,
+	parent = ice_sched_get_free_qparent(pi, vsi_handle, tc,
 					    ICE_SCHED_NODE_OWNER_LAN);
 	if (!parent) {
 		status = ICE_ERR_PARAM;
 		goto ena_txq_exit;
 	}
+
 	buf->parent_teid = parent->info.node_teid;
 	node.parent_teid = parent->info.node_teid;
 	/* Mark that the values in the "generic" section as valid. The default
@@ -2602,7 +2620,7 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
 /**
  * ice_cfg_vsi_qs - configure the new/exisiting VSI queues
  * @pi: port information structure
- * @vsi_id: VSI Id
+ * @vsi_handle: software VSI handle
  * @tc_bitmap: TC bitmap
  * @maxqs: max queues array per TC
  * @owner: lan or rdma
@@ -2610,7 +2628,7 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
  * This function adds/updates the VSI queues per TC.
  */
 static enum ice_status
-ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_id, u8 tc_bitmap,
+ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_handle, u8 tc_bitmap,
 	       u16 *maxqs, u8 owner)
 {
 	enum ice_status status = 0;
@@ -2619,6 +2637,9 @@ ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_id, u8 tc_bitmap,
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
 		return ICE_ERR_CFG;
 
+	if (!ice_is_vsi_valid(pi->hw, vsi_handle))
+		return ICE_ERR_PARAM;
+
 	mutex_lock(&pi->sched_lock);
 
 	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
@@ -2626,7 +2647,7 @@ ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_id, u8 tc_bitmap,
 		if (!ice_sched_get_tc_node(pi, i))
 			continue;
 
-		status = ice_sched_cfg_vsi(pi, vsi_id, i, maxqs[i], owner,
+		status = ice_sched_cfg_vsi(pi, vsi_handle, i, maxqs[i], owner,
 					   ice_is_tc_ena(tc_bitmap, i));
 		if (status)
 			break;
@@ -2639,17 +2660,17 @@ ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_id, u8 tc_bitmap,
 /**
  * ice_cfg_vsi_lan - configure VSI lan queues
  * @pi: port information structure
- * @vsi_id: VSI Id
+ * @vsi_handle: software VSI handle
  * @tc_bitmap: TC bitmap
  * @max_lanqs: max lan queues array per TC
  *
  * This function adds/updates the VSI lan queues per TC.
  */
 enum ice_status
-ice_cfg_vsi_lan(struct ice_port_info *pi, u16 vsi_id, u8 tc_bitmap,
+ice_cfg_vsi_lan(struct ice_port_info *pi, u16 vsi_handle, u8 tc_bitmap,
 		u16 *max_lanqs)
 {
-	return ice_cfg_vsi_qs(pi, vsi_id, tc_bitmap, max_lanqs,
+	return ice_cfg_vsi_qs(pi, vsi_handle, tc_bitmap, max_lanqs,
 			      ICE_SCHED_NODE_OWNER_LAN);
 }
 

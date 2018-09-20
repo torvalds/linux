@@ -253,7 +253,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 		clear_bit(ICE_VSI_FLAG_PROMISC_CHANGED, vsi->flags);
 		if (vsi->current_netdev_flags & IFF_PROMISC) {
 			/* Apply TX filter rule to get traffic from VMs */
-			status = ice_cfg_dflt_vsi(hw, vsi->vsi_num, true,
+			status = ice_cfg_dflt_vsi(hw, vsi->idx, true,
 						  ICE_FLTR_TX);
 			if (status) {
 				netdev_err(netdev, "Error setting default VSI %i tx rule\n",
@@ -263,7 +263,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 				goto out_promisc;
 			}
 			/* Apply RX filter rule to get traffic from wire */
-			status = ice_cfg_dflt_vsi(hw, vsi->vsi_num, true,
+			status = ice_cfg_dflt_vsi(hw, vsi->idx, true,
 						  ICE_FLTR_RX);
 			if (status) {
 				netdev_err(netdev, "Error setting default VSI %i rx rule\n",
@@ -274,7 +274,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 			}
 		} else {
 			/* Clear TX filter rule to stop traffic from VMs */
-			status = ice_cfg_dflt_vsi(hw, vsi->vsi_num, false,
+			status = ice_cfg_dflt_vsi(hw, vsi->idx, false,
 						  ICE_FLTR_TX);
 			if (status) {
 				netdev_err(netdev, "Error clearing default VSI %i tx rule\n",
@@ -283,8 +283,8 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 				err = -EIO;
 				goto out_promisc;
 			}
-			/* Clear filter RX to remove traffic from wire */
-			status = ice_cfg_dflt_vsi(hw, vsi->vsi_num, false,
+			/* Clear RX filter to remove traffic from wire */
+			status = ice_cfg_dflt_vsi(hw, vsi->idx, false,
 						  ICE_FLTR_RX);
 			if (status) {
 				netdev_err(netdev, "Error clearing default VSI %i rx rule\n",
@@ -3310,7 +3310,7 @@ int ice_set_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 		struct ice_aqc_get_set_rss_keys *buf =
 				  (struct ice_aqc_get_set_rss_keys *)seed;
 
-		status = ice_aq_set_rss_key(hw, vsi->vsi_num, buf);
+		status = ice_aq_set_rss_key(hw, vsi->idx, buf);
 
 		if (status) {
 			dev_err(&pf->pdev->dev,
@@ -3321,8 +3321,8 @@ int ice_set_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 	}
 
 	if (lut) {
-		status = ice_aq_set_rss_lut(hw, vsi->vsi_num,
-					    vsi->rss_lut_type, lut, lut_size);
+		status = ice_aq_set_rss_lut(hw, vsi->idx, vsi->rss_lut_type,
+					    lut, lut_size);
 		if (status) {
 			dev_err(&pf->pdev->dev,
 				"Cannot set RSS lut, err %d aq_err %d\n",
@@ -3353,7 +3353,7 @@ int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 		struct ice_aqc_get_set_rss_keys *buf =
 				  (struct ice_aqc_get_set_rss_keys *)seed;
 
-		status = ice_aq_get_rss_key(hw, vsi->vsi_num, buf);
+		status = ice_aq_get_rss_key(hw, vsi->idx, buf);
 		if (status) {
 			dev_err(&pf->pdev->dev,
 				"Cannot get RSS key, err %d aq_err %d\n",
@@ -3363,8 +3363,8 @@ int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 	}
 
 	if (lut) {
-		status = ice_aq_get_rss_lut(hw, vsi->vsi_num,
-					    vsi->rss_lut_type, lut, lut_size);
+		status = ice_aq_get_rss_lut(hw, vsi->idx, vsi->rss_lut_type,
+					    lut, lut_size);
 		if (status) {
 			dev_err(&pf->pdev->dev,
 				"Cannot get RSS lut, err %d aq_err %d\n",
