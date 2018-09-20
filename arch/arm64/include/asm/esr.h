@@ -208,6 +208,18 @@
 #define ESR_ELx_SYS64_ISS_EL0_CACHE_OP_VAL \
 				(ESR_ELx_SYS64_ISS_SYS_VAL(1, 3, 1, 7, 0) | \
 				 ESR_ELx_SYS64_ISS_DIR_WRITE)
+/*
+ * User space MRS operations which are supported for emulation
+ * have the following sysreg encoding in System instructions.
+ * op0 = 3, op1= 0, crn = 0, {crm = 0, 4-7}, READ (L = 1)
+ */
+#define ESR_ELx_SYS64_ISS_SYS_MRS_OP_MASK	(ESR_ELx_SYS64_ISS_OP0_MASK | \
+						 ESR_ELx_SYS64_ISS_OP1_MASK | \
+						 ESR_ELx_SYS64_ISS_CRN_MASK | \
+						 ESR_ELx_SYS64_ISS_DIR_MASK)
+#define ESR_ELx_SYS64_ISS_SYS_MRS_OP_VAL \
+				(ESR_ELx_SYS64_ISS_SYS_VAL(3, 0, 0, 0, 0) | \
+				 ESR_ELx_SYS64_ISS_DIR_READ)
 
 #define ESR_ELx_SYS64_ISS_SYS_CTR	ESR_ELx_SYS64_ISS_SYS_VAL(3, 3, 1, 0, 0)
 #define ESR_ELx_SYS64_ISS_SYS_CTR_READ	(ESR_ELx_SYS64_ISS_SYS_CTR | \
