@@ -734,7 +734,7 @@ static void pvrdma_netdevice_event_handle(struct pvrdma_dev *dev,
 
 	default:
 		dev_dbg(&dev->pdev->dev, "ignore netdevice event %ld on %s\n",
-			event, dev->ib_dev.name);
+			event, dev_name(&dev->ib_dev.dev));
 		break;
 	}
 }

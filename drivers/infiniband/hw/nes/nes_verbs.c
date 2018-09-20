@@ -687,7 +687,7 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 	}
 
 	nes_debug(NES_DBG_PD, "Allocating PD (%p) for ib device %s\n",
-			nespd, nesvnic->nesibdev->ibdev.name);
+			nespd, dev_name(&nesvnic->nesibdev->ibdev.dev));
 
 	nespd->pd_id = (pd_num << (PAGE_SHIFT-12)) + nesadapter->base_pd;
 

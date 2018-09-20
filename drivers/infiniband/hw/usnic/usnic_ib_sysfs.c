@@ -94,7 +94,7 @@ usnic_ib_show_config(struct device *device, struct device_attribute *attr,
 
 		n = scnprintf(ptr, left,
 			"%s: %s:%d.%d, %s, %pM, %u VFs\n Per VF:",
-			us_ibdev->ib_dev.name,
+			dev_name(&us_ibdev->ib_dev.dev),
 			busname,
 			PCI_SLOT(us_ibdev->pdev->devfn),
 			PCI_FUNC(us_ibdev->pdev->devfn),
@@ -119,7 +119,7 @@ usnic_ib_show_config(struct device *device, struct device_attribute *attr,
 		UPDATE_PTR_LEFT(n, ptr, left);
 	} else {
 		n = scnprintf(ptr, left, "%s: no VFs\n",
-				us_ibdev->ib_dev.name);
+				dev_name(&us_ibdev->ib_dev.dev));
 		UPDATE_PTR_LEFT(n, ptr, left);
 	}
 	mutex_unlock(&us_ibdev->usdev_lock);
@@ -285,7 +285,7 @@ int usnic_ib_sysfs_register_usdev(struct usnic_ib_dev *us_ibdev)
 						usnic_class_attributes[i]);
 		if (err) {
 			usnic_err("Failed to create device file %d for %s eith err %d",
-				i, us_ibdev->ib_dev.name, err);
+				i, dev_name(&us_ibdev->ib_dev.dev), err);
 			return -EINVAL;
 		}
 	}

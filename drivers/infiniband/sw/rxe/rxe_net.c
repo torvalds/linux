@@ -72,7 +72,7 @@ struct rxe_dev *get_rxe_by_name(const char *name)
 
 	spin_lock_bh(&dev_list_lock);
 	list_for_each_entry(rxe, &rxe_dev_list, list) {
-		if (!strcmp(name, rxe->ib_dev.name)) {
+		if (!strcmp(name, dev_name(&rxe->ib_dev.dev))) {
 			found = rxe;
 			break;
 		}
