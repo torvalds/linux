@@ -2185,6 +2185,8 @@ static void ice_remove(struct pci_dev *pdev)
 	set_bit(__ICE_DOWN, pf->state);
 	ice_service_task_stop(pf);
 
+	if (test_bit(ICE_FLAG_SRIOV_ENA, pf->flags))
+		ice_free_vfs(pf);
 	ice_vsi_release_all(pf);
 	ice_free_irq_msix_misc(pf);
 	ice_for_each_vsi(pf, i) {
@@ -2220,6 +2222,7 @@ static struct pci_driver ice_driver = {
 	.id_table = ice_pci_tbl,
 	.probe = ice_probe,
 	.remove = ice_remove,
+	.sriov_configure = ice_sriov_configure,
 };
 
 /**
@@ -2955,7 +2958,7 @@ int ice_down(struct ice_vsi *vsi)
 	}
 
 	ice_vsi_dis_irq(vsi);
-	tx_err = ice_vsi_stop_tx_rings(vsi);
+	tx_err = ice_vsi_stop_tx_rings(vsi, ICE_NO_RESET, 0);
 	if (tx_err)
 		netdev_err(vsi->netdev,
 			   "Failed stop Tx rings, VSI %d error %d\n",
@@ -3357,6 +3360,7 @@ static void ice_rebuild(struct ice_pf *pf)
 		goto err_vsi_rebuild;
 	}
 
+	ice_reset_all_vfs(pf, true);
 	/* if we get here, reset flow is successful */
 	clear_bit(__ICE_RESET_FAILED, pf->state);
 	return;

@@ -1784,8 +1784,11 @@ int ice_vsi_stop_rx_rings(struct ice_vsi *vsi)
 /**
  * ice_vsi_stop_tx_rings - Disable Tx rings
  * @vsi: the VSI being configured
+ * @rst_src: reset source
+ * @rel_vmvf_num: Relative id of VF/VM
  */
-int ice_vsi_stop_tx_rings(struct ice_vsi *vsi)
+int ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
+			  u16 rel_vmvf_num)
 {
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
@@ -1837,7 +1840,7 @@ int ice_vsi_stop_tx_rings(struct ice_vsi *vsi)
 		     GLINT_DYN_CTL_SWINT_TRIG_M | GLINT_DYN_CTL_INTENA_MSK_M);
 	}
 	status = ice_dis_vsi_txq(vsi->port_info, vsi->num_txq, q_ids, q_teids,
-				 NULL);
+				 rst_src, rel_vmvf_num, NULL);
 	/* if the disable queue command was exercised during an active reset
 	 * flow, ICE_ERR_RESET_ONGOING is returned. This is not an error as
 	 * the reset operation disables queues at the hardware level anyway.

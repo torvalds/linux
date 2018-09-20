@@ -104,6 +104,15 @@ struct ice_link_status {
 	u8 module_type[ICE_MODULE_TYPE_TOTAL_BYTE];
 };
 
+/* Different reset sources for which a disable queue AQ call has to be made in
+ * order to clean the TX scheduler as a part of the reset
+ */
+enum ice_disq_rst_src {
+	ICE_NO_RESET = 0,
+	ICE_VM_RESET,
+	ICE_VF_RESET,
+};
+
 /* PHY info such as phy_type, etc... */
 struct ice_phy_info {
 	struct ice_link_status link_info;
@@ -130,6 +139,7 @@ struct ice_hw_common_caps {
 
 	/* Virtualization support */
 	u8 sr_iov_1_1;			/* SR-IOV enabled */
+
 	/* RSS related capabilities */
 	u16 rss_table_size;		/* 512 for PFs and 64 for VFs */
 	u8 rss_table_entry_width;	/* RSS Entry width in bits */

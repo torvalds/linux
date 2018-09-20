@@ -2287,6 +2287,8 @@ ice_aq_add_lan_txq(struct ice_hw *hw, u8 num_qgrps,
  * @num_qgrps: number of groups in the list
  * @qg_list: the list of groups to disable
  * @buf_size: the total size of the qg_list buffer in bytes
+ * @rst_src: if called due to reset, specifies the RST source
+ * @vmvf_num: the relative VM or VF number that is undergoing the reset
  * @cd: pointer to command details structure or NULL
  *
  * Disable LAN Tx queue (0x0C31)
@@ -2294,6 +2296,7 @@ ice_aq_add_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 static enum ice_status
 ice_aq_dis_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 		   struct ice_aqc_dis_txq_item *qg_list, u16 buf_size,
+		   enum ice_disq_rst_src rst_src, u16 vmvf_num,
 		   struct ice_sq_cd *cd)
 {
 	struct ice_aqc_dis_txqs *cmd;
@@ -2303,13 +2306,44 @@ ice_aq_dis_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 	cmd = &desc.params.dis_txqs;
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_dis_txqs);
 
-	if (!qg_list)
+	/* qg_list can be NULL only in VM/VF reset flow */
+	if (!qg_list && !rst_src)
 		return ICE_ERR_PARAM;
 
 	if (num_qgrps > ICE_LAN_TXQ_MAX_QGRPS)
 		return ICE_ERR_PARAM;
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+
 	cmd->num_entries = num_qgrps;
+
+	cmd->vmvf_and_timeout = cpu_to_le16((5 << ICE_AQC_Q_DIS_TIMEOUT_S) &
+					    ICE_AQC_Q_DIS_TIMEOUT_M);
+
+	switch (rst_src) {
+	case ICE_VM_RESET:
+		cmd->cmd_type = ICE_AQC_Q_DIS_CMD_VM_RESET;
+		cmd->vmvf_and_timeout |=
+			cpu_to_le16(vmvf_num & ICE_AQC_Q_DIS_VMVF_NUM_M);
+		break;
+	case ICE_VF_RESET:
+		cmd->cmd_type = ICE_AQC_Q_DIS_CMD_VF_RESET;
+		/* In this case, FW expects vmvf_num to be absolute VF id */
+		cmd->vmvf_and_timeout |=
+			cpu_to_le16((vmvf_num + hw->func_caps.vf_base_id) &
+				    ICE_AQC_Q_DIS_VMVF_NUM_M);
+		break;
+	case ICE_NO_RESET:
+	default:
+		break;
+	}
+
+	/* If no queue group info, we are in a reset flow. Issue the AQ */
+	if (!qg_list)
+		goto do_aq;
+
+	/* set RD bit to indicate that command buffer is provided by the driver
+	 * and it needs to be read by the firmware
+	 */
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
 
 	for (i = 0; i < num_qgrps; ++i) {
 		/* Calculate the size taken up by the queue IDs in this group */
@@ -2326,6 +2360,7 @@ ice_aq_dis_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 	if (buf_size != sz)
 		return ICE_ERR_PARAM;
 
+do_aq:
 	return ice_aq_send_cmd(hw, &desc, qg_list, buf_size, cd);
 }
 
@@ -2632,13 +2667,16 @@ ena_txq_exit:
  * @num_queues: number of queues
  * @q_ids: pointer to the q_id array
  * @q_teids: pointer to queue node teids
+ * @rst_src: if called due to reset, specifies the RST source
+ * @vmvf_num: the relative VM or VF number that is undergoing the reset
  * @cd: pointer to command details structure or NULL
  *
  * This function removes queues and their corresponding nodes in SW DB
  */
 enum ice_status
 ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
-		u32 *q_teids, struct ice_sq_cd *cd)
+		u32 *q_teids, enum ice_disq_rst_src rst_src, u16 vmvf_num,
+		struct ice_sq_cd *cd)
 {
 	enum ice_status status = ICE_ERR_DOES_NOT_EXIST;
 	struct ice_aqc_dis_txq_item qg_list;
@@ -2646,6 +2684,15 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
 
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
 		return ICE_ERR_CFG;
+
+	/* if queue is disabled already yet the disable queue command has to be
+	 * sent to complete the VF reset, then call ice_aq_dis_lan_txq without
+	 * any queue information
+	 */
+
+	if (!num_queues && rst_src)
+		return ice_aq_dis_lan_txq(pi->hw, 0, NULL, 0, rst_src, vmvf_num,
+					  NULL);
 
 	mutex_lock(&pi->sched_lock);
 
@@ -2659,7 +2706,8 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
 		qg_list.num_qs = 1;
 		qg_list.q_id[0] = cpu_to_le16(q_ids[i]);
 		status = ice_aq_dis_lan_txq(pi->hw, 1, &qg_list,
-					    sizeof(qg_list), cd);
+					    sizeof(qg_list), rst_src, vmvf_num,
+					    cd);
 
 		if (status)
 			break;

@@ -7,6 +7,7 @@
 #include "ice.h"
 #include "ice_type.h"
 #include "ice_switch.h"
+#include <linux/avf/virtchnl.h>
 
 void ice_debug_cq(struct ice_hw *hw, u32 mask, void *desc, void *buf,
 		  u16 buf_len);
@@ -89,7 +90,8 @@ ice_aq_set_event_mask(struct ice_hw *hw, u8 port_num, u16 mask,
 		      struct ice_sq_cd *cd);
 enum ice_status
 ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
-		u32 *q_teids, struct ice_sq_cd *cmd_details);
+		u32 *q_teids, enum ice_disq_rst_src rst_src, u16 vmvf_num,
+		struct ice_sq_cd *cmd_details);
 enum ice_status
 ice_cfg_vsi_lan(struct ice_port_info *pi, u16 vsi_handle, u8 tc_bitmap,
 		u16 *max_lanqs);

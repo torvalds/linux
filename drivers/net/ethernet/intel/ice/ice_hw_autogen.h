@@ -90,10 +90,16 @@
 #define GLGEN_RTRIG_CORER_M			BIT(0)
 #define GLGEN_RTRIG_GLOBR_M			BIT(1)
 #define GLGEN_STAT				0x000B612C
+#define GLGEN_VFLRSTAT(_i)			(0x00093A04 + ((_i) * 4))
 #define PFGEN_CTRL				0x00091000
 #define PFGEN_CTRL_PFSWR_M			BIT(0)
 #define PFGEN_STATE				0x00088000
 #define PRTGEN_STATUS				0x000B8100
+#define VFGEN_RSTAT(_VF)			(0x00074000 + ((_VF) * 4))
+#define VPGEN_VFRSTAT(_VF)			(0x00090800 + ((_VF) * 4))
+#define VPGEN_VFRSTAT_VFRD_M			BIT(0)
+#define VPGEN_VFRTRIG(_VF)			(0x00090000 + ((_VF) * 4))
+#define VPGEN_VFRTRIG_VFSWR_M			BIT(0)
 #define PFHMC_ERRORDATA				0x00520500
 #define PFHMC_ERRORINFO				0x00520400
 #define GLINT_DYN_CTL(_INT)			(0x00160000 + ((_INT) * 4))
@@ -106,6 +112,13 @@
 #define GLINT_ITR(_i, _INT)			(0x00154000 + ((_i) * 8192 + (_INT) * 4))
 #define GLINT_RATE(_INT)			(0x0015A000 + ((_INT) * 4))
 #define GLINT_RATE_INTRL_ENA_M			BIT(6)
+#define GLINT_VECT2FUNC(_INT)			(0x00162000 + ((_INT) * 4))
+#define GLINT_VECT2FUNC_VF_NUM_S		0
+#define GLINT_VECT2FUNC_VF_NUM_M		ICE_M(0xFF, 0)
+#define GLINT_VECT2FUNC_PF_NUM_S		12
+#define GLINT_VECT2FUNC_PF_NUM_M		ICE_M(0x7, 12)
+#define GLINT_VECT2FUNC_IS_PF_S			16
+#define GLINT_VECT2FUNC_IS_PF_M			BIT(16)
 #define PFINT_FW_CTL				0x0016C800
 #define PFINT_FW_CTL_MSIX_INDX_M		ICE_M(0x7FF, 0)
 #define PFINT_FW_CTL_ITR_INDX_S			11
@@ -137,6 +150,12 @@
 #define QINT_TQCTL_MSIX_INDX_S			0
 #define QINT_TQCTL_ITR_INDX_S			11
 #define QINT_TQCTL_CAUSE_ENA_M			BIT(30)
+#define VPINT_ALLOC(_VF)			(0x001D1000 + ((_VF) * 4))
+#define VPINT_ALLOC_FIRST_S			0
+#define VPINT_ALLOC_FIRST_M			ICE_M(0x7FF, 0)
+#define VPINT_ALLOC_LAST_S			12
+#define VPINT_ALLOC_LAST_M			ICE_M(0x7FF, 12)
+#define VPINT_ALLOC_VALID_M			BIT(31)
 #define QRX_CONTEXT(_i, _QRX)			(0x00280000 + ((_i) * 8192 + (_QRX) * 4))
 #define QRX_CTRL(_QRX)				(0x00120000 + ((_QRX) * 4))
 #define QRX_CTRL_MAX_INDEX			2047
@@ -149,6 +168,20 @@
 #define QRX_TAIL_MAX_INDEX			2047
 #define QRX_TAIL_TAIL_S				0
 #define QRX_TAIL_TAIL_M				ICE_M(0x1FFF, 0)
+#define VPLAN_RX_QBASE(_VF)			(0x00072000 + ((_VF) * 4))
+#define VPLAN_RX_QBASE_VFFIRSTQ_S		0
+#define VPLAN_RX_QBASE_VFFIRSTQ_M		ICE_M(0x7FF, 0)
+#define VPLAN_RX_QBASE_VFNUMQ_S			16
+#define VPLAN_RX_QBASE_VFNUMQ_M			ICE_M(0xFF, 16)
+#define VPLAN_RXQ_MAPENA(_VF)			(0x00073000 + ((_VF) * 4))
+#define VPLAN_RXQ_MAPENA_RX_ENA_M		BIT(0)
+#define VPLAN_TX_QBASE(_VF)			(0x001D1800 + ((_VF) * 4))
+#define VPLAN_TX_QBASE_VFFIRSTQ_S		0
+#define VPLAN_TX_QBASE_VFFIRSTQ_M		ICE_M(0x3FFF, 0)
+#define VPLAN_TX_QBASE_VFNUMQ_S			16
+#define VPLAN_TX_QBASE_VFNUMQ_M			ICE_M(0xFF, 16)
+#define VPLAN_TXQ_MAPENA(_VF)			(0x00073800 + ((_VF) * 4))
+#define VPLAN_TXQ_MAPENA_TX_ENA_M		BIT(0)
 #define GL_MDET_RX				0x00294C00
 #define GL_MDET_RX_QNUM_S			0
 #define GL_MDET_RX_QNUM_M			ICE_M(0x7FFF, 0)
@@ -196,6 +229,9 @@
 #define PF_FUNC_RID				0x0009E880
 #define PF_FUNC_RID_FUNC_NUM_S			0
 #define PF_FUNC_RID_FUNC_NUM_M			ICE_M(0x7, 0)
+#define PF_PCI_CIAA				0x0009E580
+#define PF_PCI_CIAA_VF_NUM_S			12
+#define PF_PCI_CIAD				0x0009E500
 #define GL_PWR_MODE_CTL				0x000B820C
 #define GL_PWR_MODE_CTL_CAR_MAX_BW_S		30
 #define GL_PWR_MODE_CTL_CAR_MAX_BW_M		ICE_M(0x3, 30)
@@ -276,5 +312,7 @@
 #define GLV_UPTCH(_i)				(0x0030A004 + ((_i) * 8))
 #define GLV_UPTCL(_i)				(0x0030A000 + ((_i) * 8))
 #define VSIQF_HKEY_MAX_INDEX			12
+#define VFINT_DYN_CTLN(_i)			(0x00003800 + ((_i) * 4))
+#define VFINT_DYN_CTLN_CLEARPBA_M		BIT(1)
 
 #endif /* _ICE_HW_AUTOGEN_H_ */
