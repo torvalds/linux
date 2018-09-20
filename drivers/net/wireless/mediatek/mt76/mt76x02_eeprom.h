@@ -121,4 +121,19 @@ enum mt76x02_eeprom_field {
 #define MT_EFUSE_USAGE_MAP_SIZE			(MT_EE_USAGE_MAP_END - \
 						 MT_EE_USAGE_MAP_START + 1)
 
+static inline bool mt76x02_field_valid(u8 val)
+{
+	return val != 0 && val != 0xff;
+}
+
+static inline int
+mt76x02_sign_extend(u32 val, unsigned int size)
+{
+	bool sign = val & BIT(size - 1);
+
+	val &= BIT(size - 1) - 1;
+
+	return sign ? val : -val;
+}
+
 #endif /* __MT76x02_EEPROM_H */

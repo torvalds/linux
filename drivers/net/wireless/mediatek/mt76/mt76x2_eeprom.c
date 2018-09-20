@@ -260,27 +260,11 @@ out:
 }
 
 static inline int
-mt76x2_sign_extend(u32 val, unsigned int size)
-{
-	bool sign = val & BIT(size - 1);
-
-	val &= BIT(size - 1) - 1;
-
-	return sign ? val : -val;
-}
-
-static inline int
 mt76x2_sign_extend_optional(u32 val, unsigned int size)
 {
 	bool enable = val & BIT(size);
 
-	return enable ? mt76x2_sign_extend(val, size) : 0;
-}
-
-static bool
-field_valid(u8 val)
-{
-	return val != 0 && val != 0xff;
+	return enable ? mt76x02_sign_extend(val, size) : 0;
 }
 
 static void
@@ -288,14 +272,14 @@ mt76x2_set_rx_gain_group(struct mt76x2_dev *dev, u8 val)
 {
 	s8 *dest = dev->cal.rx.high_gain;
 
-	if (!field_valid(val)) {
+	if (!mt76x02_field_valid(val)) {
 		dest[0] = 0;
 		dest[1] = 0;
 		return;
 	}
 
-	dest[0] = mt76x2_sign_extend(val, 4);
-	dest[1] = mt76x2_sign_extend(val >> 4, 4);
+	dest[0] = mt76x02_sign_extend(val, 4);
+	dest[1] = mt76x02_sign_extend(val >> 4, 4);
 }
 
 static void
@@ -303,7 +287,7 @@ mt76x2_set_rssi_offset(struct mt76x2_dev *dev, int chain, u8 val)
 {
 	s8 *dest = dev->cal.rx.rssi_offset;
 
-	if (!field_valid(val)) {
+	if (!mt76x02_field_valid(val)) {
 		dest[chain] = 0;
 		return;
 	}
@@ -384,10 +368,10 @@ void mt76x2_read_rx_gain(struct mt76x2_dev *dev)
 	val = mt76x2_eeprom_get(dev, MT_EE_RSSI_OFFSET_5G_1);
 	lna_5g[2] = val >> 8;
 
-	if (!field_valid(lna_5g[1]))
+	if (!mt76x02_field_valid(lna_5g[1]))
 		lna_5g[1] = lna_5g[0];
 
-	if (!field_valid(lna_5g[2]))
+	if (!mt76x02_field_valid(lna_5g[2]))
 		lna_5g[2] = lna_5g[0];
 
 	dev->cal.rx.mcu_gain =  (lna_2g & 0xff);
@@ -413,14 +397,14 @@ void mt76x2_read_rx_gain(struct mt76x2_dev *dev)
 	if (lna == 0xff)
 		lna = 0;
 
-	dev->cal.rx.lna_gain = mt76x2_sign_extend(lna, 8);
+	dev->cal.rx.lna_gain = mt76x02_sign_extend(lna, 8);
 }
 EXPORT_SYMBOL_GPL(mt76x2_read_rx_gain);
 
 static s8
 mt76x2_rate_power_val(u8 val)
 {
-	if (!field_valid(val))
+	if (!mt76x02_field_valid(val))
 		return 0;
 
 	return mt76x2_sign_extend_optional(val, 7);
@@ -601,7 +585,8 @@ void mt76x2_get_power_info(struct mt76x2_dev *dev,
 					 MT_EE_TX_POWER_1_START_2G);
 	}
 
-	if (mt76x2_tssi_enabled(dev) || !field_valid(t->target_power))
+	if (mt76x2_tssi_enabled(dev) ||
+	    !mt76x02_field_valid(t->target_power))
 		t->target_power = t->chain[0].target_power;
 
 	t->delta_bw40 = mt76x2_rate_power_val(bw40);

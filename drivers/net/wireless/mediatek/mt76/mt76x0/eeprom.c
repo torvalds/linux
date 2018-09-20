@@ -21,31 +21,6 @@
 #include "mt76x0.h"
 #include "eeprom.h"
 
-static bool
-field_valid(u8 val)
-{
-	return val != 0xff;
-}
-
-static s8
-field_validate(u8 val)
-{
-	if (!field_valid(val))
-		return 0;
-
-	return val;
-}
-
-static inline int
-sign_extend(u32 val, unsigned int size)
-{
-	bool sign = val & BIT(size - 1);
-
-	val &= BIT(size - 1) - 1;
-
-	return sign ? val : -val;
-}
-
 static int
 mt76x0_efuse_read(struct mt76x0_dev *dev, u16 addr, u8 *data,
 		   enum mt76x0_eeprom_access_modes mode)
@@ -137,14 +112,14 @@ mt76x0_set_chip_cap(struct mt76x0_dev *dev, u8 *eeprom)
 	dev_dbg(dev->mt76.dev, "Has 2GHZ %d 5GHZ %d\n",
 		dev->mt76.cap.has_2ghz, dev->mt76.cap.has_5ghz);
 
-	if (!field_valid(nic_conf1 & 0xff))
+	if (!mt76x02_field_valid(nic_conf1 & 0xff))
 		nic_conf1 &= 0xff00;
 
 	if (nic_conf1 & MT_EE_NIC_CONF_1_HW_RF_CTRL)
 		dev_err(dev->mt76.dev,
 			"Error: this driver does not support HW RF ctrl\n");
 
-	if (!field_valid(nic_conf0 >> 8))
+	if (!mt76x02_field_valid(nic_conf0 >> 8))
 		return;
 
 	if (FIELD_GET(MT_EE_NIC_CONF_0_RX_PATH, nic_conf0) > 1 ||
@@ -183,8 +158,8 @@ mt76x0_set_temp_offset(struct mt76x0_dev *dev, u8 *eeprom)
 {
 	u8 temp = eeprom[MT_EE_TEMP_OFFSET];
 
-	if (field_valid(temp))
-		dev->ee->temp_off = sign_extend(temp, 8);
+	if (mt76x02_field_valid(temp))
+		dev->ee->temp_off = mt76x02_sign_extend(temp, 8);
 	else
 		dev->ee->temp_off = -10;
 }
@@ -231,8 +206,13 @@ mt76x0_set_rf_freq_off(struct mt76x0_dev *dev, u8 *eeprom)
 {
 	u8 comp;
 
-	dev->ee->rf_freq_off = field_validate(eeprom[MT_EE_FREQ_OFFSET]);
-	comp = field_validate(eeprom[MT_EE_FREQ_OFFSET_COMPENSATION]);
+	comp = eeprom[MT_EE_FREQ_OFFSET_COMPENSATION];
+	if (!mt76x02_field_valid(comp))
+		comp = 0;
+
+	dev->ee->rf_freq_off = eeprom[MT_EE_FREQ_OFFSET];
+	if (!mt76x02_field_valid(dev->ee->rf_freq_off))
+		dev->ee->rf_freq_off = 0;
 
 	if (comp & BIT(7))
 		dev->ee->rf_freq_off -= comp & 0x7f;
@@ -311,7 +291,7 @@ get_delta(u8 val)
 {
 	s8 ret;
 
-	if (!field_valid(val) || !(val & BIT(7)))
+	if (!mt76x02_field_valid(val) || !(val & BIT(7)))
 		return 0;
 
 	ret = val & 0x1f;
