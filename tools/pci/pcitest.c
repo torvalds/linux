@@ -140,6 +140,7 @@ static void run_test(struct pci_test *test)
 	}
 
 	fflush(stdout);
+	return (ret < 0) ? ret : 1 - ret; /* return 0 if test succeeded */
 }
 
 int main(int argc, char **argv)
@@ -228,6 +229,5 @@ usage:
 		return -EINVAL;
 	}
 
-	run_test(test);
-	return 0;
+	return run_test(test);
 }
