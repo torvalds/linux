@@ -362,6 +362,7 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 	const struct vsp1_format_info *fmtinfo = wpf->fmtinfo;
 	unsigned int width;
 	unsigned int height;
+	unsigned int left;
 	unsigned int offset;
 	unsigned int flip;
 	unsigned int i;
@@ -371,13 +372,16 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 						 RWPF_PAD_SINK);
 	width = sink_format->width;
 	height = sink_format->height;
+	left = 0;
 
 	/*
 	 * Cropping. The partition algorithm can split the image into
 	 * multiple slices.
 	 */
-	if (pipe->partitions > 1)
+	if (pipe->partitions > 1) {
 		width = pipe->partition->wpf.width;
+		left = pipe->partition->wpf.left;
+	}
 
 	vsp1_wpf_write(wpf, dlb, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
 		       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
@@ -408,13 +412,11 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 	flip = wpf->flip.active;
 
 	if (flip & BIT(WPF_CTRL_HFLIP) && !wpf->flip.rotate)
-		offset = format->width - pipe->partition->wpf.left
-			- pipe->partition->wpf.width;
+		offset = format->width - left - width;
 	else if (flip & BIT(WPF_CTRL_VFLIP) && wpf->flip.rotate)
-		offset = format->height - pipe->partition->wpf.left
-			- pipe->partition->wpf.width;
+		offset = format->height - left - width;
 	else
-		offset = pipe->partition->wpf.left;
+		offset = left;
 
 	for (i = 0; i < format->num_planes; ++i) {
 		unsigned int hsub = i > 0 ? fmtinfo->hsub : 1;
@@ -436,7 +438,7 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 		 * image height.
 		 */
 		if (wpf->flip.rotate)
-			height = pipe->partition->wpf.width;
+			height = width;
 		else
 			height = format->height;
 
