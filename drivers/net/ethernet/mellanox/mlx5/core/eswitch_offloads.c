@@ -194,6 +194,14 @@ mlx5_eswitch_del_offloaded_rule(struct mlx5_eswitch *esw,
 	esw->offloads.num_flows--;
 }
 
+void
+mlx5_eswitch_del_fwd_rule(struct mlx5_eswitch *esw,
+			  struct mlx5_flow_handle *rule,
+			  struct mlx5_esw_flow_attr *attr)
+{
+	mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
+}
+
 static int esw_set_global_vlan_pop(struct mlx5_eswitch *esw, u8 val)
 {
 	struct mlx5_eswitch_rep *rep;

@@ -920,7 +920,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	if (flow->flags & MLX5E_TC_FLOW_OFFLOADED) {
 		flow->flags &= ~MLX5E_TC_FLOW_OFFLOADED;
 		if (attr->mirror_count)
-			mlx5_eswitch_del_offloaded_rule(esw, flow->rule[1], attr);
+			mlx5_eswitch_del_fwd_rule(esw, flow->rule[1], attr);
 		mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
 	}
 
@@ -996,7 +996,7 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 
 			flow->flags &= ~MLX5E_TC_FLOW_OFFLOADED;
 			if (attr->mirror_count)
-				mlx5_eswitch_del_offloaded_rule(esw, flow->rule[1], attr);
+				mlx5_eswitch_del_fwd_rule(esw, flow->rule[1], attr);
 			mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
 		}
 	}
