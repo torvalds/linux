@@ -1771,7 +1771,7 @@ int drm_crtc_get_sequence_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!dev->irq_enabled)
 		return -EINVAL;
@@ -1829,7 +1829,7 @@ int drm_crtc_queue_sequence_ioctl(struct drm_device *dev, void *data,
 	unsigned long spin_flags;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!dev->irq_enabled)
 		return -EINVAL;

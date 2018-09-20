@@ -1251,7 +1251,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 
 	/* disallow for drivers not supporting atomic: */
 	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	/* disallow for userspace that has not enabled atomic cap (even
 	 * though this may be a bit overkill, since legacy userspace

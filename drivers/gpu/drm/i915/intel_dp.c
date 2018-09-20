@@ -1998,8 +1998,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	struct intel_digital_connector_state *intel_conn_state =
 		to_intel_digital_connector_state(conn_state);
-	bool reduce_m_n = drm_dp_has_quirk(&intel_dp->desc,
-					   DP_DPCD_QUIRK_LIMITED_M_N);
+	bool constant_n = drm_dp_has_quirk(&intel_dp->desc,
+					   DP_DPCD_QUIRK_CONSTANT_N);
 
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
@@ -2064,7 +2064,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 			       adjusted_mode->crtc_clock,
 			       pipe_config->port_clock,
 			       &pipe_config->dp_m_n,
-			       reduce_m_n);
+			       constant_n);
 
 	if (intel_connector->panel.downclock_mode != NULL &&
 		dev_priv->drrs.type == SEAMLESS_DRRS_SUPPORT) {
@@ -2074,7 +2074,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 					       intel_connector->panel.downclock_mode->clock,
 					       pipe_config->port_clock,
 					       &pipe_config->dp_m2_n2,
-					       reduce_m_n);
+					       constant_n);
 	}
 
 	if (!HAS_DDI(dev_priv))
