@@ -134,7 +134,7 @@ static void etb_enable_hw(struct etb_drvdata *drvdata)
 	CS_LOCK(drvdata->base);
 }
 
-static int etb_enable(struct coresight_device *csdev, u32 mode, void *data)
+static int etb_enable_sysfs(struct coresight_device *csdev)
 {
 	int ret = 0;
 	unsigned long flags;
@@ -142,46 +142,77 @@ static int etb_enable(struct coresight_device *csdev, u32 mode, void *data)
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
-	/*
-	 * When accessing from Perf, a HW buffer can be handled
-	 * by a single trace entity.  In sysFS mode many tracers
-	 * can be logging to the same HW buffer.
-	 */
+	/* Don't messup with perf sessions. */
 	if (drvdata->mode == CS_MODE_PERF) {
 		ret = -EBUSY;
 		goto out;
 	}
 
-	/* Don't let perf disturb sysFS sessions */
-	if (drvdata->mode == CS_MODE_SYSFS && mode == CS_MODE_PERF) {
+	/* Nothing to do, the tracer is already enabled. */
+	if (drvdata->mode == CS_MODE_SYSFS)
+		goto out;
+
+	drvdata->mode = CS_MODE_SYSFS;
+	etb_enable_hw(drvdata);
+
+out:
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+	return ret;
+}
+
+static int etb_enable_perf(struct coresight_device *csdev, void *data)
+{
+	int ret = 0;
+	unsigned long flags;
+	struct etb_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	spin_lock_irqsave(&drvdata->spinlock, flags);
+
+	/* No need to continue if the component is already in use. */
+	if (drvdata->mode != CS_MODE_DISABLED) {
 		ret = -EBUSY;
 		goto out;
 	}
-
-	/* Nothing to do, the tracer is already enabled. */
-	if (drvdata->mode == CS_MODE_SYSFS && mode == CS_MODE_SYSFS)
-		goto out;
 
 	/*
 	 * We don't have an internal state to clean up if we fail to setup
 	 * the perf buffer. So we can perform the step before we turn the
 	 * ETB on and leave without cleaning up.
 	 */
-	if (mode == CS_MODE_PERF) {
-		ret = etb_set_buffer(csdev, (struct perf_output_handle *)data);
-		if (ret)
-			goto out;
-	}
+	ret = etb_set_buffer(csdev, (struct perf_output_handle *)data);
+	if (ret)
+		goto out;
 
-	drvdata->mode = mode;
+	drvdata->mode = CS_MODE_PERF;
 	etb_enable_hw(drvdata);
 
 out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-
-	if (!ret)
-		dev_dbg(drvdata->dev, "ETB enabled\n");
 	return ret;
+}
+
+static int etb_enable(struct coresight_device *csdev, u32 mode, void *data)
+{
+	int ret;
+	struct etb_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	switch (mode) {
+	case CS_MODE_SYSFS:
+		ret = etb_enable_sysfs(csdev);
+		break;
+	case CS_MODE_PERF:
+		ret = etb_enable_perf(csdev, data);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret)
+		return ret;
+
+	dev_dbg(drvdata->dev, "ETB enabled\n");
+	return 0;
 }
 
 static void etb_disable_hw(struct etb_drvdata *drvdata)
