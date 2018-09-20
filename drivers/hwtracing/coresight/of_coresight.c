@@ -162,7 +162,9 @@ static int of_coresight_parse_endpoint(struct device *dev,
 		}
 
 		pdata->outports[i] = endpoint.port;
-		pdata->child_names[i] = dev_name(rdev);
+		pdata->child_names[i] = devm_kstrdup(dev,
+						     dev_name(rdev),
+						     GFP_KERNEL);
 		pdata->child_ports[i] = rendpoint.id;
 		/* Connection record updated */
 		ret = 1;
@@ -172,6 +174,8 @@ static int of_coresight_parse_endpoint(struct device *dev,
 		of_node_put(rparent);
 	if (rport)
 		of_node_put(rport);
+	if (rdev)
+		put_device(rdev);
 
 	return ret;
 }
