@@ -228,18 +228,17 @@ mt76x0_bbp_set_ctrlch(struct mt76x0_dev *dev, enum nl80211_chan_width width,
 
 int mt76x0_phy_get_rssi(struct mt76x0_dev *dev, struct mt76x02_rxwi *rxwi)
 {
-	s8 lna_gain, rssi_offset;
+	struct mt76x0_caldata *caldata = &dev->caldata;
+	s8 rssi_offset;
 	int val;
 
 	if (dev->mt76.chandef.chan->band == NL80211_BAND_2GHZ) {
-		lna_gain = dev->ee->lna_gain_2ghz;
 		rssi_offset = dev->ee->rssi_offset_2ghz[0];
 	} else {
-		lna_gain = dev->ee->lna_gain_5ghz[0];
 		rssi_offset = dev->ee->rssi_offset_5ghz[0];
 	}
 
-	val = rxwi->rssi[0] + rssi_offset - lna_gain;
+	val = rxwi->rssi[0] + rssi_offset - caldata->lna_gain;
 
 	return val;
 }
@@ -545,20 +544,10 @@ mt76x0_phy_set_chan_bbp_params(struct mt76x0_dev *dev, u8 channel, u16 rf_bw_ban
 
 		if (pair->reg == MT_BBP(AGC, 8)) {
 			u32 val = pair->value;
-			u8 gain = FIELD_GET(MT_BBP_AGC_GAIN, val);
+			u8 gain;
 
-			if (channel > 14) {
-				if (channel < 100)
-					gain -= dev->ee->lna_gain_5ghz[0]*2;
-				else if (channel < 137)
-					gain -= dev->ee->lna_gain_5ghz[1]*2;
-				else
-					gain -= dev->ee->lna_gain_5ghz[2]*2;
-
-			} else {
-				gain -= dev->ee->lna_gain_2ghz*2;
-			}
-
+			gain = FIELD_GET(MT_BBP_AGC_GAIN, val);
+			gain -= dev->caldata.lna_gain * 2;
 			val &= ~MT_BBP_AGC_GAIN;
 			val |= FIELD_PREP(MT_BBP_AGC_GAIN, gain);
 			mt76_wr(dev, pair->reg, val);
@@ -737,6 +726,7 @@ __mt76x0_phy_set_channel(struct mt76x0_dev *dev,
 
 	mt76x0_phy_set_band(dev, chandef->chan->band);
 	mt76x0_phy_set_chan_rf_params(dev, channel, rf_bw_band);
+	mt76x0_read_rx_gain(dev);
 
 	/* set Japan Tx filter at channel 14 */
 	val = mt76_rr(dev, MT_BBP(CORE, 1));

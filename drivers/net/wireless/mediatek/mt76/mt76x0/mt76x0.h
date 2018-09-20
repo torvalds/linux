@@ -28,6 +28,7 @@
 #include "../mt76.h"
 #include "../mt76x02_regs.h"
 #include "../mt76x02_mac.h"
+#include "eeprom.h"
 
 #define MT_CALIBRATE_INTERVAL		(4 * HZ)
 
@@ -89,6 +90,7 @@ struct mt76x0_dev {
 	const u16 *beacon_offsets;
 
 	struct mt76x0_eeprom_params *ee;
+	struct mt76x0_caldata caldata;
 
 	struct mutex reg_atomic_mutex;
 	struct mutex hw_atomic_mutex;

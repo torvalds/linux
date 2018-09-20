@@ -122,25 +122,18 @@ mt76x0_set_rf_freq_off(struct mt76x0_dev *dev, u8 *eeprom)
 		dev->ee->rf_freq_off += comp;
 }
 
-static void
-mt76x0_set_lna_gain(struct mt76x0_dev *dev, u8 *eeprom)
+void mt76x0_read_rx_gain(struct mt76x0_dev *dev)
 {
-	u8 gain;
+	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct mt76x0_caldata *caldata = &dev->caldata;
+	s8 lna_5g[3], lna_2g;
+	u16 rssi_offset;
 
-	dev->ee->lna_gain_2ghz = eeprom[MT_EE_LNA_GAIN];
-	dev->ee->lna_gain_5ghz[0] = eeprom[MT_EE_LNA_GAIN + 1];
+	mt76x02_get_rx_gain(&dev->mt76, chan->band, &rssi_offset,
+			    &lna_2g, lna_5g);
+	caldata->lna_gain = mt76x02_get_lna_gain(&dev->mt76, &lna_2g,
+						 lna_5g, chan);
 
-	gain = eeprom[MT_EE_LNA_GAIN_5GHZ_1];
-	if (gain == 0xff || gain == 0)
-		dev->ee->lna_gain_5ghz[1] = dev->ee->lna_gain_5ghz[0];
-	else
-		dev->ee->lna_gain_5ghz[1] = gain;
-
-	gain = eeprom[MT_EE_LNA_GAIN_5GHZ_2];
-	if (gain == 0xff || gain == 0)
-		dev->ee->lna_gain_5ghz[2] = dev->ee->lna_gain_5ghz[0];
-	else
-		dev->ee->lna_gain_5ghz[2] = gain;
 }
 
 static void
@@ -318,7 +311,6 @@ mt76x0_eeprom_init(struct mt76x0_dev *dev)
 	mt76x0_set_chip_cap(dev, eeprom);
 	mt76x0_set_rf_freq_off(dev, eeprom);
 	mt76x0_set_temp_offset(dev, eeprom);
-	mt76x0_set_lna_gain(dev, eeprom);
 	mt76x0_set_rssi_offset(dev, eeprom);
 	dev->chainmask = 0x0101;
 

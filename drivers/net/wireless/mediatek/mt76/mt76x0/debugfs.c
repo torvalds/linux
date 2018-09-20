@@ -109,10 +109,7 @@ mt76x0_eeprom_param_read(struct seq_file *file, void *data)
 		   dev->ee->rssi_offset_5ghz[0], dev->ee->rssi_offset_5ghz[1],
 		   dev->ee->rssi_offset_5ghz[2]);
 	seq_printf(file, "Temperature offset: %hhx\n", dev->ee->temp_off);
-	seq_printf(file, "LNA gain 2Ghz: %hhx\n", dev->ee->lna_gain_2ghz);
-	seq_printf(file, "LNA gain 5Ghz: %hhx %hhx %hhx\n",
-		   dev->ee->lna_gain_5ghz[0], dev->ee->lna_gain_5ghz[1],
-		   dev->ee->lna_gain_5ghz[2]);
+	seq_printf(file, "LNA gain: %x\n", dev->caldata.lna_gain);
 
 	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_0);
 	seq_printf(file, "Power Amplifier type %lx\n",
