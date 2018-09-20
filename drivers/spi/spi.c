@@ -51,6 +51,7 @@ static void spidev_release(struct device *dev)
 		spi->controller->cleanup(spi);
 
 	spi_controller_put(spi->controller);
+	kfree(spi->driver_override);
 	kfree(spi);
 }
 
@@ -67,6 +68,51 @@ modalias_show(struct device *dev, struct device_attribute *a, char *buf)
 	return sprintf(buf, "%s%s\n", SPI_MODULE_PREFIX, spi->modalias);
 }
 static DEVICE_ATTR_RO(modalias);
+
+static ssize_t driver_override_store(struct device *dev,
+				     struct device_attribute *a,
+				     const char *buf, size_t count)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	const char *end = memchr(buf, '\n', count);
+	const size_t len = end ? end - buf : count;
+	const char *driver_override, *old;
+
+	/* We need to keep extra room for a newline when displaying value */
+	if (len >= (PAGE_SIZE - 1))
+		return -EINVAL;
+
+	driver_override = kstrndup(buf, len, GFP_KERNEL);
+	if (!driver_override)
+		return -ENOMEM;
+
+	device_lock(dev);
+	old = spi->driver_override;
+	if (len) {
+		spi->driver_override = driver_override;
+	} else {
+		/* Emptry string, disable driver override */
+		spi->driver_override = NULL;
+		kfree(driver_override);
+	}
+	device_unlock(dev);
+	kfree(old);
+
+	return count;
+}
+
+static ssize_t driver_override_show(struct device *dev,
+				    struct device_attribute *a, char *buf)
+{
+	const struct spi_device *spi = to_spi_device(dev);
+	ssize_t len;
+
+	device_lock(dev);
+	len = snprintf(buf, PAGE_SIZE, "%s\n", spi->driver_override ? : "");
+	device_unlock(dev);
+	return len;
+}
+static DEVICE_ATTR_RW(driver_override);
 
 #define SPI_STATISTICS_ATTRS(field, file)				\
 static ssize_t spi_controller_##field##_show(struct device *dev,	\
@@ -149,6 +195,7 @@ SPI_STATISTICS_SHOW(transfers_split_maxsize, "%lu");
 
 static struct attribute *spi_dev_attrs[] = {
 	&dev_attr_modalias.attr,
+	&dev_attr_driver_override.attr,
 	NULL,
 };
 
@@ -295,6 +342,10 @@ static int spi_match_device(struct device *dev, struct device_driver *drv)
 {
 	const struct spi_device	*spi = to_spi_device(dev);
 	const struct spi_driver	*sdrv = to_spi_driver(drv);
+
+	/* Check override first, and if set, only use the named driver */
+	if (spi->driver_override)
+		return strcmp(spi->driver_override, drv->name) == 0;
 
 	/* Attempt an OF style match */
 	if (of_driver_match_device(dev, drv))
