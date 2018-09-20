@@ -5679,6 +5679,9 @@ struct ib_rwq_ind_table *mlx5_ib_create_rwq_ind_table(struct ib_device *device,
 	for (i = 0; i < sz; i++)
 		MLX5_SET(rqtc, rqtc, rq_num[i], init_attr->ind_tbl[i]->wq_num);
 
+	rwq_ind_tbl->uid = to_mpd(init_attr->ind_tbl[0]->pd)->uid;
+	MLX5_SET(create_rqt_in, in, uid, rwq_ind_tbl->uid);
+
 	err = mlx5_core_create_rqt(dev->mdev, in, inlen, &rwq_ind_tbl->rqtn);
 	kvfree(in);
 
@@ -5697,7 +5700,7 @@ struct ib_rwq_ind_table *mlx5_ib_create_rwq_ind_table(struct ib_device *device,
 	return &rwq_ind_tbl->ib_rwq_ind_tbl;
 
 err_copy:
-	mlx5_core_destroy_rqt(dev->mdev, rwq_ind_tbl->rqtn);
+	mlx5_cmd_destroy_rqt(dev->mdev, rwq_ind_tbl->rqtn, rwq_ind_tbl->uid);
 err:
 	kfree(rwq_ind_tbl);
 	return ERR_PTR(err);
@@ -5708,7 +5711,7 @@ int mlx5_ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *ib_rwq_ind_tbl)
 	struct mlx5_ib_rwq_ind_table *rwq_ind_tbl = to_mrwq_ind_table(ib_rwq_ind_tbl);
 	struct mlx5_ib_dev *dev = to_mdev(ib_rwq_ind_tbl->device);
 
-	mlx5_core_destroy_rqt(dev->mdev, rwq_ind_tbl->rqtn);
+	mlx5_cmd_destroy_rqt(dev->mdev, rwq_ind_tbl->rqtn, rwq_ind_tbl->uid);
 
 	kfree(rwq_ind_tbl);
 	return 0;

@@ -325,6 +325,7 @@ enum {
 struct mlx5_ib_rwq_ind_table {
 	struct ib_rwq_ind_table ib_rwq_ind_tbl;
 	u32			rqtn;
+	u16			uid;
 };
 
 struct mlx5_ib_ubuffer {
