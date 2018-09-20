@@ -837,8 +837,12 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 				ret_pte = (pte_t *) pmdp;
 				goto out;
 			}
-
-			if (pmd_huge(pmd)) {
+			/*
+			 * pmd_large check below will handle the swap pmd pte
+			 * we need to do both the check because they are config
+			 * dependent.
+			 */
+			if (pmd_huge(pmd) || pmd_large(pmd)) {
 				ret_pte = (pte_t *) pmdp;
 				goto out;
 			} else if (is_hugepd(__hugepd(pmd_val(pmd))))

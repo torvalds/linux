@@ -75,7 +75,7 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 	 */
 	WARN_ON(pte_val(pmd_pte(*pmdp)) & _PAGE_PRESENT);
 	assert_spin_locked(pmd_lockptr(mm, pmdp));
-	WARN_ON(!(pmd_trans_huge(pmd) || pmd_devmap(pmd)));
+	WARN_ON(!(pmd_large(pmd) || pmd_devmap(pmd)));
 #endif
 	trace_hugepage_set_pmd(addr, pmd_val(pmd));
 	return set_pte_at(mm, addr, pmdp_ptep(pmdp), pmd_pte(pmd));
