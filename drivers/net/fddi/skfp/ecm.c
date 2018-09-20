@@ -30,7 +30,6 @@
  *
  * 	The following external HW dependent functions are referenced :
  * 		sm_pm_bypass_req()
- * 		sm_pm_ls_latch()
  * 		sm_pm_get_ls()
  * 
  * 	The following HW dependent events are required :
@@ -356,8 +355,6 @@ static void ecm_fsm(struct s_smc *smc, int cmd)
 		 */
 		start_ecm_timer(smc,smc->s.ecm_check_poll,0) ;
 		smc->e.ecm_line_state = TRUE ;	/* flag to pcm: report Q/HLS */
-		(void) sm_pm_ls_latch(smc,PA,1) ; /* enable line state latch */
-		(void) sm_pm_ls_latch(smc,PB,1) ; /* enable line state latch */
 		ACTIONS_DONE() ;
 		break ;
 	case EC6_CHECK :

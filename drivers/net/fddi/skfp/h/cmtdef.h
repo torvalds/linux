@@ -513,7 +513,6 @@ void pcm_status_state(struct s_smc *smc, int np, int *type, int *state,
 void plc_config_mux(struct s_smc *smc, int mux);
 void sm_lem_evaluate(struct s_smc *smc);
 void mac_update_counter(struct s_smc *smc);
-void sm_pm_ls_latch(struct s_smc *smc, int phy, int on_off);
 void sm_ma_control(struct s_smc *smc, int mode);
 void sm_mac_check_beacon_claim(struct s_smc *smc);
 void config_mux(struct s_smc *smc, int mux);

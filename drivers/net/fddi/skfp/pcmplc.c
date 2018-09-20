@@ -30,7 +30,6 @@
  * 	The following external HW dependent functions are referenced :
  * 		sm_pm_control()
  *		sm_ph_linestate()
- *		sm_pm_ls_latch()
  *
  * 	The following HW dependent events are required :
  *		PC_QLS
@@ -1247,16 +1246,6 @@ static void sm_ph_lem_stop(struct s_smc *smc, int np)
 	lem->lem_on = 0 ;
 	CLEAR(PLC(np,PL_INTR_MASK),PL_LE_CTR) ;
 }
-
-/* ARGSUSED */
-void sm_pm_ls_latch(struct s_smc *smc, int phy, int on_off)
-/* int on_off;	en- or disable ident. ls */
-{
-	SK_UNUSED(smc) ;
-
-	phy = phy ; on_off = on_off ;
-}
-
 
 /*
  * PCM pseudo code
