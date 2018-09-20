@@ -75,29 +75,13 @@ static void of_coresight_get_ports(const struct device_node *node,
 static int of_coresight_alloc_memory(struct device *dev,
 			struct coresight_platform_data *pdata)
 {
-	/* List of output port on this component */
-	pdata->outports = devm_kcalloc(dev,
-				       pdata->nr_outport,
-				       sizeof(*pdata->outports),
-				       GFP_KERNEL);
-	if (!pdata->outports)
-		return -ENOMEM;
-
-	/* Children connected to this component via @outports */
-	pdata->child_names = devm_kcalloc(dev,
-					  pdata->nr_outport,
-					  sizeof(*pdata->child_names),
-					  GFP_KERNEL);
-	if (!pdata->child_names)
-		return -ENOMEM;
-
-	/* Port number on the child this component is connected to */
-	pdata->child_ports = devm_kcalloc(dev,
-					  pdata->nr_outport,
-					  sizeof(*pdata->child_ports),
-					  GFP_KERNEL);
-	if (!pdata->child_ports)
-		return -ENOMEM;
+	if (pdata->nr_outport) {
+		pdata->conns = devm_kzalloc(dev, pdata->nr_outport *
+					    sizeof(*pdata->conns),
+					    GFP_KERNEL);
+		if (!pdata->conns)
+			return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -121,7 +105,7 @@ EXPORT_SYMBOL_GPL(of_coresight_get_cpu);
 
 /*
  * of_coresight_parse_endpoint : Parse the given output endpoint @ep
- * and fill the connection information in @pdata[@i].
+ * and fill the connection information in @conn
  *
  * Parses the local port, remote device name and the remote port.
  *
@@ -133,8 +117,7 @@ EXPORT_SYMBOL_GPL(of_coresight_get_cpu);
  */
 static int of_coresight_parse_endpoint(struct device *dev,
 				       struct device_node *ep,
-				       struct coresight_platform_data *pdata,
-				       int i)
+				       struct coresight_connection *conn)
 {
 	int ret = 0;
 	struct of_endpoint endpoint, rendpoint;
@@ -166,11 +149,11 @@ static int of_coresight_parse_endpoint(struct device *dev,
 			break;
 		}
 
-		pdata->outports[i] = endpoint.port;
-		pdata->child_names[i] = devm_kstrdup(dev,
-						     dev_name(rdev),
-						     GFP_KERNEL);
-		pdata->child_ports[i] = rendpoint.port;
+		conn->outport = endpoint.port;
+		conn->child_name = devm_kstrdup(dev,
+						dev_name(rdev),
+						GFP_KERNEL);
+		conn->child_port = rendpoint.port;
 		/* Connection record updated */
 		ret = 1;
 	} while (0);
@@ -189,8 +172,9 @@ struct coresight_platform_data *
 of_get_coresight_platform_data(struct device *dev,
 			       const struct device_node *node)
 {
-	int i = 0, ret = 0;
+	int ret = 0;
 	struct coresight_platform_data *pdata;
+	struct coresight_connection *conn;
 	struct device_node *ep = NULL;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -212,6 +196,7 @@ of_get_coresight_platform_data(struct device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
+	conn = pdata->conns;
 	/* Iterate through each port to discover topology */
 	while ((ep = of_graph_get_next_endpoint(node, ep))) {
 		/*
@@ -221,10 +206,10 @@ of_get_coresight_platform_data(struct device *dev,
 		if (of_coresight_ep_is_input(ep))
 			continue;
 
-		ret = of_coresight_parse_endpoint(dev, ep, pdata, i);
+		ret = of_coresight_parse_endpoint(dev, ep, conn);
 		switch (ret) {
 		case 1:
-			i++;		/* Fall through */
+			conn++;		/* Fall through */
 		case 0:
 			break;
 		default:
