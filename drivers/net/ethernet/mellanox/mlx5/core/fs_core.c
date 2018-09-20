@@ -1428,7 +1428,7 @@ static int check_conflicting_ftes(struct fs_fte *fte, const struct mlx5_flow_act
 		return -EEXIST;
 	}
 
-	if (flow_act->has_flow_tag &&
+	if ((flow_act->flags & FLOW_ACT_HAS_TAG) &&
 	    fte->action.flow_tag != flow_act->flow_tag) {
 		mlx5_core_warn(get_dev(&fte->node),
 			       "FTE flow tag %u already exists with different flow tag %u\n",
@@ -1628,6 +1628,8 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 
 search_again_locked:
 	version = matched_fgs_get_version(match_head);
+	if (flow_act->flags & FLOW_ACT_NO_APPEND)
+		goto skip_search;
 	/* Try to find a fg that already contains a matching fte */
 	list_for_each_entry(iter, match_head, list) {
 		struct fs_fte *fte_tmp;
@@ -1643,6 +1645,11 @@ search_again_locked:
 		kmem_cache_free(steering->ftes_cache, fte);
 		return rule;
 	}
+
+skip_search:
+	/* No group with matching fte found, or we skipped the search.
+	 * Try to add a new fte to any matching fg.
+	 */
 
 	/* Check the ft version, for case that new flow group
 	 * was added while the fgs weren't locked

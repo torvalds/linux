@@ -684,9 +684,9 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	struct mlx5_flow_destination dest[2] = {};
 	struct mlx5_flow_act flow_act = {
 		.action = attr->action,
-		.has_flow_tag = true,
 		.flow_tag = attr->flow_tag,
 		.reformat_id = 0,
+		.flags    = FLOW_ACT_HAS_TAG,
 	};
 	struct mlx5_fc *counter = NULL;
 	bool table_created = false;

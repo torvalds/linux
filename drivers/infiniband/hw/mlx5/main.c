@@ -2793,7 +2793,7 @@ static int parse_flow_attr(struct mlx5_core_dev *mdev, u32 *match_c,
 			return -EINVAL;
 
 		action->flow_tag = ib_spec->flow_tag.tag_id;
-		action->has_flow_tag = true;
+		action->flags |= FLOW_ACT_HAS_TAG;
 		break;
 	case IB_FLOW_SPEC_ACTION_DROP:
 		if (FIELDS_NOT_SUPPORTED(ib_spec->drop,
@@ -2886,7 +2886,7 @@ is_valid_esp_aes_gcm(struct mlx5_core_dev *mdev,
 		return egress ? VALID_SPEC_INVALID : VALID_SPEC_NA;
 
 	return is_crypto && is_ipsec &&
-		(!egress || (!is_drop && !flow_act->has_flow_tag)) ?
+		(!egress || (!is_drop && !(flow_act->flags & FLOW_ACT_HAS_TAG))) ?
 		VALID_SPEC_VALID : VALID_SPEC_INVALID;
 }
 
@@ -3349,7 +3349,7 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 					MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
 	}
 
-	if (flow_act.has_flow_tag &&
+	if ((flow_act.flags & FLOW_ACT_HAS_TAG)  &&
 	    (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||
 	     flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT)) {
 		mlx5_ib_warn(dev, "Flow tag %u and attribute type %x isn't allowed in leftovers\n",
