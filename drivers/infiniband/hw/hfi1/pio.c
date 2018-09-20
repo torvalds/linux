@@ -86,6 +86,7 @@ void pio_send_control(struct hfi1_devdata *dd, int op)
 	unsigned long flags;
 	int write = 1;	/* write sendctrl back */
 	int flush = 0;	/* re-read sendctrl to make sure it is flushed */
+	int i;
 
 	spin_lock_irqsave(&dd->sendctrl_lock, flags);
 
@@ -95,9 +96,13 @@ void pio_send_control(struct hfi1_devdata *dd, int op)
 		reg |= SEND_CTRL_SEND_ENABLE_SMASK;
 	/* Fall through */
 	case PSC_DATA_VL_ENABLE:
+		mask = 0;
+		for (i = 0; i < ARRAY_SIZE(dd->vld); i++)
+			if (!dd->vld[i].mtu)
+				mask |= BIT_ULL(i);
 		/* Disallow sending on VLs not enabled */
-		mask = (((~0ull) << num_vls) & SEND_CTRL_UNSUPPORTED_VL_MASK) <<
-				SEND_CTRL_UNSUPPORTED_VL_SHIFT;
+		mask = (mask & SEND_CTRL_UNSUPPORTED_VL_MASK) <<
+			SEND_CTRL_UNSUPPORTED_VL_SHIFT;
 		reg = (reg & ~SEND_CTRL_UNSUPPORTED_VL_SMASK) | mask;
 		break;
 	case PSC_GLOBAL_DISABLE:
