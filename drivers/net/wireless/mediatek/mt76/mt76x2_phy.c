@@ -25,7 +25,7 @@ mt76x2_phy_tssi_init_cal(struct mt76x2_dev *dev)
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	u32 flag = 0;
 
-	if (!mt76x2_tssi_enabled(dev))
+	if (!mt76x02_tssi_enabled(&dev->mt76))
 		return false;
 
 	if (mt76x2_channel_silent(dev))
@@ -390,7 +390,7 @@ int mt76x2_phy_set_channel(struct mt76x2_dev *dev,
 	       sizeof(dev->cal.agc_gain_cur));
 
 	/* init default values for temp compensation */
-	if (mt76x2_tssi_enabled(dev)) {
+	if (mt76x02_tssi_enabled(&dev->mt76)) {
 		mt76_rmw_field(dev, MT_TX_ALC_CFG_1, MT_TX_ALC_CFG_1_TEMP_COMP,
 			       0x38);
 		mt76_rmw_field(dev, MT_TX_ALC_CFG_2, MT_TX_ALC_CFG_2_TEMP_COMP,
