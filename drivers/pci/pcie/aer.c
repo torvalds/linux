@@ -1010,9 +1010,11 @@ static void handle_error_source(struct pci_dev *dev, struct aer_err_info *info)
 					info->status);
 		pci_aer_clear_device_status(dev);
 	} else if (info->severity == AER_NONFATAL)
-		pcie_do_nonfatal_recovery(dev);
+		pcie_do_recovery(dev, pci_channel_io_normal,
+				 PCIE_PORT_SERVICE_AER);
 	else if (info->severity == AER_FATAL)
-		pcie_do_fatal_recovery(dev, PCIE_PORT_SERVICE_AER);
+		pcie_do_recovery(dev, pci_channel_io_frozen,
+				 PCIE_PORT_SERVICE_AER);
 	pci_dev_put(dev);
 }
 
@@ -1048,9 +1050,11 @@ static void aer_recover_work_func(struct work_struct *work)
 		}
 		cper_print_aer(pdev, entry.severity, entry.regs);
 		if (entry.severity == AER_NONFATAL)
-			pcie_do_nonfatal_recovery(pdev);
+			pcie_do_recovery(pdev, pci_channel_io_normal,
+					 PCIE_PORT_SERVICE_AER);
 		else if (entry.severity == AER_FATAL)
-			pcie_do_fatal_recovery(pdev, PCIE_PORT_SERVICE_AER);
+			pcie_do_recovery(pdev, pci_channel_io_frozen,
+					 PCIE_PORT_SERVICE_AER);
 		pci_dev_put(pdev);
 	}
 }

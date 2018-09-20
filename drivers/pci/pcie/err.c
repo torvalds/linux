@@ -271,82 +271,19 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 	return result_data.result;
 }
 
-/**
- * pcie_do_fatal_recovery - handle fatal error recovery process
- * @dev: pointer to a pci_dev data structure of agent detecting an error
- *
- * Invoked when an error is fatal. Once being invoked, removes the devices
- * beneath this AER agent, followed by reset link e.g. secondary bus reset
- * followed by re-enumeration of devices.
- */
-void pcie_do_fatal_recovery(struct pci_dev *dev, u32 service)
-{
-	struct pci_dev *udev;
-	struct pci_bus *parent;
-	struct pci_dev *pdev, *temp;
-	pci_ers_result_t result;
-
-	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
-		udev = dev;
-	else
-		udev = dev->bus->self;
-
-	parent = udev->subordinate;
-	pci_walk_bus(parent, pci_dev_set_disconnected, NULL);
-
-	pci_lock_rescan_remove();
-	pci_dev_get(dev);
-	list_for_each_entry_safe_reverse(pdev, temp, &parent->devices,
-					 bus_list) {
-		pci_stop_and_remove_bus_device(pdev);
-	}
-
-	result = reset_link(udev, service);
-
-	if ((service == PCIE_PORT_SERVICE_AER) &&
-	    (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE)) {
-		/*
-		 * If the error is reported by a bridge, we think this error
-		 * is related to the downstream link of the bridge, so we
-		 * do error recovery on all subordinates of the bridge instead
-		 * of the bridge and clear the error status of the bridge.
-		 */
-		pci_aer_clear_fatal_status(dev);
-		pci_aer_clear_device_status(dev);
-	}
-
-	if (result == PCI_ERS_RESULT_RECOVERED) {
-		if (pcie_wait_for_link(udev, true))
-			pci_rescan_bus(udev->bus);
-		pci_info(dev, "Device recovery from fatal error successful\n");
-	} else {
-		pci_uevent_ers(dev, PCI_ERS_RESULT_DISCONNECT);
-		pci_info(dev, "Device recovery from fatal error failed\n");
-	}
-
-	pci_dev_put(dev);
-	pci_unlock_rescan_remove();
-}
-
-/**
- * pcie_do_nonfatal_recovery - handle nonfatal error recovery process
- * @dev: pointer to a pci_dev data structure of agent detecting an error
- *
- * Invoked when an error is nonfatal/fatal. Once being invoked, broadcast
- * error detected message to all downstream drivers within a hierarchy in
- * question and return the returned code.
- */
-void pcie_do_nonfatal_recovery(struct pci_dev *dev)
+void pcie_do_recovery(struct pci_dev *dev, enum pci_channel_state state,
+		      u32 service)
 {
 	pci_ers_result_t status;
-	enum pci_channel_state state;
-
-	state = pci_channel_io_normal;
 
 	status = broadcast_error_message(dev,
 			state,
 			"error_detected",
 			report_error_detected);
+
+	if (state == pci_channel_io_frozen &&
+	    reset_link(dev, service) != PCI_ERS_RESULT_RECOVERED)
+		goto failed;
 
 	if (status == PCI_ERS_RESULT_CAN_RECOVER)
 		status = broadcast_error_message(dev,
