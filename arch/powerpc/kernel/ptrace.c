@@ -2508,6 +2508,7 @@ void ptrace_disable(struct task_struct *child)
 {
 	/* make sure the single step bit is not set. */
 	user_disable_single_step(child);
+	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 }
 
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
@@ -3263,6 +3264,16 @@ static inline int do_seccomp(struct pt_regs *regs) { return 0; }
 long do_syscall_trace_enter(struct pt_regs *regs)
 {
 	user_exit();
+
+	if (test_thread_flag(TIF_SYSCALL_EMU)) {
+		ptrace_report_syscall(regs);
+		/*
+		 * Returning -1 will skip the syscall execution. We want to
+		 * avoid clobbering any register also, thus, not 'gotoing'
+		 * skip label.
+		 */
+		return -1;
+	}
 
 	/*
 	 * The tracer may decide to abort the syscall, if so tracehook

@@ -160,6 +160,10 @@ struct pt_regs {
 #define PTRACE_GETVSRREGS	0x1b
 #define PTRACE_SETVSRREGS	0x1c
 
+/* Syscall emulation defines */
+#define PTRACE_SYSEMU			0x1d
+#define PTRACE_SYSEMU_SINGLESTEP	0x1e
+
 /*
  * Get or set a debug register. The first 16 are DABR registers and the
  * second 16 are IABR registers.
