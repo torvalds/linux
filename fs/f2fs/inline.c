@@ -298,7 +298,7 @@ process_inline:
 		clear_inode_flag(inode, FI_INLINE_DATA);
 		f2fs_put_page(ipage, 1);
 	} else if (ri && (ri->i_inline & F2FS_INLINE_DATA)) {
-		if (f2fs_truncate_blocks(inode, 0, false))
+		if (f2fs_truncate_blocks(inode, 0, false, false))
 			return false;
 		goto process_inline;
 	}
@@ -470,7 +470,7 @@ static int f2fs_add_inline_entries(struct inode *dir, void *inline_dentry)
 	return 0;
 punch_dentry_pages:
 	truncate_inode_pages(&dir->i_data, 0);
-	f2fs_truncate_blocks(dir, 0, false);
+	f2fs_truncate_blocks(dir, 0, false, false);
 	f2fs_remove_dirty_inode(dir);
 	return err;
 }
