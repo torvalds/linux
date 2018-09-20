@@ -170,6 +170,7 @@ struct etr_buf {
  * @trigger_cntr: amount of words to store after a trigger.
  * @etr_caps:	Bitmask of capabilities of the TMC ETR, inferred from the
  *		device configuration register (DEVID)
+ * @sysfs_data:	SYSFS buffer for ETR.
  */
 struct tmc_drvdata {
 	void __iomem		*base;
@@ -189,6 +190,7 @@ struct tmc_drvdata {
 	enum tmc_mem_intf_width	memwidth;
 	u32			trigger_cntr;
 	u32			etr_caps;
+	struct etr_buf		*sysfs_buf;
 };
 
 struct etr_buf_operations {
