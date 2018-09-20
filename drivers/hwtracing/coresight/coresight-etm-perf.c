@@ -161,15 +161,12 @@ static void *alloc_event_data(int cpu)
 	if (!event_data)
 		return NULL;
 
-	/* Make sure nothing disappears under us */
-	get_online_cpus();
 
 	mask = &event_data->mask;
 	if (cpu != -1)
 		cpumask_set_cpu(cpu, mask);
 	else
 		cpumask_copy(mask, cpu_online_mask);
-	put_online_cpus();
 
 	/*
 	 * Each CPU has a single path between source and destination.  As such
