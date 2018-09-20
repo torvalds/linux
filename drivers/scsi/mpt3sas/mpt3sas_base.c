@@ -530,11 +530,11 @@ static int mpt3sas_remove_dead_ioc_func(void *arg)
 	struct MPT3SAS_ADAPTER *ioc = (struct MPT3SAS_ADAPTER *)arg;
 	struct pci_dev *pdev;
 
-	if ((ioc == NULL))
+	if (!ioc)
 		return -1;
 
 	pdev = ioc->pdev;
-	if ((pdev == NULL))
+	if (!pdev)
 		return -1;
 	pci_stop_and_remove_bus_device_locked(pdev);
 	return 0;
