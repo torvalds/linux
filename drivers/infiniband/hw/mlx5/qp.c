@@ -1061,11 +1061,13 @@ static int is_connected(enum ib_qp_type qp_type)
 
 static int create_raw_packet_qp_tis(struct mlx5_ib_dev *dev,
 				    struct mlx5_ib_qp *qp,
-				    struct mlx5_ib_sq *sq, u32 tdn)
+				    struct mlx5_ib_sq *sq, u32 tdn,
+				    struct ib_pd *pd)
 {
 	u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {0};
 	void *tisc = MLX5_ADDR_OF(create_tis_in, in, ctx);
 
+	MLX5_SET(create_tis_in, in, uid, to_mpd(pd)->uid);
 	MLX5_SET(tisc, tisc, transport_domain, tdn);
 	if (qp->flags & MLX5_IB_QP_UNDERLAY)
 		MLX5_SET(tisc, tisc, underlay_qpn, qp->underlay_qpn);
@@ -1074,9 +1076,9 @@ static int create_raw_packet_qp_tis(struct mlx5_ib_dev *dev,
 }
 
 static void destroy_raw_packet_qp_tis(struct mlx5_ib_dev *dev,
-				      struct mlx5_ib_sq *sq)
+				      struct mlx5_ib_sq *sq, struct ib_pd *pd)
 {
-	mlx5_core_destroy_tis(dev->mdev, sq->tisn);
+	mlx5_cmd_destroy_tis(dev->mdev, sq->tisn, to_mpd(pd)->uid);
 }
 
 static void destroy_flow_rule_vport_sq(struct mlx5_ib_dev *dev,
@@ -1335,7 +1337,7 @@ static int create_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	u32 tdn = mucontext->tdn;
 
 	if (qp->sq.wqe_cnt) {
-		err = create_raw_packet_qp_tis(dev, qp, sq, tdn);
+		err = create_raw_packet_qp_tis(dev, qp, sq, tdn, pd);
 		if (err)
 			return err;
 
@@ -1375,7 +1377,7 @@ err_destroy_sq:
 		return err;
 	destroy_raw_packet_qp_sq(dev, sq);
 err_destroy_tis:
-	destroy_raw_packet_qp_tis(dev, sq);
+	destroy_raw_packet_qp_tis(dev, sq, pd);
 
 	return err;
 }
@@ -1394,7 +1396,7 @@ static void destroy_raw_packet_qp(struct mlx5_ib_dev *dev,
 
 	if (qp->sq.wqe_cnt) {
 		destroy_raw_packet_qp_sq(dev, sq);
-		destroy_raw_packet_qp_tis(dev, sq);
+		destroy_raw_packet_qp_tis(dev, sq, qp->ibqp.pd);
 	}
 }
 
@@ -2524,7 +2526,8 @@ static int ib_rate_to_mlx5(struct mlx5_ib_dev *dev, u8 rate)
 }
 
 static int modify_raw_packet_eth_prio(struct mlx5_core_dev *dev,
-				      struct mlx5_ib_sq *sq, u8 sl)
+				      struct mlx5_ib_sq *sq, u8 sl,
+				      struct ib_pd *pd)
 {
 	void *in;
 	void *tisc;
@@ -2537,6 +2540,7 @@ static int modify_raw_packet_eth_prio(struct mlx5_core_dev *dev,
 		return -ENOMEM;
 
 	MLX5_SET(modify_tis_in, in, bitmask.prio, 1);
+	MLX5_SET(modify_tis_in, in, uid, to_mpd(pd)->uid);
 
 	tisc = MLX5_ADDR_OF(modify_tis_in, in, ctx);
 	MLX5_SET(tisc, tisc, prio, ((sl & 0x7) << 1));
@@ -2549,7 +2553,8 @@ static int modify_raw_packet_eth_prio(struct mlx5_core_dev *dev,
 }
 
 static int modify_raw_packet_tx_affinity(struct mlx5_core_dev *dev,
-					 struct mlx5_ib_sq *sq, u8 tx_affinity)
+					 struct mlx5_ib_sq *sq, u8 tx_affinity,
+					 struct ib_pd *pd)
 {
 	void *in;
 	void *tisc;
@@ -2562,6 +2567,7 @@ static int modify_raw_packet_tx_affinity(struct mlx5_core_dev *dev,
 		return -ENOMEM;
 
 	MLX5_SET(modify_tis_in, in, bitmask.lag_tx_port_affinity, 1);
+	MLX5_SET(modify_tis_in, in, uid, to_mpd(pd)->uid);
 
 	tisc = MLX5_ADDR_OF(modify_tis_in, in, ctx);
 	MLX5_SET(tisc, tisc, lag_tx_port_affinity, tx_affinity);
@@ -2646,7 +2652,7 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if ((qp->ibqp.qp_type == IB_QPT_RAW_PACKET) && qp->sq.wqe_cnt)
 		return modify_raw_packet_eth_prio(dev->mdev,
 						  &qp->raw_packet_qp.sq,
-						  sl & 0xf);
+						  sl & 0xf, qp->ibqp.pd);
 
 	return 0;
 }
@@ -2966,7 +2972,8 @@ static int modify_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (modify_sq) {
 		if (tx_affinity) {
 			err = modify_raw_packet_tx_affinity(dev->mdev, sq,
-							    tx_affinity);
+							    tx_affinity,
+							    qp->ibqp.pd);
 			if (err)
 				return err;
 		}

@@ -209,6 +209,17 @@ void mlx5_cmd_destroy_tir(struct mlx5_core_dev *dev, u32 tirn, u16 uid)
 	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
+void mlx5_cmd_destroy_tis(struct mlx5_core_dev *dev, u32 tisn, u16 uid)
+{
+	u32 in[MLX5_ST_SZ_DW(destroy_tis_in)]   = {0};
+	u32 out[MLX5_ST_SZ_DW(destroy_tis_out)] = {0};
+
+	MLX5_SET(destroy_tis_in, in, opcode, MLX5_CMD_OP_DESTROY_TIS);
+	MLX5_SET(destroy_tis_in, in, tisn, tisn);
+	MLX5_SET(destroy_tis_in, in, uid, uid);
+	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+
 void mlx5_cmd_dealloc_pd(struct mlx5_core_dev *dev, u32 pdn, u16 uid)
 {
 	u32 out[MLX5_ST_SZ_DW(dealloc_pd_out)] = {};
