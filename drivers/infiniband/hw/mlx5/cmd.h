@@ -48,4 +48,8 @@ int mlx5_cmd_alloc_memic(struct mlx5_memic *memic, phys_addr_t *addr,
 			 u64 length, u32 alignment);
 int mlx5_cmd_dealloc_memic(struct mlx5_memic *memic, u64 addr, u64 length);
 void mlx5_cmd_dealloc_pd(struct mlx5_core_dev *dev, u32 pdn, u16 uid);
+int mlx5_cmd_attach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid,
+			u32 qpn, u16 uid);
+int mlx5_cmd_detach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid,
+			u32 qpn, u16 uid);
 #endif /* MLX5_IB_CMD_H */

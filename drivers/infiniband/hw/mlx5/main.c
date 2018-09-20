@@ -4033,13 +4033,17 @@ static int mlx5_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
 	struct mlx5_ib_qp *mqp = to_mqp(ibqp);
 	int err;
+	u16 uid;
+
+	uid = ibqp->pd ?
+		to_mpd(ibqp->pd)->uid : 0;
 
 	if (mqp->flags & MLX5_IB_QP_UNDERLAY) {
 		mlx5_ib_dbg(dev, "Attaching a multi cast group to underlay QP is not supported\n");
 		return -EOPNOTSUPP;
 	}
 
-	err = mlx5_core_attach_mcg(dev->mdev, gid, ibqp->qp_num);
+	err = mlx5_cmd_attach_mcg(dev->mdev, gid, ibqp->qp_num, uid);
 	if (err)
 		mlx5_ib_warn(dev, "failed attaching QPN 0x%x, MGID %pI6\n",
 			     ibqp->qp_num, gid->raw);
@@ -4051,8 +4055,11 @@ static int mlx5_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
 	int err;
+	u16 uid;
 
-	err = mlx5_core_detach_mcg(dev->mdev, gid, ibqp->qp_num);
+	uid = ibqp->pd ?
+		to_mpd(ibqp->pd)->uid : 0;
+	err = mlx5_cmd_detach_mcg(dev->mdev, gid, ibqp->qp_num, uid);
 	if (err)
 		mlx5_ib_warn(dev, "failed detaching QPN 0x%x, MGID %pI6\n",
 			     ibqp->qp_num, gid->raw);
