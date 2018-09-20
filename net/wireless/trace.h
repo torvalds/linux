@@ -3246,18 +3246,9 @@ TRACE_EVENT(rdev_set_multicast_to_unicast,
 		  BOOL_TO_STR(__entry->enabled))
 );
 
-TRACE_EVENT(rdev_get_txq_stats,
+DEFINE_EVENT(wiphy_wdev_evt, rdev_get_txq_stats,
 	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev),
-	TP_ARGS(wiphy, wdev),
-	TP_STRUCT__entry(
-		WIPHY_ENTRY
-		WDEV_ENTRY
-	),
-	TP_fast_assign(
-		WIPHY_ASSIGN;
-		WDEV_ASSIGN;
-	),
-	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT, WIPHY_PR_ARG, WDEV_PR_ARG)
+	TP_ARGS(wiphy, wdev)
 );
 #endif /* !__RDEV_OPS_TRACE || TRACE_HEADER_MULTI_READ */
 
