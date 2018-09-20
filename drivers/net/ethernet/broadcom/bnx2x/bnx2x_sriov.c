@@ -2638,6 +2638,7 @@ int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
 	ivi->max_tx_rate = 10000; /* always 10G. TBA take from link struct */
 	ivi->min_tx_rate = 0;
 	ivi->spoofchk = vf->spoofchk ? 1 : 0;
+	ivi->linkstate = vf->link_cfg;
 	if (vf->state == VF_ENABLED) {
 		/* mac and vlan are in vlan_mac objects */
 		if (bnx2x_validate_vf_sp_objs(bp, vf, false)) {
