@@ -68,6 +68,7 @@ struct mlxsw_sp_sb {
 	struct mlxsw_sp_sb_pr prs[MLXSW_SP_SB_POOL_DESS_LEN];
 	struct mlxsw_sp_sb_port *ports;
 	u32 cell_size;
+	u64 sb_size;
 };
 
 u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells)
@@ -585,7 +586,6 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 {
 	u16 ing_pool_count;
 	u16 eg_pool_count;
-	u64 sb_size;
 	int err;
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, CELL_SIZE))
@@ -593,12 +593,13 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_BUFFER_SIZE))
 		return -EIO;
-	sb_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_BUFFER_SIZE);
 
 	mlxsw_sp->sb = kzalloc(sizeof(*mlxsw_sp->sb), GFP_KERNEL);
 	if (!mlxsw_sp->sb)
 		return -ENOMEM;
 	mlxsw_sp->sb->cell_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, CELL_SIZE);
+	mlxsw_sp->sb->sb_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
+						   MAX_BUFFER_SIZE);
 
 	err = mlxsw_sp_sb_ports_init(mlxsw_sp);
 	if (err)
@@ -614,7 +615,8 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_sb_mms_init;
 	mlxsw_sp_pool_count(&ing_pool_count, &eg_pool_count);
-	err = devlink_sb_register(priv_to_devlink(mlxsw_sp->core), 0, sb_size,
+	err = devlink_sb_register(priv_to_devlink(mlxsw_sp->core), 0,
+				  mlxsw_sp->sb->sb_size,
 				  ing_pool_count,
 				  eg_pool_count,
 				  MLXSW_SP_SB_ING_TC_COUNT,
