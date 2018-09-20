@@ -2262,6 +2262,7 @@ static struct ib_pd *mlx5_ib_alloc_pd(struct ib_device *ibdev,
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
+	uid = context ? to_mucontext(context)->devx_uid : 0;
 	MLX5_SET(alloc_pd_in, in, opcode, MLX5_CMD_OP_ALLOC_PD);
 	MLX5_SET(alloc_pd_in, in, uid, uid);
 	err = mlx5_cmd_exec(to_mdev(ibdev)->mdev, in, sizeof(in),
