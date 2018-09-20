@@ -34,7 +34,7 @@ struct cht_int33fe_data {
 	struct i2c_client *fusb302;
 	struct i2c_client *pi3usb30532;
 	/* Contain a list-head must be per device */
-	struct device_connection connections[5];
+	struct device_connection connections[8];
 };
 
 /*
@@ -186,6 +186,16 @@ static int cht_int33fe_probe(struct i2c_client *client)
 	data->connections[3].endpoint[0] = "i2c-fusb302";
 	data->connections[3].endpoint[1] = "intel_xhci_usb_sw-role-switch";
 	data->connections[3].id = "usb-role-switch";
+
+	data->connections[4].endpoint[0] = "port0";
+	data->connections[4].endpoint[1] = "i2c-pi3usb30532";
+	data->connections[4].id = "typec-switch";
+	data->connections[5].endpoint[0] = "port0";
+	data->connections[5].endpoint[1] = "i2c-pi3usb30532";
+	data->connections[5].id = "typec-mux";
+	data->connections[6].endpoint[0] = "port0";
+	data->connections[6].endpoint[1] = "i2c-pi3usb30532";
+	data->connections[6].id = "idff01m01";
 
 	device_connections_add(data->connections);
 
