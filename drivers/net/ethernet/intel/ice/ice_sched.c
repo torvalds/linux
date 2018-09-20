@@ -85,6 +85,62 @@ ice_sched_find_node_by_teid(struct ice_sched_node *start_node, u32 teid)
 }
 
 /**
+ * ice_aq_query_sched_elems - query scheduler elements
+ * @hw: pointer to the hw struct
+ * @elems_req: number of elements to query
+ * @buf: pointer to buffer
+ * @buf_size: buffer size in bytes
+ * @elems_ret: returns total number of elements returned
+ * @cd: pointer to command details structure or NULL
+ *
+ * Query scheduling elements (0x0404)
+ */
+static enum ice_status
+ice_aq_query_sched_elems(struct ice_hw *hw, u16 elems_req,
+			 struct ice_aqc_get_elem *buf, u16 buf_size,
+			 u16 *elems_ret, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_get_cfg_elem *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	cmd = &desc.params.get_update_elem;
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_sched_elems);
+	cmd->num_elem_req = cpu_to_le16(elems_req);
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
+	if (!status && elems_ret)
+		*elems_ret = le16_to_cpu(cmd->num_elem_resp);
+
+	return status;
+}
+
+/**
+ * ice_sched_query_elem - query element information from hw
+ * @hw: pointer to the hw struct
+ * @node_teid: node teid to be queried
+ * @buf: buffer to element information
+ *
+ * This function queries HW element information
+ */
+static enum ice_status
+ice_sched_query_elem(struct ice_hw *hw, u32 node_teid,
+		     struct ice_aqc_get_elem *buf)
+{
+	u16 buf_size, num_elem_ret = 0;
+	enum ice_status status;
+
+	buf_size = sizeof(*buf);
+	memset(buf, 0, buf_size);
+	buf->generic[0].node_teid = cpu_to_le32(node_teid);
+	status = ice_aq_query_sched_elems(hw, 1, buf, buf_size, &num_elem_ret,
+					  NULL);
+	if (status || num_elem_ret != 1)
+		ice_debug(hw, ICE_DBG_SCHED, "query element failed\n");
+	return status;
+}
+
+/**
  * ice_sched_add_node - Insert the Tx scheduler node in SW DB
  * @pi: port information structure
  * @layer: Scheduler layer of the node
@@ -97,7 +153,9 @@ ice_sched_add_node(struct ice_port_info *pi, u8 layer,
 		   struct ice_aqc_txsched_elem_data *info)
 {
 	struct ice_sched_node *parent;
+	struct ice_aqc_get_elem elem;
 	struct ice_sched_node *node;
+	enum ice_status status;
 	struct ice_hw *hw;
 
 	if (!pi)
@@ -114,6 +172,13 @@ ice_sched_add_node(struct ice_port_info *pi, u8 layer,
 			  le32_to_cpu(info->parent_teid));
 		return ICE_ERR_PARAM;
 	}
+
+	/* query the current node information from FW  before additing it
+	 * to the SW DB
+	 */
+	status = ice_sched_query_elem(hw, le32_to_cpu(info->node_teid), &elem);
+	if (status)
+		return status;
 
 	node = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*node), GFP_KERNEL);
 	if (!node)
@@ -133,7 +198,7 @@ ice_sched_add_node(struct ice_port_info *pi, u8 layer,
 	node->parent = parent;
 	node->tx_sched_layer = layer;
 	parent->children[parent->num_children++] = node;
-	memcpy(&node->info, info, sizeof(*info));
+	memcpy(&node->info, &elem.generic[0], sizeof(node->info));
 	return 0;
 }
 
