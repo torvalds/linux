@@ -1228,7 +1228,7 @@ qla_zio_threshold_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	if (sscanf(buf, "%d", &val) != 1)
 		return -EINVAL;
-	if (val > 256)
+	if (val < 0 || val > 256)
 		return -ERANGE;
 
 	atomic_set(&vha->hw->zio_threshold, val);
