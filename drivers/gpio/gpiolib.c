@@ -427,7 +427,7 @@ static long linehandle_ioctl(struct file *filep, unsigned int cmd,
 	struct linehandle_state *lh = filep->private_data;
 	void __user *ip = (void __user *)arg;
 	struct gpiohandle_data ghd;
-	int vals[GPIOHANDLES_MAX];
+	DECLARE_BITMAP(vals, GPIOHANDLES_MAX);
 	int i;
 
 	if (cmd == GPIOHANDLE_GET_LINE_VALUES_IOCTL) {
@@ -436,13 +436,14 @@ static long linehandle_ioctl(struct file *filep, unsigned int cmd,
 							true,
 							lh->numdescs,
 							lh->descs,
+							NULL,
 							vals);
 		if (ret)
 			return ret;
 
 		memset(&ghd, 0, sizeof(ghd));
 		for (i = 0; i < lh->numdescs; i++)
-			ghd.values[i] = vals[i];
+			ghd.values[i] = test_bit(i, vals);
 
 		if (copy_to_user(ip, &ghd, sizeof(ghd)))
 			return -EFAULT;
@@ -461,13 +462,14 @@ static long linehandle_ioctl(struct file *filep, unsigned int cmd,
 
 		/* Clamp all values to [0,1] */
 		for (i = 0; i < lh->numdescs; i++)
-			vals[i] = !!ghd.values[i];
+			__assign_bit(i, vals, ghd.values[i]);
 
 		/* Reuse the array setting function */
 		return gpiod_set_array_value_complex(false,
 					      true,
 					      lh->numdescs,
 					      lh->descs,
+					      NULL,
 					      vals);
 	}
 	return -EINVAL;
@@ -2813,9 +2815,39 @@ static int gpio_chip_get_multiple(struct gpio_chip *chip,
 int gpiod_get_array_value_complex(bool raw, bool can_sleep,
 				  unsigned int array_size,
 				  struct gpio_desc **desc_array,
-				  int *value_array)
+				  struct gpio_array *array_info,
+				  unsigned long *value_bitmap)
 {
-	int i = 0;
+	int err, i = 0;
+
+	/*
+	 * Validate array_info against desc_array and its size.
+	 * It should immediately follow desc_array if both
+	 * have been obtained from the same gpiod_get_array() call.
+	 */
+	if (array_info && array_info->desc == desc_array &&
+	    array_size <= array_info->size &&
+	    (void *)array_info == desc_array + array_info->size) {
+		if (!can_sleep)
+			WARN_ON(array_info->chip->can_sleep);
+
+		err = gpio_chip_get_multiple(array_info->chip,
+					     array_info->get_mask,
+					     value_bitmap);
+		if (err)
+			return err;
+
+		if (!raw && !bitmap_empty(array_info->invert_mask, array_size))
+			bitmap_xor(value_bitmap, value_bitmap,
+				   array_info->invert_mask, array_size);
+
+		if (bitmap_full(array_info->get_mask, array_size))
+			return 0;
+
+		i = find_first_zero_bit(array_info->get_mask, array_size);
+	} else {
+		array_info = NULL;
+	}
 
 	while (i < array_size) {
 		struct gpio_chip *chip = desc_array[i]->gdev->chip;
@@ -2846,7 +2878,12 @@ int gpiod_get_array_value_complex(bool raw, bool can_sleep,
 			int hwgpio = gpio_chip_hwgpio(desc);
 
 			__set_bit(hwgpio, mask);
-			i++;
+
+			if (array_info)
+				find_next_zero_bit(array_info->get_mask,
+						   array_size, i);
+			else
+				i++;
 		} while ((i < array_size) &&
 			 (desc_array[i]->gdev->chip == chip));
 
@@ -2857,15 +2894,20 @@ int gpiod_get_array_value_complex(bool raw, bool can_sleep,
 			return ret;
 		}
 
-		for (j = first; j < i; j++) {
+		for (j = first; j < i; ) {
 			const struct gpio_desc *desc = desc_array[j];
 			int hwgpio = gpio_chip_hwgpio(desc);
 			int value = test_bit(hwgpio, bits);
 
 			if (!raw && test_bit(FLAG_ACTIVE_LOW, &desc->flags))
 				value = !value;
-			value_array[j] = value;
+			__assign_bit(j, value_bitmap, value);
 			trace_gpio_value(desc_to_gpio(desc), 1, value);
+
+			if (array_info)
+				find_next_zero_bit(array_info->get_mask, i, j);
+			else
+				j++;
 		}
 
 		if (mask != fastpath)
@@ -2924,9 +2966,10 @@ EXPORT_SYMBOL_GPL(gpiod_get_value);
 
 /**
  * gpiod_get_raw_array_value() - read raw values from an array of GPIOs
- * @array_size: number of elements in the descriptor / value arrays
+ * @array_size: number of elements in the descriptor array / value bitmap
  * @desc_array: array of GPIO descriptors whose values will be read
- * @value_array: array to store the read values
+ * @array_info: information on applicability of fast bitmap processing path
+ * @value_bitmap: bitmap to store the read values
  *
  * Read the raw values of the GPIOs, i.e. the values of the physical lines
  * without regard for their ACTIVE_LOW status.  Return 0 in case of success,
@@ -2936,20 +2979,24 @@ EXPORT_SYMBOL_GPL(gpiod_get_value);
  * and it will complain if the GPIO chip functions potentially sleep.
  */
 int gpiod_get_raw_array_value(unsigned int array_size,
-			      struct gpio_desc **desc_array, int *value_array)
+			      struct gpio_desc **desc_array,
+			      struct gpio_array *array_info,
+			      unsigned long *value_bitmap)
 {
 	if (!desc_array)
 		return -EINVAL;
 	return gpiod_get_array_value_complex(true, false, array_size,
-					     desc_array, value_array);
+					     desc_array, array_info,
+					     value_bitmap);
 }
 EXPORT_SYMBOL_GPL(gpiod_get_raw_array_value);
 
 /**
  * gpiod_get_array_value() - read values from an array of GPIOs
- * @array_size: number of elements in the descriptor / value arrays
+ * @array_size: number of elements in the descriptor array / value bitmap
  * @desc_array: array of GPIO descriptors whose values will be read
- * @value_array: array to store the read values
+ * @array_info: information on applicability of fast bitmap processing path
+ * @value_bitmap: bitmap to store the read values
  *
  * Read the logical values of the GPIOs, i.e. taking their ACTIVE_LOW status
  * into account.  Return 0 in case of success, else an error code.
@@ -2958,12 +3005,15 @@ EXPORT_SYMBOL_GPL(gpiod_get_raw_array_value);
  * and it will complain if the GPIO chip functions potentially sleep.
  */
 int gpiod_get_array_value(unsigned int array_size,
-			  struct gpio_desc **desc_array, int *value_array)
+			  struct gpio_desc **desc_array,
+			  struct gpio_array *array_info,
+			  unsigned long *value_bitmap)
 {
 	if (!desc_array)
 		return -EINVAL;
 	return gpiod_get_array_value_complex(false, false, array_size,
-					     desc_array, value_array);
+					     desc_array, array_info,
+					     value_bitmap);
 }
 EXPORT_SYMBOL_GPL(gpiod_get_array_value);
 
@@ -3056,9 +3106,36 @@ static void gpio_chip_set_multiple(struct gpio_chip *chip,
 int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 				   unsigned int array_size,
 				   struct gpio_desc **desc_array,
-				   int *value_array)
+				   struct gpio_array *array_info,
+				   unsigned long *value_bitmap)
 {
 	int i = 0;
+
+	/*
+	 * Validate array_info against desc_array and its size.
+	 * It should immediately follow desc_array if both
+	 * have been obtained from the same gpiod_get_array() call.
+	 */
+	if (array_info && array_info->desc == desc_array &&
+	    array_size <= array_info->size &&
+	    (void *)array_info == desc_array + array_info->size) {
+		if (!can_sleep)
+			WARN_ON(array_info->chip->can_sleep);
+
+		if (!raw && !bitmap_empty(array_info->invert_mask, array_size))
+			bitmap_xor(value_bitmap, value_bitmap,
+				   array_info->invert_mask, array_size);
+
+		gpio_chip_set_multiple(array_info->chip, array_info->set_mask,
+				       value_bitmap);
+
+		if (bitmap_full(array_info->set_mask, array_size))
+			return 0;
+
+		i = find_first_zero_bit(array_info->set_mask, array_size);
+	} else {
+		array_info = NULL;
+	}
 
 	while (i < array_size) {
 		struct gpio_chip *chip = desc_array[i]->gdev->chip;
@@ -3085,9 +3162,16 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 		do {
 			struct gpio_desc *desc = desc_array[i];
 			int hwgpio = gpio_chip_hwgpio(desc);
-			int value = value_array[i];
+			int value = test_bit(i, value_bitmap);
 
-			if (!raw && test_bit(FLAG_ACTIVE_LOW, &desc->flags))
+			/*
+			 * Pins applicable for fast input but not for
+			 * fast output processing may have been already
+			 * inverted inside the fast path, skip them.
+			 */
+			if (!raw && !(array_info &&
+			    test_bit(i, array_info->invert_mask)) &&
+			    test_bit(FLAG_ACTIVE_LOW, &desc->flags))
 				value = !value;
 			trace_gpio_value(desc_to_gpio(desc), 0, value);
 			/*
@@ -3106,7 +3190,12 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 					__clear_bit(hwgpio, bits);
 				count++;
 			}
-			i++;
+
+			if (array_info)
+				find_next_zero_bit(array_info->set_mask,
+						   array_size, i);
+			else
+				i++;
 		} while ((i < array_size) &&
 			 (desc_array[i]->gdev->chip == chip));
 		/* push collected bits to outputs */
@@ -3181,9 +3270,10 @@ EXPORT_SYMBOL_GPL(gpiod_set_value);
 
 /**
  * gpiod_set_raw_array_value() - assign values to an array of GPIOs
- * @array_size: number of elements in the descriptor / value arrays
+ * @array_size: number of elements in the descriptor array / value bitmap
  * @desc_array: array of GPIO descriptors whose values will be assigned
- * @value_array: array of values to assign
+ * @array_info: information on applicability of fast bitmap processing path
+ * @value_bitmap: bitmap of values to assign
  *
  * Set the raw values of the GPIOs, i.e. the values of the physical lines
  * without regard for their ACTIVE_LOW status.
@@ -3192,20 +3282,23 @@ EXPORT_SYMBOL_GPL(gpiod_set_value);
  * complain if the GPIO chip functions potentially sleep.
  */
 int gpiod_set_raw_array_value(unsigned int array_size,
-			 struct gpio_desc **desc_array, int *value_array)
+			 struct gpio_desc **desc_array,
+			 struct gpio_array *array_info,
+			 unsigned long *value_bitmap)
 {
 	if (!desc_array)
 		return -EINVAL;
 	return gpiod_set_array_value_complex(true, false, array_size,
-					desc_array, value_array);
+					desc_array, array_info, value_bitmap);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_raw_array_value);
 
 /**
  * gpiod_set_array_value() - assign values to an array of GPIOs
- * @array_size: number of elements in the descriptor / value arrays
+ * @array_size: number of elements in the descriptor array / value bitmap
  * @desc_array: array of GPIO descriptors whose values will be assigned
- * @value_array: array of values to assign
+ * @array_info: information on applicability of fast bitmap processing path
+ * @value_bitmap: bitmap of values to assign
  *
  * Set the logical values of the GPIOs, i.e. taking their ACTIVE_LOW status
  * into account.
@@ -3214,12 +3307,14 @@ EXPORT_SYMBOL_GPL(gpiod_set_raw_array_value);
  * complain if the GPIO chip functions potentially sleep.
  */
 void gpiod_set_array_value(unsigned int array_size,
-			   struct gpio_desc **desc_array, int *value_array)
+			   struct gpio_desc **desc_array,
+			   struct gpio_array *array_info,
+			   unsigned long *value_bitmap)
 {
 	if (!desc_array)
 		return;
 	gpiod_set_array_value_complex(false, false, array_size, desc_array,
-				      value_array);
+				      array_info, value_bitmap);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_array_value);
 
@@ -3487,9 +3582,10 @@ EXPORT_SYMBOL_GPL(gpiod_get_value_cansleep);
 
 /**
  * gpiod_get_raw_array_value_cansleep() - read raw values from an array of GPIOs
- * @array_size: number of elements in the descriptor / value arrays
+ * @array_size: number of elements in the descriptor array / value bitmap
  * @desc_array: array of GPIO descriptors whose values will be read
- * @value_array: array to store the read values
+ * @array_info: information on applicability of fast bitmap processing path
+ * @value_bitmap: bitmap to store the read values
  *
  * Read the raw values of the GPIOs, i.e. the values of the physical lines
  * without regard for their ACTIVE_LOW status.  Return 0 in case of success,
@@ -3499,21 +3595,24 @@ EXPORT_SYMBOL_GPL(gpiod_get_value_cansleep);
  */
 int gpiod_get_raw_array_value_cansleep(unsigned int array_size,
 				       struct gpio_desc **desc_array,
-				       int *value_array)
+				       struct gpio_array *array_info,
+				       unsigned long *value_bitmap)
 {
 	might_sleep_if(extra_checks);
 	if (!desc_array)
 		return -EINVAL;
 	return gpiod_get_array_value_complex(true, true, array_size,
-					     desc_array, value_array);
+					     desc_array, array_info,
+					     value_bitmap);
 }
 EXPORT_SYMBOL_GPL(gpiod_get_raw_array_value_cansleep);
 
 /**
  * gpiod_get_array_value_cansleep() - read values from an array of GPIOs
- * @array_size: number of elements in the descriptor / value arrays
+ * @array_size: number of elements in the descriptor array / value bitmap
  * @desc_array: array of GPIO descriptors whose values will be read
- * @value_array: array to store the read values
+ * @array_info: information on applicability of fast bitmap processing path
+ * @value_bitmap: bitmap to store the read values
  *
  * Read the logical values of the GPIOs, i.e. taking their ACTIVE_LOW status
  * into account.  Return 0 in case of success, else an error code.
@@ -3522,13 +3621,15 @@ EXPORT_SYMBOL_GPL(gpiod_get_raw_array_value_cansleep);
  */
 int gpiod_get_array_value_cansleep(unsigned int array_size,
 				   struct gpio_desc **desc_array,
-				   int *value_array)
+				   struct gpio_array *array_info,
+				   unsigned long *value_bitmap)
 {
 	might_sleep_if(extra_checks);
 	if (!desc_array)
 		return -EINVAL;
 	return gpiod_get_array_value_complex(false, true, array_size,
-					     desc_array, value_array);
+					     desc_array, array_info,
+					     value_bitmap);
 }
 EXPORT_SYMBOL_GPL(gpiod_get_array_value_cansleep);
 
@@ -3570,9 +3671,10 @@ EXPORT_SYMBOL_GPL(gpiod_set_value_cansleep);
 
 /**
  * gpiod_set_raw_array_value_cansleep() - assign values to an array of GPIOs
- * @array_size: number of elements in the descriptor / value arrays
+ * @array_size: number of elements in the descriptor array / value bitmap
  * @desc_array: array of GPIO descriptors whose values will be assigned
- * @value_array: array of values to assign
+ * @array_info: information on applicability of fast bitmap processing path
+ * @value_bitmap: bitmap of values to assign
  *
  * Set the raw values of the GPIOs, i.e. the values of the physical lines
  * without regard for their ACTIVE_LOW status.
@@ -3581,13 +3683,14 @@ EXPORT_SYMBOL_GPL(gpiod_set_value_cansleep);
  */
 int gpiod_set_raw_array_value_cansleep(unsigned int array_size,
 					struct gpio_desc **desc_array,
-					int *value_array)
+					struct gpio_array *array_info,
+					unsigned long *value_bitmap)
 {
 	might_sleep_if(extra_checks);
 	if (!desc_array)
 		return -EINVAL;
 	return gpiod_set_array_value_complex(true, true, array_size, desc_array,
-				      value_array);
+				      array_info, value_bitmap);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_raw_array_value_cansleep);
 
@@ -3610,9 +3713,10 @@ void gpiod_add_lookup_tables(struct gpiod_lookup_table **tables, size_t n)
 
 /**
  * gpiod_set_array_value_cansleep() - assign values to an array of GPIOs
- * @array_size: number of elements in the descriptor / value arrays
+ * @array_size: number of elements in the descriptor array / value bitmap
  * @desc_array: array of GPIO descriptors whose values will be assigned
- * @value_array: array of values to assign
+ * @array_info: information on applicability of fast bitmap processing path
+ * @value_bitmap: bitmap of values to assign
  *
  * Set the logical values of the GPIOs, i.e. taking their ACTIVE_LOW status
  * into account.
@@ -3621,13 +3725,14 @@ void gpiod_add_lookup_tables(struct gpiod_lookup_table **tables, size_t n)
  */
 void gpiod_set_array_value_cansleep(unsigned int array_size,
 				    struct gpio_desc **desc_array,
-				    int *value_array)
+				    struct gpio_array *array_info,
+				    unsigned long *value_bitmap)
 {
 	might_sleep_if(extra_checks);
 	if (!desc_array)
 		return;
 	gpiod_set_array_value_complex(false, true, array_size, desc_array,
-				      value_array);
+				      array_info, value_bitmap);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_array_value_cansleep);
 
@@ -4247,7 +4352,9 @@ struct gpio_descs *__must_check gpiod_get_array(struct device *dev,
 {
 	struct gpio_desc *desc;
 	struct gpio_descs *descs;
-	int count;
+	struct gpio_array *array_info = NULL;
+	struct gpio_chip *chip;
+	int count, bitmap_size;
 
 	count = gpiod_count(dev, con_id);
 	if (count < 0)
@@ -4263,9 +4370,77 @@ struct gpio_descs *__must_check gpiod_get_array(struct device *dev,
 			gpiod_put_array(descs);
 			return ERR_CAST(desc);
 		}
+
 		descs->desc[descs->ndescs] = desc;
+
+		chip = gpiod_to_chip(desc);
+		/*
+		 * Select a chip of first array member
+		 * whose index matches its pin hardware number
+		 * as a candidate for fast bitmap processing.
+		 */
+		if (!array_info && gpio_chip_hwgpio(desc) == descs->ndescs) {
+			struct gpio_descs *array;
+
+			bitmap_size = BITS_TO_LONGS(chip->ngpio > count ?
+						    chip->ngpio : count);
+
+			array = kzalloc(struct_size(descs, desc, count) +
+					struct_size(array_info, invert_mask,
+					3 * bitmap_size), GFP_KERNEL);
+			if (!array) {
+				gpiod_put_array(descs);
+				return ERR_PTR(-ENOMEM);
+			}
+
+			memcpy(array, descs,
+			       struct_size(descs, desc, descs->ndescs + 1));
+			kfree(descs);
+
+			descs = array;
+			array_info = (void *)(descs->desc + count);
+			array_info->get_mask = array_info->invert_mask +
+						  bitmap_size;
+			array_info->set_mask = array_info->get_mask +
+						  bitmap_size;
+
+			array_info->desc = descs->desc;
+			array_info->size = count;
+			array_info->chip = chip;
+			bitmap_set(array_info->get_mask, descs->ndescs,
+				   count - descs->ndescs);
+			bitmap_set(array_info->set_mask, descs->ndescs,
+				   count - descs->ndescs);
+			descs->info = array_info;
+		}
+		/*
+		 * Unmark members which don't qualify for fast bitmap
+		 * processing (different chip, not in hardware order)
+		 */
+		if (array_info && (chip != array_info->chip ||
+		    gpio_chip_hwgpio(desc) != descs->ndescs)) {
+			__clear_bit(descs->ndescs, array_info->get_mask);
+			__clear_bit(descs->ndescs, array_info->set_mask);
+		} else if (array_info) {
+			/* Exclude open drain or open source from fast output */
+			if (gpiochip_line_is_open_drain(chip, descs->ndescs) ||
+			    gpiochip_line_is_open_source(chip, descs->ndescs))
+				__clear_bit(descs->ndescs,
+					    array_info->set_mask);
+			/* Identify 'fast' pins which require invertion */
+			if (gpiod_is_active_low(desc))
+				__set_bit(descs->ndescs,
+					  array_info->invert_mask);
+		}
+
 		descs->ndescs++;
 	}
+	if (array_info)
+		dev_dbg(dev,
+			"GPIO array info: chip=%s, size=%d, get_mask=%lx, set_mask=%lx, invert_mask=%lx\n",
+			array_info->chip->label, array_info->size,
+			*array_info->get_mask, *array_info->set_mask,
+			*array_info->invert_mask);
 	return descs;
 }
 EXPORT_SYMBOL_GPL(gpiod_get_array);
