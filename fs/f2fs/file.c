@@ -586,7 +586,8 @@ truncate_out:
 	return 0;
 }
 
-int f2fs_truncate_blocks(struct inode *inode, u64 from, bool lock)
+int f2fs_truncate_blocks(struct inode *inode, u64 from, bool lock,
+							bool buf_write)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct dnode_of_data dn;
@@ -594,6 +595,7 @@ int f2fs_truncate_blocks(struct inode *inode, u64 from, bool lock)
 	int count = 0, err = 0;
 	struct page *ipage;
 	bool truncate_page = false;
+	int flag = buf_write ? F2FS_GET_BLOCK_PRE_AIO : F2FS_GET_BLOCK_PRE_DIO;
 
 	trace_f2fs_truncate_blocks_enter(inode, from);
 
@@ -603,7 +605,7 @@ int f2fs_truncate_blocks(struct inode *inode, u64 from, bool lock)
 		goto free_partial;
 
 	if (lock)
-		f2fs_lock_op(sbi);
+		__do_map_lock(sbi, flag, true);
 
 	ipage = f2fs_get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(ipage)) {
@@ -641,7 +643,7 @@ free_next:
 	err = f2fs_truncate_inode_blocks(inode, free_from);
 out:
 	if (lock)
-		f2fs_unlock_op(sbi);
+		__do_map_lock(sbi, flag, false);
 free_partial:
 	/* lastly zero out the first data page */
 	if (!err)
@@ -676,7 +678,7 @@ int f2fs_truncate(struct inode *inode)
 			return err;
 	}
 
-	err = f2fs_truncate_blocks(inode, i_size_read(inode), true);
+	err = f2fs_truncate_blocks(inode, i_size_read(inode), true, false);
 	if (err)
 		return err;
 
@@ -785,9 +787,24 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 		!uid_eq(attr->ia_uid, inode->i_uid)) ||
 		(attr->ia_valid & ATTR_GID &&
 		!gid_eq(attr->ia_gid, inode->i_gid))) {
+		f2fs_lock_op(F2FS_I_SB(inode));
 		err = dquot_transfer(inode, attr);
-		if (err)
+		if (err) {
+			set_sbi_flag(F2FS_I_SB(inode),
+					SBI_QUOTA_NEED_REPAIR);
+			f2fs_unlock_op(F2FS_I_SB(inode));
 			return err;
+		}
+		/*
+		 * update uid/gid under lock_op(), so that dquot and inode can
+		 * be updated atomically.
+		 */
+		if (attr->ia_valid & ATTR_UID)
+			inode->i_uid = attr->ia_uid;
+		if (attr->ia_valid & ATTR_GID)
+			inode->i_gid = attr->ia_gid;
+		f2fs_mark_inode_dirty_sync(inode, true);
+		f2fs_unlock_op(F2FS_I_SB(inode));
 	}
 
 	if (attr->ia_valid & ATTR_SIZE) {
@@ -1242,7 +1259,7 @@ static int f2fs_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	new_size = i_size_read(inode) - len;
 	truncate_pagecache(inode, new_size);
 
-	ret = f2fs_truncate_blocks(inode, new_size, true);
+	ret = f2fs_truncate_blocks(inode, new_size, true, false);
 	up_write(&F2FS_I(inode)->i_mmap_sem);
 	if (!ret)
 		f2fs_i_size_write(inode, new_size);
@@ -1427,7 +1444,7 @@ static int f2fs_insert_range(struct inode *inode, loff_t offset, loff_t len)
 	f2fs_balance_fs(sbi, true);
 
 	down_write(&F2FS_I(inode)->i_mmap_sem);
-	ret = f2fs_truncate_blocks(inode, i_size_read(inode), true);
+	ret = f2fs_truncate_blocks(inode, i_size_read(inode), true, false);
 	up_write(&F2FS_I(inode)->i_mmap_sem);
 	if (ret)
 		return ret;

@@ -195,6 +195,33 @@ out:
 	return err;
 }
 
+static int recover_quota_data(struct inode *inode, struct page *page)
+{
+	struct f2fs_inode *raw = F2FS_INODE(page);
+	struct iattr attr;
+	uid_t i_uid = le32_to_cpu(raw->i_uid);
+	gid_t i_gid = le32_to_cpu(raw->i_gid);
+	int err;
+
+	memset(&attr, 0, sizeof(attr));
+
+	attr.ia_uid = make_kuid(inode->i_sb->s_user_ns, i_uid);
+	attr.ia_gid = make_kgid(inode->i_sb->s_user_ns, i_gid);
+
+	if (!uid_eq(attr.ia_uid, inode->i_uid))
+		attr.ia_valid |= ATTR_UID;
+	if (!gid_eq(attr.ia_gid, inode->i_gid))
+		attr.ia_valid |= ATTR_GID;
+
+	if (!attr.ia_valid)
+		return 0;
+
+	err = dquot_transfer(inode, &attr);
+	if (err)
+		set_sbi_flag(F2FS_I_SB(inode), SBI_QUOTA_NEED_REPAIR);
+	return err;
+}
+
 static void recover_inline_flags(struct inode *inode, struct f2fs_inode *ri)
 {
 	if (ri->i_inline & F2FS_PIN_FILE)
@@ -207,12 +234,18 @@ static void recover_inline_flags(struct inode *inode, struct f2fs_inode *ri)
 		clear_inode_flag(inode, FI_DATA_EXIST);
 }
 
-static void recover_inode(struct inode *inode, struct page *page)
+static int recover_inode(struct inode *inode, struct page *page)
 {
 	struct f2fs_inode *raw = F2FS_INODE(page);
 	char *name;
+	int err;
 
 	inode->i_mode = le16_to_cpu(raw->i_mode);
+
+	err = recover_quota_data(inode, page);
+	if (err)
+		return err;
+
 	i_uid_write(inode, le32_to_cpu(raw->i_uid));
 	i_gid_write(inode, le32_to_cpu(raw->i_gid));
 
@@ -254,6 +287,7 @@ static void recover_inode(struct inode *inode, struct page *page)
 	f2fs_msg(inode->i_sb, KERN_NOTICE,
 		"recover_inode: ino = %x, name = %s, inline = %x",
 			ino_of_node(page), name, raw->i_inline);
+	return 0;
 }
 
 static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
@@ -622,8 +656,11 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 		 * In this case, we can lose the latest inode(x).
 		 * So, call recover_inode for the inode update.
 		 */
-		if (IS_INODE(page))
-			recover_inode(entry->inode, page);
+		if (IS_INODE(page)) {
+			err = recover_inode(entry->inode, page);
+			if (err)
+				break;
+		}
 		if (entry->last_dentry == blkaddr) {
 			err = recover_dentry(entry->inode, page, dir_list);
 			if (err) {
