@@ -1507,7 +1507,7 @@ static int dpu_encoder_helper_wait_event_timeout(
 	return rc;
 }
 
-void dpu_encoder_helper_hw_reset(struct dpu_encoder_phys *phys_enc)
+static void dpu_encoder_helper_hw_reset(struct dpu_encoder_phys *phys_enc)
 {
 	struct dpu_encoder_virt *dpu_enc;
 	struct dpu_hw_ctl *ctl;
@@ -1803,9 +1803,7 @@ void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
 	if (needs_hw_reset) {
 		trace_dpu_enc_prepare_kickoff_reset(DRMID(drm_enc));
 		for (i = 0; i < dpu_enc->num_phys_encs; i++) {
-			phys = dpu_enc->phys_encs[i];
-			if (phys && phys->ops.hw_reset)
-				phys->ops.hw_reset(phys);
+			dpu_encoder_helper_hw_reset(dpu_enc->phys_encs[i]);
 		}
 	}
 }

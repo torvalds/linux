@@ -766,7 +766,6 @@ static void dpu_encoder_phys_vid_init_ops(struct dpu_encoder_phys_ops *ops)
 	ops->prepare_for_kickoff = dpu_encoder_phys_vid_prepare_for_kickoff;
 	ops->handle_post_kickoff = dpu_encoder_phys_vid_handle_post_kickoff;
 	ops->needs_single_flush = dpu_encoder_phys_vid_needs_single_flush;
-	ops->hw_reset = dpu_encoder_helper_hw_reset;
 	ops->get_line_count = dpu_encoder_phys_vid_get_line_count;
 }
 
