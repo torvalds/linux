@@ -142,20 +142,24 @@ static int mlxsw_sp_sb_pr_write(struct mlxsw_sp *mlxsw_sp, u16 pool_index,
 
 static int mlxsw_sp_sb_cm_write(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				u8 pg_buff, u32 min_buff, u32 max_buff,
-				u16 pool_index)
+				bool infi_max, u16 pool_index)
 {
 	const struct mlxsw_sp_sb_pool_des *des =
 		&mlxsw_sp_sb_pool_dess[pool_index];
 	char sbcm_pl[MLXSW_REG_SBCM_LEN];
+	struct mlxsw_sp_sb_cm *cm;
 	int err;
 
 	mlxsw_reg_sbcm_pack(sbcm_pl, local_port, pg_buff, des->dir,
-			    min_buff, max_buff, des->pool);
+			    min_buff, max_buff, infi_max, des->pool);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbcm), sbcm_pl);
 	if (err)
 		return err;
+
 	if (mlxsw_sp_sb_cm_exists(pg_buff, des->dir)) {
-		struct mlxsw_sp_sb_cm *cm;
+		if (infi_max)
+			max_buff = mlxsw_sp_bytes_cells(mlxsw_sp,
+							mlxsw_sp->sb->sb_size);
 
 		cm = mlxsw_sp_sb_cm_get(mlxsw_sp, local_port, pg_buff,
 					des->dir);
@@ -451,9 +455,14 @@ static int __mlxsw_sp_sb_cms_init(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		 * therefore 'max_buff' isn't specified in cells.
 		 */
 		min_buff = mlxsw_sp_bytes_cells(mlxsw_sp, cm->min_buff);
-		err = mlxsw_sp_sb_cm_write(mlxsw_sp, local_port, i,
-					   min_buff, cm->max_buff,
-					   cm->pool_index);
+		if (cm->max_buff == MLXSW_SP_SB_INFI)
+			err = mlxsw_sp_sb_cm_write(mlxsw_sp, local_port, i,
+						   min_buff, 0,
+						   true, cm->pool_index);
+		else
+			err = mlxsw_sp_sb_cm_write(mlxsw_sp, local_port, i,
+						   min_buff, cm->max_buff,
+						   false, cm->pool_index);
 		if (err)
 			return err;
 	}
@@ -813,7 +822,7 @@ int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
 		return err;
 
 	return mlxsw_sp_sb_cm_write(mlxsw_sp, local_port, pg_buff,
-				    0, max_buff, pool_index);
+				    0, max_buff, false, pool_index);
 }
 
 #define MASKED_COUNT_MAX \
