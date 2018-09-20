@@ -2813,8 +2813,7 @@ err_free_queue:
 	free_srq_queue(srq, ucontext ? &ucontext->uctx : &rhp->rdev.uctx,
 		       srq->wr_waitp);
 err_free_skb:
-	if (srq->destroy_skb)
-		kfree_skb(srq->destroy_skb);
+	kfree_skb(srq->destroy_skb);
 err_free_srq_idx:
 	c4iw_free_srq_idx(&rhp->rdev, srq->idx);
 err_free_wr_wait:
