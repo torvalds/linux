@@ -3005,7 +3005,7 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 	arch_phys_wc_del(ggtt->mtrr);
 	io_mapping_fini(&ggtt->iomap);
 
-	i915_gem_cleanup_stolen(&dev_priv->drm);
+	i915_gem_cleanup_stolen(dev_priv);
 }
 
 static unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
