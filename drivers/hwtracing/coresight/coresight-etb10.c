@@ -28,6 +28,7 @@
 
 
 #include "coresight-priv.h"
+#include "coresight-etm-perf.h"
 
 #define ETB_RAM_DEPTH_REG	0x004
 #define ETB_STATUS_REG		0x00c
@@ -90,6 +91,9 @@ struct etb_drvdata {
 	u32			trigger_cntr;
 };
 
+static int etb_set_buffer(struct coresight_device *csdev,
+			  struct perf_output_handle *handle);
+
 static unsigned int etb_get_buffer_depth(struct etb_drvdata *drvdata)
 {
 	u32 depth = 0;
@@ -131,11 +135,23 @@ static void etb_enable_hw(struct etb_drvdata *drvdata)
 	CS_LOCK(drvdata->base);
 }
 
-static int etb_enable(struct coresight_device *csdev, u32 mode)
+static int etb_enable(struct coresight_device *csdev, u32 mode, void *data)
 {
+	int ret = 0;
 	u32 val;
 	unsigned long flags;
 	struct etb_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	/*
+	 * We don't have an internal state to clean up if we fail to setup
+	 * the perf buffer. So we can perform the step before we turn the
+	 * ETB on and leave without cleaning up.
+	 */
+	if (mode == CS_MODE_PERF) {
+		ret = etb_set_buffer(csdev, (struct perf_output_handle *)data);
+		if (ret)
+			goto out;
+	}
 
 	val = local_cmpxchg(&drvdata->mode,
 			    CS_MODE_DISABLED, mode);
@@ -160,8 +176,9 @@ static int etb_enable(struct coresight_device *csdev, u32 mode)
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 out:
-	dev_dbg(drvdata->dev, "ETB enabled\n");
-	return 0;
+	if (!ret)
+		dev_dbg(drvdata->dev, "ETB enabled\n");
+	return ret;
 }
 
 static void etb_disable_hw(struct etb_drvdata *drvdata)
@@ -298,12 +315,14 @@ static void etb_free_buffer(void *config)
 }
 
 static int etb_set_buffer(struct coresight_device *csdev,
-			  struct perf_output_handle *handle,
-			  void *sink_config)
+			  struct perf_output_handle *handle)
 {
 	int ret = 0;
 	unsigned long head;
-	struct cs_buffers *buf = sink_config;
+	struct cs_buffers *buf = etm_perf_sink_config(handle);
+
+	if (!buf)
+		return -EINVAL;
 
 	/* wrap head around to the amount of space we have */
 	head = handle->head & ((buf->nr_pages << PAGE_SHIFT) - 1);
@@ -457,7 +476,6 @@ static const struct coresight_ops_sink etb_sink_ops = {
 	.disable	= etb_disable,
 	.alloc_buffer	= etb_alloc_buffer,
 	.free_buffer	= etb_free_buffer,
-	.set_buffer	= etb_set_buffer,
 	.update_buffer	= etb_update_buffer,
 };
 

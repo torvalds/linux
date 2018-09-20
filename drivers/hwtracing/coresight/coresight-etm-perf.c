@@ -286,16 +286,11 @@ static void etm_event_start(struct perf_event *event, int flags)
 	path = etm_event_cpu_path(event_data, cpu);
 	/* We need a sink, no need to continue without one */
 	sink = coresight_get_sink(path);
-	if (WARN_ON_ONCE(!sink || !sink_ops(sink)->set_buffer))
-		goto fail_end_stop;
-
-	/* Configure the sink */
-	if (sink_ops(sink)->set_buffer(sink, handle,
-				       event_data->snk_config))
+	if (WARN_ON_ONCE(!sink))
 		goto fail_end_stop;
 
 	/* Nothing will happen without a path */
-	if (coresight_enable_path(path, CS_MODE_PERF))
+	if (coresight_enable_path(path, CS_MODE_PERF, handle))
 		goto fail_end_stop;
 
 	/* Tell the perf core the event is alive */
