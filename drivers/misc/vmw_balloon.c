@@ -223,8 +223,6 @@ struct vmballoon {
 	struct dentry *dbg_entry;
 #endif
 
-	struct sysinfo sysinfo;
-
 	struct delayed_work dwork;
 
 	struct vmci_handle vmci_doorbell;
@@ -353,34 +351,29 @@ static u16 vmballoon_page_size(bool is_2m_page)
 	return 1;
 }
 
-/*
- * Retrieve desired balloon size from the host.
+/**
+ * vmballoon_send_get_target() - Retrieve desired balloon size from the host.
+ *
+ * @b: pointer to the balloon.
+ *
+ * Return: zero on success, EINVAL if limit does not fit in 32-bit, as required
+ * by the host-guest protocol and EIO if an error occurred in communicating with
+ * the host.
  */
-static bool vmballoon_send_get_target(struct vmballoon *b)
+static int vmballoon_send_get_target(struct vmballoon *b)
 {
 	unsigned long status;
 	unsigned long limit;
-	u32 limit32;
 
-	/*
-	 * si_meminfo() is cheap. Moreover, we want to provide dynamic
-	 * max balloon size later. So let us call si_meminfo() every
-	 * iteration.
-	 */
-	si_meminfo(&b->sysinfo);
-	limit = b->sysinfo.totalram;
+	limit = totalram_pages;
 
 	/* Ensure limit fits in 32-bits */
-	limit32 = (u32)limit;
-	if (limit != limit32)
-		return false;
+	if (limit != (u32)limit)
+		return -EINVAL;
 
 	status = vmballoon_cmd(b, VMW_BALLOON_CMD_GET_TARGET, limit, 0);
 
-	if (status == VMW_BALLOON_SUCCESS)
-		return true;
-
-	return false;
+	return status == VMW_BALLOON_SUCCESS ? 0 : -EIO;
 }
 
 static struct page *vmballoon_alloc_page(bool is_2m_page)
@@ -962,7 +955,7 @@ static void vmballoon_work(struct work_struct *work)
 	if (b->reset_required)
 		vmballoon_reset(b);
 
-	if (vmballoon_send_get_target(b))
+	if (!vmballoon_send_get_target(b))
 		change = vmballoon_change(b);
 
 	if (change != 0) {
