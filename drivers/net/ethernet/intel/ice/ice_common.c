@@ -2652,3 +2652,64 @@ ice_cfg_vsi_lan(struct ice_port_info *pi, u16 vsi_id, u8 tc_bitmap,
 	return ice_cfg_vsi_qs(pi, vsi_id, tc_bitmap, max_lanqs,
 			      ICE_SCHED_NODE_OWNER_LAN);
 }
+
+/**
+ * ice_stat_update40 - read 40 bit stat from the chip and update stat values
+ * @hw: ptr to the hardware info
+ * @hireg: high 32 bit HW register to read from
+ * @loreg: low 32 bit HW register to read from
+ * @prev_stat_loaded: bool to specify if previous stats are loaded
+ * @prev_stat: ptr to previous loaded stat value
+ * @cur_stat: ptr to current stat value
+ */
+void ice_stat_update40(struct ice_hw *hw, u32 hireg, u32 loreg,
+		       bool prev_stat_loaded, u64 *prev_stat, u64 *cur_stat)
+{
+	u64 new_data;
+
+	new_data = rd32(hw, loreg);
+	new_data |= ((u64)(rd32(hw, hireg) & 0xFFFF)) << 32;
+
+	/* device stats are not reset at PFR, they likely will not be zeroed
+	 * when the driver starts. So save the first values read and use them as
+	 * offsets to be subtracted from the raw values in order to report stats
+	 * that count from zero.
+	 */
+	if (!prev_stat_loaded)
+		*prev_stat = new_data;
+	if (new_data >= *prev_stat)
+		*cur_stat = new_data - *prev_stat;
+	else
+		/* to manage the potential roll-over */
+		*cur_stat = (new_data + BIT_ULL(40)) - *prev_stat;
+	*cur_stat &= 0xFFFFFFFFFFULL;
+}
+
+/**
+ * ice_stat_update32 - read 32 bit stat from the chip and update stat values
+ * @hw: ptr to the hardware info
+ * @reg: HW register to read from
+ * @prev_stat_loaded: bool to specify if previous stats are loaded
+ * @prev_stat: ptr to previous loaded stat value
+ * @cur_stat: ptr to current stat value
+ */
+void ice_stat_update32(struct ice_hw *hw, u32 reg, bool prev_stat_loaded,
+		       u64 *prev_stat, u64 *cur_stat)
+{
+	u32 new_data;
+
+	new_data = rd32(hw, reg);
+
+	/* device stats are not reset at PFR, they likely will not be zeroed
+	 * when the driver starts. So save the first values read and use them as
+	 * offsets to be subtracted from the raw values in order to report stats
+	 * that count from zero.
+	 */
+	if (!prev_stat_loaded)
+		*prev_stat = new_data;
+	if (new_data >= *prev_stat)
+		*cur_stat = new_data - *prev_stat;
+	else
+		/* to manage the potential roll-over */
+		*cur_stat = (new_data + BIT_ULL(32)) - *prev_stat;
+}

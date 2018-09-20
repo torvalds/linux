@@ -13,5 +13,6 @@ ice-y := ice_main.o	\
 	 ice_nvm.o	\
 	 ice_switch.o	\
 	 ice_sched.o	\
+	 ice_lib.o	\
 	 ice_txrx.o	\
 	 ice_ethtool.o
