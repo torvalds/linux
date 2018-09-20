@@ -494,6 +494,14 @@ tc_rule_stats_get()
 	    | jq '.[1].options.actions[].stats.packets'
 }
 
+ethtool_stats_get()
+{
+	local dev=$1; shift
+	local stat=$1; shift
+
+	ethtool -S $dev | grep "^ *$stat:" | head -n 1 | cut -d: -f2
+}
+
 mac_get()
 {
 	local if_name=$1
@@ -539,6 +547,23 @@ forwarding_restore()
 {
 	sysctl_restore net.ipv6.conf.all.forwarding
 	sysctl_restore net.ipv4.conf.all.forwarding
+}
+
+declare -A MTU_ORIG
+mtu_set()
+{
+	local dev=$1; shift
+	local mtu=$1; shift
+
+	MTU_ORIG["$dev"]=$(ip -j link show dev $dev | jq -e '.[].mtu')
+	ip link set dev $dev mtu $mtu
+}
+
+mtu_restore()
+{
+	local dev=$1; shift
+
+	ip link set dev $dev mtu ${MTU_ORIG["$dev"]}
 }
 
 tc_offload_check()
