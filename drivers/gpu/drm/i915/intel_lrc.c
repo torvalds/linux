@@ -2396,7 +2396,7 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 
 	ret = intel_engine_init_common(engine);
 	if (ret)
-		goto error;
+		return ret;
 
 	if (HAS_LOGICAL_RING_ELSQ(i915)) {
 		execlists->submit_reg = i915->regs +
@@ -2438,10 +2438,6 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	reset_csb_pointers(execlists);
 
 	return 0;
-
-error:
-	intel_logical_ring_cleanup(engine);
-	return ret;
 }
 
 int logical_render_ring_init(struct intel_engine_cs *engine)
@@ -2464,9 +2460,13 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 	engine->emit_breadcrumb = gen8_emit_breadcrumb_rcs;
 	engine->emit_breadcrumb_sz = gen8_emit_breadcrumb_rcs_sz;
 
-	ret = intel_engine_create_scratch(engine, PAGE_SIZE);
+	ret = logical_ring_init(engine);
 	if (ret)
 		return ret;
+
+	ret = intel_engine_create_scratch(engine, PAGE_SIZE);
+	if (ret)
+		goto err_cleanup_common;
 
 	ret = intel_init_workaround_bb(engine);
 	if (ret) {
@@ -2479,7 +2479,11 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 			  ret);
 	}
 
-	return logical_ring_init(engine);
+	return 0;
+
+err_cleanup_common:
+	intel_engine_cleanup_common(engine);
+	return ret;
 }
 
 int logical_xcs_ring_init(struct intel_engine_cs *engine)
