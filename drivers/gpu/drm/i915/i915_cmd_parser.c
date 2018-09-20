@@ -187,7 +187,7 @@ struct drm_i915_cmd_table {
 #define CMD(op, opm, f, lm, fl, ...)				\
 	{							\
 		.flags = (fl) | ((f) ? CMD_DESC_FIXED : 0),	\
-		.cmd = { (op), ~0u << (opm) },			\
+		.cmd = { (op & ~0u << (opm)), ~0u << (opm) },	\
 		.length = { (lm) },				\
 		__VA_ARGS__					\
 	}
