@@ -3777,8 +3777,6 @@ static const struct pci_device_id ice_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_C810_BACKPLANE), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_C810_QSFP), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_C810_SFP), 0 },
-	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_C810_10G_BASE_T), 0 },
-	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_C810_SGMII), 0 },
 	/* required last entry */
 	{ 0, }
 };

@@ -5,15 +5,11 @@
 #define _ICE_DEVIDS_H_
 
 /* Device IDs */
-/* Intel(R) Ethernet Controller C810 for backplane */
+/* Intel(R) Ethernet Controller E810-C for backplane */
 #define ICE_DEV_ID_C810_BACKPLANE	0x1591
-/* Intel(R) Ethernet Controller C810 for QSFP */
+/* Intel(R) Ethernet Controller E810-C for QSFP */
 #define ICE_DEV_ID_C810_QSFP		0x1592
-/* Intel(R) Ethernet Controller C810 for SFP */
+/* Intel(R) Ethernet Controller E810-C for SFP */
 #define ICE_DEV_ID_C810_SFP		0x1593
-/* Intel(R) Ethernet Controller C810/X557-AT 10GBASE-T */
-#define ICE_DEV_ID_C810_10G_BASE_T	0x1594
-/* Intel(R) Ethernet Controller C810 1GbE */
-#define ICE_DEV_ID_C810_SGMII		0x1595
 
 #endif /* _ICE_DEVIDS_H_ */
