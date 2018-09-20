@@ -38,23 +38,20 @@ static void tmc_etb_dump_hw(struct tmc_drvdata *drvdata)
 {
 	char *bufp;
 	u32 read_data, lost;
-	int i;
 
 	/* Check if the buffer wrapped around. */
 	lost = readl_relaxed(drvdata->base + TMC_STS) & TMC_STS_FULL;
 	bufp = drvdata->buf;
 	drvdata->len = 0;
 	while (1) {
-		for (i = 0; i < drvdata->memwidth; i++) {
-			read_data = readl_relaxed(drvdata->base + TMC_RRD);
-			if (read_data == 0xFFFFFFFF)
-				goto done;
-			memcpy(bufp, &read_data, 4);
-			bufp += 4;
-			drvdata->len += 4;
-		}
+		read_data = readl_relaxed(drvdata->base + TMC_RRD);
+		if (read_data == 0xFFFFFFFF)
+			break;
+		memcpy(bufp, &read_data, 4);
+		bufp += 4;
+		drvdata->len += 4;
 	}
-done:
+
 	if (lost)
 		coresight_insert_barrier_packet(drvdata->buf);
 	return;
