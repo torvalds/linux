@@ -422,7 +422,7 @@ static void ice_cleanup_fltr_mgmt_struct(struct ice_hw *hw)
 			devm_kfree(ice_hw_to_dev(hw), lst_itr);
 		}
 	}
-
+	ice_rm_all_sw_replay_rule_info(hw);
 	devm_kfree(ice_hw_to_dev(hw), sw->recp_list);
 	devm_kfree(ice_hw_to_dev(hw), sw);
 }
@@ -2672,6 +2672,69 @@ ice_cfg_vsi_lan(struct ice_port_info *pi, u16 vsi_handle, u8 tc_bitmap,
 {
 	return ice_cfg_vsi_qs(pi, vsi_handle, tc_bitmap, max_lanqs,
 			      ICE_SCHED_NODE_OWNER_LAN);
+}
+
+/**
+ * ice_replay_pre_init - replay pre initialization
+ * @hw: pointer to the hw struct
+ *
+ * Initializes required config data for VSI, FD, ACL, and RSS before replay.
+ */
+static enum ice_status ice_replay_pre_init(struct ice_hw *hw)
+{
+	struct ice_switch_info *sw = hw->switch_info;
+	u8 i;
+
+	/* Delete old entries from replay filter list head if there is any */
+	ice_rm_all_sw_replay_rule_info(hw);
+	/* In start of replay, move entries into replay_rules list, it
+	 * will allow adding rules entries back to filt_rules list,
+	 * which is operational list.
+	 */
+	for (i = 0; i < ICE_SW_LKUP_LAST; i++)
+		list_replace_init(&sw->recp_list[i].filt_rules,
+				  &sw->recp_list[i].filt_replay_rules);
+
+	return 0;
+}
+
+/**
+ * ice_replay_vsi - replay VSI configuration
+ * @hw: pointer to the hw struct
+ * @vsi_handle: driver VSI handle
+ *
+ * Restore all VSI configuration after reset. It is required to call this
+ * function with main VSI first.
+ */
+enum ice_status ice_replay_vsi(struct ice_hw *hw, u16 vsi_handle)
+{
+	enum ice_status status;
+
+	if (!ice_is_vsi_valid(hw, vsi_handle))
+		return ICE_ERR_PARAM;
+
+	/* Replay pre-initialization if there is any */
+	if (vsi_handle == ICE_MAIN_VSI_HANDLE) {
+		status = ice_replay_pre_init(hw);
+		if (status)
+			return status;
+	}
+
+	/* Replay per VSI all filters */
+	status = ice_replay_vsi_all_fltr(hw, vsi_handle);
+	return status;
+}
+
+/**
+ * ice_replay_post - post replay configuration cleanup
+ * @hw: pointer to the hw struct
+ *
+ * Post replay cleanup.
+ */
+void ice_replay_post(struct ice_hw *hw)
+{
+	/* Delete old entries from replay filter list head */
+	ice_rm_all_sw_replay_rule_info(hw);
 }
 
 /**

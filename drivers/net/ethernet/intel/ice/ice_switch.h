@@ -126,6 +126,7 @@ struct ice_sw_recipe {
 
 	/* List of type ice_fltr_mgmt_list_entry */
 	struct list_head filt_rules;
+	struct list_head filt_replay_rules;
 
 	/* linked list of type recipe_list_entry */
 	struct list_head rg_list;
@@ -200,10 +201,11 @@ enum ice_status ice_remove_vlan(struct ice_hw *hw, struct list_head *v_list);
 enum ice_status
 ice_cfg_dflt_vsi(struct ice_hw *hw, u16 vsi_handle, bool set, u8 direction);
 
-u16 ice_get_hw_vsi_num(struct ice_hw *hw, u16 vsi_handle);
-
-enum ice_status ice_replay_all_fltr(struct ice_hw *hw);
-
 enum ice_status ice_init_def_sw_recp(struct ice_hw *hw);
+u16 ice_get_hw_vsi_num(struct ice_hw *hw, u16 vsi_handle);
+bool ice_is_vsi_valid(struct ice_hw *hw, u16 vsi_handle);
+
+enum ice_status ice_replay_vsi_all_fltr(struct ice_hw *hw, u16 vsi_handle);
+void ice_rm_all_sw_replay_rule_info(struct ice_hw *hw);
 
 #endif /* _ICE_SWITCH_H_ */

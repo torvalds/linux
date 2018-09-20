@@ -3136,6 +3136,44 @@ static int ice_vsi_rebuild_all(struct ice_pf *pf)
 }
 
 /**
+ * ice_vsi_replay_all - replay all VSIs configuration in the PF
+ * @pf: the PF
+ */
+static int ice_vsi_replay_all(struct ice_pf *pf)
+{
+	struct ice_hw *hw = &pf->hw;
+	enum ice_status ret;
+	int i;
+
+	/* loop through pf->vsi array and replay the VSI if found */
+	for (i = 0; i < pf->num_alloc_vsi; i++) {
+		if (!pf->vsi[i])
+			continue;
+
+		ret = ice_replay_vsi(hw, pf->vsi[i]->idx);
+		if (ret) {
+			dev_err(&pf->pdev->dev,
+				"VSI at index %d replay failed %d\n",
+				pf->vsi[i]->idx, ret);
+			return -EIO;
+		}
+
+		/* Re-map HW VSI number, using VSI handle that has been
+		 * previously validated in ice_replay_vsi() call above
+		 */
+		pf->vsi[i]->vsi_num = ice_get_hw_vsi_num(hw, pf->vsi[i]->idx);
+
+		dev_info(&pf->pdev->dev,
+			 "VSI at index %d filter replayed successfully - vsi_num %i\n",
+			 pf->vsi[i]->idx, pf->vsi[i]->vsi_num);
+	}
+
+	/* Clean up replay filter after successful re-configuration */
+	ice_replay_post(hw);
+	return 0;
+}
+
+/**
  * ice_rebuild - rebuild after reset
  * @pf: pf to rebuild
  */
@@ -3181,10 +3219,10 @@ static void ice_rebuild(struct ice_pf *pf)
 		goto err_vsi_rebuild;
 	}
 
-	ret = ice_replay_all_fltr(&pf->hw);
-	if (ret) {
+	/* Replay all VSIs Configuration, including filters after reset */
+	if (ice_vsi_replay_all(pf)) {
 		dev_err(&pf->pdev->dev,
-			"error replaying switch filter rules\n");
+			"error replaying VSI configurations with switch filter rules\n");
 		goto err_vsi_rebuild;
 	}
 
