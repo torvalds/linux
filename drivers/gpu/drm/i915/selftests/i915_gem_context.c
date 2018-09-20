@@ -119,6 +119,7 @@ static int live_nop_switch(void *arg)
 		return PTR_ERR(file);
 
 	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
 
 	ctx = kcalloc(nctx, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
@@ -221,6 +222,7 @@ static int live_nop_switch(void *arg)
 	}
 
 out_unlock:
+	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	mock_file_free(i915, file);
 	return err;
@@ -831,6 +833,8 @@ static int igt_switch_to_kernel_context(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
+
 	ctx = kernel_context(i915);
 	if (IS_ERR(ctx)) {
 		mutex_unlock(&i915->drm.struct_mutex);
@@ -853,6 +857,8 @@ out_unlock:
 	GEM_TRACE_DUMP_ON(err);
 	if (igt_flush_test(i915, I915_WAIT_LOCKED))
 		err = -EIO;
+
+	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	kernel_context_close(ctx);
