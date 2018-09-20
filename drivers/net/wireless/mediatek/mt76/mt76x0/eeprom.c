@@ -90,9 +90,6 @@ mt76x0_set_chip_cap(struct mt76x0_dev *dev, u8 *eeprom)
 	    FIELD_GET(MT_EE_NIC_CONF_0_TX_PATH, nic_conf0) > 1)
 		dev_err(dev->mt76.dev,
 			"Error: device has more than 1 RX/TX stream!\n");
-
-	dev->ee->pa_type = FIELD_GET(MT_EE_NIC_CONF_0_PA_TYPE, nic_conf0);
-	dev_dbg(dev->mt76.dev, "PA Type %d\n", dev->ee->pa_type);
 }
 
 static void
@@ -328,6 +325,10 @@ mt76x0_eeprom_init(struct mt76x0_dev *dev)
 
 	ret = mt76x0_efuse_physical_size_check(dev);
 	if (ret)
+		return ret;
+
+	ret = mt76_eeprom_init(&dev->mt76, MT76X0_EEPROM_SIZE);
+	if (ret < 0)
 		return ret;
 
 	dev->ee = devm_kzalloc(dev->mt76.dev, sizeof(*dev->ee), GFP_KERNEL);

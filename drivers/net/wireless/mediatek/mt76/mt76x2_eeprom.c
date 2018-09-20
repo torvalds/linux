@@ -571,7 +571,7 @@ int mt76x2_get_temp_comp(struct mt76x2_dev *dev, struct mt76x2_temp_comp *t)
 	if (!mt76x2_temp_tx_alc_enabled(dev))
 		return -EINVAL;
 
-	if (!mt76x2_ext_pa_enabled(dev, band))
+	if (!mt76x02_ext_pa_enabled(&dev->mt76, band))
 		return -EINVAL;
 
 	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_TX_POWER_EXT_PA_5G) >> 8;
@@ -596,17 +596,6 @@ int mt76x2_get_temp_comp(struct mt76x2_dev *dev, struct mt76x2_temp_comp *t)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x2_get_temp_comp);
-
-bool mt76x2_ext_pa_enabled(struct mt76x2_dev *dev, enum nl80211_band band)
-{
-	u16 conf0 = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_0);
-
-	if (band == NL80211_BAND_5GHZ)
-		return !(conf0 & MT_EE_NIC_CONF_0_PA_INT_5G);
-	else
-		return !(conf0 & MT_EE_NIC_CONF_0_PA_INT_2G);
-}
-EXPORT_SYMBOL_GPL(mt76x2_ext_pa_enabled);
 
 int mt76x2_eeprom_init(struct mt76x2_dev *dev)
 {

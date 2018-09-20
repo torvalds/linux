@@ -340,16 +340,12 @@ mt76x0_phy_set_band(struct mt76x0_dev *dev, enum nl80211_band band)
 	}
 }
 
-#define EXT_PA_2G_5G            0x0
-#define EXT_PA_5G_ONLY          0x1
-#define EXT_PA_2G_ONLY          0x2
-#define INT_PA_2G_5G            0x3
-
 static void
 mt76x0_phy_set_chan_rf_params(struct mt76x0_dev *dev, u8 channel, u16 rf_bw_band)
 {
 	u16 rf_band = rf_bw_band & 0xff00;
 	u16 rf_bw = rf_bw_band & 0x00ff;
+	enum nl80211_band band;
 	u32 mac_reg;
 	u8 rf_val;
 	int i;
@@ -496,11 +492,8 @@ mt76x0_phy_set_chan_rf_params(struct mt76x0_dev *dev, u8 channel, u16 rf_bw_band
 	mac_reg &= ~0xC; /* Clear 0x518[3:2] */
 	mt76_wr(dev, MT_RF_MISC, mac_reg);
 
-	if (dev->ee->pa_type == INT_PA_2G_5G ||
-	    (dev->ee->pa_type == EXT_PA_5G_ONLY && (rf_band & RF_G_BAND)) ||
-	    (dev->ee->pa_type == EXT_PA_2G_ONLY && (rf_band & RF_A_BAND))) {
-		; /* Internal PA - nothing to do. */
-	} else {
+	band = (rf_band & RF_G_BAND) ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
+	if (mt76x02_ext_pa_enabled(&dev->mt76, band)) {
 		/*
 			MT_RF_MISC (offset: 0x0518)
 			[2]1'b1: enable external A band PA, 1'b0: disable external A band PA

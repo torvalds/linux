@@ -250,7 +250,7 @@ int mt76x2u_phy_set_channel(struct mt76x2_dev *dev,
 			chan = dev->mt76.chandef.chan;
 			if (chan->band == NL80211_BAND_5GHZ)
 				flag |= BIT(0);
-			if (mt76x2_ext_pa_enabled(dev, chan->band))
+			if (mt76x02_ext_pa_enabled(&dev->mt76, chan->band))
 				flag |= BIT(8);
 			mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TSSI,
 					      flag, false);

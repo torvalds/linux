@@ -151,6 +151,7 @@ mt76x02_eeprom_get(struct mt76_dev *dev,
 	return get_unaligned_le16(dev->eeprom.data + field);
 }
 
+bool mt76x02_ext_pa_enabled(struct mt76_dev *dev, enum nl80211_band band);
 int mt76x02_get_efuse_data(struct mt76_dev *dev, u16 base, void *buf,
 			   int len, enum mt76x02_eeprom_modes mode);
 

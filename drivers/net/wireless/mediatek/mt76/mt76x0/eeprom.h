@@ -35,7 +35,6 @@ struct mt76x0_eeprom_params {
 	s8 rssi_offset_5ghz[3];
 	s8 lna_gain_2ghz;
 	s8 lna_gain_5ghz[3];
-	u8 pa_type;
 
 	/* TX_PWR_CFG_* values from EEPROM for 20 and 40 Mhz bandwidths. */
 	u32 tx_pwr_cfg_2g[5][2];

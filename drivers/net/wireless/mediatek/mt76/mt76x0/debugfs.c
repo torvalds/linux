@@ -99,6 +99,7 @@ static int
 mt76x0_eeprom_param_read(struct seq_file *file, void *data)
 {
 	struct mt76x0_dev *dev = file->private;
+	u16 val;
 	int i;
 
 	seq_printf(file, "RF freq offset: %hhx\n", dev->ee->rf_freq_off);
@@ -112,7 +113,10 @@ mt76x0_eeprom_param_read(struct seq_file *file, void *data)
 	seq_printf(file, "LNA gain 5Ghz: %hhx %hhx %hhx\n",
 		   dev->ee->lna_gain_5ghz[0], dev->ee->lna_gain_5ghz[1],
 		   dev->ee->lna_gain_5ghz[2]);
-	seq_printf(file, "Power Amplifier type %hhx\n", dev->ee->pa_type);
+
+	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_0);
+	seq_printf(file, "Power Amplifier type %lx\n",
+		   val & MT_EE_NIC_CONF_0_PA_TYPE);
 	seq_printf(file, "Reg channels: %hhu-%hhu\n", dev->ee->reg.start,
 		   dev->ee->reg.start + dev->ee->reg.num - 1);
 
