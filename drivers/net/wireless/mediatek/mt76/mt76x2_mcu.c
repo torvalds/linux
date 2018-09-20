@@ -141,7 +141,7 @@ mt76pci_load_firmware(struct mt76x2_dev *dev)
 
 	mt76_wr(dev, MT_MCU_PCIE_REMAP_BASE4, 0);
 
-	val = mt76x2_eeprom_get(dev, MT_EE_NIC_CONF_2);
+	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_2);
 	if (FIELD_GET(MT_EE_NIC_CONF_2_XTAL_OPTION, val) == 1)
 		mt76_set(dev, MT_MCU_COM_REG0, BIT(30));
 

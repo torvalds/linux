@@ -136,4 +136,14 @@ mt76x02_sign_extend(u32 val, unsigned int size)
 	return sign ? val : -val;
 }
 
+static inline int
+mt76x02_eeprom_get(struct mt76_dev *dev,
+		   enum mt76x02_eeprom_field field)
+{
+	if ((field & 1) || field >= __MT_EE_MAX)
+		return -1;
+
+	return get_unaligned_le16(dev->eeprom.data + field);
+}
+
 #endif /* __MT76x02_EEPROM_H */

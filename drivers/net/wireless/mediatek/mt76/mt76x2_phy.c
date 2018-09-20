@@ -360,7 +360,7 @@ int mt76x2_phy_set_channel(struct mt76x2_dev *dev,
 		mt76_set(dev, MT_BBP(RXO, 13), BIT(10));
 
 	if (!dev->cal.init_cal_done) {
-		u8 val = mt76x2_eeprom_get(dev, MT_EE_BT_RCAL_RESULT);
+		u8 val = mt76x02_eeprom_get(&dev->mt76, MT_EE_BT_RCAL_RESULT);
 
 		if (val != 0xff)
 			mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_R, 0, true);

@@ -60,6 +60,7 @@ EXPORT_SYMBOL_GPL(mt76x2_mcu_set_channel);
 int mt76x2_mcu_load_cr(struct mt76x2_dev *dev, u8 type, u8 temp_level,
 		       u8 channel)
 {
+	struct mt76_dev *mdev = &dev->mt76;
 	struct sk_buff *skb;
 	struct {
 		u8 cr_mode;
@@ -76,8 +77,8 @@ int mt76x2_mcu_load_cr(struct mt76x2_dev *dev, u8 type, u8 temp_level,
 	u32 val;
 
 	val = BIT(31);
-	val |= (mt76x2_eeprom_get(dev, MT_EE_NIC_CONF_0) >> 8) & 0x00ff;
-	val |= (mt76x2_eeprom_get(dev, MT_EE_NIC_CONF_1) << 8) & 0xff00;
+	val |= (mt76x02_eeprom_get(mdev, MT_EE_NIC_CONF_0) >> 8) & 0x00ff;
+	val |= (mt76x02_eeprom_get(mdev, MT_EE_NIC_CONF_1) << 8) & 0xff00;
 	msg.cfg = cpu_to_le32(val);
 
 	/* first set the channel without the extension channel info */
