@@ -219,12 +219,9 @@ static int of_coresight_parse_endpoint(struct device *dev,
 		ret = 1;
 	} while (0);
 
-	if (rparent)
-		of_node_put(rparent);
-	if (rep)
-		of_node_put(rep);
-	if (rdev)
-		put_device(rdev);
+	of_node_put(rparent);
+	of_node_put(rep);
+	put_device(rdev);
 
 	return ret;
 }
