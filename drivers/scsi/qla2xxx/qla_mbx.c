@@ -1511,7 +1511,6 @@ qla2x00_abort_target(struct fc_port *fcport, uint64_t l, int tag)
 	struct req_que *req;
 	struct rsp_que *rsp;
 
-	l = l;
 	vha = fcport->vha;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x103e,
