@@ -177,7 +177,7 @@ static u32 dpu_hw_pp_get_line_count(struct dpu_hw_pingpong *pp)
 	height = DPU_REG_READ(c, PP_SYNC_CONFIG_HEIGHT) & 0xFFFF;
 
 	if (height < init)
-		goto line_count_exit;
+		return line;
 
 	line = DPU_REG_READ(c, PP_INT_COUNT_VAL) & 0xFFFF;
 
@@ -186,7 +186,6 @@ static u32 dpu_hw_pp_get_line_count(struct dpu_hw_pingpong *pp)
 	else
 		line -= init;
 
-line_count_exit:
 	return line;
 }
 

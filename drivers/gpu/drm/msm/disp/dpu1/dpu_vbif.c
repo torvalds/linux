@@ -191,7 +191,7 @@ void dpu_vbif_set_ot_limit(struct dpu_kms *dpu_kms,
 	ot_lim = _dpu_vbif_get_ot_limit(vbif, params) & 0xFF;
 
 	if (ot_lim == 0)
-		goto exit;
+		return;
 
 	trace_dpu_perf_set_ot(params->num, params->xin_id, ot_lim,
 		params->vbif_idx);
@@ -210,8 +210,6 @@ void dpu_vbif_set_ot_limit(struct dpu_kms *dpu_kms,
 
 	if (forced_on)
 		mdp->ops.setup_clk_force_ctrl(mdp, params->clk_ctrl, false);
-exit:
-	return;
 }
 
 void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,

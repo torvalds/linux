@@ -68,7 +68,7 @@ static bool _dpu_core_video_mode_intf_connected(struct drm_crtc *crtc)
 	bool intf_connected = false;
 
 	if (!crtc)
-		goto end;
+		return intf_connected;
 
 	drm_for_each_crtc(tmp_crtc, crtc->dev) {
 		if ((dpu_crtc_get_intf_mode(tmp_crtc) == INTF_MODE_VIDEO) &&
@@ -76,11 +76,10 @@ static bool _dpu_core_video_mode_intf_connected(struct drm_crtc *crtc)
 			DPU_DEBUG("video interface connected crtc:%d\n",
 				tmp_crtc->base.id);
 			intf_connected = true;
-			goto end;
+			return intf_connected;
 		}
 	}
 
-end:
 	return intf_connected;
 }
 

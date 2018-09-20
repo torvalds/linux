@@ -1537,7 +1537,7 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 	if (!pdpu) {
 		DPU_ERROR("[%u]failed to allocate local plane struct\n", pipe);
 		ret = -ENOMEM;
-		goto exit;
+		return ERR_PTR(ret);
 	}
 
 	/* cache local stuff for later */
@@ -1623,6 +1623,5 @@ clean_sspp:
 		dpu_hw_sspp_destroy(pdpu->pipe_hw);
 clean_plane:
 	kfree(pdpu);
-exit:
 	return ERR_PTR(ret);
 }

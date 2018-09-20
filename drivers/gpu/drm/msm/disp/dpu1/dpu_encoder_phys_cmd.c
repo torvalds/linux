@@ -496,14 +496,11 @@ static void dpu_encoder_phys_cmd_enable_helper(
 	_dpu_encoder_phys_cmd_pingpong_config(phys_enc);
 
 	if (!dpu_encoder_phys_cmd_is_master(phys_enc))
-		goto skip_flush;
+		return;
 
 	ctl = phys_enc->hw_ctl;
 	ctl->ops.get_bitmask_intf(ctl, &flush_mask, phys_enc->intf_idx);
 	ctl->ops.update_pending_flush(ctl, flush_mask);
-
-skip_flush:
-	return;
 }
 
 static void dpu_encoder_phys_cmd_enable(struct dpu_encoder_phys *phys_enc)
@@ -797,7 +794,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
 	if (!cmd_enc) {
 		ret = -ENOMEM;
 		DPU_ERROR("failed to allocate\n");
-		goto fail;
+		return ERR_PTR(ret);
 	}
 	phys_enc = &cmd_enc->base;
 	phys_enc->hw_mdptop = p->dpu_kms->hw_mdp;
@@ -855,6 +852,5 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
 
 	return phys_enc;
 
-fail:
 	return ERR_PTR(ret);
 }
