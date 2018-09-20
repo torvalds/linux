@@ -10812,8 +10812,6 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs intel_helper_funcs = {
-	.atomic_begin = intel_begin_crtc_commit,
-	.atomic_flush = intel_finish_crtc_commit,
 	.atomic_check = intel_crtc_atomic_check,
 };
 
@@ -12482,6 +12480,7 @@ static void intel_update_crtc(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *old_intel_cstate = to_intel_crtc_state(old_crtc_state);
 	struct intel_crtc_state *pipe_config = to_intel_crtc_state(new_crtc_state);
 	bool modeset = needs_modeset(new_crtc_state);
 	struct intel_plane_state *new_plane_state =
@@ -12502,7 +12501,12 @@ static void intel_update_crtc(struct drm_crtc *crtc,
 	if (new_plane_state)
 		intel_fbc_enable(intel_crtc, pipe_config, new_plane_state);
 
-	drm_atomic_helper_commit_planes_on_crtc(old_crtc_state);
+	intel_begin_crtc_commit(crtc, old_crtc_state);
+
+	intel_update_planes_on_crtc(to_intel_atomic_state(state), intel_crtc,
+				    old_intel_cstate, pipe_config);
+
+	intel_finish_crtc_commit(crtc, old_crtc_state);
 }
 
 static void intel_update_crtcs(struct drm_atomic_state *state)

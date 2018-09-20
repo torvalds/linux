@@ -165,29 +165,33 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 						   to_intel_plane_state(new_plane_state));
 }
 
-static void intel_plane_atomic_update(struct drm_plane *plane,
-				      struct drm_plane_state *old_state)
+void intel_update_planes_on_crtc(struct intel_atomic_state *old_state,
+				 struct intel_crtc *crtc,
+				 struct intel_crtc_state *old_crtc_state,
+				 struct intel_crtc_state *new_crtc_state)
 {
-	struct intel_atomic_state *state = to_intel_atomic_state(old_state->state);
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-	const struct intel_plane_state *new_plane_state =
-		intel_atomic_get_new_plane_state(state, intel_plane);
-	struct drm_crtc *crtc = new_plane_state->base.crtc ?: old_state->crtc;
+	struct intel_plane_state *new_plane_state;
+	struct intel_plane *plane;
+	u32 update_mask;
+	int i;
 
-	if (new_plane_state->base.visible) {
-		const struct intel_crtc_state *new_crtc_state =
-			intel_atomic_get_new_crtc_state(state, to_intel_crtc(crtc));
+	update_mask = old_crtc_state->active_planes;
+	update_mask |= new_crtc_state->active_planes;
 
-		trace_intel_update_plane(plane,
-					 to_intel_crtc(crtc));
+	for_each_new_intel_plane_in_state(old_state, plane, new_plane_state, i) {
+		if (crtc->pipe != plane->pipe ||
+		    !(update_mask & BIT(plane->id)))
+			continue;
 
-		intel_plane->update_plane(intel_plane,
-					  new_crtc_state, new_plane_state);
-	} else {
-		trace_intel_disable_plane(plane,
-					  to_intel_crtc(crtc));
+		if (new_plane_state->base.visible) {
+			trace_intel_update_plane(&plane->base, crtc);
 
-		intel_plane->disable_plane(intel_plane, to_intel_crtc(crtc));
+			plane->update_plane(plane, new_crtc_state, new_plane_state);
+		} else {
+			trace_intel_disable_plane(&plane->base, crtc);
+
+			plane->disable_plane(plane, crtc);
+		}
 	}
 }
 
@@ -195,7 +199,6 @@ const struct drm_plane_helper_funcs intel_plane_helper_funcs = {
 	.prepare_fb = intel_prepare_plane_fb,
 	.cleanup_fb = intel_cleanup_plane_fb,
 	.atomic_check = intel_plane_atomic_check,
-	.atomic_update = intel_plane_atomic_update,
 };
 
 /**
