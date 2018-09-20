@@ -85,12 +85,16 @@ struct etm4_enable_arg {
 
 static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 {
-	int i;
+	int i, rc;
 	struct etmv4_config *config = &drvdata->config;
 
 	CS_UNLOCK(drvdata->base);
 
 	etm4_os_unlock(drvdata);
+
+	rc = coresight_claim_device_unlocked(drvdata->base);
+	if (rc)
+		goto done;
 
 	/* Disable the trace unit before programming trace registers */
 	writel_relaxed(0, drvdata->base + TRCPRGCTLR);
@@ -179,10 +183,12 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 		dev_err(drvdata->dev,
 			"timeout while waiting for Idle Trace Status\n");
 
+done:
 	CS_LOCK(drvdata->base);
 
-	dev_dbg(drvdata->dev, "cpu: %d enable smp call done\n", drvdata->cpu);
-	return 0;
+	dev_dbg(drvdata->dev, "cpu: %d enable smp call done: %d\n",
+		drvdata->cpu, rc);
+	return rc;
 }
 
 static void etm4_enable_hw_smp_call(void *info)
@@ -341,6 +347,8 @@ static void etm4_disable_hw(void *info)
 	mb();
 	isb();
 	writel_relaxed(control, drvdata->base + TRCPRGCTLR);
+
+	coresight_disclaim_device_unlocked(drvdata->base);
 
 	CS_LOCK(drvdata->base);
 
