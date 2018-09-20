@@ -3214,13 +3214,14 @@ static void ice_dis_vsi(struct ice_vsi *vsi)
 
 	set_bit(__ICE_NEEDS_RESTART, vsi->state);
 
-	if (vsi->netdev && netif_running(vsi->netdev) &&
-	    vsi->type == ICE_VSI_PF) {
-		rtnl_lock();
-		vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
-		rtnl_unlock();
-	} else {
-		ice_vsi_close(vsi);
+	if (vsi->type == ICE_VSI_PF && vsi->netdev) {
+		if (netif_running(vsi->netdev)) {
+			rtnl_lock();
+			vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
+			rtnl_unlock();
+		} else {
+			ice_vsi_close(vsi);
+		}
 	}
 }
 
@@ -3232,12 +3233,16 @@ static int ice_ena_vsi(struct ice_vsi *vsi)
 {
 	int err = 0;
 
-	if (test_and_clear_bit(__ICE_NEEDS_RESTART, vsi->state))
-		if (vsi->netdev && netif_running(vsi->netdev)) {
+	if (test_and_clear_bit(__ICE_NEEDS_RESTART, vsi->state) &&
+	    vsi->netdev) {
+		if (netif_running(vsi->netdev)) {
 			rtnl_lock();
 			err = vsi->netdev->netdev_ops->ndo_open(vsi->netdev);
 			rtnl_unlock();
+		} else {
+			err = ice_vsi_open(vsi);
 		}
+	}
 
 	return err;
 }
