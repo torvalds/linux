@@ -154,5 +154,10 @@ mt76x02_eeprom_get(struct mt76_dev *dev,
 bool mt76x02_ext_pa_enabled(struct mt76_dev *dev, enum nl80211_band band);
 int mt76x02_get_efuse_data(struct mt76_dev *dev, u16 base, void *buf,
 			   int len, enum mt76x02_eeprom_modes mode);
+void mt76x02_get_rx_gain(struct mt76_dev *dev, enum nl80211_band band,
+			 u16 *rssi_offset, s8 *lna_2g, s8 *lna_5g);
+u8 mt76x02_get_lna_gain(struct mt76_dev *dev,
+			s8 *lna_2g, s8 *lna_5g,
+			struct ieee80211_channel *chan);
 
 #endif /* __MT76x02_EEPROM_H */

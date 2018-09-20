@@ -310,55 +310,16 @@ void mt76x2_read_rx_gain(struct mt76x2_dev *dev)
 
 	mt76x2_set_rx_gain_group(dev, val);
 
-	if (chan->band == NL80211_BAND_2GHZ) {
-		val = mt76x02_eeprom_get(&dev->mt76, MT_EE_RSSI_OFFSET_2G_0);
-		mt76x2_set_rssi_offset(dev, 0, val);
-		mt76x2_set_rssi_offset(dev, 1, val >> 8);
-	} else {
-		val = mt76x02_eeprom_get(&dev->mt76, MT_EE_RSSI_OFFSET_5G_0);
-		mt76x2_set_rssi_offset(dev, 0, val);
-		mt76x2_set_rssi_offset(dev, 1, val >> 8);
-	}
-
-	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_LNA_GAIN);
-	lna_2g = val & 0xff;
-	lna_5g[0] = val >> 8;
-
-	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_RSSI_OFFSET_2G_1);
-	lna_5g[1] = val >> 8;
-
-	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_RSSI_OFFSET_5G_1);
-	lna_5g[2] = val >> 8;
-
-	if (!mt76x02_field_valid(lna_5g[1]))
-		lna_5g[1] = lna_5g[0];
-
-	if (!mt76x02_field_valid(lna_5g[2]))
-		lna_5g[2] = lna_5g[0];
+	mt76x02_get_rx_gain(&dev->mt76, chan->band, &val, &lna_2g, lna_5g);
+	mt76x2_set_rssi_offset(dev, 0, val);
+	mt76x2_set_rssi_offset(dev, 1, val >> 8);
 
 	dev->cal.rx.mcu_gain =  (lna_2g & 0xff);
 	dev->cal.rx.mcu_gain |= (lna_5g[0] & 0xff) << 8;
 	dev->cal.rx.mcu_gain |= (lna_5g[1] & 0xff) << 16;
 	dev->cal.rx.mcu_gain |= (lna_5g[2] & 0xff) << 24;
 
-	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_1);
-	if (val & MT_EE_NIC_CONF_1_LNA_EXT_2G)
-		lna_2g = 0;
-	if (val & MT_EE_NIC_CONF_1_LNA_EXT_5G)
-		memset(lna_5g, 0, sizeof(lna_5g));
-
-	if (chan->band == NL80211_BAND_2GHZ)
-		lna = lna_2g;
-	else if (channel <= 64)
-		lna = lna_5g[0];
-	else if (channel <= 128)
-		lna = lna_5g[1];
-	else
-		lna = lna_5g[2];
-
-	if (lna == 0xff)
-		lna = 0;
-
+	lna = mt76x02_get_lna_gain(&dev->mt76, &lna_2g, lna_5g, chan);
 	dev->cal.rx.lna_gain = mt76x02_sign_extend(lna, 8);
 }
 EXPORT_SYMBOL_GPL(mt76x2_read_rx_gain);
