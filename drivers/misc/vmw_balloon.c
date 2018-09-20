@@ -77,7 +77,7 @@ enum vmwballoon_capabilities {
 					| VMW_BALLOON_BATCHED_2M_CMDS \
 					| VMW_BALLOON_SIGNALLED_WAKEUP_CMD)
 
-#define VMW_BALLOON_2M_SHIFT		(9)
+#define VMW_BALLOON_2M_ORDER		(PMD_SHIFT - PAGE_SHIFT)
 #define VMW_BALLOON_NUM_PAGE_SIZES	(2)
 
 /*
@@ -348,7 +348,7 @@ static bool vmballoon_send_guest_id(struct vmballoon *b)
 static u16 vmballoon_page_size(bool is_2m_page)
 {
 	if (is_2m_page)
-		return 1 << VMW_BALLOON_2M_SHIFT;
+		return 1 << VMW_BALLOON_2M_ORDER;
 
 	return 1;
 }
@@ -387,7 +387,7 @@ static struct page *vmballoon_alloc_page(bool is_2m_page)
 {
 	if (is_2m_page)
 		return alloc_pages(VMW_HUGE_PAGE_ALLOC_FLAGS,
-				   VMW_BALLOON_2M_SHIFT);
+				   VMW_BALLOON_2M_ORDER);
 
 	return alloc_page(VMW_PAGE_ALLOC_FLAGS);
 }
@@ -395,7 +395,7 @@ static struct page *vmballoon_alloc_page(bool is_2m_page)
 static void vmballoon_free_page(struct page *page, bool is_2m_page)
 {
 	if (is_2m_page)
-		__free_pages(page, VMW_BALLOON_2M_SHIFT);
+		__free_pages(page, VMW_BALLOON_2M_ORDER);
 	else
 		__free_page(page);
 }
