@@ -2506,7 +2506,9 @@ static bool i915_sg_trim(struct sg_table *orig_st)
 	new_sg = new_st.sgl;
 	for_each_sg(orig_st->sgl, sg, orig_st->nents, i) {
 		sg_set_page(new_sg, sg_page(sg), sg->length, 0);
-		/* called before being DMA mapped, no need to copy sg->dma_* */
+		sg_dma_address(new_sg) = sg_dma_address(sg);
+		sg_dma_len(new_sg) = sg_dma_len(sg);
+
 		new_sg = sg_next(new_sg);
 	}
 	GEM_BUG_ON(new_sg); /* Should walk exactly nents and hit the end */
