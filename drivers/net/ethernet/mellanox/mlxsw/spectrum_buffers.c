@@ -523,9 +523,11 @@ static int mlxsw_sp_port_sb_pms_init(struct mlxsw_sp_port *mlxsw_sp_port)
 
 	for (i = 0; i < MLXSW_SP_SB_PMS_LEN; i++) {
 		const struct mlxsw_sp_sb_pm *pm = &mlxsw_sp_sb_pms[i];
+		u32 min_buff;
 
+		min_buff = mlxsw_sp_bytes_cells(mlxsw_sp, pm->min_buff);
 		err = mlxsw_sp_sb_pm_write(mlxsw_sp, mlxsw_sp_port->local_port,
-					   i, pm->min_buff, pm->max_buff);
+					   i, min_buff, pm->max_buff);
 		if (err)
 			return err;
 	}
