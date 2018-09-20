@@ -1189,7 +1189,7 @@ static size_t get_rq_pas_size(void *qpc)
 
 static int create_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 				   struct mlx5_ib_rq *rq, void *qpin,
-				   size_t qpinlen)
+				   size_t qpinlen, struct ib_pd *pd)
 {
 	struct mlx5_ib_qp *mqp = rq->base.container_mibqp;
 	__be64 *pas;
@@ -1210,6 +1210,7 @@ static int create_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 	if (!in)
 		return -ENOMEM;
 
+	MLX5_SET(create_rq_in, in, uid, to_mpd(pd)->uid);
 	rqc = MLX5_ADDR_OF(create_rq_in, in, ctx);
 	if (!(rq->flags & MLX5_IB_RQ_CVLAN_STRIPPING))
 		MLX5_SET(rqc, rqc, vsd, 1);
@@ -1348,7 +1349,7 @@ static int create_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 			rq->flags |= MLX5_IB_RQ_CVLAN_STRIPPING;
 		if (qp->flags & MLX5_IB_QP_PCI_WRITE_END_PADDING)
 			rq->flags |= MLX5_IB_RQ_PCI_WRITE_END_PADDING;
-		err = create_raw_packet_qp_rq(dev, rq, in, inlen);
+		err = create_raw_packet_qp_rq(dev, rq, in, inlen, pd);
 		if (err)
 			goto err_destroy_sq;
 
@@ -2785,9 +2786,9 @@ static int ib_mask_to_mlx5_opt(int ib_mask)
 	return result;
 }
 
-static int modify_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
-				   struct mlx5_ib_rq *rq, int new_state,
-				   const struct mlx5_modify_raw_qp_param *raw_qp_param)
+static int modify_raw_packet_qp_rq(
+	struct mlx5_ib_dev *dev, struct mlx5_ib_rq *rq, int new_state,
+	const struct mlx5_modify_raw_qp_param *raw_qp_param, struct ib_pd *pd)
 {
 	void *in;
 	void *rqc;
@@ -2800,6 +2801,7 @@ static int modify_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 		return -ENOMEM;
 
 	MLX5_SET(modify_rq_in, in, rq_state, rq->state);
+	MLX5_SET(modify_rq_in, in, uid, to_mpd(pd)->uid);
 
 	rqc = MLX5_ADDR_OF(modify_rq_in, in, ctx);
 	MLX5_SET(rqc, rqc, state, new_state);
@@ -2947,7 +2949,8 @@ static int modify_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	}
 
 	if (modify_rq) {
-		err =  modify_raw_packet_qp_rq(dev, rq, rq_state, raw_qp_param);
+		err =  modify_raw_packet_qp_rq(dev, rq, rq_state, raw_qp_param,
+					       qp->ibqp.pd);
 		if (err)
 			return err;
 	}
@@ -5354,6 +5357,7 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	if (!in)
 		return -ENOMEM;
 
+	MLX5_SET(create_rq_in, in, uid, to_mpd(pd)->uid);
 	rqc = MLX5_ADDR_OF(create_rq_in, in, ctx);
 	MLX5_SET(rqc,  rqc, mem_rq_type,
 		 MLX5_RQC_MEM_RQ_TYPE_MEMORY_RQ_INLINE);
@@ -5739,6 +5743,7 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 	if (wq_state == IB_WQS_ERR)
 		wq_state = MLX5_RQC_STATE_ERR;
 	MLX5_SET(modify_rq_in, in, rq_state, curr_wq_state);
+	MLX5_SET(modify_rq_in, in, uid, to_mpd(wq->pd)->uid);
 	MLX5_SET(rqc, rqc, state, wq_state);
 
 	if (wq_attr_mask & IB_WQ_FLAGS) {
