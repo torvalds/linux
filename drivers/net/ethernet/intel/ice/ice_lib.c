@@ -342,6 +342,71 @@ void ice_vsi_delete(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_vsi_free_arrays - clean up VSI resources
+ * @vsi: pointer to VSI being cleared
+ * @free_qvectors: bool to specify if q_vectors should be deallocated
+ */
+void ice_vsi_free_arrays(struct ice_vsi *vsi, bool free_qvectors)
+{
+	struct ice_pf *pf = vsi->back;
+
+	/* free the ring and vector containers */
+	if (free_qvectors && vsi->q_vectors) {
+		devm_kfree(&pf->pdev->dev, vsi->q_vectors);
+		vsi->q_vectors = NULL;
+	}
+	if (vsi->tx_rings) {
+		devm_kfree(&pf->pdev->dev, vsi->tx_rings);
+		vsi->tx_rings = NULL;
+	}
+	if (vsi->rx_rings) {
+		devm_kfree(&pf->pdev->dev, vsi->rx_rings);
+		vsi->rx_rings = NULL;
+	}
+}
+
+/**
+ * ice_vsi_clear - clean up and deallocate the provided VSI
+ * @vsi: pointer to VSI being cleared
+ *
+ * This deallocates the VSI's queue resources, removes it from the PF's
+ * VSI array if necessary, and deallocates the VSI
+ *
+ * Returns 0 on success, negative on failure
+ */
+int ice_vsi_clear(struct ice_vsi *vsi)
+{
+	struct ice_pf *pf = NULL;
+
+	if (!vsi)
+		return 0;
+
+	if (!vsi->back)
+		return -EINVAL;
+
+	pf = vsi->back;
+
+	if (!pf->vsi[vsi->idx] || pf->vsi[vsi->idx] != vsi) {
+		dev_dbg(&pf->pdev->dev, "vsi does not exist at pf->vsi[%d]\n",
+			vsi->idx);
+		return -EINVAL;
+	}
+
+	mutex_lock(&pf->sw_mutex);
+	/* updates the PF for this cleared VSI */
+
+	pf->vsi[vsi->idx] = NULL;
+	if (vsi->idx < pf->next_vsi)
+		pf->next_vsi = vsi->idx;
+
+	ice_vsi_free_arrays(vsi, true);
+	mutex_unlock(&pf->sw_mutex);
+	devm_kfree(&pf->pdev->dev, vsi);
+
+	return 0;
+}
+
+/**
  * ice_msix_clean_rings - MSIX mode Interrupt Handler
  * @irq: interrupt number
  * @data: pointer to a q_vector
@@ -698,6 +763,60 @@ int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 err_out:
 	ice_vsi_clear_rings(vsi);
 	return -ENOMEM;
+}
+
+/**
+ * ice_vsi_map_rings_to_vectors - Map VSI rings to interrupt vectors
+ * @vsi: the VSI being configured
+ *
+ * This function maps descriptor rings to the queue-specific vectors allotted
+ * through the MSI-X enabling code. On a constrained vector budget, we map Tx
+ * and Rx rings to the vector as "efficiently" as possible.
+ */
+void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
+{
+	int q_vectors = vsi->num_q_vectors;
+	int tx_rings_rem, rx_rings_rem;
+	int v_id;
+
+	/* initially assigning remaining rings count to VSIs num queue value */
+	tx_rings_rem = vsi->num_txq;
+	rx_rings_rem = vsi->num_rxq;
+
+	for (v_id = 0; v_id < q_vectors; v_id++) {
+		struct ice_q_vector *q_vector = vsi->q_vectors[v_id];
+		int tx_rings_per_v, rx_rings_per_v, q_id, q_base;
+
+		/* Tx rings mapping to vector */
+		tx_rings_per_v = DIV_ROUND_UP(tx_rings_rem, q_vectors - v_id);
+		q_vector->num_ring_tx = tx_rings_per_v;
+		q_vector->tx.ring = NULL;
+		q_base = vsi->num_txq - tx_rings_rem;
+
+		for (q_id = q_base; q_id < (q_base + tx_rings_per_v); q_id++) {
+			struct ice_ring *tx_ring = vsi->tx_rings[q_id];
+
+			tx_ring->q_vector = q_vector;
+			tx_ring->next = q_vector->tx.ring;
+			q_vector->tx.ring = tx_ring;
+		}
+		tx_rings_rem -= tx_rings_per_v;
+
+		/* Rx rings mapping to vector */
+		rx_rings_per_v = DIV_ROUND_UP(rx_rings_rem, q_vectors - v_id);
+		q_vector->num_ring_rx = rx_rings_per_v;
+		q_vector->rx.ring = NULL;
+		q_base = vsi->num_rxq - rx_rings_rem;
+
+		for (q_id = q_base; q_id < (q_base + rx_rings_per_v); q_id++) {
+			struct ice_ring *rx_ring = vsi->rx_rings[q_id];
+
+			rx_ring->q_vector = q_vector;
+			rx_ring->next = q_vector->rx.ring;
+			q_vector->rx.ring = rx_ring;
+		}
+		rx_rings_rem -= rx_rings_per_v;
+	}
 }
 
 /**
@@ -1383,6 +1502,20 @@ void ice_vsi_free_rx_rings(struct ice_vsi *vsi)
 	ice_for_each_rxq(vsi, i)
 		if (vsi->rx_rings[i] && vsi->rx_rings[i]->desc)
 			ice_free_rx_ring(vsi->rx_rings[i]);
+}
+
+/**
+ * ice_vsi_close - Shut down a VSI
+ * @vsi: the VSI being shut down
+ */
+void ice_vsi_close(struct ice_vsi *vsi)
+{
+	if (!test_and_set_bit(__ICE_DOWN, vsi->state))
+		ice_down(vsi);
+
+	ice_vsi_free_irq(vsi);
+	ice_vsi_free_tx_rings(vsi);
+	ice_vsi_free_rx_rings(vsi);
 }
 
 /**
