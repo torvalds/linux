@@ -19,11 +19,6 @@
 
 #include "mt76x02_eeprom.h"
 
-enum mt76x2_board_type {
-	BOARD_TYPE_2GHZ = 1,
-	BOARD_TYPE_5GHZ = 2,
-};
-
 enum mt76x2_cal_channel_group {
 	MT_CH_5G_JAPAN,
 	MT_CH_5G_UNII_1,
@@ -64,7 +59,6 @@ void mt76x2_get_power_info(struct mt76x2_dev *dev,
 			   struct ieee80211_channel *chan);
 int mt76x2_get_temp_comp(struct mt76x2_dev *dev, struct mt76x2_temp_comp *t);
 void mt76x2_read_rx_gain(struct mt76x2_dev *dev);
-void mt76x2_eeprom_parse_hw_cap(struct mt76x2_dev *dev);
 
 static inline bool
 mt76x2_temp_tx_alc_enabled(struct mt76x2_dev *dev)

@@ -132,6 +132,11 @@ enum mt76x02_eeprom_modes {
 	MT_EE_PHYSICAL_READ,
 };
 
+enum mt76x02_board_type {
+	BOARD_TYPE_2GHZ = 1,
+	BOARD_TYPE_5GHZ = 2,
+};
+
 static inline bool mt76x02_field_valid(u8 val)
 {
 	return val != 0 && val != 0xff;
@@ -165,5 +170,6 @@ void mt76x02_get_rx_gain(struct mt76_dev *dev, enum nl80211_band band,
 u8 mt76x02_get_lna_gain(struct mt76_dev *dev,
 			s8 *lna_2g, s8 *lna_5g,
 			struct ieee80211_channel *chan);
+void mt76x02_eeprom_parse_hw_cap(struct mt76_dev *dev);
 
 #endif /* __MT76x02_EEPROM_H */

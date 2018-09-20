@@ -40,25 +40,6 @@ mt76x2_eeprom_get_macaddr(struct mt76x2_dev *dev)
 	return 0;
 }
 
-void mt76x2_eeprom_parse_hw_cap(struct mt76x2_dev *dev)
-{
-	u16 val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_0);
-
-	switch (FIELD_GET(MT_EE_NIC_CONF_0_BOARD_TYPE, val)) {
-	case BOARD_TYPE_5GHZ:
-		dev->mt76.cap.has_5ghz = true;
-		break;
-	case BOARD_TYPE_2GHZ:
-		dev->mt76.cap.has_2ghz = true;
-		break;
-	default:
-		dev->mt76.cap.has_2ghz = true;
-		dev->mt76.cap.has_5ghz = true;
-		break;
-	}
-}
-EXPORT_SYMBOL_GPL(mt76x2_eeprom_parse_hw_cap);
-
 static bool
 mt76x2_has_cal_free_data(struct mt76x2_dev *dev, u8 *efuse)
 {
@@ -566,7 +547,7 @@ int mt76x2_eeprom_init(struct mt76x2_dev *dev)
 	if (ret)
 		return ret;
 
-	mt76x2_eeprom_parse_hw_cap(dev);
+	mt76x02_eeprom_parse_hw_cap(&dev->mt76);
 	mt76x2_eeprom_get_macaddr(dev);
 	mt76_eeprom_override(&dev->mt76);
 	dev->mt76.macaddr[0] &= ~BIT(1);

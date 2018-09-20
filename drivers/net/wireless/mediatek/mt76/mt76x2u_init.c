@@ -129,7 +129,7 @@ static int mt76x2u_init_eeprom(struct mt76x2_dev *dev)
 		put_unaligned_le32(val, dev->mt76.eeprom.data + i);
 	}
 
-	mt76x2_eeprom_parse_hw_cap(dev);
+	mt76x02_eeprom_parse_hw_cap(&dev->mt76);
 	return 0;
 }
 

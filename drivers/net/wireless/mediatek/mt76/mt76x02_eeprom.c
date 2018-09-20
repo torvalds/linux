@@ -71,6 +71,25 @@ int mt76x02_get_efuse_data(struct mt76_dev *dev, u16 base, void *buf,
 }
 EXPORT_SYMBOL_GPL(mt76x02_get_efuse_data);
 
+void mt76x02_eeprom_parse_hw_cap(struct mt76_dev *dev)
+{
+	u16 val = mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_0);
+
+	switch (FIELD_GET(MT_EE_NIC_CONF_0_BOARD_TYPE, val)) {
+	case BOARD_TYPE_5GHZ:
+		dev->cap.has_5ghz = true;
+		break;
+	case BOARD_TYPE_2GHZ:
+		dev->cap.has_2ghz = true;
+		break;
+	default:
+		dev->cap.has_2ghz = true;
+		dev->cap.has_5ghz = true;
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(mt76x02_eeprom_parse_hw_cap);
+
 bool mt76x02_ext_pa_enabled(struct mt76_dev *dev, enum nl80211_band band)
 {
 	u16 conf0 = mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_0);
