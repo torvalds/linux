@@ -1280,9 +1280,16 @@ static bool cma_match_net_dev(const struct rdma_cm_id *id,
 		       (addr->src_addr.ss_family == AF_IB ||
 			cma_protocol_roce_dev_port(id->device, port_num));
 
-	return !addr->dev_addr.bound_dev_if ||
-	       (net_eq(dev_net(net_dev), addr->dev_addr.net) &&
-		addr->dev_addr.bound_dev_if == net_dev->ifindex);
+	/*
+	 * Net namespaces must match, and if the listner is listening
+	 * on a specific netdevice than netdevice must match as well.
+	 */
+	if (net_eq(dev_net(net_dev), addr->dev_addr.net) &&
+	    (!!addr->dev_addr.bound_dev_if ==
+	     (addr->dev_addr.bound_dev_if == net_dev->ifindex)))
+		return true;
+	else
+		return false;
 }
 
 static struct rdma_id_private *cma_find_listener(

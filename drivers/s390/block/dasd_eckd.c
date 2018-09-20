@@ -2101,8 +2101,11 @@ static int dasd_eckd_basic_to_ready(struct dasd_device *device)
 
 static int dasd_eckd_online_to_ready(struct dasd_device *device)
 {
-	cancel_work_sync(&device->reload_device);
-	cancel_work_sync(&device->kick_validate);
+	if (cancel_work_sync(&device->reload_device))
+		dasd_put_device(device);
+	if (cancel_work_sync(&device->kick_validate))
+		dasd_put_device(device);
+
 	return 0;
 };
 

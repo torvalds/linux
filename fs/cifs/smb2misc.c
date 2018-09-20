@@ -185,6 +185,13 @@ smb2_check_message(char *buf, unsigned int length)
 			return 0;
 
 		/*
+		 * Some windows servers (win2016) will pad also the final
+		 * PDU in a compound to 8 bytes.
+		 */
+		if (((clc_len + 7) & ~7) == len)
+			return 0;
+
+		/*
 		 * MacOS server pads after SMB2.1 write response with 3 bytes
 		 * of junk. Other servers match RFC1001 len to actual
 		 * SMB2/SMB3 frame length (header + smb2 response specific data)
