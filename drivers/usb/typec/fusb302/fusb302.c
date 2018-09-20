@@ -1719,7 +1719,6 @@ static int fusb302_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	chip->i2c_client = client;
-	i2c_set_clientdata(client, chip);
 	chip->dev = &client->dev;
 	chip->tcpc_config = fusb302_tcpc_config;
 	chip->tcpc_dev.config = &chip->tcpc_config;
@@ -1748,21 +1747,16 @@ static int fusb302_probe(struct i2c_client *client,
 			return -EPROBE_DEFER;
 	}
 
-	fusb302_debugfs_init(chip);
+	chip->vbus = devm_regulator_get(chip->dev, "vbus");
+	if (IS_ERR(chip->vbus))
+		return PTR_ERR(chip->vbus);
 
 	chip->wq = create_singlethread_workqueue(dev_name(chip->dev));
-	if (!chip->wq) {
-		ret = -ENOMEM;
-		goto clear_client_data;
-	}
+	if (!chip->wq)
+		return -ENOMEM;
+
 	INIT_DELAYED_WORK(&chip->bc_lvl_handler, fusb302_bc_lvl_handler_work);
 	init_tcpc_dev(&chip->tcpc_dev);
-
-	chip->vbus = devm_regulator_get(chip->dev, "vbus");
-	if (IS_ERR(chip->vbus)) {
-		ret = PTR_ERR(chip->vbus);
-		goto destroy_workqueue;
-	}
 
 	if (client->irq) {
 		chip->gpio_int_n_irq = client->irq;
@@ -1789,15 +1783,15 @@ static int fusb302_probe(struct i2c_client *client,
 		goto tcpm_unregister_port;
 	}
 	enable_irq_wake(chip->gpio_int_n_irq);
+	fusb302_debugfs_init(chip);
+	i2c_set_clientdata(client, chip);
+
 	return ret;
 
 tcpm_unregister_port:
 	tcpm_unregister_port(chip->tcpm_port);
 destroy_workqueue:
 	destroy_workqueue(chip->wq);
-clear_client_data:
-	i2c_set_clientdata(client, NULL);
-	fusb302_debugfs_exit(chip);
 
 	return ret;
 }
@@ -1808,7 +1802,6 @@ static int fusb302_remove(struct i2c_client *client)
 
 	tcpm_unregister_port(chip->tcpm_port);
 	destroy_workqueue(chip->wq);
-	i2c_set_clientdata(client, NULL);
 	fusb302_debugfs_exit(chip);
 
 	return 0;
