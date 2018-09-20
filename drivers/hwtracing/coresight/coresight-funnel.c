@@ -65,7 +65,7 @@ static int funnel_enable(struct coresight_device *csdev, int inport,
 
 	funnel_enable_hw(drvdata, inport);
 
-	dev_info(drvdata->dev, "FUNNEL inport %d enabled\n", inport);
+	dev_dbg(drvdata->dev, "FUNNEL inport %d enabled\n", inport);
 	return 0;
 }
 
@@ -89,7 +89,7 @@ static void funnel_disable(struct coresight_device *csdev, int inport,
 
 	funnel_disable_hw(drvdata, inport);
 
-	dev_info(drvdata->dev, "FUNNEL inport %d disabled\n", inport);
+	dev_dbg(drvdata->dev, "FUNNEL inport %d disabled\n", inport);
 }
 
 static const struct coresight_ops_link funnel_link_ops = {

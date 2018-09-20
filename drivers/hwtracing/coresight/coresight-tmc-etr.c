@@ -1098,7 +1098,7 @@ out:
 		tmc_etr_free_sysfs_buf(free_buf);
 
 	if (!ret)
-		dev_info(drvdata->dev, "TMC-ETR enabled\n");
+		dev_dbg(drvdata->dev, "TMC-ETR enabled\n");
 
 	return ret;
 }
@@ -1141,7 +1141,7 @@ static void tmc_disable_etr_sink(struct coresight_device *csdev)
 
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
-	dev_info(drvdata->dev, "TMC-ETR disabled\n");
+	dev_dbg(drvdata->dev, "TMC-ETR disabled\n");
 }
 
 static const struct coresight_ops_sink tmc_etr_sink_ops = {
