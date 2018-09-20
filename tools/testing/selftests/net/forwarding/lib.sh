@@ -494,6 +494,14 @@ tc_rule_stats_get()
 	    | jq '.[1].options.actions[].stats.packets'
 }
 
+ethtool_stats_get()
+{
+	local dev=$1; shift
+	local stat=$1; shift
+
+	ethtool -S $dev | grep "^ *$stat:" | head -n 1 | cut -d: -f2
+}
+
 mac_get()
 {
 	local if_name=$1
