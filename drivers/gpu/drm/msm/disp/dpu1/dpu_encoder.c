@@ -210,39 +210,6 @@ struct dpu_encoder_virt {
 };
 
 #define to_dpu_encoder_virt(x) container_of(x, struct dpu_encoder_virt, base)
-static inline int _dpu_encoder_power_enable(struct dpu_encoder_virt *dpu_enc,
-								bool enable)
-{
-	struct drm_encoder *drm_enc;
-	struct msm_drm_private *priv;
-	struct dpu_kms *dpu_kms;
-
-	if (!dpu_enc) {
-		DPU_ERROR("invalid dpu enc\n");
-		return -EINVAL;
-	}
-
-	drm_enc = &dpu_enc->base;
-	if (!drm_enc->dev || !drm_enc->dev->dev_private) {
-		DPU_ERROR("drm device invalid\n");
-		return -EINVAL;
-	}
-
-	priv = drm_enc->dev->dev_private;
-	if (!priv->kms) {
-		DPU_ERROR("invalid kms\n");
-		return -EINVAL;
-	}
-
-	dpu_kms = to_dpu_kms(priv->kms);
-
-	if (enable)
-		pm_runtime_get_sync(&dpu_kms->pdev->dev);
-	else
-		pm_runtime_put_sync(&dpu_kms->pdev->dev);
-
-	return 0;
-}
 
 void dpu_encoder_helper_report_irq_timeout(struct dpu_encoder_phys *phys_enc,
 		enum dpu_intr_idx intr_idx)
