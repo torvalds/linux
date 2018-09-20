@@ -6448,7 +6448,7 @@ static void AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
 				sdtr_data =
 				    AscCalSDTRData(asc_dvc, ext_msg.xfer_period,
 						   ext_msg.req_ack_offset);
-				if ((sdtr_data == 0xFF)) {
+				if (sdtr_data == 0xFF) {
 
 					q_cntl |= QC_MSG_OUT;
 					asc_dvc->init_sdtr &= ~target_id;
