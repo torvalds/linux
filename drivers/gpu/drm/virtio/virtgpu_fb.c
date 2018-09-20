@@ -95,7 +95,7 @@ static int virtio_gpu_dirty_update(struct virtio_gpu_framebuffer *fb,
 
 		offset = (y * fb->base.pitches[0]) + x * bpp;
 
-		virtio_gpu_cmd_transfer_to_host_2d(vgdev, obj->hw_res_handle,
+		virtio_gpu_cmd_transfer_to_host_2d(vgdev, obj,
 						   offset,
 						   cpu_to_le32(w),
 						   cpu_to_le32(h),

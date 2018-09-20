@@ -158,7 +158,7 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 		handle = bo->hw_res_handle;
 		if (bo->dumb) {
 			virtio_gpu_cmd_transfer_to_host_2d
-				(vgdev, handle, 0,
+				(vgdev, bo, 0,
 				 cpu_to_le32(plane->state->src_w >> 16),
 				 cpu_to_le32(plane->state->src_h >> 16),
 				 cpu_to_le32(plane->state->src_x >> 16),
@@ -217,7 +217,7 @@ static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
 	if (bo && bo->dumb && (plane->state->fb != old_state->fb)) {
 		/* new cursor -- update & wait */
 		virtio_gpu_cmd_transfer_to_host_2d
-			(vgdev, handle, 0,
+			(vgdev, bo, 0,
 			 cpu_to_le32(plane->state->crtc_w),
 			 cpu_to_le32(plane->state->crtc_h),
 			 0, 0, &fence);
