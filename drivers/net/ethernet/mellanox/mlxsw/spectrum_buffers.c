@@ -29,6 +29,8 @@ struct mlxsw_sp_sb_cm {
 	struct mlxsw_cp_sb_occ occ;
 };
 
+#define MLXSW_SP_SB_INFI -1U
+
 struct mlxsw_sp_sb_pm {
 	u32 min_buff;
 	u32 max_buff;
@@ -115,7 +117,8 @@ static struct mlxsw_sp_sb_pm *mlxsw_sp_sb_pm_get(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_sb_pr_write(struct mlxsw_sp *mlxsw_sp, u16 pool_index,
-				enum mlxsw_reg_sbpr_mode mode, u32 size)
+				enum mlxsw_reg_sbpr_mode mode,
+				u32 size, bool infi_size)
 {
 	const struct mlxsw_sp_sb_pool_des *des =
 		&mlxsw_sp_sb_pool_dess[pool_index];
@@ -123,11 +126,14 @@ static int mlxsw_sp_sb_pr_write(struct mlxsw_sp *mlxsw_sp, u16 pool_index,
 	struct mlxsw_sp_sb_pr *pr;
 	int err;
 
-	mlxsw_reg_sbpr_pack(sbpr_pl, des->pool, des->dir, mode, size);
+	mlxsw_reg_sbpr_pack(sbpr_pl, des->pool, des->dir, mode,
+			    size, infi_size);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbpr), sbpr_pl);
 	if (err)
 		return err;
 
+	if (infi_size)
+		size = mlxsw_sp_bytes_cells(mlxsw_sp, mlxsw_sp->sb->sb_size);
 	pr = mlxsw_sp_sb_pr_get(mlxsw_sp, pool_index);
 	pr->mode = mode;
 	pr->size = size;
@@ -322,9 +328,17 @@ static int mlxsw_sp_sb_prs_init(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	for (i = 0; i < prs_len; i++) {
-		u32 size = mlxsw_sp_bytes_cells(mlxsw_sp, prs[i].size);
+		u32 size = prs[i].size;
+		u32 size_cells;
 
-		err = mlxsw_sp_sb_pr_write(mlxsw_sp, i, prs[i].mode, size);
+		if (size == MLXSW_SP_SB_INFI) {
+			err = mlxsw_sp_sb_pr_write(mlxsw_sp, i, prs[i].mode,
+						   0, true);
+		} else {
+			size_cells = mlxsw_sp_bytes_cells(mlxsw_sp, size);
+			err = mlxsw_sp_sb_pr_write(mlxsw_sp, i, prs[i].mode,
+						   size_cells, false);
+		}
 		if (err)
 			return err;
 	}
@@ -685,7 +699,8 @@ int mlxsw_sp_sb_pool_set(struct mlxsw_core *mlxsw_core,
 		return -EINVAL;
 
 	mode = (enum mlxsw_reg_sbpr_mode) threshold_type;
-	return mlxsw_sp_sb_pr_write(mlxsw_sp, pool_index, mode, pool_size);
+	return mlxsw_sp_sb_pr_write(mlxsw_sp, pool_index, mode,
+				    pool_size, false);
 }
 
 #define MLXSW_SP_SB_THRESHOLD_TO_ALPHA_OFFSET (-2) /* 3->1, 16->14 */

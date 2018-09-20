@@ -8336,8 +8336,15 @@ MLXSW_ITEM32(reg, sbpr, dir, 0x00, 24, 2);
  */
 MLXSW_ITEM32(reg, sbpr, pool, 0x00, 0, 4);
 
+/* reg_sbpr_infi_size
+ * Size is infinite.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sbpr, infi_size, 0x04, 31, 1);
+
 /* reg_sbpr_size
  * Pool size in buffer cells.
+ * Reserved when infi_size = 1.
  * Access: RW
  */
 MLXSW_ITEM32(reg, sbpr, size, 0x04, 0, 24);
@@ -8355,13 +8362,15 @@ MLXSW_ITEM32(reg, sbpr, mode, 0x08, 0, 4);
 
 static inline void mlxsw_reg_sbpr_pack(char *payload, u8 pool,
 				       enum mlxsw_reg_sbxx_dir dir,
-				       enum mlxsw_reg_sbpr_mode mode, u32 size)
+				       enum mlxsw_reg_sbpr_mode mode, u32 size,
+				       bool infi_size)
 {
 	MLXSW_REG_ZERO(sbpr, payload);
 	mlxsw_reg_sbpr_pool_set(payload, pool);
 	mlxsw_reg_sbpr_dir_set(payload, dir);
 	mlxsw_reg_sbpr_mode_set(payload, mode);
 	mlxsw_reg_sbpr_size_set(payload, size);
+	mlxsw_reg_sbpr_infi_size_set(payload, infi_size);
 }
 
 /* SBCM - Shared Buffer Class Management Register
