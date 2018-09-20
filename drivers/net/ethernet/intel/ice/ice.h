@@ -37,6 +37,7 @@
 #include "ice_common.h"
 #include "ice_sched.h"
 #include "ice_virtchnl_pf.h"
+#include "ice_sriov.h"
 
 extern const char ice_drv_ver[];
 #define ICE_BAR0		0
@@ -155,6 +156,7 @@ enum ice_state {
 	__ICE_ADMINQ_EVENT_PENDING,
 	__ICE_MAILBOXQ_EVENT_PENDING,
 	__ICE_MDD_EVENT_PENDING,
+	__ICE_VFLR_EVENT_PENDING,
 	__ICE_FLTR_OVERFLOW_PROMISC,
 	__ICE_VF_DIS,
 	__ICE_CFG_BUSY,

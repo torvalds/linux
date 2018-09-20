@@ -5,6 +5,36 @@
 #include "ice_lib.h"
 
 /**
+ * ice_vc_vf_broadcast - Broadcast a message to all VFs on PF
+ * @pf: pointer to the PF structure
+ * @v_opcode: operation code
+ * @v_retval: return value
+ * @msg: pointer to the msg buffer
+ * @msglen: msg length
+ */
+static void
+ice_vc_vf_broadcast(struct ice_pf *pf, enum virtchnl_ops v_opcode,
+		    enum ice_status v_retval, u8 *msg, u16 msglen)
+{
+	struct ice_hw *hw = &pf->hw;
+	struct ice_vf *vf = pf->vf;
+	int i;
+
+	for (i = 0; i < pf->num_alloc_vfs; i++, vf++) {
+		/* Not all vfs are enabled so skip the ones that are not */
+		if (!test_bit(ICE_VF_STATE_INIT, vf->vf_states) &&
+		    !test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states))
+			continue;
+
+		/* Ignore return value on purpose - a given VF may fail, but
+		 * we need to keep going and send to all of them
+		 */
+		ice_aq_send_msg_to_vf(hw, vf->vf_id, v_opcode, v_retval, msg,
+				      msglen, NULL);
+	}
+}
+
+/**
  * ice_get_vf_vector - get VF interrupt vector register offset
  * @vf_msix: number of MSIx vector per VF on a PF
  * @vf_id: VF identifier
@@ -694,6 +724,97 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 }
 
 /**
+ * ice_reset_vf - Reset a particular VF
+ * @vf: pointer to the VF structure
+ * @is_vflr: true if VFLR was issued, false if not
+ *
+ * Returns true if the VF is reset, false otherwise.
+ */
+static bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
+{
+	struct ice_pf *pf = vf->pf;
+	struct ice_hw *hw = &pf->hw;
+	bool rsd = false;
+	u32 reg;
+	int i;
+
+	/* If the VFs have been disabled, this means something else is
+	 * resetting the VF, so we shouldn't continue.
+	 */
+	if (test_and_set_bit(__ICE_VF_DIS, pf->state))
+		return false;
+
+	ice_trigger_vf_reset(vf, is_vflr);
+
+	if (test_bit(ICE_VF_STATE_ENA, vf->vf_states)) {
+		ice_vsi_stop_tx_rings(pf->vsi[vf->lan_vsi_idx], ICE_VF_RESET,
+				      vf->vf_id);
+		ice_vsi_stop_rx_rings(pf->vsi[vf->lan_vsi_idx]);
+		clear_bit(ICE_VF_STATE_ENA, vf->vf_states);
+	} else {
+		/* Call Disable LAN Tx queue AQ call even when queues are not
+		 * enabled. This is needed for successful completiom of VFR
+		 */
+		ice_dis_vsi_txq(pf->vsi[vf->lan_vsi_idx]->port_info, 0,
+				NULL, NULL, ICE_VF_RESET, vf->vf_id, NULL);
+	}
+
+	/* poll VPGEN_VFRSTAT reg to make sure
+	 * that reset is complete
+	 */
+	for (i = 0; i < 10; i++) {
+		/* VF reset requires driver to first reset the VF and then
+		 * poll the status register to make sure that the reset
+		 * completed successfully.
+		 */
+		usleep_range(10000, 20000);
+		reg = rd32(hw, VPGEN_VFRSTAT(vf->vf_id));
+		if (reg & VPGEN_VFRSTAT_VFRD_M) {
+			rsd = true;
+			break;
+		}
+	}
+
+	/* Display a warning if VF didn't manage to reset in time, but need to
+	 * continue on with the operation.
+	 */
+	if (!rsd)
+		dev_warn(&pf->pdev->dev, "VF reset check timeout on VF %d\n",
+			 vf->vf_id);
+
+	usleep_range(10000, 20000);
+
+	/* free VF resources to begin resetting the VSI state */
+	ice_free_vf_res(vf);
+
+	ice_cleanup_and_realloc_vf(vf);
+
+	ice_flush(hw);
+	clear_bit(__ICE_VF_DIS, pf->state);
+
+	return true;
+}
+
+/**
+ * ice_vc_notify_reset - Send pending reset message to all VFs
+ * @pf: pointer to the PF structure
+ *
+ * indicate a pending reset to all VFs on a given PF
+ */
+void ice_vc_notify_reset(struct ice_pf *pf)
+{
+	struct virtchnl_pf_event pfe;
+
+	if (!pf->num_alloc_vfs)
+		return;
+
+	pfe.event = VIRTCHNL_EVENT_RESET_IMPENDING;
+	pfe.severity = PF_EVENT_SEVERITY_CERTAIN_DOOM;
+	ice_vc_vf_broadcast(pf, VIRTCHNL_OP_EVENT, ICE_SUCCESS,
+			    (u8 *)&pfe, sizeof(struct virtchnl_pf_event));
+}
+
+/**
  * ice_alloc_vfs - Allocate and set up VFs resources
  * @pf: pointer to the PF structure
  * @num_alloc_vfs: number of VFs to allocate
@@ -844,4 +965,46 @@ int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	}
 
 	return 0;
+}
+
+/**
+ * ice_process_vflr_event - Free VF resources via IRQ calls
+ * @pf: pointer to the PF structure
+ *
+ * called from the VLFR IRQ handler to
+ * free up VF resources and state variables
+ */
+void ice_process_vflr_event(struct ice_pf *pf)
+{
+	struct ice_hw *hw = &pf->hw;
+	int vf_id;
+	u32 reg;
+
+	if (!test_bit(__ICE_VFLR_EVENT_PENDING, pf->state) ||
+	    !pf->num_alloc_vfs)
+		return;
+
+	/* Re-enable the VFLR interrupt cause here, before looking for which
+	 * VF got reset. Otherwise, if another VF gets a reset while the
+	 * first one is being processed, that interrupt will be lost, and
+	 * that VF will be stuck in reset forever.
+	 */
+	reg = rd32(hw, PFINT_OICR_ENA);
+	reg |= PFINT_OICR_VFLR_M;
+	wr32(hw, PFINT_OICR_ENA, reg);
+	ice_flush(hw);
+
+	clear_bit(__ICE_VFLR_EVENT_PENDING, pf->state);
+	for (vf_id = 0; vf_id < pf->num_alloc_vfs; vf_id++) {
+		struct ice_vf *vf = &pf->vf[vf_id];
+		u32 reg_idx, bit_idx;
+
+		reg_idx = (hw->func_caps.vf_base_id + vf_id) / 32;
+		bit_idx = (hw->func_caps.vf_base_id + vf_id) % 32;
+		/* read GLGEN_VFLRSTAT register to find out the flr VFs */
+		reg = rd32(hw, GLGEN_VFLRSTAT(reg_idx));
+		if (reg & BIT(bit_idx))
+			/* GLGEN_VFLRSTAT bit will be cleared in ice_reset_vf */
+			ice_reset_vf(vf, true);
+	}
 }

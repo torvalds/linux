@@ -51,11 +51,15 @@ struct ice_vf {
 };
 
 #ifdef CONFIG_PCI_IOV
+void ice_process_vflr_event(struct ice_pf *pf);
 int ice_sriov_configure(struct pci_dev *pdev, int num_vfs);
 void ice_free_vfs(struct ice_pf *pf);
+void ice_vc_notify_reset(struct ice_pf *pf);
 bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr);
 #else /* CONFIG_PCI_IOV */
+#define ice_process_vflr_event(pf) do {} while (0)
 #define ice_free_vfs(pf) do {} while (0)
+#define ice_vc_notify_reset(pf) do {} while (0)
 
 static inline bool
 ice_reset_all_vfs(struct ice_pf __always_unused *pf,

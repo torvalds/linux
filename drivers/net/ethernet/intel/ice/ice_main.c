@@ -342,6 +342,10 @@ ice_prepare_for_reset(struct ice_pf *pf)
 {
 	struct ice_hw *hw = &pf->hw;
 
+	/* Notify VFs of impending reset */
+	if (ice_check_sq_alive(hw, &hw->mailboxq))
+		ice_vc_notify_reset(pf);
+
 	/* disable the VSIs and their queues that are not already DOWN */
 	ice_pf_dis_all_vsi(pf);
 
@@ -1064,6 +1068,7 @@ static void ice_service_task(struct work_struct *work)
 	ice_check_for_hang_subtask(pf);
 	ice_sync_fltr_subtask(pf);
 	ice_handle_mdd_event(pf);
+	ice_process_vflr_event(pf);
 	ice_watchdog_subtask(pf);
 	ice_clean_adminq_subtask(pf);
 	ice_clean_mailboxq_subtask(pf);
@@ -1077,6 +1082,7 @@ static void ice_service_task(struct work_struct *work)
 	 */
 	if (time_after(jiffies, (start_time + pf->serv_tmr_period)) ||
 	    test_bit(__ICE_MDD_EVENT_PENDING, pf->state) ||
+	    test_bit(__ICE_VFLR_EVENT_PENDING, pf->state) ||
 	    test_bit(__ICE_MAILBOXQ_EVENT_PENDING, pf->state) ||
 	    test_bit(__ICE_ADMINQ_EVENT_PENDING, pf->state))
 		mod_timer(&pf->serv_tmr, jiffies);
@@ -1229,6 +1235,7 @@ static void ice_ena_misc_vector(struct ice_pf *pf)
 	       PFINT_OICR_MAL_DETECT_M |
 	       PFINT_OICR_GRST_M |
 	       PFINT_OICR_PCI_EXCEPTION_M |
+	       PFINT_OICR_VFLR_M |
 	       PFINT_OICR_HMC_ERR_M |
 	       PFINT_OICR_PE_CRITERR_M);
 
@@ -1260,6 +1267,10 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 	if (oicr & PFINT_OICR_MAL_DETECT_M) {
 		ena_mask &= ~PFINT_OICR_MAL_DETECT_M;
 		set_bit(__ICE_MDD_EVENT_PENDING, pf->state);
+	}
+	if (oicr & PFINT_OICR_VFLR_M) {
+		ena_mask &= ~PFINT_OICR_VFLR_M;
+		set_bit(__ICE_VFLR_EVENT_PENDING, pf->state);
 	}
 
 	if (oicr & PFINT_OICR_GRST_M) {
@@ -3222,6 +3233,10 @@ static int ice_vsi_rebuild_all(struct ice_pf *pf)
 		int err;
 
 		if (!pf->vsi[i])
+			continue;
+
+		/* VF VSI rebuild isn't supported yet */
+		if (pf->vsi[i]->type == ICE_VSI_VF)
 			continue;
 
 		err = ice_vsi_rebuild(pf->vsi[i]);
