@@ -21,6 +21,8 @@
 #include "ops.h"
 #include "sof-priv.h"
 
+#define RUNTIME_RESUME 1
+
 static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_widget *swidget = NULL;
@@ -229,18 +231,24 @@ static void sof_suspend_streams(struct snd_sof_dev *sdev)
 	}
 }
 
-static int sof_resume(struct device *dev)
+static int sof_resume(struct device *dev, int runtime_resume)
 {
 	struct sof_platform_priv *priv = dev_get_drvdata(dev);
 	struct snd_sof_dev *sdev = dev_get_drvdata(&priv->pdev_pcm->dev);
 	int ret = 0;
 
-	/* do nothing if dsp resume callback is not set */
-	if (!sdev->ops->resume)
+	/* do nothing if dsp resume callbacks are not set */
+	if (!sdev->ops->resume || !sdev->ops->runtime_resume)
 		return 0;
 
-	/* power up DSP */
-	ret = snd_sof_dsp_resume(sdev);
+	/*
+	 * if the runtime_resume flag is set, call the runtime_resume routine
+	 * or else call the system resume routine
+	 */
+	if (runtime_resume)
+		ret = snd_sof_dsp_runtime_resume(sdev);
+	else
+		ret = snd_sof_dsp_resume(sdev);
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: failed to power up DSP after resume\n");
@@ -342,13 +350,13 @@ EXPORT_SYMBOL(snd_sof_runtime_suspend);
 
 int snd_sof_runtime_resume(struct device *dev)
 {
-	return sof_resume(dev);
+	return sof_resume(dev, RUNTIME_RESUME);
 }
 EXPORT_SYMBOL(snd_sof_runtime_resume);
 
 int snd_sof_resume(struct device *dev)
 {
-	return sof_resume(dev);
+	return sof_resume(dev, 0);
 }
 EXPORT_SYMBOL(snd_sof_resume);
 

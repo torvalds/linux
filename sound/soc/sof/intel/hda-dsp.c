@@ -26,6 +26,7 @@
 #include <linux/firmware.h>
 #include <linux/pci.h>
 #include <sound/hdaudio_ext.h>
+#include <sound/hda_i915.h>
 #include <sound/hda_register.h>
 #include <sound/sof.h>
 #include <sound/pcm_params.h>
@@ -255,7 +256,7 @@ int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
 	return ret;
 }
 
-int hda_dsp_suspend(struct snd_sof_dev *sdev, int state)
+static int hda_suspend(struct snd_sof_dev *sdev, int state)
 {
 	const struct sof_intel_dsp_desc *chip = sdev->hda->desc;
 	struct hdac_bus *bus = sof_to_bus(sdev);
@@ -286,7 +287,7 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, int state)
 	return 0;
 }
 
-int hda_dsp_resume(struct snd_sof_dev *sdev)
+static int hda_resume(struct snd_sof_dev *sdev)
 {
 	const struct sof_intel_dsp_desc *chip = sdev->hda->desc;
 	struct hdac_bus *bus = sof_to_bus(sdev);
@@ -338,4 +339,36 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 		snd_hdac_bus_stop_cmd_io(bus);
 
 	return 0;
+}
+
+int hda_dsp_resume(struct snd_sof_dev *sdev)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	int ret;
+
+	/* turn display power on */
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
+		ret = snd_hdac_display_power(bus, true);
+		if (ret < 0) {
+			dev_err(bus->dev, "Cannot turn on display power on i915 after resume\n");
+			return ret;
+		}
+	}
+
+	return hda_resume(sdev);
+}
+
+int hda_dsp_runtime_resume(struct snd_sof_dev *sdev)
+{
+	return hda_resume(sdev);
+}
+
+int hda_dsp_runtime_suspend(struct snd_sof_dev *sdev, int state)
+{
+	return hda_suspend(sdev, state);
+}
+
+int hda_dsp_suspend(struct snd_sof_dev *sdev, int state)
+{
+	return hda_suspend(sdev, state);
 }

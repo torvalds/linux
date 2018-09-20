@@ -78,6 +78,23 @@ static inline int snd_sof_dsp_suspend(struct snd_sof_dev *sdev, int state)
 		return 0;
 }
 
+static inline int snd_sof_dsp_runtime_resume(struct snd_sof_dev *sdev)
+{
+	if (sdev->ops->runtime_resume)
+		return sdev->ops->runtime_resume(sdev);
+	else
+		return 0;
+}
+
+static inline int snd_sof_dsp_runtime_suspend(struct snd_sof_dev *sdev,
+					      int state)
+{
+	if (sdev->ops->runtime_suspend)
+		return sdev->ops->runtime_suspend(sdev, state);
+	else
+		return 0;
+}
+
 static inline int snd_sof_dsp_set_clk(struct snd_sof_dev *sdev, u32 freq)
 {
 	if (sdev->ops->set_clk)

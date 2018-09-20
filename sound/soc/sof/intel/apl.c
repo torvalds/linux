@@ -99,7 +99,9 @@ struct snd_sof_dsp_ops sof_apl_ops = {
 	.num_drv	= SOF_SKL_NUM_DAIS,
 
 	/* PM */
-	.suspend	= hda_dsp_suspend,
-	.resume		= hda_dsp_resume,
+	.suspend		= hda_dsp_suspend,
+	.resume			= hda_dsp_resume,
+	.runtime_suspend	= hda_dsp_runtime_suspend,
+	.runtime_resume		= hda_dsp_runtime_resume,
 };
 EXPORT_SYMBOL(sof_apl_ops);

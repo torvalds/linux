@@ -81,6 +81,8 @@ struct snd_sof_dsp_ops {
 	/* DSP PM */
 	int (*suspend)(struct snd_sof_dev *sof_dev, int state);
 	int (*resume)(struct snd_sof_dev *sof_dev);
+	int (*runtime_suspend)(struct snd_sof_dev *sof_dev, int state);
+	int (*runtime_resume)(struct snd_sof_dev *sof_dev);
 
 	/* DSP clocking */
 	int (*set_clk)(struct snd_sof_dev *sof_dev, u32 freq);
