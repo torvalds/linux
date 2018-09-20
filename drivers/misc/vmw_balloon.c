@@ -543,29 +543,13 @@ static int vmballoon_lock(struct vmballoon *b, unsigned int num_pages,
 		/* Error occurred */
 		STATS_INC(b->stats.refused_alloc[is_2m_pages]);
 
-		switch (status) {
-		case VMW_BALLOON_ERROR_PPN_PINNED:
-		case VMW_BALLOON_ERROR_PPN_INVALID:
-			/*
-			 * Place page on the list of non-balloonable pages
-			 * and retry allocation, unless we already accumulated
-			 * too many of them, in which case take a breather.
-			 */
-			if (page_size->n_refused_pages
-					< VMW_BALLOON_MAX_REFUSED) {
-				list_add(&p->lru, &page_size->refused_pages);
-				page_size->n_refused_pages++;
-				break;
-			}
-			/* Fallthrough */
-		case VMW_BALLOON_ERROR_RESET:
-		case VMW_BALLOON_ERROR_PPN_NOTNEEDED:
-			vmballoon_free_page(p, is_2m_pages);
-			break;
-		default:
-			/* This should never happen */
-			WARN_ON_ONCE(true);
-		}
+		/*
+		 * Place page on the list of non-balloonable pages
+		 * and retry allocation, unless we already accumulated
+		 * too many of them, in which case take a breather.
+		 */
+		list_add(&p->lru, &page_size->refused_pages);
+		page_size->n_refused_pages++;
 	}
 
 	return batch_status == VMW_BALLOON_SUCCESS ? 0 : -EIO;
@@ -712,9 +696,31 @@ static void vmballoon_inflate(struct vmballoon *b)
 
 		vmballoon_add_page(b, num_pages++, page);
 		if (num_pages == b->batch_max_pages) {
+			struct vmballoon_page_size *page_size =
+					&b->page_sizes[is_2m_pages];
+
 			error = vmballoon_lock(b, num_pages, is_2m_pages);
 
 			num_pages = 0;
+
+			/*
+			 * Stop allocating this page size if we already
+			 * accumulated too many pages that the hypervisor
+			 * refused.
+			 */
+			if (page_size->n_refused_pages >=
+			    VMW_BALLOON_MAX_REFUSED) {
+				if (!is_2m_pages)
+					break;
+
+				/*
+				 * Release the refused pages as we move to 4k
+				 * pages.
+				 */
+				vmballoon_release_refused_pages(b, true);
+				is_2m_pages = true;
+			}
+
 			if (error)
 				break;
 		}
