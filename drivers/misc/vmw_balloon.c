@@ -37,20 +37,20 @@ MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
 
 /*
- * Use __GFP_HIGHMEM to allow pages from HIGHMEM zone. We don't
- * allow wait (__GFP_RECLAIM) for NOSLEEP page allocations. Use
- * __GFP_NOWARN, to suppress page allocation failure warnings.
+ * Use __GFP_HIGHMEM to allow pages from HIGHMEM zone. We don't allow wait
+ * (__GFP_RECLAIM) for huge page allocations. Use __GFP_NOWARN, to suppress page
+ * allocation failure warnings. Disallow access to emergency low-memory pools.
  */
-#define VMW_PAGE_ALLOC_NOSLEEP		(__GFP_HIGHMEM|__GFP_NOWARN)
+#define VMW_HUGE_PAGE_ALLOC_FLAGS	(__GFP_HIGHMEM|__GFP_NOWARN|	\
+					 __GFP_NOMEMALLOC)
 
 /*
- * Use GFP_HIGHUSER when executing in a separate kernel thread
- * context and allocation can sleep.  This is less stressful to
- * the guest memory system, since it allows the thread to block
- * while memory is reclaimed, and won't take pages from emergency
- * low-memory pools.
+ * Use __GFP_HIGHMEM to allow pages from HIGHMEM zone. We allow lightweight
+ * reclamation (__GFP_NORETRY). Use __GFP_NOWARN, to suppress page allocation
+ * failure warnings. Disallow access to emergency low-memory pools.
  */
-#define VMW_PAGE_ALLOC_CANSLEEP		(GFP_HIGHUSER)
+#define VMW_PAGE_ALLOC_FLAGS		(__GFP_HIGHMEM|__GFP_NOWARN|	\
+					 __GFP_NOMEMALLOC|__GFP_NORETRY)
 
 /* Maximum number of refused pages we accumulate during inflation cycle */
 #define VMW_BALLOON_MAX_REFUSED		16
@@ -151,8 +151,6 @@ struct vmballoon_stats {
 	/* allocation statistics */
 	unsigned int alloc[VMW_BALLOON_NUM_PAGE_SIZES];
 	unsigned int alloc_fail[VMW_BALLOON_NUM_PAGE_SIZES];
-	unsigned int sleep_alloc;
-	unsigned int sleep_alloc_fail;
 	unsigned int refused_alloc[VMW_BALLOON_NUM_PAGE_SIZES];
 	unsigned int refused_free[VMW_BALLOON_NUM_PAGE_SIZES];
 	unsigned int free[VMW_BALLOON_NUM_PAGE_SIZES];
@@ -442,12 +440,13 @@ static int vmballoon_send_batched_lock(struct vmballoon *b,
 	return 1;
 }
 
-static struct page *vmballoon_alloc_page(gfp_t flags, bool is_2m_page)
+static struct page *vmballoon_alloc_page(bool is_2m_page)
 {
 	if (is_2m_page)
-		return alloc_pages(flags, VMW_BALLOON_2M_SHIFT);
+		return alloc_pages(VMW_HUGE_PAGE_ALLOC_FLAGS,
+				   VMW_BALLOON_2M_SHIFT);
 
-	return alloc_page(flags);
+	return alloc_page(VMW_PAGE_ALLOC_FLAGS);
 }
 
 static void vmballoon_free_page(struct page *page, bool is_2m_page)
@@ -701,7 +700,6 @@ static void vmballoon_inflate(struct vmballoon *b)
 {
 	unsigned int num_pages = 0;
 	int error = 0;
-	gfp_t flags = VMW_PAGE_ALLOC_NOSLEEP;
 	bool is_2m_pages;
 
 	pr_debug("%s - size: %d, target %d\n", __func__, b->size, b->target);
@@ -734,15 +732,10 @@ static void vmballoon_inflate(struct vmballoon *b)
 		< b->target) {
 		struct page *page;
 
-		if (flags == VMW_PAGE_ALLOC_NOSLEEP)
-			STATS_INC(b->stats.alloc[is_2m_pages]);
-		else
-			STATS_INC(b->stats.sleep_alloc);
-
-		page = vmballoon_alloc_page(flags, is_2m_pages);
+		STATS_INC(b->stats.alloc[is_2m_pages]);
+		page = vmballoon_alloc_page(is_2m_pages);
 		if (!page) {
 			STATS_INC(b->stats.alloc_fail[is_2m_pages]);
-
 			if (is_2m_pages) {
 				b->ops->lock(b, num_pages, true);
 
@@ -756,29 +749,7 @@ static void vmballoon_inflate(struct vmballoon *b)
 				is_2m_pages = false;
 				continue;
 			}
-
-			if (flags == VMW_PAGE_ALLOC_CANSLEEP) {
-				/*
-				 * CANSLEEP page allocation failed, so guest
-				 * is under severe memory pressure. We just log
-				 * the event, but do not stop the inflation
-				 * due to its negative impact on performance.
-				 */
-				STATS_INC(b->stats.sleep_alloc_fail);
-				break;
-			}
-
-			/*
-			 * NOSLEEP page allocation failed, so the guest is
-			 * under memory pressure. Slowing down page alloctions
-			 * seems to be reasonable, but doing so might actually
-			 * cause the hypervisor to throttle us down, resulting
-			 * in degraded performance. We will count on the
-			 * scheduler and standard memory management mechanisms
-			 * for now.
-			 */
-			flags = VMW_PAGE_ALLOC_CANSLEEP;
-			continue;
+			break;
 		}
 
 		b->ops->add_page(b, num_pages++, page);
@@ -1044,8 +1015,7 @@ static int vmballoon_debug_show(struct seq_file *f, void *offset)
 		   "timer:              %8u\n"
 		   "doorbell:           %8u\n"
 		   "prim2mAlloc:        %8u (%4u failed)\n"
-		   "primNoSleepAlloc:   %8u (%4u failed)\n"
-		   "primCanSleepAlloc:  %8u (%4u failed)\n"
+		   "prim4kAlloc:        %8u (%4u failed)\n"
 		   "prim2mFree:         %8u\n"
 		   "primFree:           %8u\n"
 		   "err2mAlloc:         %8u\n"
@@ -1056,7 +1026,6 @@ static int vmballoon_debug_show(struct seq_file *f, void *offset)
 		   stats->doorbell,
 		   stats->alloc[true], stats->alloc_fail[true],
 		   stats->alloc[false], stats->alloc_fail[false],
-		   stats->sleep_alloc, stats->sleep_alloc_fail,
 		   stats->free[true],
 		   stats->free[false],
 		   stats->refused_alloc[true], stats->refused_alloc[false],
