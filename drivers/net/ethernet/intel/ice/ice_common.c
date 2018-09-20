@@ -598,6 +598,39 @@ void ice_output_fw_log(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf)
 }
 
 /**
+ * ice_get_itr_intrl_gran - determine int/intrl granularity
+ * @hw: pointer to the hw struct
+ *
+ * Determines the itr/intrl granularities based on the maximum aggregate
+ * bandwidth according to the device's configuration during power-on.
+ */
+static enum ice_status ice_get_itr_intrl_gran(struct ice_hw *hw)
+{
+	u8 max_agg_bw = (rd32(hw, GL_PWR_MODE_CTL) &
+			 GL_PWR_MODE_CTL_CAR_MAX_BW_M) >>
+			GL_PWR_MODE_CTL_CAR_MAX_BW_S;
+
+	switch (max_agg_bw) {
+	case ICE_MAX_AGG_BW_200G:
+	case ICE_MAX_AGG_BW_100G:
+	case ICE_MAX_AGG_BW_50G:
+		hw->itr_gran = ICE_ITR_GRAN_ABOVE_25;
+		hw->intrl_gran = ICE_INTRL_GRAN_ABOVE_25;
+		break;
+	case ICE_MAX_AGG_BW_25G:
+		hw->itr_gran = ICE_ITR_GRAN_MAX_25;
+		hw->intrl_gran = ICE_INTRL_GRAN_MAX_25;
+		break;
+	default:
+		ice_debug(hw, ICE_DBG_INIT,
+			  "Failed to determine itr/intrl granularity\n");
+		return ICE_ERR_CFG;
+	}
+
+	return 0;
+}
+
+/**
  * ice_init_hw - main hardware initialization routine
  * @hw: pointer to the hardware structure
  */
@@ -621,11 +654,9 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	if (status)
 		return status;
 
-	/* set these values to minimum allowed */
-	hw->itr_gran_200 = ICE_ITR_GRAN_MIN_200;
-	hw->itr_gran_100 = ICE_ITR_GRAN_MIN_100;
-	hw->itr_gran_50 = ICE_ITR_GRAN_MIN_50;
-	hw->itr_gran_25 = ICE_ITR_GRAN_MIN_25;
+	status = ice_get_itr_intrl_gran(hw);
+	if (status)
+		return status;
 
 	status = ice_init_all_ctrlq(hw);
 	if (status)

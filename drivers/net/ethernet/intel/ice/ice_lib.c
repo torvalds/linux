@@ -1139,6 +1139,7 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 		ring->vsi = vsi;
 		ring->dev = &pf->pdev->dev;
 		ring->count = vsi->num_desc;
+		ring->itr_setting = ICE_DFLT_TX_ITR;
 		vsi->tx_rings[i] = ring;
 	}
 
@@ -1158,6 +1159,7 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 		ring->netdev = vsi->netdev;
 		ring->dev = &pf->pdev->dev;
 		ring->count = vsi->num_desc;
+		ring->itr_setting = ICE_DFLT_RX_ITR;
 		vsi->rx_rings[i] = ring;
 	}
 
@@ -1596,6 +1598,23 @@ err_cfg_txqs:
 }
 
 /**
+ * ice_intrl_usec_to_reg - convert interrupt rate limit to register value
+ * @intrl: interrupt rate limit in usecs
+ * @gran: interrupt rate limit granularity in usecs
+ *
+ * This function converts a decimal interrupt rate limit in usecs to the format
+ * expected by firmware.
+ */
+static u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
+{
+	u32 val = intrl / gran;
+
+	if (val)
+		return val | GLINT_RATE_INTRL_ENA_M;
+	return 0;
+}
+
+/**
  * ice_vsi_cfg_msix - MSIX mode Interrupt Config in the HW
  * @vsi: the VSI being configured
  */
@@ -1611,23 +1630,27 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[i];
 
-		itr_gran = hw->itr_gran_200;
+		itr_gran = hw->itr_gran;
+
+		q_vector->intrl = ICE_DFLT_INTRL;
 
 		if (q_vector->num_ring_rx) {
 			q_vector->rx.itr =
-				ITR_TO_REG(vsi->rx_rings[rxq]->rx_itr_setting,
+				ITR_TO_REG(vsi->rx_rings[rxq]->itr_setting,
 					   itr_gran);
 			q_vector->rx.latency_range = ICE_LOW_LATENCY;
 		}
 
 		if (q_vector->num_ring_tx) {
 			q_vector->tx.itr =
-				ITR_TO_REG(vsi->tx_rings[txq]->tx_itr_setting,
+				ITR_TO_REG(vsi->tx_rings[txq]->itr_setting,
 					   itr_gran);
 			q_vector->tx.latency_range = ICE_LOW_LATENCY;
 		}
 		wr32(hw, GLINT_ITR(ICE_RX_ITR, vector), q_vector->rx.itr);
 		wr32(hw, GLINT_ITR(ICE_TX_ITR, vector), q_vector->tx.itr);
+		wr32(hw, GLINT_RATE(vector),
+		     ice_intrl_usec_to_reg(q_vector->intrl, hw->intrl_gran));
 
 		/* Both Transmit Queue Interrupt Cause Control register
 		 * and Receive Queue Interrupt Cause control register

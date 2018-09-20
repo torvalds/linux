@@ -333,16 +333,26 @@ struct ice_hw {
 	u32 fw_build;		/* firmware build number */
 
 	struct ice_fw_log_cfg fw_log;
-	/* minimum allowed value for different speeds */
-#define ICE_ITR_GRAN_MIN_200	1
-#define ICE_ITR_GRAN_MIN_100	1
-#define ICE_ITR_GRAN_MIN_50	2
-#define ICE_ITR_GRAN_MIN_25	4
+
+/* Device max aggregate bandwidths corresponding to the GL_PWR_MODE_CTL
+ * register. Used for determining the itr/intrl granularity during
+ * initialization.
+ */
+#define ICE_MAX_AGG_BW_200G	0x0
+#define ICE_MAX_AGG_BW_100G	0X1
+#define ICE_MAX_AGG_BW_50G	0x2
+#define ICE_MAX_AGG_BW_25G	0x3
+	/* ITR granularity for different speeds */
+#define ICE_ITR_GRAN_ABOVE_25	2
+#define ICE_ITR_GRAN_MAX_25	4
 	/* ITR granularity in 1 us */
-	u8 itr_gran_200;
-	u8 itr_gran_100;
-	u8 itr_gran_50;
-	u8 itr_gran_25;
+	u8 itr_gran;
+	/* INTRL granularity for different speeds */
+#define ICE_INTRL_GRAN_ABOVE_25	4
+#define ICE_INTRL_GRAN_MAX_25	8
+	/* INTRL granularity in 1 us */
+	u8 intrl_gran;
+
 	u8 ucast_shared;	/* true if VSIs can share unicast addr */
 
 };

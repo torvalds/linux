@@ -230,6 +230,10 @@ struct ice_q_vector {
 	u8 num_ring_tx;			/* total number of tx rings in vector */
 	u8 num_ring_rx;			/* total number of rx rings in vector */
 	char name[ICE_INT_NAME_STR_LEN];
+	/* in usecs, need to use ice_intrl_to_usecs_reg() before writing this
+	 * value to the device
+	 */
+	u8 intrl;
 } ____cacheline_internodealigned_in_smp;
 
 enum ice_pf_flags {

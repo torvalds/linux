@@ -1406,7 +1406,7 @@ skip_req_irq:
 	       PFINT_FW_CTL_CAUSE_ENA_M);
 	wr32(hw, PFINT_FW_CTL, val);
 
-	itr_gran = hw->itr_gran_200;
+	itr_gran = hw->itr_gran;
 
 	wr32(hw, GLINT_ITR(ICE_RX_ITR, pf->hw_oicr_idx),
 	     ITR_TO_REG(ICE_ITR_8K, itr_gran));
