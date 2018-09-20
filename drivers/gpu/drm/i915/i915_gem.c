@@ -5419,6 +5419,14 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 
 	assert_kernel_context_is_current(i915);
 
+	/*
+	 * Immediately park the GPU so that we enable powersaving and
+	 * treat it as idle. The next time we issue a request, we will
+	 * unpark and start using the engine->pinned_default_state, otherwise
+	 * it is in limbo and an early reset may fail.
+	 */
+	__i915_gem_park(i915);
+
 	for_each_engine(engine, i915, id) {
 		struct i915_vma *state;
 		void *vaddr;
