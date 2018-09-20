@@ -6,6 +6,20 @@
 
 #include "ice.h"
 
+int ice_vsi_alloc_rings(struct ice_vsi *vsi);
+
+void ice_vsi_set_rss_params(struct ice_vsi *vsi);
+
+void ice_vsi_set_num_qs(struct ice_vsi *vsi);
+
+int ice_get_free_slot(void *array, int size, int curr);
+
+int ice_vsi_init(struct ice_vsi *vsi);
+
+void ice_vsi_clear_rings(struct ice_vsi *vsi);
+
+int ice_vsi_alloc_arrays(struct ice_vsi *vsi, bool alloc_qvectors);
+
 int ice_add_mac_to_list(struct ice_vsi *vsi, struct list_head *add_list,
 			const u8 *macaddr);
 
