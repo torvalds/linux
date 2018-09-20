@@ -457,9 +457,7 @@ static void intel_write_infoframe(struct drm_encoder *encoder,
 		return;
 
 	/* Insert the 'hole' (see big comment above) at position 3 */
-	buffer[0] = buffer[1];
-	buffer[1] = buffer[2];
-	buffer[2] = buffer[3];
+	memmove(&buffer[0], &buffer[1], 3);
 	buffer[3] = 0;
 	len++;
 
