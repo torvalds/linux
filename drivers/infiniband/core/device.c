@@ -123,8 +123,9 @@ static int ib_device_check_mandatory(struct ib_device *device)
 
 	for (i = 0; i < ARRAY_SIZE(mandatory_table); ++i) {
 		if (!*(void **) ((void *) device + mandatory_table[i].offset)) {
-			pr_warn("Device %s is missing mandatory function %s\n",
-				device->name, mandatory_table[i].name);
+			dev_warn(&device->dev,
+				 "Device is missing mandatory function %s\n",
+				 mandatory_table[i].name);
 			return -EINVAL;
 		}
 	}
@@ -513,20 +514,21 @@ int ib_register_device(struct ib_device *device, const char *name,
 
 	ret = read_port_immutable(device);
 	if (ret) {
-		pr_warn("Couldn't create per port immutable data %s\n",
-			device->name);
+		dev_warn(&device->dev,
+			 "Couldn't create per port immutable data\n");
 		goto out;
 	}
 
 	ret = setup_port_pkey_list(device);
 	if (ret) {
-		pr_warn("Couldn't create per port_pkey_list\n");
+		dev_warn(&device->dev, "Couldn't create per port_pkey_list\n");
 		goto out;
 	}
 
 	ret = ib_cache_setup_one(device);
 	if (ret) {
-		pr_warn("Couldn't set up InfiniBand P_Key/GID cache\n");
+		dev_warn(&device->dev,
+			 "Couldn't set up InfiniBand P_Key/GID cache\n");
 		goto port_cleanup;
 	}
 
@@ -534,21 +536,23 @@ int ib_register_device(struct ib_device *device, const char *name,
 
 	ret = ib_device_register_rdmacg(device);
 	if (ret) {
-		pr_warn("Couldn't register device with rdma cgroup\n");
+		dev_warn(&device->dev,
+			 "Couldn't register device with rdma cgroup\n");
 		goto cache_cleanup;
 	}
 
 	memset(&device->attrs, 0, sizeof(device->attrs));
 	ret = device->query_device(device, &device->attrs, &uhw);
 	if (ret) {
-		pr_warn("Couldn't query the device attributes\n");
+		dev_warn(&device->dev,
+			 "Couldn't query the device attributes\n");
 		goto cg_cleanup;
 	}
 
 	ret = ib_device_register_sysfs(device, port_callback);
 	if (ret) {
-		pr_warn("Couldn't register device %s with driver model\n",
-			device->name);
+		dev_warn(&device->dev,
+			 "Couldn't register device with driver model\n");
 		goto cg_cleanup;
 	}
 
@@ -699,8 +703,9 @@ void ib_unregister_client(struct ib_client *client)
 					       found_context->data : NULL);
 
 		if (!found_context) {
-			pr_warn("No client context found for %s/%s\n",
-				device->name, client->name);
+			dev_warn(&device->dev,
+				 "No client context found for %s\n",
+				 client->name);
 			continue;
 		}
 
@@ -764,8 +769,8 @@ void ib_set_client_data(struct ib_device *device, struct ib_client *client,
 			goto out;
 		}
 
-	pr_warn("No client context found for %s/%s\n",
-		device->name, client->name);
+	dev_warn(&device->dev, "No client context found for %s\n",
+		 client->name);
 
 out:
 	write_unlock_irqrestore(&device->client_data_lock, flags);

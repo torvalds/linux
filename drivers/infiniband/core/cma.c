@@ -2352,8 +2352,8 @@ static void cma_listen_on_dev(struct rdma_id_private *id_priv,
 
 	ret = rdma_listen(id, id_priv->backlog);
 	if (ret)
-		pr_warn("RDMA CMA: cma_listen_on_dev, error %d, listening on device %s\n",
-			ret, cma_dev->device->name);
+		dev_warn(&cma_dev->device->dev,
+			 "RDMA CMA: cma_listen_on_dev, error %d\n", ret);
 }
 
 static void cma_listen_on_all(struct rdma_id_private *id_priv)
@@ -4082,9 +4082,10 @@ static int cma_join_ib_multicast(struct rdma_id_private *id_priv,
 	    (!ib_sa_sendonly_fullmem_support(&sa_client,
 					     id_priv->id.device,
 					     id_priv->id.port_num))) {
-		pr_warn("RDMA CM: %s port %u Unable to multicast join\n"
-			"RDMA CM: SM doesn't support Send Only Full Member option\n",
-			id_priv->id.device->name, id_priv->id.port_num);
+		dev_warn(
+			&id_priv->id.device->dev,
+			"RDMA CM: port %u Unable to multicast join: SM doesn't support Send Only Full Member option\n",
+			id_priv->id.port_num);
 		return -EOPNOTSUPP;
 	}
 

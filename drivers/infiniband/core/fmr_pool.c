@@ -213,7 +213,7 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 	device = pd->device;
 	if (!device->alloc_fmr    || !device->dealloc_fmr  ||
 	    !device->map_phys_fmr || !device->unmap_fmr) {
-		pr_info(PFX "Device %s does not support FMRs\n", device->name);
+		dev_info(&device->dev, "Device does not support FMRs\n");
 		return ERR_PTR(-ENOSYS);
 	}
 

@@ -50,8 +50,7 @@ void rdma_restrack_clean(struct rdma_restrack_root *res)
 
 	dev = container_of(res, struct ib_device, res);
 	pr_err("restrack: %s", CUT_HERE);
-	pr_err("restrack: BUG: RESTRACK detected leak of resources on %s\n",
-	       dev->name);
+	dev_err(&dev->dev, "BUG: RESTRACK detected leak of resources\n");
 	hash_for_each(res->hash, bkt, e, node) {
 		if (rdma_is_kernel_res(e)) {
 			owner = e->kern_name;
