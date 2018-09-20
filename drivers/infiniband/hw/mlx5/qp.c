@@ -1115,6 +1115,7 @@ static int create_raw_packet_qp_sq(struct mlx5_ib_dev *dev,
 		goto err_umem;
 	}
 
+	MLX5_SET(create_sq_in, in, uid, to_mpd(pd)->uid);
 	sqc = MLX5_ADDR_OF(create_sq_in, in, ctx);
 	MLX5_SET(sqc, sqc, flush_in_error_en, 1);
 	if (MLX5_CAP_ETH(dev->mdev, multi_pkt_send_wqe))
@@ -2827,10 +2828,9 @@ out:
 	return err;
 }
 
-static int modify_raw_packet_qp_sq(struct mlx5_core_dev *dev,
-				   struct mlx5_ib_sq *sq,
-				   int new_state,
-				   const struct mlx5_modify_raw_qp_param *raw_qp_param)
+static int modify_raw_packet_qp_sq(
+	struct mlx5_core_dev *dev, struct mlx5_ib_sq *sq, int new_state,
+	const struct mlx5_modify_raw_qp_param *raw_qp_param, struct ib_pd *pd)
 {
 	struct mlx5_ib_qp *ibqp = sq->base.container_mibqp;
 	struct mlx5_rate_limit old_rl = ibqp->rl;
@@ -2847,6 +2847,7 @@ static int modify_raw_packet_qp_sq(struct mlx5_core_dev *dev,
 	if (!in)
 		return -ENOMEM;
 
+	MLX5_SET(modify_sq_in, in, uid, to_mpd(pd)->uid);
 	MLX5_SET(modify_sq_in, in, sq_state, sq->state);
 
 	sqc = MLX5_ADDR_OF(modify_sq_in, in, ctx);
@@ -2963,7 +2964,8 @@ static int modify_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 				return err;
 		}
 
-		return modify_raw_packet_qp_sq(dev->mdev, sq, sq_state, raw_qp_param);
+		return modify_raw_packet_qp_sq(dev->mdev, sq, sq_state,
+					       raw_qp_param, qp->ibqp.pd);
 	}
 
 	return 0;
