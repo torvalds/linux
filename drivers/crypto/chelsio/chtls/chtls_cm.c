@@ -234,8 +234,7 @@ static void chtls_send_reset(struct sock *sk, int mode, struct sk_buff *skb)
 
 	return;
 out:
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 }
 
 static void release_tcp_port(struct sock *sk)
