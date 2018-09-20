@@ -190,10 +190,8 @@ qed_dcbx_dp_protocol(struct qed_hwfn *p_hwfn, struct qed_dcbx_results *p_data)
 
 static void
 qed_dcbx_set_params(struct qed_dcbx_results *p_data,
-		    struct qed_hw_info *p_info,
-		    bool enable,
-		    u8 prio,
-		    u8 tc,
+		    struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		    bool enable, u8 prio, u8 tc,
 		    enum dcbx_protocol_type type,
 		    enum qed_pci_personality personality)
 {
@@ -206,19 +204,30 @@ qed_dcbx_set_params(struct qed_dcbx_results *p_data,
 	else
 		p_data->arr[type].update = DONT_UPDATE_DCB_DSCP;
 
+	/* Do not add vlan tag 0 when DCB is enabled and port in UFP/OV mode */
+	if ((test_bit(QED_MF_8021Q_TAGGING, &p_hwfn->cdev->mf_bits) ||
+	     test_bit(QED_MF_8021AD_TAGGING, &p_hwfn->cdev->mf_bits)))
+		p_data->arr[type].dont_add_vlan0 = true;
+
 	/* QM reconf data */
-	if (p_info->personality == personality)
-		qed_hw_info_set_offload_tc(p_info, tc);
+	if (p_hwfn->hw_info.personality == personality)
+		qed_hw_info_set_offload_tc(&p_hwfn->hw_info, tc);
+
+	/* Configure dcbx vlan priority in doorbell block for roce EDPM */
+	if (test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits) &&
+	    type == DCBX_PROTOCOL_ROCE) {
+		qed_wr(p_hwfn, p_ptt, DORQ_REG_TAG1_OVRD_MODE, 1);
+		qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_PCP_BB_K2, prio << 1);
+	}
 }
 
 /* Update app protocol data and hw_info fields with the TLV info */
 static void
 qed_dcbx_update_app_info(struct qed_dcbx_results *p_data,
-			 struct qed_hwfn *p_hwfn,
-			 bool enable,
-			 u8 prio, u8 tc, enum dcbx_protocol_type type)
+			 struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			 bool enable, u8 prio, u8 tc,
+			 enum dcbx_protocol_type type)
 {
-	struct qed_hw_info *p_info = &p_hwfn->hw_info;
 	enum qed_pci_personality personality;
 	enum dcbx_protocol_type id;
 	int i;
@@ -231,7 +240,7 @@ qed_dcbx_update_app_info(struct qed_dcbx_results *p_data,
 
 		personality = qed_dcbx_app_update[i].personality;
 
-		qed_dcbx_set_params(p_data, p_info, enable,
+		qed_dcbx_set_params(p_data, p_hwfn, p_ptt, enable,
 				    prio, tc, type, personality);
 	}
 }
@@ -265,7 +274,7 @@ qed_dcbx_get_app_protocol_type(struct qed_hwfn *p_hwfn,
  * reconfiguring QM. Get protocol specific data for PF update ramrod command.
  */
 static int
-qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
+qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		     struct qed_dcbx_results *p_data,
 		     struct dcbx_app_priority_entry *p_tbl,
 		     u32 pri_tc_tbl, int count, u8 dcbx_version)
@@ -309,7 +318,7 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
 				enable = true;
 			}
 
-			qed_dcbx_update_app_info(p_data, p_hwfn, enable,
+			qed_dcbx_update_app_info(p_data, p_hwfn, p_ptt, enable,
 						 priority, tc, type);
 		}
 	}
@@ -331,7 +340,7 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
 			continue;
 
 		enable = (type == DCBX_PROTOCOL_ETH) ? false : !!dcbx_version;
-		qed_dcbx_update_app_info(p_data, p_hwfn, enable,
+		qed_dcbx_update_app_info(p_data, p_hwfn, p_ptt, enable,
 					 priority, tc, type);
 	}
 
@@ -341,7 +350,8 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
 /* Parse app TLV's to update TC information in hw_info structure for
  * reconfiguring QM. Get protocol specific data for PF update ramrod command.
  */
-static int qed_dcbx_process_mib_info(struct qed_hwfn *p_hwfn)
+static int
+qed_dcbx_process_mib_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct dcbx_app_priority_feature *p_app;
 	struct dcbx_app_priority_entry *p_tbl;
@@ -365,7 +375,7 @@ static int qed_dcbx_process_mib_info(struct qed_hwfn *p_hwfn)
 	p_info = &p_hwfn->hw_info;
 	num_entries = QED_MFW_GET_FIELD(p_app->flags, DCBX_APP_NUM_ENTRIES);
 
-	rc = qed_dcbx_process_tlv(p_hwfn, &data, p_tbl, pri_tc_tbl,
+	rc = qed_dcbx_process_tlv(p_hwfn, p_ptt, &data, p_tbl, pri_tc_tbl,
 				  num_entries, dcbx_version);
 	if (rc)
 		return rc;
@@ -891,7 +901,7 @@ qed_dcbx_mib_update_event(struct qed_hwfn *p_hwfn,
 		return rc;
 
 	if (type == QED_DCBX_OPERATIONAL_MIB) {
-		rc = qed_dcbx_process_mib_info(p_hwfn);
+		rc = qed_dcbx_process_mib_info(p_hwfn, p_ptt);
 		if (!rc) {
 			/* reconfigure tcs of QM queues according
 			 * to negotiation results
@@ -954,6 +964,7 @@ static void qed_dcbx_update_protocol_data(struct protocol_dcb_data *p_data,
 	p_data->dcb_enable_flag = p_src->arr[type].enable;
 	p_data->dcb_priority = p_src->arr[type].priority;
 	p_data->dcb_tc = p_src->arr[type].tc;
+	p_data->dcb_dont_add_vlan0 = p_src->arr[type].dont_add_vlan0;
 }
 
 /* Set pf update ramrod command params */
