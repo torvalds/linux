@@ -693,16 +693,27 @@ static long slb_allocate_kernel(unsigned long ea, unsigned long id)
 	unsigned long flags;
 	int ssize;
 
-	if ((ea & ~REGION_MASK) >= (1ULL << MAX_EA_BITS_PER_CONTEXT))
-		return -EFAULT;
-
 	if (id == KERNEL_REGION_ID) {
+
+		/* We only support upto MAX_PHYSMEM_BITS */
+		if ((ea & ~REGION_MASK) > (1UL << MAX_PHYSMEM_BITS))
+			return -EFAULT;
+
 		flags = SLB_VSID_KERNEL | mmu_psize_defs[mmu_linear_psize].sllp;
+
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 	} else if (id == VMEMMAP_REGION_ID) {
+
+		if ((ea & ~REGION_MASK) >= (1ULL << MAX_EA_BITS_PER_CONTEXT))
+			return -EFAULT;
+
 		flags = SLB_VSID_KERNEL | mmu_psize_defs[mmu_vmemmap_psize].sllp;
 #endif
 	} else if (id == VMALLOC_REGION_ID) {
+
+		if ((ea & ~REGION_MASK) >= (1ULL << MAX_EA_BITS_PER_CONTEXT))
+			return -EFAULT;
+
 		if (ea < H_VMALLOC_END)
 			flags = get_paca()->vmalloc_sllp;
 		else
@@ -715,8 +726,7 @@ static long slb_allocate_kernel(unsigned long ea, unsigned long id)
 	if (!mmu_has_feature(MMU_FTR_1T_SEGMENT))
 		ssize = MMU_SEGSIZE_256M;
 
-	context = id - KERNEL_REGION_CONTEXT_OFFSET;
-
+	context = get_kernel_context(ea);
 	return slb_insert_entry(ea, context, flags, ssize, true);
 }
 
