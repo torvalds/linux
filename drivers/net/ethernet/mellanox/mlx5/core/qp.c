@@ -211,6 +211,7 @@ int mlx5_core_create_dct(struct mlx5_core_dev *dev,
 	}
 
 	qp->qpn = MLX5_GET(create_dct_out, out, dctn);
+	qp->uid = MLX5_GET(create_dct_in, in, uid);
 	err = create_resource_common(dev, qp, MLX5_RES_DCT);
 	if (err)
 		goto err_cmd;
@@ -219,6 +220,7 @@ int mlx5_core_create_dct(struct mlx5_core_dev *dev,
 err_cmd:
 	MLX5_SET(destroy_dct_in, din, opcode, MLX5_CMD_OP_DESTROY_DCT);
 	MLX5_SET(destroy_dct_in, din, dctn, qp->qpn);
+	MLX5_SET(destroy_dct_in, din, uid, qp->uid);
 	mlx5_cmd_exec(dev, (void *)&in, sizeof(din),
 		      (void *)&out, sizeof(dout));
 	return err;
@@ -277,6 +279,7 @@ static int mlx5_core_drain_dct(struct mlx5_core_dev *dev,
 
 	MLX5_SET(drain_dct_in, in, opcode, MLX5_CMD_OP_DRAIN_DCT);
 	MLX5_SET(drain_dct_in, in, dctn, qp->qpn);
+	MLX5_SET(drain_dct_in, in, uid, qp->uid);
 	return mlx5_cmd_exec(dev, (void *)&in, sizeof(in),
 			     (void *)&out, sizeof(out));
 }
@@ -303,6 +306,7 @@ destroy:
 	destroy_resource_common(dev, &dct->mqp);
 	MLX5_SET(destroy_dct_in, in, opcode, MLX5_CMD_OP_DESTROY_DCT);
 	MLX5_SET(destroy_dct_in, in, dctn, qp->qpn);
+	MLX5_SET(destroy_dct_in, in, uid, qp->uid);
 	err = mlx5_cmd_exec(dev, (void *)&in, sizeof(in),
 			    (void *)&out, sizeof(out));
 	return err;
