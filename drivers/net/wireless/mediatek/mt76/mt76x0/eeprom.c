@@ -126,44 +126,21 @@ void mt76x0_read_rx_gain(struct mt76x0_dev *dev)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	struct mt76x0_caldata *caldata = &dev->caldata;
-	s8 lna_5g[3], lna_2g;
+	s8 val, lna_5g[3], lna_2g;
 	u16 rssi_offset;
+	int i;
 
 	mt76x02_get_rx_gain(&dev->mt76, chan->band, &rssi_offset,
 			    &lna_2g, lna_5g);
 	caldata->lna_gain = mt76x02_get_lna_gain(&dev->mt76, &lna_2g,
 						 lna_5g, chan);
 
-}
+	for (i = 0; i < ARRAY_SIZE(caldata->rssi_offset); i++) {
+		val = rssi_offset >> (8 * i);
+		if (val < -10 || val > 10)
+			val = 0;
 
-static void
-mt76x0_set_rssi_offset(struct mt76x0_dev *dev, u8 *eeprom)
-{
-	int i;
-	s8 *rssi_offset = dev->ee->rssi_offset_2ghz;
-
-	for (i = 0; i < 2; i++) {
-		rssi_offset[i] = eeprom[MT_EE_RSSI_OFFSET_2G_0 + i];
-
-		if (rssi_offset[i] < -10 || rssi_offset[i] > 10) {
-			dev_warn(dev->mt76.dev,
-				 "Warning: EEPROM RSSI is invalid %02hhx\n",
-				 rssi_offset[i]);
-			rssi_offset[i] = 0;
-		}
-	}
-
-	rssi_offset = dev->ee->rssi_offset_5ghz;
-
-	for (i = 0; i < 3; i++) {
-		rssi_offset[i] = eeprom[MT_EE_RSSI_OFFSET_5G_0 + i];
-
-		if (rssi_offset[i] < -10 || rssi_offset[i] > 10) {
-			dev_warn(dev->mt76.dev,
-				 "Warning: EEPROM RSSI is invalid %02hhx\n",
-				 rssi_offset[i]);
-			rssi_offset[i] = 0;
-		}
+		caldata->rssi_offset[i] = val;
 	}
 }
 
@@ -311,7 +288,6 @@ mt76x0_eeprom_init(struct mt76x0_dev *dev)
 	mt76x0_set_chip_cap(dev, eeprom);
 	mt76x0_set_rf_freq_off(dev, eeprom);
 	mt76x0_set_temp_offset(dev, eeprom);
-	mt76x0_set_rssi_offset(dev, eeprom);
 	dev->chainmask = 0x0101;
 
 	mt76x0_set_tx_power_per_rate(dev, eeprom);

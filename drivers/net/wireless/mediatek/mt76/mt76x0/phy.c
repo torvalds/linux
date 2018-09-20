@@ -229,18 +229,8 @@ mt76x0_bbp_set_ctrlch(struct mt76x0_dev *dev, enum nl80211_chan_width width,
 int mt76x0_phy_get_rssi(struct mt76x0_dev *dev, struct mt76x02_rxwi *rxwi)
 {
 	struct mt76x0_caldata *caldata = &dev->caldata;
-	s8 rssi_offset;
-	int val;
 
-	if (dev->mt76.chandef.chan->band == NL80211_BAND_2GHZ) {
-		rssi_offset = dev->ee->rssi_offset_2ghz[0];
-	} else {
-		rssi_offset = dev->ee->rssi_offset_5ghz[0];
-	}
-
-	val = rxwi->rssi[0] + rssi_offset - caldata->lna_gain;
-
-	return val;
+	return rxwi->rssi[0] + caldata->rssi_offset[0] - caldata->lna_gain;
 }
 
 static void mt76x0_vco_cal(struct mt76x0_dev *dev, u8 channel)

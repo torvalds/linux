@@ -103,11 +103,8 @@ mt76x0_eeprom_param_read(struct seq_file *file, void *data)
 	int i;
 
 	seq_printf(file, "RF freq offset: %hhx\n", dev->ee->rf_freq_off);
-	seq_printf(file, "RSSI offset 2GHz: %hhx %hhx\n",
-		   dev->ee->rssi_offset_2ghz[0], dev->ee->rssi_offset_2ghz[1]);
-	seq_printf(file, "RSSI offset 5GHz: %hhx %hhx %hhx\n",
-		   dev->ee->rssi_offset_5ghz[0], dev->ee->rssi_offset_5ghz[1],
-		   dev->ee->rssi_offset_5ghz[2]);
+	seq_printf(file, "RSSI offset: %hhx %hhx\n",
+		   dev->caldata.rssi_offset[0], dev->caldata.rssi_offset[1]);
 	seq_printf(file, "Temperature offset: %hhx\n", dev->ee->temp_off);
 	seq_printf(file, "LNA gain: %x\n", dev->caldata.lna_gain);
 
