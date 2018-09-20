@@ -66,20 +66,9 @@ static const char *drm_syncobj_stub_fence_get_name(struct dma_fence *fence)
         return "syncobjstub";
 }
 
-static bool drm_syncobj_stub_fence_enable_signaling(struct dma_fence *fence)
-{
-    return !dma_fence_is_signaled(fence);
-}
-
-static void drm_syncobj_stub_fence_release(struct dma_fence *f)
-{
-	kfree(f);
-}
 static const struct dma_fence_ops drm_syncobj_stub_fence_ops = {
 	.get_driver_name = drm_syncobj_stub_fence_get_name,
 	.get_timeline_name = drm_syncobj_stub_fence_get_name,
-	.enable_signaling = drm_syncobj_stub_fence_enable_signaling,
-	.release = drm_syncobj_stub_fence_release,
 };
 
 
