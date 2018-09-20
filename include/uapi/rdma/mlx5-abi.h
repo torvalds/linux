@@ -351,9 +351,22 @@ struct mlx5_ib_create_qp_rss {
 	__u32	flags;
 };
 
+enum mlx5_ib_create_qp_resp_mask {
+	MLX5_IB_CREATE_QP_RESP_MASK_TIRN = 1UL << 0,
+	MLX5_IB_CREATE_QP_RESP_MASK_TISN = 1UL << 1,
+	MLX5_IB_CREATE_QP_RESP_MASK_RQN  = 1UL << 2,
+	MLX5_IB_CREATE_QP_RESP_MASK_SQN  = 1UL << 3,
+};
+
 struct mlx5_ib_create_qp_resp {
 	__u32	bfreg_index;
 	__u32   reserved;
+	__u32	comp_mask;
+	__u32	tirn;
+	__u32	tisn;
+	__u32	rqn;
+	__u32	sqn;
+	__u32   reserved1;
 };
 
 struct mlx5_ib_alloc_mw {
