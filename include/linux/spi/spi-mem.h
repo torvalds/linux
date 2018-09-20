@@ -81,8 +81,8 @@ enum spi_mem_data_dir {
  * @data.dir: direction of the transfer
  * @data.nbytes: number of data bytes to send/receive. Can be zero if the
  *		 operation does not involve transferring data
- * @data.buf.in: input buffer
- * @data.buf.out: output buffer
+ * @data.buf.in: input buffer (must be DMA-able)
+ * @data.buf.out: output buffer (must be DMA-able)
  */
 struct spi_mem_op {
 	struct {
@@ -105,7 +105,6 @@ struct spi_mem_op {
 		u8 buswidth;
 		enum spi_mem_data_dir dir;
 		unsigned int nbytes;
-		/* buf.{in,out} must be DMA-able. */
 		union {
 			void *in;
 			const void *out;
