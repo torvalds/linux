@@ -105,5 +105,7 @@ int mt76x02_mcu_function_select(struct mt76_dev *dev,
 				u32 val, bool wait_resp);
 int mt76x02_mcu_set_radio_state(struct mt76_dev *dev, bool on,
 				bool wait_resp);
+void mt76x02_set_ethtool_fwver(struct mt76_dev *dev,
+			       const struct mt76x02_fw_header *h);
 
 #endif /* __MT76x02_MCU_H */

@@ -154,6 +154,7 @@ mt76pci_load_firmware(struct mt76x2_dev *dev)
 	}
 
 	dev_info(dev->mt76.dev, "Firmware running!\n");
+	mt76x02_set_ethtool_fwver(&dev->mt76, hdr);
 
 	release_firmware(fw);
 
