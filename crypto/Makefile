@@ -142,6 +142,7 @@ obj-$(CONFIG_CRYPTO_USER_API_SKCIPHER) += algif_skcipher.o
 obj-$(CONFIG_CRYPTO_USER_API_RNG) += algif_rng.o
 obj-$(CONFIG_CRYPTO_USER_API_AEAD) += algif_aead.o
 obj-$(CONFIG_CRYPTO_ZSTD) += zstd.o
+obj-$(CONFIG_CRYPTO_OFB) += ofb.o
 
 ecdh_generic-y := ecc.o
 ecdh_generic-y += ecdh.o
