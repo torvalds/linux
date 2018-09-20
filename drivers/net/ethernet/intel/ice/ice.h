@@ -172,7 +172,8 @@ struct ice_vsi {
 	u32 rx_buf_failed;
 	u32 rx_page_failed;
 	int num_q_vectors;
-	int base_vector;
+	int sw_base_vector;		/* Irq base for OS reserved vectors */
+	int hw_base_vector;		/* HW (absolute) index of a vector */
 	enum ice_vsi_type type;
 	u16 vsi_num;			 /* HW (absolute) index of this VSI */
 	u16 idx;			 /* software index in pf->vsi[] */
@@ -240,8 +241,14 @@ enum ice_pf_flags {
 
 struct ice_pf {
 	struct pci_dev *pdev;
+
+	/* OS reserved IRQ details */
 	struct msix_entry *msix_entries;
-	struct ice_res_tracker *irq_tracker;
+	struct ice_res_tracker *sw_irq_tracker;
+
+	/* HW reserved Interrupts for this PF */
+	struct ice_res_tracker *hw_irq_tracker;
+
 	struct ice_vsi **vsi;		/* VSIs created by the driver */
 	struct ice_sw *first_sw;	/* first switch created by firmware */
 	DECLARE_BITMAP(state, __ICE_STATE_NBITS);
@@ -256,9 +263,11 @@ struct ice_pf {
 	struct mutex sw_mutex;		/* lock for protecting VSI alloc flow */
 	u32 msg_enable;
 	u32 hw_csum_rx_error;
-	u32 oicr_idx;		/* Other interrupt cause vector index */
+	u32 sw_oicr_idx;	/* Other interrupt cause SW vector index */
+	u32 num_avail_sw_msix;	/* remaining MSIX SW vectors left unclaimed */
+	u32 hw_oicr_idx;	/* Other interrupt cause vector HW index */
+	u32 num_avail_hw_msix;	/* remaining HW MSIX vectors left unclaimed */
 	u32 num_lan_msix;	/* Total MSIX vectors for base driver */
-	u32 num_avail_msix;	/* remaining MSIX vectors left unclaimed */
 	u16 num_lan_tx;		/* num lan tx queues setup */
 	u16 num_lan_rx;		/* num lan rx queues setup */
 	u16 q_left_tx;		/* remaining num tx queues left unclaimed */
@@ -293,8 +302,8 @@ struct ice_netdev_priv {
 static inline void ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
 				       struct ice_q_vector *q_vector)
 {
-	u32 vector = (vsi && q_vector) ? vsi->base_vector + q_vector->v_idx :
-					((struct ice_pf *)hw->back)->oicr_idx;
+	u32 vector = (vsi && q_vector) ? vsi->hw_base_vector + q_vector->v_idx :
+				((struct ice_pf *)hw->back)->hw_oicr_idx;
 	int itr = ICE_ITR_NONE;
 	u32 val;
 
