@@ -576,6 +576,24 @@ static int pp_dpm_get_fan_speed_rpm(void *handle, uint32_t *rpm)
 	return ret;
 }
 
+static int pp_dpm_set_fan_speed_rpm(void *handle, uint32_t rpm)
+{
+	struct pp_hwmgr *hwmgr = handle;
+	int ret = 0;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->set_fan_speed_rpm == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return 0;
+	}
+	mutex_lock(&hwmgr->smu_lock);
+	ret = hwmgr->hwmgr_func->set_fan_speed_rpm(hwmgr, rpm);
+	mutex_unlock(&hwmgr->smu_lock);
+	return ret;
+}
+
 static int pp_dpm_get_pp_num_states(void *handle,
 		struct pp_states_info *data)
 {
@@ -1297,6 +1315,7 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.set_fan_speed_percent = pp_dpm_set_fan_speed_percent,
 	.get_fan_speed_percent = pp_dpm_get_fan_speed_percent,
 	.get_fan_speed_rpm = pp_dpm_get_fan_speed_rpm,
+	.set_fan_speed_rpm = pp_dpm_set_fan_speed_rpm,
 	.get_pp_num_states = pp_dpm_get_pp_num_states,
 	.get_pp_table = pp_dpm_get_pp_table,
 	.set_pp_table = pp_dpm_set_pp_table,
