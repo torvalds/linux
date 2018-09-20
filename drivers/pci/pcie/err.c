@@ -52,9 +52,8 @@ static int report_error_detected(struct pci_dev *dev,
 	const struct pci_error_handlers *err_handler;
 
 	device_lock(&dev->dev);
-	dev->error_state = state;
-
-	if (!dev->driver ||
+	if (!pci_dev_set_io_state(dev, state) ||
+		!dev->driver ||
 		!dev->driver->err_handler ||
 		!dev->driver->err_handler->error_detected) {
 		/*
@@ -130,9 +129,8 @@ static int report_resume(struct pci_dev *dev, void *data)
 	const struct pci_error_handlers *err_handler;
 
 	device_lock(&dev->dev);
-	dev->error_state = pci_channel_io_normal;
-
-	if (!dev->driver ||
+	if (!pci_dev_set_io_state(dev, pci_channel_io_normal) ||
+		!dev->driver ||
 		!dev->driver->err_handler ||
 		!dev->driver->err_handler->resume)
 		goto out;
