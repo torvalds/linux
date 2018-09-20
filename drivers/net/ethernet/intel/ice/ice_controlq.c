@@ -597,11 +597,11 @@ static enum ice_status ice_init_check_adminq(struct ice_hw *hw)
 	return 0;
 
 init_ctrlq_free_rq:
-	if (cq->rq.head) {
+	if (cq->rq.count) {
 		ice_shutdown_rq(hw, cq);
 		mutex_destroy(&cq->rq_lock);
 	}
-	if (cq->sq.head) {
+	if (cq->sq.count) {
 		ice_shutdown_sq(hw, cq);
 		mutex_destroy(&cq->sq_lock);
 	}
@@ -710,11 +710,11 @@ static void ice_shutdown_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type)
 		return;
 	}
 
-	if (cq->sq.head) {
+	if (cq->sq.count) {
 		ice_shutdown_sq(hw, cq);
 		mutex_destroy(&cq->sq_lock);
 	}
-	if (cq->rq.head) {
+	if (cq->rq.count) {
 		ice_shutdown_rq(hw, cq);
 		mutex_destroy(&cq->rq_lock);
 	}
