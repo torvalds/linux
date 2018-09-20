@@ -27,6 +27,7 @@
 #include <asm/intel_rdt_sched.h>
 #include <asm/perf_event.h>
 
+#include "../../events/perf_event.h" /* For X86_CONFIG() */
 #include "intel_rdt.h"
 
 #define CREATE_TRACE_POINTS
@@ -105,16 +106,6 @@ static u64 get_prefetch_disable_bits(void)
 	}
 
 	return 0;
-}
-
-/*
- * Helper to write 64bit value to MSR without tracing. Used when
- * use of the cache should be restricted and use of registers used
- * for local variables avoided.
- */
-static inline void pseudo_wrmsrl_notrace(unsigned int msr, u64 val)
-{
-	__wrmsr(msr, (u32)(val & 0xffffffffULL), (u32)(val >> 32));
 }
 
 /**
@@ -925,7 +916,7 @@ static int measure_cycles_lat_fn(void *_plr)
  * The actual configuration of the event is set right before use in order
  * to use the X86_CONFIG macro.
  */
-static struct perf_event_attr __attribute__((unused)) perf_miss_attr = {
+static struct perf_event_attr perf_miss_attr = {
 	.type		= PERF_TYPE_RAW,
 	.size		= sizeof(struct perf_event_attr),
 	.pinned		= 1,
@@ -933,7 +924,7 @@ static struct perf_event_attr __attribute__((unused)) perf_miss_attr = {
 	.exclude_user	= 1,
 };
 
-static struct perf_event_attr __attribute__((unused)) perf_hit_attr = {
+static struct perf_event_attr perf_hit_attr = {
 	.type		= PERF_TYPE_RAW,
 	.size		= sizeof(struct perf_event_attr),
 	.pinned		= 1,
@@ -941,139 +932,215 @@ static struct perf_event_attr __attribute__((unused)) perf_hit_attr = {
 	.exclude_user	= 1,
 };
 
-static int measure_cycles_perf_fn(void *_plr)
+struct residency_counts {
+	u64 miss_before, hits_before;
+	u64 miss_after,  hits_after;
+};
+
+static int measure_residency_fn(struct perf_event_attr *miss_attr,
+				struct perf_event_attr *hit_attr,
+				struct pseudo_lock_region *plr,
+				struct residency_counts *counts)
 {
-	unsigned long long l3_hits = 0, l3_miss = 0;
-	u64 l3_hit_bits = 0, l3_miss_bits = 0;
-	struct pseudo_lock_region *plr = _plr;
-	unsigned long long l2_hits, l2_miss;
-	u64 l2_hit_bits, l2_miss_bits;
+	u64 hits_before = 0, hits_after = 0, miss_before = 0, miss_after = 0;
+	struct perf_event *miss_event, *hit_event;
+	int hit_pmcnum, miss_pmcnum;
 	unsigned int line_size;
 	unsigned int size;
 	unsigned long i;
 	void *mem_r;
+	u64 tmp;
 
-	/*
-	 * Non-architectural event for the Goldmont Microarchitecture
-	 * from Intel x86 Architecture Software Developer Manual (SDM):
-	 * MEM_LOAD_UOPS_RETIRED D1H (event number)
-	 * Umask values:
-	 *     L1_HIT   01H
-	 *     L2_HIT   02H
-	 *     L1_MISS  08H
-	 *     L2_MISS  10H
-	 *
-	 * On Broadwell Microarchitecture the MEM_LOAD_UOPS_RETIRED event
-	 * has two "no fix" errata associated with it: BDM35 and BDM100. On
-	 * this platform we use the following events instead:
-	 *  L2_RQSTS 24H (Documented in https://download.01.org/perfmon/BDW/)
-	 *       REFERENCES FFH
-	 *       MISS       3FH
-	 *  LONGEST_LAT_CACHE 2EH (Documented in SDM)
-	 *       REFERENCE 4FH
-	 *       MISS      41H
-	 */
-
-	/*
-	 * Start by setting flags for IA32_PERFEVTSELx:
-	 *     OS  (Operating system mode)  0x2
-	 *     INT (APIC interrupt enable)  0x10
-	 *     EN  (Enable counter)         0x40
-	 *
-	 * Then add the Umask value and event number to select performance
-	 * event.
-	 */
-
-	switch (boot_cpu_data.x86_model) {
-	case INTEL_FAM6_ATOM_GOLDMONT:
-	case INTEL_FAM6_ATOM_GEMINI_LAKE:
-		l2_hit_bits = (0x52ULL << 16) | (0x2 << 8) | 0xd1;
-		l2_miss_bits = (0x52ULL << 16) | (0x10 << 8) | 0xd1;
-		break;
-	case INTEL_FAM6_BROADWELL_X:
-		/* On BDW the l2_hit_bits count references, not hits */
-		l2_hit_bits = (0x52ULL << 16) | (0xff << 8) | 0x24;
-		l2_miss_bits = (0x52ULL << 16) | (0x3f << 8) | 0x24;
-		/* On BDW the l3_hit_bits count references, not hits */
-		l3_hit_bits = (0x52ULL << 16) | (0x4f << 8) | 0x2e;
-		l3_miss_bits = (0x52ULL << 16) | (0x41 << 8) | 0x2e;
-		break;
-	default:
+	miss_event = perf_event_create_kernel_counter(miss_attr, plr->cpu,
+						      NULL, NULL, NULL);
+	if (IS_ERR(miss_event))
 		goto out;
-	}
+
+	hit_event = perf_event_create_kernel_counter(hit_attr, plr->cpu,
+						     NULL, NULL, NULL);
+	if (IS_ERR(hit_event))
+		goto out_miss;
 
 	local_irq_disable();
+	/*
+	 * Check any possible error state of events used by performing
+	 * one local read.
+	 */
+	if (perf_event_read_local(miss_event, &tmp, NULL, NULL)) {
+		local_irq_enable();
+		goto out_hit;
+	}
+	if (perf_event_read_local(hit_event, &tmp, NULL, NULL)) {
+		local_irq_enable();
+		goto out_hit;
+	}
+
 	/*
 	 * Disable hardware prefetchers.
 	 */
 	wrmsr(MSR_MISC_FEATURE_CONTROL, prefetch_disable_bits, 0x0);
-	/* Disable events and reset counters */
-	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0, 0x0);
-	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 1, 0x0);
-	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_PERFCTR0, 0x0);
-	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_PERFCTR0 + 1, 0x0);
-	if (l3_hit_bits > 0) {
-		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 2, 0x0);
-		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 3, 0x0);
-		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_PERFCTR0 + 2, 0x0);
-		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_PERFCTR0 + 3, 0x0);
-	}
-	/* Set and enable the L2 counters */
+
+	/* Initialize rest of local variables */
+	/*
+	 * Performance event has been validated right before this with
+	 * interrupts disabled - it is thus safe to read the counter index.
+	 */
+	miss_pmcnum = x86_perf_rdpmc_index(miss_event);
+	hit_pmcnum = x86_perf_rdpmc_index(hit_event);
+	line_size = READ_ONCE(plr->line_size);
 	mem_r = READ_ONCE(plr->kmem);
 	size = READ_ONCE(plr->size);
-	line_size = READ_ONCE(plr->line_size);
-	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0, l2_hit_bits);
-	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 1, l2_miss_bits);
-	if (l3_hit_bits > 0) {
-		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 2,
-				      l3_hit_bits);
-		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 3,
-				      l3_miss_bits);
-	}
+
+	/*
+	 * Read counter variables twice - first to load the instructions
+	 * used in L1 cache, second to capture accurate value that does not
+	 * include cache misses incurred because of instruction loads.
+	 */
+	rdpmcl(hit_pmcnum, hits_before);
+	rdpmcl(miss_pmcnum, miss_before);
+	/*
+	 * From SDM: Performing back-to-back fast reads are not guaranteed
+	 * to be monotonic.
+	 * Use LFENCE to ensure all previous instructions are retired
+	 * before proceeding.
+	 */
+	rmb();
+	rdpmcl(hit_pmcnum, hits_before);
+	rdpmcl(miss_pmcnum, miss_before);
+	/*
+	 * Use LFENCE to ensure all previous instructions are retired
+	 * before proceeding.
+	 */
+	rmb();
 	for (i = 0; i < size; i += line_size) {
+		/*
+		 * Add a barrier to prevent speculative execution of this
+		 * loop reading beyond the end of the buffer.
+		 */
+		rmb();
 		asm volatile("mov (%0,%1,1), %%eax\n\t"
 			     :
 			     : "r" (mem_r), "r" (i)
 			     : "%eax", "memory");
 	}
 	/*
-	 * Call wrmsr directly (no tracing) to not influence
-	 * the cache access counters as they are disabled.
+	 * Use LFENCE to ensure all previous instructions are retired
+	 * before proceeding.
 	 */
-	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0,
-			      l2_hit_bits & ~(0x40ULL << 16));
-	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 1,
-			      l2_miss_bits & ~(0x40ULL << 16));
-	if (l3_hit_bits > 0) {
-		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 2,
-				      l3_hit_bits & ~(0x40ULL << 16));
-		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 3,
-				      l3_miss_bits & ~(0x40ULL << 16));
-	}
-	l2_hits = native_read_pmc(0);
-	l2_miss = native_read_pmc(1);
-	if (l3_hit_bits > 0) {
-		l3_hits = native_read_pmc(2);
-		l3_miss = native_read_pmc(3);
-	}
+	rmb();
+	rdpmcl(hit_pmcnum, hits_after);
+	rdpmcl(miss_pmcnum, miss_after);
+	/*
+	 * Use LFENCE to ensure all previous instructions are retired
+	 * before proceeding.
+	 */
+	rmb();
+	/* Re-enable hardware prefetchers */
 	wrmsr(MSR_MISC_FEATURE_CONTROL, 0x0, 0x0);
 	local_irq_enable();
+out_hit:
+	perf_event_release_kernel(hit_event);
+out_miss:
+	perf_event_release_kernel(miss_event);
+out:
 	/*
-	 * On BDW we count references and misses, need to adjust. Sometimes
-	 * the "hits" counter is a bit more than the references, for
-	 * example, x references but x + 1 hits. To not report invalid
-	 * hit values in this case we treat that as misses eaqual to
-	 * references.
+	 * All counts will be zero on failure.
 	 */
-	if (boot_cpu_data.x86_model == INTEL_FAM6_BROADWELL_X)
-		l2_hits -= (l2_miss > l2_hits ? l2_hits : l2_miss);
-	trace_pseudo_lock_l2(l2_hits, l2_miss);
-	if (l3_hit_bits > 0) {
-		if (boot_cpu_data.x86_model == INTEL_FAM6_BROADWELL_X)
-			l3_hits -= (l3_miss > l3_hits ? l3_hits : l3_miss);
-		trace_pseudo_lock_l3(l3_hits, l3_miss);
+	counts->miss_before = miss_before;
+	counts->hits_before = hits_before;
+	counts->miss_after  = miss_after;
+	counts->hits_after  = hits_after;
+	return 0;
+}
+
+static int measure_l2_residency(void *_plr)
+{
+	struct pseudo_lock_region *plr = _plr;
+	struct residency_counts counts = {0};
+
+	/*
+	 * Non-architectural event for the Goldmont Microarchitecture
+	 * from Intel x86 Architecture Software Developer Manual (SDM):
+	 * MEM_LOAD_UOPS_RETIRED D1H (event number)
+	 * Umask values:
+	 *     L2_HIT   02H
+	 *     L2_MISS  10H
+	 */
+	switch (boot_cpu_data.x86_model) {
+	case INTEL_FAM6_ATOM_GOLDMONT:
+	case INTEL_FAM6_ATOM_GEMINI_LAKE:
+		perf_miss_attr.config = X86_CONFIG(.event = 0xd1,
+						   .umask = 0x10);
+		perf_hit_attr.config = X86_CONFIG(.event = 0xd1,
+						  .umask = 0x2);
+		break;
+	default:
+		goto out;
 	}
 
+	measure_residency_fn(&perf_miss_attr, &perf_hit_attr, plr, &counts);
+	/*
+	 * If a failure prevented the measurements from succeeding
+	 * tracepoints will still be written and all counts will be zero.
+	 */
+	trace_pseudo_lock_l2(counts.hits_after - counts.hits_before,
+			     counts.miss_after - counts.miss_before);
+out:
+	plr->thread_done = 1;
+	wake_up_interruptible(&plr->lock_thread_wq);
+	return 0;
+}
+
+static int measure_l3_residency(void *_plr)
+{
+	struct pseudo_lock_region *plr = _plr;
+	struct residency_counts counts = {0};
+
+	/*
+	 * On Broadwell Microarchitecture the MEM_LOAD_UOPS_RETIRED event
+	 * has two "no fix" errata associated with it: BDM35 and BDM100. On
+	 * this platform the following events are used instead:
+	 * LONGEST_LAT_CACHE 2EH (Documented in SDM)
+	 *       REFERENCE 4FH
+	 *       MISS      41H
+	 */
+
+	switch (boot_cpu_data.x86_model) {
+	case INTEL_FAM6_BROADWELL_X:
+		/* On BDW the hit event counts references, not hits */
+		perf_hit_attr.config = X86_CONFIG(.event = 0x2e,
+						  .umask = 0x4f);
+		perf_miss_attr.config = X86_CONFIG(.event = 0x2e,
+						   .umask = 0x41);
+		break;
+	default:
+		goto out;
+	}
+
+	measure_residency_fn(&perf_miss_attr, &perf_hit_attr, plr, &counts);
+	/*
+	 * If a failure prevented the measurements from succeeding
+	 * tracepoints will still be written and all counts will be zero.
+	 */
+
+	counts.miss_after -= counts.miss_before;
+	if (boot_cpu_data.x86_model == INTEL_FAM6_BROADWELL_X) {
+		/*
+		 * On BDW references and misses are counted, need to adjust.
+		 * Sometimes the "hits" counter is a bit more than the
+		 * references, for example, x references but x + 1 hits.
+		 * To not report invalid hit values in this case we treat
+		 * that as misses equal to references.
+		 */
+		/* First compute the number of cache references measured */
+		counts.hits_after -= counts.hits_before;
+		/* Next convert references to cache hits */
+		counts.hits_after -= min(counts.miss_after, counts.hits_after);
+	} else {
+		counts.hits_after -= counts.hits_before;
+	}
+
+	trace_pseudo_lock_l3(counts.hits_after, counts.miss_after);
 out:
 	plr->thread_done = 1;
 	wake_up_interruptible(&plr->lock_thread_wq);
@@ -1112,13 +1179,20 @@ static int pseudo_lock_measure_cycles(struct rdtgroup *rdtgrp, int sel)
 		goto out;
 	}
 
+	plr->cpu = cpu;
+
 	if (sel == 1)
 		thread = kthread_create_on_node(measure_cycles_lat_fn, plr,
 						cpu_to_node(cpu),
 						"pseudo_lock_measure/%u",
 						cpu);
 	else if (sel == 2)
-		thread = kthread_create_on_node(measure_cycles_perf_fn, plr,
+		thread = kthread_create_on_node(measure_l2_residency, plr,
+						cpu_to_node(cpu),
+						"pseudo_lock_measure/%u",
+						cpu);
+	else if (sel == 3)
+		thread = kthread_create_on_node(measure_l3_residency, plr,
 						cpu_to_node(cpu),
 						"pseudo_lock_measure/%u",
 						cpu);
