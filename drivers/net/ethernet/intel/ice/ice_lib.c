@@ -1223,6 +1223,38 @@ static void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_vsi_manage_rss_lut - disable/enable RSS
+ * @vsi: the VSI being changed
+ * @ena: boolean value indicating if this is an enable or disable request
+ *
+ * In the event of disable request for RSS, this function will zero out RSS
+ * LUT, while in the event of enable request for RSS, it will reconfigure RSS
+ * LUT.
+ */
+int ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena)
+{
+	int err = 0;
+	u8 *lut;
+
+	lut = devm_kzalloc(&vsi->back->pdev->dev, vsi->rss_table_size,
+			   GFP_KERNEL);
+	if (!lut)
+		return -ENOMEM;
+
+	if (ena) {
+		if (vsi->rss_lut_user)
+			memcpy(lut, vsi->rss_lut_user, vsi->rss_table_size);
+		else
+			ice_fill_rss_lut(lut, vsi->rss_table_size,
+					 vsi->rss_size);
+	}
+
+	err = ice_set_rss(vsi, NULL, lut, vsi->rss_table_size);
+	devm_kfree(&vsi->back->pdev->dev, lut);
+	return err;
+}
+
+/**
  * ice_vsi_cfg_rss_lut_key - Configure RSS params for a VSI
  * @vsi: VSI to be configured
  */

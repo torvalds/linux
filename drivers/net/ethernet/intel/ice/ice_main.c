@@ -2412,6 +2412,12 @@ static int ice_set_features(struct net_device *netdev,
 	struct ice_vsi *vsi = np->vsi;
 	int ret = 0;
 
+	if (features & NETIF_F_RXHASH && !(netdev->features & NETIF_F_RXHASH))
+		ret = ice_vsi_manage_rss_lut(vsi, true);
+	else if (!(features & NETIF_F_RXHASH) &&
+		 netdev->features & NETIF_F_RXHASH)
+		ret = ice_vsi_manage_rss_lut(vsi, false);
+
 	if ((features & NETIF_F_HW_VLAN_CTAG_RX) &&
 	    !(netdev->features & NETIF_F_HW_VLAN_CTAG_RX))
 		ret = ice_vsi_manage_vlan_stripping(vsi, true);
