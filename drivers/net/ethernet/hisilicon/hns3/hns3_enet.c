@@ -66,6 +66,23 @@ static irqreturn_t hns3_irq_handle(int irq, void *vector)
 	return IRQ_HANDLED;
 }
 
+/* This callback function is used to set affinity changes to the irq affinity
+ * masks when the irq_set_affinity_notifier function is used.
+ */
+static void hns3_nic_irq_affinity_notify(struct irq_affinity_notify *notify,
+					 const cpumask_t *mask)
+{
+	struct hns3_enet_tqp_vector *tqp_vectors =
+		container_of(notify, struct hns3_enet_tqp_vector,
+			     affinity_notify);
+
+	tqp_vectors->affinity_mask = *mask;
+}
+
+static void hns3_nic_irq_affinity_release(struct kref *ref)
+{
+}
+
 static void hns3_nic_uninit_irq(struct hns3_nic_priv *priv)
 {
 	struct hns3_enet_tqp_vector *tqp_vectors;
@@ -76,6 +93,10 @@ static void hns3_nic_uninit_irq(struct hns3_nic_priv *priv)
 
 		if (tqp_vectors->irq_init_flag != HNS3_VECTOR_INITED)
 			continue;
+
+		/* clear the affinity notifier and affinity mask */
+		irq_set_affinity_notifier(tqp_vectors->vector_irq, NULL);
+		irq_set_affinity_hint(tqp_vectors->vector_irq, NULL);
 
 		/* release the irq resource */
 		free_irq(tqp_vectors->vector_irq, tqp_vectors);
@@ -126,6 +147,15 @@ static int hns3_nic_init_irq(struct hns3_nic_priv *priv)
 				   tqp_vectors->vector_irq);
 			return ret;
 		}
+
+		tqp_vectors->affinity_notify.notify =
+					hns3_nic_irq_affinity_notify;
+		tqp_vectors->affinity_notify.release =
+					hns3_nic_irq_affinity_release;
+		irq_set_affinity_notifier(tqp_vectors->vector_irq,
+					  &tqp_vectors->affinity_notify);
+		irq_set_affinity_hint(tqp_vectors->vector_irq,
+				      &tqp_vectors->affinity_mask);
 
 		tqp_vectors->irq_init_flag = HNS3_VECTOR_INITED;
 	}
@@ -1044,7 +1074,7 @@ static int hns3_nic_maybe_stop_tx(struct sk_buff **out_skb, int *bnum,
 	/* No. of segments (plus a header) */
 	buf_num = skb_shinfo(skb)->nr_frags + 1;
 
-	if (buf_num > ring_space(ring))
+	if (unlikely(ring_space(ring) < buf_num))
 		return -EBUSY;
 
 	*bnum = buf_num;
@@ -1207,6 +1237,20 @@ static int hns3_nic_net_set_mac_address(struct net_device *netdev, void *p)
 	ether_addr_copy(netdev->dev_addr, mac_addr->sa_data);
 
 	return 0;
+}
+
+static int hns3_nic_do_ioctl(struct net_device *netdev,
+			     struct ifreq *ifr, int cmd)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (!netif_running(netdev))
+		return -EINVAL;
+
+	if (!h->ae_algo->ops->do_ioctl)
+		return -EOPNOTSUPP;
+
+	return h->ae_algo->ops->do_ioctl(h, ifr, cmd);
 }
 
 static int hns3_nic_set_features(struct net_device *netdev,
@@ -1535,6 +1579,7 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_start_xmit		= hns3_nic_net_xmit,
 	.ndo_tx_timeout		= hns3_nic_net_timeout,
 	.ndo_set_mac_address	= hns3_nic_net_set_mac_address,
+	.ndo_do_ioctl		= hns3_nic_do_ioctl,
 	.ndo_change_mtu		= hns3_nic_change_mtu,
 	.ndo_set_features	= hns3_nic_set_features,
 	.ndo_get_stats64	= hns3_nic_get_stats64,
@@ -1925,7 +1970,7 @@ static int is_valid_clean_head(struct hns3_enet_ring *ring, int h)
 	return u > c ? (h > c && h <= u) : (h > c || h <= u);
 }
 
-bool hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
+void hns3_clean_tx_ring(struct hns3_enet_ring *ring)
 {
 	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
 	struct netdev_queue *dev_queue;
@@ -1936,7 +1981,7 @@ bool hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
 	rmb(); /* Make sure head is ready before touch any data */
 
 	if (is_ring_empty(ring) || head == ring->next_to_clean)
-		return true; /* no data to poll */
+		return; /* no data to poll */
 
 	if (unlikely(!is_valid_clean_head(ring, head))) {
 		netdev_err(netdev, "wrong head (%d, %d-%d)\n", head,
@@ -1945,16 +1990,15 @@ bool hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.io_err_cnt++;
 		u64_stats_update_end(&ring->syncp);
-		return true;
+		return;
 	}
 
 	bytes = 0;
 	pkts = 0;
-	while (head != ring->next_to_clean && budget) {
+	while (head != ring->next_to_clean) {
 		hns3_nic_reclaim_one_desc(ring, &bytes, &pkts);
 		/* Issue prefetch for next Tx descriptor */
 		prefetch(&ring->desc_cb[ring->next_to_clean]);
-		budget--;
 	}
 
 	ring->tqp_vector->tx_group.total_bytes += bytes;
@@ -1979,8 +2023,6 @@ bool hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
 			ring->stats.restart_queue++;
 		}
 	}
-
-	return !!budget;
 }
 
 static int hns3_desc_unused(struct hns3_enet_ring *ring)
@@ -2514,10 +2556,8 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 	/* Since the actual Tx work is minimal, we can give the Tx a larger
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
-	hns3_for_each_ring(ring, tqp_vector->tx_group) {
-		if (!hns3_clean_tx_ring(ring, budget))
-			clean_complete = false;
-	}
+	hns3_for_each_ring(ring, tqp_vector->tx_group)
+		hns3_clean_tx_ring(ring);
 
 	/* make sure rx ring budget not smaller than 1 */
 	rx_budget = max(budget / tqp_vector->num_tqps, 1);
@@ -2640,6 +2680,23 @@ static void hns3_add_ring_to_group(struct hns3_enet_ring_group *group,
 	group->count++;
 }
 
+static void hns3_nic_set_cpumask(struct hns3_nic_priv *priv)
+{
+	struct pci_dev *pdev = priv->ae_handle->pdev;
+	struct hns3_enet_tqp_vector *tqp_vector;
+	int num_vectors = priv->vector_num;
+	int numa_node;
+	int vector_i;
+
+	numa_node = dev_to_node(&pdev->dev);
+
+	for (vector_i = 0; vector_i < num_vectors; vector_i++) {
+		tqp_vector = &priv->tqp_vector[vector_i];
+		cpumask_set_cpu(cpumask_local_spread(vector_i, numa_node),
+				&tqp_vector->affinity_mask);
+	}
+}
+
 static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 {
 	struct hnae3_ring_chain_node vector_ring_chain;
@@ -2647,6 +2704,8 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 	struct hns3_enet_tqp_vector *tqp_vector;
 	int ret = 0;
 	u16 i;
+
+	hns3_nic_set_cpumask(priv);
 
 	for (i = 0; i < priv->vector_num; i++) {
 		tqp_vector = &priv->tqp_vector[i];

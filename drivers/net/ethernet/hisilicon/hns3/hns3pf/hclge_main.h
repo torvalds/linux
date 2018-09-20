@@ -256,109 +256,6 @@ struct hclge_comm_stats_str {
 	unsigned long offset;
 };
 
-/* all 64bit stats, opcode id: 0x0030 */
-struct hclge_64_bit_stats {
-	/* query_igu_stat */
-	u64 igu_rx_oversize_pkt;
-	u64 igu_rx_undersize_pkt;
-	u64 igu_rx_out_all_pkt;
-	u64 igu_rx_uni_pkt;
-	u64 igu_rx_multi_pkt;
-	u64 igu_rx_broad_pkt;
-	u64 rsv0;
-
-	/* query_egu_stat */
-	u64 egu_tx_out_all_pkt;
-	u64 egu_tx_uni_pkt;
-	u64 egu_tx_multi_pkt;
-	u64 egu_tx_broad_pkt;
-
-	/* ssu_ppp packet stats */
-	u64 ssu_ppp_mac_key_num;
-	u64 ssu_ppp_host_key_num;
-	u64 ppp_ssu_mac_rlt_num;
-	u64 ppp_ssu_host_rlt_num;
-
-	/* ssu_tx_in_out_dfx_stats */
-	u64 ssu_tx_in_num;
-	u64 ssu_tx_out_num;
-	/* ssu_rx_in_out_dfx_stats */
-	u64 ssu_rx_in_num;
-	u64 ssu_rx_out_num;
-};
-
-/* all 32bit stats, opcode id: 0x0031 */
-struct hclge_32_bit_stats {
-	u64 igu_rx_err_pkt;
-	u64 igu_rx_no_eof_pkt;
-	u64 igu_rx_no_sof_pkt;
-	u64 egu_tx_1588_pkt;
-	u64 egu_tx_err_pkt;
-	u64 ssu_full_drop_num;
-	u64 ssu_part_drop_num;
-	u64 ppp_key_drop_num;
-	u64 ppp_rlt_drop_num;
-	u64 ssu_key_drop_num;
-	u64 pkt_curr_buf_cnt;
-	u64 qcn_fb_rcv_cnt;
-	u64 qcn_fb_drop_cnt;
-	u64 qcn_fb_invaild_cnt;
-	u64 rsv0;
-	u64 rx_packet_tc0_in_cnt;
-	u64 rx_packet_tc1_in_cnt;
-	u64 rx_packet_tc2_in_cnt;
-	u64 rx_packet_tc3_in_cnt;
-	u64 rx_packet_tc4_in_cnt;
-	u64 rx_packet_tc5_in_cnt;
-	u64 rx_packet_tc6_in_cnt;
-	u64 rx_packet_tc7_in_cnt;
-	u64 rx_packet_tc0_out_cnt;
-	u64 rx_packet_tc1_out_cnt;
-	u64 rx_packet_tc2_out_cnt;
-	u64 rx_packet_tc3_out_cnt;
-	u64 rx_packet_tc4_out_cnt;
-	u64 rx_packet_tc5_out_cnt;
-	u64 rx_packet_tc6_out_cnt;
-	u64 rx_packet_tc7_out_cnt;
-
-	/* Tx packet level statistics */
-	u64 tx_packet_tc0_in_cnt;
-	u64 tx_packet_tc1_in_cnt;
-	u64 tx_packet_tc2_in_cnt;
-	u64 tx_packet_tc3_in_cnt;
-	u64 tx_packet_tc4_in_cnt;
-	u64 tx_packet_tc5_in_cnt;
-	u64 tx_packet_tc6_in_cnt;
-	u64 tx_packet_tc7_in_cnt;
-	u64 tx_packet_tc0_out_cnt;
-	u64 tx_packet_tc1_out_cnt;
-	u64 tx_packet_tc2_out_cnt;
-	u64 tx_packet_tc3_out_cnt;
-	u64 tx_packet_tc4_out_cnt;
-	u64 tx_packet_tc5_out_cnt;
-	u64 tx_packet_tc6_out_cnt;
-	u64 tx_packet_tc7_out_cnt;
-
-	/* packet buffer statistics */
-	u64 pkt_curr_buf_tc0_cnt;
-	u64 pkt_curr_buf_tc1_cnt;
-	u64 pkt_curr_buf_tc2_cnt;
-	u64 pkt_curr_buf_tc3_cnt;
-	u64 pkt_curr_buf_tc4_cnt;
-	u64 pkt_curr_buf_tc5_cnt;
-	u64 pkt_curr_buf_tc6_cnt;
-	u64 pkt_curr_buf_tc7_cnt;
-
-	u64 mb_uncopy_num;
-	u64 lo_pri_unicast_rlt_drop_num;
-	u64 hi_pri_multicast_rlt_drop_num;
-	u64 lo_pri_multicast_rlt_drop_num;
-	u64 rx_oq_drop_pkt_cnt;
-	u64 tx_oq_drop_pkt_cnt;
-	u64 nic_l2_err_drop_pkt_cnt;
-	u64 roc_l2_err_drop_pkt_cnt;
-};
-
 /* mac stats ,opcode id: 0x0032 */
 struct hclge_mac_stats {
 	u64 mac_tx_mac_pause_num;
@@ -450,8 +347,6 @@ struct hclge_mac_stats {
 #define HCLGE_STATS_TIMER_INTERVAL	(60 * 5)
 struct hclge_hw_stats {
 	struct hclge_mac_stats      mac_stats;
-	struct hclge_64_bit_stats   all_64_bit_stats;
-	struct hclge_32_bit_stats   all_32_bit_stats;
 	u32 stats_timer;
 };
 
