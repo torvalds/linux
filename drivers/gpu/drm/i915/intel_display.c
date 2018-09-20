@@ -13514,14 +13514,16 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	struct drm_plane_state *old_plane_state, *new_plane_state;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *old_fb;
-	struct drm_crtc_state *crtc_state = crtc->state;
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->state);
+	struct intel_crtc_state *new_crtc_state;
 
 	/*
 	 * When crtc is inactive or there is a modeset pending,
 	 * wait for it to complete in the slowpath
 	 */
-	if (!crtc_state->active || needs_modeset(crtc_state) ||
-	    to_intel_crtc_state(crtc_state)->update_pipe)
+	if (!crtc_state->base.active || needs_modeset(&crtc_state->base) ||
+	    crtc_state->update_pipe)
 		goto slow;
 
 	old_plane_state = plane->state;
@@ -13551,6 +13553,12 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	if (!new_plane_state)
 		return -ENOMEM;
 
+	new_crtc_state = to_intel_crtc_state(intel_crtc_duplicate_state(crtc));
+	if (!new_crtc_state) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
+
 	drm_atomic_set_fb_for_plane(new_plane_state, fb);
 
 	new_plane_state->src_x = src_x;
@@ -13562,9 +13570,8 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	new_plane_state->crtc_w = crtc_w;
 	new_plane_state->crtc_h = crtc_h;
 
-	ret = intel_plane_atomic_check_with_state(to_intel_crtc_state(crtc->state),
-						  to_intel_crtc_state(crtc->state), /* FIXME need a new crtc state? */
-						  to_intel_plane_state(plane->state),
+	ret = intel_plane_atomic_check_with_state(crtc_state, new_crtc_state,
+						  to_intel_plane_state(old_plane_state),
 						  to_intel_plane_state(new_plane_state));
 	if (ret)
 		goto out_free;
@@ -13586,10 +13593,21 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	/* Swap plane state */
 	plane->state = new_plane_state;
 
+	/*
+	 * We cannot swap crtc_state as it may be in use by an atomic commit or
+	 * page flip that's running simultaneously. If we swap crtc_state and
+	 * destroy the old state, we will cause a use-after-free there.
+	 *
+	 * Only update active_planes, which is needed for our internal
+	 * bookkeeping. Either value will do the right thing when updating
+	 * planes atomically. If the cursor was part of the atomic update then
+	 * we would have taken the slowpath.
+	 */
+	crtc_state->active_planes = new_crtc_state->active_planes;
+
 	if (plane->state->visible) {
 		trace_intel_update_plane(plane, to_intel_crtc(crtc));
-		intel_plane->update_plane(intel_plane,
-					  to_intel_crtc_state(crtc->state),
+		intel_plane->update_plane(intel_plane, crtc_state,
 					  to_intel_plane_state(plane->state));
 	} else {
 		trace_intel_disable_plane(plane, to_intel_crtc(crtc));
@@ -13601,6 +13619,8 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 out_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 out_free:
+	if (new_crtc_state)
+		intel_crtc_destroy_state(crtc, &new_crtc_state->base);
 	if (ret)
 		intel_plane_destroy_state(plane, new_plane_state);
 	else
