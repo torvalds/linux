@@ -226,6 +226,67 @@ static int ice_vsi_ctrl_rx_rings(struct ice_vsi *vsi, bool ena)
 }
 
 /**
+ * ice_vsi_delete - delete a VSI from the switch
+ * @vsi: pointer to VSI being removed
+ */
+void ice_vsi_delete(struct ice_vsi *vsi)
+{
+	struct ice_pf *pf = vsi->back;
+	struct ice_vsi_ctx ctxt;
+	enum ice_status status;
+
+	ctxt.vsi_num = vsi->vsi_num;
+
+	memcpy(&ctxt.info, &vsi->info, sizeof(struct ice_aqc_vsi_props));
+
+	status = ice_free_vsi(&pf->hw, vsi->idx, &ctxt, false, NULL);
+	if (status)
+		dev_err(&pf->pdev->dev, "Failed to delete VSI %i in FW\n",
+			vsi->vsi_num);
+}
+
+/**
+ * ice_msix_clean_rings - MSIX mode Interrupt Handler
+ * @irq: interrupt number
+ * @data: pointer to a q_vector
+ */
+irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
+{
+	struct ice_q_vector *q_vector = (struct ice_q_vector *)data;
+
+	if (!q_vector->tx.ring && !q_vector->rx.ring)
+		return IRQ_HANDLED;
+
+	napi_schedule(&q_vector->napi);
+
+	return IRQ_HANDLED;
+}
+
+/**
+ * ice_vsi_put_qs - Release queues from VSI to PF
+ * @vsi: the VSI that is going to release queues
+ */
+void ice_vsi_put_qs(struct ice_vsi *vsi)
+{
+	struct ice_pf *pf = vsi->back;
+	int i;
+
+	mutex_lock(&pf->avail_q_mutex);
+
+	for (i = 0; i < vsi->alloc_txq; i++) {
+		clear_bit(vsi->txq_map[i], pf->avail_txqs);
+		vsi->txq_map[i] = ICE_INVAL_Q_INDEX;
+	}
+
+	for (i = 0; i < vsi->alloc_rxq; i++) {
+		clear_bit(vsi->rxq_map[i], pf->avail_rxqs);
+		vsi->rxq_map[i] = ICE_INVAL_Q_INDEX;
+	}
+
+	mutex_unlock(&pf->avail_q_mutex);
+}
+
+/**
  * ice_add_mac_to_list - Add a mac address filter entry to the list
  * @vsi: the VSI to be forwarded to
  * @add_list: pointer to the list which contains MAC filter entries
@@ -746,4 +807,331 @@ err_alloc_q_ids:
 	devm_kfree(&pf->pdev->dev, q_teids);
 
 	return err;
+}
+
+/**
+ * ice_cfg_vlan_pruning - enable or disable VLAN pruning on the VSI
+ * @vsi: VSI to enable or disable VLAN pruning on
+ * @ena: set to true to enable VLAN pruning and false to disable it
+ *
+ * returns 0 if VSI is updated, negative otherwise
+ */
+int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena)
+{
+	struct ice_vsi_ctx *ctxt;
+	struct device *dev;
+	int status;
+
+	if (!vsi)
+		return -EINVAL;
+
+	dev = &vsi->back->pdev->dev;
+	ctxt = devm_kzalloc(dev, sizeof(*ctxt), GFP_KERNEL);
+	if (!ctxt)
+		return -ENOMEM;
+
+	ctxt->info = vsi->info;
+
+	if (ena) {
+		ctxt->info.sec_flags |=
+			ICE_AQ_VSI_SEC_TX_VLAN_PRUNE_ENA <<
+			ICE_AQ_VSI_SEC_TX_PRUNE_ENA_S;
+		ctxt->info.sw_flags2 |= ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
+	} else {
+		ctxt->info.sec_flags &=
+			~(ICE_AQ_VSI_SEC_TX_VLAN_PRUNE_ENA <<
+			  ICE_AQ_VSI_SEC_TX_PRUNE_ENA_S);
+		ctxt->info.sw_flags2 &= ~ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
+	}
+
+	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID |
+						ICE_AQ_VSI_PROP_SW_VALID);
+	ctxt->vsi_num = vsi->vsi_num;
+	status = ice_aq_update_vsi(&vsi->back->hw, ctxt, NULL);
+	if (status) {
+		netdev_err(vsi->netdev, "%sabling VLAN pruning on VSI %d failed, err = %d, aq_err = %d\n",
+			   ena ? "Ena" : "Dis", vsi->vsi_num, status,
+			   vsi->back->hw.adminq.sq_last_status);
+		goto err_out;
+	}
+
+	vsi->info.sec_flags = ctxt->info.sec_flags;
+	vsi->info.sw_flags2 = ctxt->info.sw_flags2;
+
+	devm_kfree(dev, ctxt);
+	return 0;
+
+err_out:
+	devm_kfree(dev, ctxt);
+	return -EIO;
+}
+
+/**
+ * ice_vsi_release_msix - Clear the queue to Interrupt mapping in HW
+ * @vsi: the VSI being cleaned up
+ */
+static void ice_vsi_release_msix(struct ice_vsi *vsi)
+{
+	struct ice_pf *pf = vsi->back;
+	u16 vector = vsi->base_vector;
+	struct ice_hw *hw = &pf->hw;
+	u32 txq = 0;
+	u32 rxq = 0;
+	int i, q;
+
+	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
+		struct ice_q_vector *q_vector = vsi->q_vectors[i];
+
+		wr32(hw, GLINT_ITR(ICE_RX_ITR, vector), 0);
+		wr32(hw, GLINT_ITR(ICE_TX_ITR, vector), 0);
+		for (q = 0; q < q_vector->num_ring_tx; q++) {
+			wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), 0);
+			txq++;
+		}
+
+		for (q = 0; q < q_vector->num_ring_rx; q++) {
+			wr32(hw, QINT_RQCTL(vsi->rxq_map[rxq]), 0);
+			rxq++;
+		}
+	}
+
+	ice_flush(hw);
+}
+
+/**
+ * ice_vsi_free_irq - Free the IRQ association with the OS
+ * @vsi: the VSI being configured
+ */
+void ice_vsi_free_irq(struct ice_vsi *vsi)
+{
+	struct ice_pf *pf = vsi->back;
+	int base = vsi->base_vector;
+
+	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags)) {
+		int i;
+
+		if (!vsi->q_vectors || !vsi->irqs_ready)
+			return;
+
+		vsi->irqs_ready = false;
+		for (i = 0; i < vsi->num_q_vectors; i++) {
+			u16 vector = i + base;
+			int irq_num;
+
+			irq_num = pf->msix_entries[vector].vector;
+
+			/* free only the irqs that were actually requested */
+			if (!vsi->q_vectors[i] ||
+			    !(vsi->q_vectors[i]->num_ring_tx ||
+			      vsi->q_vectors[i]->num_ring_rx))
+				continue;
+
+			/* clear the affinity notifier in the IRQ descriptor */
+			irq_set_affinity_notifier(irq_num, NULL);
+
+			/* clear the affinity_mask in the IRQ descriptor */
+			irq_set_affinity_hint(irq_num, NULL);
+			synchronize_irq(irq_num);
+			devm_free_irq(&pf->pdev->dev, irq_num,
+				      vsi->q_vectors[i]);
+		}
+		ice_vsi_release_msix(vsi);
+	}
+}
+
+/**
+ * ice_vsi_free_tx_rings - Free Tx resources for VSI queues
+ * @vsi: the VSI having resources freed
+ */
+void ice_vsi_free_tx_rings(struct ice_vsi *vsi)
+{
+	int i;
+
+	if (!vsi->tx_rings)
+		return;
+
+	ice_for_each_txq(vsi, i)
+		if (vsi->tx_rings[i] && vsi->tx_rings[i]->desc)
+			ice_free_tx_ring(vsi->tx_rings[i]);
+}
+
+/**
+ * ice_vsi_free_rx_rings - Free Rx resources for VSI queues
+ * @vsi: the VSI having resources freed
+ */
+void ice_vsi_free_rx_rings(struct ice_vsi *vsi)
+{
+	int i;
+
+	if (!vsi->rx_rings)
+		return;
+
+	ice_for_each_rxq(vsi, i)
+		if (vsi->rx_rings[i] && vsi->rx_rings[i]->desc)
+			ice_free_rx_ring(vsi->rx_rings[i]);
+}
+
+/**
+ * ice_free_res - free a block of resources
+ * @res: pointer to the resource
+ * @index: starting index previously returned by ice_get_res
+ * @id: identifier to track owner
+ *
+ * Returns number of resources freed
+ */
+int ice_free_res(struct ice_res_tracker *res, u16 index, u16 id)
+{
+	int count = 0;
+	int i;
+
+	if (!res || index >= res->num_entries)
+		return -EINVAL;
+
+	id |= ICE_RES_VALID_BIT;
+	for (i = index; i < res->num_entries && res->list[i] == id; i++) {
+		res->list[i] = 0;
+		count++;
+	}
+
+	return count;
+}
+
+/**
+ * ice_search_res - Search the tracker for a block of resources
+ * @res: pointer to the resource
+ * @needed: size of the block needed
+ * @id: identifier to track owner
+ *
+ * Returns the base item index of the block, or -ENOMEM for error
+ */
+static int ice_search_res(struct ice_res_tracker *res, u16 needed, u16 id)
+{
+	int start = res->search_hint;
+	int end = start;
+
+	id |= ICE_RES_VALID_BIT;
+
+	do {
+		/* skip already allocated entries */
+		if (res->list[end++] & ICE_RES_VALID_BIT) {
+			start = end;
+			if ((start + needed) > res->num_entries)
+				break;
+		}
+
+		if (end == (start + needed)) {
+			int i = start;
+
+			/* there was enough, so assign it to the requestor */
+			while (i != end)
+				res->list[i++] = id;
+
+			if (end == res->num_entries)
+				end = 0;
+
+			res->search_hint = end;
+			return start;
+		}
+	} while (1);
+
+	return -ENOMEM;
+}
+
+/**
+ * ice_get_res - get a block of resources
+ * @pf: board private structure
+ * @res: pointer to the resource
+ * @needed: size of the block needed
+ * @id: identifier to track owner
+ *
+ * Returns the base item index of the block, or -ENOMEM for error
+ * The search_hint trick and lack of advanced fit-finding only works
+ * because we're highly likely to have all the same sized requests.
+ * Linear search time and any fragmentation should be minimal.
+ */
+int
+ice_get_res(struct ice_pf *pf, struct ice_res_tracker *res, u16 needed, u16 id)
+{
+	int ret;
+
+	if (!res || !pf)
+		return -EINVAL;
+
+	if (!needed || needed > res->num_entries || id >= ICE_RES_VALID_BIT) {
+		dev_err(&pf->pdev->dev,
+			"param err: needed=%d, num_entries = %d id=0x%04x\n",
+			needed, res->num_entries, id);
+		return -EINVAL;
+	}
+
+	/* search based on search_hint */
+	ret = ice_search_res(res, needed, id);
+
+	if (ret < 0) {
+		/* previous search failed. Reset search hint and try again */
+		res->search_hint = 0;
+		ret = ice_search_res(res, needed, id);
+	}
+
+	return ret;
+}
+
+/**
+ * ice_vsi_dis_irq - Mask off queue interrupt generation on the VSI
+ * @vsi: the VSI being un-configured
+ */
+void ice_vsi_dis_irq(struct ice_vsi *vsi)
+{
+	struct ice_pf *pf = vsi->back;
+	struct ice_hw *hw = &pf->hw;
+	int base = vsi->base_vector;
+	u32 val;
+	int i;
+
+	/* disable interrupt causation from each queue */
+	if (vsi->tx_rings) {
+		ice_for_each_txq(vsi, i) {
+			if (vsi->tx_rings[i]) {
+				u16 reg;
+
+				reg = vsi->tx_rings[i]->reg_idx;
+				val = rd32(hw, QINT_TQCTL(reg));
+				val &= ~QINT_TQCTL_CAUSE_ENA_M;
+				wr32(hw, QINT_TQCTL(reg), val);
+			}
+		}
+	}
+
+	if (vsi->rx_rings) {
+		ice_for_each_rxq(vsi, i) {
+			if (vsi->rx_rings[i]) {
+				u16 reg;
+
+				reg = vsi->rx_rings[i]->reg_idx;
+				val = rd32(hw, QINT_RQCTL(reg));
+				val &= ~QINT_RQCTL_CAUSE_ENA_M;
+				wr32(hw, QINT_RQCTL(reg), val);
+			}
+		}
+	}
+
+	/* disable each interrupt */
+	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags)) {
+		for (i = vsi->base_vector;
+		     i < (vsi->num_q_vectors + vsi->base_vector); i++)
+			wr32(hw, GLINT_DYN_CTL(i), 0);
+
+		ice_flush(hw);
+		for (i = 0; i < vsi->num_q_vectors; i++)
+			synchronize_irq(pf->msix_entries[i + base].vector);
+	}
+}
+
+/**
+ * ice_is_reset_recovery_pending - schedule a reset
+ * @state: pf state field
+ */
+bool ice_is_reset_recovery_pending(unsigned long *state)
+{
+	return test_bit(__ICE_RESET_RECOVERY_PENDING, state);
 }

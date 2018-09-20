@@ -33,4 +33,26 @@ int ice_vsi_stop_rx_rings(struct ice_vsi *vsi);
 
 int ice_vsi_stop_tx_rings(struct ice_vsi *vsi);
 
+int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena);
+
+void ice_vsi_delete(struct ice_vsi *vsi);
+
+int ice_free_res(struct ice_res_tracker *res, u16 index, u16 id);
+
+int
+ice_get_res(struct ice_pf *pf, struct ice_res_tracker *res, u16 needed, u16 id);
+
+bool ice_is_reset_recovery_pending(unsigned long *state);
+
+void ice_vsi_put_qs(struct ice_vsi *vsi);
+
+void ice_vsi_dis_irq(struct ice_vsi *vsi);
+
+void ice_vsi_free_irq(struct ice_vsi *vsi);
+
+void ice_vsi_free_rx_rings(struct ice_vsi *vsi);
+
+void ice_vsi_free_tx_rings(struct ice_vsi *vsi);
+
+irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data);
 #endif /* !_ICE_LIB_H_ */
