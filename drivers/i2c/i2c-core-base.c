@@ -1940,16 +1940,6 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	 */
 
 	if (adap->algo->master_xfer) {
-#ifdef DEBUG
-		for (ret = 0; ret < num; ret++) {
-			dev_dbg(&adap->dev,
-				"master_xfer[%d] %c, addr=0x%02x, len=%d%s\n",
-				ret, (msgs[ret].flags & I2C_M_RD) ? 'R' : 'W',
-				msgs[ret].addr, msgs[ret].len,
-				(msgs[ret].flags & I2C_M_RECV_LEN) ? "+" : "");
-		}
-#endif
-
 		if (in_atomic() || irqs_disabled()) {
 			ret = i2c_trylock_bus(adap, I2C_LOCK_SEGMENT);
 			if (!ret)
