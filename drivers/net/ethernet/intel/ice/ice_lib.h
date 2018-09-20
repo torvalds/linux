@@ -54,7 +54,7 @@ ice_get_res(struct ice_pf *pf, struct ice_res_tracker *res, u16 needed, u16 id);
 
 int ice_vsi_rebuild(struct ice_vsi *vsi);
 
-bool ice_is_reset_recovery_pending(unsigned long *state);
+bool ice_is_reset_in_progress(unsigned long *state);
 
 void ice_vsi_free_q_vectors(struct ice_vsi *vsi);
 

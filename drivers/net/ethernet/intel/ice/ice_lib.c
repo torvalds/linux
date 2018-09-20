@@ -2250,7 +2250,7 @@ int ice_vsi_release(struct ice_vsi *vsi)
 	 * currently. This is done to avoid check_flush_dependency() warning
 	 * on this wq
 	 */
-	if (vsi->netdev && !ice_is_reset_recovery_pending(pf->state)) {
+	if (vsi->netdev && !ice_is_reset_in_progress(pf->state)) {
 		unregister_netdev(vsi->netdev);
 		free_netdev(vsi->netdev);
 		vsi->netdev = NULL;
@@ -2280,7 +2280,7 @@ int ice_vsi_release(struct ice_vsi *vsi)
 	 * free VSI netdev when PF is not in reset recovery pending state,\
 	 * for ex: during rmmod.
 	 */
-	if (!ice_is_reset_recovery_pending(pf->state))
+	if (!ice_is_reset_in_progress(pf->state))
 		ice_vsi_clear(vsi);
 
 	return 0;
@@ -2367,10 +2367,13 @@ err_vsi:
 }
 
 /**
- * ice_is_reset_recovery_pending - schedule a reset
+ * ice_is_reset_in_progress - check for a reset in progress
  * @state: pf state field
  */
-bool ice_is_reset_recovery_pending(unsigned long *state)
+bool ice_is_reset_in_progress(unsigned long *state)
 {
-	return test_bit(__ICE_RESET_RECOVERY_PENDING, state);
+	return test_bit(__ICE_RESET_OICR_RECV, state) ||
+	       test_bit(__ICE_PFR_REQ, state) ||
+	       test_bit(__ICE_CORER_REQ, state) ||
+	       test_bit(__ICE_GLOBR_REQ, state);
 }

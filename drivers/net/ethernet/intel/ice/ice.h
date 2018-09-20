@@ -124,7 +124,7 @@ enum ice_state {
 	__ICE_DOWN,
 	__ICE_NEEDS_RESTART,
 	__ICE_PREPARED_FOR_RESET,	/* set by driver when prepared */
-	__ICE_RESET_RECOVERY_PENDING,	/* set by driver when reset starts */
+	__ICE_RESET_OICR_RECV,		/* set by driver after rcv reset OICR */
 	__ICE_PFR_REQ,			/* set by driver and peers */
 	__ICE_CORER_REQ,		/* set by driver and peers */
 	__ICE_GLOBR_REQ,		/* set by driver and peers */

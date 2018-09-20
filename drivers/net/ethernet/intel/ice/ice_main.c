@@ -364,21 +364,17 @@ static void ice_do_reset(struct ice_pf *pf, enum ice_reset_req reset_type)
 	dev_dbg(dev, "reset_type 0x%x requested\n", reset_type);
 	WARN_ON(in_interrupt());
 
-	/* PFR is a bit of a special case because it doesn't result in an OICR
-	 * interrupt. Set pending bit here which otherwise gets set in the
-	 * OICR handler.
-	 */
-	if (reset_type == ICE_RESET_PFR)
-		set_bit(__ICE_RESET_RECOVERY_PENDING, pf->state);
-
 	ice_prepare_for_reset(pf);
 
 	/* trigger the reset */
 	if (ice_reset(hw, reset_type)) {
 		dev_err(dev, "reset %d failed\n", reset_type);
 		set_bit(__ICE_RESET_FAILED, pf->state);
-		clear_bit(__ICE_RESET_RECOVERY_PENDING, pf->state);
+		clear_bit(__ICE_RESET_OICR_RECV, pf->state);
 		clear_bit(__ICE_PREPARED_FOR_RESET, pf->state);
+		clear_bit(__ICE_PFR_REQ, pf->state);
+		clear_bit(__ICE_CORER_REQ, pf->state);
+		clear_bit(__ICE_GLOBR_REQ, pf->state);
 		return;
 	}
 
@@ -389,8 +385,8 @@ static void ice_do_reset(struct ice_pf *pf, enum ice_reset_req reset_type)
 	if (reset_type == ICE_RESET_PFR) {
 		pf->pfr_count++;
 		ice_rebuild(pf);
-		clear_bit(__ICE_RESET_RECOVERY_PENDING, pf->state);
 		clear_bit(__ICE_PREPARED_FOR_RESET, pf->state);
+		clear_bit(__ICE_PFR_REQ, pf->state);
 	}
 }
 
@@ -405,14 +401,14 @@ static void ice_reset_subtask(struct ice_pf *pf)
 	/* When a CORER/GLOBR/EMPR is about to happen, the hardware triggers an
 	 * OICR interrupt. The OICR handler (ice_misc_intr) determines what type
 	 * of reset is pending and sets bits in pf->state indicating the reset
-	 * type and __ICE_RESET_RECOVERY_PENDING.  So, if the latter bit is set
+	 * type and __ICE_RESET_OICR_RECV.  So, if the latter bit is set
 	 * prepare for pending reset if not already (for PF software-initiated
 	 * global resets the software should already be prepared for it as
 	 * indicated by __ICE_PREPARED_FOR_RESET; for global resets initiated
 	 * by firmware or software on other PFs, that bit is not set so prepare
 	 * for the reset now), poll for reset done, rebuild and return.
 	 */
-	if (ice_is_reset_recovery_pending(pf->state)) {
+	if (test_bit(__ICE_RESET_OICR_RECV, pf->state)) {
 		clear_bit(__ICE_GLOBR_RECV, pf->state);
 		clear_bit(__ICE_CORER_RECV, pf->state);
 		if (!test_bit(__ICE_PREPARED_FOR_RESET, pf->state))
@@ -428,19 +424,22 @@ static void ice_reset_subtask(struct ice_pf *pf)
 			/* clear bit to resume normal operations, but
 			 * ICE_NEEDS_RESTART bit is set incase rebuild failed
 			 */
-			clear_bit(__ICE_RESET_RECOVERY_PENDING, pf->state);
+			clear_bit(__ICE_RESET_OICR_RECV, pf->state);
 			clear_bit(__ICE_PREPARED_FOR_RESET, pf->state);
+			clear_bit(__ICE_PFR_REQ, pf->state);
+			clear_bit(__ICE_CORER_REQ, pf->state);
+			clear_bit(__ICE_GLOBR_REQ, pf->state);
 		}
 
 		return;
 	}
 
 	/* No pending resets to finish processing. Check for new resets */
-	if (test_and_clear_bit(__ICE_PFR_REQ, pf->state))
+	if (test_bit(__ICE_PFR_REQ, pf->state))
 		reset_type = ICE_RESET_PFR;
-	if (test_and_clear_bit(__ICE_CORER_REQ, pf->state))
+	if (test_bit(__ICE_CORER_REQ, pf->state))
 		reset_type = ICE_RESET_CORER;
-	if (test_and_clear_bit(__ICE_GLOBR_REQ, pf->state))
+	if (test_bit(__ICE_GLOBR_REQ, pf->state))
 		reset_type = ICE_RESET_GLOBR;
 	/* If no valid reset type requested just return */
 	if (reset_type == ICE_RESET_INVAL)
@@ -1029,7 +1028,7 @@ static void ice_service_task(struct work_struct *work)
 	ice_reset_subtask(pf);
 
 	/* bail if a reset/recovery cycle is pending or rebuild failed */
-	if (ice_is_reset_recovery_pending(pf->state) ||
+	if (ice_is_reset_in_progress(pf->state) ||
 	    test_bit(__ICE_SUSPENDED, pf->state) ||
 	    test_bit(__ICE_NEEDS_RESTART, pf->state)) {
 		ice_service_task_complete(pf);
@@ -1250,8 +1249,7 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 		 * We also make note of which reset happened so that peer
 		 * devices/drivers can be informed.
 		 */
-		if (!test_and_set_bit(__ICE_RESET_RECOVERY_PENDING,
-				      pf->state)) {
+		if (!test_and_set_bit(__ICE_RESET_OICR_RECV, pf->state)) {
 			if (reset == ICE_RESET_CORER)
 				set_bit(__ICE_CORER_RECV, pf->state);
 			else if (reset == ICE_RESET_GLOBR)
@@ -1265,7 +1263,7 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 			 * is received and set back to false after the driver
 			 * has determined that the hardware is out of reset.
 			 *
-			 * __ICE_RESET_RECOVERY_PENDING in pf->state indicates
+			 * __ICE_RESET_OICR_RECV in pf->state indicates
 			 * that a post reset rebuild is required before the
 			 * driver is operational again. This is set above.
 			 *
@@ -1355,7 +1353,7 @@ static int ice_req_irq_msix_misc(struct ice_pf *pf)
 	 * lost during reset. Note that this function is called only during
 	 * rebuild path and not while reset is in progress.
 	 */
-	if (ice_is_reset_recovery_pending(pf->state))
+	if (ice_is_reset_in_progress(pf->state))
 		goto skip_req_irq;
 
 	/* reserve one vector in irq_tracker for misc interrupts */
@@ -1637,7 +1635,7 @@ static int ice_setup_pf_sw(struct ice_pf *pf)
 	struct ice_vsi *vsi;
 	int status = 0;
 
-	if (ice_is_reset_recovery_pending(pf->state))
+	if (ice_is_reset_in_progress(pf->state))
 		return -EBUSY;
 
 	vsi = ice_pf_vsi_setup(pf, pf->hw.port_info);
@@ -2203,7 +2201,7 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 	}
 
 	if (test_bit(__ICE_DOWN, pf->state) ||
-	    ice_is_reset_recovery_pending(pf->state)) {
+	    ice_is_reset_in_progress(pf->state)) {
 		netdev_err(netdev, "can't set mac %pM. device not ready\n",
 			   mac);
 		return -EBUSY;
@@ -3256,7 +3254,7 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 	}
 	/* if a reset is in progress, wait for some time for it to complete */
 	do {
-		if (ice_is_reset_recovery_pending(pf->state)) {
+		if (ice_is_reset_in_progress(pf->state)) {
 			count++;
 			usleep_range(1000, 2000);
 		} else {
