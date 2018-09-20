@@ -5401,24 +5401,23 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 		intel_update_watermarks(crtc);
 }
 
-static void intel_crtc_disable_planes(struct drm_crtc *crtc, unsigned plane_mask)
+static void intel_crtc_disable_planes(struct intel_crtc *crtc, unsigned plane_mask)
 {
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_plane *p;
-	int pipe = intel_crtc->pipe;
+	struct drm_device *dev = crtc->base.dev;
+	struct intel_plane *plane;
+	unsigned fb_bits = 0;
 
-	intel_crtc_dpms_overlay_disable(intel_crtc);
+	intel_crtc_dpms_overlay_disable(crtc);
 
-	drm_for_each_plane_mask(p, dev, plane_mask)
-		to_intel_plane(p)->disable_plane(to_intel_plane(p), intel_crtc);
+	for_each_intel_plane_on_crtc(dev, crtc, plane) {
+		if (plane_mask & BIT(plane->id)) {
+			plane->disable_plane(plane, crtc);
 
-	/*
-	 * FIXME: Once we grow proper nuclear flip support out of this we need
-	 * to compute the mask of flip planes precisely. For the time being
-	 * consider this a flip to a NULL plane.
-	 */
-	intel_frontbuffer_flip(to_i915(dev), INTEL_FRONTBUFFER_ALL_MASK(pipe));
+			fb_bits |= plane->frontbuffer_bit;
+		}
+	}
+
+	intel_frontbuffer_flip(to_i915(dev), fb_bits);
 }
 
 static void intel_encoders_pre_pll_enable(struct drm_crtc *crtc,
@@ -12696,7 +12695,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		intel_pre_plane_update(old_intel_crtc_state, new_intel_crtc_state);
 
 		if (old_crtc_state->active) {
-			intel_crtc_disable_planes(crtc, old_crtc_state->plane_mask);
+			intel_crtc_disable_planes(intel_crtc, old_intel_crtc_state->active_planes);
 
 			/*
 			 * We need to disable pipe CRC before disabling the pipe,
