@@ -312,6 +312,7 @@
 #define GLV_UPTCH(_i)				(0x0030A004 + ((_i) * 8))
 #define GLV_UPTCL(_i)				(0x0030A000 + ((_i) * 8))
 #define VSIQF_HKEY_MAX_INDEX			12
+#define VSIQF_HLUT_MAX_INDEX			15
 #define VFINT_DYN_CTLN(_i)			(0x00003800 + ((_i) * 4))
 #define VFINT_DYN_CTLN_CLEARPBA_M		BIT(1)
 

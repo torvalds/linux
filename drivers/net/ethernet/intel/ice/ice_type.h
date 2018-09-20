@@ -443,4 +443,7 @@ struct ice_hw_port_stats {
 #define ICE_SR_SECTOR_SIZE_IN_WORDS	0x800
 #define ICE_SR_WORDS_IN_1KB		512
 
+/* Hash redirection LUT for VSI - maximum array size */
+#define ICE_VSIQF_HLUT_ARRAY_SIZE	((VSIQF_HLUT_MAX_INDEX + 1) * 4)
+
 #endif /* _ICE_TYPE_H_ */

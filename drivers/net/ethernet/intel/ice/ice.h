@@ -202,6 +202,8 @@ struct ice_vsi {
 	/* Interrupt thresholds */
 	u16 work_lmt;
 
+	s16 vf_id;			/* VF ID for SR-IOV VSIs */
+
 	/* RSS config */
 	u16 rss_table_size;	/* HW RSS table size */
 	u16 rss_size;		/* Allocated RSS queues */

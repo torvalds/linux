@@ -418,6 +418,7 @@ struct ice_tlan_ctx {
 	u8  pf_num;
 	u16 vmvf_num;
 	u8  vmvf_type;
+#define ICE_TLAN_CTX_VMVF_TYPE_VF	0
 #define ICE_TLAN_CTX_VMVF_TYPE_VMQ	1
 #define ICE_TLAN_CTX_VMVF_TYPE_PF	2
 	u16 src_vsi;
