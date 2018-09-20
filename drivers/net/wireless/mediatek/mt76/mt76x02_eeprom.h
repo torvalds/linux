@@ -121,6 +121,11 @@ enum mt76x02_eeprom_field {
 #define MT_EFUSE_USAGE_MAP_SIZE			(MT_EE_USAGE_MAP_END - \
 						 MT_EE_USAGE_MAP_START + 1)
 
+enum mt76x02_eeprom_modes {
+	MT_EE_READ,
+	MT_EE_PHYSICAL_READ,
+};
+
 static inline bool mt76x02_field_valid(u8 val)
 {
 	return val != 0 && val != 0xff;
@@ -145,5 +150,8 @@ mt76x02_eeprom_get(struct mt76_dev *dev,
 
 	return get_unaligned_le16(dev->eeprom.data + field);
 }
+
+int mt76x02_get_efuse_data(struct mt76_dev *dev, u16 base, void *buf,
+			   int len, enum mt76x02_eeprom_modes mode);
 
 #endif /* __MT76x02_EEPROM_H */

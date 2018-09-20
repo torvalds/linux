@@ -21,41 +21,6 @@
 #include "mt76x0.h"
 #include "eeprom.h"
 
-static int
-mt76x0_efuse_read(struct mt76x0_dev *dev, u16 addr, u8 *data,
-		   enum mt76x0_eeprom_access_modes mode)
-{
-	u32 val;
-	int i;
-
-	val = mt76_rr(dev, MT_EFUSE_CTRL);
-	val &= ~(MT_EFUSE_CTRL_AIN |
-		 MT_EFUSE_CTRL_MODE);
-	val |= FIELD_PREP(MT_EFUSE_CTRL_AIN, addr & ~0xf) |
-	       FIELD_PREP(MT_EFUSE_CTRL_MODE, mode) |
-	       MT_EFUSE_CTRL_KICK;
-	mt76_wr(dev, MT_EFUSE_CTRL, val);
-
-	if (!mt76_poll(dev, MT_EFUSE_CTRL, MT_EFUSE_CTRL_KICK, 0, 1000))
-		return -ETIMEDOUT;
-
-	val = mt76_rr(dev, MT_EFUSE_CTRL);
-	if ((val & MT_EFUSE_CTRL_AOUT) == MT_EFUSE_CTRL_AOUT) {
-		/* Parts of eeprom not in the usage map (0x80-0xc0,0xf0)
-		 * will not return valid data but it's ok.
-		 */
-		memset(data, 0xff, 16);
-		return 0;
-	}
-
-	for (i = 0; i < 4; i++) {
-		val = mt76_rr(dev, MT_EFUSE_DATA(i));
-		put_unaligned_le32(val, data + 4 * i);
-	}
-
-	return 0;
-}
-
 #define MT_MAP_READS	DIV_ROUND_UP(MT_EFUSE_USAGE_MAP_SIZE, 16)
 static int
 mt76x0_efuse_physical_size_check(struct mt76x0_dev *dev)
@@ -64,12 +29,10 @@ mt76x0_efuse_physical_size_check(struct mt76x0_dev *dev)
 	int ret, i;
 	u32 start = 0, end = 0, cnt_free;
 
-	for (i = 0; i < MT_MAP_READS; i++) {
-		ret = mt76x0_efuse_read(dev, MT_EE_USAGE_MAP_START + i * 16,
-					 data + i * 16, MT_EE_PHYSICAL_READ);
-		if (ret)
-			return ret;
-	}
+	ret = mt76x02_get_efuse_data(&dev->mt76, MT_EE_USAGE_MAP_START,
+				     data, sizeof(data), MT_EE_PHYSICAL_READ);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < MT_EFUSE_USAGE_MAP_SIZE; i++)
 		if (!data[i]) {
@@ -80,7 +43,8 @@ mt76x0_efuse_physical_size_check(struct mt76x0_dev *dev)
 	cnt_free = end - start + 1;
 
 	if (MT_EFUSE_USAGE_MAP_SIZE - cnt_free < 5) {
-		dev_err(dev->mt76.dev, "Error: your device needs default EEPROM file and this driver doesn't support it!\n");
+		dev_err(dev->mt76.dev,
+			"driver does not support default EEPROM\n");
 		return -EINVAL;
 	}
 
@@ -360,7 +324,7 @@ int
 mt76x0_eeprom_init(struct mt76x0_dev *dev)
 {
 	u8 *eeprom;
-	int i, ret;
+	int ret;
 
 	ret = mt76x0_efuse_physical_size_check(dev);
 	if (ret)
@@ -374,11 +338,10 @@ mt76x0_eeprom_init(struct mt76x0_dev *dev)
 	if (!eeprom)
 		return -ENOMEM;
 
-	for (i = 0; i + 16 <= MT76X0_EEPROM_SIZE; i += 16) {
-		ret = mt76x0_efuse_read(dev, i, eeprom + i, MT_EE_READ);
-		if (ret)
-			goto out;
-	}
+	ret = mt76x02_get_efuse_data(&dev->mt76, 0, eeprom,
+				     MT76X0_EEPROM_SIZE, MT_EE_READ);
+	if (ret)
+		goto out;
 
 	if (eeprom[MT_EE_VERSION + 1] > MT76X0U_EE_MAX_VER)
 		dev_warn(dev->mt76.dev,

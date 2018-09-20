@@ -59,52 +59,6 @@ void mt76x2_eeprom_parse_hw_cap(struct mt76x2_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76x2_eeprom_parse_hw_cap);
 
-static int
-mt76x2_efuse_read(struct mt76x2_dev *dev, u16 addr, u8 *data)
-{
-	u32 val;
-	int i;
-
-	val = mt76_rr(dev, MT_EFUSE_CTRL);
-	val &= ~(MT_EFUSE_CTRL_AIN |
-		 MT_EFUSE_CTRL_MODE);
-	val |= FIELD_PREP(MT_EFUSE_CTRL_AIN, addr & ~0xf);
-	val |= MT_EFUSE_CTRL_KICK;
-	mt76_wr(dev, MT_EFUSE_CTRL, val);
-
-	if (!mt76_poll(dev, MT_EFUSE_CTRL, MT_EFUSE_CTRL_KICK, 0, 1000))
-		return -ETIMEDOUT;
-
-	udelay(2);
-
-	val = mt76_rr(dev, MT_EFUSE_CTRL);
-	if ((val & MT_EFUSE_CTRL_AOUT) == MT_EFUSE_CTRL_AOUT) {
-		memset(data, 0xff, 16);
-		return 0;
-	}
-
-	for (i = 0; i < 4; i++) {
-		val = mt76_rr(dev, MT_EFUSE_DATA(i));
-		put_unaligned_le32(val, data + 4 * i);
-	}
-
-	return 0;
-}
-
-static int
-mt76x2_get_efuse_data(struct mt76x2_dev *dev, void *buf, int len)
-{
-	int ret, i;
-
-	for (i = 0; i + 16 <= len; i += 16) {
-		ret = mt76x2_efuse_read(dev, i, buf + i);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 static bool
 mt76x2_has_cal_free_data(struct mt76x2_dev *dev, u8 *efuse)
 {
@@ -241,7 +195,8 @@ mt76x2_eeprom_load(struct mt76x2_dev *dev)
 
 	efuse = dev->mt76.otp.data;
 
-	if (mt76x2_get_efuse_data(dev, efuse, MT7662_EEPROM_SIZE))
+	if (mt76x02_get_efuse_data(&dev->mt76, 0, efuse,
+				   MT7662_EEPROM_SIZE, MT_EE_READ))
 		goto out;
 
 	if (found) {

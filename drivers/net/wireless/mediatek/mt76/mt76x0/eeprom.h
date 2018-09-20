@@ -23,11 +23,6 @@ struct mt76x0_dev;
 #define MT76X0U_EE_MAX_VER		0x0c
 #define MT76X0_EEPROM_SIZE		512
 
-enum mt76x0_eeprom_access_modes {
-	MT_EE_READ = 0,
-	MT_EE_PHYSICAL_READ = 1,
-};
-
 struct reg_channel_bounds {
 	u8 start;
 	u8 num;
