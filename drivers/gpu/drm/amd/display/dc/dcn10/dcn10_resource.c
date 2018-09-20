@@ -65,6 +65,7 @@
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
 #include "dce/dce_aux.h"
+#include "dce/dce_i2c.h"
 
 const struct _vcs_dpi_ip_params_st dcn1_0_ip = {
 	.rob_buffer_size_kbytes = 64,
@@ -151,7 +152,10 @@ enum dcn10_clk_src_array_id {
 	DCN10_CLK_SRC_PLL1,
 	DCN10_CLK_SRC_PLL2,
 	DCN10_CLK_SRC_PLL3,
-	DCN10_CLK_SRC_TOTAL
+	DCN10_CLK_SRC_TOTAL,
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	DCN101_CLK_SRC_TOTAL = DCN10_CLK_SRC_PLL3
+#endif
 };
 
 /* begin *********************
@@ -500,6 +504,7 @@ static const struct resource_caps res_cap = {
 		.num_audio = 4,
 		.num_stream_encoder = 4,
 		.num_pll = 4,
+		.num_ddc = 4,
 };
 
 static const struct dc_debug_options debug_defaults_drv = {
@@ -610,7 +615,40 @@ struct aux_engine *dcn10_aux_engine_create(
 
 	return &aux_engine->base;
 }
+#define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST(id) }
 
+static const struct dce_i2c_registers i2c_hw_regs[] = {
+		i2c_inst_regs(1),
+		i2c_inst_regs(2),
+		i2c_inst_regs(3),
+		i2c_inst_regs(4),
+		i2c_inst_regs(5),
+		i2c_inst_regs(6),
+};
+
+static const struct dce_i2c_shift i2c_shifts = {
+		I2C_COMMON_MASK_SH_LIST_DCE110(__SHIFT)
+};
+
+static const struct dce_i2c_mask i2c_masks = {
+		I2C_COMMON_MASK_SH_LIST_DCE110(_MASK)
+};
+
+struct dce_i2c_hw *dcn10_i2c_hw_create(
+	struct dc_context *ctx,
+	uint32_t inst)
+{
+	struct dce_i2c_hw *dce_i2c_hw =
+		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
+
+	if (!dce_i2c_hw)
+		return NULL;
+
+	dcn1_i2c_hw_construct(dce_i2c_hw, ctx, inst,
+				    &i2c_hw_regs[inst], &i2c_shifts, &i2c_masks);
+
+	return dce_i2c_hw;
+}
 static struct mpc *dcn10_mpc_create(struct dc_context *ctx)
 {
 	struct dcn10_mpc *mpc10 = kzalloc(sizeof(struct dcn10_mpc),
@@ -711,7 +749,7 @@ struct clock_source *dcn10_clock_source_create(
 	if (!clk_src)
 		return NULL;
 
-	if (dce110_clk_src_construct(clk_src, ctx, bios, id,
+	if (dce112_clk_src_construct(clk_src, ctx, bios, id,
 			regs, &cs_shift, &cs_mask)) {
 		clk_src->base.dp_clk_src = dp_clk_src;
 		return &clk_src->base;
@@ -862,6 +900,14 @@ static void destruct(struct dcn10_resource_pool *pool)
 
 		if (pool->base.engines[i] != NULL)
 			pool->base.engines[i]->funcs->destroy_engine(&pool->base.engines[i]);
+		if (pool->base.hw_i2cs[i] != NULL) {
+			kfree(pool->base.hw_i2cs[i]);
+			pool->base.hw_i2cs[i] = NULL;
+		}
+		if (pool->base.sw_i2cs[i] != NULL) {
+			kfree(pool->base.sw_i2cs[i]);
+			pool->base.sw_i2cs[i] = NULL;
+		}
 	}
 
 	for (i = 0; i < pool->base.stream_enc_count; i++)
@@ -934,6 +980,8 @@ static void get_pixel_clock_parameters(
 
 	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		pixel_clk_params->requested_pix_clk  /= 2;
+	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
+		pixel_clk_params->requested_pix_clk *= 2;
 
 }
 
@@ -1120,6 +1168,10 @@ static bool construct(
 	/* max pipe num for ASIC before check pipe fuses */
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	if (dc->ctx->dce_version == DCN_VERSION_1_01)
+		pool->base.pipe_count = 3;
+#endif
 	dc->caps.max_video_width = 3840;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
@@ -1151,12 +1203,27 @@ static bool construct(
 			dcn10_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_COMBO_PHY_PLL2,
 				&clk_src_regs[2], false);
+
+#ifdef CONFIG_DRM_AMD_DC_DCN1_01
+	if (dc->ctx->dce_version == DCN_VERSION_1_0) {
+		pool->base.clock_sources[DCN10_CLK_SRC_PLL3] =
+				dcn10_clock_source_create(ctx, ctx->dc_bios,
+					CLOCK_SOURCE_COMBO_PHY_PLL3,
+					&clk_src_regs[3], false);
+	}
+#else
 	pool->base.clock_sources[DCN10_CLK_SRC_PLL3] =
 			dcn10_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_COMBO_PHY_PLL3,
 				&clk_src_regs[3], false);
+#endif
 
 	pool->base.clk_src_count = DCN10_CLK_SRC_TOTAL;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	if (dc->ctx->dce_version == DCN_VERSION_1_01)
+		pool->base.clk_src_count = DCN101_CLK_SRC_TOTAL;
+#endif
 
 	pool->base.dp_clock_source =
 			dcn10_clock_source_create(ctx, ctx->dc_bios,
@@ -1203,6 +1270,18 @@ static bool construct(
 	memcpy(dc->dcn_ip, &dcn10_ip_defaults, sizeof(dcn10_ip_defaults));
 	memcpy(dc->dcn_soc, &dcn10_soc_defaults, sizeof(dcn10_soc_defaults));
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	if (dc->ctx->dce_version == DCN_VERSION_1_01) {
+		struct dcn_soc_bounding_box *dcn_soc = dc->dcn_soc;
+		struct dcn_ip_params *dcn_ip = dc->dcn_ip;
+		struct display_mode_lib *dml = &dc->dml;
+
+		dml->ip.max_num_dpp = 3;
+		/* TODO how to handle 23.84? */
+		dcn_soc->dram_clock_change_latency = 23;
+		dcn_ip->max_num_dpp = 3;
+	}
+#endif
 	if (ASICREV_IS_RV1_F0(dc->ctx->asic_id.hw_internal_rev)) {
 		dc->dcn_soc->urgent_latency = 3;
 		dc->debug.disable_dmcu = true;
@@ -1292,7 +1371,11 @@ static bool construct(
 			dm_error("DC: failed to create tg!\n");
 			goto fail;
 		}
+		/* check next valid pipe */
+		j++;
+	}
 
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		pool->base.engines[i] = dcn10_aux_engine_create(ctx, i);
 		if (pool->base.engines[i] == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -1300,9 +1383,14 @@ static bool construct(
 				"DC:failed to create aux engine!!\n");
 			goto fail;
 		}
-
-		/* check next valid pipe */
-		j++;
+		pool->base.hw_i2cs[i] = dcn10_i2c_hw_create(ctx, i);
+		if (pool->base.hw_i2cs[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create hw i2c!!\n");
+			goto fail;
+		}
+		pool->base.sw_i2cs[i] = NULL;
 	}
 
 	/* valid pipe num */

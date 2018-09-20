@@ -620,7 +620,8 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 		return -EINVAL;
 	}
 
-	if (smum_is_hw_avfs_present(hwmgr))
+	if (smum_is_hw_avfs_present(hwmgr) &&
+	    (hwmgr->feature_mask & PP_AVFS_MASK))
 		hwmgr->avfs_supported = true;
 
 	return 0;

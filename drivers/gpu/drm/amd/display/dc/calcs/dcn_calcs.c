@@ -37,6 +37,13 @@
 
 #define DC_LOGGER \
 	dc->ctx->logger
+
+#define WM_SET_COUNT 4
+#define WM_A 0
+#define WM_B 1
+#define WM_C 2
+#define WM_D 3
+
 /*
  * NOTE:
  *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
@@ -845,8 +852,9 @@ bool dcn_validate_bandwidth(
 		v->v_sync_plus_back_porch[input_idx] = pipe->stream->timing.v_total
 				- v->vactive[input_idx]
 				- pipe->stream->timing.v_front_porch;
-		v->pixel_clock[input_idx] = pipe->stream->timing.pix_clk_khz / 1000.0f;
-
+		v->pixel_clock[input_idx] = pipe->stream->timing.pix_clk_khz/1000.0;
+		if (pipe->stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
+			v->pixel_clock[input_idx] *= 2;
 		if (!pipe->plane_state) {
 			v->dcc_enable[input_idx] = dcn_bw_yes;
 			v->source_pixel_format[input_idx] = dcn_bw_rgb_sub_32;

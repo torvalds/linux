@@ -131,6 +131,9 @@ struct link_encoder_funcs {
 	void (*enable_dp_mst_output)(struct link_encoder *enc,
 		const struct dc_link_settings *link_settings,
 		enum clock_source_id clock_source);
+	void (*enable_lvds_output)(struct link_encoder *enc,
+		enum clock_source_id clock_source,
+		uint32_t pixel_clock);
 	void (*disable_output)(struct link_encoder *link_enc,
 		enum signal_type signal);
 	void (*dp_set_lane_settings)(struct link_encoder *enc,

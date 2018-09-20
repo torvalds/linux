@@ -53,6 +53,11 @@ struct display_clock_funcs {
 		int requested_clock_khz);
 
 	int (*get_dp_ref_clk_frequency)(struct dccg *dccg);
+
+	bool (*update_dfs_bypass)(struct dccg *dccg,
+		struct dc *dc,
+		struct dc_state *context,
+		int requested_clock_khz);
 };
 
 #endif /* __DISPLAY_CLOCK_H__ */
