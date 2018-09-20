@@ -56,6 +56,18 @@ mt76_queues_read(struct seq_file *s, void *data)
 	return 0;
 }
 
+void mt76_seq_puts_array(struct seq_file *file, const char *str,
+			 s8 *val, int len)
+{
+	int i;
+
+	seq_printf(file, "%10s:", str);
+	for (i = 0; i < len; i++)
+		seq_printf(file, " %2d", val[i]);
+	seq_puts(file, "\n");
+}
+EXPORT_SYMBOL_GPL(mt76_seq_puts_array);
+
 struct dentry *mt76_register_debugfs(struct mt76_dev *dev)
 {
 	struct dentry *dir;

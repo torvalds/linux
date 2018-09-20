@@ -539,6 +539,8 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 void mt76_unregister_device(struct mt76_dev *dev);
 
 struct dentry *mt76_register_debugfs(struct mt76_dev *dev);
+void mt76_seq_puts_array(struct seq_file *file, const char *str,
+			 s8 *val, int len);
 
 int mt76_eeprom_init(struct mt76_dev *dev, int len);
 void mt76_eeprom_override(struct mt76_dev *dev);
