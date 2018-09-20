@@ -403,7 +403,7 @@
 		status = "disabled";
 	};
 
-	usbdrd3_0: usb@fe800000 {
+	usbdrd3_0: usb0 {
 		compatible = "rockchip,rk3399-dwc3";
 		clocks = <&cru SCLK_USB3OTG0_REF>, <&cru SCLK_USB3OTG0_SUSPEND>,
 			 <&cru ACLK_USB3OTG0>, <&cru ACLK_USB3_GRF>;
@@ -416,6 +416,7 @@
 		#size-cells = <2>;
 		ranges;
 		status = "disabled";
+
 		usbdrd_dwc3_0: dwc3@fe800000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0xfe800000 0x0 0x100000>;
@@ -435,7 +436,7 @@
 		};
 	};
 
-	usbdrd3_1: usb@fe900000 {
+	usbdrd3_1: usb1 {
 		compatible = "rockchip,rk3399-dwc3";
 		clocks = <&cru SCLK_USB3OTG1_REF>, <&cru SCLK_USB3OTG1_SUSPEND>,
 			 <&cru ACLK_USB3OTG1>, <&cru ACLK_USB3_GRF>;
@@ -448,6 +449,7 @@
 		#size-cells = <2>;
 		ranges;
 		status = "disabled";
+
 		usbdrd_dwc3_1: dwc3@fe900000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0xfe900000 0x0 0x100000>;
@@ -2075,7 +2077,7 @@
 		};
 	};
 
-	mipi_dphy_tx1rx1: mipi-dphy-tx1rx1@0xff968000 {
+	mipi_dphy_tx1rx1: mipi-dphy-tx1rx1@ff968000 {
 		compatible = "rockchip,rk3399-mipi-dphy";
 		reg = <0x0 0xff968000 0x0 0x8000>;
 		clocks = <&cru SCLK_MIPIDPHY_REF>,
