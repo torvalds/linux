@@ -828,7 +828,7 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 			if (READ_ONCE(iovec->offset) == iovec->iov.iov_len) {
 				if (++req->iov_idx == req->data_iovs) {
 					ret = -EFAULT;
-					goto free_txreq;
+					goto free_tx;
 				}
 				iovec = &req->iovs[req->iov_idx];
 				WARN_ON(iovec->offset);
