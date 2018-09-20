@@ -447,7 +447,7 @@ static inline void rvt_set_ibdev_name(struct rvt_dev_info *rdi,
  */
 static inline const char *rvt_get_ibdev_name(const struct rvt_dev_info *rdi)
 {
-	return rdi->ibdev.name;
+	return dev_name(&rdi->ibdev.dev);
 }
 
 static inline struct rvt_pd *ibpd_to_rvtpd(struct ib_pd *ibpd)
