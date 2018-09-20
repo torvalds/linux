@@ -699,7 +699,7 @@
 		mpu-debug = <1>;
 	};
 
-	sensor@0d {
+	sensor@d {
 		status = "okay";
 		compatible = "ak8963";
 		reg = <0x0d>;
