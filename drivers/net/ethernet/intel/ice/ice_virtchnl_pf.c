@@ -35,6 +35,51 @@ ice_vc_vf_broadcast(struct ice_pf *pf, enum virtchnl_ops v_opcode,
 }
 
 /**
+ * ice_set_pfe_link - Set the link speed/status of the virtchnl_pf_event
+ * @vf: pointer to the VF structure
+ * @pfe: pointer to the virtchnl_pf_event to set link speed/status for
+ * @ice_link_speed: link speed specified by ICE_AQ_LINK_SPEED_*
+ * @link_up: whether or not to set the link up/down
+ */
+static void
+ice_set_pfe_link(struct ice_vf *vf, struct virtchnl_pf_event *pfe,
+		 int ice_link_speed, bool link_up)
+{
+	if (vf->driver_caps & VIRTCHNL_VF_CAP_ADV_LINK_SPEED) {
+		pfe->event_data.link_event_adv.link_status = link_up;
+		/* Speed in Mbps */
+		pfe->event_data.link_event_adv.link_speed =
+			ice_conv_link_speed_to_virtchnl(true, ice_link_speed);
+	} else {
+		pfe->event_data.link_event.link_status = link_up;
+		/* Legacy method for virtchnl link speeds */
+		pfe->event_data.link_event.link_speed =
+			(enum virtchnl_link_speed)
+			ice_conv_link_speed_to_virtchnl(false, ice_link_speed);
+	}
+}
+
+/**
+ * ice_set_pfe_link_forced - Force the virtchnl_pf_event link speed/status
+ * @vf: pointer to the VF structure
+ * @pfe: pointer to the virtchnl_pf_event to set link speed/status for
+ * @link_up: whether or not to set the link up/down
+ */
+static void
+ice_set_pfe_link_forced(struct ice_vf *vf, struct virtchnl_pf_event *pfe,
+			bool link_up)
+{
+	u16 link_speed;
+
+	if (link_up)
+		link_speed = ICE_AQ_LINK_SPEED_40GB;
+	else
+		link_speed = ICE_AQ_LINK_SPEED_UNKNOWN;
+
+	ice_set_pfe_link(vf, pfe, link_speed, link_up);
+}
+
+/**
  * ice_get_vf_vector - get VF interrupt vector register offset
  * @vf_msix: number of MSIx vector per VF on a PF
  * @vf_id: VF identifier
@@ -288,6 +333,24 @@ static int ice_vsi_set_pvid(struct ice_vsi *vsi, u16 vid)
 
 	vsi->info.pvid = ctxt.info.pvid;
 	vsi->info.vlan_flags = ctxt.info.vlan_flags;
+	return 0;
+}
+
+/**
+ * ice_vsi_kill_pvid - Remove port VLAN id from the VSI
+ * @vsi: the VSI being changed
+ */
+static int ice_vsi_kill_pvid(struct ice_vsi *vsi)
+{
+	struct ice_pf *pf = vsi->back;
+
+	if (ice_vsi_manage_vlan_stripping(vsi, false)) {
+		dev_err(&pf->pdev->dev, "Error removing Port VLAN on VSI %i\n",
+			vsi->vsi_num);
+		return -ENODEV;
+	}
+
+	vsi->info.pvid = 0;
 	return 0;
 }
 
@@ -815,6 +878,29 @@ void ice_vc_notify_reset(struct ice_pf *pf)
 }
 
 /**
+ * ice_vc_notify_vf_reset - Notify VF of a reset event
+ * @vf: pointer to the VF structure
+ */
+static void ice_vc_notify_vf_reset(struct ice_vf *vf)
+{
+	struct virtchnl_pf_event pfe;
+
+	/* validate the request */
+	if (!vf || vf->vf_id >= vf->pf->num_alloc_vfs)
+		return;
+
+	/* verify if the VF is in either init or active before proceeding */
+	if (!test_bit(ICE_VF_STATE_INIT, vf->vf_states) &&
+	    !test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states))
+		return;
+
+	pfe.event = VIRTCHNL_EVENT_RESET_IMPENDING;
+	pfe.severity = PF_EVENT_SEVERITY_CERTAIN_DOOM;
+	ice_aq_send_msg_to_vf(&vf->pf->hw, vf->vf_id, VIRTCHNL_OP_EVENT, 0,
+			      (u8 *)&pfe, sizeof(pfe), NULL);
+}
+
+/**
  * ice_alloc_vfs - Allocate and set up VFs resources
  * @pf: pointer to the PF structure
  * @num_alloc_vfs: number of VFs to allocate
@@ -1007,4 +1093,356 @@ void ice_process_vflr_event(struct ice_pf *pf)
 			/* GLGEN_VFLRSTAT bit will be cleared in ice_reset_vf */
 			ice_reset_vf(vf, true);
 	}
+}
+
+/**
+ * ice_vc_dis_vf - Disable a given VF via SW reset
+ * @vf: pointer to the VF info
+ *
+ * Disable the VF through a SW reset
+ */
+static void ice_vc_dis_vf(struct ice_vf *vf)
+{
+	ice_vc_notify_vf_reset(vf);
+	ice_reset_vf(vf, false);
+}
+
+/**
+ * ice_set_vf_port_vlan
+ * @netdev: network interface device structure
+ * @vf_id: VF identifier
+ * @vlan_id: VLAN id being set
+ * @qos: priority setting
+ * @vlan_proto: VLAN protocol
+ *
+ * program VF Port VLAN id and/or qos
+ */
+int
+ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
+		     __be16 vlan_proto)
+{
+	u16 vlanprio = vlan_id | (qos << ICE_VLAN_PRIORITY_S);
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_pf *pf = np->vsi->back;
+	struct ice_vsi *vsi;
+	struct ice_vf *vf;
+	int ret = 0;
+
+	/* validate the request */
+	if (vf_id >= pf->num_alloc_vfs) {
+		dev_err(&pf->pdev->dev, "invalid VF id: %d\n", vf_id);
+		return -EINVAL;
+	}
+
+	if (vlan_id > ICE_MAX_VLANID || qos > 7) {
+		dev_err(&pf->pdev->dev, "Invalid VF Parameters\n");
+		return -EINVAL;
+	}
+
+	if (vlan_proto != htons(ETH_P_8021Q)) {
+		dev_err(&pf->pdev->dev, "VF VLAN protocol is not supported\n");
+		return -EPROTONOSUPPORT;
+	}
+
+	vf = &pf->vf[vf_id];
+	vsi = pf->vsi[vf->lan_vsi_idx];
+	if (!test_bit(ICE_VF_STATE_INIT, vf->vf_states)) {
+		dev_err(&pf->pdev->dev, "VF %d in reset. Try again.\n", vf_id);
+		return -EBUSY;
+	}
+
+	if (le16_to_cpu(vsi->info.pvid) == vlanprio) {
+		/* duplicate request, so just return success */
+		dev_info(&pf->pdev->dev,
+			 "Duplicate pvid %d request\n", vlanprio);
+		return ret;
+	}
+
+	/* If pvid, then remove all filters on the old VLAN */
+	if (vsi->info.pvid)
+		ice_vsi_kill_vlan(vsi, (le16_to_cpu(vsi->info.pvid) &
+				  VLAN_VID_MASK));
+
+	if (vlan_id || qos) {
+		ret = ice_vsi_set_pvid(vsi, vlanprio);
+		if (ret)
+			goto error_set_pvid;
+	} else {
+		ice_vsi_kill_pvid(vsi);
+	}
+
+	if (vlan_id) {
+		dev_info(&pf->pdev->dev, "Setting VLAN %d, QOS 0x%x on VF %d\n",
+			 vlan_id, qos, vf_id);
+
+		/* add new VLAN filter for each MAC */
+		ret = ice_vsi_add_vlan(vsi, vlan_id);
+		if (ret)
+			goto error_set_pvid;
+	}
+
+	/* The Port VLAN needs to be saved across resets the same as the
+	 * default LAN MAC address.
+	 */
+	vf->port_vlan_id = le16_to_cpu(vsi->info.pvid);
+
+error_set_pvid:
+	return ret;
+}
+
+/**
+ * ice_get_vf_cfg
+ * @netdev: network interface device structure
+ * @vf_id: VF identifier
+ * @ivi: VF configuration structure
+ *
+ * return VF configuration
+ */
+int ice_get_vf_cfg(struct net_device *netdev, int vf_id,
+		   struct ifla_vf_info *ivi)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	struct ice_vf *vf;
+
+	/* validate the request */
+	if (vf_id >= pf->num_alloc_vfs) {
+		netdev_err(netdev, "invalid VF id: %d\n", vf_id);
+		return -EINVAL;
+	}
+
+	vf = &pf->vf[vf_id];
+	vsi = pf->vsi[vf->lan_vsi_idx];
+
+	if (!test_bit(ICE_VF_STATE_INIT, vf->vf_states)) {
+		netdev_err(netdev, "VF %d in reset. Try again.\n", vf_id);
+		return -EBUSY;
+	}
+
+	ivi->vf = vf_id;
+	ether_addr_copy(ivi->mac, vf->dflt_lan_addr.addr);
+
+	/* VF configuration for VLAN and applicable QoS */
+	ivi->vlan = le16_to_cpu(vsi->info.pvid) & ICE_VLAN_M;
+	ivi->qos = (le16_to_cpu(vsi->info.pvid) & ICE_PRIORITY_M) >>
+		    ICE_VLAN_PRIORITY_S;
+
+	ivi->trusted = vf->trusted;
+	ivi->spoofchk = vf->spoofchk;
+	if (!vf->link_forced)
+		ivi->linkstate = IFLA_VF_LINK_STATE_AUTO;
+	else if (vf->link_up)
+		ivi->linkstate = IFLA_VF_LINK_STATE_ENABLE;
+	else
+		ivi->linkstate = IFLA_VF_LINK_STATE_DISABLE;
+	ivi->max_tx_rate = vf->tx_rate;
+	ivi->min_tx_rate = 0;
+	return 0;
+}
+
+/**
+ * ice_set_vf_spoofchk
+ * @netdev: network interface device structure
+ * @vf_id: VF identifier
+ * @ena: flag to enable or disable feature
+ *
+ * Enable or disable VF spoof checking
+ */
+int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi_ctx ctx = { 0 };
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	struct ice_vf *vf;
+	int status;
+
+	/* validate the request */
+	if (vf_id >= pf->num_alloc_vfs) {
+		netdev_err(netdev, "invalid VF id: %d\n", vf_id);
+		return -EINVAL;
+	}
+
+	vf = &pf->vf[vf_id];
+	if (!test_bit(ICE_VF_STATE_INIT, vf->vf_states)) {
+		netdev_err(netdev, "VF %d in reset. Try again.\n", vf_id);
+		return -EBUSY;
+	}
+
+	if (ena == vf->spoofchk) {
+		dev_dbg(&pf->pdev->dev, "VF spoofchk already %s\n",
+			ena ? "ON" : "OFF");
+		return 0;
+	}
+
+	ctx.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID);
+
+	if (ena) {
+		ctx.info.sec_flags |= ICE_AQ_VSI_SEC_FLAG_ENA_MAC_ANTI_SPOOF;
+		ctx.info.sw_flags2 |= ICE_AQ_VSI_SW_FLAG_RX_PRUNE_EN_M;
+	}
+
+	status = ice_update_vsi(&pf->hw, vsi->idx, &ctx, NULL);
+	if (status) {
+		dev_dbg(&pf->pdev->dev,
+			"Error %d, failed to update VSI* parameters\n", status);
+		return -EIO;
+	}
+
+	vf->spoofchk = ena;
+	vsi->info.sec_flags = ctx.info.sec_flags;
+	vsi->info.sw_flags2 = ctx.info.sw_flags2;
+
+	return status;
+}
+
+/**
+ * ice_set_vf_mac
+ * @netdev: network interface device structure
+ * @vf_id: VF identifier
+ * @mac: mac address
+ *
+ * program VF mac address
+ */
+int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	struct ice_vf *vf;
+	int ret = 0;
+
+	/* validate the request */
+	if (vf_id >= pf->num_alloc_vfs) {
+		netdev_err(netdev, "invalid VF id: %d\n", vf_id);
+		return -EINVAL;
+	}
+
+	vf = &pf->vf[vf_id];
+	if (!test_bit(ICE_VF_STATE_INIT, vf->vf_states)) {
+		netdev_err(netdev, "VF %d in reset. Try again.\n", vf_id);
+		return -EBUSY;
+	}
+
+	if (is_zero_ether_addr(mac) || is_multicast_ether_addr(mac)) {
+		netdev_err(netdev, "%pM not a valid unicast address\n", mac);
+		return -EINVAL;
+	}
+
+	/* copy mac into dflt_lan_addr and trigger a VF reset. The reset
+	 * flow will use the updated dflt_lan_addr and add a MAC filter
+	 * using ice_add_mac. Also set pf_set_mac to indicate that the PF has
+	 * set the MAC address for this VF.
+	 */
+	ether_addr_copy(vf->dflt_lan_addr.addr, mac);
+	vf->pf_set_mac = true;
+	netdev_info(netdev,
+		    "mac on VF %d set to %pM\n. VF driver will be reinitialized\n",
+		    vf_id, mac);
+
+	ice_vc_dis_vf(vf);
+	return ret;
+}
+
+/**
+ * ice_set_vf_trust
+ * @netdev: network interface device structure
+ * @vf_id: VF identifier
+ * @trusted: Boolean value to enable/disable trusted VF
+ *
+ * Enable or disable a given VF as trusted
+ */
+int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	struct ice_vf *vf;
+
+	/* validate the request */
+	if (vf_id >= pf->num_alloc_vfs) {
+		dev_err(&pf->pdev->dev, "invalid VF id: %d\n", vf_id);
+		return -EINVAL;
+	}
+
+	vf = &pf->vf[vf_id];
+	if (!test_bit(ICE_VF_STATE_INIT, vf->vf_states)) {
+		dev_err(&pf->pdev->dev, "VF %d in reset. Try again.\n", vf_id);
+		return -EBUSY;
+	}
+
+	/* Check if already trusted */
+	if (trusted == vf->trusted)
+		return 0;
+
+	vf->trusted = trusted;
+	ice_vc_dis_vf(vf);
+	dev_info(&pf->pdev->dev, "VF %u is now %strusted\n",
+		 vf_id, trusted ? "" : "un");
+
+	return 0;
+}
+
+/**
+ * ice_set_vf_link_state
+ * @netdev: network interface device structure
+ * @vf_id: VF identifier
+ * @link_state: required link state
+ *
+ * Set VF's link state, irrespective of physical link state status
+ */
+int ice_set_vf_link_state(struct net_device *netdev, int vf_id, int link_state)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_pf *pf = np->vsi->back;
+	struct virtchnl_pf_event pfe = { 0 };
+	struct ice_link_status *ls;
+	struct ice_vf *vf;
+	struct ice_hw *hw;
+
+	if (vf_id >= pf->num_alloc_vfs) {
+		dev_err(&pf->pdev->dev, "Invalid VF Identifier %d\n", vf_id);
+		return -EINVAL;
+	}
+
+	vf = &pf->vf[vf_id];
+	hw = &pf->hw;
+	ls = &pf->hw.port_info->phy.link_info;
+
+	if (!test_bit(ICE_VF_STATE_INIT, vf->vf_states)) {
+		dev_err(&pf->pdev->dev, "vf %d in reset. Try again.\n", vf_id);
+		return -EBUSY;
+	}
+
+	pfe.event = VIRTCHNL_EVENT_LINK_CHANGE;
+	pfe.severity = PF_EVENT_SEVERITY_INFO;
+
+	switch (link_state) {
+	case IFLA_VF_LINK_STATE_AUTO:
+		vf->link_forced = false;
+		vf->link_up = ls->link_info & ICE_AQ_LINK_UP;
+		break;
+	case IFLA_VF_LINK_STATE_ENABLE:
+		vf->link_forced = true;
+		vf->link_up = true;
+		break;
+	case IFLA_VF_LINK_STATE_DISABLE:
+		vf->link_forced = true;
+		vf->link_up = false;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (vf->link_forced)
+		ice_set_pfe_link_forced(vf, &pfe, vf->link_up);
+	else
+		ice_set_pfe_link(vf, &pfe, ls->link_speed, vf->link_up);
+
+	/* Notify the VF of its new link state */
+	ice_aq_send_msg_to_vf(hw, vf->vf_id, VIRTCHNL_OP_EVENT, 0, (u8 *)&pfe,
+			      sizeof(pfe), NULL);
+
+	return 0;
 }
