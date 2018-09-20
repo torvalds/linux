@@ -219,7 +219,7 @@ static void pmz_interrupt_control(struct uart_pmac_port *uap, int enable)
 static bool pmz_receive_chars(struct uart_pmac_port *uap)
 {
 	struct tty_port *port;
-	unsigned char ch, r1, drop, error, flag;
+	unsigned char ch, r1, drop, flag;
 	int loops = 0;
 
 	/* Sanity check, make sure the old bug is no longer happening */
@@ -231,7 +231,6 @@ static bool pmz_receive_chars(struct uart_pmac_port *uap)
 	port = &uap->port.state->port;
 
 	while (1) {
-		error = 0;
 		drop = 0;
 
 		r1 = read_zsreg(uap, R1);
@@ -273,7 +272,6 @@ static bool pmz_receive_chars(struct uart_pmac_port *uap)
 		uap->port.icount.rx++;
 
 		if (r1 & (PAR_ERR | Rx_OVR | CRC_ERR | BRK_ABRT)) {
-			error = 1;
 			if (r1 & BRK_ABRT) {
 				pmz_debug("pmz: got break !\n");
 				r1 &= ~(PAR_ERR | CRC_ERR);
