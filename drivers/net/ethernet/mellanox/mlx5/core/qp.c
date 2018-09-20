@@ -540,6 +540,17 @@ int mlx5_core_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn)
 }
 EXPORT_SYMBOL_GPL(mlx5_core_xrcd_dealloc);
 
+static void destroy_rq_tracked(struct mlx5_core_dev *dev, u32 rqn, u16 uid)
+{
+	u32 in[MLX5_ST_SZ_DW(destroy_rq_in)]   = {};
+	u32 out[MLX5_ST_SZ_DW(destroy_rq_out)] = {};
+
+	MLX5_SET(destroy_rq_in, in, opcode, MLX5_CMD_OP_DESTROY_RQ);
+	MLX5_SET(destroy_rq_in, in, rqn, rqn);
+	MLX5_SET(destroy_rq_in, in, uid, uid);
+	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+
 int mlx5_core_create_rq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
 				struct mlx5_core_qp *rq)
 {
@@ -550,6 +561,7 @@ int mlx5_core_create_rq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
 	if (err)
 		return err;
 
+	rq->uid = MLX5_GET(create_rq_in, in, uid);
 	rq->qpn = rqn;
 	err = create_resource_common(dev, rq, MLX5_RES_RQ);
 	if (err)
@@ -558,7 +570,7 @@ int mlx5_core_create_rq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
 	return 0;
 
 err_destroy_rq:
-	mlx5_core_destroy_rq(dev, rq->qpn);
+	destroy_rq_tracked(dev, rq->qpn, rq->uid);
 
 	return err;
 }
@@ -568,7 +580,7 @@ void mlx5_core_destroy_rq_tracked(struct mlx5_core_dev *dev,
 				  struct mlx5_core_qp *rq)
 {
 	destroy_resource_common(dev, rq);
-	mlx5_core_destroy_rq(dev, rq->qpn);
+	destroy_rq_tracked(dev, rq->qpn, rq->uid);
 }
 EXPORT_SYMBOL(mlx5_core_destroy_rq_tracked);
 

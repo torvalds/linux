@@ -5488,7 +5488,7 @@ enum {
 
 struct mlx5_ifc_modify_rq_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_at_10[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_at_20[0x10];
 	u8         op_mod[0x10];
@@ -6164,7 +6164,7 @@ struct mlx5_ifc_destroy_rq_out_bits {
 
 struct mlx5_ifc_destroy_rq_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_at_10[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_at_20[0x10];
 	u8         op_mod[0x10];
@@ -6847,7 +6847,7 @@ struct mlx5_ifc_create_rq_out_bits {
 
 struct mlx5_ifc_create_rq_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_at_10[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_at_20[0x10];
 	u8         op_mod[0x10];
