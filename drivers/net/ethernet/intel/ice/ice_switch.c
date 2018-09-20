@@ -2010,12 +2010,12 @@ out:
 enum ice_status
 ice_remove_mac(struct ice_hw *hw, struct list_head *m_list)
 {
-	struct ice_fltr_list_entry *list_itr;
+	struct ice_fltr_list_entry *list_itr, *tmp;
 
 	if (!m_list)
 		return ICE_ERR_PARAM;
 
-	list_for_each_entry(list_itr, m_list, list_entry) {
+	list_for_each_entry_safe(list_itr, tmp, m_list, list_entry) {
 		enum ice_sw_lkup_type l_type = list_itr->fltr_info.lkup_type;
 
 		if (l_type != ICE_SW_LKUP_MAC)
@@ -2037,12 +2037,12 @@ ice_remove_mac(struct ice_hw *hw, struct list_head *m_list)
 enum ice_status
 ice_remove_vlan(struct ice_hw *hw, struct list_head *v_list)
 {
-	struct ice_fltr_list_entry *v_list_itr;
+	struct ice_fltr_list_entry *v_list_itr, *tmp;
 
 	if (!v_list || !hw)
 		return ICE_ERR_PARAM;
 
-	list_for_each_entry(v_list_itr, v_list, list_entry) {
+	list_for_each_entry_safe(v_list_itr, tmp, v_list, list_entry) {
 		enum ice_sw_lkup_type l_type = v_list_itr->fltr_info.lkup_type;
 
 		if (l_type != ICE_SW_LKUP_VLAN)
@@ -2142,7 +2142,7 @@ ice_add_to_vsi_fltr_list(struct ice_hw *hw, u16 vsi_handle,
 		struct ice_fltr_info *fi;
 
 		fi = &fm_entry->fltr_info;
-		if (!ice_vsi_uses_fltr(fm_entry, vsi_handle))
+		if (!fi || !ice_vsi_uses_fltr(fm_entry, vsi_handle))
 			continue;
 
 		status = ice_add_entry_to_vsi_fltr_list(hw, vsi_handle,
@@ -2259,7 +2259,8 @@ ice_replay_vsi_fltr(struct ice_hw *hw, u16 vsi_handle, u8 recp_id,
 				goto end;
 			continue;
 		}
-		if (!test_bit(vsi_handle, itr->vsi_list_info->vsi_map))
+		if (!itr->vsi_list_info ||
+		    !test_bit(vsi_handle, itr->vsi_list_info->vsi_map))
 			continue;
 		/* Clearing it so that the logic can add it back */
 		clear_bit(vsi_handle, itr->vsi_list_info->vsi_map);
