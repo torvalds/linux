@@ -481,6 +481,19 @@ static const struct drm_i915_cmd_descriptor gen9_blt_cmds[] = {
 	      .reg = { .offset = 1, .mask = 0x007FFFFC }               ),
 	CMD(  MI_LOAD_REGISTER_REG,             SMI,    !F,  0xFF,  W,
 	      .reg = { .offset = 1, .mask = 0x007FFFFC, .step = 1 }    ),
+
+	/*
+	 * We allow BB_START but apply further checks. We just sanitize the
+	 * basic fields here.
+	 */
+#define MI_BB_START_OPERAND_MASK   GENMASK(SMI-1, 0)
+#define MI_BB_START_OPERAND_EXPECT (MI_BATCH_PPGTT_HSW | 1)
+	CMD(  MI_BATCH_BUFFER_START_GEN8,       SMI,    !F,  0xFF,  B,
+	      .bits = {{
+			.offset = 0,
+			.mask = MI_BB_START_OPERAND_MASK,
+			.expected = MI_BB_START_OPERAND_EXPECT,
+	      }},						       ),
 };
 
 static const struct drm_i915_cmd_descriptor noop_desc =
@@ -1292,15 +1305,113 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 	return true;
 }
 
+static int check_bbstart(const struct i915_gem_context *ctx,
+			 u32 *cmd, u32 offset, u32 length,
+			 u32 batch_len,
+			 u64 batch_start,
+			 u64 shadow_batch_start)
+{
+	u64 jump_offset, jump_target;
+	u32 target_cmd_offset, target_cmd_index;
+
+	/* For igt compatibility on older platforms */
+	if (CMDPARSER_USES_GGTT(ctx->i915)) {
+		DRM_DEBUG("CMD: Rejecting BB_START for ggtt based submission\n");
+		return -EACCES;
+	}
+
+	if (length != 3) {
+		DRM_DEBUG("CMD: Recursive BB_START with bad length(%u)\n",
+			  length);
+		return -EINVAL;
+	}
+
+	jump_target = *(u64*)(cmd+1);
+	jump_offset = jump_target - batch_start;
+
+	/*
+	 * Any underflow of jump_target is guaranteed to be outside the range
+	 * of a u32, so >= test catches both too large and too small
+	 */
+	if (jump_offset >= batch_len) {
+		DRM_DEBUG("CMD: BB_START to 0x%llx jumps out of BB\n",
+			  jump_target);
+		return -EINVAL;
+	}
+
+	/*
+	 * This cannot overflow a u32 because we already checked jump_offset
+	 * is within the BB, and the batch_len is a u32
+	 */
+	target_cmd_offset = lower_32_bits(jump_offset);
+	target_cmd_index = target_cmd_offset / sizeof(u32);
+
+	*(u64*)(cmd + 1) = shadow_batch_start + target_cmd_offset;
+
+	if (target_cmd_index == offset)
+		return 0;
+
+	if (ctx->jump_whitelist_cmds <= target_cmd_index) {
+		DRM_DEBUG("CMD: Rejecting BB_START - truncated whitelist array\n");
+		return -EINVAL;
+	} else if (!test_bit(target_cmd_index, ctx->jump_whitelist)) {
+		DRM_DEBUG("CMD: BB_START to 0x%llx not a previously executed cmd\n",
+			  jump_target);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void init_whitelist(struct i915_gem_context *ctx, u32 batch_len)
+{
+	const u32 batch_cmds = DIV_ROUND_UP(batch_len, sizeof(u32));
+	const u32 exact_size = BITS_TO_LONGS(batch_cmds);
+	u32 next_size = BITS_TO_LONGS(roundup_pow_of_two(batch_cmds));
+	unsigned long *next_whitelist;
+
+	if (CMDPARSER_USES_GGTT(ctx->i915))
+		return;
+
+	if (batch_cmds <= ctx->jump_whitelist_cmds) {
+		memset(ctx->jump_whitelist, 0, exact_size * sizeof(u32));
+		return;
+	}
+
+again:
+	next_whitelist = kcalloc(next_size, sizeof(long), GFP_KERNEL);
+	if (next_whitelist) {
+		kfree(ctx->jump_whitelist);
+		ctx->jump_whitelist = next_whitelist;
+		ctx->jump_whitelist_cmds =
+			next_size * BITS_PER_BYTE * sizeof(long);
+		return;
+	}
+
+	if (next_size > exact_size) {
+		next_size = exact_size;
+		goto again;
+	}
+
+	DRM_DEBUG("CMD: Failed to extend whitelist. BB_START may be disallowed\n");
+	memset(ctx->jump_whitelist, 0,
+	       BITS_TO_LONGS(ctx->jump_whitelist_cmds) * sizeof(u32));
+
+	return;
+}
+
 #define LENGTH_BIAS 2
 
 /**
  * i915_parse_cmds() - parse a submitted batch buffer for privilege violations
+ * @ctx: the context in which the batch is to execute
  * @engine: the engine on which the batch is to execute
  * @batch_obj: the batch buffer in question
- * @shadow_batch_obj: copy of the batch buffer in question
+ * @batch_start: Canonical base address of batch
  * @batch_start_offset: byte offset in the batch at which execution starts
  * @batch_len: length of the commands in batch_obj
+ * @shadow_batch_obj: copy of the batch buffer in question
+ * @shadow_batch_start: Canonical base address of shadow_batch_obj
  *
  * Parses the specified batch buffer looking for privilege violations as
  * described in the overview.
@@ -1308,13 +1419,17 @@ static bool check_cmd(const struct intel_engine_cs *engine,
  * Return: non-zero if the parser finds violations or otherwise fails; -EACCES
  * if the batch appears legal but should use hardware parsing
  */
-int intel_engine_cmd_parser(struct intel_engine_cs *engine,
+
+int intel_engine_cmd_parser(struct i915_gem_context *ctx,
+			    struct intel_engine_cs *engine,
 			    struct drm_i915_gem_object *batch_obj,
-			    struct drm_i915_gem_object *shadow_batch_obj,
+			    u64 batch_start,
 			    u32 batch_start_offset,
-			    u32 batch_len)
+			    u32 batch_len,
+			    struct drm_i915_gem_object *shadow_batch_obj,
+			    u64 shadow_batch_start)
 {
-	u32 *cmd, *batch_end;
+	u32 *cmd, *batch_end, offset = 0;
 	struct drm_i915_cmd_descriptor default_desc = noop_desc;
 	const struct drm_i915_cmd_descriptor *desc = &default_desc;
 	bool needs_clflush_after = false;
@@ -1327,6 +1442,8 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 		DRM_DEBUG_DRIVER("CMD: Failed to copy batch\n");
 		return PTR_ERR(cmd);
 	}
+
+	init_whitelist(ctx, batch_len);
 
 	/*
 	 * We use the batch length as size because the shadow object is as
@@ -1345,16 +1462,6 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			DRM_DEBUG_DRIVER("CMD: Unrecognized command: 0x%08X\n",
 					 *cmd);
 			ret = -EINVAL;
-			goto err;
-		}
-
-		/*
-		 * We don't try to handle BATCH_BUFFER_START because it adds
-		 * non-trivial complexity. Instead we abort the scan and return
-		 * and error to indicate that the batch is unsafe.
-		 */
-		if (desc->cmd.value == MI_BATCH_BUFFER_START) {
-			ret = -EACCES;
 			goto err;
 		}
 
@@ -1377,7 +1484,21 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			goto err;
 		}
 
+		if (desc->cmd.value == MI_BATCH_BUFFER_START) {
+			ret = check_bbstart(ctx, cmd, offset, length,
+					    batch_len, batch_start,
+					    shadow_batch_start);
+
+			if (ret)
+				goto err;
+			break;
+		}
+
+		if (ctx->jump_whitelist_cmds > offset)
+			set_bit(offset, ctx->jump_whitelist);
+
 		cmd += length;
+		offset += length;
 		if  (cmd >= batch_end) {
 			DRM_DEBUG_DRIVER("CMD: Got to the end of the buffer w/o a BBE cmd!\n");
 			ret = -EINVAL;
