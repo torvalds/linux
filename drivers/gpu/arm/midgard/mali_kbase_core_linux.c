@@ -515,14 +515,20 @@ copy_failed:
 	case KBASE_FUNC_JOB_SUBMIT:
 		{
 			struct kbase_uk_job_submit *job = args;
+			void __user *user_addr = NULL;
 
 			if (sizeof(*job) != args_size)
 				goto bad_size;
 
-			if (kbase_jd_submit(kctx, job->addr.value,
-						job->nr_atoms,
-						job->stride,
-						false) != 0)
+#ifdef CONFIG_COMPAT
+			if (kbase_ctx_flag(kctx, KCTX_COMPAT))
+				user_addr = compat_ptr(job->addr.compat_value);
+			else
+#endif
+				user_addr = job->addr.value;
+
+			if (kbase_jd_submit(kctx, user_addr, job->nr_atoms,
+					    job->stride, false) != 0)
 				ukh->ret = MALI_ERROR_FUNCTION_FAILED;
 			break;
 		}
@@ -531,14 +537,20 @@ copy_failed:
 	case KBASE_FUNC_JOB_SUBMIT_UK6:
 		{
 			struct kbase_uk_job_submit *job = args;
+			void __user *user_addr = NULL;
 
 			if (sizeof(*job) != args_size)
 				goto bad_size;
 
-			if (kbase_jd_submit(kctx, job->addr.value,
-						job->nr_atoms,
-						job->stride,
-						true) != 0)
+#ifdef CONFIG_COMPAT
+			if (kbase_ctx_flag(kctx, KCTX_COMPAT))
+				user_addr = compat_ptr(job->addr.compat_value);
+			else
+#endif
+				user_addr = job->addr.value;
+
+			if (kbase_jd_submit(kctx, user_addr, job->nr_atoms,
+					    job->stride, true) != 0)
 				ukh->ret = MALI_ERROR_FUNCTION_FAILED;
 			break;
 		}
@@ -646,7 +658,8 @@ copy_failed:
 				goto bad_size;
 
 			if (find->gpu_addr & ~PAGE_MASK) {
-				dev_warn(kbdev->dev, "kbase_legacy_dispatch case KBASE_FUNC_FIND_CPU_OFFSET: find->gpu_addr: passed parameter is invalid");
+				dev_warn(kbdev->dev,
+					"kbase_legacy_dispatch case KBASE_FUNC_FIND_CPU_OFFSET: find->gpu_addr: passed parameter is invalid");
 				goto out_bad;
 			}
 
@@ -674,8 +687,11 @@ copy_failed:
 				goto bad_size;
 
 			/* version buffer size check is made in compile time assert */
-			memcpy(get_version->version_buffer, KERNEL_SIDE_DDK_VERSION_STRING, sizeof(KERNEL_SIDE_DDK_VERSION_STRING));
-			get_version->version_string_size = sizeof(KERNEL_SIDE_DDK_VERSION_STRING);
+			memcpy(get_version->version_buffer,
+			       KERNEL_SIDE_DDK_VERSION_STRING,
+			       sizeof(KERNEL_SIDE_DDK_VERSION_STRING));
+			get_version->version_string_size =
+				sizeof(KERNEL_SIDE_DDK_VERSION_STRING);
 			get_version->rk_version = ROCKCHIP_VERSION;
 			break;
 		}
@@ -828,7 +844,8 @@ copy_failed:
 
 #ifdef CONFIG_COMPAT
 			if (kbase_ctx_flag(kctx, KCTX_COMPAT))
-				user_buf = compat_ptr(add_data->buf.compat_value);
+				user_buf =
+					compat_ptr(add_data->buf.compat_value);
 			else
 #endif
 				user_buf = add_data->buf.value;
@@ -977,9 +994,9 @@ copy_failed:
 
 	return ret;
 
- bad_size:
+bad_size:
 	dev_err(kbdev->dev, "Wrong syscall size (%d) for %08x\n", args_size, id);
- out_bad:
+out_bad:
 	return -EINVAL;
 }
 
@@ -1317,7 +1334,16 @@ static int kbase_api_set_flags(struct kbase_context *kctx,
 static int kbase_api_job_submit(struct kbase_context *kctx,
 		struct kbase_ioctl_job_submit *submit)
 {
-	return kbase_jd_submit(kctx, submit->addr.value, submit->nr_atoms,
+	void __user *user_addr = NULL;
+
+#ifdef CONFIG_COMPAT
+	if (kbase_ctx_flag(kctx, KCTX_COMPAT))
+		user_addr = compat_ptr(submit->addr.compat_value);
+	else
+#endif
+		user_addr = submit->addr.value;
+
+	return kbase_jd_submit(kctx, user_addr, submit->nr_atoms,
 			submit->stride, false);
 }
 
@@ -1548,6 +1574,7 @@ static int kbase_api_mem_alias(struct kbase_context *kctx,
 		union kbase_ioctl_mem_alias *alias)
 {
 	struct base_mem_aliasing_info *ai;
+	void __user *user_addr = NULL;
 	u64 flags;
 	int err;
 
@@ -1558,8 +1585,15 @@ static int kbase_api_mem_alias(struct kbase_context *kctx,
 	if (!ai)
 		return -ENOMEM;
 
-	err = copy_from_user(ai, alias->in.aliasing_info.value,
-			sizeof(*ai) * alias->in.nents);
+#ifdef CONFIG_COMPAT
+	if (kbase_ctx_flag(kctx, KCTX_COMPAT))
+		user_addr =
+			compat_ptr(alias->in.aliasing_info.compat_value);
+	else
+#endif
+		user_addr = alias->in.aliasing_info.value;
+
+	err = copy_from_user(ai, user_addr, sizeof(*ai) * alias->in.nents);
 	if (err) {
 		vfree(ai);
 		return err;
@@ -1586,10 +1620,18 @@ static int kbase_api_mem_import(struct kbase_context *kctx,
 {
 	int ret;
 	u64 flags = import->in.flags;
+	void __user *phandle;
+
+#ifdef CONFIG_COMPAT
+	if (kbase_ctx_flag(kctx, KCTX_COMPAT))
+		phandle = compat_ptr(import->in.phandle.compat_value);
+	else
+#endif
+		phandle = import->in.phandle.value;
 
 	ret = kbase_mem_import(kctx,
 			import->in.type,
-			import->in.phandle.value,
+			phandle,
 			import->in.padding,
 			&import->out.gpu_va,
 			&import->out.va_pages,
@@ -1654,6 +1696,7 @@ static int kbase_api_get_profiling_controls(struct kbase_context *kctx,
 static int kbase_api_mem_profile_add(struct kbase_context *kctx,
 		struct kbase_ioctl_mem_profile_add *data)
 {
+	char __user *user_buf;
 	char *buf;
 	int err;
 
@@ -1666,7 +1709,14 @@ static int kbase_api_mem_profile_add(struct kbase_context *kctx,
 	if (ZERO_OR_NULL_PTR(buf))
 		return -ENOMEM;
 
-	err = copy_from_user(buf, data->buffer.value, data->len);
+#ifdef CONFIG_COMPAT
+	if (kbase_ctx_flag(kctx, KCTX_COMPAT))
+		user_buf = compat_ptr(data->buffer.compat_value);
+	else
+#endif
+		user_buf = data->buffer.value;
+
+	err = copy_from_user(buf, user_buf, data->len);
 	if (err) {
 		kfree(buf);
 		return err;
