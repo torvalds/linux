@@ -590,8 +590,7 @@ static int free_sg(struct sock *sk, int start,
 		if (i == MAX_SKB_FRAGS)
 			i = 0;
 	}
-	if (md->skb)
-		consume_skb(md->skb);
+	consume_skb(md->skb);
 
 	return free;
 }
@@ -973,8 +972,7 @@ bytes_ready:
 
 		if (!sg->length && md->sg_start == md->sg_end) {
 			list_del(&md->list);
-			if (md->skb)
-				consume_skb(md->skb);
+			consume_skb(md->skb);
 			kfree(md);
 		}
 	}
