@@ -117,8 +117,6 @@ mt76x0_eeprom_param_read(struct seq_file *file, void *data)
 	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_0);
 	seq_printf(file, "Power Amplifier type %lx\n",
 		   val & MT_EE_NIC_CONF_0_PA_TYPE);
-	seq_printf(file, "Reg channels: %hhu-%hhu\n", dev->ee->reg.start,
-		   dev->ee->reg.start + dev->ee->reg.num - 1);
 
 	seq_puts(file, "Per channel power:\n");
 	for (i = 0; i < 58; i++)

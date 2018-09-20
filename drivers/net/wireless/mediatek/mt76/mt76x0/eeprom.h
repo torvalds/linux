@@ -41,8 +41,6 @@ struct mt76x0_eeprom_params {
 	u32 tx_pwr_cfg_5g[5][2];
 
 	u8 tx_pwr_per_chan[58];
-
-	struct reg_channel_bounds reg;
 };
 
 int mt76x0_eeprom_init(struct mt76x0_dev *dev);

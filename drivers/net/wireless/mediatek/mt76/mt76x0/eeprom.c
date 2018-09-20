@@ -104,43 +104,6 @@ mt76x0_set_temp_offset(struct mt76x0_dev *dev, u8 *eeprom)
 }
 
 static void
-mt76x0_set_country_reg(struct mt76x0_dev *dev, u8 *eeprom)
-{
-	/* Note: - region 31 is not valid for mt76x0 (see rtmp_init.c)
-	 *	 - comments in rtmp_def.h are incorrect (see rt_channel.c)
-	 */
-	static const struct reg_channel_bounds chan_bounds[] = {
-		/* EEPROM country regions 0 - 7 */
-		{  1, 11 },	{  1, 13 },	{ 10,  2 },	{ 10,  4 },
-		{ 14,  1 },	{  1, 14 },	{  3,  7 },	{  5,  9 },
-		/* EEPROM country regions 32 - 33 */
-		{  1, 11 },	{  1, 14 }
-	};
-	u8 val = eeprom[MT_EE_COUNTRY_REGION_2GHZ];
-	int idx = -1;
-
-	dev_dbg(dev->mt76.dev, "REG 2GHZ %u REG 5GHZ %u\n", val, eeprom[MT_EE_COUNTRY_REGION_5GHZ]);
-	if (val < 8)
-		idx = val;
-	if (val > 31 && val < 33)
-		idx = val - 32 + 8;
-
-	if (idx != -1)
-		dev_info(dev->mt76.dev,
-			 "EEPROM country region %02hhx (channels %hhd-%hhd)\n",
-			 val, chan_bounds[idx].start,
-			 chan_bounds[idx].start + chan_bounds[idx].num - 1);
-	else
-		idx = 5; /* channels 1 - 14 */
-
-	dev->ee->reg = chan_bounds[idx];
-
-	/* TODO: country region 33 is special - phy should be set to B-mode
-	 *	 before entering channel 14 (see sta/connect.c)
-	 */
-}
-
-static void
 mt76x0_set_rf_freq_off(struct mt76x0_dev *dev, u8 *eeprom)
 {
 	u8 comp;
@@ -353,7 +316,6 @@ mt76x0_eeprom_init(struct mt76x0_dev *dev)
 
 	mt76x02_mac_setaddr(&dev->mt76, eeprom + MT_EE_MAC_ADDR);
 	mt76x0_set_chip_cap(dev, eeprom);
-	mt76x0_set_country_reg(dev, eeprom);
 	mt76x0_set_rf_freq_off(dev, eeprom);
 	mt76x0_set_temp_offset(dev, eeprom);
 	mt76x0_set_lna_gain(dev, eeprom);
