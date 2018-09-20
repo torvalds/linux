@@ -566,21 +566,21 @@ struct mlxsw_sp_sb_mm {
 	}
 
 static const struct mlxsw_sp_sb_mm mlxsw_sp_sb_mms[] = {
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
-	MLXSW_SP_SB_MM(20000, 0xff, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
+	MLXSW_SP_SB_MM(0, 6, 4),
 };
 
 #define MLXSW_SP_SB_MMS_LEN ARRAY_SIZE(mlxsw_sp_sb_mms)
