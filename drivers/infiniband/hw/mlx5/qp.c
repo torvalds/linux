@@ -850,6 +850,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		goto err_umem;
 	}
 
+	MLX5_SET(create_qp_in, *in, uid, to_mpd(pd)->uid);
 	pas = (__be64 *)MLX5_ADDR_OF(create_qp_in, *in, pas);
 	if (ubuffer->umem)
 		mlx5_ib_populate_pas(dev, ubuffer->umem, page_shift, pas, 0);
