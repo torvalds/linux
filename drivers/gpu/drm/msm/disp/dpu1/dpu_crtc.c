@@ -53,7 +53,7 @@ static inline int _dpu_crtc_get_mixer_width(struct dpu_crtc_state *cstate,
 	return mode->hdisplay / cstate->num_mixers;
 }
 
-static inline struct dpu_kms *_dpu_crtc_get_kms(struct drm_crtc *crtc)
+static struct dpu_kms *_dpu_crtc_get_kms(struct drm_crtc *crtc)
 {
 	struct msm_drm_private *priv = crtc->dev->dev_private;
 

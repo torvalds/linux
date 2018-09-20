@@ -110,7 +110,7 @@ static void drm_mode_to_intf_timing_params(
 	 */
 }
 
-static inline u32 get_horizontal_total(const struct intf_timing_params *timing)
+static u32 get_horizontal_total(const struct intf_timing_params *timing)
 {
 	u32 active = timing->xres;
 	u32 inactive =
@@ -119,7 +119,7 @@ static inline u32 get_horizontal_total(const struct intf_timing_params *timing)
 	return active + inactive;
 }
 
-static inline u32 get_vertical_total(const struct intf_timing_params *timing)
+static u32 get_vertical_total(const struct intf_timing_params *timing)
 {
 	u32 active = timing->yres;
 	u32 inactive =

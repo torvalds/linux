@@ -124,7 +124,7 @@ static inline void dpu_hw_ctl_trigger_flush(struct dpu_hw_ctl *ctx)
 	DPU_REG_WRITE(&ctx->hw, CTL_FLUSH, ctx->pending_flush_mask);
 }
 
-static inline uint32_t dpu_hw_ctl_get_bitmask_sspp(struct dpu_hw_ctl *ctx,
+static uint32_t dpu_hw_ctl_get_bitmask_sspp(struct dpu_hw_ctl *ctx,
 	enum dpu_sspp sspp)
 {
 	uint32_t flushbits = 0;
@@ -179,7 +179,7 @@ static inline uint32_t dpu_hw_ctl_get_bitmask_sspp(struct dpu_hw_ctl *ctx,
 	return flushbits;
 }
 
-static inline uint32_t dpu_hw_ctl_get_bitmask_mixer(struct dpu_hw_ctl *ctx,
+static uint32_t dpu_hw_ctl_get_bitmask_mixer(struct dpu_hw_ctl *ctx,
 	enum dpu_lm lm)
 {
 	uint32_t flushbits = 0;
@@ -212,7 +212,7 @@ static inline uint32_t dpu_hw_ctl_get_bitmask_mixer(struct dpu_hw_ctl *ctx,
 	return flushbits;
 }
 
-static inline int dpu_hw_ctl_get_bitmask_intf(struct dpu_hw_ctl *ctx,
+static int dpu_hw_ctl_get_bitmask_intf(struct dpu_hw_ctl *ctx,
 		u32 *flushbits, enum dpu_intf intf)
 {
 	switch (intf) {

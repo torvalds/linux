@@ -1374,7 +1374,7 @@ static void dpu_encoder_off_work(struct kthread_work *work)
  * phys: Pointer to physical encoder structure
  * extra_flush_bits: Additional bit mask to include in flush trigger
  */
-static inline void _dpu_encoder_trigger_flush(struct drm_encoder *drm_enc,
+static void _dpu_encoder_trigger_flush(struct drm_encoder *drm_enc,
 		struct dpu_encoder_phys *phys, uint32_t extra_flush_bits)
 {
 	struct dpu_hw_ctl *ctl;
@@ -1417,7 +1417,7 @@ static inline void _dpu_encoder_trigger_flush(struct drm_encoder *drm_enc,
  * _dpu_encoder_trigger_start - trigger start for a physical encoder
  * phys: Pointer to physical encoder structure
  */
-static inline void _dpu_encoder_trigger_start(struct dpu_encoder_phys *phys)
+static void _dpu_encoder_trigger_start(struct dpu_encoder_phys *phys)
 {
 	if (!phys) {
 		DPU_ERROR("invalid argument(s)\n");

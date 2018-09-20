@@ -264,13 +264,7 @@ static inline int dpu_crtc_get_mixer_height(struct dpu_crtc *dpu_crtc,
  */
 static inline int dpu_crtc_frame_pending(struct drm_crtc *crtc)
 {
-	struct dpu_crtc *dpu_crtc;
-
-	if (!crtc)
-		return -EINVAL;
-
-	dpu_crtc = to_dpu_crtc(crtc);
-	return atomic_read(&dpu_crtc->frame_pending);
+	return crtc ? atomic_read(&to_dpu_crtc(crtc)->frame_pending) : -EINVAL;
 }
 
 /**
@@ -327,13 +321,7 @@ enum dpu_intf_mode dpu_crtc_get_intf_mode(struct drm_crtc *crtc);
 static inline enum dpu_crtc_client_type dpu_crtc_get_client_type(
 						struct drm_crtc *crtc)
 {
-	struct dpu_crtc_state *cstate =
-			crtc ? to_dpu_crtc_state(crtc->state) : NULL;
-
-	if (!cstate)
-		return NRT_CLIENT;
-
-	return RT_CLIENT;
+	return crtc && crtc->state ? RT_CLIENT : NRT_CLIENT;
 }
 
 /**

@@ -141,7 +141,7 @@
 /* traffic shaper clock in Hz */
 #define TS_CLK			19200000
 
-static inline int _sspp_subblk_offset(struct dpu_hw_pipe *ctx,
+static int _sspp_subblk_offset(struct dpu_hw_pipe *ctx,
 		int s_id,
 		u32 *idx)
 {

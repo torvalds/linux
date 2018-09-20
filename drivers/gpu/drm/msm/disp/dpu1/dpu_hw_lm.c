@@ -64,16 +64,10 @@ static struct dpu_lm_cfg *_lm_offset(enum dpu_lm mixer,
 static inline int _stage_offset(struct dpu_hw_mixer *ctx, enum dpu_stage stage)
 {
 	const struct dpu_lm_sub_blks *sblk = ctx->cap->sblk;
-	int rc;
+	if (stage != DPU_STAGE_BASE && stage <= sblk->maxblendstages)
+		return sblk->blendstage_base[stage - DPU_STAGE_0];
 
-	if (stage == DPU_STAGE_BASE)
-		rc = -EINVAL;
-	else if (stage <= sblk->maxblendstages)
-		rc = sblk->blendstage_base[stage - DPU_STAGE_0];
-	else
-		rc = -EINVAL;
-
-	return rc;
+	return -EINVAL;
 }
 
 static void dpu_hw_lm_setup_out(struct dpu_hw_mixer *ctx,
