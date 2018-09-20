@@ -850,7 +850,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 
 	details = ICE_CTL_Q_DETAILS(cq->sq, cq->sq.next_to_use);
 	if (cd)
-		memcpy(details, cd, sizeof(*details));
+		*details = *cd;
 	else
 		memset(details, 0, sizeof(*details));
 
