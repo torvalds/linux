@@ -477,10 +477,9 @@ vmballoon_cmd(struct vmballoon *b, unsigned long cmd, unsigned long arg1,
  * Send "start" command to the host, communicating supported version
  * of the protocol.
  */
-static bool vmballoon_send_start(struct vmballoon *b, unsigned long req_caps)
+static int vmballoon_send_start(struct vmballoon *b, unsigned long req_caps)
 {
 	unsigned long status, capabilities;
-	bool success;
 
 	status = __vmballoon_cmd(b, VMW_BALLOON_CMD_START, req_caps, 0,
 				 &capabilities);
@@ -488,14 +487,12 @@ static bool vmballoon_send_start(struct vmballoon *b, unsigned long req_caps)
 	switch (status) {
 	case VMW_BALLOON_SUCCESS_WITH_CAPABILITIES:
 		b->capabilities = capabilities;
-		success = true;
 		break;
 	case VMW_BALLOON_SUCCESS:
 		b->capabilities = VMW_BALLOON_BASIC_CMDS;
-		success = true;
 		break;
 	default:
-		success = false;
+		return -EIO;
 	}
 
 	/*
@@ -509,26 +506,29 @@ static bool vmballoon_send_start(struct vmballoon *b, unsigned long req_caps)
 		b->max_page_size = VMW_BALLOON_2M_PAGE;
 
 
-	return success;
+	return 0;
 }
 
-/*
+/**
+ * vmballoon_send_guest_id - communicate guest type to the host.
+ *
+ * @b: pointer to the balloon.
+ *
  * Communicate guest type to the host so that it can adjust ballooning
  * algorithm to the one most appropriate for the guest. This command
  * is normally issued after sending "start" command and is part of
  * standard reset sequence.
+ *
+ * Return: zero on success or appropriate error code.
  */
-static bool vmballoon_send_guest_id(struct vmballoon *b)
+static int vmballoon_send_guest_id(struct vmballoon *b)
 {
 	unsigned long status;
 
 	status = vmballoon_cmd(b, VMW_BALLOON_CMD_GUEST_ID,
 			       VMW_BALLOON_GUEST_ID, 0);
 
-	if (status == VMW_BALLOON_SUCCESS)
-		return true;
-
-	return false;
+	return status == VMW_BALLOON_SUCCESS ? 0 : -EIO;
 }
 
 /**
@@ -1215,8 +1215,15 @@ static void vmballoon_vmci_cleanup(struct vmballoon *b)
 	}
 }
 
-/*
- * Initialize vmci doorbell, to get notified as soon as balloon changes
+/**
+ * vmballoon_vmci_init - Initialize vmci doorbell.
+ *
+ * @b: pointer to the balloon.
+ *
+ * Return: zero on success or when wakeup command not supported. Error-code
+ * otherwise.
+ *
+ * Initialize vmci doorbell, to get notified as soon as balloon changes.
  */
 static int vmballoon_vmci_init(struct vmballoon *b)
 {
@@ -1278,7 +1285,7 @@ static void vmballoon_reset(struct vmballoon *b)
 	/* free all pages, skipping monitor unlock */
 	vmballoon_pop(b);
 
-	if (!vmballoon_send_start(b, VMW_BALLOON_CAPABILITIES))
+	if (vmballoon_send_start(b, VMW_BALLOON_CAPABILITIES))
 		return;
 
 	if ((b->capabilities & VMW_BALLOON_BATCHED_CMDS) != 0) {
@@ -1302,7 +1309,7 @@ static void vmballoon_reset(struct vmballoon *b)
 	if (error)
 		pr_err("failed to initialize vmci doorbell\n");
 
-	if (!vmballoon_send_guest_id(b))
+	if (vmballoon_send_guest_id(b))
 		pr_err("failed to send guest ID to the host\n");
 
 	up_write(&b->conf_sem);
