@@ -2262,7 +2262,7 @@ void vxge_hw_vpath_msix_clear(struct __vxge_hw_vpath_handle *vp, int msix_id)
 {
 	struct __vxge_hw_device *hldev = vp->vpath->hldev;
 
-	if ((hldev->config.intr_mode == VXGE_HW_INTR_MODE_MSIX_ONE_SHOT))
+	if (hldev->config.intr_mode == VXGE_HW_INTR_MODE_MSIX_ONE_SHOT)
 		__vxge_hw_pio_mem_write32_upper(
 			(u32) vxge_bVALn(vxge_mBIT((msix_id >> 2)), 0, 32),
 			&hldev->common_reg->clr_msix_one_shot_vec[msix_id % 4]);
