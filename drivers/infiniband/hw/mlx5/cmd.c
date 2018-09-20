@@ -271,3 +271,28 @@ int mlx5_cmd_detach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid,
 	memcpy(gid, mgid, sizeof(*mgid));
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
+
+int mlx5_cmd_xrcd_alloc(struct mlx5_core_dev *dev, u32 *xrcdn, u16 uid)
+{
+	u32 out[MLX5_ST_SZ_DW(alloc_xrcd_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(alloc_xrcd_in)]   = {};
+	int err;
+
+	MLX5_SET(alloc_xrcd_in, in, opcode, MLX5_CMD_OP_ALLOC_XRCD);
+	MLX5_SET(alloc_xrcd_in, in, uid, uid);
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	if (!err)
+		*xrcdn = MLX5_GET(alloc_xrcd_out, out, xrcd);
+	return err;
+}
+
+int mlx5_cmd_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn, u16 uid)
+{
+	u32 out[MLX5_ST_SZ_DW(dealloc_xrcd_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(dealloc_xrcd_in)]   = {};
+
+	MLX5_SET(dealloc_xrcd_in, in, opcode, MLX5_CMD_OP_DEALLOC_XRCD);
+	MLX5_SET(dealloc_xrcd_in, in, xrcd, xrcdn);
+	MLX5_SET(dealloc_xrcd_in, in, uid, uid);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
