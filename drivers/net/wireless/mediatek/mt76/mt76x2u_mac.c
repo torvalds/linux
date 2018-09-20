@@ -220,21 +220,3 @@ void mt76x2u_mac_resume(struct mt76x2_dev *dev)
 	mt76_set(dev, MT_TXOP_CTRL_CFG, BIT(20));
 	mt76_set(dev, MT_TXOP_HLDR_ET, BIT(1));
 }
-
-void mt76x2u_mac_setaddr(struct mt76x2_dev *dev, u8 *addr)
-{
-	ether_addr_copy(dev->mt76.macaddr, addr);
-
-	if (!is_valid_ether_addr(dev->mt76.macaddr)) {
-		eth_random_addr(dev->mt76.macaddr);
-		dev_info(dev->mt76.dev,
-			 "Invalid MAC address, using random address %pM\n",
-			 dev->mt76.macaddr);
-	}
-
-	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->mt76.macaddr));
-	mt76_wr(dev, MT_MAC_ADDR_DW1,
-		get_unaligned_le16(dev->mt76.macaddr + 4) |
-		FIELD_PREP(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
-}
-

@@ -502,3 +502,21 @@ mt76x02_mac_process_rate(struct mt76_rx_status *status, u16 rate)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_process_rate);
+
+void mt76x02_mac_setaddr(struct mt76_dev *dev, u8 *addr)
+{
+	ether_addr_copy(dev->macaddr, addr);
+
+	if (!is_valid_ether_addr(dev->macaddr)) {
+		eth_random_addr(dev->macaddr);
+		dev_info(dev->dev,
+			 "Invalid MAC address, using random address %pM\n",
+			 dev->macaddr);
+	}
+
+	__mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->macaddr));
+	__mt76_wr(dev, MT_MAC_ADDR_DW1,
+		  get_unaligned_le16(dev->macaddr + 4) |
+		  FIELD_PREP(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_setaddr);

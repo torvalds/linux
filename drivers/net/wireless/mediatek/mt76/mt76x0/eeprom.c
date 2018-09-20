@@ -131,28 +131,6 @@ mt76x0_set_chip_cap(struct mt76x0_dev *dev, u8 *eeprom)
 	dev_dbg(dev->mt76.dev, "PA Type %d\n", dev->ee->pa_type);
 }
 
-static int
-mt76x0_set_macaddr(struct mt76x0_dev *dev, const u8 *eeprom)
-{
-	const void *src = eeprom + MT_EE_MAC_ADDR;
-	u8 *dst = dev->mt76.macaddr;
-
-	ether_addr_copy(dev->mt76.macaddr, src);
-
-	if (!is_valid_ether_addr(dst)) {
-		eth_random_addr(dst);
-		dev_info(dev->mt76.dev,
-			 "Invalid MAC address, using random address %pM\n",
-			 dst);
-	}
-
-	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dst));
-	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(dst + 4) |
-		FIELD_PREP(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
-
-	return 0;
-}
-
 static void
 mt76x0_set_temp_offset(struct mt76x0_dev *dev, u8 *eeprom)
 {
@@ -409,7 +387,7 @@ mt76x0_eeprom_init(struct mt76x0_dev *dev)
 	dev_info(dev->mt76.dev, "EEPROM ver:%02hhx fae:%02hhx\n",
 		 eeprom[MT_EE_VERSION + 1], eeprom[MT_EE_VERSION]);
 
-	mt76x0_set_macaddr(dev, eeprom);
+	mt76x02_mac_setaddr(&dev->mt76, eeprom + MT_EE_MAC_ADDR);
 	mt76x0_set_chip_cap(dev, eeprom);
 	mt76x0_set_country_reg(dev, eeprom);
 	mt76x0_set_rf_freq_off(dev, eeprom);
