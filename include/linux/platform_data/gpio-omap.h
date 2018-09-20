@@ -205,17 +205,4 @@ struct omap_gpio_platform_data {
 	int (*get_context_loss_count)(struct device *dev);
 };
 
-#if IS_BUILTIN(CONFIG_GPIO_OMAP)
-extern void omap2_gpio_prepare_for_idle(int off_mode);
-extern void omap2_gpio_resume_after_idle(void);
-#else
-static inline void omap2_gpio_prepare_for_idle(int off_mode)
-{
-}
-
-static inline void omap2_gpio_resume_after_idle(void)
-{
-}
-#endif
-
 #endif
