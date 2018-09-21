@@ -1988,6 +1988,28 @@ static int tegra_dc_init(struct host1x_client *client)
 	struct drm_plane *cursor = NULL;
 	int err;
 
+	/*
+	 * XXX do not register DCs with no window groups because we cannot
+	 * assign a primary plane to them, which in turn will cause KMS to
+	 * crash.
+	 */
+	if (dc->soc->wgrps) {
+		bool has_wgrps = false;
+		unsigned int i;
+
+		for (i = 0; i < dc->soc->num_wgrps; i++) {
+			const struct tegra_windowgroup_soc *wgrp = &dc->soc->wgrps[i];
+
+			if (wgrp->dc == dc->pipe && wgrp->num_windows > 0) {
+				has_wgrps = true;
+				break;
+			}
+		}
+
+		if (!has_wgrps)
+			return 0;
+	}
+
 	dc->syncpt = host1x_syncpt_request(client, flags);
 	if (!dc->syncpt)
 		dev_warn(dc->dev, "failed to allocate syncpoint\n");
