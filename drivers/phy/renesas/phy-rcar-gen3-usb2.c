@@ -78,8 +78,6 @@
 #define USB2_ADPCTRL_IDPULLUP		BIT(5)	/* 1 = ID sampling is enabled */
 #define USB2_ADPCTRL_DRVVBUS		BIT(4)
 
-#define RCAR_GEN3_PHY_HAS_DEDICATED_PINS	1
-
 struct rcar_gen3_chan {
 	void __iomem *base;
 	struct extcon_dev *extcon;
@@ -385,21 +383,10 @@ static irqreturn_t rcar_gen3_phy_usb2_irq(int irq, void *_ch)
 }
 
 static const struct of_device_id rcar_gen3_phy_usb2_match_table[] = {
-	{
-		.compatible = "renesas,usb2-phy-r8a7795",
-		.data = (void *)RCAR_GEN3_PHY_HAS_DEDICATED_PINS,
-	},
-	{
-		.compatible = "renesas,usb2-phy-r8a7796",
-		.data = (void *)RCAR_GEN3_PHY_HAS_DEDICATED_PINS,
-	},
-	{
-		.compatible = "renesas,usb2-phy-r8a77965",
-		.data = (void *)RCAR_GEN3_PHY_HAS_DEDICATED_PINS,
-	},
-	{
-		.compatible = "renesas,rcar-gen3-usb2-phy",
-	},
+	{ .compatible = "renesas,usb2-phy-r8a7795" },
+	{ .compatible = "renesas,usb2-phy-r8a7796" },
+	{ .compatible = "renesas,usb2-phy-r8a77965" },
+	{ .compatible = "renesas,rcar-gen3-usb2-phy" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rcar_gen3_phy_usb2_match_table);
@@ -445,7 +432,8 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	if (of_usb_get_dr_mode_by_phy(dev->of_node, 0) == USB_DR_MODE_OTG) {
 		int ret;
 
-		channel->uses_otg_pins = (uintptr_t)of_device_get_match_data(dev);
+		channel->uses_otg_pins = !of_property_read_bool(dev->of_node,
+							"renesas,no-otg-pins");
 		channel->extcon = devm_extcon_dev_allocate(dev,
 							rcar_gen3_phy_cable);
 		if (IS_ERR(channel->extcon))
