@@ -1343,18 +1343,18 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 			   part_stat_read(hd, ios[STAT_READ]),
 			   part_stat_read(hd, merges[STAT_READ]),
 			   part_stat_read(hd, sectors[STAT_READ]),
-			   jiffies_to_msecs(part_stat_read(hd, ticks[STAT_READ])),
+			   (unsigned int)part_stat_read_msecs(hd, STAT_READ),
 			   part_stat_read(hd, ios[STAT_WRITE]),
 			   part_stat_read(hd, merges[STAT_WRITE]),
 			   part_stat_read(hd, sectors[STAT_WRITE]),
-			   jiffies_to_msecs(part_stat_read(hd, ticks[STAT_WRITE])),
+			   (unsigned int)part_stat_read_msecs(hd, STAT_WRITE),
 			   inflight[0],
 			   jiffies_to_msecs(part_stat_read(hd, io_ticks)),
 			   jiffies_to_msecs(part_stat_read(hd, time_in_queue)),
 			   part_stat_read(hd, ios[STAT_DISCARD]),
 			   part_stat_read(hd, merges[STAT_DISCARD]),
 			   part_stat_read(hd, sectors[STAT_DISCARD]),
-			   jiffies_to_msecs(part_stat_read(hd, ticks[STAT_DISCARD]))
+			   (unsigned int)part_stat_read_msecs(hd, STAT_DISCARD)
 			);
 	}
 	disk_part_iter_exit(&piter);
