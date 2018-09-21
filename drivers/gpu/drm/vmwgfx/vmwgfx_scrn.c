@@ -774,21 +774,14 @@ vmw_sou_primary_plane_atomic_update(struct drm_plane *plane,
 		struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 		struct vmw_framebuffer *vfb =
 			vmw_framebuffer_to_vfb(plane->state->fb);
-		struct drm_vmw_rect vclips;
-
-		vclips.x = crtc->x;
-		vclips.y = crtc->y;
-		vclips.w = crtc->mode.hdisplay;
-		vclips.h = crtc->mode.vdisplay;
 
 		if (vfb->bo)
-			ret = vmw_kms_sou_do_bo_dirty(dev_priv, vfb, NULL,
-						      &vclips, 1, 1, true,
-						      &fence, crtc);
+			ret = vmw_sou_plane_update_bo(dev_priv, plane,
+						      old_state, vfb, &fence);
 		else
-			ret = vmw_kms_sou_do_surface_dirty(dev_priv, vfb, NULL,
-							   &vclips, NULL, 0, 0,
-							   1, 1, &fence, crtc);
+			ret = vmw_sou_plane_update_surface(dev_priv, plane,
+							   old_state, vfb,
+							   &fence);
 
 		/*
 		 * We cannot really fail this function, so if we do, then output
