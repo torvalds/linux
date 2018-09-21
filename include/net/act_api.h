@@ -31,10 +31,12 @@ struct tc_action {
 	int				tcfa_action;
 	struct tcf_t			tcfa_tm;
 	struct gnet_stats_basic_packed	tcfa_bstats;
+	struct gnet_stats_basic_packed	tcfa_bstats_hw;
 	struct gnet_stats_queue		tcfa_qstats;
 	struct net_rate_estimator __rcu *tcfa_rate_est;
 	spinlock_t			tcfa_lock;
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
+	struct gnet_stats_basic_cpu __percpu *cpu_bstats_hw;
 	struct gnet_stats_queue __percpu *cpu_qstats;
 	struct tc_cookie	__rcu *act_cookie;
 	struct tcf_chain	*goto_chain;
@@ -94,7 +96,7 @@ struct tc_action_ops {
 			struct netlink_callback *, int,
 			const struct tc_action_ops *,
 			struct netlink_ext_ack *);
-	void	(*stats_update)(struct tc_action *, u64, u32, u64);
+	void	(*stats_update)(struct tc_action *, u64, u32, u64, bool);
 	size_t  (*get_fill_size)(const struct tc_action *act);
 	struct net_device *(*get_dev)(const struct tc_action *a);
 	void	(*put_dev)(struct net_device *dev);
@@ -182,13 +184,13 @@ int tcf_action_copy_stats(struct sk_buff *, struct tc_action *, int);
 #endif /* CONFIG_NET_CLS_ACT */
 
 static inline void tcf_action_stats_update(struct tc_action *a, u64 bytes,
-					   u64 packets, u64 lastuse)
+					   u64 packets, u64 lastuse, bool hw)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	if (!a->ops->stats_update)
 		return;
 
-	a->ops->stats_update(a, bytes, packets, lastuse);
+	a->ops->stats_update(a, bytes, packets, lastuse, hw);
 #endif
 }
 
