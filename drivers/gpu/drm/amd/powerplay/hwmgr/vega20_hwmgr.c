@@ -1941,6 +1941,11 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*size = 16;
 		ret = vega20_get_gpu_power(hwmgr, (uint32_t *)value);
 		break;
+	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
+		ret = vega20_get_enabled_smc_features(hwmgr, (uint64_t *)value);
+		if (!ret)
+			*size = 8;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
