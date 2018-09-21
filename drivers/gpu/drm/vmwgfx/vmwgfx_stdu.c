@@ -1673,6 +1673,7 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 	struct drm_crtc *crtc = plane->state->crtc;
 	struct vmw_screen_target_display_unit *stdu;
 	struct drm_pending_vblank_event *event;
+	struct vmw_fence_obj *fence = NULL;
 	struct vmw_private *dev_priv;
 	int ret;
 
@@ -1683,7 +1684,6 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 	if (crtc && plane->state->fb) {
 		struct vmw_framebuffer *vfb =
 			vmw_framebuffer_to_vfb(plane->state->fb);
-		struct drm_vmw_rect vclips;
 		stdu = vmw_crtc_to_stdu(crtc);
 		dev_priv = vmw_priv(crtc->dev);
 
@@ -1691,23 +1691,17 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 		stdu->content_fb_type = vps->content_fb_type;
 		stdu->cpp = vps->cpp;
 
-		vclips.x = crtc->x;
-		vclips.y = crtc->y;
-		vclips.w = crtc->mode.hdisplay;
-		vclips.h = crtc->mode.vdisplay;
-
 		ret = vmw_stdu_bind_st(dev_priv, stdu, &stdu->display_srf->res);
 		if (ret)
 			DRM_ERROR("Failed to bind surface to STDU.\n");
 
 		if (vfb->bo)
-			ret = vmw_kms_stdu_dma(dev_priv, NULL, vfb, NULL, NULL,
-					       &vclips, 1, 1, true, false,
-					       crtc);
+			ret = vmw_stdu_plane_update_bo(dev_priv, plane,
+						       old_state, vfb, &fence);
 		else
-			ret = vmw_kms_stdu_surface_dirty(dev_priv, vfb, NULL,
-							 &vclips, NULL, 0, 0,
-							 1, 1, NULL, crtc);
+			ret = vmw_stdu_plane_update_surface(dev_priv, plane,
+							    old_state, vfb,
+							    &fence);
 		if (ret)
 			DRM_ERROR("Failed to update STDU.\n");
 	} else {
@@ -1740,31 +1734,23 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 	 * In case of failure and other cases, vblank event will be sent in
 	 * vmw_du_crtc_atomic_flush.
 	 */
-	if (event && (ret == 0)) {
-		struct vmw_fence_obj *fence = NULL;
+	if (event && fence) {
 		struct drm_file *file_priv = event->base.file_priv;
 
-		vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
-
-		/*
-		 * If fence is NULL, then already sync.
-		 */
-		if (fence) {
-			ret = vmw_event_fence_action_queue(
-				file_priv, fence, &event->base,
-				&event->event.vbl.tv_sec,
-				&event->event.vbl.tv_usec,
-				true);
-			if (ret)
-				DRM_ERROR("Failed to queue event on fence.\n");
-			else
-				crtc->state->event = NULL;
-
-			vmw_fence_obj_unreference(&fence);
-		}
-	} else {
-		(void) vmw_fifo_flush(dev_priv, false);
+		ret = vmw_event_fence_action_queue(file_priv,
+						   fence,
+						   &event->base,
+						   &event->event.vbl.tv_sec,
+						   &event->event.vbl.tv_usec,
+						   true);
+		if (ret)
+			DRM_ERROR("Failed to queue event on fence.\n");
+		else
+			crtc->state->event = NULL;
 	}
+
+	if (fence)
+		vmw_fence_obj_unreference(&fence);
 }
 
 
