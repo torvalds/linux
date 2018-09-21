@@ -14,9 +14,7 @@
 #include <asm/pgtable.h>
 #include <asm/mmzone.h>
 #include <asm/sections.h>
-
-/* Defined in hibernate_asm_32.S */
-extern int restore_image(void);
+#include <asm/suspend.h>
 
 /* Pointer to the temporary resume page tables */
 pgd_t *resume_pg_dir;
@@ -161,15 +159,4 @@ asmlinkage int swsusp_arch_resume(void)
 	/* We have got enough memory and from now on we cannot recover */
 	restore_image();
 	return 0;
-}
-
-/*
- *	pfn_is_nosave - check if given pfn is in the 'nosave' section
- */
-
-int pfn_is_nosave(unsigned long pfn)
-{
-	unsigned long nosave_begin_pfn = __pa_symbol(&__nosave_begin) >> PAGE_SHIFT;
-	unsigned long nosave_end_pfn = PAGE_ALIGN(__pa_symbol(&__nosave_end)) >> PAGE_SHIFT;
-	return (pfn >= nosave_begin_pfn) && (pfn < nosave_end_pfn);
 }
