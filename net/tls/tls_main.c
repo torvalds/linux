@@ -141,7 +141,6 @@ retry:
 		size = sg->length;
 	}
 
-	clear_bit(TLS_PENDING_CLOSED_RECORD, &ctx->flags);
 	ctx->in_tcp_sendpages = false;
 	ctx->sk_write_space(sk);
 
@@ -193,14 +192,11 @@ int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
 	return rc;
 }
 
-int tls_push_pending_closed_record(struct sock *sk, struct tls_context *ctx,
-				   int flags, long *timeo)
+int tls_push_partial_record(struct sock *sk, struct tls_context *ctx,
+			    int flags)
 {
 	struct scatterlist *sg;
 	u16 offset;
-
-	if (!tls_is_partially_sent_record(ctx))
-		return ctx->push_pending_record(sk, flags);
 
 	sg = ctx->partially_sent_record;
 	offset = ctx->partially_sent_offset;
@@ -209,9 +205,23 @@ int tls_push_pending_closed_record(struct sock *sk, struct tls_context *ctx,
 	return tls_push_sg(sk, ctx, sg, offset, flags);
 }
 
+int tls_push_pending_closed_record(struct sock *sk,
+				   struct tls_context *tls_ctx,
+				   int flags, long *timeo)
+{
+	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
+
+	if (tls_is_partially_sent_record(tls_ctx) ||
+	    !list_empty(&ctx->tx_ready_list))
+		return tls_tx_records(sk, flags);
+	else
+		return tls_ctx->push_pending_record(sk, flags);
+}
+
 static void tls_write_space(struct sock *sk)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
+	struct tls_sw_context_tx *tx_ctx = tls_sw_ctx_tx(ctx);
 
 	/* If in_tcp_sendpages call lower protocol write space handler
 	 * to ensure we wake up any waiting operations there. For example
@@ -222,20 +232,11 @@ static void tls_write_space(struct sock *sk)
 		return;
 	}
 
-	if (!sk->sk_write_pending && tls_is_pending_closed_record(ctx)) {
-		gfp_t sk_allocation = sk->sk_allocation;
-		int rc;
-		long timeo = 0;
-
-		sk->sk_allocation = GFP_ATOMIC;
-		rc = tls_push_pending_closed_record(sk, ctx,
-						    MSG_DONTWAIT |
-						    MSG_NOSIGNAL,
-						    &timeo);
-		sk->sk_allocation = sk_allocation;
-
-		if (rc < 0)
-			return;
+	/* Schedule the transmission if tx list is ready */
+	if (is_tx_ready(ctx, tx_ctx) && !sk->sk_write_pending) {
+		/* Schedule the transmission */
+		if (!test_and_set_bit(BIT_TX_SCHEDULED, &tx_ctx->tx_bitmask))
+			schedule_delayed_work(&tx_ctx->tx_work.work, 0);
 	}
 
 	ctx->sk_write_space(sk);
@@ -269,19 +270,6 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 
 	if (!tls_complete_pending_work(sk, ctx, 0, &timeo))
 		tls_handle_open_record(sk, 0);
-
-	if (ctx->partially_sent_record) {
-		struct scatterlist *sg = ctx->partially_sent_record;
-
-		while (1) {
-			put_page(sg_page(sg));
-			sk_mem_uncharge(sk, sg->length);
-
-			if (sg_is_last(sg))
-				break;
-			sg++;
-		}
-	}
 
 	/* We need these for tls_sw_fallback handling of other packets */
 	if (ctx->tx_conf == TLS_SW) {
