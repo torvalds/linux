@@ -58,6 +58,7 @@ struct bochs_device {
 	void __iomem   *fb_map;
 	unsigned long  fb_base;
 	unsigned long  fb_size;
+	unsigned long  qext_size;
 
 	/* mode */
 	u16 xres;
@@ -121,7 +122,8 @@ int bochs_hw_init(struct drm_device *dev);
 void bochs_hw_fini(struct drm_device *dev);
 
 void bochs_hw_setmode(struct bochs_device *bochs,
-		      struct drm_display_mode *mode);
+		      struct drm_display_mode *mode,
+		      const struct drm_format_info *format);
 void bochs_hw_setbase(struct bochs_device *bochs,
 		      int x, int y, u64 addr);
 

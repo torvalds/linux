@@ -140,7 +140,8 @@ static struct drm_framebuffer *
 bochs_gem_fb_create(struct drm_device *dev, struct drm_file *file,
 		    const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	if (mode_cmd->pixel_format != DRM_FORMAT_HOST_XRGB8888)
+	if (mode_cmd->pixel_format != DRM_FORMAT_XRGB8888 &&
+	    mode_cmd->pixel_format != DRM_FORMAT_BGRX8888)
 		return ERR_PTR(-EINVAL);
 
 	return drm_gem_fb_create(dev, file, mode_cmd);

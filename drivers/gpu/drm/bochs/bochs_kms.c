@@ -77,7 +77,10 @@ static int bochs_crtc_mode_set(struct drm_crtc *crtc,
 	struct bochs_device *bochs =
 		container_of(crtc, struct bochs_device, crtc);
 
-	bochs_hw_setmode(bochs, mode);
+	if (WARN_ON(crtc->primary->fb == NULL))
+		return -EINVAL;
+
+	bochs_hw_setmode(bochs, mode, crtc->primary->fb->format);
 	bochs_crtc_mode_set_base(crtc, x, y, old_fb);
 	return 0;
 }
@@ -127,7 +130,8 @@ static const struct drm_crtc_helper_funcs bochs_helper_funcs = {
 };
 
 static const uint32_t bochs_formats[] = {
-	DRM_FORMAT_HOST_XRGB8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_BGRX8888,
 };
 
 static struct drm_plane *bochs_primary_plane(struct drm_device *dev)
