@@ -206,36 +206,37 @@ static void sdi_display_disable(struct omap_dss_device *dssdev)
 }
 
 static void sdi_set_timings(struct omap_dss_device *dssdev,
-			    const struct videomode *vm)
+			    const struct drm_display_mode *mode)
 {
 	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
 
-	sdi->vm = *vm;
+	drm_display_mode_to_videomode(mode, &sdi->vm);
 }
 
 static int sdi_check_timings(struct omap_dss_device *dssdev,
-			     struct videomode *vm)
+			     struct drm_display_mode *mode)
 {
 	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
 	struct dispc_clock_info dispc_cinfo;
+	unsigned long pixelclock = mode->clock * 1000;
 	unsigned long fck;
 	unsigned long pck;
 	int r;
 
-	if (vm->pixelclock == 0)
+	if (pixelclock == 0)
 		return -EINVAL;
 
-	r = sdi_calc_clock_div(sdi, vm->pixelclock, &fck, &dispc_cinfo);
+	r = sdi_calc_clock_div(sdi, pixelclock, &fck, &dispc_cinfo);
 	if (r)
 		return r;
 
 	pck = fck / dispc_cinfo.lck_div / dispc_cinfo.pck_div;
 
-	if (pck != vm->pixelclock) {
+	if (pck != pixelclock) {
 		DSSWARN("Pixel clock adjusted from %lu Hz to %lu Hz\n",
-			vm->pixelclock, pck);
+			pixelclock, pck);
 
-		vm->pixelclock = pck;
+		mode->clock = pck / 1000;
 	}
 
 	return 0;

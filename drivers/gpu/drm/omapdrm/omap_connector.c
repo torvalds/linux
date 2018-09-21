@@ -245,21 +245,18 @@ enum drm_mode_status omap_connector_mode_fixup(struct omap_dss_device *dssdev,
 					const struct drm_display_mode *mode,
 					struct drm_display_mode *adjusted_mode)
 {
-	struct videomode vm = { 0 };
 	int ret;
 
-	drm_display_mode_to_videomode(mode, &vm);
+	drm_mode_copy(adjusted_mode, mode);
 
 	for (; dssdev; dssdev = dssdev->next) {
 		if (!dssdev->ops->check_timings)
 			continue;
 
-		ret = dssdev->ops->check_timings(dssdev, &vm);
+		ret = dssdev->ops->check_timings(dssdev, adjusted_mode);
 		if (ret)
 			return MODE_BAD;
 	}
-
-	drm_display_mode_from_videomode(&vm, adjusted_mode);
 
 	return MODE_OK;
 }

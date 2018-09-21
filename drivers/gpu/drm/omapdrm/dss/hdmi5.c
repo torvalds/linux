@@ -248,15 +248,15 @@ static void hdmi_power_off_full(struct omap_hdmi *hdmi)
 }
 
 static void hdmi_display_set_timings(struct omap_dss_device *dssdev,
-				     const struct videomode *vm)
+				     const struct drm_display_mode *mode)
 {
 	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
 
 	mutex_lock(&hdmi->lock);
 
-	hdmi->cfg.vm = *vm;
+	drm_display_mode_to_videomode(mode, &hdmi->cfg.vm);
 
-	dispc_set_tv_pclk(hdmi->dss->dispc, vm->pixelclock);
+	dispc_set_tv_pclk(hdmi->dss->dispc, mode->clock * 1000);
 
 	mutex_unlock(&hdmi->lock);
 }

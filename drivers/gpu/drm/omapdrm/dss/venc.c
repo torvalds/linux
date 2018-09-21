@@ -544,29 +544,29 @@ static int venc_get_modes(struct omap_dss_device *dssdev,
 	return ARRAY_SIZE(modes);
 }
 
-static enum venc_videomode venc_get_videomode(const struct videomode *vm)
+static enum venc_videomode venc_get_videomode(const struct drm_display_mode *mode)
 {
-	if (!(vm->flags & DISPLAY_FLAGS_INTERLACED))
+	if (!(mode->flags & DRM_MODE_FLAG_INTERLACE))
 		return VENC_MODE_UNKNOWN;
 
-	if (vm->pixelclock == omap_dss_pal_vm.pixelclock &&
-	    vm->hactive == omap_dss_pal_vm.hactive &&
-	    vm->vactive == omap_dss_pal_vm.vactive)
+	if (mode->clock == omap_dss_pal_vm.pixelclock / 1000 &&
+	    mode->hdisplay == omap_dss_pal_vm.hactive &&
+	    mode->vdisplay == omap_dss_pal_vm.vactive)
 		return VENC_MODE_PAL;
 
-	if (vm->pixelclock == omap_dss_ntsc_vm.pixelclock &&
-	    vm->hactive == omap_dss_ntsc_vm.hactive &&
-	    vm->vactive == omap_dss_ntsc_vm.vactive)
+	if (mode->clock == omap_dss_ntsc_vm.pixelclock / 1000 &&
+	    mode->hdisplay == omap_dss_ntsc_vm.hactive &&
+	    mode->vdisplay == omap_dss_ntsc_vm.vactive)
 		return VENC_MODE_NTSC;
 
 	return VENC_MODE_UNKNOWN;
 }
 
 static void venc_set_timings(struct omap_dss_device *dssdev,
-			     const struct videomode *vm)
+			     const struct drm_display_mode *mode)
 {
 	struct venc_device *venc = dssdev_to_venc(dssdev);
-	enum venc_videomode venc_mode = venc_get_videomode(vm);
+	enum venc_videomode venc_mode = venc_get_videomode(mode);
 
 	DSSDBG("venc_set_timings\n");
 
@@ -591,17 +591,17 @@ static void venc_set_timings(struct omap_dss_device *dssdev,
 }
 
 static int venc_check_timings(struct omap_dss_device *dssdev,
-			      struct videomode *vm)
+			      struct drm_display_mode *mode)
 {
 	DSSDBG("venc_check_timings\n");
 
-	switch (venc_get_videomode(vm)) {
+	switch (venc_get_videomode(mode)) {
 	case VENC_MODE_PAL:
-		*vm = omap_dss_pal_vm;
+		drm_display_mode_from_videomode(&omap_dss_pal_vm, mode);
 		return 0;
 
 	case VENC_MODE_NTSC:
-		*vm = omap_dss_ntsc_vm;
+		drm_display_mode_from_videomode(&omap_dss_ntsc_vm, mode);
 		return 0;
 
 	default:

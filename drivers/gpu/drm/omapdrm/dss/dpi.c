@@ -459,7 +459,7 @@ static void dpi_display_disable(struct omap_dss_device *dssdev)
 }
 
 static void dpi_set_timings(struct omap_dss_device *dssdev,
-			    const struct videomode *vm)
+			    const struct drm_display_mode *mode)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 
@@ -467,13 +467,13 @@ static void dpi_set_timings(struct omap_dss_device *dssdev,
 
 	mutex_lock(&dpi->lock);
 
-	dpi->vm = *vm;
+	drm_display_mode_to_videomode(mode, &dpi->vm);
 
 	mutex_unlock(&dpi->lock);
 }
 
 static int dpi_check_timings(struct omap_dss_device *dssdev,
-			     struct videomode *vm)
+			     struct drm_display_mode *mode)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 	int lck_div, pck_div;
@@ -482,20 +482,20 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 	struct dpi_clk_calc_ctx ctx;
 	bool ok;
 
-	if (vm->hactive % 8 != 0)
+	if (mode->hdisplay % 8 != 0)
 		return -EINVAL;
 
-	if (vm->pixelclock == 0)
+	if (mode->clock == 0)
 		return -EINVAL;
 
 	if (dpi->pll) {
-		ok = dpi_pll_clk_calc(dpi, vm->pixelclock, &ctx);
+		ok = dpi_pll_clk_calc(dpi, mode->clock * 1000, &ctx);
 		if (!ok)
 			return -EINVAL;
 
 		fck = ctx.pll_cinfo.clkout[ctx.clkout_idx];
 	} else {
-		ok = dpi_dss_clk_calc(dpi, vm->pixelclock, &ctx);
+		ok = dpi_dss_clk_calc(dpi, mode->clock * 1000, &ctx);
 		if (!ok)
 			return -EINVAL;
 
@@ -507,7 +507,7 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 
 	pck = fck / lck_div / pck_div;
 
-	vm->pixelclock = pck;
+	mode->clock = pck / 1000;
 
 	return 0;
 }

@@ -134,7 +134,7 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 
 	for (dssdev = omap_encoder->output; dssdev; dssdev = dssdev->next) {
 		if (dssdev->ops->set_timings)
-			dssdev->ops->set_timings(dssdev, &vm);
+			dssdev->ops->set_timings(dssdev, adjusted_mode);
 	}
 
 	/* Set the HDMI mode and HDMI infoframe if applicable. */

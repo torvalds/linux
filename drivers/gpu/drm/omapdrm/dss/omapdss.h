@@ -366,9 +366,9 @@ struct omap_dss_device_ops {
 	void (*post_disable)(struct omap_dss_device *dssdev);
 
 	int (*check_timings)(struct omap_dss_device *dssdev,
-			     struct videomode *vm);
+			     struct drm_display_mode *mode);
 	void (*set_timings)(struct omap_dss_device *dssdev,
-			    const struct videomode *vm);
+			    const struct drm_display_mode *mode);
 
 	bool (*detect)(struct omap_dss_device *dssdev);
 

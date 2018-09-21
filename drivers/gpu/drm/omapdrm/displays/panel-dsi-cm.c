@@ -1127,20 +1127,20 @@ static int dsicm_get_modes(struct omap_dss_device *dssdev,
 }
 
 static int dsicm_check_timings(struct omap_dss_device *dssdev,
-			       struct videomode *vm)
+			       struct drm_display_mode *mode)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	int ret = 0;
 
-	if (vm->hactive != ddata->vm.hactive)
+	if (mode->hdisplay != ddata->vm.hactive)
 		ret = -EINVAL;
 
-	if (vm->vactive != ddata->vm.vactive)
+	if (mode->vdisplay != ddata->vm.vactive)
 		ret = -EINVAL;
 
 	if (ret) {
 		dev_warn(dssdev->dev, "wrong resolution: %d x %d",
-			 vm->hactive, vm->vactive);
+			 mode->hdisplay, mode->vdisplay);
 		dev_warn(dssdev->dev, "panel resolution: %d x %d",
 			 ddata->vm.hactive, ddata->vm.vactive);
 	}
