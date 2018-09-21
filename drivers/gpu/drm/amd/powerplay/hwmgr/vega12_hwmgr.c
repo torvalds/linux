@@ -1317,7 +1317,11 @@ static int vega12_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
 		ret = vega12_get_gpu_power(hwmgr, (uint32_t *)value);
-
+		break;
+	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
+		ret = vega12_get_enabled_smc_features(hwmgr, (uint64_t *)value);
+		if (!ret)
+			*size = 8;
 		break;
 	default:
 		ret = -EINVAL;
