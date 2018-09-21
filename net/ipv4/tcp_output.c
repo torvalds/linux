@@ -993,21 +993,12 @@ enum hrtimer_restart tcp_pace_kick(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static void tcp_internal_pacing(struct sock *sk, const struct sk_buff *skb)
+static void tcp_internal_pacing(struct sock *sk)
 {
-	u64 len_ns;
-	u32 rate;
-
 	if (!tcp_needs_internal_pacing(sk))
 		return;
-	rate = sk->sk_pacing_rate;
-	if (!rate || rate == ~0U)
-		return;
-
-	len_ns = (u64)skb->len * NSEC_PER_SEC;
-	do_div(len_ns, rate);
 	hrtimer_start(&tcp_sk(sk)->pacing_timer,
-		      ktime_add_ns(ktime_get_tai_ns(), len_ns),
+		      ns_to_ktime(tcp_sk(sk)->tcp_wstamp_ns),
 		      HRTIMER_MODE_ABS_PINNED_SOFT);
 	sock_hold(sk);
 }
@@ -1026,7 +1017,8 @@ static void tcp_update_skb_after_send(struct sock *sk, struct sk_buff *skb)
 		 */
 		if (rate != ~0U && rate && tp->data_segs_out >= 10) {
 			tp->tcp_wstamp_ns += div_u64((u64)skb->len * NSEC_PER_SEC, rate);
-			/* TODO: update internal pacing here */
+
+			tcp_internal_pacing(sk);
 		}
 	}
 	list_move_tail(&skb->tcp_tsorted_anchor, &tp->tsorted_sent_queue);
@@ -1167,7 +1159,6 @@ static int __tcp_transmit_skb(struct sock *sk, struct sk_buff *skb,
 		tcp_event_data_sent(tp, sk);
 		tp->data_segs_out += tcp_skb_pcount(skb);
 		tp->bytes_sent += skb->len - tcp_header_size;
-		tcp_internal_pacing(sk, skb);
 	}
 
 	if (after(tcb->end_seq, tp->snd_nxt) || tcb->seq == tcb->end_seq)
