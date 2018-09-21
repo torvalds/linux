@@ -103,5 +103,8 @@ ENTRY(restore_registers)
 
 	xorl	%eax, %eax
 
+	/* tell the hibernation core that we've just restored the memory */
+	movl	%eax, in_suspend
+
 	ret
 ENDPROC(restore_registers)
