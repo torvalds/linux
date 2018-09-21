@@ -54,6 +54,9 @@ static DEFINE_MUTEX(client_mutex);
 static LIST_HEAD(component_list);
 static LIST_HEAD(unbind_card_list);
 
+#define for_each_component(component)			\
+	list_for_each_entry(component, &component_list, list)
+
 /*
  * This is a timeout to do a DAPM powerdown after a stream is closed().
  * It can be used to eliminate pops between different playback streams, e.g.
@@ -176,7 +179,7 @@ static int dai_list_show(struct seq_file *m, void *v)
 
 	mutex_lock(&client_mutex);
 
-	list_for_each_entry(component, &component_list, list)
+	for_each_component(component)
 		list_for_each_entry(dai, &component->dai_list, list)
 			seq_printf(m, "%s\n", dai->name);
 
@@ -192,7 +195,7 @@ static int component_list_show(struct seq_file *m, void *v)
 
 	mutex_lock(&client_mutex);
 
-	list_for_each_entry(component, &component_list, list)
+	for_each_component(component)
 		seq_printf(m, "%s\n", component->name);
 
 	mutex_unlock(&client_mutex);
@@ -725,7 +728,7 @@ static struct snd_soc_component *soc_find_component(
 
 	lockdep_assert_held(&client_mutex);
 
-	list_for_each_entry(component, &component_list, list) {
+	for_each_component(component) {
 		if (of_node) {
 			if (component->dev->of_node == of_node)
 				return component;
@@ -775,7 +778,7 @@ struct snd_soc_dai *snd_soc_find_dai(
 	lockdep_assert_held(&client_mutex);
 
 	/* Find CPU DAI from registered DAIs*/
-	list_for_each_entry(component, &component_list, list) {
+	for_each_component(component) {
 		if (!snd_soc_is_matching_component(dlc, component))
 			continue;
 		list_for_each_entry(dai, &component->dai_list, list) {
@@ -902,7 +905,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	rtd->codec_dai = codec_dais[0];
 
 	/* find one from the set of registered platforms */
-	list_for_each_entry(component, &component_list, list) {
+	for_each_component(component) {
 		if (!snd_soc_is_matching_component(dai_link->platform,
 						   component))
 			continue;
@@ -1874,7 +1877,7 @@ static void soc_check_tplg_fes(struct snd_soc_card *card)
 	struct snd_soc_dai_link *dai_link;
 	int i;
 
-	list_for_each_entry(component, &component_list, list) {
+	for_each_component(component) {
 
 		/* does this component override FEs ? */
 		if (!component->driver->ignore_machine)
@@ -3091,6 +3094,7 @@ static void snd_soc_component_add(struct snd_soc_component *component)
 			snd_soc_component_setup_regmap(component);
 	}
 
+	/* see for_each_component */
 	list_add(&component->list, &component_list);
 	INIT_LIST_HEAD(&component->dobj_list);
 
@@ -3226,7 +3230,7 @@ static int __snd_soc_unregister_component(struct device *dev)
 	int found = 0;
 
 	mutex_lock(&client_mutex);
-	list_for_each_entry(component, &component_list, list) {
+	for_each_component(component) {
 		if (dev != component->dev)
 			continue;
 
@@ -3258,7 +3262,7 @@ struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
 
 	ret = NULL;
 	mutex_lock(&client_mutex);
-	list_for_each_entry(component, &component_list, list) {
+	for_each_component(component) {
 		if (dev != component->dev)
 			continue;
 
@@ -3658,7 +3662,7 @@ int snd_soc_get_dai_id(struct device_node *ep)
 	 */
 	ret = -ENOTSUPP;
 	mutex_lock(&client_mutex);
-	list_for_each_entry(pos, &component_list, list) {
+	for_each_component(pos) {
 		struct device_node *component_of_node = pos->dev->of_node;
 
 		if (!component_of_node && pos->dev->parent)
@@ -3688,7 +3692,7 @@ int snd_soc_get_dai_name(struct of_phandle_args *args,
 	int ret = -EPROBE_DEFER;
 
 	mutex_lock(&client_mutex);
-	list_for_each_entry(pos, &component_list, list) {
+	for_each_component(pos) {
 		component_of_node = pos->dev->of_node;
 		if (!component_of_node && pos->dev->parent)
 			component_of_node = pos->dev->parent->of_node;
