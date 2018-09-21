@@ -105,9 +105,9 @@ MODULE_PARM_DESC(fanoff, "Turn the fan off below this temperature");
 module_param(verbose, uint, 0600);
 MODULE_PARM_DESC(verbose, "Enable verbose dmesg output");
 module_param_string(force_bios, force_bios, 16, 0);
-MODULE_PARM_DESC(force_bios, "Force BIOS version and omit BIOS check");
+MODULE_PARM_DESC(force_bios, "Pretend system has this known supported BIOS version");
 module_param_string(force_product, force_product, 16, 0);
-MODULE_PARM_DESC(force_product, "Force BIOS product and omit BIOS check");
+MODULE_PARM_DESC(force_product, "Pretend system is this known supported model");
 
 /*
  * cmd_off: to switch the fan completely off and check if the fan is off
