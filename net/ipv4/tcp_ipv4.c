@@ -544,7 +544,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 		BUG_ON(!skb);
 
 		tcp_mstamp_refresh(tp);
-		delta_us = (u32)(tp->tcp_mstamp - skb->skb_mstamp);
+		delta_us = (u32)(tp->tcp_mstamp - tcp_skb_timestamp_us(skb));
 		remaining = icsk->icsk_rto -
 			    usecs_to_jiffies(delta_us);
 
