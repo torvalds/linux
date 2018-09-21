@@ -311,9 +311,9 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	for_each_card_prelinks(card, i, dai_link) {
-		if (dai_links->platform_name)
+		if (dai_link->platform_name)
 			continue;
-		dai_links->platform_of_node = platform_node;
+		dai_link->platform_of_node = platform_node;
 	}
 
 	card->dev = dev;
@@ -326,9 +326,9 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	for_each_card_prelinks(card, i, dai_link) {
-		if (dai_links->codec_name)
+		if (dai_link->codec_name)
 			continue;
-		dai_links->codec_of_node = codec_node;
+		dai_link->codec_of_node = codec_node;
 	}
 
 	codec_node_bt_mrg = of_parse_phandle(pdev->dev.of_node,

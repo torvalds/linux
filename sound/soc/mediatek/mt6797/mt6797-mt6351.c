@@ -172,7 +172,7 @@ static int mt6797_mt6351_dev_probe(struct platform_device *pdev)
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->platform_name)
 			continue;
-		dai_links->platform_of_node = platform_node;
+		dai_link->platform_of_node = platform_node;
 	}
 
 	codec_node = of_parse_phandle(pdev->dev.of_node,
@@ -183,9 +183,9 @@ static int mt6797_mt6351_dev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	for_each_card_prelinks(card, i, dai_link) {
-		if (dai_links->codec_name)
+		if (dai_link->codec_name)
 			continue;
-		dai_links->codec_of_node = codec_node;
+		dai_link->codec_of_node = codec_node;
 	}
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
