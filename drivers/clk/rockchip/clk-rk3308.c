@@ -414,13 +414,13 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 			RK3308_CLKSEL_CON(75), 14, 2, MFLAGS, 0, 7, DFLAGS,
 			RK3308_CLKGATE_CON(15), 1, GFLAGS),
 
-	COMPOSITE(SCLK_SPI0, "clk_isp0", mux_dpll_vpll0_xin24m_p, 0,
+	COMPOSITE(SCLK_SPI0, "clk_spi0", mux_dpll_vpll0_xin24m_p, 0,
 			RK3308_CLKSEL_CON(30), 14, 2, MFLAGS, 0, 7, DFLAGS,
 			RK3308_CLKGATE_CON(3), 2, GFLAGS),
-	COMPOSITE(SCLK_SPI1, "clk_isp1", mux_dpll_vpll0_xin24m_p, 0,
+	COMPOSITE(SCLK_SPI1, "clk_spi1", mux_dpll_vpll0_xin24m_p, 0,
 			RK3308_CLKSEL_CON(31), 14, 2, MFLAGS, 0, 7, DFLAGS,
 			RK3308_CLKGATE_CON(3), 3, GFLAGS),
-	COMPOSITE(SCLK_SPI2, "clk_isp2", mux_dpll_vpll0_xin24m_p, 0,
+	COMPOSITE(SCLK_SPI2, "clk_spi2", mux_dpll_vpll0_xin24m_p, 0,
 			RK3308_CLKSEL_CON(32), 14, 2, MFLAGS, 0, 7, DFLAGS,
 			RK3308_CLKGATE_CON(3), 4, GFLAGS),
 
