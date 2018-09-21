@@ -619,7 +619,7 @@ static int str_starts_with(const char *str, const char *start)
 }
 
 /* check hardware */
-static int acerhdf_check_hardware(void)
+static int __init acerhdf_check_hardware(void)
 {
 	char const *vendor, *version, *product;
 	const struct bios_settings *bt = NULL;
@@ -695,7 +695,7 @@ static int acerhdf_check_hardware(void)
 	return 0;
 }
 
-static int acerhdf_register_platform(void)
+static int __init acerhdf_register_platform(void)
 {
 	int err = 0;
 
@@ -727,7 +727,7 @@ static void acerhdf_unregister_platform(void)
 	platform_driver_unregister(&acerhdf_driver);
 }
 
-static int acerhdf_register_thermal(void)
+static int __init acerhdf_register_thermal(void)
 {
 	cl_dev = thermal_cooling_device_register("acerhdf-fan", NULL,
 						 &acerhdf_cooling_ops);
