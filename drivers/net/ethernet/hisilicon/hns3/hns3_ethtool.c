@@ -22,13 +22,13 @@ struct hns3_stats {
 static const struct hns3_stats hns3_txq_stats[] = {
 	/* Tx per-queue statistics */
 	HNS3_TQP_STAT("io_err_cnt", io_err_cnt),
-	HNS3_TQP_STAT("tx_dropped", sw_err_cnt),
+	HNS3_TQP_STAT("dropped", sw_err_cnt),
 	HNS3_TQP_STAT("seg_pkt_cnt", seg_pkt_cnt),
 	HNS3_TQP_STAT("packets", tx_pkts),
 	HNS3_TQP_STAT("bytes", tx_bytes),
 	HNS3_TQP_STAT("errors", tx_err_cnt),
-	HNS3_TQP_STAT("tx_wake", restart_queue),
-	HNS3_TQP_STAT("tx_busy", tx_busy),
+	HNS3_TQP_STAT("wake", restart_queue),
+	HNS3_TQP_STAT("busy", tx_busy),
 };
 
 #define HNS3_TXQ_STATS_COUNT ARRAY_SIZE(hns3_txq_stats)
@@ -36,7 +36,7 @@ static const struct hns3_stats hns3_txq_stats[] = {
 static const struct hns3_stats hns3_rxq_stats[] = {
 	/* Rx per-queue statistics */
 	HNS3_TQP_STAT("io_err_cnt", io_err_cnt),
-	HNS3_TQP_STAT("rx_dropped", sw_err_cnt),
+	HNS3_TQP_STAT("dropped", sw_err_cnt),
 	HNS3_TQP_STAT("seg_pkt_cnt", seg_pkt_cnt),
 	HNS3_TQP_STAT("packets", rx_pkts),
 	HNS3_TQP_STAT("bytes", rx_bytes),
@@ -369,7 +369,7 @@ static void *hns3_update_strings(u8 *data, const struct hns3_stats *stats,
 			data[ETH_GSTRING_LEN - 1] = '\0';
 
 			/* first, prepend the prefix string */
-			n1 = snprintf(data, MAX_PREFIX_SIZE, "%s#%d_",
+			n1 = snprintf(data, MAX_PREFIX_SIZE, "%s%d_",
 				      prefix, i);
 			n1 = min_t(uint, n1, MAX_PREFIX_SIZE - 1);
 			size_left = (ETH_GSTRING_LEN - 1) - n1;

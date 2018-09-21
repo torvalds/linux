@@ -110,7 +110,7 @@ static u8 *hclgevf_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	for (i = 0; i < hdev->num_tqps; i++) {
 		struct hclgevf_tqp *tqp = container_of(handle->kinfo.tqp[i],
 			struct hclgevf_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "txq#%d_pktnum_rcd",
+		snprintf(buff, ETH_GSTRING_LEN, "txq%d_pktnum_rcd",
 			 tqp->index);
 		buff += ETH_GSTRING_LEN;
 	}
@@ -118,7 +118,7 @@ static u8 *hclgevf_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	for (i = 0; i < hdev->num_tqps; i++) {
 		struct hclgevf_tqp *tqp = container_of(handle->kinfo.tqp[i],
 			struct hclgevf_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "rxq#%d_pktnum_rcd",
+		snprintf(buff, ETH_GSTRING_LEN, "rxq%d_pktnum_rcd",
 			 tqp->index);
 		buff += ETH_GSTRING_LEN;
 	}
