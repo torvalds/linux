@@ -3086,10 +3086,6 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 	if (rc)
 		goto out_fail;
 
-	if (volume_info->nodfs) {
-		tcon->Flags &= ~SMB_SHARE_IS_IN_DFS;
-		cifs_dbg(FYI, "DFS disabled (%d)\n", tcon->Flags);
-	}
 	tcon->use_persistent = false;
 	/* check if SMB2 or later, CIFS does not support persistent handles */
 	if (volume_info->persistent) {
@@ -3664,6 +3660,8 @@ int cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 	cifs_sb->actimeo = pvolume_info->actimeo;
 	cifs_sb->local_nls = pvolume_info->local_nls;
 
+	if (pvolume_info->nodfs)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_DFS;
 	if (pvolume_info->noperm)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_PERM;
 	if (pvolume_info->setuids)
@@ -3819,6 +3817,9 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 	unsigned int num_referrals = 0;
 	struct dfs_info3_param *referrals = NULL;
 	char *full_path = NULL, *ref_path = NULL, *mdata = NULL;
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS)
+		return -EREMOTE;
 
 	full_path = build_unc_path_to_root(volume_info, cifs_sb);
 	if (IS_ERR(full_path))
