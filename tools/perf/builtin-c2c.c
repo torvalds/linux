@@ -2229,6 +2229,9 @@ static int perf_c2c__browse_cacheline(struct hist_entry *he)
 	" s             Togle full lenght of symbol and source line columns \n"
 	" q             Return back to cacheline list \n";
 
+	if (!he)
+		return 0;
+
 	/* Display compact version first. */
 	c2c.symbol_full = false;
 

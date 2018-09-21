@@ -458,17 +458,15 @@ bool tcp_fastopen_active_should_disable(struct sock *sk)
 void tcp_fastopen_active_disable_ofo_check(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct rb_node *p;
-	struct sk_buff *skb;
 	struct dst_entry *dst;
+	struct sk_buff *skb;
 
 	if (!tp->syn_fastopen)
 		return;
 
 	if (!tp->data_segs_in) {
-		p = rb_first(&tp->out_of_order_queue);
-		if (p && !rb_next(p)) {
-			skb = rb_entry(p, struct sk_buff, rbnode);
+		skb = skb_rb_first(&tp->out_of_order_queue);
+		if (skb && !skb_rb_next(skb)) {
 			if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN) {
 				tcp_fastopen_active_disable(sk);
 				return;

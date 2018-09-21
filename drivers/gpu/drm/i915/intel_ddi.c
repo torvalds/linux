@@ -1396,6 +1396,10 @@ void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
 		WARN_ON(transcoder_is_dsi(cpu_transcoder));
 
 		temp = TRANS_MSA_SYNC_CLK;
+
+		if (crtc_state->limited_color_range)
+			temp |= TRANS_MSA_CEA_RANGE;
+
 		switch (crtc_state->pipe_bpp) {
 		case 18:
 			temp |= TRANS_MSA_6_BPC;
