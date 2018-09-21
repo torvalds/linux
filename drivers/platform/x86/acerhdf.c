@@ -86,6 +86,7 @@ static unsigned int interval = 10;
 static unsigned int fanon = 60000;
 static unsigned int fanoff = 53000;
 static unsigned int verbose;
+static unsigned int list_supported;
 static unsigned int fanstate = ACERHDF_FAN_AUTO;
 static char force_bios[16];
 static char force_product[16];
@@ -104,6 +105,8 @@ module_param(fanoff, uint, 0600);
 MODULE_PARM_DESC(fanoff, "Turn the fan off below this temperature");
 module_param(verbose, uint, 0600);
 MODULE_PARM_DESC(verbose, "Enable verbose dmesg output");
+module_param(list_supported, uint, 0600);
+MODULE_PARM_DESC(list_supported, "List supported models and BIOS versions");
 module_param_string(force_bios, force_bios, 16, 0);
 MODULE_PARM_DESC(force_bios, "Pretend system has this known supported BIOS version");
 module_param_string(force_product, force_product, 16, 0);
@@ -631,6 +634,17 @@ static int acerhdf_check_hardware(void)
 	}
 
 	pr_info("Acer Aspire One Fan driver, v.%s\n", DRV_VER);
+
+	if (list_supported) {
+		pr_info("List of supported Manufacturer/Model/BIOS:\n");
+		pr_info("---------------------------------------------------\n");
+		for (bt = bios_tbl; bt->vendor[0]; bt++) {
+			pr_info("%-13s | %-17s | %-10s\n", bt->vendor,
+				bt->product, bt->version);
+		}
+		pr_info("---------------------------------------------------\n");
+		return -ECANCELED;
+	}
 
 	if (force_bios[0]) {
 		version = force_bios;
