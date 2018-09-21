@@ -267,38 +267,34 @@ enum venc_videomode {
 	VENC_MODE_NTSC,
 };
 
-static const struct videomode omap_dss_pal_vm = {
-	.hactive	= 720,
-	.vactive	= 574,
-	.pixelclock	= 13500000,
-	.hsync_len	= 64,
-	.hfront_porch	= 12,
-	.hback_porch	= 68,
-	.vsync_len	= 5,
-	.vfront_porch	= 5,
-	.vback_porch	= 41,
+static const struct drm_display_mode omap_dss_pal_mode = {
+	.hdisplay	= 720,
+	.hsync_start	= 732,
+	.hsync_end	= 796,
+	.htotal		= 864,
+	.vdisplay	= 574,
+	.vsync_start	= 579,
+	.vsync_end	= 584,
+	.vtotal		= 625,
+	.clock		= 13500,
 
-	.flags		= DISPLAY_FLAGS_INTERLACED | DISPLAY_FLAGS_HSYNC_LOW |
-			  DISPLAY_FLAGS_VSYNC_LOW | DISPLAY_FLAGS_DE_HIGH |
-			  DISPLAY_FLAGS_PIXDATA_POSEDGE |
-			  DISPLAY_FLAGS_SYNC_NEGEDGE,
+	.flags		= DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_NHSYNC |
+			  DRM_MODE_FLAG_NVSYNC,
 };
 
-static const struct videomode omap_dss_ntsc_vm = {
-	.hactive	= 720,
-	.vactive	= 482,
-	.pixelclock	= 13500000,
-	.hsync_len	= 64,
-	.hfront_porch	= 16,
-	.hback_porch	= 58,
-	.vsync_len	= 6,
-	.vfront_porch	= 6,
-	.vback_porch	= 31,
+static const struct drm_display_mode omap_dss_ntsc_mode = {
+	.hdisplay	= 720,
+	.hsync_start	= 736,
+	.hsync_end	= 800,
+	.htotal		= 858,
+	.vdisplay	= 482,
+	.vsync_start	= 488,
+	.vsync_end	= 494,
+	.vtotal		= 525,
+	.clock		= 13500,
 
-	.flags		= DISPLAY_FLAGS_INTERLACED | DISPLAY_FLAGS_HSYNC_LOW |
-			  DISPLAY_FLAGS_VSYNC_LOW | DISPLAY_FLAGS_DE_HIGH |
-			  DISPLAY_FLAGS_PIXDATA_POSEDGE |
-			  DISPLAY_FLAGS_SYNC_NEGEDGE,
+	.flags		= DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_NHSYNC |
+			  DRM_MODE_FLAG_NVSYNC,
 };
 
 struct venc_device {
@@ -521,20 +517,18 @@ static void venc_display_disable(struct omap_dss_device *dssdev)
 static int venc_get_modes(struct omap_dss_device *dssdev,
 			  struct drm_connector *connector)
 {
-	static const struct videomode *modes[] = {
-		&omap_dss_pal_vm,
-		&omap_dss_ntsc_vm,
+	static const struct drm_display_mode *modes[] = {
+		&omap_dss_pal_mode,
+		&omap_dss_ntsc_mode,
 	};
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(modes); ++i) {
 		struct drm_display_mode *mode;
 
-		mode = drm_mode_create(connector->dev);
+		mode = drm_mode_duplicate(connector->dev, modes[i]);
 		if (!mode)
 			return i;
-
-		drm_display_mode_from_videomode(modes[i], mode);
 
 		mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 		drm_mode_set_name(mode);
@@ -549,14 +543,14 @@ static enum venc_videomode venc_get_videomode(const struct drm_display_mode *mod
 	if (!(mode->flags & DRM_MODE_FLAG_INTERLACE))
 		return VENC_MODE_UNKNOWN;
 
-	if (mode->clock == omap_dss_pal_vm.pixelclock / 1000 &&
-	    mode->hdisplay == omap_dss_pal_vm.hactive &&
-	    mode->vdisplay == omap_dss_pal_vm.vactive)
+	if (mode->clock == omap_dss_pal_mode.clock &&
+	    mode->hdisplay == omap_dss_pal_mode.hdisplay &&
+	    mode->vdisplay == omap_dss_pal_mode.vdisplay)
 		return VENC_MODE_PAL;
 
-	if (mode->clock == omap_dss_ntsc_vm.pixelclock / 1000 &&
-	    mode->hdisplay == omap_dss_ntsc_vm.hactive &&
-	    mode->vdisplay == omap_dss_ntsc_vm.vactive)
+	if (mode->clock == omap_dss_ntsc_mode.clock &&
+	    mode->hdisplay == omap_dss_ntsc_mode.hdisplay &&
+	    mode->vdisplay == omap_dss_ntsc_mode.vdisplay)
 		return VENC_MODE_NTSC;
 
 	return VENC_MODE_UNKNOWN;
@@ -597,16 +591,20 @@ static int venc_check_timings(struct omap_dss_device *dssdev,
 
 	switch (venc_get_videomode(mode)) {
 	case VENC_MODE_PAL:
-		drm_display_mode_from_videomode(&omap_dss_pal_vm, mode);
-		return 0;
+		drm_mode_copy(mode, &omap_dss_pal_mode);
+		break;
 
 	case VENC_MODE_NTSC:
-		drm_display_mode_from_videomode(&omap_dss_ntsc_vm, mode);
-		return 0;
+		drm_mode_copy(mode, &omap_dss_ntsc_mode);
+		break;
 
 	default:
 		return -EINVAL;
 	}
+
+	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
+	drm_mode_set_name(mode);
+	return 0;
 }
 
 static int venc_dump_regs(struct seq_file *s, void *p)
