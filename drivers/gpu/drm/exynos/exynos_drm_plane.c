@@ -298,6 +298,10 @@ int exynos_plane_init(struct drm_device *dev,
 		      const struct exynos_drm_plane_config *config)
 {
 	int err;
+	unsigned int supported_modes = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+				       BIT(DRM_MODE_BLEND_PREMULTI) |
+				       BIT(DRM_MODE_BLEND_COVERAGE);
+	struct drm_plane *plane = &exynos_plane->base;
 
 	err = drm_universal_plane_init(dev, &exynos_plane->base,
 				       1 << dev->mode_config.num_crtc,
@@ -317,6 +321,9 @@ int exynos_plane_init(struct drm_device *dev,
 
 	exynos_plane_attach_zpos_property(&exynos_plane->base, config->zpos,
 			   !(config->capabilities & EXYNOS_DRM_PLANE_CAP_ZPOS));
+
+	if (config->capabilities & EXYNOS_DRM_PLANE_CAP_PIX_BLEND)
+		drm_plane_create_blend_mode_property(plane, supported_modes);
 
 	return 0;
 }
