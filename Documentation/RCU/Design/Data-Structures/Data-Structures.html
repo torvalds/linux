@@ -127,9 +127,11 @@ CPUs, RCU would configure the <tt>rcu_node</tt> tree as follows:
 </p><p>RCU currently permits up to a four-level tree, which on a 64-bit system
 accommodates up to 4,194,304 CPUs, though only a mere 524,288 CPUs for
 32-bit systems.
-On the other hand, you can set <tt>CONFIG_RCU_FANOUT</tt> to be
-as small as 2 if you wish, which would permit only 16 CPUs, which
-is useful for testing.
+On the other hand, you can set both <tt>CONFIG_RCU_FANOUT</tt> and
+<tt>CONFIG_RCU_FANOUT_LEAF</tt> to be as small as 2, which would result
+in a 16-CPU test using a 4-level tree.
+This can be useful for testing large-system capabilities on small test
+machines.
 
 </p><p>This multi-level combining tree allows us to get most of the
 performance and scalability
