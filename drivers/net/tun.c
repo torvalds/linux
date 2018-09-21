@@ -1153,43 +1153,6 @@ static netdev_features_t tun_net_fix_features(struct net_device *dev,
 
 	return (features & tun->set_features) | (features & ~TUN_USER_FEATURES);
 }
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void tun_poll_controller(struct net_device *dev)
-{
-	/*
-	 * Tun only receives frames when:
-	 * 1) the char device endpoint gets data from user space
-	 * 2) the tun socket gets a sendmsg call from user space
-	 * If NAPI is not enabled, since both of those are synchronous
-	 * operations, we are guaranteed never to have pending data when we poll
-	 * for it so there is nothing to do here but return.
-	 * We need this though so netpoll recognizes us as an interface that
-	 * supports polling, which enables bridge devices in virt setups to
-	 * still use netconsole
-	 * If NAPI is enabled, however, we need to schedule polling for all
-	 * queues unless we are using napi_gro_frags(), which we call in
-	 * process context and not in NAPI context.
-	 */
-	struct tun_struct *tun = netdev_priv(dev);
-
-	if (tun->flags & IFF_NAPI) {
-		struct tun_file *tfile;
-		int i;
-
-		if (tun_napi_frags_enabled(tun))
-			return;
-
-		rcu_read_lock();
-		for (i = 0; i < tun->numqueues; i++) {
-			tfile = rcu_dereference(tun->tfiles[i]);
-			if (tfile->napi_enabled)
-				napi_schedule(&tfile->napi);
-		}
-		rcu_read_unlock();
-	}
-	return;
-}
-#endif
 
 static void tun_set_headroom(struct net_device *dev, int new_hr)
 {
@@ -1283,9 +1246,6 @@ static const struct net_device_ops tun_netdev_ops = {
 	.ndo_start_xmit		= tun_net_xmit,
 	.ndo_fix_features	= tun_net_fix_features,
 	.ndo_select_queue	= tun_select_queue,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= tun_poll_controller,
-#endif
 	.ndo_set_rx_headroom	= tun_set_headroom,
 	.ndo_get_stats64	= tun_net_get_stats64,
 };
@@ -1365,9 +1325,6 @@ static const struct net_device_ops tap_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_select_queue	= tun_select_queue,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= tun_poll_controller,
-#endif
 	.ndo_features_check	= passthru_features_check,
 	.ndo_set_rx_headroom	= tun_set_headroom,
 	.ndo_get_stats64	= tun_net_get_stats64,
