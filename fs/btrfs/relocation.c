@@ -2991,7 +2991,7 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 	struct backref_node *node;
 	struct btrfs_path *path;
 	struct tree_block *block;
-	struct rb_node *rb_node;
+	struct tree_block *next;
 	int ret;
 	int err = 0;
 
@@ -3001,29 +3001,23 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 		goto out_free_blocks;
 	}
 
-	rb_node = rb_first(blocks);
-	while (rb_node) {
-		block = rb_entry(rb_node, struct tree_block, rb_node);
+	/* Kick in readahead for tree blocks with missing keys */
+	rbtree_postorder_for_each_entry_safe(block, next, blocks, rb_node) {
 		if (!block->key_ready)
 			readahead_tree_block(fs_info, block->bytenr);
-		rb_node = rb_next(rb_node);
 	}
 
-	rb_node = rb_first(blocks);
-	while (rb_node) {
-		block = rb_entry(rb_node, struct tree_block, rb_node);
+	/* Get first keys */
+	rbtree_postorder_for_each_entry_safe(block, next, blocks, rb_node) {
 		if (!block->key_ready) {
 			err = get_tree_block_key(fs_info, block);
 			if (err)
 				goto out_free_path;
 		}
-		rb_node = rb_next(rb_node);
 	}
 
-	rb_node = rb_first(blocks);
-	while (rb_node) {
-		block = rb_entry(rb_node, struct tree_block, rb_node);
-
+	/* Do tree relocation */
+	rbtree_postorder_for_each_entry_safe(block, next, blocks, rb_node) {
 		node = build_backref_tree(rc, &block->key,
 					  block->level, block->bytenr);
 		if (IS_ERR(node)) {
@@ -3034,11 +3028,10 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 		ret = relocate_tree_block(trans, rc, node, &block->key,
 					  path);
 		if (ret < 0) {
-			if (ret != -EAGAIN || rb_node == rb_first(blocks))
+			if (ret != -EAGAIN || &block->rb_node == rb_first(blocks))
 				err = ret;
 			goto out;
 		}
-		rb_node = rb_next(rb_node);
 	}
 out:
 	err = finish_pending_nodes(trans, rc, path, err);
