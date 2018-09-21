@@ -964,10 +964,6 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 	if (r)
 		return r;
 
-	r = reservation_object_reserve_shared(vm->root.base.bo->tbo.resv, 1);
-	if (r)
-		return r;
-
 	p->job->vm_pd_addr = amdgpu_gmc_pd_addr(vm->root.base.bo);
 
 	if (amdgpu_vm_debug) {
