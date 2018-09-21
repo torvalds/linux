@@ -3714,6 +3714,11 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			SMUSVI0_PLANE0_CURRENTVID__CURRENT_SVI0_PLANE0_VID__SHIFT;
 		*((uint32_t *)value) = (uint32_t)convert_to_vddc((uint8_t)val_vid);
 		return 0;
+	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
+		ret = vega10_get_enabled_smc_features(hwmgr, (uint64_t *)value);
+		if (!ret)
+			*size = 8;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
