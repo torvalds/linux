@@ -1,81 +1,46 @@
-Contributor Covenant Code of Conduct
-++++++++++++++++++++++++++++++++++++
+Pledge
+======
 
-Our Pledge
-==========
+In the interest of fostering an effective, efficient, and constructive environment to further the advancement of the Linux kernel, we as contributors, maintainers, and involved users of said kernel pledge to remain topic focused and to view contributions without bias towards the contribution's origins, both of the person having designed the code, be it a physical, social, or mental condition, nor of the method of conception of the contribution, whether that's modification, reuse, or entirely new ideas.
 
-In the interest of fostering an open and welcoming environment, we as
-contributors and maintainers pledge to making participation in our project and
-our community a harassment-free experience for everyone, regardless of age, body
-size, disability, ethnicity, sex characteristics, gender identity and
-expression, level of experience, education, socio-economic status, nationality,
-personal appearance, race, religion, or sexual identity and orientation.
+Standards
+=========
 
-Our Standards
-=============
+In an effort to keep the conversation surrounding the kernel about bettering the kernel itself, the following principals will be upheld:
 
-Examples of behavior that contributes to creating a positive environment
-include:
+1 - Any and all "ad hominem" attacks by *any* contributor can and will be disciplined, by methods including but not limited to suspension of contribution to the kernel, removal of commits, code, wiki edits, and issues which contain said attacks.
 
-* Using welcoming and inclusive language
-* Being respectful of differing viewpoints and experiences
-* Gracefully accepting constructive criticism
-* Focusing on what is best for the community
-* Showing empathy towards other community members
+2 - Criticism shall remain constructive, if heated, and shall be applied to the contributions and codebase, and not to the person's physical, social, or mental condition. No contributor shall stand above another in a bureaucratic heirarchy, and all actions of discipline shall be taken based on severity by community-elected "moderators", whom, outside of disciplinary hearing, are not to be considered superior or senior to normal contributors.
 
+3 - "Moderators" shall be elected by the community via a vote based on merit and consistent contributions to the kernel proper, and by no further means. No person shall be discriminated against based on race, gender, sexual orientation, or other physical, social, or mental conditions. By this manner, the kernel will be moderated by those who assist the kernel the most, and not by any other facet.
 
-Examples of unacceptable behavior by participants include:
+# - Kernel suspension shall not last longer than a term of one (1) year beyond the date of infraction.
 
-* The use of sexualized language or imagery and unwelcome sexual attention or
-  advances
-* Trolling, insulting/derogatory comments, and personal or political attacks
-* Public or private harassment
-* Publishing others’ private information, such as a physical or electronic
-  address, without explicit permission
-* Other conduct which could reasonably be considered inappropriate in a
-  professional setting
+Responsibilities
+================
 
+Contributors are responsible for their attitude as displayed on github.com/torvalds/linux, and any disciplinary action will be taken based on the statements made by contributors only on github.com/torvalds/linux and it's various subdirectories. Statements made outside github.com/torvalds/linux, including emails, social media, and statements made in person between individuals, are not to be considered for potential disciplinary action and should instead be taken up with the administration of the platform used, whether that consists of social media moderators, event moderators, or email platforms.
 
-Our Responsibilities
-====================
-
-Maintainers are responsible for clarifying the standards of acceptable behavior
-and are expected to take appropriate and fair corrective action in response to
-any instances of unacceptable behavior.
-
-Maintainers have the right and responsibility to remove, edit, or reject
-comments, commits, code, wiki edits, issues, and other contributions that are
-not aligned to this Code of Conduct, or to ban temporarily or permanently any
-contributor for other behaviors that they deem inappropriate, threatening,
-offensive, or harmful.
+Moderators are responsible for remaining a consistent and competent contributor to the Linux kernel, and to make fair and even judgement calls based on the actions of contributors as they stand currently. They are not to incite "witch hunts" or involve themselves in them, and doing so on github.com/torvalds/linux and it's various subdirectories can, will, and should result in immediate expulsion from moderation and maximum kernel contribution bans.
 
 Scope
 =====
 
-This Code of Conduct applies both within project spaces and in public spaces
-when an individual is representing the project or its community. Examples of
-representing a project or community include using an official project e-mail
-address, posting via an official social media account, or acting as an appointed
-representative at an online or offline event. Representation of a project may be
-further defined and clarified by project maintainers.
+As previously mentioned, this Code of Conduct applies solely within github.com/torvalds/linux and it's various subdirectories, except where this may be embedded in another project as example. 
 
 Enforcement
 ===========
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported by contacting the Technical Advisory Board (TAB) at
-<tab@lists.linux-foundation.org>. All complaints will be reviewed and
-investigated and will result in a response that is deemed necessary and
-appropriate to the circumstances. The TAB is obligated to maintain
-confidentiality with regard to the reporter of an incident.  Further details of
-specific enforcement policies may be posted separately.
+As previously mentioned, enforcement of Standards and Responsiblity shall be handled by community-elected moderators, and punishment can include but is not limited to removal of contributions in issues, pull requests, and other areas, as well as temporary suspension of kernel contribution rights for up to a year, at the moderator's discretion.
 
-Maintainers who do not follow or enforce the Code of Conduct in good faith may
-face temporary or permanent repercussions as determined by other members of the
-project’s leadership.
+Upon implementation, this Code of Conduct shall not retroactively affect any contributor, and shall only affect actions made after the date of implementation, as written here: [Insert date of Implementation here].
 
 Attribution
 ===========
 
-This Code of Conduct is adapted from the Contributor Covenant, version 1.4,
-available at https://www.contributor-covenant.org/version/1/4/code-of-conduct.html
+This Code of Conduct was drafted by "SteveHeist" on Thursday, the 20th of September, to present as an alternative to the Code of Conduct adapted from the Contributor Covenant, which he believed to be written against the common interests of the contributors and the kernel, as evidenced by pull requests such as #593.
+
+Adjustment
+==========
+
+Adjustment of this Code of Conduct, after implementation, can be made by suggesting as such in Issues, and at the discretion of community-elected moderators. Before implementation, this Code of Conduct can be adjusted and fitted as seen fit by the community at large, such that it will serve the entire community, rather than any interests against them.
