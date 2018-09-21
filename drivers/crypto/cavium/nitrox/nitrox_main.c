@@ -291,26 +291,6 @@ static int nitrox_bist_check(struct nitrox_device *ndev)
 	return 0;
 }
 
-static void nitrox_get_hwinfo(struct nitrox_device *ndev)
-{
-	union emu_fuse_map emu_fuse;
-	u64 offset;
-	int i;
-
-	for (i = 0; i < NR_CLUSTERS; i++) {
-		u8 dead_cores;
-
-		offset = EMU_FUSE_MAPX(i);
-		emu_fuse.value = nitrox_read_csr(ndev, offset);
-		if (emu_fuse.s.valid) {
-			dead_cores = hweight32(emu_fuse.s.ae_fuse);
-			ndev->hw.ae_cores += AE_CORES_PER_CLUSTER - dead_cores;
-			dead_cores = hweight16(emu_fuse.s.se_fuse);
-			ndev->hw.se_cores += SE_CORES_PER_CLUSTER - dead_cores;
-		}
-	}
-}
-
 static int nitrox_pf_hw_init(struct nitrox_device *ndev)
 {
 	int err;

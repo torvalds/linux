@@ -5,6 +5,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/if.h>
 
 #define VERSION_LEN 32
 
@@ -48,15 +49,27 @@ struct nitrox_cmdq {
 	dma_addr_t dma;
 };
 
+/**
+ * struct nitrox_hw - NITROX hardware information
+ * @partname: partname ex: CNN55xxx-xxx
+ * @fw_name: firmware version
+ * @freq: NITROX frequency
+ * @vendor_id: vendor ID
+ * @device_id: device ID
+ * @revision_id: revision ID
+ * @se_cores: number of symmetric cores
+ * @ae_cores: number of asymmetric cores
+ * @zip_cores: number of zip cores
+ */
 struct nitrox_hw {
-	/* firmware version */
+	char partname[IFNAMSIZ * 2];
 	char fw_name[VERSION_LEN];
 
+	int freq;
 	u16 vendor_id;
 	u16 device_id;
 	u8 revision_id;
 
-	/* CNN55XX cores */
 	u8 se_cores;
 	u8 ae_cores;
 	u8 zip_cores;
