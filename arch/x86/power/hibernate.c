@@ -36,7 +36,7 @@ unsigned long jump_address_phys;
  * in the image header).
  */
 unsigned long restore_cr3 __visible;
-unsigned long temp_level4_pgt __visible;
+unsigned long temp_pgt __visible;
 unsigned long relocated_restore_code __visible;
 
 /**

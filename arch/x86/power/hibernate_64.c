@@ -121,7 +121,7 @@ static int set_up_temporary_mappings(void)
 			return result;
 	}
 
-	temp_level4_pgt = __pa(pgd);
+	temp_pgt = __pa(pgd);
 	return 0;
 }
 
