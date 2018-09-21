@@ -14,6 +14,7 @@
 
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/notifier.h>
 
 struct device;
 struct device_node;
@@ -45,6 +46,13 @@ struct nvmem_cell_lookup {
 	const char		*dev_id;
 	const char		*con_id;
 	struct list_head	node;
+};
+
+enum {
+	NVMEM_ADD = 1,
+	NVMEM_REMOVE,
+	NVMEM_CELL_ADD,
+	NVMEM_CELL_REMOVE,
 };
 
 #if IS_ENABLED(CONFIG_NVMEM)
@@ -79,6 +87,9 @@ void nvmem_add_cell_lookups(struct nvmem_cell_lookup *entries,
 			    size_t nentries);
 void nvmem_del_cell_lookups(struct nvmem_cell_lookup *entries,
 			    size_t nentries);
+
+int nvmem_register_notifier(struct notifier_block *nb);
+int nvmem_unregister_notifier(struct notifier_block *nb);
 
 #else
 
@@ -178,6 +189,16 @@ static inline void
 nvmem_add_cell_lookups(struct nvmem_cell_lookup *entries, size_t nentries) {}
 static inline void
 nvmem_del_cell_lookups(struct nvmem_cell_lookup *entries, size_t nentries) {}
+
+static inline int nvmem_register_notifier(struct notifier_block *nb)
+{
+	return -ENOSYS;
+}
+
+static inline int nvmem_unregister_notifier(struct notifier_block *nb)
+{
+	return -ENOSYS;
+}
 
 #endif /* CONFIG_NVMEM */
 
