@@ -241,45 +241,51 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static int omap_connector_mode_valid(struct drm_connector *connector,
-				 struct drm_display_mode *mode)
+enum drm_mode_status omap_connector_mode_fixup(struct omap_dss_device *dssdev,
+					const struct drm_display_mode *mode,
+					struct drm_display_mode *adjusted_mode)
 {
-	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct omap_dss_device *dssdev;
-	struct videomode vm = {0};
-	struct drm_device *dev = connector->dev;
-	struct drm_display_mode *new_mode;
-	int r, ret = MODE_BAD;
+	struct videomode vm = { 0 };
+	int ret;
 
 	drm_display_mode_to_videomode(mode, &vm);
-	mode->vrefresh = drm_mode_vrefresh(mode);
 
-	for (dssdev = omap_connector->output; dssdev; dssdev = dssdev->next) {
+	for (; dssdev; dssdev = dssdev->next) {
 		if (!dssdev->ops->check_timings)
 			continue;
 
-		r = dssdev->ops->check_timings(dssdev, &vm);
-		if (r)
-			goto done;
+		ret = dssdev->ops->check_timings(dssdev, &vm);
+		if (ret)
+			return MODE_BAD;
 	}
 
-	/* check if vrefresh is still valid */
-	new_mode = drm_mode_duplicate(dev, mode);
-	if (!new_mode)
-		return MODE_BAD;
+	drm_display_mode_from_videomode(&vm, adjusted_mode);
 
-	new_mode->clock = vm.pixelclock / 1000;
-	new_mode->vrefresh = 0;
-	if (mode->vrefresh == drm_mode_vrefresh(new_mode))
-		ret = MODE_OK;
-	drm_mode_destroy(dev, new_mode);
+	return MODE_OK;
+}
+
+static enum drm_mode_status omap_connector_mode_valid(struct drm_connector *connector,
+				 struct drm_display_mode *mode)
+{
+	struct omap_connector *omap_connector = to_omap_connector(connector);
+	struct drm_display_mode new_mode = { { 0 } };
+	enum drm_mode_status status;
+
+	status = omap_connector_mode_fixup(omap_connector->output, mode,
+					   &new_mode);
+	if (status != MODE_OK)
+		goto done;
+
+	/* Check if vrefresh is still valid. */
+	if (drm_mode_vrefresh(mode) != drm_mode_vrefresh(&new_mode))
+		status = MODE_NOCLOCK;
 
 done:
 	DBG("connector: mode %s: " DRM_MODE_FMT,
-			(ret == MODE_OK) ? "valid" : "invalid",
+			(status == MODE_OK) ? "valid" : "invalid",
 			DRM_MODE_ARG(mode));
 
-	return ret;
+	return status;
 }
 
 static const struct drm_connector_funcs omap_connector_funcs = {
