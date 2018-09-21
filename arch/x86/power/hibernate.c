@@ -157,10 +157,8 @@ int arch_hibernation_header_save(void *addr, unsigned int max_size)
 	if (max_size < sizeof(struct restore_data_record))
 		return -EOVERFLOW;
 	rdr->magic = RESTORE_MAGIC;
-#ifdef CONFIG_X86_64
 	rdr->jump_address = (unsigned long)restore_registers;
 	rdr->jump_address_phys = __pa_symbol(restore_registers);
-#endif
 
 	/*
 	 * The restore code fixes up CR3 and CR4 in the following sequence:
@@ -198,10 +196,8 @@ int arch_hibernation_header_restore(void *addr)
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_X86_64
 	restore_jump_address = rdr->jump_address;
 	jump_address_phys = rdr->jump_address_phys;
-#endif
 	restore_cr3 = rdr->cr3;
 
 	if (hibernation_e820_mismatch(rdr->e820_digest)) {

@@ -36,6 +36,8 @@ ENTRY(swsusp_arch_suspend)
 ENDPROC(swsusp_arch_suspend)
 
 ENTRY(restore_image)
+	/* prepare to jump to the image kernel */
+	movl	restore_jump_address, %ebx
 	movl	restore_cr3, %ebp
 
 	movl	mmu_cr4_features, %ecx
@@ -74,6 +76,7 @@ copy_loop:
 	.p2align 4,,7
 
 done:
+	jmpl	*%ebx
 
 	/* code below belongs to the image kernel */
 	.align PAGE_SIZE
