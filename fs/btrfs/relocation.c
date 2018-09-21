@@ -2915,7 +2915,6 @@ static int get_tree_block_key(struct btrfs_fs_info *fs_info,
 		free_extent_buffer(eb);
 		return -EIO;
 	}
-	WARN_ON(btrfs_header_level(eb) != block->level);
 	if (block->level == 0)
 		btrfs_item_key_to_cpu(eb, &block->key, 0);
 	else
