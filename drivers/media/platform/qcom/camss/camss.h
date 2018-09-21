@@ -17,7 +17,6 @@
 #include <media/v4l2-subdev.h>
 #include <media/media-device.h>
 #include <media/media-entity.h>
-#include <linux/device.h>
 
 #include "camss-csid.h"
 #include "camss-csiphy.h"
