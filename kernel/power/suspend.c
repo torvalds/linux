@@ -111,7 +111,7 @@ static void s2idle_loop(void)
 {
 	pm_pr_dbg("suspend-to-idle\n");
 
-	while (1) {
+	for (;;) {
 		int error;
 
 		dpm_noirq_begin();
