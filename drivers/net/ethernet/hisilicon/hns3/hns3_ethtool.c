@@ -351,9 +351,10 @@ static int hns3_get_sset_count(struct net_device *netdev, int stringset)
 
 	case ETH_SS_TEST:
 		return ops->get_sset_count(h, stringset);
-	}
 
-	return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void *hns3_update_strings(u8 *data, const struct hns3_stats *stats,
@@ -416,6 +417,8 @@ static void hns3_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 		break;
 	case ETH_SS_TEST:
 		ops->get_strings(h, stringset, data);
+		break;
+	default:
 		break;
 	}
 }

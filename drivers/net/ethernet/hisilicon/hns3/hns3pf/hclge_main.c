@@ -2224,6 +2224,8 @@ static void hclge_clear_event_cause(struct hclge_dev *hdev, u32 event_type,
 	case HCLGE_VECTOR0_EVENT_MBX:
 		hclge_write_dev(&hdev->hw, HCLGE_VECTOR0_CMDQ_SRC_REG, regclr);
 		break;
+	default:
+		break;
 	}
 }
 
@@ -5218,6 +5220,10 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 
 				hnae3_set_client_init_flag(client, ae_dev, 1);
 			}
+
+			break;
+		default:
+			return -EINVAL;
 		}
 	}
 

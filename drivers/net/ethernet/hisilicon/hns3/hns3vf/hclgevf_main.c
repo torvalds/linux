@@ -1667,6 +1667,9 @@ static int hclgevf_init_client_instance(struct hnae3_client *client,
 		}
 
 		hnae3_set_client_init_flag(client, ae_dev, 1);
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
