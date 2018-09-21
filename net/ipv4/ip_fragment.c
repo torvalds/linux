@@ -822,7 +822,6 @@ static int __net_init ip4_frags_ns_ctl_register(struct net *net)
 
 		table[0].data = &net->ipv4.frags.high_thresh;
 		table[0].extra1 = &net->ipv4.frags.low_thresh;
-		table[0].extra2 = &init_net.ipv4.frags.high_thresh;
 		table[1].data = &net->ipv4.frags.low_thresh;
 		table[1].extra2 = &net->ipv4.frags.high_thresh;
 		table[2].data = &net->ipv4.frags.timeout;
