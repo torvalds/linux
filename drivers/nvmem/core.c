@@ -352,7 +352,7 @@ static int nvmem_cell_info_to_nvmem_cell(struct nvmem_device *nvmem,
  *
  * Return: 0 or negative error code on failure.
  */
-int nvmem_add_cells(struct nvmem_device *nvmem,
+static int nvmem_add_cells(struct nvmem_device *nvmem,
 		    const struct nvmem_cell_info *info,
 		    int ncells)
 {
@@ -391,7 +391,6 @@ err:
 
 	return rval;
 }
-EXPORT_SYMBOL_GPL(nvmem_add_cells);
 
 /*
  * nvmem_setup_compat() - Create an additional binary entry in
