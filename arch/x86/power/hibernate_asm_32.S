@@ -33,8 +33,7 @@ ENDPROC(swsusp_arch_suspend)
 
 ENTRY(restore_image)
 	movl	mmu_cr4_features, %ecx
-	movl	resume_pg_dir, %eax
-	subl	$__PAGE_OFFSET, %eax
+	movl	temp_pgt, %eax
 	movl	%eax, %cr3
 
 	jecxz	1f	# cr4 Pentium and higher, skip if zero

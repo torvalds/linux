@@ -156,6 +156,8 @@ asmlinkage int swsusp_arch_resume(void)
 	if (error)
 		return error;
 
+	temp_pgt = __pa(resume_pg_dir);
+
 	/* We have got enough memory and from now on we cannot recover */
 	restore_image();
 	return 0;
