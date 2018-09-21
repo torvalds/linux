@@ -160,6 +160,7 @@ int arch_hibernation_header_save(void *addr, unsigned int max_size)
 #ifdef CONFIG_X86_64
 	rdr->jump_address = (unsigned long)restore_registers;
 	rdr->jump_address_phys = __pa_symbol(restore_registers);
+#endif
 
 	/*
 	 * The restore code fixes up CR3 and CR4 in the following sequence:
@@ -179,7 +180,6 @@ int arch_hibernation_header_save(void *addr, unsigned int max_size)
 	 * have any of the PCID bits set.
 	 */
 	rdr->cr3 = restore_cr3 & ~CR3_PCID_MASK;
-#endif
 
 	return hibernation_e820_save(rdr->e820_digest);
 }
@@ -201,8 +201,8 @@ int arch_hibernation_header_restore(void *addr)
 #ifdef CONFIG_X86_64
 	restore_jump_address = rdr->jump_address;
 	jump_address_phys = rdr->jump_address_phys;
-	restore_cr3 = rdr->cr3;
 #endif
+	restore_cr3 = rdr->cr3;
 
 	if (hibernation_e820_mismatch(rdr->e820_digest)) {
 		pr_crit("Hibernate inconsistent memory map detected!\n");
