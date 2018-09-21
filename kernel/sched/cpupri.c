@@ -29,20 +29,16 @@
 #include "sched.h"
 
 /* Convert between a 140 based task->prio, and our 102 based cpupri */
-static int convert_prio(int prio)
+static int convert_prio(const int prio)
 {
-	int cpupri;
-
 	if (prio == CPUPRI_INVALID)
-		cpupri = CPUPRI_INVALID;
+		return CPUPRI_INVALID;
 	else if (prio == MAX_PRIO)
-		cpupri = CPUPRI_IDLE;
+		return CPUPRI_IDLE;
 	else if (prio >= MAX_RT_PRIO)
-		cpupri = CPUPRI_NORMAL;
+		return CPUPRI_NORMAL;
 	else
-		cpupri = MAX_RT_PRIO - prio + 1;
-
-	return cpupri;
+		return MAX_RT_PRIO - prio + 1;
 }
 
 /**
@@ -95,10 +91,8 @@ int cpupri_find(struct cpupri *cp, struct task_struct *p,
 		smp_rmb();
 
 		/* Need to do the rmb for every iteration */
-		if (skip)
-			continue;
-
-		if (cpumask_any_and(&p->cpus_allowed, vec->mask) >= nr_cpu_ids)
+		if (skip || cpumask_any_and(&p->cpus_allowed, vec->mask)
+				>= nr_cpu_ids)
 			continue;
 
 		if (lowest_mask) {
@@ -222,7 +216,7 @@ int cpupri_init(struct cpupri *cp)
 	return 0;
 
 cleanup:
-	for (i--; i >= 0; i--)
+	while (--i >= 0)
 		free_cpumask_var(cp->pri_to_cpu[i].mask);
 	return -ENOMEM;
 }

@@ -119,10 +119,9 @@ static int membarrier_private_expedited(int flags)
 		if (!(atomic_read(&current->mm->membarrier_state) &
 		      MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE_READY))
 			return -EPERM;
-	} else {
-		if (!(atomic_read(&current->mm->membarrier_state) &
-		      MEMBARRIER_STATE_PRIVATE_EXPEDITED_READY))
-			return -EPERM;
+	} else if (!(atomic_read(&current->mm->membarrier_state) &
+			MEMBARRIER_STATE_PRIVATE_EXPEDITED_READY)) {
+		return -EPERM;
 	}
 
 	if (num_online_cpus() == 1)

@@ -14,7 +14,7 @@ static void irq_spread_init_one(struct cpumask *irqmsk, struct cpumask *nmsk,
 	const struct cpumask *siblmsk;
 	int cpu, sibl;
 
-	for ( ; cpus_per_vec > 0; ) {
+	while (cpus_per_vec > 0) {
 		cpu = cpumask_first(nmsk);
 
 		/* Should not happen, but I'm too lazy to think about it */
@@ -48,7 +48,7 @@ static cpumask_var_t *alloc_node_to_cpumask(void)
 	if (!masks)
 		return NULL;
 
-	for (node = 0; node < nr_node_ids; node++) {
+	for (node = nr_node_ids; --node;) {
 		if (!zalloc_cpumask_var(&masks[node], GFP_KERNEL))
 			goto out_unwind;
 	}
@@ -64,9 +64,9 @@ out_unwind:
 
 static void free_node_to_cpumask(cpumask_var_t *masks)
 {
-	int node;
+	int node = nr_node_ids;
 
-	for (node = 0; node < nr_node_ids; node++)
+	while (--node)
 		free_cpumask_var(masks[node]);
 	kfree(masks);
 }
@@ -185,10 +185,8 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 	 * If there aren't any vectors left after applying the pre/post
 	 * vectors don't bother with assigning affinity.
 	 */
-	if (nvecs == affd->pre_vectors + affd->post_vectors)
-		return NULL;
-
-	if (!zalloc_cpumask_var(&nmsk, GFP_KERNEL))
+	if (nvecs == affd->pre_vectors + affd->post_vectors ||
+			!zalloc_cpumask_var(&nmsk, GFP_KERNEL))
 		return NULL;
 
 	if (!zalloc_cpumask_var(&npresmsk, GFP_KERNEL))

@@ -617,12 +617,8 @@ bool sched_can_stop_tick(struct rq *rq)
 	 * If there are more than one RR tasks, we need the tick to effect the
 	 * actual RR behaviour.
 	 */
-	if (rq->rt.rr_nr_running) {
-		if (rq->rt.rr_nr_running == 1)
-			return true;
-		else
-			return false;
-	}
+	if (rq->rt.rr_nr_running)
+		return rq->rt.rr_nr_running == 1;
 
 	/*
 	 * If there's no RR tasks, but FIFO tasks, we can skip the tick, no

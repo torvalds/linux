@@ -416,10 +416,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 		goto Platform_early_resume;
 	}
 	error = platform_suspend_prepare_noirq(state);
-	if (error)
-		goto Platform_wake;
-
-	if (suspend_test(TEST_PLATFORM))
+	if (error || suspend_test(TEST_PLATFORM))
 		goto Platform_wake;
 
 	error = disable_nonboot_cpus();
