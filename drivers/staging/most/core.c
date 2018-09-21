@@ -1235,7 +1235,7 @@ int most_start_channel(struct most_interface *iface, int id,
 	if (c->iface->configure(c->iface, c->channel_id, &c->cfg)) {
 		pr_info("channel configuration failed. Go check settings...\n");
 		ret = -EINVAL;
-		goto error;
+		goto err_put_module;
 	}
 
 	init_waitqueue_head(&c->hdm_fifo_wq);
@@ -1248,12 +1248,12 @@ int most_start_channel(struct most_interface *iface, int id,
 					   most_write_completion);
 	if (unlikely(!num_buffer)) {
 		ret = -ENOMEM;
-		goto error;
+		goto err_put_module;
 	}
 
 	ret = run_enqueue_thread(c, id);
 	if (ret)
-		goto error;
+		goto err_put_module;
 
 	c->is_starving = 0;
 	c->pipe0.num_buffers = c->cfg.num_buffers / 2;
@@ -1268,7 +1268,7 @@ out:
 	mutex_unlock(&c->start_mutex);
 	return 0;
 
-error:
+err_put_module:
 	module_put(iface->mod);
 	mutex_unlock(&c->start_mutex);
 	return ret;
@@ -1449,7 +1449,7 @@ int most_register_interface(struct most_interface *iface)
 
 		c = kzalloc(sizeof(*c), GFP_KERNEL);
 		if (!c)
-			goto free_instance;
+			goto err_free_resources;
 		if (!name_suffix)
 			snprintf(c->name, STRING_SIZE, "ch%d", i);
 		else
@@ -1482,17 +1482,17 @@ int most_register_interface(struct most_interface *iface)
 		list_add_tail(&c->list, &iface->p->channel_list);
 		if (device_register(&c->dev)) {
 			pr_err("registering c->dev failed\n");
-			goto free_instance_nodev;
+			goto err_free_most_channel;
 		}
 	}
 	pr_info("registered new device mdev%d (%s)\n",
 		id, iface->description);
 	return 0;
 
-free_instance_nodev:
+err_free_most_channel:
 	kfree(c);
 
-free_instance:
+err_free_resources:
 	while (i > 0) {
 		c = iface->p->channel[--i];
 		device_unregister(&c->dev);
@@ -1613,20 +1613,20 @@ static int __init most_init(void)
 	err = driver_register(&mc.drv);
 	if (err) {
 		pr_info("Cannot register core driver\n");
-		goto exit_bus;
+		goto err_unregister_bus;
 	}
 	mc.dev.init_name = "most_bus";
 	mc.dev.release = release_most_sub;
 	if (device_register(&mc.dev)) {
 		err = -ENOMEM;
-		goto exit_driver;
+		goto err_unregister_driver;
 	}
 
 	return 0;
 
-exit_driver:
+err_unregister_driver:
 	driver_unregister(&mc.drv);
-exit_bus:
+err_unregister_bus:
 	bus_unregister(&mc.bus);
 	return err;
 }
