@@ -75,6 +75,12 @@ struct nitrox_hw {
 	u8 zip_cores;
 };
 
+struct nitrox_stats {
+	atomic64_t posted;
+	atomic64_t completed;
+	atomic64_t dropped;
+};
+
 #define MAX_MSIX_VECTOR_NAME	20
 /**
  * vectors for queues (64 AE, 64 SE and 64 ZIP) and
@@ -176,6 +182,7 @@ struct nitrox_device {
 	struct nitrox_msix msix;
 	struct nitrox_bh bh;
 
+	struct nitrox_stats stats;
 	struct nitrox_hw hw;
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dentry *debugfs_dir;

@@ -542,6 +542,11 @@ static int nitrox_probe(struct pci_dev *pdev,
 	if (err)
 		goto pf_hw_fail;
 
+	/* clear the statistics */
+	atomic64_set(&ndev->stats.posted, 0);
+	atomic64_set(&ndev->stats.completed, 0);
+	atomic64_set(&ndev->stats.dropped, 0);
+
 	atomic_set(&ndev->state, __NDEV_READY);
 	/* barrier to sync with other cpus */
 	smp_mb__after_atomic();

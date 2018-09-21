@@ -460,6 +460,9 @@ static void post_se_instr(struct nitrox_softreq *sr,
 	cmdq->write_idx = incr_index(idx, 1, ndev->qlen);
 
 	spin_unlock_bh(&cmdq->cmdq_lock);
+
+	/* increment the posted command count */
+	atomic64_inc(&ndev->stats.posted);
 }
 
 static int post_backlog_cmds(struct nitrox_cmdq *cmdq)
@@ -508,8 +511,11 @@ static int nitrox_enqueue_request(struct nitrox_softreq *sr)
 	post_backlog_cmds(cmdq);
 
 	if (unlikely(cmdq_full(cmdq, ndev->qlen))) {
-		if (!(sr->flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
+		if (!(sr->flags & CRYPTO_TFM_REQ_MAY_BACKLOG)) {
+			/* increment drop count */
+			atomic64_inc(&ndev->stats.dropped);
 			return -ENOSPC;
+		}
 		/* add to backlog list */
 		backlog_list_add(sr, cmdq);
 		return -EBUSY;
@@ -694,6 +700,7 @@ static void process_response_list(struct nitrox_cmdq *cmdq)
 					    READ_ONCE(sr->resp.orh));
 		}
 		atomic_dec(&cmdq->pending_count);
+		atomic64_inc(&ndev->stats.completed);
 		/* sync with other cpus */
 		smp_mb__after_atomic();
 		/* remove from response list */
