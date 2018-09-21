@@ -112,13 +112,12 @@ void omapdss_device_put(struct omap_dss_device *dssdev)
 }
 EXPORT_SYMBOL(omapdss_device_put);
 
-struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
-						    unsigned int port)
+struct omap_dss_device *omapdss_find_device_by_node(struct device_node *node)
 {
 	struct omap_dss_device *dssdev;
 
 	list_for_each_entry(dssdev, &omapdss_devices_list, list) {
-		if (dssdev->dev->of_node == src && dssdev->of_ports & BIT(port))
+		if (dssdev->dev->of_node == node)
 			return omapdss_device_get(dssdev);
 	}
 
