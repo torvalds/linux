@@ -84,6 +84,7 @@ struct rcar_gen3_chan {
 	struct phy *phy;
 	struct regulator *vbus;
 	struct work_struct work;
+	enum usb_dr_mode dr_mode;
 	bool extcon_host;
 	bool uses_otg_pins;
 };
@@ -436,7 +437,8 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 			dev_err(dev, "No irq handler (%d)\n", irq);
 	}
 
-	if (of_usb_get_dr_mode_by_phy(dev->of_node, 0) == USB_DR_MODE_OTG) {
+	channel->dr_mode = of_usb_get_dr_mode_by_phy(dev->of_node, 0);
+	if (channel->dr_mode != USB_DR_MODE_UNKNOWN) {
 		int ret;
 
 		channel->uses_otg_pins = !of_property_read_bool(dev->of_node,
