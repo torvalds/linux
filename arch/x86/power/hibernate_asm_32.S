@@ -12,6 +12,7 @@
 #include <asm/page_types.h>
 #include <asm/asm-offsets.h>
 #include <asm/processor-flags.h>
+#include <asm/frame.h>
 
 .text
 
@@ -24,8 +25,11 @@ ENTRY(swsusp_arch_suspend)
 	pushfl
 	popl saved_context_eflags
 
+	FRAME_BEGIN
 	call swsusp_save
+	FRAME_END
 	ret
+ENDPROC(swsusp_arch_suspend)
 
 ENTRY(restore_image)
 	movl	mmu_cr4_features, %ecx
@@ -58,6 +62,10 @@ copy_loop:
 	.p2align 4,,7
 
 done:
+
+	/* code below belongs to the image kernel */
+	.align PAGE_SIZE
+ENTRY(restore_registers)
 	/* go back to the original page tables */
 	movl	$swapper_pg_dir, %eax
 	subl	$__PAGE_OFFSET, %eax
@@ -83,3 +91,4 @@ done:
 	xorl	%eax, %eax
 
 	ret
+ENDPROC(restore_registers)
