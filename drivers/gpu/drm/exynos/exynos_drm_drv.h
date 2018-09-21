@@ -93,6 +93,7 @@ struct exynos_drm_plane {
 #define EXYNOS_DRM_PLANE_CAP_ZPOS	(1 << 2)
 #define EXYNOS_DRM_PLANE_CAP_TILE	(1 << 3)
 #define EXYNOS_DRM_PLANE_CAP_PIX_BLEND	(1 << 4)
+#define EXYNOS_DRM_PLANE_CAP_WIN_BLEND	(1 << 5)
 
 /*
  * Exynos DRM plane configuration structure.

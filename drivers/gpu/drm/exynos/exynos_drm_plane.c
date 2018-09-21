@@ -325,5 +325,8 @@ int exynos_plane_init(struct drm_device *dev,
 	if (config->capabilities & EXYNOS_DRM_PLANE_CAP_PIX_BLEND)
 		drm_plane_create_blend_mode_property(plane, supported_modes);
 
+	if (config->capabilities & EXYNOS_DRM_PLANE_CAP_WIN_BLEND)
+		drm_plane_create_alpha_property(plane);
+
 	return 0;
 }

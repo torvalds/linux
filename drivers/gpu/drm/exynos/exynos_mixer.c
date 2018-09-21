@@ -132,7 +132,8 @@ static const struct exynos_drm_plane_config plane_configs[MIXER_WIN_NR] = {
 		.num_pixel_formats = ARRAY_SIZE(mixer_formats),
 		.capabilities = EXYNOS_DRM_PLANE_CAP_DOUBLE |
 				EXYNOS_DRM_PLANE_CAP_ZPOS |
-				EXYNOS_DRM_PLANE_CAP_PIX_BLEND,
+				EXYNOS_DRM_PLANE_CAP_PIX_BLEND |
+				EXYNOS_DRM_PLANE_CAP_WIN_BLEND,
 	}, {
 		.zpos = 1,
 		.type = DRM_PLANE_TYPE_CURSOR,
@@ -140,7 +141,8 @@ static const struct exynos_drm_plane_config plane_configs[MIXER_WIN_NR] = {
 		.num_pixel_formats = ARRAY_SIZE(mixer_formats),
 		.capabilities = EXYNOS_DRM_PLANE_CAP_DOUBLE |
 				EXYNOS_DRM_PLANE_CAP_ZPOS |
-				EXYNOS_DRM_PLANE_CAP_PIX_BLEND,
+				EXYNOS_DRM_PLANE_CAP_PIX_BLEND |
+				EXYNOS_DRM_PLANE_CAP_WIN_BLEND,
 	}, {
 		.zpos = 2,
 		.type = DRM_PLANE_TYPE_OVERLAY,
@@ -148,7 +150,8 @@ static const struct exynos_drm_plane_config plane_configs[MIXER_WIN_NR] = {
 		.num_pixel_formats = ARRAY_SIZE(vp_formats),
 		.capabilities = EXYNOS_DRM_PLANE_CAP_SCALE |
 				EXYNOS_DRM_PLANE_CAP_ZPOS |
-				EXYNOS_DRM_PLANE_CAP_TILE,
+				EXYNOS_DRM_PLANE_CAP_TILE |
+				EXYNOS_DRM_PLANE_CAP_WIN_BLEND,
 	},
 };
 
@@ -311,8 +314,9 @@ static void vp_default_filter(struct mixer_context *ctx)
 }
 
 static void mixer_cfg_gfx_blend(struct mixer_context *ctx, unsigned int win,
-				unsigned int pixel_alpha)
+				unsigned int pixel_alpha, unsigned int alpha)
 {
+	u32 win_alpha = alpha >> 8;
 	u32 val;
 
 	val  = MXR_GRP_CFG_COLOR_KEY_DISABLE; /* no blank key */
@@ -328,21 +332,24 @@ static void mixer_cfg_gfx_blend(struct mixer_context *ctx, unsigned int win,
 		val |= MXR_GRP_CFG_PIXEL_BLEND_EN;
 		break;
 	}
+
+	if (alpha != DRM_BLEND_ALPHA_OPAQUE) {
+		val |= MXR_GRP_CFG_WIN_BLEND_EN;
+		val |= win_alpha;
+	}
 	mixer_reg_writemask(ctx, MXR_GRAPHIC_CFG(win),
 			    val, MXR_GRP_CFG_MISC_MASK);
 }
 
-static void mixer_cfg_vp_blend(struct mixer_context *ctx)
+static void mixer_cfg_vp_blend(struct mixer_context *ctx, unsigned int alpha)
 {
-	u32 val;
+	u32 win_alpha = alpha >> 8;
+	u32 val = 0;
 
-	/*
-	 * No blending at the moment since the NV12/NV21 pixelformats don't
-	 * have an alpha channel. However the mixer supports a global alpha
-	 * value for a layer. Once this functionality is exposed, we can
-	 * support blending of the video layer through this.
-	 */
-	val = 0;
+	if (alpha != DRM_BLEND_ALPHA_OPAQUE) {
+		val |= MXR_VID_CFG_BLEND_EN;
+		val |= win_alpha;
+	}
 	mixer_reg_write(ctx, MXR_VIDEO_CFG, val);
 }
 
@@ -538,7 +545,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	vp_reg_write(ctx, VP_BOT_C_PTR, chroma_addr[1]);
 
 	mixer_cfg_layer(ctx, plane->index, priority, true);
-	mixer_cfg_vp_blend(ctx);
+	mixer_cfg_vp_blend(ctx, state->base.alpha);
 
 	spin_unlock_irqrestore(&ctx->reg_slock, flags);
 
@@ -631,7 +638,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	mixer_reg_write(ctx, MXR_GRAPHIC_BASE(win), dma_addr);
 
 	mixer_cfg_layer(ctx, win, priority, true);
-	mixer_cfg_gfx_blend(ctx, win, pixel_alpha);
+	mixer_cfg_gfx_blend(ctx, win, pixel_alpha, state->base.alpha);
 
 	/* layer update mandatory for mixer 16.0.33.0 */
 	if (ctx->mxr_ver == MXR_VER_16_0_33_0 ||
