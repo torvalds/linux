@@ -122,6 +122,16 @@ module_param_cb(h_ipi_redirect, &module_param_ops, &h_ipi_redirect, 0644);
 MODULE_PARM_DESC(h_ipi_redirect, "Redirect H_IPI wakeup to a free host core");
 #endif
 
+/* If set, guests are allowed to create and control nested guests */
+static bool nested = true;
+module_param(nested, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(nested, "Enable nested virtualization (only on POWER9)");
+
+static inline bool nesting_enabled(struct kvm *kvm)
+{
+	return kvm->arch.nested_enable && kvm_is_radix(kvm);
+}
+
 /* If set, the threads on each CPU core have to be in the same MMU mode */
 static bool no_mixing_hpt_and_radix;
 
@@ -963,12 +973,12 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 
 	case H_SET_PARTITION_TABLE:
 		ret = H_FUNCTION;
-		if (vcpu->kvm->arch.nested_enable)
+		if (nesting_enabled(vcpu->kvm))
 			ret = kvmhv_set_partition_table(vcpu);
 		break;
 	case H_ENTER_NESTED:
 		ret = H_FUNCTION;
-		if (!vcpu->kvm->arch.nested_enable)
+		if (!nesting_enabled(vcpu->kvm))
 			break;
 		ret = kvmhv_enter_nested_guest(vcpu);
 		if (ret == H_INTERRUPT) {
@@ -978,9 +988,8 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		break;
 	case H_TLB_INVALIDATE:
 		ret = H_FUNCTION;
-		if (!vcpu->kvm->arch.nested_enable)
-			break;
-		ret = kvmhv_do_nested_tlbie(vcpu);
+		if (nesting_enabled(vcpu->kvm))
+			ret = kvmhv_do_nested_tlbie(vcpu);
 		break;
 
 	default:
@@ -4508,10 +4517,8 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 /* Must be called with kvm->lock held and mmu_ready = 0 and no vcpus running */
 int kvmppc_switch_mmu_to_hpt(struct kvm *kvm)
 {
-	if (kvm->arch.nested_enable) {
-		kvm->arch.nested_enable = false;
+	if (nesting_enabled(kvm))
 		kvmhv_release_all_nested(kvm);
-	}
 	kvmppc_free_radix(kvm);
 	kvmppc_update_lpcr(kvm, LPCR_VPM1,
 			   LPCR_VPM1 | LPCR_UPRT | LPCR_GTSE | LPCR_HR);
@@ -4788,7 +4795,7 @@ static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 
 	/* Perform global invalidation and return lpid to the pool */
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
-		if (kvm->arch.nested_enable)
+		if (nesting_enabled(kvm))
 			kvmhv_release_all_nested(kvm);
 		kvm->arch.process_table = 0;
 		kvmhv_set_ptbl_entry(kvm->arch.lpid, 0, 0);
@@ -5181,6 +5188,19 @@ static int kvmhv_configure_mmu(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
 	return err;
 }
 
+static int kvmhv_enable_nested(struct kvm *kvm)
+{
+	if (!nested)
+		return -EPERM;
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		return -ENODEV;
+
+	/* kvm == NULL means the caller is testing if the capability exists */
+	if (kvm)
+		kvm->arch.nested_enable = true;
+	return 0;
+}
+
 static struct kvmppc_ops kvm_ops_hv = {
 	.get_sregs = kvm_arch_vcpu_ioctl_get_sregs_hv,
 	.set_sregs = kvm_arch_vcpu_ioctl_set_sregs_hv,
@@ -5220,6 +5240,7 @@ static struct kvmppc_ops kvm_ops_hv = {
 	.configure_mmu = kvmhv_configure_mmu,
 	.get_rmmu_info = kvmhv_get_rmmu_info,
 	.set_smt_mode = kvmhv_set_smt_mode,
+	.enable_nested = kvmhv_enable_nested,
 };
 
 static int kvm_init_subcore_bitmap(void)
