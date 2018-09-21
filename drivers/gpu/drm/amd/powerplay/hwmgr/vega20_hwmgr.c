@@ -743,8 +743,8 @@ static int vega20_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	memcpy(pp_table, pptable_information->smc_pptable, sizeof(PPTable_t));
 
-	result = vega20_copy_table_to_smc(hwmgr,
-			(uint8_t *)pp_table, TABLE_PPTABLE);
+	result = smum_smc_table_manager(hwmgr,
+					(uint8_t *)pp_table, TABLE_PPTABLE, false);
 	PP_ASSERT_WITH_CODE(!result,
 			"[InitSMCTable] Failed to upload PPtable!",
 			return result);
@@ -1067,7 +1067,7 @@ static int vega20_od8_initialize_default_settings(
 	vega20_od8_set_feature_id(hwmgr);
 
 	/* Set default values */
-	ret = vega20_copy_table_from_smc(hwmgr, (uint8_t *)od_table, TABLE_OVERDRIVE);
+	ret = smum_smc_table_manager(hwmgr, (uint8_t *)od_table, TABLE_OVERDRIVE, true);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to export over drive table!",
 			return ret);
@@ -1195,7 +1195,7 @@ static int vega20_od8_initialize_default_settings(
 		}
 	}
 
-	ret = vega20_copy_table_to_smc(hwmgr, (uint8_t *)od_table, TABLE_OVERDRIVE);
+	ret = smum_smc_table_manager(hwmgr, (uint8_t *)od_table, TABLE_OVERDRIVE, false);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to import over drive table!",
 			return ret);
@@ -1214,7 +1214,7 @@ static int vega20_od8_set_settings(
 	struct vega20_od8_single_setting *od8_settings =
 			data->od8_settings.od8_settings_array;
 
-	ret = vega20_copy_table_from_smc(hwmgr, (uint8_t *)(&od_table), TABLE_OVERDRIVE);
+	ret = smum_smc_table_manager(hwmgr, (uint8_t *)(&od_table), TABLE_OVERDRIVE, true);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to export over drive table!",
 			return ret);
@@ -1271,7 +1271,7 @@ static int vega20_od8_set_settings(
 		break;
 	}
 
-	ret = vega20_copy_table_to_smc(hwmgr, (uint8_t *)(&od_table), TABLE_OVERDRIVE);
+	ret = smum_smc_table_manager(hwmgr, (uint8_t *)(&od_table), TABLE_OVERDRIVE, false);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to import over drive table!",
 			return ret);
@@ -1841,7 +1841,7 @@ static int vega20_get_gpu_power(struct pp_hwmgr *hwmgr,
 	int ret = 0;
 	SmuMetrics_t metrics_table;
 
-	ret = vega20_copy_table_from_smc(hwmgr, (uint8_t *)&metrics_table, TABLE_SMU_METRICS);
+	ret = smum_smc_table_manager(hwmgr, (uint8_t *)&metrics_table, TABLE_SMU_METRICS, true);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to export SMU METRICS table!",
 			return ret);
@@ -1893,7 +1893,7 @@ static int vega20_get_current_activity_percent(struct pp_hwmgr *hwmgr,
 	int ret = 0;
 	SmuMetrics_t metrics_table;
 
-	ret = vega20_copy_table_from_smc(hwmgr, (uint8_t *)&metrics_table, TABLE_SMU_METRICS);
+	ret = smum_smc_table_manager(hwmgr, (uint8_t *)&metrics_table, TABLE_SMU_METRICS, true);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to export SMU METRICS table!",
 			return ret);
@@ -2612,18 +2612,18 @@ static int vega20_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 		data->gfxclk_overdrive = false;
 		data->memclk_overdrive = false;
 
-		ret = vega20_copy_table_from_smc(hwmgr,
-				(uint8_t *)od_table,
-				TABLE_OVERDRIVE);
+		ret = smum_smc_table_manager(hwmgr,
+					     (uint8_t *)od_table,
+					     TABLE_OVERDRIVE, true);
 		PP_ASSERT_WITH_CODE(!ret,
 				"Failed to export overdrive table!",
 				return ret);
 		break;
 
 	case PP_OD_COMMIT_DPM_TABLE:
-		ret = vega20_copy_table_to_smc(hwmgr,
-				(uint8_t *)od_table,
-				TABLE_OVERDRIVE);
+		ret = smum_smc_table_manager(hwmgr,
+					     (uint8_t *)od_table,
+					     TABLE_OVERDRIVE, false);
 		PP_ASSERT_WITH_CODE(!ret,
 				"Failed to import overdrive table!",
 				return ret);
@@ -2847,8 +2847,8 @@ static int vega20_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 
 	if ((data->water_marks_bitmap & WaterMarksExist) &&
 	    !(data->water_marks_bitmap & WaterMarksLoaded)) {
-		result = vega20_copy_table_to_smc(hwmgr,
-			(uint8_t *)wm_table, TABLE_WATERMARKS);
+		result = smum_smc_table_manager(hwmgr,
+						(uint8_t *)wm_table, TABLE_WATERMARKS, false);
 		PP_ASSERT_WITH_CODE(!result,
 				"Failed to update WMTABLE!",
 				return result);
