@@ -23,6 +23,7 @@
 
 #include "vega10_thermal.h"
 #include "vega10_hwmgr.h"
+#include "vega10_smumgr.h"
 #include "vega10_ppsmc.h"
 #include "vega10_inc.h"
 #include "soc15_common.h"
