@@ -962,6 +962,38 @@ bool efi_is_table_address(unsigned long phys_addr)
 	return false;
 }
 
+static DEFINE_SPINLOCK(efi_mem_reserve_persistent_lock);
+
+int efi_mem_reserve_persistent(phys_addr_t addr, u64 size)
+{
+	struct linux_efi_memreserve *rsv, *parent;
+
+	if (efi.mem_reserve == EFI_INVALID_TABLE_ADDR)
+		return -ENODEV;
+
+	rsv = kmalloc(sizeof(*rsv), GFP_KERNEL);
+	if (!rsv)
+		return -ENOMEM;
+
+	parent = memremap(efi.mem_reserve, sizeof(*rsv), MEMREMAP_WB);
+	if (!parent) {
+		kfree(rsv);
+		return -ENOMEM;
+	}
+
+	rsv->base = addr;
+	rsv->size = size;
+
+	spin_lock(&efi_mem_reserve_persistent_lock);
+	rsv->next = parent->next;
+	parent->next = __pa(rsv);
+	spin_unlock(&efi_mem_reserve_persistent_lock);
+
+	memunmap(parent);
+
+	return 0;
+}
+
 #ifdef CONFIG_KEXEC
 static int update_efi_random_seed(struct notifier_block *nb,
 				  unsigned long code, void *unused)
