@@ -770,6 +770,7 @@ vmw_sou_primary_plane_atomic_update(struct drm_plane *plane,
 	struct vmw_fence_obj *fence = NULL;
 	int ret;
 
+	/* In case of device error, maintain consistent atomic state */
 	if (crtc && plane->state->fb) {
 		struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 		struct vmw_framebuffer *vfb =
@@ -782,28 +783,15 @@ vmw_sou_primary_plane_atomic_update(struct drm_plane *plane,
 			ret = vmw_sou_plane_update_surface(dev_priv, plane,
 							   old_state, vfb,
 							   &fence);
-
-		/*
-		 * We cannot really fail this function, so if we do, then output
-		 * an error and maintain consistent atomic state.
-		 */
 		if (ret != 0)
 			DRM_ERROR("Failed to update screen.\n");
 	} else {
-		/*
-		 * When disabling a plane, CRTC and FB should always be NULL
-		 * together, otherwise it's an error.
-		 * Here primary plane is being disable so should really blank
-		 * the screen object display unit, if not already done.
-		 */
+		/* Do nothing when fb and crtc is NULL (blank crtc) */
 		return;
 	}
 
+	/* For error case vblank event is send from vmw_du_crtc_atomic_flush */
 	event = crtc->state->event;
-	/*
-	 * In case of failure and other cases, vblank event will be sent in
-	 * vmw_du_crtc_atomic_flush.
-	 */
 	if (event && fence) {
 		struct drm_file *file_priv = event->base.file_priv;
 
