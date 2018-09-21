@@ -212,7 +212,6 @@ int arch_hibernation_header_restore(void *addr)
 	return 0;
 }
 
-#ifdef CONFIG_X86_64
 int relocate_restore_code(void)
 {
 	pgd_t *pgd;
@@ -251,4 +250,3 @@ out:
 	__flush_tlb_all();
 	return 0;
 }
-#endif

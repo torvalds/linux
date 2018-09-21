@@ -39,6 +39,13 @@ ENTRY(restore_image)
 	movl	restore_cr3, %ebp
 
 	movl	mmu_cr4_features, %ecx
+
+	/* jump to relocated restore code */
+	movl	relocated_restore_code, %eax
+	jmpl	*%eax
+
+/* code below has been relocated to a safe page */
+ENTRY(core_restore_code)
 	movl	temp_pgt, %eax
 	movl	%eax, %cr3
 
