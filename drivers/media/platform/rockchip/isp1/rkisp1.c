@@ -41,10 +41,12 @@
 #include "common.h"
 #include "regs.h"
 
-#define CIF_ISP_INPUT_W_MAX		4032
-#define CIF_ISP_INPUT_H_MAX		3024
+#define CIF_ISP_INPUT_W_MAX		4416
+#define CIF_ISP_INPUT_H_MAX		3312
+#define CIF_ISP_INPUT_W_MAX_V12		3264
+#define CIF_ISP_INPUT_H_MAX_V12		2448
 #define CIF_ISP_INPUT_W_MIN		32
-#define CIF_ISP_INPUT_H_MIN		32
+#define CIF_ISP_INPUT_H_MIN		16
 #define CIF_ISP_OUTPUT_W_MAX		CIF_ISP_INPUT_W_MAX
 #define CIF_ISP_OUTPUT_H_MAX		CIF_ISP_INPUT_H_MAX
 #define CIF_ISP_OUTPUT_W_MIN		CIF_ISP_INPUT_W_MIN
@@ -773,10 +775,22 @@ static void rkisp1_isp_sd_try_fmt(struct v4l2_subdev *sd,
 			fmt->code = in_fmt->mbus_code;
 		else
 			fmt->code = MEDIA_BUS_FMT_SRGGB10_1X10;
-		fmt->width  = clamp_t(u32, fmt->width, CIF_ISP_INPUT_W_MIN,
+
+		if (isp_dev->isp_ver == ISP_V12) {
+			fmt->width  = clamp_t(u32, fmt->width,
+				      CIF_ISP_INPUT_W_MIN,
+				      CIF_ISP_INPUT_W_MAX_V12);
+			fmt->height = clamp_t(u32, fmt->height,
+				      CIF_ISP_INPUT_H_MIN,
+				      CIF_ISP_INPUT_H_MAX_V12);
+		} else {
+			fmt->width  = clamp_t(u32, fmt->width,
+				      CIF_ISP_INPUT_W_MIN,
 				      CIF_ISP_INPUT_W_MAX);
-		fmt->height = clamp_t(u32, fmt->height, CIF_ISP_INPUT_H_MIN,
+			fmt->height = clamp_t(u32, fmt->height,
+				      CIF_ISP_INPUT_H_MIN,
 				      CIF_ISP_INPUT_H_MAX);
+		}
 		break;
 	case RKISP1_ISP_PAD_SOURCE_PATH:
 		out_fmt = find_out_fmt(fmt->code);
