@@ -231,9 +231,9 @@ static bool show_unhandled_signals_ratelimited(void)
 	return show_unhandled_signals && __ratelimit(&rs);
 }
 
-void arm64_force_sig_info(struct siginfo *info, const char *str,
-			  struct task_struct *tsk)
+void arm64_force_sig_info(struct siginfo *info, const char *str)
 {
+	struct task_struct *tsk = current;
 	unsigned int esr = tsk->thread.fault_code;
 	struct pt_regs *regs = task_pt_regs(tsk);
 
@@ -273,7 +273,7 @@ void arm64_notify_die(const char *str, struct pt_regs *regs,
 		info.si_code  = sicode;
 		info.si_addr  = addr;
 
-		arm64_force_sig_info(&info, str, current);
+		arm64_force_sig_info(&info, str);
 	} else {
 		die(str, regs, err);
 	}
@@ -630,7 +630,7 @@ asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 	current->thread.fault_address = 0;
 	current->thread.fault_code = esr;
 
-	arm64_force_sig_info(&info, "Bad EL0 synchronous exception", current);
+	arm64_force_sig_info(&info, "Bad EL0 synchronous exception");
 }
 
 #ifdef CONFIG_VMAP_STACK

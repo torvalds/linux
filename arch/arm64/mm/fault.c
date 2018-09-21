@@ -352,7 +352,7 @@ static void __do_user_fault(struct siginfo *info, unsigned int esr)
 	}
 
 	current->thread.fault_code = esr;
-	arm64_force_sig_info(info, esr_to_fault_info(esr)->name, current);
+	arm64_force_sig_info(info, esr_to_fault_info(esr)->name);
 }
 
 static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *regs)

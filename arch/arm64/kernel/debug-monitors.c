@@ -224,7 +224,7 @@ static void send_user_sigtrap(int si_code)
 	if (interrupts_enabled(regs))
 		local_irq_enable();
 
-	arm64_force_sig_info(&info, "User debug trap", current);
+	arm64_force_sig_info(&info, "User debug trap");
 }
 
 static int single_step_handler(unsigned long addr, unsigned int esr,
