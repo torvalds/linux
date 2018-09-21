@@ -1973,6 +1973,7 @@ static int is_valid_clean_head(struct hns3_enet_ring *ring, int h)
 void hns3_clean_tx_ring(struct hns3_enet_ring *ring)
 {
 	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct netdev_queue *dev_queue;
 	int bytes, pkts;
 	int head;
@@ -2018,7 +2019,8 @@ void hns3_clean_tx_ring(struct hns3_enet_ring *ring)
 		 * sees the new next_to_clean.
 		 */
 		smp_mb();
-		if (netif_tx_queue_stopped(dev_queue)) {
+		if (netif_tx_queue_stopped(dev_queue) &&
+		    !test_bit(HNS3_NIC_STATE_DOWN, &priv->state)) {
 			netif_tx_wake_queue(dev_queue);
 			ring->stats.restart_queue++;
 		}
