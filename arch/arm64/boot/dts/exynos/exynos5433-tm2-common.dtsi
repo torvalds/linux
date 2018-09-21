@@ -947,8 +947,7 @@
 	status = "okay";
 	cap-sd-highspeed;
 	disable-wp;
-	cd-gpios = <&gpa2 4 GPIO_ACTIVE_HIGH>;
-	cd-inverted;
+	cd-gpios = <&gpa2 4 GPIO_ACTIVE_LOW>;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <0 4>;
