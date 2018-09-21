@@ -12894,19 +12894,6 @@ static int bnx2x_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void poll_bnx2x(struct net_device *dev)
-{
-	struct bnx2x *bp = netdev_priv(dev);
-	int i;
-
-	for_each_eth_queue(bp, i) {
-		struct bnx2x_fastpath *fp = &bp->fp[i];
-		napi_schedule(&bnx2x_fp(bp, fp->index, napi));
-	}
-}
-#endif
-
 static int bnx2x_validate_addr(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
@@ -13113,9 +13100,6 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_tx_timeout		= bnx2x_tx_timeout,
 	.ndo_vlan_rx_add_vid	= bnx2x_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= bnx2x_vlan_rx_kill_vid,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= poll_bnx2x,
-#endif
 	.ndo_setup_tc		= __bnx2x_setup_tc,
 #ifdef CONFIG_BNX2X_SRIOV
 	.ndo_set_vf_mac		= bnx2x_set_vf_mac,
