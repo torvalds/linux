@@ -769,7 +769,7 @@ show_signal_msg(struct pt_regs *regs, unsigned long error_code,
 
 static void
 __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
-		       unsigned long address, u32 *pkey, int si_code)
+		       unsigned long address, u32 pkey, int si_code)
 {
 	struct task_struct *tsk = current;
 
@@ -818,7 +818,7 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 		tsk->thread.trap_nr	= X86_TRAP_PF;
 
 		if (si_code == SEGV_PKUERR)
-			force_sig_pkuerr((void __user *)address, *pkey);
+			force_sig_pkuerr((void __user *)address, pkey);
 
 		force_sig_fault(SIGSEGV, si_code, (void __user *)address, tsk);
 
@@ -835,12 +835,12 @@ static noinline void
 bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 		     unsigned long address)
 {
-	__bad_area_nosemaphore(regs, error_code, address, NULL, SEGV_MAPERR);
+	__bad_area_nosemaphore(regs, error_code, address, 0, SEGV_MAPERR);
 }
 
 static void
 __bad_area(struct pt_regs *regs, unsigned long error_code,
-	   unsigned long address, u32 *pkey, int si_code)
+	   unsigned long address, u32 pkey, int si_code)
 {
 	struct mm_struct *mm = current->mm;
 	/*
@@ -855,7 +855,7 @@ __bad_area(struct pt_regs *regs, unsigned long error_code,
 static noinline void
 bad_area(struct pt_regs *regs, unsigned long error_code, unsigned long address)
 {
-	__bad_area(regs, error_code, address, NULL, SEGV_MAPERR);
+	__bad_area(regs, error_code, address, 0, SEGV_MAPERR);
 }
 
 static inline bool bad_area_access_from_pkeys(unsigned long error_code,
@@ -907,9 +907,9 @@ bad_area_access_error(struct pt_regs *regs, unsigned long error_code,
 		 */
 		u32 pkey = vma_pkey(vma);
 
-		__bad_area(regs, error_code, address, &pkey, SEGV_PKUERR);
+		__bad_area(regs, error_code, address, pkey, SEGV_PKUERR);
 	} else {
-		__bad_area(regs, error_code, address, NULL, SEGV_ACCERR);
+		__bad_area(regs, error_code, address, 0, SEGV_ACCERR);
 	}
 }
 
