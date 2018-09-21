@@ -79,7 +79,7 @@ static void vfio_ccw_sch_io_todo(struct work_struct *work)
 		cp_update_scsw(&private->cp, &irb->scsw);
 		cp_free(&private->cp);
 	}
-	memcpy(private->io_region.irb_area, irb, sizeof(*irb));
+	memcpy(private->io_region->irb_area, irb, sizeof(*irb));
 
 	if (private->io_trigger)
 		eventfd_signal(private->io_trigger, 1);
@@ -114,6 +114,14 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 	private = kzalloc(sizeof(*private), GFP_KERNEL | GFP_DMA);
 	if (!private)
 		return -ENOMEM;
+
+	private->io_region = kzalloc(sizeof(*private->io_region),
+				     GFP_KERNEL | GFP_DMA);
+	if (!private->io_region) {
+		kfree(private);
+		return -ENOMEM;
+	}
+
 	private->sch = sch;
 	dev_set_drvdata(&sch->dev, private);
 
@@ -139,6 +147,7 @@ out_disable:
 	cio_disable_subchannel(sch);
 out_free:
 	dev_set_drvdata(&sch->dev, NULL);
+	kfree(private->io_region);
 	kfree(private);
 	return ret;
 }
@@ -153,6 +162,7 @@ static int vfio_ccw_sch_remove(struct subchannel *sch)
 
 	dev_set_drvdata(&sch->dev, NULL);
 
+	kfree(private->io_region);
 	kfree(private);
 
 	return 0;
