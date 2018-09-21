@@ -3387,7 +3387,7 @@ static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en)
 	struct hclge_desc desc;
 	int ret, i = 0;
 
-	req = (struct hclge_serdes_lb_cmd *)&desc.data[0];
+	req = (struct hclge_serdes_lb_cmd *)desc.data;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_SERDES_LOOPBACK, false);
 
 	if (en) {
@@ -4634,7 +4634,7 @@ static int hclge_set_vlan_protocol_type(struct hclge_dev *hdev)
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_VLAN_INSERT, false);
 
-	tx_req = (struct hclge_tx_vlan_type_cfg_cmd *)&desc.data;
+	tx_req = (struct hclge_tx_vlan_type_cfg_cmd *)desc.data;
 	tx_req->ot_vlan_type = cpu_to_le16(hdev->vlan_type_cfg.tx_ot_vlan_type);
 	tx_req->in_vlan_type = cpu_to_le16(hdev->vlan_type_cfg.tx_in_vlan_type);
 
