@@ -218,4 +218,17 @@ static inline bool nitrox_ready(struct nitrox_device *ndev)
 	return atomic_read(&ndev->state) == __NDEV_READY;
 }
 
+#ifdef CONFIG_DEBUG_FS
+int nitrox_debugfs_init(struct nitrox_device *ndev);
+void nitrox_debugfs_exit(struct nitrox_device *ndev);
+#else
+static inline int nitrox_debugfs_init(struct nitrox_device *ndev)
+{
+	return 0;
+}
+
+static inline void nitrox_debugfs_exit(struct nitrox_device *ndev)
+{ }
+#endif
+
 #endif /* __NITROX_DEV_H */
