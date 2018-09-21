@@ -71,6 +71,7 @@ static const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_XSKMAP]           = "xskmap",
 	[BPF_MAP_TYPE_SOCKHASH]		= "sockhash",
 	[BPF_MAP_TYPE_CGROUP_STORAGE]	= "cgroup_storage",
+	[BPF_MAP_TYPE_REUSEPORT_SOCKARRAY] = "reuseport_sockarray",
 };
 
 static bool map_is_per_cpu(__u32 type)
