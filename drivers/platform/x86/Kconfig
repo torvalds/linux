@@ -60,7 +60,10 @@ config ACERHDF
 
 	  After loading this driver the BIOS is still in control of the fan.
 	  To let the kernel handle the fan, do:
-	  echo -n enabled > /sys/class/thermal/thermal_zone0/mode
+	  echo -n enabled > /sys/class/thermal/thermal_zoneN/mode
+	  where N=0,1,2... depending on the number of thermal nodes and the
+	  detection order of your particular system.  The "type" parameter
+	  in the same node directory will tell you if it is "acerhdf".
 
 	  For more information about this driver see
 	  <http://piie.net/files/acerhdf_README.txt>

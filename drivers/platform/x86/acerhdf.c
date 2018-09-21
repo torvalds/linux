@@ -688,7 +688,7 @@ static int acerhdf_check_hardware(void)
 	 */
 	if (!kernelmode) {
 		pr_notice("Fan control off, to enable do:\n");
-		pr_notice("echo -n \"enabled\" > /sys/class/thermal/thermal_zone0/mode\n");
+		pr_notice("echo -n \"enabled\" > /sys/class/thermal/thermal_zoneN/mode # N=0,1,2...\n");
 	}
 
 	return 0;
