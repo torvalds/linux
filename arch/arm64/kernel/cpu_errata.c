@@ -138,6 +138,15 @@ static void __install_bp_hardening_cb(bp_hardening_cb_t fn,
 	static DEFINE_SPINLOCK(bp_lock);
 	int cpu, slot = -1;
 
+	/*
+	 * enable_smccc_arch_workaround_1() passes NULL for the hyp_vecs
+	 * start/end if we're a guest. Skip the hyp-vectors work.
+	 */
+	if (!hyp_vecs_start) {
+		__this_cpu_write(bp_hardening_data.fn, fn);
+		return;
+	}
+
 	spin_lock(&bp_lock);
 	for_each_possible_cpu(cpu) {
 		if (per_cpu(bp_hardening_data.fn, cpu) == fn) {
