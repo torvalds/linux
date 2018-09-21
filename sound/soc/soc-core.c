@@ -180,7 +180,7 @@ static int dai_list_show(struct seq_file *m, void *v)
 	mutex_lock(&client_mutex);
 
 	for_each_component(component)
-		list_for_each_entry(dai, &component->dai_list, list)
+		for_each_component_dais(component, dai)
 			seq_printf(m, "%s\n", dai->name);
 
 	mutex_unlock(&client_mutex);
@@ -781,7 +781,7 @@ struct snd_soc_dai *snd_soc_find_dai(
 	for_each_component(component) {
 		if (!snd_soc_is_matching_component(dlc, component))
 			continue;
-		list_for_each_entry(dai, &component->dai_list, list) {
+		for_each_component_dais(component, dai) {
 			if (dlc->dai_name && strcmp(dai->name, dlc->dai_name)
 			    && (!dai->driver->name
 				|| strcmp(dai->driver->name, dlc->dai_name)))
@@ -1312,7 +1312,7 @@ static int soc_probe_component(struct snd_soc_card *card,
 		}
 	}
 
-	list_for_each_entry(dai, &component->dai_list, list) {
+	for_each_component_dais(component, dai) {
 		ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
 		if (ret != 0) {
 			dev_err(component->dev,
@@ -2842,7 +2842,7 @@ static void snd_soc_unregister_dais(struct snd_soc_component *component)
 {
 	struct snd_soc_dai *dai, *_dai;
 
-	list_for_each_entry_safe(dai, _dai, &component->dai_list, list) {
+	for_each_component_dais_safe(component, dai, _dai) {
 		dev_dbg(component->dev, "ASoC: Unregistered DAI '%s'\n",
 			dai->name);
 		list_del(&dai->list);
@@ -2894,6 +2894,7 @@ static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
 	if (!dai->driver->ops)
 		dai->driver->ops = &null_dai_ops;
 
+	/* see for_each_component_dais */
 	list_add_tail(&dai->list, &component->dai_list);
 	component->num_dai++;
 
@@ -3728,7 +3729,7 @@ int snd_soc_get_dai_name(struct of_phandle_args *args,
 			ret = 0;
 
 			/* find target DAI */
-			list_for_each_entry(dai, &pos->dai_list, list) {
+			for_each_component_dais(pos, dai) {
 				if (id == 0)
 					break;
 				id--;

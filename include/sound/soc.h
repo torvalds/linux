@@ -864,6 +864,11 @@ struct snd_soc_component {
 #endif
 };
 
+#define for_each_component_dais(component, dai)\
+	list_for_each_entry(dai, &(component)->dai_list, list)
+#define for_each_component_dais_safe(component, dai, _dai)\
+	list_for_each_entry_safe(dai, _dai, &(component)->dai_list, list)
+
 struct snd_soc_rtdcom_list {
 	struct snd_soc_component *component;
 	struct list_head list; /* rtd::component_list */
