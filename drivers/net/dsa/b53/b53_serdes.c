@@ -100,15 +100,13 @@ int b53_serdes_link_state(struct b53_device *dev, int port,
 			  struct phylink_link_state *state)
 {
 	u8 lane = b53_serdes_map_lane(dev, port);
-	u16 dig, bmcr, bmsr;
+	u16 dig, bmsr;
 
 	if (lane == B53_INVALID_LANE)
 		return 1;
 
 	dig = b53_serdes_read(dev, lane, B53_SERDES_DIGITAL_STATUS,
 			      SERDES_DIGITAL_BLK);
-	bmcr = b53_serdes_read(dev, lane, B53_SERDES_MII_REG(MII_BMCR),
-			       SERDES_MII_BLK);
 	bmsr = b53_serdes_read(dev, lane, B53_SERDES_MII_REG(MII_BMSR),
 			       SERDES_MII_BLK);
 
@@ -129,7 +127,6 @@ int b53_serdes_link_state(struct b53_device *dev, int port,
 	}
 
 	state->duplex = dig & DUPLEX_STATUS ? DUPLEX_FULL : DUPLEX_HALF;
-	state->an_enabled = !!(bmcr & BMCR_ANENABLE);
 	state->an_complete = !!(bmsr & BMSR_ANEGCOMPLETE);
 	state->link = !!(dig & LINK_STATUS);
 	if (dig & PAUSE_RESOLUTION_RX_SIDE)
