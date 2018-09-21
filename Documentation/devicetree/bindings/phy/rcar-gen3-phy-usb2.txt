@@ -34,6 +34,8 @@ channel as USB OTG:
 - interrupts: interrupt specifier for the PHY.
 - vbus-supply: Phandle to a regulator that provides power to the VBUS. This
 	       regulator will be managed during the PHY power on/off sequence.
+- renesas,no-otg-pins: boolean, specify when a board does not provide proper
+		       otg pins.
 
 Example (R-Car H3):
 
