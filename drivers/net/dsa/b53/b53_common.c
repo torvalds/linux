@@ -1172,8 +1172,9 @@ int b53_phylink_mac_link_state(struct dsa_switch *ds, int port,
 	struct b53_device *dev = ds->priv;
 	int ret = -EOPNOTSUPP;
 
-	if (phy_interface_mode_is_8023z(state->interface) &&
-	    dev->ops->serdes_link_state)
+	if ((phy_interface_mode_is_8023z(state->interface) ||
+	     state->interface == PHY_INTERFACE_MODE_SGMII) &&
+	     dev->ops->serdes_link_state)
 		ret = dev->ops->serdes_link_state(dev, port, state);
 
 	return ret;
@@ -1195,8 +1196,9 @@ void b53_phylink_mac_config(struct dsa_switch *ds, int port,
 		return;
 	}
 
-	if (phy_interface_mode_is_8023z(state->interface) &&
-	    dev->ops->serdes_config)
+	if ((phy_interface_mode_is_8023z(state->interface) ||
+	     state->interface == PHY_INTERFACE_MODE_SGMII) &&
+	     dev->ops->serdes_config)
 		dev->ops->serdes_config(dev, port, mode, state);
 }
 EXPORT_SYMBOL(b53_phylink_mac_config);
