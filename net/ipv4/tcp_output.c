@@ -1012,9 +1012,23 @@ static void tcp_internal_pacing(struct sock *sk, const struct sk_buff *skb)
 	sock_hold(sk);
 }
 
-static void tcp_update_skb_after_send(struct tcp_sock *tp, struct sk_buff *skb)
+static void tcp_update_skb_after_send(struct sock *sk, struct sk_buff *skb)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
+
 	skb->skb_mstamp_ns = tp->tcp_wstamp_ns;
+	if (sk->sk_pacing_status != SK_PACING_NONE) {
+		u32 rate = sk->sk_pacing_rate;
+
+		/* Original sch_fq does not pace first 10 MSS
+		 * Note that tp->data_segs_out overflows after 2^32 packets,
+		 * this is a minor annoyance.
+		 */
+		if (rate != ~0U && rate && tp->data_segs_out >= 10) {
+			tp->tcp_wstamp_ns += div_u64((u64)skb->len * NSEC_PER_SEC, rate);
+			/* TODO: update internal pacing here */
+		}
+	}
 	list_move_tail(&skb->tcp_tsorted_anchor, &tp->tsorted_sent_queue);
 }
 
@@ -1178,7 +1192,7 @@ static int __tcp_transmit_skb(struct sock *sk, struct sk_buff *skb,
 		err = net_xmit_eval(err);
 	}
 	if (!err && oskb) {
-		tcp_update_skb_after_send(tp, oskb);
+		tcp_update_skb_after_send(sk, oskb);
 		tcp_rate_skb_sent(sk, oskb);
 	}
 	return err;
@@ -2327,7 +2341,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 
 		if (unlikely(tp->repair) && tp->repair_queue == TCP_SEND_QUEUE) {
 			/* "skb_mstamp" is used as a start point for the retransmit timer */
-			tcp_update_skb_after_send(tp, skb);
+			tcp_update_skb_after_send(sk, skb);
 			goto repair; /* Skip network transmission */
 		}
 
@@ -2902,7 +2916,7 @@ int __tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 		} tcp_skb_tsorted_restore(skb);
 
 		if (!err) {
-			tcp_update_skb_after_send(tp, skb);
+			tcp_update_skb_after_send(sk, skb);
 			tcp_rate_skb_sent(sk, skb);
 		}
 	} else {
