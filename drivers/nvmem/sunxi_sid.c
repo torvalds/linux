@@ -154,7 +154,7 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct nvmem_device *nvmem;
 	struct sunxi_sid *sid;
-	int ret, i, size;
+	int i, size;
 	char *randomness;
 	const struct sunxi_sid_cfg *cfg;
 
