@@ -166,7 +166,7 @@ static void resume_irqs(bool want_early)
 			desc->action->flags & IRQF_EARLY_RESUME;
 
 		if ((!is_early && want_early) ||
-			irq_settings_is_nested_thread(desc)) 
+			irq_settings_is_nested_thread(desc))
 			continue;
 
 		raw_spin_lock_irqsave(&desc->lock, flags);
