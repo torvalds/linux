@@ -189,10 +189,10 @@ struct fsnotify_group {
 			/* allows a group to block waiting for a userspace response */
 			struct list_head access_list;
 			wait_queue_head_t access_waitq;
-			int f_flags;
+			int flags;           /* flags from fanotify_init() */
+			int f_flags; /* event_f_flags from fanotify_init() */
 			unsigned int max_marks;
 			struct user_struct *user;
-			bool audit;
 		} fanotify_data;
 #endif /* CONFIG_FANOTIFY */
 	};

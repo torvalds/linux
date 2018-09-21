@@ -142,31 +142,9 @@ static void fanotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
 void fanotify_show_fdinfo(struct seq_file *m, struct file *f)
 {
 	struct fsnotify_group *group = f->private_data;
-	unsigned int flags = 0;
-
-	switch (group->priority) {
-	case FS_PRIO_0:
-		flags |= FAN_CLASS_NOTIF;
-		break;
-	case FS_PRIO_1:
-		flags |= FAN_CLASS_CONTENT;
-		break;
-	case FS_PRIO_2:
-		flags |= FAN_CLASS_PRE_CONTENT;
-		break;
-	}
-
-	if (group->max_events == UINT_MAX)
-		flags |= FAN_UNLIMITED_QUEUE;
-
-	if (group->fanotify_data.max_marks == UINT_MAX)
-		flags |= FAN_UNLIMITED_MARKS;
-
-	if (group->fanotify_data.audit)
-		flags |= FAN_ENABLE_AUDIT;
 
 	seq_printf(m, "fanotify flags:%x event-flags:%x\n",
-		   flags, group->fanotify_data.f_flags);
+		   group->fanotify_data.flags, group->fanotify_data.f_flags);
 
 	show_fdinfo(m, f, fanotify_fdinfo);
 }

@@ -191,7 +191,7 @@ static int process_access_response(struct fsnotify_group *group,
 	if (fd < 0)
 		return -EINVAL;
 
-	if ((response & FAN_AUDIT) && !group->fanotify_data.audit)
+	if ((response & FAN_AUDIT) && !FAN_GROUP_FLAG(group, FAN_ENABLE_AUDIT))
 		return -EINVAL;
 
 	event = dequeue_event(group, fd);
@@ -701,8 +701,8 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	struct user_struct *user;
 	struct fanotify_event_info *oevent;
 
-	pr_debug("%s: flags=%d event_f_flags=%d\n",
-		__func__, flags, event_f_flags);
+	pr_debug("%s: flags=%x event_f_flags=%x\n",
+		 __func__, flags, event_f_flags);
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -746,6 +746,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	}
 
 	group->fanotify_data.user = user;
+	group->fanotify_data.flags = flags;
 	atomic_inc(&user->fanotify_listeners);
 	group->memcg = get_mem_cgroup_from_mm(current->mm);
 
@@ -798,7 +799,6 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 		fd = -EPERM;
 		if (!capable(CAP_AUDIT_WRITE))
 			goto out_destroy_group;
-		group->fanotify_data.audit = true;
 	}
 
 	fd = anon_inode_getfd("[fanotify]", &fanotify_fops, group, f_flags);
