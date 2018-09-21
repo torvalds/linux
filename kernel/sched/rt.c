@@ -142,10 +142,12 @@ void free_rt_sched_group(struct task_group *tg)
 		destroy_rt_bandwidth(&tg->rt_bandwidth);
 
 	for_each_possible_cpu(i) {
-		if (tg->rt_rq)
-			kfree(tg->rt_rq[i]);
-		if (tg->rt_se)
-			kfree(tg->rt_se[i]);
+		/* Don't need to check if tg->rt_rq[i]
+		 * or tg->rt_se[i] are NULL, since kfree(NULL)
+		 * simply performs no operation
+		 */
+		kfree(tg->rt_rq[i]);
+		kfree(tg->rt_se[i]);
 	}
 
 	kfree(tg->rt_rq);
@@ -1015,10 +1017,7 @@ enqueue_top_rt_rq(struct rt_rq *rt_rq)
 
 	BUG_ON(&rq->rt != rt_rq);
 
-	if (rt_rq->rt_queued)
-		return;
-
-	if (rt_rq_throttled(rt_rq))
+	if (rt_rq->rt_queued || rt_rq_throttled(rt_rq))
 		return;
 
 	if (rt_rq->rt_nr_running) {
@@ -1211,10 +1210,7 @@ void dec_rt_tasks(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
  */
 static inline bool move_entity(unsigned int flags)
 {
-	if ((flags & (DEQUEUE_SAVE | DEQUEUE_MOVE)) == DEQUEUE_SAVE)
-		return false;
-
-	return true;
+	return !((flags & (DEQUEUE_SAVE | DEQUEUE_MOVE)) == DEQUEUE_SAVE)
 }
 
 static void __delist_rt_entity(struct sched_rt_entity *rt_se, struct rt_prio_array *array)
@@ -1393,7 +1389,7 @@ select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
 
 	/* For anything but wake ups, just return the task_cpu */
 	if (sd_flag != SD_BALANCE_WAKE && sd_flag != SD_BALANCE_FORK)
-		goto out;
+		return cpu;
 
 	rq = cpu_rq(cpu);
 
@@ -1437,7 +1433,6 @@ select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
 	}
 	rcu_read_unlock();
 
-out:
 	return cpu;
 }
 
@@ -2518,12 +2513,10 @@ static int tg_set_rt_bandwidth(struct task_group *tg,
 	/*
 	 * Disallowing the root group RT runtime is BAD, it would disallow the
 	 * kernel creating (and or operating) RT threads.
+	 *
+	 * No period doesn't make any sense.
 	 */
-	if (tg == &root_task_group && rt_runtime == 0)
-		return -EINVAL;
-
-	/* No period doesn't make any sense. */
-	if (rt_period == 0)
+	if ((tg == &root_task_group && !rt_runtime) || !rt_period)
 		return -EINVAL;
 
 	mutex_lock(&rt_constraints_mutex);

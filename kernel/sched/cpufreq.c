@@ -34,10 +34,7 @@ void cpufreq_add_update_util_hook(int cpu, struct update_util_data *data,
 			void (*func)(struct update_util_data *data, u64 time,
 				     unsigned int flags))
 {
-	if (WARN_ON(!data || !func))
-		return;
-
-	if (WARN_ON(per_cpu(cpufreq_update_util_data, cpu)))
+	if (WARN_ON(!data || !func || per_cpu(cpufreq_update_util_data, cpu)))
 		return;
 
 	data->func = func;
