@@ -461,7 +461,7 @@ static int vega20_get_number_of_dpm_level(struct pp_hwmgr *hwmgr,
 			"[GetNumOfDpmLevel] failed to get dpm levels!",
 			return ret);
 
-	vega20_read_arg_from_smc(hwmgr, num_of_levels);
+	*num_of_levels = smum_get_argument(hwmgr);
 	PP_ASSERT_WITH_CODE(*num_of_levels > 0,
 			"[GetNumOfDpmLevel] number of clk levels is invalid!",
 			return -EINVAL);
@@ -481,7 +481,7 @@ static int vega20_get_dpm_frequency_by_index(struct pp_hwmgr *hwmgr,
 			"[GetDpmFreqByIndex] failed to get dpm freq by index!",
 			return ret);
 
-	vega20_read_arg_from_smc(hwmgr, clk);
+	*clk = smum_get_argument(hwmgr);
 	PP_ASSERT_WITH_CODE(*clk,
 			"[GetDpmFreqByIndex] clk value is invalid!",
 			return -EINVAL);
@@ -1044,7 +1044,7 @@ static int vega20_od8_get_gfx_clock_base_voltage(
 			"[GetBaseVoltage] failed to get GFXCLK AVFS voltage from SMU!",
 			return ret);
 
-	vega20_read_arg_from_smc(hwmgr, voltage);
+	*voltage = smum_get_argument(hwmgr);
 	*voltage = *voltage / VOLTAGE_SCALE;
 
 	return 0;
@@ -1401,7 +1401,7 @@ static int vega20_get_max_sustainable_clock(struct pp_hwmgr *hwmgr,
 			(clock_select << 16))) == 0,
 			"[GetMaxSustainableClock] Failed to get max DC clock from SMC!",
 			return ret);
-	vega20_read_arg_from_smc(hwmgr, clock);
+	*clock = smum_get_argument(hwmgr);
 
 	/* if DC limit is zero, return AC limit */
 	if (*clock == 0) {
@@ -1410,7 +1410,7 @@ static int vega20_get_max_sustainable_clock(struct pp_hwmgr *hwmgr,
 			(clock_select << 16))) == 0,
 			"[GetMaxSustainableClock] failed to get max AC clock from SMC!",
 			return ret);
-		vega20_read_arg_from_smc(hwmgr, clock);
+		*clock = smum_get_argument(hwmgr);
 	}
 
 	return 0;
@@ -1770,14 +1770,14 @@ static int vega20_get_clock_ranges(struct pp_hwmgr *hwmgr,
 				PPSMC_MSG_GetMaxDpmFreq, (clock_select << 16))) == 0,
 				"[GetClockRanges] Failed to get max clock from SMC!",
 				return ret);
-		vega20_read_arg_from_smc(hwmgr, clock);
+		*clock = smum_get_argument(hwmgr);
 	} else {
 		PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_GetMinDpmFreq,
 				(clock_select << 16))) == 0,
 				"[GetClockRanges] Failed to get min clock from SMC!",
 				return ret);
-		vega20_read_arg_from_smc(hwmgr, clock);
+		*clock = smum_get_argument(hwmgr);
 	}
 
 	return 0;
@@ -1862,7 +1862,7 @@ static int vega20_get_current_gfx_clk_freq(struct pp_hwmgr *hwmgr, uint32_t *gfx
 			PPSMC_MSG_GetDpmClockFreq, (PPCLK_GFXCLK << 16))) == 0,
 			"[GetCurrentGfxClkFreq] Attempt to get Current GFXCLK Frequency Failed!",
 			return ret);
-	vega20_read_arg_from_smc(hwmgr, &gfx_clk);
+	gfx_clk = smum_get_argument(hwmgr);
 
 	*gfx_freq = gfx_clk * 100;
 
@@ -1880,7 +1880,7 @@ static int vega20_get_current_mclk_freq(struct pp_hwmgr *hwmgr, uint32_t *mclk_f
 			PPSMC_MSG_GetDpmClockFreq, (PPCLK_UCLK << 16))) == 0,
 			"[GetCurrentMClkFreq] Attempt to get Current MCLK Frequency Failed!",
 			return ret);
-	vega20_read_arg_from_smc(hwmgr, &mem_clk);
+	mem_clk = smum_get_argument(hwmgr);
 
 	*mclk_freq = mem_clk * 100;
 

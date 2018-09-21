@@ -148,19 +148,11 @@ static int vega20_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 	return (ret == PPSMC_Result_OK) ? 0 : -EIO;
 }
 
-/*
- * Retrieve an argument from SMC.
- * @param    hwmgr  the address of the powerplay hardware manager.
- * @param    arg     pointer to store the argument from SMC.
- * @return   Always return 0.
- */
-int vega20_read_arg_from_smc(struct pp_hwmgr *hwmgr, uint32_t *arg)
+static uint32_t vega20_get_argument(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
 
-	*arg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
-
-	return 0;
+	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
 }
 
 /*
@@ -345,18 +337,12 @@ int vega20_get_enabled_smc_features(struct pp_hwmgr *hwmgr,
 			PPSMC_MSG_GetEnabledSmuFeaturesLow)) == 0,
 			"[GetEnabledSMCFeatures] Attemp to get SMU features Low failed!",
 			return ret);
-	PP_ASSERT_WITH_CODE((ret = vega20_read_arg_from_smc(hwmgr,
-			&smc_features_low)) == 0,
-			"[GetEnabledSMCFeatures] Attemp to read SMU features Low argument failed!",
-			return ret);
+	smc_features_low = vega20_get_argument(hwmgr);
 	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc(hwmgr,
 			PPSMC_MSG_GetEnabledSmuFeaturesHigh)) == 0,
 			"[GetEnabledSMCFeatures] Attemp to get SMU features High failed!",
 			return ret);
-	PP_ASSERT_WITH_CODE((ret = vega20_read_arg_from_smc(hwmgr,
-			&smc_features_high)) == 0,
-			"[GetEnabledSMCFeatures] Attemp to read SMU features High argument failed!",
-			return ret);
+	smc_features_high = vega20_get_argument(hwmgr);
 
 	*features_enabled = ((((uint64_t)smc_features_low << SMU_FEATURES_LOW_SHIFT) & SMU_FEATURES_LOW_MASK) |
 			(((uint64_t)smc_features_high << SMU_FEATURES_HIGH_SHIFT) & SMU_FEATURES_HIGH_MASK));
@@ -584,4 +570,5 @@ const struct pp_smumgr_func vega20_smu_funcs = {
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
 	.is_dpm_running = vega20_is_dpm_running,
+	.get_argument = vega20_get_argument,
 };
