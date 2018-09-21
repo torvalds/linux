@@ -152,6 +152,10 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 		umem->hugetlb = 0;
 
 	npages = ib_umem_num_pages(umem);
+	if (npages == 0 || npages > UINT_MAX) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 
@@ -165,11 +169,6 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 	up_write(&mm->mmap_sem);
 
 	cur_base = addr & PAGE_MASK;
-
-	if (npages == 0 || npages > UINT_MAX) {
-		ret = -EINVAL;
-		goto vma;
-	}
 
 	ret = sg_alloc_table(&umem->sg_head, npages, GFP_KERNEL);
 	if (ret)
@@ -224,9 +223,9 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 umem_release:
 	__ib_umem_release(context->device, umem, 0);
 vma:
-	down_write(&current->mm->mmap_sem);
-	current->mm->pinned_vm -= ib_umem_num_pages(umem);
-	up_write(&current->mm->mmap_sem);
+	down_write(&mm->mmap_sem);
+	mm->pinned_vm -= ib_umem_num_pages(umem);
+	up_write(&mm->mmap_sem);
 out:
 	if (vma_list)
 		free_page((unsigned long) vma_list);
