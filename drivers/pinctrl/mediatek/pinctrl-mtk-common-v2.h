@@ -18,7 +18,7 @@
 #define MTK_PULLDOWN   0
 #define MTK_PULLUP     1
 
-#define EINT_NA	-1
+#define EINT_NA	U16_MAX
 
 #define PIN_FIELD_CALC(_s_pin, _e_pin, _i_base, _s_addr, _x_addrs,      \
 		       _s_bit, _x_bits, _sz_reg, _fixed) {		\
