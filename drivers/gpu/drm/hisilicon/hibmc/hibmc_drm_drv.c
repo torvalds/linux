@@ -402,7 +402,7 @@ static void hibmc_pci_remove(struct pci_dev *pdev)
 }
 
 static struct pci_device_id hibmc_pci_table[] = {
-	{0x19e5, 0x1711, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(HUAWEI, 0x1711) },
 	{0,}
 };
 
