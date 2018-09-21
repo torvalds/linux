@@ -187,17 +187,12 @@
 			#clock-cells = <1>;
 		};
 
-		uart6_clk: clk_19_2M {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <19200000>;
-		};
-
 		uart6: serial@fff32000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x0 0xfff32000 0x0 0x1000>;
 			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&uart6_clk &uart6_clk>;
+			clocks = <&crg_ctrl HI3670_CLK_UART6>,
+				 <&crg_ctrl HI3670_PCLK>;
 			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
