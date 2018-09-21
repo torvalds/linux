@@ -107,6 +107,7 @@ enum hnae3_media_type {
 	HNAE3_MEDIA_TYPE_FIBER,
 	HNAE3_MEDIA_TYPE_COPPER,
 	HNAE3_MEDIA_TYPE_BACKPLANE,
+	HNAE3_MEDIA_TYPE_NONE,
 };
 
 enum hnae3_reset_notify_type {
