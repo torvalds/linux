@@ -1484,8 +1484,10 @@ static void hv_pci_assign_slots(struct hv_pcibus_device *hbus)
 		snprintf(name, SLOT_NAME_SIZE, "%u", hpdev->desc.ser);
 		hpdev->pci_slot = pci_create_slot(hbus->pci_bus, slot_nr,
 					  name, NULL);
-		if (!hpdev->pci_slot)
+		if (IS_ERR(hpdev->pci_slot)) {
 			pr_warn("pci_create slot %s failed\n", name);
+			hpdev->pci_slot = NULL;
+		}
 	}
 }
 
