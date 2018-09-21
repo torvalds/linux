@@ -899,7 +899,7 @@ static void walk_shadow_page_lockless_end(struct kvm_vcpu *vcpu)
 {
 	/*
 	 * Make sure the write to vcpu->mode is not reordered in front of
-	 * reads to sptes.  If it does, kvm_commit_zap_page() can see us
+	 * reads to sptes.  If it does, kvm_mmu_commit_zap_page() can see us
 	 * OUTSIDE_GUEST_MODE and proceed to free the shadow page table.
 	 */
 	smp_store_release(&vcpu->mode, OUTSIDE_GUEST_MODE);
@@ -5417,7 +5417,12 @@ void kvm_mmu_setup(struct kvm_vcpu *vcpu)
 {
 	MMU_WARN_ON(VALID_PAGE(vcpu->arch.mmu.root_hpa));
 
-	kvm_init_mmu(vcpu, true);
+	/*
+	 * kvm_mmu_setup() is called only on vCPU initialization.  
+	 * Therefore, no need to reset mmu roots as they are not yet
+	 * initialized.
+	 */
+	kvm_init_mmu(vcpu, false);
 }
 
 static void kvm_mmu_invalidate_zap_pages_in_memslot(struct kvm *kvm,

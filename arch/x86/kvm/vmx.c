@@ -397,6 +397,7 @@ struct loaded_vmcs {
 	int cpu;
 	bool launched;
 	bool nmi_known_unmasked;
+	bool hv_timer_armed;
 	/* Support for vnmi-less CPUs */
 	int soft_vnmi_blocked;
 	ktime_t entry_time;
@@ -1018,6 +1019,8 @@ struct vcpu_vmx {
 	/* Dynamic PLE window. */
 	int ple_window;
 	bool ple_window_dirty;
+
+	bool req_immediate_exit;
 
 	/* Support for PML */
 #define PML_ENTITY_NUM		512
@@ -2863,6 +2866,8 @@ static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	unsigned long fs_base, gs_base;
 	u16 fs_sel, gs_sel;
 	int i;
+
+	vmx->req_immediate_exit = false;
 
 	if (vmx->loaded_cpu_state)
 		return;
@@ -5393,9 +5398,10 @@ static int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		 * To use VMXON (and later other VMX instructions), a guest
 		 * must first be able to turn on cr4.VMXE (see handle_vmon()).
 		 * So basically the check on whether to allow nested VMX
-		 * is here.
+		 * is here.  We operate under the default treatment of SMM,
+		 * so VMX cannot be enabled under SMM.
 		 */
-		if (!nested_vmx_allowed(vcpu))
+		if (!nested_vmx_allowed(vcpu) || is_smm(vcpu))
 			return 1;
 	}
 
@@ -6181,6 +6187,27 @@ static void vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
 	}
 
 	nested_mark_vmcs12_pages_dirty(vcpu);
+}
+
+static bool vmx_guest_apic_has_interrupt(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	void *vapic_page;
+	u32 vppr;
+	int rvi;
+
+	if (WARN_ON_ONCE(!is_guest_mode(vcpu)) ||
+		!nested_cpu_has_vid(get_vmcs12(vcpu)) ||
+		WARN_ON_ONCE(!vmx->nested.virtual_apic_page))
+		return false;
+
+	rvi = vmcs_read16(GUEST_INTR_STATUS) & 0xff;
+
+	vapic_page = kmap(vmx->nested.virtual_apic_page);
+	vppr = *((u32 *)(vapic_page + APIC_PROCPRI));
+	kunmap(vmx->nested.virtual_apic_page);
+
+	return ((rvi & 0xf0) > (vppr & 0xf0));
 }
 
 static inline bool kvm_vcpu_trigger_posted_interrupt(struct kvm_vcpu *vcpu,
@@ -7966,6 +7993,9 @@ static __init int hardware_setup(void)
 		kvm_x86_ops->enable_log_dirty_pt_masked = NULL;
 	}
 
+	if (!cpu_has_vmx_preemption_timer())
+		kvm_x86_ops->request_immediate_exit = __kvm_request_immediate_exit;
+
 	if (cpu_has_vmx_preemption_timer() && enable_preemption_timer) {
 		u64 vmx_msr;
 
@@ -9208,7 +9238,8 @@ static int handle_pml_full(struct kvm_vcpu *vcpu)
 
 static int handle_preemption_timer(struct kvm_vcpu *vcpu)
 {
-	kvm_lapic_expired_hv_timer(vcpu);
+	if (!to_vmx(vcpu)->req_immediate_exit)
+		kvm_lapic_expired_hv_timer(vcpu);
 	return 1;
 }
 
@@ -10595,24 +10626,43 @@ static void atomic_switch_perf_msrs(struct vcpu_vmx *vmx)
 					msrs[i].host, false);
 }
 
-static void vmx_arm_hv_timer(struct kvm_vcpu *vcpu)
+static void vmx_arm_hv_timer(struct vcpu_vmx *vmx, u32 val)
+{
+	vmcs_write32(VMX_PREEMPTION_TIMER_VALUE, val);
+	if (!vmx->loaded_vmcs->hv_timer_armed)
+		vmcs_set_bits(PIN_BASED_VM_EXEC_CONTROL,
+			      PIN_BASED_VMX_PREEMPTION_TIMER);
+	vmx->loaded_vmcs->hv_timer_armed = true;
+}
+
+static void vmx_update_hv_timer(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u64 tscl;
 	u32 delta_tsc;
 
-	if (vmx->hv_deadline_tsc == -1)
+	if (vmx->req_immediate_exit) {
+		vmx_arm_hv_timer(vmx, 0);
 		return;
+	}
 
-	tscl = rdtsc();
-	if (vmx->hv_deadline_tsc > tscl)
-		/* sure to be 32 bit only because checked on set_hv_timer */
-		delta_tsc = (u32)((vmx->hv_deadline_tsc - tscl) >>
-			cpu_preemption_timer_multi);
-	else
-		delta_tsc = 0;
+	if (vmx->hv_deadline_tsc != -1) {
+		tscl = rdtsc();
+		if (vmx->hv_deadline_tsc > tscl)
+			/* set_hv_timer ensures the delta fits in 32-bits */
+			delta_tsc = (u32)((vmx->hv_deadline_tsc - tscl) >>
+				cpu_preemption_timer_multi);
+		else
+			delta_tsc = 0;
 
-	vmcs_write32(VMX_PREEMPTION_TIMER_VALUE, delta_tsc);
+		vmx_arm_hv_timer(vmx, delta_tsc);
+		return;
+	}
+
+	if (vmx->loaded_vmcs->hv_timer_armed)
+		vmcs_clear_bits(PIN_BASED_VM_EXEC_CONTROL,
+				PIN_BASED_VMX_PREEMPTION_TIMER);
+	vmx->loaded_vmcs->hv_timer_armed = false;
 }
 
 static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
@@ -10672,7 +10722,7 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 	atomic_switch_perf_msrs(vmx);
 
-	vmx_arm_hv_timer(vcpu);
+	vmx_update_hv_timer(vcpu);
 
 	/*
 	 * If this vCPU has touched SPEC_CTRL, restore the guest's value if
@@ -11427,15 +11477,17 @@ static void vmx_start_preemption_timer(struct kvm_vcpu *vcpu)
 	u64 preemption_timeout = get_vmcs12(vcpu)->vmx_preemption_timer_value;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (vcpu->arch.virtual_tsc_khz == 0)
-		return;
-
-	/* Make sure short timeouts reliably trigger an immediate vmexit.
-	 * hrtimer_start does not guarantee this. */
-	if (preemption_timeout <= 1) {
+	/*
+	 * A timer value of zero is architecturally guaranteed to cause
+	 * a VMExit prior to executing any instructions in the guest.
+	 */
+	if (preemption_timeout == 0) {
 		vmx_preemption_timer_fn(&vmx->nested.preemption_timer);
 		return;
 	}
+
+	if (vcpu->arch.virtual_tsc_khz == 0)
+		return;
 
 	preemption_timeout <<= VMX_MISC_EMULATED_PREEMPTION_TIMER_RATE;
 	preemption_timeout *= 1000000;
@@ -11646,11 +11698,15 @@ static int nested_vmx_check_apicv_controls(struct kvm_vcpu *vcpu,
 	 * bits 15:8 should be zero in posted_intr_nv,
 	 * the descriptor address has been already checked
 	 * in nested_get_vmcs12_pages.
+	 *
+	 * bits 5:0 of posted_intr_desc_addr should be zero.
 	 */
 	if (nested_cpu_has_posted_intr(vmcs12) &&
 	   (!nested_cpu_has_vid(vmcs12) ||
 	    !nested_exit_intr_ack_set(vcpu) ||
-	    vmcs12->posted_intr_nv & 0xff00))
+	    (vmcs12->posted_intr_nv & 0xff00) ||
+	    (vmcs12->posted_intr_desc_addr & 0x3f) ||
+	    (!page_address_valid(vcpu, vmcs12->posted_intr_desc_addr))))
 		return -EINVAL;
 
 	/* tpr shadow is needed by all apicv features. */
@@ -12076,11 +12132,10 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 
 	exec_control = vmcs12->pin_based_vm_exec_control;
 
-	/* Preemption timer setting is only taken from vmcs01.  */
-	exec_control &= ~PIN_BASED_VMX_PREEMPTION_TIMER;
+	/* Preemption timer setting is computed directly in vmx_vcpu_run.  */
 	exec_control |= vmcs_config.pin_based_exec_ctrl;
-	if (vmx->hv_deadline_tsc == -1)
-		exec_control &= ~PIN_BASED_VMX_PREEMPTION_TIMER;
+	exec_control &= ~PIN_BASED_VMX_PREEMPTION_TIMER;
+	vmx->loaded_vmcs->hv_timer_armed = false;
 
 	/* Posted interrupts setting is only taken from vmcs12.  */
 	if (nested_cpu_has_posted_intr(vmcs12)) {
@@ -12316,6 +12371,9 @@ static int check_vmentry_prereqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 
 	if (vmcs12->guest_activity_state != GUEST_ACTIVITY_ACTIVE &&
 	    vmcs12->guest_activity_state != GUEST_ACTIVITY_HLT)
+		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+	if (nested_cpu_has_vpid(vmcs12) && !vmcs12->virtual_processor_id)
 		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
 	if (nested_vmx_check_io_bitmap_controls(vcpu, vmcs12))
@@ -12863,6 +12921,11 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu, bool external_intr)
 	return 0;
 }
 
+static void vmx_request_immediate_exit(struct kvm_vcpu *vcpu)
+{
+	to_vmx(vcpu)->req_immediate_exit = true;
+}
+
 static u32 vmx_get_preemption_timer_value(struct kvm_vcpu *vcpu)
 {
 	ktime_t remaining =
@@ -13253,12 +13316,7 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, vmx->msr_autoload.host.nr);
 	vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, vmx->msr_autoload.guest.nr);
 	vmcs_write64(TSC_OFFSET, vcpu->arch.tsc_offset);
-	if (vmx->hv_deadline_tsc == -1)
-		vmcs_clear_bits(PIN_BASED_VM_EXEC_CONTROL,
-				PIN_BASED_VMX_PREEMPTION_TIMER);
-	else
-		vmcs_set_bits(PIN_BASED_VM_EXEC_CONTROL,
-			      PIN_BASED_VMX_PREEMPTION_TIMER);
+
 	if (kvm_has_tsc_control)
 		decache_tsc_multiplier(vmx);
 
@@ -13462,18 +13520,12 @@ static int vmx_set_hv_timer(struct kvm_vcpu *vcpu, u64 guest_deadline_tsc)
 		return -ERANGE;
 
 	vmx->hv_deadline_tsc = tscl + delta_tsc;
-	vmcs_set_bits(PIN_BASED_VM_EXEC_CONTROL,
-			PIN_BASED_VMX_PREEMPTION_TIMER);
-
 	return delta_tsc == 0;
 }
 
 static void vmx_cancel_hv_timer(struct kvm_vcpu *vcpu)
 {
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	vmx->hv_deadline_tsc = -1;
-	vmcs_clear_bits(PIN_BASED_VM_EXEC_CONTROL,
-			PIN_BASED_VMX_PREEMPTION_TIMER);
+	to_vmx(vcpu)->hv_deadline_tsc = -1;
 }
 #endif
 
@@ -13954,6 +14006,14 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	    ~(KVM_STATE_NESTED_SMM_GUEST_MODE | KVM_STATE_NESTED_SMM_VMXON))
 		return -EINVAL;
 
+	/*
+	 * SMM temporarily disables VMX, so we cannot be in guest mode,
+	 * nor can VMLAUNCH/VMRESUME be pending.  Outside SMM, SMM flags
+	 * must be zero.
+	 */
+	if (is_smm(vcpu) ? kvm_state->flags : kvm_state->vmx.smm.flags)
+		return -EINVAL;
+
 	if ((kvm_state->vmx.smm.flags & KVM_STATE_NESTED_SMM_GUEST_MODE) &&
 	    !(kvm_state->vmx.smm.flags & KVM_STATE_NESTED_SMM_VMXON))
 		return -EINVAL;
@@ -14097,6 +14157,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.apicv_post_state_restore = vmx_apicv_post_state_restore,
 	.hwapic_irr_update = vmx_hwapic_irr_update,
 	.hwapic_isr_update = vmx_hwapic_isr_update,
+	.guest_apic_has_interrupt = vmx_guest_apic_has_interrupt,
 	.sync_pir_to_irr = vmx_sync_pir_to_irr,
 	.deliver_posted_interrupt = vmx_deliver_posted_interrupt,
 
@@ -14130,6 +14191,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.umip_emulated = vmx_umip_emulated,
 
 	.check_nested_events = vmx_check_nested_events,
+	.request_immediate_exit = vmx_request_immediate_exit,
 
 	.sched_in = vmx_sched_in,
 
