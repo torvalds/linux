@@ -134,10 +134,9 @@ static int rsnd_dmaen_prepare(struct rsnd_mod *mod,
 	struct rsnd_dmaen *dmaen = rsnd_dma_to_dmaen(dma);
 	struct device *dev = rsnd_priv_to_dev(priv);
 
-	if (dmaen->chan) {
-		dev_err(dev, "it already has dma channel\n");
-		return -EIO;
-	}
+	/* maybe suspended */
+	if (dmaen->chan)
+		return 0;
 
 	/*
 	 * DMAEngine request uses mutex lock.

@@ -318,9 +318,8 @@ struct rsnd_mod {
 /*
  * status
  *
- * 0xH0000CBA
+ * 0xH0000CB0
  *
- * A	0: prepare	1: cleanup
  * B	0: init		1: quit
  * C	0: start	1: stop
  *
@@ -331,9 +330,8 @@ struct rsnd_mod {
  * H	0: hw_params
  * H	0: pointer
  * H	0: prepare
+ * H	0: cleanup
  */
-#define __rsnd_mod_shift_prepare	0
-#define __rsnd_mod_shift_cleanup	0
 #define __rsnd_mod_shift_init		4
 #define __rsnd_mod_shift_quit		4
 #define __rsnd_mod_shift_start		8
@@ -345,11 +343,13 @@ struct rsnd_mod {
 #define __rsnd_mod_shift_fallback	28 /* always called */
 #define __rsnd_mod_shift_hw_params	28 /* always called */
 #define __rsnd_mod_shift_pointer	28 /* always called */
+#define __rsnd_mod_shift_prepare	28 /* always called */
+#define __rsnd_mod_shift_cleanup	28 /* always called */
 
 #define __rsnd_mod_add_probe		0
 #define __rsnd_mod_add_remove		0
-#define __rsnd_mod_add_prepare		 1
-#define __rsnd_mod_add_cleanup		-1
+#define __rsnd_mod_add_prepare		0
+#define __rsnd_mod_add_cleanup		0
 #define __rsnd_mod_add_init		 1
 #define __rsnd_mod_add_quit		-1
 #define __rsnd_mod_add_start		 1
@@ -363,7 +363,7 @@ struct rsnd_mod {
 #define __rsnd_mod_call_probe		0
 #define __rsnd_mod_call_remove		0
 #define __rsnd_mod_call_prepare		0
-#define __rsnd_mod_call_cleanup		1
+#define __rsnd_mod_call_cleanup		0
 #define __rsnd_mod_call_init		0
 #define __rsnd_mod_call_quit		1
 #define __rsnd_mod_call_start		0
