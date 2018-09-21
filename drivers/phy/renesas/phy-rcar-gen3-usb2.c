@@ -148,7 +148,7 @@ static void rcar_gen3_control_otg_irq(struct rcar_gen3_chan *ch, int enable)
 	void __iomem *usb2_base = ch->base;
 	u32 val = readl(usb2_base + USB2_OBINTEN);
 
-	if (enable)
+	if (ch->uses_otg_pins && enable)
 		val |= USB2_OBINT_BITS;
 	else
 		val &= ~USB2_OBINT_BITS;
@@ -210,6 +210,9 @@ static void rcar_gen3_init_from_a_peri_to_a_host(struct rcar_gen3_chan *ch)
 
 static bool rcar_gen3_check_id(struct rcar_gen3_chan *ch)
 {
+	if (!ch->uses_otg_pins)
+		return (ch->dr_mode == USB_DR_MODE_HOST) ? false : true;
+
 	return !!(readl(ch->base + USB2_ADPCTRL) & USB2_ADPCTRL_IDDIG);
 }
 
