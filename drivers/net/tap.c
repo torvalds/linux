@@ -830,8 +830,7 @@ static ssize_t tap_do_read(struct tap_queue *q,
 	ssize_t ret = 0;
 
 	if (!iov_iter_count(to)) {
-		if (skb)
-			kfree_skb(skb);
+		kfree_skb(skb);
 		return 0;
 	}
 
@@ -1236,8 +1235,7 @@ static int tap_recvmsg(struct socket *sock, struct msghdr *m,
 	struct sk_buff *skb = m->msg_control;
 	int ret;
 	if (flags & ~(MSG_DONTWAIT|MSG_TRUNC)) {
-		if (skb)
-			kfree_skb(skb);
+		kfree_skb(skb);
 		return -EINVAL;
 	}
 	ret = tap_do_read(q, &m->msg_iter, flags & MSG_DONTWAIT, skb);

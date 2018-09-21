@@ -260,8 +260,7 @@ out:
 	spin_unlock(&qp->q.lock);
 out_rcu_unlock:
 	rcu_read_unlock();
-	if (head)
-		kfree_skb(head);
+	kfree_skb(head);
 	ipq_put(qp);
 }
 
