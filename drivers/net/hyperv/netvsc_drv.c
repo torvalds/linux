@@ -1006,6 +1006,8 @@ static void netvsc_init_settings(struct net_device *dev)
 
 	ndc->speed = SPEED_UNKNOWN;
 	ndc->duplex = DUPLEX_FULL;
+
+	dev->features = NETIF_F_LRO;
 }
 
 static int netvsc_get_link_ksettings(struct net_device *dev,
@@ -1733,6 +1735,33 @@ static int netvsc_set_ringparam(struct net_device *ndev,
 	return ret;
 }
 
+static int netvsc_set_features(struct net_device *ndev,
+			       netdev_features_t features)
+{
+	netdev_features_t change = features ^ ndev->features;
+	struct net_device_context *ndevctx = netdev_priv(ndev);
+	struct netvsc_device *nvdev = rtnl_dereference(ndevctx->nvdev);
+	struct ndis_offload_params offloads;
+
+	if (!nvdev || nvdev->destroy)
+		return -ENODEV;
+
+	if (!(change & NETIF_F_LRO))
+		return 0;
+
+	memset(&offloads, 0, sizeof(struct ndis_offload_params));
+
+	if (features & NETIF_F_LRO) {
+		offloads.rsc_ip_v4 = NDIS_OFFLOAD_PARAMETERS_RSC_ENABLED;
+		offloads.rsc_ip_v6 = NDIS_OFFLOAD_PARAMETERS_RSC_ENABLED;
+	} else {
+		offloads.rsc_ip_v4 = NDIS_OFFLOAD_PARAMETERS_RSC_DISABLED;
+		offloads.rsc_ip_v6 = NDIS_OFFLOAD_PARAMETERS_RSC_DISABLED;
+	}
+
+	return rndis_filter_set_offload_params(ndev, nvdev, &offloads);
+}
+
 static u32 netvsc_get_msglevel(struct net_device *ndev)
 {
 	struct net_device_context *ndev_ctx = netdev_priv(ndev);
@@ -1776,6 +1805,7 @@ static const struct net_device_ops device_ops = {
 	.ndo_start_xmit =		netvsc_start_xmit,
 	.ndo_change_rx_flags =		netvsc_change_rx_flags,
 	.ndo_set_rx_mode =		netvsc_set_rx_mode,
+	.ndo_set_features =		netvsc_set_features,
 	.ndo_change_mtu =		netvsc_change_mtu,
 	.ndo_validate_addr =		eth_validate_addr,
 	.ndo_set_mac_address =		netvsc_set_mac_addr,

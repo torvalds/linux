@@ -716,7 +716,7 @@ cleanup:
 	return ret;
 }
 
-static int
+int
 rndis_filter_set_offload_params(struct net_device *ndev,
 				struct netvsc_device *nvdev,
 				struct ndis_offload_params *req_offloads)
@@ -1246,8 +1246,13 @@ static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
 	if (hwcaps.rsc.ip4 && hwcaps.rsc.ip6) {
 		net->hw_features |= NETIF_F_LRO;
 
-		offloads.rsc_ip_v4 = NDIS_OFFLOAD_PARAMETERS_RSC_ENABLED;
-		offloads.rsc_ip_v6 = NDIS_OFFLOAD_PARAMETERS_RSC_ENABLED;
+		if (net->features & NETIF_F_LRO) {
+			offloads.rsc_ip_v4 = NDIS_OFFLOAD_PARAMETERS_RSC_ENABLED;
+			offloads.rsc_ip_v6 = NDIS_OFFLOAD_PARAMETERS_RSC_ENABLED;
+		} else {
+			offloads.rsc_ip_v4 = NDIS_OFFLOAD_PARAMETERS_RSC_DISABLED;
+			offloads.rsc_ip_v6 = NDIS_OFFLOAD_PARAMETERS_RSC_DISABLED;
+		}
 	}
 
 	/* In case some hw_features disappeared we need to remove them from
