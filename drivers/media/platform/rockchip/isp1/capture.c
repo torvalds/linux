@@ -1133,12 +1133,18 @@ static void rkisp1_buf_queue(struct vb2_buffer *vb)
 	for (i = 0; i < isp_fmt->mplanes; i++)
 		ispbuf->buff_addr[i] = vb2_dma_contig_plane_dma_addr(vb, i);
 
+	/*
+	 * NOTE: plane_fmt[0].sizeimage is total size of all planes for single
+	 * memory plane formats, so calculate the size explicitly.
+	 */
 	if (isp_fmt->mplanes == 1) {
 		for (i = 0; i < isp_fmt->cplanes - 1; i++) {
-			ispbuf->buff_addr[i + 1] =
+			ispbuf->buff_addr[i + 1] = (i == 0) ?
 				ispbuf->buff_addr[i] +
 				pixm->plane_fmt[i].bytesperline *
-				pixm->height;
+				pixm->height :
+				ispbuf->buff_addr[i] +
+				pixm->plane_fmt[i].sizeimage;
 		}
 	}
 
