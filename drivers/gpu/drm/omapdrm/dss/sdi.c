@@ -37,7 +37,7 @@ struct sdi_device {
 	struct regulator *vdds_sdi_reg;
 
 	struct dss_lcd_mgr_config mgr_config;
-	struct videomode vm;
+	unsigned long pixelclock;
 	int datapairs;
 
 	struct omap_dss_device output;
@@ -144,7 +144,7 @@ static void sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_get_dispc;
 
-	r = sdi_calc_clock_div(sdi, sdi->vm.pixelclock, &fck, &dispc_cinfo);
+	r = sdi_calc_clock_div(sdi, sdi->pixelclock, &fck, &dispc_cinfo);
 	if (r)
 		goto err_calc_clock_div;
 
@@ -210,7 +210,7 @@ static void sdi_set_timings(struct omap_dss_device *dssdev,
 {
 	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
 
-	drm_display_mode_to_videomode(mode, &sdi->vm);
+	sdi->pixelclock = mode->clock * 1000;
 }
 
 static int sdi_check_timings(struct omap_dss_device *dssdev,

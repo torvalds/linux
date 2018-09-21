@@ -47,8 +47,8 @@ struct dpi_data {
 
 	struct mutex lock;
 
-	struct videomode vm;
 	struct dss_lcd_mgr_config mgr_config;
+	unsigned long pixelclock;
 	int data_lines;
 
 	struct omap_dss_device output;
@@ -347,16 +347,15 @@ static int dpi_set_dispc_clk(struct dpi_data *dpi, unsigned long pck_req,
 
 static int dpi_set_mode(struct dpi_data *dpi)
 {
-	const struct videomode *vm = &dpi->vm;
 	int lck_div = 0, pck_div = 0;
 	unsigned long fck = 0;
 	int r = 0;
 
 	if (dpi->pll)
 		r = dpi_set_pll_clk(dpi, dpi->output.dispc_channel,
-				    vm->pixelclock, &fck, &lck_div, &pck_div);
+				    dpi->pixelclock, &fck, &lck_div, &pck_div);
 	else
-		r = dpi_set_dispc_clk(dpi, vm->pixelclock, &fck,
+		r = dpi_set_dispc_clk(dpi, dpi->pixelclock, &fck,
 				&lck_div, &pck_div);
 	if (r)
 		return r;
@@ -467,7 +466,7 @@ static void dpi_set_timings(struct omap_dss_device *dssdev,
 
 	mutex_lock(&dpi->lock);
 
-	drm_display_mode_to_videomode(mode, &dpi->vm);
+	dpi->pixelclock = mode->clock * 1000;
 
 	mutex_unlock(&dpi->lock);
 }
