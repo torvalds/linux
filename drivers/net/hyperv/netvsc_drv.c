@@ -744,14 +744,16 @@ void netvsc_linkstatus_callback(struct net_device *net,
 }
 
 static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
-					     struct napi_struct *napi,
-					     const struct ndis_tcp_ip_checksum_info *csum_info,
-					     const struct ndis_pkt_8021q_info *vlan,
-					     void *data, u32 buflen)
+					     struct netvsc_channel *nvchan)
 {
+	struct napi_struct *napi = &nvchan->napi;
+	const struct ndis_pkt_8021q_info *vlan = nvchan->rsc.vlan;
+	const struct ndis_tcp_ip_checksum_info *csum_info =
+						nvchan->rsc.csum_info;
 	struct sk_buff *skb;
+	int i;
 
-	skb = napi_alloc_skb(napi, buflen);
+	skb = napi_alloc_skb(napi, nvchan->rsc.pktlen);
 	if (!skb)
 		return skb;
 
@@ -759,7 +761,8 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 	 * Copy to skb. This copy is needed here since the memory pointed by
 	 * hv_netvsc_packet cannot be deallocated
 	 */
-	skb_put_data(skb, data, buflen);
+	for (i = 0; i < nvchan->rsc.cnt; i++)
+		skb_put_data(skb, nvchan->rsc.data[i], nvchan->rsc.len[i]);
 
 	skb->protocol = eth_type_trans(skb, net);
 
@@ -792,14 +795,11 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
  */
 int netvsc_recv_callback(struct net_device *net,
 			 struct netvsc_device *net_device,
-			 struct vmbus_channel *channel,
-			 void  *data, u32 len,
-			 const struct ndis_tcp_ip_checksum_info *csum_info,
-			 const struct ndis_pkt_8021q_info *vlan)
+			 struct netvsc_channel *nvchan)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
+	struct vmbus_channel *channel = nvchan->channel;
 	u16 q_idx = channel->offermsg.offer.sub_channel_index;
-	struct netvsc_channel *nvchan = &net_device->chan_table[q_idx];
 	struct sk_buff *skb;
 	struct netvsc_stats *rx_stats;
 
@@ -807,8 +807,8 @@ int netvsc_recv_callback(struct net_device *net,
 		return NVSP_STAT_FAIL;
 
 	/* Allocate a skb - TODO direct I/O to pages? */
-	skb = netvsc_alloc_recv_skb(net, &nvchan->napi,
-				    csum_info, vlan, data, len);
+	skb = netvsc_alloc_recv_skb(net, nvchan);
+
 	if (unlikely(!skb)) {
 		++net_device_ctx->eth_stats.rx_no_memory;
 		rcu_read_unlock();
@@ -825,7 +825,7 @@ int netvsc_recv_callback(struct net_device *net,
 	rx_stats = &nvchan->rx_stats;
 	u64_stats_update_begin(&rx_stats->syncp);
 	rx_stats->packets++;
-	rx_stats->bytes += len;
+	rx_stats->bytes += nvchan->rsc.pktlen;
 
 	if (skb->pkt_type == PACKET_BROADCAST)
 		++rx_stats->broadcast;
