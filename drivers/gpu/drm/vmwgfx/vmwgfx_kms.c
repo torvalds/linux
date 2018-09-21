@@ -847,58 +847,6 @@ static void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
 	kfree(vfbs);
 }
 
-static int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
-				  struct drm_file *file_priv,
-				  unsigned flags, unsigned color,
-				  struct drm_clip_rect *clips,
-				  unsigned num_clips)
-{
-	struct vmw_private *dev_priv = vmw_priv(framebuffer->dev);
-	struct vmw_framebuffer_surface *vfbs =
-		vmw_framebuffer_to_vfbs(framebuffer);
-	struct drm_clip_rect norect;
-	int ret, inc = 1;
-
-	/* Legacy Display Unit does not support 3D */
-	if (dev_priv->active_display_unit == vmw_du_legacy)
-		return -EINVAL;
-
-	drm_modeset_lock_all(dev_priv->dev);
-
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0)) {
-		drm_modeset_unlock_all(dev_priv->dev);
-		return ret;
-	}
-
-	if (!num_clips) {
-		num_clips = 1;
-		clips = &norect;
-		norect.x1 = norect.y1 = 0;
-		norect.x2 = framebuffer->width;
-		norect.y2 = framebuffer->height;
-	} else if (flags & DRM_MODE_FB_DIRTY_ANNOTATE_COPY) {
-		num_clips /= 2;
-		inc = 2; /* skip source rects */
-	}
-
-	if (dev_priv->active_display_unit == vmw_du_screen_object)
-		ret = vmw_kms_sou_do_surface_dirty(dev_priv, &vfbs->base,
-						   clips, NULL, NULL, 0, 0,
-						   num_clips, inc, NULL, NULL);
-	else
-		ret = vmw_kms_stdu_surface_dirty(dev_priv, &vfbs->base,
-						 clips, NULL, NULL, 0, 0,
-						 num_clips, inc, NULL, NULL);
-
-	vmw_fifo_flush(dev_priv, false);
-	ttm_read_unlock(&dev_priv->reservation_sem);
-
-	drm_modeset_unlock_all(dev_priv->dev);
-
-	return 0;
-}
-
 /**
  * vmw_kms_readback - Perform a readback from the screen system to
  * a buffer-object backed framebuffer.
@@ -942,7 +890,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 
 static const struct drm_framebuffer_funcs vmw_framebuffer_surface_funcs = {
 	.destroy = vmw_framebuffer_surface_destroy,
-	.dirty = vmw_framebuffer_surface_dirty,
+	.dirty = drm_atomic_helper_dirtyfb,
 };
 
 static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
@@ -1085,16 +1033,6 @@ static int vmw_framebuffer_bo_dirty(struct drm_framebuffer *framebuffer,
 	}
 
 	switch (dev_priv->active_display_unit) {
-	case vmw_du_screen_target:
-		ret = vmw_kms_stdu_dma(dev_priv, NULL, &vfbd->base, NULL,
-				       clips, NULL, num_clips, increment,
-				       true, true, NULL);
-		break;
-	case vmw_du_screen_object:
-		ret = vmw_kms_sou_do_bo_dirty(dev_priv, &vfbd->base,
-					      clips, NULL, num_clips,
-					      increment, true, NULL, NULL);
-		break;
 	case vmw_du_legacy:
 		ret = vmw_kms_ldu_do_bo_dirty(dev_priv, &vfbd->base, 0, 0,
 					      clips, num_clips, increment);
@@ -1113,9 +1051,25 @@ static int vmw_framebuffer_bo_dirty(struct drm_framebuffer *framebuffer,
 	return ret;
 }
 
+static int vmw_framebuffer_bo_dirty_ext(struct drm_framebuffer *framebuffer,
+					struct drm_file *file_priv,
+					unsigned int flags, unsigned int color,
+					struct drm_clip_rect *clips,
+					unsigned int num_clips)
+{
+	struct vmw_private *dev_priv = vmw_priv(framebuffer->dev);
+
+	if (dev_priv->active_display_unit == vmw_du_legacy)
+		return vmw_framebuffer_bo_dirty(framebuffer, file_priv, flags,
+						color, clips, num_clips);
+
+	return drm_atomic_helper_dirtyfb(framebuffer, file_priv, flags, color,
+					 clips, num_clips);
+}
+
 static const struct drm_framebuffer_funcs vmw_framebuffer_bo_funcs = {
 	.destroy = vmw_framebuffer_bo_destroy,
-	.dirty = vmw_framebuffer_bo_dirty,
+	.dirty = vmw_framebuffer_bo_dirty_ext,
 };
 
 /**
