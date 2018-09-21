@@ -70,7 +70,7 @@ struct rq *__task_rq_lock(struct task_struct *p, struct rq_flags *rf)
 
 	lockdep_assert_held(&p->pi_lock);
 
-	while (1) {
+	for (;;) {
 		rq = task_rq(p);
 		raw_spin_lock(&rq->lock);
 		if (likely(rq == task_rq(p) && !task_on_rq_migrating(p))) {
@@ -93,7 +93,7 @@ struct rq *task_rq_lock(struct task_struct *p, struct rq_flags *rf)
 {
 	struct rq *rq;
 
-	while (1) {
+	for (;;) {
 		raw_spin_lock_irqsave(&p->pi_lock, rf->flags);
 		rq = task_rq(p);
 		raw_spin_lock(&rq->lock);
@@ -617,12 +617,8 @@ bool sched_can_stop_tick(struct rq *rq)
 	 * If there are more than one RR tasks, we need the tick to effect the
 	 * actual RR behaviour.
 	 */
-	if (rq->rt.rr_nr_running) {
-		if (rq->rt.rr_nr_running == 1)
-			return true;
-		else
-			return false;
-	}
+	if (rq->rt.rr_nr_running)
+		return rq->rt.rr_nr_running == 1;
 
 	/*
 	 * If there's no RR tasks, but FIFO tasks, we can skip the tick, no
