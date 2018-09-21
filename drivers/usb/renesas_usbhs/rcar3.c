@@ -77,7 +77,8 @@ static int usbhs_rcar3_power_and_pll_ctrl(struct platform_device *pdev,
 
 	if (enable) {
 		usbhs_write32(priv, UGCTRL, 0);	/* release PLLRESET */
-		usbhs_rcar3_set_ugctrl2(priv, UGCTRL2_USB0SEL_HSUSB);
+		usbhs_rcar3_set_ugctrl2(priv,
+					UGCTRL2_USB0SEL_OTG | UGCTRL2_VBUSSEL);
 
 		usbhs_bset(priv, LPSTS, LPSTS_SUSPM, LPSTS_SUSPM);
 		do {
