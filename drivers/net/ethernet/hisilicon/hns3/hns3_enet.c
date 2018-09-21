@@ -1807,7 +1807,7 @@ static int hns3_map_buffer(struct hns3_enet_ring *ring, struct hns3_desc_cb *cb)
 	cb->dma = dma_map_page(ring_to_dev(ring), cb->priv, 0,
 			       cb->length, ring_to_dma_dir(ring));
 
-	if (dma_mapping_error(ring_to_dev(ring), cb->dma))
+	if (unlikely(dma_mapping_error(ring_to_dev(ring), cb->dma)))
 		return -EIO;
 
 	return 0;
