@@ -1044,6 +1044,12 @@ int ath10k_hw_diag_fast_download(struct ath10k *ar,
 	left = length - sizeof(*hdr);
 
 	while (left > 0) {
+		if (left < sizeof(*metadata)) {
+			ath10k_warn(ar, "firmware segment is truncated: %d\n",
+				    left);
+			ret = -EINVAL;
+			break;
+		}
 		base_addr = __le32_to_cpu(metadata->addr);
 		base_len = __le32_to_cpu(metadata->length);
 		buf = metadata->data;
