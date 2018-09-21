@@ -131,16 +131,14 @@ static void exynos_drm_plane_reset(struct drm_plane *plane)
 
 	if (plane->state) {
 		exynos_state = to_exynos_plane_state(plane->state);
-		if (exynos_state->base.fb)
-			drm_framebuffer_put(exynos_state->base.fb);
+		__drm_atomic_helper_plane_destroy_state(plane->state);
 		kfree(exynos_state);
 		plane->state = NULL;
 	}
 
 	exynos_state = kzalloc(sizeof(*exynos_state), GFP_KERNEL);
 	if (exynos_state) {
-		plane->state = &exynos_state->base;
-		plane->state->plane = plane;
+		__drm_atomic_helper_plane_reset(plane, &exynos_state->base);
 		plane->state->zpos = exynos_plane->config->zpos;
 	}
 }
