@@ -311,6 +311,10 @@ static int hpwdt_init_one(struct pci_dev *dev,
 	if (watchdog_init_timeout(&hpwdt_dev, soft_margin, NULL))
 		dev_warn(&dev->dev, "Invalid soft_margin: %d.\n", soft_margin);
 
+	if (pretimeout && hpwdt_dev.timeout <= PRETIMEOUT_SEC) {
+		dev_warn(&dev->dev, "timeout <= pretimeout. Setting pretimeout to zero\n");
+		pretimeout = 0;
+	}
 	hpwdt_dev.pretimeout = pretimeout ? PRETIMEOUT_SEC : 0;
 
 	hpwdt_dev.parent = &dev->dev;
