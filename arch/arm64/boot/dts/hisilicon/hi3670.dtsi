@@ -7,6 +7,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/hi3670-clock.h>
 
 / {
 	compatible = "hisilicon,hi3670";
@@ -143,6 +144,48 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		crg_ctrl: crg_ctrl@fff35000 {
+			compatible = "hisilicon,hi3670-crgctrl", "syscon";
+			reg = <0x0 0xfff35000 0x0 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		pctrl: pctrl@e8a09000 {
+			compatible = "hisilicon,hi3670-pctrl", "syscon";
+			reg = <0x0 0xe8a09000 0x0 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		pmuctrl: crg_ctrl@fff34000 {
+			compatible = "hisilicon,hi3670-pmuctrl", "syscon";
+			reg = <0x0 0xfff34000 0x0 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		sctrl: sctrl@fff0a000 {
+			compatible = "hisilicon,hi3670-sctrl", "syscon";
+			reg = <0x0 0xfff0a000 0x0 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		iomcu: iomcu@ffd7e000 {
+			compatible = "hisilicon,hi3670-iomcu", "syscon";
+			reg = <0x0 0xffd7e000 0x0 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		media1_crg: media1_crgctrl@e87ff000 {
+			compatible = "hisilicon,hi3670-media1-crg", "syscon";
+			reg = <0x0 0xe87ff000 0x0 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		media2_crg: media2_crgctrl@e8900000 {
+			compatible = "hisilicon,hi3670-media2-crg","syscon";
+			reg = <0x0 0xe8900000 0x0 0x1000>;
+			#clock-cells = <1>;
+		};
 
 		uart6_clk: clk_19_2M {
 			compatible = "fixed-clock";
