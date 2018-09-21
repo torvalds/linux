@@ -91,7 +91,8 @@ int cpupri_find(struct cpupri *cp, struct task_struct *p,
 		smp_rmb();
 
 		/* Need to do the rmb for every iteration */
-		if (skip || cpumask_any_and(&p->cpus_allowed, vec->mask) >= nr_cpu_ids)
+		if (skip || cpumask_any_and(&p->cpus_allowed, vec->mask)
+				>= nr_cpu_ids)
 			continue;
 
 		if (lowest_mask) {
@@ -215,7 +216,7 @@ int cpupri_init(struct cpupri *cp)
 	return 0;
 
 cleanup:
-	while(--i >= 0)
+	while (--i >= 0)
 		free_cpumask_var(cp->pri_to_cpu[i].mask);
 	return -ENOMEM;
 }

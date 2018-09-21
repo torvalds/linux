@@ -87,8 +87,9 @@ static inline struct task_struct *__mutex_trylock_or_owner(struct mutex *lock)
 		unsigned long task = owner & ~MUTEX_FLAGS;
 
 		if (task) {
-			if (likely(task != curr) || likely(!(flags & MUTEX_FLAG_PICKUP)))
-				break
+			if (likely(task != curr) ||
+					likely(!(flags & MUTEX_FLAG_PICKUP)))
+				break;
 
 			flags &= ~MUTEX_FLAG_PICKUP;
 		} else {
@@ -145,7 +146,7 @@ static __always_inline bool __mutex_unlock_fast(struct mutex *lock)
 {
 	unsigned long curr = (unsigned long)current;
 
-	return (bool)(atomic_long_cmpxchg_release(&lock->owner, curr, 0UL) == curr);
+	return atomic_long_cmpxchg_release(&lock->owner, curr, 0UL) == curr;
 }
 #endif
 

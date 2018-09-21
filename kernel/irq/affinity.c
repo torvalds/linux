@@ -14,7 +14,7 @@ static void irq_spread_init_one(struct cpumask *irqmsk, struct cpumask *nmsk,
 	const struct cpumask *siblmsk;
 	int cpu, sibl;
 
-	while ( cpus_per_vec > 0 ) {
+	while (cpus_per_vec > 0) {
 		cpu = cpumask_first(nmsk);
 
 		/* Should not happen, but I'm too lazy to think about it */
