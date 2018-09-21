@@ -1007,7 +1007,7 @@ static void tcp_internal_pacing(struct sock *sk, const struct sk_buff *skb)
 	len_ns = (u64)skb->len * NSEC_PER_SEC;
 	do_div(len_ns, rate);
 	hrtimer_start(&tcp_sk(sk)->pacing_timer,
-		      ktime_add_ns(ktime_get(), len_ns),
+		      ktime_add_ns(ktime_get_tai_ns(), len_ns),
 		      HRTIMER_MODE_ABS_PINNED_SOFT);
 	sock_hold(sk);
 }
