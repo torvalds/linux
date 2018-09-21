@@ -44,6 +44,7 @@ static void construct(struct dc_context *ctx, struct dc_plane_state *plane_state
 
 	plane_state->in_transfer_func = dc_create_transfer_func();
 	plane_state->in_transfer_func->type = TF_TYPE_BYPASS;
+	plane_state->in_transfer_func->ctx = ctx;
 }
 
 static void destruct(struct dc_plane_state *plane_state)
