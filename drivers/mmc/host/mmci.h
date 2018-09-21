@@ -333,8 +333,6 @@ struct mmci_host {
 	bool			dma_in_progress;
 
 #define dma_inprogress(host)	((host)->dma_in_progress)
-#else
-#define dma_inprogress(host)	(0)
 #endif
 };
 
