@@ -53,7 +53,6 @@ int pfn_is_nosave(unsigned long pfn)
 	return pfn >= nosave_begin_pfn && pfn < nosave_end_pfn;
 }
 
-#ifdef CONFIG_X86_64
 
 #define MD5_DIGEST_SIZE 16
 
@@ -140,7 +139,11 @@ static bool hibernation_e820_mismatch(void *buf)
 }
 #endif
 
+#ifdef CONFIG_X86_64
 #define RESTORE_MAGIC	0x23456789ABCDEF01UL
+#else
+#define RESTORE_MAGIC	0x12345678UL
+#endif
 
 /**
  *	arch_hibernation_header_save - populate the architecture specific part
@@ -154,6 +157,7 @@ int arch_hibernation_header_save(void *addr, unsigned int max_size)
 	if (max_size < sizeof(struct restore_data_record))
 		return -EOVERFLOW;
 	rdr->magic = RESTORE_MAGIC;
+#ifdef CONFIG_X86_64
 	rdr->jump_address = (unsigned long)restore_registers;
 	rdr->jump_address_phys = __pa_symbol(restore_registers);
 
@@ -175,6 +179,7 @@ int arch_hibernation_header_save(void *addr, unsigned int max_size)
 	 * have any of the PCID bits set.
 	 */
 	rdr->cr3 = restore_cr3 & ~CR3_PCID_MASK;
+#endif
 
 	return hibernation_e820_save(rdr->e820_digest);
 }
@@ -193,9 +198,11 @@ int arch_hibernation_header_restore(void *addr)
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_X86_64
 	restore_jump_address = rdr->jump_address;
 	jump_address_phys = rdr->jump_address_phys;
 	restore_cr3 = rdr->cr3;
+#endif
 
 	if (hibernation_e820_mismatch(rdr->e820_digest)) {
 		pr_crit("Hibernate inconsistent memory map detected!\n");
@@ -205,6 +212,7 @@ int arch_hibernation_header_restore(void *addr)
 	return 0;
 }
 
+#ifdef CONFIG_X86_64
 int relocate_restore_code(void)
 {
 	pgd_t *pgd;
