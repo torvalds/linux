@@ -129,10 +129,6 @@ int drm_mode_addfb(struct drm_device *dev, struct drm_mode_fb_cmd *or,
 	r.pitches[0] = or->pitch;
 	r.handles[0] = or->handle;
 
-	if (dev->mode_config.quirk_addfb_prefer_xbgr_30bpp &&
-	    r.pixel_format == DRM_FORMAT_XRGB2101010)
-		r.pixel_format = DRM_FORMAT_XBGR2101010;
-
 	ret = drm_mode_addfb2(dev, &r, file_priv);
 	if (ret)
 		return ret;

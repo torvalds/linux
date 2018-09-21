@@ -121,6 +121,11 @@ uint32_t drm_driver_legacy_fb_format(struct drm_device *dev,
 		if (fmt == DRM_FORMAT_XRGB1555)
 			fmt = DRM_FORMAT_HOST_XRGB1555;
 	}
+
+	if (dev->mode_config.quirk_addfb_prefer_xbgr_30bpp &&
+	    fmt == DRM_FORMAT_XRGB2101010)
+		fmt = DRM_FORMAT_XBGR2101010;
+
 	return fmt;
 }
 EXPORT_SYMBOL(drm_driver_legacy_fb_format);
