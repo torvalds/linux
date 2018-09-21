@@ -70,7 +70,7 @@ struct rq *__task_rq_lock(struct task_struct *p, struct rq_flags *rf)
 
 	lockdep_assert_held(&p->pi_lock);
 
-	for (;;) {
+	while (1) {
 		rq = task_rq(p);
 		raw_spin_lock(&rq->lock);
 		if (likely(rq == task_rq(p) && !task_on_rq_migrating(p))) {
@@ -93,7 +93,7 @@ struct rq *task_rq_lock(struct task_struct *p, struct rq_flags *rf)
 {
 	struct rq *rq;
 
-	for (;;) {
+	while (1) {
 		raw_spin_lock_irqsave(&p->pi_lock, rf->flags);
 		rq = task_rq(p);
 		raw_spin_lock(&rq->lock);
