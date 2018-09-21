@@ -545,55 +545,67 @@ static int hns3_set_pauseparam(struct net_device *netdev,
 	return -EOPNOTSUPP;
 }
 
+static void hns3_get_ksettings(struct hnae3_handle *h,
+			       struct ethtool_link_ksettings *cmd)
+{
+	const struct hnae3_ae_ops *ops = h->ae_algo->ops;
+
+	/* 1.auto_neg & speed & duplex from cmd */
+	if (ops->get_ksettings_an_result)
+		ops->get_ksettings_an_result(h,
+					     &cmd->base.autoneg,
+					     &cmd->base.speed,
+					     &cmd->base.duplex);
+
+	/* 2.get link mode*/
+	if (ops->get_link_mode)
+		ops->get_link_mode(h,
+				   cmd->link_modes.supported,
+				   cmd->link_modes.advertising);
+
+	/* 3.mdix_ctrl&mdix get from phy reg */
+	if (ops->get_mdix_mode)
+		ops->get_mdix_mode(h, &cmd->base.eth_tp_mdix_ctrl,
+				   &cmd->base.eth_tp_mdix);
+}
+
 static int hns3_get_link_ksettings(struct net_device *netdev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	const struct hnae3_ae_ops *ops;
+	u8 media_type;
 	u8 link_stat;
 
 	if (!h->ae_algo || !h->ae_algo->ops)
 		return -EOPNOTSUPP;
 
 	ops = h->ae_algo->ops;
-	if (ops->get_port_type)
-		ops->get_port_type(h, &cmd->base.port);
+	if (ops->get_media_type)
+		ops->get_media_type(h, &media_type);
 	else
 		return -EOPNOTSUPP;
 
-	switch (cmd->base.port) {
-	case PORT_FIBRE:
-		/* 1.auto_neg & speed & duplex from cmd */
-		if (ops->get_ksettings_an_result)
-			ops->get_ksettings_an_result(h,
-						     &cmd->base.autoneg,
-						     &cmd->base.speed,
-						     &cmd->base.duplex);
-		else
-			return -EOPNOTSUPP;
-
-		/* 2.get link mode*/
-		if (ops->get_link_mode)
-			ops->get_link_mode(h,
-					   cmd->link_modes.supported,
-					   cmd->link_modes.advertising);
-
-		/* 3.mdix_ctrl&mdix get from phy reg */
-		if (ops->get_mdix_mode)
-			ops->get_mdix_mode(h, &cmd->base.eth_tp_mdix_ctrl,
-					   &cmd->base.eth_tp_mdix);
-
+	switch (media_type) {
+	case HNAE3_MEDIA_TYPE_NONE:
+		cmd->base.port = PORT_NONE;
+		hns3_get_ksettings(h, cmd);
 		break;
-	case PORT_TP:
+	case HNAE3_MEDIA_TYPE_FIBER:
+		cmd->base.port = PORT_FIBRE;
+		hns3_get_ksettings(h, cmd);
+		break;
+	case HNAE3_MEDIA_TYPE_COPPER:
 		if (!netdev->phydev)
 			return -EOPNOTSUPP;
 
+		cmd->base.port = PORT_TP;
 		phy_ethtool_ksettings_get(netdev->phydev, cmd);
 
 		break;
 	default:
-		netdev_warn(netdev,
-			    "Unknown port type, neither Fibre/Copper detected");
+
+		netdev_warn(netdev, "Unknown media type");
 		return 0;
 	}
 
