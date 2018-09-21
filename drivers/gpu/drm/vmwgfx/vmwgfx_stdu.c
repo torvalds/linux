@@ -1656,7 +1656,6 @@ static int vmw_stdu_plane_update_surface(struct vmw_private *dev_priv,
 
 /**
  * vmw_stdu_primary_plane_atomic_update - formally switches STDU to new plane
- *
  * @plane: display plane
  * @old_state: Only used to get crtc info
  *
@@ -1677,10 +1676,7 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 	struct vmw_private *dev_priv;
 	int ret;
 
-	/*
-	 * We cannot really fail this function, so if we do, then output an
-	 * error and maintain consistent atomic state.
-	 */
+	/* If case of device error, maintain consistent atomic state */
 	if (crtc && plane->state->fb) {
 		struct vmw_framebuffer *vfb =
 			vmw_framebuffer_to_vfb(plane->state->fb);
@@ -1709,12 +1705,7 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 		stdu = vmw_crtc_to_stdu(crtc);
 		dev_priv = vmw_priv(crtc->dev);
 
-		/*
-		 * When disabling a plane, CRTC and FB should always be NULL
-		 * together, otherwise it's an error.
-		 * Here primary plane is being disable so blank the screen
-		 * target display unit, if not already done.
-		 */
+		/* Blank STDU when fb and crtc are NULL */
 		if (!stdu->defined)
 			return;
 
@@ -1729,11 +1720,8 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
+	/* In case of error, vblank event is send in vmw_du_crtc_atomic_flush */
 	event = crtc->state->event;
-	/*
-	 * In case of failure and other cases, vblank event will be sent in
-	 * vmw_du_crtc_atomic_flush.
-	 */
 	if (event && fence) {
 		struct drm_file *file_priv = event->base.file_priv;
 
