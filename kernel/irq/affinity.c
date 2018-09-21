@@ -48,8 +48,8 @@ static cpumask_var_t *alloc_node_to_cpumask(void)
 	if (!masks)
 		return NULL;
 
-	for (node = nr_node_ids; node;) {
-		if (!zalloc_cpumask_var(&masks[--node], GFP_KERNEL))
+	for (node = nr_node_ids; --node;) {
+		if (!zalloc_cpumask_var(&masks[node], GFP_KERNEL))
 			goto out_unwind;
 	}
 
@@ -66,8 +66,8 @@ static void free_node_to_cpumask(cpumask_var_t *masks)
 {
 	int node = nr_node_ids;
 
-	while (node)
-		free_cpumask_var(masks[--node]);
+	while (--node)
+		free_cpumask_var(masks[node]);
 	kfree(masks);
 }
 
