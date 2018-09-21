@@ -257,7 +257,6 @@ struct usbhs_priv {
 	struct platform_device *pdev;
 
 	struct extcon_dev *edev;
-	struct notifier_block nb;
 
 	spinlock_t		lock;
 
