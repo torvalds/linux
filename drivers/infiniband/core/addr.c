@@ -513,7 +513,7 @@ static int rdma_set_src_addr_rcu(struct rdma_dev_addr *dev_addr,
 		 * loopback IP address.
 		 */
 		ndev = rdma_find_ndev_for_src_ip_rcu(dev_net(ndev), dst_in);
-		if (!ndev)
+		if (IS_ERR(ndev))
 			return -ENODEV;
 	}
 
