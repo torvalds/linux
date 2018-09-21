@@ -106,7 +106,6 @@ struct fq_sched_data {
 
 	u64		stat_gc_flows;
 	u64		stat_internal_packets;
-	u64		stat_tcp_retrans;
 	u64		stat_throttled;
 	u64		stat_flows_plimit;
 	u64		stat_pkts_too_long;
@@ -327,62 +326,17 @@ static struct sk_buff *fq_dequeue_head(struct Qdisc *sch, struct fq_flow *flow)
 	return skb;
 }
 
-/* We might add in the future detection of retransmits
- * For the time being, just return false
- */
-static bool skb_is_retransmit(struct sk_buff *skb)
-{
-	return false;
-}
-
-/* add skb to flow queue
- * flow queue is a linked list, kind of FIFO, except for TCP retransmits
- * We special case tcp retransmits to be transmitted before other packets.
- * We rely on fact that TCP retransmits are unlikely, so we do not waste
- * a separate queue or a pointer.
- * head->  [retrans pkt 1]
- *         [retrans pkt 2]
- *         [ normal pkt 1]
- *         [ normal pkt 2]
- *         [ normal pkt 3]
- * tail->  [ normal pkt 4]
- */
 static void flow_queue_add(struct fq_flow *flow, struct sk_buff *skb)
 {
-	struct sk_buff *prev, *head = flow->head;
+	struct sk_buff *head = flow->head;
 
 	skb->next = NULL;
-	if (!head) {
+	if (!head)
 		flow->head = skb;
-		flow->tail = skb;
-		return;
-	}
-	if (likely(!skb_is_retransmit(skb))) {
+	else
 		flow->tail->next = skb;
-		flow->tail = skb;
-		return;
-	}
 
-	/* This skb is a tcp retransmit,
-	 * find the last retrans packet in the queue
-	 */
-	prev = NULL;
-	while (skb_is_retransmit(head)) {
-		prev = head;
-		head = head->next;
-		if (!head)
-			break;
-	}
-	if (!prev) { /* no rtx packet in queue, become the new head */
-		skb->next = flow->head;
-		flow->head = skb;
-	} else {
-		if (prev == flow->tail)
-			flow->tail = skb;
-		else
-			skb->next = prev->next;
-		prev->next = skb;
-	}
+	flow->tail = skb;
 }
 
 static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
@@ -401,8 +355,6 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	}
 
 	f->qlen++;
-	if (skb_is_retransmit(skb))
-		q->stat_tcp_retrans++;
 	qdisc_qstats_backlog_inc(sch, skb);
 	if (fq_flow_is_detached(f)) {
 		struct sock *sk = skb->sk;
@@ -874,7 +826,7 @@ static int fq_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 
 	st.gc_flows		  = q->stat_gc_flows;
 	st.highprio_packets	  = q->stat_internal_packets;
-	st.tcp_retrans		  = q->stat_tcp_retrans;
+	st.tcp_retrans		  = 0;
 	st.throttled		  = q->stat_throttled;
 	st.flows_plimit		  = q->stat_flows_plimit;
 	st.pkts_too_long	  = q->stat_pkts_too_long;
