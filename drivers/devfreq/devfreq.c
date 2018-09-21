@@ -713,8 +713,7 @@ err_init:
 	devfreq_remove_device(devfreq);
 	devfreq = NULL;
 err_dev:
-	if (devfreq)
-		kfree(devfreq);
+	kfree(devfreq);
 err_out:
 	return ERR_PTR(err);
 }
