@@ -639,6 +639,7 @@ static const struct dev_pm_ops tegra_dpaux_pm_ops = {
 };
 
 static const struct of_device_id tegra_dpaux_of_match[] = {
+	{ .compatible = "nvidia,tegra194-dpaux", },
 	{ .compatible = "nvidia,tegra186-dpaux", },
 	{ .compatible = "nvidia,tegra210-dpaux", },
 	{ .compatible = "nvidia,tegra124-dpaux", },
