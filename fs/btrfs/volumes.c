@@ -3691,7 +3691,7 @@ static int alloc_profile_is_valid(u64 flags, int extended)
 		return !extended; /* "0" is valid for usual profiles */
 
 	/* true if exactly one bit set */
-	return (flags & (flags - 1)) == 0;
+	return is_power_of_2(flags);
 }
 
 static inline int balance_need_close(struct btrfs_fs_info *fs_info)
