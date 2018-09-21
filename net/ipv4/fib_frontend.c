@@ -318,9 +318,9 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb)
 bool fib_info_nh_uses_dev(struct fib_info *fi, const struct net_device *dev)
 {
 	bool dev_match = false;
+#ifdef CONFIG_IP_ROUTE_MULTIPATH
 	int ret;
 
-#ifdef CONFIG_IP_ROUTE_MULTIPATH
 	for (ret = 0; ret < fi->fib_nhs; ret++) {
 		struct fib_nh *nh = &fi->fib_nh[ret];
 
