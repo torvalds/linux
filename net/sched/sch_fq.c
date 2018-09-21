@@ -460,7 +460,7 @@ static void fq_check_throttled(struct fq_sched_data *q, u64 now)
 static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
-	u64 now = ktime_get_ns();
+	u64 now = ktime_get_tai_ns();
 	struct fq_flow_head *head;
 	struct sk_buff *skb;
 	struct fq_flow *f;
@@ -823,7 +823,7 @@ static int fq_init(struct Qdisc *sch, struct nlattr *opt,
 	q->fq_trees_log		= ilog2(1024);
 	q->orphan_mask		= 1024 - 1;
 	q->low_rate_threshold	= 550000 / 8;
-	qdisc_watchdog_init(&q->watchdog, sch);
+	qdisc_watchdog_init_clockid(&q->watchdog, sch, CLOCK_TAI);
 
 	if (opt)
 		err = fq_change(sch, opt, extack);
@@ -878,7 +878,7 @@ static int fq_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 	st.flows_plimit		  = q->stat_flows_plimit;
 	st.pkts_too_long	  = q->stat_pkts_too_long;
 	st.allocation_errors	  = q->stat_allocation_errors;
-	st.time_next_delayed_flow = q->time_next_delayed_flow - ktime_get_ns();
+	st.time_next_delayed_flow = q->time_next_delayed_flow - ktime_get_tai_ns();
 	st.flows		  = q->flows;
 	st.inactive_flows	  = q->inactive_flows;
 	st.throttled_flows	  = q->throttled_flows;
