@@ -66,6 +66,7 @@ enum hclgevf_states {
 #define HCLGEVF_MPF_ENBALE 1
 
 struct hclgevf_mac {
+	u8 media_type;
 	u8 mac_addr[ETH_ALEN];
 	int link;
 	u8 duplex;

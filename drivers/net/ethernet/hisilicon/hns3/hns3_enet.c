@@ -1807,7 +1807,7 @@ static int hns3_map_buffer(struct hns3_enet_ring *ring, struct hns3_desc_cb *cb)
 	cb->dma = dma_map_page(ring_to_dev(ring), cb->priv, 0,
 			       cb->length, ring_to_dma_dir(ring));
 
-	if (dma_mapping_error(ring_to_dev(ring), cb->dma))
+	if (unlikely(dma_mapping_error(ring_to_dev(ring), cb->dma)))
 		return -EIO;
 
 	return 0;
@@ -1973,6 +1973,7 @@ static int is_valid_clean_head(struct hns3_enet_ring *ring, int h)
 void hns3_clean_tx_ring(struct hns3_enet_ring *ring)
 {
 	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct netdev_queue *dev_queue;
 	int bytes, pkts;
 	int head;
@@ -2018,7 +2019,8 @@ void hns3_clean_tx_ring(struct hns3_enet_ring *ring)
 		 * sees the new next_to_clean.
 		 */
 		smp_mb();
-		if (netif_tx_queue_stopped(dev_queue)) {
+		if (netif_tx_queue_stopped(dev_queue) &&
+		    !test_bit(HNS3_NIC_STATE_DOWN, &priv->state)) {
 			netif_tx_wake_queue(dev_queue);
 			ring->stats.restart_queue++;
 		}
@@ -2147,7 +2149,6 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 		     hnae3_get_bit(l234info, HNS3_RXD_L4E_B) ||
 		     hnae3_get_bit(l234info, HNS3_RXD_OL3E_B) ||
 		     hnae3_get_bit(l234info, HNS3_RXD_OL4E_B))) {
-		netdev_err(netdev, "L3/L4 error pkt\n");
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.l3l4_csum_err++;
 		u64_stats_update_end(&ring->syncp);
@@ -2175,6 +2176,8 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 		     l4_type == HNS3_L4_TYPE_TCP ||
 		     l4_type == HNS3_L4_TYPE_SCTP))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		break;
+	default:
 		break;
 	}
 }
@@ -2324,8 +2327,6 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	}
 
 	if (unlikely(!hnae3_get_bit(bd_base_info, HNS3_RXD_VLD_B))) {
-		netdev_err(netdev, "no valid bd,%016llx,%016llx\n",
-			   ((u64 *)desc)[0], ((u64 *)desc)[1]);
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.non_vld_descs++;
 		u64_stats_update_end(&ring->syncp);
@@ -2336,7 +2337,6 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 
 	if (unlikely((!desc->rx.pkt_len) ||
 		     hnae3_get_bit(l234info, HNS3_RXD_TRUNCAT_B))) {
-		netdev_err(netdev, "truncated pkt\n");
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.err_pkt_len++;
 		u64_stats_update_end(&ring->syncp);
@@ -2346,7 +2346,6 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	}
 
 	if (unlikely(hnae3_get_bit(l234info, HNS3_RXD_L2E_B))) {
-		netdev_err(netdev, "L2 error pkt\n");
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.l2_err++;
 		u64_stats_update_end(&ring->syncp);

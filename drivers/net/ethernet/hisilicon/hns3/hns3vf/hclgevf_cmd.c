@@ -134,7 +134,7 @@ static int hclgevf_init_cmd_queue(struct hclgevf_dev *hdev,
 
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_HEAD_REG, 0);
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_TAIL_REG, 0);
-		break;
+		return 0;
 	case HCLGEVF_TYPE_CRQ:
 		reg_val = (u32)ring->desc_dma_addr;
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_BASEADDR_L_REG, reg_val);
@@ -147,10 +147,10 @@ static int hclgevf_init_cmd_queue(struct hclgevf_dev *hdev,
 
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_HEAD_REG, 0);
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_TAIL_REG, 0);
-		break;
+		return 0;
+	default:
+		return -EINVAL;
 	}
-
-	return 0;
 }
 
 void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,

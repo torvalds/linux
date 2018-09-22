@@ -172,7 +172,7 @@ static int hclge_pfc_pause_en_cfg(struct hclge_dev *hdev, u8 tx_rx_bitmap,
 				  u8 pfc_bitmap)
 {
 	struct hclge_desc desc;
-	struct hclge_pfc_en_cmd *pfc = (struct hclge_pfc_en_cmd *)&desc.data;
+	struct hclge_pfc_en_cmd *pfc = (struct hclge_pfc_en_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_PFC_PAUSE_EN, false);
 
@@ -188,7 +188,7 @@ static int hclge_pause_param_cfg(struct hclge_dev *hdev, const u8 *addr,
 	struct hclge_cfg_pause_param_cmd *pause_param;
 	struct hclge_desc desc;
 
-	pause_param = (struct hclge_cfg_pause_param_cmd *)&desc.data;
+	pause_param = (struct hclge_cfg_pause_param_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_MAC_PARA, false);
 
@@ -207,7 +207,7 @@ int hclge_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr)
 	u8 trans_gap;
 	int ret;
 
-	pause_param = (struct hclge_cfg_pause_param_cmd *)&desc.data;
+	pause_param = (struct hclge_cfg_pause_param_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_MAC_PARA, true);
 

@@ -22,13 +22,13 @@ struct hns3_stats {
 static const struct hns3_stats hns3_txq_stats[] = {
 	/* Tx per-queue statistics */
 	HNS3_TQP_STAT("io_err_cnt", io_err_cnt),
-	HNS3_TQP_STAT("tx_dropped", sw_err_cnt),
+	HNS3_TQP_STAT("dropped", sw_err_cnt),
 	HNS3_TQP_STAT("seg_pkt_cnt", seg_pkt_cnt),
 	HNS3_TQP_STAT("packets", tx_pkts),
 	HNS3_TQP_STAT("bytes", tx_bytes),
 	HNS3_TQP_STAT("errors", tx_err_cnt),
-	HNS3_TQP_STAT("tx_wake", restart_queue),
-	HNS3_TQP_STAT("tx_busy", tx_busy),
+	HNS3_TQP_STAT("wake", restart_queue),
+	HNS3_TQP_STAT("busy", tx_busy),
 };
 
 #define HNS3_TXQ_STATS_COUNT ARRAY_SIZE(hns3_txq_stats)
@@ -36,7 +36,7 @@ static const struct hns3_stats hns3_txq_stats[] = {
 static const struct hns3_stats hns3_rxq_stats[] = {
 	/* Rx per-queue statistics */
 	HNS3_TQP_STAT("io_err_cnt", io_err_cnt),
-	HNS3_TQP_STAT("rx_dropped", sw_err_cnt),
+	HNS3_TQP_STAT("dropped", sw_err_cnt),
 	HNS3_TQP_STAT("seg_pkt_cnt", seg_pkt_cnt),
 	HNS3_TQP_STAT("packets", rx_pkts),
 	HNS3_TQP_STAT("bytes", rx_bytes),
@@ -351,9 +351,10 @@ static int hns3_get_sset_count(struct net_device *netdev, int stringset)
 
 	case ETH_SS_TEST:
 		return ops->get_sset_count(h, stringset);
-	}
 
-	return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void *hns3_update_strings(u8 *data, const struct hns3_stats *stats,
@@ -369,7 +370,7 @@ static void *hns3_update_strings(u8 *data, const struct hns3_stats *stats,
 			data[ETH_GSTRING_LEN - 1] = '\0';
 
 			/* first, prepend the prefix string */
-			n1 = snprintf(data, MAX_PREFIX_SIZE, "%s#%d_",
+			n1 = snprintf(data, MAX_PREFIX_SIZE, "%s%d_",
 				      prefix, i);
 			n1 = min_t(uint, n1, MAX_PREFIX_SIZE - 1);
 			size_left = (ETH_GSTRING_LEN - 1) - n1;
@@ -416,6 +417,8 @@ static void hns3_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 		break;
 	case ETH_SS_TEST:
 		ops->get_strings(h, stringset, data);
+		break;
+	default:
 		break;
 	}
 }
@@ -542,55 +545,67 @@ static int hns3_set_pauseparam(struct net_device *netdev,
 	return -EOPNOTSUPP;
 }
 
+static void hns3_get_ksettings(struct hnae3_handle *h,
+			       struct ethtool_link_ksettings *cmd)
+{
+	const struct hnae3_ae_ops *ops = h->ae_algo->ops;
+
+	/* 1.auto_neg & speed & duplex from cmd */
+	if (ops->get_ksettings_an_result)
+		ops->get_ksettings_an_result(h,
+					     &cmd->base.autoneg,
+					     &cmd->base.speed,
+					     &cmd->base.duplex);
+
+	/* 2.get link mode*/
+	if (ops->get_link_mode)
+		ops->get_link_mode(h,
+				   cmd->link_modes.supported,
+				   cmd->link_modes.advertising);
+
+	/* 3.mdix_ctrl&mdix get from phy reg */
+	if (ops->get_mdix_mode)
+		ops->get_mdix_mode(h, &cmd->base.eth_tp_mdix_ctrl,
+				   &cmd->base.eth_tp_mdix);
+}
+
 static int hns3_get_link_ksettings(struct net_device *netdev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	const struct hnae3_ae_ops *ops;
+	u8 media_type;
 	u8 link_stat;
 
 	if (!h->ae_algo || !h->ae_algo->ops)
 		return -EOPNOTSUPP;
 
 	ops = h->ae_algo->ops;
-	if (ops->get_port_type)
-		ops->get_port_type(h, &cmd->base.port);
+	if (ops->get_media_type)
+		ops->get_media_type(h, &media_type);
 	else
 		return -EOPNOTSUPP;
 
-	switch (cmd->base.port) {
-	case PORT_FIBRE:
-		/* 1.auto_neg & speed & duplex from cmd */
-		if (ops->get_ksettings_an_result)
-			ops->get_ksettings_an_result(h,
-						     &cmd->base.autoneg,
-						     &cmd->base.speed,
-						     &cmd->base.duplex);
-		else
-			return -EOPNOTSUPP;
-
-		/* 2.get link mode*/
-		if (ops->get_link_mode)
-			ops->get_link_mode(h,
-					   cmd->link_modes.supported,
-					   cmd->link_modes.advertising);
-
-		/* 3.mdix_ctrl&mdix get from phy reg */
-		if (ops->get_mdix_mode)
-			ops->get_mdix_mode(h, &cmd->base.eth_tp_mdix_ctrl,
-					   &cmd->base.eth_tp_mdix);
-
+	switch (media_type) {
+	case HNAE3_MEDIA_TYPE_NONE:
+		cmd->base.port = PORT_NONE;
+		hns3_get_ksettings(h, cmd);
 		break;
-	case PORT_TP:
+	case HNAE3_MEDIA_TYPE_FIBER:
+		cmd->base.port = PORT_FIBRE;
+		hns3_get_ksettings(h, cmd);
+		break;
+	case HNAE3_MEDIA_TYPE_COPPER:
 		if (!netdev->phydev)
 			return -EOPNOTSUPP;
 
+		cmd->base.port = PORT_TP;
 		phy_ethtool_ksettings_get(netdev->phydev, cmd);
 
 		break;
 	default:
-		netdev_warn(netdev,
-			    "Unknown port type, neither Fibre/Copper detected");
+
+		netdev_warn(netdev, "Unknown media type");
 		return 0;
 	}
 

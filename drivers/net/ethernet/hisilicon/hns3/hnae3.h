@@ -107,6 +107,7 @@ enum hnae3_media_type {
 	HNAE3_MEDIA_TYPE_FIBER,
 	HNAE3_MEDIA_TYPE_COPPER,
 	HNAE3_MEDIA_TYPE_BACKPLANE,
+	HNAE3_MEDIA_TYPE_NONE,
 };
 
 enum hnae3_reset_notify_type {
@@ -410,7 +411,6 @@ struct hnae3_ae_ops {
 	void (*get_link_mode)(struct hnae3_handle *handle,
 			      unsigned long *supported,
 			      unsigned long *advertising);
-	void (*get_port_type)(struct hnae3_handle *handle, u8 *port_type);
 };
 
 struct hnae3_dcb_ops {
