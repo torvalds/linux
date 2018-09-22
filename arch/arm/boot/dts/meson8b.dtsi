@@ -223,6 +223,21 @@
 			};
 		};
 
+		eth_rmii_pins: eth-rmii {
+			mux {
+				groups = "eth_tx_en",
+					 "eth_txd1_0",
+					 "eth_txd0_0",
+					 "eth_rx_clk",
+					 "eth_rx_dv",
+					 "eth_rxd1",
+					 "eth_rxd0",
+					 "eth_mdio_en",
+					 "eth_mdc";
+				function = "ethernet";
+			};
+		};
+
 		i2c_a_pins: i2c-a {
 			mux {
 				groups = "i2c_sda_a", "i2c_sck_a";
