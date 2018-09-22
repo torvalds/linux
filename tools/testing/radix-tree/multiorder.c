@@ -39,21 +39,20 @@ static int item_insert_order(struct xarray *xa, unsigned long index,
 	return xas_error(&xas);
 }
 
-void multiorder_iteration(void)
+void multiorder_iteration(struct xarray *xa)
 {
-	RADIX_TREE(tree, GFP_KERNEL);
-	struct radix_tree_iter iter;
-	void **slot;
+	XA_STATE(xas, xa, 0);
+	struct item *item;
 	int i, j, err;
-
-	printv(1, "Multiorder iteration test\n");
 
 #define NUM_ENTRIES 11
 	int index[NUM_ENTRIES] = {0, 2, 4, 8, 16, 32, 34, 36, 64, 72, 128};
 	int order[NUM_ENTRIES] = {1, 1, 2, 3,  4,  1,  0,  1,  3,  0, 7};
 
+	printv(1, "Multiorder iteration test\n");
+
 	for (i = 0; i < NUM_ENTRIES; i++) {
-		err = item_insert_order(&tree, index[i], order[i]);
+		err = item_insert_order(xa, index[i], order[i]);
 		assert(!err);
 	}
 
@@ -62,14 +61,14 @@ void multiorder_iteration(void)
 			if (j <= (index[i] | ((1 << order[i]) - 1)))
 				break;
 
-		radix_tree_for_each_slot(slot, &tree, &iter, j) {
-			int height = order[i] / RADIX_TREE_MAP_SHIFT;
-			int shift = height * RADIX_TREE_MAP_SHIFT;
+		xas_set(&xas, j);
+		xas_for_each(&xas, item, ULONG_MAX) {
+			int height = order[i] / XA_CHUNK_SHIFT;
+			int shift = height * XA_CHUNK_SHIFT;
 			unsigned long mask = (1UL << order[i]) - 1;
-			struct item *item = *slot;
 
-			assert((iter.index | mask) == (index[i] | mask));
-			assert(iter.shift == shift);
+			assert((xas.xa_index | mask) == (index[i] | mask));
+			assert(xas.xa_node->shift == shift);
 			assert(!radix_tree_is_internal_node(item));
 			assert((item->index | mask) == (index[i] | mask));
 			assert(item->order == order[i]);
@@ -77,17 +76,14 @@ void multiorder_iteration(void)
 		}
 	}
 
-	item_kill_tree(&tree);
+	item_kill_tree(xa);
 }
 
-void multiorder_tagged_iteration(void)
+void multiorder_tagged_iteration(struct xarray *xa)
 {
-	RADIX_TREE(tree, GFP_KERNEL);
-	struct radix_tree_iter iter;
-	void **slot;
+	XA_STATE(xas, xa, 0);
+	struct item *item;
 	int i, j;
-
-	printv(1, "Multiorder tagged iteration test\n");
 
 #define MT_NUM_ENTRIES 9
 	int index[MT_NUM_ENTRIES] = {0, 2, 4, 16, 32, 40, 64, 72, 128};
@@ -96,13 +92,15 @@ void multiorder_tagged_iteration(void)
 #define TAG_ENTRIES 7
 	int tag_index[TAG_ENTRIES] = {0, 4, 16, 40, 64, 72, 128};
 
-	for (i = 0; i < MT_NUM_ENTRIES; i++)
-		assert(!item_insert_order(&tree, index[i], order[i]));
+	printv(1, "Multiorder tagged iteration test\n");
 
-	assert(!radix_tree_tagged(&tree, 1));
+	for (i = 0; i < MT_NUM_ENTRIES; i++)
+		assert(!item_insert_order(xa, index[i], order[i]));
+
+	assert(!xa_marked(xa, XA_MARK_1));
 
 	for (i = 0; i < TAG_ENTRIES; i++)
-		assert(radix_tree_tag_set(&tree, tag_index[i], 1));
+		xa_set_mark(xa, tag_index[i], XA_MARK_1);
 
 	for (j = 0; j < 256; j++) {
 		int k;
@@ -114,22 +112,22 @@ void multiorder_tagged_iteration(void)
 				break;
 		}
 
-		radix_tree_for_each_tagged(slot, &tree, &iter, j, 1) {
+		xas_set(&xas, j);
+		xas_for_each_marked(&xas, item, ULONG_MAX, XA_MARK_1) {
 			unsigned long mask;
-			struct item *item = *slot;
 			for (k = i; index[k] < tag_index[i]; k++)
 				;
 			mask = (1UL << order[k]) - 1;
 
-			assert((iter.index | mask) == (tag_index[i] | mask));
-			assert(!radix_tree_is_internal_node(item));
+			assert((xas.xa_index | mask) == (tag_index[i] | mask));
+			assert(!xa_is_internal(item));
 			assert((item->index | mask) == (tag_index[i] | mask));
 			assert(item->order == order[k]);
 			i++;
 		}
 	}
 
-	assert(tag_tagged_items(&tree, 0, ~0UL, TAG_ENTRIES, XA_MARK_1,
+	assert(tag_tagged_items(xa, 0, ULONG_MAX, TAG_ENTRIES, XA_MARK_1,
 				XA_MARK_2) == TAG_ENTRIES);
 
 	for (j = 0; j < 256; j++) {
@@ -142,29 +140,31 @@ void multiorder_tagged_iteration(void)
 				break;
 		}
 
-		radix_tree_for_each_tagged(slot, &tree, &iter, j, 2) {
-			struct item *item = *slot;
+		xas_set(&xas, j);
+		xas_for_each_marked(&xas, item, ULONG_MAX, XA_MARK_2) {
 			for (k = i; index[k] < tag_index[i]; k++)
 				;
 			mask = (1 << order[k]) - 1;
 
-			assert((iter.index | mask) == (tag_index[i] | mask));
-			assert(!radix_tree_is_internal_node(item));
+			assert((xas.xa_index | mask) == (tag_index[i] | mask));
+			assert(!xa_is_internal(item));
 			assert((item->index | mask) == (tag_index[i] | mask));
 			assert(item->order == order[k]);
 			i++;
 		}
 	}
 
-	assert(tag_tagged_items(&tree, 1, ~0UL, MT_NUM_ENTRIES * 2, XA_MARK_1,
+	assert(tag_tagged_items(xa, 1, ULONG_MAX, MT_NUM_ENTRIES * 2, XA_MARK_1,
 				XA_MARK_0) == TAG_ENTRIES);
 	i = 0;
-	radix_tree_for_each_tagged(slot, &tree, &iter, 0, 0) {
-		assert(iter.index == tag_index[i]);
+	xas_set(&xas, 0);
+	xas_for_each_marked(&xas, item, ULONG_MAX, XA_MARK_0) {
+		assert(xas.xa_index == tag_index[i]);
 		i++;
 	}
+	assert(i == TAG_ENTRIES);
 
-	item_kill_tree(&tree);
+	item_kill_tree(xa);
 }
 
 bool stop_iteration = false;
@@ -187,52 +187,45 @@ static void *creator_func(void *ptr)
 
 static void *iterator_func(void *ptr)
 {
-	struct radix_tree_root *tree = ptr;
-	struct radix_tree_iter iter;
+	XA_STATE(xas, ptr, 0);
 	struct item *item;
-	void **slot;
 
 	while (!stop_iteration) {
 		rcu_read_lock();
-		radix_tree_for_each_slot(slot, tree, &iter, 0) {
-			item = radix_tree_deref_slot(slot);
-
-			if (!item)
+		xas_for_each(&xas, item, ULONG_MAX) {
+			if (xas_retry(&xas, item))
 				continue;
-			if (radix_tree_deref_retry(item)) {
-				slot = radix_tree_iter_retry(&iter);
-				continue;
-			}
 
-			item_sanity(item, iter.index);
+			item_sanity(item, xas.xa_index);
 		}
 		rcu_read_unlock();
 	}
 	return NULL;
 }
 
-static void multiorder_iteration_race(void)
+static void multiorder_iteration_race(struct xarray *xa)
 {
 	const int num_threads = sysconf(_SC_NPROCESSORS_ONLN);
 	pthread_t worker_thread[num_threads];
-	RADIX_TREE(tree, GFP_KERNEL);
 	int i;
 
-	pthread_create(&worker_thread[0], NULL, &creator_func, &tree);
+	pthread_create(&worker_thread[0], NULL, &creator_func, xa);
 	for (i = 1; i < num_threads; i++)
-		pthread_create(&worker_thread[i], NULL, &iterator_func, &tree);
+		pthread_create(&worker_thread[i], NULL, &iterator_func, xa);
 
 	for (i = 0; i < num_threads; i++)
 		pthread_join(worker_thread[i], NULL);
 
-	item_kill_tree(&tree);
+	item_kill_tree(xa);
 }
+
+static DEFINE_XARRAY(array);
 
 void multiorder_checks(void)
 {
-	multiorder_iteration();
-	multiorder_tagged_iteration();
-	multiorder_iteration_race();
+	multiorder_iteration(&array);
+	multiorder_tagged_iteration(&array);
+	multiorder_iteration_race(&array);
 
 	radix_tree_cpu_dead(0);
 }
