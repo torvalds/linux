@@ -153,6 +153,22 @@ mt76x02_sign_extend(u32 val, unsigned int size)
 }
 
 static inline int
+mt76x02_sign_extend_optional(u32 val, unsigned int size)
+{
+	bool enable = val & BIT(size);
+
+	return enable ? mt76x02_sign_extend(val, size) : 0;
+}
+
+static inline s8 mt76x02_rate_power_val(u8 val)
+{
+	if (!mt76x02_field_valid(val))
+		return 0;
+
+	return mt76x02_sign_extend_optional(val, 7);
+}
+
+static inline int
 mt76x02_eeprom_get(struct mt76_dev *dev,
 		   enum mt76x02_eeprom_field field)
 {
