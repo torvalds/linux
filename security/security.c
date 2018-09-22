@@ -41,6 +41,7 @@ struct security_hook_heads security_hook_heads __lsm_ro_after_init;
 static ATOMIC_NOTIFIER_HEAD(lsm_notifier_chain);
 
 static struct kmem_cache *lsm_file_cache;
+static struct kmem_cache *lsm_inode_cache;
 
 char *lsm_names;
 static struct lsm_blob_sizes blob_sizes __lsm_ro_after_init;
@@ -161,6 +162,13 @@ static void __init lsm_set_blob_sizes(struct lsm_blob_sizes *needed)
 
 	lsm_set_blob_size(&needed->lbs_cred, &blob_sizes.lbs_cred);
 	lsm_set_blob_size(&needed->lbs_file, &blob_sizes.lbs_file);
+	/*
+	 * The inode blob gets an rcu_head in addition to
+	 * what the modules might need.
+	 */
+	if (needed->lbs_inode && blob_sizes.lbs_inode == 0)
+		blob_sizes.lbs_inode = sizeof(struct rcu_head);
+	lsm_set_blob_size(&needed->lbs_inode, &blob_sizes.lbs_inode);
 }
 
 /* Prepare LSM for initialization. */
@@ -283,6 +291,7 @@ static void __init ordered_lsm_init(void)
 
 	init_debug("cred blob size     = %d\n", blob_sizes.lbs_cred);
 	init_debug("file blob size     = %d\n", blob_sizes.lbs_file);
+	init_debug("inode blob size    = %d\n", blob_sizes.lbs_inode);
 
 	/*
 	 * Create any kmem_caches needed for blobs
@@ -291,6 +300,10 @@ static void __init ordered_lsm_init(void)
 		lsm_file_cache = kmem_cache_create("lsm_file_cache",
 						   blob_sizes.lbs_file, 0,
 						   SLAB_PANIC, NULL);
+	if (blob_sizes.lbs_inode)
+		lsm_inode_cache = kmem_cache_create("lsm_inode_cache",
+						    blob_sizes.lbs_inode, 0,
+						    SLAB_PANIC, NULL);
 
 	for (lsm = ordered_lsms; *lsm; lsm++)
 		initialize_lsm(*lsm);
@@ -477,6 +490,27 @@ static int lsm_file_alloc(struct file *file)
 
 	file->f_security = kmem_cache_zalloc(lsm_file_cache, GFP_KERNEL);
 	if (file->f_security == NULL)
+		return -ENOMEM;
+	return 0;
+}
+
+/**
+ * lsm_inode_alloc - allocate a composite inode blob
+ * @inode: the inode that needs a blob
+ *
+ * Allocate the inode blob for all the modules
+ *
+ * Returns 0, or -ENOMEM if memory can't be allocated.
+ */
+int lsm_inode_alloc(struct inode *inode)
+{
+	if (!lsm_inode_cache) {
+		inode->i_security = NULL;
+		return 0;
+	}
+
+	inode->i_security = kmem_cache_zalloc(lsm_inode_cache, GFP_NOFS);
+	if (inode->i_security == NULL)
 		return -ENOMEM;
 	return 0;
 }
@@ -740,14 +774,40 @@ EXPORT_SYMBOL(security_add_mnt_opt);
 
 int security_inode_alloc(struct inode *inode)
 {
-	inode->i_security = NULL;
-	return call_int_hook(inode_alloc_security, 0, inode);
+	int rc = lsm_inode_alloc(inode);
+
+	if (unlikely(rc))
+		return rc;
+	rc = call_int_hook(inode_alloc_security, 0, inode);
+	if (unlikely(rc))
+		security_inode_free(inode);
+	return rc;
+}
+
+static void inode_free_by_rcu(struct rcu_head *head)
+{
+	/*
+	 * The rcu head is at the start of the inode blob
+	 */
+	kmem_cache_free(lsm_inode_cache, head);
 }
 
 void security_inode_free(struct inode *inode)
 {
 	integrity_inode_free(inode);
 	call_void_hook(inode_free_security, inode);
+	/*
+	 * The inode may still be referenced in a path walk and
+	 * a call to security_inode_permission() can be made
+	 * after inode_free_security() is called. Ideally, the VFS
+	 * wouldn't do this, but fixing that is a much harder
+	 * job. For now, simply free the i_security via RCU, and
+	 * leave the current inode->i_security pointer intact.
+	 * The inode will be freed after the RCU grace period too.
+	 */
+	if (inode->i_security)
+		call_rcu((struct rcu_head *)inode->i_security,
+				inode_free_by_rcu);
 }
 
 int security_dentry_init_security(struct dentry *dentry, int mode,

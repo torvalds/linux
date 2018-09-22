@@ -145,8 +145,6 @@ static int __init checkreqprot_setup(char *str)
 }
 __setup("checkreqprot=", checkreqprot_setup);
 
-static struct kmem_cache *sel_inode_cache;
-
 /**
  * selinux_secmark_enabled - Check to see if SECMARK is currently enabled
  *
@@ -242,12 +240,8 @@ static inline u32 task_sid(const struct task_struct *task)
 
 static int inode_alloc_security(struct inode *inode)
 {
-	struct inode_security_struct *isec;
+	struct inode_security_struct *isec = selinux_inode(inode);
 	u32 sid = current_sid();
-
-	isec = kmem_cache_zalloc(sel_inode_cache, GFP_NOFS);
-	if (!isec)
-		return -ENOMEM;
 
 	spin_lock_init(&isec->lock);
 	INIT_LIST_HEAD(&isec->list);
@@ -256,7 +250,6 @@ static int inode_alloc_security(struct inode *inode)
 	isec->sclass = SECCLASS_FILE;
 	isec->task_sid = sid;
 	isec->initialized = LABEL_INVALID;
-	inode->i_security = isec;
 
 	return 0;
 }
@@ -334,19 +327,14 @@ static struct inode_security_struct *backing_inode_security(struct dentry *dentr
 	return selinux_inode(inode);
 }
 
-static void inode_free_rcu(struct rcu_head *head)
-{
-	struct inode_security_struct *isec;
-
-	isec = container_of(head, struct inode_security_struct, rcu);
-	kmem_cache_free(sel_inode_cache, isec);
-}
-
 static void inode_free_security(struct inode *inode)
 {
 	struct inode_security_struct *isec = selinux_inode(inode);
-	struct superblock_security_struct *sbsec = inode->i_sb->s_security;
+	struct superblock_security_struct *sbsec;
 
+	if (!isec)
+		return;
+	sbsec = inode->i_sb->s_security;
 	/*
 	 * As not all inode security structures are in a list, we check for
 	 * empty list outside of the lock to make sure that we won't waste
@@ -362,17 +350,6 @@ static void inode_free_security(struct inode *inode)
 		list_del_init(&isec->list);
 		spin_unlock(&sbsec->isec_lock);
 	}
-
-	/*
-	 * The inode may still be referenced in a path walk and
-	 * a call to selinux_inode_permission() can be made
-	 * after inode_free_security() is called. Ideally, the VFS
-	 * wouldn't do this, but fixing that is a much harder
-	 * job. For now, simply free the i_security via RCU, and
-	 * leave the current inode->i_security pointer intact.
-	 * The inode will be freed after the RCU grace period too.
-	 */
-	call_rcu(&isec->rcu, inode_free_rcu);
 }
 
 static int file_alloc_security(struct file *file)
@@ -6629,6 +6606,7 @@ static void selinux_bpf_prog_free(struct bpf_prog_aux *aux)
 struct lsm_blob_sizes selinux_blob_sizes __lsm_ro_after_init = {
 	.lbs_cred = sizeof(struct task_security_struct),
 	.lbs_file = sizeof(struct file_security_struct),
+	.lbs_inode = sizeof(struct inode_security_struct),
 };
 
 static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
@@ -6881,9 +6859,6 @@ static __init int selinux_init(void)
 
 	default_noexec = !(VM_DATA_DEFAULT_FLAGS & VM_EXEC);
 
-	sel_inode_cache = kmem_cache_create("selinux_inode_security",
-					    sizeof(struct inode_security_struct),
-					    0, SLAB_PANIC, NULL);
 	avc_init();
 
 	avtab_cache_init();

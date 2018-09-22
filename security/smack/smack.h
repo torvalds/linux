@@ -370,7 +370,7 @@ static inline struct smack_known **smack_file(const struct file *file)
 
 static inline struct inode_smack *smack_inode(const struct inode *inode)
 {
-	return inode->i_security;
+	return inode->i_security + smack_blob_sizes.lbs_inode;
 }
 
 /*

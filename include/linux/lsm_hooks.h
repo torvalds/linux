@@ -2033,6 +2033,7 @@ struct security_hook_list {
 struct lsm_blob_sizes {
 	int	lbs_cred;
 	int	lbs_file;
+	int	lbs_inode;
 };
 
 /*
@@ -2103,6 +2104,8 @@ static inline void security_delete_hooks(struct security_hook_list *hooks,
 #else
 #define __lsm_ro_after_init	__ro_after_init
 #endif /* CONFIG_SECURITY_WRITABLE_HOOKS */
+
+extern int lsm_inode_alloc(struct inode *inode);
 
 #ifdef CONFIG_SECURITY
 void __init lsm_early_cred(struct cred *cred);
