@@ -405,10 +405,6 @@ config XARRAY_MULTI
 	  Support entries which occupy multiple consecutive indices in the
 	  XArray.
 
-config RADIX_TREE_MULTIORDER
-	bool
-	select XARRAY_MULTI
-
 config ASSOCIATIVE_ARRAY
 	bool
 	help

@@ -96,7 +96,6 @@ static inline bool radix_tree_empty(const struct radix_tree_root *root)
  * @next_index:	one beyond the last index for this chunk
  * @tags:	bit-mask for tag-iterating
  * @node:	node that contains current slot
- * @shift:	shift for the node that holds our slots
  *
  * This radix tree iterator works in terms of "chunks" of slots.  A chunk is a
  * subinterval of slots contained within one radix tree leaf node.  It is
@@ -110,19 +109,7 @@ struct radix_tree_iter {
 	unsigned long	next_index;
 	unsigned long	tags;
 	struct radix_tree_node *node;
-#ifdef CONFIG_RADIX_TREE_MULTIORDER
-	unsigned int	shift;
-#endif
 };
-
-static inline unsigned int iter_shift(const struct radix_tree_iter *iter)
-{
-#ifdef CONFIG_RADIX_TREE_MULTIORDER
-	return iter->shift;
-#else
-	return 0;
-#endif
-}
 
 /**
  * Radix-tree synchronization
@@ -230,13 +217,8 @@ static inline int radix_tree_exception(void *arg)
 	return unlikely((unsigned long)arg & RADIX_TREE_ENTRY_MASK);
 }
 
-int __radix_tree_insert(struct radix_tree_root *, unsigned long index,
-			unsigned order, void *);
-static inline int radix_tree_insert(struct radix_tree_root *root,
-			unsigned long index, void *entry)
-{
-	return __radix_tree_insert(root, index, 0, entry);
-}
+int radix_tree_insert(struct radix_tree_root *, unsigned long index,
+			void *);
 void *__radix_tree_lookup(const struct radix_tree_root *, unsigned long index,
 			  struct radix_tree_node **nodep, void __rcu ***slotp);
 void *radix_tree_lookup(const struct radix_tree_root *, unsigned long);
@@ -384,7 +366,7 @@ void __rcu **radix_tree_iter_retry(struct radix_tree_iter *iter)
 static inline unsigned long
 __radix_tree_iter_add(struct radix_tree_iter *iter, unsigned long slots)
 {
-	return iter->index + (slots << iter_shift(iter));
+	return iter->index + slots;
 }
 
 /**
@@ -409,20 +391,8 @@ void __rcu **__must_check radix_tree_iter_resume(void __rcu **slot,
 static __always_inline long
 radix_tree_chunk_size(struct radix_tree_iter *iter)
 {
-	return (iter->next_index - iter->index) >> iter_shift(iter);
+	return iter->next_index - iter->index;
 }
-
-#ifdef CONFIG_RADIX_TREE_MULTIORDER
-void __rcu **__radix_tree_next_slot(void __rcu **slot,
-				struct radix_tree_iter *iter, unsigned flags);
-#else
-/* Can't happen without sibling entries, but the compiler can't tell that */
-static inline void __rcu **__radix_tree_next_slot(void __rcu **slot,
-				struct radix_tree_iter *iter, unsigned flags)
-{
-	return slot;
-}
-#endif
 
 /**
  * radix_tree_next_slot - find next slot in chunk
@@ -482,8 +452,6 @@ static __always_inline void __rcu **radix_tree_next_slot(void __rcu **slot,
 	return NULL;
 
  found:
-	if (unlikely(radix_tree_is_internal_node(rcu_dereference_raw(*slot))))
-		return __radix_tree_next_slot(slot, iter, flags);
 	return slot;
 }
 

@@ -379,7 +379,7 @@ config TRANSPARENT_HUGEPAGE
 	bool "Transparent Hugepage Support"
 	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select COMPACTION
-	select RADIX_TREE_MULTIORDER
+	select XARRAY_MULTI
 	help
 	  Transparent Hugepages allows the kernel to use huge pages and
 	  huge tlb transparently to the applications whenever possible.
@@ -671,7 +671,7 @@ config ZONE_DEVICE
 	depends on MEMORY_HOTREMOVE
 	depends on SPARSEMEM_VMEMMAP
 	depends on ARCH_HAS_ZONE_DEVICE
-	select RADIX_TREE_MULTIORDER
+	select XARRAY_MULTI
 
 	help
 	  Device memory hotplug support allows for establishing pmem,
