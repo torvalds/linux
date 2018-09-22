@@ -564,6 +564,7 @@ retry:
 	}
 
 	inf = esr_to_fault_info(esr);
+	set_thread_esr(addr, esr);
 	if (fault & VM_FAULT_SIGBUS) {
 		/*
 		 * We had some memory, but were unable to successfully fix up
@@ -573,7 +574,6 @@ retry:
 		si.si_signo	= SIGBUS;
 		si.si_code	= BUS_ADRERR;
 		si.si_addr = (void __user *)addr;
-		set_thread_esr(addr, esr);
 		arm64_force_sig_info(&si, inf->name);
 	} else if (fault & (VM_FAULT_HWPOISON_LARGE | VM_FAULT_HWPOISON)) {
 		unsigned int lsb;
@@ -587,7 +587,6 @@ retry:
 		si.si_code	= BUS_MCEERR_AR;
 		si.si_addr = (void __user *)addr;
 		si.si_addr_lsb	= lsb;
-		set_thread_esr(addr, esr);
 		arm64_force_sig_info(&si, inf->name);
 	} else {
 		/*
@@ -599,7 +598,6 @@ retry:
 		si.si_code	= fault == VM_FAULT_BADACCESS ?
 				  SEGV_ACCERR : SEGV_MAPERR;
 		si.si_addr = (void __user *)addr;
-		set_thread_esr(addr, esr);
 		arm64_force_sig_info(&si, inf->name);
 	}
 
