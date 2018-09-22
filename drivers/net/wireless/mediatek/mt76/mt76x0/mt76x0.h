@@ -94,8 +94,6 @@ struct mt76x0_dev {
 	struct mutex reg_atomic_mutex;
 	struct mutex hw_atomic_mutex;
 
-	u32 debugfs_reg;
-
 	atomic_t avg_ampdu_len;
 
 	/* Connection monitoring things */
