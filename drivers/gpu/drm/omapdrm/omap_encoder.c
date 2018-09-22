@@ -114,17 +114,17 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 
 		if (!(vm.flags & (DISPLAY_FLAGS_PIXDATA_POSEDGE |
 				  DISPLAY_FLAGS_PIXDATA_NEGEDGE))) {
-			if (bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE)
+			if (bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE)
 				vm.flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
-			else if (bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+			else if (bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE)
 				vm.flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
 		}
 
 		if (!(vm.flags & (DISPLAY_FLAGS_SYNC_POSEDGE |
 				  DISPLAY_FLAGS_SYNC_NEGEDGE))) {
-			if (bus_flags & DRM_BUS_FLAG_SYNC_POSEDGE)
+			if (bus_flags & DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE)
 				vm.flags |= DISPLAY_FLAGS_SYNC_POSEDGE;
-			else if (bus_flags & DRM_BUS_FLAG_SYNC_NEGEDGE)
+			else if (bus_flags & DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE)
 				vm.flags |= DISPLAY_FLAGS_SYNC_NEGEDGE;
 		}
 	}

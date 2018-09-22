@@ -330,8 +330,9 @@ static int td028ttec1_panel_probe(struct spi_device *spi)
 	 * Note: According to the panel documentation:
 	 * SYNC needs to be driven on the FALLING edge
 	 */
-	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_SYNC_POSEDGE
-			  | DRM_BUS_FLAG_PIXDATA_NEGEDGE;
+	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH
+			  | DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE
+			  | DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE;
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);

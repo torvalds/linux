@@ -216,8 +216,9 @@ static int sharp_ls_probe(struct platform_device *pdev)
 	 * Note: According to the panel documentation:
 	 * DATA needs to be driven on the FALLING edge
 	 */
-	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_SYNC_NEGEDGE
-			  | DRM_BUS_FLAG_PIXDATA_POSEDGE;
+	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH
+			  | DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE
+			  | DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE;
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);

@@ -279,8 +279,8 @@ static int sdi_init_output(struct sdi_device *sdi)
 	out->of_ports = BIT(1);
 	out->ops = &sdi_ops;
 	out->owner = THIS_MODULE;
-	out->bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE	/* 15.5.9.1.2 */
-		       | DRM_BUS_FLAG_SYNC_POSEDGE;
+	out->bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE	/* 15.5.9.1.2 */
+		       | DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE;
 
 	r = omapdss_device_init_output(out);
 	if (r < 0)
