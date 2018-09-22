@@ -2603,6 +2603,17 @@ static bool init_nocb_callback_list(struct rcu_data *rdp)
 	return true;
 }
 
+/*
+ * Bind the current task to the offloaded CPUs.  If there are no offloaded
+ * CPUs, leave the task unbound.  Splat if the bind attempt fails.
+ */
+void rcu_bind_current_to_nocb(void)
+{
+	if (cpumask_available(rcu_nocb_mask) && cpumask_weight(rcu_nocb_mask))
+		WARN_ON(sched_setaffinity(current->pid, rcu_nocb_mask));
+}
+EXPORT_SYMBOL_GPL(rcu_bind_current_to_nocb);
+
 #else /* #ifdef CONFIG_RCU_NOCB_CPU */
 
 static bool rcu_nocb_cpu_needs_barrier(int cpu)
