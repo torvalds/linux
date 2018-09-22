@@ -76,9 +76,9 @@ static void item_free_rcu(struct rcu_head *head)
 	free(item);
 }
 
-int item_delete_rcu(struct radix_tree_root *root, unsigned long index)
+int item_delete_rcu(struct xarray *xa, unsigned long index)
 {
-	struct item *item = radix_tree_delete(root, index);
+	struct item *item = xa_erase(xa, index);
 
 	if (item) {
 		item_sanity(item, index);

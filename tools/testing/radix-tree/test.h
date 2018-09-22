@@ -15,7 +15,7 @@ int item_insert(struct radix_tree_root *root, unsigned long index);
 void item_sanity(struct item *item, unsigned long index);
 void item_free(struct item *item, unsigned long index);
 int item_delete(struct radix_tree_root *root, unsigned long index);
-int item_delete_rcu(struct radix_tree_root *root, unsigned long index);
+int item_delete_rcu(struct xarray *xa, unsigned long index);
 struct item *item_lookup(struct radix_tree_root *root, unsigned long index);
 
 void item_check_present(struct radix_tree_root *root, unsigned long index);
