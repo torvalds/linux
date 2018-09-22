@@ -55,16 +55,6 @@ static int read_txpower(struct seq_file *file, void *data)
 
 	mt76_seq_puts_array(file, "Delta", dev->target_power_delta,
 			    ARRAY_SIZE(dev->target_power_delta));
-	mt76_seq_puts_array(file, "CCK", dev->mt76.rate_power.cck,
-			    ARRAY_SIZE(dev->mt76.rate_power.cck));
-	mt76_seq_puts_array(file, "OFDM", dev->mt76.rate_power.ofdm,
-			    ARRAY_SIZE(dev->mt76.rate_power.ofdm));
-	mt76_seq_puts_array(file, "STBC", dev->mt76.rate_power.stbc,
-			    ARRAY_SIZE(dev->mt76.rate_power.stbc));
-	mt76_seq_puts_array(file, "HT", dev->mt76.rate_power.ht,
-			    ARRAY_SIZE(dev->mt76.rate_power.ht));
-	mt76_seq_puts_array(file, "VHT", dev->mt76.rate_power.vht,
-			    ARRAY_SIZE(dev->mt76.rate_power.vht));
 	return 0;
 }
 
