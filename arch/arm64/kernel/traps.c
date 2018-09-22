@@ -248,6 +248,13 @@ static void arm64_show_signal(int signo, const char *str)
 	__show_regs(regs);
 }
 
+void arm64_force_sig_fault(int signo, int code, void __user *addr,
+			   const char *str)
+{
+	arm64_show_signal(signo, str);
+	force_sig_fault(signo, code, addr, current);
+}
+
 void arm64_force_sig_info(struct siginfo *info, const char *str)
 {
 	arm64_show_signal(info->si_signo, str);
@@ -259,19 +266,11 @@ void arm64_notify_die(const char *str, struct pt_regs *regs,
 		      int err)
 {
 	if (user_mode(regs)) {
-		struct siginfo info;
-
 		WARN_ON(regs != current_pt_regs());
 		current->thread.fault_address = 0;
 		current->thread.fault_code = err;
 
-		clear_siginfo(&info);
-		info.si_signo = signo;
-		info.si_errno = 0;
-		info.si_code  = sicode;
-		info.si_addr  = addr;
-
-		arm64_force_sig_info(&info, str);
+		arm64_force_sig_fault(signo, sicode, addr, str);
 	} else {
 		die(str, regs, err);
 	}
@@ -616,19 +615,13 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
  */
 asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 {
-	siginfo_t info;
 	void __user *pc = (void __user *)instruction_pointer(regs);
-
-	clear_siginfo(&info);
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code  = ILL_ILLOPC;
-	info.si_addr  = pc;
 
 	current->thread.fault_address = 0;
 	current->thread.fault_code = esr;
 
-	arm64_force_sig_info(&info, "Bad EL0 synchronous exception");
+	arm64_force_sig_fault(SIGILL, ILL_ILLOPC, pc,
+			      "Bad EL0 synchronous exception");
 }
 
 #ifdef CONFIG_VMAP_STACK

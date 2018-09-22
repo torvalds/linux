@@ -362,15 +362,10 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
 	 */
 	if (user_mode(regs)) {
 		const struct fault_info *inf = esr_to_fault_info(esr);
-		struct siginfo si;
-
-		clear_siginfo(&si);
-		si.si_signo	= inf->sig;
-		si.si_code	= inf->code;
-		si.si_addr	= (void __user *)addr;
 
 		set_thread_esr(addr, esr);
-		arm64_force_sig_info(&si, inf->name);
+		arm64_force_sig_fault(inf->sig, inf->code, (void __user *)addr,
+				      inf->name);
 	} else {
 		__do_kernel_fault(addr, esr, regs);
 	}
@@ -570,11 +565,8 @@ retry:
 		 * We had some memory, but were unable to successfully fix up
 		 * this page fault.
 		 */
-		clear_siginfo(&si);
-		si.si_signo	= SIGBUS;
-		si.si_code	= BUS_ADRERR;
-		si.si_addr = (void __user *)addr;
-		arm64_force_sig_info(&si, inf->name);
+		arm64_force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)addr,
+				      inf->name);
 	} else if (fault & (VM_FAULT_HWPOISON_LARGE | VM_FAULT_HWPOISON)) {
 		unsigned int lsb;
 
@@ -593,12 +585,10 @@ retry:
 		 * Something tried to access memory that isn't in our memory
 		 * map.
 		 */
-		clear_siginfo(&si);
-		si.si_signo	= SIGSEGV;
-		si.si_code	= fault == VM_FAULT_BADACCESS ?
-				  SEGV_ACCERR : SEGV_MAPERR;
-		si.si_addr = (void __user *)addr;
-		arm64_force_sig_info(&si, inf->name);
+		arm64_force_sig_fault(SIGSEGV,
+				      fault == VM_FAULT_BADACCESS ? SEGV_ACCERR : SEGV_MAPERR,
+				      (void __user *)addr,
+				      inf->name);
 	}
 
 	return 0;
