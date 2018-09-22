@@ -577,16 +577,16 @@ retry:
 		 */
 		si.si_signo	= SIGBUS;
 		si.si_code	= BUS_ADRERR;
-	} else if (fault & VM_FAULT_HWPOISON_LARGE) {
-		unsigned int hindex = VM_FAULT_GET_HINDEX(fault);
+	} else if (fault & (VM_FAULT_HWPOISON_LARGE | VM_FAULT_HWPOISON)) {
+		unsigned int lsb;
+
+		lsb = PAGE_SHIFT;
+		if (fault & VM_FAULT_HWPOISON_LARGE)
+			lsb = hstate_index_to_shift(VM_FAULT_GET_HINDEX(fault));
 
 		si.si_signo	= SIGBUS;
 		si.si_code	= BUS_MCEERR_AR;
-		si.si_addr_lsb	= hstate_index_to_shift(hindex);
-	} else if (fault & VM_FAULT_HWPOISON) {
-		si.si_signo	= SIGBUS;
-		si.si_code	= BUS_MCEERR_AR;
-		si.si_addr_lsb	= PAGE_SHIFT;
+		si.si_addr_lsb	= lsb;
 	} else {
 		/*
 		 * Something tried to access memory that isn't in our memory
