@@ -245,16 +245,15 @@ stop:
  */
 int torture_onoff_init(long ooholdoff, long oointerval)
 {
-	int ret = 0;
-
 #ifdef CONFIG_HOTPLUG_CPU
 	onoff_holdoff = ooholdoff;
 	onoff_interval = oointerval;
 	if (onoff_interval <= 0)
 		return 0;
-	ret = torture_create_kthread(torture_onoff, NULL, onoff_task);
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
-	return ret;
+	return torture_create_kthread(torture_onoff, NULL, onoff_task);
+#else /* #ifdef CONFIG_HOTPLUG_CPU */
+	return 0;
+#endif /* #else #ifdef CONFIG_HOTPLUG_CPU */
 }
 EXPORT_SYMBOL_GPL(torture_onoff_init);
 
@@ -525,15 +524,13 @@ static int torture_shutdown(void *arg)
  */
 int torture_shutdown_init(int ssecs, void (*cleanup)(void))
 {
-	int ret = 0;
-
 	torture_shutdown_hook = cleanup;
 	if (ssecs > 0) {
 		shutdown_time = ktime_add(ktime_get(), ktime_set(ssecs, 0));
-		ret = torture_create_kthread(torture_shutdown, NULL,
+		return torture_create_kthread(torture_shutdown, NULL,
 					     shutdown_task);
 	}
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(torture_shutdown_init);
 
@@ -632,13 +629,10 @@ static int torture_stutter(void *arg)
 /*
  * Initialize and kick off the torture_stutter kthread.
  */
-int torture_stutter_init(int s)
+int torture_stutter_init(const int s)
 {
-	int ret;
-
 	stutter = s;
-	ret = torture_create_kthread(torture_stutter, NULL, stutter_task);
-	return ret;
+	return torture_create_kthread(torture_stutter, NULL, stutter_task);
 }
 EXPORT_SYMBOL_GPL(torture_stutter_init);
 
