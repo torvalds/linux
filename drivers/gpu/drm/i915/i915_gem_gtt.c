@@ -152,10 +152,10 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 	}
 
 	/*
-	 * We don't allow disabling PPGTT for gen9+ as it's a requirement for
+	 * We don't allow disabling PPGTT for gen8+ as it's a requirement for
 	 * execlists, the sole mechanism available to submit work.
 	 */
-	if (enable_ppgtt == 0 && INTEL_GEN(dev_priv) < 9)
+	if (enable_ppgtt == 0 && !HAS_EXECLISTS(dev_priv))
 		return 0;
 
 	if (enable_ppgtt == 1)
