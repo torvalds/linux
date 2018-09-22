@@ -37,41 +37,21 @@ struct mt76x0_caldata {
 };
 
 struct mt76x0_eeprom_params {
-	/* TX_PWR_CFG_* values from EEPROM for 20 and 40 Mhz bandwidths. */
-	u32 tx_pwr_cfg_2g[5][2];
-	u32 tx_pwr_cfg_5g[5][2];
 
 	u8 tx_pwr_per_chan[58];
 };
 
 int mt76x0_eeprom_init(struct mt76x0_dev *dev);
 void mt76x0_read_rx_gain(struct mt76x0_dev *dev);
+void mt76x0_get_tx_power_per_rate(struct mt76x0_dev *dev);
 
-static inline u32 s6_validate(u32 reg)
+static inline s8 s6_to_s8(u32 val)
 {
-	WARN_ON(reg & ~GENMASK(5, 0));
-	return reg & GENMASK(5, 0);
-}
+	s8 ret = val & GENMASK(5, 0);
 
-static inline int s6_to_int(u32 reg)
-{
-	int s6;
-
-	s6 = s6_validate(reg);
-	if (s6 & BIT(5))
-		s6 -= BIT(6);
-
-	return s6;
-}
-
-static inline u32 int_to_s6(int val)
-{
-	if (val < -0x20)
-		return 0x20;
-	if (val > 0x1f)
-		return 0x1f;
-
-	return val & 0x3f;
+	if (ret & BIT(5))
+		ret -= BIT(6);
+	return ret;
 }
 
 #endif

@@ -74,6 +74,7 @@ enum mt76x02_eeprom_field {
 
 	MT_EE_2G_TARGET_POWER =			0x0d0,
 	MT_EE_TEMP_OFFSET =			0x0d1,
+	MT_EE_5G_TARGET_POWER =			0x0d2,
 	MT_EE_TSSI_BOUND1 =			0x0d4,
 	MT_EE_TSSI_BOUND2 =			0x0d6,
 	MT_EE_TSSI_BOUND3 =			0x0d8,
@@ -120,9 +121,6 @@ enum mt76x02_eeprom_field {
 #define MT_EE_NIC_CONF_2_XTAL_OPTION		GENMASK(10, 9)
 #define MT_EE_NIC_CONF_2_TEMP_DISABLE		BIT(11)
 #define MT_EE_NIC_CONF_2_COEX_METHOD		GENMASK(15, 13)
-
-#define MT_EE_TX_POWER_BYRATE(x)		(MT_EE_TX_POWER_BYRATE_BASE + \
-						 (x) * 4)
 
 #define MT_EFUSE_USAGE_MAP_SIZE			(MT_EE_USAGE_MAP_END - \
 						 MT_EE_USAGE_MAP_START + 1)

@@ -118,19 +118,6 @@ mt76x0_eeprom_param_read(struct seq_file *file, void *data)
 	for (i = 0; i < 58; i++)
 		seq_printf(file, "\t%d chan:%d pwr:%d\n", i, i,
 			   dev->ee->tx_pwr_per_chan[i]);
-
-	seq_puts(file, "Per rate power 2GHz:\n");
-	for (i = 0; i < 5; i++)
-		seq_printf(file, "\t %d bw20:%d bw40:%d\n",
-			   i, dev->ee->tx_pwr_cfg_2g[i][0],
-			      dev->ee->tx_pwr_cfg_5g[i][1]);
-
-	seq_puts(file, "Per rate power 5GHz:\n");
-	for (i = 0; i < 5; i++)
-		seq_printf(file, "\t %d bw20:%d bw40:%d\n",
-			   i, dev->ee->tx_pwr_cfg_5g[i][0],
-			      dev->ee->tx_pwr_cfg_5g[i][1]);
-
 	return 0;
 }
 
@@ -147,6 +134,23 @@ static const struct file_operations fops_eeprom_param = {
 	.release = single_release,
 };
 
+static int mt76x0_read_txpower(struct seq_file *file, void *data)
+{
+	struct mt76x0_dev *dev = dev_get_drvdata(file->private);
+
+	mt76_seq_puts_array(file, "CCK", dev->mt76.rate_power.cck,
+			    ARRAY_SIZE(dev->mt76.rate_power.cck));
+	mt76_seq_puts_array(file, "OFDM", dev->mt76.rate_power.ofdm,
+			    ARRAY_SIZE(dev->mt76.rate_power.ofdm));
+	mt76_seq_puts_array(file, "STBC", dev->mt76.rate_power.stbc,
+			    ARRAY_SIZE(dev->mt76.rate_power.stbc));
+	mt76_seq_puts_array(file, "HT", dev->mt76.rate_power.ht,
+			    ARRAY_SIZE(dev->mt76.rate_power.ht));
+	mt76_seq_puts_array(file, "VHT", dev->mt76.rate_power.vht,
+			    ARRAY_SIZE(dev->mt76.rate_power.vht));
+	return 0;
+}
+
 void mt76x0_init_debugfs(struct mt76x0_dev *dev)
 {
 	struct dentry *dir;
@@ -161,4 +165,6 @@ void mt76x0_init_debugfs(struct mt76x0_dev *dev)
 	debugfs_create_file("ampdu_stat", S_IRUSR, dir, dev, &fops_ampdu_stat);
 	debugfs_create_file("eeprom_param", S_IRUSR, dir, dev,
 			    &fops_eeprom_param);
+	debugfs_create_devm_seqfile(dev->mt76.dev, "txpower", dir,
+				    mt76x0_read_txpower);
 }

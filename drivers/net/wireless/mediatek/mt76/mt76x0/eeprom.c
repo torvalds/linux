@@ -20,6 +20,7 @@
 #include <asm/unaligned.h>
 #include "mt76x0.h"
 #include "eeprom.h"
+#include "../mt76x02_phy.h"
 
 #define MT_MAP_READS	DIV_ROUND_UP(MT_EFUSE_USAGE_MAP_SIZE, 16)
 static int
@@ -125,82 +126,88 @@ void mt76x0_read_rx_gain(struct mt76x0_dev *dev)
 	}
 }
 
-static u32
-calc_bw40_power_rate(u32 value, int delta)
+static s8 mt76x0_get_delta(struct mt76_dev *dev)
 {
-	u32 ret = 0;
-	int i, tmp;
+	struct cfg80211_chan_def *chandef = &dev->chandef;
+	u8 val;
 
-	for (i = 0; i < 4; i++) {
-		tmp = s6_to_int((value >> i*8) & 0xff) + delta;
-		ret |= (u32)(int_to_s6(tmp)) << i*8;
-	}
-
-	return ret;
-}
-
-static s8
-get_delta(u8 val)
-{
-	s8 ret;
-
-	if (!mt76x02_field_valid(val) || !(val & BIT(7)))
+	if (mt76x02_tssi_enabled(dev))
 		return 0;
 
-	ret = val & 0x1f;
-	if (ret > 8)
-		ret = 8;
-	if (val & BIT(6))
-		ret = -ret;
+	if (chandef->width == NL80211_CHAN_WIDTH_80) {
+		val = mt76x02_eeprom_get(dev, MT_EE_5G_TARGET_POWER) >> 8;
+	} else if (chandef->width == NL80211_CHAN_WIDTH_40) {
+		u16 data;
 
-	return ret;
-}
-
-static void
-mt76x0_set_tx_power_per_rate(struct mt76x0_dev *dev, u8 *eeprom)
-{
-	s8 bw40_delta_2g, bw40_delta_5g;
-	u32 val;
-	int i;
-
-	bw40_delta_2g = get_delta(eeprom[MT_EE_TX_POWER_DELTA_BW40]);
-	bw40_delta_5g = get_delta(eeprom[MT_EE_TX_POWER_DELTA_BW40 + 1]);
-
-	for (i = 0; i < 5; i++) {
-		val = get_unaligned_le32(eeprom + MT_EE_TX_POWER_BYRATE(i));
-
-		/* Skip last 16 bits. */
-		if (i == 4)
-			val &= 0x0000ffff;
-
-		dev->ee->tx_pwr_cfg_2g[i][0] = val;
-		dev->ee->tx_pwr_cfg_2g[i][1] = calc_bw40_power_rate(val, bw40_delta_2g);
+		data = mt76x02_eeprom_get(dev, MT_EE_TX_POWER_DELTA_BW40);
+		if (chandef->chan->band == NL80211_BAND_5GHZ)
+			val = data >> 8;
+		else
+			val = data;
+	} else {
+		return 0;
 	}
 
-	/* Reading per rate tx power for 5 GHz band is a bit more complex. Note
-	 * we mix 16 bit and 32 bit reads and sometimes do shifts.
-	 */
-	val = get_unaligned_le16(eeprom + 0x120);
-	val <<= 16;
-	dev->ee->tx_pwr_cfg_5g[0][0] = val;
-	dev->ee->tx_pwr_cfg_5g[0][1] = calc_bw40_power_rate(val, bw40_delta_5g);
+	return mt76x02_rate_power_val(val);
+}
 
-	val = get_unaligned_le32(eeprom + 0x122);
-	dev->ee->tx_pwr_cfg_5g[1][0] = val;
-	dev->ee->tx_pwr_cfg_5g[1][1] = calc_bw40_power_rate(val, bw40_delta_5g);
+void mt76x0_get_tx_power_per_rate(struct mt76x0_dev *dev)
+{
+	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	bool is_2ghz = chan->band == NL80211_BAND_2GHZ;
+	struct mt76_rate_power *t = &dev->mt76.rate_power;
+	s8 delta = mt76x0_get_delta(&dev->mt76);
+	u16 val, addr;
 
-	val = get_unaligned_le16(eeprom + 0x126);
-	dev->ee->tx_pwr_cfg_5g[2][0] = val;
-	dev->ee->tx_pwr_cfg_5g[2][1] = calc_bw40_power_rate(val, bw40_delta_5g);
+	memset(t, 0, sizeof(*t));
 
-	val = get_unaligned_le16(eeprom + 0xec);
-	val <<= 16;
-	dev->ee->tx_pwr_cfg_5g[3][0] = val;
-	dev->ee->tx_pwr_cfg_5g[3][1] = calc_bw40_power_rate(val, bw40_delta_5g);
+	/* cck 1M, 2M, 5.5M, 11M */
+	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_TX_POWER_BYRATE_BASE);
+	t->cck[0] = t->cck[1] = s6_to_s8(val);
+	t->cck[2] = t->cck[3] = s6_to_s8(val >> 8);
 
-	val = get_unaligned_le16(eeprom + 0xee);
-	dev->ee->tx_pwr_cfg_5g[4][0] = val;
-	dev->ee->tx_pwr_cfg_5g[4][1] = calc_bw40_power_rate(val, bw40_delta_5g);
+	/* ofdm 6M, 9M, 12M, 18M */
+	addr = is_2ghz ? MT_EE_TX_POWER_BYRATE_BASE + 2 : 0x120;
+	val = mt76x02_eeprom_get(&dev->mt76, addr);
+	t->ofdm[0] = t->ofdm[1] = s6_to_s8(val);
+	t->ofdm[2] = t->ofdm[3] = s6_to_s8(val >> 8);
+
+	/* ofdm 24M, 36M, 48M, 54M */
+	addr = is_2ghz ? MT_EE_TX_POWER_BYRATE_BASE + 4 : 0x122;
+	val = mt76x02_eeprom_get(&dev->mt76, addr);
+	t->ofdm[4] = t->ofdm[5] = s6_to_s8(val);
+	t->ofdm[6] = t->ofdm[7] = s6_to_s8(val >> 8);
+
+	/* ht-vht mcs 1ss 0, 1, 2, 3 */
+	addr = is_2ghz ? MT_EE_TX_POWER_BYRATE_BASE + 6 : 0x124;
+	val = mt76x02_eeprom_get(&dev->mt76, addr);
+	t->ht[0] = t->ht[1] = t->vht[0] = t->vht[1] = s6_to_s8(val);
+	t->ht[2] = t->ht[3] = t->vht[2] = t->vht[3] = s6_to_s8(val >> 8);
+
+	/* ht-vht mcs 1ss 4, 5, 6 */
+	addr = is_2ghz ? MT_EE_TX_POWER_BYRATE_BASE + 8 : 0x126;
+	val = mt76x02_eeprom_get(&dev->mt76, addr);
+	t->ht[4] = t->ht[5] = t->vht[4] = t->vht[5] = s6_to_s8(val);
+	t->ht[6] = t->vht[6] = s6_to_s8(val >> 8);
+
+	/* ht-vht mcs 1ss 0, 1, 2, 3 stbc */
+	addr = is_2ghz ? MT_EE_TX_POWER_BYRATE_BASE + 14 : 0xec;
+	val = mt76x02_eeprom_get(&dev->mt76, addr);
+	t->stbc[0] = t->stbc[1] = s6_to_s8(val);
+	t->stbc[2] = t->stbc[3] = s6_to_s8(val >> 8);
+
+	/* ht-vht mcs 1ss 4, 5, 6 stbc */
+	addr = is_2ghz ? MT_EE_TX_POWER_BYRATE_BASE + 16 : 0xee;
+	val = mt76x02_eeprom_get(&dev->mt76, addr);
+	t->stbc[4] = t->stbc[5] = s6_to_s8(val);
+	t->stbc[6] = t->stbc[7] = s6_to_s8(val >> 8);
+
+	/* vht mcs 8, 9 5GHz */
+	val = mt76x02_eeprom_get(&dev->mt76, 0x132);
+	t->vht[7] = s6_to_s8(val);
+	t->vht[8] = s6_to_s8(val >> 8);
+
+	mt76x02_add_rate_power_offset(t, delta);
 }
 
 static void
@@ -271,7 +278,6 @@ mt76x0_eeprom_init(struct mt76x0_dev *dev)
 	mt76x0_set_temp_offset(dev);
 	dev->chainmask = 0x0101;
 
-	mt76x0_set_tx_power_per_rate(dev, eeprom);
 	mt76x0_set_tx_power_per_chan(dev, eeprom);
 
 out:
