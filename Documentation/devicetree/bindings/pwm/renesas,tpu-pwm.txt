@@ -8,6 +8,10 @@ Required Properties:
     - "renesas,tpu-r8a7743": for R8A7743 (RZ/G1M) compatible PWM controller.
     - "renesas,tpu-r8a7745": for R8A7745 (RZ/G1E) compatible PWM controller.
     - "renesas,tpu-r8a7790": for R8A7790 (R-Car H2) compatible PWM controller.
+    - "renesas,tpu-r8a77970": for R8A77970 (R-Car V3M) compatible PWM
+			      controller.
+    - "renesas,tpu-r8a77980": for R8A77980 (R-Car V3H) compatible PWM
+			      controller.
     - "renesas,tpu": for the generic TPU PWM controller; this is a fallback for
 		     the entries listed above.
 
