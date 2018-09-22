@@ -210,38 +210,71 @@ void mt76x0_get_tx_power_per_rate(struct mt76x0_dev *dev)
 	mt76x02_add_rate_power_offset(t, delta);
 }
 
-static void
-mt76x0_set_tx_power_per_chan(struct mt76x0_dev *dev, u8 *eeprom)
+void mt76x0_get_power_info(struct mt76x0_dev *dev, u8 *info)
 {
+	struct mt76x0_chan_map {
+		u8 chan;
+		u8 offset;
+	} chan_map[] = {
+		{   2,  0 }, {   4,  1 }, {   6,  2 }, {   8,  3 },
+		{  10,  4 }, {  12,  5 }, {  14,  6 }, {  38,  0 },
+		{  44,  1 }, {  48,  2 }, {  54,  3 }, {  60,  4 },
+		{  64,  5 }, { 102,  6 }, { 108,  7 }, { 112,  8 },
+		{ 118,  9 }, { 124, 10 }, { 128, 11 }, { 134, 12 },
+		{ 140, 13 }, { 151, 14 }, { 157, 15 }, { 161, 16 },
+		{ 167, 17 }, { 171, 18 }, { 173, 19 },
+	};
+	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	u8 offset, addr;
+	u16 data;
 	int i;
-	u8 tx_pwr;
 
-	for (i = 0; i < 14; i++) {
-		tx_pwr = eeprom[MT_EE_TX_POWER_DELTA_BW80 + i];
-		if (tx_pwr <= 0x3f && tx_pwr > 0)
-			dev->ee->tx_pwr_per_chan[i] = tx_pwr;
-		else
-			dev->ee->tx_pwr_per_chan[i] = 5;
+	for (i = 0; i < ARRAY_SIZE(chan_map); i++) {
+		if (chan_map[i].chan <= chan->hw_value) {
+			offset = chan_map[i].offset;
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(chan_map))
+		offset = chan_map[0].offset;
+
+	if (chan->band == NL80211_BAND_2GHZ) {
+		addr = MT_EE_TX_POWER_DELTA_BW80 + offset;
+	} else {
+		switch (chan->hw_value) {
+		case 58:
+			offset = 8;
+			break;
+		case 106:
+			offset = 14;
+			break;
+		case 112:
+			offset = 20;
+			break;
+		case 155:
+			offset = 30;
+			break;
+		default:
+			break;
+		}
+		addr = MT_EE_TX_POWER_0_GRP4_TSSI_SLOPE + 2 + offset;
 	}
 
-	for (i = 0; i < 40; i++) {
-		tx_pwr = eeprom[MT_EE_TX_POWER_0_GRP4_TSSI_SLOPE + 2 + i];
-		if (tx_pwr <= 0x3f && tx_pwr > 0)
-			dev->ee->tx_pwr_per_chan[14 + i] = tx_pwr;
-		else
-			dev->ee->tx_pwr_per_chan[14 + i] = 5;
-	}
+	data = mt76x02_eeprom_get(&dev->mt76, addr);
 
-	dev->ee->tx_pwr_per_chan[54] = dev->ee->tx_pwr_per_chan[22];
-	dev->ee->tx_pwr_per_chan[55] = dev->ee->tx_pwr_per_chan[28];
-	dev->ee->tx_pwr_per_chan[56] = dev->ee->tx_pwr_per_chan[34];
-	dev->ee->tx_pwr_per_chan[57] = dev->ee->tx_pwr_per_chan[44];
+	info[0] = data;
+	if (!info[0] || info[0] > 0x3f)
+		info[0] = 5;
+
+	info[1] = data >> 8;
+	if (!info[1] || info[1] > 0x3f)
+		info[1] = 5;
 }
 
-int
-mt76x0_eeprom_init(struct mt76x0_dev *dev)
+int mt76x0_eeprom_init(struct mt76x0_dev *dev)
 {
-	u8 *eeprom;
+	u8 version, fae;
+	u16 data;
 	int ret;
 
 	ret = mt76x0_efuse_physical_size_check(dev);
@@ -252,37 +285,31 @@ mt76x0_eeprom_init(struct mt76x0_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	dev->ee = devm_kzalloc(dev->mt76.dev, sizeof(*dev->ee), GFP_KERNEL);
-	if (!dev->ee)
-		return -ENOMEM;
-
-	eeprom = kmalloc(MT76X0_EEPROM_SIZE, GFP_KERNEL);
-	if (!eeprom)
-		return -ENOMEM;
-
-	ret = mt76x02_get_efuse_data(&dev->mt76, 0, eeprom,
+	ret = mt76x02_get_efuse_data(&dev->mt76, 0, dev->mt76.eeprom.data,
 				     MT76X0_EEPROM_SIZE, MT_EE_READ);
 	if (ret)
-		goto out;
+		return ret;
 
-	if (eeprom[MT_EE_VERSION + 1] > MT76X0U_EE_MAX_VER)
+	data = mt76x02_eeprom_get(&dev->mt76, MT_EE_VERSION);
+	version = data >> 8;
+	fae = data;
+
+	if (version > MT76X0U_EE_MAX_VER)
 		dev_warn(dev->mt76.dev,
 			 "Warning: unsupported EEPROM version %02hhx\n",
-			 eeprom[MT_EE_VERSION + 1]);
+			 version);
 	dev_info(dev->mt76.dev, "EEPROM ver:%02hhx fae:%02hhx\n",
-		 eeprom[MT_EE_VERSION + 1], eeprom[MT_EE_VERSION]);
+		 version, fae);
 
-	mt76x02_mac_setaddr(&dev->mt76, eeprom + MT_EE_MAC_ADDR);
+	mt76x02_mac_setaddr(&dev->mt76,
+			    dev->mt76.eeprom.data + MT_EE_MAC_ADDR);
 	mt76x0_set_chip_cap(dev);
 	mt76x0_set_freq_offset(dev);
 	mt76x0_set_temp_offset(dev);
+
 	dev->chainmask = 0x0101;
 
-	mt76x0_set_tx_power_per_chan(dev, eeprom);
-
-out:
-	kfree(eeprom);
-	return ret;
+	return 0;
 }
 
 MODULE_LICENSE("Dual BSD/GPL");

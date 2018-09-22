@@ -89,7 +89,6 @@ struct mt76x0_dev {
 
 	const u16 *beacon_offsets;
 
-	struct mt76x0_eeprom_params *ee;
 	struct mt76x0_caldata caldata;
 
 	struct mutex reg_atomic_mutex;

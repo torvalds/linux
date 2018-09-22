@@ -100,7 +100,6 @@ mt76x0_eeprom_param_read(struct seq_file *file, void *data)
 {
 	struct mt76x0_dev *dev = file->private;
 	u16 val;
-	int i;
 
 	seq_printf(file, "RF freq offset: %hhx\n",
 		   dev->caldata.freq_offset);
@@ -114,10 +113,6 @@ mt76x0_eeprom_param_read(struct seq_file *file, void *data)
 	seq_printf(file, "Power Amplifier type %lx\n",
 		   val & MT_EE_NIC_CONF_0_PA_TYPE);
 
-	seq_puts(file, "Per channel power:\n");
-	for (i = 0; i < 58; i++)
-		seq_printf(file, "\t%d chan:%d pwr:%d\n", i, i,
-			   dev->ee->tx_pwr_per_chan[i]);
 	return 0;
 }
 

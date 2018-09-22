@@ -578,31 +578,15 @@ mt76x0_bbp_set_bw(struct mt76x0_dev *dev, enum nl80211_chan_width width)
 	mt76x02_mcu_function_select(&dev->mt76, BW_SETTING, bw, false);
 }
 
-static void
-mt76x0_phy_set_chan_pwr(struct mt76x0_dev *dev, u8 channel)
+static void mt76x0_phy_set_chan_pwr(struct mt76x0_dev *dev)
 {
-	static const int mt76x0_tx_pwr_ch_list[] = {
-		1,2,3,4,5,6,7,8,9,10,11,12,13,14,
-		36,38,40,44,46,48,52,54,56,60,62,64,
-		100,102,104,108,110,112,116,118,120,124,126,128,132,134,136,140,
-		149,151,153,157,159,161,165,167,169,171,173,
-		42,58,106,122,155
-	};
-	int i;
-	u32 val;
+	u8 info[2];
 
-	for (i = 0; i < ARRAY_SIZE(mt76x0_tx_pwr_ch_list); i++)
-		if (mt76x0_tx_pwr_ch_list[i] == channel)
-			break;
-
-	if (WARN_ON(i == ARRAY_SIZE(mt76x0_tx_pwr_ch_list)))
-		return;
-
-	val = mt76_rr(dev, MT_TX_ALC_CFG_0);
-	val &= ~0x3f3f;
-	val |= dev->ee->tx_pwr_per_chan[i];
-	val |= 0x2f2f << 16;
-	mt76_wr(dev, MT_TX_ALC_CFG_0, val);
+	mt76x0_get_power_info(dev, info);
+	mt76_rmw_field(dev, MT_TX_ALC_CFG_0, MT_TX_ALC_CFG_0_CH_INIT_0,
+		       info[0]);
+	mt76_rmw_field(dev, MT_TX_ALC_CFG_0, MT_TX_ALC_CFG_0_CH_INIT_1,
+		       info[1]);
 }
 
 static int
@@ -699,7 +683,7 @@ __mt76x0_phy_set_channel(struct mt76x0_dev *dev,
 	if (scan)
 		mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXDCOC, 1, false);
 
-	mt76x0_phy_set_chan_pwr(dev, channel);
+	mt76x0_phy_set_chan_pwr(dev);
 
 	return 0;
 }
