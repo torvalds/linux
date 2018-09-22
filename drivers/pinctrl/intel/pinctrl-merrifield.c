@@ -489,6 +489,21 @@ static int mrfld_read_bufcfg(struct mrfld_pinctrl *mp, unsigned int pin, u32 *va
 	return 0;
 }
 
+static void mrfld_update_bufcfg(struct mrfld_pinctrl *mp, unsigned int pin,
+				u32 bits, u32 mask)
+{
+	void __iomem *bufcfg;
+	u32 value;
+
+	bufcfg = mrfld_get_bufcfg(mp, pin);
+	value = readl(bufcfg);
+
+	value &= ~mask;
+	value |= bits & mask;
+
+	writel(value, bufcfg);
+}
+
 static int mrfld_get_groups_count(struct pinctrl_dev *pctldev)
 {
 	struct mrfld_pinctrl *mp = pinctrl_dev_get_drvdata(pctldev);
@@ -568,21 +583,6 @@ static int mrfld_get_function_groups(struct pinctrl_dev *pctldev,
 	*groups = mp->functions[function].groups;
 	*ngroups = mp->functions[function].ngroups;
 	return 0;
-}
-
-static void mrfld_update_bufcfg(struct mrfld_pinctrl *mp, unsigned int pin,
-				u32 bits, u32 mask)
-{
-	void __iomem *bufcfg;
-	u32 value;
-
-	bufcfg = mrfld_get_bufcfg(mp, pin);
-	value = readl(bufcfg);
-
-	value &= ~mask;
-	value |= bits & mask;
-
-	writel(value, bufcfg);
 }
 
 static int mrfld_pinmux_set_mux(struct pinctrl_dev *pctldev,
