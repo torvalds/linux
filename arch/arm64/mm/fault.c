@@ -424,6 +424,7 @@ static bool is_el0_instruction_abort(unsigned int esr)
 static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 				   struct pt_regs *regs)
 {
+	const struct fault_info *inf;
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	struct siginfo si;
@@ -562,6 +563,7 @@ retry:
 		return 0;
 	}
 
+	inf = esr_to_fault_info(esr);
 	if (fault & VM_FAULT_SIGBUS) {
 		/*
 		 * We had some memory, but were unable to successfully fix up
@@ -572,7 +574,7 @@ retry:
 		si.si_code	= BUS_ADRERR;
 		si.si_addr = (void __user *)addr;
 		set_thread_esr(addr, esr);
-		arm64_force_sig_info(&si, esr_to_fault_info(esr)->name);
+		arm64_force_sig_info(&si, inf->name);
 	} else if (fault & (VM_FAULT_HWPOISON_LARGE | VM_FAULT_HWPOISON)) {
 		unsigned int lsb;
 
@@ -586,7 +588,7 @@ retry:
 		si.si_addr = (void __user *)addr;
 		si.si_addr_lsb	= lsb;
 		set_thread_esr(addr, esr);
-		arm64_force_sig_info(&si, esr_to_fault_info(esr)->name);
+		arm64_force_sig_info(&si, inf->name);
 	} else {
 		/*
 		 * Something tried to access memory that isn't in our memory
@@ -598,7 +600,7 @@ retry:
 				  SEGV_ACCERR : SEGV_MAPERR;
 		si.si_addr = (void __user *)addr;
 		set_thread_esr(addr, esr);
-		arm64_force_sig_info(&si, esr_to_fault_info(esr)->name);
+		arm64_force_sig_info(&si, inf->name);
 	}
 
 	return 0;
