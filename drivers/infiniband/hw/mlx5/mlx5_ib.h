@@ -430,7 +430,7 @@ struct mlx5_ib_qp {
 	struct list_head	cq_send_list;
 	struct mlx5_rate_limit	rl;
 	u32                     underlay_qpn;
-	bool			tunnel_offload_en;
+	u32			flags_en;
 	/* storage for qp sub type when core qp type is IB_QPT_DRIVER */
 	enum ib_qp_type		qp_sub_type;
 };
@@ -868,6 +868,14 @@ to_mcounters(struct ib_counters *ibcntrs)
 int parse_flow_flow_action(struct mlx5_ib_flow_action *maction,
 			   bool is_egress,
 			   struct mlx5_flow_act *action);
+struct mlx5_ib_lb_state {
+	/* protect the user_td */
+	struct mutex		mutex;
+	u32			user_td;
+	int			qps;
+	bool			enabled;
+};
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	const struct uverbs_object_tree_def *driver_trees[7];
@@ -909,9 +917,7 @@ struct mlx5_ib_dev {
 	const struct mlx5_ib_profile	*profile;
 	struct mlx5_eswitch_rep		*rep;
 
-	/* protect the user_td */
-	struct mutex		lb_mutex;
-	u32			user_td;
+	struct mlx5_ib_lb_state		lb;
 	u8			umr_fence;
 	struct list_head	ib_dev_list;
 	u64			sys_image_guid;
@@ -1026,6 +1032,8 @@ int mlx5_ib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr);
 int mlx5_ib_destroy_srq(struct ib_srq *srq);
 int mlx5_ib_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 			  const struct ib_recv_wr **bad_wr);
+int mlx5_ib_enable_lb(struct mlx5_ib_dev *dev, bool td, bool qp);
+void mlx5_ib_disable_lb(struct mlx5_ib_dev *dev, bool td, bool qp);
 struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *init_attr,
 				struct ib_udata *udata);

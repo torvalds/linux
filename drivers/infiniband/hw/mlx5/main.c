@@ -1571,6 +1571,48 @@ static void deallocate_uars(struct mlx5_ib_dev *dev,
 			mlx5_cmd_free_uar(dev->mdev, bfregi->sys_pages[i]);
 }
 
+int mlx5_ib_enable_lb(struct mlx5_ib_dev *dev, bool td, bool qp)
+{
+	int err = 0;
+
+	mutex_lock(&dev->lb.mutex);
+	if (td)
+		dev->lb.user_td++;
+	if (qp)
+		dev->lb.qps++;
+
+	if (dev->lb.user_td == 2 ||
+	    dev->lb.qps == 1) {
+		if (!dev->lb.enabled) {
+			err = mlx5_nic_vport_update_local_lb(dev->mdev, true);
+			dev->lb.enabled = true;
+		}
+	}
+
+	mutex_unlock(&dev->lb.mutex);
+
+	return err;
+}
+
+void mlx5_ib_disable_lb(struct mlx5_ib_dev *dev, bool td, bool qp)
+{
+	mutex_lock(&dev->lb.mutex);
+	if (td)
+		dev->lb.user_td--;
+	if (qp)
+		dev->lb.qps--;
+
+	if (dev->lb.user_td == 1 &&
+	    dev->lb.qps == 0) {
+		if (dev->lb.enabled) {
+			mlx5_nic_vport_update_local_lb(dev->mdev, false);
+			dev->lb.enabled = false;
+		}
+	}
+
+	mutex_unlock(&dev->lb.mutex);
+}
+
 static int mlx5_ib_alloc_transport_domain(struct mlx5_ib_dev *dev, u32 *tdn)
 {
 	int err;
@@ -1587,14 +1629,7 @@ static int mlx5_ib_alloc_transport_domain(struct mlx5_ib_dev *dev, u32 *tdn)
 	     !MLX5_CAP_GEN(dev->mdev, disable_local_lb_mc)))
 		return err;
 
-	mutex_lock(&dev->lb_mutex);
-	dev->user_td++;
-
-	if (dev->user_td == 2)
-		err = mlx5_nic_vport_update_local_lb(dev->mdev, true);
-
-	mutex_unlock(&dev->lb_mutex);
-	return err;
+	return mlx5_ib_enable_lb(dev, true, false);
 }
 
 static void mlx5_ib_dealloc_transport_domain(struct mlx5_ib_dev *dev, u32 tdn)
@@ -1609,13 +1644,7 @@ static void mlx5_ib_dealloc_transport_domain(struct mlx5_ib_dev *dev, u32 tdn)
 	     !MLX5_CAP_GEN(dev->mdev, disable_local_lb_mc)))
 		return;
 
-	mutex_lock(&dev->lb_mutex);
-	dev->user_td--;
-
-	if (dev->user_td < 2)
-		mlx5_nic_vport_update_local_lb(dev->mdev, false);
-
-	mutex_unlock(&dev->lb_mutex);
+	mlx5_ib_disable_lb(dev, true, false);
 }
 
 static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
@@ -5867,7 +5896,7 @@ int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	if ((MLX5_CAP_GEN(dev->mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) &&
 	    (MLX5_CAP_GEN(dev->mdev, disable_local_lb_uc) ||
 	     MLX5_CAP_GEN(dev->mdev, disable_local_lb_mc)))
-		mutex_init(&dev->lb_mutex);
+		mutex_init(&dev->lb.mutex);
 
 	return 0;
 }
