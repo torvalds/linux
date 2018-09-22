@@ -4887,6 +4887,8 @@ void topology_probe()
 		return;
 
 	for (i = 0; i <= topo.max_cpu_num; ++i) {
+		if (cpu_is_not_present(i))
+			continue;
 		fprintf(outf,
 			"cpu %d pkg %d node %d lnode %d core %d thread %d\n",
 			i, cpus[i].physical_package_id,
