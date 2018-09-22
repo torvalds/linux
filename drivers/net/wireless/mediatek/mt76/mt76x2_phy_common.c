@@ -192,8 +192,8 @@ void mt76x2_phy_set_txpower(struct mt76x2_dev *dev)
 
 	mt76x2_get_rate_power(dev, &t, chan);
 	mt76x2_add_rate_power_offset(&t, txp.chain[0].target_power);
-	mt76x2_limit_rate_power(&t, dev->txpower_conf);
-	dev->txpower_cur = mt76x2_get_max_rate_power(&t);
+	mt76x2_limit_rate_power(&t, dev->mt76.txpower_conf);
+	dev->mt76.txpower_cur = mt76x2_get_max_rate_power(&t);
 
 	base_power = mt76x2_get_min_rate_power(&t);
 	delta += base_power - txp.chain[0].target_power;
@@ -215,7 +215,7 @@ void mt76x2_phy_set_txpower(struct mt76x2_dev *dev)
 	dev->target_power = txp.chain[0].target_power;
 	dev->target_power_delta[0] = txp_0 - txp.chain[0].target_power;
 	dev->target_power_delta[1] = txp_1 - txp.chain[0].target_power;
-	dev->rate_power = t;
+	dev->mt76.rate_power = t;
 
 	mt76_rmw_field(dev, MT_TX_ALC_CFG_0, MT_TX_ALC_CFG_0_CH_INIT_0, txp_0);
 	mt76_rmw_field(dev, MT_TX_ALC_CFG_0, MT_TX_ALC_CFG_0_CH_INIT_1, txp_1);

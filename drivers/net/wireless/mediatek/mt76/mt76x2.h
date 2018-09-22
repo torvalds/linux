@@ -82,8 +82,6 @@ struct mt76x2_dev {
 	struct mutex mutex;
 
 	const u16 *beacon_offsets;
-	int txpower_conf;
-	int txpower_cur;
 
 	u8 txdone_seq;
 	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);
@@ -113,7 +111,6 @@ struct mt76x2_dev {
 
 	s8 target_power;
 	s8 target_power_delta[2];
-	struct mt76_rate_power rate_power;
 	bool enable_tpc;
 
 	u8 coverage_class;
