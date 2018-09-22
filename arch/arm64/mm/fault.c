@@ -297,9 +297,9 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 	die_kernel_fault(msg, addr, esr, regs);
 }
 
-static void __do_user_fault(struct siginfo *info, unsigned int esr)
+static void set_thread_esr(unsigned long address, unsigned int esr)
 {
-	current->thread.fault_address = (unsigned long)info->si_addr;
+	current->thread.fault_address = address;
 
 	/*
 	 * If the faulting address is in the kernel, we must sanitize the ESR.
@@ -352,6 +352,11 @@ static void __do_user_fault(struct siginfo *info, unsigned int esr)
 	}
 
 	current->thread.fault_code = esr;
+}
+
+static void __do_user_fault(struct siginfo *info, unsigned int esr)
+{
+	set_thread_esr((unsigned long)info->si_addr, esr);
 	arm64_force_sig_info(info, esr_to_fault_info(esr)->name);
 }
 
