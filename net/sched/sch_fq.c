@@ -106,7 +106,6 @@ struct fq_sched_data {
 
 	u64		stat_gc_flows;
 	u64		stat_internal_packets;
-	u64		stat_tcp_retrans;
 	u64		stat_throttled;
 	u64		stat_flows_plimit;
 	u64		stat_pkts_too_long;
@@ -327,62 +326,17 @@ static struct sk_buff *fq_dequeue_head(struct Qdisc *sch, struct fq_flow *flow)
 	return skb;
 }
 
-/* We might add in the future detection of retransmits
- * For the time being, just return false
- */
-static bool skb_is_retransmit(struct sk_buff *skb)
-{
-	return false;
-}
-
-/* add skb to flow queue
- * flow queue is a linked list, kind of FIFO, except for TCP retransmits
- * We special case tcp retransmits to be transmitted before other packets.
- * We rely on fact that TCP retransmits are unlikely, so we do not waste
- * a separate queue or a pointer.
- * head->  [retrans pkt 1]
- *         [retrans pkt 2]
- *         [ normal pkt 1]
- *         [ normal pkt 2]
- *         [ normal pkt 3]
- * tail->  [ normal pkt 4]
- */
 static void flow_queue_add(struct fq_flow *flow, struct sk_buff *skb)
 {
-	struct sk_buff *prev, *head = flow->head;
+	struct sk_buff *head = flow->head;
 
 	skb->next = NULL;
-	if (!head) {
+	if (!head)
 		flow->head = skb;
-		flow->tail = skb;
-		return;
-	}
-	if (likely(!skb_is_retransmit(skb))) {
+	else
 		flow->tail->next = skb;
-		flow->tail = skb;
-		return;
-	}
 
-	/* This skb is a tcp retransmit,
-	 * find the last retrans packet in the queue
-	 */
-	prev = NULL;
-	while (skb_is_retransmit(head)) {
-		prev = head;
-		head = head->next;
-		if (!head)
-			break;
-	}
-	if (!prev) { /* no rtx packet in queue, become the new head */
-		skb->next = flow->head;
-		flow->head = skb;
-	} else {
-		if (prev == flow->tail)
-			flow->tail = skb;
-		else
-			skb->next = prev->next;
-		prev->next = skb;
-	}
+	flow->tail = skb;
 }
 
 static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
@@ -401,8 +355,6 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	}
 
 	f->qlen++;
-	if (skb_is_retransmit(skb))
-		q->stat_tcp_retrans++;
 	qdisc_qstats_backlog_inc(sch, skb);
 	if (fq_flow_is_detached(f)) {
 		struct sock *sk = skb->sk;
@@ -460,7 +412,7 @@ static void fq_check_throttled(struct fq_sched_data *q, u64 now)
 static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
-	u64 now = ktime_get_ns();
+	u64 now = ktime_get_tai_ns();
 	struct fq_flow_head *head;
 	struct sk_buff *skb;
 	struct fq_flow *f;
@@ -491,11 +443,16 @@ begin:
 	}
 
 	skb = f->head;
-	if (unlikely(skb && now < f->time_next_packet &&
-		     !skb_is_tcp_pure_ack(skb))) {
-		head->first = f->next;
-		fq_flow_set_throttled(q, f);
-		goto begin;
+	if (skb && !skb_is_tcp_pure_ack(skb)) {
+		u64 time_next_packet = max_t(u64, ktime_to_ns(skb->tstamp),
+					     f->time_next_packet);
+
+		if (now < time_next_packet) {
+			head->first = f->next;
+			f->time_next_packet = time_next_packet;
+			fq_flow_set_throttled(q, f);
+			goto begin;
+		}
 	}
 
 	skb = fq_dequeue_head(sch, f);
@@ -513,11 +470,7 @@ begin:
 	prefetch(&skb->end);
 	f->credit -= qdisc_pkt_len(skb);
 
-	if (!q->rate_enable)
-		goto out;
-
-	/* Do not pace locally generated ack packets */
-	if (skb_is_tcp_pure_ack(skb))
+	if (ktime_to_ns(skb->tstamp) || !q->rate_enable)
 		goto out;
 
 	rate = q->flow_max_rate;
@@ -823,7 +776,7 @@ static int fq_init(struct Qdisc *sch, struct nlattr *opt,
 	q->fq_trees_log		= ilog2(1024);
 	q->orphan_mask		= 1024 - 1;
 	q->low_rate_threshold	= 550000 / 8;
-	qdisc_watchdog_init(&q->watchdog, sch);
+	qdisc_watchdog_init_clockid(&q->watchdog, sch, CLOCK_TAI);
 
 	if (opt)
 		err = fq_change(sch, opt, extack);
@@ -873,12 +826,12 @@ static int fq_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 
 	st.gc_flows		  = q->stat_gc_flows;
 	st.highprio_packets	  = q->stat_internal_packets;
-	st.tcp_retrans		  = q->stat_tcp_retrans;
+	st.tcp_retrans		  = 0;
 	st.throttled		  = q->stat_throttled;
 	st.flows_plimit		  = q->stat_flows_plimit;
 	st.pkts_too_long	  = q->stat_pkts_too_long;
 	st.allocation_errors	  = q->stat_allocation_errors;
-	st.time_next_delayed_flow = q->time_next_delayed_flow - ktime_get_ns();
+	st.time_next_delayed_flow = q->time_next_delayed_flow - ktime_get_tai_ns();
 	st.flows		  = q->flows;
 	st.inactive_flows	  = q->inactive_flows;
 	st.throttled_flows	  = q->throttled_flows;

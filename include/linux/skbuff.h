@@ -689,7 +689,7 @@ struct sk_buff {
 
 	union {
 		ktime_t		tstamp;
-		u64		skb_mstamp;
+		u64		skb_mstamp_ns; /* earliest departure time */
 	};
 	/*
 	 * This is the control buffer. It is free to use for every
