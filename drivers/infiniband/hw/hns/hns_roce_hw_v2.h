@@ -818,6 +818,11 @@ struct hns_roce_v2_cqe {
 #define	V2_CQE_BYTE_28_PORT_TYPE_S 16
 #define V2_CQE_BYTE_28_PORT_TYPE_M GENMASK(17, 16)
 
+#define V2_CQE_BYTE_28_VID_S 18
+#define V2_CQE_BYTE_28_VID_M GENMASK(29, 18)
+
+#define V2_CQE_BYTE_28_VID_VLD_S 30
+
 #define	V2_CQE_BYTE_32_RMT_QPN_S 0
 #define V2_CQE_BYTE_32_RMT_QPN_M GENMASK(23, 0)
 

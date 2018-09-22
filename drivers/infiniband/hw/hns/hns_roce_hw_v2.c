@@ -2292,7 +2292,14 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 		wc->smac[5] = roce_get_field(cqe->byte_28,
 					     V2_CQE_BYTE_28_SMAC_5_M,
 					     V2_CQE_BYTE_28_SMAC_5_S);
-		wc->vlan_id = 0xffff;
+		if (roce_get_bit(cqe->byte_28, V2_CQE_BYTE_28_VID_VLD_S)) {
+			wc->vlan_id = (u16)roce_get_field(cqe->byte_28,
+							  V2_CQE_BYTE_28_VID_M,
+							  V2_CQE_BYTE_28_VID_S);
+		} else {
+			wc->vlan_id = 0xffff;
+		}
+
 		wc->wc_flags |= (IB_WC_WITH_VLAN | IB_WC_WITH_SMAC);
 		wc->network_hdr_type = roce_get_field(cqe->byte_28,
 						    V2_CQE_BYTE_28_PORT_TYPE_M,
