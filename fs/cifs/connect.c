@@ -250,6 +250,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_ignore, "dev" },
 	{ Opt_ignore, "mand" },
 	{ Opt_ignore, "nomand" },
+	{ Opt_ignore, "relatime" },
 	{ Opt_ignore, "_netdev" },
 
 	{ Opt_err, NULL }

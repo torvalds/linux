@@ -3889,8 +3889,12 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 	else
 		cifs_dbg(FYI, "Bytes read %d\n", rc);
 
-	file_inode(file)->i_atime =
-		current_time(file_inode(file));
+	/* we do not want atime to be less than mtime, it broke some apps */
+	file_inode(file)->i_atime = current_time(file_inode(file));
+	if (timespec64_compare(&(file_inode(file)->i_atime), &(file_inode(file)->i_mtime)))
+		file_inode(file)->i_atime = file_inode(file)->i_mtime;
+	else
+		file_inode(file)->i_atime = current_time(file_inode(file));
 
 	if (PAGE_SIZE > rc)
 		memset(read_data + rc, 0, PAGE_SIZE - rc);

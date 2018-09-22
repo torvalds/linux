@@ -162,7 +162,11 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 	cifs_revalidate_cache(inode, fattr);
 
 	spin_lock(&inode->i_lock);
-	inode->i_atime = fattr->cf_atime;
+	/* we do not want atime to be less than mtime, it broke some apps */
+	if (timespec64_compare(&fattr->cf_atime, &fattr->cf_mtime))
+		inode->i_atime = fattr->cf_mtime;
+	else
+		inode->i_atime = fattr->cf_atime;
 	inode->i_mtime = fattr->cf_mtime;
 	inode->i_ctime = fattr->cf_ctime;
 	inode->i_rdev = fattr->cf_rdev;
