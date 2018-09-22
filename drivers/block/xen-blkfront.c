@@ -2667,11 +2667,9 @@ static void purge_persistent_grants(struct blkfront_info *info)
 			    gnttab_query_foreign_access(gnt_list_entry->gref))
 				continue;
 
-			list_del(&gnt_list_entry->node);
 			gnttab_end_foreign_access(gnt_list_entry->gref, 0, 0UL);
+			gnt_list_entry->gref = GRANT_INVALID_REF;
 			rinfo->persistent_gnts_c--;
-			__free_page(gnt_list_entry->page);
-			kfree(gnt_list_entry);
 		}
 
 		spin_unlock_irqrestore(&rinfo->ring_lock, flags);
