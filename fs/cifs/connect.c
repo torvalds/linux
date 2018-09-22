@@ -347,7 +347,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	server->maxBuf = 0;
 	server->max_read = 0;
 
-	cifs_dbg(FYI, "Reconnecting tcp session\n");
+	cifs_dbg(FYI, "Mark tcp session as need reconnect\n");
 	trace_smb3_reconnect(server->CurrentMid, server->hostname);
 
 	/* before reconnecting the tcp session, mark the smb session (uid)

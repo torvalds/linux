@@ -113,6 +113,9 @@ smb2_set_credits(struct TCP_Server_Info *server, const int val)
 	if (val == 1)
 		server->reconnect_instance++;
 	spin_unlock(&server->req_lock);
+	/* don't log while holding the lock */
+	if (val == 1)
+		cifs_dbg(FYI, "set credits to 1 due to smb2 reconnect\n");
 }
 
 static int *
