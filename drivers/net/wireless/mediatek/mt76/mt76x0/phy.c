@@ -21,6 +21,7 @@
 #include "phy.h"
 #include "initvals.h"
 #include "initvals_phy.h"
+#include "../mt76x02_phy.h"
 
 #include <linux/etherdevice.h>
 
@@ -578,15 +579,20 @@ mt76x0_bbp_set_bw(struct mt76x0_dev *dev, enum nl80211_chan_width width)
 	mt76x02_mcu_function_select(&dev->mt76, BW_SETTING, bw, false);
 }
 
-static void mt76x0_phy_set_chan_pwr(struct mt76x0_dev *dev)
+void mt76x0_phy_set_txpower(struct mt76x0_dev *dev)
 {
+	struct mt76_rate_power *t = &dev->mt76.rate_power;
 	u8 info[2];
 
 	mt76x0_get_power_info(dev, info);
-	mt76_rmw_field(dev, MT_TX_ALC_CFG_0, MT_TX_ALC_CFG_0_CH_INIT_0,
-		       info[0]);
-	mt76_rmw_field(dev, MT_TX_ALC_CFG_0, MT_TX_ALC_CFG_0_CH_INIT_1,
-		       info[1]);
+	mt76x0_get_tx_power_per_rate(dev);
+
+	mt76x02_add_rate_power_offset(t, info[0]);
+	mt76x02_limit_rate_power(t, dev->mt76.txpower_conf);
+	dev->mt76.txpower_cur = mt76x02_get_max_rate_power(t);
+	mt76x02_add_rate_power_offset(t, -info[0]);
+
+	mt76x02_phy_set_txpower(&dev->mt76, info[0], info[1]);
 }
 
 static int
@@ -663,7 +669,6 @@ __mt76x0_phy_set_channel(struct mt76x0_dev *dev,
 
 	mt76x0_phy_set_band(dev, chandef->chan->band);
 	mt76x0_phy_set_chan_rf_params(dev, channel, rf_bw_band);
-	mt76x0_get_tx_power_per_rate(dev);
 	mt76x0_read_rx_gain(dev);
 
 	/* set Japan Tx filter at channel 14 */
@@ -683,7 +688,7 @@ __mt76x0_phy_set_channel(struct mt76x0_dev *dev,
 	if (scan)
 		mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXDCOC, 1, false);
 
-	mt76x0_phy_set_chan_pwr(dev);
+	mt76x0_phy_set_txpower(dev);
 
 	return 0;
 }

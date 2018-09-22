@@ -147,6 +147,7 @@ void mt76x0_phy_recalibrate_after_assoc(struct mt76x0_dev *dev);
 int mt76x0_phy_get_rssi(struct mt76x0_dev *dev, struct mt76x02_rxwi *rxwi);
 void mt76x0_phy_con_cal_onoff(struct mt76x0_dev *dev,
 			       struct ieee80211_bss_conf *info);
+void mt76x0_phy_set_txpower(struct mt76x0_dev *dev);
 
 /* MAC */
 void mt76x0_mac_work(struct work_struct *work);
