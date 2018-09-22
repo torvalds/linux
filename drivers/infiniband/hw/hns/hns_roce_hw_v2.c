@@ -370,6 +370,9 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 				       V2_UD_SEND_WQE_BYTE_40_PORTN_S,
 				       qp->port);
 
+			roce_set_bit(ud_sq_wqe->byte_40,
+				     V2_UD_SEND_WQE_BYTE_40_UD_VLAN_EN_S,
+				     ah->av.vlan_en ? 1 : 0);
 			roce_set_field(ud_sq_wqe->byte_48,
 				       V2_UD_SEND_WQE_BYTE_48_SGID_INDX_M,
 				       V2_UD_SEND_WQE_BYTE_48_SGID_INDX_S,

@@ -49,6 +49,7 @@ struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd,
 	struct hns_roce_ah *ah;
 	u16 vlan_tag = 0xffff;
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
+	bool vlan_en = false;
 
 	ah = kzalloc(sizeof(*ah), GFP_ATOMIC);
 	if (!ah)
@@ -58,8 +59,10 @@ struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd,
 	memcpy(ah->av.mac, ah_attr->roce.dmac, ETH_ALEN);
 
 	gid_attr = ah_attr->grh.sgid_attr;
-	if (is_vlan_dev(gid_attr->ndev))
+	if (is_vlan_dev(gid_attr->ndev)) {
 		vlan_tag = vlan_dev_vlan_id(gid_attr->ndev);
+		vlan_en = true;
+	}
 
 	if (vlan_tag < 0x1000)
 		vlan_tag |= (rdma_ah_get_sl(ah_attr) &
@@ -71,6 +74,7 @@ struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd,
 				     HNS_ROCE_PORT_NUM_SHIFT));
 	ah->av.gid_index = grh->sgid_index;
 	ah->av.vlan = cpu_to_le16(vlan_tag);
+	ah->av.vlan_en = vlan_en;
 	dev_dbg(dev, "gid_index = 0x%x,vlan = 0x%x\n", ah->av.gid_index,
 		ah->av.vlan);
 

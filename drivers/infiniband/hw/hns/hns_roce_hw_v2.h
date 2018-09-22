@@ -993,6 +993,8 @@ struct hns_roce_v2_ud_send_wqe {
 #define	V2_UD_SEND_WQE_BYTE_40_PORTN_S 24
 #define V2_UD_SEND_WQE_BYTE_40_PORTN_M GENMASK(26, 24)
 
+#define V2_UD_SEND_WQE_BYTE_40_UD_VLAN_EN_S 30
+
 #define	V2_UD_SEND_WQE_BYTE_40_LBI_S 31
 
 #define	V2_UD_SEND_WQE_DMAC_0_S 0
