@@ -262,6 +262,13 @@ void arm64_force_sig_mceerr(int code, void __user *addr, short lsb,
 	force_sig_mceerr(code, addr, lsb, current);
 }
 
+void arm64_force_sig_ptrace_errno_trap(int errno, void __user *addr,
+				       const char *str)
+{
+	arm64_show_signal(SIGTRAP, str);
+	force_sig_ptrace_errno_trap(errno, addr);
+}
+
 void arm64_notify_die(const char *str, struct pt_regs *regs,
 		      int signo, int sicode, void __user *addr,
 		      int err)

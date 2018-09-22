@@ -202,7 +202,9 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 				break;
 			}
 		}
-		force_sig_ptrace_errno_trap(si_errno, (void __user *)bkpt->trigger);
+		arm64_force_sig_ptrace_errno_trap(si_errno,
+						  (void __user *)bkpt->trigger,
+						  desc);
 	}
 #endif
 	arm64_force_sig_fault(SIGTRAP, TRAP_HWBKPT,
