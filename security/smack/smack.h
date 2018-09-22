@@ -24,6 +24,7 @@
 #include <linux/list.h>
 #include <linux/rculist.h>
 #include <linux/lsm_audit.h>
+#include <linux/msg.h>
 
 /*
  * Use IPv6 port labeling if IPv6 is enabled and secmarks
@@ -371,6 +372,16 @@ static inline struct smack_known **smack_file(const struct file *file)
 static inline struct inode_smack *smack_inode(const struct inode *inode)
 {
 	return inode->i_security + smack_blob_sizes.lbs_inode;
+}
+
+static inline struct smack_known **smack_msg_msg(const struct msg_msg *msg)
+{
+	return (struct smack_known **)&msg->security;
+}
+
+static inline struct smack_known **smack_ipc(const struct kern_ipc_perm *ipc)
+{
+	return (struct smack_known **)&ipc->security;
 }
 
 /*
