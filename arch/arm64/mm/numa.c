@@ -391,7 +391,6 @@ static int __init numa_init(int (*init_func)(void))
 	nodes_clear(numa_nodes_parsed);
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);
-	numa_free_distance();
 
 	ret = numa_alloc_distance();
 	if (ret < 0)
@@ -399,20 +398,24 @@ static int __init numa_init(int (*init_func)(void))
 
 	ret = init_func();
 	if (ret < 0)
-		return ret;
+		goto out_free_distance;
 
 	if (nodes_empty(numa_nodes_parsed)) {
 		pr_info("No NUMA configuration found\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_free_distance;
 	}
 
 	ret = numa_register_nodes();
 	if (ret < 0)
-		return ret;
+		goto out_free_distance;
 
 	setup_node_to_cpumask_map();
 
 	return 0;
+out_free_distance:
+	numa_free_distance();
+	return ret;
 }
 
 /**
