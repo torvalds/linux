@@ -547,44 +547,6 @@ mt76x0_phy_set_chan_bbp_params(struct mt76x0_dev *dev, u8 channel, u16 rf_bw_ban
 	}
 }
 
-#if 0
-static void
-mt76x0_extra_power_over_mac(struct mt76x0_dev *dev)
-{
-	u32 val;
-
-	val = ((mt76_rr(dev, MT_TX_PWR_CFG_1) & 0x00003f00) >> 8);
-	val |= ((mt76_rr(dev, MT_TX_PWR_CFG_2) & 0x00003f00) << 8);
-	mt76_wr(dev, MT_TX_PWR_CFG_7, val);
-
-	/* TODO: fix VHT */
-	val = ((mt76_rr(dev, MT_TX_PWR_CFG_3) & 0x0000ff00) >> 8);
-	mt76_wr(dev, MT_TX_PWR_CFG_8, val);
-
-	val = ((mt76_rr(dev, MT_TX_PWR_CFG_4) & 0x0000ff00) >> 8);
-	mt76_wr(dev, MT_TX_PWR_CFG_9, val);
-}
-
-static void
-mt76x0_phy_set_tx_power(struct mt76x0_dev *dev, u8 channel, u8 rf_bw_band)
-{
-	u32 val;
-	int i;
-	int bw = (rf_bw_band & RF_BW_20) ? 0 : 1;
-
-	for (i = 0; i < 4; i++) {
-		if (channel <= 14)
-			val = dev->ee->tx_pwr_cfg_2g[i][bw];
-		else
-			val = dev->ee->tx_pwr_cfg_5g[i][bw];
-
-		mt76_wr(dev, MT_TX_PWR_CFG_0 + 4*i, val);
-	}
-
-	mt76x0_extra_power_over_mac(dev);
-}
-#endif
-
 static void
 mt76x0_bbp_set_bw(struct mt76x0_dev *dev, enum nl80211_chan_width width)
 {
