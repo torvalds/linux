@@ -215,7 +215,8 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 	props->max_pd = hr_dev->caps.num_pds;
 	props->max_qp_rd_atom = hr_dev->caps.max_qp_dest_rdma;
 	props->max_qp_init_rd_atom = hr_dev->caps.max_qp_init_rdma;
-	props->atomic_cap = IB_ATOMIC_NONE;
+	props->atomic_cap = hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_ATOMIC ?
+			    IB_ATOMIC_HCA : IB_ATOMIC_NONE;
 	props->max_pkeys = 1;
 	props->local_ca_ack_delay = hr_dev->caps.local_ca_ack_delay;
 
