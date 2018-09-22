@@ -17,6 +17,7 @@
 
 #include "mt76x2.h"
 #include "mt76x2_eeprom.h"
+#include "mt76x02_phy.h"
 
 static void
 mt76x2_set_wlan_state(struct mt76x2_dev *dev, bool enable)
@@ -214,7 +215,7 @@ void mt76x2_init_txpower(struct mt76x2_dev *dev,
 
 		mt76x2_get_rate_power(dev, &t, chan);
 
-		chan->max_power = mt76x2_get_max_rate_power(&t) +
+		chan->max_power = mt76x02_get_max_rate_power(&t) +
 				  target_power;
 		chan->max_power /= 2;
 
