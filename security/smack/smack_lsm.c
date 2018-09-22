@@ -305,24 +305,18 @@ static struct smack_known *smk_fetch(const char *name, struct inode *ip,
 }
 
 /**
- * new_inode_smack - allocate an inode security blob
+ * init_inode_smack - initialize an inode security blob
+ * @isp: the blob to initialize
  * @skp: a pointer to the Smack label entry to use in the blob
  *
- * Returns the new blob or NULL if there's no memory available
  */
-static struct inode_smack *new_inode_smack(struct smack_known *skp)
+static void init_inode_smack(struct inode *inode, struct smack_known *skp)
 {
-	struct inode_smack *isp;
-
-	isp = kmem_cache_zalloc(smack_inode_cache, GFP_NOFS);
-	if (isp == NULL)
-		return NULL;
+	struct inode_smack *isp = smack_inode(inode);
 
 	isp->smk_inode = skp;
 	isp->smk_flags = 0;
 	mutex_init(&isp->smk_lock);
-
-	return isp;
 }
 
 /**
@@ -709,6 +703,13 @@ static int smack_set_mnt_opts(struct super_block *sb,
 	if (sp->smk_flags & SMK_SB_INITIALIZED)
 		return 0;
 
+	if (inode->i_security == NULL) {
+		int rc = lsm_inode_alloc(inode);
+
+		if (rc)
+			return rc;
+	}
+
 	if (!smack_privileged(CAP_MAC_ADMIN)) {
 		/*
 		 * Unprivileged mounts don't get to specify Smack values.
@@ -773,17 +774,12 @@ static int smack_set_mnt_opts(struct super_block *sb,
 	/*
 	 * Initialize the root inode.
 	 */
-	isp = smack_inode(inode);
-	if (isp == NULL) {
-		isp = new_inode_smack(sp->smk_root);
-		if (isp == NULL)
-			return -ENOMEM;
-		inode->i_security = isp;
-	} else
-		isp->smk_inode = sp->smk_root;
+	init_inode_smack(inode, sp->smk_root);
 
-	if (transmute)
+	if (transmute) {
+		isp = smack_inode(inode);
 		isp->smk_flags |= SMK_INODE_TRANSMUTE;
+	}
 
 	return 0;
 }
@@ -881,46 +877,8 @@ static int smack_inode_alloc_security(struct inode *inode)
 {
 	struct smack_known *skp = smk_of_current();
 
-	inode->i_security = new_inode_smack(skp);
-	if (inode->i_security == NULL)
-		return -ENOMEM;
+	init_inode_smack(inode, skp);
 	return 0;
-}
-
-/**
- * smack_inode_free_rcu - Free inode_smack blob from cache
- * @head: the rcu_head for getting inode_smack pointer
- *
- *  Call back function called from call_rcu() to free
- *  the i_security blob pointer in inode
- */
-static void smack_inode_free_rcu(struct rcu_head *head)
-{
-	struct inode_smack *issp;
-
-	issp = container_of(head, struct inode_smack, smk_rcu);
-	kmem_cache_free(smack_inode_cache, issp);
-}
-
-/**
- * smack_inode_free_security - free an inode blob using call_rcu()
- * @inode: the inode with a blob
- *
- * Clears the blob pointer in inode using RCU
- */
-static void smack_inode_free_security(struct inode *inode)
-{
-	struct inode_smack *issp = smack_inode(inode);
-
-	/*
-	 * The inode may still be referenced in a path walk and
-	 * a call to smack_inode_permission() can be made
-	 * after smack_inode_free_security() is called.
-	 * To avoid race condition free the i_security via RCU
-	 * and leave the current inode->i_security pointer intact.
-	 * The inode will be freed after the RCU grace period too.
-	 */
-	call_rcu(&issp->smk_rcu, smack_inode_free_rcu);
 }
 
 /**
@@ -4548,6 +4506,7 @@ static int smack_dentry_create_files_as(struct dentry *dentry, int mode,
 struct lsm_blob_sizes smack_blob_sizes __lsm_ro_after_init = {
 	.lbs_cred = sizeof(struct task_smack),
 	.lbs_file = sizeof(struct smack_known *),
+	.lbs_inode = sizeof(struct inode_smack),
 };
 
 static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
@@ -4565,7 +4524,6 @@ static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(bprm_set_creds, smack_bprm_set_creds),
 
 	LSM_HOOK_INIT(inode_alloc_security, smack_inode_alloc_security),
-	LSM_HOOK_INIT(inode_free_security, smack_inode_free_security),
 	LSM_HOOK_INIT(inode_init_security, smack_inode_init_security),
 	LSM_HOOK_INIT(inode_link, smack_inode_link),
 	LSM_HOOK_INIT(inode_unlink, smack_inode_unlink),
