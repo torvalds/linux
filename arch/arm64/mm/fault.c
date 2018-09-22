@@ -567,16 +567,16 @@ retry:
 		return 0;
 	}
 
-	clear_siginfo(&si);
-	si.si_addr = (void __user *)addr;
-
 	if (fault & VM_FAULT_SIGBUS) {
 		/*
 		 * We had some memory, but were unable to successfully fix up
 		 * this page fault.
 		 */
+		clear_siginfo(&si);
 		si.si_signo	= SIGBUS;
 		si.si_code	= BUS_ADRERR;
+		si.si_addr = (void __user *)addr;
+		__do_user_fault(&si, esr);
 	} else if (fault & (VM_FAULT_HWPOISON_LARGE | VM_FAULT_HWPOISON)) {
 		unsigned int lsb;
 
@@ -584,20 +584,25 @@ retry:
 		if (fault & VM_FAULT_HWPOISON_LARGE)
 			lsb = hstate_index_to_shift(VM_FAULT_GET_HINDEX(fault));
 
+		clear_siginfo(&si);
 		si.si_signo	= SIGBUS;
 		si.si_code	= BUS_MCEERR_AR;
+		si.si_addr = (void __user *)addr;
 		si.si_addr_lsb	= lsb;
+		__do_user_fault(&si, esr);
 	} else {
 		/*
 		 * Something tried to access memory that isn't in our memory
 		 * map.
 		 */
+		clear_siginfo(&si);
 		si.si_signo	= SIGSEGV;
 		si.si_code	= fault == VM_FAULT_BADACCESS ?
 				  SEGV_ACCERR : SEGV_MAPERR;
+		si.si_addr = (void __user *)addr;
+		__do_user_fault(&si, esr);
 	}
 
-	__do_user_fault(&si, esr);
 	return 0;
 
 no_context:
