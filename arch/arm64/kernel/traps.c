@@ -255,6 +255,13 @@ void arm64_force_sig_fault(int signo, int code, void __user *addr,
 	force_sig_fault(signo, code, addr, current);
 }
 
+void arm64_force_sig_mceerr(int code, void __user *addr, short lsb,
+			    const char *str)
+{
+	arm64_show_signal(SIGBUS, str);
+	force_sig_mceerr(code, addr, lsb, current);
+}
+
 void arm64_force_sig_info(struct siginfo *info, const char *str)
 {
 	arm64_show_signal(info->si_signo, str);

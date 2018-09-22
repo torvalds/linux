@@ -422,7 +422,6 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	const struct fault_info *inf;
 	struct task_struct *tsk;
 	struct mm_struct *mm;
-	struct siginfo si;
 	vm_fault_t fault, major = 0;
 	unsigned long vm_flags = VM_READ | VM_WRITE;
 	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
@@ -574,12 +573,8 @@ retry:
 		if (fault & VM_FAULT_HWPOISON_LARGE)
 			lsb = hstate_index_to_shift(VM_FAULT_GET_HINDEX(fault));
 
-		clear_siginfo(&si);
-		si.si_signo	= SIGBUS;
-		si.si_code	= BUS_MCEERR_AR;
-		si.si_addr = (void __user *)addr;
-		si.si_addr_lsb	= lsb;
-		arm64_force_sig_info(&si, inf->name);
+		arm64_force_sig_mceerr(BUS_MCEERR_AR, (void __user *)addr, lsb,
+				       inf->name);
 	} else {
 		/*
 		 * Something tried to access memory that isn't in our memory

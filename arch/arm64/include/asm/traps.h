@@ -38,6 +38,7 @@ void unregister_undef_hook(struct undef_hook *hook);
 void force_signal_inject(int signal, int code, unsigned long address);
 void arm64_notify_segfault(unsigned long addr);
 void arm64_force_sig_fault(int signo, int code, void __user *addr, const char *str);
+void arm64_force_sig_mceerr(int code, void __user *addr, short lsb, const char *str);
 void arm64_force_sig_info(struct siginfo *info, const char *str);
 
 /*
