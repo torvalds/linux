@@ -26,6 +26,7 @@
 #include <linux/in.h>
 #include <linux/spinlock.h>
 #include <linux/lsm_hooks.h>
+#include <linux/msg.h>
 #include <net/net_namespace.h>
 #include "flask.h"
 #include "avc.h"
@@ -173,6 +174,18 @@ static inline struct inode_security_struct *selinux_inode(
 	if (unlikely(!inode->i_security))
 		return NULL;
 	return inode->i_security + selinux_blob_sizes.lbs_inode;
+}
+
+static inline struct msg_security_struct *selinux_msg_msg(
+						const struct msg_msg *msg_msg)
+{
+	return msg_msg->security;
+}
+
+static inline struct ipc_security_struct *selinux_ipc(
+						const struct kern_ipc_perm *ipc)
+{
+	return ipc->security;
 }
 
 #endif /* _SELINUX_OBJSEC_H_ */
