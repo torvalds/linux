@@ -4852,8 +4852,6 @@ const char *reg_initiator_name(enum nl80211_reg_initiator initiator);
  *
  * @alpha2: the ISO/IEC 3166 alpha2 wmm rule to be queried.
  * @freq: the freqency(in MHz) to be queried.
- * @ptr: pointer where the regdb wmm data is to be stored (or %NULL if
- *	irrelevant). This can be used later for deduplication.
  * @rule: pointer to store the wmm rule from the regulatory db.
  *
  * Self-managed wireless drivers can use this function to  query
