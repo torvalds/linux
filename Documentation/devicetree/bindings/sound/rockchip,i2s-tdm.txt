@@ -3,6 +3,7 @@
 Required properties:
 
 - compatible: should be one of the following
+   - "rockchip,px30-i2s-tdm": for px30
    - "rockchip,rk1808-i2s-tdm": for rk1808
    - "rockchip,rk3308-i2s-tdm": for rk3308
 - reg: physical base address of the controller and length of memory mapped

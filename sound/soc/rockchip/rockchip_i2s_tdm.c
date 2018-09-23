@@ -1028,6 +1028,10 @@ static const struct regmap_config rockchip_i2s_tdm_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
+static struct rk_i2s_soc_data px30_i2s_soc_data = {
+	.softrst_offset = 0x0300,
+};
+
 static struct rk_i2s_soc_data rk1808_i2s_soc_data = {
 	.softrst_offset = 0x0300,
 };
@@ -1037,6 +1041,7 @@ static struct rk_i2s_soc_data rk3308_i2s_soc_data = {
 };
 
 static const struct of_device_id rockchip_i2s_tdm_match[] = {
+	{ .compatible = "rockchip,px30-i2s-tdm", .data = &px30_i2s_soc_data },
 	{ .compatible = "rockchip,rk1808-i2s-tdm", .data = &rk1808_i2s_soc_data },
 	{ .compatible = "rockchip,rk3308-i2s-tdm", .data = &rk3308_i2s_soc_data },
 	{},
