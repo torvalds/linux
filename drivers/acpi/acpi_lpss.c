@@ -472,6 +472,7 @@ struct lpss_device_links {
  */
 static const struct lpss_device_links lpss_device_links[] = {
 	{"808622C1", "7", "80860F14", "3", DL_FLAG_PM_RUNTIME},
+	{"808622C1", "7", "LNXVIDEO", NULL, DL_FLAG_PM_RUNTIME},
 };
 
 static bool hid_uid_match(struct acpi_device *adev,
