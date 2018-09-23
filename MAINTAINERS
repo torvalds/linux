@@ -6762,6 +6762,12 @@ S:	Maintained
 F:	mm/memory-failure.c
 F:	mm/hwpoison-inject.c
 
+HYGON PROCESSOR SUPPORT
+M:	Pu Wen <puwen@hygon.cn>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	arch/x86/kernel/cpu/hygon.c
+
 Hyper-V CORE AND DRIVERS
 M:	"K. Y. Srinivasan" <kys@microsoft.com>
 M:	Haiyang Zhang <haiyangz@microsoft.com>
