@@ -176,6 +176,30 @@
 #define VAD_DET_INT_EN_MASK		BIT(0)
 #define VAD_DET_INT_EN			BIT(0)
 
+#define VAD_AUX_CONTROL			0x78
+#define SAMPLE_CNT_EN_MASK		BIT(29)
+#define SAMPLE_CNT_EN			BIT(29)
+#define SAMPLE_CNT_DIS			0
+#define INT_TRIG_CTRL_EN_MASK		BIT(28)
+#define INT_TRIG_CTRL_EN		BIT(28)
+#define INT_TRIG_CTRL_DIS		0
+#define INT_TRIG_VALID_THD_MASK		GENMASK(27, 16)
+#define INT_TRIG_VALID_THD(x)		(((x) - 1) << 16)
+#define DATA_TRANS_KBYTE_THD_MASK	GENMASK(11, 4)
+#define DATA_TRANS_KBYTE_THD(x)		(((x) - 1) << 4)
+#define DATA_TRANS_TRIG_INT_EN_MASK	BIT(2)
+#define DATA_TRANS_TRIG_INT_EN		BIT(2)
+#define DATA_TRANS_TRIG_INT_DIS		0
+#define RAM_ITF_EN_MASK			BIT(1)
+#define RAM_ITF_EN			0
+#define RAM_ITF_DIS			BIT(1)
+#define BUS_WRITE_EN_MASK		BIT(0)
+#define BUS_WRITE_EN			BIT(0)
+#define BUS_WRITE_DIS			0
+
+#define VAD_SAMPLE_CNT			0x7c
+#define VAD_NOISE_DATA			0x100
+
 /* acodec */
 #define ACODEC_BASE			0xff560000
 #define ACODEC_ADC_ANA_CON0		0X340

@@ -2,7 +2,9 @@
 
 Required properties:
 
-- compatible: "rockchip,vad"
+- compatible: should be one of the following
+  - "rockchip,rk1808-vad": for rk1808
+  - "rockchip,rk3308-vad": for rk3308
 - reg: physical base address of the controller and length of memory mapped
   region.
 - clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
@@ -22,7 +24,7 @@ Optional properties:
 Example for rk3308 VAD controller:
 
 vad: vad@ff3c0000 {
-	compatible = "rockchip,rk3308-vad", "rockchip,vad";
+	compatible = "rockchip,rk3308-vad";
 	reg = <0x0 0xff3c0000 0x0 0x10000>, <0x0 0xfff88000 0x0 0x38000>;
 	reg-names = "vad", "vad-memory";
 	clocks = <&cru HCLK_VAD>;

@@ -31,12 +31,16 @@
 			SNDRV_PCM_FMTBIT_S24_LE | \
 			SNDRV_PCM_FMTBIT_S32_LE)
 #define ACODEC_REG_NUM	28
-#define VAD_SRAM_BUFFER_END	0xfffbfff8
 
 static struct snd_pcm_substream *vad_substream;
 static unsigned int voice_inactive_frames;
 module_param(voice_inactive_frames, uint, 0644);
 MODULE_PARM_DESC(voice_inactive_frames, "voice inactive frame count");
+
+enum rk_vad_version {
+	VAD_RK1808 = 1,
+	VAD_RK3308,
+};
 
 struct vad_buf {
 	void __iomem *begin;
@@ -53,6 +57,7 @@ struct rockchip_vad {
 	struct clk *hclk;
 	struct regmap *regmap;
 	unsigned int memphy;
+	unsigned int memphy_end;
 	void __iomem *membase;
 	struct vad_buf vbuf;
 	struct vad_params params;
@@ -70,6 +75,7 @@ struct rockchip_vad {
 	bool acodec_cfg;
 	bool vswitch;
 	bool h_16bit;
+	enum rk_vad_version version;
 };
 
 struct audio_src_addr_map {
@@ -441,13 +447,23 @@ static bool rockchip_vad_volatile_reg(struct device *dev, unsigned int reg)
 	case VAD_INT:
 	case VAD_RAM_CUR_ADDR:
 	case VAD_DET_CON5:
+	case VAD_SAMPLE_CNT:
 		return true;
 	default:
 		return false;
 	}
 }
 
-static const struct reg_default rockchip_vad_reg_defaults[] = {
+static const struct reg_default rk1808_vad_reg_defaults[] = {
+	{VAD_CTRL,     0x03000000},
+	{VAD_DET_CON0, 0x01024008},
+	{VAD_DET_CON1, 0x04ff0064},
+	{VAD_DET_CON2, 0x3bf5e663},
+	{VAD_DET_CON3, 0x3bf58817},
+	{VAD_DET_CON4, 0x382b8858},
+};
+
+static const struct reg_default rk3308_vad_reg_defaults[] = {
 	{VAD_CTRL,     0x03000000},
 	{VAD_DET_CON0, 0x00024020},
 	{VAD_DET_CON1, 0x00ff0064},
@@ -458,13 +474,26 @@ static const struct reg_default rockchip_vad_reg_defaults[] = {
 	{VAD_RAM_END_ADDR, 0xfffbfff8},
 };
 
-static const struct regmap_config rockchip_vad_regmap_config = {
+static const struct regmap_config rk1808_vad_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = VAD_NOISE_DATA,
+	.reg_defaults = rk1808_vad_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(rk1808_vad_reg_defaults),
+	.writeable_reg = rockchip_vad_writeable_reg,
+	.readable_reg = rockchip_vad_readable_reg,
+	.volatile_reg = rockchip_vad_volatile_reg,
+	.cache_type = REGCACHE_FLAT,
+};
+
+static const struct regmap_config rk3308_vad_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
 	.max_register = VAD_INT,
-	.reg_defaults = rockchip_vad_reg_defaults,
-	.num_reg_defaults = ARRAY_SIZE(rockchip_vad_reg_defaults),
+	.reg_defaults = rk3308_vad_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(rk3308_vad_reg_defaults),
 	.writeable_reg = rockchip_vad_writeable_reg,
 	.readable_reg = rockchip_vad_readable_reg,
 	.volatile_reg = rockchip_vad_volatile_reg,
@@ -476,7 +505,10 @@ static const struct audio_src_addr_map addr_maps[] = {
 	{1, 0xff310800},
 	{2, 0xff320800},
 	{3, 0xff330800},
-	{4, 0xff380400}
+	{4, 0xff380400},
+	{0, 0xff7e0800},
+	{1, 0xff7f0800},
+	{2, 0xff800400},
 };
 
 static int rockchip_vad_get_audio_src_address(struct rockchip_vad *vad,
@@ -648,7 +680,7 @@ static int rockchip_vad_hw_params(struct snd_pcm_substream *substream,
 		frame_bytes = snd_pcm_format_size(params_format(params),
 						  params_channels(params));
 
-		buf_time = VAD_SRAM_BUFFER_END - vad->memphy + 0x8;
+		buf_time = vad->memphy_end - vad->memphy + 0x8;
 		buf_time *= 1000;
 		buf_time /= (frame_bytes * params_rate(params));
 		if (buf_time < vad->buffer_time)
@@ -659,7 +691,7 @@ static int rockchip_vad_hw_params(struct snd_pcm_substream *substream,
 		val *= frame_bytes;
 		val += vad->memphy;
 		val -= 0x8;
-		if (val < vad->memphy || val > VAD_SRAM_BUFFER_END)
+		if (val < vad->memphy || val > vad->memphy_end)
 			return -EINVAL;
 		regmap_write(vad->regmap, VAD_RAM_END_ADDR, val);
 	}
@@ -925,6 +957,7 @@ static void rockchip_vad_init(struct rockchip_vad *vad)
 	unsigned int val, mask;
 
 	regmap_write(vad->regmap, VAD_RAM_BEGIN_ADDR, vad->memphy);
+	regmap_write(vad->regmap, VAD_RAM_END_ADDR, vad->memphy_end);
 	vad->vbuf.begin = vad->membase;
 	regmap_write(vad->regmap, VAD_IS_ADDR, vad->audio_src_addr);
 
@@ -937,10 +970,18 @@ static void rockchip_vad_init(struct rockchip_vad *vad)
 	regmap_update_bits(vad->regmap, VAD_CTRL, mask, val);
 }
 
+static const struct of_device_id rockchip_vad_match[] = {
+	{ .compatible = "rockchip,rk1808-vad", .data = (void *)VAD_RK1808 },
+	{ .compatible = "rockchip,rk3308-vad", .data = (void *)VAD_RK3308 },
+	{},
+};
+
 static int rockchip_vad_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *asrc_np;
+	const struct of_device_id *match;
+	const struct regmap_config *regmap_config;
 	struct rockchip_vad *vad;
 	struct resource *res;
 	struct resource audio_res;
@@ -953,6 +994,21 @@ static int rockchip_vad_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	vad->dev = &pdev->dev;
+
+	match = of_match_device(rockchip_vad_match, &pdev->dev);
+	if (match)
+		vad->version = (enum rk_vad_version)match->data;
+
+	switch (vad->version) {
+	case VAD_RK1808:
+		regmap_config = &rk1808_vad_regmap_config;
+		break;
+	case VAD_RK3308:
+		regmap_config = &rk3308_vad_regmap_config;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	vad->acodec_cfg = of_property_read_bool(np, "rockchip,acodec-cfg");
 	of_property_read_u32(np, "rockchip,mode", &vad->mode);
@@ -976,6 +1032,7 @@ static int rockchip_vad_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "vad-memory");
 	vad->memphy = res->start;
+	vad->memphy_end = res->end + 0x1 - 0x8;
 	vad->membase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(vad->membase))
 		return PTR_ERR(vad->membase);
@@ -989,7 +1046,7 @@ static int rockchip_vad_probe(struct platform_device *pdev)
 		return ret;
 
 	vad->regmap = devm_regmap_init_mmio(&pdev->dev, regbase,
-					    &rockchip_vad_regmap_config);
+					    regmap_config);
 	if (IS_ERR(vad->regmap)) {
 		ret = PTR_ERR(vad->regmap);
 		goto err;
@@ -1034,11 +1091,6 @@ static int rockchip_vad_remove(struct platform_device *pdev)
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
-
-static const struct of_device_id rockchip_vad_match[] = {
-	{ .compatible = "rockchip,vad", },
-	{},
-};
 
 static struct platform_driver rockchip_vad_driver = {
 	.probe = rockchip_vad_probe,
