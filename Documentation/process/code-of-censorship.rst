@@ -1,4 +1,4 @@
-Contributor Covenant Code of Conduct
+Contributor Covenant Code of censorship and harrasment
 ++++++++++++++++++++++++++++++++++++
 
 Our Pledge
