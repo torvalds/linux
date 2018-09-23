@@ -324,6 +324,7 @@ struct hns_roce_v2_cq_context {
 
 enum{
 	V2_MPT_ST_VALID = 0x1,
+	V2_MPT_ST_FREE	= 0x2,
 };
 
 enum hns_roce_v2_qp_state {
@@ -883,7 +884,16 @@ struct hns_roce_v2_mpt_entry {
 
 #define V2_MPT_BYTE_8_LW_EN_S 7
 
+#define V2_MPT_BYTE_8_MW_CNT_S 8
+#define V2_MPT_BYTE_8_MW_CNT_M GENMASK(31, 8)
+
 #define V2_MPT_BYTE_12_PA_S 1
+
+#define V2_MPT_BYTE_12_MR_MW_S 4
+
+#define V2_MPT_BYTE_12_BPD_S 5
+
+#define V2_MPT_BYTE_12_BQP_S 6
 
 #define V2_MPT_BYTE_12_INNER_PA_VLD_S 7
 

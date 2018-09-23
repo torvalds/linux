@@ -525,6 +525,15 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		ib_dev->uverbs_cmd_mask |= (1ULL << IB_USER_VERBS_CMD_REREG_MR);
 	}
 
+	/* MW */
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_MW) {
+		ib_dev->alloc_mw = hns_roce_alloc_mw;
+		ib_dev->dealloc_mw = hns_roce_dealloc_mw;
+		ib_dev->uverbs_cmd_mask |=
+					(1ULL << IB_USER_VERBS_CMD_ALLOC_MW) |
+					(1ULL << IB_USER_VERBS_CMD_DEALLOC_MW);
+	}
+
 	/* OTHERS */
 	ib_dev->get_port_immutable	= hns_roce_port_immutable;
 	ib_dev->disassociate_ucontext	= hns_roce_disassociate_ucontext;
