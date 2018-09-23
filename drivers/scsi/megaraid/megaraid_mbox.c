@@ -484,7 +484,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	// Start the mailbox based controller
 	if (megaraid_init_mbox(adapter) != 0) {
 		con_log(CL_ANN, (KERN_WARNING
-			"megaraid: maibox adapter did not initialize\n"));
+			"megaraid: mailbox adapter did not initialize\n"));
 
 		goto out_free_adapter;
 	}
@@ -950,7 +950,7 @@ megaraid_fini_mbox(adapter_t *adapter)
  * megaraid_alloc_cmd_packets - allocate shared mailbox
  * @adapter		: soft state of the raid controller
  *
- * Allocate and align the shared mailbox. This maibox is used to issue
+ * Allocate and align the shared mailbox. This mailbox is used to issue
  * all the commands. For IO based controllers, the mailbox is also registered
  * with the FW. Allocate memory for all commands as well.
  * This is our big allocator.
