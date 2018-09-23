@@ -42,6 +42,14 @@ Raspberry Pi Compute Module
 Required root node properties:
 compatible = "raspberrypi,compute-module", "brcm,bcm2835";
 
+Raspberry Pi Compute Module 3
+Required root node properties:
+compatible = "raspberrypi,3-compute-module", "brcm,bcm2837";
+
+Raspberry Pi Compute Module 3 Lite
+Required root node properties:
+compatible = "raspberrypi,3-compute-module-lite", "brcm,bcm2837";
+
 Raspberry Pi Zero
 Required root node properties:
 compatible = "raspberrypi,model-zero", "brcm,bcm2835";
