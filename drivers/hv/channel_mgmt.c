@@ -198,24 +198,19 @@ static u16 hv_get_dev_type(const struct vmbus_channel *channel)
 }
 
 /**
- * vmbus_prep_negotiate_resp() - Create default response for Hyper-V Negotiate message
+ * vmbus_prep_negotiate_resp() - Create default response for Negotiate message
  * @icmsghdrp: Pointer to msg header structure
- * @icmsg_negotiate: Pointer to negotiate message structure
  * @buf: Raw buffer channel data
+ * @fw_version: The framework versions we can support.
+ * @fw_vercnt: The size of @fw_version.
+ * @srv_version: The service versions we can support.
+ * @srv_vercnt: The size of @srv_version.
+ * @nego_fw_version: The selected framework version.
+ * @nego_srv_version: The selected service version.
  *
- * @icmsghdrp is of type &struct icmsg_hdr.
+ * Note: Versions are given in decreasing order.
+ *
  * Set up and fill in default negotiate response message.
- *
- * The fw_version and fw_vercnt specifies the framework version that
- * we can support.
- *
- * The srv_version and srv_vercnt specifies the service
- * versions we can support.
- *
- * Versions are given in decreasing order.
- *
- * nego_fw_version and nego_srv_version store the selected protocol versions.
- *
  * Mainly used by Hyper-V drivers.
  */
 bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp,

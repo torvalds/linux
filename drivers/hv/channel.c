@@ -743,15 +743,16 @@ EXPORT_SYMBOL_GPL(vmbus_close);
 
 /**
  * vmbus_sendpacket() - Send the specified buffer on the given channel
- * @channel: Pointer to vmbus_channel structure.
- * @buffer: Pointer to the buffer you want to receive the data into.
- * @bufferlen: Maximum size of what the the buffer will hold
+ * @channel: Pointer to vmbus_channel structure
+ * @buffer: Pointer to the buffer you want to send the data from.
+ * @bufferlen: Maximum size of what the buffer holds.
  * @requestid: Identifier of the request
- * @type: Type of packet that is being send e.g. negotiate, time
- * packet etc.
+ * @type: Type of packet that is being sent e.g. negotiate, time
+ *	  packet etc.
+ * @flags: 0 or VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED
  *
- * Sends data in @buffer directly to hyper-v via the vmbus
- * This will send the data unparsed to hyper-v.
+ * Sends data in @buffer directly to Hyper-V via the vmbus.
+ * This will send the data unparsed to Hyper-V.
  *
  * Mainly used by Hyper-V drivers.
  */
@@ -884,12 +885,13 @@ int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
 EXPORT_SYMBOL_GPL(vmbus_sendpacket_mpb_desc);
 
 /**
- * vmbus_recvpacket() - Retrieve the user packet on the specified channel
- * @channel: Pointer to vmbus_channel structure.
+ * __vmbus_recvpacket() - Retrieve the user packet on the specified channel
+ * @channel: Pointer to vmbus_channel structure
  * @buffer: Pointer to the buffer you want to receive the data into.
- * @bufferlen: Maximum size of what the the buffer will hold
- * @buffer_actual_len: The actual size of the data after it was received
+ * @bufferlen: Maximum size of what the buffer can hold.
+ * @buffer_actual_len: The actual size of the data after it was received.
  * @requestid: Identifier of the request
+ * @raw: true means keep the vmpacket_descriptor header in the received data.
  *
  * Receives directly from the hyper-v vmbus and puts the data it received
  * into Buffer. This will receive the data unparsed from hyper-v.
