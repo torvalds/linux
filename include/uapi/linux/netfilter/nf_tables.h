@@ -1177,6 +1177,21 @@ enum nft_quota_attributes {
 #define NFTA_QUOTA_MAX		(__NFTA_QUOTA_MAX - 1)
 
 /**
+ * enum nft_secmark_attributes - nf_tables secmark object netlink attributes
+ *
+ * @NFTA_SECMARK_CTX: security context (NLA_STRING)
+ */
+enum nft_secmark_attributes {
+	NFTA_SECMARK_UNSPEC,
+	NFTA_SECMARK_CTX,
+	__NFTA_SECMARK_MAX,
+};
+#define NFTA_SECMARK_MAX	(__NFTA_SECMARK_MAX - 1)
+
+/* Max security context length */
+#define NFT_SECMARK_CTX_MAXLEN		256
+
+/**
  * enum nft_reject_types - nf_tables reject expression reject types
  *
  * @NFT_REJECT_ICMP_UNREACH: reject using ICMP unreachable
@@ -1432,7 +1447,8 @@ enum nft_ct_timeout_timeout_attributes {
 #define NFT_OBJECT_CONNLIMIT	5
 #define NFT_OBJECT_TUNNEL	6
 #define NFT_OBJECT_CT_TIMEOUT	7
-#define __NFT_OBJECT_MAX	8
+#define NFT_OBJECT_SECMARK	8
+#define __NFT_OBJECT_MAX	9
 #define NFT_OBJECT_MAX		(__NFT_OBJECT_MAX - 1)
 
 /**
