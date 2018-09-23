@@ -1712,7 +1712,8 @@ out:
 static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		     struct netlink_ext_ack *extack)
 {
-	int flags = NEIGH_UPDATE_F_ADMIN | NEIGH_UPDATE_F_OVERRIDE;
+	int flags = NEIGH_UPDATE_F_ADMIN | NEIGH_UPDATE_F_OVERRIDE |
+		NEIGH_UPDATE_F_OVERRIDE_ISROUTER;
 	struct net *net = sock_net(skb->sk);
 	struct ndmsg *ndm;
 	struct nlattr *tb[NDA_MAX+1];
@@ -1787,11 +1788,15 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		}
 
 		if (!(nlh->nlmsg_flags & NLM_F_REPLACE))
-			flags &= ~NEIGH_UPDATE_F_OVERRIDE;
+			flags &= ~(NEIGH_UPDATE_F_OVERRIDE |
+				   NEIGH_UPDATE_F_OVERRIDE_ISROUTER);
 	}
 
 	if (ndm->ndm_flags & NTF_EXT_LEARNED)
 		flags |= NEIGH_UPDATE_F_EXT_LEARNED;
+
+	if (ndm->ndm_flags & NTF_ROUTER)
+		flags |= NEIGH_UPDATE_F_ISROUTER;
 
 	if (ndm->ndm_flags & NTF_USE) {
 		neigh_event_send(neigh, NULL);
