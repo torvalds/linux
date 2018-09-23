@@ -64,19 +64,19 @@ static bool bw_validate(char *buf, unsigned long *data, struct rdt_resource *r)
 	return true;
 }
 
-int parse_bw(void *_buf, struct rdt_resource *r, struct rdt_domain *d)
+int parse_bw(struct rdt_parse_data *data, struct rdt_resource *r,
+	     struct rdt_domain *d)
 {
-	unsigned long data;
-	char *buf = _buf;
+	unsigned long bw_val;
 
 	if (d->have_new_ctrl) {
 		rdt_last_cmd_printf("duplicate domain %d\n", d->id);
 		return -EINVAL;
 	}
 
-	if (!bw_validate(buf, &data, r))
+	if (!bw_validate(data->buf, &bw_val, r))
 		return -EINVAL;
-	d->new_ctrl = data;
+	d->new_ctrl = bw_val;
 	d->have_new_ctrl = true;
 
 	return 0;
@@ -123,18 +123,13 @@ static bool cbm_validate(char *buf, u32 *data, struct rdt_resource *r)
 	return true;
 }
 
-struct rdt_cbm_parse_data {
-	struct rdtgroup		*rdtgrp;
-	char			*buf;
-};
-
 /*
  * Read one cache bit mask (hex). Check that it is valid for the current
  * resource type.
  */
-int parse_cbm(void *_data, struct rdt_resource *r, struct rdt_domain *d)
+int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
+	      struct rdt_domain *d)
 {
-	struct rdt_cbm_parse_data *data = _data;
 	struct rdtgroup *rdtgrp = data->rdtgrp;
 	u32 cbm_val;
 
@@ -195,10 +190,16 @@ int parse_cbm(void *_data, struct rdt_resource *r, struct rdt_domain *d)
 static int parse_line(char *line, struct rdt_resource *r,
 		      struct rdtgroup *rdtgrp)
 {
-	struct rdt_cbm_parse_data data;
+	struct rdt_parse_data data;
 	char *dom = NULL, *id;
 	struct rdt_domain *d;
 	unsigned long dom_id;
+
+	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP &&
+	    r->rid == RDT_RESOURCE_MBA) {
+		rdt_last_cmd_puts("Cannot pseudo-lock MBA resource\n");
+		return -EINVAL;
+	}
 
 next:
 	if (!line || line[0] == '\0')

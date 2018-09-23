@@ -815,9 +815,13 @@ void free_kernel_image_pages(void *begin, void *end)
 		set_memory_np_noalias(begin_ul, len_pages);
 }
 
+void __weak mem_encrypt_free_decrypted_mem(void) { }
+
 void __ref free_initmem(void)
 {
 	e820__reallocate_tables();
+
+	mem_encrypt_free_decrypted_mem();
 
 	free_kernel_image_pages(&__init_begin, &__init_end);
 }
