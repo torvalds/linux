@@ -140,9 +140,7 @@ static void omap_disconnect_pipelines(struct drm_device *ddev)
 		omapdss_device_disconnect(NULL, pipe->output);
 
 		omapdss_device_put(pipe->output);
-		omapdss_device_put(pipe->display);
 		pipe->output = NULL;
-		pipe->display = NULL;
 	}
 
 	memset(&priv->channels, 0, sizeof(priv->channels));
@@ -169,7 +167,6 @@ static int omap_connect_pipelines(struct drm_device *ddev)
 
 			pipe = &priv->pipes[priv->num_pipes++];
 			pipe->output = omapdss_device_get(output);
-			pipe->display = omapdss_display_get(output);
 
 			if (priv->num_pipes == ARRAY_SIZE(priv->pipes)) {
 				/* To balance the 'for_each_dss_output' loop */
@@ -205,6 +202,28 @@ static int omap_modeset_init_properties(struct drm_device *dev)
 		return -ENOMEM;
 
 	return 0;
+}
+
+static int omap_display_id(struct omap_dss_device *output)
+{
+	struct device_node *node = NULL;
+
+	if (output->next) {
+		struct omap_dss_device *display;
+
+		display = omapdss_display_get(output);
+		node = display->dev->of_node;
+		omapdss_device_put(display);
+	} else {
+		struct drm_bridge *bridge = output->bridge;
+
+		while (bridge->next)
+			bridge = bridge->next;
+
+		node = bridge->of_node;
+	}
+
+	return node ? of_alias_get_id(node, "display") : -ENODEV;
 }
 
 static int omap_modeset_init(struct drm_device *dev)
@@ -262,7 +281,10 @@ static int omap_modeset_init(struct drm_device *dev)
 		priv->planes[priv->num_planes++] = plane;
 	}
 
-	/* Create the encoders and get the pipelines aliases. */
+	/*
+	 * Create the encoders, attach the bridges and get the pipeline alias
+	 * IDs.
+	 */
 	for (i = 0; i < priv->num_pipes; i++) {
 		struct omap_drm_pipeline *pipe = &priv->pipes[i];
 		int id;
@@ -271,7 +293,14 @@ static int omap_modeset_init(struct drm_device *dev)
 		if (!pipe->encoder)
 			return -ENOMEM;
 
-		id = of_alias_get_id(pipe->display->dev->of_node, "display");
+		if (pipe->output->bridge) {
+			ret = drm_bridge_attach(pipe->encoder,
+						pipe->output->bridge, NULL);
+			if (ret < 0)
+				return ret;
+		}
+
+		id = omap_display_id(pipe->output);
 		pipe->alias_id = id >= 0 ? id : i;
 	}
 
@@ -297,16 +326,16 @@ static int omap_modeset_init(struct drm_device *dev)
 	for (i = 0; i < priv->num_pipes; i++) {
 		struct omap_drm_pipeline *pipe = &priv->pipes[i];
 		struct drm_encoder *encoder = pipe->encoder;
-		struct drm_connector *connector;
 		struct drm_crtc *crtc;
 
-		connector = omap_connector_init(dev, pipe->output,
-						pipe->display, encoder);
-		if (!connector)
-			return -ENOMEM;
+		if (!pipe->output->bridge) {
+			pipe->connector = omap_connector_init(dev, pipe->output,
+							      encoder);
+			if (!pipe->connector)
+				return -ENOMEM;
 
-		drm_connector_attach_encoder(connector, encoder);
-		pipe->connector = connector;
+			drm_connector_attach_encoder(pipe->connector, encoder);
+		}
 
 		crtc = omap_crtc_init(dev, pipe, priv->planes[i]);
 		if (IS_ERR(crtc))
@@ -350,10 +379,12 @@ static int omap_modeset_init(struct drm_device *dev)
 static void omap_modeset_enable_external_hpd(struct drm_device *ddev)
 {
 	struct omap_drm_private *priv = ddev->dev_private;
-	int i;
+	unsigned int i;
 
-	for (i = 0; i < priv->num_pipes; i++)
-		omap_connector_enable_hpd(priv->pipes[i].connector);
+	for (i = 0; i < priv->num_pipes; i++) {
+		if (priv->pipes[i].connector)
+			omap_connector_enable_hpd(priv->pipes[i].connector);
+	}
 }
 
 /*
@@ -362,10 +393,12 @@ static void omap_modeset_enable_external_hpd(struct drm_device *ddev)
 static void omap_modeset_disable_external_hpd(struct drm_device *ddev)
 {
 	struct omap_drm_private *priv = ddev->dev_private;
-	int i;
+	unsigned int i;
 
-	for (i = 0; i < priv->num_pipes; i++)
-		omap_connector_disable_hpd(priv->pipes[i].connector);
+	for (i = 0; i < priv->num_pipes; i++) {
+		if (priv->pipes[i].connector)
+			omap_connector_disable_hpd(priv->pipes[i].connector);
+	}
 }
 
 /*

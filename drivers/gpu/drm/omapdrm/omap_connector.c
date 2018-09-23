@@ -299,9 +299,16 @@ static const struct drm_connector_helper_funcs omap_connector_helper_funcs = {
 	.mode_valid = omap_connector_mode_valid,
 };
 
-static int omap_connector_get_type(struct omap_dss_device *display)
+static int omap_connector_get_type(struct omap_dss_device *output)
 {
-	switch (display->type) {
+	struct omap_dss_device *display;
+	enum omap_display_type type;
+
+	display = omapdss_display_get(output);
+	type = display->type;
+	omapdss_device_put(display);
+
+	switch (type) {
 	case OMAP_DISPLAY_TYPE_HDMI:
 		return DRM_MODE_CONNECTOR_HDMIA;
 	case OMAP_DISPLAY_TYPE_DVI:
@@ -324,14 +331,13 @@ static int omap_connector_get_type(struct omap_dss_device *display)
 /* initialize connector */
 struct drm_connector *omap_connector_init(struct drm_device *dev,
 					  struct omap_dss_device *output,
-					  struct omap_dss_device *display,
 					  struct drm_encoder *encoder)
 {
 	struct drm_connector *connector = NULL;
 	struct omap_connector *omap_connector;
 	struct omap_dss_device *dssdev;
 
-	DBG("%s", display->name);
+	DBG("%s", output->name);
 
 	omap_connector = kzalloc(sizeof(*omap_connector), GFP_KERNEL);
 	if (!omap_connector)
@@ -344,7 +350,7 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 	connector->doublescan_allowed = 0;
 
 	drm_connector_init(dev, connector, &omap_connector_funcs,
-			   omap_connector_get_type(display));
+			   omap_connector_get_type(output));
 	drm_connector_helper_add(connector, &omap_connector_helper_funcs);
 
 	/*

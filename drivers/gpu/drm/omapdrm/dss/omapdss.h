@@ -410,6 +410,7 @@ struct omap_dss_device {
 
 	struct dss_device *dss;
 	struct omap_dss_device *next;
+	struct drm_bridge *bridge;
 
 	struct list_head list;
 

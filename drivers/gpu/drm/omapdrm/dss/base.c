@@ -19,6 +19,7 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
+#include <linux/platform_device.h>
 
 #include "dss.h"
 #include "omapdss.h"
@@ -156,7 +157,7 @@ struct omap_dss_device *omapdss_device_next_output(struct omap_dss_device *from)
 			goto done;
 		}
 
-		if (dssdev->id && dssdev->next)
+		if (dssdev->id && (dssdev->next || dssdev->bridge))
 			goto done;
 	}
 
@@ -184,7 +185,18 @@ int omapdss_device_connect(struct dss_device *dss,
 {
 	int ret;
 
-	dev_dbg(dst->dev, "connect\n");
+	dev_dbg(&dss->pdev->dev, "connect(%s, %s)\n",
+		src ? dev_name(src->dev) : "NULL",
+		dst ? dev_name(dst->dev) : "NULL");
+
+	if (!dst) {
+		/*
+		 * The destination is NULL when the source is connected to a
+		 * bridge instead of a DSS device. Stop here, we will attach the
+		 * bridge later when we will have a DRM encoder.
+		 */
+		return src && src->bridge ? 0 : -EINVAL;
+	}
 
 	if (omapdss_device_is_connected(dst))
 		return -EBUSY;
@@ -204,7 +216,16 @@ EXPORT_SYMBOL_GPL(omapdss_device_connect);
 void omapdss_device_disconnect(struct omap_dss_device *src,
 			       struct omap_dss_device *dst)
 {
-	dev_dbg(dst->dev, "disconnect\n");
+	struct dss_device *dss = src ? src->dss : dst->dss;
+
+	dev_dbg(&dss->pdev->dev, "disconnect(%s, %s)\n",
+		src ? dev_name(src->dev) : "NULL",
+		dst ? dev_name(dst->dev) : "NULL");
+
+	if (!dst) {
+		WARN_ON(!src->bridge);
+		return;
+	}
 
 	if (!dst->id && !omapdss_device_is_connected(dst)) {
 		WARN_ON(!dst->display);

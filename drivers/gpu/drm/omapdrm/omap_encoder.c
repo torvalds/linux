@@ -51,6 +51,34 @@ static const struct drm_encoder_funcs omap_encoder_funcs = {
 	.destroy = omap_encoder_destroy,
 };
 
+static void omap_encoder_update_videomode_flags(struct videomode *vm,
+						u32 bus_flags)
+{
+	if (!(vm->flags & (DISPLAY_FLAGS_DE_LOW |
+			   DISPLAY_FLAGS_DE_HIGH))) {
+		if (bus_flags & DRM_BUS_FLAG_DE_LOW)
+			vm->flags |= DISPLAY_FLAGS_DE_LOW;
+		else if (bus_flags & DRM_BUS_FLAG_DE_HIGH)
+			vm->flags |= DISPLAY_FLAGS_DE_HIGH;
+	}
+
+	if (!(vm->flags & (DISPLAY_FLAGS_PIXDATA_POSEDGE |
+			   DISPLAY_FLAGS_PIXDATA_NEGEDGE))) {
+		if (bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE)
+			vm->flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
+		else if (bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE)
+			vm->flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
+	}
+
+	if (!(vm->flags & (DISPLAY_FLAGS_SYNC_POSEDGE |
+			   DISPLAY_FLAGS_SYNC_NEGEDGE))) {
+		if (bus_flags & DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE)
+			vm->flags |= DISPLAY_FLAGS_SYNC_POSEDGE;
+		else if (bus_flags & DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE)
+			vm->flags |= DISPLAY_FLAGS_SYNC_NEGEDGE;
+	}
+}
+
 static void omap_encoder_hdmi_mode_set(struct drm_encoder *encoder,
 				       struct drm_display_mode *adjusted_mode)
 {
@@ -87,7 +115,9 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
+	struct omap_dss_device *output = omap_encoder->output;
 	struct omap_dss_device *dssdev;
+	struct drm_bridge *bridge;
 	struct videomode vm = { 0 };
 
 	drm_display_mode_to_videomode(adjusted_mode, &vm);
@@ -101,44 +131,29 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 	 *
 	 * A better solution is to use DRM's bus-flags through the whole driver.
 	 */
-	for (dssdev = omap_encoder->output; dssdev; dssdev = dssdev->next) {
-		unsigned long bus_flags = dssdev->bus_flags;
+	for (dssdev = output; dssdev; dssdev = dssdev->next)
+		omap_encoder_update_videomode_flags(&vm, dssdev->bus_flags);
 
-		if (!(vm.flags & (DISPLAY_FLAGS_DE_LOW |
-				  DISPLAY_FLAGS_DE_HIGH))) {
-			if (bus_flags & DRM_BUS_FLAG_DE_LOW)
-				vm.flags |= DISPLAY_FLAGS_DE_LOW;
-			else if (bus_flags & DRM_BUS_FLAG_DE_HIGH)
-				vm.flags |= DISPLAY_FLAGS_DE_HIGH;
-		}
+	for (bridge = output->bridge; bridge; bridge = bridge->next) {
+		u32 bus_flags;
 
-		if (!(vm.flags & (DISPLAY_FLAGS_PIXDATA_POSEDGE |
-				  DISPLAY_FLAGS_PIXDATA_NEGEDGE))) {
-			if (bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE)
-				vm.flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
-			else if (bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE)
-				vm.flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
-		}
+		if (!bridge->timings)
+			continue;
 
-		if (!(vm.flags & (DISPLAY_FLAGS_SYNC_POSEDGE |
-				  DISPLAY_FLAGS_SYNC_NEGEDGE))) {
-			if (bus_flags & DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE)
-				vm.flags |= DISPLAY_FLAGS_SYNC_POSEDGE;
-			else if (bus_flags & DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE)
-				vm.flags |= DISPLAY_FLAGS_SYNC_NEGEDGE;
-		}
+		bus_flags = bridge->timings->input_bus_flags;
+		omap_encoder_update_videomode_flags(&vm, bus_flags);
 	}
 
 	/* Set timings for all devices in the display pipeline. */
-	dss_mgr_set_timings(omap_encoder->output, &vm);
+	dss_mgr_set_timings(output, &vm);
 
-	for (dssdev = omap_encoder->output; dssdev; dssdev = dssdev->next) {
+	for (dssdev = output; dssdev; dssdev = dssdev->next) {
 		if (dssdev->ops->set_timings)
 			dssdev->ops->set_timings(dssdev, adjusted_mode);
 	}
 
 	/* Set the HDMI mode and HDMI infoframe if applicable. */
-	if (omap_encoder->output->type == OMAP_DISPLAY_TYPE_HDMI)
+	if (output->type == OMAP_DISPLAY_TYPE_HDMI)
 		omap_encoder_hdmi_mode_set(encoder, adjusted_mode);
 }
 

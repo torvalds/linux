@@ -666,7 +666,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 					&omap_crtc_funcs, NULL);
 	if (ret < 0) {
 		dev_err(dev->dev, "%s(): could not init crtc for: %s\n",
-			__func__, pipe->display->name);
+			__func__, pipe->output->name);
 		kfree(omap_crtc);
 		return ERR_PTR(ret);
 	}
