@@ -161,7 +161,7 @@
 #define HCLK_VAD		216
 #define HCLK_PDM		217
 #define HCLK_I2S0_8CH		218
-#define HCLK_I2S1_8CH		219
+#define HCLK_I2S1_2CH		219
 #define MSCLK_CORE_NIU		220
 #define HSCLK_IMEM		221
 #define HCLK_HOST_ARB		222

@@ -988,7 +988,7 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 			RK1808_CLKGATE_CON(18), 13, GFLAGS),
 	GATE(HCLK_I2S0_8CH, "hclk_i2s0_8ch", "hclk_audio_pre", 0,
 			RK1808_CLKGATE_CON(18), 14, GFLAGS),
-	GATE(HCLK_I2S1_8CH, "hclk_i2s1_8ch", "hclk_audio_pre", 0,
+	GATE(HCLK_I2S1_2CH, "hclk_i2s1_2ch", "hclk_audio_pre", 0,
 			RK1808_CLKGATE_CON(18), 15, GFLAGS),
 
 	COMPOSITE(0, "clk_pdm_src", mux_gpll_xin24m_cpll_npll_p, 0,
