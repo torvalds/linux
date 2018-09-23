@@ -378,7 +378,7 @@ static int cypress_serial_control(struct tty_struct *tty,
 			retval = -ENOTTY;
 			goto out;
 		}
-		dev_dbg(dev, "%s - retreiving serial line settings\n", __func__);
+		dev_dbg(dev, "%s - retrieving serial line settings\n", __func__);
 		do {
 			retval = usb_control_msg(port->serial->dev,
 					usb_rcvctrlpipe(port->serial->dev, 0),
