@@ -150,47 +150,26 @@ static void omap_disconnect_pipelines(struct drm_device *ddev)
 	priv->num_pipes = 0;
 }
 
-static int omap_compare_pipes(const void *a, const void *b)
-{
-	const struct omap_drm_pipeline *pipe1 = a;
-	const struct omap_drm_pipeline *pipe2 = b;
-
-	if (pipe1->alias_id > pipe2->alias_id)
-		return 1;
-	else if (pipe1->alias_id < pipe2->alias_id)
-		return -1;
-	return 0;
-}
-
 static int omap_connect_pipelines(struct drm_device *ddev)
 {
 	struct omap_drm_private *priv = ddev->dev_private;
 	struct omap_dss_device *output = NULL;
-	unsigned int i;
 	int r;
-
-	if (!omapdss_stack_is_ready())
-		return -EPROBE_DEFER;
 
 	for_each_dss_output(output) {
 		r = omapdss_device_connect(priv->dss, NULL, output);
 		if (r == -EPROBE_DEFER) {
 			omapdss_device_put(output);
-			goto cleanup;
+			return r;
 		} else if (r) {
 			dev_warn(output->dev, "could not connect output %s\n",
 				 output->name);
 		} else {
 			struct omap_drm_pipeline *pipe;
-			int id;
 
 			pipe = &priv->pipes[priv->num_pipes++];
 			pipe->output = omapdss_device_get(output);
 			pipe->display = omapdss_display_get(output);
-
-			id = of_alias_get_id(pipe->display->dev->of_node,
-					     "display");
-			pipe->alias_id = id >= 0 ? id : priv->num_pipes - 1;
 
 			if (priv->num_pipes == ARRAY_SIZE(priv->pipes)) {
 				/* To balance the 'for_each_dss_output' loop */
@@ -200,36 +179,19 @@ static int omap_connect_pipelines(struct drm_device *ddev)
 		}
 	}
 
-	/* Sort the list by DT aliases */
-	sort(priv->pipes, priv->num_pipes, sizeof(priv->pipes[0]),
-	     omap_compare_pipes, NULL);
-
-	/*
-	 * Populate the pipeline lookup table by DISPC channel. Only one display
-	 * is allowed per channel.
-	 */
-	for (i = 0; i < priv->num_pipes; ++i) {
-		struct omap_drm_pipeline *pipe = &priv->pipes[i];
-		enum omap_channel channel = pipe->output->dispc_channel;
-
-		if (WARN_ON(priv->channels[channel] != NULL)) {
-			r = -EINVAL;
-			goto cleanup;
-		}
-
-		priv->channels[channel] = pipe;
-	}
-
 	return 0;
+}
 
-cleanup:
-	/*
-	 * if we are deferring probe, we disconnect the devices we previously
-	 * connected
-	 */
-	omap_disconnect_pipelines(ddev);
+static int omap_compare_pipelines(const void *a, const void *b)
+{
+	const struct omap_drm_pipeline *pipe1 = a;
+	const struct omap_drm_pipeline *pipe2 = b;
 
-	return r;
+	if (pipe1->alias_id > pipe2->alias_id)
+		return 1;
+	else if (pipe1->alias_id < pipe2->alias_id)
+		return -1;
+	return 0;
 }
 
 static int omap_modeset_init_properties(struct drm_device *dev)
@@ -254,6 +216,9 @@ static int omap_modeset_init(struct drm_device *dev)
 	int ret;
 	u32 plane_crtc_mask;
 
+	if (!omapdss_stack_is_ready())
+		return -EPROBE_DEFER;
+
 	drm_mode_config_init(dev);
 
 	ret = omap_modeset_init_properties(dev);
@@ -268,6 +233,10 @@ static int omap_modeset_init(struct drm_device *dev)
 	 * configuration does not match the expectations or exceeds
 	 * the available resources, the configuration is rejected.
 	 */
+	ret = omap_connect_pipelines(dev);
+	if (ret < 0)
+		return ret;
+
 	if (priv->num_pipes > num_mgrs || priv->num_pipes > num_ovls) {
 		dev_err(dev->dev, "%s(): Too many connected displays\n",
 			__func__);
@@ -293,33 +262,58 @@ static int omap_modeset_init(struct drm_device *dev)
 		priv->planes[priv->num_planes++] = plane;
 	}
 
-	/* Create the CRTCs, encoders and connectors. */
+	/* Create the encoders and get the pipelines aliases. */
 	for (i = 0; i < priv->num_pipes; i++) {
 		struct omap_drm_pipeline *pipe = &priv->pipes[i];
-		struct omap_dss_device *display = pipe->display;
+		int id;
+
+		pipe->encoder = omap_encoder_init(dev, pipe->output);
+		if (!pipe->encoder)
+			return -ENOMEM;
+
+		id = of_alias_get_id(pipe->display->dev->of_node, "display");
+		pipe->alias_id = id >= 0 ? id : i;
+	}
+
+	/* Sort the pipelines by DT aliases. */
+	sort(priv->pipes, priv->num_pipes, sizeof(priv->pipes[0]),
+	     omap_compare_pipelines, NULL);
+
+	/*
+	 * Populate the pipeline lookup table by DISPC channel. Only one display
+	 * is allowed per channel.
+	 */
+	for (i = 0; i < priv->num_pipes; ++i) {
+		struct omap_drm_pipeline *pipe = &priv->pipes[i];
+		enum omap_channel channel = pipe->output->dispc_channel;
+
+		if (WARN_ON(priv->channels[channel] != NULL))
+			return -EINVAL;
+
+		priv->channels[channel] = pipe;
+	}
+
+	/* Create the connectors and CRTCs. */
+	for (i = 0; i < priv->num_pipes; i++) {
+		struct omap_drm_pipeline *pipe = &priv->pipes[i];
+		struct drm_encoder *encoder = pipe->encoder;
 		struct drm_connector *connector;
-		struct drm_encoder *encoder;
 		struct drm_crtc *crtc;
 
-		encoder = omap_encoder_init(dev, pipe->output);
-		if (!encoder)
-			return -ENOMEM;
-
-		connector = omap_connector_init(dev, pipe->output, display,
-						encoder);
+		connector = omap_connector_init(dev, pipe->output,
+						pipe->display, encoder);
 		if (!connector)
 			return -ENOMEM;
+
+		drm_connector_attach_encoder(connector, encoder);
+		pipe->connector = connector;
 
 		crtc = omap_crtc_init(dev, pipe, priv->planes[i]);
 		if (IS_ERR(crtc))
 			return PTR_ERR(crtc);
 
-		drm_connector_attach_encoder(connector, encoder);
 		encoder->possible_crtcs = 1 << i;
-
 		pipe->crtc = crtc;
-		pipe->encoder = encoder;
-		pipe->connector = connector;
 	}
 
 	DBG("registered %u planes, %u crtcs/encoders/connectors\n",
@@ -556,10 +550,6 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 
 	omap_crtc_pre_init(priv);
 
-	ret = omap_connect_pipelines(ddev);
-	if (ret)
-		goto err_crtc_uninit;
-
 	soc = soc_device_match(omapdrm_soc_devices);
 	priv->omaprev = soc ? (unsigned int)soc->data : 0;
 	priv->wq = alloc_ordered_workqueue("omapdrm", 0);
@@ -617,7 +607,6 @@ err_gem_deinit:
 	omap_gem_deinit(ddev);
 	destroy_workqueue(priv->wq);
 	omap_disconnect_pipelines(ddev);
-err_crtc_uninit:
 	omap_crtc_pre_uninit(priv);
 	drm_dev_put(ddev);
 	return ret;
