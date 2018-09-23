@@ -303,6 +303,7 @@ struct omapdss_comp_node {
 	struct list_head list;
 	struct device_node *node;
 	bool dss_core_component;
+	const char *compat;
 };
 
 static bool omapdss_list_contains(const struct device_node *node)
@@ -320,13 +321,20 @@ static bool omapdss_list_contains(const struct device_node *node)
 static void omapdss_walk_device(struct device *dev, struct device_node *node,
 				bool dss_core)
 {
+	struct omapdss_comp_node *comp;
 	struct device_node *n;
-	struct omapdss_comp_node *comp = devm_kzalloc(dev, sizeof(*comp),
-						      GFP_KERNEL);
+	const char *compat;
+	int ret;
 
+	ret = of_property_read_string(node, "compatible", &compat);
+	if (ret < 0)
+		return;
+
+	comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
 	if (comp) {
 		comp->node = node;
 		comp->dss_core_component = dss_core;
+		comp->compat = compat;
 		list_add(&comp->list, &omapdss_comp_list);
 	}
 
@@ -366,18 +374,16 @@ void omapdss_gather_components(struct device *dev)
 
 	omapdss_walk_device(dev, dev->of_node, true);
 
-	for_each_available_child_of_node(dev->of_node, child) {
-		if (!of_find_property(child, "compatible", NULL))
-			continue;
-
+	for_each_available_child_of_node(dev->of_node, child)
 		omapdss_walk_device(dev, child, true);
-	}
 }
 EXPORT_SYMBOL(omapdss_gather_components);
 
 static bool omapdss_component_is_loaded(struct omapdss_comp_node *comp)
 {
 	if (comp->dss_core_component)
+		return true;
+	if (!strstarts(comp->compat, "omapdss,"))
 		return true;
 	if (omapdss_device_is_registered(comp->node))
 		return true;
