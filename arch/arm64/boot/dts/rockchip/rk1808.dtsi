@@ -841,6 +841,83 @@
 		status = "disabled";
 	};
 
+	i2s0: i2s@ff7e0000 {
+		compatible = "rockchip,rk1808-i2s-tdm";
+		reg = <0x0 0xff7e0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S0_8CH_TX>, <&cru SCLK_I2S0_8CH_RX>, <&cru HCLK_I2S0_8CH>;
+		clock-names = "mclk_tx", "mclk_rx", "hclk";
+		dmas = <&dmac 16>, <&dmac 17>;
+		dma-names = "tx", "rx";
+		resets = <&cru SRST_I2S0_TX>, <&cru SRST_I2S0_RX>;
+		reset-names = "tx-m", "rx-m";
+		rockchip,cru = <&cru>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s0_8ch_sclktx
+			     &i2s0_8ch_sclkrx
+			     &i2s0_8ch_lrcktx
+			     &i2s0_8ch_lrckrx
+			     &i2s0_8ch_sdi0
+			     &i2s0_8ch_sdi1
+			     &i2s0_8ch_sdi2
+			     &i2s0_8ch_sdi3
+			     &i2s0_8ch_sdo0
+			     &i2s0_8ch_sdo1
+			     &i2s0_8ch_sdo2
+			     &i2s0_8ch_sdo3
+			     &i2s0_8ch_mclk>;
+		status = "disabled";
+	};
+
+	i2s1: i2s@ff7f0000 {
+		compatible = "rockchip,rk1808-i2s", "rockchip,rk3066-i2s";
+		reg = <0x0 0xff7f0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S1_2CH>, <&cru HCLK_I2S1_2CH>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		dmas = <&dmac 18>, <&dmac 19>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s1_2ch_sclk
+			     &i2s1_2ch_lrck
+			     &i2s1_2ch_sdi
+			     &i2s1_2ch_sdo>;
+		status = "disabled";
+	};
+
+	pdm: pdm@ff800000 {
+		compatible = "rockchip,rk1808-pdm", "rockchip,pdm";
+		reg = <0x0 0xff800000 0x0 0x1000>;
+		clocks = <&cru SCLK_PDM>, <&cru HCLK_PDM>;
+		clock-names = "pdm_clk", "pdm_hclk";
+		dmas = <&dmac 24>;
+		dma-names = "rx";
+		resets = <&cru SRST_PDM>;
+		reset-names = "pdm-m";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pdm_clk
+			     &pdm_clk1
+			     &pdm_sdi0
+			     &pdm_sdi1
+			     &pdm_sdi2
+			     &pdm_sdi3>;
+		status = "disabled";
+	};
+
+	vad: vad@ff810000 {
+		compatible = "rockchip,rk1808-vad";
+		/* vad buf: last 256 KB system sram */
+		reg = <0x0 0xff810000 0x0 0x10000>, <0x0 0xfedc0000 0x0 0x40000>;
+		reg-names = "vad", "vad-memory";
+		clocks = <&cru HCLK_VAD>;
+		clock-names = "hclk";
+		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,audio-src = <0>;
+		rockchip,det-channel = <0>;
+		rockchip,mode = <1>;
+		status = "disabled";
+	};
+
 	csi_tx: csi@ffb20000 {
 		compatible = "rockchip,rk1808-mipi-csi";
 		reg = <0x0 0xffb20000 0x0 0x500>;
