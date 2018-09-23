@@ -334,7 +334,13 @@ static int __init egpio_probe(struct platform_device *pdev)
 		ei->chip[i].is_out = pdata->chip[i].direction;
 		ei->chip[i].dev = &(pdev->dev);
 		chip = &(ei->chip[i].chip);
-		chip->label           = "htc-egpio";
+		chip->label = devm_kasprintf(&pdev->dev, GFP_KERNEL,
+					     "htc-egpio-%d",
+					     i);
+		if (!chip->label) {
+			ret = -ENOMEM;
+			goto fail;
+		}
 		chip->parent          = &pdev->dev;
 		chip->owner           = THIS_MODULE;
 		chip->get             = egpio_get;
