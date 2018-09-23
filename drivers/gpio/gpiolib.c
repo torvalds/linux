@@ -4376,11 +4376,10 @@ struct gpio_descs *__must_check gpiod_get_array(struct device *dev,
 
 		chip = gpiod_to_chip(desc);
 		/*
-		 * Select a chip of first array member
-		 * whose index matches its pin hardware number
-		 * as a candidate for fast bitmap processing.
+		 * If pin hardware number of array member 0 is also 0, select
+		 * its chip as a candidate for fast bitmap processing path.
 		 */
-		if (!array_info && gpio_chip_hwgpio(desc) == descs->ndescs) {
+		if (descs->ndescs == 0 && gpio_chip_hwgpio(desc) == 0) {
 			struct gpio_descs *array;
 
 			bitmap_size = BITS_TO_LONGS(chip->ngpio > count ?
@@ -4414,14 +4413,30 @@ struct gpio_descs *__must_check gpiod_get_array(struct device *dev,
 				   count - descs->ndescs);
 			descs->info = array_info;
 		}
-		/*
-		 * Unmark members which don't qualify for fast bitmap
-		 * processing (different chip, not in hardware order)
-		 */
-		if (array_info && (chip != array_info->chip ||
-		    gpio_chip_hwgpio(desc) != descs->ndescs)) {
+		/* Unmark array members which don't belong to the 'fast' chip */
+		if (array_info && array_info->chip != chip) {
 			__clear_bit(descs->ndescs, array_info->get_mask);
 			__clear_bit(descs->ndescs, array_info->set_mask);
+		}
+		/*
+		 * Detect array members which belong to the 'fast' chip
+		 * but their pins are not in hardware order.
+		 */
+		else if (array_info &&
+			   gpio_chip_hwgpio(desc) != descs->ndescs) {
+			/*
+			 * Don't use fast path if all array members processed so
+			 * far belong to the same chip as this one but its pin
+			 * hardware number is different from its array index.
+			 */
+			if (bitmap_full(array_info->get_mask, descs->ndescs)) {
+				array_info = NULL;
+			} else {
+				__clear_bit(descs->ndescs,
+					    array_info->get_mask);
+				__clear_bit(descs->ndescs,
+					    array_info->set_mask);
+			}
 		} else if (array_info) {
 			/* Exclude open drain or open source from fast output */
 			if (gpiochip_line_is_open_drain(chip, descs->ndescs) ||
