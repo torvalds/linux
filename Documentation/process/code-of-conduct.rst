@@ -6,7 +6,7 @@ In the interest of fostering an effective, efficient, and constructive environme
 Standards
 =========
 
-In an effort to keep the conversation surrounding the kernel about bettering the kernel itself, the following principals will be upheld:
+In an effort to keep the conversation surrounding the kernel about bettering the kernel itself, the following principles will be upheld:
 
 1 - Any and all "ad hominem" attacks by *any* contributor can and will be disciplined, by methods including but not limited to suspension of contribution to the kernel, removal of commits, code, wiki edits, and issues which contain said attacks.
 
@@ -19,14 +19,14 @@ In an effort to keep the conversation surrounding the kernel about bettering the
 Responsibilities
 ================
 
-Contributors are responsible for their attitude as displayed on github.com/torvalds/linux, and any disciplinary action will be taken based on the statements made by contributors only on github.com/torvalds/linux and it's various subdirectories. Statements made outside github.com/torvalds/linux, including emails, social media, and statements made in person between individuals, are not to be considered for potential disciplinary action and should instead be taken up with the administration of the platform used, whether that consists of social media moderators, event moderators, or email platforms.
+Contributors are responsible for their attitude as displayed on github.com/torvalds/linux and the Linux Kernel Mailing List, and any disciplinary action will be taken based on the statements made by contributors only on github.com/torvalds/linux, its various subdirectories, and the Linux Kernel Mailing List. Statements made outside the aforementioned area, including emails, social media, and statements made in person between individuals, are not to be considered for potential disciplinary action and should instead be taken up with the administration of the platform used, whether that consists of social media moderators, event moderators, or email platforms.
 
-Moderators are responsible for remaining a consistent and competent contributor to the Linux kernel, and to make fair and even judgement calls based on the actions of contributors as they stand currently. They are not to incite "witch hunts" or involve themselves in them, and doing so on github.com/torvalds/linux and it's various subdirectories can, will, and should result in immediate expulsion from moderation and maximum kernel contribution bans.
+Moderators are responsible for remaining a consistent and competent contributor to the Linux kernel, and to make fair and even judgement calls based on the actions of contributors as they stand currently. They are not to incite "witch hunts" or involve themselves in them, and doing so on github.com/torvalds/linux and its various subdirectories can, will, and should result in immediate expulsion from moderation and maximum kernel contribution bans.
 
 Scope
 =====
 
-As previously mentioned, this Code of Conduct applies solely within github.com/torvalds/linux and it's various subdirectories, except where this may be embedded in another project as example. 
+As previously mentioned, this Code of Conduct applies solely within github.com/torvalds/linux and its various subdirectories, except where this may be embedded in another project as example. 
 
 Enforcement
 ===========
