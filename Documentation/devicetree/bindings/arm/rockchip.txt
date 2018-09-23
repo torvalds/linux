@@ -59,6 +59,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "firefly,roc-rk3328-cc", "rockchip,rk3328";
 
+- Firefly ROC-RK3399-PC board:
+    Required root node properties:
+      - compatible = "firefly,roc-rk3399-pc", "rockchip,rk3399";
+
 - ChipSPARK PopMetal-RK3288 board:
     Required root node properties:
       - compatible = "chipspark,popmetal-rk3288", "rockchip,rk3288";
@@ -167,6 +171,10 @@ Rockchip platforms device tree bindings
 - Rockchip PX5 Evaluation board:
     Required root node properties:
       - compatible = "rockchip,px5-evb", "rockchip,px5", "rockchip,rk3368";
+
+- Rockchip PX30 Evaluation board:
+    Required root node properties:
+      - compatible = "rockchip,px30-evb", "rockchip,px30";
 
 - Rockchip RV1108 Evaluation board
     Required root node properties:
