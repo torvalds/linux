@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
+#include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/clk-lpss.h>
 #include <linux/platform_data/x86/pmc_atom.h>
@@ -512,12 +513,18 @@ static int match_hid_uid(struct device *dev, void *data)
 
 static struct device *acpi_lpss_find_device(const char *hid, const char *uid)
 {
+	struct device *dev;
+
 	struct hid_uid data = {
 		.hid = hid,
 		.uid = uid,
 	};
 
-	return bus_find_device(&platform_bus_type, NULL, &data, match_hid_uid);
+	dev = bus_find_device(&platform_bus_type, NULL, &data, match_hid_uid);
+	if (dev)
+		return dev;
+
+	return bus_find_device(&pci_bus_type, NULL, &data, match_hid_uid);
 }
 
 static bool acpi_lpss_dep(struct acpi_device *adev, acpi_handle handle)
