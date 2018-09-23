@@ -544,4 +544,19 @@ static inline void neigh_update_ext_learned(struct neighbour *neigh, u32 flags,
 		*notify = 1;
 	}
 }
+
+static inline void neigh_update_is_router(struct neighbour *neigh, u32 flags,
+					  int *notify)
+{
+	u8 ndm_flags = 0;
+
+	ndm_flags |= (flags & NEIGH_UPDATE_F_ISROUTER) ? NTF_ROUTER : 0;
+	if ((neigh->flags ^ ndm_flags) & NTF_ROUTER) {
+		if (ndm_flags & NTF_ROUTER)
+			neigh->flags |= NTF_ROUTER;
+		else
+			neigh->flags &= ~NTF_ROUTER;
+		*notify = 1;
+	}
+}
 #endif
