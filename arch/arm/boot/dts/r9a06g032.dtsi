@@ -7,6 +7,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/r9a06g032-sysctrl.h>
 
 / {
 	compatible = "renesas,r9a06g032";
@@ -21,14 +22,14 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0>;
-			clocks = <&sysctrl 84>;
+			clocks = <&sysctrl R9A06G032_CLK_A7MP>;
 		};
 
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <1>;
-			clocks = <&sysctrl 84>;
+			clocks = <&sysctrl R9A06G032_CLK_A7MP>;
 			enable-method = "renesas,r9a06g032-smp";
 			cpu-release-addr = <0 0x4000c204>;
 		};
@@ -82,7 +83,7 @@
 			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&sysctrl 146>;
+			clocks = <&sysctrl R9A06G032_CLK_UART0>;
 			clock-names = "baudclk";
 			status = "disabled";
 		};
