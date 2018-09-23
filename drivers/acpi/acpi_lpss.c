@@ -479,7 +479,13 @@ static bool hid_uid_match(struct acpi_device *adev,
 	const char *hid1 = acpi_device_hid(adev);
 	const char *uid1 = acpi_device_uid(adev);
 
-	return !strcmp(hid1, hid2) && uid1 && uid2 && !strcmp(uid1, uid2);
+	if (strcmp(hid1, hid2))
+		return false;
+
+	if (!uid2)
+		return true;
+
+	return uid1 && !strcmp(uid1, uid2);
 }
 
 static bool acpi_lpss_is_supplier(struct acpi_device *adev,
