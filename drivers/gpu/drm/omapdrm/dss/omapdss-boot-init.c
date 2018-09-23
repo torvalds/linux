@@ -186,7 +186,6 @@ static const struct of_device_id omapdss_of_match[] __initconst = {
 
 static const struct of_device_id omapdss_of_fixups_whitelist[] __initconst = {
 	{ .compatible = "composite-video-connector" },
-	{ .compatible = "dvi-connector" },
 	{ .compatible = "hdmi-connector" },
 	{ .compatible = "lgphilips,lb035q02" },
 	{ .compatible = "nec,nl8048hl11" },
@@ -196,7 +195,6 @@ static const struct of_device_id omapdss_of_fixups_whitelist[] __initconst = {
 	{ .compatible = "sony,acx565akm" },
 	{ .compatible = "svideo-connector" },
 	{ .compatible = "ti,opa362" },
-	{ .compatible = "ti,tfp410" },
 	{ .compatible = "ti,tpd12s015" },
 	{ .compatible = "toppoly,td028ttec1" },
 	{ .compatible = "tpo,td028ttec1" },
