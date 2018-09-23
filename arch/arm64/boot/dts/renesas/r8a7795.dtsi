@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the r8a7795 SoC
+ * Device Tree Source for the R-Car H3 (R8A77950) SoC
  *
  * Copyright (C) 2015 Renesas Electronics Corp.
  */
@@ -123,7 +123,7 @@
 			power-domains = <&sysc R8A7795_PD_CA57_CPU0>;
 			next-level-cache = <&L2_CA57>;
 			enable-method = "psci";
-			clocks =<&cpg CPG_CORE R8A7795_CLK_Z>;
+			clocks = <&cpg CPG_CORE R8A7795_CLK_Z>;
 			operating-points-v2 = <&cluster0_opp>;
 			#cooling-cells = <2>;
 		};
@@ -135,7 +135,7 @@
 			power-domains = <&sysc R8A7795_PD_CA57_CPU1>;
 			next-level-cache = <&L2_CA57>;
 			enable-method = "psci";
-			clocks =<&cpg CPG_CORE R8A7795_CLK_Z>;
+			clocks = <&cpg CPG_CORE R8A7795_CLK_Z>;
 			operating-points-v2 = <&cluster0_opp>;
 			#cooling-cells = <2>;
 		};
@@ -147,7 +147,7 @@
 			power-domains = <&sysc R8A7795_PD_CA57_CPU2>;
 			next-level-cache = <&L2_CA57>;
 			enable-method = "psci";
-			clocks =<&cpg CPG_CORE R8A7795_CLK_Z>;
+			clocks = <&cpg CPG_CORE R8A7795_CLK_Z>;
 			operating-points-v2 = <&cluster0_opp>;
 			#cooling-cells = <2>;
 		};
@@ -159,7 +159,7 @@
 			power-domains = <&sysc R8A7795_PD_CA57_CPU3>;
 			next-level-cache = <&L2_CA57>;
 			enable-method = "psci";
-			clocks =<&cpg CPG_CORE R8A7795_CLK_Z>;
+			clocks = <&cpg CPG_CORE R8A7795_CLK_Z>;
 			operating-points-v2 = <&cluster0_opp>;
 			#cooling-cells = <2>;
 		};
@@ -171,7 +171,7 @@
 			power-domains = <&sysc R8A7795_PD_CA53_CPU0>;
 			next-level-cache = <&L2_CA53>;
 			enable-method = "psci";
-			clocks =<&cpg CPG_CORE R8A7795_CLK_Z2>;
+			clocks = <&cpg CPG_CORE R8A7795_CLK_Z2>;
 			operating-points-v2 = <&cluster1_opp>;
 		};
 
@@ -182,7 +182,7 @@
 			power-domains = <&sysc R8A7795_PD_CA53_CPU1>;
 			next-level-cache = <&L2_CA53>;
 			enable-method = "psci";
-			clocks =<&cpg CPG_CORE R8A7795_CLK_Z2>;
+			clocks = <&cpg CPG_CORE R8A7795_CLK_Z2>;
 			operating-points-v2 = <&cluster1_opp>;
 		};
 
@@ -193,7 +193,7 @@
 			power-domains = <&sysc R8A7795_PD_CA53_CPU2>;
 			next-level-cache = <&L2_CA53>;
 			enable-method = "psci";
-			clocks =<&cpg CPG_CORE R8A7795_CLK_Z2>;
+			clocks = <&cpg CPG_CORE R8A7795_CLK_Z2>;
 			operating-points-v2 = <&cluster1_opp>;
 		};
 
@@ -204,7 +204,7 @@
 			power-domains = <&sysc R8A7795_PD_CA53_CPU3>;
 			next-level-cache = <&L2_CA53>;
 			enable-method = "psci";
-			clocks =<&cpg CPG_CORE R8A7795_CLK_Z2>;
+			clocks = <&cpg CPG_CORE R8A7795_CLK_Z2>;
 			operating-points-v2 = <&cluster1_opp>;
 		};
 
@@ -525,15 +525,6 @@
 			status = "disabled";
 		};
 
-		arm_cc630p: crypto@e6601000 {
-			compatible = "arm,cryptocell-630p-ree";
-			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-			reg = <0x0 0xe6601000 0 0x1000>;
-			clocks = <&cpg CPG_MOD 229>;
-			resets = <&cpg 229>;
-			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
-		};
-
 		i2c3: i2c@e66d0000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -803,6 +794,15 @@
 			resets = <&cpg 328>;
 			#phy-cells = <0>;
 			status = "disabled";
+		};
+
+		arm_cc630p: crypto@e6601000 {
+			compatible = "arm,cryptocell-630p-ree";
+			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x0 0xe6601000 0 0x1000>;
+			clocks = <&cpg CPG_MOD 229>;
+			resets = <&cpg 229>;
+			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
 		};
 
 		dmac0: dma-controller@e6700000 {
@@ -1425,11 +1425,11 @@
 
 					vin0csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin0>;
+						remote-endpoint = <&csi20vin0>;
 					};
 					vin0csi40: endpoint@2 {
 						reg = <2>;
-						remote-endpoint= <&csi40vin0>;
+						remote-endpoint = <&csi40vin0>;
 					};
 				};
 			};
@@ -1457,11 +1457,11 @@
 
 					vin1csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin1>;
+						remote-endpoint = <&csi20vin1>;
 					};
 					vin1csi40: endpoint@2 {
 						reg = <2>;
-						remote-endpoint= <&csi40vin1>;
+						remote-endpoint = <&csi40vin1>;
 					};
 				};
 			};
@@ -1489,11 +1489,11 @@
 
 					vin2csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin2>;
+						remote-endpoint = <&csi20vin2>;
 					};
 					vin2csi40: endpoint@2 {
 						reg = <2>;
-						remote-endpoint= <&csi40vin2>;
+						remote-endpoint = <&csi40vin2>;
 					};
 				};
 			};
@@ -1521,11 +1521,11 @@
 
 					vin3csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin3>;
+						remote-endpoint = <&csi20vin3>;
 					};
 					vin3csi40: endpoint@2 {
 						reg = <2>;
-						remote-endpoint= <&csi40vin3>;
+						remote-endpoint = <&csi40vin3>;
 					};
 				};
 			};
@@ -1553,11 +1553,11 @@
 
 					vin4csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin4>;
+						remote-endpoint = <&csi20vin4>;
 					};
 					vin4csi41: endpoint@3 {
 						reg = <3>;
-						remote-endpoint= <&csi41vin4>;
+						remote-endpoint = <&csi41vin4>;
 					};
 				};
 			};
@@ -1585,11 +1585,11 @@
 
 					vin5csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin5>;
+						remote-endpoint = <&csi20vin5>;
 					};
 					vin5csi41: endpoint@3 {
 						reg = <3>;
-						remote-endpoint= <&csi41vin5>;
+						remote-endpoint = <&csi41vin5>;
 					};
 				};
 			};
@@ -1617,11 +1617,11 @@
 
 					vin6csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin6>;
+						remote-endpoint = <&csi20vin6>;
 					};
 					vin6csi41: endpoint@3 {
 						reg = <3>;
-						remote-endpoint= <&csi41vin6>;
+						remote-endpoint = <&csi41vin6>;
 					};
 				};
 			};
@@ -1649,11 +1649,11 @@
 
 					vin7csi20: endpoint@0 {
 						reg = <0>;
-						remote-endpoint= <&csi20vin7>;
+						remote-endpoint = <&csi20vin7>;
 					};
 					vin7csi41: endpoint@3 {
 						reg = <3>;
-						remote-endpoint= <&csi41vin7>;
+						remote-endpoint = <&csi41vin7>;
 					};
 				};
 			};
@@ -2782,9 +2782,7 @@
 
 		du: display@feb00000 {
 			compatible = "renesas,du-r8a7795";
-			reg = <0 0xfeb00000 0 0x80000>,
-			      <0 0xfeb90000 0 0x14>;
-			reg-names = "du", "lvds.0";
+			reg = <0 0xfeb00000 0 0x80000>;
 			interrupts = <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 268 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 269 IRQ_TYPE_LEVEL_HIGH>,
@@ -2792,9 +2790,8 @@
 			clocks = <&cpg CPG_MOD 724>,
 				 <&cpg CPG_MOD 723>,
 				 <&cpg CPG_MOD 722>,
-				 <&cpg CPG_MOD 721>,
-				 <&cpg CPG_MOD 727>;
-			clock-names = "du.0", "du.1", "du.2", "du.3", "lvds.0";
+				 <&cpg CPG_MOD 721>;
+			clock-names = "du.0", "du.1", "du.2", "du.3";
 			vsps = <&vspd0 0 &vspd1 0 &vspd2 0 &vspd0 1>;
 			status = "disabled";
 
@@ -2822,6 +2819,33 @@
 				port@3 {
 					reg = <3>;
 					du_out_lvds0: endpoint {
+						remote-endpoint = <&lvds0_in>;
+					};
+				};
+			};
+		};
+
+		lvds0: lvds@feb90000 {
+			compatible = "renesas,r8a7795-lvds";
+			reg = <0 0xfeb90000 0 0x14>;
+			clocks = <&cpg CPG_MOD 727>;
+			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+			resets = <&cpg 727>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					lvds0_in: endpoint {
+						remote-endpoint = <&du_out_lvds0>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+					lvds0_out: endpoint {
 					};
 				};
 			};

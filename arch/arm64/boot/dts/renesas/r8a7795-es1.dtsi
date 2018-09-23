@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the r8a7795 ES1.x SoC
+ * Device Tree Source for the R-Car H3 (R8A77950) ES1.x SoC
  *
  * Copyright (C) 2015 Renesas Electronics Corp.
  */
@@ -232,7 +232,7 @@
 		port@1 {
 			vin0csi21: endpoint@1 {
 				reg = <1>;
-				remote-endpoint= <&csi21vin0>;
+				remote-endpoint = <&csi21vin0>;
 			};
 		};
 	};
@@ -243,7 +243,7 @@
 		port@1 {
 			vin1csi21: endpoint@1 {
 				reg = <1>;
-				remote-endpoint= <&csi21vin1>;
+				remote-endpoint = <&csi21vin1>;
 			};
 		};
 	};
@@ -254,7 +254,7 @@
 		port@1 {
 			vin2csi21: endpoint@1 {
 				reg = <1>;
-				remote-endpoint= <&csi21vin2>;
+				remote-endpoint = <&csi21vin2>;
 			};
 		};
 	};
@@ -265,7 +265,7 @@
 		port@1 {
 			vin3csi21: endpoint@1 {
 				reg = <1>;
-				remote-endpoint= <&csi21vin3>;
+				remote-endpoint = <&csi21vin3>;
 			};
 		};
 	};
@@ -276,7 +276,7 @@
 		port@1 {
 			vin4csi21: endpoint@1 {
 				reg = <1>;
-				remote-endpoint= <&csi21vin4>;
+				remote-endpoint = <&csi21vin4>;
 			};
 		};
 	};
@@ -287,7 +287,7 @@
 		port@1 {
 			vin5csi21: endpoint@1 {
 				reg = <1>;
-				remote-endpoint= <&csi21vin5>;
+				remote-endpoint = <&csi21vin5>;
 			};
 		};
 	};
@@ -298,7 +298,7 @@
 		port@1 {
 			vin6csi21: endpoint@1 {
 				reg = <1>;
-				remote-endpoint= <&csi21vin6>;
+				remote-endpoint = <&csi21vin6>;
 			};
 		};
 	};
@@ -309,7 +309,7 @@
 		port@1 {
 			vin7csi21: endpoint@1 {
 				reg = <1>;
-				remote-endpoint= <&csi21vin7>;
+				remote-endpoint = <&csi21vin7>;
 			};
 		};
 	};

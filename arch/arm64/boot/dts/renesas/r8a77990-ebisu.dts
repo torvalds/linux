@@ -67,6 +67,16 @@
 		};
 	};
 
+	pwm3_pins: pwm3 {
+		groups = "pwm3_b";
+		function = "pwm3";
+	};
+
+	pwm5_pins: pwm5 {
+		groups = "pwm5_a";
+		function = "pwm5";
+	};
+
 	usb0_pins: usb {
 		groups = "usb0_b";
 		function = "usb0";
@@ -76,6 +86,20 @@
 		groups = "usb30";
 		function = "usb30";
 	};
+};
+
+&pwm3 {
+	pinctrl-0 = <&pwm3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&pwm5 {
+	pinctrl-0 = <&pwm5_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
 
 &rwdt {
