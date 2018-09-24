@@ -106,6 +106,21 @@ static void int0002_irq_mask(struct irq_data *data)
 	outl(gpe_en_reg, GPE0A_EN_PORT);
 }
 
+static int int0002_irq_set_wake(struct irq_data *data, unsigned int on)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct platform_device *pdev = to_platform_device(chip->parent);
+	int irq = platform_get_irq(pdev, 0);
+
+	/* Propagate to parent irq */
+	if (on)
+		enable_irq_wake(irq);
+	else
+		disable_irq_wake(irq);
+
+	return 0;
+}
+
 static irqreturn_t int0002_irq(int irq, void *data)
 {
 	struct gpio_chip *chip = data;
@@ -128,6 +143,7 @@ static struct irq_chip int0002_irqchip = {
 	.irq_ack		= int0002_irq_ack,
 	.irq_mask		= int0002_irq_mask,
 	.irq_unmask		= int0002_irq_unmask,
+	.irq_set_wake		= int0002_irq_set_wake,
 };
 
 static int int0002_probe(struct platform_device *pdev)
