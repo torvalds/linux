@@ -2423,13 +2423,17 @@ err_cleanup:
 static int mvpp2_setup_txqs(struct mvpp2_port *port)
 {
 	struct mvpp2_tx_queue *txq;
-	int queue, err;
+	int queue, err, cpu;
 
 	for (queue = 0; queue < port->ntxqs; queue++) {
 		txq = port->txqs[queue];
 		err = mvpp2_txq_init(port, txq);
 		if (err)
 			goto err_cleanup;
+
+		/* Assign this queue to a CPU */
+		cpu = queue % num_present_cpus();
+		netif_set_xps_queue(port->dev, cpumask_of(cpu), queue);
 	}
 
 	if (port->has_tx_irqs) {
