@@ -37,6 +37,8 @@
 #define RENDER_TIMES_MAX_COUNT 10
 /* Threshold to exit BTR (to avoid frequent enter-exits at the lower limit) */
 #define BTR_EXIT_MARGIN 2000
+/*Threshold to exit fixed refresh rate*/
+#define FIXED_REFRESH_EXIT_MARGIN_IN_HZ 4
 /* Number of consecutive frames to check before entering/exiting fixed refresh*/
 #define FIXED_REFRESH_ENTER_FRAME_COUNT 5
 #define FIXED_REFRESH_EXIT_FRAME_COUNT 5
@@ -257,40 +259,14 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		if (in_out_vrr->btr.btr_active) {
 			in_out_vrr->btr.frame_counter = 0;
 			in_out_vrr->btr.btr_active = false;
-
-		/* Exit Fixed Refresh mode */
-		} else if (in_out_vrr->fixed.fixed_active) {
-
-			in_out_vrr->fixed.frame_counter++;
-
-			if (in_out_vrr->fixed.frame_counter >
-					FIXED_REFRESH_EXIT_FRAME_COUNT) {
-				in_out_vrr->fixed.frame_counter = 0;
-				in_out_vrr->fixed.fixed_active = false;
-			}
 		}
 	} else if (last_render_time_in_us > max_render_time_in_us) {
 		/* Enter Below the Range */
-		if (!in_out_vrr->btr.btr_active &&
-				in_out_vrr->btr.btr_enabled) {
-			in_out_vrr->btr.btr_active = true;
-
-		/* Enter Fixed Refresh mode */
-		} else if (!in_out_vrr->fixed.fixed_active &&
-				!in_out_vrr->btr.btr_enabled) {
-			in_out_vrr->fixed.frame_counter++;
-
-			if (in_out_vrr->fixed.frame_counter >
-					FIXED_REFRESH_ENTER_FRAME_COUNT) {
-				in_out_vrr->fixed.frame_counter = 0;
-				in_out_vrr->fixed.fixed_active = true;
-			}
-		}
+		in_out_vrr->btr.btr_active = true;
 	}
 
 	/* BTR set to "not active" so disengage */
 	if (!in_out_vrr->btr.btr_active) {
-		in_out_vrr->btr.btr_active = false;
 		in_out_vrr->btr.inserted_duration_in_us = 0;
 		in_out_vrr->btr.frames_to_insert = 0;
 		in_out_vrr->btr.frame_counter = 0;
@@ -375,7 +351,12 @@ static void apply_fixed_refresh(struct core_freesync *core_freesync,
 	bool update = false;
 	unsigned int max_render_time_in_us = in_out_vrr->max_duration_in_us;
 
-	if (last_render_time_in_us + BTR_EXIT_MARGIN < max_render_time_in_us) {
+	//Compute the exit refresh rate and exit frame duration
+	unsigned int exit_refresh_rate_in_milli_hz = ((1000000000/max_render_time_in_us)
+			+ (1000*FIXED_REFRESH_EXIT_MARGIN_IN_HZ));
+	unsigned int exit_frame_duration_in_us = 1000000000/exit_refresh_rate_in_milli_hz;
+
+	if (last_render_time_in_us < exit_frame_duration_in_us) {
 		/* Exit Fixed Refresh mode */
 		if (in_out_vrr->fixed.fixed_active) {
 			in_out_vrr->fixed.frame_counter++;
