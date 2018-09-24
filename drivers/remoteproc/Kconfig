@@ -92,6 +92,21 @@ config QCOM_Q6V5_COMMON
 	depends on ARCH_QCOM
 	depends on QCOM_SMEM
 
+config QCOM_Q6V5_MSS
+	tristate "Qualcomm Hexagon V5 self-authenticating modem subsystem support"
+	depends on OF && ARCH_QCOM
+	depends on QCOM_SMEM
+	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
+	depends on QCOM_SYSMON || QCOM_SYSMON=n
+	select MFD_SYSCON
+	select QCOM_Q6V5_COMMON
+	select QCOM_RPROC_COMMON
+	select QCOM_SCM
+	help
+	  Say y here to support the Qualcomm self-authenticating modem
+	  subsystem based on Hexagon V5.
+
 config QCOM_Q6V5_PAS
 	tristate "Qualcomm Hexagon v5 Peripheral Authentication Service support"
 	depends on OF && ARCH_QCOM
@@ -101,21 +116,6 @@ config QCOM_Q6V5_PAS
 	depends on QCOM_SYSMON || QCOM_SYSMON=n
 	select MFD_SYSCON
 	select QCOM_MDT_LOADER
-	select QCOM_Q6V5_COMMON
-	select QCOM_RPROC_COMMON
-	select QCOM_SCM
-	help
-	  Say y here to support the TrustZone based Peripherial Image Loader
-	  for the Qualcomm Hexagon v5 based remote processors.
-
-config QCOM_Q6V5_PIL
-	tristate "Qualcomm Hexagon V5 Peripherial Image Loader"
-	depends on OF && ARCH_QCOM
-	depends on QCOM_SMEM
-	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
-	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
-	depends on QCOM_SYSMON || QCOM_SYSMON=n
-	select MFD_SYSCON
 	select QCOM_Q6V5_COMMON
 	select QCOM_RPROC_COMMON
 	select QCOM_SCM

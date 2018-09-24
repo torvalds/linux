@@ -1,5 +1,5 @@
 /*
- * Qualcomm Peripheral Image Loader
+ * Qualcomm self-authenticating modem subsystem remoteproc driver
  *
  * Copyright (C) 2016 Linaro Ltd.
  * Copyright (C) 2014 Sony Mobile Communications AB
@@ -1368,11 +1368,11 @@ static struct platform_driver q6v5_driver = {
 	.probe = q6v5_probe,
 	.remove = q6v5_remove,
 	.driver = {
-		.name = "qcom-q6v5-pil",
+		.name = "qcom-q6v5-mss",
 		.of_match_table = q6v5_of_match,
 	},
 };
 module_platform_driver(q6v5_driver);
 
-MODULE_DESCRIPTION("Peripheral Image Loader for Hexagon");
+MODULE_DESCRIPTION("Qualcomm Self-authenticating modem remoteproc driver");
 MODULE_LICENSE("GPL v2");
