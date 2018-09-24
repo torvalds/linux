@@ -771,23 +771,13 @@ end:
  * _dpu_crtc_vblank_enable_no_lock - update power resource and vblank request
  * @dpu_crtc: Pointer to dpu crtc structure
  * @enable: Whether to enable/disable vblanks
- *
- * @Return: error code
  */
-static int _dpu_crtc_vblank_enable_no_lock(
+static void _dpu_crtc_vblank_enable_no_lock(
 		struct dpu_crtc *dpu_crtc, bool enable)
 {
-	struct drm_device *dev;
-	struct drm_crtc *crtc;
+	struct drm_crtc *crtc = &dpu_crtc->base;
+	struct drm_device *dev = crtc->dev;
 	struct drm_encoder *enc;
-
-	if (!dpu_crtc) {
-		DPU_ERROR("invalid crtc\n");
-		return -EINVAL;
-	}
-
-	crtc = &dpu_crtc->base;
-	dev = crtc->dev;
 
 	if (enable) {
 		/* drop lock since power crtc cb may try to re-acquire lock */
@@ -823,8 +813,6 @@ static int _dpu_crtc_vblank_enable_no_lock(
 		pm_runtime_put_sync(dev->dev);
 		mutex_lock(&dpu_crtc->crtc_lock);
 	}
-
-	return 0;
 }
 
 /**
@@ -835,7 +823,6 @@ static int _dpu_crtc_vblank_enable_no_lock(
 static void _dpu_crtc_set_suspend(struct drm_crtc *crtc, bool enable)
 {
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
-	int ret = 0;
 
 	DRM_DEBUG_KMS("crtc%d suspend = %d\n", crtc->base.id, enable);
 
@@ -850,10 +837,7 @@ static void _dpu_crtc_set_suspend(struct drm_crtc *crtc, bool enable)
 		DPU_DEBUG("crtc%d suspend already set to %d, ignoring update\n",
 				crtc->base.id, enable);
 	else if (dpu_crtc->enabled && dpu_crtc->vblank_requested) {
-		ret = _dpu_crtc_vblank_enable_no_lock(dpu_crtc, !enable);
-		if (ret)
-			DPU_ERROR("%s vblank enable failed: %d\n",
-					dpu_crtc->name, ret);
+		_dpu_crtc_vblank_enable_no_lock(dpu_crtc, !enable);
 	}
 
 	dpu_crtc->suspend = enable;
@@ -954,7 +938,6 @@ static void dpu_crtc_disable(struct drm_crtc *crtc)
 	struct drm_display_mode *mode;
 	struct drm_encoder *encoder;
 	struct msm_drm_private *priv;
-	int ret;
 	unsigned long flags;
 
 	if (!crtc || !crtc->dev || !crtc->dev->dev_private || !crtc->state) {
@@ -985,10 +968,7 @@ static void dpu_crtc_disable(struct drm_crtc *crtc)
 	trace_dpu_crtc_disable(DRMID(crtc), false, dpu_crtc);
 	if (dpu_crtc->enabled && !dpu_crtc->suspend &&
 			dpu_crtc->vblank_requested) {
-		ret = _dpu_crtc_vblank_enable_no_lock(dpu_crtc, false);
-		if (ret)
-			DPU_ERROR("%s vblank enable failed: %d\n",
-					dpu_crtc->name, ret);
+		_dpu_crtc_vblank_enable_no_lock(dpu_crtc, false);
 	}
 	dpu_crtc->enabled = false;
 
@@ -1034,7 +1014,6 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 	struct dpu_crtc *dpu_crtc;
 	struct drm_encoder *encoder;
 	struct msm_drm_private *priv;
-	int ret;
 
 	if (!crtc || !crtc->dev || !crtc->dev->dev_private) {
 		DPU_ERROR("invalid crtc\n");
@@ -1056,10 +1035,7 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 	trace_dpu_crtc_enable(DRMID(crtc), true, dpu_crtc);
 	if (!dpu_crtc->enabled && !dpu_crtc->suspend &&
 			dpu_crtc->vblank_requested) {
-		ret = _dpu_crtc_vblank_enable_no_lock(dpu_crtc, true);
-		if (ret)
-			DPU_ERROR("%s vblank enable failed: %d\n",
-					dpu_crtc->name, ret);
+		_dpu_crtc_vblank_enable_no_lock(dpu_crtc, true);
 	}
 	dpu_crtc->enabled = true;
 
@@ -1314,7 +1290,6 @@ end:
 int dpu_crtc_vblank(struct drm_crtc *crtc, bool en)
 {
 	struct dpu_crtc *dpu_crtc;
-	int ret;
 
 	if (!crtc) {
 		DPU_ERROR("invalid crtc\n");
@@ -1325,10 +1300,7 @@ int dpu_crtc_vblank(struct drm_crtc *crtc, bool en)
 	mutex_lock(&dpu_crtc->crtc_lock);
 	trace_dpu_crtc_vblank(DRMID(&dpu_crtc->base), en, dpu_crtc);
 	if (dpu_crtc->enabled && !dpu_crtc->suspend) {
-		ret = _dpu_crtc_vblank_enable_no_lock(dpu_crtc, en);
-		if (ret)
-			DPU_ERROR("%s vblank enable failed: %d\n",
-					dpu_crtc->name, ret);
+		_dpu_crtc_vblank_enable_no_lock(dpu_crtc, en);
 	}
 	dpu_crtc->vblank_requested = en;
 	mutex_unlock(&dpu_crtc->crtc_lock);
