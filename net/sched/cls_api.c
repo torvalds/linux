@@ -241,7 +241,7 @@ static void tcf_chain_destroy(struct tcf_chain *chain)
 		block->chain0.chain = NULL;
 	kfree(chain);
 	if (list_empty(&block->chain_list) && !refcount_read(&block->refcnt))
-		kfree(block);
+		kfree_rcu(block, rcu);
 }
 
 static void tcf_chain_hold(struct tcf_chain *chain)
@@ -537,6 +537,19 @@ static struct tcf_block *tcf_block_lookup(struct net *net, u32 block_index)
 	return idr_find(&tn->idr, block_index);
 }
 
+static struct tcf_block *tcf_block_refcnt_get(struct net *net, u32 block_index)
+{
+	struct tcf_block *block;
+
+	rcu_read_lock();
+	block = tcf_block_lookup(net, block_index);
+	if (block && !refcount_inc_not_zero(&block->refcnt))
+		block = NULL;
+	rcu_read_unlock();
+
+	return block;
+}
+
 static void tcf_block_flush_all_chains(struct tcf_block *block)
 {
 	struct tcf_chain *chain;
@@ -560,6 +573,40 @@ static void tcf_block_put_all_chains(struct tcf_block *block)
 		tcf_chain_put_explicitly_created(chain);
 		tcf_chain_put(chain);
 	}
+}
+
+static void __tcf_block_put(struct tcf_block *block, struct Qdisc *q,
+			    struct tcf_block_ext_info *ei)
+{
+	if (refcount_dec_and_test(&block->refcnt)) {
+		/* Flushing/putting all chains will cause the block to be
+		 * deallocated when last chain is freed. However, if chain_list
+		 * is empty, block has to be manually deallocated. After block
+		 * reference counter reached 0, it is no longer possible to
+		 * increment it or add new chains to block.
+		 */
+		bool free_block = list_empty(&block->chain_list);
+
+		if (tcf_block_shared(block))
+			tcf_block_remove(block, block->net);
+		if (!free_block)
+			tcf_block_flush_all_chains(block);
+
+		if (q)
+			tcf_block_offload_unbind(block, q, ei);
+
+		if (free_block)
+			kfree_rcu(block, rcu);
+		else
+			tcf_block_put_all_chains(block);
+	} else if (q) {
+		tcf_block_offload_unbind(block, q, ei);
+	}
+}
+
+static void tcf_block_refcnt_put(struct tcf_block *block)
+{
+	__tcf_block_put(block, NULL, NULL);
 }
 
 /* Find tcf block.
@@ -786,7 +833,7 @@ err_block_owner_add:
 		if (tcf_block_shared(block))
 			tcf_block_remove(block, net);
 err_block_insert:
-		kfree(block);
+		kfree_rcu(block, rcu);
 	} else {
 		refcount_dec(&block->refcnt);
 	}
@@ -826,28 +873,7 @@ void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 	tcf_chain0_head_change_cb_del(block, ei);
 	tcf_block_owner_del(block, q, ei->binder_type);
 
-	if (refcount_dec_and_test(&block->refcnt)) {
-		/* Flushing/putting all chains will cause the block to be
-		 * deallocated when last chain is freed. However, if chain_list
-		 * is empty, block has to be manually deallocated. After block
-		 * reference counter reached 0, it is no longer possible to
-		 * increment it or add new chains to block.
-		 */
-		bool free_block = list_empty(&block->chain_list);
-
-		if (tcf_block_shared(block))
-			tcf_block_remove(block, block->net);
-		if (!free_block)
-			tcf_block_flush_all_chains(block);
-		tcf_block_offload_unbind(block, q, ei);
-
-		if (free_block)
-			kfree(block);
-		else
-			tcf_block_put_all_chains(block);
-	} else {
-		tcf_block_offload_unbind(block, q, ei);
-	}
+	__tcf_block_put(block, q, ei);
 }
 EXPORT_SYMBOL(tcf_block_put_ext);
 

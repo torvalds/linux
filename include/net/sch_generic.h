@@ -357,6 +357,7 @@ struct tcf_block {
 		struct tcf_chain *chain;
 		struct list_head filter_chain_list;
 	} chain0;
+	struct rcu_head rcu;
 };
 
 static inline void tcf_block_offload_inc(struct tcf_block *block, u32 *flags)
