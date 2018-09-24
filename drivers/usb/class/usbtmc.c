@@ -321,6 +321,7 @@ usbtmc_abort_bulk_in_status:
 	dev_dbg(dev, "Reading from bulk in EP\n");
 
 	/* Data must be present. So use low timeout 300 ms */
+	actual = 0;
 	rv = usb_bulk_msg(data->usb_dev,
 			  usb_rcvbulkpipe(data->usb_dev,
 					  data->bulk_in),
