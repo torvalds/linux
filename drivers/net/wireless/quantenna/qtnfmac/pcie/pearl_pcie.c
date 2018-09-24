@@ -29,7 +29,7 @@
 #include <linux/log2.h>
 
 #include "qtn_hw_ids.h"
-#include "pcie_bus_priv.h"
+#include "pearl_pcie_bus_priv.h"
 #include "core.h"
 #include "bus.h"
 #include "debug.h"

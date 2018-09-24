@@ -20,8 +20,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 
-#include "pcie_regs_pearl.h"
-#include "pcie_ipc.h"
+#include "pearl_pcie_regs.h"
+#include "pearl_pcie_ipc.h"
 #include "shm_ipc.h"
 
 struct bus;
