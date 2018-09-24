@@ -365,35 +365,17 @@ static void _dpu_plane_set_qos_ctrl(struct drm_plane *plane,
 			&pdpu->pipe_qos_cfg);
 }
 
-int dpu_plane_danger_signal_ctrl(struct drm_plane *plane, bool enable)
+static void dpu_plane_danger_signal_ctrl(struct drm_plane *plane, bool enable)
 {
-	struct dpu_plane *pdpu;
-	struct msm_drm_private *priv;
-	struct dpu_kms *dpu_kms;
-
-	if (!plane || !plane->dev) {
-		DPU_ERROR("invalid arguments\n");
-		return -EINVAL;
-	}
-
-	priv = plane->dev->dev_private;
-	if (!priv || !priv->kms) {
-		DPU_ERROR("invalid KMS reference\n");
-		return -EINVAL;
-	}
-
-	dpu_kms = to_dpu_kms(priv->kms);
-	pdpu = to_dpu_plane(plane);
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
+	struct dpu_kms *dpu_kms = _dpu_plane_get_kms(plane);
 
 	if (!pdpu->is_rt_pipe)
-		goto end;
+		return;
 
 	pm_runtime_get_sync(&dpu_kms->pdev->dev);
 	_dpu_plane_set_qos_ctrl(plane, enable, DPU_PLANE_QOS_PANIC_CTRL);
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
-
-end:
-	return 0;
 }
 
 /**
