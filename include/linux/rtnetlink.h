@@ -6,6 +6,7 @@
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/wait.h>
+#include <linux/refcount.h>
 #include <uapi/linux/rtnetlink.h>
 
 extern int rtnetlink_send(struct sk_buff *skb, struct net *net, u32 pid, u32 group, int echo);
@@ -34,6 +35,7 @@ extern void rtnl_unlock(void);
 extern int rtnl_trylock(void);
 extern int rtnl_is_locked(void);
 extern int rtnl_lock_killable(void);
+extern bool refcount_dec_and_rtnl_lock(refcount_t *r);
 
 extern wait_queue_head_t netdev_unregistering_wq;
 extern struct rw_semaphore pernet_ops_rwsem;
