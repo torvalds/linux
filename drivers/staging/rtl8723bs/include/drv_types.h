@@ -381,7 +381,7 @@ struct debug_priv {
 	u32 dbg_enwow_dload_fw_fail_cnt;
 	u32 dbg_ips_drvopen_fail_cnt;
 	u32 dbg_poll_fail_cnt;
-	u32 dbg_rpwm_toogle_cnt;
+	u32 dbg_rpwm_toggle_cnt;
 	u32 dbg_rpwm_timeout_fail_cnt;
 	u64 dbg_rx_fifo_last_overflow;
 	u64 dbg_rx_fifo_curr_overflow;
