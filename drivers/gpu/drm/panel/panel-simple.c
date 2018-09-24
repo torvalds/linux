@@ -1032,6 +1032,36 @@ static const struct panel_desc dlc_dlc0700yzg_1 = {
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
 };
 
+static const struct display_timing dlc_dlc1010gig_timing = {
+	.pixelclock = { 68900000, 71100000, 73400000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 43, 53, 63 },
+	.hback_porch = { 43, 53, 63 },
+	.hsync_len = { 44, 54, 64 },
+	.vactive = { 800, 800, 800 },
+	.vfront_porch = { 5, 8, 11 },
+	.vback_porch = { 5, 8, 11 },
+	.vsync_len = { 5, 7, 11 },
+	.flags = DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc dlc_dlc1010gig = {
+	.timings = &dlc_dlc1010gig_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 216,
+		.height = 135,
+	},
+	.delay = {
+		.prepare = 60,
+		.enable = 150,
+		.disable = 100,
+		.unprepare = 60,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+};
+
 static const struct drm_display_mode edt_et057090dhu_mode = {
 	.clock = 25175,
 	.hdisplay = 640,
@@ -2470,6 +2500,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "dlc,dlc0700yzg-1",
 		.data = &dlc_dlc0700yzg_1,
+	}, {
+		.compatible = "dlc,dlc1010gig",
+		.data = &dlc_dlc1010gig,
 	}, {
 		.compatible = "edt,et057090dhu",
 		.data = &edt_et057090dhu,
