@@ -91,6 +91,11 @@ struct device_node;
     /**
      * SoC-specific CPG/MSSR Description
      *
+     * @early_core_clks: Array of Early Core Clock definitions
+     * @num_early_core_clks: Number of entries in early_core_clks[]
+     * @early_mod_clks: Array of Early Module Clock definitions
+     * @num_early_mod_clks: Number of entries in early_mod_clks[]
+     *
      * @core_clks: Array of Core Clock definitions
      * @num_core_clks: Number of entries in core_clks[]
      * @last_dt_core_clk: ID of the last Core Clock exported to DT
@@ -117,6 +122,12 @@ struct device_node;
      */
 
 struct cpg_mssr_info {
+	/* Early Clocks */
+	const struct cpg_core_clk *early_core_clks;
+	unsigned int num_early_core_clks;
+	const struct mssr_mod_clk *early_mod_clks;
+	unsigned int num_early_mod_clks;
+
 	/* Core Clocks */
 	const struct cpg_core_clk *core_clks;
 	unsigned int num_core_clks;
@@ -164,6 +175,8 @@ extern const struct cpg_mssr_info r8a77980_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a77990_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a77995_cpg_mssr_info;
 
+void __init cpg_mssr_early_init(struct device_node *np,
+				const struct cpg_mssr_info *info);
 
     /*
      * Helpers for fixing up clock tables depending on SoC revision
