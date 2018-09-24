@@ -121,7 +121,6 @@ module_param_named(pml, enable_pml, bool, S_IRUGO);
 
 #define MSR_BITMAP_MODE_X2APIC		1
 #define MSR_BITMAP_MODE_X2APIC_APICV	2
-#define MSR_BITMAP_MODE_LM		4
 
 #define KVM_VMX_TSC_MULTIPLIER_MAX     0xffffffffffffffffULL
 
@@ -2899,8 +2898,7 @@ static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 		vmx->msr_host_kernel_gs_base = read_msr(MSR_KERNEL_GS_BASE);
 	}
 
-	if (is_long_mode(&vmx->vcpu))
-		wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
+	wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
 #else
 	savesegment(fs, fs_sel);
 	savesegment(gs, gs_sel);
@@ -2951,8 +2949,7 @@ static void vmx_prepare_switch_to_host(struct vcpu_vmx *vmx)
 	vmx->loaded_cpu_state = NULL;
 
 #ifdef CONFIG_X86_64
-	if (is_long_mode(&vmx->vcpu))
-		rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
+	rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
 #endif
 	if (host_state->ldt_sel || (host_state->gs_sel & 7)) {
 		kvm_load_ldt(host_state->ldt_sel);
@@ -2980,24 +2977,19 @@ static void vmx_prepare_switch_to_host(struct vcpu_vmx *vmx)
 #ifdef CONFIG_X86_64
 static u64 vmx_read_guest_kernel_gs_base(struct vcpu_vmx *vmx)
 {
-	if (is_long_mode(&vmx->vcpu)) {
-		preempt_disable();
-		if (vmx->loaded_cpu_state)
-			rdmsrl(MSR_KERNEL_GS_BASE,
-			       vmx->msr_guest_kernel_gs_base);
-		preempt_enable();
-	}
+	preempt_disable();
+	if (vmx->loaded_cpu_state)
+		rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
+	preempt_enable();
 	return vmx->msr_guest_kernel_gs_base;
 }
 
 static void vmx_write_guest_kernel_gs_base(struct vcpu_vmx *vmx, u64 data)
 {
-	if (is_long_mode(&vmx->vcpu)) {
-		preempt_disable();
-		if (vmx->loaded_cpu_state)
-			wrmsrl(MSR_KERNEL_GS_BASE, data);
-		preempt_enable();
-	}
+	preempt_disable();
+	if (vmx->loaded_cpu_state)
+		wrmsrl(MSR_KERNEL_GS_BASE, data);
+	preempt_enable();
 	vmx->msr_guest_kernel_gs_base = data;
 }
 #endif
@@ -5073,19 +5065,6 @@ static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	if (!msr)
 		return;
 
-	/*
-	 * MSR_KERNEL_GS_BASE is not intercepted when the guest is in
-	 * 64-bit mode as a 64-bit kernel may frequently access the
-	 * MSR.  This means we need to manually save/restore the MSR
-	 * when switching between guest and host state, but only if
-	 * the guest is in 64-bit mode.  Sync our cached value if the
-	 * guest is transitioning to 32-bit mode and the CPU contains
-	 * guest state, i.e. the cache is stale.
-	 */
-#ifdef CONFIG_X86_64
-	if (!(efer & EFER_LMA))
-		(void)vmx_read_guest_kernel_gs_base(vmx);
-#endif
 	vcpu->arch.efer = efer;
 	if (efer & EFER_LMA) {
 		vm_entry_controls_setbit(to_vmx(vcpu), VM_ENTRY_IA32E_MODE);
@@ -6078,9 +6057,6 @@ static u8 vmx_msr_bitmap_mode(struct kvm_vcpu *vcpu)
 			mode |= MSR_BITMAP_MODE_X2APIC_APICV;
 	}
 
-	if (is_long_mode(vcpu))
-		mode |= MSR_BITMAP_MODE_LM;
-
 	return mode;
 }
 
@@ -6120,9 +6096,6 @@ static void vmx_update_msr_bitmap(struct kvm_vcpu *vcpu)
 
 	if (!changed)
 		return;
-
-	vmx_set_intercept_for_msr(msr_bitmap, MSR_KERNEL_GS_BASE, MSR_TYPE_RW,
-				  !(mode & MSR_BITMAP_MODE_LM));
 
 	if (changed & (MSR_BITMAP_MODE_X2APIC | MSR_BITMAP_MODE_X2APIC_APICV))
 		vmx_update_msr_bitmap_x2apic(msr_bitmap, mode);
