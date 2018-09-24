@@ -1147,7 +1147,6 @@ static int ov772x_get_selection(struct v4l2_subdev *sd,
 	sel->r.top = 0;
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-	case V4L2_SEL_TGT_CROP_DEFAULT:
 	case V4L2_SEL_TGT_CROP:
 		sel->r.width = priv->win->rect.width;
 		sel->r.height = priv->win->rect.height;
