@@ -1698,6 +1698,7 @@ static int s5c73m3_probe(struct i2c_client *client,
 		return ret;
 
 	v4l2_i2c_subdev_init(oif_sd, client, &oif_subdev_ops);
+	/* Static name; NEVER use in new drivers! */
 	strscpy(oif_sd->name, "S5C73M3-OIF", sizeof(oif_sd->name));
 
 	oif_sd->internal_ops = &oif_internal_ops;
