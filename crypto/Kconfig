@@ -1083,7 +1083,7 @@ config CRYPTO_AES_NI_INTEL
 
 	  In addition to AES cipher algorithm support, the acceleration
 	  for some popular block cipher mode is supported too, including
-	  ECB, CBC, LRW, PCBC, XTS. The 64 bit version has additional
+	  ECB, CBC, LRW, XTS. The 64 bit version has additional
 	  acceleration for CTR.
 
 config CRYPTO_AES_SPARC64

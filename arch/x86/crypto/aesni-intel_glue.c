@@ -1253,22 +1253,6 @@ static struct skcipher_alg aesni_skciphers[] = {
 static
 struct simd_skcipher_alg *aesni_simd_skciphers[ARRAY_SIZE(aesni_skciphers)];
 
-static struct {
-	const char *algname;
-	const char *drvname;
-	const char *basename;
-	struct simd_skcipher_alg *simd;
-} aesni_simd_skciphers2[] = {
-#if (defined(MODULE) && IS_ENABLED(CONFIG_CRYPTO_PCBC)) || \
-    IS_BUILTIN(CONFIG_CRYPTO_PCBC)
-	{
-		.algname	= "pcbc(aes)",
-		.drvname	= "pcbc-aes-aesni",
-		.basename	= "fpu(pcbc(__aes-aesni))",
-	},
-#endif
-};
-
 #ifdef CONFIG_X86_64
 static int generic_gcmaes_set_key(struct crypto_aead *aead, const u8 *key,
 				  unsigned int key_len)
@@ -1422,10 +1406,6 @@ static void aesni_free_simds(void)
 	for (i = 0; i < ARRAY_SIZE(aesni_simd_skciphers) &&
 		    aesni_simd_skciphers[i]; i++)
 		simd_skcipher_free(aesni_simd_skciphers[i]);
-
-	for (i = 0; i < ARRAY_SIZE(aesni_simd_skciphers2); i++)
-		if (aesni_simd_skciphers2[i].simd)
-			simd_skcipher_free(aesni_simd_skciphers2[i].simd);
 }
 
 static int __init aesni_init(void)
@@ -1497,18 +1477,6 @@ static int __init aesni_init(void)
 			goto unregister_simds;
 
 		aesni_simd_skciphers[i] = simd;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(aesni_simd_skciphers2); i++) {
-		algname = aesni_simd_skciphers2[i].algname;
-		drvname = aesni_simd_skciphers2[i].drvname;
-		basename = aesni_simd_skciphers2[i].basename;
-		simd = simd_skcipher_create_compat(algname, drvname, basename);
-		err = PTR_ERR(simd);
-		if (IS_ERR(simd))
-			continue;
-
-		aesni_simd_skciphers2[i].simd = simd;
 	}
 
 	return 0;
