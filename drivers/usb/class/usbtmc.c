@@ -1370,6 +1370,7 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 
 	/* Loop until we have fetched everything we requested */
 	remaining = count;
+	actual = 0;
 
 	/* Send bulk URB */
 	retval = usb_bulk_msg(data->usb_dev,
