@@ -3084,7 +3084,7 @@ static int phy_ParsePowerLimitTableFile(struct adapter *Adapter, char *buffer)
 
 			if (colNum > TXPWR_LMT_MAX_REGULATION_NUM) {
 				DBG_871X(
-					"unvalid col number %d (greater than max %d)\n",
+					"invalid col number %d (greater than max %d)\n",
 					colNum, TXPWR_LMT_MAX_REGULATION_NUM
 				);
 				return _FAIL;
@@ -3102,7 +3102,7 @@ static int phy_ParsePowerLimitTableFile(struct adapter *Adapter, char *buffer)
 				/* DBG_871X("regulation %s!\n", regulation[forCnt]); */
 
 				if (regulation_name_cnt == 0) {
-					DBG_871X("unvalid number of regulation!\n");
+					DBG_871X("invalid number of regulation!\n");
 					return _FAIL;
 				}
 			}
