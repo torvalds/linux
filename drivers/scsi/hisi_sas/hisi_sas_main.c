@@ -955,8 +955,7 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 
 static void hisi_sas_task_done(struct sas_task *task)
 {
-	if (!del_timer(&task->slow_task->timer))
-		return;
+	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 }
 
@@ -965,13 +964,17 @@ static void hisi_sas_tmf_timedout(struct timer_list *t)
 	struct sas_task_slow *slow = from_timer(slow, t, timer);
 	struct sas_task *task = slow->task;
 	unsigned long flags;
+	bool is_completed = true;
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
-	if (!(task->task_state_flags & SAS_TASK_STATE_DONE))
+	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+		is_completed = false;
+	}
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-	complete(&task->slow_task->completion);
+	if (!is_completed)
+		complete(&task->slow_task->completion);
 }
 
 #define TASK_TIMEOUT 20
@@ -1022,10 +1025,18 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 				struct hisi_sas_slot *slot = task->lldd_task;
+				struct hisi_sas_cq *cq =
+					&hisi_hba->cq[slot->dlvry_queue];
 
 				dev_err(dev, "abort tmf: TMF task timeout and not done\n");
-				if (slot)
+				if (slot) {
+					/*
+					 * flush tasklet to avoid free'ing task
+					 * before using task in IO completion
+					 */
+					tasklet_kill(&cq->tasklet);
 					slot->task = NULL;
+				}
 
 				goto ex_err;
 			} else
@@ -1401,6 +1412,17 @@ static int hisi_sas_abort_task(struct sas_task *task)
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	if (task->task_state_flags & SAS_TASK_STATE_DONE) {
+		struct hisi_sas_slot *slot = task->lldd_task;
+		struct hisi_sas_cq *cq;
+
+		if (slot) {
+			/*
+			 * flush tasklet to avoid free'ing task
+			 * before using task in IO completion
+			 */
+			cq = &hisi_hba->cq[slot->dlvry_queue];
+			tasklet_kill(&cq->tasklet);
+		}
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 		rc = TMF_RESP_FUNC_COMPLETE;
 		goto out;
@@ -1456,12 +1478,19 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		/* SMP */
 		struct hisi_sas_slot *slot = task->lldd_task;
 		u32 tag = slot->idx;
+		struct hisi_sas_cq *cq = &hisi_hba->cq[slot->dlvry_queue];
 
 		rc = hisi_sas_internal_task_abort(hisi_hba, device,
 			     HISI_SAS_INT_ABT_CMD, tag);
 		if (((rc < 0) || (rc == TMF_RESP_FUNC_FAILED)) &&
-					task->lldd_task)
-			hisi_sas_do_release_task(hisi_hba, task, slot);
+					task->lldd_task) {
+			/*
+			 * flush tasklet to avoid free'ing task
+			 * before using task in IO completion
+			 */
+			tasklet_kill(&cq->tasklet);
+			slot->task = NULL;
+		}
 	}
 
 out:
@@ -1827,9 +1856,17 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 			struct hisi_sas_slot *slot = task->lldd_task;
+			struct hisi_sas_cq *cq =
+				&hisi_hba->cq[slot->dlvry_queue];
 
-			if (slot)
+			if (slot) {
+				/*
+				 * flush tasklet to avoid free'ing task
+				 * before using task in IO completion
+				 */
+				tasklet_kill(&cq->tasklet);
 				slot->task = NULL;
+			}
 			dev_err(dev, "internal task abort: timeout and not done.\n");
 			res = -EIO;
 			goto exit;
