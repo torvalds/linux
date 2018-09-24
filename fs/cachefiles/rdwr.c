@@ -511,6 +511,8 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 				goto installed_new_backing_page;
 			if (ret != -EEXIST)
 				goto nomem;
+			put_page(newpage);
+			newpage = NULL;
 		}
 
 		/* we've installed a new backing page, so now we need
