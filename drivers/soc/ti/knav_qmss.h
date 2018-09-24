@@ -240,14 +240,14 @@ struct knav_pool {
 };
 
 /**
- * struct knav_queue_inst:		qmss queue instace properties
+ * struct knav_queue_inst:		qmss queue instance properties
  * @descs:				descriptor pointer
  * @desc_head, desc_tail, desc_count:	descriptor counters
  * @acc:				accumulator channel pointer
  * @kdev:				qmss device pointer
  * @range:				range info
  * @qmgr:				queue manager info
- * @id:					queue instace id
+ * @id:					queue instance id
  * @irq_num:				irq line number
  * @notify_needed:			notifier needed based on queue type
  * @num_notifiers:			total notifiers
@@ -274,7 +274,7 @@ struct knav_queue_inst {
 /**
  * struct knav_queue:			qmss queue properties
  * @reg_push, reg_pop, reg_peek:	push, pop queue registers
- * @inst:				qmss queue instace properties
+ * @inst:				qmss queue instance properties
  * @notifier_fn:			notifier function
  * @notifier_fn_arg:			notifier function argument
  * @notifier_enabled:			notier enabled for a give queue

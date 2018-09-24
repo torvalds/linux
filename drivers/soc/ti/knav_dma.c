@@ -438,7 +438,7 @@ void *knav_dma_open_channel(struct device *dev, const char *name,
 
 	chan_num = of_channel_match_helper(dev->of_node, name, &instance);
 	if (chan_num < 0) {
-		dev_err(kdev->dev, "No DMA instace with name %s\n", name);
+		dev_err(kdev->dev, "No DMA instance with name %s\n", name);
 		return (void *)-EINVAL;
 	}
 
@@ -461,7 +461,7 @@ void *knav_dma_open_channel(struct device *dev, const char *name,
 		}
 	}
 	if (!found) {
-		dev_err(kdev->dev, "No DMA instace with name %s\n", instance);
+		dev_err(kdev->dev, "No DMA instance with name %s\n", instance);
 		return (void *)-EINVAL;
 	}
 
