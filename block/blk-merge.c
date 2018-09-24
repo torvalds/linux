@@ -12,6 +12,71 @@
 
 #include "blk.h"
 
+/*
+ * Check if the two bvecs from two bios can be merged to one segment.  If yes,
+ * no need to check gap between the two bios since the 1st bio and the 1st bvec
+ * in the 2nd bio can be handled in one segment.
+ */
+static inline bool bios_segs_mergeable(struct request_queue *q,
+		struct bio *prev, struct bio_vec *prev_last_bv,
+		struct bio_vec *next_first_bv)
+{
+	if (!BIOVEC_PHYS_MERGEABLE(prev_last_bv, next_first_bv))
+		return false;
+	if (!BIOVEC_SEG_BOUNDARY(q, prev_last_bv, next_first_bv))
+		return false;
+	if (prev->bi_seg_back_size + next_first_bv->bv_len >
+			queue_max_segment_size(q))
+		return false;
+	return true;
+}
+
+static inline bool bio_will_gap(struct request_queue *q,
+		struct request *prev_rq, struct bio *prev, struct bio *next)
+{
+	struct bio_vec pb, nb;
+
+	if (!bio_has_data(prev) || !queue_virt_boundary(q))
+		return false;
+
+	/*
+	 * Don't merge if the 1st bio starts with non-zero offset, otherwise it
+	 * is quite difficult to respect the sg gap limit.  We work hard to
+	 * merge a huge number of small single bios in case of mkfs.
+	 */
+	if (prev_rq)
+		bio_get_first_bvec(prev_rq->bio, &pb);
+	else
+		bio_get_first_bvec(prev, &pb);
+	if (pb.bv_offset)
+		return true;
+
+	/*
+	 * We don't need to worry about the situation that the merged segment
+	 * ends in unaligned virt boundary:
+	 *
+	 * - if 'pb' ends aligned, the merged segment ends aligned
+	 * - if 'pb' ends unaligned, the next bio must include
+	 *   one single bvec of 'nb', otherwise the 'nb' can't
+	 *   merge with 'pb'
+	 */
+	bio_get_last_bvec(prev, &pb);
+	bio_get_first_bvec(next, &nb);
+	if (bios_segs_mergeable(q, prev, &pb, &nb))
+		return false;
+	return __bvec_gap_to_prev(q, &pb, nb.bv_offset);
+}
+
+static inline bool req_gap_back_merge(struct request *req, struct bio *bio)
+{
+	return bio_will_gap(req->q, req, req->biotail, bio);
+}
+
+static inline bool req_gap_front_merge(struct request *req, struct bio *bio)
+{
+	return bio_will_gap(req->q, NULL, bio, req->bio);
+}
+
 static struct bio *blk_bio_discard_split(struct request_queue *q,
 					 struct bio *bio,
 					 struct bio_set *bs,
