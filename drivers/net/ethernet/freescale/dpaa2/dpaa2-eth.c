@@ -2003,9 +2003,21 @@ static int setup_tx_flow(struct dpaa2_eth_priv *priv,
 	return 0;
 }
 
-/* Hash key is a 5-tuple: IPsrc, IPdst, IPnextproto, L4src, L4dst */
+/* Supported header fields for Rx hash distribution key */
 static const struct dpaa2_eth_hash_fields hash_fields[] = {
 	{
+		/* L2 header */
+		.rxnfc_field = RXH_L2DA,
+		.cls_prot = NET_PROT_ETH,
+		.cls_field = NH_FLD_ETH_DA,
+		.size = 6,
+	}, {
+		/* VLAN header */
+		.rxnfc_field = RXH_VLAN,
+		.cls_prot = NET_PROT_VLAN,
+		.cls_field = NH_FLD_VLAN_TCI,
+		.size = 2,
+	}, {
 		/* IP header */
 		.rxnfc_field = RXH_IP_SRC,
 		.cls_prot = NET_PROT_IP,
@@ -2040,19 +2052,20 @@ static const struct dpaa2_eth_hash_fields hash_fields[] = {
 /* Set RX hash options
  * flags is a combination of RXH_ bits
  */
-static int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
+int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 {
 	struct device *dev = net_dev->dev.parent;
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	struct dpkg_profile_cfg cls_cfg;
 	struct dpni_rx_tc_dist_cfg dist_cfg;
+	u32 rx_hash_fields = 0;
 	u8 *dma_mem;
 	int i;
 	int err = 0;
 
 	if (!dpaa2_eth_hash_enabled(priv)) {
 		dev_dbg(dev, "Hashing support is not enabled\n");
-		return 0;
+		return -EOPNOTSUPP;
 	}
 
 	memset(&cls_cfg, 0, sizeof(cls_cfg));
@@ -2075,7 +2088,7 @@ static int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 		key->extract.from_hdr.field = hash_fields[i].cls_field;
 		cls_cfg.num_extracts++;
 
-		priv->rx_hash_fields |= hash_fields[i].rxnfc_field;
+		rx_hash_fields |= hash_fields[i].rxnfc_field;
 	}
 
 	dma_mem = kzalloc(DPAA2_CLASSIFIER_DMA_SIZE, GFP_KERNEL);
@@ -2108,6 +2121,8 @@ static int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 			 DPAA2_CLASSIFIER_DMA_SIZE, DMA_TO_DEVICE);
 	if (err)
 		dev_err(dev, "dpni_set_rx_tc_dist() error %d\n", err);
+	else
+		priv->rx_hash_fields = rx_hash_fields;
 
 err_dma_map:
 err_prep_key:
@@ -2141,7 +2156,7 @@ static int bind_dpni(struct dpaa2_eth_priv *priv)
 	 * the default hash key
 	 */
 	err = dpaa2_eth_set_hash(net_dev, DPAA2_RXH_DEFAULT);
-	if (err)
+	if (err && err != -EOPNOTSUPP)
 		dev_err(dev, "Failed to configure hashing\n");
 
 	/* Configure handling of error frames */

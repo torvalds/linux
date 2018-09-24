@@ -247,6 +247,24 @@ static int dpaa2_eth_get_rxnfc(struct net_device *net_dev,
 	return 0;
 }
 
+static int dpaa2_eth_set_rxnfc(struct net_device *net_dev,
+			       struct ethtool_rxnfc *rxnfc)
+{
+	int err = 0;
+
+	switch (rxnfc->cmd) {
+	case ETHTOOL_SRXFH:
+		if ((rxnfc->data & DPAA2_RXH_SUPPORTED) != rxnfc->data)
+			return -EOPNOTSUPP;
+		err = dpaa2_eth_set_hash(net_dev, rxnfc->data);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+	}
+
+	return err;
+}
+
 int dpaa2_phc_index = -1;
 EXPORT_SYMBOL(dpaa2_phc_index);
 
@@ -276,5 +294,6 @@ const struct ethtool_ops dpaa2_ethtool_ops = {
 	.get_ethtool_stats = dpaa2_eth_get_ethtool_stats,
 	.get_strings = dpaa2_eth_get_strings,
 	.get_rxnfc = dpaa2_eth_get_rxnfc,
+	.set_rxnfc = dpaa2_eth_set_rxnfc,
 	.get_ts_info = dpaa2_eth_get_ts_info,
 };

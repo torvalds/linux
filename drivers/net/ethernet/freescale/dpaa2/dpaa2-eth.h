@@ -409,4 +409,6 @@ static int dpaa2_eth_queue_count(struct dpaa2_eth_priv *priv)
 	return priv->dpni_attrs.num_queues;
 }
 
+int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags);
+
 #endif	/* __DPAA2_H */
