@@ -2098,7 +2098,6 @@ static struct scsi_host_template sht_v3_hw = {
 	.scan_start		= hisi_sas_scan_start,
 	.change_queue_depth	= sas_change_queue_depth,
 	.bios_param		= sas_bios_param,
-	.can_queue		= 1,
 	.this_id		= -1,
 	.sg_tablesize		= SG_ALL,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
@@ -2108,6 +2107,7 @@ static struct scsi_host_template sht_v3_hw = {
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
 	.shost_attrs		= host_attrs,
+	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,
 };
 
 static const struct hisi_sas_hw hisi_sas_v3_hw = {
@@ -2245,8 +2245,10 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->max_channel = 1;
 	shost->max_cmd_len = 16;
 	shost->sg_tablesize = min_t(u16, SG_ALL, HISI_SAS_SGE_PAGE_CNT);
-	shost->can_queue = hisi_hba->hw->max_command_entries;
-	shost->cmd_per_lun = hisi_hba->hw->max_command_entries;
+	shost->can_queue = hisi_hba->hw->max_command_entries -
+		HISI_SAS_RESERVED_IPTT_CNT;
+	shost->cmd_per_lun = hisi_hba->hw->max_command_entries -
+		HISI_SAS_RESERVED_IPTT_CNT;
 
 	sha->sas_ha_name = DRV_NAME;
 	sha->dev = dev;
