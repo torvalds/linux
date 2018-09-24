@@ -283,12 +283,15 @@ out:
 }
 
 static void tcf_stats_update(struct tc_action *a, u64 bytes, u32 packets,
-			     u64 lastuse)
+			     u64 lastuse, bool hw)
 {
 	struct tcf_mirred *m = to_mirred(a);
 	struct tcf_t *tm = &m->tcf_tm;
 
 	_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
+	if (hw)
+		_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats_hw),
+				   bytes, packets);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 

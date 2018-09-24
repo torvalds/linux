@@ -318,7 +318,7 @@ tcf_exts_stats_update(const struct tcf_exts *exts,
 	for (i = 0; i < exts->nr_actions; i++) {
 		struct tc_action *a = exts->actions[i];
 
-		tcf_action_stats_update(a, bytes, packets, lastuse);
+		tcf_action_stats_update(a, bytes, packets, lastuse, true);
 	}
 
 	preempt_enable();

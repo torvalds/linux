@@ -81,6 +81,7 @@ static void tcf_set_action_cookie(struct tc_cookie __rcu **old_cookie,
 static void free_tcf(struct tc_action *p)
 {
 	free_percpu(p->cpu_bstats);
+	free_percpu(p->cpu_bstats_hw);
 	free_percpu(p->cpu_qstats);
 
 	tcf_set_action_cookie(&p->act_cookie, NULL);
@@ -390,9 +391,12 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		p->cpu_bstats = netdev_alloc_pcpu_stats(struct gnet_stats_basic_cpu);
 		if (!p->cpu_bstats)
 			goto err1;
+		p->cpu_bstats_hw = netdev_alloc_pcpu_stats(struct gnet_stats_basic_cpu);
+		if (!p->cpu_bstats_hw)
+			goto err2;
 		p->cpu_qstats = alloc_percpu(struct gnet_stats_queue);
 		if (!p->cpu_qstats)
-			goto err2;
+			goto err3;
 	}
 	spin_lock_init(&p->tcfa_lock);
 	p->tcfa_index = index;
@@ -404,15 +408,17 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 					&p->tcfa_rate_est,
 					&p->tcfa_lock, NULL, est);
 		if (err)
-			goto err3;
+			goto err4;
 	}
 
 	p->idrinfo = idrinfo;
 	p->ops = ops;
 	*a = p;
 	return 0;
-err3:
+err4:
 	free_percpu(p->cpu_qstats);
+err3:
+	free_percpu(p->cpu_bstats_hw);
 err2:
 	free_percpu(p->cpu_bstats);
 err1:
@@ -997,6 +1003,8 @@ int tcf_action_copy_stats(struct sk_buff *skb, struct tc_action *p,
 		goto errout;
 
 	if (gnet_stats_copy_basic(NULL, &d, p->cpu_bstats, &p->tcfa_bstats) < 0 ||
+	    gnet_stats_copy_basic_hw(NULL, &d, p->cpu_bstats_hw,
+				     &p->tcfa_bstats_hw) < 0 ||
 	    gnet_stats_copy_rate_est(&d, &p->tcfa_rate_est) < 0 ||
 	    gnet_stats_copy_queue(&d, p->cpu_qstats,
 				  &p->tcfa_qstats,
