@@ -31,8 +31,8 @@
 #define __DCN_CALCS_H__
 
 #include "bw_fixed.h"
-#include "display_clock.h"
 #include "../dml/display_mode_lib.h"
+#include "hw/dccg.h"
 
 struct dc;
 struct dc_state;

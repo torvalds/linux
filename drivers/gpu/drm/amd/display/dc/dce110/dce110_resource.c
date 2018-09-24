@@ -31,7 +31,7 @@
 #include "resource.h"
 #include "dce110/dce110_resource.h"
 
-#include "../dce/dce_clocks.h"
+#include "../dce/dce_dccg.h"
 #include "include/irq_service_interface.h"
 #include "dce/dce_audio.h"
 #include "dce110/dce110_timing_generator.h"

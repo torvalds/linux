@@ -82,7 +82,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option);
 
 void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
 /********** DAL Core*********************/
-#include "display_clock.h"
+#include "hw/dccg.h"
 #include "transform.h"
 #include "dpp.h"
 

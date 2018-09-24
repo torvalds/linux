@@ -23,10 +23,9 @@
  *
  */
 
+#include "dce_dccg.h"
+
 #include "reg_helper.h"
-#include "bios_parser_interface.h"
-#include "dc.h"
-#include "dce_clocks.h"
 #include "dmcu.h"
 #include "core_types.h"
 #include "dal_asic_id.h"
@@ -94,28 +93,6 @@ static const struct state_dependent_clocks dce120_max_clks_by_state[] = {
 { .display_clk_khz = 670000, .pixel_clk_khz = 600000 },
 /*ClocksStatePerformance*/
 { .display_clk_khz = 1133000, .pixel_clk_khz = 600000 } };
-
-/* Starting DID for each range */
-enum dentist_base_divider_id {
-	DENTIST_BASE_DID_1 = 0x08,
-	DENTIST_BASE_DID_2 = 0x40,
-	DENTIST_BASE_DID_3 = 0x60,
-	DENTIST_BASE_DID_4 = 0x7e,
-	DENTIST_MAX_DID = 0x7f
-};
-
-/* Starting point and step size for each divider range.*/
-enum dentist_divider_range {
-	DENTIST_DIVIDER_RANGE_1_START = 8,   /* 2.00  */
-	DENTIST_DIVIDER_RANGE_1_STEP  = 1,   /* 0.25  */
-	DENTIST_DIVIDER_RANGE_2_START = 64,  /* 16.00 */
-	DENTIST_DIVIDER_RANGE_2_STEP  = 2,   /* 0.50  */
-	DENTIST_DIVIDER_RANGE_3_START = 128, /* 32.00 */
-	DENTIST_DIVIDER_RANGE_3_STEP  = 4,   /* 1.00  */
-	DENTIST_DIVIDER_RANGE_4_START = 248, /* 62.00 */
-	DENTIST_DIVIDER_RANGE_4_STEP  = 264, /* 66.00 */
-	DENTIST_DIVIDER_RANGE_SCALE_FACTOR = 4
-};
 
 static int dentist_get_divider_from_did(int did)
 {
@@ -192,7 +169,7 @@ static int dce_get_dp_ref_freq_khz(struct dccg *dccg)
 	return dccg_adjust_dp_ref_freq_for_ss(dccg_dce, dp_ref_clk_khz);
 }
 
-static int dce12_get_dp_ref_freq_khz(struct dccg *dccg)
+int dce12_get_dp_ref_freq_khz(struct dccg *dccg)
 {
 	struct dce_dccg *dccg_dce = TO_DCE_DCCG(dccg);
 
@@ -305,9 +282,7 @@ static int dce_set_clock(
 	return actual_clock;
 }
 
-static int dce112_set_clock(
-	struct dccg *dccg,
-	int requested_clk_khz)
+int dce112_set_clock(struct dccg *dccg, int requested_clk_khz)
 {
 	struct dce_dccg *dccg_dce = TO_DCE_DCCG(dccg);
 	struct bp_set_dce_clock_parameters dce_clk_params;
@@ -416,7 +391,7 @@ static void dce_clock_read_integrated_info(struct dce_dccg *dccg_dce)
 			dccg_dce->dfs_bypass_enabled = true;
 }
 
-static void dce_clock_read_ss_info(struct dce_dccg *dccg_dce)
+void dce_clock_read_ss_info(struct dce_dccg *dccg_dce)
 {
 	struct dc_bios *bp = dccg_dce->base.ctx->dc_bios;
 	int ss_info_num = bp->funcs->get_ss_entry_number(
@@ -472,12 +447,7 @@ static void dce_clock_read_ss_info(struct dce_dccg *dccg_dce)
 	}
 }
 
-static inline bool should_set_clock(bool safe_to_lower, int calc_clk, int cur_clk)
-{
-	return ((safe_to_lower && calc_clk < cur_clk) || calc_clk > cur_clk);
-}
-
-static void dce110_fill_display_configs(
+void dce110_fill_display_configs(
 	const struct dc_state *context,
 	struct dm_pp_display_configuration *pp_display_cfg)
 {
@@ -644,197 +614,6 @@ static void dce11_pplib_apply_display_requirements(
 		dm_pp_apply_display_requirements(dc->ctx, pp_display_cfg);
 }
 
-static void dcn1_pplib_apply_display_requirements(
-	struct dc *dc,
-	struct dc_state *context)
-{
-	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
-
-	pp_display_cfg->min_engine_clock_khz = dc->res_pool->dccg->clks.dcfclk_khz;
-	pp_display_cfg->min_memory_clock_khz = dc->res_pool->dccg->clks.fclk_khz;
-	pp_display_cfg->min_engine_clock_deep_sleep_khz = dc->res_pool->dccg->clks.dcfclk_deep_sleep_khz;
-	pp_display_cfg->min_dcfc_deep_sleep_clock_khz = dc->res_pool->dccg->clks.dcfclk_deep_sleep_khz;
-	pp_display_cfg->min_dcfclock_khz = dc->res_pool->dccg->clks.dcfclk_khz;
-	pp_display_cfg->disp_clk_khz = dc->res_pool->dccg->clks.dispclk_khz;
-	dce110_fill_display_configs(context, pp_display_cfg);
-
-	if (memcmp(&dc->current_state->pp_display_cfg, pp_display_cfg, sizeof(*pp_display_cfg)) !=  0)
-		dm_pp_apply_display_requirements(dc->ctx, pp_display_cfg);
-}
-
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
-static int dcn1_determine_dppclk_threshold(struct dccg *dccg, struct dc_clocks *new_clocks)
-{
-	bool request_dpp_div = new_clocks->dispclk_khz > new_clocks->dppclk_khz;
-	bool dispclk_increase = new_clocks->dispclk_khz > dccg->clks.dispclk_khz;
-	int disp_clk_threshold = new_clocks->max_supported_dppclk_khz;
-	bool cur_dpp_div = dccg->clks.dispclk_khz > dccg->clks.dppclk_khz;
-
-	/* increase clock, looking for div is 0 for current, request div is 1*/
-	if (dispclk_increase) {
-		/* already divided by 2, no need to reach target clk with 2 steps*/
-		if (cur_dpp_div)
-			return new_clocks->dispclk_khz;
-
-		/* request disp clk is lower than maximum supported dpp clk,
-		 * no need to reach target clk with two steps.
-		 */
-		if (new_clocks->dispclk_khz <= disp_clk_threshold)
-			return new_clocks->dispclk_khz;
-
-		/* target dpp clk not request divided by 2, still within threshold */
-		if (!request_dpp_div)
-			return new_clocks->dispclk_khz;
-
-	} else {
-		/* decrease clock, looking for current dppclk divided by 2,
-		 * request dppclk not divided by 2.
-		 */
-
-		/* current dpp clk not divided by 2, no need to ramp*/
-		if (!cur_dpp_div)
-			return new_clocks->dispclk_khz;
-
-		/* current disp clk is lower than current maximum dpp clk,
-		 * no need to ramp
-		 */
-		if (dccg->clks.dispclk_khz <= disp_clk_threshold)
-			return new_clocks->dispclk_khz;
-
-		/* request dpp clk need to be divided by 2 */
-		if (request_dpp_div)
-			return new_clocks->dispclk_khz;
-	}
-
-	return disp_clk_threshold;
-}
-
-static void dcn1_ramp_up_dispclk_with_dpp(struct dccg *dccg, struct dc_clocks *new_clocks)
-{
-	struct dc *dc = dccg->ctx->dc;
-	int dispclk_to_dpp_threshold = dcn1_determine_dppclk_threshold(dccg, new_clocks);
-	bool request_dpp_div = new_clocks->dispclk_khz > new_clocks->dppclk_khz;
-	int i;
-
-	/* set disp clk to dpp clk threshold */
-	dce112_set_clock(dccg, dispclk_to_dpp_threshold);
-
-	/* update request dpp clk division option */
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
-
-		if (!pipe_ctx->plane_state)
-			continue;
-
-		pipe_ctx->plane_res.dpp->funcs->dpp_dppclk_control(
-				pipe_ctx->plane_res.dpp,
-				request_dpp_div,
-				true);
-	}
-
-	/* If target clk not same as dppclk threshold, set to target clock */
-	if (dispclk_to_dpp_threshold != new_clocks->dispclk_khz)
-		dce112_set_clock(dccg, new_clocks->dispclk_khz);
-
-	dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
-	dccg->clks.dppclk_khz = new_clocks->dppclk_khz;
-	dccg->clks.max_supported_dppclk_khz = new_clocks->max_supported_dppclk_khz;
-}
-
-static void dcn1_update_clocks(struct dccg *dccg,
-			struct dc_state *context,
-			bool safe_to_lower)
-{
-	struct dc *dc = dccg->ctx->dc;
-	struct dc_clocks *new_clocks = &context->bw.dcn.clk;
-	struct pp_smu_display_requirement_rv *smu_req_cur =
-			&dc->res_pool->pp_smu_req;
-	struct pp_smu_display_requirement_rv smu_req = *smu_req_cur;
-	struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
-	struct dm_pp_clock_for_voltage_req clock_voltage_req = {0};
-	bool send_request_to_increase = false;
-	bool send_request_to_lower = false;
-
-	if (new_clocks->phyclk_khz)
-		smu_req.display_count = 1;
-	else
-		smu_req.display_count = 0;
-
-	if (new_clocks->dispclk_khz > dccg->clks.dispclk_khz
-			|| new_clocks->phyclk_khz > dccg->clks.phyclk_khz
-			|| new_clocks->fclk_khz > dccg->clks.fclk_khz
-			|| new_clocks->dcfclk_khz > dccg->clks.dcfclk_khz)
-		send_request_to_increase = true;
-
-	if (should_set_clock(safe_to_lower, new_clocks->phyclk_khz, dccg->clks.phyclk_khz)) {
-		dccg->clks.phyclk_khz = new_clocks->phyclk_khz;
-
-		send_request_to_lower = true;
-	}
-
-	if (should_set_clock(safe_to_lower, new_clocks->fclk_khz, dccg->clks.fclk_khz)) {
-		dccg->clks.fclk_khz = new_clocks->fclk_khz;
-		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_FCLK;
-		clock_voltage_req.clocks_in_khz = new_clocks->fclk_khz;
-		smu_req.hard_min_fclk_khz = new_clocks->fclk_khz;
-
-		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
-		send_request_to_lower = true;
-	}
-
-	if (should_set_clock(safe_to_lower, new_clocks->dcfclk_khz, dccg->clks.dcfclk_khz)) {
-		dccg->clks.dcfclk_khz = new_clocks->dcfclk_khz;
-		smu_req.hard_min_dcefclk_khz = new_clocks->dcfclk_khz;
-
-		send_request_to_lower = true;
-	}
-
-	if (should_set_clock(safe_to_lower,
-			new_clocks->dcfclk_deep_sleep_khz, dccg->clks.dcfclk_deep_sleep_khz)) {
-		dccg->clks.dcfclk_deep_sleep_khz = new_clocks->dcfclk_deep_sleep_khz;
-		smu_req.min_deep_sleep_dcefclk_mhz = new_clocks->dcfclk_deep_sleep_khz;
-
-		send_request_to_lower = true;
-	}
-
-	/* make sure dcf clk is before dpp clk to
-	 * make sure we have enough voltage to run dpp clk
-	 */
-	if (send_request_to_increase) {
-		/*use dcfclk to request voltage*/
-		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
-		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
-		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
-		if (pp_smu->set_display_requirement)
-			pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
-		dcn1_pplib_apply_display_requirements(dc, context);
-	}
-
-	/* dcn1 dppclk is tied to dispclk */
-	/* program dispclk on = as a w/a for sleep resume clock ramping issues */
-	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, dccg->clks.dispclk_khz)
-			|| new_clocks->dispclk_khz == dccg->clks.dispclk_khz) {
-		dcn1_ramp_up_dispclk_with_dpp(dccg, new_clocks);
-		dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
-
-		send_request_to_lower = true;
-	}
-
-	if (!send_request_to_increase && send_request_to_lower) {
-		/*use dcfclk to request voltage*/
-		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
-		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
-		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
-		if (pp_smu->set_display_requirement)
-			pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
-		dcn1_pplib_apply_display_requirements(dc, context);
-	}
-
-
-	*smu_req_cur = smu_req;
-}
-#endif
-
 static void dce_update_clocks(struct dccg *dccg,
 			struct dc_state *context,
 			bool safe_to_lower)
@@ -941,13 +720,6 @@ static void dce12_update_clocks(struct dccg *dccg,
 
 	context->bw.dce.dispclk_khz = unpatched_disp_clk;
 }
-
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
-static const struct dccg_funcs dcn1_funcs = {
-	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
-	.update_clocks = dcn1_update_clocks
-};
-#endif
 
 static const struct dccg_funcs dce120_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
@@ -1097,48 +869,6 @@ struct dccg *dce120_dccg_create(struct dc_context *ctx)
 
 	return &dccg_dce->base;
 }
-
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
-struct dccg *dcn1_dccg_create(struct dc_context *ctx)
-{
-	struct dc_debug_options *debug = &ctx->dc->debug;
-	struct dc_bios *bp = ctx->dc_bios;
-	struct dc_firmware_info fw_info = { { 0 } };
-	struct dce_dccg *dccg_dce = kzalloc(sizeof(*dccg_dce), GFP_KERNEL);
-
-	if (dccg_dce == NULL) {
-		BREAK_TO_DEBUGGER();
-		return NULL;
-	}
-
-	dccg_dce->base.ctx = ctx;
-	dccg_dce->base.funcs = &dcn1_funcs;
-
-	dccg_dce->dfs_bypass_disp_clk = 0;
-
-	dccg_dce->dprefclk_ss_percentage = 0;
-	dccg_dce->dprefclk_ss_divider = 1000;
-	dccg_dce->ss_on_dprefclk = false;
-
-	dccg_dce->dprefclk_khz = 600000;
-	if (bp->integrated_info)
-		dccg_dce->dentist_vco_freq_khz = bp->integrated_info->dentist_vco_freq;
-	if (dccg_dce->dentist_vco_freq_khz == 0) {
-		bp->funcs->get_firmware_info(bp, &fw_info);
-		dccg_dce->dentist_vco_freq_khz = fw_info.smu_gpu_pll_output_freq;
-		if (dccg_dce->dentist_vco_freq_khz == 0)
-			dccg_dce->dentist_vco_freq_khz = 3600000;
-	}
-
-	if (!debug->disable_dfs_bypass && bp->integrated_info)
-		if (bp->integrated_info->gpu_cap_info & DFS_BYPASS_ENABLE)
-			dccg_dce->dfs_bypass_enabled = true;
-
-	dce_clock_read_ss_info(dccg_dce);
-
-	return &dccg_dce->base;
-}
-#endif
 
 void dce_dccg_destroy(struct dccg **dccg)
 {

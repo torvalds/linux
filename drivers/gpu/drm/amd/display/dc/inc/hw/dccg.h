@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef __DISPLAY_CLOCK_H__
-#define __DISPLAY_CLOCK_H__
+#ifndef __DAL_DCCG_H__
+#define __DAL_DCCG_H__
 
 #include "dm_services_types.h"
 #include "dc.h"
@@ -44,4 +44,4 @@ struct dccg_funcs {
 	int (*get_dp_ref_clk_frequency)(struct dccg *dccg);
 };
 
-#endif /* __DISPLAY_CLOCK_H__ */
+#endif /* __DAL_DCCG_H__ */

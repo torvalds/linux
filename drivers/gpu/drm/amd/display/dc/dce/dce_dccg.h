@@ -24,10 +24,10 @@
  */
 
 
-#ifndef _DCE_CLOCKS_H_
-#define _DCE_CLOCKS_H_
+#ifndef _DCE_DCCG_H_
+#define _DCE_DCCG_H_
 
-#include "display_clock.h"
+#include "dccg.h"
 
 #define MEMORY_TYPE_MULTIPLIER_CZ 4
 
@@ -103,6 +103,42 @@ struct dce_dccg {
 	enum dm_pp_clocks_state cur_min_clks_state;
 };
 
+/* Starting DID for each range */
+enum dentist_base_divider_id {
+	DENTIST_BASE_DID_1 = 0x08,
+	DENTIST_BASE_DID_2 = 0x40,
+	DENTIST_BASE_DID_3 = 0x60,
+	DENTIST_BASE_DID_4 = 0x7e,
+	DENTIST_MAX_DID = 0x7f
+};
+
+/* Starting point and step size for each divider range.*/
+enum dentist_divider_range {
+	DENTIST_DIVIDER_RANGE_1_START = 8,   /* 2.00  */
+	DENTIST_DIVIDER_RANGE_1_STEP  = 1,   /* 0.25  */
+	DENTIST_DIVIDER_RANGE_2_START = 64,  /* 16.00 */
+	DENTIST_DIVIDER_RANGE_2_STEP  = 2,   /* 0.50  */
+	DENTIST_DIVIDER_RANGE_3_START = 128, /* 32.00 */
+	DENTIST_DIVIDER_RANGE_3_STEP  = 4,   /* 1.00  */
+	DENTIST_DIVIDER_RANGE_4_START = 248, /* 62.00 */
+	DENTIST_DIVIDER_RANGE_4_STEP  = 264, /* 66.00 */
+	DENTIST_DIVIDER_RANGE_SCALE_FACTOR = 4
+};
+
+static inline bool should_set_clock(bool safe_to_lower, int calc_clk, int cur_clk)
+{
+	return ((safe_to_lower && calc_clk < cur_clk) || calc_clk > cur_clk);
+}
+
+void dce_clock_read_ss_info(struct dce_dccg *dccg_dce);
+
+int dce12_get_dp_ref_freq_khz(struct dccg *dccg);
+
+void dce110_fill_display_configs(
+	const struct dc_state *context,
+	struct dm_pp_display_configuration *pp_display_cfg);
+
+int dce112_set_clock(struct dccg *dccg, int requested_clk_khz);
 
 struct dccg *dce_dccg_create(
 	struct dc_context *ctx,
@@ -124,10 +160,6 @@ struct dccg *dce112_dccg_create(
 
 struct dccg *dce120_dccg_create(struct dc_context *ctx);
 
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
-struct dccg *dcn1_dccg_create(struct dc_context *ctx);
-#endif
-
 void dce_dccg_destroy(struct dccg **dccg);
 
-#endif /* _DCE_CLOCKS_H_ */
+#endif /* _DCE_DCCG_H_ */

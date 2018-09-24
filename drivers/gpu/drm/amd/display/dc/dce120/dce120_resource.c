@@ -32,7 +32,7 @@
 #include "include/irq_service_interface.h"
 #include "dce120_resource.h"
 
-#include "../dce/dce_clocks.h"
+#include "../dce/dce_dccg.h"
 #include "dce112/dce112_resource.h"
 
 #include "dce110/dce110_resource.h"

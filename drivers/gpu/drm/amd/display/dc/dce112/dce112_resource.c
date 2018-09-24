@@ -23,7 +23,7 @@
  *
  */
 
-#include "../dce/dce_clocks.h"
+#include "../dce/dce_dccg.h"
 #include "dm_services.h"
 
 #include "link_encoder.h"
