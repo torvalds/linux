@@ -1016,6 +1016,7 @@ usbtmc_clear_check_status:
 		do {
 			dev_dbg(dev, "Reading from bulk in EP\n");
 
+			actual = 0;
 			rv = usb_bulk_msg(data->usb_dev,
 					  usb_rcvbulkpipe(data->usb_dev,
 							  data->bulk_in),
