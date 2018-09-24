@@ -1542,7 +1542,7 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 	/* we can use hardcoded curve for plain SRGB TF */
 	if (output_tf->type == TF_TYPE_PREDEFINED && canRomBeUsed == true &&
 			output_tf->tf == TRANSFER_FUNCTION_SRGB &&
-			(!mapUserRamp && ramp->type == GAMMA_RGB_256))
+			(ramp->is_identity || (!mapUserRamp && ramp->type == GAMMA_RGB_256)))
 		return true;
 
 	output_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
