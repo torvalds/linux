@@ -20,6 +20,9 @@
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
 
+#include "trans.h"
+#include "core.h"
+
 #define QTNF_MAX_MAC		3
 
 enum qtnf_fw_state {
