@@ -62,7 +62,6 @@ struct qtnf_bus {
 	struct qtnf_hw_info hw_info;
 	struct napi_struct mux_napi;
 	struct net_device mux_dev;
-	struct completion firmware_init_complete;
 	struct workqueue_struct *workqueue;
 	struct work_struct fw_work;
 	struct work_struct event_work;

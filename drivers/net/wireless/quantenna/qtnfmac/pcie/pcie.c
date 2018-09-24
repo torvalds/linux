@@ -130,7 +130,6 @@ void qtnf_pcie_fw_boot_done(struct qtnf_bus *bus, bool boot_success,
 		bus->fw_state = QTNF_FW_STATE_DETACHED;
 	}
 
-	complete(&bus->firmware_init_complete);
 	put_device(&pdev->dev);
 }
 
@@ -304,7 +303,6 @@ int qtnf_pcie_probe(struct pci_dev *pdev, size_t priv_size,
 	pcie_priv->pdev = pdev;
 	pcie_priv->tx_stopped = 0;
 
-	init_completion(&bus->firmware_init_complete);
 	mutex_init(&bus->bus_lock);
 	spin_lock_init(&pcie_priv->tx_lock);
 	spin_lock_init(&pcie_priv->tx_reclaim_lock);
@@ -376,7 +374,7 @@ static void qtnf_pcie_free_shm_ipc(struct qtnf_pcie_bus_priv *priv)
 
 void qtnf_pcie_remove(struct qtnf_bus *bus, struct qtnf_pcie_bus_priv *priv)
 {
-	wait_for_completion(&bus->firmware_init_complete);
+	cancel_work_sync(&bus->fw_work);
 
 	if (bus->fw_state == QTNF_FW_STATE_ACTIVE ||
 	    bus->fw_state == QTNF_FW_STATE_EP_DEAD)
