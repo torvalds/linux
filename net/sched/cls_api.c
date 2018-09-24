@@ -240,7 +240,7 @@ static void tcf_chain_destroy(struct tcf_chain *chain)
 	if (!chain->index)
 		block->chain0.chain = NULL;
 	kfree(chain);
-	if (list_empty(&block->chain_list) && block->refcnt == 0)
+	if (list_empty(&block->chain_list) && !refcount_read(&block->refcnt))
 		kfree(block);
 }
 
@@ -510,7 +510,7 @@ static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
 	INIT_LIST_HEAD(&block->owner_list);
 	INIT_LIST_HEAD(&block->chain0.filter_chain_list);
 
-	block->refcnt = 1;
+	refcount_set(&block->refcnt, 1);
 	block->net = net;
 	block->index = block_index;
 
@@ -710,7 +710,7 @@ int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
 		/* block_index not 0 means the shared block is requested */
 		block = tcf_block_lookup(net, ei->block_index);
 		if (block)
-			block->refcnt++;
+			refcount_inc(&block->refcnt);
 	}
 
 	if (!block) {
@@ -753,7 +753,7 @@ err_block_owner_add:
 err_block_insert:
 		kfree(block);
 	} else {
-		block->refcnt--;
+		refcount_dec(&block->refcnt);
 	}
 	return err;
 }
@@ -793,34 +793,45 @@ void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 	tcf_chain0_head_change_cb_del(block, ei);
 	tcf_block_owner_del(block, q, ei->binder_type);
 
-	if (block->refcnt == 1) {
+	if (refcount_dec_and_test(&block->refcnt)) {
+		/* Flushing/putting all chains will cause the block to be
+		 * deallocated when last chain is freed. However, if chain_list
+		 * is empty, block has to be manually deallocated. After block
+		 * reference counter reached 0, it is no longer possible to
+		 * increment it or add new chains to block.
+		 */
+		bool free_block = list_empty(&block->chain_list);
+
 		if (tcf_block_shared(block))
 			tcf_block_remove(block, block->net);
 
-		/* Hold a refcnt for all chains, so that they don't disappear
-		 * while we are iterating.
-		 */
-		list_for_each_entry(chain, &block->chain_list, list)
-			tcf_chain_hold(chain);
+		if (!free_block) {
+			/* Hold a refcnt for all chains, so that they don't
+			 * disappear while we are iterating.
+			 */
+			list_for_each_entry(chain, &block->chain_list, list)
+				tcf_chain_hold(chain);
 
-		list_for_each_entry(chain, &block->chain_list, list)
-			tcf_chain_flush(chain);
-	}
-
-	tcf_block_offload_unbind(block, q, ei);
-
-	if (block->refcnt == 1) {
-		/* At this point, all the chains should have refcnt >= 1. */
-		list_for_each_entry_safe(chain, tmp, &block->chain_list, list) {
-			tcf_chain_put_explicitly_created(chain);
-			tcf_chain_put(chain);
+			list_for_each_entry(chain, &block->chain_list, list)
+				tcf_chain_flush(chain);
 		}
 
-		block->refcnt--;
-		if (list_empty(&block->chain_list))
+		tcf_block_offload_unbind(block, q, ei);
+
+		if (free_block) {
 			kfree(block);
+		} else {
+			/* At this point, all the chains should have
+			 * refcnt >= 1.
+			 */
+			list_for_each_entry_safe(chain, tmp, &block->chain_list,
+						 list) {
+				tcf_chain_put_explicitly_created(chain);
+				tcf_chain_put(chain);
+			}
+		}
 	} else {
-		block->refcnt--;
+		tcf_block_offload_unbind(block, q, ei);
 	}
 }
 EXPORT_SYMBOL(tcf_block_put_ext);
