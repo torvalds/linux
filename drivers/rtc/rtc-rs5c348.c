@@ -161,7 +161,7 @@ static int rs5c348_probe(struct spi_device *spi)
 	ret = spi_w8r8(spi, RS5C348_CMD_R(RS5C348_REG_SECS));
 	if (ret < 0 || (ret & 0x80)) {
 		dev_err(&spi->dev, "not found.\n");
-		goto kfree_exit;
+		return ret;
 	}
 
 	dev_info(&spi->dev, "spiclk %u KHz.\n",
@@ -170,7 +170,7 @@ static int rs5c348_probe(struct spi_device *spi)
 	/* turn RTC on if it was not on */
 	ret = spi_w8r8(spi, RS5C348_CMD_R(RS5C348_REG_CTL2));
 	if (ret < 0)
-		goto kfree_exit;
+		return ret;
 	if (ret & (RS5C348_BIT_XSTP | RS5C348_BIT_VDET)) {
 		u8 buf[2];
 		struct rtc_time tm;
@@ -181,33 +181,29 @@ static int rs5c348_probe(struct spi_device *spi)
 		rtc_time_to_tm(0, &tm);	/* 1970/1/1 */
 		ret = rs5c348_rtc_set_time(&spi->dev, &tm);
 		if (ret < 0)
-			goto kfree_exit;
+			return ret;
 		buf[0] = RS5C348_CMD_W(RS5C348_REG_CTL2);
 		buf[1] = 0;
 		ret = spi_write_then_read(spi, buf, sizeof(buf), NULL, 0);
 		if (ret < 0)
-			goto kfree_exit;
+			return ret;
 	}
 
 	ret = spi_w8r8(spi, RS5C348_CMD_R(RS5C348_REG_CTL1));
 	if (ret < 0)
-		goto kfree_exit;
+		return ret;
 	if (ret & RS5C348_BIT_24H)
 		pdata->rtc_24h = 1;
 
 	rtc = devm_rtc_device_register(&spi->dev, rs5c348_driver.driver.name,
 				  &rs5c348_rtc_ops, THIS_MODULE);
 
-	if (IS_ERR(rtc)) {
-		ret = PTR_ERR(rtc);
-		goto kfree_exit;
-	}
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
 
 	pdata->rtc = rtc;
 
 	return 0;
- kfree_exit:
-	return ret;
 }
 
 static struct spi_driver rs5c348_driver = {
