@@ -14,6 +14,14 @@
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff550000 console=ttyFIQ0 root=/dev/mmcblk1p8 rootfstype=ext4 rootwait swiotlb=1 kpti=0";
 	};
+
+	vad-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,rk1808-vad";
+		rockchip,cpu = <&i2s0>;
+		rockchip,codec = <&vad>;
+	};
 };
 
 &display_subsystem {
@@ -113,12 +121,35 @@
 	};
 };
 
+&i2s0 {
+	status = "okay";
+	#sound-dai-cells = <0>;
+};
+
+&i2s1 {
+	status = "okay";
+	#sound-dai-cells = <0>;
+};
+
 &mipi_dphy {
+	status = "okay";
+};
+
+&rk809_sound {
 	status = "okay";
 };
 
 &route_dsi {
 	status = "disabled";
+};
+
+&vad {
+	status = "okay";
+	rockchip,audio-src = <&i2s0>;
+	rockchip,buffer-time-ms = <200>;
+	rockchip,det-channel = <0>;
+	rockchip,mode = <1>;
+	#sound-dai-cells = <0>;
 };
 
 &vop_lite {
