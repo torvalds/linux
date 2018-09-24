@@ -1090,6 +1090,26 @@ static void qtnf_pearl_reclaim_tasklet_fn(unsigned long data)
 	qtnf_en_txdone_irq(ps);
 }
 
+static int qtnf_pearl_check_chip_id(struct qtnf_pcie_pearl_state *ps)
+{
+	unsigned int chipid;
+
+	chipid = qtnf_chip_id_get(ps->base.sysctl_bar);
+
+	switch (chipid) {
+	case QTN_CHIP_ID_PEARL:
+	case QTN_CHIP_ID_PEARL_B:
+	case QTN_CHIP_ID_PEARL_C:
+		pr_info("chip ID is 0x%x\n", chipid);
+		break;
+	default:
+		pr_err("incorrect chip ID 0x%x\n", chipid);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int qtnf_pcie_pearl_probe(struct pci_dev *pdev,
 				 const struct pci_device_id *id)
 {
@@ -1129,6 +1149,10 @@ static int qtnf_pcie_pearl_probe(struct pci_dev *pdev,
 	ipc_int.arg = ps;
 	qtnf_pcie_init_shm_ipc(&ps->base, &ps->bda->bda_shm_reg1,
 			       &ps->bda->bda_shm_reg2, &ipc_int);
+
+	ret = qtnf_pearl_check_chip_id(ps);
+	if (ret)
+		goto error;
 
 	ret = qtnf_pcie_pearl_init_xfer(ps);
 	if (ret) {
