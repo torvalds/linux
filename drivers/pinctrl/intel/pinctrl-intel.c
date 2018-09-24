@@ -887,36 +887,6 @@ static const struct gpio_chip intel_gpio_chip = {
 	.set_config = gpiochip_generic_config,
 };
 
-static int intel_gpio_irq_reqres(struct irq_data *d)
-{
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
-	int pin;
-	int ret;
-
-	pin = intel_gpio_to_pin(pctrl, irqd_to_hwirq(d), NULL, NULL);
-	if (pin >= 0) {
-		ret = gpiochip_lock_as_irq(gc, pin);
-		if (ret) {
-			dev_err(pctrl->dev, "unable to lock HW IRQ %d for IRQ\n",
-				pin);
-			return ret;
-		}
-	}
-	return 0;
-}
-
-static void intel_gpio_irq_relres(struct irq_data *d)
-{
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
-	int pin;
-
-	pin = intel_gpio_to_pin(pctrl, irqd_to_hwirq(d), NULL, NULL);
-	if (pin >= 0)
-		gpiochip_unlock_as_irq(gc, pin);
-}
-
 static void intel_gpio_irq_ack(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
@@ -1132,8 +1102,6 @@ static irqreturn_t intel_gpio_irq(int irq, void *data)
 
 static struct irq_chip intel_gpio_irqchip = {
 	.name = "intel-gpio",
-	.irq_request_resources = intel_gpio_irq_reqres,
-	.irq_release_resources = intel_gpio_irq_relres,
 	.irq_enable = intel_gpio_irq_enable,
 	.irq_ack = intel_gpio_irq_ack,
 	.irq_mask = intel_gpio_irq_mask,
