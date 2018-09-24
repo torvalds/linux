@@ -690,7 +690,7 @@ int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	int record_room;
 	int num_zc = 0;
 	int orig_size;
-	int ret;
+	int ret = 0;
 
 	if (msg->msg_flags & ~(MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL))
 		return -ENOTSUPP;
@@ -882,8 +882,8 @@ int tls_sw_sendpage(struct sock *sk, struct page *page,
 	int num_async = 0;
 	bool full_record;
 	int record_room;
+	int ret = 0;
 	bool eor;
-	int ret;
 
 	if (flags & ~(MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL |
 		      MSG_SENDPAGE_NOTLAST))
