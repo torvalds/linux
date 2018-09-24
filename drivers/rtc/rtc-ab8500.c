@@ -360,15 +360,14 @@ static DEVICE_ATTR(rtc_calibration, S_IRUGO | S_IWUSR,
 		   ab8500_sysfs_show_rtc_calibration,
 		   ab8500_sysfs_store_rtc_calibration);
 
-static int ab8500_sysfs_rtc_register(struct device *dev)
-{
-	return device_create_file(dev, &dev_attr_rtc_calibration);
-}
+static struct attribute *ab8500_rtc_attrs[] = {
+	&dev_attr_rtc_calibration.attr,
+	NULL
+};
 
-static void ab8500_sysfs_rtc_unregister(struct device *dev)
-{
-	device_remove_file(dev, &dev_attr_rtc_calibration);
-}
+static const struct attribute_group ab8500_rtc_sysfs_files = {
+	.attrs	= ab8500_rtc_attrs,
+};
 
 static irqreturn_t rtc_alarm_handler(int irq, void *data)
 {
@@ -429,14 +428,11 @@ static int ab8500_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, true);
 
-	rtc = devm_rtc_device_register(&pdev->dev, "ab8500-rtc",
-				(struct rtc_class_ops *)platid->driver_data,
-				THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		dev_err(&pdev->dev, "Registration failed\n");
-		err = PTR_ERR(rtc);
-		return err;
-	}
+	rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
+
+	rtc->ops = (struct rtc_class_ops *)platid->driver_data;
 
 	err = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 			rtc_alarm_handler, IRQF_ONESHOT,
@@ -447,22 +443,19 @@ static int ab8500_rtc_probe(struct platform_device *pdev)
 	dev_pm_set_wake_irq(&pdev->dev, irq);
 	platform_set_drvdata(pdev, rtc);
 
-	err = ab8500_sysfs_rtc_register(&pdev->dev);
-	if (err) {
-		dev_err(&pdev->dev, "sysfs RTC failed to register\n");
-		return err;
-	}
-
 	rtc->uie_unsupported = 1;
 
-	return 0;
+	err = rtc_add_group(rtc, &ab8500_rtc_sysfs_files);
+	if (err)
+		return err;
+
+	return rtc_register_device(rtc);
 }
 
 static int ab8500_rtc_remove(struct platform_device *pdev)
 {
 	dev_pm_clear_wake_irq(&pdev->dev);
 	device_init_wakeup(&pdev->dev, false);
-	ab8500_sysfs_rtc_unregister(&pdev->dev);
 
 	return 0;
 }
