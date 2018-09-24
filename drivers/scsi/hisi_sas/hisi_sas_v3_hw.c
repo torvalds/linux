@@ -441,7 +441,7 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, 0xfefefefe);
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK2, 0xfefefefe);
 	if (pdev->revision >= 0x21)
-		hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, 0xffff7fff);
+		hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, 0xffff7aff);
 	else
 		hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, 0xfffe20ff);
 	hisi_sas_write32(hisi_hba, CHNL_PHYUPDOWN_INT_MSK, 0x0);
