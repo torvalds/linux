@@ -170,7 +170,7 @@ static int ab8500_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 	rtc_time_to_tm(secs, &alarm->time);
 
-	return rtc_valid_tm(&alarm->time);
+	return 0;
 }
 
 static int ab8500_rtc_irq_enable(struct device *dev, unsigned int enabled)
