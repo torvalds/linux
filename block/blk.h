@@ -153,12 +153,18 @@ static inline void blk_queue_enter_live(struct request_queue *q)
 #define ARCH_BIOVEC_PHYS_MERGEABLE(vec1, vec2) true
 #endif
 
-static inline bool biovec_phys_mergeable(const struct bio_vec *vec1,
-		const struct bio_vec *vec2)
+static inline bool biovec_phys_mergeable(struct request_queue *q,
+		struct bio_vec *vec1, struct bio_vec *vec2)
 {
-	if (bvec_to_phys(vec1) + vec1->bv_len != bvec_to_phys(vec2))
+	unsigned long mask = queue_segment_boundary(q);
+	phys_addr_t addr1 = bvec_to_phys(vec1);
+	phys_addr_t addr2 = bvec_to_phys(vec2);
+
+	if (addr1 + vec1->bv_len != addr2)
 		return false;
 	if (!ARCH_BIOVEC_PHYS_MERGEABLE(vec1, vec2))
+		return false;
+	if ((addr1 | mask) != ((addr2 + vec2->bv_len - 1) | mask))
 		return false;
 	return true;
 }
