@@ -287,18 +287,20 @@ __create_page_tables:
 	mov	x28, lr
 
 	/*
-	 * Invalidate the idmap and swapper page tables to avoid potential
-	 * dirty cache lines being evicted.
+	 * Invalidate the init page tables to avoid potential dirty cache lines
+	 * being evicted. Other page tables are allocated in rodata as part of
+	 * the kernel image, and thus are clean to the PoC per the boot
+	 * protocol.
 	 */
-	adrp	x0, idmap_pg_dir
+	adrp	x0, init_pg_dir
 	adrp	x1, init_pg_end
 	sub	x1, x1, x0
 	bl	__inval_dcache_area
 
 	/*
-	 * Clear the idmap and swapper page tables.
+	 * Clear the init page tables.
 	 */
-	adrp	x0, idmap_pg_dir
+	adrp	x0, init_pg_dir
 	adrp	x1, init_pg_end
 	sub	x1, x1, x0
 1:	stp	xzr, xzr, [x0], #16
