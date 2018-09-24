@@ -577,6 +577,8 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 	/* Update RTC-MBUS bridge timing parameters */
 	rtc->data->update_mbus_timing(rtc);
 
+	rtc->rtc_dev->range_max = U32_MAX;
+
 	ret = rtc_register_device(rtc->rtc_dev);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to register RTC device: %d\n", ret);
