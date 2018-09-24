@@ -738,14 +738,6 @@ icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	u8 link, depth;
 	u64 route;
 
-	/*
-	 * After NVM upgrade adding root switch device fails because we
-	 * initiated reset. During that time ICM might still send
-	 * XDomain connected message which we ignore here.
-	 */
-	if (!tb->root_switch)
-		return;
-
 	link = pkg->link_info & ICM_LINK_INFO_LINK_MASK;
 	depth = (pkg->link_info & ICM_LINK_INFO_DEPTH_MASK) >>
 		ICM_LINK_INFO_DEPTH_SHIFT;
@@ -1035,14 +1027,6 @@ icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	 * packet for now.
 	 */
 	if (pkg->hdr.packet_id)
-		return;
-
-	/*
-	 * After NVM upgrade adding root switch device fails because we
-	 * initiated reset. During that time ICM might still send device
-	 * connected message which we ignore here.
-	 */
-	if (!tb->root_switch)
 		return;
 
 	route = get_route(pkg->route_hi, pkg->route_lo);
@@ -1408,19 +1392,26 @@ static void icm_handle_notification(struct work_struct *work)
 
 	mutex_lock(&tb->lock);
 
-	switch (n->pkg->code) {
-	case ICM_EVENT_DEVICE_CONNECTED:
-		icm->device_connected(tb, n->pkg);
-		break;
-	case ICM_EVENT_DEVICE_DISCONNECTED:
-		icm->device_disconnected(tb, n->pkg);
-		break;
-	case ICM_EVENT_XDOMAIN_CONNECTED:
-		icm->xdomain_connected(tb, n->pkg);
-		break;
-	case ICM_EVENT_XDOMAIN_DISCONNECTED:
-		icm->xdomain_disconnected(tb, n->pkg);
-		break;
+	/*
+	 * When the domain is stopped we flush its workqueue but before
+	 * that the root switch is removed. In that case we should treat
+	 * the queued events as being canceled.
+	 */
+	if (tb->root_switch) {
+		switch (n->pkg->code) {
+		case ICM_EVENT_DEVICE_CONNECTED:
+			icm->device_connected(tb, n->pkg);
+			break;
+		case ICM_EVENT_DEVICE_DISCONNECTED:
+			icm->device_disconnected(tb, n->pkg);
+			break;
+		case ICM_EVENT_XDOMAIN_CONNECTED:
+			icm->xdomain_connected(tb, n->pkg);
+			break;
+		case ICM_EVENT_XDOMAIN_DISCONNECTED:
+			icm->xdomain_disconnected(tb, n->pkg);
+			break;
+		}
 	}
 
 	mutex_unlock(&tb->lock);
