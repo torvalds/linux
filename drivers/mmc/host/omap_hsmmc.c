@@ -30,7 +30,6 @@
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include <linux/of_gpio.h>
 #include <linux/of_device.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/core.h>
@@ -38,7 +37,6 @@
 #include <linux/mmc/slot-gpio.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
@@ -206,7 +204,6 @@ struct omap_hsmmc_host {
 #define HSMMC_SDIO_IRQ_ENABLED	(1 << 1)        /* SDIO irq enabled */
 	struct omap_hsmmc_next	next_data;
 	struct	omap_hsmmc_platform_data	*pdata;
-	int (*card_detect)(struct device *dev);
 };
 
 struct omap_mmc_of_data {
@@ -215,13 +212,6 @@ struct omap_mmc_of_data {
 };
 
 static void omap_hsmmc_start_dma_transfer(struct omap_hsmmc_host *host);
-
-static int omap_hsmmc_card_detect(struct device *dev)
-{
-	struct omap_hsmmc_host *host = dev_get_drvdata(dev);
-
-	return mmc_gpio_get_cd(host->mmc);
-}
 
 static int omap_hsmmc_enable_supply(struct mmc_host *mmc)
 {
@@ -463,29 +453,6 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 	ret = omap_hsmmc_disable_boot_regulators(host);
 	if (ret)
 		return ret;
-
-	return 0;
-}
-
-static int omap_hsmmc_gpio_init(struct mmc_host *mmc,
-				struct omap_hsmmc_host *host,
-				struct omap_hsmmc_platform_data *pdata)
-{
-	int ret;
-
-	if (gpio_is_valid(pdata->gpio_cd)) {
-		ret = mmc_gpio_request_cd(mmc, pdata->gpio_cd, 0);
-		if (ret)
-			return ret;
-
-		host->card_detect = omap_hsmmc_card_detect;
-	}
-
-	if (gpio_is_valid(pdata->gpio_wp)) {
-		ret = mmc_gpio_request_ro(mmc, pdata->gpio_wp);
-		if (ret)
-			return ret;
-	}
 
 	return 0;
 }
@@ -1539,15 +1506,6 @@ static void omap_hsmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	omap_hsmmc_set_bus_mode(host);
 }
 
-static int omap_hsmmc_get_cd(struct mmc_host *mmc)
-{
-	struct omap_hsmmc_host *host = mmc_priv(mmc);
-
-	if (!host->card_detect)
-		return -ENOSYS;
-	return host->card_detect(host->dev);
-}
-
 static void omap_hsmmc_init_card(struct mmc_host *mmc, struct mmc_card *card)
 {
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
@@ -1686,7 +1644,7 @@ static struct mmc_host_ops omap_hsmmc_ops = {
 	.pre_req = omap_hsmmc_pre_req,
 	.request = omap_hsmmc_request,
 	.set_ios = omap_hsmmc_set_ios,
-	.get_cd = omap_hsmmc_get_cd,
+	.get_cd = mmc_gpio_get_cd,
 	.get_ro = mmc_gpio_get_ro,
 	.init_card = omap_hsmmc_init_card,
 	.enable_sdio_irq = omap_hsmmc_enable_sdio_irq,
@@ -1813,9 +1771,6 @@ static struct omap_hsmmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 	if (of_find_property(np, "ti,dual-volt", NULL))
 		pdata->controller_flags |= OMAP_HSMMC_SUPPORTS_DUAL_VOLT;
 
-	pdata->gpio_cd = -EINVAL;
-	pdata->gpio_wp = -EINVAL;
-
 	if (of_find_property(np, "ti,non-removable", NULL)) {
 		pdata->nonremovable = true;
 		pdata->no_regulator_off_init = true;
@@ -1899,10 +1854,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	host->next_data.cookie = 1;
 	host->pbias_enabled = 0;
 	host->vqmmc_enabled = 0;
-
-	ret = omap_hsmmc_gpio_init(mmc, host, pdata);
-	if (ret)
-		goto err_gpio;
 
 	platform_set_drvdata(pdev, host);
 
@@ -2045,7 +1996,6 @@ err_irq:
 	if (host->dbclk)
 		clk_disable_unprepare(host->dbclk);
 err1:
-err_gpio:
 	mmc_free_host(mmc);
 err:
 	return ret;

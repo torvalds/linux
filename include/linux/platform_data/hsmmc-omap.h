@@ -70,8 +70,6 @@ struct omap_hsmmc_platform_data {
 	/* string specifying a particular variant of hardware */
 	char *version;
 
-	int gpio_cd;			/* gpio (card detect) */
-	int gpio_wp;			/* gpio (write protect) */
 	/* if we have special card, init it using this callback */
 	void (*init_card)(struct mmc_card *card);
 
