@@ -731,7 +731,9 @@ int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page
 	}
 
 	/* If we may be able to merge these biovecs, force a recount */
-	if (bio->bi_vcnt > 1 && biovec_phys_mergeable(bvec-1, bvec))
+	if (bio->bi_vcnt > 1 &&
+	    biovec_phys_mergeable(bvec - 1, bvec) &&
+	    BIOVEC_SEG_BOUNDARY(q, bvec - 1, bvec))
 		bio_clear_flag(bio, BIO_SEG_VALID);
 
  done:
