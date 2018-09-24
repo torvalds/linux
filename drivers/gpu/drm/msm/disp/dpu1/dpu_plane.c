@@ -1045,8 +1045,7 @@ void dpu_plane_set_error(struct drm_plane *plane, bool error)
 	pdpu->is_error = error;
 }
 
-static void dpu_plane_sspp_atomic_update(struct drm_plane *plane,
-					 struct drm_plane_state *old_state)
+static void dpu_plane_sspp_atomic_update(struct drm_plane *plane)
 {
 	uint32_t src_flags;
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
@@ -1159,27 +1158,11 @@ static void dpu_plane_sspp_atomic_update(struct drm_plane *plane,
 	_dpu_plane_set_qos_remap(plane);
 }
 
-static void _dpu_plane_atomic_disable(struct drm_plane *plane,
-				struct drm_plane_state *old_state)
+static void _dpu_plane_atomic_disable(struct drm_plane *plane)
 {
-	struct dpu_plane *pdpu;
-	struct drm_plane_state *state;
-	struct dpu_plane_state *pstate;
-
-	if (!plane) {
-		DPU_ERROR("invalid plane\n");
-		return;
-	} else if (!plane->state) {
-		DPU_ERROR("invalid plane state\n");
-		return;
-	} else if (!old_state) {
-		DPU_ERROR("invalid old state\n");
-		return;
-	}
-
-	pdpu = to_dpu_plane(plane);
-	state = plane->state;
-	pstate = to_dpu_plane_state(state);
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
+	struct drm_plane_state *state = plane->state;
+	struct dpu_plane_state *pstate = to_dpu_plane_state(state);
 
 	trace_dpu_plane_disable(DRMID(plane), is_dpu_plane_virtual(plane),
 				pstate->multirect_mode);
@@ -1203,9 +1186,9 @@ static void dpu_plane_atomic_update(struct drm_plane *plane,
 	DPU_DEBUG_PLANE(pdpu, "\n");
 
 	if (!state->visible) {
-		_dpu_plane_atomic_disable(plane, old_state);
+		_dpu_plane_atomic_disable(plane);
 	} else {
-		dpu_plane_sspp_atomic_update(plane, old_state);
+		dpu_plane_sspp_atomic_update(plane);
 	}
 }
 
