@@ -60,46 +60,8 @@ struct vchi_version {
 #define VCHI_VERSION(v_) { v_, v_ }
 #define VCHI_VERSION_EX(v_, m_) { v_, m_ }
 
-typedef enum {
-   VCHI_VEC_POINTER,
-   VCHI_VEC_HANDLE,
-   VCHI_VEC_LIST
-} VCHI_MSG_VECTOR_TYPE_T;
-
-typedef struct vchi_msg_vector_ex {
-
-   VCHI_MSG_VECTOR_TYPE_T type;
-   union {
-      // a memory handle
-	struct {
-		VCHI_MEM_HANDLE_T handle;
-		uint32_t offset;
-		int32_t vec_len;
-	} handle;
-
-      // an ordinary data pointer
-	struct {
-		const void *vec_base;
-		int32_t vec_len;
-      } ptr;
-
-      // a nested vector list
-	struct {
-		struct vchi_msg_vector_ex *vec;
-		uint32_t vec_len;
-	} list;
-   } u;
-} VCHI_MSG_VECTOR_EX_T;
-
-// Construct an entry in a msg vector for a pointer (p) of length (l)
-#define VCHI_VEC_POINTER(p,l)  VCHI_VEC_POINTER, { { (VCHI_MEM_HANDLE_T)(p), (l) } }
-
-// Construct an entry in a msg vector for a message handle (h), starting at offset (o) of length (l)
-#define VCHI_VEC_HANDLE(h,o,l) VCHI_VEC_HANDLE,  { { (h), (o), (l) } }
-
 // Macros to manipulate 'FOURCC' values
 #define MAKE_FOURCC(x) ((int32_t)((x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3]))
-#define FOURCC_TO_CHAR(x) (x >> 24) & 0xFF,(x >> 16) & 0xFF,(x >> 8) & 0xFF, x & 0xFF
 
 // Opaque service information
 struct opaque_vchi_service_t;
