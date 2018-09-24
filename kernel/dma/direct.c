@@ -114,6 +114,9 @@ void *dma_direct_alloc_pages(struct device *dev, size_t size,
 	u64 phys_mask;
 	void *ret;
 
+	if (attrs & DMA_ATTR_NO_WARN)
+		gfp |= __GFP_NOWARN;
+
 	/* we always manually zero the memory once we are done: */
 	gfp &= ~__GFP_ZERO;
 	gfp |= __dma_direct_optimal_gfp_mask(dev, dev->coherent_dma_mask,
