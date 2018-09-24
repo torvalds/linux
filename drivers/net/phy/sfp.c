@@ -1098,8 +1098,11 @@ static int sfp_hwmon_insert(struct sfp *sfp)
 
 static void sfp_hwmon_remove(struct sfp *sfp)
 {
-	hwmon_device_unregister(sfp->hwmon_dev);
-	kfree(sfp->hwmon_name);
+	if (!IS_ERR_OR_NULL(sfp->hwmon_dev)) {
+		hwmon_device_unregister(sfp->hwmon_dev);
+		sfp->hwmon_dev = NULL;
+		kfree(sfp->hwmon_name);
+	}
 }
 #else
 static int sfp_hwmon_insert(struct sfp *sfp)
