@@ -110,7 +110,7 @@ struct qtnf_pcie_pearl_state {
 	/* lock for tx reclaim operations */
 	spinlock_t tx_reclaim_lock;
 	/* lock for tx0 operations */
-	spinlock_t tx0_lock;
+	spinlock_t tx_lock;
 	u8 msi_enabled;
 	u8 tx_stopped;
 	int mps;
@@ -794,7 +794,7 @@ static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
 	u32 info;
 	int ret = 0;
 
-	spin_lock_irqsave(&priv->tx0_lock, flags);
+	spin_lock_irqsave(&priv->tx_lock, flags);
 
 	if (!qtnf_tx_queue_ready(priv)) {
 		if (skb->dev) {
@@ -802,7 +802,7 @@ static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
 			priv->tx_stopped = 1;
 		}
 
-		spin_unlock_irqrestore(&priv->tx0_lock, flags);
+		spin_unlock_irqrestore(&priv->tx_lock, flags);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -852,7 +852,7 @@ tx_done:
 	}
 
 	priv->tx_done_count++;
-	spin_unlock_irqrestore(&priv->tx0_lock, flags);
+	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
 	qtnf_pcie_data_tx_reclaim(priv);
 
@@ -1404,7 +1404,7 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	init_completion(&bus->firmware_init_complete);
 	mutex_init(&bus->bus_lock);
-	spin_lock_init(&pcie_priv->tx0_lock);
+	spin_lock_init(&pcie_priv->tx_lock);
 	spin_lock_init(&pcie_priv->irq_lock);
 	spin_lock_init(&pcie_priv->tx_reclaim_lock);
 
