@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/module.h>
 #include <asm/unaligned.h>
 #include "mt76x2.h"
 #include "mt76x2_eeprom.h"

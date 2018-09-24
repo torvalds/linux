@@ -13,6 +13,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
