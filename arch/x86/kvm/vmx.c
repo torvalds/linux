@@ -12308,6 +12308,24 @@ static int nested_vmx_check_pml_controls(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static int nested_vmx_check_unrestricted_guest_controls(struct kvm_vcpu *vcpu,
+							struct vmcs12 *vmcs12)
+{
+	if (nested_cpu_has2(vmcs12, SECONDARY_EXEC_UNRESTRICTED_GUEST) &&
+	    !nested_cpu_has_ept(vmcs12))
+		return -EINVAL;
+	return 0;
+}
+
+static int nested_vmx_check_mode_based_ept_exec_controls(struct kvm_vcpu *vcpu,
+							 struct vmcs12 *vmcs12)
+{
+	if (nested_cpu_has2(vmcs12, SECONDARY_EXEC_MODE_BASED_EPT_EXEC) &&
+	    !nested_cpu_has_ept(vmcs12))
+		return -EINVAL;
+	return 0;
+}
+
 static int nested_vmx_check_shadow_vmcs_controls(struct kvm_vcpu *vcpu,
 						 struct vmcs12 *vmcs12)
 {
@@ -13034,6 +13052,12 @@ static int check_vmentry_prereqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
 	if (nested_vmx_check_pml_controls(vcpu, vmcs12))
+		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+	if (nested_vmx_check_unrestricted_guest_controls(vcpu, vmcs12))
+		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+	if (nested_vmx_check_mode_based_ept_exec_controls(vcpu, vmcs12))
 		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
 	if (nested_vmx_check_shadow_vmcs_controls(vcpu, vmcs12))
