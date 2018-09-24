@@ -9,6 +9,7 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/iopoll.h>
 
 #include "camss-vfe.h"

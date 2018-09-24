@@ -541,6 +541,8 @@ config VIDEO_CROS_EC_CEC
 	depends on MFD_CROS_EC
 	select CEC_CORE
 	select CEC_NOTIFIER
+	select CHROME_PLATFORMS
+	select CROS_EC_PROTO
 	---help---
 	  If you say yes here you will get support for the
 	  ChromeOS Embedded Controller's CEC.
