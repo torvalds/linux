@@ -469,9 +469,8 @@ extern void pci_iounmap(struct pci_dev *dev, void __iomem *addr);
 struct bio_vec;
 extern bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,
 				      const struct bio_vec *vec2);
-#define BIOVEC_PHYS_MERGEABLE(vec1, vec2)				\
-	(__BIOVEC_PHYS_MERGEABLE(vec1, vec2) &&				\
-	 (!xen_domain() || xen_biovec_phys_mergeable(vec1, vec2)))
+#define ARCH_BIOVEC_PHYS_MERGEABLE(vec1, vec2)				\
+	 (!xen_domain() || xen_biovec_phys_mergeable(vec1, vec2))
 
 #ifdef CONFIG_MMU
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE

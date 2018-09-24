@@ -21,7 +21,7 @@ static inline bool bios_segs_mergeable(struct request_queue *q,
 		struct bio *prev, struct bio_vec *prev_last_bv,
 		struct bio_vec *next_first_bv)
 {
-	if (!BIOVEC_PHYS_MERGEABLE(prev_last_bv, next_first_bv))
+	if (!biovec_phys_mergeable(prev_last_bv, next_first_bv))
 		return false;
 	if (!BIOVEC_SEG_BOUNDARY(q, prev_last_bv, next_first_bv))
 		return false;
@@ -199,7 +199,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 		if (bvprvp && blk_queue_cluster(q)) {
 			if (seg_size + bv.bv_len > queue_max_segment_size(q))
 				goto new_segment;
-			if (!BIOVEC_PHYS_MERGEABLE(bvprvp, &bv))
+			if (!biovec_phys_mergeable(bvprvp, &bv))
 				goto new_segment;
 			if (!BIOVEC_SEG_BOUNDARY(q, bvprvp, &bv))
 				goto new_segment;
@@ -332,7 +332,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 				if (seg_size + bv.bv_len
 				    > queue_max_segment_size(q))
 					goto new_segment;
-				if (!BIOVEC_PHYS_MERGEABLE(&bvprv, &bv))
+				if (!biovec_phys_mergeable(&bvprv, &bv))
 					goto new_segment;
 				if (!BIOVEC_SEG_BOUNDARY(q, &bvprv, &bv))
 					goto new_segment;
@@ -414,7 +414,7 @@ static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 	bio_get_last_bvec(bio, &end_bv);
 	bio_get_first_bvec(nxt, &nxt_bv);
 
-	if (!BIOVEC_PHYS_MERGEABLE(&end_bv, &nxt_bv))
+	if (!biovec_phys_mergeable(&end_bv, &nxt_bv))
 		return 0;
 
 	/*
@@ -439,7 +439,7 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
 		if ((*sg)->length + nbytes > queue_max_segment_size(q))
 			goto new_segment;
 
-		if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
+		if (!biovec_phys_mergeable(bvprv, bvec))
 			goto new_segment;
 		if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bvec))
 			goto new_segment;
