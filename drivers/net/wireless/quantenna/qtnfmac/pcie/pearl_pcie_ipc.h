@@ -43,11 +43,6 @@
 #define QTN_RC_FW_LOADRDY	BIT(8)
 #define QTN_RC_FW_SYNC		BIT(9)
 
-/* state transition timeouts */
-#define QTN_FW_DL_TIMEOUT_MS	3000
-#define QTN_FW_QLINK_TIMEOUT_MS	30000
-#define QTN_EP_RESET_WAIT_MS	1000
-
 #define PCIE_HDP_INT_RX_BITS (0		\
 	| PCIE_HDP_INT_EP_TXDMA		\
 	| PCIE_HDP_INT_EP_TXEMPTY	\
@@ -76,8 +71,6 @@
 
 #define PCIE_BDA_NAMELEN		32
 #define PCIE_HHBM_MAX_SIZE		2048
-
-#define SKB_BUF_SIZE		2048
 
 #define QTN_PCIE_BOARDFLG	"PCIEQTN"
 #define QTN_PCIE_FW_DLMASK	0xF
