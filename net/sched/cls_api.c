@@ -473,6 +473,7 @@ tcf_chain0_head_change_cb_del(struct tcf_block *block,
 }
 
 struct tcf_net {
+	spinlock_t idr_lock; /* Protects idr */
 	struct idr idr;
 };
 
@@ -482,16 +483,25 @@ static int tcf_block_insert(struct tcf_block *block, struct net *net,
 			    struct netlink_ext_ack *extack)
 {
 	struct tcf_net *tn = net_generic(net, tcf_net_id);
+	int err;
 
-	return idr_alloc_u32(&tn->idr, block, &block->index, block->index,
-			     GFP_KERNEL);
+	idr_preload(GFP_KERNEL);
+	spin_lock(&tn->idr_lock);
+	err = idr_alloc_u32(&tn->idr, block, &block->index, block->index,
+			    GFP_NOWAIT);
+	spin_unlock(&tn->idr_lock);
+	idr_preload_end();
+
+	return err;
 }
 
 static void tcf_block_remove(struct tcf_block *block, struct net *net)
 {
 	struct tcf_net *tn = net_generic(net, tcf_net_id);
 
+	spin_lock(&tn->idr_lock);
 	idr_remove(&tn->idr, block->index);
+	spin_unlock(&tn->idr_lock);
 }
 
 static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
@@ -2278,6 +2288,7 @@ static __net_init int tcf_net_init(struct net *net)
 {
 	struct tcf_net *tn = net_generic(net, tcf_net_id);
 
+	spin_lock_init(&tn->idr_lock);
 	idr_init(&tn->idr);
 	return 0;
 }
