@@ -527,6 +527,31 @@ static struct tcf_block *tcf_block_lookup(struct net *net, u32 block_index)
 	return idr_find(&tn->idr, block_index);
 }
 
+static void tcf_block_flush_all_chains(struct tcf_block *block)
+{
+	struct tcf_chain *chain;
+
+	/* Hold a refcnt for all chains, so that they don't disappear
+	 * while we are iterating.
+	 */
+	list_for_each_entry(chain, &block->chain_list, list)
+		tcf_chain_hold(chain);
+
+	list_for_each_entry(chain, &block->chain_list, list)
+		tcf_chain_flush(chain);
+}
+
+static void tcf_block_put_all_chains(struct tcf_block *block)
+{
+	struct tcf_chain *chain, *tmp;
+
+	/* At this point, all the chains should have refcnt >= 1. */
+	list_for_each_entry_safe(chain, tmp, &block->chain_list, list) {
+		tcf_chain_put_explicitly_created(chain);
+		tcf_chain_put(chain);
+	}
+}
+
 /* Find tcf block.
  * Set q, parent, cl when appropriate.
  */
@@ -786,8 +811,6 @@ EXPORT_SYMBOL(tcf_block_get);
 void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 		       struct tcf_block_ext_info *ei)
 {
-	struct tcf_chain *chain, *tmp;
-
 	if (!block)
 		return;
 	tcf_chain0_head_change_cb_del(block, ei);
@@ -804,32 +827,14 @@ void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 
 		if (tcf_block_shared(block))
 			tcf_block_remove(block, block->net);
-
-		if (!free_block) {
-			/* Hold a refcnt for all chains, so that they don't
-			 * disappear while we are iterating.
-			 */
-			list_for_each_entry(chain, &block->chain_list, list)
-				tcf_chain_hold(chain);
-
-			list_for_each_entry(chain, &block->chain_list, list)
-				tcf_chain_flush(chain);
-		}
-
+		if (!free_block)
+			tcf_block_flush_all_chains(block);
 		tcf_block_offload_unbind(block, q, ei);
 
-		if (free_block) {
+		if (free_block)
 			kfree(block);
-		} else {
-			/* At this point, all the chains should have
-			 * refcnt >= 1.
-			 */
-			list_for_each_entry_safe(chain, tmp, &block->chain_list,
-						 list) {
-				tcf_chain_put_explicitly_created(chain);
-				tcf_chain_put(chain);
-			}
-		}
+		else
+			tcf_block_put_all_chains(block);
 	} else {
 		tcf_block_offload_unbind(block, q, ei);
 	}
