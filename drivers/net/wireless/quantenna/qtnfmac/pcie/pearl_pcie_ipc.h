@@ -63,10 +63,6 @@
 #define QTN_HOST_ADDR(h, l)	((u32)l)
 #endif
 
-#define QTN_SYSCTL_BAR	0
-#define QTN_SHMEM_BAR	2
-#define QTN_DMA_BAR	3
-
 #define QTN_PCIE_BDA_VERSION		0x1002
 
 #define PCIE_BDA_NAMELEN		32

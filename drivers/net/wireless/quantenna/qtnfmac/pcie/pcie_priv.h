@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 
 #include "shm_ipc.h"
+#include "bus.h"
 
 #define SKB_BUF_SIZE		2048
 
@@ -58,6 +59,20 @@ struct qtnf_pcie_bus_priv {
 	u8 msi_enabled;
 	u8 tx_stopped;
 };
+
+int qtnf_pcie_control_tx(struct qtnf_bus *bus, struct sk_buff *skb);
+int qtnf_pcie_alloc_skb_array(struct qtnf_pcie_bus_priv *priv);
+void qtnf_pcie_bringup_fw_async(struct qtnf_bus *bus);
+void qtnf_pcie_fw_boot_done(struct qtnf_bus *bus, bool boot_success,
+			    const char *drv_name);
+void qtnf_pcie_init_shm_ipc(struct qtnf_pcie_bus_priv *priv,
+			    struct qtnf_shm_ipc_region __iomem *ipc_tx_reg,
+			    struct qtnf_shm_ipc_region __iomem *ipc_rx_reg,
+			    const struct qtnf_shm_ipc_int *ipc_int);
+int qtnf_pcie_probe(struct pci_dev *pdev, size_t priv_size,
+		    const struct qtnf_bus_ops *bus_ops, u64 dma_mask,
+		    bool use_msi);
+void qtnf_pcie_remove(struct qtnf_bus *bus, struct qtnf_pcie_bus_priv *priv);
 
 static inline void qtnf_non_posted_write(u32 val, void __iomem *basereg)
 {
