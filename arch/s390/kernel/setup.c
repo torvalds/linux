@@ -748,11 +748,28 @@ static void __init memblock_physmem_add(phys_addr_t start, phys_addr_t size)
 	memblock_add_range(&memblock.physmem, start, size, 0, 0);
 }
 
+static const char * __init get_mem_info_source(void)
+{
+	switch (mem_detect.info_source) {
+	case MEM_DETECT_SCLP_STOR_INFO:
+		return "sclp storage info";
+	case MEM_DETECT_DIAG260:
+		return "diag260";
+	case MEM_DETECT_SCLP_READ_INFO:
+		return "sclp read info";
+	case MEM_DETECT_BIN_SEARCH:
+		return "binary search";
+	}
+	return "none";
+}
+
 static void __init memblock_add_mem_detect_info(void)
 {
 	unsigned long start, end;
 	int i;
 
+	memblock_dbg("physmem info source: %s (%hhd)\n",
+		     get_mem_info_source(), mem_detect.info_source);
 	/* keep memblock lists close to the kernel */
 	memblock_set_bottom_up(true);
 	for_each_mem_detect_block(i, &start, &end)
