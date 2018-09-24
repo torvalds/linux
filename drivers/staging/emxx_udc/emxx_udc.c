@@ -2513,7 +2513,7 @@ static int nbu2ss_ep_enable(
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if ((!ep) || (!ep->udc)) {
+	if ((!ep->udc)) {
 		pr_err(" *** %s, ep == NULL !!\n", __func__);
 		return -EINVAL;
 	}
@@ -2570,7 +2570,7 @@ static int nbu2ss_ep_disable(struct usb_ep *_ep)
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if ((!ep) || (!ep->udc)) {
+	if (!ep->udc) {
 		pr_err("udc: *** %s, ep == NULL !!\n", __func__);
 		return -EINVAL;
 	}
@@ -2743,10 +2743,6 @@ static int nbu2ss_ep_dequeue(
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if (!ep) {
-		pr_err("%s, ep == NULL !!\n", __func__);
-		return -EINVAL;
-	}
 
 	udc = ep->udc;
 	if (!udc)
@@ -2787,10 +2783,6 @@ static int nbu2ss_ep_set_halt(struct usb_ep *_ep, int value)
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if (!ep) {
-		pr_err("%s, bad ep\n", __func__);
-		return -EINVAL;
-	}
 
 	udc = ep->udc;
 	if (!udc) {
@@ -2839,10 +2831,6 @@ static int nbu2ss_ep_fifo_status(struct usb_ep *_ep)
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if (!ep) {
-		pr_err("%s, bad ep\n", __func__);
-		return -EINVAL;
-	}
 
 	udc = ep->udc;
 	if (!udc) {
@@ -2885,10 +2873,6 @@ static void  nbu2ss_ep_fifo_flush(struct usb_ep *_ep)
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if (!ep) {
-		pr_err("udc: %s, bad ep\n", __func__);
-		return;
-	}
 
 	udc = ep->udc;
 	if (!udc) {
@@ -2959,10 +2943,6 @@ static int nbu2ss_gad_wakeup(struct usb_gadget *pgadget)
 	}
 
 	udc = container_of(pgadget, struct nbu2ss_udc, gadget);
-	if (!udc) {
-		dev_err(&pgadget->dev, "%s, udc == NULL\n", __func__);
-		return -EINVAL;
-	}
 
 	data = gpio_get_value(VBUS_VALUE);
 	if (data == 0) {
