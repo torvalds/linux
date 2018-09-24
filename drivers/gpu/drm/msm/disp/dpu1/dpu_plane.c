@@ -125,13 +125,8 @@ struct dpu_plane {
 
 static struct dpu_kms *_dpu_plane_get_kms(struct drm_plane *plane)
 {
-	struct msm_drm_private *priv;
+	struct msm_drm_private *priv = plane->dev->dev_private;
 
-	if (!plane || !plane->dev)
-		return NULL;
-	priv = plane->dev->dev_private;
-	if (!priv)
-		return NULL;
 	return to_dpu_kms(priv->kms);
 }
 
@@ -150,7 +145,7 @@ static inline int _dpu_plane_calc_fill_level(struct drm_plane *plane,
 	u32 fixed_buff_size;
 	u32 total_fl;
 
-	if (!plane || !fmt || !plane->state || !src_width || !fmt->bpp) {
+	if (!fmt || !plane->state || !src_width || !fmt->bpp) {
 		DPU_ERROR("invalid arguments\n");
 		return 0;
 	}
@@ -231,25 +226,10 @@ static u64 _dpu_plane_get_qos_lut(const struct dpu_qos_lut_tbl *tbl,
 static void _dpu_plane_set_qos_lut(struct drm_plane *plane,
 		struct drm_framebuffer *fb)
 {
-	struct dpu_plane *pdpu;
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
 	const struct dpu_format *fmt = NULL;
 	u64 qos_lut;
 	u32 total_fl = 0, lut_usage;
-
-	if (!plane || !fb) {
-		DPU_ERROR("invalid arguments plane %d fb %d\n",
-				plane != 0, fb != 0);
-		return;
-	}
-
-	pdpu = to_dpu_plane(plane);
-
-	if (!pdpu->pipe_hw || !pdpu->pipe_sblk || !pdpu->catalog) {
-		DPU_ERROR("invalid arguments\n");
-		return;
-	} else if (!pdpu->pipe_hw->ops.setup_creq_lut) {
-		return;
-	}
 
 	if (!pdpu->is_rt_pipe) {
 		lut_usage = DPU_QOS_LUT_USAGE_NRT;
@@ -292,23 +272,9 @@ static void _dpu_plane_set_qos_lut(struct drm_plane *plane,
 static void _dpu_plane_set_danger_lut(struct drm_plane *plane,
 		struct drm_framebuffer *fb)
 {
-	struct dpu_plane *pdpu;
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
 	const struct dpu_format *fmt = NULL;
 	u32 danger_lut, safe_lut;
-
-	if (!plane || !fb) {
-		DPU_ERROR("invalid arguments\n");
-		return;
-	}
-
-	pdpu = to_dpu_plane(plane);
-
-	if (!pdpu->pipe_hw || !pdpu->pipe_sblk || !pdpu->catalog) {
-		DPU_ERROR("invalid arguments\n");
-		return;
-	} else if (!pdpu->pipe_hw->ops.setup_danger_safe_lut) {
-		return;
-	}
 
 	if (!pdpu->is_rt_pipe) {
 		danger_lut = pdpu->catalog->perf.danger_lut_tbl
@@ -363,21 +329,7 @@ static void _dpu_plane_set_danger_lut(struct drm_plane *plane,
 static void _dpu_plane_set_qos_ctrl(struct drm_plane *plane,
 	bool enable, u32 flags)
 {
-	struct dpu_plane *pdpu;
-
-	if (!plane) {
-		DPU_ERROR("invalid arguments\n");
-		return;
-	}
-
-	pdpu = to_dpu_plane(plane);
-
-	if (!pdpu->pipe_hw || !pdpu->pipe_sblk) {
-		DPU_ERROR("invalid arguments\n");
-		return;
-	} else if (!pdpu->pipe_hw->ops.setup_qos_ctrl) {
-		return;
-	}
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
 
 	if (flags & DPU_PLANE_QOS_VBLANK_CTRL) {
 		pdpu->pipe_qos_cfg.creq_vblank = pdpu->pipe_sblk->creq_vblank;
@@ -452,29 +404,9 @@ end:
 static void _dpu_plane_set_ot_limit(struct drm_plane *plane,
 		struct drm_crtc *crtc)
 {
-	struct dpu_plane *pdpu;
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
 	struct dpu_vbif_set_ot_params ot_params;
-	struct msm_drm_private *priv;
-	struct dpu_kms *dpu_kms;
-
-	if (!plane || !plane->dev || !crtc) {
-		DPU_ERROR("invalid arguments plane %d crtc %d\n",
-				plane != 0, crtc != 0);
-		return;
-	}
-
-	priv = plane->dev->dev_private;
-	if (!priv || !priv->kms) {
-		DPU_ERROR("invalid KMS reference\n");
-		return;
-	}
-
-	dpu_kms = to_dpu_kms(priv->kms);
-	pdpu = to_dpu_plane(plane);
-	if (!pdpu->pipe_hw) {
-		DPU_ERROR("invalid pipe reference\n");
-		return;
-	}
+	struct dpu_kms *dpu_kms = _dpu_plane_get_kms(plane);
 
 	memset(&ot_params, 0, sizeof(ot_params));
 	ot_params.xin_id = pdpu->pipe_hw->cap->xin_id;
@@ -496,28 +428,9 @@ static void _dpu_plane_set_ot_limit(struct drm_plane *plane,
  */
 static void _dpu_plane_set_qos_remap(struct drm_plane *plane)
 {
-	struct dpu_plane *pdpu;
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
 	struct dpu_vbif_set_qos_params qos_params;
-	struct msm_drm_private *priv;
-	struct dpu_kms *dpu_kms;
-
-	if (!plane || !plane->dev) {
-		DPU_ERROR("invalid arguments\n");
-		return;
-	}
-
-	priv = plane->dev->dev_private;
-	if (!priv || !priv->kms) {
-		DPU_ERROR("invalid KMS reference\n");
-		return;
-	}
-
-	dpu_kms = to_dpu_kms(priv->kms);
-	pdpu = to_dpu_plane(plane);
-	if (!pdpu->pipe_hw) {
-		DPU_ERROR("invalid pipe reference\n");
-		return;
-	}
+	struct dpu_kms *dpu_kms = _dpu_plane_get_kms(plane);
 
 	memset(&qos_params, 0, sizeof(qos_params));
 	qos_params.vbif_idx = VBIF_RT;
@@ -551,10 +464,6 @@ static int _dpu_plane_get_aspace(
 	}
 
 	kms = _dpu_plane_get_kms(&pdpu->base);
-	if (!kms) {
-		DPU_ERROR("invalid kms\n");
-		return -EINVAL;
-	}
 
 	*aspace = kms->base.aspace;
 
@@ -566,22 +475,9 @@ static inline void _dpu_plane_set_scanout(struct drm_plane *plane,
 		struct dpu_hw_pipe_cfg *pipe_cfg,
 		struct drm_framebuffer *fb)
 {
-	struct dpu_plane *pdpu;
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
 	struct msm_gem_address_space *aspace = NULL;
 	int ret;
-
-	if (!plane || !pstate || !pipe_cfg || !fb) {
-		DPU_ERROR(
-			"invalid arg(s), plane %d state %d cfg %d fb %d\n",
-			plane != 0, pstate != 0, pipe_cfg != 0, fb != 0);
-		return;
-	}
-
-	pdpu = to_dpu_plane(plane);
-	if (!pdpu->pipe_hw) {
-		DPU_ERROR_PLANE(pdpu, "invalid pipe_hw\n");
-		return;
-	}
 
 	ret = _dpu_plane_get_aspace(pdpu, pstate, &aspace);
 	if (ret) {
@@ -611,15 +507,6 @@ static void _dpu_plane_setup_scaler3(struct dpu_plane *pdpu,
 		uint32_t chroma_subsmpl_h, uint32_t chroma_subsmpl_v)
 {
 	uint32_t i;
-
-	if (!pdpu || !pstate || !scale_cfg || !fmt || !chroma_subsmpl_h ||
-			!chroma_subsmpl_v) {
-		DPU_ERROR(
-			"pdpu %d pstate %d scale_cfg %d fmt %d smp_h %d smp_v %d\n",
-			!!pdpu, !!pstate, !!scale_cfg, !!fmt, chroma_subsmpl_h,
-			chroma_subsmpl_v);
-		return;
-	}
 
 	memset(scale_cfg, 0, sizeof(*scale_cfg));
 	memset(&pstate->pixel_ext, 0, sizeof(struct dpu_hw_pixel_ext));
@@ -724,16 +611,7 @@ static void _dpu_plane_setup_scaler(struct dpu_plane *pdpu,
 		struct dpu_plane_state *pstate,
 		const struct dpu_format *fmt, bool color_fill)
 {
-	struct dpu_hw_pixel_ext *pe;
 	uint32_t chroma_subsmpl_h, chroma_subsmpl_v;
-
-	if (!pdpu || !fmt || !pstate) {
-		DPU_ERROR("invalid arg(s), plane %d fmt %d state %d\n",
-				pdpu != 0, fmt != 0, pstate != 0);
-		return;
-	}
-
-	pe = &pstate->pixel_ext;
 
 	/* don't chroma subsample if decimating */
 	chroma_subsmpl_h =
@@ -762,21 +640,8 @@ static int _dpu_plane_color_fill(struct dpu_plane *pdpu,
 		uint32_t color, uint32_t alpha)
 {
 	const struct dpu_format *fmt;
-	const struct drm_plane *plane;
-	struct dpu_plane_state *pstate;
-
-	if (!pdpu || !pdpu->base.state) {
-		DPU_ERROR("invalid plane\n");
-		return -EINVAL;
-	}
-
-	if (!pdpu->pipe_hw) {
-		DPU_ERROR_PLANE(pdpu, "invalid plane h/w pointer\n");
-		return -EINVAL;
-	}
-
-	plane = &pdpu->base;
-	pstate = to_dpu_plane_state(plane->state);
+	const struct drm_plane *plane = &pdpu->base;
+	struct dpu_plane_state *pstate = to_dpu_plane_state(plane->state);
 
 	DPU_DEBUG_PLANE(pdpu, "\n");
 
@@ -827,12 +692,7 @@ static int _dpu_plane_color_fill(struct dpu_plane *pdpu,
 
 void dpu_plane_clear_multirect(const struct drm_plane_state *drm_state)
 {
-	struct dpu_plane_state *pstate;
-
-	if (!drm_state)
-		return;
-
-	pstate = to_dpu_plane_state(drm_state);
+	struct dpu_plane_state *pstate = to_dpu_plane_state(drm_state);
 
 	pstate->multirect_index = DPU_SSPP_RECT_SOLO;
 	pstate->multirect_mode = DPU_SSPP_MULTIRECT_NONE;
@@ -963,15 +823,6 @@ done:
 void dpu_plane_get_ctl_flush(struct drm_plane *plane, struct dpu_hw_ctl *ctl,
 		u32 *flush_sspp)
 {
-	struct dpu_plane_state *pstate;
-
-	if (!plane || !flush_sspp) {
-		DPU_ERROR("invalid parameters\n");
-		return;
-	}
-
-	pstate = to_dpu_plane_state(plane->state);
-
 	*flush_sspp = ctl->ops.get_bitmask_sspp(ctl, dpu_plane_pipe(plane));
 }
 
@@ -1391,8 +1242,7 @@ static void dpu_plane_destroy(struct drm_plane *plane)
 		/* this will destroy the states as well */
 		drm_plane_cleanup(plane);
 
-		if (pdpu->pipe_hw)
-			dpu_hw_sspp_destroy(pdpu->pipe_hw);
+		dpu_hw_sspp_destroy(pdpu->pipe_hw);
 
 		kfree(pdpu);
 	}
@@ -1739,32 +1589,10 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 	struct drm_plane *plane = NULL, *master_plane = NULL;
 	const struct dpu_format_extended *format_list;
 	struct dpu_plane *pdpu;
-	struct msm_drm_private *priv;
-	struct dpu_kms *kms;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct dpu_kms *kms = to_dpu_kms(priv->kms);
 	int zpos_max = DPU_ZPOS_MAX;
 	int ret = -EINVAL;
-
-	if (!dev) {
-		DPU_ERROR("[%u]device is NULL\n", pipe);
-		goto exit;
-	}
-
-	priv = dev->dev_private;
-	if (!priv) {
-		DPU_ERROR("[%u]private data is NULL\n", pipe);
-		goto exit;
-	}
-
-	if (!priv->kms) {
-		DPU_ERROR("[%u]invalid KMS reference\n", pipe);
-		goto exit;
-	}
-	kms = to_dpu_kms(priv->kms);
-
-	if (!kms->catalog) {
-		DPU_ERROR("[%u]invalid catalog reference\n", pipe);
-		goto exit;
-	}
 
 	/* create and zero local structure */
 	pdpu = kzalloc(sizeof(*pdpu), GFP_KERNEL);
