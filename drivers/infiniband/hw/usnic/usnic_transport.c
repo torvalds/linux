@@ -121,7 +121,7 @@ void usnic_transport_unrsrv_port(enum usnic_transport_type type, u16 port_num)
 	if (type == USNIC_TRANSPORT_ROCE_CUSTOM) {
 		spin_lock(&roce_bitmap_lock);
 		if (!port_num) {
-			usnic_err("Unreserved unvalid port num 0 for %s\n",
+			usnic_err("Unreserved invalid port num 0 for %s\n",
 					usnic_transport_to_str(type));
 			goto out_roce_custom;
 		}
