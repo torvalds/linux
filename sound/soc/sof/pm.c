@@ -130,6 +130,8 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 
 	/* restore kcontrol values */
 	list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
+		/* reset readback offset for scontrol after resuming */
+		scontrol->readback_offset = 0;
 
 		/* notify DSP of kcontrol values */
 		switch (scontrol->cmd) {
