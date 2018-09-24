@@ -67,6 +67,24 @@ static pte_t bm_pte[PTRS_PER_PTE] __page_aligned_bss;
 static pmd_t bm_pmd[PTRS_PER_PMD] __page_aligned_bss __maybe_unused;
 static pud_t bm_pud[PTRS_PER_PUD] __page_aligned_bss __maybe_unused;
 
+static DEFINE_SPINLOCK(swapper_pgdir_lock);
+
+void set_swapper_pgd(pgd_t *pgdp, pgd_t pgd)
+{
+	pgd_t *fixmap_pgdp;
+
+	spin_lock(&swapper_pgdir_lock);
+	fixmap_pgdp = pgd_set_fixmap(__pa(pgdp));
+	WRITE_ONCE(*fixmap_pgdp, pgd);
+	/*
+	 * We need dsb(ishst) here to ensure the page-table-walker sees
+	 * our new entry before set_p?d() returns. The fixmap's
+	 * flush_tlb_kernel_range() via clear_fixmap() does this for us.
+	 */
+	pgd_clear_fixmap();
+	spin_unlock(&swapper_pgdir_lock);
+}
+
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 			      unsigned long size, pgprot_t vma_prot)
 {
@@ -629,8 +647,12 @@ static void __init map_kernel(pgd_t *pgdp)
  */
 void __init paging_init(void)
 {
-	map_kernel(swapper_pg_dir);
-	map_mem(swapper_pg_dir);
+	pgd_t *pgdp = pgd_set_fixmap(__pa_symbol(swapper_pg_dir));
+
+	map_kernel(pgdp);
+	map_mem(pgdp);
+
+	pgd_clear_fixmap();
 
 	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
 	init_mm.pgd = swapper_pg_dir;
