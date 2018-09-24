@@ -381,20 +381,42 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 		}
 	}
 
+	/* init hda controller and power dsp up */
 	return hda_resume(sdev);
 }
 
 int hda_dsp_runtime_resume(struct snd_sof_dev *sdev)
 {
+	/* init hda controller and power dsp up */
 	return hda_resume(sdev);
 }
 
 int hda_dsp_runtime_suspend(struct snd_sof_dev *sdev, int state)
 {
+	/* stop hda controller and power dsp off */
 	return hda_suspend(sdev, state);
 }
 
 int hda_dsp_suspend(struct snd_sof_dev *sdev, int state)
 {
-	return hda_suspend(sdev, state);
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	int ret;
+
+	/* stop hda controller and power dsp off */
+	ret = hda_suspend(sdev, state);
+	if (ret < 0) {
+		dev_err(bus->dev, "error: suspending dsp\n");
+		return ret;
+	}
+
+	/* turn display power off */
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
+		ret = snd_hdac_display_power(bus, false);
+		if (ret < 0) {
+			dev_err(bus->dev, "Cannot turn on display power on i915 after resume\n");
+			return ret;
+		}
+	}
+
+	return 0;
 }
