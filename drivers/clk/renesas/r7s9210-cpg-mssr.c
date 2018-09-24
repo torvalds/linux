@@ -53,7 +53,7 @@ enum clk_ids {
 	MOD_CLK_BASE
 };
 
-static struct cpg_core_clk r7s9210_core_clks[] = {
+static struct cpg_core_clk r7s9210_early_core_clks[] = {
 	/* External Clock Inputs */
 	DEF_INPUT("extal",     CLK_EXTAL),
 
@@ -62,19 +62,25 @@ static struct cpg_core_clk r7s9210_core_clks[] = {
 	DEF_BASE(".pll",       CLK_PLL, CLK_TYPE_RZA_PLL, CLK_MAIN),
 
 	/* Core Clock Outputs */
+	DEF_FIXED("p1c",    R7S9210_CLK_P1C,   CLK_PLL,         16, 1),
+};
+
+static const struct mssr_mod_clk r7s9210_early_mod_clks[] __initconst = {
+	DEF_MOD_STB("ostm2",	 34,	R7S9210_CLK_P1C),
+	DEF_MOD_STB("ostm1",	 35,	R7S9210_CLK_P1C),
+	DEF_MOD_STB("ostm0",	 36,	R7S9210_CLK_P1C),
+};
+
+static struct cpg_core_clk r7s9210_core_clks[] = {
+	/* Core Clock Outputs */
 	DEF_FIXED("i",      R7S9210_CLK_I,     CLK_PLL,          2, 1),
 	DEF_FIXED("g",      R7S9210_CLK_G,     CLK_PLL,          4, 1),
 	DEF_FIXED("b",      R7S9210_CLK_B,     CLK_PLL,          8, 1),
 	DEF_FIXED("p1",     R7S9210_CLK_P1,    CLK_PLL,         16, 1),
-	DEF_FIXED("p1c",    R7S9210_CLK_P1C,   CLK_PLL,         16, 1),
 	DEF_FIXED("p0",     R7S9210_CLK_P0,    CLK_PLL,         32, 1),
 };
 
 static const struct mssr_mod_clk r7s9210_mod_clks[] __initconst = {
-	DEF_MOD_STB("ostm2",	 34,	R7S9210_CLK_P1C),
-	DEF_MOD_STB("ostm1",	 35,	R7S9210_CLK_P1C),
-	DEF_MOD_STB("ostm0",	 36,	R7S9210_CLK_P1C),
-
 	DEF_MOD_STB("scif4",	 43,	R7S9210_CLK_P1C),
 	DEF_MOD_STB("scif3",	 44,	R7S9210_CLK_P1C),
 	DEF_MOD_STB("scif2",	 45,	R7S9210_CLK_P1C),
@@ -170,6 +176,12 @@ struct clk * __init rza2_cpg_clk_register(struct device *dev,
 }
 
 const struct cpg_mssr_info r7s9210_cpg_mssr_info __initconst = {
+	/* Early Clocks */
+	.early_core_clks = r7s9210_early_core_clks,
+	.num_early_core_clks = ARRAY_SIZE(r7s9210_early_core_clks),
+	.early_mod_clks = r7s9210_early_mod_clks,
+	.num_early_mod_clks = ARRAY_SIZE(r7s9210_early_mod_clks),
+
 	/* Core Clocks */
 	.core_clks = r7s9210_core_clks,
 	.num_core_clks = ARRAY_SIZE(r7s9210_core_clks),
@@ -187,3 +199,11 @@ const struct cpg_mssr_info r7s9210_cpg_mssr_info __initconst = {
 	/* RZ/A2 has Standby Control Registers */
 	.stbyctrl = true,
 };
+
+static void __init r7s9210_cpg_mssr_early_init(struct device_node *np)
+{
+	cpg_mssr_early_init(np, &r7s9210_cpg_mssr_info);
+}
+
+CLK_OF_DECLARE_DRIVER(cpg_mstp_clks, "renesas,r7s9210-cpg-mssr",
+		      r7s9210_cpg_mssr_early_init);
