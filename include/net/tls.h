@@ -99,6 +99,7 @@ enum {
  */
 struct tls_rec {
 	struct list_head list;
+	int tx_ready;
 	int tx_flags;
 	struct scatterlist sg_plaintext_data[MAX_SKB_FRAGS];
 	struct scatterlist sg_encrypted_data[MAX_SKB_FRAGS];
@@ -128,7 +129,7 @@ struct tls_sw_context_tx {
 	struct crypto_wait async_wait;
 	struct tx_work tx_work;
 	struct tls_rec *open_rec;
-	struct list_head tx_ready_list;
+	struct list_head tx_list;
 	atomic_t encrypt_pending;
 	int async_notify;
 
@@ -220,7 +221,6 @@ struct tls_context {
 
 	struct scatterlist *partially_sent_record;
 	u16 partially_sent_offset;
-	u64 tx_seq_number;	/* Next TLS seqnum to be transmitted */
 
 	unsigned long flags;
 	bool in_tcp_sendpages;
@@ -341,21 +341,15 @@ static inline bool tls_is_pending_open_record(struct tls_context *tls_ctx)
 	return tls_ctx->pending_open_record_frags;
 }
 
-static inline bool is_tx_ready(struct tls_context *tls_ctx,
-			       struct tls_sw_context_tx *ctx)
+static inline bool is_tx_ready(struct tls_sw_context_tx *ctx)
 {
 	struct tls_rec *rec;
-	u64 seq;
 
-	rec = list_first_entry(&ctx->tx_ready_list, struct tls_rec, list);
+	rec = list_first_entry(&ctx->tx_list, struct tls_rec, list);
 	if (!rec)
 		return false;
 
-	seq = be64_to_cpup((const __be64 *)&rec->aad_space);
-	if (seq == tls_ctx->tx_seq_number)
-		return true;
-	else
-		return false;
+	return READ_ONCE(rec->tx_ready);
 }
 
 struct sk_buff *
