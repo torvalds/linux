@@ -57,7 +57,6 @@ struct qtnf_bus {
 	struct qtnf_wmac *mac[QTNF_MAX_MAC];
 	struct qtnf_qlink_transport trans;
 	struct qtnf_hw_info hw_info;
-	char fwname[32];
 	struct napi_struct mux_napi;
 	struct net_device mux_dev;
 	struct completion firmware_init_complete;

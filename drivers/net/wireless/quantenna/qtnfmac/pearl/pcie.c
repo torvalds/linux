@@ -1177,13 +1177,14 @@ static void qtnf_fw_work_handler(struct work_struct *work)
 	const struct firmware *fw;
 	int ret;
 	u32 state = QTN_RC_FW_LOADRDY | QTN_RC_FW_QLINK;
+	const char *fwname = QTN_PCI_PEARL_FW_NAME;
 
 	if (flashboot) {
 		state |= QTN_RC_FW_FLASHBOOT;
 	} else {
-		ret = request_firmware(&fw, bus->fwname, &pdev->dev);
+		ret = request_firmware(&fw, fwname, &pdev->dev);
 		if (ret < 0) {
-			pr_err("failed to get firmware %s\n", bus->fwname);
+			pr_err("failed to get firmware %s\n", fwname);
 			goto fw_load_fail;
 		}
 	}
@@ -1205,7 +1206,7 @@ static void qtnf_fw_work_handler(struct work_struct *work)
 	if (flashboot) {
 		pr_info("booting firmware from flash\n");
 	} else {
-		pr_info("starting firmware upload: %s\n", bus->fwname);
+		pr_info("starting firmware upload: %s\n", fwname);
 
 		ret = qtnf_ep_fw_load(priv, fw->data, fw->size);
 		release_firmware(fw);
@@ -1290,7 +1291,6 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	bus->fw_state = QTNF_FW_STATE_RESET;
 	pcie_priv->pdev = pdev;
 
-	strcpy(bus->fwname, QTN_PCI_PEARL_FW_NAME);
 	init_completion(&bus->firmware_init_complete);
 	mutex_init(&bus->bus_lock);
 	spin_lock_init(&pcie_priv->tx0_lock);
