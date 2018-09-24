@@ -233,8 +233,8 @@ flow_offload_lookup(struct nf_flowtable *flow_table,
 	struct flow_offload *flow;
 	int dir;
 
-	tuplehash = rhashtable_lookup_fast(&flow_table->rhashtable, tuple,
-					   nf_flow_offload_rhash_params);
+	tuplehash = rhashtable_lookup(&flow_table->rhashtable, tuple,
+				      nf_flow_offload_rhash_params);
 	if (!tuplehash)
 		return NULL;
 

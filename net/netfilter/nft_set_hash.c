@@ -88,7 +88,7 @@ static bool nft_rhash_lookup(const struct net *net, const struct nft_set *set,
 		.key	 = key,
 	};
 
-	he = rhashtable_lookup_fast(&priv->ht, &arg, nft_rhash_params);
+	he = rhashtable_lookup(&priv->ht, &arg, nft_rhash_params);
 	if (he != NULL)
 		*ext = &he->ext;
 
@@ -106,7 +106,7 @@ static void *nft_rhash_get(const struct net *net, const struct nft_set *set,
 		.key	 = elem->key.val.data,
 	};
 
-	he = rhashtable_lookup_fast(&priv->ht, &arg, nft_rhash_params);
+	he = rhashtable_lookup(&priv->ht, &arg, nft_rhash_params);
 	if (he != NULL)
 		return he;
 
@@ -129,7 +129,7 @@ static bool nft_rhash_update(struct nft_set *set, const u32 *key,
 		.key	 = key,
 	};
 
-	he = rhashtable_lookup_fast(&priv->ht, &arg, nft_rhash_params);
+	he = rhashtable_lookup(&priv->ht, &arg, nft_rhash_params);
 	if (he != NULL)
 		goto out;
 
@@ -217,7 +217,7 @@ static void *nft_rhash_deactivate(const struct net *net,
 	};
 
 	rcu_read_lock();
-	he = rhashtable_lookup_fast(&priv->ht, &arg, nft_rhash_params);
+	he = rhashtable_lookup(&priv->ht, &arg, nft_rhash_params);
 	if (he != NULL &&
 	    !nft_rhash_flush(net, set, he))
 		he = NULL;
