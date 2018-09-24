@@ -143,8 +143,6 @@ static const struct rtc_class_ops rs5c348_rtc_ops = {
 	.set_time	= rs5c348_rtc_set_time,
 };
 
-static struct spi_driver rs5c348_driver;
-
 static int rs5c348_probe(struct spi_device *spi)
 {
 	int ret;
@@ -195,15 +193,15 @@ static int rs5c348_probe(struct spi_device *spi)
 	if (ret & RS5C348_BIT_24H)
 		pdata->rtc_24h = 1;
 
-	rtc = devm_rtc_device_register(&spi->dev, rs5c348_driver.driver.name,
-				  &rs5c348_rtc_ops, THIS_MODULE);
-
+	rtc = devm_rtc_allocate_device(&spi->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
 	pdata->rtc = rtc;
 
-	return 0;
+	rtc->ops = &rs5c348_rtc_ops;
+
+	return rtc_register_device(rtc);
 }
 
 static struct spi_driver rs5c348_driver = {
