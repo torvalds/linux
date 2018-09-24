@@ -80,6 +80,19 @@
 			/* 32M internal register @ 0xd000_0000 */
 			ranges = <0x0 0x0 0xd0000000 0x2000000>;
 
+			wdt: watchdog@8300 {
+				compatible = "marvell,armada-3700-wdt";
+				reg = <0x8300 0x40>;
+				marvell,system-controller = <&cpu_misc>;
+				clocks = <&xtalclk>;
+			};
+
+			cpu_misc: system-controller@d000 {
+				compatible = "marvell,armada-3700-cpu-misc",
+					     "syscon";
+				reg = <0xd000 0x1000>;
+			};
+
 			spi0: spi@10600 {
 				compatible = "marvell,armada-3700-spi";
 				#address-cells = <1>;
