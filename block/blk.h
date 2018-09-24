@@ -158,7 +158,38 @@ static inline bool bio_integrity_endio(struct bio *bio)
 		return __bio_integrity_endio(bio);
 	return true;
 }
-#else
+
+static inline bool integrity_req_gap_back_merge(struct request *req,
+		struct bio *next)
+{
+	struct bio_integrity_payload *bip = bio_integrity(req->bio);
+	struct bio_integrity_payload *bip_next = bio_integrity(next);
+
+	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
+				bip_next->bip_vec[0].bv_offset);
+}
+
+static inline bool integrity_req_gap_front_merge(struct request *req,
+		struct bio *bio)
+{
+	struct bio_integrity_payload *bip = bio_integrity(bio);
+	struct bio_integrity_payload *bip_next = bio_integrity(req->bio);
+
+	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
+				bip_next->bip_vec[0].bv_offset);
+}
+#else /* CONFIG_BLK_DEV_INTEGRITY */
+static inline bool integrity_req_gap_back_merge(struct request *req,
+		struct bio *next)
+{
+	return false;
+}
+static inline bool integrity_req_gap_front_merge(struct request *req,
+		struct bio *bio)
+{
+	return false;
+}
+
 static inline void blk_flush_integrity(void)
 {
 }
@@ -166,7 +197,7 @@ static inline bool bio_integrity_endio(struct bio *bio)
 {
 	return true;
 }
-#endif
+#endif /* CONFIG_BLK_DEV_INTEGRITY */
 
 void blk_timeout_work(struct work_struct *work);
 unsigned long blk_rq_timeout(unsigned long timeout);

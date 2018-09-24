@@ -1843,26 +1843,6 @@ queue_max_integrity_segments(struct request_queue *q)
 	return q->limits.max_integrity_segments;
 }
 
-static inline bool integrity_req_gap_back_merge(struct request *req,
-						struct bio *next)
-{
-	struct bio_integrity_payload *bip = bio_integrity(req->bio);
-	struct bio_integrity_payload *bip_next = bio_integrity(next);
-
-	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
-				bip_next->bip_vec[0].bv_offset);
-}
-
-static inline bool integrity_req_gap_front_merge(struct request *req,
-						 struct bio *bio)
-{
-	struct bio_integrity_payload *bip = bio_integrity(bio);
-	struct bio_integrity_payload *bip_next = bio_integrity(req->bio);
-
-	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
-				bip_next->bip_vec[0].bv_offset);
-}
-
 /**
  * bio_integrity_intervals - Return number of integrity intervals for a bio
  * @bi:		blk_integrity profile for device
@@ -1945,17 +1925,6 @@ static inline bool blk_integrity_merge_bio(struct request_queue *rq,
 					   struct bio *b)
 {
 	return true;
-}
-
-static inline bool integrity_req_gap_back_merge(struct request *req,
-						struct bio *next)
-{
-	return false;
-}
-static inline bool integrity_req_gap_front_merge(struct request *req,
-						 struct bio *bio)
-{
-	return false;
 }
 
 static inline unsigned int bio_integrity_intervals(struct blk_integrity *bi,
