@@ -161,7 +161,7 @@ void wilc_mac_indicate(struct wilc *wilc)
 {
 	s8 status;
 
-	wilc_wlan_cfg_get_val(WID_STATUS, &status, 1);
+	wilc_wlan_cfg_get_val(wilc, WID_STATUS, &status, 1);
 	if (wilc->mac_status == MAC_STATUS_INIT) {
 		wilc->mac_status = status;
 		complete(&wilc->sync_event);
@@ -674,7 +674,7 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 			int size;
 			char firmware_ver[20];
 
-			size = wilc_wlan_cfg_get_val(WID_FIRMWARE_VERSION,
+			size = wilc_wlan_cfg_get_val(wl, WID_FIRMWARE_VERSION,
 						     firmware_ver,
 						     sizeof(firmware_ver));
 			firmware_ver[size] = '\0';
@@ -1032,6 +1032,7 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 
 	flush_workqueue(wilc->hif_workqueue);
 	destroy_workqueue(wilc->hif_workqueue);
+	wilc_wlan_cfg_deinit(wilc);
 	kfree(wilc);
 }
 EXPORT_SYMBOL_GPL(wilc_netdev_cleanup);
@@ -1057,6 +1058,9 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 	if (!wl)
 		return -ENOMEM;
 
+	if (wilc_wlan_cfg_init(wl))
+		goto free_wl;
+
 	*wilc = wl;
 	wl->io_type = io_type;
 	wl->hif_func = ops;
@@ -1067,7 +1071,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 
 	wl->hif_workqueue = create_singlethread_workqueue("WILC_wq");
 	if (!wl->hif_workqueue)
-		goto free_wl;
+		goto free_cfg;
 
 	register_inetaddr_notifier(&g_dev_notifier);
 
@@ -1136,6 +1140,8 @@ free_ndev:
 	}
 	unregister_inetaddr_notifier(&g_dev_notifier);
 	destroy_workqueue(wl->hif_workqueue);
+free_cfg:
+	wilc_wlan_cfg_deinit(wl);
 free_wl:
 	kfree(wl);
 	return -ENOMEM;

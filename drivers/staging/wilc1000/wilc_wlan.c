@@ -1194,9 +1194,9 @@ int wilc_wlan_cfg_get(struct wilc_vif *vif, int start, u16 wid, int commit,
 	return ret_size;
 }
 
-int wilc_wlan_cfg_get_val(u16 wid, u8 *buffer, u32 buffer_size)
+int wilc_wlan_cfg_get_val(struct wilc *wl, u16 wid, u8 *buffer, u32 buffer_size)
 {
-	return wilc_wlan_cfg_get_wid_value(wid, buffer, buffer_size);
+	return wilc_wlan_cfg_get_wid_value(wl, wid, buffer, buffer_size);
 }
 
 int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
@@ -1216,7 +1216,8 @@ int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
 			}
 		}
 		for (i = 0; i < count; i++) {
-			wids[i].size = wilc_wlan_cfg_get_val(wids[i].id,
+			wids[i].size = wilc_wlan_cfg_get_val(vif->wilc,
+							     wids[i].id,
 							     wids[i].val,
 							     wids[i].size);
 		}
@@ -1312,11 +1313,6 @@ int wilc_wlan_init(struct net_device *dev)
 
 	if (!wilc->hif_func->hif_init(wilc, false)) {
 		ret = -EIO;
-		goto fail;
-	}
-
-	if (!wilc_wlan_cfg_init()) {
-		ret = -ENOBUFS;
 		goto fail;
 	}
 
