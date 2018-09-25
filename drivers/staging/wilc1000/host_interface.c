@@ -187,7 +187,6 @@ struct join_bss_param {
 };
 
 static struct host_if_drv *terminated_handle;
-static struct completion hif_driver_comp;
 static struct mutex hif_deinit_lock;
 
 /* 'msg' should be free by the caller for syc */
@@ -310,10 +309,12 @@ static void handle_set_wfi_drv_handler(struct work_struct *work)
 	if (ret)
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
 
-	complete(&hif_driver_comp);
 	kfree(buffer);
 
 free_msg:
+	if (msg->is_sync)
+		complete(&msg->work_comp);
+
 	kfree(msg);
 }
 
@@ -332,9 +333,6 @@ static void handle_set_operation_mode(struct work_struct *work)
 
 	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				   wilc_get_vif_idx(vif));
-
-	if (hif_op_mode->mode == IDLE_MODE)
-		complete(&hif_driver_comp);
 
 	if (ret)
 		netdev_err(vif->ndev, "Failed to set operation mode\n");
@@ -3118,12 +3116,12 @@ int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel)
 }
 
 int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
-			     u8 ifc_id)
+			     u8 ifc_id, bool is_sync)
 {
 	int result;
 	struct host_if_msg *msg;
 
-	msg = wilc_alloc_work(vif, handle_set_wfi_drv_handler, false);
+	msg = wilc_alloc_work(vif, handle_set_wfi_drv_handler, is_sync);
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
@@ -3135,7 +3133,11 @@ int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
 	if (result) {
 		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
 		kfree(msg);
+		return result;
 	}
+
+	if (is_sync)
+		wait_for_completion(&msg->work_comp);
 
 	return result;
 }
@@ -3380,10 +3382,8 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	vif->obtaining_ip = false;
 
-	if (wilc->clients_count == 0) {
-		init_completion(&hif_driver_comp);
+	if (wilc->clients_count == 0)
 		mutex_init(&hif_deinit_lock);
-	}
 
 	timer_setup(&vif->periodic_rssi, get_periodic_rssi, 0);
 	mod_timer(&vif->periodic_rssi, jiffies + msecs_to_jiffies(5000));
@@ -3430,8 +3430,7 @@ int wilc_deinit(struct wilc_vif *vif)
 	del_timer_sync(&vif->periodic_rssi);
 	del_timer_sync(&hif_drv->remain_on_ch_timer);
 
-	wilc_set_wfi_drv_handler(vif, 0, 0, 0);
-	wait_for_completion(&hif_driver_comp);
+	wilc_set_wfi_drv_handler(vif, 0, 0, 0, true);
 
 	if (hif_drv->usr_scan_req.scan_result) {
 		hif_drv->usr_scan_req.scan_result(SCAN_EVENT_ABORTED, NULL,
