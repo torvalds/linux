@@ -170,10 +170,9 @@ static struct ib_device *__ib_device_get_by_name(const char *name)
 	return NULL;
 }
 
-static int alloc_name(char *name)
+static int alloc_name(struct ib_device *ibdev, const char *name)
 {
 	unsigned long *inuse;
-	char buf[IB_DEVICE_NAME_MAX];
 	struct ib_device *device;
 	int i;
 
@@ -182,24 +181,21 @@ static int alloc_name(char *name)
 		return -ENOMEM;
 
 	list_for_each_entry(device, &device_list, core_list) {
-		if (!sscanf(device->name, name, &i))
+		char buf[IB_DEVICE_NAME_MAX];
+
+		if (sscanf(device->name, name, &i) != 1)
 			continue;
 		if (i < 0 || i >= PAGE_SIZE * 8)
 			continue;
 		snprintf(buf, sizeof buf, name, i);
-		if (!strncmp(buf, device->name, IB_DEVICE_NAME_MAX))
+		if (!strcmp(buf, dev_name(&device->dev)))
 			set_bit(i, inuse);
 	}
 
 	i = find_first_zero_bit(inuse, PAGE_SIZE * 8);
 	free_page((unsigned long) inuse);
-	snprintf(buf, sizeof buf, name, i);
 
-	if (__ib_device_get_by_name(buf))
-		return -ENFILE;
-
-	strlcpy(name, buf, IB_DEVICE_NAME_MAX);
-	return 0;
+	return dev_set_name(&ibdev->dev, name, i);
 }
 
 static void ib_device_release(struct device *device)
@@ -454,9 +450,9 @@ static u32 __dev_new_index(void)
  * callback for each device that is added. @device must be allocated
  * with ib_alloc_device().
  */
-int ib_register_device(struct ib_device *device,
-		       int (*port_callback)(struct ib_device *,
-					    u8, struct kobject *))
+int ib_register_device(struct ib_device *device, const char *name,
+		       int (*port_callback)(struct ib_device *, u8,
+					    struct kobject *))
 {
 	int ret;
 	struct ib_client *client;
@@ -495,11 +491,20 @@ int ib_register_device(struct ib_device *device,
 
 	mutex_lock(&device_mutex);
 
-	if (strchr(device->name, '%')) {
-		ret = alloc_name(device->name);
+	if (strchr(name, '%')) {
+		ret = alloc_name(device, name);
+		if (ret)
+			goto out;
+	} else {
+		ret = dev_set_name(&device->dev, name);
 		if (ret)
 			goto out;
 	}
+	if (__ib_device_get_by_name(dev_name(&device->dev))) {
+		ret = -ENFILE;
+		goto out;
+	}
+	strlcpy(device->name, dev_name(&device->dev), IB_DEVICE_NAME_MAX);
 
 	if (ib_device_check_mandatory(device)) {
 		ret = -EINVAL;

@@ -828,7 +828,8 @@ int rvt_register_device(struct rvt_dev_info *rdi, u32 driver_id)
 
 	rdi->ibdev.driver_id = driver_id;
 	/* We are now good to announce we exist */
-	ret =  ib_register_device(&rdi->ibdev, rdi->driver_f.port_callback);
+	ret = ib_register_device(&rdi->ibdev, dev_name(&rdi->ibdev.dev),
+				 rdi->driver_f.port_callback);
 	if (ret) {
 		rvt_pr_err(rdi, "Failed to register driver with ib core.\n");
 		goto bail_mr;

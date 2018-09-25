@@ -429,7 +429,14 @@ static inline void rvt_set_ibdev_name(struct rvt_dev_info *rdi,
 				      const char *fmt, const char *name,
 				      const int unit)
 {
-	snprintf(rdi->ibdev.name, sizeof(rdi->ibdev.name), fmt, name, unit);
+	/*
+	 * FIXME: rvt and its users want to touch the ibdev before
+	 * registration and have things like the name work. We don't have the
+	 * infrastructure in the core to support this directly today, hack it
+	 * to work by setting the name manually here.
+	 */
+	dev_set_name(&rdi->ibdev.dev, fmt, name, unit);
+	strlcpy(rdi->ibdev.name, dev_name(&rdi->ibdev.dev), IB_DEVICE_NAME_MAX);
 }
 
 /**

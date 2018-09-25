@@ -1198,7 +1198,6 @@ int mthca_register_device(struct mthca_dev *dev)
 	if (ret)
 		return ret;
 
-	strlcpy(dev->ib_dev.name, "mthca%d", IB_DEVICE_NAME_MAX);
 	dev->ib_dev.owner                = THIS_MODULE;
 
 	dev->ib_dev.uverbs_abi_ver	 = MTHCA_UVERBS_ABI_VERSION;
@@ -1297,7 +1296,7 @@ int mthca_register_device(struct mthca_dev *dev)
 	mutex_init(&dev->cap_mask_mutex);
 
 	dev->ib_dev.driver_id = RDMA_DRIVER_MTHCA;
-	ret = ib_register_device(&dev->ib_dev, NULL);
+	ret = ib_register_device(&dev->ib_dev, "mthca%d", NULL);
 	if (ret)
 		return ret;
 

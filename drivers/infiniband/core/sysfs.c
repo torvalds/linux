@@ -1311,10 +1311,6 @@ int ib_device_register_sysfs(struct ib_device *device,
 	int ret;
 	int i;
 
-	ret = dev_set_name(class_dev, "%s", device->name);
-	if (ret)
-		return ret;
-
 	device->groups[0] = &dev_attr_group;
 	class_dev->groups = device->groups;
 

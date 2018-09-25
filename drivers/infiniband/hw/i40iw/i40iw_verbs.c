@@ -2752,7 +2752,6 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 		i40iw_pr_err("iwdev == NULL\n");
 		return NULL;
 	}
-	strlcpy(iwibdev->ibdev.name, "i40iw%d", IB_DEVICE_NAME_MAX);
 	iwibdev->ibdev.owner = THIS_MODULE;
 	iwdev->iwibdev = iwibdev;
 	iwibdev->iwdev = iwdev;
@@ -2897,7 +2896,7 @@ int i40iw_register_rdma_device(struct i40iw_device *iwdev)
 	iwibdev = iwdev->iwibdev;
 
 	iwibdev->ibdev.driver_id = RDMA_DRIVER_I40IW;
-	ret = ib_register_device(&iwibdev->ibdev, NULL);
+	ret = ib_register_device(&iwibdev->ibdev, "i40iw%d", NULL);
 	if (ret)
 		goto error;
 

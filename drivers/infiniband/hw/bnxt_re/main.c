@@ -579,7 +579,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	/* ib device init */
 	ibdev->owner = THIS_MODULE;
 	ibdev->node_type = RDMA_NODE_IB_CA;
-	strlcpy(ibdev->name, "bnxt_re%d", IB_DEVICE_NAME_MAX);
 	strlcpy(ibdev->node_desc, BNXT_RE_DESC " HCA",
 		strlen(BNXT_RE_DESC) + 5);
 	ibdev->phys_port_cnt = 1;
@@ -672,7 +671,7 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->alloc_hw_stats           = bnxt_re_ib_alloc_hw_stats;
 
 	ibdev->driver_id = RDMA_DRIVER_BNXT_RE;
-	return ib_register_device(ibdev, NULL);
+	return ib_register_device(ibdev, "bnxt_re%d", NULL);
 }
 
 static ssize_t show_rev(struct device *device, struct device_attribute *attr,

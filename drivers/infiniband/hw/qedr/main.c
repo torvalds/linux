@@ -170,8 +170,6 @@ static int qedr_register_device(struct qedr_dev *dev)
 {
 	int rc;
 
-	strlcpy(dev->ibdev.name, "qedr%d", IB_DEVICE_NAME_MAX);
-
 	dev->ibdev.node_guid = dev->attr.node_guid;
 	memcpy(dev->ibdev.node_desc, QEDR_NODE_DESC, sizeof(QEDR_NODE_DESC));
 	dev->ibdev.owner = THIS_MODULE;
@@ -264,7 +262,7 @@ static int qedr_register_device(struct qedr_dev *dev)
 	dev->ibdev.get_dev_fw_str = qedr_get_dev_fw_str;
 
 	dev->ibdev.driver_id = RDMA_DRIVER_QEDR;
-	return ib_register_device(&dev->ibdev, NULL);
+	return ib_register_device(&dev->ibdev, "qedr%d", NULL);
 }
 
 /* This function allocates fast-path status block memory */

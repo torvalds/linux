@@ -2540,7 +2540,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->dev = dev;
 	ibdev->bond_next_port	= 0;
 
-	strlcpy(ibdev->ib_dev.name, "mlx4_%d", IB_DEVICE_NAME_MAX);
 	ibdev->ib_dev.owner		= THIS_MODULE;
 	ibdev->ib_dev.node_type		= RDMA_NODE_IB_CA;
 	ibdev->ib_dev.local_dma_lkey	= dev->caps.reserved_lkey;
@@ -2803,7 +2802,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		goto err_steer_free_bitmap;
 
 	ibdev->ib_dev.driver_id = RDMA_DRIVER_MLX4;
-	if (ib_register_device(&ibdev->ib_dev, NULL))
+	if (ib_register_device(&ibdev->ib_dev, "mlx4_%d", NULL))
 		goto err_diag_counters;
 
 	if (mlx4_ib_mad_init(ibdev))

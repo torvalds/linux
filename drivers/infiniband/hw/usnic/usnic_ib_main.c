@@ -364,7 +364,6 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	us_ibdev->ib_dev.num_comp_vectors = USNIC_IB_NUM_COMP_VECTORS;
 	us_ibdev->ib_dev.dev.parent = &dev->dev;
 	us_ibdev->ib_dev.uverbs_abi_ver = USNIC_UVERBS_ABI_VERSION;
-	strlcpy(us_ibdev->ib_dev.name, "usnic_%d", IB_DEVICE_NAME_MAX);
 
 	us_ibdev->ib_dev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
@@ -416,7 +415,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 
 
 	us_ibdev->ib_dev.driver_id = RDMA_DRIVER_USNIC;
-	if (ib_register_device(&us_ibdev->ib_dev, NULL))
+	if (ib_register_device(&us_ibdev->ib_dev, "usnic_%d", NULL))
 		goto err_fwd_dealloc;
 
 	usnic_fwd_set_mtu(us_ibdev->ufdev, us_ibdev->netdev->mtu);

@@ -5671,7 +5671,6 @@ void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
 int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_core_dev *mdev = dev->mdev;
-	const char *name;
 	int err;
 	int i;
 
@@ -5704,12 +5703,6 @@ int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	if (mlx5_use_mad_ifc(dev))
 		get_ext_port_caps(dev);
 
-	if (!mlx5_lag_is_active(mdev))
-		name = "mlx5_%d";
-	else
-		name = "mlx5_bond_%d";
-
-	strlcpy(dev->ib_dev.name, name, IB_DEVICE_NAME_MAX);
 	dev->ib_dev.owner		= THIS_MODULE;
 	dev->ib_dev.node_type		= RDMA_NODE_IB_CA;
 	dev->ib_dev.local_dma_lkey	= 0 /* not supported for now */;
@@ -6122,7 +6115,13 @@ static int mlx5_ib_stage_populate_specs(struct mlx5_ib_dev *dev)
 
 int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev)
 {
-	return ib_register_device(&dev->ib_dev, NULL);
+	const char *name;
+
+	if (!mlx5_lag_is_active(dev->mdev))
+		name = "mlx5_%d";
+	else
+		name = "mlx5_bond_%d";
+	return ib_register_device(&dev->ib_dev, name, NULL);
 }
 
 void mlx5_ib_stage_pre_ib_reg_umr_cleanup(struct mlx5_ib_dev *dev)

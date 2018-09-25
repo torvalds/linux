@@ -2625,9 +2625,9 @@ void ib_dealloc_device(struct ib_device *device);
 
 void ib_get_device_fw_str(struct ib_device *device, char *str);
 
-int ib_register_device(struct ib_device *device,
-		       int (*port_callback)(struct ib_device *,
-					    u8, struct kobject *));
+int ib_register_device(struct ib_device *device, const char *name,
+		       int (*port_callback)(struct ib_device *, u8,
+					    struct kobject *));
 void ib_unregister_device(struct ib_device *device);
 
 int ib_register_client   (struct ib_client *client);
