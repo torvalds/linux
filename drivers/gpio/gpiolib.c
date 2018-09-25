@@ -2548,20 +2548,31 @@ int gpiod_direction_input(struct gpio_desc *desc)
 	VALIDATE_DESC(desc);
 	chip = desc->gdev->chip;
 
+	/*
+	 * It is legal to have no .get() and .direction_input() specified if
+	 * the chip is output-only, but you can't specify .direction_input()
+	 * and not support the .get() operation, that doesn't make sense.
+	 */
 	if (!chip->get && chip->direction_input) {
 		gpiod_warn(desc,
-			"%s: missing get() and direction_input() operations\n",
-			__func__);
+			   "%s: missing get() but have direction_input()\n",
+			   __func__);
 		return -EIO;
 	}
 
+	/*
+	 * If we have a .direction_input() callback, things are simple,
+	 * just call it. Else we are some input-only chip so try to check the
+	 * direction (if .get_direction() is supported) else we silently
+	 * assume we are in input mode after this.
+	 */
 	if (chip->direction_input) {
 		status = chip->direction_input(chip, gpio_chip_hwgpio(desc));
 	} else if (chip->get_direction &&
 		  (chip->get_direction(chip, gpio_chip_hwgpio(desc)) != 1)) {
 		gpiod_warn(desc,
-			"%s: missing direction_input() operation\n",
-			__func__);
+			   "%s: missing direction_input() operation and line is output\n",
+			   __func__);
 		return -EIO;
 	}
 	if (status == 0)
@@ -2587,16 +2598,22 @@ static int gpiod_direction_output_raw_commit(struct gpio_desc *desc, int value)
 	int val = !!value;
 	int ret = 0;
 
+	/*
+	 * It's OK not to specify .direction_output() if the gpiochip is
+	 * output-only, but if there is then not even a .set() operation it
+	 * is pretty tricky to drive the output line.
+	 */
 	if (!gc->set && !gc->direction_output) {
 		gpiod_warn(desc,
-		       "%s: missing set() and direction_output() operations\n",
-		       __func__);
+			   "%s: missing set() and direction_output() operations\n",
+			   __func__);
 		return -EIO;
 	}
 
 	if (gc->direction_output) {
 		ret = gc->direction_output(gc, gpio_chip_hwgpio(desc), val);
 	} else {
+		/* Check that we are in output mode if we can */
 		if (gc->get_direction &&
 		    gc->get_direction(gc, gpio_chip_hwgpio(desc))) {
 			gpiod_warn(desc,
@@ -2604,6 +2621,10 @@ static int gpiod_direction_output_raw_commit(struct gpio_desc *desc, int value)
 				__func__);
 			return -EIO;
 		}
+		/*
+		 * If we can't actively set the direction, we are some
+		 * output-only chip, so just drive the output as desired.
+		 */
 		gc->set(gc, gpio_chip_hwgpio(desc), val);
 	}
 

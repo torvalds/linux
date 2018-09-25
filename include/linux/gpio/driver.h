@@ -178,9 +178,13 @@ static inline struct gpio_irq_chip *to_gpio_irq_chip(struct irq_chip *chip)
  * @free: optional hook for chip-specific deactivation, such as
  *	disabling module power and clock; may sleep
  * @get_direction: returns direction for signal "offset", 0=out, 1=in,
- *	(same as GPIOF_DIR_XXX), or negative error
+ *	(same as GPIOF_DIR_XXX), or negative error.
+ *	It is recommended to always implement this function, even on
+ *	input-only or output-only gpio chips.
  * @direction_input: configures signal "offset" as input, or returns error
+ *	This can be omitted on input-only or output-only gpio chips.
  * @direction_output: configures signal "offset" as output, or returns error
+ *	This can be omitted on input-only or output-only gpio chips.
  * @get: returns value for signal "offset", 0=low, 1=high, or negative error
  * @get_multiple: reads values for multiple signals defined by "mask" and
  *	stores them in "bits", returns 0 on success or negative error
