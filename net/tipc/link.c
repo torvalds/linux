@@ -841,9 +841,14 @@ void tipc_link_reset(struct tipc_link *l)
 	l->in_session = false;
 	l->session++;
 	l->mtu = l->advertised_mtu;
+	spin_lock_bh(&l->wakeupq.lock);
+	spin_lock_bh(&l->inputq->lock);
+	skb_queue_splice_init(&l->wakeupq, l->inputq);
+	spin_unlock_bh(&l->inputq->lock);
+	spin_unlock_bh(&l->wakeupq.lock);
+
 	__skb_queue_purge(&l->transmq);
 	__skb_queue_purge(&l->deferdq);
-	skb_queue_splice_init(&l->wakeupq, l->inputq);
 	__skb_queue_purge(&l->backlogq);
 	l->backlog[TIPC_LOW_IMPORTANCE].len = 0;
 	l->backlog[TIPC_MEDIUM_IMPORTANCE].len = 0;
