@@ -350,22 +350,17 @@ static void wilc_wlan_parse_response_frame(u8 *info, int size)
 	}
 }
 
-static int wilc_wlan_parse_info_frame(u8 *info, int size)
+static void wilc_wlan_parse_info_frame(u8 *info)
 {
 	struct wilc_mac_cfg *pd = &g_mac;
 	u32 wid, len;
-	int type = WILC_CFG_RSP_STATUS;
 
 	wid = info[0] | (info[1] << 8);
 
 	len = info[2];
 
-	if (len == 1 && wid == WID_STATUS) {
+	if (len == 1 && wid == WID_STATUS)
 		pd->mac_status = info[3];
-		type = WILC_CFG_RSP_STATUS;
-	}
-
-	return type;
 }
 
 /********************************************
@@ -528,7 +523,8 @@ void wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 		break;
 
 	case 'I':
-		rsp->type = wilc_wlan_parse_info_frame(frame, size);
+		wilc_wlan_parse_info_frame(frame);
+		rsp->type = WILC_CFG_RSP_STATUS;
 		rsp->seq_no = msg_id;
 		/*call host interface info parse as well*/
 		wilc_gnrl_async_info_received(wilc, frame - 4, size + 4);
