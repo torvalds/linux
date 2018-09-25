@@ -324,7 +324,8 @@ u32 xenvif_set_hash_mapping_size(struct xenvif *vif, u32 size)
 		return XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER;
 
 	vif->hash.size = size;
-	memset(vif->hash.mapping, 0, sizeof(u32) * size);
+	memset(vif->hash.mapping[vif->hash.mapping_sel], 0,
+	       sizeof(u32) * size);
 
 	return XEN_NETIF_CTRL_STATUS_SUCCESS;
 }
@@ -332,7 +333,7 @@ u32 xenvif_set_hash_mapping_size(struct xenvif *vif, u32 size)
 u32 xenvif_set_hash_mapping(struct xenvif *vif, u32 gref, u32 len,
 			    u32 off)
 {
-	u32 *mapping = vif->hash.mapping;
+	u32 *mapping = vif->hash.mapping[!vif->hash.mapping_sel];
 	struct gnttab_copy copy_op = {
 		.source.u.ref = gref,
 		.source.domid = vif->domid,
@@ -348,9 +349,8 @@ u32 xenvif_set_hash_mapping(struct xenvif *vif, u32 gref, u32 len,
 	copy_op.dest.u.gmfn = virt_to_gfn(mapping + off);
 	copy_op.dest.offset = xen_offset_in_page(mapping + off);
 
-	while (len-- != 0)
-		if (mapping[off++] >= vif->num_queues)
-			return XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER;
+	memcpy(mapping, vif->hash.mapping[vif->hash.mapping_sel],
+	       vif->hash.size * sizeof(*mapping));
 
 	if (copy_op.len != 0) {
 		gnttab_batch_copy(&copy_op, 1);
@@ -358,6 +358,12 @@ u32 xenvif_set_hash_mapping(struct xenvif *vif, u32 gref, u32 len,
 		if (copy_op.status != GNTST_okay)
 			return XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER;
 	}
+
+	while (len-- != 0)
+		if (mapping[off++] >= vif->num_queues)
+			return XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER;
+
+	vif->hash.mapping_sel = !vif->hash.mapping_sel;
 
 	return XEN_NETIF_CTRL_STATUS_SUCCESS;
 }
@@ -410,6 +416,8 @@ void xenvif_dump_hash_info(struct xenvif *vif, struct seq_file *m)
 	}
 
 	if (vif->hash.size != 0) {
+		const u32 *mapping = vif->hash.mapping[vif->hash.mapping_sel];
+
 		seq_puts(m, "\nHash Mapping:\n");
 
 		for (i = 0; i < vif->hash.size; ) {
@@ -422,7 +430,7 @@ void xenvif_dump_hash_info(struct xenvif *vif, struct seq_file *m)
 			seq_printf(m, "[%4u - %4u]: ", i, i + n - 1);
 
 			for (j = 0; j < n; j++, i++)
-				seq_printf(m, "%4u ", vif->hash.mapping[i]);
+				seq_printf(m, "%4u ", mapping[i]);
 
 			seq_puts(m, "\n");
 		}
