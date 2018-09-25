@@ -342,7 +342,7 @@ struct iavf_adapter {
 	struct iavf_channel_config ch_config;
 	u8 num_tc;
 	struct list_head cloud_filter_list;
-	/* lock to protest access to the cloud filter list */
+	/* lock to protect access to the cloud filter list */
 	spinlock_t cloud_filter_list_lock;
 	u16 num_cloud_filters;
 };
