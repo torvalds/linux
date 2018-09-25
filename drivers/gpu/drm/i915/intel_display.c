@@ -14278,13 +14278,19 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 			goto err;
 		}
 		/* fall through */
-	case I915_FORMAT_MOD_Y_TILED:
 	case I915_FORMAT_MOD_Yf_TILED:
+		if (mode_cmd->pixel_format == DRM_FORMAT_C8) {
+			DRM_DEBUG_KMS("Indexed format does not support Yf tiling\n");
+			goto err;
+		}
+		/* fall through */
+	case I915_FORMAT_MOD_Y_TILED:
 		if (INTEL_GEN(dev_priv) < 9) {
 			DRM_DEBUG_KMS("Unsupported tiling 0x%llx!\n",
 				      mode_cmd->modifier[0]);
 			goto err;
 		}
+		break;
 	case DRM_FORMAT_MOD_LINEAR:
 	case I915_FORMAT_MOD_X_TILED:
 		break;
