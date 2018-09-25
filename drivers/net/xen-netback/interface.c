@@ -162,7 +162,8 @@ static u16 xenvif_select_queue(struct net_device *dev, struct sk_buff *skb,
 	if (size == 0)
 		return skb_get_hash_raw(skb) % dev->real_num_tx_queues;
 
-	return vif->hash.mapping[skb_get_hash_raw(skb) % size];
+	return vif->hash.mapping[vif->hash.mapping_sel]
+				[skb_get_hash_raw(skb) % size];
 }
 
 static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
