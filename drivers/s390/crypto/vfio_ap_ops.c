@@ -819,6 +819,54 @@ static int vfio_ap_mdev_group_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static int vfio_ap_mdev_reset_queue(unsigned int apid, unsigned int apqi,
+				    unsigned int retry)
+{
+	struct ap_queue_status status;
+
+	do {
+		status = ap_zapq(AP_MKQID(apid, apqi));
+		switch (status.response_code) {
+		case AP_RESPONSE_NORMAL:
+			return 0;
+		case AP_RESPONSE_RESET_IN_PROGRESS:
+		case AP_RESPONSE_BUSY:
+			msleep(20);
+			break;
+		default:
+			/* things are really broken, give up */
+			return -EIO;
+		}
+	} while (retry--);
+
+	return -EBUSY;
+}
+
+static int vfio_ap_mdev_reset_queues(struct mdev_device *mdev)
+{
+	int ret;
+	int rc = 0;
+	unsigned long apid, apqi;
+	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
+
+	for_each_set_bit_inv(apid, matrix_mdev->matrix.apm,
+			     matrix_mdev->matrix.apm_max + 1) {
+		for_each_set_bit_inv(apqi, matrix_mdev->matrix.aqm,
+				     matrix_mdev->matrix.aqm_max + 1) {
+			ret = vfio_ap_mdev_reset_queue(apid, apqi, 1);
+			/*
+			 * Regardless whether a queue turns out to be busy, or
+			 * is not operational, we need to continue resetting
+			 * the remaining queues.
+			 */
+			if (ret)
+				rc = ret;
+		}
+	}
+
+	return rc;
+}
+
 static int vfio_ap_mdev_open(struct mdev_device *mdev)
 {
 	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
@@ -849,6 +897,7 @@ static void vfio_ap_mdev_release(struct mdev_device *mdev)
 	if (matrix_mdev->kvm)
 		kvm_arch_crypto_clear_masks(matrix_mdev->kvm);
 
+	vfio_ap_mdev_reset_queues(mdev);
 	vfio_unregister_notifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY,
 				 &matrix_mdev->group_notifier);
 	matrix_mdev->kvm = NULL;
