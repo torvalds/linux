@@ -18,8 +18,7 @@
  * By reserving 32 blocks at a time, we can optimize / shortcut how we search
  * through the bitmaps by looking a word at a time.
  */
-#define RGRP_RSRV_MINBYTES 8
-#define RGRP_RSRV_MINBLKS ((u32)(RGRP_RSRV_MINBYTES * GFS2_NBBY))
+#define RGRP_RSRV_MINBLKS 32
 #define RGRP_RSRV_ADDBLKS 64
 
 struct gfs2_rgrpd;
