@@ -24,11 +24,16 @@
 #include <rtw_recv.h>
 #include <hal_intf.h>
 #include <hal_com.h>
-#include <rtw_qos.h>
 #include <rtw_security.h>
 #include <rtw_pwrctrl.h>
 #include <rtw_eeprom.h>
 #include <sta_info.h>
+
+struct qos_priv {
+	/* bit mask option: u-apsd, s-apsd, ts, block ack... */
+	unsigned int qos_option;
+};
+
 #include <rtw_mlme.h>
 #include <rtw_debug.h>
 #include <rtw_rf.h>
