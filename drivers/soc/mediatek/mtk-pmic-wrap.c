@@ -76,6 +76,11 @@
 #define PWRAP_SLV_CAP_SECURITY	BIT(2)
 #define HAS_CAP(_c, _x)	(((_c) & (_x)) == (_x))
 
+/* Group of bits used for shown pwrap capability */
+#define PWRAP_CAP_BRIDGE	BIT(0)
+#define PWRAP_CAP_RESET		BIT(1)
+#define PWRAP_CAP_DCM		BIT(2)
+
 /* defines for slave device wrapper registers */
 enum dew_regs {
 	PWRAP_DEW_BASE,
@@ -733,7 +738,8 @@ struct pmic_wrapper_type {
 	u32 int_en_all;
 	u32 spi_w;
 	u32 wdt_src;
-	unsigned int has_bridge:1;
+	/* Flags indicating the capability for the target pwrap */
+	u32 caps;
 	int (*init_reg_clock)(struct pmic_wrapper *wrp);
 	int (*init_soc_specific)(struct pmic_wrapper *wrp);
 };
@@ -1348,7 +1354,7 @@ static int pwrap_init(struct pmic_wrapper *wrp)
 	pwrap_writel(wrp, 1, PWRAP_INIT_DONE0);
 	pwrap_writel(wrp, 1, PWRAP_INIT_DONE1);
 
-	if (wrp->master->has_bridge) {
+	if (HAS_CAP(wrp->master->caps, PWRAP_CAP_BRIDGE)) {
 		writel(1, wrp->bridge_base + PWRAP_MT8135_BRIDGE_INIT_DONE3);
 		writel(1, wrp->bridge_base + PWRAP_MT8135_BRIDGE_INIT_DONE4);
 	}
@@ -1455,7 +1461,7 @@ static const struct pmic_wrapper_type pwrap_mt2701 = {
 	.int_en_all = ~(u32)(BIT(31) | BIT(2)),
 	.spi_w = PWRAP_MAN_CMD_SPI_WRITE_NEW,
 	.wdt_src = PWRAP_WDT_SRC_MASK_ALL,
-	.has_bridge = 0,
+	.caps = PWRAP_CAP_RESET | PWRAP_CAP_DCM,
 	.init_reg_clock = pwrap_mt2701_init_reg_clock,
 	.init_soc_specific = pwrap_mt2701_init_soc_specific,
 };
@@ -1467,7 +1473,7 @@ static const struct pmic_wrapper_type pwrap_mt6797 = {
 	.int_en_all = 0xffffffc6,
 	.spi_w = PWRAP_MAN_CMD_SPI_WRITE,
 	.wdt_src = PWRAP_WDT_SRC_MASK_ALL,
-	.has_bridge = 0,
+	.caps = PWRAP_CAP_RESET | PWRAP_CAP_DCM,
 	.init_reg_clock = pwrap_common_init_reg_clock,
 	.init_soc_specific = NULL,
 };
@@ -1479,7 +1485,7 @@ static const struct pmic_wrapper_type pwrap_mt7622 = {
 	.int_en_all = ~(u32)BIT(31),
 	.spi_w = PWRAP_MAN_CMD_SPI_WRITE,
 	.wdt_src = PWRAP_WDT_SRC_MASK_ALL,
-	.has_bridge = 0,
+	.caps = PWRAP_CAP_RESET | PWRAP_CAP_DCM,
 	.init_reg_clock = pwrap_common_init_reg_clock,
 	.init_soc_specific = pwrap_mt7622_init_soc_specific,
 };
@@ -1491,7 +1497,7 @@ static const struct pmic_wrapper_type pwrap_mt8135 = {
 	.int_en_all = ~(u32)(BIT(31) | BIT(1)),
 	.spi_w = PWRAP_MAN_CMD_SPI_WRITE,
 	.wdt_src = PWRAP_WDT_SRC_MASK_ALL,
-	.has_bridge = 1,
+	.caps = PWRAP_CAP_BRIDGE | PWRAP_CAP_RESET | PWRAP_CAP_DCM,
 	.init_reg_clock = pwrap_common_init_reg_clock,
 	.init_soc_specific = pwrap_mt8135_init_soc_specific,
 };
@@ -1503,7 +1509,7 @@ static const struct pmic_wrapper_type pwrap_mt8173 = {
 	.int_en_all = ~(u32)(BIT(31) | BIT(1)),
 	.spi_w = PWRAP_MAN_CMD_SPI_WRITE,
 	.wdt_src = PWRAP_WDT_SRC_MASK_NO_STAUPD,
-	.has_bridge = 0,
+	.caps = PWRAP_CAP_RESET | PWRAP_CAP_DCM,
 	.init_reg_clock = pwrap_common_init_reg_clock,
 	.init_soc_specific = pwrap_mt8173_init_soc_specific,
 };
@@ -1561,14 +1567,16 @@ static int pwrap_probe(struct platform_device *pdev)
 	if (IS_ERR(wrp->base))
 		return PTR_ERR(wrp->base);
 
-	wrp->rstc = devm_reset_control_get(wrp->dev, "pwrap");
-	if (IS_ERR(wrp->rstc)) {
-		ret = PTR_ERR(wrp->rstc);
-		dev_dbg(wrp->dev, "cannot get pwrap reset: %d\n", ret);
-		return ret;
+	if (HAS_CAP(wrp->master->caps, PWRAP_CAP_RESET)) {
+		wrp->rstc = devm_reset_control_get(wrp->dev, "pwrap");
+		if (IS_ERR(wrp->rstc)) {
+			ret = PTR_ERR(wrp->rstc);
+			dev_dbg(wrp->dev, "cannot get pwrap reset: %d\n", ret);
+			return ret;
+		}
 	}
 
-	if (wrp->master->has_bridge) {
+	if (HAS_CAP(wrp->master->caps, PWRAP_CAP_BRIDGE)) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 				"pwrap-bridge");
 		wrp->bridge_base = devm_ioremap_resource(wrp->dev, res);
@@ -1608,8 +1616,10 @@ static int pwrap_probe(struct platform_device *pdev)
 		goto err_out1;
 
 	/* Enable internal dynamic clock */
-	pwrap_writel(wrp, 1, PWRAP_DCM_EN);
-	pwrap_writel(wrp, 0, PWRAP_DCM_DBC_PRD);
+	if (HAS_CAP(wrp->master->caps, PWRAP_CAP_DCM)) {
+		pwrap_writel(wrp, 1, PWRAP_DCM_EN);
+		pwrap_writel(wrp, 0, PWRAP_DCM_DBC_PRD);
+	}
 
 	/*
 	 * The PMIC could already be initialized by the bootloader.
