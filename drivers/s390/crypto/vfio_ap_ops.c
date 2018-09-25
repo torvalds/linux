@@ -382,10 +382,146 @@ static ssize_t unassign_adapter_store(struct device *dev,
 }
 DEVICE_ATTR_WO(unassign_adapter);
 
+static int
+vfio_ap_mdev_verify_queues_reserved_for_apqi(struct ap_matrix_mdev *matrix_mdev,
+					     unsigned long apqi)
+{
+	int ret;
+	unsigned long apid;
+	unsigned long nbits = matrix_mdev->matrix.apm_max + 1;
+
+	if (find_first_bit_inv(matrix_mdev->matrix.apm, nbits) >= nbits)
+		return vfio_ap_verify_queue_reserved(NULL, &apqi);
+
+	for_each_set_bit_inv(apid, matrix_mdev->matrix.apm, nbits) {
+		ret = vfio_ap_verify_queue_reserved(&apid, &apqi);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * assign_domain_store
+ *
+ * @dev:	the matrix device
+ * @attr:	the mediated matrix device's assign_domain attribute
+ * @buf:	a buffer containing the AP queue index (APQI) of the domain to
+ *		be assigned
+ * @count:	the number of bytes in @buf
+ *
+ * Parses the APQI from @buf and sets the corresponding bit in the mediated
+ * matrix device's AQM.
+ *
+ * Returns the number of bytes processed if the APQI is valid; otherwise returns
+ * one of the following errors:
+ *
+ *	1. -EINVAL
+ *	   The APQI is not a valid number
+ *
+ *	2. -ENODEV
+ *	   The APQI exceeds the maximum value configured for the system
+ *
+ *	3. -EADDRNOTAVAIL
+ *	   An APQN derived from the cross product of the APQI being assigned
+ *	   and the APIDs previously assigned is not bound to the vfio_ap device
+ *	   driver; or, if no APIDs have yet been assigned, the APQI is not
+ *	   contained in an APQN bound to the vfio_ap device driver.
+ *
+ *	4. -EADDRINUSE
+ *	   An APQN derived from the cross product of the APQI being assigned
+ *	   and the APIDs previously assigned is being used by another mediated
+ *	   matrix device
+ */
+static ssize_t assign_domain_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	int ret;
+	unsigned long apqi;
+	struct mdev_device *mdev = mdev_from_dev(dev);
+	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
+	unsigned long max_apqi = matrix_mdev->matrix.aqm_max;
+
+	ret = kstrtoul(buf, 0, &apqi);
+	if (ret)
+		return ret;
+	if (apqi > max_apqi)
+		return -ENODEV;
+
+	mutex_lock(&matrix_dev->lock);
+
+	ret = vfio_ap_mdev_verify_queues_reserved_for_apqi(matrix_mdev, apqi);
+	if (ret)
+		goto done;
+
+	set_bit_inv(apqi, matrix_mdev->matrix.aqm);
+
+	ret = vfio_ap_mdev_verify_no_sharing(matrix_mdev);
+	if (ret)
+		goto share_err;
+
+	ret = count;
+	goto done;
+
+share_err:
+	clear_bit_inv(apqi, matrix_mdev->matrix.aqm);
+done:
+	mutex_unlock(&matrix_dev->lock);
+
+	return ret;
+}
+DEVICE_ATTR_WO(assign_domain);
+
+
+/**
+ * unassign_domain_store
+ *
+ * @dev:	the matrix device
+ * @attr:	the mediated matrix device's unassign_domain attribute
+ * @buf:	a buffer containing the AP queue index (APQI) of the domain to
+ *		be unassigned
+ * @count:	the number of bytes in @buf
+ *
+ * Parses the APQI from @buf and clears the corresponding bit in the
+ * mediated matrix device's AQM.
+ *
+ * Returns the number of bytes processed if the APQI is valid; otherwise,
+ * returns one of the following errors:
+ *	-EINVAL if the APQI is not a number
+ *	-ENODEV if the APQI exceeds the maximum value configured for the system
+ */
+static ssize_t unassign_domain_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	int ret;
+	unsigned long apqi;
+	struct mdev_device *mdev = mdev_from_dev(dev);
+	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
+
+	ret = kstrtoul(buf, 0, &apqi);
+	if (ret)
+		return ret;
+
+	if (apqi > matrix_mdev->matrix.aqm_max)
+		return -ENODEV;
+
+	mutex_lock(&matrix_dev->lock);
+	clear_bit_inv((unsigned long)apqi, matrix_mdev->matrix.aqm);
+	mutex_unlock(&matrix_dev->lock);
+
+	return count;
+}
+DEVICE_ATTR_WO(unassign_domain);
+
 static struct attribute *vfio_ap_mdev_attrs[] = {
 	&dev_attr_assign_adapter.attr,
 	&dev_attr_unassign_adapter.attr,
-	NULL
+	&dev_attr_assign_domain.attr,
+	&dev_attr_unassign_domain.attr,
+	NULL,
 };
 
 static struct attribute_group vfio_ap_mdev_attr_group = {
