@@ -27,7 +27,7 @@ struct wilc_cfg_str {
 	u8 *str;
 };
 
-struct wilc_mac_cfg {
+struct wilc_cfg_str_vals {
 	u8 mac_address[7];
 	u8 firmware_version[129];
 	u8 assoc_rsp[256];
@@ -38,7 +38,7 @@ struct wilc_cfg {
 	struct wilc_cfg_hword *hw;
 	struct wilc_cfg_word *w;
 	struct wilc_cfg_str *s;
-	struct wilc_mac_cfg *str_vals;
+	struct wilc_cfg_str_vals *str_vals;
 };
 
 struct wilc;
