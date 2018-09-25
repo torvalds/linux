@@ -478,7 +478,6 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt,
 			connect_status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 			wilc_wlan_set_bssid(priv->dev, null_bssid,
 					    STATION_MODE);
-			eth_zero_addr(wilc_connected_ssid);
 
 			if (!wfi_drv->p2p_connect)
 				wlan_channel = INVALID_CHANNEL;
@@ -521,7 +520,6 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt,
 		wilc_ie = false;
 		eth_zero_addr(priv->associated_bss);
 		wilc_wlan_set_bssid(priv->dev, null_bssid, STATION_MODE);
-		eth_zero_addr(wilc_connected_ssid);
 
 		if (!wfi_drv->p2p_connect)
 			wlan_channel = INVALID_CHANNEL;
@@ -696,8 +694,12 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 		nw_info = &priv->scanned_shadow[sel_bssi_idx];
 	} else {
 		ret = -ENOENT;
-		vif->connecting = false;
-		return ret;
+		goto out_error;
+	}
+
+	if (ether_addr_equal_unaligned(vif->bssid, nw_info->bssid)) {
+		ret = -EALREADY;
+		goto out_error;
 	}
 
 	memset(priv->wep_key, 0, sizeof(priv->wep_key));
@@ -739,8 +741,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 			ret = -ENOTSUPP;
 			netdev_err(dev, "%s: Unsupported cipher\n",
 				   __func__);
-			vif->connecting = false;
-			return ret;
+			goto out_error;
 		}
 	}
 
@@ -787,13 +788,18 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 				security, auth_type,
 				nw_info->ch,
 				nw_info->join_params);
-	if (ret != 0) {
+	if (ret) {
+		u8 null_bssid[ETH_ALEN] = {0};
+
 		netdev_err(dev, "wilc_set_join_req(): Error\n");
 		ret = -ENOENT;
-		vif->connecting = false;
-		return ret;
+		wilc_wlan_set_bssid(dev, null_bssid, STATION_MODE);
+		goto out_error;
 	}
+	return 0;
 
+out_error:
+	vif->connecting = false;
 	return ret;
 }
 

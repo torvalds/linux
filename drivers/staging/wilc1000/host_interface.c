@@ -813,7 +813,6 @@ error:
 	kfree(msg);
 }
 
-u8 wilc_connected_ssid[6] = {0};
 static void handle_connect(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
@@ -833,11 +832,6 @@ static void handle_connect(struct work_struct *work)
 
 		usleep_range(2 * 1000, 2 * 1000);
 		return;
-	}
-
-	if (memcmp(conn_attr->bssid, wilc_connected_ssid, ETH_ALEN) == 0) {
-		netdev_err(vif->ndev, "Discard connect request\n");
-		goto error;
 	}
 
 	bss_param = conn_attr->params;
@@ -1019,10 +1013,6 @@ static void handle_connect(struct work_struct *work)
 	cur_byte = wid_list[wid_cnt].val;
 	wid_cnt++;
 
-	if (conn_attr->bssid)
-		memcpy(wilc_connected_ssid,
-		       conn_attr->bssid, ETH_ALEN);
-
 	result = wilc_send_config_pkt(vif, SET_CFG, wid_list,
 				      wid_cnt,
 				      wilc_get_vif_idx(vif));
@@ -1144,8 +1134,6 @@ static void handle_connect_timeout(struct work_struct *work)
 	hif_drv->usr_conn_req.ies_len = 0;
 	kfree(hif_drv->usr_conn_req.ies);
 	hif_drv->usr_conn_req.ies = NULL;
-
-	eth_zero_addr(wilc_connected_ssid);
 
 out:
 	kfree(msg);
@@ -1450,16 +1438,6 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 					   "wilc_parse_assoc_resp_info() returned error %d\n",
 					   err);
 		}
-	}
-
-	if (mac_status == MAC_STATUS_CONNECTED &&
-	    conn_info.status != WLAN_STATUS_SUCCESS) {
-		netdev_err(vif->ndev,
-			   "Received MAC status is MAC_STATUS_CONNECTED, Assoc Resp is not SUCCESS\n");
-		eth_zero_addr(wilc_connected_ssid);
-	} else if (mac_status == MAC_STATUS_DISCONNECTED)    {
-		netdev_err(vif->ndev, "Received MAC status is MAC_STATUS_DISCONNECTED\n");
-		eth_zero_addr(wilc_connected_ssid);
 	}
 
 	if (hif_drv->usr_conn_req.bssid) {
@@ -1873,8 +1851,6 @@ static void handle_disconnect(struct work_struct *work)
 
 	vif->obtaining_ip = false;
 	wilc_set_power_mgmt(vif, 0, 0);
-
-	eth_zero_addr(wilc_connected_ssid);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
