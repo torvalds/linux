@@ -2558,6 +2558,13 @@ retry:
 			F2FS_FITS_IN_INODE(src, le16_to_cpu(src->i_extra_isize),
 								i_projid))
 			dst->i_projid = src->i_projid;
+
+		if (f2fs_sb_has_inode_crtime(sbi->sb) &&
+			F2FS_FITS_IN_INODE(src, le16_to_cpu(src->i_extra_isize),
+							i_crtime_nsec)) {
+			dst->i_crtime = src->i_crtime;
+			dst->i_crtime_nsec = src->i_crtime_nsec;
+		}
 	}
 
 	new_ni = old_ni;
