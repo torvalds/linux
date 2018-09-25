@@ -689,10 +689,8 @@ static int sdio_init(struct wilc *wilc, bool resume)
 	int loop, ret;
 	u32 chipid;
 
-	if (!resume) {
-		memset(sdio_priv, 0, sizeof(struct wilc_sdio));
+	if (!resume)
 		sdio_priv->irq_gpio = wilc->dev_irq_num;
-	}
 
 	/**
 	 *      function 0 csa enable

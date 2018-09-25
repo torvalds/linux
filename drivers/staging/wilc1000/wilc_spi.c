@@ -838,12 +838,9 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 		return 1;
 	}
 
-	memset(spi_priv, 0, sizeof(struct wilc_spi));
-
 	/*
 	 * configure protocol
 	 */
-	spi_priv->crc_off = 0;
 
 	/*
 	 * TODO: We can remove the CRC trials if there is a definite
