@@ -205,9 +205,6 @@ extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
 
 extern int devmem_is_allowed(unsigned long pfn);
 
-struct bio_vec;
-extern bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,
-				      const struct bio_vec *vec2);
 #define ARCH_BIOVEC_PHYS_MERGEABLE(vec1, vec2)				\
 	 (!xen_domain() || xen_biovec_phys_mergeable(vec1, vec2))
 
