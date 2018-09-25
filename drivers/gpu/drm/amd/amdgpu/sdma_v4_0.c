@@ -818,7 +818,7 @@ sdma_v4_1_update_power_gating(struct amdgpu_device *adev, bool enable)
 	uint32_t def, data;
 
 	if (enable && (adev->pg_flags & AMD_PG_SUPPORT_SDMA)) {
-		/* disable idle interrupt */
+		/* enable idle interrupt */
 		def = data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CNTL));
 		data |= SDMA0_CNTL__CTXEMPTY_INT_ENABLE_MASK;
 
