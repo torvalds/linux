@@ -159,9 +159,9 @@ static void deinit_irq(struct net_device *dev)
 
 void wilc_mac_indicate(struct wilc *wilc)
 {
-	int status;
+	s8 status;
 
-	wilc_wlan_cfg_get_val(WID_STATUS, (unsigned char *)&status, 4);
+	wilc_wlan_cfg_get_val(WID_STATUS, &status, 1);
 	if (wilc->mac_status == MAC_STATUS_INIT) {
 		wilc->mac_status = status;
 		complete(&wilc->sync_event);
