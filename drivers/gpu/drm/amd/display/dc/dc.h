@@ -249,8 +249,6 @@ struct dc_debug_options {
 	bool disable_dmcu;
 	bool disable_psr;
 	bool force_abm_enable;
-	bool disable_hbup_pg;
-	bool disable_dpp_pg;
 	bool disable_stereo_support;
 	bool vsr_support;
 	bool performance_trace;

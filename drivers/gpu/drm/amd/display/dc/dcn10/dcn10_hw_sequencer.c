@@ -1603,7 +1603,7 @@ static void mmhub_read_vm_context0_settings(struct dcn10_hubp *hubp1,
 }
 
 
-static void dcn10_program_pte_vm(struct dce_hwseq *hws, struct hubp *hubp)
+void dcn10_program_pte_vm(struct dce_hwseq *hws, struct hubp *hubp)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	struct vm_system_aperture_param apt = { {{ 0 } } };
@@ -1729,7 +1729,7 @@ static void dcn10_program_output_csc(struct dc *dc,
 				matrix);
 }
 
-static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
+bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 {
 	if (pipe_ctx->plane_state->visible)
 		return true;
@@ -1738,7 +1738,7 @@ static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 	return false;
 }
 
-static bool is_upper_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
+bool is_upper_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 {
 	if (pipe_ctx->plane_state->visible)
 		return true;
@@ -1747,7 +1747,7 @@ static bool is_upper_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 	return false;
 }
 
-static bool is_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
+bool is_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 {
 	if (pipe_ctx->plane_state->visible)
 		return true;
@@ -2035,7 +2035,7 @@ static void update_scaler(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data);
 }
 
-static void update_dchubp_dpp(
+void update_dchubp_dpp(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
 	struct dc_state *context)
@@ -2182,7 +2182,7 @@ static void dcn10_blank_pixel_data(
 	}
 }
 
-static void set_hdr_multiplier(struct pipe_ctx *pipe_ctx)
+void set_hdr_multiplier(struct pipe_ctx *pipe_ctx)
 {
 	struct fixed31_32 multiplier = dc_fixpt_from_fraction(
 			pipe_ctx->plane_state->sdr_white_level, 80);
@@ -2257,7 +2257,7 @@ static void program_all_pipe_in_tree(
 	}
 }
 
-static struct pipe_ctx *find_top_pipe_for_stream(
+struct pipe_ctx *find_top_pipe_for_stream(
 		struct dc *dc,
 		struct dc_state *context,
 		const struct dc_stream_state *stream)

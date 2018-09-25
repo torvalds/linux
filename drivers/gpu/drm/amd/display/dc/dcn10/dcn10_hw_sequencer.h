@@ -51,4 +51,24 @@ void dcn10_get_hw_state(
 		char *pBuf, unsigned int bufSize,
 		unsigned int mask);
 
+bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx);
+
+bool is_upper_pipe_tree_visible(struct pipe_ctx *pipe_ctx);
+
+bool is_pipe_tree_visible(struct pipe_ctx *pipe_ctx);
+
+void dcn10_program_pte_vm(struct dce_hwseq *hws, struct hubp *hubp);
+
+void set_hdr_multiplier(struct pipe_ctx *pipe_ctx);
+
+void update_dchubp_dpp(
+	struct dc *dc,
+	struct pipe_ctx *pipe_ctx,
+	struct dc_state *context);
+
+struct pipe_ctx *find_top_pipe_for_stream(
+		struct dc *dc,
+		struct dc_state *context,
+		const struct dc_stream_state *stream);
+
 #endif /* __DC_HWSS_DCN10_H__ */
