@@ -474,6 +474,7 @@ struct mlx5_core_srq {
 
 	atomic_t		refcount;
 	struct completion	free;
+	u16		uid;
 };
 
 struct mlx5_eq_table {
