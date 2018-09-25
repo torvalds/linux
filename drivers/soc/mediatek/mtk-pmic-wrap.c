@@ -91,6 +91,10 @@ enum dew_regs {
 	PWRAP_DEW_CIPHER_MODE,
 	PWRAP_DEW_CIPHER_SWRST,
 
+	/* MT6323 only regs */
+	PWRAP_DEW_CIPHER_EN,
+	PWRAP_DEW_RDDMY_NO,
+
 	/* MT6397 only regs */
 	PWRAP_DEW_EVENT_OUT_EN,
 	PWRAP_DEW_EVENT_SRC_EN,
@@ -100,10 +104,6 @@ enum dew_regs {
 	PWRAP_DEW_EVENT_TEST,
 	PWRAP_DEW_CIPHER_LOAD,
 	PWRAP_DEW_CIPHER_START,
-
-	/* MT6323 only regs */
-	PWRAP_DEW_CIPHER_EN,
-	PWRAP_DEW_RDDMY_NO,
 };
 
 static const u32 mt6323_regs[] = {
@@ -121,6 +121,21 @@ static const u32 mt6323_regs[] = {
 	[PWRAP_DEW_CIPHER_MODE] =	0x01a0,
 	[PWRAP_DEW_CIPHER_SWRST] =	0x01a2,
 	[PWRAP_DEW_RDDMY_NO] =		0x01a4,
+};
+
+static const u32 mt6351_regs[] = {
+	[PWRAP_DEW_DIO_EN] =		0x02F2,
+	[PWRAP_DEW_READ_TEST] =		0x02F4,
+	[PWRAP_DEW_WRITE_TEST] =	0x02F6,
+	[PWRAP_DEW_CRC_EN] =		0x02FA,
+	[PWRAP_DEW_CRC_VAL] =		0x02FC,
+	[PWRAP_DEW_CIPHER_KEY_SEL] =	0x0300,
+	[PWRAP_DEW_CIPHER_IV_SEL] =	0x0302,
+	[PWRAP_DEW_CIPHER_EN] =		0x0304,
+	[PWRAP_DEW_CIPHER_RDY] =	0x0306,
+	[PWRAP_DEW_CIPHER_MODE] =	0x0308,
+	[PWRAP_DEW_CIPHER_SWRST] =	0x030A,
+	[PWRAP_DEW_RDDMY_NO] =		0x030C,
 };
 
 static const u32 mt6397_regs[] = {
@@ -144,21 +159,6 @@ static const u32 mt6397_regs[] = {
 	[PWRAP_DEW_CIPHER_RDY] =	0xbc20,
 	[PWRAP_DEW_CIPHER_MODE] =	0xbc22,
 	[PWRAP_DEW_CIPHER_SWRST] =	0xbc24,
-};
-
-static const u32 mt6351_regs[] = {
-	[PWRAP_DEW_DIO_EN] =		0x02F2,
-	[PWRAP_DEW_READ_TEST] =		0x02F4,
-	[PWRAP_DEW_WRITE_TEST] =	0x02F6,
-	[PWRAP_DEW_CRC_EN] =		0x02FA,
-	[PWRAP_DEW_CRC_VAL] =		0x02FC,
-	[PWRAP_DEW_CIPHER_KEY_SEL] =	0x0300,
-	[PWRAP_DEW_CIPHER_IV_SEL] =	0x0302,
-	[PWRAP_DEW_CIPHER_EN] =		0x0304,
-	[PWRAP_DEW_CIPHER_RDY] =	0x0306,
-	[PWRAP_DEW_CIPHER_MODE] =	0x0308,
-	[PWRAP_DEW_CIPHER_SWRST] =	0x030A,
-	[PWRAP_DEW_RDDMY_NO] =		0x030C,
 };
 
 enum pwrap_regs {
@@ -526,6 +526,79 @@ static int mt7622_regs[] = {
 	[PWRAP_SPI2_CTRL] =		0x244,
 };
 
+static int mt8135_regs[] = {
+	[PWRAP_MUX_SEL] =		0x0,
+	[PWRAP_WRAP_EN] =		0x4,
+	[PWRAP_DIO_EN] =		0x8,
+	[PWRAP_SIDLY] =			0xc,
+	[PWRAP_CSHEXT] =		0x10,
+	[PWRAP_CSHEXT_WRITE] =		0x14,
+	[PWRAP_CSHEXT_READ] =		0x18,
+	[PWRAP_CSLEXT_START] =		0x1c,
+	[PWRAP_CSLEXT_END] =		0x20,
+	[PWRAP_STAUPD_PRD] =		0x24,
+	[PWRAP_STAUPD_GRPEN] =		0x28,
+	[PWRAP_STAUPD_MAN_TRIG] =	0x2c,
+	[PWRAP_STAUPD_STA] =		0x30,
+	[PWRAP_EVENT_IN_EN] =		0x34,
+	[PWRAP_EVENT_DST_EN] =		0x38,
+	[PWRAP_WRAP_STA] =		0x3c,
+	[PWRAP_RRARB_INIT] =		0x40,
+	[PWRAP_RRARB_EN] =		0x44,
+	[PWRAP_RRARB_STA0] =		0x48,
+	[PWRAP_RRARB_STA1] =		0x4c,
+	[PWRAP_HARB_INIT] =		0x50,
+	[PWRAP_HARB_HPRIO] =		0x54,
+	[PWRAP_HIPRIO_ARB_EN] =		0x58,
+	[PWRAP_HARB_STA0] =		0x5c,
+	[PWRAP_HARB_STA1] =		0x60,
+	[PWRAP_MAN_EN] =		0x64,
+	[PWRAP_MAN_CMD] =		0x68,
+	[PWRAP_MAN_RDATA] =		0x6c,
+	[PWRAP_MAN_VLDCLR] =		0x70,
+	[PWRAP_WACS0_EN] =		0x74,
+	[PWRAP_INIT_DONE0] =		0x78,
+	[PWRAP_WACS0_CMD] =		0x7c,
+	[PWRAP_WACS0_RDATA] =		0x80,
+	[PWRAP_WACS0_VLDCLR] =		0x84,
+	[PWRAP_WACS1_EN] =		0x88,
+	[PWRAP_INIT_DONE1] =		0x8c,
+	[PWRAP_WACS1_CMD] =		0x90,
+	[PWRAP_WACS1_RDATA] =		0x94,
+	[PWRAP_WACS1_VLDCLR] =		0x98,
+	[PWRAP_WACS2_EN] =		0x9c,
+	[PWRAP_INIT_DONE2] =		0xa0,
+	[PWRAP_WACS2_CMD] =		0xa4,
+	[PWRAP_WACS2_RDATA] =		0xa8,
+	[PWRAP_WACS2_VLDCLR] =		0xac,
+	[PWRAP_INT_EN] =		0xb0,
+	[PWRAP_INT_FLG_RAW] =		0xb4,
+	[PWRAP_INT_FLG] =		0xb8,
+	[PWRAP_INT_CLR] =		0xbc,
+	[PWRAP_SIG_ADR] =		0xc0,
+	[PWRAP_SIG_MODE] =		0xc4,
+	[PWRAP_SIG_VALUE] =		0xc8,
+	[PWRAP_SIG_ERRVAL] =		0xcc,
+	[PWRAP_CRC_EN] =		0xd0,
+	[PWRAP_EVENT_STA] =		0xd4,
+	[PWRAP_EVENT_STACLR] =		0xd8,
+	[PWRAP_TIMER_EN] =		0xdc,
+	[PWRAP_TIMER_STA] =		0xe0,
+	[PWRAP_WDT_UNIT] =		0xe4,
+	[PWRAP_WDT_SRC_EN] =		0xe8,
+	[PWRAP_WDT_FLG] =		0xec,
+	[PWRAP_DEBUG_INT_SEL] =		0xf0,
+	[PWRAP_CIPHER_KEY_SEL] =	0x134,
+	[PWRAP_CIPHER_IV_SEL] =		0x138,
+	[PWRAP_CIPHER_LOAD] =		0x13c,
+	[PWRAP_CIPHER_START] =		0x140,
+	[PWRAP_CIPHER_RDY] =		0x144,
+	[PWRAP_CIPHER_MODE] =		0x148,
+	[PWRAP_CIPHER_SWRST] =		0x14c,
+	[PWRAP_DCM_EN] =		0x15c,
+	[PWRAP_DCM_DBC_PRD] =		0x160,
+};
+
 static int mt8173_regs[] = {
 	[PWRAP_MUX_SEL] =		0x0,
 	[PWRAP_WRAP_EN] =		0x4,
@@ -606,79 +679,6 @@ static int mt8173_regs[] = {
 	[PWRAP_CIPHER_SWRST] =		0x140,
 	[PWRAP_DCM_EN] =		0x144,
 	[PWRAP_DCM_DBC_PRD] =		0x148,
-};
-
-static int mt8135_regs[] = {
-	[PWRAP_MUX_SEL] =		0x0,
-	[PWRAP_WRAP_EN] =		0x4,
-	[PWRAP_DIO_EN] =		0x8,
-	[PWRAP_SIDLY] =			0xc,
-	[PWRAP_CSHEXT] =		0x10,
-	[PWRAP_CSHEXT_WRITE] =		0x14,
-	[PWRAP_CSHEXT_READ] =		0x18,
-	[PWRAP_CSLEXT_START] =		0x1c,
-	[PWRAP_CSLEXT_END] =		0x20,
-	[PWRAP_STAUPD_PRD] =		0x24,
-	[PWRAP_STAUPD_GRPEN] =		0x28,
-	[PWRAP_STAUPD_MAN_TRIG] =	0x2c,
-	[PWRAP_STAUPD_STA] =		0x30,
-	[PWRAP_EVENT_IN_EN] =		0x34,
-	[PWRAP_EVENT_DST_EN] =		0x38,
-	[PWRAP_WRAP_STA] =		0x3c,
-	[PWRAP_RRARB_INIT] =		0x40,
-	[PWRAP_RRARB_EN] =		0x44,
-	[PWRAP_RRARB_STA0] =		0x48,
-	[PWRAP_RRARB_STA1] =		0x4c,
-	[PWRAP_HARB_INIT] =		0x50,
-	[PWRAP_HARB_HPRIO] =		0x54,
-	[PWRAP_HIPRIO_ARB_EN] =		0x58,
-	[PWRAP_HARB_STA0] =		0x5c,
-	[PWRAP_HARB_STA1] =		0x60,
-	[PWRAP_MAN_EN] =		0x64,
-	[PWRAP_MAN_CMD] =		0x68,
-	[PWRAP_MAN_RDATA] =		0x6c,
-	[PWRAP_MAN_VLDCLR] =		0x70,
-	[PWRAP_WACS0_EN] =		0x74,
-	[PWRAP_INIT_DONE0] =		0x78,
-	[PWRAP_WACS0_CMD] =		0x7c,
-	[PWRAP_WACS0_RDATA] =		0x80,
-	[PWRAP_WACS0_VLDCLR] =		0x84,
-	[PWRAP_WACS1_EN] =		0x88,
-	[PWRAP_INIT_DONE1] =		0x8c,
-	[PWRAP_WACS1_CMD] =		0x90,
-	[PWRAP_WACS1_RDATA] =		0x94,
-	[PWRAP_WACS1_VLDCLR] =		0x98,
-	[PWRAP_WACS2_EN] =		0x9c,
-	[PWRAP_INIT_DONE2] =		0xa0,
-	[PWRAP_WACS2_CMD] =		0xa4,
-	[PWRAP_WACS2_RDATA] =		0xa8,
-	[PWRAP_WACS2_VLDCLR] =		0xac,
-	[PWRAP_INT_EN] =		0xb0,
-	[PWRAP_INT_FLG_RAW] =		0xb4,
-	[PWRAP_INT_FLG] =		0xb8,
-	[PWRAP_INT_CLR] =		0xbc,
-	[PWRAP_SIG_ADR] =		0xc0,
-	[PWRAP_SIG_MODE] =		0xc4,
-	[PWRAP_SIG_VALUE] =		0xc8,
-	[PWRAP_SIG_ERRVAL] =		0xcc,
-	[PWRAP_CRC_EN] =		0xd0,
-	[PWRAP_EVENT_STA] =		0xd4,
-	[PWRAP_EVENT_STACLR] =		0xd8,
-	[PWRAP_TIMER_EN] =		0xdc,
-	[PWRAP_TIMER_STA] =		0xe0,
-	[PWRAP_WDT_UNIT] =		0xe4,
-	[PWRAP_WDT_SRC_EN] =		0xe8,
-	[PWRAP_WDT_FLG] =		0xec,
-	[PWRAP_DEBUG_INT_SEL] =		0xf0,
-	[PWRAP_CIPHER_KEY_SEL] =	0x134,
-	[PWRAP_CIPHER_IV_SEL] =		0x138,
-	[PWRAP_CIPHER_LOAD] =		0x13c,
-	[PWRAP_CIPHER_START] =		0x140,
-	[PWRAP_CIPHER_RDY] =		0x144,
-	[PWRAP_CIPHER_MODE] =		0x148,
-	[PWRAP_CIPHER_SWRST] =		0x14c,
-	[PWRAP_DCM_EN] =		0x15c,
-	[PWRAP_DCM_DBC_PRD] =		0x160,
 };
 
 enum pmic_type {
@@ -1398,6 +1398,15 @@ static const struct pwrap_slv_type pmic_mt6323 = {
 	.pwrap_write = pwrap_write16,
 };
 
+static const struct pwrap_slv_type pmic_mt6351 = {
+	.dew_regs = mt6351_regs,
+	.type = PMIC_MT6351,
+	.regmap = &pwrap_regmap_config16,
+	.caps = 0,
+	.pwrap_read = pwrap_read16,
+	.pwrap_write = pwrap_write16,
+};
+
 static const struct pwrap_slv_type pmic_mt6380 = {
 	.dew_regs = NULL,
 	.type = PMIC_MT6380,
@@ -1417,19 +1426,13 @@ static const struct pwrap_slv_type pmic_mt6397 = {
 	.pwrap_write = pwrap_write16,
 };
 
-static const struct pwrap_slv_type pmic_mt6351 = {
-	.dew_regs = mt6351_regs,
-	.type = PMIC_MT6351,
-	.regmap = &pwrap_regmap_config16,
-	.caps = 0,
-	.pwrap_read = pwrap_read16,
-	.pwrap_write = pwrap_write16,
-};
-
 static const struct of_device_id of_slave_match_tbl[] = {
 	{
 		.compatible = "mediatek,mt6323",
 		.data = &pmic_mt6323,
+	}, {
+		.compatible = "mediatek,mt6351",
+		.data = &pmic_mt6351,
 	}, {
 		/* The MT6380 PMIC only implements a regulator, so we bind it
 		 * directly instead of using a MFD.
@@ -1439,9 +1442,6 @@ static const struct of_device_id of_slave_match_tbl[] = {
 	}, {
 		.compatible = "mediatek,mt6397",
 		.data = &pmic_mt6397,
-	}, {
-		.compatible = "mediatek,mt6351",
-		.data = &pmic_mt6351,
 	}, {
 		/* sentinel */
 	}
