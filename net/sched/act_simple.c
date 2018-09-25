@@ -196,13 +196,6 @@ static int tcf_simp_search(struct net *net, struct tc_action **a, u32 index,
 	return tcf_idr_search(tn, a, index);
 }
 
-static int tcf_simp_delete(struct net *net, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, simp_net_id);
-
-	return tcf_idr_delete_index(tn, index);
-}
-
 static struct tc_action_ops act_simp_ops = {
 	.kind		=	"simple",
 	.type		=	TCA_ACT_SIMP,
@@ -213,7 +206,6 @@ static struct tc_action_ops act_simp_ops = {
 	.init		=	tcf_simp_init,
 	.walk		=	tcf_simp_walker,
 	.lookup		=	tcf_simp_search,
-	.delete		=	tcf_simp_delete,
 	.size		=	sizeof(struct tcf_defact),
 };
 

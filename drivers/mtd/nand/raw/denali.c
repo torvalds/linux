@@ -1338,6 +1338,11 @@ int denali_init(struct denali_nand_info *denali)
 
 	denali_enable_irq(denali);
 	denali_reset_banks(denali);
+	if (!denali->max_banks) {
+		/* Error out earlier if no chip is found for some reasons. */
+		ret = -ENODEV;
+		goto disable_irq;
+	}
 
 	denali->active_bank = DENALI_INVALID_BANK;
 

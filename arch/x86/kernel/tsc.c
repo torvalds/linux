@@ -1415,7 +1415,7 @@ static bool __init determine_cpu_tsc_frequencies(bool early)
 
 static unsigned long __init get_loops_per_jiffy(void)
 {
-	unsigned long lpj = tsc_khz * KHZ;
+	u64 lpj = (u64)tsc_khz * KHZ;
 
 	do_div(lpj, HZ);
 	return lpj;

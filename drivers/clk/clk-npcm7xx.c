@@ -558,8 +558,8 @@ static void __init npcm7xx_clk_init(struct device_node *clk_np)
 	if (!clk_base)
 		goto npcm7xx_init_error;
 
-	npcm7xx_clk_data = kzalloc(sizeof(*npcm7xx_clk_data->hws) *
-		NPCM7XX_NUM_CLOCKS + sizeof(npcm7xx_clk_data), GFP_KERNEL);
+	npcm7xx_clk_data = kzalloc(struct_size(npcm7xx_clk_data, hws,
+				   NPCM7XX_NUM_CLOCKS), GFP_KERNEL);
 	if (!npcm7xx_clk_data)
 		goto npcm7xx_init_np_err;
 

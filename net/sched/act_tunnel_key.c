@@ -548,13 +548,6 @@ static int tunnel_key_search(struct net *net, struct tc_action **a, u32 index,
 	return tcf_idr_search(tn, a, index);
 }
 
-static int tunnel_key_delete(struct net *net, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, tunnel_key_net_id);
-
-	return tcf_idr_delete_index(tn, index);
-}
-
 static struct tc_action_ops act_tunnel_key_ops = {
 	.kind		=	"tunnel_key",
 	.type		=	TCA_ACT_TUNNEL_KEY,
@@ -565,7 +558,6 @@ static struct tc_action_ops act_tunnel_key_ops = {
 	.cleanup	=	tunnel_key_release,
 	.walk		=	tunnel_key_walker,
 	.lookup		=	tunnel_key_search,
-	.delete		=	tunnel_key_delete,
 	.size		=	sizeof(struct tcf_tunnel_key),
 };
 

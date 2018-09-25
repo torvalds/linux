@@ -566,5 +566,5 @@ config RANDOM_TRUST_CPU
 	that CPU manufacturer (perhaps with the insistence or mandate
 	of a Nation State's intelligence or law enforcement agencies)
 	has not installed a hidden back door to compromise the CPU's
-	random number generation facilities.
-
+	random number generation facilities. This can also be configured
+	at boot with "random.trust_cpu=on/off".

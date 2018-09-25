@@ -172,6 +172,7 @@ static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 	 * is validated on next vm use to avoid fault.
 	 * */
 	list_move_tail(&base->vm_status, &vm->evicted);
+	base->moved = true;
 }
 
 /**
@@ -369,7 +370,6 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	uint64_t addr;
 	int r;
 
-	addr = amdgpu_bo_gpu_offset(bo);
 	entries = amdgpu_bo_size(bo) / 8;
 
 	if (pte_support_ats) {
@@ -401,6 +401,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (r)
 		goto error;
 
+	addr = amdgpu_bo_gpu_offset(bo);
 	if (ats_entries) {
 		uint64_t ats_value;
 
@@ -2483,28 +2484,52 @@ static uint32_t amdgpu_vm_get_block_size(uint64_t vm_size)
  * amdgpu_vm_adjust_size - adjust vm size, block size and fragment size
  *
  * @adev: amdgpu_device pointer
- * @vm_size: the default vm size if it's set auto
+ * @min_vm_size: the minimum vm size in GB if it's set auto
  * @fragment_size_default: Default PTE fragment size
  * @max_level: max VMPT level
  * @max_bits: max address space size in bits
  *
  */
-void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t vm_size,
+void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t min_vm_size,
 			   uint32_t fragment_size_default, unsigned max_level,
 			   unsigned max_bits)
 {
+	unsigned int max_size = 1 << (max_bits - 30);
+	unsigned int vm_size;
 	uint64_t tmp;
 
 	/* adjust vm size first */
 	if (amdgpu_vm_size != -1) {
-		unsigned max_size = 1 << (max_bits - 30);
-
 		vm_size = amdgpu_vm_size;
 		if (vm_size > max_size) {
 			dev_warn(adev->dev, "VM size (%d) too large, max is %u GB\n",
 				 amdgpu_vm_size, max_size);
 			vm_size = max_size;
 		}
+	} else {
+		struct sysinfo si;
+		unsigned int phys_ram_gb;
+
+		/* Optimal VM size depends on the amount of physical
+		 * RAM available. Underlying requirements and
+		 * assumptions:
+		 *
+		 *  - Need to map system memory and VRAM from all GPUs
+		 *     - VRAM from other GPUs not known here
+		 *     - Assume VRAM <= system memory
+		 *  - On GFX8 and older, VM space can be segmented for
+		 *    different MTYPEs
+		 *  - Need to allow room for fragmentation, guard pages etc.
+		 *
+		 * This adds up to a rough guess of system memory x3.
+		 * Round up to power of two to maximize the available
+		 * VM size with the given page table size.
+		 */
+		si_meminfo(&si);
+		phys_ram_gb = ((uint64_t)si.totalram * si.mem_unit +
+			       (1 << 30) - 1) >> 30;
+		vm_size = roundup_pow_of_two(
+			min(max(phys_ram_gb * 3, min_vm_size), max_size));
 	}
 
 	adev->vm_manager.max_pfn = (uint64_t)vm_size << 18;
