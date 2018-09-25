@@ -1815,14 +1815,12 @@ static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
 	struct mce *mce = (struct mce *)data;
 	struct i7core_dev *i7_dev;
 	struct mem_ctl_info *mci;
-	struct i7core_pvt *pvt;
 
 	i7_dev = get_i7core_dev(mce->socketid);
 	if (!i7_dev)
 		return NOTIFY_DONE;
 
 	mci = i7_dev->mci;
-	pvt = mci->pvt_info;
 
 	/*
 	 * Just let mcelog handle it if the error is
