@@ -469,9 +469,13 @@
 
 		eccmgr {
 			compatible = "altr,socfpga-s10-ecc-manager";
+			altr,sysmgr-syscon = <&sysmgr>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 			interrupts = <0 15 4>, <0 95 4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			ranges;
 
 			sdramedac {
 				compatible = "altr,sdram-edac-s10";
