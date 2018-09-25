@@ -713,6 +713,16 @@ static const struct file_operations altr_edac_a10_device_inject_fops = {
 	.llseek = generic_file_llseek,
 };
 
+static ssize_t altr_edac_a10_device_trig2(struct file *file,
+					  const char __user *user_buf,
+					  size_t count, loff_t *ppos);
+
+static const struct file_operations altr_edac_a10_device_inject2_fops = {
+	.open = simple_open,
+	.write = altr_edac_a10_device_trig2,
+	.llseek = generic_file_llseek,
+};
+
 static void altr_create_edacdev_dbgfs(struct edac_device_ctl_info *edac_dci,
 				      const struct edac_device_prv_data *priv)
 {
@@ -994,6 +1004,16 @@ static int __maybe_unused altr_init_memory_port(void __iomem *ioaddr, int port)
 	return ret;
 }
 
+static int socfpga_is_a10(void)
+{
+	return of_machine_is_compatible("altr,socfpga-arria10");
+}
+
+static int socfpga_is_s10(void)
+{
+	return of_machine_is_compatible("altr,socfpga-stratix10");
+}
+
 static __init int __maybe_unused
 altr_init_a10_ecc_block(struct device_node *np, u32 irq_mask,
 			u32 ecc_ctrl_en_mask, bool dual_port)
@@ -1008,8 +1028,32 @@ altr_init_a10_ecc_block(struct device_node *np, u32 irq_mask,
 
 	/* Get the ECC Manager - parent of the device EDACs */
 	np_eccmgr = of_get_parent(np);
-	ecc_mgr_map = syscon_regmap_lookup_by_phandle(np_eccmgr,
-						      "altr,sysmgr-syscon");
+
+	if (socfpga_is_a10()) {
+		ecc_mgr_map = syscon_regmap_lookup_by_phandle(np_eccmgr,
+							      "altr,sysmgr-syscon");
+	} else {
+		struct device_node *sysmgr_np;
+		struct resource res;
+		void __iomem *base;
+
+		sysmgr_np = of_parse_phandle(np_eccmgr,
+					     "altr,sysmgr-syscon", 0);
+		if (!sysmgr_np) {
+			edac_printk(KERN_ERR, EDAC_DEVICE,
+				    "Unable to find altr,sysmgr-syscon\n");
+			return -ENODEV;
+		}
+
+		if (of_address_to_resource(sysmgr_np, 0, &res))
+			return -ENOMEM;
+
+		/* Need physical address for SMCC call */
+		base = (void __iomem *)res.start;
+
+		ecc_mgr_map = regmap_init(NULL, NULL, base,
+					  &s10_sdram_regmap_cfg);
+	}
 	of_node_put(np_eccmgr);
 	if (IS_ERR(ecc_mgr_map)) {
 		edac_printk(KERN_ERR, EDAC_DEVICE,
@@ -1067,11 +1111,6 @@ out:
 	return ret;
 }
 
-static int socfpga_is_a10(void)
-{
-	return of_machine_is_compatible("altr,socfpga-arria10");
-}
-
 static int validate_parent_available(struct device_node *np);
 static const struct of_device_id altr_edac_a10_device_of_match[];
 static int __init __maybe_unused altr_init_a10_ecc_device_type(char *compat)
@@ -1079,7 +1118,7 @@ static int __init __maybe_unused altr_init_a10_ecc_device_type(char *compat)
 	int irq;
 	struct device_node *child, *np;
 
-	if (!socfpga_is_a10())
+	if (!socfpga_is_a10() && !socfpga_is_s10())
 		return -ENODEV;
 
 	np = of_find_compatible_node(NULL, NULL,
@@ -1325,7 +1364,7 @@ static const struct edac_device_prv_data a10_enetecc_data = {
 	.ue_set_mask = ALTR_A10_ECC_TDERRA,
 	.set_err_ofst = ALTR_A10_ECC_INTTEST_OFST,
 	.ecc_irq_handler = altr_edac_a10_ecc_irq,
-	.inject_fops = &altr_edac_a10_device_inject_fops,
+	.inject_fops = &altr_edac_a10_device_inject2_fops,
 };
 
 static int __init socfpga_init_ethernet_ecc(void)
@@ -1403,7 +1442,7 @@ static const struct edac_device_prv_data a10_usbecc_data = {
 	.ue_set_mask = ALTR_A10_ECC_TDERRA,
 	.set_err_ofst = ALTR_A10_ECC_INTTEST_OFST,
 	.ecc_irq_handler = altr_edac_a10_ecc_irq,
-	.inject_fops = &altr_edac_a10_device_inject_fops,
+	.inject_fops = &altr_edac_a10_device_inject2_fops,
 };
 
 static int __init socfpga_init_usb_ecc(void)
@@ -1601,7 +1640,7 @@ static int __init socfpga_init_sdmmc_ecc(void)
 	int rc = -ENODEV;
 	struct device_node *child;
 
-	if (!socfpga_is_a10())
+	if (!socfpga_is_a10() && !socfpga_is_s10())
 		return -ENODEV;
 
 	child = of_find_compatible_node(NULL, NULL, "altr,socfpga-sdmmc-ecc");
@@ -1685,6 +1724,74 @@ static ssize_t altr_edac_a10_device_trig(struct file *file,
 		writel(priv->ue_set_mask, set_addr);
 	else
 		writel(priv->ce_set_mask, set_addr);
+
+	/* Ensure the interrupt test bits are set */
+	wmb();
+	local_irq_restore(flags);
+
+	return count;
+}
+
+/*
+ * The Stratix10 EDAC Error Injection Functions differ from Arria10
+ * slightly. A few Arria10 peripherals can use this injection function.
+ * Inject the error into the memory and then readback to trigger the IRQ.
+ */
+static ssize_t altr_edac_a10_device_trig2(struct file *file,
+					  const char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct edac_device_ctl_info *edac_dci = file->private_data;
+	struct altr_edac_device_dev *drvdata = edac_dci->pvt_info;
+	const struct edac_device_prv_data *priv = drvdata->data;
+	void __iomem *set_addr = (drvdata->base + priv->set_err_ofst);
+	unsigned long flags;
+	u8 trig_type;
+
+	if (!user_buf || get_user(trig_type, user_buf))
+		return -EFAULT;
+
+	local_irq_save(flags);
+	if (trig_type == ALTR_UE_TRIGGER_CHAR) {
+		writel(priv->ue_set_mask, set_addr);
+	} else {
+		/* Setup write of 0 to first 4 bytes */
+		writel(0x0, drvdata->base + ECC_BLK_WDATA0_OFST);
+		writel(0x0, drvdata->base + ECC_BLK_WDATA1_OFST);
+		writel(0x0, drvdata->base + ECC_BLK_WDATA2_OFST);
+		writel(0x0, drvdata->base + ECC_BLK_WDATA3_OFST);
+		/* Setup write of 4 bytes */
+		writel(ECC_WORD_WRITE, drvdata->base + ECC_BLK_DBYTECTRL_OFST);
+		/* Setup Address to 0 */
+		writel(0x0, drvdata->base + ECC_BLK_ADDRESS_OFST);
+		/* Setup accctrl to write & data override */
+		writel(ECC_WRITE_DOVR, drvdata->base + ECC_BLK_ACCCTRL_OFST);
+		/* Kick it. */
+		writel(ECC_XACT_KICK, drvdata->base + ECC_BLK_STARTACC_OFST);
+		/* Setup accctrl to read & ecc override */
+		writel(ECC_READ_EOVR, drvdata->base + ECC_BLK_ACCCTRL_OFST);
+		/* Kick it. */
+		writel(ECC_XACT_KICK, drvdata->base + ECC_BLK_STARTACC_OFST);
+		/* Setup write for single bit change */
+		writel(0x1, drvdata->base + ECC_BLK_WDATA0_OFST);
+		writel(0x0, drvdata->base + ECC_BLK_WDATA1_OFST);
+		writel(0x0, drvdata->base + ECC_BLK_WDATA2_OFST);
+		writel(0x0, drvdata->base + ECC_BLK_WDATA3_OFST);
+		/* Copy Read ECC to Write ECC */
+		writel(readl(drvdata->base + ECC_BLK_RECC0_OFST),
+		       drvdata->base + ECC_BLK_WECC0_OFST);
+		writel(readl(drvdata->base + ECC_BLK_RECC1_OFST),
+		       drvdata->base + ECC_BLK_WECC1_OFST);
+		/* Setup accctrl to write & ecc override & data override */
+		writel(ECC_WRITE_EDOVR, drvdata->base + ECC_BLK_ACCCTRL_OFST);
+		/* Kick it. */
+		writel(ECC_XACT_KICK, drvdata->base + ECC_BLK_STARTACC_OFST);
+		/* Setup accctrl to read & ecc overwrite & data overwrite */
+		writel(ECC_READ_EDOVR, drvdata->base + ECC_BLK_ACCCTRL_OFST);
+		/* Kick it. */
+		writel(ECC_XACT_KICK, drvdata->base + ECC_BLK_STARTACC_OFST);
+	}
+
 	/* Ensure the interrupt test bits are set */
 	wmb();
 	local_irq_restore(flags);

@@ -300,6 +300,31 @@ struct altr_sdram_mc_data {
 
 #define S10_DDR0_IRQ_MASK                 BIT(16)
 
+/* Define ECC Block Offsets for peripherals */
+#define ECC_BLK_ADDRESS_OFST              0x40
+#define ECC_BLK_RDATA0_OFST               0x44
+#define ECC_BLK_RDATA1_OFST               0x48
+#define ECC_BLK_RDATA2_OFST               0x4C
+#define ECC_BLK_RDATA3_OFST               0x50
+#define ECC_BLK_WDATA0_OFST               0x54
+#define ECC_BLK_WDATA1_OFST               0x58
+#define ECC_BLK_WDATA2_OFST               0x5C
+#define ECC_BLK_WDATA3_OFST               0x60
+#define ECC_BLK_RECC0_OFST                0x64
+#define ECC_BLK_RECC1_OFST                0x68
+#define ECC_BLK_WECC0_OFST                0x6C
+#define ECC_BLK_WECC1_OFST                0x70
+#define ECC_BLK_DBYTECTRL_OFST            0x74
+#define ECC_BLK_ACCCTRL_OFST              0x78
+#define ECC_BLK_STARTACC_OFST             0x7C
+
+#define ECC_XACT_KICK                     0x10000
+#define ECC_WORD_WRITE                    0xF
+#define ECC_WRITE_DOVR                    0x101
+#define ECC_WRITE_EDOVR                   0x103
+#define ECC_READ_EOVR                     0x2
+#define ECC_READ_EDOVR                    0x3
+
 struct altr_edac_device_dev;
 
 struct edac_device_prv_data {
