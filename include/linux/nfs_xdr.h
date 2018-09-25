@@ -1482,11 +1482,10 @@ struct nfs_pgio_header {
 	const struct nfs_rw_ops	*rw_ops;
 	struct nfs_io_completion *io_completion;
 	struct nfs_direct_req	*dreq;
-	spinlock_t		lock;
-	/* fields protected by lock */
+
 	int			pnfs_error;
 	int			error;		/* merge with pnfs_error */
-	unsigned long		good_bytes;	/* boundary of good data */
+	unsigned int		good_bytes;	/* boundary of good data */
 	unsigned long		flags;
 
 	/*
