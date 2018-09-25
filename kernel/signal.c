@@ -3306,7 +3306,8 @@ static int do_rt_sigqueueinfo(pid_t pid, int sig, siginfo_t *info)
 	    (task_pid_vnr(current) != pid))
 		return -EPERM;
 
-	info->si_signo = sig;
+	if (info->si_signo != sig)
+		return -EINVAL;
 
 	/* POSIX.1b doesn't mention process groups.  */
 	return kill_proc_info(sig, info, pid);
@@ -3354,7 +3355,8 @@ static int do_rt_tgsigqueueinfo(pid_t tgid, pid_t pid, int sig, siginfo_t *info)
 	    (task_pid_vnr(current) != pid))
 		return -EPERM;
 
-	info->si_signo = sig;
+	if (info->si_signo != sig)
+		return -EINVAL;
 
 	return do_send_specific(tgid, pid, sig, info);
 }
