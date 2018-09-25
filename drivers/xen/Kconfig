@@ -105,8 +105,7 @@ config XEN_DEV_EVTCHN
 
 config XEN_BACKEND
 	bool "Backend driver support"
-	depends on XEN_DOM0
-	default y
+	default XEN_DOM0
 	help
 	  Support for backend device drivers that provide I/O services
 	  to other virtual machines.
