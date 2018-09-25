@@ -116,9 +116,8 @@ int perf_event__synthesize_extra_attr(struct perf_tool *tool,
 				      perf_event__handler_t process,
 				      bool is_pipe);
 
-int perf_event__process_feature(struct perf_tool *tool,
-				union perf_event *event,
-				struct perf_session *session);
+int perf_event__process_feature(struct perf_session *session,
+				union perf_event *event);
 
 int perf_event__synthesize_attr(struct perf_tool *tool,
 				struct perf_event_attr *attr, u32 ids, u64 *id,
@@ -148,17 +147,15 @@ size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp);
 int perf_event__synthesize_tracing_data(struct perf_tool *tool,
 					int fd, struct perf_evlist *evlist,
 					perf_event__handler_t process);
-int perf_event__process_tracing_data(struct perf_tool *tool,
-				     union perf_event *event,
-				     struct perf_session *session);
+int perf_event__process_tracing_data(struct perf_session *session,
+				     union perf_event *event);
 
 int perf_event__synthesize_build_id(struct perf_tool *tool,
 				    struct dso *pos, u16 misc,
 				    perf_event__handler_t process,
 				    struct machine *machine);
-int perf_event__process_build_id(struct perf_tool *tool,
-				 union perf_event *event,
-				 struct perf_session *session);
+int perf_event__process_build_id(struct perf_session *session,
+				 union perf_event *event);
 bool is_perf_magic(u64 magic);
 
 #define NAME_ALIGN 64

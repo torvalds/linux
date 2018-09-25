@@ -121,6 +121,15 @@ static struct test generic_tests[] = {
 		.is_supported = test__bp_signal_is_supported,
 	},
 	{
+		.desc = "Watchpoint",
+		.func = test__wp,
+		.subtest = {
+			.skip_if_fail	= false,
+			.get_nr		= test__wp_subtest_get_nr,
+			.get_desc	= test__wp_subtest_get_desc,
+		},
+	},
+	{
 		.desc = "Number of exit events of a simple workload",
 		.func = test__task_exit,
 	},

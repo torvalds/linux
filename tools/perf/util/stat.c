@@ -374,9 +374,8 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	return 0;
 }
 
-int perf_event__process_stat_event(struct perf_tool *tool __maybe_unused,
-				   union perf_event *event,
-				   struct perf_session *session)
+int perf_event__process_stat_event(struct perf_session *session,
+				   union perf_event *event)
 {
 	struct perf_counts_values count;
 	struct stat_event *st = &event->stat;
