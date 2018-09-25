@@ -45,7 +45,8 @@ static struct usb_device_id mt76x0_device_table[] = {
 	{ USB_DEVICE(0x20f4, 0x806b) },	/* TRENDnet TEW-806UBH  */
 	{ USB_DEVICE(0x7392, 0xc711) }, /* Devolo Wifi ac Stick */
 	{ USB_DEVICE(0x0df6, 0x0079) }, /* Sitecom Europe B.V. ac  Stick */
-	{ USB_DEVICE(0x2357, 0x0105) }, /* TP-LINK Archer T1U */
+	{ USB_DEVICE(0x2357, 0x0105),
+	  .driver_info = 1,	     }, /* TP-LINK Archer T1U */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x0E8D, 0x7630, 0xff, 0x2, 0xff)}, /* MT7630U */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x0E8D, 0x7650, 0xff, 0x2, 0xff)}, /* MT7650U */
 	{ 0, }
@@ -221,6 +222,10 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 	dev = mt76x0_alloc_device(&usb_intf->dev, &drv_ops);
 	if (!dev)
 		return -ENOMEM;
+
+	/* Quirk for Archer T1U */
+	if (id->driver_info)
+		dev->no_2ghz = true;
 
 	usb_dev = usb_get_dev(usb_dev);
 	usb_reset_device(usb_dev);

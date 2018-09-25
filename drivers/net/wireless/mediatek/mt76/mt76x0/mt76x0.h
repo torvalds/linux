@@ -108,6 +108,8 @@ struct mt76x0_dev {
 	u8 agc_save;
 	u16 chainmask;
 
+	bool no_2ghz;
+
 	struct mac_stats stats;
 };
 
