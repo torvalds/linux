@@ -76,6 +76,16 @@ static int vfio_ap_matrix_dev_create(void)
 		goto matrix_alloc_err;
 	}
 
+	/* Fill in config info via PQAP(QCI), if available */
+	if (test_facility(12)) {
+		ret = ap_qci(&matrix_dev->info);
+		if (ret)
+			goto matrix_alloc_err;
+	}
+
+	mutex_init(&matrix_dev->lock);
+	INIT_LIST_HEAD(&matrix_dev->mdev_list);
+
 	matrix_dev->device.type = &vfio_ap_dev_type;
 	dev_set_name(&matrix_dev->device, "%s", VFIO_AP_DEV_NAME);
 	matrix_dev->device.parent = root_device;
@@ -125,11 +135,20 @@ int __init vfio_ap_init(void)
 		return ret;
 	}
 
+	ret = vfio_ap_mdev_register();
+	if (ret) {
+		ap_driver_unregister(&vfio_ap_drv);
+		vfio_ap_matrix_dev_destroy();
+
+		return ret;
+	}
+
 	return 0;
 }
 
 void __exit vfio_ap_exit(void)
 {
+	vfio_ap_mdev_unregister();
 	ap_driver_unregister(&vfio_ap_drv);
 	vfio_ap_matrix_dev_destroy();
 }
