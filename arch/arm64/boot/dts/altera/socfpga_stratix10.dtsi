@@ -467,6 +467,11 @@
 			status = "disabled";
 		};
 
+		sdr: sdr@f8011100 {
+			compatible = "altr,sdr-ctl", "syscon";
+			reg = <0xf8011100 0xc0>;
+		};
+
 		eccmgr {
 			compatible = "altr,socfpga-s10-ecc-manager";
 			altr,sysmgr-syscon = <&sysmgr>;
@@ -479,6 +484,7 @@
 
 			sdramedac {
 				compatible = "altr,sdram-edac-s10";
+				altr,sdr-syscon = <&sdr>;
 				interrupts = <16 4>, <48 4>;
 			};
 		};
