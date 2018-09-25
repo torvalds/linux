@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 config CLK_RENESAS
 	bool "Renesas SoC clock support" if COMPILE_TEST && !ARCH_RENESAS
 	default y if ARCH_RENESAS

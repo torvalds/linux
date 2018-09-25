@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * r8a73a4 Core CPG Clocks
  *
  * Copyright (C) 2014  Ulrich Hecht
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/clk-provider.h>
