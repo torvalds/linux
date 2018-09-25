@@ -27,6 +27,7 @@
 struct tfp410 {
 	struct drm_bridge	bridge;
 	struct drm_connector	connector;
+	unsigned int		connector_type;
 
 	struct i2c_adapter	*ddc;
 	struct gpio_desc	*hpd;
@@ -126,7 +127,7 @@ static int tfp410_attach(struct drm_bridge *bridge)
 	drm_connector_helper_add(&dvi->connector,
 				 &tfp410_con_helper_funcs);
 	ret = drm_connector_init(bridge->dev, &dvi->connector,
-				 &tfp410_con_funcs, DRM_MODE_CONNECTOR_HDMIA);
+				 &tfp410_con_funcs, dvi->connector_type);
 	if (ret) {
 		dev_err(dvi->dev, "drm_connector_init() failed: %d\n", ret);
 		return ret;
@@ -171,6 +172,11 @@ static int tfp410_get_connector_properties(struct tfp410 *dvi)
 	connector_node = of_graph_get_remote_node(dvi->dev->of_node, 1, -1);
 	if (!connector_node)
 		return -ENODEV;
+
+	if (of_device_is_compatible(connector_node, "hdmi-connector"))
+		dvi->connector_type = DRM_MODE_CONNECTOR_HDMIA;
+	else
+		dvi->connector_type = DRM_MODE_CONNECTOR_DVID;
 
 	dvi->hpd = fwnode_get_named_gpiod(&connector_node->fwnode,
 					"hpd-gpios", 0, GPIOD_IN, "hpd");
