@@ -6,6 +6,7 @@
 
 #include "../i915_selftest.h"
 #include "igt_flush_test.h"
+#include "i915_random.h"
 
 #include "mock_context.h"
 
@@ -573,6 +574,141 @@ err_unlock:
 	return err;
 }
 
+static int random_range(struct rnd_state *rnd, int min, int max)
+{
+	return i915_prandom_u32_max_state(max - min, rnd) + min;
+}
+
+static int random_priority(struct rnd_state *rnd)
+{
+	return random_range(rnd, I915_PRIORITY_MIN, I915_PRIORITY_MAX);
+}
+
+struct preempt_smoke {
+	struct drm_i915_private *i915;
+	struct i915_gem_context **contexts;
+	unsigned int ncontext;
+	struct rnd_state prng;
+};
+
+static struct i915_gem_context *smoke_context(struct preempt_smoke *smoke)
+{
+	return smoke->contexts[i915_prandom_u32_max_state(smoke->ncontext,
+							  &smoke->prng)];
+}
+
+static int smoke_crescendo(struct preempt_smoke *smoke)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	unsigned long count;
+
+	count = 0;
+	for_each_engine(engine, smoke->i915, id) {
+		IGT_TIMEOUT(end_time);
+
+		do {
+			struct i915_gem_context *ctx = smoke_context(smoke);
+			struct i915_request *rq;
+
+			ctx->sched.priority = count % I915_PRIORITY_MAX;
+
+			rq = i915_request_alloc(engine, ctx);
+			if (IS_ERR(rq))
+				return PTR_ERR(rq);
+
+			i915_request_add(rq);
+			count++;
+		} while (!__igt_timeout(end_time, NULL));
+	}
+
+	pr_info("Submitted %lu crescendo requests across %d engines and %d contexts\n",
+		count, INTEL_INFO(smoke->i915)->num_rings, smoke->ncontext);
+	return 0;
+}
+
+static int smoke_random(struct preempt_smoke *smoke)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	IGT_TIMEOUT(end_time);
+	unsigned long count;
+
+	count = 0;
+	do {
+		for_each_engine(engine, smoke->i915, id) {
+			struct i915_gem_context *ctx = smoke_context(smoke);
+			struct i915_request *rq;
+
+			ctx->sched.priority = random_priority(&smoke->prng);
+
+			rq = i915_request_alloc(engine, ctx);
+			if (IS_ERR(rq))
+				return PTR_ERR(rq);
+
+			i915_request_add(rq);
+			count++;
+		}
+	} while (!__igt_timeout(end_time, NULL));
+
+	pr_info("Submitted %lu random requests across %d engines and %d contexts\n",
+		count, INTEL_INFO(smoke->i915)->num_rings, smoke->ncontext);
+	return 0;
+}
+
+static int live_preempt_smoke(void *arg)
+{
+	struct preempt_smoke smoke = {
+		.i915 = arg,
+		.prng = I915_RND_STATE_INITIALIZER(i915_selftest.random_seed),
+		.ncontext = 1024,
+	};
+	int err = -ENOMEM;
+	int n;
+
+	if (!HAS_LOGICAL_RING_PREEMPTION(smoke.i915))
+		return 0;
+
+	smoke.contexts = kmalloc_array(smoke.ncontext,
+				       sizeof(*smoke.contexts),
+				       GFP_KERNEL);
+	if (!smoke.contexts)
+		return -ENOMEM;
+
+	mutex_lock(&smoke.i915->drm.struct_mutex);
+	intel_runtime_pm_get(smoke.i915);
+
+	for (n = 0; n < smoke.ncontext; n++) {
+		smoke.contexts[n] = kernel_context(smoke.i915);
+		if (!smoke.contexts[n])
+			goto err_ctx;
+	}
+
+	err = smoke_crescendo(&smoke);
+	if (err)
+		goto err_ctx;
+
+	err = smoke_random(&smoke);
+	if (err)
+		goto err_ctx;
+
+err_ctx:
+	if (igt_flush_test(smoke.i915, I915_WAIT_LOCKED))
+		err = -EIO;
+
+	for (n = 0; n < smoke.ncontext; n++) {
+		if (!smoke.contexts[n])
+			break;
+		kernel_context_close(smoke.contexts[n]);
+	}
+
+	intel_runtime_pm_put(smoke.i915);
+	mutex_unlock(&smoke.i915->drm.struct_mutex);
+	kfree(smoke.contexts);
+
+	return err;
+}
+
 int intel_execlists_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
@@ -580,6 +716,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_preempt),
 		SUBTEST(live_late_preempt),
 		SUBTEST(live_preempt_hang),
+		SUBTEST(live_preempt_smoke),
 	};
 
 	if (!HAS_EXECLISTS(i915))
