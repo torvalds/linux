@@ -648,8 +648,8 @@ struct backref_node *build_backref_tree(struct reloc_control *rc,
 					int level, u64 bytenr)
 {
 	struct backref_cache *cache = &rc->backref_cache;
-	struct btrfs_path *path1;
-	struct btrfs_path *path2;
+	struct btrfs_path *path1; /* For searching extent root */
+	struct btrfs_path *path2; /* For searching parent of TREE_BLOCK_REF */
 	struct extent_buffer *eb;
 	struct btrfs_root *root;
 	struct backref_node *cur;
@@ -662,7 +662,7 @@ struct backref_node *build_backref_tree(struct reloc_control *rc,
 	struct btrfs_key key;
 	unsigned long end;
 	unsigned long ptr;
-	LIST_HEAD(list);
+	LIST_HEAD(list); /* Pending edge list, upper node needs to be checked */
 	LIST_HEAD(useless);
 	int cowonly;
 	int ret;
@@ -778,6 +778,10 @@ again:
 				key.type != BTRFS_SHARED_BLOCK_REF_KEY);
 		}
 
+		/*
+		 * Parent node found and matches current inline ref, no need to
+		 * rebuild this node for this inline ref.
+		 */
 		if (exist &&
 		    ((key.type == BTRFS_TREE_BLOCK_REF_KEY &&
 		      exist->owner == key.offset) ||
@@ -787,11 +791,12 @@ again:
 			goto next;
 		}
 
+		/* SHARED_BLOCK_REF means key.offset is the parent bytenr */
 		if (key.type == BTRFS_SHARED_BLOCK_REF_KEY) {
 			if (key.objectid == key.offset) {
 				/*
-				 * only root blocks of reloc trees use
-				 * backref of this type.
+				 * Only root blocks of reloc trees use backref
+				 * pointing to itself.
 				 */
 				root = find_reloc_root(rc, cur->bytenr);
 				ASSERT(root);
@@ -840,7 +845,11 @@ again:
 			goto next;
 		}
 
-		/* key.type == BTRFS_TREE_BLOCK_REF_KEY */
+		/*
+		 * key.type == BTRFS_TREE_BLOCK_REF_KEY, inline ref offset
+		 * means the root objectid. We need to search the tree to get
+		 * its parent bytenr.
+		 */
 		root = read_fs_root(rc->extent_root->fs_info, key.offset);
 		if (IS_ERR(root)) {
 			err = PTR_ERR(root);
@@ -863,10 +872,7 @@ again:
 
 		level = cur->level + 1;
 
-		/*
-		 * searching the tree to find upper level blocks
-		 * reference the block.
-		 */
+		/* Search the tree to find parent blocks referring the block. */
 		path2->search_commit_root = 1;
 		path2->skip_locking = 1;
 		path2->lowest_level = level;
@@ -893,6 +899,8 @@ again:
 		}
 		lower = cur;
 		need_check = true;
+
+		/* Add all nodes and edges in the path */
 		for (; level < BTRFS_MAX_LEVEL; level++) {
 			if (!path2->nodes[level]) {
 				ASSERT(btrfs_root_bytenr(&root->root_item) ==
