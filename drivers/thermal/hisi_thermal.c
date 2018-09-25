@@ -83,7 +83,6 @@ struct hisi_thermal_data {
 	struct clk *clk;
 	void __iomem *regs;
 	int nr_sensors;
-	int irq;
 };
 
 /*
@@ -579,16 +578,16 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 			return ret;
 		}
 
-		data->irq = platform_get_irq_byname(pdev, sensor->irq_name);
-		if (data->irq < 0)
-			return data->irq;
+		ret = platform_get_irq_byname(pdev, sensor->irq_name);
+		if (ret < 0)
+			return ret;
 
-		ret = devm_request_threaded_irq(dev, data->irq, NULL,
+		ret = devm_request_threaded_irq(dev, ret, NULL,
 						hisi_thermal_alarm_irq_thread,
 						IRQF_ONESHOT, sensor->irq_name,
 						sensor);
 		if (ret < 0) {
-			dev_err(dev, "failed to request alarm irq: %d\n", ret);
+			dev_err(dev, "Failed to request alarm irq: %d\n", ret);
 			return ret;
 		}
 
