@@ -356,13 +356,8 @@ execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists)
 {
 	struct intel_engine_cs *engine =
 		container_of(execlists, typeof(*engine), execlists);
-	unsigned long flags;
-
-	spin_lock_irqsave(&engine->timeline.lock, flags);
 
 	__unwind_incomplete_requests(engine);
-
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
 static inline void
@@ -1233,7 +1228,11 @@ static void execlists_schedule(struct i915_request *request,
 
 		engine = sched_lock_engine(node, engine);
 
+		/* Recheck after acquiring the engine->timeline.lock */
 		if (prio <= node->attr.priority)
+			continue;
+
+		if (i915_sched_node_signaled(node))
 			continue;
 
 		node->attr.priority = prio;
@@ -1244,14 +1243,34 @@ static void execlists_schedule(struct i915_request *request,
 			}
 			GEM_BUG_ON(pl->priority != prio);
 			list_move_tail(&node->link, &pl->requests);
+		} else {
+			/*
+			 * If the request is not in the priolist queue because
+			 * it is not yet runnable, then it doesn't contribute
+			 * to our preemption decisions. On the other hand,
+			 * if the request is on the HW, it too is not in the
+			 * queue; but in that case we may still need to reorder
+			 * the inflight requests.
+			 */
+			if (!i915_sw_fence_done(&sched_to_request(node)->submit))
+				continue;
 		}
 
-		if (prio > engine->execlists.queue_priority &&
-		    i915_sw_fence_done(&sched_to_request(node)->submit)) {
-			/* defer submission until after all of our updates */
-			__update_queue(engine, prio);
-			tasklet_hi_schedule(&engine->execlists.tasklet);
-		}
+		if (prio <= engine->execlists.queue_priority)
+			continue;
+
+		/*
+		 * If we are already the currently executing context, don't
+		 * bother evaluating if we should preempt ourselves.
+		 */
+		if (sched_to_request(node)->global_seqno &&
+		    i915_seqno_passed(port_request(engine->execlists.port)->global_seqno,
+				      sched_to_request(node)->global_seqno))
+			continue;
+
+		/* Defer (tasklet) submission until after all of our updates. */
+		__update_queue(engine, prio);
+		tasklet_hi_schedule(&engine->execlists.tasklet);
 	}
 
 	spin_unlock_irq(&engine->timeline.lock);
