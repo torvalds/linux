@@ -2844,27 +2844,48 @@ COMPAT_SYSCALL_DEFINE2(rt_sigpending, compat_sigset_t __user *, uset,
 }
 #endif
 
+static const struct {
+	unsigned char limit, layout;
+} sig_sicodes[] = {
+	[SIGILL]  = { NSIGILL,  SIL_FAULT },
+	[SIGFPE]  = { NSIGFPE,  SIL_FAULT },
+	[SIGSEGV] = { NSIGSEGV, SIL_FAULT },
+	[SIGBUS]  = { NSIGBUS,  SIL_FAULT },
+	[SIGTRAP] = { NSIGTRAP, SIL_FAULT },
+#if defined(SIGEMT)
+	[SIGEMT]  = { NSIGEMT,  SIL_FAULT },
+#endif
+	[SIGCHLD] = { NSIGCHLD, SIL_CHLD },
+	[SIGPOLL] = { NSIGPOLL, SIL_POLL },
+	[SIGSYS]  = { NSIGSYS,  SIL_SYS },
+};
+
+static bool known_siginfo_layout(int sig, int si_code)
+{
+	if (si_code == SI_KERNEL)
+		return true;
+	else if ((si_code > SI_USER)) {
+		if (sig_specific_sicodes(sig)) {
+			if (si_code <= sig_sicodes[sig].limit)
+				return true;
+		}
+		else if (si_code <= NSIGPOLL)
+			return true;
+	}
+	else if (si_code >= SI_DETHREAD)
+		return true;
+	else if (si_code == SI_ASYNCNL)
+		return true;
+	return false;
+}
+
 enum siginfo_layout siginfo_layout(int sig, int si_code)
 {
 	enum siginfo_layout layout = SIL_KILL;
 	if ((si_code > SI_USER) && (si_code < SI_KERNEL)) {
-		static const struct {
-			unsigned char limit, layout;
-		} filter[] = {
-			[SIGILL]  = { NSIGILL,  SIL_FAULT },
-			[SIGFPE]  = { NSIGFPE,  SIL_FAULT },
-			[SIGSEGV] = { NSIGSEGV, SIL_FAULT },
-			[SIGBUS]  = { NSIGBUS,  SIL_FAULT },
-			[SIGTRAP] = { NSIGTRAP, SIL_FAULT },
-#if defined(SIGEMT)
-			[SIGEMT]  = { NSIGEMT,  SIL_FAULT },
-#endif
-			[SIGCHLD] = { NSIGCHLD, SIL_CHLD },
-			[SIGPOLL] = { NSIGPOLL, SIL_POLL },
-			[SIGSYS]  = { NSIGSYS,  SIL_SYS },
-		};
-		if ((sig < ARRAY_SIZE(filter)) && (si_code <= filter[sig].limit)) {
-			layout = filter[sig].layout;
+		if ((sig < ARRAY_SIZE(sig_sicodes)) &&
+		    (si_code <= sig_sicodes[sig].limit)) {
+			layout = sig_sicodes[sig].layout;
 			/* Handle the exceptions */
 			if ((sig == SIGBUS) &&
 			    (si_code >= BUS_MCEERR_AR) && (si_code <= BUS_MCEERR_AO))
@@ -2889,17 +2910,42 @@ enum siginfo_layout siginfo_layout(int sig, int si_code)
 	return layout;
 }
 
+static inline char __user *si_expansion(const siginfo_t __user *info)
+{
+	return ((char __user *)info) + sizeof(struct kernel_siginfo);
+}
+
 int copy_siginfo_to_user(siginfo_t __user *to, const kernel_siginfo_t *from)
 {
+	char __user *expansion = si_expansion(to);
 	if (copy_to_user(to, from , sizeof(struct kernel_siginfo)))
+		return -EFAULT;
+	if (clear_user(expansion, SI_EXPANSION_SIZE))
 		return -EFAULT;
 	return 0;
 }
 
 int copy_siginfo_from_user(kernel_siginfo_t *to, const siginfo_t __user *from)
 {
-	if (copy_from_user(to, from, sizeof(struct siginfo)))
+	if (copy_from_user(to, from, sizeof(struct kernel_siginfo)))
 		return -EFAULT;
+	if (unlikely(!known_siginfo_layout(to->si_signo, to->si_code))) {
+		char __user *expansion = si_expansion(from);
+		char buf[SI_EXPANSION_SIZE];
+		int i;
+		/*
+		 * An unknown si_code might need more than
+		 * sizeof(struct kernel_siginfo) bytes.  Verify all of the
+		 * extra bytes are 0.  This guarantees copy_siginfo_to_user
+		 * will return this data to userspace exactly.
+		 */
+		if (copy_from_user(&buf, expansion, SI_EXPANSION_SIZE))
+			return -EFAULT;
+		for (i = 0; i < SI_EXPANSION_SIZE; i++) {
+			if (buf[i] != 0)
+				return -E2BIG;
+		}
+	}
 	return 0;
 }
 

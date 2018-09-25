@@ -10,10 +10,7 @@
 #include <uapi/linux/signal.h>
 
 typedef struct kernel_siginfo {
-	union {
-		__SIGINFO;
-		int _si_pad[SI_MAX_SIZE/sizeof(int)];
-	};
+	__SIGINFO;
 } kernel_siginfo_t;
 
 /*
