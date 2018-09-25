@@ -281,6 +281,31 @@ smb2_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 }
 
 static unsigned int
+smb3_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
+{
+	struct TCP_Server_Info *server = tcon->ses->server;
+	unsigned int wsize;
+
+	/* start with specified wsize, or default */
+	wsize = volume_info->wsize ? volume_info->wsize : SMB3_DEFAULT_IOSIZE;
+	wsize = min_t(unsigned int, wsize, server->max_write);
+#ifdef CONFIG_CIFS_SMB_DIRECT
+	if (server->rdma) {
+		if (server->sign)
+			wsize = min_t(unsigned int,
+				wsize, server->smbd_conn->max_fragmented_send_size);
+		else
+			wsize = min_t(unsigned int,
+				wsize, server->smbd_conn->max_readwrite_size);
+	}
+#endif
+	if (!(server->capabilities & SMB2_GLOBAL_CAP_LARGE_MTU))
+		wsize = min_t(unsigned int, wsize, SMB2_MAX_BUFFER_SIZE);
+
+	return wsize;
+}
+
+static unsigned int
 smb2_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 {
 	struct TCP_Server_Info *server = tcon->ses->server;
@@ -306,6 +331,31 @@ smb2_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 	return rsize;
 }
 
+static unsigned int
+smb3_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
+{
+	struct TCP_Server_Info *server = tcon->ses->server;
+	unsigned int rsize;
+
+	/* start with specified rsize, or default */
+	rsize = volume_info->rsize ? volume_info->rsize : SMB3_DEFAULT_IOSIZE;
+	rsize = min_t(unsigned int, rsize, server->max_read);
+#ifdef CONFIG_CIFS_SMB_DIRECT
+	if (server->rdma) {
+		if (server->sign)
+			rsize = min_t(unsigned int,
+				rsize, server->smbd_conn->max_fragmented_recv_size);
+		else
+			rsize = min_t(unsigned int,
+				rsize, server->smbd_conn->max_readwrite_size);
+	}
+#endif
+
+	if (!(server->capabilities & SMB2_GLOBAL_CAP_LARGE_MTU))
+		rsize = min_t(unsigned int, rsize, SMB2_MAX_BUFFER_SIZE);
+
+	return rsize;
+}
 
 static int
 parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
@@ -3436,8 +3486,8 @@ struct smb_version_operations smb30_operations = {
 	.downgrade_oplock = smb2_downgrade_oplock,
 	.need_neg = smb2_need_neg,
 	.negotiate = smb2_negotiate,
-	.negotiate_wsize = smb2_negotiate_wsize,
-	.negotiate_rsize = smb2_negotiate_rsize,
+	.negotiate_wsize = smb3_negotiate_wsize,
+	.negotiate_rsize = smb3_negotiate_rsize,
 	.sess_setup = SMB2_sess_setup,
 	.logoff = SMB2_logoff,
 	.tree_connect = SMB2_tcon,
@@ -3540,8 +3590,8 @@ struct smb_version_operations smb311_operations = {
 	.downgrade_oplock = smb2_downgrade_oplock,
 	.need_neg = smb2_need_neg,
 	.negotiate = smb2_negotiate,
-	.negotiate_wsize = smb2_negotiate_wsize,
-	.negotiate_rsize = smb2_negotiate_rsize,
+	.negotiate_wsize = smb3_negotiate_wsize,
+	.negotiate_rsize = smb3_negotiate_rsize,
 	.sess_setup = SMB2_sess_setup,
 	.logoff = SMB2_logoff,
 	.tree_connect = SMB2_tcon,
