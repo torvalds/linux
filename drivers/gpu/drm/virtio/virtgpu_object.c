@@ -37,6 +37,8 @@ static void virtio_gpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 		virtio_gpu_cmd_unref_resource(vgdev, bo->hw_res_handle);
 	if (bo->pages)
 		virtio_gpu_object_free_sg_table(bo);
+	if (bo->vmap)
+		virtio_gpu_object_kunmap(bo);
 	drm_gem_object_release(&bo->gem_base);
 	kfree(bo);
 }
@@ -97,6 +99,12 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 
 	*bo_ptr = bo;
 	return 0;
+}
+
+void virtio_gpu_object_kunmap(struct virtio_gpu_object *bo)
+{
+	bo->vmap = NULL;
+	ttm_bo_kunmap(&bo->kmap);
 }
 
 int virtio_gpu_object_kmap(struct virtio_gpu_object *bo, void **ptr)

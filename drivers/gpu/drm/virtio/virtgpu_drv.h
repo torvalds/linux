@@ -363,6 +363,7 @@ void virtio_gpu_fence_event_process(struct virtio_gpu_device *vdev,
 int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 			     unsigned long size, bool kernel, bool pinned,
 			     struct virtio_gpu_object **bo_ptr);
+void virtio_gpu_object_kunmap(struct virtio_gpu_object *bo);
 int virtio_gpu_object_kmap(struct virtio_gpu_object *bo, void **ptr);
 int virtio_gpu_object_get_sg_table(struct virtio_gpu_device *qdev,
 				   struct virtio_gpu_object *bo);
