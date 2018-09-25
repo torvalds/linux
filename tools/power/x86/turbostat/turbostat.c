@@ -2921,8 +2921,11 @@ int snapshot_cpu_lpi_us(void)
 	fp = fopen_or_die("/sys/devices/system/cpu/cpuidle/low_power_idle_cpu_residency_us", "r");
 
 	retval = fscanf(fp, "%lld", &cpuidle_cur_cpu_lpi_us);
-	if (retval != 1)
-		err(1, "CPU LPI");
+	if (retval != 1) {
+		fprintf(stderr, "Disabling Low Power Idle CPU output\n");
+		BIC_NOT_PRESENT(BIC_CPU_LPI);
+		return -1;
+	}
 
 	fclose(fp);
 
@@ -2944,9 +2947,11 @@ int snapshot_sys_lpi_us(void)
 	fp = fopen_or_die("/sys/devices/system/cpu/cpuidle/low_power_idle_system_residency_us", "r");
 
 	retval = fscanf(fp, "%lld", &cpuidle_cur_sys_lpi_us);
-	if (retval != 1)
-		err(1, "SYS LPI");
-
+	if (retval != 1) {
+		fprintf(stderr, "Disabling Low Power Idle System output\n");
+		BIC_NOT_PRESENT(BIC_SYS_LPI);
+		return -1;
+	}
 	fclose(fp);
 
 	return 0;
