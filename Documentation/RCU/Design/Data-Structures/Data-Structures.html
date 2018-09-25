@@ -928,17 +928,24 @@ this <tt>rcu_segcblist</tt> structure, <i>not</i> the <tt>-&gt;head</tt>
 pointer.
 The reason for this is that all the ready-to-invoke callbacks
 (that is, those in the <tt>RCU_DONE_TAIL</tt> segment) are extracted
-all at once at callback-invocation time.
+all at once at callback-invocation time (<tt>rcu_do_batch</tt>), due
+to which <tt>-&gt;head</tt> may be set to NULL if there are no not-done
+callbacks remaining in the <tt>rcu_segcblist</tt>.
 If callback invocation must be postponed, for example, because a
 high-priority process just woke up on this CPU, then the remaining
-callbacks are placed back on the <tt>RCU_DONE_TAIL</tt> segment.
-Either way, the <tt>-&gt;len</tt> and <tt>-&gt;len_lazy</tt> counts
-are adjusted after the corresponding callbacks have been invoked, and so
-again it is the <tt>-&gt;len</tt> count that accurately reflects whether
-or not there are callbacks associated with this <tt>rcu_segcblist</tt>
-structure.
+callbacks are placed back on the <tt>RCU_DONE_TAIL</tt> segment and
+<tt>-&gt;head</tt> once again points to the start of the segment.
+In short, the head field can briefly be <tt>NULL</tt> even though the
+CPU has callbacks present the entire time.
+Therefore, it is not appropriate to test the <tt>-&gt;head</tt> pointer
+for <tt>NULL</tt>.
+
+<p>In contrast, the <tt>-&gt;len</tt> and <tt>-&gt;len_lazy</tt> counts
+are adjusted only after the corresponding callbacks have been invoked.
+This means that the <tt>-&gt;len</tt> count is zero only if
+the <tt>rcu_segcblist</tt> structure really is devoid of callbacks.
 Of course, off-CPU sampling of the <tt>-&gt;len</tt> count requires
-the use of appropriate synchronization, for example, memory barriers.
+careful use of appropriate synchronization, for example, memory barriers.
 This synchronization can be a bit subtle, particularly in the case
 of <tt>rcu_barrier()</tt>.
 
