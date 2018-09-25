@@ -94,7 +94,9 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 0:
 
 #ifdef CONFIG_USE_OF
-#ifdef CONFIG_MIPS_RAW_APPENDED_DTB
+#if defined(CONFIG_MIPS_RAW_APPENDED_DTB) || \
+	defined(CONFIG_MIPS_ELF_APPENDED_DTB)
+
 	PTR_LA		t2, __appended_dtb
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -104,7 +106,7 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 #endif /* !CONFIG_CPU_BIG_ENDIAN */
 	lw		t0, (t2)
 	beq		t0, t1, dtb_found
-#endif /* CONFIG_MIPS_RAW_APPENDED_DTB */
+#endif /* CONFIG_MIPS_RAW_APPENDED_DTB || CONFIG_MIPS_ELF_APPENDED_DTB */
 	li		t1, -2
 	move		t2, a1
 	beq		a0, t1, dtb_found
