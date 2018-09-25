@@ -7,7 +7,7 @@ snd-sof-intel-hsw-objs := hsw.o
 snd-sof-intel-bdw-objs := bdw.o
 snd-sof-intel-hda-common-objs := hda.o hda-loader.o hda-stream.o hda-trace.o \
 				 hda-dsp.o hda-ipc.o hda-ctrl.o hda-pcm.o \
-				 hda-dai.o hda-bus.o \
+				 hda-dai.o hda-bus.o hda-loader-skl.o \
 				 skl.o apl.o cnl.o
 
 snd-sof-intel-hda-objs := hda-codec.o
