@@ -537,8 +537,10 @@ int nvme_mpath_init(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 
 	INIT_WORK(&ctrl->ana_work, nvme_ana_work);
 	ctrl->ana_log_buf = kmalloc(ctrl->ana_log_size, GFP_KERNEL);
-	if (!ctrl->ana_log_buf)
+	if (!ctrl->ana_log_buf) {
+		error = -ENOMEM;
 		goto out;
+	}
 
 	error = nvme_read_ana_log(ctrl, true);
 	if (error)
@@ -547,7 +549,7 @@ int nvme_mpath_init(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 out_free_ana_log_buf:
 	kfree(ctrl->ana_log_buf);
 out:
-	return -ENOMEM;
+	return error;
 }
 
 void nvme_mpath_uninit(struct nvme_ctrl *ctrl)
