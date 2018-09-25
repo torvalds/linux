@@ -310,7 +310,7 @@ static void free_sg(struct sock *sk, struct scatterlist *sg,
 	*sg_size = 0;
 }
 
-static void tls_free_both_sg(struct sock *sk)
+static void tls_free_open_rec(struct sock *sk)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
@@ -327,6 +327,8 @@ static void tls_free_both_sg(struct sock *sk)
 	free_sg(sk, rec->sg_plaintext_data,
 		&rec->sg_plaintext_num_elem,
 		&rec->sg_plaintext_size);
+
+	kfree(rec);
 }
 
 int tls_tx_records(struct sock *sk, int flags)
@@ -1591,7 +1593,7 @@ void tls_sw_free_resources_tx(struct sock *sk)
 	}
 
 	crypto_free_aead(ctx->aead_send);
-	tls_free_both_sg(sk);
+	tls_free_open_rec(sk);
 
 	kfree(ctx);
 }
