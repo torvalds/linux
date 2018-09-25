@@ -665,10 +665,7 @@ static inline void arch_setup_dma_ops(struct device *dev, u64 dma_base,
 #endif
 
 #ifndef arch_teardown_dma_ops
-static inline void arch_teardown_dma_ops(struct device *dev)
-{
-	dev->dma_ops = NULL;
-}
+static inline void arch_teardown_dma_ops(struct device *dev) { }
 #endif
 
 static inline unsigned int dma_get_max_seg_size(struct device *dev)
