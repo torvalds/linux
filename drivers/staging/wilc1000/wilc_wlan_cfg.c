@@ -507,6 +507,7 @@ void wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 	msg_id = frame[1];      /* seq no */
 	frame += 4;
 	size -= 4;
+	rsp->type = 0;
 
 	/*
 	 * The valid types of response messages are
@@ -532,7 +533,6 @@ void wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 
 	case 'N':
 		wilc_network_info_received(wilc, frame - 4, size + 4);
-		rsp->type = 0;
 		break;
 
 	case 'S':
@@ -540,7 +540,6 @@ void wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 		break;
 
 	default:
-		rsp->type = 0;
 		rsp->seq_no = msg_id;
 		break;
 	}
