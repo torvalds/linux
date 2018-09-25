@@ -433,23 +433,12 @@ static void _dpu_plane_set_qos_remap(struct drm_plane *plane)
 /**
  * _dpu_plane_get_aspace: gets the address space
  */
-static int _dpu_plane_get_aspace(
-		struct dpu_plane *pdpu,
-		struct dpu_plane_state *pstate,
-		struct msm_gem_address_space **aspace)
+static inline struct msm_gem_address_space *_dpu_plane_get_aspace(
+		struct dpu_plane *pdpu)
 {
-	struct dpu_kms *kms;
+	struct dpu_kms *kms = _dpu_plane_get_kms(&pdpu->base);
 
-	if (!pdpu || !pstate || !aspace) {
-		DPU_ERROR("invalid parameters\n");
-		return -EINVAL;
-	}
-
-	kms = _dpu_plane_get_kms(&pdpu->base);
-
-	*aspace = kms->base.aspace;
-
-	return 0;
+	return kms->base.aspace;
 }
 
 static inline void _dpu_plane_set_scanout(struct drm_plane *plane,
@@ -458,14 +447,8 @@ static inline void _dpu_plane_set_scanout(struct drm_plane *plane,
 		struct drm_framebuffer *fb)
 {
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
-	struct msm_gem_address_space *aspace = NULL;
+	struct msm_gem_address_space *aspace = _dpu_plane_get_aspace(pdpu);
 	int ret;
-
-	ret = _dpu_plane_get_aspace(pdpu, pstate, &aspace);
-	if (ret) {
-		DPU_ERROR_PLANE(pdpu, "Failed to get aspace %d\n", ret);
-		return;
-	}
 
 	ret = dpu_format_populate_layout(aspace, fb, &pipe_cfg->layout);
 	if (ret == -EAGAIN)
@@ -818,19 +801,13 @@ static int dpu_plane_prepare_fb(struct drm_plane *plane,
 	struct drm_gem_object *obj;
 	struct msm_gem_object *msm_obj;
 	struct dma_fence *fence;
-	struct msm_gem_address_space *aspace;
+	struct msm_gem_address_space *aspace = _dpu_plane_get_aspace(pdpu);
 	int ret;
 
 	if (!new_state->fb)
 		return 0;
 
 	DPU_DEBUG_PLANE(pdpu, "FB[%u]\n", fb->base.id);
-
-	ret = _dpu_plane_get_aspace(pdpu, pstate, &aspace);
-	if (ret) {
-		DPU_ERROR_PLANE(pdpu, "Failed to get aspace\n");
-		return ret;
-	}
 
 	/* cache aspace */
 	pstate->aspace = aspace;
