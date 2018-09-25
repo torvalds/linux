@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/bio.h>
-#include <linux/io.h>
 #include <linux/export.h>
+#include <xen/xen.h>
 #include <xen/page.h>
 
 bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,

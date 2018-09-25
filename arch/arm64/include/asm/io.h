@@ -205,8 +205,5 @@ extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
 
 extern int devmem_is_allowed(unsigned long pfn);
 
-#define ARCH_BIOVEC_PHYS_MERGEABLE(vec1, vec2)				\
-	 (!xen_domain() || xen_biovec_phys_mergeable(vec1, vec2))
-
 #endif	/* __KERNEL__ */
 #endif	/* __ASM_IO_H */

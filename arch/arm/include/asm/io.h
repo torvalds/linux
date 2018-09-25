@@ -459,9 +459,6 @@ extern void pci_iounmap(struct pci_dev *dev, void __iomem *addr);
 
 #include <asm-generic/io.h>
 
-#define ARCH_BIOVEC_PHYS_MERGEABLE(vec1, vec2)				\
-	 (!xen_domain() || xen_biovec_phys_mergeable(vec1, vec2))
-
 #ifdef CONFIG_MMU
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE
 extern int valid_phys_addr_range(phys_addr_t addr, size_t size);

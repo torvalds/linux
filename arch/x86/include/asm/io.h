@@ -371,9 +371,6 @@ extern bool is_early_ioremap_ptep(pte_t *ptep);
 
 #ifdef CONFIG_XEN
 #include <xen/xen.h>
-
-#define ARCH_BIOVEC_PHYS_MERGEABLE(vec1, vec2)				\
-	 (!xen_domain() || xen_biovec_phys_mergeable(vec1, vec2))
 #endif	/* CONFIG_XEN */
 
 #define IO_SPACE_LIMIT 0xffff
