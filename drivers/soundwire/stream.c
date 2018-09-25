@@ -899,9 +899,10 @@ static void sdw_release_master_stream(struct sdw_stream_runtime *stream)
 	struct sdw_master_runtime *m_rt = stream->m_rt;
 	struct sdw_slave_runtime *s_rt, *_s_rt;
 
-	list_for_each_entry_safe(s_rt, _s_rt,
-			&m_rt->slave_rt_list, m_rt_node)
-		sdw_stream_remove_slave(s_rt->slave, stream);
+	list_for_each_entry_safe(s_rt, _s_rt, &m_rt->slave_rt_list, m_rt_node) {
+		sdw_slave_port_release(s_rt->slave->bus, s_rt->slave, stream);
+		sdw_release_slave_stream(s_rt->slave, stream);
+	}
 
 	list_del(&m_rt->bus_node);
 }
@@ -1112,7 +1113,7 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 				"Master runtime config failed for stream:%s",
 				stream->name);
 		ret = -ENOMEM;
-		goto error;
+		goto unlock;
 	}
 
 	ret = sdw_config_stream(bus->dev, stream, stream_config, false);
@@ -1123,11 +1124,11 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 	if (ret)
 		goto stream_error;
 
-	stream->state = SDW_STREAM_CONFIGURED;
+	goto unlock;
 
 stream_error:
 	sdw_release_master_stream(stream);
-error:
+unlock:
 	mutex_unlock(&bus->bus_lock);
 	return ret;
 }
@@ -1141,6 +1142,10 @@ EXPORT_SYMBOL(sdw_stream_add_master);
  * @stream: SoundWire stream
  * @port_config: Port configuration for audio stream
  * @num_ports: Number of ports
+ *
+ * It is expected that Slave is added before adding Master
+ * to the Stream.
+ *
  */
 int sdw_stream_add_slave(struct sdw_slave *slave,
 		struct sdw_stream_config *stream_config,
@@ -1186,6 +1191,12 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 	if (ret)
 		goto stream_error;
 
+	/*
+	 * Change stream state to CONFIGURED on first Slave add.
+	 * Bus is not aware of number of Slave(s) in a stream at this
+	 * point so cannot depend on all Slave(s) to be added in order to
+	 * change stream state to CONFIGURED.
+	 */
 	stream->state = SDW_STREAM_CONFIGURED;
 	goto error;
 
