@@ -388,7 +388,6 @@ void snd_sof_shutdown(struct device *dev);
 int snd_sof_runtime_suspend(struct device *dev);
 int snd_sof_runtime_resume(struct device *dev);
 int snd_sof_resume(struct device *dev);
-int snd_sof_resume_early(struct device *dev);
 int snd_sof_suspend(struct device *dev);
 int snd_sof_suspend_late(struct device *dev);
 
