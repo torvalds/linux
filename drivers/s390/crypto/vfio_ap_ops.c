@@ -516,11 +516,123 @@ static ssize_t unassign_domain_store(struct device *dev,
 }
 DEVICE_ATTR_WO(unassign_domain);
 
+/**
+ * assign_control_domain_store
+ *
+ * @dev:	the matrix device
+ * @attr:	the mediated matrix device's assign_control_domain attribute
+ * @buf:	a buffer containing the domain ID to be assigned
+ * @count:	the number of bytes in @buf
+ *
+ * Parses the domain ID from @buf and sets the corresponding bit in the mediated
+ * matrix device's ADM.
+ *
+ * Returns the number of bytes processed if the domain ID is valid; otherwise,
+ * returns one of the following errors:
+ *	-EINVAL if the ID is not a number
+ *	-ENODEV if the ID exceeds the maximum value configured for the system
+ */
+static ssize_t assign_control_domain_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	int ret;
+	unsigned long id;
+	struct mdev_device *mdev = mdev_from_dev(dev);
+	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
+
+	ret = kstrtoul(buf, 0, &id);
+	if (ret)
+		return ret;
+
+	if (id > matrix_mdev->matrix.adm_max)
+		return -ENODEV;
+
+	/* Set the bit in the ADM (bitmask) corresponding to the AP control
+	 * domain number (id). The bits in the mask, from most significant to
+	 * least significant, correspond to IDs 0 up to the one less than the
+	 * number of control domains that can be assigned.
+	 */
+	mutex_lock(&matrix_dev->lock);
+	set_bit_inv(id, matrix_mdev->matrix.adm);
+	mutex_unlock(&matrix_dev->lock);
+
+	return count;
+}
+DEVICE_ATTR_WO(assign_control_domain);
+
+/**
+ * unassign_control_domain_store
+ *
+ * @dev:	the matrix device
+ * @attr:	the mediated matrix device's unassign_control_domain attribute
+ * @buf:	a buffer containing the domain ID to be unassigned
+ * @count:	the number of bytes in @buf
+ *
+ * Parses the domain ID from @buf and clears the corresponding bit in the
+ * mediated matrix device's ADM.
+ *
+ * Returns the number of bytes processed if the domain ID is valid; otherwise,
+ * returns one of the following errors:
+ *	-EINVAL if the ID is not a number
+ *	-ENODEV if the ID exceeds the maximum value configured for the system
+ */
+static ssize_t unassign_control_domain_store(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf, size_t count)
+{
+	int ret;
+	unsigned long domid;
+	struct mdev_device *mdev = mdev_from_dev(dev);
+	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
+	unsigned long max_domid =  matrix_mdev->matrix.adm_max;
+
+	ret = kstrtoul(buf, 0, &domid);
+	if (ret)
+		return ret;
+	if (domid > max_domid)
+		return -ENODEV;
+
+	mutex_lock(&matrix_dev->lock);
+	clear_bit_inv(domid, matrix_mdev->matrix.adm);
+	mutex_unlock(&matrix_dev->lock);
+
+	return count;
+}
+DEVICE_ATTR_WO(unassign_control_domain);
+
+static ssize_t control_domains_show(struct device *dev,
+				    struct device_attribute *dev_attr,
+				    char *buf)
+{
+	unsigned long id;
+	int nchars = 0;
+	int n;
+	char *bufpos = buf;
+	struct mdev_device *mdev = mdev_from_dev(dev);
+	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
+	unsigned long max_domid = matrix_mdev->matrix.adm_max;
+
+	mutex_lock(&matrix_dev->lock);
+	for_each_set_bit_inv(id, matrix_mdev->matrix.adm, max_domid + 1) {
+		n = sprintf(bufpos, "%04lx\n", id);
+		bufpos += n;
+		nchars += n;
+	}
+	mutex_unlock(&matrix_dev->lock);
+
+	return nchars;
+}
+DEVICE_ATTR_RO(control_domains);
+
 static struct attribute *vfio_ap_mdev_attrs[] = {
 	&dev_attr_assign_adapter.attr,
 	&dev_attr_unassign_adapter.attr,
 	&dev_attr_assign_domain.attr,
 	&dev_attr_unassign_domain.attr,
+	&dev_attr_assign_control_domain.attr,
+	&dev_attr_unassign_control_domain.attr,
+	&dev_attr_control_domains.attr,
 	NULL,
 };
 
