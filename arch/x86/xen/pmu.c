@@ -3,6 +3,7 @@
 #include <linux/interrupt.h>
 
 #include <asm/xen/hypercall.h>
+#include <xen/xen.h>
 #include <xen/page.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/vcpu.h>

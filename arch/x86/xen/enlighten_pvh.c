@@ -11,6 +11,7 @@
 #include <asm/xen/interface.h>
 #include <asm/xen/hypercall.h>
 
+#include <xen/xen.h>
 #include <xen/interface/memory.h>
 #include <xen/interface/hvm/start_info.h>
 

@@ -369,10 +369,6 @@ extern void __iomem *ioremap_wt(resource_size_t offset, unsigned long size);
 
 extern bool is_early_ioremap_ptep(pte_t *ptep);
 
-#ifdef CONFIG_XEN
-#include <xen/xen.h>
-#endif	/* CONFIG_XEN */
-
 #define IO_SPACE_LIMIT 0xffff
 
 #include <asm-generic/io.h>

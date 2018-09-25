@@ -23,6 +23,7 @@
 #include <linux/io.h>
 #include <linux/export.h>
 
+#include <xen/xen.h>
 #include <xen/platform_pci.h>
 #include "xen-ops.h"
 

@@ -31,8 +31,6 @@
 #include <asm/alternative.h>
 #include <asm/cpufeature.h>
 
-#include <xen/xen.h>
-
 /*
  * Generic IO read/write.  These perform native-endian accesses.
  */
