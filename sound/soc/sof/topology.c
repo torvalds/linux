@@ -2234,9 +2234,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 		spcm = snd_sof_find_spcm_name(sdev, (char *)route->source);
 		if (spcm) {
 			ret = spcm_bind(scomp, spcm, route->sink);
-			if (ret < 0)
-				goto err;
-			return 0;
+			goto err;
 		}
 
 		dev_err(sdev->dev, "error: source %s not found\n",
@@ -2254,9 +2252,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 		spcm = snd_sof_find_spcm_name(sdev, (char *)route->sink);
 		if (spcm) {
 			ret = spcm_bind(scomp, spcm, route->source);
-			if (ret < 0)
-				goto err;
-			return 0;
+			goto err;
 		}
 
 		dev_err(sdev->dev, "error: sink %s not found\n",
@@ -2327,9 +2323,9 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 
 		/* add route to route list */
 		list_add(&sroute->list, &sdev->route_list);
-	}
 
-	return ret;
+		return ret;
+	}
 
 err:
 	kfree(connect);
