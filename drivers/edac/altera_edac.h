@@ -370,6 +370,7 @@ struct altr_arria10_edac {
 	struct irq_domain	*domain;
 	struct irq_chip		irq_chip;
 	struct list_head	a10_ecc_devices;
+	struct notifier_block	panic_notifier;
 };
 
 /*
@@ -436,14 +437,5 @@ struct altr_arria10_edac {
 #define INTEL_SIP_SMC_FUNCID_REG_WRITE 8
 #define INTEL_SIP_SMC_REG_WRITE \
 	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_REG_WRITE)
-
-struct altr_stratix10_edac {
-	struct device		*dev;
-	int sb_irq;
-	struct irq_domain	*domain;
-	struct irq_chip		irq_chip;
-	struct list_head	s10_ecc_devices;
-	struct notifier_block	panic_notifier;
-};
 
 #endif	/* #ifndef _ALTERA_EDAC_H */
