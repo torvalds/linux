@@ -601,7 +601,7 @@
 			status = "disabled";
 		};
 
-		sdr: sdr@ffc25000 {
+		sdr: sdr@ffcfb100 {
 			compatible = "altr,sdr-ctl", "syscon";
 			reg = <0xffcfb100 0x80>;
 		};
