@@ -3475,6 +3475,21 @@ static void skl_detach_scalers(const struct intel_crtc_state *crtc_state)
 	}
 }
 
+static unsigned int skl_plane_stride_mult(const struct drm_framebuffer *fb,
+					  int color_plane, unsigned int rotation)
+{
+	/*
+	 * The stride is either expressed as a multiple of 64 bytes chunks for
+	 * linear buffers or in number of tiles for tiled buffers.
+	 */
+	if (fb->modifier == DRM_FORMAT_MOD_LINEAR)
+		return 64;
+	else if (drm_rotation_90_or_270(rotation))
+		return intel_tile_height(fb, color_plane);
+	else
+		return intel_tile_width_bytes(fb, color_plane);
+}
+
 u32 skl_plane_stride(const struct intel_plane_state *plane_state,
 		     int color_plane)
 {
@@ -3485,16 +3500,7 @@ u32 skl_plane_stride(const struct intel_plane_state *plane_state,
 	if (color_plane >= fb->format->num_planes)
 		return 0;
 
-	/*
-	 * The stride is either expressed as a multiple of 64 bytes chunks for
-	 * linear buffers or in number of tiles for tiled buffers.
-	 */
-	if (drm_rotation_90_or_270(rotation))
-		stride /= intel_tile_height(fb, color_plane);
-	else
-		stride /= intel_fb_stride_alignment(fb, color_plane);
-
-	return stride;
+	return stride / skl_plane_stride_mult(fb, color_plane, rotation);
 }
 
 static u32 skl_plane_ctl_format(uint32_t pixel_format)
@@ -8967,7 +8973,7 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 	fb->width = ((val >> 0) & 0x1fff) + 1;
 
 	val = I915_READ(PLANE_STRIDE(pipe, plane_id));
-	stride_mult = intel_fb_stride_alignment(fb, 0);
+	stride_mult = skl_plane_stride_mult(fb, 0, DRM_MODE_ROTATE_0);
 	fb->pitches[0] = (val & 0x3ff) * stride_mult;
 
 	aligned_height = intel_fb_align_height(fb, 0, fb->height);
