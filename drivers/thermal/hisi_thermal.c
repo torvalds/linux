@@ -63,6 +63,7 @@ struct hisi_thermal_data;
 struct hisi_thermal_sensor {
 	struct hisi_thermal_data *data;
 	struct thermal_zone_device *tzd;
+	const char *irq_name;
 	uint32_t id;
 	uint32_t thres_temp;
 };
@@ -407,6 +408,7 @@ static int hi6220_thermal_probe(struct hisi_thermal_data *data)
 		return -ENOMEM;
 
 	data->sensor[0].id = HI6220_CLUSTER0_SENSOR;
+	data->sensor[0].irq_name = "tsensor_intr";
 	data->sensor[0].data = data;
 	data->nr_sensors = 1;
 
@@ -423,6 +425,7 @@ static int hi3660_thermal_probe(struct hisi_thermal_data *data)
 		return -ENOMEM;
 
 	data->sensor[0].id = HI3660_BIG_SENSOR;
+	data->sensor[0].irq_name = "tsensor_a73";
 	data->sensor[0].data = data;
 	data->nr_sensors = 1;
 
@@ -576,13 +579,13 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 			return ret;
 		}
 
-		data->irq = platform_get_irq(pdev, 0);
+		data->irq = platform_get_irq_byname(pdev, sensor->irq_name);
 		if (data->irq < 0)
 			return data->irq;
 
 		ret = devm_request_threaded_irq(dev, data->irq, NULL,
 						hisi_thermal_alarm_irq_thread,
-						IRQF_ONESHOT, "hisi_thermal",
+						IRQF_ONESHOT, sensor->irq_name,
 						sensor);
 		if (ret < 0) {
 			dev_err(dev, "failed to request alarm irq: %d\n", ret);
