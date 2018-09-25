@@ -242,6 +242,22 @@
 		reg = <0x0 0xfe8c000 0x0 0x20>;
 	};
 
+	sram: sram@fec00000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0xfec00000 0x0 0x200000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x0 0xfec00000 0x200000>;
+		/* reserved for ddr dvfs and system suspend/resume */
+		ddr-sram@0 {
+			reg = <0x0 0x8000>;
+		};
+		/* reserved for vad audio buffer */
+		vad_sram: vad-sram@1c0000 {
+			reg = <0x1c0000 0x40000>;
+		};
+	};
+
 	gic: interrupt-controller@ff100000 {
 		compatible = "arm,gic-v3";
 		#interrupt-cells = <3>;
@@ -906,12 +922,12 @@
 
 	vad: vad@ff810000 {
 		compatible = "rockchip,rk1808-vad";
-		/* vad buf: last 256 KB system sram */
-		reg = <0x0 0xff810000 0x0 0x10000>, <0x0 0xfedc0000 0x0 0x40000>;
-		reg-names = "vad", "vad-memory";
+		reg = <0x0 0xff810000 0x0 0x10000>;
+		reg-names = "vad";
 		clocks = <&cru HCLK_VAD>;
 		clock-names = "hclk";
 		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,audio-sram = <&vad_sram>;
 		rockchip,audio-src = <0>;
 		rockchip,det-channel = <0>;
 		rockchip,mode = <1>;

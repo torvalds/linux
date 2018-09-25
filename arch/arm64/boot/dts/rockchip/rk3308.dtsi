@@ -1091,11 +1091,12 @@
 
 	vad: vad@ff3c0000 {
 		compatible = "rockchip,rk3308-vad";
-		reg = <0x0 0xff3c0000 0x0 0x10000>, <0x0 0xfff88000 0x0 0x38000>;
-		reg-names = "vad", "vad-memory";
+		reg = <0x0 0xff3c0000 0x0 0x10000>;
+		reg-names = "vad";
 		clocks = <&cru HCLK_VAD>;
 		clock-names = "hclk";
 		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,audio-sram = <&vad_sram>;
 		rockchip,audio-src = <0>;
 		rockchip,det-channel = <0>;
 		rockchip,mode = <0>;
@@ -1268,6 +1269,22 @@
 		      <0x0 0xff584000 0x0 0x2000>,
 		      <0x0 0xff586000 0x0 0x2000>;
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	sram: sram@fff80000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0xfff80000 0x0 0x40000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x0 0xfff80000 0x40000>;
+		/* reserved for ddr dvfs and system suspend/resume */
+		ddr-sram@0 {
+			reg = <0x0 0x8000>;
+		};
+		/* reserved for vad audio buffer */
+		vad_sram: vad-sram@8000 {
+			reg = <0x8000 0x38000>;
+		};
 	};
 
 	pinctrl: pinctrl {
