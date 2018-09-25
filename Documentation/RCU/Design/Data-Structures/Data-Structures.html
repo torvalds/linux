@@ -1011,9 +1011,10 @@ as follows:
   5   bool gpwrap;
 </pre>
 
-<p>The <tt>-&gt;gp_seq</tt> and <tt>-&gt;gp_seq_needed</tt>
-fields are the counterparts of the fields of the same name
-in the <tt>rcu_state</tt> and <tt>rcu_node</tt> structures.
+<p>The <tt>-&gt;gp_seq</tt> field is the counterpart of the field of the same
+name in the <tt>rcu_state</tt> and <tt>rcu_node</tt> structures.  The
+<tt>-&gt;gp_seq_needed</tt> field is the counterpart of the field of the same
+name in the rcu_node</tt> structure.
 They may each lag up to one behind their <tt>rcu_node</tt>
 counterparts, but in <tt>CONFIG_NO_HZ_IDLE</tt> and
 <tt>CONFIG_NO_HZ_FULL</tt> kernels can lag
