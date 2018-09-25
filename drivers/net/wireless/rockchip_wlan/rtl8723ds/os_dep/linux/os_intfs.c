@@ -4092,7 +4092,8 @@ int rtw_suspend_wow(_adapter *padapter)
 		else {
 			if (!(pwrpriv->wowlan_dis_lps)) {
 				rtw_wow_lps_level_decide(padapter, _TRUE);
-				rtw_set_ps_mode(padapter, PS_MODE_MAX, 0, 0, "WOWLAN");
+				RTW_INFO("[WIFIDBG] smart_ps = 2\n");
+				rtw_set_ps_mode(padapter, PS_MODE_MAX, 2, 0, "WOWLAN");
 			}
 		}
 #endif /* #ifdef CONFIG_LPS */

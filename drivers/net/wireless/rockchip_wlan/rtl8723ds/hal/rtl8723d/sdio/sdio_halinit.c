@@ -1645,6 +1645,7 @@ u8 SetHwReg8723DS(PADAPTER padapter, u8 variable, u8 *val)
 		} else if (enable == _FALSE) {
 			RTW_INFO("%s: keep WLAN ctrl\n", __func__);
 		}
+		// 0x66[4,8]=0
 		/*0x66 bit4*/
 		value = rtw_read8(padapter, REG_PAD_CTRL_1 + 2);
 		if (enable && (value & BIT(4))) {
@@ -1664,7 +1665,15 @@ u8 SetHwReg8723DS(PADAPTER padapter, u8 variable, u8 *val)
 			value |= BIT(0);
 			rtw_write8(padapter, REG_PAD_CTRL_1 + 3, value);
 		}
-		RTW_INFO("%s: HW_SET_GPIO_WL_CTRL\n", __func__);
+		// 0x40[1:0] = 0 0x40[3] = 0
+		rtw_write32(padapter, 0x40, rtw_read32(padapter, 0x40) & 0xFFFFFFF4);
+		//0x44[30] = 0
+		rtw_write32(padapter, 0x44, rtw_read32(padapter, 0x44) & ~BIT(30));
+		//0x64[27]=0
+		rtw_write32(padapter, 0x64, rtw_read32(padapter, 0x64) & ~BIT(27));
+		//0x70[18]=0
+		rtw_write32(padapter, 0x70, rtw_read32(padapter, 0x70) & ~BIT(18));
+		RTW_INFO("%s: HW_SET_GPIO_WL_CTRL pinmux\n", __func__);
 	}
 		break;
 #endif
