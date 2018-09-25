@@ -70,9 +70,9 @@
 &i2c1 {
 	status = "okay";
 
-	eeprom@87 {
+	eeprom@57 {
 		compatible = "giantec,gt24c32a", "atmel,24c32";
-		reg = <87>;
+		reg = <0x57>;
 		pagesize = <32>;
 	};
 };
