@@ -25,7 +25,7 @@ config NET_DSA_LOOP
 
 config NET_DSA_LANTIQ_GSWIP
 	tristate "Lantiq / Intel GSWIP"
-	depends on NET_DSA
+	depends on HAS_IOMEM && NET_DSA
 	select NET_DSA_TAG_GSWIP
 	---help---
 	  This enables support for the Lantiq / Intel GSWIP 2.1 found in
