@@ -796,9 +796,9 @@ static void wilc_set_multicast_list(struct net_device *dev)
 {
 	struct netdev_hw_addr *ha;
 	struct wilc_vif *vif = netdev_priv(dev);
-	int i = 0;
+	int i;
 	u8 *mc_list;
-	int res;
+	u8 *cur_mc;
 
 	if (dev->flags & IFF_PROMISC)
 		return;
@@ -814,20 +814,20 @@ static void wilc_set_multicast_list(struct net_device *dev)
 		return;
 	}
 
-	mc_list = kmalloc(dev->mc.count * ETH_ALEN, GFP_KERNEL);
+	mc_list = kmalloc_array(dev->mc.count, ETH_ALEN, GFP_KERNEL);
 	if (!mc_list)
 		return;
 
+	cur_mc = mc_list;
+	i = 0;
 	netdev_for_each_mc_addr(ha, dev) {
-		memcpy(mc_list + i, ha->addr, ETH_ALEN);
-		netdev_dbg(dev, "Entry[%d]: %x:%x:%x:%x:%x:%x\n", i/ETH_ALEN,
-			   mc_list[i], mc_list[i + 1], mc_list[i + 2],
-			   mc_list[i + 3], mc_list[i + 4], mc_list[i + 5]);
-		i += ETH_ALEN;
+		memcpy(cur_mc, ha->addr, ETH_ALEN);
+		netdev_dbg(dev, "Entry[%d]: %pM\n", i, cur_mc);
+		i++;
+		cur_mc += ETH_ALEN;
 	}
 
-	res = wilc_setup_multicast_filter(vif, true, dev->mc.count, mc_list);
-	if (res)
+	if (wilc_setup_multicast_filter(vif, true, dev->mc.count, mc_list))
 		kfree(mc_list);
 }
 
