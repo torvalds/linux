@@ -71,8 +71,8 @@ static void wilc_wlan_txq_add_to_tail(struct net_device *dev,
 	complete(&wilc->txq_event);
 }
 
-static int wilc_wlan_txq_add_to_head(struct wilc_vif *vif,
-				     struct txq_entry_t *tqe)
+static void wilc_wlan_txq_add_to_head(struct wilc_vif *vif,
+				      struct txq_entry_t *tqe)
 {
 	unsigned long flags;
 	struct wilc *wilc = vif->wilc;
@@ -87,8 +87,6 @@ static int wilc_wlan_txq_add_to_head(struct wilc_vif *vif,
 	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
 	mutex_unlock(&wilc->txq_add_to_head_cs);
 	complete(&wilc->txq_event);
-
-	return 0;
 }
 
 #define NOT_TCP_ACK			(-1)
@@ -275,10 +273,7 @@ static int wilc_wlan_txq_add_cfg_pkt(struct wilc_vif *vif, u8 *buffer,
 	tqe->priv = NULL;
 	tqe->ack_idx = NOT_TCP_ACK;
 
-	if (wilc_wlan_txq_add_to_head(vif, tqe)) {
-		kfree(tqe);
-		return 0;
-	}
+	wilc_wlan_txq_add_to_head(vif, tqe);
 
 	return 1;
 }
