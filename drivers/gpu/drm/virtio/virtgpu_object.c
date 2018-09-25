@@ -99,22 +99,23 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 	return 0;
 }
 
-int virtio_gpu_object_kmap(struct virtio_gpu_object *bo, void **ptr)
+void virtio_gpu_object_kunmap(struct virtio_gpu_object *bo)
+{
+	bo->vmap = NULL;
+	ttm_bo_kunmap(&bo->kmap);
+}
+
+int virtio_gpu_object_kmap(struct virtio_gpu_object *bo)
 {
 	bool is_iomem;
 	int r;
 
-	if (bo->vmap) {
-		if (ptr)
-			*ptr = bo->vmap;
-		return 0;
-	}
+	WARN_ON(bo->vmap);
+
 	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
 	if (r)
 		return r;
 	bo->vmap = ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
-	if (ptr)
-		*ptr = bo->vmap;
 	return 0;
 }
 
