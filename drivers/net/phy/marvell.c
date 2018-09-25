@@ -265,7 +265,7 @@ static int marvell_set_polarity(struct phy_device *phydev, int polarity)
 			return err;
 	}
 
-	return 0;
+	return val != reg;
 }
 
 static int marvell_set_downshift(struct phy_device *phydev, bool enable,
@@ -287,11 +287,14 @@ static int marvell_set_downshift(struct phy_device *phydev, bool enable,
 
 static int marvell_config_aneg(struct phy_device *phydev)
 {
+	int changed = 0;
 	int err;
 
 	err = marvell_set_polarity(phydev, phydev->mdix_ctrl);
 	if (err < 0)
 		return err;
+
+	changed = err;
 
 	err = phy_write(phydev, MII_M1111_PHY_LED_CONTROL,
 			MII_M1111_PHY_LED_DIRECT);
@@ -302,7 +305,7 @@ static int marvell_config_aneg(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	if (phydev->autoneg != AUTONEG_ENABLE) {
+	if (phydev->autoneg != AUTONEG_ENABLE || changed) {
 		/* A write to speed/duplex bits (that is performed by
 		 * genphy_config_aneg() call above) must be followed by
 		 * a software reset. Otherwise, the write has no effect.
@@ -348,42 +351,6 @@ static int m88e1101_config_aneg(struct phy_device *phydev)
 		return err;
 
 	return marvell_config_aneg(phydev);
-}
-
-static int m88e1111_config_aneg(struct phy_device *phydev)
-{
-	int err;
-
-	/* The Marvell PHY has an errata which requires
-	 * that certain registers get written in order
-	 * to restart autonegotiation
-	 */
-	err = genphy_soft_reset(phydev);
-
-	err = marvell_set_polarity(phydev, phydev->mdix_ctrl);
-	if (err < 0)
-		return err;
-
-	err = phy_write(phydev, MII_M1111_PHY_LED_CONTROL,
-			MII_M1111_PHY_LED_DIRECT);
-	if (err < 0)
-		return err;
-
-	err = genphy_config_aneg(phydev);
-	if (err < 0)
-		return err;
-
-	if (phydev->autoneg != AUTONEG_ENABLE) {
-		/* A write to speed/duplex bits (that is performed by
-		 * genphy_config_aneg() call above) must be followed by
-		 * a software reset. Otherwise, the write has no effect.
-		 */
-		err = genphy_soft_reset(phydev);
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
 }
 
 #ifdef CONFIG_OF_MDIO
@@ -479,6 +446,7 @@ static int m88e1121_config_aneg_rgmii_delays(struct phy_device *phydev)
 
 static int m88e1121_config_aneg(struct phy_device *phydev)
 {
+	int changed = 0;
 	int err = 0;
 
 	if (phy_interface_is_rgmii(phydev)) {
@@ -487,15 +455,26 @@ static int m88e1121_config_aneg(struct phy_device *phydev)
 			return err;
 	}
 
-	err = genphy_soft_reset(phydev);
-	if (err < 0)
-		return err;
-
 	err = marvell_set_polarity(phydev, phydev->mdix_ctrl);
 	if (err < 0)
 		return err;
 
-	return genphy_config_aneg(phydev);
+	changed = err;
+
+	err = genphy_config_aneg(phydev);
+	if (err < 0)
+		return err;
+
+	if (phydev->autoneg != autoneg || changed) {
+		/* A software reset is used to ensure a "commit" of the
+		 * changes is done.
+		 */
+		err = genphy_soft_reset(phydev);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
 }
 
 static int m88e1318_config_aneg(struct phy_device *phydev)
@@ -2067,7 +2046,7 @@ static struct phy_driver marvell_drivers[] = {
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = marvell_probe,
 		.config_init = &m88e1111_config_init,
-		.config_aneg = &m88e1111_config_aneg,
+		.config_aneg = &marvell_config_aneg,
 		.read_status = &marvell_read_status,
 		.ack_interrupt = &marvell_ack_interrupt,
 		.config_intr = &marvell_config_intr,
