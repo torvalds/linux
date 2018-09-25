@@ -221,6 +221,8 @@
 #define      MVNETA_GMAC_AN_FLOW_CTRL_EN         BIT(11)
 #define      MVNETA_GMAC_CONFIG_FULL_DUPLEX      BIT(12)
 #define      MVNETA_GMAC_AN_DUPLEX_EN            BIT(13)
+#define MVNETA_GMAC_CTRL_4                       0x2c90
+#define      MVNETA_GMAC4_SHORT_PREAMBLE_ENABLE  BIT(1)
 #define MVNETA_MIB_COUNTERS_BASE                 0x3000
 #define      MVNETA_MIB_LATE_COLLISION           0x7c
 #define MVNETA_DA_FILT_SPEC_MCAST                0x3400
@@ -3341,6 +3343,7 @@ static void mvneta_validate(struct net_device *ndev, unsigned long *supported,
 	if (state->interface != PHY_INTERFACE_MODE_NA &&
 	    state->interface != PHY_INTERFACE_MODE_QSGMII &&
 	    state->interface != PHY_INTERFACE_MODE_SGMII &&
+	    state->interface != PHY_INTERFACE_MODE_2500BASEX &&
 	    !phy_interface_mode_is_8023z(state->interface) &&
 	    !phy_interface_mode_is_rgmii(state->interface)) {
 		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
@@ -3353,9 +3356,15 @@ static void mvneta_validate(struct net_device *ndev, unsigned long *supported,
 
 	/* Asymmetric pause is unsupported */
 	phylink_set(mask, Pause);
-	/* Half-duplex at speeds higher than 100Mbit is unsupported */
-	phylink_set(mask, 1000baseT_Full);
-	phylink_set(mask, 1000baseX_Full);
+
+	/* We cannot use 1Gbps when using the 2.5G interface. */
+	if (state->interface == PHY_INTERFACE_MODE_2500BASEX) {
+		phylink_set(mask, 2500baseT_Full);
+		phylink_set(mask, 2500baseX_Full);
+	} else {
+		phylink_set(mask, 1000baseT_Full);
+		phylink_set(mask, 1000baseX_Full);
+	}
 
 	if (!phy_interface_mode_is_8023z(state->interface)) {
 		/* 10M and 100M are only supported in non-802.3z mode */
@@ -3416,12 +3425,14 @@ static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
 	struct mvneta_port *pp = netdev_priv(ndev);
 	u32 new_ctrl0, gmac_ctrl0 = mvreg_read(pp, MVNETA_GMAC_CTRL_0);
 	u32 new_ctrl2, gmac_ctrl2 = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
+	u32 new_ctrl4, gmac_ctrl4 = mvreg_read(pp, MVNETA_GMAC_CTRL_4);
 	u32 new_clk, gmac_clk = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
 	u32 new_an, gmac_an = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
 
 	new_ctrl0 = gmac_ctrl0 & ~MVNETA_GMAC0_PORT_1000BASE_X;
 	new_ctrl2 = gmac_ctrl2 & ~(MVNETA_GMAC2_INBAND_AN_ENABLE |
 				   MVNETA_GMAC2_PORT_RESET);
+	new_ctrl4 = gmac_ctrl4 & ~(MVNETA_GMAC4_SHORT_PREAMBLE_ENABLE);
 	new_clk = gmac_clk & ~MVNETA_GMAC_1MS_CLOCK_ENABLE;
 	new_an = gmac_an & ~(MVNETA_GMAC_INBAND_AN_ENABLE |
 			     MVNETA_GMAC_INBAND_RESTART_AN |
@@ -3454,7 +3465,7 @@ static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
 		if (state->duplex)
 			new_an |= MVNETA_GMAC_CONFIG_FULL_DUPLEX;
 
-		if (state->speed == SPEED_1000)
+		if (state->speed == SPEED_1000 || state->speed == SPEED_2500)
 			new_an |= MVNETA_GMAC_CONFIG_GMII_SPEED;
 		else if (state->speed == SPEED_100)
 			new_an |= MVNETA_GMAC_CONFIG_MII_SPEED;
@@ -3493,10 +3504,18 @@ static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
 			    MVNETA_GMAC_FORCE_LINK_DOWN);
 	}
 
+	/* When at 2.5G, the link partner can send frames with shortened
+	 * preambles.
+	 */
+	if (state->speed == SPEED_2500)
+		new_ctrl4 |= MVNETA_GMAC4_SHORT_PREAMBLE_ENABLE;
+
 	if (new_ctrl0 != gmac_ctrl0)
 		mvreg_write(pp, MVNETA_GMAC_CTRL_0, new_ctrl0);
 	if (new_ctrl2 != gmac_ctrl2)
 		mvreg_write(pp, MVNETA_GMAC_CTRL_2, new_ctrl2);
+	if (new_ctrl4 != gmac_ctrl4)
+		mvreg_write(pp, MVNETA_GMAC_CTRL_4, new_ctrl4);
 	if (new_clk != gmac_clk)
 		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER, new_clk);
 	if (new_an != gmac_an)
