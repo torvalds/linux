@@ -77,7 +77,7 @@ EXPORT(_stext)
 	 */
 FEXPORT(__kernel_entry)
 	j	kernel_entry
-#endif
+#endif /* CONFIG_BOOT_RAW */
 
 	__REF
 
@@ -99,19 +99,19 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	li		t1, 0xd00dfeed
-#else
+#else  /* !CONFIG_CPU_BIG_ENDIAN */
 	li		t1, 0xedfe0dd0
-#endif
+#endif /* !CONFIG_CPU_BIG_ENDIAN */
 	lw		t0, (t2)
 	beq		t0, t1, dtb_found
-#endif
+#endif /* CONFIG_MIPS_RAW_APPENDED_DTB */
 	li		t1, -2
 	move		t2, a1
 	beq		a0, t1, dtb_found
 
 	li		t2, 0
 dtb_found:
-#endif
+#endif /* CONFIG_USE_OF */
 	PTR_LA		t0, __bss_start		# clear .bss
 	LONG_S		zero, (t0)
 	PTR_LA		t1, __bss_stop - LONGSIZE
@@ -156,9 +156,9 @@ dtb_found:
 	 * newly sync'd icache.
 	 */
 	jr.hb		v0
-#else
+#else  /* !CONFIG_RELOCATABLE */
 	j		start_kernel
-#endif
+#endif /* !CONFIG_RELOCATABLE */
 	END(kernel_entry)
 
 #ifdef CONFIG_SMP
