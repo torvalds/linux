@@ -171,8 +171,7 @@ static u8 mlx5e_mpwqe_get_log_stride_size(struct mlx5_core_dev *mdev,
 	if (mlx5e_rx_mpwqe_is_linear_skb(mdev, params))
 		return order_base_2(mlx5e_rx_get_linear_frag_sz(params));
 
-	return MLX5E_MPWQE_STRIDE_SZ(mdev,
-		MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_CQE_COMPRESS));
+	return MLX5_MPWRQ_DEF_LOG_STRIDE_SZ(mdev);
 }
 
 static u8 mlx5e_mpwqe_get_log_num_strides(struct mlx5_core_dev *mdev,

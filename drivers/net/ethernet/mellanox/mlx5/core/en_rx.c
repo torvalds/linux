@@ -369,7 +369,7 @@ mlx5e_add_skb_frag(struct mlx5e_rq *rq, struct sk_buff *skb,
 static inline void
 mlx5e_copy_skb_header(struct device *pdev, struct sk_buff *skb,
 		      struct mlx5e_dma_info *dma_info,
-		      int offset_from, int offset_to, u32 headlen)
+		      int offset_from, u32 headlen)
 {
 	const void *from = page_address(dma_info->page) + offset_from;
 	/* Aligning len to sizeof(long) optimizes memcpy performance */
@@ -377,24 +377,7 @@ mlx5e_copy_skb_header(struct device *pdev, struct sk_buff *skb,
 
 	dma_sync_single_for_cpu(pdev, dma_info->addr + offset_from, len,
 				DMA_FROM_DEVICE);
-	skb_copy_to_linear_data_offset(skb, offset_to, from, len);
-}
-
-static inline void
-mlx5e_copy_skb_header_mpwqe(struct device *pdev,
-			    struct sk_buff *skb,
-			    struct mlx5e_dma_info *dma_info,
-			    u32 offset, u32 headlen)
-{
-	u16 headlen_pg = min_t(u32, headlen, PAGE_SIZE - offset);
-
-	mlx5e_copy_skb_header(pdev, skb, dma_info, offset, 0, headlen_pg);
-
-	if (unlikely(offset + headlen > PAGE_SIZE)) {
-		dma_info++;
-		mlx5e_copy_skb_header(pdev, skb, dma_info, 0, headlen_pg,
-				      headlen - headlen_pg);
-	}
+	skb_copy_to_linear_data(skb, from, len);
 }
 
 static void
@@ -973,8 +956,7 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 	}
 
 	/* copy header */
-	mlx5e_copy_skb_header(rq->pdev, skb, head_wi->di, head_wi->offset,
-			      0, headlen);
+	mlx5e_copy_skb_header(rq->pdev, skb, head_wi->di, head_wi->offset, headlen);
 	/* skb linear part was allocated with headlen and aligned to long */
 	skb->tail += headlen;
 	skb->len  += headlen;
@@ -1096,8 +1078,7 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 		di++;
 	}
 	/* copy header */
-	mlx5e_copy_skb_header_mpwqe(rq->pdev, skb, head_di,
-				    head_offset, headlen);
+	mlx5e_copy_skb_header(rq->pdev, skb, head_di, head_offset, headlen);
 	/* skb linear part was allocated with headlen and aligned to long */
 	skb->tail += headlen;
 	skb->len  += headlen;
