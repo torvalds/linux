@@ -181,8 +181,8 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 
 	sg_list_start = umem->sg_head.sgl;
 
-	down_read(&mm->mmap_sem);
 	while (npages) {
+		down_read(&mm->mmap_sem);
 		ret = get_user_pages_longterm(cur_base,
 				     min_t(unsigned long, npages,
 					   PAGE_SIZE / sizeof (struct page *)),
@@ -196,17 +196,20 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 		cur_base += ret * PAGE_SIZE;
 		npages   -= ret;
 
+		/* Continue to hold the mmap_sem as vma_list access
+		 * needs to be protected.
+		 */
 		for_each_sg(sg_list_start, sg, ret, i) {
 			if (vma_list && !is_vm_hugetlb_page(vma_list[i]))
 				umem->hugetlb = 0;
 
 			sg_set_page(sg, page_list[i], PAGE_SIZE, 0);
 		}
+		up_read(&mm->mmap_sem);
 
 		/* preparing for next loop */
 		sg_list_start = sg;
 	}
-	up_read(&mm->mmap_sem);
 
 	umem->nmap = ib_dma_map_sg_attrs(context->device,
 				  umem->sg_head.sgl,
