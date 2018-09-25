@@ -742,7 +742,10 @@ static void smc_connect_work(struct work_struct *work)
 		smc->sk.sk_err = -rc;
 
 out:
-	smc->sk.sk_state_change(&smc->sk);
+	if (smc->sk.sk_err)
+		smc->sk.sk_state_change(&smc->sk);
+	else
+		smc->sk.sk_write_space(&smc->sk);
 	kfree(smc->connect_info);
 	smc->connect_info = NULL;
 	release_sock(&smc->sk);
@@ -1150,9 +1153,9 @@ static int smc_listen_rdma_reg(struct smc_sock *new_smc, int local_contact)
 }
 
 /* listen worker: finish RDMA setup */
-static void smc_listen_rdma_finish(struct smc_sock *new_smc,
-				   struct smc_clc_msg_accept_confirm *cclc,
-				   int local_contact)
+static int smc_listen_rdma_finish(struct smc_sock *new_smc,
+				  struct smc_clc_msg_accept_confirm *cclc,
+				  int local_contact)
 {
 	struct smc_link *link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
 	int reason_code = 0;
@@ -1175,11 +1178,12 @@ static void smc_listen_rdma_finish(struct smc_sock *new_smc,
 		if (reason_code)
 			goto decline;
 	}
-	return;
+	return 0;
 
 decline:
 	mutex_unlock(&smc_create_lgr_pending);
 	smc_listen_decline(new_smc, reason_code, local_contact);
+	return reason_code;
 }
 
 /* setup for RDMA connection of server */
@@ -1276,8 +1280,10 @@ static void smc_listen_work(struct work_struct *work)
 	}
 
 	/* finish worker */
-	if (!ism_supported)
-		smc_listen_rdma_finish(new_smc, &cclc, local_contact);
+	if (!ism_supported) {
+		if (smc_listen_rdma_finish(new_smc, &cclc, local_contact))
+			return;
+	}
 	smc_conn_save_peer_info(new_smc, &cclc);
 	mutex_unlock(&smc_create_lgr_pending);
 	smc_listen_out_connected(new_smc);
@@ -1529,7 +1535,7 @@ static __poll_t smc_poll(struct file *file, struct socket *sock,
 		return EPOLLNVAL;
 
 	smc = smc_sk(sock->sk);
-	if ((sk->sk_state == SMC_INIT) || smc->use_fallback) {
+	if (smc->use_fallback) {
 		/* delegate to CLC child sock */
 		mask = smc->clcsock->ops->poll(file, smc->clcsock, wait);
 		sk->sk_err = smc->clcsock->sk->sk_err;
@@ -1560,9 +1566,9 @@ static __poll_t smc_poll(struct file *file, struct socket *sock,
 				mask |= EPOLLIN | EPOLLRDNORM | EPOLLRDHUP;
 			if (sk->sk_state == SMC_APPCLOSEWAIT1)
 				mask |= EPOLLIN;
+			if (smc->conn.urg_state == SMC_URG_VALID)
+				mask |= EPOLLPRI;
 		}
-		if (smc->conn.urg_state == SMC_URG_VALID)
-			mask |= EPOLLPRI;
 	}
 
 	return mask;

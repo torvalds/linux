@@ -206,7 +206,7 @@ static void poll_timeout(struct mlx5_cmd_work_ent *ent)
 	u8 own;
 
 	do {
-		own = ent->lay->status_own;
+		own = READ_ONCE(ent->lay->status_own);
 		if (!(own & CMD_OWNER_HW)) {
 			ent->ret = 0;
 			return;
