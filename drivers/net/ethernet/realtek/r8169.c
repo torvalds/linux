@@ -77,8 +77,6 @@ static const int multicast_filter_limit = 32;
 #define R8169_TX_RING_BYTES	(NUM_TX_DESC * sizeof(struct TxDesc))
 #define R8169_RX_RING_BYTES	(NUM_RX_DESC * sizeof(struct RxDesc))
 
-#define RTL8169_TX_TIMEOUT	(6*HZ)
-
 /* write/read MMIO register */
 #define RTL_W8(tp, reg, val8)	writeb((val8), tp->mmio_addr + (reg))
 #define RTL_W16(tp, reg, val16)	writew((val16), tp->mmio_addr + (reg))
@@ -7414,7 +7412,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev->dev_addr[i] = RTL_R8(tp, MAC0 + i);
 
 	dev->ethtool_ops = &rtl8169_ethtool_ops;
-	dev->watchdog_timeo = RTL8169_TX_TIMEOUT;
 
 	netif_napi_add(dev, &tp->napi, rtl8169_poll, NAPI_POLL_WEIGHT);
 
