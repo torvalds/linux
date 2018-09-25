@@ -856,7 +856,7 @@ int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len)
 		return _FAIL;
 	}
 
-	if (!memcmp(cur_network->network.MacAddress, pbssid, 6) == false) {
+	if (memcmp(cur_network->network.MacAddress, pbssid, 6)) {
 		DBG_88E("Oops: rtw_check_network_encrypt linked but recv other bssid bcn\n%pM %pM\n",
 			(pbssid), (cur_network->network.MacAddress));
 		return true;
