@@ -979,12 +979,14 @@ static const struct of_device_id rockchip_vad_match[] = {
 static int rockchip_vad_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct device_node *asrc_np;
+	struct device_node *asrc_np = NULL;
+	struct device_node *sram_np = NULL;
 	const struct of_device_id *match;
 	const struct regmap_config *regmap_config;
 	struct rockchip_vad *vad;
 	struct resource *res;
 	struct resource audio_res;
+	struct resource sram_res;
 	void __iomem *regbase;
 	int irq;
 	int ret;
@@ -1014,36 +1016,59 @@ static int rockchip_vad_probe(struct platform_device *pdev)
 	of_property_read_u32(np, "rockchip,mode", &vad->mode);
 	of_property_read_u32(np, "rockchip,det-channel", &vad->audio_chnl);
 	of_property_read_u32(np, "rockchip,buffer-time-ms", &vad->buffer_time);
-	asrc_np = of_parse_phandle(np, "rockchip,audio-src", 0);
-	ret = of_address_to_resource(asrc_np, 0, &audio_res);
-	if (ret)
-		return ret;
-	ret = rockchip_vad_get_audio_src_address(vad, audio_res.start);
-	if (ret)
-		return ret;
-	vad->audio_node = asrc_np;
-	vad->audio_src <<= AUDIO_SRC_SEL_SHIFT;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vad");
 	regbase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(regbase))
 		return PTR_ERR(regbase);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "vad-memory");
-	vad->memphy = res->start;
-	vad->memphy_end = res->end + 0x1 - 0x8;
-	vad->membase = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(vad->membase))
-		return PTR_ERR(vad->membase);
+	sram_np = of_parse_phandle(np, "rockchip,audio-sram", 0);
+	if (!sram_np) {
+		dev_err(&pdev->dev, "could not find sram dt node\n");
+		return -ENODEV;
+	}
+
+	asrc_np = of_parse_phandle(np, "rockchip,audio-src", 0);
+	if (!asrc_np) {
+		ret = -ENODEV;
+		goto err_phandle;
+	}
+
+	ret = of_address_to_resource(asrc_np, 0, &audio_res);
+	if (ret)
+		goto err_phandle;
+	ret = rockchip_vad_get_audio_src_address(vad, audio_res.start);
+	if (ret)
+		goto err_phandle;
+	vad->audio_node = asrc_np;
+	vad->audio_src <<= AUDIO_SRC_SEL_SHIFT;
+
+	ret = of_address_to_resource(sram_np, 0, &sram_res);
+	if (ret)
+		goto err_phandle;
+	vad->memphy = sram_res.start;
+	vad->memphy_end = sram_res.start + resource_size(&sram_res) - 0x8;
+	vad->membase = devm_ioremap(&pdev->dev, sram_res.start,
+				    resource_size(&sram_res));
+	if (!vad->membase) {
+		ret = -ENOMEM;
+		goto err_phandle;
+	}
+
+	if (IS_ERR(vad->membase)) {
+		ret = PTR_ERR(vad->membase);
+		goto err_phandle;
+	}
 
 	vad->hclk = devm_clk_get(&pdev->dev, "hclk");
-	if (IS_ERR(vad->hclk))
-		return PTR_ERR(vad->hclk);
+	if (IS_ERR(vad->hclk)) {
+		ret = PTR_ERR(vad->hclk);
+		goto err_phandle;
+	}
 
 	ret = clk_prepare_enable(vad->hclk);
 	if (ret)
-		return ret;
+		goto err_phandle;
 
 	vad->regmap = devm_regmap_init_mmio(&pdev->dev, regbase,
 					    regmap_config);
@@ -1075,10 +1100,19 @@ static int rockchip_vad_probe(struct platform_device *pdev)
 #endif
 
 	platform_set_drvdata(pdev, vad);
-	return snd_soc_register_codec(&pdev->dev, &soc_vad_codec,
-				      &vad_dai, 1);
+	ret = snd_soc_register_codec(&pdev->dev, &soc_vad_codec,
+				     &vad_dai, 1);
+	if (ret)
+		goto err;
+
+	of_node_put(sram_np);
+
+	return 0;
 err:
 	clk_disable_unprepare(vad->hclk);
+err_phandle:
+	of_node_put(sram_np);
+	of_node_put(asrc_np);
 	return ret;
 }
 
@@ -1088,6 +1122,7 @@ static int rockchip_vad_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(vad->hclk))
 		clk_disable_unprepare(vad->hclk);
+	of_node_put(vad->audio_node);
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }

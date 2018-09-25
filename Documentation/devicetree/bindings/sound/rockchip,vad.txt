@@ -10,7 +10,8 @@ Required properties:
 - clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
 - clock-names: should contain following:
 - interrupts: should contain the vad interrupt.
-- rockchip,audio-src: the audio src for vad.
+- rockchip,audio-sram: the phandle of audio sram for vad.
+- rockchip,audio-src: the phandle of audio src for vad.
 - rockchip,buffer-time-ms: vad sram buffer time msec.
 - rockchip,det-channel: the channel(0~7) is used for detection.
 - rockchip,mode: vad work mode.
@@ -25,12 +26,13 @@ Example for rk3308 VAD controller:
 
 vad: vad@ff3c0000 {
 	compatible = "rockchip,rk3308-vad";
-	reg = <0x0 0xff3c0000 0x0 0x10000>, <0x0 0xfff88000 0x0 0x38000>;
-	reg-names = "vad", "vad-memory";
+	reg = <0x0 0xff3c0000 0x0 0x10000>;
+	reg-names = "vad";
 	clocks = <&cru HCLK_VAD>;
 	clock-names = "hclk";
 	interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
-	rockchip,audio-src = <0>;
+	rockchip,audio-sram = <&vad_sram>;
+	rockchip,audio-src = <&i2s_8ch_0>;
 	rockchip,det-channel = <0>;
 	rockchip,mode = <0>;
 	status = "disabled";
