@@ -723,6 +723,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 		attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_HANDLE);
 	struct mlx5_ib_ucontext *c = to_mucontext(uobj->context);
 	struct mlx5_ib_dev *dev = to_mdev(c->ibucontext.device);
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
 	struct devx_obj *obj;
 	int err;
 
@@ -754,10 +755,12 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 
 	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_OUT, cmd_out, cmd_out_len);
 	if (err)
-		goto obj_free;
+		goto obj_destroy;
 
 	return 0;
 
+obj_destroy:
+	mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out, sizeof(out));
 obj_free:
 	kfree(obj);
 	return err;
