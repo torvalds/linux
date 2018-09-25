@@ -442,8 +442,8 @@ static int hi3660_thermal_probe(struct hisi_thermal_data *data)
 
 static int hisi_thermal_get_temp(void *__data, int *temp)
 {
-	struct hisi_thermal_data *data = __data;
-	struct hisi_thermal_sensor *sensor = &data->sensor;
+	struct hisi_thermal_sensor *sensor = __data;
+	struct hisi_thermal_data *data = sensor->data;
 
 	*temp = data->ops->get_temp(sensor);
 
@@ -465,7 +465,7 @@ static irqreturn_t hisi_thermal_alarm_irq_thread(int irq, void *dev)
 
 	data->ops->irq_handler(sensor);
 
-	hisi_thermal_get_temp(data, &temp);
+	hisi_thermal_get_temp(sensor, &temp);
 
 	if (temp >= sensor->thres_temp) {
 		dev_crit(&data->pdev->dev, "THERMAL ALARM: %d > %d\n",
@@ -486,11 +486,10 @@ static int hisi_thermal_register_sensor(struct platform_device *pdev,
 					struct hisi_thermal_sensor *sensor)
 {
 	int ret, i;
-	struct hisi_thermal_data *data = sensor->data;
 	const struct thermal_trip *trip;
 
 	sensor->tzd = devm_thermal_zone_of_sensor_register(&pdev->dev,
-							   sensor->id, data,
+							   sensor->id, sensor,
 							   &hisi_of_thermal_ops);
 	if (IS_ERR(sensor->tzd)) {
 		ret = PTR_ERR(sensor->tzd);
