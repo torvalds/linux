@@ -1742,9 +1742,19 @@ static const struct i2c_device_id max98088_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max98088_i2c_id);
 
+#if defined(CONFIG_OF)
+static const struct of_device_id max98088_of_match[] = {
+	{ .compatible = "maxim,max98088" },
+	{ .compatible = "maxim,max98089" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, max98088_of_match);
+#endif
+
 static struct i2c_driver max98088_i2c_driver = {
 	.driver = {
 		.name = "max98088",
+		.of_match_table = of_match_ptr(max98088_of_match),
 	},
 	.probe  = max98088_i2c_probe,
 	.id_table = max98088_i2c_id,
