@@ -1352,7 +1352,8 @@ static void rtl_irq_enable_all(struct rtl8169_private *tp)
 static void rtl8169_irq_mask_and_ack(struct rtl8169_private *tp)
 {
 	rtl_irq_disable(tp);
-	rtl_ack_events(tp, RTL_EVENT_NAPI | tp->event_slow);
+	rtl_ack_events(tp, 0xffff);
+	/* PCI commit */
 	RTL_R8(tp, ChipCmd);
 }
 
@@ -7365,13 +7366,11 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rtl_init_rxcfg(tp);
 
-	rtl_irq_disable(tp);
+	rtl8169_irq_mask_and_ack(tp);
 
 	rtl_hw_initialize(tp);
 
 	rtl_hw_reset(tp);
-
-	rtl_ack_events(tp, 0xffff);
 
 	pci_set_master(pdev);
 
