@@ -254,10 +254,18 @@ static int recover_inode(struct inode *inode, struct page *page)
 			F2FS_FITS_IN_INODE(raw, le16_to_cpu(raw->i_extra_isize),
 								i_projid)) {
 			projid_t i_projid;
+			kprojid_t kprojid;
 
 			i_projid = (projid_t)le32_to_cpu(raw->i_projid);
-			F2FS_I(inode)->i_projid =
-				make_kprojid(&init_user_ns, i_projid);
+			kprojid = make_kprojid(&init_user_ns, i_projid);
+
+			if (!projid_eq(kprojid, F2FS_I(inode)->i_projid)) {
+				err = f2fs_transfer_project_quota(inode,
+								kprojid);
+				if (err)
+					return err;
+				F2FS_I(inode)->i_projid = kprojid;
+			}
 		}
 	}
 
