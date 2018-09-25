@@ -9,7 +9,7 @@
 
 struct wilc_cfg_byte {
 	u16 id;
-	u16 val;
+	u8 val;
 };
 
 struct wilc_cfg_hword {
