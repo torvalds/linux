@@ -71,10 +71,15 @@ struct ap_matrix {
  * @list:	allows the ap_matrix_mdev struct to be added to a list
  * @matrix:	the adapters, usage domains and control domains assigned to the
  *		mediated matrix device.
+ * @group_notifier: notifier block used for specifying callback function for
+ *		    handling the VFIO_GROUP_NOTIFY_SET_KVM event
+ * @kvm:	the struct holding guest's state
  */
 struct ap_matrix_mdev {
 	struct list_head node;
 	struct ap_matrix matrix;
+	struct notifier_block group_notifier;
+	struct kvm *kvm;
 };
 
 extern int vfio_ap_mdev_register(void);

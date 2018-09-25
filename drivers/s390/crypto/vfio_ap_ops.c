@@ -13,6 +13,10 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/ctype.h>
+#include <linux/bitops.h>
+#include <linux/kvm_host.h>
+#include <linux/module.h>
+#include <asm/kvm.h>
 #include <asm/zcrypt.h>
 
 #include "vfio_ap_private.h"
@@ -53,6 +57,9 @@ static int vfio_ap_mdev_create(struct kobject *kobj, struct mdev_device *mdev)
 static int vfio_ap_mdev_remove(struct mdev_device *mdev)
 {
 	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
+
+	if (matrix_mdev->kvm)
+		return -EBUSY;
 
 	mutex_lock(&matrix_dev->lock);
 	list_del(&matrix_mdev->node);
@@ -305,6 +312,10 @@ static ssize_t assign_adapter_store(struct device *dev,
 	struct mdev_device *mdev = mdev_from_dev(dev);
 	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
 
+	/* If the guest is running, disallow assignment of adapter */
+	if (matrix_mdev->kvm)
+		return -EBUSY;
+
 	ret = kstrtoul(buf, 0, &apid);
 	if (ret)
 		return ret;
@@ -366,6 +377,10 @@ static ssize_t unassign_adapter_store(struct device *dev,
 	unsigned long apid;
 	struct mdev_device *mdev = mdev_from_dev(dev);
 	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
+
+	/* If the guest is running, disallow un-assignment of adapter */
+	if (matrix_mdev->kvm)
+		return -EBUSY;
 
 	ret = kstrtoul(buf, 0, &apid);
 	if (ret)
@@ -444,6 +459,10 @@ static ssize_t assign_domain_store(struct device *dev,
 	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
 	unsigned long max_apqi = matrix_mdev->matrix.aqm_max;
 
+	/* If the guest is running, disallow assignment of domain */
+	if (matrix_mdev->kvm)
+		return -EBUSY;
+
 	ret = kstrtoul(buf, 0, &apqi);
 	if (ret)
 		return ret;
@@ -501,6 +520,10 @@ static ssize_t unassign_domain_store(struct device *dev,
 	struct mdev_device *mdev = mdev_from_dev(dev);
 	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
 
+	/* If the guest is running, disallow un-assignment of domain */
+	if (matrix_mdev->kvm)
+		return -EBUSY;
+
 	ret = kstrtoul(buf, 0, &apqi);
 	if (ret)
 		return ret;
@@ -540,6 +563,10 @@ static ssize_t assign_control_domain_store(struct device *dev,
 	unsigned long id;
 	struct mdev_device *mdev = mdev_from_dev(dev);
 	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
+
+	/* If the guest is running, disallow assignment of control domain */
+	if (matrix_mdev->kvm)
+		return -EBUSY;
 
 	ret = kstrtoul(buf, 0, &id);
 	if (ret)
@@ -586,6 +613,10 @@ static ssize_t unassign_control_domain_store(struct device *dev,
 	struct mdev_device *mdev = mdev_from_dev(dev);
 	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
 	unsigned long max_domid =  matrix_mdev->matrix.adm_max;
+
+	/* If the guest is running, disallow un-assignment of control domain */
+	if (matrix_mdev->kvm)
+		return -EBUSY;
 
 	ret = kstrtoul(buf, 0, &domid);
 	if (ret)
@@ -696,12 +727,142 @@ static const struct attribute_group *vfio_ap_mdev_attr_groups[] = {
 	NULL
 };
 
+static void vfio_ap_mdev_copy_masks(struct ap_matrix_mdev *matrix_mdev)
+{
+	int nbytes;
+	unsigned long *apm, *aqm, *adm;
+	struct kvm_s390_crypto_cb *crycb = matrix_mdev->kvm->arch.crypto.crycb;
+
+	switch (matrix_mdev->kvm->arch.crypto.crycbd & CRYCB_FORMAT_MASK) {
+	case CRYCB_FORMAT2:
+		apm = (unsigned long *)crycb->apcb1.apm;
+		aqm = (unsigned long *)crycb->apcb1.aqm;
+		adm = (unsigned long *)crycb->apcb1.adm;
+		break;
+	case CRYCB_FORMAT1:
+	case CRYCB_FORMAT0:
+		apm = (unsigned long *)crycb->apcb0.apm;
+		aqm = (unsigned long *)crycb->apcb0.aqm;
+		adm = (unsigned long *)crycb->apcb0.adm;
+		break;
+	default:
+		/* cannot happen */
+		return;
+	}
+
+	nbytes = DIV_ROUND_UP(matrix_mdev->matrix.apm_max + 1, BITS_PER_BYTE);
+	memcpy(apm, matrix_mdev->matrix.apm, nbytes);
+	nbytes = DIV_ROUND_UP(matrix_mdev->matrix.aqm_max + 1, BITS_PER_BYTE);
+	memcpy(aqm, matrix_mdev->matrix.aqm, nbytes);
+	nbytes = DIV_ROUND_UP(matrix_mdev->matrix.adm_max + 1, BITS_PER_BYTE);
+	memcpy(adm, matrix_mdev->matrix.adm, nbytes);
+}
+
+/**
+ * vfio_ap_mdev_set_kvm
+ *
+ * @matrix_mdev: a mediated matrix device
+ * @kvm: reference to KVM instance
+ *
+ * Verifies no other mediated matrix device has @kvm and sets a reference to
+ * it in @matrix_mdev->kvm.
+ *
+ * Return 0 if no other mediated matrix device has a reference to @kvm;
+ * otherwise, returns an -EPERM.
+ */
+static int vfio_ap_mdev_set_kvm(struct ap_matrix_mdev *matrix_mdev,
+				struct kvm *kvm)
+{
+	struct ap_matrix_mdev *m;
+
+	mutex_lock(&matrix_dev->lock);
+
+	list_for_each_entry(m, &matrix_dev->mdev_list, node) {
+		if ((m != matrix_mdev) && (m->kvm == kvm)) {
+			mutex_unlock(&matrix_dev->lock);
+			return -EPERM;
+		}
+	}
+
+	matrix_mdev->kvm = kvm;
+	mutex_unlock(&matrix_dev->lock);
+
+	return 0;
+}
+
+static int vfio_ap_mdev_group_notifier(struct notifier_block *nb,
+				       unsigned long action, void *data)
+{
+	int ret;
+	struct ap_matrix_mdev *matrix_mdev;
+
+	if (action != VFIO_GROUP_NOTIFY_SET_KVM)
+		return NOTIFY_OK;
+
+	matrix_mdev = container_of(nb, struct ap_matrix_mdev, group_notifier);
+
+	if (!data) {
+		matrix_mdev->kvm = NULL;
+		return NOTIFY_OK;
+	}
+
+	ret = vfio_ap_mdev_set_kvm(matrix_mdev, data);
+	if (ret)
+		return NOTIFY_DONE;
+
+	/* If there is no CRYCB pointer, then we can't copy the masks */
+	if (!matrix_mdev->kvm->arch.crypto.crycbd)
+		return NOTIFY_DONE;
+
+	vfio_ap_mdev_copy_masks(matrix_mdev);
+
+	return NOTIFY_OK;
+}
+
+static int vfio_ap_mdev_open(struct mdev_device *mdev)
+{
+	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
+	unsigned long events;
+	int ret;
+
+
+	if (!try_module_get(THIS_MODULE))
+		return -ENODEV;
+
+	matrix_mdev->group_notifier.notifier_call = vfio_ap_mdev_group_notifier;
+	events = VFIO_GROUP_NOTIFY_SET_KVM;
+
+	ret = vfio_register_notifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY,
+				     &events, &matrix_mdev->group_notifier);
+	if (ret) {
+		module_put(THIS_MODULE);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void vfio_ap_mdev_release(struct mdev_device *mdev)
+{
+	struct ap_matrix_mdev *matrix_mdev = mdev_get_drvdata(mdev);
+
+	if (matrix_mdev->kvm)
+		kvm_arch_crypto_clear_masks(matrix_mdev->kvm);
+
+	vfio_unregister_notifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY,
+				 &matrix_mdev->group_notifier);
+	matrix_mdev->kvm = NULL;
+	module_put(THIS_MODULE);
+}
+
 static const struct mdev_parent_ops vfio_ap_matrix_ops = {
 	.owner			= THIS_MODULE,
 	.supported_type_groups	= vfio_ap_mdev_type_groups,
 	.mdev_attr_groups	= vfio_ap_mdev_attr_groups,
 	.create			= vfio_ap_mdev_create,
 	.remove			= vfio_ap_mdev_remove,
+	.open			= vfio_ap_mdev_open,
+	.release		= vfio_ap_mdev_release,
 };
 
 int vfio_ap_mdev_register(void)
