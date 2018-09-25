@@ -495,7 +495,6 @@ static const struct ieee80211_iface_combination hwsim_if_comb_p2p_dev[] = {
 
 static spinlock_t hwsim_radio_lock;
 static LIST_HEAD(hwsim_radios);
-static struct workqueue_struct *hwsim_wq;
 static struct rhashtable hwsim_radios_rht;
 static int hwsim_radio_idx;
 static int hwsim_radios_generation = 1;
@@ -3692,13 +3691,9 @@ static int __init init_mac80211_hwsim(void)
 
 	spin_lock_init(&hwsim_radio_lock);
 
-	hwsim_wq = alloc_workqueue("hwsim_wq", 0, 0);
-	if (!hwsim_wq)
-		return -ENOMEM;
-
 	err = rhashtable_init(&hwsim_radios_rht, &hwsim_rht_params);
 	if (err)
-		goto out_free_wq;
+		return err;
 
 	err = register_pernet_device(&hwsim_net_ops);
 	if (err)
@@ -3829,8 +3824,6 @@ out_unregister_pernet:
 	unregister_pernet_device(&hwsim_net_ops);
 out_free_rht:
 	rhashtable_destroy(&hwsim_radios_rht);
-out_free_wq:
-	destroy_workqueue(hwsim_wq);
 	return err;
 }
 module_init(init_mac80211_hwsim);
@@ -3842,12 +3835,10 @@ static void __exit exit_mac80211_hwsim(void)
 	hwsim_exit_netlink();
 
 	mac80211_hwsim_free();
-	flush_workqueue(hwsim_wq);
 
 	rhashtable_destroy(&hwsim_radios_rht);
 	unregister_netdev(hwsim_mon);
 	platform_driver_unregister(&mac80211_hwsim_driver);
 	unregister_pernet_device(&hwsim_net_ops);
-	destroy_workqueue(hwsim_wq);
 }
 module_exit(exit_mac80211_hwsim);
