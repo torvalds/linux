@@ -502,10 +502,9 @@ int wilc_wlan_cfg_get_wid_value(u16 wid, u8 *buffer, u32 buffer_size)
 	return ret;
 }
 
-int wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
-			      struct wilc_cfg_rsp *rsp)
+void wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
+			       struct wilc_cfg_rsp *rsp)
 {
-	int ret = 1;
 	u8 msg_type;
 	u8 msg_id;
 
@@ -547,11 +546,8 @@ int wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 	default:
 		rsp->type = 0;
 		rsp->seq_no = msg_id;
-		ret = 0;
 		break;
 	}
-
-	return ret;
 }
 
 int wilc_wlan_cfg_init(void)
