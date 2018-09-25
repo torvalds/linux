@@ -195,7 +195,7 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 		idr_preload_end();
 
 		if (nr < 0) {
-			retval = nr;
+			retval = (nr == -ENOSPC) ? -EAGAIN : nr;
 			goto out_free;
 		}
 

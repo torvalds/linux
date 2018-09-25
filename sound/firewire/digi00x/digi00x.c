@@ -49,6 +49,7 @@ static void dg00x_free(struct snd_dg00x *dg00x)
 	fw_unit_put(dg00x->unit);
 
 	mutex_destroy(&dg00x->mutex);
+	kfree(dg00x);
 }
 
 static void dg00x_card_free(struct snd_card *card)

@@ -3729,7 +3729,7 @@ int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 {
 	struct vmw_buffer_object *vbo =
 		container_of(bo, struct vmw_buffer_object, base);
-	struct ttm_operation_ctx ctx = { interruptible, true };
+	struct ttm_operation_ctx ctx = { interruptible, false };
 	int ret;
 
 	if (vbo->pin_count > 0)

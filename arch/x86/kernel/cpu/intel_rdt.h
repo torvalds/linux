@@ -382,6 +382,11 @@ static inline bool is_mbm_event(int e)
 		e <= QOS_L3_MBM_LOCAL_EVENT_ID);
 }
 
+struct rdt_parse_data {
+	struct rdtgroup		*rdtgrp;
+	char			*buf;
+};
+
 /**
  * struct rdt_resource - attributes of an RDT resource
  * @rid:		The index of the resource
@@ -423,16 +428,19 @@ struct rdt_resource {
 	struct rdt_cache	cache;
 	struct rdt_membw	membw;
 	const char		*format_str;
-	int (*parse_ctrlval)	(void *data, struct rdt_resource *r,
-				 struct rdt_domain *d);
+	int (*parse_ctrlval)(struct rdt_parse_data *data,
+			     struct rdt_resource *r,
+			     struct rdt_domain *d);
 	struct list_head	evt_list;
 	int			num_rmid;
 	unsigned int		mon_scale;
 	unsigned long		fflags;
 };
 
-int parse_cbm(void *_data, struct rdt_resource *r, struct rdt_domain *d);
-int parse_bw(void *_buf, struct rdt_resource *r,  struct rdt_domain *d);
+int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
+	      struct rdt_domain *d);
+int parse_bw(struct rdt_parse_data *data, struct rdt_resource *r,
+	     struct rdt_domain *d);
 
 extern struct mutex rdtgroup_mutex;
 
@@ -536,6 +544,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp);
 void rdtgroup_pseudo_lock_remove(struct rdtgroup *rdtgrp);
 struct rdt_domain *get_domain_from_cpu(int cpu, struct rdt_resource *r);
 int update_domains(struct rdt_resource *r, int closid);
+int closids_supported(void);
 void closid_free(int closid);
 int alloc_rmid(void);
 void free_rmid(u32 rmid);

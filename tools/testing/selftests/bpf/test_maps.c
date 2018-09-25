@@ -580,7 +580,11 @@ static void test_sockmap(int tasks, void *data)
 	/* Test update without programs */
 	for (i = 0; i < 6; i++) {
 		err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_ANY);
-		if (err) {
+		if (i < 2 && !err) {
+			printf("Allowed update sockmap '%i:%i' not in ESTABLISHED\n",
+			       i, sfd[i]);
+			goto out_sockmap;
+		} else if (i >= 2 && err) {
 			printf("Failed noprog update sockmap '%i:%i'\n",
 			       i, sfd[i]);
 			goto out_sockmap;
@@ -741,7 +745,7 @@ static void test_sockmap(int tasks, void *data)
 	}
 
 	/* Test map update elem afterwards fd lives in fd and map_fd */
-	for (i = 0; i < 6; i++) {
+	for (i = 2; i < 6; i++) {
 		err = bpf_map_update_elem(map_fd_rx, &i, &sfd[i], BPF_ANY);
 		if (err) {
 			printf("Failed map_fd_rx update sockmap %i '%i:%i'\n",
@@ -845,7 +849,7 @@ static void test_sockmap(int tasks, void *data)
 	}
 
 	/* Delete the elems without programs */
-	for (i = 0; i < 6; i++) {
+	for (i = 2; i < 6; i++) {
 		err = bpf_map_delete_elem(fd, &i);
 		if (err) {
 			printf("Failed delete sockmap %i '%i:%i'\n",

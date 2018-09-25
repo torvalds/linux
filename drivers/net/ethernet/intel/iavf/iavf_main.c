@@ -393,29 +393,6 @@ static void iavf_map_rings_to_vectors(struct iavf_adapter *adapter)
 	adapter->aq_required |= IAVF_FLAG_AQ_MAP_VECTORS;
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-/**
- * iavf_netpoll - A Polling 'interrupt' handler
- * @netdev: network interface device structure
- *
- * This is used by netconsole to send skbs without having to re-enable
- * interrupts.  It's not called while the normal interrupt routine is executing.
- **/
-static void iavf_netpoll(struct net_device *netdev)
-{
-	struct iavf_adapter *adapter = netdev_priv(netdev);
-	int q_vectors = adapter->num_msix_vectors - NONQ_VECS;
-	int i;
-
-	/* if interface is down do nothing */
-	if (test_bit(__IAVF_VSI_DOWN, adapter->vsi.state))
-		return;
-
-	for (i = 0; i < q_vectors; i++)
-		iavf_msix_clean_rings(0, &adapter->q_vectors[i]);
-}
-
-#endif
 /**
  * iavf_irq_affinity_notify - Callback for affinity changes
  * @notify: context as to what irq was changed
@@ -3227,9 +3204,6 @@ static const struct net_device_ops iavf_netdev_ops = {
 	.ndo_features_check	= iavf_features_check,
 	.ndo_fix_features	= iavf_fix_features,
 	.ndo_set_features	= iavf_set_features,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= iavf_netpoll,
-#endif
 	.ndo_setup_tc		= iavf_setup_tc,
 };
 
