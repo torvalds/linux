@@ -2175,7 +2175,7 @@ int wilc_init_host_int(struct net_device *net)
 	return ret;
 }
 
-int wilc_deinit_host_int(struct net_device *net)
+void wilc_deinit_host_int(struct net_device *net)
 {
 	int ret;
 	struct wilc_priv *priv = wdev_priv(net->ieee80211_ptr);
@@ -2192,8 +2192,6 @@ int wilc_deinit_host_int(struct net_device *net)
 
 	if (ret)
 		netdev_err(net, "Error while deinitializing host interface\n");
-
-	return ret;
 }
 
 void wilc_free_wiphy(struct net_device *net)

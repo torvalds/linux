@@ -11,7 +11,7 @@
 struct wireless_dev *wilc_create_wiphy(struct net_device *net,
 				       struct device *dev);
 void wilc_free_wiphy(struct net_device *net);
-int wilc_deinit_host_int(struct net_device *net);
+void wilc_deinit_host_int(struct net_device *net);
 int wilc_init_host_int(struct net_device *net);
 void wilc_wfi_monitor_rx(u8 *buff, u32 size);
 int wilc_wfi_deinit_mon_interface(void);
