@@ -50,6 +50,7 @@ enum vm_mem_backing_src_type {
 };
 
 int kvm_check_cap(long cap);
+int vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap);
 
 struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm);
 void kvm_vm_free(struct kvm_vm *vmp);
@@ -108,6 +109,9 @@ void vcpu_events_get(struct kvm_vm *vm, uint32_t vcpuid,
 			  struct kvm_vcpu_events *events);
 void vcpu_events_set(struct kvm_vm *vm, uint32_t vcpuid,
 			  struct kvm_vcpu_events *events);
+uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index);
+void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
+	uint64_t msr_value);
 
 const char *exit_reason_str(unsigned int exit_reason);
 

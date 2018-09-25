@@ -893,14 +893,11 @@ static int trigger_sbr(struct hfi1_devdata *dd)
 		}
 
 	/*
-	 * A secondary bus reset (SBR) issues a hot reset to our device.
-	 * The following routine does a 1s wait after the reset is dropped
-	 * per PCI Trhfa (recovery time).  PCIe 3.0 section 6.6.1 -
-	 * Conventional Reset, paragraph 3, line 35 also says that a 1s
-	 * delay after a reset is required.  Per spec requirements,
-	 * the link is either working or not after that point.
+	 * This is an end around to do an SBR during probe time. A new API needs
+	 * to be implemented to have cleaner interface but this fixes the
+	 * current brokenness
 	 */
-	return pci_reset_bus(dev);
+	return pci_bridge_secondary_bus_reset(dev->bus->self);
 }
 
 /*
