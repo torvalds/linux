@@ -192,14 +192,12 @@ static struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 	return NULL;
 }
 
-int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode)
+void wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode)
 {
 	struct wilc_vif *vif = netdev_priv(wilc_netdev);
 
 	memcpy(vif->bssid, bssid, 6);
 	vif->mode = mode;
-
-	return 0;
 }
 
 int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc)
