@@ -1,0 +1,120 @@
+
+# Copyright (C) 2011-2018 Junjiro R. Okajima
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+
+File-based Hierarchical Storage Management (FHSM)
+----------------------------------------------------------------------
+Hierarchical Storage Management (or HSM) is a well-known feature in the
+storage world. Aufs provides this feature as file-based with multiple
+writable branches, based upon the principle of "Colder, the Lower".
+Here the word "colder" means that the less used files, and "lower" means
+that the position in the order of the stacked branches vertically.
+These multiple writable branches are prioritized, ie. the topmost one
+should be the fastest drive and be used heavily.
+
+o Characters in aufs FHSM story
+- aufs itself and a new branch attribute.
+- a new ioctl interface to move-down and to establish a connection with
+  the daemon ("move-down" is a converse of "copy-up").
+- userspace tool and daemon.
+
+The userspace daemon establishes a connection with aufs and waits for
+the notification. The notified information is very similar to struct
+statfs containing the number of consumed blocks and inodes.
+When the consumed blocks/inodes of a branch exceeds the user-specified
+upper watermark, the daemon activates its move-down process until the
+consumed blocks/inodes reaches the user-specified lower watermark.
+
+The actual move-down is done by aufs based upon the request from
+user-space since we need to maintain the inode number and the internal
+pointer arrays in aufs.
+
+Currently aufs FHSM handles the regular files only. Additionally they
+must not be hard-linked nor pseudo-linked.
+
+
+o Cowork of aufs and the user-space daemon
+  During the userspace daemon established the connection, aufs sends a
+  small notification to it whenever aufs writes something into the
+  writable branch. But it may cost high since aufs issues statfs(2)
+  internally. So user can specify a new option to cache the
+  info. Actually the notification is controlled by these factors.
+  + the specified cache time.
+  + classified as "force" by aufs internally.
+  Until the specified time expires, aufs doesn't send the info
+  except the forced cases. When aufs decide forcing, the info is always
+  notified to userspace.
+  For example, the number of free inodes is generally large enough and
+  the shortage of it happens rarely. So aufs doesn't force the
+  notification when creating a new file, directory and others. This is
+  the typical case which aufs doesn't force.
+  When aufs writes the actual filedata and the files consumes any of new
+  blocks, the aufs forces notifying.
+
+
+o Interfaces in aufs
+- New branch attribute.
+  + fhsm
+    Specifies that the branch is managed by FHSM feature. In other word,
+    participant in the FHSM.
+    When nofhsm is set to the branch, it will not be the source/target
+    branch of the move-down operation. This attribute is set
+    independently from coo and moo attributes, and if you want full
+    FHSM, you should specify them as well.
+- New mount option.
+  + fhsm_sec
+    Specifies a second to suppress many less important info to be
+    notified.
+- New ioctl.
+  + AUFS_CTL_FHSM_FD
+    create a new file descriptor which userspace can read the notification
+    (a subset of struct statfs) from aufs.
+- Module parameter 'brs'
+  It has to be set to 1. Otherwise the new mount option 'fhsm' will not
+  be set.
+- mount helpers /sbin/mount.aufs and /sbin/umount.aufs
+  When there are two or more branches with fhsm attributes,
+  /sbin/mount.aufs invokes the user-space daemon and /sbin/umount.aufs
+  terminates it. As a result of remounting and branch-manipulation, the
+  number of branches with fhsm attribute can be one. In this case,
+  /sbin/mount.aufs will terminate the user-space daemon.
+
+
+Finally the operation is done as these steps in kernel-space.
+- make sure that,
+  + no one else is using the file.
+  + the file is not hard-linked.
+  + the file is not pseudo-linked.
+  + the file is a regular file.
+  + the parent dir is not opaqued.
+- find the target writable branch.
+- make sure the file is not whiteout-ed by the upper (than the target)
+  branch.
+- make the parent dir on the target branch.
+- mutex lock the inode on the branch.
+- unlink the whiteout on the target branch (if exists).
+- lookup and create the whiteout-ed temporary name on the target branch.
+- copy the file as the whiteout-ed temporary name on the target branch.
+- rename the whiteout-ed temporary name to the original name.
+- unlink the file on the source branch.
+- maintain the internal pointer array and the external inode number
+  table (XINO).
+- maintain the timestamps and other attributes of the parent dir and the
+  file.
+
+And of course, in every step, an error may happen. So the operation
+should restore the original file state after an error happens.

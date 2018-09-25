@@ -1,0 +1,31 @@
+
+// to view this graph, run dot(1) command in GRAPHVIZ.
+
+digraph G {
+node [shape=box];
+whinfo [label="detailed info file\n(lower_brid_root-hinum, h_inum, namelen, old name)"];
+
+node [shape=oval];
+
+aufs_rename -> whinfo [label="store/remove"];
+
+node [shape=oval];
+inode_list [label="h_inum list in branch\ncache"];
+
+node [shape=box];
+whinode [label="h_inum list file"];
+
+node [shape=oval];
+brmgmt [label="br_add/del/mod/umount"];
+
+brmgmt -> inode_list [label="create/remove"];
+brmgmt -> whinode [label="load/store"];
+
+inode_list -> whinode [style=dashed,dir=both];
+
+aufs_rename -> inode_list [label="add/del"];
+
+aufs_lookup -> inode_list [label="search"];
+
+aufs_lookup -> whinfo [label="load/remove"];
+}

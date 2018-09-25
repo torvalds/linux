@@ -1,0 +1,85 @@
+
+# Copyright (C) 2015-2018 Junjiro R. Okajima
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+Support for a branch who has its ->atomic_open()
+----------------------------------------------------------------------
+The filesystems who implement its ->atomic_open() are not majority. For
+example NFSv4 does, and aufs should call NFSv4 ->atomic_open,
+particularly for open(O_CREAT|O_EXCL, 0400) case. Other than
+->atomic_open(), NFSv4 returns an error for this open(2). While I am not
+sure whether all filesystems who have ->atomic_open() behave like this,
+but NFSv4 surely returns the error.
+
+In order to support ->atomic_open() for aufs, there are a few
+approaches.
+
+A. Introduce aufs_atomic_open()
+   - calls one of VFS:do_last(), lookup_open() or atomic_open() for
+     branch fs.
+B. Introduce aufs_atomic_open() calling create, open and chmod. this is
+   an aufs user Pip Cet's approach
+   - calls aufs_create(), VFS finish_open() and notify_change().
+   - pass fake-mode to finish_open(), and then correct the mode by
+     notify_change().
+C. Extend aufs_open() to call branch fs's ->atomic_open()
+   - no aufs_atomic_open().
+   - aufs_lookup() registers the TID to an aufs internal object.
+   - aufs_create() does nothing when the matching TID is registered, but
+     registers the mode.
+   - aufs_open() calls branch fs's ->atomic_open() when the matching
+     TID is registered.
+D. Extend aufs_open() to re-try branch fs's ->open() with superuser's
+   credential
+   - no aufs_atomic_open().
+   - aufs_create() registers the TID to an internal object. this info
+     represents "this process created this file just now."
+   - when aufs gets EACCES from branch fs's ->open(), then confirm the
+     registered TID and re-try open() with superuser's credential.
+
+Pros and cons for each approach.
+
+A.
+   - straightforward but highly depends upon VFS internal.
+   - the atomic behavaiour is kept.
+   - some of parameters such as nameidata are hard to reproduce for
+     branch fs.
+   - large overhead.
+B.
+   - easy to implement.
+   - the atomic behavaiour is lost.
+C.
+   - the atomic behavaiour is kept.
+   - dirty and tricky.
+   - VFS checks whether the file is created correctly after calling
+     ->create(), which means this approach doesn't work.
+D.
+   - easy to implement.
+   - the atomic behavaiour is lost.
+   - to open a file with superuser's credential and give it to a user
+     process is a bad idea, since the file object keeps the credential
+     in it. It may affect LSM or something. This approach doesn't work
+     either.
+
+The approach A is ideal, but it hard to implement. So here is a
+variation of A, which is to be implemented.
+
+A-1. Introduce aufs_atomic_open()
+     - calls branch fs ->atomic_open() if exists. otherwise calls
+       vfs_create() and finish_open().
+     - the demerit is that the several checks after branch fs
+       ->atomic_open() are lost. in the ordinary case, the checks are
+       done by VFS:do_last(), lookup_open() and atomic_open(). some can
+       be implemented in aufs, but not all I am afraid.

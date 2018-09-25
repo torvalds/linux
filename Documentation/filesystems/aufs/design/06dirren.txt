@@ -1,0 +1,102 @@
+
+# Copyright (C) 2017-2018 Junjiro R. Okajima
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+Special handling for renaming a directory (DIRREN)
+----------------------------------------------------------------------
+First, let's assume we have a simple usecase.
+
+- /u = /rw + /ro
+- /rw/dirA exists
+- /ro/dirA and /ro/dirA/file exist too
+- there is no dirB on both branches
+- a user issues rename("dirA", "dirB")
+
+Now, what should aufs behave against this rename(2)?
+There are a few possible cases.
+
+A. returns EROFS.
+   since dirA exists on a readonly branch which cannot be renamed.
+B. returns EXDEV.
+   it is possible to copy-up dirA (only the dir itself), but the child
+   entries ("file" in this case) should not be. it must be a bad
+   approach to copy-up recursively.
+C. returns a success.
+   even the branch /ro is readonly, aufs tries renaming it. Obviously it
+   is a violation of aufs' policy.
+D. construct an extra information which indicates that /ro/dirA should
+   be handled as the name of dirB.
+   overlayfs has a similar feature called REDIRECT.
+
+Until now, aufs implements the case B only which returns EXDEV, and
+expects the userspace application behaves like mv(1) which tries
+issueing rename(2) recursively.
+
+A new aufs feature called DIRREN is introduced which implements the case
+D. There are several "extra information" added.
+
+1. detailed info per renamed directory
+   path: /rw/dirB/$AUFS_WH_DR_INFO_PFX.<lower branch-id>
+2. the inode-number list of directories on a branch
+   path: /rw/dirB/$AUFS_WH_DR_BRHINO
+
+The filename of "detailed info per directory" represents the lower
+branch, and its format is
+- a type of the branch id
+  one of these.
+  + uuid (not implemented yet)
+  + fsid
+  + dev
+- the inode-number of the branch root dir
+
+And it contains these info in a single regular file.
+- magic number
+- branch's inode-number of the logically renamed dir
+- the name of the before-renamed dir
+
+The "detailed info per directory" file is created in aufs rename(2), and
+loaded in any lookup.
+The info is considered in lookup for the matching case only. Here
+"matching" means that the root of branch (in the info filename) is same
+to the current looking-up branch. After looking-up the before-renamed
+name, the inode-number is compared. And the matched dentry is used.
+
+The "inode-number list of directories" is a regular file which contains
+simply the inode-numbers on the branch. The file is created or updated
+in removing the branch, and loaded in adding the branch. Its lifetime is
+equal to the branch.
+The list is refered in lookup, and when the current target inode is
+found in the list, the aufs tries loading the "detailed info per
+directory" and get the changed and valid name of the dir.
+
+Theoretically these "extra informaiton" may be able to be put into XATTR
+in the dir inode. But aufs doesn't choose this way because
+1. XATTR may not be supported by the branch (or its configuration)
+2. XATTR may have its size limit.
+3. XATTR may be less easy to convert than a regular file, when the
+   format of the info is changed in the future.
+At the same time, I agree that the regular file approach is much slower
+than XATTR approach. So, in the future, aufs may take the XATTR or other
+better approach.
+
+This DIRREN feature is enabled by aufs configuration, and is activated
+by a new mount option.
+
+For the more complicated case, there is a work with UDBA option, which
+is to dected the direct access to the branches (by-passing aufs) and to
+maintain the cashes in aufs. Since a single cached aufs dentry may
+contains two names, before- and after-rename, the name comparision in
+UDBA handler may not work correctly. In this case, the behaviour will be
+equivalen to udba=reval case.

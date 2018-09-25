@@ -8,6 +8,7 @@
 #include <linux/device_cgroup.h>
 #include <linux/cgroup.h>
 #include <linux/ctype.h>
+#include <linux/export.h>
 #include <linux/list.h>
 #include <linux/uaccess.h>
 #include <linux/seq_file.h>
@@ -824,3 +825,4 @@ int __devcgroup_check_permission(short type, u32 major, u32 minor,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(__devcgroup_check_permission);
