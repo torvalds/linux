@@ -54,12 +54,6 @@ static int to_nd_device_type(struct device *dev)
 
 static int nvdimm_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	/*
-	 * Ensure that region devices always have their numa node set as
-	 * early as possible.
-	 */
-	if (is_nd_region(dev))
-		set_dev_node(dev, to_nd_region(dev)->numa_node);
 	return add_uevent_var(env, "MODALIAS=" ND_DEVICE_MODALIAS_FMT,
 			to_nd_device_type(dev));
 }
@@ -508,6 +502,16 @@ void __nd_device_register(struct device *dev)
 {
 	if (!dev)
 		return;
+
+	/*
+	 * Ensure that region devices always have their NUMA node set as
+	 * early as possible. This way we are able to make certain that
+	 * any memory associated with the creation and the creation
+	 * itself of the region is associated with the correct node.
+	 */
+	if (is_nd_region(dev))
+		set_dev_node(dev, to_nd_region(dev)->numa_node);
+
 	dev->bus = &nvdimm_bus_type;
 	if (dev->parent)
 		get_device(dev->parent);
