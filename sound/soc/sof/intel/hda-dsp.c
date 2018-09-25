@@ -301,12 +301,7 @@ static int hda_suspend(struct snd_sof_dev *sdev, int state)
 	snd_sof_pci_update_bits(sdev, PCI_TCSEL,
 				PCI_CGCTL_LSRMD_MASK, PCI_CGCTL_LSRMD_MASK);
 
-	/* reset HDA controller */
-	ret = hda_dsp_ctrl_link_reset(sdev);
-	if (ret < 0)
-		dev_err(sdev->dev, "error: failed to reset HDA controller\n");
-
-	return ret;
+	return 0;
 }
 
 static int hda_resume(struct snd_sof_dev *sdev)
