@@ -424,14 +424,20 @@ static int hi3660_thermal_probe(struct hisi_thermal_data *data)
 	struct platform_device *pdev = data->pdev;
 	struct device *dev = &pdev->dev;
 
-	data->sensor = devm_kzalloc(dev, sizeof(*data->sensor), GFP_KERNEL);
+	data->nr_sensors = 2;
+
+	data->sensor = devm_kzalloc(dev, sizeof(*data->sensor) *
+				    data->nr_sensors, GFP_KERNEL);
 	if (!data->sensor)
 		return -ENOMEM;
 
 	data->sensor[0].id = HI3660_BIG_SENSOR;
 	data->sensor[0].irq_name = "tsensor_a73";
 	data->sensor[0].data = data;
-	data->nr_sensors = 1;
+
+	data->sensor[1].id = HI3660_LITTLE_SENSOR;
+	data->sensor[1].irq_name = "tsensor_a53";
+	data->sensor[1].data = data;
 
 	return 0;
 }
@@ -443,8 +449,8 @@ static int hisi_thermal_get_temp(void *__data, int *temp)
 
 	*temp = data->ops->get_temp(sensor);
 
-	dev_dbg(&data->pdev->dev, "id=%d, temp=%d, thres=%d\n",
-		sensor->id, *temp, sensor->thres_temp);
+	dev_dbg(&data->pdev->dev, "tzd=%p, id=%d, temp=%d, thres=%d\n",
+		sensor->tzd, sensor->id, *temp, sensor->thres_temp);
 
 	return 0;
 }
