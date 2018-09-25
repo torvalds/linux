@@ -353,6 +353,9 @@ int tls_tx_records(struct sock *sk, int flags)
 		 * Remove the head of tx_list
 		 */
 		list_del(&rec->list);
+		free_sg(sk, rec->sg_plaintext_data,
+			&rec->sg_plaintext_num_elem, &rec->sg_plaintext_size);
+
 		kfree(rec);
 	}
 
@@ -371,6 +374,10 @@ int tls_tx_records(struct sock *sk, int flags)
 				goto tx_err;
 
 			list_del(&rec->list);
+			free_sg(sk, rec->sg_plaintext_data,
+				&rec->sg_plaintext_num_elem,
+				&rec->sg_plaintext_size);
+
 			kfree(rec);
 		} else {
 			break;
@@ -399,8 +406,6 @@ static void tls_encrypt_done(struct crypto_async_request *req, int err)
 	rec->sg_encrypted_data[0].offset -= tls_ctx->tx.prepend_size;
 	rec->sg_encrypted_data[0].length += tls_ctx->tx.prepend_size;
 
-	free_sg(sk, rec->sg_plaintext_data,
-		&rec->sg_plaintext_num_elem, &rec->sg_plaintext_size);
 
 	/* Free the record if error is previously set on socket */
 	if (err || sk->sk_err) {
@@ -522,9 +527,6 @@ static int tls_push_record(struct sock *sk, int flags,
 	rc = tls_do_encryption(sk, tls_ctx, ctx, req, rec->sg_plaintext_size);
 	if (rc == -EINPROGRESS)
 		return -EINPROGRESS;
-
-	free_sg(sk, rec->sg_plaintext_data, &rec->sg_plaintext_num_elem,
-		&rec->sg_plaintext_size);
 
 	if (rc < 0) {
 		tls_err_abort(sk, EBADMSG);
@@ -1566,6 +1568,11 @@ void tls_sw_free_resources_tx(struct sock *sk)
 
 		rec = list_first_entry(&ctx->tx_list,
 				       struct tls_rec, list);
+
+		free_sg(sk, rec->sg_plaintext_data,
+			&rec->sg_plaintext_num_elem,
+			&rec->sg_plaintext_size);
+
 		list_del(&rec->list);
 		kfree(rec);
 	}
@@ -1574,6 +1581,10 @@ void tls_sw_free_resources_tx(struct sock *sk)
 		free_sg(sk, rec->sg_encrypted_data,
 			&rec->sg_encrypted_num_elem,
 			&rec->sg_encrypted_size);
+
+		free_sg(sk, rec->sg_plaintext_data,
+			&rec->sg_plaintext_num_elem,
+			&rec->sg_plaintext_size);
 
 		list_del(&rec->list);
 		kfree(rec);
