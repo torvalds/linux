@@ -205,6 +205,7 @@ struct wilc {
 	struct workqueue_struct *hif_workqueue;
 	enum chip_ps_states chip_ps_state;
 	struct wilc_cfg cfg;
+	void *bus_data;
 };
 
 struct wilc_wfi_mon_priv {
