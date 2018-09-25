@@ -2499,7 +2499,7 @@ void snd_sof_free_topology(struct snd_sof_dev *sdev)
 
 		/* free sroute and its private data */
 		kfree(sroute->private);
-		devm_kfree(sdev->dev, sroute);
+		kfree(sroute);
 	}
 
 	ret = snd_soc_tplg_component_remove(sdev->component,
