@@ -12678,6 +12678,7 @@ S:	Supported
 F:	drivers/s390/crypto/vfio_ap_drv.c
 F:	drivers/s390/crypto/vfio_ap_private.h
 F:	drivers/s390/crypto/vfio_ap_ops.c
+F:	Documentation/s390/vfio-ap.txt
 
 S390 ZFCP DRIVER
 M:	Steffen Maier <maier@linux.ibm.com>
