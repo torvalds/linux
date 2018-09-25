@@ -55,8 +55,8 @@
 #define HI3660_TEMP_STEP		(205)
 #define HI3660_TEMP_LAG			(4000)
 
-#define HI6220_DEFAULT_SENSOR		2
-#define HI3660_DEFAULT_SENSOR		1
+#define HI6220_CLUSTER0_SENSOR		2
+#define HI3660_BIG_SENSOR		1
 
 struct hisi_thermal_data;
 
@@ -406,7 +406,7 @@ static int hi6220_thermal_probe(struct hisi_thermal_data *data)
 	if (!data->sensor)
 		return -ENOMEM;
 
-	data->sensor[0].id = HI6220_DEFAULT_SENSOR;
+	data->sensor[0].id = HI6220_CLUSTER0_SENSOR;
 	data->sensor[0].data = data;
 	data->nr_sensors = 1;
 
@@ -422,7 +422,7 @@ static int hi3660_thermal_probe(struct hisi_thermal_data *data)
 	if (!data->sensor)
 		return -ENOMEM;
 
-	data->sensor[0].id = HI3660_DEFAULT_SENSOR;
+	data->sensor[0].id = HI3660_BIG_SENSOR;
 	data->sensor[0].data = data;
 	data->nr_sensors = 1;
 
