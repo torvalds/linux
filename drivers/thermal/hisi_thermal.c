@@ -56,7 +56,12 @@
 #define HI3660_TEMP_LAG			(4000)
 
 #define HI6220_CLUSTER0_SENSOR		2
+#define HI6220_CLUSTER1_SENSOR		1
+
+#define HI3660_LITTLE_SENSOR		0
 #define HI3660_BIG_SENSOR		1
+#define HI3660_G3D_SENSOR		2
+#define HI3660_MODEM_SENSOR		3
 
 struct hisi_thermal_data;
 
