@@ -1216,6 +1216,7 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.smus_notify_pwe = smu10_smus_notify_pwe,
 	.display_clock_voltage_request = smu10_display_clock_voltage_request,
 	.powergate_gfx = smu10_gfx_off_control,
+	.powergate_sdma = smu10_powergate_sdma,
 };
 
 int smu10_init_function_pointers(struct pp_hwmgr *hwmgr)

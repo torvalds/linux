@@ -186,19 +186,6 @@ static int smu10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-/* sdma is disabled by default in vbios, need to re-enable in driver */
-static void smu10_smc_enable_sdma(struct pp_hwmgr *hwmgr)
-{
-	smu10_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_PowerUpSdma);
-}
-
-static void smu10_smc_disable_sdma(struct pp_hwmgr *hwmgr)
-{
-	smu10_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_PowerDownSdma);
-}
-
 /* vcn is disabled by default in vbios, need to re-enable in driver */
 static void smu10_smc_enable_vcn(struct pp_hwmgr *hwmgr)
 {
@@ -218,7 +205,6 @@ static int smu10_smu_fini(struct pp_hwmgr *hwmgr)
 			(struct smu10_smumgr *)(hwmgr->smu_backend);
 
 	if (priv) {
-		smu10_smc_disable_sdma(hwmgr);
 		smu10_smc_disable_vcn(hwmgr);
 		amdgpu_bo_free_kernel(&priv->smu_tables.entry[SMU10_WMTABLE].handle,
 					&priv->smu_tables.entry[SMU10_WMTABLE].mc_addr,
@@ -243,7 +229,6 @@ static int smu10_start_smu(struct pp_hwmgr *hwmgr)
 
 	if (smu10_verify_smc_interface(hwmgr))
 		return -EINVAL;
-	smu10_smc_enable_sdma(hwmgr);
 	smu10_smc_enable_vcn(hwmgr);
 	return 0;
 }
