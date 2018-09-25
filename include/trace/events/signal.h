@@ -49,7 +49,7 @@ enum {
  */
 TRACE_EVENT(signal_generate,
 
-	TP_PROTO(int sig, struct siginfo *info, struct task_struct *task,
+	TP_PROTO(int sig, struct kernel_siginfo *info, struct task_struct *task,
 			int group, int result),
 
 	TP_ARGS(sig, info, task, group, result),
@@ -95,7 +95,7 @@ TRACE_EVENT(signal_generate,
  */
 TRACE_EVENT(signal_deliver,
 
-	TP_PROTO(int sig, struct siginfo *info, struct k_sigaction *ka),
+	TP_PROTO(int sig, struct kernel_siginfo *info, struct k_sigaction *ka),
 
 	TP_ARGS(sig, info, ka),
 

@@ -11,18 +11,19 @@ struct task_struct;
 /* for sysctl */
 extern int print_fatal_signals;
 
-static inline void copy_siginfo(struct siginfo *to, const struct siginfo *from)
+static inline void copy_siginfo(kernel_siginfo_t *to,
+				const kernel_siginfo_t *from)
 {
 	memcpy(to, from, sizeof(*to));
 }
 
-static inline void clear_siginfo(struct siginfo *info)
+static inline void clear_siginfo(kernel_siginfo_t *info)
 {
 	memset(info, 0, sizeof(*info));
 }
 
-int copy_siginfo_to_user(struct siginfo __user *to, const struct siginfo *from);
-int copy_siginfo_from_user(struct siginfo *to, const struct siginfo __user *from);
+int copy_siginfo_to_user(siginfo_t __user *to, const kernel_siginfo_t *from);
+int copy_siginfo_from_user(kernel_siginfo_t *to, const siginfo_t __user *from);
 
 enum siginfo_layout {
 	SIL_KILL,
@@ -258,11 +259,11 @@ struct pt_regs;
 enum pid_type;
 
 extern int next_signal(struct sigpending *pending, sigset_t *mask);
-extern int do_send_sig_info(int sig, struct siginfo *info,
+extern int do_send_sig_info(int sig, struct kernel_siginfo *info,
 				struct task_struct *p, enum pid_type type);
-extern int group_send_sig_info(int sig, struct siginfo *info,
+extern int group_send_sig_info(int sig, struct kernel_siginfo *info,
 			       struct task_struct *p, enum pid_type type);
-extern int __group_send_sig_info(int, struct siginfo *, struct task_struct *);
+extern int __group_send_sig_info(int, struct kernel_siginfo *, struct task_struct *);
 extern int sigprocmask(int, sigset_t *, sigset_t *);
 extern void set_current_blocked(sigset_t *);
 extern void __set_current_blocked(const sigset_t *);

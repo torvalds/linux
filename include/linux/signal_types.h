@@ -9,6 +9,13 @@
 #include <linux/list.h>
 #include <uapi/linux/signal.h>
 
+typedef struct kernel_siginfo {
+	union {
+		__SIGINFO;
+		int _si_pad[SI_MAX_SIZE/sizeof(int)];
+	};
+} kernel_siginfo_t;
+
 /*
  * Real Time signals may be queued.
  */
@@ -16,7 +23,7 @@
 struct sigqueue {
 	struct list_head list;
 	int flags;
-	siginfo_t info;
+	kernel_siginfo_t info;
 	struct user_struct *user;
 };
 
@@ -60,7 +67,7 @@ struct old_sigaction {
 
 struct ksignal {
 	struct k_sigaction ka;
-	siginfo_t info;
+	kernel_siginfo_t info;
 	int sig;
 };
 

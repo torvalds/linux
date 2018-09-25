@@ -341,7 +341,7 @@ extern void user_single_step_report(struct pt_regs *regs);
 #else
 static inline void user_single_step_report(struct pt_regs *regs)
 {
-	siginfo_t info;
+	kernel_siginfo_t info;
 	clear_siginfo(&info);
 	info.si_signo = SIGTRAP;
 	info.si_errno = 0;
