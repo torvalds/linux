@@ -156,34 +156,6 @@
 #define A10_INTMASK_CLR_OFST       0x10
 #define A10_DDR0_IRQ_MASK          BIT(17)
 
-/************* Stratix10 Defines **************/
-
-/* SDRAM Controller EccCtrl Register */
-#define S10_ECCCTRL1_OFST          0xF8011100
-
-/* SDRAM Controller DRAM IRQ Register */
-#define S10_ERRINTEN_OFST          0xF8011110
-
-/* SDRAM Interrupt Mode Register */
-#define S10_INTMODE_OFST           0xF801111C
-
-/* SDRAM Controller Error Status Register */
-#define S10_INTSTAT_OFST           0xF8011120
-
-/* SDRAM Controller ECC Error Address Register */
-#define S10_DERRADDR_OFST          0xF801112C
-#define S10_SERRADDR_OFST          0xF8011130
-
-/* SDRAM Controller ECC Diagnostic Register */
-#define S10_DIAGINTTEST_OFST       0xF8011124
-
-/* SDRAM Single Bit Error Count Compare Set Register */
-#define S10_SERRCNTREG_OFST        0xF801113C
-
-/* Sticky registers for Uncorrected Errors */
-#define S10_SYSMGR_UE_VAL_OFST     0xFFD12220
-#define S10_SYSMGR_UE_ADDR_OFST    0xFFD12224
-
 struct altr_sdram_prv_data {
 	int ecc_ctrl_offset;
 	int ecc_ctl_en_mask;
@@ -319,12 +291,12 @@ struct altr_sdram_mc_data {
 /************* Stratix10 Defines **************/
 
 /* Stratix10 ECC Manager Defines */
-#define S10_SYSMGR_ECC_INTMASK_VAL_OFST   0xFFD12090
-#define S10_SYSMGR_ECC_INTMASK_SET_OFST   0xFFD12094
-#define S10_SYSMGR_ECC_INTMASK_CLR_OFST   0xFFD12098
+#define S10_SYSMGR_ECC_INTMASK_CLR_OFST   0x98
+#define S10_SYSMGR_ECC_INTSTAT_DERR_OFST  0xA0
 
-#define S10_SYSMGR_ECC_INTSTAT_SERR_OFST  0xFFD1209C
-#define S10_SYSMGR_ECC_INTSTAT_DERR_OFST  0xFFD120A0
+/* Sticky registers for Uncorrected Errors */
+#define S10_SYSMGR_UE_VAL_OFST            0x120
+#define S10_SYSMGR_UE_ADDR_OFST           0x124
 
 #define S10_DDR0_IRQ_MASK                 BIT(16)
 
