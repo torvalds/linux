@@ -110,6 +110,9 @@ module_param_named(enable_shadow_vmcs, enable_shadow_vmcs, bool, S_IRUGO);
 static bool __read_mostly nested = 0;
 module_param(nested, bool, S_IRUGO);
 
+static bool __read_mostly nested_early_check = 0;
+module_param(nested_early_check, bool, S_IRUGO);
+
 static u64 __read_mostly host_xss;
 
 static bool __read_mostly enable_pml = 1;
@@ -187,6 +190,7 @@ static unsigned int ple_window_max        = KVM_VMX_DEFAULT_PLE_WINDOW_MAX;
 module_param(ple_window_max, uint, 0444);
 
 extern const ulong vmx_return;
+extern const ulong vmx_early_consistency_check_return;
 
 static DEFINE_STATIC_KEY_FALSE(vmx_l1d_should_flush);
 static DEFINE_STATIC_KEY_FALSE(vmx_l1d_flush_cond);
@@ -11953,6 +11957,14 @@ static void prepare_vmcs02_constant_state(struct vcpu_vmx *vmx)
 		return;
 	vmx->nested.vmcs02_initialized = true;
 
+	/*
+	 * We don't care what the EPTP value is we just need to guarantee
+	 * it's valid so we don't get a false positive when doing early
+	 * consistency checks.
+	 */
+	if (enable_ept && nested_early_check)
+		vmcs_write64(EPT_POINTER, construct_eptp(&vmx->vcpu, 0));
+
 	/* All VMFUNCs are currently emulated through L0 vmexits.  */
 	if (cpu_has_vmx_vmfunc())
 		vmcs_write64(VM_FUNCTION_CONTROL, 0);
@@ -12006,7 +12018,9 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 	 * entry, but only if the current (host) sp changed from the value
 	 * we wrote last (vmx->host_rsp).  This cache is no longer relevant
 	 * if we switch vmcs, and rather than hold a separate cache per vmcs,
-	 * here we just force the write to happen on entry.
+	 * here we just force the write to happen on entry.  host_rsp will
+	 * also be written unconditionally by nested_vmx_check_vmentry_hw()
+	 * if we are doing early consistency checks via hardware.
 	 */
 	vmx->host_rsp = 0;
 
@@ -12634,12 +12648,124 @@ static int check_vmentry_postreqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	return 0;
 }
 
+static int __noclone nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	unsigned long cr3, cr4;
+
+	if (!nested_early_check)
+		return 0;
+
+	if (vmx->msr_autoload.host.nr)
+		vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, 0);
+	if (vmx->msr_autoload.guest.nr)
+		vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, 0);
+
+	preempt_disable();
+
+	vmx_prepare_switch_to_guest(vcpu);
+
+	/*
+	 * Induce a consistency check VMExit by clearing bit 1 in GUEST_RFLAGS,
+	 * which is reserved to '1' by hardware.  GUEST_RFLAGS is guaranteed to
+	 * be written (by preparve_vmcs02()) before the "real" VMEnter, i.e.
+	 * there is no need to preserve other bits or save/restore the field.
+	 */
+	vmcs_writel(GUEST_RFLAGS, 0);
+
+	vmcs_writel(HOST_RIP, vmx_early_consistency_check_return);
+
+	cr3 = __get_current_cr3_fast();
+	if (unlikely(cr3 != vmx->loaded_vmcs->host_state.cr3)) {
+		vmcs_writel(HOST_CR3, cr3);
+		vmx->loaded_vmcs->host_state.cr3 = cr3;
+	}
+
+	cr4 = cr4_read_shadow();
+	if (unlikely(cr4 != vmx->loaded_vmcs->host_state.cr4)) {
+		vmcs_writel(HOST_CR4, cr4);
+		vmx->loaded_vmcs->host_state.cr4 = cr4;
+	}
+
+	vmx->__launched = vmx->loaded_vmcs->launched;
+
+	asm(
+		/* Set HOST_RSP */
+		__ex(ASM_VMX_VMWRITE_RSP_RDX) "\n\t"
+		"mov %%" _ASM_SP ", %c[host_rsp](%0)\n\t"
+
+		/* Check if vmlaunch of vmresume is needed */
+		"cmpl $0, %c[launched](%0)\n\t"
+		"je 1f\n\t"
+		__ex(ASM_VMX_VMRESUME) "\n\t"
+		"jmp 2f\n\t"
+		"1: " __ex(ASM_VMX_VMLAUNCH) "\n\t"
+		"jmp 2f\n\t"
+		"2: "
+
+		/* Set vmx->fail accordingly */
+		"setbe %c[fail](%0)\n\t"
+
+		".pushsection .rodata\n\t"
+		".global vmx_early_consistency_check_return\n\t"
+		"vmx_early_consistency_check_return: " _ASM_PTR " 2b\n\t"
+		".popsection"
+	      :
+	      : "c"(vmx), "d"((unsigned long)HOST_RSP),
+		[launched]"i"(offsetof(struct vcpu_vmx, __launched)),
+		[fail]"i"(offsetof(struct vcpu_vmx, fail)),
+		[host_rsp]"i"(offsetof(struct vcpu_vmx, host_rsp))
+	      : "rax", "cc", "memory"
+	);
+
+	vmcs_writel(HOST_RIP, vmx_return);
+
+	preempt_enable();
+
+	if (vmx->msr_autoload.host.nr)
+		vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, vmx->msr_autoload.host.nr);
+	if (vmx->msr_autoload.guest.nr)
+		vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, vmx->msr_autoload.guest.nr);
+
+	if (vmx->fail) {
+		WARN_ON_ONCE(vmcs_read32(VM_INSTRUCTION_ERROR) !=
+			     VMXERR_ENTRY_INVALID_CONTROL_FIELD);
+		vmx->fail = 0;
+		return 1;
+	}
+
+	/*
+	 * VMExit clears RFLAGS.IF and DR7, even on a consistency check.
+	 */
+	local_irq_enable();
+	if (hw_breakpoint_active())
+		set_debugreg(__this_cpu_read(cpu_dr7), 7);
+
+	/*
+	 * A non-failing VMEntry means we somehow entered guest mode with
+	 * an illegal RIP, and that's just the tip of the iceberg.  There
+	 * is no telling what memory has been modified or what state has
+	 * been exposed to unknown code.  Hitting this all but guarantees
+	 * a (very critical) hardware issue.
+	 */
+	WARN_ON(!(vmcs_read32(VM_EXIT_REASON) &
+		VMX_EXIT_REASONS_FAILED_VMENTRY));
+
+	return 0;
+}
+STACK_FRAME_NON_STANDARD(nested_vmx_check_vmentry_hw);
+
 static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 				   struct vmcs12 *vmcs12);
 
 /*
  * If from_vmentry is false, this is being called from state restore (either RSM
  * or KVM_SET_NESTED_STATE).  Otherwise it's called from vmlaunch/vmresume.
++ *
++ * Returns:
++ *   0 - success, i.e. proceed with actual VMEnter
++ *   1 - consistency check VMExit
++ *  -1 - consistency check VMFail
  */
 static int nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 					  bool from_vmentry)
@@ -12667,6 +12793,11 @@ static int nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 
 	if (from_vmentry) {
 		nested_get_vmcs12_pages(vcpu);
+
+		if (nested_vmx_check_vmentry_hw(vcpu)) {
+			vmx_switch_vmcs(vcpu, &vmx->vmcs01);
+			return -1;
+		}
 
 		if (check_vmentry_postreqs(vcpu, vmcs12, &exit_qual))
 			goto vmentry_fail_vmexit;
@@ -12804,13 +12935,14 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	 * We're finally done with prerequisite checking, and can start with
 	 * the nested entry.
 	 */
-
 	vmx->nested.nested_run_pending = 1;
 	ret = nested_vmx_enter_non_root_mode(vcpu, true);
-	if (ret) {
-		vmx->nested.nested_run_pending = 0;
+	vmx->nested.nested_run_pending = !ret;
+	if (ret > 0)
 		return 1;
-	}
+	else if (ret)
+		return nested_vmx_failValid(vcpu,
+			VMXERR_ENTRY_INVALID_CONTROL_FIELD);
 
 	/* Hide L1D cache contents from the nested guest.  */
 	vmx->vcpu.arch.l1tf_flush_l1d = true;
