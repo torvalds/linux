@@ -17,10 +17,9 @@
  */
 
 
-#include <linux/init.h>
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/acpi.h>
 
 MODULE_LICENSE("GPL");
 
