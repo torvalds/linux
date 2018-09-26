@@ -162,6 +162,22 @@ static int get_active_display_cnt(
 	return display_count;
 }
 
+static void notify_deep_sleep_dcfclk_to_smu(
+		struct pp_smu_funcs_rv *pp_smu, int min_dcef_deep_sleep_clk_khz)
+{
+	int min_dcef_deep_sleep_clk_mhz; //minimum required DCEF Deep Sleep clock in mhz
+	/*
+	 * if function pointer not set up, this message is
+	 * sent as part of pplib_apply_display_requirements.
+	 * So just return.
+	 */
+	if (!pp_smu || !pp_smu->set_min_deep_sleep_dcfclk)
+		return;
+
+	min_dcef_deep_sleep_clk_mhz = (min_dcef_deep_sleep_clk_khz + 999) / 1000; //Round up
+	pp_smu->set_min_deep_sleep_dcfclk(&pp_smu->pp_smu, min_dcef_deep_sleep_clk_mhz);
+}
+
 static void dcn1_update_clocks(struct dccg *dccg,
 			struct dc_state *context,
 			bool safe_to_lower)
@@ -244,6 +260,8 @@ static void dcn1_update_clocks(struct dccg *dccg,
 		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
 		if (pp_smu->set_display_requirement)
 			pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
+
+		notify_deep_sleep_dcfclk_to_smu(pp_smu, dccg->clks.dcfclk_deep_sleep_khz);
 		dcn1_pplib_apply_display_requirements(dc, context);
 	}
 
@@ -264,6 +282,8 @@ static void dcn1_update_clocks(struct dccg *dccg,
 		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
 		if (pp_smu->set_display_requirement)
 			pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
+
+		notify_deep_sleep_dcfclk_to_smu(pp_smu, dccg->clks.dcfclk_deep_sleep_khz);
 		dcn1_pplib_apply_display_requirements(dc, context);
 	}
 
