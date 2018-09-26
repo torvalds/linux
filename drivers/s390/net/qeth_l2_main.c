@@ -806,7 +806,6 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 	}
 	INIT_LIST_HEAD(&card->vid_list);
 	hash_init(card->mac_htable);
-	card->options.layer = QETH_DISCIPLINE_LAYER2;
 	card->info.hwtrap = 0;
 	qeth_l2_vnicc_set_defaults(card);
 	return 0;

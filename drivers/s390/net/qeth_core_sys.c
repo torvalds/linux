@@ -432,8 +432,6 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 
 		card->discipline->remove(card->gdev);
 		qeth_core_free_discipline(card);
-		card->options.layer = QETH_DISCIPLINE_UNDETERMINED;
-
 		free_netdev(card->dev);
 		card->dev = ndev;
 	}

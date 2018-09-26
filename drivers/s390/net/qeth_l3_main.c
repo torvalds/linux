@@ -2489,7 +2489,6 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 	}
 	hash_init(card->ip_htable);
 	hash_init(card->ip_mc_htable);
-	card->options.layer = QETH_DISCIPLINE_LAYER3;
 	card->info.hwtrap = 0;
 	return 0;
 }
