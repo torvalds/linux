@@ -1429,6 +1429,7 @@ static void qeth_set_initial_options(struct qeth_card *card)
 	card->options.rx_sg_cb = QETH_RX_SG_CB;
 	card->options.isolation = ISOLATION_MODE_NONE;
 	card->options.cq = QETH_CQ_DISABLED;
+	card->options.layer = QETH_DISCIPLINE_UNDETERMINED;
 }
 
 static int qeth_do_start_thread(struct qeth_card *card, unsigned long thread)
@@ -1522,7 +1523,6 @@ static struct qeth_card *qeth_alloc_card(struct ccwgroup_device *gdev)
 		goto out_channel;
 	if (qeth_setup_channel(&card->data, false))
 		goto out_data;
-	card->options.layer2 = -1;
 	card->qeth_service_level.seq_print = qeth_core_sl_print;
 	register_service_level(&card->qeth_service_level);
 	return card;
@@ -2291,7 +2291,7 @@ static int qeth_update_max_mtu(struct qeth_card *card, unsigned int max_mtu)
 		if (dev->mtu)
 			new_mtu = dev->mtu;
 		/* default MTUs for first setup: */
-		else if (card->options.layer2)
+		else if (IS_LAYER2(card))
 			new_mtu = ETH_DATA_LEN;
 		else
 			new_mtu = ETH_DATA_LEN - 8; /* allow for LLC + SNAP */
@@ -2358,7 +2358,7 @@ static u8 qeth_mpc_select_prot_type(struct qeth_card *card)
 {
 	if (IS_OSN(card))
 		return QETH_PROT_OSN2;
-	return (card->options.layer2 == 1) ? QETH_PROT_LAYER2 : QETH_PROT_TCPIP;
+	return IS_LAYER2(card) ? QETH_PROT_LAYER2 : QETH_PROT_TCPIP;
 }
 
 static int qeth_ulp_enable(struct qeth_card *card)
@@ -2896,10 +2896,7 @@ static void qeth_fill_ipacmd_header(struct qeth_card *card,
 	/* cmd->hdr.seqno is set by qeth_send_control_data() */
 	cmd->hdr.adapter_type = qeth_get_ipa_adp_type(card->info.link_type);
 	cmd->hdr.rel_adapter_no = (u8) card->dev->dev_port;
-	if (card->options.layer2)
-		cmd->hdr.prim_version_no = 2;
-	else
-		cmd->hdr.prim_version_no = 1;
+	cmd->hdr.prim_version_no = IS_LAYER2(card) ? 2 : 1;
 	cmd->hdr.param_count = 1;
 	cmd->hdr.prot_version = prot;
 }
@@ -4278,8 +4275,7 @@ static int qeth_setadpparms_change_macaddr_cb(struct qeth_card *card,
 	if (qeth_setadpparms_inspect_rc(cmd))
 		return 0;
 
-	if (!card->options.layer2 ||
-	    !(card->info.mac_bits & QETH_LAYER2_MAC_READ)) {
+	if (IS_LAYER3(card) || !(card->info.mac_bits & QETH_LAYER2_MAC_READ)) {
 		ether_addr_copy(card->dev->dev_addr,
 				cmd->data.setadapterparms.data.change_addr.addr);
 		card->info.mac_bits |= QETH_LAYER2_MAC_READ;
@@ -4633,9 +4629,9 @@ static int qeth_snmp_command(struct qeth_card *card, char __user *udata)
 		return -EOPNOTSUPP;
 
 	if ((!qeth_adp_supported(card, IPA_SETADP_SET_SNMP_CONTROL)) &&
-	    (!card->options.layer2)) {
+	    IS_LAYER3(card))
 		return -EOPNOTSUPP;
-	}
+
 	/* skip 4 bytes (data_len struct member) to get req_len */
 	if (copy_from_user(&req_len, udata + sizeof(int), sizeof(int)))
 		return -EFAULT;
@@ -5623,7 +5619,7 @@ int qeth_core_load_discipline(struct qeth_card *card,
 
 void qeth_core_free_discipline(struct qeth_card *card)
 {
-	if (card->options.layer2)
+	if (IS_LAYER2(card))
 		symbol_put(qeth_l2_discipline);
 	else
 		symbol_put(qeth_l3_discipline);
@@ -6146,7 +6142,7 @@ void qeth_core_get_drvinfo(struct net_device *dev,
 {
 	struct qeth_card *card = dev->ml_priv;
 
-	strlcpy(info->driver, card->options.layer2 ? "qeth_l2" : "qeth_l3",
+	strlcpy(info->driver, IS_LAYER2(card) ? "qeth_l2" : "qeth_l3",
 		sizeof(info->driver));
 	strlcpy(info->version, "1.0", sizeof(info->version));
 	strlcpy(info->fw_version, card->info.mcl_level,

@@ -228,7 +228,7 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 		card->qdio.do_prio_queueing = QETH_PRIO_Q_ING_TOS;
 		card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
 	} else if (sysfs_streq(buf, "prio_queueing_vlan")) {
-		if (!card->options.layer2) {
+		if (IS_LAYER3(card)) {
 			rc = -ENOTSUPP;
 			goto out;
 		}
@@ -379,7 +379,7 @@ static ssize_t qeth_dev_layer2_show(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	return sprintf(buf, "%i\n", card->options.layer2);
+	return sprintf(buf, "%i\n", card->options.layer);
 }
 
 static ssize_t qeth_dev_layer2_store(struct device *dev,
@@ -413,7 +413,7 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 		goto out;
 	}
 
-	if (card->options.layer2 == newdis)
+	if (card->options.layer == newdis)
 		goto out;
 	if (card->info.layer_enforced) {
 		/* fixed layer, can't switch */
@@ -432,7 +432,7 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 
 		card->discipline->remove(card->gdev);
 		qeth_core_free_discipline(card);
-		card->options.layer2 = -1;
+		card->options.layer = QETH_DISCIPLINE_UNDETERMINED;
 
 		free_netdev(card->dev);
 		card->dev = ndev;
