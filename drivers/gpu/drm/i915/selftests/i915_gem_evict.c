@@ -351,7 +351,7 @@ static int igt_evict_contexts(void *arg)
 	 * where the GTT space of the request is separate from the GGTT
 	 * allocation required to build the request.
 	 */
-	if (!USES_FULL_PPGTT(i915))
+	if (!HAS_FULL_PPGTT(i915))
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);

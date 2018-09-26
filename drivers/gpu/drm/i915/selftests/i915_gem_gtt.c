@@ -153,7 +153,7 @@ static int igt_ppgtt_alloc(void *arg)
 
 	/* Allocate a ppggt and try to fill the entire range */
 
-	if (!USES_PPGTT(dev_priv))
+	if (!HAS_PPGTT(dev_priv))
 		return 0;
 
 	ppgtt = __hw_ppgtt_create(dev_priv);
@@ -1001,7 +1001,7 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 	IGT_TIMEOUT(end_time);
 	int err;
 
-	if (!USES_FULL_PPGTT(dev_priv))
+	if (!HAS_FULL_PPGTT(dev_priv))
 		return 0;
 
 	file = mock_file(dev_priv);

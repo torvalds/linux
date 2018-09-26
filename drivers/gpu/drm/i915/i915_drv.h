@@ -2597,9 +2597,14 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #define HAS_EXECLISTS(dev_priv) HAS_LOGICAL_RING_CONTEXTS(dev_priv)
 
-#define USES_PPGTT(dev_priv)		(i915_modparams.enable_ppgtt)
-#define USES_FULL_PPGTT(dev_priv)	(i915_modparams.enable_ppgtt >= 2)
-#define USES_FULL_48BIT_PPGTT(dev_priv)	(i915_modparams.enable_ppgtt == 3)
+#define INTEL_PPGTT(dev_priv) (INTEL_INFO(dev_priv)->ppgtt)
+#define HAS_PPGTT(dev_priv) \
+	(INTEL_PPGTT(dev_priv) != INTEL_PPGTT_NONE)
+#define HAS_FULL_PPGTT(dev_priv) \
+	(INTEL_PPGTT(dev_priv) >= INTEL_PPGTT_FULL)
+#define HAS_FULL_48BIT_PPGTT(dev_priv)	\
+	(INTEL_PPGTT(dev_priv) >= INTEL_PPGTT_FULL_4LVL)
+
 #define HAS_PAGE_SIZES(dev_priv, sizes) ({ \
 	GEM_BUG_ON((sizes) == 0); \
 	((sizes) & ~(dev_priv)->info.page_sizes) == 0; \
@@ -2746,9 +2751,6 @@ intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *dev_priv)
 {
 	return IS_BROXTON(dev_priv) && intel_vtd_active();
 }
-
-int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
-				int enable_ppgtt);
 
 /* i915_drv.c */
 void __printf(3, 4)

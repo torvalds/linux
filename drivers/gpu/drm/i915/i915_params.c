@@ -82,10 +82,6 @@ i915_param_named_unsafe(enable_hangcheck, bool, 0644,
 	"WARNING: Disabling this can cause system wide hangs. "
 	"(default: true)");
 
-i915_param_named_unsafe(enable_ppgtt, int, 0400,
-	"Override PPGTT usage. "
-	"(-1=auto [default], 0=disabled, 1=aliasing, 2=full, 3=full with extended address space)");
-
 i915_param_named_unsafe(enable_psr, int, 0600,
 	"Enable PSR "
 	"(0=disabled, 1=enabled) "

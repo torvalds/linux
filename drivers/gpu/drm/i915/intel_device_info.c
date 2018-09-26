@@ -850,6 +850,11 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 	else if (INTEL_GEN(dev_priv) >= 11)
 		gen11_sseu_info_init(dev_priv);
 
+	if (IS_GEN6(dev_priv) && intel_vtd_active()) {
+		DRM_INFO("Disabling ppGTT for VT-d support\n");
+		info->ppgtt = INTEL_PPGTT_NONE;
+	}
+
 	/* Initialize command stream timestamp frequency */
 	info->cs_timestamp_frequency_khz = read_timestamp_frequency(dev_priv);
 }

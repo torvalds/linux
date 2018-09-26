@@ -418,9 +418,8 @@ execlists_update_context_pdps(struct i915_hw_ppgtt *ppgtt, u32 *reg_state)
 
 static u64 execlists_update_context(struct i915_request *rq)
 {
+	struct i915_hw_ppgtt *ppgtt = rq->gem_context->ppgtt;
 	struct intel_context *ce = rq->hw_context;
-	struct i915_hw_ppgtt *ppgtt =
-		rq->gem_context->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
 	u32 *reg_state = ce->lrc_reg_state;
 
 	reg_state[CTX_RING_TAIL+1] = intel_ring_set_tail(rq->ring, rq->tail);
@@ -1376,7 +1375,7 @@ execlists_context_pin(struct intel_engine_cs *engine,
 	struct intel_context *ce = to_intel_context(ctx, engine);
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
-	GEM_BUG_ON(!(ctx->ppgtt ?: ctx->i915->mm.aliasing_ppgtt));
+	GEM_BUG_ON(!ctx->ppgtt);
 
 	if (likely(ce->pin_count++))
 		return ce;
@@ -2031,8 +2030,7 @@ static int gen8_emit_bb_start(struct i915_request *rq,
 	 * it is unsafe in case of lite-restore (because the ctx is
 	 * not idle). PML4 is allocated during ppgtt init so this is
 	 * not needed in 48-bit.*/
-	if (rq->gem_context->ppgtt &&
-	    (intel_engine_flag(rq->engine) & rq->gem_context->ppgtt->pd_dirty_rings) &&
+	if ((intel_engine_flag(rq->engine) & rq->gem_context->ppgtt->pd_dirty_rings) &&
 	    !i915_vm_is_48bit(&rq->gem_context->ppgtt->vm) &&
 	    !intel_vgpu_active(rq->i915)) {
 		ret = intel_logical_ring_emit_pdps(rq);
@@ -2634,7 +2632,6 @@ static void execlists_init_reg_state(u32 *regs,
 				     struct intel_ring *ring)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt ?: dev_priv->mm.aliasing_ppgtt;
 	u32 base = engine->mmio_base;
 	bool rcs = engine->class == RENDER_CLASS;
 
@@ -2706,12 +2703,12 @@ static void execlists_init_reg_state(u32 *regs,
 	CTX_REG(regs, CTX_PDP0_UDW, GEN8_RING_PDP_UDW(engine, 0), 0);
 	CTX_REG(regs, CTX_PDP0_LDW, GEN8_RING_PDP_LDW(engine, 0), 0);
 
-	if (i915_vm_is_48bit(&ppgtt->vm)) {
+	if (i915_vm_is_48bit(&ctx->ppgtt->vm)) {
 		/* 64b PPGTT (48bit canonical)
 		 * PDP0_DESCRIPTOR contains the base address to PML4 and
 		 * other PDP Descriptors are ignored.
 		 */
-		ASSIGN_CTX_PML4(ppgtt, regs);
+		ASSIGN_CTX_PML4(ctx->ppgtt, regs);
 	}
 
 	if (rcs) {

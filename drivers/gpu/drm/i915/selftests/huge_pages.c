@@ -1436,7 +1436,7 @@ static int igt_ppgtt_pin_update(void *arg)
 	 * huge-gtt-pages.
 	 */
 
-	if (!USES_FULL_48BIT_PPGTT(dev_priv)) {
+	if (!HAS_FULL_48BIT_PPGTT(dev_priv)) {
 		pr_info("48b PPGTT not supported, skipping\n");
 		return 0;
 	}
@@ -1687,10 +1687,9 @@ int i915_gem_huge_page_mock_selftests(void)
 		SUBTEST(igt_mock_ppgtt_huge_fill),
 		SUBTEST(igt_mock_ppgtt_64K),
 	};
-	int saved_ppgtt = i915_modparams.enable_ppgtt;
 	struct drm_i915_private *dev_priv;
-	struct pci_dev *pdev;
 	struct i915_hw_ppgtt *ppgtt;
+	struct pci_dev *pdev;
 	int err;
 
 	dev_priv = mock_gem_device();
@@ -1698,7 +1697,7 @@ int i915_gem_huge_page_mock_selftests(void)
 		return -ENOMEM;
 
 	/* Pretend to be a device which supports the 48b PPGTT */
-	i915_modparams.enable_ppgtt = 3;
+	mkwrite_device_info(dev_priv)->ppgtt = INTEL_PPGTT_FULL_4LVL;
 
 	pdev = dev_priv->drm.pdev;
 	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(39));
@@ -1731,9 +1730,6 @@ out_close:
 
 out_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
-
-	i915_modparams.enable_ppgtt = saved_ppgtt;
-
 	drm_dev_put(&dev_priv->drm);
 
 	return err;
@@ -1753,7 +1749,7 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *dev_priv)
 	struct i915_gem_context *ctx;
 	int err;
 
-	if (!USES_PPGTT(dev_priv)) {
+	if (!HAS_PPGTT(dev_priv)) {
 		pr_info("PPGTT not supported, skipping live-selftests\n");
 		return 0;
 	}

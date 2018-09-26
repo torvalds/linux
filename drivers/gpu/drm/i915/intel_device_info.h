@@ -25,6 +25,8 @@
 #ifndef _INTEL_DEVICE_INFO_H_
 #define _INTEL_DEVICE_INFO_H_
 
+#include <uapi/drm/i915_drm.h>
+
 #include "intel_display.h"
 
 struct drm_printer;
@@ -74,21 +76,25 @@ enum intel_platform {
 	INTEL_MAX_PLATFORMS
 };
 
+enum intel_ppgtt {
+	INTEL_PPGTT_NONE = I915_GEM_PPGTT_NONE,
+	INTEL_PPGTT_ALIASING = I915_GEM_PPGTT_ALIASING,
+	INTEL_PPGTT_FULL = I915_GEM_PPGTT_FULL,
+	INTEL_PPGTT_FULL_4LVL,
+};
+
 #define DEV_INFO_FOR_EACH_FLAG(func) \
 	func(is_mobile); \
 	func(is_lp); \
 	func(is_alpha_support); \
 	/* Keep has_* in alphabetical order */ \
 	func(has_64bit_reloc); \
-	func(has_aliasing_ppgtt); \
 	func(has_csr); \
 	func(has_ddi); \
 	func(has_dp_mst); \
 	func(has_reset_engine); \
 	func(has_fbc); \
 	func(has_fpga_dbg); \
-	func(has_full_ppgtt); \
-	func(has_full_48bit_ppgtt); \
 	func(has_gmch_display); \
 	func(has_guc); \
 	func(has_guc_ct); \
@@ -154,6 +160,7 @@ struct intel_device_info {
 	enum intel_platform platform;
 	u32 platform_mask;
 
+	enum intel_ppgtt ppgtt;
 	unsigned int page_sizes; /* page sizes supported by the HW */
 
 	u32 display_mmio_offset;

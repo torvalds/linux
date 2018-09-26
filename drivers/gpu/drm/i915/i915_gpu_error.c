@@ -474,7 +474,7 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 			err_printf(m, "  SYNC_2: 0x%08x\n",
 				   ee->semaphore_mboxes[2]);
 	}
-	if (USES_PPGTT(m->i915)) {
+	if (HAS_PPGTT(m->i915)) {
 		err_printf(m, "  GFX_MODE: 0x%08x\n", ee->vm_info.gfx_mode);
 
 		if (INTEL_GEN(m->i915) >= 8) {
@@ -1230,7 +1230,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 	ee->reset_count = i915_reset_engine_count(&dev_priv->gpu_error,
 						  engine);
 
-	if (USES_PPGTT(dev_priv)) {
+	if (HAS_PPGTT(dev_priv)) {
 		int i;
 
 		ee->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(engine));
