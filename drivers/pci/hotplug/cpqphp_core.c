@@ -121,7 +121,6 @@ static int init_SERR(struct controller *ctrl)
 {
 	u32 tempdword;
 	u32 number_of_slots;
-	u8 physical_slot;
 
 	if (!ctrl)
 		return 1;
@@ -131,7 +130,6 @@ static int init_SERR(struct controller *ctrl)
 	number_of_slots = readb(ctrl->hpc_reg + SLOT_MASK) & 0x0F;
 	/* Loop through slots */
 	while (number_of_slots) {
-		physical_slot = tempdword;
 		writeb(0, ctrl->hpc_reg + SLOT_SERR);
 		tempdword++;
 		number_of_slots--;
