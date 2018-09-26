@@ -211,9 +211,8 @@ void qed_ooo_release_connection_isles(struct qed_hwfn *p_hwfn,
 			if (!p_buffer)
 				break;
 
-			list_del(&p_buffer->list_entry);
-			list_add_tail(&p_buffer->list_entry,
-				      &p_ooo_info->free_buffers_list);
+			list_move_tail(&p_buffer->list_entry,
+				       &p_ooo_info->free_buffers_list);
 		}
 		list_add_tail(&p_isle->list_entry,
 			      &p_ooo_info->free_isles_list);
@@ -247,9 +246,8 @@ void qed_ooo_release_all_isles(struct qed_hwfn *p_hwfn,
 				if (!p_buffer)
 					break;
 
-			list_del(&p_buffer->list_entry);
-				list_add_tail(&p_buffer->list_entry,
-					      &p_ooo_info->free_buffers_list);
+				list_move_tail(&p_buffer->list_entry,
+					       &p_ooo_info->free_buffers_list);
 			}
 			list_add_tail(&p_isle->list_entry,
 				      &p_ooo_info->free_isles_list);
