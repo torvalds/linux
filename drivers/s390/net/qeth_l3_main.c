@@ -1348,6 +1348,7 @@ static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 				int budget, int *done)
 {
+	struct net_device *dev = card->dev;
 	int work_done = 0;
 	struct sk_buff *skb;
 	struct qeth_hdr *hdr;
@@ -1369,11 +1370,10 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 			magic = *(__u16 *)skb->data;
 			if ((card->info.type == QETH_CARD_TYPE_IQD) &&
 			    (magic == ETH_P_AF_IUCV)) {
-				skb->protocol = cpu_to_be16(ETH_P_AF_IUCV);
 				len = skb->len;
-				card->dev->header_ops->create(skb, card->dev, 0,
-					card->dev->dev_addr, "FAKELL", len);
-				skb_reset_mac_header(skb);
+				dev_hard_header(skb, dev, ETH_P_AF_IUCV,
+						dev->dev_addr, "FAKELL", len);
+				skb->protocol = eth_type_trans(skb, dev);
 				netif_receive_skb(skb);
 			} else {
 				qeth_l3_rebuild_skb(card, skb, hdr);
@@ -2005,17 +2005,15 @@ static void qeth_l3_fill_af_iucv_hdr(struct qeth_hdr *hdr, struct sk_buff *skb,
 				     unsigned int data_len)
 {
 	char daddr[16];
-	struct af_iucv_trans_hdr *iucv_hdr;
 
 	hdr->hdr.l3.id = QETH_HEADER_TYPE_LAYER3;
 	hdr->hdr.l3.length = data_len;
 	hdr->hdr.l3.flags = QETH_HDR_IPV6 | QETH_CAST_UNICAST;
 
-	iucv_hdr = (struct af_iucv_trans_hdr *)(skb_mac_header(skb) + ETH_HLEN);
 	memset(daddr, 0, sizeof(daddr));
 	daddr[0] = 0xfe;
 	daddr[1] = 0x80;
-	memcpy(&daddr[8], iucv_hdr->destUserID, 8);
+	memcpy(&daddr[8], iucv_trans_hdr(skb)->destUserID, 8);
 	memcpy(hdr->hdr.l3.next_hop.ipv6_addr, daddr, 16);
 }
 
@@ -2235,7 +2233,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 			goto tx_drop;
 	}
 
-	if (card->state != CARD_STATE_UP || !card->lan_online) {
+	if (card->state != CARD_STATE_UP) {
 		card->stats.tx_carrier_errors++;
 		goto tx_drop;
 	}
@@ -2489,7 +2487,6 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 	}
 	hash_init(card->ip_htable);
 	hash_init(card->ip_mc_htable);
-	card->options.layer2 = 0;
 	card->info.hwtrap = 0;
 	return 0;
 }
@@ -2576,10 +2573,6 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
 	qeth_l3_recover_ip(card);
-	if (card->lan_online)
-		netif_carrier_on(card->dev);
-	else
-		netif_carrier_off(card->dev);
 
 	qeth_enable_hw_features(card->dev);
 	if (recover_flag == CARD_STATE_RECOVER) {
@@ -2717,9 +2710,6 @@ static int qeth_l3_pm_resume(struct ccwgroup_device *gdev)
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 	int rc = 0;
 
-	if (gdev->state == CCWGROUP_OFFLINE)
-		goto out;
-
 	if (card->state == CARD_STATE_RECOVER) {
 		rc = __qeth_l3_set_online(card->gdev, 1);
 		if (rc) {
@@ -2729,7 +2719,7 @@ static int qeth_l3_pm_resume(struct ccwgroup_device *gdev)
 		}
 	} else
 		rc = __qeth_l3_set_online(card->gdev, 0);
-out:
+
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
 	netif_device_attach(card->dev);
 	if (rc)

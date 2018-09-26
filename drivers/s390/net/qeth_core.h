@@ -582,7 +582,8 @@ struct qeth_cmd_buffer {
 	struct qeth_channel *channel;
 	unsigned char *data;
 	int rc;
-	void (*callback) (struct qeth_channel *, struct qeth_cmd_buffer *);
+	void (*callback)(struct qeth_card *card, struct qeth_channel *channel,
+			 struct qeth_cmd_buffer *iob);
 };
 
 static inline struct qeth_ipa_cmd *__ipa_cmd(struct qeth_cmd_buffer *iob)
@@ -671,6 +672,12 @@ struct qeth_card_info {
 	__u32 hwtrap;
 };
 
+enum qeth_discipline_id {
+	QETH_DISCIPLINE_UNDETERMINED = -1,
+	QETH_DISCIPLINE_LAYER3 = 0,
+	QETH_DISCIPLINE_LAYER2 = 1,
+};
+
 struct qeth_card_options {
 	struct qeth_routing_info route4;
 	struct qeth_ipa_info ipa4;
@@ -680,7 +687,7 @@ struct qeth_card_options {
 	struct qeth_sbp_info sbp; /* SETBRIDGEPORT options */
 	struct qeth_vnicc_info vnicc; /* VNICC options */
 	int fake_broadcast;
-	int layer2;
+	enum qeth_discipline_id layer;
 	int performance_stats;
 	int rx_sg_cb;
 	enum qeth_ipa_isolation_modes isolation;
@@ -689,6 +696,9 @@ struct qeth_card_options {
 	enum qeth_cq cq;
 	char hsuid[9];
 };
+
+#define	IS_LAYER2(card)	((card)->options.layer == QETH_DISCIPLINE_LAYER2)
+#define	IS_LAYER3(card)	((card)->options.layer == QETH_DISCIPLINE_LAYER3)
 
 /*
  * thread bits for qeth_card thread masks
@@ -700,12 +710,6 @@ enum qeth_threads {
 struct qeth_osn_info {
 	int (*assist_cb)(struct net_device *dev, void *data);
 	int (*data_cb)(struct sk_buff *skb);
-};
-
-enum qeth_discipline_id {
-	QETH_DISCIPLINE_UNDETERMINED = -1,
-	QETH_DISCIPLINE_LAYER3 = 0,
-	QETH_DISCIPLINE_LAYER2 = 1,
 };
 
 struct qeth_discipline {
@@ -759,7 +763,6 @@ struct qeth_switch_info {
 struct qeth_card {
 	struct list_head list;
 	enum qeth_card_states state;
-	int lan_online;
 	spinlock_t lock;
 	struct ccwgroup_device *gdev;
 	struct qeth_channel read;

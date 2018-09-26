@@ -694,7 +694,7 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	int tx_bytes = skb->len;
 	int rc;
 
-	if ((card->state != CARD_STATE_UP) || !card->lan_online) {
+	if (card->state != CARD_STATE_UP) {
 		card->stats.tx_carrier_errors++;
 		goto tx_drop;
 	}
@@ -806,7 +806,6 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 	}
 	INIT_LIST_HEAD(&card->vid_list);
 	hash_init(card->mac_htable);
-	card->options.layer2 = 1;
 	card->info.hwtrap = 0;
 	qeth_l2_vnicc_set_defaults(card);
 	return 0;
@@ -998,10 +997,6 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		goto out_remove;
 	}
 	card->state = CARD_STATE_SOFTSETUP;
-	if (card->lan_online)
-		netif_carrier_on(card->dev);
-	else
-		netif_carrier_off(card->dev);
 
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
 
@@ -1147,9 +1142,6 @@ static int qeth_l2_pm_resume(struct ccwgroup_device *gdev)
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 	int rc = 0;
 
-	if (gdev->state == CCWGROUP_OFFLINE)
-		goto out;
-
 	if (card->state == CARD_STATE_RECOVER) {
 		rc = __qeth_l2_set_online(card->gdev, 1);
 		if (rc) {
@@ -1159,7 +1151,7 @@ static int qeth_l2_pm_resume(struct ccwgroup_device *gdev)
 		}
 	} else
 		rc = __qeth_l2_set_online(card->gdev, 0);
-out:
+
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
 	netif_device_attach(card->dev);
 	if (rc)
