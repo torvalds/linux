@@ -129,7 +129,7 @@ static int prism2_change_virtual_intf(struct wiphy *wiphy,
 
 	/* Set Operation mode to the PORT TYPE RID */
 	result = prism2_domibset_uint32(wlandev,
-					DIDmib_p2_p2Static_p2CnfPortType,
+					DIDMIB_P2_STATIC_CNFPORTTYPE,
 					data);
 
 	if (result)

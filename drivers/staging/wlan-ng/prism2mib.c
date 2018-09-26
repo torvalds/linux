@@ -217,7 +217,7 @@ static struct mibrec mibtab[] = {
 
 	/* p2Static MIB's */
 
-	{DIDmib_p2_p2Static_p2CnfPortType,
+	{DIDMIB_P2_STATIC_CNFPORTTYPE,
 	 F_STA | F_READ | F_WRITE,
 	 HFA384x_RID_CNFPORTTYPE, 0, 0,
 	 prism2mib_uint32},
