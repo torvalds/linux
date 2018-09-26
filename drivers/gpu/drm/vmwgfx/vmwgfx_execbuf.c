@@ -314,10 +314,14 @@ static int vmw_view_res_val_add(struct vmw_sw_context *sw_context,
  *
  * The view is represented by a view id and the DX context it's created on,
  * or scheduled for creation on. If there is no DX context set, the function
- * will return -EINVAL. Otherwise returns 0 on success and -EINVAL on failure.
+ * will return an -EINVAL error pointer.
+ *
+ * Returns: Unreferenced pointer to the resource on success, negative error
+ * pointer on failure.
  */
-static int vmw_view_id_val_add(struct vmw_sw_context *sw_context,
-			       enum vmw_view_type view_type, u32 id)
+static struct vmw_resource *
+vmw_view_id_val_add(struct vmw_sw_context *sw_context,
+		    enum vmw_view_type view_type, u32 id)
 {
 	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
 	struct vmw_resource *view;
@@ -325,17 +329,18 @@ static int vmw_view_id_val_add(struct vmw_sw_context *sw_context,
 
 	if (!ctx_node) {
 		DRM_ERROR("DX Context not set.\n");
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	view = vmw_view_lookup(sw_context->man, view_type, id);
 	if (IS_ERR(view))
-		return PTR_ERR(view);
+		return view;
 
 	ret = vmw_view_res_val_add(sw_context, view);
-	vmw_resource_unreference(&view);
+	if (ret)
+		return ERR_PTR(ret);
 
-	return ret;
+	return view;
 }
 
 /**
@@ -740,33 +745,23 @@ static int vmw_view_bindings_add(struct vmw_sw_context *sw_context,
 				 u32 first_slot)
 {
 	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
-	struct vmw_cmdbuf_res_manager *man;
 	u32 i;
-	int ret;
 
 	if (!ctx_node) {
 		DRM_ERROR("DX Context not set.\n");
 		return -EINVAL;
 	}
 
-	man = sw_context->man;
 	for (i = 0; i < num_views; ++i) {
 		struct vmw_ctx_bindinfo_view binding;
 		struct vmw_resource *view = NULL;
 
 		if (view_ids[i] != SVGA3D_INVALID_ID) {
-			view = vmw_view_lookup(man, view_type, view_ids[i]);
+			view = vmw_view_id_val_add(sw_context, view_type,
+						   view_ids[i]);
 			if (IS_ERR(view)) {
 				DRM_ERROR("View not found.\n");
 				return PTR_ERR(view);
-			}
-
-			ret = vmw_view_res_val_add(sw_context, view);
-			if (ret) {
-				DRM_ERROR("Could not add view to "
-					  "validation list.\n");
-				vmw_resource_unreference(&view);
-				return ret;
 			}
 		}
 		binding.bi.ctx = ctx_node->ctx;
@@ -776,8 +771,6 @@ static int vmw_view_bindings_add(struct vmw_sw_context *sw_context,
 		binding.slot = first_slot + i;
 		vmw_binding_add(ctx_node->staged, &binding.bi,
 				shader_slot, binding.slot);
-		if (view)
-			vmw_resource_unreference(&view);
 	}
 
 	return 0;
@@ -2136,11 +2129,8 @@ static int vmw_cmd_set_shader(struct vmw_private *dev_priv,
 					cmd->body.type);
 
 		if (!IS_ERR(res)) {
-			struct vmw_resource *tmp_res = res;
-
 			ret = vmw_cmd_res_reloc_add(dev_priv, sw_context,
 						    &cmd->body.shid, res);
-			vmw_resource_unreference(&tmp_res);
 			if (unlikely(ret != 0))
 				return ret;
 		}
@@ -2359,7 +2349,7 @@ static int vmw_cmd_dx_set_shader(struct vmw_private *dev_priv,
 
 		ret = vmw_resource_val_add(sw_context, res);
 		if (ret)
-			goto out_unref;
+			return ret;
 	}
 
 	binding.bi.ctx = ctx_node->ctx;
@@ -2369,11 +2359,8 @@ static int vmw_cmd_dx_set_shader(struct vmw_private *dev_priv,
 
 	vmw_binding_add(ctx_node->staged, &binding.bi,
 			binding.shader_slot, 0);
-out_unref:
-	if (res)
-		vmw_resource_unreference(&res);
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -2530,8 +2517,8 @@ static int vmw_cmd_dx_clear_rendertarget_view(struct vmw_private *dev_priv,
 		SVGA3dCmdDXClearRenderTargetView body;
 	} *cmd = container_of(header, typeof(*cmd), header);
 
-	return vmw_view_id_val_add(sw_context, vmw_view_rt,
-				   cmd->body.renderTargetViewId);
+	return PTR_RET(vmw_view_id_val_add(sw_context, vmw_view_rt,
+					   cmd->body.renderTargetViewId));
 }
 
 /**
@@ -2551,8 +2538,8 @@ static int vmw_cmd_dx_clear_depthstencil_view(struct vmw_private *dev_priv,
 		SVGA3dCmdDXClearDepthStencilView body;
 	} *cmd = container_of(header, typeof(*cmd), header);
 
-	return vmw_view_id_val_add(sw_context, vmw_view_ds,
-				   cmd->body.depthStencilViewId);
+	return PTR_RET(vmw_view_id_val_add(sw_context, vmw_view_ds,
+					   cmd->body.depthStencilViewId));
 }
 
 static int vmw_cmd_dx_view_define(struct vmw_private *dev_priv,
@@ -2904,17 +2891,13 @@ static int vmw_cmd_dx_bind_shader(struct vmw_private *dev_priv,
 	ret = vmw_resource_val_add(sw_context, res);
 	if (ret) {
 		DRM_ERROR("Error creating resource validation node.\n");
-		goto out_unref;
+		return ret;
 	}
 
 
-	ret = vmw_cmd_res_switch_backup(dev_priv, sw_context, res,
-					&cmd->body.mobid,
-					cmd->body.offsetInBytes);
-out_unref:
-	vmw_resource_unreference(&res);
-
-	return ret;
+	return vmw_cmd_res_switch_backup(dev_priv, sw_context, res,
+					 &cmd->body.mobid,
+					 cmd->body.offsetInBytes);
 }
 
 /**
@@ -2933,8 +2916,8 @@ static int vmw_cmd_dx_genmips(struct vmw_private *dev_priv,
 		SVGA3dCmdDXGenMips body;
 	} *cmd = container_of(header, typeof(*cmd), header);
 
-	return vmw_view_id_val_add(sw_context, vmw_view_sr,
-				   cmd->body.shaderResourceViewId);
+	return PTR_RET(vmw_view_id_val_add(sw_context, vmw_view_sr,
+					   cmd->body.shaderResourceViewId));
 }
 
 /**
