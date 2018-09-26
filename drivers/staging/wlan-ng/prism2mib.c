@@ -230,7 +230,7 @@ static struct mibrec mibtab[] = {
 	 prism2mib_uint32},
 
 	/* And finally, lnx mibs */
-	{DIDmib_lnx_lnxConfigTable_lnxRSNAIE,
+	{DIDMIB_LNX_CONFIGTABLE_RSNAIE,
 	 F_STA | F_READ | F_WRITE,
 	 HFA384x_RID_CNFWPADATA, 0, 0,
 	 prism2mib_priv},
@@ -707,7 +707,7 @@ static int prism2mib_priv(struct mibrec *mib,
 	struct p80211pstrd *pstr = data;
 
 	switch (mib->did) {
-	case DIDmib_lnx_lnxConfigTable_lnxRSNAIE:{
+	case DIDMIB_LNX_CONFIGTABLE_RSNAIE:{
 			struct hfa384x_wpa_data wpa;
 
 			if (isget) {
