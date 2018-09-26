@@ -683,7 +683,7 @@ static const struct pinctrl_pin_desc byt_ncore_pins[] = {
 	PINCTRL_PIN(27, "GPIO_NCORE27"),
 };
 
-static unsigned const byt_ncore_pins_map[BYT_NGPIO_NCORE] = {
+static const unsigned int byt_ncore_pins_map[BYT_NGPIO_NCORE] = {
 	19, 18, 17, 20, 21, 22, 24, 25, 23, 16,
 	14, 15, 12, 26, 27, 1, 4, 8, 11, 0,
 	3, 6, 10, 13, 2, 5, 9, 7,
@@ -927,7 +927,7 @@ static int byt_set_mux(struct pinctrl_dev *pctldev, unsigned int func_selector,
 	return 0;
 }
 
-static u32 byt_get_gpio_mux(struct byt_gpio *vg, unsigned offset)
+static u32 byt_get_gpio_mux(struct byt_gpio *vg, unsigned int offset)
 {
 	/* SCORE pin 92-93 */
 	if (!strcmp(vg->soc_data->uid, BYT_SCORE_ACPI_UID) &&
@@ -1311,7 +1311,7 @@ static const struct pinctrl_desc byt_pinctrl_desc = {
 	.owner		= THIS_MODULE,
 };
 
-static int byt_gpio_get(struct gpio_chip *chip, unsigned offset)
+static int byt_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct byt_gpio *vg = gpiochip_get_data(chip);
 	void __iomem *reg = byt_gpio_reg(vg, offset, BYT_VAL_REG);
@@ -1325,7 +1325,7 @@ static int byt_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return !!(val & BYT_LEVEL);
 }
 
-static void byt_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static void byt_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct byt_gpio *vg = gpiochip_get_data(chip);
 	void __iomem *reg = byt_gpio_reg(vg, offset, BYT_VAL_REG);
@@ -1496,7 +1496,7 @@ static void byt_irq_ack(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct byt_gpio *vg = gpiochip_get_data(gc);
-	unsigned offset = irqd_to_hwirq(d);
+	unsigned int offset = irqd_to_hwirq(d);
 	void __iomem *reg;
 
 	reg = byt_gpio_reg(vg, offset, BYT_INT_STAT_REG);
@@ -1520,7 +1520,7 @@ static void byt_irq_unmask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct byt_gpio *vg = gpiochip_get_data(gc);
-	unsigned offset = irqd_to_hwirq(d);
+	unsigned int offset = irqd_to_hwirq(d);
 	unsigned long flags;
 	void __iomem *reg;
 	u32 value;
