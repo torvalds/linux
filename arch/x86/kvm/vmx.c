@@ -12856,15 +12856,6 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	}
 
 	/*
-	 * After this point, the trap flag no longer triggers a singlestep trap
-	 * on the vm entry instructions; don't call kvm_skip_emulated_instruction.
-	 * This is not 100% correct; for performance reasons, we delegate most
-	 * of the checks on host state to the processor.  If those fail,
-	 * the singlestep trap is missed.
-	 */
-	skip_emulated_instruction(vcpu);
-
-	/*
 	 * We're finally done with prerequisite checking, and can start with
 	 * the nested entry.
 	 */
@@ -13243,6 +13234,8 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 	kvm_register_write(vcpu, VCPU_REGS_RSP, vmcs12->host_rsp);
 	kvm_register_write(vcpu, VCPU_REGS_RIP, vmcs12->host_rip);
 	vmx_set_rflags(vcpu, X86_EFLAGS_FIXED);
+	vmx_set_interrupt_shadow(vcpu, 0);
+
 	/*
 	 * Note that calling vmx_set_cr0 is important, even if cr0 hasn't
 	 * actually changed, because vmx_set_cr0 refers to efer set above.
@@ -13636,9 +13629,11 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	 * in L1 which thinks it just finished a VMLAUNCH or
 	 * VMRESUME instruction, so we need to set the failure
 	 * flag and the VM-instruction error field of the VMCS
-	 * accordingly.
+	 * accordingly, and skip the emulated instruction.
 	 */
 	nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
+
+	kvm_skip_emulated_instruction(vcpu);
 
 	/*
 	 * Restore L1's host state to KVM's software model.  We're here
@@ -13648,12 +13643,6 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	 */
 	nested_vmx_restore_host_state(vcpu);
 
-	/*
-	 * The emulated instruction was already skipped in
-	 * nested_vmx_run, but the updated RIP was never
-	 * written back to the vmcs01.
-	 */
-	skip_emulated_instruction(vcpu);
 	vmx->fail = 0;
 }
 
