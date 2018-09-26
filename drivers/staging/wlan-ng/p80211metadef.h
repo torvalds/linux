@@ -126,7 +126,7 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(11) | \
 			P80211DID_MKITEM(3) | 0x00000000)
-#define DIDmsg_p2req_ramdl_write \
+#define DIDMSG_P2REQ_RAMDL_WRITE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(12))
 #define DIDmsg_p2req_ramdl_write_addr \

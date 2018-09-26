@@ -1034,7 +1034,7 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	rstmsg->resultcode.len = sizeof(u32);
 
 	strcpy(rwrmsg->devname, wlandev->name);
-	rwrmsg->msgcode = DIDmsg_p2req_ramdl_write;
+	rwrmsg->msgcode = DIDMSG_P2REQ_RAMDL_WRITE;
 	rwrmsg->msglen = sizeof(*rwrmsg);
 	rwrmsg->addr.did = DIDmsg_p2req_ramdl_write_addr;
 	rwrmsg->len.did = DIDmsg_p2req_ramdl_write_len;
