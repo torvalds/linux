@@ -30,12 +30,16 @@ static ssize_t force_power_store(struct device *dev,
 	input.length = sizeof(u8);
 	input.pointer = &mode;
 	mode = hex_to_bin(buf[0]);
+	dev_dbg(dev, "force_power: storing %#x\n", mode);
 	if (mode == 0 || mode == 1) {
 		status = wmi_evaluate_method(INTEL_WMI_THUNDERBOLT_GUID, 0, 1,
 					     &input, NULL);
-		if (ACPI_FAILURE(status))
+		if (ACPI_FAILURE(status)) {
+			dev_dbg(dev, "force_power: failed to evaluate ACPI method\n");
 			return -ENODEV;
+		}
 	} else {
+		dev_dbg(dev, "force_power: unsupported mode\n");
 		return -EINVAL;
 	}
 	return count;
