@@ -195,7 +195,7 @@ static bool program_hpd_filter(
 	return result;
 }
 
-static bool detect_sink(struct dc_link *link, enum dc_connection_type *type)
+bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 {
 	uint32_t is_hpd_high = 0;
 	struct gpio *hpd_pin;
@@ -604,7 +604,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 	if (link->connector_signal == SIGNAL_TYPE_VIRTUAL)
 		return false;
 
-	if (false == detect_sink(link, &new_connection_type)) {
+	if (false == dc_link_detect_sink(link, &new_connection_type)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
