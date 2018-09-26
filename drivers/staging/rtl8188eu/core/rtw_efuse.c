@@ -22,13 +22,9 @@ enum{
 	};
 
 /*
- * Function:	efuse_power_switch
- *
- * Overview:	When we want to enable write operation, we should change to
- *				pwr on state. When we stop write, we should switch to 500k mode
- *				and disable LDO 2.5V.
+ * When we want to enable write operation, we should change to pwr on state.
+ * When we stop write, we should switch to 500k mode and disable LDO 2.5V.
  */
-
 void efuse_power_switch(struct adapter *pAdapter, u8 write, u8 pwrstate)
 {
 	u8 tempval;
@@ -872,9 +868,7 @@ u8 efuse_OneByteWrite(struct adapter *pAdapter, u16 addr, u8 data)
 	return result;
 }
 
-/*
- * Overview:   Read allowed word in current efuse section data.
- */
+/* Read allowed word in current efuse section data. */
 void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata)
 {
 	if (!(word_en & BIT(0))) {
@@ -895,9 +889,7 @@ void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata)
 	}
 }
 
-/*
- * Overview:	Read All Efuse content
- */
+/* Read All Efuse content */
 static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 efuseType, u8 *Efuse)
 {
 	efuse_power_switch(pAdapter, false, true);
@@ -907,9 +899,7 @@ static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 efuseType, u8 *Efuse)
 	efuse_power_switch(pAdapter, false, false);
 }
 
-/*
- * Overview:	Transfer current EFUSE content to shadow init and modify map.
- */
+/* Transfer current EFUSE content to shadow init and modify map. */
 void EFUSE_ShadowMapUpdate(
 	struct adapter *pAdapter,
 	u8 efuseType)
