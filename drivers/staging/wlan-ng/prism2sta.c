@@ -304,7 +304,7 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 		pr_debug("Received scan_results request\n");
 		result = prism2mgmt_scan_results(wlandev, msg);
 		break;
-	case DIDmsg_dot11req_start:
+	case DIDMSG_DOT11REQ_START:
 		pr_debug("Received mlme start request\n");
 		result = prism2mgmt_start(wlandev, msg);
 		break;
