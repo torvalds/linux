@@ -688,10 +688,10 @@ static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
 				return cmd;
 			case IPA_CMD_REGISTER_LOCAL_ADDR:
 				QETH_CARD_TEXT(card, 3, "irla");
-				break;
+				return NULL;
 			case IPA_CMD_UNREGISTER_LOCAL_ADDR:
 				QETH_CARD_TEXT(card, 3, "urla");
-				break;
+				return NULL;
 			default:
 				QETH_DBF_MESSAGE(2, "Received data is IPA "
 					   "but not a reply!\n");
