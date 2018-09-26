@@ -645,7 +645,7 @@ static int p80211knetdev_set_mac_address(struct net_device *dev, void *addr)
 	       WLAN_DEVNAMELEN_MAX - 1);
 
 	/* Set up the mibattribute argument */
-	mibattr->did = DIDmsg_dot11req_mibset_mibattribute;
+	mibattr->did = DIDMSG_DOT11REQ_MIBSET_MIBATTRIBUTE;
 	mibattr->status = P80211ENUM_msgitem_status_data_ok;
 	mibattr->len = sizeof(mibattr->data);
 
