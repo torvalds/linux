@@ -1203,8 +1203,10 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			continue;
 
 		sband = kmemdup(sband, sizeof(*sband), GFP_KERNEL);
-		if (!sband)
+		if (!sband) {
+			result = -ENOMEM;
 			goto fail_rate;
+		}
 
 		wiphy_dbg(hw->wiphy, "copying sband (band %d) due to VHT EXT NSS BW flag\n",
 			  band);
