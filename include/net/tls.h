@@ -101,13 +101,11 @@ struct tls_rec {
 	struct list_head list;
 	int tx_ready;
 	int tx_flags;
-	struct scatterlist sg_plaintext_data[MAX_SKB_FRAGS];
-	struct scatterlist sg_encrypted_data[MAX_SKB_FRAGS];
 
 	/* AAD | sg_plaintext_data | sg_tag */
-	struct scatterlist sg_aead_in[2];
+	struct scatterlist sg_plaintext_data[MAX_SKB_FRAGS + 1];
 	/* AAD | sg_encrypted_data (data contain overhead for hdr&iv&tag) */
-	struct scatterlist sg_aead_out[2];
+	struct scatterlist sg_encrypted_data[MAX_SKB_FRAGS + 1];
 
 	unsigned int sg_plaintext_size;
 	unsigned int sg_encrypted_size;
