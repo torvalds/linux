@@ -55,7 +55,7 @@
 
 /* S2_PGDIR_SHIFT is the size mapped by top-level stage2 entry */
 #define S2_PGDIR_SHIFT			ARM64_HW_PGTABLE_LEVEL_SHIFT(4 - STAGE2_PGTABLE_LEVELS)
-#define S2_PGDIR_SIZE			(_AC(1, UL) << S2_PGDIR_SHIFT)
+#define S2_PGDIR_SIZE			(1UL << S2_PGDIR_SHIFT)
 #define S2_PGDIR_MASK			(~(S2_PGDIR_SIZE - 1))
 
 /*
@@ -65,28 +65,30 @@
 #define PTRS_PER_S2_PGD			(1 << (KVM_PHYS_SHIFT - S2_PGDIR_SHIFT))
 
 /*
- * KVM_MMU_CACHE_MIN_PAGES is the number of stage2 page table translation
- * levels in addition to the PGD.
+ * kvm_mmmu_cache_min_pages() is the number of pages required to install
+ * a stage-2 translation. We pre-allocate the entry level page table at
+ * the VM creation.
  */
-#define KVM_MMU_CACHE_MIN_PAGES		(STAGE2_PGTABLE_LEVELS - 1)
+#define kvm_mmu_cache_min_pages(kvm)	(STAGE2_PGTABLE_LEVELS - 1)
 
 
 #if STAGE2_PGTABLE_LEVELS > 3
 
 #define S2_PUD_SHIFT			ARM64_HW_PGTABLE_LEVEL_SHIFT(1)
-#define S2_PUD_SIZE			(_AC(1, UL) << S2_PUD_SHIFT)
+#define S2_PUD_SIZE			(1UL << S2_PUD_SHIFT)
 #define S2_PUD_MASK			(~(S2_PUD_SIZE - 1))
 
-#define stage2_pgd_none(pgd)				pgd_none(pgd)
-#define stage2_pgd_clear(pgd)				pgd_clear(pgd)
-#define stage2_pgd_present(pgd)				pgd_present(pgd)
-#define stage2_pgd_populate(pgd, pud)			pgd_populate(NULL, pgd, pud)
-#define stage2_pud_offset(pgd, address)			pud_offset(pgd, address)
-#define stage2_pud_free(pud)				pud_free(NULL, pud)
+#define stage2_pgd_none(kvm, pgd)		pgd_none(pgd)
+#define stage2_pgd_clear(kvm, pgd)		pgd_clear(pgd)
+#define stage2_pgd_present(kvm, pgd)		pgd_present(pgd)
+#define stage2_pgd_populate(kvm, pgd, pud)	pgd_populate(NULL, pgd, pud)
+#define stage2_pud_offset(kvm, pgd, address)	pud_offset(pgd, address)
+#define stage2_pud_free(kvm, pud)		pud_free(NULL, pud)
 
-#define stage2_pud_table_empty(pudp)			kvm_page_empty(pudp)
+#define stage2_pud_table_empty(kvm, pudp)	kvm_page_empty(pudp)
 
-static inline phys_addr_t stage2_pud_addr_end(phys_addr_t addr, phys_addr_t end)
+static inline phys_addr_t
+stage2_pud_addr_end(struct kvm *kvm, phys_addr_t addr, phys_addr_t end)
 {
 	phys_addr_t boundary = (addr + S2_PUD_SIZE) & S2_PUD_MASK;
 
@@ -99,20 +101,21 @@ static inline phys_addr_t stage2_pud_addr_end(phys_addr_t addr, phys_addr_t end)
 #if STAGE2_PGTABLE_LEVELS > 2
 
 #define S2_PMD_SHIFT			ARM64_HW_PGTABLE_LEVEL_SHIFT(2)
-#define S2_PMD_SIZE			(_AC(1, UL) << S2_PMD_SHIFT)
+#define S2_PMD_SIZE			(1UL << S2_PMD_SHIFT)
 #define S2_PMD_MASK			(~(S2_PMD_SIZE - 1))
 
-#define stage2_pud_none(pud)				pud_none(pud)
-#define stage2_pud_clear(pud)				pud_clear(pud)
-#define stage2_pud_present(pud)				pud_present(pud)
-#define stage2_pud_populate(pud, pmd)			pud_populate(NULL, pud, pmd)
-#define stage2_pmd_offset(pud, address)			pmd_offset(pud, address)
-#define stage2_pmd_free(pmd)				pmd_free(NULL, pmd)
+#define stage2_pud_none(kvm, pud)		pud_none(pud)
+#define stage2_pud_clear(kvm, pud)		pud_clear(pud)
+#define stage2_pud_present(kvm, pud)		pud_present(pud)
+#define stage2_pud_populate(kvm, pud, pmd)	pud_populate(NULL, pud, pmd)
+#define stage2_pmd_offset(kvm, pud, address)	pmd_offset(pud, address)
+#define stage2_pmd_free(kvm, pmd)		pmd_free(NULL, pmd)
 
-#define stage2_pud_huge(pud)				pud_huge(pud)
-#define stage2_pmd_table_empty(pmdp)			kvm_page_empty(pmdp)
+#define stage2_pud_huge(kvm, pud)		pud_huge(pud)
+#define stage2_pmd_table_empty(kvm, pmdp)	kvm_page_empty(pmdp)
 
-static inline phys_addr_t stage2_pmd_addr_end(phys_addr_t addr, phys_addr_t end)
+static inline phys_addr_t
+stage2_pmd_addr_end(struct kvm *kvm, phys_addr_t addr, phys_addr_t end)
 {
 	phys_addr_t boundary = (addr + S2_PMD_SIZE) & S2_PMD_MASK;
 
@@ -121,7 +124,7 @@ static inline phys_addr_t stage2_pmd_addr_end(phys_addr_t addr, phys_addr_t end)
 
 #endif		/* STAGE2_PGTABLE_LEVELS > 2 */
 
-#define stage2_pte_table_empty(ptep)			kvm_page_empty(ptep)
+#define stage2_pte_table_empty(kvm, ptep)	kvm_page_empty(ptep)
 
 #if STAGE2_PGTABLE_LEVELS == 2
 #include <asm/stage2_pgtable-nopmd.h>
@@ -129,10 +132,13 @@ static inline phys_addr_t stage2_pmd_addr_end(phys_addr_t addr, phys_addr_t end)
 #include <asm/stage2_pgtable-nopud.h>
 #endif
 
+#define stage2_pgd_size(kvm)	(PTRS_PER_S2_PGD * sizeof(pgd_t))
 
-#define stage2_pgd_index(addr)				(((addr) >> S2_PGDIR_SHIFT) & (PTRS_PER_S2_PGD - 1))
+#define stage2_pgd_index(kvm, addr) \
+	(((addr) >> S2_PGDIR_SHIFT) & (PTRS_PER_S2_PGD - 1))
 
-static inline phys_addr_t stage2_pgd_addr_end(phys_addr_t addr, phys_addr_t end)
+static inline phys_addr_t
+stage2_pgd_addr_end(struct kvm *kvm, phys_addr_t addr, phys_addr_t end)
 {
 	phys_addr_t boundary = (addr + S2_PGDIR_SIZE) & S2_PGDIR_MASK;
 

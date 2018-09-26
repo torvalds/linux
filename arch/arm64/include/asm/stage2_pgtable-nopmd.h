@@ -26,17 +26,17 @@
 #define S2_PMD_SIZE		(1UL << S2_PMD_SHIFT)
 #define S2_PMD_MASK		(~(S2_PMD_SIZE-1))
 
-#define stage2_pud_none(pud)			(0)
-#define stage2_pud_present(pud)			(1)
-#define stage2_pud_clear(pud)			do { } while (0)
-#define stage2_pud_populate(pud, pmd)		do { } while (0)
-#define stage2_pmd_offset(pud, address)		((pmd_t *)(pud))
+#define stage2_pud_none(kvm, pud)		(0)
+#define stage2_pud_present(kvm, pud)		(1)
+#define stage2_pud_clear(kvm, pud)		do { } while (0)
+#define stage2_pud_populate(kvm, pud, pmd)	do { } while (0)
+#define stage2_pmd_offset(kvm, pud, address)	((pmd_t *)(pud))
 
-#define stage2_pmd_free(pmd)			do { } while (0)
+#define stage2_pmd_free(kvm, pmd)		do { } while (0)
 
-#define stage2_pmd_addr_end(addr, end)		(end)
+#define stage2_pmd_addr_end(kvm, addr, end)	(end)
 
-#define stage2_pud_huge(pud)			(0)
-#define stage2_pmd_table_empty(pmdp)		(0)
+#define stage2_pud_huge(kvm, pud)		(0)
+#define stage2_pmd_table_empty(kvm, pmdp)	(0)
 
 #endif

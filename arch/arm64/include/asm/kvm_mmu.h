@@ -141,8 +141,11 @@ static inline unsigned long __kern_hyp_va(unsigned long v)
  * We currently only support a 40bit IPA.
  */
 #define KVM_PHYS_SHIFT	(40)
-#define KVM_PHYS_SIZE	(1UL << KVM_PHYS_SHIFT)
-#define KVM_PHYS_MASK	(KVM_PHYS_SIZE - 1UL)
+
+#define kvm_phys_shift(kvm)		KVM_PHYS_SHIFT
+#define kvm_phys_size(kvm)		(_AC(1, ULL) << kvm_phys_shift(kvm))
+#define kvm_phys_mask(kvm)		(kvm_phys_size(kvm) - _AC(1, ULL))
+#define kvm_vttbr_baddr_mask(kvm)	VTTBR_BADDR_MASK
 
 #include <asm/stage2_pgtable.h>
 

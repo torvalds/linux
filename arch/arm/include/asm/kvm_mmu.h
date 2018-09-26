@@ -35,22 +35,25 @@
 		addr;							\
 	})
 
-/*
- * KVM_MMU_CACHE_MIN_PAGES is the number of stage2 page table translation levels.
- */
-#define KVM_MMU_CACHE_MIN_PAGES	2
-
 #ifndef __ASSEMBLY__
 
 #include <linux/highmem.h>
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
+#include <asm/kvm_arm.h>
 #include <asm/kvm_hyp.h>
 #include <asm/pgalloc.h>
 #include <asm/stage2_pgtable.h>
 
 /* Ensure compatibility with arm64 */
 #define VA_BITS			32
+
+#define kvm_phys_shift(kvm)		KVM_PHYS_SHIFT
+#define kvm_phys_size(kvm)		(1ULL << kvm_phys_shift(kvm))
+#define kvm_phys_mask(kvm)		(kvm_phys_size(kvm) - 1ULL)
+#define kvm_vttbr_baddr_mask(kvm)	VTTBR_BADDR_MASK
+
+#define stage2_pgd_size(kvm)		(PTRS_PER_S2_PGD * sizeof(pgd_t))
 
 int create_hyp_mappings(void *from, void *to, pgprot_t prot);
 int create_hyp_io_mappings(phys_addr_t phys_addr, size_t size,
