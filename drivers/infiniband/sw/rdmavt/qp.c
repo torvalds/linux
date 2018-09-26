@@ -1823,13 +1823,11 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 		wqe->wr.num_sge = j;
 	}
 
-	/* general part of wqe valid - allow for driver checks */
-	if (rdi->driver_f.check_send_wqe) {
-		ret = rdi->driver_f.check_send_wqe(qp, wqe, call_send);
-		if (ret < 0)
-			goto bail_inval_free;
-	}
-
+	/*
+	 * Calculate and set SWQE PSN values prior to handing it off
+	 * to the driver's check routine. This give the driver the
+	 * opportunity to adjust PSN values based on internal checks.
+	 */
 	log_pmtu = qp->log_pmtu;
 	if (qp->ibqp.qp_type != IB_QPT_UC &&
 	    qp->ibqp.qp_type != IB_QPT_RC) {
@@ -1854,8 +1852,18 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 				(wqe->length ?
 					((wqe->length - 1) >> log_pmtu) :
 					0);
-		qp->s_next_psn = wqe->lpsn + 1;
 	}
+
+	/* general part of wqe valid - allow for driver checks */
+	if (rdi->driver_f.setup_wqe) {
+		ret = rdi->driver_f.setup_wqe(qp, wqe, call_send);
+		if (ret < 0)
+			goto bail_inval_free_ref;
+	}
+
+	if (!(rdi->post_parms[wr->opcode].flags & RVT_OPERATION_LOCAL))
+		qp->s_next_psn = wqe->lpsn + 1;
+
 	if (unlikely(reserved_op)) {
 		wqe->wr.send_flags |= RVT_SEND_RESERVE_USED;
 		rvt_qp_wqe_reserve(qp, wqe);
@@ -1869,6 +1877,10 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 
 	return 0;
 
+bail_inval_free_ref:
+	if (qp->ibqp.qp_type != IB_QPT_UC &&
+	    qp->ibqp.qp_type != IB_QPT_RC)
+		atomic_dec(&ibah_to_rvtah(ud_wr(wr)->ah)->refcount);
 bail_inval_free:
 	/* release mr holds */
 	while (j) {

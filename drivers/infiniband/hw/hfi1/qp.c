@@ -282,16 +282,21 @@ void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 }
 
 /**
- * hfi1_check_send_wqe - validate wqe
+ * hfi1_setup_wqe - set up the wqe
  * @qp - The qp
  * @wqe - The built wqe
  * @call_send - Determine if the send should be posted or scheduled.
  *
+ * Perform setup of the wqe.  This is called
+ * prior to inserting the wqe into the ring but after
+ * the wqe has been setup by RDMAVT. This function
+ * allows the driver the opportunity to perform
+ * validation and additional setup of the wqe.
+ *
  * Returns 0 on success, -EINVAL on failure
  *
  */
-int hfi1_check_send_wqe(struct rvt_qp *qp,
-			struct rvt_swqe *wqe, bool *call_send)
+int hfi1_setup_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe, bool *call_send)
 {
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	struct rvt_ah *ah;

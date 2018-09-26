@@ -1937,7 +1937,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.check_modify_qp = hfi1_check_modify_qp;
 	dd->verbs_dev.rdi.driver_f.modify_qp = hfi1_modify_qp;
 	dd->verbs_dev.rdi.driver_f.notify_restart_rc = hfi1_restart_rc;
-	dd->verbs_dev.rdi.driver_f.check_send_wqe = hfi1_check_send_wqe;
+	dd->verbs_dev.rdi.driver_f.setup_wqe = hfi1_setup_wqe;
 	dd->verbs_dev.rdi.driver_f.comp_vect_cpu_lookup =
 						hfi1_comp_vect_mappings_lookup;
 
