@@ -54,14 +54,12 @@ typedef struct bridge_id bridge_id;
 typedef struct mac_addr mac_addr;
 typedef __u16 port_id;
 
-struct bridge_id
-{
+struct bridge_id {
 	unsigned char	prio[2];
 	unsigned char	addr[ETH_ALEN];
 };
 
-struct mac_addr
-{
+struct mac_addr {
 	unsigned char	addr[ETH_ALEN];
 };
 
@@ -207,8 +205,7 @@ struct net_bridge_port_group {
 	unsigned char			eth_addr[ETH_ALEN];
 };
 
-struct net_bridge_mdb_entry
-{
+struct net_bridge_mdb_entry {
 	struct hlist_node		hlist[2];
 	struct net_bridge		*br;
 	struct net_bridge_port_group __rcu *ports;
@@ -218,8 +215,7 @@ struct net_bridge_mdb_entry
 	bool				host_joined;
 };
 
-struct net_bridge_mdb_htable
-{
+struct net_bridge_mdb_htable {
 	struct hlist_head		*mhash;
 	struct rcu_head			rcu;
 	struct net_bridge_mdb_htable	*old;
