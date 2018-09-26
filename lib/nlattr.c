@@ -67,6 +67,34 @@ static int validate_nla_bitfield32(const struct nlattr *nla,
 	return 0;
 }
 
+static int nla_validate_array(const struct nlattr *head, int len, int maxtype,
+			      const struct nla_policy *policy,
+			      struct netlink_ext_ack *extack)
+{
+	const struct nlattr *entry;
+	int rem;
+
+	nla_for_each_attr(entry, head, len, rem) {
+		int ret;
+
+		if (nla_len(entry) == 0)
+			continue;
+
+		if (nla_len(entry) < NLA_HDRLEN) {
+			NL_SET_ERR_MSG_ATTR(extack, entry,
+					    "Array element too short");
+			return -ERANGE;
+		}
+
+		ret = nla_validate(nla_data(entry), nla_len(entry),
+				   maxtype, policy, extack);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int validate_nla(const struct nlattr *nla, int maxtype,
 			const struct nla_policy *policy,
 			struct netlink_ext_ack *extack)
@@ -160,6 +188,29 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 		if (pt->validation_data) {
 			err = nla_validate(nla_data(nla), nla_len(nla), pt->len,
 					   pt->validation_data, extack);
+			if (err < 0) {
+				/*
+				 * return directly to preserve the inner
+				 * error message/attribute pointer
+				 */
+				return err;
+			}
+		}
+		break;
+	case NLA_NESTED_ARRAY:
+		/* a nested array attribute is allowed to be empty; if its not,
+		 * it must have a size of at least NLA_HDRLEN.
+		 */
+		if (attrlen == 0)
+			break;
+		if (attrlen < NLA_HDRLEN)
+			goto out_err;
+		if (pt->validation_data) {
+			int err;
+
+			err = nla_validate_array(nla_data(nla), nla_len(nla),
+						 pt->len, pt->validation_data,
+						 extack);
 			if (err < 0) {
 				/*
 				 * return directly to preserve the inner
