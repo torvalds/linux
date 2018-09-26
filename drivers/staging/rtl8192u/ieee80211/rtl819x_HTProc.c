@@ -216,63 +216,6 @@ void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
 				pHTInfoEle->BasicMSC[1], pHTInfoEle->BasicMSC[2], pHTInfoEle->BasicMSC[3], pHTInfoEle->BasicMSC[4]);
 }
 
-/*
- *	Return:		true if station in half n mode and AP supports 40 bw
- */
-static bool IsHTHalfNmode40Bandwidth(struct ieee80211_device *ieee)
-{
-	bool			retValue = false;
-	PRT_HIGH_THROUGHPUT	 pHTInfo = ieee->pHTInfo;
-
-	if (!pHTInfo->bCurrentHTSupport)		// wireless is n mode
-		retValue = false;
-	else if (!pHTInfo->bRegBW40MHz)		// station supports 40 bw
-		retValue = false;
-	else if (!ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))	// station in half n mode
-		retValue = false;
-	else if (((struct ht_capability_ele *)(pHTInfo->PeerHTCapBuf))->ChlWidth) // ap support 40 bw
-		retValue = true;
-	else
-		retValue = false;
-
-	return retValue;
-}
-
-static bool IsHTHalfNmodeSGI(struct ieee80211_device *ieee, bool is40MHz)
-{
-	bool			retValue = false;
-	PRT_HIGH_THROUGHPUT	 pHTInfo = ieee->pHTInfo;
-
-	if (!pHTInfo->bCurrentHTSupport)		// wireless is n mode
-		retValue = false;
-	else if (!ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))	// station in half n mode
-		retValue = false;
-	else if (is40MHz) { // ap support 40 bw
-		if (((struct ht_capability_ele *)(pHTInfo->PeerHTCapBuf))->ShortGI40Mhz) // ap support 40 bw short GI
-			retValue = true;
-		else
-			retValue = false;
-	} else {
-		if (((struct ht_capability_ele *)(pHTInfo->PeerHTCapBuf))->ShortGI20Mhz) // ap support 40 bw short GI
-			retValue = true;
-		else
-			retValue = false;
-	}
-
-	return retValue;
-}
-
-u16 HTHalfMcsToDataRate(struct ieee80211_device *ieee,	u8	nMcsRate)
-{
-	u8	is40MHz;
-	u8	isShortGI;
-
-	is40MHz = (IsHTHalfNmode40Bandwidth(ieee)) ? 1 : 0;
-	isShortGI = (IsHTHalfNmodeSGI(ieee, is40MHz)) ? 1 : 0;
-
-	return MCS_DATA_RATE[is40MHz][isShortGI][(nMcsRate & 0x7f)];
-}
-
 u16 HTMcsToDataRate(struct ieee80211_device *ieee, u8 nMcsRate)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;

@@ -2382,7 +2382,6 @@ u8 HTCCheck(struct ieee80211_device *ieee, u8 *pFrame);
 //extern void HTSetConnectBwModeCallback(unsigned long data);
 void HTResetIOTSetting(PRT_HIGH_THROUGHPUT pHTInfo);
 bool IsHTHalfNmodeAPs(struct ieee80211_device *ieee);
-u16 HTHalfMcsToDataRate(struct ieee80211_device *ieee, u8 nMcsRate);
 u16 HTMcsToDataRate(struct ieee80211_device *ieee, u8 nMcsRate);
 u16 TxCountToDataRate(struct ieee80211_device *ieee, u8 nDataRate);
 //function in BAPROC.c
