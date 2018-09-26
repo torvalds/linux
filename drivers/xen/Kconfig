@@ -86,7 +86,7 @@ config XEN_SCRUB_PAGES_DEFAULT
 	help
 	  Scrub pages before returning them to the system for reuse by
 	  other domains.  This makes sure that any confidential data
-	  is not accidentally visible to other domains.  Is it more
+	  is not accidentally visible to other domains.  It is more
 	  secure, but slightly less efficient. This can be controlled with
 	  xen_scrub_pages=0 parameter and
 	  /sys/devices/system/xen_memory/xen_memory0/scrub_pages.
