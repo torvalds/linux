@@ -562,7 +562,7 @@ void vmw_dx_shader_cotable_list_scrub(struct vmw_private *dev_priv,
 {
 	struct vmw_dx_shader *entry, *next;
 
-	WARN_ON_ONCE(!mutex_is_locked(&dev_priv->binding_mutex));
+	lockdep_assert_held_once(&dev_priv->binding_mutex);
 
 	list_for_each_entry_safe(entry, next, list, cotable_head) {
 		WARN_ON(vmw_dx_shader_scrub(&entry->res));
