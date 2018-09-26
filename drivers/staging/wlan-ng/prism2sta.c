@@ -355,7 +355,7 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 		pr_debug("Received mlme wlansniff request\n");
 		result = prism2mgmt_wlansniff(wlandev, msg);
 		break;
-	case DIDmsg_lnxreq_autojoin:
+	case DIDMSG_LNXREQ_AUTOJOIN:
 		pr_debug("Received mlme autojoin request\n");
 		result = prism2mgmt_autojoin(wlandev, msg);
 		break;

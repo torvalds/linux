@@ -97,7 +97,7 @@
 #define DIDMSG_LNXREQ_COMMSQUALITY \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(4))
-#define DIDmsg_lnxreq_autojoin \
+#define DIDMSG_LNXREQ_AUTOJOIN \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(5))
 #define DIDmsg_p2req_readpda \

@@ -533,7 +533,7 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 	/* Now do the actual join. Note there is no way that I can
 	 * see to request a specific bssid
 	 */
-	msg_join.msgcode = DIDmsg_lnxreq_autojoin;
+	msg_join.msgcode = DIDMSG_LNXREQ_AUTOJOIN;
 
 	memcpy(msg_join.ssid.data.data, sme->ssid, length);
 	msg_join.ssid.data.len = length;
@@ -556,7 +556,7 @@ static int prism2_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	int err = 0;
 
 	/* Do a join, with a bogus ssid. Thats the only way I can think of */
-	msg_join.msgcode = DIDmsg_lnxreq_autojoin;
+	msg_join.msgcode = DIDMSG_LNXREQ_AUTOJOIN;
 
 	memcpy(msg_join.ssid.data.data, "---", 3);
 	msg_join.ssid.data.len = 3;
