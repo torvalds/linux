@@ -195,7 +195,7 @@ static struct mibrec mibtab[] = {
 	 F_STA | F_READ,
 	 HFA384x_RID_LONGRETRYLIMIT, 0, 0,
 	 prism2mib_uint32},
-	{DIDmib_dot11mac_dot11OperationTable_dot11FragmentationThreshold,
+	{DIDMIB_DOT11MAC_OPERATIONTABLE_FRAGMENTATIONTHRESHOLD,
 	 F_STA | F_READ | F_WRITE,
 	 HFA384x_RID_FRAGTHRESH, 0, 0,
 	 prism2mib_fragmentationthreshold},
