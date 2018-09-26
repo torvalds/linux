@@ -8877,9 +8877,9 @@ out_all_pinned:
 
 out_one_pinned:
 	/* tune up the balancing interval */
-	if (((env.flags & LBF_ALL_PINNED) &&
-			sd->balance_interval < MAX_PINNED_INTERVAL) ||
-			(sd->balance_interval < sd->max_interval))
+	if ((env.flags & LBF_ALL_PINNED &&
+	     sd->balance_interval < MAX_PINNED_INTERVAL) ||
+	    sd->balance_interval < sd->max_interval)
 		sd->balance_interval *= 2;
 
 	ld_moved = 0;
