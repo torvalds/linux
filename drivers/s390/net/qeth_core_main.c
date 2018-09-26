@@ -826,16 +826,17 @@ static void qeth_send_control_data_cb(struct qeth_card *card,
 	if (IS_IPA(iob->data)) {
 		cmd = (struct qeth_ipa_cmd *) PDU_ENCAPSULATION(iob->data);
 		cmd = qeth_check_ipa_data(card, cmd);
-	}
-	if ((cmd == NULL) && (card->state != CARD_STATE_DOWN))
-		goto out;
-	/*in case of OSN : check if cmd is set */
-	if (card->info.type == QETH_CARD_TYPE_OSN &&
-	    cmd &&
-	    cmd->hdr.command != IPA_CMD_STARTLAN &&
-	    card->osn_info.assist_cb != NULL) {
-		card->osn_info.assist_cb(card->dev, cmd);
-		goto out;
+		if (!cmd)
+			goto out;
+		if (IS_OSN(card) && card->osn_info.assist_cb &&
+		    cmd->hdr.command != IPA_CMD_STARTLAN) {
+			card->osn_info.assist_cb(card->dev, cmd);
+			goto out;
+		}
+	} else {
+		/* non-IPA commands should only flow during initialization */
+		if (card->state != CARD_STATE_DOWN)
+			goto out;
 	}
 
 	spin_lock_irqsave(&card->lock, flags);
