@@ -25,6 +25,7 @@
 #include <asm/cacheflush.h>
 #include <acpi/nfit.h>
 #include "nfit.h"
+#include "intel.h"
 
 /*
  * For readq() and writeq() on 32-bit builds, the hi-lo, lo-hi order is
@@ -1551,7 +1552,12 @@ static DEVICE_ATTR_RO(dsm_mask);
 static ssize_t flags_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	u16 flags = to_nfit_memdev(dev)->flags;
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+	u16 flags = __to_nfit_memdev(nfit_mem)->flags;
+
+	if (test_bit(NFIT_MEM_DIRTY, &nfit_mem->flags))
+		flags |= ACPI_NFIT_MEM_FLUSH_FAILED;
 
 	return sprintf(buf, "%s%s%s%s%s%s%s\n",
 		flags & ACPI_NFIT_MEM_SAVE_FAILED ? "save_fail " : "",
@@ -1582,6 +1588,16 @@ static ssize_t id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(id);
 
+static ssize_t dirty_shutdown_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+
+	return sprintf(buf, "%d\n", nfit_mem->dirty_shutdown);
+}
+static DEVICE_ATTR_RO(dirty_shutdown);
+
 static struct attribute *acpi_nfit_dimm_attributes[] = {
 	&dev_attr_handle.attr,
 	&dev_attr_phys_id.attr,
@@ -1599,6 +1615,7 @@ static struct attribute *acpi_nfit_dimm_attributes[] = {
 	&dev_attr_id.attr,
 	&dev_attr_family.attr,
 	&dev_attr_dsm_mask.attr,
+	&dev_attr_dirty_shutdown.attr,
 	NULL,
 };
 
@@ -1607,6 +1624,7 @@ static umode_t acpi_nfit_dimm_attr_visible(struct kobject *kobj,
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct nvdimm *nvdimm = to_nvdimm(dev);
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
 
 	if (!to_nfit_dcr(dev)) {
 		/* Without a dcr only the memdev attributes can be surfaced */
@@ -1620,6 +1638,11 @@ static umode_t acpi_nfit_dimm_attr_visible(struct kobject *kobj,
 
 	if (a == &dev_attr_format1.attr && num_nvdimm_formats(nvdimm) <= 1)
 		return 0;
+
+	if (!test_bit(NFIT_MEM_DIRTY_COUNT, &nfit_mem->flags)
+			&& a == &dev_attr_dirty_shutdown.attr)
+		return 0;
+
 	return a->mode;
 }
 
@@ -1696,6 +1719,56 @@ static bool acpi_nvdimm_has_method(struct acpi_device *adev, char *method)
 	if (ACPI_SUCCESS(status))
 		return true;
 	return false;
+}
+
+static void nfit_intel_shutdown_status(struct nfit_mem *nfit_mem)
+{
+	struct nd_intel_smart smart = { 0 };
+	union acpi_object in_buf = {
+		.type = ACPI_TYPE_BUFFER,
+		.buffer.pointer = (char *) &smart,
+		.buffer.length = sizeof(smart),
+	};
+	union acpi_object in_obj = {
+		.type = ACPI_TYPE_PACKAGE,
+		.package.count = 1,
+		.package.elements = &in_buf,
+	};
+	const u8 func = ND_INTEL_SMART;
+	const guid_t *guid = to_nfit_uuid(nfit_mem->family);
+	u8 revid = nfit_dsm_revid(nfit_mem->family, func);
+	struct acpi_device *adev = nfit_mem->adev;
+	acpi_handle handle = adev->handle;
+	union acpi_object *out_obj;
+
+	if ((nfit_mem->dsm_mask & (1 << func)) == 0)
+		return;
+
+	out_obj = acpi_evaluate_dsm(handle, guid, revid, func, &in_obj);
+	if (!out_obj)
+		return;
+
+	if (smart.flags & ND_INTEL_SMART_SHUTDOWN_VALID) {
+		if (smart.shutdown_state)
+			set_bit(NFIT_MEM_DIRTY, &nfit_mem->flags);
+	}
+
+	if (smart.flags & ND_INTEL_SMART_SHUTDOWN_COUNT_VALID) {
+		set_bit(NFIT_MEM_DIRTY_COUNT, &nfit_mem->flags);
+		nfit_mem->dirty_shutdown = smart.shutdown_count;
+	}
+	ACPI_FREE(out_obj);
+}
+
+static void populate_shutdown_status(struct nfit_mem *nfit_mem)
+{
+	/*
+	 * For DIMMs that provide a dynamic facility to retrieve a
+	 * dirty-shutdown status and/or a dirty-shutdown count, cache
+	 * these values in nfit_mem.
+	 */
+	if (nfit_mem->family == NVDIMM_FAMILY_INTEL)
+		nfit_intel_shutdown_status(nfit_mem);
 }
 
 static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
@@ -1796,6 +1869,8 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 		dev_dbg(dev, "%s: has _LSW\n", dev_name(&adev_dimm->dev));
 		set_bit(NFIT_MEM_LSW, &nfit_mem->flags);
 	}
+
+	populate_shutdown_status(nfit_mem);
 
 	return 0;
 }
