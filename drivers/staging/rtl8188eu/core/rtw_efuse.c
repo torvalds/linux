@@ -512,7 +512,7 @@ static bool hal_EfuseFixHeaderProcess(struct adapter *pAdapter, u8 efuseType, st
 
 static bool hal_EfusePgPacketWrite2ByteHeader(struct adapter *pAdapter, u8 efuseType, u16 *pAddr, struct pgpkt *pTargetPkt)
 {
-	bool bRet = false;
+	bool ret = false;
 	u16 efuse_addr = *pAddr;
 	u16 efuse_max_available_len =
 		EFUSE_REAL_CONTENT_LEN_88E - EFUSE_OOB_PROTECT_BYTES_88E;
@@ -564,7 +564,7 @@ static bool hal_EfusePgPacketWrite2ByteHeader(struct adapter *pAdapter, u8 efuse
 				if (!hal_EfuseFixHeaderProcess(pAdapter, efuseType, &fixPkt, &efuse_addr))
 					return false;
 			} else {
-				bRet = true;
+				ret = true;
 				break;
 			}
 		} else if ((tmp_header & 0x1F) == 0x0F) {		/* wrong extended header */
@@ -574,12 +574,12 @@ static bool hal_EfusePgPacketWrite2ByteHeader(struct adapter *pAdapter, u8 efuse
 	}
 
 	*pAddr = efuse_addr;
-	return bRet;
+	return ret;
 }
 
 static bool hal_EfusePgPacketWrite1ByteHeader(struct adapter *pAdapter, u8 efuseType, u16 *pAddr, struct pgpkt *pTargetPkt)
 {
-	bool bRet = false;
+	bool ret = false;
 	u8 pg_header = 0, tmp_header = 0;
 	u16	efuse_addr = *pAddr;
 	u8 repeatcnt = 0;
@@ -597,7 +597,7 @@ static bool hal_EfusePgPacketWrite1ByteHeader(struct adapter *pAdapter, u8 efuse
 	}
 
 	if (pg_header == tmp_header) {
-		bRet = true;
+		ret = true;
 	} else {
 		struct pgpkt	fixPkt;
 
@@ -609,7 +609,7 @@ static bool hal_EfusePgPacketWrite1ByteHeader(struct adapter *pAdapter, u8 efuse
 	}
 
 	*pAddr = efuse_addr;
-	return bRet;
+	return ret;
 }
 
 static bool hal_EfusePgPacketWriteData(struct adapter *pAdapter, u8 efuseType, u16 *pAddr, struct pgpkt *pTargetPkt)
@@ -639,14 +639,14 @@ hal_EfusePgPacketWriteHeader(
 				u16				*pAddr,
 				struct pgpkt *pTargetPkt)
 {
-	bool bRet = false;
+	bool ret = false;
 
 	if (pTargetPkt->offset >= EFUSE_MAX_SECTION_BASE)
-		bRet = hal_EfusePgPacketWrite2ByteHeader(pAdapter, efuseType, pAddr, pTargetPkt);
+		ret = hal_EfusePgPacketWrite2ByteHeader(pAdapter, efuseType, pAddr, pTargetPkt);
 	else
-		bRet = hal_EfusePgPacketWrite1ByteHeader(pAdapter, efuseType, pAddr, pTargetPkt);
+		ret = hal_EfusePgPacketWrite1ByteHeader(pAdapter, efuseType, pAddr, pTargetPkt);
 
-	return bRet;
+	return ret;
 }
 
 static bool wordEnMatched(struct pgpkt *pTargetPkt, struct pgpkt *pCurPkt,
@@ -678,19 +678,19 @@ static bool wordEnMatched(struct pgpkt *pTargetPkt, struct pgpkt *pCurPkt,
 
 static bool hal_EfuseCheckIfDatafollowed(struct adapter *pAdapter, u8 word_cnts, u16 startAddr)
 {
-	bool bRet = false;
+	bool ret = false;
 	u8 i, efuse_data;
 
 	for (i = 0; i < (word_cnts*2); i++) {
 		if (efuse_OneByteRead(pAdapter, (startAddr+i), &efuse_data) && (efuse_data != 0xFF))
-			bRet = true;
+			ret = true;
 	}
-	return bRet;
+	return ret;
 }
 
 static bool hal_EfusePartialWriteCheck(struct adapter *pAdapter, u8 efuseType, u16 *pAddr, struct pgpkt *pTargetPkt)
 {
-	bool bRet = false;
+	bool ret = false;
 	u8 i, efuse_data = 0, cur_header = 0;
 	u8 matched_wden = 0, badworden = 0;
 	u16 startAddr = 0;
@@ -703,7 +703,7 @@ static bool hal_EfusePartialWriteCheck(struct adapter *pAdapter, u8 efuseType, u
 
 	while (1) {
 		if (startAddr >= efuse_max_available_len) {
-			bRet = false;
+			ret = false;
 			break;
 		}
 
@@ -713,7 +713,7 @@ static bool hal_EfusePartialWriteCheck(struct adapter *pAdapter, u8 efuseType, u
 				startAddr++;
 				efuse_OneByteRead(pAdapter, startAddr, &efuse_data);
 				if (ALL_WORDS_DISABLED(efuse_data)) {
-					bRet = false;
+					ret = false;
 					break;
 				} else {
 					curPkt.offset = ((cur_header & 0xE0) >> 5) | ((efuse_data & 0xF0) >> 1);
@@ -740,7 +740,7 @@ static bool hal_EfusePartialWriteCheck(struct adapter *pAdapter, u8 efuseType, u
 					PgWriteSuccess = Efuse_PgPacketWrite(pAdapter, pTargetPkt->offset, badworden, pTargetPkt->data);
 
 					if (!PgWriteSuccess) {
-						bRet = false;	/*  write fail, return */
+						ret = false;	/*  write fail, return */
 						break;
 					}
 				}
@@ -756,11 +756,11 @@ static bool hal_EfusePartialWriteCheck(struct adapter *pAdapter, u8 efuseType, u
 		} else {
 			/*  not used header, 0xff */
 			*pAddr = startAddr;
-			bRet = true;
+			ret = true;
 			break;
 		}
 	}
-	return bRet;
+	return ret;
 }
 
 static bool
