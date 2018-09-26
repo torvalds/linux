@@ -287,7 +287,7 @@ p9_tag_alloc(struct p9_client *c, int8_t type, unsigned int max_size)
 	int tag;
 
 	if (!req)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	if (p9_fcall_init(c, &req->tc, alloc_msize))
 		goto free_req;
