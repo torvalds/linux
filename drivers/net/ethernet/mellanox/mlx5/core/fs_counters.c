@@ -179,19 +179,22 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 	struct mlx5_core_dev *dev = container_of(work, struct mlx5_core_dev,
 						 priv.fc_stats.work.work);
 	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
-	struct llist_node *tmplist = llist_del_all(&fc_stats->addlist);
+	/* Take dellist first to ensure that counters cannot be deleted before
+	 * they are inserted.
+	 */
+	struct llist_node *dellist = llist_del_all(&fc_stats->dellist);
+	struct llist_node *addlist = llist_del_all(&fc_stats->addlist);
 	struct mlx5_fc *counter = NULL, *last = NULL, *tmp;
 	unsigned long now = jiffies;
 
-	if (tmplist || !list_empty(&fc_stats->counters))
+	if (addlist || !list_empty(&fc_stats->counters))
 		queue_delayed_work(fc_stats->wq, &fc_stats->work,
 				   fc_stats->sampling_interval);
 
-	llist_for_each_entry(counter, tmplist, addlist)
+	llist_for_each_entry(counter, addlist, addlist)
 		mlx5_fc_stats_insert(dev, counter);
 
-	tmplist = llist_del_all(&fc_stats->dellist);
-	llist_for_each_entry_safe(counter, tmp, tmplist, dellist) {
+	llist_for_each_entry_safe(counter, tmp, dellist, dellist) {
 		list_del(&counter->list);
 
 		mlx5_free_fc(dev, counter);
