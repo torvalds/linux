@@ -82,7 +82,7 @@ struct lp_gpio {
  * LP94_CONFIG2 (gpio 94) ...
  */
 
-static void __iomem *lp_gpio_reg(struct gpio_chip *chip, unsigned offset,
+static void __iomem *lp_gpio_reg(struct gpio_chip *chip, unsigned int offset,
 				 int reg)
 {
 	struct lp_gpio *lg = gpiochip_get_data(chip);
@@ -98,7 +98,7 @@ static void __iomem *lp_gpio_reg(struct gpio_chip *chip, unsigned offset,
 	return lg->regs + reg + reg_offset;
 }
 
-static int lp_gpio_request(struct gpio_chip *chip, unsigned offset)
+static int lp_gpio_request(struct gpio_chip *chip, unsigned int offset)
 {
 	struct lp_gpio *lg = gpiochip_get_data(chip);
 	void __iomem *reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
@@ -131,7 +131,7 @@ static int lp_gpio_request(struct gpio_chip *chip, unsigned offset)
 	return 0;
 }
 
-static void lp_gpio_free(struct gpio_chip *chip, unsigned offset)
+static void lp_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
 	struct lp_gpio *lg = gpiochip_get_data(chip);
 	void __iomem *conf2 = lp_gpio_reg(chip, offset, LP_CONFIG2);
@@ -142,7 +142,7 @@ static void lp_gpio_free(struct gpio_chip *chip, unsigned offset)
 	pm_runtime_put(lg->dev);
 }
 
-static int lp_irq_type(struct irq_data *d, unsigned type)
+static int lp_irq_type(struct irq_data *d, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct lp_gpio *lg = gpiochip_get_data(gc);
@@ -185,13 +185,13 @@ static int lp_irq_type(struct irq_data *d, unsigned type)
 	return 0;
 }
 
-static int lp_gpio_get(struct gpio_chip *chip, unsigned offset)
+static int lp_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	void __iomem *reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
 	return !!(ioread32(reg) & IN_LVL_BIT);
 }
 
-static void lp_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static void lp_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct lp_gpio *lg = gpiochip_get_data(chip);
 	void __iomem *reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
@@ -207,7 +207,7 @@ static void lp_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	raw_spin_unlock_irqrestore(&lg->lock, flags);
 }
 
-static int lp_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
+static int lp_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
 {
 	struct lp_gpio *lg = gpiochip_get_data(chip);
 	void __iomem *reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
@@ -220,8 +220,8 @@ static int lp_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	return 0;
 }
 
-static int lp_gpio_direction_output(struct gpio_chip *chip,
-				      unsigned offset, int value)
+static int lp_gpio_direction_output(struct gpio_chip *chip, unsigned int offset,
+				    int value)
 {
 	struct lp_gpio *lg = gpiochip_get_data(chip);
 	void __iomem *reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
@@ -255,7 +255,7 @@ static void lp_gpio_irq_handler(struct irq_desc *desc)
 		pending = ioread32(reg) & ioread32(ena);
 
 		for_each_set_bit(pin, &pending, 32) {
-			unsigned irq;
+			unsigned int irq;
 
 			/* Clear before handling so we don't lose an edge */
 			iowrite32(BIT(pin), reg);
@@ -315,7 +315,7 @@ static int lp_gpio_irq_init_hw(struct gpio_chip *chip)
 {
 	struct lp_gpio *lg = gpiochip_get_data(chip);
 	void __iomem *reg;
-	unsigned base;
+	unsigned int base;
 
 	for (base = 0; base < lg->chip.ngpio; base += 32) {
 		/* disable gpio pin interrupts */
@@ -390,7 +390,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 					     GFP_KERNEL);
 		if (!girq->parents)
 			return -ENOMEM;
-		girq->parents[0] = (unsigned)irq_rc->start;
+		girq->parents[0] = (unsigned int)irq_rc->start;
 		girq->default_type = IRQ_TYPE_NONE;
 		girq->handler = handle_bad_irq;
 	}
