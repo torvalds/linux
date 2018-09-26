@@ -113,6 +113,13 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 				caps->mbox_len = length;
 			}
 			break;
+		case NFP_NET_CFG_TLV_TYPE_EXPERIMENTAL0:
+		case NFP_NET_CFG_TLV_TYPE_EXPERIMENTAL1:
+			dev_warn(dev,
+				 "experimental TLV type:%u offset:%u len:%u\n",
+				 FIELD_GET(NFP_NET_CFG_TLV_HEADER_TYPE, hdr),
+				 offset, length);
+			break;
 		default:
 			if (!FIELD_GET(NFP_NET_CFG_TLV_HEADER_REQUIRED, hdr))
 				break;
