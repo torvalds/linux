@@ -574,7 +574,9 @@ static void skip_request(struct i915_request *rq)
 
 static void reset_ring(struct intel_engine_cs *engine, struct i915_request *rq)
 {
-	GEM_TRACE("%s seqno=%x\n", engine->name, rq ? rq->global_seqno : 0);
+	GEM_TRACE("%s request global=%d, current=%d\n",
+		  engine->name, rq ? rq->global_seqno : 0,
+		  intel_engine_get_seqno(engine));
 
 	/*
 	 * Try to restore the logical GPU state to match the continuation

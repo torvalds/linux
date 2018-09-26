@@ -1904,7 +1904,7 @@ static void execlists_reset(struct intel_engine_cs *engine,
 	unsigned long flags;
 	u32 *regs;
 
-	GEM_TRACE("%s request global=%x, current=%d\n",
+	GEM_TRACE("%s request global=%d, current=%d\n",
 		  engine->name, request ? request->global_seqno : 0,
 		  intel_engine_get_seqno(engine));
 
