@@ -1532,8 +1532,8 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 		return 0;
 	}
 
-	if (test_bit(__I40E_VSI_DOWN, vsi->back->state) ||
-	    test_bit(__I40E_RESET_RECOVERY_PENDING, vsi->back->state))
+	if (test_bit(__I40E_DOWN, pf->state) ||
+	    test_bit(__I40E_RESET_RECOVERY_PENDING, pf->state))
 		return -EADDRNOTAVAIL;
 
 	if (ether_addr_equal(hw->mac.addr, addr->sa_data))
@@ -1557,8 +1557,7 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 	if (vsi->type == I40E_VSI_MAIN) {
 		i40e_status ret;
 
-		ret = i40e_aq_mac_address_write(&vsi->back->hw,
-						I40E_AQC_WRITE_TYPE_LAA_WOL,
+		ret = i40e_aq_mac_address_write(hw, I40E_AQC_WRITE_TYPE_LAA_WOL,
 						addr->sa_data, NULL);
 		if (ret)
 			netdev_info(netdev, "Ignoring error from firmware on LAA update, status %s, AQ ret %s\n",
@@ -1569,7 +1568,7 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 	/* schedule our worker thread which will take care of
 	 * applying the new filter changes
 	 */
-	i40e_service_event_schedule(vsi->back);
+	i40e_service_event_schedule(pf);
 	return 0;
 }
 
@@ -6432,7 +6431,10 @@ void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 	char *req_fec = "";
 	char *an = "";
 
-	new_speed = pf->hw.phy.link_info.link_speed;
+	if (isup)
+		new_speed = pf->hw.phy.link_info.link_speed;
+	else
+		new_speed = I40E_LINK_SPEED_UNKNOWN;
 
 	if ((vsi->current_isup == isup) && (vsi->current_speed == new_speed))
 		return;
@@ -8509,14 +8511,9 @@ static void i40e_link_event(struct i40e_pf *pf)
 	i40e_status status;
 	bool new_link, old_link;
 
-	/* save off old link status information */
-	pf->hw.phy.link_info_old = pf->hw.phy.link_info;
-
 	/* set this to force the get_link_status call to refresh state */
 	pf->hw.phy.get_link_info = true;
-
 	old_link = (pf->hw.phy.link_info_old.link_info & I40E_AQ_LINK_UP);
-
 	status = i40e_get_link_status(&pf->hw, &new_link);
 
 	/* On success, disable temp link polling */

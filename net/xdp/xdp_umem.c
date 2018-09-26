@@ -165,6 +165,8 @@ static void xdp_umem_release(struct xdp_umem *umem)
 		umem->cq = NULL;
 	}
 
+	xsk_reuseq_destroy(umem);
+
 	xdp_umem_unpin_pages(umem);
 
 	task = get_pid_task(umem->pid, PIDTYPE_PID);

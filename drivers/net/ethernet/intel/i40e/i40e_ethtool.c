@@ -5,6 +5,7 @@
 
 #include "i40e.h"
 #include "i40e_diag.h"
+#include "i40e_txrx_common.h"
 
 /* ethtool statistics helpers */
 
@@ -1709,6 +1710,13 @@ static int i40e_set_ringparam(struct net_device *netdev,
 	if ((new_tx_count == vsi->tx_rings[0]->count) &&
 	    (new_rx_count == vsi->rx_rings[0]->count))
 		return 0;
+
+	/* If there is a AF_XDP UMEM attached to any of Rx rings,
+	 * disallow changing the number of descriptors -- regardless
+	 * if the netdev is running or not.
+	 */
+	if (i40e_xsk_any_rx_ring_enabled(vsi))
+		return -EBUSY;
 
 	while (test_and_set_bit(__I40E_CONFIG_BUSY, pf->state)) {
 		timeout--;

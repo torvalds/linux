@@ -258,4 +258,7 @@ void xskq_set_umem(struct xsk_queue *q, u64 size, u64 chunk_mask);
 struct xsk_queue *xskq_create(u32 nentries, bool umem_queue);
 void xskq_destroy(struct xsk_queue *q_ops);
 
+/* Executed by the core when the entire UMEM gets freed */
+void xsk_reuseq_destroy(struct xdp_umem *umem);
+
 #endif /* _LINUX_XSK_QUEUE_H */
