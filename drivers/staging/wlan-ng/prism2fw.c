@@ -790,7 +790,7 @@ static int read_cardpda(struct pda *pda, struct wlandevice *wlandev)
 	msg->msgcode = DIDMSG_P2REQ_READPDA;
 	msg->msglen = sizeof(msg);
 	strcpy(msg->devname, wlandev->name);
-	msg->pda.did = DIDmsg_p2req_readpda_pda;
+	msg->pda.did = DIDMSG_P2REQ_READPDA_PDA;
 	msg->pda.len = HFA384x_PDA_LEN_MAX;
 	msg->pda.status = P80211ENUM_msgitem_status_no_value;
 	msg->resultcode.did = DIDmsg_p2req_readpda_resultcode;
