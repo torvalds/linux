@@ -49,7 +49,7 @@ static const struct pci_device_id ae_algo_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, ae_algo_pci_tbl);
 
 static const char hns3_nic_test_strs[][ETH_GSTRING_LEN] = {
-	"Mac    Loopback test",
+	"App    Loopback test",
 	"Serdes Loopback test",
 	"Phy    Loopback test"
 };
@@ -493,7 +493,7 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 		    hdev->hw.mac.speed == HCLGE_MAC_SPEED_100M ||
 		    hdev->hw.mac.speed == HCLGE_MAC_SPEED_1G) {
 			count += 1;
-			handle->flags |= HNAE3_SUPPORT_MAC_LOOPBACK;
+			handle->flags |= HNAE3_SUPPORT_APP_LOOPBACK;
 		}
 
 		count++;
@@ -521,9 +521,9 @@ static void hclge_get_strings(struct hnae3_handle *handle,
 					   p);
 		p = hclge_tqps_get_strings(handle, p);
 	} else if (stringset == ETH_SS_TEST) {
-		if (handle->flags & HNAE3_SUPPORT_MAC_LOOPBACK) {
+		if (handle->flags & HNAE3_SUPPORT_APP_LOOPBACK) {
 			memcpy(p,
-			       hns3_nic_test_strs[HNAE3_LOOP_MAC],
+			       hns3_nic_test_strs[HNAE3_LOOP_APP],
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
@@ -3345,7 +3345,7 @@ static void hclge_cfg_mac_mode(struct hclge_dev *hdev, bool enable)
 			"mac enable fail, ret =%d.\n", ret);
 }
 
-static int hclge_set_mac_loopback(struct hclge_dev *hdev, bool en)
+static int hclge_set_app_loopback(struct hclge_dev *hdev, bool en)
 {
 	struct hclge_config_mac_mode_cmd *req;
 	struct hclge_desc desc;
@@ -3459,8 +3459,8 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 	int i, ret;
 
 	switch (loop_mode) {
-	case HNAE3_LOOP_MAC:
-		ret = hclge_set_mac_loopback(hdev, en);
+	case HNAE3_LOOP_APP:
+		ret = hclge_set_app_loopback(hdev, en);
 		break;
 	case HNAE3_LOOP_SERDES:
 		ret = hclge_set_serdes_loopback(hdev, en);
