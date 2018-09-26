@@ -35,10 +35,8 @@
 
 #define MAX_CRTC	4
 
-#if IS_ENABLED(CONFIG_DRM_FBDEV_EMULATION)
 static int legacyfb_depth = 16;
 module_param(legacyfb_depth, int, 0444);
-#endif
 
 DEFINE_DRM_GEM_CMA_FOPS(imx_drm_driver_fops);
 
