@@ -698,8 +698,8 @@ static int mlx5e_rep_open(struct net_device *dev)
 		goto unlock;
 
 	if (!mlx5_modify_vport_admin_state(priv->mdev,
-					   MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
-					   rep->vport, MLX5_ESW_VPORT_ADMIN_STATE_UP))
+					   MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
+					   rep->vport, MLX5_VPORT_ADMIN_STATE_UP))
 		netif_carrier_on(dev);
 
 unlock:
@@ -716,8 +716,8 @@ static int mlx5e_rep_close(struct net_device *dev)
 
 	mutex_lock(&priv->state_lock);
 	mlx5_modify_vport_admin_state(priv->mdev,
-				      MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
-				      rep->vport, MLX5_ESW_VPORT_ADMIN_STATE_DOWN);
+				      MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
+				      rep->vport, MLX5_VPORT_ADMIN_STATE_DOWN);
 	ret = mlx5e_close_locked(dev);
 	mutex_unlock(&priv->state_lock);
 	return ret;
@@ -797,7 +797,7 @@ static int mlx5e_rep_setup_tc_block(struct net_device *dev,
 	switch (f->command) {
 	case TC_BLOCK_BIND:
 		return tcf_block_cb_register(f->block, mlx5e_rep_setup_tc_cb,
-					     priv, priv);
+					     priv, priv, f->extack);
 	case TC_BLOCK_UNBIND:
 		tcf_block_cb_unregister(f->block, mlx5e_rep_setup_tc_cb, priv);
 		return 0;
@@ -823,7 +823,7 @@ bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv)
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep;
 
-	if (!MLX5_CAP_GEN(priv->mdev, vport_group_manager))
+	if (!MLX5_ESWITCH_MANAGER(priv->mdev))
 		return false;
 
 	rep = rpriv->rep;
@@ -837,8 +837,12 @@ bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv)
 static bool mlx5e_is_vf_vport_rep(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
-	struct mlx5_eswitch_rep *rep = rpriv->rep;
+	struct mlx5_eswitch_rep *rep;
 
+	if (!MLX5_ESWITCH_MANAGER(priv->mdev))
+		return false;
+
+	rep = rpriv->rep;
 	if (rep && rep->vport != FDB_UPLINK_VPORT)
 		return true;
 
@@ -892,6 +896,9 @@ static void
 mlx5e_rep_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	/* update HW stats in background for next time */
+	queue_delayed_work(priv->wq, &priv->update_stats_work, 0);
 
 	memcpy(stats, &priv->stats.vf_vport, sizeof(*stats));
 }

@@ -363,8 +363,6 @@ static int scmi_dvfs_device_opps_add(const struct scmi_handle *handle,
 		return domain;
 
 	dom = pi->dom_info + domain;
-	if (!dom)
-		return -EIO;
 
 	for (opp = dom->opp, idx = 0; idx < dom->opp_count; idx++, opp++) {
 		freq = opp->perf * dom->mult_factor;
@@ -394,9 +392,6 @@ static int scmi_dvfs_transition_latency_get(const struct scmi_handle *handle,
 		return domain;
 
 	dom = pi->dom_info + domain;
-	if (!dom)
-		return -EIO;
-
 	/* uS to nS */
 	return dom->opp[dom->opp_count - 1].trans_latency_us * 1000;
 }

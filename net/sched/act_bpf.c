@@ -34,8 +34,8 @@ struct tcf_bpf_cfg {
 static unsigned int bpf_net_id;
 static struct tc_action_ops act_bpf_ops;
 
-static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,
-		   struct tcf_result *res)
+static int tcf_bpf_act(struct sk_buff *skb, const struct tc_action *act,
+		       struct tcf_result *res)
 {
 	bool at_ingress = skb_at_tc_ingress(skb);
 	struct tcf_bpf *prog = to_bpf(act);
@@ -141,13 +141,14 @@ static int tcf_bpf_dump(struct sk_buff *skb, struct tc_action *act,
 	struct tcf_bpf *prog = to_bpf(act);
 	struct tc_act_bpf opt = {
 		.index   = prog->tcf_index,
-		.refcnt  = prog->tcf_refcnt - ref,
-		.bindcnt = prog->tcf_bindcnt - bind,
-		.action  = prog->tcf_action,
+		.refcnt  = refcount_read(&prog->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&prog->tcf_bindcnt) - bind,
 	};
 	struct tcf_t tm;
 	int ret;
 
+	spin_lock_bh(&prog->tcf_lock);
+	opt.action = prog->tcf_action;
 	if (nla_put(skb, TCA_ACT_BPF_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
 
@@ -163,9 +164,11 @@ static int tcf_bpf_dump(struct sk_buff *skb, struct tc_action *act,
 			  TCA_ACT_BPF_PAD))
 		goto nla_put_failure;
 
+	spin_unlock_bh(&prog->tcf_lock);
 	return skb->len;
 
 nla_put_failure:
+	spin_unlock_bh(&prog->tcf_lock);
 	nlmsg_trim(skb, tp);
 	return -1;
 }
@@ -196,11 +199,9 @@ static int tcf_bpf_init_from_ops(struct nlattr **tb, struct tcf_bpf_cfg *cfg)
 	if (bpf_size != nla_len(tb[TCA_ACT_BPF_OPS]))
 		return -EINVAL;
 
-	bpf_ops = kzalloc(bpf_size, GFP_KERNEL);
+	bpf_ops = kmemdup(nla_data(tb[TCA_ACT_BPF_OPS]), bpf_size, GFP_KERNEL);
 	if (bpf_ops == NULL)
 		return -ENOMEM;
-
-	memcpy(bpf_ops, nla_data(tb[TCA_ACT_BPF_OPS]), bpf_size);
 
 	fprog_tmp.len = bpf_num_ops;
 	fprog_tmp.filter = bpf_ops;
@@ -266,7 +267,7 @@ static void tcf_bpf_prog_fill_cfg(const struct tcf_bpf *prog,
 {
 	cfg->is_ebpf = tcf_bpf_is_ebpf(prog);
 	/* updates to prog->filter are prevented, since it's called either
-	 * with rtnl lock or during final cleanup in rcu callback
+	 * with tcf lock or during final cleanup in rcu callback
 	 */
 	cfg->filter = rcu_dereference_protected(prog->filter, 1);
 
@@ -276,7 +277,8 @@ static void tcf_bpf_prog_fill_cfg(const struct tcf_bpf *prog,
 
 static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **act,
-			int replace, int bind, struct netlink_ext_ack *extack)
+			int replace, int bind, bool rtnl_held,
+			struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, bpf_net_id);
 	struct nlattr *tb[TCA_ACT_BPF_MAX + 1];
@@ -298,21 +300,27 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 
 	parm = nla_data(tb[TCA_ACT_BPF_PARMS]);
 
-	if (!tcf_idr_check(tn, parm->index, act, bind)) {
+	ret = tcf_idr_check_alloc(tn, &parm->index, act, bind);
+	if (!ret) {
 		ret = tcf_idr_create(tn, parm->index, est, act,
 				     &act_bpf_ops, bind, true);
-		if (ret < 0)
+		if (ret < 0) {
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
+		}
 
 		res = ACT_P_CREATED;
-	} else {
+	} else if (ret > 0) {
 		/* Don't override defaults. */
 		if (bind)
 			return 0;
 
-		tcf_idr_release(*act, bind);
-		if (!replace)
+		if (!replace) {
+			tcf_idr_release(*act, bind);
 			return -EEXIST;
+		}
+	} else {
+		return ret;
 	}
 
 	is_bpf = tb[TCA_ACT_BPF_OPS_LEN] && tb[TCA_ACT_BPF_OPS];
@@ -331,8 +339,8 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 		goto out;
 
 	prog = to_bpf(*act);
-	ASSERT_RTNL();
 
+	spin_lock_bh(&prog->tcf_lock);
 	if (res != ACT_P_CREATED)
 		tcf_bpf_prog_fill_cfg(prog, &old);
 
@@ -344,6 +352,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 
 	prog->tcf_action = parm->action;
 	rcu_assign_pointer(prog->filter, cfg.filter);
+	spin_unlock_bh(&prog->tcf_lock);
 
 	if (res == ACT_P_CREATED) {
 		tcf_idr_insert(tn, *act);
@@ -355,8 +364,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 
 	return res;
 out:
-	if (res == ACT_P_CREATED)
-		tcf_idr_release(*act, bind);
+	tcf_idr_release(*act, bind);
 
 	return ret;
 }
@@ -391,7 +399,7 @@ static struct tc_action_ops act_bpf_ops __read_mostly = {
 	.kind		=	"bpf",
 	.type		=	TCA_ACT_BPF,
 	.owner		=	THIS_MODULE,
-	.act		=	tcf_bpf,
+	.act		=	tcf_bpf_act,
 	.dump		=	tcf_bpf_dump,
 	.cleanup	=	tcf_bpf_cleanup,
 	.init		=	tcf_bpf_init,

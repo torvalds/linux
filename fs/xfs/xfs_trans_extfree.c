@@ -171,7 +171,6 @@ xfs_extent_free_create_done(
 STATIC int
 xfs_extent_free_finish_item(
 	struct xfs_trans		*tp,
-	struct xfs_defer_ops		*dop,
 	struct list_head		*item,
 	void				*done_item,
 	void				**state)
@@ -226,7 +225,6 @@ static const struct xfs_defer_op_type xfs_extent_free_defer_type = {
 STATIC int
 xfs_agfl_free_finish_item(
 	struct xfs_trans		*tp,
-	struct xfs_defer_ops		*dop,
 	struct list_head		*item,
 	void				*done_item,
 	void				**state)

@@ -85,7 +85,7 @@ static void bump_cpu_timer(struct k_itimer *timer, u64 now)
 			continue;
 
 		timer->it.cpu.expires += incr;
-		timer->it_overrun += 1 << i;
+		timer->it_overrun += 1LL << i;
 		delta -= incr;
 	}
 }
@@ -894,7 +894,7 @@ static void check_cpu_itimer(struct task_struct *tsk, struct cpu_itimer *it,
 
 		trace_itimer_expire(signo == SIGPROF ?
 				    ITIMER_PROF : ITIMER_VIRTUAL,
-				    tsk->signal->leader_pid, cur_time);
+				    task_tgid(tsk), cur_time);
 		__group_send_sig_info(signo, SEND_SIG_PRIV, tsk);
 	}
 

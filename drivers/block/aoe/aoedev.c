@@ -284,8 +284,8 @@ freedev(struct aoedev *d)
 	e = t + d->ntargets;
 	for (; t < e && *t; t++)
 		freetgt(d, *t);
-	if (d->bufpool)
-		mempool_destroy(d->bufpool);
+
+	mempool_destroy(d->bufpool);
 	skbpoolfree(d);
 	minor_free(d->sysminor);
 

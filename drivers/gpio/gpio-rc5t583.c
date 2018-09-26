@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/mfd/rc5t583.h>
 
 struct rc5t583_gpio {

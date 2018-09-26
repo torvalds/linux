@@ -780,14 +780,15 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	if (!rdi)
 		return ERR_PTR(-EINVAL);
 
-	if (init_attr->cap.max_send_sge > rdi->dparms.props.max_sge ||
+	if (init_attr->cap.max_send_sge > rdi->dparms.props.max_send_sge ||
 	    init_attr->cap.max_send_wr > rdi->dparms.props.max_qp_wr ||
 	    init_attr->create_flags)
 		return ERR_PTR(-EINVAL);
 
 	/* Check receive queue parameters if no SRQ is specified. */
 	if (!init_attr->srq) {
-		if (init_attr->cap.max_recv_sge > rdi->dparms.props.max_sge ||
+		if (init_attr->cap.max_recv_sge >
+		    rdi->dparms.props.max_recv_sge ||
 		    init_attr->cap.max_recv_wr > rdi->dparms.props.max_qp_wr)
 			return ERR_PTR(-EINVAL);
 
@@ -1336,13 +1337,13 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		qp->qp_access_flags = attr->qp_access_flags;
 
 	if (attr_mask & IB_QP_AV) {
-		qp->remote_ah_attr = attr->ah_attr;
+		rdma_replace_ah_attr(&qp->remote_ah_attr, &attr->ah_attr);
 		qp->s_srate = rdma_ah_get_static_rate(&attr->ah_attr);
 		qp->srate_mbps = ib_rate_to_mbps(qp->s_srate);
 	}
 
 	if (attr_mask & IB_QP_ALT_PATH) {
-		qp->alt_ah_attr = attr->alt_ah_attr;
+		rdma_replace_ah_attr(&qp->alt_ah_attr, &attr->alt_ah_attr);
 		qp->s_alt_pkey_index = attr->alt_pkey_index;
 	}
 
@@ -1459,6 +1460,8 @@ int rvt_destroy_qp(struct ib_qp *ibqp)
 	vfree(qp->s_wq);
 	rdi->driver_f.qp_priv_free(rdi, qp);
 	kfree(qp->s_ack_queue);
+	rdma_destroy_ah_attr(&qp->remote_ah_attr);
+	rdma_destroy_ah_attr(&qp->alt_ah_attr);
 	kfree(qp);
 	return 0;
 }
@@ -1535,8 +1538,8 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
  *
  * Return: 0 on success otherwise errno
  */
-int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		  struct ib_recv_wr **bad_wr)
+int rvt_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		  const struct ib_recv_wr **bad_wr)
 {
 	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 	struct rvt_rwq *wq = qp->r_rq.wq;
@@ -1617,7 +1620,7 @@ int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 static inline int rvt_qp_valid_operation(
 	struct rvt_qp *qp,
 	const struct rvt_operation_params *post_parms,
-	struct ib_send_wr *wr)
+	const struct ib_send_wr *wr)
 {
 	int len;
 
@@ -1714,7 +1717,7 @@ static inline int rvt_qp_is_avail(
  * @wr: the work request to send
  */
 static int rvt_post_one_wr(struct rvt_qp *qp,
-			   struct ib_send_wr *wr,
+			   const struct ib_send_wr *wr,
 			   int *call_send)
 {
 	struct rvt_swqe *wqe;
@@ -1888,8 +1891,8 @@ bail_inval_free:
  *
  * Return: 0 on success else errno
  */
-int rvt_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		  struct ib_send_wr **bad_wr)
+int rvt_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		  const struct ib_send_wr **bad_wr)
 {
 	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
@@ -1945,8 +1948,8 @@ bail:
  *
  * Return: 0 on success else errno
  */
-int rvt_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-		      struct ib_recv_wr **bad_wr)
+int rvt_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
+		      const struct ib_recv_wr **bad_wr)
 {
 	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
 	struct rvt_rwq *wq;

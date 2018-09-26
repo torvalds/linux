@@ -16,8 +16,6 @@
 #include <sound/pxa2xx-lib.h>
 #include <sound/dmaengine_pcm.h>
 
-#include "pxa2xx-pcm.h"
-
 static const struct snd_pcm_hardware pxa2xx_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
@@ -25,8 +23,8 @@ static const struct snd_pcm_hardware pxa2xx_pcm_hardware = {
 				  SNDRV_PCM_INFO_PAUSE |
 				  SNDRV_PCM_INFO_RESUME,
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
-					SNDRV_PCM_FMTBIT_S24_LE |
-					SNDRV_PCM_FMTBIT_S32_LE,
+				  SNDRV_PCM_FMTBIT_S24_LE |
+				  SNDRV_PCM_FMTBIT_S32_LE,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 8192 - 32,
 	.periods_min		= 1,
@@ -35,8 +33,8 @@ static const struct snd_pcm_hardware pxa2xx_pcm_hardware = {
 	.fifo_size		= 32,
 };
 
-int __pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+int pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
+			 struct snd_pcm_hw_params *params)
 {
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -64,14 +62,14 @@ int __pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	return 0;
 }
-EXPORT_SYMBOL(__pxa2xx_pcm_hw_params);
+EXPORT_SYMBOL(pxa2xx_pcm_hw_params);
 
-int __pxa2xx_pcm_hw_free(struct snd_pcm_substream *substream)
+int pxa2xx_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	snd_pcm_set_runtime_buffer(substream, NULL);
 	return 0;
 }
-EXPORT_SYMBOL(__pxa2xx_pcm_hw_free);
+EXPORT_SYMBOL(pxa2xx_pcm_hw_free);
 
 int pxa2xx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
@@ -86,13 +84,13 @@ pxa2xx_pcm_pointer(struct snd_pcm_substream *substream)
 }
 EXPORT_SYMBOL(pxa2xx_pcm_pointer);
 
-int __pxa2xx_pcm_prepare(struct snd_pcm_substream *substream)
+int pxa2xx_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	return 0;
 }
-EXPORT_SYMBOL(__pxa2xx_pcm_prepare);
+EXPORT_SYMBOL(pxa2xx_pcm_prepare);
 
-int __pxa2xx_pcm_open(struct snd_pcm_substream *substream)
+int pxa2xx_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -125,17 +123,17 @@ int __pxa2xx_pcm_open(struct snd_pcm_substream *substream)
 	if (ret < 0)
 		return ret;
 
-	return snd_dmaengine_pcm_open_request_chan(substream,
-					pxad_filter_fn,
-					dma_params->filter_data);
+	return snd_dmaengine_pcm_open(
+		substream, dma_request_slave_channel(rtd->cpu_dai->dev,
+						     dma_params->chan_name));
 }
-EXPORT_SYMBOL(__pxa2xx_pcm_open);
+EXPORT_SYMBOL(pxa2xx_pcm_open);
 
-int __pxa2xx_pcm_close(struct snd_pcm_substream *substream)
+int pxa2xx_pcm_close(struct snd_pcm_substream *substream)
 {
 	return snd_dmaengine_pcm_close_release_chan(substream);
 }
-EXPORT_SYMBOL(__pxa2xx_pcm_close);
+EXPORT_SYMBOL(pxa2xx_pcm_close);
 
 int pxa2xx_pcm_mmap(struct snd_pcm_substream *substream,
 	struct vm_area_struct *vma)
@@ -180,6 +178,47 @@ void pxa2xx_pcm_free_dma_buffers(struct snd_pcm *pcm)
 	}
 }
 EXPORT_SYMBOL(pxa2xx_pcm_free_dma_buffers);
+
+int pxa2xx_soc_pcm_new(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_pcm *pcm = rtd->pcm;
+	int ret;
+
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
+		ret = pxa2xx_pcm_preallocate_dma_buffer(pcm,
+			SNDRV_PCM_STREAM_PLAYBACK);
+		if (ret)
+			goto out;
+	}
+
+	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
+		ret = pxa2xx_pcm_preallocate_dma_buffer(pcm,
+			SNDRV_PCM_STREAM_CAPTURE);
+		if (ret)
+			goto out;
+	}
+ out:
+	return ret;
+}
+EXPORT_SYMBOL(pxa2xx_soc_pcm_new);
+
+const struct snd_pcm_ops pxa2xx_pcm_ops = {
+	.open		= pxa2xx_pcm_open,
+	.close		= pxa2xx_pcm_close,
+	.ioctl		= snd_pcm_lib_ioctl,
+	.hw_params	= pxa2xx_pcm_hw_params,
+	.hw_free	= pxa2xx_pcm_hw_free,
+	.prepare	= pxa2xx_pcm_prepare,
+	.trigger	= pxa2xx_pcm_trigger,
+	.pointer	= pxa2xx_pcm_pointer,
+	.mmap		= pxa2xx_pcm_mmap,
+};
+EXPORT_SYMBOL(pxa2xx_pcm_ops);
 
 MODULE_AUTHOR("Nicolas Pitre");
 MODULE_DESCRIPTION("Intel PXA2xx sound library");

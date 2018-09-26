@@ -2,7 +2,7 @@
 /*
  * CPU-measurement facilities
  *
- *  Copyright IBM Corp. 2012
+ *  Copyright IBM Corp. 2012, 2018
  *  Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  *	       Jan Glauber <jang@linux.vnet.ibm.com>
  */
@@ -139,8 +139,14 @@ struct hws_trailer_entry {
 	unsigned char timestamp[16];	 /* 16 - 31 timestamp		      */
 	unsigned long long reserved1;	 /* 32 -Reserved		      */
 	unsigned long long reserved2;	 /*				      */
-	unsigned long long progusage1;	 /* 48 - reserved for programming use */
-	unsigned long long progusage2;	 /*				      */
+	union {				 /* 48 - reserved for programming use */
+		struct {
+			unsigned int clock_base:1; /* in progusage2 */
+			unsigned long long progusage1:63;
+			unsigned long long progusage2;
+		};
+		unsigned long long progusage[2];
+	};
 } __packed;
 
 /* Load program parameter */

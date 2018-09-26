@@ -763,7 +763,12 @@ acpi_db_command_dispatch(char *input_buffer,
 	case CMD_DISASSEMBLE:
 	case CMD_DISASM:
 
+#ifdef ACPI_DISASSEMBLER
 		(void)acpi_db_disassemble_method(acpi_gbl_db_args[1]);
+#else
+		acpi_os_printf
+		    ("The AML Disassembler is not configured/present\n");
+#endif
 		break;
 
 	case CMD_DUMP:
@@ -872,7 +877,12 @@ acpi_db_command_dispatch(char *input_buffer,
 
 	case CMD_LIST:
 
+#ifdef ACPI_DISASSEMBLER
 		acpi_db_disassemble_aml(acpi_gbl_db_args[1], op);
+#else
+		acpi_os_printf
+		    ("The AML Disassembler is not configured/present\n");
+#endif
 		break;
 
 	case CMD_LOCKS:

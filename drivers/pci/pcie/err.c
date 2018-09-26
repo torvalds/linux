@@ -175,9 +175,11 @@ out:
  */
 static pci_ers_result_t default_reset_link(struct pci_dev *dev)
 {
-	pci_reset_bridge_secondary_bus(dev);
+	int rc;
+
+	rc = pci_bridge_secondary_bus_reset(dev);
 	pci_printk(KERN_DEBUG, dev, "downstream link has been reset\n");
-	return PCI_ERS_RESULT_RECOVERED;
+	return rc ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
 }
 
 static pci_ers_result_t reset_link(struct pci_dev *dev, u32 service)
@@ -252,6 +254,7 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 			dev->error_state = state;
 		pci_walk_bus(dev->subordinate, cb, &result_data);
 		if (cb == report_resume) {
+			pci_aer_clear_device_status(dev);
 			pci_cleanup_aer_uncorrect_error_status(dev);
 			dev->error_state = pci_channel_io_normal;
 		}
@@ -259,15 +262,10 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 		/*
 		 * If the error is reported by an end point, we think this
 		 * error is related to the upstream link of the end point.
+		 * The error is non fatal so the bus is ok; just invoke
+		 * the callback for the function that logged the error.
 		 */
-		if (state == pci_channel_io_normal)
-			/*
-			 * the error is non fatal so the bus is ok, just invoke
-			 * the callback for the function that logged the error.
-			 */
-			cb(dev, &result_data);
-		else
-			pci_walk_bus(dev->bus, cb, &result_data);
+		cb(dev, &result_data);
 	}
 
 	return result_data.result;
@@ -295,6 +293,7 @@ void pcie_do_fatal_recovery(struct pci_dev *dev, u32 service)
 
 	parent = udev->subordinate;
 	pci_lock_rescan_remove();
+	pci_dev_get(dev);
 	list_for_each_entry_safe_reverse(pdev, temp, &parent->devices,
 					 bus_list) {
 		pci_dev_get(pdev);
@@ -316,7 +315,8 @@ void pcie_do_fatal_recovery(struct pci_dev *dev, u32 service)
 		 * do error recovery on all subordinates of the bridge instead
 		 * of the bridge and clear the error status of the bridge.
 		 */
-		pci_cleanup_aer_uncorrect_error_status(dev);
+		pci_aer_clear_fatal_status(dev);
+		pci_aer_clear_device_status(dev);
 	}
 
 	if (result == PCI_ERS_RESULT_RECOVERED) {
@@ -328,6 +328,7 @@ void pcie_do_fatal_recovery(struct pci_dev *dev, u32 service)
 		pci_info(dev, "Device recovery from fatal error failed\n");
 	}
 
+	pci_dev_put(dev);
 	pci_unlock_rescan_remove();
 }
 

@@ -38,7 +38,7 @@
 #include "inc/compressor.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.1.56"
+#define DC_VER "3.1.66"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
@@ -77,6 +77,9 @@ struct dc_caps {
 	bool is_apu;
 	bool dual_link_dvi;
 	bool post_blend_color_processing;
+	bool force_dp_tps4_for_cp2520;
+	bool disable_dp_clk_share;
+	bool psp_setup_panel_mode;
 };
 
 struct dc_dcc_surface_param {
@@ -207,7 +210,7 @@ struct dc_clocks {
 	int phyclk_khz;
 };
 
-struct dc_debug {
+struct dc_debug_options {
 	enum visual_confirm visual_confirm;
 	bool sanity_checks;
 	bool max_disp_clk;
@@ -258,13 +261,16 @@ struct dc_debug {
 	bool avoid_vbios_exec_table;
 	bool scl_reset_length10;
 	bool hdmi20_disable;
-
-	struct {
-		uint32_t ltFailCount;
-		uint32_t i2cErrorCount;
-		uint32_t auxErrorCount;
-	} debug_data;
+	bool skip_detection_link_training;
 };
+
+struct dc_debug_data {
+	uint32_t ltFailCount;
+	uint32_t i2cErrorCount;
+	uint32_t auxErrorCount;
+};
+
+
 struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
@@ -273,8 +279,7 @@ struct dc {
 	struct dc_caps caps;
 	struct dc_cap_funcs cap_funcs;
 	struct dc_config config;
-	struct dc_debug debug;
-
+	struct dc_debug_options debug;
 	struct dc_context *ctx;
 
 	uint8_t link_count;
@@ -289,7 +294,7 @@ struct dc {
 	/* Inputs into BW and WM calculations. */
 	struct bw_calcs_dceip *bw_dceip;
 	struct bw_calcs_vbios *bw_vbios;
-#ifdef CONFIG_X86
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	struct dcn_soc_bounding_box *dcn_soc;
 	struct dcn_ip_params *dcn_ip;
 	struct display_mode_lib dml;
@@ -306,10 +311,10 @@ struct dc {
 
 	bool optimized_required;
 
-	bool apply_edp_fast_boot_optimization;
-
 	/* FBC compressor */
 	struct compressor *fbc_compressor;
+
+	struct dc_debug_data debug_data;
 };
 
 enum frame_buffer_mode {
@@ -435,6 +440,7 @@ union surface_update_flags {
 		uint32_t color_space_change:1;
 		uint32_t horizontal_mirror_change:1;
 		uint32_t per_pixel_alpha_change:1;
+		uint32_t global_alpha_change:1;
 		uint32_t rotation_change:1;
 		uint32_t swizzle_change:1;
 		uint32_t scaling_change:1;
@@ -489,6 +495,8 @@ struct dc_plane_state {
 
 	bool is_tiling_rotated;
 	bool per_pixel_alpha;
+	bool global_alpha;
+	int  global_alpha_value;
 	bool visible;
 	bool flip_immediate;
 	bool horizontal_mirror;
@@ -515,6 +523,8 @@ struct dc_plane_info {
 	bool horizontal_mirror;
 	bool visible;
 	bool per_pixel_alpha;
+	bool global_alpha;
+	int  global_alpha_value;
 	bool input_csc_enabled;
 };
 

@@ -192,7 +192,7 @@ enum surface_pixel_format {
 	/*swaped & float*/
 	SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F,
 	/*grow graphics here if necessary */
-
+	SURFACE_PIXEL_FORMAT_VIDEO_AYCrCb8888,
 	SURFACE_PIXEL_FORMAT_VIDEO_BEGIN,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr =
 		SURFACE_PIXEL_FORMAT_VIDEO_BEGIN,
@@ -417,6 +417,7 @@ enum {
 	GAMMA_RGB_256_ENTRIES = 256,
 	GAMMA_RGB_FLOAT_1024_ENTRIES = 1024,
 	GAMMA_CS_TFM_1D_ENTRIES = 4096,
+	GAMMA_CUSTOM_ENTRIES = 4096,
 	GAMMA_MAX_ENTRIES = 4096
 };
 
@@ -424,6 +425,7 @@ enum dc_gamma_type {
 	GAMMA_RGB_256 = 1,
 	GAMMA_RGB_FLOAT_1024 = 2,
 	GAMMA_CS_TFM_1D = 3,
+	GAMMA_CUSTOM = 4,
 };
 
 struct dc_csc_transform {
@@ -704,12 +706,6 @@ struct crtc_trigger_info {
 	struct dc_stream_state *event_source;
 	enum crtc_event event;
 	enum trigger_delay delay;
-};
-
-enum vrr_state {
-	VRR_STATE_OFF = 0,
-	VRR_STATE_VARIABLE,
-	VRR_STATE_FIXED,
 };
 
 struct dc_crtc_timing_adjust {

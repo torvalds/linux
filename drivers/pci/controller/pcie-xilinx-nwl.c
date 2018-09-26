@@ -559,7 +559,7 @@ static int nwl_pcie_init_irq_domain(struct nwl_pcie *pcie)
 							PCI_NUM_INTX,
 							&legacy_domain_ops,
 							pcie);
-
+	of_node_put(legacy_intc_node);
 	if (!pcie->legacy_irq_domain) {
 		dev_err(dev, "failed to create IRQ domain\n");
 		return -ENOMEM;

@@ -33,11 +33,18 @@ static void amdgpu_job_timedout(struct drm_sched_job *s_job)
 	struct amdgpu_ring *ring = to_amdgpu_ring(s_job->sched);
 	struct amdgpu_job *job = to_amdgpu_job(s_job);
 
+	if (amdgpu_ring_soft_recovery(ring, job->vmid, s_job->s_fence->parent)) {
+		DRM_ERROR("ring %s timeout, but soft recovered\n",
+			  s_job->sched->name);
+		return;
+	}
+
 	DRM_ERROR("ring %s timeout, signaled seq=%u, emitted seq=%u\n",
 		  job->base.sched->name, atomic_read(&ring->fence_drv.last_seq),
 		  ring->fence_drv.sync_seq);
 
-	amdgpu_device_gpu_recover(ring->adev, job, false);
+	if (amdgpu_device_should_recover_gpu(ring->adev))
+		amdgpu_device_gpu_recover(ring->adev, job);
 }
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
@@ -66,6 +73,7 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 	amdgpu_sync_create(&(*job)->sync);
 	amdgpu_sync_create(&(*job)->sched_sync);
 	(*job)->vram_lost_counter = atomic_read(&adev->vram_lost_counter);
+	(*job)->vm_pd_addr = AMDGPU_BO_INVALID_OFFSET;
 
 	return 0;
 }
@@ -82,8 +90,6 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 	r = amdgpu_ib_get(adev, NULL, size, &(*job)->ibs[0]);
 	if (r)
 		kfree(*job);
-	else
-		(*job)->vm_pd_addr = adev->gart.table_addr;
 
 	return r;
 }
@@ -133,7 +139,7 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
 	if (!f)
 		return -EINVAL;
 
-	r = drm_sched_job_init(&job->base, entity->sched, entity, owner);
+	r = drm_sched_job_init(&job->base, entity, owner);
 	if (r)
 		return r;
 
@@ -143,7 +149,7 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
 	priority = job->base.s_priority;
 	drm_sched_entity_push_job(&job->base, entity);
 
-	ring = to_amdgpu_ring(entity->sched);
+	ring = to_amdgpu_ring(entity->rq->sched);
 	amdgpu_ring_priority_get(ring, priority);
 
 	return 0;
@@ -167,7 +173,7 @@ int amdgpu_job_submit_direct(struct amdgpu_job *job, struct amdgpu_ring *ring,
 static struct dma_fence *amdgpu_job_dependency(struct drm_sched_job *sched_job,
 					       struct drm_sched_entity *s_entity)
 {
-	struct amdgpu_ring *ring = to_amdgpu_ring(s_entity->sched);
+	struct amdgpu_ring *ring = to_amdgpu_ring(s_entity->rq->sched);
 	struct amdgpu_job *job = to_amdgpu_job(sched_job);
 	struct amdgpu_vm *vm = job->vm;
 	struct dma_fence *fence;

@@ -222,7 +222,9 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 }
 
 static int vbox_crtc_do_set_base(struct drm_crtc *crtc,
-				 struct drm_framebuffer *old_fb, int x, int y)
+				 struct drm_framebuffer *old_fb,
+				 struct drm_framebuffer *new_fb,
+				 int x, int y)
 {
 	struct vbox_private *vbox = crtc->dev->dev_private;
 	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
@@ -245,7 +247,7 @@ static int vbox_crtc_do_set_base(struct drm_crtc *crtc,
 		vbox_bo_unreserve(bo);
 	}
 
-	vbox_fb = to_vbox_framebuffer(CRTC_FB(crtc));
+	vbox_fb = to_vbox_framebuffer(new_fb);
 	obj = vbox_fb->obj;
 	bo = gem_to_vbox_bo(obj);
 
@@ -281,7 +283,7 @@ static int vbox_crtc_do_set_base(struct drm_crtc *crtc,
 static int vbox_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 				   struct drm_framebuffer *old_fb)
 {
-	return vbox_crtc_do_set_base(crtc, old_fb, x, y);
+	return vbox_crtc_do_set_base(crtc, old_fb, CRTC_FB(crtc), x, y);
 }
 
 static int vbox_crtc_mode_set(struct drm_crtc *crtc,
@@ -304,6 +306,31 @@ static int vbox_crtc_mode_set(struct drm_crtc *crtc,
 	mutex_unlock(&vbox->hw_mutex);
 
 	return ret;
+}
+
+static int vbox_crtc_page_flip(struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb,
+			       struct drm_pending_vblank_event *event,
+			       uint32_t page_flip_flags,
+			       struct drm_modeset_acquire_ctx *ctx)
+{
+	struct vbox_private *vbox = crtc->dev->dev_private;
+	struct drm_device *drm = vbox->dev;
+	unsigned long flags;
+	int rc;
+
+	rc = vbox_crtc_do_set_base(crtc, CRTC_FB(crtc), fb, 0, 0);
+	if (rc)
+		return rc;
+
+	spin_lock_irqsave(&drm->event_lock, flags);
+
+	if (event)
+		drm_crtc_send_vblank_event(crtc, event);
+
+	spin_unlock_irqrestore(&drm->event_lock, flags);
+
+	return 0;
 }
 
 static void vbox_crtc_disable(struct drm_crtc *crtc)
@@ -344,6 +371,7 @@ static const struct drm_crtc_funcs vbox_crtc_funcs = {
 	.reset = vbox_crtc_reset,
 	.set_config = drm_crtc_helper_set_config,
 	/* .gamma_set = vbox_crtc_gamma_set, */
+	.page_flip = vbox_crtc_page_flip,
 	.destroy = vbox_crtc_destroy,
 };
 

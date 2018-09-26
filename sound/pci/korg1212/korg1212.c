@@ -1326,7 +1326,7 @@ static int snd_korg1212_copy_to(struct snd_pcm_substream *substream,
 		}
 #endif
 		if (in_kernel)
-			memcpy((void *)dst, src, size);
+			memcpy((__force void *)dst, src, size);
 		else if (copy_to_user(dst, src, size))
 			return -EFAULT;
 		src++;
@@ -1365,7 +1365,7 @@ static int snd_korg1212_copy_from(struct snd_pcm_substream *substream,
 		}
 #endif
 		if (in_kernel)
-			memcpy((void *)dst, src, size);
+			memcpy(dst, (__force void *)src, size);
 		else if (copy_from_user(dst, src, size))
 			return -EFAULT;
 		dst++;

@@ -953,7 +953,10 @@ enum link_training_result dc_link_dp_perform_link_training(
 	 * LINK_SPREAD_05_DOWNSPREAD_30KHZ :
 	 * LINK_SPREAD_DISABLED;
 	 */
-	lt_settings.link_settings.link_spread = LINK_SPREAD_05_DOWNSPREAD_30KHZ;
+	if (link->dp_ss_off)
+		lt_settings.link_settings.link_spread = LINK_SPREAD_DISABLED;
+	else
+		lt_settings.link_settings.link_spread = LINK_SPREAD_05_DOWNSPREAD_30KHZ;
 
 	/* 1. set link rate, lane count and spread*/
 	dpcd_set_link_settings(link, &lt_settings);
@@ -1029,7 +1032,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 			lt_settings.lane_settings[0].PRE_EMPHASIS);
 
 	if (status != LINK_TRAINING_SUCCESS)
-		link->ctx->dc->debug.debug_data.ltFailCount++;
+		link->ctx->dc->debug_data.ltFailCount++;
 
 	return status;
 }
@@ -1086,9 +1089,10 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link)
 	return max_link_cap;
 }
 
-bool dp_hbr_verify_link_cap(
+bool dp_verify_link_cap(
 	struct dc_link *link,
-	struct dc_link_settings *known_limit_link_setting)
+	struct dc_link_settings *known_limit_link_setting,
+	int *fail_count)
 {
 	struct dc_link_settings max_link_cap = {0};
 	struct dc_link_settings cur_link_setting = {0};
@@ -1100,6 +1104,11 @@ bool dp_hbr_verify_link_cap(
 	struct clock_source *dp_cs;
 	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
 	enum link_training_result status;
+
+	if (link->dc->debug.skip_detection_link_training) {
+		link->verified_link_cap = *known_limit_link_setting;
+		return true;
+	}
 
 	success = false;
 	skip_link_training = false;
@@ -1155,6 +1164,8 @@ bool dp_hbr_verify_link_cap(
 							skip_video_pattern);
 			if (status == LINK_TRAINING_SUCCESS)
 				success = true;
+			else
+				(*fail_count)++;
 		}
 
 		if (success)
@@ -1776,12 +1787,10 @@ static void dp_test_send_link_training(struct dc_link *link)
 	dp_retrain_link_dp_test(link, &link_settings, false);
 }
 
-/* TODO hbr2 compliance eye output is unstable
+/* TODO Raven hbr2 compliance eye output is unstable
  * (toggling on and off) with debugger break
  * This caueses intermittent PHY automation failure
  * Need to look into the root cause */
-static uint8_t force_tps4_for_cp2520 = 1;
-
 static void dp_test_send_phy_test_pattern(struct dc_link *link)
 {
 	union phy_test_pattern dpcd_test_pattern;
@@ -1841,13 +1850,13 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 		break;
 	case PHY_TEST_PATTERN_CP2520_1:
 		/* CP2520 pattern is unstable, temporarily use TPS4 instead */
-		test_pattern = (force_tps4_for_cp2520 == 1) ?
+		test_pattern = (link->dc->caps.force_dp_tps4_for_cp2520 == 1) ?
 				DP_TEST_PATTERN_TRAINING_PATTERN4 :
 				DP_TEST_PATTERN_HBR2_COMPLIANCE_EYE;
 		break;
 	case PHY_TEST_PATTERN_CP2520_2:
 		/* CP2520 pattern is unstable, temporarily use TPS4 instead */
-		test_pattern = (force_tps4_for_cp2520 == 1) ?
+		test_pattern = (link->dc->caps.force_dp_tps4_for_cp2520 == 1) ?
 				DP_TEST_PATTERN_TRAINING_PATTERN4 :
 				DP_TEST_PATTERN_HBR2_COMPLIANCE_EYE;
 		break;
@@ -2379,6 +2388,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 	get_active_converter_info(ds_port.byte, link);
 
 	dp_wa_power_up_0010FA(link, dpcd_data, sizeof(dpcd_data));
+
+	down_strm_port_count.raw = dpcd_data[DP_DOWN_STREAM_PORT_COUNT -
+				 DP_DPCD_REV];
 
 	link->dpcd_caps.allow_invalid_MSA_timing_param =
 		down_strm_port_count.bits.IGNORE_MSA_TIMING_PARAM;

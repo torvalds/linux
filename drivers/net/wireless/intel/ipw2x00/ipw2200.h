@@ -1343,9 +1343,9 @@ struct ipw_priv {
 
 	s8 tx_power;
 
-	/* Track time in suspend */
-	unsigned long suspend_at;
-	unsigned long suspend_time;
+	/* Track time in suspend using CLOCK_BOOTIME */
+	time64_t suspend_at;
+	time64_t suspend_time;
 
 #ifdef CONFIG_PM
 	u32 pm_state[16];

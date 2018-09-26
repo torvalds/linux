@@ -62,6 +62,8 @@ struct imx_media_pixfmt {
 	u32     fourcc;
 	u32     codes[4];
 	int     bpp;     /* total bpp */
+	/* cycles per pixel for generic (bayer) formats for the parallel bus */
+	int	cycles;
 	enum ipu_color_space cs;
 	bool    planar;  /* is a planar format */
 	bool    bayer;   /* is a raw bayer format */

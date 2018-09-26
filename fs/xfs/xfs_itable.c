@@ -114,7 +114,7 @@ xfs_bulkstat_one_int(
 		break;
 	}
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-	IRELE(ip);
+	xfs_irele(ip);
 
 	error = formatter(buffer, ubsize, ubused, buf);
 	if (!error)
@@ -458,8 +458,7 @@ xfs_bulkstat(
 		 * pending error, then we are done.
 		 */
 del_cursor:
-		xfs_btree_del_cursor(cur, error ?
-					  XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+		xfs_btree_del_cursor(cur, error);
 		xfs_buf_relse(agbp);
 		if (error)
 			break;
@@ -632,8 +631,7 @@ next_ag:
 
 	kmem_free(buffer);
 	if (cur)
-		xfs_btree_del_cursor(cur, (error ? XFS_BTREE_ERROR :
-					   XFS_BTREE_NOERROR));
+		xfs_btree_del_cursor(cur, error);
 	if (agbp)
 		xfs_buf_relse(agbp);
 

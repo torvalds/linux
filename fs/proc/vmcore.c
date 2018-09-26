@@ -225,6 +225,7 @@ out_unlock:
 	return ret;
 }
 
+#ifdef CONFIG_MMU
 static int vmcoredd_mmap_dumps(struct vm_area_struct *vma, unsigned long dst,
 			       u64 start, size_t size)
 {
@@ -259,6 +260,7 @@ out_unlock:
 	mutex_unlock(&vmcoredd_mutex);
 	return ret;
 }
+#endif /* CONFIG_MMU */
 #endif /* CONFIG_PROC_VMCORE_DEVICE_DUMP */
 
 /* Read from the ELF header and then the crash dump. On error, negative value is
@@ -379,7 +381,7 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
  * On s390 the fault handler is used for memory regions that can't be mapped
  * directly with remap_pfn_range().
  */
-static int mmap_vmcore_fault(struct vm_fault *vmf)
+static vm_fault_t mmap_vmcore_fault(struct vm_fault *vmf)
 {
 #ifdef CONFIG_S390
 	struct address_space *mapping = vmf->vma->vm_file->f_mapping;

@@ -34,6 +34,9 @@
 struct sun4i_backend_quirks {
 	/* backend <-> TCON muxing selection done in backend */
 	bool needs_output_muxing;
+
+	/* alpha at the lowest z position is not always supported */
+	bool supports_lowest_plane_alpha;
 };
 
 static const u32 sunxi_rgb2yuv_coef[12] = {
@@ -59,32 +62,6 @@ static const u32 sunxi_bt601_yuv2rgb_coef[12] = {
 	0x000004a7, 0x00000000, 0x00000662, 0x00003211,
 	0x000004a7, 0x00000812, 0x00000000, 0x00002eb1,
 };
-
-static inline bool sun4i_backend_format_is_planar_yuv(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_YUV411:
-	case DRM_FORMAT_YUV422:
-	case DRM_FORMAT_YUV444:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static inline bool sun4i_backend_format_is_packed_yuv422(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_YUYV:
-	case DRM_FORMAT_YVYU:
-	case DRM_FORMAT_UYVY:
-	case DRM_FORMAT_VYUY:
-		return true;
-
-	default:
-		return false;
-	}
-}
 
 static void sun4i_backend_apply_color_correction(struct sunxi_engine *engine)
 {
@@ -215,7 +192,8 @@ static int sun4i_backend_update_yuv_format(struct sun4i_backend *backend,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = state->fb;
-	uint32_t format = fb->format->format;
+	const struct drm_format_info *format = fb->format;
+	const uint32_t fmt = format->format;
 	u32 val = SUN4I_BACKEND_IYUVCTL_EN;
 	int i;
 
@@ -233,16 +211,16 @@ static int sun4i_backend_update_yuv_format(struct sun4i_backend *backend,
 			   SUN4I_BACKEND_ATTCTL_REG0_LAY_YUVEN);
 
 	/* TODO: Add support for the multi-planar YUV formats */
-	if (sun4i_backend_format_is_packed_yuv422(format))
+	if (format->num_planes == 1)
 		val |= SUN4I_BACKEND_IYUVCTL_FBFMT_PACKED_YUV422;
 	else
-		DRM_DEBUG_DRIVER("Unsupported YUV format (0x%x)\n", format);
+		DRM_DEBUG_DRIVER("Unsupported YUV format (0x%x)\n", fmt);
 
 	/*
 	 * Allwinner seems to list the pixel sequence from right to left, while
 	 * DRM lists it from left to right.
 	 */
-	switch (format) {
+	switch (fmt) {
 	case DRM_FORMAT_YUYV:
 		val |= SUN4I_BACKEND_IYUVCTL_FBPS_VYUY;
 		break;
@@ -257,7 +235,7 @@ static int sun4i_backend_update_yuv_format(struct sun4i_backend *backend,
 		break;
 	default:
 		DRM_DEBUG_DRIVER("Unsupported YUV pixel sequence (0x%x)\n",
-				 format);
+				 fmt);
 	}
 
 	regmap_write(backend->engine.regs, SUN4I_BACKEND_IYUVCTL_REG, val);
@@ -457,12 +435,14 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 				      struct drm_crtc_state *crtc_state)
 {
 	struct drm_plane_state *plane_states[SUN4I_BACKEND_NUM_LAYERS] = { 0 };
+	struct sun4i_backend *backend = engine_to_sun4i_backend(engine);
 	struct drm_atomic_state *state = crtc_state->state;
 	struct drm_device *drm = state->dev;
 	struct drm_plane *plane;
 	unsigned int num_planes = 0;
 	unsigned int num_alpha_planes = 0;
 	unsigned int num_frontend_planes = 0;
+	unsigned int num_alpha_planes_max = 1;
 	unsigned int num_yuv_planes = 0;
 	unsigned int current_pipe = 0;
 	unsigned int i;
@@ -526,33 +506,40 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 	 * the layer with the highest priority.
 	 *
 	 * The second step is the actual alpha blending, that takes
-	 * the two pipes as input, and uses the eventual alpha
+	 * the two pipes as input, and uses the potential alpha
 	 * component to do the transparency between the two.
 	 *
-	 * This two steps scenario makes us unable to guarantee a
+	 * This two-step scenario makes us unable to guarantee a
 	 * robust alpha blending between the 4 layers in all
 	 * situations, since this means that we need to have one layer
 	 * with alpha at the lowest position of our two pipes.
 	 *
-	 * However, we cannot even do that, since the hardware has a
-	 * bug where the lowest plane of the lowest pipe (pipe 0,
-	 * priority 0), if it has any alpha, will discard the pixel
-	 * entirely and just display the pixels in the background
-	 * color (black by default).
+	 * However, we cannot even do that on every platform, since
+	 * the hardware has a bug where the lowest plane of the lowest
+	 * pipe (pipe 0, priority 0), if it has any alpha, will
+	 * discard the pixel data entirely and just display the pixels
+	 * in the background color (black by default).
 	 *
-	 * This means that we effectively have only three valid
-	 * configurations with alpha, all of them with the alpha being
-	 * on pipe1 with the lowest position, which can be 1, 2 or 3
-	 * depending on the number of planes and their zpos.
+	 * This means that on the affected platforms, we effectively
+	 * have only three valid configurations with alpha, all of
+	 * them with the alpha being on pipe1 with the lowest
+	 * position, which can be 1, 2 or 3 depending on the number of
+	 * planes and their zpos.
 	 */
-	if (num_alpha_planes > SUN4I_BACKEND_NUM_ALPHA_LAYERS) {
+
+	/* For platforms that are not affected by the issue described above. */
+	if (backend->quirks->supports_lowest_plane_alpha)
+		num_alpha_planes_max++;
+
+	if (num_alpha_planes > num_alpha_planes_max) {
 		DRM_DEBUG_DRIVER("Too many planes with alpha, rejecting...\n");
 		return -EINVAL;
 	}
 
 	/* We can't have an alpha plane at the lowest position */
-	if (plane_states[0]->fb->format->has_alpha ||
-	    (plane_states[0]->alpha != DRM_BLEND_ALPHA_OPAQUE))
+	if (!backend->quirks->supports_lowest_plane_alpha &&
+	    (plane_states[0]->fb->format->has_alpha ||
+	    (plane_states[0]->alpha != DRM_BLEND_ALPHA_OPAQUE)))
 		return -EINVAL;
 
 	for (i = 1; i < num_planes; i++) {
@@ -876,6 +863,8 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 				    : SUN4I_BACKEND_MODCTL_OUT_LCD0));
 	}
 
+	backend->quirks = quirks;
+
 	return 0;
 
 err_disable_ram_clk:
@@ -935,9 +924,11 @@ static const struct sun4i_backend_quirks sun6i_backend_quirks = {
 
 static const struct sun4i_backend_quirks sun7i_backend_quirks = {
 	.needs_output_muxing = true,
+	.supports_lowest_plane_alpha = true,
 };
 
 static const struct sun4i_backend_quirks sun8i_a33_backend_quirks = {
+	.supports_lowest_plane_alpha = true,
 };
 
 static const struct sun4i_backend_quirks sun9i_backend_quirks = {

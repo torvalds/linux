@@ -19,6 +19,7 @@
 #include <bpf/btf.h>
 
 #include "bpf_rlimit.h"
+#include "bpf_util.h"
 
 static uint32_t pass_cnt;
 static uint32_t error_cnt;
@@ -93,10 +94,6 @@ static int __base_pr(const char *format, ...)
 #define MAX_NR_RAW_TYPES 1024
 #define BTF_LOG_BUF_SIZE 65535
 
-#ifndef ARRAY_SIZE
-# define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
 static struct args {
 	unsigned int raw_test_num;
 	unsigned int file_test_num;
@@ -131,6 +128,8 @@ struct btf_raw_test {
 	__u32 max_entries;
 	bool btf_load_err;
 	bool map_create_err;
+	bool ordered_map;
+	bool lossless_map;
 	int hdr_len_delta;
 	int type_off_delta;
 	int str_off_delta;
@@ -245,6 +244,34 @@ static struct btf_raw_test raw_tests[] = {
 	.key_type_id = 1,
 	.value_type_id = 3,
 	.max_entries = 4,
+},
+
+{
+	.descr = "struct test #3 Invalid member offset",
+	.raw_types = {
+		/* int */					/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* int64 */					/* [2] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 64, 8),
+
+		/* struct A { */				/* [3] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 2), 16),
+		BTF_MEMBER_ENC(NAME_TBD, 1, 64),	/* int m;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),		/* int64 n; */
+		/* } */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0m\0n\0",
+	.str_sec_size = sizeof("\0A\0m\0n\0"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_test3_map",
+	.key_size = sizeof(int),
+	.value_size = 16,
+	.key_type_id = 1,
+	.value_type_id = 3,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid member bits_offset",
 },
 
 /* Test member exceeds the size of struct.
@@ -479,7 +506,7 @@ static struct btf_raw_test raw_tests[] = {
 	.key_size = sizeof(int),
 	.value_size = sizeof(void *) * 4,
 	.key_type_id = 1,
-	.value_type_id = 4,
+	.value_type_id = 5,
 	.max_entries = 4,
 },
 
@@ -1264,6 +1291,88 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "type != 0",
 },
 
+{
+	.descr = "arraymap invalid btf key (a bit field)",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* 32 bit int with 32 bit offset */	/* [2] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 32, 32, 8),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_map_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 2,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.map_create_err = true,
+},
+
+{
+	.descr = "arraymap invalid btf key (!= 32 bits)",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* 16 bit int with 0 bit offset */	/* [2] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 16, 2),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_map_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 2,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.map_create_err = true,
+},
+
+{
+	.descr = "arraymap invalid btf value (too small)",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_map_check_btf",
+	.key_size = sizeof(int),
+	/* btf_value_size < map->value_size */
+	.value_size = sizeof(__u64),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.map_create_err = true,
+},
+
+{
+	.descr = "arraymap invalid btf value (too big)",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_map_check_btf",
+	.key_size = sizeof(int),
+	/* btf_value_size > map->value_size */
+	.value_size = sizeof(__u16),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.map_create_err = true,
+},
+
 }; /* struct btf_raw_test raw_tests[] */
 
 static const char *get_next_str(const char *start, const char *end)
@@ -1983,8 +2092,7 @@ struct pprint_mapv {
 	} aenum;
 };
 
-static struct btf_raw_test pprint_test = {
-	.descr = "BTF pretty print test #1",
+static struct btf_raw_test pprint_test_template = {
 	.raw_types = {
 		/* unsighed char */			/* [1] */
 		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 8, 1),
@@ -2023,7 +2131,7 @@ static struct btf_raw_test pprint_test = {
 		BTF_ENUM_ENC(NAME_TBD, 2),
 		BTF_ENUM_ENC(NAME_TBD, 3),
 		/* struct pprint_mapv */		/* [16] */
-		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 8), 28),
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 8), 32),
 		BTF_MEMBER_ENC(NAME_TBD, 11, 0),	/* uint32_t ui32 */
 		BTF_MEMBER_ENC(NAME_TBD, 10, 32),	/* uint16_t ui16 */
 		BTF_MEMBER_ENC(NAME_TBD, 12, 64),	/* int32_t si32 */
@@ -2036,14 +2144,46 @@ static struct btf_raw_test pprint_test = {
 	},
 	.str_sec = "\0unsigned char\0unsigned short\0unsigned int\0int\0unsigned long long\0uint8_t\0uint16_t\0uint32_t\0int32_t\0uint64_t\0ui64\0ui8a\0ENUM_ZERO\0ENUM_ONE\0ENUM_TWO\0ENUM_THREE\0pprint_mapv\0ui32\0ui16\0si32\0unused_bits2a\0bits28\0unused_bits2b\0aenum",
 	.str_sec_size = sizeof("\0unsigned char\0unsigned short\0unsigned int\0int\0unsigned long long\0uint8_t\0uint16_t\0uint32_t\0int32_t\0uint64_t\0ui64\0ui8a\0ENUM_ZERO\0ENUM_ONE\0ENUM_TWO\0ENUM_THREE\0pprint_mapv\0ui32\0ui16\0si32\0unused_bits2a\0bits28\0unused_bits2b\0aenum"),
-	.map_type = BPF_MAP_TYPE_ARRAY,
-	.map_name = "pprint_test",
 	.key_size = sizeof(unsigned int),
 	.value_size = sizeof(struct pprint_mapv),
 	.key_type_id = 3,	/* unsigned int */
 	.value_type_id = 16,	/* struct pprint_mapv */
 	.max_entries = 128 * 1024,
 };
+
+static struct btf_pprint_test_meta {
+	const char *descr;
+	enum bpf_map_type map_type;
+	const char *map_name;
+	bool ordered_map;
+	bool lossless_map;
+} pprint_tests_meta[] = {
+{
+	.descr = "BTF pretty print array",
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "pprint_test_array",
+	.ordered_map = true,
+	.lossless_map = true,
+},
+
+{
+	.descr = "BTF pretty print hash",
+	.map_type = BPF_MAP_TYPE_HASH,
+	.map_name = "pprint_test_hash",
+	.ordered_map = false,
+	.lossless_map = true,
+},
+
+{
+	.descr = "BTF pretty print lru hash",
+	.map_type = BPF_MAP_TYPE_LRU_HASH,
+	.map_name = "pprint_test_lru_hash",
+	.ordered_map = false,
+	.lossless_map = false,
+},
+
+};
+
 
 static void set_pprint_mapv(struct pprint_mapv *v, uint32_t i)
 {
@@ -2056,10 +2196,12 @@ static void set_pprint_mapv(struct pprint_mapv *v, uint32_t i)
 	v->aenum = i & 0x03;
 }
 
-static int test_pprint(void)
+static int do_test_pprint(void)
 {
-	const struct btf_raw_test *test = &pprint_test;
+	const struct btf_raw_test *test = &pprint_test_template;
 	struct bpf_create_map_attr create_attr = {};
+	unsigned int key, nr_read_elems;
+	bool ordered_map, lossless_map;
 	int map_fd = -1, btf_fd = -1;
 	struct pprint_mapv mapv = {};
 	unsigned int raw_btf_size;
@@ -2068,7 +2210,6 @@ static int test_pprint(void)
 	char pin_path[255];
 	size_t line_len = 0;
 	char *line = NULL;
-	unsigned int key;
 	uint8_t *raw_btf;
 	ssize_t nread;
 	int err, ret;
@@ -2141,14 +2282,18 @@ static int test_pprint(void)
 		goto done;
 	}
 
-	key = 0;
+	nr_read_elems = 0;
+	ordered_map = test->ordered_map;
+	lossless_map = test->lossless_map;
 	do {
 		ssize_t nexpected_line;
+		unsigned int next_key;
 
-		set_pprint_mapv(&mapv, key);
+		next_key = ordered_map ? nr_read_elems : atoi(line);
+		set_pprint_mapv(&mapv, next_key);
 		nexpected_line = snprintf(expected_line, sizeof(expected_line),
 					  "%u: {%u,0,%d,0x%x,0x%x,0x%x,{%lu|[%u,%u,%u,%u,%u,%u,%u,%u]},%s}\n",
-					  key,
+					  next_key,
 					  mapv.ui32, mapv.si32,
 					  mapv.unused_bits2a, mapv.bits28, mapv.unused_bits2b,
 					  mapv.ui64,
@@ -2171,11 +2316,12 @@ static int test_pprint(void)
 		}
 
 		nread = getline(&line, &line_len, pin_file);
-	} while (++key < test->max_entries && nread > 0);
+	} while (++nr_read_elems < test->max_entries && nread > 0);
 
-	if (CHECK(key < test->max_entries,
-		  "Unexpected EOF. key:%u test->max_entries:%u",
-		  key, test->max_entries)) {
+	if (lossless_map &&
+	    CHECK(nr_read_elems < test->max_entries,
+		  "Unexpected EOF. nr_read_elems:%u test->max_entries:%u",
+		  nr_read_elems, test->max_entries)) {
 		err = -1;
 		goto done;
 	}
@@ -2200,6 +2346,24 @@ done:
 		fclose(pin_file);
 	unlink(pin_path);
 	free(line);
+
+	return err;
+}
+
+static int test_pprint(void)
+{
+	unsigned int i;
+	int err = 0;
+
+	for (i = 0; i < ARRAY_SIZE(pprint_tests_meta); i++) {
+		pprint_test_template.descr = pprint_tests_meta[i].descr;
+		pprint_test_template.map_type = pprint_tests_meta[i].map_type;
+		pprint_test_template.map_name = pprint_tests_meta[i].map_name;
+		pprint_test_template.ordered_map = pprint_tests_meta[i].ordered_map;
+		pprint_test_template.lossless_map = pprint_tests_meta[i].lossless_map;
+
+		err |= count_result(do_test_pprint());
+	}
 
 	return err;
 }
@@ -2299,7 +2463,7 @@ int main(int argc, char **argv)
 		err |= test_file();
 
 	if (args.pprint_test)
-		err |= count_result(test_pprint());
+		err |= test_pprint();
 
 	if (args.raw_test || args.get_info_test || args.file_test ||
 	    args.pprint_test)

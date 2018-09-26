@@ -182,12 +182,10 @@ static int smc_llc_add_pending_send(struct smc_link *link,
 }
 
 /* high-level API to send LLC confirm link */
-int smc_llc_send_confirm_link(struct smc_link *link, u8 mac[],
-			      union ib_gid *gid,
+int smc_llc_send_confirm_link(struct smc_link *link,
 			      enum smc_llc_reqresp reqresp)
 {
-	struct smc_link_group *lgr = container_of(link, struct smc_link_group,
-						  lnk[SMC_SINGLE_LINK]);
+	struct smc_link_group *lgr = smc_get_lgr(link);
 	struct smc_llc_msg_confirm_link *confllc;
 	struct smc_wr_tx_pend_priv *pend;
 	struct smc_wr_buf *wr_buf;
@@ -203,8 +201,9 @@ int smc_llc_send_confirm_link(struct smc_link *link, u8 mac[],
 	confllc->hd.flags |= SMC_LLC_FLAG_NO_RMBE_EYEC;
 	if (reqresp == SMC_LLC_RESP)
 		confllc->hd.flags |= SMC_LLC_FLAG_RESP;
-	memcpy(confllc->sender_mac, mac, ETH_ALEN);
-	memcpy(confllc->sender_gid, gid, SMC_GID_SIZE);
+	memcpy(confllc->sender_mac, link->smcibdev->mac[link->ibport - 1],
+	       ETH_ALEN);
+	memcpy(confllc->sender_gid, link->gid, SMC_GID_SIZE);
 	hton24(confllc->sender_qp_num, link->roce_qp->qp_num);
 	confllc->link_num = link->link_id;
 	memcpy(confllc->link_uid, lgr->id, SMC_LGR_ID_SIZE);
@@ -241,8 +240,7 @@ static int smc_llc_send_confirm_rkey(struct smc_link *link,
 
 /* prepare an add link message */
 static void smc_llc_prep_add_link(struct smc_llc_msg_add_link *addllc,
-				  struct smc_link *link, u8 mac[],
-				  union ib_gid *gid,
+				  struct smc_link *link, u8 mac[], u8 gid[],
 				  enum smc_llc_reqresp reqresp)
 {
 	memset(addllc, 0, sizeof(*addllc));
@@ -259,8 +257,7 @@ static void smc_llc_prep_add_link(struct smc_llc_msg_add_link *addllc,
 }
 
 /* send ADD LINK request or response */
-int smc_llc_send_add_link(struct smc_link *link, u8 mac[],
-			  union ib_gid *gid,
+int smc_llc_send_add_link(struct smc_link *link, u8 mac[], u8 gid[],
 			  enum smc_llc_reqresp reqresp)
 {
 	struct smc_llc_msg_add_link *addllc;
@@ -281,7 +278,7 @@ int smc_llc_send_add_link(struct smc_link *link, u8 mac[],
 /* prepare a delete link message */
 static void smc_llc_prep_delete_link(struct smc_llc_msg_del_link *delllc,
 				     struct smc_link *link,
-				     enum smc_llc_reqresp reqresp)
+				     enum smc_llc_reqresp reqresp, bool orderly)
 {
 	memset(delllc, 0, sizeof(*delllc));
 	delllc->hd.common.type = SMC_LLC_DELETE_LINK;
@@ -290,13 +287,14 @@ static void smc_llc_prep_delete_link(struct smc_llc_msg_del_link *delllc,
 		delllc->hd.flags |= SMC_LLC_FLAG_RESP;
 	/* DEL_LINK_ALL because only 1 link supported */
 	delllc->hd.flags |= SMC_LLC_FLAG_DEL_LINK_ALL;
-	delllc->hd.flags |= SMC_LLC_FLAG_DEL_LINK_ORDERLY;
+	if (orderly)
+		delllc->hd.flags |= SMC_LLC_FLAG_DEL_LINK_ORDERLY;
 	delllc->link_num = link->link_id;
 }
 
 /* send DELETE LINK request or response */
 int smc_llc_send_delete_link(struct smc_link *link,
-			     enum smc_llc_reqresp reqresp)
+			     enum smc_llc_reqresp reqresp, bool orderly)
 {
 	struct smc_llc_msg_del_link *delllc;
 	struct smc_wr_tx_pend_priv *pend;
@@ -307,7 +305,7 @@ int smc_llc_send_delete_link(struct smc_link *link,
 	if (rc)
 		return rc;
 	delllc = (struct smc_llc_msg_del_link *)wr_buf;
-	smc_llc_prep_delete_link(delllc, link, reqresp);
+	smc_llc_prep_delete_link(delllc, link, reqresp, orderly);
 	/* send llc message */
 	rc = smc_wr_tx_send(link, pend);
 	return rc;
@@ -381,10 +379,8 @@ static int smc_llc_send_message(struct smc_link *link, void *llcbuf, int llclen)
 static void smc_llc_rx_confirm_link(struct smc_link *link,
 				    struct smc_llc_msg_confirm_link *llc)
 {
-	struct smc_link_group *lgr;
+	struct smc_link_group *lgr = smc_get_lgr(link);
 	int conf_rc;
-
-	lgr = container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
 
 	/* RMBE eyecatchers are not supported */
 	if (llc->hd.flags & SMC_LLC_FLAG_NO_RMBE_EYEC)
@@ -411,8 +407,7 @@ static void smc_llc_rx_confirm_link(struct smc_link *link,
 static void smc_llc_rx_add_link(struct smc_link *link,
 				struct smc_llc_msg_add_link *llc)
 {
-	struct smc_link_group *lgr = container_of(link, struct smc_link_group,
-						  lnk[SMC_SINGLE_LINK]);
+	struct smc_link_group *lgr = smc_get_lgr(link);
 
 	if (llc->hd.flags & SMC_LLC_FLAG_RESP) {
 		if (link->state == SMC_LNK_ACTIVATING)
@@ -426,14 +421,12 @@ static void smc_llc_rx_add_link(struct smc_link *link,
 		if (lgr->role == SMC_SERV) {
 			smc_llc_prep_add_link(llc, link,
 					link->smcibdev->mac[link->ibport - 1],
-					&link->smcibdev->gid[link->ibport - 1],
-					SMC_LLC_REQ);
+					link->gid, SMC_LLC_REQ);
 
 		} else {
 			smc_llc_prep_add_link(llc, link,
 					link->smcibdev->mac[link->ibport - 1],
-					&link->smcibdev->gid[link->ibport - 1],
-					SMC_LLC_RESP);
+					link->gid, SMC_LLC_RESP);
 		}
 		smc_llc_send_message(link, llc, sizeof(*llc));
 	}
@@ -442,22 +435,23 @@ static void smc_llc_rx_add_link(struct smc_link *link,
 static void smc_llc_rx_delete_link(struct smc_link *link,
 				   struct smc_llc_msg_del_link *llc)
 {
-	struct smc_link_group *lgr = container_of(link, struct smc_link_group,
-						  lnk[SMC_SINGLE_LINK]);
+	struct smc_link_group *lgr = smc_get_lgr(link);
 
 	if (llc->hd.flags & SMC_LLC_FLAG_RESP) {
 		if (lgr->role == SMC_SERV)
-			smc_lgr_terminate(lgr);
+			smc_lgr_schedule_free_work_fast(lgr);
 	} else {
+		smc_lgr_forget(lgr);
+		smc_llc_link_deleting(link);
 		if (lgr->role == SMC_SERV) {
-			smc_lgr_forget(lgr);
-			smc_llc_prep_delete_link(llc, link, SMC_LLC_REQ);
-			smc_llc_send_message(link, llc, sizeof(*llc));
+			/* client asks to delete this link, send request */
+			smc_llc_prep_delete_link(llc, link, SMC_LLC_REQ, true);
 		} else {
-			smc_llc_prep_delete_link(llc, link, SMC_LLC_RESP);
-			smc_llc_send_message(link, llc, sizeof(*llc));
-			smc_lgr_terminate(lgr);
+			/* server requests to delete this link, send response */
+			smc_llc_prep_delete_link(llc, link, SMC_LLC_RESP, true);
 		}
+		smc_llc_send_message(link, llc, sizeof(*llc));
+		smc_lgr_schedule_free_work_fast(lgr);
 	}
 }
 
@@ -476,17 +470,14 @@ static void smc_llc_rx_test_link(struct smc_link *link,
 static void smc_llc_rx_confirm_rkey(struct smc_link *link,
 				    struct smc_llc_msg_confirm_rkey *llc)
 {
-	struct smc_link_group *lgr;
 	int rc;
-
-	lgr = container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
 
 	if (llc->hd.flags & SMC_LLC_FLAG_RESP) {
 		link->llc_confirm_rkey_rc = llc->hd.flags &
 					    SMC_LLC_FLAG_RKEY_NEG;
 		complete(&link->llc_confirm_rkey);
 	} else {
-		rc = smc_rtoken_add(lgr,
+		rc = smc_rtoken_add(smc_get_lgr(link),
 				    llc->rtoken[0].rmb_vaddr,
 				    llc->rtoken[0].rmb_key);
 
@@ -514,18 +505,15 @@ static void smc_llc_rx_confirm_rkey_cont(struct smc_link *link,
 static void smc_llc_rx_delete_rkey(struct smc_link *link,
 				   struct smc_llc_msg_delete_rkey *llc)
 {
-	struct smc_link_group *lgr;
 	u8 err_mask = 0;
 	int i, max;
-
-	lgr = container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
 
 	if (llc->hd.flags & SMC_LLC_FLAG_RESP) {
 		/* unused as long as we don't send this type of msg */
 	} else {
 		max = min_t(u8, llc->num_rkeys, SMC_LLC_DEL_RKEY_MAX);
 		for (i = 0; i < max; i++) {
-			if (smc_rtoken_delete(lgr, llc->rkey[i]))
+			if (smc_rtoken_delete(smc_get_lgr(link), llc->rkey[i]))
 				err_mask |= 1 << (SMC_LLC_DEL_RKEY_MAX - 1 - i);
 		}
 
@@ -583,12 +571,10 @@ static void smc_llc_testlink_work(struct work_struct *work)
 	struct smc_link *link = container_of(to_delayed_work(work),
 					     struct smc_link, llc_testlink_wrk);
 	unsigned long next_interval;
-	struct smc_link_group *lgr;
 	unsigned long expire_time;
 	u8 user_data[16] = { 0 };
 	int rc;
 
-	lgr = container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
 	if (link->state != SMC_LNK_ACTIVE)
 		return;		/* don't reschedule worker */
 	expire_time = link->wr_rx_tstamp + link->llc_testlink_time;
@@ -602,7 +588,7 @@ static void smc_llc_testlink_work(struct work_struct *work)
 	rc = wait_for_completion_interruptible_timeout(&link->llc_testlink_resp,
 						       SMC_LLC_WAIT_TIME);
 	if (rc <= 0) {
-		smc_lgr_terminate(lgr);
+		smc_lgr_terminate(smc_get_lgr(link));
 		return;
 	}
 	next_interval = link->llc_testlink_time;
@@ -613,8 +599,7 @@ out:
 
 int smc_llc_link_init(struct smc_link *link)
 {
-	struct smc_link_group *lgr = container_of(link, struct smc_link_group,
-						  lnk[SMC_SINGLE_LINK]);
+	struct smc_link_group *lgr = smc_get_lgr(link);
 	link->llc_wq = alloc_ordered_workqueue("llc_wq-%x:%x)", WQ_MEM_RECLAIM,
 					       *((u32 *)lgr->id),
 					       link->link_id);
@@ -638,6 +623,11 @@ void smc_llc_link_active(struct smc_link *link, int testlink_time)
 		queue_delayed_work(link->llc_wq, &link->llc_testlink_wrk,
 				   link->llc_testlink_time);
 	}
+}
+
+void smc_llc_link_deleting(struct smc_link *link)
+{
+	link->state = SMC_LNK_DELETING;
 }
 
 /* called in tasklet context */

@@ -28,7 +28,6 @@ Required properties:
     * "x-powers,axp809"
     * "x-powers,axp813"
 - reg: The I2C slave address or RSB hardware address for the AXP chip
-- interrupt-parent: The parent interrupt controller
 - interrupts: SoC NMI / GPIO interrupt connected to the PMIC's IRQ pin
 - interrupt-controller: The PMIC has its own internal IRQs
 - #interrupt-cells: Should be set to 1
@@ -45,8 +44,11 @@ Optional properties:
 			  board is driving OTG VBus or not.
 			  (axp221 / axp223 / axp803/ axp813 only)
 
-- x-powers,master-mode: Boolean (axp806 only). Set this when the PMIC is
-			wired for master mode. The default is slave mode.
+- x-powers,self-working-mode and
+  x-powers,master-mode: Boolean (axp806 only). Set either of these when the
+			PMIC is wired for self-working mode or master mode.
+			If neither is set then slave mode is assumed.
+			This corresponds to how the MODESET pin is wired.
 
 - <input>-supply: a phandle to the regulator supply node. May be omitted if
 		  inputs are unregulated, such as using the IPSOUT output

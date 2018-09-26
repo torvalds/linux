@@ -75,10 +75,12 @@ int phm_set_power_state(struct pp_hwmgr *hwmgr,
 
 int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = NULL;
 	int ret = -EINVAL;;
 	PHM_FUNC_CHECK(hwmgr);
+	adev = hwmgr->adev;
 
-	if (smum_is_dpm_running(hwmgr)) {
+	if (smum_is_dpm_running(hwmgr) && !amdgpu_passthrough(adev)) {
 		pr_info("dpm has been enabled\n");
 		return 0;
 	}
@@ -357,7 +359,7 @@ int phm_get_clock_info(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *s
 			PHM_PerformanceLevelDesignation designation)
 {
 	int result;
-	PHM_PerformanceLevel performance_level;
+	PHM_PerformanceLevel performance_level = {0};
 
 	PHM_FUNC_CHECK(hwmgr);
 

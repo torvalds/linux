@@ -58,11 +58,6 @@ void cxl_debugfs_add_adapter_regs_psl8(struct cxl *adapter, struct dentry *dir)
 	debugfs_create_io_x64("trace", S_IRUSR | S_IWUSR, dir, _cxl_p1_addr(adapter, CXL_PSL_TRACE));
 }
 
-void cxl_debugfs_add_adapter_regs_xsl(struct cxl *adapter, struct dentry *dir)
-{
-	debugfs_create_io_x64("fec", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_XSL_FEC));
-}
-
 int cxl_debugfs_adapter_add(struct cxl *adapter)
 {
 	struct dentry *dir;

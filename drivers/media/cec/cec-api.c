@@ -579,6 +579,14 @@ static int cec_open(struct inode *inode, struct file *filp)
 			cec_queue_event_fh(fh, &ev, 0);
 		}
 	}
+	if (adap->pin && adap->pin->ops->read_5v) {
+		err = adap->pin->ops->read_5v(adap);
+		if (err >= 0) {
+			ev.event = err ? CEC_EVENT_PIN_5V_HIGH :
+					 CEC_EVENT_PIN_5V_LOW;
+			cec_queue_event_fh(fh, &ev, 0);
+		}
+	}
 #endif
 
 	list_add(&fh->list, &devnode->fhs);

@@ -33,6 +33,7 @@
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "cikd.h"
+#include "amdgpu_gem.h"
 
 #include <drm/drm_fb_helper.h>
 
@@ -373,8 +374,8 @@ void amdgpu_fbdev_fini(struct amdgpu_device *adev)
 void amdgpu_fbdev_set_suspend(struct amdgpu_device *adev, int state)
 {
 	if (adev->mode_info.rfbdev)
-		drm_fb_helper_set_suspend(&adev->mode_info.rfbdev->helper,
-			state);
+		drm_fb_helper_set_suspend_unlocked(&adev->mode_info.rfbdev->helper,
+						   state);
 }
 
 int amdgpu_fbdev_total_size(struct amdgpu_device *adev)

@@ -672,8 +672,8 @@ int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
 	return 0;
 }
 
-bool _qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn,
-			      int vfid, bool b_fail_malicious)
+static bool _qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn,
+				     int vfid, bool b_fail_malicious)
 {
 	/* Check PF supports sriov */
 	if (IS_VF(p_hwfn->cdev) || !IS_QED_SRIOV(p_hwfn->cdev) ||
@@ -687,7 +687,7 @@ bool _qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn,
 	return true;
 }
 
-bool qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn, int vfid)
+static bool qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn, int vfid)
 {
 	return _qed_iov_pf_sanity_check(p_hwfn, vfid, true);
 }
@@ -2831,7 +2831,7 @@ qed_iov_vp_update_mcast_bin_param(struct qed_hwfn *p_hwfn,
 
 	p_data->update_approx_mcast_flg = 1;
 	memcpy(p_data->bins, p_mcast_tlv->bins,
-	       sizeof(unsigned long) * ETH_MULTICAST_MAC_BINS_IN_REGS);
+	       sizeof(u32) * ETH_MULTICAST_MAC_BINS_IN_REGS);
 	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_MCAST;
 }
 
@@ -3979,7 +3979,7 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 	}
 }
 
-void qed_iov_pf_get_pending_events(struct qed_hwfn *p_hwfn, u64 *events)
+static void qed_iov_pf_get_pending_events(struct qed_hwfn *p_hwfn, u64 *events)
 {
 	int i;
 
@@ -4513,6 +4513,8 @@ static void qed_sriov_enable_qid_config(struct qed_hwfn *hwfn,
 static int qed_sriov_enable(struct qed_dev *cdev, int num)
 {
 	struct qed_iov_vf_init_params params;
+	struct qed_hwfn *hwfn;
+	struct qed_ptt *ptt;
 	int i, j, rc;
 
 	if (num >= RESC_NUM(&cdev->hwfns[0], QED_VPORT)) {
@@ -4525,8 +4527,8 @@ static int qed_sriov_enable(struct qed_dev *cdev, int num)
 
 	/* Initialize HW for VF access */
 	for_each_hwfn(cdev, j) {
-		struct qed_hwfn *hwfn = &cdev->hwfns[j];
-		struct qed_ptt *ptt = qed_ptt_acquire(hwfn);
+		hwfn = &cdev->hwfns[j];
+		ptt = qed_ptt_acquire(hwfn);
 
 		/* Make sure not to use more than 16 queues per VF */
 		params.num_queues = min_t(int,
@@ -4561,6 +4563,19 @@ static int qed_sriov_enable(struct qed_dev *cdev, int num)
 		DP_ERR(cdev, "Failed to enable sriov [%d]\n", rc);
 		goto err;
 	}
+
+	hwfn = QED_LEADING_HWFN(cdev);
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt) {
+		DP_ERR(hwfn, "Failed to acquire ptt\n");
+		rc = -EBUSY;
+		goto err;
+	}
+
+	rc = qed_mcp_ov_update_eswitch(hwfn, ptt, QED_OV_ESWITCH_VEB);
+	if (rc)
+		DP_INFO(cdev, "Failed to update eswitch mode\n");
+	qed_ptt_release(hwfn, ptt);
 
 	return num;
 

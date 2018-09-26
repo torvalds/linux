@@ -485,12 +485,14 @@ static void bcm_kona_gpio_irq_handler(struct irq_desc *desc)
 static int bcm_kona_gpio_irq_reqres(struct irq_data *d)
 {
 	struct bcm_kona_gpio *kona_gpio = irq_data_get_irq_chip_data(d);
+	int ret;
 
-	if (gpiochip_lock_as_irq(&kona_gpio->gpio_chip, d->hwirq)) {
+	ret = gpiochip_lock_as_irq(&kona_gpio->gpio_chip, d->hwirq);
+	if (ret) {
 		dev_err(kona_gpio->gpio_chip.parent,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			d->hwirq);
-		return -EINVAL;
+		return ret;
 	}
 	return 0;
 }

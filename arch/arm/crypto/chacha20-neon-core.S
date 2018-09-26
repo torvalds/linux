@@ -51,9 +51,8 @@ ENTRY(chacha20_block_xor_neon)
 .Ldoubleround:
 	// x0 += x1, x3 = rotl32(x3 ^ x0, 16)
 	vadd.i32	q0, q0, q1
-	veor		q4, q3, q0
-	vshl.u32	q3, q4, #16
-	vsri.u32	q3, q4, #16
+	veor		q3, q3, q0
+	vrev32.16	q3, q3
 
 	// x2 += x3, x1 = rotl32(x1 ^ x2, 12)
 	vadd.i32	q2, q2, q3
@@ -82,9 +81,8 @@ ENTRY(chacha20_block_xor_neon)
 
 	// x0 += x1, x3 = rotl32(x3 ^ x0, 16)
 	vadd.i32	q0, q0, q1
-	veor		q4, q3, q0
-	vshl.u32	q3, q4, #16
-	vsri.u32	q3, q4, #16
+	veor		q3, q3, q0
+	vrev32.16	q3, q3
 
 	// x2 += x3, x1 = rotl32(x1 ^ x2, 12)
 	vadd.i32	q2, q2, q3

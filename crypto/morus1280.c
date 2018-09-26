@@ -514,7 +514,6 @@ static struct aead_alg crypto_morus1280_alg = {
 	.chunksize = MORUS1280_BLOCK_SIZE,
 
 	.base = {
-		.cra_flags = CRYPTO_ALG_TYPE_AEAD,
 		.cra_blocksize = 1,
 		.cra_ctxsize = sizeof(struct morus1280_ctx),
 		.cra_alignmask = 0,

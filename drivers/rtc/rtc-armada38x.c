@@ -30,6 +30,8 @@
 #define RTC_IRQ_FREQ_1HZ	    BIT(2)
 #define RTC_CCR		    0x18
 #define RTC_CCR_MODE		    BIT(15)
+#define RTC_CONF_TEST	    0x1C
+#define RTC_NOMINAL_TIMING	    BIT(13)
 
 #define RTC_TIME	    0xC
 #define RTC_ALARM1	    0x10
@@ -75,6 +77,7 @@ struct armada38x_rtc {
 	void __iomem	    *regs_soc;
 	spinlock_t	    lock;
 	int		    irq;
+	bool		    initialized;
 	struct value_to_freq *val_to_freq;
 	struct armada38x_rtc_data *data;
 };
@@ -226,6 +229,23 @@ static int armada38x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
+static void armada38x_rtc_reset(struct armada38x_rtc *rtc)
+{
+	u32 reg;
+
+	reg = rtc->data->read_rtc_reg(rtc, RTC_CONF_TEST);
+	/* If bits [7:0] are non-zero, assume RTC was uninitialized */
+	if (reg & 0xff) {
+		rtc_delayed_write(0, rtc, RTC_CONF_TEST);
+		msleep(500); /* Oscillator startup time */
+		rtc_delayed_write(0, rtc, RTC_TIME);
+		rtc_delayed_write(SOC_RTC_ALARM1 | SOC_RTC_ALARM2, rtc,
+				  RTC_STATUS);
+		rtc_delayed_write(RTC_NOMINAL_TIMING, rtc, RTC_CCR);
+	}
+	rtc->initialized = true;
+}
+
 static int armada38x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct armada38x_rtc *rtc = dev_get_drvdata(dev);
@@ -236,6 +256,9 @@ static int armada38x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	if (ret)
 		goto out;
+
+	if (!rtc->initialized)
+		armada38x_rtc_reset(rtc);
 
 	spin_lock_irqsave(&rtc->lock, flags);
 	rtc_delayed_write(time, rtc, RTC_TIME);

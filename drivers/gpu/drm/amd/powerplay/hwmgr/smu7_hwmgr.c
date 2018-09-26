@@ -4132,6 +4132,9 @@ smu7_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
 	if (data->display_timing.num_existing_displays != hwmgr->display_config->num_display)
 		is_update_required = true;
 
+	if (data->display_timing.vrefresh != hwmgr->display_config->vrefresh)
+		is_update_required = true;
+
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep)) {
 		if (data->display_timing.min_clock_in_sr != hwmgr->display_config->min_core_set_clock_in_sr &&
 			(data->display_timing.min_clock_in_sr >= SMU7_MINIMUM_ENGINE_CLOCK ||
@@ -4854,6 +4857,7 @@ static int smu7_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 			podn_vdd_dep_in_backend->entries[input_level].clk = input_clk;
 			podn_dpm_table_in_backend->entries[input_level].vddc = input_vol;
 			podn_vdd_dep_in_backend->entries[input_level].vddc = input_vol;
+			podn_vdd_dep_in_backend->entries[input_level].vddgfx = input_vol;
 		} else {
 			return -EINVAL;
 		}
@@ -5008,6 +5012,29 @@ static int smu7_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, uint
 	return 0;
 }
 
+static int smu7_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state,
+				PHM_PerformanceLevelDesignation designation, uint32_t index,
+				PHM_PerformanceLevel *level)
+{
+	const struct smu7_power_state *ps;
+	struct smu7_hwmgr *data;
+	uint32_t i;
+
+	if (level == NULL || hwmgr == NULL || state == NULL)
+		return -EINVAL;
+
+	data = hwmgr->backend;
+	ps = cast_const_phw_smu7_power_state(state);
+
+	i = index > ps->performance_level_count - 1 ?
+			ps->performance_level_count - 1 : index;
+
+	level->coreClock = ps->performance_levels[i].engine_clock;
+	level->memory_clock = ps->performance_levels[i].memory_clock;
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
 	.backend_fini = &smu7_hwmgr_backend_fini,
@@ -5064,6 +5091,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.set_power_limit = smu7_set_power_limit,
 	.get_power_profile_mode = smu7_get_power_profile_mode,
 	.set_power_profile_mode = smu7_set_power_profile_mode,
+	.get_performance_level = smu7_get_performance_level,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,

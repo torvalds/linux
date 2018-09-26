@@ -17,6 +17,8 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 
+#include "blk-mq.h"
+
 /**
  * blk_mq_pci_map_queues - provide a default queue mapping for PCI device
  * @set:	tagset to provide the mapping for
@@ -48,8 +50,7 @@ int blk_mq_pci_map_queues(struct blk_mq_tag_set *set, struct pci_dev *pdev,
 
 fallback:
 	WARN_ON_ONCE(set->nr_hw_queues > 1);
-	for_each_possible_cpu(cpu)
-		set->mq_map[cpu] = 0;
+	blk_mq_clear_mq_map(set);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(blk_mq_pci_map_queues);

@@ -1149,7 +1149,6 @@ QString ConfigInfoView::debug_info(struct symbol *sym)
 		case P_DEFAULT:
 		case P_SELECT:
 		case P_RANGE:
-		case P_ENV:
 			debug += prop_get_type_name(prop->type);
 			debug += ": ";
 			expr_print(prop->expr, expr_print_help, &debug, E_NONE);
@@ -1535,6 +1534,8 @@ bool ConfigMainWindow::saveConfig(void)
 		QMessageBox::information(this, "qconf", "Unable to save configuration!");
 		return false;
 	}
+	conf_write_autoconf(0);
+
 	return true;
 }
 

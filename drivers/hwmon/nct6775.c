@@ -63,6 +63,7 @@
 #include <linux/bitops.h>
 #include <linux/dmi.h>
 #include <linux/io.h>
+#include <linux/nospec.h>
 #include "lm75.h"
 
 #define USE_ALTERNATE
@@ -1050,8 +1051,8 @@ struct nct6775_data {
 	u64 beeps;
 
 	u8 pwm_num;	/* number of pwm */
-	u8 pwm_mode[NUM_FAN];	/* 1->DC variable voltage,
-				 * 0->PWM variable duty cycle
+	u8 pwm_mode[NUM_FAN];	/* 0->DC variable voltage,
+				 * 1->PWM variable duty cycle
 				 */
 	enum pwm_enable pwm_enable[NUM_FAN];
 			/* 0->off
@@ -2541,7 +2542,7 @@ static void pwm_update_registers(struct nct6775_data *data, int nr)
 	case thermal_cruise:
 		nct6775_write_value(data, data->REG_TARGET[nr],
 				    data->target_temp[nr]);
-		/* intentional */
+		/* fall through  */
 	default:
 		reg = nct6775_read_value(data, data->REG_FAN_MODE[nr]);
 		reg = (reg & ~data->tolerance_mask) |
@@ -2689,6 +2690,7 @@ store_pwm_weight_temp_sel(struct device *dev, struct device_attribute *attr,
 		return err;
 	if (val > NUM_TEMP)
 		return -EINVAL;
+	val = array_index_nospec(val, NUM_TEMP + 1);
 	if (val && (!(data->have_temp & BIT(val - 1)) ||
 		    !data->temp_src[val - 1]))
 		return -EINVAL;

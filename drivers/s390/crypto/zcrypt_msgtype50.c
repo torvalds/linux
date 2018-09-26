@@ -27,13 +27,14 @@
 #include "zcrypt_error.h"
 #include "zcrypt_msgtype50.h"
 
-#define CEX3A_MAX_MOD_SIZE	512	/* 4096 bits	*/
+/* 4096 bits */
+#define CEX3A_MAX_MOD_SIZE 512
 
-#define CEX2A_MAX_RESPONSE_SIZE 0x110	/* max outputdatalength + type80_hdr */
+/* max outputdatalength + type80_hdr */
+#define CEX2A_MAX_RESPONSE_SIZE 0x110
 
-#define CEX3A_MAX_RESPONSE_SIZE	0x210	/* 512 bit modulus
-					 * (max outputdatalength) +
-					 * type80_hdr*/
+/* 512 bit modulus, (max outputdatalength) + type80_hdr */
+#define CEX3A_MAX_RESPONSE_SIZE 0x210
 
 MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("Cryptographic Accelerator (message type 50), " \
@@ -209,6 +210,7 @@ static int ICAMEX_msg_to_type50MEX_msg(struct zcrypt_queue *zq,
 
 	if (mod_len <= 128) {
 		struct type50_meb1_msg *meb1 = ap_msg->message;
+
 		memset(meb1, 0, sizeof(*meb1));
 		ap_msg->length = sizeof(*meb1);
 		meb1->header.msg_type_code = TYPE50_TYPE_CODE;
@@ -219,6 +221,7 @@ static int ICAMEX_msg_to_type50MEX_msg(struct zcrypt_queue *zq,
 		inp = meb1->message + sizeof(meb1->message) - mod_len;
 	} else if (mod_len <= 256) {
 		struct type50_meb2_msg *meb2 = ap_msg->message;
+
 		memset(meb2, 0, sizeof(*meb2));
 		ap_msg->length = sizeof(*meb2);
 		meb2->header.msg_type_code = TYPE50_TYPE_CODE;
@@ -229,6 +232,7 @@ static int ICAMEX_msg_to_type50MEX_msg(struct zcrypt_queue *zq,
 		inp = meb2->message + sizeof(meb2->message) - mod_len;
 	} else if (mod_len <= 512) {
 		struct type50_meb3_msg *meb3 = ap_msg->message;
+
 		memset(meb3, 0, sizeof(*meb3));
 		ap_msg->length = sizeof(*meb3);
 		meb3->header.msg_type_code = TYPE50_TYPE_CODE;
@@ -274,6 +278,7 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_queue *zq,
 	 */
 	if (mod_len <= 128) {		/* up to 1024 bit key size */
 		struct type50_crb1_msg *crb1 = ap_msg->message;
+
 		memset(crb1, 0, sizeof(*crb1));
 		ap_msg->length = sizeof(*crb1);
 		crb1->header.msg_type_code = TYPE50_TYPE_CODE;
@@ -287,6 +292,7 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_queue *zq,
 		inp = crb1->message + sizeof(crb1->message) - mod_len;
 	} else if (mod_len <= 256) {	/* up to 2048 bit key size */
 		struct type50_crb2_msg *crb2 = ap_msg->message;
+
 		memset(crb2, 0, sizeof(*crb2));
 		ap_msg->length = sizeof(*crb2);
 		crb2->header.msg_type_code = TYPE50_TYPE_CODE;
@@ -301,6 +307,7 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_queue *zq,
 	} else if ((mod_len <= 512) &&	/* up to 4096 bit key size */
 		   (zq->zcard->max_mod_size == CEX3A_MAX_MOD_SIZE)) {
 		struct type50_crb3_msg *crb3 = ap_msg->message;
+
 		memset(crb3, 0, sizeof(*crb3));
 		ap_msg->length = sizeof(*crb3);
 		crb3->header.msg_type_code = TYPE50_TYPE_CODE;

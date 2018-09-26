@@ -45,20 +45,12 @@
 MODULE_AUTHOR("Mellanox Technologies");
 MODULE_DESCRIPTION("Transport Layer Security Support");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_ALIAS_TCP_ULP("tls");
 
 enum {
 	TLSV4,
 	TLSV6,
 	TLS_NUM_PROTS,
-};
-enum {
-	TLS_BASE,
-	TLS_SW,
-#ifdef CONFIG_TLS_DEVICE
-	TLS_HW,
-#endif
-	TLS_HW_RECORD,
-	TLS_NUM_CONFIG,
 };
 
 static struct proto *saved_tcpv6_prot;
@@ -221,9 +213,14 @@ static void tls_write_space(struct sock *sk)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
 
-	/* We are already sending pages, ignore notification */
-	if (ctx->in_tcp_sendpages)
+	/* If in_tcp_sendpages call lower protocol write space handler
+	 * to ensure we wake up any waiting operations there. For example
+	 * if do_tcp_sendpages where to call sk_wait_event.
+	 */
+	if (ctx->in_tcp_sendpages) {
+		ctx->sk_write_space(sk);
 		return;
+	}
 
 	if (!sk->sk_write_pending && tls_is_pending_closed_record(ctx)) {
 		gfp_t sk_allocation = sk->sk_allocation;
@@ -290,7 +287,10 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 	}
 
 #ifdef CONFIG_TLS_DEVICE
-	if (ctx->tx_conf != TLS_HW) {
+	if (ctx->rx_conf == TLS_HW)
+		tls_device_offload_cleanup_rx(sk);
+
+	if (ctx->tx_conf != TLS_HW && ctx->rx_conf != TLS_HW) {
 #else
 	{
 #endif
@@ -470,8 +470,16 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 			conf = TLS_SW;
 		}
 	} else {
-		rc = tls_set_sw_offload(sk, ctx, 0);
-		conf = TLS_SW;
+#ifdef CONFIG_TLS_DEVICE
+		rc = tls_set_device_offload_rx(sk, ctx);
+		conf = TLS_HW;
+		if (rc) {
+#else
+		{
+#endif
+			rc = tls_set_sw_offload(sk, ctx, 0);
+			conf = TLS_SW;
+		}
 	}
 
 	if (rc)
@@ -629,6 +637,12 @@ static void build_protos(struct proto prot[TLS_NUM_CONFIG][TLS_NUM_CONFIG],
 	prot[TLS_HW][TLS_SW] = prot[TLS_BASE][TLS_SW];
 	prot[TLS_HW][TLS_SW].sendmsg		= tls_device_sendmsg;
 	prot[TLS_HW][TLS_SW].sendpage		= tls_device_sendpage;
+
+	prot[TLS_BASE][TLS_HW] = prot[TLS_BASE][TLS_SW];
+
+	prot[TLS_SW][TLS_HW] = prot[TLS_SW][TLS_SW];
+
+	prot[TLS_HW][TLS_HW] = prot[TLS_HW][TLS_SW];
 #endif
 
 	prot[TLS_HW_RECORD][TLS_HW_RECORD] = *base;

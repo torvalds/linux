@@ -248,13 +248,13 @@ static inline u32 nft_bitmap_size(u32 klen)
 	return ((2 << ((klen * BITS_PER_BYTE) - 1)) / BITS_PER_BYTE) << 1;
 }
 
-static inline u32 nft_bitmap_total_size(u32 klen)
+static inline u64 nft_bitmap_total_size(u32 klen)
 {
 	return sizeof(struct nft_bitmap) + nft_bitmap_size(klen);
 }
 
-static unsigned int nft_bitmap_privsize(const struct nlattr * const nla[],
-					const struct nft_set_desc *desc)
+static u64 nft_bitmap_privsize(const struct nlattr * const nla[],
+			       const struct nft_set_desc *desc)
 {
 	u32 klen = ntohl(nla_get_be32(nla[NFTA_SET_KEY_LEN]));
 
@@ -296,7 +296,7 @@ static bool nft_bitmap_estimate(const struct nft_set_desc *desc, u32 features,
 	return true;
 }
 
-static struct nft_set_type nft_bitmap_type __read_mostly = {
+struct nft_set_type nft_set_bitmap_type __read_mostly = {
 	.owner		= THIS_MODULE,
 	.ops		= {
 		.privsize	= nft_bitmap_privsize,
@@ -314,20 +314,3 @@ static struct nft_set_type nft_bitmap_type __read_mostly = {
 		.get		= nft_bitmap_get,
 	},
 };
-
-static int __init nft_bitmap_module_init(void)
-{
-	return nft_register_set(&nft_bitmap_type);
-}
-
-static void __exit nft_bitmap_module_exit(void)
-{
-	nft_unregister_set(&nft_bitmap_type);
-}
-
-module_init(nft_bitmap_module_init);
-module_exit(nft_bitmap_module_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
-MODULE_ALIAS_NFT_SET();

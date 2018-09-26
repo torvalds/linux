@@ -19,18 +19,83 @@
 #include <linux/jiffies.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/kfifo.h>
 #include <linux/poll.h>
+#include <linux/math64.h>
+#include <asm/unaligned.h>
 #include "inv_mpu_iio.h"
 
-static void inv_clear_kfifo(struct inv_mpu6050_state *st)
+/**
+ *  inv_mpu6050_update_period() - Update chip internal period estimation
+ *
+ *  @st:		driver state
+ *  @timestamp:		the interrupt timestamp
+ *  @nb:		number of data set in the fifo
+ *
+ *  This function uses interrupt timestamps to estimate the chip period and
+ *  to choose the data timestamp to come.
+ */
+static void inv_mpu6050_update_period(struct inv_mpu6050_state *st,
+				      s64 timestamp, size_t nb)
 {
-	unsigned long flags;
+	/* Period boundaries for accepting timestamp */
+	const s64 period_min =
+		(NSEC_PER_MSEC * (100 - INV_MPU6050_TS_PERIOD_JITTER)) / 100;
+	const s64 period_max =
+		(NSEC_PER_MSEC * (100 + INV_MPU6050_TS_PERIOD_JITTER)) / 100;
+	const s32 divider = INV_MPU6050_FREQ_DIVIDER(st);
+	s64 delta, interval;
+	bool use_it_timestamp = false;
 
-	/* take the spin lock sem to avoid interrupt kick in */
-	spin_lock_irqsave(&st->time_stamp_lock, flags);
-	kfifo_reset(&st->timestamps);
-	spin_unlock_irqrestore(&st->time_stamp_lock, flags);
+	if (st->it_timestamp == 0) {
+		/* not initialized, forced to use it_timestamp */
+		use_it_timestamp = true;
+	} else if (nb == 1) {
+		/*
+		 * Validate the use of it timestamp by checking if interrupt
+		 * has been delayed.
+		 * nb > 1 means interrupt was delayed for more than 1 sample,
+		 * so it's obviously not good.
+		 * Compute the chip period between 2 interrupts for validating.
+		 */
+		delta = div_s64(timestamp - st->it_timestamp, divider);
+		if (delta > period_min && delta < period_max) {
+			/* update chip period and use it timestamp */
+			st->chip_period = (st->chip_period + delta) / 2;
+			use_it_timestamp = true;
+		}
+	}
+
+	if (use_it_timestamp) {
+		/*
+		 * Manage case of multiple samples in the fifo (nb > 1):
+		 * compute timestamp corresponding to the first sample using
+		 * estimated chip period.
+		 */
+		interval = (nb - 1) * st->chip_period * divider;
+		st->data_timestamp = timestamp - interval;
+	}
+
+	/* save it timestamp */
+	st->it_timestamp = timestamp;
+}
+
+/**
+ *  inv_mpu6050_get_timestamp() - Return the current data timestamp
+ *
+ *  @st:		driver state
+ *  @return:		current data timestamp
+ *
+ *  This function returns the current data timestamp and prepares for next one.
+ */
+static s64 inv_mpu6050_get_timestamp(struct inv_mpu6050_state *st)
+{
+	s64 ts;
+
+	/* return current data timestamp and increment */
+	ts = st->data_timestamp;
+	st->data_timestamp += st->chip_period * INV_MPU6050_FREQ_DIVIDER(st);
+
+	return ts;
 }
 
 int inv_reset_fifo(struct iio_dev *indio_dev)
@@ -38,6 +103,9 @@ int inv_reset_fifo(struct iio_dev *indio_dev)
 	int result;
 	u8 d;
 	struct inv_mpu6050_state  *st = iio_priv(indio_dev);
+
+	/* reset it timestamp validation */
+	st->it_timestamp = 0;
 
 	/* disable interrupt */
 	result = regmap_write(st->map, st->reg->int_enable, 0);
@@ -61,9 +129,6 @@ int inv_reset_fifo(struct iio_dev *indio_dev)
 	result = regmap_write(st->map, st->reg->user_ctrl, d);
 	if (result)
 		goto reset_fifo_fail;
-
-	/* clear timestamps fifo */
-	inv_clear_kfifo(st);
 
 	/* enable interrupt */
 	if (st->chip_config.accl_fifo_enable ||
@@ -99,23 +164,6 @@ reset_fifo_fail:
 }
 
 /**
- * inv_mpu6050_irq_handler() - Cache a timestamp at each data ready interrupt.
- */
-irqreturn_t inv_mpu6050_irq_handler(int irq, void *p)
-{
-	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->indio_dev;
-	struct inv_mpu6050_state *st = iio_priv(indio_dev);
-	s64 timestamp;
-
-	timestamp = iio_get_time_ns(indio_dev);
-	kfifo_in_spinlocked(&st->timestamps, &timestamp, 1,
-			    &st->time_stamp_lock);
-
-	return IRQ_WAKE_THREAD;
-}
-
-/**
  * inv_mpu6050_read_fifo() - Transfer data from hardware FIFO to KFIFO.
  */
 irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
@@ -129,6 +177,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	u16 fifo_count;
 	s64 timestamp;
 	int int_status;
+	size_t i, nb;
 
 	mutex_lock(&st->lock);
 
@@ -139,6 +188,9 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 			"failed to ack interrupt\n");
 		goto flush_fifo;
 	}
+	/* handle fifo overflow by reseting fifo */
+	if (int_status & INV_MPU6050_BIT_FIFO_OVERFLOW_INT)
+		goto flush_fifo;
 	if (!(int_status & INV_MPU6050_BIT_RAW_DATA_RDY_INT)) {
 		dev_warn(regmap_get_device(st->map),
 			"spurious interrupt with status 0x%x\n", int_status);
@@ -163,38 +215,23 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 				  INV_MPU6050_FIFO_COUNT_BYTE);
 	if (result)
 		goto end_session;
-	fifo_count = be16_to_cpup((__be16 *)(&data[0]));
-	if (fifo_count < bytes_per_datum)
-		goto end_session;
-	/* fifo count can't be an odd number. If it is odd, reset the FIFO. */
-	if (fifo_count & 1)
-		goto flush_fifo;
-	if (fifo_count >  INV_MPU6050_FIFO_THRESHOLD)
-		goto flush_fifo;
-	/* Timestamp mismatch. */
-	if (kfifo_len(&st->timestamps) >
-	    fifo_count / bytes_per_datum + INV_MPU6050_TIME_STAMP_TOR)
-		goto flush_fifo;
-	do {
+	fifo_count = get_unaligned_be16(&data[0]);
+	/* compute and process all complete datum */
+	nb = fifo_count / bytes_per_datum;
+	inv_mpu6050_update_period(st, pf->timestamp, nb);
+	for (i = 0; i < nb; ++i) {
 		result = regmap_bulk_read(st->map, st->reg->fifo_r_w,
 					  data, bytes_per_datum);
 		if (result)
 			goto flush_fifo;
-
-		result = kfifo_out(&st->timestamps, &timestamp, 1);
-		/* when there is no timestamp, put timestamp as 0 */
-		if (result == 0)
-			timestamp = 0;
-
 		/* skip first samples if needed */
-		if (st->skip_samples)
+		if (st->skip_samples) {
 			st->skip_samples--;
-		else
-			iio_push_to_buffers_with_timestamp(indio_dev, data,
-							   timestamp);
-
-		fifo_count -= bytes_per_datum;
-	} while (fifo_count >= bytes_per_datum);
+			continue;
+		}
+		timestamp = inv_mpu6050_get_timestamp(st);
+		iio_push_to_buffers_with_timestamp(indio_dev, data, timestamp);
+	}
 
 end_session:
 	mutex_unlock(&st->lock);

@@ -40,13 +40,6 @@
 			gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
 		};
 	};
-
-	vddio_ao18: regulator-vddio_ao18 {
-		compatible = "regulator-fixed";
-		regulator-name = "VDDIO_AO18";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
 };
 
 /* Q200 has exclusive choice between internal or external PHY */
@@ -79,7 +72,9 @@
 	};
 };
 
-&saradc {
-	status = "okay";
-	vref-supply = <&vddio_ao18>;
+&sd_emmc_a {
+	brcmf: wifi@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+	};
 };

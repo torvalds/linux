@@ -266,7 +266,7 @@ int devm_of_pci_get_host_bridge_resources(struct device *dev,
 			struct list_head *resources, resource_size_t *io_base)
 {
 	struct device_node *dev_node = dev->of_node;
-	struct resource *res;
+	struct resource *res, tmp_res;
 	struct resource *bus_range;
 	struct of_pci_range range;
 	struct of_pci_range_parser parser;
@@ -320,16 +320,14 @@ int devm_of_pci_get_host_bridge_resources(struct device *dev,
 		if (range.cpu_addr == OF_BAD_ADDR || range.size == 0)
 			continue;
 
-		res = devm_kzalloc(dev, sizeof(struct resource), GFP_KERNEL);
+		err = of_pci_range_to_resource(&range, dev_node, &tmp_res);
+		if (err)
+			continue;
+
+		res = devm_kmemdup(dev, &tmp_res, sizeof(tmp_res), GFP_KERNEL);
 		if (!res) {
 			err = -ENOMEM;
 			goto failed;
-		}
-
-		err = of_pci_range_to_resource(&range, dev_node, res);
-		if (err) {
-			devm_kfree(dev, res);
-			continue;
 		}
 
 		if (resource_type(res) == IORESOURCE_IO) {
@@ -612,7 +610,7 @@ int pci_parse_request_of_pci_ranges(struct device *dev,
 
 		switch (resource_type(res)) {
 		case IORESOURCE_IO:
-			err = pci_remap_iospace(res, iobase);
+			err = devm_pci_remap_iospace(dev, res, iobase);
 			if (err) {
 				dev_warn(dev, "error %d: failed to map resource %pR\n",
 					 err, res);

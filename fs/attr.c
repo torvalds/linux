@@ -120,7 +120,6 @@ EXPORT_SYMBOL(setattr_prepare);
  * inode_newsize_ok - may this inode be truncated to a given size
  * @inode:	the inode to be truncated
  * @offset:	the new size to assign to the inode
- * @Returns:	0 on success, -ve errno on failure
  *
  * inode_newsize_ok must be called with i_mutex held.
  *
@@ -130,6 +129,8 @@ EXPORT_SYMBOL(setattr_prepare);
  * returned. @inode must be a file (not directory), with appropriate
  * permissions to allow truncate (inode_newsize_ok does NOT check these
  * conditions).
+ *
+ * Return: 0 on success, -ve errno on failure
  */
 int inode_newsize_ok(const struct inode *inode, loff_t offset)
 {
@@ -205,7 +206,7 @@ EXPORT_SYMBOL(setattr_copy);
 /**
  * notify_change - modify attributes of a filesytem object
  * @dentry:	object affected
- * @iattr:	new attributes
+ * @attr:	new attributes
  * @delegated_inode: returns inode, if the inode is delegated
  *
  * The caller must hold the i_mutex on the affected object.

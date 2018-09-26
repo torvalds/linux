@@ -1,0 +1,58 @@
+SiFive Platform-Level Interrupt Controller (PLIC)
+-------------------------------------------------
+
+SiFive SOCs include an implementation of the Platform-Level Interrupt Controller
+(PLIC) high-level specification in the RISC-V Privileged Architecture
+specification.  The PLIC connects all external interrupts in the system to all
+hart contexts in the system, via the external interrupt source in each hart.
+
+A hart context is a privilege mode in a hardware execution thread.  For example,
+in an 4 core system with 2-way SMT, you have 8 harts and probably at least two
+privilege modes per hart; machine mode and supervisor mode.
+
+Each interrupt can be enabled on per-context basis.  Any context can claim
+a pending enabled interrupt and then release it once it has been handled.
+
+Each interrupt has a configurable priority.  Higher priority interrupts are
+serviced first.  Each context can specify a priority threshold. Interrupts
+with priority below this threshold will not cause the PLIC to raise its
+interrupt line leading to the context.
+
+While the PLIC supports both edge-triggered and level-triggered interrupts,
+interrupt handlers are oblivious to this distinction and therefore it is not
+specified in the PLIC device-tree binding.
+
+While the RISC-V ISA doesn't specify a memory layout for the PLIC, the
+"sifive,plic-1.0.0" device is a concrete implementation of the PLIC that
+contains a specific memory layout, which is documented in chapter 8 of the
+SiFive U5 Coreplex Series Manual <https://static.dev.sifive.com/U54-MC-RVCoreIP.pdf>.
+
+Required properties:
+- compatible : "sifive,plic-1.0.0" and a string identifying the actual
+  detailed implementation in case that specific bugs need to be worked around.
+- #address-cells : should be <0> or more.
+- #interrupt-cells : should be <1> or more.
+- interrupt-controller : Identifies the node as an interrupt controller.
+- reg : Should contain 1 register range (address and length).
+- interrupts-extended : Specifies which contexts are connected to the PLIC,
+  with "-1" specifying that a context is not present.  Each node pointed
+  to should be a riscv,cpu-intc node, which has a riscv node as parent.
+- riscv,ndev: Specifies how many external interrupts are supported by
+  this controller.
+
+Example:
+
+	plic: interrupt-controller@c000000 {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		compatible = "sifive,plic-1.0.0", "sifive,fu540-c000-plic";
+		interrupt-controller;
+		interrupts-extended = <
+			&cpu0-intc 11
+			&cpu1-intc 11 &cpu1-intc 9
+			&cpu2-intc 11 &cpu2-intc 9
+			&cpu3-intc 11 &cpu3-intc 9
+			&cpu4-intc 11 &cpu4-intc 9>;
+		reg = <0xc000000 0x4000000>;
+		riscv,ndev = <10>;
+	};

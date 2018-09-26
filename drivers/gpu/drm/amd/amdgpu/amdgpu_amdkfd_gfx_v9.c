@@ -201,6 +201,7 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.create_process_vm = amdgpu_amdkfd_gpuvm_create_process_vm,
 	.acquire_process_vm = amdgpu_amdkfd_gpuvm_acquire_process_vm,
 	.destroy_process_vm = amdgpu_amdkfd_gpuvm_destroy_process_vm,
+	.release_process_vm = amdgpu_amdkfd_gpuvm_release_process_vm,
 	.get_process_page_dir = amdgpu_amdkfd_gpuvm_get_process_page_dir,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base,
 	.alloc_memory_of_gpu = amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu,
@@ -213,6 +214,9 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.invalidate_tlbs = invalidate_tlbs,
 	.invalidate_tlbs_vmid = invalidate_tlbs_vmid,
 	.submit_ib = amdgpu_amdkfd_submit_ib,
+	.gpu_recover = amdgpu_amdkfd_gpu_reset,
+	.set_compute_idle = amdgpu_amdkfd_set_compute_idle,
+	.get_hive_id = amdgpu_amdkfd_get_hive_id,
 };
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void)
@@ -679,6 +683,9 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
 	uint32_t temp;
 	struct v9_mqd *m = get_mqd(mqd);
 
+	if (adev->in_gpu_reset)
+		return -EIO;
+
 	acquire_queue(kgd, pipe_id, queue_id);
 
 	if (m->cp_hqd_vmid == 0)
@@ -865,6 +872,9 @@ static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 	int vmid;
 	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
+
+	if (adev->in_gpu_reset)
+		return -EIO;
 
 	if (ring->ready)
 		return invalidate_tlbs_with_kiq(adev, pasid);

@@ -108,7 +108,7 @@ static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
         return 0;
 }
 
-static int psbfb_vm_fault(struct vm_fault *vmf)
+static vm_fault_t psbfb_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct psb_framebuffer *psbfb = vma->vm_private_data;
@@ -118,7 +118,7 @@ static int psbfb_vm_fault(struct vm_fault *vmf)
 	int page_num;
 	int i;
 	unsigned long address;
-	int ret;
+	vm_fault_t ret = VM_FAULT_SIGBUS;
 	unsigned long pfn;
 	unsigned long phys_addr = (unsigned long)dev_priv->stolen_base +
 				  gtt->offset;
@@ -131,18 +131,14 @@ static int psbfb_vm_fault(struct vm_fault *vmf)
 	for (i = 0; i < page_num; i++) {
 		pfn = (phys_addr >> PAGE_SHIFT);
 
-		ret = vm_insert_mixed(vma, address,
+		ret = vmf_insert_mixed(vma, address,
 				__pfn_to_pfn_t(pfn, PFN_DEV));
-		if (unlikely((ret == -EBUSY) || (ret != 0 && i > 0)))
+		if (unlikely(ret & VM_FAULT_ERROR))
 			break;
-		else if (unlikely(ret != 0)) {
-			ret = (ret == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS;
-			return ret;
-		}
 		address += PAGE_SIZE;
 		phys_addr += PAGE_SIZE;
 	}
-	return VM_FAULT_NOPAGE;
+	return ret;
 }
 
 static void psbfb_vm_open(struct vm_area_struct *vma)

@@ -50,12 +50,7 @@
 #include <linux/kthread.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_page_alloc.h>
-#if IS_ENABLED(CONFIG_AGP)
-#include <asm/agp.h>
-#endif
-#ifdef CONFIG_X86
-#include <asm/set_memory.h>
-#endif
+#include <drm/ttm/ttm_set_memory.h>
 
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(struct page *))
 #define SMALL_ALLOCATION		4
@@ -268,54 +263,19 @@ static struct kobj_type ttm_pool_kobj_type = {
 	.default_attrs = ttm_pool_attrs,
 };
 
-#ifndef CONFIG_X86
-static int set_pages_array_wb(struct page **pages, int addrinarray)
-{
-#if IS_ENABLED(CONFIG_AGP)
-	int i;
-
-	for (i = 0; i < addrinarray; i++)
-		unmap_page_from_agp(pages[i]);
-#endif
-	return 0;
-}
-
-static int set_pages_array_wc(struct page **pages, int addrinarray)
-{
-#if IS_ENABLED(CONFIG_AGP)
-	int i;
-
-	for (i = 0; i < addrinarray; i++)
-		map_page_into_agp(pages[i]);
-#endif
-	return 0;
-}
-
-static int set_pages_array_uc(struct page **pages, int addrinarray)
-{
-#if IS_ENABLED(CONFIG_AGP)
-	int i;
-
-	for (i = 0; i < addrinarray; i++)
-		map_page_into_agp(pages[i]);
-#endif
-	return 0;
-}
-#endif /* for !CONFIG_X86 */
-
 static int ttm_set_pages_caching(struct dma_pool *pool,
 				 struct page **pages, unsigned cpages)
 {
 	int r = 0;
 	/* Set page caching */
 	if (pool->type & IS_UC) {
-		r = set_pages_array_uc(pages, cpages);
+		r = ttm_set_pages_array_uc(pages, cpages);
 		if (r)
 			pr_err("%s: Failed to set %d pages to uc!\n",
 			       pool->dev_name, cpages);
 	}
 	if (pool->type & IS_WC) {
-		r = set_pages_array_wc(pages, cpages);
+		r = ttm_set_pages_array_wc(pages, cpages);
 		if (r)
 			pr_err("%s: Failed to set %d pages to wc!\n",
 			       pool->dev_name, cpages);
@@ -389,17 +349,14 @@ static void ttm_pool_update_free_locked(struct dma_pool *pool,
 static void ttm_dma_page_put(struct dma_pool *pool, struct dma_page *d_page)
 {
 	struct page *page = d_page->p;
-	unsigned i, num_pages;
+	unsigned num_pages;
 
 	/* Don't set WB on WB page pool. */
 	if (!(pool->type & IS_CACHED)) {
 		num_pages = pool->size / PAGE_SIZE;
-		for (i = 0; i < num_pages; ++i, ++page) {
-			if (set_pages_array_wb(&page, 1)) {
-				pr_err("%s: Failed to set %d pages to wb!\n",
-				       pool->dev_name, 1);
-			}
-		}
+		if (ttm_set_pages_wb(page, num_pages))
+			pr_err("%s: Failed to set %d pages to wb!\n",
+			       pool->dev_name, num_pages);
 	}
 
 	list_del(&d_page->page_list);
@@ -420,7 +377,7 @@ static void ttm_dma_pages_put(struct dma_pool *pool, struct list_head *d_pages,
 
 	/* Don't set WB on WB page pool. */
 	if (npages && !(pool->type & IS_CACHED) &&
-	    set_pages_array_wb(pages, npages))
+	    ttm_set_pages_array_wb(pages, npages))
 		pr_err("%s: Failed to set %d pages to wb!\n",
 		       pool->dev_name, npages);
 
@@ -453,13 +410,7 @@ static unsigned ttm_dma_page_pool_free(struct dma_pool *pool, unsigned nr_free,
 
 	if (NUM_PAGES_TO_ALLOC < nr_free)
 		npages_to_free = NUM_PAGES_TO_ALLOC;
-#if 0
-	if (nr_free > 1) {
-		pr_debug("%s: (%s:%d) Attempting to free %d (%d) pages\n",
-			 pool->dev_name, pool->name, current->pid,
-			 npages_to_free, nr_free);
-	}
-#endif
+
 	if (use_static)
 		pages_to_free = static_buf;
 	else

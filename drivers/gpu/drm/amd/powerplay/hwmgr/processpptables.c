@@ -757,8 +757,8 @@ static int init_non_clock_fields(struct pp_hwmgr *hwmgr,
 	ps->validation.supportedPowerLevels = pnon_clock_info->ucRequiredPower;
 
 	if (ATOM_PPLIB_NONCLOCKINFO_VER1 < version) {
-		ps->uvd_clocks.VCLK = pnon_clock_info->ulVCLK;
-		ps->uvd_clocks.DCLK = pnon_clock_info->ulDCLK;
+		ps->uvd_clocks.VCLK = le32_to_cpu(pnon_clock_info->ulVCLK);
+		ps->uvd_clocks.DCLK = le32_to_cpu(pnon_clock_info->ulDCLK);
 	} else {
 		ps->uvd_clocks.VCLK = 0;
 		ps->uvd_clocks.DCLK = 0;
@@ -937,8 +937,9 @@ int pp_tables_get_entry(struct pp_hwmgr *hwmgr,
 		if (entry_index > powerplay_table->ucNumStates)
 			return -1;
 
-		pstate_entry = (ATOM_PPLIB_STATE *)((unsigned long)powerplay_table + powerplay_table->usStateArrayOffset +
-				entry_index * powerplay_table->ucStateEntrySize);
+		pstate_entry = (ATOM_PPLIB_STATE *)((unsigned long)powerplay_table +
+						    le16_to_cpu(powerplay_table->usStateArrayOffset) +
+						    entry_index * powerplay_table->ucStateEntrySize);
 
 		pnon_clock_info = (ATOM_PPLIB_NONCLOCK_INFO *)((unsigned long)powerplay_table +
 						le16_to_cpu(powerplay_table->usNonClockInfoArrayOffset) +
@@ -1063,13 +1064,13 @@ static int init_overdrive_limits(struct pp_hwmgr *hwmgr,
 			 &size, &frev, &crev);
 
 	if ((fw_info->ucTableFormatRevision == 1)
-		&& (fw_info->usStructureSize >= sizeof(ATOM_FIRMWARE_INFO_V1_4)))
+	    && (le16_to_cpu(fw_info->usStructureSize) >= sizeof(ATOM_FIRMWARE_INFO_V1_4)))
 		result = init_overdrive_limits_V1_4(hwmgr,
 				powerplay_table,
 				(const ATOM_FIRMWARE_INFO_V1_4 *)fw_info);
 
 	else if ((fw_info->ucTableFormatRevision == 2)
-		&& (fw_info->usStructureSize >= sizeof(ATOM_FIRMWARE_INFO_V2_1)))
+		 && (le16_to_cpu(fw_info->usStructureSize) >= sizeof(ATOM_FIRMWARE_INFO_V2_1)))
 		result = init_overdrive_limits_V2_1(hwmgr,
 				powerplay_table,
 				(const ATOM_FIRMWARE_INFO_V2_1 *)fw_info);
@@ -1303,7 +1304,7 @@ static int init_clock_voltage_dependency(struct pp_hwmgr *hwmgr,
 		if (0 != powerplay_table4->usVddcDependencyOnSCLKOffset) {
 			table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
 				(((unsigned long) powerplay_table4) +
-				powerplay_table4->usVddcDependencyOnSCLKOffset);
+				 le16_to_cpu(powerplay_table4->usVddcDependencyOnSCLKOffset));
 			result = get_clock_voltage_dependency_table(hwmgr,
 				&hwmgr->dyn_state.vddc_dependency_on_sclk, table);
 		}
@@ -1311,7 +1312,7 @@ static int init_clock_voltage_dependency(struct pp_hwmgr *hwmgr,
 		if (result == 0 && (0 != powerplay_table4->usVddciDependencyOnMCLKOffset)) {
 			table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
 				(((unsigned long) powerplay_table4) +
-				powerplay_table4->usVddciDependencyOnMCLKOffset);
+				 le16_to_cpu(powerplay_table4->usVddciDependencyOnMCLKOffset));
 			result = get_clock_voltage_dependency_table(hwmgr,
 				&hwmgr->dyn_state.vddci_dependency_on_mclk, table);
 		}
@@ -1319,7 +1320,7 @@ static int init_clock_voltage_dependency(struct pp_hwmgr *hwmgr,
 		if (result == 0 && (0 != powerplay_table4->usVddcDependencyOnMCLKOffset)) {
 			table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
 				(((unsigned long) powerplay_table4) +
-				powerplay_table4->usVddcDependencyOnMCLKOffset);
+				 le16_to_cpu(powerplay_table4->usVddcDependencyOnMCLKOffset));
 			result = get_clock_voltage_dependency_table(hwmgr,
 				&hwmgr->dyn_state.vddc_dependency_on_mclk, table);
 		}
@@ -1327,7 +1328,7 @@ static int init_clock_voltage_dependency(struct pp_hwmgr *hwmgr,
 		if (result == 0 && (0 != powerplay_table4->usMaxClockVoltageOnDCOffset)) {
 			limit_table = (ATOM_PPLIB_Clock_Voltage_Limit_Table *)
 				(((unsigned long) powerplay_table4) +
-				powerplay_table4->usMaxClockVoltageOnDCOffset);
+				 le16_to_cpu(powerplay_table4->usMaxClockVoltageOnDCOffset));
 			result = get_clock_voltage_limit(hwmgr,
 				&hwmgr->dyn_state.max_clock_voltage_on_dc, limit_table);
 		}
@@ -1346,7 +1347,7 @@ static int init_clock_voltage_dependency(struct pp_hwmgr *hwmgr,
 		if (result == 0 && (0 != powerplay_table4->usMvddDependencyOnMCLKOffset)) {
 			table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
 				(((unsigned long) powerplay_table4) +
-				powerplay_table4->usMvddDependencyOnMCLKOffset);
+				 le16_to_cpu(powerplay_table4->usMvddDependencyOnMCLKOffset));
 			result = get_clock_voltage_dependency_table(hwmgr,
 				&hwmgr->dyn_state.mvdd_dependency_on_mclk, table);
 		}
@@ -1569,7 +1570,8 @@ static int get_vce_state_table_entry(struct pp_hwmgr *hwmgr,
 
 	const VCEClockInfoArray *vce_clock_info_array = (const VCEClockInfoArray *)(((unsigned long) powerplay_table) + vce_clock_info_array_offset);
 
-	const ClockInfoArray *clock_arrays = (ClockInfoArray *)(((unsigned long)powerplay_table) + powerplay_table->usClockInfoArrayOffset);
+	const ClockInfoArray *clock_arrays = (ClockInfoArray *)(((unsigned long)powerplay_table) +
+								le16_to_cpu(powerplay_table->usClockInfoArrayOffset));
 
 	const ATOM_PPLIB_VCE_State_Record *record = &vce_state_table->entries[i];
 
@@ -1579,8 +1581,8 @@ static int get_vce_state_table_entry(struct pp_hwmgr *hwmgr,
 
 	*flag = (record->ucClockInfoIndex >> NUM_BITS_CLOCK_INFO_ARRAY_INDEX);
 
-	vce_state->evclk = ((uint32_t)vce_clock_info->ucEVClkHigh << 16) | vce_clock_info->usEVClkLow;
-	vce_state->ecclk = ((uint32_t)vce_clock_info->ucECClkHigh << 16) | vce_clock_info->usECClkLow;
+	vce_state->evclk = ((uint32_t)vce_clock_info->ucEVClkHigh << 16) | le16_to_cpu(vce_clock_info->usEVClkLow);
+	vce_state->ecclk = ((uint32_t)vce_clock_info->ucECClkHigh << 16) | le16_to_cpu(vce_clock_info->usECClkLow);
 
 	*clock_info = (void *)((unsigned long)(clock_arrays->clockInfo) + (clockInfoIndex * clock_arrays->ucEntrySize));
 

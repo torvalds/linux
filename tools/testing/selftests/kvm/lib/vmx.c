@@ -13,47 +13,60 @@
 #include "x86.h"
 #include "vmx.h"
 
-/* Create a default VM for VMX tests.
+/* Allocate memory regions for nested VMX tests.
  *
  * Input Args:
- *   vcpuid - The id of the single VCPU to add to the VM.
- *   guest_code - The vCPU's entry point
+ *   vm - The VM to allocate guest-virtual addresses in.
  *
- * Output Args: None
+ * Output Args:
+ *   p_vmx_gva - The guest virtual address for the struct vmx_pages.
  *
  * Return:
- *   Pointer to opaque structure that describes the created VM.
+ *   Pointer to structure with the addresses of the VMX areas.
  */
-struct kvm_vm *
-vm_create_default_vmx(uint32_t vcpuid, vmx_guest_code_t guest_code)
+struct vmx_pages *
+vcpu_alloc_vmx(struct kvm_vm *vm, vm_vaddr_t *p_vmx_gva)
 {
-	struct kvm_cpuid2 *cpuid;
-	struct kvm_vm *vm;
-	vm_vaddr_t vmxon_vaddr;
-	vm_paddr_t vmxon_paddr;
-	vm_vaddr_t vmcs_vaddr;
-	vm_paddr_t vmcs_paddr;
-
-	vm = vm_create_default(vcpuid, (void *) guest_code);
-
-	/* Enable nesting in CPUID */
-	vcpu_set_cpuid(vm, vcpuid, kvm_get_supported_cpuid());
+	vm_vaddr_t vmx_gva = vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	struct vmx_pages *vmx = addr_gva2hva(vm, vmx_gva);
 
 	/* Setup of a region of guest memory for the vmxon region. */
-	vmxon_vaddr = vm_vaddr_alloc(vm, getpagesize(), 0, 0, 0);
-	vmxon_paddr = addr_gva2gpa(vm, vmxon_vaddr);
+	vmx->vmxon = (void *)vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	vmx->vmxon_hva = addr_gva2hva(vm, (uintptr_t)vmx->vmxon);
+	vmx->vmxon_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vmxon);
 
 	/* Setup of a region of guest memory for a vmcs. */
-	vmcs_vaddr = vm_vaddr_alloc(vm, getpagesize(), 0, 0, 0);
-	vmcs_paddr = addr_gva2gpa(vm, vmcs_vaddr);
+	vmx->vmcs = (void *)vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	vmx->vmcs_hva = addr_gva2hva(vm, (uintptr_t)vmx->vmcs);
+	vmx->vmcs_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vmcs);
 
-	vcpu_args_set(vm, vcpuid, 4, vmxon_vaddr, vmxon_paddr, vmcs_vaddr,
-		      vmcs_paddr);
+	/* Setup of a region of guest memory for the MSR bitmap. */
+	vmx->msr = (void *)vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	vmx->msr_hva = addr_gva2hva(vm, (uintptr_t)vmx->msr);
+	vmx->msr_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->msr);
+	memset(vmx->msr_hva, 0, getpagesize());
 
-	return vm;
+	/* Setup of a region of guest memory for the shadow VMCS. */
+	vmx->shadow_vmcs = (void *)vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	vmx->shadow_vmcs_hva = addr_gva2hva(vm, (uintptr_t)vmx->shadow_vmcs);
+	vmx->shadow_vmcs_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->shadow_vmcs);
+
+	/* Setup of a region of guest memory for the VMREAD and VMWRITE bitmaps. */
+	vmx->vmread = (void *)vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	vmx->vmread_hva = addr_gva2hva(vm, (uintptr_t)vmx->vmread);
+	vmx->vmread_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vmread);
+	memset(vmx->vmread_hva, 0, getpagesize());
+
+	vmx->vmwrite = (void *)vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	vmx->vmwrite_hva = addr_gva2hva(vm, (uintptr_t)vmx->vmwrite);
+	vmx->vmwrite_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vmwrite);
+	memset(vmx->vmwrite_hva, 0, getpagesize());
+
+	*p_vmx_gva = vmx_gva;
+	return vmx;
 }
 
-void prepare_for_vmx_operation(void)
+bool prepare_for_vmx_operation(struct vmx_pages *vmx)
 {
 	uint64_t feature_control;
 	uint64_t required;
@@ -88,18 +101,42 @@ void prepare_for_vmx_operation(void)
 	feature_control = rdmsr(MSR_IA32_FEATURE_CONTROL);
 	if ((feature_control & required) != required)
 		wrmsr(MSR_IA32_FEATURE_CONTROL, feature_control | required);
+
+	/* Enter VMX root operation. */
+	*(uint32_t *)(vmx->vmxon) = vmcs_revision();
+	if (vmxon(vmx->vmxon_gpa))
+		return false;
+
+	/* Load a VMCS. */
+	*(uint32_t *)(vmx->vmcs) = vmcs_revision();
+	if (vmclear(vmx->vmcs_gpa))
+		return false;
+
+	if (vmptrld(vmx->vmcs_gpa))
+		return false;
+
+	/* Setup shadow VMCS, do not load it yet. */
+	*(uint32_t *)(vmx->shadow_vmcs) = vmcs_revision() | 0x80000000ul;
+	if (vmclear(vmx->shadow_vmcs_gpa))
+		return false;
+
+	return true;
 }
 
 /*
  * Initialize the control fields to the most basic settings possible.
  */
-static inline void init_vmcs_control_fields(void)
+static inline void init_vmcs_control_fields(struct vmx_pages *vmx)
 {
 	vmwrite(VIRTUAL_PROCESSOR_ID, 0);
 	vmwrite(POSTED_INTR_NV, 0);
 
-	vmwrite(PIN_BASED_VM_EXEC_CONTROL, rdmsr(MSR_IA32_VMX_PINBASED_CTLS));
-	vmwrite(CPU_BASED_VM_EXEC_CONTROL, rdmsr(MSR_IA32_VMX_PROCBASED_CTLS));
+	vmwrite(PIN_BASED_VM_EXEC_CONTROL, rdmsr(MSR_IA32_VMX_TRUE_PINBASED_CTLS));
+	if (!vmwrite(SECONDARY_VM_EXEC_CONTROL, 0))
+		vmwrite(CPU_BASED_VM_EXEC_CONTROL,
+			rdmsr(MSR_IA32_VMX_TRUE_PROCBASED_CTLS) | CPU_BASED_ACTIVATE_SECONDARY_CONTROLS);
+	else
+		vmwrite(CPU_BASED_VM_EXEC_CONTROL, rdmsr(MSR_IA32_VMX_TRUE_PROCBASED_CTLS));
 	vmwrite(EXCEPTION_BITMAP, 0);
 	vmwrite(PAGE_FAULT_ERROR_CODE_MASK, 0);
 	vmwrite(PAGE_FAULT_ERROR_CODE_MATCH, -1); /* Never match */
@@ -113,12 +150,15 @@ static inline void init_vmcs_control_fields(void)
 	vmwrite(VM_ENTRY_MSR_LOAD_COUNT, 0);
 	vmwrite(VM_ENTRY_INTR_INFO_FIELD, 0);
 	vmwrite(TPR_THRESHOLD, 0);
-	vmwrite(SECONDARY_VM_EXEC_CONTROL, 0);
 
 	vmwrite(CR0_GUEST_HOST_MASK, 0);
 	vmwrite(CR4_GUEST_HOST_MASK, 0);
 	vmwrite(CR0_READ_SHADOW, get_cr0());
 	vmwrite(CR4_READ_SHADOW, get_cr4());
+
+	vmwrite(MSR_BITMAP, vmx->msr_gpa);
+	vmwrite(VMREAD_BITMAP, vmx->vmread_gpa);
+	vmwrite(VMWRITE_BITMAP, vmx->vmwrite_gpa);
 }
 
 /*
@@ -235,9 +275,9 @@ static inline void init_vmcs_guest_state(void *rip, void *rsp)
 	vmwrite(GUEST_SYSENTER_EIP, vmreadz(HOST_IA32_SYSENTER_EIP));
 }
 
-void prepare_vmcs(void *guest_rip, void *guest_rsp)
+void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp)
 {
-	init_vmcs_control_fields();
+	init_vmcs_control_fields(vmx);
 	init_vmcs_host_state();
 	init_vmcs_guest_state(guest_rip, guest_rsp);
 }

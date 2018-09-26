@@ -79,7 +79,8 @@ void fbtft_write_reg8_bus9(struct fbtft_par *par, int len, ...)
 			*(((u8 *)buf) + i) = (u8)va_arg(args, unsigned int);
 		va_end(args);
 		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par,
-			par->info->device, u8, buf, len, "%s: ", __func__);
+				  par->info->device, u8, buf, len, "%s: ",
+				  __func__);
 	}
 	if (len <= 0)
 		return;
@@ -129,7 +130,7 @@ int fbtft_write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 	size_t startbyte_size = 0;
 
 	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
-		__func__, offset, len);
+		      __func__, offset, len);
 
 	remain = len / 2;
 	vmem16 = (u16 *)(par->info->screen_buffer + offset);
@@ -153,8 +154,8 @@ int fbtft_write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 
 	while (remain) {
 		to_copy = min(tx_array_size, remain);
-		dev_dbg(par->info->device, "    to_copy=%zu, remain=%zu\n",
-						to_copy, remain - to_copy);
+		dev_dbg(par->info->device, "to_copy=%zu, remain=%zu\n",
+			to_copy, remain - to_copy);
 
 		for (i = 0; i < to_copy; i++)
 			txbuf16[i] = cpu_to_be16(vmem16[i]);
@@ -183,7 +184,7 @@ int fbtft_write_vmem16_bus9(struct fbtft_par *par, size_t offset, size_t len)
 	int ret = 0;
 
 	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
-		__func__, offset, len);
+		      __func__, offset, len);
 
 	if (!par->txbuf.buf) {
 		dev_err(par->info->device, "%s: txbuf.buf is NULL\n", __func__);
@@ -197,8 +198,8 @@ int fbtft_write_vmem16_bus9(struct fbtft_par *par, size_t offset, size_t len)
 
 	while (remain) {
 		to_copy = min(tx_array_size, remain);
-		dev_dbg(par->info->device, "    to_copy=%zu, remain=%zu\n",
-						to_copy, remain - to_copy);
+		dev_dbg(par->info->device, "to_copy=%zu, remain=%zu\n",
+			to_copy, remain - to_copy);
 
 #ifdef __LITTLE_ENDIAN
 		for (i = 0; i < to_copy; i += 2) {
@@ -233,7 +234,7 @@ int fbtft_write_vmem16_bus16(struct fbtft_par *par, size_t offset, size_t len)
 	u16 *vmem16;
 
 	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
-		__func__, offset, len);
+		      __func__, offset, len);
 
 	vmem16 = (u16 *)(par->info->screen_buffer + offset);
 

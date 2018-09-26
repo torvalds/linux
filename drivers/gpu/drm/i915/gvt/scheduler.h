@@ -158,4 +158,7 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 
 void intel_vgpu_destroy_workload(struct intel_vgpu_workload *workload);
 
+void intel_vgpu_clean_workloads(struct intel_vgpu *vgpu,
+				unsigned long engine_mask);
+
 #endif

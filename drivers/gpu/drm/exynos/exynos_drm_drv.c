@@ -55,8 +55,7 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 		return -ENOMEM;
 
 	file->driver_priv = file_priv;
-
-	ret = exynos_drm_subdrv_open(dev, file);
+	ret = g2d_open(dev, file);
 	if (ret)
 		goto err_file_priv_free;
 
@@ -70,7 +69,7 @@ err_file_priv_free:
 
 static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 {
-	exynos_drm_subdrv_close(dev, file);
+	g2d_close(dev, file);
 	kfree(file->driver_priv);
 	file->driver_priv = NULL;
 }
@@ -147,13 +146,12 @@ static struct drm_driver exynos_drm_driver = {
 	.minor	= DRIVER_MINOR,
 };
 
-#ifdef CONFIG_PM_SLEEP
 static int exynos_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct exynos_drm_private *private;
 
-	if (pm_runtime_suspended(dev) || !drm_dev)
+	if (!drm_dev)
 		return 0;
 
 	private = drm_dev->dev_private;
@@ -170,25 +168,23 @@ static int exynos_drm_suspend(struct device *dev)
 	return 0;
 }
 
-static int exynos_drm_resume(struct device *dev)
+static void exynos_drm_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct exynos_drm_private *private;
 
-	if (pm_runtime_suspended(dev) || !drm_dev)
-		return 0;
+	if (!drm_dev)
+		return;
 
 	private = drm_dev->dev_private;
 	drm_atomic_helper_resume(drm_dev, private->suspend_state);
 	exynos_drm_fbdev_resume(drm_dev);
 	drm_kms_helper_poll_enable(drm_dev);
-
-	return 0;
 }
-#endif
 
 static const struct dev_pm_ops exynos_drm_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(exynos_drm_suspend, exynos_drm_resume)
+	.prepare = exynos_drm_suspend,
+	.complete = exynos_drm_resume,
 };
 
 /* forward declaration */
@@ -240,6 +236,7 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 		DRM_COMPONENT_DRIVER | DRM_VIRTUAL_DEVICE
 	}, {
 		DRV_PTR(g2d_driver, CONFIG_DRM_EXYNOS_G2D),
+		DRM_COMPONENT_DRIVER
 	}, {
 		DRV_PTR(fimc_driver, CONFIG_DRM_EXYNOS_FIMC),
 		DRM_COMPONENT_DRIVER | DRM_FIMC_DEVICE,
@@ -376,11 +373,6 @@ static int exynos_drm_bind(struct device *dev)
 	if (ret)
 		goto err_unbind_all;
 
-	/* Probe non kms sub drivers and virtual display driver. */
-	ret = exynos_drm_device_subdrv_probe(drm);
-	if (ret)
-		goto err_unbind_all;
-
 	drm_mode_config_reset(drm);
 
 	/*
@@ -411,7 +403,6 @@ err_cleanup_fbdev:
 	exynos_drm_fbdev_fini(drm);
 err_cleanup_poll:
 	drm_kms_helper_poll_fini(drm);
-	exynos_drm_device_subdrv_remove(drm);
 err_unbind_all:
 	component_unbind_all(drm->dev, drm);
 err_mode_config_cleanup:
@@ -420,7 +411,7 @@ err_mode_config_cleanup:
 err_free_private:
 	kfree(private);
 err_free_drm:
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 
 	return ret;
 }
@@ -430,8 +421,6 @@ static void exynos_drm_unbind(struct device *dev)
 	struct drm_device *drm = dev_get_drvdata(dev);
 
 	drm_dev_unregister(drm);
-
-	exynos_drm_device_subdrv_remove(drm);
 
 	exynos_drm_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
@@ -444,7 +433,7 @@ static void exynos_drm_unbind(struct device *dev)
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
 
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 }
 
 static const struct component_master_ops exynos_drm_ops = {

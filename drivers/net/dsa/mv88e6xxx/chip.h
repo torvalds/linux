@@ -155,6 +155,7 @@ struct mv88e6xxx_bus_ops;
 struct mv88e6xxx_irq_ops;
 struct mv88e6xxx_gpio_ops;
 struct mv88e6xxx_avb_ops;
+struct mv88e6xxx_ptp_ops;
 
 struct mv88e6xxx_irq {
 	u16 masked;
@@ -190,12 +191,16 @@ struct mv88e6xxx_port_hwtstamp {
 };
 
 struct mv88e6xxx_port {
+	struct mv88e6xxx_chip *chip;
+	int port;
 	u64 serdes_stats[2];
 	u64 atu_member_violation;
 	u64 atu_miss_violation;
 	u64 atu_full_violation;
 	u64 vtu_member_violation;
 	u64 vtu_miss_violation;
+	u8 cmode;
+	int serdes_irq;
 };
 
 struct mv88e6xxx_chip {
@@ -273,6 +278,7 @@ struct mv88e6xxx_chip {
 	struct ptp_pin_desc	pin_config[MV88E6XXX_MAX_GPIO];
 	u16 trig_config;
 	u16 evcap_config;
+	u16 enable_count;
 
 	/* Per-port timestamping resources. */
 	struct mv88e6xxx_port_hwtstamp port_hwtstamp[DSA_MAX_PORTS];
@@ -349,6 +355,13 @@ struct mv88e6xxx_ops {
 	 */
 	int (*port_set_duplex)(struct mv88e6xxx_chip *chip, int port, int dup);
 
+#define PAUSE_ON		1
+#define PAUSE_OFF		0
+
+	/* Enable/disable sending Pause */
+	int (*port_set_pause)(struct mv88e6xxx_chip *chip, int port,
+			      int pause);
+
 #define SPEED_MAX		INT_MAX
 #define SPEED_UNFORCED		-2
 
@@ -381,12 +394,16 @@ struct mv88e6xxx_ops {
 	 */
 	int (*port_set_cmode)(struct mv88e6xxx_chip *chip, int port,
 			      phy_interface_t mode);
+	int (*port_get_cmode)(struct mv88e6xxx_chip *chip, int port, u8 *cmode);
 
 	/* Some devices have a per port register indicating what is
 	 * the upstream port this port should forward to.
 	 */
 	int (*port_set_upstream_port)(struct mv88e6xxx_chip *chip, int port,
 				      int upstream_port);
+	/* Return the port link state, as required by phylink */
+	int (*port_link_state)(struct mv88e6xxx_chip *chip, int port,
+			       struct phylink_link_state *state);
 
 	/* Snapshot the statistics for a port. The statistics can then
 	 * be read back a leisure but still with a consistent view.
@@ -418,6 +435,10 @@ struct mv88e6xxx_ops {
 	/* Power on/off a SERDES interface */
 	int (*serdes_power)(struct mv88e6xxx_chip *chip, int port, bool on);
 
+	/* SERDES interrupt handling */
+	int (*serdes_irq_setup)(struct mv88e6xxx_chip *chip, int port);
+	void (*serdes_irq_free)(struct mv88e6xxx_chip *chip, int port);
+
 	/* Statistics from the SERDES interface */
 	int (*serdes_get_sset_count)(struct mv88e6xxx_chip *chip, int port);
 	int (*serdes_get_strings)(struct mv88e6xxx_chip *chip,  int port,
@@ -439,6 +460,14 @@ struct mv88e6xxx_ops {
 
 	/* Remote Management Unit operations */
 	int (*rmu_disable)(struct mv88e6xxx_chip *chip);
+
+	/* Precision Time Protocol operations */
+	const struct mv88e6xxx_ptp_ops *ptp_ops;
+
+	/* Phylink */
+	void (*phylink_validate)(struct mv88e6xxx_chip *chip, int port,
+				 unsigned long *mask,
+				 struct phylink_link_state *state);
 };
 
 struct mv88e6xxx_irq_ops {
@@ -484,6 +513,24 @@ struct mv88e6xxx_avb_ops {
 	int (*tai_read)(struct mv88e6xxx_chip *chip, int addr, u16 *data,
 			int len);
 	int (*tai_write)(struct mv88e6xxx_chip *chip, int addr, u16 data);
+};
+
+struct mv88e6xxx_ptp_ops {
+	u64 (*clock_read)(const struct cyclecounter *cc);
+	int (*ptp_enable)(struct ptp_clock_info *ptp,
+			  struct ptp_clock_request *rq, int on);
+	int (*ptp_verify)(struct ptp_clock_info *ptp, unsigned int pin,
+			  enum ptp_pin_function func, unsigned int chan);
+	void (*event_work)(struct work_struct *ugly);
+	int (*port_enable)(struct mv88e6xxx_chip *chip, int port);
+	int (*port_disable)(struct mv88e6xxx_chip *chip, int port);
+	int (*global_enable)(struct mv88e6xxx_chip *chip);
+	int (*global_disable)(struct mv88e6xxx_chip *chip);
+	int n_ext_ts;
+	int arr0_sts_reg;
+	int arr1_sts_reg;
+	int dep_sts_reg;
+	u32 rx_filters;
 };
 
 #define STATS_TYPE_PORT		BIT(0)

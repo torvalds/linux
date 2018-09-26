@@ -12,6 +12,7 @@ typedef __u64 timeu64_t;
  */
 #ifndef CONFIG_64BIT_TIME
 #define __kernel_timespec timespec
+#define __kernel_itimerspec itimerspec
 #endif
 
 #include <uapi/linux/time.h>

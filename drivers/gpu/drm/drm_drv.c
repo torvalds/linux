@@ -506,6 +506,9 @@ int drm_dev_init(struct drm_device *dev,
 	dev->dev = parent;
 	dev->driver = driver;
 
+	/* no per-device feature limits by default */
+	dev->driver_features = ~0u;
+
 	INIT_LIST_HEAD(&dev->filelist);
 	INIT_LIST_HEAD(&dev->filelist_internal);
 	INIT_LIST_HEAD(&dev->clientlist);

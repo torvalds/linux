@@ -23,6 +23,8 @@
 #include <asm/exception-64s.h>
 #include <asm/book3s/64/mmu-hash.h>
 #include <asm/mmu.h>
+#include <asm/asm-compat.h>
+#include <asm/feature-fixups.h>
 
 #undef DEBUG
 
@@ -144,7 +146,9 @@ power9_restore_additional_sprs:
 	mtspr	SPRN_MMCR1, r4
 
 	ld	r3, STOP_MMCR2(r13)
+	ld	r4, PACA_SPRG_VDSO(r13)
 	mtspr	SPRN_MMCR2, r3
+	mtspr	SPRN_SPRG3, r4
 	blr
 
 /*
@@ -467,43 +471,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_XER_SO_BUG)
 #endif
 
 /*
- * On waking up from stop 0,1,2 with ESL=1 on POWER9 DD1,
- * HSPRG0 will be set to the HSPRG0 value of one of the
- * threads in this core. Thus the value we have in r13
- * may not be this thread's paca pointer.
- *
- * Fortunately, the TIR remains invariant. Since this thread's
- * paca pointer is recorded in all its sibling's paca, we can
- * correctly recover this thread's paca pointer if we
- * know the index of this thread in the core.
- *
- * This index can be obtained from the TIR.
- *
- * i.e, thread's position in the core = TIR.
- * If this value is i, then this thread's paca is
- * paca->thread_sibling_pacas[i].
- */
-power9_dd1_recover_paca:
-	mfspr	r4, SPRN_TIR
-	/*
-	 * Since each entry in thread_sibling_pacas is 8 bytes
-	 * we need to left-shift by 3 bits. Thus r4 = i * 8
-	 */
-	sldi	r4, r4, 3
-	/* Get &paca->thread_sibling_pacas[0] in r5 */
-	ld	r5, PACA_SIBLING_PACA_PTRS(r13)
-	/* Load paca->thread_sibling_pacas[i] into r13 */
-	ldx	r13, r4, r5
-	SET_PACA(r13)
-	/*
-	 * Indicate that we have lost NVGPR state
-	 * which needs to be restored from the stack.
-	 */
-	li	r3, 1
-	stb	r3,PACA_NAPSTATELOST(r13)
-	blr
-
-/*
  * Called from machine check handler for powersave wakeups.
  * Low level machine check processing has already been done. Now just
  * go through the wake up path to get everything in order.
@@ -537,9 +504,6 @@ pnv_powersave_wakeup:
 	ld	r2, PACATOC(r13)
 
 BEGIN_FTR_SECTION
-BEGIN_FTR_SECTION_NESTED(70)
-	bl	power9_dd1_recover_paca
-END_FTR_SECTION_NESTED_IFSET(CPU_FTR_POWER9_DD1, 70)
 	bl	pnv_restore_hyp_resource_arch300
 FTR_SECTION_ELSE
 	bl	pnv_restore_hyp_resource_arch207
@@ -602,22 +566,12 @@ END_FTR_SECTION_IFCLR(CPU_FTR_POWER9_DD2_1)
 	LOAD_REG_ADDRBASE(r5,pnv_first_deep_stop_state)
 	ld	r4,ADDROFF(pnv_first_deep_stop_state)(r5)
 
-BEGIN_FTR_SECTION_NESTED(71)
-	/*
-	 * Assume that we are waking up from the state
-	 * same as the Requested Level (RL) in the PSSCR
-	 * which are Bits 60-63
-	 */
-	ld	r5,PACA_REQ_PSSCR(r13)
-	rldicl  r5,r5,0,60
-FTR_SECTION_ELSE_NESTED(71)
 	/*
 	 * 0-3 bits correspond to Power-Saving Level Status
 	 * which indicates the idle state we are waking up from
 	 */
 	mfspr	r5, SPRN_PSSCR
 	rldicl  r5,r5,4,60
-ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_POWER9_DD1, 71)
 	li	r0, 0		/* clear requested_psscr to say we're awake */
 	std	r0, PACA_REQ_PSSCR(r13)
 	cmpd	cr4,r5,r4

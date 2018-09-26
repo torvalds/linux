@@ -123,7 +123,7 @@ int mlx5_frag_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 	int i;
 
 	buf->size = size;
-	buf->npages = 1 << get_order(size);
+	buf->npages = DIV_ROUND_UP(size, PAGE_SIZE);
 	buf->page_shift = PAGE_SHIFT;
 	buf->frags = kcalloc(buf->npages, sizeof(struct mlx5_buf_list),
 			     GFP_KERNEL);

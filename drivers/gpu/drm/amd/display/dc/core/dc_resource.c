@@ -41,7 +41,7 @@
 #include "dce100/dce100_resource.h"
 #include "dce110/dce110_resource.h"
 #include "dce112/dce112_resource.h"
-#ifdef CONFIG_X86
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "dcn10/dcn10_resource.h"
 #endif
 #include "dce120/dce120_resource.h"
@@ -85,9 +85,13 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 	case FAMILY_AI:
 		dc_version = DCE_VERSION_12_0;
 		break;
-#ifdef CONFIG_X86
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case FAMILY_RV:
 		dc_version = DCN_VERSION_1_0;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+		if (ASICREV_IS_RAVEN2(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_1_01;
+#endif
 		break;
 #endif
 	default:
@@ -136,8 +140,11 @@ struct resource_pool *dc_create_resource_pool(
 			num_virtual_links, dc);
 		break;
 
-#ifdef CONFIG_X86
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case DCN_VERSION_1_0:
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	case DCN_VERSION_1_01:
+#endif
 		res_pool = dcn10_create_resource_pool(
 				num_virtual_links, dc);
 		break;
@@ -268,23 +275,29 @@ bool resource_construct(
 
 	return true;
 }
+static int find_matching_clock_source(
+		const struct resource_pool *pool,
+		struct clock_source *clock_source)
+{
 
+	int i;
+
+	for (i = 0; i < pool->clk_src_count; i++) {
+		if (pool->clock_sources[i] == clock_source)
+			return i;
+	}
+	return -1;
+}
 
 void resource_unreference_clock_source(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct clock_source *clock_source)
 {
-	int i;
+	int i = find_matching_clock_source(pool, clock_source);
 
-	for (i = 0; i < pool->clk_src_count; i++) {
-		if (pool->clock_sources[i] != clock_source)
-			continue;
-
+	if (i > -1)
 		res_ctx->clock_source_ref_count[i]--;
-
-		break;
-	}
 
 	if (pool->dp_clock_source == clock_source)
 		res_ctx->dp_clock_source_ref_count--;
@@ -295,17 +308,29 @@ void resource_reference_clock_source(
 		const struct resource_pool *pool,
 		struct clock_source *clock_source)
 {
-	int i;
-	for (i = 0; i < pool->clk_src_count; i++) {
-		if (pool->clock_sources[i] != clock_source)
-			continue;
+	int i = find_matching_clock_source(pool, clock_source);
 
+	if (i > -1)
 		res_ctx->clock_source_ref_count[i]++;
-		break;
-	}
 
 	if (pool->dp_clock_source == clock_source)
 		res_ctx->dp_clock_source_ref_count++;
+}
+
+int resource_get_clock_source_reference(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct clock_source *clock_source)
+{
+	int i = find_matching_clock_source(pool, clock_source);
+
+	if (i > -1)
+		return res_ctx->clock_source_ref_count[i];
+
+	if (pool->dp_clock_source == clock_source)
+		return res_ctx->dp_clock_source_ref_count;
+
+	return -1;
 }
 
 bool resource_are_streams_timing_synchronizable(
@@ -330,12 +355,32 @@ bool resource_are_streams_timing_synchronizable(
 				!= stream2->timing.pix_clk_khz)
 		return false;
 
+	if (stream1->clamping.c_depth != stream2->clamping.c_depth)
+		return false;
+
 	if (stream1->phy_pix_clk != stream2->phy_pix_clk
 			&& (!dc_is_dp_signal(stream1->signal)
 			|| !dc_is_dp_signal(stream2->signal)))
 		return false;
 
+	if (stream1->view_format != stream2->view_format)
+		return false;
+
 	return true;
+}
+static bool is_dp_and_hdmi_sharable(
+		struct dc_stream_state *stream1,
+		struct dc_stream_state *stream2)
+{
+	if (stream1->ctx->dc->caps.disable_dp_clk_share)
+		return false;
+
+	if (stream1->clamping.c_depth != COLOR_DEPTH_888 ||
+		stream2->clamping.c_depth != COLOR_DEPTH_888)
+		return false;
+
+	return true;
+
 }
 
 static bool is_sharable_clk_src(
@@ -348,15 +393,18 @@ static bool is_sharable_clk_src(
 	if (pipe_with_clk_src->stream->signal == SIGNAL_TYPE_VIRTUAL)
 		return false;
 
-	if (dc_is_dp_signal(pipe_with_clk_src->stream->signal))
+	if (dc_is_dp_signal(pipe_with_clk_src->stream->signal) ||
+		(dc_is_dp_signal(pipe->stream->signal) &&
+		!is_dp_and_hdmi_sharable(pipe_with_clk_src->stream,
+				     pipe->stream)))
 		return false;
 
 	if (dc_is_hdmi_signal(pipe_with_clk_src->stream->signal)
-			&& dc_is_dvi_signal(pipe->stream->signal))
+			&& dc_is_dual_link_signal(pipe->stream->signal))
 		return false;
 
 	if (dc_is_hdmi_signal(pipe->stream->signal)
-			&& dc_is_dvi_signal(pipe_with_clk_src->stream->signal))
+			&& dc_is_dual_link_signal(pipe_with_clk_src->stream->signal))
 		return false;
 
 	if (!resource_are_streams_timing_synchronizable(
@@ -449,6 +497,18 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state;
 	bool sec_split = pipe_ctx->top_pipe &&
 			pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state;
+	bool flip_vert_scan_dir = false, flip_horz_scan_dir = false;
+
+	/*
+	 * Need to calculate the scan direction for viewport to properly determine offset
+	 */
+	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_180) {
+		flip_vert_scan_dir = true;
+		flip_horz_scan_dir = true;
+	} else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90)
+		flip_vert_scan_dir = true;
+	else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
+		flip_horz_scan_dir = true;
 
 	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE ||
 		stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
@@ -492,6 +552,34 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	data->viewport.height = clip.height *
 			surf_src.height / plane_state->dst_rect.height;
 
+	/* To transfer the x, y to correct coordinate on mirror image (camera).
+	 * deg  0 : transfer x,
+	 * deg 90 : don't need to transfer,
+	 * deg180 : transfer y,
+	 * deg270 : transfer x and y.
+	 * To transfer the x, y to correct coordinate on non-mirror image (video).
+	 * deg  0 : don't need to transfer,
+	 * deg 90 : transfer y,
+	 * deg180 : transfer x and y,
+	 * deg270 : transfer x.
+	 */
+	if (pipe_ctx->plane_state->horizontal_mirror) {
+		if (flip_horz_scan_dir && !flip_vert_scan_dir) {
+			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
+			data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
+		} else if (flip_horz_scan_dir && flip_vert_scan_dir)
+			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
+		else {
+			if (!flip_horz_scan_dir && !flip_vert_scan_dir)
+				data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
+		}
+	} else {
+		if (flip_horz_scan_dir)
+			data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
+		if (flip_vert_scan_dir)
+			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
+	}
+
 	/* Round down, compensate in init */
 	data->viewport_c.x = data->viewport.x / vpc_div;
 	data->viewport_c.y = data->viewport.y / vpc_div;
@@ -511,8 +599,10 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 		data->viewport.width = (data->viewport.width + 1) / 2;
 		data->viewport_c.width = (data->viewport_c.width + 1) / 2;
 	} else if (pri_split) {
-		data->viewport.width /= 2;
-		data->viewport_c.width /= 2;
+		if (data->viewport.width > 1)
+			data->viewport.width /= 2;
+		if (data->viewport_c.width > 1)
+			data->viewport_c.width /= 2;
 	}
 
 	if (plane_state->rotation == ROTATION_ANGLE_90 ||
@@ -592,7 +682,8 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct rect *recout_full
 			pipe_ctx->plane_res.scl_data.recout.width =
 					(pipe_ctx->plane_res.scl_data.recout.width + 1) / 2;
 		} else {
-			pipe_ctx->plane_res.scl_data.recout.width /= 2;
+			if (pipe_ctx->plane_res.scl_data.recout.width > 1)
+				pipe_ctx->plane_res.scl_data.recout.width /= 2;
 		}
 	}
 	/* Unclipped recout offset = stream dst offset + ((surf dst offset - stream surf_src offset)
@@ -687,6 +778,15 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct rect *r
 		rect_swap_helper(&src);
 		rect_swap_helper(&data->viewport_c);
 		rect_swap_helper(&data->viewport);
+
+		if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270 &&
+			pipe_ctx->plane_state->horizontal_mirror) {
+			flip_vert_scan_dir = true;
+		}
+		if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 &&
+			pipe_ctx->plane_state->horizontal_mirror) {
+			flip_vert_scan_dir = false;
+		}
 	} else if (pipe_ctx->plane_state->horizontal_mirror)
 			flip_horz_scan_dir = !flip_horz_scan_dir;
 
@@ -1213,7 +1313,7 @@ static struct pipe_ctx *acquire_free_pipe_for_stream(
 
 }
 
-#ifdef CONFIG_X86
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 static int acquire_first_split_pipe(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
@@ -1284,7 +1384,7 @@ bool dc_add_plane_to_context(
 
 	free_pipe = acquire_free_pipe_for_stream(context, pool, stream);
 
-#ifdef CONFIG_X86
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	if (!free_pipe) {
 		int pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
 		if (pipe_idx >= 0)
@@ -1488,6 +1588,20 @@ static bool is_hdr_static_meta_changed(struct dc_stream_state *cur_stream,
 	return false;
 }
 
+static bool is_vsc_info_packet_changed(struct dc_stream_state *cur_stream,
+		struct dc_stream_state *new_stream)
+{
+	if (cur_stream == NULL)
+		return true;
+
+	if (memcmp(&cur_stream->vsc_infopacket,
+			&new_stream->vsc_infopacket,
+			sizeof(struct dc_info_packet)) != 0)
+		return true;
+
+	return false;
+}
+
 static bool is_timing_changed(struct dc_stream_state *cur_stream,
 		struct dc_stream_state *new_stream)
 {
@@ -1523,6 +1637,12 @@ static bool are_stream_backends_same(
 		return false;
 
 	if (is_hdr_static_meta_changed(stream_a, stream_b))
+		return false;
+
+	if (stream_a->dpms_off != stream_b->dpms_off)
+		return false;
+
+	if (is_vsc_info_packet_changed(stream_a, stream_b))
 		return false;
 
 	return true;
@@ -1652,7 +1772,7 @@ static struct stream_encoder *find_first_free_match_stream_enc_for_link(
 	 * required for non DP connectors.
 	 */
 
-	if (j >= 0 && dc_is_dp_signal(stream->signal))
+	if (j >= 0 && link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT)
 		return pool->stream_enc[j];
 
 	return NULL;
@@ -1882,7 +2002,7 @@ enum dc_status resource_map_pool_resources(
 	/* acquire new resources */
 	pipe_idx = acquire_first_free_pipe(&context->res_ctx, pool, stream);
 
-#ifdef CONFIG_X86
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	if (pipe_idx < 0)
 		pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
 #endif
@@ -2385,119 +2505,13 @@ static void set_spd_info_packet(
 {
 	/* SPD info packet for FreeSync */
 
-	unsigned char checksum = 0;
-	unsigned int idx, payload_size = 0;
-
 	/* Check if Freesync is supported. Return if false. If true,
 	 * set the corresponding bit in the info packet
 	 */
-	if (stream->freesync_ctx.supported == false)
+	if (!stream->vrr_infopacket.valid)
 		return;
 
-	if (dc_is_hdmi_signal(stream->signal)) {
-
-		/* HEADER */
-
-		/* HB0  = Packet Type = 0x83 (Source Product
-		 *	  Descriptor InfoFrame)
-		 */
-		info_packet->hb0 = HDMI_INFOFRAME_TYPE_SPD;
-
-		/* HB1  = Version = 0x01 */
-		info_packet->hb1 = 0x01;
-
-		/* HB2  = [Bits 7:5 = 0] [Bits 4:0 = Length = 0x08] */
-		info_packet->hb2 = 0x08;
-
-		payload_size = 0x08;
-
-	} else if (dc_is_dp_signal(stream->signal)) {
-
-		/* HEADER */
-
-		/* HB0  = Secondary-data Packet ID = 0 - Only non-zero
-		 *	  when used to associate audio related info packets
-		 */
-		info_packet->hb0 = 0x00;
-
-		/* HB1  = Packet Type = 0x83 (Source Product
-		 *	  Descriptor InfoFrame)
-		 */
-		info_packet->hb1 = HDMI_INFOFRAME_TYPE_SPD;
-
-		/* HB2  = [Bits 7:0 = Least significant eight bits -
-		 *	  For INFOFRAME, the value must be 1Bh]
-		 */
-		info_packet->hb2 = 0x1B;
-
-		/* HB3  = [Bits 7:2 = INFOFRAME SDP Version Number = 0x1]
-		 *	  [Bits 1:0 = Most significant two bits = 0x00]
-		 */
-		info_packet->hb3 = 0x04;
-
-		payload_size = 0x1B;
-	}
-
-	/* PB1 = 0x1A (24bit AMD IEEE OUI (0x00001A) - Byte 0) */
-	info_packet->sb[1] = 0x1A;
-
-	/* PB2 = 0x00 (24bit AMD IEEE OUI (0x00001A) - Byte 1) */
-	info_packet->sb[2] = 0x00;
-
-	/* PB3 = 0x00 (24bit AMD IEEE OUI (0x00001A) - Byte 2) */
-	info_packet->sb[3] = 0x00;
-
-	/* PB4 = Reserved */
-	info_packet->sb[4] = 0x00;
-
-	/* PB5 = Reserved */
-	info_packet->sb[5] = 0x00;
-
-	/* PB6 = [Bits 7:3 = Reserved] */
-	info_packet->sb[6] = 0x00;
-
-	if (stream->freesync_ctx.supported == true)
-		/* PB6 = [Bit 0 = FreeSync Supported] */
-		info_packet->sb[6] |= 0x01;
-
-	if (stream->freesync_ctx.enabled == true)
-		/* PB6 = [Bit 1 = FreeSync Enabled] */
-		info_packet->sb[6] |= 0x02;
-
-	if (stream->freesync_ctx.active == true)
-		/* PB6 = [Bit 2 = FreeSync Active] */
-		info_packet->sb[6] |= 0x04;
-
-	/* PB7 = FreeSync Minimum refresh rate (Hz) */
-	info_packet->sb[7] = (unsigned char) (stream->freesync_ctx.
-			min_refresh_in_micro_hz / 1000000);
-
-	/* PB8 = FreeSync Maximum refresh rate (Hz)
-	 *
-	 * Note: We do not use the maximum capable refresh rate
-	 * of the panel, because we should never go above the field
-	 * rate of the mode timing set.
-	 */
-	info_packet->sb[8] = (unsigned char) (stream->freesync_ctx.
-			nominal_refresh_in_micro_hz / 1000000);
-
-	/* PB9 - PB27  = Reserved */
-	for (idx = 9; idx <= 27; idx++)
-		info_packet->sb[idx] = 0x00;
-
-	/* Calculate checksum */
-	checksum += info_packet->hb0;
-	checksum += info_packet->hb1;
-	checksum += info_packet->hb2;
-	checksum += info_packet->hb3;
-
-	for (idx = 1; idx <= payload_size; idx++)
-		checksum += info_packet->sb[idx];
-
-	/* PB0 = Checksum (one byte complement) */
-	info_packet->sb[0] = (unsigned char) (0x100 - checksum);
-
-	info_packet->valid = true;
+	*info_packet = stream->vrr_infopacket;
 }
 
 static void set_hdr_static_info_packet(
@@ -2517,43 +2531,10 @@ static void set_vsc_info_packet(
 		struct dc_info_packet *info_packet,
 		struct dc_stream_state *stream)
 {
-	unsigned int vscPacketRevision = 0;
-	unsigned int i;
-
-	/*VSC packet set to 2 when DP revision >= 1.2*/
-	if (stream->psr_version != 0) {
-		vscPacketRevision = 2;
-	}
-
-	/* VSC packet not needed based on the features
-	 * supported by this DP display
-	 */
-	if (vscPacketRevision == 0)
+	if (!stream->vsc_infopacket.valid)
 		return;
 
-	if (vscPacketRevision == 0x2) {
-		/* Secondary-data Packet ID = 0*/
-		info_packet->hb0 = 0x00;
-		/* 07h - Packet Type Value indicating Video
-		 * Stream Configuration packet
-		 */
-		info_packet->hb1 = 0x07;
-		/* 02h = VSC SDP supporting 3D stereo and PSR
-		 * (applies to eDP v1.3 or higher).
-		 */
-		info_packet->hb2 = 0x02;
-		/* 08h = VSC packet supporting 3D stereo + PSR
-		 * (HB2 = 02h).
-		 */
-		info_packet->hb3 = 0x08;
-
-		for (i = 0; i < 28; i++)
-			info_packet->sb[i] = 0;
-
-		info_packet->valid = true;
-	}
-
-	/*TODO: stereo 3D support and extend pixel encoding colorimetry*/
+	*info_packet = stream->vsc_infopacket;
 }
 
 void dc_resource_state_destruct(struct dc_state *context)
@@ -2730,6 +2711,12 @@ bool pipe_need_reprogram(
 		return true;
 
 	if (is_hdr_static_meta_changed(pipe_ctx_old->stream, pipe_ctx->stream))
+		return true;
+
+	if (pipe_ctx_old->stream->dpms_off != pipe_ctx->stream->dpms_off)
+		return true;
+
+	if (is_vsc_info_packet_changed(pipe_ctx_old->stream, pipe_ctx->stream))
 		return true;
 
 	return false;

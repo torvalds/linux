@@ -1,3 +1,5 @@
+.. _readme:
+
 Linux kernel release 4.x <http://kernel.org/>
 =============================================
 

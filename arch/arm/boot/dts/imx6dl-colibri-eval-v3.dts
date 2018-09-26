@@ -221,9 +221,6 @@
 
 /* Colibri MMC */
 &usdhc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_mmc_cd>;
-	cd-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>; /* MMCD */
 	status = "okay";
 };
 

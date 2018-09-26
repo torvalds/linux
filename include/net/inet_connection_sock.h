@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/poll.h>
+#include <linux/kernel.h>
 
 #include <net/inet_sock.h>
 #include <net/request_sock.h>
@@ -167,7 +168,8 @@ enum inet_csk_ack_state_t {
 	ICSK_ACK_SCHED	= 1,
 	ICSK_ACK_TIMER  = 2,
 	ICSK_ACK_PUSHED = 4,
-	ICSK_ACK_PUSHED2 = 8
+	ICSK_ACK_PUSHED2 = 8,
+	ICSK_ACK_NOW = 16	/* Send the next ACK immediately (once) */
 };
 
 void inet_csk_init_xmit_timers(struct sock *sk,
@@ -224,7 +226,7 @@ static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
 
 	if (when > max_when) {
 		pr_debug("reset_xmit_timer: sk=%p %d when=0x%lx, caller=%p\n",
-			 sk, what, when, current_text_addr());
+			 sk, what, when, (void *)_THIS_IP_);
 		when = max_when;
 	}
 

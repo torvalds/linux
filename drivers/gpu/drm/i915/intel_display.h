@@ -25,6 +25,8 @@
 #ifndef _INTEL_DISPLAY_H_
 #define _INTEL_DISPLAY_H_
 
+#include <drm/drm_util.h>
+
 enum i915_gpio {
 	GPIOA,
 	GPIOB,
@@ -141,6 +143,30 @@ enum port {
 };
 
 #define port_name(p) ((p) + 'A')
+
+/*
+ * Ports identifier referenced from other drivers.
+ * Expected to remain stable over time
+ */
+static inline const char *port_identifier(enum port port)
+{
+	switch (port) {
+	case PORT_A:
+		return "Port A";
+	case PORT_B:
+		return "Port B";
+	case PORT_C:
+		return "Port C";
+	case PORT_D:
+		return "Port D";
+	case PORT_E:
+		return "Port E";
+	case PORT_F:
+		return "Port F";
+	default:
+		return "<invalid>";
+	}
+}
 
 enum tc_port {
 	PORT_TC_NONE = -1,
@@ -379,7 +405,7 @@ struct intel_link_m_n {
 void intel_link_compute_m_n(int bpp, int nlanes,
 			    int pixel_clock, int link_clock,
 			    struct intel_link_m_n *m_n,
-			    bool reduce_m_n);
+			    bool constant_n);
 
 bool is_ccs_modifier(u64 modifier);
 #endif

@@ -26,7 +26,7 @@
 #include <sys/types.h>
 #include <poll.h>
 
-#include "bpf_load.h"
+#include "bpf/libbpf.h"
 #include "bpf_util.h"
 #include <bpf/bpf.h>
 
@@ -145,8 +145,13 @@ static void dump_stats(void);
 	} while (0)
 
 #define barrier() __asm__ __volatile__("": : :"memory")
+#ifdef __aarch64__
+#define u_smp_rmb() __asm__ __volatile__("dmb ishld": : :"memory")
+#define u_smp_wmb() __asm__ __volatile__("dmb ishst": : :"memory")
+#else
 #define u_smp_rmb() barrier()
 #define u_smp_wmb() barrier()
+#endif
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
@@ -729,7 +734,7 @@ static void kick_tx(int fd)
 	int ret;
 
 	ret = sendto(fd, NULL, 0, MSG_DONTWAIT, NULL, 0);
-	if (ret >= 0 || errno == ENOBUFS || errno == EAGAIN)
+	if (ret >= 0 || errno == ENOBUFS || errno == EAGAIN || errno == EBUSY)
 		return;
 	lassert(0);
 }
@@ -886,7 +891,13 @@ static void l2fwd(struct xdpsock *xsk)
 int main(int argc, char **argv)
 {
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	struct bpf_prog_load_attr prog_load_attr = {
+		.prog_type	= BPF_PROG_TYPE_XDP,
+	};
+	int prog_fd, qidconf_map, xsks_map;
+	struct bpf_object *obj;
 	char xdp_filename[256];
+	struct bpf_map *map;
 	int i, ret, key = 0;
 	pthread_t pt;
 
@@ -899,24 +910,38 @@ int main(int argc, char **argv)
 	}
 
 	snprintf(xdp_filename, sizeof(xdp_filename), "%s_kern.o", argv[0]);
+	prog_load_attr.file = xdp_filename;
 
-	if (load_bpf_file(xdp_filename)) {
-		fprintf(stderr, "ERROR: load_bpf_file %s\n", bpf_log_buf);
+	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+		exit(EXIT_FAILURE);
+	if (prog_fd < 0) {
+		fprintf(stderr, "ERROR: no program found: %s\n",
+			strerror(prog_fd));
 		exit(EXIT_FAILURE);
 	}
 
-	if (!prog_fd[0]) {
-		fprintf(stderr, "ERROR: load_bpf_file: \"%s\"\n",
-			strerror(errno));
+	map = bpf_object__find_map_by_name(obj, "qidconf_map");
+	qidconf_map = bpf_map__fd(map);
+	if (qidconf_map < 0) {
+		fprintf(stderr, "ERROR: no qidconf map found: %s\n",
+			strerror(qidconf_map));
 		exit(EXIT_FAILURE);
 	}
 
-	if (bpf_set_link_xdp_fd(opt_ifindex, prog_fd[0], opt_xdp_flags) < 0) {
+	map = bpf_object__find_map_by_name(obj, "xsks_map");
+	xsks_map = bpf_map__fd(map);
+	if (xsks_map < 0) {
+		fprintf(stderr, "ERROR: no xsks map found: %s\n",
+			strerror(xsks_map));
+		exit(EXIT_FAILURE);
+	}
+
+	if (bpf_set_link_xdp_fd(opt_ifindex, prog_fd, opt_xdp_flags) < 0) {
 		fprintf(stderr, "ERROR: link set xdp fd failed\n");
 		exit(EXIT_FAILURE);
 	}
 
-	ret = bpf_map_update_elem(map_fd[0], &key, &opt_queue, 0);
+	ret = bpf_map_update_elem(qidconf_map, &key, &opt_queue, 0);
 	if (ret) {
 		fprintf(stderr, "ERROR: bpf_map_update_elem qidconf\n");
 		exit(EXIT_FAILURE);
@@ -933,7 +958,7 @@ int main(int argc, char **argv)
 	/* ...and insert them into the map. */
 	for (i = 0; i < num_socks; i++) {
 		key = i;
-		ret = bpf_map_update_elem(map_fd[1], &key, &xsks[i]->sfd, 0);
+		ret = bpf_map_update_elem(xsks_map, &key, &xsks[i]->sfd, 0);
 		if (ret) {
 			fprintf(stderr, "ERROR: bpf_map_update_elem %d\n", i);
 			exit(EXIT_FAILURE);

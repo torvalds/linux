@@ -113,21 +113,6 @@ static inline void mce_register_injector_chain(struct notifier_block *nb)	{ }
 static inline void mce_unregister_injector_chain(struct notifier_block *nb)	{ }
 #endif
 
-#ifndef CONFIG_X86_64
-/*
- * On 32-bit systems it would be difficult to safely unmap a poison page
- * from the kernel 1:1 map because there are no non-canonical addresses that
- * we can use to refer to the address without risking a speculative access.
- * However, this isn't much of an issue because:
- * 1) Few unmappable pages are in the 1:1 map. Most are in HIGHMEM which
- *    are only mapped into the kernel as needed
- * 2) Few people would run a 32-bit kernel on a machine that supports
- *    recoverable errors because they have too much memory to boot 32-bit.
- */
-static inline void mce_unmap_kpfn(unsigned long pfn) {}
-#define mce_unmap_kpfn mce_unmap_kpfn
-#endif
-
 struct mca_config {
 	bool dont_log_ce;
 	bool cmci_disabled;

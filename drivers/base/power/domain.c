@@ -2235,7 +2235,7 @@ static void genpd_dev_pm_sync(struct device *dev)
 }
 
 static int __genpd_dev_pm_attach(struct device *dev, struct device_node *np,
-				 unsigned int index)
+				 unsigned int index, bool power_on)
 {
 	struct of_phandle_args pd_args;
 	struct generic_pm_domain *pd;
@@ -2253,7 +2253,7 @@ static int __genpd_dev_pm_attach(struct device *dev, struct device_node *np,
 		mutex_unlock(&gpd_list_lock);
 		dev_dbg(dev, "%s() failed to find PM domain: %ld\n",
 			__func__, PTR_ERR(pd));
-		return -EPROBE_DEFER;
+		return driver_deferred_probe_check_state(dev);
 	}
 
 	dev_dbg(dev, "adding to PM domain %s\n", pd->name);
@@ -2271,9 +2271,11 @@ static int __genpd_dev_pm_attach(struct device *dev, struct device_node *np,
 	dev->pm_domain->detach = genpd_dev_pm_detach;
 	dev->pm_domain->sync = genpd_dev_pm_sync;
 
-	genpd_lock(pd);
-	ret = genpd_power_on(pd, 0);
-	genpd_unlock(pd);
+	if (power_on) {
+		genpd_lock(pd);
+		ret = genpd_power_on(pd, 0);
+		genpd_unlock(pd);
+	}
 
 	if (ret)
 		genpd_remove_device(pd, dev);
@@ -2307,7 +2309,7 @@ int genpd_dev_pm_attach(struct device *dev)
 				       "#power-domain-cells") != 1)
 		return 0;
 
-	return __genpd_dev_pm_attach(dev, dev->of_node, 0);
+	return __genpd_dev_pm_attach(dev, dev->of_node, 0, true);
 }
 EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
 
@@ -2359,18 +2361,42 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 	}
 
 	/* Try to attach the device to the PM domain at the specified index. */
-	ret = __genpd_dev_pm_attach(genpd_dev, dev->of_node, index);
+	ret = __genpd_dev_pm_attach(genpd_dev, dev->of_node, index, false);
 	if (ret < 1) {
 		device_unregister(genpd_dev);
 		return ret ? ERR_PTR(ret) : NULL;
 	}
 
-	pm_runtime_set_active(genpd_dev);
 	pm_runtime_enable(genpd_dev);
+	genpd_queue_power_off_work(dev_to_genpd(genpd_dev));
 
 	return genpd_dev;
 }
 EXPORT_SYMBOL_GPL(genpd_dev_pm_attach_by_id);
+
+/**
+ * genpd_dev_pm_attach_by_name - Associate a device with one of its PM domains.
+ * @dev: The device used to lookup the PM domain.
+ * @name: The name of the PM domain.
+ *
+ * Parse device's OF node to find a PM domain specifier using the
+ * power-domain-names DT property. For further description see
+ * genpd_dev_pm_attach_by_id().
+ */
+struct device *genpd_dev_pm_attach_by_name(struct device *dev, char *name)
+{
+	int index;
+
+	if (!dev->of_node)
+		return NULL;
+
+	index = of_property_match_string(dev->of_node, "power-domain-names",
+					 name);
+	if (index < 0)
+		return NULL;
+
+	return genpd_dev_pm_attach_by_id(dev, index);
+}
 
 static const struct of_device_id idle_state_match[] = {
 	{ .compatible = "domain-idle-state", },

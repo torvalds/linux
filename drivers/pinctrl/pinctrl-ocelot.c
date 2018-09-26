@@ -11,6 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
@@ -132,7 +133,7 @@ OCELOT_P(0,  SG0,       NONE,      NONE);
 OCELOT_P(1,  SG0,       NONE,      NONE);
 OCELOT_P(2,  SG0,       NONE,      NONE);
 OCELOT_P(3,  SG0,       NONE,      NONE);
-OCELOT_P(4,  IRQ0_IN,   IRQ0_OUT,  TWI);
+OCELOT_P(4,  IRQ0_IN,   IRQ0_OUT,  TWI_SCL_M);
 OCELOT_P(5,  IRQ1_IN,   IRQ1_OUT,  PCI_WAKE);
 OCELOT_P(6,  UART,      TWI_SCL_M, NONE);
 OCELOT_P(7,  UART,      TWI_SCL_M, NONE);
@@ -427,11 +428,98 @@ static const struct gpio_chip ocelot_gpiolib_chip = {
 	.owner = THIS_MODULE,
 };
 
+static void ocelot_irq_mask(struct irq_data *data)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct ocelot_pinctrl *info = gpiochip_get_data(chip);
+	unsigned int gpio = irqd_to_hwirq(data);
+
+	regmap_update_bits(info->map, OCELOT_GPIO_INTR_ENA, BIT(gpio), 0);
+}
+
+static void ocelot_irq_unmask(struct irq_data *data)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct ocelot_pinctrl *info = gpiochip_get_data(chip);
+	unsigned int gpio = irqd_to_hwirq(data);
+
+	regmap_update_bits(info->map, OCELOT_GPIO_INTR_ENA, BIT(gpio),
+			   BIT(gpio));
+}
+
+static void ocelot_irq_ack(struct irq_data *data)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct ocelot_pinctrl *info = gpiochip_get_data(chip);
+	unsigned int gpio = irqd_to_hwirq(data);
+
+	regmap_write_bits(info->map, OCELOT_GPIO_INTR, BIT(gpio), BIT(gpio));
+}
+
+static int ocelot_irq_set_type(struct irq_data *data, unsigned int type);
+
+static struct irq_chip ocelot_eoi_irqchip = {
+	.name		= "gpio",
+	.irq_mask	= ocelot_irq_mask,
+	.irq_eoi	= ocelot_irq_ack,
+	.irq_unmask	= ocelot_irq_unmask,
+	.flags          = IRQCHIP_EOI_THREADED | IRQCHIP_EOI_IF_HANDLED,
+	.irq_set_type	= ocelot_irq_set_type,
+};
+
+static struct irq_chip ocelot_irqchip = {
+	.name		= "gpio",
+	.irq_mask	= ocelot_irq_mask,
+	.irq_ack	= ocelot_irq_ack,
+	.irq_unmask	= ocelot_irq_unmask,
+	.irq_set_type	= ocelot_irq_set_type,
+};
+
+static int ocelot_irq_set_type(struct irq_data *data, unsigned int type)
+{
+	type &= IRQ_TYPE_SENSE_MASK;
+
+	if (!(type & (IRQ_TYPE_EDGE_BOTH | IRQ_TYPE_LEVEL_HIGH)))
+		return -EINVAL;
+
+	if (type & IRQ_TYPE_LEVEL_HIGH)
+		irq_set_chip_handler_name_locked(data, &ocelot_eoi_irqchip,
+						 handle_fasteoi_irq, NULL);
+	if (type & IRQ_TYPE_EDGE_BOTH)
+		irq_set_chip_handler_name_locked(data, &ocelot_irqchip,
+						 handle_edge_irq, NULL);
+
+	return 0;
+}
+
+static void ocelot_irq_handler(struct irq_desc *desc)
+{
+	struct irq_chip *parent_chip = irq_desc_get_chip(desc);
+	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
+	struct ocelot_pinctrl *info = gpiochip_get_data(chip);
+	unsigned int reg = 0, irq;
+	unsigned long irqs;
+
+	regmap_read(info->map, OCELOT_GPIO_INTR_IDENT, &reg);
+	if (!reg)
+		return;
+
+	chained_irq_enter(parent_chip, desc);
+
+	irqs = reg;
+
+	for_each_set_bit(irq, &irqs, OCELOT_PINS) {
+		generic_handle_irq(irq_linear_revmap(chip->irq.domain, irq));
+	}
+
+	chained_irq_exit(parent_chip, desc);
+}
+
 static int ocelot_gpiochip_register(struct platform_device *pdev,
 				    struct ocelot_pinctrl *info)
 {
 	struct gpio_chip *gc;
-	int ret;
+	int ret, irq;
 
 	info->gpio_chip = ocelot_gpiolib_chip;
 
@@ -446,7 +534,17 @@ static int ocelot_gpiochip_register(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	/* TODO: this can be used as an irqchip but no board is using that */
+	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	if (irq <= 0)
+		return irq;
+
+	ret = gpiochip_irqchip_add(gc, &ocelot_irqchip, 0, handle_edge_irq,
+				   IRQ_TYPE_NONE);
+	if (ret)
+		return ret;
+
+	gpiochip_set_chained_irqchip(gc, &ocelot_irqchip, irq,
+				     ocelot_irq_handler);
 
 	return 0;
 }

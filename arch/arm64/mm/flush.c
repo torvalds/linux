@@ -66,6 +66,7 @@ void __sync_icache_dcache(pte_t pte)
 		sync_icache_aliases(page_address(page),
 				    PAGE_SIZE << compound_order(page));
 }
+EXPORT_SYMBOL_GPL(__sync_icache_dcache);
 
 /*
  * This function is called when a page has been modified by the kernel. Mark
@@ -82,7 +83,7 @@ EXPORT_SYMBOL(flush_dcache_page);
 /*
  * Additional functions defined in assembly.
  */
-EXPORT_SYMBOL(flush_icache_range);
+EXPORT_SYMBOL(__flush_icache_range);
 
 #ifdef CONFIG_ARCH_HAS_PMEM_API
 void arch_wb_cache_pmem(void *addr, size_t size)

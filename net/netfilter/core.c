@@ -603,6 +603,21 @@ void nf_conntrack_destroy(struct nf_conntrack *nfct)
 }
 EXPORT_SYMBOL(nf_conntrack_destroy);
 
+bool nf_ct_get_tuple_skb(struct nf_conntrack_tuple *dst_tuple,
+			 const struct sk_buff *skb)
+{
+	struct nf_ct_hook *ct_hook;
+	bool ret = false;
+
+	rcu_read_lock();
+	ct_hook = rcu_dereference(nf_ct_hook);
+	if (ct_hook)
+		ret = ct_hook->get_tuple_skb(dst_tuple, skb);
+	rcu_read_unlock();
+	return ret;
+}
+EXPORT_SYMBOL(nf_ct_get_tuple_skb);
+
 /* Built-in default zone used e.g. by modules. */
 const struct nf_conntrack_zone nf_ct_zone_dflt = {
 	.id	= NF_CT_DEFAULT_ZONE_ID,

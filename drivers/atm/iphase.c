@@ -1618,7 +1618,7 @@ static int rx_init(struct atm_dev *dev)
 	skb_queue_head_init(&iadev->rx_dma_q);  
 	iadev->rx_free_desc_qhead = NULL;   
 
-	iadev->rx_open = kcalloc(4, iadev->num_vc, GFP_KERNEL);
+	iadev->rx_open = kcalloc(iadev->num_vc, sizeof(void *), GFP_KERNEL);
 	if (!iadev->rx_open) {
 		printk(KERN_ERR DEV_LABEL "itf %d couldn't get free page\n",
 		dev->number);  

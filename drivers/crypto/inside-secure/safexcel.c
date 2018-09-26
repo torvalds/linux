@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 Marvell
  *
  * Antoine Tenart <antoine.tenart@free-electrons.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/clk.h>
@@ -33,7 +30,19 @@ MODULE_PARM_DESC(max_rings, "Maximum number of rings to use.");
 static void eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
 {
 	u32 val, htable_offset;
-	int i;
+	int i, cs_rc_max, cs_ht_wc, cs_trc_rec_wc, cs_trc_lg_rec_wc;
+
+	if (priv->version == EIP197B) {
+		cs_rc_max = EIP197B_CS_RC_MAX;
+		cs_ht_wc = EIP197B_CS_HT_WC;
+		cs_trc_rec_wc = EIP197B_CS_TRC_REC_WC;
+		cs_trc_lg_rec_wc = EIP197B_CS_TRC_LG_REC_WC;
+	} else {
+		cs_rc_max = EIP197D_CS_RC_MAX;
+		cs_ht_wc = EIP197D_CS_HT_WC;
+		cs_trc_rec_wc = EIP197D_CS_TRC_REC_WC;
+		cs_trc_lg_rec_wc = EIP197D_CS_TRC_LG_REC_WC;
+	}
 
 	/* Enable the record cache memory access */
 	val = readl(priv->base + EIP197_CS_RAM_CTRL);
@@ -54,7 +63,7 @@ static void eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
 	writel(val, priv->base + EIP197_TRC_PARAMS);
 
 	/* Clear all records */
-	for (i = 0; i < EIP197_CS_RC_MAX; i++) {
+	for (i = 0; i < cs_rc_max; i++) {
 		u32 val, offset = EIP197_CLASSIFICATION_RAMS + i * EIP197_CS_RC_SIZE;
 
 		writel(EIP197_CS_RC_NEXT(EIP197_RC_NULL) |
@@ -64,14 +73,14 @@ static void eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
 		val = EIP197_CS_RC_NEXT(i+1) | EIP197_CS_RC_PREV(i-1);
 		if (i == 0)
 			val |= EIP197_CS_RC_PREV(EIP197_RC_NULL);
-		else if (i == EIP197_CS_RC_MAX - 1)
+		else if (i == cs_rc_max - 1)
 			val |= EIP197_CS_RC_NEXT(EIP197_RC_NULL);
 		writel(val, priv->base + offset + sizeof(u32));
 	}
 
 	/* Clear the hash table entries */
-	htable_offset = EIP197_CS_RC_MAX * EIP197_CS_RC_SIZE;
-	for (i = 0; i < 64; i++)
+	htable_offset = cs_rc_max * EIP197_CS_RC_SIZE;
+	for (i = 0; i < cs_ht_wc; i++)
 		writel(GENMASK(29, 0),
 		       priv->base + EIP197_CLASSIFICATION_RAMS + htable_offset + i * sizeof(u32));
 
@@ -82,23 +91,23 @@ static void eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
 
 	/* Write head and tail pointers of the record free chain */
 	val = EIP197_TRC_FREECHAIN_HEAD_PTR(0) |
-	      EIP197_TRC_FREECHAIN_TAIL_PTR(EIP197_CS_RC_MAX - 1);
+	      EIP197_TRC_FREECHAIN_TAIL_PTR(cs_rc_max - 1);
 	writel(val, priv->base + EIP197_TRC_FREECHAIN);
 
 	/* Configure the record cache #1 */
-	val = EIP197_TRC_PARAMS2_RC_SZ_SMALL(EIP197_CS_TRC_REC_WC) |
-	      EIP197_TRC_PARAMS2_HTABLE_PTR(EIP197_CS_RC_MAX);
+	val = EIP197_TRC_PARAMS2_RC_SZ_SMALL(cs_trc_rec_wc) |
+	      EIP197_TRC_PARAMS2_HTABLE_PTR(cs_rc_max);
 	writel(val, priv->base + EIP197_TRC_PARAMS2);
 
 	/* Configure the record cache #2 */
-	val = EIP197_TRC_PARAMS_RC_SZ_LARGE(EIP197_CS_TRC_LG_REC_WC) |
+	val = EIP197_TRC_PARAMS_RC_SZ_LARGE(cs_trc_lg_rec_wc) |
 	      EIP197_TRC_PARAMS_BLK_TIMER_SPEED(1) |
 	      EIP197_TRC_PARAMS_HTABLE_SZ(2);
 	writel(val, priv->base + EIP197_TRC_PARAMS);
 }
 
 static void eip197_write_firmware(struct safexcel_crypto_priv *priv,
-				  const struct firmware *fw, u32 ctrl,
+				  const struct firmware *fw, int pe, u32 ctrl,
 				  u32 prog_en)
 {
 	const u32 *data = (const u32 *)fw->data;
@@ -112,7 +121,7 @@ static void eip197_write_firmware(struct safexcel_crypto_priv *priv,
 	       EIP197_PE(priv) + ctrl);
 
 	/* Enable access to the program memory */
-	writel(prog_en, EIP197_PE(priv) + EIP197_PE_ICE_RAM_CTRL);
+	writel(prog_en, EIP197_PE(priv) + EIP197_PE_ICE_RAM_CTRL(pe));
 
 	/* Write the firmware */
 	for (i = 0; i < fw->size / sizeof(u32); i++)
@@ -120,7 +129,7 @@ static void eip197_write_firmware(struct safexcel_crypto_priv *priv,
 		       priv->base + EIP197_CLASSIFICATION_RAMS + i * sizeof(u32));
 
 	/* Disable access to the program memory */
-	writel(0, EIP197_PE(priv) + EIP197_PE_ICE_RAM_CTRL);
+	writel(0, EIP197_PE(priv) + EIP197_PE_ICE_RAM_CTRL(pe));
 
 	/* Release engine from reset */
 	val = readl(EIP197_PE(priv) + ctrl);
@@ -132,35 +141,62 @@ static int eip197_load_firmwares(struct safexcel_crypto_priv *priv)
 {
 	const char *fw_name[] = {"ifpp.bin", "ipue.bin"};
 	const struct firmware *fw[FW_NB];
-	int i, j, ret = 0;
+	char fw_path[31], *dir = NULL;
+	int i, j, ret = 0, pe;
 	u32 val;
 
+	switch (priv->version) {
+	case EIP197B:
+		dir = "eip197b";
+		break;
+	case EIP197D:
+		dir = "eip197d";
+		break;
+	default:
+		/* No firmware is required */
+		return 0;
+	}
+
 	for (i = 0; i < FW_NB; i++) {
-		ret = request_firmware(&fw[i], fw_name[i], priv->dev);
+		snprintf(fw_path, 31, "inside-secure/%s/%s", dir, fw_name[i]);
+		ret = request_firmware(&fw[i], fw_path, priv->dev);
 		if (ret) {
-			dev_err(priv->dev,
-				"Failed to request firmware %s (%d)\n",
-				fw_name[i], ret);
-			goto release_fw;
+			if (priv->version != EIP197B)
+				goto release_fw;
+
+			/* Fallback to the old firmware location for the
+			 * EIP197b.
+			 */
+			ret = request_firmware(&fw[i], fw_name[i], priv->dev);
+			if (ret) {
+				dev_err(priv->dev,
+					"Failed to request firmware %s (%d)\n",
+					fw_name[i], ret);
+				goto release_fw;
+			}
 		}
-	 }
+	}
 
-	/* Clear the scratchpad memory */
-	val = readl(EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_CTRL);
-	val |= EIP197_PE_ICE_SCRATCH_CTRL_CHANGE_TIMER |
-	       EIP197_PE_ICE_SCRATCH_CTRL_TIMER_EN |
-	       EIP197_PE_ICE_SCRATCH_CTRL_SCRATCH_ACCESS |
-	       EIP197_PE_ICE_SCRATCH_CTRL_CHANGE_ACCESS;
-	writel(val, EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_CTRL);
+	for (pe = 0; pe < priv->config.pes; pe++) {
+		/* Clear the scratchpad memory */
+		val = readl(EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_CTRL(pe));
+		val |= EIP197_PE_ICE_SCRATCH_CTRL_CHANGE_TIMER |
+		       EIP197_PE_ICE_SCRATCH_CTRL_TIMER_EN |
+		       EIP197_PE_ICE_SCRATCH_CTRL_SCRATCH_ACCESS |
+		       EIP197_PE_ICE_SCRATCH_CTRL_CHANGE_ACCESS;
+		writel(val, EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_CTRL(pe));
 
-	memset_io(EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_RAM, 0,
-		  EIP197_NUM_OF_SCRATCH_BLOCKS * sizeof(u32));
+		memset_io(EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_RAM(pe), 0,
+			  EIP197_NUM_OF_SCRATCH_BLOCKS * sizeof(u32));
 
-	eip197_write_firmware(priv, fw[FW_IFPP], EIP197_PE_ICE_FPP_CTRL,
-			      EIP197_PE_ICE_RAM_CTRL_FPP_PROG_EN);
+		eip197_write_firmware(priv, fw[FW_IFPP], pe,
+				      EIP197_PE_ICE_FPP_CTRL(pe),
+				      EIP197_PE_ICE_RAM_CTRL_FPP_PROG_EN);
 
-	eip197_write_firmware(priv, fw[FW_IPUE], EIP197_PE_ICE_PUE_CTRL,
-			      EIP197_PE_ICE_RAM_CTRL_PUE_PROG_EN);
+		eip197_write_firmware(priv, fw[FW_IPUE], pe,
+				      EIP197_PE_ICE_PUE_CTRL(pe),
+				      EIP197_PE_ICE_RAM_CTRL_PUE_PROG_EN);
+	}
 
 release_fw:
 	for (j = 0; j < i; j++)
@@ -256,7 +292,7 @@ static int safexcel_hw_setup_rdesc_rings(struct safexcel_crypto_priv *priv)
 static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 {
 	u32 version, val;
-	int i, ret;
+	int i, ret, pe;
 
 	/* Determine endianess and configure byte swap */
 	version = readl(EIP197_HIA_AIC(priv) + EIP197_HIA_VERSION);
@@ -266,6 +302,10 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		val |= EIP197_MST_CTRL_BYTE_SWAP;
 	else if (((version >> 16) & 0xffff) == EIP197_HIA_VERSION_LE)
 		val |= (EIP197_MST_CTRL_NO_BYTE_SWAP >> 24);
+
+	/* For EIP197 set maximum number of TX commands to 2^5 = 32 */
+	if (priv->version == EIP197B || priv->version == EIP197D)
+		val |= EIP197_MST_CTRL_TX_MAX_CMD(5);
 
 	writel(val, EIP197_HIA_AIC(priv) + EIP197_HIA_MST_CTRL);
 
@@ -282,82 +322,94 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	/* Clear any pending interrupt */
 	writel(GENMASK(31, 0), EIP197_HIA_AIC_G(priv) + EIP197_HIA_AIC_G_ACK);
 
-	/* Data Fetch Engine configuration */
-
-	/* Reset all DFE threads */
-	writel(EIP197_DxE_THR_CTRL_RESET_PE,
-	       EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL);
-
-	if (priv->version == EIP197) {
-		/* Reset HIA input interface arbiter */
-		writel(EIP197_HIA_RA_PE_CTRL_RESET,
-		       EIP197_HIA_AIC(priv) + EIP197_HIA_RA_PE_CTRL);
-	}
-
-	/* DMA transfer size to use */
-	val = EIP197_HIA_DFE_CFG_DIS_DEBUG;
-	val |= EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(5) | EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(9);
-	val |= EIP197_HIA_DxE_CFG_MIN_CTRL_SIZE(5) | EIP197_HIA_DxE_CFG_MAX_CTRL_SIZE(7);
-	val |= EIP197_HIA_DxE_CFG_DATA_CACHE_CTRL(RD_CACHE_3BITS);
-	val |= EIP197_HIA_DxE_CFG_CTRL_CACHE_CTRL(RD_CACHE_3BITS);
-	writel(val, EIP197_HIA_DFE(priv) + EIP197_HIA_DFE_CFG);
-
-	/* Leave the DFE threads reset state */
-	writel(0, EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL);
-
-	/* Configure the procesing engine thresholds */
-	writel(EIP197_PE_IN_xBUF_THRES_MIN(5) | EIP197_PE_IN_xBUF_THRES_MAX(9),
-	       EIP197_PE(priv) + EIP197_PE_IN_DBUF_THRES);
-	writel(EIP197_PE_IN_xBUF_THRES_MIN(5) | EIP197_PE_IN_xBUF_THRES_MAX(7),
-	       EIP197_PE(priv) + EIP197_PE_IN_TBUF_THRES);
-
-	if (priv->version == EIP197) {
-		/* enable HIA input interface arbiter and rings */
-		writel(EIP197_HIA_RA_PE_CTRL_EN |
-		       GENMASK(priv->config.rings - 1, 0),
-		       EIP197_HIA_AIC(priv) + EIP197_HIA_RA_PE_CTRL);
-	}
-
-	/* Data Store Engine configuration */
-
-	/* Reset all DSE threads */
-	writel(EIP197_DxE_THR_CTRL_RESET_PE,
-	       EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_CTRL);
-
-	/* Wait for all DSE threads to complete */
-	while ((readl(EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_STAT) &
-		GENMASK(15, 12)) != GENMASK(15, 12))
-		;
-
-	/* DMA transfer size to use */
-	val = EIP197_HIA_DSE_CFG_DIS_DEBUG;
-	val |= EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(7) | EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(8);
-	val |= EIP197_HIA_DxE_CFG_DATA_CACHE_CTRL(WR_CACHE_3BITS);
-	val |= EIP197_HIA_DSE_CFG_ALWAYS_BUFFERABLE;
-	/* FIXME: instability issues can occur for EIP97 but disabling it impact
-	 * performances.
-	 */
-	if (priv->version == EIP197)
-		val |= EIP197_HIA_DSE_CFG_EN_SINGLE_WR;
-	writel(val, EIP197_HIA_DSE(priv) + EIP197_HIA_DSE_CFG);
-
-	/* Leave the DSE threads reset state */
-	writel(0, EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_CTRL);
-
-	/* Configure the procesing engine thresholds */
-	writel(EIP197_PE_OUT_DBUF_THRES_MIN(7) | EIP197_PE_OUT_DBUF_THRES_MAX(8),
-	       EIP197_PE(priv) + EIP197_PE_OUT_DBUF_THRES);
-
 	/* Processing Engine configuration */
+	for (pe = 0; pe < priv->config.pes; pe++) {
+		/* Data Fetch Engine configuration */
 
-	/* H/W capabilities selection */
-	val = EIP197_FUNCTION_RSVD;
-	val |= EIP197_PROTOCOL_ENCRYPT_ONLY | EIP197_PROTOCOL_HASH_ONLY;
-	val |= EIP197_PROTOCOL_ENCRYPT_HASH | EIP197_PROTOCOL_HASH_DECRYPT;
-	val |= EIP197_ALG_AES_ECB | EIP197_ALG_AES_CBC;
-	val |= EIP197_ALG_SHA1 | EIP197_ALG_HMAC_SHA1;
-	val |= EIP197_ALG_SHA2 | EIP197_ALG_HMAC_SHA2;
-	writel(val, EIP197_PE(priv) + EIP197_PE_EIP96_FUNCTION_EN);
+		/* Reset all DFE threads */
+		writel(EIP197_DxE_THR_CTRL_RESET_PE,
+		       EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL(pe));
+
+		if (priv->version == EIP197B || priv->version == EIP197D) {
+			/* Reset HIA input interface arbiter */
+			writel(EIP197_HIA_RA_PE_CTRL_RESET,
+			       EIP197_HIA_AIC(priv) + EIP197_HIA_RA_PE_CTRL(pe));
+		}
+
+		/* DMA transfer size to use */
+		val = EIP197_HIA_DFE_CFG_DIS_DEBUG;
+		val |= EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(6) |
+		       EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(9);
+		val |= EIP197_HIA_DxE_CFG_MIN_CTRL_SIZE(6) |
+		       EIP197_HIA_DxE_CFG_MAX_CTRL_SIZE(7);
+		val |= EIP197_HIA_DxE_CFG_DATA_CACHE_CTRL(RD_CACHE_3BITS);
+		val |= EIP197_HIA_DxE_CFG_CTRL_CACHE_CTRL(RD_CACHE_3BITS);
+		writel(val, EIP197_HIA_DFE(priv) + EIP197_HIA_DFE_CFG(pe));
+
+		/* Leave the DFE threads reset state */
+		writel(0, EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL(pe));
+
+		/* Configure the processing engine thresholds */
+		writel(EIP197_PE_IN_xBUF_THRES_MIN(6) |
+		       EIP197_PE_IN_xBUF_THRES_MAX(9),
+		       EIP197_PE(priv) + EIP197_PE_IN_DBUF_THRES(pe));
+		writel(EIP197_PE_IN_xBUF_THRES_MIN(6) |
+		       EIP197_PE_IN_xBUF_THRES_MAX(7),
+		       EIP197_PE(priv) + EIP197_PE_IN_TBUF_THRES(pe));
+
+		if (priv->version == EIP197B || priv->version == EIP197D) {
+			/* enable HIA input interface arbiter and rings */
+			writel(EIP197_HIA_RA_PE_CTRL_EN |
+			       GENMASK(priv->config.rings - 1, 0),
+			       EIP197_HIA_AIC(priv) + EIP197_HIA_RA_PE_CTRL(pe));
+		}
+
+		/* Data Store Engine configuration */
+
+		/* Reset all DSE threads */
+		writel(EIP197_DxE_THR_CTRL_RESET_PE,
+		       EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_CTRL(pe));
+
+		/* Wait for all DSE threads to complete */
+		while ((readl(EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_STAT(pe)) &
+			GENMASK(15, 12)) != GENMASK(15, 12))
+			;
+
+		/* DMA transfer size to use */
+		val = EIP197_HIA_DSE_CFG_DIS_DEBUG;
+		val |= EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(7) |
+		       EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(8);
+		val |= EIP197_HIA_DxE_CFG_DATA_CACHE_CTRL(WR_CACHE_3BITS);
+		val |= EIP197_HIA_DSE_CFG_ALWAYS_BUFFERABLE;
+		/* FIXME: instability issues can occur for EIP97 but disabling it impact
+		 * performances.
+		 */
+		if (priv->version == EIP197B || priv->version == EIP197D)
+			val |= EIP197_HIA_DSE_CFG_EN_SINGLE_WR;
+		writel(val, EIP197_HIA_DSE(priv) + EIP197_HIA_DSE_CFG(pe));
+
+		/* Leave the DSE threads reset state */
+		writel(0, EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_CTRL(pe));
+
+		/* Configure the procesing engine thresholds */
+		writel(EIP197_PE_OUT_DBUF_THRES_MIN(7) |
+		       EIP197_PE_OUT_DBUF_THRES_MAX(8),
+		       EIP197_PE(priv) + EIP197_PE_OUT_DBUF_THRES(pe));
+
+		/* Processing Engine configuration */
+
+		/* H/W capabilities selection */
+		val = EIP197_FUNCTION_RSVD;
+		val |= EIP197_PROTOCOL_ENCRYPT_ONLY | EIP197_PROTOCOL_HASH_ONLY;
+		val |= EIP197_PROTOCOL_ENCRYPT_HASH | EIP197_PROTOCOL_HASH_DECRYPT;
+		val |= EIP197_ALG_DES_ECB | EIP197_ALG_DES_CBC;
+		val |= EIP197_ALG_3DES_ECB | EIP197_ALG_3DES_CBC;
+		val |= EIP197_ALG_AES_ECB | EIP197_ALG_AES_CBC;
+		val |= EIP197_ALG_MD5 | EIP197_ALG_HMAC_MD5;
+		val |= EIP197_ALG_SHA1 | EIP197_ALG_HMAC_SHA1;
+		val |= EIP197_ALG_SHA2 | EIP197_ALG_HMAC_SHA2;
+		writel(val, EIP197_PE(priv) + EIP197_PE_EIP96_FUNCTION_EN(pe));
+	}
 
 	/* Command Descriptor Rings prepare */
 	for (i = 0; i < priv->config.rings; i++) {
@@ -408,18 +460,20 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		       EIP197_HIA_RDR(priv, i) + EIP197_HIA_xDR_RING_SIZE);
 	}
 
-	/* Enable command descriptor rings */
-	writel(EIP197_DxE_THR_CTRL_EN | GENMASK(priv->config.rings - 1, 0),
-	       EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL);
+	for (pe = 0; pe < priv->config.pes; pe++) {
+		/* Enable command descriptor rings */
+		writel(EIP197_DxE_THR_CTRL_EN | GENMASK(priv->config.rings - 1, 0),
+		       EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL(pe));
 
-	/* Enable result descriptor rings */
-	writel(EIP197_DxE_THR_CTRL_EN | GENMASK(priv->config.rings - 1, 0),
-	       EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_CTRL);
+		/* Enable result descriptor rings */
+		writel(EIP197_DxE_THR_CTRL_EN | GENMASK(priv->config.rings - 1, 0),
+		       EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_CTRL(pe));
+	}
 
 	/* Clear any HIA interrupt */
 	writel(GENMASK(30, 20), EIP197_HIA_AIC_G(priv) + EIP197_HIA_AIC_G_ACK);
 
-	if (priv->version == EIP197) {
+	if (priv->version == EIP197B || priv->version == EIP197D) {
 		eip197_trc_cache_init(priv);
 
 		ret = eip197_load_firmwares(priv);
@@ -452,7 +506,6 @@ void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring)
 {
 	struct crypto_async_request *req, *backlog;
 	struct safexcel_context *ctx;
-	struct safexcel_request *request;
 	int ret, nreq = 0, cdesc = 0, rdesc = 0, commands, results;
 
 	/* If a request wasn't properly dequeued because of a lack of resources,
@@ -476,16 +529,10 @@ void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring)
 		}
 
 handle_req:
-		request = kzalloc(sizeof(*request), EIP197_GFP_FLAGS(*req));
-		if (!request)
-			goto request_failed;
-
 		ctx = crypto_tfm_ctx(req->tfm);
-		ret = ctx->send(req, ring, request, &commands, &results);
-		if (ret) {
-			kfree(request);
+		ret = ctx->send(req, ring, &commands, &results);
+		if (ret)
 			goto request_failed;
-		}
 
 		if (backlog)
 			backlog->complete(backlog, -EINPROGRESS);
@@ -494,14 +541,8 @@ handle_req:
 		 * to the engine because the input data was cached, continue to
 		 * dequeue other requests as this is valid and not an error.
 		 */
-		if (!commands && !results) {
-			kfree(request);
+		if (!commands && !results)
 			continue;
-		}
-
-		spin_lock_bh(&priv->ring[ring].egress_lock);
-		list_add_tail(&request->list, &priv->ring[ring].list);
-		spin_unlock_bh(&priv->ring[ring].egress_lock);
 
 		cdesc += commands;
 		rdesc += results;
@@ -519,7 +560,7 @@ finalize:
 	if (!nreq)
 		return;
 
-	spin_lock_bh(&priv->ring[ring].egress_lock);
+	spin_lock_bh(&priv->ring[ring].lock);
 
 	priv->ring[ring].requests += nreq;
 
@@ -528,7 +569,7 @@ finalize:
 		priv->ring[ring].busy = true;
 	}
 
-	spin_unlock_bh(&priv->ring[ring].egress_lock);
+	spin_unlock_bh(&priv->ring[ring].lock);
 
 	/* let the RDR know we have pending descriptors */
 	writel((rdesc * priv->config.rd_offset) << 2,
@@ -560,6 +601,24 @@ inline int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
 	return -EINVAL;
 }
 
+inline void safexcel_rdr_req_set(struct safexcel_crypto_priv *priv,
+				 int ring,
+				 struct safexcel_result_desc *rdesc,
+				 struct crypto_async_request *req)
+{
+	int i = safexcel_ring_rdr_rdesc_index(priv, ring, rdesc);
+
+	priv->ring[ring].rdr_req[i] = req;
+}
+
+inline struct crypto_async_request *
+safexcel_rdr_req_get(struct safexcel_crypto_priv *priv, int ring)
+{
+	int i = safexcel_ring_first_rdr_index(priv, ring);
+
+	return priv->ring[ring].rdr_req[i];
+}
+
 void safexcel_complete(struct safexcel_crypto_priv *priv, int ring)
 {
 	struct safexcel_command_desc *cdesc;
@@ -588,21 +647,16 @@ void safexcel_inv_complete(struct crypto_async_request *req, int error)
 
 int safexcel_invalidate_cache(struct crypto_async_request *async,
 			      struct safexcel_crypto_priv *priv,
-			      dma_addr_t ctxr_dma, int ring,
-			      struct safexcel_request *request)
+			      dma_addr_t ctxr_dma, int ring)
 {
 	struct safexcel_command_desc *cdesc;
 	struct safexcel_result_desc *rdesc;
 	int ret = 0;
 
-	spin_lock_bh(&priv->ring[ring].egress_lock);
-
 	/* Prepare command descriptor */
 	cdesc = safexcel_add_cdesc(priv, ring, true, true, 0, 0, 0, ctxr_dma);
-	if (IS_ERR(cdesc)) {
-		ret = PTR_ERR(cdesc);
-		goto unlock;
-	}
+	if (IS_ERR(cdesc))
+		return PTR_ERR(cdesc);
 
 	cdesc->control_data.type = EIP197_TYPE_EXTENDED;
 	cdesc->control_data.options = 0;
@@ -617,21 +671,20 @@ int safexcel_invalidate_cache(struct crypto_async_request *async,
 		goto cdesc_rollback;
 	}
 
-	request->req = async;
-	goto unlock;
+	safexcel_rdr_req_set(priv, ring, rdesc, async);
+
+	return ret;
 
 cdesc_rollback:
 	safexcel_ring_rollback_wptr(priv, &priv->ring[ring].cdr);
 
-unlock:
-	spin_unlock_bh(&priv->ring[ring].egress_lock);
 	return ret;
 }
 
 static inline void safexcel_handle_result_descriptor(struct safexcel_crypto_priv *priv,
 						     int ring)
 {
-	struct safexcel_request *sreq;
+	struct crypto_async_request *req;
 	struct safexcel_context *ctx;
 	int ret, i, nreq, ndesc, tot_descs, handled = 0;
 	bool should_complete;
@@ -646,28 +699,22 @@ handle_results:
 		goto requests_left;
 
 	for (i = 0; i < nreq; i++) {
-		spin_lock_bh(&priv->ring[ring].egress_lock);
-		sreq = list_first_entry(&priv->ring[ring].list,
-					struct safexcel_request, list);
-		list_del(&sreq->list);
-		spin_unlock_bh(&priv->ring[ring].egress_lock);
+		req = safexcel_rdr_req_get(priv, ring);
 
-		ctx = crypto_tfm_ctx(sreq->req->tfm);
-		ndesc = ctx->handle_result(priv, ring, sreq->req,
+		ctx = crypto_tfm_ctx(req->tfm);
+		ndesc = ctx->handle_result(priv, ring, req,
 					   &should_complete, &ret);
 		if (ndesc < 0) {
-			kfree(sreq);
 			dev_err(priv->dev, "failed to handle result (%d)", ndesc);
 			goto acknowledge;
 		}
 
 		if (should_complete) {
 			local_bh_disable();
-			sreq->req->complete(sreq->req, ret);
+			req->complete(req, ret);
 			local_bh_enable();
 		}
 
-		kfree(sreq);
 		tot_descs += ndesc;
 		handled++;
 	}
@@ -686,7 +733,7 @@ acknowledge:
 		goto handle_results;
 
 requests_left:
-	spin_lock_bh(&priv->ring[ring].egress_lock);
+	spin_lock_bh(&priv->ring[ring].lock);
 
 	priv->ring[ring].requests -= handled;
 	safexcel_try_push_requests(priv, ring);
@@ -694,7 +741,7 @@ requests_left:
 	if (!priv->ring[ring].requests)
 		priv->ring[ring].busy = false;
 
-	spin_unlock_bh(&priv->ring[ring].egress_lock);
+	spin_unlock_bh(&priv->ring[ring].lock);
 }
 
 static void safexcel_dequeue_work(struct work_struct *work)
@@ -785,17 +832,29 @@ static int safexcel_request_ring_irq(struct platform_device *pdev, const char *n
 }
 
 static struct safexcel_alg_template *safexcel_algs[] = {
+	&safexcel_alg_ecb_des,
+	&safexcel_alg_cbc_des,
+	&safexcel_alg_ecb_des3_ede,
+	&safexcel_alg_cbc_des3_ede,
 	&safexcel_alg_ecb_aes,
 	&safexcel_alg_cbc_aes,
+	&safexcel_alg_md5,
 	&safexcel_alg_sha1,
 	&safexcel_alg_sha224,
 	&safexcel_alg_sha256,
+	&safexcel_alg_sha384,
+	&safexcel_alg_sha512,
+	&safexcel_alg_hmac_md5,
 	&safexcel_alg_hmac_sha1,
 	&safexcel_alg_hmac_sha224,
 	&safexcel_alg_hmac_sha256,
+	&safexcel_alg_hmac_sha384,
+	&safexcel_alg_hmac_sha512,
 	&safexcel_alg_authenc_hmac_sha1_cbc_aes,
 	&safexcel_alg_authenc_hmac_sha224_cbc_aes,
 	&safexcel_alg_authenc_hmac_sha256_cbc_aes,
+	&safexcel_alg_authenc_hmac_sha384_cbc_aes,
+	&safexcel_alg_authenc_hmac_sha512_cbc_aes,
 };
 
 static int safexcel_register_algorithms(struct safexcel_crypto_priv *priv)
@@ -804,6 +863,9 @@ static int safexcel_register_algorithms(struct safexcel_crypto_priv *priv)
 
 	for (i = 0; i < ARRAY_SIZE(safexcel_algs); i++) {
 		safexcel_algs[i]->priv = priv;
+
+		if (!(safexcel_algs[i]->engines & priv->version))
+			continue;
 
 		if (safexcel_algs[i]->type == SAFEXCEL_ALG_TYPE_SKCIPHER)
 			ret = crypto_register_skcipher(&safexcel_algs[i]->alg.skcipher);
@@ -820,6 +882,9 @@ static int safexcel_register_algorithms(struct safexcel_crypto_priv *priv)
 
 fail:
 	for (j = 0; j < i; j++) {
+		if (!(safexcel_algs[j]->engines & priv->version))
+			continue;
+
 		if (safexcel_algs[j]->type == SAFEXCEL_ALG_TYPE_SKCIPHER)
 			crypto_unregister_skcipher(&safexcel_algs[j]->alg.skcipher);
 		else if (safexcel_algs[j]->type == SAFEXCEL_ALG_TYPE_AEAD)
@@ -836,6 +901,9 @@ static void safexcel_unregister_algorithms(struct safexcel_crypto_priv *priv)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(safexcel_algs); i++) {
+		if (!(safexcel_algs[i]->engines & priv->version))
+			continue;
+
 		if (safexcel_algs[i]->type == SAFEXCEL_ALG_TYPE_SKCIPHER)
 			crypto_unregister_skcipher(&safexcel_algs[i]->alg.skcipher);
 		else if (safexcel_algs[i]->type == SAFEXCEL_ALG_TYPE_AEAD)
@@ -847,9 +915,21 @@ static void safexcel_unregister_algorithms(struct safexcel_crypto_priv *priv)
 
 static void safexcel_configure(struct safexcel_crypto_priv *priv)
 {
-	u32 val, mask;
+	u32 val, mask = 0;
 
 	val = readl(EIP197_HIA_AIC_G(priv) + EIP197_HIA_OPTIONS);
+
+	/* Read number of PEs from the engine */
+	switch (priv->version) {
+	case EIP197B:
+	case EIP197D:
+		mask = EIP197_N_PES_MASK;
+		break;
+	default:
+		mask = EIP97_N_PES_MASK;
+	}
+	priv->config.pes = (val >> EIP197_N_PES_OFFSET) & mask;
+
 	val = (val & GENMASK(27, 25)) >> 25;
 	mask = BIT(val) - 1;
 
@@ -867,7 +947,9 @@ static void safexcel_init_register_offsets(struct safexcel_crypto_priv *priv)
 {
 	struct safexcel_register_offsets *offsets = &priv->offsets;
 
-	if (priv->version == EIP197) {
+	switch (priv->version) {
+	case EIP197B:
+	case EIP197D:
 		offsets->hia_aic	= EIP197_HIA_AIC_BASE;
 		offsets->hia_aic_g	= EIP197_HIA_AIC_G_BASE;
 		offsets->hia_aic_r	= EIP197_HIA_AIC_R_BASE;
@@ -878,7 +960,8 @@ static void safexcel_init_register_offsets(struct safexcel_crypto_priv *priv)
 		offsets->hia_dse_thr	= EIP197_HIA_DSE_THR_BASE;
 		offsets->hia_gen_cfg	= EIP197_HIA_GEN_CFG_BASE;
 		offsets->pe		= EIP197_PE_BASE;
-	} else {
+		break;
+	case EIP97IES:
 		offsets->hia_aic	= EIP97_HIA_AIC_BASE;
 		offsets->hia_aic_g	= EIP97_HIA_AIC_G_BASE;
 		offsets->hia_aic_r	= EIP97_HIA_AIC_R_BASE;
@@ -889,6 +972,7 @@ static void safexcel_init_register_offsets(struct safexcel_crypto_priv *priv)
 		offsets->hia_dse_thr	= EIP97_HIA_DSE_THR_BASE;
 		offsets->hia_gen_cfg	= EIP97_HIA_GEN_CFG_BASE;
 		offsets->pe		= EIP97_PE_BASE;
+		break;
 	}
 }
 
@@ -905,6 +989,9 @@ static int safexcel_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 	priv->version = (enum safexcel_eip_version)of_device_get_match_data(dev);
+
+	if (priv->version == EIP197B || priv->version == EIP197D)
+		priv->flags |= EIP197_TRC_CACHE;
 
 	safexcel_init_register_offsets(priv);
 
@@ -957,6 +1044,13 @@ static int safexcel_probe(struct platform_device *pdev)
 
 	safexcel_configure(priv);
 
+	priv->ring = devm_kzalloc(dev, priv->config.rings * sizeof(*priv->ring),
+				  GFP_KERNEL);
+	if (!priv->ring) {
+		ret = -ENOMEM;
+		goto err_reg_clk;
+	}
+
 	for (i = 0; i < priv->config.rings; i++) {
 		char irq_name[6] = {0}; /* "ringX\0" */
 		char wq_name[9] = {0}; /* "wq_ringX\0" */
@@ -968,6 +1062,14 @@ static int safexcel_probe(struct platform_device *pdev)
 						     &priv->ring[i].rdr);
 		if (ret)
 			goto err_reg_clk;
+
+		priv->ring[i].rdr_req = devm_kzalloc(dev,
+			sizeof(priv->ring[i].rdr_req) * EIP197_DEFAULT_RING_SIZE,
+			GFP_KERNEL);
+		if (!priv->ring[i].rdr_req) {
+			ret = -ENOMEM;
+			goto err_reg_clk;
+		}
 
 		ring_irq = devm_kzalloc(dev, sizeof(*ring_irq), GFP_KERNEL);
 		if (!ring_irq) {
@@ -1004,9 +1106,7 @@ static int safexcel_probe(struct platform_device *pdev)
 		crypto_init_queue(&priv->ring[i].queue,
 				  EIP197_DEFAULT_RING_SIZE);
 
-		INIT_LIST_HEAD(&priv->ring[i].list);
 		spin_lock_init(&priv->ring[i].lock);
-		spin_lock_init(&priv->ring[i].egress_lock);
 		spin_lock_init(&priv->ring[i].queue_lock);
 	}
 
@@ -1034,6 +1134,24 @@ err_core_clk:
 	return ret;
 }
 
+static void safexcel_hw_reset_rings(struct safexcel_crypto_priv *priv)
+{
+	int i;
+
+	for (i = 0; i < priv->config.rings; i++) {
+		/* clear any pending interrupt */
+		writel(GENMASK(5, 0), EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_STAT);
+		writel(GENMASK(7, 0), EIP197_HIA_RDR(priv, i) + EIP197_HIA_xDR_STAT);
+
+		/* Reset the CDR base address */
+		writel(0, EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_RING_BASE_ADDR_LO);
+		writel(0, EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_RING_BASE_ADDR_HI);
+
+		/* Reset the RDR base address */
+		writel(0, EIP197_HIA_RDR(priv, i) + EIP197_HIA_xDR_RING_BASE_ADDR_LO);
+		writel(0, EIP197_HIA_RDR(priv, i) + EIP197_HIA_xDR_RING_BASE_ADDR_HI);
+	}
+}
 
 static int safexcel_remove(struct platform_device *pdev)
 {
@@ -1041,6 +1159,8 @@ static int safexcel_remove(struct platform_device *pdev)
 	int i;
 
 	safexcel_unregister_algorithms(priv);
+	safexcel_hw_reset_rings(priv);
+
 	clk_disable_unprepare(priv->clk);
 
 	for (i = 0; i < priv->config.rings; i++)
@@ -1051,12 +1171,26 @@ static int safexcel_remove(struct platform_device *pdev)
 
 static const struct of_device_id safexcel_of_match_table[] = {
 	{
-		.compatible = "inside-secure,safexcel-eip97",
-		.data = (void *)EIP97,
+		.compatible = "inside-secure,safexcel-eip97ies",
+		.data = (void *)EIP97IES,
 	},
 	{
+		.compatible = "inside-secure,safexcel-eip197b",
+		.data = (void *)EIP197B,
+	},
+	{
+		.compatible = "inside-secure,safexcel-eip197d",
+		.data = (void *)EIP197D,
+	},
+	{
+		/* Deprecated. Kept for backward compatibility. */
+		.compatible = "inside-secure,safexcel-eip97",
+		.data = (void *)EIP97IES,
+	},
+	{
+		/* Deprecated. Kept for backward compatibility. */
 		.compatible = "inside-secure,safexcel-eip197",
-		.data = (void *)EIP197,
+		.data = (void *)EIP197B,
 	},
 	{},
 };

@@ -34,6 +34,7 @@
 #include "atombios_dp.h"
 #include "amdgpu_connectors.h"
 #include "amdgpu_i2c.h"
+#include "amdgpu_display.h"
 
 #include <linux/pm_runtime.h>
 

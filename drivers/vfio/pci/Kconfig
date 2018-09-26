@@ -28,5 +28,13 @@ config VFIO_PCI_INTX
 	def_bool y if !S390
 
 config VFIO_PCI_IGD
-	depends on VFIO_PCI
-	def_bool y if X86
+	bool "VFIO PCI extensions for Intel graphics (GVT-d)"
+	depends on VFIO_PCI && X86
+	default y
+	help
+	  Support for Intel IGD specific extensions to enable direct
+	  assignment to virtual machines.  This includes exposing an IGD
+	  specific firmware table and read-only copies of the host bridge
+	  and LPC bridge config space.
+
+	  To enable Intel IGD assignment through vfio-pci, say Y.

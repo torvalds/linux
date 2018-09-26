@@ -20,6 +20,7 @@
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
+#include <linux/rhashtable.h>
 
 #include <net/sock.h>
 #include <net/inet_frag.h>
@@ -90,7 +91,7 @@ static void inet_frags_free_cb(void *ptr, void *arg)
 
 void inet_frags_exit_net(struct netns_frags *nf)
 {
-	nf->low_thresh = 0; /* prevent creation of new frags */
+	nf->high_thresh = 0; /* prevent creation of new frags */
 
 	rhashtable_free_and_destroy(&nf->rhashtable, inet_frags_free_cb, NULL);
 }
@@ -136,12 +137,16 @@ void inet_frag_destroy(struct inet_frag_queue *q)
 	fp = q->fragments;
 	nf = q->net;
 	f = nf->f;
-	while (fp) {
-		struct sk_buff *xp = fp->next;
+	if (fp) {
+		do {
+			struct sk_buff *xp = fp->next;
 
-		sum_truesize += fp->truesize;
-		kfree_skb(fp);
-		fp = xp;
+			sum_truesize += fp->truesize;
+			kfree_skb(fp);
+			fp = xp;
+		} while (fp);
+	} else {
+		sum_truesize = inet_frag_rbtree_purge(&q->rb_fragments);
 	}
 	sum = sum_truesize + f->qsize;
 
@@ -156,9 +161,6 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 					       void *arg)
 {
 	struct inet_frag_queue *q;
-
-	if (!nf->high_thresh || frag_mem_limit(nf) > nf->high_thresh)
-		return NULL;
 
 	q = kmem_cache_zalloc(f->frags_cachep, GFP_ATOMIC);
 	if (!q)
@@ -203,6 +205,9 @@ static struct inet_frag_queue *inet_frag_create(struct netns_frags *nf,
 struct inet_frag_queue *inet_frag_find(struct netns_frags *nf, void *key)
 {
 	struct inet_frag_queue *fq;
+
+	if (!nf->high_thresh || frag_mem_limit(nf) > nf->high_thresh)
+		return NULL;
 
 	rcu_read_lock();
 

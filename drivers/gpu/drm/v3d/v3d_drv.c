@@ -145,13 +145,11 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 static void
 v3d_postclose(struct drm_device *dev, struct drm_file *file)
 {
-	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct v3d_file_priv *v3d_priv = file->driver_priv;
 	enum v3d_queue q;
 
 	for (q = 0; q < V3D_MAX_QUEUES; q++) {
-		drm_sched_entity_destroy(&v3d->queue[q].sched,
-				      &v3d_priv->sched_entity[q]);
+		drm_sched_entity_destroy(&v3d_priv->sched_entity[q]);
 	}
 
 	kfree(v3d_priv);

@@ -1752,15 +1752,17 @@ static const struct amdgpu_vm_pte_funcs sdma_v3_0_vm_pte_funcs = {
 
 static void sdma_v3_0_set_vm_pte_funcs(struct amdgpu_device *adev)
 {
+	struct drm_gpu_scheduler *sched;
 	unsigned i;
 
 	if (adev->vm_manager.vm_pte_funcs == NULL) {
 		adev->vm_manager.vm_pte_funcs = &sdma_v3_0_vm_pte_funcs;
-		for (i = 0; i < adev->sdma.num_instances; i++)
-			adev->vm_manager.vm_pte_rings[i] =
-				&adev->sdma.instance[i].ring;
-
-		adev->vm_manager.vm_pte_num_rings = adev->sdma.num_instances;
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			sched = &adev->sdma.instance[i].ring.sched;
+			adev->vm_manager.vm_pte_rqs[i] =
+				&sched->sched_rq[DRM_SCHED_PRIORITY_KERNEL];
+		}
+		adev->vm_manager.vm_pte_num_rqs = adev->sdma.num_instances;
 	}
 }
 

@@ -16,11 +16,11 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _BATMAN_ADV_BATADV_IV_OGM_H_
-#define _BATMAN_ADV_BATADV_IV_OGM_H_
+#ifndef _NET_BATMAN_ADV_BAT_IV_OGM_H_
+#define _NET_BATMAN_ADV_BAT_IV_OGM_H_
 
 #include "main.h"
 
 int batadv_iv_init(void);
 
-#endif /* _BATMAN_ADV_BATADV_IV_OGM_H_ */
+#endif /* _NET_BATMAN_ADV_BAT_IV_OGM_H_ */

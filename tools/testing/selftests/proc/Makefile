@@ -1,4 +1,5 @@
 CFLAGS += -Wall -O2 -Wno-unused-function
+CFLAGS += -D_GNU_SOURCE
 
 TEST_GEN_PROGS :=
 TEST_GEN_PROGS += fd-001-lookup
@@ -12,5 +13,7 @@ TEST_GEN_PROGS += proc-self-wchan
 TEST_GEN_PROGS += proc-uptime-001
 TEST_GEN_PROGS += proc-uptime-002
 TEST_GEN_PROGS += read
+TEST_GEN_PROGS += self
+TEST_GEN_PROGS += thread-self
 
 include ../lib.mk

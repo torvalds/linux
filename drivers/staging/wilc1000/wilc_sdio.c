@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) Atmel Corporation.  All rights reserved.
- *
- * Module Name:  wilc_sdio.c
+ * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * All rights reserved.
  */
 
 #include <linux/mmc/sdio_func.h>
-#include <linux/of_gpio.h>
+#include <linux/mmc/host.h>
 
 #include "wilc_wfi_netdevice.h"
 
@@ -108,24 +107,28 @@ static int linux_sdio_probe(struct sdio_func *func,
 			    const struct sdio_device_id *id)
 {
 	struct wilc *wilc;
-	int gpio, ret;
+	int ret;
+	struct gpio_desc *gpio = NULL;
 
-	gpio = -1;
 	if (IS_ENABLED(CONFIG_WILC1000_HW_OOB_INTR)) {
-		gpio = of_get_gpio(func->dev.of_node, 0);
-		if (gpio < 0)
-			gpio = GPIO_NUM;
+		gpio = gpiod_get(&func->dev, "irq", GPIOD_IN);
+		if (IS_ERR(gpio)) {
+			/* get the GPIO descriptor from hardcode GPIO number */
+			gpio = gpio_to_desc(GPIO_NUM);
+			if (!gpio)
+				dev_err(&func->dev, "failed to get irq gpio\n");
+		}
 	}
 
 	dev_dbg(&func->dev, "Initializing netdev\n");
-	ret = wilc_netdev_init(&wilc, &func->dev, HIF_SDIO, gpio,
-			       &wilc_hif_sdio);
+	ret = wilc_netdev_init(&wilc, &func->dev, HIF_SDIO, &wilc_hif_sdio);
 	if (ret) {
 		dev_err(&func->dev, "Couldn't initialize netdev\n");
 		return ret;
 	}
 	sdio_set_drvdata(func, wilc);
 	wilc->dev = &func->dev;
+	wilc->gpio_irq = gpio;
 
 	dev_info(&func->dev, "Driver Initializing success\n");
 	return 0;
@@ -133,7 +136,12 @@ static int linux_sdio_probe(struct sdio_func *func,
 
 static void linux_sdio_remove(struct sdio_func *func)
 {
-	wilc_netdev_cleanup(sdio_get_drvdata(func));
+	struct wilc *wilc = sdio_get_drvdata(func);
+
+	/* free the GPIO in module remove */
+	if (wilc->gpio_irq)
+		gpiod_put(wilc->gpio_irq);
+	wilc_netdev_cleanup(wilc);
 }
 
 static int sdio_reset(struct wilc *wilc)
@@ -199,21 +207,28 @@ static int wilc_sdio_resume(struct device *dev)
 	return 0;
 }
 
+static const struct of_device_id wilc_of_match[] = {
+	{ .compatible = "microchip,wilc1000-sdio", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, wilc_of_match);
+
 static const struct dev_pm_ops wilc_sdio_pm_ops = {
 	.suspend = wilc_sdio_suspend,
 	.resume = wilc_sdio_resume,
 };
 
-static struct sdio_driver wilc1000_sdio_driver = {
+static struct sdio_driver wilc_sdio_driver = {
 	.name		= SDIO_MODALIAS,
 	.id_table	= wilc_sdio_ids,
 	.probe		= linux_sdio_probe,
 	.remove		= linux_sdio_remove,
 	.drv = {
 		.pm = &wilc_sdio_pm_ops,
+		.of_match_table = wilc_of_match,
 	}
 };
-module_driver(wilc1000_sdio_driver,
+module_driver(wilc_sdio_driver,
 	      sdio_register_driver,
 	      sdio_unregister_driver);
 MODULE_LICENSE("GPL");
@@ -368,7 +383,7 @@ static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	int ret;
 
-	data = cpu_to_le32(data);
+	cpu_to_le32s(&data);
 
 	if (addr >= 0xf0 && addr <= 0xff) {
 		struct sdio_cmd52 cmd;
@@ -547,7 +562,7 @@ static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 		}
 	}
 
-	*data = cpu_to_le32(*data);
+	le32_to_cpus(data);
 
 	return 1;
 
@@ -793,9 +808,6 @@ static int sdio_read_size(struct wilc *wilc, u32 *size)
 	wilc_sdio_cmd52(wilc, &cmd);
 	tmp = cmd.data;
 
-	/* cmd.read_write = 0; */
-	/* cmd.function = 0; */
-	/* cmd.raw = 0; */
 	cmd.address = 0xf3;
 	cmd.data = 0;
 	wilc_sdio_cmd52(wilc, &cmd);
@@ -1080,12 +1092,7 @@ static int sdio_sync_ext(struct wilc *wilc, int nint)
 	return 1;
 }
 
-/********************************************
- *
- *      Global sdio HIF function table
- *
- ********************************************/
-
+/* Global sdio HIF function table */
 static const struct wilc_hif_func wilc_hif_sdio = {
 	.hif_init = sdio_init,
 	.hif_deinit = sdio_deinit,

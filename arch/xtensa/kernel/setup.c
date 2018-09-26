@@ -47,8 +47,6 @@
 #include <asm/smp.h>
 #include <asm/sysmem.h>
 
-#include <platform/hardware.h>
-
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 struct screen_info screen_info = {
 	.orig_x = 0,
@@ -81,6 +79,7 @@ static char __initdata command_line[COMMAND_LINE_SIZE];
 static char default_command_line[COMMAND_LINE_SIZE] __initdata = CONFIG_CMDLINE;
 #endif
 
+#ifdef CONFIG_PARSE_BOOTPARAM
 /*
  * Boot parameter parsing.
  *
@@ -178,6 +177,13 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 
 	return 0;
 }
+#else
+static int __init parse_bootparam(const bp_tag_t *tag)
+{
+	pr_info("Ignoring boot parameters at %p\n", tag);
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_OF
 

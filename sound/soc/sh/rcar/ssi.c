@@ -1,16 +1,12 @@
-/*
- * Renesas R-Car SSIU/SSI support
- *
- * Copyright (C) 2013 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * Based on fsi.c
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Renesas R-Car SSIU/SSI support
+//
+// Copyright (C) 2013 Renesas Solutions Corp.
+// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+//
+// Based on fsi.c
+// Kuninori Morimoto <morimoto.kuninori@renesas.com>
 
 /*
  * you can enable below define if you don't need
@@ -37,6 +33,7 @@
 #define	CHNL_4		(1 << 22)	/* Channels */
 #define	CHNL_6		(2 << 22)	/* Channels */
 #define	CHNL_8		(3 << 22)	/* Channels */
+#define DWL_MASK	(7 << 19)	/* Data Word Length mask */
 #define	DWL_8		(0 << 19)	/* Data Word Length */
 #define	DWL_16		(1 << 19)	/* Data Word Length */
 #define	DWL_18		(2 << 19)	/* Data Word Length */
@@ -353,13 +350,10 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	u32 cr_own;
-	u32 cr_mode;
-	u32 wsr;
+	u32 cr_own	= ssi->cr_own;
+	u32 cr_mode	= ssi->cr_mode;
+	u32 wsr		= ssi->wsr;
 	int is_tdm;
-
-	if (rsnd_ssi_is_parent(mod, io))
-		return;
 
 	is_tdm = rsnd_runtime_is_ssi_tdm(io);
 
@@ -367,7 +361,7 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	 * always use 32bit system word.
 	 * see also rsnd_ssi_master_clk_enable()
 	 */
-	cr_own = FORCE | SWL_32;
+	cr_own |= FORCE | SWL_32;
 
 	if (rdai->bit_clk_inv)
 		cr_own |= SCKP;
@@ -377,9 +371,18 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 		cr_own |= SDTA;
 	if (rdai->sys_delay)
 		cr_own |= DEL;
+
+	/*
+	 * We shouldn't exchange SWSP after running.
+	 * This means, parent needs to care it.
+	 */
+	if (rsnd_ssi_is_parent(mod, io))
+		goto init_end;
+
 	if (rsnd_io_is_play(io))
 		cr_own |= TRMD;
 
+	cr_own &= ~DWL_MASK;
 	switch (snd_pcm_format_width(runtime->format)) {
 	case 16:
 		cr_own |= DWL_16;
@@ -406,7 +409,7 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 		wsr	|= WS_MODE;
 		cr_own	|= CHNL_8;
 	}
-
+init_end:
 	ssi->cr_own	= cr_own;
 	ssi->cr_mode	= cr_mode;
 	ssi->wsr	= wsr;
@@ -470,14 +473,17 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 		return -EIO;
 	}
 
-	if (!rsnd_ssi_is_parent(mod, io))
-		ssi->cr_own	= 0;
-
 	rsnd_ssi_master_clk_stop(mod, io);
 
 	rsnd_mod_power_off(mod);
 
 	ssi->usrcnt--;
+
+	if (!ssi->usrcnt) {
+		ssi->cr_own	= 0;
+		ssi->cr_mode	= 0;
+		ssi->wsr	= 0;
+	}
 
 	return 0;
 }
@@ -1055,9 +1061,10 @@ struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id)
 
 int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
 {
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	if (!mod)
+		return 0;
 
-	return !!(rsnd_flags_has(ssi, RSND_SSI_CLK_PIN_SHARE));
+	return !!(rsnd_flags_has(rsnd_mod_to_ssi(mod), RSND_SSI_CLK_PIN_SHARE));
 }
 
 static u32 *rsnd_ssi_get_status(struct rsnd_dai_stream *io,

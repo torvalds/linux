@@ -49,6 +49,8 @@
 #include "dce112/dce112_hw_sequencer.h"
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
+#include "dce/dce_aux.h"
+#include "dce/dce_i2c.h"
 
 #include "reg_helper.h"
 
@@ -314,6 +316,21 @@ static const struct dce_opp_mask opp_mask = {
 	OPP_COMMON_MASK_SH_LIST_DCE_112(_MASK)
 };
 
+#define aux_engine_regs(id)\
+[id] = {\
+	AUX_COMMON_REG_LIST(id), \
+	.AUX_RESET_MASK = 0 \
+}
+
+static const struct dce110_aux_registers aux_engine_regs[] = {
+		aux_engine_regs(0),
+		aux_engine_regs(1),
+		aux_engine_regs(2),
+		aux_engine_regs(3),
+		aux_engine_regs(4),
+		aux_engine_regs(5)
+};
+
 #define audio_regs(id)\
 [id] = {\
 	AUD_COMMON_REG_LIST(id)\
@@ -367,6 +384,7 @@ static const struct resource_caps polaris_10_resource_cap = {
 		.num_audio = 6,
 		.num_stream_encoder = 6,
 		.num_pll = 8, /* why 8? 6 combo PHY PLL + 2 regular PLLs? */
+		.num_ddc = 6,
 };
 
 static const struct resource_caps polaris_11_resource_cap = {
@@ -374,6 +392,7 @@ static const struct resource_caps polaris_11_resource_cap = {
 		.num_audio = 5,
 		.num_stream_encoder = 5,
 		.num_pll = 8, /* why 8? 6 combo PHY PLL + 2 regular PLLs? */
+		.num_ddc = 5,
 };
 
 #define CTX  ctx
@@ -588,6 +607,56 @@ struct output_pixel_processor *dce112_opp_create(
 	return &opp->base;
 }
 
+struct aux_engine *dce112_aux_engine_create(
+	struct dc_context *ctx,
+	uint32_t inst)
+{
+	struct aux_engine_dce110 *aux_engine =
+		kzalloc(sizeof(struct aux_engine_dce110), GFP_KERNEL);
+
+	if (!aux_engine)
+		return NULL;
+
+	dce110_aux_engine_construct(aux_engine, ctx, inst,
+				    SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD,
+				    &aux_engine_regs[inst]);
+
+	return &aux_engine->base;
+}
+#define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST(id) }
+
+static const struct dce_i2c_registers i2c_hw_regs[] = {
+		i2c_inst_regs(1),
+		i2c_inst_regs(2),
+		i2c_inst_regs(3),
+		i2c_inst_regs(4),
+		i2c_inst_regs(5),
+		i2c_inst_regs(6),
+};
+
+static const struct dce_i2c_shift i2c_shifts = {
+		I2C_COMMON_MASK_SH_LIST_DCE110(__SHIFT)
+};
+
+static const struct dce_i2c_mask i2c_masks = {
+		I2C_COMMON_MASK_SH_LIST_DCE110(_MASK)
+};
+
+struct dce_i2c_hw *dce112_i2c_hw_create(
+	struct dc_context *ctx,
+	uint32_t inst)
+{
+	struct dce_i2c_hw *dce_i2c_hw =
+		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
+
+	if (!dce_i2c_hw)
+		return NULL;
+
+	dce112_i2c_hw_construct(dce_i2c_hw, ctx, inst,
+				    &i2c_hw_regs[inst], &i2c_shifts, &i2c_masks);
+
+	return dce_i2c_hw;
+}
 struct clock_source *dce112_clock_source_create(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
@@ -601,7 +670,7 @@ struct clock_source *dce112_clock_source_create(
 	if (!clk_src)
 		return NULL;
 
-	if (dce110_clk_src_construct(clk_src, ctx, bios, id,
+	if (dce112_clk_src_construct(clk_src, ctx, bios, id,
 			regs, &cs_shift, &cs_mask)) {
 		clk_src->base.dp_clk_src = dp_clk_src;
 		return &clk_src->base;
@@ -625,6 +694,9 @@ static void destruct(struct dce110_resource_pool *pool)
 		if (pool->base.opps[i] != NULL)
 			dce110_opp_destroy(&pool->base.opps[i]);
 
+		if (pool->base.engines[i] != NULL)
+			dce110_engine_destroy(&pool->base.engines[i]);
+
 		if (pool->base.transforms[i] != NULL)
 			dce112_transform_destroy(&pool->base.transforms[i]);
 
@@ -639,6 +711,14 @@ static void destruct(struct dce110_resource_pool *pool)
 		if (pool->base.timing_generators[i] != NULL) {
 			kfree(DCE110TG_FROM_TG(pool->base.timing_generators[i]));
 			pool->base.timing_generators[i] = NULL;
+		}
+		if (pool->base.hw_i2cs[i] != NULL) {
+			kfree(pool->base.hw_i2cs[i]);
+			pool->base.hw_i2cs[i] = NULL;
+		}
+		if (pool->base.sw_i2cs[i] != NULL) {
+			kfree(pool->base.sw_i2cs[i]);
+			pool->base.sw_i2cs[i] = NULL;
 		}
 	}
 
@@ -1208,6 +1288,24 @@ static bool construct(
 				"DC:failed to create output pixel processor!\n");
 			goto res_create_fail;
 		}
+	}
+
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
+		pool->base.engines[i] = dce112_aux_engine_create(ctx, i);
+		if (pool->base.engines[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create aux engine!!\n");
+			goto res_create_fail;
+		}
+		pool->base.hw_i2cs[i] = dce112_i2c_hw_create(ctx, i);
+		if (pool->base.hw_i2cs[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create i2c engine!!\n");
+			goto res_create_fail;
+		}
+		pool->base.sw_i2cs[i] = NULL;
 	}
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,

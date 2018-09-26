@@ -42,7 +42,6 @@ int
 xfs_trans_log_finish_refcount_update(
 	struct xfs_trans		*tp,
 	struct xfs_cud_log_item		*cudp,
-	struct xfs_defer_ops		*dop,
 	enum xfs_refcount_intent_type	type,
 	xfs_fsblock_t			startblock,
 	xfs_extlen_t			blockcount,
@@ -52,7 +51,7 @@ xfs_trans_log_finish_refcount_update(
 {
 	int				error;
 
-	error = xfs_refcount_finish_one(tp, dop, type, startblock,
+	error = xfs_refcount_finish_one(tp, type, startblock,
 			blockcount, new_fsb, new_len, pcur);
 
 	/*
@@ -169,7 +168,6 @@ xfs_refcount_update_create_done(
 STATIC int
 xfs_refcount_update_finish_item(
 	struct xfs_trans		*tp,
-	struct xfs_defer_ops		*dop,
 	struct list_head		*item,
 	void				*done_item,
 	void				**state)
@@ -180,7 +178,7 @@ xfs_refcount_update_finish_item(
 	int				error;
 
 	refc = container_of(item, struct xfs_refcount_intent, ri_list);
-	error = xfs_trans_log_finish_refcount_update(tp, done_item, dop,
+	error = xfs_trans_log_finish_refcount_update(tp, done_item,
 			refc->ri_type,
 			refc->ri_startblock,
 			refc->ri_blockcount,

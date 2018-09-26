@@ -91,7 +91,7 @@
 	};
 
 	sfp_eth3: sfp-eth3 {
-		/* CON3,4 - CPS lane 5 */
+		/* CON13,14 - CPS lane 5 */
 		compatible = "sff,sfp";
 		i2c-bus = <&sfp_1g_i2c>;
 		los-gpio = <&cp0_gpio2 22 GPIO_ACTIVE_HIGH>;

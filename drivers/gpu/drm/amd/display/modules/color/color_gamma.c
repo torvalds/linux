@@ -997,7 +997,9 @@ static void scale_user_regamma_ramp(struct pwl_float_data *pwl_rgb,
  * norm_y = 4095*regamma_y, and index is just truncating to nearest integer
  * lut1 = lut1D[index], lut2 = lut1D[index+1]
  *
- *adjustedY is then linearly interpolating regamma Y between lut1 and lut2
+ * adjustedY is then linearly interpolating regamma Y between lut1 and lut2
+ *
+ * Custom degamma on Linux uses the same interpolation math, so is handled here
  */
 static void apply_lut_1d(
 		const struct dc_gamma *ramp,
@@ -1018,7 +1020,7 @@ static void apply_lut_1d(
 	struct fixed31_32 delta_lut;
 	struct fixed31_32 delta_index;
 
-	if (ramp->type != GAMMA_CS_TFM_1D)
+	if (ramp->type != GAMMA_CS_TFM_1D && ramp->type != GAMMA_CUSTOM)
 		return; // this is not expected
 
 	for (i = 0; i < num_hw_points; i++) {
@@ -1350,7 +1352,7 @@ static bool map_regamma_hw_to_x_user(
 #define _EXTRA_POINTS 3
 
 bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
-		const struct dc_gamma *ramp, bool mapUserRamp)
+		const struct dc_gamma *ramp, bool mapUserRamp, bool canRomBeUsed)
 {
 	struct dc_transfer_func_distributed_points *tf_pts = &output_tf->tf_pts;
 	struct dividers dividers;
@@ -1366,7 +1368,7 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 		return false;
 
 	/* we can use hardcoded curve for plain SRGB TF */
-	if (output_tf->type == TF_TYPE_PREDEFINED &&
+	if (output_tf->type == TF_TYPE_PREDEFINED && canRomBeUsed == true &&
 			output_tf->tf == TRANSFER_FUNCTION_SRGB &&
 			(!mapUserRamp && ramp->type == GAMMA_RGB_256))
 		return true;
@@ -1428,7 +1430,6 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 				MAX_HW_POINTS,
 				coordinates_x, tf == TRANSFER_FUNCTION_SRGB ? true:false);
 	}
-
 	map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
 			coordinates_x, axix_x, rgb_regamma,
 			MAX_HW_POINTS, tf_pts,
@@ -1579,7 +1580,8 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 	/* we can use hardcoded curve for plain SRGB TF */
 	if (input_tf->type == TF_TYPE_PREDEFINED &&
 			input_tf->tf == TRANSFER_FUNCTION_SRGB &&
-			(!mapUserRamp && ramp->type == GAMMA_RGB_256))
+			(!mapUserRamp &&
+			(ramp->type == GAMMA_RGB_256 || ramp->num_entries == 0)))
 		return true;
 
 	input_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
@@ -1636,7 +1638,9 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 	map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
 			coordinates_x, axix_x, curve,
 			MAX_HW_POINTS, tf_pts,
-			mapUserRamp);
+			mapUserRamp && ramp->type != GAMMA_CUSTOM);
+	if (ramp->type == GAMMA_CUSTOM)
+		apply_lut_1d(ramp, MAX_HW_POINTS, tf_pts);
 
 	ret = true;
 
@@ -1655,7 +1659,8 @@ rgb_user_alloc_fail:
 
 
 bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
-				struct dc_transfer_func_distributed_points *points)
+				struct dc_transfer_func_distributed_points *points,
+				uint32_t sdr_ref_white_level)
 {
 	uint32_t i;
 	bool ret = false;
@@ -1689,7 +1694,7 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
 		build_pq(rgb_regamma,
 				MAX_HW_POINTS,
 				coordinates_x,
-				80);
+				sdr_ref_white_level);
 		for (i = 0; i <= MAX_HW_POINTS ; i++) {
 			points->red[i]    = rgb_regamma[i].r;
 			points->green[i]  = rgb_regamma[i].g;

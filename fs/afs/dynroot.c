@@ -83,7 +83,7 @@ struct inode *afs_try_auto_mntpt(struct dentry *dentry, struct inode *dir)
 
 out:
 	_leave("= %d", ret);
-	return ERR_PTR(ret);
+	return ret == -ENOENT ? NULL : ERR_PTR(ret);
 }
 
 /*
@@ -141,12 +141,6 @@ out_p:
 static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentry,
 					 unsigned int flags)
 {
-	struct afs_vnode *vnode;
-	struct inode *inode;
-	int ret;
-
-	vnode = AFS_FS_I(dir);
-
 	_enter("%pd", dentry);
 
 	ASSERTCMP(d_inode(dentry), ==, NULL);
@@ -160,22 +154,7 @@ static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentr
 	    memcmp(dentry->d_name.name, "@cell", 5) == 0)
 		return afs_lookup_atcell(dentry);
 
-	inode = afs_try_auto_mntpt(dentry, dir);
-	if (IS_ERR(inode)) {
-		ret = PTR_ERR(inode);
-		if (ret == -ENOENT) {
-			d_add(dentry, NULL);
-			_leave(" = NULL [negative]");
-			return NULL;
-		}
-		_leave(" = %d [do]", ret);
-		return ERR_PTR(ret);
-	}
-
-	d_add(dentry, inode);
-	_leave(" = 0 { ino=%lu v=%u }",
-	       d_inode(dentry)->i_ino, d_inode(dentry)->i_generation);
-	return NULL;
+	return d_splice_alias(afs_try_auto_mntpt(dentry, dir), dentry);
 }
 
 const struct inode_operations afs_dynroot_inode_operations = {

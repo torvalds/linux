@@ -265,11 +265,6 @@ static inline void dmar_copy_shared_irte(struct irte *dst, struct irte *src)
 #define PDA_LOW_BIT    26
 #define PDA_HIGH_BIT   32
 
-enum {
-	IRQ_REMAP_XAPIC_MODE,
-	IRQ_REMAP_X2APIC_MODE,
-};
-
 /* Can't use the common MSI interrupt functions
  * since DMAR is not a pci device
  */

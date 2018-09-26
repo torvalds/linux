@@ -711,6 +711,54 @@ static int configure_endpoint(struct snd_usb_substream *subs)
 	return ret;
 }
 
+static int snd_usb_pcm_change_state(struct snd_usb_substream *subs, int state)
+{
+	int ret;
+
+	if (!subs->str_pd)
+		return 0;
+
+	ret = snd_usb_power_domain_set(subs->stream->chip, subs->str_pd, state);
+	if (ret < 0) {
+		dev_err(&subs->dev->dev,
+			"Cannot change Power Domain ID: %d to state: %d. Err: %d\n",
+			subs->str_pd->pd_id, state, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+int snd_usb_pcm_suspend(struct snd_usb_stream *as)
+{
+	int ret;
+
+	ret = snd_usb_pcm_change_state(&as->substream[0], UAC3_PD_STATE_D2);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_usb_pcm_change_state(&as->substream[1], UAC3_PD_STATE_D2);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+int snd_usb_pcm_resume(struct snd_usb_stream *as)
+{
+	int ret;
+
+	ret = snd_usb_pcm_change_state(&as->substream[0], UAC3_PD_STATE_D1);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_usb_pcm_change_state(&as->substream[1], UAC3_PD_STATE_D1);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 /*
  * hw_params callback
  *
@@ -755,16 +803,22 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_usb_lock_shutdown(subs->stream->chip);
 	if (ret < 0)
 		return ret;
-	ret = set_format(subs, fmt);
-	snd_usb_unlock_shutdown(subs->stream->chip);
+
+	ret = snd_usb_pcm_change_state(subs, UAC3_PD_STATE_D0);
 	if (ret < 0)
-		return ret;
+		goto unlock;
+
+	ret = set_format(subs, fmt);
+	if (ret < 0)
+		goto unlock;
 
 	subs->interface = fmt->iface;
 	subs->altset_idx = fmt->altset_idx;
 	subs->need_setup_ep = true;
 
-	return 0;
+ unlock:
+	snd_usb_unlock_shutdown(subs->stream->chip);
+	return ret;
 }
 
 /*
@@ -820,6 +874,10 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 
 	snd_usb_endpoint_sync_pending_stop(subs->sync_endpoint);
 	snd_usb_endpoint_sync_pending_stop(subs->data_endpoint);
+
+	ret = snd_usb_pcm_change_state(subs, UAC3_PD_STATE_D0);
+	if (ret < 0)
+		goto unlock;
 
 	ret = set_format(subs, subs->cur_audiofmt);
 	if (ret < 0)
@@ -1265,6 +1323,7 @@ static int snd_usb_pcm_close(struct snd_pcm_substream *substream)
 	int direction = substream->stream;
 	struct snd_usb_stream *as = snd_pcm_substream_chip(substream);
 	struct snd_usb_substream *subs = &as->substream[direction];
+	int ret;
 
 	stop_endpoints(subs, true);
 
@@ -1273,7 +1332,10 @@ static int snd_usb_pcm_close(struct snd_pcm_substream *substream)
 	    !snd_usb_lock_shutdown(subs->stream->chip)) {
 		usb_set_interface(subs->dev, subs->interface, 0);
 		subs->interface = -1;
+		ret = snd_usb_pcm_change_state(subs, UAC3_PD_STATE_D1);
 		snd_usb_unlock_shutdown(subs->stream->chip);
+		if (ret < 0)
+			return ret;
 	}
 
 	subs->pcm_substream = NULL;
@@ -1632,6 +1694,7 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		subs->trigger_tstamp_pending_update = true;
+		/* fall through */
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		subs->data_endpoint->prepare_data_urb = prepare_playback_urb;
 		subs->data_endpoint->retire_data_urb = retire_playback_urb;
@@ -1694,7 +1757,6 @@ static const struct snd_pcm_ops snd_usb_playback_ops = {
 	.trigger =	snd_usb_substream_playback_trigger,
 	.pointer =	snd_usb_pcm_pointer,
 	.page =		snd_pcm_lib_get_vmalloc_page,
-	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
 static const struct snd_pcm_ops snd_usb_capture_ops = {
@@ -1707,7 +1769,6 @@ static const struct snd_pcm_ops snd_usb_capture_ops = {
 	.trigger =	snd_usb_substream_capture_trigger,
 	.pointer =	snd_usb_pcm_pointer,
 	.page =		snd_pcm_lib_get_vmalloc_page,
-	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
 static const struct snd_pcm_ops snd_usb_playback_dev_ops = {

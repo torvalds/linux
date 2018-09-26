@@ -28,17 +28,18 @@ administrator some freedom, for example to:
 Status
 ======
 
-These targets are very much still in the EXPERIMENTAL state.  Please
-do not yet rely on them in production.  But do experiment and offer us
-feedback.  Different use cases will have different performance
-characteristics, for example due to fragmentation of the data volume.
+These targets are considered safe for production use.  But different use
+cases will have different performance characteristics, for example due
+to fragmentation of the data volume.
 
 If you find this software is not performing as expected please mail
 dm-devel@redhat.com with details and we'll try our best to improve
 things for you.
 
-Userspace tools for checking and repairing the metadata are under
-development.
+Userspace tools for checking and repairing the metadata have been fully
+developed and are available as 'thin_check' and 'thin_repair'.  The name
+of the package that provides these utilities varies by distribution (on
+a Red Hat distribution it is named 'device-mapper-persistent-data').
 
 Cookbook
 ========
@@ -280,7 +281,7 @@ ii) Status
     <transaction id> <used metadata blocks>/<total metadata blocks>
     <used data blocks>/<total data blocks> <held metadata root>
     ro|rw|out_of_data_space [no_]discard_passdown [error|queue]_if_no_space
-    needs_check|-
+    needs_check|- metadata_low_watermark
 
     transaction id:
 	A 64-bit number used by userspace to help synchronise with metadata
@@ -326,6 +327,11 @@ ii) Status
 	device must be deactivated and checked/repaired before the
 	thin-pool can be made fully operational again.  '-' indicates
 	needs_check is not set.
+
+    metadata_low_watermark:
+	Value of metadata low watermark in blocks.  The kernel sets this
+	value internally but userspace needs to know this value to
+	determine if an event was caused by crossing this threshold.
 
 iii) Messages
 

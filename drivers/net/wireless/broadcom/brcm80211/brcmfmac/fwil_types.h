@@ -32,11 +32,30 @@
 #define	BRCMF_BSS_INFO_VERSION	109 /* curr ver of brcmf_bss_info_le struct */
 #define BRCMF_BSS_RSSI_ON_CHANNEL	0x0002
 
-#define BRCMF_STA_WME              0x00000002      /* WMM association */
-#define BRCMF_STA_AUTHE            0x00000008      /* Authenticated */
-#define BRCMF_STA_ASSOC            0x00000010      /* Associated */
-#define BRCMF_STA_AUTHO            0x00000020      /* Authorized */
-#define BRCMF_STA_SCBSTATS         0x00004000      /* Per STA debug stats */
+#define BRCMF_STA_BRCM			0x00000001	/* Running a Broadcom driver */
+#define BRCMF_STA_WME			0x00000002	/* WMM association */
+#define BRCMF_STA_NONERP		0x00000004	/* No ERP */
+#define BRCMF_STA_AUTHE			0x00000008	/* Authenticated */
+#define BRCMF_STA_ASSOC			0x00000010	/* Associated */
+#define BRCMF_STA_AUTHO			0x00000020	/* Authorized */
+#define BRCMF_STA_WDS			0x00000040	/* Wireless Distribution System */
+#define BRCMF_STA_WDS_LINKUP		0x00000080	/* WDS traffic/probes flowing properly */
+#define BRCMF_STA_PS			0x00000100	/* STA is in power save mode from AP's viewpoint */
+#define BRCMF_STA_APSD_BE		0x00000200	/* APSD delv/trigger for AC_BE is default enabled */
+#define BRCMF_STA_APSD_BK		0x00000400	/* APSD delv/trigger for AC_BK is default enabled */
+#define BRCMF_STA_APSD_VI		0x00000800	/* APSD delv/trigger for AC_VI is default enabled */
+#define BRCMF_STA_APSD_VO		0x00001000	/* APSD delv/trigger for AC_VO is default enabled */
+#define BRCMF_STA_N_CAP			0x00002000	/* STA 802.11n capable */
+#define BRCMF_STA_SCBSTATS		0x00004000	/* Per STA debug stats */
+#define BRCMF_STA_AMPDU_CAP		0x00008000	/* STA AMPDU capable */
+#define BRCMF_STA_AMSDU_CAP		0x00010000	/* STA AMSDU capable */
+#define BRCMF_STA_MIMO_PS		0x00020000	/* mimo ps mode is enabled */
+#define BRCMF_STA_MIMO_RTS		0x00040000	/* send rts in mimo ps mode */
+#define BRCMF_STA_RIFS_CAP		0x00080000	/* rifs enabled */
+#define BRCMF_STA_VHT_CAP		0x00100000	/* STA VHT(11ac) capable */
+#define BRCMF_STA_WPS			0x00200000	/* WPS state */
+#define BRCMF_STA_DWDS_CAP		0x01000000	/* DWDS CAP */
+#define BRCMF_STA_DWDS			0x02000000	/* DWDS active */
 
 /* size of brcmf_scan_params not including variable length array */
 #define BRCMF_SCAN_PARAMS_FIXED_SIZE	64
@@ -154,6 +173,8 @@
 #define BRCMF_MFP_NONE			0
 #define BRCMF_MFP_CAPABLE		1
 #define BRCMF_MFP_REQUIRED		2
+
+#define BRCMF_VHT_CAP_MCS_MAP_NSS_MAX	8
 
 /* MAX_CHUNK_LEN is the maximum length for data passing to firmware in each
  * ioctl. It is relatively small because firmware has small maximum size input
@@ -531,6 +552,8 @@ struct brcmf_sta_info_le {
 						/* w/hi bit set if basic */
 	__le32 in;		/* seconds elapsed since associated */
 	__le32 listen_interval_inms; /* Min Listen interval in ms for STA */
+
+	/* Fields valid for ver >= 3 */
 	__le32 tx_pkts;	/* # of packets transmitted */
 	__le32 tx_failures;	/* # of packets failed */
 	__le32 rx_ucast_pkts;	/* # of unicast packets received */
@@ -539,6 +562,8 @@ struct brcmf_sta_info_le {
 	__le32 rx_rate;	/* Rate of last successful rx frame */
 	__le32 rx_decrypt_succeeds;	/* # of packet decrypted successfully */
 	__le32 rx_decrypt_failures;	/* # of packet decrypted failed */
+
+	/* Fields valid for ver >= 4 */
 	__le32 tx_tot_pkts;    /* # of tx pkts (ucast + mcast) */
 	__le32 rx_tot_pkts;    /* # of data packets recvd (uni + mcast) */
 	__le32 tx_mcast_pkts;  /* # of mcast pkts txed */
@@ -575,6 +600,14 @@ struct brcmf_sta_info_le {
 						*/
 	__le32 rx_pkts_retried;        /* # rx with retry bit set */
 	__le32 tx_rate_fallback;       /* lowest fallback TX rate */
+
+	/* Fields valid for ver >= 5 */
+	struct {
+		__le32 count;					/* # rates in this set */
+		u8 rates[BRCMF_MAXRATES_IN_SET];		/* rates in 500kbps units w/hi bit set if basic */
+		u8 mcs[BRCMF_MCSSET_LEN];			/* supported mcs index bit map */
+		__le16 vht_mcs[BRCMF_VHT_CAP_MCS_MAP_NSS_MAX];	/* supported mcs index bit map per nss */
+	} rateset_adv;
 };
 
 struct brcmf_chanspec_list {

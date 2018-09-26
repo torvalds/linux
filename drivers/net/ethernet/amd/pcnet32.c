@@ -2036,22 +2036,22 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 	}
 
 	lp->tx_dma_addr = kcalloc(lp->tx_ring_size, sizeof(dma_addr_t),
-				  GFP_ATOMIC);
+				  GFP_KERNEL);
 	if (!lp->tx_dma_addr)
 		return -ENOMEM;
 
 	lp->rx_dma_addr = kcalloc(lp->rx_ring_size, sizeof(dma_addr_t),
-				  GFP_ATOMIC);
+				  GFP_KERNEL);
 	if (!lp->rx_dma_addr)
 		return -ENOMEM;
 
 	lp->tx_skbuff = kcalloc(lp->tx_ring_size, sizeof(struct sk_buff *),
-				GFP_ATOMIC);
+				GFP_KERNEL);
 	if (!lp->tx_skbuff)
 		return -ENOMEM;
 
 	lp->rx_skbuff = kcalloc(lp->rx_ring_size, sizeof(struct sk_buff *),
-				GFP_ATOMIC);
+				GFP_KERNEL);
 	if (!lp->rx_skbuff)
 		return -ENOMEM;
 

@@ -234,6 +234,9 @@
 	POP	gp
 	RESTORE_R12_TO_R0
 
+#ifdef CONFIG_ARC_CURR_IN_REG
+	ld	r25, [sp, 12]
+#endif
 	ld  sp, [sp] /* restore original sp */
 	/* orig_r0, ECR, user_r25 skipped automatically */
 .endm
@@ -315,6 +318,9 @@
 	POP	gp
 	RESTORE_R12_TO_R0
 
+#ifdef CONFIG_ARC_CURR_IN_REG
+	ld	r25, [sp, 12]
+#endif
 	ld  sp, [sp] /* restore original sp */
 	/* orig_r0, ECR, user_r25 skipped automatically */
 .endm

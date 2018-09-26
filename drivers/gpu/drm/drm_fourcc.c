@@ -45,32 +45,49 @@ static char printable_char(int c)
  */
 uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth)
 {
-	uint32_t fmt;
+	uint32_t fmt = DRM_FORMAT_INVALID;
 
 	switch (bpp) {
 	case 8:
-		fmt = DRM_FORMAT_C8;
+		if (depth == 8)
+			fmt = DRM_FORMAT_C8;
 		break;
+
 	case 16:
-		if (depth == 15)
+		switch (depth) {
+		case 15:
 			fmt = DRM_FORMAT_XRGB1555;
-		else
+			break;
+		case 16:
 			fmt = DRM_FORMAT_RGB565;
+			break;
+		default:
+			break;
+		}
 		break;
+
 	case 24:
-		fmt = DRM_FORMAT_RGB888;
-		break;
-	case 32:
 		if (depth == 24)
-			fmt = DRM_FORMAT_XRGB8888;
-		else if (depth == 30)
-			fmt = DRM_FORMAT_XRGB2101010;
-		else
-			fmt = DRM_FORMAT_ARGB8888;
+			fmt = DRM_FORMAT_RGB888;
 		break;
+
+	case 32:
+		switch (depth) {
+		case 24:
+			fmt = DRM_FORMAT_XRGB8888;
+			break;
+		case 30:
+			fmt = DRM_FORMAT_XRGB2101010;
+			break;
+		case 32:
+			fmt = DRM_FORMAT_ARGB8888;
+			break;
+		default:
+			break;
+		}
+		break;
+
 	default:
-		DRM_ERROR("bad bpp, assuming x8r8g8b8 pixel format\n");
-		fmt = DRM_FORMAT_XRGB8888;
 		break;
 	}
 

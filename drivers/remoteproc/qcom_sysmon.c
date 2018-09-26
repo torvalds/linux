@@ -469,7 +469,10 @@ struct qcom_sysmon *qcom_add_sysmon_subdev(struct rproc *rproc,
 
 	qmi_add_lookup(&sysmon->qmi, 43, 0, 0);
 
-	rproc_add_subdev(rproc, &sysmon->subdev, sysmon_start, sysmon_stop);
+	sysmon->subdev.start = sysmon_start;
+	sysmon->subdev.stop = sysmon_stop;
+
+	rproc_add_subdev(rproc, &sysmon->subdev);
 
 	sysmon->nb.notifier_call = sysmon_notify;
 	blocking_notifier_chain_register(&sysmon_notifiers, &sysmon->nb);

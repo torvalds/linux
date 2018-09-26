@@ -462,6 +462,39 @@ enum std_req_rc {
 #define DDBG(d, fmt, ...)	do { } while(0)
 #endif
 
+static inline void vhub_dma_workaround(void *addr)
+{
+	/*
+	 * This works around a confirmed HW issue with the Aspeed chip.
+	 *
+	 * The core uses a different bus to memory than the AHB going to
+	 * the USB device controller. Due to the latter having a higher
+	 * priority than the core for arbitration on that bus, it's
+	 * possible for an MMIO to the device, followed by a DMA by the
+	 * device from memory to all be performed and services before
+	 * a previous store to memory gets completed.
+	 *
+	 * This the following scenario can happen:
+	 *
+	 *    - Driver writes to a DMA descriptor (Mbus)
+	 *    - Driver writes to the MMIO register to start the DMA (AHB)
+	 *    - The gadget sees the second write and sends a read of the
+	 *      descriptor to the memory controller (Mbus)
+	 *    - The gadget hits memory before the descriptor write
+	 *      causing it to read an obsolete value.
+	 *
+	 * Thankfully the problem is limited to the USB gadget device, other
+	 * masters in the SoC all have a lower priority than the core, thus
+	 * ensuring that the store by the core arrives first.
+	 *
+	 * The workaround consists of using a dummy read of the memory before
+	 * doing the MMIO writes. This will ensure that the previous writes
+	 * have been "pushed out".
+	 */
+	mb();
+	(void)__raw_readl((void __iomem *)addr);
+}
+
 /* core.c */
 void ast_vhub_done(struct ast_vhub_ep *ep, struct ast_vhub_req *req,
 		   int status);

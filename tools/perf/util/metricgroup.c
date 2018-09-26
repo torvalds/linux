@@ -326,8 +326,8 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 				if (raw)
 					s = (char *)pe->metric_name;
 				else {
-					if (asprintf(&s, "%s\n\t[%s]",
-						     pe->metric_name, pe->desc) < 0)
+					if (asprintf(&s, "%s\n%*s%s]",
+						     pe->metric_name, 8, "[", pe->desc) < 0)
 						return;
 				}
 
@@ -489,4 +489,26 @@ int metricgroup__parse_groups(const struct option *opt,
 out:
 	metricgroup__free_egroups(&group_list);
 	return ret;
+}
+
+bool metricgroup__has_metric(const char *metric)
+{
+	struct pmu_events_map *map = perf_pmu__find_map(NULL);
+	struct pmu_event *pe;
+	int i;
+
+	if (!map)
+		return false;
+
+	for (i = 0; ; i++) {
+		pe = &map->table[i];
+
+		if (!pe->name && !pe->metric_group && !pe->metric_name)
+			break;
+		if (!pe->metric_expr)
+			continue;
+		if (match_metric(pe->metric_name, metric))
+			return true;
+	}
+	return false;
 }

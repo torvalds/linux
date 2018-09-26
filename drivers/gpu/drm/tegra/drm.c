@@ -398,7 +398,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		 * unaligned offset is malformed and cause commands stream
 		 * corruption on the buffer address relocation.
 		 */
-		if (offset & 3 || offset >= obj->gem.size) {
+		if (offset & 3 || offset > obj->gem.size) {
 			err = -EINVAL;
 			goto fail;
 		}
@@ -1186,6 +1186,10 @@ static int host1x_drm_probe(struct host1x_device *dev)
 		return PTR_ERR(drm);
 
 	dev_set_drvdata(&dev->dev, drm);
+
+	err = drm_fb_helper_remove_conflicting_framebuffers(NULL, "tegradrmfb", false);
+	if (err < 0)
+		goto unref;
 
 	err = drm_dev_register(drm, 0);
 	if (err < 0)

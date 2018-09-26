@@ -73,7 +73,7 @@ static LIST_HEAD(hvc_structs);
  * Protect the list of hvc_struct instances from inserts and removals during
  * list traversal.
  */
-static DEFINE_SPINLOCK(hvc_structs_lock);
+static DEFINE_MUTEX(hvc_structs_mutex);
 
 /*
  * This value is used to assign a tty->index value to a hvc_struct based
@@ -83,7 +83,7 @@ static DEFINE_SPINLOCK(hvc_structs_lock);
 static int last_hvc = -1;
 
 /*
- * Do not call this function with either the hvc_structs_lock or the hvc_struct
+ * Do not call this function with either the hvc_structs_mutex or the hvc_struct
  * lock held.  If successful, this function increments the kref reference
  * count against the target hvc_struct so it should be released when finished.
  */
@@ -92,24 +92,46 @@ static struct hvc_struct *hvc_get_by_index(int index)
 	struct hvc_struct *hp;
 	unsigned long flags;
 
-	spin_lock(&hvc_structs_lock);
+	mutex_lock(&hvc_structs_mutex);
 
 	list_for_each_entry(hp, &hvc_structs, next) {
 		spin_lock_irqsave(&hp->lock, flags);
 		if (hp->index == index) {
 			tty_port_get(&hp->port);
 			spin_unlock_irqrestore(&hp->lock, flags);
-			spin_unlock(&hvc_structs_lock);
+			mutex_unlock(&hvc_structs_mutex);
 			return hp;
 		}
 		spin_unlock_irqrestore(&hp->lock, flags);
 	}
 	hp = NULL;
+	mutex_unlock(&hvc_structs_mutex);
 
-	spin_unlock(&hvc_structs_lock);
 	return hp;
 }
 
+static int __hvc_flush(const struct hv_ops *ops, uint32_t vtermno, bool wait)
+{
+	if (wait)
+		might_sleep();
+
+	if (ops->flush)
+		return ops->flush(vtermno, wait);
+	return 0;
+}
+
+static int hvc_console_flush(const struct hv_ops *ops, uint32_t vtermno)
+{
+	return __hvc_flush(ops, vtermno, false);
+}
+
+/*
+ * Wait for the console to flush before writing more to it. This sleeps.
+ */
+static int hvc_flush(struct hvc_struct *hp)
+{
+	return __hvc_flush(hp->ops, hp->vtermno, true);
+}
 
 /*
  * Initial console vtermnos for console API usage prior to full console
@@ -156,8 +178,12 @@ static void hvc_console_print(struct console *co, const char *b,
 			if (r <= 0) {
 				/* throw away characters on error
 				 * but spin in case of -EAGAIN */
-				if (r != -EAGAIN)
+				if (r != -EAGAIN) {
 					i = 0;
+				} else {
+					hvc_console_flush(cons_ops[index],
+						      vtermnos[index]);
+				}
 			} else if (r > 0) {
 				i -= r;
 				if (i > 0)
@@ -165,6 +191,7 @@ static void hvc_console_print(struct console *co, const char *b,
 			}
 		}
 	}
+	hvc_console_flush(cons_ops[index], vtermnos[index]);
 }
 
 static struct tty_driver *hvc_console_device(struct console *c, int *index)
@@ -224,13 +251,13 @@ static void hvc_port_destruct(struct tty_port *port)
 	struct hvc_struct *hp = container_of(port, struct hvc_struct, port);
 	unsigned long flags;
 
-	spin_lock(&hvc_structs_lock);
+	mutex_lock(&hvc_structs_mutex);
 
 	spin_lock_irqsave(&hp->lock, flags);
 	list_del(&(hp->next));
 	spin_unlock_irqrestore(&hp->lock, flags);
 
-	spin_unlock(&hvc_structs_lock);
+	mutex_unlock(&hvc_structs_mutex);
 
 	kfree(hp);
 }
@@ -494,23 +521,32 @@ static int hvc_write(struct tty_struct *tty, const unsigned char *buf, int count
 	if (hp->port.count <= 0)
 		return -EIO;
 
-	spin_lock_irqsave(&hp->lock, flags);
+	while (count > 0) {
+		spin_lock_irqsave(&hp->lock, flags);
 
-	/* Push pending writes */
-	if (hp->n_outbuf > 0)
-		hvc_push(hp);
+		rsize = hp->outbuf_size - hp->n_outbuf;
 
-	while (count > 0 && (rsize = hp->outbuf_size - hp->n_outbuf) > 0) {
-		if (rsize > count)
-			rsize = count;
-		memcpy(hp->outbuf + hp->n_outbuf, buf, rsize);
-		count -= rsize;
-		buf += rsize;
-		hp->n_outbuf += rsize;
-		written += rsize;
-		hvc_push(hp);
+		if (rsize) {
+			if (rsize > count)
+				rsize = count;
+			memcpy(hp->outbuf + hp->n_outbuf, buf, rsize);
+			count -= rsize;
+			buf += rsize;
+			hp->n_outbuf += rsize;
+			written += rsize;
+		}
+
+		if (hp->n_outbuf > 0)
+			hvc_push(hp);
+
+		spin_unlock_irqrestore(&hp->lock, flags);
+
+		if (count) {
+			if (hp->n_outbuf > 0)
+				hvc_flush(hp);
+			cond_resched();
+		}
 	}
-	spin_unlock_irqrestore(&hp->lock, flags);
 
 	/*
 	 * Racy, but harmless, kick thread if there is still pending data.
@@ -590,10 +626,10 @@ static u32 timeout = MIN_TIMEOUT;
 #define HVC_POLL_READ	0x00000001
 #define HVC_POLL_WRITE	0x00000002
 
-int hvc_poll(struct hvc_struct *hp)
+static int __hvc_poll(struct hvc_struct *hp, bool may_sleep)
 {
 	struct tty_struct *tty;
-	int i, n, poll_mask = 0;
+	int i, n, count, poll_mask = 0;
 	char buf[N_INBUF] __ALIGNED__;
 	unsigned long flags;
 	int read_total = 0;
@@ -612,6 +648,12 @@ int hvc_poll(struct hvc_struct *hp)
 		timeout = (written_total) ? 0 : MIN_TIMEOUT;
 	}
 
+	if (may_sleep) {
+		spin_unlock_irqrestore(&hp->lock, flags);
+		cond_resched();
+		spin_lock_irqsave(&hp->lock, flags);
+	}
+
 	/* No tty attached, just skip */
 	tty = tty_port_tty_get(&hp->port);
 	if (tty == NULL)
@@ -619,7 +661,7 @@ int hvc_poll(struct hvc_struct *hp)
 
 	/* Now check if we can get data (are we throttled ?) */
 	if (tty_throttled(tty))
-		goto throttled;
+		goto out;
 
 	/* If we aren't notifier driven and aren't throttled, we always
 	 * request a reschedule
@@ -628,56 +670,58 @@ int hvc_poll(struct hvc_struct *hp)
 		poll_mask |= HVC_POLL_READ;
 
 	/* Read data if any */
-	for (;;) {
-		int count = tty_buffer_request_room(&hp->port, N_INBUF);
 
-		/* If flip is full, just reschedule a later read */
-		if (count == 0) {
-			poll_mask |= HVC_POLL_READ;
-			break;
-		}
+	count = tty_buffer_request_room(&hp->port, N_INBUF);
 
-		n = hp->ops->get_chars(hp->vtermno, buf, count);
-		if (n <= 0) {
-			/* Hangup the tty when disconnected from host */
-			if (n == -EPIPE) {
-				spin_unlock_irqrestore(&hp->lock, flags);
-				tty_hangup(tty);
-				spin_lock_irqsave(&hp->lock, flags);
-			} else if ( n == -EAGAIN ) {
-				/*
-				 * Some back-ends can only ensure a certain min
-				 * num of bytes read, which may be > 'count'.
-				 * Let the tty clear the flip buff to make room.
-				 */
-				poll_mask |= HVC_POLL_READ;
-			}
-			break;
-		}
-		for (i = 0; i < n; ++i) {
-#ifdef CONFIG_MAGIC_SYSRQ
-			if (hp->index == hvc_console.index) {
-				/* Handle the SysRq Hack */
-				/* XXX should support a sequence */
-				if (buf[i] == '\x0f') {	/* ^O */
-					/* if ^O is pressed again, reset
-					 * sysrq_pressed and flip ^O char */
-					sysrq_pressed = !sysrq_pressed;
-					if (sysrq_pressed)
-						continue;
-				} else if (sysrq_pressed) {
-					handle_sysrq(buf[i]);
-					sysrq_pressed = 0;
-					continue;
-				}
-			}
-#endif /* CONFIG_MAGIC_SYSRQ */
-			tty_insert_flip_char(&hp->port, buf[i], 0);
-		}
-
-		read_total += n;
+	/* If flip is full, just reschedule a later read */
+	if (count == 0) {
+		poll_mask |= HVC_POLL_READ;
+		goto out;
 	}
- throttled:
+
+	n = hp->ops->get_chars(hp->vtermno, buf, count);
+	if (n <= 0) {
+		/* Hangup the tty when disconnected from host */
+		if (n == -EPIPE) {
+			spin_unlock_irqrestore(&hp->lock, flags);
+			tty_hangup(tty);
+			spin_lock_irqsave(&hp->lock, flags);
+		} else if ( n == -EAGAIN ) {
+			/*
+			 * Some back-ends can only ensure a certain min
+			 * num of bytes read, which may be > 'count'.
+			 * Let the tty clear the flip buff to make room.
+			 */
+			poll_mask |= HVC_POLL_READ;
+		}
+		goto out;
+	}
+
+	for (i = 0; i < n; ++i) {
+#ifdef CONFIG_MAGIC_SYSRQ
+		if (hp->index == hvc_console.index) {
+			/* Handle the SysRq Hack */
+			/* XXX should support a sequence */
+			if (buf[i] == '\x0f') {	/* ^O */
+				/* if ^O is pressed again, reset
+				 * sysrq_pressed and flip ^O char */
+				sysrq_pressed = !sysrq_pressed;
+				if (sysrq_pressed)
+					continue;
+			} else if (sysrq_pressed) {
+				handle_sysrq(buf[i]);
+				sysrq_pressed = 0;
+				continue;
+			}
+		}
+#endif /* CONFIG_MAGIC_SYSRQ */
+		tty_insert_flip_char(&hp->port, buf[i], 0);
+	}
+	if (n == count)
+		poll_mask |= HVC_POLL_READ;
+	read_total = n;
+
+ out:
 	/* Wakeup write queue if necessary */
 	if (hp->do_wakeup) {
 		hp->do_wakeup = 0;
@@ -696,6 +740,11 @@ int hvc_poll(struct hvc_struct *hp)
 	tty_kref_put(tty);
 
 	return poll_mask;
+}
+
+int hvc_poll(struct hvc_struct *hp)
+{
+	return __hvc_poll(hp, false);
 }
 EXPORT_SYMBOL_GPL(hvc_poll);
 
@@ -733,11 +782,12 @@ static int khvcd(void *unused)
 		try_to_freeze();
 		wmb();
 		if (!cpus_are_in_xmon()) {
-			spin_lock(&hvc_structs_lock);
+			mutex_lock(&hvc_structs_mutex);
 			list_for_each_entry(hp, &hvc_structs, next) {
-				poll_mask |= hvc_poll(hp);
+				poll_mask |= __hvc_poll(hp, true);
+				cond_resched();
 			}
-			spin_unlock(&hvc_structs_lock);
+			mutex_unlock(&hvc_structs_mutex);
 		} else
 			poll_mask |= HVC_POLL_READ;
 		if (hvc_kicked)
@@ -871,7 +921,7 @@ struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
 
 	INIT_WORK(&hp->tty_resize, hvc_set_winsz);
 	spin_lock_init(&hp->lock);
-	spin_lock(&hvc_structs_lock);
+	mutex_lock(&hvc_structs_mutex);
 
 	/*
 	 * find index to use:
@@ -891,7 +941,7 @@ struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
 	vtermnos[i] = vtermno;
 
 	list_add_tail(&(hp->next), &hvc_structs);
-	spin_unlock(&hvc_structs_lock);
+	mutex_unlock(&hvc_structs_mutex);
 
 	/* check if we need to re-register the kernel console */
 	hvc_check_console(i);

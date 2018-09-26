@@ -479,6 +479,7 @@ static size_t nbpf_xfer_size(struct nbpf_device *nbpf,
 
 	default:
 		pr_warn("%s(): invalid bus width %u\n", __func__, width);
+		/* fall through */
 	case DMA_SLAVE_BUSWIDTH_1_BYTE:
 		size = burst;
 	}

@@ -226,6 +226,8 @@ static bool amdgpu_sa_bo_next_hole(struct amdgpu_sa_manager *sa_manager,
 	for (i = 0; i < AMDGPU_SA_NUM_FENCE_LISTS; ++i) {
 		struct amdgpu_sa_bo *sa_bo;
 
+		fences[i] = NULL;
+
 		if (list_empty(&sa_manager->flist[i]))
 			continue;
 
@@ -296,10 +298,8 @@ int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
 
 	spin_lock(&sa_manager->wq.lock);
 	do {
-		for (i = 0; i < AMDGPU_SA_NUM_FENCE_LISTS; ++i) {
-			fences[i] = NULL;
+		for (i = 0; i < AMDGPU_SA_NUM_FENCE_LISTS; ++i)
 			tries[i] = 0;
-		}
 
 		do {
 			amdgpu_sa_bo_try_free(sa_manager);

@@ -1,5 +1,7 @@
 00-INDEX
 	- this file
+acpi-info.txt
+	- info on how PCI host bridges are represented in ACPI
 MSI-HOWTO.txt
 	- the Message Signaled Interrupts (MSI) Driver Guide HOWTO and FAQ.
 PCIEBUS-HOWTO.txt

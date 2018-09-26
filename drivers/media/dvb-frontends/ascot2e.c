@@ -468,9 +468,9 @@ static int ascot2e_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 static const struct dvb_tuner_ops ascot2e_tuner_ops = {
 	.info = {
 		.name = "Sony ASCOT2E",
-		.frequency_min = 1000000,
-		.frequency_max = 1200000000,
-		.frequency_step = 25000,
+		.frequency_min_hz  =    1 * MHz,
+		.frequency_max_hz  = 1200 * MHz,
+		.frequency_step_hz =   25 * kHz,
 	},
 	.init = ascot2e_init,
 	.release = ascot2e_release,

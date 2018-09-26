@@ -192,7 +192,7 @@ void dc_transfer_func_release(struct dc_transfer_func *tf)
 	kref_put(&tf->refcount, dc_transfer_func_free);
 }
 
-struct dc_transfer_func *dc_create_transfer_func()
+struct dc_transfer_func *dc_create_transfer_func(void)
 {
 	struct dc_transfer_func *tf = kvzalloc(sizeof(*tf), GFP_KERNEL);
 

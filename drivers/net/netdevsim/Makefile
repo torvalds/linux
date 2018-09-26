@@ -13,3 +13,7 @@ endif
 ifneq ($(CONFIG_NET_DEVLINK),)
 netdevsim-objs += devlink.o fib.o
 endif
+
+ifneq ($(CONFIG_XFRM_OFFLOAD),)
+netdevsim-objs += ipsec.o
+endif

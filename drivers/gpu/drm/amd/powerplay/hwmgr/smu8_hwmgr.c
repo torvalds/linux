@@ -244,6 +244,7 @@ static int smu8_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+/* convert form 8bit vid to real voltage in mV*4 */
 static uint32_t smu8_convert_8Bit_index_to_voltage(
 			struct pp_hwmgr *hwmgr, uint16_t voltage)
 {
@@ -663,8 +664,13 @@ static void smu8_init_power_gate_state(struct pp_hwmgr *hwmgr)
 	data->uvd_power_gated = false;
 	data->vce_power_gated = false;
 	data->samu_power_gated = false;
+#ifdef CONFIG_DRM_AMD_ACP
 	data->acp_power_gated = false;
-	data->pgacpinit = true;
+#else
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerOFF);
+	data->acp_power_gated = true;
+#endif
+
 }
 
 static void smu8_init_sclk_threshold(struct pp_hwmgr *hwmgr)
@@ -1702,13 +1708,13 @@ static int smu8_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	case AMDGPU_PP_SENSOR_VDDNB:
 		tmp = (cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMUSVI_NB_CURRENTVID) &
 			CURRENT_NB_VID_MASK) >> CURRENT_NB_VID__SHIFT;
-		vddnb = smu8_convert_8Bit_index_to_voltage(hwmgr, tmp);
+		vddnb = smu8_convert_8Bit_index_to_voltage(hwmgr, tmp) / 4;
 		*((uint32_t *)value) = vddnb;
 		return 0;
 	case AMDGPU_PP_SENSOR_VDDGFX:
 		tmp = (cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMUSVI_GFX_CURRENTVID) &
 			CURRENT_GFX_VID_MASK) >> CURRENT_GFX_VID__SHIFT;
-		vddgfx = smu8_convert_8Bit_index_to_voltage(hwmgr, (u16)tmp);
+		vddgfx = smu8_convert_8Bit_index_to_voltage(hwmgr, (u16)tmp) / 4;
 		*((uint32_t *)value) = vddgfx;
 		return 0;
 	case AMDGPU_PP_SENSOR_UVD_VCLK:
@@ -1885,6 +1891,19 @@ static int smu8_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 }
 
 
+static void smu8_dpm_powergate_acp(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	struct smu8_hwmgr *data = hwmgr->backend;
+
+	if (data->acp_power_gated == bgate)
+		return;
+
+	if (bgate)
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerOFF);
+	else
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerON);
+}
+
 static void smu8_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct smu8_hwmgr *data = hwmgr->backend;
@@ -1950,6 +1969,7 @@ static const struct pp_hwmgr_func smu8_hwmgr_funcs = {
 	.powerdown_uvd = smu8_dpm_powerdown_uvd,
 	.powergate_uvd = smu8_dpm_powergate_uvd,
 	.powergate_vce = smu8_dpm_powergate_vce,
+	.powergate_acp = smu8_dpm_powergate_acp,
 	.get_mclk = smu8_dpm_get_mclk,
 	.get_sclk = smu8_dpm_get_sclk,
 	.patch_boot_state = smu8_dpm_patch_boot_state,

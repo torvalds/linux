@@ -1250,7 +1250,7 @@ static void program_scaler(const struct dc *dc,
 {
 	struct tg_color color = {0};
 
-#ifdef CONFIG_X86
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	/* TOFPGA */
 	if (pipe_ctx->plane_res.xfm->funcs->transform_set_pixel_storage_depth == NULL)
 		return;
@@ -1286,6 +1286,8 @@ static enum dc_status dce110_enable_stream_timing(
 	struct pipe_ctx *pipe_ctx_old = &dc->current_state->res_ctx.
 			pipe_ctx[pipe_ctx->pipe_idx];
 	struct tg_color black_color = {0};
+	struct drr_params params = {0};
+	unsigned int event_triggers = 0;
 
 	if (!pipe_ctx_old->stream) {
 
@@ -1315,9 +1317,19 @@ static enum dc_status dce110_enable_stream_timing(
 				&stream->timing,
 				true);
 
-		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
-				pipe_ctx->stream_res.tg,
-				0x182);
+		params.vertical_total_min = stream->adjust.v_total_min;
+		params.vertical_total_max = stream->adjust.v_total_max;
+		if (pipe_ctx->stream_res.tg->funcs->set_drr)
+			pipe_ctx->stream_res.tg->funcs->set_drr(
+				pipe_ctx->stream_res.tg, &params);
+
+		// DRR should set trigger event to monitor surface update event
+		if (stream->adjust.v_total_min != 0 &&
+				stream->adjust.v_total_max != 0)
+			event_triggers = 0x80;
+		if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
+			pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
+				pipe_ctx->stream_res.tg, event_triggers);
 	}
 
 	if (!pipe_ctx_old->stream) {
@@ -1328,8 +1340,6 @@ static enum dc_status dce110_enable_stream_timing(
 		}
 	}
 
-
-
 	return DC_OK;
 }
 
@@ -1339,8 +1349,6 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		struct dc *dc)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct pipe_ctx *pipe_ctx_old = &dc->current_state->res_ctx.
-			pipe_ctx[pipe_ctx->pipe_idx];
 
 	if (pipe_ctx->stream_res.audio != NULL) {
 		struct audio_output audio_output;
@@ -1395,46 +1403,12 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			stream->timing.display_color_depth,
 			pipe_ctx->stream->signal);
 
-	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
-		stream->sink->link->link_enc->funcs->setup(
-			stream->sink->link->link_enc,
-			pipe_ctx->stream->signal);
-
-	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
-		pipe_ctx->stream_res.stream_enc->funcs->setup_stereo_sync(
-		pipe_ctx->stream_res.stream_enc,
-		pipe_ctx->stream_res.tg->inst,
-		stream->timing.timing_3d_format != TIMING_3D_FORMAT_NONE);
-
-
 	pipe_ctx->stream_res.opp->funcs->opp_program_fmt(
 		pipe_ctx->stream_res.opp,
 		&stream->bit_depth_params,
 		&stream->clamping);
 
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(
-			pipe_ctx->stream_res.stream_enc,
-			&stream->timing,
-			stream->output_color_space);
-
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->hdmi_set_stream_attribute(
-			pipe_ctx->stream_res.stream_enc,
-			&stream->timing,
-			stream->phy_pix_clk,
-			pipe_ctx->stream_res.audio != NULL);
-
-	if (dc_is_dvi_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->dvi_set_stream_attribute(
-			pipe_ctx->stream_res.stream_enc,
-			&stream->timing,
-			(pipe_ctx->stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK) ?
-			true : false);
-
-	resource_build_info_frame(pipe_ctx);
-	dce110_update_info_frame(pipe_ctx);
-	if (!pipe_ctx_old->stream)
+	if (!stream->dpms_off)
 		core_link_enable_stream(context, pipe_ctx);
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
@@ -1583,26 +1557,40 @@ static struct dc_link *get_link_for_edp_not_in_use(
  */
 void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 {
+	int i;
 	struct dc_link *edp_link_to_turnoff = NULL;
 	struct dc_link *edp_link = get_link_for_edp(dc);
-	bool can_eDP_fast_boot_optimize = false;
+	bool can_edp_fast_boot_optimize = false;
+	bool apply_edp_fast_boot_optimization = false;
 
 	if (edp_link) {
-		can_eDP_fast_boot_optimize =
+		/* this seems to cause blank screens on DCE8 */
+		if ((dc->ctx->dce_version == DCE_VERSION_8_0) ||
+		    (dc->ctx->dce_version == DCE_VERSION_8_1) ||
+		    (dc->ctx->dce_version == DCE_VERSION_8_3))
+			can_edp_fast_boot_optimize = false;
+		else
+			can_edp_fast_boot_optimize =
 				edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc);
 	}
 
-	if (can_eDP_fast_boot_optimize) {
+	if (can_edp_fast_boot_optimize)
 		edp_link_to_turnoff = get_link_for_edp_not_in_use(dc, context);
 
-		/* if OS doesn't light up eDP and eDP link is available, we want to disable
-		 * If resume from S4/S5, should optimization.
-		 */
-		if (!edp_link_to_turnoff)
-			dc->apply_edp_fast_boot_optimization = true;
+	/* if OS doesn't light up eDP and eDP link is available, we want to disable
+	 * If resume from S4/S5, should optimization.
+	 */
+	if (can_edp_fast_boot_optimize && !edp_link_to_turnoff) {
+		/* Find eDP stream and set optimization flag */
+		for (i = 0; i < context->stream_count; i++) {
+			if (context->streams[i]->signal == SIGNAL_TYPE_EDP) {
+				context->streams[i]->apply_edp_fast_boot_optimization = true;
+				apply_edp_fast_boot_optimization = true;
+			}
+		}
 	}
 
-	if (!dc->apply_edp_fast_boot_optimization) {
+	if (!apply_edp_fast_boot_optimization) {
 		if (edp_link_to_turnoff) {
 			/*turn off backlight before DP_blank and encoder powered down*/
 			dc->hwss.edp_backlight_control(edp_link_to_turnoff, false);
@@ -1713,16 +1701,24 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 {
 	int i = 0;
 	struct drr_params params = {0};
+	// DRR should set trigger event to monitor surface update event
+	unsigned int event_triggers = 0x80;
 
 	params.vertical_total_max = vmax;
 	params.vertical_total_min = vmin;
 
 	/* TODO: If multiple pipes are to be supported, you need
-	 * some GSL stuff
+	 * some GSL stuff. Static screen triggers may be programmed differently
+	 * as well.
 	 */
-
 	for (i = 0; i < num_pipes; i++) {
-		pipe_ctx[i]->stream_res.tg->funcs->set_drr(pipe_ctx[i]->stream_res.tg, &params);
+		pipe_ctx[i]->stream_res.tg->funcs->set_drr(
+			pipe_ctx[i]->stream_res.tg, &params);
+
+		if (vmax != 0 && vmin != 0)
+			pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
+					pipe_ctx[i]->stream_res.tg,
+					event_triggers);
 	}
 }
 
@@ -1908,7 +1904,9 @@ static void dce110_reset_hw_ctx_wrap(
 			pipe_ctx_old->plane_res.mi->funcs->free_mem_input(
 					pipe_ctx_old->plane_res.mi, dc->current_state->stream_count);
 
-			if (old_clk)
+			if (old_clk && 0 == resource_get_clock_source_reference(&context->res_ctx,
+										dc->res_pool,
+										old_clk))
 				old_clk->funcs->cs_power_down(old_clk);
 
 			dc->hwss.disable_plane(dc, pipe_ctx_old);
@@ -2530,7 +2528,7 @@ static void pplib_apply_display_requirements(
 	/* TODO: dce11.2*/
 	pp_display_cfg->avail_mclk_switch_time_in_disp_active_us = 0;
 
-	pp_display_cfg->disp_clk_khz = context->bw.dce.dispclk_khz;
+	pp_display_cfg->disp_clk_khz = dc->res_pool->dccg->clks.dispclk_khz;
 
 	dce110_fill_display_configs(context, pp_display_cfg);
 
@@ -2552,14 +2550,15 @@ static void pplib_apply_display_requirements(
 	dc->prev_display_config = *pp_display_cfg;
 }
 
-static void dce110_set_bandwidth(
+void dce110_set_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
 		bool decrease_allowed)
 {
 	struct dc_clocks req_clks;
+	struct dccg *dccg = dc->res_pool->dccg;
 
-	req_clks.dispclk_khz = context->bw.dce.dispclk_khz * 115 / 100;
+	req_clks.dispclk_khz = context->bw.dce.dispclk_khz;
 	req_clks.phyclk_khz = get_max_pixel_clock_for_all_paths(dc, context);
 
 	if (decrease_allowed)
@@ -2567,8 +2566,15 @@ static void dce110_set_bandwidth(
 	else
 		dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
 
-	dc->res_pool->dccg->funcs->update_clocks(
-			dc->res_pool->dccg,
+	if (dccg->funcs->update_dfs_bypass)
+		dccg->funcs->update_dfs_bypass(
+			dccg,
+			dc,
+			context,
+			req_clks.dispclk_khz);
+
+	dccg->funcs->update_clocks(
+			dccg,
 			&req_clks,
 			decrease_allowed);
 	pplib_apply_display_requirements(dc, context);

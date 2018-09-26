@@ -521,12 +521,12 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	kref_init(&exec->refcount);
 
 	ret = drm_syncobj_find_fence(file_priv, args->in_sync_bcl,
-				     &exec->bin.in_fence);
+				     0, &exec->bin.in_fence);
 	if (ret == -EINVAL)
 		goto fail;
 
 	ret = drm_syncobj_find_fence(file_priv, args->in_sync_rcl,
-				     &exec->render.in_fence);
+				     0, &exec->render.in_fence);
 	if (ret == -EINVAL)
 		goto fail;
 
@@ -553,7 +553,6 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	mutex_lock(&v3d->sched_lock);
 	if (exec->bin.start != exec->bin.end) {
 		ret = drm_sched_job_init(&exec->bin.base,
-					 &v3d->queue[V3D_BIN].sched,
 					 &v3d_priv->sched_entity[V3D_BIN],
 					 v3d_priv);
 		if (ret)
@@ -568,7 +567,6 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	}
 
 	ret = drm_sched_job_init(&exec->render.base,
-				 &v3d->queue[V3D_RENDER].sched,
 				 &v3d_priv->sched_entity[V3D_RENDER],
 				 v3d_priv);
 	if (ret)
@@ -586,7 +584,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	/* Update the return sync object for the */
 	sync_out = drm_syncobj_find(file_priv, args->out_sync);
 	if (sync_out) {
-		drm_syncobj_replace_fence(sync_out,
+		drm_syncobj_replace_fence(sync_out, 0,
 					  &exec->render.base.s_fence->finished);
 		drm_syncobj_put(sync_out);
 	}

@@ -1,6 +1,10 @@
 /*
- * Modified to interface to the Linux kernel
+ * VMAC: Message Authentication Code using Universal Hashing
+ *
+ * Reference: https://tools.ietf.org/html/draft-krovetz-vmac-01
+ *
  * Copyright (c) 2009, Intel Corporation.
+ * Copyright (c) 2018, Google Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -16,14 +20,15 @@
  * Place - Suite 330, Boston, MA 02111-1307 USA.
  */
 
-/* --------------------------------------------------------------------------
- * VMAC and VHASH Implementation by Ted Krovetz (tdk@acm.org) and Wei Dai.
- * This implementation is herby placed in the public domain.
- * The authors offers no warranty. Use at your own risk.
- * Please send bug reports to the authors.
- * Last modified: 17 APR 08, 1700 PDT
- * ----------------------------------------------------------------------- */
+/*
+ * Derived from:
+ *	VMAC and VHASH Implementation by Ted Krovetz (tdk@acm.org) and Wei Dai.
+ *	This implementation is herby placed in the public domain.
+ *	The authors offers no warranty. Use at your own risk.
+ *	Last modified: 17 APR 08, 1700 PDT
+ */
 
+#include <asm/unaligned.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/crypto.h>
@@ -31,8 +36,40 @@
 #include <linux/scatterlist.h>
 #include <asm/byteorder.h>
 #include <crypto/scatterwalk.h>
-#include <crypto/vmac.h>
 #include <crypto/internal/hash.h>
+
+/*
+ * User definable settings.
+ */
+#define VMAC_TAG_LEN	64
+#define VMAC_KEY_SIZE	128/* Must be 128, 192 or 256			*/
+#define VMAC_KEY_LEN	(VMAC_KEY_SIZE/8)
+#define VMAC_NHBYTES	128/* Must 2^i for any 3 < i < 13 Standard = 128*/
+#define VMAC_NONCEBYTES	16
+
+/* per-transform (per-key) context */
+struct vmac_tfm_ctx {
+	struct crypto_cipher *cipher;
+	u64 nhkey[(VMAC_NHBYTES/8)+2*(VMAC_TAG_LEN/64-1)];
+	u64 polykey[2*VMAC_TAG_LEN/64];
+	u64 l3key[2*VMAC_TAG_LEN/64];
+};
+
+/* per-request context */
+struct vmac_desc_ctx {
+	union {
+		u8 partial[VMAC_NHBYTES];	/* partial block */
+		__le64 partial_words[VMAC_NHBYTES / 8];
+	};
+	unsigned int partial_size;	/* size of the partial block */
+	bool first_block_processed;
+	u64 polytmp[2*VMAC_TAG_LEN/64];	/* running total of L2-hash */
+	union {
+		u8 bytes[VMAC_NONCEBYTES];
+		__be64 pads[VMAC_NONCEBYTES / 8];
+	} nonce;
+	unsigned int nonce_size; /* nonce bytes filled so far */
+};
 
 /*
  * Constants and masks
@@ -318,13 +355,6 @@ static void poly_step_func(u64 *ahi, u64 *alo,
 	} while (0)
 #endif
 
-static void vhash_abort(struct vmac_ctx *ctx)
-{
-	ctx->polytmp[0] = ctx->polykey[0] ;
-	ctx->polytmp[1] = ctx->polykey[1] ;
-	ctx->first_block_processed = 0;
-}
-
 static u64 l3hash(u64 p1, u64 p2, u64 k1, u64 k2, u64 len)
 {
 	u64 rh, rl, t, z = 0;
@@ -364,280 +394,227 @@ static u64 l3hash(u64 p1, u64 p2, u64 k1, u64 k2, u64 len)
 	return rl;
 }
 
-static void vhash_update(const unsigned char *m,
-			unsigned int mbytes, /* Pos multiple of VMAC_NHBYTES */
-			struct vmac_ctx *ctx)
+/* L1 and L2-hash one or more VMAC_NHBYTES-byte blocks */
+static void vhash_blocks(const struct vmac_tfm_ctx *tctx,
+			 struct vmac_desc_ctx *dctx,
+			 const __le64 *mptr, unsigned int blocks)
 {
-	u64 rh, rl, *mptr;
-	const u64 *kptr = (u64 *)ctx->nhkey;
-	int i;
-	u64 ch, cl;
-	u64 pkh = ctx->polykey[0];
-	u64 pkl = ctx->polykey[1];
+	const u64 *kptr = tctx->nhkey;
+	const u64 pkh = tctx->polykey[0];
+	const u64 pkl = tctx->polykey[1];
+	u64 ch = dctx->polytmp[0];
+	u64 cl = dctx->polytmp[1];
+	u64 rh, rl;
 
-	if (!mbytes)
-		return;
-
-	BUG_ON(mbytes % VMAC_NHBYTES);
-
-	mptr = (u64 *)m;
-	i = mbytes / VMAC_NHBYTES;  /* Must be non-zero */
-
-	ch = ctx->polytmp[0];
-	cl = ctx->polytmp[1];
-
-	if (!ctx->first_block_processed) {
-		ctx->first_block_processed = 1;
+	if (!dctx->first_block_processed) {
+		dctx->first_block_processed = true;
 		nh_vmac_nhbytes(mptr, kptr, VMAC_NHBYTES/8, rh, rl);
 		rh &= m62;
 		ADD128(ch, cl, rh, rl);
 		mptr += (VMAC_NHBYTES/sizeof(u64));
-		i--;
+		blocks--;
 	}
 
-	while (i--) {
+	while (blocks--) {
 		nh_vmac_nhbytes(mptr, kptr, VMAC_NHBYTES/8, rh, rl);
 		rh &= m62;
 		poly_step(ch, cl, pkh, pkl, rh, rl);
 		mptr += (VMAC_NHBYTES/sizeof(u64));
 	}
 
-	ctx->polytmp[0] = ch;
-	ctx->polytmp[1] = cl;
+	dctx->polytmp[0] = ch;
+	dctx->polytmp[1] = cl;
 }
 
-static u64 vhash(unsigned char m[], unsigned int mbytes,
-			u64 *tagl, struct vmac_ctx *ctx)
+static int vmac_setkey(struct crypto_shash *tfm,
+		       const u8 *key, unsigned int keylen)
 {
-	u64 rh, rl, *mptr;
-	const u64 *kptr = (u64 *)ctx->nhkey;
-	int i, remaining;
-	u64 ch, cl;
-	u64 pkh = ctx->polykey[0];
-	u64 pkl = ctx->polykey[1];
+	struct vmac_tfm_ctx *tctx = crypto_shash_ctx(tfm);
+	__be64 out[2];
+	u8 in[16] = { 0 };
+	unsigned int i;
+	int err;
 
-	mptr = (u64 *)m;
-	i = mbytes / VMAC_NHBYTES;
-	remaining = mbytes % VMAC_NHBYTES;
-
-	if (ctx->first_block_processed) {
-		ch = ctx->polytmp[0];
-		cl = ctx->polytmp[1];
-	} else if (i) {
-		nh_vmac_nhbytes(mptr, kptr, VMAC_NHBYTES/8, ch, cl);
-		ch &= m62;
-		ADD128(ch, cl, pkh, pkl);
-		mptr += (VMAC_NHBYTES/sizeof(u64));
-		i--;
-	} else if (remaining) {
-		nh_16(mptr, kptr, 2*((remaining+15)/16), ch, cl);
-		ch &= m62;
-		ADD128(ch, cl, pkh, pkl);
-		mptr += (VMAC_NHBYTES/sizeof(u64));
-		goto do_l3;
-	} else {/* Empty String */
-		ch = pkh; cl = pkl;
-		goto do_l3;
+	if (keylen != VMAC_KEY_LEN) {
+		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		return -EINVAL;
 	}
 
-	while (i--) {
-		nh_vmac_nhbytes(mptr, kptr, VMAC_NHBYTES/8, rh, rl);
-		rh &= m62;
-		poly_step(ch, cl, pkh, pkl, rh, rl);
-		mptr += (VMAC_NHBYTES/sizeof(u64));
-	}
-	if (remaining) {
-		nh_16(mptr, kptr, 2*((remaining+15)/16), rh, rl);
-		rh &= m62;
-		poly_step(ch, cl, pkh, pkl, rh, rl);
-	}
-
-do_l3:
-	vhash_abort(ctx);
-	remaining *= 8;
-	return l3hash(ch, cl, ctx->l3key[0], ctx->l3key[1], remaining);
-}
-
-static u64 vmac(unsigned char m[], unsigned int mbytes,
-			const unsigned char n[16], u64 *tagl,
-			struct vmac_ctx_t *ctx)
-{
-	u64 *in_n, *out_p;
-	u64 p, h;
-	int i;
-
-	in_n = ctx->__vmac_ctx.cached_nonce;
-	out_p = ctx->__vmac_ctx.cached_aes;
-
-	i = n[15] & 1;
-	if ((*(u64 *)(n+8) != in_n[1]) || (*(u64 *)(n) != in_n[0])) {
-		in_n[0] = *(u64 *)(n);
-		in_n[1] = *(u64 *)(n+8);
-		((unsigned char *)in_n)[15] &= 0xFE;
-		crypto_cipher_encrypt_one(ctx->child,
-			(unsigned char *)out_p, (unsigned char *)in_n);
-
-		((unsigned char *)in_n)[15] |= (unsigned char)(1-i);
-	}
-	p = be64_to_cpup(out_p + i);
-	h = vhash(m, mbytes, (u64 *)0, &ctx->__vmac_ctx);
-	return le64_to_cpu(p + h);
-}
-
-static int vmac_set_key(unsigned char user_key[], struct vmac_ctx_t *ctx)
-{
-	u64 in[2] = {0}, out[2];
-	unsigned i;
-	int err = 0;
-
-	err = crypto_cipher_setkey(ctx->child, user_key, VMAC_KEY_LEN);
+	err = crypto_cipher_setkey(tctx->cipher, key, keylen);
 	if (err)
 		return err;
 
 	/* Fill nh key */
-	((unsigned char *)in)[0] = 0x80;
-	for (i = 0; i < sizeof(ctx->__vmac_ctx.nhkey)/8; i += 2) {
-		crypto_cipher_encrypt_one(ctx->child,
-			(unsigned char *)out, (unsigned char *)in);
-		ctx->__vmac_ctx.nhkey[i] = be64_to_cpup(out);
-		ctx->__vmac_ctx.nhkey[i+1] = be64_to_cpup(out+1);
-		((unsigned char *)in)[15] += 1;
+	in[0] = 0x80;
+	for (i = 0; i < ARRAY_SIZE(tctx->nhkey); i += 2) {
+		crypto_cipher_encrypt_one(tctx->cipher, (u8 *)out, in);
+		tctx->nhkey[i] = be64_to_cpu(out[0]);
+		tctx->nhkey[i+1] = be64_to_cpu(out[1]);
+		in[15]++;
 	}
 
 	/* Fill poly key */
-	((unsigned char *)in)[0] = 0xC0;
-	in[1] = 0;
-	for (i = 0; i < sizeof(ctx->__vmac_ctx.polykey)/8; i += 2) {
-		crypto_cipher_encrypt_one(ctx->child,
-			(unsigned char *)out, (unsigned char *)in);
-		ctx->__vmac_ctx.polytmp[i] =
-			ctx->__vmac_ctx.polykey[i] =
-				be64_to_cpup(out) & mpoly;
-		ctx->__vmac_ctx.polytmp[i+1] =
-			ctx->__vmac_ctx.polykey[i+1] =
-				be64_to_cpup(out+1) & mpoly;
-		((unsigned char *)in)[15] += 1;
+	in[0] = 0xC0;
+	in[15] = 0;
+	for (i = 0; i < ARRAY_SIZE(tctx->polykey); i += 2) {
+		crypto_cipher_encrypt_one(tctx->cipher, (u8 *)out, in);
+		tctx->polykey[i] = be64_to_cpu(out[0]) & mpoly;
+		tctx->polykey[i+1] = be64_to_cpu(out[1]) & mpoly;
+		in[15]++;
 	}
 
 	/* Fill ip key */
-	((unsigned char *)in)[0] = 0xE0;
-	in[1] = 0;
-	for (i = 0; i < sizeof(ctx->__vmac_ctx.l3key)/8; i += 2) {
+	in[0] = 0xE0;
+	in[15] = 0;
+	for (i = 0; i < ARRAY_SIZE(tctx->l3key); i += 2) {
 		do {
-			crypto_cipher_encrypt_one(ctx->child,
-				(unsigned char *)out, (unsigned char *)in);
-			ctx->__vmac_ctx.l3key[i] = be64_to_cpup(out);
-			ctx->__vmac_ctx.l3key[i+1] = be64_to_cpup(out+1);
-			((unsigned char *)in)[15] += 1;
-		} while (ctx->__vmac_ctx.l3key[i] >= p64
-			|| ctx->__vmac_ctx.l3key[i+1] >= p64);
+			crypto_cipher_encrypt_one(tctx->cipher, (u8 *)out, in);
+			tctx->l3key[i] = be64_to_cpu(out[0]);
+			tctx->l3key[i+1] = be64_to_cpu(out[1]);
+			in[15]++;
+		} while (tctx->l3key[i] >= p64 || tctx->l3key[i+1] >= p64);
 	}
 
-	/* Invalidate nonce/aes cache and reset other elements */
-	ctx->__vmac_ctx.cached_nonce[0] = (u64)-1; /* Ensure illegal nonce */
-	ctx->__vmac_ctx.cached_nonce[1] = (u64)0;  /* Ensure illegal nonce */
-	ctx->__vmac_ctx.first_block_processed = 0;
-
-	return err;
+	return 0;
 }
 
-static int vmac_setkey(struct crypto_shash *parent,
-		const u8 *key, unsigned int keylen)
+static int vmac_init(struct shash_desc *desc)
 {
-	struct vmac_ctx_t *ctx = crypto_shash_ctx(parent);
+	const struct vmac_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
+	struct vmac_desc_ctx *dctx = shash_desc_ctx(desc);
 
-	if (keylen != VMAC_KEY_LEN) {
-		crypto_shash_set_flags(parent, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	dctx->partial_size = 0;
+	dctx->first_block_processed = false;
+	memcpy(dctx->polytmp, tctx->polykey, sizeof(dctx->polytmp));
+	dctx->nonce_size = 0;
+	return 0;
+}
+
+static int vmac_update(struct shash_desc *desc, const u8 *p, unsigned int len)
+{
+	const struct vmac_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
+	struct vmac_desc_ctx *dctx = shash_desc_ctx(desc);
+	unsigned int n;
+
+	/* Nonce is passed as first VMAC_NONCEBYTES bytes of data */
+	if (dctx->nonce_size < VMAC_NONCEBYTES) {
+		n = min(len, VMAC_NONCEBYTES - dctx->nonce_size);
+		memcpy(&dctx->nonce.bytes[dctx->nonce_size], p, n);
+		dctx->nonce_size += n;
+		p += n;
+		len -= n;
+	}
+
+	if (dctx->partial_size) {
+		n = min(len, VMAC_NHBYTES - dctx->partial_size);
+		memcpy(&dctx->partial[dctx->partial_size], p, n);
+		dctx->partial_size += n;
+		p += n;
+		len -= n;
+		if (dctx->partial_size == VMAC_NHBYTES) {
+			vhash_blocks(tctx, dctx, dctx->partial_words, 1);
+			dctx->partial_size = 0;
+		}
+	}
+
+	if (len >= VMAC_NHBYTES) {
+		n = round_down(len, VMAC_NHBYTES);
+		/* TODO: 'p' may be misaligned here */
+		vhash_blocks(tctx, dctx, (const __le64 *)p, n / VMAC_NHBYTES);
+		p += n;
+		len -= n;
+	}
+
+	if (len) {
+		memcpy(dctx->partial, p, len);
+		dctx->partial_size = len;
+	}
+
+	return 0;
+}
+
+static u64 vhash_final(const struct vmac_tfm_ctx *tctx,
+		       struct vmac_desc_ctx *dctx)
+{
+	unsigned int partial = dctx->partial_size;
+	u64 ch = dctx->polytmp[0];
+	u64 cl = dctx->polytmp[1];
+
+	/* L1 and L2-hash the final block if needed */
+	if (partial) {
+		/* Zero-pad to next 128-bit boundary */
+		unsigned int n = round_up(partial, 16);
+		u64 rh, rl;
+
+		memset(&dctx->partial[partial], 0, n - partial);
+		nh_16(dctx->partial_words, tctx->nhkey, n / 8, rh, rl);
+		rh &= m62;
+		if (dctx->first_block_processed)
+			poly_step(ch, cl, tctx->polykey[0], tctx->polykey[1],
+				  rh, rl);
+		else
+			ADD128(ch, cl, rh, rl);
+	}
+
+	/* L3-hash the 128-bit output of L2-hash */
+	return l3hash(ch, cl, tctx->l3key[0], tctx->l3key[1], partial * 8);
+}
+
+static int vmac_final(struct shash_desc *desc, u8 *out)
+{
+	const struct vmac_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
+	struct vmac_desc_ctx *dctx = shash_desc_ctx(desc);
+	int index;
+	u64 hash, pad;
+
+	if (dctx->nonce_size != VMAC_NONCEBYTES)
 		return -EINVAL;
-	}
 
-	return vmac_set_key((u8 *)key, ctx);
-}
-
-static int vmac_init(struct shash_desc *pdesc)
-{
-	return 0;
-}
-
-static int vmac_update(struct shash_desc *pdesc, const u8 *p,
-		unsigned int len)
-{
-	struct crypto_shash *parent = pdesc->tfm;
-	struct vmac_ctx_t *ctx = crypto_shash_ctx(parent);
-	int expand;
-	int min;
-
-	expand = VMAC_NHBYTES - ctx->partial_size > 0 ?
-			VMAC_NHBYTES - ctx->partial_size : 0;
-
-	min = len < expand ? len : expand;
-
-	memcpy(ctx->partial + ctx->partial_size, p, min);
-	ctx->partial_size += min;
-
-	if (len < expand)
-		return 0;
-
-	vhash_update(ctx->partial, VMAC_NHBYTES, &ctx->__vmac_ctx);
-	ctx->partial_size = 0;
-
-	len -= expand;
-	p += expand;
-
-	if (len % VMAC_NHBYTES) {
-		memcpy(ctx->partial, p + len - (len % VMAC_NHBYTES),
-			len % VMAC_NHBYTES);
-		ctx->partial_size = len % VMAC_NHBYTES;
-	}
-
-	vhash_update(p, len - len % VMAC_NHBYTES, &ctx->__vmac_ctx);
-
-	return 0;
-}
-
-static int vmac_final(struct shash_desc *pdesc, u8 *out)
-{
-	struct crypto_shash *parent = pdesc->tfm;
-	struct vmac_ctx_t *ctx = crypto_shash_ctx(parent);
-	vmac_t mac;
-	u8 nonce[16] = {};
-
-	/* vmac() ends up accessing outside the array bounds that
-	 * we specify.  In appears to access up to the next 2-word
-	 * boundary.  We'll just be uber cautious and zero the
-	 * unwritten bytes in the buffer.
+	/*
+	 * The VMAC specification requires a nonce at least 1 bit shorter than
+	 * the block cipher's block length, so we actually only accept a 127-bit
+	 * nonce.  We define the unused bit to be the first one and require that
+	 * it be 0, so the needed prepending of a 0 bit is implicit.
 	 */
-	if (ctx->partial_size) {
-		memset(ctx->partial + ctx->partial_size, 0,
-			VMAC_NHBYTES - ctx->partial_size);
-	}
-	mac = vmac(ctx->partial, ctx->partial_size, nonce, NULL, ctx);
-	memcpy(out, &mac, sizeof(vmac_t));
-	memzero_explicit(&mac, sizeof(vmac_t));
-	memset(&ctx->__vmac_ctx, 0, sizeof(struct vmac_ctx));
-	ctx->partial_size = 0;
+	if (dctx->nonce.bytes[0] & 0x80)
+		return -EINVAL;
+
+	/* Finish calculating the VHASH of the message */
+	hash = vhash_final(tctx, dctx);
+
+	/* Generate pseudorandom pad by encrypting the nonce */
+	BUILD_BUG_ON(VMAC_NONCEBYTES != 2 * (VMAC_TAG_LEN / 8));
+	index = dctx->nonce.bytes[VMAC_NONCEBYTES - 1] & 1;
+	dctx->nonce.bytes[VMAC_NONCEBYTES - 1] &= ~1;
+	crypto_cipher_encrypt_one(tctx->cipher, dctx->nonce.bytes,
+				  dctx->nonce.bytes);
+	pad = be64_to_cpu(dctx->nonce.pads[index]);
+
+	/* The VMAC is the sum of VHASH and the pseudorandom pad */
+	put_unaligned_be64(hash + pad, out);
 	return 0;
 }
 
 static int vmac_init_tfm(struct crypto_tfm *tfm)
 {
-	struct crypto_cipher *cipher;
-	struct crypto_instance *inst = (void *)tfm->__crt_alg;
+	struct crypto_instance *inst = crypto_tfm_alg_instance(tfm);
 	struct crypto_spawn *spawn = crypto_instance_ctx(inst);
-	struct vmac_ctx_t *ctx = crypto_tfm_ctx(tfm);
+	struct vmac_tfm_ctx *tctx = crypto_tfm_ctx(tfm);
+	struct crypto_cipher *cipher;
 
 	cipher = crypto_spawn_cipher(spawn);
 	if (IS_ERR(cipher))
 		return PTR_ERR(cipher);
 
-	ctx->child = cipher;
+	tctx->cipher = cipher;
 	return 0;
 }
 
 static void vmac_exit_tfm(struct crypto_tfm *tfm)
 {
-	struct vmac_ctx_t *ctx = crypto_tfm_ctx(tfm);
-	crypto_free_cipher(ctx->child);
+	struct vmac_tfm_ctx *tctx = crypto_tfm_ctx(tfm);
+
+	crypto_free_cipher(tctx->cipher);
 }
 
 static int vmac_create(struct crypto_template *tmpl, struct rtattr **tb)
@@ -655,7 +632,11 @@ static int vmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (IS_ERR(alg))
 		return PTR_ERR(alg);
 
-	inst = shash_alloc_instance("vmac", alg);
+	err = -EINVAL;
+	if (alg->cra_blocksize != VMAC_NONCEBYTES)
+		goto out_put_alg;
+
+	inst = shash_alloc_instance(tmpl->name, alg);
 	err = PTR_ERR(inst);
 	if (IS_ERR(inst))
 		goto out_put_alg;
@@ -670,11 +651,12 @@ static int vmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.base.cra_blocksize = alg->cra_blocksize;
 	inst->alg.base.cra_alignmask = alg->cra_alignmask;
 
-	inst->alg.digestsize = sizeof(vmac_t);
-	inst->alg.base.cra_ctxsize = sizeof(struct vmac_ctx_t);
+	inst->alg.base.cra_ctxsize = sizeof(struct vmac_tfm_ctx);
 	inst->alg.base.cra_init = vmac_init_tfm;
 	inst->alg.base.cra_exit = vmac_exit_tfm;
 
+	inst->alg.descsize = sizeof(struct vmac_desc_ctx);
+	inst->alg.digestsize = VMAC_TAG_LEN / 8;
 	inst->alg.init = vmac_init;
 	inst->alg.update = vmac_update;
 	inst->alg.final = vmac_final;
@@ -691,8 +673,8 @@ out_put_alg:
 	return err;
 }
 
-static struct crypto_template vmac_tmpl = {
-	.name = "vmac",
+static struct crypto_template vmac64_tmpl = {
+	.name = "vmac64",
 	.create = vmac_create,
 	.free = shash_free_instance,
 	.module = THIS_MODULE,
@@ -700,12 +682,12 @@ static struct crypto_template vmac_tmpl = {
 
 static int __init vmac_module_init(void)
 {
-	return crypto_register_template(&vmac_tmpl);
+	return crypto_register_template(&vmac64_tmpl);
 }
 
 static void __exit vmac_module_exit(void)
 {
-	crypto_unregister_template(&vmac_tmpl);
+	crypto_unregister_template(&vmac64_tmpl);
 }
 
 module_init(vmac_module_init);
@@ -713,4 +695,4 @@ module_exit(vmac_module_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VMAC hash algorithm");
-MODULE_ALIAS_CRYPTO("vmac");
+MODULE_ALIAS_CRYPTO("vmac64");

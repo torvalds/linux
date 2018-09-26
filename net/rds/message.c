@@ -514,4 +514,3 @@ void rds_message_unmapped(struct rds_message *rm)
 	wake_up_interruptible(&rm->m_flush_wait);
 }
 EXPORT_SYMBOL_GPL(rds_message_unmapped);
-

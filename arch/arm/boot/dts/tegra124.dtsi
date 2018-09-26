@@ -7,13 +7,16 @@
 #include <dt-bindings/reset/tegra124-car.h>
 #include <dt-bindings/thermal/tegra124-soctherm.h>
 
-#include "skeleton.dtsi"
-
 / {
 	compatible = "nvidia,tegra124";
 	interrupt-parent = <&lic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x0>;
+	};
 
 	pcie@1003000 {
 		compatible = "nvidia,tegra124-pcie";

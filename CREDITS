@@ -2571,6 +2571,11 @@ S: Helstorfer Str. 7
 S: D-30625 Hannover
 S: Germany
 
+N: Ron Minnich
+E: rminnich@sandia.gov
+E: rminnich@gmail.com
+D: 9p filesystem development
+
 N: Corey Minyard
 E: minyard@wf-rch.cirr.com
 E: minyard@mvista.com

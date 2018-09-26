@@ -1,22 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _RTL8188E_PHYCFG_C_
 
 #include <osdep_service.h>
 #include <drv_types.h>
-#include <rtw_iol.h>
 #include <rtl8188e_hal.h>
 #include <rf.h>
 #include <phy.h>
@@ -360,7 +351,6 @@ void rtl88eu_dm_txpower_track_adjust(struct odm_dm_struct *dm_odm, u8 type,
 			pwr_value = dm_odm->BbSwingIdxCck -
 				     dm_odm->BbSwingIdxCckBase;
 		}
-
 	}
 
 	if (pwr_value >= ODM_TXPWRTRACK_MAX_IDX_88E && *direction == 1)
@@ -887,7 +877,6 @@ static void mac_setting_calibration(struct adapter *adapt, u32 *mac_reg, u32 *ba
 
 static void path_a_standby(struct adapter *adapt)
 {
-
 	phy_set_bb_reg(adapt, rFPGA0_IQK, bMaskDWord, 0x0);
 	phy_set_bb_reg(adapt, 0x840, bMaskDWord, 0x00010000);
 	phy_set_bb_reg(adapt, rFPGA0_IQK, bMaskDWord, 0x80800000);
@@ -1011,7 +1000,6 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 		retry_count = 2;
 
 	if (t == 0) {
-
 		/*  Save ADDA parameters, turn Path A ADDA on */
 		save_adda_registers(adapt, adda_reg, dm_odm->RFCalibrateInfo.ADDA_backup,
 				    IQK_ADDA_REG_NUM);

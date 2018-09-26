@@ -2,7 +2,6 @@ Motorola CPCAP PMIC ADC binding
 
 Required properties:
 - compatible: Should be "motorola,cpcap-adc" or "motorola,mapphone-cpcap-adc"
-- interrupt-parent: The interrupt controller
 - interrupts: The interrupt number for the ADC device
 - interrupt-names: Should be "adcdone"
 - #io-channel-cells: Number of cells in an IIO specifier

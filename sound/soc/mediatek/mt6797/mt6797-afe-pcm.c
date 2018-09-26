@@ -733,6 +733,34 @@ static const struct snd_soc_component_driver mt6797_afe_component = {
 	.probe = mt6797_afe_component_probe,
 };
 
+static int mt6797_dai_memif_register(struct mtk_base_afe *afe)
+{
+	struct mtk_base_afe_dai *dai;
+
+	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
+	if (!dai)
+		return -ENOMEM;
+
+	list_add(&dai->list, &afe->sub_dais);
+
+	dai->dai_drivers = mt6797_memif_dai_driver;
+	dai->num_dai_drivers = ARRAY_SIZE(mt6797_memif_dai_driver);
+
+	dai->dapm_widgets = mt6797_memif_widgets;
+	dai->num_dapm_widgets = ARRAY_SIZE(mt6797_memif_widgets);
+	dai->dapm_routes = mt6797_memif_routes;
+	dai->num_dapm_routes = ARRAY_SIZE(mt6797_memif_routes);
+	return 0;
+}
+
+typedef int (*dai_register_cb)(struct mtk_base_afe *);
+static const dai_register_cb dai_register_cbs[] = {
+	mt6797_dai_adda_register,
+	mt6797_dai_pcm_register,
+	mt6797_dai_hostless_register,
+	mt6797_dai_memif_register,
+};
+
 static int mt6797_afe_pcm_dev_probe(struct platform_device *pdev)
 {
 	struct mtk_base_afe *afe;
@@ -811,29 +839,24 @@ static int mt6797_afe_pcm_dev_probe(struct platform_device *pdev)
 	}
 
 	/* init sub_dais */
-	afe->num_sub_dais = MT6797_DAI_NUM;
-	afe->sub_dais = devm_kcalloc(dev, afe->num_sub_dais,
-				     sizeof(*afe->sub_dais),
-				     GFP_KERNEL);
-	if (!afe->sub_dais)
-		return -ENOMEM;
+	INIT_LIST_HEAD(&afe->sub_dais);
 
-	mt6797_dai_adda_register(afe);
-	mt6797_dai_pcm_register(afe);
-	mt6797_dai_hostless_register(afe);
-
-	afe->sub_dais[MT6797_MEMIF_DL1].dai_drivers = mt6797_memif_dai_driver;
-	afe->sub_dais[MT6797_MEMIF_DL1].num_dai_drivers =
-		ARRAY_SIZE(mt6797_memif_dai_driver);
-	afe->sub_dais[MT6797_MEMIF_DL1].dapm_widgets = mt6797_memif_widgets;
-	afe->sub_dais[MT6797_MEMIF_DL1].num_dapm_widgets =
-		ARRAY_SIZE(mt6797_memif_widgets);
-	afe->sub_dais[MT6797_MEMIF_DL1].dapm_routes = mt6797_memif_routes;
-	afe->sub_dais[MT6797_MEMIF_DL1].num_dapm_routes =
-		ARRAY_SIZE(mt6797_memif_routes);
+	for (i = 0; i < ARRAY_SIZE(dai_register_cbs); i++) {
+		ret = dai_register_cbs[i](afe);
+		if (ret) {
+			dev_warn(afe->dev, "dai register i %d fail, ret %d\n",
+				 i, ret);
+			return ret;
+		}
+	}
 
 	/* init dai_driver and component_driver */
-	mtk_afe_combine_sub_dai(afe);
+	ret = mtk_afe_combine_sub_dai(afe);
+	if (ret) {
+		dev_warn(afe->dev, "mtk_afe_combine_sub_dai fail, ret %d\n",
+			 ret);
+		return ret;
+	}
 
 	afe->mtk_afe_hardware = &mt6797_afe_hardware;
 	afe->memif_fs = mt6797_memif_fs;

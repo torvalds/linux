@@ -443,6 +443,8 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.location_id);
 	sysfs_show_32bit_prop(buffer, "drm_render_minor",
 			dev->node_props.drm_render_minor);
+	sysfs_show_64bit_prop(buffer, "hive_id",
+			dev->node_props.hive_id);
 
 	if (dev->gpu) {
 		log_max_watch_addr =
@@ -1218,6 +1220,8 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		cpufreq_quick_get_max(0) / 1000;
 	dev->node_props.drm_render_minor =
 		gpu->shared_resources.drm_render_minor;
+
+	dev->node_props.hive_id = gpu->hive_id;
 
 	kfd_fill_mem_clk_max_info(dev);
 	kfd_fill_iolink_non_crat_info(dev);

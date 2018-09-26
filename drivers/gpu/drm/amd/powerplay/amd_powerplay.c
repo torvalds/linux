@@ -998,7 +998,7 @@ static int pp_get_display_power_level(void *handle,
 static int pp_get_current_clocks(void *handle,
 		struct amd_pp_clock_info *clocks)
 {
-	struct amd_pp_simple_clock_info simple_clocks;
+	struct amd_pp_simple_clock_info simple_clocks = { 0 };
 	struct pp_clock_info hw_clocks;
 	struct pp_hwmgr *hwmgr = handle;
 	int ret = 0;
@@ -1034,7 +1034,10 @@ static int pp_get_current_clocks(void *handle,
 	clocks->max_engine_clock_in_sr = hw_clocks.max_eng_clk;
 	clocks->min_engine_clock_in_sr = hw_clocks.min_eng_clk;
 
-	clocks->max_clocks_state = simple_clocks.level;
+	if (simple_clocks.level == 0)
+		clocks->max_clocks_state = PP_DAL_POWERLEVEL_7;
+	else
+		clocks->max_clocks_state = simple_clocks.level;
 
 	if (0 == phm_get_current_shallow_sleep_clocks(hwmgr, &hwmgr->current_ps->hardware, &hw_clocks)) {
 		clocks->max_engine_clock_in_sr = hw_clocks.max_eng_clk;
@@ -1137,6 +1140,8 @@ static int pp_get_display_mode_validation_clocks(void *handle,
 	if (!hwmgr || !hwmgr->pm_en ||!clocks)
 		return -EINVAL;
 
+	clocks->level = PP_DAL_POWERLEVEL_7;
+
 	mutex_lock(&hwmgr->smu_lock);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DynamicPatchPowerState))
@@ -1176,6 +1181,21 @@ static int pp_dpm_powergate_gfx(void *handle, bool gate)
 	return hwmgr->hwmgr_func->powergate_gfx(hwmgr, gate);
 }
 
+static void pp_dpm_powergate_acp(void *handle, bool gate)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return;
+
+	if (hwmgr->hwmgr_func->powergate_acp == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return;
+	}
+
+	hwmgr->hwmgr_func->powergate_acp(hwmgr, gate);
+}
+
 static int pp_set_powergating_by_smu(void *handle,
 				uint32_t block_type, bool gate)
 {
@@ -1194,6 +1214,9 @@ static int pp_set_powergating_by_smu(void *handle,
 		break;
 	case AMD_IP_BLOCK_TYPE_GFX:
 		ret = pp_dpm_powergate_gfx(handle, gate);
+		break;
+	case AMD_IP_BLOCK_TYPE_ACP:
+		pp_dpm_powergate_acp(handle, gate);
 		break;
 	default:
 		break;

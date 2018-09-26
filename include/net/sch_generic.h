@@ -20,6 +20,9 @@ struct qdisc_walker;
 struct tcf_walker;
 struct module;
 
+typedef int tc_setup_cb_t(enum tc_setup_type type,
+			  void *type_data, void *cb_priv);
+
 struct qdisc_rate_table {
 	struct tc_ratespec rate;
 	u32		data[256];
@@ -232,8 +235,16 @@ struct tcf_result {
 			u32		classid;
 		};
 		const struct tcf_proto *goto_tp;
+
+		/* used by the TC_ACT_REINSERT action */
+		struct {
+			bool		ingress;
+			struct gnet_stats_queue *qstats;
+		};
 	};
 };
+
+struct tcf_chain;
 
 struct tcf_proto_ops {
 	struct list_head	head;
@@ -256,11 +267,22 @@ struct tcf_proto_ops {
 					  bool *last,
 					  struct netlink_ext_ack *);
 	void			(*walk)(struct tcf_proto*, struct tcf_walker *arg);
+	int			(*reoffload)(struct tcf_proto *tp, bool add,
+					     tc_setup_cb_t *cb, void *cb_priv,
+					     struct netlink_ext_ack *extack);
 	void			(*bind_class)(void *, u32, unsigned long);
+	void *			(*tmplt_create)(struct net *net,
+						struct tcf_chain *chain,
+						struct nlattr **tca,
+						struct netlink_ext_ack *extack);
+	void			(*tmplt_destroy)(void *tmplt_priv);
 
 	/* rtnetlink specific */
 	int			(*dump)(struct net*, struct tcf_proto*, void *,
 					struct sk_buff *skb, struct tcmsg*);
+	int			(*tmplt_dump)(struct sk_buff *skb,
+					      struct net *net,
+					      void *tmplt_priv);
 
 	struct module		*owner;
 };
@@ -269,6 +291,8 @@ struct tcf_proto {
 	/* Fast access part */
 	struct tcf_proto __rcu	*next;
 	void __rcu		*root;
+
+	/* called under RCU BH lock*/
 	int			(*classify)(struct sk_buff *,
 					    const struct tcf_proto *,
 					    struct tcf_result *);
@@ -294,11 +318,14 @@ typedef void tcf_chain_head_change_t(struct tcf_proto *tp_head, void *priv);
 
 struct tcf_chain {
 	struct tcf_proto __rcu *filter_chain;
-	struct list_head filter_chain_list;
 	struct list_head list;
 	struct tcf_block *block;
 	u32 index; /* chain index */
 	unsigned int refcnt;
+	unsigned int action_refcnt;
+	bool explicitly_created;
+	const struct tcf_proto_ops *tmplt_ops;
+	void *tmplt_priv;
 };
 
 struct tcf_block {
@@ -312,6 +339,10 @@ struct tcf_block {
 	bool keep_dst;
 	unsigned int offloadcnt; /* Number of oddloaded filters */
 	unsigned int nooffloaddevcnt; /* Number of devs unable to do offload */
+	struct {
+		struct tcf_chain *chain;
+		struct list_head filter_chain_list;
+	} chain0;
 };
 
 static inline void tcf_block_offload_inc(struct tcf_block *block, u32 *flags)
@@ -328,6 +359,21 @@ static inline void tcf_block_offload_dec(struct tcf_block *block, u32 *flags)
 		return;
 	*flags &= ~TCA_CLS_FLAGS_IN_HW;
 	block->offloadcnt--;
+}
+
+static inline void
+tc_cls_offload_cnt_update(struct tcf_block *block, unsigned int *cnt,
+			  u32 *flags, bool add)
+{
+	if (add) {
+		if (!*cnt)
+			tcf_block_offload_inc(block, flags);
+		(*cnt)++;
+	} else {
+		(*cnt)--;
+		if (!*cnt)
+			tcf_block_offload_dec(block, flags);
+	}
 }
 
 static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)
@@ -526,6 +572,15 @@ static inline void skb_reset_tc(struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	skb->tc_redirected = 0;
+#endif
+}
+
+static inline bool skb_is_tc_redirected(const struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	return skb->tc_redirected;
+#else
+	return false;
 #endif
 }
 
@@ -1067,5 +1122,18 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 			  struct tcf_proto *tp_head);
 void mini_qdisc_pair_init(struct mini_Qdisc_pair *miniqp, struct Qdisc *qdisc,
 			  struct mini_Qdisc __rcu **p_miniq);
+
+static inline void skb_tc_reinsert(struct sk_buff *skb, struct tcf_result *res)
+{
+	struct gnet_stats_queue *stats = res->qstats;
+	int ret;
+
+	if (res->ingress)
+		ret = netif_receive_skb(skb);
+	else
+		ret = dev_queue_xmit(skb);
+	if (ret && stats)
+		qstats_overlimit_inc(res->qstats);
+}
 
 #endif

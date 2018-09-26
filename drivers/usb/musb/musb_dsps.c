@@ -237,7 +237,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 		}
 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 		skip_session = 1;
-		/* fall */
+		/* fall through */
 
 	case OTG_STATE_A_IDLE:
 	case OTG_STATE_B_IDLE:

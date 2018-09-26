@@ -63,7 +63,11 @@ static struct notifier_block cosm_reboot = {
 /* Set system time from timespec value received from the host */
 static void cosm_set_time(struct cosm_msg *msg)
 {
-	int rc = do_settimeofday64(&msg->timespec);
+	struct timespec64 ts = {
+		.tv_sec = msg->timespec.tv_sec,
+		.tv_nsec = msg->timespec.tv_nsec,
+	};
+	int rc = do_settimeofday64(&ts);
 
 	if (rc)
 		dev_err(&client_spdev->dev, "%s: %d settimeofday rc %d\n",

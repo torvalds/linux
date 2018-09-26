@@ -39,6 +39,7 @@
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_atomic.h>
+#include <media/cec-notifier.h>
 
 /**
  * __wait_for - magic wait macro
@@ -1019,6 +1020,7 @@ struct intel_hdmi {
 	bool has_audio;
 	bool rgb_quant_range_selectable;
 	struct intel_connector *attached_connector;
+	struct cec_notifier *cec_notifier;
 };
 
 struct intel_dp_mst_encoder;
@@ -2209,12 +2211,17 @@ void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon);
 
 /* intel_pipe_crc.c */
 #ifdef CONFIG_DEBUG_FS
-int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name,
-			      size_t *values_cnt);
+int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name);
+int intel_crtc_verify_crc_source(struct drm_crtc *crtc,
+				 const char *source_name, size_t *values_cnt);
+const char *const *intel_crtc_get_crc_sources(struct drm_crtc *crtc,
+					      size_t *count);
 void intel_crtc_disable_pipe_crc(struct intel_crtc *crtc);
 void intel_crtc_enable_pipe_crc(struct intel_crtc *crtc);
 #else
 #define intel_crtc_set_crc_source NULL
+#define intel_crtc_verify_crc_source NULL
+#define intel_crtc_get_crc_sources NULL
 static inline void intel_crtc_disable_pipe_crc(struct intel_crtc *crtc)
 {
 }

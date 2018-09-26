@@ -161,10 +161,8 @@ static int dmz_reclaim_copy(struct dmz_reclaim *zrc,
 
 		/* Copy the valid region */
 		set_bit(DMZ_RECLAIM_KCOPY, &zrc->flags);
-		ret = dm_kcopyd_copy(zrc->kc, &src, 1, &dst, flags,
-				     dmz_reclaim_kcopy_end, zrc);
-		if (ret)
-			return ret;
+		dm_kcopyd_copy(zrc->kc, &src, 1, &dst, flags,
+			       dmz_reclaim_kcopy_end, zrc);
 
 		/* Wait for copy to complete */
 		wait_on_bit_io(&zrc->flags, DMZ_RECLAIM_KCOPY,

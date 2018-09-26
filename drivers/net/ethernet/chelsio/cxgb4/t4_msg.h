@@ -755,7 +755,7 @@ struct cpl_abort_req_rss {
 struct cpl_abort_req_rss6 {
 	WR_HDR;
 	union opcode_tid ot;
-	__u32 srqidx_status;
+	__be32 srqidx_status;
 };
 
 #define ABORT_RSS_STATUS_S    0
@@ -785,7 +785,7 @@ struct cpl_abort_rpl_rss {
 
 struct cpl_abort_rpl_rss6 {
 	union opcode_tid ot;
-	__u32 srqidx_status;
+	__be32 srqidx_status;
 };
 
 struct cpl_abort_rpl {

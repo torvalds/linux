@@ -1443,9 +1443,7 @@ static struct pci_driver pt1_driver = {
 	.probe		= pt1_probe,
 	.remove		= pt1_remove,
 	.id_table	= pt1_id_table,
-#ifdef CONFIG_PM_SLEEP
 	.driver.pm	= &pt1_pm_ops,
-#endif
 };
 
 module_pci_driver(pt1_driver);

@@ -24,8 +24,7 @@
 #include <fcntl.h>
 #include <libgen.h>
 
-#include "bpf_load.h"
-#include "bpf_util.h"
+#include "bpf/libbpf.h"
 #include <bpf/bpf.h>
 
 
@@ -63,9 +62,15 @@ static void usage(const char *prog)
 
 int main(int argc, char **argv)
 {
+	struct bpf_prog_load_attr prog_load_attr = {
+		.prog_type	= BPF_PROG_TYPE_XDP,
+	};
+	const char *prog_name = "xdp_fwd";
+	struct bpf_program *prog;
 	char filename[PATH_MAX];
+	struct bpf_object *obj;
 	int opt, i, idx, err;
-	int prog_id = 0;
+	int prog_fd, map_fd;
 	int attach = 1;
 	int ret = 0;
 
@@ -75,7 +80,7 @@ int main(int argc, char **argv)
 			attach = 0;
 			break;
 		case 'D':
-			prog_id = 1;
+			prog_name = "xdp_fwd_direct";
 			break;
 		default:
 			usage(basename(argv[0]));
@@ -90,6 +95,7 @@ int main(int argc, char **argv)
 
 	if (attach) {
 		snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+		prog_load_attr.file = filename;
 
 		if (access(filename, O_RDONLY) < 0) {
 			printf("error accessing file %s: %s\n",
@@ -97,19 +103,25 @@ int main(int argc, char **argv)
 			return 1;
 		}
 
-		if (load_bpf_file(filename)) {
-			printf("%s", bpf_log_buf);
+		if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+			return 1;
+
+		prog = bpf_object__find_program_by_title(obj, prog_name);
+		prog_fd = bpf_program__fd(prog);
+		if (prog_fd < 0) {
+			printf("program not found: %s\n", strerror(prog_fd));
 			return 1;
 		}
-
-		if (!prog_fd[prog_id]) {
-			printf("load_bpf_file: %s\n", strerror(errno));
+		map_fd = bpf_map__fd(bpf_object__find_map_by_name(obj,
+								  "tx_port"));
+		if (map_fd < 0) {
+			printf("map not found: %s\n", strerror(map_fd));
 			return 1;
 		}
 	}
 	if (attach) {
 		for (i = 1; i < 64; ++i)
-			bpf_map_update_elem(map_fd[0], &i, &i, 0);
+			bpf_map_update_elem(map_fd, &i, &i, 0);
 	}
 
 	for (i = optind; i < argc; ++i) {
@@ -126,7 +138,7 @@ int main(int argc, char **argv)
 			if (err)
 				ret = err;
 		} else {
-			err = do_attach(idx, prog_fd[prog_id], argv[i]);
+			err = do_attach(idx, prog_fd, argv[i]);
 			if (err)
 				ret = err;
 		}

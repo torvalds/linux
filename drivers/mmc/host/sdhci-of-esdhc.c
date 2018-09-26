@@ -22,6 +22,7 @@
 #include <linux/sys_soc.h>
 #include <linux/clk.h>
 #include <linux/ktime.h>
+#include <linux/dma-mapping.h>
 #include <linux/mmc/host.h>
 #include "sdhci-pltfm.h"
 #include "sdhci-esdhc.h"
@@ -29,11 +30,56 @@
 #define VENDOR_V_22	0x12
 #define VENDOR_V_23	0x13
 
+#define MMC_TIMING_NUM (MMC_TIMING_MMC_HS400 + 1)
+
+struct esdhc_clk_fixup {
+	const unsigned int sd_dflt_max_clk;
+	const unsigned int max_clk[MMC_TIMING_NUM];
+};
+
+static const struct esdhc_clk_fixup ls1021a_esdhc_clk = {
+	.sd_dflt_max_clk = 25000000,
+	.max_clk[MMC_TIMING_MMC_HS] = 46500000,
+	.max_clk[MMC_TIMING_SD_HS] = 46500000,
+};
+
+static const struct esdhc_clk_fixup ls1046a_esdhc_clk = {
+	.sd_dflt_max_clk = 25000000,
+	.max_clk[MMC_TIMING_UHS_SDR104] = 167000000,
+	.max_clk[MMC_TIMING_MMC_HS200] = 167000000,
+};
+
+static const struct esdhc_clk_fixup ls1012a_esdhc_clk = {
+	.sd_dflt_max_clk = 25000000,
+	.max_clk[MMC_TIMING_UHS_SDR104] = 125000000,
+	.max_clk[MMC_TIMING_MMC_HS200] = 125000000,
+};
+
+static const struct esdhc_clk_fixup p1010_esdhc_clk = {
+	.sd_dflt_max_clk = 20000000,
+	.max_clk[MMC_TIMING_LEGACY] = 20000000,
+	.max_clk[MMC_TIMING_MMC_HS] = 42000000,
+	.max_clk[MMC_TIMING_SD_HS] = 40000000,
+};
+
+static const struct of_device_id sdhci_esdhc_of_match[] = {
+	{ .compatible = "fsl,ls1021a-esdhc", .data = &ls1021a_esdhc_clk},
+	{ .compatible = "fsl,ls1046a-esdhc", .data = &ls1046a_esdhc_clk},
+	{ .compatible = "fsl,ls1012a-esdhc", .data = &ls1012a_esdhc_clk},
+	{ .compatible = "fsl,p1010-esdhc",   .data = &p1010_esdhc_clk},
+	{ .compatible = "fsl,mpc8379-esdhc" },
+	{ .compatible = "fsl,mpc8536-esdhc" },
+	{ .compatible = "fsl,esdhc" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sdhci_esdhc_of_match);
+
 struct sdhci_esdhc {
 	u8 vendor_ver;
 	u8 spec_ver;
 	bool quirk_incorrect_hostver;
 	unsigned int peripheral_clock;
+	const struct esdhc_clk_fixup *clk_fixup;
 };
 
 /**
@@ -427,6 +473,11 @@ static void esdhc_of_adma_workaround(struct sdhci_host *host, u32 intmask)
 static int esdhc_of_enable_dma(struct sdhci_host *host)
 {
 	u32 value;
+	struct device *dev = mmc_dev(host->mmc);
+
+	if (of_device_is_compatible(dev->of_node, "fsl,ls1043a-esdhc") ||
+	    of_device_is_compatible(dev->of_node, "fsl,ls1046a-esdhc"))
+		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(40));
 
 	value = sdhci_readl(host, ESDHC_DMA_SYSCTL);
 	value |= ESDHC_DMA_SNOOP;
@@ -492,6 +543,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 	int pre_div = 1;
 	int div = 1;
 	ktime_t timeout;
+	long fixup = 0;
 	u32 temp;
 
 	host->mmc->actual_clock = 0;
@@ -505,27 +557,14 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (esdhc->vendor_ver < VENDOR_V_23)
 		pre_div = 2;
 
-	/*
-	 * Limit SD clock to 167MHz for ls1046a according to its datasheet
-	 */
-	if (clock > 167000000 &&
-	    of_find_compatible_node(NULL, NULL, "fsl,ls1046a-esdhc"))
-		clock = 167000000;
+	if (host->mmc->card && mmc_card_sd(host->mmc->card) &&
+		esdhc->clk_fixup && host->mmc->ios.timing == MMC_TIMING_LEGACY)
+		fixup = esdhc->clk_fixup->sd_dflt_max_clk;
+	else if (esdhc->clk_fixup)
+		fixup = esdhc->clk_fixup->max_clk[host->mmc->ios.timing];
 
-	/*
-	 * Limit SD clock to 125MHz for ls1012a according to its datasheet
-	 */
-	if (clock > 125000000 &&
-	    of_find_compatible_node(NULL, NULL, "fsl,ls1012a-esdhc"))
-		clock = 125000000;
-
-	/* Workaround to reduce the clock frequency for p1010 esdhc */
-	if (of_find_compatible_node(NULL, NULL, "fsl,p1010-esdhc")) {
-		if (clock > 20000000)
-			clock -= 5000000;
-		if (clock > 40000000)
-			clock -= 5000000;
-	}
+	if (fixup && clock > fixup)
+		clock = fixup;
 
 	temp = sdhci_readl(host, ESDHC_SYSTEM_CONTROL);
 	temp &= ~(ESDHC_CLOCK_SDCLKEN | ESDHC_CLOCK_IPGEN | ESDHC_CLOCK_HCKEN |
@@ -783,6 +822,7 @@ static struct soc_device_attribute soc_incorrect_hostver[] = {
 
 static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 {
+	const struct of_device_id *match;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_esdhc *esdhc;
 	struct device_node *np;
@@ -802,6 +842,9 @@ static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 	else
 		esdhc->quirk_incorrect_hostver = false;
 
+	match = of_match_node(sdhci_esdhc_of_match, pdev->dev.of_node);
+	if (match)
+		esdhc->clk_fixup = match->data;
 	np = pdev->dev.of_node;
 	clk = of_clk_get(np, 0);
 	if (!IS_ERR(clk)) {
@@ -900,14 +943,6 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	sdhci_pltfm_free(pdev);
 	return ret;
 }
-
-static const struct of_device_id sdhci_esdhc_of_match[] = {
-	{ .compatible = "fsl,mpc8379-esdhc" },
-	{ .compatible = "fsl,mpc8536-esdhc" },
-	{ .compatible = "fsl,esdhc" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, sdhci_esdhc_of_match);
 
 static struct platform_driver sdhci_esdhc_driver = {
 	.driver = {

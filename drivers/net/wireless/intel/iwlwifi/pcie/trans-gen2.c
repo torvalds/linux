@@ -53,6 +53,7 @@
 #include "iwl-trans.h"
 #include "iwl-prph.h"
 #include "iwl-context-info.h"
+#include "iwl-context-info-gen3.h"
 #include "internal.h"
 
 /*
@@ -188,7 +189,10 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power)
 	}
 
 	iwl_pcie_ctxt_info_free_paging(trans);
-	iwl_pcie_ctxt_info_free(trans);
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_22560)
+		iwl_pcie_ctxt_info_gen3_free(trans);
+	else
+		iwl_pcie_ctxt_info_free(trans);
 
 	/* Make sure (redundant) we've released our request to stay awake */
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
@@ -346,7 +350,10 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 		goto out;
 	}
 
-	ret = iwl_pcie_ctxt_info_init(trans, fw);
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_22560)
+		ret = iwl_pcie_ctxt_info_gen3_init(trans, fw);
+	else
+		ret = iwl_pcie_ctxt_info_init(trans, fw);
 	if (ret)
 		goto out;
 

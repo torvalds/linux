@@ -192,7 +192,7 @@ static int set_var(struct fbtft_par *par)
 }
 
 #ifdef GAMMA_ADJ
-#define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
+#define CURVE(num, idx)  curves[(num) * par->gamma.num_values + (idx)]
 static int gamma_adj(struct fbtft_par *par, u32 *curves)
 {
 	unsigned long mask[] = {

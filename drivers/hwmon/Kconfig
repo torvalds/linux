@@ -937,6 +937,18 @@ config SENSORS_MCP3021
 	  This driver can also be built as a module.  If so, the module
 	  will be called mcp3021.
 
+config SENSORS_MLXREG_FAN
+	tristate "Mellanox Mellanox FAN driver"
+	depends on MELLANOX_PLATFORM
+	imply THERMAL
+	select REGMAP
+	help
+	  This option enables support for the FAN control on the Mellanox
+	  Ethernet and InfiniBand switches. The driver can be activated by the
+	  platform device add call. Say Y to enable these. To compile this
+	  driver as a module, choose 'M' here: the module will be called
+	  mlxreg-fan.
+
 config SENSORS_TC654
 	tristate "Microchip TC654/TC655 and compatibles"
 	depends on I2C
@@ -1256,6 +1268,16 @@ config SENSORS_NCT7904
 	  This driver can also be built as a module.  If so, the module
 	  will be called nct7904.
 
+config SENSORS_NPCM7XX
+	tristate "Nuvoton NPCM750 and compatible PWM and Fan controllers"
+	imply THERMAL
+	help
+	  This driver provides support for Nuvoton NPCM750/730/715/705 PWM
+          and Fan controllers.
+
+          This driver can also be built as a module. If so, the module
+          will be called npcm750-pwm-fan.
+
 config SENSORS_NSA320
 	tristate "ZyXEL NSA320 and compatible fan speed and temperature sensors"
 	depends on GPIOLIB && OF
@@ -1297,6 +1319,16 @@ config SENSORS_PWM_FAN
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called pwm-fan.
+
+config SENSORS_RASPBERRYPI_HWMON
+	tristate "Raspberry Pi voltage monitor"
+	depends on RASPBERRYPI_FIRMWARE || (COMPILE_TEST && !RASPBERRYPI_FIRMWARE)
+	help
+	  If you say yes here you get support for voltage sensor on the
+	  Raspberry Pi.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called raspberrypi-hwmon.
 
 config SENSORS_SHT15
 	tristate "Sensiron humidity and temperature sensors. SHT15 and compat."

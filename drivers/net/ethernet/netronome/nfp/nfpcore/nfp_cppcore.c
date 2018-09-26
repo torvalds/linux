@@ -1163,10 +1163,10 @@ nfp_cpp_from_operations(const struct nfp_cpp_operations *ops,
 {
 	const u32 arm = NFP_CPP_ID(NFP_CPP_TARGET_ARM, NFP_CPP_ACTION_RW, 0);
 	struct nfp_cpp *cpp;
+	int ifc, err;
 	u32 mask[2];
 	u32 xpbaddr;
 	size_t tgt;
-	int err;
 
 	cpp = kzalloc(sizeof(*cpp), GFP_KERNEL);
 	if (!cpp) {
@@ -1176,9 +1176,19 @@ nfp_cpp_from_operations(const struct nfp_cpp_operations *ops,
 
 	cpp->op = ops;
 	cpp->priv = priv;
-	cpp->interface = ops->get_interface(parent);
-	if (ops->read_serial)
-		ops->read_serial(parent, cpp->serial);
+
+	ifc = ops->get_interface(parent);
+	if (ifc < 0) {
+		err = ifc;
+		goto err_free_cpp;
+	}
+	cpp->interface = ifc;
+	if (ops->read_serial) {
+		err = ops->read_serial(parent, cpp->serial);
+		if (err)
+			goto err_free_cpp;
+	}
+
 	rwlock_init(&cpp->resource_lock);
 	init_waitqueue_head(&cpp->waitq);
 	lockdep_set_class(&cpp->resource_lock, &nfp_cpp_resource_lock_key);
@@ -1191,7 +1201,7 @@ nfp_cpp_from_operations(const struct nfp_cpp_operations *ops,
 	err = device_register(&cpp->dev);
 	if (err < 0) {
 		put_device(&cpp->dev);
-		goto err_dev;
+		goto err_free_cpp;
 	}
 
 	dev_set_drvdata(&cpp->dev, cpp);
@@ -1238,7 +1248,7 @@ nfp_cpp_from_operations(const struct nfp_cpp_operations *ops,
 
 err_out:
 	device_unregister(&cpp->dev);
-err_dev:
+err_free_cpp:
 	kfree(cpp);
 err_malloc:
 	return ERR_PTR(err);

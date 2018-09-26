@@ -41,9 +41,9 @@ static DEFINE_PER_CPU(struct rnd_state, nft_prandom_state);
 #include "../bridge/br_private.h"
 #endif
 
-static void nft_meta_get_eval(const struct nft_expr *expr,
-			      struct nft_regs *regs,
-			      const struct nft_pktinfo *pkt)
+void nft_meta_get_eval(const struct nft_expr *expr,
+		       struct nft_regs *regs,
+		       const struct nft_pktinfo *pkt)
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
@@ -107,7 +107,8 @@ static void nft_meta_get_eval(const struct nft_expr *expr,
 		break;
 	case NFT_META_SKUID:
 		sk = skb_to_full_sk(skb);
-		if (!sk || !sk_fullsock(sk))
+		if (!sk || !sk_fullsock(sk) ||
+		    !net_eq(nft_net(pkt), sock_net(sk)))
 			goto err;
 
 		read_lock_bh(&sk->sk_callback_lock);
@@ -123,7 +124,8 @@ static void nft_meta_get_eval(const struct nft_expr *expr,
 		break;
 	case NFT_META_SKGID:
 		sk = skb_to_full_sk(skb);
-		if (!sk || !sk_fullsock(sk))
+		if (!sk || !sk_fullsock(sk) ||
+		    !net_eq(nft_net(pkt), sock_net(sk)))
 			goto err;
 
 		read_lock_bh(&sk->sk_callback_lock);
@@ -214,7 +216,8 @@ static void nft_meta_get_eval(const struct nft_expr *expr,
 #ifdef CONFIG_CGROUP_NET_CLASSID
 	case NFT_META_CGROUP:
 		sk = skb_to_full_sk(skb);
-		if (!sk || !sk_fullsock(sk))
+		if (!sk || !sk_fullsock(sk) ||
+		    !net_eq(nft_net(pkt), sock_net(sk)))
 			goto err;
 		*dest = sock_cgroup_classid(&sk->sk_cgrp_data);
 		break;

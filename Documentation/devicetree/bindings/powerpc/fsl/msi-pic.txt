@@ -21,11 +21,6 @@ Required properties:
   be set as edge sensitive.  If msi-available-ranges is present, only
   the interrupts that correspond to available ranges shall be present.
 
-- interrupt-parent: the phandle for the interrupt controller
-  that services interrupts for this device. for 83xx cpu, the interrupts
-  are routed to IPIC, and for 85xx/86xx cpu the interrupts are routed
-  to MPIC.
-
 Optional properties:
 - msi-available-ranges: use <start count> style section to define which
   msi interrupt can be used in the 256 msi interrupts. This property is

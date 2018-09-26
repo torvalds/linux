@@ -506,7 +506,7 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 
 	/* Can't lease without MODESET */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	/* Do not allow sub-leases */
 	if (lessor->lessor)
@@ -553,24 +553,13 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 
 	/* Clone the lessor file to create a new file for us */
 	DRM_DEBUG_LEASE("Allocating lease file\n");
-	path_get(&lessor_file->f_path);
-	lessee_file = alloc_file(&lessor_file->f_path,
-				 lessor_file->f_mode,
-				 fops_get(lessor_file->f_inode->i_fop));
-
+	lessee_file = file_clone_open(lessor_file);
 	if (IS_ERR(lessee_file)) {
 		ret = PTR_ERR(lessee_file);
 		goto out_lessee;
 	}
 
-	/* Initialize the new file for DRM */
-	DRM_DEBUG_LEASE("Initializing the file with %p\n", lessee_file->f_op->open);
-	ret = lessee_file->f_op->open(lessee_file->f_inode, lessee_file);
-	if (ret)
-		goto out_lessee_file;
-
 	lessee_priv = lessee_file->private_data;
-
 	/* Change the file to a master one */
 	drm_master_put(&lessee_priv->master);
 	lessee_priv->master = lessee;
@@ -587,9 +576,6 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 
 	DRM_DEBUG_LEASE("drm_mode_create_lease_ioctl succeeded\n");
 	return 0;
-
-out_lessee_file:
-	fput(lessee_file);
 
 out_lessee:
 	drm_master_put(&lessee);
@@ -629,7 +615,7 @@ int drm_mode_list_lessees_ioctl(struct drm_device *dev,
 
 	/* Can't lease without MODESET */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	DRM_DEBUG_LEASE("List lessees for %d\n", lessor->lessee_id);
 
@@ -685,7 +671,7 @@ int drm_mode_get_lease_ioctl(struct drm_device *dev,
 
 	/* Can't lease without MODESET */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	DRM_DEBUG_LEASE("get lease for %d\n", lessee->lessee_id);
 
@@ -740,7 +726,7 @@ int drm_mode_revoke_lease_ioctl(struct drm_device *dev,
 
 	/* Can't lease without MODESET */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&dev->mode_config.idr_mutex);
 

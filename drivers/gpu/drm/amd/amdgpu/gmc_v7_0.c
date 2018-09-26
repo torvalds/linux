@@ -28,6 +28,8 @@
 #include "cik.h"
 #include "gmc_v7_0.h"
 #include "amdgpu_ucode.h"
+#include "amdgpu_amdkfd.h"
+#include "amdgpu_gem.h"
 
 #include "bif/bif_4_1_d.h"
 #include "bif/bif_4_1_sh_mask.h"
@@ -240,8 +242,8 @@ static void gmc_v7_0_vram_gtt_location(struct amdgpu_device *adev,
 	u64 base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
 	base <<= 24;
 
-	amdgpu_device_vram_location(adev, &adev->gmc, base);
-	amdgpu_device_gart_location(adev, mc);
+	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
+	amdgpu_gmc_gart_location(adev, mc);
 }
 
 /**
@@ -600,16 +602,20 @@ static void gmc_v7_0_set_prt(struct amdgpu_device *adev, bool enable)
  */
 static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 {
+	uint64_t table_addr;
 	int r, i;
 	u32 tmp, field;
 
-	if (adev->gart.robj == NULL) {
+	if (adev->gart.bo == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
 	r = amdgpu_gart_table_vram_pin(adev);
 	if (r)
 		return r;
+
+	table_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
+
 	/* Setup TLB control */
 	tmp = RREG32(mmMC_VM_MX_L1_TLB_CNTL);
 	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL, ENABLE_L1_TLB, 1);
@@ -641,7 +647,7 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 	/* setup context0 */
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_START_ADDR, adev->gmc.gart_start >> 12);
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_END_ADDR, adev->gmc.gart_end >> 12);
-	WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR, adev->gart.table_addr >> 12);
+	WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR, table_addr >> 12);
 	WREG32(mmVM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR,
 			(u32)(adev->dummy_page_addr >> 12));
 	WREG32(mmVM_CONTEXT0_CNTL2, 0);
@@ -665,10 +671,10 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 	for (i = 1; i < 16; i++) {
 		if (i < 8)
 			WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + i,
-			       adev->gart.table_addr >> 12);
+			       table_addr >> 12);
 		else
 			WREG32(mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + i - 8,
-			       adev->gart.table_addr >> 12);
+			       table_addr >> 12);
 	}
 
 	/* enable context1-15 */
@@ -695,7 +701,7 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 	gmc_v7_0_flush_gpu_tlb(adev, 0);
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
-		 (unsigned long long)adev->gart.table_addr);
+		 (unsigned long long)table_addr);
 	adev->gart.ready = true;
 	return 0;
 }
@@ -704,7 +710,7 @@ static int gmc_v7_0_gart_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->gart.robj) {
+	if (adev->gart.bo) {
 		WARN(1, "R600 PCIE GART already initialized\n");
 		return 0;
 	}
@@ -743,19 +749,6 @@ static void gmc_v7_0_gart_disable(struct amdgpu_device *adev)
 	WREG32(mmVM_L2_CNTL, tmp);
 	WREG32(mmVM_L2_CNTL2, 0);
 	amdgpu_gart_table_vram_unpin(adev);
-}
-
-/**
- * gmc_v7_0_gart_fini - vm fini callback
- *
- * @adev: amdgpu_device pointer
- *
- * Tears down the driver GART/VM setup (CIK).
- */
-static void gmc_v7_0_gart_fini(struct amdgpu_device *adev)
-{
-	amdgpu_gart_table_vram_free(adev);
-	amdgpu_gart_fini(adev);
 }
 
 /**
@@ -1078,6 +1071,12 @@ static int gmc_v7_0_sw_init(void *handle)
 		adev->vm_manager.vram_base_offset = 0;
 	}
 
+	adev->gmc.vm_fault_info = kmalloc(sizeof(struct kfd_vm_fault_info),
+					GFP_KERNEL);
+	if (!adev->gmc.vm_fault_info)
+		return -ENOMEM;
+	atomic_set(&adev->gmc.vm_fault_info_updated, 0);
+
 	return 0;
 }
 
@@ -1087,8 +1086,10 @@ static int gmc_v7_0_sw_fini(void *handle)
 
 	amdgpu_gem_force_release(adev);
 	amdgpu_vm_manager_fini(adev);
-	gmc_v7_0_gart_fini(adev);
+	kfree(adev->gmc.vm_fault_info);
+	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_fini(adev);
+	amdgpu_gart_fini(adev);
 	release_firmware(adev->gmc.fw);
 	adev->gmc.fw = NULL;
 
@@ -1276,7 +1277,7 @@ static int gmc_v7_0_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_irq_src *source,
 				      struct amdgpu_iv_entry *entry)
 {
-	u32 addr, status, mc_client;
+	u32 addr, status, mc_client, vmid;
 
 	addr = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_ADDR);
 	status = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_STATUS);
@@ -1299,6 +1300,29 @@ static int gmc_v7_0_process_interrupt(struct amdgpu_device *adev,
 			status);
 		gmc_v7_0_vm_decode_fault(adev, status, addr, mc_client,
 					 entry->pasid);
+	}
+
+	vmid = REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS,
+			     VMID);
+	if (amdgpu_amdkfd_is_kfd_vmid(adev, vmid)
+		&& !atomic_read(&adev->gmc.vm_fault_info_updated)) {
+		struct kfd_vm_fault_info *info = adev->gmc.vm_fault_info;
+		u32 protections = REG_GET_FIELD(status,
+					VM_CONTEXT1_PROTECTION_FAULT_STATUS,
+					PROTECTIONS);
+
+		info->vmid = vmid;
+		info->mc_id = REG_GET_FIELD(status,
+					    VM_CONTEXT1_PROTECTION_FAULT_STATUS,
+					    MEMORY_CLIENT_ID);
+		info->status = status;
+		info->page_addr = addr;
+		info->prot_valid = protections & 0x7 ? true : false;
+		info->prot_read = protections & 0x8 ? true : false;
+		info->prot_write = protections & 0x10 ? true : false;
+		info->prot_exec = protections & 0x20 ? true : false;
+		mb();
+		atomic_set(&adev->gmc.vm_fault_info_updated, 1);
 	}
 
 	return 0;

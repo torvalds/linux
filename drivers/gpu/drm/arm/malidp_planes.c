@@ -78,11 +78,8 @@ static void malidp_plane_reset(struct drm_plane *plane)
 	kfree(state);
 	plane->state = NULL;
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state) {
-		state->base.plane = plane;
-		state->base.rotation = DRM_MODE_ROTATE_0;
-		plane->state = &state->base;
-	}
+	if (state)
+		__drm_atomic_helper_plane_reset(plane, &state->base);
 }
 
 static struct

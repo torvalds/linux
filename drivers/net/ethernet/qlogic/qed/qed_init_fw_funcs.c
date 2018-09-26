@@ -1225,19 +1225,6 @@ void qed_gft_disable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, u16 pf_id)
 	       0);
 }
 
-void qed_set_gft_event_id_cm_hdr(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
-{
-	u32 rfs_cm_hdr_event_id;
-
-	/* Set RFS event ID to be awakened i Tstorm By Prs */
-	rfs_cm_hdr_event_id = qed_rd(p_hwfn, p_ptt, PRS_REG_CM_HDR_GFT);
-	rfs_cm_hdr_event_id |= T_ETH_PACKET_ACTION_GFT_EVENTID <<
-			       PRS_REG_CM_HDR_GFT_EVENT_ID_SHIFT;
-	rfs_cm_hdr_event_id |= PARSER_ETH_CONN_GFT_ACTION_CM_HDR <<
-			       PRS_REG_CM_HDR_GFT_CM_HDR_SHIFT;
-	qed_wr(p_hwfn, p_ptt, PRS_REG_CM_HDR_GFT, rfs_cm_hdr_event_id);
-}
-
 void qed_gft_config(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt,
 		    u16 pf_id,

@@ -6,7 +6,6 @@ Required properties:
 - reg			: Physical base address and size of GQSPI registers map.
 - interrupts		: Property with a value describing the interrupt
 			  number.
-- interrupt-parent	: Must be core interrupt controller.
 - clock-names		: List of input clock names - "ref_clk", "pclk"
 			  (See clock bindings for details).
 - clocks		: Clock phandles (see clock bindings for details).

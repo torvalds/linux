@@ -15,7 +15,7 @@ Please refer to reset.txt in this directory for common reset
 controller binding usage.
 
 Required properties:
-- compatible: Should be st,stih407-softreset";
+- compatible: Should be "st,stih407-softreset";
 - #reset-cells: 1, see below
 
 example:

@@ -1333,21 +1333,28 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 		part_round_stats(gp->queue, cpu, hd);
 		part_stat_unlock();
 		part_in_flight(gp->queue, hd, inflight);
-		seq_printf(seqf, "%4d %7d %s %lu %lu %lu "
-			   "%u %lu %lu %lu %u %u %u %u\n",
+		seq_printf(seqf, "%4d %7d %s "
+			   "%lu %lu %lu %u "
+			   "%lu %lu %lu %u "
+			   "%u %u %u "
+			   "%lu %lu %lu %u\n",
 			   MAJOR(part_devt(hd)), MINOR(part_devt(hd)),
 			   disk_name(gp, hd->partno, buf),
-			   part_stat_read(hd, ios[READ]),
-			   part_stat_read(hd, merges[READ]),
-			   part_stat_read(hd, sectors[READ]),
-			   jiffies_to_msecs(part_stat_read(hd, ticks[READ])),
-			   part_stat_read(hd, ios[WRITE]),
-			   part_stat_read(hd, merges[WRITE]),
-			   part_stat_read(hd, sectors[WRITE]),
-			   jiffies_to_msecs(part_stat_read(hd, ticks[WRITE])),
+			   part_stat_read(hd, ios[STAT_READ]),
+			   part_stat_read(hd, merges[STAT_READ]),
+			   part_stat_read(hd, sectors[STAT_READ]),
+			   jiffies_to_msecs(part_stat_read(hd, ticks[STAT_READ])),
+			   part_stat_read(hd, ios[STAT_WRITE]),
+			   part_stat_read(hd, merges[STAT_WRITE]),
+			   part_stat_read(hd, sectors[STAT_WRITE]),
+			   jiffies_to_msecs(part_stat_read(hd, ticks[STAT_WRITE])),
 			   inflight[0],
 			   jiffies_to_msecs(part_stat_read(hd, io_ticks)),
-			   jiffies_to_msecs(part_stat_read(hd, time_in_queue))
+			   jiffies_to_msecs(part_stat_read(hd, time_in_queue)),
+			   part_stat_read(hd, ios[STAT_DISCARD]),
+			   part_stat_read(hd, merges[STAT_DISCARD]),
+			   part_stat_read(hd, sectors[STAT_DISCARD]),
+			   jiffies_to_msecs(part_stat_read(hd, ticks[STAT_DISCARD]))
 			);
 	}
 	disk_part_iter_exit(&piter);

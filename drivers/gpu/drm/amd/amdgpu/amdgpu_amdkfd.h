@@ -119,12 +119,19 @@ int amdgpu_amdkfd_evict_userptr(struct kgd_mem *mem, struct mm_struct *mm);
 int amdgpu_amdkfd_submit_ib(struct kgd_dev *kgd, enum kgd_engine_type engine,
 				uint32_t vmid, uint64_t gpu_addr,
 				uint32_t *ib_cmd, uint32_t ib_len);
+void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle);
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void);
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void);
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void);
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid);
+
+int amdgpu_amdkfd_pre_reset(struct amdgpu_device *adev);
+
+int amdgpu_amdkfd_post_reset(struct amdgpu_device *adev);
+
+void amdgpu_amdkfd_gpu_reset(struct kgd_dev *kgd);
 
 /* Shared API */
 int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
@@ -138,6 +145,7 @@ uint64_t get_gpu_clock_counter(struct kgd_dev *kgd);
 uint32_t get_max_engine_clock_in_mhz(struct kgd_dev *kgd);
 void get_cu_info(struct kgd_dev *kgd, struct kfd_cu_info *cu_info);
 uint64_t amdgpu_amdkfd_get_vram_usage(struct kgd_dev *kgd);
+uint64_t amdgpu_amdkfd_get_hive_id(struct kgd_dev *kgd);
 
 #define read_user_wptr(mmptr, wptr, dst)				\
 	({								\
@@ -155,16 +163,17 @@ uint64_t amdgpu_amdkfd_get_vram_usage(struct kgd_dev *kgd);
 	})
 
 /* GPUVM API */
-int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, void **vm,
-					void **process_info,
+int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, unsigned int pasid,
+					void **vm, void **process_info,
 					struct dma_fence **ef);
 int amdgpu_amdkfd_gpuvm_acquire_process_vm(struct kgd_dev *kgd,
-					struct file *filp,
+					struct file *filp, unsigned int pasid,
 					void **vm, void **process_info,
 					struct dma_fence **ef);
 void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,
 				struct amdgpu_vm *vm);
 void amdgpu_amdkfd_gpuvm_destroy_process_vm(struct kgd_dev *kgd, void *vm);
+void amdgpu_amdkfd_gpuvm_release_process_vm(struct kgd_dev *kgd, void *vm);
 uint32_t amdgpu_amdkfd_gpuvm_get_process_page_dir(void *vm);
 int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 		struct kgd_dev *kgd, uint64_t va, uint64_t size,
@@ -182,6 +191,9 @@ int amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(struct kgd_dev *kgd,
 		struct kgd_mem *mem, void **kptr, uint64_t *size);
 int amdgpu_amdkfd_gpuvm_restore_process_bos(void *process_info,
 					    struct dma_fence **ef);
+
+int amdgpu_amdkfd_gpuvm_get_vm_fault_info(struct kgd_dev *kgd,
+					      struct kfd_vm_fault_info *info);
 
 void amdgpu_amdkfd_gpuvm_init_mem_limits(void);
 void amdgpu_amdkfd_unreserve_system_memory_limit(struct amdgpu_bo *bo);

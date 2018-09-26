@@ -296,6 +296,8 @@
 #define AS3722_ADC1_CONV_NOTREADY			BIT(7)
 #define AS3722_ADC1_SOURCE_SELECT_MASK			0x1F
 
+#define AS3722_CTRL_SEQU1_AC_OK_PWR_ON			BIT(0)
+
 /* GPIO modes */
 #define AS3722_GPIO_MODE_MASK				0x07
 #define AS3722_GPIO_MODE_INPUT				0x00
@@ -391,6 +393,7 @@ struct as3722 {
 	unsigned long irq_flags;
 	bool en_intern_int_pullup;
 	bool en_intern_i2c_pullup;
+	bool en_ac_ok_pwr_on;
 	struct regmap_irq_chip_data *irq_data;
 };
 

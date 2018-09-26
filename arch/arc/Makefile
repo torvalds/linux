@@ -16,7 +16,7 @@ endif
 
 KBUILD_DEFCONFIG := nsim_700_defconfig
 
-cflags-y	+= -fno-common -pipe -fno-builtin -D__linux__
+cflags-y	+= -fno-common -pipe -fno-builtin -mmedium-calls -D__linux__
 cflags-$(CONFIG_ISA_ARCOMPACT)	+= -mA7
 cflags-$(CONFIG_ISA_ARCV2)	+= -mcpu=archs
 
@@ -95,7 +95,7 @@ KBUILD_CFLAGS_MODULE	+= -mlong-calls -mno-millicode
 # Finally dump eveything into kernel build system
 KBUILD_CFLAGS	+= $(cflags-y)
 KBUILD_AFLAGS	+= $(KBUILD_CFLAGS)
-LDFLAGS		+= $(ldflags-y)
+KBUILD_LDFLAGS	+= $(ldflags-y)
 
 head-y		:= arch/arc/kernel/head.o
 
@@ -140,16 +140,3 @@ dtbs: scripts
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
-
-# Hacks to enable final link due to absence of link-time branch relexation
-# and gcc choosing optimal(shorter) branches at -O3
-#
-# vineetg Feb 2010: -mlong-calls switched off for overall kernel build
-# However lib/decompress_inflate.o (.init.text) calls
-# zlib_inflate_workspacesize (.text) causing relocation errors.
-# Thus forcing all exten calls in this file to be long calls
-export CFLAGS_decompress_inflate.o = -mmedium-calls
-export CFLAGS_initramfs.o = -mmedium-calls
-ifdef CONFIG_SMP
-export CFLAGS_core.o = -mmedium-calls
-endif

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * rcar_du_crtc.c  --  R-Car Display Unit CRTCs
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -198,6 +194,47 @@ done:
 		 best_diff);
 }
 
+struct du_clk_params {
+	struct clk *clk;
+	unsigned long rate;
+	unsigned long diff;
+	u32 escr;
+};
+
+static void rcar_du_escr_divider(struct clk *clk, unsigned long target,
+				 u32 escr, struct du_clk_params *params)
+{
+	unsigned long rate;
+	unsigned long diff;
+	u32 div;
+
+	/*
+	 * If the target rate has already been achieved perfectly we can't do
+	 * better.
+	 */
+	if (params->diff == 0)
+		return;
+
+	/*
+	 * Compute the input clock rate and internal divisor values to obtain
+	 * the clock rate closest to the target frequency.
+	 */
+	rate = clk_round_rate(clk, target);
+	div = clamp(DIV_ROUND_CLOSEST(rate, target), 1UL, 64UL) - 1;
+	diff = abs(rate / (div + 1) - target);
+
+	/*
+	 * Store the parameters if the resulting frequency is better than any
+	 * previously calculated value.
+	 */
+	if (diff < params->diff) {
+		params->clk = clk;
+		params->rate = rate;
+		params->diff = diff;
+		params->escr = escr | div;
+	}
+}
+
 static const struct soc_device_attribute rcar_du_r8a7795_es1[] = {
 	{ .soc_id = "r8a7795", .revision = "ES1.*" },
 	{ /* sentinel */ }
@@ -208,89 +245,83 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	const struct drm_display_mode *mode = &rcrtc->crtc.state->adjusted_mode;
 	struct rcar_du_device *rcdu = rcrtc->group->dev;
 	unsigned long mode_clock = mode->clock * 1000;
-	unsigned long clk;
-	u32 value;
+	u32 dsmr;
 	u32 escr;
-	u32 div;
 
-	/*
-	 * Compute the clock divisor and select the internal or external dot
-	 * clock based on the requested frequency.
-	 */
-	clk = clk_get_rate(rcrtc->clock);
-	div = DIV_ROUND_CLOSEST(clk, mode_clock);
-	div = clamp(div, 1U, 64U) - 1;
-	escr = div | ESCR_DCLKSEL_CLKS;
-
-	if (rcrtc->extclock) {
+	if (rcdu->info->dpll_mask & (1 << rcrtc->index)) {
+		unsigned long target = mode_clock;
 		struct dpll_info dpll = { 0 };
 		unsigned long extclk;
-		unsigned long extrate;
-		unsigned long rate;
-		u32 extdiv;
+		u32 dpllcr;
+		u32 div = 0;
+
+		/*
+		 * DU channels that have a display PLL can't use the internal
+		 * system clock, and have no internal clock divider.
+		 */
+
+		if (WARN_ON(!rcrtc->extclock))
+			return;
+
+		/*
+		 * The H3 ES1.x exhibits dot clock duty cycle stability issues.
+		 * We can work around them by configuring the DPLL to twice the
+		 * desired frequency, coupled with a /2 post-divider. Restrict
+		 * the workaround to H3 ES1.x as ES2.0 and all other SoCs have
+		 * no post-divider when a display PLL is present (as shown by
+		 * the workaround breaking HDMI output on M3-W during testing).
+		 */
+		if (soc_device_match(rcar_du_r8a7795_es1)) {
+			target *= 2;
+			div = 1;
+		}
 
 		extclk = clk_get_rate(rcrtc->extclock);
-		if (rcdu->info->dpll_ch & (1 << rcrtc->index)) {
-			unsigned long target = mode_clock;
+		rcar_du_dpll_divider(rcrtc, &dpll, extclk, target);
 
-			/*
-			 * The H3 ES1.x exhibits dot clock duty cycle stability
-			 * issues. We can work around them by configuring the
-			 * DPLL to twice the desired frequency, coupled with a
-			 * /2 post-divider. This isn't needed on other SoCs and
-			 * breaks HDMI output on M3-W for a currently unknown
-			 * reason, so restrict the workaround to H3 ES1.x.
-			 */
-			if (soc_device_match(rcar_du_r8a7795_es1))
-				target *= 2;
+		dpllcr = DPLLCR_CODE | DPLLCR_CLKE
+		       | DPLLCR_FDPLL(dpll.fdpll)
+		       | DPLLCR_N(dpll.n) | DPLLCR_M(dpll.m)
+		       | DPLLCR_STBY;
 
-			rcar_du_dpll_divider(rcrtc, &dpll, extclk, target);
-			extclk = dpll.output;
-		}
+		if (rcrtc->index == 1)
+			dpllcr |= DPLLCR_PLCS1
+			       |  DPLLCR_INCS_DOTCLKIN1;
+		else
+			dpllcr |= DPLLCR_PLCS0
+			       |  DPLLCR_INCS_DOTCLKIN0;
 
-		extdiv = DIV_ROUND_CLOSEST(extclk, mode_clock);
-		extdiv = clamp(extdiv, 1U, 64U) - 1;
+		rcar_du_group_write(rcrtc->group, DPLLCR, dpllcr);
 
-		rate = clk / (div + 1);
-		extrate = extclk / (extdiv + 1);
+		escr = ESCR_DCLKSEL_DCLKIN | div;
+	} else {
+		struct du_clk_params params = { .diff = (unsigned long)-1 };
 
-		if (abs((long)extrate - (long)mode_clock) <
-		    abs((long)rate - (long)mode_clock)) {
+		rcar_du_escr_divider(rcrtc->clock, mode_clock,
+				     ESCR_DCLKSEL_CLKS, &params);
+		if (rcrtc->extclock)
+			rcar_du_escr_divider(rcrtc->extclock, mode_clock,
+					     ESCR_DCLKSEL_DCLKIN, &params);
 
-			if (rcdu->info->dpll_ch & (1 << rcrtc->index)) {
-				u32 dpllcr = DPLLCR_CODE | DPLLCR_CLKE
-					   | DPLLCR_FDPLL(dpll.fdpll)
-					   | DPLLCR_N(dpll.n) | DPLLCR_M(dpll.m)
-					   | DPLLCR_STBY;
+		dev_dbg(rcrtc->group->dev->dev,	"mode clock %lu %s rate %lu\n",
+			mode_clock, params.clk == rcrtc->clock ? "cpg" : "ext",
+			params.rate);
 
-				if (rcrtc->index == 1)
-					dpllcr |= DPLLCR_PLCS1
-					       |  DPLLCR_INCS_DOTCLKIN1;
-				else
-					dpllcr |= DPLLCR_PLCS0
-					       |  DPLLCR_INCS_DOTCLKIN0;
-
-				rcar_du_group_write(rcrtc->group, DPLLCR,
-						    dpllcr);
-			}
-
-			escr = ESCR_DCLKSEL_DCLKIN | extdiv;
-		}
-
-		dev_dbg(rcrtc->group->dev->dev,
-			"mode clock %lu extrate %lu rate %lu ESCR 0x%08x\n",
-			mode_clock, extrate, rate, escr);
+		clk_set_rate(params.clk, params.rate);
+		escr = params.escr;
 	}
 
-	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? ESCR2 : ESCR,
-			    escr);
-	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? OTAR2 : OTAR, 0);
+	dev_dbg(rcrtc->group->dev->dev, "%s: ESCR 0x%08x\n", __func__, escr);
+
+	rcar_du_crtc_write(rcrtc, rcrtc->index % 2 ? ESCR13 : ESCR02, escr);
+	rcar_du_crtc_write(rcrtc, rcrtc->index % 2 ? OTAR13 : OTAR02, 0);
 
 	/* Signal polarities */
-	value = ((mode->flags & DRM_MODE_FLAG_PVSYNC) ? DSMR_VSL : 0)
-	      | ((mode->flags & DRM_MODE_FLAG_PHSYNC) ? DSMR_HSL : 0)
-	      | DSMR_DIPM_DISP | DSMR_CSPM;
-	rcar_du_crtc_write(rcrtc, DSMR, value);
+	dsmr = ((mode->flags & DRM_MODE_FLAG_PVSYNC) ? DSMR_VSL : 0)
+	     | ((mode->flags & DRM_MODE_FLAG_PHSYNC) ? DSMR_HSL : 0)
+	     | ((mode->flags & DRM_MODE_FLAG_INTERLACE) ? DSMR_ODEV : 0)
+	     | DSMR_DIPM_DISP | DSMR_CSPM;
+	rcar_du_crtc_write(rcrtc, DSMR, dsmr);
 
 	/* Display timings */
 	rcar_du_crtc_write(rcrtc, HDSR, mode->htotal - mode->hsync_start - 19);
@@ -684,12 +715,85 @@ static void rcar_du_crtc_atomic_flush(struct drm_crtc *crtc,
 		rcar_du_vsp_atomic_flush(rcrtc);
 }
 
+enum drm_mode_status rcar_du_crtc_mode_valid(struct drm_crtc *crtc,
+				   const struct drm_display_mode *mode)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
+
+	if (interlaced && !rcar_du_has(rcdu, RCAR_DU_FEATURE_INTERLACED))
+		return MODE_NO_INTERLACE;
+
+	return MODE_OK;
+}
+
 static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.atomic_begin = rcar_du_crtc_atomic_begin,
 	.atomic_flush = rcar_du_crtc_atomic_flush,
 	.atomic_enable = rcar_du_crtc_atomic_enable,
 	.atomic_disable = rcar_du_crtc_atomic_disable,
+	.mode_valid = rcar_du_crtc_mode_valid,
 };
+
+static void rcar_du_crtc_crc_init(struct rcar_du_crtc *rcrtc)
+{
+	struct rcar_du_device *rcdu = rcrtc->group->dev;
+	const char **sources;
+	unsigned int count;
+	int i = -1;
+
+	/* CRC available only on Gen3 HW. */
+	if (rcdu->info->gen < 3)
+		return;
+
+	/* Reserve 1 for "auto" source. */
+	count = rcrtc->vsp->num_planes + 1;
+
+	sources = kmalloc_array(count, sizeof(*sources), GFP_KERNEL);
+	if (!sources)
+		return;
+
+	sources[0] = kstrdup("auto", GFP_KERNEL);
+	if (!sources[0])
+		goto error;
+
+	for (i = 0; i < rcrtc->vsp->num_planes; ++i) {
+		struct drm_plane *plane = &rcrtc->vsp->planes[i].plane;
+		char name[16];
+
+		sprintf(name, "plane%u", plane->base.id);
+		sources[i + 1] = kstrdup(name, GFP_KERNEL);
+		if (!sources[i + 1])
+			goto error;
+	}
+
+	rcrtc->sources = sources;
+	rcrtc->sources_count = count;
+	return;
+
+error:
+	while (i >= 0) {
+		kfree(sources[i]);
+		i--;
+	}
+	kfree(sources);
+}
+
+static void rcar_du_crtc_crc_cleanup(struct rcar_du_crtc *rcrtc)
+{
+	unsigned int i;
+
+	if (!rcrtc->sources)
+		return;
+
+	for (i = 0; i < rcrtc->sources_count; i++)
+		kfree(rcrtc->sources[i]);
+	kfree(rcrtc->sources);
+
+	rcrtc->sources = NULL;
+	rcrtc->sources_count = 0;
+}
 
 static struct drm_crtc_state *
 rcar_du_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
@@ -715,6 +819,15 @@ static void rcar_du_crtc_atomic_destroy_state(struct drm_crtc *crtc,
 {
 	__drm_atomic_helper_crtc_destroy_state(state);
 	kfree(to_rcar_crtc_state(state));
+}
+
+static void rcar_du_crtc_cleanup(struct drm_crtc *crtc)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	rcar_du_crtc_crc_cleanup(rcrtc);
+
+	return drm_crtc_cleanup(crtc);
 }
 
 static void rcar_du_crtc_reset(struct drm_crtc *crtc)
@@ -756,17 +869,11 @@ static void rcar_du_crtc_disable_vblank(struct drm_crtc *crtc)
 	rcrtc->vblank_enable = false;
 }
 
-static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
-				       const char *source_name,
-				       size_t *values_cnt)
+static int rcar_du_crtc_parse_crc_source(struct rcar_du_crtc *rcrtc,
+					 const char *source_name,
+					 enum vsp1_du_crc_source *source)
 {
-	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
-	struct drm_modeset_acquire_ctx ctx;
-	struct drm_crtc_state *crtc_state;
-	struct drm_atomic_state *state;
-	enum vsp1_du_crc_source source;
-	unsigned int index = 0;
-	unsigned int i;
+	unsigned int index;
 	int ret;
 
 	/*
@@ -774,31 +881,72 @@ static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
 	 * CRC on an input plane (%u is the plane ID), and "auto" to compute the
 	 * CRC on the composer (VSP) output.
 	 */
+
 	if (!source_name) {
-		source = VSP1_DU_CRC_NONE;
+		*source = VSP1_DU_CRC_NONE;
+		return 0;
 	} else if (!strcmp(source_name, "auto")) {
-		source = VSP1_DU_CRC_OUTPUT;
+		*source = VSP1_DU_CRC_OUTPUT;
+		return 0;
 	} else if (strstarts(source_name, "plane")) {
-		source = VSP1_DU_CRC_PLANE;
+		unsigned int i;
+
+		*source = VSP1_DU_CRC_PLANE;
 
 		ret = kstrtouint(source_name + strlen("plane"), 10, &index);
 		if (ret < 0)
 			return ret;
 
 		for (i = 0; i < rcrtc->vsp->num_planes; ++i) {
-			if (index == rcrtc->vsp->planes[i].plane.base.id) {
-				index = i;
-				break;
-			}
+			if (index == rcrtc->vsp->planes[i].plane.base.id)
+				return i;
 		}
+	}
 
-		if (i >= rcrtc->vsp->num_planes)
-			return -EINVAL;
-	} else {
+	return -EINVAL;
+}
+
+static int rcar_du_crtc_verify_crc_source(struct drm_crtc *crtc,
+					  const char *source_name,
+					  size_t *values_cnt)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	enum vsp1_du_crc_source source;
+
+	if (rcar_du_crtc_parse_crc_source(rcrtc, source_name, &source) < 0) {
+		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
 		return -EINVAL;
 	}
 
 	*values_cnt = 1;
+	return 0;
+}
+
+const char *const *rcar_du_crtc_get_crc_sources(struct drm_crtc *crtc,
+						size_t *count)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	*count = rcrtc->sources_count;
+	return rcrtc->sources;
+}
+
+static int rcar_du_crtc_set_crc_source(struct drm_crtc *crtc,
+				       const char *source_name)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_crtc_state *crtc_state;
+	struct drm_atomic_state *state;
+	enum vsp1_du_crc_source source;
+	unsigned int index;
+	int ret;
+
+	ret = rcar_du_crtc_parse_crc_source(rcrtc, source_name, &source);
+	if (ret < 0)
+		return ret;
+
+	index = ret;
 
 	/* Perform an atomic commit to set the CRC source. */
 	drm_modeset_acquire_init(&ctx, 0);
@@ -853,7 +1001,7 @@ static const struct drm_crtc_funcs crtc_funcs_gen2 = {
 
 static const struct drm_crtc_funcs crtc_funcs_gen3 = {
 	.reset = rcar_du_crtc_reset,
-	.destroy = drm_crtc_cleanup,
+	.destroy = rcar_du_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = rcar_du_crtc_atomic_duplicate_state,
@@ -861,6 +1009,8 @@ static const struct drm_crtc_funcs crtc_funcs_gen3 = {
 	.enable_vblank = rcar_du_crtc_enable_vblank,
 	.disable_vblank = rcar_du_crtc_disable_vblank,
 	.set_crc_source = rcar_du_crtc_set_crc_source,
+	.verify_crc_source = rcar_du_crtc_verify_crc_source,
+	.get_crc_sources = rcar_du_crtc_get_crc_sources,
 };
 
 /* -----------------------------------------------------------------------------
@@ -998,6 +1148,8 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
 			"failed to register IRQ for CRTC %u\n", swindex);
 		return ret;
 	}
+
+	rcar_du_crtc_crc_init(rcrtc);
 
 	return 0;
 }

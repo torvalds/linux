@@ -43,12 +43,13 @@ struct seq_file;
 #ifdef CONFIG_BATMAN_ADV_DAT
 
 /**
- * batadv_dat_addr_t - it is the type used for all DHT addresses. If it is
- *  changed, BATADV_DAT_ADDR_MAX is changed as well.
+ * typedef batadv_dat_addr_t - type used for all DHT addresses
+ *
+ * If it is changed, BATADV_DAT_ADDR_MAX is changed as well.
  *
  * *Please be careful: batadv_dat_addr_t must be UNSIGNED*
  */
-#define batadv_dat_addr_t u16
+typedef u16 batadv_dat_addr_t;
 
 #endif /* CONFIG_BATMAN_ADV_DAT */
 

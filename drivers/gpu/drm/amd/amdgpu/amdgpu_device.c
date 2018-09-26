@@ -62,6 +62,8 @@
 MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/vega12_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
+MODULE_FIRMWARE("amdgpu/picasso_gpu_info.bin");
+MODULE_FIRMWARE("amdgpu/raven2_gpu_info.bin");
 
 #define AMDGPU_RESUME_MS		2000
 
@@ -649,71 +651,6 @@ void amdgpu_device_wb_free(struct amdgpu_device *adev, u32 wb)
 	wb >>= 3;
 	if (wb < adev->wb.num_wb)
 		__clear_bit(wb, adev->wb.used);
-}
-
-/**
- * amdgpu_device_vram_location - try to find VRAM location
- *
- * @adev: amdgpu device structure holding all necessary informations
- * @mc: memory controller structure holding memory informations
- * @base: base address at which to put VRAM
- *
- * Function will try to place VRAM at base address provided
- * as parameter.
- */
-void amdgpu_device_vram_location(struct amdgpu_device *adev,
-				 struct amdgpu_gmc *mc, u64 base)
-{
-	uint64_t limit = (uint64_t)amdgpu_vram_limit << 20;
-
-	mc->vram_start = base;
-	mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
-	if (limit && limit < mc->real_vram_size)
-		mc->real_vram_size = limit;
-	dev_info(adev->dev, "VRAM: %lluM 0x%016llX - 0x%016llX (%lluM used)\n",
-			mc->mc_vram_size >> 20, mc->vram_start,
-			mc->vram_end, mc->real_vram_size >> 20);
-}
-
-/**
- * amdgpu_device_gart_location - try to find GART location
- *
- * @adev: amdgpu device structure holding all necessary informations
- * @mc: memory controller structure holding memory informations
- *
- * Function will place try to place GART before or after VRAM.
- *
- * If GART size is bigger than space left then we ajust GART size.
- * Thus function will never fails.
- */
-void amdgpu_device_gart_location(struct amdgpu_device *adev,
-				 struct amdgpu_gmc *mc)
-{
-	u64 size_af, size_bf;
-
-	mc->gart_size += adev->pm.smu_prv_buffer_size;
-
-	size_af = adev->gmc.mc_mask - mc->vram_end;
-	size_bf = mc->vram_start;
-	if (size_bf > size_af) {
-		if (mc->gart_size > size_bf) {
-			dev_warn(adev->dev, "limiting GART\n");
-			mc->gart_size = size_bf;
-		}
-		mc->gart_start = 0;
-	} else {
-		if (mc->gart_size > size_af) {
-			dev_warn(adev->dev, "limiting GART\n");
-			mc->gart_size = size_af;
-		}
-		/* VCE doesn't like it when BOs cross a 4GB segment, so align
-		 * the GART base on a 4GB boundary as well.
-		 */
-		mc->gart_start = ALIGN(mc->vram_end + 1, 0x100000000ULL);
-	}
-	mc->gart_end = mc->gart_start + mc->gart_size - 1;
-	dev_info(adev->dev, "GART: %lluM 0x%016llX - 0x%016llX\n",
-			mc->gart_size >> 20, mc->gart_start, mc->gart_end);
 }
 
 /**
@@ -1397,7 +1334,12 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 		chip_name = "vega12";
 		break;
 	case CHIP_RAVEN:
-		chip_name = "raven";
+		if (adev->rev_id >= 8)
+			chip_name = "raven2";
+		else if (adev->pdev->device == 0x15d8)
+			chip_name = "picasso";
+		else
+			chip_name = "raven";
 		break;
 	}
 
@@ -1551,6 +1493,8 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	}
 
 	adev->powerplay.pp_feature = amdgpu_pp_feature_mask;
+	if (amdgpu_sriov_vf(adev))
+		adev->powerplay.pp_feature &= ~PP_GFXOFF_MASK;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if ((amdgpu_ip_block_mask & (1 << i)) == 0) {
@@ -1651,6 +1595,7 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 		adev->ip_blocks[i].status.hw = true;
 	}
 
+	amdgpu_xgmi_add_device(adev);
 	amdgpu_amdkfd_device_init(adev);
 
 	if (amdgpu_sriov_vf(adev))
@@ -1690,24 +1635,27 @@ static bool amdgpu_device_check_vram_lost(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_device_ip_late_set_cg_state - late init for clockgating
+ * amdgpu_device_set_cg_state - set clockgating for amdgpu device
  *
  * @adev: amdgpu_device pointer
  *
- * Late initialization pass enabling clockgating for hardware IPs.
  * The list of all the hardware IPs that make up the asic is walked and the
- * set_clockgating_state callbacks are run.  This stage is run late
- * in the init process.
+ * set_clockgating_state callbacks are run.
+ * Late initialization pass enabling clockgating for hardware IPs.
+ * Fini or suspend, pass disabling clockgating for hardware IPs.
  * Returns 0 on success, negative error code on failure.
  */
-static int amdgpu_device_ip_late_set_cg_state(struct amdgpu_device *adev)
+
+static int amdgpu_device_set_cg_state(struct amdgpu_device *adev,
+						enum amd_clockgating_state state)
 {
-	int i = 0, r;
+	int i, j, r;
 
 	if (amdgpu_emu_mode == 1)
 		return 0;
 
-	for (i = 0; i < adev->num_ip_blocks; i++) {
+	for (j = 0; j < adev->num_ip_blocks; j++) {
+		i = state == AMD_CG_STATE_GATE ? j : adev->num_ip_blocks - j - 1;
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
 		/* skip CG for VCE/UVD, it's handled specially */
@@ -1717,7 +1665,7 @@ static int amdgpu_device_ip_late_set_cg_state(struct amdgpu_device *adev)
 		    adev->ip_blocks[i].version->funcs->set_clockgating_state) {
 			/* enable clockgating to save power */
 			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
-										     AMD_CG_STATE_GATE);
+										     state);
 			if (r) {
 				DRM_ERROR("set_clockgating_state(gate) of IP block <%s> failed %d\n",
 					  adev->ip_blocks[i].version->funcs->name, r);
@@ -1729,14 +1677,15 @@ static int amdgpu_device_ip_late_set_cg_state(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int amdgpu_device_ip_late_set_pg_state(struct amdgpu_device *adev)
+static int amdgpu_device_set_pg_state(struct amdgpu_device *adev, enum amd_powergating_state state)
 {
-	int i = 0, r;
+	int i, j, r;
 
 	if (amdgpu_emu_mode == 1)
 		return 0;
 
-	for (i = 0; i < adev->num_ip_blocks; i++) {
+	for (j = 0; j < adev->num_ip_blocks; j++) {
+		i = state == AMD_PG_STATE_GATE ? j : adev->num_ip_blocks - j - 1;
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
 		/* skip CG for VCE/UVD, it's handled specially */
@@ -1746,7 +1695,7 @@ static int amdgpu_device_ip_late_set_pg_state(struct amdgpu_device *adev)
 		    adev->ip_blocks[i].version->funcs->set_powergating_state) {
 			/* enable powergating to save power */
 			r = adev->ip_blocks[i].version->funcs->set_powergating_state((void *)adev,
-										     AMD_PG_STATE_GATE);
+											state);
 			if (r) {
 				DRM_ERROR("set_powergating_state(gate) of IP block <%s> failed %d\n",
 					  adev->ip_blocks[i].version->funcs->name, r);
@@ -1787,8 +1736,8 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 		}
 	}
 
-	amdgpu_device_ip_late_set_cg_state(adev);
-	amdgpu_device_ip_late_set_pg_state(adev);
+	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_GATE);
+	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_GATE);
 
 	queue_delayed_work(system_wq, &adev->late_init_work,
 			   msecs_to_jiffies(AMDGPU_RESUME_MS));
@@ -1814,22 +1763,15 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 	int i, r;
 
 	amdgpu_amdkfd_device_fini(adev);
+
+	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
+	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
+
 	/* need to disable SMC first */
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.hw)
 			continue;
-		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC &&
-			adev->ip_blocks[i].version->funcs->set_clockgating_state) {
-			/* ungate blocks before hw fini so that we can shutdown the blocks safely */
-			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
-										     AMD_CG_STATE_UNGATE);
-			if (r) {
-				DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n",
-					  adev->ip_blocks[i].version->funcs->name, r);
-				return r;
-			}
-			if (adev->powerplay.pp_funcs->set_powergating_by_smu)
-				amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, false);
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC) {
 			r = adev->ip_blocks[i].version->funcs->hw_fini((void *)adev);
 			/* XXX handle errors */
 			if (r) {
@@ -1844,20 +1786,6 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.hw)
 			continue;
-
-		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
-			adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE &&
-			adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCN &&
-			adev->ip_blocks[i].version->funcs->set_clockgating_state) {
-			/* ungate blocks before hw fini so that we can shutdown the blocks safely */
-			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
-										     AMD_CG_STATE_UNGATE);
-			if (r) {
-				DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n",
-					  adev->ip_blocks[i].version->funcs->name, r);
-				return r;
-			}
-		}
 
 		r = adev->ip_blocks[i].version->funcs->hw_fini((void *)adev);
 		/* XXX handle errors */
@@ -1906,13 +1834,9 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_device_ip_late_init_func_handler - work handler for clockgating
+ * amdgpu_device_ip_late_init_func_handler - work handler for ib test
  *
- * @work: work_struct
- *
- * Work handler for amdgpu_device_ip_late_set_cg_state.  We put the
- * clockgating setup into a worker thread to speed up driver init and
- * resume from suspend.
+ * @work: work_struct.
  */
 static void amdgpu_device_ip_late_init_func_handler(struct work_struct *work)
 {
@@ -1923,6 +1847,88 @@ static void amdgpu_device_ip_late_init_func_handler(struct work_struct *work)
 	r = amdgpu_ib_ring_tests(adev);
 	if (r)
 		DRM_ERROR("ib ring test failed (%d).\n", r);
+}
+
+static void amdgpu_device_delay_enable_gfx_off(struct work_struct *work)
+{
+	struct amdgpu_device *adev =
+		container_of(work, struct amdgpu_device, gfx.gfx_off_delay_work.work);
+
+	mutex_lock(&adev->gfx.gfx_off_mutex);
+	if (!adev->gfx.gfx_off_state && !adev->gfx.gfx_off_req_count) {
+		if (!amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, true))
+			adev->gfx.gfx_off_state = true;
+	}
+	mutex_unlock(&adev->gfx.gfx_off_mutex);
+}
+
+/**
+ * amdgpu_device_ip_suspend_phase1 - run suspend for hardware IPs (phase 1)
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Main suspend function for hardware IPs.  The list of all the hardware
+ * IPs that make up the asic is walked, clockgating is disabled and the
+ * suspend callbacks are run.  suspend puts the hardware and software state
+ * in each IP into a state suitable for suspend.
+ * Returns 0 on success, negative error code on failure.
+ */
+static int amdgpu_device_ip_suspend_phase1(struct amdgpu_device *adev)
+{
+	int i, r;
+
+	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
+	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
+
+	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
+		if (!adev->ip_blocks[i].status.valid)
+			continue;
+		/* displays are handled separately */
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE) {
+			/* XXX handle errors */
+			r = adev->ip_blocks[i].version->funcs->suspend(adev);
+			/* XXX handle errors */
+			if (r) {
+				DRM_ERROR("suspend of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].version->funcs->name, r);
+			}
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * amdgpu_device_ip_suspend_phase2 - run suspend for hardware IPs (phase 2)
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Main suspend function for hardware IPs.  The list of all the hardware
+ * IPs that make up the asic is walked, clockgating is disabled and the
+ * suspend callbacks are run.  suspend puts the hardware and software state
+ * in each IP into a state suitable for suspend.
+ * Returns 0 on success, negative error code on failure.
+ */
+static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
+{
+	int i, r;
+
+	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
+		if (!adev->ip_blocks[i].status.valid)
+			continue;
+		/* displays are handled in phase1 */
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE)
+			continue;
+		/* XXX handle errors */
+		r = adev->ip_blocks[i].version->funcs->suspend(adev);
+		/* XXX handle errors */
+		if (r) {
+			DRM_ERROR("suspend of IP block <%s> failed %d\n",
+				  adev->ip_blocks[i].version->funcs->name, r);
+		}
+	}
+
+	return 0;
 }
 
 /**
@@ -1938,48 +1944,20 @@ static void amdgpu_device_ip_late_init_func_handler(struct work_struct *work)
  */
 int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
 {
-	int i, r;
+	int r;
 
 	if (amdgpu_sriov_vf(adev))
 		amdgpu_virt_request_full_gpu(adev, false);
 
-	/* ungate SMC block first */
-	r = amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_SMC,
-						   AMD_CG_STATE_UNGATE);
-	if (r) {
-		DRM_ERROR("set_clockgating_state(ungate) SMC failed %d\n", r);
-	}
-
-	/* call smu to disable gfx off feature first when suspend */
-	if (adev->powerplay.pp_funcs->set_powergating_by_smu)
-		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, false);
-
-	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
-		if (!adev->ip_blocks[i].status.valid)
-			continue;
-		/* ungate blocks so that suspend can properly shut them down */
-		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_SMC &&
-			adev->ip_blocks[i].version->funcs->set_clockgating_state) {
-			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
-										     AMD_CG_STATE_UNGATE);
-			if (r) {
-				DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n",
-					  adev->ip_blocks[i].version->funcs->name, r);
-			}
-		}
-		/* XXX handle errors */
-		r = adev->ip_blocks[i].version->funcs->suspend(adev);
-		/* XXX handle errors */
-		if (r) {
-			DRM_ERROR("suspend of IP block <%s> failed %d\n",
-				  adev->ip_blocks[i].version->funcs->name, r);
-		}
-	}
+	r = amdgpu_device_ip_suspend_phase1(adev);
+	if (r)
+		return r;
+	r = amdgpu_device_ip_suspend_phase2(adev);
 
 	if (amdgpu_sriov_vf(adev))
 		amdgpu_virt_release_full_gpu(adev, false);
 
-	return 0;
+	return r;
 }
 
 static int amdgpu_device_ip_reinit_early_sriov(struct amdgpu_device *adev)
@@ -1989,6 +1967,7 @@ static int amdgpu_device_ip_reinit_early_sriov(struct amdgpu_device *adev)
 	static enum amd_ip_block_type ip_order[] = {
 		AMD_IP_BLOCK_TYPE_GMC,
 		AMD_IP_BLOCK_TYPE_COMMON,
+		AMD_IP_BLOCK_TYPE_PSP,
 		AMD_IP_BLOCK_TYPE_IH,
 	};
 
@@ -2004,7 +1983,7 @@ static int amdgpu_device_ip_reinit_early_sriov(struct amdgpu_device *adev)
 				continue;
 
 			r = block->version->funcs->hw_init(adev);
-			DRM_INFO("RE-INIT: %s %s\n", block->version->funcs->name, r?"failed":"successed");
+			DRM_INFO("RE-INIT: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
 			if (r)
 				return r;
 		}
@@ -2019,7 +1998,6 @@ static int amdgpu_device_ip_reinit_late_sriov(struct amdgpu_device *adev)
 
 	static enum amd_ip_block_type ip_order[] = {
 		AMD_IP_BLOCK_TYPE_SMC,
-		AMD_IP_BLOCK_TYPE_PSP,
 		AMD_IP_BLOCK_TYPE_DCE,
 		AMD_IP_BLOCK_TYPE_GFX,
 		AMD_IP_BLOCK_TYPE_SDMA,
@@ -2039,7 +2017,7 @@ static int amdgpu_device_ip_reinit_late_sriov(struct amdgpu_device *adev)
 				continue;
 
 			r = block->version->funcs->hw_init(adev);
-			DRM_INFO("RE-INIT: %s %s\n", block->version->funcs->name, r?"failed":"successed");
+			DRM_INFO("RE-INIT: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
 			if (r)
 				return r;
 		}
@@ -2200,7 +2178,7 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
-#ifdef CONFIG_X86
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case CHIP_RAVEN:
 #endif
 		return amdgpu_dc != 0;
@@ -2261,7 +2239,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->mman.buffer_funcs = NULL;
 	adev->mman.buffer_funcs_ring = NULL;
 	adev->vm_manager.vm_pte_funcs = NULL;
-	adev->vm_manager.vm_pte_num_rings = 0;
+	adev->vm_manager.vm_pte_num_rqs = 0;
 	adev->gmc.gmc_funcs = NULL;
 	adev->fence_context = dma_fence_context_alloc(AMDGPU_MAX_RINGS);
 	bitmap_zero(adev->gfx.pipe_reserve_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
@@ -2293,6 +2271,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	mutex_init(&adev->gfx.gpu_clock_mutex);
 	mutex_init(&adev->srbm_mutex);
 	mutex_init(&adev->gfx.pipe_reserve_mutex);
+	mutex_init(&adev->gfx.gfx_off_mutex);
 	mutex_init(&adev->grbm_idx_mutex);
 	mutex_init(&adev->mn_lock);
 	mutex_init(&adev->virt.vf_errors.lock);
@@ -2319,7 +2298,10 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	INIT_DELAYED_WORK(&adev->late_init_work,
 			  amdgpu_device_ip_late_init_func_handler);
+	INIT_DELAYED_WORK(&adev->gfx.gfx_off_delay_work,
+			  amdgpu_device_delay_enable_gfx_off);
 
+	adev->gfx.gfx_off_req_count = 1;
 	adev->pm.ac_power = power_supply_is_system_supplied() > 0 ? true : false;
 
 	/* Registers mapping */
@@ -2628,6 +2610,11 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 
 	drm_kms_helper_poll_disable(dev);
 
+	if (fbcon)
+		amdgpu_fbdev_set_suspend(adev, 1);
+
+	cancel_delayed_work_sync(&adev->late_init_work);
+
 	if (!amdgpu_device_has_dc_support(adev)) {
 		/* turn off display hw */
 		drm_modeset_lock_all(dev);
@@ -2635,44 +2622,46 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
 		}
 		drm_modeset_unlock_all(dev);
+			/* unpin the front buffers and cursors */
+		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+			struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+			struct drm_framebuffer *fb = crtc->primary->fb;
+			struct amdgpu_bo *robj;
+
+			if (amdgpu_crtc->cursor_bo) {
+				struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
+				r = amdgpu_bo_reserve(aobj, true);
+				if (r == 0) {
+					amdgpu_bo_unpin(aobj);
+					amdgpu_bo_unreserve(aobj);
+				}
+			}
+
+			if (fb == NULL || fb->obj[0] == NULL) {
+				continue;
+			}
+			robj = gem_to_amdgpu_bo(fb->obj[0]);
+			/* don't unpin kernel fb objects */
+			if (!amdgpu_fbdev_robj_is_fb(adev, robj)) {
+				r = amdgpu_bo_reserve(robj, true);
+				if (r == 0) {
+					amdgpu_bo_unpin(robj);
+					amdgpu_bo_unreserve(robj);
+				}
+			}
+		}
 	}
 
 	amdgpu_amdkfd_suspend(adev);
 
-	/* unpin the front buffers and cursors */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-		struct drm_framebuffer *fb = crtc->primary->fb;
-		struct amdgpu_bo *robj;
+	r = amdgpu_device_ip_suspend_phase1(adev);
 
-		if (amdgpu_crtc->cursor_bo) {
-			struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
-			r = amdgpu_bo_reserve(aobj, true);
-			if (r == 0) {
-				amdgpu_bo_unpin(aobj);
-				amdgpu_bo_unreserve(aobj);
-			}
-		}
-
-		if (fb == NULL || fb->obj[0] == NULL) {
-			continue;
-		}
-		robj = gem_to_amdgpu_bo(fb->obj[0]);
-		/* don't unpin kernel fb objects */
-		if (!amdgpu_fbdev_robj_is_fb(adev, robj)) {
-			r = amdgpu_bo_reserve(robj, true);
-			if (r == 0) {
-				amdgpu_bo_unpin(robj);
-				amdgpu_bo_unreserve(robj);
-			}
-		}
-	}
 	/* evict vram memory */
 	amdgpu_bo_evict_vram(adev);
 
 	amdgpu_fence_driver_suspend(adev);
 
-	r = amdgpu_device_ip_suspend(adev);
+	r = amdgpu_device_ip_suspend_phase2(adev);
 
 	/* evict remaining vram memory
 	 * This second call to evict vram is to evict the gart page table
@@ -2691,11 +2680,6 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 			DRM_ERROR("amdgpu asic reset failed\n");
 	}
 
-	if (fbcon) {
-		console_lock();
-		amdgpu_fbdev_set_suspend(adev, 1);
-		console_unlock();
-	}
 	return 0;
 }
 
@@ -2720,15 +2704,12 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	if (fbcon)
-		console_lock();
-
 	if (resume) {
 		pci_set_power_state(dev->pdev, PCI_D0);
 		pci_restore_state(dev->pdev);
 		r = pci_enable_device(dev->pdev);
 		if (r)
-			goto unlock;
+			return r;
 	}
 
 	/* post card */
@@ -2741,34 +2722,39 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	r = amdgpu_device_ip_resume(adev);
 	if (r) {
 		DRM_ERROR("amdgpu_device_ip_resume failed (%d).\n", r);
-		goto unlock;
+		return r;
 	}
 	amdgpu_fence_driver_resume(adev);
 
 
 	r = amdgpu_device_ip_late_init(adev);
 	if (r)
-		goto unlock;
+		return r;
 
-	/* pin cursors */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	if (!amdgpu_device_has_dc_support(adev)) {
+		/* pin cursors */
+		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+			struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 
-		if (amdgpu_crtc->cursor_bo) {
-			struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
-			r = amdgpu_bo_reserve(aobj, true);
-			if (r == 0) {
-				r = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM);
-				if (r != 0)
-					DRM_ERROR("Failed to pin cursor BO (%d)\n", r);
-				amdgpu_crtc->cursor_addr = amdgpu_bo_gpu_offset(aobj);
-				amdgpu_bo_unreserve(aobj);
+			if (amdgpu_crtc->cursor_bo) {
+				struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
+				r = amdgpu_bo_reserve(aobj, true);
+				if (r == 0) {
+					r = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM);
+					if (r != 0)
+						DRM_ERROR("Failed to pin cursor BO (%d)\n", r);
+					amdgpu_crtc->cursor_addr = amdgpu_bo_gpu_offset(aobj);
+					amdgpu_bo_unreserve(aobj);
+				}
 			}
 		}
 	}
 	r = amdgpu_amdkfd_resume(adev);
 	if (r)
 		return r;
+
+	/* Make sure IB tests flushed */
+	flush_delayed_work(&adev->late_init_work);
 
 	/* blat the mode back in */
 	if (fbcon) {
@@ -2783,6 +2769,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 			}
 			drm_modeset_unlock_all(dev);
 		}
+		amdgpu_fbdev_set_suspend(adev, 0);
 	}
 
 	drm_kms_helper_poll_enable(dev);
@@ -2806,15 +2793,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 #ifdef CONFIG_PM
 	dev->dev->power.disable_depth--;
 #endif
-
-	if (fbcon)
-		amdgpu_fbdev_set_suspend(adev, 0);
-
-unlock:
-	if (fbcon)
-		console_unlock();
-
-	return r;
+	return 0;
 }
 
 /**
@@ -2972,117 +2951,64 @@ static int amdgpu_device_ip_post_soft_reset(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_device_recover_vram_from_shadow - restore shadowed VRAM buffers
- *
- * @adev: amdgpu_device pointer
- * @ring: amdgpu_ring for the engine handling the buffer operations
- * @bo: amdgpu_bo buffer whose shadow is being restored
- * @fence: dma_fence associated with the operation
- *
- * Restores the VRAM buffer contents from the shadow in GTT.  Used to
- * restore things like GPUVM page tables after a GPU reset where
- * the contents of VRAM might be lost.
- * Returns 0 on success, negative error code on failure.
- */
-static int amdgpu_device_recover_vram_from_shadow(struct amdgpu_device *adev,
-						  struct amdgpu_ring *ring,
-						  struct amdgpu_bo *bo,
-						  struct dma_fence **fence)
-{
-	uint32_t domain;
-	int r;
-
-	if (!bo->shadow)
-		return 0;
-
-	r = amdgpu_bo_reserve(bo, true);
-	if (r)
-		return r;
-	domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
-	/* if bo has been evicted, then no need to recover */
-	if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
-		r = amdgpu_bo_validate(bo->shadow);
-		if (r) {
-			DRM_ERROR("bo validate failed!\n");
-			goto err;
-		}
-
-		r = amdgpu_bo_restore_from_shadow(adev, ring, bo,
-						 NULL, fence, true);
-		if (r) {
-			DRM_ERROR("recover page table failed!\n");
-			goto err;
-		}
-	}
-err:
-	amdgpu_bo_unreserve(bo);
-	return r;
-}
-
-/**
- * amdgpu_device_handle_vram_lost - Handle the loss of VRAM contents
+ * amdgpu_device_recover_vram - Recover some VRAM contents
  *
  * @adev: amdgpu_device pointer
  *
  * Restores the contents of VRAM buffers from the shadows in GTT.  Used to
  * restore things like GPUVM page tables after a GPU reset where
  * the contents of VRAM might be lost.
- * Returns 0 on success, 1 on failure.
+ *
+ * Returns:
+ * 0 on success, negative error code on failure.
  */
-static int amdgpu_device_handle_vram_lost(struct amdgpu_device *adev)
+static int amdgpu_device_recover_vram(struct amdgpu_device *adev)
 {
-	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
-	struct amdgpu_bo *bo, *tmp;
 	struct dma_fence *fence = NULL, *next = NULL;
-	long r = 1;
-	int i = 0;
-	long tmo;
+	struct amdgpu_bo *shadow;
+	long r = 1, tmo;
 
 	if (amdgpu_sriov_runtime(adev))
-		tmo = msecs_to_jiffies(amdgpu_lockup_timeout);
+		tmo = msecs_to_jiffies(8000);
 	else
 		tmo = msecs_to_jiffies(100);
 
 	DRM_INFO("recover vram bo from shadow start\n");
 	mutex_lock(&adev->shadow_list_lock);
-	list_for_each_entry_safe(bo, tmp, &adev->shadow_list, shadow_list) {
-		next = NULL;
-		amdgpu_device_recover_vram_from_shadow(adev, ring, bo, &next);
+	list_for_each_entry(shadow, &adev->shadow_list, shadow_list) {
+
+		/* No need to recover an evicted BO */
+		if (shadow->tbo.mem.mem_type != TTM_PL_TT ||
+		    shadow->parent->tbo.mem.mem_type != TTM_PL_VRAM)
+			continue;
+
+		r = amdgpu_bo_restore_shadow(shadow, &next);
+		if (r)
+			break;
+
 		if (fence) {
 			r = dma_fence_wait_timeout(fence, false, tmo);
-			if (r == 0)
-				pr_err("wait fence %p[%d] timeout\n", fence, i);
-			else if (r < 0)
-				pr_err("wait fence %p[%d] interrupted\n", fence, i);
-			if (r < 1) {
-				dma_fence_put(fence);
-				fence = next;
+			dma_fence_put(fence);
+			fence = next;
+			if (r <= 0)
 				break;
-			}
-			i++;
+		} else {
+			fence = next;
 		}
-
-		dma_fence_put(fence);
-		fence = next;
 	}
 	mutex_unlock(&adev->shadow_list_lock);
 
-	if (fence) {
-		r = dma_fence_wait_timeout(fence, false, tmo);
-		if (r == 0)
-			pr_err("wait fence %p[%d] timeout\n", fence, i);
-		else if (r < 0)
-			pr_err("wait fence %p[%d] interrupted\n", fence, i);
-
-	}
+	if (fence)
+		tmo = dma_fence_wait_timeout(fence, false, tmo);
 	dma_fence_put(fence);
 
-	if (r > 0)
-		DRM_INFO("recover vram bo from shadow done\n");
-	else
+	if (r <= 0 || tmo <= 0) {
 		DRM_ERROR("recover vram bo from shadow failed\n");
+		return -EIO;
+	}
 
-	return (r > 0) ? 0 : 1;
+	DRM_INFO("recover vram bo from shadow done\n");
+	return 0;
 }
 
 /**
@@ -3091,7 +3017,7 @@ static int amdgpu_device_handle_vram_lost(struct amdgpu_device *adev)
  * @adev: amdgpu device pointer
  *
  * attempt to do soft-reset or full-reset and reinitialize Asic
- * return 0 means successed otherwise failed
+ * return 0 means succeeded otherwise failed
  */
 static int amdgpu_device_reset(struct amdgpu_device *adev)
 {
@@ -3156,8 +3082,8 @@ out:
 		}
 	}
 
-	if (!r && ((need_full_reset && !(adev->flags & AMD_IS_APU)) || vram_lost))
-		r = amdgpu_device_handle_vram_lost(adev);
+	if (!r)
+		r = amdgpu_device_recover_vram(adev);
 
 	return r;
 }
@@ -3169,7 +3095,7 @@ out:
  * @from_hypervisor: request from hypervisor
  *
  * do VF FLR and reinitialize Asic
- * return 0 means successed otherwise failed
+ * return 0 means succeeded otherwise failed
  */
 static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 				     bool from_hypervisor)
@@ -3203,10 +3129,34 @@ error:
 	amdgpu_virt_release_full_gpu(adev, true);
 	if (!r && adev->virt.gim_feature & AMDGIM_FEATURE_GIM_FLR_VRAMLOST) {
 		atomic_inc(&adev->vram_lost_counter);
-		r = amdgpu_device_handle_vram_lost(adev);
+		r = amdgpu_device_recover_vram(adev);
 	}
 
 	return r;
+}
+
+/**
+ * amdgpu_device_should_recover_gpu - check if we should try GPU recovery
+ *
+ * @adev: amdgpu device pointer
+ *
+ * Check amdgpu_gpu_recovery and SRIOV status to see if we should try to recover
+ * a hung GPU.
+ */
+bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
+{
+	if (!amdgpu_device_ip_check_soft_reset(adev)) {
+		DRM_INFO("Timeout, but no hardware hang detected.\n");
+		return false;
+	}
+
+	if (amdgpu_gpu_recovery == 0 || (amdgpu_gpu_recovery == -1  &&
+					 !amdgpu_sriov_vf(adev))) {
+		DRM_INFO("GPU recovery disabled.\n");
+		return false;
+	}
+
+	return true;
 }
 
 /**
@@ -3214,32 +3164,23 @@ error:
  *
  * @adev: amdgpu device pointer
  * @job: which job trigger hang
- * @force: forces reset regardless of amdgpu_gpu_recovery
  *
  * Attempt to reset the GPU if it has hung (all asics).
  * Returns 0 for success or an error on failure.
  */
 int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
-			      struct amdgpu_job *job, bool force)
+			      struct amdgpu_job *job)
 {
 	int i, r, resched;
-
-	if (!force && !amdgpu_device_ip_check_soft_reset(adev)) {
-		DRM_INFO("No hardware hang detected. Did some blocks stall?\n");
-		return 0;
-	}
-
-	if (!force && (amdgpu_gpu_recovery == 0 ||
-			(amdgpu_gpu_recovery == -1  && !amdgpu_sriov_vf(adev)))) {
-		DRM_INFO("GPU recovery disabled.\n");
-		return 0;
-	}
 
 	dev_info(adev->dev, "GPU reset begin!\n");
 
 	mutex_lock(&adev->lock_reset);
 	atomic_inc(&adev->gpu_reset_counter);
 	adev->in_gpu_reset = 1;
+
+	/* Block kfd */
+	amdgpu_amdkfd_pre_reset(adev);
 
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
@@ -3256,7 +3197,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		if (job && job->base.sched == &ring->sched)
 			continue;
 
-		drm_sched_hw_job_reset(&ring->sched, &job->base);
+		drm_sched_hw_job_reset(&ring->sched, job ? &job->base : NULL);
 
 		/* after all hw jobs are reset, hw fence is meaningless, so force_completion */
 		amdgpu_fence_driver_force_completion(ring);
@@ -3294,9 +3235,11 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		dev_info(adev->dev, "GPU reset(%d) failed\n", atomic_read(&adev->gpu_reset_counter));
 		amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_GPU_RESET_FAIL, 0, r);
 	} else {
-		dev_info(adev->dev, "GPU reset(%d) successed!\n",atomic_read(&adev->gpu_reset_counter));
+		dev_info(adev->dev, "GPU reset(%d) succeeded!\n",atomic_read(&adev->gpu_reset_counter));
 	}
 
+	/*unlock kfd */
+	amdgpu_amdkfd_post_reset(adev);
 	amdgpu_vf_error_trans_all(adev);
 	adev->in_gpu_reset = 0;
 	mutex_unlock(&adev->lock_reset);

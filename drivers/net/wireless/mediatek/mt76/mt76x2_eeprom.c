@@ -40,8 +40,7 @@ mt76x2_eeprom_get_macaddr(struct mt76x2_dev *dev)
 	return 0;
 }
 
-static void
-mt76x2_eeprom_parse_hw_cap(struct mt76x2_dev *dev)
+void mt76x2_eeprom_parse_hw_cap(struct mt76x2_dev *dev)
 {
 	u16 val = mt76x2_eeprom_get(dev, MT_EE_NIC_CONF_0);
 
@@ -58,6 +57,7 @@ mt76x2_eeprom_parse_hw_cap(struct mt76x2_dev *dev)
 		break;
 	}
 }
+EXPORT_SYMBOL_GPL(mt76x2_eeprom_parse_hw_cap);
 
 static int
 mt76x2_efuse_read(struct mt76x2_dev *dev, u16 addr, u8 *data)
@@ -415,6 +415,7 @@ void mt76x2_read_rx_gain(struct mt76x2_dev *dev)
 
 	dev->cal.rx.lna_gain = mt76x2_sign_extend(lna, 8);
 }
+EXPORT_SYMBOL_GPL(mt76x2_read_rx_gain);
 
 static s8
 mt76x2_rate_power_val(u8 val)
@@ -482,6 +483,7 @@ void mt76x2_get_rate_power(struct mt76x2_dev *dev, struct mt76_rate_power *t,
 		val >>= 8;
 	t->vht[8] = t->vht[9] = mt76x2_rate_power_val(val >> 8);
 }
+EXPORT_SYMBOL_GPL(mt76x2_get_rate_power);
 
 int mt76x2_get_max_rate_power(struct mt76_rate_power *r)
 {
@@ -493,6 +495,7 @@ int mt76x2_get_max_rate_power(struct mt76_rate_power *r)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mt76x2_get_max_rate_power);
 
 static void
 mt76x2_get_power_info_2g(struct mt76x2_dev *dev, struct mt76x2_tx_power_info *t,
@@ -600,6 +603,7 @@ void mt76x2_get_power_info(struct mt76x2_dev *dev,
 	t->delta_bw40 = mt76x2_rate_power_val(bw40);
 	t->delta_bw80 = mt76x2_rate_power_val(bw80);
 }
+EXPORT_SYMBOL_GPL(mt76x2_get_power_info);
 
 int mt76x2_get_temp_comp(struct mt76x2_dev *dev, struct mt76x2_temp_comp *t)
 {
@@ -632,6 +636,7 @@ int mt76x2_get_temp_comp(struct mt76x2_dev *dev, struct mt76x2_temp_comp *t)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt76x2_get_temp_comp);
 
 bool mt76x2_ext_pa_enabled(struct mt76x2_dev *dev, enum nl80211_band band)
 {
@@ -642,6 +647,7 @@ bool mt76x2_ext_pa_enabled(struct mt76x2_dev *dev, enum nl80211_band band)
 	else
 		return !(conf0 & MT_EE_NIC_CONF_0_PA_INT_2G);
 }
+EXPORT_SYMBOL_GPL(mt76x2_ext_pa_enabled);
 
 int mt76x2_eeprom_init(struct mt76x2_dev *dev)
 {
@@ -658,3 +664,6 @@ int mt76x2_eeprom_init(struct mt76x2_dev *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt76x2_eeprom_init);
+
+MODULE_LICENSE("Dual BSD/GPL");

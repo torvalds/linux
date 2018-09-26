@@ -261,8 +261,7 @@ static int drbg_fini_sym_kernel(struct drbg_state *drbg);
 static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 			      u8 *inbuf, u32 inbuflen,
 			      u8 *outbuf, u32 outlen);
-#define DRBG_CTR_NULL_LEN 128
-#define DRBG_OUTSCRATCHLEN DRBG_CTR_NULL_LEN
+#define DRBG_OUTSCRATCHLEN 256
 
 /* BCC function for CTR DRBG as defined in 10.4.3 */
 static int drbg_ctr_bcc(struct drbg_state *drbg,
@@ -555,8 +554,7 @@ static int drbg_ctr_generate(struct drbg_state *drbg,
 	}
 
 	/* 10.2.1.5.2 step 4.1 */
-	ret = drbg_kcapi_sym_ctr(drbg, drbg->ctr_null_value, DRBG_CTR_NULL_LEN,
-				 buf, len);
+	ret = drbg_kcapi_sym_ctr(drbg, NULL, 0, buf, len);
 	if (ret)
 		return ret;
 
@@ -1644,9 +1642,6 @@ static int drbg_fini_sym_kernel(struct drbg_state *drbg)
 		skcipher_request_free(drbg->ctr_req);
 	drbg->ctr_req = NULL;
 
-	kfree(drbg->ctr_null_value_buf);
-	drbg->ctr_null_value = NULL;
-
 	kfree(drbg->outscratchpadbuf);
 	drbg->outscratchpadbuf = NULL;
 
@@ -1697,15 +1692,6 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 					crypto_req_done, &drbg->ctr_wait);
 
 	alignmask = crypto_skcipher_alignmask(sk_tfm);
-	drbg->ctr_null_value_buf = kzalloc(DRBG_CTR_NULL_LEN + alignmask,
-					   GFP_KERNEL);
-	if (!drbg->ctr_null_value_buf) {
-		drbg_fini_sym_kernel(drbg);
-		return -ENOMEM;
-	}
-	drbg->ctr_null_value = (u8 *)PTR_ALIGN(drbg->ctr_null_value_buf,
-					       alignmask + 1);
-
 	drbg->outscratchpadbuf = kmalloc(DRBG_OUTSCRATCHLEN + alignmask,
 					 GFP_KERNEL);
 	if (!drbg->outscratchpadbuf) {
@@ -1714,6 +1700,9 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 	}
 	drbg->outscratchpad = (u8 *)PTR_ALIGN(drbg->outscratchpadbuf,
 					      alignmask + 1);
+
+	sg_init_table(&drbg->sg_in, 1);
+	sg_init_one(&drbg->sg_out, drbg->outscratchpad, DRBG_OUTSCRATCHLEN);
 
 	return alignmask;
 }
@@ -1743,17 +1732,25 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 			      u8 *inbuf, u32 inlen,
 			      u8 *outbuf, u32 outlen)
 {
-	struct scatterlist sg_in, sg_out;
+	struct scatterlist *sg_in = &drbg->sg_in, *sg_out = &drbg->sg_out;
+	u32 scratchpad_use = min_t(u32, outlen, DRBG_OUTSCRATCHLEN);
 	int ret;
 
-	sg_init_one(&sg_in, inbuf, inlen);
-	sg_init_one(&sg_out, drbg->outscratchpad, DRBG_OUTSCRATCHLEN);
+	if (inbuf) {
+		/* Use caller-provided input buffer */
+		sg_set_buf(sg_in, inbuf, inlen);
+	} else {
+		/* Use scratchpad for in-place operation */
+		inlen = scratchpad_use;
+		memset(drbg->outscratchpad, 0, scratchpad_use);
+		sg_set_buf(sg_in, drbg->outscratchpad, scratchpad_use);
+	}
 
 	while (outlen) {
 		u32 cryptlen = min3(inlen, outlen, (u32)DRBG_OUTSCRATCHLEN);
 
 		/* Output buffer may not be valid for SGL, use scratchpad */
-		skcipher_request_set_crypt(drbg->ctr_req, &sg_in, &sg_out,
+		skcipher_request_set_crypt(drbg->ctr_req, sg_in, sg_out,
 					   cryptlen, drbg->V);
 		ret = crypto_wait_req(crypto_skcipher_encrypt(drbg->ctr_req),
 					&drbg->ctr_wait);
@@ -1763,6 +1760,7 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 		crypto_init_wait(&drbg->ctr_wait);
 
 		memcpy(outbuf, drbg->outscratchpad, cryptlen);
+		memzero_explicit(drbg->outscratchpad, cryptlen);
 
 		outlen -= cryptlen;
 		outbuf += cryptlen;
@@ -1770,7 +1768,6 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 	ret = 0;
 
 out:
-	memzero_explicit(drbg->outscratchpad, DRBG_OUTSCRATCHLEN);
 	return ret;
 }
 #endif /* CONFIG_CRYPTO_DRBG_CTR */

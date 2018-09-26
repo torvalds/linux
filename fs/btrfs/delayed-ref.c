@@ -709,13 +709,13 @@ static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
  * to make sure the delayed ref is eventually processed before this
  * transaction commits.
  */
-int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
-			       struct btrfs_trans_handle *trans,
+int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 			       u64 bytenr, u64 num_bytes, u64 parent,
 			       u64 ref_root,  int level, int action,
 			       struct btrfs_delayed_extent_op *extent_op,
 			       int *old_ref_mod, int *new_ref_mod)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_tree_ref *ref;
 	struct btrfs_delayed_ref_head *head_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
@@ -730,26 +730,32 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	if (!ref)
 		return -ENOMEM;
 
+	head_ref = kmem_cache_alloc(btrfs_delayed_ref_head_cachep, GFP_NOFS);
+	if (!head_ref) {
+		kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
+		return -ENOMEM;
+	}
+
+	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) &&
+	    is_fstree(ref_root)) {
+		record = kmalloc(sizeof(*record), GFP_NOFS);
+		if (!record) {
+			kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
+			kmem_cache_free(btrfs_delayed_ref_head_cachep, head_ref);
+			return -ENOMEM;
+		}
+	}
+
 	if (parent)
 		ref_type = BTRFS_SHARED_BLOCK_REF_KEY;
 	else
 		ref_type = BTRFS_TREE_BLOCK_REF_KEY;
+
 	init_delayed_ref_common(fs_info, &ref->node, bytenr, num_bytes,
 				ref_root, action, ref_type);
 	ref->root = ref_root;
 	ref->parent = parent;
 	ref->level = level;
-
-	head_ref = kmem_cache_alloc(btrfs_delayed_ref_head_cachep, GFP_NOFS);
-	if (!head_ref)
-		goto free_ref;
-
-	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) &&
-	    is_fstree(ref_root)) {
-		record = kmalloc(sizeof(*record), GFP_NOFS);
-		if (!record)
-			goto free_head_ref;
-	}
 
 	init_delayed_ref_head(head_ref, record, bytenr, num_bytes,
 			      ref_root, 0, action, false, is_system);
@@ -779,25 +785,18 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 		btrfs_qgroup_trace_extent_post(fs_info, record);
 
 	return 0;
-
-free_head_ref:
-	kmem_cache_free(btrfs_delayed_ref_head_cachep, head_ref);
-free_ref:
-	kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
-
-	return -ENOMEM;
 }
 
 /*
  * add a delayed data ref. it's similar to btrfs_add_delayed_tree_ref.
  */
-int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
-			       struct btrfs_trans_handle *trans,
+int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 			       u64 bytenr, u64 num_bytes,
 			       u64 parent, u64 ref_root,
 			       u64 owner, u64 offset, u64 reserved, int action,
 			       int *old_ref_mod, int *new_ref_mod)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_data_ref *ref;
 	struct btrfs_delayed_ref_head *head_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;

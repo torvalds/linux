@@ -1688,4 +1688,34 @@ static const struct sfp_upstream_ops sfp_phylink_ops = {
 	.disconnect_phy = phylink_sfp_disconnect_phy,
 };
 
+/* Helpers for MAC drivers */
+
+/**
+ * phylink_helper_basex_speed() - 1000BaseX/2500BaseX helper
+ * @state: a pointer to a &struct phylink_link_state
+ *
+ * Inspect the interface mode, advertising mask or forced speed and
+ * decide whether to run at 2.5Gbit or 1Gbit appropriately, switching
+ * the interface mode to suit.  @state->interface is appropriately
+ * updated, and the advertising mask has the "other" baseX_Full flag
+ * cleared.
+ */
+void phylink_helper_basex_speed(struct phylink_link_state *state)
+{
+	if (phy_interface_mode_is_8023z(state->interface)) {
+		bool want_2500 = state->an_enabled ?
+			phylink_test(state->advertising, 2500baseX_Full) :
+			state->speed == SPEED_2500;
+
+		if (want_2500) {
+			phylink_clear(state->advertising, 1000baseX_Full);
+			state->interface = PHY_INTERFACE_MODE_2500BASEX;
+		} else {
+			phylink_clear(state->advertising, 2500baseX_Full);
+			state->interface = PHY_INTERFACE_MODE_1000BASEX;
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(phylink_helper_basex_speed);
+
 MODULE_LICENSE("GPL");

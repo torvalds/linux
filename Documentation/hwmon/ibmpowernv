@@ -33,9 +33,48 @@ fanX_input		Measured RPM value.
 fanX_min		Threshold RPM for alert generation.
 fanX_fault		0: No fail condition
 			1: Failing fan
+
 tempX_input		Measured ambient temperature.
 tempX_max		Threshold ambient temperature for alert generation.
-inX_input		Measured power supply voltage
+tempX_highest		Historical maximum temperature
+tempX_lowest		Historical minimum temperature
+tempX_enable		Enable/disable all temperature sensors belonging to the
+			sub-group. In POWER9, this attribute corresponds to
+			each OCC. Using this attribute each OCC can be asked to
+			disable/enable all of its temperature sensors.
+			1: Enable
+			0: Disable
+
+inX_input		Measured power supply voltage (millivolt)
 inX_fault		0: No fail condition.
 			1: Failing power supply.
-power1_input		System power consumption (microWatt)
+inX_highest		Historical maximum voltage
+inX_lowest		Historical minimum voltage
+inX_enable		Enable/disable all voltage sensors belonging to the
+			sub-group. In POWER9, this attribute corresponds to
+			each OCC. Using this attribute each OCC can be asked to
+			disable/enable all of its voltage sensors.
+			1: Enable
+			0: Disable
+
+powerX_input		Power consumption (microWatt)
+powerX_input_highest	Historical maximum power
+powerX_input_lowest	Historical minimum power
+powerX_enable		Enable/disable all power sensors belonging to the
+			sub-group. In POWER9, this attribute corresponds to
+			each OCC. Using this attribute each OCC can be asked to
+			disable/enable all of its power sensors.
+			1: Enable
+			0: Disable
+
+currX_input		Measured current (milliampere)
+currX_highest		Historical maximum current
+currX_lowest		Historical minimum current
+currX_enable		Enable/disable all current sensors belonging to the
+			sub-group. In POWER9, this attribute corresponds to
+			each OCC. Using this attribute each OCC can be asked to
+			disable/enable all of its current sensors.
+			1: Enable
+			0: Disable
+
+energyX_input		Cumulative energy (microJoule)

@@ -419,7 +419,8 @@ int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
 		}
 		if (hs_cfg->is_invoke_hostcmd) {
 			if (hs_cfg->conditions == HS_CFG_CANCEL) {
-				if (!adapter->is_hs_configured)
+				if (!test_bit(MWIFIEX_IS_HS_CONFIGURED,
+					      &adapter->work_flags))
 					/* Already cancelled */
 					break;
 				/* Save previous condition */
@@ -535,7 +536,7 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 	memset(&hscfg, 0, sizeof(hscfg));
 	hscfg.is_invoke_hostcmd = true;
 
-	adapter->hs_enabling = true;
+	set_bit(MWIFIEX_IS_HS_ENABLING, &adapter->work_flags);
 	mwifiex_cancel_all_pending_cmd(adapter);
 
 	if (mwifiex_set_hs_params(mwifiex_get_priv(adapter,
@@ -601,7 +602,8 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 	else
 		info->wep_status = false;
 
-	info->is_hs_configured = adapter->is_hs_configured;
+	info->is_hs_configured = test_bit(MWIFIEX_IS_HS_CONFIGURED,
+					  &adapter->work_flags);
 	info->is_deep_sleep = adapter->is_deep_sleep;
 
 	return 0;

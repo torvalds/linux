@@ -58,8 +58,8 @@ struct nvmet_fc_ls_iod {
 	struct work_struct		work;
 } __aligned(sizeof(unsigned long long));
 
+/* desired maximum for a single sequence - if sg list allows it */
 #define NVMET_FC_MAX_SEQ_LENGTH		(256 * 1024)
-#define NVMET_FC_MAX_XFR_SGENTS		(NVMET_FC_MAX_SEQ_LENGTH / PAGE_SIZE)
 
 enum nvmet_fcp_datadir {
 	NVMET_FCP_NODATA,
@@ -74,6 +74,7 @@ struct nvmet_fc_fcp_iod {
 	struct nvme_fc_cmd_iu		cmdiubuf;
 	struct nvme_fc_ersp_iu		rspiubuf;
 	dma_addr_t			rspdma;
+	struct scatterlist		*next_sg;
 	struct scatterlist		*data_sg;
 	int				data_sg_cnt;
 	u32				offset;
@@ -1025,8 +1026,7 @@ nvmet_fc_register_targetport(struct nvmet_fc_port_info *pinfo,
 	INIT_LIST_HEAD(&newrec->assoc_list);
 	kref_init(&newrec->ref);
 	ida_init(&newrec->assoc_cnt);
-	newrec->max_sg_cnt = min_t(u32, NVMET_FC_MAX_XFR_SGENTS,
-					template->max_sgl_segments);
+	newrec->max_sg_cnt = template->max_sgl_segments;
 
 	ret = nvmet_fc_alloc_ls_iodlist(newrec);
 	if (ret) {
@@ -1722,6 +1722,7 @@ nvmet_fc_alloc_tgt_pgs(struct nvmet_fc_fcp_iod *fod)
 				((fod->io_dir == NVMET_FCP_WRITE) ?
 					DMA_FROM_DEVICE : DMA_TO_DEVICE));
 				/* note: write from initiator perspective */
+	fod->next_sg = fod->data_sg;
 
 	return 0;
 
@@ -1866,23 +1867,48 @@ nvmet_fc_transfer_fcp_data(struct nvmet_fc_tgtport *tgtport,
 				struct nvmet_fc_fcp_iod *fod, u8 op)
 {
 	struct nvmefc_tgt_fcp_req *fcpreq = fod->fcpreq;
+	struct scatterlist *sg = fod->next_sg;
 	unsigned long flags;
-	u32 tlen;
+	u32 remaininglen = fod->req.transfer_len - fod->offset;
+	u32 tlen = 0;
 	int ret;
 
 	fcpreq->op = op;
 	fcpreq->offset = fod->offset;
 	fcpreq->timeout = NVME_FC_TGTOP_TIMEOUT_SEC;
 
-	tlen = min_t(u32, tgtport->max_sg_cnt * PAGE_SIZE,
-			(fod->req.transfer_len - fod->offset));
+	/*
+	 * for next sequence:
+	 *  break at a sg element boundary
+	 *  attempt to keep sequence length capped at
+	 *    NVMET_FC_MAX_SEQ_LENGTH but allow sequence to
+	 *    be longer if a single sg element is larger
+	 *    than that amount. This is done to avoid creating
+	 *    a new sg list to use for the tgtport api.
+	 */
+	fcpreq->sg = sg;
+	fcpreq->sg_cnt = 0;
+	while (tlen < remaininglen &&
+	       fcpreq->sg_cnt < tgtport->max_sg_cnt &&
+	       tlen + sg_dma_len(sg) < NVMET_FC_MAX_SEQ_LENGTH) {
+		fcpreq->sg_cnt++;
+		tlen += sg_dma_len(sg);
+		sg = sg_next(sg);
+	}
+	if (tlen < remaininglen && fcpreq->sg_cnt == 0) {
+		fcpreq->sg_cnt++;
+		tlen += min_t(u32, sg_dma_len(sg), remaininglen);
+		sg = sg_next(sg);
+	}
+	if (tlen < remaininglen)
+		fod->next_sg = sg;
+	else
+		fod->next_sg = NULL;
+
 	fcpreq->transfer_length = tlen;
 	fcpreq->transferred_length = 0;
 	fcpreq->fcp_error = 0;
 	fcpreq->rsplen = 0;
-
-	fcpreq->sg = &fod->data_sg[fod->offset / PAGE_SIZE];
-	fcpreq->sg_cnt = DIV_ROUND_UP(tlen, PAGE_SIZE);
 
 	/*
 	 * If the last READDATA request: check if LLDD supports

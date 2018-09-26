@@ -86,13 +86,17 @@ int pci_request_irq(struct pci_dev *dev, unsigned int nr, irq_handler_t handler,
 	va_list ap;
 	int ret;
 	char *devname;
+	unsigned long irqflags = IRQF_SHARED;
+
+	if (!handler)
+		irqflags |= IRQF_ONESHOT;
 
 	va_start(ap, fmt);
 	devname = kvasprintf(GFP_KERNEL, fmt, ap);
 	va_end(ap);
 
 	ret = request_threaded_irq(pci_irq_vector(dev, nr), handler, thread_fn,
-			IRQF_SHARED, devname, dev_id);
+				   irqflags, devname, dev_id);
 	if (ret)
 		kfree(devname);
 	return ret;

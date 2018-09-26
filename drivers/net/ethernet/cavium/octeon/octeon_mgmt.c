@@ -643,13 +643,21 @@ static int octeon_mgmt_set_mac_address(struct net_device *netdev, void *addr)
 static int octeon_mgmt_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct octeon_mgmt *p = netdev_priv(netdev);
-	int size_without_fcs = new_mtu + OCTEON_MGMT_RX_HEADROOM;
+	int max_packet = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 
 	netdev->mtu = new_mtu;
 
-	cvmx_write_csr(p->agl + AGL_GMX_RX_FRM_MAX, size_without_fcs);
+	/* HW lifts the limit if the frame is VLAN tagged
+	 * (+4 bytes per each tag, up to two tags)
+	 */
+	cvmx_write_csr(p->agl + AGL_GMX_RX_FRM_MAX, max_packet);
+	/* Set the hardware to truncate packets larger than the MTU. The jabber
+	 * register must be set to a multiple of 8 bytes, so round up. JABBER is
+	 * an unconditional limit, so we need to account for two possible VLAN
+	 * tags.
+	 */
 	cvmx_write_csr(p->agl + AGL_GMX_RX_JABBER,
-		       (size_without_fcs + 7) & 0xfff8);
+		       (max_packet + 7 + VLAN_HLEN * 2) & 0xfff8);
 
 	return 0;
 }

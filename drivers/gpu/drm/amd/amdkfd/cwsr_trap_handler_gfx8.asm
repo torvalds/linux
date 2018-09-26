@@ -103,6 +103,10 @@ var SQ_WAVE_STATUS_INST_ATC_SHIFT  = 23
 var SQ_WAVE_STATUS_INST_ATC_MASK   = 0x00800000
 var SQ_WAVE_STATUS_SPI_PRIO_SHIFT  = 1
 var SQ_WAVE_STATUS_SPI_PRIO_MASK   = 0x00000006
+var SQ_WAVE_STATUS_PRE_SPI_PRIO_SHIFT   = 0
+var SQ_WAVE_STATUS_PRE_SPI_PRIO_SIZE    = 1
+var SQ_WAVE_STATUS_POST_SPI_PRIO_SHIFT  = 3
+var SQ_WAVE_STATUS_POST_SPI_PRIO_SIZE   = 29
 
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT    = 12
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE     = 9
@@ -251,7 +255,7 @@ if (!EMU_RUN_HACK)
     s_waitcnt lgkmcnt(0)
     s_or_b32        ttmp7, ttmp8, ttmp9
     s_cbranch_scc0  L_NO_NEXT_TRAP //next level trap handler not been set
-    s_setreg_b32    hwreg(HW_REG_STATUS), s_save_status //restore HW status(SCC)
+    set_status_without_spi_prio(s_save_status, ttmp2) //restore HW status(SCC)
     s_setpc_b64     [ttmp8,ttmp9] //jump to next level trap handler
 
 L_NO_NEXT_TRAP:
@@ -262,7 +266,7 @@ L_NO_NEXT_TRAP:
     s_addc_u32  ttmp1, ttmp1, 0
 L_EXCP_CASE:
     s_and_b32   ttmp1, ttmp1, 0xFFFF
-    s_setreg_b32    hwreg(HW_REG_STATUS), s_save_status //restore HW status(SCC)
+    set_status_without_spi_prio(s_save_status, ttmp2) //restore HW status(SCC)
     s_rfe_b64       [ttmp0, ttmp1]
 end
     // *********        End handling of non-CWSR traps   *******************
@@ -1053,7 +1057,7 @@ end
     s_and_b32 s_restore_pc_hi, s_restore_pc_hi, 0x0000ffff      //pc[47:32]        //Do it here in order not to affect STATUS
     s_and_b64    exec, exec, exec  // Restore STATUS.EXECZ, not writable by s_setreg_b32
     s_and_b64    vcc, vcc, vcc  // Restore STATUS.VCCZ, not writable by s_setreg_b32
-    s_setreg_b32    hwreg(HW_REG_STATUS),   s_restore_status     // SCC is included, which is changed by previous salu
+    set_status_without_spi_prio(s_restore_status, s_restore_tmp) // SCC is included, which is changed by previous salu
 
     s_barrier                                                   //barrier to ensure the readiness of LDS before access attempts from any other wave in the same TG //FIXME not performance-optimal at this time
 
@@ -1133,4 +1137,12 @@ end
 
 function get_hwreg_size_bytes
     return 128 //HWREG size 128 bytes
+end
+
+function set_status_without_spi_prio(status, tmp)
+    // Do not restore STATUS.SPI_PRIO since scheduler may have raised it.
+    s_lshr_b32      tmp, status, SQ_WAVE_STATUS_POST_SPI_PRIO_SHIFT
+    s_setreg_b32    hwreg(HW_REG_STATUS, SQ_WAVE_STATUS_POST_SPI_PRIO_SHIFT, SQ_WAVE_STATUS_POST_SPI_PRIO_SIZE), tmp
+    s_nop           0x2 // avoid S_SETREG => S_SETREG hazard
+    s_setreg_b32    hwreg(HW_REG_STATUS, SQ_WAVE_STATUS_PRE_SPI_PRIO_SHIFT, SQ_WAVE_STATUS_PRE_SPI_PRIO_SIZE), status
 end

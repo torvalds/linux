@@ -3,6 +3,7 @@
 // Copyright 2013 Freescale Semiconductor, Inc.
 
 #include <linux/clk.h>
+#include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/cpu_cooling.h>
 #include <linux/delay.h>
@@ -604,7 +605,10 @@ static int imx_init_from_nvmem_cells(struct platform_device *pdev)
 	ret = nvmem_cell_read_u32(&pdev->dev, "calib", &val);
 	if (ret)
 		return ret;
-	imx_init_calib(pdev, val);
+
+	ret = imx_init_calib(pdev, val);
+	if (ret)
+		return ret;
 
 	ret = nvmem_cell_read_u32(&pdev->dev, "temp_grade", &val);
 	if (ret)
@@ -643,6 +647,27 @@ static const struct of_device_id of_imx_thermal_match[] = {
 	{ /* end */ }
 };
 MODULE_DEVICE_TABLE(of, of_imx_thermal_match);
+
+/*
+ * Create cooling device in case no #cooling-cells property is available in
+ * CPU node
+ */
+static int imx_thermal_register_legacy_cooling(struct imx_thermal_data *data)
+{
+	struct device_node *np = of_get_cpu_node(data->policy->cpu, NULL);
+	int ret;
+
+	if (!np || !of_find_property(np, "#cooling-cells", NULL)) {
+		data->cdev = cpufreq_cooling_register(data->policy);
+		if (IS_ERR(data->cdev)) {
+			ret = PTR_ERR(data->cdev);
+			cpufreq_cpu_put(data->policy);
+			return ret;
+		}
+	}
+
+	return 0;
+}
 
 static int imx_thermal_probe(struct platform_device *pdev)
 {
@@ -724,12 +749,10 @@ static int imx_thermal_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
-	data->cdev = cpufreq_cooling_register(data->policy);
-	if (IS_ERR(data->cdev)) {
-		ret = PTR_ERR(data->cdev);
+	ret = imx_thermal_register_legacy_cooling(data);
+	if (ret) {
 		dev_err(&pdev->dev,
 			"failed to register cpufreq cooling device: %d\n", ret);
-		cpufreq_cpu_put(data->policy);
 		return ret;
 	}
 

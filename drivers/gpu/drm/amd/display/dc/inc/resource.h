@@ -44,6 +44,7 @@ struct resource_caps {
 	int num_stream_encoder;
 	int num_pll;
 	int num_dwb;
+	int num_ddc;
 };
 
 struct resource_straps {
@@ -99,6 +100,11 @@ void resource_unreference_clock_source(
 		struct clock_source *clock_source);
 
 void resource_reference_clock_source(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct clock_source *clock_source);
+
+int resource_get_clock_source_reference(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct clock_source *clock_source);

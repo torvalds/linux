@@ -872,7 +872,7 @@ static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
 	f = &format->format;
 
 	f->width = decoder->rect.width;
-	f->height = decoder->rect.height;
+	f->height = decoder->rect.height / 2;
 
 	f->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	f->field = V4L2_FIELD_ALTERNATE;

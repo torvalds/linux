@@ -271,8 +271,8 @@ static const struct dvb_tuner_ops mxl301rf_ops = {
 	.info = {
 		.name = "MaxLinear MxL301RF",
 
-		.frequency_min =  93000000,
-		.frequency_max = 803142857,
+		.frequency_min_hz =  93 * MHz,
+		.frequency_max_hz = 803 * MHz + 142857,
 	},
 
 	.init = mxl301rf_init,

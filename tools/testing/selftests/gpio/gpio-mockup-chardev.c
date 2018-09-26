@@ -225,10 +225,10 @@ int gpio_pin_test(struct gpiochip_info *cinfo, int line, int flag, int value)
 		if (flag & GPIOHANDLE_REQUEST_ACTIVE_LOW)
 			debugfs_value = !debugfs_value;
 
-		if (!(debugfs_dir == OUT && value == debugfs_value))
+		if (!(debugfs_dir == OUT && value == debugfs_value)) {
 			errno = -EINVAL;
-		ret = -errno;
-
+			ret = -errno;
+		}
 	}
 	gpiotools_release_linehandle(fd);
 
