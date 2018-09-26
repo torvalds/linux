@@ -16,14 +16,16 @@
  * IPC-1 Driver provides an API for power control unit registers (e.g. MSIC)
  * along with other APIs.
  */
+
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/init.h>
-#include <linux/device.h>
-#include <linux/pm.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/pci.h>
+#include <linux/pm.h>
 #include <linux/sfi.h>
+
 #include <asm/intel-mid.h>
 #include <asm/intel_scu_ipc.h>
 
