@@ -114,7 +114,7 @@ out_unbind:
 	component_unbind_all(dev, drm);
 out_unregister:
 	dev_set_drvdata(dev, NULL);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 	return ret;
 }
 
@@ -127,7 +127,7 @@ static void zx_drm_unbind(struct device *dev)
 	drm_mode_config_cleanup(drm);
 	component_unbind_all(dev, drm);
 	dev_set_drvdata(dev, NULL);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 }
 
 static const struct component_master_ops zx_drm_master_ops = {
