@@ -307,12 +307,12 @@ static int hns3_nic_set_real_num_queue(struct net_device *netdev)
 
 static u16 hns3_get_max_available_channels(struct hnae3_handle *h)
 {
-	u16 free_tqps, max_rss_size, max_tqps;
+	u16 alloc_tqps, max_rss_size, rss_size;
 
-	h->ae_algo->ops->get_tqps_and_rss_info(h, &free_tqps, &max_rss_size);
-	max_tqps = h->kinfo.num_tc * max_rss_size;
+	h->ae_algo->ops->get_tqps_and_rss_info(h, &alloc_tqps, &max_rss_size);
+	rss_size = alloc_tqps / h->kinfo.num_tc;
 
-	return min_t(u16, max_tqps, (free_tqps + h->kinfo.num_tqps));
+	return min_t(u16, rss_size, max_rss_size);
 }
 
 static int hns3_nic_net_up(struct net_device *netdev)
@@ -3164,12 +3164,14 @@ static void hns3_nic_set_priv_ops(struct net_device *netdev)
 static int hns3_client_init(struct hnae3_handle *handle)
 {
 	struct pci_dev *pdev = handle->pdev;
+	u16 alloc_tqps, max_rss_size;
 	struct hns3_nic_priv *priv;
 	struct net_device *netdev;
 	int ret;
 
-	netdev = alloc_etherdev_mq(sizeof(struct hns3_nic_priv),
-				   hns3_get_max_available_channels(handle));
+	handle->ae_algo->ops->get_tqps_and_rss_info(handle, &alloc_tqps,
+						    &max_rss_size);
+	netdev = alloc_etherdev_mq(sizeof(struct hns3_nic_priv), alloc_tqps);
 	if (!netdev)
 		return -ENOMEM;
 
