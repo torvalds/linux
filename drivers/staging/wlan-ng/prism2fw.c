@@ -1021,7 +1021,7 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 
 	/* Initialize the messages */
 	strcpy(rstmsg->devname, wlandev->name);
-	rstmsg->msgcode = DIDmsg_p2req_ramdl_state;
+	rstmsg->msgcode = DIDMSG_P2REQ_RAMDL_STATE;
 	rstmsg->msglen = sizeof(*rstmsg);
 	rstmsg->enable.did = DIDmsg_p2req_ramdl_state_enable;
 	rstmsg->exeaddr.did = DIDmsg_p2req_ramdl_state_exeaddr;

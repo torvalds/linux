@@ -315,7 +315,7 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 		pr_debug("Received mlme readpda request\n");
 		result = prism2mgmt_readpda(wlandev, msg);
 		break;
-	case DIDmsg_p2req_ramdl_state:
+	case DIDMSG_P2REQ_RAMDL_STATE:
 		pr_debug("Received mlme ramdl_state request\n");
 		result = prism2mgmt_ramdl_state(wlandev, msg);
 		break;

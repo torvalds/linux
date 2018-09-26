@@ -111,7 +111,7 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_p2req_ramdl_state \
+#define DIDMSG_P2REQ_RAMDL_STATE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(11))
 #define DIDmsg_p2req_ramdl_state_enable \
