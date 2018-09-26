@@ -111,6 +111,7 @@ struct tipc_node {
 	int action_flags;
 	struct list_head list;
 	int state;
+	bool failover_sent;
 	u16 sync_point;
 	int link_cnt;
 	u16 working_links;
@@ -680,6 +681,7 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 		*slot0 = bearer_id;
 		*slot1 = bearer_id;
 		tipc_node_fsm_evt(n, SELF_ESTABL_CONTACT_EVT);
+		n->failover_sent = false;
 		n->action_flags |= TIPC_NOTIFY_NODE_UP;
 		tipc_link_set_active(nl, true);
 		tipc_bcast_add_peer(n->net, nl, xmitq);
@@ -1615,6 +1617,15 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 			tipc_skb_queue_splice_tail_init(tipc_link_inputq(pl),
 							tipc_link_inputq(l));
 		}
+		/* If parallel link was already down, and this happened before
+		 * the tunnel link came up, FAILOVER was never sent. Ensure that
+		 * FAILOVER is sent to get peer out of NODE_FAILINGOVER state.
+		 */
+		if (n->state != NODE_FAILINGOVER && !n->failover_sent) {
+			tipc_link_create_dummy_tnl_msg(l, xmitq);
+			n->failover_sent = true;
+		}
+
 		/* If pkts arrive out of order, use lowest calculated syncpt */
 		if (less(syncpt, n->sync_point))
 			n->sync_point = syncpt;
