@@ -1805,8 +1805,17 @@ static int tcp_zerocopy_receive(struct sock *sk,
 				frags++;
 			}
 		}
-		if (frags->size != PAGE_SIZE || frags->page_offset)
+		if (frags->size != PAGE_SIZE || frags->page_offset) {
+			int remaining = zc->recv_skip_hint;
+
+			while (remaining && (frags->size != PAGE_SIZE ||
+					     frags->page_offset)) {
+				remaining -= frags->size;
+				frags++;
+			}
+			zc->recv_skip_hint -= remaining;
 			break;
+		}
 		ret = vm_insert_page(vma, address + length,
 				     skb_frag_page(frags));
 		if (ret)
