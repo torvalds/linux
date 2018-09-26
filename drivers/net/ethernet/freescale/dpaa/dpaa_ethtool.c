@@ -182,7 +182,6 @@ static int dpaa_set_pauseparam(struct net_device *net_dev,
 	struct phy_device *phydev;
 	bool rx_pause, tx_pause;
 	struct dpaa_priv *priv;
-	u32 newadv, oldadv;
 	int err;
 
 	priv = netdev_priv(net_dev);
