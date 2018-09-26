@@ -12400,6 +12400,7 @@ static int nested_vmx_check_nmi_controls(struct vmcs12 *vmcs12)
 static int check_vmentry_prereqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	bool ia32e;
 
 	if (vmcs12->guest_activity_state != GUEST_ACTIVITY_ACTIVE &&
 	    vmcs12->guest_activity_state != GUEST_ACTIVITY_HLT)
@@ -12472,6 +12473,21 @@ static int check_vmentry_prereqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	    !nested_host_cr4_valid(vcpu, vmcs12->host_cr4) ||
 	    !nested_cr3_valid(vcpu, vmcs12->host_cr3))
 		return VMXERR_ENTRY_INVALID_HOST_STATE_FIELD;
+
+	/*
+	 * If the load IA32_EFER VM-exit control is 1, bits reserved in the
+	 * IA32_EFER MSR must be 0 in the field for that register. In addition,
+	 * the values of the LMA and LME bits in the field must each be that of
+	 * the host address-space size VM-exit control.
+	 */
+	if (vmcs12->vm_exit_controls & VM_EXIT_LOAD_IA32_EFER) {
+		ia32e = (vmcs12->vm_exit_controls &
+			 VM_EXIT_HOST_ADDR_SPACE_SIZE) != 0;
+		if (!kvm_valid_efer(vcpu, vmcs12->host_ia32_efer) ||
+		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LMA) ||
+		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LME))
+			return VMXERR_ENTRY_INVALID_HOST_STATE_FIELD;
+	}
 
 	/*
 	 * From the Intel SDM, volume 3:
@@ -12591,21 +12607,6 @@ static int check_vmentry_postreqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		    ia32e != !!(vmcs12->guest_ia32_efer & EFER_LMA) ||
 		    ((vmcs12->guest_cr0 & X86_CR0_PG) &&
 		     ia32e != !!(vmcs12->guest_ia32_efer & EFER_LME)))
-			return 1;
-	}
-
-	/*
-	 * If the load IA32_EFER VM-exit control is 1, bits reserved in the
-	 * IA32_EFER MSR must be 0 in the field for that register. In addition,
-	 * the values of the LMA and LME bits in the field must each be that of
-	 * the host address-space size VM-exit control.
-	 */
-	if (vmcs12->vm_exit_controls & VM_EXIT_LOAD_IA32_EFER) {
-		ia32e = (vmcs12->vm_exit_controls &
-			 VM_EXIT_HOST_ADDR_SPACE_SIZE) != 0;
-		if (!kvm_valid_efer(vcpu, vmcs12->host_ia32_efer) ||
-		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LMA) ||
-		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LME))
 			return 1;
 	}
 
