@@ -80,6 +80,66 @@ struct vmw_validation_res_node {
 };
 
 /**
+ * vmw_validation_mem_alloc - Allocate kernel memory from the validation
+ * context based allocator
+ * @ctx: The validation context
+ * @size: The number of bytes to allocated.
+ *
+ * The memory allocated may not exceed PAGE_SIZE, and the returned
+ * address is aligned to sizeof(long). All memory allocated this way is
+ * reclaimed after validation when calling any of the exported functions:
+ * vmw_validation_unref_lists()
+ * vmw_validation_revert()
+ * vmw_validation_done()
+ *
+ * Return: Pointer to the allocated memory on success. NULL on failure.
+ */
+void *vmw_validation_mem_alloc(struct vmw_validation_context *ctx, size_t size)
+{
+	void *addr;
+
+	size = ALIGN(size, sizeof(long));
+	if (size > PAGE_SIZE)
+		return NULL;
+
+	if (ctx->mem_size_left < size) {
+		struct page *page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+
+		if (!page)
+			return NULL;
+
+		list_add_tail(&page->lru, &ctx->page_list);
+		ctx->page_address = page_address(page);
+		ctx->mem_size_left = PAGE_SIZE;
+	}
+
+	addr = (void *) (ctx->page_address + (PAGE_SIZE - ctx->mem_size_left));
+	ctx->mem_size_left -= size;
+
+	return addr;
+}
+
+/**
+ * vmw_validation_mem_free - Free all memory allocated using
+ * vmw_validation_mem_alloc()
+ * @ctx: The validation context
+ *
+ * All memory previously allocated for this context using
+ * vmw_validation_mem_alloc() is freed.
+ */
+static void vmw_validation_mem_free(struct vmw_validation_context *ctx)
+{
+	struct page *entry, *next;
+
+	list_for_each_entry_safe(entry, next, &ctx->page_list, lru) {
+		list_del_init(&entry->lru);
+		__free_page(entry);
+	}
+
+	ctx->mem_size_left = 0;
+}
+
+/**
  * vmw_validation_find_bo_dup - Find a duplicate buffer object entry in the
  * validation context's lists.
  * @ctx: The validation context to search.
@@ -188,7 +248,7 @@ int vmw_validation_add_bo(struct vmw_validation_context *ctx,
 		struct ttm_validate_buffer *val_buf;
 		int ret;
 
-		bo_node = kmalloc(sizeof(*bo_node), GFP_KERNEL);
+		bo_node = vmw_validation_mem_alloc(ctx, sizeof(*bo_node));
 		if (!bo_node)
 			return -ENOMEM;
 
@@ -198,7 +258,6 @@ int vmw_validation_add_bo(struct vmw_validation_context *ctx,
 			if (ret) {
 				DRM_ERROR("Failed to initialize a buffer "
 					  "validation entry.\n");
-				kfree(bo_node);
 				return ret;
 			}
 		}
@@ -238,7 +297,7 @@ int vmw_validation_add_resource(struct vmw_validation_context *ctx,
 		goto out_fill;
 	}
 
-	node = kzalloc(sizeof(*node) + priv_size, GFP_KERNEL);
+	node = vmw_validation_mem_alloc(ctx, sizeof(*node) + priv_size);
 	if (!node) {
 		DRM_ERROR("Failed to allocate a resource validation "
 			  "entry.\n");
@@ -251,7 +310,6 @@ int vmw_validation_add_resource(struct vmw_validation_context *ctx,
 		if (ret) {
 			DRM_ERROR("Failed to initialize a resource validation "
 				  "entry.\n");
-			kfree(node);
 			return ret;
 		}
 	}
@@ -542,25 +600,24 @@ void vmw_validation_drop_ht(struct vmw_validation_context *ctx)
  */
 void vmw_validation_unref_lists(struct vmw_validation_context *ctx)
 {
-	struct vmw_validation_bo_node *entry, *next;
-	struct vmw_validation_res_node *val, *val_next;
+	struct vmw_validation_bo_node *entry;
+	struct vmw_validation_res_node *val;
 
-	list_for_each_entry_safe(entry, next, &ctx->bo_list, base.head) {
-		list_del(&entry->base.head);
+	list_for_each_entry(entry, &ctx->bo_list, base.head)
 		ttm_bo_unref(&entry->base.bo);
-		kfree(entry);
-	}
 
 	list_splice_init(&ctx->resource_ctx_list, &ctx->resource_list);
-	list_for_each_entry_safe(val, val_next, &ctx->resource_list, head) {
-		list_del(&val->head);
+	list_for_each_entry(val, &ctx->resource_list, head)
 		vmw_resource_unreference(&val->res);
-		kfree(val);
-	}
 
-	WARN_ON(!list_empty(&ctx->bo_list));
-	WARN_ON(!list_empty(&ctx->resource_list));
-	WARN_ON(!list_empty(&ctx->resource_ctx_list));
+	/*
+	 * No need to detach each list entry since they are all freed with
+	 * vmw_validation_free_mem. Just make the inaccessible.
+	 */
+	INIT_LIST_HEAD(&ctx->bo_list);
+	INIT_LIST_HEAD(&ctx->resource_list);
+
+	vmw_validation_mem_free(ctx);
 }
 
 /**
@@ -637,6 +694,7 @@ void vmw_validation_revert(struct vmw_validation_context *ctx)
 	vmw_validation_res_unreserve(ctx, true);
 	if (ctx->res_mutex)
 		mutex_unlock(ctx->res_mutex);
+	vmw_validation_unref_lists(ctx);
 }
 
 /**

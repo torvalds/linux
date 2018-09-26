@@ -205,12 +205,6 @@ struct vmw_fifo_state {
 	bool dx;
 };
 
-struct vmw_relocation {
-	SVGAMobId *mob_loc;
-	SVGAGuestPtr *location;
-	struct vmw_buffer_object *vbo;
-};
-
 /**
  * struct vmw_res_cache_entry - resource information cache entry
  * @handle: User-space handle of a resource.
@@ -303,12 +297,11 @@ struct vmw_ctx_validation_info;
  * than from user-space
  * @fp: If @kernel is false, points to the file of the client. Otherwise
  * NULL
- * @relocs: Array of buffer object relocations
- * @cur_reloc: Cursor pointing to the current relocation
  * @cmd_bounce: Command bounce buffer used for command validation before
  * copying to fifo space
  * @cmd_bounce_size: Current command bounce buffer size
  * @cur_query_bo: Current buffer object used as query result buffer
+ * @bo_relocations: List of buffer object relocations
  * @res_relocations: List of resource relocations
  * @buf_start: Pointer to start of memory where command validation takes
  * place
@@ -335,11 +328,10 @@ struct vmw_sw_context{
 	bool res_ht_initialized;
 	bool kernel;
 	struct vmw_fpriv *fp;
-	struct vmw_relocation relocs[VMWGFX_MAX_RELOCATIONS];
-	uint32_t cur_reloc;
 	uint32_t *cmd_bounce;
 	uint32_t cmd_bounce_size;
 	struct vmw_buffer_object *cur_query_bo;
+	struct list_head bo_relocations;
 	struct list_head res_relocations;
 	uint32_t *buf_start;
 	struct vmw_res_cache_entry res_cache[vmw_res_max];

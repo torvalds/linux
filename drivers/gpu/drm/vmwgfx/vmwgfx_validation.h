@@ -40,19 +40,25 @@
  * @resource_ctx_list: List head for resource validation metadata for
  * resources that need to be validated before those in @resource_list
  * @bo_list: List head for buffer objects
+ * @page_list: List of pages used by the memory allocator
  * @ticket: Ticked used for ww mutex locking
  * @res_mutex: Pointer to mutex used for resource reserving
  * @merge_dups: Whether to merge metadata for duplicate resources or
  * buffer objects
+ * @mem_size_left: Free memory left in the last page in @page_list
+ * @page_address: Kernel virtual address of the last page in @page_list
  */
 struct vmw_validation_context {
 	struct drm_open_hash *ht;
 	struct list_head resource_list;
 	struct list_head resource_ctx_list;
 	struct list_head bo_list;
+	struct list_head page_list;
 	struct ww_acquire_ctx ticket;
 	struct mutex *res_mutex;
 	unsigned int merge_dups;
+	unsigned int mem_size_left;
+	u8 *page_address;
 };
 
 struct vmw_buffer_object;
@@ -76,8 +82,10 @@ struct vmw_fence_obj;
 	  .resource_list = LIST_HEAD_INIT((_name).resource_list),	\
 	  .resource_ctx_list = LIST_HEAD_INIT((_name).resource_ctx_list), \
 	  .bo_list = LIST_HEAD_INIT((_name).bo_list),			\
+	  .page_list = LIST_HEAD_INIT((_name).page_list),		\
+	  .res_mutex = NULL,						\
 	  .merge_dups = _merge_dups,					\
-	  .res_mutex = NULL						\
+	  .mem_size_left = 0,						\
 	}
 
 /**
@@ -198,5 +206,7 @@ int vmw_validation_prepare(struct vmw_validation_context *ctx,
 void vmw_validation_revert(struct vmw_validation_context *ctx);
 void vmw_validation_done(struct vmw_validation_context *ctx,
 			 struct vmw_fence_obj *fence);
+
+void *vmw_validation_mem_alloc(struct vmw_validation_context *ctx, size_t size);
 
 #endif

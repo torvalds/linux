@@ -35,6 +35,21 @@
 
 #define VMW_RES_HT_ORDER 12
 
+/*
+ * struct vmw_relocation - Buffer object relocation
+ *
+ * @head: List head for the command submission context's relocation list
+ * @mob_loc: Pointer to location for mob id to be modified
+ * @location: Pointer to location for guest pointer to be modified
+ * @vbo: Non ref-counted pointer to buffer object
+ */
+struct vmw_relocation {
+	struct list_head head;
+	SVGAMobId *mob_loc;
+	SVGAGuestPtr *location;
+	struct vmw_buffer_object *vbo;
+};
+
 /**
  * enum vmw_resource_relocation_type - Relocation type for resources
  *
@@ -132,11 +147,9 @@ static size_t vmw_ptr_diff(void *a, void *b)
 static void vmw_execbuf_bindings_commit(struct vmw_sw_context *sw_context,
 					bool backoff)
 {
-	struct vmw_ctx_validation_info *entry, *next;
+	struct vmw_ctx_validation_info *entry;
 
-	list_for_each_entry_safe(entry, next, &sw_context->ctx_list, head) {
-		list_del(&entry->head);
-
+	list_for_each_entry(entry, &sw_context->ctx_list, head) {
 		if (!backoff)
 			vmw_binding_state_commit(entry->cur, entry->staged);
 		if (entry->staged != sw_context->staged_bindings)
@@ -144,6 +157,9 @@ static void vmw_execbuf_bindings_commit(struct vmw_sw_context *sw_context,
 		else
 			sw_context->staged_bindings_inuse = false;
 	}
+
+	/* List entries are freed with the validation context */
+	INIT_LIST_HEAD(&sw_context->ctx_list);
 }
 
 /**
@@ -397,7 +413,7 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
  * id that needs fixup is located. Granularity is one byte.
  * @rel_type: Relocation type.
  */
-static int vmw_resource_relocation_add(struct list_head *list,
+static int vmw_resource_relocation_add(struct vmw_sw_context *sw_context,
 				       const struct vmw_resource *res,
 				       unsigned long offset,
 				       enum vmw_resource_relocation_type
@@ -405,7 +421,7 @@ static int vmw_resource_relocation_add(struct list_head *list,
 {
 	struct vmw_resource_relocation *rel;
 
-	rel = kmalloc(sizeof(*rel), GFP_KERNEL);
+	rel = vmw_validation_mem_alloc(sw_context->ctx, sizeof(*rel));
 	if (unlikely(!rel)) {
 		DRM_ERROR("Failed to allocate a resource relocation.\n");
 		return -ENOMEM;
@@ -414,7 +430,7 @@ static int vmw_resource_relocation_add(struct list_head *list,
 	rel->res = res;
 	rel->offset = offset;
 	rel->rel_type = rel_type;
-	list_add_tail(&rel->head, list);
+	list_add_tail(&rel->head, &sw_context->res_relocations);
 
 	return 0;
 }
@@ -422,16 +438,13 @@ static int vmw_resource_relocation_add(struct list_head *list,
 /**
  * vmw_resource_relocations_free - Free all relocations on a list
  *
- * @list: Pointer to the head of the relocation list.
+ * @list: Pointer to the head of the relocation list
  */
 static void vmw_resource_relocations_free(struct list_head *list)
 {
-	struct vmw_resource_relocation *rel, *n;
+	/* Memory is validation context memory, so no need to free it */
 
-	list_for_each_entry_safe(rel, n, list, head) {
-		list_del(&rel->head);
-		kfree(rel);
-	}
+	INIT_LIST_HEAD(list);
 }
 
 /**
@@ -532,8 +545,7 @@ static int vmw_cmd_res_reloc_add(struct vmw_private *dev_priv,
 {
 	int ret;
 
-	ret = vmw_resource_relocation_add(&sw_context->res_relocations,
-					  res,
+	ret = vmw_resource_relocation_add(sw_context, res,
 					  vmw_ptr_diff(sw_context->buf_start,
 						       id_loc),
 					  vmw_res_rel_normal);
@@ -597,7 +609,7 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 			*p_res = res;
 
 		return vmw_resource_relocation_add
-			(&sw_context->res_relocations, res,
+			(sw_context, res,
 			 vmw_ptr_diff(sw_context->buf_start, id_loc),
 			 vmw_res_rel_normal);
 	}
@@ -1150,14 +1162,10 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 		goto out_no_reloc;
 	}
 
-	if (unlikely(sw_context->cur_reloc >= VMWGFX_MAX_RELOCATIONS)) {
-		DRM_ERROR("Max number relocations per submission"
-			  " exceeded\n");
-		ret = -EINVAL;
+	reloc = vmw_validation_mem_alloc(sw_context->ctx, sizeof(*reloc));
+	if (!reloc)
 		goto out_no_reloc;
-	}
 
-	reloc = &sw_context->relocs[sw_context->cur_reloc++];
 	reloc->mob_loc = id;
 	reloc->location = NULL;
 	reloc->vbo = vmw_bo;
@@ -1167,6 +1175,8 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 		goto out_no_reloc;
 
 	*vmw_bo_p = vmw_bo;
+	list_add_tail(&reloc->head, &sw_context->bo_relocations);
+
 	return 0;
 
 out_no_reloc:
@@ -1211,14 +1221,10 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 		goto out_no_reloc;
 	}
 
-	if (unlikely(sw_context->cur_reloc >= VMWGFX_MAX_RELOCATIONS)) {
-		DRM_ERROR("Max number relocations per submission"
-			  " exceeded\n");
-		ret = -EINVAL;
+	reloc = vmw_validation_mem_alloc(sw_context->ctx, sizeof(*reloc));
+	if (!reloc)
 		goto out_no_reloc;
-	}
 
-	reloc = &sw_context->relocs[sw_context->cur_reloc++];
 	reloc->location = ptr;
 	reloc->vbo = vmw_bo;
 
@@ -1227,6 +1233,8 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 		goto out_no_reloc;
 
 	*vmw_bo_p = vmw_bo;
+	list_add_tail(&reloc->head, &sw_context->bo_relocations);
+
 	return 0;
 
 out_no_reloc:
@@ -2055,7 +2063,7 @@ static int vmw_cmd_shader_define(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	return vmw_resource_relocation_add(&sw_context->res_relocations,
+	return vmw_resource_relocation_add(sw_context,
 					   NULL,
 					   vmw_ptr_diff(sw_context->buf_start,
 							&cmd->header.id),
@@ -2100,7 +2108,7 @@ static int vmw_cmd_shader_destroy(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	return vmw_resource_relocation_add(&sw_context->res_relocations,
+	return vmw_resource_relocation_add(sw_context,
 					   NULL,
 					   vmw_ptr_diff(sw_context->buf_start,
 							&cmd->header.id),
@@ -2801,7 +2809,7 @@ static int vmw_cmd_dx_view_remove(struct vmw_private *dev_priv,
 	 * relocation to conditionally make this command a NOP to avoid
 	 * device errors.
 	 */
-	return vmw_resource_relocation_add(&sw_context->res_relocations,
+	return vmw_resource_relocation_add(sw_context,
 					   view,
 					   vmw_ptr_diff(sw_context->buf_start,
 							&cmd->header.id),
@@ -3504,17 +3512,17 @@ static int vmw_cmd_check_all(struct vmw_private *dev_priv,
 
 static void vmw_free_relocations(struct vmw_sw_context *sw_context)
 {
-	sw_context->cur_reloc = 0;
+	/* Memory is validation context memory, so no need to free it */
+
+	INIT_LIST_HEAD(&sw_context->bo_relocations);
 }
 
 static void vmw_apply_relocations(struct vmw_sw_context *sw_context)
 {
-	uint32_t i;
 	struct vmw_relocation *reloc;
 	struct ttm_buffer_object *bo;
 
-	for (i = 0; i < sw_context->cur_reloc; ++i) {
-		reloc = &sw_context->relocs[i];
+	list_for_each_entry(reloc, &sw_context->bo_relocations, head) {
 		bo = &reloc->vbo->base;
 		switch (bo->mem.mem_type) {
 		case TTM_PL_VRAM:
@@ -3914,7 +3922,6 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 		sw_context->kernel = true;
 
 	sw_context->fp = vmw_fpriv(file_priv);
-	sw_context->cur_reloc = 0;
 	INIT_LIST_HEAD(&sw_context->ctx_list);
 	sw_context->cur_query_bo = dev_priv->pinned_bo;
 	sw_context->last_query_ctx = NULL;
@@ -3924,6 +3931,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	sw_context->dx_query_ctx = NULL;
 	memset(sw_context->res_cache, 0, sizeof(sw_context->res_cache));
 	INIT_LIST_HEAD(&sw_context->res_relocations);
+	INIT_LIST_HEAD(&sw_context->bo_relocations);
 	if (sw_context->staged_bindings)
 		vmw_binding_state_reset(sw_context->staged_bindings);
 
