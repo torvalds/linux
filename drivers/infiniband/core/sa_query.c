@@ -835,7 +835,6 @@ static int ib_nl_send_msg(struct ib_sa_query *query, gfp_t gfp_mask)
 	struct sk_buff *skb = NULL;
 	struct nlmsghdr *nlh;
 	void *data;
-	int ret = 0;
 	struct ib_sa_mad *mad;
 	int len;
 
@@ -862,13 +861,7 @@ static int ib_nl_send_msg(struct ib_sa_query *query, gfp_t gfp_mask)
 	/* Repair the nlmsg header length */
 	nlmsg_end(skb, nlh);
 
-	ret = rdma_nl_multicast(skb, RDMA_NL_GROUP_LS, gfp_mask);
-	if (!ret)
-		ret = len;
-	else
-		ret = 0;
-
-	return ret;
+	return rdma_nl_multicast(skb, RDMA_NL_GROUP_LS, gfp_mask);
 }
 
 static int ib_nl_make_request(struct ib_sa_query *query, gfp_t gfp_mask)
@@ -891,14 +884,12 @@ static int ib_nl_make_request(struct ib_sa_query *query, gfp_t gfp_mask)
 	spin_unlock_irqrestore(&ib_nl_request_lock, flags);
 
 	ret = ib_nl_send_msg(query, gfp_mask);
-	if (ret <= 0) {
+	if (ret) {
 		ret = -EIO;
 		/* Remove the request */
 		spin_lock_irqsave(&ib_nl_request_lock, flags);
 		list_del(&query->list);
 		spin_unlock_irqrestore(&ib_nl_request_lock, flags);
-	} else {
-		ret = 0;
 	}
 
 	return ret;
