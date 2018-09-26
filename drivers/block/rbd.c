@@ -2374,8 +2374,7 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 	if (!obj_req->osd_req)
 		return -ENOMEM;
 
-	ret = osd_req_op_cls_init(obj_req->osd_req, 0, CEPH_OSD_OP_CALL, "rbd",
-				  "copyup");
+	ret = osd_req_op_cls_init(obj_req->osd_req, 0, "rbd", "copyup");
 	if (ret)
 		return ret;
 

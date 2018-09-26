@@ -767,15 +767,14 @@ void osd_req_op_extent_dup_last(struct ceph_osd_request *osd_req,
 EXPORT_SYMBOL(osd_req_op_extent_dup_last);
 
 int osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
-			u16 opcode, const char *class, const char *method)
+			const char *class, const char *method)
 {
-	struct ceph_osd_req_op *op = _osd_req_op_init(osd_req, which,
-						      opcode, 0);
+	struct ceph_osd_req_op *op;
 	struct ceph_pagelist *pagelist;
 	size_t payload_len = 0;
 	size_t size;
 
-	BUG_ON(opcode != CEPH_OSD_OP_CALL);
+	op = _osd_req_op_init(osd_req, which, CEPH_OSD_OP_CALL, 0);
 
 	pagelist = kmalloc(sizeof (*pagelist), GFP_NOFS);
 	if (!pagelist)
@@ -4962,7 +4961,7 @@ int ceph_osdc_call(struct ceph_osd_client *osdc,
 	if (ret)
 		goto out_put_req;
 
-	ret = osd_req_op_cls_init(req, 0, CEPH_OSD_OP_CALL, class, method);
+	ret = osd_req_op_cls_init(req, 0, class, method);
 	if (ret)
 		goto out_put_req;
 
