@@ -84,7 +84,7 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 	int i, err = 0;
 	int idx = 0, s_idx = cb->args[1];
 
-	if (br->multicast_disabled)
+	if (!br_opt_get(br, BROPT_MULTICAST_ENABLED))
 		return 0;
 
 	mdb = rcu_dereference(br->mdb);
@@ -598,7 +598,7 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 	struct net_bridge_port *p;
 	int ret;
 
-	if (!netif_running(br->dev) || br->multicast_disabled)
+	if (!netif_running(br->dev) || !br_opt_get(br, BROPT_MULTICAST_ENABLED))
 		return -EINVAL;
 
 	dev = __dev_get_by_index(net, entry->ifindex);
@@ -673,7 +673,7 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 	struct br_ip ip;
 	int err = -EINVAL;
 
-	if (!netif_running(br->dev) || br->multicast_disabled)
+	if (!netif_running(br->dev) || !br_opt_get(br, BROPT_MULTICAST_ENABLED))
 		return -EINVAL;
 
 	__mdb_entry_to_br_ip(entry, &ip);

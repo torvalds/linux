@@ -386,7 +386,7 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 			return NULL;
 		}
 	}
-	if (br->vlan_stats_enabled) {
+	if (br_opt_get(br, BROPT_VLAN_STATS_ENABLED)) {
 		stats = this_cpu_ptr(v->stats);
 		u64_stats_update_begin(&stats->syncp);
 		stats->tx_bytes += skb->len;
@@ -475,14 +475,14 @@ static bool __allowed_ingress(const struct net_bridge *br,
 			skb->vlan_tci |= pvid;
 
 		/* if stats are disabled we can avoid the lookup */
-		if (!br->vlan_stats_enabled)
+		if (!br_opt_get(br, BROPT_VLAN_STATS_ENABLED))
 			return true;
 	}
 	v = br_vlan_find(vg, *vid);
 	if (!v || !br_vlan_should_use(v))
 		goto drop;
 
-	if (br->vlan_stats_enabled) {
+	if (br_opt_get(br, BROPT_VLAN_STATS_ENABLED)) {
 		stats = this_cpu_ptr(v->stats);
 		u64_stats_update_begin(&stats->syncp);
 		stats->rx_bytes += skb->len;
@@ -504,7 +504,7 @@ bool br_allowed_ingress(const struct net_bridge *br,
 	/* If VLAN filtering is disabled on the bridge, all packets are
 	 * permitted.
 	 */
-	if (!br->vlan_enabled) {
+	if (!br_opt_get(br, BROPT_VLAN_ENABLED)) {
 		BR_INPUT_SKB_CB(skb)->vlan_filtered = false;
 		return true;
 	}
@@ -538,7 +538,7 @@ bool br_should_learn(struct net_bridge_port *p, struct sk_buff *skb, u16 *vid)
 	struct net_bridge *br = p->br;
 
 	/* If filtering was disabled at input, let it pass. */
-	if (!br->vlan_enabled)
+	if (!br_opt_get(br, BROPT_VLAN_ENABLED))
 		return true;
 
 	vg = nbp_vlan_group_rcu(p);
@@ -695,11 +695,12 @@ struct net_bridge_vlan *br_vlan_find(struct net_bridge_vlan_group *vg, u16 vid)
 /* Must be protected by RTNL. */
 static void recalculate_group_addr(struct net_bridge *br)
 {
-	if (br->group_addr_set)
+	if (br_opt_get(br, BROPT_GROUP_ADDR_SET))
 		return;
 
 	spin_lock_bh(&br->lock);
-	if (!br->vlan_enabled || br->vlan_proto == htons(ETH_P_8021Q)) {
+	if (!br_opt_get(br, BROPT_VLAN_ENABLED) ||
+	    br->vlan_proto == htons(ETH_P_8021Q)) {
 		/* Bridge Group Address */
 		br->group_addr[5] = 0x00;
 	} else { /* vlan_enabled && ETH_P_8021AD */
@@ -712,7 +713,8 @@ static void recalculate_group_addr(struct net_bridge *br)
 /* Must be protected by RTNL. */
 void br_recalculate_fwd_mask(struct net_bridge *br)
 {
-	if (!br->vlan_enabled || br->vlan_proto == htons(ETH_P_8021Q))
+	if (!br_opt_get(br, BROPT_VLAN_ENABLED) ||
+	    br->vlan_proto == htons(ETH_P_8021Q))
 		br->group_fwd_mask_required = BR_GROUPFWD_DEFAULT;
 	else /* vlan_enabled && ETH_P_8021AD */
 		br->group_fwd_mask_required = BR_GROUPFWD_8021AD &
@@ -729,14 +731,14 @@ int __br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 	};
 	int err;
 
-	if (br->vlan_enabled == val)
+	if (br_opt_get(br, BROPT_VLAN_ENABLED) == !!val)
 		return 0;
 
 	err = switchdev_port_attr_set(br->dev, &attr);
 	if (err && err != -EOPNOTSUPP)
 		return err;
 
-	br->vlan_enabled = val;
+	br_opt_toggle(br, BROPT_VLAN_ENABLED, !!val);
 	br_manage_promisc(br);
 	recalculate_group_addr(br);
 	br_recalculate_fwd_mask(br);
@@ -753,7 +755,7 @@ bool br_vlan_enabled(const struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
 
-	return !!br->vlan_enabled;
+	return br_opt_get(br, BROPT_VLAN_ENABLED);
 }
 EXPORT_SYMBOL_GPL(br_vlan_enabled);
 
@@ -819,7 +821,7 @@ int br_vlan_set_stats(struct net_bridge *br, unsigned long val)
 	switch (val) {
 	case 0:
 	case 1:
-		br->vlan_stats_enabled = val;
+		br_opt_toggle(br, BROPT_VLAN_STATS_ENABLED, !!val);
 		break;
 	default:
 		return -EINVAL;
@@ -964,7 +966,7 @@ int br_vlan_set_default_pvid(struct net_bridge *br, unsigned long val)
 		goto out;
 
 	/* Only allow default pvid change when filtering is disabled */
-	if (br->vlan_enabled) {
+	if (br_opt_get(br, BROPT_VLAN_ENABLED)) {
 		pr_info_once("Please disable vlan filtering to change default_pvid\n");
 		err = -EPERM;
 		goto out;
@@ -1018,7 +1020,7 @@ int nbp_vlan_init(struct net_bridge_port *p)
 		.orig_dev = p->br->dev,
 		.id = SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING,
 		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP,
-		.u.vlan_filtering = p->br->vlan_enabled,
+		.u.vlan_filtering = br_opt_get(p->br, BROPT_VLAN_ENABLED),
 	};
 	struct net_bridge_vlan_group *vg;
 	int ret = -ENOMEM;
