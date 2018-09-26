@@ -94,6 +94,7 @@ struct ttm_object_device {
 	struct dma_buf_ops ops;
 	void (*dmabuf_release)(struct dma_buf *dma_buf);
 	size_t dma_buf_size;
+	struct idr idr;
 };
 
 /**
@@ -171,14 +172,15 @@ int ttm_base_object_init(struct ttm_object_file *tfile,
 	base->ref_obj_release = ref_obj_release;
 	base->object_type = object_type;
 	kref_init(&base->refcount);
+	idr_preload(GFP_KERNEL);
 	spin_lock(&tdev->object_lock);
-	ret = drm_ht_just_insert_please_rcu(&tdev->object_hash,
-					    &base->hash,
-					    (unsigned long)base, 31, 0, 0);
+	ret = idr_alloc(&tdev->idr, base, 0, 0, GFP_NOWAIT);
 	spin_unlock(&tdev->object_lock);
-	if (unlikely(ret != 0))
-		goto out_err0;
+	idr_preload_end();
+	if (ret < 0)
+		return ret;
 
+	base->handle = ret;
 	ret = ttm_ref_object_add(tfile, base, TTM_REF_USAGE, NULL, false);
 	if (unlikely(ret != 0))
 		goto out_err1;
@@ -188,9 +190,8 @@ int ttm_base_object_init(struct ttm_object_file *tfile,
 	return 0;
 out_err1:
 	spin_lock(&tdev->object_lock);
-	(void)drm_ht_remove_item_rcu(&tdev->object_hash, &base->hash);
+	idr_remove(&tdev->idr, base->handle);
 	spin_unlock(&tdev->object_lock);
-out_err0:
 	return ret;
 }
 
@@ -201,7 +202,7 @@ static void ttm_release_base(struct kref *kref)
 	struct ttm_object_device *tdev = base->tfile->tdev;
 
 	spin_lock(&tdev->object_lock);
-	(void)drm_ht_remove_item_rcu(&tdev->object_hash, &base->hash);
+	idr_remove(&tdev->idr, base->handle);
 	spin_unlock(&tdev->object_lock);
 
 	/*
@@ -248,19 +249,13 @@ struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file *tfile,
 struct ttm_base_object *
 ttm_base_object_lookup_for_ref(struct ttm_object_device *tdev, uint32_t key)
 {
-	struct ttm_base_object *base = NULL;
-	struct drm_hash_item *hash;
-	struct drm_open_hash *ht = &tdev->object_hash;
-	int ret;
+	struct ttm_base_object *base;
 
 	rcu_read_lock();
-	ret = drm_ht_find_item_rcu(ht, key, &hash);
+	base = idr_find(&tdev->idr, key);
 
-	if (likely(ret == 0)) {
-		base = drm_hash_entry(hash, struct ttm_base_object, hash);
-		if (!kref_get_unless_zero(&base->refcount))
-			base = NULL;
-	}
+	if (base && !kref_get_unless_zero(&base->refcount))
+		base = NULL;
 	rcu_read_unlock();
 
 	return base;
@@ -284,7 +279,7 @@ bool ttm_ref_object_exists(struct ttm_object_file *tfile,
 	struct ttm_ref_object *ref;
 
 	rcu_read_lock();
-	if (unlikely(drm_ht_find_item_rcu(ht, base->hash.key, &hash) != 0))
+	if (unlikely(drm_ht_find_item_rcu(ht, base->handle, &hash) != 0))
 		goto out_false;
 
 	/*
@@ -334,7 +329,7 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 
 	while (ret == -EINVAL) {
 		rcu_read_lock();
-		ret = drm_ht_find_item_rcu(ht, base->hash.key, &hash);
+		ret = drm_ht_find_item_rcu(ht, base->handle, &hash);
 
 		if (ret == 0) {
 			ref = drm_hash_entry(hash, struct ttm_ref_object, hash);
@@ -358,7 +353,7 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 			return -ENOMEM;
 		}
 
-		ref->hash.key = base->hash.key;
+		ref->hash.key = base->handle;
 		ref->obj = base;
 		ref->tfile = tfile;
 		ref->ref_type = ref_type;
@@ -510,6 +505,7 @@ ttm_object_device_init(struct ttm_mem_global *mem_glob,
 	if (ret != 0)
 		goto out_no_object_hash;
 
+	idr_init(&tdev->idr);
 	tdev->ops = *ops;
 	tdev->dmabuf_release = tdev->ops.release;
 	tdev->ops.release = ttm_prime_dmabuf_release;
@@ -528,6 +524,8 @@ void ttm_object_device_release(struct ttm_object_device **p_tdev)
 
 	*p_tdev = NULL;
 
+	WARN_ON_ONCE(!idr_is_empty(&tdev->idr));
+	idr_destroy(&tdev->idr);
 	drm_ht_remove(&tdev->object_hash);
 
 	kfree(tdev);
@@ -630,7 +628,7 @@ int ttm_prime_fd_to_handle(struct ttm_object_file *tfile,
 
 	prime = (struct ttm_prime_object *) dma_buf->priv;
 	base = &prime->base;
-	*handle = base->hash.key;
+	*handle = base->handle;
 	ret = ttm_ref_object_add(tfile, base, TTM_REF_USAGE, NULL, false);
 
 	dma_buf_put(dma_buf);

@@ -441,7 +441,8 @@ static size_t vmw_bo_acc_size(struct vmw_private *dev_priv, size_t size,
 		struct_size = backend_size +
 			ttm_round_pot(sizeof(struct vmw_buffer_object));
 		user_struct_size = backend_size +
-			ttm_round_pot(sizeof(struct vmw_user_buffer_object));
+		  ttm_round_pot(sizeof(struct vmw_user_buffer_object)) +
+				      TTM_OBJ_EXTRA_SIZE;
 	}
 
 	if (dev_priv->map_mode == vmw_dma_alloc_coherent)
@@ -631,7 +632,7 @@ int vmw_user_bo_alloc(struct vmw_private *dev_priv,
 		*p_base = &user_bo->prime.base;
 		kref_get(&(*p_base)->refcount);
 	}
-	*handle = user_bo->prime.base.hash.key;
+	*handle = user_bo->prime.base.handle;
 
 out_no_base_object:
 	return ret;
@@ -940,7 +941,7 @@ int vmw_user_bo_reference(struct ttm_object_file *tfile,
 
 	user_bo = container_of(vbo, struct vmw_user_buffer_object, vbo);
 
-	*handle = user_bo->prime.base.hash.key;
+	*handle = user_bo->prime.base.handle;
 	return ttm_ref_object_add(tfile, &user_bo->prime.base,
 				  TTM_REF_USAGE, NULL, false);
 }

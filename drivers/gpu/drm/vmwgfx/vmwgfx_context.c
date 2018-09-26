@@ -755,14 +755,10 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	/*
-	 * Approximate idr memory usage with 128 bytes. It will be limited
-	 * by maximum number_of contexts anyway.
-	 */
-
 	if (unlikely(vmw_user_context_size == 0))
-		vmw_user_context_size = ttm_round_pot(sizeof(*ctx)) + 128 +
-		  ((dev_priv->has_mob) ? vmw_cmdbuf_res_man_size() : 0);
+		vmw_user_context_size = ttm_round_pot(sizeof(*ctx)) +
+		  ((dev_priv->has_mob) ? vmw_cmdbuf_res_man_size() : 0) +
+		  + VMW_IDA_ACC_SIZE + TTM_OBJ_EXTRA_SIZE;
 
 	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0))
@@ -807,7 +803,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 		goto out_err;
 	}
 
-	arg->cid = ctx->base.hash.key;
+	arg->cid = ctx->base.handle;
 out_err:
 	vmw_resource_unreference(&res);
 out_unlock:

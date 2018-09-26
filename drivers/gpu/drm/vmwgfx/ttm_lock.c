@@ -261,7 +261,7 @@ int ttm_vt_lock(struct ttm_lock *lock,
 int ttm_vt_unlock(struct ttm_lock *lock)
 {
 	return ttm_ref_object_base_unref(lock->vt_holder,
-					 lock->base.hash.key, TTM_REF_USAGE);
+					 lock->base.handle, TTM_REF_USAGE);
 }
 
 void ttm_suspend_unlock(struct ttm_lock *lock)

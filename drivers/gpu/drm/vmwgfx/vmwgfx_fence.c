@@ -306,7 +306,8 @@ struct vmw_fence_manager *vmw_fence_manager_init(struct vmw_private *dev_priv)
 	INIT_LIST_HEAD(&fman->cleanup_list);
 	INIT_WORK(&fman->work, &vmw_fence_work_func);
 	fman->fifo_down = true;
-	fman->user_fence_size = ttm_round_pot(sizeof(struct vmw_user_fence));
+	fman->user_fence_size = ttm_round_pot(sizeof(struct vmw_user_fence)) +
+		TTM_OBJ_EXTRA_SIZE;
 	fman->fence_size = ttm_round_pot(sizeof(struct vmw_fence_obj));
 	fman->event_fence_action_size =
 		ttm_round_pot(sizeof(struct vmw_event_fence_action));
@@ -650,7 +651,7 @@ int vmw_user_fence_create(struct drm_file *file_priv,
 	}
 
 	*p_fence = &ufence->fence;
-	*p_handle = ufence->base.hash.key;
+	*p_handle = ufence->base.handle;
 
 	return 0;
 out_err:
@@ -1137,7 +1138,7 @@ int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 					  "object.\n");
 				goto out_no_ref_obj;
 			}
-			handle = base->hash.key;
+			handle = base->handle;
 		}
 		ttm_base_object_unref(&base);
 	}

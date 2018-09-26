@@ -740,13 +740,10 @@ static int vmw_user_shader_alloc(struct vmw_private *dev_priv,
 	};
 	int ret;
 
-	/*
-	 * Approximate idr memory usage with 128 bytes. It will be limited
-	 * by maximum number_of shaders anyway.
-	 */
 	if (unlikely(vmw_user_shader_size == 0))
 		vmw_user_shader_size =
-			ttm_round_pot(sizeof(struct vmw_user_shader)) + 128;
+			ttm_round_pot(sizeof(struct vmw_user_shader)) +
+			VMW_IDA_ACC_SIZE + TTM_OBJ_EXTRA_SIZE;
 
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
 				   vmw_user_shader_size,
@@ -792,7 +789,7 @@ static int vmw_user_shader_alloc(struct vmw_private *dev_priv,
 	}
 
 	if (handle)
-		*handle = ushader->base.hash.key;
+		*handle = ushader->base.handle;
 out_err:
 	vmw_resource_unreference(&res);
 out:
@@ -814,13 +811,10 @@ static struct vmw_resource *vmw_shader_alloc(struct vmw_private *dev_priv,
 	};
 	int ret;
 
-	/*
-	 * Approximate idr memory usage with 128 bytes. It will be limited
-	 * by maximum number_of shaders anyway.
-	 */
 	if (unlikely(vmw_shader_size == 0))
 		vmw_shader_size =
-			ttm_round_pot(sizeof(struct vmw_shader)) + 128;
+			ttm_round_pot(sizeof(struct vmw_shader)) +
+			VMW_IDA_ACC_SIZE;
 
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
 				   vmw_shader_size,

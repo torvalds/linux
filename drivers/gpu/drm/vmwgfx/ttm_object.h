@@ -124,14 +124,14 @@ struct ttm_object_device;
 
 struct ttm_base_object {
 	struct rcu_head rhead;
-	struct drm_hash_item hash;
-	enum ttm_object_type object_type;
-	bool shareable;
 	struct ttm_object_file *tfile;
 	struct kref refcount;
 	void (*refcount_release) (struct ttm_base_object **base);
 	void (*ref_obj_release) (struct ttm_base_object *base,
 				 enum ttm_ref_type ref_type);
+	u32 handle;
+	enum ttm_object_type object_type;
+	u32 shareable;
 };
 
 
@@ -350,4 +350,11 @@ extern int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 
 #define ttm_prime_object_kfree(__obj, __prime)		\
 	kfree_rcu(__obj, __prime.base.rhead)
+
+/*
+ * Extra memory required by the base object's idr storage, which is allocated
+ * separately from the base object itself. We estimate an on-average 128 bytes
+ * per idr.
+ */
+#define TTM_OBJ_EXTRA_SIZE 128
 #endif

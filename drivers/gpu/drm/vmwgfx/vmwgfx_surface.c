@@ -731,7 +731,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	if (unlikely(vmw_user_surface_size == 0))
 		vmw_user_surface_size = ttm_round_pot(sizeof(*user_srf)) +
-			128;
+			VMW_IDA_ACC_SIZE + TTM_OBJ_EXTRA_SIZE;
 
 	num_sizes = 0;
 	for (i = 0; i < DRM_VMW_MAX_SURFACE_FACES; ++i) {
@@ -744,7 +744,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	    num_sizes == 0)
 		return -EINVAL;
 
-	size = vmw_user_surface_size + 128 +
+	size = vmw_user_surface_size +
 		ttm_round_pot(num_sizes * sizeof(struct drm_vmw_size)) +
 		ttm_round_pot(num_sizes * sizeof(struct vmw_surface_offset));
 
@@ -886,7 +886,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	rep->sid = user_srf->prime.base.hash.key;
+	rep->sid = user_srf->prime.base.handle;
 	vmw_resource_unreference(&res);
 
 	ttm_read_unlock(&dev_priv->reservation_sem);
@@ -1024,7 +1024,7 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("copy_to_user failed %p %u\n",
 			  user_sizes, srf->num_sizes);
-		ttm_ref_object_base_unref(tfile, base->hash.key, TTM_REF_USAGE);
+		ttm_ref_object_base_unref(tfile, base->handle, TTM_REF_USAGE);
 		ret = -EFAULT;
 	}
 
@@ -1609,9 +1609,9 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 
 	if (unlikely(vmw_user_surface_size == 0))
 		vmw_user_surface_size = ttm_round_pot(sizeof(*user_srf)) +
-			128;
+			VMW_IDA_ACC_SIZE + TTM_OBJ_EXTRA_SIZE;
 
-	size = vmw_user_surface_size + 128;
+	size = vmw_user_surface_size;
 
 	/* Define a surface based on the parameters. */
 	ret = vmw_surface_gb_priv_define(dev,
@@ -1683,7 +1683,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 		goto out_unlock;
 	}
 
-	rep->handle      = user_srf->prime.base.hash.key;
+	rep->handle      = user_srf->prime.base.handle;
 	rep->backup_size = res->backup_size;
 	if (res->backup) {
 		rep->buffer_map_handle =
@@ -1745,7 +1745,7 @@ vmw_gb_surface_reference_internal(struct drm_device *dev,
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Could not add a reference to a GB surface "
 			  "backup buffer.\n");
-		(void) ttm_ref_object_base_unref(tfile, base->hash.key,
+		(void) ttm_ref_object_base_unref(tfile, base->handle,
 						 TTM_REF_USAGE);
 		goto out_bad_resource;
 	}
@@ -1759,7 +1759,7 @@ vmw_gb_surface_reference_internal(struct drm_device *dev,
 	rep->creq.base.array_size = srf->array_size;
 	rep->creq.base.buffer_handle = backup_handle;
 	rep->creq.base.base_size = srf->base_size;
-	rep->crep.handle = user_srf->prime.base.hash.key;
+	rep->crep.handle = user_srf->prime.base.handle;
 	rep->crep.backup_size = srf->res.backup_size;
 	rep->crep.buffer_handle = backup_handle;
 	rep->crep.buffer_map_handle =

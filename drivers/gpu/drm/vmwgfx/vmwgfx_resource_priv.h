@@ -30,6 +30,11 @@
 
 #include "vmwgfx_drv.h"
 
+/*
+ * Extra memory required by the resource id's ida storage, which is allocated
+ * separately from the base object itself. We estimate an on-average 128 bytes
+ * per ida.
+ */
 #define VMW_IDA_ACC_SIZE 128
 
 enum vmw_cmdbuf_res_state {
