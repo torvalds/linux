@@ -192,54 +192,27 @@ EXPORT_SYMBOL(cmd_db_read_addr);
 /**
  * cmd_db_read_aux_data() - Query command db for aux data.
  *
- *  @id: Resource to retrieve AUX Data on.
- *  @data: Data buffer to copy returned aux data to. Returns size on NULL
- *  @len: Caller provides size of data buffer passed in.
+ *  @id: Resource to retrieve AUX Data on
+ *  @len: size of data buffer returned
  *
- *  Return: size of data on success, errno otherwise
+ *  Return: pointer to data on success, error pointer otherwise
  */
-int cmd_db_read_aux_data(const char *id, u8 *data, size_t len)
+const void *cmd_db_read_aux_data(const char *id, size_t *len)
 {
 	int ret;
 	const struct entry_header *ent;
 	const struct rsc_hdr *rsc_hdr;
-	u16 ent_len;
-
-	if (!data)
-		return -EINVAL;
 
 	ret = cmd_db_get_header(id, &ent, &rsc_hdr);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
-	ent_len = le16_to_cpu(ent->len);
-	if (len < ent_len)
-		return -EINVAL;
+	if (len)
+		*len = le16_to_cpu(ent->len);
 
-	len = min_t(u16, ent_len, len);
-	memcpy(data, rsc_offset(rsc_hdr, ent), len);
-
-	return len;
+	return rsc_offset(rsc_hdr, ent);
 }
 EXPORT_SYMBOL(cmd_db_read_aux_data);
-
-/**
- * cmd_db_read_aux_data_len - Get the length of the auxiliary data stored in DB.
- *
- * @id: Resource to retrieve AUX Data.
- *
- * Return: size on success, 0 on error
- */
-size_t cmd_db_read_aux_data_len(const char *id)
-{
-	int ret;
-	const struct entry_header *ent;
-
-	ret = cmd_db_get_header(id, &ent, NULL);
-
-	return ret < 0 ? 0 : le16_to_cpu(ent->len);
-}
-EXPORT_SYMBOL(cmd_db_read_aux_data_len);
 
 /**
  * cmd_db_read_slave_id - Get the slave ID for a given resource address
