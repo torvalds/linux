@@ -908,6 +908,11 @@ static void intel_pt_sample_flags(struct intel_pt_queue *ptq)
 		ptq->insn_len = ptq->state->insn_len;
 		memcpy(ptq->insn, ptq->state->insn, INTEL_PT_INSN_BUF_SZ);
 	}
+
+	if (ptq->state->type & INTEL_PT_TRACE_BEGIN)
+		ptq->flags |= PERF_IP_FLAG_TRACE_BEGIN;
+	if (ptq->state->type & INTEL_PT_TRACE_END)
+		ptq->flags |= PERF_IP_FLAG_TRACE_END;
 }
 
 static int intel_pt_setup_queue(struct intel_pt *pt,

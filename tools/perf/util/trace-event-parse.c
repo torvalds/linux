@@ -33,8 +33,8 @@ static int get_common_field(struct scripting_context *context,
 			    int *offset, int *size, const char *type)
 {
 	struct tep_handle *pevent = context->pevent;
-	struct event_format *event;
-	struct format_field *field;
+	struct tep_event_format *event;
+	struct tep_format_field *field;
 
 	if (!*size) {
 		if (!pevent->events)
@@ -94,9 +94,9 @@ int common_pc(struct scripting_context *context)
 }
 
 unsigned long long
-raw_field_value(struct event_format *event, const char *name, void *data)
+raw_field_value(struct tep_event_format *event, const char *name, void *data)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned long long val;
 
 	field = tep_find_any_field(event, name);
@@ -108,12 +108,12 @@ raw_field_value(struct event_format *event, const char *name, void *data)
 	return val;
 }
 
-unsigned long long read_size(struct event_format *event, void *ptr, int size)
+unsigned long long read_size(struct tep_event_format *event, void *ptr, int size)
 {
 	return tep_read_number(event->pevent, ptr, size);
 }
 
-void event_format__fprintf(struct event_format *event,
+void event_format__fprintf(struct tep_event_format *event,
 			   int cpu, void *data, int size, FILE *fp)
 {
 	struct tep_record record;
@@ -130,7 +130,7 @@ void event_format__fprintf(struct event_format *event,
 	trace_seq_destroy(&s);
 }
 
-void event_format__print(struct event_format *event,
+void event_format__print(struct tep_event_format *event,
 			 int cpu, void *data, int size)
 {
 	return event_format__fprintf(event, cpu, data, size, stdout);
@@ -188,8 +188,8 @@ int parse_event_file(struct tep_handle *pevent,
 	return tep_parse_event(pevent, buf, size, sys);
 }
 
-struct event_format *trace_find_next_event(struct tep_handle *pevent,
-					   struct event_format *event)
+struct tep_event_format *trace_find_next_event(struct tep_handle *pevent,
+					       struct tep_event_format *event)
 {
 	static int idx;
 
