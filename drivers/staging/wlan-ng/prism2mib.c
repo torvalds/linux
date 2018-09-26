@@ -210,7 +210,7 @@ static struct mibrec mibtab[] = {
 	 F_STA | F_READ,
 	 HFA384x_RID_CURRENTCHANNEL, 0, 0,
 	 prism2mib_uint32},
-	{DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel,
+	{DIDMIB_DOT11PHY_TXPOWERTABLE_CURRENTTXPOWERLEVEL,
 	 F_STA | F_READ | F_WRITE,
 	 HFA384x_RID_TXPOWERMAX, 0, 0,
 	 prism2mib_uint32},

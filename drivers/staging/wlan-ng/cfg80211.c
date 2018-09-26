@@ -595,7 +595,7 @@ static int prism2_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 		data = MBM_TO_DBM(mbm);
 
 	result = prism2_domibset_uint32(wlandev,
-		DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel,
+		DIDMIB_DOT11PHY_TXPOWERTABLE_CURRENTTXPOWERLEVEL,
 		data);
 
 	if (result) {
@@ -620,7 +620,7 @@ static int prism2_get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 	mibitem = (struct p80211item_uint32 *)&msg.mibattribute.data;
 	msg.msgcode = DIDMSG_DOT11REQ_MIBGET;
 	mibitem->did =
-	    DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel;
+	    DIDMIB_DOT11PHY_TXPOWERTABLE_CURRENTTXPOWERLEVEL;
 
 	result = p80211req_dorequest(wlandev, (u8 *)&msg);
 
