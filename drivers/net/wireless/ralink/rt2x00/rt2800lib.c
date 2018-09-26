@@ -1137,36 +1137,47 @@ void rt2800_txdone(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2800_txdone);
 
-static inline bool rt2800_entry_txstatus_timeout(struct queue_entry *entry)
+static inline bool rt2800_entry_txstatus_timeout(struct rt2x00_dev *rt2x00dev,
+						 struct queue_entry *entry)
 {
-	bool tout;
+	bool ret;
+	unsigned long tout;
 
 	if (!test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
 		return false;
 
-	tout = time_after(jiffies, entry->last_action + msecs_to_jiffies(500));
-	if (unlikely(tout))
+	if (test_bit(DEVICE_STATE_FLUSHING, &rt2x00dev->flags))
+		tout = msecs_to_jiffies(100);
+	else
+		tout = msecs_to_jiffies(2000);
+
+	ret = time_after(jiffies, entry->last_action + tout);
+	if (unlikely(ret))
 		rt2x00_dbg(entry->queue->rt2x00dev,
 			   "TX status timeout for entry %d in queue %d\n",
 			   entry->entry_idx, entry->queue->qid);
-	return tout;
-
+	return ret;
 }
 
 bool rt2800_txstatus_timeout(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 	struct queue_entry *entry;
+	unsigned long tout;
 
-	if (time_before(jiffies,
-			rt2x00dev->last_nostatus_check + msecs_to_jiffies(500)))
+	if (test_bit(DEVICE_STATE_FLUSHING, &rt2x00dev->flags))
+		tout = msecs_to_jiffies(50);
+	else
+		tout = msecs_to_jiffies(1000);
+
+	if (time_before(jiffies, rt2x00dev->last_nostatus_check + tout))
 		return false;
 
 	rt2x00dev->last_nostatus_check = jiffies;
 
 	tx_queue_for_each(rt2x00dev, queue) {
 		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-		if (rt2800_entry_txstatus_timeout(entry))
+		if (rt2800_entry_txstatus_timeout(rt2x00dev, entry))
 			return true;
 	}
 
@@ -1195,7 +1206,7 @@ void rt2800_txdone_nostatus(struct rt2x00_dev *rt2x00dev)
 				break;
 
 			if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags) ||
-			    rt2800_entry_txstatus_timeout(entry))
+			    rt2800_entry_txstatus_timeout(rt2x00dev, entry))
 				rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
 			else
 				break;
