@@ -59,13 +59,12 @@
 
 #define pr_fmt(fmt) "[TTM] " fmt
 
-#include <drm/ttm/ttm_object.h>
 #include <drm/ttm/ttm_module.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 #include <linux/atomic.h>
+#include "ttm_object.h"
 
 struct ttm_object_file {
 	struct ttm_object_device *tdev;
@@ -194,7 +193,6 @@ out_err1:
 out_err0:
 	return ret;
 }
-EXPORT_SYMBOL(ttm_base_object_init);
 
 static void ttm_release_base(struct kref *kref)
 {
@@ -225,7 +223,6 @@ void ttm_base_object_unref(struct ttm_base_object **p_base)
 
 	kref_put(&base->refcount, ttm_release_base);
 }
-EXPORT_SYMBOL(ttm_base_object_unref);
 
 struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file *tfile,
 					       uint32_t key)
@@ -247,7 +244,6 @@ struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file *tfile,
 
 	return base;
 }
-EXPORT_SYMBOL(ttm_base_object_lookup);
 
 struct ttm_base_object *
 ttm_base_object_lookup_for_ref(struct ttm_object_device *tdev, uint32_t key)
@@ -269,7 +265,6 @@ ttm_base_object_lookup_for_ref(struct ttm_object_device *tdev, uint32_t key)
 
 	return base;
 }
-EXPORT_SYMBOL(ttm_base_object_lookup_for_ref);
 
 /**
  * ttm_ref_object_exists - Check whether a caller has a valid ref object
@@ -315,7 +310,6 @@ bool ttm_ref_object_exists(struct ttm_object_file *tfile,
 	rcu_read_unlock();
 	return false;
 }
-EXPORT_SYMBOL(ttm_ref_object_exists);
 
 int ttm_ref_object_add(struct ttm_object_file *tfile,
 		       struct ttm_base_object *base,
@@ -391,9 +385,9 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 
 	return ret;
 }
-EXPORT_SYMBOL(ttm_ref_object_add);
 
-static void ttm_ref_object_release(struct kref *kref)
+static void __releases(tfile->lock) __acquires(tfile->lock)
+ttm_ref_object_release(struct kref *kref)
 {
 	struct ttm_ref_object *ref =
 	    container_of(kref, struct ttm_ref_object, kref);
@@ -435,7 +429,6 @@ int ttm_ref_object_base_unref(struct ttm_object_file *tfile,
 	spin_unlock(&tfile->lock);
 	return 0;
 }
-EXPORT_SYMBOL(ttm_ref_object_base_unref);
 
 void ttm_object_file_release(struct ttm_object_file **p_tfile)
 {
@@ -464,7 +457,6 @@ void ttm_object_file_release(struct ttm_object_file **p_tfile)
 
 	ttm_object_file_unref(&tfile);
 }
-EXPORT_SYMBOL(ttm_object_file_release);
 
 struct ttm_object_file *ttm_object_file_init(struct ttm_object_device *tdev,
 					     unsigned int hash_order)
@@ -499,7 +491,6 @@ out_err:
 
 	return NULL;
 }
-EXPORT_SYMBOL(ttm_object_file_init);
 
 struct ttm_object_device *
 ttm_object_device_init(struct ttm_mem_global *mem_glob,
@@ -530,7 +521,6 @@ out_no_object_hash:
 	kfree(tdev);
 	return NULL;
 }
-EXPORT_SYMBOL(ttm_object_device_init);
 
 void ttm_object_device_release(struct ttm_object_device **p_tdev)
 {
@@ -542,7 +532,6 @@ void ttm_object_device_release(struct ttm_object_device **p_tdev)
 
 	kfree(tdev);
 }
-EXPORT_SYMBOL(ttm_object_device_release);
 
 /**
  * get_dma_buf_unless_doomed - get a dma_buf reference if possible.
@@ -648,7 +637,6 @@ int ttm_prime_fd_to_handle(struct ttm_object_file *tfile,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ttm_prime_fd_to_handle);
 
 /**
  * ttm_prime_handle_to_fd - Return a dma_buf fd from a ttm prime object
@@ -739,7 +727,6 @@ out_unref:
 		ttm_base_object_unref(&base);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ttm_prime_handle_to_fd);
 
 /**
  * ttm_prime_object_init - Initialize a ttm_prime_object
@@ -772,4 +759,3 @@ int ttm_prime_object_init(struct ttm_object_file *tfile, size_t size,
 				    ttm_prime_refcount_release,
 				    ref_obj_release);
 }
-EXPORT_SYMBOL(ttm_prime_object_init);

@@ -29,13 +29,13 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include <drm/ttm/ttm_lock.h>
 #include <drm/ttm/ttm_module.h>
 #include <linux/atomic.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/sched/signal.h>
-#include <linux/module.h>
+#include "ttm_lock.h"
+#include "ttm_object.h"
 
 #define TTM_WRITE_LOCK_PENDING    (1 << 0)
 #define TTM_VT_LOCK_PENDING       (1 << 1)
@@ -52,7 +52,6 @@ void ttm_lock_init(struct ttm_lock *lock)
 	lock->kill_takers = false;
 	lock->signal = SIGKILL;
 }
-EXPORT_SYMBOL(ttm_lock_init);
 
 void ttm_read_unlock(struct ttm_lock *lock)
 {
@@ -61,7 +60,6 @@ void ttm_read_unlock(struct ttm_lock *lock)
 		wake_up_all(&lock->queue);
 	spin_unlock(&lock->lock);
 }
-EXPORT_SYMBOL(ttm_read_unlock);
 
 static bool __ttm_read_lock(struct ttm_lock *lock)
 {
@@ -92,7 +90,6 @@ int ttm_read_lock(struct ttm_lock *lock, bool interruptible)
 		wait_event(lock->queue, __ttm_read_lock(lock));
 	return ret;
 }
-EXPORT_SYMBOL(ttm_read_lock);
 
 static bool __ttm_read_trylock(struct ttm_lock *lock, bool *locked)
 {
@@ -144,7 +141,6 @@ void ttm_write_unlock(struct ttm_lock *lock)
 	wake_up_all(&lock->queue);
 	spin_unlock(&lock->lock);
 }
-EXPORT_SYMBOL(ttm_write_unlock);
 
 static bool __ttm_write_lock(struct ttm_lock *lock)
 {
@@ -185,7 +181,6 @@ int ttm_write_lock(struct ttm_lock *lock, bool interruptible)
 
 	return ret;
 }
-EXPORT_SYMBOL(ttm_write_lock);
 
 static int __ttm_vt_unlock(struct ttm_lock *lock)
 {
@@ -262,14 +257,12 @@ int ttm_vt_lock(struct ttm_lock *lock,
 
 	return ret;
 }
-EXPORT_SYMBOL(ttm_vt_lock);
 
 int ttm_vt_unlock(struct ttm_lock *lock)
 {
 	return ttm_ref_object_base_unref(lock->vt_holder,
 					 lock->base.hash.key, TTM_REF_USAGE);
 }
-EXPORT_SYMBOL(ttm_vt_unlock);
 
 void ttm_suspend_unlock(struct ttm_lock *lock)
 {
@@ -278,7 +271,6 @@ void ttm_suspend_unlock(struct ttm_lock *lock)
 	wake_up_all(&lock->queue);
 	spin_unlock(&lock->lock);
 }
-EXPORT_SYMBOL(ttm_suspend_unlock);
 
 static bool __ttm_suspend_lock(struct ttm_lock *lock)
 {
@@ -300,4 +292,3 @@ void ttm_suspend_lock(struct ttm_lock *lock)
 {
 	wait_event(lock->queue, __ttm_suspend_lock(lock));
 }
-EXPORT_SYMBOL(ttm_suspend_lock);
