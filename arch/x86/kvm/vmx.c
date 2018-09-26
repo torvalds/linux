@@ -6653,7 +6653,6 @@ static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		vmcs_write64(XSS_EXIT_BITMAP, VMX_XSS_EXIT_BITMAP);
 
 	if (enable_pml) {
-		ASSERT(vmx->pml_pg);
 		vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
 		vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
 	}
@@ -12347,7 +12346,6 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		 * since we always flush the log on each vmexit, this happens
 		 * to be equivalent to simply resetting the fields in vmcs02.
 		 */
-		ASSERT(vmx->pml_pg);
 		vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
 		vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
 	}
