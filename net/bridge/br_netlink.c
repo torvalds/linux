@@ -1139,7 +1139,7 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		spin_lock_bh(&br->lock);
 		memcpy(br->group_addr, new_addr, sizeof(br->group_addr));
 		spin_unlock_bh(&br->lock);
-		br->group_addr_set = true;
+		br_opt_toggle(br, BROPT_GROUP_ADDR_SET, true);
 		br_recalculate_fwd_mask(br);
 	}
 

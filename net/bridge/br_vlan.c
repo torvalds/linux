@@ -695,7 +695,7 @@ struct net_bridge_vlan *br_vlan_find(struct net_bridge_vlan_group *vg, u16 vid)
 /* Must be protected by RTNL. */
 static void recalculate_group_addr(struct net_bridge *br)
 {
-	if (br->group_addr_set)
+	if (br_opt_get(br, BROPT_GROUP_ADDR_SET))
 		return;
 
 	spin_lock_bh(&br->lock);

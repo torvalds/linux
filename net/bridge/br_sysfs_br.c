@@ -303,7 +303,7 @@ static ssize_t group_addr_store(struct device *d,
 	ether_addr_copy(br->group_addr, new_addr);
 	spin_unlock_bh(&br->lock);
 
-	br->group_addr_set = true;
+	br_opt_toggle(br, BROPT_GROUP_ADDR_SET, true);
 	br_recalculate_fwd_mask(br);
 	netdev_state_change(br->dev);
 
