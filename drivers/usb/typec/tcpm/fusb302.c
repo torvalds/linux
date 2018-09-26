@@ -681,6 +681,7 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 	int ret = 0;
 	bool pull_up, pull_down;
 	u8 rd_mda;
+	enum toggling_mode mode;
 
 	mutex_lock(&chip->lock);
 	switch (cc) {
@@ -766,6 +767,29 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 		chip->intr_comp_chng = false;
 	}
 	fusb302_log(chip, "cc := %s", typec_cc_status_name[cc]);
+
+	/* Enable detection for fixed SNK or SRC only roles */
+	switch (cc) {
+	case TYPEC_CC_RD:
+		mode = TOGGLING_MODE_SNK;
+		break;
+	case TYPEC_CC_RP_DEF:
+	case TYPEC_CC_RP_1_5:
+	case TYPEC_CC_RP_3_0:
+		mode = TOGGLING_MODE_SRC;
+		break;
+	default:
+		mode = TOGGLING_MODE_OFF;
+		break;
+	}
+
+	if (mode != TOGGLING_MODE_OFF) {
+		ret = fusb302_set_toggling(chip, mode);
+		if (ret < 0)
+			fusb302_log(chip,
+				    "cannot set fixed role toggling mode, ret=%d",
+				    ret);
+	}
 done:
 	mutex_unlock(&chip->lock);
 
