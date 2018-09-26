@@ -230,16 +230,55 @@ out_err:
 }
 
 /**
- * vmw_resource_val_add - Add a resource to the software context's
- * resource list if it's not already on it.
+ * vmw_execbuf_res_size - calculate extra size fore the resource validation
+ * node
+ * @dev_priv: Pointer to the device private struct.
+ * @res_type: The resource type.
  *
- * @sw_context: Pointer to the software context.
- * @res: Pointer to the resource.
- * @p_node On successful return points to a valid pointer to a
- * struct vmw_resource_val_node, if non-NULL on entry.
+ * Guest-backed contexts and DX contexts require extra size to store
+ * execbuf private information in the validation node. Typically the
+ * binding manager associated data structures.
+ *
+ * Returns: The extra size requirement based on resource type.
  */
-static int vmw_resource_val_add(struct vmw_sw_context *sw_context,
-				struct vmw_resource *res)
+static unsigned int vmw_execbuf_res_size(struct vmw_private *dev_priv,
+					 enum vmw_res_type res_type)
+{
+	return (res_type == vmw_res_dx_context ||
+		(res_type == vmw_res_context && dev_priv->has_mob)) ?
+		sizeof(struct vmw_ctx_validation_info) : 0;
+}
+
+/**
+ * vmw_execbuf_rcache_update - Update a resource-node cache entry
+ *
+ * @rcache: Pointer to the entry to update.
+ * @res: Pointer to the resource.
+ * @private: Pointer to the execbuf-private space in the resource
+ * validation node.
+ */
+static void vmw_execbuf_rcache_update(struct vmw_res_cache_entry *rcache,
+				      struct vmw_resource *res,
+				      void *private)
+{
+	rcache->res = res;
+	rcache->private = private;
+	rcache->valid = 1;
+	rcache->valid_handle = 0;
+}
+
+/**
+ * vmw_execbuf_res_noref_val_add - Add a resource described by an
+ * unreferenced rcu-protected pointer to the validation list.
+ * @sw_context: Pointer to the software context.
+ * @res: Unreferenced rcu-protected pointer to the resource.
+ *
+ * Returns: 0 on success. Negative error code on failure. Typical error
+ * codes are %-EINVAL on inconsistency and %-ESRCH if the resource was
+ * doomed.
+ */
+static int vmw_execbuf_res_noref_val_add(struct vmw_sw_context *sw_context,
+					 struct vmw_resource *res)
 {
 	struct vmw_private *dev_priv = res->dev_priv;
 	int ret;
@@ -247,18 +286,18 @@ static int vmw_resource_val_add(struct vmw_sw_context *sw_context,
 	struct vmw_res_cache_entry *rcache;
 	struct vmw_ctx_validation_info *ctx_info;
 	bool first_usage;
-	size_t priv_size;
+	unsigned int priv_size;
 
-	/*
-	 * If the resource is a context, set up structures to track
-	 * context bindings.
-	 */
-	priv_size = (res_type == vmw_res_dx_context ||
-		     (res_type == vmw_res_context && dev_priv->has_mob)) ?
-		sizeof(*ctx_info) : 0;
+	rcache = &sw_context->res_cache[res_type];
+	if (likely(rcache->valid && rcache->res == res)) {
+		vmw_user_resource_noref_release();
+		return 0;
+	}
 
+	priv_size = vmw_execbuf_res_size(dev_priv, res_type);
 	ret = vmw_validation_add_resource(sw_context->ctx, res, priv_size,
 					  (void **)&ctx_info, &first_usage);
+	vmw_user_resource_noref_release();
 	if (ret)
 		return ret;
 
@@ -269,14 +308,37 @@ static int vmw_resource_val_add(struct vmw_sw_context *sw_context,
 			return ret;
 	}
 
-	/* Cache info about the last added resource */
-	rcache = &sw_context->res_cache[res_type];
-	rcache->res = res;
-	rcache->private = ctx_info;
-	rcache->valid = 1;
-	rcache->valid_handle = 0;
+	vmw_execbuf_rcache_update(rcache, res, ctx_info);
+	return 0;
+}
 
-	return ret;
+/**
+ * vmw_execbuf_res_noctx_val_add - Add a non-context resource to the resource
+ * validation list if it's not already on it
+ * @sw_context: Pointer to the software context.
+ * @res: Pointer to the resource.
+ *
+ * Returns: Zero on success. Negative error code on failure.
+ */
+static int vmw_execbuf_res_noctx_val_add(struct vmw_sw_context *sw_context,
+					 struct vmw_resource *res)
+{
+	struct vmw_res_cache_entry *rcache;
+	enum vmw_res_type res_type = vmw_res_type(res);
+	void *ptr;
+	int ret;
+
+	rcache = &sw_context->res_cache[res_type];
+	if (likely(rcache->valid && rcache->res == res))
+		return 0;
+
+	ret = vmw_validation_add_resource(sw_context->ctx, res, 0, &ptr, NULL);
+	if (ret)
+		return ret;
+
+	vmw_execbuf_rcache_update(rcache, res, ptr);
+
+	return 0;
 }
 
 /**
@@ -297,11 +359,11 @@ static int vmw_view_res_val_add(struct vmw_sw_context *sw_context,
 	 * First add the resource the view is pointing to, otherwise
 	 * it may be swapped out when the view is validated.
 	 */
-	ret = vmw_resource_val_add(sw_context, vmw_view_srf(view));
+	ret = vmw_execbuf_res_noctx_val_add(sw_context, vmw_view_srf(view));
 	if (ret)
 		return ret;
 
-	return vmw_resource_val_add(sw_context, view);
+	return vmw_execbuf_res_noctx_val_add(sw_context, view);
 }
 
 /**
@@ -371,7 +433,7 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 			if (IS_ERR(res))
 				continue;
 
-			ret = vmw_resource_val_add(sw_context, res);
+			ret = vmw_execbuf_res_noctx_val_add(sw_context, res);
 			if (unlikely(ret != 0))
 				return ret;
 		}
@@ -383,16 +445,11 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 	binding_list = vmw_context_binding_list(ctx);
 
 	list_for_each_entry(entry, binding_list, ctx_list) {
-		/* entry->res is not refcounted */
-		res = vmw_resource_reference_unless_doomed(entry->res);
-		if (unlikely(res == NULL))
-			continue;
-
 		if (vmw_res_type(entry->res) == vmw_res_view)
 			ret = vmw_view_res_val_add(sw_context, entry->res);
 		else
-			ret = vmw_resource_val_add(sw_context, entry->res);
-		vmw_resource_unreference(&res);
+			ret = vmw_execbuf_res_noctx_val_add(sw_context,
+							    entry->res);
 		if (unlikely(ret != 0))
 			break;
 	}
@@ -535,38 +592,6 @@ static int vmw_resources_reserve(struct vmw_sw_context *sw_context)
 }
 
 /**
- * vmw_cmd_res_reloc_add - Add a resource to a software context's
- * relocation- and validation lists.
- * @dev_priv: Pointer to a struct vmw_private identifying the device.
- * @sw_context: Pointer to the software context.
- * @id_loc: Pointer to where the id that needs translation is located.
- * @res: Valid pointer to a struct vmw_resource.
- *
- *  Return: Zero on success, negative error code on error
- */
-static int vmw_cmd_res_reloc_add(struct vmw_private *dev_priv,
-				 struct vmw_sw_context *sw_context,
-				 uint32_t *id_loc,
-				 struct vmw_resource *res)
-{
-	int ret;
-
-	ret = vmw_resource_relocation_add(sw_context, res,
-					  vmw_ptr_diff(sw_context->buf_start,
-						       id_loc),
-					  vmw_res_rel_normal);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ret = vmw_resource_val_add(sw_context, res);
-	if (unlikely(ret != 0))
-		return ret;
-
-	return 0;
-}
-
-
-/**
  * vmw_cmd_res_check - Check that a resource is present and if so, put it
  * on the resource validate list unless it's already there.
  *
@@ -587,8 +612,7 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 		  uint32_t *id_loc,
 		  struct vmw_resource **p_res)
 {
-	struct vmw_res_cache_entry *rcache =
-		&sw_context->res_cache[res_type];
+	struct vmw_res_cache_entry *rcache = &sw_context->res_cache[res_type];
 	struct vmw_resource *res;
 	int ret;
 
@@ -603,56 +627,41 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 		return 0;
 	}
 
-	/*
-	 * Fastpath in case of repeated commands referencing the same
-	 * resource
-	 */
-
 	if (likely(rcache->valid_handle && *id_loc == rcache->handle)) {
-		struct vmw_resource *res = rcache->res;
+		res = rcache->res;
+	} else {
+		unsigned int size = vmw_execbuf_res_size(dev_priv, res_type);
 
-		if (p_res)
-			*p_res = res;
+		ret = vmw_validation_preload_res(sw_context->ctx, size);
+		if (ret)
+			return ret;
 
-		return vmw_resource_relocation_add
-			(sw_context, res,
-			 vmw_ptr_diff(sw_context->buf_start, id_loc),
-			 vmw_res_rel_normal);
+		res = vmw_user_resource_noref_lookup_handle
+			(dev_priv, sw_context->fp->tfile, *id_loc, converter);
+		if (unlikely(IS_ERR(res))) {
+			DRM_ERROR("Could not find or use resource 0x%08x.\n",
+				  (unsigned int) *id_loc);
+			return PTR_ERR(res);
+		}
+
+		ret = vmw_execbuf_res_noref_val_add(sw_context, res);
+		if (unlikely(ret != 0))
+			return ret;
+
+		if (rcache->valid && rcache->res == res) {
+			rcache->valid_handle = true;
+			rcache->handle = *id_loc;
+		}
 	}
 
-	ret = vmw_user_resource_lookup_handle(dev_priv,
-					      sw_context->fp->tfile,
-					      *id_loc,
-					      converter,
-					      &res);
-	if (unlikely(ret != 0)) {
-		DRM_ERROR("Could not find or use resource 0x%08x.\n",
-			  (unsigned) *id_loc);
-		dump_stack();
-		return ret;
-	}
-
-	ret = vmw_cmd_res_reloc_add(dev_priv, sw_context, id_loc,
-				    res);
-	if (unlikely(ret != 0))
-		goto out_no_reloc;
-
+	ret = vmw_resource_relocation_add(sw_context, res,
+					  vmw_ptr_diff(sw_context->buf_start,
+						       id_loc),
+					  vmw_res_rel_normal);
 	if (p_res)
 		*p_res = res;
 
-	if (rcache->valid && rcache->res == res) {
-		rcache->valid_handle = true;
-		rcache->handle = *id_loc;
-	}
-
-	vmw_resource_unreference(&res);
 	return 0;
-
-out_no_reloc:
-	BUG_ON(sw_context->error_resource != NULL);
-	sw_context->error_resource = res;
-
-	return ret;
 }
 
 /**
@@ -854,9 +863,9 @@ static int vmw_cmd_set_render_target_check(struct vmw_private *dev_priv,
 		return ret;
 
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				user_surface_converter,
-				&cmd->body.target.sid, &res);
-	if (unlikely(ret != 0))
+				user_surface_converter, &cmd->body.target.sid,
+				&res);
+	if (unlikely(ret))
 		return ret;
 
 	if (dev_priv->has_mob) {
@@ -890,8 +899,8 @@ static int vmw_cmd_surface_copy_check(struct vmw_private *dev_priv,
 	cmd = container_of(header, struct vmw_sid_cmd, header);
 
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				user_surface_converter,
-				&cmd->body.src.sid, NULL);
+					  user_surface_converter,
+					  &cmd->body.src.sid, NULL);
 	if (ret)
 		return ret;
 
@@ -2127,8 +2136,7 @@ static int vmw_cmd_set_shader(struct vmw_private *dev_priv,
 					cmd->body.type);
 
 		if (!IS_ERR(res)) {
-			ret = vmw_cmd_res_reloc_add(dev_priv, sw_context,
-						    &cmd->body.shid, res);
+			ret = vmw_execbuf_res_noctx_val_add(sw_context, res);
 			if (unlikely(ret != 0))
 				return ret;
 		}
@@ -2345,7 +2353,7 @@ static int vmw_cmd_dx_set_shader(struct vmw_private *dev_priv,
 			return PTR_ERR(res);
 		}
 
-		ret = vmw_resource_val_add(sw_context, res);
+		ret = vmw_execbuf_res_noctx_val_add(sw_context, res);
 		if (ret)
 			return ret;
 	}
@@ -2883,12 +2891,11 @@ static int vmw_cmd_dx_bind_shader(struct vmw_private *dev_priv,
 		return PTR_ERR(res);
 	}
 
-	ret = vmw_resource_val_add(sw_context, res);
+	ret = vmw_execbuf_res_noctx_val_add(sw_context, res);
 	if (ret) {
 		DRM_ERROR("Error creating resource validation node.\n");
 		return ret;
 	}
-
 
 	return vmw_cmd_res_switch_backup(dev_priv, sw_context, res,
 					 &cmd->body.mobid,
@@ -3781,28 +3788,33 @@ static int vmw_execbuf_tie_context(struct vmw_private *dev_priv,
 {
 	struct vmw_resource *res;
 	int ret;
+	unsigned int size;
 
 	if (handle == SVGA3D_INVALID_ID)
 		return 0;
 
-	ret = vmw_user_resource_lookup_handle(dev_priv, sw_context->fp->tfile,
-					      handle, user_context_converter,
-					      &res);
-	if (unlikely(ret != 0)) {
+	size = vmw_execbuf_res_size(dev_priv, vmw_res_dx_context);
+	ret = vmw_validation_preload_res(sw_context->ctx, size);
+	if (ret)
+		return ret;
+
+	res = vmw_user_resource_noref_lookup_handle
+		(dev_priv, sw_context->fp->tfile, handle,
+		 user_context_converter);
+	if (unlikely(IS_ERR(res))) {
 		DRM_ERROR("Could not find or user DX context 0x%08x.\n",
 			  (unsigned) handle);
-		return ret;
+		return PTR_ERR(res);
 	}
 
-	ret = vmw_resource_val_add(sw_context, res);
+	ret = vmw_execbuf_res_noref_val_add(sw_context, res);
 	if (unlikely(ret != 0))
-		goto out_err;
+		return ret;
 
 	sw_context->dx_ctx_node = vmw_execbuf_info_from_res(sw_context, res);
 	sw_context->man = vmw_context_res_man(res);
-out_err:
-	vmw_resource_unreference(&res);
-	return ret;
+
+	return 0;
 }
 
 int vmw_execbuf_process(struct drm_file *file_priv,
@@ -3818,7 +3830,6 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 {
 	struct vmw_sw_context *sw_context = &dev_priv->ctx;
 	struct vmw_fence_obj *fence = NULL;
-	struct vmw_resource *error_resource;
 	struct vmw_cmdbuf_header *header;
 	uint32_t handle;
 	int ret;
@@ -4028,8 +4039,6 @@ out_err_nores:
 		     !dev_priv->query_cid_valid))
 		__vmw_execbuf_release_pinned_bo(dev_priv, NULL);
 out_unlock:
-	error_resource = sw_context->error_resource;
-	sw_context->error_resource = NULL;
 	vmw_cmdbuf_res_revert(&sw_context->staged_cmd_res);
 	vmw_validation_drop_ht(&val_ctx);
 	WARN_ON(!list_empty(&sw_context->ctx_list));
@@ -4040,8 +4049,6 @@ out_unlock:
 	 * avoid deadlocks in resource destruction paths.
 	 */
 	vmw_validation_unref_lists(&val_ctx);
-	if (unlikely(error_resource != NULL))
-		vmw_resource_unreference(&error_resource);
 out_free_header:
 	if (header)
 		vmw_cmdbuf_header_free(header);

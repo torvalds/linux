@@ -337,8 +337,6 @@ struct vmw_ctx_validation_info;
  * @last_query_ctx: Last context that submitted a query
  * @needs_post_query_barrier: Whether a query barrier is needed after
  * command submission
- * @error_resource: Pointer to hold a reference to the resource causing
- * an error
  * @staged_bindings: Cached per-context binding tracker
  * @staged_bindings_inuse: Whether the cached per-context binding tracker
  * is in use
@@ -365,7 +363,6 @@ struct vmw_sw_context{
 	struct vmw_res_cache_entry res_cache[vmw_res_max];
 	struct vmw_resource *last_query_ctx;
 	bool needs_post_query_barrier;
-	struct vmw_resource *error_resource;
 	struct vmw_ctx_binding_state *staged_bindings;
 	bool staged_bindings_inuse;
 	struct list_head staged_cmd_res;
@@ -698,6 +695,12 @@ extern int vmw_user_resource_lookup_handle(
 	uint32_t handle,
 	const struct vmw_user_resource_conv *converter,
 	struct vmw_resource **p_res);
+extern struct vmw_resource *
+vmw_user_resource_noref_lookup_handle(struct vmw_private *dev_priv,
+				      struct ttm_object_file *tfile,
+				      uint32_t handle,
+				      const struct vmw_user_resource_conv *
+				      converter);
 extern int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
@@ -715,6 +718,15 @@ extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
 extern int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob);
 extern void vmw_resource_evict_all(struct vmw_private *dev_priv);
 extern void vmw_resource_unbind_list(struct vmw_buffer_object *vbo);
+
+/**
+ * vmw_user_resource_noref_release - release a user resource pointer looked up
+ * without reference
+ */
+static inline void vmw_user_resource_noref_release(void)
+{
+	ttm_base_object_noref_release();
+}
 
 /**
  * Buffer object helper functions - vmwgfx_bo.c
