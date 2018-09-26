@@ -89,7 +89,9 @@ struct amdgpu_irq {
 
 	/* interrupt rings */
 	struct amdgpu_ih_ring		ih, ih1, ih2;
-	const struct amdgpu_ih_funcs	*ih_funcs;
+	const struct amdgpu_ih_funcs    *ih_funcs;
+	struct work_struct		ih1_work, ih2_work;
+	struct amdgpu_irq_src		self_irq;
 
 	/* gen irq stuff */
 	struct irq_domain		*domain; /* GPU irq controller domain */

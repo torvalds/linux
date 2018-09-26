@@ -177,6 +177,36 @@ irqreturn_t amdgpu_irq_handler(int irq, void *arg)
 }
 
 /**
+ * amdgpu_irq_handle_ih1 - kick of processing for IH1
+ *
+ * @work: work structure in struct amdgpu_irq
+ *
+ * Kick of processing IH ring 1.
+ */
+static void amdgpu_irq_handle_ih1(struct work_struct *work)
+{
+	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
+						  irq.ih1_work);
+
+	amdgpu_ih_process(adev, &adev->irq.ih1, amdgpu_irq_callback);
+}
+
+/**
+ * amdgpu_irq_handle_ih2 - kick of processing for IH2
+ *
+ * @work: work structure in struct amdgpu_irq
+ *
+ * Kick of processing IH ring 2.
+ */
+static void amdgpu_irq_handle_ih2(struct work_struct *work)
+{
+	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
+						  irq.ih2_work);
+
+	amdgpu_ih_process(adev, &adev->irq.ih2, amdgpu_irq_callback);
+}
+
+/**
  * amdgpu_msi_ok - check whether MSI functionality is enabled
  *
  * @adev: amdgpu device pointer (unused)
@@ -239,6 +269,9 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 		INIT_WORK(&adev->hotplug_work,
 				amdgpu_hotplug_work_func);
 	}
+
+	INIT_WORK(&adev->irq.ih1_work, amdgpu_irq_handle_ih1);
+	INIT_WORK(&adev->irq.ih2_work, amdgpu_irq_handle_ih2);
 
 	adev->irq.installed = true;
 	r = drm_irq_install(adev->ddev, adev->ddev->pdev->irq);
