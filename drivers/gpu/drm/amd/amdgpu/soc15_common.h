@@ -57,7 +57,7 @@
 			loop--;					\
 			if (!loop) {				\
 				DRM_ERROR("Register(%d) [%s] failed to reach value 0x%08x != 0x%08x\n", \
-							inst, #reg, expected_value, (tmp_ & (mask))); \
+					  inst, #reg, (unsigned)expected_value, (unsigned)(tmp_ & (mask))); \
 				ret = -ETIMEDOUT;		\
 				break;				\
 			}					\
