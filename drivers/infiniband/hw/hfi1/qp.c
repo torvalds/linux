@@ -306,6 +306,8 @@ int hfi1_setup_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe, bool *call_send)
 {
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	struct rvt_ah *ah;
+	struct hfi1_pportdata *ppd;
+	struct hfi1_devdata *dd;
 
 	switch (qp->ibqp.qp_type) {
 	case IB_QPT_RC:
@@ -316,8 +318,16 @@ int hfi1_setup_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe, bool *call_send)
 			*call_send = false;
 		break;
 	case IB_QPT_SMI:
-		ah = ibah_to_rvtah(wqe->ud_wr.ah);
-		if (wqe->length > (1 << ah->log_pmtu))
+		/*
+		 * SM packets should exclusively use VL15 and their SL is
+		 * ignored (IBTA v1.3, Section 3.5.8.2). Therefore, when ah
+		 * is created, SL is 0 in most cases and as a result some
+		 * fields (vl and pmtu) in ah may not be set correctly,
+		 * depending on the SL2SC and SC2VL tables at the time.
+		 */
+		ppd = ppd_from_ibp(ibp);
+		dd = dd_from_ppd(ppd);
+		if (wqe->length > dd->vld[15].mtu)
 			return -EINVAL;
 		break;
 	case IB_QPT_GSI:
