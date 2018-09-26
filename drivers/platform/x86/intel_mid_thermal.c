@@ -24,16 +24,15 @@
 
 #define pr_fmt(fmt) "intel_mid_thermal: " fmt
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/err.h>
-#include <linux/param.h>
 #include <linux/device.h>
-#include <linux/platform_device.h>
-#include <linux/slab.h>
-#include <linux/pm.h>
-#include <linux/thermal.h>
+#include <linux/err.h>
 #include <linux/mfd/intel_msic.h>
+#include <linux/module.h>
+#include <linux/param.h>
+#include <linux/platform_device.h>
+#include <linux/pm.h>
+#include <linux/slab.h>
+#include <linux/thermal.h>
 
 /* Number of thermal sensors */
 #define MSIC_THERMAL_SENSORS	4
