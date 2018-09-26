@@ -1045,11 +1045,31 @@ static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 	struct kvm_vcpu_hv *hv_vcpu = &vcpu->arch.hyperv;
 
 	switch (msr) {
-	case HV_X64_MSR_VP_INDEX:
-		if (!host || (u32)data >= KVM_MAX_VCPUS)
+	case HV_X64_MSR_VP_INDEX: {
+		struct kvm_hv *hv = &vcpu->kvm->arch.hyperv;
+		int vcpu_idx = kvm_vcpu_get_idx(vcpu);
+		u32 new_vp_index = (u32)data;
+
+		if (!host || new_vp_index >= KVM_MAX_VCPUS)
 			return 1;
-		hv_vcpu->vp_index = (u32)data;
+
+		if (new_vp_index == hv_vcpu->vp_index)
+			return 0;
+
+		/*
+		 * The VP index is initialized to vcpu_index by
+		 * kvm_hv_vcpu_postcreate so they initially match.  Now the
+		 * VP index is changing, adjust num_mismatched_vp_indexes if
+		 * it now matches or no longer matches vcpu_idx.
+		 */
+		if (hv_vcpu->vp_index == vcpu_idx)
+			atomic_inc(&hv->num_mismatched_vp_indexes);
+		else if (new_vp_index == vcpu_idx)
+			atomic_dec(&hv->num_mismatched_vp_indexes);
+
+		hv_vcpu->vp_index = new_vp_index;
 		break;
+	}
 	case HV_X64_MSR_VP_ASSIST_PAGE: {
 		u64 gfn;
 		unsigned long addr;
