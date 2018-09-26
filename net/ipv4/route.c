@@ -1040,17 +1040,15 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
 }
 
 void ipv4_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu,
-		      int oif, u32 mark, u8 protocol, int flow_flags)
+		      int oif, u8 protocol)
 {
 	const struct iphdr *iph = (const struct iphdr *) skb->data;
 	struct flowi4 fl4;
 	struct rtable *rt;
-
-	if (!mark)
-		mark = IP4_REPLY_MARK(net, skb->mark);
+	u32 mark = IP4_REPLY_MARK(net, skb->mark);
 
 	__build_flow_key(net, &fl4, NULL, iph, oif,
-			 RT_TOS(iph->tos), protocol, mark, flow_flags);
+			 RT_TOS(iph->tos), protocol, mark, 0);
 	rt = __ip_route_output_key(net, &fl4);
 	if (!IS_ERR(rt)) {
 		__ip_rt_update_pmtu(rt, &fl4, mtu);
