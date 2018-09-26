@@ -359,7 +359,7 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 		pr_debug("Received mlme autojoin request\n");
 		result = prism2mgmt_autojoin(wlandev, msg);
 		break;
-	case DIDmsg_lnxreq_commsquality:{
+	case DIDMSG_LNXREQ_COMMSQUALITY:{
 			struct p80211msg_lnxreq_commsquality *qualmsg;
 
 			pr_debug("Received commsquality request\n");

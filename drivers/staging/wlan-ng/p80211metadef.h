@@ -94,7 +94,7 @@
 #define DIDMSG_LNXREQ_HOSTWEP \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(3))
-#define DIDmsg_lnxreq_commsquality \
+#define DIDMSG_LNXREQ_COMMSQUALITY \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(4))
 #define DIDmsg_lnxreq_autojoin \

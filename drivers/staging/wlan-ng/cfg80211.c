@@ -256,7 +256,7 @@ static int prism2_get_station(struct wiphy *wiphy, struct net_device *dev,
 		return -EOPNOTSUPP;
 
 	/* build request message */
-	quality.msgcode = DIDmsg_lnxreq_commsquality;
+	quality.msgcode = DIDMSG_LNXREQ_COMMSQUALITY;
 	quality.dbm.data = P80211ENUM_truth_true;
 	quality.dbm.status = P80211ENUM_msgitem_status_data_ok;
 
