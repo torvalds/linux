@@ -2085,58 +2085,82 @@ void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 	prog->expected_attach_type = type;
 }
 
-#define BPF_PROG_SEC_FULL(string, ptype, atype) \
-	{ string, sizeof(string) - 1, ptype, atype }
+#define BPF_PROG_SEC_IMPL(string, ptype, eatype, atype) \
+	{ string, sizeof(string) - 1, ptype, eatype, atype }
 
-#define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_FULL(string, ptype, 0)
+/* Programs that can NOT be attached. */
+#define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_IMPL(string, ptype, 0, -EINVAL)
 
-#define BPF_S_PROG_SEC(string, ptype) \
-	BPF_PROG_SEC_FULL(string, BPF_PROG_TYPE_CGROUP_SOCK, ptype)
+/* Programs that can be attached. */
+#define BPF_APROG_SEC(string, ptype, atype) \
+	BPF_PROG_SEC_IMPL(string, ptype, 0, atype)
 
-#define BPF_SA_PROG_SEC(string, ptype) \
-	BPF_PROG_SEC_FULL(string, BPF_PROG_TYPE_CGROUP_SOCK_ADDR, ptype)
+/* Programs that must specify expected attach type at load time. */
+#define BPF_EAPROG_SEC(string, ptype, eatype) \
+	BPF_PROG_SEC_IMPL(string, ptype, eatype, eatype)
+
+/* Programs that can be attached but attach type can't be identified by section
+ * name. Kept for backward compatibility.
+ */
+#define BPF_APROG_COMPAT(string, ptype) BPF_PROG_SEC(string, ptype)
 
 static const struct {
 	const char *sec;
 	size_t len;
 	enum bpf_prog_type prog_type;
 	enum bpf_attach_type expected_attach_type;
+	enum bpf_attach_type attach_type;
 } section_names[] = {
-	BPF_PROG_SEC("socket",		BPF_PROG_TYPE_SOCKET_FILTER),
-	BPF_PROG_SEC("kprobe/",		BPF_PROG_TYPE_KPROBE),
-	BPF_PROG_SEC("kretprobe/",	BPF_PROG_TYPE_KPROBE),
-	BPF_PROG_SEC("classifier",	BPF_PROG_TYPE_SCHED_CLS),
-	BPF_PROG_SEC("action",		BPF_PROG_TYPE_SCHED_ACT),
-	BPF_PROG_SEC("tracepoint/",	BPF_PROG_TYPE_TRACEPOINT),
-	BPF_PROG_SEC("raw_tracepoint/",	BPF_PROG_TYPE_RAW_TRACEPOINT),
-	BPF_PROG_SEC("xdp",		BPF_PROG_TYPE_XDP),
-	BPF_PROG_SEC("perf_event",	BPF_PROG_TYPE_PERF_EVENT),
-	BPF_PROG_SEC("cgroup/skb",	BPF_PROG_TYPE_CGROUP_SKB),
-	BPF_PROG_SEC("cgroup/sock",	BPF_PROG_TYPE_CGROUP_SOCK),
-	BPF_PROG_SEC("cgroup/dev",	BPF_PROG_TYPE_CGROUP_DEVICE),
-	BPF_PROG_SEC("lwt_in",		BPF_PROG_TYPE_LWT_IN),
-	BPF_PROG_SEC("lwt_out",		BPF_PROG_TYPE_LWT_OUT),
-	BPF_PROG_SEC("lwt_xmit",	BPF_PROG_TYPE_LWT_XMIT),
-	BPF_PROG_SEC("lwt_seg6local",	BPF_PROG_TYPE_LWT_SEG6LOCAL),
-	BPF_PROG_SEC("sockops",		BPF_PROG_TYPE_SOCK_OPS),
-	BPF_PROG_SEC("sk_skb",		BPF_PROG_TYPE_SK_SKB),
-	BPF_PROG_SEC("sk_msg",		BPF_PROG_TYPE_SK_MSG),
-	BPF_PROG_SEC("lirc_mode2",	BPF_PROG_TYPE_LIRC_MODE2),
-	BPF_PROG_SEC("flow_dissector",	BPF_PROG_TYPE_FLOW_DISSECTOR),
-	BPF_SA_PROG_SEC("cgroup/bind4",	BPF_CGROUP_INET4_BIND),
-	BPF_SA_PROG_SEC("cgroup/bind6",	BPF_CGROUP_INET6_BIND),
-	BPF_SA_PROG_SEC("cgroup/connect4", BPF_CGROUP_INET4_CONNECT),
-	BPF_SA_PROG_SEC("cgroup/connect6", BPF_CGROUP_INET6_CONNECT),
-	BPF_SA_PROG_SEC("cgroup/sendmsg4", BPF_CGROUP_UDP4_SENDMSG),
-	BPF_SA_PROG_SEC("cgroup/sendmsg6", BPF_CGROUP_UDP6_SENDMSG),
-	BPF_S_PROG_SEC("cgroup/post_bind4", BPF_CGROUP_INET4_POST_BIND),
-	BPF_S_PROG_SEC("cgroup/post_bind6", BPF_CGROUP_INET6_POST_BIND),
+	BPF_PROG_SEC("socket",			BPF_PROG_TYPE_SOCKET_FILTER),
+	BPF_PROG_SEC("kprobe/",			BPF_PROG_TYPE_KPROBE),
+	BPF_PROG_SEC("kretprobe/",		BPF_PROG_TYPE_KPROBE),
+	BPF_PROG_SEC("classifier",		BPF_PROG_TYPE_SCHED_CLS),
+	BPF_PROG_SEC("action",			BPF_PROG_TYPE_SCHED_ACT),
+	BPF_PROG_SEC("tracepoint/",		BPF_PROG_TYPE_TRACEPOINT),
+	BPF_PROG_SEC("raw_tracepoint/",		BPF_PROG_TYPE_RAW_TRACEPOINT),
+	BPF_PROG_SEC("xdp",			BPF_PROG_TYPE_XDP),
+	BPF_PROG_SEC("perf_event",		BPF_PROG_TYPE_PERF_EVENT),
+	BPF_PROG_SEC("lwt_in",			BPF_PROG_TYPE_LWT_IN),
+	BPF_PROG_SEC("lwt_out",			BPF_PROG_TYPE_LWT_OUT),
+	BPF_PROG_SEC("lwt_xmit",		BPF_PROG_TYPE_LWT_XMIT),
+	BPF_PROG_SEC("lwt_seg6local",		BPF_PROG_TYPE_LWT_SEG6LOCAL),
+	BPF_APROG_COMPAT("cgroup/skb",		BPF_PROG_TYPE_CGROUP_SKB),
+	BPF_APROG_SEC("cgroup/sock",		BPF_PROG_TYPE_CGROUP_SOCK,
+						BPF_CGROUP_INET_SOCK_CREATE),
+	BPF_EAPROG_SEC("cgroup/post_bind4",	BPF_PROG_TYPE_CGROUP_SOCK,
+						BPF_CGROUP_INET4_POST_BIND),
+	BPF_EAPROG_SEC("cgroup/post_bind6",	BPF_PROG_TYPE_CGROUP_SOCK,
+						BPF_CGROUP_INET6_POST_BIND),
+	BPF_APROG_SEC("cgroup/dev",		BPF_PROG_TYPE_CGROUP_DEVICE,
+						BPF_CGROUP_DEVICE),
+	BPF_APROG_SEC("sockops",		BPF_PROG_TYPE_SOCK_OPS,
+						BPF_CGROUP_SOCK_OPS),
+	BPF_APROG_COMPAT("sk_skb",		BPF_PROG_TYPE_SK_SKB),
+	BPF_APROG_SEC("sk_msg",			BPF_PROG_TYPE_SK_MSG,
+						BPF_SK_MSG_VERDICT),
+	BPF_APROG_SEC("lirc_mode2",		BPF_PROG_TYPE_LIRC_MODE2,
+						BPF_LIRC_MODE2),
+	BPF_APROG_SEC("flow_dissector",		BPF_PROG_TYPE_FLOW_DISSECTOR,
+						BPF_FLOW_DISSECTOR),
+	BPF_EAPROG_SEC("cgroup/bind4",		BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+						BPF_CGROUP_INET4_BIND),
+	BPF_EAPROG_SEC("cgroup/bind6",		BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+						BPF_CGROUP_INET6_BIND),
+	BPF_EAPROG_SEC("cgroup/connect4",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+						BPF_CGROUP_INET4_CONNECT),
+	BPF_EAPROG_SEC("cgroup/connect6",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+						BPF_CGROUP_INET6_CONNECT),
+	BPF_EAPROG_SEC("cgroup/sendmsg4",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+						BPF_CGROUP_UDP4_SENDMSG),
+	BPF_EAPROG_SEC("cgroup/sendmsg6",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+						BPF_CGROUP_UDP6_SENDMSG),
 };
 
+#undef BPF_PROG_SEC_IMPL
 #undef BPF_PROG_SEC
-#undef BPF_PROG_SEC_FULL
-#undef BPF_S_PROG_SEC
-#undef BPF_SA_PROG_SEC
+#undef BPF_APROG_SEC
+#undef BPF_EAPROG_SEC
+#undef BPF_APROG_COMPAT
 
 int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 			     enum bpf_attach_type *expected_attach_type)
@@ -2151,6 +2175,25 @@ int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 			continue;
 		*prog_type = section_names[i].prog_type;
 		*expected_attach_type = section_names[i].expected_attach_type;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+int libbpf_attach_type_by_name(const char *name,
+			       enum bpf_attach_type *attach_type)
+{
+	int i;
+
+	if (!name)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(section_names); i++) {
+		if (strncmp(name, section_names[i].sec, section_names[i].len))
+			continue;
+		if (section_names[i].attach_type == -EINVAL)
+			return -EINVAL;
+		*attach_type = section_names[i].attach_type;
 		return 0;
 	}
 	return -EINVAL;
