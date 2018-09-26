@@ -91,7 +91,7 @@
 #define DIDMSG_LNXREQ_WLANSNIFF \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(2))
-#define DIDmsg_lnxreq_hostwep \
+#define DIDMSG_LNXREQ_HOSTWEP \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(3))
 #define DIDmsg_lnxreq_commsquality \

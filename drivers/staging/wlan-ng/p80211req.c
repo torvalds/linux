@@ -172,7 +172,7 @@ static void p80211req_handlemsg(struct wlandevice *wlandev,
 				struct p80211msg *msg)
 {
 	switch (msg->msgcode) {
-	case DIDmsg_lnxreq_hostwep:{
+	case DIDMSG_LNXREQ_HOSTWEP:{
 		struct p80211msg_lnxreq_hostwep *req =
 			(struct p80211msg_lnxreq_hostwep *)msg;
 		wlandev->hostwep &=
