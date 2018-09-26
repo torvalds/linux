@@ -173,6 +173,16 @@ void kexec_reboot(void)
 {
 	void (*do_kexec)(void) __noreturn;
 
+	/*
+	 * We know we were online, and there will be no incoming IPIs at
+	 * this point. Mark online again before rebooting so that the crash
+	 * analysis tool will see us correctly.
+	 */
+	set_cpu_online(smp_processor_id(), true);
+
+	/* Ensure remote CPUs observe that we're online before rebooting. */
+	smp_mb__after_atomic();
+
 #ifdef CONFIG_SMP
 	if (smp_processor_id() > 0) {
 		/*
