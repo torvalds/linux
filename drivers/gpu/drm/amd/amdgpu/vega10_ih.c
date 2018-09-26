@@ -258,12 +258,9 @@ static bool vega10_ih_prescreen_iv(struct amdgpu_device *adev)
 	if (!pasid)
 		return true;
 
-	/* Not a retry fault, check fault credit */
-	if (!(dw5 & 0x80)) {
-		if (!amdgpu_vm_pasid_fault_credit(adev, pasid))
-			goto ignore_iv;
+	/* Not a retry fault */
+	if (!(dw5 & 0x80))
 		return true;
-	}
 
 	/* Track retry faults in per-VM fault FIFO. */
 	spin_lock(&adev->vm_manager.pasid_lock);
