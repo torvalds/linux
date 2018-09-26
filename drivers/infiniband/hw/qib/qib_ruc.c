@@ -354,7 +354,7 @@ again:
 		if (len > sge->sge_length)
 			len = sge->sge_length;
 		BUG_ON(len == 0);
-		qib_copy_sge(&qp->r_sge, sge->vaddr, len, release);
+		rvt_copy_sge(qp, &qp->r_sge, sge->vaddr, len, release, false);
 		sge->vaddr += len;
 		sge->length -= len;
 		sge->sge_length -= len;

@@ -118,6 +118,187 @@ const int ib_rvt_state_ops[IB_QPS_ERR + 1] = {
 };
 EXPORT_SYMBOL(ib_rvt_state_ops);
 
+/* platform specific: return the last level cache (llc) size, in KiB */
+static int rvt_wss_llc_size(void)
+{
+	/* assume that the boot CPU value is universal for all CPUs */
+	return boot_cpu_data.x86_cache_size;
+}
+
+/* platform specific: cacheless copy */
+static void cacheless_memcpy(void *dst, void *src, size_t n)
+{
+	/*
+	 * Use the only available X64 cacheless copy.  Add a __user cast
+	 * to quiet sparse.  The src agument is already in the kernel so
+	 * there are no security issues.  The extra fault recovery machinery
+	 * is not invoked.
+	 */
+	__copy_user_nocache(dst, (void __user *)src, n, 0);
+}
+
+void rvt_wss_exit(struct rvt_dev_info *rdi)
+{
+	struct rvt_wss *wss = rdi->wss;
+
+	if (!wss)
+		return;
+
+	/* coded to handle partially initialized and repeat callers */
+	kfree(wss->entries);
+	wss->entries = NULL;
+	kfree(rdi->wss);
+	rdi->wss = NULL;
+}
+
+/**
+ * rvt_wss_init - Init wss data structures
+ *
+ * Return: 0 on success
+ */
+int rvt_wss_init(struct rvt_dev_info *rdi)
+{
+	unsigned int sge_copy_mode = rdi->dparms.sge_copy_mode;
+	unsigned int wss_threshold = rdi->dparms.wss_threshold;
+	unsigned int wss_clean_period = rdi->dparms.wss_clean_period;
+	long llc_size;
+	long llc_bits;
+	long table_size;
+	long table_bits;
+	struct rvt_wss *wss;
+	int node = rdi->dparms.node;
+
+	if (sge_copy_mode != RVT_SGE_COPY_ADAPTIVE) {
+		rdi->wss = NULL;
+		return 0;
+	}
+
+	rdi->wss = kzalloc_node(sizeof(*rdi->wss), GFP_KERNEL, node);
+	if (!rdi->wss)
+		return -ENOMEM;
+	wss = rdi->wss;
+
+	/* check for a valid percent range - default to 80 if none or invalid */
+	if (wss_threshold < 1 || wss_threshold > 100)
+		wss_threshold = 80;
+
+	/* reject a wildly large period */
+	if (wss_clean_period > 1000000)
+		wss_clean_period = 256;
+
+	/* reject a zero period */
+	if (wss_clean_period == 0)
+		wss_clean_period = 1;
+
+	/*
+	 * Calculate the table size - the next power of 2 larger than the
+	 * LLC size.  LLC size is in KiB.
+	 */
+	llc_size = rvt_wss_llc_size() * 1024;
+	table_size = roundup_pow_of_two(llc_size);
+
+	/* one bit per page in rounded up table */
+	llc_bits = llc_size / PAGE_SIZE;
+	table_bits = table_size / PAGE_SIZE;
+	wss->pages_mask = table_bits - 1;
+	wss->num_entries = table_bits / BITS_PER_LONG;
+
+	wss->threshold = (llc_bits * wss_threshold) / 100;
+	if (wss->threshold == 0)
+		wss->threshold = 1;
+
+	wss->clean_period = wss_clean_period;
+	atomic_set(&wss->clean_counter, wss_clean_period);
+
+	wss->entries = kcalloc_node(wss->num_entries, sizeof(*wss->entries),
+				    GFP_KERNEL, node);
+	if (!wss->entries) {
+		rvt_wss_exit(rdi);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+/*
+ * Advance the clean counter.  When the clean period has expired,
+ * clean an entry.
+ *
+ * This is implemented in atomics to avoid locking.  Because multiple
+ * variables are involved, it can be racy which can lead to slightly
+ * inaccurate information.  Since this is only a heuristic, this is
+ * OK.  Any innaccuracies will clean themselves out as the counter
+ * advances.  That said, it is unlikely the entry clean operation will
+ * race - the next possible racer will not start until the next clean
+ * period.
+ *
+ * The clean counter is implemented as a decrement to zero.  When zero
+ * is reached an entry is cleaned.
+ */
+static void wss_advance_clean_counter(struct rvt_wss *wss)
+{
+	int entry;
+	int weight;
+	unsigned long bits;
+
+	/* become the cleaner if we decrement the counter to zero */
+	if (atomic_dec_and_test(&wss->clean_counter)) {
+		/*
+		 * Set, not add, the clean period.  This avoids an issue
+		 * where the counter could decrement below the clean period.
+		 * Doing a set can result in lost decrements, slowing the
+		 * clean advance.  Since this a heuristic, this possible
+		 * slowdown is OK.
+		 *
+		 * An alternative is to loop, advancing the counter by a
+		 * clean period until the result is > 0. However, this could
+		 * lead to several threads keeping another in the clean loop.
+		 * This could be mitigated by limiting the number of times
+		 * we stay in the loop.
+		 */
+		atomic_set(&wss->clean_counter, wss->clean_period);
+
+		/*
+		 * Uniquely grab the entry to clean and move to next.
+		 * The current entry is always the lower bits of
+		 * wss.clean_entry.  The table size, wss.num_entries,
+		 * is always a power-of-2.
+		 */
+		entry = (atomic_inc_return(&wss->clean_entry) - 1)
+			& (wss->num_entries - 1);
+
+		/* clear the entry and count the bits */
+		bits = xchg(&wss->entries[entry], 0);
+		weight = hweight64((u64)bits);
+		/* only adjust the contended total count if needed */
+		if (weight)
+			atomic_sub(weight, &wss->total_count);
+	}
+}
+
+/*
+ * Insert the given address into the working set array.
+ */
+static void wss_insert(struct rvt_wss *wss, void *address)
+{
+	u32 page = ((unsigned long)address >> PAGE_SHIFT) & wss->pages_mask;
+	u32 entry = page / BITS_PER_LONG; /* assumes this ends up a shift */
+	u32 nr = page & (BITS_PER_LONG - 1);
+
+	if (!test_and_set_bit(nr, &wss->entries[entry]))
+		atomic_inc(&wss->total_count);
+
+	wss_advance_clean_counter(wss);
+}
+
+/*
+ * Is the working set larger than the threshold?
+ */
+static inline bool wss_exceeds_threshold(struct rvt_wss *wss)
+{
+	return atomic_read(&wss->total_count) >= wss->threshold;
+}
+
 static void get_map_page(struct rvt_qpn_table *qpt,
 			 struct rvt_qpn_map *map)
 {
@@ -2476,3 +2657,80 @@ void rvt_qp_iter(struct rvt_dev_info *rdi,
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(rvt_qp_iter);
+
+/**
+ * rvt_copy_sge - copy data to SGE memory
+ * @qp: associated QP
+ * @ss: the SGE state
+ * @data: the data to copy
+ * @length: the length of the data
+ * @release: boolean to release MR
+ * @copy_last: do a separate copy of the last 8 bytes
+ */
+void rvt_copy_sge(struct rvt_qp *qp, struct rvt_sge_state *ss,
+		  void *data, u32 length,
+		  bool release, bool copy_last)
+{
+	struct rvt_sge *sge = &ss->sge;
+	int i;
+	bool in_last = false;
+	bool cacheless_copy = false;
+	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
+	struct rvt_wss *wss = rdi->wss;
+	unsigned int sge_copy_mode = rdi->dparms.sge_copy_mode;
+
+	if (sge_copy_mode == RVT_SGE_COPY_CACHELESS) {
+		cacheless_copy = length >= PAGE_SIZE;
+	} else if (sge_copy_mode == RVT_SGE_COPY_ADAPTIVE) {
+		if (length >= PAGE_SIZE) {
+			/*
+			 * NOTE: this *assumes*:
+			 * o The first vaddr is the dest.
+			 * o If multiple pages, then vaddr is sequential.
+			 */
+			wss_insert(wss, sge->vaddr);
+			if (length >= (2 * PAGE_SIZE))
+				wss_insert(wss, (sge->vaddr + PAGE_SIZE));
+
+			cacheless_copy = wss_exceeds_threshold(wss);
+		} else {
+			wss_advance_clean_counter(wss);
+		}
+	}
+
+	if (copy_last) {
+		if (length > 8) {
+			length -= 8;
+		} else {
+			copy_last = false;
+			in_last = true;
+		}
+	}
+
+again:
+	while (length) {
+		u32 len = rvt_get_sge_length(sge, length);
+
+		WARN_ON_ONCE(len == 0);
+		if (unlikely(in_last)) {
+			/* enforce byte transfer ordering */
+			for (i = 0; i < len; i++)
+				((u8 *)sge->vaddr)[i] = ((u8 *)data)[i];
+		} else if (cacheless_copy) {
+			cacheless_memcpy(sge->vaddr, data, len);
+		} else {
+			memcpy(sge->vaddr, data, len);
+		}
+		rvt_update_sge(ss, len, release);
+		data += len;
+		length -= len;
+	}
+
+	if (copy_last) {
+		copy_last = false;
+		in_last = true;
+		length = 8;
+		goto again;
+	}
+}
+EXPORT_SYMBOL(rvt_copy_sge);

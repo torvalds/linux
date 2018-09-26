@@ -131,27 +131,6 @@ const enum ib_wc_opcode ib_qib_wc_opcode[] = {
  */
 __be64 ib_qib_sys_image_guid;
 
-/**
- * qib_copy_sge - copy data to SGE memory
- * @ss: the SGE state
- * @data: the data to copy
- * @length: the length of the data
- */
-void qib_copy_sge(struct rvt_sge_state *ss, void *data, u32 length, int release)
-{
-	struct rvt_sge *sge = &ss->sge;
-
-	while (length) {
-		u32 len = rvt_get_sge_length(sge, length);
-
-		WARN_ON_ONCE(len == 0);
-		memcpy(sge->vaddr, data, len);
-		rvt_update_sge(ss, len, release);
-		data += len;
-		length -= len;
-	}
-}
-
 /*
  * Count the number of DMA descriptors needed to send length bytes of data.
  * Don't modify the qib_sge_state to get the count.
@@ -1631,6 +1610,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.dparms.node = dd->assigned_node_id;
 	dd->verbs_dev.rdi.dparms.core_cap_flags = RDMA_CORE_PORT_IBA_IB;
 	dd->verbs_dev.rdi.dparms.max_mad_size = IB_MGMT_MAD_SIZE;
+	dd->verbs_dev.rdi.dparms.sge_copy_mode = RVT_SGE_COPY_MEMCPY;
 
 	qib_fill_device_attr(dd);
 

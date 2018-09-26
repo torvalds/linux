@@ -315,9 +315,6 @@ void hfi1_put_txreq(struct verbs_txreq *tx);
 
 int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 
-void hfi1_copy_sge(struct rvt_sge_state *ss, void *data, u32 length,
-		   bool release, bool copy_last);
-
 void hfi1_cnp_rcv(struct hfi1_packet *packet);
 
 void hfi1_uc_rcv(struct hfi1_packet *packet);
@@ -392,28 +389,6 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 
 int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			u64 pbc);
-
-int hfi1_wss_init(void);
-void hfi1_wss_exit(void);
-
-/* platform specific: return the lowest level cache (llc) size, in KiB */
-static inline int wss_llc_size(void)
-{
-	/* assume that the boot CPU value is universal for all CPUs */
-	return boot_cpu_data.x86_cache_size;
-}
-
-/* platform specific: cacheless copy */
-static inline void cacheless_memcpy(void *dst, void *src, size_t n)
-{
-	/*
-	 * Use the only available X64 cacheless copy.  Add a __user cast
-	 * to quiet sparse.  The src agument is already in the kernel so
-	 * there are no security issues.  The extra fault recovery machinery
-	 * is not invoked.
-	 */
-	__copy_user_nocache(dst, (void __user *)src, n, 0);
-}
 
 static inline bool opa_bth_is_migration(struct ib_other_headers *ohdr)
 {

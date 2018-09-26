@@ -162,8 +162,8 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		const struct ib_global_route *grd = rdma_ah_read_grh(ah_attr);
 
 		qib_make_grh(ibp, &grh, grd, 0, 0);
-		qib_copy_sge(&qp->r_sge, &grh,
-			     sizeof(grh), 1);
+		rvt_copy_sge(qp, &qp->r_sge, &grh,
+			     sizeof(grh), true, false);
 		wc.wc_flags |= IB_WC_GRH;
 	} else
 		rvt_skip_sge(&qp->r_sge, sizeof(struct ib_grh), true);
@@ -179,7 +179,7 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		if (len > sge->sge_length)
 			len = sge->sge_length;
 		BUG_ON(len == 0);
-		qib_copy_sge(&qp->r_sge, sge->vaddr, len, 1);
+		rvt_copy_sge(qp, &qp->r_sge, sge->vaddr, len, true, false);
 		sge->vaddr += len;
 		sge->length -= len;
 		sge->sge_length -= len;
@@ -551,12 +551,13 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 		goto drop;
 	}
 	if (has_grh) {
-		qib_copy_sge(&qp->r_sge, &hdr->u.l.grh,
-			     sizeof(struct ib_grh), 1);
+		rvt_copy_sge(qp, &qp->r_sge, &hdr->u.l.grh,
+			     sizeof(struct ib_grh), true, false);
 		wc.wc_flags |= IB_WC_GRH;
 	} else
 		rvt_skip_sge(&qp->r_sge, sizeof(struct ib_grh), true);
-	qib_copy_sge(&qp->r_sge, data, wc.byte_len - sizeof(struct ib_grh), 1);
+	rvt_copy_sge(qp, &qp->r_sge, data, wc.byte_len - sizeof(struct ib_grh),
+		     true, false);
 	rvt_put_ss(&qp->r_sge);
 	if (!test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags))
 		return;

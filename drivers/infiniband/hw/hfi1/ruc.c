@@ -361,7 +361,8 @@ do_write:
 		if (len > sge->sge_length)
 			len = sge->sge_length;
 		WARN_ON_ONCE(len == 0);
-		hfi1_copy_sge(&qp->r_sge, sge->vaddr, len, release, copy_last);
+		rvt_copy_sge(qp, &qp->r_sge, sge->vaddr,
+			     len, release, copy_last);
 		sge->vaddr += len;
 		sge->length -= len;
 		sge->sge_length -= len;

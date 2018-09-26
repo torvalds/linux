@@ -149,6 +149,10 @@ struct rvt_ibport {
 
 #define RVT_CQN_MAX 16 /* maximum length of cq name */
 
+#define RVT_SGE_COPY_MEMCPY	0
+#define RVT_SGE_COPY_CACHELESS	1
+#define RVT_SGE_COPY_ADAPTIVE	2
+
 /*
  * Things that are driver specific, module parameters in hfi1 and qib
  */
@@ -161,6 +165,9 @@ struct rvt_driver_params {
 	 */
 	unsigned int lkey_table_size;
 	unsigned int qp_table_size;
+	unsigned int sge_copy_mode;
+	unsigned int wss_threshold;
+	unsigned int wss_clean_period;
 	int qpn_start;
 	int qpn_inc;
 	int qpn_res_start;
@@ -191,6 +198,19 @@ struct rvt_ah {
 	atomic_t refcount;
 	u8 vl;
 	u8 log_pmtu;
+};
+
+/* memory working set size */
+struct rvt_wss {
+	unsigned long *entries;
+	atomic_t total_count;
+	atomic_t clean_counter;
+	atomic_t clean_entry;
+
+	int threshold;
+	int num_entries;
+	long pages_mask;
+	unsigned int clean_period;
 };
 
 struct rvt_dev_info;
@@ -418,6 +438,8 @@ struct rvt_dev_info {
 	u32 n_mcast_grps_allocated; /* number of mcast groups allocated */
 	spinlock_t n_mcast_grps_lock;
 
+	/* Memory Working Set Size */
+	struct rvt_wss *wss;
 };
 
 /**

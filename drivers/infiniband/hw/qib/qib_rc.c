@@ -1425,7 +1425,8 @@ read_middle:
 		qp->s_rdma_read_len -= pmtu;
 		update_last_psn(qp, psn);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
-		qib_copy_sge(&qp->s_rdma_read_sge, data, pmtu, 0);
+		rvt_copy_sge(qp, &qp->s_rdma_read_sge,
+			     data, pmtu, false, false);
 		goto bail;
 
 	case OP(RDMA_READ_RESPONSE_ONLY):
@@ -1471,7 +1472,8 @@ read_last:
 		if (unlikely(tlen != qp->s_rdma_read_len))
 			goto ack_len_err;
 		aeth = be32_to_cpu(ohdr->u.aeth);
-		qib_copy_sge(&qp->s_rdma_read_sge, data, tlen, 0);
+		rvt_copy_sge(qp, &qp->s_rdma_read_sge,
+			     data, tlen, false, false);
 		WARN_ON(qp->s_rdma_read_sge.num_sge);
 		(void) do_rc_ack(qp, aeth, psn,
 				 OP(RDMA_READ_RESPONSE_LAST), 0, rcd);
@@ -1844,7 +1846,7 @@ send_middle:
 		qp->r_rcv_len += pmtu;
 		if (unlikely(qp->r_rcv_len > qp->r_len))
 			goto nack_inv;
-		qib_copy_sge(&qp->r_sge, data, pmtu, 1);
+		rvt_copy_sge(qp, &qp->r_sge, data, pmtu, true, false);
 		break;
 
 	case OP(RDMA_WRITE_LAST_WITH_IMMEDIATE):
@@ -1890,7 +1892,7 @@ send_last:
 		wc.byte_len = tlen + qp->r_rcv_len;
 		if (unlikely(wc.byte_len > qp->r_len))
 			goto nack_inv;
-		qib_copy_sge(&qp->r_sge, data, tlen, 1);
+		rvt_copy_sge(qp, &qp->r_sge, data, tlen, true, false);
 		rvt_put_ss(&qp->r_sge);
 		qp->r_msn++;
 		if (!test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags))
