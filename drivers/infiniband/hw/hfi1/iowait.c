@@ -4,9 +4,11 @@
  *
  */
 #include "iowait.h"
+#include "trace_iowait.h"
 
 void iowait_set_flag(struct iowait *wait, u32 flag)
 {
+	trace_hfi1_iowait_set(wait, flag);
 	set_bit(flag, &wait->flags);
 }
 
@@ -17,6 +19,7 @@ bool iowait_flag_set(struct iowait *wait, u32 flag)
 
 inline void iowait_clear_flag(struct iowait *wait, u32 flag)
 {
+	trace_hfi1_iowait_clear(wait, flag);
 	clear_bit(flag, &wait->flags);
 }
 
