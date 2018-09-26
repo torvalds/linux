@@ -2233,7 +2233,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 			goto tx_drop;
 	}
 
-	if (card->state != CARD_STATE_UP || !card->lan_online) {
+	if (card->state != CARD_STATE_UP) {
 		card->stats.tx_carrier_errors++;
 		goto tx_drop;
 	}
@@ -2573,10 +2573,6 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
 	qeth_l3_recover_ip(card);
-	if (card->lan_online)
-		netif_carrier_on(card->dev);
-	else
-		netif_carrier_off(card->dev);
 
 	qeth_enable_hw_features(card->dev);
 	if (recover_flag == CARD_STATE_RECOVER) {

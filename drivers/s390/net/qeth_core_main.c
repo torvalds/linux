@@ -652,16 +652,13 @@ static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
 				 "The link for interface %s on CHPID 0x%X failed\n",
 				 QETH_CARD_IFNAME(card), card->info.chpid);
 			qeth_issue_ipa_msg(cmd, cmd->hdr.return_code, card);
+			netif_carrier_off(card->dev);
 		}
-		card->lan_online = 0;
-		netif_carrier_off(card->dev);
 		return NULL;
 	case IPA_CMD_STARTLAN:
 		dev_info(&card->gdev->dev,
 			 "The link for %s on CHPID 0x%X has been restored\n",
 			 QETH_CARD_IFNAME(card), card->info.chpid);
-		netif_carrier_on(card->dev);
-		card->lan_online = 1;
 		if (card->info.hwtrap)
 			card->info.hwtrap = 2;
 		qeth_schedule_recovery(card);
@@ -5133,13 +5130,14 @@ retriable:
 		if (rc == IPA_RC_LAN_OFFLINE) {
 			dev_warn(&card->gdev->dev,
 				"The LAN is offline\n");
-			card->lan_online = 0;
+			netif_carrier_off(card->dev);
 		} else {
 			rc = -ENODEV;
 			goto out;
 		}
-	} else
-		card->lan_online = 1;
+	} else {
+		netif_carrier_on(card->dev);
+	}
 
 	card->options.ipa4.supported_funcs = 0;
 	card->options.ipa6.supported_funcs = 0;

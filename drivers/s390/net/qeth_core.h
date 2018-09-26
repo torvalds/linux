@@ -763,7 +763,6 @@ struct qeth_switch_info {
 struct qeth_card {
 	struct list_head list;
 	enum qeth_card_states state;
-	int lan_online;
 	spinlock_t lock;
 	struct ccwgroup_device *gdev;
 	struct qeth_channel read;
