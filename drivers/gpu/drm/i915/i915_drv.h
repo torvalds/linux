@@ -466,8 +466,9 @@ struct intel_csr {
 	struct work_struct work;
 	const char *fw_path;
 	uint32_t required_version;
+	uint32_t max_fw_size; /* bytes */
 	uint32_t *dmc_payload;
-	uint32_t dmc_fw_size;
+	uint32_t dmc_fw_size; /* dwords */
 	uint32_t version;
 	uint32_t mmio_count;
 	i915_reg_t mmioaddr[8];
