@@ -349,7 +349,6 @@ struct net_bridge {
 	/* STP */
 	bridge_id			designated_root;
 	bridge_id			bridge_id;
-	u32				root_path_cost;
 	unsigned char			topology_change;
 	unsigned char			topology_change_detected;
 	u16				root_port;
@@ -361,6 +360,7 @@ struct net_bridge {
 	unsigned long			bridge_hello_time;
 	unsigned long			bridge_forward_delay;
 	unsigned long			bridge_ageing_time;
+	u32				root_path_cost;
 
 	u8				group_addr[ETH_ALEN];
 
@@ -383,6 +383,7 @@ struct net_bridge {
 #if IS_ENABLED(CONFIG_IPV6)
 	u8				multicast_mld_version;
 #endif
+	spinlock_t			multicast_lock;
 	unsigned long			multicast_last_member_interval;
 	unsigned long			multicast_membership_interval;
 	unsigned long			multicast_querier_interval;
@@ -390,7 +391,6 @@ struct net_bridge {
 	unsigned long			multicast_query_response_interval;
 	unsigned long			multicast_startup_query_interval;
 
-	spinlock_t			multicast_lock;
 	struct net_bridge_mdb_htable __rcu *mdb;
 	struct hlist_head		router_list;
 
