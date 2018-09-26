@@ -147,6 +147,12 @@ static inline unsigned long __kern_hyp_va(unsigned long v)
 #define kvm_phys_mask(kvm)		(kvm_phys_size(kvm) - _AC(1, ULL))
 #define kvm_vttbr_baddr_mask(kvm)	VTTBR_BADDR_MASK
 
+static inline bool kvm_page_empty(void *ptr)
+{
+	struct page *ptr_page = virt_to_page(ptr);
+	return page_count(ptr_page) == 1;
+}
+
 #include <asm/stage2_pgtable.h>
 
 int create_hyp_mappings(void *from, void *to, pgprot_t prot);
@@ -239,12 +245,6 @@ static inline bool kvm_s2pmd_readonly(pmd_t *pmdp)
 static inline bool kvm_s2pmd_exec(pmd_t *pmdp)
 {
 	return !(READ_ONCE(pmd_val(*pmdp)) & PMD_S2_XN);
-}
-
-static inline bool kvm_page_empty(void *ptr)
-{
-	struct page *ptr_page = virt_to_page(ptr);
-	return page_count(ptr_page) == 1;
 }
 
 #define hyp_pte_table_empty(ptep) kvm_page_empty(ptep)

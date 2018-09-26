@@ -19,6 +19,7 @@
 #ifndef __ARM64_S2_PGTABLE_H_
 #define __ARM64_S2_PGTABLE_H_
 
+#include <linux/hugetlb.h>
 #include <asm/pgtable.h>
 
 /*
@@ -71,71 +72,163 @@
  */
 #define kvm_mmu_cache_min_pages(kvm)	(STAGE2_PGTABLE_LEVELS - 1)
 
-
-#if STAGE2_PGTABLE_LEVELS > 3
-
+/* Stage2 PUD definitions when the level is present */
+#define STAGE2_PGTABLE_HAS_PUD		(STAGE2_PGTABLE_LEVELS > 3)
 #define S2_PUD_SHIFT			ARM64_HW_PGTABLE_LEVEL_SHIFT(1)
 #define S2_PUD_SIZE			(1UL << S2_PUD_SHIFT)
 #define S2_PUD_MASK			(~(S2_PUD_SIZE - 1))
 
-#define stage2_pgd_none(kvm, pgd)		pgd_none(pgd)
-#define stage2_pgd_clear(kvm, pgd)		pgd_clear(pgd)
-#define stage2_pgd_present(kvm, pgd)		pgd_present(pgd)
-#define stage2_pgd_populate(kvm, pgd, pud)	pgd_populate(NULL, pgd, pud)
-#define stage2_pud_offset(kvm, pgd, address)	pud_offset(pgd, address)
-#define stage2_pud_free(kvm, pud)		pud_free(NULL, pud)
+static inline bool stage2_pgd_none(struct kvm *kvm, pgd_t pgd)
+{
+	if (STAGE2_PGTABLE_HAS_PUD)
+		return pgd_none(pgd);
+	else
+		return 0;
+}
 
-#define stage2_pud_table_empty(kvm, pudp)	kvm_page_empty(pudp)
+static inline void stage2_pgd_clear(struct kvm *kvm, pgd_t *pgdp)
+{
+	if (STAGE2_PGTABLE_HAS_PUD)
+		pgd_clear(pgdp);
+}
+
+static inline bool stage2_pgd_present(struct kvm *kvm, pgd_t pgd)
+{
+	if (STAGE2_PGTABLE_HAS_PUD)
+		return pgd_present(pgd);
+	else
+		return 1;
+}
+
+static inline void stage2_pgd_populate(struct kvm *kvm, pgd_t *pgd, pud_t *pud)
+{
+	if (STAGE2_PGTABLE_HAS_PUD)
+		pgd_populate(NULL, pgd, pud);
+}
+
+static inline pud_t *stage2_pud_offset(struct kvm *kvm,
+				       pgd_t *pgd, unsigned long address)
+{
+	if (STAGE2_PGTABLE_HAS_PUD)
+		return pud_offset(pgd, address);
+	else
+		return (pud_t *)pgd;
+}
+
+static inline void stage2_pud_free(struct kvm *kvm, pud_t *pud)
+{
+	if (STAGE2_PGTABLE_HAS_PUD)
+		pud_free(NULL, pud);
+}
+
+static inline bool stage2_pud_table_empty(struct kvm *kvm, pud_t *pudp)
+{
+	if (STAGE2_PGTABLE_HAS_PUD)
+		return kvm_page_empty(pudp);
+	else
+		return false;
+}
 
 static inline phys_addr_t
 stage2_pud_addr_end(struct kvm *kvm, phys_addr_t addr, phys_addr_t end)
 {
-	phys_addr_t boundary = (addr + S2_PUD_SIZE) & S2_PUD_MASK;
+	if (STAGE2_PGTABLE_HAS_PUD) {
+		phys_addr_t boundary = (addr + S2_PUD_SIZE) & S2_PUD_MASK;
 
-	return (boundary - 1 < end - 1) ? boundary : end;
+		return (boundary - 1 < end - 1) ? boundary : end;
+	} else {
+		return end;
+	}
 }
 
-#endif		/* STAGE2_PGTABLE_LEVELS > 3 */
-
-
-#if STAGE2_PGTABLE_LEVELS > 2
-
+/* Stage2 PMD definitions when the level is present */
+#define STAGE2_PGTABLE_HAS_PMD		(STAGE2_PGTABLE_LEVELS > 2)
 #define S2_PMD_SHIFT			ARM64_HW_PGTABLE_LEVEL_SHIFT(2)
 #define S2_PMD_SIZE			(1UL << S2_PMD_SHIFT)
 #define S2_PMD_MASK			(~(S2_PMD_SIZE - 1))
 
-#define stage2_pud_none(kvm, pud)		pud_none(pud)
-#define stage2_pud_clear(kvm, pud)		pud_clear(pud)
-#define stage2_pud_present(kvm, pud)		pud_present(pud)
-#define stage2_pud_populate(kvm, pud, pmd)	pud_populate(NULL, pud, pmd)
-#define stage2_pmd_offset(kvm, pud, address)	pmd_offset(pud, address)
-#define stage2_pmd_free(kvm, pmd)		pmd_free(NULL, pmd)
+static inline bool stage2_pud_none(struct kvm *kvm, pud_t pud)
+{
+	if (STAGE2_PGTABLE_HAS_PMD)
+		return pud_none(pud);
+	else
+		return 0;
+}
 
-#define stage2_pud_huge(kvm, pud)		pud_huge(pud)
-#define stage2_pmd_table_empty(kvm, pmdp)	kvm_page_empty(pmdp)
+static inline void stage2_pud_clear(struct kvm *kvm, pud_t *pud)
+{
+	if (STAGE2_PGTABLE_HAS_PMD)
+		pud_clear(pud);
+}
+
+static inline bool stage2_pud_present(struct kvm *kvm, pud_t pud)
+{
+	if (STAGE2_PGTABLE_HAS_PMD)
+		return pud_present(pud);
+	else
+		return 1;
+}
+
+static inline void stage2_pud_populate(struct kvm *kvm, pud_t *pud, pmd_t *pmd)
+{
+	if (STAGE2_PGTABLE_HAS_PMD)
+		pud_populate(NULL, pud, pmd);
+}
+
+static inline pmd_t *stage2_pmd_offset(struct kvm *kvm,
+				       pud_t *pud, unsigned long address)
+{
+	if (STAGE2_PGTABLE_HAS_PMD)
+		return pmd_offset(pud, address);
+	else
+		return (pmd_t *)pud;
+}
+
+static inline void stage2_pmd_free(struct kvm *kvm, pmd_t *pmd)
+{
+	if (STAGE2_PGTABLE_HAS_PMD)
+		pmd_free(NULL, pmd);
+}
+
+static inline bool stage2_pud_huge(struct kvm *kvm, pud_t pud)
+{
+	if (STAGE2_PGTABLE_HAS_PMD)
+		return pud_huge(pud);
+	else
+		return 0;
+}
+
+static inline bool stage2_pmd_table_empty(struct kvm *kvm, pmd_t *pmdp)
+{
+	if (STAGE2_PGTABLE_HAS_PMD)
+		return kvm_page_empty(pmdp);
+	else
+		return 0;
+}
 
 static inline phys_addr_t
 stage2_pmd_addr_end(struct kvm *kvm, phys_addr_t addr, phys_addr_t end)
 {
-	phys_addr_t boundary = (addr + S2_PMD_SIZE) & S2_PMD_MASK;
+	if (STAGE2_PGTABLE_HAS_PMD) {
+		phys_addr_t boundary = (addr + S2_PMD_SIZE) & S2_PMD_MASK;
 
-	return (boundary - 1 < end - 1) ? boundary : end;
+		return (boundary - 1 < end - 1) ? boundary : end;
+	} else {
+		return end;
+	}
 }
 
-#endif		/* STAGE2_PGTABLE_LEVELS > 2 */
-
-#define stage2_pte_table_empty(kvm, ptep)	kvm_page_empty(ptep)
-
-#if STAGE2_PGTABLE_LEVELS == 2
-#include <asm/stage2_pgtable-nopmd.h>
-#elif STAGE2_PGTABLE_LEVELS == 3
-#include <asm/stage2_pgtable-nopud.h>
-#endif
+static inline bool stage2_pte_table_empty(struct kvm *kvm, pte_t *ptep)
+{
+	return kvm_page_empty(ptep);
+}
 
 #define stage2_pgd_size(kvm)	(PTRS_PER_S2_PGD * sizeof(pgd_t))
 
-#define stage2_pgd_index(kvm, addr) \
-	(((addr) >> S2_PGDIR_SHIFT) & (PTRS_PER_S2_PGD - 1))
+static inline unsigned long stage2_pgd_index(struct kvm *kvm, phys_addr_t addr)
+{
+	return (((addr) >> S2_PGDIR_SHIFT) & (PTRS_PER_S2_PGD - 1));
+}
 
 static inline phys_addr_t
 stage2_pgd_addr_end(struct kvm *kvm, phys_addr_t addr, phys_addr_t end)
