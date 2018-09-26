@@ -174,7 +174,6 @@ static int rvin_group_link_notify(struct media_link *link, u32 flags,
 
 	if (csi_id == -ENODEV) {
 		struct v4l2_subdev *sd;
-		unsigned int i;
 
 		/*
 		 * Make sure the source entity subdevice is registered as
