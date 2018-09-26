@@ -148,6 +148,8 @@ static void amdgpu_irq_callback(struct amdgpu_device *adev,
 	entry.iv_entry = (const uint32_t *)&ih->ring[ring_index];
 	amdgpu_ih_decode_iv(adev, &entry);
 
+	trace_amdgpu_iv(ih - &adev->irq.ih, &entry);
+
 	amdgpu_irq_dispatch(adev, &entry);
 }
 
@@ -366,8 +368,6 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 	struct amdgpu_irq_src *src;
 	bool handled = false;
 	int r;
-
-	trace_amdgpu_iv(entry);
 
 	if (client_id >= AMDGPU_IRQ_CLIENTID_MAX) {
 		DRM_DEBUG("Invalid client_id in IV: %d\n", client_id);
