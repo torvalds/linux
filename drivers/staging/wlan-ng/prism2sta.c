@@ -336,7 +336,7 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 		 */
 	case DIDmsg_lnxreq_hostwep:
 		break;		/* ignore me. */
-	case DIDmsg_lnxreq_ifstate:
+	case DIDMSG_LNXREQ_IFSTATE:
 		{
 			struct p80211msg_lnxreq_ifstate *ifstatemsg;
 

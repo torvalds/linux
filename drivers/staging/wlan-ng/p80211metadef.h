@@ -85,7 +85,7 @@
 #define DIDmsg_dot11ind_associate \
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(3))
-#define DIDmsg_lnxreq_ifstate \
+#define DIDMSG_LNXREQ_IFSTATE \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(1))
 #define DIDmsg_lnxreq_wlansniff \

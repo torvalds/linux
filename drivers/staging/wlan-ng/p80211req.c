@@ -117,7 +117,7 @@ int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
 
 	/* Check to make sure the MSD is running */
 	if (!((wlandev->msdstate == WLAN_MSD_HWPRESENT &&
-	       msg->msgcode == DIDmsg_lnxreq_ifstate) ||
+	       msg->msgcode == DIDMSG_LNXREQ_IFSTATE) ||
 	      wlandev->msdstate == WLAN_MSD_RUNNING ||
 	      wlandev->msdstate == WLAN_MSD_FWLOAD)) {
 		return -ENODEV;
