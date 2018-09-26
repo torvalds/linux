@@ -656,7 +656,7 @@ static int p80211knetdev_set_mac_address(struct net_device *dev, void *addr)
 	memcpy(&macaddr->data.data, new_addr->sa_data, ETH_ALEN);
 
 	/* Set up the resultcode argument */
-	resultcode->did = DIDmsg_dot11req_mibset_resultcode;
+	resultcode->did = DIDMSG_DOT11REQ_MIBSET_RESULTCODE;
 	resultcode->status = P80211ENUM_msgitem_status_no_value;
 	resultcode->len = sizeof(resultcode->data);
 	resultcode->data = 0;
