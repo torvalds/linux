@@ -175,6 +175,22 @@ static struct notifier_block br_switchdev_notifier = {
 	.notifier_call = br_switchdev_event,
 };
 
+void br_opt_toggle(struct net_bridge *br, enum net_bridge_opts opt, bool on)
+{
+	bool cur = !!br_opt_get(br, opt);
+
+	br_debug(br, "toggle option: %d state: %d -> %d\n",
+		 opt, cur, on);
+
+	if (cur == on)
+		return;
+
+	if (on)
+		set_bit(opt, &br->options);
+	else
+		clear_bit(opt, &br->options);
+}
+
 static void __net_exit br_net_exit(struct net *net)
 {
 	struct net_device *dev;

@@ -1416,7 +1416,8 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	if (nla_put_be16(skb, IFLA_BR_VLAN_PROTOCOL, br->vlan_proto) ||
 	    nla_put_u16(skb, IFLA_BR_VLAN_DEFAULT_PVID, br->default_pvid) ||
-	    nla_put_u8(skb, IFLA_BR_VLAN_STATS_ENABLED, br->vlan_stats_enabled))
+	    nla_put_u8(skb, IFLA_BR_VLAN_STATS_ENABLED,
+		       br_opt_get(br, BROPT_VLAN_STATS_ENABLED)))
 		return -EMSGSIZE;
 #endif
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
