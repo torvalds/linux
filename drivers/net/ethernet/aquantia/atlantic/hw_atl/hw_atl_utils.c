@@ -870,8 +870,8 @@ err_exit:
 	return err;
 }
 
-int aq_fw1x_set_power(struct aq_hw_s *self, unsigned int power_state,
-		      u8 *mac)
+static int aq_fw1x_set_power(struct aq_hw_s *self, unsigned int power_state,
+			     u8 *mac)
 {
 	struct hw_atl_utils_fw_rpc *prpc = NULL;
 	unsigned int rpc_size = 0U;
