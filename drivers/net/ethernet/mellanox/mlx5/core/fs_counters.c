@@ -99,6 +99,18 @@ static void mlx5_fc_stats_insert(struct mlx5_core_dev *dev,
 	list_add_tail(&counter->list, next);
 }
 
+static void mlx5_fc_stats_remove(struct mlx5_core_dev *dev,
+				 struct mlx5_fc *counter)
+{
+	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
+
+	list_del(&counter->list);
+
+	spin_lock(&fc_stats->counters_idr_lock);
+	WARN_ON(!idr_remove(&fc_stats->counters_idr, counter->id));
+	spin_unlock(&fc_stats->counters_idr_lock);
+}
+
 /* The function returns the last counter that was queried so the caller
  * function can continue calling it till all counters are queried.
  */
@@ -195,7 +207,7 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 		mlx5_fc_stats_insert(dev, counter);
 
 	llist_for_each_entry_safe(counter, tmp, dellist, dellist) {
-		list_del(&counter->list);
+		mlx5_fc_stats_remove(dev, counter);
 
 		mlx5_free_fc(dev, counter);
 	}
@@ -275,10 +287,6 @@ void mlx5_fc_destroy(struct mlx5_core_dev *dev, struct mlx5_fc *counter)
 		return;
 
 	if (counter->aging) {
-		spin_lock(&fc_stats->counters_idr_lock);
-		WARN_ON(!idr_remove(&fc_stats->counters_idr, counter->id));
-		spin_unlock(&fc_stats->counters_idr_lock);
-
 		llist_add(&counter->dellist, &fc_stats->dellist);
 		mod_delayed_work(fc_stats->wq, &fc_stats->work, 0);
 		return;
