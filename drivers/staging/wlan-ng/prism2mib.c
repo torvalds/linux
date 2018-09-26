@@ -168,7 +168,7 @@ static struct mibrec mibtab[] = {
 	 F_STA | F_READ | F_WRITE,
 	 HFA384x_RID_CNFWEPFLAGS, HFA384x_WEPFLAGS_PRIVINVOKED, 0,
 	 prism2mib_privacyinvoked},
-	{DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID,
+	{DIDMIB_DOT11SMT_PRIVACYTABLE_WEPDEFAULTKEYID,
 	 F_STA | F_READ | F_WRITE,
 	 HFA384x_RID_CNFWEPDEFAULTKEYID, 0, 0,
 	 prism2mib_uint32},

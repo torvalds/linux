@@ -215,7 +215,7 @@ static void p80211req_mibset_mibget(struct wlandevice *wlandev,
 				       key, pstr->len);
 		break;
 
-	case DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID:{
+	case DIDMIB_DOT11SMT_PRIVACYTABLE_WEPDEFAULTKEYID:{
 		u32 *data = (u32 *)mibitem->data;
 
 		if (isget) {

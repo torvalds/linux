@@ -158,7 +158,7 @@ static int prism2_add_key(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	if (prism2_domibset_uint32(wlandev,
-				   DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID,
+				   DIDMIB_DOT11SMT_PRIVACYTABLE_WEPDEFAULTKEYID,
 				   key_index))
 		return -EFAULT;
 
@@ -234,7 +234,7 @@ static int prism2_set_default_key(struct wiphy *wiphy, struct net_device *dev,
 	int result = 0;
 
 	result = prism2_domibset_uint32(wlandev,
-		DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID,
+		DIDMIB_DOT11SMT_PRIVACYTABLE_WEPDEFAULTKEYID,
 		key_index);
 
 	if (result)
@@ -482,7 +482,7 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 			}
 
 			result = prism2_domibset_uint32(wlandev,
-				DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID,
+				DIDMIB_DOT11SMT_PRIVACYTABLE_WEPDEFAULTKEYID,
 				sme->key_idx);
 			if (result)
 				goto exit;
