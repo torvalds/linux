@@ -145,7 +145,6 @@ static inline unsigned long __kern_hyp_va(unsigned long v)
 #define kvm_phys_shift(kvm)		KVM_PHYS_SHIFT
 #define kvm_phys_size(kvm)		(_AC(1, ULL) << kvm_phys_shift(kvm))
 #define kvm_phys_mask(kvm)		(kvm_phys_size(kvm) - _AC(1, ULL))
-#define kvm_vttbr_baddr_mask(kvm)	VTTBR_BADDR_MASK
 
 static inline bool kvm_page_empty(void *ptr)
 {
@@ -519,6 +518,30 @@ static inline int hyp_map_aux_data(void)
 #endif
 
 #define kvm_phys_to_vttbr(addr)		phys_to_ttbr(addr)
+
+/*
+ * Get the magic number 'x' for VTTBR:BADDR of this KVM instance.
+ * With v8.2 LVA extensions, 'x' should be a minimum of 6 with
+ * 52bit IPS.
+ */
+static inline int arm64_vttbr_x(u32 ipa_shift, u32 levels)
+{
+	int x = ARM64_VTTBR_X(ipa_shift, levels);
+
+	return (IS_ENABLED(CONFIG_ARM64_PA_BITS_52) && x < 6) ? 6 : x;
+}
+
+static inline u64 vttbr_baddr_mask(u32 ipa_shift, u32 levels)
+{
+	unsigned int x = arm64_vttbr_x(ipa_shift, levels);
+
+	return GENMASK_ULL(PHYS_MASK_SHIFT - 1, x);
+}
+
+static inline u64 kvm_vttbr_baddr_mask(struct kvm *kvm)
+{
+	return vttbr_baddr_mask(kvm_phys_shift(kvm), kvm_stage2_levels(kvm));
+}
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ARM64_KVM_MMU_H__ */
