@@ -787,7 +787,7 @@ static int read_cardpda(struct pda *pda, struct wlandevice *wlandev)
 		return -ENOMEM;
 
 	/* set up the msg */
-	msg->msgcode = DIDmsg_p2req_readpda;
+	msg->msgcode = DIDMSG_P2REQ_READPDA;
 	msg->msglen = sizeof(msg);
 	strcpy(msg->devname, wlandev->name);
 	msg->pda.did = DIDmsg_p2req_readpda_pda;

@@ -100,7 +100,7 @@
 #define DIDMSG_LNXREQ_AUTOJOIN \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(5))
-#define DIDmsg_p2req_readpda \
+#define DIDMSG_P2REQ_READPDA \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2))
 #define DIDmsg_p2req_readpda_pda \
