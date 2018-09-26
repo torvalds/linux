@@ -880,8 +880,6 @@ int phy_init_hw(struct phy_device *phydev)
 
 	if (phydev->drv->soft_reset)
 		ret = phydev->drv->soft_reset(phydev);
-	else
-		ret = genphy_soft_reset(phydev);
 
 	if (ret < 0)
 		return ret;
