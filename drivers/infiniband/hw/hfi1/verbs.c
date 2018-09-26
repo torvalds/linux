@@ -492,7 +492,7 @@ static void verbs_sdma_complete(
 
 	spin_lock(&qp->s_lock);
 	if (tx->wqe) {
-		hfi1_send_complete(qp, tx->wqe, IB_WC_SUCCESS);
+		rvt_send_complete(qp, tx->wqe, IB_WC_SUCCESS);
 	} else if (qp->ibqp.qp_type == IB_QPT_RC) {
 		struct hfi1_opa_header *hdr;
 
@@ -938,7 +938,7 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 pio_bail:
 	if (qp->s_wqe) {
 		spin_lock_irqsave(&qp->s_lock, flags);
-		hfi1_send_complete(qp, qp->s_wqe, wc_status);
+		rvt_send_complete(qp, qp->s_wqe, wc_status);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 	} else if (qp->ibqp.qp_type == IB_QPT_RC) {
 		spin_lock_irqsave(&qp->s_lock, flags);
@@ -1145,7 +1145,7 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 			hfi1_cdbg(PIO, "%s() Failed. Completing with err",
 				  __func__);
 			spin_lock_irqsave(&qp->s_lock, flags);
-			hfi1_send_complete(qp, qp->s_wqe, IB_WC_GENERAL_ERR);
+			rvt_send_complete(qp, qp->s_wqe, IB_WC_GENERAL_ERR);
 			spin_unlock_irqrestore(&qp->s_lock, flags);
 		}
 		return -EINVAL;
@@ -1734,6 +1734,9 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 
 	/* post send table */
 	dd->verbs_dev.rdi.post_parms = hfi1_post_parms;
+
+	/* opcode translation table */
+	dd->verbs_dev.rdi.wc_opcode = ib_hfi1_wc_opcode;
 
 	ppd = dd->pport;
 	for (i = 0; i < dd->num_pports; i++, ppd++)

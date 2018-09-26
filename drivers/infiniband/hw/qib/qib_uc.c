@@ -68,7 +68,7 @@ int qib_make_uc_req(struct rvt_qp *qp, unsigned long *flags)
 			goto bail;
 		}
 		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
-		qib_send_complete(qp, wqe, IB_WC_WR_FLUSH_ERR);
+		rvt_send_complete(qp, wqe, IB_WC_WR_FLUSH_ERR);
 		goto done;
 	}
 

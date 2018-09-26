@@ -731,7 +731,7 @@ static void sdma_complete(struct qib_sdma_txreq *cookie, int status)
 
 	spin_lock(&qp->s_lock);
 	if (tx->wqe)
-		qib_send_complete(qp, tx->wqe, IB_WC_SUCCESS);
+		rvt_send_complete(qp, tx->wqe, IB_WC_SUCCESS);
 	else if (qp->ibqp.qp_type == IB_QPT_RC) {
 		struct ib_header *hdr;
 
@@ -1004,7 +1004,7 @@ done:
 	}
 	if (qp->s_wqe) {
 		spin_lock_irqsave(&qp->s_lock, flags);
-		qib_send_complete(qp, qp->s_wqe, IB_WC_SUCCESS);
+		rvt_send_complete(qp, qp->s_wqe, IB_WC_SUCCESS);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 	} else if (qp->ibqp.qp_type == IB_QPT_RC) {
 		spin_lock_irqsave(&qp->s_lock, flags);
@@ -1491,6 +1491,9 @@ static void qib_fill_device_attr(struct qib_devdata *dd)
 					rdi->dparms.props.max_mcast_grp;
 	/* post send table */
 	dd->verbs_dev.rdi.post_parms = qib_post_parms;
+
+	/* opcode translation table */
+	dd->verbs_dev.rdi.wc_opcode = ib_qib_wc_opcode;
 }
 
 /**

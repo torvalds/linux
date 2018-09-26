@@ -254,7 +254,7 @@ int qib_make_rc_req(struct rvt_qp *qp, unsigned long *flags)
 			goto bail;
 		}
 		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
-		qib_send_complete(qp, wqe, qp->s_last != qp->s_acked ?
+		rvt_send_complete(qp, wqe, qp->s_last != qp->s_acked ?
 			IB_WC_SUCCESS : IB_WC_WR_FLUSH_ERR);
 		/* will get called again */
 		goto done;
@@ -838,7 +838,7 @@ void qib_restart_rc(struct rvt_qp *qp, u32 psn, int wait)
 			qib_migrate_qp(qp);
 			qp->s_retry = qp->s_retry_cnt;
 		} else if (qp->s_last == qp->s_acked) {
-			qib_send_complete(qp, wqe, IB_WC_RETRY_EXC_ERR);
+			rvt_send_complete(qp, wqe, IB_WC_RETRY_EXC_ERR);
 			rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 			return;
 		} else /* XXX need to handle delayed completion */
@@ -1221,7 +1221,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			ibp->rvp.n_other_naks++;
 class_b:
 			if (qp->s_last == qp->s_acked) {
-				qib_send_complete(qp, wqe, status);
+				rvt_send_complete(qp, wqe, status);
 				rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 			}
 			break;
@@ -1492,7 +1492,7 @@ ack_len_err:
 	status = IB_WC_LOC_LEN_ERR;
 ack_err:
 	if (qp->s_last == qp->s_acked) {
-		qib_send_complete(qp, wqe, status);
+		rvt_send_complete(qp, wqe, status);
 		rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 	}
 ack_done:

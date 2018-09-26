@@ -260,7 +260,7 @@ int qib_make_ud_req(struct rvt_qp *qp, unsigned long *flags)
 			goto bail;
 		}
 		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
-		qib_send_complete(qp, wqe, IB_WC_WR_FLUSH_ERR);
+		rvt_send_complete(qp, wqe, IB_WC_WR_FLUSH_ERR);
 		goto done;
 	}
 
@@ -304,7 +304,7 @@ int qib_make_ud_req(struct rvt_qp *qp, unsigned long *flags)
 			qib_ud_loopback(qp, wqe);
 			spin_lock_irqsave(&qp->s_lock, tflags);
 			*flags = tflags;
-			qib_send_complete(qp, wqe, IB_WC_SUCCESS);
+			rvt_send_complete(qp, wqe, IB_WC_SUCCESS);
 			goto done;
 		}
 	}

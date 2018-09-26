@@ -331,9 +331,6 @@ void _qib_do_send(struct work_struct *work);
 
 void qib_do_send(struct rvt_qp *qp);
 
-void qib_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
-		       enum ib_wc_status status);
-
 void qib_send_rc_ack(struct rvt_qp *qp);
 
 int qib_make_rc_req(struct rvt_qp *qp, unsigned long *flags);

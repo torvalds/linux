@@ -403,7 +403,7 @@ send_comp:
 	ibp->rvp.n_loop_pkts++;
 flush_send:
 	sqp->s_rnr_retry = sqp->s_rnr_retry_cnt;
-	qib_send_complete(sqp, wqe, send_status);
+	rvt_send_complete(sqp, wqe, send_status);
 	goto again;
 
 rnr_nak:
@@ -447,7 +447,7 @@ err:
 
 serr:
 	spin_lock_irqsave(&sqp->s_lock, flags);
-	qib_send_complete(sqp, wqe, send_status);
+	rvt_send_complete(sqp, wqe, send_status);
 	if (sqp->ibqp.qp_type == IB_QPT_RC) {
 		int lastwqe = rvt_error_qp(sqp, IB_WC_WR_FLUSH_ERR);
 
@@ -612,43 +612,4 @@ void qib_do_send(struct rvt_qp *qp)
 	} while (make_req(qp, &flags));
 
 	spin_unlock_irqrestore(&qp->s_lock, flags);
-}
-
-/*
- * This should be called with s_lock held.
- */
-void qib_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
-		       enum ib_wc_status status)
-{
-	u32 old_last, last;
-
-	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_OR_FLUSH_SEND))
-		return;
-
-	last = qp->s_last;
-	old_last = last;
-	if (++last >= qp->s_size)
-		last = 0;
-	qp->s_last = last;
-	/* See post_send() */
-	barrier();
-	rvt_put_swqe(wqe);
-	if (qp->ibqp.qp_type == IB_QPT_UD ||
-	    qp->ibqp.qp_type == IB_QPT_SMI ||
-	    qp->ibqp.qp_type == IB_QPT_GSI)
-		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
-
-	rvt_qp_swqe_complete(qp,
-			     wqe,
-			     ib_qib_wc_opcode[wqe->wr.opcode],
-			     status);
-
-	if (qp->s_acked == old_last)
-		qp->s_acked = last;
-	if (qp->s_cur == old_last)
-		qp->s_cur = last;
-	if (qp->s_tail == old_last)
-		qp->s_tail = last;
-	if (qp->state == IB_QPS_SQD && last == qp->s_cur)
-		qp->s_draining = 0;
 }

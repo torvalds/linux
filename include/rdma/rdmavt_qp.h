@@ -681,6 +681,8 @@ void rvt_add_retry_timer(struct rvt_qp *qp);
 void rvt_copy_sge(struct rvt_qp *qp, struct rvt_sge_state *ss,
 		  void *data, u32 length,
 		  bool release, bool copy_last);
+void rvt_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
+		       enum ib_wc_status status);
 
 /**
  * struct rvt_qp_iter - the iterator for QPs

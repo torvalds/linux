@@ -2658,6 +2658,49 @@ void rvt_qp_iter(struct rvt_dev_info *rdi,
 }
 EXPORT_SYMBOL(rvt_qp_iter);
 
+/*
+ * This should be called with s_lock held.
+ */
+void rvt_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
+		       enum ib_wc_status status)
+{
+	u32 old_last, last;
+	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
+
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_OR_FLUSH_SEND))
+		return;
+
+	last = qp->s_last;
+	old_last = last;
+	trace_rvt_qp_send_completion(qp, wqe, last);
+	if (++last >= qp->s_size)
+		last = 0;
+	trace_rvt_qp_send_completion(qp, wqe, last);
+	qp->s_last = last;
+	/* See post_send() */
+	barrier();
+	rvt_put_swqe(wqe);
+	if (qp->ibqp.qp_type == IB_QPT_UD ||
+	    qp->ibqp.qp_type == IB_QPT_SMI ||
+	    qp->ibqp.qp_type == IB_QPT_GSI)
+		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
+
+	rvt_qp_swqe_complete(qp,
+			     wqe,
+			     rdi->wc_opcode[wqe->wr.opcode],
+			     status);
+
+	if (qp->s_acked == old_last)
+		qp->s_acked = last;
+	if (qp->s_cur == old_last)
+		qp->s_cur = last;
+	if (qp->s_tail == old_last)
+		qp->s_tail = last;
+	if (qp->state == IB_QPS_SQD && last == qp->s_cur)
+		qp->s_draining = 0;
+}
+EXPORT_SYMBOL(rvt_send_complete);
+
 /**
  * rvt_copy_sge - copy data to SGE memory
  * @qp: associated QP

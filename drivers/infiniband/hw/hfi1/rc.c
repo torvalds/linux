@@ -309,7 +309,7 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		}
 		clear_ahg(qp);
 		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
-		hfi1_send_complete(qp, wqe, qp->s_last != qp->s_acked ?
+		rvt_send_complete(qp, wqe, qp->s_last != qp->s_acked ?
 			IB_WC_SUCCESS : IB_WC_WR_FLUSH_ERR);
 		/* will get called again */
 		goto done_free_tx;
@@ -378,9 +378,9 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 						wqe->wr.ex.invalidate_rkey);
 					local_ops = 1;
 				}
-				hfi1_send_complete(qp, wqe,
-						   err ? IB_WC_LOC_PROT_ERR
-						       : IB_WC_SUCCESS);
+				rvt_send_complete(qp, wqe,
+						  err ? IB_WC_LOC_PROT_ERR
+						      : IB_WC_SUCCESS);
 				if (local_ops)
 					atomic_dec(&qp->local_ops_pending);
 				goto done_free_tx;
@@ -1043,7 +1043,7 @@ void hfi1_restart_rc(struct rvt_qp *qp, u32 psn, int wait)
 			hfi1_migrate_qp(qp);
 			qp->s_retry = qp->s_retry_cnt;
 		} else if (qp->s_last == qp->s_acked) {
-			hfi1_send_complete(qp, wqe, IB_WC_RETRY_EXC_ERR);
+			rvt_send_complete(qp, wqe, IB_WC_RETRY_EXC_ERR);
 			rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 			return;
 		} else { /* need to handle delayed completion */
@@ -1468,7 +1468,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			ibp->rvp.n_other_naks++;
 class_b:
 			if (qp->s_last == qp->s_acked) {
-				hfi1_send_complete(qp, wqe, status);
+				rvt_send_complete(qp, wqe, status);
 				rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 			}
 			break;
@@ -1706,7 +1706,7 @@ ack_len_err:
 	status = IB_WC_LOC_LEN_ERR;
 ack_err:
 	if (qp->s_last == qp->s_acked) {
-		hfi1_send_complete(qp, wqe, status);
+		rvt_send_complete(qp, wqe, status);
 		rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 	}
 ack_done:

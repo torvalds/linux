@@ -398,6 +398,9 @@ struct rvt_dev_info {
 	/* post send table */
 	const struct rvt_operation_params *post_parms;
 
+	/* opcode translation table */
+	const enum ib_wc_opcode *wc_opcode;
+
 	/* Driver specific helper functions */
 	struct rvt_driver_provided driver_f;
 
