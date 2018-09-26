@@ -184,7 +184,9 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 	if (ret)
 		return ret;
 
-	hclge_tm_schd_info_update(hdev, num_tc);
+	ret = hclge_tm_schd_info_update(hdev, num_tc);
+	if (ret)
+		return ret;
 
 	ret = hclge_ieee_ets_to_tm_info(hdev, ets);
 	if (ret)
@@ -310,7 +312,9 @@ static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
 		return -EINVAL;
 	}
 
-	hclge_tm_schd_info_update(hdev, tc);
+	ret = hclge_tm_schd_info_update(hdev, tc);
+	if (ret)
+		return ret;
 
 	ret = hclge_tm_prio_tc_info_update(hdev, prio_tc);
 	if (ret)
