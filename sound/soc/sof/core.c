@@ -149,8 +149,9 @@ static const struct sof_panic_msg panic_msg[] = {
 };
 
 int snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
-		       u32 tracep_code, void *oops, void *stack,
-		       size_t stack_words)
+		       u32 tracep_code, void *oops,
+		       struct sof_ipc_panic_info *panic_info,
+		       void *stack, size_t stack_words)
 {
 	u32 code;
 	int i;
@@ -179,6 +180,8 @@ int snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 	dev_err(sdev->dev, "error: trace point %8.8x\n", tracep_code);
 
 out:
+	dev_err(sdev->dev, "error: panic happen at %s:%d\n",
+		panic_info->filename, panic_info->linenum);
 	sof_oops(sdev, oops);
 	sof_stack(sdev, oops, stack, stack_words);
 	return -EFAULT;

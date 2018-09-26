@@ -164,19 +164,26 @@ static void hda_dsp_get_status(struct snd_sof_dev *sdev)
 
 static void hda_dsp_get_registers(struct snd_sof_dev *sdev,
 				  struct sof_ipc_dsp_oops_xtensa *xoops,
+				  struct sof_ipc_panic_info *panic_info,
 				  u32 *stack, size_t stack_words)
 {
 	/* first read registers */
 	hda_dsp_block_read(sdev, sdev->dsp_oops_offset, xoops, sizeof(*xoops));
 
+	/* then get panic info */
+	hda_dsp_block_read(sdev, sdev->dsp_oops_offset + sizeof(*xoops),
+			   panic_info, sizeof(*panic_info));
+
 	/* then get the stack */
-	hda_dsp_block_read(sdev, sdev->dsp_oops_offset + sizeof(*xoops), stack,
+	hda_dsp_block_read(sdev, sdev->dsp_oops_offset + sizeof(*xoops) +
+			   sizeof(*panic_info), stack,
 			   stack_words * sizeof(u32));
 }
 
 void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 {
 	struct sof_ipc_dsp_oops_xtensa xoops;
+	struct sof_ipc_panic_info panic_info;
 	u32 stack[HDA_DSP_STACK_DUMP_SIZE];
 	u32 status, panic;
 
@@ -189,10 +196,10 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 	panic = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_FW_TRACEP);
 
 	if (sdev->boot_complete) {
-		hda_dsp_get_registers(sdev, &xoops, stack,
+		hda_dsp_get_registers(sdev, &xoops, &panic_info, stack,
 				      HDA_DSP_STACK_DUMP_SIZE);
-		snd_sof_get_status(sdev, status, panic, &xoops, stack,
-				   HDA_DSP_STACK_DUMP_SIZE);
+		snd_sof_get_status(sdev, status, panic, &xoops, &panic_info,
+				   stack, HDA_DSP_STACK_DUMP_SIZE);
 	} else {
 		dev_err(sdev->dev, "error: status = 0x%8.8x panic = 0x%8.8x\n",
 			status, panic);

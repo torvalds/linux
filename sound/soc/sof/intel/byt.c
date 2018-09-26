@@ -314,27 +314,35 @@ static void byt_mailbox_read(struct snd_sof_dev *sdev, u32 offset,
 
 static void byt_get_registers(struct snd_sof_dev *sdev,
 			      struct sof_ipc_dsp_oops_xtensa *xoops,
+			      struct sof_ipc_panic_info *panic_info,
 			      u32 *stack, size_t stack_words)
 {
 	/* first read regsisters */
 	byt_mailbox_read(sdev, sdev->dsp_oops_offset, xoops, sizeof(*xoops));
 
-	/* the get the stack */
-	byt_mailbox_read(sdev, sdev->dsp_oops_offset + sizeof(*xoops), stack,
-			 stack_words * sizeof(u32));
+	/* then get panic info */
+	byt_mailbox_read(sdev, sdev->dsp_oops_offset + sizeof(*xoops),
+			 panic_info, sizeof(*panic_info));
+
+	/* then get the stack */
+	byt_mailbox_read(sdev, sdev->dsp_oops_offset + sizeof(*xoops) +
+			   sizeof(*panic_info), stack,
+			   stack_words * sizeof(u32));
 }
 
 static void byt_dump(struct snd_sof_dev *sdev, u32 flags)
 {
 	struct sof_ipc_dsp_oops_xtensa xoops;
+	struct sof_ipc_panic_info panic_info;
 	u32 stack[BYT_STACK_DUMP_SIZE];
 	u32 status, panic;
 
 	/* now try generic SOF status messages */
 	status = snd_sof_dsp_read(sdev, BYT_DSP_BAR, SHIM_IPCD);
 	panic = snd_sof_dsp_read(sdev, BYT_DSP_BAR, SHIM_IPCX);
-	byt_get_registers(sdev, &xoops, stack, BYT_STACK_DUMP_SIZE);
-	snd_sof_get_status(sdev, status, panic, &xoops, stack,
+	byt_get_registers(sdev, &xoops, &panic_info, stack,
+			  BYT_STACK_DUMP_SIZE);
+	snd_sof_get_status(sdev, status, panic, &xoops, &panic_info, stack,
 			   BYT_STACK_DUMP_SIZE);
 }
 
