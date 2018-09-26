@@ -140,17 +140,6 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 			return -ERANGE;
 		break;
 
-	case NLA_NESTED_COMPAT:
-		if (attrlen < pt->len)
-			return -ERANGE;
-		if (attrlen < NLA_ALIGN(pt->len))
-			break;
-		if (attrlen < NLA_ALIGN(pt->len) + NLA_HDRLEN)
-			return -ERANGE;
-		nla = nla_data(nla) + NLA_ALIGN(pt->len);
-		if (attrlen < NLA_ALIGN(pt->len) + NLA_HDRLEN + nla_len(nla))
-			return -ERANGE;
-		break;
 	case NLA_NESTED:
 		/* a nested attributes is allowed to be empty; if its not,
 		 * it must have a size of at least NLA_HDRLEN.
