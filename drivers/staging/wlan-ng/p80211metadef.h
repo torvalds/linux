@@ -151,7 +151,7 @@
 #define DIDMSG_P2REQ_FLASHDL_WRITE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(14))
-#define DIDmib_cat_dot11smt \
+#define DIDMIB_CAT_DOT11SMT \
 			P80211DID_MKSECTION(1)
 #define DIDmib_dot11smt_dot11WEPDefaultKeysTable \
 			(P80211DID_MKSECTION(1) | \
