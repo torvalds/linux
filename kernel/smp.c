@@ -682,7 +682,7 @@ void on_each_cpu_cond(bool (*cond_func)(int cpu, void *info),
 		preempt_disable();
 		for_each_online_cpu(cpu)
 			if (cond_func(cpu, info))
-				cpumask_set_cpu(cpu, cpus);
+				__cpumask_set_cpu(cpu, cpus);
 		on_each_cpu_mask(cpus, func, info, wait);
 		preempt_enable();
 		free_cpumask_var(cpus);
