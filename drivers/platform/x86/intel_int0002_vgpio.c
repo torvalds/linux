@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel INT0002 "Virtual GPIO" driver
  *
@@ -8,10 +9,6 @@
  * Copyright (c) 2014, Intel Corporation.
  *
  * Author: Dyut Kumar Sil <dyut.k.sil@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Some peripherals on Bay Trail and Cherry Trail platforms signal a Power
  * Management Event (PME) to the Power Management Controller (PMC) to wakeup
@@ -228,4 +225,4 @@ module_platform_driver(int0002_driver);
 
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("Intel INT0002 Virtual GPIO driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
