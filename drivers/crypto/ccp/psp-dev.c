@@ -441,7 +441,8 @@ static int sev_get_api_version(void)
 	return 0;
 }
 
-int sev_get_firmware(struct device *dev, const struct firmware **firmware)
+static int sev_get_firmware(struct device *dev,
+			    const struct firmware **firmware)
 {
 	char fw_name_specific[SEV_FW_NAME_SIZE];
 	char fw_name_subset[SEV_FW_NAME_SIZE];
