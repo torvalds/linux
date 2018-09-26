@@ -744,7 +744,7 @@ static void a6xx_destroy(struct msm_gpu *gpu)
 	if (a6xx_gpu->sqe_bo) {
 		if (a6xx_gpu->sqe_iova)
 			msm_gem_put_iova(a6xx_gpu->sqe_bo, gpu->aspace);
-		drm_gem_object_unreference_unlocked(a6xx_gpu->sqe_bo);
+		drm_gem_object_put_unlocked(a6xx_gpu->sqe_bo);
 	}
 
 	a6xx_gmu_remove(a6xx_gpu);

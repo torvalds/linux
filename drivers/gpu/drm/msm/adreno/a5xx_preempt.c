@@ -276,7 +276,7 @@ void a5xx_preempt_fini(struct msm_gpu *gpu)
 		if (a5xx_gpu->preempt_iova[i])
 			msm_gem_put_iova(a5xx_gpu->preempt_bo[i], gpu->aspace);
 
-		drm_gem_object_unreference(a5xx_gpu->preempt_bo[i]);
+		drm_gem_object_put(a5xx_gpu->preempt_bo[i]);
 		a5xx_gpu->preempt_bo[i] = NULL;
 	}
 }
