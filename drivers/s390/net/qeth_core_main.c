@@ -1177,10 +1177,7 @@ static void qeth_notify_skbs(struct qeth_qdio_out_q *q,
 {
 	struct sk_buff *skb;
 
-	if (skb_queue_empty(&buf->skb_list))
-		goto out;
-	skb = skb_peek(&buf->skb_list);
-	while (skb) {
+	skb_queue_walk(&buf->skb_list, skb) {
 		QETH_CARD_TEXT_(q->card, 5, "skbn%d", notification);
 		QETH_CARD_TEXT_(q->card, 5, "%lx", (long) skb);
 		if (be16_to_cpu(skb->protocol) == ETH_P_AF_IUCV) {
@@ -1189,13 +1186,7 @@ static void qeth_notify_skbs(struct qeth_qdio_out_q *q,
 				iucv->sk_txnotify(skb, notification);
 			}
 		}
-		if (skb_queue_is_last(&buf->skb_list, skb))
-			skb = NULL;
-		else
-			skb = skb_queue_next(&buf->skb_list, skb);
 	}
-out:
-	return;
 }
 
 static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf)
@@ -1210,8 +1201,7 @@ static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf)
 	/* release may never happen from within CQ tasklet scope */
 	WARN_ON_ONCE(atomic_read(&buf->state) == QETH_QDIO_BUF_IN_CQ);
 
-	skb = skb_dequeue(&buf->skb_list);
-	while (skb) {
+	skb_queue_walk(&buf->skb_list, skb) {
 		QETH_CARD_TEXT(buf->q->card, 5, "skbr");
 		QETH_CARD_TEXT_(buf->q->card, 5, "%lx", (long) skb);
 		if (notify_general_error &&
@@ -1222,9 +1212,8 @@ static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf)
 			}
 		}
 		refcount_dec(&skb->users);
-		dev_kfree_skb_any(skb);
-		skb = skb_dequeue(&buf->skb_list);
 	}
+	__skb_queue_purge(&buf->skb_list);
 }
 
 static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
@@ -4000,7 +3989,7 @@ static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 	int flush_cnt = 0;
 
 	refcount_inc(&skb->users);
-	skb_queue_tail(&buf->skb_list, skb);
+	__skb_queue_tail(&buf->skb_list, skb);
 
 	/* build dedicated header element */
 	if (hd_len) {
