@@ -290,6 +290,18 @@
 	};
 };
 
+&spi0 {
+	status = "okay";
+
+	spiflash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+
+		/* maximum speed for Rockchip SPI */
+		spi-max-frequency = <50000000>;
+	};
+};
+
 &tsadc {
 	rockchip,hw-tshut-mode = <0>;
 	rockchip,hw-tshut-polarity = <0>;
