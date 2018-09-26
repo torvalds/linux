@@ -455,7 +455,7 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 	if (channel) {
 		chan = ieee80211_frequency_to_channel(channel->center_freq);
 		result = prism2_domibset_uint32(wlandev,
-						DIDmib_dot11phy_dot11PhyDSSSTable_dot11CurrentChannel,
+						DIDMIB_DOT11PHY_DSSSTABLE_CURRENTCHANNEL,
 						chan);
 		if (result)
 			goto exit;

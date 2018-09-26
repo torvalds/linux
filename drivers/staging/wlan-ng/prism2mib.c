@@ -206,7 +206,7 @@ static struct mibrec mibtab[] = {
 
 	/* dot11phy MIB's */
 
-	{DIDmib_dot11phy_dot11PhyDSSSTable_dot11CurrentChannel,
+	{DIDMIB_DOT11PHY_DSSSTABLE_CURRENTCHANNEL,
 	 F_STA | F_READ,
 	 HFA384x_RID_CURRENTCHANNEL, 0, 0,
 	 prism2mib_uint32},
