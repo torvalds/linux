@@ -60,39 +60,6 @@ static inline struct dpu_kms *_dpu_crtc_get_kms(struct drm_crtc *crtc)
 	return to_dpu_kms(priv->kms);
 }
 
-static inline int _dpu_crtc_power_enable(struct dpu_crtc *dpu_crtc, bool enable)
-{
-	struct drm_crtc *crtc;
-	struct msm_drm_private *priv;
-	struct dpu_kms *dpu_kms;
-
-	if (!dpu_crtc) {
-		DPU_ERROR("invalid dpu crtc\n");
-		return -EINVAL;
-	}
-
-	crtc = &dpu_crtc->base;
-	if (!crtc->dev || !crtc->dev->dev_private) {
-		DPU_ERROR("invalid drm device\n");
-		return -EINVAL;
-	}
-
-	priv = crtc->dev->dev_private;
-	if (!priv->kms) {
-		DPU_ERROR("invalid kms\n");
-		return -EINVAL;
-	}
-
-	dpu_kms = to_dpu_kms(priv->kms);
-
-	if (enable)
-		pm_runtime_get_sync(&dpu_kms->pdev->dev);
-	else
-		pm_runtime_put_sync(&dpu_kms->pdev->dev);
-
-	return 0;
-}
-
 static void dpu_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
@@ -823,14 +790,10 @@ static int _dpu_crtc_vblank_enable_no_lock(
 	dev = crtc->dev;
 
 	if (enable) {
-		int ret;
-
 		/* drop lock since power crtc cb may try to re-acquire lock */
 		mutex_unlock(&dpu_crtc->crtc_lock);
-		ret = _dpu_crtc_power_enable(dpu_crtc, true);
+		pm_runtime_get_sync(dev->dev);
 		mutex_lock(&dpu_crtc->crtc_lock);
-		if (ret)
-			return ret;
 
 		list_for_each_entry(enc, &dev->mode_config.encoder_list, head) {
 			if (enc->crtc != crtc)
@@ -857,7 +820,7 @@ static int _dpu_crtc_vblank_enable_no_lock(
 
 		/* drop lock since power crtc cb may try to re-acquire lock */
 		mutex_unlock(&dpu_crtc->crtc_lock);
-		_dpu_crtc_power_enable(dpu_crtc, false);
+		pm_runtime_put_sync(dev->dev);
 		mutex_lock(&dpu_crtc->crtc_lock);
 	}
 
