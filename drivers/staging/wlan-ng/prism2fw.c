@@ -1036,7 +1036,7 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	strcpy(rwrmsg->devname, wlandev->name);
 	rwrmsg->msgcode = DIDMSG_P2REQ_RAMDL_WRITE;
 	rwrmsg->msglen = sizeof(*rwrmsg);
-	rwrmsg->addr.did = DIDmsg_p2req_ramdl_write_addr;
+	rwrmsg->addr.did = DIDMSG_P2REQ_RAMDL_WRITE_ADDR;
 	rwrmsg->len.did = DIDmsg_p2req_ramdl_write_len;
 	rwrmsg->data.did = DIDmsg_p2req_ramdl_write_data;
 	rwrmsg->resultcode.did = DIDmsg_p2req_ramdl_write_resultcode;
