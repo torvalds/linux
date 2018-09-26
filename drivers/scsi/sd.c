@@ -45,6 +45,7 @@
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
+#include <linux/blk-pm.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/string_helpers.h>

@@ -228,4 +228,7 @@ config BLK_MQ_RDMA
 	depends on BLOCK && INFINIBAND
 	default y
 
+config BLK_PM
+	def_bool BLOCK && PM
+
 source block/Kconfig.iosched

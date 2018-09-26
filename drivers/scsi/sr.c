@@ -43,6 +43,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
+#include <linux/blk-pm.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
