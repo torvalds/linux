@@ -17,12 +17,13 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/kernel.h>
+#include <linux/cpufeature.h>
+#include <linux/cpuhotplug.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/topology.h>
 #include <linux/workqueue.h>
-#include <linux/cpuhotplug.h>
-#include <linux/cpufeature.h>
+
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 
