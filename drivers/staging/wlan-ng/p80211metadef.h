@@ -174,7 +174,7 @@
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(6) | \
 			P80211DID_MKITEM(4) | 0x18000000)
-#define DIDmib_dot11mac_dot11OperationTable \
+#define DIDMIB_DOT11MAC_OPERATIONTABLE \
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1))
 #define DIDmib_dot11mac_dot11OperationTable_dot11MACAddress \
