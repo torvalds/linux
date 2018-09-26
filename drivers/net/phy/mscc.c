@@ -453,7 +453,7 @@ static int vsc85xx_dt_led_modes_get(struct phy_device *phydev,
 				    u32 *default_mode)
 {
 	struct vsc8531_private *priv = phydev->priv;
-	char led_dt_prop[19];
+	char led_dt_prop[28];
 	int i, ret;
 
 	for (i = 0; i < priv->nleds; i++) {
