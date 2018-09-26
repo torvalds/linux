@@ -1044,8 +1044,7 @@ void octeon_delete_dispatch_list(struct octeon_device *oct)
 		dispatch = &oct->dispatch.dlist[i].list;
 		while (dispatch->next != dispatch) {
 			temp = dispatch->next;
-			list_del(temp);
-			list_add_tail(temp, &freelist);
+			list_move_tail(temp, &freelist);
 		}
 
 		oct->dispatch.dlist[i].opcode = 0;
