@@ -55,21 +55,13 @@ static void virtio_gpu_config_changed_work_func(struct work_struct *work)
 static void virtio_gpu_ctx_id_get(struct virtio_gpu_device *vgdev,
 				  uint32_t *resid)
 {
-	int handle;
-
-	idr_preload(GFP_KERNEL);
-	spin_lock(&vgdev->ctx_id_idr_lock);
-	handle = idr_alloc(&vgdev->ctx_id_idr, NULL, 1, 0, 0);
-	spin_unlock(&vgdev->ctx_id_idr_lock);
-	idr_preload_end();
+	int handle = ida_alloc_min(&vgdev->ctx_id_ida, 1, GFP_KERNEL);
 	*resid = handle;
 }
 
 static void virtio_gpu_ctx_id_put(struct virtio_gpu_device *vgdev, uint32_t id)
 {
-	spin_lock(&vgdev->ctx_id_idr_lock);
-	idr_remove(&vgdev->ctx_id_idr, id);
-	spin_unlock(&vgdev->ctx_id_idr_lock);
+	ida_free(&vgdev->ctx_id_ida, id);
 }
 
 static void virtio_gpu_context_create(struct virtio_gpu_device *vgdev,
@@ -151,10 +143,8 @@ int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags)
 	vgdev->dev = dev->dev;
 
 	spin_lock_init(&vgdev->display_info_lock);
-	spin_lock_init(&vgdev->ctx_id_idr_lock);
-	idr_init(&vgdev->ctx_id_idr);
-	spin_lock_init(&vgdev->resource_idr_lock);
-	idr_init(&vgdev->resource_idr);
+	ida_init(&vgdev->ctx_id_ida);
+	ida_init(&vgdev->resource_ida);
 	init_waitqueue_head(&vgdev->resp_wq);
 	virtio_gpu_init_vq(&vgdev->ctrlq, virtio_gpu_dequeue_ctrl_func);
 	virtio_gpu_init_vq(&vgdev->cursorq, virtio_gpu_dequeue_cursor_func);
