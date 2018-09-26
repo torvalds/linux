@@ -327,7 +327,7 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 		pr_debug("Received mlme flashdl_state request\n");
 		result = prism2mgmt_flashdl_state(wlandev, msg);
 		break;
-	case DIDmsg_p2req_flashdl_write:
+	case DIDMSG_P2REQ_FLASHDL_WRITE:
 		pr_debug("Received mlme flashdl_write request\n");
 		result = prism2mgmt_flashdl_write(wlandev, msg);
 		break;

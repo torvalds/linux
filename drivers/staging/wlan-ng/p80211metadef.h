@@ -148,7 +148,7 @@
 #define DIDMSG_P2REQ_FLASHDL_STATE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(13))
-#define DIDmsg_p2req_flashdl_write \
+#define DIDMSG_P2REQ_FLASHDL_WRITE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(14))
 #define DIDmib_cat_dot11smt \
