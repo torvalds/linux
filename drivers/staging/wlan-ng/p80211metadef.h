@@ -73,7 +73,7 @@
 #define DIDMSG_DOT11REQ_SCAN \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(4))
-#define DIDmsg_dot11req_scan_results \
+#define DIDMSG_DOT11REQ_SCAN_RESULTS \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(5))
 #define DIDmsg_dot11req_start \

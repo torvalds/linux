@@ -350,7 +350,7 @@ static int prism2_scan(struct wiphy *wiphy,
 		int freq;
 
 		memset(&msg2, 0, sizeof(msg2));
-		msg2.msgcode = DIDmsg_dot11req_scan_results;
+		msg2.msgcode = DIDMSG_DOT11REQ_SCAN_RESULTS;
 		msg2.bssindex.data = i;
 
 		result = p80211req_dorequest(wlandev, (u8 *)&msg2);
