@@ -268,6 +268,9 @@ void __init kasan_early_init(void)
 	memsize = get_mem_detect_end();
 	if (!memsize)
 		kasan_early_panic("cannot detect physical memory size\n");
+	/* respect mem= cmdline parameter */
+	if (memory_end_set && memsize > memory_end)
+		memsize = memory_end;
 	memsize = min(memsize, KASAN_SHADOW_START);
 
 	if (IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING)) {
