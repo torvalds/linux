@@ -113,6 +113,7 @@ int rt2x00queue_map_txskb(struct queue_entry *entry)
 		return -ENOMEM;
 
 	skbdesc->flags |= SKBDESC_DMA_MAPPED_TX;
+	rt2x00lib_dmadone(entry);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_map_txskb);
