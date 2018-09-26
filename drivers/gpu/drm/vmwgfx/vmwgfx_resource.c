@@ -219,9 +219,6 @@ int vmw_user_resource_lookup_handle(struct vmw_private *dev_priv,
 		goto out_bad_resource;
 
 	res = converter->base_obj_to_res(base);
-	if (res->res_free != converter->res_free)
-		goto out_bad_resource;
-
 	kref_get(&res->kref);
 
 	*p_res = res;
