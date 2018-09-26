@@ -224,7 +224,7 @@ static struct mibrec mibtab[] = {
 
 	/* p2MAC MIB's */
 
-	{DIDmib_p2_p2MAC_p2CurrentTxRate,
+	{DIDMIB_P2_MAC_CURRENTTXRATE,
 	 F_STA | F_READ,
 	 HFA384x_RID_CURRENTTXRATE, 0, 0,
 	 prism2mib_uint32},

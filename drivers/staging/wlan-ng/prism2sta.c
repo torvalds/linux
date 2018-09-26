@@ -1950,7 +1950,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 
 	/* Get the signal rate */
 	msg.msgcode = DIDMSG_DOT11REQ_MIBGET;
-	mibitem->did = DIDmib_p2_p2MAC_p2CurrentTxRate;
+	mibitem->did = DIDMIB_P2_MAC_CURRENTTXRATE;
 	result = p80211req_dorequest(wlandev, (u8 *)&msg);
 
 	if (result) {
