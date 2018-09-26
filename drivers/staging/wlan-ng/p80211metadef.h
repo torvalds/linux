@@ -203,7 +203,7 @@
 			P80211DID_MKITEM(6) | 0x10000000)
 #define DIDMIB_CAT_DOT11PHY \
 			P80211DID_MKSECTION(3)
-#define DIDmib_dot11phy_dot11PhyOperationTable \
+#define DIDMIB_DOT11PHY_OPERATIONTABLE \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(1))
 #define DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel \
