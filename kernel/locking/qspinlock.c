@@ -326,16 +326,23 @@ void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 	/*
 	 * trylock || pending
 	 *
-	 * 0,0,0 -> 0,0,1 ; trylock
-	 * 0,0,1 -> 0,1,1 ; pending
+	 * 0,0,* -> 0,1,* -> 0,0,1 pending, trylock
 	 */
 	val = atomic_fetch_or_acquire(_Q_PENDING_VAL, &lock->val);
+
 	/*
-	 * If we observe any contention; undo and queue.
+	 * If we observe contention, there is a concurrent locker.
+	 *
+	 * Undo and queue; our setting of PENDING might have made the
+	 * n,0,0 -> 0,0,0 transition fail and it will now be waiting
+	 * on @next to become !NULL.
 	 */
 	if (unlikely(val & ~_Q_LOCKED_MASK)) {
+
+		/* Undo PENDING if we set it. */
 		if (!(val & _Q_PENDING_MASK))
 			clear_pending(lock);
+
 		goto queue;
 	}
 
@@ -474,16 +481,25 @@ locked:
 	 */
 
 	/*
-	 * In the PV case we might already have _Q_LOCKED_VAL set.
+	 * In the PV case we might already have _Q_LOCKED_VAL set, because
+	 * of lock stealing; therefore we must also allow:
 	 *
-	 * The atomic_cond_read_acquire() call above has provided the
-	 * necessary acquire semantics required for locking.
+	 * n,0,1 -> 0,0,1
+	 *
+	 * Note: at this point: (val & _Q_PENDING_MASK) == 0, because of the
+	 *       above wait condition, therefore any concurrent setting of
+	 *       PENDING will make the uncontended transition fail.
 	 */
-	if (((val & _Q_TAIL_MASK) == tail) &&
-	    atomic_try_cmpxchg_relaxed(&lock->val, &val, _Q_LOCKED_VAL))
-		goto release; /* No contention */
+	if ((val & _Q_TAIL_MASK) == tail) {
+		if (atomic_try_cmpxchg_relaxed(&lock->val, &val, _Q_LOCKED_VAL))
+			goto release; /* No contention */
+	}
 
-	/* Either somebody is queued behind us or _Q_PENDING_VAL is set */
+	/*
+	 * Either somebody is queued behind us or _Q_PENDING_VAL got set
+	 * which will then detect the remaining tail and queue behind us
+	 * ensuring we'll see a @next.
+	 */
 	set_locked(lock);
 
 	/*
