@@ -1513,6 +1513,7 @@ static struct qeth_card *qeth_alloc_card(struct ccwgroup_device *gdev)
 	QETH_DBF_HEX(SETUP, 2, &card, sizeof(void *));
 
 	card->gdev = gdev;
+	dev_set_drvdata(&gdev->dev, card);
 	CARD_RDEV(card) = gdev->cdev[0];
 	CARD_WDEV(card) = gdev->cdev[1];
 	CARD_DDEV(card) = gdev->cdev[2];
@@ -1531,6 +1532,7 @@ out_data:
 out_channel:
 	qeth_clean_channel(&card->read);
 out_ip:
+	dev_set_drvdata(&gdev->dev, NULL);
 	kfree(card);
 out:
 	return NULL;
@@ -5074,6 +5076,7 @@ static void qeth_core_free_card(struct qeth_card *card)
 	qeth_clean_channel(&card->data);
 	qeth_free_qdio_buffers(card);
 	unregister_service_level(&card->qeth_service_level);
+	dev_set_drvdata(&card->gdev->dev, NULL);
 	kfree(card);
 }
 
@@ -5788,7 +5791,6 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 			goto err_card;
 	}
 
-	dev_set_drvdata(&gdev->dev, card);
 	qeth_setup_card(card);
 	qeth_update_from_chp_desc(card);
 
@@ -5851,7 +5853,6 @@ static void qeth_core_remove_device(struct ccwgroup_device *gdev)
 	write_unlock_irq(&qeth_core_card_list.rwlock);
 	free_netdev(card->dev);
 	qeth_core_free_card(card);
-	dev_set_drvdata(&gdev->dev, NULL);
 	put_device(&gdev->dev);
 }
 
