@@ -437,7 +437,7 @@ static int rcar_du_remove(struct platform_device *pdev)
 	drm_kms_helper_poll_fini(ddev);
 	drm_mode_config_cleanup(ddev);
 
-	drm_dev_unref(ddev);
+	drm_dev_put(ddev);
 
 	return 0;
 }
