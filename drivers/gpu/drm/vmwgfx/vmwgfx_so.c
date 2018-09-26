@@ -366,7 +366,8 @@ int vmw_view_add(struct vmw_cmdbuf_res_manager *man,
 	res = &view->res;
 	view->ctx = ctx;
 	view->srf = vmw_resource_reference(srf);
-	view->cotable = vmw_context_cotable(ctx, vmw_view_cotables[view_type]);
+	view->cotable = vmw_resource_reference
+		(vmw_context_cotable(ctx, vmw_view_cotables[view_type]));
 	view->view_type = view_type;
 	view->view_id = user_key;
 	view->cmd_size = cmd_size;

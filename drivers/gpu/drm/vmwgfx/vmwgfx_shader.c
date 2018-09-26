@@ -636,7 +636,8 @@ int vmw_dx_shader_add(struct vmw_cmdbuf_res_manager *man,
 
 	res = &shader->res;
 	shader->ctx = ctx;
-	shader->cotable = vmw_context_cotable(ctx, SVGA_COTABLE_DXSHADER);
+	shader->cotable = vmw_resource_reference
+		(vmw_context_cotable(ctx, SVGA_COTABLE_DXSHADER));
 	shader->id = user_key;
 	shader->committed = false;
 	INIT_LIST_HEAD(&shader->cotable_head);

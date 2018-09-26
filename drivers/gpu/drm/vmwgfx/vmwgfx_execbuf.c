@@ -372,7 +372,6 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 				continue;
 
 			ret = vmw_resource_val_add(sw_context, res);
-			vmw_resource_unreference(&res);
 			if (unlikely(ret != 0))
 				return ret;
 		}
@@ -1266,7 +1265,6 @@ static int vmw_cmd_dx_define_query(struct vmw_private *dev_priv,
 
 	cotable_res = vmw_context_cotable(ctx_node->ctx, SVGA_COTABLE_DXQUERY);
 	ret = vmw_cotable_notify(cotable_res, cmd->q.queryId);
-	vmw_resource_unreference(&cotable_res);
 
 	return ret;
 }
@@ -2578,7 +2576,6 @@ static int vmw_cmd_dx_view_define(struct vmw_private *dev_priv,
 
 	res = vmw_context_cotable(ctx_node->ctx, vmw_view_cotables[view_type]);
 	ret = vmw_cotable_notify(res, cmd->defined_id);
-	vmw_resource_unreference(&res);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -2675,7 +2672,6 @@ static int vmw_cmd_dx_so_define(struct vmw_private *dev_priv,
 	res = vmw_context_cotable(ctx_node->ctx, vmw_so_cotables[so_type]);
 	cmd = container_of(header, typeof(*cmd), header);
 	ret = vmw_cotable_notify(res, cmd->defined_id);
-	vmw_resource_unreference(&res);
 
 	return ret;
 }
@@ -2806,7 +2802,6 @@ static int vmw_cmd_dx_define_shader(struct vmw_private *dev_priv,
 
 	res = vmw_context_cotable(ctx_node->ctx, SVGA_COTABLE_DXSHADER);
 	ret = vmw_cotable_notify(res, cmd->body.shaderId);
-	vmw_resource_unreference(&res);
 	if (ret)
 		return ret;
 

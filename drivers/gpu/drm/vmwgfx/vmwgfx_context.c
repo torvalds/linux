@@ -861,9 +861,8 @@ struct vmw_resource *vmw_context_cotable(struct vmw_resource *ctx,
 	if (cotable_type >= SVGA_COTABLE_DX10_MAX)
 		return ERR_PTR(-EINVAL);
 
-	return vmw_resource_reference
-		(container_of(ctx, struct vmw_user_context, res)->
-		 cotables[cotable_type]);
+	return container_of(ctx, struct vmw_user_context, res)->
+		cotables[cotable_type];
 }
 
 /**
