@@ -2586,8 +2586,8 @@ int vmw_kms_helper_buffer_prepare(struct vmw_private *dev_priv,
 	if (for_cpu_blit)
 		ret = ttm_bo_validate(bo, &vmw_nonfixed_placement, &ctx);
 	else
-		ret = vmw_validate_single_buffer(dev_priv, bo, interruptible,
-						 validate_as_mob);
+		ret = vmw_validation_bo_validate_single(bo, interruptible,
+							validate_as_mob);
 	if (ret)
 		ttm_bo_unreserve(bo);
 

@@ -28,6 +28,7 @@
 #ifndef _VMWGFX_DRV_H_
 #define _VMWGFX_DRV_H_
 
+#include "vmwgfx_validation.h"
 #include "vmwgfx_reg.h"
 #include <drm/drmP.h>
 #include <drm/vmwgfx_drm.h>
@@ -207,26 +208,27 @@ struct vmw_fifo_state {
 struct vmw_relocation {
 	SVGAMobId *mob_loc;
 	SVGAGuestPtr *location;
-	uint32_t index;
+	struct vmw_buffer_object *vbo;
 };
 
 /**
  * struct vmw_res_cache_entry - resource information cache entry
- *
+ * @handle: User-space handle of a resource.
+ * @res: Non-ref-counted pointer to the resource.
+ * @valid_handle: Whether the @handle member is valid.
  * @valid: Whether the entry is valid, which also implies that the execbuf
  * code holds a reference to the resource, and it's placed on the
  * validation list.
- * @handle: User-space handle of a resource.
- * @res: Non-ref-counted pointer to the resource.
  *
  * Used to avoid frequent repeated user-space handle lookups of the
  * same resource.
  */
 struct vmw_res_cache_entry {
-	bool valid;
 	uint32_t handle;
 	struct vmw_resource *res;
-	struct vmw_resource_val_node *node;
+	void *private;
+	unsigned short valid_handle;
+	unsigned short valid;
 };
 
 /**
@@ -291,21 +293,52 @@ enum vmw_display_unit_type {
 	vmw_du_screen_target
 };
 
+struct vmw_validation_context;
+struct vmw_ctx_validation_info;
 
+/**
+ * struct vmw_sw_context - Command submission context
+ * @res_ht: Pointer hash table used to find validation duplicates
+ * @kernel: Whether the command buffer originates from kernel code rather
+ * than from user-space
+ * @fp: If @kernel is false, points to the file of the client. Otherwise
+ * NULL
+ * @relocs: Array of buffer object relocations
+ * @cur_reloc: Cursor pointing to the current relocation
+ * @cmd_bounce: Command bounce buffer used for command validation before
+ * copying to fifo space
+ * @cmd_bounce_size: Current command bounce buffer size
+ * @cur_query_bo: Current buffer object used as query result buffer
+ * @res_relocations: List of resource relocations
+ * @buf_start: Pointer to start of memory where command validation takes
+ * place
+ * @res_cache: Cache of recently looked up resources
+ * @last_query_ctx: Last context that submitted a query
+ * @needs_post_query_barrier: Whether a query barrier is needed after
+ * command submission
+ * @error_resource: Pointer to hold a reference to the resource causing
+ * an error
+ * @staged_bindings: Cached per-context binding tracker
+ * @staged_bindings_inuse: Whether the cached per-context binding tracker
+ * is in use
+ * @staged_cmd_res: List of staged command buffer managed resources in this
+ * command buffer
+ * @ctx_list: List of context resources referenced in this command buffer
+ * @dx_ctx_node: Validation metadata of the current DX context
+ * @dx_query_mob: The MOB used for DX queries
+ * @dx_query_ctx: The DX context used for the last DX query
+ * @man: Pointer to the command buffer managed resource manager
+ * @ctx: The validation context
+ */
 struct vmw_sw_context{
 	struct drm_open_hash res_ht;
 	bool res_ht_initialized;
-	bool kernel; /**< is the called made from the kernel */
+	bool kernel;
 	struct vmw_fpriv *fp;
-	struct list_head validate_nodes;
 	struct vmw_relocation relocs[VMWGFX_MAX_RELOCATIONS];
 	uint32_t cur_reloc;
-	struct vmw_validate_buffer val_bufs[VMWGFX_MAX_VALIDATIONS];
-	uint32_t cur_val_buf;
 	uint32_t *cmd_bounce;
 	uint32_t cmd_bounce_size;
-	struct list_head resource_list;
-	struct list_head ctx_resource_list; /* For contexts and cotables */
 	struct vmw_buffer_object *cur_query_bo;
 	struct list_head res_relocations;
 	uint32_t *buf_start;
@@ -316,10 +349,12 @@ struct vmw_sw_context{
 	struct vmw_ctx_binding_state *staged_bindings;
 	bool staged_bindings_inuse;
 	struct list_head staged_cmd_res;
-	struct vmw_resource_val_node *dx_ctx_node;
+	struct list_head ctx_list;
+	struct vmw_ctx_validation_info *dx_ctx_node;
 	struct vmw_buffer_object *dx_query_mob;
 	struct vmw_resource *dx_query_ctx;
 	struct vmw_cmdbuf_res_manager *man;
+	struct vmw_validation_context *ctx;
 };
 
 struct vmw_legacy_display;
@@ -864,10 +899,6 @@ extern void vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 					uint32_t fence_handle,
 					int32_t out_fence_fd,
 					struct sync_file *sync_file);
-extern int vmw_validate_single_buffer(struct vmw_private *dev_priv,
-				      struct ttm_buffer_object *bo,
-				      bool interruptible,
-				      bool validate_as_mob);
 bool vmw_cmd_describe(const void *buf, u32 *size, char const **cmd);
 
 /**
