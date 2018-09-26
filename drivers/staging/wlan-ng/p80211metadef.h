@@ -210,7 +210,7 @@
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(3) | \
 			P80211DID_MKITEM(10) | 0x18000000)
-#define DIDmib_dot11phy_dot11PhyDSSSTable \
+#define DIDMIB_DOT11PHY_DSSSTABLE \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(5))
 #define DIDmib_dot11phy_dot11PhyDSSSTable_dot11CurrentChannel \
