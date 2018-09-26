@@ -16,7 +16,6 @@
  * General Public License for more details.
  */
 
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/intel_msic.h>
