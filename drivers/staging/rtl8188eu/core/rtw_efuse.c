@@ -900,9 +900,7 @@ static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 efuseType, u8 *Efuse)
 }
 
 /* Transfer current EFUSE content to shadow init and modify map. */
-void EFUSE_ShadowMapUpdate(
-	struct adapter *pAdapter,
-	u8 efuseType)
+void EFUSE_ShadowMapUpdate(struct adapter *pAdapter, u8 efuseType)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(pAdapter);
 
