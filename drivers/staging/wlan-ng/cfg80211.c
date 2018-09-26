@@ -508,7 +508,7 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 			goto exit;
 
 		result = prism2_domibset_uint32(wlandev,
-						DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted,
+						DIDMIB_DOT11SMT_PRIVACYTABLE_EXCLUDEUNENCRYPTED,
 						P80211ENUM_truth_true);
 		if (result)
 			goto exit;
@@ -524,7 +524,7 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 			goto exit;
 
 		result = prism2_domibset_uint32(wlandev,
-						DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted,
+						DIDMIB_DOT11SMT_PRIVACYTABLE_EXCLUDEUNENCRYPTED,
 						P80211ENUM_truth_false);
 		if (result)
 			goto exit;

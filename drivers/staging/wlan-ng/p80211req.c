@@ -233,7 +233,7 @@ static void p80211req_mibset_mibget(struct wlandevice *wlandev,
 					HOSTWEP_PRIVACYINVOKED);
 	break;
 	}
-	case DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted:{
+	case DIDMIB_DOT11SMT_PRIVACYTABLE_EXCLUDEUNENCRYPTED:{
 		u32 *data = (u32 *)mibitem->data;
 
 		p80211req_handle_action(wlandev, data, isget,

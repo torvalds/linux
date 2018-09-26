@@ -172,7 +172,7 @@ static struct mibrec mibtab[] = {
 	 F_STA | F_READ | F_WRITE,
 	 HFA384x_RID_CNFWEPDEFAULTKEYID, 0, 0,
 	 prism2mib_uint32},
-	{DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted,
+	{DIDMIB_DOT11SMT_PRIVACYTABLE_EXCLUDEUNENCRYPTED,
 	 F_STA | F_READ | F_WRITE,
 	 HFA384x_RID_CNFWEPFLAGS, HFA384x_WEPFLAGS_EXCLUDE, 0,
 	 prism2mib_excludeunencrypted},
