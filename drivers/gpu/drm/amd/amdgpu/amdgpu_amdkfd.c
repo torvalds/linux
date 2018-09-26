@@ -204,7 +204,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 					adev->doorbell_index.last_non_cp;
 		}
 
-		kgd2kfd_device_init(adev->kfd.dev, &gpu_resources);
+		kgd2kfd_device_init(adev->kfd.dev, adev->ddev, &gpu_resources);
 	}
 }
 
