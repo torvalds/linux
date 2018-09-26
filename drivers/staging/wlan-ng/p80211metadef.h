@@ -239,7 +239,7 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(5) | \
 			P80211DID_MKITEM(6) | 0x10000000)
-#define DIDmib_p2_p2MAC \
+#define DIDMIB_P2_MAC \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(6))
 #define DIDmib_p2_p2MAC_p2CurrentTxRate \
