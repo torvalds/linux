@@ -649,7 +649,7 @@ static int p80211knetdev_set_mac_address(struct net_device *dev, void *addr)
 	mibattr->status = P80211ENUM_msgitem_status_data_ok;
 	mibattr->len = sizeof(mibattr->data);
 
-	macaddr->did = DIDmib_dot11mac_dot11OperationTable_dot11MACAddress;
+	macaddr->did = DIDMIB_DOT11MAC_OPERATIONTABLE_MACADDRESS;
 	macaddr->status = P80211ENUM_msgitem_status_data_ok;
 	macaddr->len = sizeof(macaddr->data);
 	macaddr->data.len = ETH_ALEN;

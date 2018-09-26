@@ -179,7 +179,7 @@ static struct mibrec mibtab[] = {
 
 	/* dot11mac MIB's */
 
-	{DIDmib_dot11mac_dot11OperationTable_dot11MACAddress,
+	{DIDMIB_DOT11MAC_OPERATIONTABLE_MACADDRESS,
 	 F_STA | F_READ | F_WRITE,
 	 HFA384x_RID_CNFOWNMACADDR, HFA384x_RID_CNFOWNMACADDR_LEN, 0,
 	 prism2mib_bytearea2pstr},
