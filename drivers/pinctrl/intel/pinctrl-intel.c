@@ -754,7 +754,7 @@ static const struct pinctrl_desc intel_pinctrl_desc = {
  * intel_gpio_to_pin() - Translate from GPIO offset to pin number
  * @pctrl: Pinctrl structure
  * @offset: GPIO offset from gpiolib
- * @commmunity: Community is filled here if not %NULL
+ * @community: Community is filled here if not %NULL
  * @padgrp: Pad group is filled here if not %NULL
  *
  * When coming through gpiolib irqchip, the GPIO offset is not
