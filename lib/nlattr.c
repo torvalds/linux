@@ -155,6 +155,20 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 		 */
 		if (attrlen == 0)
 			break;
+		if (attrlen < NLA_HDRLEN)
+			goto out_err;
+		if (pt->validation_data) {
+			err = nla_validate(nla_data(nla), nla_len(nla), pt->len,
+					   pt->validation_data, extack);
+			if (err < 0) {
+				/*
+				 * return directly to preserve the inner
+				 * error message/attribute pointer
+				 */
+				return err;
+			}
+		}
+		break;
 	default:
 		if (pt->len)
 			minlen = pt->len;
