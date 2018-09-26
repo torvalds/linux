@@ -465,7 +465,7 @@ static int m88e1121_config_aneg(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	if (phydev->autoneg != autoneg || changed) {
+	if (phydev->autoneg != AUTONEG_ENABLE || changed) {
 		/* A software reset is used to ensure a "commit" of the
 		 * changes is done.
 		 */
