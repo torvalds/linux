@@ -42,7 +42,7 @@
 #define T_BC_LVL_DEBOUNCE_DELAY_MS 30
 
 enum toggling_mode {
-	TOGGLINE_MODE_OFF,
+	TOGGLING_MODE_OFF,
 	TOGGLING_MODE_DRP,
 	TOGGLING_MODE_SNK,
 	TOGGLING_MODE_SRC,
@@ -594,7 +594,7 @@ static int fusb302_set_toggling(struct fusb302_chip *chip,
 	chip->intr_comp_chng = false;
 	/* configure toggling mode: none/snk/src/drp */
 	switch (mode) {
-	case TOGGLINE_MODE_OFF:
+	case TOGGLING_MODE_OFF:
 		ret = fusb302_i2c_mask_write(chip, FUSB_REG_CONTROL2,
 					     FUSB_REG_CONTROL2_MODE_MASK,
 					     FUSB_REG_CONTROL2_MODE_NONE);
@@ -626,7 +626,7 @@ static int fusb302_set_toggling(struct fusb302_chip *chip,
 		break;
 	}
 
-	if (mode == TOGGLINE_MODE_OFF) {
+	if (mode == TOGGLING_MODE_OFF) {
 		/* mask TOGDONE interrupt */
 		ret = fusb302_i2c_set_bits(chip, FUSB_REG_MASKA,
 					   FUSB_REG_MASKA_TOGDONE);
@@ -702,7 +702,7 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 		ret = -EINVAL;
 		goto done;
 	}
-	ret = fusb302_set_toggling(chip, TOGGLINE_MODE_OFF);
+	ret = fusb302_set_toggling(chip, TOGGLING_MODE_OFF);
 	if (ret < 0) {
 		fusb302_log(chip, "cannot stop toggling, ret=%d", ret);
 		goto done;
@@ -1292,7 +1292,7 @@ static int fusb302_handle_togdone_snk(struct fusb302_chip *chip,
 		tcpm_cc_change(chip->tcpm_port);
 	}
 	/* turn off toggling */
-	ret = fusb302_set_toggling(chip, TOGGLINE_MODE_OFF);
+	ret = fusb302_set_toggling(chip, TOGGLING_MODE_OFF);
 	if (ret < 0) {
 		fusb302_log(chip,
 			    "cannot set toggling mode off, ret=%d", ret);
@@ -1388,7 +1388,7 @@ static int fusb302_handle_togdone_src(struct fusb302_chip *chip,
 		tcpm_cc_change(chip->tcpm_port);
 	}
 	/* turn off toggling */
-	ret = fusb302_set_toggling(chip, TOGGLINE_MODE_OFF);
+	ret = fusb302_set_toggling(chip, TOGGLING_MODE_OFF);
 	if (ret < 0) {
 		fusb302_log(chip,
 			    "cannot set toggling mode off, ret=%d", ret);
