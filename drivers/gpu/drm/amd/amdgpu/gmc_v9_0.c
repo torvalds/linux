@@ -244,6 +244,62 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 	return 0;
 }
 
+/**
+ * vega10_ih_prescreen_iv - prescreen an interrupt vector
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns true if the interrupt vector should be further processed.
+ */
+static bool gmc_v9_0_prescreen_iv(struct amdgpu_device *adev,
+				  struct amdgpu_iv_entry *entry,
+				  uint64_t addr)
+{
+	struct amdgpu_vm *vm;
+	u64 key;
+	int r;
+
+	/* No PASID, can't identify faulting process */
+	if (!entry->pasid)
+		return true;
+
+	/* Not a retry fault */
+	if (!(entry->src_data[1] & 0x80))
+		return true;
+
+	/* Track retry faults in per-VM fault FIFO. */
+	spin_lock(&adev->vm_manager.pasid_lock);
+	vm = idr_find(&adev->vm_manager.pasid_idr, entry->pasid);
+	if (!vm) {
+		/* VM not found, process it normally */
+		spin_unlock(&adev->vm_manager.pasid_lock);
+		return true;
+	}
+
+	key = AMDGPU_VM_FAULT(entry->pasid, addr);
+	r = amdgpu_vm_add_fault(vm->fault_hash, key);
+
+	/* Hash table is full or the fault is already being processed,
+	 * ignore further page faults
+	 */
+	if (r != 0) {
+		spin_unlock(&adev->vm_manager.pasid_lock);
+		return false;
+	}
+	/* No locking required with single writer and single reader */
+	r = kfifo_put(&vm->faults, key);
+	if (!r) {
+		/* FIFO is full. Ignore it until there is space */
+		amdgpu_vm_clear_fault(vm->fault_hash, key);
+		spin_unlock(&adev->vm_manager.pasid_lock);
+		return false;
+	}
+
+	spin_unlock(&adev->vm_manager.pasid_lock);
+	/* It's the first fault for this address, process it normally */
+	return true;
+}
+
 static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 				struct amdgpu_irq_src *source,
 				struct amdgpu_iv_entry *entry)
@@ -254,6 +310,9 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 
 	addr = (u64)entry->src_data[0] << 12;
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
+
+	if (!gmc_v9_0_prescreen_iv(adev, entry, addr))
+		return 1; /* This also prevents sending it to KFD */
 
 	if (!amdgpu_sriov_vf(adev)) {
 		status = RREG32(hub->vm_l2_pro_fault_status);

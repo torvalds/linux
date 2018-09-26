@@ -145,10 +145,6 @@ static void amdgpu_irq_callback(struct amdgpu_device *adev,
 	u32 ring_index = ih->rptr >> 2;
 	struct amdgpu_iv_entry entry;
 
-	/* Prescreening of high-frequency interrupts */
-	if (!amdgpu_ih_prescreen_iv(adev))
-		return;
-
 	entry.iv_entry = (const uint32_t *)&ih->ring[ring_index];
 	amdgpu_ih_decode_iv(adev, &entry);
 
