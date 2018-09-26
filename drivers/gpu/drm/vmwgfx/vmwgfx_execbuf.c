@@ -1137,7 +1137,7 @@ static void vmw_query_bo_switch_commit(struct vmw_private *dev_priv,
  * @sw_context: The software context used for this command batch validation.
  * @id: Pointer to the user-space handle to be translated.
  * @vmw_bo_p: Points to a location that, on successful return will carry
- * a reference-counted pointer to the DMA buffer identified by the
+ * a non-reference-counted pointer to the buffer object identified by the
  * user-space handle in @id.
  *
  * This function saves information needed to translate a user-space buffer
@@ -1152,38 +1152,34 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 				 SVGAMobId *id,
 				 struct vmw_buffer_object **vmw_bo_p)
 {
-	struct vmw_buffer_object *vmw_bo = NULL;
+	struct vmw_buffer_object *vmw_bo;
 	uint32_t handle = *id;
 	struct vmw_relocation *reloc;
 	int ret;
 
-	ret = vmw_user_bo_lookup(sw_context->fp->tfile, handle, &vmw_bo, NULL);
-	if (unlikely(ret != 0)) {
+	vmw_validation_preload_bo(sw_context->ctx);
+	vmw_bo = vmw_user_bo_noref_lookup(sw_context->fp->tfile, handle);
+	if (IS_ERR(vmw_bo)) {
 		DRM_ERROR("Could not find or use MOB buffer.\n");
-		ret = -EINVAL;
-		goto out_no_reloc;
+		return PTR_ERR(vmw_bo);
 	}
+
+	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo, true, false);
+	vmw_user_bo_noref_release();
+	if (unlikely(ret != 0))
+		return ret;
 
 	reloc = vmw_validation_mem_alloc(sw_context->ctx, sizeof(*reloc));
 	if (!reloc)
-		goto out_no_reloc;
+		return -ENOMEM;
 
 	reloc->mob_loc = id;
 	reloc->vbo = vmw_bo;
-
-	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo, true, false);
-	if (unlikely(ret != 0))
-		goto out_no_reloc;
 
 	*vmw_bo_p = vmw_bo;
 	list_add_tail(&reloc->head, &sw_context->bo_relocations);
 
 	return 0;
-
-out_no_reloc:
-	vmw_bo_unreference(&vmw_bo);
-	*vmw_bo_p = NULL;
-	return ret;
 }
 
 /**
@@ -1194,7 +1190,7 @@ out_no_reloc:
  * @sw_context: The software context used for this command batch validation.
  * @ptr: Pointer to the user-space handle to be translated.
  * @vmw_bo_p: Points to a location that, on successful return will carry
- * a reference-counted pointer to the DMA buffer identified by the
+ * a non-reference-counted pointer to the DMA buffer identified by the
  * user-space handle in @id.
  *
  * This function saves information needed to translate a user-space buffer
@@ -1210,38 +1206,33 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 				   SVGAGuestPtr *ptr,
 				   struct vmw_buffer_object **vmw_bo_p)
 {
-	struct vmw_buffer_object *vmw_bo = NULL;
+	struct vmw_buffer_object *vmw_bo;
 	uint32_t handle = ptr->gmrId;
 	struct vmw_relocation *reloc;
 	int ret;
 
-	ret = vmw_user_bo_lookup(sw_context->fp->tfile, handle, &vmw_bo, NULL);
-	if (unlikely(ret != 0)) {
+	vmw_validation_preload_bo(sw_context->ctx);
+	vmw_bo = vmw_user_bo_noref_lookup(sw_context->fp->tfile, handle);
+	if (IS_ERR(vmw_bo)) {
 		DRM_ERROR("Could not find or use GMR region.\n");
-		ret = -EINVAL;
-		goto out_no_reloc;
+		return PTR_ERR(vmw_bo);
 	}
+
+	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo, false, false);
+	vmw_user_bo_noref_release();
+	if (unlikely(ret != 0))
+		return ret;
 
 	reloc = vmw_validation_mem_alloc(sw_context->ctx, sizeof(*reloc));
 	if (!reloc)
-		goto out_no_reloc;
+		return -ENOMEM;
 
 	reloc->location = ptr;
 	reloc->vbo = vmw_bo;
-
-	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo, false, false);
-	if (unlikely(ret != 0))
-		goto out_no_reloc;
-
 	*vmw_bo_p = vmw_bo;
 	list_add_tail(&reloc->head, &sw_context->bo_relocations);
 
 	return 0;
-
-out_no_reloc:
-	vmw_bo_unreference(&vmw_bo);
-	*vmw_bo_p = NULL;
-	return ret;
 }
 
 
@@ -1328,10 +1319,7 @@ static int vmw_cmd_dx_bind_query(struct vmw_private *dev_priv,
 
 	sw_context->dx_query_mob = vmw_bo;
 	sw_context->dx_query_ctx = sw_context->dx_ctx_node->ctx;
-
-	vmw_bo_unreference(&vmw_bo);
-
-	return ret;
+	return 0;
 }
 
 
@@ -1432,7 +1420,6 @@ static int vmw_cmd_end_gb_query(struct vmw_private *dev_priv,
 
 	ret = vmw_query_bo_switch_prepare(dev_priv, vmw_bo, sw_context);
 
-	vmw_bo_unreference(&vmw_bo);
 	return ret;
 }
 
@@ -1486,7 +1473,6 @@ static int vmw_cmd_end_query(struct vmw_private *dev_priv,
 
 	ret = vmw_query_bo_switch_prepare(dev_priv, vmw_bo, sw_context);
 
-	vmw_bo_unreference(&vmw_bo);
 	return ret;
 }
 
@@ -1519,7 +1505,6 @@ static int vmw_cmd_wait_gb_query(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	vmw_bo_unreference(&vmw_bo);
 	return 0;
 }
 
@@ -1571,7 +1556,6 @@ static int vmw_cmd_wait_query(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	vmw_bo_unreference(&vmw_bo);
 	return 0;
 }
 
@@ -1622,7 +1606,7 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0)) {
 		if (unlikely(ret != -ERESTARTSYS))
 			DRM_ERROR("could not find surface for DMA.\n");
-		goto out_no_surface;
+		return ret;
 	}
 
 	srf = vmw_res_to_srf(sw_context->res_cache[vmw_res_surface].res);
@@ -1630,9 +1614,7 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 	vmw_kms_cursor_snoop(srf, sw_context->fp->tfile, &vmw_bo->base,
 			     header);
 
-out_no_surface:
-	vmw_bo_unreference(&vmw_bo);
-	return ret;
+	return 0;
 }
 
 static int vmw_cmd_draw(struct vmw_private *dev_priv,
@@ -1763,14 +1745,9 @@ static int vmw_cmd_check_define_gmrfb(struct vmw_private *dev_priv,
 		SVGAFifoCmdDefineGMRFB body;
 	} *cmd = buf;
 
-	ret = vmw_translate_guest_ptr(dev_priv, sw_context,
-				      &cmd->body.ptr,
-				      &vmw_bo);
-	if (unlikely(ret != 0))
-		return ret;
-
-	vmw_bo_unreference(&vmw_bo);
-
+	return vmw_translate_guest_ptr(dev_priv, sw_context,
+				       &cmd->body.ptr,
+				       &vmw_bo);
 	return ret;
 }
 
@@ -1810,8 +1787,6 @@ static int vmw_cmd_res_switch_backup(struct vmw_private *dev_priv,
 
 	vmw_validation_res_switch_backup(sw_context->ctx, info, vbo,
 					 backup_offset);
-	vmw_bo_unreference(&vbo);
-
 	return 0;
 }
 
