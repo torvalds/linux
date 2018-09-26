@@ -465,6 +465,7 @@ struct drm_i915_display_funcs {
 struct intel_csr {
 	struct work_struct work;
 	const char *fw_path;
+	uint32_t required_version;
 	uint32_t *dmc_payload;
 	uint32_t dmc_fw_size;
 	uint32_t version;

@@ -287,7 +287,6 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 	uint32_t max_fw_size = 0;
 	uint32_t i;
 	uint32_t *dmc_payload;
-	uint32_t required_version;
 
 	if (!fw)
 		return NULL;
@@ -302,37 +301,18 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 		return NULL;
 	}
 
-	csr->version = css_header->version;
-
-	if (csr->fw_path == i915_modparams.dmc_firmware_path) {
-		/* Bypass version check for firmware override. */
-		required_version = csr->version;
-	} else if (IS_ICELAKE(dev_priv)) {
-		required_version = ICL_CSR_VERSION_REQUIRED;
-	} else if (IS_CANNONLAKE(dev_priv)) {
-		required_version = CNL_CSR_VERSION_REQUIRED;
-	} else if (IS_GEMINILAKE(dev_priv)) {
-		required_version = GLK_CSR_VERSION_REQUIRED;
-	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
-		required_version = KBL_CSR_VERSION_REQUIRED;
-	} else if (IS_SKYLAKE(dev_priv)) {
-		required_version = SKL_CSR_VERSION_REQUIRED;
-	} else if (IS_BROXTON(dev_priv)) {
-		required_version = BXT_CSR_VERSION_REQUIRED;
-	} else {
-		MISSING_CASE(INTEL_REVID(dev_priv));
-		required_version = 0;
-	}
-
-	if (csr->version != required_version) {
+	if (csr->required_version &&
+	    css_header->version != csr->required_version) {
 		DRM_INFO("Refusing to load DMC firmware v%u.%u,"
 			 " please use v%u.%u\n",
-			 CSR_VERSION_MAJOR(csr->version),
-			 CSR_VERSION_MINOR(csr->version),
-			 CSR_VERSION_MAJOR(required_version),
-			 CSR_VERSION_MINOR(required_version));
+			 CSR_VERSION_MAJOR(css_header->version),
+			 CSR_VERSION_MINOR(css_header->version),
+			 CSR_VERSION_MAJOR(csr->required_version),
+			 CSR_VERSION_MINOR(csr->required_version));
 		return NULL;
 	}
+
+	csr->version = css_header->version;
 
 	readcount += sizeof(struct intel_css_header);
 
@@ -474,20 +454,29 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	if (!HAS_CSR(dev_priv))
 		return;
 
-	if (i915_modparams.dmc_firmware_path)
+	if (i915_modparams.dmc_firmware_path) {
 		csr->fw_path = i915_modparams.dmc_firmware_path;
-	else if (IS_ICELAKE(dev_priv))
+		/* Bypass version check for firmware override. */
+		csr->required_version = 0;
+	} else if (IS_ICELAKE(dev_priv)) {
 		csr->fw_path = I915_CSR_ICL;
-	else if (IS_CANNONLAKE(dev_priv))
+		csr->required_version = ICL_CSR_VERSION_REQUIRED;
+	} else if (IS_CANNONLAKE(dev_priv)) {
 		csr->fw_path = I915_CSR_CNL;
-	else if (IS_GEMINILAKE(dev_priv))
+		csr->required_version = CNL_CSR_VERSION_REQUIRED;
+	} else if (IS_GEMINILAKE(dev_priv)) {
 		csr->fw_path = I915_CSR_GLK;
-	else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
+		csr->required_version = GLK_CSR_VERSION_REQUIRED;
+	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
 		csr->fw_path = I915_CSR_KBL;
-	else if (IS_SKYLAKE(dev_priv))
+		csr->required_version = KBL_CSR_VERSION_REQUIRED;
+	} else if (IS_SKYLAKE(dev_priv)) {
 		csr->fw_path = I915_CSR_SKL;
-	else if (IS_BROXTON(dev_priv))
+		csr->required_version = SKL_CSR_VERSION_REQUIRED;
+	} else if (IS_BROXTON(dev_priv)) {
 		csr->fw_path = I915_CSR_BXT;
+		csr->required_version = BXT_CSR_VERSION_REQUIRED;
+	}
 
 	/*
 	 * Obtain a runtime pm reference, until CSR is loaded,
