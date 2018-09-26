@@ -1365,35 +1365,6 @@ static struct dc_stream_status *stream_get_status(
 
 static const enum surface_update_type update_surface_trace_level = UPDATE_TYPE_FULL;
 
-static void notify_display_count_to_smu(
-		struct dc *dc,
-		struct dc_state *context)
-{
-	int i, display_count;
-	struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
-
-	/*
-	 * if function pointer not set up, this message is
-	 * sent as part of pplib_apply_display_requirements.
-	 * So just return.
-	 */
-	if (!pp_smu || !pp_smu->set_display_count)
-		return;
-
-	display_count = 0;
-	for (i = 0; i < context->stream_count; i++) {
-		const struct dc_stream_state *stream = context->streams[i];
-
-		/* only notify active stream */
-		if (stream->dpms_off)
-			continue;
-
-		display_count++;
-	}
-
-	pp_smu->set_display_count(&pp_smu->pp_smu, display_count);
-}
-
 static void commit_planes_do_stream_update(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update,
@@ -1444,14 +1415,12 @@ static void commit_planes_do_stream_update(struct dc *dc,
 			if (stream_update->dpms_off) {
 				if (*stream_update->dpms_off) {
 					core_link_disable_stream(pipe_ctx, KEEP_ACQUIRED_RESOURCE);
-					notify_display_count_to_smu(dc, dc->current_state);
+					dc->hwss.optimize_bandwidth(dc, dc->current_state);
 				} else {
-					notify_display_count_to_smu(dc, dc->current_state);
+					dc->hwss.prepare_bandwidth(dc, dc->current_state);
 					core_link_enable_stream(dc->current_state, pipe_ctx);
 				}
 			}
-
-
 
 			if (stream_update->abm_level && pipe_ctx->stream_res.abm) {
 				if (pipe_ctx->stream_res.tg->funcs->is_blanked) {
