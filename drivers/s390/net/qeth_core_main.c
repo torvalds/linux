@@ -2167,7 +2167,6 @@ static int qeth_cm_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 	memcpy(&card->token.cm_filter_r,
 	       QETH_CM_ENABLE_RESP_FILTER_TOKEN(iob->data),
 	       QETH_MPC_TOKEN_LENGTH);
-	QETH_DBF_TEXT_(SETUP, 2, "  rc%d", iob->rc);
 	return 0;
 }
 
@@ -2193,7 +2192,6 @@ static int qeth_cm_enable(struct qeth_card *card)
 static int qeth_cm_setup_cb(struct qeth_card *card, struct qeth_reply *reply,
 		unsigned long data)
 {
-
 	struct qeth_cmd_buffer *iob;
 
 	QETH_DBF_TEXT(SETUP, 2, "cmsetpcb");
@@ -2202,7 +2200,6 @@ static int qeth_cm_setup_cb(struct qeth_card *card, struct qeth_reply *reply,
 	memcpy(&card->token.cm_connection_r,
 	       QETH_CM_SETUP_RESP_DEST_ADDR(iob->data),
 	       QETH_MPC_TOKEN_LENGTH);
-	QETH_DBF_TEXT_(SETUP, 2, "  rc%d", iob->rc);
 	return 0;
 }
 
@@ -2224,7 +2221,6 @@ static int qeth_cm_setup(struct qeth_card *card)
 	rc = qeth_send_control_data(card, CM_SETUP_SIZE, iob,
 				    qeth_cm_setup_cb, NULL);
 	return rc;
-
 }
 
 static int qeth_update_max_mtu(struct qeth_card *card, unsigned int max_mtu)
@@ -2284,7 +2280,6 @@ static int qeth_get_mtu_outof_framesize(int framesize)
 static int qeth_ulp_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 		unsigned long data)
 {
-
 	__u16 mtu, framesize;
 	__u16 len;
 	__u8 link_type;
@@ -2312,7 +2307,6 @@ static int qeth_ulp_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 	} else
 		card->info.link_type = 0;
 	QETH_DBF_TEXT_(SETUP, 2, "link%d", card->info.link_type);
-	QETH_DBF_TEXT_(SETUP, 2, "  rc%d", iob->rc);
 	return 0;
 }
 
@@ -6584,7 +6578,6 @@ static int __init qeth_core_init(void)
 
 	pr_info("loading core functions\n");
 	INIT_LIST_HEAD(&qeth_core_card_list.list);
-	INIT_LIST_HEAD(&qeth_dbf_list);
 	rwlock_init(&qeth_core_card_list.rwlock);
 
 	qeth_wq = create_singlethread_workqueue("qeth_wq");

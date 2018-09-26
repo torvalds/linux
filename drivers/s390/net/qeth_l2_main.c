@@ -1146,9 +1146,6 @@ static int qeth_l2_pm_resume(struct ccwgroup_device *gdev)
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 	int rc = 0;
 
-	if (gdev->state == CCWGROUP_OFFLINE)
-		goto out;
-
 	if (card->state == CARD_STATE_RECOVER) {
 		rc = __qeth_l2_set_online(card->gdev, 1);
 		if (rc) {
@@ -1158,7 +1155,7 @@ static int qeth_l2_pm_resume(struct ccwgroup_device *gdev)
 		}
 	} else
 		rc = __qeth_l2_set_online(card->gdev, 0);
-out:
+
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
 	netif_device_attach(card->dev);
 	if (rc)
