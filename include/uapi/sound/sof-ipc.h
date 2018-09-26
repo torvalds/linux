@@ -952,4 +952,14 @@ struct sof_ipc_dsp_oops_xtensa {
 	uint32_t stack;
 }  __attribute__((packed));
 
+/*
+ * Commom debug
+ */
+
+/* panic info include filename and line number */
+struct sof_ipc_panic_info {
+	char filename[32];
+	uint32_t linenum;
+}  __attribute__((packed));
+
 #endif
