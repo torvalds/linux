@@ -300,7 +300,7 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 
 	getmsg.mibattribute.did = DIDMSG_DOT11REQ_MIBGET_MIBATTRIBUTE;
 	getmsg.mibattribute.status = P80211ENUM_msgitem_status_data_ok;
-	getmsg.resultcode.did = DIDmsg_dot11req_mibget_resultcode;
+	getmsg.resultcode.did = DIDMSG_DOT11REQ_MIBGET_RESULTCODE;
 	getmsg.resultcode.status = P80211ENUM_msgitem_status_no_value;
 
 	item = (struct p80211itemd *)getmsg.mibattribute.data;
