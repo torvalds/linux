@@ -336,21 +336,20 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 		 */
 	case DIDMSG_LNXREQ_HOSTWEP:
 		break;		/* ignore me. */
-	case DIDMSG_LNXREQ_IFSTATE:
-		{
-			struct p80211msg_lnxreq_ifstate *ifstatemsg;
+	case DIDMSG_LNXREQ_IFSTATE: {
+		struct p80211msg_lnxreq_ifstate *ifstatemsg;
 
-			pr_debug("Received mlme ifstate request\n");
-			ifstatemsg = (struct p80211msg_lnxreq_ifstate *)msg;
-			result =
-			    prism2sta_ifstate(wlandev,
-					      ifstatemsg->ifstate.data);
-			ifstatemsg->resultcode.status =
-			    P80211ENUM_msgitem_status_data_ok;
-			ifstatemsg->resultcode.data = result;
-			result = 0;
-		}
+		pr_debug("Received mlme ifstate request\n");
+		ifstatemsg = (struct p80211msg_lnxreq_ifstate *)msg;
+		result =
+			prism2sta_ifstate(wlandev,
+					  ifstatemsg->ifstate.data);
+		ifstatemsg->resultcode.status =
+			P80211ENUM_msgitem_status_data_ok;
+		ifstatemsg->resultcode.data = result;
+		result = 0;
 		break;
+	}
 	case DIDMSG_LNXREQ_WLANSNIFF:
 		pr_debug("Received mlme wlansniff request\n");
 		result = prism2mgmt_wlansniff(wlandev, msg);
@@ -359,28 +358,28 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 		pr_debug("Received mlme autojoin request\n");
 		result = prism2mgmt_autojoin(wlandev, msg);
 		break;
-	case DIDMSG_LNXREQ_COMMSQUALITY:{
-			struct p80211msg_lnxreq_commsquality *qualmsg;
+	case DIDMSG_LNXREQ_COMMSQUALITY: {
+		struct p80211msg_lnxreq_commsquality *qualmsg;
 
-			pr_debug("Received commsquality request\n");
+		pr_debug("Received commsquality request\n");
 
-			qualmsg = (struct p80211msg_lnxreq_commsquality *)msg;
+		qualmsg = (struct p80211msg_lnxreq_commsquality *)msg;
 
-			qualmsg->link.status =
-			    P80211ENUM_msgitem_status_data_ok;
-			qualmsg->level.status =
-			    P80211ENUM_msgitem_status_data_ok;
-			qualmsg->noise.status =
-			    P80211ENUM_msgitem_status_data_ok;
+		qualmsg->link.status =
+			P80211ENUM_msgitem_status_data_ok;
+		qualmsg->level.status =
+			P80211ENUM_msgitem_status_data_ok;
+		qualmsg->noise.status =
+			P80211ENUM_msgitem_status_data_ok;
 
-			qualmsg->link.data = le16_to_cpu(hw->qual.cq_curr_bss);
-			qualmsg->level.data =
-				le16_to_cpu(hw->qual.asl_curr_bss);
-			qualmsg->noise.data = le16_to_cpu(hw->qual.anl_curr_fc);
-			qualmsg->txrate.data = hw->txrate;
+		qualmsg->link.data = le16_to_cpu(hw->qual.cq_curr_bss);
+		qualmsg->level.data =
+			le16_to_cpu(hw->qual.asl_curr_bss);
+		qualmsg->noise.data = le16_to_cpu(hw->qual.anl_curr_fc);
+		qualmsg->txrate.data = hw->txrate;
 
-			break;
-		}
+		break;
+	}
 	default:
 		netdev_warn(wlandev->netdev,
 			    "Unknown mgmt request message 0x%08x",

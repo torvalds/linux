@@ -172,7 +172,7 @@ static void p80211req_handlemsg(struct wlandevice *wlandev,
 				struct p80211msg *msg)
 {
 	switch (msg->msgcode) {
-	case DIDMSG_LNXREQ_HOSTWEP:{
+	case DIDMSG_LNXREQ_HOSTWEP: {
 		struct p80211msg_lnxreq_hostwep *req =
 			(struct p80211msg_lnxreq_hostwep *)msg;
 		wlandev->hostwep &=
@@ -182,15 +182,15 @@ static void p80211req_handlemsg(struct wlandevice *wlandev,
 		if (req->encrypt.data == P80211ENUM_truth_true)
 			wlandev->hostwep |= HOSTWEP_ENCRYPT;
 
-	break;
+		break;
 	}
 	case DIDMSG_DOT11REQ_MIBGET:
-	case DIDMSG_DOT11REQ_MIBSET:{
+	case DIDMSG_DOT11REQ_MIBSET: {
 		int isget = (msg->msgcode == DIDMSG_DOT11REQ_MIBGET);
 		struct p80211msg_dot11req_mibget *mib_msg =
 			(struct p80211msg_dot11req_mibget *)msg;
 		p80211req_mibset_mibget(wlandev, mib_msg, isget);
-	break;
+		break;
 	}
 	}			/* switch msg->msgcode */
 }
@@ -215,7 +215,7 @@ static void p80211req_mibset_mibget(struct wlandevice *wlandev,
 				       key, pstr->len);
 		break;
 
-	case DIDMIB_DOT11SMT_PRIVACYTABLE_WEPDEFAULTKEYID:{
+	case DIDMIB_DOT11SMT_PRIVACYTABLE_WEPDEFAULTKEYID: {
 		u32 *data = (u32 *)mibitem->data;
 
 		if (isget) {
@@ -224,21 +224,21 @@ static void p80211req_mibset_mibget(struct wlandevice *wlandev,
 			wlandev->hostwep &= ~(HOSTWEP_DEFAULTKEY_MASK);
 			wlandev->hostwep |= (*data & HOSTWEP_DEFAULTKEY_MASK);
 		}
-	break;
+		break;
 	}
-	case DIDMIB_DOT11SMT_PRIVACYTABLE_PRIVACYINVOKED:{
+	case DIDMIB_DOT11SMT_PRIVACYTABLE_PRIVACYINVOKED: {
 		u32 *data = (u32 *)mibitem->data;
 
 		p80211req_handle_action(wlandev, data, isget,
 					HOSTWEP_PRIVACYINVOKED);
-	break;
+		break;
 	}
-	case DIDMIB_DOT11SMT_PRIVACYTABLE_EXCLUDEUNENCRYPTED:{
+	case DIDMIB_DOT11SMT_PRIVACYTABLE_EXCLUDEUNENCRYPTED: {
 		u32 *data = (u32 *)mibitem->data;
 
 		p80211req_handle_action(wlandev, data, isget,
 					HOSTWEP_EXCLUDEUNENCRYPTED);
-	break;
+		break;
 	}
 	}
 }
