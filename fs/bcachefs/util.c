@@ -424,27 +424,6 @@ void bch2_ratelimit_increment(struct bch_ratelimit *d, u64 done)
 		d->next = now - NSEC_PER_SEC * 2;
 }
 
-int bch2_ratelimit_wait_freezable_stoppable(struct bch_ratelimit *d)
-{
-	bool kthread = (current->flags & PF_KTHREAD) != 0;
-
-	while (1) {
-		u64 delay = bch2_ratelimit_delay(d);
-
-		if (delay)
-			set_current_state(TASK_INTERRUPTIBLE);
-
-		if (kthread && kthread_should_stop())
-			return 1;
-
-		if (!delay)
-			return 0;
-
-		schedule_timeout(delay);
-		try_to_freeze();
-	}
-}
-
 /* pd controller: */
 
 /*

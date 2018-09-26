@@ -470,7 +470,7 @@ int bch2_move_data(struct bch_fs *c,
 	struct bkey_s_c_extent e;
 	struct data_opts data_opts;
 	enum data_cmd data_cmd;
-	u64 cur_inum = U64_MAX;
+	u64 delay, cur_inum = U64_MAX;
 	int ret = 0, ret2;
 
 	closure_init_stack(&ctxt.cl);
@@ -484,12 +484,30 @@ int bch2_move_data(struct bch_fs *c,
 	if (rate)
 		bch2_ratelimit_reset(rate);
 
-	while (!kthread || !(ret = kthread_should_stop())) {
-		if (rate &&
-		    bch2_ratelimit_delay(rate) &&
-		    (bch2_btree_iter_unlock(&stats->iter),
-		     (ret = bch2_ratelimit_wait_freezable_stoppable(rate))))
-			break;
+	while (1) {
+		do {
+			delay = rate ? bch2_ratelimit_delay(rate) : 0;
+
+			if (delay) {
+				bch2_btree_iter_unlock(&stats->iter);
+				set_current_state(TASK_INTERRUPTIBLE);
+			}
+
+			if (kthread && (ret = kthread_should_stop())) {
+				__set_current_state(TASK_RUNNING);
+				goto out;
+			}
+
+			if (delay)
+				schedule_timeout(delay);
+
+			if (unlikely(freezing(current))) {
+				bch2_btree_iter_unlock(&stats->iter);
+				move_ctxt_wait_event(&ctxt, list_empty(&ctxt.reads));
+				closure_sync(&ctxt.cl);
+				try_to_freeze();
+			}
+		} while (delay);
 peek:
 		k = bch2_btree_iter_peek(&stats->iter);
 		if (!k.k)
@@ -560,7 +578,7 @@ next_nondata:
 		bch2_btree_iter_next(&stats->iter);
 		bch2_btree_iter_cond_resched(&stats->iter);
 	}
-
+out:
 	bch2_btree_iter_unlock(&stats->iter);
 
 	move_ctxt_wait_event(&ctxt, list_empty(&ctxt.reads));
