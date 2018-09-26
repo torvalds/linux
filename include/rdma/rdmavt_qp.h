@@ -683,6 +683,7 @@ void rvt_copy_sge(struct rvt_qp *qp, struct rvt_sge_state *ss,
 		  bool release, bool copy_last);
 void rvt_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 		       enum ib_wc_status status);
+void rvt_ruc_loopback(struct rvt_qp *qp);
 
 /**
  * struct rvt_qp_iter - the iterator for QPs
