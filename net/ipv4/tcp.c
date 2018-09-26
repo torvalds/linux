@@ -1753,6 +1753,7 @@ static int tcp_zerocopy_receive(struct sock *sk,
 	struct vm_area_struct *vma;
 	struct sk_buff *skb = NULL;
 	struct tcp_sock *tp;
+	int inq;
 	int ret;
 
 	if (address & (PAGE_SIZE - 1) || address != zc->address)
@@ -1773,12 +1774,15 @@ static int tcp_zerocopy_receive(struct sock *sk,
 
 	tp = tcp_sk(sk);
 	seq = tp->copied_seq;
-	zc->length = min_t(u32, zc->length, tcp_inq(sk));
+	inq = tcp_inq(sk);
+	zc->length = min_t(u32, zc->length, inq);
 	zc->length &= ~(PAGE_SIZE - 1);
-
-	zap_page_range(vma, address, zc->length);
-
-	zc->recv_skip_hint = 0;
+	if (zc->length) {
+		zap_page_range(vma, address, zc->length);
+		zc->recv_skip_hint = 0;
+	} else {
+		zc->recv_skip_hint = inq;
+	}
 	ret = 0;
 	while (length + PAGE_SIZE <= zc->length) {
 		if (zc->recv_skip_hint < PAGE_SIZE) {
