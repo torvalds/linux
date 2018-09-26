@@ -70,7 +70,7 @@
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_dot11req_scan \
+#define DIDMSG_DOT11REQ_SCAN \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(4))
 #define DIDmsg_dot11req_scan_results \

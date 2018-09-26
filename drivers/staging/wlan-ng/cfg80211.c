@@ -311,7 +311,7 @@ static int prism2_scan(struct wiphy *wiphy,
 	priv->scan_request = request;
 
 	memset(&msg1, 0x00, sizeof(msg1));
-	msg1.msgcode = DIDmsg_dot11req_scan;
+	msg1.msgcode = DIDMSG_DOT11REQ_SCAN;
 	msg1.bsstype.data = P80211ENUM_bsstype_any;
 
 	memset(&msg1.bssid.data.data, 0xFF, sizeof(msg1.bssid.data.data));
