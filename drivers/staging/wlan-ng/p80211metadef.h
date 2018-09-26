@@ -219,7 +219,7 @@
 			P80211DID_MKITEM(1) | 0x10000000)
 #define DIDMIB_CAT_LNX \
 			P80211DID_MKSECTION(4)
-#define DIDmib_lnx_lnxConfigTable \
+#define DIDMIB_LNX_CONFIGTABLE \
 			(P80211DID_MKSECTION(4) | \
 			P80211DID_MKGROUP(1))
 #define DIDmib_lnx_lnxConfigTable_lnxRSNAIE \
