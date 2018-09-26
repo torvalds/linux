@@ -636,8 +636,7 @@ static int omap_dmm_remove(struct platform_device *dev)
 		if (omap_dmm->dummy_page)
 			__free_page(omap_dmm->dummy_page);
 
-		if (omap_dmm->irq > 0)
-			free_irq(omap_dmm->irq, omap_dmm);
+		free_irq(omap_dmm->irq, omap_dmm);
 
 		iounmap(omap_dmm->base);
 		kfree(omap_dmm);
