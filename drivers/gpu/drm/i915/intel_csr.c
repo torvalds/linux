@@ -485,6 +485,12 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (i915_modparams.dmc_firmware_path) {
+		if (strlen(i915_modparams.dmc_firmware_path) == 0) {
+			csr->fw_path = NULL;
+			DRM_INFO("Disabling CSR firmare and runtime PM\n");
+			return;
+		}
+
 		csr->fw_path = i915_modparams.dmc_firmware_path;
 		/* Bypass version check for firmware override. */
 		csr->required_version = 0;
