@@ -638,7 +638,7 @@ static int p80211knetdev_set_mac_address(struct net_device *dev, void *addr)
 
 	/* Set up a dot11req_mibset */
 	memset(&dot11req, 0, sizeof(dot11req));
-	dot11req.msgcode = DIDmsg_dot11req_mibset;
+	dot11req.msgcode = DIDMSG_DOT11REQ_MIBSET;
 	dot11req.msglen = sizeof(dot11req);
 	memcpy(dot11req.devname,
 	       ((struct wlandevice *)dev->ml_priv)->name,

@@ -185,7 +185,7 @@ static void p80211req_handlemsg(struct wlandevice *wlandev,
 	break;
 	}
 	case DIDMSG_DOT11REQ_MIBGET:
-	case DIDmsg_dot11req_mibset:{
+	case DIDMSG_DOT11REQ_MIBSET:{
 		int isget = (msg->msgcode == DIDMSG_DOT11REQ_MIBGET);
 		struct p80211msg_dot11req_mibget *mib_msg =
 			(struct p80211msg_dot11req_mibget *)msg;

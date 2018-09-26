@@ -76,7 +76,7 @@ static int prism2_domibset_uint32(struct wlandevice *wlandev, u32 did, u32 data)
 	struct p80211item_uint32 *mibitem =
 			(struct p80211item_uint32 *)&msg.mibattribute.data;
 
-	msg.msgcode = DIDmsg_dot11req_mibset;
+	msg.msgcode = DIDMSG_DOT11REQ_MIBSET;
 	mibitem->did = did;
 	mibitem->data = data;
 
@@ -90,7 +90,7 @@ static int prism2_domibset_pstr32(struct wlandevice *wlandev,
 	struct p80211item_pstr32 *mibitem =
 			(struct p80211item_pstr32 *)&msg.mibattribute.data;
 
-	msg.msgcode = DIDmsg_dot11req_mibset;
+	msg.msgcode = DIDMSG_DOT11REQ_MIBSET;
 	mibitem->did = did;
 	mibitem->data.len = len;
 	memcpy(mibitem->data.data, data, len);

@@ -59,7 +59,7 @@
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_dot11req_mibset \
+#define DIDMSG_DOT11REQ_MIBSET \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(2))
 #define DIDmsg_dot11req_mibset_mibattribute \
