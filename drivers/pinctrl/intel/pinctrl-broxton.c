@@ -117,17 +117,17 @@ static const struct pinctrl_pin_desc bxt_north_pins[] = {
 	PINCTRL_PIN(82, "TDO"),
 };
 
-static const unsigned bxt_north_pwm0_pins[] = { 34 };
-static const unsigned bxt_north_pwm1_pins[] = { 35 };
-static const unsigned bxt_north_pwm2_pins[] = { 36 };
-static const unsigned bxt_north_pwm3_pins[] = { 37 };
-static const unsigned bxt_north_uart0_pins[] = { 38, 39, 40, 41 };
-static const unsigned bxt_north_uart1_pins[] = { 42, 43, 44, 45 };
-static const unsigned bxt_north_uart2_pins[] = { 46, 47, 48, 49 };
-static const unsigned bxt_north_uart0b_pins[] = { 50, 51, 52, 53 };
-static const unsigned bxt_north_uart1b_pins[] = { 54, 55, 56, 57 };
-static const unsigned bxt_north_uart2b_pins[] = { 58, 59, 60, 61 };
-static const unsigned bxt_north_uart3_pins[] = { 58, 59, 60, 61 };
+static const unsigned int bxt_north_pwm0_pins[] = { 34 };
+static const unsigned int bxt_north_pwm1_pins[] = { 35 };
+static const unsigned int bxt_north_pwm2_pins[] = { 36 };
+static const unsigned int bxt_north_pwm3_pins[] = { 37 };
+static const unsigned int bxt_north_uart0_pins[] = { 38, 39, 40, 41 };
+static const unsigned int bxt_north_uart1_pins[] = { 42, 43, 44, 45 };
+static const unsigned int bxt_north_uart2_pins[] = { 46, 47, 48, 49 };
+static const unsigned int bxt_north_uart0b_pins[] = { 50, 51, 52, 53 };
+static const unsigned int bxt_north_uart1b_pins[] = { 54, 55, 56, 57 };
+static const unsigned int bxt_north_uart2b_pins[] = { 58, 59, 60, 61 };
+static const unsigned int bxt_north_uart3_pins[] = { 58, 59, 60, 61 };
 
 static const struct intel_pingroup bxt_north_groups[] = {
 	PIN_GROUP("pwm0_grp", bxt_north_pwm0_pins, 1),
@@ -260,12 +260,12 @@ static const struct pinctrl_pin_desc bxt_northwest_pins[] = {
 	PINCTRL_PIN(71, "GP_SSP_2_TXD"),
 };
 
-static const unsigned bxt_northwest_ssp0_pins[] = { 53, 54, 55, 56, 57, 58 };
-static const unsigned bxt_northwest_ssp1_pins[] = {
+static const unsigned int bxt_northwest_ssp0_pins[] = { 53, 54, 55, 56, 57, 58 };
+static const unsigned int bxt_northwest_ssp1_pins[] = {
 	59, 60, 61, 62, 63, 64, 65
 };
-static const unsigned bxt_northwest_ssp2_pins[] = { 66, 67, 68, 69, 70, 71 };
-static const unsigned bxt_northwest_uart3_pins[] = { 67, 68, 69, 70 };
+static const unsigned int bxt_northwest_ssp2_pins[] = { 66, 67, 68, 69, 70, 71 };
+static const unsigned int bxt_northwest_uart3_pins[] = { 67, 68, 69, 70 };
 
 static const struct intel_pingroup bxt_northwest_groups[] = {
 	PIN_GROUP("ssp0_grp", bxt_northwest_ssp0_pins, 1),
@@ -347,17 +347,17 @@ static const struct pinctrl_pin_desc bxt_west_pins[] = {
 	PINCTRL_PIN(41, "OSC_CLK_OUT_3"),
 };
 
-static const unsigned bxt_west_i2c0_pins[] = { 0, 1 };
-static const unsigned bxt_west_i2c1_pins[] = { 2, 3 };
-static const unsigned bxt_west_i2c2_pins[] = { 4, 5 };
-static const unsigned bxt_west_i2c3_pins[] = { 6, 7 };
-static const unsigned bxt_west_i2c4_pins[] = { 8, 9 };
-static const unsigned bxt_west_i2c5_pins[] = { 10, 11 };
-static const unsigned bxt_west_i2c6_pins[] = { 12, 13 };
-static const unsigned bxt_west_i2c7_pins[] = { 14, 15 };
-static const unsigned bxt_west_i2c5b_pins[] = { 16, 17 };
-static const unsigned bxt_west_i2c6b_pins[] = { 18, 19 };
-static const unsigned bxt_west_i2c7b_pins[] = { 20, 21 };
+static const unsigned int bxt_west_i2c0_pins[] = { 0, 1 };
+static const unsigned int bxt_west_i2c1_pins[] = { 2, 3 };
+static const unsigned int bxt_west_i2c2_pins[] = { 4, 5 };
+static const unsigned int bxt_west_i2c3_pins[] = { 6, 7 };
+static const unsigned int bxt_west_i2c4_pins[] = { 8, 9 };
+static const unsigned int bxt_west_i2c5_pins[] = { 10, 11 };
+static const unsigned int bxt_west_i2c6_pins[] = { 12, 13 };
+static const unsigned int bxt_west_i2c7_pins[] = { 14, 15 };
+static const unsigned int bxt_west_i2c5b_pins[] = { 16, 17 };
+static const unsigned int bxt_west_i2c6b_pins[] = { 18, 19 };
+static const unsigned int bxt_west_i2c7b_pins[] = { 20, 21 };
 
 static const struct intel_pingroup bxt_west_groups[] = {
 	PIN_GROUP("i2c0_grp", bxt_west_i2c0_pins, 1),
@@ -443,13 +443,13 @@ static const struct pinctrl_pin_desc bxt_southwest_pins[] = {
 	PINCTRL_PIN(30, "SDCARD_LVL_WP"),
 };
 
-static const unsigned bxt_southwest_emmc0_pins[] = {
+static const unsigned int bxt_southwest_emmc0_pins[] = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 26,
 };
-static const unsigned bxt_southwest_sdio_pins[] = {
+static const unsigned int bxt_southwest_sdio_pins[] = {
 	10, 11, 12, 13, 14, 15, 27,
 };
-static const unsigned bxt_southwest_sdcard_pins[] = {
+static const unsigned int bxt_southwest_sdcard_pins[] = {
 	16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30,
 };
 
@@ -611,13 +611,13 @@ static const struct pinctrl_pin_desc apl_north_pins[] = {
 	PINCTRL_PIN(77, "SVID0_CLK"),
 };
 
-static const unsigned apl_north_pwm0_pins[] = { 34 };
-static const unsigned apl_north_pwm1_pins[] = { 35 };
-static const unsigned apl_north_pwm2_pins[] = { 36 };
-static const unsigned apl_north_pwm3_pins[] = { 37 };
-static const unsigned apl_north_uart0_pins[] = { 38, 39, 40, 41 };
-static const unsigned apl_north_uart1_pins[] = { 42, 43, 44, 45 };
-static const unsigned apl_north_uart2_pins[] = { 46, 47, 48, 49 };
+static const unsigned int apl_north_pwm0_pins[] = { 34 };
+static const unsigned int apl_north_pwm1_pins[] = { 35 };
+static const unsigned int apl_north_pwm2_pins[] = { 36 };
+static const unsigned int apl_north_pwm3_pins[] = { 37 };
+static const unsigned int apl_north_uart0_pins[] = { 38, 39, 40, 41 };
+static const unsigned int apl_north_uart1_pins[] = { 42, 43, 44, 45 };
+static const unsigned int apl_north_uart2_pins[] = { 46, 47, 48, 49 };
 
 static const struct intel_pingroup apl_north_groups[] = {
 	PIN_GROUP("pwm0_grp", apl_north_pwm0_pins, 1),
@@ -743,10 +743,10 @@ static const struct pinctrl_pin_desc apl_northwest_pins[] = {
 	PINCTRL_PIN(76, "GP_SSP_2_TXD"),
 };
 
-static const unsigned apl_northwest_ssp0_pins[] = { 61, 62, 63, 64, 65 };
-static const unsigned apl_northwest_ssp1_pins[] = { 66, 67, 68, 69, 70 };
-static const unsigned apl_northwest_ssp2_pins[] = { 71, 72, 73, 74, 75, 76 };
-static const unsigned apl_northwest_uart3_pins[] = { 67, 68, 69, 70 };
+static const unsigned int apl_northwest_ssp0_pins[] = { 61, 62, 63, 64, 65 };
+static const unsigned int apl_northwest_ssp1_pins[] = { 66, 67, 68, 69, 70 };
+static const unsigned int apl_northwest_ssp2_pins[] = { 71, 72, 73, 74, 75, 76 };
+static const unsigned int apl_northwest_uart3_pins[] = { 67, 68, 69, 70 };
 
 static const struct intel_pingroup apl_northwest_groups[] = {
 	PIN_GROUP("ssp0_grp", apl_northwest_ssp0_pins, 1),
@@ -833,15 +833,15 @@ static const struct pinctrl_pin_desc apl_west_pins[] = {
 	PINCTRL_PIN(46, "SUSPWRDNACK"),
 };
 
-static const unsigned apl_west_i2c0_pins[] = { 0, 1 };
-static const unsigned apl_west_i2c1_pins[] = { 2, 3 };
-static const unsigned apl_west_i2c2_pins[] = { 4, 5 };
-static const unsigned apl_west_i2c3_pins[] = { 6, 7 };
-static const unsigned apl_west_i2c4_pins[] = { 8, 9 };
-static const unsigned apl_west_i2c5_pins[] = { 10, 11 };
-static const unsigned apl_west_i2c6_pins[] = { 12, 13 };
-static const unsigned apl_west_i2c7_pins[] = { 14, 15 };
-static const unsigned apl_west_uart2_pins[] = { 20, 21, 22, 34 };
+static const unsigned int apl_west_i2c0_pins[] = { 0, 1 };
+static const unsigned int apl_west_i2c1_pins[] = { 2, 3 };
+static const unsigned int apl_west_i2c2_pins[] = { 4, 5 };
+static const unsigned int apl_west_i2c3_pins[] = { 6, 7 };
+static const unsigned int apl_west_i2c4_pins[] = { 8, 9 };
+static const unsigned int apl_west_i2c5_pins[] = { 10, 11 };
+static const unsigned int apl_west_i2c6_pins[] = { 12, 13 };
+static const unsigned int apl_west_i2c7_pins[] = { 14, 15 };
+static const unsigned int apl_west_uart2_pins[] = { 20, 21, 22, 34 };
 
 static const struct intel_pingroup apl_west_groups[] = {
 	PIN_GROUP("i2c0_grp", apl_west_i2c0_pins, 1),
@@ -939,16 +939,16 @@ static const struct pinctrl_pin_desc apl_southwest_pins[] = {
 	PINCTRL_PIN(42, "LPC_FRAMEB"),
 };
 
-static const unsigned apl_southwest_emmc0_pins[] = {
+static const unsigned int apl_southwest_emmc0_pins[] = {
 	4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 29,
 };
-static const unsigned apl_southwest_sdio_pins[] = {
+static const unsigned int apl_southwest_sdio_pins[] = {
 	14, 15, 16, 17, 18, 19, 30,
 };
-static const unsigned apl_southwest_sdcard_pins[] = {
+static const unsigned int apl_southwest_sdcard_pins[] = {
 	20, 21, 22, 23, 24, 25, 26, 27, 28,
 };
-static const unsigned apl_southwest_i2c7_pins[] = { 32, 33 };
+static const unsigned int apl_southwest_i2c7_pins[] = { 32, 33 };
 
 static const struct intel_pingroup apl_southwest_groups[] = {
 	PIN_GROUP("emmc0_grp", apl_southwest_emmc0_pins, 1),
