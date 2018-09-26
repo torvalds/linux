@@ -1211,7 +1211,6 @@ static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf)
 				iucv->sk_txnotify(skb, TX_NOTIFY_GENERALERROR);
 			}
 		}
-		refcount_dec(&skb->users);
 	}
 	__skb_queue_purge(&buf->skb_list);
 }
@@ -3988,7 +3987,6 @@ static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 	bool is_first_elem = true;
 	int flush_cnt = 0;
 
-	refcount_inc(&skb->users);
 	__skb_queue_tail(&buf->skb_list, skb);
 
 	/* build dedicated header element */
