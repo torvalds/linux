@@ -582,7 +582,8 @@ struct qeth_cmd_buffer {
 	struct qeth_channel *channel;
 	unsigned char *data;
 	int rc;
-	void (*callback) (struct qeth_channel *, struct qeth_cmd_buffer *);
+	void (*callback)(struct qeth_card *card, struct qeth_channel *channel,
+			 struct qeth_cmd_buffer *iob);
 };
 
 static inline struct qeth_ipa_cmd *__ipa_cmd(struct qeth_cmd_buffer *iob)
