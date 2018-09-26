@@ -74,7 +74,7 @@
  * @invert_oe: Invert OE for this pin
  */
 struct chv_alternate_function {
-	unsigned pin;
+	unsigned int pin;
 	u8 mode;
 	bool invert_oe;
 };
@@ -91,7 +91,7 @@ struct chv_alternate_function {
  */
 struct chv_pingroup {
 	const char *name;
-	const unsigned *pins;
+	const unsigned int *pins;
 	size_t npins;
 	struct chv_alternate_function altfunc;
 	const struct chv_alternate_function *overrides;
@@ -104,8 +104,8 @@ struct chv_pingroup {
  * @npins: Number of pins in this range
  */
 struct chv_gpio_pinrange {
-	unsigned base;
-	unsigned npins;
+	unsigned int base;
+	unsigned int npins;
 };
 
 /**
@@ -661,11 +661,11 @@ static const struct chv_community *chv_communities[] = {
  */
 static DEFINE_RAW_SPINLOCK(chv_lock);
 
-static void __iomem *chv_padreg(struct chv_pinctrl *pctrl, unsigned offset,
-				unsigned reg)
+static void __iomem *chv_padreg(struct chv_pinctrl *pctrl, unsigned int offset,
+				unsigned int reg)
 {
-	unsigned family_no = offset / MAX_FAMILY_PAD_GPIO_NO;
-	unsigned pad_no = offset % MAX_FAMILY_PAD_GPIO_NO;
+	unsigned int family_no = offset / MAX_FAMILY_PAD_GPIO_NO;
+	unsigned int pad_no = offset % MAX_FAMILY_PAD_GPIO_NO;
 
 	offset = FAMILY_PAD_REGS_OFF + FAMILY_PAD_REGS_SIZE * family_no +
 		 GPIO_REGS_SIZE * pad_no;
@@ -681,7 +681,7 @@ static void chv_writel(u32 value, void __iomem *reg)
 }
 
 /* When Pad Cfg is locked, driver can only change GPIOTXState or GPIORXState */
-static bool chv_pad_locked(struct chv_pinctrl *pctrl, unsigned offset)
+static bool chv_pad_locked(struct chv_pinctrl *pctrl, unsigned int offset)
 {
 	void __iomem *reg;
 
@@ -697,15 +697,15 @@ static int chv_get_groups_count(struct pinctrl_dev *pctldev)
 }
 
 static const char *chv_get_group_name(struct pinctrl_dev *pctldev,
-				      unsigned group)
+				      unsigned int group)
 {
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
 	return pctrl->community->groups[group].name;
 }
 
-static int chv_get_group_pins(struct pinctrl_dev *pctldev, unsigned group,
-			      const unsigned **pins, unsigned *npins)
+static int chv_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
+			      const unsigned int **pins, unsigned int *npins)
 {
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
@@ -715,7 +715,7 @@ static int chv_get_group_pins(struct pinctrl_dev *pctldev, unsigned group,
 }
 
 static void chv_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
-			     unsigned offset)
+			     unsigned int offset)
 {
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	unsigned long flags;
@@ -762,7 +762,7 @@ static int chv_get_functions_count(struct pinctrl_dev *pctldev)
 }
 
 static const char *chv_get_function_name(struct pinctrl_dev *pctldev,
-					 unsigned function)
+					 unsigned int function)
 {
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
@@ -770,9 +770,9 @@ static const char *chv_get_function_name(struct pinctrl_dev *pctldev,
 }
 
 static int chv_get_function_groups(struct pinctrl_dev *pctldev,
-				   unsigned function,
+				   unsigned int function,
 				   const char * const **groups,
-				   unsigned * const ngroups)
+				   unsigned int * const ngroups)
 {
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
@@ -781,8 +781,8 @@ static int chv_get_function_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned function,
-			      unsigned group)
+static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev,
+			      unsigned int function, unsigned int group)
 {
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	const struct chv_pingroup *grp;
@@ -848,7 +848,7 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 
 static int chv_gpio_request_enable(struct pinctrl_dev *pctldev,
 				   struct pinctrl_gpio_range *range,
-				   unsigned offset)
+				   unsigned int offset)
 {
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	unsigned long flags;
@@ -908,7 +908,7 @@ static int chv_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 static void chv_gpio_disable_free(struct pinctrl_dev *pctldev,
 				  struct pinctrl_gpio_range *range,
-				  unsigned offset)
+				  unsigned int offset)
 {
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	unsigned long flags;
@@ -926,7 +926,7 @@ static void chv_gpio_disable_free(struct pinctrl_dev *pctldev,
 
 static int chv_gpio_set_direction(struct pinctrl_dev *pctldev,
 				  struct pinctrl_gpio_range *range,
-				  unsigned offset, bool input)
+				  unsigned int offset, bool input)
 {
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	void __iomem *reg = chv_padreg(pctrl, offset, CHV_PADCTRL0);
@@ -957,7 +957,7 @@ static const struct pinmux_ops chv_pinmux_ops = {
 	.gpio_set_direction = chv_gpio_set_direction,
 };
 
-static int chv_config_get(struct pinctrl_dev *pctldev, unsigned pin,
+static int chv_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			  unsigned long *config)
 {
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
@@ -1037,7 +1037,7 @@ static int chv_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 	return 0;
 }
 
-static int chv_config_set_pull(struct chv_pinctrl *pctrl, unsigned pin,
+static int chv_config_set_pull(struct chv_pinctrl *pctrl, unsigned int pin,
 			       enum pin_config_param param, u32 arg)
 {
 	void __iomem *reg = chv_padreg(pctrl, pin, CHV_PADCTRL0);
@@ -1124,8 +1124,8 @@ static int chv_config_set_oden(struct chv_pinctrl *pctrl, unsigned int pin,
 	return 0;
 }
 
-static int chv_config_set(struct pinctrl_dev *pctldev, unsigned pin,
-			  unsigned long *configs, unsigned nconfigs)
+static int chv_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
+			  unsigned long *configs, unsigned int nconfigs)
 {
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
@@ -1226,7 +1226,7 @@ static struct pinctrl_desc chv_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-static int chv_gpio_get(struct gpio_chip *chip, unsigned offset)
+static int chv_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct chv_pinctrl *pctrl = gpiochip_get_data(chip);
 	unsigned long flags;
@@ -1244,7 +1244,7 @@ static int chv_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return !!(ctrl0 & CHV_PADCTRL0_GPIORXSTATE);
 }
 
-static void chv_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static void chv_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct chv_pinctrl *pctrl = gpiochip_get_data(chip);
 	unsigned long flags;
@@ -1266,7 +1266,7 @@ static void chv_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	raw_spin_unlock_irqrestore(&chv_lock, flags);
 }
 
-static int chv_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
+static int chv_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	struct chv_pinctrl *pctrl = gpiochip_get_data(chip);
 	u32 ctrl0, direction;
@@ -1282,12 +1282,12 @@ static int chv_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	return direction != CHV_PADCTRL0_GPIOCFG_GPO;
 }
 
-static int chv_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
+static int chv_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
 {
 	return pinctrl_gpio_direction_input(chip->base + offset);
 }
 
-static int chv_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
+static int chv_gpio_direction_output(struct gpio_chip *chip, unsigned int offset,
 				     int value)
 {
 	chv_gpio_set(chip, offset, value);
@@ -1371,7 +1371,7 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 	if (irqd_get_trigger_type(d) == IRQ_TYPE_NONE) {
 		struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 		struct chv_pinctrl *pctrl = gpiochip_get_data(gc);
-		unsigned pin = irqd_to_hwirq(d);
+		unsigned int pin = irqd_to_hwirq(d);
 		irq_flow_handler_t handler;
 		unsigned long flags;
 		u32 intsel, value;
@@ -1398,11 +1398,11 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 	return 0;
 }
 
-static int chv_gpio_irq_type(struct irq_data *d, unsigned type)
+static int chv_gpio_irq_type(struct irq_data *d, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct chv_pinctrl *pctrl = gpiochip_get_data(gc);
-	unsigned pin = irqd_to_hwirq(d);
+	unsigned int pin = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 value;
 
