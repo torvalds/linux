@@ -946,15 +946,19 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 	struct vmw_framebuffer_surface *vfbs =
 		container_of(framebuffer, typeof(*vfbs), base);
 	struct vmw_kms_sou_surface_dirty sdirty;
-	struct vmw_validation_ctx ctx;
+	DECLARE_VAL_CONTEXT(val_ctx, NULL, 0);
 	int ret;
 
 	if (!srf)
 		srf = &vfbs->surface->res;
 
-	ret = vmw_kms_helper_resource_prepare(srf, true, &ctx);
+	ret = vmw_validation_add_resource(&val_ctx, srf, 0, NULL, NULL);
 	if (ret)
 		return ret;
+
+	ret = vmw_validation_prepare(&val_ctx, &dev_priv->cmdbuf_mutex, true);
+	if (ret)
+		goto out_unref;
 
 	sdirty.base.fifo_commit = vmw_sou_surface_fifo_commit;
 	sdirty.base.clip = vmw_sou_surface_clip;
@@ -972,8 +976,13 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 	ret = vmw_kms_helper_dirty(dev_priv, framebuffer, clips, vclips,
 				   dest_x, dest_y, num_clips, inc,
 				   &sdirty.base);
-	vmw_kms_helper_resource_finish(&ctx, out_fence);
+	vmw_kms_helper_validation_finish(dev_priv, NULL, &val_ctx, out_fence,
+					 NULL);
 
+	return ret;
+
+out_unref:
+	vmw_validation_unref_lists(&val_ctx);
 	return ret;
 }
 
@@ -1051,12 +1060,16 @@ int vmw_kms_sou_do_bo_dirty(struct vmw_private *dev_priv,
 		container_of(framebuffer, struct vmw_framebuffer_bo,
 			     base)->buffer;
 	struct vmw_kms_dirty dirty;
+	DECLARE_VAL_CONTEXT(val_ctx, NULL, 0);
 	int ret;
 
-	ret = vmw_kms_helper_buffer_prepare(dev_priv, buf, interruptible,
-					    false, false);
+	ret = vmw_validation_add_bo(&val_ctx, buf, false, false);
 	if (ret)
 		return ret;
+
+	ret = vmw_validation_prepare(&val_ctx, NULL, interruptible);
+	if (ret)
+		goto out_unref;
 
 	ret = do_bo_define_gmrfb(dev_priv, framebuffer);
 	if (unlikely(ret != 0))
@@ -1069,12 +1082,15 @@ int vmw_kms_sou_do_bo_dirty(struct vmw_private *dev_priv,
 		num_clips;
 	ret = vmw_kms_helper_dirty(dev_priv, framebuffer, clips, vclips,
 				   0, 0, num_clips, increment, &dirty);
-	vmw_kms_helper_buffer_finish(dev_priv, NULL, buf, out_fence, NULL);
+	vmw_kms_helper_validation_finish(dev_priv, NULL, &val_ctx, out_fence,
+					 NULL);
 
 	return ret;
 
 out_revert:
-	vmw_kms_helper_buffer_revert(buf);
+	vmw_validation_revert(&val_ctx);
+out_unref:
+	vmw_validation_unref_lists(&val_ctx);
 
 	return ret;
 }
@@ -1150,12 +1166,16 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
 	struct vmw_buffer_object *buf =
 		container_of(vfb, struct vmw_framebuffer_bo, base)->buffer;
 	struct vmw_kms_dirty dirty;
+	DECLARE_VAL_CONTEXT(val_ctx, NULL, 0);
 	int ret;
 
-	ret = vmw_kms_helper_buffer_prepare(dev_priv, buf, true, false,
-					    false);
+	ret = vmw_validation_add_bo(&val_ctx, buf, false, false);
 	if (ret)
 		return ret;
+
+	ret = vmw_validation_prepare(&val_ctx, NULL, true);
+	if (ret)
+		goto out_unref;
 
 	ret = do_bo_define_gmrfb(dev_priv, vfb);
 	if (unlikely(ret != 0))
@@ -1168,13 +1188,15 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
 		num_clips;
 	ret = vmw_kms_helper_dirty(dev_priv, vfb, NULL, vclips,
 				   0, 0, num_clips, 1, &dirty);
-	vmw_kms_helper_buffer_finish(dev_priv, file_priv, buf, NULL,
-				     user_fence_rep);
+	vmw_kms_helper_validation_finish(dev_priv, file_priv, &val_ctx, NULL,
+					 user_fence_rep);
 
 	return ret;
 
 out_revert:
-	vmw_kms_helper_buffer_revert(buf);
-
+	vmw_validation_revert(&val_ctx);
+out_unref:
+	vmw_validation_unref_lists(&val_ctx);
+	
 	return ret;
 }
