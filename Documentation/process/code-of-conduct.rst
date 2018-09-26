@@ -26,12 +26,3 @@ As a reviewer of code, please strive to keep things civil and focused on
 the technical issues involved.  We are all humans, and frustrations can
 be high on both sides of the process.  Try to keep in mind the immortal
 words of Bill and Ted, "Be excellent to each other."
-
-A Note from Me (Ashton)
------------------------
-
-I am not a particularly good programmer, so I have never gotten involved with an operating system I liked. However, due to the drama that ensued over the "Contributor Covenant Code of Conduct", I have forked the Linux kernel and replaced it with the original Code of Conflict. (This is also because I think meritocracy is a good idea, especially for software development.)
-
-Anyways, I hope to work with you awesome people further once I get out of university!
-
-AshtonSnapp:~$
