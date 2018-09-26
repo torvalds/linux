@@ -1180,38 +1180,19 @@ static void qeth_notify_skbs(struct qeth_qdio_out_q *q,
 	skb_queue_walk(&buf->skb_list, skb) {
 		QETH_CARD_TEXT_(q->card, 5, "skbn%d", notification);
 		QETH_CARD_TEXT_(q->card, 5, "%lx", (long) skb);
-		if (be16_to_cpu(skb->protocol) == ETH_P_AF_IUCV) {
-			if (skb->sk) {
-				struct iucv_sock *iucv = iucv_sk(skb->sk);
-				iucv->sk_txnotify(skb, notification);
-			}
-		}
+		if (skb->protocol == htons(ETH_P_AF_IUCV) && skb->sk)
+			iucv_sk(skb->sk)->sk_txnotify(skb, notification);
 	}
 }
 
 static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf)
 {
-	struct sk_buff *skb;
-	struct iucv_sock *iucv;
-	int notify_general_error = 0;
-
-	if (atomic_read(&buf->state) == QETH_QDIO_BUF_PENDING)
-		notify_general_error = 1;
-
 	/* release may never happen from within CQ tasklet scope */
 	WARN_ON_ONCE(atomic_read(&buf->state) == QETH_QDIO_BUF_IN_CQ);
 
-	skb_queue_walk(&buf->skb_list, skb) {
-		QETH_CARD_TEXT(buf->q->card, 5, "skbr");
-		QETH_CARD_TEXT_(buf->q->card, 5, "%lx", (long) skb);
-		if (notify_general_error &&
-		    be16_to_cpu(skb->protocol) == ETH_P_AF_IUCV) {
-			if (skb->sk) {
-				iucv = iucv_sk(skb->sk);
-				iucv->sk_txnotify(skb, TX_NOTIFY_GENERALERROR);
-			}
-		}
-	}
+	if (atomic_read(&buf->state) == QETH_QDIO_BUF_PENDING)
+		qeth_notify_skbs(buf->q, buf, TX_NOTIFY_GENERALERROR);
+
 	__skb_queue_purge(&buf->skb_list);
 }
 
