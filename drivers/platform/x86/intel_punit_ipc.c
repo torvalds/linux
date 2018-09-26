@@ -11,15 +11,16 @@
  * which provide mailbox interface for power management usage.
  */
 
-#include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/acpi.h>
-#include <linux/delay.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+
 #include <asm/intel_punit_ipc.h>
 
 /* IPC Mailbox registers */
