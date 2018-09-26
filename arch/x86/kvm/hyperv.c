@@ -1300,7 +1300,7 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 	struct hv_tlb_flush flush;
 	struct kvm_vcpu *vcpu;
 	unsigned long vcpu_bitmap[BITS_TO_LONGS(KVM_MAX_VCPUS)] = {0};
-	unsigned long valid_bank_mask = 0;
+	u64 valid_bank_mask = 0;
 	u64 sparse_banks[64];
 	int sparse_banks_len, i;
 	bool all_cpus;
@@ -1328,7 +1328,8 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 		all_cpus = flush_ex.hv_vp_set.format !=
 			HV_GENERIC_SET_SPARSE_4K;
 
-		sparse_banks_len = bitmap_weight(&valid_bank_mask, 64) *
+		sparse_banks_len =
+			bitmap_weight((unsigned long *)&valid_bank_mask, 64) *
 			sizeof(sparse_banks[0]);
 
 		if (!sparse_banks_len && !all_cpus)
