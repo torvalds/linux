@@ -341,9 +341,8 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 
 		pr_debug("Received mlme ifstate request\n");
 		ifstatemsg = (struct p80211msg_lnxreq_ifstate *)msg;
-		result =
-			prism2sta_ifstate(wlandev,
-					  ifstatemsg->ifstate.data);
+		result = prism2sta_ifstate(wlandev,
+					   ifstatemsg->ifstate.data);
 		ifstatemsg->resultcode.status =
 			P80211ENUM_msgitem_status_data_ok;
 		ifstatemsg->resultcode.data = result;
@@ -365,16 +364,12 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 
 		qualmsg = (struct p80211msg_lnxreq_commsquality *)msg;
 
-		qualmsg->link.status =
-			P80211ENUM_msgitem_status_data_ok;
-		qualmsg->level.status =
-			P80211ENUM_msgitem_status_data_ok;
-		qualmsg->noise.status =
-			P80211ENUM_msgitem_status_data_ok;
+		qualmsg->link.status = P80211ENUM_msgitem_status_data_ok;
+		qualmsg->level.status = P80211ENUM_msgitem_status_data_ok;
+		qualmsg->noise.status = P80211ENUM_msgitem_status_data_ok;
 
 		qualmsg->link.data = le16_to_cpu(hw->qual.cq_curr_bss);
-		qualmsg->level.data =
-			le16_to_cpu(hw->qual.asl_curr_bss);
+		qualmsg->level.data = le16_to_cpu(hw->qual.asl_curr_bss);
 		qualmsg->noise.data = le16_to_cpu(hw->qual.anl_curr_fc);
 		qualmsg->txrate.data = hw->txrate;
 
