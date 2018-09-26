@@ -409,8 +409,7 @@ static struct ttm_buffer_object *ttm_bo_vm_lookup(struct ttm_bo_device *bdev,
 	node = drm_vma_offset_lookup_locked(&bdev->vma_manager, offset, pages);
 	if (likely(node)) {
 		bo = container_of(node, struct ttm_buffer_object, vma_node);
-		if (!kref_get_unless_zero(&bo->kref))
-			bo = NULL;
+		bo = ttm_bo_get_unless_zero(bo);
 	}
 
 	drm_vma_offset_unlock_lookup(&bdev->vma_manager);
