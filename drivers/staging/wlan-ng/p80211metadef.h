@@ -88,7 +88,7 @@
 #define DIDMSG_LNXREQ_IFSTATE \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(1))
-#define DIDmsg_lnxreq_wlansniff \
+#define DIDMSG_LNXREQ_WLANSNIFF \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(2))
 #define DIDmsg_lnxreq_hostwep \
