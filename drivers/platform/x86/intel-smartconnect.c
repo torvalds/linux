@@ -17,9 +17,8 @@
  */
 
 
-#include <linux/init.h>
-#include <linux/module.h>
 #include <linux/acpi.h>
+#include <linux/module.h>
 
 MODULE_LICENSE("GPL");
 
@@ -44,6 +43,7 @@ static const struct acpi_device_id smartconnect_ids[] = {
 	{"INT33A0", 0},
 	{"", 0}
 };
+MODULE_DEVICE_TABLE(acpi, smartconnect_ids);
 
 static struct acpi_driver smartconnect_driver = {
 	.owner = THIS_MODULE,
@@ -56,5 +56,3 @@ static struct acpi_driver smartconnect_driver = {
 };
 
 module_acpi_driver(smartconnect_driver);
-
-MODULE_DEVICE_TABLE(acpi, smartconnect_ids);
