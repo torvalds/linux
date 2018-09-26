@@ -95,6 +95,9 @@ static const struct mssr_mod_clk r7s9210_mod_clks[] __initconst = {
 	DEF_MOD_STB("i2c1",	 86,	R7S9210_CLK_P1),
 	DEF_MOD_STB("i2c0",	 87,	R7S9210_CLK_P1),
 
+	DEF_MOD_STB("spi2",	 95,	R7S9210_CLK_P1),
+	DEF_MOD_STB("spi1",	 96,	R7S9210_CLK_P1),
+	DEF_MOD_STB("spi0",	 97,	R7S9210_CLK_P1),
 };
 
 /* The clock dividers in the table vary based on DT and register settings */
