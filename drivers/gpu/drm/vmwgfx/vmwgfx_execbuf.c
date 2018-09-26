@@ -39,15 +39,17 @@
  * struct vmw_relocation - Buffer object relocation
  *
  * @head: List head for the command submission context's relocation list
+ * @vbo: Non ref-counted pointer to buffer object
  * @mob_loc: Pointer to location for mob id to be modified
  * @location: Pointer to location for guest pointer to be modified
- * @vbo: Non ref-counted pointer to buffer object
  */
 struct vmw_relocation {
 	struct list_head head;
-	SVGAMobId *mob_loc;
-	SVGAGuestPtr *location;
 	struct vmw_buffer_object *vbo;
+	union {
+		SVGAMobId *mob_loc;
+		SVGAGuestPtr *location;
+	};
 };
 
 /**
@@ -1167,7 +1169,6 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 		goto out_no_reloc;
 
 	reloc->mob_loc = id;
-	reloc->location = NULL;
 	reloc->vbo = vmw_bo;
 
 	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo, true, false);
