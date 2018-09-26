@@ -90,7 +90,7 @@ static inline void gfs2_setbit(const struct gfs2_rbm *rbm, bool do_clone,
 {
 	unsigned char *byte1, *byte2, *end, cur_state;
 	struct gfs2_bitmap *bi = rbm_bi(rbm);
-	unsigned int buflen = bi->bi_len;
+	unsigned int buflen = bi->bi_bytes;
 	const unsigned int bit = (rbm->offset % GFS2_NBBY) * GFS2_BIT_SIZE;
 
 	byte1 = bi->bi_bh->b_data + bi->bi_offset + (rbm->offset / GFS2_NBBY);
@@ -108,8 +108,8 @@ static inline void gfs2_setbit(const struct gfs2_rbm *rbm, bool do_clone,
 		fs_warn(sdp, "rgrp=0x%llx bi_start=0x%x biblk: 0x%llx\n",
 			(unsigned long long)rbm->rgd->rd_addr, bi->bi_start,
 			(unsigned long long)bi->bi_bh->b_blocknr);
-		fs_warn(sdp, "bi_offset=0x%x bi_len=0x%x block=0x%llx\n",
-			bi->bi_offset, bi->bi_len,
+		fs_warn(sdp, "bi_offset=0x%x bi_bytes=0x%x block=0x%llx\n",
+			bi->bi_offset, bi->bi_bytes,
 			(unsigned long long)gfs2_rbm_to_block(rbm));
 		dump_stack();
 		gfs2_consist_rgrpd(rbm->rgd);
@@ -381,7 +381,7 @@ static u32 gfs2_free_extlen(const struct gfs2_rbm *rrbm, u32 len)
 		if (bi->bi_clone)
 			start = bi->bi_clone;
 		start += bi->bi_offset;
-		end = start + bi->bi_len;
+		end = start + bi->bi_bytes;
 		BUG_ON(rbm.offset & 3);
 		start += (rbm.offset / GFS2_NBBY);
 		bytes = min_t(u32, len / GFS2_NBBY, (end - start));
@@ -466,7 +466,7 @@ void gfs2_rgrp_verify(struct gfs2_rgrpd *rgd)
 			count[x] += gfs2_bitcount(rgd,
 						  bi->bi_bh->b_data +
 						  bi->bi_offset,
-						  bi->bi_len, x);
+						  bi->bi_bytes, x);
 	}
 
 	if (count[0] != rgd->rd_free) {
@@ -781,21 +781,21 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 			bytes = bytes_left;
 			bi->bi_offset = sizeof(struct gfs2_rgrp);
 			bi->bi_start = 0;
-			bi->bi_len = bytes;
+			bi->bi_bytes = bytes;
 			bi->bi_blocks = bytes * GFS2_NBBY;
 		/* header block */
 		} else if (x == 0) {
 			bytes = sdp->sd_sb.sb_bsize - sizeof(struct gfs2_rgrp);
 			bi->bi_offset = sizeof(struct gfs2_rgrp);
 			bi->bi_start = 0;
-			bi->bi_len = bytes;
+			bi->bi_bytes = bytes;
 			bi->bi_blocks = bytes * GFS2_NBBY;
 		/* last block */
 		} else if (x + 1 == length) {
 			bytes = bytes_left;
 			bi->bi_offset = sizeof(struct gfs2_meta_header);
 			bi->bi_start = rgd->rd_bitbytes - bytes_left;
-			bi->bi_len = bytes;
+			bi->bi_bytes = bytes;
 			bi->bi_blocks = bytes * GFS2_NBBY;
 		/* other blocks */
 		} else {
@@ -803,7 +803,7 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 				sizeof(struct gfs2_meta_header);
 			bi->bi_offset = sizeof(struct gfs2_meta_header);
 			bi->bi_start = rgd->rd_bitbytes - bytes_left;
-			bi->bi_len = bytes;
+			bi->bi_bytes = bytes;
 			bi->bi_blocks = bytes * GFS2_NBBY;
 		}
 
@@ -815,11 +815,11 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 		return -EIO;
 	}
 	bi = rgd->rd_bits + (length - 1);
-	if ((bi->bi_start + bi->bi_len) * GFS2_NBBY != rgd->rd_data) {
+	if ((bi->bi_start + bi->bi_bytes) * GFS2_NBBY != rgd->rd_data) {
 		if (gfs2_consist_rgrpd(rgd)) {
 			gfs2_rindex_print(rgd);
 			fs_err(sdp, "start=%u len=%u offset=%u\n",
-			       bi->bi_start, bi->bi_len, bi->bi_offset);
+			       bi->bi_start, bi->bi_bytes, bi->bi_offset);
 		}
 		return -EIO;
 	}
@@ -1146,8 +1146,8 @@ static u32 count_unlinked(struct gfs2_rgrpd *rgd)
 		goal = 0;
 		buffer = bi->bi_bh->b_data + bi->bi_offset;
 		WARN_ON(!buffer_uptodate(bi->bi_bh));
-		while (goal < bi->bi_len * GFS2_NBBY) {
-			goal = gfs2_bitfit(buffer, bi->bi_len, goal,
+		while (goal < bi->bi_blocks) {
+			goal = gfs2_bitfit(buffer, bi->bi_bytes, goal,
 					   GFS2_BLKST_UNLINKED);
 			if (goal == BFITNOENT)
 				break;
@@ -1319,7 +1319,7 @@ int gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
 	u32 trimmed = 0;
 	u8 diff;
 
-	for (x = 0; x < bi->bi_len; x++) {
+	for (x = 0; x < bi->bi_bytes; x++) {
 		const u8 *clone = bi->bi_clone ? bi->bi_clone : bi->bi_bh->b_data;
 		clone += bi->bi_offset;
 		clone += x;
@@ -1752,7 +1752,7 @@ static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 *minext,
 		if (state != GFS2_BLKST_UNLINKED && bi->bi_clone)
 			buffer = bi->bi_clone + bi->bi_offset;
 		initial_offset = rbm->offset;
-		offset = gfs2_bitfit(buffer, bi->bi_len, rbm->offset, state);
+		offset = gfs2_bitfit(buffer, bi->bi_bytes, rbm->offset, state);
 		if (offset == BFITNOENT)
 			goto bitmap_full;
 		rbm->offset = offset;
@@ -2236,7 +2236,7 @@ static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, u64 bstart,
 						      GFP_NOFS | __GFP_NOFAIL);
 				memcpy(bi->bi_clone + bi->bi_offset,
 				       bi->bi_bh->b_data + bi->bi_offset,
-				       bi->bi_len);
+				       bi->bi_bytes);
 			}
 			gfs2_trans_add_meta(rbm.rgd->rd_gl, bi->bi_bh);
 			bi_prev = bi;

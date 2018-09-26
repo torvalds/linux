@@ -92,7 +92,7 @@ struct gfs2_bitmap {
 	unsigned long bi_flags;
 	u32 bi_offset;
 	u32 bi_start;
-	u32 bi_len;
+	u32 bi_bytes;
 	u32 bi_blocks;
 };
 
