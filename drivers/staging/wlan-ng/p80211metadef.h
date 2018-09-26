@@ -226,7 +226,7 @@
 			(P80211DID_MKSECTION(4) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(1) | 0x18000000)
-#define DIDmib_cat_p2 \
+#define DIDMIB_CAT_P2 \
 			P80211DID_MKSECTION(5)
 #define DIDmib_p2_p2Static \
 			(P80211DID_MKSECTION(5) | \
