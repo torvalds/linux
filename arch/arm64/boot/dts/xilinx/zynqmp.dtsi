@@ -484,7 +484,7 @@
 			interrupts = <0 133 4>;
 		};
 
-		sdhci0: sdhci@ff160000 {
+		sdhci0: mmc@ff160000 {
 			compatible = "arasan,sdhci-8.9a";
 			status = "disabled";
 			interrupt-parent = <&gic>;
@@ -493,7 +493,7 @@
 			clock-names = "clk_xin", "clk_ahb";
 		};
 
-		sdhci1: sdhci@ff170000 {
+		sdhci1: mmc@ff170000 {
 			compatible = "arasan,sdhci-8.9a";
 			status = "disabled";
 			interrupt-parent = <&gic>;
