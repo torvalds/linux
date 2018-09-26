@@ -112,7 +112,7 @@
 	.set		at
 #endif
 
-#ifndef CONFIG_CPU_MIPSR6
+#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
 	EX(LONG_S_L, a1, (a0), .Lfirst_fixup\@)	/* make word/dword aligned */
@@ -122,7 +122,7 @@
 	PTR_SUBU	a0, t0			/* long align ptr */
 	PTR_ADDU	a2, t0			/* correct size */
 
-#else /* CONFIG_CPU_MIPSR6 */
+#else /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
 #define STORE_BYTE(N)				\
 	EX(sb, a1, N(a0), .Lbyte_fixup\@);	\
 	beqz		t0, 0f;			\
@@ -145,7 +145,7 @@
 	ori		a0, STORMASK
 	xori		a0, STORMASK
 	PTR_ADDIU	a0, STORSIZE
-#endif /* CONFIG_CPU_MIPSR6 */
+#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
 1:	ori		t1, a2, 0x3f		/* # of full blocks */
 	xori		t1, 0x3f
 	beqz		t1, .Lmemset_partial\@	/* no block to fill */
@@ -185,7 +185,7 @@
 	andi		a2, STORMASK		/* At most one long to go */
 
 	beqz		a2, 1f
-#ifndef CONFIG_CPU_MIPSR6
+#ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
 	 PTR_ADDU	a0, a2			/* What's left */
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
@@ -230,7 +230,7 @@
 	.hidden __memset
 	.endif
 
-#ifdef CONFIG_CPU_MIPSR6
+#ifndef CONFIG_CPU_HAS_LOAD_STORE_LR
 .Lbyte_fixup\@:
 	/*
 	 * unset_bytes = (#bytes - (#unaligned bytes)) - (-#unaligned bytes remaining + 1) + 1
@@ -239,7 +239,7 @@
 	PTR_SUBU	a2, t0
 	jr		ra
 	 PTR_ADDIU	a2, 1
-#endif /* CONFIG_CPU_MIPSR6 */
+#endif /* !CONFIG_CPU_HAS_LOAD_STORE_LR */
 
 .Lfirst_fixup\@:
 	/* unset_bytes already in a2 */

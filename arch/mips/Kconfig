@@ -1150,6 +1150,7 @@ config NO_IOPORT_MAP
 
 config GENERIC_CSUM
 	bool
+	default y if !CPU_HAS_LOAD_STORE_LR
 
 config GENERIC_ISA_DMA
 	bool
@@ -1368,6 +1369,7 @@ config CPU_LOONGSON3
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
+	select CPU_HAS_LOAD_STORE_LR
 	select WEAK_ORDERING
 	select WEAK_REORDERING_BEYOND_LLSC
 	select MIPS_PGD_C0_CONTEXT
@@ -1444,6 +1446,7 @@ config CPU_MIPS32_R1
 	bool "MIPS32 Release 1"
 	depends on SYS_HAS_CPU_MIPS32_R1
 	select CPU_HAS_PREFETCH
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	help
@@ -1461,6 +1464,7 @@ config CPU_MIPS32_R2
 	bool "MIPS32 Release 2"
 	depends on SYS_HAS_CPU_MIPS32_R2
 	select CPU_HAS_PREFETCH
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_MSA
@@ -1479,7 +1483,6 @@ config CPU_MIPS32_R6
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_MSA
-	select GENERIC_CSUM
 	select HAVE_KVM
 	select MIPS_O32_FP64_SUPPORT
 	help
@@ -1492,6 +1495,7 @@ config CPU_MIPS64_R1
 	bool "MIPS64 Release 1"
 	depends on SYS_HAS_CPU_MIPS64_R1
 	select CPU_HAS_PREFETCH
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1511,6 +1515,7 @@ config CPU_MIPS64_R2
 	bool "MIPS64 Release 2"
 	depends on SYS_HAS_CPU_MIPS64_R2
 	select CPU_HAS_PREFETCH
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1532,7 +1537,6 @@ config CPU_MIPS64_R6
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_MSA
-	select GENERIC_CSUM
 	select MIPS_O32_FP64_SUPPORT if 32BIT || MIPS32_O32
 	select HAVE_KVM
 	help
@@ -1545,6 +1549,7 @@ config CPU_R3000
 	bool "R3000"
 	depends on SYS_HAS_CPU_R3000
 	select CPU_HAS_WB
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	help
@@ -1559,12 +1564,14 @@ config CPU_TX39XX
 	bool "R39XX"
 	depends on SYS_HAS_CPU_TX39XX
 	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_HAS_LOAD_STORE_LR
 
 config CPU_VR41XX
 	bool "R41xx"
 	depends on SYS_HAS_CPU_VR41XX
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_HAS_LOAD_STORE_LR
 	help
 	  The options selects support for the NEC VR4100 series of processors.
 	  Only choose this option if you have one of these processors as a
@@ -1576,6 +1583,7 @@ config CPU_R4300
 	depends on SYS_HAS_CPU_R4300
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_HAS_LOAD_STORE_LR
 	help
 	  MIPS Technologies R4300-series processors.
 
@@ -1585,6 +1593,7 @@ config CPU_R4X00
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HUGEPAGES
+	select CPU_HAS_LOAD_STORE_LR
 	help
 	  MIPS Technologies R4000-series processors other than 4300, including
 	  the R4000, R4400, R4600, and 4700.
@@ -1593,6 +1602,7 @@ config CPU_TX49XX
 	bool "R49XX"
 	depends on SYS_HAS_CPU_TX49XX
 	select CPU_HAS_PREFETCH
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HUGEPAGES
@@ -1603,6 +1613,7 @@ config CPU_R5000
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HUGEPAGES
+	select CPU_HAS_LOAD_STORE_LR
 	help
 	  MIPS Technologies R5000-series processors other than the Nevada.
 
@@ -1612,6 +1623,7 @@ config CPU_R5432
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HUGEPAGES
+	select CPU_HAS_LOAD_STORE_LR
 
 config CPU_R5500
 	bool "R5500"
@@ -1619,6 +1631,7 @@ config CPU_R5500
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HUGEPAGES
+	select CPU_HAS_LOAD_STORE_LR
 	help
 	  NEC VR5500 and VR5500A series processors implement 64-bit MIPS IV
 	  instruction set.
@@ -1629,6 +1642,7 @@ config CPU_NEVADA
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HUGEPAGES
+	select CPU_HAS_LOAD_STORE_LR
 	help
 	  QED / PMC-Sierra RM52xx-series ("Nevada") processors.
 
@@ -1636,6 +1650,7 @@ config CPU_R8000
 	bool "R8000"
 	depends on SYS_HAS_CPU_R8000
 	select CPU_HAS_PREFETCH
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_64BIT_KERNEL
 	help
 	  MIPS Technologies R8000 processors.  Note these processors are
@@ -1645,6 +1660,7 @@ config CPU_R10000
 	bool "R10000"
 	depends on SYS_HAS_CPU_R10000
 	select CPU_HAS_PREFETCH
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1656,6 +1672,7 @@ config CPU_RM7000
 	bool "RM7000"
 	depends on SYS_HAS_CPU_RM7000
 	select CPU_HAS_PREFETCH
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1664,6 +1681,7 @@ config CPU_RM7000
 config CPU_SB1
 	bool "SB1"
 	depends on SYS_HAS_CPU_SB1
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1674,6 +1692,7 @@ config CPU_CAVIUM_OCTEON
 	bool "Cavium Octeon processor"
 	depends on SYS_HAS_CPU_CAVIUM_OCTEON
 	select CPU_HAS_PREFETCH
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select WEAK_ORDERING
 	select CPU_SUPPORTS_HIGHMEM
@@ -1703,6 +1722,7 @@ config CPU_BMIPS
 	select WEAK_ORDERING
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_HAS_PREFETCH
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_CPUFREQ
 	select MIPS_EXTERNAL_TIMER
 	help
@@ -1711,6 +1731,7 @@ config CPU_BMIPS
 config CPU_XLR
 	bool "Netlogic XLR SoC"
 	depends on SYS_HAS_CPU_XLR
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1729,6 +1750,7 @@ config CPU_XLP
 	select WEAK_ORDERING
 	select WEAK_REORDERING_BEYOND_LLSC
 	select CPU_HAS_PREFETCH
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_MIPSR2
 	select CPU_SUPPORTS_HUGEPAGES
 	select MIPS_ASID_BITS_VARIABLE
@@ -1834,12 +1856,14 @@ config CPU_LOONGSON2
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
 	select ARCH_HAS_PHYS_TO_DMA
+	select CPU_HAS_LOAD_STORE_LR
 
 config CPU_LOONGSON1
 	bool
 	select CPU_MIPS32
 	select CPU_MIPSR1
 	select CPU_HAS_PREFETCH
+	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_CPUFREQ
@@ -2452,6 +2476,13 @@ config XKS01
 
 config CPU_HAS_RIXI
 	bool
+
+config CPU_HAS_LOAD_STORE_LR
+	bool
+	help
+	  CPU has support for unaligned load and store instructions:
+	  LWL, LWR, SWL, SWR (Load/store word left/right).
+	  LDL, LDR, SDL, SDR (Load/store doubleword left/right, for 64bit systems).
 
 #
 # Vectored interrupt mode is an R2 feature
