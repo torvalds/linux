@@ -1348,6 +1348,7 @@ static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 				int budget, int *done)
 {
+	struct net_device *dev = card->dev;
 	int work_done = 0;
 	struct sk_buff *skb;
 	struct qeth_hdr *hdr;
@@ -1369,11 +1370,10 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 			magic = *(__u16 *)skb->data;
 			if ((card->info.type == QETH_CARD_TYPE_IQD) &&
 			    (magic == ETH_P_AF_IUCV)) {
-				skb->protocol = cpu_to_be16(ETH_P_AF_IUCV);
 				len = skb->len;
-				card->dev->header_ops->create(skb, card->dev, 0,
-					card->dev->dev_addr, "FAKELL", len);
-				skb_reset_mac_header(skb);
+				dev_hard_header(skb, dev, ETH_P_AF_IUCV,
+						dev->dev_addr, "FAKELL", len);
+				skb->protocol = eth_type_trans(skb, dev);
 				netif_receive_skb(skb);
 			} else {
 				qeth_l3_rebuild_skb(card, skb, hdr);
@@ -2005,17 +2005,15 @@ static void qeth_l3_fill_af_iucv_hdr(struct qeth_hdr *hdr, struct sk_buff *skb,
 				     unsigned int data_len)
 {
 	char daddr[16];
-	struct af_iucv_trans_hdr *iucv_hdr;
 
 	hdr->hdr.l3.id = QETH_HEADER_TYPE_LAYER3;
 	hdr->hdr.l3.length = data_len;
 	hdr->hdr.l3.flags = QETH_HDR_IPV6 | QETH_CAST_UNICAST;
 
-	iucv_hdr = (struct af_iucv_trans_hdr *)(skb_mac_header(skb) + ETH_HLEN);
 	memset(daddr, 0, sizeof(daddr));
 	daddr[0] = 0xfe;
 	daddr[1] = 0x80;
-	memcpy(&daddr[8], iucv_hdr->destUserID, 8);
+	memcpy(&daddr[8], iucv_trans_hdr(skb)->destUserID, 8);
 	memcpy(hdr->hdr.l3.next_hop.ipv6_addr, daddr, 16);
 }
 
