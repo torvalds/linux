@@ -89,6 +89,9 @@ int kvm_arch_dev_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_VCPU_EVENTS:
 		r = 1;
 		break;
+	case KVM_CAP_ARM_VM_IPA_SIZE:
+		r = kvm_ipa_limit;
+		break;
 	default:
 		r = 0;
 	}
@@ -192,17 +195,23 @@ int kvm_arm_config_vm(struct kvm *kvm, unsigned long type)
 	u32 parange, phys_shift;
 	u8 lvls;
 
-	if (type)
+	if (type & ~KVM_VM_TYPE_ARM_IPA_SIZE_MASK)
 		return -EINVAL;
+
+	phys_shift = KVM_VM_TYPE_ARM_IPA_SIZE(type);
+	if (phys_shift) {
+		if (phys_shift > kvm_ipa_limit ||
+		    phys_shift < 32)
+			return -EINVAL;
+	} else {
+		phys_shift = KVM_PHYS_SHIFT;
+	}
 
 	parange = read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1) & 7;
 	if (parange > ID_AA64MMFR0_PARANGE_MAX)
 		parange = ID_AA64MMFR0_PARANGE_MAX;
 	vtcr |= parange << VTCR_EL2_PS_SHIFT;
 
-	phys_shift = id_aa64mmfr0_parange_to_phys_shift(parange);
-	if (phys_shift > KVM_PHYS_SHIFT)
-		phys_shift = KVM_PHYS_SHIFT;
 	vtcr |= VTCR_EL2_T0SZ(phys_shift);
 	/*
 	 * Use a minimum 2 level page table to prevent splitting

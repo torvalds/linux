@@ -123,6 +123,37 @@ memory layout to fit in user mode), check KVM_CAP_MIPS_VZ and use the
 flag KVM_VM_MIPS_VZ.
 
 
+On arm64, the physical address size for a VM (IPA Size limit) is limited
+to 40bits by default. The limit can be configured if the host supports the
+extension KVM_CAP_ARM_VM_IPA_SIZE. When supported, use
+KVM_VM_TYPE_ARM_IPA_SIZE(IPA_Bits) to set the size in the machine type
+identifier, where IPA_Bits is the maximum width of any physical
+address used by the VM. The IPA_Bits is encoded in bits[7-0] of the
+machine type identifier.
+
+e.g, to configure a guest to use 48bit physical address size :
+
+    vm_fd = ioctl(dev_fd, KVM_CREATE_VM, KVM_VM_TYPE_ARM_IPA_SIZE(48));
+
+The requested size (IPA_Bits) must be :
+  0 - Implies default size, 40bits (for backward compatibility)
+
+  or
+
+  N - Implies N bits, where N is a positive integer such that,
+      32 <= N <= Host_IPA_Limit
+
+Host_IPA_Limit is the maximum possible value for IPA_Bits on the host and
+is dependent on the CPU capability and the kernel configuration. The limit can
+be retrieved using KVM_CAP_ARM_VM_IPA_SIZE of the KVM_CHECK_EXTENSION
+ioctl() at run-time.
+
+Please note that configuring the IPA size does not affect the capability
+exposed by the guest CPUs in ID_AA64MMFR0_EL1[PARange]. It only affects
+size of the address translated by the stage2 level (guest physical to
+host physical address translations).
+
+
 4.3 KVM_GET_MSR_INDEX_LIST, KVM_GET_MSR_FEATURE_INDEX_LIST
 
 Capability: basic, KVM_CAP_GET_MSR_FEATURES for KVM_GET_MSR_FEATURE_INDEX_LIST
