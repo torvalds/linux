@@ -26,6 +26,7 @@
 
 #include <kvm/arm_arch_timer.h>
 
+#include <asm/cpufeature.h>
 #include <asm/cputype.h>
 #include <asm/ptrace.h>
 #include <asm/kvm_arm.h>
@@ -134,9 +135,43 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	return kvm_timer_vcpu_reset(vcpu);
 }
 
+/*
+ * Configure the VTCR_EL2 for this VM. The VTCR value is common
+ * across all the physical CPUs on the system. We use system wide
+ * sanitised values to fill in different fields, except for Hardware
+ * Management of Access Flags. HA Flag is set unconditionally on
+ * all CPUs, as it is safe to run with or without the feature and
+ * the bit is RES0 on CPUs that don't support it.
+ */
 int kvm_arm_config_vm(struct kvm *kvm, unsigned long type)
 {
+	u64 vtcr = VTCR_EL2_FLAGS;
+	u32 parange, phys_shift;
+
 	if (type)
 		return -EINVAL;
+
+	parange = read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1) & 7;
+	if (parange > ID_AA64MMFR0_PARANGE_MAX)
+		parange = ID_AA64MMFR0_PARANGE_MAX;
+	vtcr |= parange << VTCR_EL2_PS_SHIFT;
+
+	phys_shift = id_aa64mmfr0_parange_to_phys_shift(parange);
+	if (phys_shift > KVM_PHYS_SHIFT)
+		phys_shift = KVM_PHYS_SHIFT;
+	vtcr |= VTCR_EL2_T0SZ(phys_shift);
+
+	/*
+	 * Enable the Hardware Access Flag management, unconditionally
+	 * on all CPUs. The features is RES0 on CPUs without the support
+	 * and must be ignored by the CPUs.
+	 */
+	vtcr |= VTCR_EL2_HA;
+
+	/* Set the vmid bits */
+	vtcr |= (kvm_get_vmid_bits() == 16) ?
+		VTCR_EL2_VS_16BIT :
+		VTCR_EL2_VS_8BIT;
+	kvm->arch.vtcr = vtcr;
 	return 0;
 }
