@@ -386,7 +386,7 @@ int vmw_view_add(struct vmw_cmdbuf_res_manager *man,
 		goto out_resource_init;
 
 	res->id = view->view_id;
-	vmw_resource_activate(res, vmw_hw_view_destroy);
+	res->hw_destroy = vmw_hw_view_destroy;
 
 out_resource_init:
 	vmw_resource_unreference(&res);

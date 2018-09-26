@@ -81,7 +81,7 @@ static int vmw_simple_resource_init(struct vmw_private *dev_priv,
 		return ret;
 	}
 
-	vmw_resource_activate(&simple->res, simple->func->hw_destroy);
+	simple->res.hw_destroy = simple->func->hw_destroy;
 
 	return 0;
 }

@@ -186,7 +186,7 @@ static int vmw_gb_shader_init(struct vmw_private *dev_priv,
 	shader->num_input_sig = num_input_sig;
 	shader->num_output_sig = num_output_sig;
 
-	vmw_resource_activate(res, vmw_hw_shader_destroy);
+	res->hw_destroy = vmw_hw_shader_destroy;
 	return 0;
 }
 
@@ -656,7 +656,7 @@ int vmw_dx_shader_add(struct vmw_cmdbuf_res_manager *man,
 		goto out_resource_init;
 
 	res->id = shader->id;
-	vmw_resource_activate(res, vmw_hw_shader_destroy);
+	res->hw_destroy = vmw_hw_shader_destroy;
 
 out_resource_init:
 	vmw_resource_unreference(&res);

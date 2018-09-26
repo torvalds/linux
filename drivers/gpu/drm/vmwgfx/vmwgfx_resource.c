@@ -58,11 +58,11 @@ void vmw_resource_release_id(struct vmw_resource *res)
 	struct vmw_private *dev_priv = res->dev_priv;
 	struct idr *idr = &dev_priv->res_idr[res->func->res_type];
 
-	write_lock(&dev_priv->resource_lock);
+	spin_lock(&dev_priv->resource_lock);
 	if (res->id != -1)
 		idr_remove(idr, res->id);
 	res->id = -1;
-	write_unlock(&dev_priv->resource_lock);
+	spin_unlock(&dev_priv->resource_lock);
 }
 
 static void vmw_resource_release(struct kref *kref)
@@ -73,10 +73,9 @@ static void vmw_resource_release(struct kref *kref)
 	int id;
 	struct idr *idr = &dev_priv->res_idr[res->func->res_type];
 
-	write_lock(&dev_priv->resource_lock);
-	res->avail = false;
+	spin_lock(&dev_priv->resource_lock);
 	list_del_init(&res->lru_head);
-	write_unlock(&dev_priv->resource_lock);
+	spin_unlock(&dev_priv->resource_lock);
 	if (res->backup) {
 		struct ttm_buffer_object *bo = &res->backup->base;
 
@@ -108,10 +107,10 @@ static void vmw_resource_release(struct kref *kref)
 	else
 		kfree(res);
 
-	write_lock(&dev_priv->resource_lock);
+	spin_lock(&dev_priv->resource_lock);
 	if (id != -1)
 		idr_remove(idr, id);
-	write_unlock(&dev_priv->resource_lock);
+	spin_unlock(&dev_priv->resource_lock);
 }
 
 void vmw_resource_unreference(struct vmw_resource **p_res)
@@ -140,13 +139,13 @@ int vmw_resource_alloc_id(struct vmw_resource *res)
 	BUG_ON(res->id != -1);
 
 	idr_preload(GFP_KERNEL);
-	write_lock(&dev_priv->resource_lock);
+	spin_lock(&dev_priv->resource_lock);
 
 	ret = idr_alloc(idr, res, 1, 0, GFP_NOWAIT);
 	if (ret >= 0)
 		res->id = ret;
 
-	write_unlock(&dev_priv->resource_lock);
+	spin_unlock(&dev_priv->resource_lock);
 	idr_preload_end();
 	return ret < 0 ? ret : 0;
 }
@@ -170,7 +169,6 @@ int vmw_resource_init(struct vmw_private *dev_priv, struct vmw_resource *res,
 	kref_init(&res->kref);
 	res->hw_destroy = NULL;
 	res->res_free = res_free;
-	res->avail = false;
 	res->dev_priv = dev_priv;
 	res->func = func;
 	INIT_LIST_HEAD(&res->lru_head);
@@ -187,28 +185,6 @@ int vmw_resource_init(struct vmw_private *dev_priv, struct vmw_resource *res,
 		return vmw_resource_alloc_id(res);
 }
 
-/**
- * vmw_resource_activate
- *
- * @res:        Pointer to the newly created resource
- * @hw_destroy: Destroy function. NULL if none.
- *
- * Activate a resource after the hardware has been made aware of it.
- * Set tye destroy function to @destroy. Typically this frees the
- * resource and destroys the hardware resources associated with it.
- * Activate basically means that the function vmw_resource_lookup will
- * find it.
- */
-void vmw_resource_activate(struct vmw_resource *res,
-			   void (*hw_destroy) (struct vmw_resource *))
-{
-	struct vmw_private *dev_priv = res->dev_priv;
-
-	write_lock(&dev_priv->resource_lock);
-	res->avail = true;
-	res->hw_destroy = hw_destroy;
-	write_unlock(&dev_priv->resource_lock);
-}
 
 /**
  * vmw_user_resource_lookup_handle - lookup a struct resource from a
@@ -243,15 +219,10 @@ int vmw_user_resource_lookup_handle(struct vmw_private *dev_priv,
 		goto out_bad_resource;
 
 	res = converter->base_obj_to_res(base);
-
-	read_lock(&dev_priv->resource_lock);
-	if (!res->avail || res->res_free != converter->res_free) {
-		read_unlock(&dev_priv->resource_lock);
+	if (res->res_free != converter->res_free)
 		goto out_bad_resource;
-	}
 
 	kref_get(&res->kref);
-	read_unlock(&dev_priv->resource_lock);
 
 	*p_res = res;
 	ret = 0;
@@ -422,10 +393,10 @@ void vmw_resource_unreserve(struct vmw_resource *res,
 	if (!res->func->may_evict || res->id == -1 || res->pin_count)
 		return;
 
-	write_lock(&dev_priv->resource_lock);
+	spin_lock(&dev_priv->resource_lock);
 	list_add_tail(&res->lru_head,
 		      &res->dev_priv->res_lru[res->func->res_type]);
-	write_unlock(&dev_priv->resource_lock);
+	spin_unlock(&dev_priv->resource_lock);
 }
 
 /**
@@ -504,9 +475,9 @@ int vmw_resource_reserve(struct vmw_resource *res, bool interruptible,
 	struct vmw_private *dev_priv = res->dev_priv;
 	int ret;
 
-	write_lock(&dev_priv->resource_lock);
+	spin_lock(&dev_priv->resource_lock);
 	list_del_init(&res->lru_head);
-	write_unlock(&dev_priv->resource_lock);
+	spin_unlock(&dev_priv->resource_lock);
 
 	if (res->func->needs_backup && res->backup == NULL &&
 	    !no_backup) {
@@ -619,12 +590,12 @@ int vmw_resource_validate(struct vmw_resource *res, bool intr)
 		if (likely(ret != -EBUSY))
 			break;
 
-		write_lock(&dev_priv->resource_lock);
+		spin_lock(&dev_priv->resource_lock);
 		if (list_empty(lru_list) || !res->func->may_evict) {
 			DRM_ERROR("Out of device device resources "
 				  "for %s.\n", res->func->type_name);
 			ret = -EBUSY;
-			write_unlock(&dev_priv->resource_lock);
+			spin_unlock(&dev_priv->resource_lock);
 			break;
 		}
 
@@ -633,14 +604,14 @@ int vmw_resource_validate(struct vmw_resource *res, bool intr)
 					  lru_head));
 		list_del_init(&evict_res->lru_head);
 
-		write_unlock(&dev_priv->resource_lock);
+		spin_unlock(&dev_priv->resource_lock);
 
 		/* Trylock backup buffers with a NULL ticket. */
 		ret = vmw_resource_do_evict(NULL, evict_res, intr);
 		if (unlikely(ret != 0)) {
-			write_lock(&dev_priv->resource_lock);
+			spin_lock(&dev_priv->resource_lock);
 			list_add_tail(&evict_res->lru_head, lru_list);
-			write_unlock(&dev_priv->resource_lock);
+			spin_unlock(&dev_priv->resource_lock);
 			if (ret == -ERESTARTSYS ||
 			    ++err_count > VMW_RES_EVICT_ERR_COUNT) {
 				vmw_resource_unreference(&evict_res);
@@ -822,7 +793,7 @@ static void vmw_resource_evict_type(struct vmw_private *dev_priv,
 	struct ww_acquire_ctx ticket;
 
 	do {
-		write_lock(&dev_priv->resource_lock);
+		spin_lock(&dev_priv->resource_lock);
 
 		if (list_empty(lru_list))
 			goto out_unlock;
@@ -831,14 +802,14 @@ static void vmw_resource_evict_type(struct vmw_private *dev_priv,
 			list_first_entry(lru_list, struct vmw_resource,
 					 lru_head));
 		list_del_init(&evict_res->lru_head);
-		write_unlock(&dev_priv->resource_lock);
+		spin_unlock(&dev_priv->resource_lock);
 
 		/* Wait lock backup buffers with a ticket. */
 		ret = vmw_resource_do_evict(&ticket, evict_res, false);
 		if (unlikely(ret != 0)) {
-			write_lock(&dev_priv->resource_lock);
+			spin_lock(&dev_priv->resource_lock);
 			list_add_tail(&evict_res->lru_head, lru_list);
-			write_unlock(&dev_priv->resource_lock);
+			spin_unlock(&dev_priv->resource_lock);
 			if (++err_count > VMW_RES_EVICT_ERR_COUNT) {
 				vmw_resource_unreference(&evict_res);
 				return;
@@ -849,7 +820,7 @@ static void vmw_resource_evict_type(struct vmw_private *dev_priv,
 	} while (1);
 
 out_unlock:
-	write_unlock(&dev_priv->resource_lock);
+	spin_unlock(&dev_priv->resource_lock);
 }
 
 /**

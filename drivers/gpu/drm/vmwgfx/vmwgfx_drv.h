@@ -113,21 +113,49 @@ struct vmw_validate_buffer {
 };
 
 struct vmw_res_func;
+
+
+/**
+ * struct vmw-resource - base class for hardware resources
+ *
+ * @kref: For refcounting.
+ * @dev_priv: Pointer to the device private for this resource. Immutable.
+ * @id: Device id. Protected by @dev_priv::resource_lock.
+ * @backup_size: Backup buffer size. Immutable.
+ * @res_dirty: Resource contains data not yet in the backup buffer. Protected
+ * by resource reserved.
+ * @backup_dirty: Backup buffer contains data not yet in the HW resource.
+ * Protecte by resource reserved.
+ * @backup: The backup buffer if any. Protected by resource reserved.
+ * @backup_offset: Offset into the backup buffer if any. Protected by resource
+ * reserved. Note that only a few resource types can have a @backup_offset
+ * different from zero.
+ * @pin_count: The pin count for this resource. A pinned resource has a
+ * pin-count greater than zero. It is not on the resource LRU lists and its
+ * backup buffer is pinned. Hence it can't be evicted.
+ * @func: Method vtable for this resource. Immutable.
+ * @lru_head: List head for the LRU list. Protected by @dev_priv::resource_lock.
+ * @mob_head: List head for the MOB backup list. Protected by @backup reserved.
+ * @binding_head: List head for the context binding list. Protected by
+ * the @dev_priv::binding_mutex
+ * @res_free: The resource destructor.
+ * @hw_destroy: Callback to destroy the resource on the device, as part of
+ * resource destruction.
+ */
 struct vmw_resource {
 	struct kref kref;
 	struct vmw_private *dev_priv;
 	int id;
-	bool avail;
 	unsigned long backup_size;
-	bool res_dirty; /* Protected by backup buffer reserved */
-	bool backup_dirty; /* Protected by backup buffer reserved */
+	bool res_dirty;
+	bool backup_dirty;
 	struct vmw_buffer_object *backup;
 	unsigned long backup_offset;
-	unsigned long pin_count; /* Protected by resource reserved */
+	unsigned long pin_count;
 	const struct vmw_res_func *func;
-	struct list_head lru_head; /* Protected by the resource lock */
-	struct list_head mob_head; /* Protected by @backup reserved */
-	struct list_head binding_head; /* Protected by binding_mutex */
+	struct list_head lru_head;
+	struct list_head mob_head;
+	struct list_head binding_head;
 	void (*res_free) (struct vmw_resource *res);
 	void (*hw_destroy) (struct vmw_resource *res);
 };
@@ -471,7 +499,7 @@ struct vmw_private {
 	 * Context and surface management.
 	 */
 
-	rwlock_t resource_lock;
+	spinlock_t resource_lock;
 	struct idr res_idr[vmw_res_max];
 	/*
 	 * Block lastclose from racing with firstopen.

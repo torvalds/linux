@@ -217,9 +217,7 @@ static int vmw_gb_context_init(struct vmw_private *dev_priv,
 		}
 	}
 
-
-
-	vmw_resource_activate(res, vmw_hw_context_destroy);
+	res->hw_destroy = vmw_hw_context_destroy;
 	return 0;
 
 out_cotables:
@@ -274,7 +272,7 @@ static int vmw_context_init(struct vmw_private *dev_priv,
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 	vmw_fifo_resource_inc(dev_priv);
-	vmw_resource_activate(res, vmw_hw_context_destroy);
+	res->hw_destroy = vmw_hw_context_destroy;
 	return 0;
 
 out_early:

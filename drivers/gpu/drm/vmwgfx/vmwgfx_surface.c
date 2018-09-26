@@ -614,7 +614,7 @@ static int vmw_surface_init(struct vmw_private *dev_priv,
 	 */
 
 	INIT_LIST_HEAD(&srf->view_list);
-	vmw_resource_activate(res, vmw_hw_surface_destroy);
+	res->hw_destroy = vmw_hw_surface_destroy;
 	return ret;
 }
 
