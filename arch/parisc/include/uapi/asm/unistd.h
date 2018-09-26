@@ -366,8 +366,10 @@
 #define __NR_statx		(__NR_Linux + 349)
 #define __NR_io_pgetevents	(__NR_Linux + 350)
 
-#define __NR_Linux_syscalls	(__NR_io_pgetevents + 1)
+#ifdef __KERNEL__
+#define __NR_syscalls		351
+#endif
 
-#define LINUX_GATEWAY_ADDR      0x100
+#define LINUX_GATEWAY_ADDR	0x100
 
 #endif /* _UAPI_ASM_PARISC_UNISTD_H_ */
