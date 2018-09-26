@@ -125,7 +125,7 @@ int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
 
 	/* Check Permissions */
 	if (!capable(CAP_NET_ADMIN) &&
-	    (msg->msgcode != DIDmsg_dot11req_mibget)) {
+	    (msg->msgcode != DIDMSG_DOT11REQ_MIBGET)) {
 		netdev_err(wlandev->netdev,
 			   "%s: only dot11req_mibget allowed for non-root.\n",
 			   wlandev->name);
@@ -184,9 +184,9 @@ static void p80211req_handlemsg(struct wlandevice *wlandev,
 
 	break;
 	}
-	case DIDmsg_dot11req_mibget:
+	case DIDMSG_DOT11REQ_MIBGET:
 	case DIDmsg_dot11req_mibset:{
-		int isget = (msg->msgcode == DIDmsg_dot11req_mibget);
+		int isget = (msg->msgcode == DIDMSG_DOT11REQ_MIBGET);
 		struct p80211msg_dot11req_mibget *mib_msg =
 			(struct p80211msg_dot11req_mibget *)msg;
 		p80211req_mibset_mibget(wlandev, mib_msg, isget);

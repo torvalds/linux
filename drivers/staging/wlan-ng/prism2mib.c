@@ -301,7 +301,7 @@ int prism2mgmt_mibset_mibget(struct wlandevice *wlandev, void *msgp)
 	 ** this is a "mibset" so make make sure that the MIB may be written.
 	 */
 
-	isget = (msg->msgcode == DIDmsg_dot11req_mibget);
+	isget = (msg->msgcode == DIDMSG_DOT11REQ_MIBGET);
 
 	if (isget) {
 		if (!(mib->flag & F_READ)) {

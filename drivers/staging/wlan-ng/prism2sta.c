@@ -288,7 +288,7 @@ static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 	int result = 0;
 
 	switch (msg->msgcode) {
-	case DIDmsg_dot11req_mibget:
+	case DIDMSG_DOT11REQ_MIBGET:
 		pr_debug("Received mibget request\n");
 		result = prism2mgmt_mibset_mibget(wlandev, msg);
 		break;
@@ -1949,7 +1949,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 	}
 
 	/* Get the signal rate */
-	msg.msgcode = DIDmsg_dot11req_mibget;
+	msg.msgcode = DIDMSG_DOT11REQ_MIBGET;
 	mibitem->did = DIDmib_p2_p2MAC_p2CurrentTxRate;
 	result = p80211req_dorequest(wlandev, (u8 *)&msg);
 

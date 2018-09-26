@@ -294,7 +294,7 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 
 	/* read the card's PRI-SUP */
 	memset(&getmsg, 0, sizeof(getmsg));
-	getmsg.msgcode = DIDmsg_dot11req_mibget;
+	getmsg.msgcode = DIDMSG_DOT11REQ_MIBGET;
 	getmsg.msglen = sizeof(getmsg);
 	strcpy(getmsg.devname, wlandev->name);
 

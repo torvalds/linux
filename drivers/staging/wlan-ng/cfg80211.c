@@ -618,7 +618,7 @@ static int prism2_get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 	int err = 0;
 
 	mibitem = (struct p80211item_uint32 *)&msg.mibattribute.data;
-	msg.msgcode = DIDmsg_dot11req_mibget;
+	msg.msgcode = DIDMSG_DOT11REQ_MIBGET;
 	mibitem->did =
 	    DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel;
 
