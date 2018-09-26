@@ -1516,6 +1516,9 @@ bool tipc_link_validate_msg(struct tipc_link *l, struct tipc_msg *hdr)
 			return false;
 		if (session != curr_session)
 			return false;
+		/* Extra sanity check */
+		if (!link_is_up(l) && msg_ack(hdr))
+			return false;
 		if (!(l->peer_caps & TIPC_LINK_PROTO_SEQNO))
 			return true;
 		/* Accept only STATE with new sequence number */
