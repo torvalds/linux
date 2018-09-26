@@ -833,6 +833,13 @@ struct nested_vmx {
 	bool sync_shadow_vmcs;
 	bool dirty_vmcs12;
 
+	/*
+	 * vmcs02 has been initialized, i.e. state that is constant for
+	 * vmcs02 has been written to the backing VMCS.  Initialization
+	 * is delayed until L1 actually attempts to run a nested VM.
+	 */
+	bool vmcs02_initialized;
+
 	bool change_vmcs01_virtual_apic_mode;
 
 	/* L2 must run next, and mustn't decide to exit to L1. */
@@ -8278,6 +8285,7 @@ static int enter_vmx_operation(struct kvm_vcpu *vcpu)
 
 	vmx->nested.vpid02 = allocate_vpid();
 
+	vmx->nested.vmcs02_initialized = false;
 	vmx->nested.vmxon = true;
 	return 0;
 
@@ -11982,13 +11990,14 @@ static u64 nested_vmx_calc_efer(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 static void prepare_vmcs02_constant_state(struct vcpu_vmx *vmx)
 {
 	/*
-	 * If we have never launched vmcs02, set the constant vmcs02 state
+	 * If vmcs02 hasn't been initialized, set the constant vmcs02 state
 	 * according to L0's settings (vmcs12 is irrelevant here).  Host
 	 * fields that come from L0 and are not constant, e.g. HOST_CR3,
 	 * will be set as needed prior to VMLAUNCH/VMRESUME.
 	 */
-	if (vmx->nested.vmcs02.launched)
+	if (vmx->nested.vmcs02_initialized)
 		return;
+	vmx->nested.vmcs02_initialized = true;
 
 	/* All VMFUNCs are currently emulated through L0 vmexits.  */
 	if (cpu_has_vmx_vmfunc())
