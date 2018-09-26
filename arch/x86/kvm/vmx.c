@@ -13581,14 +13581,6 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	/* trying to cancel vmlaunch/vmresume is a bug */
 	WARN_ON_ONCE(vmx->nested.nested_run_pending);
 
-	/*
-	 * The only expected VM-instruction error is "VM entry with
-	 * invalid control field(s)." Anything else indicates a
-	 * problem with L0.
-	 */
-	WARN_ON_ONCE(vmx->fail && (vmcs_read32(VM_INSTRUCTION_ERROR) !=
-				   VMXERR_ENTRY_INVALID_CONTROL_FIELD));
-
 	leave_guest_mode(vcpu);
 
 	if (vmcs12->cpu_based_vm_exec_control & CPU_BASED_USE_TSC_OFFSETING)
@@ -13615,6 +13607,16 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 		if (nested_vmx_store_msr(vcpu, vmcs12->vm_exit_msr_store_addr,
 					 vmcs12->vm_exit_msr_store_count))
 			nested_vmx_abort(vcpu, VMX_ABORT_SAVE_GUEST_MSR_FAIL);
+	} else {
+		/*
+		 * The only expected VM-instruction error is "VM entry with
+		 * invalid control field(s)." Anything else indicates a
+		 * problem with L0.  And we should never get here with a
+		 * VMFail of any type if early consistency checks are enabled.
+		 */
+		WARN_ON_ONCE(vmcs_read32(VM_INSTRUCTION_ERROR) !=
+			     VMXERR_ENTRY_INVALID_CONTROL_FIELD);
+		WARN_ON_ONCE(nested_early_check);
 	}
 
 	vmx_switch_vmcs(vcpu, &vmx->vmcs01);
