@@ -772,6 +772,18 @@ extern void vmw_bo_unmap(struct vmw_buffer_object *vbo);
 extern void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 			       struct ttm_mem_reg *mem);
 extern void vmw_bo_swap_notify(struct ttm_buffer_object *bo);
+extern struct vmw_buffer_object *
+vmw_user_bo_noref_lookup(struct ttm_object_file *tfile, u32 handle);
+
+/**
+ * vmw_user_bo_noref_release - release a buffer object pointer looked up
+ * without reference
+ */
+static inline void vmw_user_bo_noref_release(void)
+{
+	ttm_base_object_noref_release();
+}
+
 
 /**
  * Misc Ioctl functionality - vmwgfx_ioctl.c
