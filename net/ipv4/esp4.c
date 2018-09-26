@@ -822,7 +822,7 @@ static int esp4_err(struct sk_buff *skb, u32 info)
 	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH)
 		ipv4_update_pmtu(skb, net, info, 0, IPPROTO_ESP);
 	else
-		ipv4_redirect(skb, net, 0, 0, IPPROTO_ESP, 0);
+		ipv4_redirect(skb, net, 0, IPPROTO_ESP);
 	xfrm_state_put(x);
 
 	return 0;

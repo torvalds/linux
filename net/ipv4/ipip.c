@@ -180,7 +180,7 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	}
 
 	if (type == ICMP_REDIRECT) {
-		ipv4_redirect(skb, net, t->parms.link, 0, iph->protocol, 0);
+		ipv4_redirect(skb, net, t->parms.link, iph->protocol);
 		goto out;
 	}
 
