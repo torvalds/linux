@@ -637,7 +637,7 @@ out:
 	return rc;
 }
 
-struct tls_rec *get_rec(struct sock *sk)
+static struct tls_rec *get_rec(struct sock *sk)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
