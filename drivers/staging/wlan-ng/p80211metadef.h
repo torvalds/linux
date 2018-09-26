@@ -145,7 +145,7 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(12) | \
 			P80211DID_MKITEM(4) | 0x00000000)
-#define DIDmsg_p2req_flashdl_state \
+#define DIDMSG_P2REQ_FLASHDL_STATE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(13))
 #define DIDmsg_p2req_flashdl_write \
