@@ -264,13 +264,13 @@ int mt76x2u_register_device(struct mt76x2_dev *dev)
 	if (err < 0)
 		return err;
 
-	err = mt76u_mcu_init_rx(&dev->mt76);
-	if (err < 0)
-		return err;
-
 	err = mt76u_alloc_queues(&dev->mt76);
 	if (err < 0)
 		goto fail;
+
+	err = mt76u_mcu_init_rx(&dev->mt76);
+	if (err < 0)
+		return err;
 
 	err = mt76x2u_init_hardware(dev);
 	if (err < 0)

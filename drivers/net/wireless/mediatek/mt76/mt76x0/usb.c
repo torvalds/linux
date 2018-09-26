@@ -249,11 +249,11 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 	if (!(mt76_rr(dev, MT_EFUSE_CTRL) & MT_EFUSE_CTRL_SEL))
 		dev_warn(dev->mt76.dev, "Warning: eFUSE not present\n");
 
-	ret = mt76u_mcu_init_rx(&dev->mt76);
+	ret = mt76u_alloc_queues(&dev->mt76);
 	if (ret < 0)
 		goto err;
 
-	ret = mt76u_alloc_queues(&dev->mt76);
+	ret = mt76u_mcu_init_rx(&dev->mt76);
 	if (ret < 0)
 		goto err;
 
