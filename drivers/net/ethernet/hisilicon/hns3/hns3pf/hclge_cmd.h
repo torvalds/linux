@@ -778,6 +778,7 @@ struct hclge_reset_cmd {
 };
 
 #define HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B	BIT(0)
+#define HCLGE_CMD_SERDES_PARALLEL_INNER_LOOP_B	BIT(2)
 #define HCLGE_CMD_SERDES_DONE_B			BIT(0)
 #define HCLGE_CMD_SERDES_SUCCESS_B		BIT(1)
 struct hclge_serdes_lb_cmd {

@@ -50,7 +50,8 @@ MODULE_DEVICE_TABLE(pci, ae_algo_pci_tbl);
 
 static const char hns3_nic_test_strs[][ETH_GSTRING_LEN] = {
 	"App    Loopback test",
-	"Serdes Loopback test",
+	"Serdes serial Loopback test",
+	"Serdes parallel Loopback test",
 	"Phy    Loopback test"
 };
 
@@ -475,7 +476,10 @@ static void hclge_update_stats(struct hnae3_handle *handle,
 
 static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 {
-#define HCLGE_LOOPBACK_TEST_FLAGS 0x7
+#define HCLGE_LOOPBACK_TEST_FLAGS (HNAE3_SUPPORT_APP_LOOPBACK |\
+		HNAE3_SUPPORT_PHY_LOOPBACK |\
+		HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK |\
+		HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK)
 
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
@@ -489,15 +493,17 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 	if (stringset == ETH_SS_TEST) {
 		/* clear loopback bit flags at first */
 		handle->flags = (handle->flags & (~HCLGE_LOOPBACK_TEST_FLAGS));
-		if (hdev->hw.mac.speed == HCLGE_MAC_SPEED_10M ||
+		if (hdev->pdev->revision >= HNAE3_REVISION_ID_21 ||
+		    hdev->hw.mac.speed == HCLGE_MAC_SPEED_10M ||
 		    hdev->hw.mac.speed == HCLGE_MAC_SPEED_100M ||
 		    hdev->hw.mac.speed == HCLGE_MAC_SPEED_1G) {
 			count += 1;
 			handle->flags |= HNAE3_SUPPORT_APP_LOOPBACK;
 		}
 
-		count++;
-		handle->flags |= HNAE3_SUPPORT_SERDES_LOOPBACK;
+		count += 2;
+		handle->flags |= HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK;
+		handle->flags |= HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK;
 	} else if (stringset == ETH_SS_STATS) {
 		count = ARRAY_SIZE(g_mac_stats_string) +
 			hclge_tqps_get_sset_count(handle, stringset);
@@ -527,9 +533,15 @@ static void hclge_get_strings(struct hnae3_handle *handle,
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
-		if (handle->flags & HNAE3_SUPPORT_SERDES_LOOPBACK) {
+		if (handle->flags & HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK) {
 			memcpy(p,
-			       hns3_nic_test_strs[HNAE3_LOOP_SERDES],
+			       hns3_nic_test_strs[HNAE3_LOOP_SERIAL_SERDES],
+			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+		if (handle->flags & HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK) {
+			memcpy(p,
+			       hns3_nic_test_strs[HNAE3_LOOP_PARALLEL_SERDES],
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
@@ -3381,22 +3393,37 @@ static int hclge_set_app_loopback(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
-static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en)
+static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en,
+				     enum hnae3_loop loop_mode)
 {
 #define HCLGE_SERDES_RETRY_MS	10
 #define HCLGE_SERDES_RETRY_NUM	100
 	struct hclge_serdes_lb_cmd *req;
 	struct hclge_desc desc;
 	int ret, i = 0;
+	u8 loop_mode_b;
 
 	req = (struct hclge_serdes_lb_cmd *)desc.data;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_SERDES_LOOPBACK, false);
 
+	switch (loop_mode) {
+	case HNAE3_LOOP_SERIAL_SERDES:
+		loop_mode_b = HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B;
+		break;
+	case HNAE3_LOOP_PARALLEL_SERDES:
+		loop_mode_b = HCLGE_CMD_SERDES_PARALLEL_INNER_LOOP_B;
+		break;
+	default:
+		dev_err(&hdev->pdev->dev,
+			"unsupported serdes loopback mode %d\n", loop_mode);
+		return -ENOTSUPP;
+	}
+
 	if (en) {
-		req->enable = HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B;
-		req->mask = HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B;
+		req->enable = loop_mode_b;
+		req->mask = loop_mode_b;
 	} else {
-		req->mask = HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B;
+		req->mask = loop_mode_b;
 	}
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -3462,8 +3489,9 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 	case HNAE3_LOOP_APP:
 		ret = hclge_set_app_loopback(hdev, en);
 		break;
-	case HNAE3_LOOP_SERDES:
-		ret = hclge_set_serdes_loopback(hdev, en);
+	case HNAE3_LOOP_SERIAL_SERDES:
+	case HNAE3_LOOP_PARALLEL_SERDES:
+		ret = hclge_set_serdes_loopback(hdev, en, loop_mode);
 		break;
 	default:
 		ret = -ENOTSUPP;

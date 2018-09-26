@@ -53,7 +53,7 @@ static const struct hns3_stats hns3_rxq_stats[] = {
 
 #define HNS3_TQP_STATS_COUNT (HNS3_TXQ_STATS_COUNT + HNS3_RXQ_STATS_COUNT)
 
-#define HNS3_SELF_TEST_TYPE_NUM		2
+#define HNS3_SELF_TEST_TPYE_NUM         3
 #define HNS3_NIC_LB_TEST_PKT_NUM	1
 #define HNS3_NIC_LB_TEST_RING_ID	0
 #define HNS3_NIC_LB_TEST_PACKET_SIZE	128
@@ -78,7 +78,8 @@ static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop, bool en)
 		return -EOPNOTSUPP;
 
 	switch (loop) {
-	case HNAE3_LOOP_SERDES:
+	case HNAE3_LOOP_SERIAL_SERDES:
+	case HNAE3_LOOP_PARALLEL_SERDES:
 	case HNAE3_LOOP_APP:
 		ret = h->ae_algo->ops->set_loopback(h, loop, en);
 		break;
@@ -290,9 +291,14 @@ static void hns3_self_test(struct net_device *ndev,
 	st_param[HNAE3_LOOP_APP][1] =
 			h->flags & HNAE3_SUPPORT_APP_LOOPBACK;
 
-	st_param[HNAE3_LOOP_SERDES][0] = HNAE3_LOOP_SERDES;
-	st_param[HNAE3_LOOP_SERDES][1] =
-			h->flags & HNAE3_SUPPORT_SERDES_LOOPBACK;
+	st_param[HNAE3_LOOP_SERIAL_SERDES][0] = HNAE3_LOOP_SERIAL_SERDES;
+	st_param[HNAE3_LOOP_SERIAL_SERDES][1] =
+			h->flags & HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK;
+
+	st_param[HNAE3_LOOP_PARALLEL_SERDES][0] =
+			HNAE3_LOOP_PARALLEL_SERDES;
+	st_param[HNAE3_LOOP_PARALLEL_SERDES][1] =
+			h->flags & HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK;
 
 	if (if_running)
 		ndev->netdev_ops->ndo_stop(ndev);
