@@ -217,7 +217,7 @@
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(5) | \
 			P80211DID_MKITEM(1) | 0x10000000)
-#define DIDmib_cat_lnx \
+#define DIDMIB_CAT_LNX \
 			P80211DID_MKSECTION(4)
 #define DIDmib_lnx_lnxConfigTable \
 			(P80211DID_MKSECTION(4) | \
