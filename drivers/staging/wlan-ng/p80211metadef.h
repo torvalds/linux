@@ -228,7 +228,7 @@
 			P80211DID_MKITEM(1) | 0x18000000)
 #define DIDMIB_CAT_P2 \
 			P80211DID_MKSECTION(5)
-#define DIDmib_p2_p2Static \
+#define DIDMIB_P2_STATIC \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2))
 #define DIDmib_p2_p2Static_p2CnfPortType \
