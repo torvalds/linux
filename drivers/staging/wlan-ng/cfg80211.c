@@ -163,7 +163,7 @@ static int prism2_add_key(struct wiphy *wiphy, struct net_device *dev,
 		return -EFAULT;
 
 	/* send key to driver */
-	did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(key_index + 1);
+	did = didmib_dot11smt_wepdefaultkeystable_key(key_index + 1);
 
 	if (prism2_domibset_pstr32(wlandev, did, params->key_len, params->key))
 		return -EFAULT;
@@ -216,7 +216,7 @@ static int prism2_del_key(struct wiphy *wiphy, struct net_device *dev,
 		return -EINVAL;
 
 	/* send key to driver */
-	did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(key_index + 1);
+	did = didmib_dot11smt_wepdefaultkeystable_key(key_index + 1);
 	result = prism2_domibset_pstr32(wlandev, did, 13, "0000000000000");
 
 	if (result)
@@ -488,7 +488,7 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 				goto exit;
 
 			/* send key to driver */
-			did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(
+			did = didmib_dot11smt_wepdefaultkeystable_key(
 					sme->key_idx + 1);
 			result = prism2_domibset_pstr32(wlandev,
 							did, sme->key_len,

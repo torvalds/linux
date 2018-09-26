@@ -205,10 +205,10 @@ static void p80211req_mibset_mibget(struct wlandevice *wlandev,
 	u8 *key = mibitem->data + sizeof(struct p80211pstrd);
 
 	switch (mibitem->did) {
-	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(1):
-	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(2):
-	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(3):
-	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(4):
+	case didmib_dot11smt_wepdefaultkeystable_key(1):
+	case didmib_dot11smt_wepdefaultkeystable_key(2):
+	case didmib_dot11smt_wepdefaultkeystable_key(3):
+	case didmib_dot11smt_wepdefaultkeystable_key(4):
 		if (!isget)
 			wep_change_key(wlandev,
 				       P80211DID_ITEM(mibitem->did) - 1,

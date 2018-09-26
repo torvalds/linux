@@ -156,7 +156,7 @@
 #define DIDMIB_DOT11SMT_WEPDEFAULTKEYSTABLE \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(4))
-#define DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(_i) \
+#define didmib_dot11smt_wepdefaultkeystable_key(_i) \
 			(DIDMIB_DOT11SMT_WEPDEFAULTKEYSTABLE | \
 			P80211DID_MKITEM(_i) | 0x0c000000)
 #define DIDmib_dot11smt_dot11PrivacyTable \
