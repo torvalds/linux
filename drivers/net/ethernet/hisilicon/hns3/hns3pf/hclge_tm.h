@@ -106,6 +106,10 @@ struct hclge_cfg_pause_param_cmd {
 	u8 pause_trans_gap;
 	u8 rsvd;
 	__le16 pause_trans_time;
+	u8 rsvd1[6];
+	/* extra mac address to do double check for pause frame */
+	u8 mac_addr_extra[ETH_ALEN];
+	u16 rsvd2;
 };
 
 struct hclge_pfc_stats_cmd {
