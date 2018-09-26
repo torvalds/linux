@@ -956,7 +956,8 @@ int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags)
 
 		wait_event(q->mq_freeze_wq,
 			   (atomic_read(&q->mq_freeze_depth) == 0 &&
-			    (pm || !blk_queue_pm_only(q))) ||
+			    (pm || (blk_pm_request_resume(q),
+				    !blk_queue_pm_only(q)))) ||
 			   blk_queue_dying(q));
 		if (blk_queue_dying(q))
 			return -ENODEV;
