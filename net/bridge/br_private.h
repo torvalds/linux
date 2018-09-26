@@ -318,6 +318,7 @@ enum net_bridge_opts {
 	BROPT_MULTICAST_QUERY_USE_IFADDR,
 	BROPT_MULTICAST_STATS_ENABLED,
 	BROPT_HAS_IPV6_ADDR,
+	BROPT_NEIGH_SUPPRESS_ENABLED,
 };
 
 struct net_bridge {
@@ -414,7 +415,6 @@ struct net_bridge {
 #ifdef CONFIG_NET_SWITCHDEV
 	int offload_fwd_mark;
 #endif
-	bool				neigh_suppress_enabled;
 	bool				mtu_set_by_user;
 	struct hlist_head		fdb_list;
 };
