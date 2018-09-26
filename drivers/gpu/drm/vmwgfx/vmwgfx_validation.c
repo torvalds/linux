@@ -94,11 +94,12 @@ struct vmw_validation_res_node {
  *
  * Return: Pointer to the allocated memory on success. NULL on failure.
  */
-void *vmw_validation_mem_alloc(struct vmw_validation_context *ctx, size_t size)
+void *vmw_validation_mem_alloc(struct vmw_validation_context *ctx,
+			       unsigned int size)
 {
 	void *addr;
 
-	size = ALIGN(size, sizeof(long));
+	size = vmw_validation_align(size);
 	if (size > PAGE_SIZE)
 		return NULL;
 
@@ -262,7 +263,9 @@ int vmw_validation_add_bo(struct vmw_validation_context *ctx,
 			}
 		}
 		val_buf = &bo_node->base;
-		val_buf->bo = ttm_bo_reference(&vbo->base);
+		val_buf->bo = ttm_bo_get_unless_zero(&vbo->base);
+		if (!val_buf->bo)
+			return -ESRCH;
 		val_buf->shared = false;
 		list_add_tail(&val_buf->head, &ctx->bo_list);
 		bo_node->as_mob = as_mob;
@@ -313,7 +316,10 @@ int vmw_validation_add_resource(struct vmw_validation_context *ctx,
 			return ret;
 		}
 	}
-	node->res = vmw_resource_reference(res);
+	node->res = vmw_resource_reference_unless_doomed(res);
+	if (!node->res)
+		return -ESRCH;
+
 	node->first_usage = 1;
 	if (!res->dev_priv->has_mob) {
 		list_add_tail(&node->head, &ctx->resource_list);
@@ -714,4 +720,51 @@ void vmw_validation_done(struct vmw_validation_context *ctx,
 	if (ctx->res_mutex)
 		mutex_unlock(ctx->res_mutex);
 	vmw_validation_unref_lists(ctx);
+}
+
+/**
+ * vmw_validation_preload_bo - Preload the validation memory allocator for a
+ * call to vmw_validation_add_bo().
+ * @ctx: Pointer to the validation context.
+ *
+ * Iff this function returns successfully, the next call to
+ * vmw_validation_add_bo() is guaranteed not to sleep. An error is not fatal
+ * but voids the guarantee.
+ *
+ * Returns: Zero if successful, %-EINVAL otherwise.
+ */
+int vmw_validation_preload_bo(struct vmw_validation_context *ctx)
+{
+	unsigned int size = sizeof(struct vmw_validation_bo_node);
+
+	if (!vmw_validation_mem_alloc(ctx, size))
+		return -ENOMEM;
+
+	ctx->mem_size_left += size;
+	return 0;
+}
+
+/**
+ * vmw_validation_preload_res - Preload the validation memory allocator for a
+ * call to vmw_validation_add_res().
+ * @ctx: Pointer to the validation context.
+ * @size: Size of the validation node extra data. See below.
+ *
+ * Iff this function returns successfully, the next call to
+ * vmw_validation_add_res() with the same or smaller @size is guaranteed not to
+ * sleep. An error is not fatal but voids the guarantee.
+ *
+ * Returns: Zero if successful, %-EINVAL otherwise.
+ */
+int vmw_validation_preload_res(struct vmw_validation_context *ctx,
+			       unsigned int size)
+{
+	size = vmw_validation_align(sizeof(struct vmw_validation_res_node) +
+				    size) +
+		vmw_validation_align(sizeof(struct vmw_validation_bo_node));
+	if (!vmw_validation_mem_alloc(ctx, size))
+		return -ENOMEM;
+
+	ctx->mem_size_left += size;
+	return 0;
 }

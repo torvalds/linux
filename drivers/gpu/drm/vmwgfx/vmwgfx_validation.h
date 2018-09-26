@@ -177,6 +177,18 @@ vmw_validation_context_init(struct vmw_validation_context *ctx)
 	INIT_LIST_HEAD(&ctx->bo_list);
 }
 
+/**
+ * vmw_validation_align - Align a validation memory allocation
+ * @val: The size to be aligned
+ *
+ * Returns: @val aligned to the granularity used by the validation memory
+ * allocator.
+ */
+static inline unsigned int vmw_validation_align(unsigned int val)
+{
+	return ALIGN(val, sizeof(long));
+}
+
 int vmw_validation_add_bo(struct vmw_validation_context *ctx,
 			  struct vmw_buffer_object *vbo,
 			  bool as_mob, bool cpu_blit);
@@ -207,6 +219,9 @@ void vmw_validation_revert(struct vmw_validation_context *ctx);
 void vmw_validation_done(struct vmw_validation_context *ctx,
 			 struct vmw_fence_obj *fence);
 
-void *vmw_validation_mem_alloc(struct vmw_validation_context *ctx, size_t size);
-
+void *vmw_validation_mem_alloc(struct vmw_validation_context *ctx,
+			       unsigned int size);
+int vmw_validation_preload_bo(struct vmw_validation_context *ctx);
+int vmw_validation_preload_res(struct vmw_validation_context *ctx,
+			       unsigned int size);
 #endif
