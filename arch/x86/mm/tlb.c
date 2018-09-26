@@ -617,6 +617,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 	struct flush_tlb_info info __aligned(SMP_CACHE_BYTES) = {
 		.mm = mm,
 		.stride_shift = stride_shift,
+		.freed_tables = freed_tables,
 	};
 
 	cpu = get_cpu();

@@ -532,6 +532,7 @@ struct flush_tlb_info {
 	unsigned long		end;
 	u64			new_tlb_gen;
 	unsigned int		stride_shift;
+	bool			freed_tables;
 };
 
 #define local_flush_tlb() __flush_tlb()
