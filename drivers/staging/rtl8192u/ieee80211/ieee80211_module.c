@@ -159,6 +159,11 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	ieee->pHTInfo = kzalloc(sizeof(RT_HIGH_THROUGHPUT), GFP_KERNEL);
 	if (ieee->pHTInfo == NULL) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc memory for HTInfo\n");
+
+		/* By this point in code ieee80211_networks_allocate() has been
+		 * successfully called so the memory allocated should be freed
+		 */
+		ieee80211_networks_free(ieee);
 		goto failed;
 	}
 	HTUpdateDefaultSetting(ieee);
