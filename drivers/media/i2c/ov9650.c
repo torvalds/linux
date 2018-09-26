@@ -433,6 +433,8 @@ static int ov965x_read(struct ov965x *ov965x, u8 addr, u8 *val)
 	ret = regmap_read(ov965x->regmap, addr, &buf);
 	if (!ret)
 		*val = buf;
+	else
+		*val = -1;
 
 	v4l2_dbg(2, debug, &ov965x->sd, "%s: 0x%02x @ 0x%02x. (%d)\n",
 		 __func__, *val, addr, ret);
