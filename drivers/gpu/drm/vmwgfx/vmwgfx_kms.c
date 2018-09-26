@@ -2713,7 +2713,7 @@ int vmw_kms_helper_resource_prepare(struct vmw_resource *res,
 
 		ctx->buf = vmw_bo_reference(res->backup);
 	}
-	ret = vmw_resource_validate(res);
+	ret = vmw_resource_validate(res, interruptible);
 	if (ret)
 		goto out_revert;
 	return 0;

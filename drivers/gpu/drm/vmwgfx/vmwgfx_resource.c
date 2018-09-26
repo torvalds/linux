@@ -587,15 +587,18 @@ out_no_unbind:
 /**
  * vmw_resource_validate - Make a resource up-to-date and visible
  *                         to the device.
- *
- * @res:            The resource to make visible to the device.
+ * @res: The resource to make visible to the device.
+ * @intr: Perform waits interruptible if possible.
  *
  * On succesful return, any backup DMA buffer pointed to by @res->backup will
  * be reserved and validated.
  * On hardware resource shortage, this function will repeatedly evict
  * resources of the same type until the validation succeeds.
+ *
+ * Return: Zero on success, -ERESTARTSYS if interrupted, negative error code
+ * on failure.
  */
-int vmw_resource_validate(struct vmw_resource *res)
+int vmw_resource_validate(struct vmw_resource *res, bool intr)
 {
 	int ret;
 	struct vmw_resource *evict_res;
@@ -633,7 +636,7 @@ int vmw_resource_validate(struct vmw_resource *res)
 		write_unlock(&dev_priv->resource_lock);
 
 		/* Trylock backup buffers with a NULL ticket. */
-		ret = vmw_resource_do_evict(NULL, evict_res, true);
+		ret = vmw_resource_do_evict(NULL, evict_res, intr);
 		if (unlikely(ret != 0)) {
 			write_lock(&dev_priv->resource_lock);
 			list_add_tail(&evict_res->lru_head, lru_list);
@@ -914,7 +917,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 			/* Do we really need to pin the MOB as well? */
 			vmw_bo_pin_reserved(vbo, true);
 		}
-		ret = vmw_resource_validate(res);
+		ret = vmw_resource_validate(res, interruptible);
 		if (vbo)
 			ttm_bo_unreserve(&vbo->base);
 		if (ret)
