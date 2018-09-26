@@ -155,24 +155,8 @@ static int __init config7_set(char *str)
 __setup("config7=", config7_set);
 
 /* Experimental cache flush control parameters that should go away some day */
-int mt_protiflush;
-int mt_protdflush;
 int mt_n_iflushes = 1;
 int mt_n_dflushes = 1;
-
-static int __init set_protiflush(char *s)
-{
-	mt_protiflush = 1;
-	return 1;
-}
-__setup("protiflush", set_protiflush);
-
-static int __init set_protdflush(char *s)
-{
-	mt_protdflush = 1;
-	return 1;
-}
-__setup("protdflush", set_protdflush);
 
 static int __init niflush(char *s)
 {
@@ -233,10 +217,6 @@ void mips_mt_set_cpuoptions(void)
 	}
 
 	/* Report Cache management debug options */
-	if (mt_protiflush)
-		printk("I-cache flushes single-threaded\n");
-	if (mt_protdflush)
-		printk("D-cache flushes single-threaded\n");
 	if (mt_n_iflushes != 1)
 		printk("I-Cache Flushes Repeated %d times\n", mt_n_iflushes);
 	if (mt_n_dflushes != 1)
