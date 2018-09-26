@@ -410,7 +410,7 @@ static int prism2_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 			data = wiphy->rts_threshold;
 
 		result = prism2_domibset_uint32(wlandev,
-						DIDmib_dot11mac_dot11OperationTable_dot11RTSThreshold,
+						DIDMIB_DOT11MAC_OPERATIONTABLE_RTSTHRESHOLD,
 						data);
 		if (result) {
 			err = -EFAULT;
