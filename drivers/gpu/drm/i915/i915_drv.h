@@ -2325,6 +2325,8 @@ static inline struct scatterlist *__sg_next(struct scatterlist *sg)
 	     (((__iter).curr += PAGE_SIZE) >= (__iter).max) ?		\
 	     (__iter) = __sgt_iter(__sg_next((__iter).sgp), false), 0 : 0)
 
+bool i915_sg_trim(struct sg_table *orig_st);
+
 static inline unsigned int i915_sg_page_sizes(struct scatterlist *sg)
 {
 	unsigned int page_sizes;

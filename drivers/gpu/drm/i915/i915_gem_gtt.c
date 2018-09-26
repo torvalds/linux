@@ -3835,6 +3835,8 @@ intel_partial_pages(const struct i915_ggtt_view *view,
 		count -= len >> PAGE_SHIFT;
 		if (count == 0) {
 			sg_mark_end(sg);
+			i915_sg_trim(st); /* Drop any unused tail entries. */
+
 			return st;
 		}
 

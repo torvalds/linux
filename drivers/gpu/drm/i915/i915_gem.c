@@ -2491,7 +2491,7 @@ unlock:
 	mutex_unlock(&obj->mm.lock);
 }
 
-static bool i915_sg_trim(struct sg_table *orig_st)
+bool i915_sg_trim(struct sg_table *orig_st)
 {
 	struct sg_table new_st;
 	struct scatterlist *sg, *new_sg;
