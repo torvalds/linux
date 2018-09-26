@@ -360,15 +360,13 @@ u8 Efuse_WordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr, u8 word_e
 
 static u16 Efuse_GetCurrentSize(struct adapter *pAdapter)
 {
-	int	bContinual = true;
 	u16	efuse_addr = 0;
 	u8 hoffset = 0, hworden = 0;
 	u8 efuse_data, word_cnts = 0;
 
 	rtw_hal_get_hwreg(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_addr);
 
-	while (bContinual &&
-	       efuse_OneByteRead(pAdapter, efuse_addr, &efuse_data) &&
+	while (efuse_OneByteRead(pAdapter, efuse_addr, &efuse_data) &&
 	       AVAILABLE_EFUSE_ADDR(efuse_addr)) {
 		if (efuse_data != 0xFF) {
 			if ((efuse_data&0x1F) == 0x0F) {		/* extended header */
@@ -390,7 +388,7 @@ static u16 Efuse_GetCurrentSize(struct adapter *pAdapter)
 			/* read next header */
 			efuse_addr = efuse_addr + (word_cnts*2)+1;
 		} else {
-			bContinual = false;
+			break;
 		}
 	}
 
