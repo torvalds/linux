@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/blk-mq.h>
 #include <linux/blk-pm.h>
 #include <linux/blkdev.h>
 #include <linux/pm_runtime.h>
+#include "blk-mq.h"
+#include "blk-mq-tag.h"
 
 /**
  * blk_pm_runtime_init - Block layer runtime PM initialization routine
@@ -68,14 +71,40 @@ int blk_pre_runtime_suspend(struct request_queue *q)
 	if (!q->dev)
 		return ret;
 
+	WARN_ON_ONCE(q->rpm_status != RPM_ACTIVE);
+
+	/*
+	 * Increase the pm_only counter before checking whether any
+	 * non-PM blk_queue_enter() calls are in progress to avoid that any
+	 * new non-PM blk_queue_enter() calls succeed before the pm_only
+	 * counter is decreased again.
+	 */
+	blk_set_pm_only(q);
+	ret = -EBUSY;
+	/* Switch q_usage_counter from per-cpu to atomic mode. */
+	blk_freeze_queue_start(q);
+	/*
+	 * Wait until atomic mode has been reached. Since that
+	 * involves calling call_rcu(), it is guaranteed that later
+	 * blk_queue_enter() calls see the pm-only state. See also
+	 * http://lwn.net/Articles/573497/.
+	 */
+	percpu_ref_switch_to_atomic_sync(&q->q_usage_counter);
+	if (percpu_ref_is_zero(&q->q_usage_counter))
+		ret = 0;
+	/* Switch q_usage_counter back to per-cpu mode. */
+	blk_mq_unfreeze_queue(q);
+
 	spin_lock_irq(q->queue_lock);
-	if (q->nr_pending) {
-		ret = -EBUSY;
+	if (ret < 0)
 		pm_runtime_mark_last_busy(q->dev);
-	} else {
+	else
 		q->rpm_status = RPM_SUSPENDING;
-	}
 	spin_unlock_irq(q->queue_lock);
+
+	if (ret)
+		blk_clear_pm_only(q);
+
 	return ret;
 }
 EXPORT_SYMBOL(blk_pre_runtime_suspend);
@@ -106,6 +135,9 @@ void blk_post_runtime_suspend(struct request_queue *q, int err)
 		pm_runtime_mark_last_busy(q->dev);
 	}
 	spin_unlock_irq(q->queue_lock);
+
+	if (err)
+		blk_clear_pm_only(q);
 }
 EXPORT_SYMBOL(blk_post_runtime_suspend);
 
@@ -153,13 +185,15 @@ void blk_post_runtime_resume(struct request_queue *q, int err)
 	spin_lock_irq(q->queue_lock);
 	if (!err) {
 		q->rpm_status = RPM_ACTIVE;
-		__blk_run_queue(q);
 		pm_runtime_mark_last_busy(q->dev);
 		pm_request_autosuspend(q->dev);
 	} else {
 		q->rpm_status = RPM_SUSPENDED;
 	}
 	spin_unlock_irq(q->queue_lock);
+
+	if (!err)
+		blk_clear_pm_only(q);
 }
 EXPORT_SYMBOL(blk_post_runtime_resume);
 
