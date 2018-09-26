@@ -12701,11 +12701,6 @@ static int nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 	if (likely(!evaluate_pending_interrupts) && kvm_vcpu_apicv_active(vcpu))
 		evaluate_pending_interrupts |= vmx_has_apicv_interrupt(vcpu);
 
-	if (from_vmentry && check_vmentry_postreqs(vcpu, vmcs12, &exit_qual))
-		goto vmentry_fail_vmexit;
-
-	enter_guest_mode(vcpu);
-
 	if (!(vmcs12->vm_entry_controls & VM_ENTRY_LOAD_DEBUG_CONTROLS))
 		vmx->nested.vmcs01_debugctl = vmcs_read64(GUEST_IA32_DEBUGCTL);
 	if (kvm_mpx_supported() &&
@@ -12714,17 +12709,23 @@ static int nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 
 	vmx_switch_vmcs(vcpu, &vmx->nested.vmcs02);
 
+	prepare_vmcs02_early(vmx, vmcs12);
+
+	if (from_vmentry) {
+		nested_get_vmcs12_pages(vcpu);
+
+		if (check_vmentry_postreqs(vcpu, vmcs12, &exit_qual))
+			goto vmentry_fail_vmexit;
+	}
+
+	enter_guest_mode(vcpu);
 	if (vmcs12->cpu_based_vm_exec_control & CPU_BASED_USE_TSC_OFFSETING)
 		vcpu->arch.tsc_offset += vmcs12->tsc_offset;
-
-	prepare_vmcs02_early(vmx, vmcs12);
 
 	if (prepare_vmcs02(vcpu, vmcs12, &exit_qual))
 		goto vmentry_fail_vmexit_guest_mode;
 
 	if (from_vmentry) {
-		nested_get_vmcs12_pages(vcpu);
-
 		exit_reason = EXIT_REASON_MSR_LOAD_FAIL;
 		exit_qual = nested_vmx_load_msr(vcpu,
 						vmcs12->vm_entry_msr_load_addr,
@@ -12776,12 +12777,13 @@ vmentry_fail_vmexit_guest_mode:
 	if (vmcs12->cpu_based_vm_exec_control & CPU_BASED_USE_TSC_OFFSETING)
 		vcpu->arch.tsc_offset -= vmcs12->tsc_offset;
 	leave_guest_mode(vcpu);
+
+vmentry_fail_vmexit:
 	vmx_switch_vmcs(vcpu, &vmx->vmcs01);
 
 	if (!from_vmentry)
 		return 1;
 
-vmentry_fail_vmexit:
 	load_vmcs12_host_state(vcpu, vmcs12);
 	vmcs12->vm_exit_reason = exit_reason | VMX_EXIT_REASONS_FAILED_VMENTRY;
 	vmcs12->exit_qualification = exit_qual;
