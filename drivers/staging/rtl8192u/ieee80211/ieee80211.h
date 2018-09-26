@@ -2379,7 +2379,6 @@ u8 HTGetHighestMCSRate(struct ieee80211_device *ieee,
 extern u8 MCS_FILTER_ALL[];
 extern u16 MCS_DATA_RATE[2][2][77];
 u8 HTCCheck(struct ieee80211_device *ieee, u8 *pFrame);
-//extern void HTSetConnectBwModeCallback(unsigned long data);
 void HTResetIOTSetting(PRT_HIGH_THROUGHPUT pHTInfo);
 bool IsHTHalfNmodeAPs(struct ieee80211_device *ieee);
 u16 TxCountToDataRate(struct ieee80211_device *ieee, u8 nDataRate);

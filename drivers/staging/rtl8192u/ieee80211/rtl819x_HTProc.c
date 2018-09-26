@@ -1011,7 +1011,6 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 	pHTInfo->CurrentOpMode = pPeerHTInfo->OptMode;
 }
 
-void HTSetConnectBwModeCallback(struct ieee80211_device *ieee);
 /*
  *function:  initialize HT info(struct PRT_HIGH_THROUGHPUT)
  *   input:  struct ieee80211_device*	ieee
@@ -1228,6 +1227,29 @@ u8 HTCCheck(struct ieee80211_device *ieee, u8 *pFrame)
 	return false;
 }
 
+static void HTSetConnectBwModeCallback(struct ieee80211_device *ieee)
+{
+	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
+
+	IEEE80211_DEBUG(IEEE80211_DL_HT, "======>%s()\n", __func__);
+
+	if (pHTInfo->bCurBW40MHz) {
+		if (pHTInfo->CurSTAExtChnlOffset == HT_EXTCHNL_OFFSET_UPPER)
+			ieee->set_chan(ieee->dev, ieee->current_network.channel + 2);
+		else if (pHTInfo->CurSTAExtChnlOffset == HT_EXTCHNL_OFFSET_LOWER)
+			ieee->set_chan(ieee->dev, ieee->current_network.channel - 2);
+		else
+			ieee->set_chan(ieee->dev, ieee->current_network.channel);
+
+		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20_40, pHTInfo->CurSTAExtChnlOffset);
+	} else {
+		ieee->set_chan(ieee->dev, ieee->current_network.channel);
+		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
+	}
+
+	pHTInfo->bSwBwInProgress = false;
+}
+
 /*
  * This function set bandwidth mode in protocol layer.
  */
@@ -1277,27 +1299,4 @@ void HTSetConnectBwMode(struct ieee80211_device *ieee, enum ht_channel_width Ban
 	HTSetConnectBwModeCallback(ieee);
 
 //	spin_unlock_irqrestore(&(ieee->bw_spinlock), flags);
-}
-
-void HTSetConnectBwModeCallback(struct ieee80211_device *ieee)
-{
-	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
-
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "======>%s()\n", __func__);
-
-	if (pHTInfo->bCurBW40MHz) {
-		if (pHTInfo->CurSTAExtChnlOffset == HT_EXTCHNL_OFFSET_UPPER)
-			ieee->set_chan(ieee->dev, ieee->current_network.channel + 2);
-		else if (pHTInfo->CurSTAExtChnlOffset == HT_EXTCHNL_OFFSET_LOWER)
-			ieee->set_chan(ieee->dev, ieee->current_network.channel - 2);
-		else
-			ieee->set_chan(ieee->dev, ieee->current_network.channel);
-
-		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20_40, pHTInfo->CurSTAExtChnlOffset);
-	} else {
-		ieee->set_chan(ieee->dev, ieee->current_network.channel);
-		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
-	}
-
-	pHTInfo->bSwBwInProgress = false;
 }
