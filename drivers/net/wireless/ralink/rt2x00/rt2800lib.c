@@ -1147,7 +1147,7 @@ static inline bool rt2800_entry_txstatus_timeout(struct rt2x00_dev *rt2x00dev,
 		return false;
 
 	if (test_bit(DEVICE_STATE_FLUSHING, &rt2x00dev->flags))
-		tout = msecs_to_jiffies(100);
+		tout = msecs_to_jiffies(50);
 	else
 		tout = msecs_to_jiffies(2000);
 
@@ -1163,15 +1163,13 @@ bool rt2800_txstatus_timeout(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 	struct queue_entry *entry;
-	unsigned long tout;
 
-	if (test_bit(DEVICE_STATE_FLUSHING, &rt2x00dev->flags))
-		tout = msecs_to_jiffies(50);
-	else
-		tout = msecs_to_jiffies(1000);
+	if (!test_bit(DEVICE_STATE_FLUSHING, &rt2x00dev->flags)) {
+		unsigned long tout = msecs_to_jiffies(1000);
 
-	if (time_before(jiffies, rt2x00dev->last_nostatus_check + tout))
-		return false;
+		if (time_before(jiffies, rt2x00dev->last_nostatus_check + tout))
+			return false;
+	}
 
 	rt2x00dev->last_nostatus_check = jiffies;
 

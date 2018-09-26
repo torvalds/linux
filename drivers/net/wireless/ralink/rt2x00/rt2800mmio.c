@@ -191,21 +191,6 @@ static inline void rt2800mmio_enable_interrupt(struct rt2x00_dev *rt2x00dev,
 	spin_unlock_irq(&rt2x00dev->irqmask_lock);
 }
 
-void rt2800mmio_txstatus_tasklet(unsigned long data)
-{
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
-
-	rt2800_txdone(rt2x00dev);
-
-	if (rt2800_txstatus_timeout(rt2x00dev))
-		rt2800_txdone_nostatus(rt2x00dev);
-
-	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
-		rt2800mmio_enable_interrupt(rt2x00dev,
-					    INT_SOURCE_CSR_TX_FIFO_STATUS);
-}
-EXPORT_SYMBOL_GPL(rt2800mmio_txstatus_tasklet);
-
 void rt2800mmio_pretbtt_tasklet(unsigned long data)
 {
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
@@ -270,12 +255,26 @@ void rt2800mmio_autowake_tasklet(unsigned long data)
 }
 EXPORT_SYMBOL_GPL(rt2800mmio_autowake_tasklet);
 
-static void rt2800mmio_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
+static void rt2800mmio_txdone(struct rt2x00_dev *rt2x00dev)
+{
+	bool timeout = false;
+
+	while (!kfifo_is_empty(&rt2x00dev->txstatus_fifo) ||
+	       (timeout = rt2800_txstatus_timeout(rt2x00dev))) {
+
+		rt2800_txdone(rt2x00dev);
+
+		if (timeout)
+			rt2800_txdone_nostatus(rt2x00dev);
+	}
+}
+
+static bool rt2800mmio_fetch_txstatus(struct rt2x00_dev *rt2x00dev)
 {
 	u32 status;
-	int i;
+	bool more = false;
 
-	/*
+	/* FIXEME: rewrite this comment
 	 * The TX_FIFO_STATUS interrupt needs special care. We should
 	 * read TX_STA_FIFO but we should do it immediately as otherwise
 	 * the register can overflow and we would lose status reports.
@@ -286,24 +285,36 @@ static void rt2800mmio_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
 	 * because we can schedule the tasklet multiple times (when the
 	 * interrupt fires again during tx status processing).
 	 *
-	 * Since we have only one producer and one consumer we don't
+	 * txstatus tasklet is called with INT_SOURCE_CSR_TX_FIFO_STATUS
+	 * disabled so have only one producer and one consumer - we don't
 	 * need to lock the kfifo.
 	 */
-	for (i = 0; i < rt2x00dev->tx->limit; i++) {
+	while (!kfifo_is_full(&rt2x00dev->txstatus_fifo)) {
 		status = rt2x00mmio_register_read(rt2x00dev, TX_STA_FIFO);
-
 		if (!rt2x00_get_field32(status, TX_STA_FIFO_VALID))
 			break;
 
-		if (!kfifo_put(&rt2x00dev->txstatus_fifo, status)) {
-			rt2x00_warn(rt2x00dev, "TX status FIFO overrun, drop tx status report\n");
-			break;
-		}
+		kfifo_put(&rt2x00dev->txstatus_fifo, status);
+		more = true;
 	}
 
-	/* Schedule the tasklet for processing the tx status. */
-	tasklet_schedule(&rt2x00dev->txstatus_tasklet);
+	return more;
 }
+
+void rt2800mmio_txstatus_tasklet(unsigned long data)
+{
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+
+	do {
+		rt2800mmio_txdone(rt2x00dev);
+
+	} while (rt2800mmio_fetch_txstatus(rt2x00dev));
+
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		rt2800mmio_enable_interrupt(rt2x00dev,
+					    INT_SOURCE_CSR_TX_FIFO_STATUS);
+}
+EXPORT_SYMBOL_GPL(rt2800mmio_txstatus_tasklet);
 
 irqreturn_t rt2800mmio_interrupt(int irq, void *dev_instance)
 {
@@ -327,8 +338,10 @@ irqreturn_t rt2800mmio_interrupt(int irq, void *dev_instance)
 	 */
 	mask = ~reg;
 
-	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TX_FIFO_STATUS))
-		rt2800mmio_txstatus_interrupt(rt2x00dev);
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TX_FIFO_STATUS)) {
+		rt2800mmio_fetch_txstatus(rt2x00dev);
+		tasklet_schedule(&rt2x00dev->txstatus_tasklet);
+	}
 
 	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_PRE_TBTT))
 		tasklet_hi_schedule(&rt2x00dev->pretbtt_tasklet);
@@ -452,6 +465,53 @@ void rt2800mmio_kick_queue(struct data_queue *queue)
 	}
 }
 EXPORT_SYMBOL_GPL(rt2800mmio_kick_queue);
+
+void rt2800mmio_flush_queue(struct data_queue *queue, bool drop)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	bool tx_queue = false;
+	unsigned int i;
+
+	switch (queue->qid) {
+	case QID_AC_VO:
+	case QID_AC_VI:
+	case QID_AC_BE:
+	case QID_AC_BK:
+		tx_queue = true;
+		break;
+	case QID_RX:
+		break;
+	default:
+		return;
+	}
+
+	for (i = 0; i < 5; i++) {
+		/*
+		 * Check if the driver is already done, otherwise we
+		 * have to sleep a little while to give the driver/hw
+		 * the oppurtunity to complete interrupt process itself.
+		 */
+		if (rt2x00queue_empty(queue))
+			break;
+
+		/*
+		 * For TX queues schedule completion tasklet to catch
+		 * tx status timeouts, othewise just wait.
+		 */
+		if (tx_queue) {
+			tasklet_disable(&rt2x00dev->txstatus_tasklet);
+			rt2800mmio_txdone(rt2x00dev);
+			tasklet_enable(&rt2x00dev->txstatus_tasklet);
+		}
+
+		/*
+		 * Wait for a little while to give the driver
+		 * the oppurtunity to recover itself.
+		 */
+		msleep(50);
+	}
+}
+EXPORT_SYMBOL_GPL(rt2800mmio_flush_queue);
 
 void rt2800mmio_stop_queue(struct data_queue *queue)
 {
