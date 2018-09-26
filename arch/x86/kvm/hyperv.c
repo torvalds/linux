@@ -1277,32 +1277,37 @@ int kvm_hv_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata, bool host)
 		return kvm_hv_get_msr(vcpu, msr, pdata, host);
 }
 
-static __always_inline int get_sparse_bank_no(u64 valid_bank_mask, int bank_no)
+static __always_inline bool hv_vcpu_in_sparse_set(struct kvm_vcpu_hv *hv_vcpu,
+						  u64 sparse_banks[],
+						  u64 valid_bank_mask)
 {
-	int i = 0, j;
+	int bank = hv_vcpu->vp_index / 64, sbank;
 
-	if (!(valid_bank_mask & BIT_ULL(bank_no)))
-		return -1;
+	if (bank >= 64)
+		return false;
 
-	for (j = 0; j < bank_no; j++)
-		if (valid_bank_mask & BIT_ULL(j))
-			i++;
+	if (!(valid_bank_mask & BIT_ULL(bank)))
+		return false;
 
-	return i;
+	/* Sparse bank number equals to the number of set bits before it */
+	sbank = bitmap_weight((unsigned long *)&valid_bank_mask, bank);
+
+	return !!(sparse_banks[sbank] & BIT_ULL(hv_vcpu->vp_index % 64));
 }
 
 static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 			    u16 rep_cnt, bool ex)
 {
 	struct kvm *kvm = current_vcpu->kvm;
-	struct kvm_vcpu_hv *hv_current = &current_vcpu->arch.hyperv;
+	struct kvm_hv *hv = &kvm->arch.hyperv;
+	struct kvm_vcpu_hv *hv_vcpu = &current_vcpu->arch.hyperv;
 	struct hv_tlb_flush_ex flush_ex;
 	struct hv_tlb_flush flush;
 	struct kvm_vcpu *vcpu;
 	unsigned long vcpu_bitmap[BITS_TO_LONGS(KVM_MAX_VCPUS)] = {0};
-	u64 valid_bank_mask = 0;
+	u64 valid_bank_mask;
 	u64 sparse_banks[64];
-	int sparse_banks_len, i;
+	int sparse_banks_len, i, bank, sbank;
 	bool all_cpus;
 
 	if (!ex) {
@@ -1312,6 +1317,7 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 		trace_kvm_hv_flush_tlb(flush.processor_mask,
 				       flush.address_space, flush.flags);
 
+		valid_bank_mask = BIT_ULL(0);
 		sparse_banks[0] = flush.processor_mask;
 		all_cpus = flush.flags & HV_FLUSH_ALL_PROCESSORS;
 	} else {
@@ -1344,52 +1350,54 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 			return HV_STATUS_INVALID_HYPERCALL_INPUT;
 	}
 
-	cpumask_clear(&hv_current->tlb_lush);
+	/*
+	 * vcpu->arch.cr3 may not be up-to-date for running vCPUs so we can't
+	 * analyze it here, flush TLB regardless of the specified address space.
+	 */
+	cpumask_clear(&hv_vcpu->tlb_lush);
 
 	if (all_cpus) {
 		kvm_make_vcpus_request_mask(kvm,
 				    KVM_REQ_TLB_FLUSH | KVM_REQUEST_NO_WAKEUP,
-				    NULL, &hv_current->tlb_lush);
+				    NULL, &hv_vcpu->tlb_lush);
 		goto ret_success;
 	}
 
-	kvm_for_each_vcpu(i, vcpu, kvm) {
-		struct kvm_vcpu_hv *hv = &vcpu->arch.hyperv;
-		int bank = hv->vp_index / 64, sbank = 0;
-
-		/* Banks >64 can't be represented */
-		if (bank >= 64)
-			continue;
-
-		/* Non-ex hypercalls can only address first 64 vCPUs */
-		if (!ex && bank)
-			continue;
-
-		if (ex) {
-			/*
-			 * Check is the bank of this vCPU is in sparse
-			 * set and get the sparse bank number.
-			 */
-			sbank = get_sparse_bank_no(valid_bank_mask, bank);
-
-			if (sbank < 0)
-				continue;
+	if (atomic_read(&hv->num_mismatched_vp_indexes)) {
+		kvm_for_each_vcpu(i, vcpu, kvm) {
+			if (hv_vcpu_in_sparse_set(&vcpu->arch.hyperv,
+						  sparse_banks,
+						  valid_bank_mask))
+				__set_bit(i, vcpu_bitmap);
 		}
-
-		if (!(sparse_banks[sbank] & BIT_ULL(hv->vp_index % 64)))
-			continue;
-
-		/*
-		 * vcpu->arch.cr3 may not be up-to-date for running vCPUs so we
-		 * can't analyze it here, flush TLB regardless of the specified
-		 * address space.
-		 */
-		__set_bit(i, vcpu_bitmap);
+		goto flush_request;
 	}
 
+	/*
+	 * num_mismatched_vp_indexes is zero so every vcpu has
+	 * vp_index == vcpu_idx.
+	 */
+	sbank = 0;
+	for_each_set_bit(bank, (unsigned long *)&valid_bank_mask,
+			 BITS_PER_LONG) {
+		for_each_set_bit(i,
+				 (unsigned long *)&sparse_banks[sbank],
+				 BITS_PER_LONG) {
+			u32 vp_index = bank * 64 + i;
+
+			/* A non-existent vCPU was specified */
+			if (vp_index >= KVM_MAX_VCPUS)
+				return HV_STATUS_INVALID_HYPERCALL_INPUT;
+
+			__set_bit(vp_index, vcpu_bitmap);
+		}
+		sbank++;
+	}
+
+flush_request:
 	kvm_make_vcpus_request_mask(kvm,
 				    KVM_REQ_TLB_FLUSH | KVM_REQUEST_NO_WAKEUP,
-				    vcpu_bitmap, &hv_current->tlb_lush);
+				    vcpu_bitmap, &hv_vcpu->tlb_lush);
 
 ret_success:
 	/* We always do full TLB flush, set rep_done = rep_cnt. */
