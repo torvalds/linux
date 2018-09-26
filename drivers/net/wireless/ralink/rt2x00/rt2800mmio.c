@@ -197,7 +197,8 @@ void rt2800mmio_txstatus_tasklet(unsigned long data)
 
 	rt2800_txdone(rt2x00dev);
 
-	rt2800_txdone_nostatus(rt2x00dev);
+	if (rt2800_txstatus_timeout(rt2x00dev))
+		rt2800_txdone_nostatus(rt2x00dev);
 
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2800mmio_enable_interrupt(rt2x00dev,

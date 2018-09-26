@@ -1158,11 +1158,18 @@ bool rt2800_txstatus_timeout(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 	struct queue_entry *entry;
 
+	if (time_before(jiffies,
+			rt2x00dev->last_nostatus_check + msecs_to_jiffies(500)))
+		return false;
+
+	rt2x00dev->last_nostatus_check = jiffies;
+
 	tx_queue_for_each(rt2x00dev, queue) {
 		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 		if (rt2800_entry_txstatus_timeout(entry))
 			return true;
 	}
+
 	return false;
 }
 EXPORT_SYMBOL_GPL(rt2800_txstatus_timeout);
