@@ -1023,7 +1023,7 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	strcpy(rstmsg->devname, wlandev->name);
 	rstmsg->msgcode = DIDMSG_P2REQ_RAMDL_STATE;
 	rstmsg->msglen = sizeof(*rstmsg);
-	rstmsg->enable.did = DIDmsg_p2req_ramdl_state_enable;
+	rstmsg->enable.did = DIDMSG_P2REQ_RAMDL_STATE_ENABLE;
 	rstmsg->exeaddr.did = DIDmsg_p2req_ramdl_state_exeaddr;
 	rstmsg->resultcode.did = DIDmsg_p2req_ramdl_state_resultcode;
 	rstmsg->enable.status = P80211ENUM_msgitem_status_data_ok;
