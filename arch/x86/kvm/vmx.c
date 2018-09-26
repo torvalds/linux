@@ -12644,7 +12644,7 @@ static int check_vmentry_postreqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
  * If exit_qual is NULL, this is being called from state restore (either RSM
  * or KVM_SET_NESTED_STATE).  Otherwise it's called from vmlaunch/vmresume.
  */
-static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, u32 *exit_qual)
+static int nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu, u32 *exit_qual)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
@@ -12813,7 +12813,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	 */
 
 	vmx->nested.nested_run_pending = 1;
-	ret = enter_vmx_non_root_mode(vcpu, &exit_qual);
+	ret = nested_vmx_enter_non_root_mode(vcpu, &exit_qual);
 	if (ret) {
 		nested_vmx_entry_failure(vcpu, vmcs12, ret, exit_qual);
 		vmx->nested.nested_run_pending = 0;
@@ -12824,7 +12824,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	vmx->vcpu.arch.l1tf_flush_l1d = true;
 
 	/*
-	 * Must happen outside of enter_vmx_non_root_mode() as it will
+	 * Must happen outside of nested_vmx_enter_non_root_mode() as it will
 	 * also be used as part of restoring nVMX state for
 	 * snapshot restore (migration).
 	 *
@@ -14055,7 +14055,7 @@ static int vmx_pre_leave_smm(struct kvm_vcpu *vcpu, u64 smbase)
 
 	if (vmx->nested.smm.guest_mode) {
 		vcpu->arch.hflags &= ~HF_SMM_MASK;
-		ret = enter_vmx_non_root_mode(vcpu, NULL);
+		ret = nested_vmx_enter_non_root_mode(vcpu, NULL);
 		vcpu->arch.hflags |= HF_SMM_MASK;
 		if (ret)
 			return ret;
@@ -14261,7 +14261,7 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 
 	vmx->nested.dirty_vmcs12 = true;
-	ret = enter_vmx_non_root_mode(vcpu, NULL);
+	ret = nested_vmx_enter_non_root_mode(vcpu, NULL);
 	if (ret)
 		return -EINVAL;
 
