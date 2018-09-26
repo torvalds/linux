@@ -45,12 +45,11 @@ static const u8 nla_attr_minlen[NLA_TYPE_MAX+1] = {
 };
 
 static int validate_nla_bitfield32(const struct nlattr *nla,
-				   u32 *valid_flags_allowed)
+				   const u32 *valid_flags_mask)
 {
 	const struct nla_bitfield32 *bf = nla_data(nla);
-	u32 *valid_flags_mask = valid_flags_allowed;
 
-	if (!valid_flags_allowed)
+	if (!valid_flags_mask)
 		return -EINVAL;
 
 	/*disallow invalid bit selector */
