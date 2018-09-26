@@ -82,7 +82,7 @@ void cryptd_morus640_glue_exit_tfm(struct crypto_aead *aead);
 	{ \
 	} \
 	\
-	struct aead_alg crypto_morus640_##id##_algs[] = {\
+	static struct aead_alg crypto_morus640_##id##_algs[] = {\
 		{ \
 			.setkey = crypto_morus640_glue_setkey, \
 			.setauthsize = crypto_morus640_glue_setauthsize, \
