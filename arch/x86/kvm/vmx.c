@@ -2696,7 +2696,8 @@ static void add_atomic_switch_msr_special(struct vcpu_vmx *vmx,
 		u64 guest_val, u64 host_val)
 {
 	vmcs_write64(guest_val_vmcs, guest_val);
-	vmcs_write64(host_val_vmcs, host_val);
+	if (host_val_vmcs != HOST_IA32_EFER)
+		vmcs_write64(host_val_vmcs, host_val);
 	vm_entry_controls_setbit(vmx, entry);
 	vm_exit_controls_setbit(vmx, exit);
 }
@@ -6333,6 +6334,9 @@ static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 		rdmsr(MSR_IA32_CR_PAT, low32, high32);
 		vmcs_write64(HOST_IA32_PAT, low32 | ((u64) high32 << 32));
 	}
+
+	if (cpu_has_load_ia32_efer)
+		vmcs_write64(HOST_IA32_EFER, host_efer);
 }
 
 static void set_cr4_guest_host_mask(struct vcpu_vmx *vmx)
