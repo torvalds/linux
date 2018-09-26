@@ -1039,7 +1039,7 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	rwrmsg->addr.did = DIDMSG_P2REQ_RAMDL_WRITE_ADDR;
 	rwrmsg->len.did = DIDMSG_P2REQ_RAMDL_WRITE_LEN;
 	rwrmsg->data.did = DIDMSG_P2REQ_RAMDL_WRITE_DATA;
-	rwrmsg->resultcode.did = DIDmsg_p2req_ramdl_write_resultcode;
+	rwrmsg->resultcode.did = DIDMSG_P2REQ_RAMDL_WRITE_RESULTCODE;
 	rwrmsg->addr.status = P80211ENUM_msgitem_status_data_ok;
 	rwrmsg->len.status = P80211ENUM_msgitem_status_data_ok;
 	rwrmsg->data.status = P80211ENUM_msgitem_status_data_ok;
