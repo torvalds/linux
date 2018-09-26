@@ -232,6 +232,20 @@ static __always_inline u32 xchg_tail(struct qspinlock *lock, u32 tail)
 #endif /* _Q_PENDING_BITS == 8 */
 
 /**
+ * queued_fetch_set_pending_acquire - fetch the whole lock value and set pending
+ * @lock : Pointer to queued spinlock structure
+ * Return: The previous lock value
+ *
+ * *,*,* -> *,1,*
+ */
+#ifndef queued_fetch_set_pending_acquire
+static __always_inline u32 queued_fetch_set_pending_acquire(struct qspinlock *lock)
+{
+	return atomic_fetch_or_acquire(_Q_PENDING_VAL, &lock->val);
+}
+#endif
+
+/**
  * set_locked - Set the lock bit and own the lock
  * @lock: Pointer to queued spinlock structure
  *
@@ -328,7 +342,7 @@ void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 	 *
 	 * 0,0,* -> 0,1,* -> 0,0,1 pending, trylock
 	 */
-	val = atomic_fetch_or_acquire(_Q_PENDING_VAL, &lock->val);
+	val = queued_fetch_set_pending_acquire(lock);
 
 	/*
 	 * If we observe contention, there is a concurrent locker.
