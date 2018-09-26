@@ -508,14 +508,14 @@ void br_mtu_auto_adjust(struct net_bridge *br)
 	ASSERT_RTNL();
 
 	/* if the bridge MTU was manually configured don't mess with it */
-	if (br->mtu_set_by_user)
+	if (br_opt_get(br, BROPT_MTU_SET_BY_USER))
 		return;
 
 	/* change to the minimum MTU and clear the flag which was set by
 	 * the bridge ndo_change_mtu callback
 	 */
 	dev_set_mtu(br->dev, br_mtu_min(br));
-	br->mtu_set_by_user = false;
+	br_opt_toggle(br, BROPT_MTU_SET_BY_USER, false);
 }
 
 static void br_set_gso_limits(struct net_bridge *br)
