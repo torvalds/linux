@@ -62,7 +62,6 @@ static struct kmem_cache *qeth_qdio_outbuf_cache;
 
 static struct device *qeth_core_root_dev;
 static struct lock_class_key qdio_out_skb_queue_key;
-static struct mutex qeth_mod_mutex;
 
 static void qeth_send_control_data_cb(struct qeth_channel *,
 			struct qeth_cmd_buffer *);
@@ -5589,11 +5588,11 @@ static int qeth_register_dbf_views(void)
 	return 0;
 }
 
+static DEFINE_MUTEX(qeth_mod_mutex);	/* for synchronized module loading */
+
 int qeth_core_load_discipline(struct qeth_card *card,
 		enum qeth_discipline_id discipline)
 {
-	int rc = 0;
-
 	mutex_lock(&qeth_mod_mutex);
 	switch (discipline) {
 	case QETH_DISCIPLINE_LAYER3:
@@ -5607,14 +5606,15 @@ int qeth_core_load_discipline(struct qeth_card *card,
 	default:
 		break;
 	}
+	mutex_unlock(&qeth_mod_mutex);
 
 	if (!card->discipline) {
 		dev_err(&card->gdev->dev, "There is no kernel module to "
 			"support discipline %d\n", discipline);
-		rc = -EINVAL;
+		return -EINVAL;
 	}
-	mutex_unlock(&qeth_mod_mutex);
-	return rc;
+
+	return 0;
 }
 
 void qeth_core_free_discipline(struct qeth_card *card)
@@ -6623,7 +6623,6 @@ static int __init qeth_core_init(void)
 	INIT_LIST_HEAD(&qeth_core_card_list.list);
 	INIT_LIST_HEAD(&qeth_dbf_list);
 	rwlock_init(&qeth_core_card_list.rwlock);
-	mutex_init(&qeth_mod_mutex);
 
 	qeth_wq = create_singlethread_workqueue("qeth_wq");
 	if (!qeth_wq) {
