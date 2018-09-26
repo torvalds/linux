@@ -523,19 +523,19 @@ static void hclge_get_strings(struct hnae3_handle *handle,
 	} else if (stringset == ETH_SS_TEST) {
 		if (handle->flags & HNAE3_SUPPORT_MAC_LOOPBACK) {
 			memcpy(p,
-			       hns3_nic_test_strs[HNAE3_MAC_INTER_LOOP_MAC],
+			       hns3_nic_test_strs[HNAE3_LOOP_MAC],
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
 		if (handle->flags & HNAE3_SUPPORT_SERDES_LOOPBACK) {
 			memcpy(p,
-			       hns3_nic_test_strs[HNAE3_MAC_INTER_LOOP_SERDES],
+			       hns3_nic_test_strs[HNAE3_LOOP_SERDES],
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
 		if (handle->flags & HNAE3_SUPPORT_PHY_LOOPBACK) {
 			memcpy(p,
-			       hns3_nic_test_strs[HNAE3_MAC_INTER_LOOP_PHY],
+			       hns3_nic_test_strs[HNAE3_LOOP_PHY],
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
@@ -3459,10 +3459,10 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 	int i, ret;
 
 	switch (loop_mode) {
-	case HNAE3_MAC_INTER_LOOP_MAC:
+	case HNAE3_LOOP_MAC:
 		ret = hclge_set_mac_loopback(hdev, en);
 		break;
-	case HNAE3_MAC_INTER_LOOP_SERDES:
+	case HNAE3_LOOP_SERDES:
 		ret = hclge_set_serdes_loopback(hdev, en);
 		break;
 	default:

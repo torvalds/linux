@@ -78,8 +78,8 @@ static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop, bool en)
 		return -EOPNOTSUPP;
 
 	switch (loop) {
-	case HNAE3_MAC_INTER_LOOP_SERDES:
-	case HNAE3_MAC_INTER_LOOP_MAC:
+	case HNAE3_LOOP_SERDES:
+	case HNAE3_LOOP_MAC:
 		ret = h->ae_algo->ops->set_loopback(h, loop, en);
 		break;
 	default:
@@ -286,12 +286,12 @@ static void hns3_self_test(struct net_device *ndev,
 	if (eth_test->flags != ETH_TEST_FL_OFFLINE)
 		return;
 
-	st_param[HNAE3_MAC_INTER_LOOP_MAC][0] = HNAE3_MAC_INTER_LOOP_MAC;
-	st_param[HNAE3_MAC_INTER_LOOP_MAC][1] =
+	st_param[HNAE3_LOOP_MAC][0] = HNAE3_LOOP_MAC;
+	st_param[HNAE3_LOOP_MAC][1] =
 			h->flags & HNAE3_SUPPORT_MAC_LOOPBACK;
 
-	st_param[HNAE3_MAC_INTER_LOOP_SERDES][0] = HNAE3_MAC_INTER_LOOP_SERDES;
-	st_param[HNAE3_MAC_INTER_LOOP_SERDES][1] =
+	st_param[HNAE3_LOOP_SERDES][0] = HNAE3_LOOP_SERDES;
+	st_param[HNAE3_LOOP_SERDES][1] =
 			h->flags & HNAE3_SUPPORT_SERDES_LOOPBACK;
 
 	if (if_running)

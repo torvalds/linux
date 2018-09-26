@@ -84,10 +84,10 @@ struct hnae3_queue {
 
 /*hnae3 loop mode*/
 enum hnae3_loop {
-	HNAE3_MAC_INTER_LOOP_MAC,
-	HNAE3_MAC_INTER_LOOP_SERDES,
-	HNAE3_MAC_INTER_LOOP_PHY,
-	HNAE3_MAC_LOOP_NONE,
+	HNAE3_LOOP_MAC,
+	HNAE3_LOOP_SERDES,
+	HNAE3_LOOP_PHY,
+	HNAE3_LOOP_NONE,
 };
 
 enum hnae3_client_type {
