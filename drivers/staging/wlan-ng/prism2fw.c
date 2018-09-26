@@ -304,7 +304,7 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 	getmsg.resultcode.status = P80211ENUM_msgitem_status_no_value;
 
 	item = (struct p80211itemd *)getmsg.mibattribute.data;
-	item->did = DIDmib_p2_p2NIC_p2PRISupRange;
+	item->did = DIDMIB_P2_NIC_PRISUPRANGE;
 	item->status = P80211ENUM_msgitem_status_no_value;
 
 	data = (u32 *)item->data;
