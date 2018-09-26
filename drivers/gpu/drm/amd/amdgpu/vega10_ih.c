@@ -270,7 +270,7 @@ static void vega10_ih_irq_disable(struct amdgpu_device *adev)
 static u32 vega10_ih_get_wptr(struct amdgpu_device *adev,
 			      struct amdgpu_ih_ring *ih)
 {
-	u32 wptr, tmp;
+	u32 wptr, reg, tmp;
 
 	wptr = le32_to_cpu(*ih->wptr_cpu);
 
@@ -278,7 +278,17 @@ static u32 vega10_ih_get_wptr(struct amdgpu_device *adev,
 		goto out;
 
 	/* Double check that the overflow wasn't already cleared. */
-	wptr = RREG32_NO_KIQ(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR));
+
+	if (ih == &adev->irq.ih)
+		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR);
+	else if (ih == &adev->irq.ih1)
+		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR_RING1);
+	else if (ih == &adev->irq.ih2)
+		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR_RING2);
+	else
+		BUG();
+
+	wptr = RREG32_NO_KIQ(reg);
 	if (!REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW))
 		goto out;
 
@@ -294,9 +304,18 @@ static u32 vega10_ih_get_wptr(struct amdgpu_device *adev,
 		 wptr, ih->rptr, tmp);
 	ih->rptr = tmp;
 
-	tmp = RREG32_NO_KIQ(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL));
+	if (ih == &adev->irq.ih)
+		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL);
+	else if (ih == &adev->irq.ih1)
+		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL_RING1);
+	else if (ih == &adev->irq.ih2)
+		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL_RING2);
+	else
+		BUG();
+
+	tmp = RREG32_NO_KIQ(reg);
 	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
-	WREG32_NO_KIQ(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL), tmp);
+	WREG32_NO_KIQ(reg, tmp);
 
 out:
 	return (wptr & ih->ptr_mask);
@@ -359,9 +378,52 @@ static void vega10_ih_set_rptr(struct amdgpu_device *adev,
 		/* XXX check if swapping is necessary on BE */
 		*ih->rptr_cpu = ih->rptr;
 		WDOORBELL32(ih->doorbell_index, ih->rptr);
-	} else {
+	} else if (ih == &adev->irq.ih) {
 		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, ih->rptr);
+	} else if (ih == &adev->irq.ih1) {
+		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING1, ih->rptr);
+	} else if (ih == &adev->irq.ih2) {
+		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING2, ih->rptr);
 	}
+}
+
+/**
+ * vega10_ih_self_irq - dispatch work for ring 1 and 2
+ *
+ * @adev: amdgpu_device pointer
+ * @source: irq source
+ * @entry: IV with WPTR update
+ *
+ * Update the WPTR from the IV and schedule work to handle the entries.
+ */
+static int vega10_ih_self_irq(struct amdgpu_device *adev,
+			      struct amdgpu_irq_src *source,
+			      struct amdgpu_iv_entry *entry)
+{
+	uint32_t wptr = cpu_to_le32(entry->src_data[0]);
+
+	switch (entry->ring_id) {
+	case 1:
+		*adev->irq.ih1.wptr_cpu = wptr;
+		schedule_work(&adev->irq.ih1_work);
+		break;
+	case 2:
+		*adev->irq.ih2.wptr_cpu = wptr;
+		schedule_work(&adev->irq.ih2_work);
+		break;
+	default: break;
+	}
+	return 0;
+}
+
+static const struct amdgpu_irq_src_funcs vega10_ih_self_irq_funcs = {
+	.process = vega10_ih_self_irq,
+};
+
+static void vega10_ih_set_self_irq_funcs(struct amdgpu_device *adev)
+{
+	adev->irq.self_irq.num_types = 0;
+	adev->irq.self_irq.funcs = &vega10_ih_self_irq_funcs;
 }
 
 static int vega10_ih_early_init(void *handle)
@@ -369,13 +431,19 @@ static int vega10_ih_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	vega10_ih_set_interrupt_funcs(adev);
+	vega10_ih_set_self_irq_funcs(adev);
 	return 0;
 }
 
 static int vega10_ih_sw_init(void *handle)
 {
-	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
+
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_IH, 0,
+			      &adev->irq.self_irq);
+	if (r)
+		return r;
 
 	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 256 * 1024, true);
 	if (r)
