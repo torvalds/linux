@@ -4125,7 +4125,7 @@ static const unsigned int vin5_clk_mux[] = {
 
 static const struct {
 	struct sh_pfc_pin_group common[307];
-	struct sh_pfc_pin_group r8a779x[33];
+	struct sh_pfc_pin_group automotive[33];
 } pinmux_groups = {
 	.common = {
 		SH_PFC_PIN_GROUP(audio_clk_a_a),
@@ -4436,7 +4436,7 @@ static const struct {
 		SH_PFC_PIN_GROUP(vin5_clkenb),
 		SH_PFC_PIN_GROUP(vin5_clk),
 	},
-	.r8a779x = {
+	.automotive = {
 		SH_PFC_PIN_GROUP(canfd0_data_a),
 		SH_PFC_PIN_GROUP(canfd0_data_b),
 		SH_PFC_PIN_GROUP(canfd1_data),
@@ -4968,7 +4968,7 @@ static const char * const vin5_groups[] = {
 
 static const struct {
 	struct sh_pfc_function common[45];
-	struct sh_pfc_function r8a779x[6];
+	struct sh_pfc_function automotive[6];
 } pinmux_functions = {
 	.common = {
 		SH_PFC_FUNCTION(audio_clk),
@@ -5017,7 +5017,7 @@ static const struct {
 		SH_PFC_FUNCTION(vin4),
 		SH_PFC_FUNCTION(vin5),
 	},
-	.r8a779x = {
+	.automotive = {
 		SH_PFC_FUNCTION(canfd0),
 		SH_PFC_FUNCTION(canfd1),
 		SH_PFC_FUNCTION(drif0),
@@ -6185,10 +6185,10 @@ const struct sh_pfc_soc_info r8a7796_pinmux_info = {
 	.nr_pins = ARRAY_SIZE(pinmux_pins),
 	.groups = pinmux_groups.common,
 	.nr_groups = ARRAY_SIZE(pinmux_groups.common) +
-		ARRAY_SIZE(pinmux_groups.r8a779x),
+		ARRAY_SIZE(pinmux_groups.automotive),
 	.functions = pinmux_functions.common,
 	.nr_functions = ARRAY_SIZE(pinmux_functions.common) +
-		ARRAY_SIZE(pinmux_functions.r8a779x),
+		ARRAY_SIZE(pinmux_functions.automotive),
 
 	.cfg_regs = pinmux_config_regs,
 	.drive_regs = pinmux_drive_regs,

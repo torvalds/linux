@@ -2391,7 +2391,7 @@ static const unsigned int usb30_id_mux[] = {
 
 static const struct {
 	struct sh_pfc_pin_group common[117];
-	struct sh_pfc_pin_group r8a77990[0];
+	struct sh_pfc_pin_group automotive[0];
 } pinmux_groups = {
 	.common = {
 		SH_PFC_PIN_GROUP(avb_link),
@@ -2717,7 +2717,7 @@ static const char * const usb30_groups[] = {
 
 static const struct {
 	struct sh_pfc_function common[28];
-	struct sh_pfc_function r8a77990[0];
+	struct sh_pfc_function automotive[0];
 } pinmux_functions = {
 	.common = {
 		SH_PFC_FUNCTION(avb),
@@ -3509,10 +3509,10 @@ const struct sh_pfc_soc_info r8a77990_pinmux_info = {
 	.nr_pins = ARRAY_SIZE(pinmux_pins),
 	.groups = pinmux_groups.common,
 	.nr_groups = ARRAY_SIZE(pinmux_groups.common) +
-		ARRAY_SIZE(pinmux_groups.r8a77990),
+		ARRAY_SIZE(pinmux_groups.automotive),
 	.functions = pinmux_functions.common,
 	.nr_functions = ARRAY_SIZE(pinmux_functions.common) +
-		ARRAY_SIZE(pinmux_functions.r8a77990),
+		ARRAY_SIZE(pinmux_functions.automotive),
 
 	.cfg_regs = pinmux_config_regs,
 	.bias_regs = pinmux_bias_regs,
