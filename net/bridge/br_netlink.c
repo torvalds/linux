@@ -1167,7 +1167,7 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		u8 val;
 
 		val = nla_get_u8(data[IFLA_BR_MCAST_QUERY_USE_IFADDR]);
-		br->multicast_query_use_ifaddr = !!val;
+		br_opt_toggle(br, BROPT_MULTICAST_QUERY_USE_IFADDR, !!val);
 	}
 
 	if (data[IFLA_BR_MCAST_QUERIER]) {
@@ -1244,7 +1244,7 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		__u8 mcast_stats;
 
 		mcast_stats = nla_get_u8(data[IFLA_BR_MCAST_STATS_ENABLED]);
-		br->multicast_stats_enabled = !!mcast_stats;
+		br_opt_toggle(br, BROPT_MULTICAST_STATS_ENABLED, !!mcast_stats);
 	}
 
 	if (data[IFLA_BR_MCAST_IGMP_VERSION]) {
@@ -1425,10 +1425,11 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	    nla_put_u8(skb, IFLA_BR_MCAST_SNOOPING,
 		       br_opt_get(br, BROPT_MULTICAST_ENABLED)) ||
 	    nla_put_u8(skb, IFLA_BR_MCAST_QUERY_USE_IFADDR,
-		       br->multicast_query_use_ifaddr) ||
-	    nla_put_u8(skb, IFLA_BR_MCAST_QUERIER, br->multicast_querier) ||
+		       br_opt_get(br, BROPT_MULTICAST_QUERY_USE_IFADDR)) ||
+	    nla_put_u8(skb, IFLA_BR_MCAST_QUERIER,
+		       br_opt_get(br, BROPT_MULTICAST_QUERIER)) ||
 	    nla_put_u8(skb, IFLA_BR_MCAST_STATS_ENABLED,
-		       br->multicast_stats_enabled) ||
+		       br_opt_get(br, BROPT_MULTICAST_STATS_ENABLED)) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_ELASTICITY,
 			br->hash_elasticity) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_MAX, br->hash_max) ||

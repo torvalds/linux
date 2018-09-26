@@ -411,7 +411,7 @@ static struct sk_buff *br_ip4_multicast_alloc_query(struct net_bridge *br,
 	iph->frag_off = htons(IP_DF);
 	iph->ttl = 1;
 	iph->protocol = IPPROTO_IGMP;
-	iph->saddr = br->multicast_query_use_ifaddr ?
+	iph->saddr = br_opt_get(br, BROPT_MULTICAST_QUERY_USE_IFADDR) ?
 		     inet_select_addr(br->dev, 0, RT_SCOPE_LINK) : 0;
 	iph->daddr = htonl(INADDR_ALLHOSTS_GROUP);
 	((u8 *)&iph[1])[0] = IPOPT_RA;
@@ -503,11 +503,11 @@ static struct sk_buff *br_ip6_multicast_alloc_query(struct net_bridge *br,
 	if (ipv6_dev_get_saddr(dev_net(br->dev), br->dev, &ip6h->daddr, 0,
 			       &ip6h->saddr)) {
 		kfree_skb(skb);
-		br->has_ipv6_addr = 0;
+		br_opt_toggle(br, BROPT_HAS_IPV6_ADDR, false);
 		return NULL;
 	}
 
-	br->has_ipv6_addr = 1;
+	br_opt_toggle(br, BROPT_HAS_IPV6_ADDR, true);
 	ipv6_eth_mc_map(&ip6h->daddr, eth->h_dest);
 
 	hopopt = (u8 *)(ip6h + 1);
@@ -967,7 +967,7 @@ static void br_multicast_send_query(struct net_bridge *br,
 
 	if (!netif_running(br->dev) ||
 	    !br_opt_get(br, BROPT_MULTICAST_ENABLED) ||
-	    !br->multicast_querier)
+	    !br_opt_get(br, BROPT_MULTICAST_QUERIER))
 		return;
 
 	memset(&br_group.u, 0, sizeof(br_group.u));
@@ -1636,7 +1636,7 @@ br_multicast_leave_group(struct net_bridge *br,
 	if (timer_pending(&other_query->timer))
 		goto out;
 
-	if (br->multicast_querier) {
+	if (br_opt_get(br, BROPT_MULTICAST_QUERIER)) {
 		__br_multicast_send_query(br, port, &mp->addr);
 
 		time = jiffies + br->multicast_last_member_count *
@@ -1748,7 +1748,7 @@ static void br_multicast_err_count(const struct net_bridge *br,
 	struct bridge_mcast_stats __percpu *stats;
 	struct bridge_mcast_stats *pstats;
 
-	if (!br->multicast_stats_enabled)
+	if (!br_opt_get(br, BROPT_MULTICAST_STATS_ENABLED))
 		return;
 
 	if (p)
@@ -1958,8 +1958,6 @@ void br_multicast_init(struct net_bridge *br)
 	br->hash_max = 512;
 
 	br->multicast_router = MDB_RTR_TYPE_TEMP_QUERY;
-	br->multicast_querier = 0;
-	br->multicast_query_use_ifaddr = 0;
 	br->multicast_last_member_count = 2;
 	br->multicast_startup_query_count = 2;
 
@@ -1978,7 +1976,7 @@ void br_multicast_init(struct net_bridge *br)
 	br->ip6_other_query.delay_time = 0;
 	br->ip6_querier.port = NULL;
 #endif
-	br->has_ipv6_addr = 1;
+	br_opt_toggle(br, BROPT_HAS_IPV6_ADDR, true);
 
 	spin_lock_init(&br->multicast_lock);
 	timer_setup(&br->multicast_router_timer,
@@ -2238,10 +2236,10 @@ int br_multicast_set_querier(struct net_bridge *br, unsigned long val)
 	val = !!val;
 
 	spin_lock_bh(&br->multicast_lock);
-	if (br->multicast_querier == val)
+	if (br_opt_get(br, BROPT_MULTICAST_QUERIER) == val)
 		goto unlock;
 
-	br->multicast_querier = val;
+	br_opt_toggle(br, BROPT_MULTICAST_QUERIER, !!val);
 	if (!val)
 		goto unlock;
 
@@ -2562,7 +2560,7 @@ void br_multicast_count(struct net_bridge *br, const struct net_bridge_port *p,
 	struct bridge_mcast_stats __percpu *stats;
 
 	/* if multicast_disabled is true then igmp type can't be set */
-	if (!type || !br->multicast_stats_enabled)
+	if (!type || !br_opt_get(br, BROPT_MULTICAST_STATS_ENABLED))
 		return;
 
 	if (p)

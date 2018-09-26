@@ -314,6 +314,10 @@ enum net_bridge_opts {
 	BROPT_NF_CALL_ARPTABLES,
 	BROPT_GROUP_ADDR_SET,
 	BROPT_MULTICAST_ENABLED,
+	BROPT_MULTICAST_QUERIER,
+	BROPT_MULTICAST_QUERY_USE_IFADDR,
+	BROPT_MULTICAST_STATS_ENABLED,
+	BROPT_HAS_IPV6_ADDR,
 };
 
 struct net_bridge {
@@ -365,12 +369,6 @@ struct net_bridge {
 	} stp_enabled;
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
-	unsigned char			multicast_router;
-
-	u8				multicast_querier:1;
-	u8				multicast_query_use_ifaddr:1;
-	u8				has_ipv6_addr:1;
-	u8				multicast_stats_enabled:1;
 
 	u32				hash_elasticity;
 	u32				hash_max;
@@ -379,7 +377,10 @@ struct net_bridge {
 	u32				multicast_startup_query_count;
 
 	u8				multicast_igmp_version;
-
+	u8				multicast_router;
+#if IS_ENABLED(CONFIG_IPV6)
+	u8				multicast_mld_version;
+#endif
 	unsigned long			multicast_last_member_interval;
 	unsigned long			multicast_membership_interval;
 	unsigned long			multicast_querier_interval;
@@ -400,7 +401,6 @@ struct net_bridge {
 	struct bridge_mcast_other_query	ip6_other_query;
 	struct bridge_mcast_own_query	ip6_own_query;
 	struct bridge_mcast_querier	ip6_querier;
-	u8				multicast_mld_version;
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 #endif
 
@@ -707,8 +707,8 @@ __br_multicast_querier_exists(struct net_bridge *br,
 {
 	bool own_querier_enabled;
 
-	if (br->multicast_querier) {
-		if (is_ipv6 && !br->has_ipv6_addr)
+	if (br_opt_get(br, BROPT_MULTICAST_QUERIER)) {
+		if (is_ipv6 && !br_opt_get(br, BROPT_HAS_IPV6_ADDR))
 			own_querier_enabled = false;
 		else
 			own_querier_enabled = true;

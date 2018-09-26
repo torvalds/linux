@@ -365,12 +365,13 @@ static ssize_t multicast_query_use_ifaddr_show(struct device *d,
 					       char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%d\n", br->multicast_query_use_ifaddr);
+	return sprintf(buf, "%d\n",
+		       br_opt_get(br, BROPT_MULTICAST_QUERY_USE_IFADDR));
 }
 
 static int set_query_use_ifaddr(struct net_bridge *br, unsigned long val)
 {
-	br->multicast_query_use_ifaddr = !!val;
+	br_opt_toggle(br, BROPT_MULTICAST_QUERY_USE_IFADDR, !!val);
 	return 0;
 }
 
@@ -388,7 +389,7 @@ static ssize_t multicast_querier_show(struct device *d,
 				      char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%d\n", br->multicast_querier);
+	return sprintf(buf, "%d\n", br_opt_get(br, BROPT_MULTICAST_QUERIER));
 }
 
 static ssize_t multicast_querier_store(struct device *d,
@@ -636,12 +637,13 @@ static ssize_t multicast_stats_enabled_show(struct device *d,
 {
 	struct net_bridge *br = to_bridge(d);
 
-	return sprintf(buf, "%u\n", br->multicast_stats_enabled);
+	return sprintf(buf, "%d\n",
+		       br_opt_get(br, BROPT_MULTICAST_STATS_ENABLED));
 }
 
 static int set_stats_enabled(struct net_bridge *br, unsigned long val)
 {
-	br->multicast_stats_enabled = !!val;
+	br_opt_toggle(br, BROPT_MULTICAST_STATS_ENABLED, !!val);
 	return 0;
 }
 
