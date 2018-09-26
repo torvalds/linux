@@ -313,6 +313,7 @@ enum net_bridge_opts {
 	BROPT_NF_CALL_IP6TABLES,
 	BROPT_NF_CALL_ARPTABLES,
 	BROPT_GROUP_ADDR_SET,
+	BROPT_MULTICAST_ENABLED,
 };
 
 struct net_bridge {
@@ -366,7 +367,6 @@ struct net_bridge {
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	unsigned char			multicast_router;
 
-	u8				multicast_disabled:1;
 	u8				multicast_querier:1;
 	u8				multicast_query_use_ifaddr:1;
 	u8				has_ipv6_addr:1;

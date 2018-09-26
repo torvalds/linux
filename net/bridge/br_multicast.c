@@ -158,7 +158,7 @@ struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 	struct net_bridge_mdb_htable *mdb = rcu_dereference(br->mdb);
 	struct br_ip ip;
 
-	if (br->multicast_disabled)
+	if (!br_opt_get(br, BROPT_MULTICAST_ENABLED))
 		return NULL;
 
 	if (BR_INPUT_SKB_CB(skb)->igmp)
@@ -628,7 +628,7 @@ static struct net_bridge_mdb_entry *br_multicast_get_group(
 				port ? port->dev->name : br->dev->name);
 			err = -E2BIG;
 disable:
-			br->multicast_disabled = 1;
+			br_opt_toggle(br, BROPT_MULTICAST_ENABLED, false);
 			goto err;
 		}
 	}
@@ -894,7 +894,7 @@ static void br_multicast_querier_expired(struct net_bridge *br,
 					 struct bridge_mcast_own_query *query)
 {
 	spin_lock(&br->multicast_lock);
-	if (!netif_running(br->dev) || br->multicast_disabled)
+	if (!netif_running(br->dev) || !br_opt_get(br, BROPT_MULTICAST_ENABLED))
 		goto out;
 
 	br_multicast_start_querier(br, query);
@@ -965,7 +965,8 @@ static void br_multicast_send_query(struct net_bridge *br,
 	struct br_ip br_group;
 	unsigned long time;
 
-	if (!netif_running(br->dev) || br->multicast_disabled ||
+	if (!netif_running(br->dev) ||
+	    !br_opt_get(br, BROPT_MULTICAST_ENABLED) ||
 	    !br->multicast_querier)
 		return;
 
@@ -1036,7 +1037,7 @@ static void br_mc_disabled_update(struct net_device *dev, bool value)
 		.orig_dev = dev,
 		.id = SWITCHDEV_ATTR_ID_BRIDGE_MC_DISABLED,
 		.flags = SWITCHDEV_F_DEFER,
-		.u.mc_disabled = value,
+		.u.mc_disabled = !value,
 	};
 
 	switchdev_port_attr_set(dev, &attr);
@@ -1054,7 +1055,8 @@ int br_multicast_add_port(struct net_bridge_port *port)
 	timer_setup(&port->ip6_own_query.timer,
 		    br_ip6_multicast_port_query_expired, 0);
 #endif
-	br_mc_disabled_update(port->dev, port->br->multicast_disabled);
+	br_mc_disabled_update(port->dev,
+			      br_opt_get(port->br, BROPT_MULTICAST_ENABLED));
 
 	port->mcast_stats = netdev_alloc_pcpu_stats(struct bridge_mcast_stats);
 	if (!port->mcast_stats)
@@ -1091,7 +1093,7 @@ static void __br_multicast_enable_port(struct net_bridge_port *port)
 {
 	struct net_bridge *br = port->br;
 
-	if (br->multicast_disabled || !netif_running(br->dev))
+	if (!br_opt_get(br, BROPT_MULTICAST_ENABLED) || !netif_running(br->dev))
 		return;
 
 	br_multicast_enable(&port->ip4_own_query);
@@ -1904,7 +1906,7 @@ int br_multicast_rcv(struct net_bridge *br, struct net_bridge_port *port,
 	BR_INPUT_SKB_CB(skb)->igmp = 0;
 	BR_INPUT_SKB_CB(skb)->mrouters_only = 0;
 
-	if (br->multicast_disabled)
+	if (!br_opt_get(br, BROPT_MULTICAST_ENABLED))
 		return 0;
 
 	switch (skb->protocol) {
@@ -1998,7 +2000,7 @@ static void __br_multicast_open(struct net_bridge *br,
 {
 	query->startup_sent = 0;
 
-	if (br->multicast_disabled)
+	if (!br_opt_get(br, BROPT_MULTICAST_ENABLED))
 		return;
 
 	mod_timer(&query->timer, jiffies);
@@ -2173,12 +2175,12 @@ int br_multicast_toggle(struct net_bridge *br, unsigned long val)
 	int err = 0;
 
 	spin_lock_bh(&br->multicast_lock);
-	if (br->multicast_disabled == !val)
+	if (!!br_opt_get(br, BROPT_MULTICAST_ENABLED) == !!val)
 		goto unlock;
 
-	br_mc_disabled_update(br->dev, !val);
-	br->multicast_disabled = !val;
-	if (br->multicast_disabled)
+	br_mc_disabled_update(br->dev, val);
+	br_opt_toggle(br, BROPT_MULTICAST_ENABLED, !!val);
+	if (!br_opt_get(br, BROPT_MULTICAST_ENABLED))
 		goto unlock;
 
 	if (!netif_running(br->dev))
@@ -2189,7 +2191,7 @@ int br_multicast_toggle(struct net_bridge *br, unsigned long val)
 		if (mdb->old) {
 			err = -EEXIST;
 rollback:
-			br->multicast_disabled = !!val;
+			br_opt_toggle(br, BROPT_MULTICAST_ENABLED, false);
 			goto unlock;
 		}
 
@@ -2213,7 +2215,7 @@ bool br_multicast_enabled(const struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
 
-	return !br->multicast_disabled;
+	return !!br_opt_get(br, BROPT_MULTICAST_ENABLED);
 }
 EXPORT_SYMBOL_GPL(br_multicast_enabled);
 

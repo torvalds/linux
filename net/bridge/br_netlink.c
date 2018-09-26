@@ -1422,7 +1422,8 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 #endif
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	if (nla_put_u8(skb, IFLA_BR_MCAST_ROUTER, br->multicast_router) ||
-	    nla_put_u8(skb, IFLA_BR_MCAST_SNOOPING, !br->multicast_disabled) ||
+	    nla_put_u8(skb, IFLA_BR_MCAST_SNOOPING,
+		       br_opt_get(br, BROPT_MULTICAST_ENABLED)) ||
 	    nla_put_u8(skb, IFLA_BR_MCAST_QUERY_USE_IFADDR,
 		       br->multicast_query_use_ifaddr) ||
 	    nla_put_u8(skb, IFLA_BR_MCAST_QUERIER, br->multicast_querier) ||

@@ -349,7 +349,7 @@ static ssize_t multicast_snooping_show(struct device *d,
 				       char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%d\n", !br->multicast_disabled);
+	return sprintf(buf, "%d\n", br_opt_get(br, BROPT_MULTICAST_ENABLED));
 }
 
 static ssize_t multicast_snooping_store(struct device *d,
