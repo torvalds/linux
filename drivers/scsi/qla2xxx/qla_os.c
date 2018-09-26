@@ -303,6 +303,7 @@ static void qla2x00_free_device(scsi_qla_host_t *);
 static int qla2xxx_map_queues(struct Scsi_Host *shost);
 static void qla2x00_destroy_deferred_work(struct qla_hw_data *);
 
+
 struct scsi_host_template qla2xxx_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= QLA2XXX_DRIVER_NAME,
@@ -1147,7 +1148,7 @@ static inline int test_fcport_count(scsi_qla_host_t *vha)
  * qla2x00_wait_for_sess_deletion can only be called from remove_one.
  * it has dependency on UNLOADING flag to stop device discovery
  */
-static void
+void
 qla2x00_wait_for_sess_deletion(scsi_qla_host_t *vha)
 {
 	qla2x00_mark_all_devices_lost(vha, 0);
@@ -2815,6 +2816,9 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->link_data_rate = PORT_SPEED_UNKNOWN;
 	ha->optrom_size = OPTROM_SIZE_2300;
 	ha->max_exchg = FW_MAX_EXCHANGES_CNT;
+	atomic_set(&ha->num_pend_mbx_stage1, 0);
+	atomic_set(&ha->num_pend_mbx_stage2, 0);
+	atomic_set(&ha->num_pend_mbx_stage3, 0);
 
 	/* Assign ISP specific operations. */
 	if (IS_QLA2100(ha)) {
@@ -3045,7 +3049,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	host = base_vha->host;
 	base_vha->req = req;
 	if (IS_QLA2XXX_MIDTYPE(ha))
-		base_vha->mgmt_svr_loop_id = NPH_MGMT_SERVER;
+		base_vha->mgmt_svr_loop_id =
+			qla2x00_reserve_mgmt_server_loop_id(base_vha);
 	else
 		base_vha->mgmt_svr_loop_id = MANAGEMENT_SERVER +
 						base_vha->vp_idx;
@@ -3180,6 +3185,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    "req->req_q_in=%p req->req_q_out=%p rsp->rsp_q_in=%p rsp->rsp_q_out=%p.\n",
 	    req->req_q_in, req->req_q_out, rsp->rsp_q_in, rsp->rsp_q_out);
 
+	ha->wq = alloc_workqueue("qla2xxx_wq", 0, 0);
+
 	if (ha->isp_ops->initialize_adapter(base_vha)) {
 		ql_log(ql_log_fatal, base_vha, 0x00d6,
 		    "Failed to initialize adapter - Adapter flags %x.\n",
@@ -3215,8 +3222,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    "can_queue=%d, req=%p, mgmt_svr_loop_id=%d, sg_tablesize=%d.\n",
 	    host->can_queue, base_vha->req,
 	    base_vha->mgmt_svr_loop_id, host->sg_tablesize);
-
-	ha->wq = alloc_workqueue("qla2xxx_wq", 0, 0);
 
 	if (ha->mqenable) {
 		bool mq = false;
@@ -3603,6 +3608,8 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	base_vha = pci_get_drvdata(pdev);
 	ha = base_vha->hw;
+	ql_log(ql_log_info, base_vha, 0xb079,
+	    "Removing driver\n");
 
 	/* Indicate device removal to prevent future board_disable and wait
 	 * until any pending board_disable has completed. */
@@ -3624,6 +3631,21 @@ qla2x00_remove_one(struct pci_dev *pdev)
 		return;
 	}
 	qla2x00_wait_for_hba_ready(base_vha);
+
+	if (IS_QLA25XX(ha) || IS_QLA2031(ha) || IS_QLA27XX(ha)) {
+		if (ha->flags.fw_started)
+			qla2x00_abort_isp_cleanup(base_vha);
+	} else if (!IS_QLAFX00(ha)) {
+		if (IS_QLA8031(ha)) {
+			ql_dbg(ql_dbg_p3p, base_vha, 0xb07e,
+			    "Clearing fcoe driver presence.\n");
+			if (qla83xx_clear_drv_presence(base_vha) != QLA_SUCCESS)
+				ql_dbg(ql_dbg_p3p, base_vha, 0xb079,
+				    "Error while clearing DRV-Presence.\n");
+		}
+
+		qla2x00_try_to_stop_firmware(base_vha);
+	}
 
 	qla2x00_wait_for_sess_deletion(base_vha);
 
@@ -3647,14 +3669,6 @@ qla2x00_remove_one(struct pci_dev *pdev)
 		qlafx00_driver_shutdown(base_vha, 20);
 
 	qla2x00_delete_all_vps(ha, base_vha);
-
-	if (IS_QLA8031(ha)) {
-		ql_dbg(ql_dbg_p3p, base_vha, 0xb07e,
-		    "Clearing fcoe driver presence.\n");
-		if (qla83xx_clear_drv_presence(base_vha) != QLA_SUCCESS)
-			ql_dbg(ql_dbg_p3p, base_vha, 0xb079,
-			    "Error while clearing DRV-Presence.\n");
-	}
 
 	qla2x00_abort_all_cmds(base_vha, DID_NO_CONNECT << 16);
 
@@ -3715,24 +3729,6 @@ qla2x00_free_device(scsi_qla_host_t *vha)
 		qla2x00_stop_timer(vha);
 
 	qla25xx_delete_queues(vha);
-
-	if (ha->flags.fce_enabled)
-		qla2x00_disable_fce_trace(vha, NULL, NULL);
-
-	if (ha->eft)
-		qla2x00_disable_eft_trace(vha);
-
-	if (IS_QLA25XX(ha) ||  IS_QLA2031(ha) || IS_QLA27XX(ha)) {
-		if (ha->flags.fw_started)
-			qla2x00_abort_isp_cleanup(vha);
-	} else {
-		if (ha->flags.fw_started) {
-			/* Stop currently executing firmware. */
-			qla2x00_try_to_stop_firmware(vha);
-			ha->flags.fw_started = 0;
-		}
-	}
-
 	vha->flags.online = 0;
 
 	/* turn-off interrupts on the card */
@@ -3838,14 +3834,6 @@ void qla2x00_mark_device_lost(scsi_qla_host_t *vha, fc_port_t *fcport,
 		return;
 
 	set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
-
-	if (fcport->login_retry == 0) {
-		fcport->login_retry = vha->hw->login_retry_count;
-
-		ql_dbg(ql_dbg_disc, vha, 0x20a3,
-		    "Port login retry %8phN, lid 0x%04x retry cnt=%d.\n",
-		    fcport->port_name, fcport->loop_id, fcport->login_retry);
-	}
 }
 
 /*
@@ -4793,7 +4781,6 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 	struct qlt_plogi_ack_t *pla =
 	    (struct qlt_plogi_ack_t *)e->u.new_sess.pla;
 	uint8_t free_fcport = 0;
-	u64 wwn;
 
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "%s %d %8phC enter\n",
@@ -4821,10 +4808,10 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 			fcport->d_id = e->u.new_sess.id;
 			fcport->flags |= FCF_FABRIC_DEVICE;
 			fcport->fw_login_state = DSC_LS_PLOGI_PEND;
-			if (e->u.new_sess.fc4_type & FS_FC4TYPE_FCP)
+			if (e->u.new_sess.fc4_type == FS_FC4TYPE_FCP)
 				fcport->fc4_type = FC4_TYPE_FCP_SCSI;
 
-			if (e->u.new_sess.fc4_type & FS_FC4TYPE_NVME) {
+			if (e->u.new_sess.fc4_type == FS_FC4TYPE_NVME) {
 				fcport->fc4_type = FC4_TYPE_OTHER;
 				fcport->fc4f_nvme = FC4_TYPE_NVME;
 			}
@@ -4866,9 +4853,6 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
 	if (fcport) {
-		if (N2N_TOPO(vha->hw))
-			fcport->flags &= ~FCF_FABRIC_DEVICE;
-
 		fcport->id_changed = 1;
 		fcport->scan_state = QLA_FCPORT_FOUND;
 		memcpy(fcport->node_name, e->u.new_sess.node_name, WWN_SIZE);
@@ -4929,12 +4913,22 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 			if (dfcp)
 				qlt_schedule_sess_for_deletion(tfcp);
 
-			wwn = wwn_to_u64(fcport->node_name);
 
-			if (!wwn)
-				qla24xx_async_gnnid(vha, fcport);
-			else
-				qla24xx_async_gnl(vha, fcport);
+			if (N2N_TOPO(vha->hw))
+				fcport->flags &= ~FCF_FABRIC_DEVICE;
+
+			if (N2N_TOPO(vha->hw)) {
+				if (vha->flags.nvme_enabled) {
+					fcport->fc4f_nvme = 1;
+					fcport->n2n_flag = 1;
+				}
+				fcport->fw_login_state = 0;
+				/*
+				 * wait link init done before sending login
+				 */
+			} else {
+				qla24xx_fcport_handle_login(vha, fcport);
+			}
 		}
 	}
 
@@ -5069,6 +5063,10 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 		case QLA_EVT_IIDMA:
 			qla_do_iidma_work(vha, e->u.fcport.fcport);
 			break;
+		case QLA_EVT_ELS_PLOGI:
+			qla24xx_els_dcmd2_iocb(vha, ELS_DCMD_PLOGI,
+			    e->u.fcport.fcport, false);
+			break;
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)
 			kfree(e);
@@ -5098,7 +5096,7 @@ int qla24xx_post_relogin_work(struct scsi_qla_host *vha)
 void qla2x00_relogin(struct scsi_qla_host *vha)
 {
 	fc_port_t       *fcport;
-	int status;
+	int status, relogin_needed = 0;
 	struct event_arg ea;
 
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
@@ -5107,46 +5105,58 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 		 * to it if we haven't run out of retries.
 		 */
 		if (atomic_read(&fcport->state) != FCS_ONLINE &&
-		    fcport->login_retry &&
-		    !(fcport->flags & (FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE))) {
-			if (vha->hw->current_topology != ISP_CFG_NL) {
-				ql_dbg(ql_dbg_disc, fcport->vha, 0x2108,
-				    "%s %8phC DS %d LS %d\n", __func__,
-				    fcport->port_name, fcport->disc_state,
-				    fcport->fw_login_state);
-				memset(&ea, 0, sizeof(ea));
-				ea.event = FCME_RELOGIN;
-				ea.fcport = fcport;
-				qla2x00_fcport_event_handler(vha, &ea);
-			} else if (vha->hw->current_topology == ISP_CFG_NL) {
-				fcport->login_retry--;
-				status = qla2x00_local_device_login(vha,
-								fcport);
-				if (status == QLA_SUCCESS) {
-					fcport->old_loop_id = fcport->loop_id;
-					ql_dbg(ql_dbg_disc, vha, 0x2003,
-					    "Port login OK: logged in ID 0x%x.\n",
-					    fcport->loop_id);
-					qla2x00_update_fcport(vha, fcport);
-				} else if (status == 1) {
-					set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
-					/* retry the login again */
-					ql_dbg(ql_dbg_disc, vha, 0x2007,
-					    "Retrying %d login again loop_id 0x%x.\n",
-					    fcport->login_retry,
-					    fcport->loop_id);
-				} else {
-					fcport->login_retry = 0;
-				}
+		    fcport->login_retry) {
+			if (fcport->scan_state != QLA_FCPORT_FOUND ||
+			    fcport->disc_state == DSC_LOGIN_COMPLETE)
+				continue;
 
-				if (fcport->login_retry == 0 &&
-				    status != QLA_SUCCESS)
-					qla2x00_clear_loop_id(fcport);
+			if (fcport->flags & (FCF_ASYNC_SENT|FCF_ASYNC_ACTIVE) ||
+				fcport->disc_state == DSC_DELETE_PEND) {
+				relogin_needed = 1;
+			} else {
+				if (vha->hw->current_topology != ISP_CFG_NL) {
+					memset(&ea, 0, sizeof(ea));
+					ea.event = FCME_RELOGIN;
+					ea.fcport = fcport;
+					qla2x00_fcport_event_handler(vha, &ea);
+				} else if (vha->hw->current_topology ==
+				    ISP_CFG_NL) {
+					fcport->login_retry--;
+					status =
+					    qla2x00_local_device_login(vha,
+						fcport);
+					if (status == QLA_SUCCESS) {
+						fcport->old_loop_id =
+						    fcport->loop_id;
+						ql_dbg(ql_dbg_disc, vha, 0x2003,
+						    "Port login OK: logged in ID 0x%x.\n",
+						    fcport->loop_id);
+						qla2x00_update_fcport
+							(vha, fcport);
+					} else if (status == 1) {
+						set_bit(RELOGIN_NEEDED,
+						    &vha->dpc_flags);
+						/* retry the login again */
+						ql_dbg(ql_dbg_disc, vha, 0x2007,
+						    "Retrying %d login again loop_id 0x%x.\n",
+						    fcport->login_retry,
+						    fcport->loop_id);
+					} else {
+						fcport->login_retry = 0;
+					}
+
+					if (fcport->login_retry == 0 &&
+					    status != QLA_SUCCESS)
+						qla2x00_clear_loop_id(fcport);
+				}
 			}
 		}
 		if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags))
 			break;
 	}
+
+	if (relogin_needed)
+		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 
 	ql_dbg(ql_dbg_disc, vha, 0x400e,
 	    "Relogin end.\n");
@@ -6028,8 +6038,9 @@ qla2x00_do_dpc(void *data)
 				set_bit(ISP_ABORT_NEEDED, &base_vha->dpc_flags);
 		}
 
-		if (test_and_clear_bit(ISP_ABORT_NEEDED,
-						&base_vha->dpc_flags)) {
+		if (test_and_clear_bit
+		    (ISP_ABORT_NEEDED, &base_vha->dpc_flags) &&
+		    !test_bit(UNLOADING, &base_vha->dpc_flags)) {
 
 			ql_dbg(ql_dbg_dpc, base_vha, 0x4007,
 			    "ISP abort scheduled.\n");
@@ -6185,6 +6196,11 @@ intr_on_check:
 
 		if (!IS_QLAFX00(ha))
 			qla2x00_do_dpc_all_vps(base_vha);
+
+		if (test_and_clear_bit(N2N_LINK_RESET,
+			&base_vha->dpc_flags)) {
+			qla2x00_lip_reset(base_vha);
+		}
 
 		ha->dpc_active = 0;
 end_loop:

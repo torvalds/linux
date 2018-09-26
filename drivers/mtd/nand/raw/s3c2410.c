@@ -162,7 +162,7 @@ enum s3c_nand_clk_state {
  */
 struct s3c2410_nand_info {
 	/* mtd info */
-	struct nand_hw_control		controller;
+	struct nand_controller		controller;
 	struct s3c2410_nand_mtd		*mtds;
 	struct s3c2410_platform_nand	*platform;
 
@@ -802,8 +802,8 @@ static int s3c2410_nand_add_partition(struct s3c2410_nand_info *info,
 
 		mtdinfo->name = set->name;
 
-		return mtd_device_parse_register(mtdinfo, NULL, NULL,
-					 set->partitions, set->nr_partitions);
+		return mtd_device_register(mtdinfo, set->partitions,
+					   set->nr_partitions);
 	}
 
 	return -ENODEV;
@@ -915,20 +915,19 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 }
 
 /**
- * s3c2410_nand_update_chip - post probe update
- * @info: The controller instance.
- * @nmtd: The driver version of the MTD instance.
+ * s3c2410_nand_attach_chip - Init the ECC engine after NAND scan
+ * @chip: The NAND chip
  *
- * This routine is called after the chip probe has successfully completed
- * and the relevant per-chip information updated. This call ensure that
+ * This hook is called by the core after the identification of the NAND chip,
+ * once the relevant per-chip information is up to date.. This call ensure that
  * we update the internal state accordingly.
  *
  * The internal state is currently limited to the ECC state information.
 */
-static int s3c2410_nand_update_chip(struct s3c2410_nand_info *info,
-				    struct s3c2410_nand_mtd *nmtd)
+static int s3c2410_nand_attach_chip(struct nand_chip *chip)
 {
-	struct nand_chip *chip = &nmtd->chip;
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 
 	switch (chip->ecc.mode) {
 
@@ -997,6 +996,10 @@ static int s3c2410_nand_update_chip(struct s3c2410_nand_info *info,
 
 	return 0;
 }
+
+static const struct nand_controller_ops s3c24xx_nand_controller_ops = {
+	.attach_chip = s3c2410_nand_attach_chip,
+};
 
 static const struct of_device_id s3c24xx_nand_dt_ids[] = {
 	{
@@ -1094,7 +1097,8 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-	nand_hw_control_init(&info->controller);
+	nand_controller_init(&info->controller);
+	info->controller.ops = &s3c24xx_nand_controller_ops;
 
 	/* get the clock source and enable it */
 
@@ -1134,8 +1138,13 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "mapped registers at %p\n", info->regs);
 
-	sets = (plat != NULL) ? plat->sets : NULL;
-	nr_sets = (plat != NULL) ? plat->nr_sets : 1;
+	if (!plat->sets || plat->nr_sets < 1) {
+		err = -EINVAL;
+		goto exit_error;
+	}
+
+	sets = plat->sets;
+	nr_sets = plat->nr_sets;
 
 	info->mtd_count = nr_sets;
 
@@ -1152,7 +1161,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	nmtd = info->mtds;
 
-	for (setno = 0; setno < nr_sets; setno++, nmtd++) {
+	for (setno = 0; setno < nr_sets; setno++, nmtd++, sets++) {
 		struct mtd_info *mtd = nand_to_mtd(&nmtd->chip);
 
 		pr_debug("initialising set %d (%p, info %p)\n",
@@ -1161,22 +1170,11 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 		mtd->dev.parent = &pdev->dev;
 		s3c2410_nand_init_chip(info, nmtd, sets);
 
-		err = nand_scan_ident(mtd, (sets) ? sets->nr_chips : 1, NULL);
-		if (err)
-			goto exit_error;
-
-		err = s3c2410_nand_update_chip(info, nmtd);
-		if (err < 0)
-			goto exit_error;
-
-		err = nand_scan_tail(mtd);
+		err = nand_scan(mtd, sets ? sets->nr_chips : 1);
 		if (err)
 			goto exit_error;
 
 		s3c2410_nand_add_partition(info, nmtd, sets);
-
-		if (sets != NULL)
-			sets++;
 	}
 
 	/* initialise the hardware */

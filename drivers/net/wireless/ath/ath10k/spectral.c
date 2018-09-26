@@ -145,7 +145,7 @@ int ath10k_spectral_process_fft(struct ath10k *ar,
 	fft_sample->noise = __cpu_to_be16(phyerr->nf_chains[chain_idx]);
 
 	bins = (u8 *)fftr;
-	bins += sizeof(*fftr);
+	bins += sizeof(*fftr) + ar->hw_params.spectral_bin_offset;
 
 	fft_sample->tsf = __cpu_to_be64(tsf);
 

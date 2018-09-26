@@ -36,6 +36,7 @@
 #include <asm/mipsregs.h>
 #include <asm/bootinfo.h>
 #include <asm/sections.h>
+#include <asm/setup.h>
 #include <asm/time.h>
 
 #include <asm/octeon/octeon.h>
@@ -1108,7 +1109,7 @@ void __init plat_mem_setup(void)
  * Emit one character to the boot UART.	 Exported for use by the
  * watchdog timer.
  */
-int prom_putchar(char c)
+void prom_putchar(char c)
 {
 	uint64_t lsrval;
 
@@ -1119,7 +1120,6 @@ int prom_putchar(char c)
 
 	/* Write the byte */
 	cvmx_write_csr(CVMX_MIO_UARTX_THR(octeon_uart), c & 0xffull);
-	return 1;
 }
 EXPORT_SYMBOL(prom_putchar);
 
@@ -1154,11 +1154,7 @@ void __init prom_free_prom_memory(void)
 }
 
 void __init octeon_fill_mac_addresses(void);
-int octeon_prune_device_tree(void);
 
-extern const char __appended_dtb;
-extern const char __dtb_octeon_3xxx_begin;
-extern const char __dtb_octeon_68xx_begin;
 void __init device_tree_init(void)
 {
 	const void *fdt;

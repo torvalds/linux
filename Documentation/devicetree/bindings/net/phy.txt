@@ -3,8 +3,6 @@ PHY nodes
 Required properties:
 
  - interrupts : interrupt specifier for the sole interrupt.
- - interrupt-parent : the phandle for the interrupt controller that
-   services interrupts for this device.
  - reg : The ID number for the phy, usually a small integer
 
 Optional Properties:

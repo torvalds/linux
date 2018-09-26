@@ -71,6 +71,9 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 	u32 sec, nsec;
 	u32 quotient, reminder;
 	int neg_adj = 0;
+	bool xmac;
+
+	xmac = priv->plat->has_gmac4 || priv->plat->has_xgmac;
 
 	if (delta < 0) {
 		neg_adj = 1;
@@ -82,8 +85,7 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 	nsec = reminder;
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
-	stmmac_adjust_systime(priv, priv->ptpaddr, sec, nsec, neg_adj,
-			priv->plat->has_gmac4);
+	stmmac_adjust_systime(priv, priv->ptpaddr, sec, nsec, neg_adj, xmac);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;

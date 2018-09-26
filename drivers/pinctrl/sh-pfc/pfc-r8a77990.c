@@ -277,7 +277,7 @@
 #define IP11_15_12	FM(TX0_A)		FM(HTX1_A)		FM(SSI_WS2_A)		FM(RIF1_D0)		F_(0, 0)		F_(0, 0)	F_(0, 0)	FM(TS_SDAT1)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP11_19_16	FM(CTS0_N_A)		FM(NFDATA14_A)		FM(AUDIO_CLKOUT_A)	FM(RIF1_D1)		FM(SCIF_CLK_A)		FM(FMCLK_A)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP11_23_20	FM(RTS0_N_TANS_A)	FM(NFDATA15_A)		FM(AUDIO_CLKOUT1_A)	FM(RIF1_CLK)		FM(SCL2_A)		FM(FMIN_A)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP11_27_24	FM(SCK0_A)		FM(HSCK1_A)		FM(USB3HS0_ID)		FM(RTS1_N_TANS)		FM(SDA2_A)		FM(FMCLK_C)	F_(0, 0)	F_(0, 0)	FM(USB1_ID)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP11_27_24	FM(SCK0_A)		FM(HSCK1_A)		FM(USB3HS0_ID)		FM(RTS1_N_TANS)		FM(SDA2_A)		FM(FMCLK_C)	F_(0, 0)	F_(0, 0)	FM(USB0_ID)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP11_31_28	FM(RX1)			FM(HRX2_B)		FM(SSI_SCK9_B)		FM(AUDIO_CLKOUT1_B)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 
 /* IPSRx */		/* 0 */			/* 1 */			/* 2 */			/* 3 */			/* 4 */			/* 5 */		/* 6 */		/* 7 */		/* 8 */		/* 9 - F */
@@ -1082,7 +1082,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_GPSR(IP11_27_24,		RTS1_N_TANS),
 	PINMUX_IPSR_MSEL(IP11_27_24,		SDA2_A,		SEL_I2C2_0),
 	PINMUX_IPSR_MSEL(IP11_27_24,		FMCLK_C,	SEL_FM_2),
-	PINMUX_IPSR_GPSR(IP11_27_24,		USB1_ID),
+	PINMUX_IPSR_GPSR(IP11_27_24,		USB0_ID),
 
 	PINMUX_IPSR_GPSR(IP11_31_28,		RX1),
 	PINMUX_IPSR_MSEL(IP11_31_28,		HRX2_B,		SEL_HSCIF2_1),
@@ -1784,6 +1784,53 @@ static const unsigned int scif_clk_b_mux[] = {
 	SCIF_CLK_B_MARK,
 };
 
+/* - USB0 ------------------------------------------------------------------- */
+static const unsigned int usb0_a_pins[] = {
+	/* PWEN, OVC */
+	RCAR_GP_PIN(6, 17), RCAR_GP_PIN(6, 9),
+};
+
+static const unsigned int usb0_a_mux[] = {
+	USB0_PWEN_A_MARK, USB0_OVC_A_MARK,
+};
+
+static const unsigned int usb0_b_pins[] = {
+	/* PWEN, OVC */
+	RCAR_GP_PIN(6, 11), RCAR_GP_PIN(6, 12),
+};
+
+static const unsigned int usb0_b_mux[] = {
+	USB0_PWEN_B_MARK, USB0_OVC_B_MARK,
+};
+
+static const unsigned int usb0_id_pins[] = {
+	/* ID */
+	RCAR_GP_PIN(5, 0)
+};
+
+static const unsigned int usb0_id_mux[] = {
+	USB0_ID_MARK,
+};
+
+/* - USB30 ------------------------------------------------------------------ */
+static const unsigned int usb30_pins[] = {
+	/* PWEN, OVC */
+	RCAR_GP_PIN(6, 17), RCAR_GP_PIN(6, 9),
+};
+
+static const unsigned int usb30_mux[] = {
+	USB30_PWEN_MARK, USB30_OVC_MARK,
+};
+
+static const unsigned int usb30_id_pins[] = {
+	/* ID */
+	RCAR_GP_PIN(5, 0),
+};
+
+static const unsigned int usb30_id_mux[] = {
+	USB3HS0_ID_MARK,
+};
+
 static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(avb_link),
 	SH_PFC_PIN_GROUP(avb_magic),
@@ -1837,6 +1884,11 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(scif5_data_c),
 	SH_PFC_PIN_GROUP(scif_clk_a),
 	SH_PFC_PIN_GROUP(scif_clk_b),
+	SH_PFC_PIN_GROUP(usb0_a),
+	SH_PFC_PIN_GROUP(usb0_b),
+	SH_PFC_PIN_GROUP(usb0_id),
+	SH_PFC_PIN_GROUP(usb30),
+	SH_PFC_PIN_GROUP(usb30_id),
 };
 
 static const char * const avb_groups[] = {
@@ -1933,6 +1985,17 @@ static const char * const scif_clk_groups[] = {
 	"scif_clk_b",
 };
 
+static const char * const usb0_groups[] = {
+	"usb0_a",
+	"usb0_b",
+	"usb0_id",
+};
+
+static const char * const usb30_groups[] = {
+	"usb30",
+	"usb30_id",
+};
+
 static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(avb),
 	SH_PFC_FUNCTION(i2c1),
@@ -1948,6 +2011,8 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(scif4),
 	SH_PFC_FUNCTION(scif5),
 	SH_PFC_FUNCTION(scif_clk),
+	SH_PFC_FUNCTION(usb0),
+	SH_PFC_FUNCTION(usb30),
 };
 
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {

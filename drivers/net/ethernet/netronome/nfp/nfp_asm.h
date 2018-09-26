@@ -93,6 +93,7 @@ enum br_mask {
 	BR_BNE = 0x01,
 	BR_BMI = 0x02,
 	BR_BHS = 0x04,
+	BR_BCC = 0x05,
 	BR_BLO = 0x05,
 	BR_BGE = 0x08,
 	BR_BLT = 0x09,
@@ -425,5 +426,33 @@ static inline u32 nfp_get_ind_csr_ctx_ptr_offs(u32 read_offset)
 {
 	return (read_offset & ~NFP_IND_ME_CTX_PTR_BASE_MASK) | NFP_CSR_CTX_PTR;
 }
+
+enum mul_type {
+	MUL_TYPE_START		= 0x00,
+	MUL_TYPE_STEP_24x8	= 0x01,
+	MUL_TYPE_STEP_16x16	= 0x02,
+	MUL_TYPE_STEP_32x32	= 0x03,
+};
+
+enum mul_step {
+	MUL_STEP_1		= 0x00,
+	MUL_STEP_NONE		= MUL_STEP_1,
+	MUL_STEP_2		= 0x01,
+	MUL_STEP_3		= 0x02,
+	MUL_STEP_4		= 0x03,
+	MUL_LAST		= 0x04,
+	MUL_LAST_2		= 0x05,
+};
+
+#define OP_MUL_BASE		0x0f800000000ULL
+#define OP_MUL_A_SRC		0x000000003ffULL
+#define OP_MUL_B_SRC		0x000000ffc00ULL
+#define OP_MUL_STEP		0x00000700000ULL
+#define OP_MUL_DST_AB		0x00000800000ULL
+#define OP_MUL_SW		0x00040000000ULL
+#define OP_MUL_TYPE		0x00180000000ULL
+#define OP_MUL_WR_AB		0x20000000000ULL
+#define OP_MUL_SRC_LMEXTN	0x40000000000ULL
+#define OP_MUL_DST_LMEXTN	0x80000000000ULL
 
 #endif

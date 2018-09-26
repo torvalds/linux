@@ -808,6 +808,24 @@ static enum bp_result transmitter_control_v1_5(
 	 * (=1: 8bpp, =1.25: 10bpp, =1.5:12bpp, =2: 16bpp)
 	 * LVDS mode: usPixelClock = pixel clock
 	 */
+	if  (cntl->signal == SIGNAL_TYPE_HDMI_TYPE_A) {
+		switch (cntl->color_depth) {
+		case COLOR_DEPTH_101010:
+			params.usSymClock =
+				cpu_to_le16((le16_to_cpu(params.usSymClock) * 30) / 24);
+			break;
+		case COLOR_DEPTH_121212:
+			params.usSymClock =
+				cpu_to_le16((le16_to_cpu(params.usSymClock) * 36) / 24);
+			break;
+		case COLOR_DEPTH_161616:
+			params.usSymClock =
+				cpu_to_le16((le16_to_cpu(params.usSymClock) * 48) / 24);
+			break;
+		default:
+			break;
+		}
+	}
 
 	if (EXEC_BIOS_CMD_TABLE(UNIPHYTransmitterControl, params))
 		result = BP_RESULT_OK;

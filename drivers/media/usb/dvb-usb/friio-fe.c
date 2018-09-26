@@ -133,10 +133,10 @@ static int jdvbt90502_pll_set_freq(struct jdvbt90502_state *state, u32 freq)
 	u32 f;
 
 	deb_fe("%s: freq=%d, step=%d\n", __func__, freq,
-	       state->frontend.ops.info.frequency_stepsize);
+	       state->frontend.ops.info.frequency_stepsize_hz);
 	/* freq -> oscilator frequency conversion. */
 	/* freq: 473,000,000 + n*6,000,000 [+ 142857 (center freq. shift)] */
-	f = freq / state->frontend.ops.info.frequency_stepsize;
+	f = freq / state->frontend.ops.info.frequency_stepsize_hz;
 	/* add 399[1/7 MHZ] = 57MHz for the IF  */
 	f += 399;
 	/* add center frequency shift if necessary */
@@ -413,10 +413,9 @@ static const struct dvb_frontend_ops jdvbt90502_ops = {
 	.delsys = { SYS_ISDBT },
 	.info = {
 		.name			= "Comtech JDVBT90502 ISDB-T",
-		.frequency_min		= 473000000, /* UHF 13ch, center */
-		.frequency_max		= 767142857, /* UHF 62ch, center */
-		.frequency_stepsize	= JDVBT90502_PLL_CLK / JDVBT90502_PLL_DIVIDER,
-		.frequency_tolerance	= 0,
+		.frequency_min_hz	= 473000000, /* UHF 13ch, center */
+		.frequency_max_hz	= 767142857, /* UHF 62ch, center */
+		.frequency_stepsize_hz	= JDVBT90502_PLL_CLK / JDVBT90502_PLL_DIVIDER,
 
 		/* NOTE: this driver ignores all parameters but frequency. */
 		.caps = FE_CAN_INVERSION_AUTO |

@@ -18,7 +18,6 @@ Additional required properties:
 					"ti,ads7846"
 					"ti,ads7873"
 
-	interrupt-parent
 	interrupts		An interrupt node describing the IRQ line the chip's
 				!PENIRQ pin is connected to.
 	vcc-supply		A regulator node for the supply voltage.

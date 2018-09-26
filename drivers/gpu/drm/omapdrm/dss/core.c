@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -82,7 +82,7 @@ static void __exit omap_dss_exit(void)
 module_init(omap_dss_init);
 module_exit(omap_dss_exit);
 
-MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@nokia.com>");
+MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
 MODULE_DESCRIPTION("OMAP2/3 Display Subsystem");
 MODULE_LICENSE("GPL v2");
 

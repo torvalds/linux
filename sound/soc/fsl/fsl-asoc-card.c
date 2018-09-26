@@ -1,14 +1,10 @@
-/*
- * Freescale Generic ASoC Sound Card driver with ASRC
- *
- * Copyright (C) 2014 Freescale Semiconductor, Inc.
- *
- * Author: Nicolin Chen <nicoleotsuka@gmail.com>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Freescale Generic ASoC Sound Card driver with ASRC
+//
+// Copyright (C) 2014 Freescale Semiconductor, Inc.
+//
+// Author: Nicolin Chen <nicoleotsuka@gmail.com>
 
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -199,7 +195,7 @@ static int be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	mask = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	snd_mask_none(mask);
-	snd_mask_set(mask, (__force int)priv->asrc_format);
+	snd_mask_set_format(mask, priv->asrc_format);
 
 	return 0;
 }

@@ -825,7 +825,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_QP_RATE_LIMIT_NUM_OFFSET	0xcc
 #define QUERY_DEV_CAP_QP_RATE_LIMIT_MAX_OFFSET	0xd0
 #define QUERY_DEV_CAP_QP_RATE_LIMIT_MIN_OFFSET	0xd2
-
+#define QUERY_DEV_CAP_HEALTH_BUFFER_ADDRESS_OFFSET	0xe4
 
 	dev_cap->flags2 = 0;
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
@@ -1081,6 +1081,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev_cap->rl_caps.min_val  = size & 0xfff;
 		dev_cap->rl_caps.min_unit = size >> 14;
 	}
+
+	MLX4_GET(dev_cap->health_buffer_addrs, outbox,
+		 QUERY_DEV_CAP_HEALTH_BUFFER_ADDRESS_OFFSET);
 
 	MLX4_GET(field32, outbox, QUERY_DEV_CAP_EXT_2_FLAGS_OFFSET);
 	if (field32 & (1 << 16))

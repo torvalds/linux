@@ -380,9 +380,8 @@ xfs_cud_init(
  */
 int
 xfs_cui_recover(
-	struct xfs_mount		*mp,
-	struct xfs_cui_log_item		*cuip,
-	struct xfs_defer_ops		*dfops)
+	struct xfs_trans		*parent_tp,
+	struct xfs_cui_log_item		*cuip)
 {
 	int				i;
 	int				error = 0;
@@ -398,6 +397,7 @@ xfs_cui_recover(
 	xfs_extlen_t			new_len;
 	struct xfs_bmbt_irec		irec;
 	bool				requeue_only = false;
+	struct xfs_mount		*mp = parent_tp->t_mountp;
 
 	ASSERT(!test_bit(XFS_CUI_RECOVERED, &cuip->cui_flags));
 
@@ -452,6 +452,12 @@ xfs_cui_recover(
 			mp->m_refc_maxlevels * 2, 0, XFS_TRANS_RESERVE, &tp);
 	if (error)
 		return error;
+	/*
+	 * Recovery stashes all deferred ops during intent processing and
+	 * finishes them on completion. Transfer current dfops state to this
+	 * transaction and transfer the result back before we return.
+	 */
+	xfs_defer_move(tp, parent_tp);
 	cudp = xfs_trans_get_cud(tp, cuip);
 
 	for (i = 0; i < cuip->cui_format.cui_nextents; i++) {
@@ -473,7 +479,7 @@ xfs_cui_recover(
 			new_len = refc->pe_len;
 		} else
 			error = xfs_trans_log_finish_refcount_update(tp, cudp,
-				dfops, type, refc->pe_startblock, refc->pe_len,
+				type, refc->pe_startblock, refc->pe_len,
 				&new_fsb, &new_len, &rcur);
 		if (error)
 			goto abort_error;
@@ -484,22 +490,18 @@ xfs_cui_recover(
 			irec.br_blockcount = new_len;
 			switch (type) {
 			case XFS_REFCOUNT_INCREASE:
-				error = xfs_refcount_increase_extent(
-						tp->t_mountp, dfops, &irec);
+				error = xfs_refcount_increase_extent(tp, &irec);
 				break;
 			case XFS_REFCOUNT_DECREASE:
-				error = xfs_refcount_decrease_extent(
-						tp->t_mountp, dfops, &irec);
+				error = xfs_refcount_decrease_extent(tp, &irec);
 				break;
 			case XFS_REFCOUNT_ALLOC_COW:
-				error = xfs_refcount_alloc_cow_extent(
-						tp->t_mountp, dfops,
+				error = xfs_refcount_alloc_cow_extent(tp,
 						irec.br_startblock,
 						irec.br_blockcount);
 				break;
 			case XFS_REFCOUNT_FREE_COW:
-				error = xfs_refcount_free_cow_extent(
-						tp->t_mountp, dfops,
+				error = xfs_refcount_free_cow_extent(tp,
 						irec.br_startblock,
 						irec.br_blockcount);
 				break;
@@ -514,11 +516,13 @@ xfs_cui_recover(
 
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
 	set_bit(XFS_CUI_RECOVERED, &cuip->cui_flags);
+	xfs_defer_move(parent_tp, tp);
 	error = xfs_trans_commit(tp);
 	return error;
 
 abort_error:
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
+	xfs_defer_move(parent_tp, tp);
 	xfs_trans_cancel(tp);
 	return error;
 }

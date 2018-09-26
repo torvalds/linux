@@ -18,7 +18,6 @@ Required properties:
   ti,tps659038-pmic
 and also the generic series names
   ti,palmas-pmic
-- interrupt-parent : The parent interrupt controller which is palmas.
 - interrupts : The interrupt number and the type which can be looked up here:
 	       arch/arm/boot/dts/include/dt-bindings/interrupt-controller/irq.h
 - interrupts-name: The names of the individual interrupts.

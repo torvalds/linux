@@ -5,6 +5,7 @@
  * PaX/grsecurity.
  */
 #include <linux/refcount.h>
+#include <asm/bug.h>
 
 /*
  * This is the first portion of the refcount error handling, which lives in

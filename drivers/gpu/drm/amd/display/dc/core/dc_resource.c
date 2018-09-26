@@ -268,23 +268,29 @@ bool resource_construct(
 
 	return true;
 }
+static int find_matching_clock_source(
+		const struct resource_pool *pool,
+		struct clock_source *clock_source)
+{
 
+	int i;
+
+	for (i = 0; i < pool->clk_src_count; i++) {
+		if (pool->clock_sources[i] == clock_source)
+			return i;
+	}
+	return -1;
+}
 
 void resource_unreference_clock_source(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct clock_source *clock_source)
 {
-	int i;
+	int i = find_matching_clock_source(pool, clock_source);
 
-	for (i = 0; i < pool->clk_src_count; i++) {
-		if (pool->clock_sources[i] != clock_source)
-			continue;
-
+	if (i > -1)
 		res_ctx->clock_source_ref_count[i]--;
-
-		break;
-	}
 
 	if (pool->dp_clock_source == clock_source)
 		res_ctx->dp_clock_source_ref_count--;
@@ -295,17 +301,29 @@ void resource_reference_clock_source(
 		const struct resource_pool *pool,
 		struct clock_source *clock_source)
 {
-	int i;
-	for (i = 0; i < pool->clk_src_count; i++) {
-		if (pool->clock_sources[i] != clock_source)
-			continue;
+	int i = find_matching_clock_source(pool, clock_source);
 
+	if (i > -1)
 		res_ctx->clock_source_ref_count[i]++;
-		break;
-	}
 
 	if (pool->dp_clock_source == clock_source)
 		res_ctx->dp_clock_source_ref_count++;
+}
+
+int resource_get_clock_source_reference(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct clock_source *clock_source)
+{
+	int i = find_matching_clock_source(pool, clock_source);
+
+	if (i > -1)
+		return res_ctx->clock_source_ref_count[i];
+
+	if (pool->dp_clock_source == clock_source)
+		return res_ctx->dp_clock_source_ref_count;
+
+	return -1;
 }
 
 bool resource_are_streams_timing_synchronizable(
@@ -330,12 +348,29 @@ bool resource_are_streams_timing_synchronizable(
 				!= stream2->timing.pix_clk_khz)
 		return false;
 
+	if (stream1->clamping.c_depth != stream2->clamping.c_depth)
+		return false;
+
 	if (stream1->phy_pix_clk != stream2->phy_pix_clk
 			&& (!dc_is_dp_signal(stream1->signal)
 			|| !dc_is_dp_signal(stream2->signal)))
 		return false;
 
 	return true;
+}
+static bool is_dp_and_hdmi_sharable(
+		struct dc_stream_state *stream1,
+		struct dc_stream_state *stream2)
+{
+	if (stream1->ctx->dc->caps.disable_dp_clk_share)
+		return false;
+
+	if (stream1->clamping.c_depth != COLOR_DEPTH_888 ||
+	    stream2->clamping.c_depth != COLOR_DEPTH_888)
+	return false;
+
+	return true;
+
 }
 
 static bool is_sharable_clk_src(
@@ -348,15 +383,18 @@ static bool is_sharable_clk_src(
 	if (pipe_with_clk_src->stream->signal == SIGNAL_TYPE_VIRTUAL)
 		return false;
 
-	if (dc_is_dp_signal(pipe_with_clk_src->stream->signal))
+	if (dc_is_dp_signal(pipe_with_clk_src->stream->signal) ||
+		(dc_is_dp_signal(pipe->stream->signal) &&
+		!is_dp_and_hdmi_sharable(pipe_with_clk_src->stream,
+				     pipe->stream)))
 		return false;
 
 	if (dc_is_hdmi_signal(pipe_with_clk_src->stream->signal)
-			&& dc_is_dvi_signal(pipe->stream->signal))
+			&& dc_is_dual_link_signal(pipe->stream->signal))
 		return false;
 
 	if (dc_is_hdmi_signal(pipe->stream->signal)
-			&& dc_is_dvi_signal(pipe_with_clk_src->stream->signal))
+			&& dc_is_dual_link_signal(pipe_with_clk_src->stream->signal))
 		return false;
 
 	if (!resource_are_streams_timing_synchronizable(
@@ -522,13 +560,12 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	}
 }
 
-static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip)
+static void calculate_recout(struct pipe_ctx *pipe_ctx, struct rect *recout_full)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	const struct dc_stream_state *stream = pipe_ctx->stream;
 	struct rect surf_src = plane_state->src_rect;
 	struct rect surf_clip = plane_state->clip_rect;
-	int recout_full_x, recout_full_y;
 	bool pri_split = pipe_ctx->bottom_pipe &&
 			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state;
 	bool sec_split = pipe_ctx->top_pipe &&
@@ -597,20 +634,22 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 		}
 	}
 	/* Unclipped recout offset = stream dst offset + ((surf dst offset - stream surf_src offset)
-	 * 				* 1/ stream scaling ratio) - (surf surf_src offset * 1/ full scl
-	 * 				ratio)
+	 *			* 1/ stream scaling ratio) - (surf surf_src offset * 1/ full scl
+	 *			ratio)
 	 */
-	recout_full_x = stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
+	recout_full->x = stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
 					* stream->dst.width / stream->src.width -
 			surf_src.x * plane_state->dst_rect.width / surf_src.width
 					* stream->dst.width / stream->src.width;
-	recout_full_y = stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
+	recout_full->y = stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
 					* stream->dst.height / stream->src.height -
 			surf_src.y * plane_state->dst_rect.height / surf_src.height
 					* stream->dst.height / stream->src.height;
 
-	recout_skip->width = pipe_ctx->plane_res.scl_data.recout.x - recout_full_x;
-	recout_skip->height = pipe_ctx->plane_res.scl_data.recout.y - recout_full_y;
+	recout_full->width = plane_state->dst_rect.width
+					* stream->dst.width / stream->src.width;
+	recout_full->height = plane_state->dst_rect.height
+					* stream->dst.height / stream->src.height;
 }
 
 static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
@@ -662,7 +701,7 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.scl_data.ratios.vert_c, 19);
 }
 
-static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *recout_skip)
+static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct rect *recout_full)
 {
 	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
 	struct rect src = pipe_ctx->plane_state->src_rect;
@@ -680,15 +719,14 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 		flip_vert_scan_dir = true;
 	else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
 		flip_horz_scan_dir = true;
-	if (pipe_ctx->plane_state->horizontal_mirror)
-		flip_horz_scan_dir = !flip_horz_scan_dir;
 
 	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270) {
 		rect_swap_helper(&src);
 		rect_swap_helper(&data->viewport_c);
 		rect_swap_helper(&data->viewport);
-	}
+	} else if (pipe_ctx->plane_state->horizontal_mirror)
+			flip_horz_scan_dir = !flip_horz_scan_dir;
 
 	/*
 	 * Init calculated according to formula:
@@ -708,127 +746,286 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 	data->inits.v_c = dc_fixpt_truncate(dc_fixpt_add(data->inits.v_c, dc_fixpt_div_int(
 			dc_fixpt_add_int(data->ratios.vert_c, data->taps.v_taps_c + 1), 2)), 19);
 
+	if (!flip_horz_scan_dir) {
+		/* Adjust for viewport end clip-off */
+		if ((data->viewport.x + data->viewport.width) < (src.x + src.width)) {
+			int vp_clip = src.x + src.width - data->viewport.width - data->viewport.x;
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.h, data->ratios.horz));
 
-
-	/* Adjust for viewport end clip-off */
-	if ((data->viewport.x + data->viewport.width) < (src.x + src.width) && !flip_horz_scan_dir) {
-		int vp_clip = src.x + src.width - data->viewport.width - data->viewport.x;
-		int int_part = dc_fixpt_floor(
-				dc_fixpt_sub(data->inits.h, data->ratios.horz));
-
-		int_part = int_part > 0 ? int_part : 0;
-		data->viewport.width += int_part < vp_clip ? int_part : vp_clip;
-	}
-	if ((data->viewport.y + data->viewport.height) < (src.y + src.height) && !flip_vert_scan_dir) {
-		int vp_clip = src.y + src.height - data->viewport.height - data->viewport.y;
-		int int_part = dc_fixpt_floor(
-				dc_fixpt_sub(data->inits.v, data->ratios.vert));
-
-		int_part = int_part > 0 ? int_part : 0;
-		data->viewport.height += int_part < vp_clip ? int_part : vp_clip;
-	}
-	if ((data->viewport_c.x + data->viewport_c.width) < (src.x + src.width) / vpc_div && !flip_horz_scan_dir) {
-		int vp_clip = (src.x + src.width) / vpc_div -
-				data->viewport_c.width - data->viewport_c.x;
-		int int_part = dc_fixpt_floor(
-				dc_fixpt_sub(data->inits.h_c, data->ratios.horz_c));
-
-		int_part = int_part > 0 ? int_part : 0;
-		data->viewport_c.width += int_part < vp_clip ? int_part : vp_clip;
-	}
-	if ((data->viewport_c.y + data->viewport_c.height) < (src.y + src.height) / vpc_div && !flip_vert_scan_dir) {
-		int vp_clip = (src.y + src.height) / vpc_div -
-				data->viewport_c.height - data->viewport_c.y;
-		int int_part = dc_fixpt_floor(
-				dc_fixpt_sub(data->inits.v_c, data->ratios.vert_c));
-
-		int_part = int_part > 0 ? int_part : 0;
-		data->viewport_c.height += int_part < vp_clip ? int_part : vp_clip;
-	}
-
-	/* Adjust for non-0 viewport offset */
-	if (data->viewport.x && !flip_horz_scan_dir) {
-		int int_part;
-
-		data->inits.h = dc_fixpt_add(data->inits.h, dc_fixpt_mul_int(
-				data->ratios.horz, recout_skip->width));
-		int_part = dc_fixpt_floor(data->inits.h) - data->viewport.x;
-		if (int_part < data->taps.h_taps) {
-			int int_adj = data->viewport.x >= (data->taps.h_taps - int_part) ?
-						(data->taps.h_taps - int_part) : data->viewport.x;
-			data->viewport.x -= int_adj;
-			data->viewport.width += int_adj;
-			int_part += int_adj;
-		} else if (int_part > data->taps.h_taps) {
-			data->viewport.x += int_part - data->taps.h_taps;
-			data->viewport.width -= int_part - data->taps.h_taps;
-			int_part = data->taps.h_taps;
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport.width += int_part < vp_clip ? int_part : vp_clip;
 		}
-		data->inits.h.value &= 0xffffffff;
-		data->inits.h = dc_fixpt_add_int(data->inits.h, int_part);
-	}
+		if ((data->viewport_c.x + data->viewport_c.width) < (src.x + src.width) / vpc_div) {
+			int vp_clip = (src.x + src.width) / vpc_div -
+					data->viewport_c.width - data->viewport_c.x;
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.h_c, data->ratios.horz_c));
 
-	if (data->viewport_c.x && !flip_horz_scan_dir) {
-		int int_part;
-
-		data->inits.h_c = dc_fixpt_add(data->inits.h_c, dc_fixpt_mul_int(
-				data->ratios.horz_c, recout_skip->width));
-		int_part = dc_fixpt_floor(data->inits.h_c) - data->viewport_c.x;
-		if (int_part < data->taps.h_taps_c) {
-			int int_adj = data->viewport_c.x >= (data->taps.h_taps_c - int_part) ?
-					(data->taps.h_taps_c - int_part) : data->viewport_c.x;
-			data->viewport_c.x -= int_adj;
-			data->viewport_c.width += int_adj;
-			int_part += int_adj;
-		} else if (int_part > data->taps.h_taps_c) {
-			data->viewport_c.x += int_part - data->taps.h_taps_c;
-			data->viewport_c.width -= int_part - data->taps.h_taps_c;
-			int_part = data->taps.h_taps_c;
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport_c.width += int_part < vp_clip ? int_part : vp_clip;
 		}
-		data->inits.h_c.value &= 0xffffffff;
-		data->inits.h_c = dc_fixpt_add_int(data->inits.h_c, int_part);
-	}
 
-	if (data->viewport.y && !flip_vert_scan_dir) {
-		int int_part;
+		/* Adjust for non-0 viewport offset */
+		if (data->viewport.x) {
+			int int_part;
 
-		data->inits.v = dc_fixpt_add(data->inits.v, dc_fixpt_mul_int(
-				data->ratios.vert, recout_skip->height));
-		int_part = dc_fixpt_floor(data->inits.v) - data->viewport.y;
-		if (int_part < data->taps.v_taps) {
-			int int_adj = data->viewport.y >= (data->taps.v_taps - int_part) ?
-						(data->taps.v_taps - int_part) : data->viewport.y;
-			data->viewport.y -= int_adj;
-			data->viewport.height += int_adj;
-			int_part += int_adj;
-		} else if (int_part > data->taps.v_taps) {
-			data->viewport.y += int_part - data->taps.v_taps;
-			data->viewport.height -= int_part - data->taps.v_taps;
-			int_part = data->taps.v_taps;
+			data->inits.h = dc_fixpt_add(data->inits.h, dc_fixpt_mul_int(
+					data->ratios.horz, data->recout.x - recout_full->x));
+			int_part = dc_fixpt_floor(data->inits.h) - data->viewport.x;
+			if (int_part < data->taps.h_taps) {
+				int int_adj = data->viewport.x >= (data->taps.h_taps - int_part) ?
+							(data->taps.h_taps - int_part) : data->viewport.x;
+				data->viewport.x -= int_adj;
+				data->viewport.width += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.h_taps) {
+				data->viewport.x += int_part - data->taps.h_taps;
+				data->viewport.width -= int_part - data->taps.h_taps;
+				int_part = data->taps.h_taps;
+			}
+			data->inits.h.value &= 0xffffffff;
+			data->inits.h = dc_fixpt_add_int(data->inits.h, int_part);
 		}
-		data->inits.v.value &= 0xffffffff;
-		data->inits.v = dc_fixpt_add_int(data->inits.v, int_part);
-	}
 
-	if (data->viewport_c.y && !flip_vert_scan_dir) {
-		int int_part;
+		if (data->viewport_c.x) {
+			int int_part;
 
-		data->inits.v_c = dc_fixpt_add(data->inits.v_c, dc_fixpt_mul_int(
-				data->ratios.vert_c, recout_skip->height));
-		int_part = dc_fixpt_floor(data->inits.v_c) - data->viewport_c.y;
-		if (int_part < data->taps.v_taps_c) {
-			int int_adj = data->viewport_c.y >= (data->taps.v_taps_c - int_part) ?
-					(data->taps.v_taps_c - int_part) : data->viewport_c.y;
-			data->viewport_c.y -= int_adj;
-			data->viewport_c.height += int_adj;
-			int_part += int_adj;
-		} else if (int_part > data->taps.v_taps_c) {
-			data->viewport_c.y += int_part - data->taps.v_taps_c;
-			data->viewport_c.height -= int_part - data->taps.v_taps_c;
-			int_part = data->taps.v_taps_c;
+			data->inits.h_c = dc_fixpt_add(data->inits.h_c, dc_fixpt_mul_int(
+					data->ratios.horz_c, data->recout.x - recout_full->x));
+			int_part = dc_fixpt_floor(data->inits.h_c) - data->viewport_c.x;
+			if (int_part < data->taps.h_taps_c) {
+				int int_adj = data->viewport_c.x >= (data->taps.h_taps_c - int_part) ?
+						(data->taps.h_taps_c - int_part) : data->viewport_c.x;
+				data->viewport_c.x -= int_adj;
+				data->viewport_c.width += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.h_taps_c) {
+				data->viewport_c.x += int_part - data->taps.h_taps_c;
+				data->viewport_c.width -= int_part - data->taps.h_taps_c;
+				int_part = data->taps.h_taps_c;
+			}
+			data->inits.h_c.value &= 0xffffffff;
+			data->inits.h_c = dc_fixpt_add_int(data->inits.h_c, int_part);
 		}
-		data->inits.v_c.value &= 0xffffffff;
-		data->inits.v_c = dc_fixpt_add_int(data->inits.v_c, int_part);
+	} else {
+		/* Adjust for non-0 viewport offset */
+		if (data->viewport.x) {
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.h, data->ratios.horz));
+
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport.width += int_part < data->viewport.x ? int_part : data->viewport.x;
+			data->viewport.x -= int_part < data->viewport.x ? int_part : data->viewport.x;
+		}
+		if (data->viewport_c.x) {
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.h_c, data->ratios.horz_c));
+
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport_c.width += int_part < data->viewport_c.x ? int_part : data->viewport_c.x;
+			data->viewport_c.x -= int_part < data->viewport_c.x ? int_part : data->viewport_c.x;
+		}
+
+		/* Adjust for viewport end clip-off */
+		if ((data->viewport.x + data->viewport.width) < (src.x + src.width)) {
+			int int_part;
+			int end_offset = src.x + src.width
+					- data->viewport.x - data->viewport.width;
+
+			/*
+			 * this is init if vp had no offset, keep in mind this is from the
+			 * right side of vp due to scan direction
+			 */
+			data->inits.h = dc_fixpt_add(data->inits.h, dc_fixpt_mul_int(
+					data->ratios.horz, data->recout.x - recout_full->x));
+			/*
+			 * this is the difference between first pixel of viewport available to read
+			 * and init position, takning into account scan direction
+			 */
+			int_part = dc_fixpt_floor(data->inits.h) - end_offset;
+			if (int_part < data->taps.h_taps) {
+				int int_adj = end_offset >= (data->taps.h_taps - int_part) ?
+							(data->taps.h_taps - int_part) : end_offset;
+				data->viewport.width += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.h_taps) {
+				data->viewport.width += int_part - data->taps.h_taps;
+				int_part = data->taps.h_taps;
+			}
+			data->inits.h.value &= 0xffffffff;
+			data->inits.h = dc_fixpt_add_int(data->inits.h, int_part);
+		}
+
+		if ((data->viewport_c.x + data->viewport_c.width) < (src.x + src.width) / vpc_div) {
+			int int_part;
+			int end_offset = (src.x + src.width) / vpc_div
+					- data->viewport_c.x - data->viewport_c.width;
+
+			/*
+			 * this is init if vp had no offset, keep in mind this is from the
+			 * right side of vp due to scan direction
+			 */
+			data->inits.h_c = dc_fixpt_add(data->inits.h_c, dc_fixpt_mul_int(
+					data->ratios.horz_c, data->recout.x - recout_full->x));
+			/*
+			 * this is the difference between first pixel of viewport available to read
+			 * and init position, takning into account scan direction
+			 */
+			int_part = dc_fixpt_floor(data->inits.h_c) - end_offset;
+			if (int_part < data->taps.h_taps_c) {
+				int int_adj = end_offset >= (data->taps.h_taps_c - int_part) ?
+							(data->taps.h_taps_c - int_part) : end_offset;
+				data->viewport_c.width += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.h_taps_c) {
+				data->viewport_c.width += int_part - data->taps.h_taps_c;
+				int_part = data->taps.h_taps_c;
+			}
+			data->inits.h_c.value &= 0xffffffff;
+			data->inits.h_c = dc_fixpt_add_int(data->inits.h_c, int_part);
+		}
+
+	}
+	if (!flip_vert_scan_dir) {
+		/* Adjust for viewport end clip-off */
+		if ((data->viewport.y + data->viewport.height) < (src.y + src.height)) {
+			int vp_clip = src.y + src.height - data->viewport.height - data->viewport.y;
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.v, data->ratios.vert));
+
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport.height += int_part < vp_clip ? int_part : vp_clip;
+		}
+		if ((data->viewport_c.y + data->viewport_c.height) < (src.y + src.height) / vpc_div) {
+			int vp_clip = (src.y + src.height) / vpc_div -
+					data->viewport_c.height - data->viewport_c.y;
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.v_c, data->ratios.vert_c));
+
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport_c.height += int_part < vp_clip ? int_part : vp_clip;
+		}
+
+		/* Adjust for non-0 viewport offset */
+		if (data->viewport.y) {
+			int int_part;
+
+			data->inits.v = dc_fixpt_add(data->inits.v, dc_fixpt_mul_int(
+					data->ratios.vert, data->recout.y - recout_full->y));
+			int_part = dc_fixpt_floor(data->inits.v) - data->viewport.y;
+			if (int_part < data->taps.v_taps) {
+				int int_adj = data->viewport.y >= (data->taps.v_taps - int_part) ?
+							(data->taps.v_taps - int_part) : data->viewport.y;
+				data->viewport.y -= int_adj;
+				data->viewport.height += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.v_taps) {
+				data->viewport.y += int_part - data->taps.v_taps;
+				data->viewport.height -= int_part - data->taps.v_taps;
+				int_part = data->taps.v_taps;
+			}
+			data->inits.v.value &= 0xffffffff;
+			data->inits.v = dc_fixpt_add_int(data->inits.v, int_part);
+		}
+
+		if (data->viewport_c.y) {
+			int int_part;
+
+			data->inits.v_c = dc_fixpt_add(data->inits.v_c, dc_fixpt_mul_int(
+					data->ratios.vert_c, data->recout.y - recout_full->y));
+			int_part = dc_fixpt_floor(data->inits.v_c) - data->viewport_c.y;
+			if (int_part < data->taps.v_taps_c) {
+				int int_adj = data->viewport_c.y >= (data->taps.v_taps_c - int_part) ?
+						(data->taps.v_taps_c - int_part) : data->viewport_c.y;
+				data->viewport_c.y -= int_adj;
+				data->viewport_c.height += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.v_taps_c) {
+				data->viewport_c.y += int_part - data->taps.v_taps_c;
+				data->viewport_c.height -= int_part - data->taps.v_taps_c;
+				int_part = data->taps.v_taps_c;
+			}
+			data->inits.v_c.value &= 0xffffffff;
+			data->inits.v_c = dc_fixpt_add_int(data->inits.v_c, int_part);
+		}
+	} else {
+		/* Adjust for non-0 viewport offset */
+		if (data->viewport.y) {
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.v, data->ratios.vert));
+
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport.height += int_part < data->viewport.y ? int_part : data->viewport.y;
+			data->viewport.y -= int_part < data->viewport.y ? int_part : data->viewport.y;
+		}
+		if (data->viewport_c.y) {
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.v_c, data->ratios.vert_c));
+
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport_c.height += int_part < data->viewport_c.y ? int_part : data->viewport_c.y;
+			data->viewport_c.y -= int_part < data->viewport_c.y ? int_part : data->viewport_c.y;
+		}
+
+		/* Adjust for viewport end clip-off */
+		if ((data->viewport.y + data->viewport.height) < (src.y + src.height)) {
+			int int_part;
+			int end_offset = src.y + src.height
+					- data->viewport.y - data->viewport.height;
+
+			/*
+			 * this is init if vp had no offset, keep in mind this is from the
+			 * right side of vp due to scan direction
+			 */
+			data->inits.v = dc_fixpt_add(data->inits.v, dc_fixpt_mul_int(
+					data->ratios.vert, data->recout.y - recout_full->y));
+			/*
+			 * this is the difference between first pixel of viewport available to read
+			 * and init position, taking into account scan direction
+			 */
+			int_part = dc_fixpt_floor(data->inits.v) - end_offset;
+			if (int_part < data->taps.v_taps) {
+				int int_adj = end_offset >= (data->taps.v_taps - int_part) ?
+							(data->taps.v_taps - int_part) : end_offset;
+				data->viewport.height += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.v_taps) {
+				data->viewport.height += int_part - data->taps.v_taps;
+				int_part = data->taps.v_taps;
+			}
+			data->inits.v.value &= 0xffffffff;
+			data->inits.v = dc_fixpt_add_int(data->inits.v, int_part);
+		}
+
+		if ((data->viewport_c.y + data->viewport_c.height) < (src.y + src.height) / vpc_div) {
+			int int_part;
+			int end_offset = (src.y + src.height) / vpc_div
+					- data->viewport_c.y - data->viewport_c.height;
+
+			/*
+			 * this is init if vp had no offset, keep in mind this is from the
+			 * right side of vp due to scan direction
+			 */
+			data->inits.v_c = dc_fixpt_add(data->inits.v_c, dc_fixpt_mul_int(
+					data->ratios.vert_c, data->recout.y - recout_full->y));
+			/*
+			 * this is the difference between first pixel of viewport available to read
+			 * and init position, taking into account scan direction
+			 */
+			int_part = dc_fixpt_floor(data->inits.v_c) - end_offset;
+			if (int_part < data->taps.v_taps_c) {
+				int int_adj = end_offset >= (data->taps.v_taps_c - int_part) ?
+							(data->taps.v_taps_c - int_part) : end_offset;
+				data->viewport_c.height += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.v_taps_c) {
+				data->viewport_c.height += int_part - data->taps.v_taps_c;
+				int_part = data->taps.v_taps_c;
+			}
+			data->inits.v_c.value &= 0xffffffff;
+			data->inits.v_c = dc_fixpt_add_int(data->inits.v_c, int_part);
+		}
 	}
 
 	/* Interlaced inits based on final vert inits */
@@ -846,7 +1043,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
-	struct view recout_skip = { 0 };
+	struct rect recout_full = { 0 };
 	bool res = false;
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 	/* Important: scaling ratio calculation requires pixel format,
@@ -866,7 +1063,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->plane_res.scl_data.viewport.height < 16 || pipe_ctx->plane_res.scl_data.viewport.width < 16)
 		return false;
 
-	calculate_recout(pipe_ctx, &recout_skip);
+	calculate_recout(pipe_ctx, &recout_full);
 
 	/**
 	 * Setting line buffer pixel depth to 24bpp yields banding
@@ -910,7 +1107,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 
 	if (res)
 		/* May need to re-check lb size after this in some obscure scenario */
-		calculate_inits_and_adj_vp(pipe_ctx, &recout_skip);
+		calculate_inits_and_adj_vp(pipe_ctx, &recout_full);
 
 	DC_LOG_SCALER(
 				"%s: Viewport:\nheight:%d width:%d x:%d "
@@ -1546,8 +1743,8 @@ enum dc_status dc_add_stream_to_ctx(
 	struct dc_context *dc_ctx = dc->ctx;
 	enum dc_status res;
 
-	if (new_ctx->stream_count >= dc->res_pool->pipe_count) {
-		DC_ERROR("Max streams reached, can add stream %p !\n", stream);
+	if (new_ctx->stream_count >= dc->res_pool->timing_generator_count) {
+		DC_ERROR("Max streams reached, can't add stream %p !\n", stream);
 		return DC_ERROR_UNEXPECTED;
 	}
 
@@ -1789,7 +1986,7 @@ void dc_resource_state_construct(
 		const struct dc *dc,
 		struct dc_state *dst_ctx)
 {
-	dst_ctx->dis_clk = dc->res_pool->display_clock;
+	dst_ctx->dis_clk = dc->res_pool->dccg;
 }
 
 enum dc_status dc_validate_global_state(
@@ -2347,7 +2544,8 @@ static void set_hdr_static_info_packet(
 {
 	/* HDR Static Metadata info packet for HDR10 */
 
-	if (!stream->hdr_static_metadata.valid)
+	if (!stream->hdr_static_metadata.valid ||
+			stream->use_dynamic_meta)
 		return;
 
 	*info_packet = stream->hdr_static_metadata;

@@ -23,6 +23,8 @@
 #include <linux/uaccess.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/of.h>
+#include <linux/usb/role.h>
 
 /* register definitions */
 #define USB3_AXI_INT_STA	0x008
@@ -334,6 +336,11 @@ struct renesas_usb3 {
 	struct work_struct extcon_work;
 	struct phy *phy;
 	struct dentry *dentry;
+
+	struct usb_role_switch *role_sw;
+	struct device *host_dev;
+	struct work_struct role_work;
+	enum usb_role role;
 
 	struct renesas_usb3_ep *usb3_ep;
 	int num_usb3_eps;
@@ -651,12 +658,30 @@ static void usb3_check_vbus(struct renesas_usb3 *usb3)
 	}
 }
 
+static void renesas_usb3_role_work(struct work_struct *work)
+{
+	struct renesas_usb3 *usb3 =
+			container_of(work, struct renesas_usb3, role_work);
+
+	usb_role_switch_set_role(usb3->role_sw, usb3->role);
+}
+
 static void usb3_set_mode(struct renesas_usb3 *usb3, bool host)
 {
 	if (host)
 		usb3_clear_bit(usb3, DRD_CON_PERI_CON, USB3_DRD_CON);
 	else
 		usb3_set_bit(usb3, DRD_CON_PERI_CON, USB3_DRD_CON);
+}
+
+static void usb3_set_mode_by_role_sw(struct renesas_usb3 *usb3, bool host)
+{
+	if (usb3->role_sw) {
+		usb3->role = host ? USB_ROLE_HOST : USB_ROLE_DEVICE;
+		schedule_work(&usb3->role_work);
+	} else {
+		usb3_set_mode(usb3, host);
+	}
 }
 
 static void usb3_vbus_out(struct renesas_usb3 *usb3, bool enable)
@@ -672,7 +697,7 @@ static void usb3_mode_config(struct renesas_usb3 *usb3, bool host, bool a_dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&usb3->lock, flags);
-	usb3_set_mode(usb3, host);
+	usb3_set_mode_by_role_sw(usb3, host);
 	usb3_vbus_out(usb3, a_dev);
 	/* for A-Peripheral or forced B-device mode */
 	if ((!host && a_dev) ||
@@ -787,12 +812,15 @@ static void usb3_irq_epc_int_1_speed(struct renesas_usb3 *usb3)
 	switch (speed) {
 	case USB_STA_SPEED_SS:
 		usb3->gadget.speed = USB_SPEED_SUPER;
+		usb3->gadget.ep0->maxpacket = USB3_EP0_SS_MAX_PACKET_SIZE;
 		break;
 	case USB_STA_SPEED_HS:
 		usb3->gadget.speed = USB_SPEED_HIGH;
+		usb3->gadget.ep0->maxpacket = USB3_EP0_HSFS_MAX_PACKET_SIZE;
 		break;
 	case USB_STA_SPEED_FS:
 		usb3->gadget.speed = USB_SPEED_FULL;
+		usb3->gadget.ep0->maxpacket = USB3_EP0_HSFS_MAX_PACKET_SIZE;
 		break;
 	default:
 		usb3->gadget.speed = USB_SPEED_UNKNOWN;
@@ -2302,6 +2330,41 @@ static const struct usb_gadget_ops renesas_usb3_gadget_ops = {
 	.set_selfpowered	= renesas_usb3_set_selfpowered,
 };
 
+static enum usb_role renesas_usb3_role_switch_get(struct device *dev)
+{
+	struct renesas_usb3 *usb3 = dev_get_drvdata(dev);
+	enum usb_role cur_role;
+
+	pm_runtime_get_sync(dev);
+	cur_role = usb3_is_host(usb3) ? USB_ROLE_HOST : USB_ROLE_DEVICE;
+	pm_runtime_put(dev);
+
+	return cur_role;
+}
+
+static int renesas_usb3_role_switch_set(struct device *dev,
+					enum usb_role role)
+{
+	struct renesas_usb3 *usb3 = dev_get_drvdata(dev);
+	struct device *host = usb3->host_dev;
+	enum usb_role cur_role = renesas_usb3_role_switch_get(dev);
+
+	pm_runtime_get_sync(dev);
+	if (cur_role == USB_ROLE_HOST && role == USB_ROLE_DEVICE) {
+		device_release_driver(host);
+		usb3_set_mode(usb3, false);
+	} else if (cur_role == USB_ROLE_DEVICE && role == USB_ROLE_HOST) {
+		/* Must set the mode before device_attach of the host */
+		usb3_set_mode(usb3, true);
+		/* This device_attach() might sleep */
+		if (device_attach(host) < 0)
+			dev_err(dev, "device_attach(host) failed\n");
+	}
+	pm_runtime_put(dev);
+
+	return 0;
+}
+
 static ssize_t role_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
@@ -2405,6 +2468,8 @@ static int renesas_usb3_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(usb3->dentry);
 	device_remove_file(&pdev->dev, &dev_attr_role);
 
+	usb_role_switch_unregister(usb3->role_sw);
+
 	usb_del_gadget_udc(&usb3->gadget);
 	renesas_usb3_dma_free_prd(usb3, &pdev->dev);
 
@@ -2451,7 +2516,7 @@ static int renesas_usb3_init_ep(struct renesas_usb3 *usb3, struct device *dev,
 			/* for control pipe */
 			usb3->gadget.ep0 = &usb3_ep->ep;
 			usb_ep_set_maxpacket_limit(&usb3_ep->ep,
-						USB3_EP0_HSFS_MAX_PACKET_SIZE);
+						USB3_EP0_SS_MAX_PACKET_SIZE);
 			usb3_ep->ep.caps.type_control = true;
 			usb3_ep->ep.caps.dir_in = true;
 			usb3_ep->ep.caps.dir_out = true;
@@ -2562,6 +2627,12 @@ static const unsigned int renesas_usb3_cable[] = {
 	EXTCON_NONE,
 };
 
+static const struct usb_role_switch_desc renesas_usb3_role_switch_desc = {
+	.set = renesas_usb3_role_switch_set,
+	.get = renesas_usb3_role_switch_get,
+	.allow_userspace_control = true,
+};
+
 static int renesas_usb3_probe(struct platform_device *pdev)
 {
 	struct renesas_usb3 *usb3;
@@ -2646,6 +2717,20 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 	ret = device_create_file(&pdev->dev, &dev_attr_role);
 	if (ret < 0)
 		goto err_dev_create;
+
+	INIT_WORK(&usb3->role_work, renesas_usb3_role_work);
+	usb3->role_sw = usb_role_switch_register(&pdev->dev,
+					&renesas_usb3_role_switch_desc);
+	if (!IS_ERR(usb3->role_sw)) {
+		usb3->host_dev = usb_of_get_companion_dev(&pdev->dev);
+		if (!usb3->host_dev) {
+			/* If not found, this driver will not use a role sw */
+			usb_role_switch_unregister(usb3->role_sw);
+			usb3->role_sw = NULL;
+		}
+	} else {
+		usb3->role_sw = NULL;
+	}
 
 	usb3->workaround_for_vbus = priv->workaround_for_vbus;
 

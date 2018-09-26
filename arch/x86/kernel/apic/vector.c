@@ -11,6 +11,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/compiler.h>
@@ -218,7 +219,8 @@ static int reserve_irq_vector(struct irq_data *irqd)
 	return 0;
 }
 
-static int allocate_vector(struct irq_data *irqd, const struct cpumask *dest)
+static int
+assign_vector_locked(struct irq_data *irqd, const struct cpumask *dest)
 {
 	struct apic_chip_data *apicd = apic_chip_data(irqd);
 	bool resvd = apicd->has_reserved;
@@ -245,22 +247,12 @@ static int allocate_vector(struct irq_data *irqd, const struct cpumask *dest)
 		return -EBUSY;
 
 	vector = irq_matrix_alloc(vector_matrix, dest, resvd, &cpu);
-	if (vector > 0)
-		apic_update_vector(irqd, vector, cpu);
 	trace_vector_alloc(irqd->irq, vector, resvd, vector);
-	return vector;
-}
-
-static int assign_vector_locked(struct irq_data *irqd,
-				const struct cpumask *dest)
-{
-	struct apic_chip_data *apicd = apic_chip_data(irqd);
-	int vector = allocate_vector(irqd, dest);
-
 	if (vector < 0)
 		return vector;
+	apic_update_vector(irqd, vector, cpu);
+	apic_update_irq_cfg(irqd, vector, cpu);
 
-	apic_update_irq_cfg(irqd, apicd->vector, apicd->cpu);
 	return 0;
 }
 
@@ -421,7 +413,7 @@ static int activate_managed(struct irq_data *irqd)
 	if (WARN_ON_ONCE(cpumask_empty(vector_searchmask))) {
 		/* Something in the core code broke! Survive gracefully */
 		pr_err("Managed startup for irq %u, but no CPU\n", irqd->irq);
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	ret = assign_managed_vector(irqd, vector_searchmask);
@@ -433,7 +425,7 @@ static int activate_managed(struct irq_data *irqd)
 		pr_err("Managed startup irq %u, no vector available\n",
 		       irqd->irq);
 	}
-       return ret;
+	return ret;
 }
 
 static int x86_vector_activate(struct irq_domain *dom, struct irq_data *irqd,

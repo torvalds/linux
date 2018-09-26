@@ -266,18 +266,24 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 
 	desc_size = sizeof(struct mlx5_wqe_srq_next_seg) +
 		    srq->msrq.max_gs * sizeof(struct mlx5_wqe_data_seg);
-	if (desc_size == 0 || srq->msrq.max_gs > desc_size)
-		return ERR_PTR(-EINVAL);
+	if (desc_size == 0 || srq->msrq.max_gs > desc_size) {
+		err = -EINVAL;
+		goto err_srq;
+	}
 	desc_size = roundup_pow_of_two(desc_size);
 	desc_size = max_t(size_t, 32, desc_size);
-	if (desc_size < sizeof(struct mlx5_wqe_srq_next_seg))
-		return ERR_PTR(-EINVAL);
+	if (desc_size < sizeof(struct mlx5_wqe_srq_next_seg)) {
+		err = -EINVAL;
+		goto err_srq;
+	}
 	srq->msrq.max_avail_gather = (desc_size - sizeof(struct mlx5_wqe_srq_next_seg)) /
 		sizeof(struct mlx5_wqe_data_seg);
 	srq->msrq.wqe_shift = ilog2(desc_size);
 	buf_size = srq->msrq.max * desc_size;
-	if (buf_size < desc_size)
-		return ERR_PTR(-EINVAL);
+	if (buf_size < desc_size) {
+		err = -EINVAL;
+		goto err_srq;
+	}
 	in.type = init_attr->srq_type;
 
 	if (pd->uobject)
@@ -440,8 +446,8 @@ void mlx5_ib_free_srq_wqe(struct mlx5_ib_srq *srq, int wqe_index)
 	spin_unlock(&srq->lock);
 }
 
-int mlx5_ib_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-			  struct ib_recv_wr **bad_wr)
+int mlx5_ib_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
+			  const struct ib_recv_wr **bad_wr)
 {
 	struct mlx5_ib_srq *srq = to_msrq(ibsrq);
 	struct mlx5_wqe_srq_next_seg *next;

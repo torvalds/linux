@@ -28,11 +28,9 @@
 #include <linux/spi/flash.h>
 #include <linux/mtd/spi-nor.h>
 
-#define	MAX_CMD_SIZE		6
 struct m25p {
 	struct spi_mem		*spimem;
 	struct spi_nor		spi_nor;
-	u8			command[MAX_CMD_SIZE];
 };
 
 static int m25p80_read_reg(struct spi_nor *nor, u8 code, u8 *val, int len)
@@ -41,13 +39,23 @@ static int m25p80_read_reg(struct spi_nor *nor, u8 code, u8 *val, int len)
 	struct spi_mem_op op = SPI_MEM_OP(SPI_MEM_OP_CMD(code, 1),
 					  SPI_MEM_OP_NO_ADDR,
 					  SPI_MEM_OP_NO_DUMMY,
-					  SPI_MEM_OP_DATA_IN(len, val, 1));
+					  SPI_MEM_OP_DATA_IN(len, NULL, 1));
+	void *scratchbuf;
 	int ret;
 
+	scratchbuf = kmalloc(len, GFP_KERNEL);
+	if (!scratchbuf)
+		return -ENOMEM;
+
+	op.data.buf.in = scratchbuf;
 	ret = spi_mem_exec_op(flash->spimem, &op);
 	if (ret < 0)
 		dev_err(&flash->spimem->spi->dev, "error %d reading %x\n", ret,
 			code);
+	else
+		memcpy(val, scratchbuf, len);
+
+	kfree(scratchbuf);
 
 	return ret;
 }
@@ -58,9 +66,19 @@ static int m25p80_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	struct spi_mem_op op = SPI_MEM_OP(SPI_MEM_OP_CMD(opcode, 1),
 					  SPI_MEM_OP_NO_ADDR,
 					  SPI_MEM_OP_NO_DUMMY,
-					  SPI_MEM_OP_DATA_OUT(len, buf, 1));
+					  SPI_MEM_OP_DATA_OUT(len, NULL, 1));
+	void *scratchbuf;
+	int ret;
 
-	return spi_mem_exec_op(flash->spimem, &op);
+	scratchbuf = kmemdup(buf, len, GFP_KERNEL);
+	if (!scratchbuf)
+		return -ENOMEM;
+
+	op.data.buf.out = scratchbuf;
+	ret = spi_mem_exec_op(flash->spimem, &op);
+	kfree(scratchbuf);
+
+	return ret;
 }
 
 static ssize_t m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
@@ -70,7 +88,7 @@ static ssize_t m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
 	struct spi_mem_op op =
 			SPI_MEM_OP(SPI_MEM_OP_CMD(nor->program_opcode, 1),
 				   SPI_MEM_OP_ADDR(nor->addr_width, to, 1),
-				   SPI_MEM_OP_DUMMY(0, 1),
+				   SPI_MEM_OP_NO_DUMMY,
 				   SPI_MEM_OP_DATA_OUT(len, buf, 1));
 	size_t remaining = len;
 	int ret;
@@ -78,7 +96,6 @@ static ssize_t m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
 	/* get transfer protocols. */
 	op.cmd.buswidth = spi_nor_get_protocol_inst_nbits(nor->write_proto);
 	op.addr.buswidth = spi_nor_get_protocol_addr_nbits(nor->write_proto);
-	op.dummy.buswidth = op.addr.buswidth;
 	op.data.buswidth = spi_nor_get_protocol_data_nbits(nor->write_proto);
 
 	if (nor->program_opcode == SPINOR_OP_AAI_WP && nor->sst_write_second)
@@ -201,6 +218,9 @@ static int m25p_probe(struct spi_mem *spimem)
 
 	if (data && data->name)
 		nor->mtd.name = data->name;
+
+	if (!nor->mtd.name)
+		nor->mtd.name = spi_mem_get_name(spimem);
 
 	/* For some (historical?) reason many platforms provide two different
 	 * names in flash_platform_data: "name" and "type". Quite often name is

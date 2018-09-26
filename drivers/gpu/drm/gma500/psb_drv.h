@@ -21,6 +21,7 @@
 #define _PSB_DRV_H_
 
 #include <linux/kref.h>
+#include <linux/mm_types.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_global.h>
@@ -749,7 +750,7 @@ extern int psb_gem_get_aperture(struct drm_device *dev, void *data,
 			struct drm_file *file);
 extern int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 			struct drm_mode_create_dumb *args);
-extern int psb_gem_fault(struct vm_fault *vmf);
+extern vm_fault_t psb_gem_fault(struct vm_fault *vmf);
 
 /* psb_device.c */
 extern const struct psb_ops psb_chip_ops;

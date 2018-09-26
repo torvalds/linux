@@ -23,5 +23,6 @@ subdir-y += rockchip
 subdir-y += socionext
 subdir-y += sprd
 subdir-y += synaptics
+subdir-y += ti
 subdir-y += xilinx
 subdir-y += zte

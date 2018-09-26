@@ -9,8 +9,6 @@ Required properties:
     - First entry: System Configuration register
     - Second entry: IO space (Display Controller register)
 - interrupts : SMI interrupt to the cpu should be described here.
-- interrupt-parent : the phandle for the interrupt controller that
-  services interrupts for this device.
 
 Optional properties:
 - mode : select a video mode:

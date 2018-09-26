@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright © 2016 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2016 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -31,6 +31,7 @@
 #include <linux/frame.h>
 #include <asm/hypervisor.h>
 #include <drm/drmP.h>
+#include "vmwgfx_drv.h"
 #include "vmwgfx_msg.h"
 
 
@@ -234,7 +235,7 @@ static int vmw_recv_msg(struct rpc_channel *channel, void **msg,
 
 		if ((HIGH_WORD(ecx) & MESSAGE_STATUS_SUCCESS) == 0 ||
 		    (HIGH_WORD(ecx) & MESSAGE_STATUS_HB) == 0) {
-			DRM_ERROR("Failed to get reply size\n");
+			DRM_ERROR("Failed to get reply size for host message.\n");
 			return -EINVAL;
 		}
 
@@ -245,7 +246,7 @@ static int vmw_recv_msg(struct rpc_channel *channel, void **msg,
 		reply_len = ebx;
 		reply     = kzalloc(reply_len + 1, GFP_KERNEL);
 		if (!reply) {
-			DRM_ERROR("Cannot allocate memory for reply\n");
+			DRM_ERROR("Cannot allocate memory for host message reply.\n");
 			return -ENOMEM;
 		}
 
@@ -338,7 +339,8 @@ int vmw_host_get_guestinfo(const char *guest_info_param,
 
 	msg = kasprintf(GFP_KERNEL, "info-get %s", guest_info_param);
 	if (!msg) {
-		DRM_ERROR("Cannot allocate memory to get %s", guest_info_param);
+		DRM_ERROR("Cannot allocate memory to get guest info \"%s\".",
+			  guest_info_param);
 		return -ENOMEM;
 	}
 
@@ -374,7 +376,7 @@ out_msg:
 out_open:
 	*length = 0;
 	kfree(msg);
-	DRM_ERROR("Failed to get %s", guest_info_param);
+	DRM_ERROR("Failed to get guest info \"%s\".", guest_info_param);
 
 	return -EINVAL;
 }
@@ -403,7 +405,7 @@ int vmw_host_log(const char *log)
 
 	msg = kasprintf(GFP_KERNEL, "log %s", log);
 	if (!msg) {
-		DRM_ERROR("Cannot allocate memory for log message\n");
+		DRM_ERROR("Cannot allocate memory for host log message.\n");
 		return -ENOMEM;
 	}
 
@@ -422,7 +424,7 @@ out_msg:
 	vmw_close_channel(&channel);
 out_open:
 	kfree(msg);
-	DRM_ERROR("Failed to send log\n");
+	DRM_ERROR("Failed to send host log message.\n");
 
 	return -EINVAL;
 }

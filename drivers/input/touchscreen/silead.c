@@ -603,6 +603,7 @@ static const struct acpi_device_id silead_ts_acpi_match[] = {
 	{ "GSL3692", 0 },
 	{ "MSSL1680", 0 },
 	{ "MSSL0001", 0 },
+	{ "MSSL0002", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, silead_ts_acpi_match);

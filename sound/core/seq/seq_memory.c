@@ -504,18 +504,6 @@ int snd_seq_pool_delete(struct snd_seq_pool **ppool)
 	return 0;
 }
 
-/* initialize sequencer memory */
-int __init snd_sequencer_memory_init(void)
-{
-	return 0;
-}
-
-/* release sequencer memory */
-void __exit snd_sequencer_memory_done(void)
-{
-}
-
-
 /* exported to seq_clientmgr.c */
 void snd_seq_info_pool(struct snd_info_buffer *buffer,
 		       struct snd_seq_pool *pool, char *space)

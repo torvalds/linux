@@ -29,6 +29,7 @@
 #include <media/v4l2-device.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-mc.h>
+#include <media/v4l2-mem2mem.h>
 
 #include <trace/events/v4l2.h>
 
@@ -124,6 +125,42 @@ int v4l2_video_std_construct(struct v4l2_standard *vs,
 	return 0;
 }
 EXPORT_SYMBOL(v4l2_video_std_construct);
+
+/* Fill in the fields of a v4l2_standard structure according to the
+ * 'id' and 'vs->index' parameters. Returns negative on error. */
+int v4l_video_std_enumstd(struct v4l2_standard *vs, v4l2_std_id id)
+{
+	v4l2_std_id curr_id = 0;
+	unsigned int index = vs->index, i, j = 0;
+	const char *descr = "";
+
+	/* Return -ENODATA if the id for the current input
+	   or output is 0, meaning that it doesn't support this API. */
+	if (id == 0)
+		return -ENODATA;
+
+	/* Return norm array in a canonical way */
+	for (i = 0; i <= index && id; i++) {
+		/* last std value in the standards array is 0, so this
+		   while always ends there since (id & 0) == 0. */
+		while ((id & standards[j].std) != standards[j].std)
+			j++;
+		curr_id = standards[j].std;
+		descr = standards[j].descr;
+		j++;
+		if (curr_id == 0)
+			break;
+		if (curr_id != V4L2_STD_PAL &&
+				curr_id != V4L2_STD_SECAM &&
+				curr_id != V4L2_STD_NTSC)
+			id &= ~curr_id;
+	}
+	if (i <= index)
+		return -EINVAL;
+
+	v4l2_video_std_construct(vs, curr_id, descr);
+	return 0;
+}
 
 /* ----------------------------------------------------------------- */
 /* some arrays for pretty-printing debug messages of enum types      */
@@ -1147,6 +1184,7 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_PIX_FMT_Y16:		descr = "16-bit Greyscale"; break;
 	case V4L2_PIX_FMT_Y16_BE:	descr = "16-bit Greyscale BE"; break;
 	case V4L2_PIX_FMT_Y10BPACK:	descr = "10-bit Greyscale (Packed)"; break;
+	case V4L2_PIX_FMT_Y10P:		descr = "10-bit Greyscale (MIPI Packed)"; break;
 	case V4L2_PIX_FMT_Y8I:		descr = "Interleaved 8-bit Greyscale"; break;
 	case V4L2_PIX_FMT_Y12I:		descr = "Interleaved 12-bit Greyscale"; break;
 	case V4L2_PIX_FMT_Z16:		descr = "16-bit Depth"; break;
@@ -1222,6 +1260,10 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_PIX_FMT_SGBRG12P:	descr = "12-bit Bayer GBGB/RGRG Packed"; break;
 	case V4L2_PIX_FMT_SGRBG12P:	descr = "12-bit Bayer GRGR/BGBG Packed"; break;
 	case V4L2_PIX_FMT_SRGGB12P:	descr = "12-bit Bayer RGRG/GBGB Packed"; break;
+	case V4L2_PIX_FMT_SBGGR14P:	descr = "14-bit Bayer BGBG/GRGR Packed"; break;
+	case V4L2_PIX_FMT_SGBRG14P:	descr = "14-bit Bayer GBGB/RGRG Packed"; break;
+	case V4L2_PIX_FMT_SGRBG14P:	descr = "14-bit Bayer GRGR/BGBG Packed"; break;
+	case V4L2_PIX_FMT_SRGGB14P:	descr = "14-bit Bayer RGRG/GBGB Packed"; break;
 	case V4L2_PIX_FMT_SBGGR16:	descr = "16-bit Bayer BGBG/GRGR"; break;
 	case V4L2_PIX_FMT_SGBRG16:	descr = "16-bit Bayer GBGB/RGRG"; break;
 	case V4L2_PIX_FMT_SGRBG16:	descr = "16-bit Bayer GRGR/BGBG"; break;
@@ -1274,6 +1316,7 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 		case V4L2_PIX_FMT_VP8:		descr = "VP8"; break;
 		case V4L2_PIX_FMT_VP9:		descr = "VP9"; break;
 		case V4L2_PIX_FMT_HEVC:		descr = "HEVC"; break; /* aka H.265 */
+		case V4L2_PIX_FMT_FWHT:		descr = "FWHT"; break; /* used in vicodec */
 		case V4L2_PIX_FMT_CPIA1:	descr = "GSPCA CPiA YUV"; break;
 		case V4L2_PIX_FMT_WNVA:		descr = "WNVA"; break;
 		case V4L2_PIX_FMT_SN9C10X:	descr = "GSPCA SN9C10X"; break;
@@ -1753,36 +1796,8 @@ static int v4l_enumstd(const struct v4l2_ioctl_ops *ops,
 {
 	struct video_device *vfd = video_devdata(file);
 	struct v4l2_standard *p = arg;
-	v4l2_std_id id = vfd->tvnorms, curr_id = 0;
-	unsigned int index = p->index, i, j = 0;
-	const char *descr = "";
 
-	/* Return -ENODATA if the tvnorms for the current input
-	   or output is 0, meaning that it doesn't support this API. */
-	if (id == 0)
-		return -ENODATA;
-
-	/* Return norm array in a canonical way */
-	for (i = 0; i <= index && id; i++) {
-		/* last std value in the standards array is 0, so this
-		   while always ends there since (id & 0) == 0. */
-		while ((id & standards[j].std) != standards[j].std)
-			j++;
-		curr_id = standards[j].std;
-		descr = standards[j].descr;
-		j++;
-		if (curr_id == 0)
-			break;
-		if (curr_id != V4L2_STD_PAL &&
-				curr_id != V4L2_STD_SECAM &&
-				curr_id != V4L2_STD_NTSC)
-			id &= ~curr_id;
-	}
-	if (i <= index)
-		return -EINVAL;
-
-	v4l2_video_std_construct(p, curr_id, descr);
-	return 0;
+	return v4l_video_std_enumstd(p, vfd->tvnorms);
 }
 
 static int v4l_s_std(const struct v4l2_ioctl_ops *ops,
@@ -2662,11 +2677,62 @@ static bool v4l2_is_known_ioctl(unsigned int cmd)
 	return v4l2_ioctls[_IOC_NR(cmd)].ioctl == cmd;
 }
 
+#if IS_ENABLED(CONFIG_V4L2_MEM2MEM_DEV)
+static bool v4l2_ioctl_m2m_queue_is_output(unsigned int cmd, void *arg)
+{
+	switch (cmd) {
+	case VIDIOC_CREATE_BUFS: {
+		struct v4l2_create_buffers *cbufs = arg;
+
+		return V4L2_TYPE_IS_OUTPUT(cbufs->format.type);
+	}
+	case VIDIOC_REQBUFS: {
+		struct v4l2_requestbuffers *rbufs = arg;
+
+		return V4L2_TYPE_IS_OUTPUT(rbufs->type);
+	}
+	case VIDIOC_QBUF:
+	case VIDIOC_DQBUF:
+	case VIDIOC_QUERYBUF:
+	case VIDIOC_PREPARE_BUF: {
+		struct v4l2_buffer *buf = arg;
+
+		return V4L2_TYPE_IS_OUTPUT(buf->type);
+	}
+	case VIDIOC_EXPBUF: {
+		struct v4l2_exportbuffer *expbuf = arg;
+
+		return V4L2_TYPE_IS_OUTPUT(expbuf->type);
+	}
+	case VIDIOC_STREAMON:
+	case VIDIOC_STREAMOFF: {
+		int *type = arg;
+
+		return V4L2_TYPE_IS_OUTPUT(*type);
+	}
+	default:
+		return false;
+	}
+}
+#endif
+
 static struct mutex *v4l2_ioctl_get_lock(struct video_device *vdev,
-					 unsigned int cmd)
+					 struct v4l2_fh *vfh, unsigned int cmd,
+					 void *arg)
 {
 	if (_IOC_NR(cmd) >= V4L2_IOCTLS)
 		return vdev->lock;
+#if IS_ENABLED(CONFIG_V4L2_MEM2MEM_DEV)
+	if (vfh && vfh->m2m_ctx &&
+	    (v4l2_ioctls[_IOC_NR(cmd)].flags & INFO_FL_QUEUE)) {
+		bool is_output = v4l2_ioctl_m2m_queue_is_output(cmd, arg);
+		struct v4l2_m2m_queue_ctx *ctx = is_output ?
+			&vfh->m2m_ctx->out_q_ctx : &vfh->m2m_ctx->cap_q_ctx;
+
+		if (ctx->q.lock)
+			return ctx->q.lock;
+	}
+#endif
 	if (vdev->queue && vdev->queue->lock &&
 			(v4l2_ioctls[_IOC_NR(cmd)].flags & INFO_FL_QUEUE))
 		return vdev->queue->lock;
@@ -2733,7 +2799,7 @@ static long __video_do_ioctl(struct file *file,
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags))
 		vfh = file->private_data;
 
-	lock = v4l2_ioctl_get_lock(vfd, cmd);
+	lock = v4l2_ioctl_get_lock(vfd, vfh, cmd, arg);
 
 	if (lock && mutex_lock_interruptible(lock))
 		return -ERESTARTSYS;

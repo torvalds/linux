@@ -575,6 +575,22 @@ void pci_iov_release(struct pci_dev *dev)
 }
 
 /**
+ * pci_iov_remove - clean up SR-IOV state after PF driver is detached
+ * @dev: the PCI device
+ */
+void pci_iov_remove(struct pci_dev *dev)
+{
+	struct pci_sriov *iov = dev->sriov;
+
+	if (!dev->is_physfn)
+		return;
+
+	iov->driver_max_VFs = iov->total_VFs;
+	if (iov->num_VFs)
+		pci_warn(dev, "driver left SR-IOV enabled after remove\n");
+}
+
+/**
  * pci_iov_update_resource - update a VF BAR
  * @dev: the PCI device
  * @resno: the resource number
@@ -802,15 +818,15 @@ int pci_sriov_set_totalvfs(struct pci_dev *dev, u16 numvfs)
 {
 	if (!dev->is_physfn)
 		return -ENOSYS;
+
 	if (numvfs > dev->sriov->total_VFs)
 		return -EINVAL;
 
 	/* Shouldn't change if VFs already enabled */
 	if (dev->sriov->ctrl & PCI_SRIOV_CTRL_VFE)
 		return -EBUSY;
-	else
-		dev->sriov->driver_max_VFs = numvfs;
 
+	dev->sriov->driver_max_VFs = numvfs;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pci_sriov_set_totalvfs);

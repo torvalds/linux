@@ -89,6 +89,7 @@
 #include <linux/magic.h>
 #include <linux/slab.h>
 #include <linux/xattr.h>
+#include <linux/nospec.h>
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
@@ -117,10 +118,8 @@ static ssize_t sock_write_iter(struct kiocb *iocb, struct iov_iter *from);
 static int sock_mmap(struct file *file, struct vm_area_struct *vma);
 
 static int sock_close(struct inode *inode, struct file *file);
-static struct wait_queue_head *sock_get_poll_head(struct file *file,
-		__poll_t events);
-static __poll_t sock_poll_mask(struct file *file, __poll_t);
-static __poll_t sock_poll(struct file *file, struct poll_table_struct *wait);
+static __poll_t sock_poll(struct file *file,
+			      struct poll_table_struct *wait);
 static long sock_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 #ifdef CONFIG_COMPAT
 static long compat_sock_ioctl(struct file *file,
@@ -143,8 +142,6 @@ static const struct file_operations socket_file_ops = {
 	.llseek =	no_llseek,
 	.read_iter =	sock_read_iter,
 	.write_iter =	sock_write_iter,
-	.get_poll_head = sock_get_poll_head,
-	.poll_mask =	sock_poll_mask,
 	.poll =		sock_poll,
 	.unlocked_ioctl = sock_ioctl,
 #ifdef CONFIG_COMPAT
@@ -255,7 +252,7 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 	init_waitqueue_head(&wq->wait);
 	wq->fasync_list = NULL;
 	wq->flags = 0;
-	RCU_INIT_POINTER(ei->socket.wq, wq);
+	ei->socket.wq = wq;
 
 	ei->socket.state = SS_UNCONNECTED;
 	ei->socket.flags = 0;
@@ -269,11 +266,9 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 static void sock_destroy_inode(struct inode *inode)
 {
 	struct socket_alloc *ei;
-	struct socket_wq *wq;
 
 	ei = container_of(inode, struct socket_alloc, vfs_inode);
-	wq = rcu_dereference_protected(ei->socket.wq, 1);
-	kfree_rcu(wq, rcu);
+	kfree_rcu(ei->socket.wq, rcu);
 	kmem_cache_free(sock_inode_cachep, ei);
 }
 
@@ -391,39 +386,20 @@ static struct file_system_type sock_fs_type = {
 
 struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 {
-	struct qstr name = { .name = "" };
-	struct path path;
 	struct file *file;
 
-	if (dname) {
-		name.name = dname;
-		name.len = strlen(name.name);
-	} else if (sock->sk) {
-		name.name = sock->sk->sk_prot_creator->name;
-		name.len = strlen(name.name);
-	}
-	path.dentry = d_alloc_pseudo(sock_mnt->mnt_sb, &name);
-	if (unlikely(!path.dentry)) {
-		sock_release(sock);
-		return ERR_PTR(-ENOMEM);
-	}
-	path.mnt = mntget(sock_mnt);
+	if (!dname)
+		dname = sock->sk ? sock->sk->sk_prot_creator->name : "";
 
-	d_instantiate(path.dentry, SOCK_INODE(sock));
-
-	file = alloc_file(&path, FMODE_READ | FMODE_WRITE,
-		  &socket_file_ops);
+	file = alloc_file_pseudo(SOCK_INODE(sock), sock_mnt, dname,
+				O_RDWR | (flags & O_NONBLOCK),
+				&socket_file_ops);
 	if (IS_ERR(file)) {
-		/* drop dentry, keep inode for a bit */
-		ihold(d_inode(path.dentry));
-		path_put(&path);
-		/* ... and now kill it properly */
 		sock_release(sock);
 		return file;
 	}
 
 	sock->file = file;
-	file->f_flags = O_RDWR | (flags & O_NONBLOCK);
 	file->private_data = sock;
 	return file;
 }
@@ -607,7 +583,7 @@ static void __sock_release(struct socket *sock, struct inode *inode)
 		module_put(owner);
 	}
 
-	if (rcu_dereference_protected(sock->wq, 1)->fasync_list)
+	if (sock->wq->fasync_list)
 		pr_err("%s: fasync list not empty!\n", __func__);
 
 	if (!sock->file) {
@@ -965,7 +941,8 @@ void dlci_ioctl_set(int (*hook) (unsigned int, void __user *))
 EXPORT_SYMBOL(dlci_ioctl_set);
 
 static long sock_do_ioctl(struct net *net, struct socket *sock,
-				 unsigned int cmd, unsigned long arg)
+			  unsigned int cmd, unsigned long arg,
+			  unsigned int ifreq_size)
 {
 	int err;
 	void __user *argp = (void __user *)arg;
@@ -991,11 +968,11 @@ static long sock_do_ioctl(struct net *net, struct socket *sock,
 	} else {
 		struct ifreq ifr;
 		bool need_copyout;
-		if (copy_from_user(&ifr, argp, sizeof(struct ifreq)))
+		if (copy_from_user(&ifr, argp, ifreq_size))
 			return -EFAULT;
 		err = dev_ioctl(net, cmd, &ifr, &need_copyout);
 		if (!err && need_copyout)
-			if (copy_to_user(argp, &ifr, sizeof(struct ifreq)))
+			if (copy_to_user(argp, &ifr, ifreq_size))
 				return -EFAULT;
 	}
 	return err;
@@ -1094,7 +1071,8 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			err = open_related_ns(&net->ns, get_net_ns);
 			break;
 		default:
-			err = sock_do_ioctl(net, sock, cmd, arg);
+			err = sock_do_ioctl(net, sock, cmd, arg,
+					    sizeof(struct ifreq));
 			break;
 		}
 	return err;
@@ -1130,48 +1108,25 @@ out_release:
 }
 EXPORT_SYMBOL(sock_create_lite);
 
-static struct wait_queue_head *sock_get_poll_head(struct file *file,
-		__poll_t events)
-{
-	struct socket *sock = file->private_data;
-
-	if (!sock->ops->poll_mask)
-		return NULL;
-	sock_poll_busy_loop(sock, events);
-	return sk_sleep(sock->sk);
-}
-
-static __poll_t sock_poll_mask(struct file *file, __poll_t events)
-{
-	struct socket *sock = file->private_data;
-
-	/*
-	 * We need to be sure we are in sync with the socket flags modification.
-	 *
-	 * This memory barrier is paired in the wq_has_sleeper.
-	 */
-	smp_mb();
-
-	/* this socket can poll_ll so tell the system call */
-	return sock->ops->poll_mask(sock, events) |
-		(sk_can_busy_loop(sock->sk) ? POLL_BUSY_LOOP : 0);
-}
-
 /* No kernel lock held - perfect */
 static __poll_t sock_poll(struct file *file, poll_table *wait)
 {
 	struct socket *sock = file->private_data;
-	__poll_t events = poll_requested_events(wait), mask = 0;
+	__poll_t events = poll_requested_events(wait), flag = 0;
 
-	if (sock->ops->poll) {
-		sock_poll_busy_loop(sock, events);
-		mask = sock->ops->poll(file, sock, wait);
-	} else if (sock->ops->poll_mask) {
-		sock_poll_wait(file, sock_get_poll_head(file, events), wait);
-		mask = sock->ops->poll_mask(sock, events);
+	if (!sock->ops->poll)
+		return 0;
+
+	if (sk_can_busy_loop(sock->sk)) {
+		/* poll once if requested by the syscall */
+		if (events & POLL_BUSY_LOOP)
+			sk_busy_loop(sock->sk, 1);
+
+		/* if this socket can poll_ll, tell the system call */
+		flag = POLL_BUSY_LOOP;
 	}
 
-	return mask | sock_poll_busy_flag(sock);
+	return sock->ops->poll(file, sock, wait) | flag;
 }
 
 static int sock_mmap(struct file *file, struct vm_area_struct *vma)
@@ -1208,7 +1163,7 @@ static int sock_fasync(int fd, struct file *filp, int on)
 		return -EINVAL;
 
 	lock_sock(sk);
-	wq = rcu_dereference_protected(sock->wq, lockdep_sock_is_held(sk));
+	wq = sock->wq;
 	fasync_helper(fd, filp, on, &wq->fasync_list);
 
 	if (!wq->fasync_list)
@@ -2558,6 +2513,7 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 
 	if (call < 1 || call > SYS_SENDMMSG)
 		return -EINVAL;
+	call = array_index_nospec(call, SYS_SENDMMSG + 1);
 
 	len = nargs[call];
 	if (len > sizeof(a))
@@ -2796,7 +2752,8 @@ static int do_siocgstamp(struct net *net, struct socket *sock,
 	int err;
 
 	set_fs(KERNEL_DS);
-	err = sock_do_ioctl(net, sock, cmd, (unsigned long)&ktv);
+	err = sock_do_ioctl(net, sock, cmd, (unsigned long)&ktv,
+			    sizeof(struct compat_ifreq));
 	set_fs(old_fs);
 	if (!err)
 		err = compat_put_timeval(&ktv, up);
@@ -2812,7 +2769,8 @@ static int do_siocgstampns(struct net *net, struct socket *sock,
 	int err;
 
 	set_fs(KERNEL_DS);
-	err = sock_do_ioctl(net, sock, cmd, (unsigned long)&kts);
+	err = sock_do_ioctl(net, sock, cmd, (unsigned long)&kts,
+			    sizeof(struct compat_ifreq));
 	set_fs(old_fs);
 	if (!err)
 		err = compat_put_timespec(&kts, up);
@@ -3118,7 +3076,8 @@ static int routing_ioctl(struct net *net, struct socket *sock,
 	}
 
 	set_fs(KERNEL_DS);
-	ret = sock_do_ioctl(net, sock, cmd, (unsigned long) r);
+	ret = sock_do_ioctl(net, sock, cmd, (unsigned long) r,
+			    sizeof(struct compat_ifreq));
 	set_fs(old_fs);
 
 out:
@@ -3231,7 +3190,8 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCBONDSETHWADDR:
 	case SIOCBONDCHANGEACTIVE:
 	case SIOCGIFNAME:
-		return sock_do_ioctl(net, sock, cmd, arg);
+		return sock_do_ioctl(net, sock, cmd, arg,
+				     sizeof(struct compat_ifreq));
 	}
 
 	return -ENOIOCTLCMD;

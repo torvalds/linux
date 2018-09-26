@@ -57,36 +57,36 @@ static void gfx_v7_0_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v7_0_set_irq_funcs(struct amdgpu_device *adev);
 static void gfx_v7_0_set_gds_init(struct amdgpu_device *adev);
 
-MODULE_FIRMWARE("radeon/bonaire_pfp.bin");
-MODULE_FIRMWARE("radeon/bonaire_me.bin");
-MODULE_FIRMWARE("radeon/bonaire_ce.bin");
-MODULE_FIRMWARE("radeon/bonaire_rlc.bin");
-MODULE_FIRMWARE("radeon/bonaire_mec.bin");
+MODULE_FIRMWARE("amdgpu/bonaire_pfp.bin");
+MODULE_FIRMWARE("amdgpu/bonaire_me.bin");
+MODULE_FIRMWARE("amdgpu/bonaire_ce.bin");
+MODULE_FIRMWARE("amdgpu/bonaire_rlc.bin");
+MODULE_FIRMWARE("amdgpu/bonaire_mec.bin");
 
-MODULE_FIRMWARE("radeon/hawaii_pfp.bin");
-MODULE_FIRMWARE("radeon/hawaii_me.bin");
-MODULE_FIRMWARE("radeon/hawaii_ce.bin");
-MODULE_FIRMWARE("radeon/hawaii_rlc.bin");
-MODULE_FIRMWARE("radeon/hawaii_mec.bin");
+MODULE_FIRMWARE("amdgpu/hawaii_pfp.bin");
+MODULE_FIRMWARE("amdgpu/hawaii_me.bin");
+MODULE_FIRMWARE("amdgpu/hawaii_ce.bin");
+MODULE_FIRMWARE("amdgpu/hawaii_rlc.bin");
+MODULE_FIRMWARE("amdgpu/hawaii_mec.bin");
 
-MODULE_FIRMWARE("radeon/kaveri_pfp.bin");
-MODULE_FIRMWARE("radeon/kaveri_me.bin");
-MODULE_FIRMWARE("radeon/kaveri_ce.bin");
-MODULE_FIRMWARE("radeon/kaveri_rlc.bin");
-MODULE_FIRMWARE("radeon/kaveri_mec.bin");
-MODULE_FIRMWARE("radeon/kaveri_mec2.bin");
+MODULE_FIRMWARE("amdgpu/kaveri_pfp.bin");
+MODULE_FIRMWARE("amdgpu/kaveri_me.bin");
+MODULE_FIRMWARE("amdgpu/kaveri_ce.bin");
+MODULE_FIRMWARE("amdgpu/kaveri_rlc.bin");
+MODULE_FIRMWARE("amdgpu/kaveri_mec.bin");
+MODULE_FIRMWARE("amdgpu/kaveri_mec2.bin");
 
-MODULE_FIRMWARE("radeon/kabini_pfp.bin");
-MODULE_FIRMWARE("radeon/kabini_me.bin");
-MODULE_FIRMWARE("radeon/kabini_ce.bin");
-MODULE_FIRMWARE("radeon/kabini_rlc.bin");
-MODULE_FIRMWARE("radeon/kabini_mec.bin");
+MODULE_FIRMWARE("amdgpu/kabini_pfp.bin");
+MODULE_FIRMWARE("amdgpu/kabini_me.bin");
+MODULE_FIRMWARE("amdgpu/kabini_ce.bin");
+MODULE_FIRMWARE("amdgpu/kabini_rlc.bin");
+MODULE_FIRMWARE("amdgpu/kabini_mec.bin");
 
-MODULE_FIRMWARE("radeon/mullins_pfp.bin");
-MODULE_FIRMWARE("radeon/mullins_me.bin");
-MODULE_FIRMWARE("radeon/mullins_ce.bin");
-MODULE_FIRMWARE("radeon/mullins_rlc.bin");
-MODULE_FIRMWARE("radeon/mullins_mec.bin");
+MODULE_FIRMWARE("amdgpu/mullins_pfp.bin");
+MODULE_FIRMWARE("amdgpu/mullins_me.bin");
+MODULE_FIRMWARE("amdgpu/mullins_ce.bin");
+MODULE_FIRMWARE("amdgpu/mullins_rlc.bin");
+MODULE_FIRMWARE("amdgpu/mullins_mec.bin");
 
 static const struct amdgpu_gds_reg_offset amdgpu_gds_reg_offset[] =
 {
@@ -925,7 +925,7 @@ static int gfx_v7_0_init_microcode(struct amdgpu_device *adev)
 	default: BUG();
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_pfp.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_pfp.bin", chip_name);
 	err = request_firmware(&adev->gfx.pfp_fw, fw_name, adev->dev);
 	if (err)
 		goto out;
@@ -933,7 +933,7 @@ static int gfx_v7_0_init_microcode(struct amdgpu_device *adev)
 	if (err)
 		goto out;
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_me.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_me.bin", chip_name);
 	err = request_firmware(&adev->gfx.me_fw, fw_name, adev->dev);
 	if (err)
 		goto out;
@@ -941,7 +941,7 @@ static int gfx_v7_0_init_microcode(struct amdgpu_device *adev)
 	if (err)
 		goto out;
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_ce.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ce.bin", chip_name);
 	err = request_firmware(&adev->gfx.ce_fw, fw_name, adev->dev);
 	if (err)
 		goto out;
@@ -949,7 +949,7 @@ static int gfx_v7_0_init_microcode(struct amdgpu_device *adev)
 	if (err)
 		goto out;
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_mec.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec.bin", chip_name);
 	err = request_firmware(&adev->gfx.mec_fw, fw_name, adev->dev);
 	if (err)
 		goto out;
@@ -958,7 +958,7 @@ static int gfx_v7_0_init_microcode(struct amdgpu_device *adev)
 		goto out;
 
 	if (adev->asic_type == CHIP_KAVERI) {
-		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mec2.bin", chip_name);
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec2.bin", chip_name);
 		err = request_firmware(&adev->gfx.mec2_fw, fw_name, adev->dev);
 		if (err)
 			goto out;
@@ -967,7 +967,7 @@ static int gfx_v7_0_init_microcode(struct amdgpu_device *adev)
 			goto out;
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_rlc.bin", chip_name);
 	err = request_firmware(&adev->gfx.rlc_fw, fw_name, adev->dev);
 	if (err)
 		goto out;

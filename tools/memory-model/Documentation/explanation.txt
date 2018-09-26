@@ -804,7 +804,7 @@ type of fence:
 Second, some types of fence affect the way the memory subsystem
 propagates stores.  When a fence instruction is executed on CPU C:
 
-	For each other CPU C', smb_wmb() forces all po-earlier stores
+	For each other CPU C', smp_wmb() forces all po-earlier stores
 	on C to propagate to C' before any po-later stores do.
 
 	For each other CPU C', any store which propagates to C before

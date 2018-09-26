@@ -375,16 +375,11 @@ static struct aead_alg crypto_aegis128l_aesni_alg[] = {
 	}
 };
 
-static const struct x86_cpu_id aesni_cpu_id[] = {
-	X86_FEATURE_MATCH(X86_FEATURE_AES),
-	X86_FEATURE_MATCH(X86_FEATURE_XMM2),
-	{}
-};
-MODULE_DEVICE_TABLE(x86cpu, aesni_cpu_id);
-
 static int __init crypto_aegis128l_aesni_module_init(void)
 {
-	if (!x86_match_cpu(aesni_cpu_id))
+	if (!boot_cpu_has(X86_FEATURE_XMM2) ||
+	    !boot_cpu_has(X86_FEATURE_AES) ||
+	    !cpu_has_xfeatures(XFEATURE_MASK_SSE, NULL))
 		return -ENODEV;
 
 	return crypto_register_aeads(crypto_aegis128l_aesni_alg,

@@ -12,9 +12,6 @@ Required properties :
 Recommended properties :
 
  - interrupts : the interrupt number
- - interrupt-parent : the phandle for the interrupt controller that
-   services interrupts for this device. If the parent is the default
-   interrupt controller in device tree, it could be ignored.
  - mrvl,i2c-polling : Disable interrupt of i2c controller. Polling
    status register of i2c controller instead.
  - mrvl,i2c-fast-mode : Enable fast mode of i2c controller.

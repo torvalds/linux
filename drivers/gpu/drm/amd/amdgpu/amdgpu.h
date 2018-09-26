@@ -73,6 +73,8 @@
 #include "amdgpu_virt.h"
 #include "amdgpu_gart.h"
 #include "amdgpu_debugfs.h"
+#include "amdgpu_job.h"
+#include "amdgpu_bo_list.h"
 
 /*
  * Modules parameters.
@@ -105,11 +107,8 @@ extern int amdgpu_vm_fault_stop;
 extern int amdgpu_vm_debug;
 extern int amdgpu_vm_update_mode;
 extern int amdgpu_dc;
-extern int amdgpu_dc_log;
 extern int amdgpu_sched_jobs;
 extern int amdgpu_sched_hw_submission;
-extern int amdgpu_no_evict;
-extern int amdgpu_direct_gma_size;
 extern uint amdgpu_pcie_gen_cap;
 extern uint amdgpu_pcie_lane_cap;
 extern uint amdgpu_cg_mask;
@@ -190,6 +189,7 @@ struct amdgpu_job;
 struct amdgpu_irq_src;
 struct amdgpu_fpriv;
 struct amdgpu_bo_va_mapping;
+struct amdgpu_atif;
 
 enum amdgpu_cp_irq {
 	AMDGPU_CP_IRQ_GFX_EOP = 0,
@@ -599,17 +599,6 @@ struct amdgpu_ib {
 
 extern const struct drm_sched_backend_ops amdgpu_sched_ops;
 
-int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
-		     struct amdgpu_job **job, struct amdgpu_vm *vm);
-int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
-			     struct amdgpu_job **job);
-
-void amdgpu_job_free_resources(struct amdgpu_job *job);
-void amdgpu_job_free(struct amdgpu_job *job);
-int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
-		      struct drm_sched_entity *entity, void *owner,
-		      struct dma_fence **f);
-
 /*
  * Queue manager
  */
@@ -683,8 +672,8 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 int amdgpu_ctx_wait_prev_fence(struct amdgpu_ctx *ctx, unsigned ring_id);
 
 void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr);
-void amdgpu_ctx_mgr_entity_cleanup(struct amdgpu_ctx_mgr *mgr);
 void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr);
+void amdgpu_ctx_mgr_entity_flush(struct amdgpu_ctx_mgr *mgr);
 void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr);
 
 
@@ -700,37 +689,6 @@ struct amdgpu_fpriv {
 	struct idr		bo_list_handles;
 	struct amdgpu_ctx_mgr	ctx_mgr;
 };
-
-/*
- * residency list
- */
-struct amdgpu_bo_list_entry {
-	struct amdgpu_bo		*robj;
-	struct ttm_validate_buffer	tv;
-	struct amdgpu_bo_va		*bo_va;
-	uint32_t			priority;
-	struct page			**user_pages;
-	int				user_invalidated;
-};
-
-struct amdgpu_bo_list {
-	struct mutex lock;
-	struct rcu_head rhead;
-	struct kref refcount;
-	struct amdgpu_bo *gds_obj;
-	struct amdgpu_bo *gws_obj;
-	struct amdgpu_bo *oa_obj;
-	unsigned first_userptr;
-	unsigned num_entries;
-	struct amdgpu_bo_list_entry *array;
-};
-
-struct amdgpu_bo_list *
-amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id);
-void amdgpu_bo_list_get_list(struct amdgpu_bo_list *list,
-			     struct list_head *validated);
-void amdgpu_bo_list_put(struct amdgpu_bo_list *list);
-void amdgpu_bo_list_free(struct amdgpu_bo_list *list);
 
 /*
  * GFX stuff
@@ -930,6 +888,11 @@ struct amdgpu_ngg {
 	bool			init;
 };
 
+struct sq_work {
+	struct work_struct	work;
+	unsigned ih_data;
+};
+
 struct amdgpu_gfx {
 	struct mutex			gpu_clock_mutex;
 	struct amdgpu_gfx_config	config;
@@ -968,6 +931,10 @@ struct amdgpu_gfx {
 	struct amdgpu_irq_src		eop_irq;
 	struct amdgpu_irq_src		priv_reg_irq;
 	struct amdgpu_irq_src		priv_inst_irq;
+	struct amdgpu_irq_src		cp_ecc_error_irq;
+	struct amdgpu_irq_src		sq_irq;
+	struct sq_work			sq_work;
+
 	/* gfx status */
 	uint32_t			gfx_current_status;
 	/* ce ram size*/
@@ -1019,6 +986,7 @@ struct amdgpu_cs_parser {
 
 	/* scheduler job object */
 	struct amdgpu_job	*job;
+	struct amdgpu_ring	*ring;
 
 	/* buffer objects */
 	struct ww_acquire_ctx		ticket;
@@ -1039,40 +1007,6 @@ struct amdgpu_cs_parser {
 	unsigned num_post_dep_syncobjs;
 	struct drm_syncobj **post_dep_syncobjs;
 };
-
-#define AMDGPU_PREAMBLE_IB_PRESENT          (1 << 0) /* bit set means command submit involves a preamble IB */
-#define AMDGPU_PREAMBLE_IB_PRESENT_FIRST    (1 << 1) /* bit set means preamble IB is first presented in belonging context */
-#define AMDGPU_HAVE_CTX_SWITCH              (1 << 2) /* bit set means context switch occured */
-
-struct amdgpu_job {
-	struct drm_sched_job    base;
-	struct amdgpu_device	*adev;
-	struct amdgpu_vm	*vm;
-	struct amdgpu_ring	*ring;
-	struct amdgpu_sync	sync;
-	struct amdgpu_sync	sched_sync;
-	struct amdgpu_ib	*ibs;
-	struct dma_fence	*fence; /* the hw fence */
-	uint32_t		preamble_status;
-	uint32_t		num_ibs;
-	void			*owner;
-	uint64_t		fence_ctx; /* the fence_context this job uses */
-	bool                    vm_needs_flush;
-	uint64_t		vm_pd_addr;
-	unsigned		vmid;
-	unsigned		pasid;
-	uint32_t		gds_base, gds_size;
-	uint32_t		gws_base, gws_size;
-	uint32_t		oa_base, oa_size;
-	uint32_t		vram_lost_counter;
-
-	/* user fence handling */
-	uint64_t		uf_addr;
-	uint64_t		uf_sequence;
-
-};
-#define to_amdgpu_job(sched_job)		\
-		container_of((sched_job), struct amdgpu_job, base)
 
 static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p,
 				      uint32_t ib_idx, int idx)
@@ -1269,43 +1203,6 @@ struct amdgpu_vram_scratch {
 /*
  * ACPI
  */
-struct amdgpu_atif_notification_cfg {
-	bool enabled;
-	int command_code;
-};
-
-struct amdgpu_atif_notifications {
-	bool display_switch;
-	bool expansion_mode_change;
-	bool thermal_state;
-	bool forced_power_state;
-	bool system_power_state;
-	bool display_conf_change;
-	bool px_gfx_switch;
-	bool brightness_change;
-	bool dgpu_display_event;
-};
-
-struct amdgpu_atif_functions {
-	bool system_params;
-	bool sbios_requests;
-	bool select_active_disp;
-	bool lid_state;
-	bool get_tv_standard;
-	bool set_tv_standard;
-	bool get_panel_expansion_mode;
-	bool set_panel_expansion_mode;
-	bool temperature_change;
-	bool graphics_device_types;
-};
-
-struct amdgpu_atif {
-	struct amdgpu_atif_notifications notifications;
-	struct amdgpu_atif_functions functions;
-	struct amdgpu_atif_notification_cfg notification_cfg;
-	struct amdgpu_encoder *encoder_for_bl;
-};
-
 struct amdgpu_atcs_functions {
 	bool get_ext_state;
 	bool pcie_perf_req;
@@ -1425,6 +1322,7 @@ enum amd_hw_ip_block_type {
 	PWR_HWIP,
 	NBIF_HWIP,
 	THM_HWIP,
+	CLK_HWIP,
 	MAX_HWIP
 };
 
@@ -1466,7 +1364,7 @@ struct amdgpu_device {
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry			*debugfs_regs[AMDGPU_DEBUGFS_MAX_COMPONENTS];
 #endif
-	struct amdgpu_atif		atif;
+	struct amdgpu_atif		*atif;
 	struct amdgpu_atcs		atcs;
 	struct mutex			srbm_mutex;
 	/* GRBM index mutex. Protects concurrent access to GRBM index */
@@ -1615,9 +1513,9 @@ struct amdgpu_device {
 	DECLARE_HASHTABLE(mn_hash, 7);
 
 	/* tracking pinned memory */
-	u64 vram_pin_size;
-	u64 invisible_pin_size;
-	u64 gart_pin_size;
+	atomic64_t vram_pin_size;
+	atomic64_t visible_pin_size;
+	atomic64_t gart_pin_size;
 
 	/* amdkfd interface */
 	struct kfd_dev          *kfd;
@@ -1812,6 +1710,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_vm_write_pte(adev, ib, pe, value, count, incr) ((adev)->vm_manager.vm_pte_funcs->write_pte((ib), (pe), (value), (count), (incr)))
 #define amdgpu_vm_set_pte_pde(adev, ib, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->set_pte_pde((ib), (pe), (addr), (count), (incr), (flags)))
 #define amdgpu_ring_parse_cs(r, p, ib) ((r)->funcs->parse_cs((p), (ib)))
+#define amdgpu_ring_patch_cs_in_place(r, p, ib) ((r)->funcs->patch_cs_in_place((p), (ib)))
 #define amdgpu_ring_test_ring(r) (r)->funcs->test_ring((r))
 #define amdgpu_ring_test_ib(r, t) (r)->funcs->test_ib((r), (t))
 #define amdgpu_ring_get_rptr(r) (r)->funcs->get_rptr((r))
@@ -1865,8 +1764,6 @@ void amdgpu_display_update_priority(struct amdgpu_device *adev);
 
 void amdgpu_cs_report_moved_bytes(struct amdgpu_device *adev, u64 num_bytes,
 				  u64 num_vis_bytes);
-void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *abo, u32 domain);
-bool amdgpu_ttm_bo_is_amdgpu_bo(struct ttm_buffer_object *bo);
 void amdgpu_device_vram_location(struct amdgpu_device *adev,
 				 struct amdgpu_gmc *mc, u64 base);
 void amdgpu_device_gart_location(struct amdgpu_device *adev,
@@ -1892,6 +1789,12 @@ static inline bool amdgpu_has_atpx_dgpu_power_cntl(void) { return false; }
 static inline bool amdgpu_is_atpx_hybrid(void) { return false; }
 static inline bool amdgpu_atpx_dgpu_req_power_for_displays(void) { return false; }
 static inline bool amdgpu_has_atpx(void) { return false; }
+#endif
+
+#if defined(CONFIG_VGA_SWITCHEROO) && defined(CONFIG_ACPI)
+void *amdgpu_atpx_get_dhandle(void);
+#else
+static inline void *amdgpu_atpx_get_dhandle(void) { return NULL; }
 #endif
 
 /*

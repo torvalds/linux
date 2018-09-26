@@ -25,7 +25,9 @@
 #define CLK_PLL_AUDIO_2X	4
 #define CLK_PLL_AUDIO_4X	5
 #define CLK_PLL_AUDIO_8X	6
-#define CLK_PLL_VIDEO0		7
+
+/* PLL_VIDEO0 is exported */
+
 #define CLK_PLL_VIDEO0_2X	8
 #define CLK_PLL_VE		9
 #define CLK_PLL_DDR0		10
@@ -34,7 +36,9 @@
 #define CLK_PLL_PERIPH0_2X	13
 #define CLK_PLL_PERIPH1		14
 #define CLK_PLL_PERIPH1_2X	15
-#define CLK_PLL_VIDEO1		16
+
+/* PLL_VIDEO1 is exported */
+
 #define CLK_PLL_VIDEO1_2X	17
 #define CLK_PLL_SATA		18
 #define CLK_PLL_SATA_OUT	19

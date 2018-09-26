@@ -17,7 +17,6 @@ reg:	index 1 is the base address and length of DW application registers.
 
 pcie_msi_intc : Interrupt controller device node for MSI IRQ chip
 	interrupt-cells: should be set to 1
-	interrupt-parent: Parent interrupt controller phandle
 	interrupts: GIC interrupt lines connected to PCI MSI interrupt lines
 
  Example:
@@ -37,8 +36,6 @@ pcie_msi_intc : Interrupt controller device node for MSI IRQ chip
 
 pcie_intc: Interrupt controller device node for Legacy IRQ chip
 	interrupt-cells: should be set to 1
-	interrupt-parent: Parent interrupt controller phandle
-	interrupts: GIC interrupt lines connected to PCI Legacy interrupt lines
 
  Example:
 	pcie_intc: legacy-interrupt-controller {

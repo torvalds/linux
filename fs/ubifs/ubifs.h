@@ -258,6 +258,18 @@ enum {
 	LEB_RETAINED,
 };
 
+/*
+ * Action taken upon a failed ubifs_assert().
+ * @ASSACT_REPORT: just report the failed assertion
+ * @ASSACT_RO: switch to read-only mode
+ * @ASSACT_PANIC: call BUG() and possible panic the kernel
+ */
+enum {
+	ASSACT_REPORT = 0,
+	ASSACT_RO,
+	ASSACT_PANIC,
+};
+
 /**
  * struct ubifs_old_idx - index node obsoleted since last commit start.
  * @rb: rb-tree node
@@ -758,7 +770,7 @@ struct ubifs_znode {
 	struct ubifs_znode *parent;
 	struct ubifs_znode *cnext;
 	unsigned long flags;
-	unsigned long time;
+	time64_t time;
 	int level;
 	int child_cnt;
 	int iip;
@@ -1015,6 +1027,7 @@ struct ubifs_debug_info;
  * @bulk_read: enable bulk-reads
  * @default_compr: default compression algorithm (%UBIFS_COMPR_LZO, etc)
  * @rw_incompat: the media is not R/W compatible
+ * @assert_action: action to take when a ubifs_assert() fails
  *
  * @tnc_mutex: protects the Tree Node Cache (TNC), @zroot, @cnext, @enext, and
  *             @calc_idx_sz
@@ -1256,6 +1269,7 @@ struct ubifs_info {
 	unsigned int bulk_read:1;
 	unsigned int default_compr:2;
 	unsigned int rw_incompat:1;
+	unsigned int assert_action:2;
 
 	struct mutex tnc_mutex;
 	struct ubifs_zbranch zroot;
@@ -1608,14 +1622,17 @@ int ubifs_tnc_get_bu_keys(struct ubifs_info *c, struct bu_info *bu);
 int ubifs_tnc_bulk_read(struct ubifs_info *c, struct bu_info *bu);
 
 /* tnc_misc.c */
-struct ubifs_znode *ubifs_tnc_levelorder_next(struct ubifs_znode *zr,
+struct ubifs_znode *ubifs_tnc_levelorder_next(const struct ubifs_info *c,
+					      struct ubifs_znode *zr,
 					      struct ubifs_znode *znode);
 int ubifs_search_zbranch(const struct ubifs_info *c,
 			 const struct ubifs_znode *znode,
 			 const union ubifs_key *key, int *n);
 struct ubifs_znode *ubifs_tnc_postorder_first(struct ubifs_znode *znode);
-struct ubifs_znode *ubifs_tnc_postorder_next(struct ubifs_znode *znode);
-long ubifs_destroy_tnc_subtree(struct ubifs_znode *zr);
+struct ubifs_znode *ubifs_tnc_postorder_next(const struct ubifs_info *c,
+					     struct ubifs_znode *znode);
+long ubifs_destroy_tnc_subtree(const struct ubifs_info *c,
+			       struct ubifs_znode *zr);
 struct ubifs_znode *ubifs_load_znode(struct ubifs_info *c,
 				     struct ubifs_zbranch *zbr,
 				     struct ubifs_znode *parent, int iip);
@@ -1698,7 +1715,7 @@ struct ubifs_nnode *ubifs_get_nnode(struct ubifs_info *c,
 int ubifs_read_nnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip);
 void ubifs_add_lpt_dirt(struct ubifs_info *c, int lnum, int dirty);
 void ubifs_add_nnode_dirt(struct ubifs_info *c, struct ubifs_nnode *nnode);
-uint32_t ubifs_unpack_bits(uint8_t **addr, int *pos, int nrbits);
+uint32_t ubifs_unpack_bits(const struct ubifs_info *c, uint8_t **addr, int *pos, int nrbits);
 struct ubifs_nnode *ubifs_first_nnode(struct ubifs_info *c, int *hght);
 /* Needed only in debugging code in lpt_commit.c */
 int ubifs_unpack_nnode(const struct ubifs_info *c, void *buf,
@@ -1755,7 +1772,13 @@ int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
 		    size_t size, int flags, bool check_lock);
 ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
 			size_t size);
+
+#ifdef CONFIG_UBIFS_FS_XATTR
 void ubifs_evict_xattr_inode(struct ubifs_info *c, ino_t xattr_inum);
+#else
+static inline void ubifs_evict_xattr_inode(struct ubifs_info *c,
+					   ino_t xattr_inum) { }
+#endif
 
 #ifdef CONFIG_UBIFS_FS_SECURITY
 extern int ubifs_init_security(struct inode *dentry, struct inode *inode,
@@ -1812,14 +1835,16 @@ static inline int ubifs_encrypt(const struct inode *inode,
 				unsigned int in_len, unsigned int *out_len,
 				int block)
 {
-	ubifs_assert(0);
+	struct ubifs_info *c = inode->i_sb->s_fs_info;
+	ubifs_assert(c, 0);
 	return -EOPNOTSUPP;
 }
 static inline int ubifs_decrypt(const struct inode *inode,
 				struct ubifs_data_node *dn,
 				unsigned int *out_len, int block)
 {
-	ubifs_assert(0);
+	struct ubifs_info *c = inode->i_sb->s_fs_info;
+	ubifs_assert(c, 0);
 	return -EOPNOTSUPP;
 }
 #else

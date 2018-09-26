@@ -31,6 +31,8 @@
 #include <asm/mshyperv.h>
 #include <asm/apic.h>
 
+#include <asm/trace/hyperv.h>
+
 static struct apic orig_apic;
 
 static u64 hv_apic_icr_read(void)
@@ -93,14 +95,17 @@ static void hv_apic_eoi_write(u32 reg, u32 val)
  */
 static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector)
 {
-	struct ipi_arg_ex **arg;
-	struct ipi_arg_ex *ipi_arg;
+	struct hv_send_ipi_ex **arg;
+	struct hv_send_ipi_ex *ipi_arg;
 	unsigned long flags;
 	int nr_bank = 0;
 	int ret = 1;
 
+	if (!(ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED))
+		return false;
+
 	local_irq_save(flags);
-	arg = (struct ipi_arg_ex **)this_cpu_ptr(hyperv_pcpu_input_arg);
+	arg = (struct hv_send_ipi_ex **)this_cpu_ptr(hyperv_pcpu_input_arg);
 
 	ipi_arg = *arg;
 	if (unlikely(!ipi_arg))
@@ -114,6 +119,8 @@ static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector)
 		ipi_arg->vp_set.format = HV_GENERIC_SET_SPARSE_4K;
 		nr_bank = cpumask_to_vpset(&(ipi_arg->vp_set), mask);
 	}
+	if (nr_bank < 0)
+		goto ipi_mask_ex_done;
 	if (!nr_bank)
 		ipi_arg->vp_set.format = HV_GENERIC_SET_ALL;
 
@@ -128,10 +135,10 @@ ipi_mask_ex_done:
 static bool __send_ipi_mask(const struct cpumask *mask, int vector)
 {
 	int cur_cpu, vcpu;
-	struct ipi_arg_non_ex **arg;
-	struct ipi_arg_non_ex *ipi_arg;
+	struct hv_send_ipi ipi_arg;
 	int ret = 1;
-	unsigned long flags;
+
+	trace_hyperv_send_ipi_mask(mask, vector);
 
 	if (cpumask_empty(mask))
 		return true;
@@ -142,37 +149,43 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector)
 	if ((vector < HV_IPI_LOW_VECTOR) || (vector > HV_IPI_HIGH_VECTOR))
 		return false;
 
-	if ((ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED))
-		return __send_ipi_mask_ex(mask, vector);
+	/*
+	 * From the supplied CPU set we need to figure out if we can get away
+	 * with cheaper HVCALL_SEND_IPI hypercall. This is possible when the
+	 * highest VP number in the set is < 64. As VP numbers are usually in
+	 * ascending order and match Linux CPU ids, here is an optimization:
+	 * we check the VP number for the highest bit in the supplied set first
+	 * so we can quickly find out if using HVCALL_SEND_IPI_EX hypercall is
+	 * a must. We will also check all VP numbers when walking the supplied
+	 * CPU set to remain correct in all cases.
+	 */
+	if (hv_cpu_number_to_vp_number(cpumask_last(mask)) >= 64)
+		goto do_ex_hypercall;
 
-	local_irq_save(flags);
-	arg = (struct ipi_arg_non_ex **)this_cpu_ptr(hyperv_pcpu_input_arg);
-
-	ipi_arg = *arg;
-	if (unlikely(!ipi_arg))
-		goto ipi_mask_done;
-
-	ipi_arg->vector = vector;
-	ipi_arg->reserved = 0;
-	ipi_arg->cpu_mask = 0;
+	ipi_arg.vector = vector;
+	ipi_arg.cpu_mask = 0;
 
 	for_each_cpu(cur_cpu, mask) {
 		vcpu = hv_cpu_number_to_vp_number(cur_cpu);
+		if (vcpu == VP_INVAL)
+			return false;
+
 		/*
 		 * This particular version of the IPI hypercall can
 		 * only target upto 64 CPUs.
 		 */
 		if (vcpu >= 64)
-			goto ipi_mask_done;
+			goto do_ex_hypercall;
 
-		__set_bit(vcpu, (unsigned long *)&ipi_arg->cpu_mask);
+		__set_bit(vcpu, (unsigned long *)&ipi_arg.cpu_mask);
 	}
 
-	ret = hv_do_hypercall(HVCALL_SEND_IPI, ipi_arg, NULL);
-
-ipi_mask_done:
-	local_irq_restore(flags);
+	ret = hv_do_fast_hypercall16(HVCALL_SEND_IPI, ipi_arg.vector,
+				     ipi_arg.cpu_mask);
 	return ((ret == 0) ? true : false);
+
+do_ex_hypercall:
+	return __send_ipi_mask_ex(mask, vector);
 }
 
 static bool __send_ipi_one(int cpu, int vector)
@@ -228,10 +241,7 @@ static void hv_send_ipi_self(int vector)
 void __init hv_apic_init(void)
 {
 	if (ms_hyperv.hints & HV_X64_CLUSTER_IPI_RECOMMENDED) {
-		if ((ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED))
-			pr_info("Hyper-V: Using ext hypercalls for IPI\n");
-		else
-			pr_info("Hyper-V: Using IPI hypercalls\n");
+		pr_info("Hyper-V: Using IPI hypercalls\n");
 		/*
 		 * Set the IPI entry points.
 		 */

@@ -91,19 +91,19 @@
 
 		blue {
 			label = "bpi-r2:pio:blue";
-			gpios = <&pio 241 GPIO_ACTIVE_HIGH>;
+			gpios = <&pio 240 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		green {
 			label = "bpi-r2:pio:green";
-			gpios = <&pio 240 GPIO_ACTIVE_HIGH>;
+			gpios = <&pio 241 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		red {
 			label = "bpi-r2:pio:red";
-			gpios = <&pio 239 GPIO_ACTIVE_HIGH>;
+			gpios = <&pio 239 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 	};

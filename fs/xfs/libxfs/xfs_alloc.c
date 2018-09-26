@@ -223,11 +223,12 @@ xfs_alloc_get_rec(
 	error = xfs_btree_get_rec(cur, &rec, stat);
 	if (error || !(*stat))
 		return error;
-	if (rec->alloc.ar_blockcount == 0)
-		goto out_bad_rec;
 
 	*bno = be32_to_cpu(rec->alloc.ar_startblock);
 	*len = be32_to_cpu(rec->alloc.ar_blockcount);
+
+	if (*len == 0)
+		goto out_bad_rec;
 
 	/* check for valid extent range, including overflow */
 	if (!xfs_verify_agbno(mp, agno, *bno))
@@ -2197,12 +2198,12 @@ xfs_agfl_reset(
  */
 STATIC void
 xfs_defer_agfl_block(
-	struct xfs_mount		*mp,
-	struct xfs_defer_ops		*dfops,
+	struct xfs_trans		*tp,
 	xfs_agnumber_t			agno,
 	xfs_fsblock_t			agbno,
 	struct xfs_owner_info		*oinfo)
 {
+	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_extent_free_item	*new;		/* new element */
 
 	ASSERT(xfs_bmap_free_item_zone != NULL);
@@ -2215,7 +2216,7 @@ xfs_defer_agfl_block(
 
 	trace_xfs_agfl_free_defer(mp, agno, 0, agbno, 1);
 
-	xfs_defer_add(dfops, XFS_DEFER_OPS_TYPE_AGFL_FREE, &new->xefi_list);
+	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_AGFL_FREE, &new->xefi_list);
 }
 
 /*
@@ -2322,16 +2323,8 @@ xfs_alloc_fix_freelist(
 		if (error)
 			goto out_agbp_relse;
 
-		/* defer agfl frees if dfops is provided */
-		if (tp->t_agfl_dfops) {
-			xfs_defer_agfl_block(mp, tp->t_agfl_dfops, args->agno,
-					     bno, &targs.oinfo);
-		} else {
-			error = xfs_free_agfl_block(tp, args->agno, bno, agbp,
-						    &targs.oinfo);
-			if (error)
-				goto out_agbp_relse;
-		}
+		/* defer agfl frees */
+		xfs_defer_agfl_block(tp, args->agno, bno, &targs.oinfo);
 	}
 
 	targs.tp = tp;
@@ -2754,9 +2747,6 @@ xfs_alloc_read_agf(
 		pag->pagf_levels[XFS_BTNUM_RMAPi] =
 			be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAPi]);
 		pag->pagf_refcount_level = be32_to_cpu(agf->agf_refcount_level);
-		spin_lock_init(&pag->pagb_lock);
-		pag->pagb_count = 0;
-		pag->pagb_tree = RB_ROOT;
 		pag->pagf_init = 1;
 		pag->pagf_agflreset = xfs_agfl_needs_reset(mp, agf);
 	}
@@ -2783,16 +2773,16 @@ xfs_alloc_read_agf(
  */
 int				/* error */
 xfs_alloc_vextent(
-	xfs_alloc_arg_t	*args)	/* allocation argument structure */
+	struct xfs_alloc_arg	*args)	/* allocation argument structure */
 {
-	xfs_agblock_t	agsize;	/* allocation group size */
-	int		error;
-	int		flags;	/* XFS_ALLOC_FLAG_... locking flags */
-	xfs_mount_t	*mp;	/* mount structure pointer */
-	xfs_agnumber_t	sagno;	/* starting allocation group number */
-	xfs_alloctype_t	type;	/* input allocation type */
-	int		bump_rotor = 0;
-	xfs_agnumber_t	rotorstep = xfs_rotorstep; /* inode32 agf stepper */
+	xfs_agblock_t		agsize;	/* allocation group size */
+	int			error;
+	int			flags;	/* XFS_ALLOC_FLAG_... locking flags */
+	struct xfs_mount	*mp;	/* mount structure pointer */
+	xfs_agnumber_t		sagno;	/* starting allocation group number */
+	xfs_alloctype_t		type;	/* input allocation type */
+	int			bump_rotor = 0;
+	xfs_agnumber_t		rotorstep = xfs_rotorstep; /* inode32 agf stepper */
 
 	mp = args->mp;
 	type = args->otype = args->type;
@@ -2913,7 +2903,7 @@ xfs_alloc_vextent(
 			* locking of AGF, which might cause deadlock.
 			*/
 			if (++(args->agno) == mp->m_sb.sb_agcount) {
-				if (args->firstblock != NULLFSBLOCK)
+				if (args->tp->t_firstblock != NULLFSBLOCK)
 					args->agno = sagno;
 				else
 					args->agno = 0;

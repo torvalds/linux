@@ -328,7 +328,7 @@ struct sock *__inet_lookup_listener(struct net *net,
 				    saddr, sport, daddr, hnum,
 				    dif, sdif);
 	if (result)
-		return result;
+		goto done;
 
 	/* Lookup lhash2 with INADDR_ANY */
 
@@ -337,9 +337,10 @@ struct sock *__inet_lookup_listener(struct net *net,
 	if (ilb2->count > ilb->count)
 		goto port_lookup;
 
-	return inet_lhash2_lookup(net, ilb2, skb, doff,
-				  saddr, sport, daddr, hnum,
-				  dif, sdif);
+	result = inet_lhash2_lookup(net, ilb2, skb, doff,
+				    saddr, sport, daddr, hnum,
+				    dif, sdif);
+	goto done;
 
 port_lookup:
 	sk_for_each_rcu(sk, &ilb->head) {
@@ -352,12 +353,15 @@ port_lookup:
 				result = reuseport_select_sock(sk, phash,
 							       skb, doff);
 				if (result)
-					return result;
+					goto done;
 			}
 			result = sk;
 			hiscore = score;
 		}
 	}
+done:
+	if (unlikely(IS_ERR(result)))
+		return NULL;
 	return result;
 }
 EXPORT_SYMBOL_GPL(__inet_lookup_listener);
@@ -567,10 +571,11 @@ static int inet_reuseport_add_sock(struct sock *sk,
 		    inet_csk(sk2)->icsk_bind_hash == tb &&
 		    sk2->sk_reuseport && uid_eq(uid, sock_i_uid(sk2)) &&
 		    inet_rcv_saddr_equal(sk, sk2, false))
-			return reuseport_add_sock(sk, sk2);
+			return reuseport_add_sock(sk, sk2,
+						  inet_rcv_saddr_any(sk));
 	}
 
-	return reuseport_alloc(sk);
+	return reuseport_alloc(sk, inet_rcv_saddr_any(sk));
 }
 
 int __inet_hash(struct sock *sk, struct sock *osk)

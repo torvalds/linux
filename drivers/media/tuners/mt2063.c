@@ -2200,10 +2200,9 @@ static int mt2063_get_bandwidth(struct dvb_frontend *fe, u32 *bw)
 static const struct dvb_tuner_ops mt2063_ops = {
 	.info = {
 		 .name = "MT2063 Silicon Tuner",
-		 .frequency_min = 45000000,
-		 .frequency_max = 865000000,
-		 .frequency_step = 0,
-		 },
+		 .frequency_min_hz  =  45 * MHz,
+		 .frequency_max_hz  = 865 * MHz,
+	 },
 
 	.init = mt2063_init,
 	.sleep = MT2063_Sleep,

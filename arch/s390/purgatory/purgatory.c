@@ -12,15 +12,6 @@
 #include <linux/string.h>
 #include <asm/purgatory.h>
 
-struct kexec_sha_region purgatory_sha_regions[KEXEC_SEGMENT_MAX];
-u8 purgatory_sha256_digest[SHA256_DIGEST_SIZE];
-
-u64 kernel_entry;
-u64 kernel_type;
-
-u64 crash_start;
-u64 crash_size;
-
 int verify_sha256_digest(void)
 {
 	struct kexec_sha_region *ptr, *end;

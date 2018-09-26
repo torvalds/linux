@@ -328,60 +328,70 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		case AMDGPU_HW_IP_GFX:
 			type = AMD_IP_BLOCK_TYPE_GFX;
 			for (i = 0; i < adev->gfx.num_gfx_rings; i++)
-				ring_mask |= ((adev->gfx.gfx_ring[i].ready ? 1 : 0) << i);
-			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
-			ib_size_alignment = 8;
+				ring_mask |= adev->gfx.gfx_ring[i].ready << i;
+			ib_start_alignment = 32;
+			ib_size_alignment = 32;
 			break;
 		case AMDGPU_HW_IP_COMPUTE:
 			type = AMD_IP_BLOCK_TYPE_GFX;
 			for (i = 0; i < adev->gfx.num_compute_rings; i++)
-				ring_mask |= ((adev->gfx.compute_ring[i].ready ? 1 : 0) << i);
-			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
-			ib_size_alignment = 8;
+				ring_mask |= adev->gfx.compute_ring[i].ready << i;
+			ib_start_alignment = 32;
+			ib_size_alignment = 32;
 			break;
 		case AMDGPU_HW_IP_DMA:
 			type = AMD_IP_BLOCK_TYPE_SDMA;
 			for (i = 0; i < adev->sdma.num_instances; i++)
-				ring_mask |= ((adev->sdma.instance[i].ring.ready ? 1 : 0) << i);
-			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
-			ib_size_alignment = 1;
+				ring_mask |= adev->sdma.instance[i].ring.ready << i;
+			ib_start_alignment = 256;
+			ib_size_alignment = 4;
 			break;
 		case AMDGPU_HW_IP_UVD:
 			type = AMD_IP_BLOCK_TYPE_UVD;
-			for (i = 0; i < adev->uvd.num_uvd_inst; i++)
-				ring_mask |= ((adev->uvd.inst[i].ring.ready ? 1 : 0) << i);
-			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
-			ib_size_alignment = 16;
+			for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
+				if (adev->uvd.harvest_config & (1 << i))
+					continue;
+				ring_mask |= adev->uvd.inst[i].ring.ready;
+			}
+			ib_start_alignment = 64;
+			ib_size_alignment = 64;
 			break;
 		case AMDGPU_HW_IP_VCE:
 			type = AMD_IP_BLOCK_TYPE_VCE;
 			for (i = 0; i < adev->vce.num_rings; i++)
-				ring_mask |= ((adev->vce.ring[i].ready ? 1 : 0) << i);
-			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
+				ring_mask |= adev->vce.ring[i].ready << i;
+			ib_start_alignment = 4;
 			ib_size_alignment = 1;
 			break;
 		case AMDGPU_HW_IP_UVD_ENC:
 			type = AMD_IP_BLOCK_TYPE_UVD;
-			for (i = 0; i < adev->uvd.num_uvd_inst; i++)
+			for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
+				if (adev->uvd.harvest_config & (1 << i))
+					continue;
 				for (j = 0; j < adev->uvd.num_enc_rings; j++)
-					ring_mask |=
-					((adev->uvd.inst[i].ring_enc[j].ready ? 1 : 0) <<
-					(j + i * adev->uvd.num_enc_rings));
-			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
-			ib_size_alignment = 1;
+					ring_mask |= adev->uvd.inst[i].ring_enc[j].ready << j;
+			}
+			ib_start_alignment = 64;
+			ib_size_alignment = 64;
 			break;
 		case AMDGPU_HW_IP_VCN_DEC:
 			type = AMD_IP_BLOCK_TYPE_VCN;
-			ring_mask = adev->vcn.ring_dec.ready ? 1 : 0;
-			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
+			ring_mask = adev->vcn.ring_dec.ready;
+			ib_start_alignment = 16;
 			ib_size_alignment = 16;
 			break;
 		case AMDGPU_HW_IP_VCN_ENC:
 			type = AMD_IP_BLOCK_TYPE_VCN;
 			for (i = 0; i < adev->vcn.num_enc_rings; i++)
-				ring_mask |= ((adev->vcn.ring_enc[i].ready ? 1 : 0) << i);
-			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
+				ring_mask |= adev->vcn.ring_enc[i].ready << i;
+			ib_start_alignment = 64;
 			ib_size_alignment = 1;
+			break;
+		case AMDGPU_HW_IP_VCN_JPEG:
+			type = AMD_IP_BLOCK_TYPE_VCN;
+			ring_mask = adev->vcn.ring_jpeg.ready;
+			ib_start_alignment = 16;
+			ib_size_alignment = 16;
 			break;
 		default:
 			return -EINVAL;
@@ -427,6 +437,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_HW_IP_VCN_DEC:
 		case AMDGPU_HW_IP_VCN_ENC:
+		case AMDGPU_HW_IP_VCN_JPEG:
 			type = AMD_IP_BLOCK_TYPE_VCN;
 			break;
 		default:
@@ -494,13 +505,13 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	case AMDGPU_INFO_VRAM_GTT: {
 		struct drm_amdgpu_info_vram_gtt vram_gtt;
 
-		vram_gtt.vram_size = adev->gmc.real_vram_size;
-		vram_gtt.vram_size -= adev->vram_pin_size;
-		vram_gtt.vram_cpu_accessible_size = adev->gmc.visible_vram_size;
-		vram_gtt.vram_cpu_accessible_size -= (adev->vram_pin_size - adev->invisible_pin_size);
+		vram_gtt.vram_size = adev->gmc.real_vram_size -
+			atomic64_read(&adev->vram_pin_size);
+		vram_gtt.vram_cpu_accessible_size = adev->gmc.visible_vram_size -
+			atomic64_read(&adev->visible_pin_size);
 		vram_gtt.gtt_size = adev->mman.bdev.man[TTM_PL_TT].size;
 		vram_gtt.gtt_size *= PAGE_SIZE;
-		vram_gtt.gtt_size -= adev->gart_pin_size;
+		vram_gtt.gtt_size -= atomic64_read(&adev->gart_pin_size);
 		return copy_to_user(out, &vram_gtt,
 				    min((size_t)size, sizeof(vram_gtt))) ? -EFAULT : 0;
 	}
@@ -509,17 +520,16 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 		memset(&mem, 0, sizeof(mem));
 		mem.vram.total_heap_size = adev->gmc.real_vram_size;
-		mem.vram.usable_heap_size =
-			adev->gmc.real_vram_size - adev->vram_pin_size;
+		mem.vram.usable_heap_size = adev->gmc.real_vram_size -
+			atomic64_read(&adev->vram_pin_size);
 		mem.vram.heap_usage =
 			amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		mem.vram.max_allocation = mem.vram.usable_heap_size * 3 / 4;
 
 		mem.cpu_accessible_vram.total_heap_size =
 			adev->gmc.visible_vram_size;
-		mem.cpu_accessible_vram.usable_heap_size =
-			adev->gmc.visible_vram_size -
-			(adev->vram_pin_size - adev->invisible_pin_size);
+		mem.cpu_accessible_vram.usable_heap_size = adev->gmc.visible_vram_size -
+			atomic64_read(&adev->visible_pin_size);
 		mem.cpu_accessible_vram.heap_usage =
 			amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		mem.cpu_accessible_vram.max_allocation =
@@ -527,8 +537,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 		mem.gtt.total_heap_size = adev->mman.bdev.man[TTM_PL_TT].size;
 		mem.gtt.total_heap_size *= PAGE_SIZE;
-		mem.gtt.usable_heap_size = mem.gtt.total_heap_size
-			- adev->gart_pin_size;
+		mem.gtt.usable_heap_size = mem.gtt.total_heap_size -
+			atomic64_read(&adev->gart_pin_size);
 		mem.gtt.heap_usage =
 			amdgpu_gtt_mgr_usage(&adev->mman.bdev.man[TTM_PL_TT]);
 		mem.gtt.max_allocation = mem.gtt.usable_heap_size * 3 / 4;
@@ -930,7 +940,6 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 		return;
 
 	pm_runtime_get_sync(dev->dev);
-	amdgpu_ctx_mgr_entity_fini(&fpriv->ctx_mgr);
 
 	if (adev->asic_type != CHIP_RAVEN) {
 		amdgpu_uvd_free_handles(adev, file_priv);
@@ -958,7 +967,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	amdgpu_bo_unref(&pd);
 
 	idr_for_each_entry(&fpriv->bo_list_handles, list, handle)
-		amdgpu_bo_list_free(list);
+		amdgpu_bo_list_put(list);
 
 	idr_destroy(&fpriv->bo_list_handles);
 	mutex_destroy(&fpriv->bo_list_lock);

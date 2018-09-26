@@ -209,12 +209,17 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 	struct sock *sk = skb->sk;
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct flowi6 *fl6 = &transport->fl.u.ip6;
+	__u8 tclass = np->tclass;
 	int res;
 
 	pr_debug("%s: skb:%p, len:%d, src:%pI6 dst:%pI6\n", __func__, skb,
 		 skb->len, &fl6->saddr, &fl6->daddr);
 
-	IP6_ECN_flow_xmit(sk, fl6->flowlabel);
+	if (transport->dscp & SCTP_DSCP_SET_MASK)
+		tclass = transport->dscp & SCTP_DSCP_VAL_MASK;
+
+	if (INET_ECN_is_capable(tclass))
+		IP6_ECN_flow_xmit(sk, fl6->flowlabel);
 
 	if (!(transport->param_flags & SPP_PMTUD_ENABLE))
 		skb->ignore_df = 1;
@@ -223,7 +228,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 
 	rcu_read_lock();
 	res = ip6_xmit(sk, skb, fl6, sk->sk_mark, rcu_dereference(np->opt),
-		       np->tclass);
+		       tclass);
 	rcu_read_unlock();
 	return res;
 }
@@ -254,6 +259,17 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		fl6->flowi6_oif = daddr->v6.sin6_scope_id;
 	else if (asoc)
 		fl6->flowi6_oif = asoc->base.sk->sk_bound_dev_if;
+	if (t->flowlabel & SCTP_FLOWLABEL_SET_MASK)
+		fl6->flowlabel = htonl(t->flowlabel & SCTP_FLOWLABEL_VAL_MASK);
+
+	if (np->sndflow && (fl6->flowlabel & IPV6_FLOWLABEL_MASK)) {
+		struct ip6_flowlabel *flowlabel;
+
+		flowlabel = fl6_sock_lookup(sk, fl6->flowlabel);
+		if (!flowlabel)
+			goto out;
+		fl6_sock_release(flowlabel);
+	}
 
 	pr_debug("%s: dst=%pI6 ", __func__, &fl6->daddr);
 
@@ -1010,7 +1026,7 @@ static const struct proto_ops inet6_seqpacket_ops = {
 	.socketpair	   = sock_no_socketpair,
 	.accept		   = inet_accept,
 	.getname	   = sctp_getname,
-	.poll_mask	   = sctp_poll_mask,
+	.poll		   = sctp_poll,
 	.ioctl		   = inet6_ioctl,
 	.listen		   = sctp_inet_listen,
 	.shutdown	   = inet_shutdown,

@@ -18,7 +18,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <linux/platform_data/mtd-orion_nand.h>
 
 struct orion_nand_info {
@@ -52,7 +52,7 @@ static void orion_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	void __iomem *io_base = chip->IO_ADDR_R;
-#if __LINUX_ARM_ARCH__ >= 5
+#if defined(__LINUX_ARM_ARCH__) && __LINUX_ARM_ARCH__ >= 5
 	uint64_t *buf64;
 #endif
 	int i = 0;
@@ -61,7 +61,7 @@ static void orion_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 		*buf++ = readb(io_base);
 		len--;
 	}
-#if __LINUX_ARM_ARCH__ >= 5
+#if defined(__LINUX_ARM_ARCH__) && __LINUX_ARM_ARCH__ >= 5
 	buf64 = (uint64_t *)buf;
 	while (i < len/8) {
 		/*
@@ -152,9 +152,6 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	if (board->width == 16)
 		nc->options |= NAND_BUSWIDTH_16;
-
-	if (board->dev_ready)
-		nc->dev_ready = board->dev_ready;
 
 	platform_set_drvdata(pdev, info);
 

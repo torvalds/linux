@@ -166,6 +166,8 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 	struct intel_connector *connector =
 		to_intel_connector(old_conn_state->connector);
 
+	intel_ddi_disable_pipe_clock(old_crtc_state);
+
 	/* this can fail */
 	drm_dp_check_act_status(&intel_dp->mst_mgr);
 	/* and this can also fail */
@@ -252,6 +254,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	I915_WRITE(DP_TP_STATUS(port), temp);
 
 	ret = drm_dp_update_payload_part1(&intel_dp->mst_mgr);
+
+	intel_ddi_enable_pipe_clock(pipe_config);
 }
 
 static void intel_mst_enable_dp(struct intel_encoder *encoder,
@@ -403,20 +407,10 @@ static struct drm_encoder *intel_mst_atomic_best_encoder(struct drm_connector *c
 	return &intel_dp->mst_encoders[crtc->pipe]->base.base;
 }
 
-static struct drm_encoder *intel_mst_best_encoder(struct drm_connector *connector)
-{
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_dp *intel_dp = intel_connector->mst_port;
-	if (!intel_dp)
-		return NULL;
-	return &intel_dp->mst_encoders[0]->base.base;
-}
-
 static const struct drm_connector_helper_funcs intel_dp_mst_connector_helper_funcs = {
 	.get_modes = intel_dp_mst_get_modes,
 	.mode_valid = intel_dp_mst_mode_valid,
 	.atomic_best_encoder = intel_mst_atomic_best_encoder,
-	.best_encoder = intel_mst_best_encoder,
 	.atomic_check = intel_dp_mst_atomic_check,
 };
 
@@ -476,8 +470,7 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 		struct drm_encoder *enc =
 			&intel_dp->mst_encoders[pipe]->base.base;
 
-		ret = drm_mode_connector_attach_encoder(&intel_connector->base,
-							enc);
+		ret = drm_connector_attach_encoder(&intel_connector->base, enc);
 		if (ret)
 			goto err;
 	}
@@ -485,7 +478,7 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	drm_object_attach_property(&connector->base, dev->mode_config.path_property, 0);
 	drm_object_attach_property(&connector->base, dev->mode_config.tile_property, 0);
 
-	ret = drm_mode_connector_set_path_property(connector, pathprop);
+	ret = drm_connector_set_path_property(connector, pathprop);
 	if (ret)
 		goto err;
 
@@ -524,7 +517,7 @@ static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	intel_connector->mst_port = NULL;
 	drm_modeset_unlock(&connector->dev->mode_config.connection_mutex);
 
-	drm_connector_unreference(connector);
+	drm_connector_put(connector);
 }
 
 static void intel_dp_mst_hotplug(struct drm_dp_mst_topology_mgr *mgr)

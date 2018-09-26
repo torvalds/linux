@@ -1,36 +1,5 @@
-/*
- * drivers/net/ethernet/mellanox/mlxsw/resources.h
- * Copyright (c) 2016-2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016-2017 Jiri Pirko <jiri@mellanox.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
+/* Copyright (c) 2016-2018 Mellanox Technologies. All rights reserved */
 
 #ifndef _MLXSW_RESOURCES_H
 #define _MLXSW_RESOURCES_H
@@ -42,6 +11,8 @@ enum mlxsw_res_id {
 	MLXSW_RES_ID_KVD_SIZE,
 	MLXSW_RES_ID_KVD_SINGLE_MIN_SIZE,
 	MLXSW_RES_ID_KVD_DOUBLE_MIN_SIZE,
+	MLXSW_RES_ID_MAX_KVD_LINEAR_RANGE,
+	MLXSW_RES_ID_MAX_KVD_ACTION_SETS,
 	MLXSW_RES_ID_MAX_TRAP_GROUPS,
 	MLXSW_RES_ID_CQE_V0,
 	MLXSW_RES_ID_CQE_V1,
@@ -63,6 +34,13 @@ enum mlxsw_res_id {
 	MLXSW_RES_ID_ACL_FLEX_KEYS,
 	MLXSW_RES_ID_ACL_MAX_ACTION_PER_RULE,
 	MLXSW_RES_ID_ACL_ACTIONS_PER_SET,
+	MLXSW_RES_ID_ACL_MAX_ERPT_BANKS,
+	MLXSW_RES_ID_ACL_MAX_ERPT_BANK_SIZE,
+	MLXSW_RES_ID_ACL_MAX_LARGE_KEY_ID,
+	MLXSW_RES_ID_ACL_ERPT_ENTRIES_2KB,
+	MLXSW_RES_ID_ACL_ERPT_ENTRIES_4KB,
+	MLXSW_RES_ID_ACL_ERPT_ENTRIES_8KB,
+	MLXSW_RES_ID_ACL_ERPT_ENTRIES_12KB,
 	MLXSW_RES_ID_MAX_CPU_POLICERS,
 	MLXSW_RES_ID_MAX_VRS,
 	MLXSW_RES_ID_MAX_RIFS,
@@ -83,6 +61,8 @@ static u16 mlxsw_res_ids[] = {
 	[MLXSW_RES_ID_KVD_SIZE] = 0x1001,
 	[MLXSW_RES_ID_KVD_SINGLE_MIN_SIZE] = 0x1002,
 	[MLXSW_RES_ID_KVD_DOUBLE_MIN_SIZE] = 0x1003,
+	[MLXSW_RES_ID_MAX_KVD_LINEAR_RANGE] = 0x1005,
+	[MLXSW_RES_ID_MAX_KVD_ACTION_SETS] = 0x1007,
 	[MLXSW_RES_ID_MAX_TRAP_GROUPS] = 0x2201,
 	[MLXSW_RES_ID_CQE_V0] = 0x2210,
 	[MLXSW_RES_ID_CQE_V1] = 0x2211,
@@ -104,6 +84,13 @@ static u16 mlxsw_res_ids[] = {
 	[MLXSW_RES_ID_ACL_FLEX_KEYS] = 0x2910,
 	[MLXSW_RES_ID_ACL_MAX_ACTION_PER_RULE] = 0x2911,
 	[MLXSW_RES_ID_ACL_ACTIONS_PER_SET] = 0x2912,
+	[MLXSW_RES_ID_ACL_MAX_ERPT_BANKS] = 0x2940,
+	[MLXSW_RES_ID_ACL_MAX_ERPT_BANK_SIZE] = 0x2941,
+	[MLXSW_RES_ID_ACL_MAX_LARGE_KEY_ID] = 0x2942,
+	[MLXSW_RES_ID_ACL_ERPT_ENTRIES_2KB] = 0x2950,
+	[MLXSW_RES_ID_ACL_ERPT_ENTRIES_4KB] = 0x2951,
+	[MLXSW_RES_ID_ACL_ERPT_ENTRIES_8KB] = 0x2952,
+	[MLXSW_RES_ID_ACL_ERPT_ENTRIES_12KB] = 0x2953,
 	[MLXSW_RES_ID_MAX_CPU_POLICERS] = 0x2A13,
 	[MLXSW_RES_ID_MAX_VRS] = 0x2C01,
 	[MLXSW_RES_ID_MAX_RIFS] = 0x2C02,

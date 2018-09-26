@@ -145,10 +145,10 @@ static bool dpp_get_optimal_number_of_taps(
 		pixel_width = scl_data->viewport.width;
 
 	/* Some ASICs does not support  FP16 scaling, so we reject modes require this*/
-	if (scl_data->viewport.width  != scl_data->h_active &&
-		scl_data->viewport.height != scl_data->v_active &&
+	if (scl_data->format == PIXEL_FORMAT_FP16 &&
 		dpp->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT &&
-		scl_data->format == PIXEL_FORMAT_FP16)
+		scl_data->ratios.horz.value != dc_fixpt_one.value &&
+		scl_data->ratios.vert.value != dc_fixpt_one.value)
 		return false;
 
 	if (scl_data->viewport.width > scl_data->h_active &&
@@ -445,10 +445,10 @@ void dpp1_set_cursor_position(
 		uint32_t width)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
-	int src_x_offset = pos->x - pos->x_hotspot - param->viewport_x_start;
+	int src_x_offset = pos->x - pos->x_hotspot - param->viewport.x;
 	uint32_t cur_en = pos->enable ? 1 : 0;
 
-	if (src_x_offset >= (int)param->viewport_width)
+	if (src_x_offset >= (int)param->viewport.width)
 		cur_en = 0;  /* not visible beyond right edge*/
 
 	if (src_x_offset + (int)width <= 0)
@@ -457,6 +457,18 @@ void dpp1_set_cursor_position(
 	REG_UPDATE(CURSOR0_CONTROL,
 			CUR0_ENABLE, cur_en);
 
+}
+
+void dpp1_cnv_set_optional_cursor_attributes(
+		struct dpp *dpp_base,
+		struct dpp_cursor_attributes *attr)
+{
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
+	if (attr) {
+		REG_UPDATE(CURSOR0_FP_SCALE_BIAS,  CUR0_FP_BIAS,  attr->bias);
+		REG_UPDATE(CURSOR0_FP_SCALE_BIAS,  CUR0_FP_SCALE, attr->scale);
+	}
 }
 
 void dpp1_dppclk_control(
@@ -499,6 +511,7 @@ static const struct dpp_funcs dcn10_dpp_funcs = {
 		.dpp_full_bypass		= dpp1_full_bypass,
 		.set_cursor_attributes = dpp1_set_cursor_attributes,
 		.set_cursor_position = dpp1_set_cursor_position,
+		.set_optional_cursor_attributes = dpp1_cnv_set_optional_cursor_attributes,
 		.dpp_dppclk_control = dpp1_dppclk_control,
 		.dpp_set_hdr_multiplier = dpp1_set_hdr_multiplier,
 };

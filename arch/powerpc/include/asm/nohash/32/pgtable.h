@@ -8,7 +8,8 @@
 #ifndef __ASSEMBLY__
 #include <linux/sched.h>
 #include <linux/threads.h>
-#include <asm/io.h>			/* For sub-arch specific PPC_PIN_SIZE */
+#include <asm/mmu.h>			/* For sub-arch specific PPC_PIN_SIZE */
+#include <asm/asm-405.h>
 
 extern unsigned long ioremap_bot;
 
@@ -222,10 +223,6 @@ static inline unsigned long long pte_update(pte_t *p,
 }
 #endif /* CONFIG_PTE_64BIT */
 
-/*
- * 2.6 calls this without flushing the TLB entry; this is wrong
- * for our hash-based implementation, we fix that up here.
- */
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 static inline int __ptep_test_and_clear_young(unsigned int context, unsigned long addr, pte_t *ptep)
 {

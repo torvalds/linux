@@ -48,6 +48,8 @@
 #define PCI_DEVICE_ID_INTEL_CNP_EMMC	0x9dc4
 #define PCI_DEVICE_ID_INTEL_CNP_SD	0x9df5
 #define PCI_DEVICE_ID_INTEL_CNPH_SD	0xa375
+#define PCI_DEVICE_ID_INTEL_ICP_EMMC	0x34c4
+#define PCI_DEVICE_ID_INTEL_ICP_SD	0x34f8
 
 #define PCI_DEVICE_ID_SYSKONNECT_8000	0x8000
 #define PCI_DEVICE_ID_VIA_95D0		0x95d0
@@ -58,6 +60,8 @@
 
 #define PCI_VENDOR_ID_ARASAN		0x16e6
 #define PCI_DEVICE_ID_ARASAN_PHY_EMMC	0x0670
+
+#define PCI_DEVICE_ID_SYNOPSYS_DWC_MSHC 0xc202
 
 /*
  * PCI device class and mask
@@ -182,5 +186,6 @@ int sdhci_pci_o2_resume(struct sdhci_pci_chip *chip);
 #endif
 
 extern const struct sdhci_pci_fixes sdhci_arasan;
+extern const struct sdhci_pci_fixes sdhci_snps;
 
 #endif /* __SDHCI_PCI_H */

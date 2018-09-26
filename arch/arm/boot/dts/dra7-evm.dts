@@ -106,11 +106,6 @@
 		enable-active-high;
 	};
 
-	extcon_usb2: extcon_usb2 {
-		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&pcf_gpio_21 2 GPIO_ACTIVE_HIGH>;
-	};
-
 	vtt_fixed: fixedregulator-vtt {
 		compatible = "regulator-fixed";
 		regulator-name = "vtt_fixed";
@@ -404,10 +399,6 @@
 
 &cpu0 {
 	vdd-supply = <&smps123_reg>;
-};
-
-&omap_dwc3_2 {
-	extcon = <&extcon_usb2>;
 };
 
 &elm {

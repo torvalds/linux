@@ -1449,7 +1449,7 @@ static void batadv_bla_periodic_work(struct work_struct *work)
 		 * detection frames. Set the locally administered bit to avoid
 		 * collisions with users mac addresses.
 		 */
-		random_ether_addr(bat_priv->bla.loopdetect_addr);
+		eth_random_addr(bat_priv->bla.loopdetect_addr);
 		bat_priv->bla.loopdetect_addr[0] = 0xba;
 		bat_priv->bla.loopdetect_addr[1] = 0xbe;
 		bat_priv->bla.loopdetect_lasttime = jiffies;

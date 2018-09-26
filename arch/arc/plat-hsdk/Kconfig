@@ -7,5 +7,8 @@
 
 menuconfig ARC_SOC_HSDK
 	bool "ARC HS Development Kit SOC"
+	depends on ISA_ARCV2
+	select ARC_HAS_ACCL_REGS
 	select CLK_HSDK
 	select RESET_HSDK
+	select MIGHT_HAVE_PCI

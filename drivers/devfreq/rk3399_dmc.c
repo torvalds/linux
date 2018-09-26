@@ -68,15 +68,6 @@ struct rk3399_dmcfreq {
 	struct devfreq_event_dev *edev;
 	struct mutex lock;
 	struct dram_timing timing;
-
-	/*
-	 * DDR Converser of Frequency (DCF) is used to implement DDR frequency
-	 * conversion without the participation of CPU, we will implement and
-	 * control it in arm trust firmware.
-	 */
-	wait_queue_head_t	wait_dcf_queue;
-	int irq;
-	int wait_dcf_flag;
 	struct regulator *vdd_center;
 	unsigned long rate, target_rate;
 	unsigned long volt, target_volt;
@@ -112,29 +103,20 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    target_volt);
 		if (err) {
-			dev_err(dev, "Cannot to set voltage %lu uV\n",
+			dev_err(dev, "Cannot set voltage %lu uV\n",
 				target_volt);
 			goto out;
 		}
 	}
-	dmcfreq->wait_dcf_flag = 1;
 
 	err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
 	if (err) {
-		dev_err(dev, "Cannot to set frequency %lu (%d)\n",
-			target_rate, err);
+		dev_err(dev, "Cannot set frequency %lu (%d)\n", target_rate,
+			err);
 		regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt,
 				      dmcfreq->volt);
 		goto out;
 	}
-
-	/*
-	 * Wait until bcf irq happen, it means freq scaling finish in
-	 * arm trust firmware, use 100ms as timeout time.
-	 */
-	if (!wait_event_timeout(dmcfreq->wait_dcf_queue,
-				!dmcfreq->wait_dcf_flag, HZ / 10))
-		dev_warn(dev, "Timeout waiting for dcf interrupt\n");
 
 	/*
 	 * Check the dpll rate,
@@ -146,8 +128,8 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 
 	/* If get the incorrect rate, set voltage to old value. */
 	if (dmcfreq->rate != target_rate) {
-		dev_err(dev, "Get wrong ddr frequency, Request frequency %lu,\
-			Current frequency %lu\n", target_rate, dmcfreq->rate);
+		dev_err(dev, "Got wrong frequency, Request %lu, Current %lu\n",
+			target_rate, dmcfreq->rate);
 		regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt,
 				      dmcfreq->volt);
 		goto out;
@@ -155,7 +137,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    target_volt);
 	if (err)
-		dev_err(dev, "Cannot to set vol %lu uV\n", target_volt);
+		dev_err(dev, "Cannot set voltage %lu uV\n", target_volt);
 
 	dmcfreq->rate = target_rate;
 	dmcfreq->volt = target_volt;
@@ -241,22 +223,6 @@ static __maybe_unused int rk3399_dmcfreq_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(rk3399_dmcfreq_pm, rk3399_dmcfreq_suspend,
 			 rk3399_dmcfreq_resume);
 
-static irqreturn_t rk3399_dmc_irq(int irq, void *dev_id)
-{
-	struct rk3399_dmcfreq *dmcfreq = dev_id;
-	struct arm_smccc_res res;
-
-	dmcfreq->wait_dcf_flag = 0;
-	wake_up(&dmcfreq->wait_dcf_queue);
-
-	/* Clear the DCF interrupt */
-	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, 0, 0,
-		      ROCKCHIP_SIP_CONFIG_DRAM_CLR_IRQ,
-		      0, 0, 0, 0, &res);
-
-	return IRQ_HANDLED;
-}
-
 static int of_get_ddr_timings(struct dram_timing *timing,
 			      struct device_node *np)
 {
@@ -330,16 +296,10 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
 	struct rk3399_dmcfreq *data;
-	int ret, irq, index, size;
+	int ret, index, size;
 	uint32_t *timing;
 	struct dev_pm_opp *opp;
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev,
-			"Cannot get the dmc interrupt resource: %d\n", irq);
-		return irq;
-	}
 	data = devm_kzalloc(dev, sizeof(struct rk3399_dmcfreq), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -348,26 +308,21 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 
 	data->vdd_center = devm_regulator_get(dev, "center");
 	if (IS_ERR(data->vdd_center)) {
+		if (PTR_ERR(data->vdd_center) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
 		dev_err(dev, "Cannot get the regulator \"center\"\n");
 		return PTR_ERR(data->vdd_center);
 	}
 
 	data->dmc_clk = devm_clk_get(dev, "dmc_clk");
 	if (IS_ERR(data->dmc_clk)) {
+		if (PTR_ERR(data->dmc_clk) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
 		dev_err(dev, "Cannot get the clk dmc_clk\n");
 		return PTR_ERR(data->dmc_clk);
 	};
-
-	data->irq = irq;
-	ret = devm_request_irq(dev, irq, rk3399_dmc_irq, 0,
-			       dev_name(dev), data);
-	if (ret) {
-		dev_err(dev, "Failed to request dmc irq: %d\n", ret);
-		return ret;
-	}
-
-	init_waitqueue_head(&data->wait_dcf_queue);
-	data->wait_dcf_flag = 0;
 
 	data->edev = devfreq_event_get_edev_by_phandle(dev, 0);
 	if (IS_ERR(data->edev))
@@ -420,8 +375,10 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 	data->rate = clk_get_rate(data->dmc_clk);
 
 	opp = devfreq_recommended_opp(dev, &data->rate, 0);
-	if (IS_ERR(opp))
-		return PTR_ERR(opp);
+	if (IS_ERR(opp)) {
+		ret = PTR_ERR(opp);
+		goto err_free_opp;
+	}
 
 	data->rate = dev_pm_opp_get_freq(opp);
 	data->volt = dev_pm_opp_get_voltage(opp);
@@ -433,12 +390,32 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 					   &rk3399_devfreq_dmc_profile,
 					   DEVFREQ_GOV_SIMPLE_ONDEMAND,
 					   &data->ondemand_data);
-	if (IS_ERR(data->devfreq))
-		return PTR_ERR(data->devfreq);
+	if (IS_ERR(data->devfreq)) {
+		ret = PTR_ERR(data->devfreq);
+		goto err_free_opp;
+	}
+
 	devm_devfreq_register_opp_notifier(dev, data->devfreq);
 
 	data->dev = dev;
 	platform_set_drvdata(pdev, data);
+
+	return 0;
+
+err_free_opp:
+	dev_pm_opp_of_remove_table(&pdev->dev);
+	return ret;
+}
+
+static int rk3399_dmcfreq_remove(struct platform_device *pdev)
+{
+	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(&pdev->dev);
+
+	/*
+	 * Before remove the opp table we need to unregister the opp notifier.
+	 */
+	devm_devfreq_unregister_opp_notifier(dmcfreq->dev, dmcfreq->devfreq);
+	dev_pm_opp_of_remove_table(dmcfreq->dev);
 
 	return 0;
 }
@@ -451,6 +428,7 @@ MODULE_DEVICE_TABLE(of, rk3399dmc_devfreq_of_match);
 
 static struct platform_driver rk3399_dmcfreq_driver = {
 	.probe	= rk3399_dmcfreq_probe,
+	.remove = rk3399_dmcfreq_remove,
 	.driver = {
 		.name	= "rk3399-dmc-freq",
 		.pm	= &rk3399_dmcfreq_pm,

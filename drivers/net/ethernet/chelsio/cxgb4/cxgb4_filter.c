@@ -1038,10 +1038,8 @@ static void mk_act_open_req(struct filter_entry *f, struct sk_buff *skb,
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_ACT_OPEN_REQ, qid_filterid));
 	req->local_port = cpu_to_be16(f->fs.val.lport);
 	req->peer_port = cpu_to_be16(f->fs.val.fport);
-	req->local_ip = f->fs.val.lip[0] | f->fs.val.lip[1] << 8 |
-		f->fs.val.lip[2] << 16 | f->fs.val.lip[3] << 24;
-	req->peer_ip = f->fs.val.fip[0] | f->fs.val.fip[1] << 8 |
-		f->fs.val.fip[2] << 16 | f->fs.val.fip[3] << 24;
+	memcpy(&req->local_ip, f->fs.val.lip, 4);
+	memcpy(&req->peer_ip, f->fs.val.fip, 4);
 	req->opt0 = cpu_to_be64(NAGLE_V(f->fs.newvlan == VLAN_REMOVE ||
 					f->fs.newvlan == VLAN_REWRITE) |
 				DELACK_V(f->fs.hitcnts) |

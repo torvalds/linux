@@ -75,6 +75,7 @@
 
 #include "pl111_drm.h"
 #include "pl111_versatile.h"
+#include "pl111_nomadik.h"
 
 #define DRIVER_DESC      "DRM module for PL111"
 
@@ -249,6 +250,8 @@ static struct drm_driver pl111_drm_driver = {
 	.gem_prime_import_sg_table = pl111_gem_import_sg_table,
 	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
+	.gem_prime_mmap = drm_gem_cma_prime_mmap,
+	.gem_prime_vmap = drm_gem_cma_prime_vmap,
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = pl111_debugfs_init,
@@ -288,8 +291,8 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 		priv->memory_bw = 0;
 	}
 
-	/* The two variants swap this register */
-	if (variant->is_pl110) {
+	/* The two main variants swap this register */
+	if (variant->is_pl110 || variant->is_lcdc) {
 		priv->ienb = CLCD_PL110_IENB;
 		priv->ctrl = CLCD_PL110_CNTL;
 	} else {
@@ -301,13 +304,15 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	if (IS_ERR(priv->regs)) {
 		dev_err(dev, "%s failed mmio\n", __func__);
 		ret = PTR_ERR(priv->regs);
-		goto dev_unref;
+		goto dev_put;
 	}
 
 	/* This may override some variant settings */
 	ret = pl111_versatile_init(dev, priv);
 	if (ret)
-		goto dev_unref;
+		goto dev_put;
+
+	pl111_nomadik_init(dev);
 
 	/* turn off interrupts before requesting the irq */
 	writel(0, priv->regs + priv->ienb);
@@ -321,16 +326,16 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 
 	ret = pl111_modeset_init(drm);
 	if (ret != 0)
-		goto dev_unref;
+		goto dev_put;
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
-		goto dev_unref;
+		goto dev_put;
 
 	return 0;
 
-dev_unref:
-	drm_dev_unref(drm);
+dev_put:
+	drm_dev_put(drm);
 	of_reserved_mem_device_release(dev);
 
 	return ret;
@@ -347,7 +352,7 @@ static int pl111_amba_remove(struct amba_device *amba_dev)
 	if (priv->panel)
 		drm_panel_bridge_remove(priv->bridge);
 	drm_mode_config_cleanup(drm);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 	of_reserved_mem_device_release(dev);
 
 	return 0;
@@ -400,16 +405,50 @@ static const struct pl111_variant_data pl111_variant = {
 	.fb_bpp = 32,
 };
 
+static const u32 pl110_nomadik_pixel_formats[] = {
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_BGR565,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_ABGR1555,
+	DRM_FORMAT_XBGR1555,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ABGR4444,
+	DRM_FORMAT_XBGR4444,
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_XRGB4444,
+};
+
+static const struct pl111_variant_data pl110_nomadik_variant = {
+	.name = "LCDC (PL110 Nomadik)",
+	.formats = pl110_nomadik_pixel_formats,
+	.nformats = ARRAY_SIZE(pl110_nomadik_pixel_formats),
+	.is_lcdc = true,
+	.st_bitmux_control = true,
+	.broken_vblank = true,
+	.fb_bpp = 16,
+};
+
 static const struct amba_id pl111_id_table[] = {
 	{
 		.id = 0x00041110,
 		.mask = 0x000fffff,
-		.data = (void*)&pl110_variant,
+		.data = (void *)&pl110_variant,
+	},
+	{
+		.id = 0x00180110,
+		.mask = 0x00fffffe,
+		.data = (void *)&pl110_nomadik_variant,
 	},
 	{
 		.id = 0x00041111,
 		.mask = 0x000fffff,
-		.data = (void*)&pl111_variant,
+		.data = (void *)&pl111_variant,
 	},
 	{0, 0},
 };

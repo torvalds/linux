@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2011-2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2011-2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -66,7 +66,7 @@ struct vmw_kms_sou_readback_blit {
 	SVGAFifoCmdBlitScreenToGMRFB body;
 };
 
-struct vmw_kms_sou_dmabuf_blit {
+struct vmw_kms_sou_bo_blit {
 	uint32 header;
 	SVGAFifoCmdBlitGMRFBToScreen body;
 };
@@ -83,7 +83,7 @@ struct vmw_screen_object_unit {
 	struct vmw_display_unit base;
 
 	unsigned long buffer_size; /**< Size of allocated buffer */
-	struct vmw_dma_buffer *buffer; /**< Backing store buffer */
+	struct vmw_buffer_object *buffer; /**< Backing store buffer */
 
 	bool defined;
 };
@@ -109,7 +109,7 @@ static void vmw_sou_crtc_destroy(struct drm_crtc *crtc)
  */
 static int vmw_sou_fifo_create(struct vmw_private *dev_priv,
 			       struct vmw_screen_object_unit *sou,
-			       uint32_t x, uint32_t y,
+			       int x, int y,
 			       struct drm_display_mode *mode)
 {
 	size_t fifo_size;
@@ -139,13 +139,8 @@ static int vmw_sou_fifo_create(struct vmw_private *dev_priv,
 		(sou->base.unit == 0 ? SVGA_SCREEN_IS_PRIMARY : 0);
 	cmd->obj.size.width = mode->hdisplay;
 	cmd->obj.size.height = mode->vdisplay;
-	if (sou->base.is_implicit) {
-		cmd->obj.root.x = x;
-		cmd->obj.root.y = y;
-	} else {
-		cmd->obj.root.x = sou->base.gui_x;
-		cmd->obj.root.y = sou->base.gui_y;
-	}
+	cmd->obj.root.x = x;
+	cmd->obj.root.y = y;
 	sou->base.set_gui_x = cmd->obj.root.x;
 	sou->base.set_gui_y = cmd->obj.root.y;
 
@@ -222,12 +217,11 @@ static void vmw_sou_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	struct vmw_plane_state *vps;
 	int ret;
 
-
-	sou      = vmw_crtc_to_sou(crtc);
+	sou = vmw_crtc_to_sou(crtc);
 	dev_priv = vmw_priv(crtc->dev);
-	ps       = crtc->primary->state;
-	fb       = ps->fb;
-	vps      = vmw_plane_state_to_vps(ps);
+	ps = crtc->primary->state;
+	fb = ps->fb;
+	vps = vmw_plane_state_to_vps(ps);
 
 	vfb = (fb) ? vmw_framebuffer_to_vfb(fb) : NULL;
 
@@ -240,11 +234,25 @@ static void vmw_sou_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	}
 
 	if (vfb) {
-		sou->buffer = vps->dmabuf;
-		sou->buffer_size = vps->dmabuf_size;
+		struct drm_connector_state *conn_state;
+		struct vmw_connector_state *vmw_conn_state;
+		int x, y;
 
-		ret = vmw_sou_fifo_create(dev_priv, sou, crtc->x, crtc->y,
-					  &crtc->mode);
+		sou->buffer = vps->bo;
+		sou->buffer_size = vps->bo_size;
+
+		if (sou->base.is_implicit) {
+			x = crtc->x;
+			y = crtc->y;
+		} else {
+			conn_state = sou->base.connector.state;
+			vmw_conn_state = vmw_connector_state_to_vcs(conn_state);
+
+			x = vmw_conn_state->gui_x;
+			y = vmw_conn_state->gui_y;
+		}
+
+		ret = vmw_sou_fifo_create(dev_priv, sou, x, y, &crtc->mode);
 		if (ret)
 			DRM_ERROR("Failed to define Screen Object %dx%d\n",
 				  crtc->x, crtc->y);
@@ -408,10 +416,10 @@ vmw_sou_primary_plane_cleanup_fb(struct drm_plane *plane,
 	struct drm_crtc *crtc = plane->state->crtc ?
 		plane->state->crtc : old_state->crtc;
 
-	if (vps->dmabuf)
-		vmw_dmabuf_unpin(vmw_priv(crtc->dev), vps->dmabuf, false);
-	vmw_dmabuf_unreference(&vps->dmabuf);
-	vps->dmabuf_size = 0;
+	if (vps->bo)
+		vmw_bo_unpin(vmw_priv(crtc->dev), vps->bo, false);
+	vmw_bo_unreference(&vps->bo);
+	vps->bo_size = 0;
 
 	vmw_du_plane_cleanup_fb(plane, old_state);
 }
@@ -440,8 +448,8 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 
 
 	if (!new_fb) {
-		vmw_dmabuf_unreference(&vps->dmabuf);
-		vps->dmabuf_size = 0;
+		vmw_bo_unreference(&vps->bo);
+		vps->bo_size = 0;
 
 		return 0;
 	}
@@ -449,22 +457,22 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	size = new_state->crtc_w * new_state->crtc_h * 4;
 	dev_priv = vmw_priv(crtc->dev);
 
-	if (vps->dmabuf) {
-		if (vps->dmabuf_size == size) {
+	if (vps->bo) {
+		if (vps->bo_size == size) {
 			/*
 			 * Note that this might temporarily up the pin-count
 			 * to 2, until cleanup_fb() is called.
 			 */
-			return vmw_dmabuf_pin_in_vram(dev_priv, vps->dmabuf,
+			return vmw_bo_pin_in_vram(dev_priv, vps->bo,
 						      true);
 		}
 
-		vmw_dmabuf_unreference(&vps->dmabuf);
-		vps->dmabuf_size = 0;
+		vmw_bo_unreference(&vps->bo);
+		vps->bo_size = 0;
 	}
 
-	vps->dmabuf = kzalloc(sizeof(*vps->dmabuf), GFP_KERNEL);
-	if (!vps->dmabuf)
+	vps->bo = kzalloc(sizeof(*vps->bo), GFP_KERNEL);
+	if (!vps->bo)
 		return -ENOMEM;
 
 	vmw_svga_enable(dev_priv);
@@ -473,22 +481,22 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	 * resume the overlays, this is preferred to failing to alloc.
 	 */
 	vmw_overlay_pause_all(dev_priv);
-	ret = vmw_dmabuf_init(dev_priv, vps->dmabuf, size,
+	ret = vmw_bo_init(dev_priv, vps->bo, size,
 			      &vmw_vram_ne_placement,
-			      false, &vmw_dmabuf_bo_free);
+			      false, &vmw_bo_bo_free);
 	vmw_overlay_resume_all(dev_priv);
 	if (ret) {
-		vps->dmabuf = NULL; /* vmw_dmabuf_init frees on error */
+		vps->bo = NULL; /* vmw_bo_init frees on error */
 		return ret;
 	}
 
-	vps->dmabuf_size = size;
+	vps->bo_size = size;
 
 	/*
 	 * TTM already thinks the buffer is pinned, but make sure the
 	 * pin_count is upped.
 	 */
-	return vmw_dmabuf_pin_in_vram(dev_priv, vps->dmabuf, true);
+	return vmw_bo_pin_in_vram(dev_priv, vps->bo, true);
 }
 
 
@@ -512,10 +520,10 @@ vmw_sou_primary_plane_atomic_update(struct drm_plane *plane,
 		vclips.w = crtc->mode.hdisplay;
 		vclips.h = crtc->mode.vdisplay;
 
-		if (vfb->dmabuf)
-			ret = vmw_kms_sou_do_dmabuf_dirty(dev_priv, vfb, NULL,
-							  &vclips, 1, 1, true,
-							  &fence, crtc);
+		if (vfb->bo)
+			ret = vmw_kms_sou_do_bo_dirty(dev_priv, vfb, NULL,
+						      &vclips, 1, 1, true,
+						      &fence, crtc);
 		else
 			ret = vmw_kms_sou_do_surface_dirty(dev_priv, vfb, NULL,
 							   &vclips, NULL, 0, 0,
@@ -527,8 +535,6 @@ vmw_sou_primary_plane_atomic_update(struct drm_plane *plane,
 		 */
 		if (ret != 0)
 			DRM_ERROR("Failed to update screen.\n");
-
-		crtc->primary->fb = plane->state->fb;
 	} else {
 		/*
 		 * When disabling a plane, CRTC and FB should always be NULL
@@ -697,7 +703,7 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free_connector;
 	}
 
-	(void) drm_mode_connector_attach_encoder(connector, encoder);
+	(void) drm_connector_attach_encoder(connector, encoder);
 	encoder->possible_crtcs = (1 << unit);
 	encoder->possible_clones = 0;
 
@@ -777,11 +783,11 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 	return 0;
 }
 
-static int do_dmabuf_define_gmrfb(struct vmw_private *dev_priv,
+static int do_bo_define_gmrfb(struct vmw_private *dev_priv,
 				  struct vmw_framebuffer *framebuffer)
 {
-	struct vmw_dma_buffer *buf =
-		container_of(framebuffer, struct vmw_framebuffer_dmabuf,
+	struct vmw_buffer_object *buf =
+		container_of(framebuffer, struct vmw_framebuffer_bo,
 			     base)->buffer;
 	int depth = framebuffer->base.format->depth;
 	struct {
@@ -972,13 +978,13 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_sou_dmabuf_fifo_commit - Callback to submit a set of readback clips.
+ * vmw_sou_bo_fifo_commit - Callback to submit a set of readback clips.
  *
  * @dirty: The closure structure.
  *
  * Commits a previously built command buffer of readback clips.
  */
-static void vmw_sou_dmabuf_fifo_commit(struct vmw_kms_dirty *dirty)
+static void vmw_sou_bo_fifo_commit(struct vmw_kms_dirty *dirty)
 {
 	if (!dirty->num_hits) {
 		vmw_fifo_commit(dirty->dev_priv, 0);
@@ -986,20 +992,20 @@ static void vmw_sou_dmabuf_fifo_commit(struct vmw_kms_dirty *dirty)
 	}
 
 	vmw_fifo_commit(dirty->dev_priv,
-			sizeof(struct vmw_kms_sou_dmabuf_blit) *
+			sizeof(struct vmw_kms_sou_bo_blit) *
 			dirty->num_hits);
 }
 
 /**
- * vmw_sou_dmabuf_clip - Callback to encode a readback cliprect.
+ * vmw_sou_bo_clip - Callback to encode a readback cliprect.
  *
  * @dirty: The closure structure
  *
  * Encodes a BLIT_GMRFB_TO_SCREEN cliprect.
  */
-static void vmw_sou_dmabuf_clip(struct vmw_kms_dirty *dirty)
+static void vmw_sou_bo_clip(struct vmw_kms_dirty *dirty)
 {
-	struct vmw_kms_sou_dmabuf_blit *blit = dirty->cmd;
+	struct vmw_kms_sou_bo_blit *blit = dirty->cmd;
 
 	blit += dirty->num_hits;
 	blit->header = SVGA_CMD_BLIT_GMRFB_TO_SCREEN;
@@ -1014,10 +1020,10 @@ static void vmw_sou_dmabuf_clip(struct vmw_kms_dirty *dirty)
 }
 
 /**
- * vmw_kms_do_dmabuf_dirty - Dirty part of a dma-buffer backed framebuffer
+ * vmw_kms_do_bo_dirty - Dirty part of a buffer-object backed framebuffer
  *
  * @dev_priv: Pointer to the device private structure.
- * @framebuffer: Pointer to the dma-buffer backed framebuffer.
+ * @framebuffer: Pointer to the buffer-object backed framebuffer.
  * @clips: Array of clip rects.
  * @vclips: Alternate array of clip rects. Either @clips or @vclips must
  * be NULL.
@@ -1027,12 +1033,12 @@ static void vmw_sou_dmabuf_clip(struct vmw_kms_dirty *dirty)
  * @out_fence: If non-NULL, will return a ref-counted pointer to a
  * struct vmw_fence_obj. The returned fence pointer may be NULL in which
  * case the device has already synchronized.
- * @crtc: If crtc is passed, perform dmabuf dirty on that crtc only.
+ * @crtc: If crtc is passed, perform bo dirty on that crtc only.
  *
  * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
  * interrupted.
  */
-int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
+int vmw_kms_sou_do_bo_dirty(struct vmw_private *dev_priv,
 				struct vmw_framebuffer *framebuffer,
 				struct drm_clip_rect *clips,
 				struct drm_vmw_rect *vclips,
@@ -1041,8 +1047,8 @@ int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
 				struct vmw_fence_obj **out_fence,
 				struct drm_crtc *crtc)
 {
-	struct vmw_dma_buffer *buf =
-		container_of(framebuffer, struct vmw_framebuffer_dmabuf,
+	struct vmw_buffer_object *buf =
+		container_of(framebuffer, struct vmw_framebuffer_bo,
 			     base)->buffer;
 	struct vmw_kms_dirty dirty;
 	int ret;
@@ -1052,14 +1058,14 @@ int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
 	if (ret)
 		return ret;
 
-	ret = do_dmabuf_define_gmrfb(dev_priv, framebuffer);
+	ret = do_bo_define_gmrfb(dev_priv, framebuffer);
 	if (unlikely(ret != 0))
 		goto out_revert;
 
 	dirty.crtc = crtc;
-	dirty.fifo_commit = vmw_sou_dmabuf_fifo_commit;
-	dirty.clip = vmw_sou_dmabuf_clip;
-	dirty.fifo_reserve_size = sizeof(struct vmw_kms_sou_dmabuf_blit) *
+	dirty.fifo_commit = vmw_sou_bo_fifo_commit;
+	dirty.clip = vmw_sou_bo_clip;
+	dirty.fifo_reserve_size = sizeof(struct vmw_kms_sou_bo_blit) *
 		num_clips;
 	ret = vmw_kms_helper_dirty(dev_priv, framebuffer, clips, vclips,
 				   0, 0, num_clips, increment, &dirty);
@@ -1118,12 +1124,12 @@ static void vmw_sou_readback_clip(struct vmw_kms_dirty *dirty)
 
 /**
  * vmw_kms_sou_readback - Perform a readback from the screen object system to
- * a dma-buffer backed framebuffer.
+ * a buffer-object backed framebuffer.
  *
  * @dev_priv: Pointer to the device private structure.
  * @file_priv: Pointer to a struct drm_file identifying the caller.
  * Must be set to NULL if @user_fence_rep is NULL.
- * @vfb: Pointer to the dma-buffer backed framebuffer.
+ * @vfb: Pointer to the buffer-object backed framebuffer.
  * @user_fence_rep: User-space provided structure for fence information.
  * Must be set to non-NULL if @file_priv is non-NULL.
  * @vclips: Array of clip rects.
@@ -1141,8 +1147,8 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
 			 uint32_t num_clips,
 			 struct drm_crtc *crtc)
 {
-	struct vmw_dma_buffer *buf =
-		container_of(vfb, struct vmw_framebuffer_dmabuf, base)->buffer;
+	struct vmw_buffer_object *buf =
+		container_of(vfb, struct vmw_framebuffer_bo, base)->buffer;
 	struct vmw_kms_dirty dirty;
 	int ret;
 
@@ -1151,7 +1157,7 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
 	if (ret)
 		return ret;
 
-	ret = do_dmabuf_define_gmrfb(dev_priv, vfb);
+	ret = do_bo_define_gmrfb(dev_priv, vfb);
 	if (unlikely(ret != 0))
 		goto out_revert;
 

@@ -667,7 +667,7 @@ static void cx23885_reset(struct cx23885_dev *dev)
 
 	/* clear dma in progress */
 	cx23885_clear_bridge_error(dev);
-	mdelay(100);
+	msleep(100);
 
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[SRAM_CH01],
 		720*4, 0);

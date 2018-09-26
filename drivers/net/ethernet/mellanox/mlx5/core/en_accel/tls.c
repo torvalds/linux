@@ -110,9 +110,7 @@ static int mlx5e_tls_add(struct net_device *netdev, struct sock *sk,
 	u32 caps = mlx5_accel_tls_device_caps(mdev);
 	int ret = -ENOMEM;
 	void *flow;
-
-	if (direction != TLS_OFFLOAD_CTX_DIR_TX)
-		return -EINVAL;
+	u32 swid;
 
 	flow = kzalloc(MLX5_ST_SZ_BYTES(tls_flow), GFP_KERNEL);
 	if (!flow)
@@ -122,18 +120,23 @@ static int mlx5e_tls_add(struct net_device *netdev, struct sock *sk,
 	if (ret)
 		goto free_flow;
 
-	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
-		struct mlx5e_tls_offload_context *tx_ctx =
-		    mlx5e_get_tls_tx_context(tls_ctx);
-		u32 swid;
+	ret = mlx5_accel_tls_add_flow(mdev, flow, crypto_info,
+				      start_offload_tcp_sn, &swid,
+				      direction == TLS_OFFLOAD_CTX_DIR_TX);
+	if (ret < 0)
+		goto free_flow;
 
-		ret = mlx5_accel_tls_add_tx_flow(mdev, flow, crypto_info,
-						 start_offload_tcp_sn, &swid);
-		if (ret < 0)
-			goto free_flow;
+	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
+		struct mlx5e_tls_offload_context_tx *tx_ctx =
+		    mlx5e_get_tls_tx_context(tls_ctx);
 
 		tx_ctx->swid = htonl(swid);
 		tx_ctx->expected_seq = start_offload_tcp_sn;
+	} else {
+		struct mlx5e_tls_offload_context_rx *rx_ctx =
+		    mlx5e_get_tls_rx_context(tls_ctx);
+
+		rx_ctx->handle = htonl(swid);
 	}
 
 	return 0;
@@ -147,30 +150,60 @@ static void mlx5e_tls_del(struct net_device *netdev,
 			  enum tls_offload_ctx_dir direction)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	unsigned int handle;
 
-	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
-		u32 swid = ntohl(mlx5e_get_tls_tx_context(tls_ctx)->swid);
+	handle = ntohl((direction == TLS_OFFLOAD_CTX_DIR_TX) ?
+		       mlx5e_get_tls_tx_context(tls_ctx)->swid :
+		       mlx5e_get_tls_rx_context(tls_ctx)->handle);
 
-		mlx5_accel_tls_del_tx_flow(priv->mdev, swid);
-	} else {
-		netdev_err(netdev, "unsupported direction %d\n", direction);
-	}
+	mlx5_accel_tls_del_flow(priv->mdev, handle,
+				direction == TLS_OFFLOAD_CTX_DIR_TX);
+}
+
+static void mlx5e_tls_resync_rx(struct net_device *netdev, struct sock *sk,
+				u32 seq, u64 rcd_sn)
+{
+	struct tls_context *tls_ctx = tls_get_ctx(sk);
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_tls_offload_context_rx *rx_ctx;
+
+	rx_ctx = mlx5e_get_tls_rx_context(tls_ctx);
+
+	netdev_info(netdev, "resyncing seq %d rcd %lld\n", seq,
+		    be64_to_cpu(rcd_sn));
+	mlx5_accel_tls_resync_rx(priv->mdev, rx_ctx->handle, seq, rcd_sn);
+	atomic64_inc(&priv->tls->sw_stats.rx_tls_resync_reply);
 }
 
 static const struct tlsdev_ops mlx5e_tls_ops = {
 	.tls_dev_add = mlx5e_tls_add,
 	.tls_dev_del = mlx5e_tls_del,
+	.tls_dev_resync_rx = mlx5e_tls_resync_rx,
 };
 
 void mlx5e_tls_build_netdev(struct mlx5e_priv *priv)
 {
+	u32 caps = mlx5_accel_tls_device_caps(priv->mdev);
 	struct net_device *netdev = priv->netdev;
 
 	if (!mlx5_accel_is_tls_device(priv->mdev))
 		return;
 
-	netdev->features |= NETIF_F_HW_TLS_TX;
-	netdev->hw_features |= NETIF_F_HW_TLS_TX;
+	if (caps & MLX5_ACCEL_TLS_TX) {
+		netdev->features          |= NETIF_F_HW_TLS_TX;
+		netdev->hw_features       |= NETIF_F_HW_TLS_TX;
+	}
+
+	if (caps & MLX5_ACCEL_TLS_RX) {
+		netdev->features          |= NETIF_F_HW_TLS_RX;
+		netdev->hw_features       |= NETIF_F_HW_TLS_RX;
+	}
+
+	if (!(caps & MLX5_ACCEL_TLS_LRO)) {
+		netdev->features          &= ~NETIF_F_LRO;
+		netdev->hw_features       &= ~NETIF_F_LRO;
+	}
+
 	netdev->tlsdev_ops = &mlx5e_tls_ops;
 }
 

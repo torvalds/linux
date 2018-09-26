@@ -287,12 +287,6 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_force_performance_level(adev, l) \
 		((adev)->powerplay.pp_funcs->force_performance_level((adev)->powerplay.pp_handle, (l)))
 
-#define amdgpu_dpm_powergate_uvd(adev, g) \
-		((adev)->powerplay.pp_funcs->powergate_uvd((adev)->powerplay.pp_handle, (g)))
-
-#define amdgpu_dpm_powergate_vce(adev, g) \
-		((adev)->powerplay.pp_funcs->powergate_vce((adev)->powerplay.pp_handle, (g)))
-
 #define amdgpu_dpm_get_current_power_state(adev) \
 		((adev)->powerplay.pp_funcs->get_current_power_state((adev)->powerplay.pp_handle))
 
@@ -347,6 +341,10 @@ enum amdgpu_pcie_gen {
 		((adev)->powerplay.pp_funcs->set_clockgating_by_smu(\
 			(adev)->powerplay.pp_handle, msg_id))
 
+#define amdgpu_dpm_set_powergating_by_smu(adev, block_type, gate) \
+		((adev)->powerplay.pp_funcs->set_powergating_by_smu(\
+			(adev)->powerplay.pp_handle, block_type, gate))
+
 #define amdgpu_dpm_get_power_profile_mode(adev, buf) \
 		((adev)->powerplay.pp_funcs->get_power_profile_mode(\
 			(adev)->powerplay.pp_handle, buf))
@@ -358,10 +356,6 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_odn_edit_dpm_table(adev, type, parameter, size) \
 		((adev)->powerplay.pp_funcs->odn_edit_dpm_table(\
 			(adev)->powerplay.pp_handle, type, parameter, size))
-
-#define amdgpu_dpm_set_mmhub_powergating_by_smu(adev) \
-		((adev)->powerplay.pp_funcs->set_mmhub_powergating_by_smu( \
-		(adev)->powerplay.pp_handle))
 
 struct amdgpu_dpm {
 	struct amdgpu_ps        *ps;
@@ -402,7 +396,6 @@ struct amdgpu_dpm {
 	u32 tdp_adjustment;
 	u16 load_line_slope;
 	bool power_control;
-	bool ac_power;
 	/* special states active */
 	bool                    thermal_active;
 	bool                    uvd_active;
@@ -439,6 +432,7 @@ struct amdgpu_pm {
 	struct amd_pp_display_configuration pm_display_cfg;/* set by dc */
 	uint32_t                smu_prv_buffer_size;
 	struct amdgpu_bo        *smu_prv_buffer;
+	bool ac_power;
 };
 
 #define R600_SSTU_DFLT                               0

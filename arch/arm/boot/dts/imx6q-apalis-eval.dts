@@ -62,6 +62,10 @@
 		rtc1 = &snvs_rtc;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -109,6 +113,7 @@
 		 */
 		compatible = "edt,et057090dhu";
 		backlight = <&backlight>;
+		power-supply = <&reg_3v3_sw>;
 
 		port {
 			lcd_panel_in: endpoint {
@@ -127,19 +132,30 @@
 		enable-active-high;
 		status = "okay";
 	};
+
+	reg_3v3_sw: regulator-3v3-sw {
+		compatible = "regulator-fixed";
+		regulator-name = "3.3V_SW";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
 };
 
 &backlight {
 	brightness-levels = <0 127 191 223 239 247 251 255>;
 	default-brightness-level = <1>;
+	power-supply = <&reg_3v3_sw>;
 	status = "okay";
 };
 
 &can1 {
+	xceiver-supply = <&reg_3v3_sw>;
 	status = "okay";
 };
 
 &can2 {
+	xceiver-supply = <&reg_3v3_sw>;
 	status = "okay";
 };
 

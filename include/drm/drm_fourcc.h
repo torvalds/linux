@@ -39,6 +39,7 @@ struct drm_mode_fb_cmd2;
  * @hsub: Horizontal chroma subsampling factor
  * @vsub: Vertical chroma subsampling factor
  * @has_alpha: Does the format embeds an alpha component?
+ * @is_yuv: Is it a YUV format?
  */
 struct drm_format_info {
 	u32 format;
@@ -48,6 +49,7 @@ struct drm_format_info {
 	u8 hsub;
 	u8 vsub;
 	bool has_alpha;
+	bool is_yuv;
 };
 
 /**

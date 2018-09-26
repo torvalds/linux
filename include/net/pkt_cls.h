@@ -7,12 +7,16 @@
 #include <net/sch_generic.h>
 #include <net/act_api.h>
 
+/* TC action not accessible from user space */
+#define TC_ACT_REINSERT		(TC_ACT_VALUE_MAX + 1)
+
 /* Basic packet classifier frontend definitions. */
 
 struct tcf_walker {
 	int	stop;
 	int	skip;
 	int	count;
+	unsigned long cookie;
 	int	(*fn)(struct tcf_proto *, void *node, struct tcf_walker *);
 };
 
@@ -36,9 +40,9 @@ struct tcf_block_cb;
 bool tcf_queue_work(struct rcu_work *rwork, work_func_t func);
 
 #ifdef CONFIG_NET_CLS
-struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
-				bool create);
-void tcf_chain_put(struct tcf_chain *chain);
+struct tcf_chain *tcf_chain_get_by_act(struct tcf_block *block,
+				       u32 chain_index);
+void tcf_chain_put_by_act(struct tcf_chain *chain);
 void tcf_block_netif_keep_dst(struct tcf_block *block);
 int tcf_block_get(struct tcf_block **p_block,
 		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
@@ -73,11 +77,13 @@ void tcf_block_cb_incref(struct tcf_block_cb *block_cb);
 unsigned int tcf_block_cb_decref(struct tcf_block_cb *block_cb);
 struct tcf_block_cb *__tcf_block_cb_register(struct tcf_block *block,
 					     tc_setup_cb_t *cb, void *cb_ident,
-					     void *cb_priv);
+					     void *cb_priv,
+					     struct netlink_ext_ack *extack);
 int tcf_block_cb_register(struct tcf_block *block,
 			  tc_setup_cb_t *cb, void *cb_ident,
-			  void *cb_priv);
-void __tcf_block_cb_unregister(struct tcf_block_cb *block_cb);
+			  void *cb_priv, struct netlink_ext_ack *extack);
+void __tcf_block_cb_unregister(struct tcf_block *block,
+			       struct tcf_block_cb *block_cb);
 void tcf_block_cb_unregister(struct tcf_block *block,
 			     tc_setup_cb_t *cb, void *cb_ident);
 
@@ -161,7 +167,8 @@ unsigned int tcf_block_cb_decref(struct tcf_block_cb *block_cb)
 static inline
 struct tcf_block_cb *__tcf_block_cb_register(struct tcf_block *block,
 					     tc_setup_cb_t *cb, void *cb_ident,
-					     void *cb_priv)
+					     void *cb_priv,
+					     struct netlink_ext_ack *extack)
 {
 	return NULL;
 }
@@ -169,13 +176,14 @@ struct tcf_block_cb *__tcf_block_cb_register(struct tcf_block *block,
 static inline
 int tcf_block_cb_register(struct tcf_block *block,
 			  tc_setup_cb_t *cb, void *cb_ident,
-			  void *cb_priv)
+			  void *cb_priv, struct netlink_ext_ack *extack)
 {
 	return 0;
 }
 
 static inline
-void __tcf_block_cb_unregister(struct tcf_block_cb *block_cb)
+void __tcf_block_cb_unregister(struct tcf_block *block,
+			       struct tcf_block_cb *block_cb)
 {
 }
 
@@ -290,19 +298,13 @@ static inline void tcf_exts_put_net(struct tcf_exts *exts)
 #endif
 }
 
-static inline void tcf_exts_to_list(const struct tcf_exts *exts,
-				    struct list_head *actions)
-{
 #ifdef CONFIG_NET_CLS_ACT
-	int i;
-
-	for (i = 0; i < exts->nr_actions; i++) {
-		struct tc_action *a = exts->actions[i];
-
-		list_add_tail(&a->list, actions);
-	}
+#define tcf_exts_for_each_action(i, a, exts) \
+	for (i = 0; i < TCA_ACT_MAX_PRIO && ((a) = (exts)->actions[i]); i++)
+#else
+#define tcf_exts_for_each_action(i, a, exts) \
+	for (; 0; (void)(i), (void)(a), (void)(exts))
 #endif
-}
 
 static inline void
 tcf_exts_stats_update(const struct tcf_exts *exts,
@@ -350,6 +352,15 @@ static inline bool tcf_exts_has_one_action(struct tcf_exts *exts)
 	return exts->nr_actions == 1;
 #else
 	return false;
+#endif
+}
+
+static inline struct tc_action *tcf_exts_first_action(struct tcf_exts *exts)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	return exts->actions[0];
+#else
+	return NULL;
 #endif
 }
 
@@ -596,6 +607,7 @@ struct tc_block_offload {
 	enum tc_block_command command;
 	enum tcf_block_binder_type binder_type;
 	struct tcf_block *block;
+	struct netlink_ext_ack *extack;
 };
 
 struct tc_cls_common_offload {
@@ -715,6 +727,8 @@ enum tc_fl_command {
 	TC_CLSFLOWER_REPLACE,
 	TC_CLSFLOWER_DESTROY,
 	TC_CLSFLOWER_STATS,
+	TC_CLSFLOWER_TMPLT_CREATE,
+	TC_CLSFLOWER_TMPLT_DESTROY,
 };
 
 struct tc_cls_flower_offload {
@@ -771,6 +785,7 @@ struct tc_mqprio_qopt_offload {
 struct tc_cookie {
 	u8  *data;
 	u32 len;
+	struct rcu_head rcu;
 };
 
 struct tc_qopt_offload_stats {

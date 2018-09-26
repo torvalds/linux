@@ -346,7 +346,6 @@ long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 	struct rxrpc_call *rxcall;
 	struct msghdr msg;
 	struct kvec iov[1];
-	size_t offset;
 	s64 tx_total_len;
 	int ret;
 
@@ -433,10 +432,10 @@ error_do_abort:
 		rxrpc_kernel_abort_call(call->net->socket, rxcall,
 					RX_USER_ABORT, ret, "KSD");
 	} else {
-		offset = 0;
-		rxrpc_kernel_recv_data(call->net->socket, rxcall, NULL,
-				       0, &offset, false, &call->abort_code,
-				       &call->service_id);
+		iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, NULL, 0, 0);
+		rxrpc_kernel_recv_data(call->net->socket, rxcall,
+				       &msg.msg_iter, false,
+				       &call->abort_code, &call->service_id);
 		ac->abort_code = call->abort_code;
 		ac->responded = true;
 	}
@@ -467,13 +466,14 @@ static void afs_deliver_to_call(struct afs_call *call)
 	       state == AFS_CALL_SV_AWAIT_ACK
 	       ) {
 		if (state == AFS_CALL_SV_AWAIT_ACK) {
-			size_t offset = 0;
+			struct iov_iter iter;
+
+			iov_iter_kvec(&iter, READ | ITER_KVEC, NULL, 0, 0);
 			ret = rxrpc_kernel_recv_data(call->net->socket,
-						     call->rxcall,
-						     NULL, 0, &offset, false,
+						     call->rxcall, &iter, false,
 						     &remote_abort,
 						     &call->service_id);
-			trace_afs_recv_data(call, 0, offset, false, ret);
+			trace_afs_recv_data(call, 0, 0, false, ret);
 
 			if (ret == -EINPROGRESS || ret == -EAGAIN)
 				return;
@@ -648,7 +648,7 @@ static void afs_wake_up_async_call(struct sock *sk, struct rxrpc_call *rxcall,
 	trace_afs_notify_call(rxcall, call);
 	call->need_attention = true;
 
-	u = __atomic_add_unless(&call->usage, 1, 0);
+	u = atomic_fetch_add_unless(&call->usage, 1, 0);
 	if (u != 0) {
 		trace_afs_call(call, afs_call_trace_wake, u,
 			       atomic_read(&call->net->nr_outstanding_calls),
@@ -894,6 +894,8 @@ int afs_extract_data(struct afs_call *call, void *buf, size_t count,
 		     bool want_more)
 {
 	struct afs_net *net = call->net;
+	struct iov_iter iter;
+	struct kvec iov;
 	enum afs_call_state state;
 	u32 remote_abort = 0;
 	int ret;
@@ -903,10 +905,14 @@ int afs_extract_data(struct afs_call *call, void *buf, size_t count,
 
 	ASSERTCMP(call->offset, <=, count);
 
-	ret = rxrpc_kernel_recv_data(net->socket, call->rxcall,
-				     buf, count, &call->offset,
+	iov.iov_base = buf + call->offset;
+	iov.iov_len = count - call->offset;
+	iov_iter_kvec(&iter, ITER_KVEC | READ, &iov, 1, count - call->offset);
+
+	ret = rxrpc_kernel_recv_data(net->socket, call->rxcall, &iter,
 				     want_more, &remote_abort,
 				     &call->service_id);
+	call->offset += (count - call->offset) - iov_iter_count(&iter);
 	trace_afs_recv_data(call, count, call->offset, want_more, ret);
 	if (ret == 0 || ret == -EAGAIN)
 		return ret;

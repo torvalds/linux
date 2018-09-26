@@ -365,8 +365,10 @@ enum {
  */
 #ifdef SUPPORT_VGA_SWITCHEROO
 #define use_vga_switcheroo(chip)	((chip)->use_vga_switcheroo)
+#define needs_eld_notify_link(chip)	((chip)->need_eld_notify_link)
 #else
 #define use_vga_switcheroo(chip)	0
+#define needs_eld_notify_link(chip)	false
 #endif
 
 #define CONTROLLER_IN_GPU(pci) (((pci)->device == 0x0a0c) || \
@@ -453,6 +455,7 @@ static inline void mark_runtime_wc(struct azx *chip, struct azx_dev *azx_dev,
 #endif
 
 static int azx_acquire_irq(struct azx *chip, int do_disconnect);
+static void set_default_power_save(struct azx *chip);
 
 /*
  * initialize the PCI registers
@@ -1201,6 +1204,10 @@ static int azx_runtime_idle(struct device *dev)
 	    azx_bus(chip)->codec_powered || !chip->running)
 		return -EBUSY;
 
+	/* ELD notification gets broken when HD-audio bus is off */
+	if (needs_eld_notify_link(hda))
+		return -EBUSY;
+
 	return 0;
 }
 
@@ -1298,6 +1305,36 @@ static bool azx_vs_can_switch(struct pci_dev *pci)
 	return true;
 }
 
+/*
+ * The discrete GPU cannot power down unless the HDA controller runtime
+ * suspends, so activate runtime PM on codecs even if power_save == 0.
+ */
+static void setup_vga_switcheroo_runtime_pm(struct azx *chip)
+{
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
+	struct hda_codec *codec;
+
+	if (hda->use_vga_switcheroo && !hda->need_eld_notify_link) {
+		list_for_each_codec(codec, &chip->bus)
+			codec->auto_runtime_pm = 1;
+		/* reset the power save setup */
+		if (chip->running)
+			set_default_power_save(chip);
+	}
+}
+
+static void azx_vs_gpu_bound(struct pci_dev *pci,
+			     enum vga_switcheroo_client_id client_id)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct azx *chip = card->private_data;
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
+
+	if (client_id == VGA_SWITCHEROO_DIS)
+		hda->need_eld_notify_link = 0;
+	setup_vga_switcheroo_runtime_pm(chip);
+}
+
 static void init_vga_switcheroo(struct azx *chip)
 {
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
@@ -1306,6 +1343,7 @@ static void init_vga_switcheroo(struct azx *chip)
 		dev_info(chip->card->dev,
 			 "Handle vga_switcheroo audio client\n");
 		hda->use_vga_switcheroo = 1;
+		hda->need_eld_notify_link = 1; /* cleared in gpu_bound op */
 		chip->driver_caps |= AZX_DCAPS_PM_RUNTIME;
 		pci_dev_put(p);
 	}
@@ -1314,20 +1352,22 @@ static void init_vga_switcheroo(struct azx *chip)
 static const struct vga_switcheroo_client_ops azx_vs_ops = {
 	.set_gpu_state = azx_vs_set_state,
 	.can_switch = azx_vs_can_switch,
+	.gpu_bound = azx_vs_gpu_bound,
 };
 
 static int register_vga_switcheroo(struct azx *chip)
 {
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
+	struct pci_dev *p;
 	int err;
 
 	if (!hda->use_vga_switcheroo)
 		return 0;
-	/* FIXME: currently only handling DIS controller
-	 * is there any machine with two switchable HDMI audio controllers?
-	 */
-	err = vga_switcheroo_register_audio_client(chip->pci, &azx_vs_ops,
-						   VGA_SWITCHEROO_DIS);
+
+	p = get_bound_vga(chip->pci);
+	err = vga_switcheroo_register_audio_client(chip->pci, &azx_vs_ops, p);
+	pci_dev_put(p);
+
 	if (err < 0)
 		return err;
 	hda->vga_switcheroo_registered = 1;
@@ -1338,6 +1378,7 @@ static int register_vga_switcheroo(struct azx *chip)
 #define init_vga_switcheroo(chip)		/* NOP */
 #define register_vga_switcheroo(chip)		0
 #define check_hdmi_disabled(pci)	false
+#define setup_vga_switcheroo_runtime_pm(chip)	/* NOP */
 #endif /* SUPPORT_VGA_SWITCHER */
 
 /*
@@ -1351,6 +1392,7 @@ static int azx_free(struct azx *chip)
 
 	if (azx_has_pm_runtime(chip) && chip->running)
 		pm_runtime_get_noresume(&pci->dev);
+	chip->running = 0;
 
 	azx_del_card_list(chip);
 
@@ -1429,7 +1471,7 @@ static struct pci_dev *get_bound_vga(struct pci_dev *pci)
 			p = pci_get_domain_bus_and_slot(pci_domain_nr(pci->bus),
 							pci->bus->number, 0);
 			if (p) {
-				if ((p->class >> 8) == PCI_CLASS_DISPLAY_VGA)
+				if ((p->class >> 16) == PCI_BASE_CLASS_DISPLAY)
 					return p;
 				pci_dev_put(p);
 			}
@@ -2207,7 +2249,7 @@ out_free:
  */
 static struct snd_pci_quirk power_save_blacklist[] = {
 	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
-	SND_PCI_QUIRK(0x1849, 0x0c0c, "Asrock B85M-ITX", 0),
+	SND_PCI_QUIRK(0x1849, 0xc892, "Asrock B85M-ITX", 0),
 	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
 	SND_PCI_QUIRK(0x1849, 0x7662, "Asrock H81M-HDS", 0),
 	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
@@ -2229,6 +2271,25 @@ static struct snd_pci_quirk power_save_blacklist[] = {
 };
 #endif /* CONFIG_PM */
 
+static void set_default_power_save(struct azx *chip)
+{
+	int val = power_save;
+
+#ifdef CONFIG_PM
+	if (pm_blacklist) {
+		const struct snd_pci_quirk *q;
+
+		q = snd_pci_quirk_lookup(chip->pci, power_save_blacklist);
+		if (q && val) {
+			dev_info(chip->card->dev, "device %04x:%04x is on the power_save blacklist, forcing power_save to 0\n",
+				 q->subvendor, q->subdevice);
+			val = 0;
+		}
+	}
+#endif /* CONFIG_PM */
+	snd_hda_set_power_save(&chip->bus, val * 1000);
+}
+
 /* number of codec slots for each chipset: 0 = default slots (i.e. 4) */
 static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] = {
 	[AZX_DRIVER_NVIDIA] = 8,
@@ -2240,9 +2301,7 @@ static int azx_probe_continue(struct azx *chip)
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	struct hdac_bus *bus = azx_bus(chip);
 	struct pci_dev *pci = chip->pci;
-	struct hda_codec *codec;
 	int dev = chip->dev_index;
-	int val;
 	int err;
 
 	hda->probe_continued = 1;
@@ -2321,31 +2380,13 @@ static int azx_probe_continue(struct azx *chip)
 	if (err < 0)
 		goto out_free;
 
+	setup_vga_switcheroo_runtime_pm(chip);
+
 	chip->running = 1;
 	azx_add_card_list(chip);
 
-	val = power_save;
-#ifdef CONFIG_PM
-	if (pm_blacklist) {
-		const struct snd_pci_quirk *q;
+	set_default_power_save(chip);
 
-		q = snd_pci_quirk_lookup(chip->pci, power_save_blacklist);
-		if (q && val) {
-			dev_info(chip->card->dev, "device %04x:%04x is on the power_save blacklist, forcing power_save to 0\n",
-				 q->subvendor, q->subdevice);
-			val = 0;
-		}
-	}
-#endif /* CONFIG_PM */
-	/*
-	 * The discrete GPU cannot power down unless the HDA controller runtime
-	 * suspends, so activate runtime PM on codecs even if power_save == 0.
-	 */
-	if (use_vga_switcheroo(hda))
-		list_for_each_codec(codec, &chip->bus)
-			codec->auto_runtime_pm = 1;
-
-	snd_hda_set_power_save(&chip->bus, val * 1000);
 	if (azx_has_pm_runtime(chip))
 		pm_runtime_put_autosuspend(&pci->dev);
 
@@ -2535,7 +2576,8 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_GENERIC | AZX_DCAPS_PRESET_ATI_SB },
 	/* AMD Raven */
 	{ PCI_DEVICE(0x1022, 0x15e3),
-	  .driver_data = AZX_DRIVER_GENERIC | AZX_DCAPS_PRESET_ATI_SB },
+	  .driver_data = AZX_DRIVER_GENERIC | AZX_DCAPS_PRESET_ATI_SB |
+			 AZX_DCAPS_PM_RUNTIME },
 	/* ATI HDMI */
 	{ PCI_DEVICE(0x1002, 0x0002),
 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },

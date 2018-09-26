@@ -326,32 +326,6 @@ struct pch_gbe_regs {
 #define PCH_GBE_FC_FULL			3
 #define PCH_GBE_FC_DEFAULT		PCH_GBE_FC_FULL
 
-
-struct pch_gbe_hw;
-/**
- * struct  pch_gbe_functions - HAL APi function pointer
- * @get_bus_info:	for pch_gbe_hal_get_bus_info
- * @init_hw:		for pch_gbe_hal_init_hw
- * @read_phy_reg:	for pch_gbe_hal_read_phy_reg
- * @write_phy_reg:	for pch_gbe_hal_write_phy_reg
- * @reset_phy:		for pch_gbe_hal_phy_hw_reset
- * @sw_reset_phy:	for pch_gbe_hal_phy_sw_reset
- * @power_up_phy:	for pch_gbe_hal_power_up_phy
- * @power_down_phy:	for pch_gbe_hal_power_down_phy
- * @read_mac_addr:	for pch_gbe_hal_read_mac_addr
- */
-struct pch_gbe_functions {
-	void (*get_bus_info) (struct pch_gbe_hw *);
-	s32 (*init_hw) (struct pch_gbe_hw *);
-	s32 (*read_phy_reg) (struct pch_gbe_hw *, u32, u16 *);
-	s32 (*write_phy_reg) (struct pch_gbe_hw *, u32, u16);
-	void (*reset_phy) (struct pch_gbe_hw *);
-	void (*sw_reset_phy) (struct pch_gbe_hw *);
-	void (*power_up_phy) (struct pch_gbe_hw *hw);
-	void (*power_down_phy) (struct pch_gbe_hw *hw);
-	s32 (*read_mac_addr) (struct pch_gbe_hw *);
-};
-
 /**
  * struct pch_gbe_mac_info - MAC information
  * @addr[6]:		Store the MAC address
@@ -394,17 +368,6 @@ struct pch_gbe_phy_info {
 
 /*!
  * @ingroup Gigabit Ether driver Layer
- * @struct  pch_gbe_bus_info
- * @brief   Bus information
- */
-struct pch_gbe_bus_info {
-	u8 type;
-	u8 speed;
-	u8 width;
-};
-
-/*!
- * @ingroup Gigabit Ether driver Layer
  * @struct  pch_gbe_hw
  * @brief   Hardware information
  */
@@ -414,10 +377,8 @@ struct pch_gbe_hw {
 	struct pch_gbe_regs  __iomem *reg;
 	spinlock_t miim_lock;
 
-	const struct pch_gbe_functions *func;
 	struct pch_gbe_mac_info mac;
 	struct pch_gbe_phy_info phy;
-	struct pch_gbe_bus_info bus;
 };
 
 /**
@@ -680,7 +641,6 @@ void pch_gbe_set_ethtool_ops(struct net_device *netdev);
 
 /* pch_gbe_mac.c */
 s32 pch_gbe_mac_force_mac_fc(struct pch_gbe_hw *hw);
-s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw);
 u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
 			  u16 data);
 #endif /* _PCH_GBE_H_ */

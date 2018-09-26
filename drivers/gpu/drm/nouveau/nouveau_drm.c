@@ -81,6 +81,10 @@ MODULE_PARM_DESC(modeset, "enable driver (default: auto, "
 int nouveau_modeset = -1;
 module_param_named(modeset, nouveau_modeset, int, 0400);
 
+MODULE_PARM_DESC(atomic, "Expose atomic ioctl (default: disabled)");
+static int nouveau_atomic = 0;
+module_param_named(atomic, nouveau_atomic, int, 0400);
+
 MODULE_PARM_DESC(runpm, "disable (0), force enable (1), optimus only default (-1)");
 static int nouveau_runtime_pm = -1;
 module_param_named(runpm, nouveau_runtime_pm, int, 0400);
@@ -226,7 +230,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 		mutex_unlock(&drm->master.lock);
 	}
 	if (ret) {
-		NV_ERROR(drm, "Client allocation failed: %d\n", ret);
+		NV_PRINTK(err, cli, "Client allocation failed: %d\n", ret);
 		goto done;
 	}
 
@@ -236,37 +240,37 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 			       }, sizeof(struct nv_device_v0),
 			       &cli->device);
 	if (ret) {
-		NV_ERROR(drm, "Device allocation failed: %d\n", ret);
+		NV_PRINTK(err, cli, "Device allocation failed: %d\n", ret);
 		goto done;
 	}
 
 	ret = nvif_mclass(&cli->device.object, mmus);
 	if (ret < 0) {
-		NV_ERROR(drm, "No supported MMU class\n");
+		NV_PRINTK(err, cli, "No supported MMU class\n");
 		goto done;
 	}
 
 	ret = nvif_mmu_init(&cli->device.object, mmus[ret].oclass, &cli->mmu);
 	if (ret) {
-		NV_ERROR(drm, "MMU allocation failed: %d\n", ret);
+		NV_PRINTK(err, cli, "MMU allocation failed: %d\n", ret);
 		goto done;
 	}
 
 	ret = nvif_mclass(&cli->mmu.object, vmms);
 	if (ret < 0) {
-		NV_ERROR(drm, "No supported VMM class\n");
+		NV_PRINTK(err, cli, "No supported VMM class\n");
 		goto done;
 	}
 
 	ret = nouveau_vmm_init(cli, vmms[ret].oclass, &cli->vmm);
 	if (ret) {
-		NV_ERROR(drm, "VMM allocation failed: %d\n", ret);
+		NV_PRINTK(err, cli, "VMM allocation failed: %d\n", ret);
 		goto done;
 	}
 
 	ret = nvif_mclass(&cli->mmu.object, mems);
 	if (ret < 0) {
-		NV_ERROR(drm, "No supported MEM class\n");
+		NV_PRINTK(err, cli, "No supported MEM class\n");
 		goto done;
 	}
 
@@ -509,6 +513,9 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
+	if (nouveau_atomic)
+		driver_pci.driver_features |= DRIVER_ATOMIC;
+
 	ret = drm_get_pci_dev(pdev, pent, &driver_pci);
 	if (ret) {
 		nvkm_device_del(&device);
@@ -585,10 +592,8 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 		pm_runtime_allow(dev->dev);
 		pm_runtime_mark_last_busy(dev->dev);
 		pm_runtime_put(dev->dev);
-	} else {
-		/* enable polling for external displays */
-		drm_kms_helper_poll_enable(dev);
 	}
+
 	return 0;
 
 fail_dispinit:
@@ -622,7 +627,7 @@ nouveau_drm_unload(struct drm_device *dev)
 	nouveau_debugfs_fini(drm);
 
 	if (dev->mode_config.num_crtc)
-		nouveau_display_fini(dev, false);
+		nouveau_display_fini(dev, false, false);
 	nouveau_display_destroy(dev);
 
 	nouveau_bios_takedown(dev);
@@ -828,7 +833,6 @@ nouveau_pmops_runtime_suspend(struct device *dev)
 		return -EBUSY;
 	}
 
-	drm_kms_helper_poll_disable(drm_dev);
 	nouveau_switcheroo_optimus_dsm();
 	ret = nouveau_do_suspend(drm_dev, true);
 	pci_save_state(pdev);
@@ -874,22 +878,11 @@ nouveau_pmops_runtime_resume(struct device *dev)
 static int
 nouveau_pmops_runtime_idle(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
-	struct drm_crtc *crtc;
-
 	if (!nouveau_pmops_runtime()) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
 
-	list_for_each_entry(crtc, &drm->dev->mode_config.crtc_list, head) {
-		if (crtc->enabled) {
-			DRM_DEBUG_DRIVER("failing to power off - crtc active\n");
-			return -EBUSY;
-		}
-	}
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_autosuspend(dev);
 	/* we don't want the main rpm_idle to call suspend - we want to autosuspend */
@@ -912,8 +905,10 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 	get_task_comm(tmpname, current);
 	snprintf(name, sizeof(name), "%s[%d]", tmpname, pid_nr(fpriv->pid));
 
-	if (!(cli = kzalloc(sizeof(*cli), GFP_KERNEL)))
-		return ret;
+	if (!(cli = kzalloc(sizeof(*cli), GFP_KERNEL))) {
+		ret = -ENOMEM;
+		goto done;
+	}
 
 	ret = nouveau_cli_init(drm, name, cli);
 	if (ret)

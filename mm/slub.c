@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include "slab.h"
 #include <linux/proc_fs.h>
-#include <linux/notifier.h>
 #include <linux/seq_file.h>
 #include <linux/kasan.h>
 #include <linux/cpu.h>
@@ -271,8 +270,7 @@ static inline void *get_freepointer(struct kmem_cache *s, void *object)
 
 static void prefetch_freepointer(const struct kmem_cache *s, void *object)
 {
-	if (object)
-		prefetch(freelist_dereference(s, object + s->offset));
+	prefetch(object + s->offset);
 }
 
 static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
@@ -5667,7 +5665,6 @@ static void sysfs_slab_remove_workfn(struct work_struct *work)
 	kset_unregister(s->memcg_kset);
 #endif
 	kobject_uevent(&s->kobj, KOBJ_REMOVE);
-	kobject_del(&s->kobj);
 out:
 	kobject_put(&s->kobj);
 }
@@ -5750,6 +5747,12 @@ static void sysfs_slab_remove(struct kmem_cache *s)
 
 	kobject_get(&s->kobj);
 	schedule_work(&s->kobj_remove_work);
+}
+
+void sysfs_slab_unlink(struct kmem_cache *s)
+{
+	if (slab_state >= FULL)
+		kobject_del(&s->kobj);
 }
 
 void sysfs_slab_release(struct kmem_cache *s)

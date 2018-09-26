@@ -389,18 +389,14 @@ static int lio_set_link_ksettings(struct net_device *netdev,
 	struct lio *lio = GET_LIO(netdev);
 	struct oct_link_info *linfo;
 	struct octeon_device *oct;
-	u32 is25G = 0;
 
 	oct = lio->oct_dev;
 
 	linfo = &lio->linfo;
 
-	if (oct->subsystem_id == OCTEON_CN2350_25GB_SUBSYS_ID ||
-	    oct->subsystem_id == OCTEON_CN2360_25GB_SUBSYS_ID) {
-		is25G = 1;
-	} else {
+	if (!(oct->subsystem_id == OCTEON_CN2350_25GB_SUBSYS_ID ||
+	      oct->subsystem_id == OCTEON_CN2360_25GB_SUBSYS_ID))
 		return -EOPNOTSUPP;
-	}
 
 	if (oct->no_speed_setting) {
 		dev_err(&oct->pci_dev->dev, "%s: Changing speed is not supported\n",
@@ -857,7 +853,14 @@ static int lio_set_phys_id(struct net_device *netdev,
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
+	struct oct_link_info *linfo;
 	int value, ret;
+	u32 cur_ver;
+
+	linfo = &lio->linfo;
+	cur_ver = OCT_FW_VER(oct->fw_info.ver.maj,
+			     oct->fw_info.ver.min,
+			     oct->fw_info.ver.rev);
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
@@ -896,16 +899,22 @@ static int lio_set_phys_id(struct net_device *netdev,
 				return ret;
 		} else if (oct->chip_id == OCTEON_CN23XX_PF_VID) {
 			octnet_id_active(netdev, LED_IDENTIFICATION_ON);
-
-			/* returns 0 since updates are asynchronous */
-			return 0;
+			if (linfo->link.s.phy_type == LIO_PHY_PORT_TP &&
+			    cur_ver > OCT_FW_VER(1, 7, 2))
+				return 2;
+			else
+				return 0;
 		} else {
 			return -EINVAL;
 		}
 		break;
 
 	case ETHTOOL_ID_ON:
-		if (oct->chip_id == OCTEON_CN66XX)
+		if (oct->chip_id == OCTEON_CN23XX_PF_VID &&
+		    linfo->link.s.phy_type == LIO_PHY_PORT_TP &&
+		    cur_ver > OCT_FW_VER(1, 7, 2))
+			octnet_id_active(netdev, LED_IDENTIFICATION_ON);
+		else if (oct->chip_id == OCTEON_CN66XX)
 			octnet_gpio_access(netdev, VITESSE_PHY_GPIO_CFG,
 					   VITESSE_PHY_GPIO_HIGH);
 		else
@@ -914,7 +923,11 @@ static int lio_set_phys_id(struct net_device *netdev,
 		break;
 
 	case ETHTOOL_ID_OFF:
-		if (oct->chip_id == OCTEON_CN66XX)
+		if (oct->chip_id == OCTEON_CN23XX_PF_VID &&
+		    linfo->link.s.phy_type == LIO_PHY_PORT_TP &&
+		    cur_ver > OCT_FW_VER(1, 7, 2))
+			octnet_id_active(netdev, LED_IDENTIFICATION_OFF);
+		else if (oct->chip_id == OCTEON_CN66XX)
 			octnet_gpio_access(netdev, VITESSE_PHY_GPIO_CFG,
 					   VITESSE_PHY_GPIO_LOW);
 		else

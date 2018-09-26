@@ -635,7 +635,6 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 	{
 		struct hpi_message hm;
 		struct hpi_response hr;
-		u32 max_streams;
 
 		HPI_DEBUG_LOG(VERBOSE, "init ADAPTER_GET_INFO\n");
 		memset(&hm, 0, sizeof(hm));
@@ -659,10 +658,6 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 
 		pao->type = hr.u.ax.info.adapter_type;
 		pao->index = hr.u.ax.info.adapter_index;
-
-		max_streams =
-			hr.u.ax.info.num_outstreams +
-			hr.u.ax.info.num_instreams;
 
 		HPI_DEBUG_LOG(VERBOSE,
 			"got adapter info type %x index %d serial %d\n",

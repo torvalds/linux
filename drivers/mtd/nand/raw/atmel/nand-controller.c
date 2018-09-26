@@ -52,7 +52,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/genalloc.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/syscon.h>
@@ -129,6 +128,11 @@
 #define DEFAULT_TIMEOUT_MS			1000
 #define MIN_DMA_LEN				128
 
+static bool atmel_nand_avoid_dma __read_mostly;
+
+MODULE_PARM_DESC(avoiddma, "Avoid using DMA");
+module_param_named(avoiddma, atmel_nand_avoid_dma, bool, 0400);
+
 enum atmel_nand_rb_type {
 	ATMEL_NAND_NO_RB,
 	ATMEL_NAND_NATIVE_RB,
@@ -197,7 +201,7 @@ struct atmel_nand_controller_ops {
 	int (*remove)(struct atmel_nand_controller *nc);
 	void (*nand_init)(struct atmel_nand_controller *nc,
 			  struct atmel_nand *nand);
-	int (*ecc_init)(struct atmel_nand *nand);
+	int (*ecc_init)(struct nand_chip *chip);
 	int (*setup_data_interface)(struct atmel_nand *nand, int csline,
 				    const struct nand_data_interface *conf);
 };
@@ -211,7 +215,7 @@ struct atmel_nand_controller_caps {
 };
 
 struct atmel_nand_controller {
-	struct nand_hw_control base;
+	struct nand_controller base;
 	const struct atmel_nand_controller_caps *caps;
 	struct device *dev;
 	struct regmap *smc;
@@ -222,7 +226,7 @@ struct atmel_nand_controller {
 };
 
 static inline struct atmel_nand_controller *
-to_nand_controller(struct nand_hw_control *ctl)
+to_nand_controller(struct nand_controller *ctl)
 {
 	return container_of(ctl, struct atmel_nand_controller, base);
 }
@@ -234,7 +238,7 @@ struct atmel_smc_nand_controller {
 };
 
 static inline struct atmel_smc_nand_controller *
-to_smc_nand_controller(struct nand_hw_control *ctl)
+to_smc_nand_controller(struct nand_controller *ctl)
 {
 	return container_of(to_nand_controller(ctl),
 			    struct atmel_smc_nand_controller, base);
@@ -258,7 +262,7 @@ struct atmel_hsmc_nand_controller {
 };
 
 static inline struct atmel_hsmc_nand_controller *
-to_hsmc_nand_controller(struct nand_hw_control *ctl)
+to_hsmc_nand_controller(struct nand_controller *ctl)
 {
 	return container_of(to_nand_controller(ctl),
 			    struct atmel_hsmc_nand_controller, base);
@@ -1128,9 +1132,8 @@ static int atmel_nand_pmecc_init(struct nand_chip *chip)
 	return 0;
 }
 
-static int atmel_nand_ecc_init(struct atmel_nand *nand)
+static int atmel_nand_ecc_init(struct nand_chip *chip)
 {
-	struct nand_chip *chip = &nand->base;
 	struct atmel_nand_controller *nc;
 	int ret;
 
@@ -1165,12 +1168,11 @@ static int atmel_nand_ecc_init(struct atmel_nand *nand)
 	return 0;
 }
 
-static int atmel_hsmc_nand_ecc_init(struct atmel_nand *nand)
+static int atmel_hsmc_nand_ecc_init(struct nand_chip *chip)
 {
-	struct nand_chip *chip = &nand->base;
 	int ret;
 
-	ret = atmel_nand_ecc_init(nand);
+	ret = atmel_nand_ecc_init(chip);
 	if (ret)
 		return ret;
 
@@ -1553,23 +1555,7 @@ static void atmel_hsmc_nand_init(struct atmel_nand_controller *nc,
 	chip->select_chip = atmel_hsmc_nand_select_chip;
 }
 
-static int atmel_nand_detect(struct atmel_nand *nand)
-{
-	struct nand_chip *chip = &nand->base;
-	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct atmel_nand_controller *nc;
-	int ret;
-
-	nc = to_nand_controller(chip->controller);
-
-	ret = nand_scan_ident(mtd, nand->numcs, NULL);
-	if (ret)
-		dev_err(nc->dev, "nand_scan_ident() failed: %d\n", ret);
-
-	return ret;
-}
-
-static int atmel_nand_unregister(struct atmel_nand *nand)
+static int atmel_nand_controller_remove_nand(struct atmel_nand *nand)
 {
 	struct nand_chip *chip = &nand->base;
 	struct mtd_info *mtd = nand_to_mtd(chip);
@@ -1581,60 +1567,6 @@ static int atmel_nand_unregister(struct atmel_nand *nand)
 
 	nand_cleanup(chip);
 	list_del(&nand->node);
-
-	return 0;
-}
-
-static int atmel_nand_register(struct atmel_nand *nand)
-{
-	struct nand_chip *chip = &nand->base;
-	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct atmel_nand_controller *nc;
-	int ret;
-
-	nc = to_nand_controller(chip->controller);
-
-	if (nc->caps->legacy_of_bindings || !nc->dev->of_node) {
-		/*
-		 * We keep the MTD name unchanged to avoid breaking platforms
-		 * where the MTD cmdline parser is used and the bootloader
-		 * has not been updated to use the new naming scheme.
-		 */
-		mtd->name = "atmel_nand";
-	} else if (!mtd->name) {
-		/*
-		 * If the new bindings are used and the bootloader has not been
-		 * updated to pass a new mtdparts parameter on the cmdline, you
-		 * should define the following property in your nand node:
-		 *
-		 *	label = "atmel_nand";
-		 *
-		 * This way, mtd->name will be set by the core when
-		 * nand_set_flash_node() is called.
-		 */
-		mtd->name = devm_kasprintf(nc->dev, GFP_KERNEL,
-					   "%s:nand.%d", dev_name(nc->dev),
-					   nand->cs[0].id);
-		if (!mtd->name) {
-			dev_err(nc->dev, "Failed to allocate mtd->name\n");
-			return -ENOMEM;
-		}
-	}
-
-	ret = nand_scan_tail(mtd);
-	if (ret) {
-		dev_err(nc->dev, "nand_scan_tail() failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = mtd_device_register(mtd, NULL, 0);
-	if (ret) {
-		dev_err(nc->dev, "Failed to register mtd device: %d\n", ret);
-		nand_cleanup(chip);
-		return ret;
-	}
-
-	list_add_tail(&nand->node, &nc->chips);
 
 	return 0;
 }
@@ -1750,6 +1682,8 @@ static int
 atmel_nand_controller_add_nand(struct atmel_nand_controller *nc,
 			       struct atmel_nand *nand)
 {
+	struct nand_chip *chip = &nand->base;
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
 	/* No card inserted, skip this NAND. */
@@ -1760,15 +1694,22 @@ atmel_nand_controller_add_nand(struct atmel_nand_controller *nc,
 
 	nc->caps->ops->nand_init(nc, nand);
 
-	ret = atmel_nand_detect(nand);
-	if (ret)
+	ret = nand_scan(mtd, nand->numcs);
+	if (ret) {
+		dev_err(nc->dev, "NAND scan failed: %d\n", ret);
 		return ret;
+	}
 
-	ret = nc->caps->ops->ecc_init(nand);
-	if (ret)
+	ret = mtd_device_register(mtd, NULL, 0);
+	if (ret) {
+		dev_err(nc->dev, "Failed to register mtd device: %d\n", ret);
+		nand_cleanup(chip);
 		return ret;
+	}
 
-	return atmel_nand_register(nand);
+	list_add_tail(&nand->node, &nc->chips);
+
+	return 0;
 }
 
 static int
@@ -1778,7 +1719,7 @@ atmel_nand_controller_remove_nands(struct atmel_nand_controller *nc)
 	int ret;
 
 	list_for_each_entry_safe(nand, tmp, &nc->chips, node) {
-		ret = atmel_nand_unregister(nand);
+		ret = atmel_nand_controller_remove_nand(nand);
 		if (ret)
 			return ret;
 	}
@@ -1953,6 +1894,51 @@ static const struct of_device_id atmel_matrix_of_ids[] = {
 	{ /* sentinel */ },
 };
 
+static int atmel_nand_attach_chip(struct nand_chip *chip)
+{
+	struct atmel_nand_controller *nc = to_nand_controller(chip->controller);
+	struct atmel_nand *nand = to_atmel_nand(chip);
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	int ret;
+
+	ret = nc->caps->ops->ecc_init(chip);
+	if (ret)
+		return ret;
+
+	if (nc->caps->legacy_of_bindings || !nc->dev->of_node) {
+		/*
+		 * We keep the MTD name unchanged to avoid breaking platforms
+		 * where the MTD cmdline parser is used and the bootloader
+		 * has not been updated to use the new naming scheme.
+		 */
+		mtd->name = "atmel_nand";
+	} else if (!mtd->name) {
+		/*
+		 * If the new bindings are used and the bootloader has not been
+		 * updated to pass a new mtdparts parameter on the cmdline, you
+		 * should define the following property in your nand node:
+		 *
+		 *	label = "atmel_nand";
+		 *
+		 * This way, mtd->name will be set by the core when
+		 * nand_set_flash_node() is called.
+		 */
+		mtd->name = devm_kasprintf(nc->dev, GFP_KERNEL,
+					   "%s:nand.%d", dev_name(nc->dev),
+					   nand->cs[0].id);
+		if (!mtd->name) {
+			dev_err(nc->dev, "Failed to allocate mtd->name\n");
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
+static const struct nand_controller_ops atmel_nand_controller_ops = {
+	.attach_chip = atmel_nand_attach_chip,
+};
+
 static int atmel_nand_controller_init(struct atmel_nand_controller *nc,
 				struct platform_device *pdev,
 				const struct atmel_nand_controller_caps *caps)
@@ -1961,7 +1947,8 @@ static int atmel_nand_controller_init(struct atmel_nand_controller *nc,
 	struct device_node *np = dev->of_node;
 	int ret;
 
-	nand_hw_control_init(&nc->base);
+	nand_controller_init(&nc->base);
+	nc->base.ops = &atmel_nand_controller_ops;
 	INIT_LIST_HEAD(&nc->chips);
 	nc->dev = dev;
 	nc->caps = caps;
@@ -1977,7 +1964,7 @@ static int atmel_nand_controller_init(struct atmel_nand_controller *nc,
 		return ret;
 	}
 
-	if (nc->caps->has_dma) {
+	if (nc->caps->has_dma && !atmel_nand_avoid_dma) {
 		dma_cap_mask_t mask;
 
 		dma_cap_zero(mask);
@@ -2045,7 +2032,7 @@ atmel_smc_nand_controller_init(struct atmel_smc_nand_controller *nc)
 		return ret;
 	}
 
-	nc->ebi_csa_offs = (unsigned int)match->data;
+	nc->ebi_csa_offs = (uintptr_t)match->data;
 
 	/*
 	 * The at91sam9263 has 2 EBIs, if the NAND controller is under EBI1
@@ -2214,9 +2201,9 @@ atmel_hsmc_nand_controller_init(struct atmel_hsmc_nand_controller *nc)
 		return -ENOMEM;
 	}
 
-	nc->sram.virt = gen_pool_dma_alloc(nc->sram.pool,
-					    ATMEL_NFC_SRAM_SIZE,
-					    &nc->sram.dma);
+	nc->sram.virt = (void __iomem *)gen_pool_dma_alloc(nc->sram.pool,
+							   ATMEL_NFC_SRAM_SIZE,
+							   &nc->sram.dma);
 	if (!nc->sram.virt) {
 		dev_err(nc->base.dev,
 			"Could not allocate memory from the NFC SRAM pool\n");

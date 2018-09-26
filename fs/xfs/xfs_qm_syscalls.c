@@ -22,6 +22,7 @@
 #include "xfs_qm.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
+#include "xfs_defer.h"
 
 STATIC int	xfs_qm_log_quotaoff(xfs_mount_t *, xfs_qoff_logitem_t **, uint);
 STATIC int	xfs_qm_log_quotaoff_end(xfs_mount_t *, xfs_qoff_logitem_t *,
@@ -189,15 +190,15 @@ xfs_qm_scall_quotaoff(
 	 * Release our quotainode references if we don't need them anymore.
 	 */
 	if ((dqtype & XFS_QMOPT_UQUOTA) && q->qi_uquotaip) {
-		IRELE(q->qi_uquotaip);
+		xfs_irele(q->qi_uquotaip);
 		q->qi_uquotaip = NULL;
 	}
 	if ((dqtype & XFS_QMOPT_GQUOTA) && q->qi_gquotaip) {
-		IRELE(q->qi_gquotaip);
+		xfs_irele(q->qi_gquotaip);
 		q->qi_gquotaip = NULL;
 	}
 	if ((dqtype & XFS_QMOPT_PQUOTA) && q->qi_pquotaip) {
-		IRELE(q->qi_pquotaip);
+		xfs_irele(q->qi_pquotaip);
 		q->qi_pquotaip = NULL;
 	}
 
@@ -250,7 +251,7 @@ xfs_qm_scall_trunc_qfile(
 out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
 out_put:
-	IRELE(ip);
+	xfs_irele(ip);
 	return error;
 }
 

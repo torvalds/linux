@@ -122,9 +122,7 @@ tconInfoAlloc(void)
 		mutex_init(&ret_buf->crfid.fid_mutex);
 		ret_buf->crfid.fid = kzalloc(sizeof(struct cifs_fid),
 					     GFP_KERNEL);
-#ifdef CONFIG_CIFS_STATS
 		spin_lock_init(&ret_buf->stat_lock);
-#endif
 	}
 	return ret_buf;
 }
@@ -404,9 +402,17 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 			(struct smb_com_transaction_change_notify_rsp *)buf;
 		struct file_notify_information *pnotify;
 		__u32 data_offset = 0;
+		size_t len = srv->total_read - sizeof(pSMBr->hdr.smb_buf_length);
+
 		if (get_bcc(buf) > sizeof(struct file_notify_information)) {
 			data_offset = le32_to_cpu(pSMBr->DataOffset);
 
+			if (data_offset >
+			    len - sizeof(struct file_notify_information)) {
+				cifs_dbg(FYI, "invalid data_offset %u\n",
+					 data_offset);
+				return true;
+			}
 			pnotify = (struct file_notify_information *)
 				((char *)&pSMBr->hdr.Protocol + data_offset);
 			cifs_dbg(FYI, "dnotify on %s Action: 0x%x\n",

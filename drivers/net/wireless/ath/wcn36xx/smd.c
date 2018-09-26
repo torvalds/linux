@@ -250,7 +250,7 @@ static void wcn36xx_smd_set_sta_params(struct wcn36xx *wcn,
 
 static int wcn36xx_smd_send_and_wait(struct wcn36xx *wcn, size_t len)
 {
-	int ret = 0;
+	int ret;
 	unsigned long start;
 	struct wcn36xx_hal_msg_header *hdr =
 		(struct wcn36xx_hal_msg_header *)wcn->hal_buf;
@@ -446,7 +446,7 @@ static int wcn36xx_smd_start_rsp(struct wcn36xx *wcn, void *buf, size_t len)
 int wcn36xx_smd_start(struct wcn36xx *wcn)
 {
 	struct wcn36xx_hal_mac_start_req_msg msg_body, *body;
-	int ret = 0;
+	int ret;
 	int i;
 	size_t len;
 
@@ -493,7 +493,7 @@ out:
 int wcn36xx_smd_stop(struct wcn36xx *wcn)
 {
 	struct wcn36xx_hal_mac_stop_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_STOP_REQ);
@@ -520,7 +520,7 @@ out:
 int wcn36xx_smd_init_scan(struct wcn36xx *wcn, enum wcn36xx_hal_sys_mode mode)
 {
 	struct wcn36xx_hal_init_scan_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_INIT_SCAN_REQ);
@@ -549,7 +549,7 @@ out:
 int wcn36xx_smd_start_scan(struct wcn36xx *wcn, u8 scan_channel)
 {
 	struct wcn36xx_hal_start_scan_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_START_SCAN_REQ);
@@ -579,7 +579,7 @@ out:
 int wcn36xx_smd_end_scan(struct wcn36xx *wcn, u8 scan_channel)
 {
 	struct wcn36xx_hal_end_scan_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_END_SCAN_REQ);
@@ -610,7 +610,7 @@ int wcn36xx_smd_finish_scan(struct wcn36xx *wcn,
 			    enum wcn36xx_hal_sys_mode mode)
 {
 	struct wcn36xx_hal_finish_scan_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_FINISH_SCAN_REQ);
@@ -732,7 +732,7 @@ out:
 static int wcn36xx_smd_switch_channel_rsp(void *buf, size_t len)
 {
 	struct wcn36xx_hal_switch_channel_rsp_msg *rsp;
-	int ret = 0;
+	int ret;
 
 	ret = wcn36xx_smd_rsp_status_check(buf, len);
 	if (ret)
@@ -747,7 +747,7 @@ int wcn36xx_smd_switch_channel(struct wcn36xx *wcn,
 			       struct ieee80211_vif *vif, int ch)
 {
 	struct wcn36xx_hal_switch_channel_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_CH_SWITCH_REQ);
@@ -860,7 +860,7 @@ int wcn36xx_smd_update_scan_params(struct wcn36xx *wcn,
 				   u8 *channels, size_t channel_count)
 {
 	struct wcn36xx_hal_update_scan_params_req_ex msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_UPDATE_SCAN_PARAM_REQ);
@@ -931,7 +931,7 @@ static int wcn36xx_smd_add_sta_self_rsp(struct wcn36xx *wcn,
 int wcn36xx_smd_add_sta_self(struct wcn36xx *wcn, struct ieee80211_vif *vif)
 {
 	struct wcn36xx_hal_add_sta_self_req msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_ADD_STA_SELF_REQ);
@@ -965,7 +965,7 @@ out:
 int wcn36xx_smd_delete_sta_self(struct wcn36xx *wcn, u8 *addr)
 {
 	struct wcn36xx_hal_del_sta_self_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_DEL_STA_SELF_REQ);
@@ -993,7 +993,7 @@ out:
 int wcn36xx_smd_delete_sta(struct wcn36xx *wcn, u8 sta_index)
 {
 	struct wcn36xx_hal_delete_sta_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_DELETE_STA_REQ);
@@ -1040,7 +1040,7 @@ static int wcn36xx_smd_join_rsp(void *buf, size_t len)
 int wcn36xx_smd_join(struct wcn36xx *wcn, const u8 *bssid, u8 *vif, u8 ch)
 {
 	struct wcn36xx_hal_join_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_JOIN_REQ);
@@ -1089,7 +1089,7 @@ int wcn36xx_smd_set_link_st(struct wcn36xx *wcn, const u8 *bssid,
 			    enum wcn36xx_hal_link_state state)
 {
 	struct wcn36xx_hal_set_link_state_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_SET_LINK_ST_REQ);
@@ -1215,7 +1215,7 @@ int wcn36xx_smd_config_sta(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 {
 	struct wcn36xx_hal_config_sta_req_msg msg;
 	struct wcn36xx_hal_config_sta_params *sta_params;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg, WCN36XX_HAL_CONFIG_STA_REQ);
@@ -1414,7 +1414,7 @@ int wcn36xx_smd_config_bss(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 	struct wcn36xx_hal_config_bss_params *bss;
 	struct wcn36xx_hal_config_sta_params *sta_params;
 	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg, WCN36XX_HAL_CONFIG_BSS_REQ);
@@ -1579,7 +1579,7 @@ int wcn36xx_smd_send_beacon(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 			    u16 p2p_off)
 {
 	struct wcn36xx_hal_send_beacon_req_msg msg_body;
-	int ret = 0, pad, pvm_len;
+	int ret, pad, pvm_len;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_SEND_BEACON_REQ);
@@ -1653,7 +1653,7 @@ int wcn36xx_smd_update_proberesp_tmpl(struct wcn36xx *wcn,
 				      struct sk_buff *skb)
 {
 	struct wcn36xx_hal_send_probe_resp_req_msg msg;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg, WCN36XX_HAL_UPDATE_PROBE_RSP_TEMPLATE_REQ);
@@ -1700,7 +1700,7 @@ int wcn36xx_smd_set_stakey(struct wcn36xx *wcn,
 			   u8 sta_index)
 {
 	struct wcn36xx_hal_set_sta_key_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_SET_STAKEY_REQ);
@@ -1708,12 +1708,20 @@ int wcn36xx_smd_set_stakey(struct wcn36xx *wcn,
 	msg_body.set_sta_key_params.sta_index = sta_index;
 	msg_body.set_sta_key_params.enc_type = enc_type;
 
-	msg_body.set_sta_key_params.key[0].id = keyidx;
-	msg_body.set_sta_key_params.key[0].unicast = 1;
-	msg_body.set_sta_key_params.key[0].direction = WCN36XX_HAL_TX_RX;
-	msg_body.set_sta_key_params.key[0].pae_role = 0;
-	msg_body.set_sta_key_params.key[0].length = keylen;
-	memcpy(msg_body.set_sta_key_params.key[0].key, key, keylen);
+	if (enc_type == WCN36XX_HAL_ED_WEP104 ||
+	    enc_type == WCN36XX_HAL_ED_WEP40) {
+		/* Use bss key for wep (static) */
+		msg_body.set_sta_key_params.def_wep_idx = keyidx;
+		msg_body.set_sta_key_params.wep_type = 0;
+	} else {
+		msg_body.set_sta_key_params.key[0].id = keyidx;
+		msg_body.set_sta_key_params.key[0].unicast = 1;
+		msg_body.set_sta_key_params.key[0].direction = WCN36XX_HAL_TX_RX;
+		msg_body.set_sta_key_params.key[0].pae_role = 0;
+		msg_body.set_sta_key_params.key[0].length = keylen;
+		memcpy(msg_body.set_sta_key_params.key[0].key, key, keylen);
+	}
+
 	msg_body.set_sta_key_params.single_tid_rc = 1;
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
@@ -1741,7 +1749,7 @@ int wcn36xx_smd_set_bsskey(struct wcn36xx *wcn,
 			   u8 *key)
 {
 	struct wcn36xx_hal_set_bss_key_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_SET_BSSKEY_REQ);
@@ -1778,7 +1786,7 @@ int wcn36xx_smd_remove_stakey(struct wcn36xx *wcn,
 			      u8 sta_index)
 {
 	struct wcn36xx_hal_remove_sta_key_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_RMV_STAKEY_REQ);
@@ -1810,7 +1818,7 @@ int wcn36xx_smd_remove_bsskey(struct wcn36xx *wcn,
 			      u8 keyidx)
 {
 	struct wcn36xx_hal_remove_bss_key_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_RMV_BSSKEY_REQ);
@@ -1839,7 +1847,7 @@ int wcn36xx_smd_enter_bmps(struct wcn36xx *wcn, struct ieee80211_vif *vif)
 {
 	struct wcn36xx_hal_enter_bmps_req_msg msg_body;
 	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_ENTER_BMPS_REQ);
@@ -1869,7 +1877,7 @@ int wcn36xx_smd_exit_bmps(struct wcn36xx *wcn, struct ieee80211_vif *vif)
 {
 	struct wcn36xx_hal_exit_bmps_req_msg msg_body;
 	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_EXIT_BMPS_REQ);
@@ -1895,7 +1903,7 @@ out:
 int wcn36xx_smd_set_power_params(struct wcn36xx *wcn, bool ignore_dtim)
 {
 	struct wcn36xx_hal_set_power_params_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_SET_POWER_PARAMS_REQ);
@@ -1930,7 +1938,7 @@ int wcn36xx_smd_keep_alive_req(struct wcn36xx *wcn,
 {
 	struct wcn36xx_hal_keep_alive_req_msg msg_body;
 	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_KEEP_ALIVE_REQ);
@@ -1968,7 +1976,7 @@ int wcn36xx_smd_dump_cmd_req(struct wcn36xx *wcn, u32 arg1, u32 arg2,
 			     u32 arg3, u32 arg4, u32 arg5)
 {
 	struct wcn36xx_hal_dump_cmd_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_DUMP_COMMAND_REQ);
@@ -2013,7 +2021,6 @@ void set_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
 int get_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
 {
 	int arr_idx, bit_idx;
-	int ret = 0;
 
 	if (cap < 0 || cap > 127) {
 		wcn36xx_warn("error cap idx %d\n", cap);
@@ -2022,8 +2029,8 @@ int get_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
 
 	arr_idx = cap / 32;
 	bit_idx = cap % 32;
-	ret = (bitmap[arr_idx] & (1 << bit_idx)) ? 1 : 0;
-	return ret;
+
+	return (bitmap[arr_idx] & (1 << bit_idx)) ? 1 : 0;
 }
 
 void clear_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
@@ -2043,7 +2050,7 @@ void clear_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
 int wcn36xx_smd_feature_caps_exchange(struct wcn36xx *wcn)
 {
 	struct wcn36xx_hal_feat_caps_msg msg_body, *rsp;
-	int ret = 0, i;
+	int ret, i;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_FEATURE_CAPS_EXCHANGE_REQ);
@@ -2079,7 +2086,7 @@ int wcn36xx_smd_add_ba_session(struct wcn36xx *wcn,
 		u8 sta_index)
 {
 	struct wcn36xx_hal_add_ba_session_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_ADD_BA_SESSION_REQ);
@@ -2117,7 +2124,7 @@ out:
 int wcn36xx_smd_add_ba(struct wcn36xx *wcn)
 {
 	struct wcn36xx_hal_add_ba_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_ADD_BA_REQ);
@@ -2145,7 +2152,7 @@ out:
 int wcn36xx_smd_del_ba(struct wcn36xx *wcn, u16 tid, u8 sta_index)
 {
 	struct wcn36xx_hal_del_ba_req_msg msg_body;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_DEL_BA_REQ);
@@ -2185,7 +2192,7 @@ int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index)
 {
 	struct wcn36xx_hal_trigger_ba_req_msg msg_body;
 	struct wcn36xx_hal_trigger_ba_req_candidate *candidate;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_TRIGGER_BA_REQ);
@@ -2364,7 +2371,7 @@ int wcn36xx_smd_update_cfg(struct wcn36xx *wcn, u32 cfg_id, u32 value)
 {
 	struct wcn36xx_hal_update_cfg_req_msg msg_body, *body;
 	size_t len;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_UPDATE_CFG_REQ);
@@ -2399,7 +2406,7 @@ int wcn36xx_smd_set_mc_list(struct wcn36xx *wcn,
 {
 	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
 	struct wcn36xx_hal_rcv_flt_pkt_set_mc_list_req_msg *msg_body = NULL;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&wcn->hal_mutex);
 

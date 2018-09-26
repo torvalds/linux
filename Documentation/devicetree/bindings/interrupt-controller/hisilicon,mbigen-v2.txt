@@ -68,8 +68,6 @@ Examples:
 
 Devices connect to mbigen required properties:
 ----------------------------------------------------
--interrupt-parent: Specifies the mbigen device node which device connected.
-
 -interrupts:Specifies the interrupt source.
  For the specific information of each cell in this property,please refer to
  the "interrupt-cells" description mentioned above.

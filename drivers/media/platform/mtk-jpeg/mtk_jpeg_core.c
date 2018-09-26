@@ -861,14 +861,9 @@ static int mtk_jpeg_job_ready(void *priv)
 	return (ctx->state == MTK_JPEG_RUNNING) ? 1 : 0;
 }
 
-static void mtk_jpeg_job_abort(void *priv)
-{
-}
-
 static const struct v4l2_m2m_ops mtk_jpeg_m2m_ops = {
 	.device_run = mtk_jpeg_device_run,
 	.job_ready  = mtk_jpeg_job_ready,
-	.job_abort  = mtk_jpeg_job_abort,
 };
 
 static int mtk_jpeg_queue_init(void *priv, struct vb2_queue *src_vq,

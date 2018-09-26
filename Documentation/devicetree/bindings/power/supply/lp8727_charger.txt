@@ -5,7 +5,6 @@ Required properties:
 - reg: I2C slave address 27h
 
 Optional properties:
-- interrupt-parent: interrupt controller node (see interrupt binding[0])
 - interrupts: interrupt specifier (see interrupt binding[0])
 - debounce-ms: interrupt debounce time. (u32)
 

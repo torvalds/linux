@@ -820,10 +820,9 @@ static void igmp_timer_expire(struct timer_list *t)
 	spin_lock(&im->lock);
 	im->tm_running = 0;
 
-	if (im->unsolicit_count) {
-		im->unsolicit_count--;
+	if (im->unsolicit_count && --im->unsolicit_count)
 		igmp_start_timer(im, unsolicited_report_interval(in_dev));
-	}
+
 	im->reporter = 1;
 	spin_unlock(&im->lock);
 
@@ -1200,13 +1199,13 @@ static void igmpv3_del_delrec(struct in_device *in_dev, struct ip_mc_list *im)
 	spin_lock_bh(&im->lock);
 	if (pmc) {
 		im->interface = pmc->interface;
-		im->crcount = in_dev->mr_qrv ?: net->ipv4.sysctl_igmp_qrv;
-		im->sfmode = pmc->sfmode;
-		if (pmc->sfmode == MCAST_INCLUDE) {
+		if (im->sfmode == MCAST_INCLUDE) {
 			im->tomb = pmc->tomb;
 			im->sources = pmc->sources;
 			for (psf = im->sources; psf; psf = psf->sf_next)
-				psf->sf_crcount = im->crcount;
+				psf->sf_crcount = in_dev->mr_qrv ?: net->ipv4.sysctl_igmp_qrv;
+		} else {
+			im->crcount = in_dev->mr_qrv ?: net->ipv4.sysctl_igmp_qrv;
 		}
 		in_dev_put(pmc->interface);
 		kfree(pmc);
@@ -1308,6 +1307,8 @@ static void igmp_group_added(struct ip_mc_list *im)
 
 	if (in_dev->dead)
 		return;
+
+	im->unsolicit_count = net->ipv4.sysctl_igmp_qrv;
 	if (IGMP_V1_SEEN(in_dev) || IGMP_V2_SEEN(in_dev)) {
 		spin_lock_bh(&im->lock);
 		igmp_start_timer(im, IGMP_INITIAL_REPORT_DELAY);
@@ -1316,7 +1317,13 @@ static void igmp_group_added(struct ip_mc_list *im)
 	}
 	/* else, v3 */
 
-	im->crcount = in_dev->mr_qrv ?: net->ipv4.sysctl_igmp_qrv;
+	/* Based on RFC3376 5.1, for newly added INCLUDE SSM, we should
+	 * not send filter-mode change record as the mode should be from
+	 * IN() to IN(A).
+	 */
+	if (im->sfmode == MCAST_EXCLUDE)
+		im->crcount = in_dev->mr_qrv ?: net->ipv4.sysctl_igmp_qrv;
+
 	igmp_ifc_event(in_dev);
 #endif
 }
@@ -1381,20 +1388,17 @@ static void ip_mc_hash_remove(struct in_device *in_dev,
 /*
  *	A socket has joined a multicast group on device dev.
  */
-
-void ip_mc_inc_group(struct in_device *in_dev, __be32 addr)
+static void __ip_mc_inc_group(struct in_device *in_dev, __be32 addr,
+			      unsigned int mode)
 {
 	struct ip_mc_list *im;
-#ifdef CONFIG_IP_MULTICAST
-	struct net *net = dev_net(in_dev->dev);
-#endif
 
 	ASSERT_RTNL();
 
 	for_each_pmc_rtnl(in_dev, im) {
 		if (im->multiaddr == addr) {
 			im->users++;
-			ip_mc_add_src(in_dev, &addr, MCAST_EXCLUDE, 0, NULL, 0);
+			ip_mc_add_src(in_dev, &addr, mode, 0, NULL, 0);
 			goto out;
 		}
 	}
@@ -1408,13 +1412,12 @@ void ip_mc_inc_group(struct in_device *in_dev, __be32 addr)
 	in_dev_hold(in_dev);
 	im->multiaddr = addr;
 	/* initial mode is (EX, empty) */
-	im->sfmode = MCAST_EXCLUDE;
-	im->sfcount[MCAST_EXCLUDE] = 1;
+	im->sfmode = mode;
+	im->sfcount[mode] = 1;
 	refcount_set(&im->refcnt, 1);
 	spin_lock_init(&im->lock);
 #ifdef CONFIG_IP_MULTICAST
 	timer_setup(&im->timer, igmp_timer_expire, 0);
-	im->unsolicit_count = net->ipv4.sysctl_igmp_qrv;
 #endif
 
 	im->next_rcu = in_dev->mc_list;
@@ -1431,6 +1434,11 @@ void ip_mc_inc_group(struct in_device *in_dev, __be32 addr)
 		ip_rt_multicast_event(in_dev);
 out:
 	return;
+}
+
+void ip_mc_inc_group(struct in_device *in_dev, __be32 addr)
+{
+	__ip_mc_inc_group(in_dev, addr, MCAST_EXCLUDE);
 }
 EXPORT_SYMBOL(ip_mc_inc_group);
 
@@ -2130,8 +2138,8 @@ static void ip_mc_clear_src(struct ip_mc_list *pmc)
 
 /* Join a multicast group
  */
-
-int ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr)
+static int __ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr,
+			      unsigned int mode)
 {
 	__be32 addr = imr->imr_multiaddr.s_addr;
 	struct ip_mc_socklist *iml, *i;
@@ -2172,14 +2180,29 @@ int ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr)
 	memcpy(&iml->multi, imr, sizeof(*imr));
 	iml->next_rcu = inet->mc_list;
 	iml->sflist = NULL;
-	iml->sfmode = MCAST_EXCLUDE;
+	iml->sfmode = mode;
 	rcu_assign_pointer(inet->mc_list, iml);
-	ip_mc_inc_group(in_dev, addr);
+	__ip_mc_inc_group(in_dev, addr, mode);
 	err = 0;
 done:
 	return err;
 }
+
+/* Join ASM (Any-Source Multicast) group
+ */
+int ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr)
+{
+	return __ip_mc_join_group(sk, imr, MCAST_EXCLUDE);
+}
 EXPORT_SYMBOL(ip_mc_join_group);
+
+/* Join SSM (Source-Specific Multicast) group
+ */
+int ip_mc_join_group_ssm(struct sock *sk, struct ip_mreqn *imr,
+			 unsigned int mode)
+{
+	return __ip_mc_join_group(sk, imr, mode);
+}
 
 static int ip_mc_leave_src(struct sock *sk, struct ip_mc_socklist *iml,
 			   struct in_device *in_dev)

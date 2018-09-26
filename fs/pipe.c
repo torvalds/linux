@@ -509,22 +509,19 @@ static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 }
 
-static struct wait_queue_head *
-pipe_get_poll_head(struct file *filp, __poll_t events)
-{
-	struct pipe_inode_info *pipe = filp->private_data;
-
-	return &pipe->wait;
-}
-
 /* No kernel lock held - fine */
-static __poll_t pipe_poll_mask(struct file *filp, __poll_t events)
+static __poll_t
+pipe_poll(struct file *filp, poll_table *wait)
 {
+	__poll_t mask;
 	struct pipe_inode_info *pipe = filp->private_data;
-	int nrbufs = pipe->nrbufs;
-	__poll_t mask = 0;
+	int nrbufs;
+
+	poll_wait(filp, &pipe->wait, wait);
 
 	/* Reading only -- no need for acquiring the semaphore.  */
+	nrbufs = pipe->nrbufs;
+	mask = 0;
 	if (filp->f_mode & FMODE_READ) {
 		mask = (nrbufs > 0) ? EPOLLIN | EPOLLRDNORM : 0;
 		if (!pipe->writers && filp->f_version != pipe->w_counter)
@@ -744,54 +741,33 @@ fail_inode:
 
 int create_pipe_files(struct file **res, int flags)
 {
-	int err;
 	struct inode *inode = get_pipe_inode();
 	struct file *f;
-	struct path path;
 
 	if (!inode)
 		return -ENFILE;
 
-	err = -ENOMEM;
-	path.dentry = d_alloc_pseudo(pipe_mnt->mnt_sb, &empty_name);
-	if (!path.dentry)
-		goto err_inode;
-	path.mnt = mntget(pipe_mnt);
-
-	d_instantiate(path.dentry, inode);
-
-	f = alloc_file(&path, FMODE_WRITE, &pipefifo_fops);
+	f = alloc_file_pseudo(inode, pipe_mnt, "",
+				O_WRONLY | (flags & (O_NONBLOCK | O_DIRECT)),
+				&pipefifo_fops);
 	if (IS_ERR(f)) {
-		err = PTR_ERR(f);
-		goto err_dentry;
+		free_pipe_info(inode->i_pipe);
+		iput(inode);
+		return PTR_ERR(f);
 	}
 
-	f->f_flags = O_WRONLY | (flags & (O_NONBLOCK | O_DIRECT));
 	f->private_data = inode->i_pipe;
 
-	res[0] = alloc_file(&path, FMODE_READ, &pipefifo_fops);
+	res[0] = alloc_file_clone(f, O_RDONLY | (flags & O_NONBLOCK),
+				  &pipefifo_fops);
 	if (IS_ERR(res[0])) {
-		err = PTR_ERR(res[0]);
-		goto err_file;
+		put_pipe_info(inode, inode->i_pipe);
+		fput(f);
+		return PTR_ERR(res[0]);
 	}
-
-	path_get(&path);
 	res[0]->private_data = inode->i_pipe;
-	res[0]->f_flags = O_RDONLY | (flags & O_NONBLOCK);
 	res[1] = f;
 	return 0;
-
-err_file:
-	put_filp(f);
-err_dentry:
-	free_pipe_info(inode->i_pipe);
-	path_put(&path);
-	return err;
-
-err_inode:
-	free_pipe_info(inode->i_pipe);
-	iput(inode);
-	return err;
 }
 
 static int __do_pipe_flags(int *fd, struct file **files, int flags)
@@ -1023,8 +999,7 @@ const struct file_operations pipefifo_fops = {
 	.llseek		= no_llseek,
 	.read_iter	= pipe_read,
 	.write_iter	= pipe_write,
-	.get_poll_head	= pipe_get_poll_head,
-	.poll_mask	= pipe_poll_mask,
+	.poll		= pipe_poll,
 	.unlocked_ioctl	= pipe_ioctl,
 	.release	= pipe_release,
 	.fasync		= pipe_fasync,

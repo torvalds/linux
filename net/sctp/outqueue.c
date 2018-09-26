@@ -80,7 +80,7 @@ static inline void sctp_outq_head_data(struct sctp_outq *q,
 	q->out_qlen += ch->skb->len;
 
 	stream = sctp_chunk_stream_no(ch);
-	oute = q->asoc->stream.out[stream].ext;
+	oute = SCTP_SO(&q->asoc->stream, stream)->ext;
 	list_add(&ch->stream_list, &oute->outq);
 }
 
@@ -101,7 +101,7 @@ static inline void sctp_outq_tail_data(struct sctp_outq *q,
 	q->out_qlen += ch->skb->len;
 
 	stream = sctp_chunk_stream_no(ch);
-	oute = q->asoc->stream.out[stream].ext;
+	oute = SCTP_SO(&q->asoc->stream, stream)->ext;
 	list_add_tail(&ch->stream_list, &oute->outq);
 }
 
@@ -372,7 +372,7 @@ static int sctp_prsctp_prune_sent(struct sctp_association *asoc,
 		sctp_insert_list(&asoc->outqueue.abandoned,
 				 &chk->transmitted_list);
 
-		streamout = &asoc->stream.out[chk->sinfo.sinfo_stream];
+		streamout = SCTP_SO(&asoc->stream, chk->sinfo.sinfo_stream);
 		asoc->sent_cnt_removable--;
 		asoc->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
 		streamout->ext->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
@@ -416,7 +416,7 @@ static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
 		asoc->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
 		if (chk->sinfo.sinfo_stream < asoc->stream.outcnt) {
 			struct sctp_stream_out *streamout =
-				&asoc->stream.out[chk->sinfo.sinfo_stream];
+				SCTP_SO(&asoc->stream, chk->sinfo.sinfo_stream);
 
 			streamout->ext->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
 		}
@@ -1082,6 +1082,7 @@ static void sctp_outq_flush_data(struct sctp_flush_ctx *ctx,
 	/* Finally, transmit new packets.  */
 	while ((chunk = sctp_outq_dequeue_data(ctx->q)) != NULL) {
 		__u32 sid = ntohs(chunk->subh.data_hdr->stream);
+		__u8 stream_state = SCTP_SO(&ctx->asoc->stream, sid)->state;
 
 		/* Has this chunk expired? */
 		if (sctp_chunk_abandoned(chunk)) {
@@ -1091,7 +1092,7 @@ static void sctp_outq_flush_data(struct sctp_flush_ctx *ctx,
 			continue;
 		}
 
-		if (ctx->asoc->stream.out[sid].state == SCTP_STREAM_CLOSED) {
+		if (stream_state == SCTP_STREAM_CLOSED) {
 			sctp_outq_head_data(ctx->q, chunk);
 			break;
 		}

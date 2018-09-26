@@ -45,6 +45,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/cache.h>
 #include <asm/page.h>
+#include <asm/feature-fixups.h>
 
 /* Usage:
 

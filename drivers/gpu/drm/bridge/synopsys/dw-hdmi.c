@@ -1922,7 +1922,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 
 		hdmi->sink_is_hdmi = drm_detect_hdmi_monitor(edid);
 		hdmi->sink_has_audio = drm_detect_monitor_audio(edid);
-		drm_mode_connector_update_edid_property(connector, edid);
+		drm_connector_update_edid_property(connector, edid);
 		cec_notifier_set_phys_addr_from_edid(hdmi->cec_notifier, edid);
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
@@ -1974,7 +1974,7 @@ static int dw_hdmi_bridge_attach(struct drm_bridge *bridge)
 	drm_connector_init(bridge->dev, connector, &dw_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
 }

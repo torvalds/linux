@@ -159,7 +159,7 @@ u16 read_radio_reg(struct brcms_phy *pi, u16 addr)
 {
 	u16 data;
 
-	if ((addr == RADIO_IDCODE))
+	if (addr == RADIO_IDCODE)
 		return 0xffff;
 
 	switch (pi->pubpi.phy_type) {

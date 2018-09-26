@@ -66,6 +66,12 @@
 			clock-frequency = <1000000>;
 		};
 
+		txp@7e004000 {
+			compatible = "brcm,bcm2835-txp";
+			reg = <0x7e004000 0x20>;
+			interrupts = <1 11>;
+		};
+
 		dma: dma@7e007000 {
 			compatible = "brcm,bcm2835-dma";
 			reg = <0x7e007000 0xf00>;

@@ -193,8 +193,8 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 		return -E2BIG;
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_INTEGRITY_EVM_XATTR);
-	if (IS_ERR(ab))
-		return PTR_ERR(ab);
+	if (!ab)
+		return -ENOMEM;
 
 	xattr = kmalloc(sizeof(struct xattr_list), GFP_KERNEL);
 	if (!xattr) {

@@ -14,8 +14,8 @@
 #include <asm/sections.h>
 
 /* vmcoreinfo stuff */
-static unsigned char *vmcoreinfo_data;
-static size_t vmcoreinfo_size;
+unsigned char *vmcoreinfo_data;
+size_t vmcoreinfo_size;
 u32 *vmcoreinfo_note;
 
 /* trusted vmcoreinfo, e.g. we can make a copy in the crash memory */
@@ -344,7 +344,7 @@ void crash_save_vmcoreinfo(void)
 	if (vmcoreinfo_data_safecopy)
 		vmcoreinfo_data = vmcoreinfo_data_safecopy;
 
-	vmcoreinfo_append_str("CRASHTIME=%ld\n", get_seconds());
+	vmcoreinfo_append_str("CRASHTIME=%lld\n", ktime_get_real_seconds());
 	update_vmcoreinfo_note();
 }
 
@@ -401,7 +401,7 @@ static int __init crash_save_vmcoreinfo_init(void)
 	VMCOREINFO_SYMBOL(init_uts_ns);
 	VMCOREINFO_SYMBOL(node_online_map);
 #ifdef CONFIG_MMU
-	VMCOREINFO_SYMBOL(swapper_pg_dir);
+	VMCOREINFO_SYMBOL_ARRAY(swapper_pg_dir);
 #endif
 	VMCOREINFO_SYMBOL(_stext);
 	VMCOREINFO_SYMBOL(vmap_area_list);

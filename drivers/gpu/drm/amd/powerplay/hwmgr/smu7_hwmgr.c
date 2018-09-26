@@ -48,6 +48,8 @@
 #include "processpptables.h"
 #include "pp_thermal.h"
 
+#include "ivsrcid/ivsrcid_vislands30.h"
+
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
 #define MC_CG_ARB_FREQ_F2           0x0c
@@ -885,6 +887,60 @@ static void smu7_setup_voltage_range_from_vbios(struct pp_hwmgr *hwmgr)
 	data->odn_dpm_table.max_vddc = max_vddc;
 }
 
+static void smu7_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	struct smu7_odn_dpm_table *odn_table = &(data->odn_dpm_table);
+	struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+	uint32_t i;
+
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table;
+	struct phm_ppt_v1_clock_voltage_dependency_table *odn_dep_table;
+
+	if (table_info == NULL)
+		return;
+
+	for (i = 0; i < data->dpm_table.sclk_table.count; i++) {
+		if (odn_table->odn_core_clock_dpm_levels.entries[i].clock !=
+					data->dpm_table.sclk_table.dpm_levels[i].value) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
+			break;
+		}
+	}
+
+	for (i = 0; i < data->dpm_table.mclk_table.count; i++) {
+		if (odn_table->odn_memory_clock_dpm_levels.entries[i].clock !=
+					data->dpm_table.mclk_table.dpm_levels[i].value) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
+			break;
+		}
+	}
+
+	dep_table = table_info->vdd_dep_on_mclk;
+	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_mclk);
+
+	for (i = 0; i < dep_table->count; i++) {
+		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_MCLK;
+			return;
+		}
+	}
+
+	dep_table = table_info->vdd_dep_on_sclk;
+	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_sclk);
+	for (i = 0; i < dep_table->count; i++) {
+		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_SCLK;
+			return;
+		}
+	}
+	if (data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
+		data->need_update_smu7_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
+		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK | DPMTABLE_OD_UPDATE_MCLK;
+	}
+}
+
 static int smu7_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -904,10 +960,13 @@ static int smu7_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 
 	/* initialize ODN table */
 	if (hwmgr->od_enabled) {
-		smu7_setup_voltage_range_from_vbios(hwmgr);
-		smu7_odn_initial_default_setting(hwmgr);
+		if (data->odn_dpm_table.max_vddc) {
+			smu7_check_dpm_table_updated(hwmgr);
+		} else {
+			smu7_setup_voltage_range_from_vbios(hwmgr);
+			smu7_odn_initial_default_setting(hwmgr);
+		}
 	}
-
 	return 0;
 }
 
@@ -1521,7 +1580,7 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->current_profile_setting.sclk_up_hyst = 0;
 	data->current_profile_setting.sclk_down_hyst = 100;
 	data->current_profile_setting.sclk_activity = SMU7_SCLK_TARGETACTIVITY_DFLT;
-	data->current_profile_setting.bupdate_sclk = 1;
+	data->current_profile_setting.bupdate_mclk = 1;
 	data->current_profile_setting.mclk_up_hyst = 0;
 	data->current_profile_setting.mclk_down_hyst = 100;
 	data->current_profile_setting.mclk_activity = SMU7_MCLK_TARGETACTIVITY_DFLT;
@@ -2820,7 +2879,7 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				struct pp_power_state *request_ps,
 			const struct pp_power_state *current_ps)
 {
-
+	struct amdgpu_device *adev = hwmgr->adev;
 	struct smu7_power_state *smu7_ps =
 				cast_phw_smu7_power_state(&request_ps->hardware);
 	uint32_t sclk;
@@ -2843,12 +2902,12 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				 "VI should always have 2 performance levels",
 				);
 
-	max_limits = (PP_PowerSource_AC == hwmgr->power_source) ?
+	max_limits = adev->pm.ac_power ?
 			&(hwmgr->dyn_state.max_clock_voltage_on_ac) :
 			&(hwmgr->dyn_state.max_clock_voltage_on_dc);
 
 	/* Cap clock DPM tables at DC MAX if it is in DC. */
-	if (PP_PowerSource_DC == hwmgr->power_source) {
+	if (!adev->pm.ac_power) {
 		for (i = 0; i < smu7_ps->performance_level_count; i++) {
 			if (smu7_ps->performance_levels[i].memory_clock > max_limits->mclk)
 				smu7_ps->performance_levels[i].memory_clock = max_limits->mclk;
@@ -3126,7 +3185,7 @@ static int smu7_get_pp_table_entry_callback_func_v1(struct pp_hwmgr *hwmgr,
 	performance_level->pcie_gen = get_pcie_gen_support(data->pcie_gen_cap,
 			state_entry->ucPCIEGenLow);
 	performance_level->pcie_lane = get_pcie_lane_support(data->pcie_lane_cap,
-			state_entry->ucPCIELaneHigh);
+			state_entry->ucPCIELaneLow);
 
 	performance_level = &(smu7_power_state->performance_levels
 			[smu7_power_state->performance_level_count++]);
@@ -3717,8 +3776,9 @@ static int smu7_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
 	uint32_t i;
 
 	for (i = 0; i < dpm_table->count; i++) {
-		if ((dpm_table->dpm_levels[i].value < low_limit)
-		|| (dpm_table->dpm_levels[i].value > high_limit))
+	/*skip the trim if od is enabled*/
+		if (!hwmgr->od_enabled && (dpm_table->dpm_levels[i].value < low_limit
+			|| dpm_table->dpm_levels[i].value > high_limit))
 			dpm_table->dpm_levels[i].enabled = false;
 		else
 			dpm_table->dpm_levels[i].enabled = true;
@@ -3762,10 +3822,8 @@ static int smu7_generate_dpm_level_enable_mask(
 	const struct smu7_power_state *smu7_ps =
 			cast_const_phw_smu7_power_state(states->pnew_state);
 
-	/*skip the trim if od is enabled*/
-	if (!hwmgr->od_enabled)
-		result = smu7_trim_dpm_states(hwmgr, smu7_ps);
 
+	result = smu7_trim_dpm_states(hwmgr, smu7_ps);
 	if (result)
 		return result;
 
@@ -4049,17 +4107,17 @@ static int smu7_register_irq_handlers(struct pp_hwmgr *hwmgr)
 
 	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
 			AMDGPU_IH_CLIENTID_LEGACY,
-			230,
+			VISLANDS30_IV_SRCID_CG_TSS_THERMAL_LOW_TO_HIGH,
 			source);
 	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
 			AMDGPU_IH_CLIENTID_LEGACY,
-			231,
+			VISLANDS30_IV_SRCID_CG_TSS_THERMAL_HIGH_TO_LOW,
 			source);
 
 	/* Register CTF(GPIO_19) interrupt */
 	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
 			AMDGPU_IH_CLIENTID_LEGACY,
-			83,
+			VISLANDS30_IV_SRCID_GPIO_19,
 			source);
 
 	return 0;
@@ -4244,7 +4302,6 @@ static int smu7_init_power_gate_state(struct pp_hwmgr *hwmgr)
 
 	data->uvd_power_gated = false;
 	data->vce_power_gated = false;
-	data->samu_power_gated = false;
 
 	return 0;
 }
@@ -4555,12 +4612,12 @@ static int smu7_get_sclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 			return -EINVAL;
 		dep_sclk_table = table_info->vdd_dep_on_sclk;
 		for (i = 0; i < dep_sclk_table->count; i++)
-			clocks->clock[i] = dep_sclk_table->entries[i].clk;
+			clocks->clock[i] = dep_sclk_table->entries[i].clk * 10;
 		clocks->count = dep_sclk_table->count;
 	} else if (hwmgr->pp_table_version == PP_TABLE_V0) {
 		sclk_table = hwmgr->dyn_state.vddc_dependency_on_sclk;
 		for (i = 0; i < sclk_table->count; i++)
-			clocks->clock[i] = sclk_table->entries[i].clk;
+			clocks->clock[i] = sclk_table->entries[i].clk * 10;
 		clocks->count = sclk_table->count;
 	}
 
@@ -4592,7 +4649,7 @@ static int smu7_get_mclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 			return -EINVAL;
 		dep_mclk_table = table_info->vdd_dep_on_mclk;
 		for (i = 0; i < dep_mclk_table->count; i++) {
-			clocks->clock[i] = dep_mclk_table->entries[i].clk;
+			clocks->clock[i] = dep_mclk_table->entries[i].clk * 10;
 			clocks->latency[i] = smu7_get_mem_latency(hwmgr,
 						dep_mclk_table->entries[i].clk);
 		}
@@ -4600,7 +4657,7 @@ static int smu7_get_mclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 	} else if (hwmgr->pp_table_version == PP_TABLE_V0) {
 		mclk_table = hwmgr->dyn_state.vddc_dependency_on_mclk;
 		for (i = 0; i < mclk_table->count; i++)
-			clocks->clock[i] = mclk_table->entries[i].clk;
+			clocks->clock[i] = mclk_table->entries[i].clk * 10;
 		clocks->count = mclk_table->count;
 	}
 	return 0;
@@ -4737,60 +4794,6 @@ static bool smu7_check_clk_voltage_valid(struct pp_hwmgr *hwmgr,
 	}
 
 	return true;
-}
-
-static void smu7_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
-{
-	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct smu7_odn_dpm_table *odn_table = &(data->odn_dpm_table);
-	struct phm_ppt_v1_information *table_info =
-			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	uint32_t i;
-
-	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table;
-	struct phm_ppt_v1_clock_voltage_dependency_table *odn_dep_table;
-
-	if (table_info == NULL)
-		return;
-
-	for (i=0; i<data->dpm_table.sclk_table.count; i++) {
-		if (odn_table->odn_core_clock_dpm_levels.entries[i].clock !=
-					data->dpm_table.sclk_table.dpm_levels[i].value) {
-			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
-			break;
-		}
-	}
-
-	for (i=0; i<data->dpm_table.mclk_table.count; i++) {
-		if (odn_table->odn_memory_clock_dpm_levels.entries[i].clock !=
-					data->dpm_table.mclk_table.dpm_levels[i].value) {
-			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
-			break;
-		}
-	}
-
-	dep_table = table_info->vdd_dep_on_mclk;
-	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_mclk);
-
-	for (i=0; i < dep_table->count; i++) {
-		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
-			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_MCLK;
-			return;
-		}
-	}
-
-	dep_table = table_info->vdd_dep_on_sclk;
-	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_sclk);
-	for (i=0; i < dep_table->count; i++) {
-		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
-			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_SCLK;
-			return;
-		}
-	}
-	if (data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
-		data->need_update_smu7_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
-		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK | DPMTABLE_OD_UPDATE_MCLK;
-	}
 }
 
 static int smu7_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
@@ -5043,7 +5046,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_fan_control_mode = smu7_get_fan_control_mode,
 	.force_clock_level = smu7_force_clock_level,
 	.print_clock_levels = smu7_print_clock_levels,
-	.enable_per_cu_power_gating = smu7_enable_per_cu_power_gating,
+	.powergate_gfx = smu7_powergate_gfx,
 	.get_sclk_od = smu7_get_sclk_od,
 	.set_sclk_od = smu7_set_sclk_od,
 	.get_mclk_od = smu7_get_mclk_od,

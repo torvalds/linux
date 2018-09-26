@@ -22,8 +22,6 @@ Required properties:
            or:  "focaltech,ft6236"
 
  - reg:         I2C slave address of the chip (0x38)
- - interrupt-parent: a phandle pointing to the interrupt controller
-                     serving the interrupt for this chip
  - interrupts:       interrupt specification for the touchdetect
                      interrupt
 

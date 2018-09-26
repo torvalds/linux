@@ -761,27 +761,116 @@ out:
 static int
 csio_hw_get_flash_params(struct csio_hw *hw)
 {
+	/* Table for non-Numonix supported flash parts.  Numonix parts are left
+	 * to the preexisting code.  All flash parts have 64KB sectors.
+	 */
+	static struct flash_desc {
+		u32 vendor_and_model_id;
+		u32 size_mb;
+	} supported_flash[] = {
+		{ 0x150201, 4 << 20 },       /* Spansion 4MB S25FL032P */
+	};
+
+	u32 part, manufacturer;
+	u32 density, size = 0;
+	u32 flashid = 0;
 	int ret;
-	uint32_t info = 0;
 
 	ret = csio_hw_sf1_write(hw, 1, 1, 0, SF_RD_ID);
 	if (!ret)
-		ret = csio_hw_sf1_read(hw, 3, 0, 1, &info);
+		ret = csio_hw_sf1_read(hw, 3, 0, 1, &flashid);
 	csio_wr_reg32(hw, 0, SF_OP_A);    /* unlock SF */
-	if (ret != 0)
+	if (ret)
 		return ret;
 
-	if ((info & 0xff) != 0x20)		/* not a Numonix flash */
-		return -EINVAL;
-	info >>= 16;				/* log2 of size */
-	if (info >= 0x14 && info < 0x18)
-		hw->params.sf_nsec = 1 << (info - 16);
-	else if (info == 0x18)
-		hw->params.sf_nsec = 64;
-	else
-		return -EINVAL;
-	hw->params.sf_size = 1 << info;
+	/* Check to see if it's one of our non-standard supported Flash parts.
+	 */
+	for (part = 0; part < ARRAY_SIZE(supported_flash); part++)
+		if (supported_flash[part].vendor_and_model_id == flashid) {
+			hw->params.sf_size = supported_flash[part].size_mb;
+			hw->params.sf_nsec =
+				hw->params.sf_size / SF_SEC_SIZE;
+			goto found;
+		}
 
+	/* Decode Flash part size.  The code below looks repetative with
+	 * common encodings, but that's not guaranteed in the JEDEC
+	 * specification for the Read JADEC ID command.  The only thing that
+	 * we're guaranteed by the JADEC specification is where the
+	 * Manufacturer ID is in the returned result.  After that each
+	 * Manufacturer ~could~ encode things completely differently.
+	 * Note, all Flash parts must have 64KB sectors.
+	 */
+	manufacturer = flashid & 0xff;
+	switch (manufacturer) {
+	case 0x20: { /* Micron/Numonix */
+		/* This Density -> Size decoding table is taken from Micron
+		 * Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x14 ... 0x19: /* 1MB - 32MB */
+			size = 1 << density;
+			break;
+		case 0x20: /* 64MB */
+			size = 1 << 26;
+			break;
+		case 0x21: /* 128MB */
+			size = 1 << 27;
+			break;
+		case 0x22: /* 256MB */
+			size = 1 << 28;
+		}
+		break;
+	}
+	case 0x9d: { /* ISSI -- Integrated Silicon Solution, Inc. */
+		/* This Density -> Size decoding table is taken from ISSI
+		 * Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x16: /* 32 MB */
+			size = 1 << 25;
+			break;
+		case 0x17: /* 64MB */
+			size = 1 << 26;
+		}
+		break;
+	}
+	case 0xc2: /* Macronix */
+	case 0xef: /* Winbond */ {
+		/* This Density -> Size decoding table is taken from
+		 * Macronix and Winbond Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x17: /* 8MB */
+		case 0x18: /* 16MB */
+			size = 1 << density;
+		}
+	}
+	}
+
+	/* If we didn't recognize the FLASH part, that's no real issue: the
+	 * Hardware/Software contract says that Hardware will _*ALWAYS*_
+	 * use a FLASH part which is at least 4MB in size and has 64KB
+	 * sectors.  The unrecognized FLASH part is likely to be much larger
+	 * than 4MB, but that's all we really need.
+	 */
+	if (size == 0) {
+		csio_warn(hw, "Unknown Flash Part, ID = %#x, assuming 4MB\n",
+			  flashid);
+		size = 1 << 22;
+	}
+
+	/* Store decoded Flash size */
+	hw->params.sf_size = size;
+	hw->params.sf_nsec = size / SF_SEC_SIZE;
+
+found:
+	if (hw->params.sf_size < FLASH_MIN_SIZE)
+		csio_warn(hw, "WARNING: Flash Part ID %#x, size %#x < %#x\n",
+			  flashid, hw->params.sf_size, FLASH_MIN_SIZE);
 	return 0;
 }
 
@@ -1513,6 +1602,46 @@ fw_port_cap32_t fwcaps16_to_caps32(fw_port_cap16_t caps16)
 }
 
 /**
+ *	fwcaps32_to_caps16 - convert 32-bit Port Capabilities to 16-bits
+ *	@caps32: a 32-bit Port Capabilities value
+ *
+ *	Returns the equivalent 16-bit Port Capabilities value.  Note that
+ *	not all 32-bit Port Capabilities can be represented in the 16-bit
+ *	Port Capabilities and some fields/values may not make it.
+ */
+fw_port_cap16_t fwcaps32_to_caps16(fw_port_cap32_t caps32)
+{
+	fw_port_cap16_t caps16 = 0;
+
+	#define CAP32_TO_CAP16(__cap) \
+		do { \
+			if (caps32 & FW_PORT_CAP32_##__cap) \
+				caps16 |= FW_PORT_CAP_##__cap; \
+		} while (0)
+
+	CAP32_TO_CAP16(SPEED_100M);
+	CAP32_TO_CAP16(SPEED_1G);
+	CAP32_TO_CAP16(SPEED_10G);
+	CAP32_TO_CAP16(SPEED_25G);
+	CAP32_TO_CAP16(SPEED_40G);
+	CAP32_TO_CAP16(SPEED_100G);
+	CAP32_TO_CAP16(FC_RX);
+	CAP32_TO_CAP16(FC_TX);
+	CAP32_TO_CAP16(802_3_PAUSE);
+	CAP32_TO_CAP16(802_3_ASM_DIR);
+	CAP32_TO_CAP16(ANEG);
+	CAP32_TO_CAP16(FORCE_PAUSE);
+	CAP32_TO_CAP16(MDIAUTO);
+	CAP32_TO_CAP16(MDISTRAIGHT);
+	CAP32_TO_CAP16(FEC_RS);
+	CAP32_TO_CAP16(FEC_BASER_RS);
+
+	#undef CAP32_TO_CAP16
+
+	return caps16;
+}
+
+/**
  *      lstatus_to_fwcap - translate old lstatus to 32-bit Port Capabilities
  *      @lstatus: old FW_PORT_ACTION_GET_PORT_INFO lstatus value
  *
@@ -1670,7 +1799,7 @@ csio_enable_ports(struct csio_hw *hw)
 			val = 1;
 
 			csio_mb_params(hw, mbp, CSIO_MB_DEFAULT_TMO,
-				       hw->pfn, 0, 1, &param, &val, false,
+				       hw->pfn, 0, 1, &param, &val, true,
 				       NULL);
 
 			if (csio_mb_issue(hw, mbp)) {
@@ -1680,16 +1809,9 @@ csio_enable_ports(struct csio_hw *hw)
 				return -EINVAL;
 			}
 
-			csio_mb_process_read_params_rsp(hw, mbp, &retval, 1,
-							&val);
-			if (retval != FW_SUCCESS) {
-				csio_err(hw, "FW_PARAMS_CMD(r) port:%d failed: 0x%x\n",
-					 portid, retval);
-				mempool_free(mbp, hw->mb_mempool);
-				return -EINVAL;
-			}
-
-			fw_caps = val;
+			csio_mb_process_read_params_rsp(hw, mbp, &retval,
+							0, NULL);
+			fw_caps = retval ? FW_CAPS16 : FW_CAPS32;
 		}
 
 		/* Read PORT information */
@@ -2275,8 +2397,8 @@ bye:
 }
 
 /*
- * Returns -EINVAL if attempts to flash the firmware failed
- * else returns 0,
+ * Returns -EINVAL if attempts to flash the firmware failed,
+ * -ENOMEM if memory allocation failed else returns 0,
  * if flashing was not attempted because the card had the
  * latest firmware ECANCELED is returned
  */
@@ -2304,6 +2426,13 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 		return -EINVAL;
 	}
 
+	/* allocate memory to read the header of the firmware on the
+	 * card
+	 */
+	card_fw = kmalloc(sizeof(*card_fw), GFP_KERNEL);
+	if (!card_fw)
+		return -ENOMEM;
+
 	if (csio_is_t5(pci_dev->device & CSIO_HW_CHIP_MASK))
 		fw_bin_file = FW_FNAME_T5;
 	else
@@ -2316,11 +2445,6 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 		fw_data = fw->data;
 		fw_size = fw->size;
 	}
-
-	/* allocate memory to read the header of the firmware on the
-	 * card
-	 */
-	card_fw = kmalloc(sizeof(*card_fw), GFP_KERNEL);
 
 	/* upgrade FW logic */
 	ret = csio_hw_prep_fw(hw, fw_info, fw_data, fw_size, card_fw,

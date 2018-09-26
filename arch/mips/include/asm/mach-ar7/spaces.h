@@ -17,9 +17,6 @@
 #define PAGE_OFFSET	_AC(0x94000000, UL)
 #define PHYS_OFFSET	_AC(0x14000000, UL)
 
-#define UNCAC_BASE	_AC(0xb4000000, UL)	/* 0xa0000000 + PHYS_OFFSET */
-#define IO_BASE		UNCAC_BASE
-
 #include <asm/mach-generic/spaces.h>
 
 #endif /* __ASM_AR7_SPACES_H */

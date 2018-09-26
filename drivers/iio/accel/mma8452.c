@@ -1053,7 +1053,7 @@ static irqreturn_t mma8452_interrupt(int irq, void *p)
 	if (src < 0)
 		return IRQ_NONE;
 
-	if (!(src & data->chip_info->enabled_events))
+	if (!(src & (data->chip_info->enabled_events | MMA8452_INT_DRDY)))
 		return IRQ_NONE;
 
 	if (src & MMA8452_INT_DRDY) {
@@ -1547,6 +1547,7 @@ static int mma8452_probe(struct i2c_client *client,
 	case FXLS8471_DEVICE_ID:
 		if (ret == data->chip_info->chip_id)
 			break;
+		/* else: fall through */
 	default:
 		return -ENODEV;
 	}

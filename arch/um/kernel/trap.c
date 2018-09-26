@@ -72,7 +72,7 @@ good_area:
 	}
 
 	do {
-		int fault;
+		vm_fault_t fault;
 
 		fault = handle_mm_fault(vma, address, flags);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Cherryview/Braswell pinctrl driver
  *
@@ -7,10 +8,6 @@
  * This driver is based on the original Cherryview GPIO driver by
  *   Ning Li <ning.li@intel.com>
  *   Alan Cox <alan@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/dmi.h>

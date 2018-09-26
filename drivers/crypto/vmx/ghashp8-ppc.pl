@@ -129,9 +129,9 @@ $code=<<___;
 	 le?vperm	$IN,$IN,$IN,$lemask
 	vxor		$zero,$zero,$zero
 
-	vpmsumd		$Xl,$IN,$Hl		# H.lo稾i.lo
-	vpmsumd		$Xm,$IN,$H		# H.hi稾i.lo+H.lo稾i.hi
-	vpmsumd		$Xh,$IN,$Hh		# H.hi稾i.hi
+	vpmsumd		$Xl,$IN,$Hl		# H.lo路Xi.lo
+	vpmsumd		$Xm,$IN,$H		# H.hi路Xi.lo+H.lo路Xi.hi
+	vpmsumd		$Xh,$IN,$Hh		# H.hi路Xi.hi
 
 	vpmsumd		$t2,$Xl,$xC2		# 1st phase
 
@@ -187,11 +187,11 @@ $code=<<___;
 .align	5
 Loop:
 	 subic		$len,$len,16
-	vpmsumd		$Xl,$IN,$Hl		# H.lo稾i.lo
+	vpmsumd		$Xl,$IN,$Hl		# H.lo路Xi.lo
 	 subfe.		r0,r0,r0		# borrow?-1:0
-	vpmsumd		$Xm,$IN,$H		# H.hi稾i.lo+H.lo稾i.hi
+	vpmsumd		$Xm,$IN,$H		# H.hi路Xi.lo+H.lo路Xi.hi
 	 and		r0,r0,$len
-	vpmsumd		$Xh,$IN,$Hh		# H.hi稾i.hi
+	vpmsumd		$Xh,$IN,$Hh		# H.hi路Xi.hi
 	 add		$inp,$inp,r0
 
 	vpmsumd		$t2,$Xl,$xC2		# 1st phase

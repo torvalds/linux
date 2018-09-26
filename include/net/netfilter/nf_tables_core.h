@@ -65,4 +65,17 @@ extern const struct nft_expr_ops nft_payload_fast_ops;
 extern struct static_key_false nft_counters_enabled;
 extern struct static_key_false nft_trace_enabled;
 
+extern struct nft_set_type nft_set_rhash_type;
+extern struct nft_set_type nft_set_hash_type;
+extern struct nft_set_type nft_set_hash_fast_type;
+extern struct nft_set_type nft_set_rbtree_type;
+extern struct nft_set_type nft_set_bitmap_type;
+
+struct nft_expr;
+struct nft_regs;
+struct nft_pktinfo;
+void nft_meta_get_eval(const struct nft_expr *expr,
+		       struct nft_regs *regs, const struct nft_pktinfo *pkt);
+void nft_lookup_eval(const struct nft_expr *expr,
+		     struct nft_regs *regs, const struct nft_pktinfo *pkt);
 #endif /* _NET_NF_TABLES_CORE_H */

@@ -24,6 +24,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/machine.h>
 #include <linux/slab.h>
+#include <linux/ktime.h>
 #include <linux/platform_device.h>
 
 #include <linux/mfd/arizona/core.h>
@@ -236,22 +237,39 @@ static irqreturn_t arizona_overclocked(int irq, void *data)
 
 #define ARIZONA_REG_POLL_DELAY_US 7500
 
+static inline bool arizona_poll_reg_delay(ktime_t timeout)
+{
+	if (ktime_compare(ktime_get(), timeout) > 0)
+		return false;
+
+	usleep_range(ARIZONA_REG_POLL_DELAY_US / 2, ARIZONA_REG_POLL_DELAY_US);
+
+	return true;
+}
+
 static int arizona_poll_reg(struct arizona *arizona,
 			    int timeout_ms, unsigned int reg,
 			    unsigned int mask, unsigned int target)
 {
+	ktime_t timeout = ktime_add_us(ktime_get(), timeout_ms * USEC_PER_MSEC);
 	unsigned int val = 0;
 	int ret;
 
-	ret = regmap_read_poll_timeout(arizona->regmap,
-				       reg, val, ((val & mask) == target),
-				       ARIZONA_REG_POLL_DELAY_US,
-				       timeout_ms * 1000);
-	if (ret)
-		dev_err(arizona->dev, "Polling reg 0x%x timed out: %x\n",
-			reg, val);
+	do {
+		ret = regmap_read(arizona->regmap, reg, &val);
 
-	return ret;
+		if ((val & mask) == target)
+			return 0;
+	} while (arizona_poll_reg_delay(timeout));
+
+	if (ret) {
+		dev_err(arizona->dev, "Failed polling reg 0x%x: %d\n",
+			reg, ret);
+		return ret;
+	}
+
+	dev_err(arizona->dev, "Polling reg 0x%x timed out: %x\n", reg, val);
+	return -ETIMEDOUT;
 }
 
 static int arizona_wait_for_boot(struct arizona *arizona)

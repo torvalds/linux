@@ -37,11 +37,10 @@ Required properties:
 
 Optional properties:
  - reset:	  : Reference to the reset controller
- - interrupt-parent: phandle of the interrupt parent to which the external
-   GPIO interrupts are forwarded to.
- - st,syscfg: Should be phandle/offset pair. The phandle to the syscon node
-   which includes IRQ mux selection register, and the offset of the IRQ mux
-   selection register.
+ - st,syscfg: Should be phandle/offset/mask.
+	-The phandle to the syscon node which includes IRQ mux selection register.
+	-The offset of the IRQ mux selection register
+	-The field mask of IRQ mux, needed if different of 0xf.
  - gpio-ranges: Define a dedicated mapping between a pin-controller and
    a gpio controller. Format is <&phandle a b c> with:
 	-(phandle): phandle of pin-controller.
@@ -55,6 +54,8 @@ Optional properties:
    NOTE: If "gpio-ranges" is used for a gpio controller, all gpio-controller
    have to use a "gpio-ranges" entry.
    More details in Documentation/devicetree/bindings/gpio/gpio.txt.
+ - st,bank-ioport: should correspond to the EXTI IOport selection (EXTI line
+   used to select GPIOs as interrupts).
 
 Example 1:
 #include <dt-bindings/pinctrl/stm32f429-pinfunc.h>

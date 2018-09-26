@@ -117,6 +117,9 @@ struct filename;
 
 extern void audit_log_session_info(struct audit_buffer *ab);
 
+#define AUDIT_OFF	0
+#define AUDIT_ON	1
+#define AUDIT_LOCKED	2
 #ifdef CONFIG_AUDIT
 /* These are defined in audit.c */
 				/* Public API */
@@ -202,7 +205,7 @@ static inline int audit_log_task_context(struct audit_buffer *ab)
 static inline void audit_log_task_info(struct audit_buffer *ab,
 				       struct task_struct *tsk)
 { }
-#define audit_enabled 0
+#define audit_enabled AUDIT_OFF
 #endif /* CONFIG_AUDIT */
 
 #ifdef CONFIG_AUDIT_COMPAT_GENERIC

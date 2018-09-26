@@ -5,6 +5,7 @@
 // Copyright (C) 2017 Finn Thain
 
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/list.h>
 #include <linux/nubus.h>
 #include <linux/seq_file.h>
@@ -93,6 +94,8 @@ int nubus_device_register(struct nubus_board *board)
 	board->dev.release = nubus_device_release;
 	board->dev.bus = &nubus_bus_type;
 	dev_set_name(&board->dev, "slot.%X", board->slot);
+	board->dev.dma_mask = &board->dev.coherent_dma_mask;
+	dma_set_mask(&board->dev, DMA_BIT_MASK(32));
 	return device_register(&board->dev);
 }
 

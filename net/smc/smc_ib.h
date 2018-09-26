@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/if_ether.h>
 #include <rdma/ib_verbs.h>
+#include <net/smc.h>
 
 #define SMC_MAX_PORTS			2	/* Max # of ports */
 #define SMC_GID_SIZE			sizeof(union ib_gid)
@@ -39,7 +40,8 @@ struct smc_ib_device {				/* ib-device infos for smc */
 	struct tasklet_struct	recv_tasklet;	/* called by recv cq handler */
 	char			mac[SMC_MAX_PORTS][ETH_ALEN];
 						/* mac address per port*/
-	union ib_gid		gid[SMC_MAX_PORTS]; /* gid per port */
+	u8			pnetid[SMC_MAX_PORTS][SMC_MAX_PNETID_LEN];
+						/* pnetid per port */
 	u8			initialized : 1; /* ib dev CQ, evthdl done */
 	struct work_struct	port_event_work;
 	unsigned long		port_event_mask;
@@ -51,7 +53,6 @@ struct smc_link;
 int smc_ib_register_client(void) __init;
 void smc_ib_unregister_client(void);
 bool smc_ib_port_active(struct smc_ib_device *smcibdev, u8 ibport);
-int smc_ib_remember_port_attr(struct smc_ib_device *smcibdev, u8 ibport);
 int smc_ib_buf_map_sg(struct smc_ib_device *smcibdev,
 		      struct smc_buf_desc *buf_slot,
 		      enum dma_data_direction data_direction);
@@ -75,4 +76,6 @@ void smc_ib_sync_sg_for_cpu(struct smc_ib_device *smcibdev,
 void smc_ib_sync_sg_for_device(struct smc_ib_device *smcibdev,
 			       struct smc_buf_desc *buf_slot,
 			       enum dma_data_direction data_direction);
+int smc_ib_determine_gid(struct smc_ib_device *smcibdev, u8 ibport,
+			 unsigned short vlan_id, u8 gid[], u8 *sgid_index);
 #endif

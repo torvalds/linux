@@ -4,6 +4,7 @@
  */
 
 #include <linux/blkdev.h>
+#include <linux/sched/signal.h>
 #include "fat.h"
 
 struct fatent_operations {
@@ -23,7 +24,7 @@ static void fat12_ent_blocknr(struct super_block *sb, int entry,
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	int bytes = entry + (entry >> 1);
-	WARN_ON(entry < FAT_START_ENT || sbi->max_cluster <= entry);
+	WARN_ON(!fat_valid_entry(sbi, entry));
 	*offset = bytes & (sb->s_blocksize - 1);
 	*blocknr = sbi->fat_start + (bytes >> sb->s_blocksize_bits);
 }
@@ -33,7 +34,7 @@ static void fat_ent_blocknr(struct super_block *sb, int entry,
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	int bytes = (entry << sbi->fatent_shift);
-	WARN_ON(entry < FAT_START_ENT || sbi->max_cluster <= entry);
+	WARN_ON(!fat_valid_entry(sbi, entry));
 	*offset = bytes & (sb->s_blocksize - 1);
 	*blocknr = sbi->fat_start + (bytes >> sb->s_blocksize_bits);
 }
@@ -353,7 +354,7 @@ int fat_ent_read(struct inode *inode, struct fat_entry *fatent, int entry)
 	int err, offset;
 	sector_t blocknr;
 
-	if (entry < FAT_START_ENT || sbi->max_cluster <= entry) {
+	if (!fat_valid_entry(sbi, entry)) {
 		fatent_brelse(fatent);
 		fat_fs_error(sb, "invalid access to FAT (entry 0x%08x)", entry);
 		return -EIO;
@@ -688,5 +689,106 @@ int fat_count_free_clusters(struct super_block *sb)
 	fatent_brelse(&fatent);
 out:
 	unlock_fat(sbi);
+	return err;
+}
+
+static int fat_trim_clusters(struct super_block *sb, u32 clus, u32 nr_clus)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	return sb_issue_discard(sb, fat_clus_to_blknr(sbi, clus),
+				nr_clus * sbi->sec_per_clus, GFP_NOFS, 0);
+}
+
+int fat_trim_fs(struct inode *inode, struct fstrim_range *range)
+{
+	struct super_block *sb = inode->i_sb;
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	const struct fatent_operations *ops = sbi->fatent_ops;
+	struct fat_entry fatent;
+	u64 ent_start, ent_end, minlen, trimmed = 0;
+	u32 free = 0;
+	unsigned long reada_blocks, reada_mask, cur_block = 0;
+	int err = 0;
+
+	/*
+	 * FAT data is organized as clusters, trim at the granulary of cluster.
+	 *
+	 * fstrim_range is in byte, convert vaules to cluster index.
+	 * Treat sectors before data region as all used, not to trim them.
+	 */
+	ent_start = max_t(u64, range->start>>sbi->cluster_bits, FAT_START_ENT);
+	ent_end = ent_start + (range->len >> sbi->cluster_bits) - 1;
+	minlen = range->minlen >> sbi->cluster_bits;
+
+	if (ent_start >= sbi->max_cluster || range->len < sbi->cluster_size)
+		return -EINVAL;
+	if (ent_end >= sbi->max_cluster)
+		ent_end = sbi->max_cluster - 1;
+
+	reada_blocks = FAT_READA_SIZE >> sb->s_blocksize_bits;
+	reada_mask = reada_blocks - 1;
+
+	fatent_init(&fatent);
+	lock_fat(sbi);
+	fatent_set_entry(&fatent, ent_start);
+	while (fatent.entry <= ent_end) {
+		/* readahead of fat blocks */
+		if ((cur_block & reada_mask) == 0) {
+			unsigned long rest = sbi->fat_length - cur_block;
+			fat_ent_reada(sb, &fatent, min(reada_blocks, rest));
+		}
+		cur_block++;
+
+		err = fat_ent_read_block(sb, &fatent);
+		if (err)
+			goto error;
+		do {
+			if (ops->ent_get(&fatent) == FAT_ENT_FREE) {
+				free++;
+			} else if (free) {
+				if (free >= minlen) {
+					u32 clus = fatent.entry - free;
+
+					err = fat_trim_clusters(sb, clus, free);
+					if (err && err != -EOPNOTSUPP)
+						goto error;
+					if (!err)
+						trimmed += free;
+					err = 0;
+				}
+				free = 0;
+			}
+		} while (fat_ent_next(sbi, &fatent) && fatent.entry <= ent_end);
+
+		if (fatal_signal_pending(current)) {
+			err = -ERESTARTSYS;
+			goto error;
+		}
+
+		if (need_resched()) {
+			fatent_brelse(&fatent);
+			unlock_fat(sbi);
+			cond_resched();
+			lock_fat(sbi);
+		}
+	}
+	/* handle scenario when tail entries are all free */
+	if (free && free >= minlen) {
+		u32 clus = fatent.entry - free;
+
+		err = fat_trim_clusters(sb, clus, free);
+		if (err && err != -EOPNOTSUPP)
+			goto error;
+		if (!err)
+			trimmed += free;
+		err = 0;
+	}
+
+error:
+	fatent_brelse(&fatent);
+	unlock_fat(sbi);
+
+	range->len = trimmed << sbi->cluster_bits;
+
 	return err;
 }

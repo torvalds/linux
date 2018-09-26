@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015-2017 Intel Corporation.
+ * Copyright(c) 2015-2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -226,7 +226,7 @@ static const char *sc_type_name(int index)
 int init_sc_pools_and_sizes(struct hfi1_devdata *dd)
 {
 	struct mem_pool_info mem_pool_info[NUM_SC_POOLS] = { { 0 } };
-	int total_blocks = (dd->chip_pio_mem_size / PIO_BLOCK_SIZE) - 1;
+	int total_blocks = (chip_pio_mem_size(dd) / PIO_BLOCK_SIZE) - 1;
 	int total_contexts = 0;
 	int fixed_blocks;
 	int pool_blocks;
@@ -343,8 +343,8 @@ int init_sc_pools_and_sizes(struct hfi1_devdata *dd)
 				sc_type_name(i), count);
 			return -EINVAL;
 		}
-		if (total_contexts + count > dd->chip_send_contexts)
-			count = dd->chip_send_contexts - total_contexts;
+		if (total_contexts + count > chip_send_contexts(dd))
+			count = chip_send_contexts(dd) - total_contexts;
 
 		total_contexts += count;
 
@@ -507,7 +507,7 @@ static int sc_hw_alloc(struct hfi1_devdata *dd, int type, u32 *sw_index,
 		if (sci->type == type && sci->allocated == 0) {
 			sci->allocated = 1;
 			/* use a 1:1 mapping, but make them non-equal */
-			context = dd->chip_send_contexts - index - 1;
+			context = chip_send_contexts(dd) - index - 1;
 			dd->hw_to_sw[context] = index;
 			*sw_index = index;
 			*hw_context = context;
@@ -1618,11 +1618,11 @@ static void sc_piobufavail(struct send_context *sc)
 	/* Wake up the most starved one first */
 	if (n)
 		hfi1_qp_wakeup(qps[max_idx],
-			       RVT_S_WAIT_PIO | RVT_S_WAIT_PIO_DRAIN);
+			       RVT_S_WAIT_PIO | HFI1_S_WAIT_PIO_DRAIN);
 	for (i = 0; i < n; i++)
 		if (i != max_idx)
 			hfi1_qp_wakeup(qps[i],
-				       RVT_S_WAIT_PIO | RVT_S_WAIT_PIO_DRAIN);
+				       RVT_S_WAIT_PIO | HFI1_S_WAIT_PIO_DRAIN);
 }
 
 /* translate a send credit update to a bit code of reasons */

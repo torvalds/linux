@@ -1012,7 +1012,7 @@ xfs_dir2_leafn_rebalance(
 	int			oldstale;	/* old count of stale leaves */
 #endif
 	int			oldsum;		/* old total leaf count */
-	int			swap;		/* swapped leaf blocks */
+	int			swap_blocks;	/* swapped leaf blocks */
 	struct xfs_dir2_leaf_entry *ents1;
 	struct xfs_dir2_leaf_entry *ents2;
 	struct xfs_dir3_icleaf_hdr hdr1;
@@ -1023,13 +1023,10 @@ xfs_dir2_leafn_rebalance(
 	/*
 	 * If the block order is wrong, swap the arguments.
 	 */
-	if ((swap = xfs_dir2_leafn_order(dp, blk1->bp, blk2->bp))) {
-		xfs_da_state_blk_t	*tmp;	/* temp for block swap */
+	swap_blocks = xfs_dir2_leafn_order(dp, blk1->bp, blk2->bp);
+	if (swap_blocks)
+		swap(blk1, blk2);
 
-		tmp = blk1;
-		blk1 = blk2;
-		blk2 = tmp;
-	}
 	leaf1 = blk1->bp->b_addr;
 	leaf2 = blk2->bp->b_addr;
 	dp->d_ops->leaf_hdr_from_disk(&hdr1, leaf1);
@@ -1093,11 +1090,11 @@ xfs_dir2_leafn_rebalance(
 	 * Mark whether we're inserting into the old or new leaf.
 	 */
 	if (hdr1.count < hdr2.count)
-		state->inleaf = swap;
+		state->inleaf = swap_blocks;
 	else if (hdr1.count > hdr2.count)
-		state->inleaf = !swap;
+		state->inleaf = !swap_blocks;
 	else
-		state->inleaf = swap ^ (blk1->index <= hdr1.count);
+		state->inleaf = swap_blocks ^ (blk1->index <= hdr1.count);
 	/*
 	 * Adjust the expected index for insertion.
 	 */

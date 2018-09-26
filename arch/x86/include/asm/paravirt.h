@@ -309,6 +309,11 @@ static inline void flush_tlb_others(const struct cpumask *cpumask,
 	PVOP_VCALL2(pv_mmu_ops.flush_tlb_others, cpumask, info);
 }
 
+static inline void paravirt_tlb_remove_table(struct mmu_gather *tlb, void *table)
+{
+	PVOP_VCALL2(pv_mmu_ops.tlb_remove_table, tlb, table);
+}
+
 static inline int paravirt_pgd_alloc(struct mm_struct *mm)
 {
 	return PVOP_CALL1(int, pv_mmu_ops.pgd_alloc, mm);

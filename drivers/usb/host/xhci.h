@@ -382,6 +382,10 @@ struct xhci_op_regs {
 #define PORT_PLC	(1 << 22)
 /* port configure error change - port failed to configure its link partner */
 #define PORT_CEC	(1 << 23)
+#define PORT_CHANGE_MASK	(PORT_CSC | PORT_PEC | PORT_WRC | PORT_OCC | \
+				 PORT_RC | PORT_PLC | PORT_CEC)
+
+
 /* Cold Attach Status - xHC can set this bit to report device attached during
  * Sx state. Warm port reset should be perfomed to clear this bit and move port
  * to connected state.
@@ -2110,9 +2114,11 @@ void xhci_hc_died(struct xhci_hcd *xhci);
 #ifdef CONFIG_PM
 int xhci_bus_suspend(struct usb_hcd *hcd);
 int xhci_bus_resume(struct usb_hcd *hcd);
+unsigned long xhci_get_resuming_ports(struct usb_hcd *hcd);
 #else
 #define	xhci_bus_suspend	NULL
 #define	xhci_bus_resume		NULL
+#define	xhci_get_resuming_ports	NULL
 #endif	/* CONFIG_PM */
 
 u32 xhci_port_state_to_neutral(u32 state);

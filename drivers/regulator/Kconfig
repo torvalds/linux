@@ -180,9 +180,9 @@ config REGULATOR_BCM590XX
 	  BCM590xx PMUs. This will enable support for the software
 	  controllable LDO/Switching regulators.
 
-config REGULATOR_BD71837
+config REGULATOR_BD718XX
 	tristate "ROHM BD71837 Power Regulator"
-	depends on MFD_BD71837
+	depends on MFD_ROHM_BD718XX
 	help
 	  This driver supports voltage regulators on ROHM BD71837 PMIC.
 	  This will enable support for the software controllable buck
@@ -633,12 +633,12 @@ config REGULATOR_PCF50633
 	 on PCF50633
 
 config REGULATOR_PFUZE100
-	tristate "Freescale PFUZE100/200/3000 regulator driver"
+	tristate "Freescale PFUZE100/200/3000/3001 regulator driver"
 	depends on I2C
 	select REGMAP_I2C
 	help
 	  Say y here to support the regulators found on the Freescale
-	  PFUZE100/200/3000 PMIC.
+	  PFUZE100/200/3000/3001 PMIC.
 
 config REGULATOR_PV88060
 	tristate "Powerventure Semiconductor PV88060 regulator"
@@ -681,6 +681,15 @@ config REGULATOR_QCOM_RPM
 	  Say M here if you want to include support for the regulators on the
 	  Qualcomm RPM as a module. The module will be named
 	  "qcom_rpm-regulator".
+
+config REGULATOR_QCOM_RPMH
+	tristate "Qualcomm Technologies, Inc. RPMh regulator driver"
+	depends on QCOM_RPMH || COMPILE_TEST
+	help
+	  This driver supports control of PMIC regulators via the RPMh hardware
+	  block found on Qualcomm Technologies Inc. SoCs.  RPMh regulator
+	  control allows for voting on regulator state between multiple
+	  processors within the SoC.
 
 config REGULATOR_QCOM_SMD_RPM
 	tristate "Qualcomm SMD based RPM regulator driver"
@@ -949,6 +958,14 @@ config REGULATOR_TWL4030
 	help
 	  This driver supports the voltage regulators provided by
 	  this family of companion chips.
+
+config REGULATOR_UNIPHIER
+	tristate "UniPhier regulator driver"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF && MFD_SYSCON
+	default ARCH_UNIPHIER
+	help
+	  Support for regulators implemented on Socionext UniPhier SoCs.
 
 config REGULATOR_VCTRL
 	tristate "Voltage controlled regulators"

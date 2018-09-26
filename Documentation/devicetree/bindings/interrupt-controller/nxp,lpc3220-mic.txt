@@ -14,8 +14,6 @@ Required properties:
   Reset value is IRQ_TYPE_LEVEL_LOW.
 
 Optional properties:
-- interrupt-parent: empty for MIC interrupt controller, link to parent
-  MIC interrupt controller for SIC1 and SIC2
 - interrupts: empty for MIC interrupt controller, cascaded MIC
   hardware interrupts for SIC1 and SIC2
 

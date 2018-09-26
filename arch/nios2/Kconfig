@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 config NIOS2
 	def_bool y
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select ARCH_NO_SWAP
+	select DMA_NONCOHERENT_OPS
 	select TIMER_OF
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
@@ -38,26 +42,15 @@ config HAS_DMA
 config FPU
 	def_bool n
 
-config SWAP
-	def_bool n
-
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool n
 
-source "init/Kconfig"
-
 menu "Kernel features"
 
-source "kernel/Kconfig.preempt"
-
-source "kernel/Kconfig.freezer"
-
 source "kernel/Kconfig.hz"
-
-source "mm/Kconfig"
 
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
@@ -195,23 +188,3 @@ config NIOS2_IO_REGION_BASE
 	default "0xe0000000"
 
 endmenu
-
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/nios2/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"

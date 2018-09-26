@@ -44,10 +44,6 @@
 	.align	16
 
 ENTRY_CFI(flush_tlb_all_local)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	/*
 	 * The pitlbe and pdtlbe instructions should only be used to
 	 * flush the entire tlb. Also, there needs to be no intervening
@@ -189,18 +185,11 @@ fdtdone:
 
 2:      bv		%r0(%r2)
 	nop
-
-	.exit
-	.procend
 ENDPROC_CFI(flush_tlb_all_local)
 
 	.import cache_info,data
 
 ENTRY_CFI(flush_instruction_cache_local)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	load32		cache_info, %r1
 
 	/* Flush Instruction Cache */
@@ -256,18 +245,11 @@ fisync:
 	mtsm		%r22			/* restore I-bit */
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(flush_instruction_cache_local)
 
 
 	.import cache_info, data
 ENTRY_CFI(flush_data_cache_local)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	load32		cache_info, %r1
 
 	/* Flush Data Cache */
@@ -324,9 +306,6 @@ fdsync:
 	mtsm		%r22			/* restore I-bit */
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(flush_data_cache_local)
 
 /* Macros to serialize TLB purge operations on SMP.  */
@@ -353,6 +332,7 @@ ENDPROC_CFI(flush_data_cache_local)
 	.macro	tlb_unlock	la,flags,tmp
 #ifdef CONFIG_SMP
 	ldi		1,\tmp
+	sync
 	stw		\tmp,0(\la)
 	mtsm		\flags
 #endif
@@ -361,10 +341,6 @@ ENDPROC_CFI(flush_data_cache_local)
 /* Clear page using kernel mapping.  */
 
 ENTRY_CFI(clear_page_asm)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 #ifdef CONFIG_64BIT
 
 	/* Unroll the loop.  */
@@ -423,18 +399,11 @@ ENTRY_CFI(clear_page_asm)
 #endif
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(clear_page_asm)
 
 /* Copy page using kernel mapping.  */
 
 ENTRY_CFI(copy_page_asm)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 #ifdef CONFIG_64BIT
 	/* PA8x00 CPUs can consume 2 loads or 1 store per cycle.
 	 * Unroll the loop by hand and arrange insn appropriately.
@@ -541,9 +510,6 @@ ENTRY_CFI(copy_page_asm)
 #endif
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(copy_page_asm)
 
 /*
@@ -597,10 +563,6 @@ ENDPROC_CFI(copy_page_asm)
 	 */
 
 ENTRY_CFI(copy_user_page_asm)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	/* Convert virtual `to' and `from' addresses to physical addresses.
 	   Move `from' physical address to non shadowed register.  */
 	ldil		L%(__PAGE_OFFSET), %r1
@@ -749,16 +711,9 @@ ENTRY_CFI(copy_user_page_asm)
 
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(copy_user_page_asm)
 
 ENTRY_CFI(clear_user_page_asm)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	tophys_r1	%r26
 
 	ldil		L%(TMPALIAS_MAP_START), %r28
@@ -835,16 +790,9 @@ ENTRY_CFI(clear_user_page_asm)
 
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(clear_user_page_asm)
 
 ENTRY_CFI(flush_dcache_page_asm)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	ldil		L%(TMPALIAS_MAP_START), %r28
 #ifdef CONFIG_64BIT
 #if (TMPALIAS_MAP_START >= 0x80000000)
@@ -902,16 +850,9 @@ ENTRY_CFI(flush_dcache_page_asm)
 	sync
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(flush_dcache_page_asm)
 
 ENTRY_CFI(flush_icache_page_asm)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	ldil		L%(TMPALIAS_MAP_START), %r28
 #ifdef CONFIG_64BIT
 #if (TMPALIAS_MAP_START >= 0x80000000)
@@ -976,16 +917,9 @@ ENTRY_CFI(flush_icache_page_asm)
 	sync
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(flush_icache_page_asm)
 
 ENTRY_CFI(flush_kernel_dcache_page_asm)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 
@@ -1019,16 +953,9 @@ ENTRY_CFI(flush_kernel_dcache_page_asm)
 	sync
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(flush_kernel_dcache_page_asm)
 
 ENTRY_CFI(purge_kernel_dcache_page_asm)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 
@@ -1061,16 +988,9 @@ ENTRY_CFI(purge_kernel_dcache_page_asm)
 	sync
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(purge_kernel_dcache_page_asm)
 
 ENTRY_CFI(flush_user_dcache_range_asm)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 	ldo		-1(%r23), %r21
@@ -1082,16 +1002,9 @@ ENTRY_CFI(flush_user_dcache_range_asm)
 	sync
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(flush_user_dcache_range_asm)
 
 ENTRY_CFI(flush_kernel_dcache_range_asm)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 	ldo		-1(%r23), %r21
@@ -1104,16 +1017,9 @@ ENTRY_CFI(flush_kernel_dcache_range_asm)
 	syncdma
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(flush_kernel_dcache_range_asm)
 
 ENTRY_CFI(purge_kernel_dcache_range_asm)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 	ldo		-1(%r23), %r21
@@ -1126,16 +1032,9 @@ ENTRY_CFI(purge_kernel_dcache_range_asm)
 	syncdma
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(purge_kernel_dcache_range_asm)
 
 ENTRY_CFI(flush_user_icache_range_asm)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	ldil		L%icache_stride, %r1
 	ldw		R%icache_stride(%r1), %r23
 	ldo		-1(%r23), %r21
@@ -1147,16 +1046,9 @@ ENTRY_CFI(flush_user_icache_range_asm)
 	sync
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(flush_user_icache_range_asm)
 
 ENTRY_CFI(flush_kernel_icache_page)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	ldil		L%icache_stride, %r1
 	ldw		R%icache_stride(%r1), %r23
 
@@ -1190,16 +1082,9 @@ ENTRY_CFI(flush_kernel_icache_page)
 	sync
 	bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(flush_kernel_icache_page)
 
 ENTRY_CFI(flush_kernel_icache_range_asm)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	ldil		L%icache_stride, %r1
 	ldw		R%icache_stride(%r1), %r23
 	ldo		-1(%r23), %r21
@@ -1211,8 +1096,6 @@ ENTRY_CFI(flush_kernel_icache_range_asm)
 	sync
 	bv		%r0(%r2)
 	nop
-	.exit
-	.procend
 ENDPROC_CFI(flush_kernel_icache_range_asm)
 
 	__INIT
@@ -1222,10 +1105,6 @@ ENDPROC_CFI(flush_kernel_icache_range_asm)
 	 */
 	.align	256
 ENTRY_CFI(disable_sr_hashing_asm)
-	.proc
-	.callinfo NO_CALLS
-	.entry
-
 	/*
 	 * Switch to real mode
 	 */
@@ -1307,9 +1186,6 @@ srdis_done:
 
 2:      bv		%r0(%r2)
 	nop
-	.exit
-
-	.procend
 ENDPROC_CFI(disable_sr_hashing_asm)
 
 	.end

@@ -205,7 +205,7 @@ static int load_misc_binary(struct linux_binprm *bprm)
 		goto error;
 
 	if (fmt->flags & MISC_FMT_OPEN_FILE) {
-		interp_file = filp_clone_open(fmt->interp_file);
+		interp_file = file_clone_open(fmt->interp_file);
 		if (!IS_ERR(interp_file))
 			deny_write_access(interp_file);
 	} else {

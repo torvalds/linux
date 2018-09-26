@@ -324,8 +324,7 @@ Global Attributes
 
 ``intel_pstate`` exposes several global attributes (files) in ``sysfs`` to
 control its functionality at the system level.  They are located in the
-``/sys/devices/system/cpu/cpufreq/intel_pstate/`` directory and affect all
-CPUs.
+``/sys/devices/system/cpu/intel_pstate/`` directory and affect all CPUs.
 
 Some of them are not present if the ``intel_pstate=per_cpu_perf_limits``
 argument is passed to the kernel in the command line.
@@ -378,6 +377,17 @@ argument is passed to the kernel in the command line.
 	supplied to the ``CPUFreq`` core and exposed via the policy interface,
 	but it affects the maximum possible value of per-policy P-state	limits
 	(see `Interpretation of Policy Attributes`_ below for details).
+
+``hwp_dynamic_boost``
+	This attribute is only present if ``intel_pstate`` works in the
+	`active mode with the HWP feature enabled <Active Mode With HWP_>`_ in
+	the processor.  If set (equal to 1), it causes the minimum P-state limit
+	to be increased dynamically for a short time whenever a task previously
+	waiting on I/O is selected to run on a given logical CPU (the purpose
+	of this mechanism is to improve performance).
+
+	This setting has no effect on logical CPUs whose minimum P-state limit
+	is directly set to the highest non-turbo P-state or above it.
 
 .. _status_attr:
 

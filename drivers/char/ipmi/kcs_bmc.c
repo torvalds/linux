@@ -16,6 +16,8 @@
 
 #include "kcs_bmc.h"
 
+#define DEVICE_NAME "ipmi-kcs"
+
 #define KCS_MSG_BUFSIZ    1000
 
 #define KCS_ZERO_DATA     0
@@ -210,34 +212,23 @@ static void kcs_bmc_handle_cmd(struct kcs_bmc *kcs_bmc)
 int kcs_bmc_handle_event(struct kcs_bmc *kcs_bmc)
 {
 	unsigned long flags;
-	int ret = 0;
+	int ret = -ENODATA;
 	u8 status;
 
 	spin_lock_irqsave(&kcs_bmc->lock, flags);
 
-	if (!kcs_bmc->running) {
-		kcs_force_abort(kcs_bmc);
-		ret = -ENODEV;
-		goto out_unlock;
+	status = read_status(kcs_bmc);
+	if (status & KCS_STATUS_IBF) {
+		if (!kcs_bmc->running)
+			kcs_force_abort(kcs_bmc);
+		else if (status & KCS_STATUS_CMD_DAT)
+			kcs_bmc_handle_cmd(kcs_bmc);
+		else
+			kcs_bmc_handle_data(kcs_bmc);
+
+		ret = 0;
 	}
 
-	status = read_status(kcs_bmc) & (KCS_STATUS_IBF | KCS_STATUS_CMD_DAT);
-
-	switch (status) {
-	case KCS_STATUS_IBF | KCS_STATUS_CMD_DAT:
-		kcs_bmc_handle_cmd(kcs_bmc);
-		break;
-
-	case KCS_STATUS_IBF:
-		kcs_bmc_handle_data(kcs_bmc);
-		break;
-
-	default:
-		ret = -ENODATA;
-		break;
-	}
-
-out_unlock:
 	spin_unlock_irqrestore(&kcs_bmc->lock, flags);
 
 	return ret;
@@ -440,8 +431,6 @@ struct kcs_bmc *kcs_bmc_alloc(struct device *dev, int sizeof_priv, u32 channel)
 	if (!kcs_bmc)
 		return NULL;
 
-	dev_set_name(dev, "ipmi-kcs%u", channel);
-
 	spin_lock_init(&kcs_bmc->lock);
 	kcs_bmc->channel = channel;
 
@@ -455,7 +444,8 @@ struct kcs_bmc *kcs_bmc_alloc(struct device *dev, int sizeof_priv, u32 channel)
 		return NULL;
 
 	kcs_bmc->miscdev.minor = MISC_DYNAMIC_MINOR;
-	kcs_bmc->miscdev.name = dev_name(dev);
+	kcs_bmc->miscdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s%u",
+					       DEVICE_NAME, channel);
 	kcs_bmc->miscdev.fops = &kcs_bmc_fops;
 
 	return kcs_bmc;

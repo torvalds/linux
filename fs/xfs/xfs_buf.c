@@ -34,16 +34,6 @@
 
 static kmem_zone_t *xfs_buf_zone;
 
-#ifdef XFS_BUF_LOCK_TRACKING
-# define XB_SET_OWNER(bp)	((bp)->b_last_holder = current->pid)
-# define XB_CLEAR_OWNER(bp)	((bp)->b_last_holder = -1)
-# define XB_GET_OWNER(bp)	((bp)->b_last_holder)
-#else
-# define XB_SET_OWNER(bp)	do { } while (0)
-# define XB_CLEAR_OWNER(bp)	do { } while (0)
-# define XB_GET_OWNER(bp)	do { } while (0)
-#endif
-
 #define xb_to_gfp(flags) \
 	((((flags) & XBF_READ_AHEAD) ? __GFP_NORETRY : GFP_NOFS) | __GFP_NOWARN)
 
@@ -226,7 +216,6 @@ _xfs_buf_alloc(
 	INIT_LIST_HEAD(&bp->b_li_list);
 	sema_init(&bp->b_sema, 0); /* held, no waiters */
 	spin_lock_init(&bp->b_lock);
-	XB_SET_OWNER(bp);
 	bp->b_target = target;
 	bp->b_flags = flags;
 
@@ -757,11 +746,7 @@ _xfs_buf_read(
 	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD);
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
 
-	if (flags & XBF_ASYNC) {
-		xfs_buf_submit(bp);
-		return 0;
-	}
-	return xfs_buf_submit_wait(bp);
+	return xfs_buf_submit(bp);
 }
 
 xfs_buf_t *
@@ -846,7 +831,7 @@ xfs_buf_read_uncached(
 	bp->b_flags |= XBF_READ;
 	bp->b_ops = ops;
 
-	xfs_buf_submit_wait(bp);
+	xfs_buf_submit(bp);
 	if (bp->b_error) {
 		int	error = bp->b_error;
 		xfs_buf_relse(bp);
@@ -1095,12 +1080,10 @@ xfs_buf_trylock(
 	int			locked;
 
 	locked = down_trylock(&bp->b_sema) == 0;
-	if (locked) {
-		XB_SET_OWNER(bp);
+	if (locked)
 		trace_xfs_buf_trylock(bp, _RET_IP_);
-	} else {
+	else
 		trace_xfs_buf_trylock_fail(bp, _RET_IP_);
-	}
 	return locked;
 }
 
@@ -1122,7 +1105,6 @@ xfs_buf_lock(
 	if (atomic_read(&bp->b_pin_count) && (bp->b_flags & XBF_STALE))
 		xfs_log_force(bp->b_target->bt_mount, 0);
 	down(&bp->b_sema);
-	XB_SET_OWNER(bp);
 
 	trace_xfs_buf_lock_done(bp, _RET_IP_);
 }
@@ -1133,9 +1115,7 @@ xfs_buf_unlock(
 {
 	ASSERT(xfs_buf_islocked(bp));
 
-	XB_CLEAR_OWNER(bp);
 	up(&bp->b_sema);
-
 	trace_xfs_buf_unlock(bp, _RET_IP_);
 }
 
@@ -1249,7 +1229,7 @@ xfs_bwrite(
 	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q |
 			 XBF_WRITE_FAIL | XBF_DONE);
 
-	error = xfs_buf_submit_wait(bp);
+	error = xfs_buf_submit(bp);
 	if (error) {
 		xfs_force_shutdown(bp->b_target->bt_mount,
 				   SHUTDOWN_META_IO_ERROR);
@@ -1453,28 +1433,54 @@ _xfs_buf_ioapply(
 }
 
 /*
- * Asynchronous IO submission path. This transfers the buffer lock ownership and
- * the current reference to the IO. It is not safe to reference the buffer after
- * a call to this function unless the caller holds an additional reference
- * itself.
+ * Wait for I/O completion of a sync buffer and return the I/O error code.
  */
-void
-xfs_buf_submit(
+static int
+xfs_buf_iowait(
 	struct xfs_buf	*bp)
 {
+	ASSERT(!(bp->b_flags & XBF_ASYNC));
+
+	trace_xfs_buf_iowait(bp, _RET_IP_);
+	wait_for_completion(&bp->b_iowait);
+	trace_xfs_buf_iowait_done(bp, _RET_IP_);
+
+	return bp->b_error;
+}
+
+/*
+ * Buffer I/O submission path, read or write. Asynchronous submission transfers
+ * the buffer lock ownership and the current reference to the IO. It is not
+ * safe to reference the buffer after a call to this function unless the caller
+ * holds an additional reference itself.
+ */
+int
+__xfs_buf_submit(
+	struct xfs_buf	*bp,
+	bool		wait)
+{
+	int		error = 0;
+
 	trace_xfs_buf_submit(bp, _RET_IP_);
 
 	ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
-	ASSERT(bp->b_flags & XBF_ASYNC);
 
 	/* on shutdown we stale and complete the buffer immediately */
 	if (XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
 		xfs_buf_ioerror(bp, -EIO);
 		bp->b_flags &= ~XBF_DONE;
 		xfs_buf_stale(bp);
-		xfs_buf_ioend(bp);
-		return;
+		if (bp->b_flags & XBF_ASYNC)
+			xfs_buf_ioend(bp);
+		return -EIO;
 	}
+
+	/*
+	 * Grab a reference so the buffer does not go away underneath us. For
+	 * async buffers, I/O completion drops the callers reference, which
+	 * could occur before submission returns.
+	 */
+	xfs_buf_hold(bp);
 
 	if (bp->b_flags & XBF_WRITE)
 		xfs_buf_wait_unpin(bp);
@@ -1483,22 +1489,13 @@ xfs_buf_submit(
 	bp->b_io_error = 0;
 
 	/*
-	 * The caller's reference is released during I/O completion.
-	 * This occurs some time after the last b_io_remaining reference is
-	 * released, so after we drop our Io reference we have to have some
-	 * other reference to ensure the buffer doesn't go away from underneath
-	 * us. Take a direct reference to ensure we have safe access to the
-	 * buffer until we are finished with it.
-	 */
-	xfs_buf_hold(bp);
-
-	/*
 	 * Set the count to 1 initially, this will stop an I/O completion
 	 * callout which happens before we have started all the I/O from calling
 	 * xfs_buf_ioend too early.
 	 */
 	atomic_set(&bp->b_io_remaining, 1);
-	xfs_buf_ioacct_inc(bp);
+	if (bp->b_flags & XBF_ASYNC)
+		xfs_buf_ioacct_inc(bp);
 	_xfs_buf_ioapply(bp);
 
 	/*
@@ -1507,74 +1504,19 @@ xfs_buf_submit(
 	 * that we don't return to the caller with completion still pending.
 	 */
 	if (atomic_dec_and_test(&bp->b_io_remaining) == 1) {
-		if (bp->b_error)
+		if (bp->b_error || !(bp->b_flags & XBF_ASYNC))
 			xfs_buf_ioend(bp);
 		else
 			xfs_buf_ioend_async(bp);
 	}
 
-	xfs_buf_rele(bp);
-	/* Note: it is not safe to reference bp now we've dropped our ref */
-}
-
-/*
- * Synchronous buffer IO submission path, read or write.
- */
-int
-xfs_buf_submit_wait(
-	struct xfs_buf	*bp)
-{
-	int		error;
-
-	trace_xfs_buf_submit_wait(bp, _RET_IP_);
-
-	ASSERT(!(bp->b_flags & (_XBF_DELWRI_Q | XBF_ASYNC)));
-
-	if (XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
-		xfs_buf_ioerror(bp, -EIO);
-		xfs_buf_stale(bp);
-		bp->b_flags &= ~XBF_DONE;
-		return -EIO;
-	}
-
-	if (bp->b_flags & XBF_WRITE)
-		xfs_buf_wait_unpin(bp);
-
-	/* clear the internal error state to avoid spurious errors */
-	bp->b_io_error = 0;
+	if (wait)
+		error = xfs_buf_iowait(bp);
 
 	/*
-	 * For synchronous IO, the IO does not inherit the submitters reference
-	 * count, nor the buffer lock. Hence we cannot release the reference we
-	 * are about to take until we've waited for all IO completion to occur,
-	 * including any xfs_buf_ioend_async() work that may be pending.
-	 */
-	xfs_buf_hold(bp);
-
-	/*
-	 * Set the count to 1 initially, this will stop an I/O completion
-	 * callout which happens before we have started all the I/O from calling
-	 * xfs_buf_ioend too early.
-	 */
-	atomic_set(&bp->b_io_remaining, 1);
-	_xfs_buf_ioapply(bp);
-
-	/*
-	 * make sure we run completion synchronously if it raced with us and is
-	 * already complete.
-	 */
-	if (atomic_dec_and_test(&bp->b_io_remaining) == 1)
-		xfs_buf_ioend(bp);
-
-	/* wait for completion before gathering the error from the buffer */
-	trace_xfs_buf_iowait(bp, _RET_IP_);
-	wait_for_completion(&bp->b_iowait);
-	trace_xfs_buf_iowait_done(bp, _RET_IP_);
-	error = bp->b_error;
-
-	/*
-	 * all done now, we can release the hold that keeps the buffer
-	 * referenced for the entire IO.
+	 * Release the hold that keeps the buffer referenced for the entire
+	 * I/O. Note that if the buffer is async, it is not safe to reference
+	 * after this release.
 	 */
 	xfs_buf_rele(bp);
 	return error;
@@ -1972,16 +1914,11 @@ xfs_buf_cmp(
 }
 
 /*
- * submit buffers for write.
- *
- * When we have a large buffer list, we do not want to hold all the buffers
- * locked while we block on the request queue waiting for IO dispatch. To avoid
- * this problem, we lock and submit buffers in groups of 50, thereby minimising
- * the lock hold times for lists which may contain thousands of objects.
- *
- * To do this, we sort the buffer list before we walk the list to lock and
- * submit buffers, and we plug and unplug around each group of buffers we
- * submit.
+ * Submit buffers for write. If wait_list is specified, the buffers are
+ * submitted using sync I/O and placed on the wait list such that the caller can
+ * iowait each buffer. Otherwise async I/O is used and the buffers are released
+ * at I/O completion time. In either case, buffers remain locked until I/O
+ * completes and the buffer is released from the queue.
  */
 static int
 xfs_buf_delwri_submit_buffers(
@@ -2023,21 +1960,21 @@ xfs_buf_delwri_submit_buffers(
 		trace_xfs_buf_delwri_split(bp, _RET_IP_);
 
 		/*
-		 * We do all IO submission async. This means if we need
-		 * to wait for IO completion we need to take an extra
-		 * reference so the buffer is still valid on the other
-		 * side. We need to move the buffer onto the io_list
-		 * at this point so the caller can still access it.
+		 * If we have a wait list, each buffer (and associated delwri
+		 * queue reference) transfers to it and is submitted
+		 * synchronously. Otherwise, drop the buffer from the delwri
+		 * queue and submit async.
 		 */
 		bp->b_flags &= ~(_XBF_DELWRI_Q | XBF_WRITE_FAIL);
-		bp->b_flags |= XBF_WRITE | XBF_ASYNC;
+		bp->b_flags |= XBF_WRITE;
 		if (wait_list) {
-			xfs_buf_hold(bp);
+			bp->b_flags &= ~XBF_ASYNC;
 			list_move_tail(&bp->b_list, wait_list);
-		} else
+		} else {
+			bp->b_flags |= XBF_ASYNC;
 			list_del_init(&bp->b_list);
-
-		xfs_buf_submit(bp);
+		}
+		__xfs_buf_submit(bp, false);
 	}
 	blk_finish_plug(&plug);
 
@@ -2084,9 +2021,11 @@ xfs_buf_delwri_submit(
 
 		list_del_init(&bp->b_list);
 
-		/* locking the buffer will wait for async IO completion. */
-		xfs_buf_lock(bp);
-		error2 = bp->b_error;
+		/*
+		 * Wait on the locked buffer, check for errors and unlock and
+		 * release the delwri queue reference.
+		 */
+		error2 = xfs_buf_iowait(bp);
 		xfs_buf_relse(bp);
 		if (!error)
 			error = error2;
@@ -2132,23 +2071,18 @@ xfs_buf_delwri_pushbuf(
 
 	/*
 	 * Delwri submission clears the DELWRI_Q buffer flag and returns with
-	 * the buffer on the wait list with an associated reference. Rather than
+	 * the buffer on the wait list with the original reference. Rather than
 	 * bounce the buffer from a local wait list back to the original list
 	 * after I/O completion, reuse the original list as the wait list.
 	 */
 	xfs_buf_delwri_submit_buffers(&submit_list, buffer_list);
 
 	/*
-	 * The buffer is now under I/O and wait listed as during typical delwri
-	 * submission. Lock the buffer to wait for I/O completion. Rather than
-	 * remove the buffer from the wait list and release the reference, we
-	 * want to return with the buffer queued to the original list. The
-	 * buffer already sits on the original list with a wait list reference,
-	 * however. If we let the queue inherit that wait list reference, all we
-	 * need to do is reset the DELWRI_Q flag.
+	 * The buffer is now locked, under I/O and wait listed on the original
+	 * delwri queue. Wait for I/O completion, restore the DELWRI_Q flag and
+	 * return with the buffer unlocked and on the original queue.
 	 */
-	xfs_buf_lock(bp);
-	error = bp->b_error;
+	error = xfs_buf_iowait(bp);
 	bp->b_flags |= _XBF_DELWRI_Q;
 	xfs_buf_unlock(bp);
 

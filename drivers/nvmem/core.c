@@ -31,7 +31,6 @@ struct nvmem_device {
 	struct device		dev;
 	int			stride;
 	int			word_size;
-	int			ncells;
 	int			id;
 	int			users;
 	size_t			size;
@@ -389,7 +388,6 @@ int nvmem_add_cells(struct nvmem_device *nvmem,
 		nvmem_cell_add(cells[i]);
 	}
 
-	nvmem->ncells = ncells;
 	/* remove tmp array */
 	kfree(cells);
 
@@ -935,6 +933,10 @@ struct nvmem_cell *nvmem_cell_get(struct device *dev, const char *cell_id)
 		if (!IS_ERR(cell) || PTR_ERR(cell) == -EPROBE_DEFER)
 			return cell;
 	}
+
+	/* NULL cell_id only allowed for device tree; invalid otherwise */
+	if (!cell_id)
+		return ERR_PTR(-EINVAL);
 
 	return nvmem_cell_get_from_list(cell_id);
 }

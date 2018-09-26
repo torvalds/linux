@@ -3,8 +3,6 @@
 Required properties:
  - compatible		  : "chipone,icn8318"
  - reg			  : I2C slave address of the chip (0x40)
- - interrupt-parent	  : a phandle pointing to the interrupt controller
-			    serving the interrupt for this chip
  - interrupts		  : interrupt specification for the icn8318 interrupt
  - wake-gpios		  : GPIO specification for the WAKE input
  - touchscreen-size-x	  : horizontal resolution of touchscreen (in pixels)

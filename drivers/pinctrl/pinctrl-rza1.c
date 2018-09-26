@@ -1006,6 +1006,7 @@ static int rza1_dt_node_to_map(struct pinctrl_dev *pctldev,
 	const char *grpname;
 	const char **fngrps;
 	int ret, npins;
+	int gsel, fsel;
 
 	npins = rza1_dt_node_pin_count(np);
 	if (npins < 0) {
@@ -1055,18 +1056,19 @@ static int rza1_dt_node_to_map(struct pinctrl_dev *pctldev,
 	fngrps[0] = grpname;
 
 	mutex_lock(&rza1_pctl->mutex);
-	ret = pinctrl_generic_add_group(pctldev, grpname, grpins, npins,
-					NULL);
-	if (ret) {
+	gsel = pinctrl_generic_add_group(pctldev, grpname, grpins, npins,
+					 NULL);
+	if (gsel < 0) {
 		mutex_unlock(&rza1_pctl->mutex);
-		return ret;
+		return gsel;
 	}
 
-	ret = pinmux_generic_add_function(pctldev, grpname, fngrps, 1,
-					  mux_confs);
-	if (ret)
+	fsel = pinmux_generic_add_function(pctldev, grpname, fngrps, 1,
+					   mux_confs);
+	if (fsel < 0) {
+		ret = fsel;
 		goto remove_group;
-	mutex_unlock(&rza1_pctl->mutex);
+	}
 
 	dev_info(rza1_pctl->dev, "Parsed function and group %s with %d pins\n",
 				 grpname, npins);
@@ -1083,15 +1085,15 @@ static int rza1_dt_node_to_map(struct pinctrl_dev *pctldev,
 	(*map)->data.mux.group = np->name;
 	(*map)->data.mux.function = np->name;
 	*num_maps = 1;
+	mutex_unlock(&rza1_pctl->mutex);
 
 	return 0;
 
 remove_function:
-	mutex_lock(&rza1_pctl->mutex);
-	pinmux_generic_remove_last_function(pctldev);
+	pinmux_generic_remove_function(pctldev, fsel);
 
 remove_group:
-	pinctrl_generic_remove_last_group(pctldev);
+	pinctrl_generic_remove_group(pctldev, gsel);
 	mutex_unlock(&rza1_pctl->mutex);
 
 	dev_info(rza1_pctl->dev, "Unable to parse function and group %s\n",

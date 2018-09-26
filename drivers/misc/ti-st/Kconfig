@@ -5,7 +5,8 @@
 menu "Texas Instruments shared transport line discipline"
 config TI_ST
 	tristate "Shared transport core driver"
-	depends on NET && GPIOLIB && TTY
+	depends on NET && TTY
+	depends on GPIOLIB || COMPILE_TEST
 	select FW_LOADER
 	help
 	  This enables the shared transport core driver for TI

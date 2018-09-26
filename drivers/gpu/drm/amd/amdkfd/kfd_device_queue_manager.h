@@ -26,15 +26,14 @@
 
 #include <linux/rwsem.h>
 #include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/sched/mm.h>
 #include "kfd_priv.h"
 #include "kfd_mqd_manager.h"
 
 #define KFD_UNMAP_LATENCY_MS			(4000)
 #define QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS (2 * KFD_UNMAP_LATENCY_MS + 1000)
-
-#define CIK_SDMA_QUEUES				(4)
-#define CIK_SDMA_QUEUES_PER_ENGINE		(2)
-#define CIK_SDMA_ENGINE_NUM			(2)
+#define KFD_SDMA_QUEUES_PER_ENGINE		(2)
 
 struct device_process_node {
 	struct qcm_process_device *qpd;
@@ -170,11 +169,12 @@ struct device_queue_manager {
 	struct device_queue_manager_ops ops;
 	struct device_queue_manager_asic_ops asic_ops;
 
-	struct mqd_manager	*mqds[KFD_MQD_TYPE_MAX];
+	struct mqd_manager	*mqd_mgrs[KFD_MQD_TYPE_MAX];
 	struct packet_manager	packets;
 	struct kfd_dev		*dev;
-	struct mutex		lock;
+	struct mutex		lock_hidden; /* use dqm_lock/unlock(dqm) */
 	struct list_head	queues;
+	unsigned int		saved_flags;
 	unsigned int		processes_count;
 	unsigned int		queue_count;
 	unsigned int		sdma_queue_count;
@@ -190,6 +190,10 @@ struct device_queue_manager {
 	struct kfd_mem_obj	*fence_mem;
 	bool			active_runlist;
 	int			sched_policy;
+
+	/* hw exception  */
+	bool			is_hws_hang;
+	struct work_struct	hw_exception_work;
 };
 
 void device_queue_manager_init_cik(
@@ -207,6 +211,7 @@ void program_sh_mem_settings(struct device_queue_manager *dqm,
 unsigned int get_queues_num(struct device_queue_manager *dqm);
 unsigned int get_queues_per_pipe(struct device_queue_manager *dqm);
 unsigned int get_pipes_per_mec(struct device_queue_manager *dqm);
+unsigned int get_num_sdma_queues(struct device_queue_manager *dqm);
 
 static inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
 {
@@ -217,6 +222,21 @@ static inline unsigned int
 get_sh_mem_bases_nybble_64(struct kfd_process_device *pdd)
 {
 	return (pdd->lds_base >> 60) & 0x0E;
+}
+
+/* The DQM lock can be taken in MMU notifiers. Make sure no reclaim-FS
+ * happens while holding this lock anywhere to prevent deadlocks when
+ * an MMU notifier runs in reclaim-FS context.
+ */
+static inline void dqm_lock(struct device_queue_manager *dqm)
+{
+	mutex_lock(&dqm->lock_hidden);
+	dqm->saved_flags = memalloc_nofs_save();
+}
+static inline void dqm_unlock(struct device_queue_manager *dqm)
+{
+	memalloc_nofs_restore(dqm->saved_flags);
+	mutex_unlock(&dqm->lock_hidden);
 }
 
 #endif /* KFD_DEVICE_QUEUE_MANAGER_H_ */

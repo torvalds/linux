@@ -151,6 +151,9 @@ struct dpp_funcs {
 	void (*dpp_set_hdr_multiplier)(
 			struct dpp *dpp_base,
 			uint32_t multiplier);
+	void (*set_optional_cursor_attributes)(
+			struct dpp *dpp_base,
+			struct dpp_cursor_attributes *attr);
 
 	void (*dpp_dppclk_control)(
 			struct dpp *dpp_base,

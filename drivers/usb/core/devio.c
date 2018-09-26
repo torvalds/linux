@@ -585,9 +585,10 @@ static void async_completed(struct urb *urb)
 	struct siginfo sinfo;
 	struct pid *pid = NULL;
 	const struct cred *cred = NULL;
+	unsigned long flags;
 	int signr;
 
-	spin_lock(&ps->lock);
+	spin_lock_irqsave(&ps->lock, flags);
 	list_move_tail(&as->asynclist, &ps->async_completed);
 	as->status = urb->status;
 	signr = as->signr;
@@ -611,7 +612,7 @@ static void async_completed(struct urb *urb)
 		cancel_bulk_urbs(ps, as->bulk_addr);
 
 	wake_up(&ps->wait);
-	spin_unlock(&ps->lock);
+	spin_unlock_irqrestore(&ps->lock, flags);
 
 	if (signr) {
 		kill_pid_info_as_cred(sinfo.si_signo, &sinfo, pid, cred);

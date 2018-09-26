@@ -179,7 +179,6 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 {
 	int val;
 	int *p_val = var->p_val;
-	int l;
 	char buf[32];
 	char *cp;
 	struct var_t *var_data = var->data;
@@ -237,9 +236,9 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 	else
 		cp = buf;
 	if (!var_data->u.n.out_str)
-		l = sprintf(cp, var_data->u.n.synth_fmt, (int)val);
+		sprintf(cp, var_data->u.n.synth_fmt, (int)val);
 	else
-		l = sprintf(cp,	var_data->u.n.synth_fmt, var_data->u.n.out_str[val]);
+		sprintf(cp, var_data->u.n.synth_fmt, var_data->u.n.out_str[val]);
 	synth_printf("%s", cp);
 	return 0;
 }

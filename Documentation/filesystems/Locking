@@ -21,8 +21,7 @@ prototypes:
 	char *(*d_dname)((struct dentry *dentry, char *buffer, int buflen);
 	struct vfsmount *(*d_automount)(struct path *path);
 	int (*d_manage)(const struct path *, bool);
-	struct dentry *(*d_real)(struct dentry *, const struct inode *,
-				 unsigned int, unsigned int);
+	struct dentry *(*d_real)(struct dentry *, const struct inode *);
 
 locking rules:
 		rename_lock	->d_lock	may block	rcu-walk
@@ -64,7 +63,7 @@ prototypes:
 	void (*update_time)(struct inode *, struct timespec *, int);
 	int (*atomic_open)(struct inode *, struct dentry *,
 				struct file *, unsigned open_flag,
-				umode_t create_mode, int *opened);
+				umode_t create_mode);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
 
 locking rules:
@@ -441,8 +440,6 @@ prototypes:
 	int (*iterate) (struct file *, struct dir_context *);
 	int (*iterate_shared) (struct file *, struct dir_context *);
 	__poll_t (*poll) (struct file *, struct poll_table_struct *);
-	struct wait_queue_head * (*get_poll_head)(struct file *, __poll_t);
-	__poll_t (*poll_mask) (struct file *, __poll_t);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
 	int (*mmap) (struct file *, struct vm_area_struct *);
@@ -473,7 +470,7 @@ prototypes:
 };
 
 locking rules:
-	All except for ->poll_mask may block.
+	All may block.
 
 ->llseek() locking has moved from llseek to the individual llseek
 implementations.  If your fs is not using generic_file_llseek, you
@@ -505,9 +502,6 @@ in sys_read() and friends.
 the lease within the individual filesystem to record the result of the
 operation
 
-->poll_mask can be called with or without the waitqueue lock for the waitqueue
-returned from ->get_poll_head.
-
 --------------------------- dquot_operations -------------------------------
 prototypes:
 	int (*write_dquot) (struct dquot *);
@@ -537,9 +531,9 @@ More details about quota locking can be found in fs/dquot.c.
 prototypes:
 	void (*open)(struct vm_area_struct*);
 	void (*close)(struct vm_area_struct*);
-	int (*fault)(struct vm_area_struct*, struct vm_fault *);
-	int (*page_mkwrite)(struct vm_area_struct *, struct vm_fault *);
-	int (*pfn_mkwrite)(struct vm_area_struct *, struct vm_fault *);
+	vm_fault_t (*fault)(struct vm_area_struct*, struct vm_fault *);
+	vm_fault_t (*page_mkwrite)(struct vm_area_struct *, struct vm_fault *);
+	vm_fault_t (*pfn_mkwrite)(struct vm_area_struct *, struct vm_fault *);
 	int (*access)(struct vm_area_struct *, unsigned long, void*, int, int);
 
 locking rules:

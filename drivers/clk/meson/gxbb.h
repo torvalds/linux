@@ -66,7 +66,6 @@
 #define HHI_USB_CLK_CNTL		0x220 /* 0x88 offset in data sheet */
 #define HHI_32K_CLK_CNTL		0x224 /* 0x89 offset in data sheet */
 #define HHI_GEN_CLK_CNTL		0x228 /* 0x8a offset in data sheet */
-#define HHI_GEN_CLK_CNTL		0x228 /* 0x8a offset in data sheet */
 
 #define HHI_PCM_CLK_CNTL		0x258 /* 0x96 offset in data sheet */
 #define HHI_NAND_CLK_CNTL		0x25C /* 0x97 offset in data sheet */
@@ -158,8 +157,10 @@
 #define CLKID_VDEC_1_DIV	  152
 #define CLKID_VDEC_HEVC_SEL	  154
 #define CLKID_VDEC_HEVC_DIV	  155
+#define CLKID_GEN_CLK_SEL	  157
+#define CLKID_GEN_CLK_DIV	  158
 
-#define NR_CLKS			  157
+#define NR_CLKS			  160
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>

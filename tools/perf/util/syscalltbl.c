@@ -38,6 +38,10 @@ static const char **syscalltbl_native = syscalltbl_powerpc_64;
 #include <asm/syscalls_32.c>
 const int syscalltbl_native_max_id = SYSCALLTBL_POWERPC_32_MAX_ID;
 static const char **syscalltbl_native = syscalltbl_powerpc_32;
+#elif defined(__aarch64__)
+#include <asm/syscalls.c>
+const int syscalltbl_native_max_id = SYSCALLTBL_ARM64_MAX_ID;
+static const char **syscalltbl_native = syscalltbl_arm64;
 #endif
 
 struct syscall {

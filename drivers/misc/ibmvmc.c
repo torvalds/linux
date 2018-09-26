@@ -273,7 +273,7 @@ static void *alloc_dma_buffer(struct vio_dev *vdev, size_t size,
 			      dma_addr_t *dma_handle)
 {
 	/* allocate memory */
-	void *buffer = kzalloc(size, GFP_KERNEL);
+	void *buffer = kzalloc(size, GFP_ATOMIC);
 
 	if (!buffer) {
 		*dma_handle = 0;
@@ -2131,7 +2131,7 @@ static int ibmvmc_init_crq_queue(struct crq_server_adapter *adapter)
 	retrc = plpar_hcall_norets(H_REG_CRQ,
 				   vdev->unit_address,
 				   queue->msg_token, PAGE_SIZE);
-	retrc = rc;
+	rc = retrc;
 
 	if (rc == H_RESOURCE)
 		rc = ibmvmc_reset_crq_queue(adapter);

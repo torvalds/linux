@@ -111,6 +111,7 @@ struct i2caux *dal_i2caux_dcn10_create(
 
 	dal_i2caux_dce110_construct(i2caux_dce110,
 				    ctx,
+				    ARRAY_SIZE(dcn10_aux_regs),
 				    dcn10_aux_regs,
 				    dcn10_hw_engine_regs,
 				    &i2c_shift,

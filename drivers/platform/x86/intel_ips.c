@@ -858,10 +858,7 @@ static u16 read_mgtv(struct ips_driver *ips)
 
 static u16 read_ptv(struct ips_driver *ips)
 {
-	u16 val, slope, offset;
-
-	slope = (ips->pta_val & PTA_SLOPE_MASK) >> PTA_SLOPE_SHIFT;
-	offset = ips->pta_val & PTA_OFFSET_MASK;
+	u16 val;
 
 	val = thm_readw(THM_PTV) & PTV_MASK;
 

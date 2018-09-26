@@ -47,6 +47,17 @@ enum kfd_preempt_type {
 	KFD_PREEMPT_TYPE_WAVEFRONT_RESET,
 };
 
+struct kfd_vm_fault_info {
+	uint64_t	page_addr;
+	uint32_t	vmid;
+	uint32_t	mc_id;
+	uint32_t	status;
+	bool		prot_valid;
+	bool		prot_read;
+	bool		prot_write;
+	bool		prot_exec;
+};
+
 struct kfd_cu_info {
 	uint32_t num_shader_engines;
 	uint32_t num_shader_arrays_per_engine;
@@ -259,6 +270,21 @@ struct tile_config {
  * IB to the corresponding ring (ring type). The IB is executed with the
  * specified VMID in a user mode context.
  *
+ * @get_vm_fault_info: Return information about a recent VM fault on
+ * GFXv7 and v8. If multiple VM faults occurred since the last call of
+ * this function, it will return information about the first of those
+ * faults. On GFXv9 VM fault information is fully contained in the IH
+ * packet and this function is not needed.
+ *
+ * @read_vmid_from_vmfault_reg: On Hawaii the VMID is not set in the
+ * IH ring entry. This function allows the KFD ISR to get the VMID
+ * from the fault status register as early as possible.
+ *
+ * @gpu_recover: let kgd reset gpu after kfd detect CPC hang
+ *
+ * @set_compute_idle: Indicates that compute is idle on a device. This
+ * can be used to change power profiles depending on compute activity.
+ *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
  *
@@ -266,7 +292,7 @@ struct tile_config {
 struct kfd2kgd_calls {
 	int (*init_gtt_mem_allocation)(struct kgd_dev *kgd, size_t size,
 					void **mem_obj, uint64_t *gpu_addr,
-					void **cpu_ptr);
+					void **cpu_ptr, bool mqd_gfx9);
 
 	void (*free_gtt_mem)(struct kgd_dev *kgd, void *mem_obj);
 
@@ -374,6 +400,14 @@ struct kfd2kgd_calls {
 	int (*submit_ib)(struct kgd_dev *kgd, enum kgd_engine_type engine,
 			uint32_t vmid, uint64_t gpu_addr,
 			uint32_t *ib_cmd, uint32_t ib_len);
+
+	int (*get_vm_fault_info)(struct kgd_dev *kgd,
+			struct kfd_vm_fault_info *info);
+	uint32_t (*read_vmid_from_vmfault_reg)(struct kgd_dev *kgd);
+
+	void (*gpu_recover)(struct kgd_dev *kgd);
+
+	void (*set_compute_idle)(struct kgd_dev *kgd, bool idle);
 };
 
 /**
@@ -399,6 +433,10 @@ struct kfd2kgd_calls {
  * @schedule_evict_and_restore_process: Schedules work queue that will prepare
  * for safe eviction of KFD BOs that belong to the specified process.
  *
+ * @pre_reset: Notifies amdkfd that amdgpu about to reset the gpu
+ *
+ * @post_reset: Notify amdkfd that amgpu successfully reseted the gpu
+ *
  * This structure contains function callback pointers so the kgd driver
  * will notify to the amdkfd about certain status changes.
  *
@@ -417,6 +455,8 @@ struct kgd2kfd_calls {
 	int (*resume_mm)(struct mm_struct *mm);
 	int (*schedule_evict_and_restore_process)(struct mm_struct *mm,
 			struct dma_fence *fence);
+	int  (*pre_reset)(struct kfd_dev *kfd);
+	int  (*post_reset)(struct kfd_dev *kfd);
 };
 
 int kgd2kfd_init(unsigned interface_version,

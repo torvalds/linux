@@ -542,6 +542,23 @@ static int acpi_data_get_property_array(const struct acpi_device_data *data,
 	return 0;
 }
 
+static struct fwnode_handle *
+acpi_fwnode_get_named_child_node(const struct fwnode_handle *fwnode,
+				 const char *childname)
+{
+	struct fwnode_handle *child;
+
+	/*
+	 * Find first matching named child node of this fwnode.
+	 * For ACPI this will be a data only sub-node.
+	 */
+	fwnode_for_each_child_node(fwnode, child)
+		if (acpi_data_node_match(child, childname))
+			return child;
+
+	return NULL;
+}
+
 /**
  * __acpi_node_get_property_reference - returns handle to the referenced object
  * @fwnode: Firmware node to get the property from
@@ -579,7 +596,7 @@ static int acpi_data_get_property_array(const struct acpi_device_data *data,
  */
 int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 	const char *propname, size_t index, size_t num_args,
-	struct acpi_reference_args *args)
+	struct fwnode_reference_args *args)
 {
 	const union acpi_object *element, *end;
 	const union acpi_object *obj;
@@ -607,7 +624,7 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 		if (ret)
 			return ret == -ENODEV ? -EINVAL : ret;
 
-		args->adev = device;
+		args->fwnode = acpi_fwnode_handle(device);
 		args->nargs = 0;
 		return 0;
 	}
@@ -633,6 +650,8 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 		u32 nargs, i;
 
 		if (element->type == ACPI_TYPE_LOCAL_REFERENCE) {
+			struct fwnode_handle *ref_fwnode;
+
 			ret = acpi_bus_get_device(element->reference.handle,
 						  &device);
 			if (ret)
@@ -640,6 +659,19 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 
 			nargs = 0;
 			element++;
+
+			/*
+			 * Find the referred data extension node under the
+			 * referred device node.
+			 */
+			for (ref_fwnode = acpi_fwnode_handle(device);
+			     element < end && element->type == ACPI_TYPE_STRING;
+			     element++) {
+				ref_fwnode = acpi_fwnode_get_named_child_node(
+					ref_fwnode, element->string.pointer);
+				if (!ref_fwnode)
+					return -EINVAL;
+			}
 
 			/* assume following integer elements are all args */
 			for (i = 0; element + i < end && i < num_args; i++) {
@@ -653,11 +685,11 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 					return -EINVAL;
 			}
 
-			if (nargs > MAX_ACPI_REFERENCE_ARGS)
+			if (nargs > NR_FWNODE_REFERENCE_ARGS)
 				return -EINVAL;
 
 			if (idx == index) {
-				args->adev = device;
+				args->fwnode = ref_fwnode;
 				args->nargs = nargs;
 				for (i = 0; i < nargs; i++)
 					args->args[i] = element[i].integer.value;
@@ -995,16 +1027,36 @@ struct fwnode_handle *acpi_node_get_parent(const struct fwnode_handle *fwnode)
 	return NULL;
 }
 
+/*
+ * Return true if the node is an ACPI graph node. Called on either ports
+ * or endpoints.
+ */
+static bool is_acpi_graph_node(struct fwnode_handle *fwnode,
+			       const char *str)
+{
+	unsigned int len = strlen(str);
+	const char *name;
+
+	if (!len || !is_acpi_data_node(fwnode))
+		return false;
+
+	name = to_acpi_data_node(fwnode)->name;
+
+	return (fwnode_property_present(fwnode, "reg") &&
+		!strncmp(name, str, len) && name[len] == '@') ||
+		fwnode_property_present(fwnode, str);
+}
+
 /**
  * acpi_graph_get_next_endpoint - Get next endpoint ACPI firmware node
  * @fwnode: Pointer to the parent firmware node
  * @prev: Previous endpoint node or %NULL to get the first
  *
  * Looks up next endpoint ACPI firmware node below a given @fwnode. Returns
- * %NULL if there is no next endpoint, ERR_PTR() in case of error. In case
- * of success the next endpoint is returned.
+ * %NULL if there is no next endpoint or in case of error. In case of success
+ * the next endpoint is returned.
  */
-struct fwnode_handle *acpi_graph_get_next_endpoint(
+static struct fwnode_handle *acpi_graph_get_next_endpoint(
 	const struct fwnode_handle *fwnode, struct fwnode_handle *prev)
 {
 	struct fwnode_handle *port = NULL;
@@ -1013,8 +1065,14 @@ struct fwnode_handle *acpi_graph_get_next_endpoint(
 	if (!prev) {
 		do {
 			port = fwnode_get_next_child_node(fwnode, port);
-			/* Ports must have port property */
-			if (fwnode_property_present(port, "port"))
+			/*
+			 * The names of the port nodes begin with "port@"
+			 * followed by the number of the port node and they also
+			 * have a "reg" property that also has the number of the
+			 * port node. For compatibility reasons a node is also
+			 * recognised as a port node from the "port" property.
+			 */
+			if (is_acpi_graph_node(port, "port"))
 				break;
 		} while (port);
 	} else {
@@ -1029,15 +1087,19 @@ struct fwnode_handle *acpi_graph_get_next_endpoint(
 		port = fwnode_get_next_child_node(fwnode, port);
 		if (!port)
 			break;
-		if (fwnode_property_present(port, "port"))
+		if (is_acpi_graph_node(port, "port"))
 			endpoint = fwnode_get_next_child_node(port, NULL);
 	}
 
-	if (endpoint) {
-		/* Endpoints must have "endpoint" property */
-		if (!fwnode_property_present(endpoint, "endpoint"))
-			return ERR_PTR(-EPROTO);
-	}
+	/*
+	 * The names of the endpoint nodes begin with "endpoint@" followed by
+	 * the number of the endpoint node and they also have a "reg" property
+	 * that also has the number of the endpoint node. For compatibility
+	 * reasons a node is also recognised as an endpoint node from the
+	 * "endpoint" property.
+	 */
+	if (!is_acpi_graph_node(endpoint, "endpoint"))
+		return NULL;
 
 	return endpoint;
 }
@@ -1074,65 +1136,42 @@ static struct fwnode_handle *acpi_graph_get_child_prop_value(
 /**
  * acpi_graph_get_remote_enpoint - Parses and returns remote end of an endpoint
  * @fwnode: Endpoint firmware node pointing to a remote device
- * @parent: Firmware node of remote port parent is filled here if not %NULL
- * @port: Firmware node of remote port is filled here if not %NULL
  * @endpoint: Firmware node of remote endpoint is filled here if not %NULL
  *
- * Function parses remote end of ACPI firmware remote endpoint and fills in
- * fields requested by the caller. Returns %0 in case of success and
- * negative errno otherwise.
+ * Returns the remote endpoint corresponding to @__fwnode. NULL on error.
  */
-int acpi_graph_get_remote_endpoint(const struct fwnode_handle *__fwnode,
-				   struct fwnode_handle **parent,
-				   struct fwnode_handle **port,
-				   struct fwnode_handle **endpoint)
+static struct fwnode_handle *
+acpi_graph_get_remote_endpoint(const struct fwnode_handle *__fwnode)
 {
 	struct fwnode_handle *fwnode;
 	unsigned int port_nr, endpoint_nr;
-	struct acpi_reference_args args;
+	struct fwnode_reference_args args;
 	int ret;
 
 	memset(&args, 0, sizeof(args));
 	ret = acpi_node_get_property_reference(__fwnode, "remote-endpoint", 0,
 					       &args);
 	if (ret)
-		return ret;
+		return NULL;
+
+	/* Direct endpoint reference? */
+	if (!is_acpi_device_node(args.fwnode))
+		return args.nargs ? NULL : args.fwnode;
 
 	/*
 	 * Always require two arguments with the reference: port and
 	 * endpoint indices.
 	 */
 	if (args.nargs != 2)
-		return -EPROTO;
+		return NULL;
 
-	fwnode = acpi_fwnode_handle(args.adev);
+	fwnode = args.fwnode;
 	port_nr = args.args[0];
 	endpoint_nr = args.args[1];
 
-	if (parent)
-		*parent = fwnode;
-
-	if (!port && !endpoint)
-		return 0;
-
 	fwnode = acpi_graph_get_child_prop_value(fwnode, "port", port_nr);
-	if (!fwnode)
-		return -EPROTO;
 
-	if (port)
-		*port = fwnode;
-
-	if (!endpoint)
-		return 0;
-
-	fwnode = acpi_graph_get_child_prop_value(fwnode, "endpoint",
-						 endpoint_nr);
-	if (!fwnode)
-		return -EPROTO;
-
-	*endpoint = fwnode;
-
-	return 0;
+	return acpi_graph_get_child_prop_value(fwnode, "endpoint", endpoint_nr);
 }
 
 static bool acpi_fwnode_device_is_available(const struct fwnode_handle *fwnode)
@@ -1186,70 +1225,14 @@ acpi_fwnode_property_read_string_array(const struct fwnode_handle *fwnode,
 				   val, nval);
 }
 
-static struct fwnode_handle *
-acpi_fwnode_get_named_child_node(const struct fwnode_handle *fwnode,
-				 const char *childname)
-{
-	struct fwnode_handle *child;
-
-	/*
-	 * Find first matching named child node of this fwnode.
-	 * For ACPI this will be a data only sub-node.
-	 */
-	fwnode_for_each_child_node(fwnode, child)
-		if (acpi_data_node_match(child, childname))
-			return child;
-
-	return NULL;
-}
-
 static int
 acpi_fwnode_get_reference_args(const struct fwnode_handle *fwnode,
 			       const char *prop, const char *nargs_prop,
 			       unsigned int args_count, unsigned int index,
 			       struct fwnode_reference_args *args)
 {
-	struct acpi_reference_args acpi_args;
-	unsigned int i;
-	int ret;
-
-	ret = __acpi_node_get_property_reference(fwnode, prop, index,
-						 args_count, &acpi_args);
-	if (ret < 0)
-		return ret;
-	if (!args)
-		return 0;
-
-	args->nargs = acpi_args.nargs;
-	args->fwnode = acpi_fwnode_handle(acpi_args.adev);
-
-	for (i = 0; i < NR_FWNODE_REFERENCE_ARGS; i++)
-		args->args[i] = i < acpi_args.nargs ? acpi_args.args[i] : 0;
-
-	return 0;
-}
-
-static struct fwnode_handle *
-acpi_fwnode_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
-				    struct fwnode_handle *prev)
-{
-	struct fwnode_handle *endpoint;
-
-	endpoint = acpi_graph_get_next_endpoint(fwnode, prev);
-	if (IS_ERR(endpoint))
-		return NULL;
-
-	return endpoint;
-}
-
-static struct fwnode_handle *
-acpi_fwnode_graph_get_remote_endpoint(const struct fwnode_handle *fwnode)
-{
-	struct fwnode_handle *endpoint = NULL;
-
-	acpi_graph_get_remote_endpoint(fwnode, NULL, NULL, &endpoint);
-
-	return endpoint;
+	return __acpi_node_get_property_reference(fwnode, prop, index,
+						  args_count, args);
 }
 
 static struct fwnode_handle *
@@ -1265,8 +1248,10 @@ static int acpi_fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 
 	endpoint->local_fwnode = fwnode;
 
-	fwnode_property_read_u32(port_fwnode, "port", &endpoint->port);
-	fwnode_property_read_u32(fwnode, "endpoint", &endpoint->id);
+	if (fwnode_property_read_u32(port_fwnode, "reg", &endpoint->port))
+		fwnode_property_read_u32(port_fwnode, "port", &endpoint->port);
+	if (fwnode_property_read_u32(fwnode, "reg", &endpoint->id))
+		fwnode_property_read_u32(fwnode, "endpoint", &endpoint->id);
 
 	return 0;
 }
@@ -1292,9 +1277,9 @@ acpi_fwnode_device_get_match_data(const struct fwnode_handle *fwnode,
 		.get_named_child_node = acpi_fwnode_get_named_child_node, \
 		.get_reference_args = acpi_fwnode_get_reference_args,	\
 		.graph_get_next_endpoint =				\
-			acpi_fwnode_graph_get_next_endpoint,		\
+			acpi_graph_get_next_endpoint,			\
 		.graph_get_remote_endpoint =				\
-			acpi_fwnode_graph_get_remote_endpoint,		\
+			acpi_graph_get_remote_endpoint,			\
 		.graph_get_port_parent = acpi_fwnode_get_parent,	\
 		.graph_parse_endpoint = acpi_fwnode_graph_parse_endpoint, \
 	};								\

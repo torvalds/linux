@@ -56,11 +56,12 @@ Overview
 
 The basic object structure KMS presents to userspace is fairly simple.
 Framebuffers (represented by :c:type:`struct drm_framebuffer <drm_framebuffer>`,
-see `Frame Buffer Abstraction`_) feed into planes. One or more (or even no)
-planes feed their pixel data into a CRTC (represented by :c:type:`struct
-drm_crtc <drm_crtc>`, see `CRTC Abstraction`_) for blending. The precise
-blending step is explained in more detail in `Plane Composition Properties`_ and
-related chapters.
+see `Frame Buffer Abstraction`_) feed into planes. Planes are represented by
+:c:type:`struct drm_plane <drm_plane>`, see `Plane Abstraction`_ for more
+details. One or more (or even no) planes feed their pixel data into a CRTC
+(represented by :c:type:`struct drm_crtc <drm_crtc>`, see `CRTC Abstraction`_)
+for blending. The precise blending step is explained in more detail in `Plane
+Composition Properties`_ and related chapters.
 
 For the output routing the first step is encoders (represented by
 :c:type:`struct drm_encoder <drm_encoder>`, see `Encoder Abstraction`_). Those
@@ -373,6 +374,15 @@ Connector Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :export:
 
+Writeback Connectors
+--------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_writeback.c
+  :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_writeback.c
+  :export:
+
 Encoder Abstraction
 ===================
 
@@ -457,7 +467,7 @@ Output discovery and initialization example
         drm_encoder_init(dev, &intel_output->enc, &intel_crt_enc_funcs,
                  DRM_MODE_ENCODER_DAC);
 
-        drm_mode_connector_attach_encoder(&intel_output->base,
+        drm_connector_attach_encoder(&intel_output->base,
                           &intel_output->enc);
 
         /* Set up the DDC bus. */
@@ -516,6 +526,12 @@ Standard Connector Properties
 
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :doc: standard connector properties
+
+HDMI Specific Connector Properties
+----------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :doc: HDMI connector properties
 
 Plane Composition Properties
 ----------------------------

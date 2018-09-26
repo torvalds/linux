@@ -46,7 +46,7 @@ enum regulator_status {
 /**
  * struct regulator_linear_range - specify linear voltage ranges
  *
- * Specify a range of voltages for regulator_map_linar_range() and
+ * Specify a range of voltages for regulator_map_linear_range() and
  * regulator_list_linear_range().
  *
  * @min_uV:  Lowest voltage in range
@@ -220,7 +220,7 @@ struct regulator_ops {
 	/* set regulator suspend operating mode (defined in consumer.h) */
 	int (*set_suspend_mode) (struct regulator_dev *, unsigned int mode);
 
-	int (*resume_early)(struct regulator_dev *rdev);
+	int (*resume)(struct regulator_dev *rdev);
 
 	int (*set_pull_down) (struct regulator_dev *);
 };

@@ -65,8 +65,7 @@
 		regulator-always-on;
 	};
 
-
-	reg_2p5v: regulator-3p3v {
+	reg_2p5v: regulator-2p5v {
 		compatible = "regulator-fixed";
 		regulator-name = "2P5V";
 		regulator-min-microvolt = <2500000>;
@@ -215,6 +214,29 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
+	ov5640: camera@3c {
+		compatible = "ovti,ov5640";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ov5640>;
+		reg = <0x3c>;
+		clocks = <&clks IMX6QDL_CLK_CKO>;
+		clock-names = "xclk";
+		DOVDD-supply = <&reg_1p8v>;
+		AVDD-supply = <&reg_3p3v>;
+		DVDD-supply = <&reg_3p3v>;
+		powerdown-gpios = <&gpio5 30 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio5 31 GPIO_ACTIVE_LOW>;
+		status = "disabled";
+
+		port {
+			ov5640_to_mipi_csi2: endpoint {
+				remote-endpoint = <&mipi_csi2_in>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
 	sgtl5000: codec@a {
 		#sound-dai-cells = <0>;
 		compatible = "fsl,sgtl5000";
@@ -223,6 +245,20 @@
 		VDDA-supply = <&reg_2p5v>;
 		VDDIO-supply = <&reg_3p3v>;
 		VDDD-supply = <&reg_1p8v>;
+	};
+};
+
+&mipi_csi {
+	status = "disabled";
+
+	port@0 {
+		reg = <0>;
+
+		mipi_csi2_in: endpoint {
+			remote-endpoint = <&ov5640_to_mipi_csi2>;
+			clock-lanes = <0>;
+			data-lanes = <1 2>;
+		};
 	};
 };
 
@@ -353,7 +389,14 @@
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_5__I2C3_SCL  0x4001b8b1
 			MX6QDL_PAD_EIM_D18__I2C3_SDA 0x4001b8b1
-			MX6QDL_PAD_GPIO_0__CCM_CLKO1	0x130b0
+		>;
+	};
+
+	pinctrl_ov5640: ov5640grp {
+		fsl,pins = <
+			MX6QDL_PAD_CSI0_DAT12__GPIO5_IO30 0x1b0b0
+			MX6QDL_PAD_CSI0_DAT13__GPIO5_IO31 0x1b0b0
+			MX6QDL_PAD_GPIO_0__CCM_CLKO1	  0x130b0
 		>;
 	};
 

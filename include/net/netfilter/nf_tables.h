@@ -150,6 +150,7 @@ static inline void nft_data_debug(const struct nft_data *data)
  *	@portid: netlink portID of the original message
  *	@seq: netlink sequence number
  *	@family: protocol family
+ *	@level: depth of the chains
  *	@report: notify via unicast netlink message
  */
 struct nft_ctx {
@@ -160,6 +161,7 @@ struct nft_ctx {
 	u32				portid;
 	u32				seq;
 	u8				family;
+	u8				level;
 	bool				report;
 };
 
@@ -272,7 +274,7 @@ enum nft_set_class {
  *	@space: memory class
  */
 struct nft_set_estimate {
-	unsigned int		size;
+	u64			size;
 	enum nft_set_class	lookup;
 	enum nft_set_class	space;
 };
@@ -334,7 +336,7 @@ struct nft_set_ops {
 					       const struct nft_set_elem *elem,
 					       unsigned int flags);
 
-	unsigned int			(*privsize)(const struct nlattr * const nla[],
+	u64				(*privsize)(const struct nlattr * const nla[],
 						    const struct nft_set_desc *desc);
 	bool				(*estimate)(const struct nft_set_desc *desc,
 						    u32 features,
@@ -865,7 +867,6 @@ enum nft_chain_flags {
  *	@table: table that this chain belongs to
  *	@handle: chain handle
  *	@use: number of jump references to this chain
- *	@level: length of longest path to this chain
  *	@flags: bitmask of enum nft_chain_flags
  *	@name: name of the chain
  */
@@ -878,7 +879,6 @@ struct nft_chain {
 	struct nft_table		*table;
 	u64				handle;
 	u32				use;
-	u16				level;
 	u8				flags:6,
 					genmask:2;
 	char				*name;
@@ -1124,7 +1124,6 @@ struct nft_flowtable {
 	u32				genmask:2,
 					use:30;
 	u64				handle;
-	char				*dev_name[NFT_FLOWTABLE_DEVICE_MAX];
 	/* runtime data below here */
 	struct nf_hook_ops		*ops ____cacheline_aligned;
 	struct nf_flowtable		data;
@@ -1375,6 +1374,6 @@ struct nft_trans_flowtable {
 	(((struct nft_trans_flowtable *)trans->data)->flowtable)
 
 int __init nft_chain_filter_init(void);
-void __exit nft_chain_filter_fini(void);
+void nft_chain_filter_fini(void);
 
 #endif /* _NET_NF_TABLES_H */

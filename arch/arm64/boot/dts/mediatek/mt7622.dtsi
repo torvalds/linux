@@ -89,6 +89,7 @@
 				 <&apmixedsys CLK_APMIXED_MAIN_CORE_EN>;
 			clock-names = "cpu", "intermediate";
 			operating-points-v2 = <&cpu_opp_table>;
+			#cooling-cells = <2>;
 			enable-method = "psci";
 			clock-frequency = <1300000000>;
 		};
@@ -286,9 +287,16 @@
 
 	pio: pinctrl@10211000 {
 		compatible = "mediatek,mt7622-pinctrl";
-		reg = <0 0x10211000 0 0x1000>;
+		reg = <0 0x10211000 0 0x1000>,
+		      <0 0x10005000 0 0x1000>;
+		reg-names = "base", "eint";
 		gpio-controller;
 		#gpio-cells = <2>;
+		gpio-ranges = <&pio 0 0 103>;
+		interrupt-controller;
+		interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gic>;
+		#interrupt-cells = <2>;
 	};
 
 	watchdog: watchdog@10212000 {
@@ -331,7 +339,7 @@
 		reg = <0 0x11002000 0 0x400>;
 		interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&topckgen CLK_TOP_UART_SEL>,
-			 <&pericfg CLK_PERI_UART1_PD>;
+			 <&pericfg CLK_PERI_UART0_PD>;
 		clock-names = "baud", "bus";
 		status = "disabled";
 	};

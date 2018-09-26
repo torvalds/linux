@@ -107,7 +107,7 @@ extern const struct davinci_psc_init_data of_da850_psc1_init_data;
 #ifdef CONFIG_ARCH_DAVINCI_DM355
 extern const struct davinci_psc_init_data dm355_psc_init_data;
 #endif
-#ifdef CONFIG_ARCH_DAVINCI_DM356
+#ifdef CONFIG_ARCH_DAVINCI_DM365
 extern const struct davinci_psc_init_data dm365_psc_init_data;
 #endif
 #ifdef CONFIG_ARCH_DAVINCI_DM644x

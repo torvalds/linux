@@ -759,6 +759,9 @@ struct qed_generic_tlvs {
 	u8 mac[QED_TLV_MAC_COUNT][ETH_ALEN];
 };
 
+#define QED_I2C_DEV_ADDR_A0 0xA0
+#define QED_I2C_DEV_ADDR_A2 0xA2
+
 #define QED_NVM_SIGNATURE 0x12435687
 
 enum qed_nvm_flash_cmd {
@@ -1026,6 +1029,18 @@ struct qed_common_ops {
  * @param enabled - true iff WoL should be enabled.
  */
 	int (*update_wol) (struct qed_dev *cdev, bool enabled);
+
+/**
+ * @brief read_module_eeprom
+ *
+ * @param cdev
+ * @param buf - buffer
+ * @param dev_addr - PHY device memory region
+ * @param offset - offset into eeprom contents to be read
+ * @param len - buffer length, i.e., max bytes to be read
+ */
+	int (*read_module_eeprom)(struct qed_dev *cdev,
+				  char *buf, u8 dev_addr, u32 offset, u32 len);
 };
 
 #define MASK_FIELD(_name, _value) \

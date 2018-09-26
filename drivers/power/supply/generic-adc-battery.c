@@ -241,10 +241,10 @@ static int gab_probe(struct platform_device *pdev)
 	struct power_supply_desc *psy_desc;
 	struct power_supply_config psy_cfg = {};
 	struct gab_platform_data *pdata = pdev->dev.platform_data;
-	enum power_supply_property *properties;
 	int ret = 0;
 	int chan;
-	int index = 0;
+	int index = ARRAY_SIZE(gab_props);
+	bool any = false;
 
 	adc_bat = devm_kzalloc(&pdev->dev, sizeof(*adc_bat), GFP_KERNEL);
 	if (!adc_bat) {
@@ -278,8 +278,6 @@ static int gab_probe(struct platform_device *pdev)
 	}
 
 	memcpy(psy_desc->properties, gab_props, sizeof(gab_props));
-	properties = (enum power_supply_property *)
-			((char *)psy_desc->properties + sizeof(gab_props));
 
 	/*
 	 * getting channel from iio and copying the battery properties
@@ -293,15 +291,22 @@ static int gab_probe(struct platform_device *pdev)
 			adc_bat->channel[chan] = NULL;
 		} else {
 			/* copying properties for supported channels only */
-			memcpy(properties + sizeof(*(psy_desc->properties)) * index,
-					&gab_dyn_props[chan],
-					sizeof(gab_dyn_props[chan]));
-			index++;
+			int index2;
+
+			for (index2 = 0; index2 < index; index2++) {
+				if (psy_desc->properties[index2] ==
+				    gab_dyn_props[chan])
+					break;	/* already known */
+			}
+			if (index2 == index)	/* really new */
+				psy_desc->properties[index++] =
+					gab_dyn_props[chan];
+			any = true;
 		}
 	}
 
 	/* none of the channels are supported so let's bail out */
-	if (index == 0) {
+	if (!any) {
 		ret = -ENODEV;
 		goto second_mem_fail;
 	}
@@ -312,7 +317,7 @@ static int gab_probe(struct platform_device *pdev)
 	 * as come channels may be not be supported by the device.So
 	 * we need to take care of that.
 	 */
-	psy_desc->num_properties = ARRAY_SIZE(gab_props) + index;
+	psy_desc->num_properties = index;
 
 	adc_bat->psy = power_supply_register(&pdev->dev, psy_desc, &psy_cfg);
 	if (IS_ERR(adc_bat->psy)) {

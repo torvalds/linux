@@ -22,6 +22,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
+#include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_log.h>
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
@@ -36,33 +37,6 @@ static inline struct nf_udp_net *udp_pernet(struct net *net)
 	return &net->ct.nf_ct_proto.udp;
 }
 
-static bool udp_pkt_to_tuple(const struct sk_buff *skb,
-			     unsigned int dataoff,
-			     struct net *net,
-			     struct nf_conntrack_tuple *tuple)
-{
-	const struct udphdr *hp;
-	struct udphdr _hdr;
-
-	/* Actually only need first 4 bytes to get ports. */
-	hp = skb_header_pointer(skb, dataoff, 4, &_hdr);
-	if (hp == NULL)
-		return false;
-
-	tuple->src.u.udp.port = hp->source;
-	tuple->dst.u.udp.port = hp->dest;
-
-	return true;
-}
-
-static bool udp_invert_tuple(struct nf_conntrack_tuple *tuple,
-			     const struct nf_conntrack_tuple *orig)
-{
-	tuple->src.u.udp.port = orig->dst.u.udp.port;
-	tuple->dst.u.udp.port = orig->src.u.udp.port;
-	return true;
-}
-
 static unsigned int *udp_get_timeouts(struct net *net)
 {
 	return udp_pernet(net)->timeouts;
@@ -72,9 +46,14 @@ static unsigned int *udp_get_timeouts(struct net *net)
 static int udp_packet(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
-		      enum ip_conntrack_info ctinfo,
-		      unsigned int *timeouts)
+		      enum ip_conntrack_info ctinfo)
 {
+	unsigned int *timeouts;
+
+	timeouts = nf_ct_timeout_lookup(ct);
+	if (!timeouts)
+		timeouts = udp_get_timeouts(nf_ct_net(ct));
+
 	/* If we've seen traffic both ways, this is some kind of UDP
 	   stream.  Extend timeout. */
 	if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
@@ -92,7 +71,7 @@ static int udp_packet(struct nf_conn *ct,
 
 /* Called when a new connection for this protocol found. */
 static bool udp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		    unsigned int dataoff, unsigned int *timeouts)
+		    unsigned int dataoff)
 {
 	return true;
 }
@@ -192,7 +171,7 @@ static int udp_error(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 	return NF_ACCEPT;
 }
 
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
@@ -202,6 +181,9 @@ static int udp_timeout_nlattr_to_obj(struct nlattr *tb[],
 {
 	unsigned int *timeouts = data;
 	struct nf_udp_net *un = udp_pernet(net);
+
+	if (!timeouts)
+		timeouts = un->timeouts;
 
 	/* set default timeouts for UDP. */
 	timeouts[UDP_CT_UNREPLIED] = un->timeouts[UDP_CT_UNREPLIED];
@@ -239,7 +221,7 @@ udp_timeout_nla_policy[CTA_TIMEOUT_UDP_MAX+1] = {
        [CTA_TIMEOUT_UDP_UNREPLIED]	= { .type = NLA_U32 },
        [CTA_TIMEOUT_UDP_REPLIED]	= { .type = NLA_U32 },
 };
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table udp_sysctl_table[] = {
@@ -301,10 +283,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 =
 	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_UDP,
 	.allow_clash		= true,
-	.pkt_to_tuple		= udp_pkt_to_tuple,
-	.invert_tuple		= udp_invert_tuple,
 	.packet			= udp_packet,
-	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,
 	.error			= udp_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -313,7 +292,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 =
 	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	.ctnl_timeout		= {
 		.nlattr_to_obj	= udp_timeout_nlattr_to_obj,
 		.obj_to_nlattr	= udp_timeout_obj_to_nlattr,
@@ -321,7 +300,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 =
 		.obj_size	= sizeof(unsigned int) * CTA_TIMEOUT_UDP_MAX,
 		.nla_policy	= udp_timeout_nla_policy,
 	},
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 	.init_net		= udp_init_net,
 	.get_net_proto		= udp_get_net_proto,
 };
@@ -333,10 +312,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 =
 	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_UDPLITE,
 	.allow_clash		= true,
-	.pkt_to_tuple		= udp_pkt_to_tuple,
-	.invert_tuple		= udp_invert_tuple,
 	.packet			= udp_packet,
-	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,
 	.error			= udplite_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -345,7 +321,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 =
 	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	.ctnl_timeout		= {
 		.nlattr_to_obj	= udp_timeout_nlattr_to_obj,
 		.obj_to_nlattr	= udp_timeout_obj_to_nlattr,
@@ -353,7 +329,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 =
 		.obj_size	= sizeof(unsigned int) * CTA_TIMEOUT_UDP_MAX,
 		.nla_policy	= udp_timeout_nla_policy,
 	},
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 	.init_net		= udp_init_net,
 	.get_net_proto		= udp_get_net_proto,
 };
@@ -365,10 +341,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 =
 	.l3proto		= PF_INET6,
 	.l4proto		= IPPROTO_UDP,
 	.allow_clash		= true,
-	.pkt_to_tuple		= udp_pkt_to_tuple,
-	.invert_tuple		= udp_invert_tuple,
 	.packet			= udp_packet,
-	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,
 	.error			= udp_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -377,7 +350,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 =
 	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	.ctnl_timeout		= {
 		.nlattr_to_obj	= udp_timeout_nlattr_to_obj,
 		.obj_to_nlattr	= udp_timeout_obj_to_nlattr,
@@ -385,7 +358,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 =
 		.obj_size	= sizeof(unsigned int) * CTA_TIMEOUT_UDP_MAX,
 		.nla_policy	= udp_timeout_nla_policy,
 	},
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 	.init_net		= udp_init_net,
 	.get_net_proto		= udp_get_net_proto,
 };
@@ -397,10 +370,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 =
 	.l3proto		= PF_INET6,
 	.l4proto		= IPPROTO_UDPLITE,
 	.allow_clash		= true,
-	.pkt_to_tuple		= udp_pkt_to_tuple,
-	.invert_tuple		= udp_invert_tuple,
 	.packet			= udp_packet,
-	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,
 	.error			= udplite_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -409,7 +379,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 =
 	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	.ctnl_timeout		= {
 		.nlattr_to_obj	= udp_timeout_nlattr_to_obj,
 		.obj_to_nlattr	= udp_timeout_obj_to_nlattr,
@@ -417,7 +387,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 =
 		.obj_size	= sizeof(unsigned int) * CTA_TIMEOUT_UDP_MAX,
 		.nla_policy	= udp_timeout_nla_policy,
 	},
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 	.init_net		= udp_init_net,
 	.get_net_proto		= udp_get_net_proto,
 };

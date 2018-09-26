@@ -211,7 +211,5 @@ void ib_copy_path_rec_from_user(struct sa_path_rec *dst,
 
 	/* TODO: No need to set this */
 	sa_path_set_dmac_zero(dst);
-	sa_path_set_ndev(dst, NULL);
-	sa_path_set_ifindex(dst, 0);
 }
 EXPORT_SYMBOL(ib_copy_path_rec_from_user);

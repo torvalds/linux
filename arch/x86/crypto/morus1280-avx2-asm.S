@@ -113,7 +113,7 @@ ENDPROC(__morus1280_update_zero)
  *   %r9
  */
 __load_partial:
-	xor %r9, %r9
+	xor %r9d, %r9d
 	vpxor MSG, MSG, MSG
 
 	mov %rcx, %r8
@@ -453,6 +453,7 @@ ENTRY(crypto_morus1280_avx2_enc_tail)
 	vmovdqu STATE4, (4 * 32)(%rdi)
 
 	FRAME_END
+	ret
 ENDPROC(crypto_morus1280_avx2_enc_tail)
 
 /*

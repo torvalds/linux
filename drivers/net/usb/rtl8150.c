@@ -391,6 +391,7 @@ static void read_bulk_callback(struct urb *urb)
 	u16 rx_stat;
 	int status = urb->status;
 	int result;
+	unsigned long flags;
 
 	dev = urb->context;
 	if (!dev)
@@ -432,9 +433,9 @@ static void read_bulk_callback(struct urb *urb)
 	netdev->stats.rx_packets++;
 	netdev->stats.rx_bytes += pkt_len;
 
-	spin_lock(&dev->rx_pool_lock);
+	spin_lock_irqsave(&dev->rx_pool_lock, flags);
 	skb = pull_skb(dev);
-	spin_unlock(&dev->rx_pool_lock);
+	spin_unlock_irqrestore(&dev->rx_pool_lock, flags);
 	if (!skb)
 		goto resched;
 
@@ -681,7 +682,7 @@ static void rtl8150_set_multicast(struct net_device *netdev)
 		   (netdev->flags & IFF_ALLMULTI)) {
 		rx_creg &= 0xfffe;
 		rx_creg |= 0x0002;
-		dev_info(&netdev->dev, "%s: allmulti set\n", netdev->name);
+		dev_dbg(&netdev->dev, "%s: allmulti set\n", netdev->name);
 	} else {
 		/* ~RX_MULTICAST, ~RX_PROMISCUOUS */
 		rx_creg &= 0x00fc;

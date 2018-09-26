@@ -2578,9 +2578,9 @@ static int dib0090_set_params(struct dvb_frontend *fe)
 static const struct dvb_tuner_ops dib0090_ops = {
 	.info = {
 		 .name = "DiBcom DiB0090",
-		 .frequency_min = 45000000,
-		 .frequency_max = 860000000,
-		 .frequency_step = 1000,
+		 .frequency_min_hz  =  45 * MHz,
+		 .frequency_max_hz  = 860 * MHz,
+		 .frequency_step_hz =   1 * kHz,
 		 },
 	.release = dib0090_release,
 
@@ -2593,9 +2593,9 @@ static const struct dvb_tuner_ops dib0090_ops = {
 static const struct dvb_tuner_ops dib0090_fw_ops = {
 	.info = {
 		 .name = "DiBcom DiB0090",
-		 .frequency_min = 45000000,
-		 .frequency_max = 860000000,
-		 .frequency_step = 1000,
+		 .frequency_min_hz  =  45 * MHz,
+		 .frequency_max_hz  = 860 * MHz,
+		 .frequency_step_hz =   1 * kHz,
 		 },
 	.release = dib0090_release,
 

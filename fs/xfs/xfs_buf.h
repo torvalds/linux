@@ -12,7 +12,6 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/dax.h>
-#include <linux/buffer_head.h>
 #include <linux/uio.h>
 #include <linux/list_lru.h>
 
@@ -199,10 +198,6 @@ typedef struct xfs_buf {
 	int			b_last_error;
 
 	const struct xfs_buf_ops	*b_ops;
-
-#ifdef XFS_BUF_LOCK_TRACKING
-	int			b_last_holder;
-#endif
 } xfs_buf_t;
 
 /* Finding and Reading Buffers */
@@ -298,8 +293,14 @@ extern void __xfs_buf_ioerror(struct xfs_buf *bp, int error,
 		xfs_failaddr_t failaddr);
 #define xfs_buf_ioerror(bp, err) __xfs_buf_ioerror((bp), (err), __this_address)
 extern void xfs_buf_ioerror_alert(struct xfs_buf *, const char *func);
-extern void xfs_buf_submit(struct xfs_buf *bp);
-extern int xfs_buf_submit_wait(struct xfs_buf *bp);
+
+extern int __xfs_buf_submit(struct xfs_buf *bp, bool);
+static inline int xfs_buf_submit(struct xfs_buf *bp)
+{
+	bool wait = bp->b_flags & XBF_ASYNC ? false : true;
+	return __xfs_buf_submit(bp, wait);
+}
+
 extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, void *,
 				xfs_buf_rw_t);
 #define xfs_buf_zero(bp, off, len) \

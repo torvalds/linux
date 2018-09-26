@@ -100,7 +100,8 @@ ipu_prg_lookup_by_phandle(struct device *dev, const char *name, int ipu_id)
 	list_for_each_entry(prg, &ipu_prg_list, list) {
 		if (prg_node == prg->dev->of_node) {
 			mutex_unlock(&ipu_prg_list_mutex);
-			device_link_add(dev, prg->dev, DL_FLAG_AUTOREMOVE);
+			device_link_add(dev, prg->dev,
+					DL_FLAG_AUTOREMOVE_CONSUMER);
 			prg->id = ipu_id;
 			of_node_put(prg_node);
 			return prg;

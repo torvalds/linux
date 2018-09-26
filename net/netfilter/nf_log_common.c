@@ -132,9 +132,10 @@ int nf_log_dump_tcp_header(struct nf_log_buf *m, const struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(nf_log_dump_tcp_header);
 
-void nf_log_dump_sk_uid_gid(struct nf_log_buf *m, struct sock *sk)
+void nf_log_dump_sk_uid_gid(struct net *net, struct nf_log_buf *m,
+			    struct sock *sk)
 {
-	if (!sk || !sk_fullsock(sk))
+	if (!sk || !sk_fullsock(sk) || !net_eq(net, sock_net(sk)))
 		return;
 
 	read_lock_bh(&sk->sk_callback_lock);

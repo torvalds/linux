@@ -309,141 +309,61 @@ void idr_checks(void)
 	idr_u32_test(0);
 }
 
+#define module_init(x)
+#define module_exit(x)
+#define MODULE_AUTHOR(x)
+#define MODULE_LICENSE(x)
+#define dump_stack()    assert(0)
+void ida_dump(struct ida *);
+
+#include "../../../lib/test_ida.c"
+
 /*
  * Check that we get the correct error when we run out of memory doing
- * allocations.  To ensure we run out of memory, just "forget" to preload.
+ * allocations.  In userspace, GFP_NOWAIT will always fail an allocation.
  * The first test is for not having a bitmap available, and the second test
  * is for not being able to allocate a level of the radix tree.
  */
 void ida_check_nomem(void)
 {
 	DEFINE_IDA(ida);
-	int id, err;
-
-	err = ida_get_new_above(&ida, 256, &id);
-	assert(err == -EAGAIN);
-	err = ida_get_new_above(&ida, 1UL << 30, &id);
-	assert(err == -EAGAIN);
-}
-
-/*
- * Check what happens when we fill a leaf and then delete it.  This may
- * discover mishandling of IDR_FREE.
- */
-void ida_check_leaf(void)
-{
-	DEFINE_IDA(ida);
 	int id;
-	unsigned long i;
 
-	for (i = 0; i < IDA_BITMAP_BITS; i++) {
-		assert(ida_pre_get(&ida, GFP_KERNEL));
-		assert(!ida_get_new(&ida, &id));
-		assert(id == i);
-	}
-
-	ida_destroy(&ida);
-	assert(ida_is_empty(&ida));
-
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-	assert(!ida_get_new(&ida, &id));
-	assert(id == 0);
-	ida_destroy(&ida);
-	assert(ida_is_empty(&ida));
+	id = ida_alloc_min(&ida, 256, GFP_NOWAIT);
+	IDA_BUG_ON(&ida, id != -ENOMEM);
+	id = ida_alloc_min(&ida, 1UL << 30, GFP_NOWAIT);
+	IDA_BUG_ON(&ida, id != -ENOMEM);
+	IDA_BUG_ON(&ida, !ida_is_empty(&ida));
 }
 
 /*
  * Check handling of conversions between exceptional entries and full bitmaps.
  */
-void ida_check_conv(void)
+void ida_check_conv_user(void)
 {
 	DEFINE_IDA(ida);
-	int id;
 	unsigned long i;
-
-	for (i = 0; i < IDA_BITMAP_BITS * 2; i += IDA_BITMAP_BITS) {
-		assert(ida_pre_get(&ida, GFP_KERNEL));
-		assert(!ida_get_new_above(&ida, i + 1, &id));
-		assert(id == i + 1);
-		assert(!ida_get_new_above(&ida, i + BITS_PER_LONG, &id));
-		assert(id == i + BITS_PER_LONG);
-		ida_remove(&ida, i + 1);
-		ida_remove(&ida, i + BITS_PER_LONG);
-		assert(ida_is_empty(&ida));
-	}
-
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-
-	for (i = 0; i < IDA_BITMAP_BITS * 2; i++) {
-		assert(ida_pre_get(&ida, GFP_KERNEL));
-		assert(!ida_get_new(&ida, &id));
-		assert(id == i);
-	}
-
-	for (i = IDA_BITMAP_BITS * 2; i > 0; i--) {
-		ida_remove(&ida, i - 1);
-	}
-	assert(ida_is_empty(&ida));
-
-	for (i = 0; i < IDA_BITMAP_BITS + BITS_PER_LONG - 4; i++) {
-		assert(ida_pre_get(&ida, GFP_KERNEL));
-		assert(!ida_get_new(&ida, &id));
-		assert(id == i);
-	}
-
-	for (i = IDA_BITMAP_BITS + BITS_PER_LONG - 4; i > 0; i--) {
-		ida_remove(&ida, i - 1);
-	}
-	assert(ida_is_empty(&ida));
 
 	radix_tree_cpu_dead(1);
 	for (i = 0; i < 1000000; i++) {
-		int err = ida_get_new(&ida, &id);
-		if (err == -EAGAIN) {
-			assert((i % IDA_BITMAP_BITS) == (BITS_PER_LONG - 2));
-			assert(ida_pre_get(&ida, GFP_KERNEL));
-			err = ida_get_new(&ida, &id);
+		int id = ida_alloc(&ida, GFP_NOWAIT);
+		if (id == -ENOMEM) {
+			IDA_BUG_ON(&ida, (i % IDA_BITMAP_BITS) !=
+					BITS_PER_LONG - 2);
+			id = ida_alloc(&ida, GFP_KERNEL);
 		} else {
-			assert((i % IDA_BITMAP_BITS) != (BITS_PER_LONG - 2));
+			IDA_BUG_ON(&ida, (i % IDA_BITMAP_BITS) ==
+					BITS_PER_LONG - 2);
 		}
-		assert(!err);
-		assert(id == i);
+		IDA_BUG_ON(&ida, id != i);
 	}
 	ida_destroy(&ida);
-}
-
-/*
- * Check allocations up to and slightly above the maximum allowed (2^31-1) ID.
- * Allocating up to 2^31-1 should succeed, and then allocating the next one
- * should fail.
- */
-void ida_check_max(void)
-{
-	DEFINE_IDA(ida);
-	int id, err;
-	unsigned long i, j;
-
-	for (j = 1; j < 65537; j *= 2) {
-		unsigned long base = (1UL << 31) - j;
-		for (i = 0; i < j; i++) {
-			assert(ida_pre_get(&ida, GFP_KERNEL));
-			assert(!ida_get_new_above(&ida, base, &id));
-			assert(id == base + i);
-		}
-		assert(ida_pre_get(&ida, GFP_KERNEL));
-		err = ida_get_new_above(&ida, base, &id);
-		assert(err == -ENOSPC);
-		ida_destroy(&ida);
-		assert(ida_is_empty(&ida));
-		rcu_barrier();
-	}
 }
 
 void ida_check_random(void)
 {
 	DEFINE_IDA(ida);
 	DECLARE_BITMAP(bitmap, 2048);
-	int id, err;
 	unsigned int i;
 	time_t s = time(NULL);
 
@@ -454,15 +374,11 @@ void ida_check_random(void)
 		int bit = i & 2047;
 		if (test_bit(bit, bitmap)) {
 			__clear_bit(bit, bitmap);
-			ida_remove(&ida, bit);
+			ida_free(&ida, bit);
 		} else {
 			__set_bit(bit, bitmap);
-			do {
-				ida_pre_get(&ida, GFP_KERNEL);
-				err = ida_get_new_above(&ida, bit, &id);
-			} while (err == -EAGAIN);
-			assert(!err);
-			assert(id == bit);
+			IDA_BUG_ON(&ida, ida_alloc_min(&ida, bit, GFP_KERNEL)
+					!= bit);
 		}
 	}
 	ida_destroy(&ida);
@@ -488,71 +404,12 @@ void ida_simple_get_remove_test(void)
 	ida_destroy(&ida);
 }
 
-void ida_checks(void)
+void user_ida_checks(void)
 {
-	DEFINE_IDA(ida);
-	int id;
-	unsigned long i;
-
 	radix_tree_cpu_dead(1);
+
 	ida_check_nomem();
-
-	for (i = 0; i < 10000; i++) {
-		assert(ida_pre_get(&ida, GFP_KERNEL));
-		assert(!ida_get_new(&ida, &id));
-		assert(id == i);
-	}
-
-	ida_remove(&ida, 20);
-	ida_remove(&ida, 21);
-	for (i = 0; i < 3; i++) {
-		assert(ida_pre_get(&ida, GFP_KERNEL));
-		assert(!ida_get_new(&ida, &id));
-		if (i == 2)
-			assert(id == 10000);
-	}
-
-	for (i = 0; i < 5000; i++)
-		ida_remove(&ida, i);
-
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-	assert(!ida_get_new_above(&ida, 5000, &id));
-	assert(id == 10001);
-
-	ida_destroy(&ida);
-
-	assert(ida_is_empty(&ida));
-
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-	assert(!ida_get_new_above(&ida, 1, &id));
-	assert(id == 1);
-
-	ida_remove(&ida, id);
-	assert(ida_is_empty(&ida));
-	ida_destroy(&ida);
-	assert(ida_is_empty(&ida));
-
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-	assert(!ida_get_new_above(&ida, 1, &id));
-	ida_destroy(&ida);
-	assert(ida_is_empty(&ida));
-
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-	assert(!ida_get_new_above(&ida, 1, &id));
-	assert(id == 1);
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-	assert(!ida_get_new_above(&ida, 1025, &id));
-	assert(id == 1025);
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-	assert(!ida_get_new_above(&ida, 10000, &id));
-	assert(id == 10000);
-	ida_remove(&ida, 1025);
-	ida_destroy(&ida);
-	assert(ida_is_empty(&ida));
-
-	ida_check_leaf();
-	ida_check_max();
-	ida_check_conv();
+	ida_check_conv_user();
 	ida_check_random();
 	ida_simple_get_remove_test();
 
@@ -582,12 +439,19 @@ void ida_thread_tests(void)
 		pthread_join(threads[i], NULL);
 }
 
+void ida_tests(void)
+{
+	user_ida_checks();
+	ida_checks();
+	ida_exit();
+	ida_thread_tests();
+}
+
 int __weak main(void)
 {
 	radix_tree_init();
 	idr_checks();
-	ida_checks();
-	ida_thread_tests();
+	ida_tests();
 	radix_tree_cpu_dead(1);
 	rcu_barrier();
 	if (nr_allocated)

@@ -89,6 +89,13 @@ extern const char ice_drv_ver[];
 #define ice_for_each_rxq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_rxq; (i)++)
 
+/* Macros for each allocated tx/rx ring whether used or not in a VSI */
+#define ice_for_each_alloc_txq(vsi, i) \
+	for ((i) = 0; (i) < (vsi)->alloc_txq; (i)++)
+
+#define ice_for_each_alloc_rxq(vsi, i) \
+	for ((i) = 0; (i) < (vsi)->alloc_rxq; (i)++)
+
 struct ice_tc_info {
 	u16 qoffset;
 	u16 qcount;
@@ -189,9 +196,9 @@ struct ice_vsi {
 	struct list_head tmp_sync_list;		/* MAC filters to be synced */
 	struct list_head tmp_unsync_list;	/* MAC filters to be unsynced */
 
-	bool irqs_ready;
-	bool current_isup;		 /* Sync 'link up' logging */
-	bool stat_offsets_loaded;
+	u8 irqs_ready;
+	u8 current_isup;		 /* Sync 'link up' logging */
+	u8 stat_offsets_loaded;
 
 	/* queue information */
 	u8 tx_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
@@ -262,7 +269,7 @@ struct ice_pf {
 	struct ice_hw_port_stats stats;
 	struct ice_hw_port_stats stats_prev;
 	struct ice_hw hw;
-	bool stat_prev_loaded;	/* has previous stats been loaded */
+	u8 stat_prev_loaded;	/* has previous stats been loaded */
 	char int_name[ICE_INT_NAME_STR_LEN];
 };
 

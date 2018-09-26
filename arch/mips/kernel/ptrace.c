@@ -41,6 +41,7 @@
 #include <asm/mipsmtregs.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
+#include <asm/processor.h>
 #include <asm/syscall.h>
 #include <linux/uaccess.h>
 #include <asm/bootinfo.h>
@@ -589,9 +590,226 @@ static int fpr_set(struct task_struct *target,
 	return err;
 }
 
+#if defined(CONFIG_32BIT) || defined(CONFIG_MIPS32_O32)
+
+/*
+ * Copy the DSP context to the supplied 32-bit NT_MIPS_DSP buffer.
+ */
+static int dsp32_get(struct task_struct *target,
+		     const struct user_regset *regset,
+		     unsigned int pos, unsigned int count,
+		     void *kbuf, void __user *ubuf)
+{
+	unsigned int start, num_regs, i;
+	u32 dspregs[NUM_DSP_REGS + 1];
+
+	BUG_ON(count % sizeof(u32));
+
+	if (!cpu_has_dsp)
+		return -EIO;
+
+	start = pos / sizeof(u32);
+	num_regs = count / sizeof(u32);
+
+	if (start + num_regs > NUM_DSP_REGS + 1)
+		return -EIO;
+
+	for (i = start; i < num_regs; i++)
+		switch (i) {
+		case 0 ... NUM_DSP_REGS - 1:
+			dspregs[i] = target->thread.dsp.dspr[i];
+			break;
+		case NUM_DSP_REGS:
+			dspregs[i] = target->thread.dsp.dspcontrol;
+			break;
+		}
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, dspregs, 0,
+				   sizeof(dspregs));
+}
+
+/*
+ * Copy the supplied 32-bit NT_MIPS_DSP buffer to the DSP context.
+ */
+static int dsp32_set(struct task_struct *target,
+		     const struct user_regset *regset,
+		     unsigned int pos, unsigned int count,
+		     const void *kbuf, const void __user *ubuf)
+{
+	unsigned int start, num_regs, i;
+	u32 dspregs[NUM_DSP_REGS + 1];
+	int err;
+
+	BUG_ON(count % sizeof(u32));
+
+	if (!cpu_has_dsp)
+		return -EIO;
+
+	start = pos / sizeof(u32);
+	num_regs = count / sizeof(u32);
+
+	if (start + num_regs > NUM_DSP_REGS + 1)
+		return -EIO;
+
+	err = user_regset_copyin(&pos, &count, &kbuf, &ubuf, dspregs, 0,
+				 sizeof(dspregs));
+	if (err)
+		return err;
+
+	for (i = start; i < num_regs; i++)
+		switch (i) {
+		case 0 ... NUM_DSP_REGS - 1:
+			target->thread.dsp.dspr[i] = (s32)dspregs[i];
+			break;
+		case NUM_DSP_REGS:
+			target->thread.dsp.dspcontrol = (s32)dspregs[i];
+			break;
+		}
+
+	return 0;
+}
+
+#endif /* CONFIG_32BIT || CONFIG_MIPS32_O32 */
+
+#ifdef CONFIG_64BIT
+
+/*
+ * Copy the DSP context to the supplied 64-bit NT_MIPS_DSP buffer.
+ */
+static int dsp64_get(struct task_struct *target,
+		     const struct user_regset *regset,
+		     unsigned int pos, unsigned int count,
+		     void *kbuf, void __user *ubuf)
+{
+	unsigned int start, num_regs, i;
+	u64 dspregs[NUM_DSP_REGS + 1];
+
+	BUG_ON(count % sizeof(u64));
+
+	if (!cpu_has_dsp)
+		return -EIO;
+
+	start = pos / sizeof(u64);
+	num_regs = count / sizeof(u64);
+
+	if (start + num_regs > NUM_DSP_REGS + 1)
+		return -EIO;
+
+	for (i = start; i < num_regs; i++)
+		switch (i) {
+		case 0 ... NUM_DSP_REGS - 1:
+			dspregs[i] = target->thread.dsp.dspr[i];
+			break;
+		case NUM_DSP_REGS:
+			dspregs[i] = target->thread.dsp.dspcontrol;
+			break;
+		}
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, dspregs, 0,
+				   sizeof(dspregs));
+}
+
+/*
+ * Copy the supplied 64-bit NT_MIPS_DSP buffer to the DSP context.
+ */
+static int dsp64_set(struct task_struct *target,
+		     const struct user_regset *regset,
+		     unsigned int pos, unsigned int count,
+		     const void *kbuf, const void __user *ubuf)
+{
+	unsigned int start, num_regs, i;
+	u64 dspregs[NUM_DSP_REGS + 1];
+	int err;
+
+	BUG_ON(count % sizeof(u64));
+
+	if (!cpu_has_dsp)
+		return -EIO;
+
+	start = pos / sizeof(u64);
+	num_regs = count / sizeof(u64);
+
+	if (start + num_regs > NUM_DSP_REGS + 1)
+		return -EIO;
+
+	err = user_regset_copyin(&pos, &count, &kbuf, &ubuf, dspregs, 0,
+				 sizeof(dspregs));
+	if (err)
+		return err;
+
+	for (i = start; i < num_regs; i++)
+		switch (i) {
+		case 0 ... NUM_DSP_REGS - 1:
+			target->thread.dsp.dspr[i] = dspregs[i];
+			break;
+		case NUM_DSP_REGS:
+			target->thread.dsp.dspcontrol = dspregs[i];
+			break;
+		}
+
+	return 0;
+}
+
+#endif /* CONFIG_64BIT */
+
+/*
+ * Determine whether the DSP context is present.
+ */
+static int dsp_active(struct task_struct *target,
+		      const struct user_regset *regset)
+{
+	return cpu_has_dsp ? NUM_DSP_REGS + 1 : -ENODEV;
+}
+
+/* Copy the FP mode setting to the supplied NT_MIPS_FP_MODE buffer.  */
+static int fp_mode_get(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       void *kbuf, void __user *ubuf)
+{
+	int fp_mode;
+
+	fp_mode = mips_get_process_fp_mode(target);
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &fp_mode, 0,
+				   sizeof(fp_mode));
+}
+
+/*
+ * Copy the supplied NT_MIPS_FP_MODE buffer to the FP mode setting.
+ *
+ * We optimize for the case where `count % sizeof(int) == 0', which
+ * is supposed to have been guaranteed by the kernel before calling
+ * us, e.g. in `ptrace_regset'.  We enforce that requirement, so
+ * that we can safely avoid preinitializing temporaries for partial
+ * mode writes.
+ */
+static int fp_mode_set(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       const void *kbuf, const void __user *ubuf)
+{
+	int fp_mode;
+	int err;
+
+	BUG_ON(count % sizeof(int));
+
+	if (pos + count > sizeof(fp_mode))
+		return -EIO;
+
+	err = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &fp_mode, 0,
+				 sizeof(fp_mode));
+	if (err)
+		return err;
+
+	if (count > 0)
+		err = mips_set_process_fp_mode(target, fp_mode);
+
+	return err;
+}
+
 enum mips_regset {
 	REGSET_GPR,
 	REGSET_FPR,
+	REGSET_DSP,
+	REGSET_FP_MODE,
 };
 
 struct pt_regs_offset {
@@ -697,6 +915,23 @@ static const struct user_regset mips_regsets[] = {
 		.get		= fpr_get,
 		.set		= fpr_set,
 	},
+	[REGSET_DSP] = {
+		.core_note_type	= NT_MIPS_DSP,
+		.n		= NUM_DSP_REGS + 1,
+		.size		= sizeof(u32),
+		.align		= sizeof(u32),
+		.get		= dsp32_get,
+		.set		= dsp32_set,
+		.active		= dsp_active,
+	},
+	[REGSET_FP_MODE] = {
+		.core_note_type	= NT_MIPS_FP_MODE,
+		.n		= 1,
+		.size		= sizeof(int),
+		.align		= sizeof(int),
+		.get		= fp_mode_get,
+		.set		= fp_mode_set,
+	},
 };
 
 static const struct user_regset_view user_mips_view = {
@@ -727,6 +962,23 @@ static const struct user_regset mips64_regsets[] = {
 		.align		= sizeof(elf_fpreg_t),
 		.get		= fpr_get,
 		.set		= fpr_set,
+	},
+	[REGSET_DSP] = {
+		.core_note_type	= NT_MIPS_DSP,
+		.n		= NUM_DSP_REGS + 1,
+		.size		= sizeof(u64),
+		.align		= sizeof(u64),
+		.get		= dsp64_get,
+		.set		= dsp64_set,
+		.active		= dsp_active,
+	},
+	[REGSET_FP_MODE] = {
+		.core_note_type	= NT_MIPS_FP_MODE,
+		.n		= 1,
+		.size		= sizeof(int),
+		.align		= sizeof(int),
+		.get		= fp_mode_get,
+		.set		= fp_mode_set,
 	},
 };
 
@@ -856,7 +1108,7 @@ long arch_ptrace(struct task_struct *child, long request,
 				goto out;
 			}
 			dregs = __get_dsp_regs(child);
-			tmp = (unsigned long) (dregs[addr - DSP_BASE]);
+			tmp = dregs[addr - DSP_BASE];
 			break;
 		}
 		case DSP_CONTROL:

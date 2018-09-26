@@ -11,6 +11,7 @@
 #include <asm/feature-fixups.h>
 #include <asm/ppc_asm.h>
 #include <asm/synch.h>
+#include <asm/asm-compat.h>
 
 	.text
 

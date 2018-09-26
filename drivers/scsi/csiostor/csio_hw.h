@@ -639,6 +639,7 @@ int csio_handle_intr_status(struct csio_hw *, unsigned int,
 
 fw_port_cap32_t fwcap_to_fwspeed(fw_port_cap32_t acaps);
 fw_port_cap32_t fwcaps16_to_caps32(fw_port_cap16_t caps16);
+fw_port_cap16_t fwcaps32_to_caps16(fw_port_cap32_t caps32);
 fw_port_cap32_t lstatus_to_fwcap(u32 lstatus);
 
 int csio_hw_start(struct csio_hw *);

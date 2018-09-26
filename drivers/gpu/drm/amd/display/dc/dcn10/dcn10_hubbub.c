@@ -190,10 +190,17 @@ static uint32_t convert_and_clamp(
 }
 
 
+void hubbub1_wm_change_req_wa(struct hubbub *hubbub)
+{
+	REG_UPDATE_SEQ(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
+			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, 0, 1);
+}
+
 void hubbub1_program_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
-		unsigned int refclk_mhz)
+		unsigned int refclk_mhz,
+		bool safe_to_lower)
 {
 	uint32_t force_en = hubbub->ctx->dc->debug.disable_stutter ? 1 : 0;
 	/*
@@ -202,191 +209,259 @@ void hubbub1_program_watermarks(
 	 */
 	uint32_t prog_wm_value;
 
-	REG_UPDATE(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
-			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, 0);
 
 	/* Repeat for water mark set A, B, C and D. */
 	/* clock state A */
-	prog_wm_value = convert_and_clamp(watermarks->a.urgent_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A, prog_wm_value);
+	if (safe_to_lower || watermarks->a.urgent_ns > hubbub->watermarks.a.urgent_ns) {
+		hubbub->watermarks.a.urgent_ns = watermarks->a.urgent_ns;
+		prog_wm_value = convert_and_clamp(watermarks->a.urgent_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A, prog_wm_value);
 
-	DC_LOG_BANDWIDTH_CALCS("URGENCY_WATERMARK_A calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->a.urgent_ns, prog_wm_value);
+		DC_LOG_BANDWIDTH_CALCS("URGENCY_WATERMARK_A calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->a.urgent_ns, prog_wm_value);
+	}
 
-	prog_wm_value = convert_and_clamp(watermarks->a.pte_meta_urgent_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_A, prog_wm_value);
-	DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_A calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->a.pte_meta_urgent_ns, prog_wm_value);
+	if (safe_to_lower || watermarks->a.pte_meta_urgent_ns > hubbub->watermarks.a.pte_meta_urgent_ns) {
+		hubbub->watermarks.a.pte_meta_urgent_ns = watermarks->a.pte_meta_urgent_ns;
+		prog_wm_value = convert_and_clamp(watermarks->a.pte_meta_urgent_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_A, prog_wm_value);
+		DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_A calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->a.pte_meta_urgent_ns, prog_wm_value);
+	}
 
 	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A)) {
-		prog_wm_value = convert_and_clamp(
-				watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("SR_ENTER_EXIT_WATERMARK_A calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+		if (safe_to_lower || watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns
+				> hubbub->watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns) {
+			hubbub->watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns =
+					watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns;
+			prog_wm_value = convert_and_clamp(
+					watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("SR_ENTER_EXIT_WATERMARK_A calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+		}
 
-
-		prog_wm_value = convert_and_clamp(
-				watermarks->a.cstate_pstate.cstate_exit_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_A, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("SR_EXIT_WATERMARK_A calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->a.cstate_pstate.cstate_exit_ns, prog_wm_value);
+		if (safe_to_lower || watermarks->a.cstate_pstate.cstate_exit_ns
+				> hubbub->watermarks.a.cstate_pstate.cstate_exit_ns) {
+			hubbub->watermarks.a.cstate_pstate.cstate_exit_ns =
+					watermarks->a.cstate_pstate.cstate_exit_ns;
+			prog_wm_value = convert_and_clamp(
+					watermarks->a.cstate_pstate.cstate_exit_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_A, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("SR_EXIT_WATERMARK_A calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->a.cstate_pstate.cstate_exit_ns, prog_wm_value);
+		}
 	}
 
-	prog_wm_value = convert_and_clamp(
-			watermarks->a.cstate_pstate.pstate_change_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_A, prog_wm_value);
-	DC_LOG_BANDWIDTH_CALCS("DRAM_CLK_CHANGE_WATERMARK_A calculated =%d\n"
-		"HW register value = 0x%x\n\n",
-		watermarks->a.cstate_pstate.pstate_change_ns, prog_wm_value);
-
+	if (safe_to_lower || watermarks->a.cstate_pstate.pstate_change_ns
+			> hubbub->watermarks.a.cstate_pstate.pstate_change_ns) {
+		hubbub->watermarks.a.cstate_pstate.pstate_change_ns =
+				watermarks->a.cstate_pstate.pstate_change_ns;
+		prog_wm_value = convert_and_clamp(
+				watermarks->a.cstate_pstate.pstate_change_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_A, prog_wm_value);
+		DC_LOG_BANDWIDTH_CALCS("DRAM_CLK_CHANGE_WATERMARK_A calculated =%d\n"
+			"HW register value = 0x%x\n\n",
+			watermarks->a.cstate_pstate.pstate_change_ns, prog_wm_value);
+	}
 
 	/* clock state B */
-	prog_wm_value = convert_and_clamp(
-			watermarks->b.urgent_ns, refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B, prog_wm_value);
-	DC_LOG_BANDWIDTH_CALCS("URGENCY_WATERMARK_B calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->b.urgent_ns, prog_wm_value);
+	if (safe_to_lower || watermarks->b.urgent_ns > hubbub->watermarks.b.urgent_ns) {
+		hubbub->watermarks.b.urgent_ns = watermarks->b.urgent_ns;
+		prog_wm_value = convert_and_clamp(watermarks->b.urgent_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B, prog_wm_value);
 
+		DC_LOG_BANDWIDTH_CALCS("URGENCY_WATERMARK_B calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->b.urgent_ns, prog_wm_value);
+	}
 
-	prog_wm_value = convert_and_clamp(
-			watermarks->b.pte_meta_urgent_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_B, prog_wm_value);
-	DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_B calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->b.pte_meta_urgent_ns, prog_wm_value);
-
+	if (safe_to_lower || watermarks->b.pte_meta_urgent_ns > hubbub->watermarks.b.pte_meta_urgent_ns) {
+		hubbub->watermarks.b.pte_meta_urgent_ns = watermarks->b.pte_meta_urgent_ns;
+		prog_wm_value = convert_and_clamp(watermarks->b.pte_meta_urgent_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_B, prog_wm_value);
+		DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_B calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->b.pte_meta_urgent_ns, prog_wm_value);
+	}
 
 	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_B)) {
-		prog_wm_value = convert_and_clamp(
-				watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_B, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("SR_ENTER_WATERMARK_B calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+		if (safe_to_lower || watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns
+				> hubbub->watermarks.b.cstate_pstate.cstate_enter_plus_exit_ns) {
+			hubbub->watermarks.b.cstate_pstate.cstate_enter_plus_exit_ns =
+					watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns;
+			prog_wm_value = convert_and_clamp(
+					watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_B, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("SR_ENTER_EXIT_WATERMARK_B calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+		}
 
-
-		prog_wm_value = convert_and_clamp(
-				watermarks->b.cstate_pstate.cstate_exit_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_B, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("SR_EXIT_WATERMARK_B calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->b.cstate_pstate.cstate_exit_ns, prog_wm_value);
+		if (safe_to_lower || watermarks->b.cstate_pstate.cstate_exit_ns
+				> hubbub->watermarks.b.cstate_pstate.cstate_exit_ns) {
+			hubbub->watermarks.b.cstate_pstate.cstate_exit_ns =
+					watermarks->b.cstate_pstate.cstate_exit_ns;
+			prog_wm_value = convert_and_clamp(
+					watermarks->b.cstate_pstate.cstate_exit_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_B, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("SR_EXIT_WATERMARK_B calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->b.cstate_pstate.cstate_exit_ns, prog_wm_value);
+		}
 	}
 
-	prog_wm_value = convert_and_clamp(
-			watermarks->b.cstate_pstate.pstate_change_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_B, prog_wm_value);
-	DC_LOG_BANDWIDTH_CALCS("DRAM_CLK_CHANGE_WATERMARK_B calculated =%d\n\n"
-		"HW register value = 0x%x\n",
-		watermarks->b.cstate_pstate.pstate_change_ns, prog_wm_value);
+	if (safe_to_lower || watermarks->b.cstate_pstate.pstate_change_ns
+			> hubbub->watermarks.b.cstate_pstate.pstate_change_ns) {
+		hubbub->watermarks.b.cstate_pstate.pstate_change_ns =
+				watermarks->b.cstate_pstate.pstate_change_ns;
+		prog_wm_value = convert_and_clamp(
+				watermarks->b.cstate_pstate.pstate_change_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_B, prog_wm_value);
+		DC_LOG_BANDWIDTH_CALCS("DRAM_CLK_CHANGE_WATERMARK_B calculated =%d\n"
+			"HW register value = 0x%x\n\n",
+			watermarks->b.cstate_pstate.pstate_change_ns, prog_wm_value);
+	}
 
 	/* clock state C */
-	prog_wm_value = convert_and_clamp(
-			watermarks->c.urgent_ns, refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C, prog_wm_value);
-	DC_LOG_BANDWIDTH_CALCS("URGENCY_WATERMARK_C calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->c.urgent_ns, prog_wm_value);
+	if (safe_to_lower || watermarks->c.urgent_ns > hubbub->watermarks.c.urgent_ns) {
+		hubbub->watermarks.c.urgent_ns = watermarks->c.urgent_ns;
+		prog_wm_value = convert_and_clamp(watermarks->c.urgent_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C, prog_wm_value);
 
+		DC_LOG_BANDWIDTH_CALCS("URGENCY_WATERMARK_C calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->c.urgent_ns, prog_wm_value);
+	}
 
-	prog_wm_value = convert_and_clamp(
-			watermarks->c.pte_meta_urgent_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_C, prog_wm_value);
-	DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_C calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->c.pte_meta_urgent_ns, prog_wm_value);
-
+	if (safe_to_lower || watermarks->c.pte_meta_urgent_ns > hubbub->watermarks.c.pte_meta_urgent_ns) {
+		hubbub->watermarks.c.pte_meta_urgent_ns = watermarks->c.pte_meta_urgent_ns;
+		prog_wm_value = convert_and_clamp(watermarks->c.pte_meta_urgent_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_C, prog_wm_value);
+		DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_C calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->c.pte_meta_urgent_ns, prog_wm_value);
+	}
 
 	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_C)) {
-		prog_wm_value = convert_and_clamp(
-				watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_C, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("SR_ENTER_WATERMARK_C calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+		if (safe_to_lower || watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns
+				> hubbub->watermarks.c.cstate_pstate.cstate_enter_plus_exit_ns) {
+			hubbub->watermarks.c.cstate_pstate.cstate_enter_plus_exit_ns =
+					watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns;
+			prog_wm_value = convert_and_clamp(
+					watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_C, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("SR_ENTER_EXIT_WATERMARK_C calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+		}
 
-
-		prog_wm_value = convert_and_clamp(
-				watermarks->c.cstate_pstate.cstate_exit_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_C, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("SR_EXIT_WATERMARK_C calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->c.cstate_pstate.cstate_exit_ns, prog_wm_value);
+		if (safe_to_lower || watermarks->c.cstate_pstate.cstate_exit_ns
+				> hubbub->watermarks.c.cstate_pstate.cstate_exit_ns) {
+			hubbub->watermarks.c.cstate_pstate.cstate_exit_ns =
+					watermarks->c.cstate_pstate.cstate_exit_ns;
+			prog_wm_value = convert_and_clamp(
+					watermarks->c.cstate_pstate.cstate_exit_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_C, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("SR_EXIT_WATERMARK_C calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->c.cstate_pstate.cstate_exit_ns, prog_wm_value);
+		}
 	}
 
-	prog_wm_value = convert_and_clamp(
-			watermarks->c.cstate_pstate.pstate_change_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_C, prog_wm_value);
-	DC_LOG_BANDWIDTH_CALCS("DRAM_CLK_CHANGE_WATERMARK_C calculated =%d\n\n"
-		"HW register value = 0x%x\n",
-		watermarks->c.cstate_pstate.pstate_change_ns, prog_wm_value);
+	if (safe_to_lower || watermarks->c.cstate_pstate.pstate_change_ns
+			> hubbub->watermarks.c.cstate_pstate.pstate_change_ns) {
+		hubbub->watermarks.c.cstate_pstate.pstate_change_ns =
+				watermarks->c.cstate_pstate.pstate_change_ns;
+		prog_wm_value = convert_and_clamp(
+				watermarks->c.cstate_pstate.pstate_change_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_C, prog_wm_value);
+		DC_LOG_BANDWIDTH_CALCS("DRAM_CLK_CHANGE_WATERMARK_C calculated =%d\n"
+			"HW register value = 0x%x\n\n",
+			watermarks->c.cstate_pstate.pstate_change_ns, prog_wm_value);
+	}
 
 	/* clock state D */
-	prog_wm_value = convert_and_clamp(
-			watermarks->d.urgent_ns, refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D, prog_wm_value);
-	DC_LOG_BANDWIDTH_CALCS("URGENCY_WATERMARK_D calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->d.urgent_ns, prog_wm_value);
-
-	prog_wm_value = convert_and_clamp(
-			watermarks->d.pte_meta_urgent_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_D, prog_wm_value);
-	DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_D calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->d.pte_meta_urgent_ns, prog_wm_value);
-
-
-	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_D)) {
-		prog_wm_value = convert_and_clamp(
-				watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns,
+	if (safe_to_lower || watermarks->d.urgent_ns > hubbub->watermarks.d.urgent_ns) {
+		hubbub->watermarks.d.urgent_ns = watermarks->d.urgent_ns;
+		prog_wm_value = convert_and_clamp(watermarks->d.urgent_ns,
 				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_D, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("SR_ENTER_WATERMARK_D calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+		REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D, prog_wm_value);
 
-
-		prog_wm_value = convert_and_clamp(
-				watermarks->d.cstate_pstate.cstate_exit_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_D, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("SR_EXIT_WATERMARK_D calculated =%d\n"
+		DC_LOG_BANDWIDTH_CALCS("URGENCY_WATERMARK_D calculated =%d\n"
 			"HW register value = 0x%x\n",
-			watermarks->d.cstate_pstate.cstate_exit_ns, prog_wm_value);
+			watermarks->d.urgent_ns, prog_wm_value);
 	}
 
+	if (safe_to_lower || watermarks->d.pte_meta_urgent_ns > hubbub->watermarks.d.pte_meta_urgent_ns) {
+		hubbub->watermarks.d.pte_meta_urgent_ns = watermarks->d.pte_meta_urgent_ns;
+		prog_wm_value = convert_and_clamp(watermarks->d.pte_meta_urgent_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_D, prog_wm_value);
+		DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_D calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->d.pte_meta_urgent_ns, prog_wm_value);
+	}
 
-	prog_wm_value = convert_and_clamp(
-			watermarks->d.cstate_pstate.pstate_change_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D, prog_wm_value);
-	DC_LOG_BANDWIDTH_CALCS("DRAM_CLK_CHANGE_WATERMARK_D calculated =%d\n"
-		"HW register value = 0x%x\n\n",
-		watermarks->d.cstate_pstate.pstate_change_ns, prog_wm_value);
+	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_D)) {
+		if (safe_to_lower || watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns
+				> hubbub->watermarks.d.cstate_pstate.cstate_enter_plus_exit_ns) {
+			hubbub->watermarks.d.cstate_pstate.cstate_enter_plus_exit_ns =
+					watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns;
+			prog_wm_value = convert_and_clamp(
+					watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_D, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("SR_ENTER_EXIT_WATERMARK_D calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+		}
 
-	REG_UPDATE(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
-			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, 1);
+		if (safe_to_lower || watermarks->d.cstate_pstate.cstate_exit_ns
+				> hubbub->watermarks.d.cstate_pstate.cstate_exit_ns) {
+			hubbub->watermarks.d.cstate_pstate.cstate_exit_ns =
+					watermarks->d.cstate_pstate.cstate_exit_ns;
+			prog_wm_value = convert_and_clamp(
+					watermarks->d.cstate_pstate.cstate_exit_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_D, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("SR_EXIT_WATERMARK_D calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->d.cstate_pstate.cstate_exit_ns, prog_wm_value);
+		}
+	}
+
+	if (safe_to_lower || watermarks->d.cstate_pstate.pstate_change_ns
+			> hubbub->watermarks.d.cstate_pstate.pstate_change_ns) {
+		hubbub->watermarks.d.cstate_pstate.pstate_change_ns =
+				watermarks->d.cstate_pstate.pstate_change_ns;
+		prog_wm_value = convert_and_clamp(
+				watermarks->d.cstate_pstate.pstate_change_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D, prog_wm_value);
+		DC_LOG_BANDWIDTH_CALCS("DRAM_CLK_CHANGE_WATERMARK_D calculated =%d\n"
+			"HW register value = 0x%x\n\n",
+			watermarks->d.cstate_pstate.pstate_change_ns, prog_wm_value);
+	}
 
 	REG_UPDATE(DCHUBBUB_ARB_SAT_LEVEL,
 			DCHUBBUB_ARB_SAT_LEVEL, 60 * refclk_mhz);
@@ -408,6 +483,11 @@ void hubbub1_update_dchub(
 	struct hubbub *hubbub,
 	struct dchub_init_data *dh_data)
 {
+	if (REG(DCHUBBUB_SDPIF_FB_TOP) == 0) {
+		ASSERT(false);
+		/*should not come here*/
+		return;
+	}
 	/* TODO: port code from dal2 */
 	switch (dh_data->fb_mode) {
 	case FRAME_BUFFER_MODE_ZFB_ONLY:

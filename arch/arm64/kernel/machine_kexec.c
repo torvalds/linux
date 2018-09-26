@@ -184,8 +184,15 @@ void machine_kexec(struct kimage *kimage)
 
 	/* Flush the reboot_code_buffer in preparation for its execution. */
 	__flush_dcache_area(reboot_code_buffer, arm64_relocate_new_kernel_size);
-	flush_icache_range((uintptr_t)reboot_code_buffer,
-		arm64_relocate_new_kernel_size);
+
+	/*
+	 * Although we've killed off the secondary CPUs, we don't update
+	 * the online mask if we're handling a crash kernel and consequently
+	 * need to avoid flush_icache_range(), which will attempt to IPI
+	 * the offline CPUs. Therefore, we must use the __* variant here.
+	 */
+	__flush_icache_range((uintptr_t)reboot_code_buffer,
+			     arm64_relocate_new_kernel_size);
 
 	/* Flush the kimage list and its buffers. */
 	kexec_list_flush(kimage);
@@ -207,8 +214,7 @@ void machine_kexec(struct kimage *kimage)
 	 * relocation is complete.
 	 */
 
-	cpu_soft_restart(kimage != kexec_crash_image,
-		reboot_code_buffer_phys, kimage->head, kimage->start, 0);
+	cpu_soft_restart(reboot_code_buffer_phys, kimage->head, kimage->start, 0);
 
 	BUG(); /* Should never get here. */
 }
@@ -352,13 +358,3 @@ void crash_free_reserved_phys_range(unsigned long begin, unsigned long end)
 	}
 }
 #endif /* CONFIG_HIBERNATION */
-
-void arch_crash_save_vmcoreinfo(void)
-{
-	VMCOREINFO_NUMBER(VA_BITS);
-	/* Please note VMCOREINFO_NUMBER() uses "%d", not "%x" */
-	vmcoreinfo_append_str("NUMBER(kimage_voffset)=0x%llx\n",
-						kimage_voffset);
-	vmcoreinfo_append_str("NUMBER(PHYS_OFFSET)=0x%llx\n",
-						PHYS_OFFSET);
-}

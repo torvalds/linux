@@ -237,7 +237,9 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	/* Account for a different sized first fragment */
 	if (msg_len >= first_len) {
 		msg->can_delay = 0;
-		SCTP_INC_STATS(sock_net(asoc->base.sk), SCTP_MIB_FRAGUSRMSGS);
+		if (msg_len > first_len)
+			SCTP_INC_STATS(sock_net(asoc->base.sk),
+				       SCTP_MIB_FRAGUSRMSGS);
 	} else {
 		/* Which may be the only one... */
 		first_len = msg_len;
@@ -323,7 +325,8 @@ int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 	if (SCTP_PR_TTL_ENABLED(chunk->sinfo.sinfo_flags) &&
 	    time_after(jiffies, chunk->msg->expires_at)) {
 		struct sctp_stream_out *streamout =
-			&chunk->asoc->stream.out[chunk->sinfo.sinfo_stream];
+			SCTP_SO(&chunk->asoc->stream,
+				chunk->sinfo.sinfo_stream);
 
 		if (chunk->sent_count) {
 			chunk->asoc->abandoned_sent[SCTP_PR_INDEX(TTL)]++;
@@ -337,7 +340,8 @@ int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 	} else if (SCTP_PR_RTX_ENABLED(chunk->sinfo.sinfo_flags) &&
 		   chunk->sent_count > chunk->sinfo.sinfo_timetolive) {
 		struct sctp_stream_out *streamout =
-			&chunk->asoc->stream.out[chunk->sinfo.sinfo_stream];
+			SCTP_SO(&chunk->asoc->stream,
+				chunk->sinfo.sinfo_stream);
 
 		chunk->asoc->abandoned_sent[SCTP_PR_INDEX(RTX)]++;
 		streamout->ext->abandoned_sent[SCTP_PR_INDEX(RTX)]++;

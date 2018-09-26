@@ -280,7 +280,6 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		++xprt->rx_xprt.connect_cookie;
 		connstate = -ECONNABORTED;
 connected:
-		xprt->rx_buf.rb_credits = 1;
 		ep->rep_connected = connstate;
 		rpcrdma_conn_func(ep);
 		wake_up_all(&ep->rep_connect_wait);
@@ -508,7 +507,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	unsigned int max_sge;
 	int rc;
 
-	max_sge = min_t(unsigned int, ia->ri_device->attrs.max_sge,
+	max_sge = min_t(unsigned int, ia->ri_device->attrs.max_send_sge,
 			RPCRDMA_MAX_SEND_SGES);
 	if (max_sge < RPCRDMA_MIN_SEND_SGES) {
 		pr_warn("rpcrdma: HCA provides only %d send SGEs\n", max_sge);
@@ -755,6 +754,7 @@ retry:
 	}
 
 	ep->rep_connected = 0;
+	rpcrdma_post_recvs(r_xprt, true);
 
 	rc = rdma_connect(ia->ri_id, &ep->rep_remote_cma);
 	if (rc) {
@@ -772,8 +772,6 @@ retry:
 	}
 
 	dprintk("RPC:       %s: connected\n", __func__);
-
-	rpcrdma_post_recvs(r_xprt, true);
 
 out:
 	if (rc)
@@ -1171,6 +1169,7 @@ rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 		list_add(&req->rl_list, &buf->rb_send_bufs);
 	}
 
+	buf->rb_credits = 1;
 	buf->rb_posted_receives = 0;
 	INIT_LIST_HEAD(&buf->rb_recv_bufs);
 
@@ -1559,7 +1558,8 @@ rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 	if (!count)
 		return;
 
-	rc = ib_post_recv(r_xprt->rx_ia.ri_id->qp, wr, &bad_wr);
+	rc = ib_post_recv(r_xprt->rx_ia.ri_id->qp, wr,
+			  (const struct ib_recv_wr **)&bad_wr);
 	if (rc) {
 		for (wr = bad_wr; wr; wr = wr->next) {
 			struct rpcrdma_rep *rep;

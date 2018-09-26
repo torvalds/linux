@@ -3,7 +3,9 @@
  * Copyright (C) 2018 Exceet Electronics GmbH
  * Copyright (C) 2018 Bootlin
  *
- * Author: Boris Brezillon <boris.brezillon@bootlin.com>
+ * Author:
+ *	Peter Pan <peterpandong@micron.com>
+ *	Boris Brezillon <boris.brezillon@bootlin.com>
  */
 
 #ifndef __LINUX_SPI_MEM_H
@@ -122,7 +124,8 @@ struct spi_mem_op {
 /**
  * struct spi_mem - describes a SPI memory device
  * @spi: the underlying SPI device
- * @drvpriv: spi_mem_drviver private data
+ * @drvpriv: spi_mem_driver private data
+ * @name: name of the SPI memory device
  *
  * Extra information that describe the SPI memory device and may be needed by
  * the controller to properly handle this device should be placed here.
@@ -133,6 +136,7 @@ struct spi_mem_op {
 struct spi_mem {
 	struct spi_device *spi;
 	void *drvpriv;
+	const char *name;
 };
 
 /**
@@ -165,6 +169,13 @@ static inline void *spi_mem_get_drvdata(struct spi_mem *mem)
  *		    limitations)
  * @supports_op: check if an operation is supported by the controller
  * @exec_op: execute a SPI memory operation
+ * @get_name: get a custom name for the SPI mem device from the controller.
+ *	      This might be needed if the controller driver has been ported
+ *	      to use the SPI mem layer and a custom name is used to keep
+ *	      mtdparts compatible.
+ *	      Note that if the implementation of this function allocates memory
+ *	      dynamically, then it should do so with devm_xxx(), as we don't
+ *	      have a ->free_name() function.
  *
  * This interface should be implemented by SPI controllers providing an
  * high-level interface to execute SPI memory operation, which is usually the
@@ -176,6 +187,7 @@ struct spi_controller_mem_ops {
 			    const struct spi_mem_op *op);
 	int (*exec_op)(struct spi_mem *mem,
 		       const struct spi_mem_op *op);
+	const char *(*get_name)(struct spi_mem *mem);
 };
 
 /**
@@ -233,6 +245,8 @@ bool spi_mem_supports_op(struct spi_mem *mem,
 
 int spi_mem_exec_op(struct spi_mem *mem,
 		    const struct spi_mem_op *op);
+
+const char *spi_mem_get_name(struct spi_mem *mem);
 
 int spi_mem_driver_register_with_owner(struct spi_mem_driver *drv,
 				       struct module *owner);

@@ -170,7 +170,7 @@ struct tid_ampdu_tx {
 	u8 dialog_token;
 	u8 stop_initiator;
 	bool tx_stop;
-	u8 buf_size;
+	u16 buf_size;
 
 	u16 failed_bar_ssn;
 	bool bar_pending;
@@ -405,7 +405,7 @@ struct ieee80211_sta_rx_stats {
 	int last_signal;
 	u8 chains;
 	s8 chain_signal_last[IEEE80211_MAX_CHAINS];
-	u16 last_rate;
+	u32 last_rate;
 	struct u64_stats_sync syncp;
 	u64 bytes;
 	u64 msdu[IEEE80211_NUM_TIDS + 1];
@@ -764,6 +764,7 @@ enum sta_stats_type {
 	STA_STATS_RATE_TYPE_LEGACY,
 	STA_STATS_RATE_TYPE_HT,
 	STA_STATS_RATE_TYPE_VHT,
+	STA_STATS_RATE_TYPE_HE,
 };
 
 #define STA_STATS_FIELD_HT_MCS		GENMASK( 7,  0)
@@ -771,9 +772,14 @@ enum sta_stats_type {
 #define STA_STATS_FIELD_LEGACY_BAND	GENMASK( 7,  4)
 #define STA_STATS_FIELD_VHT_MCS		GENMASK( 3,  0)
 #define STA_STATS_FIELD_VHT_NSS		GENMASK( 7,  4)
+#define STA_STATS_FIELD_HE_MCS		GENMASK( 3,  0)
+#define STA_STATS_FIELD_HE_NSS		GENMASK( 7,  4)
 #define STA_STATS_FIELD_BW		GENMASK(11,  8)
 #define STA_STATS_FIELD_SGI		GENMASK(12, 12)
 #define STA_STATS_FIELD_TYPE		GENMASK(15, 13)
+#define STA_STATS_FIELD_HE_RU		GENMASK(18, 16)
+#define STA_STATS_FIELD_HE_GI		GENMASK(20, 19)
+#define STA_STATS_FIELD_HE_DCM		GENMASK(21, 21)
 
 #define STA_STATS_FIELD(_n, _v)		FIELD_PREP(STA_STATS_FIELD_ ## _n, _v)
 #define STA_STATS_GET(_n, _v)		FIELD_GET(STA_STATS_FIELD_ ## _n, _v)
@@ -782,7 +788,7 @@ enum sta_stats_type {
 
 static inline u32 sta_stats_encode_rate(struct ieee80211_rx_status *s)
 {
-	u16 r;
+	u32 r;
 
 	r = STA_STATS_FIELD(BW, s->bw);
 
@@ -803,6 +809,14 @@ static inline u32 sta_stats_encode_rate(struct ieee80211_rx_status *s)
 		r |= STA_STATS_FIELD(TYPE, STA_STATS_RATE_TYPE_LEGACY);
 		r |= STA_STATS_FIELD(LEGACY_BAND, s->band);
 		r |= STA_STATS_FIELD(LEGACY_IDX, s->rate_idx);
+		break;
+	case RX_ENC_HE:
+		r |= STA_STATS_FIELD(TYPE, STA_STATS_RATE_TYPE_HE);
+		r |= STA_STATS_FIELD(HE_NSS, s->nss);
+		r |= STA_STATS_FIELD(HE_MCS, s->rate_idx);
+		r |= STA_STATS_FIELD(HE_GI, s->he_gi);
+		r |= STA_STATS_FIELD(HE_RU, s->he_ru);
+		r |= STA_STATS_FIELD(HE_DCM, s->he_dcm);
 		break;
 	default:
 		WARN_ON(1);

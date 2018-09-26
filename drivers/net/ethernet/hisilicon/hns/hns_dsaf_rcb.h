@@ -136,6 +136,7 @@ void hns_rcbv2_int_clr_hw(struct hnae_queue *q, u32 flag);
 void hns_rcb_init_hw(struct ring_pair_cb *ring);
 void hns_rcb_reset_ring_hw(struct hnae_queue *q);
 void hns_rcb_wait_fbd_clean(struct hnae_queue **qs, int q_num, u32 flag);
+int hns_rcb_wait_tx_ring_clean(struct hnae_queue *qs);
 u32 hns_rcb_get_rx_coalesced_frames(
 	struct rcb_common_cb *rcb_common, u32 port_idx);
 u32 hns_rcb_get_tx_coalesced_frames(

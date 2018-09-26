@@ -4,7 +4,9 @@ Microchip KSZ Series Ethernet switches
 Required properties:
 
 - compatible: For external switch chips, compatible string must be exactly one
-  of: "microchip,ksz9477"
+  of the following:
+  - "microchip,ksz9477"
+  - "microchip,ksz9897"
 
 See Documentation/devicetree/bindings/net/dsa/dsa.txt for a list of additional
 required and optional properties.

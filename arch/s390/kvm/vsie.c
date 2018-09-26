@@ -2,7 +2,7 @@
 /*
  * kvm nested virtualization support for s390x
  *
- * Copyright IBM Corp. 2016
+ * Copyright IBM Corp. 2016, 2018
  *
  *    Author(s): David Hildenbrand <dahi@linux.vnet.ibm.com>
  */
@@ -173,7 +173,8 @@ static int shadow_crycb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		return set_validity_icpt(scb_s, 0x0039U);
 
 	/* copy only the wrapping keys */
-	if (read_guest_real(vcpu, crycb_addr + 72, &vsie_page->crycb, 56))
+	if (read_guest_real(vcpu, crycb_addr + 72,
+			    vsie_page->crycb.dea_wrapping_key_mask, 56))
 		return set_validity_icpt(scb_s, 0x0035U);
 
 	scb_s->ecb3 |= ecb3_flags;
@@ -377,6 +378,10 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	/* Epoch Extension */
 	if (test_kvm_facility(vcpu->kvm, 139))
 		scb_s->ecd |= scb_o->ecd & ECD_MEF;
+
+	/* etoken */
+	if (test_kvm_facility(vcpu->kvm, 156))
+		scb_s->ecd |= scb_o->ecd & ECD_ETOKENF;
 
 	prepare_ibc(vcpu, vsie_page);
 	rc = shadow_crycb(vcpu, vsie_page);
@@ -627,7 +632,8 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		vsie_page->riccbd_gpa = gpa;
 		scb_s->riccbd = hpa;
 	}
-	if ((scb_s->ecb & ECB_GS) && !(scb_s->ecd & ECD_HOSTREGMGMT)) {
+	if (((scb_s->ecb & ECB_GS) && !(scb_s->ecd & ECD_HOSTREGMGMT)) ||
+	    (scb_s->ecd & ECD_ETOKENF)) {
 		unsigned long sdnxc;
 
 		gpa = READ_ONCE(scb_o->sdnxo) & ~0xfUL;
@@ -818,6 +824,8 @@ static int handle_stfle(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
  *          - < 0 if an error occurred
  */
 static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
+	__releases(vcpu->kvm->srcu)
+	__acquires(vcpu->kvm->srcu)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
 	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;

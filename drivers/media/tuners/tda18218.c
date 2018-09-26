@@ -269,11 +269,11 @@ static void tda18218_release(struct dvb_frontend *fe)
 
 static const struct dvb_tuner_ops tda18218_tuner_ops = {
 	.info = {
-		.name           = "NXP TDA18218",
+		.name              = "NXP TDA18218",
 
-		.frequency_min  = 174000000,
-		.frequency_max  = 864000000,
-		.frequency_step =      1000,
+		.frequency_min_hz  = 174 * MHz,
+		.frequency_max_hz  = 864 * MHz,
+		.frequency_step_hz =   1 * kHz,
 	},
 
 	.release       = tda18218_release,

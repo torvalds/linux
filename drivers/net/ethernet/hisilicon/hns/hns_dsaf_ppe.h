@@ -100,6 +100,7 @@ struct ppe_common_cb {
 
 };
 
+int hns_ppe_wait_tx_fifo_clean(struct hns_ppe_cb *ppe_cb);
 int hns_ppe_init(struct dsaf_device *dsaf_dev);
 
 void hns_ppe_uninit(struct dsaf_device *dsaf_dev);

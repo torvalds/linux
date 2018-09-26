@@ -3,8 +3,8 @@
 # Kernel configuration targets
 # These targets are used from top-level makefile
 
-PHONY += xconfig gconfig menuconfig config syncconfig \
-	localmodconfig localyesconfig
+PHONY += xconfig gconfig menuconfig config localmodconfig localyesconfig \
+	build_menuconfig build_nconfig build_gconfig build_xconfig
 
 ifdef KBUILD_KCONFIG
 Kconfig := $(KBUILD_KCONFIG)
@@ -34,14 +34,15 @@ config: $(obj)/conf
 nconfig: $(obj)/nconf
 	$< $(silent) $(Kconfig)
 
-# This has become an internal implementation detail and is now deprecated
-# for external use.
-syncconfig: $(obj)/conf
-	$(Q)mkdir -p include/config include/generated
-	$< $(silent) --$@ $(Kconfig)
+build_menuconfig: $(obj)/mconf
+
+build_nconfig: $(obj)/nconf
+
+build_gconfig: $(obj)/gconf
+
+build_xconfig: $(obj)/qconf
 
 localyesconfig localmodconfig: $(obj)/conf
-	$(Q)mkdir -p include/config include/generated
 	$(Q)perl $(srctree)/$(src)/streamline_config.pl --$@ $(srctree) $(Kconfig) > .tmp.config
 	$(Q)if [ -f .config ]; then 					\
 			cmp -s .tmp.config .config ||			\
@@ -56,8 +57,12 @@ localyesconfig localmodconfig: $(obj)/conf
 	$(Q)rm -f .tmp.config
 
 # These targets map 1:1 to the commandline options of 'conf'
+#
+# Note:
+#  syncconfig has become an internal implementation detail and is now
+#  deprecated for external use
 simple-targets := oldconfig allnoconfig allyesconfig allmodconfig \
-	alldefconfig randconfig listnewconfig olddefconfig
+	alldefconfig randconfig listnewconfig olddefconfig syncconfig
 PHONY += $(simple-targets)
 
 $(simple-targets): $(obj)/conf
@@ -169,29 +174,30 @@ HOSTCFLAGS_zconf.tab.o	:= -I$(src)
 hostprogs-y	+= nconf
 nconf-objs	:= nconf.o zconf.tab.o nconf.gui.o
 
-HOSTLOADLIBES_nconf	= $(shell . $(obj)/.nconf-cfg && echo $$libs)
+HOSTLDLIBS_nconf	= $(shell . $(obj)/.nconf-cfg && echo $$libs)
 HOSTCFLAGS_nconf.o	= $(shell . $(obj)/.nconf-cfg && echo $$cflags)
 HOSTCFLAGS_nconf.gui.o	= $(shell . $(obj)/.nconf-cfg && echo $$cflags)
 
-$(obj)/nconf.o: $(obj)/.nconf-cfg
+$(obj)/nconf.o $(obj)/nconf.gui.o: $(obj)/.nconf-cfg
 
 # mconf: Used for the menuconfig target based on lxdialog
 hostprogs-y	+= mconf
 lxdialog	:= checklist.o inputbox.o menubox.o textbox.o util.o yesno.o
 mconf-objs	:= mconf.o zconf.tab.o $(addprefix lxdialog/, $(lxdialog))
 
-HOSTLOADLIBES_mconf = $(shell . $(obj)/.mconf-cfg && echo $$libs)
+HOSTLDLIBS_mconf = $(shell . $(obj)/.mconf-cfg && echo $$libs)
 $(foreach f, mconf.o $(lxdialog), \
   $(eval HOSTCFLAGS_$f = $$(shell . $(obj)/.mconf-cfg && echo $$$$cflags)))
 
-$(addprefix $(obj)/, mconf.o $(lxdialog)): $(obj)/.mconf-cfg
+$(obj)/mconf.o: $(obj)/.mconf-cfg
+$(addprefix $(obj)/lxdialog/, $(lxdialog)): $(obj)/.mconf-cfg
 
 # qconf: Used for the xconfig target based on Qt
 hostprogs-y	+= qconf
 qconf-cxxobjs	:= qconf.o
 qconf-objs	:= zconf.tab.o
 
-HOSTLOADLIBES_qconf	= $(shell . $(obj)/.qconf-cfg && echo $$libs)
+HOSTLDLIBS_qconf	= $(shell . $(obj)/.qconf-cfg && echo $$libs)
 HOSTCXXFLAGS_qconf.o	= $(shell . $(obj)/.qconf-cfg && echo $$cflags)
 
 $(obj)/qconf.o: $(obj)/.qconf-cfg $(obj)/qconf.moc
@@ -206,7 +212,7 @@ $(obj)/%.moc: $(src)/%.h $(obj)/.qconf-cfg
 hostprogs-y	+= gconf
 gconf-objs	:= gconf.o zconf.tab.o
 
-HOSTLOADLIBES_gconf = $(shell . $(obj)/.gconf-cfg && echo $$libs)
+HOSTLDLIBS_gconf    = $(shell . $(obj)/.gconf-cfg && echo $$libs)
 HOSTCFLAGS_gconf.o  = $(shell . $(obj)/.gconf-cfg && echo $$cflags)
 
 $(obj)/gconf.o: $(obj)/.gconf-cfg

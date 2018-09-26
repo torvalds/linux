@@ -45,7 +45,7 @@ struct event_dev {
 static irqreturn_t events_interrupt(int irq, void *dev_id)
 {
 	struct event_dev *edev = dev_id;
-	unsigned type, code, value;
+	unsigned int type, code, value;
 
 	type = __raw_readl(edev->addr + REG_READ);
 	code = __raw_readl(edev->addr + REG_READ);
@@ -57,7 +57,7 @@ static irqreturn_t events_interrupt(int irq, void *dev_id)
 }
 
 static void events_import_bits(struct event_dev *edev,
-			unsigned long bits[], unsigned type, size_t count)
+			unsigned long bits[], unsigned int type, size_t count)
 {
 	void __iomem *addr = edev->addr;
 	int i, j;
@@ -99,6 +99,7 @@ static void events_import_abs_params(struct event_dev *edev)
 
 		for (j = 0; j < ARRAY_SIZE(val); j++) {
 			int offset = (i * ARRAY_SIZE(val) + j) * sizeof(u32);
+
 			val[j] = __raw_readl(edev->addr + REG_DATA + offset);
 		}
 
@@ -112,7 +113,7 @@ static int events_probe(struct platform_device *pdev)
 	struct input_dev *input_dev;
 	struct event_dev *edev;
 	struct resource *res;
-	unsigned keymapnamelen;
+	unsigned int keymapnamelen;
 	void __iomem *addr;
 	int irq;
 	int i;
@@ -150,7 +151,7 @@ static int events_probe(struct platform_device *pdev)
 	for (i = 0; i < keymapnamelen; i++)
 		edev->name[i] = __raw_readb(edev->addr + REG_DATA + i);
 
-	pr_debug("events_probe() keymap=%s\n", edev->name);
+	pr_debug("%s: keymap=%s\n", __func__, edev->name);
 
 	input_dev->name = edev->name;
 	input_dev->id.bustype = BUS_HOST;

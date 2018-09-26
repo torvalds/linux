@@ -13,7 +13,6 @@
 			Exynos5420 (Must pass triminfo base and triminfo clock)
                "samsung,exynos5433-tmu"
 	       "samsung,exynos7-tmu"
-- interrupt-parent : The phandle for the interrupt controller
 - reg : Address range of the thermal registers. For soc's which has multiple
 	instances of TMU and some registers are shared across all TMU's like
 	interrupt related then 2 set of register has to supplied. First set

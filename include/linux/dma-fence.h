@@ -166,7 +166,8 @@ struct dma_fence_ops {
 	 * released when the fence is signalled (through e.g. the interrupt
 	 * handler).
 	 *
-	 * This callback is mandatory.
+	 * This callback is optional. If this callback is not present, then the
+	 * driver must always have signaling enabled.
 	 */
 	bool (*enable_signaling)(struct dma_fence *fence);
 
@@ -190,11 +191,14 @@ struct dma_fence_ops {
 	/**
 	 * @wait:
 	 *
-	 * Custom wait implementation, or dma_fence_default_wait.
+	 * Custom wait implementation, defaults to dma_fence_default_wait() if
+	 * not set.
 	 *
-	 * Must not be NULL, set to dma_fence_default_wait for default implementation.
-	 * the dma_fence_default_wait implementation should work for any fence, as long
-	 * as enable_signaling works correctly.
+	 * The dma_fence_default_wait implementation should work for any fence, as long
+	 * as @enable_signaling works correctly. This hook allows drivers to
+	 * have an optimized version for the case where a process context is
+	 * already available, e.g. if @enable_signaling for the general case
+	 * needs to set up a worker thread.
 	 *
 	 * Must return -ERESTARTSYS if the wait is intr = true and the wait was
 	 * interrupted, and remaining jiffies if fence has signaled, or 0 if wait
@@ -202,7 +206,7 @@ struct dma_fence_ops {
 	 * which should be treated as if the fence is signaled. For example a hardware
 	 * lockup could be reported like that.
 	 *
-	 * This callback is mandatory.
+	 * This callback is optional.
 	 */
 	signed long (*wait)(struct dma_fence *fence,
 			    bool intr, signed long timeout);
@@ -218,17 +222,6 @@ struct dma_fence_ops {
 	void (*release)(struct dma_fence *fence);
 
 	/**
-	 * @fill_driver_data:
-	 *
-	 * Callback to fill in free-form debug info.
-	 *
-	 * Returns amount of bytes filled, or negative error on failure.
-	 *
-	 * This callback is optional.
-	 */
-	int (*fill_driver_data)(struct dma_fence *fence, void *data, int size);
-
-	/**
 	 * @fence_value_str:
 	 *
 	 * Callback to fill in free-form debug info specific to this fence, like
@@ -242,8 +235,9 @@ struct dma_fence_ops {
 	 * @timeline_value_str:
 	 *
 	 * Fills in the current value of the timeline as a string, like the
-	 * sequence number. This should match what @fill_driver_data prints for
-	 * the most recently signalled fence (assuming no delayed signalling).
+	 * sequence number. Note that the specific fence passed to this function
+	 * should not matter, drivers should only use it to look up the
+	 * corresponding timeline structures.
 	 */
 	void (*timeline_value_str)(struct dma_fence *fence,
 				   char *str, int size);

@@ -2,7 +2,7 @@
  * LTC2952 (PowerPath) driver
  *
  * Copyright (C) 2014, Xsens Technologies BV <info@xsens.com>
- * Maintainer: René Moll <linux@r-moll.nl>
+ * Maintainer: RenÃ© Moll <linux@r-moll.nl>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -62,6 +62,7 @@
 #include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/gpio/consumer.h>
 #include <linux/reboot.h>
 
@@ -318,6 +319,6 @@ static struct platform_driver ltc2952_poweroff_driver = {
 
 module_platform_driver(ltc2952_poweroff_driver);
 
-MODULE_AUTHOR("René Moll <rene.moll@xsens.com>");
+MODULE_AUTHOR("RenÃ© Moll <rene.moll@xsens.com>");
 MODULE_DESCRIPTION("LTC PowerPath power-off driver");
 MODULE_LICENSE("GPL v2");

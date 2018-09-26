@@ -215,7 +215,6 @@ static struct shash_alg octeon_sha1_alg = {
 		.cra_name	=	"sha1",
 		.cra_driver_name=	"octeon-sha1",
 		.cra_priority	=	OCTEON_CR_OPCODE_PRIORITY,
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	SHA1_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}

@@ -883,6 +883,11 @@ int snd_timer_new(struct snd_card *card, char *id, struct snd_timer_id *tid,
 
 	if (snd_BUG_ON(!tid))
 		return -EINVAL;
+	if (tid->dev_class == SNDRV_TIMER_CLASS_CARD ||
+	    tid->dev_class == SNDRV_TIMER_CLASS_PCM) {
+		if (WARN_ON(!card))
+			return -EINVAL;
+	}
 	if (rtimer)
 		*rtimer = NULL;
 	timer = kzalloc(sizeof(*timer), GFP_KERNEL);
@@ -1520,7 +1525,7 @@ static int snd_timer_user_next_device(struct snd_timer_id __user *_tid)
 				} else {
 					if (id.subdevice < 0)
 						id.subdevice = 0;
-					else
+					else if (id.subdevice < INT_MAX)
 						id.subdevice++;
 				}
 			}

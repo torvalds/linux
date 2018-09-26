@@ -1,12 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* ///////////////////////////////////////////////////////////////////////// */
-/*  */
-/* Copyright (c) Atmel Corporation.  All rights reserved. */
-/*  */
-/* Module Name:  wilc_wlan_if.h */
-/*  */
-/*  */
-/* ///////////////////////////////////////////////////////////////////////// */
+/*
+ * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * All rights reserved.
+ */
 
 #ifndef WILC_WLAN_IF_H
 #define WILC_WLAN_IF_H
@@ -71,36 +67,10 @@ typedef void (*wilc_tx_complete_func_t)(void *, int);
 #define MAX_SSID_LEN            33
 #define MAX_RATES_SUPPORTED     12
 
-enum {
-	SUPP_RATES_IE		= 1,
-	EXT_SUPP_RATES_IE	= 50,
-	HT_CAPABILITY_IE	= 45,
-	RSN_IE			= 48,
-	WPA_IE			= 221,
-	WMM_IE			= 221,
-	P2P_IE			= 221,
-};
-
 enum bss_types {
 	INFRASTRUCTURE		= 0,
 	INDEPENDENT,
 	AP,
-};
-
-enum {
-	RATE_AUTO		= 0,
-	RATE_1MB		= 1,
-	RATE_2MB		= 2,
-	RATE_5MB		= 5,
-	RATE_6MB		= 6,
-	RATE_9MB		= 9,
-	RATE_11MB		= 11,
-	RATE_12MB		= 12,
-	RATE_18MB		= 18,
-	RATE_24MB		= 24,
-	RATE_26MB		= 36,
-	RATE_48MB		= 48,
-	RATE_54MB		= 54
 };
 
 enum {
@@ -157,14 +127,14 @@ enum {
 	WPA2_AES_TKIP		= 0x71,	/* Aes or Tkip */
 };
 
-enum AUTHTYPE {
+enum authtype {
 	OPEN_SYSTEM		= 1,
 	SHARED_KEY		= 2,
 	ANY			= 3,
 	IEEE8021		= 5
 };
 
-enum SITESURVEY {
+enum site_survey {
 	SITE_SURVEY_1CH		= 0,
 	SITE_SURVEY_ALL_CH	= 1,
 	SITE_SURVEY_OFF		= 2
@@ -173,12 +143,6 @@ enum SITESURVEY {
 enum {
 	NORMAL_ACK		= 0,
 	NO_ACK,
-};
-
-enum {
-	DONT_RESET		= 0,
-	DO_RESET		= 1,
-	NO_REQUEST		= 2,
 };
 
 enum {
@@ -192,17 +156,6 @@ enum {
 	FILTER_NO		= 0x00,
 	FILTER_AP_ONLY		= 0x01,
 	FILTER_STA_ONLY		= 0x02
-};
-
-enum {
-	PRI_HIGH_RSSI		= 0x00,
-	PRI_LOW_RSSI		= 0x04,
-	PRI_DETECT		= 0x08
-};
-
-enum {
-	CH_FILTER_OFF		= 0x00,
-	CH_FILTER_ON		= 0x10
 };
 
 enum {
@@ -242,15 +195,6 @@ enum {
 	STATIC_MODE		= 1,
 	DYNAMIC_MODE		= 2,
 	MIMO_MODE		= 3,	/* power save disable */
-};
-
-enum {
-	DISABLE_SELF_CTS,
-	ENABLE_SELF_CTS,
-	DISABLE_TX_ABORT,
-	ENABLE_TX_ABORT,
-	HW_TRIGGER_ABORT,
-	SW_TRIGGER_ABORT,
 };
 
 enum wid_type {

@@ -880,7 +880,7 @@ static void xprt_wait_on_pinned_rqst(struct rpc_rqst *req)
 __must_hold(&req->rq_xprt->recv_lock)
 {
 	struct rpc_task *task = req->rq_task;
-	
+
 	if (task && test_bit(RPC_TASK_MSG_RECV, &task->tk_runstate)) {
 		spin_unlock(&req->rq_xprt->recv_lock);
 		set_bit(RPC_TASK_MSG_RECV_WAIT, &task->tk_runstate);

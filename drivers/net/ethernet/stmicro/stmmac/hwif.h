@@ -183,6 +183,8 @@ struct stmmac_dma_ops {
 	void (*set_rx_tail_ptr)(void __iomem *ioaddr, u32 tail_ptr, u32 chan);
 	void (*set_tx_tail_ptr)(void __iomem *ioaddr, u32 tail_ptr, u32 chan);
 	void (*enable_tso)(void __iomem *ioaddr, bool en, u32 chan);
+	void (*qmode)(void __iomem *ioaddr, u32 channel, u8 qmode);
+	void (*set_bfsize)(void __iomem *ioaddr, int bfsize, u32 chan);
 };
 
 #define stmmac_reset(__priv, __args...) \
@@ -235,6 +237,10 @@ struct stmmac_dma_ops {
 	stmmac_do_void_callback(__priv, dma, set_tx_tail_ptr, __args)
 #define stmmac_enable_tso(__priv, __args...) \
 	stmmac_do_void_callback(__priv, dma, enable_tso, __args)
+#define stmmac_dma_qmode(__priv, __args...) \
+	stmmac_do_void_callback(__priv, dma, qmode, __args)
+#define stmmac_set_dma_bfsize(__priv, __args...) \
+	stmmac_do_void_callback(__priv, dma, set_bfsize, __args)
 
 struct mac_device_info;
 struct net_device;
@@ -441,17 +447,22 @@ struct stmmac_mode_ops {
 
 struct stmmac_priv;
 struct tc_cls_u32_offload;
+struct tc_cbs_qopt_offload;
 
 struct stmmac_tc_ops {
 	int (*init)(struct stmmac_priv *priv);
 	int (*setup_cls_u32)(struct stmmac_priv *priv,
 			     struct tc_cls_u32_offload *cls);
+	int (*setup_cbs)(struct stmmac_priv *priv,
+			 struct tc_cbs_qopt_offload *qopt);
 };
 
 #define stmmac_tc_init(__priv, __args...) \
 	stmmac_do_callback(__priv, tc, init, __args)
 #define stmmac_tc_setup_cls_u32(__priv, __args...) \
 	stmmac_do_callback(__priv, tc, setup_cls_u32, __args)
+#define stmmac_tc_setup_cbs(__priv, __args...) \
+	stmmac_do_callback(__priv, tc, setup_cbs, __args)
 
 struct stmmac_regs_off {
 	u32 ptp_off;
@@ -468,6 +479,9 @@ extern const struct stmmac_ops dwmac410_ops;
 extern const struct stmmac_dma_ops dwmac410_dma_ops;
 extern const struct stmmac_ops dwmac510_ops;
 extern const struct stmmac_tc_ops dwmac510_tc_ops;
+extern const struct stmmac_ops dwxgmac210_ops;
+extern const struct stmmac_dma_ops dwxgmac210_dma_ops;
+extern const struct stmmac_desc_ops dwxgmac210_desc_ops;
 
 #define GMAC_VERSION		0x00000020	/* GMAC CORE Version */
 #define GMAC4_VERSION		0x00000110	/* GMAC4+ CORE Version */

@@ -82,6 +82,16 @@ struct octeon_instr_queue {
 	/** A spinlock to protect while posting on the ring.  */
 	spinlock_t post_lock;
 
+	/** This flag indicates if the queue can be used for soft commands.
+	 *  If this flag is set, post_lock must be acquired before posting
+	 *  a command to the queue.
+	 *  If this flag is clear, post_lock is invalid for the queue.
+	 *  All control commands (soft commands) will go through only Queue 0
+	 *  (control and data queue). So only queue-0 needs post_lock,
+	 *  other queues are only data queues and does not need post_lock
+	 */
+	bool allow_soft_cmds;
+
 	u32 pkt_in_done;
 
 	/** A spinlock to protect access to the input ring.*/

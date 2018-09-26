@@ -411,6 +411,16 @@ static int malidp_crtc_atomic_check(struct drm_crtc *crtc,
 		}
 	}
 
+	/* If only the writeback routing has changed, we don't need a modeset */
+	if (state->connectors_changed) {
+		u32 old_mask = crtc->state->connector_mask;
+		u32 new_mask = state->connector_mask;
+
+		if ((old_mask ^ new_mask) ==
+		    (1 << drm_connector_index(&malidp->mw_connector.base)))
+			state->connectors_changed = false;
+	}
+
 	ret = malidp_crtc_atomic_check_gamma(crtc, state);
 	ret = ret ? ret : malidp_crtc_atomic_check_ctm(crtc, state);
 	ret = ret ? ret : malidp_crtc_atomic_check_scaling(crtc, state);

@@ -64,7 +64,7 @@ EXPORT_SYMBOL(sys_tz);
  */
 SYSCALL_DEFINE1(time, time_t __user *, tloc)
 {
-	time_t i = get_seconds();
+	time_t i = (time_t)ktime_get_real_seconds();
 
 	if (tloc) {
 		if (put_user(i,tloc))
@@ -107,11 +107,9 @@ SYSCALL_DEFINE1(stime, time_t __user *, tptr)
 /* compat_time_t is a 32 bit "long" and needs to get converted. */
 COMPAT_SYSCALL_DEFINE1(time, compat_time_t __user *, tloc)
 {
-	struct timeval tv;
 	compat_time_t i;
 
-	do_gettimeofday(&tv);
-	i = tv.tv_sec;
+	i = (compat_time_t)ktime_get_real_seconds();
 
 	if (tloc) {
 		if (put_user(i,tloc))
@@ -931,7 +929,7 @@ int compat_put_timespec64(const struct timespec64 *ts, void __user *uts)
 EXPORT_SYMBOL_GPL(compat_put_timespec64);
 
 int get_itimerspec64(struct itimerspec64 *it,
-			const struct itimerspec __user *uit)
+			const struct __kernel_itimerspec __user *uit)
 {
 	int ret;
 
@@ -946,7 +944,7 @@ int get_itimerspec64(struct itimerspec64 *it,
 EXPORT_SYMBOL_GPL(get_itimerspec64);
 
 int put_itimerspec64(const struct itimerspec64 *it,
-			struct itimerspec __user *uit)
+			struct __kernel_itimerspec __user *uit)
 {
 	int ret;
 
@@ -959,3 +957,24 @@ int put_itimerspec64(const struct itimerspec64 *it,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(put_itimerspec64);
+
+int get_compat_itimerspec64(struct itimerspec64 *its,
+			const struct compat_itimerspec __user *uits)
+{
+
+	if (__compat_get_timespec64(&its->it_interval, &uits->it_interval) ||
+	    __compat_get_timespec64(&its->it_value, &uits->it_value))
+		return -EFAULT;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(get_compat_itimerspec64);
+
+int put_compat_itimerspec64(const struct itimerspec64 *its,
+			struct compat_itimerspec __user *uits)
+{
+	if (__compat_put_timespec64(&its->it_interval, &uits->it_interval) ||
+	    __compat_put_timespec64(&its->it_value, &uits->it_value))
+		return -EFAULT;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(put_compat_itimerspec64);

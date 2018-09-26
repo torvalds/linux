@@ -2,7 +2,11 @@ SBS sbs-battery
 ~~~~~~~~~~
 
 Required properties :
- - compatible : "sbs,sbs-battery"
+ - compatible: "<vendor>,<part-number>", "sbs,sbs-battery" as fallback. The
+     part number compatible string might be used in order to take care of
+     vendor specific registers.
+     Known <vendor>,<part-number>:
+       ti,bq20z75
 
 Optional properties :
  - sbs,i2c-retry-count : The number of times to retry i2c transactions on i2c
@@ -14,9 +18,9 @@ Optional properties :
 
 Example:
 
-	bq20z75@b {
-		compatible = "sbs,sbs-battery";
-		reg = < 0xb >;
+	battery@b {
+		compatible = "ti,bq20z75", "sbs,sbs-battery";
+		reg = <0xb>;
 		sbs,i2c-retry-count = <2>;
 		sbs,poll-retry-count = <10>;
 		sbs,battery-detect-gpios = <&gpio-controller 122 1>;

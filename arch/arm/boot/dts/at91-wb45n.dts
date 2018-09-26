@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * at91-wb45n.dts - Device Tree file for WB45NBT board
+ *
+ *  Copyright (C) 2018 Laird
+ *
+ */
+/dts-v1/;
+#include "at91-wb45n.dtsi"
+
+/ {
+	model = "Laird Workgroup Bridge 45N - Atmel AT91SAM (dt)";
+	compatible = "laird,wb45n", "laird,wbxx", "atmel,at91sam9x5", "atmel,at91sam9";
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		irqbtn@18 {
+			reg = <18>;
+			label = "IRQBTN";
+			linux,code = <99>;
+			gpios = <&pioB 18 GPIO_ACTIVE_LOW>;
+			gpio-key,wakeup = <1>;
+		};
+	};
+};
+
+&watchdog {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+};
+
+&mmc0 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+};
+
+&macb0 {
+	status = "okay";
+};
+
+&dbgu {
+	status = "okay";
+};
+
+&usart0 {
+	status = "okay";
+};
+
+&usart3 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+};

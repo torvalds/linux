@@ -28,141 +28,10 @@
 #include "vega10_hwmgr.h"
 #include "vega10_ppsmc.h"
 #include "smu9_driver_if.h"
+#include "smu9_smumgr.h"
 #include "ppatomctrl.h"
 #include "pp_debug.h"
 
-
-#define AVFS_EN_MSB		1568
-#define AVFS_EN_LSB		1568
-
-/* Microcode file is stored in this buffer */
-#define BUFFER_SIZE                 80000
-#define MAX_STRING_SIZE             15
-#define BUFFER_SIZETWO              131072 /* 128 *1024 */
-
-/* MP Apertures */
-#define MP0_Public                  0x03800000
-#define MP0_SRAM                    0x03900000
-#define MP1_Public                  0x03b00000
-#define MP1_SRAM                    0x03c00004
-
-#define smnMP1_FIRMWARE_FLAGS                                                                           0x3010028
-#define smnMP0_FW_INTF                                                                                  0x3010104
-#define smnMP1_PUB_CTRL                                                                                 0x3010b14
-
-static bool vega10_is_smc_ram_running(struct pp_hwmgr *hwmgr)
-{
-	struct amdgpu_device *adev = hwmgr->adev;
-	uint32_t mp1_fw_flags;
-
-	WREG32_SOC15(NBIF, 0, mmPCIE_INDEX2,
-			(MP1_Public | (smnMP1_FIRMWARE_FLAGS & 0xffffffff)));
-
-	mp1_fw_flags = RREG32_SOC15(NBIF, 0, mmPCIE_DATA2);
-
-	if (mp1_fw_flags & MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK)
-		return true;
-
-	return false;
-}
-
-/*
- * Check if SMC has responded to previous message.
- *
- * @param    smumgr  the address of the powerplay hardware manager.
- * @return   TRUE    SMC has responded, FALSE otherwise.
- */
-static uint32_t vega10_wait_for_response(struct pp_hwmgr *hwmgr)
-{
-	struct amdgpu_device *adev = hwmgr->adev;
-	uint32_t reg;
-	uint32_t ret;
-
-	reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_90);
-
-	ret = phm_wait_for_register_unequal(hwmgr, reg,
-			0, MP1_C2PMSG_90__CONTENT_MASK);
-
-	if (ret)
-		pr_err("No response from smu\n");
-
-	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
-}
-
-/*
- * Send a message to the SMC, and do not wait for its response.
- * @param    smumgr  the address of the powerplay hardware manager.
- * @param    msg the message to send.
- * @return   Always return 0.
- */
-static int vega10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
-		uint16_t msg)
-{
-	struct amdgpu_device *adev = hwmgr->adev;
-
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
-
-	return 0;
-}
-
-/*
- * Send a message to the SMC, and wait for its response.
- * @param    hwmgr  the address of the powerplay hardware manager.
- * @param    msg the message to send.
- * @return   Always return 0.
- */
-static int vega10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
-{
-	struct amdgpu_device *adev = hwmgr->adev;
-	uint32_t ret;
-
-	vega10_wait_for_response(hwmgr);
-
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
-
-	vega10_send_msg_to_smc_without_waiting(hwmgr, msg);
-
-	ret = vega10_wait_for_response(hwmgr);
-	if (ret != 1)
-		pr_err("Failed to send message: 0x%x, ret value: 0x%x\n", msg, ret);
-
-	return 0;
-}
-
-/*
- * Send a message to the SMC with parameter
- * @param    hwmgr:  the address of the powerplay hardware manager.
- * @param    msg: the message to send.
- * @param    parameter: the parameter to send
- * @return   Always return 0.
- */
-static int vega10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
-		uint16_t msg, uint32_t parameter)
-{
-	struct amdgpu_device *adev = hwmgr->adev;
-	uint32_t ret;
-
-	vega10_wait_for_response(hwmgr);
-
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
-
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82, parameter);
-
-	vega10_send_msg_to_smc_without_waiting(hwmgr, msg);
-
-	ret = vega10_wait_for_response(hwmgr);
-	if (ret != 1)
-		pr_err("Failed message: 0x%x, input parameter: 0x%x, error code: 0x%x\n", msg, parameter, ret);
-
-	return 0;
-}
-
-static int vega10_get_argument(struct pp_hwmgr *hwmgr)
-{
-	struct amdgpu_device *adev = hwmgr->adev;
-
-	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
-}
 
 static int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
@@ -175,13 +44,13 @@ static int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"Invalid SMU Table version!", return -EINVAL);
 	PP_ASSERT_WITH_CODE(priv->smu_tables.entry[table_id].size != 0,
 			"Invalid SMU Table Length!", return -EINVAL);
-	vega10_send_msg_to_smc_with_parameter(hwmgr,
+	smu9_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
 			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	vega10_send_msg_to_smc_with_parameter(hwmgr,
+	smu9_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
 			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	vega10_send_msg_to_smc_with_parameter(hwmgr,
+	smu9_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableSmu2Dram,
 			priv->smu_tables.entry[table_id].table_id);
 
@@ -206,13 +75,13 @@ static int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 	memcpy(priv->smu_tables.entry[table_id].table, table,
 			priv->smu_tables.entry[table_id].size);
 
-	vega10_send_msg_to_smc_with_parameter(hwmgr,
+	smu9_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
 			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	vega10_send_msg_to_smc_with_parameter(hwmgr,
+	smu9_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
 			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	vega10_send_msg_to_smc_with_parameter(hwmgr,
+	smu9_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableDram2Smu,
 			priv->smu_tables.entry[table_id].table_id);
 
@@ -225,8 +94,8 @@ static int vega10_get_smc_features(struct pp_hwmgr *hwmgr,
 	if (features_enabled == NULL)
 		return -EINVAL;
 
-	vega10_send_msg_to_smc(hwmgr, PPSMC_MSG_GetEnabledSmuFeatures);
-	*features_enabled = vega10_get_argument(hwmgr);
+	smu9_send_msg_to_smc(hwmgr, PPSMC_MSG_GetEnabledSmuFeatures);
+	*features_enabled = smu9_get_argument(hwmgr);
 
 	return 0;
 }
@@ -248,10 +117,10 @@ static int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
 	struct vega10_smumgr *priv = hwmgr->smu_backend;
 
 	if (priv->smu_tables.entry[TOOLSTABLE].mc_addr) {
-		vega10_send_msg_to_smc_with_parameter(hwmgr,
+		smu9_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetToolsDramAddrHigh,
 				upper_32_bits(priv->smu_tables.entry[TOOLSTABLE].mc_addr));
-		vega10_send_msg_to_smc_with_parameter(hwmgr,
+		smu9_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetToolsDramAddrLow,
 				lower_32_bits(priv->smu_tables.entry[TOOLSTABLE].mc_addr));
 	}
@@ -265,11 +134,11 @@ static int vega10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 	uint32_t dev_id;
 	uint32_t rev_id;
 
-	PP_ASSERT_WITH_CODE(!vega10_send_msg_to_smc(hwmgr,
+	PP_ASSERT_WITH_CODE(!smu9_send_msg_to_smc(hwmgr,
 			PPSMC_MSG_GetDriverIfVersion),
 			"Attempt to get SMC IF Version Number Failed!",
 			return -EINVAL);
-	smc_driver_if_version = vega10_get_argument(hwmgr);
+	smc_driver_if_version = smu9_get_argument(hwmgr);
 
 	dev_id = adev->pdev->device;
 	rev_id = adev->pdev->revision;
@@ -441,7 +310,7 @@ static int vega10_smu_fini(struct pp_hwmgr *hwmgr)
 
 static int vega10_start_smu(struct pp_hwmgr *hwmgr)
 {
-	if (!vega10_is_smc_ram_running(hwmgr))
+	if (!smu9_is_smc_ram_running(hwmgr))
 		return -EINVAL;
 
 	PP_ASSERT_WITH_CODE(!vega10_verify_smc_interface(hwmgr),
@@ -453,7 +322,8 @@ static int vega10_start_smu(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int vega10_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table, uint16_t table_id, bool rw)
+static int vega10_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table,
+				    uint16_t table_id, bool rw)
 {
 	int ret;
 
@@ -470,11 +340,11 @@ const struct pp_smumgr_func vega10_smu_funcs = {
 	.smu_fini = &vega10_smu_fini,
 	.start_smu = &vega10_start_smu,
 	.request_smu_load_specific_fw = NULL,
-	.send_msg_to_smc = &vega10_send_msg_to_smc,
-	.send_msg_to_smc_with_parameter = &vega10_send_msg_to_smc_with_parameter,
+	.send_msg_to_smc = &smu9_send_msg_to_smc,
+	.send_msg_to_smc_with_parameter = &smu9_send_msg_to_smc_with_parameter,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
 	.is_dpm_running = vega10_is_dpm_running,
-	.get_argument = vega10_get_argument,
+	.get_argument = smu9_get_argument,
 	.smc_table_manager = vega10_smc_table_manager,
 };

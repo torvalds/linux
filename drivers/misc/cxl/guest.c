@@ -623,9 +623,6 @@ static int guest_attach_process(struct cxl_context *ctx, bool kernel, u64 wed, u
 {
 	pr_devel("in %s\n", __func__);
 
-	if (ctx->real_mode)
-		return -EPERM;
-
 	ctx->kernel = kernel;
 	if (ctx->afu->current_mode == CXL_MODE_DIRECTED)
 		return attach_afu_directed(ctx, wed, amr);
@@ -913,11 +910,6 @@ static int afu_properties_look_ok(struct cxl_afu *afu)
 
 	if (afu->max_procs_virtualised < 1) {
 		dev_err(&afu->dev, "Unexpected max number of processes virtualised value\n");
-		return -EINVAL;
-	}
-
-	if (afu->crs_len < 0) {
-		dev_err(&afu->dev, "Unexpected configuration record size value\n");
 		return -EINVAL;
 	}
 

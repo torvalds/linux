@@ -243,7 +243,9 @@ static int hns_nic_set_link_ksettings(struct net_device *net_dev,
 	}
 
 	if (h->dev->ops->adjust_link) {
+		netif_carrier_off(net_dev);
 		h->dev->ops->adjust_link(h, (int)speed, cmd->base.duplex);
+		netif_carrier_on(net_dev);
 		return 0;
 	}
 
@@ -307,6 +309,7 @@ static int __lb_setup(struct net_device *ndev,
 		break;
 	case MAC_LOOP_PHY_NONE:
 		ret = hns_nic_config_phy_loopback(phy_dev, 0x0);
+		/* fall through */
 	case MAC_LOOP_NONE:
 		if (!ret && h->dev->ops->set_loopback) {
 			if (priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII)
@@ -658,8 +661,8 @@ static void hns_nic_get_drvinfo(struct net_device *net_dev,
  * @dev: net device
  * @param: ethtool parameter
  */
-void hns_get_ringparam(struct net_device *net_dev,
-		       struct ethtool_ringparam *param)
+static void hns_get_ringparam(struct net_device *net_dev,
+			      struct ethtool_ringparam *param)
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;
@@ -808,7 +811,8 @@ static int hns_set_coalesce(struct net_device *net_dev,
  * @dev: net device
  * @ch: channel info.
  */
-void hns_get_channels(struct net_device *net_dev, struct ethtool_channels *ch)
+static void
+hns_get_channels(struct net_device *net_dev, struct ethtool_channels *ch)
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 
@@ -825,8 +829,8 @@ void hns_get_channels(struct net_device *net_dev, struct ethtool_channels *ch)
  * @stats: statistics info.
  * @data: statistics data.
  */
-void hns_get_ethtool_stats(struct net_device *netdev,
-			   struct ethtool_stats *stats, u64 *data)
+static void hns_get_ethtool_stats(struct net_device *netdev,
+				  struct ethtool_stats *stats, u64 *data)
 {
 	u64 *p = data;
 	struct hns_nic_priv *priv = netdev_priv(netdev);
@@ -883,7 +887,7 @@ void hns_get_ethtool_stats(struct net_device *netdev,
  * @stats: string set ID.
  * @data: objects data.
  */
-void hns_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
+static void hns_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 	struct hnae_handle *h = priv->ae_handle;
@@ -973,7 +977,7 @@ void hns_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
  *
  * Return string set count.
  */
-int hns_get_sset_count(struct net_device *netdev, int stringset)
+static int hns_get_sset_count(struct net_device *netdev, int stringset)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 	struct hnae_handle *h = priv->ae_handle;
@@ -1007,7 +1011,7 @@ int hns_get_sset_count(struct net_device *netdev, int stringset)
  *
  * Return 0 on success, negative on failure.
  */
-int hns_phy_led_set(struct net_device *netdev, int value)
+static int hns_phy_led_set(struct net_device *netdev, int value)
 {
 	int retval;
 	struct phy_device *phy_dev = netdev->phydev;
@@ -1029,7 +1033,8 @@ int hns_phy_led_set(struct net_device *netdev, int value)
  *
  * Return 0 on success, negative on failure.
  */
-int hns_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
+static int
+hns_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 	struct hnae_handle *h = priv->ae_handle;
@@ -1103,8 +1108,8 @@ int hns_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
  * @cmd: ethtool cmd
  * @date: register data
  */
-void hns_get_regs(struct net_device *net_dev, struct ethtool_regs *cmd,
-		  void *data)
+static void hns_get_regs(struct net_device *net_dev, struct ethtool_regs *cmd,
+			 void *data)
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;

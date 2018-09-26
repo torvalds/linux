@@ -3,11 +3,6 @@
  * Device Tree include file for SolidRun Clearfog 88F6828 based boards
  *
  *  Copyright (C) 2015 Russell King
- *
- * This board is in development; the contents of this file work with
- * the A1 rev 2.0 of the board, which does not represent final
- * production board.  Things will change, don't expect this file to
- * remain compatible info the future.
  */
 
 #include "armada-388.dtsi"
@@ -230,7 +225,7 @@
 &spi1 {
 	/*
 	 * Add SPI CS pins for clearfog:
-	 * CS0: W25Q32 (not populated on uSOM)
+	 * CS0: W25Q32
 	 * CS1: PIC microcontroller (Pro models)
 	 * CS2: mikrobus
 	 */

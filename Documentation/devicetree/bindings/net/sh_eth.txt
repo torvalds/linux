@@ -16,6 +16,7 @@ Required properties:
 	      "renesas,ether-r8a7794"  if the device is a part of R8A7794 SoC.
 	      "renesas,gether-r8a77980" if the device is a part of R8A77980 SoC.
 	      "renesas,ether-r7s72100" if the device is a part of R7S72100 SoC.
+	      "renesas,ether-r7s9210" if the device is a part of R7S9210 SoC.
 	      "renesas,rcar-gen1-ether" for a generic R-Car Gen1 device.
 	      "renesas,rcar-gen2-ether" for a generic R-Car Gen2 or RZ/G1
 	                                device.
@@ -35,8 +36,6 @@ Required properties:
 - pinctrl-0: phandle, referring to a default pin configuration node.
 
 Optional properties:
-- interrupt-parent: the phandle for the interrupt controller that services
-		    interrupts for this device.
 - pinctrl-names: pin configuration state name ("default").
 - renesas,no-ether-link: boolean, specify when a board does not provide a proper
 			 Ether LINK signal.

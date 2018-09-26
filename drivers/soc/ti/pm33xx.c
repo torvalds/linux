@@ -41,6 +41,8 @@ static struct am33xx_pm_sram_addr *pm_sram;
 static struct device *pm33xx_dev;
 static struct wkup_m3_ipc *m3_ipc;
 
+static unsigned long suspend_wfi_flags;
+
 static u32 sram_suspend_address(unsigned long addr)
 {
 	return ((unsigned long)am33xx_do_wfi_sram +
@@ -53,7 +55,7 @@ static int am33xx_pm_suspend(suspend_state_t suspend_state)
 	int i, ret = 0;
 
 	ret = pm_ops->soc_suspend((unsigned long)suspend_state,
-				  am33xx_do_wfi_sram);
+				  am33xx_do_wfi_sram, suspend_wfi_flags);
 
 	if (ret) {
 		dev_err(pm33xx_dev, "PM: Kernel suspend failure\n");
@@ -227,6 +229,7 @@ static int am33xx_push_sram_idle(void)
 	ro_sram_data.amx3_pm_sram_data_virt = ocmcram_location_data;
 	ro_sram_data.amx3_pm_sram_data_phys =
 		gen_pool_virt_to_phys(sram_pool_data, ocmcram_location_data);
+	ro_sram_data.rtc_base_virt = pm_ops->get_rtc_base_addr();
 
 	/* Save physical address to calculate resume offset during pm init */
 	am33xx_do_wfi_sram_phys = gen_pool_virt_to_phys(sram_pool,
@@ -309,6 +312,17 @@ static int am33xx_pm_probe(struct platform_device *pdev)
 #ifdef CONFIG_SUSPEND
 	suspend_set_ops(&am33xx_pm_ops);
 #endif /* CONFIG_SUSPEND */
+
+	/*
+	 * For a system suspend we must flush the caches, we want
+	 * the DDR in self-refresh, we want to save the context
+	 * of the EMIF, and we want the wkup_m3 to handle low-power
+	 * transition.
+	 */
+	suspend_wfi_flags |= WFI_FLAG_FLUSH_CACHE;
+	suspend_wfi_flags |= WFI_FLAG_SELF_REFRESH;
+	suspend_wfi_flags |= WFI_FLAG_SAVE_EMIF;
+	suspend_wfi_flags |= WFI_FLAG_WAKE_M3;
 
 	ret = pm_ops->init();
 	if (ret) {

@@ -126,8 +126,7 @@ static int mxs_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 	else
 		writel(pin_mask, pin_addr + MXS_CLR);
 
-	writel(pin_mask,
-	       port->base + PINCTRL_IRQSTAT(port) + MXS_CLR);
+	writel(pin_mask, port->base + PINCTRL_IRQSTAT(port) + MXS_CLR);
 
 	return 0;
 }

@@ -695,11 +695,42 @@ static int hci_init3_req(struct hci_request *req, unsigned long opt)
 		if (hdev->commands[35] & (0x20 | 0x40))
 			events[1] |= 0x08;        /* LE PHY Update Complete */
 
+		/* If the controller supports LE Set Extended Scan Parameters
+		 * and LE Set Extended Scan Enable commands, enable the
+		 * corresponding event.
+		 */
+		if (use_ext_scan(hdev))
+			events[1] |= 0x10;	/* LE Extended Advertising
+						 * Report
+						 */
+
+		/* If the controller supports the LE Extended Create Connection
+		 * command, enable the corresponding event.
+		 */
+		if (use_ext_conn(hdev))
+			events[1] |= 0x02;      /* LE Enhanced Connection
+						 * Complete
+						 */
+
+		/* If the controller supports the LE Extended Advertising
+		 * command, enable the corresponding event.
+		 */
+		if (ext_adv_capable(hdev))
+			events[2] |= 0x02;	/* LE Advertising Set
+						 * Terminated
+						 */
+
 		hci_req_add(req, HCI_OP_LE_SET_EVENT_MASK, sizeof(events),
 			    events);
 
-		if (hdev->commands[25] & 0x40) {
-			/* Read LE Advertising Channel TX Power */
+		/* Read LE Advertising Channel TX Power */
+		if ((hdev->commands[25] & 0x40) && !ext_adv_capable(hdev)) {
+			/* HCI TS spec forbids mixing of legacy and extended
+			 * advertising commands wherein READ_ADV_TX_POWER is
+			 * also included. So do not call it if extended adv
+			 * is supported otherwise controller will return
+			 * COMMAND_DISALLOWED for extended commands.
+			 */
 			hci_req_add(req, HCI_OP_LE_READ_ADV_TX_POWER, 0, NULL);
 		}
 
@@ -714,12 +745,29 @@ static int hci_init3_req(struct hci_request *req, unsigned long opt)
 			hci_req_add(req, HCI_OP_LE_CLEAR_WHITE_LIST, 0, NULL);
 		}
 
+		if (hdev->commands[34] & 0x40) {
+			/* Read LE Resolving List Size */
+			hci_req_add(req, HCI_OP_LE_READ_RESOLV_LIST_SIZE,
+				    0, NULL);
+		}
+
+		if (hdev->commands[34] & 0x20) {
+			/* Clear LE Resolving List */
+			hci_req_add(req, HCI_OP_LE_CLEAR_RESOLV_LIST, 0, NULL);
+		}
+
 		if (hdev->le_features[0] & HCI_LE_DATA_LEN_EXT) {
 			/* Read LE Maximum Data Length */
 			hci_req_add(req, HCI_OP_LE_READ_MAX_DATA_LEN, 0, NULL);
 
 			/* Read LE Suggested Default Data Length */
 			hci_req_add(req, HCI_OP_LE_READ_DEF_DATA_LEN, 0, NULL);
+		}
+
+		if (ext_adv_capable(hdev)) {
+			/* Read LE Number of Supported Advertising Sets */
+			hci_req_add(req, HCI_OP_LE_READ_NUM_SUPPORTED_ADV_SETS,
+				    0, NULL);
 		}
 
 		hci_set_le_support(req);
@@ -802,10 +850,9 @@ static int hci_init4_req(struct hci_request *req, unsigned long opt)
 	if (hdev->commands[35] & 0x20) {
 		struct hci_cp_le_set_default_phy cp;
 
-		/* No transmitter PHY or receiver PHY preferences */
-		cp.all_phys = 0x03;
-		cp.tx_phys = 0;
-		cp.rx_phys = 0;
+		cp.all_phys = 0x00;
+		cp.tx_phys = hdev->le_tx_def_phys;
+		cp.rx_phys = hdev->le_rx_def_phys;
 
 		hci_req_add(req, HCI_OP_LE_SET_DEFAULT_PHY, sizeof(cp), &cp);
 	}
@@ -1368,7 +1415,8 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 	atomic_set(&hdev->cmd_cnt, 1);
 	set_bit(HCI_INIT, &hdev->flags);
 
-	if (hci_dev_test_flag(hdev, HCI_SETUP)) {
+	if (hci_dev_test_flag(hdev, HCI_SETUP) ||
+	    test_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks)) {
 		hci_sock_dev_event(hdev, HCI_DEV_SETUP);
 
 		if (hdev->setup)
@@ -1432,6 +1480,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 	if (!ret) {
 		hci_dev_hold(hdev);
 		hci_dev_set_flag(hdev, HCI_RPA_EXPIRED);
+		hci_adv_instances_set_rpa_expired(hdev, true);
 		set_bit(HCI_UP, &hdev->flags);
 		hci_sock_dev_event(hdev, HCI_DEV_UP);
 		hci_leds_update_powered(hdev, true);
@@ -1587,8 +1636,14 @@ int hci_dev_do_close(struct hci_dev *hdev)
 	if (hci_dev_test_and_clear_flag(hdev, HCI_SERVICE_CACHE))
 		cancel_delayed_work(&hdev->service_cache);
 
-	if (hci_dev_test_flag(hdev, HCI_MGMT))
+	if (hci_dev_test_flag(hdev, HCI_MGMT)) {
+		struct adv_info *adv_instance;
+
 		cancel_delayed_work_sync(&hdev->rpa_expired);
+
+		list_for_each_entry(adv_instance, &hdev->adv_instances, list)
+			cancel_delayed_work_sync(&adv_instance->rpa_expired_cb);
+	}
 
 	/* Avoid potential lockdep warnings from the *_flush() calls by
 	 * ensuring the workqueue is empty up front.
@@ -1897,7 +1952,11 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 		break;
 
 	case HCISETPTYPE:
+		if (hdev->pkt_type == (__u16) dr.dev_opt)
+			break;
+
 		hdev->pkt_type = (__u16) dr.dev_opt;
+		mgmt_phy_configuration_changed(hdev, NULL);
 		break;
 
 	case HCISETACLMTU:
@@ -2661,12 +2720,22 @@ int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance)
 		hdev->cur_adv_instance = 0x00;
 	}
 
+	cancel_delayed_work_sync(&adv_instance->rpa_expired_cb);
+
 	list_del(&adv_instance->list);
 	kfree(adv_instance);
 
 	hdev->adv_instance_cnt--;
 
 	return 0;
+}
+
+void hci_adv_instances_set_rpa_expired(struct hci_dev *hdev, bool rpa_expired)
+{
+	struct adv_info *adv_instance, *n;
+
+	list_for_each_entry_safe(adv_instance, n, &hdev->adv_instances, list)
+		adv_instance->rpa_expired = rpa_expired;
 }
 
 /* This function requires the caller holds hdev->lock */
@@ -2680,12 +2749,23 @@ void hci_adv_instances_clear(struct hci_dev *hdev)
 	}
 
 	list_for_each_entry_safe(adv_instance, n, &hdev->adv_instances, list) {
+		cancel_delayed_work_sync(&adv_instance->rpa_expired_cb);
 		list_del(&adv_instance->list);
 		kfree(adv_instance);
 	}
 
 	hdev->adv_instance_cnt = 0;
 	hdev->cur_adv_instance = 0x00;
+}
+
+static void adv_instance_rpa_expired(struct work_struct *work)
+{
+	struct adv_info *adv_instance = container_of(work, struct adv_info,
+						     rpa_expired_cb.work);
+
+	BT_DBG("");
+
+	adv_instance->rpa_expired = true;
 }
 
 /* This function requires the caller holds hdev->lock */
@@ -2735,6 +2815,11 @@ int hci_add_adv_instance(struct hci_dev *hdev, u8 instance, u32 flags,
 		adv_instance->duration = HCI_DEFAULT_ADV_DURATION;
 	else
 		adv_instance->duration = duration;
+
+	adv_instance->tx_power = HCI_TX_POWER_INVALID;
+
+	INIT_DELAYED_WORK(&adv_instance->rpa_expired_cb,
+			  adv_instance_rpa_expired);
 
 	BT_DBG("%s for %dMR", hdev->name, instance);
 
@@ -2999,6 +3084,8 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->le_max_tx_time = 0x0148;
 	hdev->le_max_rx_len = 0x001b;
 	hdev->le_max_rx_time = 0x0148;
+	hdev->le_tx_def_phys = HCI_LE_SET_PHY_1M;
+	hdev->le_rx_def_phys = HCI_LE_SET_PHY_1M;
 
 	hdev->rpa_timeout = HCI_DEFAULT_RPA_TIMEOUT;
 	hdev->discov_interleaved_timeout = DISCOV_INTERLEAVED_TIMEOUT;
@@ -3017,6 +3104,7 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_LIST_HEAD(&hdev->identity_resolving_keys);
 	INIT_LIST_HEAD(&hdev->remote_oob_data);
 	INIT_LIST_HEAD(&hdev->le_white_list);
+	INIT_LIST_HEAD(&hdev->le_resolv_list);
 	INIT_LIST_HEAD(&hdev->le_conn_params);
 	INIT_LIST_HEAD(&hdev->pend_le_conns);
 	INIT_LIST_HEAD(&hdev->pend_le_reports);
@@ -3218,6 +3306,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	hci_remote_oob_data_clear(hdev);
 	hci_adv_instances_clear(hdev);
 	hci_bdaddr_list_clear(&hdev->le_white_list);
+	hci_bdaddr_list_clear(&hdev->le_resolv_list);
 	hci_conn_params_clear_all(hdev);
 	hci_discovery_filter_clear(hdev);
 	hci_dev_unlock(hdev);

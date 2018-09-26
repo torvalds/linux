@@ -31,6 +31,7 @@ static int of_gpiochip_match_node_and_xlate(struct gpio_chip *chip, void *data)
 	struct of_phandle_args *gpiospec = data;
 
 	return chip->gpiodev->dev.of_node == gpiospec->np &&
+				chip->of_xlate &&
 				chip->of_xlate(chip, gpiospec, NULL) >= 0;
 }
 
@@ -64,7 +65,8 @@ static void of_gpio_flags_quirks(struct device_node *np,
 	 * Note that active low is the default.
 	 */
 	if (IS_ENABLED(CONFIG_REGULATOR) &&
-	    (of_device_is_compatible(np, "reg-fixed-voltage") ||
+	    (of_device_is_compatible(np, "regulator-fixed") ||
+	     of_device_is_compatible(np, "reg-fixed-voltage") ||
 	     of_device_is_compatible(np, "regulator-gpio"))) {
 		/*
 		 * The regulator GPIO handles are specified such that the
@@ -619,9 +621,6 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip) { return 0; }
 int of_gpiochip_add(struct gpio_chip *chip)
 {
 	int status;
-
-	if ((!chip->of_node) && (chip->parent))
-		chip->of_node = chip->parent->of_node;
 
 	if (!chip->of_node)
 		return 0;

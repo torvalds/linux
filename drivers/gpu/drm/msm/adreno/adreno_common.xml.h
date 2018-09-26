@@ -8,17 +8,19 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    431 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  37162 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (  13324 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  31866 bytes, from 2017-06-06 18:26:14)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2017-05-17 13:21:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          ( 111898 bytes, from 2017-06-06 18:23:59)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a5xx.xml          ( 139480 bytes, from 2017-06-16 12:44:39)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/envytools/rnndb/adreno.xml               (    501 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml          (  36805 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml (  13634 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml    (  42393 bytes, from 2018-08-06 18:45:45)
+- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml          ( 112086 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-08-06 18:45:45)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml          ( 101627 bytes, from 2018-08-06 18:45:45)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml      (  10431 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2018-07-03 19:37:13)
 
-Copyright (C) 2013-2017 by the following authors:
+Copyright (C) 2013-2018 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -43,6 +45,14 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+
+enum chip {
+	A2XX = 0,
+	A3XX = 0,
+	A4XX = 0,
+	A5XX = 0,
+	A6XX = 0,
+};
 
 enum adreno_pa_su_sc_draw {
 	PC_DRAW_POINTS = 0,
@@ -179,6 +189,12 @@ enum a3xx_rb_blend_opcode {
 	BLEND_DST_MINUS_SRC = 2,
 	BLEND_MIN_DST_SRC = 3,
 	BLEND_MAX_DST_SRC = 4,
+};
+
+enum a4xx_tess_spacing {
+	EQUAL_SPACING = 0,
+	ODD_SPACING = 2,
+	EVEN_SPACING = 3,
 };
 
 #define REG_AXXX_CP_RB_BASE					0x000001c0

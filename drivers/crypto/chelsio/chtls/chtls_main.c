@@ -160,6 +160,7 @@ static void chtls_register_dev(struct chtls_dev *cdev)
 	tlsdev->hash = chtls_create_hash;
 	tlsdev->unhash = chtls_destroy_hash;
 	tls_register_device(&cdev->tlsdev);
+	cdev->cdev_state = CHTLS_CDEV_STATE_UP;
 }
 
 static void chtls_unregister_dev(struct chtls_dev *cdev)
@@ -281,8 +282,10 @@ static void chtls_free_all_uld(void)
 	struct chtls_dev *cdev, *tmp;
 
 	mutex_lock(&cdev_mutex);
-	list_for_each_entry_safe(cdev, tmp, &cdev_list, list)
-		chtls_free_uld(cdev);
+	list_for_each_entry_safe(cdev, tmp, &cdev_list, list) {
+		if (cdev->cdev_state == CHTLS_CDEV_STATE_UP)
+			chtls_free_uld(cdev);
+	}
 	mutex_unlock(&cdev_mutex);
 }
 

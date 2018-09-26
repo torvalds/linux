@@ -42,6 +42,7 @@
 #define LE_DCN_COMMON_REG_LIST(id) \
 	SRI(DIG_BE_CNTL, DIG, id), \
 	SRI(DIG_BE_EN_CNTL, DIG, id), \
+	SRI(TMDS_CTL_BITS, DIG, id), \
 	SRI(DP_CONFIG, DP, id), \
 	SRI(DP_DPHY_CNTL, DP, id), \
 	SRI(DP_DPHY_PRBS_CNTL, DP, id), \
@@ -63,6 +64,7 @@
 	SRI(DP_DPHY_BS_SR_SWAP_CNTL, DP, id), \
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \
 	SRI(DP_DPHY_HBR2_PATTERN_CONTROL, DP, id)
+
 
 #define LE_DCN10_REG_LIST(id)\
 	LE_DCN_COMMON_REG_LIST(id)
@@ -100,6 +102,7 @@ struct dcn10_link_enc_registers {
 	uint32_t DP_DPHY_BS_SR_SWAP_CNTL;
 	uint32_t DP_DPHY_HBR2_PATTERN_CONTROL;
 	uint32_t DP_SEC_CNTL1;
+	uint32_t TMDS_CTL_BITS;
 };
 
 #define LE_SF(reg_name, field_name, post_fix)\
@@ -110,6 +113,7 @@ struct dcn10_link_enc_registers {
 	LE_SF(DIG0_DIG_BE_CNTL, DIG_HPD_SELECT, mask_sh),\
 	LE_SF(DIG0_DIG_BE_CNTL, DIG_MODE, mask_sh),\
 	LE_SF(DIG0_DIG_BE_CNTL, DIG_FE_SOURCE_SELECT, mask_sh),\
+	LE_SF(DIG0_TMDS_CTL_BITS, TMDS_CTL0, mask_sh), \
 	LE_SF(DP0_DP_DPHY_CNTL, DPHY_BYPASS, mask_sh),\
 	LE_SF(DP0_DP_DPHY_CNTL, DPHY_ATEST_SEL_LANE0, mask_sh),\
 	LE_SF(DP0_DP_DPHY_CNTL, DPHY_ATEST_SEL_LANE1, mask_sh),\
@@ -198,10 +202,11 @@ struct dcn10_link_enc_registers {
 	type DP_MSE_SAT_SLOT_COUNT3;\
 	type DP_MSE_SAT_UPDATE;\
 	type DP_MSE_16_MTP_KEEPOUT;\
+	type DC_HPD_EN;\
+	type TMDS_CTL0;\
 	type AUX_HPD_SEL;\
 	type AUX_LS_READ_EN;\
-	type AUX_RX_RECEIVE_WINDOW;\
-	type DC_HPD_EN
+	type AUX_RX_RECEIVE_WINDOW
 
 struct dcn10_link_enc_shift {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
@@ -266,6 +271,10 @@ void dcn10_link_encoder_setup(
 	struct link_encoder *enc,
 	enum signal_type signal);
 
+void configure_encoder(
+	struct dcn10_link_encoder *enc10,
+	const struct dc_link_settings *link_settings);
+
 /* enables TMDS PHY output */
 /* TODO: still need depth or just pass in adjusted pixel clock? */
 void dcn10_link_encoder_enable_tmds_output(
@@ -326,5 +335,7 @@ void dcn10_psr_program_secondary_packet(struct link_encoder *enc,
 			unsigned int sdp_transmit_line_num_deadline);
 
 bool dcn10_is_dig_enabled(struct link_encoder *enc);
+
+void dcn10_aux_initialize(struct dcn10_link_encoder *enc10);
 
 #endif /* __DC_LINK_ENCODER__DCN10_H__ */

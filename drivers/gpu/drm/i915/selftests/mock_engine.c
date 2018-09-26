@@ -72,25 +72,34 @@ static void hw_delay_complete(struct timer_list *t)
 	spin_unlock(&engine->hw_lock);
 }
 
-static struct intel_ring *
+static void mock_context_unpin(struct intel_context *ce)
+{
+	i915_gem_context_put(ce->gem_context);
+}
+
+static void mock_context_destroy(struct intel_context *ce)
+{
+	GEM_BUG_ON(ce->pin_count);
+}
+
+static const struct intel_context_ops mock_context_ops = {
+	.unpin = mock_context_unpin,
+	.destroy = mock_context_destroy,
+};
+
+static struct intel_context *
 mock_context_pin(struct intel_engine_cs *engine,
 		 struct i915_gem_context *ctx)
 {
 	struct intel_context *ce = to_intel_context(ctx, engine);
 
-	if (!ce->pin_count++)
+	if (!ce->pin_count++) {
 		i915_gem_context_get(ctx);
+		ce->ring = engine->buffer;
+		ce->ops = &mock_context_ops;
+	}
 
-	return engine->buffer;
-}
-
-static void mock_context_unpin(struct intel_engine_cs *engine,
-			       struct i915_gem_context *ctx)
-{
-	struct intel_context *ce = to_intel_context(ctx, engine);
-
-	if (!--ce->pin_count)
-		i915_gem_context_put(ctx);
+	return ce;
 }
 
 static int mock_request_alloc(struct i915_request *request)
@@ -185,13 +194,14 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	engine->base.status_page.page_addr = (void *)(engine + 1);
 
 	engine->base.context_pin = mock_context_pin;
-	engine->base.context_unpin = mock_context_unpin;
 	engine->base.request_alloc = mock_request_alloc;
 	engine->base.emit_flush = mock_emit_flush;
 	engine->base.emit_breadcrumb = mock_emit_breadcrumb;
 	engine->base.submit_request = mock_submit_request;
 
 	i915_timeline_init(i915, &engine->base.timeline, engine->base.name);
+	lockdep_set_subclass(&engine->base.timeline.lock, TIMELINE_ENGINE);
+
 	intel_engine_init_breadcrumbs(&engine->base);
 	engine->base.breadcrumbs.mock = true; /* prevent touching HW for irqs */
 
@@ -204,8 +214,13 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	if (!engine->base.buffer)
 		goto err_breadcrumbs;
 
+	if (IS_ERR(intel_context_pin(i915->kernel_context, &engine->base)))
+		goto err_ring;
+
 	return &engine->base;
 
+err_ring:
+	mock_ring_free(engine->base.buffer);
 err_breadcrumbs:
 	intel_engine_fini_breadcrumbs(&engine->base);
 	i915_timeline_fini(&engine->base.timeline);
@@ -238,11 +253,15 @@ void mock_engine_free(struct intel_engine_cs *engine)
 {
 	struct mock_engine *mock =
 		container_of(engine, typeof(*mock), base);
+	struct intel_context *ce;
 
 	GEM_BUG_ON(timer_pending(&mock->hw_delay));
 
-	if (engine->last_retired_context)
-		intel_context_unpin(engine->last_retired_context, engine);
+	ce = fetch_and_zero(&engine->last_retired_context);
+	if (ce)
+		intel_context_unpin(ce);
+
+	__intel_context_unpin(engine->i915->kernel_context, engine);
 
 	mock_ring_free(engine->buffer);
 

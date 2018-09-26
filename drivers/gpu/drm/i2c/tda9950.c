@@ -76,8 +76,11 @@ struct tda9950_priv {
 static int tda9950_write_range(struct i2c_client *client, u8 addr, u8 *p, int cnt)
 {
 	struct i2c_msg msg;
-	u8 buf[cnt + 1];
+	u8 buf[CEC_MAX_MSG_SIZE + 3];
 	int ret;
+
+	if (WARN_ON(cnt > sizeof(buf) - 1))
+		return -EINVAL;
 
 	buf[0] = addr;
 	memcpy(buf + 1, p, cnt);

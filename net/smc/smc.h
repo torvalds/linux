@@ -21,8 +21,6 @@
 #define SMCPROTO_SMC		0	/* SMC protocol, IPv4 */
 #define SMCPROTO_SMC6		1	/* SMC protocol, IPv6 */
 
-#define SMC_MAX_PORTS		2	/* Max # of ports */
-
 extern struct proto smc_proto;
 extern struct proto smc_proto6;
 
@@ -185,6 +183,17 @@ struct smc_connection {
 	spinlock_t		acurs_lock;	/* protect cursors */
 #endif
 	struct work_struct	close_work;	/* peer sent some closing */
+	struct tasklet_struct	rx_tsklet;	/* Receiver tasklet for SMC-D */
+	u8			rx_off;		/* receive offset:
+						 * 0 for SMC-R, 32 for SMC-D
+						 */
+	u64			peer_token;	/* SMC-D token of peer */
+};
+
+struct smc_connect_info {
+	int			flags;
+	int			alen;
+	struct sockaddr		addr;
 };
 
 struct smc_sock {				/* smc sock container */
@@ -192,11 +201,15 @@ struct smc_sock {				/* smc sock container */
 	struct socket		*clcsock;	/* internal tcp socket */
 	struct smc_connection	conn;		/* smc connection */
 	struct smc_sock		*listen_smc;	/* listen parent */
+	struct smc_connect_info *connect_info;	/* connect address & flags */
+	struct work_struct	connect_work;	/* handle non-blocking connect*/
 	struct work_struct	tcp_listen_work;/* handle tcp socket accepts */
 	struct work_struct	smc_listen_work;/* prepare new accept socket */
 	struct list_head	accept_q;	/* sockets to be accepted */
 	spinlock_t		accept_q_lock;	/* protects accept_q */
 	bool			use_fallback;	/* fallback to tcp */
+	int			fallback_rsn;	/* reason for fallback */
+	u32			peer_diagnosis; /* decline reason from peer */
 	int			sockopt_defer_accept;
 						/* sockopt TCP_DEFER_ACCEPT
 						 * value

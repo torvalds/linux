@@ -367,14 +367,23 @@ struct phy_device *of_phy_get_and_connect(struct net_device *dev,
 	phy_interface_t iface;
 	struct device_node *phy_np;
 	struct phy_device *phy;
+	int ret;
 
 	iface = of_get_phy_mode(np);
 	if (iface < 0)
 		return NULL;
-
-	phy_np = of_parse_phandle(np, "phy-handle", 0);
-	if (!phy_np)
-		return NULL;
+	if (of_phy_is_fixed_link(np)) {
+		ret = of_phy_register_fixed_link(np);
+		if (ret < 0) {
+			netdev_err(dev, "broken fixed-link specification\n");
+			return NULL;
+		}
+		phy_np = of_node_get(np);
+	} else {
+		phy_np = of_parse_phandle(np, "phy-handle", 0);
+		if (!phy_np)
+			return NULL;
+	}
 
 	phy = of_phy_connect(dev, phy_np, hndlr, 0, iface);
 

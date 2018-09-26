@@ -11,8 +11,7 @@
 
 #define PROC_LIMIT (PAGE_SIZE - 80)
 
-
-#ifndef PRISM2_NO_PROCFS_DEBUG
+#if !defined(PRISM2_NO_PROCFS_DEBUG) && defined(CONFIG_PROC_FS)
 static int prism2_debug_proc_show(struct seq_file *m, void *v)
 {
 	local_info_t *local = m->private;
@@ -43,9 +42,9 @@ static int prism2_debug_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-#endif /* PRISM2_NO_PROCFS_DEBUG */
+#endif
 
-
+#ifdef CONFIG_PROC_FS
 static int prism2_stats_proc_show(struct seq_file *m, void *v)
 {
 	local_info_t *local = m->private;
@@ -82,6 +81,7 @@ static int prism2_stats_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
+#endif
 
 static int prism2_wds_proc_show(struct seq_file *m, void *v)
 {
@@ -174,6 +174,7 @@ static const struct seq_operations prism2_bss_list_proc_seqops = {
 	.show	= prism2_bss_list_proc_show,
 };
 
+#ifdef CONFIG_PROC_FS
 static int prism2_crypt_proc_show(struct seq_file *m, void *v)
 {
 	local_info_t *local = m->private;
@@ -190,6 +191,7 @@ static int prism2_crypt_proc_show(struct seq_file *m, void *v)
 	}
 	return 0;
 }
+#endif
 
 static ssize_t prism2_pda_proc_read(struct file *file, char __user *buf,
 				    size_t count, loff_t *_pos)

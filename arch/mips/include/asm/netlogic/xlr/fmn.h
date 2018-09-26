@@ -301,8 +301,6 @@ static inline int nlm_fmn_send(unsigned int size, unsigned int code,
 	for (i = 0; i < 8; i++) {
 		nlm_msgsnd(dest);
 		status = nlm_read_c2_status0();
-		if ((status & 0x2) == 1)
-			pr_info("Send pending fail!\n");
 		if ((status & 0x4) == 0)
 			return 0;
 	}

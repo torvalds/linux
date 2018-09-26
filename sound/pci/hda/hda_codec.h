@@ -84,6 +84,7 @@ struct hda_bus {
  */
 typedef int (*hda_codec_patch_t)(struct hda_codec *);
 	
+#define HDA_CODEC_ID_SKIP_PROBE		0x00000001
 #define HDA_CODEC_ID_GENERIC_HDMI	0x00000101
 #define HDA_CODEC_ID_GENERIC		0x00000201
 
@@ -258,6 +259,7 @@ struct hda_codec {
 	unsigned int power_save_node:1; /* advanced PM for each widget */
 	unsigned int auto_runtime_pm:1; /* enable automatic codec runtime pm */
 	unsigned int force_pin_prefix:1; /* Add location prefix */
+	unsigned int link_down_at_suspend:1; /* link down at runtime suspend */
 #ifdef CONFIG_PM
 	unsigned long power_on_acct;
 	unsigned long power_off_acct;
@@ -307,6 +309,8 @@ struct hda_codec {
  */
 int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 		      unsigned int codec_addr, struct hda_codec **codecp);
+int snd_hda_codec_device_new(struct hda_bus *bus, struct snd_card *card,
+		      unsigned int codec_addr, struct hda_codec *codec);
 int snd_hda_codec_configure(struct hda_codec *codec);
 int snd_hda_codec_update_widgets(struct hda_codec *codec);
 
@@ -380,9 +384,6 @@ snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 {
 	return snd_hdac_regmap_write(&codec->core, nid, verb, parm);
 }
-
-#define snd_hda_codec_update_cache(codec, nid, flags, verb, parm) \
-	snd_hda_codec_write_cache(codec, nid, flags, verb, parm)
 
 /* the struct for codec->pin_configs */
 struct hda_pincfg {

@@ -28,8 +28,6 @@ Required properties:
 		       - "rx" for SPRI,
 		       - "tx" to SPTI,
 		       - "mux" for a single muxed interrupt.
-- interrupt-parent : The phandle for the interrupt controller that
-		     services interrupts for this device.
 - num-cs	   : Number of chip selects. Some RSPI cores have more than 1.
 - #address-cells   : Must be <1>
 - #size-cells      : Must be <0>

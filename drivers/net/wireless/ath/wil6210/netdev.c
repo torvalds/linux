@@ -120,6 +120,27 @@ static int wil6210_netdev_poll_rx(struct napi_struct *napi, int budget)
 	return done;
 }
 
+static int wil6210_netdev_poll_rx_edma(struct napi_struct *napi, int budget)
+{
+	struct wil6210_priv *wil = container_of(napi, struct wil6210_priv,
+						napi_rx);
+	int quota = budget;
+	int done;
+
+	wil_rx_handle_edma(wil, &quota);
+	done = budget - quota;
+
+	if (done < budget) {
+		napi_complete_done(napi, done);
+		wil6210_unmask_irq_rx_edma(wil);
+		wil_dbg_txrx(wil, "NAPI RX complete\n");
+	}
+
+	wil_dbg_txrx(wil, "NAPI RX poll(%d) done %d\n", budget, done);
+
+	return done;
+}
+
 static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 {
 	struct wil6210_priv *wil = container_of(napi, struct wil6210_priv,
@@ -129,11 +150,11 @@ static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 
 	/* always process ALL Tx complete, regardless budget - it is fast */
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
-		struct vring *vring = &wil->vring_tx[i];
-		struct vring_tx_data *txdata = &wil->vring_tx_data[i];
+		struct wil_ring *ring = &wil->ring_tx[i];
+		struct wil_ring_tx_data *txdata = &wil->ring_tx_data[i];
 		struct wil6210_vif *vif;
 
-		if (!vring->va || !txdata->enabled ||
+		if (!ring->va || !txdata->enabled ||
 		    txdata->mid >= wil->max_vifs)
 			continue;
 
@@ -149,6 +170,30 @@ static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 	if (tx_done < budget) {
 		napi_complete(napi);
 		wil6210_unmask_irq_tx(wil);
+		wil_dbg_txrx(wil, "NAPI TX complete\n");
+	}
+
+	wil_dbg_txrx(wil, "NAPI TX poll(%d) done %d\n", budget, tx_done);
+
+	return min(tx_done, budget);
+}
+
+static int wil6210_netdev_poll_tx_edma(struct napi_struct *napi, int budget)
+{
+	struct wil6210_priv *wil = container_of(napi, struct wil6210_priv,
+						napi_tx);
+	int tx_done;
+	/* There is only one status TX ring */
+	struct wil_status_ring *sring = &wil->srings[wil->tx_sring_idx];
+
+	if (!sring->va)
+		return 0;
+
+	tx_done = wil_tx_sring_handler(wil, sring);
+
+	if (tx_done < budget) {
+		napi_complete(napi);
+		wil6210_unmask_irq_tx_edma(wil);
 		wil_dbg_txrx(wil, "NAPI TX complete\n");
 	}
 
@@ -228,7 +273,7 @@ static void wil_p2p_discovery_timer_fn(struct timer_list *t)
 
 static void wil_vif_init(struct wil6210_vif *vif)
 {
-	vif->bcast_vring = -1;
+	vif->bcast_ring = -1;
 
 	mutex_init(&vif->probe_client_mutex);
 
@@ -418,11 +463,21 @@ int wil_if_add(struct wil6210_priv *wil)
 	}
 
 	init_dummy_netdev(&wil->napi_ndev);
-	netif_napi_add(&wil->napi_ndev, &wil->napi_rx, wil6210_netdev_poll_rx,
-		       WIL6210_NAPI_BUDGET);
-	netif_tx_napi_add(&wil->napi_ndev,
-			  &wil->napi_tx, wil6210_netdev_poll_tx,
-			  WIL6210_NAPI_BUDGET);
+	if (wil->use_enhanced_dma_hw) {
+		netif_napi_add(&wil->napi_ndev, &wil->napi_rx,
+			       wil6210_netdev_poll_rx_edma,
+			       WIL6210_NAPI_BUDGET);
+		netif_tx_napi_add(&wil->napi_ndev,
+				  &wil->napi_tx, wil6210_netdev_poll_tx_edma,
+				  WIL6210_NAPI_BUDGET);
+	} else {
+		netif_napi_add(&wil->napi_ndev, &wil->napi_rx,
+			       wil6210_netdev_poll_rx,
+			       WIL6210_NAPI_BUDGET);
+		netif_tx_napi_add(&wil->napi_ndev,
+				  &wil->napi_tx, wil6210_netdev_poll_tx,
+				  WIL6210_NAPI_BUDGET);
+	}
 
 	wil_update_net_queues_bh(wil, vif, NULL, true);
 

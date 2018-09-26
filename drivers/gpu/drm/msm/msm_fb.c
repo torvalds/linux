@@ -17,6 +17,7 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "msm_drv.h"
 #include "msm_kms.h"
@@ -25,49 +26,20 @@
 struct msm_framebuffer {
 	struct drm_framebuffer base;
 	const struct msm_format *format;
-	struct drm_gem_object *planes[MAX_PLANE];
 };
 #define to_msm_framebuffer(x) container_of(x, struct msm_framebuffer, base)
 
 static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
 
-static int msm_framebuffer_create_handle(struct drm_framebuffer *fb,
-		struct drm_file *file_priv,
-		unsigned int *handle)
-{
-	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
-	return drm_gem_handle_create(file_priv,
-			msm_fb->planes[0], handle);
-}
-
-static void msm_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
-	int i, n = fb->format->num_planes;
-
-	DBG("destroy: FB ID: %d (%p)", fb->base.id, fb);
-
-	drm_framebuffer_cleanup(fb);
-
-	for (i = 0; i < n; i++) {
-		struct drm_gem_object *bo = msm_fb->planes[i];
-
-		drm_gem_object_put_unlocked(bo);
-	}
-
-	kfree(msm_fb);
-}
-
 static const struct drm_framebuffer_funcs msm_framebuffer_funcs = {
-	.create_handle = msm_framebuffer_create_handle,
-	.destroy = msm_framebuffer_destroy,
+	.create_handle = drm_gem_fb_create_handle,
+	.destroy = drm_gem_fb_destroy,
 };
 
 #ifdef CONFIG_DEBUG_FS
 void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 {
-	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
 	int i, n = fb->format->num_planes;
 
 	seq_printf(m, "fb: %dx%d@%4.4s (%2d, ID:%d)\n",
@@ -77,7 +49,7 @@ void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 	for (i = 0; i < n; i++) {
 		seq_printf(m, "   %d: offset=%d pitch=%d, obj: ",
 				i, fb->offsets[i], fb->pitches[i]);
-		msm_gem_describe(msm_fb->planes[i], m);
+		msm_gem_describe(fb->obj[i], m);
 	}
 }
 #endif
@@ -90,12 +62,11 @@ void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 int msm_framebuffer_prepare(struct drm_framebuffer *fb,
 		struct msm_gem_address_space *aspace)
 {
-	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
 	int ret, i, n = fb->format->num_planes;
 	uint64_t iova;
 
 	for (i = 0; i < n; i++) {
-		ret = msm_gem_get_iova(msm_fb->planes[i], aspace, &iova);
+		ret = msm_gem_get_iova(fb->obj[i], aspace, &iova);
 		DBG("FB[%u]: iova[%d]: %08llx (%d)", fb->base.id, i, iova, ret);
 		if (ret)
 			return ret;
@@ -107,26 +78,23 @@ int msm_framebuffer_prepare(struct drm_framebuffer *fb,
 void msm_framebuffer_cleanup(struct drm_framebuffer *fb,
 		struct msm_gem_address_space *aspace)
 {
-	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
 	int i, n = fb->format->num_planes;
 
 	for (i = 0; i < n; i++)
-		msm_gem_put_iova(msm_fb->planes[i], aspace);
+		msm_gem_put_iova(fb->obj[i], aspace);
 }
 
 uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb,
 		struct msm_gem_address_space *aspace, int plane)
 {
-	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
-	if (!msm_fb->planes[plane])
+	if (!fb->obj[plane])
 		return 0;
-	return msm_gem_iova(msm_fb->planes[plane], aspace) + fb->offsets[plane];
+	return msm_gem_iova(fb->obj[plane], aspace) + fb->offsets[plane];
 }
 
 struct drm_gem_object *msm_framebuffer_bo(struct drm_framebuffer *fb, int plane)
 {
-	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
-	return msm_fb->planes[plane];
+	return drm_gem_fb_get_obj(fb, plane);
 }
 
 const struct msm_format *msm_framebuffer_format(struct drm_framebuffer *fb)
@@ -202,7 +170,7 @@ static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 
 	msm_fb->format = format;
 
-	if (n > ARRAY_SIZE(msm_fb->planes)) {
+	if (n > ARRAY_SIZE(fb->obj)) {
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -221,7 +189,7 @@ static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 			goto fail;
 		}
 
-		msm_fb->planes[i] = bos[i];
+		msm_fb->base.obj[i] = bos[i];
 	}
 
 	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);

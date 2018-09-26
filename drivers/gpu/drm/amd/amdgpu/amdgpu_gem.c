@@ -265,7 +265,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	r = amdgpu_gem_object_create(adev, size, args->in.alignment,
 				     (u32)(0xffffffff & args->in.domains),
-				     flags, false, resv, &gobj);
+				     flags, ttm_bo_type_device, resv, &gobj);
 	if (flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID) {
 		if (!r) {
 			struct amdgpu_bo *abo = gem_to_amdgpu_bo(gobj);
@@ -317,7 +317,7 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 
 	/* create a gem object to contain this object in */
 	r = amdgpu_gem_object_create(adev, args->size, 0, AMDGPU_GEM_DOMAIN_CPU,
-				     0, 0, NULL, &gobj);
+				     0, ttm_bo_type_device, NULL, &gobj);
 	if (r)
 		return r;
 
@@ -344,7 +344,7 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 		if (r)
 			goto free_pages;
 
-		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
+		amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
 		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		amdgpu_bo_unreserve(bo);
 		if (r)
@@ -510,7 +510,6 @@ out:
  * @adev: amdgpu_device pointer
  * @vm: vm to update
  * @bo_va: bo_va to update
- * @list: validation list
  * @operation: map, unmap or clear
  *
  * Update the bo_va directly after setting its address. Errors are not
@@ -519,7 +518,6 @@ out:
 static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 				    struct amdgpu_vm *vm,
 				    struct amdgpu_bo_va *bo_va,
-				    struct list_head *list,
 				    uint32_t operation)
 {
 	int r;
@@ -612,7 +610,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 			return -ENOENT;
 		abo = gem_to_amdgpu_bo(gobj);
 		tv.bo = &abo->tbo;
-		tv.shared = false;
+		tv.shared = !!(abo->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID);
 		list_add(&tv.head, &list);
 	} else {
 		gobj = NULL;
@@ -673,7 +671,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		break;
 	}
 	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) && !amdgpu_vm_debug)
-		amdgpu_gem_va_update_vm(adev, &fpriv->vm, bo_va, &list,
+		amdgpu_gem_va_update_vm(adev, &fpriv->vm, bo_va,
 					args->operation);
 
 error_backoff:
@@ -768,7 +766,7 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 				amdgpu_display_supported_domains(adev));
 	r = amdgpu_gem_object_create(adev, args->size, 0, domain,
 				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-				     false, NULL, &gobj);
+				     ttm_bo_type_device, NULL, &gobj);
 	if (r)
 		return -ENOMEM;
 

@@ -369,9 +369,9 @@ static int setup_corb_rirb(struct lola *chip)
 		return err;
 
 	chip->corb.addr = chip->rb.addr;
-	chip->corb.buf = (u32 *)chip->rb.area;
+	chip->corb.buf = (__le32 *)chip->rb.area;
 	chip->rirb.addr = chip->rb.addr + 2048;
-	chip->rirb.buf = (u32 *)(chip->rb.area + 2048);
+	chip->rirb.buf = (__le32 *)(chip->rb.area + 2048);
 
 	/* disable ringbuffer DMAs */
 	lola_writeb(chip, BAR0, RIRBCTL, 0);

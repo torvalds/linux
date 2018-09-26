@@ -41,6 +41,8 @@ Optional properties:
 -lanes-per-direction	: number of lanes available per direction - either 1 or 2.
 			  Note that it is assume same number of lanes is used both
 			  directions at once. If not specified, default is 2 lanes per direction.
+- resets            : reset node register
+- reset-names       : describe reset node register, the "rst" corresponds to reset the whole UFS IP.
 
 Note: If above properties are not defined it can be assumed that the supply
 regulators or clocks are always on.
@@ -61,9 +63,11 @@ Example:
 		vccq-max-microamp = 200000;
 		vccq2-max-microamp = 200000;
 
-		clocks = <&core 0>, <&ref 0>, <&iface 0>;
-		clock-names = "core_clk", "ref_clk", "iface_clk";
-		freq-table-hz = <100000000 200000000>, <0 0>, <0 0>;
+		clocks = <&core 0>, <&ref 0>, <&phy 0>, <&iface 0>;
+		clock-names = "core_clk", "ref_clk", "phy_clk", "iface_clk";
+		freq-table-hz = <100000000 200000000>, <0 0>, <0 0>, <0 0>;
+		resets = <&reset 0 1>;
+		reset-names = "rst";
 		phys = <&ufsphy1>;
 		phy-names = "ufsphy";
 	};

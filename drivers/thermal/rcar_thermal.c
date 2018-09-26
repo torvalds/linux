@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  R-Car THS/TSC thermal sensor driver
  *
  * Copyright (C) 2012 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
  */
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -598,7 +586,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 			enr_bits |= 3 << (i * 8);
 	}
 
-	if (enr_bits)
+	if (common->base && enr_bits)
 		rcar_thermal_common_write(common, ENR, enr_bits);
 
 	dev_info(dev, "%d sensor probed\n", i);
@@ -660,6 +648,6 @@ static struct platform_driver rcar_thermal_driver = {
 };
 module_platform_driver(rcar_thermal_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("R-Car THS/TSC thermal sensor driver");
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");

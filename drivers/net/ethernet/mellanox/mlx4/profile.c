@@ -105,7 +105,8 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 	request->num_mtt =
 		roundup_pow_of_two(max_t(unsigned, request->num_mtt,
 					 min(1UL << (31 - log_mtts_per_seg),
-					     si.totalram >> (log_mtts_per_seg - 1))));
+					     (si.totalram << 1) >> log_mtts_per_seg)));
+
 
 	profile[MLX4_RES_QP].size     = dev_cap->qpc_entry_sz;
 	profile[MLX4_RES_RDMARC].size = dev_cap->rdmarc_entry_sz;

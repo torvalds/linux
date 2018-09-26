@@ -321,7 +321,6 @@ static int epic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	static int card_idx = -1;
 	void __iomem *ioaddr;
 	int chip_idx = (int) ent->driver_data;
-	int irq;
 	struct net_device *dev;
 	struct epic_private *ep;
 	int i, ret, option = 0, duplex = 0;
@@ -338,7 +337,6 @@ static int epic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = pci_enable_device(pdev);
 	if (ret)
 		goto out;
-	irq = pdev->irq;
 
 	if (pci_resource_len(pdev, 0) < EPIC_TOTAL_SIZE) {
 		dev_err(&pdev->dev, "no PCI region space\n");

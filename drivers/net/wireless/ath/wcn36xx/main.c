@@ -493,7 +493,7 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 {
 	struct wcn36xx *wcn = hw->priv;
 	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
-	struct wcn36xx_sta *sta_priv = wcn36xx_sta_to_priv(sta);
+	struct wcn36xx_sta *sta_priv = sta ? wcn36xx_sta_to_priv(sta) : NULL;
 	int ret = 0;
 	u8 key[WLAN_MAX_KEY_LEN];
 
@@ -512,7 +512,7 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		vif_priv->encrypt_type = WCN36XX_HAL_ED_WEP40;
 		break;
 	case WLAN_CIPHER_SUITE_WEP104:
-		vif_priv->encrypt_type = WCN36XX_HAL_ED_WEP40;
+		vif_priv->encrypt_type = WCN36XX_HAL_ED_WEP104;
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		vif_priv->encrypt_type = WCN36XX_HAL_ED_CCMP;
@@ -567,15 +567,19 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 				key_conf->keyidx,
 				key_conf->keylen,
 				key);
+
 			if ((WLAN_CIPHER_SUITE_WEP40 == key_conf->cipher) ||
 			    (WLAN_CIPHER_SUITE_WEP104 == key_conf->cipher)) {
-				sta_priv->is_data_encrypted = true;
-				wcn36xx_smd_set_stakey(wcn,
-					vif_priv->encrypt_type,
-					key_conf->keyidx,
-					key_conf->keylen,
-					key,
-					get_sta_index(vif, sta_priv));
+				list_for_each_entry(sta_priv,
+						    &vif_priv->sta_list, list) {
+					sta_priv->is_data_encrypted = true;
+					wcn36xx_smd_set_stakey(wcn,
+						vif_priv->encrypt_type,
+						key_conf->keyidx,
+						key_conf->keylen,
+						key,
+						get_sta_index(vif, sta_priv));
+				}
 			}
 		}
 		break;
@@ -984,6 +988,7 @@ static int wcn36xx_add_interface(struct ieee80211_hw *hw,
 	mutex_lock(&wcn->conf_mutex);
 
 	vif_priv->bss_index = WCN36XX_HAL_BSS_INVALID_IDX;
+	INIT_LIST_HEAD(&vif_priv->sta_list);
 	list_add(&vif_priv->list, &wcn->vif_list);
 	wcn36xx_smd_add_sta_self(wcn, vif);
 
@@ -1005,6 +1010,8 @@ static int wcn36xx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	spin_lock_init(&sta_priv->ampdu_lock);
 	sta_priv->vif = vif_priv;
+	list_add(&sta_priv->list, &vif_priv->sta_list);
+
 	/*
 	 * For STA mode HW will be configured on BSS_CHANGED_ASSOC because
 	 * at this stage AID is not available yet.
@@ -1032,6 +1039,7 @@ static int wcn36xx_sta_remove(struct ieee80211_hw *hw,
 
 	mutex_lock(&wcn->conf_mutex);
 
+	list_del(&sta_priv->list);
 	wcn36xx_smd_delete_sta(wcn, sta_priv->sta_index);
 	sta_priv->vif = NULL;
 
@@ -1153,8 +1161,6 @@ static const struct ieee80211_ops wcn36xx_ops = {
 
 static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 {
-	int ret = 0;
-
 	static const u32 cipher_suites[] = {
 		WLAN_CIPHER_SUITE_WEP40,
 		WLAN_CIPHER_SUITE_WEP104,
@@ -1201,7 +1207,7 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 	wiphy_ext_feature_set(wcn->hw->wiphy,
 			      NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
-	return ret;
+	return 0;
 }
 
 static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,

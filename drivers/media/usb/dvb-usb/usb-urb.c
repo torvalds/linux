@@ -33,7 +33,7 @@ static void usb_urb_complete(struct urb *urb)
 		case -ESHUTDOWN:
 			return;
 		default:        /* error */
-			deb_ts("urb completition error %d.\n", urb->status);
+			deb_ts("urb completion error %d.\n", urb->status);
 			break;
 	}
 
@@ -57,7 +57,7 @@ static void usb_urb_complete(struct urb *urb)
 				stream->complete(stream, b, urb->actual_length);
 			break;
 		default:
-			err("unknown endpoint type in completition handler.");
+			err("unknown endpoint type in completion handler.");
 			return;
 	}
 	usb_submit_urb(urb,GFP_ATOMIC);

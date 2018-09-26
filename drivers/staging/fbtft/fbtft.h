@@ -64,16 +64,16 @@ struct fbtft_ops {
 	void (*write_register)(struct fbtft_par *par, int len, ...);
 
 	void (*set_addr_win)(struct fbtft_par *par,
-		int xs, int ys, int xe, int ye);
+			     int xs, int ys, int xe, int ye);
 	void (*reset)(struct fbtft_par *par);
 	void (*mkdirty)(struct fb_info *info, int from, int to);
 	void (*update_display)(struct fbtft_par *par,
-				unsigned int start_line, unsigned int end_line);
+			       unsigned int start_line, unsigned int end_line);
 	int (*init_display)(struct fbtft_par *par);
 	int (*blank)(struct fbtft_par *par, bool on);
 
 	unsigned long (*request_gpios_match)(struct fbtft_par *par,
-		const struct fbtft_gpio *gpio);
+					     const struct fbtft_gpio *gpio);
 	int (*request_gpios)(struct fbtft_par *par);
 	int (*verify_gpios)(struct fbtft_par *par);
 
@@ -234,8 +234,8 @@ struct fbtft_par {
 
 #define NUMARGS(...)  (sizeof((int[]){__VA_ARGS__})/sizeof(int))
 
-#define write_reg(par, ...)                                              \
-	par->fbtftops.write_register(par, NUMARGS(__VA_ARGS__), __VA_ARGS__)
+#define write_reg(par, ...)                                            \
+	((par)->fbtftops.write_register(par, NUMARGS(__VA_ARGS__), __VA_ARGS__))
 
 /* fbtft-core.c */
 int fbtft_write_buf_dc(struct fbtft_par *par, void *buf, size_t len, int dc);
@@ -404,8 +404,9 @@ do {                                                         \
 
 #define fbtft_par_dbg_hex(level, par, dev, type, buf, num, format, arg...) \
 do {                                                                       \
-	if (unlikely(par->debug & level))                                  \
-		fbtft_dbg_hex(dev, sizeof(type), buf, num * sizeof(type), format, ##arg); \
+	if (unlikely((par)->debug & (level)))                                  \
+		fbtft_dbg_hex(dev, sizeof(type), buf,\
+			      (num) * sizeof(type), format, ##arg); \
 } while (0)
 
 #endif /* __LINUX_FBTFT_H */

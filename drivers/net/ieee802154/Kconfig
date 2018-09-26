@@ -115,3 +115,14 @@ config IEEE802154_MCR20A
 
 	  This driver can also be built as a module. To do so, say M here.
 	  the module will be called 'mcr20a'.
+
+config IEEE802154_HWSIM
+	depends on IEEE802154_DRIVERS && MAC802154
+	tristate "Simulated radio testing tool for mac802154"
+	---help---
+	  This driver is a developer testing tool that can be used to test
+	  IEEE 802.15.4 networking stack (mac802154) functionality. This is not
+	  needed for normal wpan usage and is only for testing.
+
+	  This driver can also be built as a module. To do so say M here.
+	  The module will be called 'mac802154_hwsim'.

@@ -157,6 +157,7 @@ __xfs_ag_resv_free(
 	error = xfs_mod_fdblocks(pag->pag_mount, oldresv, true);
 	resv->ar_reserved = 0;
 	resv->ar_asked = 0;
+	resv->ar_orig_reserved = 0;
 
 	if (error)
 		trace_xfs_ag_resv_free_error(pag->pag_mount, pag->pag_agno,
@@ -189,13 +190,34 @@ __xfs_ag_resv_init(
 	struct xfs_mount		*mp = pag->pag_mount;
 	struct xfs_ag_resv		*resv;
 	int				error;
-	xfs_extlen_t			reserved;
+	xfs_extlen_t			hidden_space;
 
 	if (used > ask)
 		ask = used;
-	reserved = ask - used;
 
-	error = xfs_mod_fdblocks(mp, -(int64_t)reserved, true);
+	switch (type) {
+	case XFS_AG_RESV_RMAPBT:
+		/*
+		 * Space taken by the rmapbt is not subtracted from fdblocks
+		 * because the rmapbt lives in the free space.  Here we must
+		 * subtract the entire reservation from fdblocks so that we
+		 * always have blocks available for rmapbt expansion.
+		 */
+		hidden_space = ask;
+		break;
+	case XFS_AG_RESV_METADATA:
+		/*
+		 * Space taken by all other metadata btrees are accounted
+		 * on-disk as used space.  We therefore only hide the space
+		 * that is reserved but not used by the trees.
+		 */
+		hidden_space = ask - used;
+		break;
+	default:
+		ASSERT(0);
+		return -EINVAL;
+	}
+	error = xfs_mod_fdblocks(mp, -(int64_t)hidden_space, true);
 	if (error) {
 		trace_xfs_ag_resv_init_error(pag->pag_mount, pag->pag_agno,
 				error, _RET_IP_);
@@ -216,7 +238,8 @@ __xfs_ag_resv_init(
 
 	resv = xfs_perag_resv(pag, type);
 	resv->ar_asked = ask;
-	resv->ar_reserved = resv->ar_orig_reserved = reserved;
+	resv->ar_orig_reserved = hidden_space;
+	resv->ar_reserved = ask - used;
 
 	trace_xfs_ag_resv_init(pag, type, ask);
 	return 0;
@@ -225,7 +248,8 @@ __xfs_ag_resv_init(
 /* Create a per-AG block reservation. */
 int
 xfs_ag_resv_init(
-	struct xfs_perag		*pag)
+	struct xfs_perag		*pag,
+	struct xfs_trans		*tp)
 {
 	struct xfs_mount		*mp = pag->pag_mount;
 	xfs_agnumber_t			agno = pag->pag_agno;
@@ -237,11 +261,11 @@ xfs_ag_resv_init(
 	if (pag->pag_meta_resv.ar_asked == 0) {
 		ask = used = 0;
 
-		error = xfs_refcountbt_calc_reserves(mp, agno, &ask, &used);
+		error = xfs_refcountbt_calc_reserves(mp, tp, agno, &ask, &used);
 		if (error)
 			goto out;
 
-		error = xfs_finobt_calc_reserves(mp, agno, &ask, &used);
+		error = xfs_finobt_calc_reserves(mp, tp, agno, &ask, &used);
 		if (error)
 			goto out;
 
@@ -259,7 +283,7 @@ xfs_ag_resv_init(
 
 			mp->m_inotbt_nores = true;
 
-			error = xfs_refcountbt_calc_reserves(mp, agno, &ask,
+			error = xfs_refcountbt_calc_reserves(mp, tp, agno, &ask,
 					&used);
 			if (error)
 				goto out;
@@ -275,7 +299,7 @@ xfs_ag_resv_init(
 	if (pag->pag_rmapbt_resv.ar_asked == 0) {
 		ask = used = 0;
 
-		error = xfs_rmapbt_calc_reserves(mp, agno, &ask, &used);
+		error = xfs_rmapbt_calc_reserves(mp, tp, agno, &ask, &used);
 		if (error)
 			goto out;
 
@@ -286,7 +310,7 @@ xfs_ag_resv_init(
 
 #ifdef DEBUG
 	/* need to read in the AGF for the ASSERT below to work */
-	error = xfs_alloc_pagf_init(pag->pag_mount, NULL, pag->pag_agno, 0);
+	error = xfs_alloc_pagf_init(pag->pag_mount, tp, pag->pag_agno, 0);
 	if (error)
 		return error;
 

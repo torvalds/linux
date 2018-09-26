@@ -198,12 +198,24 @@ int node_affinity_init(void)
 		while ((dev = pci_get_device(ids->vendor, ids->device, dev))) {
 			node = pcibus_to_node(dev->bus);
 			if (node < 0)
-				node = numa_node_id();
+				goto out;
 
 			hfi1_per_node_cntr[node]++;
 		}
 		ids++;
 	}
+
+	return 0;
+
+out:
+	/*
+	 * Invalid PCI NUMA node information found, note it, and populate
+	 * our database 1:1.
+	 */
+	pr_err("HFI: Invalid PCI NUMA node. Performance may be affected\n");
+	pr_err("HFI: System BIOS may need to be upgraded\n");
+	for (node = 0; node < node_affinity.num_possible_nodes; node++)
+		hfi1_per_node_cntr[node] = 1;
 
 	return 0;
 }
@@ -622,8 +634,14 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 	int curr_cpu, possible, i, ret;
 	bool new_entry = false;
 
-	if (node < 0)
-		node = numa_node_id();
+	/*
+	 * If the BIOS does not have the NUMA node information set, select
+	 * NUMA 0 so we get consistent performance.
+	 */
+	if (node < 0) {
+		dd_dev_err(dd, "Invalid PCI NUMA node. Performance may be affected\n");
+		node = 0;
+	}
 	dd->node = node;
 
 	local_mask = cpumask_of_node(dd->node);

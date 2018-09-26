@@ -1,3 +1,5 @@
+menu "Kernel hacking"
+
 menu "printk and dmesg options"
 
 config PRINTK_TIME
@@ -29,6 +31,17 @@ config CONSOLE_LOGLEVEL_DEFAULT
 	  Note: This does not affect the log level of un-prefixed printk()
 	  usage in the kernel. That is controlled by the MESSAGE_LOGLEVEL_DEFAULT
 	  option.
+
+config CONSOLE_LOGLEVEL_QUIET
+	int "quiet console loglevel (1-15)"
+	range 1 15
+	default "4"
+	help
+	  loglevel to use when "quiet" is passed on the kernel commandline.
+
+	  When "quiet" is passed on the kernel commandline this loglevel
+	  will be used as the loglevel. IOW passing "quiet" will be the
+	  equivalent of passing "loglevel=<CONSOLE_LOGLEVEL_QUIET>"
 
 config MESSAGE_LOGLEVEL_DEFAULT
 	int "Default message log level (1-7)"
@@ -197,14 +210,6 @@ config GDB_SCRIPTS
 	  additional functions are available to analyze a Linux kernel
 	  instance. See Documentation/dev-tools/gdb-kernel-debugging.rst
 	  for further details.
-
-config ENABLE_WARN_DEPRECATED
-	bool "Enable __deprecated logic"
-	default y
-	help
-	  Enable the __deprecated logic in the kernel build.
-	  Disable this to suppress the "warning: 'foo' is deprecated
-	  (declared at kernel/power/somefile.c:1234)" messages.
 
 config ENABLE_MUST_CHECK
 	bool "Enable __must_check logic"
@@ -1193,6 +1198,7 @@ config DEBUG_ATOMIC_SLEEP
 	bool "Sleep inside atomic section checking"
 	select PREEMPT_COUNT
 	depends on DEBUG_KERNEL
+	depends on !ARCH_NO_PREEMPT
 	help
 	  If you say Y here, various routines which may sleep will become very
 	  noisy if they are called inside atomic sections: when a spinlock is
@@ -1214,7 +1220,6 @@ config LOCK_TORTURE_TEST
 	tristate "torture tests for locking"
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
-	default n
 	help
 	  This option provides a kernel module that runs torture tests
 	  on kernel locking primitives.  The kernel module may be built
@@ -1272,13 +1277,13 @@ config WARN_ALL_UNSEEDED_RANDOM
 	  time.  This is really bad from a security perspective, and
 	  so architecture maintainers really need to do what they can
 	  to get the CRNG seeded sooner after the system is booted.
-	  However, since users can not do anything actionble to
+	  However, since users cannot do anything actionable to
 	  address this, by default the kernel will issue only a single
 	  warning for the first use of unseeded randomness.
 
 	  Say Y here if you want to receive warnings for all uses of
 	  unseeded randomness.  This will be of use primarily for
-	  those developers interersted in improving the security of
+	  those developers interested in improving the security of
 	  Linux kernels running on their architecture (or
 	  subarchitecture).
 
@@ -1681,7 +1686,6 @@ config LKDTM
 	tristate "Linux Kernel Dump Test Tool Module"
 	depends on DEBUG_FS
 	depends on BLOCK
-	default n
 	help
 	This module enables testing of the different dumping mechanisms by
 	inducing system failures at predefined crash points.
@@ -1715,10 +1719,9 @@ config KPROBES_SANITY_TEST
 	bool "Kprobes sanity tests"
 	depends on DEBUG_KERNEL
 	depends on KPROBES
-	default n
 	help
 	  This option provides for testing basic kprobes functionality on
-	  boot. A sample kprobe, jprobe and kretprobe are inserted and
+	  boot. Samples of kprobe and kretprobe are inserted and
 	  verified for functionality.
 
 	  Say N if you are unsure.
@@ -1726,7 +1729,6 @@ config KPROBES_SANITY_TEST
 config BACKTRACE_SELF_TEST
 	tristate "Self test for the backtrace code"
 	depends on DEBUG_KERNEL
-	default n
 	help
 	  This option provides a kernel module that can be used to test
 	  the kernel stack backtrace code. This option is not useful
@@ -1796,9 +1798,15 @@ config TEST_PRINTF
 
 config TEST_BITMAP
 	tristate "Test bitmap_*() family of functions at runtime"
-	default n
 	help
 	  Enable this option to test the bitmap functions at boot.
+
+	  If unsure, say N.
+
+config TEST_BITFIELD
+	tristate "Test bitfield functions at runtime"
+	help
+	  Enable this option to test the bitfield functions at boot.
 
 	  If unsure, say N.
 
@@ -1810,7 +1818,6 @@ config TEST_OVERFLOW
 
 config TEST_RHASHTABLE
 	tristate "Perform selftest on resizable hash table"
-	default n
 	help
 	  Enable this option to test the rhashtable functions at boot.
 
@@ -1818,7 +1825,6 @@ config TEST_RHASHTABLE
 
 config TEST_HASH
 	tristate "Perform selftest on hash functions"
-	default n
 	help
 	  Enable this option to test the kernel's integer (<linux/hash.h>),
 	  string (<linux/stringhash.h>), and siphash (<linux/siphash.h>)
@@ -1827,9 +1833,11 @@ config TEST_HASH
 	  This is intended to help people writing architecture-specific
 	  optimized versions.  If unsure, say N.
 
+config TEST_IDA
+	tristate "Perform selftest on IDA functions"
+
 config TEST_PARMAN
 	tristate "Perform selftest on priority array manager"
-	default n
 	depends on PARMAN
 	help
 	  Enable this option to test priority array manager on boot
@@ -1839,7 +1847,6 @@ config TEST_PARMAN
 
 config TEST_LKM
 	tristate "Test module loading with 'hello world' module"
-	default n
 	depends on m
 	help
 	  This builds the "test_module" module that emits "Hello, world"
@@ -1853,7 +1860,6 @@ config TEST_LKM
 
 config TEST_USER_COPY
 	tristate "Test user/kernel boundary protections"
-	default n
 	depends on m
 	help
 	  This builds the "test_user_copy" module that runs sanity checks
@@ -1866,7 +1872,6 @@ config TEST_USER_COPY
 
 config TEST_BPF
 	tristate "Test BPF filter functionality"
-	default n
 	depends on m && NET
 	help
 	  This builds the "test_bpf" module that runs various test vectors
@@ -1880,7 +1885,6 @@ config TEST_BPF
 
 config FIND_BIT_BENCHMARK
 	tristate "Test find_bit functions"
-	default n
 	help
 	  This builds the "test_find_bit" module that measure find_*_bit()
 	  functions performance.
@@ -1889,7 +1893,6 @@ config FIND_BIT_BENCHMARK
 
 config TEST_FIRMWARE
 	tristate "Test firmware loading via userspace interface"
-	default n
 	depends on FW_LOADER
 	help
 	  This builds the "test_firmware" module that creates a userspace
@@ -1902,7 +1905,6 @@ config TEST_FIRMWARE
 
 config TEST_SYSCTL
 	tristate "sysctl test driver"
-	default n
 	depends on PROC_SYSCTL
 	help
 	  This builds the "test_sysctl" module. This driver enables to test the
@@ -1913,7 +1915,6 @@ config TEST_SYSCTL
 
 config TEST_UDELAY
 	tristate "udelay test driver"
-	default n
 	help
 	  This builds the "udelay_test" module that helps to make sure
 	  that udelay() is working properly.
@@ -1922,7 +1923,6 @@ config TEST_UDELAY
 
 config TEST_STATIC_KEYS
 	tristate "Test static keys"
-	default n
 	depends on m
 	help
 	  Test the static key interfaces.
@@ -1931,7 +1931,6 @@ config TEST_STATIC_KEYS
 
 config TEST_KMOD
 	tristate "kmod stress tester"
-	default n
 	depends on m
 	depends on BLOCK && (64BIT || LBDAF)	  # for XFS, BTRFS
 	depends on NETDEVICES && NET_CORE && INET # for TUN
@@ -2034,3 +2033,7 @@ config IO_STRICT_DEVMEM
 	  if the driver using a given range cannot be disabled.
 
 	  If in doubt, say Y.
+
+source "arch/$(SRCARCH)/Kconfig.debug"
+
+endmenu # Kernel hacking

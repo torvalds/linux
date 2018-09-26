@@ -19,7 +19,6 @@ Required properties:
 - spi-cpol	    : Must be set
 
 Optional properties:
-- interrupt-parent  : Specify the pHandle of the source interrupt
 - spi-max-frequency : Maximum frequency of the SPI bus the chip can operate at.
 		      Numbers smaller than 1000000 or greater than 16000000
 		      are invalid. Missing the property will set the SPI

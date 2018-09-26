@@ -885,6 +885,7 @@ static int adp5589_probe(struct i2c_client *client,
 	switch (id->driver_data) {
 	case ADP5585_02:
 		kpad->support_row5 = true;
+		/* fall through */
 	case ADP5585_01:
 		kpad->is_adp5585 = true;
 		kpad->var = &const_adp5585;

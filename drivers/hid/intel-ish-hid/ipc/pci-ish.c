@@ -38,6 +38,7 @@ static const struct pci_device_id ish_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, CNL_Ax_DEVICE_ID)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, GLK_Ax_DEVICE_ID)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, CNL_H_DEVICE_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, SPT_H_DEVICE_ID)},
 	{0, }
 };
 MODULE_DEVICE_TABLE(pci, ish_pci_tbl);
@@ -95,6 +96,13 @@ static int ish_init(struct ishtp_device *dev)
 	return 0;
 }
 
+static const struct pci_device_id ish_invalid_pci_ids[] = {
+	/* Mehlow platform special pci ids */
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xA309)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xA30A)},
+	{}
+};
+
 /**
  * ish_probe() - PCI driver probe callback
  * @pdev:	pci device
@@ -109,6 +117,10 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ishtp_device *dev;
 	struct ish_hw *hw;
 	int	ret;
+
+	/* Check for invalid platforms for ISH support */
+	if (pci_dev_present(ish_invalid_pci_ids))
+		return -ENODEV;
 
 	/* enable pci dev */
 	ret = pci_enable_device(pdev);
@@ -172,7 +184,6 @@ free_irq:
 	free_irq(pdev->irq, dev);
 free_device:
 	pci_iounmap(pdev, hw->mem_addr);
-	kfree(dev);
 release_regions:
 	pci_release_regions(pdev);
 disable_device:
@@ -202,7 +213,6 @@ static void ish_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	pci_clear_master(pdev);
 	pci_disable_device(pdev);
-	kfree(ishtp_dev);
 }
 
 static struct device __maybe_unused *ish_resume_device;

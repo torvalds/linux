@@ -192,8 +192,8 @@ psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse)
 			else
 				input_report_rel(dev, REL_WHEEL, -wheel);
 
-			input_report_key(dev, BTN_SIDE,  BIT(4));
-			input_report_key(dev, BTN_EXTRA, BIT(5));
+			input_report_key(dev, BTN_SIDE,  packet[3] & BIT(4));
+			input_report_key(dev, BTN_EXTRA, packet[3] & BIT(5));
 			break;
 		}
 		break;
@@ -203,13 +203,13 @@ psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse)
 		input_report_rel(dev, REL_WHEEL, -(s8) packet[3]);
 
 		/* Extra buttons on Genius NewNet 3D */
-		input_report_key(dev, BTN_SIDE,  BIT(6));
-		input_report_key(dev, BTN_EXTRA, BIT(7));
+		input_report_key(dev, BTN_SIDE,  packet[0] & BIT(6));
+		input_report_key(dev, BTN_EXTRA, packet[0] & BIT(7));
 		break;
 
 	case PSMOUSE_THINKPS:
 		/* Extra button on ThinkingMouse */
-		input_report_key(dev, BTN_EXTRA, BIT(3));
+		input_report_key(dev, BTN_EXTRA, packet[0] & BIT(3));
 
 		/*
 		 * Without this bit of weirdness moving up gives wildly
@@ -223,7 +223,7 @@ psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse)
 		 * Cortron PS2 Trackball reports SIDE button in the
 		 * 4th bit of the first byte.
 		 */
-		input_report_key(dev, BTN_SIDE, BIT(3));
+		input_report_key(dev, BTN_SIDE, packet[0] & BIT(3));
 		packet[0] |= BIT(3);
 		break;
 

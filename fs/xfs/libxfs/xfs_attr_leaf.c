@@ -242,8 +242,9 @@ xfs_attr3_leaf_verify(
 	struct xfs_attr3_icleaf_hdr	ichdr;
 	struct xfs_mount		*mp = bp->b_target->bt_mount;
 	struct xfs_attr_leafblock	*leaf = bp->b_addr;
-	struct xfs_perag		*pag = bp->b_pag;
 	struct xfs_attr_leaf_entry	*entries;
+	uint16_t			end;
+	int				i;
 
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr, leaf);
 
@@ -268,7 +269,7 @@ xfs_attr3_leaf_verify(
 	 * because we may have transitioned an empty shortform attr to a leaf
 	 * if the attr didn't fit in shortform.
 	 */
-	if (pag && pag->pagf_init && ichdr.count == 0)
+	if (!xfs_log_in_recovery(mp) && ichdr.count == 0)
 		return __this_address;
 
 	/*
@@ -288,6 +289,26 @@ xfs_attr3_leaf_verify(
 
 	/* XXX: need to range check rest of attr header values */
 	/* XXX: hash order check? */
+
+	/*
+	 * Quickly check the freemap information.  Attribute data has to be
+	 * aligned to 4-byte boundaries, and likewise for the free space.
+	 */
+	for (i = 0; i < XFS_ATTR_LEAF_MAPSIZE; i++) {
+		if (ichdr.freemap[i].base > mp->m_attr_geo->blksize)
+			return __this_address;
+		if (ichdr.freemap[i].base & 0x3)
+			return __this_address;
+		if (ichdr.freemap[i].size > mp->m_attr_geo->blksize)
+			return __this_address;
+		if (ichdr.freemap[i].size & 0x3)
+			return __this_address;
+		end = ichdr.freemap[i].base + ichdr.freemap[i].size;
+		if (end < ichdr.freemap[i].base)
+			return __this_address;
+		if (end > mp->m_attr_geo->blksize)
+			return __this_address;
+	}
 
 	return NULL;
 }
@@ -506,7 +527,7 @@ xfs_attr_shortform_create(xfs_da_args_t *args)
 {
 	xfs_attr_sf_hdr_t *hdr;
 	xfs_inode_t *dp;
-	xfs_ifork_t *ifp;
+	struct xfs_ifork *ifp;
 
 	trace_xfs_attr_sf_create(args);
 
@@ -541,7 +562,7 @@ xfs_attr_shortform_add(xfs_da_args_t *args, int forkoff)
 	int i, offset, size;
 	xfs_mount_t *mp;
 	xfs_inode_t *dp;
-	xfs_ifork_t *ifp;
+	struct xfs_ifork *ifp;
 
 	trace_xfs_attr_sf_add(args);
 
@@ -682,7 +703,7 @@ xfs_attr_shortform_lookup(xfs_da_args_t *args)
 	xfs_attr_shortform_t *sf;
 	xfs_attr_sf_entry_t *sfe;
 	int i;
-	xfs_ifork_t *ifp;
+	struct xfs_ifork *ifp;
 
 	trace_xfs_attr_sf_lookup(args);
 
@@ -747,18 +768,18 @@ xfs_attr_shortform_getvalue(xfs_da_args_t *args)
  */
 int
 xfs_attr_shortform_to_leaf(
-	struct xfs_da_args	*args,
-	struct xfs_buf		**leaf_bp)
+	struct xfs_da_args		*args,
+	struct xfs_buf			**leaf_bp)
 {
-	xfs_inode_t *dp;
-	xfs_attr_shortform_t *sf;
-	xfs_attr_sf_entry_t *sfe;
-	xfs_da_args_t nargs;
-	char *tmpbuffer;
-	int error, i, size;
-	xfs_dablk_t blkno;
-	struct xfs_buf *bp;
-	xfs_ifork_t *ifp;
+	struct xfs_inode		*dp;
+	struct xfs_attr_shortform	*sf;
+	struct xfs_attr_sf_entry	*sfe;
+	struct xfs_da_args		nargs;
+	char				*tmpbuffer;
+	int				error, i, size;
+	xfs_dablk_t			blkno;
+	struct xfs_buf			*bp;
+	struct xfs_ifork		*ifp;
 
 	trace_xfs_attr_sf_to_leaf(args);
 
@@ -802,8 +823,6 @@ xfs_attr_shortform_to_leaf(
 	memset((char *)&nargs, 0, sizeof(nargs));
 	nargs.dp = dp;
 	nargs.geo = args->geo;
-	nargs.firstblock = args->firstblock;
-	nargs.dfops = args->dfops;
 	nargs.total = args->total;
 	nargs.whichfork = XFS_ATTR_FORK;
 	nargs.trans = args->trans;
@@ -1006,8 +1025,6 @@ xfs_attr3_leaf_to_shortform(
 	memset((char *)&nargs, 0, sizeof(nargs));
 	nargs.geo = args->geo;
 	nargs.dp = dp;
-	nargs.firstblock = args->firstblock;
-	nargs.dfops = args->dfops;
 	nargs.total = args->total;
 	nargs.whichfork = XFS_ATTR_FORK;
 	nargs.trans = args->trans;
@@ -1570,17 +1587,10 @@ xfs_attr3_leaf_rebalance(
 	 */
 	swap = 0;
 	if (xfs_attr3_leaf_order(blk1->bp, &ichdr1, blk2->bp, &ichdr2)) {
-		struct xfs_da_state_blk	*tmp_blk;
-		struct xfs_attr3_icleaf_hdr tmp_ichdr;
+		swap(blk1, blk2);
 
-		tmp_blk = blk1;
-		blk1 = blk2;
-		blk2 = tmp_blk;
-
-		/* struct copies to swap them rather than reconverting */
-		tmp_ichdr = ichdr1;
-		ichdr1 = ichdr2;
-		ichdr2 = tmp_ichdr;
+		/* swap structures rather than reconverting them */
+		swap(ichdr1, ichdr2);
 
 		leaf1 = blk1->bp->b_addr;
 		leaf2 = blk2->bp->b_addr;

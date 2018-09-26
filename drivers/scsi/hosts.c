@@ -564,6 +564,16 @@ struct Scsi_Host *scsi_host_get(struct Scsi_Host *shost)
 EXPORT_SYMBOL(scsi_host_get);
 
 /**
+ * scsi_host_busy - Return the host busy counter
+ * @shost:	Pointer to Scsi_Host to inc.
+ **/
+int scsi_host_busy(struct Scsi_Host *shost)
+{
+	return atomic_read(&shost->host_busy);
+}
+EXPORT_SYMBOL(scsi_host_busy);
+
+/**
  * scsi_host_put - dec a Scsi_Host ref count
  * @shost:	Pointer to Scsi_Host to dec.
  **/

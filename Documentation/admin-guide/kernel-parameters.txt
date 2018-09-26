@@ -748,6 +748,14 @@
 
 	debug		[KNL] Enable kernel debugging (events log level).
 
+	debug_boot_weak_hash
+			[KNL] Enable printing [hashed] pointers early in the
+			boot sequence.  If enabled, we use a weak hash instead
+			of siphash to hash pointers.  Use this option if you are
+			seeing instances of '(___ptrval___)') and need to see a
+			value (hashed pointer) instead. Cryptographically
+			insecure, please do not use on production kernels.
+
 	debug_locks_verbose=
 			[KNL] verbose self-tests
 			Format=<0|1>
@@ -804,6 +812,15 @@
 			Defaults to the default architecture's huge page size
 			if not specified.
 
+	deferred_probe_timeout=
+			[KNL] Debugging option to set a timeout in seconds for
+			deferred probe to give up waiting on dependencies to
+			probe. Only specific dependencies (subsystems or
+			drivers) that have opted in will be ignored. A timeout of 0
+			will timeout at the end of initcalls. This option will also
+			dump out devices still on the deferred probe list after
+			retrying.
+
 	dhash_entries=	[KNL]
 			Set number of hash buckets for dentry cache.
 
@@ -815,6 +832,17 @@
 
 	disable=	[IPV6]
 			See Documentation/networking/ipv6.txt.
+
+	hardened_usercopy=
+                        [KNL] Under CONFIG_HARDENED_USERCOPY, whether
+                        hardening is enabled for this boot. Hardened
+                        usercopy checking is used to protect the kernel
+                        from reading or writing beyond known memory
+                        allocation boundaries as a proactive defense
+                        against bounds-checking flaws in the kernel's
+                        copy_to_user()/copy_from_user() interface.
+                on      Perform hardened usercopy checks (default).
+                off     Disable hardened usercopy checks.
 
 	disable_radix	[PPC]
 			Disable RADIX MMU mode on POWER9
@@ -1716,7 +1744,8 @@
 		merge
 		nomerge
 		soft
-		pt		[x86, IA-64]
+		pt		[x86]
+		nopt		[x86]
 		nobypass	[PPC/POWERNV]
 			Disable IOMMU bypass, using IOMMU for PCI devices.
 
@@ -1967,9 +1996,83 @@
 			(virtualized real and unpaged mode) on capable
 			Intel chips. Default is 1 (enabled)
 
+	kvm-intel.vmentry_l1d_flush=[KVM,Intel] Mitigation for L1 Terminal Fault
+			CVE-2018-3620.
+
+			Valid arguments: never, cond, always
+
+			always: L1D cache flush on every VMENTER.
+			cond:	Flush L1D on VMENTER only when the code between
+				VMEXIT and VMENTER can leak host memory.
+			never:	Disables the mitigation
+
+			Default is cond (do L1 cache flush in specific instances)
+
 	kvm-intel.vpid=	[KVM,Intel] Disable Virtual Processor Identification
 			feature (tagged TLBs) on capable Intel chips.
 			Default is 1 (enabled)
+
+	l1tf=           [X86] Control mitigation of the L1TF vulnerability on
+			      affected CPUs
+
+			The kernel PTE inversion protection is unconditionally
+			enabled and cannot be disabled.
+
+			full
+				Provides all available mitigations for the
+				L1TF vulnerability. Disables SMT and
+				enables all mitigations in the
+				hypervisors, i.e. unconditional L1D flush.
+
+				SMT control and L1D flush control via the
+				sysfs interface is still possible after
+				boot.  Hypervisors will issue a warning
+				when the first VM is started in a
+				potentially insecure configuration,
+				i.e. SMT enabled or L1D flush disabled.
+
+			full,force
+				Same as 'full', but disables SMT and L1D
+				flush runtime control. Implies the
+				'nosmt=force' command line option.
+				(i.e. sysfs control of SMT is disabled.)
+
+			flush
+				Leaves SMT enabled and enables the default
+				hypervisor mitigation, i.e. conditional
+				L1D flush.
+
+				SMT control and L1D flush control via the
+				sysfs interface is still possible after
+				boot.  Hypervisors will issue a warning
+				when the first VM is started in a
+				potentially insecure configuration,
+				i.e. SMT enabled or L1D flush disabled.
+
+			flush,nosmt
+
+				Disables SMT and enables the default
+				hypervisor mitigation.
+
+				SMT control and L1D flush control via the
+				sysfs interface is still possible after
+				boot.  Hypervisors will issue a warning
+				when the first VM is started in a
+				potentially insecure configuration,
+				i.e. SMT enabled or L1D flush disabled.
+
+			flush,nowarn
+				Same as 'flush', but hypervisors will not
+				warn when a VM is started in a potentially
+				insecure configuration.
+
+			off
+				Disables hypervisor mitigations and doesn't
+				emit any warnings.
+
+			Default is 'flush'.
+
+			For details see: Documentation/admin-guide/l1tf.rst
 
 	l2cr=		[PPC]
 
@@ -2687,6 +2790,14 @@
 	nosmt		[KNL,S390] Disable symmetric multithreading (SMT).
 			Equivalent to smt=1.
 
+			[KNL,x86] Disable symmetric multithreading (SMT).
+			nosmt=force: Force disable SMT, cannot be undone
+				     via the sysfs control file.
+
+	nospectre_v1	[PPC] Disable mitigations for Spectre Variant 1 (bounds
+			check bypass). With this option data leaks are possible
+			in the system.
+
 	nospectre_v2	[X86] Disable all mitigations for the Spectre variant 2
 			(indirect branch prediction) vulnerability. System may
 			allow data leaks with this option, which is equivalent
@@ -2835,8 +2946,6 @@
 
 	nosync		[HW,M68K] Disables sync negotiation for all devices.
 
-	notsc		[BUGS=X86-32] Disable Time Stamp Counter
-
 	nowatchdog	[KNL] Disable both lockup detectors, i.e.
 			soft-lockup and NMI watchdog (hard-lockup).
 
@@ -2933,8 +3042,9 @@
 			on: enable the feature
 
 	page_poison=	[KNL] Boot-time parameter changing the state of
-			poisoning on the buddy allocator.
-			off: turn off poisoning
+			poisoning on the buddy allocator, available with
+			CONFIG_PAGE_POISONING=y.
+			off: turn off poisoning (default)
 			on: turn on poisoning
 
 	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
@@ -2994,8 +3104,31 @@
 			See header of drivers/block/paride/pcd.c.
 			See also Documentation/blockdev/paride.txt.
 
-	pci=option[,option...]	[PCI] various PCI subsystem options:
-		earlydump	[X86] dump PCI config space before the kernel
+	pci=option[,option...]	[PCI] various PCI subsystem options.
+
+				Some options herein operate on a specific device
+				or a set of devices (<pci_dev>). These are
+				specified in one of the following formats:
+
+				[<domain>:]<bus>:<dev>.<func>[/<dev>.<func>]*
+				pci:<vendor>:<device>[:<subvendor>:<subdevice>]
+
+				Note: the first format specifies a PCI
+				bus/device/function address which may change
+				if new hardware is inserted, if motherboard
+				firmware changes, or due to changes caused
+				by other kernel parameters. If the
+				domain is left unspecified, it is
+				taken to be zero. Optionally, a path
+				to a device through multiple device/function
+				addresses can be specified after the base
+				address (this is more robust against
+				renumbering issues).  The second format
+				selects devices using IDs from the
+				configuration space which may match multiple
+				devices in the system.
+
+		earlydump	dump PCI config space before the kernel
 				changes anything
 		off		[X86] don't probe for the PCI bus
 		bios		[X86-32] force use of PCI BIOS, don't access
@@ -3123,11 +3256,10 @@
 				window. The default value is 64 megabytes.
 		resource_alignment=
 				Format:
-				[<order of align>@][<domain>:]<bus>:<slot>.<func>[; ...]
-				[<order of align>@]pci:<vendor>:<device>\
-						[:<subvendor>:<subdevice>][; ...]
+				[<order of align>@]<pci_dev>[; ...]
 				Specifies alignment and device to reassign
-				aligned memory resources.
+				aligned memory resources. How to
+				specify the device is described above.
 				If <order of align> is not specified,
 				PAGE_SIZE is used as alignment.
 				PCI-PCI bridge can be specified, if resource
@@ -3170,6 +3302,15 @@
 				Adding the window is slightly risky (it may
 				conflict with unreported devices), so this
 				taints the kernel.
+		disable_acs_redir=<pci_dev>[; ...]
+				Specify one or more PCI devices (in the format
+				specified above) separated by semicolons.
+				Each device specified will have the PCI ACS
+				redirect capabilities forced off which will
+				allow P2P traffic between devices through
+				bridges without forcing it upstream. Note:
+				this removes isolation between devices and
+				may put more devices in an IOMMU group.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
@@ -3381,6 +3522,12 @@
 
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
 			See Documentation/blockdev/ramdisk.txt.
+
+	random.trust_cpu={on,off}
+			[KNL] Enable or disable trusting the use of the
+			CPU's random number generator (if available) to
+			fully seed the kernel's CRNG. Default is controlled
+			by CONFIG_RANDOM_TRUST_CPU.
 
 	ras=option[,option,...]	[KNL] RAS-specific options
 
@@ -3632,8 +3779,8 @@
 			Set time (s) after boot for CPU-hotplug testing.
 
 	rcutorture.onoff_interval= [KNL]
-			Set time (s) between CPU-hotplug operations, or
-			zero to disable CPU-hotplug testing.
+			Set time (jiffies) between CPU-hotplug operations,
+			or zero to disable CPU-hotplug testing.
 
 	rcutorture.shuffle_interval= [KNL]
 			Set task-shuffle interval (s).  Shuffling tasks
@@ -4060,6 +4207,8 @@
 			This parameter controls whether the Speculative Store
 			Bypass optimization is used.
 
+			On x86 the options are:
+
 			on      - Unconditionally disable Speculative Store Bypass
 			off     - Unconditionally enable Speculative Store Bypass
 			auto    - Kernel detects whether the CPU model contains an
@@ -4075,11 +4224,19 @@
 			seccomp - Same as "prctl" above, but all seccomp threads
 				  will disable SSB unless they explicitly opt out.
 
-			Not specifying this option is equivalent to
-			spec_store_bypass_disable=auto.
-
 			Default mitigations:
 			X86:	If CONFIG_SECCOMP=y "seccomp", otherwise "prctl"
+
+			On powerpc the options are:
+
+			on,auto - On Power8 and Power9 insert a store-forwarding
+				  barrier on kernel entry and exit. On Power7
+				  perform a software flush on kernel entry and
+				  exit.
+			off	- No action.
+
+			Not specifying this option is equivalent to
+			spec_store_bypass_disable=auto.
 
 	spia_io_base=	[HW,MTD]
 	spia_fio_base=
@@ -4843,6 +5000,17 @@
 			Disables the PV optimizations forcing the HVM guest to
 			run as generic HVM guest with no PV drivers.
 
+	xen_scrub_pages=	[XEN]
+			Boolean option to control scrubbing pages before giving them back
+			to Xen, for use by other domains. Can be also changed at runtime
+			with /sys/devices/system/xen_memory/xen_memory0/scrub_pages.
+			Default value controlled with CONFIG_XEN_SCRUB_PAGES_DEFAULT.
+
 	xirc2ps_cs=	[NET,PCMCIA]
 			Format:
 			<irq>,<irq_mask>,<io>,<full_duplex>,<do_sound>,<lockup_hack>[,<irq2>[,<irq3>[,<irq4>]]]
+
+	xhci-hcd.quirks		[USB,KNL]
+			A hex value specifying bitmask with supplemental xhci
+			host controller quirks. Meaning of each bit can be
+			consulted in header drivers/usb/host/xhci.h.

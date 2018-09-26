@@ -11,6 +11,7 @@
 #include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/smp.h>
+#include <linux/dma-direct.h>
 #include <asm/sn/arch.h>
 #include <asm/pci/bridge.h>
 #include <asm/paccess.h>
@@ -182,6 +183,19 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 	return 0;
 }
 
+dma_addr_t __phys_to_dma(struct device *dev, phys_addr_t paddr)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct bridge_controller *bc = BRIDGE_CONTROLLER(pdev->bus);
+
+	return bc->baddr + paddr;
+}
+
+phys_addr_t __dma_to_phys(struct device *dev, dma_addr_t dma_addr)
+{
+	return dma_addr & ~(0xffUL << 56);
+}
+
 /*
  * Device might live on a subordinate PCI bus.	XXX Walk up the chain of buses
  * to find the slot number in sense of the bridge device register.
@@ -197,17 +211,6 @@ static inline void pci_disable_swapping(struct pci_dev *dev)
 
 	/* Turn off byte swapping */
 	bridge->b_device[slot].reg &= ~BRIDGE_DEV_SWAP_DIR;
-	bridge->b_widget.w_tflush;	/* Flush */
-}
-
-static inline void pci_enable_swapping(struct pci_dev *dev)
-{
-	struct bridge_controller *bc = BRIDGE_CONTROLLER(dev->bus);
-	bridge_t *bridge = bc->base;
-	int slot = PCI_SLOT(dev->devfn);
-
-	/* Turn on byte swapping */
-	bridge->b_device[slot].reg |= BRIDGE_DEV_SWAP_DIR;
 	bridge->b_widget.w_tflush;	/* Flush */
 }
 

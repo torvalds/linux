@@ -7,8 +7,6 @@ Required properties:
 - interrupts: Interrupt number for the device.
 
 Optional properties:
-- interrupt-parent: The phandle for the interrupt controller that services
-  interrupts for this device.
 - clocks: Reference to the crypto engine clock.
 - dma-coherent: Present if dma operations are coherent.
 

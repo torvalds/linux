@@ -46,6 +46,7 @@
 #include <linux/compiler.h>
 #include <linux/of.h>
 
+#include <asm/ftrace.h>
 #include <asm/reg.h>
 #include <asm/ppc-opcode.h>
 #include <asm/asm-prototypes.h>
@@ -53,7 +54,6 @@
 #include <asm/disassemble.h>
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
-#include <asm/tlbflush.h>
 #include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/kvm_ppc.h>
@@ -128,14 +128,14 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
  * and SPURR count and should be set according to the number of
  * online threads in the vcore being run.
  */
-#define RWMR_RPA_P8_1THREAD	0x164520C62609AECA
-#define RWMR_RPA_P8_2THREAD	0x7FFF2908450D8DA9
-#define RWMR_RPA_P8_3THREAD	0x164520C62609AECA
-#define RWMR_RPA_P8_4THREAD	0x199A421245058DA9
-#define RWMR_RPA_P8_5THREAD	0x164520C62609AECA
-#define RWMR_RPA_P8_6THREAD	0x164520C62609AECA
-#define RWMR_RPA_P8_7THREAD	0x164520C62609AECA
-#define RWMR_RPA_P8_8THREAD	0x164520C62609AECA
+#define RWMR_RPA_P8_1THREAD	0x164520C62609AECAUL
+#define RWMR_RPA_P8_2THREAD	0x7FFF2908450D8DA9UL
+#define RWMR_RPA_P8_3THREAD	0x164520C62609AECAUL
+#define RWMR_RPA_P8_4THREAD	0x199A421245058DA9UL
+#define RWMR_RPA_P8_5THREAD	0x164520C62609AECAUL
+#define RWMR_RPA_P8_6THREAD	0x164520C62609AECAUL
+#define RWMR_RPA_P8_7THREAD	0x164520C62609AECAUL
+#define RWMR_RPA_P8_8THREAD	0x164520C62609AECAUL
 
 static unsigned long p8_rwmr_values[MAX_SMT_THREADS + 1] = {
 	RWMR_RPA_P8_1THREAD,
@@ -216,7 +216,7 @@ static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
 
 	wqp = kvm_arch_vcpu_wq(vcpu);
 	if (swq_has_sleeper(wqp)) {
-		swake_up(wqp);
+		swake_up_one(wqp);
 		++vcpu->stat.halt_wakeup;
 	}
 
@@ -1693,14 +1693,6 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 		r = set_vpa(vcpu, &vcpu->arch.dtl, addr, len);
 		break;
 	case KVM_REG_PPC_TB_OFFSET:
-		/*
-		 * POWER9 DD1 has an erratum where writing TBU40 causes
-		 * the timebase to lose ticks.  So we don't let the
-		 * timebase offset be changed on P9 DD1.  (It is
-		 * initialized to zero.)
-		 */
-		if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-			break;
 		/* round up to multiple of 2^24 */
 		vcpu->arch.vcore->tb_offset =
 			ALIGN(set_reg_val(id, *val), 1UL << 24);
@@ -1816,7 +1808,7 @@ static int threads_per_vcore(struct kvm *kvm)
 	return threads_per_subcore;
 }
 
-static struct kvmppc_vcore *kvmppc_vcore_create(struct kvm *kvm, int core)
+static struct kvmppc_vcore *kvmppc_vcore_create(struct kvm *kvm, int id)
 {
 	struct kvmppc_vcore *vcore;
 
@@ -1830,7 +1822,7 @@ static struct kvmppc_vcore *kvmppc_vcore_create(struct kvm *kvm, int core)
 	init_swait_queue_head(&vcore->wq);
 	vcore->preempt_tb = TB_NIL;
 	vcore->lpcr = kvm->arch.lpcr;
-	vcore->first_vcpuid = core * kvm->arch.smt_mode;
+	vcore->first_vcpuid = id;
 	vcore->kvm = kvm;
 	INIT_LIST_HEAD(&vcore->preempt_list);
 
@@ -2026,8 +2018,6 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	/*
 	 * Set the default HFSCR for the guest from the host value.
 	 * This value is only used on POWER9.
-	 * On POWER9 DD1, TM doesn't work, so we make sure to
-	 * prevent the guest from using it.
 	 * On POWER9, we want to virtualize the doorbell facility, so we
 	 * turn off the HFSCR bit, which causes those instructions to trap.
 	 */
@@ -2048,12 +2038,26 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	mutex_lock(&kvm->lock);
 	vcore = NULL;
 	err = -EINVAL;
-	core = id / kvm->arch.smt_mode;
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		if (id >= (KVM_MAX_VCPUS * kvm->arch.emul_smt_mode)) {
+			pr_devel("KVM: VCPU ID too high\n");
+			core = KVM_MAX_VCORES;
+		} else {
+			BUG_ON(kvm->arch.smt_mode != 1);
+			core = kvmppc_pack_vcpu_id(kvm, id);
+		}
+	} else {
+		core = id / kvm->arch.smt_mode;
+	}
 	if (core < KVM_MAX_VCORES) {
 		vcore = kvm->arch.vcores[core];
-		if (!vcore) {
+		if (vcore && cpu_has_feature(CPU_FTR_ARCH_300)) {
+			pr_devel("KVM: collision on id %u", id);
+			vcore = NULL;
+		} else if (!vcore) {
 			err = -ENOMEM;
-			vcore = kvmppc_vcore_create(kvm, core);
+			vcore = kvmppc_vcore_create(kvm,
+					id & ~(kvm->arch.smt_mode - 1));
 			kvm->arch.vcores[core] = vcore;
 			kvm->arch.online_vcores++;
 		}
@@ -3188,7 +3192,7 @@ static void kvmppc_vcore_blocked(struct kvmppc_vcore *vc)
 		}
 	}
 
-	prepare_to_swait(&vc->wq, &wait, TASK_INTERRUPTIBLE);
+	prepare_to_swait_exclusive(&vc->wq, &wait, TASK_INTERRUPTIBLE);
 
 	if (kvmppc_vcore_check_block(vc)) {
 		finish_swait(&vc->wq, &wait);
@@ -3311,7 +3315,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 			kvmppc_start_thread(vcpu, vc);
 			trace_kvm_guest_enter(vcpu);
 		} else if (vc->vcore_state == VCORE_SLEEPING) {
-			swake_up(&vc->wq);
+			swake_up_one(&vc->wq);
 		}
 
 	}
@@ -4561,6 +4565,8 @@ static int kvmppc_book3s_init_hv(void)
 			pr_err("KVM-HV: Cannot determine method for accessing XICS\n");
 			return -ENODEV;
 		}
+		/* presence of intc confirmed - node can be dropped again */
+		of_node_put(np);
 	}
 #endif
 

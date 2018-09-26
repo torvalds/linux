@@ -44,9 +44,9 @@ STORE(fn)								\
 	static struct attribute sysfs_##_name =				\
 		{ .name = #_name, .mode = _mode }
 
-#define write_attribute(n)	__sysfs_attribute(n, S_IWUSR)
-#define read_attribute(n)	__sysfs_attribute(n, S_IRUGO)
-#define rw_attribute(n)		__sysfs_attribute(n, S_IRUGO|S_IWUSR)
+#define write_attribute(n)	__sysfs_attribute(n, 0200)
+#define read_attribute(n)	__sysfs_attribute(n, 0444)
+#define rw_attribute(n)		__sysfs_attribute(n, 0644)
 
 #define sysfs_printf(file, fmt, ...)					\
 do {									\

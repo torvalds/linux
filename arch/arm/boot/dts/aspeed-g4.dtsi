@@ -92,6 +92,12 @@
 			reg = <0x1e6c0080 0x80>;
 		};
 
+		cvic: copro-interrupt-controller@1e6c2000 {
+			compatible = "aspeed,ast2400-cvic", "aspeed-cvic";
+			valid-sources = <0x7fffffff>;
+			reg = <0x1e6c2000 0x80>;
+		};
+
 		mac0: ethernet@1e660000 {
 			compatible = "aspeed,ast2400-mac", "faraday,ftgmac100";
 			reg = <0x1e660000 0x180>;
@@ -113,6 +119,8 @@
 			reg = <0x1e6a1000 0x100>;
 			interrupts = <5>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2h_default>;
 			status = "disabled";
 		};
 
@@ -122,6 +130,20 @@
 			interrupts = <14>;
 			#ports = <3>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBUHCICLK>;
+			status = "disabled";
+			/*
+			 * No default pinmux, it will follow EHCI, use an explicit pinmux
+			 * override if you don't enable EHCI
+			 */
+		};
+
+		vhub: usb-vhub@1e6a0000 {
+			compatible = "aspeed,ast2400-usb-vhub";
+			reg = <0x1e6a0000 0x300>;
+			interrupts = <5>;
+			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2d_default>;
 			status = "disabled";
 		};
 
@@ -161,7 +183,7 @@
 				status = "disabled";
 			};
 
-			sram@1e720000 {
+			sram: sram@1e720000 {
 				compatible = "mmio-sram";
 				reg = <0x1e720000 0x8000>;	// 32K
 			};
@@ -224,7 +246,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x1e786000 0x1000>;
-				clocks = <&syscon ASPEED_CLK_APB>;
+				clocks = <&syscon ASPEED_CLK_24M>;
 				resets = <&syscon ASPEED_RESET_PWM>;
 				status = "disabled";
 			};

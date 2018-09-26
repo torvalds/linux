@@ -19,6 +19,8 @@
 #include <linux/syscalls.h>
 #include <linux/file.h>
 #include <linux/mm_inline.h>
+#include <linux/blk-cgroup.h>
+#include <linux/fadvise.h>
 
 #include "internal.h"
 
@@ -385,6 +387,7 @@ ondemand_readahead(struct address_space *mapping,
 {
 	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
 	unsigned long max_pages = ra->ra_pages;
+	unsigned long add_pages;
 	pgoff_t prev_offset;
 
 	/*
@@ -474,10 +477,17 @@ readit:
 	 * Will this read hit the readahead marker made by itself?
 	 * If so, trigger the readahead marker hit now, and merge
 	 * the resulted next readahead window into the current one.
+	 * Take care of maximum IO pages as above.
 	 */
 	if (offset == ra->start && ra->size == ra->async_size) {
-		ra->async_size = get_next_ra_size(ra, max_pages);
-		ra->size += ra->async_size;
+		add_pages = get_next_ra_size(ra, max_pages);
+		if (ra->size + add_pages <= max_pages) {
+			ra->async_size = add_pages;
+			ra->size += add_pages;
+		} else {
+			ra->size = max_pages;
+			ra->async_size = max_pages >> 1;
+		}
 	}
 
 	return ra_submit(ra, mapping, filp);
@@ -503,6 +513,9 @@ void page_cache_sync_readahead(struct address_space *mapping,
 {
 	/* no read-ahead */
 	if (!ra->ra_pages)
+		return;
+
+	if (blk_cgroup_congested())
 		return;
 
 	/* be dumb */
@@ -555,28 +568,13 @@ page_cache_async_readahead(struct address_space *mapping,
 	if (inode_read_congested(mapping->host))
 		return;
 
+	if (blk_cgroup_congested())
+		return;
+
 	/* do read-ahead */
 	ondemand_readahead(mapping, ra, filp, true, offset, req_size);
 }
 EXPORT_SYMBOL_GPL(page_cache_async_readahead);
-
-static ssize_t
-do_readahead(struct address_space *mapping, struct file *filp,
-	     pgoff_t index, unsigned long nr)
-{
-	if (!mapping || !mapping->a_ops)
-		return -EINVAL;
-
-	/*
-	 * Readahead doesn't make sense for DAX inodes, but we don't want it
-	 * to report a failure either.  Instead, we just return success and
-	 * don't do any work.
-	 */
-	if (dax_mapping(mapping))
-		return 0;
-
-	return force_page_cache_readahead(mapping, filp, index, nr);
-}
 
 ssize_t ksys_readahead(int fd, loff_t offset, size_t count)
 {
@@ -585,16 +583,22 @@ ssize_t ksys_readahead(int fd, loff_t offset, size_t count)
 
 	ret = -EBADF;
 	f = fdget(fd);
-	if (f.file) {
-		if (f.file->f_mode & FMODE_READ) {
-			struct address_space *mapping = f.file->f_mapping;
-			pgoff_t start = offset >> PAGE_SHIFT;
-			pgoff_t end = (offset + count - 1) >> PAGE_SHIFT;
-			unsigned long len = end - start + 1;
-			ret = do_readahead(mapping, f.file, start, len);
-		}
-		fdput(f);
-	}
+	if (!f.file || !(f.file->f_mode & FMODE_READ))
+		goto out;
+
+	/*
+	 * The readahead() syscall is intended to run only on files
+	 * that can execute readahead. If readahead is not possible
+	 * on this file, then we must return -EINVAL.
+	 */
+	ret = -EINVAL;
+	if (!f.file->f_mapping || !f.file->f_mapping->a_ops ||
+	    !S_ISREG(file_inode(f.file)->i_mode))
+		goto out;
+
+	ret = vfs_fadvise(f.file, offset, count, POSIX_FADV_WILLNEED);
+out:
+	fdput(f);
 	return ret;
 }
 

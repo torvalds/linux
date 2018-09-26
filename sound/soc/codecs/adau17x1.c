@@ -299,6 +299,7 @@ static const struct snd_soc_dapm_route adau17x1_dsp_dapm_routes[] = {
 
 	{ "DSP", NULL, "Left Decimator" },
 	{ "DSP", NULL, "Right Decimator" },
+	{ "DSP", NULL, "Playback" },
 };
 
 static const struct snd_soc_dapm_route adau17x1_no_dsp_dapm_routes[] = {

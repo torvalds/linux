@@ -630,6 +630,7 @@ struct mlx4_caps {
 	u32			vf_caps;
 	bool			wol_port[MLX4_MAX_PORTS + 1];
 	struct mlx4_rate_limit_caps rl_caps;
+	u32			health_buffer_addrs;
 };
 
 struct mlx4_buf_list {
@@ -851,6 +852,12 @@ struct mlx4_vf_dev {
 	u8			n_ports;
 };
 
+struct mlx4_fw_crdump {
+	bool snapshot_enable;
+	struct devlink_region *region_crspace;
+	struct devlink_region *region_fw_health;
+};
+
 enum mlx4_pci_status {
 	MLX4_PCI_STATUS_DISABLED,
 	MLX4_PCI_STATUS_ENABLED,
@@ -871,6 +878,7 @@ struct mlx4_dev_persistent {
 	u8	interface_state;
 	struct mutex		pci_status_mutex; /* sync pci state */
 	enum mlx4_pci_status	pci_status;
+	struct mlx4_fw_crdump	crdump;
 };
 
 struct mlx4_dev {

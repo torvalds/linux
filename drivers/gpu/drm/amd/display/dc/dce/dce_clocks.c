@@ -38,7 +38,7 @@
 #include "dal_asic_id.h"
 
 #define TO_DCE_CLOCKS(clocks)\
-	container_of(clocks, struct dce_disp_clk, base)
+	container_of(clocks, struct dce_dccg, base)
 
 #define REG(reg) \
 	(clk_dce->regs->reg)
@@ -101,99 +101,84 @@ static const struct state_dependent_clocks dce120_max_clks_by_state[] = {
 /*ClocksStatePerformance*/
 { .display_clk_khz = 1133000, .pixel_clk_khz = 600000 } };
 
-/* Starting point for each divider range.*/
-enum dce_divider_range_start {
-	DIVIDER_RANGE_01_START = 200, /* 2.00*/
-	DIVIDER_RANGE_02_START = 1600, /* 16.00*/
-	DIVIDER_RANGE_03_START = 3200, /* 32.00*/
-	DIVIDER_RANGE_SCALE_FACTOR = 100 /* Results are scaled up by 100.*/
+/* Starting DID for each range */
+enum dentist_base_divider_id {
+	DENTIST_BASE_DID_1 = 0x08,
+	DENTIST_BASE_DID_2 = 0x40,
+	DENTIST_BASE_DID_3 = 0x60,
+	DENTIST_BASE_DID_4 = 0x7e,
+	DENTIST_MAX_DID = 0x7f
 };
 
-/* Ranges for divider identifiers (Divider ID or DID)
- mmDENTIST_DISPCLK_CNTL.DENTIST_DISPCLK_WDIVIDER*/
-enum dce_divider_id_register_setting {
-	DIVIDER_RANGE_01_BASE_DIVIDER_ID = 0X08,
-	DIVIDER_RANGE_02_BASE_DIVIDER_ID = 0X40,
-	DIVIDER_RANGE_03_BASE_DIVIDER_ID = 0X60,
-	DIVIDER_RANGE_MAX_DIVIDER_ID = 0X80
+/* Starting point and step size for each divider range.*/
+enum dentist_divider_range {
+	DENTIST_DIVIDER_RANGE_1_START = 8,   /* 2.00  */
+	DENTIST_DIVIDER_RANGE_1_STEP  = 1,   /* 0.25  */
+	DENTIST_DIVIDER_RANGE_2_START = 64,  /* 16.00 */
+	DENTIST_DIVIDER_RANGE_2_STEP  = 2,   /* 0.50  */
+	DENTIST_DIVIDER_RANGE_3_START = 128, /* 32.00 */
+	DENTIST_DIVIDER_RANGE_3_STEP  = 4,   /* 1.00  */
+	DENTIST_DIVIDER_RANGE_4_START = 248, /* 62.00 */
+	DENTIST_DIVIDER_RANGE_4_STEP  = 264, /* 66.00 */
+	DENTIST_DIVIDER_RANGE_SCALE_FACTOR = 4
 };
 
-/* Step size between each divider within a range.
- Incrementing the DENTIST_DISPCLK_WDIVIDER by one
- will increment the divider by this much.*/
-enum dce_divider_range_step_size {
-	DIVIDER_RANGE_01_STEP_SIZE = 25, /* 0.25*/
-	DIVIDER_RANGE_02_STEP_SIZE = 50, /* 0.50*/
-	DIVIDER_RANGE_03_STEP_SIZE = 100 /* 1.00 */
-};
-
-static bool dce_divider_range_construct(
-	struct dce_divider_range *div_range,
-	int range_start,
-	int range_step,
-	int did_min,
-	int did_max)
+static int dentist_get_divider_from_did(int did)
 {
-	div_range->div_range_start = range_start;
-	div_range->div_range_step = range_step;
-	div_range->did_min = did_min;
-	div_range->did_max = did_max;
+	if (did < DENTIST_BASE_DID_1)
+		did = DENTIST_BASE_DID_1;
+	if (did > DENTIST_MAX_DID)
+		did = DENTIST_MAX_DID;
 
-	if (div_range->div_range_step == 0) {
-		div_range->div_range_step = 1;
-		/*div_range_step cannot be zero*/
-		BREAK_TO_DEBUGGER();
+	if (did < DENTIST_BASE_DID_2) {
+		return DENTIST_DIVIDER_RANGE_1_START + DENTIST_DIVIDER_RANGE_1_STEP
+							* (did - DENTIST_BASE_DID_1);
+	} else if (did < DENTIST_BASE_DID_3) {
+		return DENTIST_DIVIDER_RANGE_2_START + DENTIST_DIVIDER_RANGE_2_STEP
+							* (did - DENTIST_BASE_DID_2);
+	} else if (did < DENTIST_BASE_DID_4) {
+		return DENTIST_DIVIDER_RANGE_3_START + DENTIST_DIVIDER_RANGE_3_STEP
+							* (did - DENTIST_BASE_DID_3);
+	} else {
+		return DENTIST_DIVIDER_RANGE_4_START + DENTIST_DIVIDER_RANGE_4_STEP
+							* (did - DENTIST_BASE_DID_4);
 	}
-	/* Calculate this based on the other inputs.*/
-	/* See DividerRange.h for explanation of */
-	/* the relationship between divider id (DID) and a divider.*/
-	/* Number of Divider IDs = (Maximum Divider ID - Minimum Divider ID)*/
-	/* Maximum divider identified in this range =
-	 * (Number of Divider IDs)*Step size between dividers
-	 *  + The start of this range.*/
-	div_range->div_range_end = (did_max - did_min) * range_step
-		+ range_start;
-	return true;
 }
 
-static int dce_divider_range_calc_divider(
-	struct dce_divider_range *div_range,
-	int did)
+/* SW will adjust DP REF Clock average value for all purposes
+ * (DP DTO / DP Audio DTO and DP GTC)
+ if clock is spread for all cases:
+ -if SS enabled on DP Ref clock and HW de-spreading enabled with SW
+ calculations for DS_INCR/DS_MODULO (this is planned to be default case)
+ -if SS enabled on DP Ref clock and HW de-spreading enabled with HW
+ calculations (not planned to be used, but average clock should still
+ be valid)
+ -if SS enabled on DP Ref clock and HW de-spreading disabled
+ (should not be case with CIK) then SW should program all rates
+ generated according to average value (case as with previous ASICs)
+  */
+static int dccg_adjust_dp_ref_freq_for_ss(struct dce_dccg *clk_dce, int dp_ref_clk_khz)
 {
-	/* Is this DID within our range?*/
-	if ((did < div_range->did_min) || (did >= div_range->did_max))
-		return INVALID_DIVIDER;
+	if (clk_dce->ss_on_dprefclk && clk_dce->dprefclk_ss_divider != 0) {
+		struct fixed31_32 ss_percentage = dc_fixpt_div_int(
+				dc_fixpt_from_fraction(clk_dce->dprefclk_ss_percentage,
+							clk_dce->dprefclk_ss_divider), 200);
+		struct fixed31_32 adj_dp_ref_clk_khz;
 
-	return ((did - div_range->did_min) * div_range->div_range_step)
-			+ div_range->div_range_start;
-
-}
-
-static int dce_divider_range_get_divider(
-	struct dce_divider_range *div_range,
-	int ranges_num,
-	int did)
-{
-	int div = INVALID_DIVIDER;
-	int i;
-
-	for (i = 0; i < ranges_num; i++) {
-		/* Calculate divider with given divider ID*/
-		div = dce_divider_range_calc_divider(&div_range[i], did);
-		/* Found a valid return divider*/
-		if (div != INVALID_DIVIDER)
-			break;
+		ss_percentage = dc_fixpt_sub(dc_fixpt_one, ss_percentage);
+		adj_dp_ref_clk_khz = dc_fixpt_mul_int(ss_percentage, dp_ref_clk_khz);
+		dp_ref_clk_khz = dc_fixpt_floor(adj_dp_ref_clk_khz);
 	}
-	return div;
+	return dp_ref_clk_khz;
 }
 
-static int dce_clocks_get_dp_ref_freq(struct display_clock *clk)
+static int dce_get_dp_ref_freq_khz(struct dccg *clk)
 {
-	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
 	int dprefclk_wdivider;
 	int dprefclk_src_sel;
 	int dp_ref_clk_khz = 600000;
-	int target_div = INVALID_DIVIDER;
+	int target_div;
 
 	/* ASSERT DP Reference Clock source is from DFS*/
 	REG_GET(DPREFCLK_CNTL, DPREFCLK_SRC_SEL, &dprefclk_src_sel);
@@ -204,80 +189,27 @@ static int dce_clocks_get_dp_ref_freq(struct display_clock *clk)
 	REG_GET(DENTIST_DISPCLK_CNTL, DENTIST_DPREFCLK_WDIVIDER, &dprefclk_wdivider);
 
 	/* Convert DENTIST_DPREFCLK_WDIVIDERto actual divider*/
-	target_div = dce_divider_range_get_divider(
-			clk_dce->divider_ranges,
-			DIVIDER_RANGE_MAX,
-			dprefclk_wdivider);
+	target_div = dentist_get_divider_from_did(dprefclk_wdivider);
 
-	if (target_div != INVALID_DIVIDER) {
-		/* Calculate the current DFS clock, in kHz.*/
-		dp_ref_clk_khz = (DIVIDER_RANGE_SCALE_FACTOR
-			* clk_dce->dentist_vco_freq_khz) / target_div;
-	}
+	/* Calculate the current DFS clock, in kHz.*/
+	dp_ref_clk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+		* clk_dce->dentist_vco_freq_khz) / target_div;
 
-	/* SW will adjust DP REF Clock average value for all purposes
-	 * (DP DTO / DP Audio DTO and DP GTC)
-	 if clock is spread for all cases:
-	 -if SS enabled on DP Ref clock and HW de-spreading enabled with SW
-	 calculations for DS_INCR/DS_MODULO (this is planned to be default case)
-	 -if SS enabled on DP Ref clock and HW de-spreading enabled with HW
-	 calculations (not planned to be used, but average clock should still
-	 be valid)
-	 -if SS enabled on DP Ref clock and HW de-spreading disabled
-	 (should not be case with CIK) then SW should program all rates
-	 generated according to average value (case as with previous ASICs)
-	  */
-	if (clk_dce->ss_on_dprefclk && clk_dce->dprefclk_ss_divider != 0) {
-		struct fixed31_32 ss_percentage = dc_fixpt_div_int(
-				dc_fixpt_from_fraction(
-						clk_dce->dprefclk_ss_percentage,
-						clk_dce->dprefclk_ss_divider), 200);
-		struct fixed31_32 adj_dp_ref_clk_khz;
-
-		ss_percentage = dc_fixpt_sub(dc_fixpt_one,
-								ss_percentage);
-		adj_dp_ref_clk_khz =
-			dc_fixpt_mul_int(
-				ss_percentage,
-				dp_ref_clk_khz);
-		dp_ref_clk_khz = dc_fixpt_floor(adj_dp_ref_clk_khz);
-	}
-
-	return dp_ref_clk_khz;
+	return dccg_adjust_dp_ref_freq_for_ss(clk_dce, dp_ref_clk_khz);
 }
 
-/* TODO: This is DCN DPREFCLK: it could be program by DENTIST by VBIOS
- * or CLK0_CLK11 by SMU. For DCE120, it is wlays 600Mhz. Will re-visit
- * clock implementation
- */
-static int dce_clocks_get_dp_ref_freq_wrkaround(struct display_clock *clk)
+static int dce12_get_dp_ref_freq_khz(struct dccg *clk)
 {
-	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
-	int dp_ref_clk_khz = 600000;
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
 
-	if (clk_dce->ss_on_dprefclk && clk_dce->dprefclk_ss_divider != 0) {
-		struct fixed31_32 ss_percentage = dc_fixpt_div_int(
-				dc_fixpt_from_fraction(
-						clk_dce->dprefclk_ss_percentage,
-						clk_dce->dprefclk_ss_divider), 200);
-		struct fixed31_32 adj_dp_ref_clk_khz;
-
-		ss_percentage = dc_fixpt_sub(dc_fixpt_one,
-								ss_percentage);
-		adj_dp_ref_clk_khz =
-			dc_fixpt_mul_int(
-				ss_percentage,
-				dp_ref_clk_khz);
-		dp_ref_clk_khz = dc_fixpt_floor(adj_dp_ref_clk_khz);
-	}
-
-	return dp_ref_clk_khz;
+	return dccg_adjust_dp_ref_freq_for_ss(clk_dce, 600000);
 }
+
 static enum dm_pp_clocks_state dce_get_required_clocks_state(
-	struct display_clock *clk,
-	struct state_dependent_clocks *req_clocks)
+	struct dccg *clk,
+	struct dc_clocks *req_clocks)
 {
-	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
 	int i;
 	enum dm_pp_clocks_state low_req_clk;
 
@@ -286,53 +218,30 @@ static enum dm_pp_clocks_state dce_get_required_clocks_state(
 	 * all required clocks
 	 */
 	for (i = clk->max_clks_state; i >= DM_PP_CLOCKS_STATE_ULTRA_LOW; i--)
-		if (req_clocks->display_clk_khz >
+		if (req_clocks->dispclk_khz >
 				clk_dce->max_clks_by_state[i].display_clk_khz
-			|| req_clocks->pixel_clk_khz >
+			|| req_clocks->phyclk_khz >
 				clk_dce->max_clks_by_state[i].pixel_clk_khz)
 			break;
 
 	low_req_clk = i + 1;
 	if (low_req_clk > clk->max_clks_state) {
-		DC_LOG_WARNING("%s: clocks unsupported disp_clk %d pix_clk %d",
-				__func__,
-				req_clocks->display_clk_khz,
-				req_clocks->pixel_clk_khz);
-		low_req_clk = DM_PP_CLOCKS_STATE_INVALID;
+		/* set max clock state for high phyclock, invalid on exceeding display clock */
+		if (clk_dce->max_clks_by_state[clk->max_clks_state].display_clk_khz
+				< req_clocks->dispclk_khz)
+			low_req_clk = DM_PP_CLOCKS_STATE_INVALID;
+		else
+			low_req_clk = clk->max_clks_state;
 	}
 
 	return low_req_clk;
 }
 
-static bool dce_clock_set_min_clocks_state(
-	struct display_clock *clk,
-	enum dm_pp_clocks_state clocks_state)
-{
-	struct dm_pp_power_level_change_request level_change_req = {
-			clocks_state };
-
-	if (clocks_state > clk->max_clks_state) {
-		/*Requested state exceeds max supported state.*/
-		DC_LOG_WARNING("Requested state exceeds max supported state");
-		return false;
-	} else if (clocks_state == clk->cur_min_clks_state) {
-		/*if we're trying to set the same state, we can just return
-		 * since nothing needs to be done*/
-		return true;
-	}
-
-	/* get max clock state from PPLIB */
-	if (dm_pp_apply_power_level_change_request(clk->ctx, &level_change_req))
-		clk->cur_min_clks_state = clocks_state;
-
-	return true;
-}
-
 static int dce_set_clock(
-	struct display_clock *clk,
+	struct dccg *clk,
 	int requested_clk_khz)
 {
-	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
 	struct bp_pixel_clock_parameters pxl_clk_params = { 0 };
 	struct dc_bios *bp = clk->ctx->dc_bios;
 	int actual_clock = requested_clk_khz;
@@ -364,10 +273,10 @@ static int dce_set_clock(
 }
 
 static int dce_psr_set_clock(
-	struct display_clock *clk,
+	struct dccg *clk,
 	int requested_clk_khz)
 {
-	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
 	struct dc_context *ctx = clk_dce->base.ctx;
 	struct dc *core_dc = ctx->dc;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
@@ -380,10 +289,10 @@ static int dce_psr_set_clock(
 }
 
 static int dce112_set_clock(
-	struct display_clock *clk,
+	struct dccg *clk,
 	int requested_clk_khz)
 {
-	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
 	struct bp_set_dce_clock_parameters dce_clk_params;
 	struct dc_bios *bp = clk->ctx->dc_bios;
 	struct dc *core_dc = clk->ctx->dc;
@@ -432,9 +341,9 @@ static int dce112_set_clock(
 	return actual_clock;
 }
 
-static void dce_clock_read_integrated_info(struct dce_disp_clk *clk_dce)
+static void dce_clock_read_integrated_info(struct dce_dccg *clk_dce)
 {
-	struct dc_debug *debug = &clk_dce->base.ctx->dc->debug;
+	struct dc_debug_options *debug = &clk_dce->base.ctx->dc->debug;
 	struct dc_bios *bp = clk_dce->base.ctx->dc_bios;
 	struct integrated_info info = { { { 0 } } };
 	struct dc_firmware_info fw_info = { { 0 } };
@@ -488,11 +397,9 @@ static void dce_clock_read_integrated_info(struct dce_disp_clk *clk_dce)
 	if (!debug->disable_dfs_bypass && bp->integrated_info)
 		if (bp->integrated_info->gpu_cap_info & DFS_BYPASS_ENABLE)
 			clk_dce->dfs_bypass_enabled = true;
-
-	clk_dce->use_max_disp_clk = debug->max_disp_clk;
 }
 
-static void dce_clock_read_ss_info(struct dce_disp_clk *clk_dce)
+static void dce_clock_read_ss_info(struct dce_dccg *clk_dce)
 {
 	struct dc_bios *bp = clk_dce->base.ctx->dc_bios;
 	int ss_info_num = bp->funcs->get_ss_entry_number(
@@ -548,139 +455,265 @@ static void dce_clock_read_ss_info(struct dce_disp_clk *clk_dce)
 	}
 }
 
-static bool dce_apply_clock_voltage_request(
-	struct display_clock *clk,
-	enum dm_pp_clock_type clocks_type,
-	int clocks_in_khz,
-	bool pre_mode_set,
-	bool update_dp_phyclk)
+static inline bool should_set_clock(bool safe_to_lower, int calc_clk, int cur_clk)
 {
-	bool send_request = false;
-	struct dm_pp_clock_for_voltage_req clock_voltage_req = {0};
-
-	switch (clocks_type) {
-	case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
-	case DM_PP_CLOCK_TYPE_PIXELCLK:
-	case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
-		break;
-	default:
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-
-	clock_voltage_req.clk_type = clocks_type;
-	clock_voltage_req.clocks_in_khz = clocks_in_khz;
-
-	/* to pplib */
-	if (pre_mode_set) {
-		switch (clocks_type) {
-		case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
-			if (clocks_in_khz > clk->cur_clocks_value.dispclk_in_khz) {
-				clk->cur_clocks_value.dispclk_notify_pplib_done = true;
-				send_request = true;
-			} else
-				clk->cur_clocks_value.dispclk_notify_pplib_done = false;
-			/* no matter incrase or decrase clock, update current clock value */
-			clk->cur_clocks_value.dispclk_in_khz = clocks_in_khz;
-			break;
-		case DM_PP_CLOCK_TYPE_PIXELCLK:
-			if (clocks_in_khz > clk->cur_clocks_value.max_pixelclk_in_khz) {
-				clk->cur_clocks_value.pixelclk_notify_pplib_done = true;
-				send_request = true;
-			} else
-				clk->cur_clocks_value.pixelclk_notify_pplib_done = false;
-			/* no matter incrase or decrase clock, update current clock value */
-			clk->cur_clocks_value.max_pixelclk_in_khz = clocks_in_khz;
-			break;
-		case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
-			if (clocks_in_khz > clk->cur_clocks_value.max_non_dp_phyclk_in_khz) {
-				clk->cur_clocks_value.phyclk_notigy_pplib_done = true;
-				send_request = true;
-			} else
-				clk->cur_clocks_value.phyclk_notigy_pplib_done = false;
-			/* no matter incrase or decrase clock, update current clock value */
-			clk->cur_clocks_value.max_non_dp_phyclk_in_khz = clocks_in_khz;
-			break;
-		default:
-			ASSERT(0);
-			break;
-		}
-
-	} else {
-		switch (clocks_type) {
-		case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
-			if (!clk->cur_clocks_value.dispclk_notify_pplib_done)
-				send_request = true;
-			break;
-		case DM_PP_CLOCK_TYPE_PIXELCLK:
-			if (!clk->cur_clocks_value.pixelclk_notify_pplib_done)
-				send_request = true;
-			break;
-		case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
-			if (!clk->cur_clocks_value.phyclk_notigy_pplib_done)
-				send_request = true;
-			break;
-		default:
-			ASSERT(0);
-			break;
-		}
-	}
-	if (send_request) {
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-		if (clk->ctx->dce_version >= DCN_VERSION_1_0) {
-			struct dc *core_dc = clk->ctx->dc;
-			/*use dcfclk request voltage*/
-			clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
-			clock_voltage_req.clocks_in_khz =
-				dcn_find_dcfclk_suits_all(core_dc, &clk->cur_clocks_value);
-		}
-#endif
-		dm_pp_apply_clock_for_voltage_request(
-			clk->ctx, &clock_voltage_req);
-	}
-	if (update_dp_phyclk && (clocks_in_khz >
-	clk->cur_clocks_value.max_dp_phyclk_in_khz))
-		clk->cur_clocks_value.max_dp_phyclk_in_khz = clocks_in_khz;
-
-	return true;
+	return ((safe_to_lower && calc_clk < cur_clk) || calc_clk > cur_clk);
 }
 
+static void dce12_update_clocks(struct dccg *dccg,
+			struct dc_clocks *new_clocks,
+			bool safe_to_lower)
+{
+	struct dm_pp_clock_for_voltage_req clock_voltage_req = {0};
+
+	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, dccg->clks.dispclk_khz)) {
+		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAY_CLK;
+		clock_voltage_req.clocks_in_khz = new_clocks->dispclk_khz;
+		new_clocks->dispclk_khz = dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);
+		dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
+
+		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
+	}
+
+	if (should_set_clock(safe_to_lower, new_clocks->phyclk_khz, dccg->clks.phyclk_khz)) {
+		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAYPHYCLK;
+		clock_voltage_req.clocks_in_khz = new_clocks->phyclk_khz;
+		dccg->clks.phyclk_khz = new_clocks->phyclk_khz;
+
+		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
+	}
+}
+
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+static int dcn1_determine_dppclk_threshold(struct dccg *dccg, struct dc_clocks *new_clocks)
+{
+	bool request_dpp_div = new_clocks->dispclk_khz > new_clocks->dppclk_khz;
+	bool dispclk_increase = new_clocks->dispclk_khz > dccg->clks.dispclk_khz;
+	int disp_clk_threshold = new_clocks->max_supported_dppclk_khz;
+	bool cur_dpp_div = dccg->clks.dispclk_khz > dccg->clks.dppclk_khz;
+
+	/* increase clock, looking for div is 0 for current, request div is 1*/
+	if (dispclk_increase) {
+		/* already divided by 2, no need to reach target clk with 2 steps*/
+		if (cur_dpp_div)
+			return new_clocks->dispclk_khz;
+
+		/* request disp clk is lower than maximum supported dpp clk,
+		 * no need to reach target clk with two steps.
+		 */
+		if (new_clocks->dispclk_khz <= disp_clk_threshold)
+			return new_clocks->dispclk_khz;
+
+		/* target dpp clk not request divided by 2, still within threshold */
+		if (!request_dpp_div)
+			return new_clocks->dispclk_khz;
+
+	} else {
+		/* decrease clock, looking for current dppclk divided by 2,
+		 * request dppclk not divided by 2.
+		 */
+
+		/* current dpp clk not divided by 2, no need to ramp*/
+		if (!cur_dpp_div)
+			return new_clocks->dispclk_khz;
+
+		/* current disp clk is lower than current maximum dpp clk,
+		 * no need to ramp
+		 */
+		if (dccg->clks.dispclk_khz <= disp_clk_threshold)
+			return new_clocks->dispclk_khz;
+
+		/* request dpp clk need to be divided by 2 */
+		if (request_dpp_div)
+			return new_clocks->dispclk_khz;
+	}
+
+	return disp_clk_threshold;
+}
+
+static void dcn1_ramp_up_dispclk_with_dpp(struct dccg *dccg, struct dc_clocks *new_clocks)
+{
+	struct dc *dc = dccg->ctx->dc;
+	int dispclk_to_dpp_threshold = dcn1_determine_dppclk_threshold(dccg, new_clocks);
+	bool request_dpp_div = new_clocks->dispclk_khz > new_clocks->dppclk_khz;
+	int i;
+
+	/* set disp clk to dpp clk threshold */
+	dccg->funcs->set_dispclk(dccg, dispclk_to_dpp_threshold);
+
+	/* update request dpp clk division option */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (!pipe_ctx->plane_state)
+			continue;
+
+		pipe_ctx->plane_res.dpp->funcs->dpp_dppclk_control(
+				pipe_ctx->plane_res.dpp,
+				request_dpp_div,
+				true);
+	}
+
+	/* If target clk not same as dppclk threshold, set to target clock */
+	if (dispclk_to_dpp_threshold != new_clocks->dispclk_khz)
+		dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);
+
+	dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
+	dccg->clks.dppclk_khz = new_clocks->dppclk_khz;
+	dccg->clks.max_supported_dppclk_khz = new_clocks->max_supported_dppclk_khz;
+}
+
+static void dcn1_update_clocks(struct dccg *dccg,
+			struct dc_clocks *new_clocks,
+			bool safe_to_lower)
+{
+	struct dc *dc = dccg->ctx->dc;
+	struct pp_smu_display_requirement_rv *smu_req_cur =
+			&dc->res_pool->pp_smu_req;
+	struct pp_smu_display_requirement_rv smu_req = *smu_req_cur;
+	struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
+	struct dm_pp_clock_for_voltage_req clock_voltage_req = {0};
+	bool send_request_to_increase = false;
+	bool send_request_to_lower = false;
+
+	if (new_clocks->phyclk_khz)
+		smu_req.display_count = 1;
+	else
+		smu_req.display_count = 0;
+
+	if (new_clocks->dispclk_khz > dccg->clks.dispclk_khz
+			|| new_clocks->phyclk_khz > dccg->clks.phyclk_khz
+			|| new_clocks->fclk_khz > dccg->clks.fclk_khz
+			|| new_clocks->dcfclk_khz > dccg->clks.dcfclk_khz)
+		send_request_to_increase = true;
+
+	if (should_set_clock(safe_to_lower, new_clocks->phyclk_khz, dccg->clks.phyclk_khz)) {
+		dccg->clks.phyclk_khz = new_clocks->phyclk_khz;
+
+		send_request_to_lower = true;
+	}
+
+	if (should_set_clock(safe_to_lower, new_clocks->fclk_khz, dccg->clks.fclk_khz)) {
+		dccg->clks.fclk_khz = new_clocks->fclk_khz;
+		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_FCLK;
+		clock_voltage_req.clocks_in_khz = new_clocks->fclk_khz;
+		smu_req.hard_min_fclk_khz = new_clocks->fclk_khz;
+
+		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
+		send_request_to_lower = true;
+	}
+
+	if (should_set_clock(safe_to_lower, new_clocks->dcfclk_khz, dccg->clks.dcfclk_khz)) {
+		dccg->clks.dcfclk_khz = new_clocks->dcfclk_khz;
+		smu_req.hard_min_dcefclk_khz = new_clocks->dcfclk_khz;
+
+		send_request_to_lower = true;
+	}
+
+	if (should_set_clock(safe_to_lower,
+			new_clocks->dcfclk_deep_sleep_khz, dccg->clks.dcfclk_deep_sleep_khz)) {
+		dccg->clks.dcfclk_deep_sleep_khz = new_clocks->dcfclk_deep_sleep_khz;
+		smu_req.min_deep_sleep_dcefclk_mhz = new_clocks->dcfclk_deep_sleep_khz;
+
+		send_request_to_lower = true;
+	}
+
+	/* make sure dcf clk is before dpp clk to
+	 * make sure we have enough voltage to run dpp clk
+	 */
+	if (send_request_to_increase) {
+		/*use dcfclk to request voltage*/
+		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
+		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
+		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
+		if (pp_smu->set_display_requirement)
+			pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
+	}
+
+	/* dcn1 dppclk is tied to dispclk */
+	/* program dispclk on = as a w/a for sleep resume clock ramping issues */
+	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, dccg->clks.dispclk_khz)
+			|| new_clocks->dispclk_khz == dccg->clks.dispclk_khz) {
+		dcn1_ramp_up_dispclk_with_dpp(dccg, new_clocks);
+		dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
+
+		send_request_to_lower = true;
+	}
+
+	if (!send_request_to_increase && send_request_to_lower) {
+		/*use dcfclk to request voltage*/
+		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
+		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
+		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
+		if (pp_smu->set_display_requirement)
+			pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
+	}
+
+
+	*smu_req_cur = smu_req;
+}
+#endif
+
+static void dce_update_clocks(struct dccg *dccg,
+			struct dc_clocks *new_clocks,
+			bool safe_to_lower)
+{
+	struct dm_pp_power_level_change_request level_change_req;
+
+	level_change_req.power_level = dce_get_required_clocks_state(dccg, new_clocks);
+	/* get max clock state from PPLIB */
+	if ((level_change_req.power_level < dccg->cur_min_clks_state && safe_to_lower)
+			|| level_change_req.power_level > dccg->cur_min_clks_state) {
+		if (dm_pp_apply_power_level_change_request(dccg->ctx, &level_change_req))
+			dccg->cur_min_clks_state = level_change_req.power_level;
+	}
+
+	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, dccg->clks.dispclk_khz)) {
+		new_clocks->dispclk_khz = dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);
+		dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
+	}
+}
+
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+static const struct display_clock_funcs dcn1_funcs = {
+	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+	.set_dispclk = dce112_set_clock,
+	.update_clocks = dcn1_update_clocks
+};
+#endif
 
 static const struct display_clock_funcs dce120_funcs = {
-	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq_wrkaround,
-	.apply_clock_voltage_request = dce_apply_clock_voltage_request,
-	.set_clock = dce112_set_clock
+	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+	.set_dispclk = dce112_set_clock,
+	.update_clocks = dce12_update_clocks
 };
 
 static const struct display_clock_funcs dce112_funcs = {
-	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq,
-	.get_required_clocks_state = dce_get_required_clocks_state,
-	.set_min_clocks_state = dce_clock_set_min_clocks_state,
-	.set_clock = dce112_set_clock
+	.get_dp_ref_clk_frequency = dce_get_dp_ref_freq_khz,
+	.set_dispclk = dce112_set_clock,
+	.update_clocks = dce_update_clocks
 };
 
 static const struct display_clock_funcs dce110_funcs = {
-	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq,
-	.get_required_clocks_state = dce_get_required_clocks_state,
-	.set_min_clocks_state = dce_clock_set_min_clocks_state,
-	.set_clock = dce_psr_set_clock
+	.get_dp_ref_clk_frequency = dce_get_dp_ref_freq_khz,
+	.set_dispclk = dce_psr_set_clock,
+	.update_clocks = dce_update_clocks
 };
 
 static const struct display_clock_funcs dce_funcs = {
-	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq,
-	.get_required_clocks_state = dce_get_required_clocks_state,
-	.set_min_clocks_state = dce_clock_set_min_clocks_state,
-	.set_clock = dce_set_clock
+	.get_dp_ref_clk_frequency = dce_get_dp_ref_freq_khz,
+	.set_dispclk = dce_set_clock,
+	.update_clocks = dce_update_clocks
 };
 
-static void dce_disp_clk_construct(
-	struct dce_disp_clk *clk_dce,
+static void dce_dccg_construct(
+	struct dce_dccg *clk_dce,
 	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask)
+	const struct dccg_registers *regs,
+	const struct dccg_shift *clk_shift,
+	const struct dccg_mask *clk_mask)
 {
-	struct display_clock *base = &clk_dce->base;
+	struct dccg *base = &clk_dce->base;
 
 	base->ctx = ctx;
 	base->funcs = &dce_funcs;
@@ -700,34 +733,15 @@ static void dce_disp_clk_construct(
 
 	dce_clock_read_integrated_info(clk_dce);
 	dce_clock_read_ss_info(clk_dce);
-
-	dce_divider_range_construct(
-		&clk_dce->divider_ranges[DIVIDER_RANGE_01],
-		DIVIDER_RANGE_01_START,
-		DIVIDER_RANGE_01_STEP_SIZE,
-		DIVIDER_RANGE_01_BASE_DIVIDER_ID,
-		DIVIDER_RANGE_02_BASE_DIVIDER_ID);
-	dce_divider_range_construct(
-		&clk_dce->divider_ranges[DIVIDER_RANGE_02],
-		DIVIDER_RANGE_02_START,
-		DIVIDER_RANGE_02_STEP_SIZE,
-		DIVIDER_RANGE_02_BASE_DIVIDER_ID,
-		DIVIDER_RANGE_03_BASE_DIVIDER_ID);
-	dce_divider_range_construct(
-		&clk_dce->divider_ranges[DIVIDER_RANGE_03],
-		DIVIDER_RANGE_03_START,
-		DIVIDER_RANGE_03_STEP_SIZE,
-		DIVIDER_RANGE_03_BASE_DIVIDER_ID,
-		DIVIDER_RANGE_MAX_DIVIDER_ID);
 }
 
-struct display_clock *dce_disp_clk_create(
+struct dccg *dce_dccg_create(
 	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask)
+	const struct dccg_registers *regs,
+	const struct dccg_shift *clk_shift,
+	const struct dccg_mask *clk_mask)
 {
-	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
+	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
 	if (clk_dce == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -738,19 +752,19 @@ struct display_clock *dce_disp_clk_create(
 		dce80_max_clks_by_state,
 		sizeof(dce80_max_clks_by_state));
 
-	dce_disp_clk_construct(
+	dce_dccg_construct(
 		clk_dce, ctx, regs, clk_shift, clk_mask);
 
 	return &clk_dce->base;
 }
 
-struct display_clock *dce110_disp_clk_create(
+struct dccg *dce110_dccg_create(
 	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask)
+	const struct dccg_registers *regs,
+	const struct dccg_shift *clk_shift,
+	const struct dccg_mask *clk_mask)
 {
-	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
+	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
 	if (clk_dce == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -761,7 +775,7 @@ struct display_clock *dce110_disp_clk_create(
 		dce110_max_clks_by_state,
 		sizeof(dce110_max_clks_by_state));
 
-	dce_disp_clk_construct(
+	dce_dccg_construct(
 		clk_dce, ctx, regs, clk_shift, clk_mask);
 
 	clk_dce->base.funcs = &dce110_funcs;
@@ -769,13 +783,13 @@ struct display_clock *dce110_disp_clk_create(
 	return &clk_dce->base;
 }
 
-struct display_clock *dce112_disp_clk_create(
+struct dccg *dce112_dccg_create(
 	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask)
+	const struct dccg_registers *regs,
+	const struct dccg_shift *clk_shift,
+	const struct dccg_mask *clk_mask)
 {
-	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
+	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
 	if (clk_dce == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -786,7 +800,7 @@ struct display_clock *dce112_disp_clk_create(
 		dce112_max_clks_by_state,
 		sizeof(dce112_max_clks_by_state));
 
-	dce_disp_clk_construct(
+	dce_dccg_construct(
 		clk_dce, ctx, regs, clk_shift, clk_mask);
 
 	clk_dce->base.funcs = &dce112_funcs;
@@ -794,10 +808,9 @@ struct display_clock *dce112_disp_clk_create(
 	return &clk_dce->base;
 }
 
-struct display_clock *dce120_disp_clk_create(struct dc_context *ctx)
+struct dccg *dce120_dccg_create(struct dc_context *ctx)
 {
-	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
-	struct dm_pp_clock_levels_with_voltage clk_level_info = {0};
+	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
 	if (clk_dce == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -808,28 +821,59 @@ struct display_clock *dce120_disp_clk_create(struct dc_context *ctx)
 		dce120_max_clks_by_state,
 		sizeof(dce120_max_clks_by_state));
 
-	dce_disp_clk_construct(
+	dce_dccg_construct(
 		clk_dce, ctx, NULL, NULL, NULL);
 
 	clk_dce->base.funcs = &dce120_funcs;
 
-	/* new in dce120 */
-	if (!ctx->dc->debug.disable_pplib_clock_request  &&
-			dm_pp_get_clock_levels_by_type_with_voltage(
-			ctx, DM_PP_CLOCK_TYPE_DISPLAY_CLK, &clk_level_info)
-						&& clk_level_info.num_levels)
-		clk_dce->max_displ_clk_in_khz =
-			clk_level_info.data[clk_level_info.num_levels - 1].clocks_in_khz;
-	else
-		clk_dce->max_displ_clk_in_khz = 1133000;
-
 	return &clk_dce->base;
 }
 
-void dce_disp_clk_destroy(struct display_clock **disp_clk)
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+struct dccg *dcn1_dccg_create(struct dc_context *ctx)
 {
-	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(*disp_clk);
+	struct dc_debug_options *debug = &ctx->dc->debug;
+	struct dc_bios *bp = ctx->dc_bios;
+	struct dc_firmware_info fw_info = { { 0 } };
+	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
+
+	if (clk_dce == NULL) {
+		BREAK_TO_DEBUGGER();
+		return NULL;
+	}
+
+	clk_dce->base.ctx = ctx;
+	clk_dce->base.funcs = &dcn1_funcs;
+
+	clk_dce->dfs_bypass_disp_clk = 0;
+
+	clk_dce->dprefclk_ss_percentage = 0;
+	clk_dce->dprefclk_ss_divider = 1000;
+	clk_dce->ss_on_dprefclk = false;
+
+	if (bp->integrated_info)
+		clk_dce->dentist_vco_freq_khz = bp->integrated_info->dentist_vco_freq;
+	if (clk_dce->dentist_vco_freq_khz == 0) {
+		bp->funcs->get_firmware_info(bp, &fw_info);
+		clk_dce->dentist_vco_freq_khz = fw_info.smu_gpu_pll_output_freq;
+		if (clk_dce->dentist_vco_freq_khz == 0)
+			clk_dce->dentist_vco_freq_khz = 3600000;
+	}
+
+	if (!debug->disable_dfs_bypass && bp->integrated_info)
+		if (bp->integrated_info->gpu_cap_info & DFS_BYPASS_ENABLE)
+			clk_dce->dfs_bypass_enabled = true;
+
+	dce_clock_read_ss_info(clk_dce);
+
+	return &clk_dce->base;
+}
+#endif
+
+void dce_dccg_destroy(struct dccg **dccg)
+{
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(*dccg);
 
 	kfree(clk_dce);
-	*disp_clk = NULL;
+	*dccg = NULL;
 }

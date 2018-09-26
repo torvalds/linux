@@ -104,13 +104,15 @@ static void hclge_free_vector_ring_chain(struct hnae3_ring_chain_node *head)
 	}
 }
 
-/* hclge_get_ring_chain_from_mbx: get ring type & tqpid from mailbox message
+/* hclge_get_ring_chain_from_mbx: get ring type & tqp id & int_gl idx
+ * from mailbox message
  * msg[0]: opcode
  * msg[1]: <not relevant to this function>
  * msg[2]: ring_num
  * msg[3]: first ring type (TX|RX)
  * msg[4]: first tqp id
- * msg[5] ~ msg[14]: other ring type and tqp id
+ * msg[5]: first int_gl idx
+ * msg[6] ~ msg[14]: other ring type, tqp id and int_gl idx
  */
 static int hclge_get_ring_chain_from_mbx(
 			struct hclge_mbx_vf_to_pf_cmd *req,
@@ -128,12 +130,12 @@ static int hclge_get_ring_chain_from_mbx(
 		HCLGE_MBX_RING_NODE_VARIABLE_NUM))
 		return -ENOMEM;
 
-	hnae_set_bit(ring_chain->flag, HNAE3_RING_TYPE_B, req->msg[3]);
+	hnae3_set_bit(ring_chain->flag, HNAE3_RING_TYPE_B, req->msg[3]);
 	ring_chain->tqp_index =
 			hclge_get_queue_id(vport->nic.kinfo.tqp[req->msg[4]]);
-	hnae_set_field(ring_chain->int_gl_idx, HCLGE_INT_GL_IDX_M,
-		       HCLGE_INT_GL_IDX_S,
-		       req->msg[5]);
+	hnae3_set_field(ring_chain->int_gl_idx, HNAE3_RING_GL_IDX_M,
+			HNAE3_RING_GL_IDX_S,
+			req->msg[5]);
 
 	cur_chain = ring_chain;
 
@@ -142,19 +144,19 @@ static int hclge_get_ring_chain_from_mbx(
 		if (!new_chain)
 			goto err;
 
-		hnae_set_bit(new_chain->flag, HNAE3_RING_TYPE_B,
-			     req->msg[HCLGE_MBX_RING_NODE_VARIABLE_NUM * i +
-			     HCLGE_MBX_RING_MAP_BASIC_MSG_NUM]);
+		hnae3_set_bit(new_chain->flag, HNAE3_RING_TYPE_B,
+			      req->msg[HCLGE_MBX_RING_NODE_VARIABLE_NUM * i +
+			      HCLGE_MBX_RING_MAP_BASIC_MSG_NUM]);
 
 		new_chain->tqp_index =
 		hclge_get_queue_id(vport->nic.kinfo.tqp
 			[req->msg[HCLGE_MBX_RING_NODE_VARIABLE_NUM * i +
 			HCLGE_MBX_RING_MAP_BASIC_MSG_NUM + 1]]);
 
-		hnae_set_field(new_chain->int_gl_idx, HCLGE_INT_GL_IDX_M,
-			       HCLGE_INT_GL_IDX_S,
-			       req->msg[HCLGE_MBX_RING_NODE_VARIABLE_NUM * i +
-			       HCLGE_MBX_RING_MAP_BASIC_MSG_NUM + 2]);
+		hnae3_set_field(new_chain->int_gl_idx, HNAE3_RING_GL_IDX_M,
+				HNAE3_RING_GL_IDX_S,
+				req->msg[HCLGE_MBX_RING_NODE_VARIABLE_NUM * i +
+				HCLGE_MBX_RING_MAP_BASIC_MSG_NUM + 2]);
 
 		cur_chain->next = new_chain;
 		cur_chain = new_chain;
@@ -460,7 +462,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 		req = (struct hclge_mbx_vf_to_pf_cmd *)desc->data;
 
 		flag = le16_to_cpu(crq->desc[crq->next_to_use].flag);
-		if (unlikely(!hnae_get_bit(flag, HCLGE_CMDQ_RX_OUTVLD_B))) {
+		if (unlikely(!hnae3_get_bit(flag, HCLGE_CMDQ_RX_OUTVLD_B))) {
 			dev_warn(&hdev->pdev->dev,
 				 "dropped invalid mailbox message, code = %d\n",
 				 req->msg[0]);

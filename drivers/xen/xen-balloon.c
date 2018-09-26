@@ -44,6 +44,7 @@
 #include <xen/xenbus.h>
 #include <xen/features.h>
 #include <xen/page.h>
+#include <xen/mem-reservation.h>
 
 #define PAGES2KB(_p) ((_p)<<(PAGE_SHIFT-10))
 
@@ -81,7 +82,7 @@ static void watch_target(struct xenbus_watch *watch,
 			static_max = new_target;
 		else
 			static_max >>= PAGE_SHIFT - 10;
-		target_diff = xen_pv_domain() ? 0
+		target_diff = (xen_pv_domain() || xen_initial_domain()) ? 0
 				: static_max - balloon_stats.target_pages;
 	}
 
@@ -137,6 +138,7 @@ static DEVICE_ULONG_ATTR(schedule_delay, 0444, balloon_stats.schedule_delay);
 static DEVICE_ULONG_ATTR(max_schedule_delay, 0644, balloon_stats.max_schedule_delay);
 static DEVICE_ULONG_ATTR(retry_count, 0444, balloon_stats.retry_count);
 static DEVICE_ULONG_ATTR(max_retry_count, 0644, balloon_stats.max_retry_count);
+static DEVICE_BOOL_ATTR(scrub_pages, 0644, xen_scrub_pages);
 
 static ssize_t show_target_kb(struct device *dev, struct device_attribute *attr,
 			      char *buf)
@@ -203,6 +205,7 @@ static struct attribute *balloon_attrs[] = {
 	&dev_attr_max_schedule_delay.attr.attr,
 	&dev_attr_retry_count.attr.attr,
 	&dev_attr_max_retry_count.attr.attr,
+	&dev_attr_scrub_pages.attr.attr,
 	NULL
 };
 

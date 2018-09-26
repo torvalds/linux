@@ -287,12 +287,9 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 
 	if (ret) {
 		if (bdev->driver->move_notify) {
-			struct ttm_mem_reg tmp_mem = *mem;
-			*mem = bo->mem;
-			bo->mem = tmp_mem;
+			swap(*mem, bo->mem);
 			bdev->driver->move_notify(bo, false, mem);
-			bo->mem = *mem;
-			*mem = tmp_mem;
+			swap(*mem, bo->mem);
 		}
 
 		goto out_err;
@@ -590,12 +587,18 @@ static void ttm_bo_release(struct kref *kref)
 	kref_put(&bo->list_kref, ttm_bo_release_list);
 }
 
+void ttm_bo_put(struct ttm_buffer_object *bo)
+{
+	kref_put(&bo->kref, ttm_bo_release);
+}
+EXPORT_SYMBOL(ttm_bo_put);
+
 void ttm_bo_unref(struct ttm_buffer_object **p_bo)
 {
 	struct ttm_buffer_object *bo = *p_bo;
 
 	*p_bo = NULL;
-	kref_put(&bo->kref, ttm_bo_release);
+	ttm_bo_put(bo);
 }
 EXPORT_SYMBOL(ttm_bo_unref);
 
@@ -1201,7 +1204,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 		if (!resv)
 			ttm_bo_unreserve(bo);
 
-		ttm_bo_unref(&bo);
+		ttm_bo_put(bo);
 		return ret;
 	}
 

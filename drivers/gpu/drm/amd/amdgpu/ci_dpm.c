@@ -49,10 +49,10 @@
 #include "gmc/gmc_7_1_d.h"
 #include "gmc/gmc_7_1_sh_mask.h"
 
-MODULE_FIRMWARE("radeon/bonaire_smc.bin");
-MODULE_FIRMWARE("radeon/bonaire_k_smc.bin");
-MODULE_FIRMWARE("radeon/hawaii_smc.bin");
-MODULE_FIRMWARE("radeon/hawaii_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/bonaire_smc.bin");
+MODULE_FIRMWARE("amdgpu/bonaire_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/hawaii_smc.bin");
+MODULE_FIRMWARE("amdgpu/hawaii_k_smc.bin");
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -951,12 +951,12 @@ static void ci_apply_state_adjust_rules(struct amdgpu_device *adev,
 	else
 		pi->battery_state = false;
 
-	if (adev->pm.dpm.ac_power)
+	if (adev->pm.ac_power)
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 	else
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_dc;
 
-	if (adev->pm.dpm.ac_power == false) {
+	if (adev->pm.ac_power == false) {
 		for (i = 0; i < ps->performance_level_count; i++) {
 			if (ps->performance_levels[i].mclk > max_limits->mclk)
 				ps->performance_levels[i].mclk = max_limits->mclk;
@@ -4078,7 +4078,7 @@ static int ci_enable_uvd_dpm(struct amdgpu_device *adev, bool enable)
 	const struct amdgpu_clock_and_voltage_limits *max_limits;
 	int i;
 
-	if (adev->pm.dpm.ac_power)
+	if (adev->pm.ac_power)
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 	else
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_dc;
@@ -4127,7 +4127,7 @@ static int ci_enable_vce_dpm(struct amdgpu_device *adev, bool enable)
 	const struct amdgpu_clock_and_voltage_limits *max_limits;
 	int i;
 
-	if (adev->pm.dpm.ac_power)
+	if (adev->pm.ac_power)
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 	else
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_dc;
@@ -4160,7 +4160,7 @@ static int ci_enable_samu_dpm(struct amdgpu_device *adev, bool enable)
 	const struct amdgpu_clock_and_voltage_limits *max_limits;
 	int i;
 
-	if (adev->pm.dpm.ac_power)
+	if (adev->pm.ac_power)
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 	else
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_dc;
@@ -4191,7 +4191,7 @@ static int ci_enable_acp_dpm(struct amdgpu_device *adev, bool enable)
 	const struct amdgpu_clock_and_voltage_limits *max_limits;
 	int i;
 
-	if (adev->pm.dpm.ac_power)
+	if (adev->pm.ac_power)
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 	else
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_dc;
@@ -5815,7 +5815,7 @@ static int ci_dpm_init_microcode(struct amdgpu_device *adev)
 	default: BUG();
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_smc.bin", chip_name);
 	err = request_firmware(&adev->pm.fw, fw_name, adev->dev);
 	if (err)
 		goto out;
@@ -5846,8 +5846,7 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 	adev->pm.dpm.priv = pi;
 
 	pi->sys_pcie_mask =
-		(adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_MASK) >>
-		CAIL_PCIE_LINK_SPEED_SUPPORT_SHIFT;
+		adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_MASK;
 
 	pi->force_pcie_gen = AMDGPU_PCIE_GEN_INVALID;
 
@@ -6767,6 +6766,19 @@ static int ci_dpm_read_sensor(void *handle, int idx,
 	}
 }
 
+static int ci_set_powergating_by_smu(void *handle,
+				uint32_t block_type, bool gate)
+{
+	switch (block_type) {
+	case AMD_IP_BLOCK_TYPE_UVD:
+		ci_dpm_powergate_uvd(handle, gate);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 static const struct amd_ip_funcs ci_dpm_ip_funcs = {
 	.name = "ci_dpm",
 	.early_init = ci_dpm_early_init,
@@ -6804,7 +6816,7 @@ static const struct amd_pm_funcs ci_dpm_funcs = {
 	.debugfs_print_current_performance_level = &ci_dpm_debugfs_print_current_performance_level,
 	.force_performance_level = &ci_dpm_force_performance_level,
 	.vblank_too_short = &ci_dpm_vblank_too_short,
-	.powergate_uvd = &ci_dpm_powergate_uvd,
+	.set_powergating_by_smu = &ci_set_powergating_by_smu,
 	.set_fan_control_mode = &ci_dpm_set_fan_control_mode,
 	.get_fan_control_mode = &ci_dpm_get_fan_control_mode,
 	.set_fan_speed_percent = &ci_dpm_set_fan_speed_percent,

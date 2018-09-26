@@ -7,8 +7,6 @@ SoCs (RT3x5x, RT5350, MT76x8).
 Required properties:
 - compatible: Should be "ralink,rt3050-esw"
 - reg: Address and length of the register set for the device
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupts: Should contain the embedded switches interrupt
 - resets: Should contain the embedded switches resets
 - reset-names: Should contain the reset names "esw"

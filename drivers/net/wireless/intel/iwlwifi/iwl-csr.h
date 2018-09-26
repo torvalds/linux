@@ -339,6 +339,9 @@ enum {
 /* HW_RF CHIP ID  */
 #define CSR_HW_RF_ID_TYPE_CHIP_ID(_val) (((_val) >> 12) & 0xFFF)
 
+/* HW_RF CHIP STEP  */
+#define CSR_HW_RF_STEP(_val) (((_val) >> 8) & 0xF)
+
 /* EEPROM REG */
 #define CSR_EEPROM_REG_READ_VALID_MSK	(0x00000001)
 #define CSR_EEPROM_REG_BIT_CMD		(0x00000002)
@@ -592,6 +595,8 @@ enum msix_fh_int_causes {
 enum msix_hw_int_causes {
 	MSIX_HW_INT_CAUSES_REG_ALIVE		= BIT(0),
 	MSIX_HW_INT_CAUSES_REG_WAKEUP		= BIT(1),
+	MSIX_HW_INT_CAUSES_REG_IPC		= BIT(1),
+	MSIX_HW_INT_CAUSES_REG_SW_ERR_V2	= BIT(5),
 	MSIX_HW_INT_CAUSES_REG_CT_KILL		= BIT(6),
 	MSIX_HW_INT_CAUSES_REG_RF_KILL		= BIT(7),
 	MSIX_HW_INT_CAUSES_REG_PERIODIC		= BIT(8),

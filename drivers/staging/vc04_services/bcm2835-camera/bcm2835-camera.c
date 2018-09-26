@@ -580,6 +580,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 static void stop_streaming(struct vb2_queue *vq)
 {
 	int ret;
+	unsigned long timeout;
 	struct bm2835_mmal_dev *dev = vb2_get_drv_priv(vq);
 
 	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev, "%s: dev:%p\n",
@@ -605,10 +606,10 @@ static void stop_streaming(struct vb2_queue *vq)
 				      sizeof(dev->capture.frame_count));
 
 	/* wait for last frame to complete */
-	ret = wait_for_completion_timeout(&dev->capture.frame_cmplt, HZ);
-	if (ret <= 0)
+	timeout = wait_for_completion_timeout(&dev->capture.frame_cmplt, HZ);
+	if (timeout == 0)
 		v4l2_err(&dev->v4l2_dev,
-			 "error %d waiting for frame completion\n", ret);
+			 "timed out waiting for frame completion\n");
 
 	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
 		 "disabling connection\n");
@@ -628,20 +629,6 @@ static void stop_streaming(struct vb2_queue *vq)
 		v4l2_err(&dev->v4l2_dev, "Failed to disable camera\n");
 }
 
-static void bm2835_mmal_lock(struct vb2_queue *vq)
-{
-	struct bm2835_mmal_dev *dev = vb2_get_drv_priv(vq);
-
-	mutex_lock(&dev->mutex);
-}
-
-static void bm2835_mmal_unlock(struct vb2_queue *vq)
-{
-	struct bm2835_mmal_dev *dev = vb2_get_drv_priv(vq);
-
-	mutex_unlock(&dev->mutex);
-}
-
 static const struct vb2_ops bm2835_mmal_video_qops = {
 	.queue_setup = queue_setup,
 	.buf_init = buffer_init,
@@ -650,8 +637,8 @@ static const struct vb2_ops bm2835_mmal_video_qops = {
 	.buf_queue = buffer_queue,
 	.start_streaming = start_streaming,
 	.stop_streaming = stop_streaming,
-	.wait_prepare = bm2835_mmal_unlock,
-	.wait_finish = bm2835_mmal_lock,
+	.wait_prepare = vb2_ops_wait_prepare,
+	.wait_finish = vb2_ops_wait_finish,
 };
 
 /* ------------------------------------------------------------------
@@ -1864,6 +1851,8 @@ static int bcm2835_mmal_probe(struct platform_device *pdev)
 			goto cleanup_gdev;
 		}
 
+		/* v4l2 core mutex used to protect all fops and v4l2 ioctls. */
+		mutex_init(&dev->mutex);
 		dev->camera_num = camera;
 		dev->max_width = resolutions[camera][0];
 		dev->max_height = resolutions[camera][1];
@@ -1908,12 +1897,10 @@ static int bcm2835_mmal_probe(struct platform_device *pdev)
 		q->ops = &bm2835_mmal_video_qops;
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+		q->lock = &dev->mutex;
 		ret = vb2_queue_init(q);
 		if (ret < 0)
 			goto unreg_dev;
-
-		/* v4l2 core mutex used to protect all fops and v4l2 ioctls. */
-		mutex_init(&dev->mutex);
 
 		/* initialise video devices */
 		ret = bm2835_mmal_init_device(dev, &dev->vdev);

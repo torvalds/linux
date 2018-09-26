@@ -147,6 +147,7 @@
 	SR(DCCG_GATE_DISABLE_CNTL2), \
 	SR(DCFCLK_CNTL),\
 	SR(DCFCLK_CNTL), \
+	SR(DC_MEM_GLOBAL_PWR_REQ_CNTL), \
 	/* todo:  get these from GVM instead of reading registers ourselves */\
 	MMHUB_SR(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32),\
 	MMHUB_SR(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32),\
@@ -249,7 +250,6 @@ struct dce_hwseq_registers {
 	uint32_t DISPCLK_FREQ_CHANGE_CNTL;
 	uint32_t RBBMIF_TIMEOUT_DIS;
 	uint32_t RBBMIF_TIMEOUT_DIS_2;
-	uint32_t DENTIST_DISPCLK_CNTL;
 	uint32_t DCHUBBUB_CRC_CTRL;
 	uint32_t DPP_TOP0_DPP_CRC_CTRL;
 	uint32_t DPP_TOP0_DPP_CRC_VAL_R_G;
@@ -276,6 +276,8 @@ struct dce_hwseq_registers {
 	uint32_t MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB;
 	uint32_t MC_VM_SYSTEM_APERTURE_LOW_ADDR;
 	uint32_t MC_VM_SYSTEM_APERTURE_HIGH_ADDR;
+	uint32_t AZALIA_AUDIO_DTO;
+	uint32_t AZALIA_CONTROLLER_CLOCK_GATING;
 };
  /* set field name */
 #define HWS_SF(blk_name, reg_name, field_name, post_fix)\
@@ -362,7 +364,8 @@ struct dce_hwseq_registers {
 	HWSEQ_PIXEL_RATE_MASK_SH_LIST(mask_sh, OTG0_),\
 	HWS_SF1(OTG0_, PHYPLL_PIXEL_RATE_CNTL, PHYPLL_PIXEL_RATE_SOURCE, mask_sh), \
 	HWS_SF(, DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, mask_sh), \
-	HWS_SF(, DCFCLK_CNTL, DCFCLK_GATE_DIS, mask_sh)
+	HWS_SF(, DCFCLK_CNTL, DCFCLK_GATE_DIS, mask_sh), \
+	HWS_SF(, DC_MEM_GLOBAL_PWR_REQ_CNTL, DC_MEM_GLOBAL_PWR_REQ_DIS, mask_sh)
 
 #define HWSEQ_DCN1_MASK_SH_LIST(mask_sh)\
 	HWSEQ_DCN_MASK_SH_LIST(mask_sh), \
@@ -496,14 +499,13 @@ struct dce_hwseq_registers {
 	type DOMAIN7_PGFSM_PWR_STATUS; \
 	type DCFCLK_GATE_DIS; \
 	type DCHUBBUB_GLOBAL_TIMER_REFDIV; \
-	type DENTIST_DPPCLK_WDIVIDER; \
-	type DENTIST_DISPCLK_WDIVIDER; \
 	type VGA_TEST_ENABLE; \
 	type VGA_TEST_RENDER_START; \
 	type D1VGA_MODE_ENABLE; \
 	type D2VGA_MODE_ENABLE; \
 	type D3VGA_MODE_ENABLE; \
-	type D4VGA_MODE_ENABLE;
+	type D4VGA_MODE_ENABLE; \
+	type AZALIA_AUDIO_DTO_MODULE;
 
 struct dce_hwseq_shift {
 	HWSEQ_REG_FIELD_LIST(uint8_t)

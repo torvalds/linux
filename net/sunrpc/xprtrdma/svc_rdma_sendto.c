@@ -291,7 +291,6 @@ static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
  */
 int svc_rdma_send(struct svcxprt_rdma *rdma, struct ib_send_wr *wr)
 {
-	struct ib_send_wr *bad_wr;
 	int ret;
 
 	might_sleep();
@@ -311,7 +310,7 @@ int svc_rdma_send(struct svcxprt_rdma *rdma, struct ib_send_wr *wr)
 		}
 
 		svc_xprt_get(&rdma->sc_xprt);
-		ret = ib_post_send(rdma->sc_qp, wr, &bad_wr);
+		ret = ib_post_send(rdma->sc_qp, wr, NULL);
 		trace_svcrdma_post_send(wr, ret);
 		if (ret) {
 			set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
@@ -657,7 +656,9 @@ static void svc_rdma_save_io_pages(struct svc_rqst *rqstp,
 		ctxt->sc_pages[i] = rqstp->rq_respages[i];
 		rqstp->rq_respages[i] = NULL;
 	}
-	rqstp->rq_next_page = rqstp->rq_respages + 1;
+
+	/* Prevent svc_xprt_release from releasing pages in rq_pages */
+	rqstp->rq_next_page = rqstp->rq_respages;
 }
 
 /* Prepare the portion of the RPC Reply that will be transmitted

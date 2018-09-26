@@ -25,6 +25,8 @@ typedef enum {
 	attr_reserved_clusters,
 	attr_inode_readahead,
 	attr_trigger_test_error,
+	attr_first_error_time,
+	attr_last_error_time,
 	attr_feature,
 	attr_pointer_ui,
 	attr_pointer_atomic,
@@ -56,7 +58,8 @@ static ssize_t session_write_kbytes_show(struct ext4_sb_info *sbi, char *buf)
 	if (!sb->s_bdev->bd_part)
 		return snprintf(buf, PAGE_SIZE, "0\n");
 	return snprintf(buf, PAGE_SIZE, "%lu\n",
-			(part_stat_read(sb->s_bdev->bd_part, sectors[1]) -
+			(part_stat_read(sb->s_bdev->bd_part,
+					sectors[STAT_WRITE]) -
 			 sbi->s_sectors_written_start) >> 1);
 }
 
@@ -68,7 +71,8 @@ static ssize_t lifetime_write_kbytes_show(struct ext4_sb_info *sbi, char *buf)
 		return snprintf(buf, PAGE_SIZE, "0\n");
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
 			(unsigned long long)(sbi->s_kbytes_written +
-			((part_stat_read(sb->s_bdev->bd_part, sectors[1]) -
+			((part_stat_read(sb->s_bdev->bd_part,
+					 sectors[STAT_WRITE]) -
 			  EXT4_SB(sb)->s_sectors_written_start) >> 1)));
 }
 
@@ -182,8 +186,8 @@ EXT4_RW_ATTR_SBI_UI(warning_ratelimit_burst, s_warning_ratelimit_state.burst);
 EXT4_RW_ATTR_SBI_UI(msg_ratelimit_interval_ms, s_msg_ratelimit_state.interval);
 EXT4_RW_ATTR_SBI_UI(msg_ratelimit_burst, s_msg_ratelimit_state.burst);
 EXT4_RO_ATTR_ES_UI(errors_count, s_error_count);
-EXT4_RO_ATTR_ES_UI(first_error_time, s_first_error_time);
-EXT4_RO_ATTR_ES_UI(last_error_time, s_last_error_time);
+EXT4_ATTR(first_error_time, 0444, first_error_time);
+EXT4_ATTR(last_error_time, 0444, last_error_time);
 
 static unsigned int old_bump_val = 128;
 EXT4_ATTR_PTR(max_writeback_mb_bump, 0444, pointer_ui, &old_bump_val);
@@ -249,6 +253,15 @@ static void *calc_ptr(struct ext4_attr *a, struct ext4_sb_info *sbi)
 	return NULL;
 }
 
+static ssize_t __print_tstamp(char *buf, __le32 lo, __u8 hi)
+{
+	return snprintf(buf, PAGE_SIZE, "%lld",
+			((time64_t)hi << 32) + le32_to_cpu(lo));
+}
+
+#define print_tstamp(buf, es, tstamp) \
+	__print_tstamp(buf, (es)->tstamp, (es)->tstamp ## _hi)
+
 static ssize_t ext4_attr_show(struct kobject *kobj,
 			      struct attribute *attr, char *buf)
 {
@@ -274,8 +287,12 @@ static ssize_t ext4_attr_show(struct kobject *kobj,
 	case attr_pointer_ui:
 		if (!ptr)
 			return 0;
-		return snprintf(buf, PAGE_SIZE, "%u\n",
-				*((unsigned int *) ptr));
+		if (a->attr_ptr == ptr_ext4_super_block_offset)
+			return snprintf(buf, PAGE_SIZE, "%u\n",
+					le32_to_cpup(ptr));
+		else
+			return snprintf(buf, PAGE_SIZE, "%u\n",
+					*((unsigned int *) ptr));
 	case attr_pointer_atomic:
 		if (!ptr)
 			return 0;
@@ -283,6 +300,10 @@ static ssize_t ext4_attr_show(struct kobject *kobj,
 				atomic_read((atomic_t *) ptr));
 	case attr_feature:
 		return snprintf(buf, PAGE_SIZE, "supported\n");
+	case attr_first_error_time:
+		return print_tstamp(buf, sbi->s_es, s_first_error_time);
+	case attr_last_error_time:
+		return print_tstamp(buf, sbi->s_es, s_last_error_time);
 	}
 
 	return 0;
@@ -308,7 +329,10 @@ static ssize_t ext4_attr_store(struct kobject *kobj,
 		ret = kstrtoul(skip_spaces(buf), 0, &t);
 		if (ret)
 			return ret;
-		*((unsigned int *) ptr) = t;
+		if (a->attr_ptr == ptr_ext4_super_block_offset)
+			*((__le32 *) ptr) = cpu_to_le32(t);
+		else
+			*((unsigned int *) ptr) = t;
 		return len;
 	case attr_inode_readahead:
 		return inode_readahead_blks_store(sbi, buf, len);

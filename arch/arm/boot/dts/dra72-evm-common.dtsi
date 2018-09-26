@@ -391,6 +391,7 @@
 
 &usb2 {
 	dr_mode = "host";
+	extcon = <&extcon_usb2>;
 };
 
 &mmc1 {

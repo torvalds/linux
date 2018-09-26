@@ -165,7 +165,11 @@ void hinic_sq_write_wqe(struct hinic_sq *sq, u16 prod_idx,
 
 struct hinic_sq_wqe *hinic_sq_read_wqe(struct hinic_sq *sq,
 				       struct sk_buff **skb,
-				       unsigned int *wqe_size, u16 *cons_idx);
+				       unsigned int wqe_size, u16 *cons_idx);
+
+struct hinic_sq_wqe *hinic_sq_read_wqebb(struct hinic_sq *sq,
+					 struct sk_buff **skb,
+					 unsigned int *wqe_size, u16 *cons_idx);
 
 void hinic_sq_put_wqe(struct hinic_sq *sq, unsigned int wqe_size);
 

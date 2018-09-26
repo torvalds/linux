@@ -1978,7 +1978,7 @@ static void encode_request_partial(struct ceph_osd_request *req,
 	p += sizeof(struct ceph_blkin_trace_info);
 
 	ceph_encode_32(&p, 0); /* client_inc, always 0 */
-	ceph_encode_timespec(p, &req->r_mtime);
+	ceph_encode_timespec64(p, &req->r_mtime);
 	p += sizeof(struct ceph_timespec);
 
 	encode_oloc(&p, end, &req->r_t.target_oloc);
@@ -4512,7 +4512,7 @@ ceph_osdc_watch(struct ceph_osd_client *osdc,
 	ceph_oid_copy(&lreq->t.base_oid, oid);
 	ceph_oloc_copy(&lreq->t.base_oloc, oloc);
 	lreq->t.flags = CEPH_OSD_FLAG_WRITE;
-	ktime_get_real_ts(&lreq->mtime);
+	ktime_get_real_ts64(&lreq->mtime);
 
 	lreq->reg_req = alloc_linger_request(lreq);
 	if (!lreq->reg_req) {
@@ -4570,7 +4570,7 @@ int ceph_osdc_unwatch(struct ceph_osd_client *osdc,
 	ceph_oid_copy(&req->r_base_oid, &lreq->t.base_oid);
 	ceph_oloc_copy(&req->r_base_oloc, &lreq->t.base_oloc);
 	req->r_flags = CEPH_OSD_FLAG_WRITE;
-	ktime_get_real_ts(&req->r_mtime);
+	ktime_get_real_ts64(&req->r_mtime);
 	osd_req_op_watch_init(req, 0, lreq->linger_id,
 			      CEPH_OSD_WATCH_OP_UNWATCH);
 
@@ -4591,7 +4591,7 @@ EXPORT_SYMBOL(ceph_osdc_unwatch);
 
 static int osd_req_op_notify_ack_init(struct ceph_osd_request *req, int which,
 				      u64 notify_id, u64 cookie, void *payload,
-				      size_t payload_len)
+				      u32 payload_len)
 {
 	struct ceph_osd_req_op *op;
 	struct ceph_pagelist *pl;
@@ -4628,7 +4628,7 @@ int ceph_osdc_notify_ack(struct ceph_osd_client *osdc,
 			 u64 notify_id,
 			 u64 cookie,
 			 void *payload,
-			 size_t payload_len)
+			 u32 payload_len)
 {
 	struct ceph_osd_request *req;
 	int ret;
@@ -4661,7 +4661,7 @@ EXPORT_SYMBOL(ceph_osdc_notify_ack);
 
 static int osd_req_op_notify_init(struct ceph_osd_request *req, int which,
 				  u64 cookie, u32 prot_ver, u32 timeout,
-				  void *payload, size_t payload_len)
+				  void *payload, u32 payload_len)
 {
 	struct ceph_osd_req_op *op;
 	struct ceph_pagelist *pl;
@@ -4701,7 +4701,7 @@ int ceph_osdc_notify(struct ceph_osd_client *osdc,
 		     struct ceph_object_id *oid,
 		     struct ceph_object_locator *oloc,
 		     void *payload,
-		     size_t payload_len,
+		     u32 payload_len,
 		     u32 timeout,
 		     struct page ***preply_pages,
 		     size_t *preply_len)
@@ -5136,7 +5136,7 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 			 struct ceph_snap_context *snapc,
 			 u64 off, u64 len,
 			 u32 truncate_seq, u64 truncate_size,
-			 struct timespec *mtime,
+			 struct timespec64 *mtime,
 			 struct page **pages, int num_pages)
 {
 	struct ceph_osd_request *req;
@@ -5393,6 +5393,16 @@ static struct ceph_auth_handshake *get_authorizer(struct ceph_connection *con,
 	return auth;
 }
 
+static int add_authorizer_challenge(struct ceph_connection *con,
+				    void *challenge_buf, int challenge_buf_len)
+{
+	struct ceph_osd *o = con->private;
+	struct ceph_osd_client *osdc = o->o_osdc;
+	struct ceph_auth_client *ac = osdc->client->monc.auth;
+
+	return ceph_auth_add_authorizer_challenge(ac, o->o_auth.authorizer,
+					    challenge_buf, challenge_buf_len);
+}
 
 static int verify_authorizer_reply(struct ceph_connection *con)
 {
@@ -5442,6 +5452,7 @@ static const struct ceph_connection_operations osd_con_ops = {
 	.put = put_osd_con,
 	.dispatch = dispatch,
 	.get_authorizer = get_authorizer,
+	.add_authorizer_challenge = add_authorizer_challenge,
 	.verify_authorizer_reply = verify_authorizer_reply,
 	.invalidate_authorizer = invalidate_authorizer,
 	.alloc_msg = alloc_msg,

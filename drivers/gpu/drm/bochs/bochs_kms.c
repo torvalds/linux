@@ -259,7 +259,7 @@ int bochs_kms_init(struct bochs_device *bochs)
 	bochs_crtc_init(bochs->dev);
 	bochs_encoder_init(bochs->dev);
 	bochs_connector_init(bochs->dev);
-	drm_mode_connector_attach_encoder(&bochs->connector,
+	drm_connector_attach_encoder(&bochs->connector,
 					  &bochs->encoder);
 
 	return 0;

@@ -26,6 +26,7 @@
 #define __I915_GEM_H__
 
 #include <linux/bug.h>
+#include <linux/interrupt.h>
 
 struct drm_i915_private;
 
@@ -62,14 +63,34 @@ struct drm_i915_private;
 #if IS_ENABLED(CONFIG_DRM_I915_TRACE_GEM)
 #define GEM_TRACE(...) trace_printk(__VA_ARGS__)
 #define GEM_TRACE_DUMP() ftrace_dump(DUMP_ALL)
+#define GEM_TRACE_DUMP_ON(expr) \
+	do { if (expr) ftrace_dump(DUMP_ALL); } while (0)
 #else
 #define GEM_TRACE(...) do { } while (0)
 #define GEM_TRACE_DUMP() do { } while (0)
+#define GEM_TRACE_DUMP_ON(expr) BUILD_BUG_ON_INVALID(expr)
 #endif
 
 #define I915_NUM_ENGINES 8
 
 void i915_gem_park(struct drm_i915_private *i915);
 void i915_gem_unpark(struct drm_i915_private *i915);
+
+static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
+{
+	if (atomic_inc_return(&t->count) == 1)
+		tasklet_unlock_wait(t);
+}
+
+static inline void __tasklet_enable_sync_once(struct tasklet_struct *t)
+{
+	if (atomic_dec_return(&t->count) == 0)
+		tasklet_kill(t);
+}
+
+static inline bool __tasklet_is_enabled(const struct tasklet_struct *t)
+{
+	return !atomic_read(&t->count);
+}
 
 #endif /* __I915_GEM_H__ */

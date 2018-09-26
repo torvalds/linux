@@ -275,9 +275,10 @@ static bool packet_use_direct_xmit(const struct packet_sock *po)
 	return po->xmit == packet_direct_xmit;
 }
 
-static u16 __packet_pick_tx_queue(struct net_device *dev, struct sk_buff *skb)
+static u16 __packet_pick_tx_queue(struct net_device *dev, struct sk_buff *skb,
+				  struct net_device *sb_dev)
 {
-	return (u16) raw_smp_processor_id() % dev->real_num_tx_queues;
+	return dev_pick_tx_cpu_id(dev, skb, sb_dev, NULL);
 }
 
 static u16 packet_pick_tx_queue(struct sk_buff *skb)
@@ -291,7 +292,7 @@ static u16 packet_pick_tx_queue(struct sk_buff *skb)
 						    __packet_pick_tx_queue);
 		queue_index = netdev_cap_txqueue(dev, queue_index);
 	} else {
-		queue_index = __packet_pick_tx_queue(dev, skb);
+		queue_index = __packet_pick_tx_queue(dev, skb, NULL);
 	}
 
 	return queue_index;
@@ -1581,7 +1582,7 @@ static int fanout_set_data(struct packet_sock *po, char __user *data,
 		return fanout_set_data_ebpf(po, data, len);
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 static void fanout_release_data(struct packet_fanout *f)
@@ -1590,7 +1591,7 @@ static void fanout_release_data(struct packet_fanout *f)
 	case PACKET_FANOUT_CBPF:
 	case PACKET_FANOUT_EBPF:
 		__fanout_set_data_bpf(f, NULL);
-	};
+	}
 }
 
 static bool __fanout_id_is_free(struct sock *sk, u16 candidate_id)
@@ -1951,7 +1952,7 @@ retry:
 		goto out_unlock;
 	}
 
-	sockc.tsflags = sk->sk_tsflags;
+	sockcm_init(&sockc, sk);
 	if (msg->msg_controllen) {
 		err = sock_cmsg_send(sk, msg, &sockc);
 		if (unlikely(err))
@@ -1962,6 +1963,7 @@ retry:
 	skb->dev = dev;
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
+	skb->tstamp = sockc.transmit_time;
 
 	sock_tx_timestamp(sk, sockc.tsflags, &skb_shinfo(skb)->tx_flags);
 
@@ -2262,21 +2264,19 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		if (po->stats.stats1.tp_drops)
 			status |= TP_STATUS_LOSING;
 	}
+
+	if (do_vnet &&
+	    virtio_net_hdr_from_skb(skb, h.raw + macoff -
+				    sizeof(struct virtio_net_hdr),
+				    vio_le(), true, 0))
+		goto drop_n_account;
+
 	po->stats.stats1.tp_packets++;
 	if (copy_skb) {
 		status |= TP_STATUS_COPY;
 		__skb_queue_tail(&sk->sk_receive_queue, copy_skb);
 	}
 	spin_unlock(&sk->sk_receive_queue.lock);
-
-	if (do_vnet) {
-		if (virtio_net_hdr_from_skb(skb, h.raw + macoff -
-					    sizeof(struct virtio_net_hdr),
-					    vio_le(), true, 0)) {
-			spin_lock(&sk->sk_receive_queue.lock);
-			goto drop_n_account;
-		}
-	}
 
 	skb_copy_bits(skb, 0, h.raw + macoff, snaplen);
 
@@ -2459,6 +2459,7 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	skb->dev = dev;
 	skb->priority = po->sk.sk_priority;
 	skb->mark = po->sk.sk_mark;
+	skb->tstamp = sockc->transmit_time;
 	sock_tx_timestamp(&po->sk, sockc->tsflags, &skb_shinfo(skb)->tx_flags);
 	skb_shinfo(skb)->destructor_arg = ph.raw;
 
@@ -2635,7 +2636,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	if (unlikely(!(dev->flags & IFF_UP)))
 		goto out_put;
 
-	sockc.tsflags = po->sk.sk_tsflags;
+	sockcm_init(&sockc, &po->sk);
 	if (msg->msg_controllen) {
 		err = sock_cmsg_send(&po->sk, msg, &sockc);
 		if (unlikely(err))
@@ -2831,7 +2832,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	if (unlikely(!(dev->flags & IFF_UP)))
 		goto out_unlock;
 
-	sockc.tsflags = sk->sk_tsflags;
+	sockcm_init(&sockc, sk);
 	sockc.mark = sk->sk_mark;
 	if (msg->msg_controllen) {
 		err = sock_cmsg_send(sk, msg, &sockc);
@@ -2880,6 +2881,8 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 			goto out_free;
 	} else if (reserve) {
 		skb_reserve(skb, -reserve);
+		if (len < reserve)
+			skb_reset_network_header(skb);
 	}
 
 	/* Returns -EFAULT on error */
@@ -2905,6 +2908,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	skb->dev = dev;
 	skb->priority = sk->sk_priority;
 	skb->mark = sockc.mark;
+	skb->tstamp = sockc.transmit_time;
 
 	if (has_vnet_hdr) {
 		err = virtio_net_hdr_to_skb(skb, &vnet_hdr, vio_le());
@@ -4078,11 +4082,12 @@ static int packet_ioctl(struct socket *sock, unsigned int cmd,
 	return 0;
 }
 
-static __poll_t packet_poll_mask(struct socket *sock, __poll_t events)
+static __poll_t packet_poll(struct file *file, struct socket *sock,
+				poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct packet_sock *po = pkt_sk(sk);
-	__poll_t mask = datagram_poll_mask(sock, events);
+	__poll_t mask = datagram_poll(file, sock, wait);
 
 	spin_lock_bh(&sk->sk_receive_queue.lock);
 	if (po->rx_ring.pg_vec) {
@@ -4225,6 +4230,8 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 	}
 
 	if (req->tp_block_nr) {
+		unsigned int min_frame_size;
+
 		/* Sanity tests and some calculations */
 		err = -EBUSY;
 		if (unlikely(rb->pg_vec))
@@ -4247,12 +4254,12 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 			goto out;
 		if (unlikely(!PAGE_ALIGNED(req->tp_block_size)))
 			goto out;
+		min_frame_size = po->tp_hdrlen + po->tp_reserve;
 		if (po->tp_version >= TPACKET_V3 &&
-		    req->tp_block_size <=
-		    BLK_PLUS_PRIV((u64)req_u->req3.tp_sizeof_priv) + sizeof(struct tpacket3_hdr))
+		    req->tp_block_size <
+		    BLK_PLUS_PRIV((u64)req_u->req3.tp_sizeof_priv) + min_frame_size)
 			goto out;
-		if (unlikely(req->tp_frame_size < po->tp_hdrlen +
-					po->tp_reserve))
+		if (unlikely(req->tp_frame_size < min_frame_size))
 			goto out;
 		if (unlikely(req->tp_frame_size & (TPACKET_ALIGNMENT - 1)))
 			goto out;
@@ -4424,7 +4431,7 @@ static const struct proto_ops packet_ops_spkt = {
 	.socketpair =	sock_no_socketpair,
 	.accept =	sock_no_accept,
 	.getname =	packet_getname_spkt,
-	.poll_mask =	datagram_poll_mask,
+	.poll =		datagram_poll,
 	.ioctl =	packet_ioctl,
 	.listen =	sock_no_listen,
 	.shutdown =	sock_no_shutdown,
@@ -4445,7 +4452,7 @@ static const struct proto_ops packet_ops = {
 	.socketpair =	sock_no_socketpair,
 	.accept =	sock_no_accept,
 	.getname =	packet_getname,
-	.poll_mask =	packet_poll_mask,
+	.poll =		packet_poll,
 	.ioctl =	packet_ioctl,
 	.listen =	sock_no_listen,
 	.shutdown =	sock_no_shutdown,

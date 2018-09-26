@@ -516,9 +516,9 @@ acpi_tb_verify_temp_table(struct acpi_table_desc *table_desc,
 			    acpi_tb_check_duplication(table_desc, table_index);
 			if (ACPI_FAILURE(status)) {
 				if (status != AE_CTRL_TERMINATE) {
-					ACPI_EXCEPTION((AE_INFO, AE_NO_MEMORY,
+					ACPI_EXCEPTION((AE_INFO, status,
 							"%4.4s 0x%8.8X%8.8X"
-							" Table is duplicated",
+							" Table is already loaded",
 							acpi_ut_valid_nameseg
 							(table_desc->signature.
 							 ascii) ? table_desc->

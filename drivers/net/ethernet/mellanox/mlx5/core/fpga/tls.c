@@ -129,6 +129,7 @@ static void mlx5_fpga_tls_cmd_send(struct mlx5_fpga_device *fdev,
 static int mlx5_fpga_tls_alloc_swid(struct idr *idr, spinlock_t *idr_spinlock,
 				    void *ptr)
 {
+	unsigned long flags;
 	int ret;
 
 	/* TLS metadata format is 1 byte for syndrome followed
@@ -139,9 +140,9 @@ static int mlx5_fpga_tls_alloc_swid(struct idr *idr, spinlock_t *idr_spinlock,
 	BUILD_BUG_ON((SWID_END - 1) & 0xFF000000);
 
 	idr_preload(GFP_KERNEL);
-	spin_lock_irq(idr_spinlock);
+	spin_lock_irqsave(idr_spinlock, flags);
 	ret = idr_alloc(idr, ptr, SWID_START, SWID_END, GFP_ATOMIC);
-	spin_unlock_irq(idr_spinlock);
+	spin_unlock_irqrestore(idr_spinlock, flags);
 	idr_preload_end();
 
 	return ret;
@@ -155,6 +156,13 @@ static void mlx5_fpga_tls_release_swid(struct idr *idr,
 	spin_lock_irqsave(idr_spinlock, flags);
 	idr_remove(idr, swid);
 	spin_unlock_irqrestore(idr_spinlock, flags);
+}
+
+static void mlx_tls_kfree_complete(struct mlx5_fpga_conn *conn,
+				   struct mlx5_fpga_device *fdev,
+				   struct mlx5_fpga_dma_buf *buf, u8 status)
+{
+	kfree(buf);
 }
 
 struct mlx5_teardown_stream_context {
@@ -178,9 +186,13 @@ mlx5_fpga_tls_teardown_completion(struct mlx5_fpga_conn *conn,
 			mlx5_fpga_err(fdev,
 				      "Teardown stream failed with syndrome = %d",
 				      syndrome);
-		else
+		else if (MLX5_GET(tls_cmd, cmd->buf.sg[0].data, direction_sx))
 			mlx5_fpga_tls_release_swid(&fdev->tls->tx_idr,
-						   &fdev->tls->idr_spinlock,
+						   &fdev->tls->tx_idr_spinlock,
+						   ctx->swid);
+		else
+			mlx5_fpga_tls_release_swid(&fdev->tls->rx_idr,
+						   &fdev->tls->rx_idr_spinlock,
 						   ctx->swid);
 	}
 	mlx5_fpga_tls_put_command_ctx(cmd);
@@ -194,6 +206,40 @@ static void mlx5_fpga_tls_flow_to_cmd(void *flow, void *cmd)
 	MLX5_SET(tls_cmd, cmd, ipv6, MLX5_GET(tls_flow, flow, ipv6));
 	MLX5_SET(tls_cmd, cmd, direction_sx,
 		 MLX5_GET(tls_flow, flow, direction_sx));
+}
+
+int mlx5_fpga_tls_resync_rx(struct mlx5_core_dev *mdev, u32 handle, u32 seq,
+			    u64 rcd_sn)
+{
+	struct mlx5_fpga_dma_buf *buf;
+	int size = sizeof(*buf) + MLX5_TLS_COMMAND_SIZE;
+	void *flow;
+	void *cmd;
+	int ret;
+
+	buf = kzalloc(size, GFP_ATOMIC);
+	if (!buf)
+		return -ENOMEM;
+
+	cmd = (buf + 1);
+
+	rcu_read_lock();
+	flow = idr_find(&mdev->fpga->tls->rx_idr, ntohl(handle));
+	rcu_read_unlock();
+	mlx5_fpga_tls_flow_to_cmd(flow, cmd);
+
+	MLX5_SET(tls_cmd, cmd, swid, ntohl(handle));
+	MLX5_SET64(tls_cmd, cmd, tls_rcd_sn, be64_to_cpu(rcd_sn));
+	MLX5_SET(tls_cmd, cmd, tcp_sn, seq);
+	MLX5_SET(tls_cmd, cmd, command_type, CMD_RESYNC_RX);
+
+	buf->sg[0].data = cmd;
+	buf->sg[0].size = MLX5_TLS_COMMAND_SIZE;
+	buf->complete = mlx_tls_kfree_complete;
+
+	ret = mlx5_fpga_sbu_conn_sendmsg(mdev->fpga->tls->conn, buf);
+
+	return ret;
 }
 
 static void mlx5_fpga_tls_send_teardown_cmd(struct mlx5_core_dev *mdev,
@@ -223,14 +269,18 @@ static void mlx5_fpga_tls_send_teardown_cmd(struct mlx5_core_dev *mdev,
 			       mlx5_fpga_tls_teardown_completion);
 }
 
-void mlx5_fpga_tls_del_tx_flow(struct mlx5_core_dev *mdev, u32 swid,
-			       gfp_t flags)
+void mlx5_fpga_tls_del_flow(struct mlx5_core_dev *mdev, u32 swid,
+			    gfp_t flags, bool direction_sx)
 {
 	struct mlx5_fpga_tls *tls = mdev->fpga->tls;
 	void *flow;
 
 	rcu_read_lock();
-	flow = idr_find(&tls->tx_idr, swid);
+	if (direction_sx)
+		flow = idr_find(&tls->tx_idr, swid);
+	else
+		flow = idr_find(&tls->rx_idr, swid);
+
 	rcu_read_unlock();
 
 	if (!flow) {
@@ -289,9 +339,11 @@ mlx5_fpga_tls_setup_completion(struct mlx5_fpga_conn *conn,
 		 * the command context because we might not have received
 		 * the tx completion yet.
 		 */
-		mlx5_fpga_tls_del_tx_flow(fdev->mdev,
-					  MLX5_GET(tls_cmd, tls_cmd, swid),
-					  GFP_ATOMIC);
+		mlx5_fpga_tls_del_flow(fdev->mdev,
+				       MLX5_GET(tls_cmd, tls_cmd, swid),
+				       GFP_ATOMIC,
+				       MLX5_GET(tls_cmd, tls_cmd,
+						direction_sx));
 	}
 
 	mlx5_fpga_tls_put_command_ctx(cmd);
@@ -415,8 +467,7 @@ int mlx5_fpga_tls_init(struct mlx5_core_dev *mdev)
 	if (err)
 		goto error;
 
-	if (!(tls->caps & (MLX5_ACCEL_TLS_TX | MLX5_ACCEL_TLS_V12 |
-				 MLX5_ACCEL_TLS_AES_GCM128))) {
+	if (!(tls->caps & (MLX5_ACCEL_TLS_V12 | MLX5_ACCEL_TLS_AES_GCM128))) {
 		err = -ENOTSUPP;
 		goto error;
 	}
@@ -438,7 +489,9 @@ int mlx5_fpga_tls_init(struct mlx5_core_dev *mdev)
 	INIT_LIST_HEAD(&tls->pending_cmds);
 
 	idr_init(&tls->tx_idr);
-	spin_lock_init(&tls->idr_spinlock);
+	idr_init(&tls->rx_idr);
+	spin_lock_init(&tls->tx_idr_spinlock);
+	spin_lock_init(&tls->rx_idr_spinlock);
 	fdev->tls = tls;
 	return 0;
 
@@ -500,9 +553,9 @@ static int mlx5_fpga_tls_set_key_material(void *cmd, u32 caps,
 	return 0;
 }
 
-static int mlx5_fpga_tls_add_flow(struct mlx5_core_dev *mdev, void *flow,
-				  struct tls_crypto_info *crypto_info, u32 swid,
-				  u32 tcp_sn)
+static int _mlx5_fpga_tls_add_flow(struct mlx5_core_dev *mdev, void *flow,
+				   struct tls_crypto_info *crypto_info,
+				   u32 swid, u32 tcp_sn)
 {
 	u32 caps = mlx5_fpga_tls_device_caps(mdev);
 	struct mlx5_setup_stream_context *ctx;
@@ -533,30 +586,42 @@ out:
 	return ret;
 }
 
-int mlx5_fpga_tls_add_tx_flow(struct mlx5_core_dev *mdev, void *flow,
-			      struct tls_crypto_info *crypto_info,
-			      u32 start_offload_tcp_sn, u32 *p_swid)
+int mlx5_fpga_tls_add_flow(struct mlx5_core_dev *mdev, void *flow,
+			   struct tls_crypto_info *crypto_info,
+			   u32 start_offload_tcp_sn, u32 *p_swid,
+			   bool direction_sx)
 {
 	struct mlx5_fpga_tls *tls = mdev->fpga->tls;
 	int ret = -ENOMEM;
 	u32 swid;
 
-	ret = mlx5_fpga_tls_alloc_swid(&tls->tx_idr, &tls->idr_spinlock, flow);
+	if (direction_sx)
+		ret = mlx5_fpga_tls_alloc_swid(&tls->tx_idr,
+					       &tls->tx_idr_spinlock, flow);
+	else
+		ret = mlx5_fpga_tls_alloc_swid(&tls->rx_idr,
+					       &tls->rx_idr_spinlock, flow);
+
 	if (ret < 0)
 		return ret;
 
 	swid = ret;
-	MLX5_SET(tls_flow, flow, direction_sx, 1);
+	MLX5_SET(tls_flow, flow, direction_sx, direction_sx ? 1 : 0);
 
-	ret = mlx5_fpga_tls_add_flow(mdev, flow, crypto_info, swid,
-				     start_offload_tcp_sn);
+	ret = _mlx5_fpga_tls_add_flow(mdev, flow, crypto_info, swid,
+				      start_offload_tcp_sn);
 	if (ret && ret != -EINTR)
 		goto free_swid;
 
 	*p_swid = swid;
 	return 0;
 free_swid:
-	mlx5_fpga_tls_release_swid(&tls->tx_idr, &tls->idr_spinlock, swid);
+	if (direction_sx)
+		mlx5_fpga_tls_release_swid(&tls->tx_idr,
+					   &tls->tx_idr_spinlock, swid);
+	else
+		mlx5_fpga_tls_release_swid(&tls->rx_idr,
+					   &tls->rx_idr_spinlock, swid);
 
 	return ret;
 }

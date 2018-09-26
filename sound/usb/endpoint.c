@@ -325,7 +325,6 @@ static void queue_pending_output_urbs(struct snd_usb_endpoint *ep)
 		unsigned long flags;
 		struct snd_usb_packet_info *uninitialized_var(packet);
 		struct snd_urb_ctx *ctx = NULL;
-		struct urb *urb;
 		int err, i;
 
 		spin_lock_irqsave(&ep->lock, flags);
@@ -345,7 +344,6 @@ static void queue_pending_output_urbs(struct snd_usb_endpoint *ep)
 			return;
 
 		list_del_init(&ctx->ready_list);
-		urb = ctx->urb;
 
 		/* copy over the length information */
 		for (i = 0; i < packet->packets; i++)

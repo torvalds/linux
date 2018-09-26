@@ -20,6 +20,7 @@ int nvkm_fault_new_(const struct nvkm_fault_func *, struct nvkm_device *,
 		    int index, struct nvkm_fault **);
 
 struct nvkm_fault_func {
+	int (*oneinit)(struct nvkm_fault *);
 	void (*init)(struct nvkm_fault *);
 	void (*fini)(struct nvkm_fault *);
 	void (*intr)(struct nvkm_fault *);

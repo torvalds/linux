@@ -7,7 +7,6 @@ Properties:
 
 - compatible: "snps,archs-idu-intc"
 - interrupt-controller: This is an interrupt controller.
-- interrupt-parent: <reference to parent core intc>
 - #interrupt-cells: Must be <1>.
 
   Value of the cell specifies the "common" IRQ from peripheral to IDU. Number N

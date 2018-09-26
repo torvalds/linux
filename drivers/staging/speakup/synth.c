@@ -18,8 +18,7 @@
 #include "speakup.h"
 #include "serialio.h"
 
-#define MAXSYNTHS       16      /* Max number of synths in array. */
-static struct spk_synth *synths[MAXSYNTHS + 1];
+static LIST_HEAD(synths);
 struct spk_synth *synth;
 char spk_pitch_buff[32] = "";
 static int module_status;
@@ -355,9 +354,8 @@ struct var_t synth_time_vars[] = {
 /* called by: speakup_init() */
 int synth_init(char *synth_name)
 {
-	int i;
 	int ret = 0;
-	struct spk_synth *synth = NULL;
+	struct spk_synth *tmp, *synth = NULL;
 
 	if (!synth_name)
 		return 0;
@@ -371,9 +369,10 @@ int synth_init(char *synth_name)
 
 	mutex_lock(&spk_mutex);
 	/* First, check if we already have it loaded. */
-	for (i = 0; i < MAXSYNTHS && synths[i]; i++)
-		if (strcmp(synths[i]->name, synth_name) == 0)
-			synth = synths[i];
+	list_for_each_entry(tmp, &synths, node) {
+		if (strcmp(tmp->name, synth_name) == 0)
+			synth = tmp;
+	}
 
 	/* If we got one, initialize it now. */
 	if (synth)
@@ -448,29 +447,23 @@ void synth_release(void)
 /* called by: all_driver_init() */
 int synth_add(struct spk_synth *in_synth)
 {
-	int i;
 	int status = 0;
+	struct spk_synth *tmp;
 
 	mutex_lock(&spk_mutex);
-	for (i = 0; i < MAXSYNTHS && synths[i]; i++)
-		/* synth_remove() is responsible for rotating the array down */
-		if (in_synth == synths[i]) {
+
+	list_for_each_entry(tmp, &synths, node) {
+		if (tmp == in_synth) {
 			mutex_unlock(&spk_mutex);
 			return 0;
 		}
-	if (i == MAXSYNTHS) {
-		pr_warn("Error: attempting to add a synth past end of array\n");
-		mutex_unlock(&spk_mutex);
-		return -1;
 	}
 
 	if (in_synth->startup)
 		status = do_synth_init(in_synth);
 
-	if (!status) {
-		synths[i++] = in_synth;
-		synths[i] = NULL;
-	}
+	if (!status)
+		list_add_tail(&in_synth->node, &synths);
 
 	mutex_unlock(&spk_mutex);
 	return status;
@@ -479,17 +472,10 @@ EXPORT_SYMBOL_GPL(synth_add);
 
 void synth_remove(struct spk_synth *in_synth)
 {
-	int i;
-
 	mutex_lock(&spk_mutex);
 	if (synth == in_synth)
 		synth_release();
-	for (i = 0; synths[i]; i++) {
-		if (in_synth == synths[i])
-			break;
-	}
-	for ( ; synths[i]; i++) /* compress table */
-		synths[i] = synths[i + 1];
+	list_del(&in_synth->node);
 	module_status = 0;
 	mutex_unlock(&spk_mutex);
 }

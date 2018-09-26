@@ -296,10 +296,10 @@ config IP_VS_MH_TAB_INDEX
 	  stored in a hash table. This table is assigned by a preference
 	  list of the positions to each destination until all slots in
 	  the table are filled. The index determines the prime for size of
-	  the table as 251, 509, 1021, 2039, 4093, 8191, 16381, 32749,
-	  65521 or 131071. When using weights to allow destinations to
-	  receive more connections, the table is assigned an amount
-	  proportional to the weights specified. The table needs to be large
+	  the table asÂ 251, 509, 1021, 2039, 4093, 8191, 16381, 32749,
+	  65521 or 131071.Â When using weights to allow destinations to
+	  receive more connections,Â the table is assigned an amount
+	  proportional to the weights specified.Â The table needs to be large
 	  enough to effectively fit all the destinations multiplied by their
 	  respective weights.
 

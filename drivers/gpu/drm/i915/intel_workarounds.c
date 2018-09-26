@@ -48,29 +48,58 @@
  * - Public functions to init or apply the given workaround type.
  */
 
-static int wa_add(struct drm_i915_private *dev_priv,
-		  i915_reg_t addr,
-		  const u32 mask, const u32 val)
+static void wa_add(struct drm_i915_private *i915,
+		   i915_reg_t reg, const u32 mask, const u32 val)
 {
-	const unsigned int idx = dev_priv->workarounds.count;
+	struct i915_workarounds *wa = &i915->workarounds;
+	unsigned int start = 0, end = wa->count;
+	unsigned int addr = i915_mmio_reg_offset(reg);
+	struct i915_wa_reg *r;
 
-	if (WARN_ON(idx >= I915_MAX_WA_REGS))
-		return -ENOSPC;
+	while (start < end) {
+		unsigned int mid = start + (end - start) / 2;
 
-	dev_priv->workarounds.reg[idx].addr = addr;
-	dev_priv->workarounds.reg[idx].value = val;
-	dev_priv->workarounds.reg[idx].mask = mask;
+		if (wa->reg[mid].addr < addr) {
+			start = mid + 1;
+		} else if (wa->reg[mid].addr > addr) {
+			end = mid;
+		} else {
+			r = &wa->reg[mid];
 
-	dev_priv->workarounds.count++;
+			if ((mask & ~r->mask) == 0) {
+				DRM_ERROR("Discarding overwritten w/a for reg %04x (mask: %08x, value: %08x)\n",
+					  addr, r->mask, r->value);
 
-	return 0;
+				r->value &= ~mask;
+			}
+
+			r->value |= val;
+			r->mask  |= mask;
+			return;
+		}
+	}
+
+	if (WARN_ON_ONCE(wa->count >= I915_MAX_WA_REGS)) {
+		DRM_ERROR("Dropping w/a for reg %04x (mask: %08x, value: %08x)\n",
+			  addr, mask, val);
+		return;
+	}
+
+	r = &wa->reg[wa->count++];
+	r->addr  = addr;
+	r->value = val;
+	r->mask  = mask;
+
+	while (r-- > wa->reg) {
+		GEM_BUG_ON(r[0].addr == r[1].addr);
+		if (r[1].addr > r[0].addr)
+			break;
+
+		swap(r[1], r[0]);
+	}
 }
 
-#define WA_REG(addr, mask, val) do { \
-		const int r = wa_add(dev_priv, (addr), (mask), (val)); \
-		if (r) \
-			return r; \
-	} while (0)
+#define WA_REG(addr, mask, val) wa_add(dev_priv, (addr), (mask), (val))
 
 #define WA_SET_BIT_MASKED(addr, mask) \
 	WA_REG(addr, (mask), _MASKED_BIT_ENABLE(mask))
@@ -463,6 +492,22 @@ static int icl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 	 */
 	WA_SET_BIT_MASKED(ICL_HDC_MODE, HDC_FORCE_NON_COHERENT);
 
+	/* Wa_2006611047:icl (pre-prod)
+	 * Formerly known as WaDisableImprovedTdlClkGating
+	 */
+	if (IS_ICL_REVID(dev_priv, ICL_REVID_A0, ICL_REVID_A0))
+		WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
+				  GEN11_TDL_CLOCK_GATING_FIX_DISABLE);
+
+	/* WaEnableStateCacheRedirectToCS:icl */
+	WA_SET_BIT_MASKED(GEN9_SLICE_COMMON_ECO_CHICKEN1,
+			  GEN11_STATE_CACHE_REDIRECT_TO_CS);
+
+	/* Wa_2006665173:icl (pre-prod) */
+	if (IS_ICL_REVID(dev_priv, ICL_REVID_A0, ICL_REVID_A0))
+		WA_SET_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
+				  GEN11_BLEND_EMB_FIX_DISABLE_IN_RCC);
+
 	return 0;
 }
 
@@ -521,7 +566,7 @@ int intel_ctx_workarounds_emit(struct i915_request *rq)
 
 	*cs++ = MI_LOAD_REGISTER_IMM(w->count);
 	for (i = 0; i < w->count; i++) {
-		*cs++ = i915_mmio_reg_offset(w->reg[i].addr);
+		*cs++ = w->reg[i].addr;
 		*cs++ = w->reg[i].value;
 	}
 	*cs++ = MI_NOOP;
@@ -647,6 +692,19 @@ static void kbl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
 		   I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
 		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+
+	/* WaKBLVECSSemaphoreWaitPoll:kbl */
+	if (IS_KBL_REVID(dev_priv, KBL_REVID_A0, KBL_REVID_E0)) {
+		struct intel_engine_cs *engine;
+		unsigned int tmp;
+
+		for_each_engine(engine, dev_priv, tmp) {
+			if (engine->id == RCS)
+				continue;
+
+			I915_WRITE(RING_SEMA_WAIT_POLL(engine->mmio_base), 1);
+		}
+	}
 }
 
 static void glk_gt_workarounds_apply(struct drm_i915_private *dev_priv)
@@ -672,8 +730,74 @@ static void cfl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
 }
 
+static void wa_init_mcr(struct drm_i915_private *dev_priv)
+{
+	const struct sseu_dev_info *sseu = &(INTEL_INFO(dev_priv)->sseu);
+	u32 mcr;
+	u32 mcr_slice_subslice_mask;
+
+	/*
+	 * WaProgramMgsrForL3BankSpecificMmioReads: cnl,icl
+	 * L3Banks could be fused off in single slice scenario. If that is
+	 * the case, we might need to program MCR select to a valid L3Bank
+	 * by default, to make sure we correctly read certain registers
+	 * later on (in the range 0xB100 - 0xB3FF).
+	 * This might be incompatible with
+	 * WaProgramMgsrForCorrectSliceSpecificMmioReads.
+	 * Fortunately, this should not happen in production hardware, so
+	 * we only assert that this is the case (instead of implementing
+	 * something more complex that requires checking the range of every
+	 * MMIO read).
+	 */
+	if (INTEL_GEN(dev_priv) >= 10 &&
+	    is_power_of_2(sseu->slice_mask)) {
+		/*
+		 * read FUSE3 for enabled L3 Bank IDs, if L3 Bank matches
+		 * enabled subslice, no need to redirect MCR packet
+		 */
+		u32 slice = fls(sseu->slice_mask);
+		u32 fuse3 = I915_READ(GEN10_MIRROR_FUSE3);
+		u8 ss_mask = sseu->subslice_mask[slice];
+
+		u8 enabled_mask = (ss_mask | ss_mask >>
+				   GEN10_L3BANK_PAIR_COUNT) & GEN10_L3BANK_MASK;
+		u8 disabled_mask = fuse3 & GEN10_L3BANK_MASK;
+
+		/*
+		 * Production silicon should have matched L3Bank and
+		 * subslice enabled
+		 */
+		WARN_ON((enabled_mask & disabled_mask) != enabled_mask);
+	}
+
+	mcr = I915_READ(GEN8_MCR_SELECTOR);
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		mcr_slice_subslice_mask = GEN11_MCR_SLICE_MASK |
+					  GEN11_MCR_SUBSLICE_MASK;
+	else
+		mcr_slice_subslice_mask = GEN8_MCR_SLICE_MASK |
+					  GEN8_MCR_SUBSLICE_MASK;
+	/*
+	 * WaProgramMgsrForCorrectSliceSpecificMmioReads:cnl,icl
+	 * Before any MMIO read into slice/subslice specific registers, MCR
+	 * packet control register needs to be programmed to point to any
+	 * enabled s/ss pair. Otherwise, incorrect values will be returned.
+	 * This means each subsequent MMIO read will be forwarded to an
+	 * specific s/ss combination, but this is OK since these registers
+	 * are consistent across s/ss in almost all cases. In the rare
+	 * occasions, such as INSTDONE, where this value is dependent
+	 * on s/ss combo, the read should be done with read_subslice_reg.
+	 */
+	mcr &= ~mcr_slice_subslice_mask;
+	mcr |= intel_calculate_mcr_s_ss_select(dev_priv);
+	I915_WRITE(GEN8_MCR_SELECTOR, mcr);
+}
+
 static void cnl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 {
+	wa_init_mcr(dev_priv);
+
 	/* WaDisableI2mCycleOnWRPort:cnl (pre-prod) */
 	if (IS_CNL_REVID(dev_priv, CNL_REVID_B0, CNL_REVID_B0))
 		I915_WRITE(GAMT_CHKN_BIT_REG,
@@ -692,6 +816,8 @@ static void cnl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 
 static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 {
+	wa_init_mcr(dev_priv);
+
 	/* This is not an Wa. Enable for better image quality */
 	I915_WRITE(_3D_CHICKEN3,
 		   _MASKED_BIT_ENABLE(_3D_CHICKEN3_AA_LINE_QUALITY_FIX_ENABLE));
@@ -772,6 +898,13 @@ static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 		   PMFLUSHDONE_LNICRSDROP |
 		   PMFLUSH_GAPL3UNBLOCK |
 		   PMFLUSHDONE_LNEBLK);
+
+	/* Wa_1406463099:icl
+	 * Formerly known as WaGamTlbPendError
+	 */
+	I915_WRITE(GAMT_CHKN_BIT_REG,
+		   I915_READ(GAMT_CHKN_BIT_REG) |
+		   GAMT_CHKN_DISABLE_L3_COH_PIPE);
 }
 
 void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv)

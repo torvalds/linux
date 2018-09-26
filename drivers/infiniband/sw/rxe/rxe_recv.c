@@ -225,9 +225,14 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 		goto err1;
 	}
 
+	if (unlikely(qpn == 0)) {
+		pr_warn_once("QP 0 not supported");
+		goto err1;
+	}
+
 	if (qpn != IB_MULTICAST_QPN) {
-		index = (qpn == 0) ? port->qp_smi_index :
-			((qpn == 1) ? port->qp_gsi_index : qpn);
+		index = (qpn == 1) ? port->qp_gsi_index : qpn;
+
 		qp = rxe_pool_get_index(&rxe->qp_pool, index);
 		if (unlikely(!qp)) {
 			pr_warn_ratelimited("no qp matches qpn 0x%x\n", qpn);
@@ -256,8 +261,7 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 	return 0;
 
 err2:
-	if (qp)
-		rxe_drop_ref(qp);
+	rxe_drop_ref(qp);
 err1:
 	return -EINVAL;
 }
@@ -328,6 +332,7 @@ err1:
 
 static int rxe_match_dgid(struct rxe_dev *rxe, struct sk_buff *skb)
 {
+	const struct ib_gid_attr *gid_attr;
 	union ib_gid dgid;
 	union ib_gid *pdgid;
 
@@ -339,9 +344,14 @@ static int rxe_match_dgid(struct rxe_dev *rxe, struct sk_buff *skb)
 		pdgid = (union ib_gid *)&ipv6_hdr(skb)->daddr;
 	}
 
-	return ib_find_cached_gid_by_port(&rxe->ib_dev, pdgid,
-					  IB_GID_TYPE_ROCE_UDP_ENCAP,
-					  1, skb->dev, NULL);
+	gid_attr = rdma_find_gid_by_port(&rxe->ib_dev, pdgid,
+					 IB_GID_TYPE_ROCE_UDP_ENCAP,
+					 1, skb->dev);
+	if (IS_ERR(gid_attr))
+		return PTR_ERR(gid_attr);
+
+	rdma_put_gid_attr(gid_attr);
+	return 0;
 }
 
 /* rxe_rcv is called from the interface driver */

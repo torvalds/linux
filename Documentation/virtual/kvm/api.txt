@@ -835,10 +835,12 @@ struct kvm_clock_data {
 
 Capability: KVM_CAP_VCPU_EVENTS
 Extended by: KVM_CAP_INTR_SHADOW
-Architectures: x86
-Type: vm ioctl
+Architectures: x86, arm, arm64
+Type: vcpu ioctl
 Parameters: struct kvm_vcpu_event (out)
 Returns: 0 on success, -1 on error
+
+X86:
 
 Gets currently pending exceptions, interrupts, and NMIs as well as related
 states of the vcpu.
@@ -881,14 +883,63 @@ Only two fields are defined in the flags field:
 - KVM_VCPUEVENT_VALID_SMM may be set in the flags field to signal that
   smi contains a valid state.
 
+ARM/ARM64:
+
+If the guest accesses a device that is being emulated by the host kernel in
+such a way that a real device would generate a physical SError, KVM may make
+a virtual SError pending for that VCPU. This system error interrupt remains
+pending until the guest takes the exception by unmasking PSTATE.A.
+
+Running the VCPU may cause it to take a pending SError, or make an access that
+causes an SError to become pending. The event's description is only valid while
+the VPCU is not running.
+
+This API provides a way to read and write the pending 'event' state that is not
+visible to the guest. To save, restore or migrate a VCPU the struct representing
+the state can be read then written using this GET/SET API, along with the other
+guest-visible registers. It is not possible to 'cancel' an SError that has been
+made pending.
+
+A device being emulated in user-space may also wish to generate an SError. To do
+this the events structure can be populated by user-space. The current state
+should be read first, to ensure no existing SError is pending. If an existing
+SError is pending, the architecture's 'Multiple SError interrupts' rules should
+be followed. (2.5.3 of DDI0587.a "ARM Reliability, Availability, and
+Serviceability (RAS) Specification").
+
+SError exceptions always have an ESR value. Some CPUs have the ability to
+specify what the virtual SError's ESR value should be. These systems will
+advertise KVM_CAP_ARM_INJECT_SERROR_ESR. In this case exception.has_esr will
+always have a non-zero value when read, and the agent making an SError pending
+should specify the ISS field in the lower 24 bits of exception.serror_esr. If
+the system supports KVM_CAP_ARM_INJECT_SERROR_ESR, but user-space sets the events
+with exception.has_esr as zero, KVM will choose an ESR.
+
+Specifying exception.has_esr on a system that does not support it will return
+-EINVAL. Setting anything other than the lower 24bits of exception.serror_esr
+will return -EINVAL.
+
+struct kvm_vcpu_events {
+	struct {
+		__u8 serror_pending;
+		__u8 serror_has_esr;
+		/* Align it to 8 bytes */
+		__u8 pad[6];
+		__u64 serror_esr;
+	} exception;
+	__u32 reserved[12];
+};
+
 4.32 KVM_SET_VCPU_EVENTS
 
 Capability: KVM_CAP_VCPU_EVENTS
 Extended by: KVM_CAP_INTR_SHADOW
-Architectures: x86
-Type: vm ioctl
+Architectures: x86, arm, arm64
+Type: vcpu ioctl
 Parameters: struct kvm_vcpu_event (in)
 Returns: 0 on success, -1 on error
+
+X86:
 
 Set pending exceptions, interrupts, and NMIs as well as related states of the
 vcpu.
@@ -909,6 +960,13 @@ the flags field to signal that interrupt.shadow contains a valid state and
 shall be written into the VCPU.
 
 KVM_VCPUEVENT_VALID_SMM can only be set if KVM_CAP_X86_SMM is available.
+
+ARM/ARM64:
+
+Set the pending SError exception state for this VCPU. It is not possible to
+'cancel' an Serror that has been made pending.
+
+See KVM_GET_VCPU_EVENTS for the data structure.
 
 
 4.33 KVM_GET_DEBUGREGS
@@ -3561,6 +3619,62 @@ Returns: 0 on success,
 	-ENOENT on deassign if the conn_id isn't registered
 	-EEXIST on assign if the conn_id is already registered
 
+4.114 KVM_GET_NESTED_STATE
+
+Capability: KVM_CAP_NESTED_STATE
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_nested_state (in/out)
+Returns: 0 on success, -1 on error
+Errors:
+  E2BIG:     the total state size (including the fixed-size part of struct
+             kvm_nested_state) exceeds the value of 'size' specified by
+             the user; the size required will be written into size.
+
+struct kvm_nested_state {
+	__u16 flags;
+	__u16 format;
+	__u32 size;
+	union {
+		struct kvm_vmx_nested_state vmx;
+		struct kvm_svm_nested_state svm;
+		__u8 pad[120];
+	};
+	__u8 data[0];
+};
+
+#define KVM_STATE_NESTED_GUEST_MODE	0x00000001
+#define KVM_STATE_NESTED_RUN_PENDING	0x00000002
+
+#define KVM_STATE_NESTED_SMM_GUEST_MODE	0x00000001
+#define KVM_STATE_NESTED_SMM_VMXON	0x00000002
+
+struct kvm_vmx_nested_state {
+	__u64 vmxon_pa;
+	__u64 vmcs_pa;
+
+	struct {
+		__u16 flags;
+	} smm;
+};
+
+This ioctl copies the vcpu's nested virtualization state from the kernel to
+userspace.
+
+The maximum size of the state, including the fixed-size part of struct
+kvm_nested_state, can be retrieved by passing KVM_CAP_NESTED_STATE to
+the KVM_CHECK_EXTENSION ioctl().
+
+4.115 KVM_SET_NESTED_STATE
+
+Capability: KVM_CAP_NESTED_STATE
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_nested_state (in)
+Returns: 0 on success, -1 on error
+
+This copies the vcpu's kvm_nested_state struct from userspace to the kernel.  For
+the definition of struct kvm_nested_state, see KVM_GET_NESTED_STATE.
 
 5. The kvm_run structure
 ------------------------
@@ -4391,6 +4505,32 @@ all such vmexits.
 
 Do not enable KVM_FEATURE_PV_UNHALT if you disable HLT exits.
 
+7.14 KVM_CAP_S390_HPAGE_1M
+
+Architectures: s390
+Parameters: none
+Returns: 0 on success, -EINVAL if hpage module parameter was not set
+	 or cmma is enabled, or the VM has the KVM_VM_S390_UCONTROL
+	 flag set
+
+With this capability the KVM support for memory backing with 1m pages
+through hugetlbfs can be enabled for a VM. After the capability is
+enabled, cmma can't be enabled anymore and pfmfi and the storage key
+interpretation are disabled. If cmma has already been enabled or the
+hpage module parameter is not set to 1, -EINVAL is returned.
+
+While it is generally possible to create a huge page backed VM without
+this capability, the VM will not be able to run.
+
+7.14 KVM_CAP_MSR_PLATFORM_INFO
+
+Architectures: x86
+Parameters: args[0] whether feature should be enabled or not
+
+With this capability, a guest may read the MSR_PLATFORM_INFO MSR. Otherwise,
+a #GP would be raised when the guest tries to access. Currently, this
+capability does not enable write permissions of this MSR for the guest.
+
 8. Other capabilities.
 ----------------------
 
@@ -4618,3 +4758,17 @@ This capability indicates that KVM supports paravirtualized Hyper-V TLB Flush
 hypercalls:
 HvFlushVirtualAddressSpace, HvFlushVirtualAddressSpaceEx,
 HvFlushVirtualAddressList, HvFlushVirtualAddressListEx.
+
+8.19 KVM_CAP_ARM_INJECT_SERROR_ESR
+
+Architectures: arm, arm64
+
+This capability indicates that userspace can specify (via the
+KVM_SET_VCPU_EVENTS ioctl) the syndrome value reported to the guest when it
+takes a virtual SError interrupt exception.
+If KVM advertises this capability, userspace can only specify the ISS field for
+the ESR syndrome. Other parts of the ESR, such as the EC are generated by the
+CPU when the exception is taken. If this virtual SError is taken to EL1 using
+AArch64, this value will be reported in the ISS field of ESR_ELx.
+
+See KVM_CAP_VCPU_EVENTS for more details.

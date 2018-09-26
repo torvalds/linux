@@ -1,13 +1,10 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * linux/sound/soc.h -- ALSA SoC Layer
  *
- * Author:		Liam Girdwood
- * Created:		Aug 11th 2005
+ * Author:	Liam Girdwood
+ * Created:	Aug 11th 2005
  * Copyright:	Wolfson Microelectronics. PLC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __LINUX_SND_SOC_H
@@ -806,6 +803,14 @@ struct snd_soc_component_driver {
 	unsigned int use_pmdown_time:1; /* care pmdown_time at stop */
 	unsigned int endianness:1;
 	unsigned int non_legacy_dai_naming:1;
+
+	/* this component uses topology and ignore machine driver FEs */
+	const char *ignore_machine;
+	const char *topology_name_prefix;
+	int (*be_hw_params_fixup)(struct snd_soc_pcm_runtime *rtd,
+				  struct snd_pcm_hw_params *params);
+	bool use_dai_pcm_id;	/* use the DAI link PCM ID as PCM device number */
+	int be_pcm_base;	/* base device ID for all BE PCMs */
 };
 
 struct snd_soc_component {
@@ -957,9 +962,16 @@ struct snd_soc_dai_link {
 
 	/* DPCM used FE & BE merged format */
 	unsigned int dpcm_merged_format:1;
+	/* DPCM used FE & BE merged channel */
+	unsigned int dpcm_merged_chan:1;
+	/* DPCM used FE & BE merged rate */
+	unsigned int dpcm_merged_rate:1;
 
 	/* pmdown_time is ignored at stop */
 	unsigned int ignore_pmdown_time:1;
+
+	/* Do not create a PCM for this DAI link (Backend link) */
+	unsigned int ignore:1;
 
 	struct list_head list; /* DAI link list of the soc card */
 	struct snd_soc_dobj dobj; /* For topology */
@@ -1000,6 +1012,7 @@ struct snd_soc_card {
 	const char *long_name;
 	const char *driver_name;
 	char dmi_longname[80];
+	char topology_shortname[32];
 
 	struct device *dev;
 	struct snd_card *snd_card;
@@ -1009,6 +1022,7 @@ struct snd_soc_card {
 	struct mutex dapm_mutex;
 
 	bool instantiated;
+	bool topology_shortname_created;
 
 	int (*probe)(struct snd_soc_card *card);
 	int (*late_probe)(struct snd_soc_card *card);
@@ -1412,6 +1426,9 @@ int snd_soc_of_parse_card_name(struct snd_soc_card *card,
 			       const char *propname);
 int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
 					  const char *propname);
+int snd_soc_of_get_slot_mask(struct device_node *np,
+			     const char *prop_name,
+			     unsigned int *mask);
 int snd_soc_of_parse_tdm_slot(struct device_node *np,
 			      unsigned int *tx_mask,
 			      unsigned int *rx_mask,

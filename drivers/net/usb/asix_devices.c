@@ -642,10 +642,12 @@ static void ax88772_restore_phy(struct usbnet *dev)
 				     priv->presvd_phy_advertise);
 
 		/* Restore BMCR */
+		if (priv->presvd_phy_bmcr & BMCR_ANENABLE)
+			priv->presvd_phy_bmcr |= BMCR_ANRESTART;
+
 		asix_mdio_write_nopm(dev->net, dev->mii.phy_id, MII_BMCR,
 				     priv->presvd_phy_bmcr);
 
-		mii_nway_restart(&dev->mii);
 		priv->presvd_phy_advertise = 0;
 		priv->presvd_phy_bmcr = 0;
 	}
@@ -691,24 +693,32 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	u32 phyid;
 	struct asix_common_private *priv;
 
-	usbnet_get_endpoints(dev,intf);
+	usbnet_get_endpoints(dev, intf);
 
-	/* Get the MAC address */
-	if (dev->driver_info->data & FLAG_EEPROM_MAC) {
-		for (i = 0; i < (ETH_ALEN >> 1); i++) {
-			ret = asix_read_cmd(dev, AX_CMD_READ_EEPROM, 0x04 + i,
-					    0, 2, buf + i * 2, 0);
-			if (ret < 0)
-				break;
-		}
+	/* Maybe the boot loader passed the MAC address via device tree */
+	if (!eth_platform_get_mac_address(&dev->udev->dev, buf)) {
+		netif_dbg(dev, ifup, dev->net,
+			  "MAC address read from device tree");
 	} else {
-		ret = asix_read_cmd(dev, AX_CMD_READ_NODE_ID,
-				0, 0, ETH_ALEN, buf, 0);
-	}
+		/* Try getting the MAC address from EEPROM */
+		if (dev->driver_info->data & FLAG_EEPROM_MAC) {
+			for (i = 0; i < (ETH_ALEN >> 1); i++) {
+				ret = asix_read_cmd(dev, AX_CMD_READ_EEPROM,
+						    0x04 + i, 0, 2, buf + i * 2,
+						    0);
+				if (ret < 0)
+					break;
+			}
+		} else {
+			ret = asix_read_cmd(dev, AX_CMD_READ_NODE_ID,
+					    0, 0, ETH_ALEN, buf, 0);
+		}
 
-	if (ret < 0) {
-		netdev_dbg(dev->net, "Failed to read MAC address: %d\n", ret);
-		return ret;
+		if (ret < 0) {
+			netdev_dbg(dev->net, "Failed to read MAC address: %d\n",
+				   ret);
+			return ret;
+		}
 	}
 
 	asix_set_netdev_dev_addr(dev, buf);

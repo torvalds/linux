@@ -2157,9 +2157,9 @@ static const struct dvb_frontend_ops lgdt3306a_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "LG Electronics LGDT3306A VSB/QAM Frontend",
-		.frequency_min      = 54000000,
-		.frequency_max      = 858000000,
-		.frequency_stepsize = 62500,
+		.frequency_min_hz      =  54 * MHz,
+		.frequency_max_hz      = 858 * MHz,
+		.frequency_stepsize_hz = 62500,
 		.caps = FE_CAN_QAM_AUTO | FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
 	.i2c_gate_ctrl        = lgdt3306a_i2c_gate_ctrl,

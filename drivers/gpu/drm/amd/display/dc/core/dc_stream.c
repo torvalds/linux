@@ -30,6 +30,8 @@
 #include "ipp.h"
 #include "timing_generator.h"
 
+#define DC_LOGGER dc->ctx->logger
+
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
@@ -212,6 +214,8 @@ bool dc_stream_set_cursor_attributes(
 		}
 
 		core_dc->hwss.set_cursor_attribute(pipe_ctx);
+		if (core_dc->hwss.set_cursor_sdr_white_level)
+			core_dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
 	}
 
 	if (pipe_to_program)
@@ -317,16 +321,10 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 	return ret;
 }
 
-
-void dc_stream_log(
-	const struct dc_stream_state *stream,
-	struct dal_logger *dm_logger,
-	enum dc_log_type log_type)
+void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 {
-
-	dm_logger_write(dm_logger,
-			log_type,
-			"core_stream 0x%x: src: %d, %d, %d, %d; dst: %d, %d, %d, %d, colorSpace:%d\n",
+	DC_LOG_DC(
+			"core_stream 0x%p: src: %d, %d, %d, %d; dst: %d, %d, %d, %d, colorSpace:%d\n",
 			stream,
 			stream->src.x,
 			stream->src.y,
@@ -337,21 +335,18 @@ void dc_stream_log(
 			stream->dst.width,
 			stream->dst.height,
 			stream->output_color_space);
-	dm_logger_write(dm_logger,
-			log_type,
+	DC_LOG_DC(
 			"\tpix_clk_khz: %d, h_total: %d, v_total: %d, pixelencoder:%d, displaycolorDepth:%d\n",
 			stream->timing.pix_clk_khz,
 			stream->timing.h_total,
 			stream->timing.v_total,
 			stream->timing.pixel_encoding,
 			stream->timing.display_color_depth);
-	dm_logger_write(dm_logger,
-			log_type,
+	DC_LOG_DC(
 			"\tsink name: %s, serial: %d\n",
 			stream->sink->edid_caps.display_name,
 			stream->sink->edid_caps.serial_number);
-	dm_logger_write(dm_logger,
-			log_type,
+	DC_LOG_DC(
 			"\tlink: %d\n",
 			stream->sink->link->link_index);
 }
