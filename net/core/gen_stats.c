@@ -162,7 +162,7 @@ __gnet_stats_copy_basic(const seqcount_t *running,
 }
 EXPORT_SYMBOL(__gnet_stats_copy_basic);
 
-int
+static int
 ___gnet_stats_copy_basic(const seqcount_t *running,
 			 struct gnet_dump *d,
 			 struct gnet_stats_basic_cpu __percpu *cpu,
