@@ -1271,19 +1271,19 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 	if (data[IFLA_BR_NF_CALL_IPTABLES]) {
 		u8 val = nla_get_u8(data[IFLA_BR_NF_CALL_IPTABLES]);
 
-		br->nf_call_iptables = val ? true : false;
+		br_opt_toggle(br, BROPT_NF_CALL_IPTABLES, !!val);
 	}
 
 	if (data[IFLA_BR_NF_CALL_IP6TABLES]) {
 		u8 val = nla_get_u8(data[IFLA_BR_NF_CALL_IP6TABLES]);
 
-		br->nf_call_ip6tables = val ? true : false;
+		br_opt_toggle(br, BROPT_NF_CALL_IP6TABLES, !!val);
 	}
 
 	if (data[IFLA_BR_NF_CALL_ARPTABLES]) {
 		u8 val = nla_get_u8(data[IFLA_BR_NF_CALL_ARPTABLES]);
 
-		br->nf_call_arptables = val ? true : false;
+		br_opt_toggle(br, BROPT_NF_CALL_ARPTABLES, !!val);
 	}
 #endif
 
@@ -1470,11 +1470,11 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	if (nla_put_u8(skb, IFLA_BR_NF_CALL_IPTABLES,
-		       br->nf_call_iptables ? 1 : 0) ||
+		       br_opt_get(br, BROPT_NF_CALL_IPTABLES) ? 1 : 0) ||
 	    nla_put_u8(skb, IFLA_BR_NF_CALL_IP6TABLES,
-		       br->nf_call_ip6tables ? 1 : 0) ||
+		       br_opt_get(br, BROPT_NF_CALL_IP6TABLES) ? 1 : 0) ||
 	    nla_put_u8(skb, IFLA_BR_NF_CALL_ARPTABLES,
-		       br->nf_call_arptables ? 1 : 0))
+		       br_opt_get(br, BROPT_NF_CALL_ARPTABLES) ? 1 : 0))
 		return -EMSGSIZE;
 #endif
 

@@ -678,12 +678,12 @@ static ssize_t nf_call_iptables_show(
 	struct device *d, struct device_attribute *attr, char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%u\n", br->nf_call_iptables);
+	return sprintf(buf, "%u\n", br_opt_get(br, BROPT_NF_CALL_IPTABLES));
 }
 
 static int set_nf_call_iptables(struct net_bridge *br, unsigned long val)
 {
-	br->nf_call_iptables = val ? true : false;
+	br_opt_toggle(br, BROPT_NF_CALL_IPTABLES, !!val);
 	return 0;
 }
 
@@ -699,12 +699,12 @@ static ssize_t nf_call_ip6tables_show(
 	struct device *d, struct device_attribute *attr, char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%u\n", br->nf_call_ip6tables);
+	return sprintf(buf, "%u\n", br_opt_get(br, BROPT_NF_CALL_IP6TABLES));
 }
 
 static int set_nf_call_ip6tables(struct net_bridge *br, unsigned long val)
 {
-	br->nf_call_ip6tables = val ? true : false;
+	br_opt_toggle(br, BROPT_NF_CALL_IP6TABLES, !!val);
 	return 0;
 }
 
@@ -720,12 +720,12 @@ static ssize_t nf_call_arptables_show(
 	struct device *d, struct device_attribute *attr, char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%u\n", br->nf_call_arptables);
+	return sprintf(buf, "%u\n", br_opt_get(br, BROPT_NF_CALL_ARPTABLES));
 }
 
 static int set_nf_call_arptables(struct net_bridge *br, unsigned long val)
 {
-	br->nf_call_arptables = val ? true : false;
+	br_opt_toggle(br, BROPT_NF_CALL_ARPTABLES, !!val);
 	return 0;
 }
 

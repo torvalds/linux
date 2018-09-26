@@ -309,6 +309,9 @@ static inline struct net_bridge_port *br_port_get_rtnl_rcu(const struct net_devi
 enum net_bridge_opts {
 	BROPT_VLAN_ENABLED,
 	BROPT_VLAN_STATS_ENABLED,
+	BROPT_NF_CALL_IPTABLES,
+	BROPT_NF_CALL_IP6TABLES,
+	BROPT_NF_CALL_ARPTABLES,
 };
 
 struct net_bridge {
@@ -331,9 +334,6 @@ struct net_bridge {
 		struct rtable		fake_rtable;
 		struct rt6_info		fake_rt6_info;
 	};
-	bool				nf_call_iptables;
-	bool				nf_call_ip6tables;
-	bool				nf_call_arptables;
 #endif
 	u16				group_fwd_mask;
 	u16				group_fwd_mask_required;
