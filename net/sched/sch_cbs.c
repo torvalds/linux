@@ -379,7 +379,7 @@ static void cbs_destroy(struct Qdisc *sch)
 	cbs_disable_offload(dev, q);
 
 	if (q->qdisc)
-		qdisc_destroy(q->qdisc);
+		qdisc_put(q->qdisc);
 }
 
 static int cbs_dump(struct Qdisc *sch, struct sk_buff *skb)
