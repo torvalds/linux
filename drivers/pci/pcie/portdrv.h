@@ -76,6 +76,8 @@ struct pcie_port_service_driver {
 	int (*suspend) (struct pcie_device *dev);
 	int (*resume_noirq) (struct pcie_device *dev);
 	int (*resume) (struct pcie_device *dev);
+	int (*runtime_suspend) (struct pcie_device *dev);
+	int (*runtime_resume) (struct pcie_device *dev);
 
 	/* Device driver may resume normal operations */
 	void (*error_resume)(struct pci_dev *dev);
@@ -109,6 +111,8 @@ int pcie_port_device_register(struct pci_dev *dev);
 int pcie_port_device_suspend(struct device *dev);
 int pcie_port_device_resume_noirq(struct device *dev);
 int pcie_port_device_resume(struct device *dev);
+int pcie_port_device_runtime_suspend(struct device *dev);
+int pcie_port_device_runtime_resume(struct device *dev);
 #endif
 void pcie_port_device_remove(struct pci_dev *dev);
 int __must_check pcie_port_bus_register(void);
