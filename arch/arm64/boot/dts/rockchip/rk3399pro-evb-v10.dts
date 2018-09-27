@@ -876,6 +876,17 @@
 	status = "okay";
 };
 
+&spi1 {
+	status = "okay";
+	max-freq = <48000000>; /* spi internal clk, don't modify */
+	spi_dev@0 {
+		compatible = "rockchip,spidev";
+		reg = <0>;
+		spi-max-frequency = <12000000>;
+		spi-lsb-first;
+	};
+};
+
 &tcphy0 {
 	extcon = <&fusb0>;
 	status = "okay";
