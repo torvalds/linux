@@ -34,33 +34,35 @@
  * low-power state and comes back to normal.
  */
 
-#define I915_CSR_ICL "i915/icl_dmc_ver1_07.bin"
+#define ICL_CSR_PATH			"i915/icl_dmc_ver1_07.bin"
 #define ICL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
-
-#define I915_CSR_GLK "i915/glk_dmc_ver1_04.bin"
-MODULE_FIRMWARE(I915_CSR_GLK);
-#define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
-
-#define I915_CSR_CNL "i915/cnl_dmc_ver1_07.bin"
-MODULE_FIRMWARE(I915_CSR_CNL);
-#define CNL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
-
-#define I915_CSR_KBL "i915/kbl_dmc_ver1_04.bin"
-MODULE_FIRMWARE(I915_CSR_KBL);
-#define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
-
-#define I915_CSR_SKL "i915/skl_dmc_ver1_27.bin"
-MODULE_FIRMWARE(I915_CSR_SKL);
-#define SKL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 27)
-
-#define I915_CSR_BXT "i915/bxt_dmc_ver1_07.bin"
-MODULE_FIRMWARE(I915_CSR_BXT);
-#define BXT_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
-
-
-#define BXT_CSR_MAX_FW_SIZE		0x3000
-#define GLK_CSR_MAX_FW_SIZE		0x4000
 #define ICL_CSR_MAX_FW_SIZE		0x6000
+
+#define CNL_CSR_PATH			"i915/cnl_dmc_ver1_07.bin"
+#define CNL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
+#define CNL_CSR_MAX_FW_SIZE		GLK_CSR_MAX_FW_SIZE
+MODULE_FIRMWARE(CNL_CSR_PATH);
+
+#define GLK_CSR_PATH			"i915/glk_dmc_ver1_04.bin"
+#define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
+#define GLK_CSR_MAX_FW_SIZE		0x4000
+MODULE_FIRMWARE(GLK_CSR_PATH);
+
+#define KBL_CSR_PATH			"i915/kbl_dmc_ver1_04.bin"
+#define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
+#define KBL_CSR_MAX_FW_SIZE		BXT_CSR_MAX_FW_SIZE
+MODULE_FIRMWARE(KBL_CSR_PATH);
+
+#define SKL_CSR_PATH			"i915/skl_dmc_ver1_27.bin"
+#define SKL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 27)
+#define SKL_CSR_MAX_FW_SIZE		BXT_CSR_MAX_FW_SIZE
+MODULE_FIRMWARE(SKL_CSR_PATH);
+
+#define BXT_CSR_PATH			"i915/bxt_dmc_ver1_07.bin"
+#define BXT_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
+#define BXT_CSR_MAX_FW_SIZE		0x3000
+MODULE_FIRMWARE(BXT_CSR_PATH);
+
 #define CSR_DEFAULT_FW_OFFSET		0xFFFFFFFF
 
 struct intel_css_header {
@@ -456,27 +458,27 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
 	if (IS_ICELAKE(dev_priv)) {
-		csr->fw_path = I915_CSR_ICL;
+		csr->fw_path = ICL_CSR_PATH;
 		csr->required_version = ICL_CSR_VERSION_REQUIRED;
 		csr->max_fw_size = ICL_CSR_MAX_FW_SIZE;
 	} else if (IS_CANNONLAKE(dev_priv)) {
-		csr->fw_path = I915_CSR_CNL;
+		csr->fw_path = CNL_CSR_PATH;
 		csr->required_version = CNL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = GLK_CSR_MAX_FW_SIZE;
+		csr->max_fw_size = CNL_CSR_MAX_FW_SIZE;
 	} else if (IS_GEMINILAKE(dev_priv)) {
-		csr->fw_path = I915_CSR_GLK;
+		csr->fw_path = GLK_CSR_PATH;
 		csr->required_version = GLK_CSR_VERSION_REQUIRED;
 		csr->max_fw_size = GLK_CSR_MAX_FW_SIZE;
 	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
-		csr->fw_path = I915_CSR_KBL;
+		csr->fw_path = KBL_CSR_PATH;
 		csr->required_version = KBL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = BXT_CSR_MAX_FW_SIZE;
+		csr->max_fw_size = KBL_CSR_MAX_FW_SIZE;
 	} else if (IS_SKYLAKE(dev_priv)) {
-		csr->fw_path = I915_CSR_SKL;
+		csr->fw_path = SKL_CSR_PATH;
 		csr->required_version = SKL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = BXT_CSR_MAX_FW_SIZE;
+		csr->max_fw_size = SKL_CSR_MAX_FW_SIZE;
 	} else if (IS_BROXTON(dev_priv)) {
-		csr->fw_path = I915_CSR_BXT;
+		csr->fw_path = BXT_CSR_PATH;
 		csr->required_version = BXT_CSR_VERSION_REQUIRED;
 		csr->max_fw_size = BXT_CSR_MAX_FW_SIZE;
 	} else {
