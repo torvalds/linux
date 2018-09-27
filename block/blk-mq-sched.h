@@ -49,12 +49,12 @@ blk_mq_sched_allow_merge(struct request_queue *q, struct request *rq,
 	return true;
 }
 
-static inline void blk_mq_sched_completed_request(struct request *rq)
+static inline void blk_mq_sched_completed_request(struct request *rq, u64 now)
 {
 	struct elevator_queue *e = rq->q->elevator;
 
 	if (e && e->type->ops.mq.completed_request)
-		e->type->ops.mq.completed_request(rq);
+		e->type->ops.mq.completed_request(rq, now);
 }
 
 static inline void blk_mq_sched_started_request(struct request *rq)

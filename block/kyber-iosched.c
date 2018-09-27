@@ -558,12 +558,12 @@ static void kyber_finish_request(struct request *rq)
 	rq_clear_domain_token(kqd, rq);
 }
 
-static void kyber_completed_request(struct request *rq)
+static void kyber_completed_request(struct request *rq, u64 now)
 {
 	struct request_queue *q = rq->q;
 	struct kyber_queue_data *kqd = q->elevator->elevator_data;
 	unsigned int sched_domain;
-	u64 now, latency, target;
+	u64 latency, target;
 
 	/*
 	 * Check if this request met our latency goal. If not, quickly gather
@@ -585,7 +585,6 @@ static void kyber_completed_request(struct request *rq)
 	if (blk_stat_is_active(kqd->cb))
 		return;
 
-	now = ktime_get_ns();
 	if (now < rq->io_start_time_ns)
 		return;
 
