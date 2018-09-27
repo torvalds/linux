@@ -52,12 +52,14 @@ qla2x00_sp_timeout(struct timer_list *t)
 	struct srb_iocb *iocb;
 	struct req_que *req;
 	unsigned long flags;
+	struct qla_hw_data *ha = sp->vha->hw;
 
-	spin_lock_irqsave(sp->qpair->qp_lock_ptr, flags);
+	WARN_ON(irqs_disabled());
+	spin_lock_irqsave(&ha->hardware_lock, flags);
 	req = sp->qpair->req;
 	req->outstanding_cmds[sp->handle] = NULL;
 	iocb = &sp->u.iocb_cmd;
-	spin_unlock_irqrestore(sp->qpair->qp_lock_ptr, flags);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	iocb->timeout(sp);
 }
 
@@ -971,6 +973,15 @@ void qla24xx_async_gpdb_sp_done(void *s, int res)
 	    sp->name, res, fcport->port_name, mb[1], mb[2]);
 
 	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
+
+	if (res == QLA_FUNCTION_TIMEOUT)
+		return;
+
+	if (res == QLA_FUNCTION_TIMEOUT) {
+		dma_pool_free(sp->vha->hw->s_dma_pool, sp->u.iocb_cmd.u.mbx.in,
+			sp->u.iocb_cmd.u.mbx.in_dma);
+		return;
+	}
 
 	memset(&ea, 0, sizeof(ea));
 	ea.event = FCME_GPDB_DONE;

@@ -3261,6 +3261,9 @@ static void qla24xx_async_gpsc_sp_done(void *s, int res)
 	    "Async done-%s res %x, WWPN %8phC \n",
 	    sp->name, res, fcport->port_name);
 
+	if (res == QLA_FUNCTION_TIMEOUT)
+		return;
+
 	if (res == (DID_ERROR << 16)) {
 		/* entry status error */
 		goto done;
