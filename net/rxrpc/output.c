@@ -124,7 +124,6 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 	struct kvec iov[2];
 	rxrpc_serial_t serial;
 	rxrpc_seq_t hard_ack, top;
-	ktime_t now;
 	size_t len, n;
 	int ret;
 	u8 reason;
@@ -196,9 +195,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 		/* We need to stick a time in before we send the packet in case
 		 * the reply gets back before kernel_sendmsg() completes - but
 		 * asking UDP to send the packet can take a relatively long
-		 * time, so we update the time after, on the assumption that
-		 * the packet transmission is more likely to happen towards the
-		 * end of the kernel_sendmsg() call.
+		 * time.
 		 */
 		call->ping_time = ktime_get_real();
 		set_bit(RXRPC_CALL_PINGING, &call->flags);
@@ -206,9 +203,6 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 	}
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
-	now = ktime_get_real();
-	if (ping)
-		call->ping_time = now;
 	conn->params.peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
@@ -363,8 +357,14 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 
 	/* If our RTT cache needs working on, request an ACK.  Also request
 	 * ACKs if a DATA packet appears to have been lost.
+	 *
+	 * However, we mustn't request an ACK on the last reply packet of a
+	 * service call, lest OpenAFS incorrectly send us an ACK with some
+	 * soft-ACKs in it and then never follow up with a proper hard ACK.
 	 */
-	if (!(sp->hdr.flags & RXRPC_LAST_PACKET) &&
+	if ((!(sp->hdr.flags & RXRPC_LAST_PACKET) ||
+	     rxrpc_to_server(sp)
+	     ) &&
 	    (test_and_clear_bit(RXRPC_CALL_EV_ACK_LOST, &call->events) ||
 	     retrans ||
 	     call->cong_mode == RXRPC_CALL_SLOW_START ||
@@ -390,6 +390,11 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 		goto send_fragmentable;
 
 	down_read(&conn->params.local->defrag_sem);
+
+	sp->hdr.serial = serial;
+	smp_wmb(); /* Set serial before timestamp */
+	skb->tstamp = ktime_get_real();
+
 	/* send the packet by UDP
 	 * - returns -EMSGSIZE if UDP would have to fragment the packet
 	 *   to go out of the interface
@@ -413,12 +418,8 @@ done:
 	trace_rxrpc_tx_data(call, sp->hdr.seq, serial, whdr.flags,
 			    retrans, lost);
 	if (ret >= 0) {
-		ktime_t now = ktime_get_real();
-		skb->tstamp = now;
-		smp_wmb();
-		sp->hdr.serial = serial;
 		if (whdr.flags & RXRPC_REQUEST_ACK) {
-			call->peer->rtt_last_req = now;
+			call->peer->rtt_last_req = skb->tstamp;
 			trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_data, serial);
 			if (call->peer->rtt_usage > 1) {
 				unsigned long nowj = jiffies, ack_lost_at;
@@ -456,6 +457,10 @@ send_fragmentable:
 	_debug("send fragment");
 
 	down_write(&conn->params.local->defrag_sem);
+
+	sp->hdr.serial = serial;
+	smp_wmb(); /* Set serial before timestamp */
+	skb->tstamp = ktime_get_real();
 
 	switch (conn->params.local->srx.transport.family) {
 	case AF_INET:
