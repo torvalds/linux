@@ -1035,7 +1035,7 @@ altr_init_a10_ecc_block(struct device_node *np, u32 irq_mask,
 	} else {
 		struct device_node *sysmgr_np;
 		struct resource res;
-		void __iomem *base;
+		uintptr_t base;
 
 		sysmgr_np = of_parse_phandle(np_eccmgr,
 					     "altr,sysmgr-syscon", 0);
@@ -1049,9 +1049,9 @@ altr_init_a10_ecc_block(struct device_node *np, u32 irq_mask,
 			return -ENOMEM;
 
 		/* Need physical address for SMCC call */
-		base = (void __iomem *)res.start;
+		base = res.start;
 
-		ecc_mgr_map = regmap_init(NULL, NULL, base,
+		ecc_mgr_map = regmap_init(NULL, NULL, (void *)base,
 					  &s10_sdram_regmap_cfg);
 	}
 	of_node_put(np_eccmgr);
@@ -2044,7 +2044,7 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 	} else {
 		struct device_node *sysmgr_np;
 		struct resource res;
-		void __iomem *base;
+		uintptr_t base;
 
 		sysmgr_np = of_parse_phandle(pdev->dev.of_node,
 					     "altr,sysmgr-syscon", 0);
@@ -2058,9 +2058,10 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 			return -ENOMEM;
 
 		/* Need physical address for SMCC call */
-		base = (void __iomem *)res.start;
+		base = res.start;
 
-		edac->ecc_mgr_map = devm_regmap_init(&pdev->dev, NULL, base,
+		edac->ecc_mgr_map = devm_regmap_init(&pdev->dev, NULL,
+						     (void *)base,
 						     &s10_sdram_regmap_cfg);
 	}
 
