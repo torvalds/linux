@@ -6028,7 +6028,7 @@ out:
 /*
  * Calculate mmu pages needed for kvm.
  */
-unsigned int kvm_mmu_calculate_mmu_pages(struct kvm *kvm)
+unsigned int kvm_mmu_calculate_default_mmu_pages(struct kvm *kvm)
 {
 	unsigned int nr_mmu_pages;
 	unsigned int  nr_pages = 0;
