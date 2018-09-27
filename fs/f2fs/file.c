@@ -47,7 +47,7 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 	struct page *page = vmf->page;
 	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	struct dnode_of_data dn;
+	struct dnode_of_data dn = { .node_changed = false };
 	int err;
 
 	if (unlikely(f2fs_cp_error(sbi))) {
@@ -58,19 +58,6 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 	sb_start_pagefault(inode->i_sb);
 
 	f2fs_bug_on(sbi, f2fs_has_inline_data(inode));
-
-	/* block allocation */
-	f2fs_lock_op(sbi);
-	set_new_dnode(&dn, inode, NULL, NULL, 0);
-	err = f2fs_reserve_block(&dn, page->index);
-	if (err) {
-		f2fs_unlock_op(sbi);
-		goto out;
-	}
-	f2fs_put_dnode(&dn);
-	f2fs_unlock_op(sbi);
-
-	f2fs_balance_fs(sbi, dn.node_changed);
 
 	file_update_time(vmf->vma->vm_file);
 	down_read(&F2FS_I(inode)->i_mmap_sem);
@@ -83,11 +70,28 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 		goto out_sem;
 	}
 
+	/* block allocation */
+	__do_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO, true);
+	set_new_dnode(&dn, inode, NULL, NULL, 0);
+	err = f2fs_get_block(&dn, page->index);
+	f2fs_put_dnode(&dn);
+	__do_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO, false);
+	if (err) {
+		unlock_page(page);
+		goto out_sem;
+	}
+
+	/* fill the page */
+	f2fs_wait_on_page_writeback(page, DATA, false);
+
+	/* wait for GCed page writeback via META_MAPPING */
+	f2fs_wait_on_block_writeback(inode, dn.data_blkaddr);
+
 	/*
 	 * check to see if the page is mapped already (no holes)
 	 */
 	if (PageMappedToDisk(page))
-		goto mapped;
+		goto out_sem;
 
 	/* page is wholly or partially inside EOF */
 	if (((loff_t)(page->index + 1) << PAGE_SHIFT) >
@@ -104,16 +108,11 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 	f2fs_update_iostat(sbi, APP_MAPPED_IO, F2FS_BLKSIZE);
 
 	trace_f2fs_vm_page_mkwrite(page, DATA);
-mapped:
-	/* fill the page */
-	f2fs_wait_on_page_writeback(page, DATA, false);
-
-	/* wait for GCed page writeback via META_MAPPING */
-	f2fs_wait_on_block_writeback(inode, dn.data_blkaddr);
-
 out_sem:
 	up_read(&F2FS_I(inode)->i_mmap_sem);
-out:
+
+	f2fs_balance_fs(sbi, dn.node_changed);
+
 	sb_end_pagefault(inode->i_sb);
 	f2fs_update_time(sbi, REQ_TIME);
 err:
