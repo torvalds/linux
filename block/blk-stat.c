@@ -190,6 +190,7 @@ void blk_stat_enable_accounting(struct request_queue *q)
 	blk_queue_flag_set(QUEUE_FLAG_STATS, q);
 	spin_unlock(&q->stats->lock);
 }
+EXPORT_SYMBOL_GPL(blk_stat_enable_accounting);
 
 struct blk_queue_stats *blk_alloc_queue_stats(void)
 {
