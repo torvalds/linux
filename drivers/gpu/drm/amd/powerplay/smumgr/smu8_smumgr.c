@@ -724,11 +724,13 @@ static int smu8_start_smu(struct pp_hwmgr *hwmgr)
 	if (hwmgr->chip_id == CHIP_STONEY)
 		fw_to_check &= ~(UCODE_ID_SDMA1_MASK | UCODE_ID_CP_MEC_JT2_MASK);
 
-	ret = smu8_request_smu_load_fw(hwmgr);
-	if (ret)
-		pr_err("SMU firmware load failed\n");
+	smu8_request_smu_load_fw(hwmgr);
 
-	smu8_check_fw_load_finish(hwmgr, fw_to_check);
+	ret = smu8_check_fw_load_finish(hwmgr, fw_to_check);
+	if (ret) {
+		pr_err("SMU firmware load failed\n");
+		return ret;
+	}
 
 	ret = smu8_load_mec_firmware(hwmgr);
 	if (ret)

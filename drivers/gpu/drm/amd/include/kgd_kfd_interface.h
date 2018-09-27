@@ -146,10 +146,10 @@ struct kgd2kfd_shared_resources {
 	 * is reserved: (D & reserved_doorbell_mask) == reserved_doorbell_val
 	 *
 	 * KFD currently uses 1024 (= 0x3ff) doorbells per process. If
-	 * doorbells 0x0f0-0x0f7 and 0x2f-0x2f7 are reserved, that means
-	 * mask would be set to 0x1f8 and val set to 0x0f0.
+	 * doorbells 0x0e0-0x0ff and 0x2e0-0x2ff are reserved, that means
+	 * mask would be set to 0x1e0 and val set to 0x0e0.
 	 */
-	unsigned int sdma_doorbell[2][2];
+	unsigned int sdma_doorbell[2][8];
 	unsigned int reserved_doorbell_mask;
 	unsigned int reserved_doorbell_val;
 
@@ -409,9 +409,9 @@ struct kfd2kgd_calls {
 			struct dma_fence **ef);
 	void (*destroy_process_vm)(struct kgd_dev *kgd, void *vm);
 	void (*release_process_vm)(struct kgd_dev *kgd, void *vm);
-	uint32_t (*get_process_page_dir)(void *vm);
+	uint64_t (*get_process_page_dir)(void *vm);
 	void (*set_vm_context_page_table_base)(struct kgd_dev *kgd,
-			uint32_t vmid, uint32_t page_table_base);
+			uint32_t vmid, uint64_t page_table_base);
 	int (*alloc_memory_of_gpu)(struct kgd_dev *kgd, uint64_t va,
 			uint64_t size, void *vm,
 			struct kgd_mem **mem, uint64_t *offset,

@@ -56,6 +56,16 @@ enum engine_status_constants {
 	UVD_STATUS__RBC_BUSY = 0x1,
 };
 
+enum internal_dpg_state {
+	VCN_DPG_STATE__UNPAUSE = 0,
+	VCN_DPG_STATE__PAUSE,
+};
+
+struct dpg_pause_state {
+	enum internal_dpg_state fw_based;
+	enum internal_dpg_state jpeg;
+};
+
 struct amdgpu_vcn {
 	struct amdgpu_bo	*vcpu_bo;
 	void			*cpu_addr;
@@ -69,6 +79,8 @@ struct amdgpu_vcn {
 	struct amdgpu_ring	ring_jpeg;
 	struct amdgpu_irq_src	irq;
 	unsigned		num_enc_rings;
+	enum amd_powergating_state cur_state;
+	struct dpg_pause_state pause_state;
 };
 
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);

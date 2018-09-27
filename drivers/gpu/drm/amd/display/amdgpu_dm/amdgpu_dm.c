@@ -338,14 +338,6 @@ static int dm_set_powergating_state(void *handle,
 /* Prototypes of private functions */
 static int dm_early_init(void* handle);
 
-static void hotplug_notify_work_func(struct work_struct *work)
-{
-	struct amdgpu_display_manager *dm = container_of(work, struct amdgpu_display_manager, mst_hotplug_work);
-	struct drm_device *dev = dm->ddev;
-
-	drm_kms_helper_hotplug_event(dev);
-}
-
 /* Allocate memory for FBC compressed data  */
 static void amdgpu_dm_fbc_init(struct drm_connector *connector)
 {
@@ -446,8 +438,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		DRM_INFO("Display Core failed to initialize with v%s!\n", DC_VER);
 		goto error;
 	}
-
-	INIT_WORK(&adev->dm.mst_hotplug_work, hotplug_notify_work_func);
 
 	adev->dm.freesync_module = mod_freesync_create(adev->dm.dc);
 	if (!adev->dm.freesync_module) {
@@ -1214,7 +1204,7 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 	struct dc_interrupt_params int_params = {0};
 	int r;
 	int i;
-	unsigned client_id = AMDGPU_IH_CLIENTID_LEGACY;
+	unsigned client_id = AMDGPU_IRQ_CLIENTID_LEGACY;
 
 	if (adev->asic_type == CHIP_VEGA10 ||
 	    adev->asic_type == CHIP_VEGA12 ||
@@ -4079,6 +4069,7 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 	/* TODO eliminate or rename surface_update */
 	struct dc_surface_update surface_updates[1] = { {0} };
 	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(crtc->state);
+	struct dc_stream_status *stream_status;
 
 
 	/* Prepare wait for target vblank early - before the fence-waits */
@@ -4134,7 +4125,19 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
-	surface_updates->surface = dc_stream_get_status(acrtc_state->stream)->plane_states[0];
+	stream_status = dc_stream_get_status(acrtc_state->stream);
+	if (!stream_status) {
+		DRM_ERROR("No stream status for CRTC: id=%d\n",
+			acrtc->crtc_id);
+		return;
+	}
+
+	surface_updates->surface = stream_status->plane_states[0];
+	if (!surface_updates->surface) {
+		DRM_ERROR("No surface for CRTC: id=%d\n",
+			acrtc->crtc_id);
+		return;
+	}
 	surface_updates->flip_addr = &addr;
 
 	dc_commit_updates_for_stream(adev->dm.dc,
@@ -4797,6 +4800,8 @@ void set_freesync_on_stream(struct amdgpu_display_manager *dm,
 	mod_freesync_build_vrr_infopacket(dm->freesync_module,
 					  new_stream,
 					  &vrr,
+					  packet_type_fs1,
+					  NULL,
 					  &vrr_infopacket);
 
 	new_crtc_state->adjust = vrr.adjust;

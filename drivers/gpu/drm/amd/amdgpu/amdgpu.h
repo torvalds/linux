@@ -146,6 +146,7 @@ extern int amdgpu_cik_support;
 #define AMDGPU_DEFAULT_GTT_SIZE_MB		3072ULL /* 3GB by default */
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
 #define AMDGPU_MAX_USEC_TIMEOUT			100000	/* 100 ms */
+#define AMDGPU_FENCE_JIFFIES_TIMEOUT		(HZ / 2)
 /* AMDGPU_IB_POOL_SIZE must be a power of 2 */
 #define AMDGPU_IB_POOL_SIZE			16
 #define AMDGPU_DEBUGFS_MAX_COMPONENTS		32
@@ -408,16 +409,25 @@ typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
 	AMDGPU_DOORBELL64_GFX_RING0               = 0x8b,
 
 	/*
-	 * Other graphics doorbells can be allocated here: from 0x8c to 0xef
+	 * Other graphics doorbells can be allocated here: from 0x8c to 0xdf
 	 * Graphics voltage island aperture 1
-	 * default non-graphics QWORD index is 0xF0 - 0xFF inclusive
+	 * default non-graphics QWORD index is 0xe0 - 0xFF inclusive
 	 */
 
-	/* sDMA engines */
-	AMDGPU_DOORBELL64_sDMA_ENGINE0            = 0xF0,
-	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE0     = 0xF1,
-	AMDGPU_DOORBELL64_sDMA_ENGINE1            = 0xF2,
-	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE1     = 0xF3,
+	/* sDMA engines  reserved from 0xe0 -oxef  */
+	AMDGPU_DOORBELL64_sDMA_ENGINE0            = 0xE0,
+	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE0     = 0xE1,
+	AMDGPU_DOORBELL64_sDMA_ENGINE1            = 0xE8,
+	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE1     = 0xE9,
+
+	/* For vega10 sriov, the sdma doorbell must be fixed as follow
+	 * to keep the same setting with host driver, or it will
+	 * happen conflicts
+	 */
+	AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE0            = 0xF0,
+	AMDGPU_VEGA10_DOORBELL64_sDMA_HI_PRI_ENGINE0     = 0xF1,
+	AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE1            = 0xF2,
+	AMDGPU_VEGA10_DOORBELL64_sDMA_HI_PRI_ENGINE1     = 0xF3,
 
 	/* Interrupt handler */
 	AMDGPU_DOORBELL64_IH                      = 0xF4,  /* For legacy interrupt ring buffer */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Advanced Micro Devices, Inc.
+ * Copyright 2016 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,42 +19,31 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: AMD
+ *
  */
-#ifndef _VEGA20_SMUMANAGER_H_
-#define _VEGA20_SMUMANAGER_H_
 
-#include "hwmgr.h"
-#include "smu11_driver_if.h"
 
-struct smu_table_entry {
-	uint32_t version;
-	uint32_t size;
-	uint64_t mc_addr;
-	void *table;
-	struct amdgpu_bo *handle;
+#ifndef MOD_SHARED_H_
+#define MOD_SHARED_H_
+
+enum color_transfer_func {
+	transfer_func_unknown,
+	transfer_func_srgb,
+	transfer_func_bt709,
+	transfer_func_pq2084,
+	transfer_func_pq2084_interim,
+	transfer_func_linear_0_1,
+	transfer_func_linear_0_125,
+	transfer_func_dolbyvision,
+	transfer_func_gamma_22,
+	transfer_func_gamma_26
 };
 
-struct smu_table_array {
-	struct smu_table_entry entry[TABLE_COUNT];
+enum vrr_packet_type {
+	packet_type_vrr,
+	packet_type_fs1,
+	packet_type_fs2
 };
 
-struct vega20_smumgr {
-	struct smu_table_array            smu_tables;
-};
-
-#define SMU_FEATURES_LOW_MASK        0x00000000FFFFFFFF
-#define SMU_FEATURES_LOW_SHIFT       0
-#define SMU_FEATURES_HIGH_MASK       0xFFFFFFFF00000000
-#define SMU_FEATURES_HIGH_SHIFT      32
-
-int vega20_enable_smc_features(struct pp_hwmgr *hwmgr,
-		bool enable, uint64_t feature_mask);
-int vega20_get_enabled_smc_features(struct pp_hwmgr *hwmgr,
-		uint64_t *features_enabled);
-int vega20_set_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
-		uint8_t *table, uint16_t workload_type);
-int vega20_get_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
-		uint8_t *table, uint16_t workload_type);
-
-#endif
-
+#endif /* MOD_SHARED_H_ */

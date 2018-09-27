@@ -44,6 +44,7 @@
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
+#include "dc_link_dp.h"
 
 #define DC_LOGGER_INIT(logger)
 

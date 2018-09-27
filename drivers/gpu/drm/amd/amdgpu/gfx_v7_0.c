@@ -1886,14 +1886,14 @@ static void gfx_v7_0_config_init(struct amdgpu_device *adev)
 }
 
 /**
- * gfx_v7_0_gpu_init - setup the 3D engine
+ * gfx_v7_0_constants_init - setup the 3D engine
  *
  * @adev: amdgpu_device pointer
  *
- * Configures the 3D engine and tiling configuration
- * registers so that the 3D engine is usable.
+ * init the gfx constants such as the 3D engine, tiling configuration
+ * registers, maximum number of quad pipes, render backends...
  */
-static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
+static void gfx_v7_0_constants_init(struct amdgpu_device *adev)
 {
 	u32 sh_mem_cfg, sh_static_mem_cfg, sh_mem_base;
 	u32 tmp;
@@ -4516,18 +4516,18 @@ static int gfx_v7_0_sw_init(void *handle)
 	adev->gfx.mec.num_queue_per_pipe = 8;
 
 	/* EOP Event */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 181, &adev->gfx.eop_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 181, &adev->gfx.eop_irq);
 	if (r)
 		return r;
 
 	/* Privileged reg */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 184,
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 184,
 			      &adev->gfx.priv_reg_irq);
 	if (r)
 		return r;
 
 	/* Privileged inst */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 185,
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 185,
 			      &adev->gfx.priv_inst_irq);
 	if (r)
 		return r;
@@ -4624,7 +4624,7 @@ static int gfx_v7_0_hw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	gfx_v7_0_gpu_init(adev);
+	gfx_v7_0_constants_init(adev);
 
 	/* init rlc */
 	r = gfx_v7_0_rlc_resume(adev);

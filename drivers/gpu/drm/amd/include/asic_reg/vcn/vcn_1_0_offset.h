@@ -33,6 +33,14 @@
 #define mmUVD_POWER_STATUS_BASE_IDX                                                                    1
 #define mmCC_UVD_HARVESTING                                                                            0x00c7
 #define mmCC_UVD_HARVESTING_BASE_IDX                                                                   1
+#define mmUVD_DPG_LMA_CTL                                                                              0x00d1
+#define mmUVD_DPG_LMA_CTL_BASE_IDX                                                                     1
+#define mmUVD_DPG_LMA_DATA                                                                             0x00d2
+#define mmUVD_DPG_LMA_DATA_BASE_IDX                                                                    1
+#define mmUVD_DPG_LMA_MASK                                                                             0x00d3
+#define mmUVD_DPG_LMA_MASK_BASE_IDX                                                                    1
+#define mmUVD_DPG_PAUSE                                                                                0x00d4
+#define mmUVD_DPG_PAUSE_BASE_IDX                                                                       1
 #define mmUVD_SCRATCH1                                                                                 0x00d5
 #define mmUVD_SCRATCH1_BASE_IDX                                                                        1
 #define mmUVD_SCRATCH2                                                                                 0x00d6

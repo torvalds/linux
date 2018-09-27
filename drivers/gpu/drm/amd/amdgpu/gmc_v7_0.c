@@ -991,11 +991,11 @@ static int gmc_v7_0_sw_init(void *handle)
 		adev->gmc.vram_type = gmc_v7_0_convert_vram_type(tmp);
 	}
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_GFX_PAGE_INV_FAULT, &adev->gmc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_GFX_PAGE_INV_FAULT, &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_GFX_MEM_PROT_FAULT, &adev->gmc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_GFX_MEM_PROT_FAULT, &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
@@ -1388,8 +1388,7 @@ static const struct amdgpu_irq_src_funcs gmc_v7_0_irq_funcs = {
 
 static void gmc_v7_0_set_gmc_funcs(struct amdgpu_device *adev)
 {
-	if (adev->gmc.gmc_funcs == NULL)
-		adev->gmc.gmc_funcs = &gmc_v7_0_gmc_funcs;
+	adev->gmc.gmc_funcs = &gmc_v7_0_gmc_funcs;
 }
 
 static void gmc_v7_0_set_irq_funcs(struct amdgpu_device *adev)

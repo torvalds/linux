@@ -103,7 +103,7 @@ TRACE_EVENT(amdgpu_iv,
 			   __entry->src_data[2] = iv->src_data[2];
 			   __entry->src_data[3] = iv->src_data[3];
 			   ),
-	    TP_printk("client_id:%u src_id:%u ring:%u vmid:%u timestamp: %llu pasid:%u src_data: %08x %08x %08x %08x\n",
+	    TP_printk("client_id:%u src_id:%u ring:%u vmid:%u timestamp: %llu pasid:%u src_data: %08x %08x %08x %08x",
 		      __entry->client_id, __entry->src_id,
 		      __entry->ring_id, __entry->vmid,
 		      __entry->timestamp, __entry->pasid,

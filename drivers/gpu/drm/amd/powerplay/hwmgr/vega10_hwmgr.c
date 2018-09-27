@@ -39,6 +39,7 @@
 #include "soc15_common.h"
 #include "pppcielanes.h"
 #include "vega10_hwmgr.h"
+#include "vega10_smumgr.h"
 #include "vega10_processpptables.h"
 #include "vega10_pptable.h"
 #include "vega10_thermal.h"
@@ -3713,6 +3714,11 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			SMUSVI0_PLANE0_CURRENTVID__CURRENT_SVI0_PLANE0_VID__SHIFT;
 		*((uint32_t *)value) = (uint32_t)convert_to_vddc((uint8_t)val_vid);
 		return 0;
+	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
+		ret = vega10_get_enabled_smc_features(hwmgr, (uint64_t *)value);
+		if (!ret)
+			*size = 8;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -4939,16 +4945,6 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.odn_edit_dpm_table = vega10_odn_edit_dpm_table,
 	.get_performance_level = vega10_get_performance_level,
 };
-
-int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
-		bool enable, uint32_t feature_mask)
-{
-	int msg = enable ? PPSMC_MSG_EnableSmuFeatures :
-			PPSMC_MSG_DisableSmuFeatures;
-
-	return smum_send_msg_to_smc_with_parameter(hwmgr,
-			msg, feature_mask);
-}
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)
 {

@@ -76,6 +76,7 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 		kfd2kgd = amdgpu_amdkfd_gfx_8_0_get_functions();
 		break;
 	case CHIP_VEGA10:
+	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		kfd2kgd = amdgpu_amdkfd_gfx_9_0_get_functions();
 		break;
@@ -123,7 +124,7 @@ static void amdgpu_doorbell_get_kfd_info(struct amdgpu_device *adev,
 
 void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 {
-	int i;
+	int i, n;
 	int last_valid_bit;
 	if (adev->kfd) {
 		struct kgd2kfd_shared_resources gpu_resources = {
@@ -162,7 +163,15 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 				&gpu_resources.doorbell_physical_address,
 				&gpu_resources.doorbell_aperture_size,
 				&gpu_resources.doorbell_start_offset);
-		if (adev->asic_type >= CHIP_VEGA10) {
+
+		if (adev->asic_type < CHIP_VEGA10) {
+			kgd2kfd->device_init(adev->kfd, &gpu_resources);
+			return;
+		}
+
+		n = (adev->asic_type < CHIP_VEGA20) ? 2 : 8;
+
+		for (i = 0; i < n; i += 2) {
 			/* On SOC15 the BIF is involved in routing
 			 * doorbells using the low 12 bits of the
 			 * address. Communicate the assignments to
@@ -170,20 +179,31 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 			 * process in case of 64-bit doorbells so we
 			 * can use each doorbell assignment twice.
 			 */
-			gpu_resources.sdma_doorbell[0][0] =
-				AMDGPU_DOORBELL64_sDMA_ENGINE0;
-			gpu_resources.sdma_doorbell[0][1] =
-				AMDGPU_DOORBELL64_sDMA_ENGINE0 + 0x200;
-			gpu_resources.sdma_doorbell[1][0] =
-				AMDGPU_DOORBELL64_sDMA_ENGINE1;
-			gpu_resources.sdma_doorbell[1][1] =
-				AMDGPU_DOORBELL64_sDMA_ENGINE1 + 0x200;
-			/* Doorbells 0x0f0-0ff and 0x2f0-2ff are reserved for
-			 * SDMA, IH and VCN. So don't use them for the CP.
-			 */
-			gpu_resources.reserved_doorbell_mask = 0x1f0;
-			gpu_resources.reserved_doorbell_val  = 0x0f0;
+			if (adev->asic_type == CHIP_VEGA10) {
+				gpu_resources.sdma_doorbell[0][i] =
+					AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE0 + (i >> 1);
+				gpu_resources.sdma_doorbell[0][i+1] =
+					AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE0 + 0x200 + (i >> 1);
+				gpu_resources.sdma_doorbell[1][i] =
+					AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE1 + (i >> 1);
+				gpu_resources.sdma_doorbell[1][i+1] =
+					AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE1 + 0x200 + (i >> 1);
+			} else {
+				gpu_resources.sdma_doorbell[0][i] =
+					AMDGPU_DOORBELL64_sDMA_ENGINE0 + (i >> 1);
+				gpu_resources.sdma_doorbell[0][i+1] =
+					AMDGPU_DOORBELL64_sDMA_ENGINE0 + 0x200 + (i >> 1);
+				gpu_resources.sdma_doorbell[1][i] =
+					AMDGPU_DOORBELL64_sDMA_ENGINE1 + (i >> 1);
+				gpu_resources.sdma_doorbell[1][i+1] =
+					AMDGPU_DOORBELL64_sDMA_ENGINE1 + 0x200 + (i >> 1);
+			}
 		}
+		/* Doorbells 0x0e0-0ff and 0x2e0-2ff are reserved for
+		 * SDMA, IH and VCN. So don't use them for the CP.
+		 */
+		gpu_resources.reserved_doorbell_mask = 0x1e0;
+		gpu_resources.reserved_doorbell_val  = 0x0e0;
 
 		kgd2kfd->device_init(adev->kfd, &gpu_resources);
 	}

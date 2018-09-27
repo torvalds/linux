@@ -647,6 +647,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		num_of_cache_types = ARRAY_SIZE(polaris11_cache_info);
 		break;
 	case CHIP_VEGA10:
+	case CHIP_VEGA20:
 		pcache_info = vega10_cache_info;
 		num_of_cache_types = ARRAY_SIZE(vega10_cache_info);
 		break;

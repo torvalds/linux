@@ -105,6 +105,8 @@ bool dm_pp_apply_display_requirements(
 			adev->powerplay.pp_funcs->display_configuration_change(
 				adev->powerplay.pp_handle,
 				&adev->pm.pm_display_cfg);
+
+		amdgpu_pm_compute_clocks(adev);
 	}
 
 	return true;

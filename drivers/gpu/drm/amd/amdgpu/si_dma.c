@@ -502,12 +502,12 @@ static int si_dma_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* DMA0 trap event */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 224, &adev->sdma.trap_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 224, &adev->sdma.trap_irq);
 	if (r)
 		return r;
 
 	/* DMA1 trap event */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 244, &adev->sdma.trap_irq_1);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 244, &adev->sdma.trap_irq_1);
 	if (r)
 		return r;
 
@@ -863,10 +863,8 @@ static const struct amdgpu_buffer_funcs si_dma_buffer_funcs = {
 
 static void si_dma_set_buffer_funcs(struct amdgpu_device *adev)
 {
-	if (adev->mman.buffer_funcs == NULL) {
-		adev->mman.buffer_funcs = &si_dma_buffer_funcs;
-		adev->mman.buffer_funcs_ring = &adev->sdma.instance[0].ring;
-	}
+	adev->mman.buffer_funcs = &si_dma_buffer_funcs;
+	adev->mman.buffer_funcs_ring = &adev->sdma.instance[0].ring;
 }
 
 static const struct amdgpu_vm_pte_funcs si_dma_vm_pte_funcs = {
@@ -882,15 +880,13 @@ static void si_dma_set_vm_pte_funcs(struct amdgpu_device *adev)
 	struct drm_gpu_scheduler *sched;
 	unsigned i;
 
-	if (adev->vm_manager.vm_pte_funcs == NULL) {
-		adev->vm_manager.vm_pte_funcs = &si_dma_vm_pte_funcs;
-		for (i = 0; i < adev->sdma.num_instances; i++) {
-			sched = &adev->sdma.instance[i].ring.sched;
-			adev->vm_manager.vm_pte_rqs[i] =
-				&sched->sched_rq[DRM_SCHED_PRIORITY_KERNEL];
-		}
-		adev->vm_manager.vm_pte_num_rqs = adev->sdma.num_instances;
+	adev->vm_manager.vm_pte_funcs = &si_dma_vm_pte_funcs;
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		sched = &adev->sdma.instance[i].ring.sched;
+		adev->vm_manager.vm_pte_rqs[i] =
+			&sched->sched_rq[DRM_SCHED_PRIORITY_KERNEL];
 	}
+	adev->vm_manager.vm_pte_num_rqs = adev->sdma.num_instances;
 }
 
 const struct amdgpu_ip_block_version si_dma_ip_block =

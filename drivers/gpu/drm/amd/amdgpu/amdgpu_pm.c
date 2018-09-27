@@ -1976,6 +1976,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *adev)
 {
 	uint32_t value;
+	uint64_t value64;
 	uint32_t query = 0;
 	int size;
 
@@ -2013,6 +2014,10 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_LOAD, (void *)&value, &size))
 		seq_printf(m, "GPU Load: %u %%\n", value);
 	seq_printf(m, "\n");
+
+	/* SMC feature mask */
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK, (void *)&value64, &size))
+		seq_printf(m, "SMC Feature Mask: 0x%016llx\n", value64);
 
 	/* UVD clocks */
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_POWER, (void *)&value, &size)) {
