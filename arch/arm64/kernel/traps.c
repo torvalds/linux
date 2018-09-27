@@ -629,7 +629,23 @@ static struct sys64_hook cp15_32_hooks[] = {
 	{},
 };
 
+static void compat_cntvct_read_handler(unsigned int esr, struct pt_regs *regs)
+{
+	int rt = (esr & ESR_ELx_CP15_64_ISS_RT_MASK) >> ESR_ELx_CP15_64_ISS_RT_SHIFT;
+	int rt2 = (esr & ESR_ELx_CP15_64_ISS_RT2_MASK) >> ESR_ELx_CP15_64_ISS_RT2_SHIFT;
+	u64 val = arch_counter_get_cntvct();
+
+	pt_regs_write_reg(regs, rt, lower_32_bits(val));
+	pt_regs_write_reg(regs, rt2, upper_32_bits(val));
+	arm64_compat_skip_faulting_instruction(regs, 4);
+}
+
 static struct sys64_hook cp15_64_hooks[] = {
+	{
+		.esr_mask = ESR_ELx_CP15_64_ISS_SYS_MASK,
+		.esr_val = ESR_ELx_CP15_64_ISS_SYS_CNTVCT,
+		.handler = compat_cntvct_read_handler,
+	},
 	{},
 };
 

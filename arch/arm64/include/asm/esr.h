@@ -315,6 +315,9 @@
 					 ESR_ELx_CP15_64_ISS_CRM_MASK | \
 					 ESR_ELx_CP15_64_ISS_DIR_MASK)
 
+#define ESR_ELx_CP15_64_ISS_SYS_CNTVCT	(ESR_ELx_CP15_64_ISS_SYS_VAL(1, 14) | \
+					 ESR_ELx_CP15_64_ISS_DIR_READ)
+
 #ifndef __ASSEMBLY__
 #include <asm/types.h>
 
