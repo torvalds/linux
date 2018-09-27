@@ -220,8 +220,6 @@ struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp)
 		atomic_set(&peer->usage, 1);
 		peer->local = local;
 		INIT_HLIST_HEAD(&peer->error_targets);
-		INIT_WORK(&peer->error_distributor,
-			  &rxrpc_peer_error_distributor);
 		peer->service_conns = RB_ROOT;
 		seqlock_init(&peer->service_conn_lock);
 		spin_lock_init(&peer->lock);
@@ -400,21 +398,6 @@ struct rxrpc_peer *rxrpc_get_peer_maybe(struct rxrpc_peer *peer)
 			peer = NULL;
 	}
 	return peer;
-}
-
-/*
- * Queue a peer record.  This passes the caller's ref to the workqueue.
- */
-void __rxrpc_queue_peer_error(struct rxrpc_peer *peer)
-{
-	const void *here = __builtin_return_address(0);
-	int n;
-
-	n = atomic_read(&peer->usage);
-	if (rxrpc_queue_work(&peer->error_distributor))
-		trace_rxrpc_peer(peer, rxrpc_peer_queued_error, n, here);
-	else
-		rxrpc_put_peer(peer);
 }
 
 /*
