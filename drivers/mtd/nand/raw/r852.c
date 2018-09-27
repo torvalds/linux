@@ -637,7 +637,7 @@ static int r852_register_nand_device(struct r852_device *dev)
 {
 	struct mtd_info *mtd = nand_to_mtd(dev->chip);
 
-	WARN_ON(dev->card_registred);
+	WARN_ON(dev->card_registered);
 
 	mtd->dev.parent = &dev->pci_dev->dev;
 
@@ -654,7 +654,7 @@ static int r852_register_nand_device(struct r852_device *dev)
 		goto error3;
 	}
 
-	dev->card_registred = 1;
+	dev->card_registered = 1;
 	return 0;
 error3:
 	nand_release(dev->chip);
@@ -672,13 +672,13 @@ static void r852_unregister_nand_device(struct r852_device *dev)
 {
 	struct mtd_info *mtd = nand_to_mtd(dev->chip);
 
-	if (!dev->card_registred)
+	if (!dev->card_registered)
 		return;
 
 	device_remove_file(&mtd->dev, &dev_attr_media_type);
 	nand_release(dev->chip);
 	r852_engine_disable(dev);
-	dev->card_registred = 0;
+	dev->card_registered = 0;
 }
 
 /* Card state updater */
@@ -692,7 +692,7 @@ static void r852_card_detect_work(struct work_struct *work)
 	dev->card_unstable = 0;
 
 	/* False alarm */
-	if (dev->card_detected == dev->card_registred)
+	if (dev->card_detected == dev->card_registered)
 		goto exit;
 
 	/* Read media properties */
@@ -1033,7 +1033,7 @@ static int r852_resume(struct device *device)
 
 
 	/* If card status changed, just do the work */
-	if (dev->card_detected != dev->card_registred) {
+	if (dev->card_detected != dev->card_registered) {
 		dbg("card was %s during low power state",
 			dev->card_detected ? "added" : "removed");
 
@@ -1043,7 +1043,7 @@ static int r852_resume(struct device *device)
 	}
 
 	/* Otherwise, initialize the card */
-	if (dev->card_registred) {
+	if (dev->card_registered) {
 		r852_engine_enable(dev);
 		dev->chip->select_chip(dev->chip, 0);
 		nand_reset_op(dev->chip);
