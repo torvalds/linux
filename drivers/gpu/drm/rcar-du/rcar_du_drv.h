@@ -27,6 +27,7 @@ struct rcar_du_device;
 #define RCAR_DU_FEATURE_EXT_CTRL_REGS	BIT(1)	/* Has extended control registers */
 #define RCAR_DU_FEATURE_VSP1_SOURCE	BIT(2)	/* Has inputs from VSP1 */
 #define RCAR_DU_FEATURE_INTERLACED	BIT(3)	/* HW supports interlaced */
+#define RCAR_DU_FEATURE_TVM_SYNC	BIT(4)	/* Has TV switch/sync modes */
 
 #define RCAR_DU_QUIRK_ALIGN_128B	BIT(0)	/* Align pitches to 128 bytes */
 
@@ -53,6 +54,7 @@ struct rcar_du_output_routing {
  * @routes: array of CRTC to output routes, indexed by output (RCAR_DU_OUTPUT_*)
  * @num_lvds: number of internal LVDS encoders
  * @dpll_mask: bit mask of DU channels equipped with a DPLL
+ * @lvds_clk_mask: bitmask of channels that can use the LVDS clock as dot clock
  */
 struct rcar_du_device_info {
 	unsigned int gen;
@@ -62,6 +64,7 @@ struct rcar_du_device_info {
 	struct rcar_du_output_routing routes[RCAR_DU_OUTPUT_MAX];
 	unsigned int num_lvds;
 	unsigned int dpll_mask;
+	unsigned int lvds_clk_mask;
 };
 
 #define RCAR_DU_MAX_CRTCS		4
