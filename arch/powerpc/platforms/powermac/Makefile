@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 CFLAGS_bootx_init.o  		+= -fPIC
+CFLAGS_bootx_init.o  		+= $(call cc-option, -fno-stack-protector)
 
 ifdef CONFIG_FUNCTION_TRACER
 # Do not trace early boot code
