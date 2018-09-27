@@ -5470,7 +5470,8 @@ S:	Odd Fixes
 F:	drivers/net/ethernet/agere/
 
 ETHERNET BRIDGE
-M:	Stephen Hemminger <stephen@networkplumber.org>
+M:	Roopa Prabhu <roopa@cumulusnetworks.com>
+M:	Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
 L:	bridge@lists.linux-foundation.org (moderated for non-subscribers)
 L:	netdev@vger.kernel.org
 W:	http://www.linuxfoundation.org/en/Net:Bridge
