@@ -1576,6 +1576,27 @@ DEFINE_EVENT(btrfs_qgroup_extent, btrfs_qgroup_trace_extent,
 	TP_ARGS(fs_info, rec)
 );
 
+TRACE_EVENT(qgroup_num_dirty_extents,
+
+	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 transid,
+		 u64 num_dirty_extents),
+
+	TP_ARGS(fs_info, transid, num_dirty_extents),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64, transid			)
+		__field(	u64, num_dirty_extents		)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->transid	   = transid;
+		__entry->num_dirty_extents = num_dirty_extents;
+	),
+
+	TP_printk_btrfs("transid=%llu num_dirty_extents=%llu",
+		__entry->transid, __entry->num_dirty_extents)
+);
+
 TRACE_EVENT(btrfs_qgroup_account_extent,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 transid, u64 bytenr,
