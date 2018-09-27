@@ -447,6 +447,7 @@ bool dax_lock_mapping_entry(struct page *page)
 			xa_unlock_irq(&mapping->i_pages);
 			break;
 		} else if (IS_ERR(entry)) {
+			xa_unlock_irq(&mapping->i_pages);
 			WARN_ON_ONCE(PTR_ERR(entry) != -EAGAIN);
 			continue;
 		}
