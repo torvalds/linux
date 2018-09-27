@@ -1972,6 +1972,11 @@ static int bcm_sysport_open(struct net_device *dev)
 	else
 		gib_set_pad_extension(priv);
 
+	/* Apply features again in case we changed them while interface was
+	 * down
+	 */
+	bcm_sysport_set_features(dev, dev->features);
+
 	/* Set MAC address */
 	umac_set_hw_addr(priv, dev->dev_addr);
 
@@ -2708,7 +2713,6 @@ static int __maybe_unused bcm_sysport_resume(struct device *d)
 	struct net_device *dev = dev_get_drvdata(d);
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
 	unsigned int i;
-	u32 reg;
 	int ret;
 
 	if (!netif_running(dev))
@@ -2752,12 +2756,8 @@ static int __maybe_unused bcm_sysport_resume(struct device *d)
 		goto out_free_rx_ring;
 	}
 
-	/* Enable rxhck */
-	if (priv->rx_chk_en) {
-		reg = rxchk_readl(priv, RXCHK_CONTROL);
-		reg |= RXCHK_EN;
-		rxchk_writel(priv, reg, RXCHK_CONTROL);
-	}
+	/* Restore enabled features */
+	bcm_sysport_set_features(dev, dev->features);
 
 	rbuf_init(priv);
 
