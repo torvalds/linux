@@ -13289,6 +13289,7 @@ M:	Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 S:	Supported
 F:	drivers/siox/*
+F:	drivers/gpio/gpio-siox.c
 F:	include/trace/events/siox.h
 
 SIS 190 ETHERNET DRIVER
