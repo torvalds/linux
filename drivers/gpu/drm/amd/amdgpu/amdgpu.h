@@ -81,6 +81,23 @@
 #include "amdgpu_bo_list.h"
 #include "amdgpu_gem.h"
 
+#define MAX_GPU_INSTANCE		16
+
+struct amdgpu_gpu_instance
+{
+	struct amdgpu_device		*adev;
+	int				mgpu_fan_enabled;
+};
+
+struct amdgpu_mgpu_info
+{
+	struct amdgpu_gpu_instance	gpu_ins[MAX_GPU_INSTANCE];
+	struct mutex			mutex;
+	uint32_t			num_gpu;
+	uint32_t			num_dgpu;
+	uint32_t			num_apu;
+};
+
 /*
  * Modules parameters.
  */
@@ -134,6 +151,7 @@ extern int amdgpu_compute_multipipe;
 extern int amdgpu_gpu_recovery;
 extern int amdgpu_emu_mode;
 extern uint amdgpu_smu_memory_pool_size;
+extern struct amdgpu_mgpu_info mgpu_info;
 
 #ifdef CONFIG_DRM_AMDGPU_SI
 extern int amdgpu_si_support;
