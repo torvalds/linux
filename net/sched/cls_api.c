@@ -717,8 +717,10 @@ static struct tcf_block *tcf_block_find(struct net *net, struct Qdisc **q,
 errout_rcu:
 	rcu_read_unlock();
 errout_qdisc:
-	if (*q)
+	if (*q) {
 		qdisc_put(*q);
+		*q = NULL;
+	}
 	return ERR_PTR(err);
 }
 
