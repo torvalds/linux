@@ -1128,7 +1128,8 @@ void rxrpc_data_ready(struct sock *udp_sk)
 	struct rxrpc_call *call = NULL;
 	struct rxrpc_skb_priv *sp;
 	struct rxrpc_local *local = udp_sk->sk_user_data;
-	struct rxrpc_sock *rx;
+	struct rxrpc_peer *peer = NULL;
+	struct rxrpc_sock *rx = NULL;
 	struct sk_buff *skb;
 	unsigned int channel;
 	int ret, skew = 0;
@@ -1250,7 +1251,7 @@ void rxrpc_data_ready(struct sock *udp_sk)
 		}
 	}
 
-	conn = rxrpc_find_connection_rcu(local, skb);
+	conn = rxrpc_find_connection_rcu(local, skb, &peer);
 	if (conn) {
 		if (sp->hdr.securityIndex != conn->security_ix)
 			goto wrong_security;
@@ -1339,7 +1340,7 @@ void rxrpc_data_ready(struct sock *udp_sk)
 			goto bad_message_unlock;
 		if (sp->hdr.seq != 1)
 			goto discard_unlock;
-		call = rxrpc_new_incoming_call(local, conn, skb);
+		call = rxrpc_new_incoming_call(local, rx, peer, conn, skb);
 		if (!call) {
 			rcu_read_unlock();
 			goto reject_packet;

@@ -69,10 +69,14 @@ struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
  * If successful, a pointer to the connection is returned, but no ref is taken.
  * NULL is returned if there is no match.
  *
+ * When searching for a service call, if we find a peer but no connection, we
+ * return that through *_peer in case we need to create a new service call.
+ *
  * The caller must be holding the RCU read lock.
  */
 struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *local,
-						   struct sk_buff *skb)
+						   struct sk_buff *skb,
+						   struct rxrpc_peer **_peer)
 {
 	struct rxrpc_connection *conn;
 	struct rxrpc_conn_proto k;
@@ -104,6 +108,7 @@ struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *local,
 		peer = rxrpc_lookup_peer_rcu(local, &srx);
 		if (!peer)
 			goto not_found;
+		*_peer = peer;
 		conn = rxrpc_find_service_conn_rcu(peer, skb);
 		if (!conn || atomic_read(&conn->usage) == 0)
 			goto not_found;
