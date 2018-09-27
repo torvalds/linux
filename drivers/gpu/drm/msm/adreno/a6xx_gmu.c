@@ -70,7 +70,7 @@ static int a6xx_gmu_set_freq(struct a6xx_gmu *gmu, int index)
 	gmu_write(gmu, REG_A6XX_GMU_DCVS_ACK_OPTION, 0);
 
 	gmu_write(gmu, REG_A6XX_GMU_DCVS_PERF_SETTING,
-		((index << 24) & 0xff) | (3 & 0xf));
+		((3 & 0xf) << 28) | index);
 
 	/*
 	 * Send an invalid index as a vote for the bus bandwidth and let the
