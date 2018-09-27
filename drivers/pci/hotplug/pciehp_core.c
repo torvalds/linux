@@ -288,6 +288,22 @@ static int pciehp_resume(struct pcie_device *dev)
 
 	return 0;
 }
+
+static int pciehp_runtime_resume(struct pcie_device *dev)
+{
+	struct controller *ctrl = get_service_data(dev);
+
+	/* pci_restore_state() just wrote to the Slot Control register */
+	ctrl->cmd_started = jiffies;
+	ctrl->cmd_busy = true;
+
+	/* clear spurious events from rediscovery of inserted card */
+	if ((ctrl->state == ON_STATE || ctrl->state == BLINKINGOFF_STATE) &&
+	     pme_is_native(dev))
+		pcie_clear_hotplug_events(ctrl);
+
+	return pciehp_resume(dev);
+}
 #endif /* PM */
 
 static struct pcie_port_service_driver hpdriver_portdrv = {
@@ -302,6 +318,8 @@ static struct pcie_port_service_driver hpdriver_portdrv = {
 	.suspend	= pciehp_suspend,
 	.resume_noirq	= pciehp_resume_noirq,
 	.resume		= pciehp_resume,
+	.runtime_suspend = pciehp_suspend,
+	.runtime_resume	= pciehp_runtime_resume,
 #endif	/* PM */
 };
 
