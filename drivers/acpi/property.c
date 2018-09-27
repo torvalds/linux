@@ -24,11 +24,12 @@ static int acpi_data_get_property_array(const struct acpi_device_data *data,
 					acpi_object_type type,
 					const union acpi_object **obj);
 
-/* ACPI _DSD device properties GUID: daffd814-6eba-4d8c-8a91-bc9bbf4aa301 */
-static const guid_t prp_guid =
+static const guid_t prp_guids[] = {
+	/* ACPI _DSD device properties GUID: daffd814-6eba-4d8c-8a91-bc9bbf4aa301 */
 	GUID_INIT(0xdaffd814, 0x6eba, 0x4d8c,
-		  0x8a, 0x91, 0xbc, 0x9b, 0xbf, 0x4a, 0xa3, 0x01);
-/* ACPI _DSD data subnodes GUID: dbb8e3e6-5886-4ba6-8795-1319f52a966b */
+		  0x8a, 0x91, 0xbc, 0x9b, 0xbf, 0x4a, 0xa3, 0x01),
+};
+
 static const guid_t ads_guid =
 	GUID_INIT(0xdbb8e3e6, 0x5886, 0x4ba6,
 		  0x87, 0x95, 0x13, 0x19, 0xf5, 0x2a, 0x96, 0x6b);
@@ -56,6 +57,7 @@ static bool acpi_nondev_subnode_extract(const union acpi_object *desc,
 	dn->name = link->package.elements[0].string.pointer;
 	dn->fwnode.ops = &acpi_data_fwnode_ops;
 	dn->parent = parent;
+	INIT_LIST_HEAD(&dn->data.properties);
 	INIT_LIST_HEAD(&dn->data.subnodes);
 
 	result = acpi_extract_properties(desc, &dn->data);
@@ -288,6 +290,35 @@ static void acpi_init_of_compatible(struct acpi_device *adev)
 	adev->flags.of_compatible_ok = 1;
 }
 
+static bool acpi_is_property_guid(const guid_t *guid)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(prp_guids); i++) {
+		if (guid_equal(guid, &prp_guids[i]))
+			return true;
+	}
+
+	return false;
+}
+
+struct acpi_device_properties *
+acpi_data_add_props(struct acpi_device_data *data, const guid_t *guid,
+		    const union acpi_object *properties)
+{
+	struct acpi_device_properties *props;
+
+	props = kzalloc(sizeof(*props), GFP_KERNEL);
+	if (props) {
+		INIT_LIST_HEAD(&props->list);
+		props->guid = guid;
+		props->properties = properties;
+		list_add_tail(&props->list, &data->properties);
+	}
+
+	return props;
+}
+
 static bool acpi_extract_properties(const union acpi_object *desc,
 				    struct acpi_device_data *data)
 {
@@ -312,7 +343,7 @@ static bool acpi_extract_properties(const union acpi_object *desc,
 		    properties->type != ACPI_TYPE_PACKAGE)
 			break;
 
-		if (!guid_equal((guid_t *)guid->buffer.pointer, &prp_guid))
+		if (!acpi_is_property_guid((guid_t *)guid->buffer.pointer))
 			continue;
 
 		/*
@@ -320,13 +351,13 @@ static bool acpi_extract_properties(const union acpi_object *desc,
 		 * package immediately following it.
 		 */
 		if (!acpi_properties_format_valid(properties))
-			break;
+			continue;
 
-		data->properties = properties;
-		return true;
+		acpi_data_add_props(data, (const guid_t *)guid->buffer.pointer,
+				    properties);
 	}
 
-	return false;
+	return !list_empty(&data->properties);
 }
 
 void acpi_init_properties(struct acpi_device *adev)
@@ -336,6 +367,7 @@ void acpi_init_properties(struct acpi_device *adev)
 	acpi_status status;
 	bool acpi_of = false;
 
+	INIT_LIST_HEAD(&adev->data.properties);
 	INIT_LIST_HEAD(&adev->data.subnodes);
 
 	if (!adev->handle)
@@ -398,11 +430,16 @@ static void acpi_destroy_nondev_subnodes(struct list_head *list)
 
 void acpi_free_properties(struct acpi_device *adev)
 {
+	struct acpi_device_properties *props, *tmp;
+
 	acpi_destroy_nondev_subnodes(&adev->data.subnodes);
 	ACPI_FREE((void *)adev->data.pointer);
 	adev->data.of_compatible = NULL;
 	adev->data.pointer = NULL;
-	adev->data.properties = NULL;
+	list_for_each_entry_safe(props, tmp, &adev->data.properties, list) {
+		list_del(&props->list);
+		kfree(props);
+	}
 }
 
 /**
@@ -427,32 +464,37 @@ static int acpi_data_get_property(const struct acpi_device_data *data,
 				  const char *name, acpi_object_type type,
 				  const union acpi_object **obj)
 {
-	const union acpi_object *properties;
-	int i;
+	const struct acpi_device_properties *props;
 
 	if (!data || !name)
 		return -EINVAL;
 
-	if (!data->pointer || !data->properties)
+	if (!data->pointer || list_empty(&data->properties))
 		return -EINVAL;
 
-	properties = data->properties;
-	for (i = 0; i < properties->package.count; i++) {
-		const union acpi_object *propname, *propvalue;
-		const union acpi_object *property;
+	list_for_each_entry(props, &data->properties, list) {
+		const union acpi_object *properties;
+		unsigned int i;
 
-		property = &properties->package.elements[i];
+		properties = props->properties;
+		for (i = 0; i < properties->package.count; i++) {
+			const union acpi_object *propname, *propvalue;
+			const union acpi_object *property;
 
-		propname = &property->package.elements[0];
-		propvalue = &property->package.elements[1];
+			property = &properties->package.elements[i];
 
-		if (!strcmp(name, propname->string.pointer)) {
-			if (type != ACPI_TYPE_ANY && propvalue->type != type)
-				return -EPROTO;
-			if (obj)
-				*obj = propvalue;
+			propname = &property->package.elements[0];
+			propvalue = &property->package.elements[1];
 
-			return 0;
+			if (!strcmp(name, propname->string.pointer)) {
+				if (type != ACPI_TYPE_ANY &&
+				    propvalue->type != type)
+					return -EPROTO;
+				if (obj)
+					*obj = propvalue;
+
+				return 0;
+			}
 		}
 	}
 	return -EINVAL;
