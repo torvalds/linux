@@ -127,8 +127,8 @@ struct nixge_hw_dma_bd {
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 #define nixge_hw_dma_bd_set_addr(bd, field, addr) \
 	do { \
-		(bd)->field##_lo = lower_32_bits(((u64)addr)); \
-		(bd)->field##_hi = upper_32_bits(((u64)addr)); \
+		(bd)->field##_lo = lower_32_bits((addr)); \
+		(bd)->field##_hi = upper_32_bits((addr)); \
 	} while (0)
 #else
 #define nixge_hw_dma_bd_set_addr(bd, field, addr) \
@@ -251,7 +251,7 @@ static void nixge_hw_dma_bd_release(struct net_device *ndev)
 				 NIXGE_MAX_JUMBO_FRAME_SIZE,
 				 DMA_FROM_DEVICE);
 
-		skb = (struct sk_buff *)
+		skb = (struct sk_buff *)(uintptr_t)
 			nixge_hw_dma_bd_get_addr(&priv->rx_bd_v[i],
 						 sw_id_offset);
 		dev_kfree_skb(skb);
@@ -323,7 +323,7 @@ static int nixge_hw_dma_bd_init(struct net_device *ndev)
 		if (!skb)
 			goto out;
 
-		nixge_hw_dma_bd_set_offset(&priv->rx_bd_v[i], skb);
+		nixge_hw_dma_bd_set_offset(&priv->rx_bd_v[i], (uintptr_t)skb);
 		phys = dma_map_single(ndev->dev.parent, skb->data,
 				      NIXGE_MAX_JUMBO_FRAME_SIZE,
 				      DMA_FROM_DEVICE);
@@ -601,8 +601,8 @@ static int nixge_recv(struct net_device *ndev, int budget)
 		tail_p = priv->rx_bd_p + sizeof(*priv->rx_bd_v) *
 			 priv->rx_bd_ci;
 
-		skb = (struct sk_buff *)nixge_hw_dma_bd_get_addr(cur_p,
-								 sw_id_offset);
+		skb = (struct sk_buff *)(uintptr_t)
+			nixge_hw_dma_bd_get_addr(cur_p, sw_id_offset);
 
 		length = cur_p->status & XAXIDMA_BD_STS_ACTUAL_LEN_MASK;
 		if (length > NIXGE_MAX_JUMBO_FRAME_SIZE)
@@ -643,7 +643,7 @@ static int nixge_recv(struct net_device *ndev, int budget)
 		nixge_hw_dma_bd_set_phys(cur_p, cur_phys);
 		cur_p->cntrl = NIXGE_MAX_JUMBO_FRAME_SIZE;
 		cur_p->status = 0;
-		nixge_hw_dma_bd_set_offset(cur_p, new_skb);
+		nixge_hw_dma_bd_set_offset(cur_p, (uintptr_t)new_skb);
 
 		++priv->rx_bd_ci;
 		priv->rx_bd_ci %= RX_BD_NUM;
