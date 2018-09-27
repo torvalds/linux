@@ -5017,6 +5017,7 @@ intel_dp_long_pulse(struct intel_connector *connector,
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_dp *intel_dp = intel_attached_dp(&connector->base);
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	enum drm_connector_status status;
 	u8 sink_irq_vector = 0;
 
@@ -5027,7 +5028,7 @@ intel_dp_long_pulse(struct intel_connector *connector,
 	/* Can't disconnect eDP */
 	if (intel_dp_is_edp(intel_dp))
 		status = edp_detect(intel_dp);
-	else if (intel_digital_port_connected(&dp_to_dig_port(intel_dp)->base))
+	else if (intel_digital_port_connected(encoder))
 		status = intel_dp_detect_dpcd(intel_dp);
 	else
 		status = connector_status_disconnected;
@@ -5078,11 +5079,8 @@ intel_dp_long_pulse(struct intel_connector *connector,
 	 * Some external monitors do not signal loss of link synchronization
 	 * with an IRQ_HPD, so force a link status check.
 	 */
-	if (!intel_dp_is_edp(intel_dp)) {
-		struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
-
+	if (!intel_dp_is_edp(intel_dp))
 		intel_dp_retrain_link(encoder, ctx);
-	}
 
 	/*
 	 * Clearing NACK and defer counts to get their exact values
