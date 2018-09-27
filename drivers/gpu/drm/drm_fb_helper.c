@@ -2843,7 +2843,7 @@ int drm_fb_helper_fbdev_setup(struct drm_device *dev,
 	if (!max_conn_count)
 		max_conn_count = dev->mode_config.num_connector;
 	if (!max_conn_count) {
-		DRM_DEV_ERROR(dev->dev, "No connectors\n");
+		DRM_DEV_ERROR(dev->dev, "fbdev: No connectors\n");
 		return -EINVAL;
 	}
 
@@ -2851,13 +2851,13 @@ int drm_fb_helper_fbdev_setup(struct drm_device *dev,
 
 	ret = drm_fb_helper_init(dev, fb_helper, max_conn_count);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev->dev, "Failed to initialize fbdev helper\n");
+		DRM_DEV_ERROR(dev->dev, "fbdev: Failed to initialize (ret=%d)\n", ret);
 		return ret;
 	}
 
 	ret = drm_fb_helper_single_add_all_connectors(fb_helper);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev->dev, "Failed to add connectors\n");
+		DRM_DEV_ERROR(dev->dev, "fbdev: Failed to add connectors (ret=%d)\n", ret);
 		goto err_drm_fb_helper_fini;
 	}
 
@@ -2866,7 +2866,7 @@ int drm_fb_helper_fbdev_setup(struct drm_device *dev,
 
 	ret = drm_fb_helper_initial_config(fb_helper, preferred_bpp);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev->dev, "Failed to set fbdev configuration\n");
+		DRM_DEV_ERROR(dev->dev, "fbdev: Failed to set configuration (ret=%d)\n", ret);
 		goto err_drm_fb_helper_fini;
 	}
 

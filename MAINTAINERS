@@ -4721,8 +4721,11 @@ F:	drivers/gpu/drm/tdfx/
 
 DRM DRIVER FOR USB DISPLAYLINK VIDEO ADAPTERS
 M:	Dave Airlie <airlied@redhat.com>
+R:	Sean Paul <sean@poorly.run>
+L:	dri-devel@lists.freedesktop.org
 S:	Odd Fixes
 F:	drivers/gpu/drm/udl/
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVER FOR VMWARE VIRTUAL GPU
 M:	"VMware Graphics" <linux-graphics-maintainer@vmware.com>
@@ -4822,6 +4825,7 @@ F:	drivers/gpu/drm/fsl-dcu/
 F:	Documentation/devicetree/bindings/display/fsl,dcu.txt
 F:	Documentation/devicetree/bindings/display/fsl,tcon.txt
 F:	Documentation/devicetree/bindings/display/panel/nec,nl4827hc19-05b.txt
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVERS FOR FREESCALE IMX
 M:	Philipp Zabel <p.zabel@pengutronix.de>
@@ -9906,9 +9910,12 @@ F:	drivers/media/tuners/mxl5007t.*
 
 MXSFB DRM DRIVER
 M:	Marek Vasut <marex@denx.de>
+M:	Stefan Agner <stefan@agner.ch>
+L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/mxsfb/
 F:	Documentation/devicetree/bindings/display/mxsfb.txt
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
 M:	Chris Lee <christopher.lee@cspi.com>

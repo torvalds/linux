@@ -66,20 +66,9 @@ static const char *drm_syncobj_stub_fence_get_name(struct dma_fence *fence)
         return "syncobjstub";
 }
 
-static bool drm_syncobj_stub_fence_enable_signaling(struct dma_fence *fence)
-{
-    return !dma_fence_is_signaled(fence);
-}
-
-static void drm_syncobj_stub_fence_release(struct dma_fence *f)
-{
-	kfree(f);
-}
 static const struct dma_fence_ops drm_syncobj_stub_fence_ops = {
 	.get_driver_name = drm_syncobj_stub_fence_get_name,
 	.get_timeline_name = drm_syncobj_stub_fence_get_name,
-	.enable_signaling = drm_syncobj_stub_fence_enable_signaling,
-	.release = drm_syncobj_stub_fence_release,
 };
 
 
@@ -683,7 +672,6 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 {
 	struct syncobj_wait_entry *entries;
 	struct dma_fence *fence;
-	signed long ret;
 	uint32_t signaled_count, i;
 
 	entries = kcalloc(count, sizeof(*entries), GFP_KERNEL);
@@ -703,7 +691,7 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 			if (flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT) {
 				continue;
 			} else {
-				ret = -EINVAL;
+				timeout = -EINVAL;
 				goto cleanup_entries;
 			}
 		}
@@ -714,12 +702,6 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 			signaled_count++;
 		}
 	}
-
-	/* Initialize ret to the max of timeout and 1.  That way, the
-	 * default return value indicates a successful wait and not a
-	 * timeout.
-	 */
-	ret = max_t(signed long, timeout, 1);
 
 	if (signaled_count == count ||
 	    (signaled_count > 0 &&
@@ -771,18 +753,17 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 			goto done_waiting;
 
 		if (timeout == 0) {
-			/* If we are doing a 0 timeout wait and we got
-			 * here, then we just timed out.
-			 */
-			ret = 0;
+			timeout = -ETIME;
 			goto done_waiting;
 		}
 
-		ret = schedule_timeout(ret);
+		if (signal_pending(current)) {
+			timeout = -ERESTARTSYS;
+			goto done_waiting;
+		}
 
-		if (ret > 0 && signal_pending(current))
-			ret = -ERESTARTSYS;
-	} while (ret > 0);
+		timeout = schedule_timeout(timeout);
+	} while (1);
 
 done_waiting:
 	__set_current_state(TASK_RUNNING);
@@ -799,7 +780,7 @@ cleanup_entries:
 	}
 	kfree(entries);
 
-	return ret;
+	return timeout;
 }
 
 /**
@@ -840,19 +821,16 @@ static int drm_syncobj_array_wait(struct drm_device *dev,
 				  struct drm_syncobj **syncobjs)
 {
 	signed long timeout = drm_timeout_abs_to_jiffies(wait->timeout_nsec);
-	signed long ret = 0;
 	uint32_t first = ~0;
 
-	ret = drm_syncobj_array_wait_timeout(syncobjs,
-					     wait->count_handles,
-					     wait->flags,
-					     timeout, &first);
-	if (ret < 0)
-		return ret;
+	timeout = drm_syncobj_array_wait_timeout(syncobjs,
+						 wait->count_handles,
+						 wait->flags,
+						 timeout, &first);
+	if (timeout < 0)
+		return timeout;
 
 	wait->first_signaled = first;
-	if (ret == 0)
-		return -ETIME;
 	return 0;
 }
 
