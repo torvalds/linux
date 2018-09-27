@@ -104,6 +104,8 @@ void *bpf_object__priv(struct bpf_object *prog);
 
 int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 			     enum bpf_attach_type *expected_attach_type);
+int libbpf_attach_type_by_name(const char *name,
+			       enum bpf_attach_type *attach_type);
 
 /* Accessors of bpf_program */
 struct bpf_program;
