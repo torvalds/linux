@@ -2137,10 +2137,13 @@ static int __pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable
 	int ret = 0;
 
 	/*
-	 * Bridges can only signal wakeup on behalf of subordinate devices,
-	 * but that is set up elsewhere, so skip them.
+	 * Bridges that are not power-manageable directly only signal
+	 * wakeup on behalf of subordinate devices which is set up
+	 * elsewhere, so skip them. However, bridges that are
+	 * power-manageable may signal wakeup for themselves (for example,
+	 * on a hotplug event) and they need to be covered here.
 	 */
-	if (pci_has_subordinate(dev))
+	if (!pci_power_manageable(dev))
 		return 0;
 
 	/* Don't do the same thing twice in a row for one device. */
