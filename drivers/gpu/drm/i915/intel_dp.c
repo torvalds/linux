@@ -4039,13 +4039,6 @@ intel_dp_configure_mst(struct intel_dp *intel_dp)
 }
 
 static bool
-intel_dp_get_sink_irq(struct intel_dp *intel_dp, u8 *sink_irq_vector)
-{
-	return drm_dp_dpcd_readb(&intel_dp->aux, DP_DEVICE_SERVICE_IRQ_VECTOR,
-				 sink_irq_vector) == 1;
-}
-
-static bool
 intel_dp_get_sink_irq_esi(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 {
 	return drm_dp_dpcd_read(&intel_dp->aux, DP_SINK_COUNT_ESI,
@@ -4432,6 +4425,26 @@ static bool intel_dp_hotplug(struct intel_encoder *encoder,
 	return changed;
 }
 
+static void intel_dp_check_service_irq(struct intel_dp *intel_dp)
+{
+	u8 val;
+
+	if (intel_dp->dpcd[DP_DPCD_REV] < 0x11)
+		return;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux,
+			      DP_DEVICE_SERVICE_IRQ_VECTOR, &val) != 1 || !val)
+		return;
+
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_DEVICE_SERVICE_IRQ_VECTOR, val);
+
+	if (val & DP_AUTOMATED_TEST_REQUEST)
+		intel_dp_handle_test_request(intel_dp);
+
+	if (val & (DP_CP_IRQ | DP_SINK_SPECIFIC_IRQ))
+		DRM_DEBUG_DRIVER("CP or sink specific irq unhandled\n");
+}
+
 /*
  * According to DP spec
  * 5.1.2:
@@ -4449,7 +4462,6 @@ static bool
 intel_dp_short_pulse(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	u8 sink_irq_vector = 0;
 	u8 old_sink_count = intel_dp->sink_count;
 	bool ret;
 
@@ -4472,20 +4484,7 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 		return false;
 	}
 
-	/* Try to read the source of the interrupt */
-	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11 &&
-	    intel_dp_get_sink_irq(intel_dp, &sink_irq_vector) &&
-	    sink_irq_vector != 0) {
-		/* Clear interrupt source */
-		drm_dp_dpcd_writeb(&intel_dp->aux,
-				   DP_DEVICE_SERVICE_IRQ_VECTOR,
-				   sink_irq_vector);
-
-		if (sink_irq_vector & DP_AUTOMATED_TEST_REQUEST)
-			intel_dp_handle_test_request(intel_dp);
-		if (sink_irq_vector & (DP_CP_IRQ | DP_SINK_SPECIFIC_IRQ))
-			DRM_DEBUG_DRIVER("CP or sink specific irq unhandled\n");
-	}
+	intel_dp_check_service_irq(intel_dp);
 
 	/* Handle CEC interrupts, if any */
 	drm_dp_cec_irq(&intel_dp->aux);
@@ -5020,7 +5019,6 @@ intel_dp_detect(struct drm_connector *connector,
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	enum drm_connector_status status;
-	u8 sink_irq_vector = 0;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
@@ -5106,20 +5104,7 @@ intel_dp_detect(struct drm_connector *connector,
 	    to_intel_connector(connector)->detect_edid)
 		status = connector_status_connected;
 
-	/* Try to read the source of the interrupt */
-	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11 &&
-	    intel_dp_get_sink_irq(intel_dp, &sink_irq_vector) &&
-	    sink_irq_vector != 0) {
-		/* Clear interrupt source */
-		drm_dp_dpcd_writeb(&intel_dp->aux,
-				   DP_DEVICE_SERVICE_IRQ_VECTOR,
-				   sink_irq_vector);
-
-		if (sink_irq_vector & DP_AUTOMATED_TEST_REQUEST)
-			intel_dp_handle_test_request(intel_dp);
-		if (sink_irq_vector & (DP_CP_IRQ | DP_SINK_SPECIFIC_IRQ))
-			DRM_DEBUG_DRIVER("CP or sink specific irq unhandled\n");
-	}
+	intel_dp_check_service_irq(intel_dp);
 
 out:
 	if (status != connector_status_connected && !intel_dp->is_mst)
