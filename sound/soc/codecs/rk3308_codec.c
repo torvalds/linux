@@ -169,6 +169,10 @@ struct rk3308_codec_priv {
 	unsigned int agc_asr_l[ADC_LR_GROUP_MAX];
 	unsigned int agc_asr_r[ADC_LR_GROUP_MAX];
 
+	/* ADC MIC Mute/Work */
+	unsigned int mic_mute_l[ADC_LR_GROUP_MAX];
+	unsigned int mic_mute_r[ADC_LR_GROUP_MAX];
+
 	/* For the high pass filter */
 	unsigned int hpf_cutoff[ADC_LR_GROUP_MAX];
 
@@ -236,10 +240,19 @@ static int rk3308_codec_agc_asr_get(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol);
 static int rk3308_codec_agc_asr_put(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol);
+static int rk3308_codec_mic_mute_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol);
+static int rk3308_codec_mic_mute_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol);
 
 static const char *offon_text[2] = {
 	[0] = "Off",
 	[1] = "On",
+};
+
+static const char *mute_text[2] = {
+	[0] = "Work",
+	[1] = "Mute",
 };
 
 #define HPF_NUM				4
@@ -273,6 +286,18 @@ static const struct soc_enum rk3308_agc_enum_array[] = {
 	SOC_ENUM_SINGLE(2, 1, ARRAY_SIZE(offon_text), offon_text),
 	SOC_ENUM_SINGLE(3, 0, ARRAY_SIZE(offon_text), offon_text),
 	SOC_ENUM_SINGLE(3, 1, ARRAY_SIZE(offon_text), offon_text),
+};
+
+/* ADC MIC Mute/Work Switch */
+static const struct soc_enum rk3308_mic_mute_enum_array[] = {
+	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(mute_text), mute_text),
+	SOC_ENUM_SINGLE(0, 1, ARRAY_SIZE(mute_text), mute_text),
+	SOC_ENUM_SINGLE(1, 0, ARRAY_SIZE(mute_text), mute_text),
+	SOC_ENUM_SINGLE(1, 1, ARRAY_SIZE(mute_text), mute_text),
+	SOC_ENUM_SINGLE(2, 0, ARRAY_SIZE(mute_text), mute_text),
+	SOC_ENUM_SINGLE(2, 1, ARRAY_SIZE(mute_text), mute_text),
+	SOC_ENUM_SINGLE(3, 0, ARRAY_SIZE(mute_text), mute_text),
+	SOC_ENUM_SINGLE(3, 1, ARRAY_SIZE(mute_text), mute_text),
 };
 
 /* ALC AGC Approximate Sample Rate */
@@ -504,6 +529,24 @@ static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
 		     rk3308_codec_agc_asr_get, rk3308_codec_agc_asr_put),
 	SOC_ENUM_EXT("AGC Group 3 Right Approximate Sample Rate", rk3308_agc_asr_enum_array[7],
 		     rk3308_codec_agc_asr_get, rk3308_codec_agc_asr_put),
+
+	/* ADC MIC Mute/Work Switch */
+	SOC_ENUM_EXT("ADC MIC Group 0 Left Switch", rk3308_mic_mute_enum_array[0],
+		     rk3308_codec_mic_mute_get, rk3308_codec_mic_mute_put),
+	SOC_ENUM_EXT("ADC MIC Group 0 Right Switch", rk3308_mic_mute_enum_array[1],
+		     rk3308_codec_mic_mute_get, rk3308_codec_mic_mute_put),
+	SOC_ENUM_EXT("ADC MIC Group 1 Left Switch", rk3308_mic_mute_enum_array[2],
+		     rk3308_codec_mic_mute_get, rk3308_codec_mic_mute_put),
+	SOC_ENUM_EXT("ADC MIC Group 1 Right Switch", rk3308_mic_mute_enum_array[3],
+		     rk3308_codec_mic_mute_get, rk3308_codec_mic_mute_put),
+	SOC_ENUM_EXT("ADC MIC Group 2 Left Switch", rk3308_mic_mute_enum_array[4],
+		     rk3308_codec_mic_mute_get, rk3308_codec_mic_mute_put),
+	SOC_ENUM_EXT("ADC MIC Group 2 Right Switch", rk3308_mic_mute_enum_array[5],
+		     rk3308_codec_mic_mute_get, rk3308_codec_mic_mute_put),
+	SOC_ENUM_EXT("ADC MIC Group 3 Left Switch", rk3308_mic_mute_enum_array[6],
+		     rk3308_codec_mic_mute_get, rk3308_codec_mic_mute_put),
+	SOC_ENUM_EXT("ADC MIC Group 3 Right Switch", rk3308_mic_mute_enum_array[7],
+		     rk3308_codec_mic_mute_get, rk3308_codec_mic_mute_put),
 
 	/* ADC MIC */
 	SOC_SINGLE_RANGE_TLV("ADC MIC Group 0 Left Volume",
@@ -804,6 +847,72 @@ static int rk3308_codec_agc_asr_put(struct snd_kcontrol *kcontrol,
 				   RK3308_AGC_APPROX_RATE_MSK,
 				   value);
 		rk3308->agc_asr_l[e->reg] = ucontrol->value.integer.value[0];
+	}
+
+	return 0;
+}
+
+static int rk3308_codec_mic_mute_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int value;
+	int grp = e->reg;
+
+	if (e->reg < 0 || e->reg > ADC_LR_GROUP_MAX - 1) {
+		dev_err(rk3308->plat_dev,
+			"%s: Invalid ADC grp: %d\n", __func__, e->reg);
+		return -EINVAL;
+	}
+
+	if (e->shift_l) {
+		/* ADC MIC Right Mute/Work Infos */
+		regmap_read(rk3308->regmap, RK3308_ADC_DIG_CON03(grp), &value);
+		rk3308->mic_mute_r[e->reg] = (value & RK3308_ADC_R_CH_BIST_SINE) >>
+					     RK3308_ADC_R_CH_BIST_SFT;
+		ucontrol->value.integer.value[0] = rk3308->mic_mute_r[e->reg];
+	} else {
+		/* ADC MIC Left Mute/Work Infos */
+		regmap_read(rk3308->regmap, RK3308_ADC_DIG_CON03(grp), &value);
+		rk3308->mic_mute_l[e->reg] = (value & RK3308_ADC_L_CH_BIST_SINE) >>
+					     RK3308_ADC_L_CH_BIST_SFT;
+		ucontrol->value.integer.value[0] = rk3308->mic_mute_l[e->reg];
+	}
+
+	return 0;
+}
+
+static int rk3308_codec_mic_mute_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int value;
+	int grp = e->reg;
+
+	if (e->reg < 0 || e->reg > ADC_LR_GROUP_MAX - 1) {
+		dev_err(rk3308->plat_dev,
+			"%s: Invalid ADC grp: %d\n", __func__, e->reg);
+		return -EINVAL;
+	}
+
+	if (e->shift_l) {
+		/* ADC MIC Right Mute/Work Configuration */
+		value = ucontrol->value.integer.value[0] << RK3308_ADC_R_CH_BIST_SFT;
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON03(grp),
+				   RK3308_ADC_R_CH_BIST_SINE,
+				   value);
+		rk3308->mic_mute_r[e->reg] = ucontrol->value.integer.value[0];
+	} else {
+		/* ADC MIC Left Mute/Work Configuration */
+		value = ucontrol->value.integer.value[0] << RK3308_ADC_L_CH_BIST_SFT;
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON03(grp),
+				   RK3308_ADC_L_CH_BIST_SINE,
+				   value);
+		rk3308->mic_mute_l[e->reg] = ucontrol->value.integer.value[0];
 	}
 
 	return 0;
