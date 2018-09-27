@@ -284,6 +284,8 @@ static const struct bcm_sysport_stats bcm_sysport_gstrings_stats[] = {
 	STAT_MIB_SOFT("alloc_rx_buff_failed", mib.alloc_rx_buff_failed),
 	STAT_MIB_SOFT("rx_dma_failed", mib.rx_dma_failed),
 	STAT_MIB_SOFT("tx_dma_failed", mib.tx_dma_failed),
+	STAT_MIB_SOFT("tx_realloc_tsb", mib.tx_realloc_tsb),
+	STAT_MIB_SOFT("tx_realloc_tsb_failed", mib.tx_realloc_tsb_failed),
 	/* Per TX-queue statistics are dynamically appended */
 };
 
@@ -1220,6 +1222,7 @@ static void bcm_sysport_poll_controller(struct net_device *dev)
 static struct sk_buff *bcm_sysport_insert_tsb(struct sk_buff *skb,
 					      struct net_device *dev)
 {
+	struct bcm_sysport_priv *priv = netdev_priv(dev);
 	struct sk_buff *nskb;
 	struct bcm_tsb *tsb;
 	u32 csum_info;
@@ -1232,12 +1235,14 @@ static struct sk_buff *bcm_sysport_insert_tsb(struct sk_buff *skb,
 		nskb = skb_realloc_headroom(skb, sizeof(*tsb));
 		if (!nskb) {
 			dev_kfree_skb_any(skb);
+			priv->mib.tx_realloc_tsb_failed++;
 			dev->stats.tx_errors++;
 			dev->stats.tx_dropped++;
 			return NULL;
 		}
 		dev_consume_skb_any(skb);
 		skb = nskb;
+		priv->mib.tx_realloc_tsb++;
 	}
 
 	tsb = skb_push(skb, sizeof(*tsb));
