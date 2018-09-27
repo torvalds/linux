@@ -31,6 +31,7 @@ config B53_MMAP_DRIVER
 config B53_SRAB_DRIVER
 	tristate "B53 SRAB connected switch driver"
 	depends on B53 && HAS_IOMEM
+	depends on B53_SERDES || !B53_SERDES
 	default ARCH_BCM_IPROC
 	help
 	  Select to enable support for memory-mapped Switch Register Access
