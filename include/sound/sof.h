@@ -47,6 +47,7 @@ struct snd_sof_pdata {
 	const struct firmware *fw;
 	const char *drv_name;
 	const char *name;
+	const char *platform;
 
 	/* parent device */
 	struct device *dev;
@@ -58,6 +59,9 @@ struct snd_sof_pdata {
 	/* SPI data */
 	unsigned int gpio;
 	unsigned int active;
+
+	/* hda codec */
+	unsigned long codec_mask;
 
 	/* machine */
 	struct platform_device *pdev_mach;

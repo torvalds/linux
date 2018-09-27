@@ -422,6 +422,9 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	if (!bus->codec_mask)
 		dev_info(bus->dev, "no hda codecs found!\n");
 
+	/* used by hda machine driver to create dai links */
+	sdev->pdata->codec_mask = bus->codec_mask;
+
 	/* create codec instances */
 	hda_codec_probe_bus(sdev);
 

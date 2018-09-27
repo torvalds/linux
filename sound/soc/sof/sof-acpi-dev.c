@@ -232,8 +232,9 @@ static int sof_acpi_probe(struct platform_device *pdev)
 		if (ret < 0)
 			return ret;
 #else
-		dev_err(dev, "No matching ASoC machine driver found - aborting probe\n");
-		return -ENODEV;
+		dev_warn(dev, "No matching ASoC machine driver found - falling back to HDA codec\n");
+		mach = snd_soc_acpi_intel_hda_machines;
+		mach->sof_fw_filename = desc->nocodec_fw_filename;
 #endif
 	}
 #endif
@@ -251,6 +252,7 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	priv->sof_pdata = sof_pdata;
 	sof_pdata->dev = &pdev->dev;
 	sof_pdata->type = SOF_DEVICE_APCI;
+	sof_pdata->platform = "sof-audio";
 	dev_set_drvdata(&pdev->dev, priv);
 
 	/* do we need to generate any machine plat data ? */

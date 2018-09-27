@@ -229,9 +229,9 @@ static int sof_pci_probe(struct pci_dev *pci,
 		if (ret < 0)
 			goto release_regions;
 #else
-		dev_err(dev, "No matching ASoC machine driver found - aborting probe\n");
-		ret = -ENODEV;
-		goto release_regions;
+		dev_warn(dev, "No matching ASoC machine driver found - falling back to HDA codec\n");
+		mach = snd_soc_acpi_intel_hda_machines;
+		mach->sof_fw_filename = desc->nocodec_fw_filename;
 #endif
 	}
 #endif
@@ -245,6 +245,7 @@ static int sof_pci_probe(struct pci_dev *pci,
 	priv->sof_pdata = sof_pdata;
 	sof_pdata->dev = &pci->dev;
 	sof_pdata->type = SOF_DEVICE_PCI;
+	sof_pdata->platform = "sof-audio";
 
 	/* register sof-audio platform driver */
 	ret = sof_create_platform_device(priv);

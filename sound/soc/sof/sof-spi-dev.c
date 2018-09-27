@@ -130,20 +130,9 @@ static int sof_spi_probe(struct spi_device *spi)
 	sof_pdata->dev = dev;
 	sof_pdata->type = SOF_DEVICE_SPI;
 
-	/* register machine driver */
-	sof_pdata->pdev_mach =
-		platform_device_register_data(dev, mach->drv_name, -1,
-					      sof_pdata, sizeof(*sof_pdata));
-	if (IS_ERR(sof_pdata->pdev_mach))
-		return PTR_ERR(sof_pdata->pdev_mach);
-
-	dev_dbg(dev, "created machine %s\n",
-		dev_name(&sof_pdata->pdev_mach->dev));
-
 	/* register sof-audio platform driver */
 	ret = sof_create_platform_device(priv);
 	if (ret) {
-		platform_device_unregister(sof_pdata->pdev_mach);
 		dev_err(dev, "error: failed to create platform device!\n");
 		return ret;
 	}
