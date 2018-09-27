@@ -59,9 +59,6 @@ static int qlcnic_close(struct net_device *netdev);
 static void qlcnic_tx_timeout(struct net_device *netdev);
 static void qlcnic_attach_work(struct work_struct *work);
 static void qlcnic_fwinit_work(struct work_struct *work);
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void qlcnic_poll_controller(struct net_device *netdev);
-#endif
 
 static void qlcnic_idc_debug_info(struct qlcnic_adapter *adapter, u8 encoding);
 static int qlcnic_can_start_firmware(struct qlcnic_adapter *adapter);
@@ -545,9 +542,6 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_udp_tunnel_add	= qlcnic_add_vxlan_port,
 	.ndo_udp_tunnel_del	= qlcnic_del_vxlan_port,
 	.ndo_features_check	= qlcnic_features_check,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller = qlcnic_poll_controller,
-#endif
 #ifdef CONFIG_QLCNIC_SRIOV
 	.ndo_set_vf_mac		= qlcnic_sriov_set_vf_mac,
 	.ndo_set_vf_rate	= qlcnic_sriov_set_vf_tx_rate,
@@ -3199,45 +3193,6 @@ static irqreturn_t qlcnic_msix_tx_intr(int irq, void *data)
 	napi_schedule(&tx_ring->napi);
 	return IRQ_HANDLED;
 }
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void qlcnic_poll_controller(struct net_device *netdev)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	struct qlcnic_host_sds_ring *sds_ring;
-	struct qlcnic_recv_context *recv_ctx;
-	struct qlcnic_host_tx_ring *tx_ring;
-	int ring;
-
-	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
-		return;
-
-	recv_ctx = adapter->recv_ctx;
-
-	for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
-		sds_ring = &recv_ctx->sds_rings[ring];
-		qlcnic_disable_sds_intr(adapter, sds_ring);
-		napi_schedule(&sds_ring->napi);
-	}
-
-	if (adapter->flags & QLCNIC_MSIX_ENABLED) {
-		/* Only Multi-Tx queue capable devices need to
-		 * schedule NAPI for TX rings
-		 */
-		if ((qlcnic_83xx_check(adapter) &&
-		     (adapter->flags & QLCNIC_TX_INTR_SHARED)) ||
-		    (qlcnic_82xx_check(adapter) &&
-		     !qlcnic_check_multi_tx(adapter)))
-			return;
-
-		for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
-			tx_ring = &adapter->tx_ring[ring];
-			qlcnic_disable_tx_intr(adapter, tx_ring);
-			napi_schedule(&tx_ring->napi);
-		}
-	}
-}
-#endif
 
 static void
 qlcnic_idc_debug_info(struct qlcnic_adapter *adapter, u8 encoding)
