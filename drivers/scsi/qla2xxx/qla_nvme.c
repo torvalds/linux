@@ -607,7 +607,7 @@ void qla_nvme_abort(struct qla_hw_data *ha, struct srb *sp, int res)
 {
 	int rval;
 
-	if (!test_bit(ABORT_ISP_ACTIVE, &sp->vha->dpc_flags)) {
+	if (ha->flags.fw_started) {
 		rval = ha->isp_ops->abort_command(sp);
 		if (!rval && !qla_nvme_wait_on_command(sp))
 			ql_log(ql_log_warn, NULL, 0x2112,
