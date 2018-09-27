@@ -353,7 +353,7 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 
 	trace_rxrpc_abort(0, "INV", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
 			  RX_INVALID_OPERATION, EOPNOTSUPP);
-	skb->mark = RXRPC_SKB_MARK_LOCAL_ABORT;
+	skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
 	skb->priority = RX_INVALID_OPERATION;
 	_leave(" = NULL [service]");
 	return NULL;
@@ -364,7 +364,7 @@ found_service:
 	    rx->sk.sk_state == RXRPC_CLOSE) {
 		trace_rxrpc_abort(0, "CLS", sp->hdr.cid, sp->hdr.callNumber,
 				  sp->hdr.seq, RX_INVALID_OPERATION, ESHUTDOWN);
-		skb->mark = RXRPC_SKB_MARK_LOCAL_ABORT;
+		skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
 		skb->priority = RX_INVALID_OPERATION;
 		_leave(" = NULL [close]");
 		call = NULL;
@@ -373,7 +373,7 @@ found_service:
 
 	call = rxrpc_alloc_incoming_call(rx, local, conn, skb);
 	if (!call) {
-		skb->mark = RXRPC_SKB_MARK_BUSY;
+		skb->mark = RXRPC_SKB_MARK_REJECT_BUSY;
 		_leave(" = NULL [busy]");
 		call = NULL;
 		goto out;

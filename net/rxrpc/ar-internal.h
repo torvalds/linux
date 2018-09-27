@@ -40,17 +40,12 @@ struct rxrpc_crypt {
 struct rxrpc_connection;
 
 /*
- * Mark applied to socket buffers.
+ * Mark applied to socket buffers in skb->mark.  skb->priority is used
+ * to pass supplementary information.
  */
 enum rxrpc_skb_mark {
-	RXRPC_SKB_MARK_DATA,		/* data message */
-	RXRPC_SKB_MARK_FINAL_ACK,	/* final ACK received message */
-	RXRPC_SKB_MARK_BUSY,		/* server busy message */
-	RXRPC_SKB_MARK_REMOTE_ABORT,	/* remote abort message */
-	RXRPC_SKB_MARK_LOCAL_ABORT,	/* local abort message */
-	RXRPC_SKB_MARK_NET_ERROR,	/* network error message */
-	RXRPC_SKB_MARK_LOCAL_ERROR,	/* local error message */
-	RXRPC_SKB_MARK_NEW_CALL,	/* local error message */
+	RXRPC_SKB_MARK_REJECT_BUSY,	/* Reject with BUSY */
+	RXRPC_SKB_MARK_REJECT_ABORT,	/* Reject with ABORT (code in skb->priority) */
 };
 
 /*

@@ -524,7 +524,7 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 	struct kvec iov[2];
 	size_t size;
 	__be32 code;
-	int ret;
+	int ret, ioc;
 
 	_enter("%d", local->debug_id);
 
@@ -532,7 +532,6 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 	iov[0].iov_len = sizeof(whdr);
 	iov[1].iov_base = &code;
 	iov[1].iov_len = sizeof(code);
-	size = sizeof(whdr) + sizeof(code);
 
 	msg.msg_name = &srx.transport;
 	msg.msg_control = NULL;
@@ -540,16 +539,30 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 	msg.msg_flags = 0;
 
 	memset(&whdr, 0, sizeof(whdr));
-	whdr.type = RXRPC_PACKET_TYPE_ABORT;
 
 	while ((skb = skb_dequeue(&local->reject_queue))) {
 		rxrpc_see_skb(skb, rxrpc_skb_rx_seen);
 		sp = rxrpc_skb(skb);
 
+		switch (skb->mark) {
+		case RXRPC_SKB_MARK_REJECT_BUSY:
+			whdr.type = RXRPC_PACKET_TYPE_BUSY;
+			size = sizeof(whdr);
+			ioc = 1;
+			break;
+		case RXRPC_SKB_MARK_REJECT_ABORT:
+			whdr.type = RXRPC_PACKET_TYPE_ABORT;
+			code = htonl(skb->priority);
+			size = sizeof(whdr) + sizeof(code);
+			ioc = 2;
+			break;
+		default:
+			rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+			continue;
+		}
+
 		if (rxrpc_extract_addr_from_skb(local, &srx, skb) == 0) {
 			msg.msg_namelen = srx.transport_len;
-
-			code = htonl(skb->priority);
 
 			whdr.epoch	= htonl(sp->hdr.epoch);
 			whdr.cid	= htonl(sp->hdr.cid);

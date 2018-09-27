@@ -1354,7 +1354,7 @@ bad_message:
 protocol_error:
 	skb->priority = RX_PROTOCOL_ERROR;
 post_abort:
-	skb->mark = RXRPC_SKB_MARK_LOCAL_ABORT;
+	skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
 reject_packet:
 	trace_rxrpc_rx_done(skb->mark, skb->priority);
 	rxrpc_reject_packet(local, skb);
