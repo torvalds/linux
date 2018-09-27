@@ -365,16 +365,20 @@
 	INTEL_VGA_DEVICE(0x593B, info) /* Halo GT4 */
 
 /* AML/KBL Y GT2 */
-#define INTEL_AML_GT2_IDS(info) \
+#define INTEL_AML_KBL_GT2_IDS(info) \
 	INTEL_VGA_DEVICE(0x591C, info),  /* ULX GT2 */ \
 	INTEL_VGA_DEVICE(0x87C0, info) /* ULX GT2 */
+
+/* AML/CFL Y GT2 */
+#define INTEL_AML_CFL_GT2_IDS(info) \
+	INTEL_VGA_DEVICE(0x87CA, info)
 
 #define INTEL_KBL_IDS(info) \
 	INTEL_KBL_GT1_IDS(info), \
 	INTEL_KBL_GT2_IDS(info), \
 	INTEL_KBL_GT3_IDS(info), \
 	INTEL_KBL_GT4_IDS(info), \
-	INTEL_AML_GT2_IDS(info)
+	INTEL_AML_KBL_GT2_IDS(info)
 
 /* CFL S */
 #define INTEL_CFL_S_GT1_IDS(info) \
@@ -427,7 +431,8 @@
 	INTEL_CFL_U_GT3_IDS(info), \
 	INTEL_WHL_U_GT1_IDS(info), \
 	INTEL_WHL_U_GT2_IDS(info), \
-	INTEL_WHL_U_GT3_IDS(info)
+	INTEL_WHL_U_GT3_IDS(info), \
+	INTEL_AML_CFL_GT2_IDS(info)
 
 /* CNL */
 #define INTEL_CNL_IDS(info) \
