@@ -193,13 +193,14 @@ enum nla_policy_validation {
 	NLA_VALIDATE_RANGE,
 	NLA_VALIDATE_MIN,
 	NLA_VALIDATE_MAX,
+	NLA_VALIDATE_FUNCTION,
 };
 
 /**
  * struct nla_policy - attribute validation policy
  * @type: Type of attribute or NLA_UNSPEC
  * @validation_type: type of attribute validation done in addition to
- *	type-specific validation (e.g. range), see
+ *	type-specific validation (e.g. range, function call), see
  *	&enum nla_policy_validation
  * @len: Type specific length of payload
  *
@@ -269,6 +270,13 @@ enum nla_policy_validation {
  *                         of s16 - do that as usual in the code instead.
  *    All other            Unused - but note that it's a union
  *
+ * Meaning of `validate' field, use via NLA_POLICY_VALIDATE_FN:
+ *    NLA_BINARY           Validation function called for the attribute,
+ *                         not compatible with use of the validation_data
+ *                         as in NLA_BITFIELD32, NLA_REJECT, NLA_NESTED and
+ *                         NLA_NESTED_ARRAY.
+ *    All other            Unused - but note that it's a union
+ *
  * Example:
  * static const struct nla_policy my_policy[ATTR_MAX+1] = {
  * 	[ATTR_FOO] = { .type = NLA_U16 },
@@ -286,6 +294,8 @@ struct nla_policy {
 		struct {
 			s16 min, max;
 		};
+		int (*validate)(const struct nlattr *attr,
+				struct netlink_ext_ack *extack);
 	};
 };
 
@@ -307,6 +317,11 @@ struct nla_policy {
 		      tp == NLA_S16 || tp == NLA_U16 ||	\
 		      tp == NLA_S32 || tp == NLA_U32 ||	\
 		      tp == NLA_S64 || tp == NLA_U64) + tp)
+#define NLA_ENSURE_NO_VALIDATION_PTR(tp)		\
+	(__NLA_ENSURE(tp != NLA_BITFIELD32 &&		\
+		      tp != NLA_REJECT &&		\
+		      tp != NLA_NESTED &&		\
+		      tp != NLA_NESTED_ARRAY) + tp)
 
 #define NLA_POLICY_RANGE(tp, _min, _max) {		\
 	.type = NLA_ENSURE_INT_TYPE(tp),		\
@@ -325,6 +340,13 @@ struct nla_policy {
 	.type = NLA_ENSURE_INT_TYPE(tp),		\
 	.validation_type = NLA_VALIDATE_MAX,		\
 	.max = _max,					\
+}
+
+#define NLA_POLICY_VALIDATE_FN(tp, fn, ...) {		\
+	.type = NLA_ENSURE_NO_VALIDATION_PTR(tp),	\
+	.validation_type = NLA_VALIDATE_FUNCTION,	\
+	.validate = fn,					\
+	.len = __VA_ARGS__ + 0,				\
 }
 
 /**

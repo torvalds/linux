@@ -300,6 +300,13 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 		if (err)
 			return err;
 		break;
+	case NLA_VALIDATE_FUNCTION:
+		if (pt->validate) {
+			err = pt->validate(nla, extack);
+			if (err)
+				return err;
+		}
+		break;
 	}
 
 	return 0;
