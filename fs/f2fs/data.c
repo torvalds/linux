@@ -893,7 +893,7 @@ static int __allocate_data_block(struct dnode_of_data *dn, int seg_type)
 
 	dn->data_blkaddr = datablock_addr(dn->inode,
 				dn->node_page, dn->ofs_in_node);
-	if (dn->data_blkaddr == NEW_ADDR)
+	if (dn->data_blkaddr != NULL_ADDR)
 		goto alloc;
 
 	if (unlikely((err = inc_valid_block_count(sbi, dn->inode, &count))))
@@ -947,7 +947,7 @@ int f2fs_preallocate_blocks(struct kiocb *iocb, struct iov_iter *from)
 
 	if (direct_io) {
 		map.m_seg_type = f2fs_rw_hint_to_seg_type(iocb->ki_hint);
-		flag = f2fs_force_buffered_io(inode, WRITE) ?
+		flag = f2fs_force_buffered_io(inode, iocb, from) ?
 					F2FS_GET_BLOCK_PRE_AIO :
 					F2FS_GET_BLOCK_PRE_DIO;
 		goto map_blocks;
@@ -1066,7 +1066,15 @@ next_block:
 		goto sync_out;
 	}
 
-	if (!is_valid_data_blkaddr(sbi, blkaddr)) {
+	if (is_valid_data_blkaddr(sbi, blkaddr)) {
+		/* use out-place-update for driect IO under LFS mode */
+		if (test_opt(sbi, LFS) && create &&
+				flag == F2FS_GET_BLOCK_DIO) {
+			err = __allocate_data_block(&dn, map->m_seg_type);
+			if (!err)
+				set_inode_flag(inode, FI_APPEND_WRITE);
+		}
+	} else {
 		if (create) {
 			if (unlikely(f2fs_cp_error(sbi))) {
 				err = -EIO;
@@ -2486,36 +2494,53 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
 	struct inode *inode = mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct f2fs_inode_info *fi = F2FS_I(inode);
 	size_t count = iov_iter_count(iter);
 	loff_t offset = iocb->ki_pos;
 	int rw = iov_iter_rw(iter);
 	int err;
 	enum rw_hint hint = iocb->ki_hint;
 	int whint_mode = F2FS_OPTION(sbi).whint_mode;
+	bool do_opu;
 
 	err = check_direct_IO(inode, iter, offset);
 	if (err)
 		return err < 0 ? err : 0;
 
-	if (f2fs_force_buffered_io(inode, rw))
+	if (f2fs_force_buffered_io(inode, iocb, iter))
 		return 0;
+
+	do_opu = allow_outplace_dio(inode, iocb, iter);
 
 	trace_f2fs_direct_IO_enter(inode, offset, count, rw);
 
 	if (rw == WRITE && whint_mode == WHINT_MODE_OFF)
 		iocb->ki_hint = WRITE_LIFE_NOT_SET;
 
-	if (!down_read_trylock(&F2FS_I(inode)->i_gc_rwsem[rw])) {
-		if (iocb->ki_flags & IOCB_NOWAIT) {
+	if (iocb->ki_flags & IOCB_NOWAIT) {
+		if (!down_read_trylock(&fi->i_gc_rwsem[rw])) {
 			iocb->ki_hint = hint;
 			err = -EAGAIN;
 			goto out;
 		}
-		down_read(&F2FS_I(inode)->i_gc_rwsem[rw]);
+		if (do_opu && !down_read_trylock(&fi->i_gc_rwsem[READ])) {
+			up_read(&fi->i_gc_rwsem[rw]);
+			iocb->ki_hint = hint;
+			err = -EAGAIN;
+			goto out;
+		}
+	} else {
+		down_read(&fi->i_gc_rwsem[rw]);
+		if (do_opu)
+			down_read(&fi->i_gc_rwsem[READ]);
 	}
 
 	err = blockdev_direct_IO(iocb, inode, iter, get_data_block_dio);
-	up_read(&F2FS_I(inode)->i_gc_rwsem[rw]);
+
+	if (do_opu)
+		up_read(&fi->i_gc_rwsem[READ]);
+
+	up_read(&fi->i_gc_rwsem[rw]);
 
 	if (rw == WRITE) {
 		if (whint_mode == WHINT_MODE_OFF)
@@ -2523,7 +2548,8 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 		if (err > 0) {
 			f2fs_update_iostat(F2FS_I_SB(inode), APP_DIRECT_IO,
 									err);
-			set_inode_flag(inode, FI_UPDATE_WRITE);
+			if (!do_opu)
+				set_inode_flag(inode, FI_UPDATE_WRITE);
 		} else if (err < 0) {
 			f2fs_write_failed(mapping, offset + count);
 		}
