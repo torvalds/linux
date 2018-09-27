@@ -4739,12 +4739,13 @@ intel_dp_long_pulse(struct intel_connector *connector,
 		 */
 		status = connector_status_disconnected;
 		goto out;
-	} else {
-		/*
-		 * Some external monitors do not signal loss of link
-		 * synchronization with an IRQ_HPD, so force a link status
-		 * check.
-		 */
+	}
+
+	/*
+	 * Some external monitors do not signal loss of link synchronization
+	 * with an IRQ_HPD, so force a link status check.
+	 */
+	if (!intel_dp_is_edp(intel_dp)) {
 		struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 
 		intel_dp_retrain_link(encoder, ctx);
