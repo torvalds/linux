@@ -40,7 +40,7 @@
 int kdbgetsymval(const char *symname, kdb_symtab_t *symtab)
 {
 	if (KDB_DEBUG(AR))
-		kdb_printf("kdbgetsymval: symname=%s, symtab=%p\n", symname,
+		kdb_printf("kdbgetsymval: symname=%s, symtab=%px\n", symname,
 			   symtab);
 	memset(symtab, 0, sizeof(*symtab));
 	symtab->sym_start = kallsyms_lookup_name(symname);
@@ -88,7 +88,7 @@ int kdbnearsym(unsigned long addr, kdb_symtab_t *symtab)
 	char *knt1 = NULL;
 
 	if (KDB_DEBUG(AR))
-		kdb_printf("kdbnearsym: addr=0x%lx, symtab=%p\n", addr, symtab);
+		kdb_printf("kdbnearsym: addr=0x%lx, symtab=%px\n", addr, symtab);
 	memset(symtab, 0, sizeof(*symtab));
 
 	if (addr < 4096)
@@ -149,7 +149,7 @@ int kdbnearsym(unsigned long addr, kdb_symtab_t *symtab)
 		symtab->mod_name = "kernel";
 	if (KDB_DEBUG(AR))
 		kdb_printf("kdbnearsym: returns %d symtab->sym_start=0x%lx, "
-		   "symtab->mod_name=%p, symtab->sym_name=%p (%s)\n", ret,
+		   "symtab->mod_name=%px, symtab->sym_name=%px (%s)\n", ret,
 		   symtab->sym_start, symtab->mod_name, symtab->sym_name,
 		   symtab->sym_name);
 
@@ -887,13 +887,13 @@ void debug_kusage(void)
 		   __func__, dah_first);
 	if (dah_first) {
 		h_used = (struct debug_alloc_header *)debug_alloc_pool;
-		kdb_printf("%s: h_used %p size %d\n", __func__, h_used,
+		kdb_printf("%s: h_used %px size %d\n", __func__, h_used,
 			   h_used->size);
 	}
 	do {
 		h_used = (struct debug_alloc_header *)
 			  ((char *)h_free + dah_overhead + h_free->size);
-		kdb_printf("%s: h_used %p size %d caller %p\n",
+		kdb_printf("%s: h_used %px size %d caller %px\n",
 			   __func__, h_used, h_used->size, h_used->caller);
 		h_free = (struct debug_alloc_header *)
 			  (debug_alloc_pool + h_free->next);
@@ -902,7 +902,7 @@ void debug_kusage(void)
 		  ((char *)h_free + dah_overhead + h_free->size);
 	if ((char *)h_used - debug_alloc_pool !=
 	    sizeof(debug_alloc_pool_aligned))
-		kdb_printf("%s: h_used %p size %d caller %p\n",
+		kdb_printf("%s: h_used %px size %d caller %px\n",
 			   __func__, h_used, h_used->size, h_used->caller);
 out:
 	spin_unlock(&dap_lock);
