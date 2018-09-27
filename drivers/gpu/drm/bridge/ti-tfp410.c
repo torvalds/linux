@@ -34,6 +34,8 @@ struct tfp410 {
 	struct delayed_work	hpd_work;
 	struct gpio_desc	*powerdown;
 
+	struct drm_bridge_timings timings;
+
 	struct device *dev;
 };
 
@@ -180,6 +182,70 @@ static irqreturn_t tfp410_hpd_irq_thread(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static const struct drm_bridge_timings tfp410_default_timings = {
+	.input_bus_flags = DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE
+			 | DRM_BUS_FLAG_DE_HIGH,
+	.setup_time_ps = 1200,
+	.hold_time_ps = 1300,
+};
+
+static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
+{
+	struct drm_bridge_timings *timings = &dvi->timings;
+	struct device_node *ep;
+	u32 pclk_sample = 0;
+	s32 deskew = 0;
+
+	/* Start with defaults. */
+	*timings = tfp410_default_timings;
+
+	if (i2c)
+		/*
+		 * In I2C mode timings are configured through the I2C interface.
+		 * As the driver doesn't support I2C configuration yet, we just
+		 * go with the defaults (BSEL=1, DSEL=1, DKEN=0, EDGE=1).
+		 */
+		return 0;
+
+	/*
+	 * In non-I2C mode, timings are configured through the BSEL, DSEL, DKEN
+	 * and EDGE pins. They are specified in DT through endpoint properties
+	 * and vendor-specific properties.
+	 */
+	ep = of_graph_get_endpoint_by_regs(dvi->dev->of_node, 0, 0);
+	if (!ep)
+		return -EINVAL;
+
+	/* Get the sampling edge from the endpoint. */
+	of_property_read_u32(ep, "pclk-sample", &pclk_sample);
+	of_node_put(ep);
+
+	timings->input_bus_flags = DRM_BUS_FLAG_DE_HIGH;
+
+	switch (pclk_sample) {
+	case 0:
+		timings->input_bus_flags |= DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE
+					 |  DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE;
+		break;
+	case 1:
+		timings->input_bus_flags |= DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE
+					 |  DRM_BUS_FLAG_SYNC_SAMPLE_POSEDGE;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Get the setup and hold time from vendor-specific properties. */
+	of_property_read_u32(dvi->dev->of_node, "ti,deskew", (u32 *)&deskew);
+	if (deskew < -4 || deskew > 3)
+		return -EINVAL;
+
+	timings->setup_time_ps = min(0, 1200 - 350 * deskew);
+	timings->hold_time_ps = min(0, 1300 + 350 * deskew);
+
+	return 0;
+}
+
 static int tfp410_get_connector_properties(struct tfp410 *dvi)
 {
 	struct device_node *connector_node, *ddc_phandle;
@@ -223,7 +289,7 @@ fail:
 	return ret;
 }
 
-static int tfp410_init(struct device *dev)
+static int tfp410_init(struct device *dev, bool i2c)
 {
 	struct tfp410 *dvi;
 	int ret;
@@ -240,7 +306,12 @@ static int tfp410_init(struct device *dev)
 
 	dvi->bridge.funcs = &tfp410_bridge_funcs;
 	dvi->bridge.of_node = dev->of_node;
+	dvi->bridge.timings = &dvi->timings;
 	dvi->dev = dev;
+
+	ret = tfp410_parse_timings(dvi, i2c);
+	if (ret)
+		goto fail;
 
 	ret = tfp410_get_connector_properties(dvi);
 	if (ret)
@@ -294,7 +365,7 @@ static int tfp410_fini(struct device *dev)
 
 static int tfp410_probe(struct platform_device *pdev)
 {
-	return tfp410_init(&pdev->dev);
+	return tfp410_init(&pdev->dev, false);
 }
 
 static int tfp410_remove(struct platform_device *pdev)
@@ -331,7 +402,7 @@ static int tfp410_i2c_probe(struct i2c_client *client,
 		return -ENXIO;
 	}
 
-	return tfp410_init(&client->dev);
+	return tfp410_init(&client->dev, true);
 }
 
 static int tfp410_i2c_remove(struct i2c_client *client)
