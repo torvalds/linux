@@ -457,7 +457,7 @@ int wilc_wlan_cfg_init(struct wilc *wl)
 	if (!wl->cfg.s)
 		goto out_w;
 
-	str_vals = kzalloc(sizeof(str_vals), GFP_KERNEL);
+	str_vals = kzalloc(sizeof(*str_vals), GFP_KERNEL);
 	if (!str_vals)
 		goto out_s;
 
