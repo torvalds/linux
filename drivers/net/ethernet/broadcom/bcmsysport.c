@@ -2508,9 +2508,10 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	dev->netdev_ops = &bcm_sysport_netdev_ops;
 	netif_napi_add(dev, &priv->napi, bcm_sysport_poll, 64);
 
-	/* HW supported features, none enabled by default */
-	dev->hw_features |= NETIF_F_RXCSUM | NETIF_F_HIGHDMA |
-				NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	dev->features |= NETIF_F_RXCSUM | NETIF_F_HIGHDMA |
+			 NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	dev->hw_features |= dev->features;
+	dev->vlan_features |= dev->features;
 
 	/* Request the WOL interrupt and advertise suspend if available */
 	priv->wol_irq_disabled = 1;
