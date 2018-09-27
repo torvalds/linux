@@ -11,6 +11,7 @@
 #include <linux/version.h>
 #include <asm/reg.h>
 #include <asm/current.h>
+#include <asm/paca.h>
 
 /*
  * Initialize the stackprotector canary value.
@@ -29,6 +30,9 @@ static __always_inline void boot_init_stack_canary(void)
 	canary &= CANARY_MASK;
 
 	current->stack_canary = canary;
+#ifdef CONFIG_PPC64
+	get_paca()->canary = canary;
+#endif
 }
 
 #endif	/* _ASM_STACKPROTECTOR_H */

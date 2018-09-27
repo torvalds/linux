@@ -256,6 +256,9 @@ struct paca_struct {
 	struct slb_entry *mce_faulty_slbs;
 	u16 slb_save_cache_ptr;
 #endif /* CONFIG_PPC_BOOK3S_64 */
+#ifdef CONFIG_STACKPROTECTOR
+	unsigned long canary;
+#endif
 } ____cacheline_aligned;
 
 extern void copy_mm_to_paca(struct mm_struct *mm);
