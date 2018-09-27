@@ -1230,12 +1230,13 @@ static struct sk_buff *bcm_sysport_insert_tsb(struct sk_buff *skb,
 	/* Re-allocate SKB if needed */
 	if (unlikely(skb_headroom(skb) < sizeof(*tsb))) {
 		nskb = skb_realloc_headroom(skb, sizeof(*tsb));
-		dev_kfree_skb(skb);
 		if (!nskb) {
+			dev_kfree_skb_any(skb);
 			dev->stats.tx_errors++;
 			dev->stats.tx_dropped++;
 			return NULL;
 		}
+		dev_consume_skb_any(skb);
 		skb = nskb;
 	}
 
