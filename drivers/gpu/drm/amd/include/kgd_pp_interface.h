@@ -272,6 +272,7 @@ struct amd_pm_funcs {
 	int (*get_display_mode_validation_clocks)(void *handle,
 		struct amd_pp_simple_clock_info *clocks);
 	int (*notify_smu_enable_pwe)(void *handle);
+	int (*enable_mgpu_fan_boost)(void *handle);
 };
 
 #endif

@@ -357,6 +357,10 @@ enum amdgpu_pcie_gen {
 		((adev)->powerplay.pp_funcs->odn_edit_dpm_table(\
 			(adev)->powerplay.pp_handle, type, parameter, size))
 
+#define amdgpu_dpm_enable_mgpu_fan_boost(adev) \
+		((adev)->powerplay.pp_funcs->enable_mgpu_fan_boost(\
+			(adev)->powerplay.pp_handle))
+
 struct amdgpu_dpm {
 	struct amdgpu_ps        *ps;
 	/* number of valid power states */

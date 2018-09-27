@@ -1243,6 +1243,24 @@ static int pp_notify_smu_enable_pwe(void *handle)
 	return 0;
 }
 
+static int pp_enable_mgpu_fan_boost(void *handle)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->enable_mgpu_fan_boost == NULL) {
+		return 0;
+	}
+
+	mutex_lock(&hwmgr->smu_lock);
+	hwmgr->hwmgr_func->enable_mgpu_fan_boost(hwmgr);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
+}
+
 static const struct amd_pm_funcs pp_dpm_funcs = {
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
@@ -1287,4 +1305,5 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.display_clock_voltage_request = pp_display_clock_voltage_request,
 	.get_display_mode_validation_clocks = pp_get_display_mode_validation_clocks,
 	.notify_smu_enable_pwe = pp_notify_smu_enable_pwe,
+	.enable_mgpu_fan_boost = pp_enable_mgpu_fan_boost,
 };
