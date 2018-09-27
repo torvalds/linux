@@ -242,8 +242,23 @@ static void pciehp_remove(struct pcie_device *dev)
 }
 
 #ifdef CONFIG_PM
+static bool pme_is_native(struct pcie_device *dev)
+{
+	const struct pci_host_bridge *host;
+
+	host = pci_find_host_bridge(dev->port->bus);
+	return pcie_ports_native || host->native_pme;
+}
+
 static int pciehp_suspend(struct pcie_device *dev)
 {
+	/*
+	 * Disable hotplug interrupt so that it does not trigger
+	 * immediately when the downstream link goes down.
+	 */
+	if (pme_is_native(dev))
+		pcie_disable_interrupt(get_service_data(dev));
+
 	return 0;
 }
 
@@ -265,6 +280,9 @@ static int pciehp_resume_noirq(struct pcie_device *dev)
 static int pciehp_resume(struct pcie_device *dev)
 {
 	struct controller *ctrl = get_service_data(dev);
+
+	if (pme_is_native(dev))
+		pcie_enable_interrupt(ctrl);
 
 	pciehp_check_presence(ctrl);
 

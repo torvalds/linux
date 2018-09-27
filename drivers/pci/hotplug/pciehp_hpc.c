@@ -732,6 +732,16 @@ void pcie_clear_hotplug_events(struct controller *ctrl)
 				   PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_DLLSC);
 }
 
+void pcie_enable_interrupt(struct controller *ctrl)
+{
+	pcie_write_cmd(ctrl, PCI_EXP_SLTCTL_HPIE, PCI_EXP_SLTCTL_HPIE);
+}
+
+void pcie_disable_interrupt(struct controller *ctrl)
+{
+	pcie_write_cmd(ctrl, 0, PCI_EXP_SLTCTL_HPIE);
+}
+
 /*
  * pciehp has a 1:1 bus:slot relationship so we ultimately want a secondary
  * bus reset of the bridge, but at the same time we want to ensure that it is
