@@ -117,15 +117,20 @@ struct i915_gem_context {
 	struct rcu_head rcu;
 
 	/**
+	 * @user_flags: small set of booleans controlled by the user
+	 */
+	unsigned long user_flags;
+#define UCONTEXT_NO_ZEROMAP		0
+#define UCONTEXT_NO_ERROR_CAPTURE	1
+#define UCONTEXT_BANNABLE		2
+
+	/**
 	 * @flags: small set of booleans
 	 */
 	unsigned long flags;
-#define CONTEXT_NO_ZEROMAP		BIT(0)
-#define CONTEXT_NO_ERROR_CAPTURE	1
-#define CONTEXT_CLOSED			2
-#define CONTEXT_BANNABLE		3
-#define CONTEXT_BANNED			4
-#define CONTEXT_FORCE_SINGLE_SUBMISSION	5
+#define CONTEXT_BANNED			0
+#define CONTEXT_CLOSED			1
+#define CONTEXT_FORCE_SINGLE_SUBMISSION	2
 
 	/**
 	 * @hw_id: - unique identifier for the context
@@ -209,37 +214,37 @@ static inline bool i915_gem_context_is_closed(const struct i915_gem_context *ctx
 static inline void i915_gem_context_set_closed(struct i915_gem_context *ctx)
 {
 	GEM_BUG_ON(i915_gem_context_is_closed(ctx));
-	__set_bit(CONTEXT_CLOSED, &ctx->flags);
+	set_bit(CONTEXT_CLOSED, &ctx->flags);
 }
 
 static inline bool i915_gem_context_no_error_capture(const struct i915_gem_context *ctx)
 {
-	return test_bit(CONTEXT_NO_ERROR_CAPTURE, &ctx->flags);
+	return test_bit(UCONTEXT_NO_ERROR_CAPTURE, &ctx->user_flags);
 }
 
 static inline void i915_gem_context_set_no_error_capture(struct i915_gem_context *ctx)
 {
-	__set_bit(CONTEXT_NO_ERROR_CAPTURE, &ctx->flags);
+	set_bit(UCONTEXT_NO_ERROR_CAPTURE, &ctx->user_flags);
 }
 
 static inline void i915_gem_context_clear_no_error_capture(struct i915_gem_context *ctx)
 {
-	__clear_bit(CONTEXT_NO_ERROR_CAPTURE, &ctx->flags);
+	clear_bit(UCONTEXT_NO_ERROR_CAPTURE, &ctx->user_flags);
 }
 
 static inline bool i915_gem_context_is_bannable(const struct i915_gem_context *ctx)
 {
-	return test_bit(CONTEXT_BANNABLE, &ctx->flags);
+	return test_bit(UCONTEXT_BANNABLE, &ctx->user_flags);
 }
 
 static inline void i915_gem_context_set_bannable(struct i915_gem_context *ctx)
 {
-	__set_bit(CONTEXT_BANNABLE, &ctx->flags);
+	set_bit(UCONTEXT_BANNABLE, &ctx->user_flags);
 }
 
 static inline void i915_gem_context_clear_bannable(struct i915_gem_context *ctx)
 {
-	__clear_bit(CONTEXT_BANNABLE, &ctx->flags);
+	clear_bit(UCONTEXT_BANNABLE, &ctx->user_flags);
 }
 
 static inline bool i915_gem_context_is_banned(const struct i915_gem_context *ctx)
@@ -249,7 +254,7 @@ static inline bool i915_gem_context_is_banned(const struct i915_gem_context *ctx
 
 static inline void i915_gem_context_set_banned(struct i915_gem_context *ctx)
 {
-	__set_bit(CONTEXT_BANNED, &ctx->flags);
+	set_bit(CONTEXT_BANNED, &ctx->flags);
 }
 
 static inline bool i915_gem_context_force_single_submission(const struct i915_gem_context *ctx)

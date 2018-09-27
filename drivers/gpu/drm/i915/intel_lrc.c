@@ -1294,7 +1294,7 @@ static int __context_pin(struct i915_gem_context *ctx, struct i915_vma *vma)
 	 * on an active context (which by nature is already on the GPU).
 	 */
 	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
-		err = i915_gem_object_set_to_gtt_domain(vma->obj, true);
+		err = i915_gem_object_set_to_wc_domain(vma->obj, true);
 		if (err)
 			return err;
 	}
@@ -1322,7 +1322,9 @@ __execlists_context_pin(struct intel_engine_cs *engine,
 	if (ret)
 		goto err;
 
-	vaddr = i915_gem_object_pin_map(ce->state->obj, I915_MAP_WB);
+	vaddr = i915_gem_object_pin_map(ce->state->obj,
+					i915_coherent_map_type(ctx->i915) |
+					I915_MAP_OVERRIDE);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
 		goto unpin_vma;
@@ -1338,11 +1340,13 @@ __execlists_context_pin(struct intel_engine_cs *engine,
 
 	intel_lr_context_descriptor_update(ctx, engine, ce);
 
+	GEM_BUG_ON(!intel_ring_offset_valid(ce->ring, ce->ring->head));
+
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 	ce->lrc_reg_state[CTX_RING_BUFFER_START+1] =
 		i915_ggtt_offset(ce->ring->vma);
-	GEM_BUG_ON(!intel_ring_offset_valid(ce->ring, ce->ring->head));
-	ce->lrc_reg_state[CTX_RING_HEAD+1] = ce->ring->head;
+	ce->lrc_reg_state[CTX_RING_HEAD + 1] = ce->ring->head;
+	ce->lrc_reg_state[CTX_RING_TAIL + 1] = ce->ring->tail;
 
 	ce->state->obj->pin_global++;
 	i915_gem_context_get(ctx);
@@ -2392,7 +2396,7 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 
 	ret = intel_engine_init_common(engine);
 	if (ret)
-		goto error;
+		return ret;
 
 	if (HAS_LOGICAL_RING_ELSQ(i915)) {
 		execlists->submit_reg = i915->regs +
@@ -2434,10 +2438,6 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	reset_csb_pointers(execlists);
 
 	return 0;
-
-error:
-	intel_logical_ring_cleanup(engine);
-	return ret;
 }
 
 int logical_render_ring_init(struct intel_engine_cs *engine)
@@ -2460,9 +2460,13 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 	engine->emit_breadcrumb = gen8_emit_breadcrumb_rcs;
 	engine->emit_breadcrumb_sz = gen8_emit_breadcrumb_rcs_sz;
 
-	ret = intel_engine_create_scratch(engine, PAGE_SIZE);
+	ret = logical_ring_init(engine);
 	if (ret)
 		return ret;
+
+	ret = intel_engine_create_scratch(engine, PAGE_SIZE);
+	if (ret)
+		goto err_cleanup_common;
 
 	ret = intel_init_workaround_bb(engine);
 	if (ret) {
@@ -2475,7 +2479,11 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 			  ret);
 	}
 
-	return logical_ring_init(engine);
+	return 0;
+
+err_cleanup_common:
+	intel_engine_cleanup_common(engine);
+	return ret;
 }
 
 int logical_xcs_ring_init(struct intel_engine_cs *engine)
@@ -2841,13 +2849,14 @@ error_deref_obj:
 	return ret;
 }
 
-void intel_lr_context_resume(struct drm_i915_private *dev_priv)
+void intel_lr_context_resume(struct drm_i915_private *i915)
 {
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
 
-	/* Because we emit WA_TAIL_DWORDS there may be a disparity
+	/*
+	 * Because we emit WA_TAIL_DWORDS there may be a disparity
 	 * between our bookkeeping in ce->ring->head and ce->ring->tail and
 	 * that stored in context. As we only write new commands from
 	 * ce->ring->tail onwards, everything before that is junk. If the GPU
@@ -2857,28 +2866,22 @@ void intel_lr_context_resume(struct drm_i915_private *dev_priv)
 	 * So to avoid that we reset the context images upon resume. For
 	 * simplicity, we just zero everything out.
 	 */
-	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
-		for_each_engine(engine, dev_priv, id) {
+	list_for_each_entry(ctx, &i915->contexts.list, link) {
+		for_each_engine(engine, i915, id) {
 			struct intel_context *ce =
 				to_intel_context(ctx, engine);
-			u32 *reg;
 
 			if (!ce->state)
 				continue;
 
-			reg = i915_gem_object_pin_map(ce->state->obj,
-						      I915_MAP_WB);
-			if (WARN_ON(IS_ERR(reg)))
-				continue;
-
-			reg += LRC_STATE_PN * PAGE_SIZE / sizeof(*reg);
-			reg[CTX_RING_HEAD+1] = 0;
-			reg[CTX_RING_TAIL+1] = 0;
-
-			ce->state->obj->mm.dirty = true;
-			i915_gem_object_unpin_map(ce->state->obj);
-
 			intel_ring_reset(ce->ring, 0);
+
+			if (ce->pin_count) { /* otherwise done in context_pin */
+				u32 *regs = ce->lrc_reg_state;
+
+				regs[CTX_RING_HEAD + 1] = ce->ring->head;
+				regs[CTX_RING_TAIL + 1] = ce->ring->tail;
+			}
 		}
 	}
 }

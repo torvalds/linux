@@ -497,18 +497,21 @@ struct intel_atomic_state {
 
 struct intel_plane_state {
 	struct drm_plane_state base;
+	struct i915_ggtt_view view;
 	struct i915_vma *vma;
 	unsigned long flags;
 #define PLANE_HAS_FENCE BIT(0)
 
 	struct {
 		u32 offset;
+		/*
+		 * Plane stride in:
+		 * bytes for 0/180 degree rotation
+		 * pixels for 90/270 degree rotation
+		 */
+		u32 stride;
 		int x, y;
-	} main;
-	struct {
-		u32 offset;
-		int x, y;
-	} aux;
+	} color_plane[2];
 
 	/* plane control register */
 	u32 ctl;
@@ -950,10 +953,8 @@ struct intel_plane {
 	enum i9xx_plane_id i9xx_plane;
 	enum plane_id id;
 	enum pipe pipe;
-	bool can_scale;
 	bool has_fbc;
 	bool has_ccs;
-	int max_downscale;
 	uint32_t frontbuffer_bit;
 
 	struct {
@@ -966,6 +967,9 @@ struct intel_plane {
 	 * the intel_plane_state structure and accessed via plane_state.
 	 */
 
+	unsigned int (*max_stride)(struct intel_plane *plane,
+				   u32 pixel_format, u64 modifier,
+				   unsigned int rotation);
 	void (*update_plane)(struct intel_plane *plane,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct intel_plane_state *plane_state);
@@ -1442,7 +1446,7 @@ void icl_unmap_plls_to_ports(struct drm_crtc *crtc,
 			     struct drm_atomic_state *old_state);
 
 unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
-				   int plane, unsigned int height);
+				   int color_plane, unsigned int height);
 
 /* intel_audio.c */
 void intel_init_audio_hooks(struct drm_i915_private *dev_priv);
@@ -1565,7 +1569,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 				    struct drm_modeset_acquire_ctx *ctx);
 struct i915_vma *
 intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
-			   unsigned int rotation,
+			   const struct i915_ggtt_view *view,
 			   bool uses_fence,
 			   unsigned long *out_flags);
 void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags);
@@ -1614,8 +1618,6 @@ void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
 void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
 #define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
-u32 intel_compute_tile_offset(int *x, int *y,
-			      const struct intel_plane_state *state, int plane);
 void intel_prepare_reset(struct drm_i915_private *dev_priv);
 void intel_finish_reset(struct drm_i915_private *dev_priv);
 void hsw_enable_pc8(struct drm_i915_private *dev_priv);
@@ -1645,8 +1647,8 @@ void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
 
 u16 skl_scaler_calc_phase(int sub, bool chroma_center);
 int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state);
-int skl_max_scale(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
-		  uint32_t pixel_format);
+int skl_max_scale(const struct intel_crtc_state *crtc_state,
+		  u32 pixel_format);
 
 static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *state)
 {
@@ -1658,12 +1660,14 @@ u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 		  const struct intel_plane_state *plane_state);
 u32 glk_color_ctl(const struct intel_plane_state *plane_state);
-u32 skl_plane_stride(const struct drm_framebuffer *fb, int plane,
-		     unsigned int rotation);
-int skl_check_plane_surface(const struct intel_crtc_state *crtc_state,
-			    struct intel_plane_state *plane_state);
+u32 skl_plane_stride(const struct intel_plane_state *plane_state,
+		     int plane);
+int skl_check_plane_surface(struct intel_plane_state *plane_state);
 int i9xx_check_plane_surface(struct intel_plane_state *plane_state);
 int skl_format_to_fourcc(int format, bool rgb_order, bool alpha);
+unsigned int i9xx_plane_max_stride(struct intel_plane *plane,
+				   u32 pixel_format, u64 modifier,
+				   unsigned int rotation);
 
 /* intel_csr.c */
 void intel_csr_ucode_init(struct drm_i915_private *);
@@ -2131,6 +2135,13 @@ bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
 		       enum pipe pipe, enum plane_id plane_id);
 bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, enum plane_id plane_id);
+unsigned int skl_plane_max_stride(struct intel_plane *plane,
+				  u32 pixel_format, u64 modifier,
+				  unsigned int rotation);
+int skl_plane_check(struct intel_crtc_state *crtc_state,
+		    struct intel_plane_state *plane_state);
+int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state);
+int chv_plane_check_rotation(const struct intel_plane_state *plane_state);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_i915_private *dev_priv);

@@ -298,6 +298,7 @@ static int igt_gem_coherency(void *arg)
 	values = offsets + ncachelines;
 
 	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
 	for (over = igt_coherency_mode; over->name; over++) {
 		if (!over->set)
 			continue;
@@ -375,6 +376,7 @@ static int igt_gem_coherency(void *arg)
 		}
 	}
 unlock:
+	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	kfree(offsets);
 	return err;

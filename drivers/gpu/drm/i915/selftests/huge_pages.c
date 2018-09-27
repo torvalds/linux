@@ -235,6 +235,8 @@ static int fake_get_huge_pages(struct drm_i915_gem_object *obj)
 		sg = sg_next(sg);
 	} while (1);
 
+	i915_sg_trim(st);
+
 	obj->mm.madv = I915_MADV_DONTNEED;
 
 	__i915_gem_object_set_pages(obj, st, sg_page_sizes);

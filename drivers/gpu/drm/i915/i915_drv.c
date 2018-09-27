@@ -1063,6 +1063,300 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 	intel_gvt_sanitize_options(dev_priv);
 }
 
+static enum dram_rank skl_get_dimm_rank(u8 size, u32 rank)
+{
+	if (size == 0)
+		return I915_DRAM_RANK_INVALID;
+	if (rank == SKL_DRAM_RANK_SINGLE)
+		return I915_DRAM_RANK_SINGLE;
+	else if (rank == SKL_DRAM_RANK_DUAL)
+		return I915_DRAM_RANK_DUAL;
+
+	return I915_DRAM_RANK_INVALID;
+}
+
+static bool
+skl_is_16gb_dimm(enum dram_rank rank, u8 size, u8 width)
+{
+	if (rank == I915_DRAM_RANK_SINGLE && width == 8 && size == 16)
+		return true;
+	else if (rank == I915_DRAM_RANK_DUAL && width == 8 && size == 32)
+		return true;
+	else if (rank == SKL_DRAM_RANK_SINGLE && width == 16 && size == 8)
+		return true;
+	else if (rank == SKL_DRAM_RANK_DUAL && width == 16 && size == 16)
+		return true;
+
+	return false;
+}
+
+static int
+skl_dram_get_channel_info(struct dram_channel_info *ch, u32 val)
+{
+	u32 tmp_l, tmp_s;
+	u32 s_val = val >> SKL_DRAM_S_SHIFT;
+
+	if (!val)
+		return -EINVAL;
+
+	tmp_l = val & SKL_DRAM_SIZE_MASK;
+	tmp_s = s_val & SKL_DRAM_SIZE_MASK;
+
+	if (tmp_l == 0 && tmp_s == 0)
+		return -EINVAL;
+
+	ch->l_info.size = tmp_l;
+	ch->s_info.size = tmp_s;
+
+	tmp_l = (val & SKL_DRAM_WIDTH_MASK) >> SKL_DRAM_WIDTH_SHIFT;
+	tmp_s = (s_val & SKL_DRAM_WIDTH_MASK) >> SKL_DRAM_WIDTH_SHIFT;
+	ch->l_info.width = (1 << tmp_l) * 8;
+	ch->s_info.width = (1 << tmp_s) * 8;
+
+	tmp_l = val & SKL_DRAM_RANK_MASK;
+	tmp_s = s_val & SKL_DRAM_RANK_MASK;
+	ch->l_info.rank = skl_get_dimm_rank(ch->l_info.size, tmp_l);
+	ch->s_info.rank = skl_get_dimm_rank(ch->s_info.size, tmp_s);
+
+	if (ch->l_info.rank == I915_DRAM_RANK_DUAL ||
+	    ch->s_info.rank == I915_DRAM_RANK_DUAL)
+		ch->rank = I915_DRAM_RANK_DUAL;
+	else if (ch->l_info.rank == I915_DRAM_RANK_SINGLE &&
+		 ch->s_info.rank == I915_DRAM_RANK_SINGLE)
+		ch->rank = I915_DRAM_RANK_DUAL;
+	else
+		ch->rank = I915_DRAM_RANK_SINGLE;
+
+	ch->is_16gb_dimm = skl_is_16gb_dimm(ch->l_info.rank, ch->l_info.size,
+					    ch->l_info.width) ||
+			   skl_is_16gb_dimm(ch->s_info.rank, ch->s_info.size,
+					    ch->s_info.width);
+
+	DRM_DEBUG_KMS("(size:width:rank) L(%dGB:X%d:%s) S(%dGB:X%d:%s)\n",
+		      ch->l_info.size, ch->l_info.width,
+		      ch->l_info.rank ? "dual" : "single",
+		      ch->s_info.size, ch->s_info.width,
+		      ch->s_info.rank ? "dual" : "single");
+
+	return 0;
+}
+
+static bool
+intel_is_dram_symmetric(u32 val_ch0, u32 val_ch1,
+			struct dram_channel_info *ch0)
+{
+	return (val_ch0 == val_ch1 &&
+		(ch0->s_info.size == 0 ||
+		 (ch0->l_info.size == ch0->s_info.size &&
+		  ch0->l_info.width == ch0->s_info.width &&
+		  ch0->l_info.rank == ch0->s_info.rank)));
+}
+
+static int
+skl_dram_get_channels_info(struct drm_i915_private *dev_priv)
+{
+	struct dram_info *dram_info = &dev_priv->dram_info;
+	struct dram_channel_info ch0, ch1;
+	u32 val_ch0, val_ch1;
+	int ret;
+
+	val_ch0 = I915_READ(SKL_MAD_DIMM_CH0_0_0_0_MCHBAR_MCMAIN);
+	ret = skl_dram_get_channel_info(&ch0, val_ch0);
+	if (ret == 0)
+		dram_info->num_channels++;
+
+	val_ch1 = I915_READ(SKL_MAD_DIMM_CH1_0_0_0_MCHBAR_MCMAIN);
+	ret = skl_dram_get_channel_info(&ch1, val_ch1);
+	if (ret == 0)
+		dram_info->num_channels++;
+
+	if (dram_info->num_channels == 0) {
+		DRM_INFO("Number of memory channels is zero\n");
+		return -EINVAL;
+	}
+
+	dram_info->valid_dimm = true;
+
+	/*
+	 * If any of the channel is single rank channel, worst case output
+	 * will be same as if single rank memory, so consider single rank
+	 * memory.
+	 */
+	if (ch0.rank == I915_DRAM_RANK_SINGLE ||
+	    ch1.rank == I915_DRAM_RANK_SINGLE)
+		dram_info->rank = I915_DRAM_RANK_SINGLE;
+	else
+		dram_info->rank = max(ch0.rank, ch1.rank);
+
+	if (dram_info->rank == I915_DRAM_RANK_INVALID) {
+		DRM_INFO("couldn't get memory rank information\n");
+		return -EINVAL;
+	}
+
+	if (ch0.is_16gb_dimm || ch1.is_16gb_dimm)
+		dram_info->is_16gb_dimm = true;
+
+	dev_priv->dram_info.symmetric_memory = intel_is_dram_symmetric(val_ch0,
+								       val_ch1,
+								       &ch0);
+
+	DRM_DEBUG_KMS("memory configuration is %sSymmetric memory\n",
+		      dev_priv->dram_info.symmetric_memory ? "" : "not ");
+	return 0;
+}
+
+static int
+skl_get_dram_info(struct drm_i915_private *dev_priv)
+{
+	struct dram_info *dram_info = &dev_priv->dram_info;
+	u32 mem_freq_khz, val;
+	int ret;
+
+	ret = skl_dram_get_channels_info(dev_priv);
+	if (ret)
+		return ret;
+
+	val = I915_READ(SKL_MC_BIOS_DATA_0_0_0_MCHBAR_PCU);
+	mem_freq_khz = DIV_ROUND_UP((val & SKL_REQ_DATA_MASK) *
+				    SKL_MEMORY_FREQ_MULTIPLIER_HZ, 1000);
+
+	dram_info->bandwidth_kbps = dram_info->num_channels *
+							mem_freq_khz * 8;
+
+	if (dram_info->bandwidth_kbps == 0) {
+		DRM_INFO("Couldn't get system memory bandwidth\n");
+		return -EINVAL;
+	}
+
+	dram_info->valid = true;
+	return 0;
+}
+
+static int
+bxt_get_dram_info(struct drm_i915_private *dev_priv)
+{
+	struct dram_info *dram_info = &dev_priv->dram_info;
+	u32 dram_channels;
+	u32 mem_freq_khz, val;
+	u8 num_active_channels;
+	int i;
+
+	val = I915_READ(BXT_P_CR_MC_BIOS_REQ_0_0_0);
+	mem_freq_khz = DIV_ROUND_UP((val & BXT_REQ_DATA_MASK) *
+				    BXT_MEMORY_FREQ_MULTIPLIER_HZ, 1000);
+
+	dram_channels = val & BXT_DRAM_CHANNEL_ACTIVE_MASK;
+	num_active_channels = hweight32(dram_channels);
+
+	/* Each active bit represents 4-byte channel */
+	dram_info->bandwidth_kbps = (mem_freq_khz * num_active_channels * 4);
+
+	if (dram_info->bandwidth_kbps == 0) {
+		DRM_INFO("Couldn't get system memory bandwidth\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Now read each DUNIT8/9/10/11 to check the rank of each dimms.
+	 */
+	for (i = BXT_D_CR_DRP0_DUNIT_START; i <= BXT_D_CR_DRP0_DUNIT_END; i++) {
+		u8 size, width;
+		enum dram_rank rank;
+		u32 tmp;
+
+		val = I915_READ(BXT_D_CR_DRP0_DUNIT(i));
+		if (val == 0xFFFFFFFF)
+			continue;
+
+		dram_info->num_channels++;
+		tmp = val & BXT_DRAM_RANK_MASK;
+
+		if (tmp == BXT_DRAM_RANK_SINGLE)
+			rank = I915_DRAM_RANK_SINGLE;
+		else if (tmp == BXT_DRAM_RANK_DUAL)
+			rank = I915_DRAM_RANK_DUAL;
+		else
+			rank = I915_DRAM_RANK_INVALID;
+
+		tmp = val & BXT_DRAM_SIZE_MASK;
+		if (tmp == BXT_DRAM_SIZE_4GB)
+			size = 4;
+		else if (tmp == BXT_DRAM_SIZE_6GB)
+			size = 6;
+		else if (tmp == BXT_DRAM_SIZE_8GB)
+			size = 8;
+		else if (tmp == BXT_DRAM_SIZE_12GB)
+			size = 12;
+		else if (tmp == BXT_DRAM_SIZE_16GB)
+			size = 16;
+		else
+			size = 0;
+
+		tmp = (val & BXT_DRAM_WIDTH_MASK) >> BXT_DRAM_WIDTH_SHIFT;
+		width = (1 << tmp) * 8;
+		DRM_DEBUG_KMS("dram size:%dGB width:X%d rank:%s\n", size,
+			      width, rank == I915_DRAM_RANK_SINGLE ? "single" :
+			      rank == I915_DRAM_RANK_DUAL ? "dual" : "unknown");
+
+		/*
+		 * If any of the channel is single rank channel,
+		 * worst case output will be same as if single rank
+		 * memory, so consider single rank memory.
+		 */
+		if (dram_info->rank == I915_DRAM_RANK_INVALID)
+			dram_info->rank = rank;
+		else if (rank == I915_DRAM_RANK_SINGLE)
+			dram_info->rank = I915_DRAM_RANK_SINGLE;
+	}
+
+	if (dram_info->rank == I915_DRAM_RANK_INVALID) {
+		DRM_INFO("couldn't get memory rank information\n");
+		return -EINVAL;
+	}
+
+	dram_info->valid_dimm = true;
+	dram_info->valid = true;
+	return 0;
+}
+
+static void
+intel_get_dram_info(struct drm_i915_private *dev_priv)
+{
+	struct dram_info *dram_info = &dev_priv->dram_info;
+	char bandwidth_str[32];
+	int ret;
+
+	dram_info->valid = false;
+	dram_info->valid_dimm = false;
+	dram_info->is_16gb_dimm = false;
+	dram_info->rank = I915_DRAM_RANK_INVALID;
+	dram_info->bandwidth_kbps = 0;
+	dram_info->num_channels = 0;
+
+	if (INTEL_GEN(dev_priv) < 9 || IS_GEMINILAKE(dev_priv))
+		return;
+
+	/* Need to calculate bandwidth only for Gen9 */
+	if (IS_BROXTON(dev_priv))
+		ret = bxt_get_dram_info(dev_priv);
+	else if (INTEL_GEN(dev_priv) == 9)
+		ret = skl_get_dram_info(dev_priv);
+	else
+		ret = skl_dram_get_channels_info(dev_priv);
+	if (ret)
+		return;
+
+	if (dram_info->bandwidth_kbps)
+		sprintf(bandwidth_str, "%d KBps", dram_info->bandwidth_kbps);
+	else
+		sprintf(bandwidth_str, "unknown");
+	DRM_DEBUG_KMS("DRAM bandwidth:%s, total-channels: %u\n",
+		      bandwidth_str, dram_info->num_channels);
+	DRM_DEBUG_KMS("DRAM rank: %s rank 16GB-dimm:%s\n",
+		      (dram_info->rank == I915_DRAM_RANK_DUAL) ?
+		      "dual" : "single", yesno(dram_info->is_16gb_dimm));
+}
+
 /**
  * i915_driver_init_hw - setup state requiring device access
  * @dev_priv: device private
@@ -1180,6 +1474,12 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 		goto err_msi;
 
 	intel_opregion_setup(dev_priv);
+	/*
+	 * Fill the dram structure to get the system raw bandwidth and
+	 * dram info. This will be used for memory latency calculation.
+	 */
+	intel_get_dram_info(dev_priv);
+
 
 	return 0;
 
