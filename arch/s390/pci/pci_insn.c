@@ -96,13 +96,15 @@ int zpci_refresh_trans(u64 fn, u64 addr, u64 range)
 }
 
 /* Set Interruption Controls */
-int zpci_set_irq_ctrl(u16 ctl, char *unused, u8 isc)
+int __zpci_set_irq_ctrl(u16 ctl, u8 isc, union zpci_sic_iib *iib)
 {
 	if (!test_facility(72))
 		return -EIO;
-	asm volatile (
-		"	.insn	rsy,0xeb00000000d1,%[ctl],%[isc],%[u]\n"
-		: : [ctl] "d" (ctl), [isc] "d" (isc << 27), [u] "Q" (*unused));
+
+	asm volatile(
+		".insn	rsy,0xeb00000000d1,%[ctl],%[isc],%[iib]\n"
+		: : [ctl] "d" (ctl), [isc] "d" (isc << 27), [iib] "Q" (*iib));
+
 	return 0;
 }
 

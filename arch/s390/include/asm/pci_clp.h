@@ -118,7 +118,11 @@ struct clp_rsp_query_pci_grp {
 	u8 refresh		:  1;	/* TLB refresh mode */
 	u16 reserved2;
 	u16 mui;
-	u64 reserved3;
+	u16			: 16;
+	u16 maxfaal;
+	u16			:  4;
+	u16 dnoi		: 12;
+	u16 maxcpu;
 	u64 dasm;			/* dma address space mask */
 	u64 msia;			/* MSI address */
 	u64 reserved4;

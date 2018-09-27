@@ -115,6 +115,8 @@ struct zpci_dev {
 	/* IRQ stuff */
 	u64		msi_addr;	/* MSI address */
 	unsigned int	max_msi;	/* maximum number of MSI's */
+	unsigned int	msi_first_bit;
+	unsigned int	msi_nr_irqs;
 	struct airq_iv *aibv;		/* adapter interrupt bit vector */
 	unsigned long	aisb;		/* number of the summary bit */
 
