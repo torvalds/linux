@@ -155,10 +155,10 @@ int amdgpu_vcn_suspend(struct amdgpu_device *adev)
 	unsigned size;
 	void *ptr;
 
+	cancel_delayed_work_sync(&adev->vcn.idle_work);
+
 	if (adev->vcn.vcpu_bo == NULL)
 		return 0;
-
-	cancel_delayed_work_sync(&adev->vcn.idle_work);
 
 	size = amdgpu_bo_size(adev->vcn.vcpu_bo);
 	ptr = adev->vcn.cpu_addr;
