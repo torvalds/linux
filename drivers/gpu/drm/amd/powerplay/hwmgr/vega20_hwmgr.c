@@ -3204,7 +3204,7 @@ static int vega20_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 				"[GetPowerProfile] Failed to get activity monitor!",
 				return result);
 
-		size += sprintf(buf + size, "%2d(%14s%s)\n",
+		size += sprintf(buf + size, "%2d %14s%s:\n",
 			i, profile_name[i], (i == hwmgr->power_profile_mode) ? "*" : " ");
 
 		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
