@@ -75,26 +75,6 @@ extern struct phy_driver genphy_10g_driver;
 static LIST_HEAD(phy_fixup_list);
 static DEFINE_MUTEX(phy_fixup_lock);
 
-static bool phy_may_suspend(struct phy_device *phydev)
-{
-	struct net_device *netdev = phydev->attached_dev;
-
-	if (!netdev)
-		return true;
-
-	/* Don't suspend PHY if the attached netdev parent may wakeup.
-	 * The parent may point to a PCI device, as in tg3 driver.
-	 */
-	if (netdev->dev.parent && device_may_wakeup(netdev->dev.parent))
-		return false;
-
-	/* Also don't suspend PHY if the netdev itself may wakeup. This
-	 * is the case for devices w/o underlaying pwr. mgmt. aware bus,
-	 * e.g. SoC devices.
-	 */
-	return !device_may_wakeup(&netdev->dev);
-}
-
 #ifdef CONFIG_PM
 static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 {
@@ -113,7 +93,20 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 	if (!netdev)
 		return !phydev->suspended;
 
-	return phy_may_suspend(phydev);
+	/* Don't suspend PHY if the attached netdev parent may wakeup.
+	 * The parent may point to a PCI device, as in tg3 driver.
+	 */
+	if (netdev->dev.parent && device_may_wakeup(netdev->dev.parent))
+		return false;
+
+	/* Also don't suspend PHY if the netdev itself may wakeup. This
+	 * is the case for devices w/o underlaying pwr. mgmt. aware bus,
+	 * e.g. SoC devices.
+	 */
+	if (device_may_wakeup(&netdev->dev))
+		return false;
+
+	return true;
 }
 
 static int mdio_bus_phy_suspend(struct device *dev)
@@ -1139,9 +1132,9 @@ void phy_detach(struct phy_device *phydev)
 		sysfs_remove_link(&dev->dev.kobj, "phydev");
 		sysfs_remove_link(&phydev->mdio.dev.kobj, "attached_dev");
 	}
-	phy_suspend(phydev);
 	phydev->attached_dev->phydev = NULL;
 	phydev->attached_dev = NULL;
+	phy_suspend(phydev);
 	phydev->phylink = NULL;
 
 	phy_led_triggers_unregister(phydev);
@@ -1178,12 +1171,9 @@ int phy_suspend(struct phy_device *phydev)
 	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 	int ret = 0;
 
-	if (phydev->suspended)
-		return 0;
-
 	/* If the device has WOL enabled, we cannot suspend the PHY */
 	phy_ethtool_get_wol(phydev, &wol);
-	if (wol.wolopts || !phy_may_suspend(phydev))
+	if (wol.wolopts)
 		return -EBUSY;
 
 	if (phydev->drv && phydrv->suspend)
