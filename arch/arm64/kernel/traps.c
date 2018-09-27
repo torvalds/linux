@@ -625,7 +625,20 @@ static void arm64_compat_skip_faulting_instruction(struct pt_regs *regs,
 	arm64_skip_faulting_instruction(regs, sz);
 }
 
+static void compat_cntfrq_read_handler(unsigned int esr, struct pt_regs *regs)
+{
+	int reg = (esr & ESR_ELx_CP15_32_ISS_RT_MASK) >> ESR_ELx_CP15_32_ISS_RT_SHIFT;
+
+	pt_regs_write_reg(regs, reg, arch_timer_get_rate());
+	arm64_compat_skip_faulting_instruction(regs, 4);
+}
+
 static struct sys64_hook cp15_32_hooks[] = {
+	{
+		.esr_mask = ESR_ELx_CP15_32_ISS_SYS_MASK,
+		.esr_val = ESR_ELx_CP15_32_ISS_SYS_CNTFRQ,
+		.handler = compat_cntfrq_read_handler,
+	},
 	{},
 };
 
