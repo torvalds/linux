@@ -126,8 +126,8 @@ static inline void tdma_port_write_desc_addr(struct bcm_sysport_priv *priv,
 }
 
 /* Ethtool operations */
-static int bcm_sysport_set_rx_csum(struct net_device *dev,
-				   netdev_features_t wanted)
+static void bcm_sysport_set_rx_csum(struct net_device *dev,
+				    netdev_features_t wanted)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
 	u32 reg;
@@ -157,12 +157,10 @@ static int bcm_sysport_set_rx_csum(struct net_device *dev,
 		reg &= ~RXCHK_BRCM_TAG_EN;
 
 	rxchk_writel(priv, reg, RXCHK_CONTROL);
-
-	return 0;
 }
 
-static int bcm_sysport_set_tx_csum(struct net_device *dev,
-				   netdev_features_t wanted)
+static void bcm_sysport_set_tx_csum(struct net_device *dev,
+				    netdev_features_t wanted)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
 	u32 reg;
@@ -177,23 +175,24 @@ static int bcm_sysport_set_tx_csum(struct net_device *dev,
 	else
 		reg &= ~tdma_control_bit(priv, TSB_EN);
 	tdma_writel(priv, reg, TDMA_CONTROL);
-
-	return 0;
 }
 
 static int bcm_sysport_set_features(struct net_device *dev,
 				    netdev_features_t features)
 {
-	netdev_features_t changed = features ^ dev->features;
-	netdev_features_t wanted = dev->wanted_features;
-	int ret = 0;
+	struct bcm_sysport_priv *priv = netdev_priv(dev);
 
-	if (changed & NETIF_F_RXCSUM)
-		ret = bcm_sysport_set_rx_csum(dev, wanted);
-	if (changed & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM))
-		ret = bcm_sysport_set_tx_csum(dev, wanted);
+	/* Read CRC forward */
+	if (!priv->is_lite)
+		priv->crc_fwd = !!(umac_readl(priv, UMAC_CMD) & CMD_CRC_FWD);
+	else
+		priv->crc_fwd = !((gib_readl(priv, GIB_CONTROL) &
+				  GIB_FCS_STRIP) >> GIB_FCS_STRIP_SHIFT);
 
-	return ret;
+	bcm_sysport_set_rx_csum(dev, features);
+	bcm_sysport_set_tx_csum(dev, features);
+
+	return 0;
 }
 
 /* Hardware counters must be kept in sync because the order/offset
@@ -1975,13 +1974,6 @@ static int bcm_sysport_open(struct net_device *dev)
 
 	/* Set MAC address */
 	umac_set_hw_addr(priv, dev->dev_addr);
-
-	/* Read CRC forward */
-	if (!priv->is_lite)
-		priv->crc_fwd = !!(umac_readl(priv, UMAC_CMD) & CMD_CRC_FWD);
-	else
-		priv->crc_fwd = !((gib_readl(priv, GIB_CONTROL) &
-				  GIB_FCS_STRIP) >> GIB_FCS_STRIP_SHIFT);
 
 	phydev = of_phy_connect(dev, priv->phy_dn, bcm_sysport_adj_link,
 				0, priv->phy_interface);
