@@ -195,7 +195,7 @@ static inline int qp_mtu(struct rxe_qp *qp)
 	if (qp->ibqp.qp_type == IB_QPT_RC || qp->ibqp.qp_type == IB_QPT_UC)
 		return qp->attr.path_mtu;
 	else
-		return RXE_PORT_MAX_MTU;
+		return IB_MTU_4096;
 }
 
 static inline int rcv_wqe_size(int max_sge)
