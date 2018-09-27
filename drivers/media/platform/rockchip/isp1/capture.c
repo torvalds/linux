@@ -138,15 +138,26 @@ static int mbus_code_xysubs(u32 code, u32 *xsubs, u32 *ysubs)
 	return 0;
 }
 
-static int mbus_code_sp_in_fmt(u32 code, u32 *format)
+static int mbus_code_sp_in_fmt(u32 in_mbus_code, u32 out_fourcc,
+			       u32 *format)
 {
-	switch (code) {
+	switch (in_mbus_code) {
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 		*format = MI_CTRL_SP_INPUT_YUV422;
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	/*
+	 * Only SP can support output format of YCbCr4:0:0,
+	 * and the input format of SP must be YCbCr4:0:0
+	 * when outputting YCbCr4:0:0.
+	 * The output format of isp is YCbCr4:2:2,
+	 * so the CbCr data is discarded here.
+	 */
+	if (out_fourcc == V4L2_PIX_FMT_GREY)
+		*format = MI_CTRL_SP_INPUT_YUV400;
 
 	return 0;
 }
@@ -269,16 +280,6 @@ static const struct capture_fmt mp_fmts[] = {
 		.mplanes = 3,
 		.uv_swap = 0,
 		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
-	},
-	/* yuv400 */
-	{
-		.fourcc = V4L2_PIX_FMT_GREY,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8 },
-		.cplanes = 1,
-		.mplanes = 1,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_MP_WRITE_YUVINT,
 	},
 	/* raw */
 	{
@@ -497,7 +498,7 @@ static const struct capture_fmt sp_fmts[] = {
 		.cplanes = 1,
 		.mplanes = 1,
 		.uv_swap = 0,
-		.write_format = MI_CTRL_SP_WRITE_INT,
+		.write_format = MI_CTRL_SP_WRITE_PLA,
 		.output_format = MI_CTRL_SP_OUTPUT_YUV400,
 	},
 	/* rgb */
@@ -835,10 +836,12 @@ static int sp_config_mi(struct rkisp1_stream *stream)
 			rkisp1_get_ispsd_out_fmt(&dev->isp_sdev);
 	u32 sp_in_fmt;
 
-	if (mbus_code_sp_in_fmt(input_isp_fmt->mbus_code, &sp_in_fmt)) {
+	if (mbus_code_sp_in_fmt(input_isp_fmt->mbus_code,
+				output_isp_fmt->fourcc, &sp_in_fmt)) {
 		v4l2_err(&dev->v4l2_dev, "Can't find the input format\n");
 		return -EINVAL;
 	}
+
        /*
 	* NOTE: plane_fmt[0].sizeimage is total size of all planes for single
 	* memory plane formats, so calculate the size explicitly.

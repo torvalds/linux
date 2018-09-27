@@ -174,8 +174,15 @@ static int rkisp1_config_isp(struct rkisp1_device *dev)
 				isp_ctrl =
 					CIF_ISP_CTRL_ISP_MODE_RAW_PICT;
 		} else {
-			writel(CIF_ISP_DEMOSAIC_TH(0xc),
-			       base + CIF_ISP_DEMOSAIC);
+			/* demosaicing bypass for grey sensor */
+			if (in_fmt->mbus_code == MEDIA_BUS_FMT_Y8_1X8 ||
+			    in_fmt->mbus_code == MEDIA_BUS_FMT_Y10_1X10 ||
+			    in_fmt->mbus_code == MEDIA_BUS_FMT_Y12_1X12)
+				writel(CIF_ISP_DEMOSAIC_TH(0x40c),
+				       base + CIF_ISP_DEMOSAIC);
+			else
+				writel(CIF_ISP_DEMOSAIC_TH(0xc),
+				       base + CIF_ISP_DEMOSAIC);
 
 			if (sensor->mbus.type == V4L2_MBUS_BT656)
 				isp_ctrl = CIF_ISP_CTRL_ISP_MODE_BAYER_ITU656;
@@ -655,6 +662,24 @@ static const struct ispsd_in_fmt rkisp1_isp_input_formats[] = {
 		.fmt_type	= FMT_YUV,
 		.mipi_dt	= CIF_CSI2_DT_YUV422_8b,
 		.yuv_seq	= CIF_ISP_ACQ_PROP_CRYCBY,
+		.bus_width	= 12,
+	}, {
+		.mbus_code	= MEDIA_BUS_FMT_Y8_1X8,
+		.fmt_type	= FMT_BAYER,
+		.mipi_dt	= CIF_CSI2_DT_RAW8,
+		.yuv_seq	= CIF_ISP_ACQ_PROP_YCBYCR,
+		.bus_width	= 8,
+	}, {
+		.mbus_code	= MEDIA_BUS_FMT_Y10_1X10,
+		.fmt_type	= FMT_BAYER,
+		.mipi_dt	= CIF_CSI2_DT_RAW10,
+		.yuv_seq	= CIF_ISP_ACQ_PROP_YCBYCR,
+		.bus_width	= 10,
+	}, {
+		.mbus_code	= MEDIA_BUS_FMT_Y12_1X12,
+		.fmt_type	= FMT_BAYER,
+		.mipi_dt	= CIF_CSI2_DT_RAW12,
+		.yuv_seq	= CIF_ISP_ACQ_PROP_YCBYCR,
 		.bus_width	= 12,
 	}
 };

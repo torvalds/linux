@@ -113,6 +113,7 @@ struct rkisp1_isp_params_vdev {
 
 	enum v4l2_quantization quantization;
 	enum rkisp1_fmt_raw_pat_type raw_type;
+	u32 in_mbus_code;
 
 	struct rkisp1_isp_params_ops *ops;
 	struct rkisp1_isp_params_config *config;

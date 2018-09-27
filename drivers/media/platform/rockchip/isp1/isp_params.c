@@ -1705,6 +1705,19 @@ void rkisp1_params_config_parameter(struct rkisp1_isp_params_vdev *params_vdev)
 	else
 		ops->csm_config(params_vdev, false);
 
+	/* disable color related config for grey sensor */
+	if (params_vdev->in_mbus_code == MEDIA_BUS_FMT_Y8_1X8 ||
+	    params_vdev->in_mbus_code == MEDIA_BUS_FMT_Y10_1X10 ||
+	    params_vdev->in_mbus_code == MEDIA_BUS_FMT_Y12_1X12) {
+		ops->ctk_enable(params_vdev, false);
+		isp_param_clear_bits(params_vdev,
+				     CIF_ISP_CTRL,
+				     CIF_ISP_CTRL_ISP_AWB_ENA);
+		isp_param_clear_bits(params_vdev,
+				     CIF_ISP_LSC_CTRL,
+				     CIF_ISP_LSC_CTRL_ENA);
+	}
+
 	/* override the default things */
 	__isp_isr_other_config(params_vdev, &params_vdev->cur_params);
 	__isp_isr_meas_config(params_vdev, &params_vdev->cur_params);
@@ -1719,6 +1732,7 @@ void rkisp1_params_configure_isp(struct rkisp1_isp_params_vdev *params_vdev,
 {
 	params_vdev->quantization = quantization;
 	params_vdev->raw_type = in_fmt->bayer_pat;
+	params_vdev->in_mbus_code = in_fmt->mbus_code;
 	rkisp1_params_config_parameter(params_vdev);
 }
 
