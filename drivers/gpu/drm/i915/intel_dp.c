@@ -5079,8 +5079,16 @@ intel_dp_long_pulse(struct intel_connector *connector,
 	 * Some external monitors do not signal loss of link synchronization
 	 * with an IRQ_HPD, so force a link status check.
 	 */
-	if (!intel_dp_is_edp(intel_dp))
-		intel_dp_retrain_link(encoder, ctx);
+	if (!intel_dp_is_edp(intel_dp)) {
+		int ret;
+
+		ret = intel_dp_retrain_link(encoder, ctx);
+		if (ret) {
+			intel_display_power_put(dev_priv,
+						intel_dp->aux_power_domain);
+			return ret;
+		}
+	}
 
 	/*
 	 * Clearing NACK and defer counts to get their exact values
@@ -5130,19 +5138,8 @@ intel_dp_detect(struct drm_connector *connector,
 		      connector->base.id, connector->name);
 
 	/* If full detect is not performed yet, do a full detect */
-	if (!intel_dp->detect_done) {
-		struct drm_crtc *crtc;
-		int ret;
-
-		crtc = connector->state->crtc;
-		if (crtc) {
-			ret = drm_modeset_lock(&crtc->mutex, ctx);
-			if (ret)
-				return ret;
-		}
-
+	if (!intel_dp->detect_done)
 		status = intel_dp_long_pulse(intel_dp->attached_connector, ctx);
-	}
 
 	intel_dp->detect_done = false;
 
