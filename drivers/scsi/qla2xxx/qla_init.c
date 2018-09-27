@@ -1954,25 +1954,15 @@ qla24xx_handle_plogi_done_event(struct scsi_qla_host *vha, struct event_arg *ea)
 		cid.b.rsvd_1 = 0;
 
 		ql_dbg(ql_dbg_disc, vha, 0x20ec,
-		    "%s %d %8phC LoopID 0x%x in use post gnl\n",
+		    "%s %d %8phC lid %#x in use with pid %06x post gnl\n",
 		    __func__, __LINE__, ea->fcport->port_name,
-		    ea->fcport->loop_id);
+		    ea->fcport->loop_id, cid.b24);
 
-		if (IS_SW_RESV_ADDR(cid)) {
-			set_bit(ea->fcport->loop_id, vha->hw->loop_id_map);
-			ea->fcport->loop_id = FC_NO_LOOP_ID;
-		} else {
-			qla2x00_clear_loop_id(ea->fcport);
-		}
+		set_bit(ea->fcport->loop_id, vha->hw->loop_id_map);
+		ea->fcport->loop_id = FC_NO_LOOP_ID;
 		qla24xx_post_gnl_work(vha, ea->fcport);
 		break;
 	case MBS_PORT_ID_USED:
-		ql_dbg(ql_dbg_disc, vha, 0x20ed,
-		    "%s %d %8phC NPortId %02x%02x%02x inuse post gidpn\n",
-		    __func__, __LINE__, ea->fcport->port_name,
-		    ea->fcport->d_id.b.domain, ea->fcport->d_id.b.area,
-		    ea->fcport->d_id.b.al_pa);
-
 		lid = ea->iop[1] & 0xffff;
 		qlt_find_sess_invalidate_other(vha,
 		    wwn_to_u64(ea->fcport->port_name),
