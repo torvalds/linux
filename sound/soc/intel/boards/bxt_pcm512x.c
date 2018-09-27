@@ -29,8 +29,22 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
+#include <sound/jack.h>
+#include "../../codecs/hdac_hdmi.h"
 #include "../../codecs/pcm512x.h"
 #include "../atom/sst-atom-controls.h"
+
+static struct snd_soc_jack broxton_hdmi[3];
+
+struct bxt_hdmi_pcm {
+	struct list_head head;
+	struct snd_soc_dai *codec_dai;
+	int device;
+};
+
+struct bxt_card_private {
+	struct list_head hdmi_pcm_list;
+};
 
 static const struct snd_soc_dapm_widget dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
@@ -102,6 +116,24 @@ static const struct snd_soc_ops aif1_ops = {
 	.shutdown = aif1_shutdown,
 };
 
+static int broxton_hdmi_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct bxt_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
+	struct snd_soc_dai *dai = rtd->codec_dai;
+	struct bxt_hdmi_pcm *pcm;
+
+	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
+	if (!pcm)
+		return -ENOMEM;
+
+	pcm->device = dai->id;
+	pcm->codec_dai = dai;
+
+	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
+
+	return 0;
+}
+
 static struct snd_soc_dai_link dailink[] = {
 	/* CODEC<->CODEC link */
 	/* back ends */
@@ -121,7 +153,75 @@ static struct snd_soc_dai_link dailink[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 	},
+	{
+		.name = "iDisp1",
+		.id = 1,
+		.cpu_dai_name = "iDisp1 Pin",
+		.codec_name = "ehdaudio0D2",
+		.codec_dai_name = "intel-hdmi-hifi1",
+		.platform_name = "0000:00:0e.0",
+		.init = broxton_hdmi_init,
+		.dpcm_playback = 1,
+		.no_pcm = 1,
+	},
+	{
+		.name = "iDisp2",
+		.id = 2,
+		.cpu_dai_name = "iDisp2 Pin",
+		.codec_name = "ehdaudio0D2",
+		.codec_dai_name = "intel-hdmi-hifi2",
+		.platform_name = "0000:00:0e.0",
+		.init = broxton_hdmi_init,
+		.dpcm_playback = 1,
+		.no_pcm = 1,
+	},
+	{
+		.name = "iDisp3",
+		.id = 3,
+		.cpu_dai_name = "iDisp3 Pin",
+		.codec_name = "ehdaudio0D2",
+		.codec_dai_name = "intel-hdmi-hifi3",
+		.platform_name = "0000:00:0e.0",
+		.init = broxton_hdmi_init,
+		.dpcm_playback = 1,
+		.no_pcm = 1,
+	},
+
 };
+
+#define NAME_SIZE	32
+static int bxt_card_late_probe(struct snd_soc_card *card)
+{
+	struct bxt_card_private *ctx = snd_soc_card_get_drvdata(card);
+	struct bxt_hdmi_pcm *pcm;
+	struct snd_soc_component *component = NULL;
+	int err, i = 0;
+	char jack_name[NAME_SIZE];
+
+	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
+		component = pcm->codec_dai->component;
+		snprintf(jack_name, sizeof(jack_name),
+			 "HDMI/DP, pcm=%d Jack", pcm->device);
+		err = snd_soc_card_jack_new(card, jack_name,
+					    SND_JACK_AVOUT, &broxton_hdmi[i],
+					    NULL, 0);
+
+		if (err)
+			return err;
+
+		err = hdac_hdmi_jack_init(pcm->codec_dai, pcm->device,
+					  &broxton_hdmi[i]);
+		if (err < 0)
+			return err;
+
+		i++;
+	}
+
+	if (!component)
+		return -EINVAL;
+
+	return hdac_hdmi_jack_port_init(component, &card->dapm);
+}
 
 /* SoC card */
 static struct snd_soc_card bxt_pcm512x_card = {
@@ -133,6 +233,7 @@ static struct snd_soc_card bxt_pcm512x_card = {
 	.num_dapm_widgets = ARRAY_SIZE(dapm_widgets),
 	.dapm_routes = audio_map,
 	.num_dapm_routes = ARRAY_SIZE(audio_map),
+	.late_probe = bxt_card_late_probe,
 };
 
  /* i2c-<HID>:00 with HID being 8 chars */
@@ -142,9 +243,16 @@ static int bxt_pcm512x_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card;
 	struct snd_soc_acpi_mach *mach;
+	struct bxt_card_private *ctx;
 	const char *i2c_name = NULL;
 	int dai_index = 0;
 	int ret_val = 0, i;
+
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
 	mach = (&pdev->dev)->platform_data;
 	card = &bxt_pcm512x_card;
@@ -165,6 +273,8 @@ static int bxt_pcm512x_probe(struct platform_device *pdev)
 			 "%s%s", "i2c-", i2c_name);
 		dailink[dai_index].codec_name = codec_name;
 	}
+
+	snd_soc_card_set_drvdata(card, ctx);
 
 	ret_val = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret_val) {
