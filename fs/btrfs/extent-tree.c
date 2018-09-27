@@ -8683,7 +8683,13 @@ skip:
 			parent = 0;
 		}
 
-		if (need_account) {
+		/*
+		 * Reloc tree doesn't contribute to qgroup numbers, and we have
+		 * already accounted them at merge time (replace_path),
+		 * thus we could skip expensive subtree trace here.
+		 */
+		if (root->root_key.objectid != BTRFS_TREE_RELOC_OBJECTID &&
+		    need_account) {
 			ret = btrfs_qgroup_trace_subtree(trans, next,
 							 generation, level - 1);
 			if (ret) {
