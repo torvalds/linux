@@ -1477,6 +1477,19 @@ static int vega20_init_max_sustainable_clocks(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int vega20_enable_mgpu_fan_boost(struct pp_hwmgr *hwmgr)
+{
+	int result;
+
+	result = smum_send_msg_to_smc(hwmgr,
+		PPSMC_MSG_SetMGpuFanBoostLimitRpm);
+	PP_ASSERT_WITH_CODE(!result,
+			"[EnableMgpuFan] Failed to enable mgpu fan boost!",
+			return result);
+
+	return 0;
+}
+
 static void vega20_init_powergate_state(struct pp_hwmgr *hwmgr)
 {
 	struct vega20_hwmgr *data =
@@ -3488,6 +3501,8 @@ static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 	/* smu memory related */
 	.notify_cac_buffer_info =
 		vega20_notify_cac_buffer_info,
+	.enable_mgpu_fan_boost =
+		vega20_enable_mgpu_fan_boost,
 };
 
 int vega20_hwmgr_init(struct pp_hwmgr *hwmgr)
