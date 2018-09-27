@@ -2054,29 +2054,6 @@ static void ef4_fini_napi(struct ef4_nic *efx)
 
 /**************************************************************************
  *
- * Kernel netpoll interface
- *
- *************************************************************************/
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-
-/* Although in the common case interrupts will be disabled, this is not
- * guaranteed. However, all our work happens inside the NAPI callback,
- * so no locking is required.
- */
-static void ef4_netpoll(struct net_device *net_dev)
-{
-	struct ef4_nic *efx = netdev_priv(net_dev);
-	struct ef4_channel *channel;
-
-	ef4_for_each_channel(channel, efx)
-		ef4_schedule_channel(channel);
-}
-
-#endif
-
-/**************************************************************************
- *
  * Kernel net device interface
  *
  *************************************************************************/
@@ -2250,9 +2227,6 @@ static const struct net_device_ops ef4_netdev_ops = {
 	.ndo_set_mac_address	= ef4_set_mac_address,
 	.ndo_set_rx_mode	= ef4_set_rx_mode,
 	.ndo_set_features	= ef4_set_features,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller = ef4_netpoll,
-#endif
 	.ndo_setup_tc		= ef4_setup_tc,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= ef4_filter_rfs,
