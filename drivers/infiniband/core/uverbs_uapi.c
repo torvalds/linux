@@ -248,6 +248,7 @@ void uverbs_destroy_api(struct uverbs_api *uapi)
 		kfree(rcu_dereference_protected(*slot, true));
 		radix_tree_iter_delete(&uapi->radix, &iter, slot);
 	}
+	kfree(uapi);
 }
 
 struct uverbs_api *uverbs_alloc_api(
