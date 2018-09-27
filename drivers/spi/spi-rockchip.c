@@ -520,6 +520,8 @@ static void rockchip_spi_config(struct rockchip_spi *rs)
 
 	cr0 |= (rs->n_bytes << CR0_DFS_OFFSET);
 	cr0 |= ((rs->mode & 0x3) << CR0_SCPH_OFFSET);
+	if (rs->mode & SPI_LSB_FIRST)
+		cr0 |= (1 << CR0_FBM_OFFSET);/* First Bit Mode */
 	cr0 |= (rs->tmode << CR0_XFM_OFFSET);
 	cr0 |= (rs->type << CR0_FRF_OFFSET);
 
@@ -737,7 +739,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 
 	master->auto_runtime_pm = true;
 	master->bus_num = pdev->id;
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP;
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP | SPI_LSB_FIRST;
 	master->num_chipselect = 2;
 	master->dev.of_node = pdev->dev.of_node;
 	master->bits_per_word_mask = SPI_BPW_MASK(16) | SPI_BPW_MASK(8);
