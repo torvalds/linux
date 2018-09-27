@@ -204,6 +204,9 @@ struct power_supply_config {
 	/* Driver private data */
 	void *drv_data;
 
+	/* Device specific sysfs attributes */
+	const struct attribute_group **attr_grp;
+
 	char **supplied_to;
 	size_t num_supplicants;
 };
