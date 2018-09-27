@@ -518,9 +518,11 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	u16 status, events;
 
 	/*
-	 * Interrupts only occur in D3hot or shallower (PCIe r4.0, sec 6.7.3.4).
+	 * Interrupts only occur in D3hot or shallower and only if enabled
+	 * in the Slot Control register (PCIe r4.0, sec 6.7.3.4).
 	 */
-	if (pdev->current_state == PCI_D3cold)
+	if (pdev->current_state == PCI_D3cold ||
+	    (!(ctrl->slot_ctrl & PCI_EXP_SLTCTL_HPIE) && !pciehp_poll_mode))
 		return IRQ_NONE;
 
 	/*
