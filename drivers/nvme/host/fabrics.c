@@ -552,8 +552,11 @@ blk_status_t nvmf_fail_nonready_command(struct nvme_ctrl *ctrl,
 	    ctrl->state != NVME_CTRL_DEAD &&
 	    !blk_noretry_request(rq) && !(rq->cmd_flags & REQ_NVME_MPATH))
 		return BLK_STS_RESOURCE;
-	nvme_req(rq)->status = NVME_SC_ABORT_REQ;
-	return BLK_STS_IOERR;
+
+	nvme_req(rq)->status = NVME_SC_HOST_PATH_ERROR;
+	blk_mq_start_request(rq);
+	nvme_complete_rq(rq);
+	return BLK_STS_OK;
 }
 EXPORT_SYMBOL_GPL(nvmf_fail_nonready_command);
 
