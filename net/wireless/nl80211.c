@@ -581,8 +581,7 @@ nl80211_packet_pattern_policy[MAX_NL80211_PKTPAT + 1] = {
 	[NL80211_PKTPAT_OFFSET] = { .type = NLA_U32 },
 };
 
-static int nl80211_prepare_wdev_dump(struct sk_buff *skb,
-				     struct netlink_callback *cb,
+static int nl80211_prepare_wdev_dump(struct netlink_callback *cb,
 				     struct cfg80211_registered_device **rdev,
 				     struct wireless_dev **wdev)
 {
@@ -596,7 +595,7 @@ static int nl80211_prepare_wdev_dump(struct sk_buff *skb,
 			return err;
 
 		*wdev = __cfg80211_wdev_from_attrs(
-					sock_net(skb->sk),
+					sock_net(cb->skb->sk),
 					genl_family_attrbuf(&nl80211_fam));
 		if (IS_ERR(*wdev))
 			return PTR_ERR(*wdev);
@@ -4847,7 +4846,7 @@ static int nl80211_dump_station(struct sk_buff *skb,
 	int err;
 
 	rtnl_lock();
-	err = nl80211_prepare_wdev_dump(skb, cb, &rdev, &wdev);
+	err = nl80211_prepare_wdev_dump(cb, &rdev, &wdev);
 	if (err)
 		goto out_err;
 
@@ -5698,7 +5697,7 @@ static int nl80211_dump_mpath(struct sk_buff *skb,
 	int err;
 
 	rtnl_lock();
-	err = nl80211_prepare_wdev_dump(skb, cb, &rdev, &wdev);
+	err = nl80211_prepare_wdev_dump(cb, &rdev, &wdev);
 	if (err)
 		goto out_err;
 
@@ -5894,7 +5893,7 @@ static int nl80211_dump_mpp(struct sk_buff *skb,
 	int err;
 
 	rtnl_lock();
-	err = nl80211_prepare_wdev_dump(skb, cb, &rdev, &wdev);
+	err = nl80211_prepare_wdev_dump(cb, &rdev, &wdev);
 	if (err)
 		goto out_err;
 
@@ -8227,7 +8226,7 @@ static int nl80211_dump_scan(struct sk_buff *skb, struct netlink_callback *cb)
 	int err;
 
 	rtnl_lock();
-	err = nl80211_prepare_wdev_dump(skb, cb, &rdev, &wdev);
+	err = nl80211_prepare_wdev_dump(cb, &rdev, &wdev);
 	if (err) {
 		rtnl_unlock();
 		return err;
@@ -8348,7 +8347,7 @@ static int nl80211_dump_survey(struct sk_buff *skb, struct netlink_callback *cb)
 	bool radio_stats;
 
 	rtnl_lock();
-	res = nl80211_prepare_wdev_dump(skb, cb, &rdev, &wdev);
+	res = nl80211_prepare_wdev_dump(cb, &rdev, &wdev);
 	if (res)
 		goto out_err;
 
