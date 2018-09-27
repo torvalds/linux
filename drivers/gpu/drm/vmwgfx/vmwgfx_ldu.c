@@ -233,7 +233,7 @@ static const struct drm_crtc_funcs vmw_legacy_crtc_funcs = {
 	.reset = vmw_du_crtc_reset,
 	.atomic_duplicate_state = vmw_du_crtc_duplicate_state,
 	.atomic_destroy_state = vmw_du_crtc_destroy_state,
-	.set_config = vmw_kms_set_config,
+	.set_config = drm_atomic_helper_set_config,
 };
 
 
