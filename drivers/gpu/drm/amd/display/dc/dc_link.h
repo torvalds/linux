@@ -215,6 +215,7 @@ void dc_link_enable_hpd_filter(struct dc_link *link, bool enable);
 
 bool dc_link_is_dp_sink_present(struct dc_link *link);
 
+bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type);
 /*
  * DPCD access interfaces
  */
