@@ -95,6 +95,64 @@ static int nla_validate_array(const struct nlattr *head, int len, int maxtype,
 	return 0;
 }
 
+static int nla_validate_int_range(const struct nla_policy *pt,
+				  const struct nlattr *nla,
+				  struct netlink_ext_ack *extack)
+{
+	bool validate_min, validate_max;
+	s64 value;
+
+	validate_min = pt->validation_type == NLA_VALIDATE_RANGE ||
+		       pt->validation_type == NLA_VALIDATE_MIN;
+	validate_max = pt->validation_type == NLA_VALIDATE_RANGE ||
+		       pt->validation_type == NLA_VALIDATE_MAX;
+
+	switch (pt->type) {
+	case NLA_U8:
+		value = nla_get_u8(nla);
+		break;
+	case NLA_U16:
+		value = nla_get_u16(nla);
+		break;
+	case NLA_U32:
+		value = nla_get_u32(nla);
+		break;
+	case NLA_S8:
+		value = nla_get_s8(nla);
+		break;
+	case NLA_S16:
+		value = nla_get_s16(nla);
+		break;
+	case NLA_S32:
+		value = nla_get_s32(nla);
+		break;
+	case NLA_S64:
+		value = nla_get_s64(nla);
+		break;
+	case NLA_U64:
+		/* treat this one specially, since it may not fit into s64 */
+		if ((validate_min && nla_get_u64(nla) < pt->min) ||
+		    (validate_max && nla_get_u64(nla) > pt->max)) {
+			NL_SET_ERR_MSG_ATTR(extack, nla,
+					    "integer out of range");
+			return -ERANGE;
+		}
+		return 0;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	if ((validate_min && value < pt->min) ||
+	    (validate_max && value > pt->max)) {
+		NL_SET_ERR_MSG_ATTR(extack, nla,
+				    "integer out of range");
+		return -ERANGE;
+	}
+
+	return 0;
+}
+
 static int validate_nla(const struct nlattr *nla, int maxtype,
 			const struct nla_policy *policy,
 			struct netlink_ext_ack *extack)
@@ -228,6 +286,20 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 
 		if (attrlen < minlen)
 			goto out_err;
+	}
+
+	/* further validation */
+	switch (pt->validation_type) {
+	case NLA_VALIDATE_NONE:
+		/* nothing to do */
+		break;
+	case NLA_VALIDATE_RANGE:
+	case NLA_VALIDATE_MIN:
+	case NLA_VALIDATE_MAX:
+		err = nla_validate_int_range(pt, nla, extack);
+		if (err)
+			return err;
+		break;
 	}
 
 	return 0;
