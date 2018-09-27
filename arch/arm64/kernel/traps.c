@@ -547,6 +547,19 @@ static struct sys64_hook sys64_hooks[] = {
 	{},
 };
 
+
+#ifdef CONFIG_COMPAT
+asmlinkage void __exception do_cp15instr(unsigned int esr, struct pt_regs *regs)
+{
+	/*
+	 * New cp15 instructions may previously have been undefined at
+	 * EL0. Fall back to our usual undefined instruction handler
+	 * so that we handle these consistently.
+	 */
+	do_undefinstr(regs);
+}
+#endif
+
 asmlinkage void __exception do_sysinstr(unsigned int esr, struct pt_regs *regs)
 {
 	struct sys64_hook *hook;

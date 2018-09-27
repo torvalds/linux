@@ -697,9 +697,9 @@ el0_sync_compat:
 	cmp	x24, #ESR_ELx_EC_UNKNOWN	// unknown exception in EL0
 	b.eq	el0_undef
 	cmp	x24, #ESR_ELx_EC_CP15_32	// CP15 MRC/MCR trap
-	b.eq	el0_undef
+	b.eq	el0_cp15
 	cmp	x24, #ESR_ELx_EC_CP15_64	// CP15 MRRC/MCRR trap
-	b.eq	el0_undef
+	b.eq	el0_cp15
 	cmp	x24, #ESR_ELx_EC_CP14_MR	// CP14 MRC/MCR trap
 	b.eq	el0_undef
 	cmp	x24, #ESR_ELx_EC_CP14_LS	// CP14 LDC/STC trap
@@ -722,6 +722,17 @@ el0_irq_compat:
 el0_error_compat:
 	kernel_entry 0, 32
 	b	el0_error_naked
+
+el0_cp15:
+	/*
+	 * Trapped CP15 (MRC, MCR, MRRC, MCRR) instructions
+	 */
+	enable_daif
+	ct_user_exit
+	mov	x0, x25
+	mov	x1, sp
+	bl	do_cp15instr
+	b	ret_to_user
 #endif
 
 el0_da:
