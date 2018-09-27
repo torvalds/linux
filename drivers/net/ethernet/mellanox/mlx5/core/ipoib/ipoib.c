@@ -560,9 +560,9 @@ static int mlx5i_close(struct net_device *netdev)
 
 	netif_carrier_off(epriv->netdev);
 	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qp.qpn);
-	mlx5i_uninit_underlay_qp(epriv);
 	mlx5e_deactivate_priv_channels(epriv);
 	mlx5e_close_channels(&epriv->channels);
+	mlx5i_uninit_underlay_qp(epriv);
 unlock:
 	mutex_unlock(&epriv->state_lock);
 	return 0;
