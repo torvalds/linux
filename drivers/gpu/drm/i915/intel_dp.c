@@ -5012,15 +5012,18 @@ intel_dp_unset_edid(struct intel_dp *intel_dp)
 }
 
 static int
-intel_dp_long_pulse(struct intel_connector *connector,
-		    struct drm_modeset_acquire_ctx *ctx)
+intel_dp_detect(struct drm_connector *connector,
+		struct drm_modeset_acquire_ctx *ctx,
+		bool force)
 {
-	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-	struct intel_dp *intel_dp = intel_attached_dp(&connector->base);
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	enum drm_connector_status status;
 	u8 sink_irq_vector = 0;
 
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+		      connector->base.id, connector->name);
 	WARN_ON(!drm_modeset_is_locked(&dev_priv->drm.mode_config.connection_mutex));
 
 	intel_display_power_get(dev_priv, intel_dp->aux_power_domain);
@@ -5099,9 +5102,9 @@ intel_dp_long_pulse(struct intel_connector *connector,
 	intel_dp->aux.i2c_defer_count = 0;
 
 	intel_dp_set_edid(intel_dp);
-	if (intel_dp_is_edp(intel_dp) || connector->detect_edid)
+	if (intel_dp_is_edp(intel_dp) ||
+	    to_intel_connector(connector)->detect_edid)
 		status = connector_status_connected;
-	intel_dp->detect_done = true;
 
 	/* Try to read the source of the interrupt */
 	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11 &&
@@ -5123,26 +5126,6 @@ out:
 		intel_dp_unset_edid(intel_dp);
 
 	intel_display_power_put(dev_priv, intel_dp->aux_power_domain);
-	return status;
-}
-
-static int
-intel_dp_detect(struct drm_connector *connector,
-		struct drm_modeset_acquire_ctx *ctx,
-		bool force)
-{
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
-	int status = connector->status;
-
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, connector->name);
-
-	/* If full detect is not performed yet, do a full detect */
-	if (!intel_dp->detect_done)
-		status = intel_dp_long_pulse(intel_dp->attached_connector, ctx);
-
-	intel_dp->detect_done = false;
-
 	return status;
 }
 
@@ -5638,7 +5621,6 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 
 	if (long_hpd) {
 		intel_dp->reset_link_params = true;
-		intel_dp->detect_done = false;
 		return IRQ_NONE;
 	}
 
@@ -5655,7 +5637,6 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 			intel_dp->is_mst = false;
 			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
 							intel_dp->is_mst);
-			intel_dp->detect_done = false;
 			goto put_power;
 		}
 	}
@@ -5668,10 +5649,8 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		/* Short pulse can signify loss of hdcp authentication */
 		intel_hdcp_check_link(intel_dp->attached_connector);
 
-		if (!handled) {
-			intel_dp->detect_done = false;
+		if (!handled)
 			goto put_power;
-		}
 	}
 
 	ret = IRQ_HANDLED;
