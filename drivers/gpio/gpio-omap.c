@@ -34,8 +34,6 @@
 #define OMAP_GPIO_QUIRK_IDLE_REMOVE_TRIGGER	BIT(2)
 #define OMAP_GPIO_QUIRK_DEFERRED_WKUP_EN	BIT(1)
 
-static LIST_HEAD(omap_gpio_list);
-
 struct gpio_regs {
 	u32 irqenable1;
 	u32 irqenable2;
@@ -1477,8 +1475,6 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_put(dev);
-
-	list_add_tail(&bank->node, &omap_gpio_list);
 
 	return 0;
 }
