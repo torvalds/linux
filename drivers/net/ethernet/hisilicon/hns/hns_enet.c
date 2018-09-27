@@ -1503,21 +1503,6 @@ static int hns_nic_do_ioctl(struct net_device *netdev, struct ifreq *ifr,
 	return phy_mii_ioctl(phy_dev, ifr, cmd);
 }
 
-/* use only for netconsole to poll with the device without interrupt */
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void hns_nic_poll_controller(struct net_device *ndev)
-{
-	struct hns_nic_priv *priv = netdev_priv(ndev);
-	unsigned long flags;
-	int i;
-
-	local_irq_save(flags);
-	for (i = 0; i < priv->ae_handle->q_num * 2; i++)
-		napi_schedule(&priv->ring_data[i].napi);
-	local_irq_restore(flags);
-}
-#endif
-
 static netdev_tx_t hns_nic_net_xmit(struct sk_buff *skb,
 				    struct net_device *ndev)
 {
@@ -1970,9 +1955,6 @@ static const struct net_device_ops hns_nic_netdev_ops = {
 	.ndo_set_features = hns_nic_set_features,
 	.ndo_fix_features = hns_nic_fix_features,
 	.ndo_get_stats64 = hns_nic_get_stats64,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller = hns_nic_poll_controller,
-#endif
 	.ndo_set_rx_mode = hns_nic_set_rx_mode,
 	.ndo_select_queue = hns_nic_select_queue,
 };
