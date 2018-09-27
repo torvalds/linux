@@ -625,8 +625,18 @@ static void arm64_compat_skip_faulting_instruction(struct pt_regs *regs,
 	arm64_skip_faulting_instruction(regs, sz);
 }
 
+static struct sys64_hook cp15_32_hooks[] = {
+	{},
+};
+
+static struct sys64_hook cp15_64_hooks[] = {
+	{},
+};
+
 asmlinkage void __exception do_cp15instr(unsigned int esr, struct pt_regs *regs)
 {
+	struct sys64_hook *hook, *hook_base;
+
 	if (!cp15_cond_valid(esr, regs)) {
 		/*
 		 * There is no T16 variant of a CP access, so we
@@ -635,6 +645,24 @@ asmlinkage void __exception do_cp15instr(unsigned int esr, struct pt_regs *regs)
 		arm64_compat_skip_faulting_instruction(regs, 4);
 		return;
 	}
+
+	switch (ESR_ELx_EC(esr)) {
+	case ESR_ELx_EC_CP15_32:
+		hook_base = cp15_32_hooks;
+		break;
+	case ESR_ELx_EC_CP15_64:
+		hook_base = cp15_64_hooks;
+		break;
+	default:
+		do_undefinstr(regs);
+		return;
+	}
+
+	for (hook = hook_base; hook->handler; hook++)
+		if ((hook->esr_mask & esr) == hook->esr_val) {
+			hook->handler(esr, regs);
+			return;
+		}
 
 	/*
 	 * New cp15 instructions may previously have been undefined at
