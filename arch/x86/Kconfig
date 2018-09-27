@@ -2843,7 +2843,7 @@ config X86_SYSFB
 	  This option, if enabled, marks VGA/VBE/EFI framebuffers as generic
 	  framebuffers so the new generic system-framebuffer drivers can be
 	  used on x86. If the framebuffer is not compatible with the generic
-	  modes, it is adverticed as fallback platform framebuffer so legacy
+	  modes, it is advertised as fallback platform framebuffer so legacy
 	  drivers like efifb, vesafb and uvesafb can pick it up.
 	  If this option is not selected, all system framebuffers are always
 	  marked as fallback platform framebuffers as usual.

@@ -78,23 +78,28 @@ static struct notifier_block iss_panic_block = {
 
 void __init platform_setup(char **p_cmdline)
 {
+	static void *argv[COMMAND_LINE_SIZE / sizeof(void *)] __initdata;
+	static char cmdline[COMMAND_LINE_SIZE] __initdata;
 	int argc = simc_argc();
 	int argv_size = simc_argv_size();
 
 	if (argc > 1) {
-		void **argv = alloc_bootmem(argv_size);
-		char *cmdline = alloc_bootmem(argv_size);
-		int i;
+		if (argv_size > sizeof(argv)) {
+			pr_err("%s: command line too long: argv_size = %d\n",
+			       __func__, argv_size);
+		} else {
+			int i;
 
-		cmdline[0] = 0;
-		simc_argv((void *)argv);
+			cmdline[0] = 0;
+			simc_argv((void *)argv);
 
-		for (i = 1; i < argc; ++i) {
-			if (i > 1)
-				strcat(cmdline, " ");
-			strcat(cmdline, argv[i]);
+			for (i = 1; i < argc; ++i) {
+				if (i > 1)
+					strcat(cmdline, " ");
+				strcat(cmdline, argv[i]);
+			}
+			*p_cmdline = cmdline;
 		}
-		*p_cmdline = cmdline;
 	}
 
 	atomic_notifier_chain_register(&panic_notifier_list, &iss_panic_block);

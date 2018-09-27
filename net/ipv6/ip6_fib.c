@@ -198,6 +198,8 @@ void fib6_info_destroy_rcu(struct rcu_head *head)
 		}
 	}
 
+	lwtstate_put(f6i->fib6_nh.nh_lwtstate);
+
 	if (f6i->fib6_nh.nh_dev)
 		dev_put(f6i->fib6_nh.nh_dev);
 
@@ -987,7 +989,10 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
 					fib6_clean_expires(iter);
 				else
 					fib6_set_expires(iter, rt->expires);
-				fib6_metric_set(iter, RTAX_MTU, rt->fib6_pmtu);
+
+				if (rt->fib6_pmtu)
+					fib6_metric_set(iter, RTAX_MTU,
+							rt->fib6_pmtu);
 				return -EEXIST;
 			}
 			/* If we have the same destination and the same metric,

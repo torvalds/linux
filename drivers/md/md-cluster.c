@@ -1276,18 +1276,18 @@ static int resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
 static int resync_finish(struct mddev *mddev)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
+	int ret = 0;
 
 	clear_bit(MD_RESYNCING_REMOTE, &mddev->recovery);
-	dlm_unlock_sync(cinfo->resync_lockres);
 
 	/*
 	 * If resync thread is interrupted so we can't say resync is finished,
 	 * another node will launch resync thread to continue.
 	 */
-	if (test_bit(MD_CLOSING, &mddev->flags))
-		return 0;
-	else
-		return resync_info_update(mddev, 0, 0);
+	if (!test_bit(MD_CLOSING, &mddev->flags))
+		ret = resync_info_update(mddev, 0, 0);
+	dlm_unlock_sync(cinfo->resync_lockres);
+	return ret;
 }
 
 static int area_resyncing(struct mddev *mddev, int direction,

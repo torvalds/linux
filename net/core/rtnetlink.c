@@ -324,6 +324,10 @@ void rtnl_unregister_all(int protocol)
 
 	rtnl_lock();
 	tab = rtnl_msg_handlers[protocol];
+	if (!tab) {
+		rtnl_unlock();
+		return;
+	}
 	RCU_INIT_POINTER(rtnl_msg_handlers[protocol], NULL);
 	for (msgindex = 0; msgindex < RTM_NR_MSGTYPES; msgindex++) {
 		link = tab[msgindex];

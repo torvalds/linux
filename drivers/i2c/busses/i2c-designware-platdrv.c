@@ -434,6 +434,9 @@ static int dw_i2c_plat_suspend(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
+	if (i_dev->pm_disabled)
+		return 0;
+
 	i_dev->disable(i_dev);
 	i2c_dw_prepare_clk(i_dev, false);
 
@@ -444,7 +447,9 @@ static int dw_i2c_plat_resume(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
-	i2c_dw_prepare_clk(i_dev, true);
+	if (!i_dev->pm_disabled)
+		i2c_dw_prepare_clk(i_dev, true);
+
 	i_dev->init(i_dev);
 
 	return 0;

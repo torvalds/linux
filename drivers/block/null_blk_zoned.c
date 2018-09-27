@@ -48,8 +48,8 @@ void null_zone_exit(struct nullb_device *dev)
 	kvfree(dev->zones);
 }
 
-static void null_zone_fill_rq(struct nullb_device *dev, struct request *rq,
-			      unsigned int zno, unsigned int nr_zones)
+static void null_zone_fill_bio(struct nullb_device *dev, struct bio *bio,
+			       unsigned int zno, unsigned int nr_zones)
 {
 	struct blk_zone_report_hdr *hdr = NULL;
 	struct bio_vec bvec;
@@ -57,7 +57,7 @@ static void null_zone_fill_rq(struct nullb_device *dev, struct request *rq,
 	void *addr;
 	unsigned int zones_to_cpy;
 
-	bio_for_each_segment(bvec, rq->bio, iter) {
+	bio_for_each_segment(bvec, bio, iter) {
 		addr = kmap_atomic(bvec.bv_page);
 
 		zones_to_cpy = bvec.bv_len / sizeof(struct blk_zone);
@@ -84,29 +84,24 @@ static void null_zone_fill_rq(struct nullb_device *dev, struct request *rq,
 	}
 }
 
-blk_status_t null_zone_report(struct nullb *nullb,
-				     struct nullb_cmd *cmd)
+blk_status_t null_zone_report(struct nullb *nullb, struct bio *bio)
 {
 	struct nullb_device *dev = nullb->dev;
-	struct request *rq = cmd->rq;
-	unsigned int zno = null_zone_no(dev, blk_rq_pos(rq));
+	unsigned int zno = null_zone_no(dev, bio->bi_iter.bi_sector);
 	unsigned int nr_zones = dev->nr_zones - zno;
-	unsigned int max_zones = (blk_rq_bytes(rq) /
-					sizeof(struct blk_zone)) - 1;
+	unsigned int max_zones;
 
+	max_zones = (bio->bi_iter.bi_size / sizeof(struct blk_zone)) - 1;
 	nr_zones = min_t(unsigned int, nr_zones, max_zones);
-
-	null_zone_fill_rq(nullb->dev, rq, zno, nr_zones);
+	null_zone_fill_bio(nullb->dev, bio, zno, nr_zones);
 
 	return BLK_STS_OK;
 }
 
-void null_zone_write(struct nullb_cmd *cmd)
+void null_zone_write(struct nullb_cmd *cmd, sector_t sector,
+		     unsigned int nr_sectors)
 {
 	struct nullb_device *dev = cmd->nq->dev;
-	struct request *rq = cmd->rq;
-	sector_t sector = blk_rq_pos(rq);
-	unsigned int rq_sectors = blk_rq_sectors(rq);
 	unsigned int zno = null_zone_no(dev, sector);
 	struct blk_zone *zone = &dev->zones[zno];
 
@@ -118,7 +113,7 @@ void null_zone_write(struct nullb_cmd *cmd)
 	case BLK_ZONE_COND_EMPTY:
 	case BLK_ZONE_COND_IMP_OPEN:
 		/* Writes must be at the write pointer position */
-		if (blk_rq_pos(rq) != zone->wp) {
+		if (sector != zone->wp) {
 			cmd->error = BLK_STS_IOERR;
 			break;
 		}
@@ -126,7 +121,7 @@ void null_zone_write(struct nullb_cmd *cmd)
 		if (zone->cond == BLK_ZONE_COND_EMPTY)
 			zone->cond = BLK_ZONE_COND_IMP_OPEN;
 
-		zone->wp += rq_sectors;
+		zone->wp += nr_sectors;
 		if (zone->wp == zone->start + zone->len)
 			zone->cond = BLK_ZONE_COND_FULL;
 		break;
@@ -137,11 +132,10 @@ void null_zone_write(struct nullb_cmd *cmd)
 	}
 }
 
-void null_zone_reset(struct nullb_cmd *cmd)
+void null_zone_reset(struct nullb_cmd *cmd, sector_t sector)
 {
 	struct nullb_device *dev = cmd->nq->dev;
-	struct request *rq = cmd->rq;
-	unsigned int zno = null_zone_no(dev, blk_rq_pos(rq));
+	unsigned int zno = null_zone_no(dev, sector);
 	struct blk_zone *zone = &dev->zones[zno];
 
 	zone->cond = BLK_ZONE_COND_EMPTY;

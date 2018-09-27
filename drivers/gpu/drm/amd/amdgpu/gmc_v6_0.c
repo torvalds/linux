@@ -632,12 +632,6 @@ static void gmc_v6_0_gart_disable(struct amdgpu_device *adev)
 	amdgpu_gart_table_vram_unpin(adev);
 }
 
-static void gmc_v6_0_gart_fini(struct amdgpu_device *adev)
-{
-	amdgpu_gart_table_vram_free(adev);
-	amdgpu_gart_fini(adev);
-}
-
 static void gmc_v6_0_vm_decode_fault(struct amdgpu_device *adev,
 				     u32 status, u32 addr, u32 mc_client)
 {
@@ -935,8 +929,9 @@ static int gmc_v6_0_sw_fini(void *handle)
 
 	amdgpu_gem_force_release(adev);
 	amdgpu_vm_manager_fini(adev);
-	gmc_v6_0_gart_fini(adev);
+	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_fini(adev);
+	amdgpu_gart_fini(adev);
 	release_firmware(adev->gmc.fw);
 	adev->gmc.fw = NULL;
 

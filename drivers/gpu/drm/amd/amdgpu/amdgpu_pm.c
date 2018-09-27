@@ -1932,14 +1932,6 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 			amdgpu_fence_wait_empty(ring);
 	}
 
-	mutex_lock(&adev->pm.mutex);
-	/* update battery/ac status */
-	if (power_supply_is_system_supplied() > 0)
-		adev->pm.ac_power = true;
-	else
-		adev->pm.ac_power = false;
-	mutex_unlock(&adev->pm.mutex);
-
 	if (adev->powerplay.pp_funcs->dispatch_tasks) {
 		if (!amdgpu_device_has_dc_support(adev)) {
 			mutex_lock(&adev->pm.mutex);

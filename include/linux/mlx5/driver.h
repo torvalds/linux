@@ -362,8 +362,8 @@ struct mlx5_frag_buf {
 struct mlx5_frag_buf_ctrl {
 	struct mlx5_frag_buf	frag_buf;
 	u32			sz_m1;
-	u32			frag_sz_m1;
-	u32			strides_offset;
+	u16			frag_sz_m1;
+	u16			strides_offset;
 	u8			log_sz;
 	u8			log_stride;
 	u8			log_frag_strides;
@@ -995,7 +995,7 @@ static inline u32 mlx5_base_mkey(const u32 key)
 }
 
 static inline void mlx5_fill_fbc_offset(u8 log_stride, u8 log_sz,
-					u32 strides_offset,
+					u16 strides_offset,
 					struct mlx5_frag_buf_ctrl *fbc)
 {
 	fbc->log_stride = log_stride;
@@ -1052,7 +1052,7 @@ int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn);
 void mlx5_health_cleanup(struct mlx5_core_dev *dev);
 int mlx5_health_init(struct mlx5_core_dev *dev);
 void mlx5_start_health_poll(struct mlx5_core_dev *dev);
-void mlx5_stop_health_poll(struct mlx5_core_dev *dev);
+void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health);
 void mlx5_drain_health_wq(struct mlx5_core_dev *dev);
 void mlx5_trigger_health_work(struct mlx5_core_dev *dev);
 void mlx5_drain_health_recovery(struct mlx5_core_dev *dev);

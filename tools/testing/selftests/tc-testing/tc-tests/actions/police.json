@@ -313,6 +313,54 @@
         ]
     },
     {
+        "id": "6aaf",
+        "name": "Add police actions with conform-exceed control pass/pipe [with numeric values]",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 3mbit burst 250k conform-exceed 0/3 index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action police index 1",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 3Mbit burst 250Kb mtu 2Kb action pass/pipe",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "29b1",
+        "name": "Add police actions with conform-exceed control <invalid>/drop",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 3mbit burst 250k conform-exceed 10/drop index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 3Mbit burst 250Kb mtu 2Kb action ",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
         "id": "c26f",
         "name": "Add police action with invalid peakrate value",
         "category": [
