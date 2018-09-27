@@ -318,6 +318,20 @@ static int sof_probe(struct platform_device *pdev)
 		goto comp_err;
 	}
 
+	/* register machine driver */
+	plat_data->pdev_mach =
+		platform_device_register_data(sdev->dev,
+					      plat_data->machine->drv_name,
+					      -1, plat_data,
+					      sizeof(*plat_data));
+	if (IS_ERR(plat_data->pdev_mach)) {
+		ret = PTR_ERR(plat_data->pdev_mach);
+		goto comp_err;
+	}
+
+	dev_dbg(sdev->dev, "created machine %s\n",
+		dev_name(&plat_data->pdev_mach->dev));
+
 	/* init DMA trace */
 	ret = snd_sof_init_trace(sdev);
 	if (ret < 0) {
