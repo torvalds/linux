@@ -196,19 +196,6 @@ int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s)
 }
 
 /**
- * amdgpu_fence_schedule_fallback - schedule fallback check
- *
- * @ring: pointer to struct amdgpu_ring
- *
- * Start a timer as fallback to our interrupts.
- */
-static void amdgpu_fence_schedule_fallback(struct amdgpu_ring *ring)
-{
-	mod_timer(&ring->fence_drv.fallback_timer,
-		  jiffies + AMDGPU_FENCE_JIFFIES_TIMEOUT);
-}
-
-/**
  * amdgpu_fence_process - check for fence activity
  *
  * @ring: pointer to struct amdgpu_ring
@@ -228,9 +215,6 @@ void amdgpu_fence_process(struct amdgpu_ring *ring)
 		seq = amdgpu_fence_read(ring);
 
 	} while (atomic_cmpxchg(&drv->last_seq, last_seq, seq) != last_seq);
-
-	if (seq != ring->fence_drv.sync_seq)
-		amdgpu_fence_schedule_fallback(ring);
 
 	if (unlikely(seq == last_seq))
 		return;
@@ -260,21 +244,6 @@ void amdgpu_fence_process(struct amdgpu_ring *ring)
 
 		dma_fence_put(fence);
 	} while (last_seq != seq);
-}
-
-/**
- * amdgpu_fence_fallback - fallback for hardware interrupts
- *
- * @work: delayed work item
- *
- * Checks for fence activity.
- */
-static void amdgpu_fence_fallback(struct timer_list *t)
-{
-	struct amdgpu_ring *ring = from_timer(ring, t,
-					      fence_drv.fallback_timer);
-
-	amdgpu_fence_process(ring);
 }
 
 /**
@@ -424,8 +393,6 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 	atomic_set(&ring->fence_drv.last_seq, 0);
 	ring->fence_drv.initialized = false;
 
-	timer_setup(&ring->fence_drv.fallback_timer, amdgpu_fence_fallback, 0);
-
 	ring->fence_drv.num_fences_mask = num_hw_submission * 2 - 1;
 	spin_lock_init(&ring->fence_drv.lock);
 	ring->fence_drv.fences = kcalloc(num_hw_submission * 2, sizeof(void *),
@@ -501,7 +468,6 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 		amdgpu_irq_put(adev, ring->fence_drv.irq_src,
 			       ring->fence_drv.irq_type);
 		drm_sched_fini(&ring->sched);
-		del_timer_sync(&ring->fence_drv.fallback_timer);
 		for (j = 0; j <= ring->fence_drv.num_fences_mask; ++j)
 			dma_fence_put(ring->fence_drv.fences[j]);
 		kfree(ring->fence_drv.fences);
@@ -595,27 +561,6 @@ static const char *amdgpu_fence_get_timeline_name(struct dma_fence *f)
 }
 
 /**
- * amdgpu_fence_enable_signaling - enable signalling on fence
- * @fence: fence
- *
- * This function is called with fence_queue lock held, and adds a callback
- * to fence_queue that checks if this fence is signaled, and if so it
- * signals the fence and removes itself.
- */
-static bool amdgpu_fence_enable_signaling(struct dma_fence *f)
-{
-	struct amdgpu_fence *fence = to_amdgpu_fence(f);
-	struct amdgpu_ring *ring = fence->ring;
-
-	if (!timer_pending(&ring->fence_drv.fallback_timer))
-		amdgpu_fence_schedule_fallback(ring);
-
-	DMA_FENCE_TRACE(&fence->base, "armed on ring %i!\n", ring->idx);
-
-	return true;
-}
-
-/**
  * amdgpu_fence_free - free up the fence memory
  *
  * @rcu: RCU callback head
@@ -645,7 +590,6 @@ static void amdgpu_fence_release(struct dma_fence *f)
 static const struct dma_fence_ops amdgpu_fence_ops = {
 	.get_driver_name = amdgpu_fence_get_driver_name,
 	.get_timeline_name = amdgpu_fence_get_timeline_name,
-	.enable_signaling = amdgpu_fence_enable_signaling,
 	.release = amdgpu_fence_release,
 };
 
@@ -701,7 +645,7 @@ static int amdgpu_debugfs_gpu_recover(struct seq_file *m, void *data)
 	struct amdgpu_device *adev = dev->dev_private;
 
 	seq_printf(m, "gpu recover\n");
-	amdgpu_device_gpu_recover(adev, NULL, true);
+	amdgpu_device_gpu_recover(adev, NULL);
 
 	return 0;
 }

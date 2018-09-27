@@ -205,6 +205,7 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.create_process_vm = amdgpu_amdkfd_gpuvm_create_process_vm,
 	.acquire_process_vm = amdgpu_amdkfd_gpuvm_acquire_process_vm,
 	.destroy_process_vm = amdgpu_amdkfd_gpuvm_destroy_process_vm,
+	.release_process_vm = amdgpu_amdkfd_gpuvm_release_process_vm,
 	.get_process_page_dir = amdgpu_amdkfd_gpuvm_get_process_page_dir,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base,
 	.alloc_memory_of_gpu = amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu,
@@ -685,7 +686,7 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 
 	while (true) {
 		temp = RREG32(sdma_base_addr + mmSDMA0_RLC0_CONTEXT_STATUS);
-		if (temp & SDMA0_STATUS_REG__RB_CMD_IDLE__SHIFT)
+		if (temp & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies))
 			return -ETIME;

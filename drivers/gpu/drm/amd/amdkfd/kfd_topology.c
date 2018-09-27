@@ -63,22 +63,33 @@ struct kfd_topology_device *kfd_topology_device_by_proximity_domain(
 	return device;
 }
 
-struct kfd_dev *kfd_device_by_id(uint32_t gpu_id)
+struct kfd_topology_device *kfd_topology_device_by_id(uint32_t gpu_id)
 {
-	struct kfd_topology_device *top_dev;
-	struct kfd_dev *device = NULL;
+	struct kfd_topology_device *top_dev = NULL;
+	struct kfd_topology_device *ret = NULL;
 
 	down_read(&topology_lock);
 
 	list_for_each_entry(top_dev, &topology_device_list, list)
 		if (top_dev->gpu_id == gpu_id) {
-			device = top_dev->gpu;
+			ret = top_dev;
 			break;
 		}
 
 	up_read(&topology_lock);
 
-	return device;
+	return ret;
+}
+
+struct kfd_dev *kfd_device_by_id(uint32_t gpu_id)
+{
+	struct kfd_topology_device *top_dev;
+
+	top_dev = kfd_topology_device_by_id(gpu_id);
+	if (!top_dev)
+		return NULL;
+
+	return top_dev->gpu;
 }
 
 struct kfd_dev *kfd_device_by_pci_dev(const struct pci_dev *pdev)
@@ -443,6 +454,8 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.location_id);
 	sysfs_show_32bit_prop(buffer, "drm_render_minor",
 			dev->node_props.drm_render_minor);
+	sysfs_show_64bit_prop(buffer, "hive_id",
+			dev->node_props.hive_id);
 
 	if (dev->gpu) {
 		log_max_watch_addr =
@@ -1218,6 +1231,8 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		cpufreq_quick_get_max(0) / 1000;
 	dev->node_props.drm_render_minor =
 		gpu->shared_resources.drm_render_minor;
+
+	dev->node_props.hive_id = gpu->hive_id;
 
 	kfd_fill_mem_clk_max_info(dev);
 	kfd_fill_iolink_non_crat_info(dev);

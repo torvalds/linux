@@ -46,6 +46,9 @@
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
+# Some systems don't have a ping6 binary anymore
+which ping6 > /dev/null 2>&1 && ping6=$(which ping6) || ping6=$(which ping)
+
 tests="
 	pmtu_vti6_exception		vti6: PMTU exceptions
 	pmtu_vti4_exception		vti4: PMTU exceptions
@@ -274,7 +277,7 @@ test_pmtu_vti6_exception() {
 	mtu "${ns_b}" veth_b 4000
 	mtu "${ns_a}" vti6_a 5000
 	mtu "${ns_b}" vti6_b 5000
-	${ns_a} ping6 -q -i 0.1 -w 2 -s 60000 ${vti6_b_addr} > /dev/null
+	${ns_a} ${ping6} -q -i 0.1 -w 2 -s 60000 ${vti6_b_addr} > /dev/null
 
 	# Check that exception was created
 	if [ "$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})" = "" ]; then
@@ -334,7 +337,7 @@ test_pmtu_vti4_link_add_mtu() {
 	fail=0
 
 	min=68
-	max=$((65528 - 20))
+	max=$((65535 - 20))
 	# Check invalid values first
 	for v in $((min - 1)) $((max + 1)); do
 		${ns_a} ip link add vti4_a mtu ${v} type vti local ${veth4_a_addr} remote ${veth4_b_addr} key 10 2>/dev/null

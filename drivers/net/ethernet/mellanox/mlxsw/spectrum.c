@@ -1346,8 +1346,7 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 		return -ENOMEM;
 	mall_tc_entry->cookie = f->cookie;
 
-	tcf_exts_to_list(f->exts, &actions);
-	a = list_first_entry(&actions, struct tc_action, list);
+	a = tcf_exts_first_action(f->exts);
 
 	if (is_tcf_mirred_egress_mirror(a) && protocol == htons(ETH_P_ALL)) {
 		struct mlxsw_sp_port_mall_mirror_tc_entry *mirror;

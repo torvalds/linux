@@ -972,9 +972,8 @@ struct intel_plane {
 	void (*disable_plane)(struct intel_plane *plane,
 			      struct intel_crtc *crtc);
 	bool (*get_hw_state)(struct intel_plane *plane, enum pipe *pipe);
-	int (*check_plane)(struct intel_plane *plane,
-			   struct intel_crtc_state *crtc_state,
-			   struct intel_plane_state *state);
+	int (*check_plane)(struct intel_crtc_state *crtc_state,
+			   struct intel_plane_state *plane_state);
 };
 
 struct intel_watermark_params {
@@ -1168,6 +1167,7 @@ struct intel_digital_port {
 	bool release_cl2_override;
 	uint8_t max_lanes;
 	enum intel_display_power_domain ddi_io_power_domain;
+	enum tc_port_type tc_type;
 
 	void (*write_infoframe)(struct drm_encoder *encoder,
 				const struct intel_crtc_state *crtc_state,
@@ -1312,6 +1312,12 @@ static inline struct intel_lspcon *
 dp_to_lspcon(struct intel_dp *intel_dp)
 {
 	return &dp_to_dig_port(intel_dp)->lspcon;
+}
+
+static inline struct drm_i915_private *
+dp_to_i915(struct intel_dp *intel_dp)
+{
+	return to_i915(dp_to_dig_port(intel_dp)->base.base.dev);
 }
 
 static inline struct intel_digital_port *
@@ -1717,6 +1723,9 @@ void intel_edp_drrs_invalidate(struct drm_i915_private *dev_priv,
 			       unsigned int frontbuffer_bits);
 void intel_edp_drrs_flush(struct drm_i915_private *dev_priv,
 			  unsigned int frontbuffer_bits);
+void icl_program_mg_dp_mode(struct intel_dp *intel_dp);
+void icl_enable_phy_clock_gating(struct intel_digital_port *dig_port);
+void icl_disable_phy_clock_gating(struct intel_digital_port *dig_port);
 
 void
 intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
@@ -1930,6 +1939,9 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 		      const struct intel_crtc_state *crtc_state);
 void intel_psr_disable(struct intel_dp *intel_dp,
 		      const struct intel_crtc_state *old_crtc_state);
+int intel_psr_set_debugfs_mode(struct drm_i915_private *dev_priv,
+			       struct drm_modeset_acquire_ctx *ctx,
+			       u64 value);
 void intel_psr_invalidate(struct drm_i915_private *dev_priv,
 			  unsigned frontbuffer_bits,
 			  enum fb_op_origin origin);
@@ -1939,20 +1951,33 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 void intel_psr_init(struct drm_i915_private *dev_priv);
 void intel_psr_compute_config(struct intel_dp *intel_dp,
 			      struct intel_crtc_state *crtc_state);
-void intel_psr_irq_control(struct drm_i915_private *dev_priv, bool debug);
+void intel_psr_irq_control(struct drm_i915_private *dev_priv, u32 debug);
 void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir);
 void intel_psr_short_pulse(struct intel_dp *intel_dp);
-int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state);
+int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
+			    u32 *out_value);
 
 /* intel_runtime_pm.c */
 int intel_power_domains_init(struct drm_i915_private *);
-void intel_power_domains_fini(struct drm_i915_private *);
+void intel_power_domains_cleanup(struct drm_i915_private *dev_priv);
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume);
-void intel_power_domains_suspend(struct drm_i915_private *dev_priv);
-void intel_power_domains_verify_state(struct drm_i915_private *dev_priv);
+void intel_power_domains_fini_hw(struct drm_i915_private *dev_priv);
+void intel_power_domains_enable(struct drm_i915_private *dev_priv);
+void intel_power_domains_disable(struct drm_i915_private *dev_priv);
+
+enum i915_drm_suspend_mode {
+	I915_DRM_SUSPEND_IDLE,
+	I915_DRM_SUSPEND_MEM,
+	I915_DRM_SUSPEND_HIBERNATE,
+};
+
+void intel_power_domains_suspend(struct drm_i915_private *dev_priv,
+				 enum i915_drm_suspend_mode);
+void intel_power_domains_resume(struct drm_i915_private *dev_priv);
 void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume);
 void bxt_display_core_uninit(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_enable(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_disable(struct drm_i915_private *dev_priv);
 const char *
 intel_display_power_domain_str(enum intel_display_power_domain domain);
 
@@ -2029,8 +2054,6 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
 bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_put(struct drm_i915_private *dev_priv);
-
-void intel_display_set_init_power(struct drm_i915_private *dev, bool enable);
 
 void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 			     bool override, unsigned int mask);

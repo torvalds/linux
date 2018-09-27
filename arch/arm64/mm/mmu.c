@@ -985,8 +985,9 @@ int pmd_free_pte_page(pmd_t *pmdp, unsigned long addr)
 
 	pmd = READ_ONCE(*pmdp);
 
-	/* No-op for empty entry and WARN_ON for valid entry */
-	if (!pmd_present(pmd) || !pmd_table(pmd)) {
+	if (!pmd_present(pmd))
+		return 1;
+	if (!pmd_table(pmd)) {
 		VM_WARN_ON(!pmd_table(pmd));
 		return 1;
 	}
@@ -1007,8 +1008,9 @@ int pud_free_pmd_page(pud_t *pudp, unsigned long addr)
 
 	pud = READ_ONCE(*pudp);
 
-	/* No-op for empty entry and WARN_ON for valid entry */
-	if (!pud_present(pud) || !pud_table(pud)) {
+	if (!pud_present(pud))
+		return 1;
+	if (!pud_table(pud)) {
 		VM_WARN_ON(!pud_table(pud));
 		return 1;
 	}

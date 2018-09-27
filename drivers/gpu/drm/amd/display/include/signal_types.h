@@ -68,6 +68,11 @@ static inline bool dc_is_embedded_signal(enum signal_type signal)
 	return (signal == SIGNAL_TYPE_EDP || signal == SIGNAL_TYPE_LVDS);
 }
 
+static inline bool dc_is_lvds_signal(enum signal_type signal)
+{
+	return (signal == SIGNAL_TYPE_LVDS);
+}
+
 static inline bool dc_is_dvi_signal(enum signal_type signal)
 {
 	switch (signal) {

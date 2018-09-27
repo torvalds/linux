@@ -724,6 +724,11 @@ static int vcn_v1_0_start(struct amdgpu_device *adev)
 		(UVD_MASTINT_EN__VCPU_EN_MASK|UVD_MASTINT_EN__SYS_EN_MASK),
 		~(UVD_MASTINT_EN__VCPU_EN_MASK|UVD_MASTINT_EN__SYS_EN_MASK));
 
+	/* enable system interrupt for JRBC, TODO: move to set interrupt*/
+	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_SYS_INT_EN),
+		UVD_SYS_INT_EN__UVD_JRBC_EN_MASK,
+		~UVD_SYS_INT_EN__UVD_JRBC_EN_MASK);
+
 	/* clear the bit 4 of VCN_STATUS */
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_STATUS), 0,
 			~(2 << UVD_STATUS__VCPU_REPORT__SHIFT));
@@ -1335,6 +1340,10 @@ static void vcn_v1_0_jpeg_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u6
 	amdgpu_ring_write(ring,
 		PACKETJ(0, 0, 0, PACKETJ_TYPE0));
 	amdgpu_ring_write(ring, 0x1);
+
+	/* emit trap */
+	amdgpu_ring_write(ring, PACKETJ(0, 0, 0, PACKETJ_TYPE7));
+	amdgpu_ring_write(ring, 0);
 }
 
 /**
@@ -1729,10 +1738,10 @@ static const struct amdgpu_ring_funcs vcn_v1_0_jpeg_ring_vm_funcs = {
 		6 + 6 + /* hdp invalidate / flush */
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 8 +
-		8 + /* vcn_v1_0_dec_ring_emit_vm_flush */
-		14 + 14 + /* vcn_v1_0_dec_ring_emit_fence x2 vm fence */
+		8 + /* vcn_v1_0_jpeg_ring_emit_vm_flush */
+		26 + 26 + /* vcn_v1_0_jpeg_ring_emit_fence x2 vm fence */
 		6,
-	.emit_ib_size = 22, /* vcn_v1_0_dec_ring_emit_ib */
+	.emit_ib_size = 22, /* vcn_v1_0_jpeg_ring_emit_ib */
 	.emit_ib = vcn_v1_0_jpeg_ring_emit_ib,
 	.emit_fence = vcn_v1_0_jpeg_ring_emit_fence,
 	.emit_vm_flush = vcn_v1_0_jpeg_ring_emit_vm_flush,
@@ -1746,6 +1755,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_jpeg_ring_vm_funcs = {
 	.end_use = amdgpu_vcn_ring_end_use,
 	.emit_wreg = vcn_v1_0_jpeg_ring_emit_wreg,
 	.emit_reg_wait = vcn_v1_0_jpeg_ring_emit_reg_wait,
+	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
 };
 
 static void vcn_v1_0_set_dec_ring_funcs(struct amdgpu_device *adev)
@@ -1777,7 +1787,7 @@ static const struct amdgpu_irq_src_funcs vcn_v1_0_irq_funcs = {
 
 static void vcn_v1_0_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->vcn.irq.num_types = adev->vcn.num_enc_rings + 1;
+	adev->vcn.irq.num_types = adev->vcn.num_enc_rings + 2;
 	adev->vcn.irq.funcs = &vcn_v1_0_irq_funcs;
 }
 

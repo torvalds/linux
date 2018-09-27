@@ -56,6 +56,8 @@
 			tmp_ = RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg); \
 			loop--;					\
 			if (!loop) {				\
+				DRM_ERROR("Register(%d) [%s] failed to reach value 0x%08x != 0x%08x\n", \
+							inst, #reg, expected_value, (tmp_ & (mask))); \
 				ret = -ETIMEDOUT;		\
 				break;				\
 			}					\

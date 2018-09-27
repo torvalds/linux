@@ -210,6 +210,7 @@
 #include "i915_oa_cflgt3.h"
 #include "i915_oa_cnl.h"
 #include "i915_oa_icl.h"
+#include "intel_lrc_reg.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such
@@ -1338,14 +1339,12 @@ free_oa_buffer(struct drm_i915_private *i915)
 {
 	mutex_lock(&i915->drm.struct_mutex);
 
-	i915_gem_object_unpin_map(i915->perf.oa.oa_buffer.vma->obj);
-	i915_vma_unpin(i915->perf.oa.oa_buffer.vma);
-	i915_gem_object_put(i915->perf.oa.oa_buffer.vma->obj);
-
-	i915->perf.oa.oa_buffer.vma = NULL;
-	i915->perf.oa.oa_buffer.vaddr = NULL;
+	i915_vma_unpin_and_release(&i915->perf.oa.oa_buffer.vma,
+				   I915_VMA_RELEASE_MAP);
 
 	mutex_unlock(&i915->drm.struct_mutex);
+
+	i915->perf.oa.oa_buffer.vaddr = NULL;
 }
 
 static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
@@ -1638,27 +1637,25 @@ static void gen8_update_reg_state_unlocked(struct i915_gem_context *ctx,
 	u32 ctx_oactxctrl = dev_priv->perf.oa.ctx_oactxctrl_offset;
 	u32 ctx_flexeu0 = dev_priv->perf.oa.ctx_flexeu0_offset;
 	/* The MMIO offsets for Flex EU registers aren't contiguous */
-	u32 flex_mmio[] = {
-		i915_mmio_reg_offset(EU_PERF_CNTL0),
-		i915_mmio_reg_offset(EU_PERF_CNTL1),
-		i915_mmio_reg_offset(EU_PERF_CNTL2),
-		i915_mmio_reg_offset(EU_PERF_CNTL3),
-		i915_mmio_reg_offset(EU_PERF_CNTL4),
-		i915_mmio_reg_offset(EU_PERF_CNTL5),
-		i915_mmio_reg_offset(EU_PERF_CNTL6),
+	i915_reg_t flex_regs[] = {
+		EU_PERF_CNTL0,
+		EU_PERF_CNTL1,
+		EU_PERF_CNTL2,
+		EU_PERF_CNTL3,
+		EU_PERF_CNTL4,
+		EU_PERF_CNTL5,
+		EU_PERF_CNTL6,
 	};
 	int i;
 
-	reg_state[ctx_oactxctrl] = i915_mmio_reg_offset(GEN8_OACTXCONTROL);
-	reg_state[ctx_oactxctrl+1] = (dev_priv->perf.oa.period_exponent <<
-				      GEN8_OA_TIMER_PERIOD_SHIFT) |
-				     (dev_priv->perf.oa.periodic ?
-				      GEN8_OA_TIMER_ENABLE : 0) |
-				     GEN8_OA_COUNTER_RESUME;
+	CTX_REG(reg_state, ctx_oactxctrl, GEN8_OACTXCONTROL,
+		(dev_priv->perf.oa.period_exponent << GEN8_OA_TIMER_PERIOD_SHIFT) |
+		(dev_priv->perf.oa.periodic ? GEN8_OA_TIMER_ENABLE : 0) |
+		GEN8_OA_COUNTER_RESUME);
 
-	for (i = 0; i < ARRAY_SIZE(flex_mmio); i++) {
+	for (i = 0; i < ARRAY_SIZE(flex_regs); i++) {
 		u32 state_offset = ctx_flexeu0 + i * 2;
-		u32 mmio = flex_mmio[i];
+		u32 mmio = i915_mmio_reg_offset(flex_regs[i]);
 
 		/*
 		 * This arbitrary default will select the 'EU FPU0 Pipeline
@@ -1678,8 +1675,7 @@ static void gen8_update_reg_state_unlocked(struct i915_gem_context *ctx,
 			}
 		}
 
-		reg_state[state_offset] = mmio;
-		reg_state[state_offset+1] = value;
+		CTX_REG(reg_state, state_offset, flex_regs[i], value);
 	}
 }
 
@@ -1821,7 +1817,7 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 	/* Switch away from any user context. */
 	ret = gen8_switch_to_updated_kernel_context(dev_priv, oa_config);
 	if (ret)
-		goto out;
+		return ret;
 
 	/*
 	 * The OA register config is setup through the context image. This image
@@ -1840,7 +1836,7 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 				     wait_flags,
 				     MAX_SCHEDULE_TIMEOUT);
 	if (ret)
-		goto out;
+		return ret;
 
 	/* Update all contexts now that we've stalled the submission. */
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
@@ -1852,10 +1848,8 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 			continue;
 
 		regs = i915_gem_object_pin_map(ce->state->obj, I915_MAP_WB);
-		if (IS_ERR(regs)) {
-			ret = PTR_ERR(regs);
-			goto out;
-		}
+		if (IS_ERR(regs))
+			return PTR_ERR(regs);
 
 		ce->state->obj->mm.dirty = true;
 		regs += LRC_STATE_PN * PAGE_SIZE / sizeof(*regs);
@@ -1865,7 +1859,6 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 		i915_gem_object_unpin_map(ce->state->obj);
 	}
 
- out:
 	return ret;
 }
 

@@ -44,11 +44,13 @@ extern const struct pp_smumgr_func vegam_smu_funcs;
 extern const struct pp_smumgr_func vega10_smu_funcs;
 extern const struct pp_smumgr_func vega12_smu_funcs;
 extern const struct pp_smumgr_func smu10_smu_funcs;
+extern const struct pp_smumgr_func vega20_smu_funcs;
 
 extern int smu7_init_function_pointers(struct pp_hwmgr *hwmgr);
 extern int smu8_init_function_pointers(struct pp_hwmgr *hwmgr);
 extern int vega10_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int vega12_hwmgr_init(struct pp_hwmgr *hwmgr);
+extern int vega20_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int smu10_init_function_pointers(struct pp_hwmgr *hwmgr);
 
 static int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr);
@@ -149,7 +151,6 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 	case AMDGPU_FAMILY_AI:
 		switch (hwmgr->chip_id) {
 		case CHIP_VEGA10:
-		case CHIP_VEGA20:
 			hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 			hwmgr->smumgr_funcs = &vega10_smu_funcs;
 			vega10_hwmgr_init(hwmgr);
@@ -157,6 +158,11 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 		case CHIP_VEGA12:
 			hwmgr->smumgr_funcs = &vega12_smu_funcs;
 			vega12_hwmgr_init(hwmgr);
+			break;
+		case CHIP_VEGA20:
+			hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
+			hwmgr->smumgr_funcs = &vega20_smu_funcs;
+			vega20_hwmgr_init(hwmgr);
 			break;
 		default:
 			return -EINVAL;

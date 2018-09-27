@@ -317,7 +317,7 @@ static int guc_stage_desc_pool_create(struct intel_guc *guc)
 
 	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
-		i915_vma_unpin_and_release(&vma);
+		i915_vma_unpin_and_release(&vma, 0);
 		return PTR_ERR(vaddr);
 	}
 
@@ -331,8 +331,7 @@ static int guc_stage_desc_pool_create(struct intel_guc *guc)
 static void guc_stage_desc_pool_destroy(struct intel_guc *guc)
 {
 	ida_destroy(&guc->stage_ids);
-	i915_gem_object_unpin_map(guc->stage_desc_pool->obj);
-	i915_vma_unpin_and_release(&guc->stage_desc_pool);
+	i915_vma_unpin_and_release(&guc->stage_desc_pool, I915_VMA_RELEASE_MAP);
 }
 
 /*
@@ -457,6 +456,9 @@ static void guc_wq_item_append(struct intel_guc_client *client,
 	 */
 	BUILD_BUG_ON(wqi_size != 16);
 
+	/* We expect the WQ to be active if we're appending items to it */
+	GEM_BUG_ON(desc->wq_status != WQ_STATUS_ACTIVE);
+
 	/* Free space is guaranteed. */
 	wq_off = READ_ONCE(desc->tail);
 	GEM_BUG_ON(CIRC_SPACE(wq_off, READ_ONCE(desc->head),
@@ -466,15 +468,19 @@ static void guc_wq_item_append(struct intel_guc_client *client,
 	/* WQ starts from the page after doorbell / process_desc */
 	wqi = client->vaddr + wq_off + GUC_DB_SIZE;
 
-	/* Now fill in the 4-word work queue item */
-	wqi->header = WQ_TYPE_INORDER |
-		      (wqi_len << WQ_LEN_SHIFT) |
-		      (target_engine << WQ_TARGET_SHIFT) |
-		      WQ_NO_WCFLUSH_WAIT;
-	wqi->context_desc = context_desc;
-	wqi->submit_element_info = ring_tail << WQ_RING_TAIL_SHIFT;
-	GEM_BUG_ON(ring_tail > WQ_RING_TAIL_MAX);
-	wqi->fence_id = fence_id;
+	if (I915_SELFTEST_ONLY(client->use_nop_wqi)) {
+		wqi->header = WQ_TYPE_NOOP | (wqi_len << WQ_LEN_SHIFT);
+	} else {
+		/* Now fill in the 4-word work queue item */
+		wqi->header = WQ_TYPE_INORDER |
+			      (wqi_len << WQ_LEN_SHIFT) |
+			      (target_engine << WQ_TARGET_SHIFT) |
+			      WQ_NO_WCFLUSH_WAIT;
+		wqi->context_desc = context_desc;
+		wqi->submit_element_info = ring_tail << WQ_RING_TAIL_SHIFT;
+		GEM_BUG_ON(ring_tail > WQ_RING_TAIL_MAX);
+		wqi->fence_id = fence_id;
+	}
 
 	/* Make the update visible to GuC */
 	WRITE_ONCE(desc->tail, (wq_off + wqi_size) & (GUC_WQ_SIZE - 1));
@@ -1008,7 +1014,7 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 err_vaddr:
 	i915_gem_object_unpin_map(client->vma->obj);
 err_vma:
-	i915_vma_unpin_and_release(&client->vma);
+	i915_vma_unpin_and_release(&client->vma, 0);
 err_id:
 	ida_simple_remove(&guc->stage_ids, client->stage_id);
 err_client:
@@ -1020,8 +1026,7 @@ static void guc_client_free(struct intel_guc_client *client)
 {
 	unreserve_doorbell(client);
 	guc_stage_desc_fini(client->guc, client);
-	i915_gem_object_unpin_map(client->vma->obj);
-	i915_vma_unpin_and_release(&client->vma);
+	i915_vma_unpin_and_release(&client->vma, I915_VMA_RELEASE_MAP);
 	ida_simple_remove(&client->guc->stage_ids, client->stage_id);
 	kfree(client);
 }

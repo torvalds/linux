@@ -200,6 +200,7 @@ config BT_HCIUART_RTL
 	depends on BT_HCIUART
 	depends on BT_HCIUART_SERDEV
 	depends on GPIOLIB
+	depends on ACPI
 	select BT_HCIUART_3WIRE
 	select BT_RTL
 	help

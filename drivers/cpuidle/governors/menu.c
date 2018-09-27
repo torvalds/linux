@@ -379,8 +379,19 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		if (idx == -1)
 			idx = i; /* first enabled state */
 		if (s->target_residency > data->predicted_us) {
-			if (!tick_nohz_tick_stopped())
+			if (data->predicted_us < TICK_USEC)
 				break;
+
+			if (!tick_nohz_tick_stopped()) {
+				/*
+				 * If the state selected so far is shallow,
+				 * waking up early won't hurt, so retain the
+				 * tick in that case and let the governor run
+				 * again in the next iteration of the loop.
+				 */
+				expected_interval = drv->states[idx].target_residency;
+				break;
+			}
 
 			/*
 			 * If the state selected so far is shallow and this

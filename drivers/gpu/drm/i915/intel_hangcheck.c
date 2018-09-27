@@ -142,7 +142,7 @@ static int semaphore_passed(struct intel_engine_cs *engine)
 	if (signaller->hangcheck.deadlock >= I915_NUM_ENGINES)
 		return -1;
 
-	if (i915_seqno_passed(intel_engine_get_seqno(signaller), seqno))
+	if (intel_engine_signaled(signaller, seqno))
 		return 1;
 
 	/* cursory check for an unkickable deadlock */

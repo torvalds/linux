@@ -1181,6 +1181,21 @@ static int pp_dpm_powergate_gfx(void *handle, bool gate)
 	return hwmgr->hwmgr_func->powergate_gfx(hwmgr, gate);
 }
 
+static void pp_dpm_powergate_acp(void *handle, bool gate)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return;
+
+	if (hwmgr->hwmgr_func->powergate_acp == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return;
+	}
+
+	hwmgr->hwmgr_func->powergate_acp(hwmgr, gate);
+}
+
 static int pp_set_powergating_by_smu(void *handle,
 				uint32_t block_type, bool gate)
 {
@@ -1199,6 +1214,9 @@ static int pp_set_powergating_by_smu(void *handle,
 		break;
 	case AMD_IP_BLOCK_TYPE_GFX:
 		ret = pp_dpm_powergate_gfx(handle, gate);
+		break;
+	case AMD_IP_BLOCK_TYPE_ACP:
+		pp_dpm_powergate_acp(handle, gate);
 		break;
 	default:
 		break;

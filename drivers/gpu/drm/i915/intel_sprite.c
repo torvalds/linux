@@ -83,6 +83,7 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 	bool need_vlv_dsi_wa = (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 		intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI);
 	DEFINE_WAIT(wait);
+	u32 psr_status;
 
 	vblank_start = adjusted_mode->crtc_vblank_start;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
@@ -104,8 +105,9 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 	 * VBL interrupts will start the PSR exit and prevent a PSR
 	 * re-entry as well.
 	 */
-	if (intel_psr_wait_for_idle(new_crtc_state))
-		DRM_ERROR("PSR idle timed out, atomic update may fail\n");
+	if (intel_psr_wait_for_idle(new_crtc_state, &psr_status))
+		DRM_ERROR("PSR idle timed out 0x%x, atomic update may fail\n",
+			  psr_status);
 
 	local_irq_disable();
 
@@ -957,10 +959,10 @@ g4x_plane_get_hw_state(struct intel_plane *plane,
 }
 
 static int
-intel_check_sprite_plane(struct intel_plane *plane,
-			 struct intel_crtc_state *crtc_state,
+intel_check_sprite_plane(struct intel_crtc_state *crtc_state,
 			 struct intel_plane_state *state)
 {
+	struct intel_plane *plane = to_intel_plane(state->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_framebuffer *fb = state->base.fb;
@@ -1407,8 +1409,7 @@ static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_ABGR8888:
-		if (modifier == I915_FORMAT_MOD_Yf_TILED_CCS ||
-		    modifier == I915_FORMAT_MOD_Y_TILED_CCS)
+		if (is_ccs_modifier(modifier))
 			return true;
 		/* fall through */
 	case DRM_FORMAT_RGB565:

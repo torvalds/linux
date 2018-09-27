@@ -313,9 +313,23 @@ bool hubp1_program_surface_flip_and_addr(
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
-	/* program flip type */
-	REG_SET(DCSURF_FLIP_CONTROL, 0,
+
+	//program flip type
+	REG_UPDATE(DCSURF_FLIP_CONTROL,
 			SURFACE_FLIP_TYPE, flip_immediate);
+
+
+	if (address->type == PLN_ADDR_TYPE_GRPH_STEREO) {
+		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_MODE_FOR_STEREOSYNC, 0x1);
+		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_IN_STEREOSYNC, 0x1);
+
+	} else {
+		// turn off stereo if not in stereo
+		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_MODE_FOR_STEREOSYNC, 0x0);
+		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_IN_STEREOSYNC, 0x0);
+	}
+
+
 
 	/* HW automatically latch rest of address register on write to
 	 * DCSURF_PRIMARY_SURFACE_ADDRESS if SURFACE_UPDATE_LOCK is not used
@@ -485,7 +499,8 @@ void hubp1_program_surface_config(
 	union plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
-	bool horizontal_mirror)
+	bool horizontal_mirror,
+	unsigned int compat_level)
 {
 	hubp1_dcc_control(hubp, dcc->enable, dcc->grph.independent_64b_blks);
 	hubp1_program_tiling(hubp, tiling_info, format);
@@ -959,6 +974,9 @@ void hubp1_read_state(struct hubp *hubp)
 	REG_GET(DCSURF_SURFACE_EARLIEST_INUSE_HIGH,
 			SURFACE_EARLIEST_INUSE_ADDRESS_HIGH, &s->inuse_addr_hi);
 
+	REG_GET(DCSURF_SURFACE_EARLIEST_INUSE,
+			SURFACE_EARLIEST_INUSE_ADDRESS, &s->inuse_addr_lo);
+
 	REG_GET_2(DCSURF_PRI_VIEWPORT_DIMENSION,
 			PRI_VIEWPORT_WIDTH, &s->viewport_width,
 			PRI_VIEWPORT_HEIGHT, &s->viewport_height);
@@ -1069,6 +1087,7 @@ void hubp1_cursor_set_position(
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	int src_x_offset = pos->x - pos->x_hotspot - param->viewport.x;
+	int src_y_offset = pos->y - pos->y_hotspot - param->viewport.y;
 	int x_hotspot = pos->x_hotspot;
 	int y_hotspot = pos->y_hotspot;
 	uint32_t dst_x_offset;
@@ -1111,6 +1130,12 @@ void hubp1_cursor_set_position(
 
 	if (src_x_offset + (int)hubp->curs_attr.width <= 0)
 		cur_en = 0;  /* not visible beyond left edge*/
+
+	if (src_y_offset >= (int)param->viewport.height)
+		cur_en = 0;  /* not visible beyond bottom edge*/
+
+	if (src_y_offset < 0) //+ (int)hubp->curs_attr.height
+		cur_en = 0;  /* not visible beyond top edge*/
 
 	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
 		hubp->funcs->set_cursor_attributes(hubp, &hubp->curs_attr);

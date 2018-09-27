@@ -313,8 +313,8 @@ static void tipc_conn_send_work(struct work_struct *work)
 	conn_put(con);
 }
 
-/* tipc_conn_queue_evt() - interrupt level call from a subscription instance
- * The queued work is launched into tipc_send_work()->tipc_send_to_sock()
+/* tipc_topsrv_queue_evt() - interrupt level call from a subscription instance
+ * The queued work is launched into tipc_conn_send_work()->tipc_conn_send_to_sock()
  */
 void tipc_topsrv_queue_evt(struct net *net, int conid,
 			   u32 event, struct tipc_event *evt)

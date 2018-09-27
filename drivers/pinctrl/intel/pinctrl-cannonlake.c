@@ -379,7 +379,7 @@ static const struct intel_padgroup cnlh_community1_gpps[] = {
 static const struct intel_padgroup cnlh_community3_gpps[] = {
 	CNL_GPP(0, 155, 178, 192),		/* GPP_K */
 	CNL_GPP(1, 179, 202, 224),		/* GPP_H */
-	CNL_GPP(2, 203, 215, 258),		/* GPP_E */
+	CNL_GPP(2, 203, 215, 256),		/* GPP_E */
 	CNL_GPP(3, 216, 239, 288),		/* GPP_F */
 	CNL_GPP(4, 240, 248, CNL_NO_GPIO),	/* SPI */
 };

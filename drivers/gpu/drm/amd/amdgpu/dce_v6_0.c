@@ -30,6 +30,7 @@
 #include "atombios_encoders.h"
 #include "amdgpu_pll.h"
 #include "amdgpu_connectors.h"
+#include "amdgpu_display.h"
 
 #include "bif/bif_3_0_d.h"
 #include "bif/bif_3_0_sh_mask.h"
@@ -1886,6 +1887,16 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 #endif
 		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
 		bypass_lut = true;
+		break;
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		fb_format = (GRPH_DEPTH(GRPH_DEPTH_32BPP) |
+			     GRPH_FORMAT(GRPH_FORMAT_ARGB8888));
+		fb_swap = (GRPH_RED_CROSSBAR(GRPH_RED_SEL_B) |
+			   GRPH_BLUE_CROSSBAR(GRPH_BLUE_SEL_R));
+#ifdef __BIG_ENDIAN
+		fb_swap |= GRPH_ENDIAN_SWAP(GRPH_ENDIAN_8IN32);
+#endif
 		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",

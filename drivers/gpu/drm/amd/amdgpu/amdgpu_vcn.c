@@ -42,8 +42,12 @@
 
 /* Firmware Names */
 #define FIRMWARE_RAVEN		"amdgpu/raven_vcn.bin"
+#define FIRMWARE_PICASSO	"amdgpu/picasso_vcn.bin"
+#define FIRMWARE_RAVEN2		"amdgpu/raven2_vcn.bin"
 
 MODULE_FIRMWARE(FIRMWARE_RAVEN);
+MODULE_FIRMWARE(FIRMWARE_PICASSO);
+MODULE_FIRMWARE(FIRMWARE_RAVEN2);
 
 static void amdgpu_vcn_idle_work_handler(struct work_struct *work);
 
@@ -59,7 +63,12 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
-		fw_name = FIRMWARE_RAVEN;
+		if (adev->rev_id >= 8)
+			fw_name = FIRMWARE_RAVEN2;
+		else if (adev->pdev->device == 0x15d8)
+			fw_name = FIRMWARE_PICASSO;
+		else
+			fw_name = FIRMWARE_RAVEN;
 		break;
 	default:
 		return -EINVAL;
@@ -217,6 +226,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 	fences += amdgpu_fence_count_emitted(&adev->vcn.ring_jpeg);
 
 	if (fences == 0) {
+		amdgpu_gfx_off_ctrl(adev, true);
 		if (adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, false);
 		else
@@ -233,6 +243,7 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 	bool set_clocks = !cancel_delayed_work_sync(&adev->vcn.idle_work);
 
 	if (set_clocks) {
+		amdgpu_gfx_off_ctrl(adev, false);
 		if (adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, true);
 		else

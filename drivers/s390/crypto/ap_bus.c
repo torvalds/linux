@@ -872,8 +872,6 @@ static int hex2bitmap(const char *str, unsigned long *bitmap, int bits)
 	if (bits & 0x07)
 		return -EINVAL;
 
-	memset(bitmap, 0, bits / 8);
-
 	if (str[0] == '0' && str[1] == 'x')
 		str++;
 	if (*str == 'x')
@@ -895,25 +893,23 @@ static int hex2bitmap(const char *str, unsigned long *bitmap, int bits)
 }
 
 /*
- * str2clrsetmasks() - parse bitmask argument and set the clear and
- * the set bitmap mask. A concatenation (done with ',') of these terms
- * is recognized:
+ * modify_bitmap() - parse bitmask argument and modify an existing
+ * bit mask accordingly. A concatenation (done with ',') of these
+ * terms is recognized:
  *   +<bitnr>[-<bitnr>] or -<bitnr>[-<bitnr>]
  * <bitnr> may be any valid number (hex, decimal or octal) in the range
  * 0...bits-1; the leading + or - is required. Here are some examples:
  *   +0-15,+32,-128,-0xFF
  *   -0-255,+1-16,+0x128
  *   +1,+2,+3,+4,-5,-7-10
- * Returns a clear and a set bitmask. Every positive value in the string
- * results in a bit set in the set mask and every negative value in the
- * string results in a bit SET in the clear mask. As a bit may be touched
- * more than once, the last 'operation' wins: +0-255,-128 = all but bit
- * 128 set in the set mask, only bit 128 set in the clear mask.
+ * Returns the new bitmap after all changes have been applied. Every
+ * positive value in the string will set a bit and every negative value
+ * in the string will clear a bit. As a bit may be touched more than once,
+ * the last 'operation' wins:
+ * +0-255,-128 = first bits 0-255 will be set, then bit 128 will be
+ * cleared again. All other bits are unmodified.
  */
-static int str2clrsetmasks(const char *str,
-			   unsigned long *clrmap,
-			   unsigned long *setmap,
-			   int bits)
+static int modify_bitmap(const char *str, unsigned long *bitmap, int bits)
 {
 	int a, i, z;
 	char *np, sign;
@@ -921,9 +917,6 @@ static int str2clrsetmasks(const char *str,
 	/* bits needs to be a multiple of 8 */
 	if (bits & 0x07)
 		return -EINVAL;
-
-	memset(clrmap, 0, bits / 8);
-	memset(setmap, 0, bits / 8);
 
 	while (*str) {
 		sign = *str++;
@@ -940,13 +933,10 @@ static int str2clrsetmasks(const char *str,
 			str = np;
 		}
 		for (i = a; i <= z; i++)
-			if (sign == '+') {
-				set_bit_inv(i, setmap);
-				clear_bit_inv(i, clrmap);
-			} else {
-				clear_bit_inv(i, setmap);
-				set_bit_inv(i, clrmap);
-			}
+			if (sign == '+')
+				set_bit_inv(i, bitmap);
+			else
+				clear_bit_inv(i, bitmap);
 		while (*str == ',' || *str == '\n')
 			str++;
 	}
@@ -970,44 +960,34 @@ static int process_mask_arg(const char *str,
 			    unsigned long *bitmap, int bits,
 			    struct mutex *lock)
 {
-	int i;
+	unsigned long *newmap, size;
+	int rc;
 
 	/* bits needs to be a multiple of 8 */
 	if (bits & 0x07)
 		return -EINVAL;
 
-	if (*str == '+' || *str == '-') {
-		DECLARE_BITMAP(clrm, bits);
-		DECLARE_BITMAP(setm, bits);
-
-		i = str2clrsetmasks(str, clrm, setm, bits);
-		if (i)
-			return i;
-		if (mutex_lock_interruptible(lock))
-			return -ERESTARTSYS;
-		for (i = 0; i < bits; i++) {
-			if (test_bit_inv(i, clrm))
-				clear_bit_inv(i, bitmap);
-			if (test_bit_inv(i, setm))
-				set_bit_inv(i, bitmap);
-		}
-	} else {
-		DECLARE_BITMAP(setm, bits);
-
-		i = hex2bitmap(str, setm, bits);
-		if (i)
-			return i;
-		if (mutex_lock_interruptible(lock))
-			return -ERESTARTSYS;
-		for (i = 0; i < bits; i++)
-			if (test_bit_inv(i, setm))
-				set_bit_inv(i, bitmap);
-			else
-				clear_bit_inv(i, bitmap);
+	size = BITS_TO_LONGS(bits)*sizeof(unsigned long);
+	newmap = kmalloc(size, GFP_KERNEL);
+	if (!newmap)
+		return -ENOMEM;
+	if (mutex_lock_interruptible(lock)) {
+		kfree(newmap);
+		return -ERESTARTSYS;
 	}
-	mutex_unlock(lock);
 
-	return 0;
+	if (*str == '+' || *str == '-') {
+		memcpy(newmap, bitmap, size);
+		rc = modify_bitmap(str, newmap, bits);
+	} else {
+		memset(newmap, 0, size);
+		rc = hex2bitmap(str, newmap, bits);
+	}
+	if (rc == 0)
+		memcpy(bitmap, newmap, size);
+	mutex_unlock(lock);
+	kfree(newmap);
+	return rc;
 }
 
 /*

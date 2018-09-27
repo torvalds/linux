@@ -527,7 +527,7 @@ void __i915_request_submit(struct i915_request *request)
 
 	seqno = timeline_get_seqno(&engine->timeline);
 	GEM_BUG_ON(!seqno);
-	GEM_BUG_ON(i915_seqno_passed(intel_engine_get_seqno(engine), seqno));
+	GEM_BUG_ON(intel_engine_signaled(engine, seqno));
 
 	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
@@ -579,8 +579,7 @@ void __i915_request_unsubmit(struct i915_request *request)
 	 */
 	GEM_BUG_ON(!request->global_seqno);
 	GEM_BUG_ON(request->global_seqno != engine->timeline.seqno);
-	GEM_BUG_ON(i915_seqno_passed(intel_engine_get_seqno(engine),
-				     request->global_seqno));
+	GEM_BUG_ON(intel_engine_has_completed(engine, request->global_seqno));
 	engine->timeline.seqno--;
 
 	/* We may be recursing from the signal callback of another i915 fence */
@@ -1205,7 +1204,7 @@ static bool __i915_spin_request(const struct i915_request *rq,
 	 * it is a fair assumption that it will not complete within our
 	 * relatively short timeout.
 	 */
-	if (!i915_seqno_passed(intel_engine_get_seqno(engine), seqno - 1))
+	if (!intel_engine_has_started(engine, seqno))
 		return false;
 
 	/*
@@ -1222,7 +1221,7 @@ static bool __i915_spin_request(const struct i915_request *rq,
 	irq = READ_ONCE(engine->breadcrumbs.irq_count);
 	timeout_us += local_clock_us(&cpu);
 	do {
-		if (i915_seqno_passed(intel_engine_get_seqno(engine), seqno))
+		if (intel_engine_has_completed(engine, seqno))
 			return seqno == i915_request_global_seqno(rq);
 
 		/*

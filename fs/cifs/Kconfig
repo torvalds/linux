@@ -6,6 +6,7 @@ config CIFS
 	select CRYPTO_MD4
 	select CRYPTO_MD5
 	select CRYPTO_SHA256
+	select CRYPTO_SHA512
 	select CRYPTO_CMAC
 	select CRYPTO_HMAC
 	select CRYPTO_ARC4

@@ -55,7 +55,6 @@
 
 #include "lockdep_internals.h"
 
-#include <trace/events/preemptirq.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/lock.h>
 

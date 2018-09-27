@@ -265,35 +265,36 @@ static bool vega10_ih_prescreen_iv(struct amdgpu_device *adev)
 		return true;
 	}
 
-	addr = ((u64)(dw5 & 0xf) << 44) | ((u64)dw4 << 12);
-	key = AMDGPU_VM_FAULT(pasid, addr);
-	r = amdgpu_ih_add_fault(adev, key);
-
-	/* Hash table is full or the fault is already being processed,
-	 * ignore further page faults
-	 */
-	if (r != 0)
-		goto ignore_iv;
-
 	/* Track retry faults in per-VM fault FIFO. */
 	spin_lock(&adev->vm_manager.pasid_lock);
 	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
+	addr = ((u64)(dw5 & 0xf) << 44) | ((u64)dw4 << 12);
+	key = AMDGPU_VM_FAULT(pasid, addr);
 	if (!vm) {
 		/* VM not found, process it normally */
 		spin_unlock(&adev->vm_manager.pasid_lock);
-		amdgpu_ih_clear_fault(adev, key);
 		return true;
+	} else {
+		r = amdgpu_vm_add_fault(vm->fault_hash, key);
+
+		/* Hash table is full or the fault is already being processed,
+		 * ignore further page faults
+		 */
+		if (r != 0) {
+			spin_unlock(&adev->vm_manager.pasid_lock);
+			goto ignore_iv;
+		}
 	}
 	/* No locking required with single writer and single reader */
 	r = kfifo_put(&vm->faults, key);
 	if (!r) {
 		/* FIFO is full. Ignore it until there is space */
+		amdgpu_vm_clear_fault(vm->fault_hash, key);
 		spin_unlock(&adev->vm_manager.pasid_lock);
-		amdgpu_ih_clear_fault(adev, key);
 		goto ignore_iv;
 	}
-	spin_unlock(&adev->vm_manager.pasid_lock);
 
+	spin_unlock(&adev->vm_manager.pasid_lock);
 	/* It's the first fault for this address, process it normally */
 	return true;
 
@@ -386,14 +387,6 @@ static int vega10_ih_sw_init(void *handle)
 	adev->irq.ih.use_doorbell = true;
 	adev->irq.ih.doorbell_index = AMDGPU_DOORBELL64_IH << 1;
 
-	adev->irq.ih.faults = kmalloc(sizeof(*adev->irq.ih.faults), GFP_KERNEL);
-	if (!adev->irq.ih.faults)
-		return -ENOMEM;
-	INIT_CHASH_TABLE(adev->irq.ih.faults->hash,
-			 AMDGPU_PAGEFAULT_HASH_BITS, 8, 0);
-	spin_lock_init(&adev->irq.ih.faults->lock);
-	adev->irq.ih.faults->count = 0;
-
 	r = amdgpu_irq_init(adev);
 
 	return r;
@@ -405,9 +398,6 @@ static int vega10_ih_sw_fini(void *handle)
 
 	amdgpu_irq_fini(adev);
 	amdgpu_ih_ring_fini(adev);
-
-	kfree(adev->irq.ih.faults);
-	adev->irq.ih.faults = NULL;
 
 	return 0;
 }

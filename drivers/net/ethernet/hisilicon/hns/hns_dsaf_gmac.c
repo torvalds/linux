@@ -257,6 +257,16 @@ static void hns_gmac_get_pausefrm_cfg(void *mac_drv, u32 *rx_pause_en,
 	*tx_pause_en = dsaf_get_bit(pause_en, GMAC_PAUSE_EN_TX_FDFC_B);
 }
 
+static bool hns_gmac_need_adjust_link(void *mac_drv, enum mac_speed speed,
+				      int duplex)
+{
+	struct mac_driver *drv = (struct mac_driver *)mac_drv;
+	struct hns_mac_cb *mac_cb = drv->mac_cb;
+
+	return (mac_cb->speed != speed) ||
+		(mac_cb->half_duplex == duplex);
+}
+
 static int hns_gmac_adjust_link(void *mac_drv, enum mac_speed speed,
 				u32 full_duplex)
 {
@@ -307,6 +317,30 @@ static void hns_gmac_set_promisc(void *mac_drv, u8 en)
 
 	if (drv->mac_cb->mac_type == HNAE_PORT_DEBUG)
 		hns_gmac_set_uc_match(mac_drv, en);
+}
+
+int hns_gmac_wait_fifo_clean(void *mac_drv)
+{
+	struct mac_driver *drv = (struct mac_driver *)mac_drv;
+	int wait_cnt;
+	u32 val;
+
+	wait_cnt = 0;
+	while (wait_cnt++ < HNS_MAX_WAIT_CNT) {
+		val = dsaf_read_dev(drv, GMAC_FIFO_STATE_REG);
+		/* bit5~bit0 is not send complete pkts */
+		if ((val & 0x3f) == 0)
+			break;
+		usleep_range(100, 200);
+	}
+
+	if (wait_cnt >= HNS_MAX_WAIT_CNT) {
+		dev_err(drv->dev,
+			"hns ge %d fifo was not idle.\n", drv->mac_id);
+		return -EBUSY;
+	}
+
+	return 0;
 }
 
 static void hns_gmac_init(void *mac_drv)
@@ -690,6 +724,7 @@ void *hns_gmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 	mac_drv->mac_disable = hns_gmac_disable;
 	mac_drv->mac_free = hns_gmac_free;
 	mac_drv->adjust_link = hns_gmac_adjust_link;
+	mac_drv->need_adjust_link = hns_gmac_need_adjust_link;
 	mac_drv->set_tx_auto_pause_frames = hns_gmac_set_tx_auto_pause_frames;
 	mac_drv->config_max_frame_length = hns_gmac_config_max_frame_length;
 	mac_drv->mac_pausefrm_cfg = hns_gmac_pause_frm_cfg;
@@ -717,6 +752,7 @@ void *hns_gmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 	mac_drv->get_strings = hns_gmac_get_strings;
 	mac_drv->update_stats = hns_gmac_update_stats;
 	mac_drv->set_promiscuous = hns_gmac_set_promisc;
+	mac_drv->wait_fifo_clean = hns_gmac_wait_fifo_clean;
 
 	return (void *)mac_drv;
 }

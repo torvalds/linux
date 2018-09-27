@@ -247,6 +247,7 @@ struct pp_hwmgr_func {
 	int (*powerdown_uvd)(struct pp_hwmgr *hwmgr);
 	void (*powergate_vce)(struct pp_hwmgr *hwmgr, bool bgate);
 	void (*powergate_uvd)(struct pp_hwmgr *hwmgr, bool bgate);
+	void (*powergate_acp)(struct pp_hwmgr *hwmgr, bool bgate);
 	uint32_t (*get_mclk)(struct pp_hwmgr *hwmgr, bool low);
 	uint32_t (*get_sclk)(struct pp_hwmgr *hwmgr, bool low);
 	int (*power_state_set)(struct pp_hwmgr *hwmgr,
@@ -297,7 +298,6 @@ struct pp_hwmgr_func {
 	int (*display_clock_voltage_request)(struct pp_hwmgr *hwmgr,
 			struct pp_display_clock_request *clock);
 	int (*get_max_high_clocks)(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
-	int (*gfx_off_control)(struct pp_hwmgr *hwmgr, bool enable);
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
 	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, char *buf);
@@ -583,6 +583,7 @@ struct phm_ppt_v3_information
 	uint32_t *power_saving_clock_max;
 	uint32_t *power_saving_clock_min;
 
+	uint8_t *od_feature_capabilities;
 	uint32_t *od_settings_max;
 	uint32_t *od_settings_min;
 
