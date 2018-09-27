@@ -2658,19 +2658,22 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 	}
 
 	if (params->spp_flags & SPP_IPV6_FLOWLABEL) {
-		if (trans && trans->ipaddr.sa.sa_family == AF_INET6) {
-			trans->flowlabel = params->spp_ipv6_flowlabel &
-					   SCTP_FLOWLABEL_VAL_MASK;
-			trans->flowlabel |= SCTP_FLOWLABEL_SET_MASK;
-		} else if (asoc) {
-			list_for_each_entry(trans,
-					    &asoc->peer.transport_addr_list,
-					    transports) {
-				if (trans->ipaddr.sa.sa_family != AF_INET6)
-					continue;
+		if (trans) {
+			if (trans->ipaddr.sa.sa_family == AF_INET6) {
 				trans->flowlabel = params->spp_ipv6_flowlabel &
 						   SCTP_FLOWLABEL_VAL_MASK;
 				trans->flowlabel |= SCTP_FLOWLABEL_SET_MASK;
+			}
+		} else if (asoc) {
+			struct sctp_transport *t;
+
+			list_for_each_entry(t, &asoc->peer.transport_addr_list,
+					    transports) {
+				if (t->ipaddr.sa.sa_family != AF_INET6)
+					continue;
+				t->flowlabel = params->spp_ipv6_flowlabel &
+					       SCTP_FLOWLABEL_VAL_MASK;
+				t->flowlabel |= SCTP_FLOWLABEL_SET_MASK;
 			}
 			asoc->flowlabel = params->spp_ipv6_flowlabel &
 					  SCTP_FLOWLABEL_VAL_MASK;
@@ -2687,12 +2690,13 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 			trans->dscp = params->spp_dscp & SCTP_DSCP_VAL_MASK;
 			trans->dscp |= SCTP_DSCP_SET_MASK;
 		} else if (asoc) {
-			list_for_each_entry(trans,
-					    &asoc->peer.transport_addr_list,
+			struct sctp_transport *t;
+
+			list_for_each_entry(t, &asoc->peer.transport_addr_list,
 					    transports) {
-				trans->dscp = params->spp_dscp &
-					      SCTP_DSCP_VAL_MASK;
-				trans->dscp |= SCTP_DSCP_SET_MASK;
+				t->dscp = params->spp_dscp &
+					  SCTP_DSCP_VAL_MASK;
+				t->dscp |= SCTP_DSCP_SET_MASK;
 			}
 			asoc->dscp = params->spp_dscp & SCTP_DSCP_VAL_MASK;
 			asoc->dscp |= SCTP_DSCP_SET_MASK;
@@ -5005,9 +5009,14 @@ struct sctp_transport *sctp_transport_get_next(struct net *net,
 			break;
 		}
 
+		if (!sctp_transport_hold(t))
+			continue;
+
 		if (net_eq(sock_net(t->asoc->base.sk), net) &&
 		    t->asoc->peer.primary_path == t)
 			break;
+
+		sctp_transport_put(t);
 	}
 
 	return t;
@@ -5017,13 +5026,18 @@ struct sctp_transport *sctp_transport_get_idx(struct net *net,
 					      struct rhashtable_iter *iter,
 					      int pos)
 {
-	void *obj = SEQ_START_TOKEN;
+	struct sctp_transport *t;
 
-	while (pos && (obj = sctp_transport_get_next(net, iter)) &&
-	       !IS_ERR(obj))
-		pos--;
+	if (!pos)
+		return SEQ_START_TOKEN;
 
-	return obj;
+	while ((t = sctp_transport_get_next(net, iter)) && !IS_ERR(t)) {
+		if (!--pos)
+			break;
+		sctp_transport_put(t);
+	}
+
+	return t;
 }
 
 int sctp_for_each_endpoint(int (*cb)(struct sctp_endpoint *, void *),
@@ -5082,8 +5096,6 @@ again:
 
 	tsp = sctp_transport_get_idx(net, &hti, *pos + 1);
 	for (; !IS_ERR_OR_NULL(tsp); tsp = sctp_transport_get_next(net, &hti)) {
-		if (!sctp_transport_hold(tsp))
-			continue;
 		ret = cb(tsp, p);
 		if (ret)
 			break;

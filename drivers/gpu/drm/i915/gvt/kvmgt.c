@@ -32,6 +32,7 @@
 #include <linux/device.h>
 #include <linux/mm.h>
 #include <linux/mmu_context.h>
+#include <linux/sched/mm.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
@@ -1792,16 +1793,21 @@ static int kvmgt_rw_gpa(unsigned long handle, unsigned long gpa,
 	info = (struct kvmgt_guest_info *)handle;
 	kvm = info->kvm;
 
-	if (kthread)
+	if (kthread) {
+		if (!mmget_not_zero(kvm->mm))
+			return -EFAULT;
 		use_mm(kvm->mm);
+	}
 
 	idx = srcu_read_lock(&kvm->srcu);
 	ret = write ? kvm_write_guest(kvm, gpa, buf, len) :
 		      kvm_read_guest(kvm, gpa, buf, len);
 	srcu_read_unlock(&kvm->srcu, idx);
 
-	if (kthread)
+	if (kthread) {
 		unuse_mm(kvm->mm);
+		mmput(kvm->mm);
+	}
 
 	return ret;
 }
@@ -1827,6 +1833,8 @@ static bool kvmgt_is_valid_gfn(unsigned long handle, unsigned long gfn)
 {
 	struct kvmgt_guest_info *info;
 	struct kvm *kvm;
+	int idx;
+	bool ret;
 
 	if (!handle_valid(handle))
 		return false;
@@ -1834,8 +1842,11 @@ static bool kvmgt_is_valid_gfn(unsigned long handle, unsigned long gfn)
 	info = (struct kvmgt_guest_info *)handle;
 	kvm = info->kvm;
 
-	return kvm_is_visible_gfn(kvm, gfn);
+	idx = srcu_read_lock(&kvm->srcu);
+	ret = kvm_is_visible_gfn(kvm, gfn);
+	srcu_read_unlock(&kvm->srcu, idx);
 
+	return ret;
 }
 
 struct intel_gvt_mpt kvmgt_mpt = {

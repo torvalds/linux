@@ -2163,8 +2163,11 @@ static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
 {
 	const int op = bio_op(bio);
 
-	if (part->policy && (op_is_write(op) && !op_is_flush(op))) {
+	if (part->policy && op_is_write(op)) {
 		char b[BDEVNAME_SIZE];
+
+		if (op_is_flush(bio->bi_opf) && !bio_sectors(bio))
+			return false;
 
 		WARN_ONCE(1,
 		       "generic_make_request: Trying to write "
@@ -2730,17 +2733,15 @@ void blk_account_io_done(struct request *req, u64 now)
 	 * containing request is enough.
 	 */
 	if (blk_do_io_stat(req) && !(req->rq_flags & RQF_FLUSH_SEQ)) {
-		unsigned long duration;
 		const int sgrp = op_stat_group(req_op(req));
 		struct hd_struct *part;
 		int cpu;
 
-		duration = nsecs_to_jiffies(now - req->start_time_ns);
 		cpu = part_stat_lock();
 		part = req->part;
 
 		part_stat_inc(cpu, part, ios[sgrp]);
-		part_stat_add(cpu, part, ticks[sgrp], duration);
+		part_stat_add(cpu, part, nsecs[sgrp], now - req->start_time_ns);
 		part_round_stats(req->q, cpu, part);
 		part_dec_in_flight(req->q, part, rq_data_dir(req));
 

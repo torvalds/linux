@@ -320,7 +320,7 @@ static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
 		goto free_req;
 
 	iv = buf;
-	memcpy(iv, tls_ctx->crypto_send_aes_gcm_128.salt,
+	memcpy(iv, tls_ctx->crypto_send.aes_gcm_128.salt,
 	       TLS_CIPHER_AES_GCM_128_SALT_SIZE);
 	aad = buf + TLS_CIPHER_AES_GCM_128_SALT_SIZE +
 	      TLS_CIPHER_AES_GCM_128_IV_SIZE;

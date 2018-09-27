@@ -129,7 +129,7 @@ static int snd_rawmidi_runtime_create(struct snd_rawmidi_substream *substream)
 		runtime->avail = 0;
 	else
 		runtime->avail = runtime->buffer_size;
-	runtime->buffer = kvmalloc(runtime->buffer_size, GFP_KERNEL);
+	runtime->buffer = kvzalloc(runtime->buffer_size, GFP_KERNEL);
 	if (!runtime->buffer) {
 		kfree(runtime);
 		return -ENOMEM;
@@ -655,7 +655,7 @@ static int resize_runtime_buffer(struct snd_rawmidi_runtime *runtime,
 	if (params->avail_min < 1 || params->avail_min > params->buffer_size)
 		return -EINVAL;
 	if (params->buffer_size != runtime->buffer_size) {
-		newbuf = kvmalloc(params->buffer_size, GFP_KERNEL);
+		newbuf = kvzalloc(params->buffer_size, GFP_KERNEL);
 		if (!newbuf)
 			return -ENOMEM;
 		spin_lock_irq(&runtime->lock);

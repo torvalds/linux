@@ -70,7 +70,7 @@ static bool generic_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return ret;
 }
 
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
@@ -113,7 +113,7 @@ static const struct nla_policy
 generic_timeout_nla_policy[CTA_TIMEOUT_GENERIC_MAX+1] = {
 	[CTA_TIMEOUT_GENERIC_TIMEOUT]	= { .type = NLA_U32 },
 };
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table generic_sysctl_table[] = {
@@ -164,7 +164,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic =
 	.pkt_to_tuple		= generic_pkt_to_tuple,
 	.packet			= generic_packet,
 	.new			= generic_new,
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	.ctnl_timeout		= {
 		.nlattr_to_obj	= generic_timeout_nlattr_to_obj,
 		.obj_to_nlattr	= generic_timeout_obj_to_nlattr,
@@ -172,7 +172,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic =
 		.obj_size	= sizeof(unsigned int),
 		.nla_policy	= generic_timeout_nla_policy,
 	},
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 	.init_net		= generic_init_net,
 	.get_net_proto		= generic_get_net_proto,
 };
