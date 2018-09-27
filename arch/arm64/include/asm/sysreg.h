@@ -20,7 +20,6 @@
 #ifndef __ASM_SYSREG_H
 #define __ASM_SYSREG_H
 
-#include <asm/compiler.h>
 #include <linux/stringify.h>
 
 /*
