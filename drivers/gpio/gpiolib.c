@@ -3346,15 +3346,16 @@ EXPORT_SYMBOL_GPL(gpiod_set_raw_array_value);
  * This function should be called from contexts where we cannot sleep, and will
  * complain if the GPIO chip functions potentially sleep.
  */
-void gpiod_set_array_value(unsigned int array_size,
-			   struct gpio_desc **desc_array,
-			   struct gpio_array *array_info,
-			   unsigned long *value_bitmap)
+int gpiod_set_array_value(unsigned int array_size,
+			  struct gpio_desc **desc_array,
+			  struct gpio_array *array_info,
+			  unsigned long *value_bitmap)
 {
 	if (!desc_array)
-		return;
-	gpiod_set_array_value_complex(false, false, array_size, desc_array,
-				      array_info, value_bitmap);
+		return -EINVAL;
+	return gpiod_set_array_value_complex(false, false, array_size,
+					     desc_array, array_info,
+					     value_bitmap);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_array_value);
 
@@ -3763,16 +3764,17 @@ void gpiod_add_lookup_tables(struct gpiod_lookup_table **tables, size_t n)
  *
  * This function is to be called from contexts that can sleep.
  */
-void gpiod_set_array_value_cansleep(unsigned int array_size,
-				    struct gpio_desc **desc_array,
-				    struct gpio_array *array_info,
-				    unsigned long *value_bitmap)
+int gpiod_set_array_value_cansleep(unsigned int array_size,
+				   struct gpio_desc **desc_array,
+				   struct gpio_array *array_info,
+				   unsigned long *value_bitmap)
 {
 	might_sleep_if(extra_checks);
 	if (!desc_array)
-		return;
-	gpiod_set_array_value_complex(false, true, array_size, desc_array,
-				      array_info, value_bitmap);
+		return -EINVAL;
+	return gpiod_set_array_value_complex(false, true, array_size,
+					     desc_array, array_info,
+					     value_bitmap);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_array_value_cansleep);
 

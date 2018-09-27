@@ -340,18 +340,18 @@ The following functions get or set the values of an array of GPIOs::
 					   struct gpio_array *array_info,
 					   unsigned long *value_bitmap);
 
-	void gpiod_set_array_value(unsigned int array_size,
-				   struct gpio_desc **desc_array,
-				   struct gpio_array *array_info,
-				   unsigned long *value_bitmap)
+	int gpiod_set_array_value(unsigned int array_size,
+				  struct gpio_desc **desc_array,
+				  struct gpio_array *array_info,
+				  unsigned long *value_bitmap)
 	int gpiod_set_raw_array_value(unsigned int array_size,
 				      struct gpio_desc **desc_array,
 				      struct gpio_array *array_info,
 				      unsigned long *value_bitmap)
-	void gpiod_set_array_value_cansleep(unsigned int array_size,
-					    struct gpio_desc **desc_array,
-					    struct gpio_array *array_info,
-					    unsigned long *value_bitmap)
+	int gpiod_set_array_value_cansleep(unsigned int array_size,
+					   struct gpio_desc **desc_array,
+					   struct gpio_array *array_info,
+					   unsigned long *value_bitmap)
 	int gpiod_set_raw_array_value_cansleep(unsigned int array_size,
 					       struct gpio_desc **desc_array,
 					       struct gpio_array *array_info,
