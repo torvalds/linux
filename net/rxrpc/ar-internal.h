@@ -463,6 +463,16 @@ struct rxrpc_connection {
 	u8			out_clientflag;	/* RXRPC_CLIENT_INITIATED if we are client */
 };
 
+static inline bool rxrpc_to_server(const struct rxrpc_skb_priv *sp)
+{
+	return sp->hdr.flags & RXRPC_CLIENT_INITIATED;
+}
+
+static inline bool rxrpc_to_client(const struct rxrpc_skb_priv *sp)
+{
+	return !rxrpc_to_server(sp);
+}
+
 /*
  * Flags in call->flags.
  */
