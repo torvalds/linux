@@ -30,6 +30,9 @@
 #include "blk-mq-sched.h"
 #include "blk-mq-tag.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/kyber.h>
+
 /*
  * Scheduling domains: the device is divided into multiple domains based on the
  * request type.
@@ -40,6 +43,13 @@ enum {
 	KYBER_DISCARD,
 	KYBER_OTHER,
 	KYBER_NUM_DOMAINS,
+};
+
+static const char *kyber_domain_names[] = {
+	[KYBER_READ] = "READ",
+	[KYBER_WRITE] = "WRITE",
+	[KYBER_DISCARD] = "DISCARD",
+	[KYBER_OTHER] = "OTHER",
 };
 
 enum {
@@ -122,6 +132,11 @@ enum {
 	KYBER_IO_LATENCY,
 };
 
+static const char *kyber_latency_type_names[] = {
+	[KYBER_TOTAL_LATENCY] = "total",
+	[KYBER_IO_LATENCY] = "I/O",
+};
+
 /*
  * Per-cpu latency histograms: total latency and I/O latency for each scheduling
  * domain except for KYBER_OTHER.
@@ -144,6 +159,8 @@ struct kyber_ctx_queue {
 } ____cacheline_aligned_in_smp;
 
 struct kyber_queue_data {
+	struct request_queue *q;
+
 	/*
 	 * Each scheduling domain has a limited number of in-flight requests
 	 * device-wide, limited by these tokens.
@@ -249,6 +266,10 @@ static int calculate_percentile(struct kyber_queue_data *kqd,
 	}
 	memset(buckets, 0, sizeof(kqd->latency_buckets[sched_domain][type]));
 
+	trace_kyber_latency(kqd->q, kyber_domain_names[sched_domain],
+			    kyber_latency_type_names[type], percentile,
+			    bucket + 1, 1 << KYBER_LATENCY_SHIFT, samples);
+
 	return bucket;
 }
 
@@ -256,8 +277,11 @@ static void kyber_resize_domain(struct kyber_queue_data *kqd,
 				unsigned int sched_domain, unsigned int depth)
 {
 	depth = clamp(depth, 1U, kyber_depth[sched_domain]);
-	if (depth != kqd->domain_tokens[sched_domain].sb.depth)
+	if (depth != kqd->domain_tokens[sched_domain].sb.depth) {
 		sbitmap_queue_resize(&kqd->domain_tokens[sched_domain], depth);
+		trace_kyber_adjust(kqd->q, kyber_domain_names[sched_domain],
+				   depth);
+	}
 }
 
 static void kyber_timer_fn(struct timer_list *t)
@@ -359,6 +383,8 @@ static struct kyber_queue_data *kyber_queue_data_alloc(struct request_queue *q)
 	kqd = kzalloc_node(sizeof(*kqd), GFP_KERNEL, q->node);
 	if (!kqd)
 		goto err;
+
+	kqd->q = q;
 
 	kqd->cpu_latency = alloc_percpu_gfp(struct kyber_cpu_latency,
 					    GFP_KERNEL | __GFP_ZERO);
@@ -756,6 +782,9 @@ kyber_dispatch_cur_domain(struct kyber_queue_data *kqd,
 			rq_set_domain_token(rq, nr);
 			list_del_init(&rq->queuelist);
 			return rq;
+		} else {
+			trace_kyber_throttled(kqd->q,
+					      kyber_domain_names[khd->cur_domain]);
 		}
 	} else if (sbitmap_any_bit_set(&khd->kcq_map[khd->cur_domain])) {
 		nr = kyber_get_domain_token(kqd, khd, hctx);
@@ -766,6 +795,9 @@ kyber_dispatch_cur_domain(struct kyber_queue_data *kqd,
 			rq_set_domain_token(rq, nr);
 			list_del_init(&rq->queuelist);
 			return rq;
+		} else {
+			trace_kyber_throttled(kqd->q,
+					      kyber_domain_names[khd->cur_domain]);
 		}
 	}
 
@@ -944,23 +976,7 @@ static int kyber_cur_domain_show(void *data, struct seq_file *m)
 	struct blk_mq_hw_ctx *hctx = data;
 	struct kyber_hctx_data *khd = hctx->sched_data;
 
-	switch (khd->cur_domain) {
-	case KYBER_READ:
-		seq_puts(m, "READ\n");
-		break;
-	case KYBER_WRITE:
-		seq_puts(m, "WRITE\n");
-		break;
-	case KYBER_DISCARD:
-		seq_puts(m, "DISCARD\n");
-		break;
-	case KYBER_OTHER:
-		seq_puts(m, "OTHER\n");
-		break;
-	default:
-		seq_printf(m, "%u\n", khd->cur_domain);
-		break;
-	}
+	seq_printf(m, "%s\n", kyber_domain_names[khd->cur_domain]);
 	return 0;
 }
 
