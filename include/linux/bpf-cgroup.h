@@ -37,7 +37,10 @@ struct bpf_storage_buffer {
 };
 
 struct bpf_cgroup_storage {
-	struct bpf_storage_buffer *buf;
+	union {
+		struct bpf_storage_buffer *buf;
+		void __percpu *percpu_buf;
+	};
 	struct bpf_cgroup_storage_map *map;
 	struct bpf_cgroup_storage_key key;
 	struct list_head list;
@@ -109,6 +112,9 @@ int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
 static inline enum bpf_cgroup_storage_type cgroup_storage_type(
 	struct bpf_map *map)
 {
+	if (map->map_type == BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE)
+		return BPF_CGROUP_STORAGE_PERCPU;
+
 	return BPF_CGROUP_STORAGE_SHARED;
 }
 
@@ -130,6 +136,10 @@ void bpf_cgroup_storage_link(struct bpf_cgroup_storage *storage,
 void bpf_cgroup_storage_unlink(struct bpf_cgroup_storage *storage);
 int bpf_cgroup_storage_assign(struct bpf_prog *prog, struct bpf_map *map);
 void bpf_cgroup_storage_release(struct bpf_prog *prog, struct bpf_map *map);
+
+int bpf_percpu_cgroup_storage_copy(struct bpf_map *map, void *key, void *value);
+int bpf_percpu_cgroup_storage_update(struct bpf_map *map, void *key,
+				     void *value, u64 flags);
 
 /* Wrappers for __cgroup_bpf_run_filter_skb() guarded by cgroup_bpf_enabled. */
 #define BPF_CGROUP_RUN_PROG_INET_INGRESS(sk, skb)			      \
@@ -285,6 +295,14 @@ static inline struct bpf_cgroup_storage *bpf_cgroup_storage_alloc(
 	struct bpf_prog *prog, enum bpf_cgroup_storage_type stype) { return 0; }
 static inline void bpf_cgroup_storage_free(
 	struct bpf_cgroup_storage *storage) {}
+static inline int bpf_percpu_cgroup_storage_copy(struct bpf_map *map, void *key,
+						 void *value) {
+	return 0;
+}
+static inline int bpf_percpu_cgroup_storage_update(struct bpf_map *map,
+					void *key, void *value, u64 flags) {
+	return 0;
+}
 
 #define cgroup_bpf_enabled (0)
 #define BPF_CGROUP_PRE_CONNECT_ENABLED(sk) (0)

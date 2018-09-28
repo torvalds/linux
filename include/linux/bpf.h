@@ -274,6 +274,7 @@ struct bpf_prog_offload {
 
 enum bpf_cgroup_storage_type {
 	BPF_CGROUP_STORAGE_SHARED,
+	BPF_CGROUP_STORAGE_PERCPU,
 	__BPF_CGROUP_STORAGE_MAX
 };
 
