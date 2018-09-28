@@ -312,7 +312,7 @@ static void scale_change(struct iolatency_grp *iolat, bool up)
 			iolat->rq_depth.max_depth = old;
 			wake_up_all(&iolat->rq_wait.wait);
 		}
-	} else if (old > 1) {
+	} else {
 		old >>= 1;
 		iolat->rq_depth.max_depth = max(old, 1UL);
 	}
