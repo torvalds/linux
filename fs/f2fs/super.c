@@ -1551,6 +1551,7 @@ skip:
 		(test_opt(sbi, POSIX_ACL) ? MS_POSIXACL : 0);
 
 	limit_reserve_root(sbi);
+	*flags = (*flags & ~MS_LAZYTIME) | (sb->s_flags & MS_LAZYTIME);
 	return 0;
 restore_gc:
 	if (need_restart_gc) {
