@@ -417,8 +417,8 @@ static void dump_pptable(PPTable_t *pptable)
 	pr_info("FanGainEdge = %d\n", pptable->FanGainEdge);
 	pr_info("FanGainHotspot = %d\n", pptable->FanGainHotspot);
 	pr_info("FanGainLiquid = %d\n", pptable->FanGainLiquid);
-	pr_info("FanGainVrVddc = %d\n", pptable->FanGainVrVddc);
-	pr_info("FanGainVrMvdd = %d\n", pptable->FanGainVrMvdd);
+	pr_info("FanGainVrGfx = %d\n", pptable->FanGainVrGfx);
+	pr_info("FanGainVrSoc = %d\n", pptable->FanGainVrSoc);
 	pr_info("FanGainPlx = %d\n", pptable->FanGainPlx);
 	pr_info("FanGainHbm = %d\n", pptable->FanGainHbm);
 	pr_info("FanPwmMin = %d\n", pptable->FanPwmMin);
@@ -533,23 +533,17 @@ static void dump_pptable(PPTable_t *pptable)
 	pr_info("MinVoltageUlvGfx = %d\n", pptable->MinVoltageUlvGfx);
 	pr_info("MinVoltageUlvSoc = %d\n", pptable->MinVoltageUlvSoc);
 
-	for (i = 0; i < 14; i++)
+	pr_info("MGpuFanBoostLimitRpm = %d\n", pptable->MGpuFanBoostLimitRpm);
+	pr_info("padding16_Fan = %d\n", pptable->padding16_Fan);
+
+	pr_info("FanGainVrMem0 = %d\n", pptable->FanGainVrMem0);
+	pr_info("FanGainVrMem0 = %d\n", pptable->FanGainVrMem0);
+
+	for (i = 0; i < 12; i++)
 		pr_info("Reserved[%d] = 0x%x\n", i, pptable->Reserved[i]);
 
-	pr_info("Liquid1_I2C_address = 0x%x\n", pptable->Liquid1_I2C_address);
-	pr_info("Liquid2_I2C_address = 0x%x\n", pptable->Liquid2_I2C_address);
-	pr_info("Vr_I2C_address = 0x%x\n", pptable->Vr_I2C_address);
-	pr_info("Plx_I2C_address = 0x%x\n", pptable->Plx_I2C_address);
-
-	pr_info("Liquid_I2C_LineSCL = 0x%x\n", pptable->Liquid_I2C_LineSCL);
-	pr_info("Liquid_I2C_LineSDA = 0x%x\n", pptable->Liquid_I2C_LineSDA);
-	pr_info("Vr_I2C_LineSCL = 0x%x\n", pptable->Vr_I2C_LineSCL);
-	pr_info("Vr_I2C_LineSDA = 0x%x\n", pptable->Vr_I2C_LineSDA);
-
-	pr_info("Plx_I2C_LineSCL = 0x%x\n", pptable->Plx_I2C_LineSCL);
-	pr_info("Plx_I2C_LineSDA = 0x%x\n", pptable->Plx_I2C_LineSDA);
-	pr_info("VrSensorPresent = 0x%x\n", pptable->VrSensorPresent);
-	pr_info("LiquidSensorPresent = 0x%x\n", pptable->LiquidSensorPresent);
+	for (i = 0; i < 3; i++)
+		pr_info("Padding32[%d] = 0x%x\n", i, pptable->Padding32[i]);
 
 	pr_info("MaxVoltageStepGfx = 0x%x\n", pptable->MaxVoltageStepGfx);
 	pr_info("MaxVoltageStepSoc = 0x%x\n", pptable->MaxVoltageStepSoc);
@@ -610,6 +604,24 @@ static void dump_pptable(PPTable_t *pptable)
 	pr_info("FllGfxclkSpreadEnabled = %d\n", pptable->FllGfxclkSpreadEnabled);
 	pr_info("FllGfxclkSpreadPercent = %d\n", pptable->FllGfxclkSpreadPercent);
 	pr_info("FllGfxclkSpreadFreq = %d\n", pptable->FllGfxclkSpreadFreq);
+
+	for (i = 0; i < I2C_CONTROLLER_NAME_COUNT; i++) {
+		pr_info("I2cControllers[%d]:\n", i);
+		pr_info("                   .Enabled = %d\n",
+				pptable->I2cControllers[i].Enabled);
+		pr_info("                   .SlaveAddress = 0x%x\n",
+				pptable->I2cControllers[i].SlaveAddress);
+		pr_info("                   .ControllerPort = %d\n",
+				pptable->I2cControllers[i].ControllerPort);
+		pr_info("                   .ControllerName = %d\n",
+				pptable->I2cControllers[i].ControllerName);
+		pr_info("                   .ThermalThrottler = %d\n",
+				pptable->I2cControllers[i].ThermalThrottler);
+		pr_info("                   .I2cProtocol = %d\n",
+				pptable->I2cControllers[i].I2cProtocol);
+		pr_info("                   .I2cSpeed = %d\n",
+				pptable->I2cControllers[i].I2cSpeed);
+	}
 
 	for (i = 0; i < 10; i++)
 		pr_info("BoardReserved[%d] = 0x%x\n", i, pptable->BoardReserved[i]);
@@ -693,29 +705,19 @@ static int copy_overdrive_feature_capabilities_array(
 
 static int append_vbios_pptable(struct pp_hwmgr *hwmgr, PPTable_t *ppsmc_pptable)
 {
-	struct atom_smc_dpm_info_v4_3 *smc_dpm_table;
+	struct atom_smc_dpm_info_v4_4 *smc_dpm_table;
 	int index = GetIndexIntoMasterDataTable(smc_dpm_info);
+	int i;
 
 	PP_ASSERT_WITH_CODE(
 		smc_dpm_table = smu_atom_get_data_table(hwmgr->adev, index, NULL, NULL, NULL),
 		"[appendVbiosPPTable] Failed to retrieve Smc Dpm Table from VBIOS!",
 		return -1);
 
-	ppsmc_pptable->Liquid1_I2C_address = smc_dpm_table->liquid1_i2c_address;
-	ppsmc_pptable->Liquid2_I2C_address = smc_dpm_table->liquid2_i2c_address;
-	ppsmc_pptable->Vr_I2C_address = smc_dpm_table->vr_i2c_address;
-	ppsmc_pptable->Plx_I2C_address = smc_dpm_table->plx_i2c_address;
-
-	ppsmc_pptable->Liquid_I2C_LineSCL = smc_dpm_table->liquid_i2c_linescl;
-	ppsmc_pptable->Liquid_I2C_LineSDA = smc_dpm_table->liquid_i2c_linesda;
-	ppsmc_pptable->Vr_I2C_LineSCL = smc_dpm_table->vr_i2c_linescl;
-	ppsmc_pptable->Vr_I2C_LineSDA = smc_dpm_table->vr_i2c_linesda;
-
-	ppsmc_pptable->Plx_I2C_LineSCL = smc_dpm_table->plx_i2c_linescl;
-	ppsmc_pptable->Plx_I2C_LineSDA = smc_dpm_table->plx_i2c_linesda;
-	ppsmc_pptable->VrSensorPresent = smc_dpm_table->vrsensorpresent;
-	ppsmc_pptable->LiquidSensorPresent = smc_dpm_table->liquidsensorpresent;
-
+	memset(ppsmc_pptable->Padding32,
+			0,
+			sizeof(struct atom_smc_dpm_info_v4_4) -
+			sizeof(struct atom_common_table_header));
 	ppsmc_pptable->MaxVoltageStepGfx = smc_dpm_table->maxvoltagestepgfx;
 	ppsmc_pptable->MaxVoltageStepSoc = smc_dpm_table->maxvoltagestepsoc;
 
@@ -773,6 +775,24 @@ static int append_vbios_pptable(struct pp_hwmgr *hwmgr, PPTable_t *ppsmc_pptable
 	ppsmc_pptable->FllGfxclkSpreadEnabled = smc_dpm_table->fllgfxclkspreadenabled;
 	ppsmc_pptable->FllGfxclkSpreadPercent = smc_dpm_table->fllgfxclkspreadpercent;
 	ppsmc_pptable->FllGfxclkSpreadFreq = smc_dpm_table->fllgfxclkspreadfreq;
+
+	if ((smc_dpm_table->table_header.format_revision == 4) &&
+	    (smc_dpm_table->table_header.content_revision == 4)) {
+		for (i = 0; i < I2C_CONTROLLER_NAME_COUNT; i++) {
+			ppsmc_pptable->I2cControllers[i].Enabled =
+				smc_dpm_table->i2ccontrollers[i].enabled;
+			ppsmc_pptable->I2cControllers[i].SlaveAddress =
+				smc_dpm_table->i2ccontrollers[i].slaveaddress;
+			ppsmc_pptable->I2cControllers[i].ControllerPort =
+				smc_dpm_table->i2ccontrollers[i].controllerport;
+			ppsmc_pptable->I2cControllers[i].ThermalThrottler =
+				smc_dpm_table->i2ccontrollers[i].thermalthrottler;
+			ppsmc_pptable->I2cControllers[i].I2cProtocol =
+				smc_dpm_table->i2ccontrollers[i].i2cprotocol;
+			ppsmc_pptable->I2cControllers[i].I2cSpeed =
+				smc_dpm_table->i2ccontrollers[i].i2cspeed;
+		}
+	}
 
 	return 0;
 }
@@ -860,7 +880,15 @@ static int init_powerplay_table_information(
 	if (pptable_information->smc_pptable == NULL)
 		return -ENOMEM;
 
-	memcpy(pptable_information->smc_pptable, &(powerplay_table->smcPPTable), sizeof(PPTable_t));
+	if (powerplay_table->smcPPTable.Version <= 2)
+		memcpy(pptable_information->smc_pptable,
+				&(powerplay_table->smcPPTable),
+				sizeof(PPTable_t) -
+				sizeof(I2cControllerConfig_t) * I2C_CONTROLLER_NAME_COUNT);
+	else
+		memcpy(pptable_information->smc_pptable,
+				&(powerplay_table->smcPPTable),
+				sizeof(PPTable_t));
 
 	result = append_vbios_pptable(hwmgr, (pptable_information->smc_pptable));
 
