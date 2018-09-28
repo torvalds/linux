@@ -112,8 +112,7 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 				continue;
 			}
 
-			bch2_extent_crc_append(insert, p.crc);
-			extent_ptr_append(insert, p.ptr);
+			bch2_extent_ptr_decoded_append(insert, &p);
 			did_work = true;
 		}
 

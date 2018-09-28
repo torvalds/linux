@@ -431,12 +431,16 @@ static void init_append_extent(struct bch_write_op *op,
 	struct bkey_i_extent *e = bkey_extent_init(op->insert_keys.top);
 
 	op->pos.offset += crc.uncompressed_size;
-	e->k.p = op->pos;
-	e->k.size = crc.uncompressed_size;
-	e->k.version = version;
+	e->k.p		= op->pos;
+	e->k.size	= crc.uncompressed_size;
+	e->k.version	= version;
 	bkey_extent_set_cached(&e->k, op->flags & BCH_WRITE_CACHED);
 
-	bch2_extent_crc_append(e, crc);
+	if (crc.csum_type ||
+	    crc.compression_type ||
+	    crc.nonce)
+		bch2_extent_crc_append(e, crc);
+
 	bch2_alloc_sectors_append_ptrs(op->c, wp, e, crc.compressed_size);
 
 	bch2_keylist_push(&op->insert_keys);

@@ -332,36 +332,36 @@ bool bch2_extent_narrow_crcs(struct bkey_i_extent *e,
 	struct bch_extent_crc_unpacked u;
 	struct extent_ptr_decoded p;
 	union bch_extent_entry *i;
+	bool ret = false;
 
 	/* Find a checksum entry that covers only live data: */
-	if (!n.csum_type)
+	if (!n.csum_type) {
 		extent_for_each_crc(extent_i_to_s(e), u, i)
 			if (!u.compression_type &&
 			    u.csum_type &&
 			    u.live_size == u.uncompressed_size) {
 				n = u;
-				break;
+				goto found;
 			}
-
-	if (!bch2_can_narrow_extent_crcs(extent_i_to_s_c(e), n))
 		return false;
-
+	}
+found:
 	BUG_ON(n.compression_type);
 	BUG_ON(n.offset);
 	BUG_ON(n.live_size != e->k.size);
 
-	bch2_extent_crc_append(e, n);
 restart_narrow_pointers:
 	extent_for_each_ptr_decode(extent_i_to_s(e), p, i)
 		if (can_narrow_crc(p.crc, n)) {
-			i->ptr.offset += p.crc.offset;
-			extent_ptr_append(e, i->ptr);
 			bch2_extent_drop_ptr(extent_i_to_s(e), &i->ptr);
+			p.ptr.offset += p.crc.offset;
+			p.crc = n;
+			bch2_extent_ptr_decoded_append(e, &p);
+			ret = true;
 			goto restart_narrow_pointers;
 		}
 
-	bch2_extent_drop_redundant_crcs(extent_i_to_s(e));
-	return true;
+	return ret;
 }
 
 /* returns true if not equal */
@@ -376,66 +376,6 @@ static inline bool bch2_crc_unpacked_cmp(struct bch_extent_crc_unpacked l,
 		l.live_size		!= r.live_size ||
 		l.nonce			!= r.nonce ||
 		bch2_crc_cmp(l.csum, r.csum));
-}
-
-void bch2_extent_drop_redundant_crcs(struct bkey_s_extent e)
-{
-	union bch_extent_entry *entry = e.v->start;
-	union bch_extent_crc *crc, *prev = NULL;
-	struct bch_extent_crc_unpacked u, prev_u = { 0 };
-
-	while (entry != extent_entry_last(e)) {
-		union bch_extent_entry *next = extent_entry_next(entry);
-		size_t crc_u64s = extent_entry_u64s(entry);
-
-		if (!extent_entry_is_crc(entry))
-			goto next;
-
-		crc = entry_to_crc(entry);
-		u = bch2_extent_crc_unpack(e.k, crc);
-
-		if (next == extent_entry_last(e)) {
-			/* crc entry with no pointers after it: */
-			goto drop;
-		}
-
-		if (extent_entry_is_crc(next)) {
-			/* no pointers before next crc entry: */
-			goto drop;
-		}
-
-		if (prev && !bch2_crc_unpacked_cmp(u, prev_u)) {
-			/* identical to previous crc entry: */
-			goto drop;
-		}
-
-		if (!prev &&
-		    !u.csum_type &&
-		    !u.compression_type) {
-			/* null crc entry: */
-			union bch_extent_entry *e2;
-
-			extent_for_each_entry_from(e, e2, extent_entry_next(entry)) {
-				if (!extent_entry_is_ptr(e2))
-					break;
-
-				e2->ptr.offset += u.offset;
-			}
-			goto drop;
-		}
-
-		prev = crc;
-		prev_u = u;
-next:
-		entry = next;
-		continue;
-drop:
-		memmove_u64s_down(crc, next,
-				  (u64 *) extent_entry_last(e) - (u64 *) next);
-		e.k->u64s -= crc_u64s;
-	}
-
-	EBUG_ON(bkey_val_u64s(e.k) && !bch2_extent_nr_ptrs(e.c));
 }
 
 static void bch2_extent_drop_stale(struct bch_fs *c, struct bkey_s_extent e)
@@ -1846,25 +1786,44 @@ static void bch2_extent_crc_init(union bch_extent_crc *crc,
 void bch2_extent_crc_append(struct bkey_i_extent *e,
 			    struct bch_extent_crc_unpacked new)
 {
-	struct bch_extent_crc_unpacked crc;
-	const union bch_extent_entry *i;
-
-	BUG_ON(new.compressed_size > new.uncompressed_size);
-	BUG_ON(new.live_size != e->k.size);
-	BUG_ON(!new.compressed_size || !new.uncompressed_size);
-
-	/*
-	 * Look up the last crc entry, so we can check if we need to add
-	 * another:
-	 */
-	extent_for_each_crc(extent_i_to_s(e), crc, i)
-		;
-
-	if (!bch2_crc_unpacked_cmp(crc, new))
-		return;
-
 	bch2_extent_crc_init((void *) extent_entry_last(extent_i_to_s(e)), new);
 	__extent_entry_push(e);
+}
+
+static inline void __extent_entry_insert(struct bkey_i_extent *e,
+					 union bch_extent_entry *dst,
+					 union bch_extent_entry *new)
+{
+	union bch_extent_entry *end = extent_entry_last(extent_i_to_s(e));
+
+	memmove_u64s_up((u64 *) dst + extent_entry_u64s(new),
+			dst, (u64 *) end - (u64 *) dst);
+	e->k.u64s += extent_entry_u64s(new);
+	memcpy_u64s_small(dst, new, extent_entry_u64s(new));
+}
+
+void bch2_extent_ptr_decoded_append(struct bkey_i_extent *e,
+				    struct extent_ptr_decoded *p)
+{
+	struct bch_extent_crc_unpacked crc = bch2_extent_crc_unpack(&e->k, NULL);
+	union bch_extent_entry *pos;
+
+	if (!bch2_crc_unpacked_cmp(crc, p->crc)) {
+		pos = e->v.start;
+		goto found;
+	}
+
+	extent_for_each_crc(extent_i_to_s(e), crc, pos)
+		if (!bch2_crc_unpacked_cmp(crc, p->crc)) {
+			pos = extent_entry_next(pos);
+			goto found;
+		}
+
+	bch2_extent_crc_append(e, p->crc);
+	pos = extent_entry_last(extent_i_to_s(e));
+found:
+	p->ptr.type = 1 << BCH_EXTENT_ENTRY_ptr;
+	__extent_entry_insert(e, pos, to_entry(&p->ptr));
 }
 
 /*

@@ -581,6 +581,16 @@ size_t bch2_rand_range(size_t);
 void memcpy_to_bio(struct bio *, struct bvec_iter, void *);
 void memcpy_from_bio(void *, struct bio *, struct bvec_iter);
 
+static inline void memcpy_u64s_small(void *dst, const void *src,
+				     unsigned u64s)
+{
+	u64 *d = dst;
+	const u64 *s = src;
+
+	while (u64s--)
+		*d++ = *s++;
+}
+
 static inline void __memcpy_u64s(void *dst, const void *src,
 				 unsigned u64s)
 {
