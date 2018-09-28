@@ -102,7 +102,15 @@
 #define UNMAPPED_GVA (~(gpa_t)0)
 
 /* KVM Hugepage definitions for x86 */
-#define KVM_NR_PAGE_SIZES	3
+enum {
+	PT_PAGE_TABLE_LEVEL   = 1,
+	PT_DIRECTORY_LEVEL    = 2,
+	PT_PDPE_LEVEL         = 3,
+	/* set max level to the biggest one */
+	PT_MAX_HUGEPAGE_LEVEL = PT_PDPE_LEVEL,
+};
+#define KVM_NR_PAGE_SIZES	(PT_MAX_HUGEPAGE_LEVEL - \
+				 PT_PAGE_TABLE_LEVEL + 1)
 #define KVM_HPAGE_GFN_SHIFT(x)	(((x) - 1) * 9)
 #define KVM_HPAGE_SHIFT(x)	(PAGE_SHIFT + KVM_HPAGE_GFN_SHIFT(x))
 #define KVM_HPAGE_SIZE(x)	(1UL << KVM_HPAGE_SHIFT(x))

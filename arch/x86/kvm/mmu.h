@@ -43,11 +43,6 @@
 #define PT32_ROOT_LEVEL 2
 #define PT32E_ROOT_LEVEL 3
 
-#define PT_PDPE_LEVEL 3
-#define PT_DIRECTORY_LEVEL 2
-#define PT_PAGE_TABLE_LEVEL 1
-#define PT_MAX_HUGEPAGE_LEVEL (PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES - 1)
-
 static inline u64 rsvd_bits(int s, int e)
 {
 	if (e < s)
