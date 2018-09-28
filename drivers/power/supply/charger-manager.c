@@ -1368,8 +1368,7 @@ static int charger_manager_register_sysfs(struct charger_manager *cm)
 	struct charger_desc *desc = cm->desc;
 	struct charger_regulator *charger;
 	int chargers_externally_control = 1;
-	char buf[11];
-	char *str;
+	char *name;
 	int ret;
 	int i;
 
@@ -1377,19 +1376,15 @@ static int charger_manager_register_sysfs(struct charger_manager *cm)
 	for (i = 0; i < desc->num_charger_regulators; i++) {
 		charger = &desc->charger_regulators[i];
 
-		snprintf(buf, 10, "charger.%d", i);
-		str = devm_kzalloc(cm->dev,
-				strlen(buf) + 1, GFP_KERNEL);
-		if (!str)
+		name = devm_kasprintf(cm->dev, GFP_KERNEL, "charger.%d", i);
+		if (!name)
 			return -ENOMEM;
-
-		strcpy(str, buf);
 
 		charger->attrs[0] = &charger->attr_name.attr;
 		charger->attrs[1] = &charger->attr_state.attr;
 		charger->attrs[2] = &charger->attr_externally_control.attr;
 		charger->attrs[3] = NULL;
-		charger->attr_g.name = str;
+		charger->attr_g.name = name;
 		charger->attr_g.attrs = charger->attrs;
 
 		sysfs_attr_init(&charger->attr_name.attr);
