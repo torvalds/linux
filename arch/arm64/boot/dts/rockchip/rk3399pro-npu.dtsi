@@ -138,9 +138,9 @@
 		};
 	};
 
-	pmugrf: syscon@fe410000 {
+	pmugrf: syscon@fe020000 {
 		compatible = "rockchip,rk1808-pmugrf", "syscon", "simple-mfd";
-		reg = <0x0 0xfe410000 0x0 0x1000>;
+		reg = <0x0 0xfe020000 0x0 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 
