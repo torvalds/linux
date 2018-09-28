@@ -548,6 +548,25 @@ mt76x0_phy_set_chan_bbp_params(struct mt76x0_dev *dev, u8 channel, u16 rf_bw_ban
 	}
 }
 
+static void mt76x0_ant_select(struct mt76x0_dev *dev)
+{
+	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+
+	/* single antenna mode */
+	if (chan->band == NL80211_BAND_2GHZ) {
+		mt76_rmw(dev, MT_COEXCFG3,
+			 BIT(5) | BIT(4) | BIT(3) | BIT(2), BIT(1));
+		mt76_rmw(dev, MT_WLAN_FUN_CTRL, BIT(5), BIT(6));
+	} else {
+		mt76_rmw(dev, MT_COEXCFG3, BIT(5) | BIT(2),
+			 BIT(4) | BIT(3));
+		mt76_clear(dev, MT_WLAN_FUN_CTRL,
+			   BIT(6) | BIT(5));
+	}
+	mt76_clear(dev, MT_CMB_CTRL, BIT(14) | BIT(12));
+	mt76_clear(dev, MT_COEXCFG0, BIT(2));
+}
+
 static void
 mt76x0_bbp_set_bw(struct mt76x0_dev *dev, enum nl80211_chan_width width)
 {
@@ -658,6 +677,7 @@ __mt76x0_phy_set_channel(struct mt76x0_dev *dev,
 	mt76x0_bbp_set_bw(dev, chandef->width);
 	mt76x0_bbp_set_ctrlch(dev, chandef->width, ch_group_index);
 	mt76x0_mac_set_ctrlch(dev, ch_group_index & 1);
+	mt76x0_ant_select(dev);
 
 	mt76_rmw(dev, MT_EXT_CCA_CFG,
 		 (MT_EXT_CCA_CFG_CCA0 |
@@ -915,20 +935,9 @@ mt76x0_rf_init(struct mt76x0_dev *dev)
 	rf_set(dev, MT_RF(0, 4), 0x80);
 }
 
-static void mt76x0_ant_select(struct mt76x0_dev *dev)
-{
-	/* Single antenna mode. */
-	mt76_rmw(dev, MT_WLAN_FUN_CTRL, BIT(5), BIT(6));
-	mt76_clear(dev, MT_CMB_CTRL, BIT(14) | BIT(12));
-	mt76_clear(dev, MT_COEXCFG0, BIT(2));
-	mt76_rmw(dev, MT_COEXCFG3, BIT(5) | BIT(4) | BIT(3) | BIT(2), BIT(1));
-}
-
 void mt76x0_phy_init(struct mt76x0_dev *dev)
 {
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x0_phy_calibrate);
-
-	mt76x0_ant_select(dev);
 
 	mt76x0_rf_init(dev);
 
