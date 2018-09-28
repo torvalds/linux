@@ -367,6 +367,20 @@ config HP_WMI
 	 To compile this driver as a module, choose M here: the module will
 	 be called hp-wmi.
 
+config LG_LAPTOP
+	tristate "LG Laptop Extras"
+	depends on ACPI
+	depends on ACPI_WMI
+	depends on INPUT
+	select INPUT_SPARSEKMAP
+	select LEDS_CLASS
+	help
+	 This driver adds support for hotkeys as well as control of keyboard
+	 backlight, battery maximum charge level and various other ACPI
+	 features.
+
+	 If you have an LG Gram laptop, say Y or M here.
+
 config MSI_LAPTOP
 	tristate "MSI Laptop Extras"
 	depends on ACPI
