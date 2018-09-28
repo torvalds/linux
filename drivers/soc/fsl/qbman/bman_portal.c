@@ -65,7 +65,9 @@ static int bman_offline_cpu(unsigned int cpu)
 	if (!pcfg)
 		return 0;
 
-	irq_set_affinity(pcfg->irq, cpumask_of(0));
+	/* use any other online CPU */
+	cpu = cpumask_any_but(cpu_online_mask, cpu);
+	irq_set_affinity(pcfg->irq, cpumask_of(cpu));
 	return 0;
 }
 
