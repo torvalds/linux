@@ -31,6 +31,7 @@
 #define RKPM_PMU_EXT_32K		BIT(6)
 #define RKPM_DDR_SREF_HARDWARE		BIT(7)
 #define RKPM_DDR_EXIT_SRPD_IDLE		BIT(8)
+#define RKPM_PDM_CLK_OFF		BIT(9)
 
 /* Reserved to be add... */
 
