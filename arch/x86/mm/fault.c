@@ -966,6 +966,7 @@ bad_area_access_error(struct pt_regs *regs, unsigned long error_code,
 		__bad_area(regs, error_code, address, vma, SEGV_ACCERR);
 }
 
+/* Handle faults in the kernel portion of the address space */
 static void
 do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
 	  u32 *pkey, unsigned int fault)
@@ -1254,14 +1255,11 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
 }
 NOKPROBE_SYMBOL(do_kern_addr_fault);
 
-/*
- * This routine handles page faults.  It determines the address,
- * and the problem, and then passes it off to one of the appropriate
- * routines.
- */
-static noinline void
-__do_page_fault(struct pt_regs *regs, unsigned long hw_error_code,
-		unsigned long address)
+/* Handle faults in the user portion of the address space */
+static inline
+void do_user_addr_fault(struct pt_regs *regs,
+			unsigned long hw_error_code,
+			unsigned long address)
 {
 	unsigned long sw_error_code;
 	struct vm_area_struct *vma;
@@ -1273,17 +1271,6 @@ __do_page_fault(struct pt_regs *regs, unsigned long hw_error_code,
 
 	tsk = current;
 	mm = tsk->mm;
-
-	prefetchw(&mm->mmap_sem);
-
-	if (unlikely(kmmio_fault(regs, address)))
-		return;
-
-	/* Was the fault on kernel-controlled part of the address space? */
-	if (unlikely(fault_in_kernel_space(address))) {
-		do_kern_addr_fault(regs, hw_error_code, address);
-		return;
-	}
 
 	/* kprobes don't want to hook the spurious faults: */
 	if (unlikely(kprobes_fault(regs)))
@@ -1487,6 +1474,28 @@ good_area:
 	}
 
 	check_v8086_mode(regs, address, tsk);
+}
+NOKPROBE_SYMBOL(do_user_addr_fault);
+
+/*
+ * This routine handles page faults.  It determines the address,
+ * and the problem, and then passes it off to one of the appropriate
+ * routines.
+ */
+static noinline void
+__do_page_fault(struct pt_regs *regs, unsigned long hw_error_code,
+		unsigned long address)
+{
+	prefetchw(&current->mm->mmap_sem);
+
+	if (unlikely(kmmio_fault(regs, address)))
+		return;
+
+	/* Was the fault on kernel-controlled part of the address space? */
+	if (unlikely(fault_in_kernel_space(address)))
+		do_kern_addr_fault(regs, hw_error_code, address);
+	else
+		do_user_addr_fault(regs, hw_error_code, address);
 }
 NOKPROBE_SYMBOL(__do_page_fault);
 
