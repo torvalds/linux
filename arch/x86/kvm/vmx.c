@@ -1628,12 +1628,6 @@ static inline bool is_gp_fault(u32 intr_info)
 	return is_exception_n(intr_info, GP_VECTOR);
 }
 
-static inline bool is_external_interrupt(u32 intr_info)
-{
-	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
-		== (INTR_TYPE_EXT_INTR | INTR_INFO_VALID_MASK);
-}
-
 static inline bool is_machine_check(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK |
