@@ -216,6 +216,16 @@ static inline void msg_set_non_seq(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 0, 20, 1, n);
 }
 
+static inline int msg_is_syn(struct tipc_msg *m)
+{
+	return msg_bits(m, 0, 17, 1);
+}
+
+static inline void msg_set_syn(struct tipc_msg *m, u32 d)
+{
+	msg_set_bits(m, 0, 17, 1, d);
+}
+
 static inline int msg_dest_droppable(struct tipc_msg *m)
 {
 	return msg_bits(m, 0, 19, 1);
