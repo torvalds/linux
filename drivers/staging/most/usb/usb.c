@@ -1015,6 +1015,13 @@ static const struct attribute_group *dci_attr_groups[] = {
 	NULL,
 };
 
+static void release_dci(struct device *dev)
+{
+	struct most_dci_obj *dci = to_dci_obj(dev);
+
+	kfree(dci);
+}
+
 /**
  * hdm_probe - probe function of USB device driver
  * @interface: Interface of the attached USB device
@@ -1146,6 +1153,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		mdev->dci->dev.init_name = "dci";
 		mdev->dci->dev.parent = &mdev->iface.dev;
 		mdev->dci->dev.groups = dci_attr_groups;
+		mdev->dci->dev.release = release_dci;
 		if (device_register(&mdev->dci->dev)) {
 			mutex_unlock(&mdev->io_mutex);
 			most_deregister_interface(&mdev->iface);
@@ -1198,7 +1206,6 @@ static void hdm_disconnect(struct usb_interface *interface)
 	cancel_work_sync(&mdev->poll_work_obj);
 
 	device_unregister(&mdev->dci->dev);
-	kfree(mdev->dci);
 	most_deregister_interface(&mdev->iface);
 
 	kfree(mdev->busy_urbs);
