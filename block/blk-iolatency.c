@@ -366,7 +366,7 @@ static void check_scale_change(struct iolatency_grp *iolat)
 		 * scale down event.
 		 */
 		samples_thresh = lat_info->nr_samples * 5;
-		samples_thresh = div64_u64(samples_thresh, 100);
+		samples_thresh = max(1ULL, div64_u64(samples_thresh, 100));
 		if (iolat->nr_samples <= samples_thresh)
 			return;
 	}
