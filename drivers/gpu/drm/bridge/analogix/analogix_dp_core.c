@@ -853,10 +853,14 @@ static int analogix_dp_loader_protect(struct drm_connector *connector, bool on)
 
 	if (dp->plat_data->panel)
 		drm_panel_loader_protect(dp->plat_data->panel, on);
-	if (on)
+
+	if (on) {
 		pm_runtime_get_sync(dp->dev);
-	else
+		phy_power_on(dp->phy);
+	} else {
+		phy_power_off(dp->phy);
 		pm_runtime_put(dp->dev);
+	}
 
 	return 0;
 }
@@ -1197,7 +1201,7 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 
 	dp->phy = devm_phy_get(dp->dev, "dp");
 	if (IS_ERR(dp->phy)) {
-		dev_err(dp->dev, "no DP phy configured\n");
+		dev_dbg(dp->dev, "no DP phy configured\n");
 		ret = PTR_ERR(dp->phy);
 		if (ret) {
 			/*
@@ -1258,8 +1262,6 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 		dev_err(&pdev->dev, "failed to get irq\n");
 		return -ENODEV;
 	}
-
-	phy_power_on(dp->phy);
 
 	if (dp->plat_data->panel) {
 		if (drm_panel_prepare(dp->plat_data->panel)) {
