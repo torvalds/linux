@@ -1306,11 +1306,9 @@ static int gpio_omap_cpu_notifier(struct notifier_block *nb,
 				  unsigned long cmd, void *v)
 {
 	struct gpio_bank *bank;
-	struct device *dev;
 	unsigned long flags;
 
 	bank = container_of(nb, struct gpio_bank, nb);
-	dev = bank->chip.parent;
 
 	raw_spin_lock_irqsave(&bank->lock, flags);
 	switch (cmd) {
