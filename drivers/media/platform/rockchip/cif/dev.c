@@ -23,6 +23,7 @@
 #include "regs.h"
 
 struct cif_match_data {
+	int chip_id;
 	const char * const *clks;
 	const char * const *rsts;
 	int clks_num;
@@ -96,6 +97,7 @@ unlock:
 struct rkcif_async_subdev {
 	struct v4l2_async_subdev asd;
 	struct v4l2_mbus_config mbus;
+	int lanes;
 };
 
 static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
@@ -110,6 +112,7 @@ static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 	if (cif_dev->num_sensors == ARRAY_SIZE(cif_dev->sensors))
 		return -EBUSY;
 
+	cif_dev->sensors[cif_dev->num_sensors].lanes = s_asd->lanes;
 	cif_dev->sensors[cif_dev->num_sensors].mbus = s_asd->mbus;
 	cif_dev->sensors[cif_dev->num_sensors].sd = subdev;
 	++cif_dev->num_sensors;
@@ -127,16 +130,19 @@ static int rkcif_fwnode_parse(struct device *dev,
 			container_of(asd, struct rkcif_async_subdev, asd);
 	struct v4l2_fwnode_bus_parallel *bus = &vep->bus.parallel;
 
-	/*
-	 * MIPI sensor is linked with a mipi dphy and its media bus config can
-	 * not be get in here
-	 */
 	if (vep->bus_type != V4L2_MBUS_BT656 &&
-		vep->bus_type != V4L2_MBUS_PARALLEL)
+	    vep->bus_type != V4L2_MBUS_PARALLEL &&
+	    vep->bus_type != V4L2_MBUS_CSI2)
 		return 0;
 
-	rk_asd->mbus.flags = bus->flags;
 	rk_asd->mbus.type = vep->bus_type;
+
+	if (vep->bus_type == V4L2_MBUS_CSI2) {
+		rk_asd->mbus.flags = vep->bus.mipi_csi2.flags;
+		rk_asd->lanes = vep->bus.mipi_csi2.num_data_lanes;
+	} else {
+		rk_asd->mbus.flags = bus->flags;
+	}
 
 	return 0;
 }
@@ -199,6 +205,22 @@ static const char * const px30_cif_rsts[] = {
 	"rst_cif_pclkin",
 };
 
+static const char * const rk1808_cif_clks[] = {
+	"aclk_cif",
+	"dclk_cif",
+	"hclk_cif",
+	"sclk_cif_out",
+	"pclk_csi2host"
+};
+
+static const char * const rk1808_cif_rsts[] = {
+	"rst_cif_a",
+	"rst_cif_h",
+	"rst_cif_i",
+	"rst_cif_d",
+	"rst_cif_pclkin",
+};
+
 static const char * const rk3128_cif_clks[] = {
 	"aclk_cif",
 	"hclk_cif",
@@ -220,21 +242,32 @@ static const char * const rk3288_cif_rsts[] = {
 	"rst_cif",
 };
 
-static const struct cif_match_data px30_cif_clk_data = {
+static const struct cif_match_data px30_cif_match_data = {
+	.chip_id = CHIP_PX30_CIF,
 	.clks = px30_cif_clks,
 	.clks_num = ARRAY_SIZE(px30_cif_clks),
 	.rsts = px30_cif_rsts,
 	.rsts_num = ARRAY_SIZE(px30_cif_rsts),
 };
 
-static const struct cif_match_data rk3128_cif_clk_data = {
+static const struct cif_match_data rk1808_cif_match_data = {
+	.chip_id = CHIP_RK1808_CIF,
+	.clks = rk1808_cif_clks,
+	.clks_num = ARRAY_SIZE(rk1808_cif_clks),
+	.rsts = rk1808_cif_rsts,
+	.rsts_num = ARRAY_SIZE(rk1808_cif_rsts),
+};
+
+static const struct cif_match_data rk3128_cif_match_data = {
+	.chip_id = CHIP_RK3128_CIF,
 	.clks = rk3128_cif_clks,
 	.clks_num = ARRAY_SIZE(rk3128_cif_clks),
 	.rsts = rk3128_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rk3128_cif_rsts),
 };
 
-static const struct cif_match_data rk3288_cif_clk_data = {
+static const struct cif_match_data rk3288_cif_match_data = {
+	.chip_id = CHIP_RK3288_CIF,
 	.clks = rk3288_cif_clks,
 	.clks_num = ARRAY_SIZE(rk3288_cif_clks),
 	.rsts = rk3288_cif_rsts,
@@ -244,15 +277,19 @@ static const struct cif_match_data rk3288_cif_clk_data = {
 static const struct of_device_id rkcif_plat_of_match[] = {
 	{
 		.compatible = "rockchip,px30-cif",
-		.data = &px30_cif_clk_data,
+		.data = &px30_cif_match_data,
+	},
+	{
+		.compatible = "rockchip,rk1808-cif",
+		.data = &rk1808_cif_match_data,
 	},
 	{
 		.compatible = "rockchip,rk3128-cif",
-		.data = &rk3128_cif_clk_data,
+		.data = &rk3128_cif_match_data,
 	},
 	{
 		.compatible = "rockchip,rk3288-cif",
-		.data = &rk3288_cif_clk_data,
+		.data = &rk3288_cif_match_data,
 	},
 	{},
 };
@@ -414,7 +451,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, cif_dev);
 	cif_dev->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cif_regs");
 	cif_dev->base_addr = devm_ioremap_resource(dev, res);
 	if (IS_ERR(cif_dev->base_addr))
 		return PTR_ERR(cif_dev->base_addr);
@@ -432,6 +469,17 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 
 	cif_dev->irq = irq;
 	data = match->data;
+	cif_dev->chip_id = data->chip_id;
+	if (data->chip_id == CHIP_RK1808_CIF) {
+		using_pingpong = 1;
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "csihost_regs");
+		cif_dev->csi_base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(cif_dev->csi_base))
+			return PTR_ERR(cif_dev->csi_base);
+	} else {
+		using_pingpong = 0;
+	}
+
 	if (data->clks_num > RKCIF_MAX_BUS_CLK ||
 		data->rsts_num > RKCIF_MAX_RESET) {
 		dev_err(dev, "out of range: clks(%d %d) rsts(%d %d)\n",
