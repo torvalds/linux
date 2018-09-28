@@ -328,6 +328,10 @@ struct kvm_vcpu_arch {
 #define KVM_ARM64_FP_HOST		(1 << 2) /* host FP regs loaded */
 #define KVM_ARM64_HOST_SVE_IN_USE	(1 << 3) /* backup for host TIF_SVE */
 #define KVM_ARM64_HOST_SVE_ENABLED	(1 << 4) /* SVE enabled for EL0 */
+#define KVM_ARM64_GUEST_HAS_SVE		(1 << 5) /* SVE exposed to guest */
+
+#define vcpu_has_sve(vcpu) (system_supports_sve() && \
+			    ((vcpu)->arch.flags & KVM_ARM64_GUEST_HAS_SVE))
 
 #define vcpu_gp_regs(v)		(&(v)->arch.ctxt.gp_regs)
 
