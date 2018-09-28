@@ -3298,7 +3298,7 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 					      (void **)&adev->gfx.rlc.sr_ptr);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create, pin or map of RLC sr bo failed\n", r);
-			gfx_v7_0_rlc_fini(adev);
+			adev->gfx.rlc.funcs->fini(adev);
 			return r;
 		}
 
@@ -3321,7 +3321,7 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 					      (void **)&adev->gfx.rlc.cs_ptr);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create RLC c bo failed\n", r);
-			gfx_v7_0_rlc_fini(adev);
+			adev->gfx.rlc.funcs->fini(adev);
 			return r;
 		}
 
@@ -3341,7 +3341,7 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 					      (void **)&adev->gfx.rlc.cp_table_ptr);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create RLC cp table bo failed\n", r);
-			gfx_v7_0_rlc_fini(adev);
+			adev->gfx.rlc.funcs->fini(adev);
 			return r;
 		}
 
@@ -3529,13 +3529,13 @@ static int gfx_v7_0_rlc_resume(struct amdgpu_device *adev)
 	adev->gfx.rlc_feature_version = le32_to_cpu(
 					hdr->ucode_feature_version);
 
-	gfx_v7_0_rlc_stop(adev);
+	adev->gfx.rlc.funcs->stop(adev);
 
 	/* disable CG */
 	tmp = RREG32(mmRLC_CGCG_CGLS_CTRL) & 0xfffffffc;
 	WREG32(mmRLC_CGCG_CGLS_CTRL, tmp);
 
-	gfx_v7_0_rlc_reset(adev);
+	adev->gfx.rlc.funcs->reset(adev);
 
 	gfx_v7_0_init_pg(adev);
 
@@ -3566,7 +3566,7 @@ static int gfx_v7_0_rlc_resume(struct amdgpu_device *adev)
 	if (adev->asic_type == CHIP_BONAIRE)
 		WREG32(mmRLC_DRIVER_CPDMA_STATUS, 0);
 
-	gfx_v7_0_rlc_start(adev);
+	adev->gfx.rlc.funcs->start(adev);
 
 	return 0;
 }
@@ -4273,7 +4273,13 @@ static const struct amdgpu_gfx_funcs gfx_v7_0_gfx_funcs = {
 
 static const struct amdgpu_rlc_funcs gfx_v7_0_rlc_funcs = {
 	.enter_safe_mode = gfx_v7_0_enter_rlc_safe_mode,
-	.exit_safe_mode = gfx_v7_0_exit_rlc_safe_mode
+	.exit_safe_mode = gfx_v7_0_exit_rlc_safe_mode,
+	.init = gfx_v7_0_rlc_init,
+	.fini = gfx_v7_0_rlc_fini,
+	.resume = gfx_v7_0_rlc_resume,
+	.stop = gfx_v7_0_rlc_stop,
+	.reset = gfx_v7_0_rlc_reset,
+	.start = gfx_v7_0_rlc_start
 };
 
 static int gfx_v7_0_early_init(void *handle)
@@ -4524,7 +4530,7 @@ static int gfx_v7_0_sw_init(void *handle)
 		return r;
 	}
 
-	r = gfx_v7_0_rlc_init(adev);
+	r = adev->gfx.rlc.funcs->init(adev);
 	if (r) {
 		DRM_ERROR("Failed to init rlc BOs!\n");
 		return r;
@@ -4588,7 +4594,7 @@ static int gfx_v7_0_sw_fini(void *handle)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
 
 	gfx_v7_0_cp_compute_fini(adev);
-	gfx_v7_0_rlc_fini(adev);
+	adev->gfx.rlc.funcs->fini(adev);
 	gfx_v7_0_mec_fini(adev);
 	amdgpu_bo_free_kernel(&adev->gfx.rlc.clear_state_obj,
 				&adev->gfx.rlc.clear_state_gpu_addr,
@@ -4611,7 +4617,7 @@ static int gfx_v7_0_hw_init(void *handle)
 	gfx_v7_0_constants_init(adev);
 
 	/* init rlc */
-	r = gfx_v7_0_rlc_resume(adev);
+	r = adev->gfx.rlc.funcs->resume(adev);
 	if (r)
 		return r;
 
@@ -4629,7 +4635,7 @@ static int gfx_v7_0_hw_fini(void *handle)
 	amdgpu_irq_put(adev, &adev->gfx.priv_reg_irq, 0);
 	amdgpu_irq_put(adev, &adev->gfx.priv_inst_irq, 0);
 	gfx_v7_0_cp_enable(adev, false);
-	gfx_v7_0_rlc_stop(adev);
+	adev->gfx.rlc.funcs->stop(adev);
 	gfx_v7_0_fini_pg(adev);
 
 	return 0;
@@ -4714,7 +4720,7 @@ static int gfx_v7_0_soft_reset(void *handle)
 		gfx_v7_0_update_cg(adev, false);
 
 		/* stop the rlc */
-		gfx_v7_0_rlc_stop(adev);
+		adev->gfx.rlc.funcs->stop(adev);
 
 		/* Disable GFX parsing/prefetching */
 		WREG32(mmCP_ME_CNTL, CP_ME_CNTL__ME_HALT_MASK | CP_ME_CNTL__PFP_HALT_MASK | CP_ME_CNTL__CE_HALT_MASK);

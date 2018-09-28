@@ -1376,7 +1376,7 @@ static int gfx_v8_0_rlc_init(struct amdgpu_device *adev)
 					      (void **)&adev->gfx.rlc.cs_ptr);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create RLC c bo failed\n", r);
-			gfx_v8_0_rlc_fini(adev);
+			adev->gfx.rlc.funcs->fini(adev);
 			return r;
 		}
 
@@ -2073,7 +2073,7 @@ static int gfx_v8_0_sw_init(void *handle)
 		return r;
 	}
 
-	r = gfx_v8_0_rlc_init(adev);
+	r = adev->gfx.rlc.funcs->init(adev);
 	if (r) {
 		DRM_ERROR("Failed to init rlc BOs!\n");
 		return r;
@@ -2166,7 +2166,7 @@ static int gfx_v8_0_sw_fini(void *handle)
 	amdgpu_gfx_kiq_fini(adev);
 
 	gfx_v8_0_mec_fini(adev);
-	gfx_v8_0_rlc_fini(adev);
+	adev->gfx.rlc.funcs->fini(adev);
 	amdgpu_bo_free_kernel(&adev->gfx.rlc.clear_state_obj,
 				&adev->gfx.rlc.clear_state_gpu_addr,
 				(void **)&adev->gfx.rlc.cs_ptr);
@@ -4160,10 +4160,10 @@ static void gfx_v8_0_rlc_start(struct amdgpu_device *adev)
 
 static int gfx_v8_0_rlc_resume(struct amdgpu_device *adev)
 {
-	gfx_v8_0_rlc_stop(adev);
-	gfx_v8_0_rlc_reset(adev);
+	adev->gfx.rlc.funcs->stop(adev);
+	adev->gfx.rlc.funcs->reset(adev);
 	gfx_v8_0_init_pg(adev);
-	gfx_v8_0_rlc_start(adev);
+	adev->gfx.rlc.funcs->start(adev);
 
 	return 0;
 }
@@ -4845,7 +4845,7 @@ static int gfx_v8_0_hw_init(void *handle)
 	gfx_v8_0_init_golden_registers(adev);
 	gfx_v8_0_constants_init(adev);
 
-	r = gfx_v8_0_rlc_resume(adev);
+	r = adev->gfx.rlc.funcs->resume(adev);
 	if (r)
 		return r;
 
@@ -4957,7 +4957,7 @@ static int gfx_v8_0_hw_fini(void *handle)
 	else
 		pr_err("cp is busy, skip halt cp\n");
 	if (!gfx_v8_0_wait_for_rlc_idle(adev))
-		gfx_v8_0_rlc_stop(adev);
+		adev->gfx.rlc.funcs->stop(adev);
 	else
 		pr_err("rlc is busy, skip halt rlc\n");
 	adev->gfx.rlc.funcs->exit_safe_mode(adev);
@@ -5049,7 +5049,7 @@ static int gfx_v8_0_pre_soft_reset(void *handle)
 	srbm_soft_reset = adev->gfx.srbm_soft_reset;
 
 	/* stop the rlc */
-	gfx_v8_0_rlc_stop(adev);
+	adev->gfx.rlc.funcs->stop(adev);
 
 	if (REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CP) ||
 	    REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_GFX))
@@ -5175,7 +5175,7 @@ static int gfx_v8_0_post_soft_reset(void *handle)
 	    REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_GFX))
 		gfx_v8_0_cp_gfx_resume(adev);
 
-	gfx_v8_0_rlc_start(adev);
+	adev->gfx.rlc.funcs->start(adev);
 
 	return 0;
 }
@@ -5632,7 +5632,13 @@ static void iceland_exit_rlc_safe_mode(struct amdgpu_device *adev)
 
 static const struct amdgpu_rlc_funcs iceland_rlc_funcs = {
 	.enter_safe_mode = iceland_enter_rlc_safe_mode,
-	.exit_safe_mode = iceland_exit_rlc_safe_mode
+	.exit_safe_mode = iceland_exit_rlc_safe_mode,
+	.init = gfx_v8_0_rlc_init,
+	.fini = gfx_v8_0_rlc_fini,
+	.resume = gfx_v8_0_rlc_resume,
+	.stop = gfx_v8_0_rlc_stop,
+	.reset = gfx_v8_0_rlc_reset,
+	.start = gfx_v8_0_rlc_start
 };
 
 static void gfx_v8_0_update_medium_grain_clock_gating(struct amdgpu_device *adev,

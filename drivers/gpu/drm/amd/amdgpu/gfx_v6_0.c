@@ -2386,7 +2386,7 @@ static int gfx_v6_0_rlc_init(struct amdgpu_device *adev)
 		if (r) {
 			dev_warn(adev->dev, "(%d) create RLC sr bo failed\n",
 				 r);
-			gfx_v6_0_rlc_fini(adev);
+			adev->gfx.rlc.funcs->fini(adev);
 			return r;
 		}
 
@@ -2411,7 +2411,7 @@ static int gfx_v6_0_rlc_init(struct amdgpu_device *adev)
 					      (void **)&adev->gfx.rlc.cs_ptr);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create RLC c bo failed\n", r);
-			gfx_v6_0_rlc_fini(adev);
+			adev->gfx.rlc.funcs->fini(adev);
 			return r;
 		}
 
@@ -2532,8 +2532,8 @@ static int gfx_v6_0_rlc_resume(struct amdgpu_device *adev)
 	if (!adev->gfx.rlc_fw)
 		return -EINVAL;
 
-	gfx_v6_0_rlc_stop(adev);
-	gfx_v6_0_rlc_reset(adev);
+	adev->gfx.rlc.funcs->stop(adev);
+	adev->gfx.rlc.funcs->reset(adev);
 	gfx_v6_0_init_pg(adev);
 	gfx_v6_0_init_cg(adev);
 
@@ -2561,7 +2561,7 @@ static int gfx_v6_0_rlc_resume(struct amdgpu_device *adev)
 	WREG32(mmRLC_UCODE_ADDR, 0);
 
 	gfx_v6_0_enable_lbpw(adev, gfx_v6_0_lbpw_supported(adev));
-	gfx_v6_0_rlc_start(adev);
+	adev->gfx.rlc.funcs->start(adev);
 
 	return 0;
 }
@@ -3058,6 +3058,15 @@ static const struct amdgpu_gfx_funcs gfx_v6_0_gfx_funcs = {
 	.select_me_pipe_q = &gfx_v6_0_select_me_pipe_q
 };
 
+static const struct amdgpu_rlc_funcs gfx_v6_0_rlc_funcs = {
+	.init = gfx_v6_0_rlc_init,
+	.fini = gfx_v6_0_rlc_fini,
+	.resume = gfx_v6_0_rlc_resume,
+	.stop = gfx_v6_0_rlc_stop,
+	.reset = gfx_v6_0_rlc_reset,
+	.start = gfx_v6_0_rlc_start
+};
+
 static int gfx_v6_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -3065,6 +3074,7 @@ static int gfx_v6_0_early_init(void *handle)
 	adev->gfx.num_gfx_rings = GFX6_NUM_GFX_RINGS;
 	adev->gfx.num_compute_rings = GFX6_NUM_COMPUTE_RINGS;
 	adev->gfx.funcs = &gfx_v6_0_gfx_funcs;
+	adev->gfx.rlc.funcs = &gfx_v6_0_rlc_funcs;
 	gfx_v6_0_set_ring_funcs(adev);
 	gfx_v6_0_set_irq_funcs(adev);
 
@@ -3097,7 +3107,7 @@ static int gfx_v6_0_sw_init(void *handle)
 		return r;
 	}
 
-	r = gfx_v6_0_rlc_init(adev);
+	r = adev->gfx.rlc.funcs->init(adev);
 	if (r) {
 		DRM_ERROR("Failed to init rlc BOs!\n");
 		return r;
@@ -3148,7 +3158,7 @@ static int gfx_v6_0_sw_fini(void *handle)
 	for (i = 0; i < adev->gfx.num_compute_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
 
-	gfx_v6_0_rlc_fini(adev);
+	adev->gfx.rlc.funcs->fini(adev);
 
 	return 0;
 }
@@ -3160,7 +3170,7 @@ static int gfx_v6_0_hw_init(void *handle)
 
 	gfx_v6_0_constants_init(adev);
 
-	r = gfx_v6_0_rlc_resume(adev);
+	r = adev->gfx.rlc.funcs->resume(adev);
 	if (r)
 		return r;
 
@@ -3178,7 +3188,7 @@ static int gfx_v6_0_hw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gfx_v6_0_cp_enable(adev, false);
-	gfx_v6_0_rlc_stop(adev);
+	adev->gfx.rlc.funcs->stop(adev);
 	gfx_v6_0_fini_pg(adev);
 
 	return 0;

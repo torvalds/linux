@@ -1147,7 +1147,7 @@ static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 		if (r) {
 			dev_err(adev->dev, "(%d) failed to create rlc csb bo\n",
 				r);
-			gfx_v9_0_rlc_fini(adev);
+			adev->gfx.rlc.funcs->fini(adev);
 			return r;
 		}
 		/* set up the cs buffer */
@@ -1169,7 +1169,7 @@ static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 		if (r) {
 			dev_err(adev->dev,
 				"(%d) failed to create cp table bo\n", r);
-			gfx_v9_0_rlc_fini(adev);
+			adev->gfx.rlc.funcs->fini(adev);
 			return r;
 		}
 
@@ -1733,7 +1733,7 @@ static int gfx_v9_0_sw_init(void *handle)
 		return r;
 	}
 
-	r = gfx_v9_0_rlc_init(adev);
+	r = adev->gfx.rlc.funcs->init(adev);
 	if (r) {
 		DRM_ERROR("Failed to init rlc BOs!\n");
 		return r;
@@ -2483,12 +2483,12 @@ static int gfx_v9_0_rlc_resume(struct amdgpu_device *adev)
 		return 0;
 	}
 
-	gfx_v9_0_rlc_stop(adev);
+	adev->gfx.rlc.funcs->stop(adev);
 
 	/* disable CG */
 	WREG32_SOC15(GC, 0, mmRLC_CGCG_CGLS_CTRL, 0);
 
-	gfx_v9_0_rlc_reset(adev);
+	adev->gfx.rlc.funcs->reset(adev);
 
 	gfx_v9_0_init_pg(adev);
 
@@ -2521,7 +2521,7 @@ static int gfx_v9_0_rlc_resume(struct amdgpu_device *adev)
 			gfx_v9_0_enable_lbpw(adev, false);
 	}
 
-	gfx_v9_0_rlc_start(adev);
+	adev->gfx.rlc.funcs->start(adev);
 
 	return 0;
 }
@@ -3344,7 +3344,7 @@ static int gfx_v9_0_hw_init(void *handle)
 	if (r)
 		return r;
 
-	r = gfx_v9_0_rlc_resume(adev);
+	r = adev->gfx.rlc.funcs->resume(adev);
 	if (r)
 		return r;
 
@@ -3424,7 +3424,7 @@ static int gfx_v9_0_hw_fini(void *handle)
 	}
 
 	gfx_v9_0_cp_enable(adev, false);
-	gfx_v9_0_rlc_stop(adev);
+	adev->gfx.rlc.funcs->stop(adev);
 
 	gfx_v9_0_csb_vram_unpin(adev);
 
@@ -3499,7 +3499,7 @@ static int gfx_v9_0_soft_reset(void *handle)
 
 	if (grbm_soft_reset) {
 		/* stop the rlc */
-		gfx_v9_0_rlc_stop(adev);
+		adev->gfx.rlc.funcs->stop(adev);
 
 		/* Disable GFX parsing/prefetching */
 		gfx_v9_0_cp_gfx_enable(adev, false);
@@ -3655,7 +3655,7 @@ static void gfx_v9_0_exit_rlc_safe_mode(struct amdgpu_device *adev)
 static void gfx_v9_0_update_gfx_cg_power_gating(struct amdgpu_device *adev,
 						bool enable)
 {
-	gfx_v9_0_enter_rlc_safe_mode(adev);
+	adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
 	if ((adev->pg_flags & AMD_PG_SUPPORT_GFX_PG) && enable) {
 		gfx_v9_0_enable_gfx_cg_power_gating(adev, true);
@@ -3666,7 +3666,7 @@ static void gfx_v9_0_update_gfx_cg_power_gating(struct amdgpu_device *adev,
 		gfx_v9_0_enable_gfx_pipeline_powergating(adev, false);
 	}
 
-	gfx_v9_0_exit_rlc_safe_mode(adev);
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
 }
 
 static void gfx_v9_0_update_gfx_mg_power_gating(struct amdgpu_device *adev,
@@ -3882,7 +3882,13 @@ static int gfx_v9_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 
 static const struct amdgpu_rlc_funcs gfx_v9_0_rlc_funcs = {
 	.enter_safe_mode = gfx_v9_0_enter_rlc_safe_mode,
-	.exit_safe_mode = gfx_v9_0_exit_rlc_safe_mode
+	.exit_safe_mode = gfx_v9_0_exit_rlc_safe_mode,
+	.init = gfx_v9_0_rlc_init,
+	.fini = gfx_v9_0_rlc_fini,
+	.resume = gfx_v9_0_rlc_resume,
+	.stop = gfx_v9_0_rlc_stop,
+	.reset = gfx_v9_0_rlc_reset,
+	.start = gfx_v9_0_rlc_start
 };
 
 static int gfx_v9_0_set_powergating_state(void *handle,

@@ -41,6 +41,12 @@
 struct amdgpu_rlc_funcs {
 	void (*enter_safe_mode)(struct amdgpu_device *adev);
 	void (*exit_safe_mode)(struct amdgpu_device *adev);
+	int  (*init)(struct amdgpu_device *adev);
+	void (*fini)(struct amdgpu_device *adev);
+	int  (*resume)(struct amdgpu_device *adev);
+	void (*stop)(struct amdgpu_device *adev);
+	void (*reset)(struct amdgpu_device *adev);
+	void (*start)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_rlc {
