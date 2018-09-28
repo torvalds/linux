@@ -193,6 +193,7 @@ static int hclge_pause_param_cfg(struct hclge_dev *hdev, const u8 *addr,
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_MAC_PARA, false);
 
 	ether_addr_copy(pause_param->mac_addr, addr);
+	ether_addr_copy(pause_param->mac_addr_extra, addr);
 	pause_param->pause_trans_gap = pause_trans_gap;
 	pause_param->pause_trans_time = cpu_to_le16(pause_trans_time);
 
@@ -1279,9 +1280,14 @@ int hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc)
 	return 0;
 }
 
-void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
+int hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
 {
 	u8 i, bit_map = 0;
+
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		if (num_tc > hdev->vport[i].alloc_tqps)
+			return -EINVAL;
+	}
 
 	hdev->tm_info.num_tc = num_tc;
 
@@ -1296,6 +1302,8 @@ void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
 	hdev->hw_tc_map = bit_map;
 
 	hclge_tm_schd_info_init(hdev);
+
+	return 0;
 }
 
 int hclge_tm_init_hw(struct hclge_dev *hdev)

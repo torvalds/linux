@@ -49,8 +49,9 @@ static const struct pci_device_id ae_algo_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, ae_algo_pci_tbl);
 
 static const char hns3_nic_test_strs[][ETH_GSTRING_LEN] = {
-	"Mac    Loopback test",
-	"Serdes Loopback test",
+	"App    Loopback test",
+	"Serdes serial Loopback test",
+	"Serdes parallel Loopback test",
 	"Phy    Loopback test"
 };
 
@@ -475,7 +476,10 @@ static void hclge_update_stats(struct hnae3_handle *handle,
 
 static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 {
-#define HCLGE_LOOPBACK_TEST_FLAGS 0x7
+#define HCLGE_LOOPBACK_TEST_FLAGS (HNAE3_SUPPORT_APP_LOOPBACK |\
+		HNAE3_SUPPORT_PHY_LOOPBACK |\
+		HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK |\
+		HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK)
 
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
@@ -489,15 +493,17 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 	if (stringset == ETH_SS_TEST) {
 		/* clear loopback bit flags at first */
 		handle->flags = (handle->flags & (~HCLGE_LOOPBACK_TEST_FLAGS));
-		if (hdev->hw.mac.speed == HCLGE_MAC_SPEED_10M ||
+		if (hdev->pdev->revision >= HNAE3_REVISION_ID_21 ||
+		    hdev->hw.mac.speed == HCLGE_MAC_SPEED_10M ||
 		    hdev->hw.mac.speed == HCLGE_MAC_SPEED_100M ||
 		    hdev->hw.mac.speed == HCLGE_MAC_SPEED_1G) {
 			count += 1;
-			handle->flags |= HNAE3_SUPPORT_MAC_LOOPBACK;
+			handle->flags |= HNAE3_SUPPORT_APP_LOOPBACK;
 		}
 
-		count++;
-		handle->flags |= HNAE3_SUPPORT_SERDES_LOOPBACK;
+		count += 2;
+		handle->flags |= HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK;
+		handle->flags |= HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK;
 	} else if (stringset == ETH_SS_STATS) {
 		count = ARRAY_SIZE(g_mac_stats_string) +
 			hclge_tqps_get_sset_count(handle, stringset);
@@ -521,21 +527,27 @@ static void hclge_get_strings(struct hnae3_handle *handle,
 					   p);
 		p = hclge_tqps_get_strings(handle, p);
 	} else if (stringset == ETH_SS_TEST) {
-		if (handle->flags & HNAE3_SUPPORT_MAC_LOOPBACK) {
+		if (handle->flags & HNAE3_SUPPORT_APP_LOOPBACK) {
 			memcpy(p,
-			       hns3_nic_test_strs[HNAE3_MAC_INTER_LOOP_MAC],
+			       hns3_nic_test_strs[HNAE3_LOOP_APP],
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
-		if (handle->flags & HNAE3_SUPPORT_SERDES_LOOPBACK) {
+		if (handle->flags & HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK) {
 			memcpy(p,
-			       hns3_nic_test_strs[HNAE3_MAC_INTER_LOOP_SERDES],
+			       hns3_nic_test_strs[HNAE3_LOOP_SERIAL_SERDES],
+			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+		if (handle->flags & HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK) {
+			memcpy(p,
+			       hns3_nic_test_strs[HNAE3_LOOP_PARALLEL_SERDES],
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
 		if (handle->flags & HNAE3_SUPPORT_PHY_LOOPBACK) {
 			memcpy(p,
-			       hns3_nic_test_strs[HNAE3_MAC_INTER_LOOP_PHY],
+			       hns3_nic_test_strs[HNAE3_LOOP_PHY],
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
@@ -1344,11 +1356,13 @@ static int hclge_tx_buffer_calc(struct hclge_dev *hdev,
 static int hclge_rx_buffer_calc(struct hclge_dev *hdev,
 				struct hclge_pkt_buf_alloc *buf_alloc)
 {
-	u32 rx_all = hdev->pkt_buf_size;
+#define HCLGE_BUF_SIZE_UNIT	128
+	u32 rx_all = hdev->pkt_buf_size, aligned_mps;
 	int no_pfc_priv_num, pfc_priv_num;
 	struct hclge_priv_buf *priv;
 	int i;
 
+	aligned_mps = round_up(hdev->mps, HCLGE_BUF_SIZE_UNIT);
 	rx_all -= hclge_get_tx_buff_alloced(buf_alloc);
 
 	/* When DCB is not supported, rx private
@@ -1367,13 +1381,13 @@ static int hclge_rx_buffer_calc(struct hclge_dev *hdev,
 		if (hdev->hw_tc_map & BIT(i)) {
 			priv->enable = 1;
 			if (hdev->tm_info.hw_pfc_map & BIT(i)) {
-				priv->wl.low = hdev->mps;
-				priv->wl.high = priv->wl.low + hdev->mps;
+				priv->wl.low = aligned_mps;
+				priv->wl.high = priv->wl.low + aligned_mps;
 				priv->buf_size = priv->wl.high +
 						HCLGE_DEFAULT_DV;
 			} else {
 				priv->wl.low = 0;
-				priv->wl.high = 2 * hdev->mps;
+				priv->wl.high = 2 * aligned_mps;
 				priv->buf_size = priv->wl.high;
 			}
 		} else {
@@ -1405,11 +1419,11 @@ static int hclge_rx_buffer_calc(struct hclge_dev *hdev,
 
 		if (hdev->tm_info.hw_pfc_map & BIT(i)) {
 			priv->wl.low = 128;
-			priv->wl.high = priv->wl.low + hdev->mps;
+			priv->wl.high = priv->wl.low + aligned_mps;
 			priv->buf_size = priv->wl.high + HCLGE_DEFAULT_DV;
 		} else {
 			priv->wl.low = 0;
-			priv->wl.high = hdev->mps;
+			priv->wl.high = aligned_mps;
 			priv->buf_size = priv->wl.high;
 		}
 	}
@@ -3345,7 +3359,7 @@ static void hclge_cfg_mac_mode(struct hclge_dev *hdev, bool enable)
 			"mac enable fail, ret =%d.\n", ret);
 }
 
-static int hclge_set_mac_loopback(struct hclge_dev *hdev, bool en)
+static int hclge_set_app_loopback(struct hclge_dev *hdev, bool en)
 {
 	struct hclge_config_mac_mode_cmd *req;
 	struct hclge_desc desc;
@@ -3381,22 +3395,37 @@ static int hclge_set_mac_loopback(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
-static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en)
+static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en,
+				     enum hnae3_loop loop_mode)
 {
 #define HCLGE_SERDES_RETRY_MS	10
 #define HCLGE_SERDES_RETRY_NUM	100
 	struct hclge_serdes_lb_cmd *req;
 	struct hclge_desc desc;
 	int ret, i = 0;
+	u8 loop_mode_b;
 
 	req = (struct hclge_serdes_lb_cmd *)desc.data;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_SERDES_LOOPBACK, false);
 
+	switch (loop_mode) {
+	case HNAE3_LOOP_SERIAL_SERDES:
+		loop_mode_b = HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B;
+		break;
+	case HNAE3_LOOP_PARALLEL_SERDES:
+		loop_mode_b = HCLGE_CMD_SERDES_PARALLEL_INNER_LOOP_B;
+		break;
+	default:
+		dev_err(&hdev->pdev->dev,
+			"unsupported serdes loopback mode %d\n", loop_mode);
+		return -ENOTSUPP;
+	}
+
 	if (en) {
-		req->enable = HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B;
-		req->mask = HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B;
+		req->enable = loop_mode_b;
+		req->mask = loop_mode_b;
 	} else {
-		req->mask = HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B;
+		req->mask = loop_mode_b;
 	}
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -3459,11 +3488,12 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 	int i, ret;
 
 	switch (loop_mode) {
-	case HNAE3_MAC_INTER_LOOP_MAC:
-		ret = hclge_set_mac_loopback(hdev, en);
+	case HNAE3_LOOP_APP:
+		ret = hclge_set_app_loopback(hdev, en);
 		break;
-	case HNAE3_MAC_INTER_LOOP_SERDES:
-		ret = hclge_set_serdes_loopback(hdev, en);
+	case HNAE3_LOOP_SERIAL_SERDES:
+	case HNAE3_LOOP_PARALLEL_SERDES:
+		ret = hclge_set_serdes_loopback(hdev, en, loop_mode);
 		break;
 	default:
 		ret = -ENOTSUPP;
@@ -5629,18 +5659,12 @@ static void hclge_get_channels(struct hnae3_handle *handle,
 }
 
 static void hclge_get_tqps_and_rss_info(struct hnae3_handle *handle,
-					u16 *free_tqps, u16 *max_rss_size)
+					u16 *alloc_tqps, u16 *max_rss_size)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	u16 temp_tqps = 0;
-	int i;
 
-	for (i = 0; i < hdev->num_tqps; i++) {
-		if (!hdev->htqp[i].alloced)
-			temp_tqps++;
-	}
-	*free_tqps = temp_tqps;
+	*alloc_tqps = vport->alloc_tqps;
 	*max_rss_size = hdev->rss_size_max;
 }
 
