@@ -3313,6 +3313,7 @@ void ceph_msg_data_add_pagelist(struct ceph_msg *msg,
 
 	data = ceph_msg_data_create(CEPH_MSG_DATA_PAGELIST);
 	BUG_ON(!data);
+	refcount_inc(&pagelist->refcnt);
 	data->pagelist = pagelist;
 
 	list_add_tail(&data->links, &msg->data);
