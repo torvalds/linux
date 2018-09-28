@@ -29,32 +29,29 @@ void devprop_gpiochip_set_names(struct gpio_chip *chip,
 	struct gpio_device *gdev = chip->gpiodev;
 	const char **names;
 	int ret, i;
+	int count;
 
-	ret = fwnode_property_read_string_array(fwnode, "gpio-line-names",
-						NULL, 0);
-	if (ret < 0)
+	count = fwnode_property_read_string_array(fwnode, "gpio-line-names",
+						  NULL, 0);
+	if (count < 0)
 		return;
 
-	if (ret != gdev->ngpio) {
-		dev_warn(&gdev->dev,
-			 "names %d do not match number of GPIOs %d\n", ret,
-			 gdev->ngpio);
-		return;
-	}
+	if (count > gdev->ngpio)
+		count = gdev->ngpio;
 
-	names = kcalloc(gdev->ngpio, sizeof(*names), GFP_KERNEL);
+	names = kcalloc(count, sizeof(*names), GFP_KERNEL);
 	if (!names)
 		return;
 
 	ret = fwnode_property_read_string_array(fwnode, "gpio-line-names",
-						names, gdev->ngpio);
+						names, count);
 	if (ret < 0) {
 		dev_warn(&gdev->dev, "failed to read GPIO line names\n");
 		kfree(names);
 		return;
 	}
 
-	for (i = 0; i < gdev->ngpio; i++)
+	for (i = 0; i < count; i++)
 		gdev->descs[i].name = names[i];
 
 	kfree(names);
