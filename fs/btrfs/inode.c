@@ -5292,8 +5292,7 @@ static void evict_inode_truncate_pages(struct inode *inode)
 }
 
 static struct btrfs_trans_handle *evict_refill_and_join(struct btrfs_root *root,
-							struct btrfs_block_rsv *rsv,
-							u64 min_size)
+							struct btrfs_block_rsv *rsv)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
@@ -5303,7 +5302,7 @@ static struct btrfs_trans_handle *evict_refill_and_join(struct btrfs_root *root,
 		struct btrfs_trans_handle *trans;
 		int ret;
 
-		ret = btrfs_block_rsv_refill(root, rsv, min_size,
+		ret = btrfs_block_rsv_refill(root, rsv, rsv->size,
 					     BTRFS_RESERVE_FLUSH_LIMIT);
 
 		if (ret && ++failures > 2) {
@@ -5321,7 +5320,7 @@ static struct btrfs_trans_handle *evict_refill_and_join(struct btrfs_root *root,
 		 * it.
 		 */
 		if (!btrfs_check_space_for_delayed_refs(trans, fs_info) &&
-		    !btrfs_block_rsv_migrate(global_rsv, rsv, min_size, false))
+		    !btrfs_block_rsv_migrate(global_rsv, rsv, rsv->size, false))
 			return trans;
 
 		/* If not, commit and try again. */
@@ -5337,7 +5336,6 @@ void btrfs_evict_inode(struct inode *inode)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_block_rsv *rsv;
-	u64 min_size;
 	int ret;
 
 	trace_btrfs_inode_evict(inode);
@@ -5346,8 +5344,6 @@ void btrfs_evict_inode(struct inode *inode)
 		clear_inode(inode);
 		return;
 	}
-
-	min_size = btrfs_calc_trunc_metadata_size(fs_info, 1);
 
 	evict_inode_truncate_pages(inode);
 
@@ -5378,13 +5374,13 @@ void btrfs_evict_inode(struct inode *inode)
 	rsv = btrfs_alloc_block_rsv(fs_info, BTRFS_BLOCK_RSV_TEMP);
 	if (!rsv)
 		goto no_delete;
-	rsv->size = min_size;
+	rsv->size = btrfs_calc_trunc_metadata_size(fs_info, 1);
 	rsv->failfast = 1;
 
 	btrfs_i_size_write(BTRFS_I(inode), 0);
 
 	while (1) {
-		trans = evict_refill_and_join(root, rsv, min_size);
+		trans = evict_refill_and_join(root, rsv);
 		if (IS_ERR(trans))
 			goto free_rsv;
 
@@ -5409,7 +5405,7 @@ void btrfs_evict_inode(struct inode *inode)
 	 * If it turns out that we are dropping too many of these, we might want
 	 * to add a mechanism for retrying these after a commit.
 	 */
-	trans = evict_refill_and_join(root, rsv, min_size);
+	trans = evict_refill_and_join(root, rsv);
 	if (!IS_ERR(trans)) {
 		trans->block_rsv = rsv;
 		btrfs_orphan_del(trans, BTRFS_I(inode));
