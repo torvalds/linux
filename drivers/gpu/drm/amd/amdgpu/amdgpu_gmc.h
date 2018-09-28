@@ -89,7 +89,7 @@ struct amdgpu_gmc_funcs {
 
 struct amdgpu_xgmi {
 	/* from psp */
-	u64 device_id;
+	u64 node_id;
 	u64 hive_id;
 	/* fixed per family */
 	u64 node_segment_size;

@@ -590,6 +590,24 @@ static u64 psp_v11_0_xgmi_get_hive_id(struct psp_context *psp)
 	return hive_id;
 }
 
+static u64 psp_v11_0_xgmi_get_node_id(struct psp_context *psp)
+{
+	struct ta_xgmi_shared_memory *xgmi_cmd;
+	int ret;
+
+	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
+
+	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_NODE_ID;
+
+	/* Invoke xgmi ta to get the node id */
+	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
+	if (ret)
+		return 0;
+	else
+		return xgmi_cmd->xgmi_out_message.get_node_id.node_id;
+}
+
 static const struct psp_funcs psp_v11_0_funcs = {
 	.init_microcode = psp_v11_0_init_microcode,
 	.bootloader_load_sysdrv = psp_v11_0_bootloader_load_sysdrv,
@@ -605,6 +623,7 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.xgmi_get_topology_info = psp_v11_0_xgmi_get_topology_info,
 	.xgmi_set_topology_info = psp_v11_0_xgmi_set_topology_info,
 	.xgmi_get_hive_id = psp_v11_0_xgmi_get_hive_id,
+	.xgmi_get_node_id = psp_v11_0_xgmi_get_node_id,
 };
 
 void psp_v11_0_set_psp_funcs(struct psp_context *psp)
