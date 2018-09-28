@@ -366,7 +366,7 @@ int mt76x2_init_hardware(struct mt76x2_dev *dev)
 
 	dev->mt76.rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
 
-	ret = mt76x2_dma_init(dev);
+	ret = mt76x02_dma_init(&dev->mt76);
 	if (ret)
 		return ret;
 
@@ -525,6 +525,7 @@ int mt76x2_register_device(struct mt76x2_dev *dev)
 	if (!status_fifo)
 		return -ENOMEM;
 
+	tasklet_init(&dev->tx_tasklet, mt76x2_tx_tasklet, (unsigned long)dev);
 	kfifo_init(&dev->txstatus_fifo, status_fifo, fifo_size);
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x2_phy_calibrate);
 	INIT_DELAYED_WORK(&dev->mac_work, mt76x2_mac_work);

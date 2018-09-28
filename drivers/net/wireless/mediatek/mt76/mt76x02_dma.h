@@ -48,6 +48,9 @@
 #define MT_MCU_MSG_TYPE			GENMASK(31, 30)
 #define MT_MCU_MSG_TYPE_CMD		BIT(30)
 
+#define MT_RX_HEADROOM			32
+#define MT76X02_RX_RING_SIZE		256
+
 enum dma_msg_port {
 	WLAN_PORT,
 	CPU_RX_PORT,
@@ -67,6 +70,7 @@ mt76x02_wait_for_wpdma(struct mt76_dev *dev, int timeout)
 			   0, timeout);
 }
 
+int mt76x02_dma_init(struct mt76_dev *dev);
 void mt76x02_dma_enable(struct mt76_dev *dev);
 void mt76x02_dma_disable(struct mt76_dev *dev);
 

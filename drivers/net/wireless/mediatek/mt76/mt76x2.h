@@ -35,9 +35,6 @@
 #define MT7662U_FIRMWARE	"mediatek/mt7662u.bin"
 #define MT7662U_ROM_PATCH	"mediatek/mt7662u_rom_patch.bin"
 
-#define MT76x2_RX_RING_SIZE	256
-#define MT_RX_HEADROOM		32
-
 #define MT_MAX_CHAINS		2
 
 #define MT_CALIBRATE_INTERVAL	HZ
@@ -165,7 +162,7 @@ int mt76x2_mcu_set_channel(struct mt76x2_dev *dev, u8 channel, u8 bw,
 int mt76x2_mcu_load_cr(struct mt76x2_dev *dev, u8 type, u8 temp_level,
 		       u8 channel);
 
-int mt76x2_dma_init(struct mt76x2_dev *dev);
+void mt76x2_tx_tasklet(unsigned long data);
 void mt76x2_dma_cleanup(struct mt76x2_dev *dev);
 
 void mt76x2_cleanup(struct mt76x2_dev *dev);
