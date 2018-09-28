@@ -110,6 +110,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MT6351 if MTK_PMIC_WRAP
 	select SND_SOC_NAU8540 if I2C
 	select SND_SOC_NAU8810 if I2C
+	select SND_SOC_NAU8822 if I2C
 	select SND_SOC_NAU8824 if I2C
 	select SND_SOC_NAU8825 if I2C
 	select SND_SOC_HDMI_CODEC
@@ -1324,6 +1325,10 @@ config SND_SOC_NAU8540
 
 config SND_SOC_NAU8810
 	tristate "Nuvoton Technology Corporation NAU88C10 CODEC"
+	depends on I2C
+
+config SND_SOC_NAU8822
+	tristate "Nuvoton Technology Corporation NAU88C22 CODEC"
 	depends on I2C
 
 config SND_SOC_NAU8824
