@@ -66,4 +66,12 @@ static inline void mt76x02_irq_disable(struct mt76_dev *dev, u32 mask)
 	mt76x02_set_irq_mask(dev, mask, 0);
 }
 
+static inline bool
+mt76x02_wait_for_txrx_idle(struct mt76_dev *dev)
+{
+	return __mt76_poll_msec(dev, MT_MAC_STATUS,
+				MT_MAC_STATUS_TX | MT_MAC_STATUS_RX,
+				0, 100);
+}
+
 #endif

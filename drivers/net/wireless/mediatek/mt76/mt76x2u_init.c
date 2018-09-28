@@ -209,7 +209,7 @@ int mt76x2u_init_hardware(struct mt76x2_dev *dev)
 
 	mt76x2u_init_beacon_offsets(dev);
 
-	if (!mt76x2_wait_for_bbp(dev))
+	if (!mt76x02_wait_for_txrx_idle(&dev->mt76))
 		return -ETIMEDOUT;
 
 	/* reset wcid table */

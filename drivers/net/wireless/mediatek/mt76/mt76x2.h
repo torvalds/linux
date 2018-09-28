@@ -124,13 +124,6 @@ static inline bool mt76x2_channel_silent(struct mt76x2_dev *dev)
 		chan->dfs_state != NL80211_DFS_AVAILABLE);
 }
 
-static inline bool mt76x2_wait_for_bbp(struct mt76x2_dev *dev)
-{
-	return mt76_poll_msec(dev, MT_MAC_STATUS,
-			      MT_MAC_STATUS_TX | MT_MAC_STATUS_RX,
-			      0, 100);
-}
-
 extern const struct ieee80211_ops mt76x2_ops;
 
 struct mt76x2_dev *mt76x2_alloc_device(struct device *pdev);
