@@ -71,6 +71,10 @@ static bool psr_global_enabled(u32 debug)
 static bool intel_psr2_enabled(struct drm_i915_private *dev_priv,
 			       const struct intel_crtc_state *crtc_state)
 {
+	/* Disable PSR2 by default for all platforms */
+	if (i915_modparams.enable_psr == -1)
+		return false;
+
 	switch (dev_priv->psr.debug & I915_PSR_DEBUG_MODE_MASK) {
 	case I915_PSR_DEBUG_FORCE_PSR1:
 		return false;
@@ -1066,12 +1070,9 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 	if (!dev_priv->psr.sink_support)
 		return;
 
-	if (i915_modparams.enable_psr == -1) {
-		i915_modparams.enable_psr = dev_priv->vbt.psr.enable;
-
-		/* Per platform default: all disabled. */
-		i915_modparams.enable_psr = 0;
-	}
+	if (i915_modparams.enable_psr == -1)
+		if (INTEL_GEN(dev_priv) < 9 || !dev_priv->vbt.psr.enable)
+			i915_modparams.enable_psr = 0;
 
 	/* Set link_standby x link_off defaults */
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
