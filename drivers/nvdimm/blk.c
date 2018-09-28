@@ -290,7 +290,7 @@ static int nsblk_attach_disk(struct nd_namespace_blk *nsblk)
 	}
 
 	set_capacity(disk, available_disk_size >> SECTOR_SHIFT);
-	device_add_disk(dev, disk);
+	device_add_disk(dev, disk, NULL);
 	revalidate_disk(disk);
 	return 0;
 }
