@@ -1120,11 +1120,18 @@ static ssize_t amdgpu_hwmon_set_pwm1(struct device *dev,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	int err;
 	u32 value;
+	u32 pwm_mode;
 
 	/* Can't adjust fan when the card is off */
 	if  ((adev->flags & AMD_IS_PX) &&
 	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
+
+	pwm_mode = amdgpu_dpm_get_fan_control_mode(adev);
+	if (pwm_mode != AMD_FAN_CTRL_MANUAL) {
+		pr_info("manual fan speed control should be enabled first\n");
+		return -EINVAL;
+	}
 
 	err = kstrtou32(buf, 10, &value);
 	if (err)
