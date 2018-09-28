@@ -358,7 +358,6 @@
 			power-domains = <&sysc 32>;
 			resets = <&cpg 522>;
 			#thermal-sensor-cells = <1>;
-			status = "okay";
 		};
 
 		intc_ex: interrupt-controller@e61c0000 {

@@ -18,6 +18,7 @@
 	};
 
 	chosen {
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -240,6 +241,8 @@
 
 &i2c_dvfs {
 	status = "okay";
+
+	clock-frequency = <400000>;
 
 	pmic: pmic@30 {
 		pinctrl-0 = <&irq0_pins>;
