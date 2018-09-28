@@ -107,6 +107,9 @@ static void mt76x0_reset_csr_bbp(struct mt76x0_dev *dev)
 		MT_MAC_SYS_CTRL_RESET_CSR |
 		MT_MAC_SYS_CTRL_RESET_BBP);
 	msleep(200);
+	mt76_clear(dev, MT_MAC_SYS_CTRL,
+		   MT_MAC_SYS_CTRL_RESET_CSR |
+		   MT_MAC_SYS_CTRL_RESET_BBP);
 }
 
 #define RANDOM_WRITE(dev, tab)			\
@@ -151,13 +154,6 @@ static void mt76x0_init_mac_registers(struct mt76x0_dev *dev)
 	reg = mt76_rr(dev, MT_MAC_SYS_CTRL);
 	reg &= ~0x3;
 	mt76_wr(dev, MT_MAC_SYS_CTRL, reg);
-
-	if (is_mt7610e(dev)) {
-		/* Disable COEX_EN */
-		reg = mt76_rr(dev, MT_COEXCFG0);
-		reg &= 0xFFFFFFFE;
-		mt76_wr(dev, MT_COEXCFG0, reg);
-	}
 
 	/* Set 0x141C[15:12]=0xF */
 	reg = mt76_rr(dev, MT_EXT_CCA_CFG);

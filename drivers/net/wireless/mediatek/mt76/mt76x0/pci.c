@@ -20,6 +20,51 @@
 
 #include "mt76x0.h"
 #include "mcu.h"
+#include "../mt76x02_dma.h"
+
+static int mt76x0e_register_device(struct mt76x0_dev *dev)
+{
+	int err;
+
+	mt76x0_chip_onoff(dev, true, false);
+	if (!mt76x02_wait_for_mac(&dev->mt76))
+		return -ETIMEDOUT;
+
+	mt76x02_dma_disable(&dev->mt76);
+	err = mt76x0e_mcu_init(dev);
+	if (err < 0)
+		return err;
+
+	err = mt76x02_dma_init(&dev->mt76);
+	if (err < 0)
+		return err;
+
+	err = mt76x0_init_hardware(dev);
+	if (err < 0)
+		return err;
+
+	if (mt76_chip(&dev->mt76) == 0x7610) {
+		u16 val;
+
+		mt76_clear(dev, MT_COEXCFG0, BIT(0));
+		val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_0);
+		if (val & MT_EE_NIC_CONF_0_PA_IO_CURRENT) {
+			u32 data;
+
+			/* set external external PA I/O
+			 * current to 16mA
+			 */
+			data = mt76_rr(dev, 0x11c);
+			val |= 0xc03;
+			mt76_wr(dev, 0x11c, val);
+		}
+	}
+
+	mt76_clear(dev, 0x110, BIT(9));
+	mt76_set(dev, MT_MAX_LEN_CFG, BIT(13));
+
+	return 0;
+}
 
 static int
 mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -50,7 +95,7 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->mt76.rev = mt76_rr(dev, MT_ASIC_VERSION);
 	dev_info(dev->mt76.dev, "ASIC revision: %08x\n", dev->mt76.rev);
 
-	ret = mt76x0e_mcu_init(dev);
+	ret = mt76x0e_register_device(dev);
 	if (ret < 0)
 		goto error;
 
