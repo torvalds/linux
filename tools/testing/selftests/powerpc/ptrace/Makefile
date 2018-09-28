@@ -4,6 +4,7 @@ TEST_PROGS := ptrace-gpr ptrace-tm-gpr ptrace-tm-spd-gpr \
               ptrace-tm-spd-vsx ptrace-tm-spr ptrace-hwbreak ptrace-pkey core-pkey \
               perf-hwbreak
 
+top_srcdir = ../../../../..
 include ../../lib.mk
 
 all: $(TEST_PROGS)

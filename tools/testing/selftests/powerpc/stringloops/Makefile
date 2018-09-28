@@ -29,6 +29,7 @@ endif
 
 ASFLAGS = $(CFLAGS)
 
+top_srcdir = ../../../../..
 include ../../lib.mk
 
 $(TEST_GEN_PROGS): $(EXTRA_SOURCES)

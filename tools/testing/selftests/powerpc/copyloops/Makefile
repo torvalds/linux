@@ -17,6 +17,7 @@ TEST_GEN_PROGS := copyuser_64_t0 copyuser_64_t1 copyuser_64_t2 \
 
 EXTRA_SOURCES := validate.c ../harness.c stubs.S
 
+top_srcdir = ../../../../..
 include ../../lib.mk
 
 $(OUTPUT)/copyuser_64_t%:	copyuser_64.S $(EXTRA_SOURCES)
