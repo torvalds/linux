@@ -43,7 +43,7 @@ static void mt76x0_vht_cap_mask(struct ieee80211_supported_band *sband)
 static void
 mt76x0_set_wlan_state(struct mt76x0_dev *dev, u32 val, bool enable)
 {
-	int i;
+	u32 mask = MT_CMB_CTRL_XTAL_RDY | MT_CMB_CTRL_PLL_LD;
 
 	/* Note: we don't turn off WLAN_CLK because that makes the device
 	 *	 not respond properly on the probe path.
@@ -60,24 +60,12 @@ mt76x0_set_wlan_state(struct mt76x0_dev *dev, u32 val, bool enable)
 	mt76_wr(dev, MT_WLAN_FUN_CTRL, val);
 	udelay(20);
 
-	if (!enable)
-		return;
-
-	for (i = 200; i; i--) {
-		val = mt76_rr(dev, MT_CMB_CTRL);
-
-		if (val & MT_CMB_CTRL_XTAL_RDY && val & MT_CMB_CTRL_PLL_LD)
-			break;
-
-		udelay(20);
-	}
-
 	/* Note: vendor driver tries to disable/enable wlan here and retry
 	 *       but the code which does it is so buggy it must have never
 	 *       triggered, so don't bother.
 	 */
-	if (!i)
-		dev_err(dev->mt76.dev, "Error: PLL and XTAL check failed!\n");
+	if (enable && !mt76_poll(dev, MT_CMB_CTRL, mask, mask, 2000))
+		dev_err(dev->mt76.dev, "PLL and XTAL check failed\n");
 }
 
 void mt76x0_chip_onoff(struct mt76x0_dev *dev, bool enable, bool reset)
