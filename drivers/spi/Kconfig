@@ -596,6 +596,16 @@ config SPI_SIRF
 	help
 	  SPI driver for CSR SiRFprimaII SoCs
 
+config SPI_SLAVE_MT27XX
+	tristate "MediaTek SPI slave device"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on SPI_SLAVE
+	help
+	  This selects the MediaTek(R) SPI slave device driver.
+	  If you want to use MediaTek(R) SPI slave interface,
+	  say Y or M here.If you are not sure, say N.
+	  SPI slave drivers for Mediatek MT27XX series ARM SoCs.
+
 config SPI_SPRD
 	tristate "Spreadtrum SPI controller"
 	depends on ARCH_SPRD || COMPILE_TEST
