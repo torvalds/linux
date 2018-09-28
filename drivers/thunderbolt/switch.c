@@ -1845,6 +1845,8 @@ void tb_sw_set_unplugged(struct tb_switch *sw)
 	for (i = 0; i <= sw->config.max_port_number; i++) {
 		if (tb_port_has_remote(&sw->ports[i]))
 			tb_sw_set_unplugged(sw->ports[i].remote->sw);
+		else if (sw->ports[i].xdomain)
+			sw->ports[i].xdomain->is_unplugged = true;
 	}
 }
 
@@ -1859,6 +1861,17 @@ int tb_switch_resume(struct tb_switch *sw)
 	 */
 	if (tb_route(sw)) {
 		u64 uid;
+
+		/*
+		 * Check first that we can still read the switch config
+		 * space. It may be that there is now another domain
+		 * connected.
+		 */
+		err = tb_cfg_get_upstream_port(sw->tb->ctl, tb_route(sw));
+		if (err < 0) {
+			tb_sw_info(sw, "switch not present anymore\n");
+			return err;
+		}
 
 		err = tb_drom_read_uid_only(sw, &uid);
 		if (err) {
@@ -1890,14 +1903,22 @@ int tb_switch_resume(struct tb_switch *sw)
 	for (i = 1; i <= sw->config.max_port_number; i++) {
 		struct tb_port *port = &sw->ports[i];
 
-		if (!tb_port_has_remote(port))
+		if (!tb_port_has_remote(port) && !port->xdomain)
 			continue;
 
-		if (tb_wait_for_port(port, true) <= 0
-			|| tb_switch_resume(port->remote->sw)) {
+		if (tb_wait_for_port(port, true) <= 0) {
 			tb_port_warn(port,
 				     "lost during suspend, disconnecting\n");
-			tb_sw_set_unplugged(port->remote->sw);
+			if (tb_port_has_remote(port))
+				tb_sw_set_unplugged(port->remote->sw);
+			else if (port->xdomain)
+				port->xdomain->is_unplugged = true;
+		} else if (tb_port_has_remote(port)) {
+			if (tb_switch_resume(port->remote->sw)) {
+				tb_port_warn(port,
+					     "lost during suspend, disconnecting\n");
+				tb_sw_set_unplugged(port->remote->sw);
+			}
 		}
 	}
 	return 0;

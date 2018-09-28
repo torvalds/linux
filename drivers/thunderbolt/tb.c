@@ -101,6 +101,28 @@ static void tb_discover_tunnels(struct tb_switch *sw)
 	}
 }
 
+static void tb_scan_xdomain(struct tb_port *port)
+{
+	struct tb_switch *sw = port->sw;
+	struct tb *tb = sw->tb;
+	struct tb_xdomain *xd;
+	u64 route;
+
+	route = tb_downstream_route(port);
+	xd = tb_xdomain_find_by_route(tb, route);
+	if (xd) {
+		tb_xdomain_put(xd);
+		return;
+	}
+
+	xd = tb_xdomain_alloc(tb, &sw->dev, route, tb->root_switch->uuid,
+			      NULL);
+	if (xd) {
+		tb_port_at(route, sw)->xdomain = xd;
+		tb_xdomain_add(xd);
+	}
+}
+
 static void tb_scan_port(struct tb_port *port);
 
 /**
@@ -143,17 +165,34 @@ static void tb_scan_port(struct tb_port *port)
 	if (tb_wait_for_port(port, false) <= 0)
 		return;
 	if (port->remote) {
-		tb_port_WARN(port, "port already has a remote!\n");
+		tb_port_dbg(port, "port already has a remote\n");
 		return;
 	}
 	sw = tb_switch_alloc(port->sw->tb, &port->sw->dev,
 			     tb_downstream_route(port));
-	if (IS_ERR(sw))
+	if (IS_ERR(sw)) {
+		/*
+		 * If there is an error accessing the connected switch
+		 * it may be connected to another domain. Also we allow
+		 * the other domain to be connected to a max depth switch.
+		 */
+		if (PTR_ERR(sw) == -EIO || PTR_ERR(sw) == -EADDRNOTAVAIL)
+			tb_scan_xdomain(port);
 		return;
+	}
 
 	if (tb_switch_configure(sw)) {
 		tb_switch_put(sw);
 		return;
+	}
+
+	/*
+	 * If there was previously another domain connected remove it
+	 * first.
+	 */
+	if (port->xdomain) {
+		tb_xdomain_remove(port->xdomain);
+		port->xdomain = NULL;
 	}
 
 	/*
@@ -393,6 +432,65 @@ static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
 	return 0;
 }
 
+static int tb_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_port *nhi_port, *dst_port;
+	struct tb_tunnel *tunnel;
+	struct tb_switch *sw;
+
+	sw = tb_to_switch(xd->dev.parent);
+	dst_port = tb_port_at(xd->route, sw);
+	nhi_port = tb_find_port(tb->root_switch, TB_TYPE_NHI);
+
+	mutex_lock(&tb->lock);
+	tunnel = tb_tunnel_alloc_dma(tb, nhi_port, dst_port, xd->transmit_ring,
+				     xd->transmit_path, xd->receive_ring,
+				     xd->receive_path);
+	if (!tunnel) {
+		mutex_unlock(&tb->lock);
+		return -ENOMEM;
+	}
+
+	if (tb_tunnel_activate(tunnel)) {
+		tb_port_info(nhi_port,
+			     "DMA tunnel activation failed, aborting\n");
+		tb_tunnel_free(tunnel);
+		mutex_unlock(&tb->lock);
+		return -EIO;
+	}
+
+	list_add_tail(&tunnel->list, &tcm->tunnel_list);
+	mutex_unlock(&tb->lock);
+	return 0;
+}
+
+static void __tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+{
+	struct tb_port *dst_port;
+	struct tb_switch *sw;
+
+	sw = tb_to_switch(xd->dev.parent);
+	dst_port = tb_port_at(xd->route, sw);
+
+	/*
+	 * It is possible that the tunnel was already teared down (in
+	 * case of cable disconnect) so it is fine if we cannot find it
+	 * here anymore.
+	 */
+	tb_free_tunnel(tb, TB_TUNNEL_DMA, NULL, dst_port);
+}
+
+static int tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+{
+	if (!xd->is_unplugged) {
+		mutex_lock(&tb->lock);
+		__tb_disconnect_xdomain_paths(tb, xd);
+		mutex_unlock(&tb->lock);
+	}
+	return 0;
+}
+
 /* hotplug handling */
 
 /**
@@ -432,13 +530,29 @@ static void tb_handle_hotplug(struct work_struct *work)
 	}
 	if (ev->unplug) {
 		if (tb_port_has_remote(port)) {
-			tb_port_info(port, "unplugged\n");
+			tb_port_dbg(port, "switch unplugged\n");
 			tb_sw_set_unplugged(port->remote->sw);
 			tb_free_invalid_tunnels(tb);
 			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
 			if (port->dual_link_port)
 				port->dual_link_port->remote = NULL;
+		} else if (port->xdomain) {
+			struct tb_xdomain *xd = tb_xdomain_get(port->xdomain);
+
+			tb_port_dbg(port, "xdomain unplugged\n");
+			/*
+			 * Service drivers are unbound during
+			 * tb_xdomain_remove() so setting XDomain as
+			 * unplugged here prevents deadlock if they call
+			 * tb_xdomain_disable_paths(). We will tear down
+			 * the path below.
+			 */
+			xd->is_unplugged = true;
+			tb_xdomain_remove(xd);
+			port->xdomain = NULL;
+			__tb_disconnect_xdomain_paths(tb, xd);
+			tb_xdomain_put(xd);
 		} else if (tb_port_is_dpout(port)) {
 			tb_teardown_dp(tb, port);
 		} else {
@@ -500,8 +614,16 @@ static void tb_stop(struct tb *tb)
 	struct tb_tunnel *n;
 
 	/* tunnels are only present after everything has been initialized */
-	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list)
+	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list) {
+		/*
+		 * DMA tunnels require the driver to be functional so we
+		 * tear them down. Other protocol tunnels can be left
+		 * intact.
+		 */
+		if (tb_tunnel_is_dma(tunnel))
+			tb_tunnel_deactivate(tunnel);
 		tb_tunnel_free(tunnel);
+	}
 	tb_switch_remove(tb->root_switch);
 	tcm->hotplug_active = false; /* signal tb_handle_hotplug to quit */
 }
@@ -611,13 +733,50 @@ static int tb_resume_noirq(struct tb *tb)
 	return 0;
 }
 
+static int tb_free_unplugged_xdomains(struct tb_switch *sw)
+{
+	int i, ret = 0;
+
+	for (i = 1; i <= sw->config.max_port_number; i++) {
+		struct tb_port *port = &sw->ports[i];
+
+		if (tb_is_upstream_port(port))
+			continue;
+		if (port->xdomain && port->xdomain->is_unplugged) {
+			tb_xdomain_remove(port->xdomain);
+			port->xdomain = NULL;
+			ret++;
+		} else if (port->remote) {
+			ret += tb_free_unplugged_xdomains(port->remote->sw);
+		}
+	}
+
+	return ret;
+}
+
+static void tb_complete(struct tb *tb)
+{
+	/*
+	 * Release any unplugged XDomains and if there is a case where
+	 * another domain is swapped in place of unplugged XDomain we
+	 * need to run another rescan.
+	 */
+	mutex_lock(&tb->lock);
+	if (tb_free_unplugged_xdomains(tb->root_switch))
+		tb_scan_switch(tb->root_switch);
+	mutex_unlock(&tb->lock);
+}
+
 static const struct tb_cm_ops tb_cm_ops = {
 	.start = tb_start,
 	.stop = tb_stop,
 	.suspend_noirq = tb_suspend_noirq,
 	.resume_noirq = tb_resume_noirq,
+	.complete = tb_complete,
 	.handle_event = tb_handle_event,
 	.approve_switch = tb_tunnel_pci,
+	.approve_xdomain_paths = tb_approve_xdomain_paths,
+	.disconnect_xdomain_paths = tb_disconnect_xdomain_paths,
 };
 
 struct tb *tb_probe(struct tb_nhi *nhi)
