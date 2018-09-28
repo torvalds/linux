@@ -40,23 +40,22 @@ struct bridge_init {
 	struct device_node *node;
 };
 
+static void analogix_dp_init(struct analogix_dp_device *dp)
+{
+	analogix_dp_init_analog_param(dp);
+	analogix_dp_init_interrupt(dp);
+	analogix_dp_enable_sw_function(dp);
+	analogix_dp_config_interrupt(dp);
+	analogix_dp_init_analog_func(dp);
+	analogix_dp_init_hpd(dp);
+	analogix_dp_init_aux(dp);
+}
+
 static void analogix_dp_init_dp(struct analogix_dp_device *dp)
 {
 	analogix_dp_reset(dp);
-
 	analogix_dp_swreset(dp);
-
-	analogix_dp_init_analog_param(dp);
-	analogix_dp_init_interrupt(dp);
-
-	/* SW defined function Normal operation */
-	analogix_dp_enable_sw_function(dp);
-
-	analogix_dp_config_interrupt(dp);
-	analogix_dp_init_analog_func(dp);
-
-	analogix_dp_init_hpd(dp);
-	analogix_dp_init_aux(dp);
+	analogix_dp_init(dp);
 }
 
 static int analogix_dp_detect_hpd(struct analogix_dp_device *dp)
@@ -1292,6 +1291,8 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 		return ret;
 
 	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dp->dev);
+	analogix_dp_init(dp);
 
 	ret = analogix_dp_create_bridge(drm_dev, dp);
 	if (ret) {
@@ -1303,6 +1304,7 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 	return 0;
 
 err_disable_pm_runtime:
+	pm_runtime_put(dp->dev);
 	pm_runtime_disable(dev);
 
 	return ret;
@@ -1326,6 +1328,7 @@ void analogix_dp_unbind(struct device *dev, struct device *master,
 	}
 
 	drm_dp_aux_unregister(&dp->aux);
+	pm_runtime_put(dp->dev);
 	pm_runtime_disable(dev);
 	clk_disable_unprepare(dp->clock);
 }
