@@ -405,6 +405,53 @@ int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
         return ret;
 }
 
+static int psp_xgmi_terminate(struct psp_context *psp)
+{
+	int ret;
+
+	if (!psp->xgmi_context.initialized)
+		return 0;
+
+	ret = psp_xgmi_unload(psp);
+	if (ret)
+		return ret;
+
+	psp->xgmi_context.initialized = 0;
+
+	/* free xgmi shared memory */
+	amdgpu_bo_free_kernel(&psp->xgmi_context.xgmi_shared_bo,
+			&psp->xgmi_context.xgmi_shared_mc_addr,
+			&psp->xgmi_context.xgmi_shared_buf);
+
+	return 0;
+}
+
+static int psp_xgmi_initialize(struct psp_context *psp)
+{
+	struct ta_xgmi_shared_memory *xgmi_cmd;
+	int ret;
+
+	if (!psp->xgmi_context.initialized) {
+		ret = psp_xgmi_init_shared_buf(psp);
+		if (ret)
+			return ret;
+	}
+
+	/* Load XGMI TA */
+	ret = psp_xgmi_load(psp);
+	if (ret)
+		return ret;
+
+	/* Initialize XGMI session */
+	xgmi_cmd = (struct ta_xgmi_shared_memory *)(psp->xgmi_context.xgmi_shared_buf);
+	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
+	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__INITIALIZE;
+
+	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
+
+	return ret;
+}
+
 static int psp_hw_start(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -432,6 +479,15 @@ static int psp_hw_start(struct psp_context *psp)
 	if (ret)
 		return ret;
 
+	if (adev->gmc.xgmi.num_physical_nodes > 1) {
+		ret = psp_xgmi_initialize(psp);
+		/* Warning the XGMI seesion initialize failure
+		 * Instead of stop driver initialization
+		 */
+		if (ret)
+			dev_err(psp->adev->dev,
+				"XGMI: Failed to initialize XGMI session\n");
+	}
 	return 0;
 }
 
@@ -592,6 +648,10 @@ static int psp_hw_fini(void *handle)
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		return 0;
 
+	if (adev->gmc.xgmi.num_physical_nodes > 1 &&
+	    psp->xgmi_context.initialized == 1)
+                psp_xgmi_terminate(psp);
+
 	psp_ring_destroy(psp, PSP_RING_TYPE__KM);
 
 	amdgpu_bo_free_kernel(&psp->tmr_bo, &psp->tmr_mc_addr, &psp->tmr_buf);
@@ -618,6 +678,15 @@ static int psp_suspend(void *handle)
 
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		return 0;
+
+	if (adev->gmc.xgmi.num_physical_nodes > 1 &&
+	    psp->xgmi_context.initialized == 1) {
+		ret = psp_xgmi_terminate(psp);
+		if (ret) {
+			DRM_ERROR("Failed to terminate xgmi ta\n");
+			return ret;
+		}
+	}
 
 	ret = psp_ring_stop(psp, PSP_RING_TYPE__KM);
 	if (ret) {

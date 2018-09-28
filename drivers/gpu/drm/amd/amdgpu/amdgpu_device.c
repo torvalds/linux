@@ -1683,7 +1683,8 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	amdgpu_xgmi_add_device(adev);
+	if (adev->gmc.xgmi.num_physical_nodes > 1)
+		amdgpu_xgmi_add_device(adev);
 	amdgpu_amdkfd_device_init(adev);
 
 	if (amdgpu_sriov_vf(adev))
