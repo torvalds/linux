@@ -3250,6 +3250,23 @@ void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr)
 }
 EXPORT_SYMBOL(drm_dp_mst_topology_mgr_destroy);
 
+static bool remote_i2c_read_ok(const struct i2c_msg msgs[], int num)
+{
+	int i;
+
+	if (num - 1 > DP_REMOTE_I2C_READ_MAX_TRANSACTIONS)
+		return false;
+
+	for (i = 0; i < num - 1; i++) {
+		if (msgs[i].flags & I2C_M_RD ||
+		    msgs[i].len > 0xff)
+			return false;
+	}
+
+	return msgs[num - 1].flags & I2C_M_RD &&
+		msgs[num - 1].len <= 0xff;
+}
+
 /* I2C device */
 static int drm_dp_mst_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 			       int num)
@@ -3259,7 +3276,6 @@ static int drm_dp_mst_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs
 	struct drm_dp_mst_branch *mstb;
 	struct drm_dp_mst_topology_mgr *mgr = port->mgr;
 	unsigned int i;
-	bool reading = false;
 	struct drm_dp_sideband_msg_req_body msg;
 	struct drm_dp_sideband_msg_tx *txmsg = NULL;
 	int ret;
@@ -3268,12 +3284,7 @@ static int drm_dp_mst_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs
 	if (!mstb)
 		return -EREMOTEIO;
 
-	/* construct i2c msg */
-	/* see if last msg is a read */
-	if (msgs[num - 1].flags & I2C_M_RD)
-		reading = true;
-
-	if (!reading || (num - 1 > DP_REMOTE_I2C_READ_MAX_TRANSACTIONS)) {
+	if (!remote_i2c_read_ok(msgs, num)) {
 		DRM_DEBUG_KMS("Unsupported I2C transaction for MST device\n");
 		ret = -EIO;
 		goto out;
