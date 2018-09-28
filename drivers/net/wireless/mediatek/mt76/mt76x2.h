@@ -97,8 +97,6 @@ struct mt76x2_dev {
 	u8 tbtt_count;
 	u16 beacon_int;
 
-	u16 chainmask;
-
 	struct mt76x2_calibration cal;
 
 	s8 target_power;

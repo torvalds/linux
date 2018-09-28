@@ -23,5 +23,7 @@ void mt76x02_add_rate_power_offset(struct mt76_rate_power *r, int offset);
 void mt76x02_phy_set_txpower(struct mt76_dev *dev, int txp_0, int txp_2);
 void mt76x02_limit_rate_power(struct mt76_rate_power *r, int limit);
 int mt76x02_get_max_rate_power(struct mt76_rate_power *r);
+void mt76x02_phy_set_rxpath(struct mt76_dev *dev);
+void mt76x02_phy_set_txdac(struct mt76_dev *dev);
 
 #endif /* __MT76x02_PHY_H */

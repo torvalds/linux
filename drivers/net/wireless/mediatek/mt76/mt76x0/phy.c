@@ -856,32 +856,6 @@ void mt76x0_phy_con_cal_onoff(struct mt76x0_dev *dev,
 }
 
 static void
-mt76x0_set_rx_chains(struct mt76x0_dev *dev)
-{
-	u32 val;
-
-	val = mt76_rr(dev, MT_BBP(AGC, 0));
-	val &= ~(BIT(3) | BIT(4));
-
-	if (dev->chainmask & BIT(1))
-		val |= BIT(3);
-
-	mt76_wr(dev, MT_BBP(AGC, 0), val);
-
-	mb();
-	val = mt76_rr(dev, MT_BBP(AGC, 0));
-}
-
-static void
-mt76x0_set_tx_dac(struct mt76x0_dev *dev)
-{
-	if (dev->chainmask & BIT(1))
-		mt76_set(dev, MT_BBP(TXBE, 5), 3);
-	else
-		mt76_clear(dev, MT_BBP(TXBE, 5), 3);
-}
-
-static void
 mt76x0_rf_init(struct mt76x0_dev *dev)
 {
 	int i;
@@ -940,7 +914,6 @@ void mt76x0_phy_init(struct mt76x0_dev *dev)
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x0_phy_calibrate);
 
 	mt76x0_rf_init(dev);
-
-	mt76x0_set_rx_chains(dev);
-	mt76x0_set_tx_dac(dev);
+	mt76x02_phy_set_rxpath(&dev->mt76);
+	mt76x02_phy_set_txdac(&dev->mt76);
 }

@@ -20,6 +20,44 @@
 #include "mt76.h"
 #include "mt76x02_phy.h"
 
+void mt76x02_phy_set_rxpath(struct mt76_dev *dev)
+{
+	u32 val;
+
+	val = __mt76_rr(dev, MT_BBP(AGC, 0));
+	val &= ~BIT(4);
+
+	switch (dev->chainmask & 0xf) {
+	case 2:
+		val |= BIT(3);
+		break;
+	default:
+		val &= ~BIT(3);
+		break;
+	}
+
+	__mt76_wr(dev, MT_BBP(AGC, 0), val);
+	mb();
+	val = __mt76_rr(dev, MT_BBP(AGC, 0));
+}
+EXPORT_SYMBOL_GPL(mt76x02_phy_set_rxpath);
+
+void mt76x02_phy_set_txdac(struct mt76_dev *dev)
+{
+	int txpath;
+
+	txpath = (dev->chainmask >> 8) & 0xf;
+	switch (txpath) {
+	case 2:
+		__mt76_set(dev, MT_BBP(TXBE, 5), 0x3);
+		break;
+	default:
+		__mt76_clear(dev, MT_BBP(TXBE, 5), 0x3);
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(mt76x02_phy_set_txdac);
+
 static u32
 mt76x02_tx_power_mask(u8 v1, u8 v2, u8 v3, u8 v4)
 {

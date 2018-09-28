@@ -17,39 +17,6 @@
 #include "mt76x2u.h"
 #include "mt76x2_eeprom.h"
 
-void mt76x2u_phy_set_rxpath(struct mt76x2_dev *dev)
-{
-	u32 val;
-
-	val = mt76_rr(dev, MT_BBP(AGC, 0));
-	val &= ~BIT(4);
-
-	switch (dev->chainmask & 0xf) {
-	case 2:
-		val |= BIT(3);
-		break;
-	default:
-		val &= ~BIT(3);
-		break;
-	}
-	mt76_wr(dev, MT_BBP(AGC, 0), val);
-}
-
-void mt76x2u_phy_set_txdac(struct mt76x2_dev *dev)
-{
-	int txpath;
-
-	txpath = (dev->chainmask >> 8) & 0xf;
-	switch (txpath) {
-	case 2:
-		mt76_set(dev, MT_BBP(TXBE, 5), 0x3);
-		break;
-	default:
-		mt76_clear(dev, MT_BBP(TXBE, 5), 0x3);
-		break;
-	}
-}
-
 void mt76x2u_phy_channel_calibrate(struct mt76x2_dev *dev)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;

@@ -18,6 +18,7 @@
 
 #include "mt76x2u.h"
 #include "mt76x02_util.h"
+#include "mt76x02_phy.h"
 #include "mt76x2_eeprom.h"
 
 static void mt76x2u_init_dma(struct mt76x2_dev *dev)
@@ -236,8 +237,8 @@ int mt76x2u_init_hardware(struct mt76x2_dev *dev)
 	if (err < 0)
 		return err;
 
-	mt76x2u_phy_set_rxpath(dev);
-	mt76x2u_phy_set_txdac(dev);
+	mt76x02_phy_set_rxpath(&dev->mt76);
+	mt76x02_phy_set_txdac(&dev->mt76);
 
 	return mt76x2u_mac_stop(dev);
 }

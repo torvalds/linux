@@ -313,7 +313,7 @@ int mt76x0_eeprom_init(struct mt76x0_dev *dev)
 	mt76x0_set_freq_offset(dev);
 	mt76x0_set_temp_offset(dev);
 
-	dev->chainmask = 0x0101;
+	dev->mt76.chainmask = 0x0101;
 
 	return 0;
 }

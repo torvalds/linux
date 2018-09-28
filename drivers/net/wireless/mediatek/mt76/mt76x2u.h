@@ -45,8 +45,6 @@ int mt76x2u_phy_set_channel(struct mt76x2_dev *dev,
 			    struct cfg80211_chan_def *chandef);
 void mt76x2u_phy_calibrate(struct work_struct *work);
 void mt76x2u_phy_channel_calibrate(struct mt76x2_dev *dev);
-void mt76x2u_phy_set_txdac(struct mt76x2_dev *dev);
-void mt76x2u_phy_set_rxpath(struct mt76x2_dev *dev);
 
 void mt76x2u_mcu_complete_urb(struct urb *urb);
 int mt76x2u_mcu_set_dynamic_vga(struct mt76x2_dev *dev, u8 channel, bool ap,

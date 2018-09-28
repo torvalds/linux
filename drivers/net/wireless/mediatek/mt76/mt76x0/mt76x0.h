@@ -104,7 +104,6 @@ struct mt76x0_dev {
 	int avg_rssi; /* starts at 0 and converges */
 
 	u8 agc_save;
-	u16 chainmask;
 
 	bool no_2ghz;
 
