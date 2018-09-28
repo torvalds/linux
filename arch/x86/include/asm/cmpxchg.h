@@ -242,10 +242,12 @@ extern void __add_wrong_size(void)
 	BUILD_BUG_ON(sizeof(*(p2)) != sizeof(long));			\
 	VM_BUG_ON((unsigned long)(p1) % (2 * sizeof(long)));		\
 	VM_BUG_ON((unsigned long)((p1) + 1) != (unsigned long)(p2));	\
-	asm volatile(pfx "cmpxchg%c4b %2; sete %0"			\
-		     : "=a" (__ret), "+d" (__old2),			\
-		       "+m" (*(p1)), "+m" (*(p2))			\
-		     : "i" (2 * sizeof(long)), "a" (__old1),		\
+	asm volatile(pfx "cmpxchg%c5b %1"				\
+		     CC_SET(e)						\
+		     : CC_OUT(e) (__ret),				\
+		       "+m" (*(p1)), "+m" (*(p2)),			\
+		       "+a" (__old1), "+d" (__old2)			\
+		     : "i" (2 * sizeof(long)),				\
 		       "b" (__new1), "c" (__new2));			\
 	__ret;								\
 })
