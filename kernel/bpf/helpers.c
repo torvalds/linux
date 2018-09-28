@@ -195,7 +195,8 @@ const struct bpf_func_proto bpf_get_current_cgroup_id_proto = {
 };
 
 #ifdef CONFIG_CGROUP_BPF
-DECLARE_PER_CPU(void*, bpf_cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE]);
+DECLARE_PER_CPU(struct bpf_cgroup_storage*,
+		bpf_cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE]);
 
 BPF_CALL_2(bpf_get_local_storage, struct bpf_map *, map, u64, flags)
 {
@@ -204,8 +205,11 @@ BPF_CALL_2(bpf_get_local_storage, struct bpf_map *, map, u64, flags)
 	 * verifier checks that its value is correct.
 	 */
 	enum bpf_cgroup_storage_type stype = cgroup_storage_type(map);
+	struct bpf_cgroup_storage *storage;
 
-	return (unsigned long) this_cpu_read(bpf_cgroup_storage[stype]);
+	storage = this_cpu_read(bpf_cgroup_storage[stype]);
+
+	return (unsigned long)&READ_ONCE(storage->buf)->data[0];
 }
 
 const struct bpf_func_proto bpf_get_local_storage_proto = {
