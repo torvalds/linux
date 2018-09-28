@@ -723,7 +723,7 @@ static DEVICE_ATTR(pio_pin, S_IRUGO | S_IWUSR, ds2780_get_pio_pin,
 	ds2780_set_pio_pin);
 
 
-static struct attribute *ds2780_attributes[] = {
+static struct attribute *ds2780_sysfs_attrs[] = {
 	&dev_attr_pmod_enabled.attr,
 	&dev_attr_sense_resistor_value.attr,
 	&dev_attr_rsgain_setting.attr,
@@ -731,9 +731,7 @@ static struct attribute *ds2780_attributes[] = {
 	NULL
 };
 
-static const struct attribute_group ds2780_attr_group = {
-	.attrs = ds2780_attributes,
-};
+ATTRIBUTE_GROUPS(ds2780_sysfs);
 
 static int ds2780_battery_probe(struct platform_device *pdev)
 {
@@ -758,6 +756,7 @@ static int ds2780_battery_probe(struct platform_device *pdev)
 	dev_info->bat_desc.get_property	= ds2780_battery_get_property;
 
 	psy_cfg.drv_data		= dev_info;
+	psy_cfg.attr_grp		= ds2780_sysfs_groups;
 
 	dev_info->bat = power_supply_register(&pdev->dev, &dev_info->bat_desc,
 					      &psy_cfg);
@@ -767,18 +766,12 @@ static int ds2780_battery_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	ret = sysfs_create_group(&dev_info->bat->dev.kobj, &ds2780_attr_group);
-	if (ret) {
-		dev_err(dev_info->dev, "failed to create sysfs group\n");
-		goto fail_unregister;
-	}
-
 	ret = sysfs_create_bin_file(&dev_info->bat->dev.kobj,
 					&ds2780_param_eeprom_bin_attr);
 	if (ret) {
 		dev_err(dev_info->dev,
 				"failed to create param eeprom bin file");
-		goto fail_remove_group;
+		goto fail_unregister;
 	}
 
 	ret = sysfs_create_bin_file(&dev_info->bat->dev.kobj,
@@ -794,8 +787,6 @@ static int ds2780_battery_probe(struct platform_device *pdev)
 fail_remove_bin_file:
 	sysfs_remove_bin_file(&dev_info->bat->dev.kobj,
 				&ds2780_param_eeprom_bin_attr);
-fail_remove_group:
-	sysfs_remove_group(&dev_info->bat->dev.kobj, &ds2780_attr_group);
 fail_unregister:
 	power_supply_unregister(dev_info->bat);
 fail:
@@ -805,12 +796,6 @@ fail:
 static int ds2780_battery_remove(struct platform_device *pdev)
 {
 	struct ds2780_device_info *dev_info = platform_get_drvdata(pdev);
-
-	/*
-	 * Remove attributes before unregistering power supply
-	 * because 'bat' will be freed on power_supply_unregister() call.
-	 */
-	sysfs_remove_group(&dev_info->bat->dev.kobj, &ds2780_attr_group);
 
 	power_supply_unregister(dev_info->bat);
 
