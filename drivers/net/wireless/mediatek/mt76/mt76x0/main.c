@@ -73,6 +73,15 @@ static int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 			mt76x0_phy_set_txpower(dev);
 	}
 
+	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
+		if (!(hw->conf.flags & IEEE80211_CONF_MONITOR))
+			dev->mt76.rxfilter |= MT_RX_FILTR_CFG_PROMISC;
+		else
+			dev->mt76.rxfilter &= ~MT_RX_FILTR_CFG_PROMISC;
+
+		mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
+	}
+
 	mutex_unlock(&dev->mt76.mutex);
 
 	return ret;

@@ -271,15 +271,7 @@ int mt76x0_mac_start(struct mt76x0_dev *dev)
 	if (!mt76x02_wait_for_wpdma(&dev->mt76, 200000))
 		return -ETIMEDOUT;
 
-	dev->mt76.rxfilter = MT_RX_FILTR_CFG_CRC_ERR |
-		MT_RX_FILTR_CFG_PHY_ERR | MT_RX_FILTR_CFG_PROMISC |
-		MT_RX_FILTR_CFG_VER_ERR | MT_RX_FILTR_CFG_DUP |
-		MT_RX_FILTR_CFG_CFACK | MT_RX_FILTR_CFG_CFEND |
-		MT_RX_FILTR_CFG_ACK | MT_RX_FILTR_CFG_CTS |
-		MT_RX_FILTR_CFG_RTS | MT_RX_FILTR_CFG_PSPOLL |
-		MT_RX_FILTR_CFG_BA | MT_RX_FILTR_CFG_CTRL_RSV;
 	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
-
 	mt76_wr(dev, MT_MAC_SYS_CTRL,
 		MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
 
@@ -369,6 +361,8 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 	ret = mt76x0_init_bbp(dev);
 	if (ret)
 		return ret;
+
+	dev->mt76.rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
 
 	ret = mt76x0_init_wcid_mem(dev);
 	if (ret)
