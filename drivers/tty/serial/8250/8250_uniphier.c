@@ -222,6 +222,9 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 	up.port.flags = UPF_FIXED_PORT | UPF_FIXED_TYPE;
 	up.capabilities = UART_CAP_FIFO;
 
+	if (of_property_read_bool(dev->of_node, "auto-flow-control"))
+		up.capabilities |= UART_CAP_AFE;
+
 	up.port.serial_in = uniphier_serial_in;
 	up.port.serial_out = uniphier_serial_out;
 	up.dl_read = uniphier_serial_dl_read;

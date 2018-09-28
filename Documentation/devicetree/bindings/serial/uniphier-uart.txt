@@ -6,6 +6,9 @@ Required properties:
 - interrupts: a single interrupt specifier.
 - clocks: phandle to the input clock.
 
+Optional properties:
+-auto-flow-control: enable automatic flow control support.
+
 Example:
 	aliases {
 		serial0 = &serial0;
