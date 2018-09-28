@@ -49,6 +49,11 @@
 #define IBMVNIC_MAX_LTB_SIZE ((1 << (MAX_ORDER - 1)) * PAGE_SIZE)
 #define IBMVNIC_BUFFER_HLEN 500
 
+static const char ibmvnic_priv_flags[][ETH_GSTRING_LEN] = {
+#define IBMVNIC_USE_SERVER_MAXES 0x1
+	"use-server-maxes"
+};
+
 struct ibmvnic_login_buffer {
 	__be32 len;
 	__be32 version;
@@ -970,6 +975,7 @@ struct ibmvnic_adapter {
 	struct ibmvnic_control_ip_offload_buffer ip_offload_ctrl;
 	dma_addr_t ip_offload_ctrl_tok;
 	u32 msg_enable;
+	u32 priv_flags;
 
 	/* Vital Product Data (VPD) */
 	struct ibmvnic_vpd *vpd;
