@@ -476,10 +476,13 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 
 	/* enable position buffer */
 	if (!(snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, SOF_HDA_ADSP_DPLBASE)
-				& SOF_HDA_ADSP_DPLBASE_ENABLE))
+				& SOF_HDA_ADSP_DPLBASE_ENABLE)) {
+		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_ADSP_DPUBASE,
+				  upper_32_bits(bus->posbuf.addr));
 		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_ADSP_DPLBASE,
 				  (u32)bus->posbuf.addr |
 				  SOF_HDA_ADSP_DPLBASE_ENABLE);
+	}
 
 	/* set interrupt enable bits */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
