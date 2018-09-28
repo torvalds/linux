@@ -67,4 +67,7 @@ mt76x02_wait_for_wpdma(struct mt76_dev *dev, int timeout)
 			   0, timeout);
 }
 
+void mt76x02_dma_enable(struct mt76_dev *dev);
+void mt76x02_dma_disable(struct mt76_dev *dev);
+
 #endif /* __MT76x02_DMA_H */

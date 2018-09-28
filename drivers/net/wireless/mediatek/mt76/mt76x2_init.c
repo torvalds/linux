@@ -206,16 +206,7 @@ int mt76x2_mac_start(struct mt76x2_dev *dev)
 
 	memset(dev->aggr_stats, 0, sizeof(dev->aggr_stats));
 
-	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
-	mt76x02_wait_for_wpdma(&dev->mt76, 1000);
-	usleep_range(50, 100);
-
-	mt76_set(dev, MT_WPDMA_GLO_CFG,
-		 MT_WPDMA_GLO_CFG_TX_DMA_EN |
-		 MT_WPDMA_GLO_CFG_RX_DMA_EN);
-
-	mt76_clear(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
-
+	mt76x02_dma_enable(&dev->mt76);
 	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
 
 	mt76_wr(dev, MT_MAC_SYS_CTRL,
@@ -354,20 +345,13 @@ int mt76x2_init_hardware(struct mt76x2_dev *dev)
 		0xc000,
 		0xc000,
 	};
-	u32 val;
 	int ret;
 
 	dev->beacon_offsets = beacon_offsets;
 	tasklet_init(&dev->pre_tbtt_tasklet, mt76x2_pre_tbtt_tasklet,
 		     (unsigned long) dev);
 
-	val = mt76_rr(dev, MT_WPDMA_GLO_CFG);
-	val &= MT_WPDMA_GLO_CFG_DMA_BURST_SIZE |
-	       MT_WPDMA_GLO_CFG_BIG_ENDIAN |
-	       MT_WPDMA_GLO_CFG_HDR_SEG_LEN;
-	val |= MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE;
-	mt76_wr(dev, MT_WPDMA_GLO_CFG, val);
-
+	mt76x02_dma_disable(&dev->mt76);
 	mt76x2_reset_wlan(dev, true);
 	mt76x2_power_on(dev);
 
