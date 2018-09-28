@@ -246,23 +246,13 @@ int mt76x0_mac_start(struct mt76x0_dev *dev)
 
 	return !mt76x02_wait_for_wpdma(&dev->mt76, 50) ? -ETIMEDOUT : 0;
 }
+EXPORT_SYMBOL_GPL(mt76x0_mac_start);
 
-static void mt76x0_mac_stop_hw(struct mt76x0_dev *dev)
+void mt76x0_mac_stop(struct mt76x0_dev *dev)
 {
-	int i, ok;
-
-	if (test_bit(MT76_REMOVED, &dev->mt76.state))
-		return;
-
-	mt76_clear(dev, MT_BEACON_TIME_CFG, MT_BEACON_TIME_CFG_TIMER_EN |
-		   MT_BEACON_TIME_CFG_SYNC_MODE | MT_BEACON_TIME_CFG_TBTT_EN |
-		   MT_BEACON_TIME_CFG_BEACON_TX);
-
-	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_TX_BUSY, 0, 1000))
-		dev_warn(dev->mt76.dev, "Warning: TX DMA did not stop!\n");
+	int i = 200, ok = 0;
 
 	/* Page count on TxQ */
-	i = 200;
 	while (i-- && ((mt76_rr(dev, 0x0438) & 0xffffffff) ||
 		       (mt76_rr(dev, 0x0a30) & 0x000000ff) ||
 		       (mt76_rr(dev, 0x0a34) & 0x00ff00ff)))
@@ -275,9 +265,7 @@ static void mt76x0_mac_stop_hw(struct mt76x0_dev *dev)
 					 MT_MAC_SYS_CTRL_ENABLE_TX);
 
 	/* Page count on RxQ */
-	ok = 0;
-	i = 200;
-	while (i--) {
+	for (i = 0; i < 200; i++) {
 		if (!(mt76_rr(dev, MT_RXQ_STA) & 0x00ff0000) &&
 		    !mt76_rr(dev, 0x0a30) &&
 		    !mt76_rr(dev, 0x0a34)) {
@@ -290,17 +278,6 @@ static void mt76x0_mac_stop_hw(struct mt76x0_dev *dev)
 
 	if (!mt76_poll(dev, MT_MAC_STATUS, MT_MAC_STATUS_RX, 0, 1000))
 		dev_warn(dev->mt76.dev, "Warning: MAC RX did not stop!\n");
-
-	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_RX_BUSY, 0, 1000))
-		dev_warn(dev->mt76.dev, "Warning: RX DMA did not stop!\n");
-}
-
-void mt76x0_mac_stop(struct mt76x0_dev *dev)
-{
-	cancel_delayed_work_sync(&dev->cal_work);
-	cancel_delayed_work_sync(&dev->mac_work);
-	mt76u_stop_stat_wk(&dev->mt76);
-	mt76x0_mac_stop_hw(dev);
 }
 EXPORT_SYMBOL_GPL(mt76x0_mac_stop);
 
@@ -359,12 +336,14 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 EXPORT_SYMBOL_GPL(mt76x0_init_hardware);
 
 struct mt76x0_dev *
-mt76x0_alloc_device(struct device *pdev, const struct mt76_driver_ops *drv_ops)
+mt76x0_alloc_device(struct device *pdev,
+		    const struct mt76_driver_ops *drv_ops,
+		    const struct ieee80211_ops *ops)
 {
 	struct mt76x0_dev *dev;
 	struct mt76_dev *mdev;
 
-	mdev = mt76_alloc_device(sizeof(*dev), &mt76x0_ops);
+	mdev = mt76_alloc_device(sizeof(*dev), ops);
 	if (!mdev)
 		return NULL;
 

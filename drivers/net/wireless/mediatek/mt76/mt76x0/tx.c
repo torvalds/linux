@@ -81,6 +81,7 @@ void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 
 	mt76_tx(&dev->mt76, control->sta, wcid, skb);
 }
+EXPORT_SYMBOL_GPL(mt76x0_tx);
 
 int mt76x0_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 			  struct sk_buff *skb, struct mt76_queue *q,
