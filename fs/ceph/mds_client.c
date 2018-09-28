@@ -3126,10 +3126,9 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 
 	pr_info("mds%d reconnect start\n", mds);
 
-	pagelist = kmalloc(sizeof(*pagelist), GFP_NOFS);
+	pagelist = ceph_pagelist_alloc(GFP_NOFS);
 	if (!pagelist)
 		goto fail_nopagelist;
-	ceph_pagelist_init(pagelist);
 
 	reply = ceph_msg_new(CEPH_MSG_CLIENT_RECONNECT, 0, GFP_NOFS, false);
 	if (!reply)

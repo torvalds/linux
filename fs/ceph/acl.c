@@ -206,10 +206,9 @@ int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
 	tmp_buf = kmalloc(max(val_size1, val_size2), GFP_KERNEL);
 	if (!tmp_buf)
 		goto out_err;
-	pagelist = kmalloc(sizeof(struct ceph_pagelist), GFP_KERNEL);
+	pagelist = ceph_pagelist_alloc(GFP_KERNEL);
 	if (!pagelist)
 		goto out_err;
-	ceph_pagelist_init(pagelist);
 
 	err = ceph_pagelist_reserve(pagelist, PAGE_SIZE);
 	if (err)
