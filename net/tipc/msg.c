@@ -525,6 +525,10 @@ bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 	if (hlen == SHORT_H_SIZE)
 		hlen = BASIC_H_SIZE;
 
+	/* Don't return data along with SYN+, - sender has a clone */
+	if (msg_is_syn(_hdr) && err == TIPC_ERR_OVERLOAD)
+		dlen = 0;
+
 	/* Allocate new buffer to return */
 	*skb = tipc_buf_acquire(hlen + dlen, GFP_ATOMIC);
 	if (!*skb)
@@ -550,6 +554,22 @@ exit:
 	kfree_skb(_skb);
 	*skb = NULL;
 	return false;
+}
+
+bool tipc_msg_skb_clone(struct sk_buff_head *msg, struct sk_buff_head *cpy)
+{
+	struct sk_buff *skb, *_skb;
+
+	skb_queue_walk(msg, skb) {
+		_skb = skb_clone(skb, GFP_ATOMIC);
+		if (!_skb) {
+			__skb_queue_purge(cpy);
+			pr_err_ratelimited("Failed to clone buffer chain\n");
+			return false;
+		}
+		__skb_queue_tail(cpy, _skb);
+	}
+	return true;
 }
 
 /**

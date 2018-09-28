@@ -47,7 +47,7 @@
 #include "netlink.h"
 #include "group.h"
 
-#define CONN_TIMEOUT_DEFAULT	8000	/* default connect timeout = 8s */
+#define CONN_TIMEOUT_DEFAULT    8000    /* default connect timeout = 8s */
 #define CONN_PROBING_INTV	msecs_to_jiffies(3600000)  /* [ms] => 1 h */
 #define TIPC_FWD_MSG		1
 #define TIPC_MAX_PORT		0xffffffff
@@ -80,7 +80,6 @@ struct sockaddr_pair {
  * @publications: list of publications for port
  * @blocking_link: address of the congested link we are currently sleeping on
  * @pub_count: total # of publications port has made during its lifetime
- * @probing_state:
  * @conn_timeout: the time we can wait for an unresponded setup request
  * @dupl_rcvcnt: number of bytes counted twice, in both backlog and rcv queue
  * @cong_link_cnt: number of congested links
@@ -102,8 +101,8 @@ struct tipc_sock {
 	struct list_head cong_links;
 	struct list_head publications;
 	u32 pub_count;
-	uint conn_timeout;
 	atomic_t dupl_rcvcnt;
+	u16 conn_timeout;
 	bool probe_unacked;
 	u16 cong_link_cnt;
 	u16 snt_unacked;
@@ -506,6 +505,9 @@ static void __tipc_shutdown(struct socket *sock, int error)
 	/* Avoid that hi-prio shutdown msgs bypass msgs in link wakeup queue */
 	tipc_wait_for_cond(sock, &timeout, (!tsk->cong_link_cnt &&
 					    !tsk_conn_cong(tsk)));
+
+	/* Remove any pending SYN message */
+	__skb_queue_purge(&sk->sk_write_queue);
 
 	/* Reject all unreceived messages, except on an active connection
 	 * (which disconnects locally & sends a 'FIN+' to peer).
@@ -1362,6 +1364,8 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 	rc = tipc_msg_build(hdr, m, 0, dlen, mtu, &pkts);
 	if (unlikely(rc != dlen))
 		return rc;
+	if (unlikely(syn && !tipc_msg_skb_clone(&pkts, &sk->sk_write_queue)))
+		return -ENOMEM;
 
 	rc = tipc_node_xmit(net, &pkts, dnode, tsk->portid);
 	if (unlikely(rc == -ELINKCONG)) {
@@ -1491,6 +1495,7 @@ static void tipc_sk_finish_conn(struct tipc_sock *tsk, u32 peer_port,
 	tipc_node_add_conn(net, peer_node, tsk->portid, peer_port);
 	tsk->max_pkt = tipc_node_get_mtu(net, peer_node, tsk->portid);
 	tsk->peer_caps = tipc_node_get_capabilities(net, peer_node);
+	__skb_queue_purge(&sk->sk_write_queue);
 	if (tsk->peer_caps & TIPC_BLOCK_FLOWCTL)
 		return;
 
@@ -1977,6 +1982,7 @@ static bool tipc_sk_filter_connect(struct tipc_sock *tsk, struct sk_buff *skb)
 	u32 oport = msg_origport(hdr);
 	u32 onode = msg_orignode(hdr);
 	int err = msg_errcode(hdr);
+	unsigned long delay;
 
 	if (unlikely(msg_mcast(hdr)))
 		return false;
@@ -2001,8 +2007,18 @@ static bool tipc_sk_filter_connect(struct tipc_sock *tsk, struct sk_buff *skb)
 		if (oport != pport || onode != pnode)
 			return false;
 
-		/* Rejected SYN - abort */
-		break;
+		/* Rejected SYN */
+		if (err != TIPC_ERR_OVERLOAD)
+			break;
+
+		/* Prepare for new setup attempt if we have a SYN clone */
+		if (skb_queue_empty(&sk->sk_write_queue))
+			break;
+		get_random_bytes(&delay, 2);
+		delay %= (tsk->conn_timeout / 4);
+		delay = msecs_to_jiffies(delay + 100);
+		sk_reset_timer(sk, &sk->sk_timer, jiffies + delay);
+		return false;
 	case TIPC_OPEN:
 	case TIPC_DISCONNECTING:
 		return false;
@@ -2561,12 +2577,26 @@ static void tipc_sk_check_probing_state(struct sock *sk,
 	sk_reset_timer(sk, &sk->sk_timer, jiffies + CONN_PROBING_INTV);
 }
 
+static void tipc_sk_retry_connect(struct sock *sk, struct sk_buff_head *list)
+{
+	struct tipc_sock *tsk = tipc_sk(sk);
+
+	/* Try again later if dest link is congested */
+	if (tsk->cong_link_cnt) {
+		sk_reset_timer(sk, &sk->sk_timer, msecs_to_jiffies(100));
+		return;
+	}
+	/* Prepare SYN for retransmit */
+	tipc_msg_skb_clone(&sk->sk_write_queue, list);
+}
+
 static void tipc_sk_timeout(struct timer_list *t)
 {
 	struct sock *sk = from_timer(sk, t, sk_timer);
 	struct tipc_sock *tsk = tipc_sk(sk);
 	u32 pnode = tsk_peer_node(tsk);
 	struct sk_buff_head list;
+	int rc = 0;
 
 	skb_queue_head_init(&list);
 	bh_lock_sock(sk);
@@ -2580,12 +2610,19 @@ static void tipc_sk_timeout(struct timer_list *t)
 
 	if (sk->sk_state == TIPC_ESTABLISHED)
 		tipc_sk_check_probing_state(sk, &list);
+	else if (sk->sk_state == TIPC_CONNECTING)
+		tipc_sk_retry_connect(sk, &list);
 
 	bh_unlock_sock(sk);
 
 	if (!skb_queue_empty(&list))
-		tipc_node_xmit(sock_net(sk), &list, pnode, tsk->portid);
+		rc = tipc_node_xmit(sock_net(sk), &list, pnode, tsk->portid);
 
+	/* SYN messages may cause link congestion */
+	if (rc == -ELINKCONG) {
+		tipc_dest_push(&tsk->cong_links, pnode, 0);
+		tsk->cong_link_cnt = 1;
+	}
 	sock_put(sk);
 }
 
