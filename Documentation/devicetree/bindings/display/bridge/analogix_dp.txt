@@ -31,6 +31,8 @@ Optional properties for dp-controller:
 	-hpd-gpios:
 		Hotplug detect GPIO.
 		Indicates which GPIO should be used for hotplug detection
+		(if the hot-plug detection pin doesn't appear as an interrupt/status
+		 bit in the eDP controller itself)
 	-port@[X]: SoC specific port nodes with endpoint definitions as defined
 		in Documentation/devicetree/bindings/media/video-interfaces.txt,
 		please refer to the SoC specific binding document:

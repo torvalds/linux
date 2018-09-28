@@ -730,6 +730,20 @@ static void analogix_dp_enable_scramble(struct analogix_dp_device *dp,
 	}
 }
 
+static irqreturn_t analogix_dp_hpd_irq_handler(int irq, void *arg)
+{
+	struct analogix_dp_device *dp = arg;
+
+	dev_info(dp->dev, "hot-plug detect status: %s\n",
+		 gpiod_get_value(dp->hpd_gpio) ?
+		 "connected" : "disconnected");
+
+	if (dp->drm_dev)
+		drm_helper_hpd_irq_event(dp->drm_dev);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t analogix_dp_hardirq(int irq, void *arg)
 {
 	struct analogix_dp_device *dp = arg;
@@ -876,12 +890,18 @@ analogix_dp_detect(struct drm_connector *connector, bool force)
 	struct analogix_dp_device *dp = to_dp(connector);
 	enum drm_connector_status status = connector_status_connected;
 
-	pm_runtime_get_sync(dp->dev);
+	if (dp->hpd_gpio) {
+		status = gpiod_get_value(dp->hpd_gpio) ?
+				connector_status_connected :
+				connector_status_disconnected;
+	} else {
+		pm_runtime_get_sync(dp->dev);
 
-	if (analogix_dp_detect_hpd(dp))
-		status = connector_status_disconnected;
+		if (analogix_dp_detect_hpd(dp))
+			status = connector_status_disconnected;
 
-	pm_runtime_put(dp->dev);
+		pm_runtime_put(dp->dev);
+	}
 
 	return status;
 }
@@ -1170,7 +1190,6 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct analogix_dp_device *dp;
 	struct resource *res;
-	unsigned int irq_flags;
 	int ret;
 
 	if (!plat_data) {
@@ -1230,33 +1249,18 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 
 	dp->force_hpd = of_property_read_bool(dev->of_node, "force-hpd");
 
-	dp->hpd_gpio = of_get_named_gpio(dev->of_node, "hpd-gpios", 0);
-	if (!gpio_is_valid(dp->hpd_gpio))
-		dp->hpd_gpio = of_get_named_gpio(dev->of_node,
-						 "samsung,hpd-gpio", 0);
-
-	if (gpio_is_valid(dp->hpd_gpio)) {
-		/*
-		 * Set up the hotplug GPIO from the device tree as an interrupt.
-		 * Simply specifying a different interrupt in the device tree
-		 * doesn't work since we handle hotplug rather differently when
-		 * using a GPIO.  We also need the actual GPIO specifier so
-		 * that we can get the current state of the GPIO.
-		 */
-		ret = devm_gpio_request_one(&pdev->dev, dp->hpd_gpio, GPIOF_IN,
-					    "hpd_gpio");
-		if (ret) {
-			dev_err(&pdev->dev, "failed to get hpd gpio\n");
-			return ret;
-		}
-		dp->irq = gpio_to_irq(dp->hpd_gpio);
-		irq_flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;
-	} else {
-		dp->hpd_gpio = -ENODEV;
-		dp->irq = platform_get_irq(pdev, 0);
-		irq_flags = 0;
+	/*
+	 * if the hot-plug detection pin doesn't appear as an interrupt/status
+	 * bit in the eDP controller itself, optionally from GPIO.
+	 */
+	dp->hpd_gpio = devm_gpiod_get_optional(dev, "hpd", GPIOD_IN);
+	if (IS_ERR(dp->hpd_gpio)) {
+		ret = PTR_ERR(dp->hpd_gpio);
+		dev_err(dev, "failed to request hpd GPIO: %d\n", ret);
+		return ret;
 	}
 
+	dp->irq = platform_get_irq(pdev, 0);
 	if (dp->irq == -ENXIO) {
 		dev_err(&pdev->dev, "failed to get irq\n");
 		return -ENODEV;
@@ -1269,12 +1273,26 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 		}
 	}
 
+	if (dp->hpd_gpio) {
+		ret = devm_request_threaded_irq(dev, gpiod_to_irq(dp->hpd_gpio),
+						NULL,
+						analogix_dp_hpd_irq_handler,
+						IRQF_TRIGGER_RISING |
+						IRQF_TRIGGER_FALLING |
+						IRQF_ONESHOT,
+						"analogix-hpd", dp);
+		if (ret) {
+			dev_err(dev, "failed to request hpd IRQ: %d\n", ret);
+			return ret;
+		}
+	}
+
 	ret = devm_request_threaded_irq(&pdev->dev, dp->irq,
 					analogix_dp_hardirq,
 					analogix_dp_irq_thread,
-					irq_flags, "analogix-dp", dp);
+					0, "analogix-dp", dp);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to request irq\n");
+		dev_err(&pdev->dev, "failed to request host irq\n");
 		return ret;
 	}
 	disable_irq(dp->irq);

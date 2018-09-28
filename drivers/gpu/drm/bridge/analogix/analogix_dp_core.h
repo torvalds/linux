@@ -15,6 +15,7 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_dp_helper.h>
+#include <linux/gpio/consumer.h>
 
 #define DP_TIMEOUT_LOOP_COUNT 100
 #define MAX_CR_LOOP 5
@@ -170,7 +171,7 @@ struct analogix_dp_device {
 	struct link_train	link_train;
 	struct phy		*phy;
 	int			dpms_mode;
-	int			hpd_gpio;
+	struct gpio_desc	*hpd_gpio;
 	bool                    force_hpd;
 
 	struct analogix_dp_plat_data *plat_data;
