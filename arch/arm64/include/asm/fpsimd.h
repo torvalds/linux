@@ -24,10 +24,13 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/bitmap.h>
 #include <linux/build_bug.h>
+#include <linux/bug.h>
 #include <linux/cache.h>
 #include <linux/init.h>
 #include <linux/stddef.h>
+#include <linux/types.h>
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /* Masks for extracting the FPSR and FPCR from the FPSCR */
@@ -89,6 +92,32 @@ extern u64 read_zcr_features(void);
 
 extern int __ro_after_init sve_max_vl;
 extern int __ro_after_init sve_max_virtualisable_vl;
+/* Set of available vector lengths, as vq_to_bit(vq): */
+extern __ro_after_init DECLARE_BITMAP(sve_vq_map, SVE_VQ_MAX);
+
+/*
+ * Helpers to translate bit indices in sve_vq_map to VQ values (and
+ * vice versa).  This allows find_next_bit() to be used to find the
+ * _maximum_ VQ not exceeding a certain value.
+ */
+static inline unsigned int __vq_to_bit(unsigned int vq)
+{
+	return SVE_VQ_MAX - vq;
+}
+
+static inline unsigned int __bit_to_vq(unsigned int bit)
+{
+	if (WARN_ON(bit >= SVE_VQ_MAX))
+		bit = SVE_VQ_MAX - 1;
+
+	return SVE_VQ_MAX - bit;
+}
+
+/* Ensure vq >= SVE_VQ_MIN && vq <= SVE_VQ_MAX before calling this function */
+static inline bool sve_vq_available(unsigned int vq)
+{
+	return test_bit(__vq_to_bit(vq), sve_vq_map);
+}
 
 #ifdef CONFIG_ARM64_SVE
 
