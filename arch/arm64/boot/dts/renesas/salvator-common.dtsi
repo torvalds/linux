@@ -707,7 +707,10 @@
 		 <&cpg CPG_CORE CPG_AUDIO_CLK_I>;
 
 	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		rsnd_port0: port@0 {
+			reg = <0>;
 			rsnd_endpoint0: endpoint {
 				remote-endpoint = <&ak4613_endpoint>;
 
