@@ -46,6 +46,30 @@ static void mt76_mmio_copy(struct mt76_dev *dev, u32 offset, const void *data,
 	__iowrite32_copy(dev->mmio.regs + offset, data, len >> 2);
 }
 
+static int mt76_mmio_wr_rp(struct mt76_dev *dev, u32 base,
+			   const struct mt76_reg_pair *data, int len)
+{
+	while (len > 0) {
+		mt76_mmio_wr(dev, data->reg, data->value);
+		data++;
+		len--;
+	}
+
+	return 0;
+}
+
+static int mt76_mmio_rd_rp(struct mt76_dev *dev, u32 base,
+			   struct mt76_reg_pair *data, int len)
+{
+	while (len > 0) {
+		data->value = mt76_mmio_rr(dev, data->reg);
+		data++;
+		len--;
+	}
+
+	return 0;
+}
+
 void mt76_mmio_init(struct mt76_dev *dev, void __iomem *regs)
 {
 	static const struct mt76_bus_ops mt76_mmio_ops = {
@@ -53,6 +77,8 @@ void mt76_mmio_init(struct mt76_dev *dev, void __iomem *regs)
 		.rmw = mt76_mmio_rmw,
 		.wr = mt76_mmio_wr,
 		.copy = mt76_mmio_copy,
+		.wr_rp = mt76_mmio_wr_rp,
+		.rd_rp = mt76_mmio_rd_rp,
 	};
 
 	dev->bus = &mt76_mmio_ops;
