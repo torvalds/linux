@@ -198,6 +198,11 @@ struct v3d_exec_info {
 	 */
 	struct dma_fence *bin_done_fence;
 
+	/* Fence for when the scheduler considers the render to be
+	 * done, for when the BOs reservations should be complete.
+	 */
+	struct dma_fence *render_done_fence;
+
 	struct kref refcount;
 
 	/* This is the array of BOs that were looked up at the start of exec. */
