@@ -32,7 +32,6 @@
 #include "include/irq_service_interface.h"
 #include "dce120_resource.h"
 
-#include "../dce/dce_dccg.h"
 #include "dce112/dce112_resource.h"
 
 #include "dce110/dce110_resource.h"
@@ -48,6 +47,7 @@
 #include "dce120/dce120_hw_sequencer.h"
 #include "dce/dce_transform.h"
 
+#include "dce/dce_clk_mgr.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_link_encoder.h"
 #include "dce/dce_stream_encoder.h"
@@ -574,8 +574,8 @@ static void destruct(struct dce110_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.dccg != NULL)
-		dce_dccg_destroy(&pool->base.dccg);
+	if (pool->base.clk_mgr != NULL)
+		dce_clk_mgr_destroy(&pool->base.clk_mgr);
 }
 
 static void read_dce_straps(
@@ -975,8 +975,8 @@ static bool construct(
 		}
 	}
 
-	pool->base.dccg = dce120_dccg_create(ctx);
-	if (pool->base.dccg == NULL) {
+	pool->base.clk_mgr = dce120_clk_mgr_create(ctx);
+	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto dccg_create_fail;

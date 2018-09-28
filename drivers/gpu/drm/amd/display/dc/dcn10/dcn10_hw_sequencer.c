@@ -1126,7 +1126,7 @@ static void dcn10_init_hw(struct dc *dc)
 
 	enable_power_gating_plane(dc->hwseq, true);
 
-	memset(&dc->res_pool->dccg->clks, 0, sizeof(dc->res_pool->dccg->clks));
+	memset(&dc->res_pool->clk_mgr->clks, 0, sizeof(dc->res_pool->clk_mgr->clks));
 }
 
 static void reset_hw_ctx_wrap(
@@ -2052,16 +2052,16 @@ void update_dchubp_dpp(
 	 */
 	if (plane_state->update_flags.bits.full_update) {
 		bool should_divided_by_2 = context->bw.dcn.clk.dppclk_khz <=
-				dc->res_pool->dccg->clks.dispclk_khz / 2;
+				dc->res_pool->clk_mgr->clks.dispclk_khz / 2;
 
 		dpp->funcs->dpp_dppclk_control(
 				dpp,
 				should_divided_by_2,
 				true);
 
-		dc->res_pool->dccg->clks.dppclk_khz = should_divided_by_2 ?
-						dc->res_pool->dccg->clks.dispclk_khz / 2 :
-							dc->res_pool->dccg->clks.dispclk_khz;
+		dc->res_pool->clk_mgr->clks.dppclk_khz = should_divided_by_2 ?
+						dc->res_pool->clk_mgr->clks.dispclk_khz / 2 :
+							dc->res_pool->clk_mgr->clks.dispclk_khz;
 	}
 
 	/* TODO: Need input parameter to tell current DCHUB pipe tie to which OTG
@@ -2369,8 +2369,8 @@ static void dcn10_prepare_bandwidth(
 		if (context->stream_count == 0)
 			context->bw.dcn.clk.phyclk_khz = 0;
 
-		dc->res_pool->dccg->funcs->update_clocks(
-				dc->res_pool->dccg,
+		dc->res_pool->clk_mgr->funcs->update_clocks(
+				dc->res_pool->clk_mgr,
 				context,
 				false);
 	}
@@ -2398,8 +2398,8 @@ static void dcn10_optimize_bandwidth(
 		if (context->stream_count == 0)
 			context->bw.dcn.clk.phyclk_khz = 0;
 
-		dc->res_pool->dccg->funcs->update_clocks(
-				dc->res_pool->dccg,
+		dc->res_pool->clk_mgr->funcs->update_clocks(
+				dc->res_pool->clk_mgr,
 				context,
 				true);
 	}

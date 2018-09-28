@@ -2357,7 +2357,7 @@ void dce110_prepare_bandwidth(
 		struct dc *dc,
 		struct dc_state *context)
 {
-	struct dccg *dccg = dc->res_pool->dccg;
+	struct clk_mgr *dccg = dc->res_pool->clk_mgr;
 
 	dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
 
@@ -2371,7 +2371,7 @@ void dce110_optimize_bandwidth(
 		struct dc *dc,
 		struct dc_state *context)
 {
-	struct dccg *dccg = dc->res_pool->dccg;
+	struct clk_mgr *dccg = dc->res_pool->clk_mgr;
 
 	dce110_set_displaymarks(dc, context);
 

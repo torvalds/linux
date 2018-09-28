@@ -24,10 +24,10 @@
  */
 
 
-#ifndef _DCE_DCCG_H_
-#define _DCE_DCCG_H_
+#ifndef _DCE_CLK_MGR_H_
+#define _DCE_CLK_MGR_H_
 
-#include "dccg.h"
+#include "../inc/hw/clk_mgr.h"
 
 #define MEMORY_TYPE_MULTIPLIER_CZ 4
 
@@ -55,15 +55,15 @@
 	type DENTIST_DISPCLK_WDIVIDER; \
 	type DENTIST_DISPCLK_CHG_DONE;
 
-struct dccg_shift {
+struct clk_mgr_shift {
 	CLK_REG_FIELD_LIST(uint8_t)
 };
 
-struct dccg_mask {
+struct clk_mgr_mask {
 	CLK_REG_FIELD_LIST(uint32_t)
 };
 
-struct dccg_registers {
+struct clk_mgr_registers {
 	uint32_t DPREFCLK_CNTL;
 	uint32_t DENTIST_DISPCLK_CNTL;
 };
@@ -73,11 +73,11 @@ struct state_dependent_clocks {
 	int pixel_clk_khz;
 };
 
-struct dce_dccg {
-	struct dccg base;
-	const struct dccg_registers *regs;
-	const struct dccg_shift *dccg_shift;
-	const struct dccg_mask *dccg_mask;
+struct dce_clk_mgr {
+	struct clk_mgr base;
+	const struct clk_mgr_registers *regs;
+	const struct clk_mgr_shift *clk_mgr_shift;
+	const struct clk_mgr_mask *clk_mgr_mask;
 
 	struct state_dependent_clocks max_clks_by_state[DM_PP_CLOCKS_MAX_STATES];
 
@@ -130,36 +130,36 @@ static inline bool should_set_clock(bool safe_to_lower, int calc_clk, int cur_cl
 	return ((safe_to_lower && calc_clk < cur_clk) || calc_clk > cur_clk);
 }
 
-void dce_clock_read_ss_info(struct dce_dccg *dccg_dce);
+void dce_clock_read_ss_info(struct dce_clk_mgr *dccg_dce);
 
-int dce12_get_dp_ref_freq_khz(struct dccg *dccg);
+int dce12_get_dp_ref_freq_khz(struct clk_mgr *dccg);
 
 void dce110_fill_display_configs(
 	const struct dc_state *context,
 	struct dm_pp_display_configuration *pp_display_cfg);
 
-int dce112_set_clock(struct dccg *dccg, int requested_clk_khz);
+int dce112_set_clock(struct clk_mgr *dccg, int requested_clk_khz);
 
-struct dccg *dce_dccg_create(
+struct clk_mgr *dce_clk_mgr_create(
 	struct dc_context *ctx,
-	const struct dccg_registers *regs,
-	const struct dccg_shift *clk_shift,
-	const struct dccg_mask *clk_mask);
+	const struct clk_mgr_registers *regs,
+	const struct clk_mgr_shift *clk_shift,
+	const struct clk_mgr_mask *clk_mask);
 
-struct dccg *dce110_dccg_create(
+struct clk_mgr *dce110_clk_mgr_create(
 	struct dc_context *ctx,
-	const struct dccg_registers *regs,
-	const struct dccg_shift *clk_shift,
-	const struct dccg_mask *clk_mask);
+	const struct clk_mgr_registers *regs,
+	const struct clk_mgr_shift *clk_shift,
+	const struct clk_mgr_mask *clk_mask);
 
-struct dccg *dce112_dccg_create(
+struct clk_mgr *dce112_clk_mgr_create(
 	struct dc_context *ctx,
-	const struct dccg_registers *regs,
-	const struct dccg_shift *clk_shift,
-	const struct dccg_mask *clk_mask);
+	const struct clk_mgr_registers *regs,
+	const struct clk_mgr_shift *clk_shift,
+	const struct clk_mgr_mask *clk_mask);
 
-struct dccg *dce120_dccg_create(struct dc_context *ctx);
+struct clk_mgr *dce120_clk_mgr_create(struct dc_context *ctx);
 
-void dce_dccg_destroy(struct dccg **dccg);
+void dce_clk_mgr_destroy(struct clk_mgr **dccg);
 
-#endif /* _DCE_DCCG_H_ */
+#endif /* _DCE_CLK_MGR_H_ */

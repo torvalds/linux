@@ -23,15 +23,15 @@
  *
  */
 
-#ifndef __DCN10_DCCG_H__
-#define __DCN10_DCCG_H__
+#ifndef __DCN10_CLK_MGR_H__
+#define __DCN10_CLK_MGR_H__
 
-#include "../dce/dce_dccg.h"
+#include "../dce/dce_clk_mgr.h"
 
 void dcn1_pplib_apply_display_requirements(
 	struct dc *dc,
 	struct dc_state *context);
 
-struct dccg *dcn1_dccg_create(struct dc_context *ctx);
+struct clk_mgr *dcn1_clk_mgr_create(struct dc_context *ctx);
 
-#endif //__DCN10_DCCG_H__
+#endif //__DCN10_CLK_MGR_H__

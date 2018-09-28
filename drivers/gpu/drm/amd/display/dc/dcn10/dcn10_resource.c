@@ -28,23 +28,23 @@
 
 #include "resource.h"
 #include "include/irq_service_interface.h"
-#include "dcn10/dcn10_resource.h"
+#include "dcn10_resource.h"
 
-#include "dcn10/dcn10_ipp.h"
-#include "dcn10/dcn10_mpc.h"
+#include "dcn10_ipp.h"
+#include "dcn10_mpc.h"
 #include "irq/dcn10/irq_service_dcn10.h"
-#include "dcn10/dcn10_dpp.h"
+#include "dcn10_dpp.h"
 #include "dcn10_optc.h"
-#include "dcn10/dcn10_hw_sequencer.h"
+#include "dcn10_hw_sequencer.h"
 #include "dce110/dce110_hw_sequencer.h"
-#include "dcn10/dcn10_opp.h"
-#include "dcn10/dcn10_link_encoder.h"
-#include "dcn10/dcn10_stream_encoder.h"
-#include "dcn10/dcn10_dccg.h"
+#include "dcn10_opp.h"
+#include "dcn10_link_encoder.h"
+#include "dcn10_stream_encoder.h"
+#include "dcn10_clk_mgr.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
-#include "../virtual/virtual_stream_encoder.h"
+#include "virtual/virtual_stream_encoder.h"
 #include "dce110/dce110_resource.h"
 #include "dce112/dce112_resource.h"
 #include "dcn10_hubp.h"
@@ -950,8 +950,8 @@ static void destruct(struct dcn10_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.dccg != NULL)
-		dce_dccg_destroy(&pool->base.dccg);
+	if (pool->base.clk_mgr != NULL)
+		dce_clk_mgr_destroy(&pool->base.clk_mgr);
 
 	kfree(pool->base.pp_smu);
 }
@@ -1277,8 +1277,8 @@ static bool construct(
 		}
 	}
 
-	pool->base.dccg = dcn1_dccg_create(ctx);
-	if (pool->base.dccg == NULL) {
+	pool->base.clk_mgr = dcn1_clk_mgr_create(ctx);
+	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto fail;

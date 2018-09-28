@@ -23,25 +23,25 @@
  *
  */
 
-#ifndef __DAL_DCCG_H__
-#define __DAL_DCCG_H__
+#ifndef __DAL_CLK_MGR_H__
+#define __DAL_CLK_MGR_H__
 
 #include "dm_services_types.h"
 #include "dc.h"
 
-struct dccg {
+struct clk_mgr {
 	struct dc_context *ctx;
-	const struct dccg_funcs *funcs;
+	const struct clk_mgr_funcs *funcs;
 
 	struct dc_clocks clks;
 };
 
-struct dccg_funcs {
-	void (*update_clocks)(struct dccg *dccg,
+struct clk_mgr_funcs {
+	void (*update_clocks)(struct clk_mgr *clk_mgr,
 			struct dc_state *context,
 			bool safe_to_lower);
 
-	int (*get_dp_ref_clk_frequency)(struct dccg *dccg);
+	int (*get_dp_ref_clk_frequency)(struct clk_mgr *clk_mgr);
 };
 
-#endif /* __DAL_DCCG_H__ */
+#endif /* __DAL_CLK_MGR_H__ */

@@ -111,8 +111,8 @@ void dce100_prepare_bandwidth(
 {
 	dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
 
-	dc->res_pool->dccg->funcs->update_clocks(
-			dc->res_pool->dccg,
+	dc->res_pool->clk_mgr->funcs->update_clocks(
+			dc->res_pool->clk_mgr,
 			context,
 			false);
 }
