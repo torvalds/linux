@@ -95,9 +95,6 @@ struct mt76x2_dev {
 
 	u32 aggr_stats[32];
 
-	spinlock_t irq_lock;
-	u32 irqmask;
-
 	struct sk_buff *beacons[8];
 	u8 beacon_mask;
 	u8 beacon_data_mask;
@@ -124,24 +121,12 @@ static inline bool is_mt7612(struct mt76x2_dev *dev)
 	return mt76_chip(&dev->mt76) == 0x7612;
 }
 
-void mt76x2_set_irq_mask(struct mt76x2_dev *dev, u32 clear, u32 set);
-
 static inline bool mt76x2_channel_silent(struct mt76x2_dev *dev)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 
 	return ((chan->flags & IEEE80211_CHAN_RADAR) &&
 		chan->dfs_state != NL80211_DFS_AVAILABLE);
-}
-
-static inline void mt76x2_irq_enable(struct mt76x2_dev *dev, u32 mask)
-{
-	mt76x2_set_irq_mask(dev, 0, mask);
-}
-
-static inline void mt76x2_irq_disable(struct mt76x2_dev *dev, u32 mask)
-{
-	mt76x2_set_irq_mask(dev, mask, 0);
 }
 
 static inline bool mt76x2_wait_for_bbp(struct mt76x2_dev *dev)

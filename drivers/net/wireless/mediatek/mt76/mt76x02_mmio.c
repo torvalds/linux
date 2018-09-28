@@ -21,6 +21,18 @@
 #include "mt76x02_dma.h"
 #include "mt76x02_regs.h"
 
+void mt76x02_set_irq_mask(struct mt76_dev *dev, u32 clear, u32 set)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->mmio.irq_lock, flags);
+	dev->mmio.irqmask &= ~clear;
+	dev->mmio.irqmask |= set;
+	__mt76_wr(dev, MT_INT_MASK_CSR, dev->mmio.irqmask);
+	spin_unlock_irqrestore(&dev->mmio.irq_lock, flags);
+}
+EXPORT_SYMBOL_GPL(mt76x02_set_irq_mask);
+
 void mt76x02_dma_enable(struct mt76_dev *dev)
 {
 	u32 val;

@@ -363,6 +363,8 @@ struct mt76_mmio {
 		u32 msg_seq;
 	} mcu;
 	void __iomem *regs;
+	spinlock_t irq_lock;
+	u32 irqmask;
 };
 
 struct mt76_dev {

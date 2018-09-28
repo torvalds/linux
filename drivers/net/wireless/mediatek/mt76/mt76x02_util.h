@@ -51,4 +51,17 @@ void mt76x02_tx_complete(struct mt76_dev *dev, struct sk_buff *skb);
 void mt76x02_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 			    struct mt76_queue_entry *e, bool flush);
 bool mt76x02_tx_status_data(struct mt76_dev *dev, u8 *update);
+
+void mt76x02_set_irq_mask(struct mt76_dev *dev, u32 clear, u32 set);
+
+static inline void mt76x02_irq_enable(struct mt76_dev *dev, u32 mask)
+{
+	mt76x02_set_irq_mask(dev, 0, mask);
+}
+
+static inline void mt76x02_irq_disable(struct mt76_dev *dev, u32 mask)
+{
+	mt76x02_set_irq_mask(dev, mask, 0);
+}
+
 #endif

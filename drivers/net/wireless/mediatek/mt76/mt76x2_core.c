@@ -17,23 +17,11 @@
 #include <linux/delay.h>
 #include "mt76x2.h"
 #include "mt76x2_trace.h"
-
-void mt76x2_set_irq_mask(struct mt76x2_dev *dev, u32 clear, u32 set)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->irq_lock, flags);
-	dev->irqmask &= ~clear;
-	dev->irqmask |= set;
-	mt76_wr(dev, MT_INT_MASK_CSR, dev->irqmask);
-	spin_unlock_irqrestore(&dev->irq_lock, flags);
-}
+#include "mt76x02_util.h"
 
 void mt76x2_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 {
-	struct mt76x2_dev *dev = container_of(mdev, struct mt76x2_dev, mt76);
-
-	mt76x2_irq_enable(dev, MT_INT_RX_DONE(q));
+	mt76x02_irq_enable(mdev, MT_INT_RX_DONE(q));
 }
 
 irqreturn_t mt76x2_irq_handler(int irq, void *dev_instance)
@@ -47,22 +35,22 @@ irqreturn_t mt76x2_irq_handler(int irq, void *dev_instance)
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mt76.state))
 		return IRQ_NONE;
 
-	trace_dev_irq(dev, intr, dev->irqmask);
+	trace_dev_irq(dev, intr, dev->mt76.mmio.irqmask);
 
-	intr &= dev->irqmask;
+	intr &= dev->mt76.mmio.irqmask;
 
 	if (intr & MT_INT_TX_DONE_ALL) {
-		mt76x2_irq_disable(dev, MT_INT_TX_DONE_ALL);
+		mt76x02_irq_disable(&dev->mt76, MT_INT_TX_DONE_ALL);
 		tasklet_schedule(&dev->tx_tasklet);
 	}
 
 	if (intr & MT_INT_RX_DONE(0)) {
-		mt76x2_irq_disable(dev, MT_INT_RX_DONE(0));
+		mt76x02_irq_disable(&dev->mt76, MT_INT_RX_DONE(0));
 		napi_schedule(&dev->mt76.napi[0]);
 	}
 
 	if (intr & MT_INT_RX_DONE(1)) {
-		mt76x2_irq_disable(dev, MT_INT_RX_DONE(1));
+		mt76x02_irq_disable(&dev->mt76, MT_INT_RX_DONE(1));
 		napi_schedule(&dev->mt76.napi[1]);
 	}
 
@@ -79,7 +67,7 @@ irqreturn_t mt76x2_irq_handler(int irq, void *dev_instance)
 	}
 
 	if (intr & MT_INT_GPTIMER) {
-		mt76x2_irq_disable(dev, MT_INT_GPTIMER);
+		mt76x02_irq_disable(&dev->mt76, MT_INT_GPTIMER);
 		tasklet_schedule(&dev->dfs_pd.dfs_tasklet);
 	}
 

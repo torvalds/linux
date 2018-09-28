@@ -60,6 +60,7 @@ void mt76_mmio_init(struct mt76_dev *dev, void __iomem *regs)
 
 	skb_queue_head_init(&dev->mmio.mcu.res_q);
 	init_waitqueue_head(&dev->mmio.mcu.wait);
+	spin_lock_init(&dev->mmio.irq_lock);
 	mutex_init(&dev->mmio.mcu.mutex);
 }
 EXPORT_SYMBOL_GPL(mt76_mmio_init);
