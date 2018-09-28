@@ -213,8 +213,6 @@ static void of_get_regulation_constraints(struct device_node *np,
 		else if (of_property_read_bool(suspend_np,
 					"regulator-off-in-suspend"))
 			suspend_state->enabled = DISABLE_IN_SUSPEND;
-		else
-			suspend_state->enabled = DO_NOTHING_IN_SUSPEND;
 
 		if (!of_property_read_u32(np, "regulator-suspend-min-microvolt",
 					  &pval))
