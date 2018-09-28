@@ -130,6 +130,7 @@ struct latency_stat {
 struct iolatency_grp {
 	struct blkg_policy_data pd;
 	struct latency_stat __percpu *stats;
+	struct latency_stat cur_stat;
 	struct blk_iolatency *blkiolat;
 	struct rq_depth rq_depth;
 	struct rq_wait rq_wait;
@@ -570,24 +571,27 @@ static void iolatency_check_latencies(struct iolatency_grp *iolat, u64 now)
 
 	/* Somebody beat us to the punch, just bail. */
 	spin_lock_irqsave(&lat_info->lock, flags);
+
+	latency_stat_sum(iolat, &iolat->cur_stat, &stat);
 	lat_info->nr_samples -= iolat->nr_samples;
-	lat_info->nr_samples += latency_stat_samples(iolat, &stat);
-	iolat->nr_samples = latency_stat_samples(iolat, &stat);
+	lat_info->nr_samples += latency_stat_samples(iolat, &iolat->cur_stat);
+	iolat->nr_samples = latency_stat_samples(iolat, &iolat->cur_stat);
 
 	if ((lat_info->last_scale_event >= now ||
-	    now - lat_info->last_scale_event < BLKIOLATENCY_MIN_ADJUST_TIME) &&
-	    lat_info->scale_lat <= iolat->min_lat_nsec)
+	    now - lat_info->last_scale_event < BLKIOLATENCY_MIN_ADJUST_TIME))
 		goto out;
 
-	if (latency_sum_ok(iolat, &stat)) {
-		if (latency_stat_samples(iolat, &stat) <
+	if (latency_sum_ok(iolat, &iolat->cur_stat) &&
+	    latency_sum_ok(iolat, &stat)) {
+		if (latency_stat_samples(iolat, &iolat->cur_stat) <
 		    BLKIOLATENCY_MIN_GOOD_SAMPLES)
 			goto out;
 		if (lat_info->scale_grp == iolat) {
 			lat_info->last_scale_event = now;
 			scale_cookie_change(iolat->blkiolat, lat_info, true);
 		}
-	} else {
+	} else if (lat_info->scale_lat == 0 ||
+		   lat_info->scale_lat >= iolat->min_lat_nsec) {
 		lat_info->last_scale_event = now;
 		if (!lat_info->scale_grp ||
 		    lat_info->scale_lat > iolat->min_lat_nsec) {
@@ -596,6 +600,7 @@ static void iolatency_check_latencies(struct iolatency_grp *iolat, u64 now)
 		}
 		scale_cookie_change(iolat->blkiolat, lat_info, false);
 	}
+	latency_stat_init(iolat, &iolat->cur_stat);
 out:
 	spin_unlock_irqrestore(&lat_info->lock, flags);
 }
@@ -966,6 +971,7 @@ static void iolatency_pd_init(struct blkg_policy_data *pd)
 		latency_stat_init(iolat, stat);
 	}
 
+	latency_stat_init(iolat, &iolat->cur_stat);
 	rq_wait_init(&iolat->rq_wait);
 	spin_lock_init(&iolat->child_lat.lock);
 	iolat->rq_depth.queue_depth = blkg->q->nr_requests;
