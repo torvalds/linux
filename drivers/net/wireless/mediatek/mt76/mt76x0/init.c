@@ -363,9 +363,6 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 	mt76x0_reset_csr_bbp(dev);
 	mt76x0_init_usb_dma(dev);
 
-	mt76_wr(dev, MT_HEADER_TRANS_CTRL_REG, 0x0);
-	mt76_wr(dev, MT_TSO_CTRL, 0x0);
-
 	ret = mt76x02_mcu_function_select(&dev->mt76, Q_SELECT, 1, false);
 	if (ret)
 		return ret;
