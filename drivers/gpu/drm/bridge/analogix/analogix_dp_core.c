@@ -35,11 +35,6 @@
 
 #define to_dp(nm)	container_of(nm, struct analogix_dp_device, nm)
 
-struct bridge_init {
-	struct i2c_client *client;
-	struct device_node *node;
-};
-
 static void analogix_dp_init(struct analogix_dp_device *dp)
 {
 	analogix_dp_init_analog_param(dp);
