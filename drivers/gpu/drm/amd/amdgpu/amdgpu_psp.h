@@ -27,6 +27,7 @@
 
 #include "amdgpu.h"
 #include "psp_gfx_if.h"
+#include "ta_xgmi_if.h"
 
 #define PSP_FENCE_BUFFER_SIZE	0x1000
 #define PSP_CMD_BUFFER_SIZE	0x1000
@@ -218,6 +219,8 @@ extern int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 extern const struct amdgpu_ip_block_version psp_v10_0_ip_block;
 
 int psp_gpu_reset(struct amdgpu_device *adev);
+int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
+
 extern const struct amdgpu_ip_block_version psp_v11_0_ip_block;
 
 #endif
