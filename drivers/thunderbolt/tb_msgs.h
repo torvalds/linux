@@ -492,6 +492,17 @@ struct tb_xdp_header {
 	u32 type;
 };
 
+struct tb_xdp_uuid {
+	struct tb_xdp_header hdr;
+};
+
+struct tb_xdp_uuid_response {
+	struct tb_xdp_header hdr;
+	uuid_t src_uuid;
+	u32 src_route_hi;
+	u32 src_route_lo;
+};
+
 struct tb_xdp_properties {
 	struct tb_xdp_header hdr;
 	uuid_t src_uuid;
