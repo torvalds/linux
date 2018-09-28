@@ -1415,11 +1415,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	if (ELF_ST_TYPE(sym->st_info) != STT_OBJECT)
 		return;
 
-	/* All our symbols are of form <prefix>__mod_<name>__<identifier>_device_table. */
-	name = strstr(symname, "__mod_");
-	if (!name)
+	/* All our symbols are of form __mod_<name>__<identifier>_device_table. */
+	if (strncmp(symname, "__mod_", strlen("__mod_")))
 		return;
-	name += strlen("__mod_");
+	name = symname + strlen("__mod_");
 	namelen = strlen(name);
 	if (namelen < strlen("_device_table"))
 		return;
