@@ -9,31 +9,18 @@
  * License as published by the Free Software Foundation.
  */
 
-#include <linux/slab.h>
 #include <linux/mmu_notifier.h>
 #include <linux/mmu_context.h>
 #include <linux/of.h>
-#include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/memblock.h>
-#include <linux/iommu.h>
 #include <linux/sizes.h>
 
 #include <asm/debugfs.h>
-#include <asm/tlb.h>
 #include <asm/powernv.h>
-#include <asm/reg.h>
-#include <asm/opal.h>
-#include <asm/io.h>
-#include <asm/iommu.h>
-#include <asm/pnv-pci.h>
-#include <asm/msi_bitmap.h>
 #include <asm/opal.h>
 
-#include "powernv.h"
 #include "pci.h"
-
-#define npu_to_phb(x) container_of(x, struct pnv_phb, npu)
 
 /*
  * spinlock to protect initialisation of an npu_context for a particular
