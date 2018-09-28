@@ -48,6 +48,7 @@
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/suspend/rockchip-rk3288.h>
 #include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/display/media-bus-format.h>
 #include "skeleton64.dtsi"
 
 / {
@@ -1069,6 +1070,34 @@
 			status = "disabled";
 		};
 
+		lvds: lvds {
+			compatible = "rockchip,rk3288-lvds";
+			phys = <&video_phy>;
+			phy-names = "phy";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					lvds_in_vopb: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&vopb_out_lvds>;
+					};
+
+					lvds_in_vopl: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&vopl_out_lvds>;
+					};
+				};
+			};
+		};
+
 		mipi_phy_rx0: mipi-phy-rx0 {
 			compatible = "rockchip,rk3288-mipi-dphy";
 			clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_MIPI_CSI>;
@@ -1079,6 +1108,37 @@
 		io_domains: io-domains {
 			compatible = "rockchip,rk3288-io-voltage-domain";
 			status = "disabled";
+		};
+
+		rgb: rgb {
+			compatible = "rockchip,rk3288-rgb";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&lcdc_rgb_pins>;
+			pinctrl-1 = <&lcdc_sleep_pins>;
+			phys = <&video_phy>;
+			phy-names = "phy";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					rgb_in_vopb: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&vopb_out_rgb>;
+					};
+
+					rgb_in_vopl: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&vopl_out_rgb>;
+					};
+				};
+			};
 		};
 
 		usbphy: usbphy {
@@ -1335,6 +1395,11 @@
 				reg = <4>;
 				remote-endpoint = <&dsi1_in_vopb>;
 			};
+
+			vopb_out_rgb: endpoint@5 {
+				reg = <5>;
+				remote-endpoint = <&rgb_in_vopb>;
+			};
 		};
 	};
 
@@ -1391,6 +1456,11 @@
 			vopl_out_dsi1: endpoint@4 {
 				reg = <4>;
 				remote-endpoint = <&dsi1_in_vopl>;
+			};
+
+			vopl_out_rgb: endpoint@5 {
+				reg = <5>;
+				remote-endpoint = <&rgb_in_vopl>;
 			};
 		};
 	};
@@ -1535,35 +1605,16 @@
 		};
 	};
 
-	lvds: lvds@ff96c000 {
-		compatible = "rockchip,rk3288-lvds";
+	video_phy: video-phy@ff96c000 {
+		compatible = "rockchip,rk3288-video-phy";
 		reg = <0x0 0xff96c000 0x0 0x4000>;
 		clocks = <&cru PCLK_LVDS_PHY>;
-		clock-names = "pclk_lvds";
+		clock-names = "pclk";
+		resets = <&cru SRST_LVDS_PHY>;
+		reset-names = "rst";
 		power-domains = <&power RK3288_PD_VIO>;
-		rockchip,grf = <&grf>;
+		#phy-cells = <0>;
 		status = "disabled";
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			lvds_in: port@0 {
-				reg = <0>;
-
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				lvds_in_vopb: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&vopb_out_lvds>;
-				};
-				lvds_in_vopl: endpoint@1 {
-					reg = <1>;
-					remote-endpoint = <&vopl_out_lvds>;
-				};
-			};
-		};
 	};
 
 	hdmi: hdmi@ff980000 {
@@ -2066,11 +2117,18 @@
 		};
 
 		lcdc {
-			lcdc_ctl: lcdc-ctl {
-				rockchip,pins = <1 24 RK_FUNC_1 &pcfg_pull_none>,
-						<1 25 RK_FUNC_1 &pcfg_pull_none>,
-						<1 26 RK_FUNC_1 &pcfg_pull_none>,
-						<1 27 RK_FUNC_1 &pcfg_pull_none>;
+			lcdc_rgb_pins: lcdc-rgb-pins {
+				rockchip,pins = <1 27 RK_FUNC_1 &pcfg_pull_none>, /* LCDC_DCLK */
+						<1 26 RK_FUNC_1 &pcfg_pull_none>, /* LCDC_DEN */
+						<1 25 RK_FUNC_1 &pcfg_pull_none>, /* LCDC_VSYNC */
+						<1 24 RK_FUNC_1 &pcfg_pull_none>; /* LCDC_HSYNC */
+			};
+
+			lcdc_sleep_pins: lcdc-sleep-pins {
+				rockchip,pins =	<1 27 RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_DCLK */
+						<1 26 RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_DEN */
+						<1 25 RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_VSYNC */
+						<1 24 RK_FUNC_GPIO &pcfg_pull_none>; /* LCDC_HSYNC */
 			};
 		};
 
