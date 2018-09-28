@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "tegra20.dtsi"
 
+/*
+ * Toradex Colibri T20 Module Device Tree
+ * Compatible for Revisions Colibri T20 256MB V1.1B, V1.2A;
+ * Colibri T20 256MB IT V1.2A; Colibri T20 512MB V1.1C, V1.2A;
+ * Colibri T20 512MB IT V1.2A
+ */
 / {
-	model = "Toradex Colibri T20 256/512 MB";
-	compatible = "toradex,colibri_t20-512", "nvidia,tegra20";
-
-	aliases {
-		rtc0 = "/i2c@7000d000/tps6586x@34";
-		rtc1 = "/rtc@7000e000";
-	};
-
 	memory@0 {
 		/*
 		 * Set memory to 256 MB to be safe as this could be used on
@@ -21,12 +19,11 @@
 
 	host1x@50000000 {
 		hdmi@54280000 {
-			vdd-supply = <&hdmi_vdd_reg>;
-			pll-supply = <&hdmi_pll_reg>;
-
-			nvidia,ddc-i2c-bus = <&i2c_ddc>;
-			nvidia,hpd-gpio = <&gpio TEGRA_GPIO(N, 7)
-				GPIO_ACTIVE_HIGH>;
+			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
+			nvidia,hpd-gpio =
+				<&gpio TEGRA_GPIO(N, 7) GPIO_ACTIVE_HIGH>;
+			pll-supply = <&reg_1v8_avdd_hdmi_pll>;
+			vdd-supply = <&reg_3v3_avdd_hdmi>;
 		};
 	};
 
@@ -35,17 +32,12 @@
 		pinctrl-0 = <&state_default>;
 
 		state_default: pinmux {
-			audio_refclk {
+			/* Analogue Audio AC97 to WM9712 (On-module) */
+			audio-refclk {
 				nvidia,pins = "cdev1";
 				nvidia,function = "plla_out";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-			};
-			crt {
-				nvidia,pins = "crtp";
-				nvidia,function = "crt";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			dap3 {
 				nvidia,pins = "dap3";
@@ -53,169 +45,393 @@
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
-			displaya {
-				nvidia,pins = "ld0", "ld1", "ld2", "ld3",
-					"ld4", "ld5", "ld6", "ld7", "ld8",
-					"ld9", "ld10", "ld11", "ld12", "ld13",
-					"ld14", "ld15", "ld16", "ld17",
-					"lhs", "lpw0", "lpw2", "lsc0",
-					"lsc1", "lsck", "lsda", "lspi", "lvs";
-				nvidia,function = "displaya";
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-			};
-			gpio_dte {
-				nvidia,pins = "dte";
-				nvidia,function = "rsvd1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-			};
-			gpio_gmi {
-				nvidia,pins = "ata", "atc", "atd", "ate",
-					"dap1", "dap2", "dap4", "gpu", "irrx",
-					"irtx", "spia", "spib", "spic";
-				nvidia,function = "gmi";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-			};
-			gpio_pta {
-				nvidia,pins = "pta";
-				nvidia,function = "rsvd4";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-			};
-			gpio_uac {
+
+			/*
+			 * AC97_RESET, ULPI_RESET, AC97_INT aka WM9712 GENIRQ
+			 * (All on-module), SODIMM Pin 45 Wakeup
+			 */
+			gpio-uac {
 				nvidia,pins = "uac";
 				nvidia,function = "rsvd2";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
-			hdint {
-				nvidia,pins = "hdint";
-				nvidia,function = "hdmi";
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-			};
-			i2c1 {
-				nvidia,pins = "rm";
-				nvidia,function = "i2c1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-			};
-			i2c3 {
-				nvidia,pins = "dtf";
-				nvidia,function = "i2c3";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-			};
-			i2cddc {
-				nvidia,pins = "ddc";
-				nvidia,function = "i2c2";
-				nvidia,pull = <TEGRA_PIN_PULL_UP>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-			};
-			i2cp {
-				nvidia,pins = "i2cp";
-				nvidia,function = "i2cp";
+
+			/*
+			 * Buffer Enables for nPWE and RDnWR (On-module,
+			 * see GPIO hogging further down below)
+			 */
+			gpio-pta {
+				nvidia,pins = "pta";
+				nvidia,function = "rsvd4";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
-			irda {
-				nvidia,pins = "uad";
-				nvidia,function = "irda";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-			};
-			nand {
-				nvidia,pins = "kbca", "kbcc", "kbcd",
-					"kbce", "kbcf";
-				nvidia,function = "nand";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-			};
-			owc {
-				nvidia,pins = "owc";
-				nvidia,function = "owr";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-			};
+
+			/*
+			 * CLK_32K_OUT, CORE_PWR_REQ, CPU_PWR_REQ, PWR_INT_N,
+			 * SYS_CLK_REQ (All on-module)
+			 */
 			pmc {
 				nvidia,pins = "pmc";
 				nvidia,function = "pwr_on";
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
-			pwm {
-				nvidia,pins = "sdb", "sdc", "sdd";
+
+			/*
+			 * Colibri Address/Data Bus (GMI)
+			 * Note: spid and spie optionally used for SPI1
+			 */
+			gmi {
+				nvidia,pins = "atc", "atd", "ate", "dap1",
+					      "dap2", "dap4", "gmd", "gpu",
+					      "irrx", "irtx", "spia", "spib",
+					      "spic", "spid", "spie", "uca",
+					      "ucb";
+				nvidia,function = "gmi";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+			/* Further pins may be used as GPIOs */
+			gmi-gpio1 {
+				nvidia,pins = "lpw0", "lsc1", "lsck", "lsda";
+				nvidia,function = "hdmi";
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+			gmi-gpio2 {
+				nvidia,pins = "lcsn", "ldc", "lm0", "lsdi";
+				nvidia,function = "rsvd4";
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri BL_ON */
+			bl-on {
+				nvidia,pins = "dta";
+				nvidia,function = "rsvd1";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri Backlight PWM<A>, PWM<B> */
+			pwm-a-b {
+				nvidia,pins = "sdc";
 				nvidia,function = "pwm";
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
-			sdio4 {
-				nvidia,pins = "atb", "gma", "gme";
-				nvidia,function = "sdio4";
+
+			/* Colibri DDC */
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "i2c2";
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/*
+			 * Colibri EXT_IO*
+			 * Note: dtf optionally used for I2C3
+			 */
+			ext-io {
+				nvidia,pins = "dtf", "spdi";
+				nvidia,function = "rsvd2";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
-			spi1 {
-				nvidia,pins = "spid", "spie", "spif";
-				nvidia,function = "spi1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-			};
-			spi4 {
-				nvidia,pins = "slxa", "slxc", "slxd", "slxk";
-				nvidia,function = "spi4";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-			};
-			uarta {
-				nvidia,pins = "sdio1";
-				nvidia,function = "uarta";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-			};
-			uartd {
-				nvidia,pins = "gmc";
-				nvidia,function = "uartd";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-			};
+
+			/*
+			 * Colibri Ethernet (On-module)
+			 * ULPI EHCI instance 1 USB2_DP/N -> AX88772B
+			 */
 			ulpi {
 				nvidia,pins = "uaa", "uab", "uda";
 				nvidia,function = "ulpi";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
-			ulpi_refclk {
+			ulpi-refclk {
 				nvidia,pins = "cdev2";
 				nvidia,function = "pllp_out4";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
-			usb_gpio {
-				nvidia,pins = "spig", "spih";
-				nvidia,function = "spi2_alt";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+
+			/* Colibri HOTPLUG_DETECT (HDMI) */
+			hotplug-detect {
+				nvidia,pins = "hdint";
+				nvidia,function = "hdmi";
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
-			vi {
-				nvidia,pins = "dta", "dtb", "dtc", "dtd";
-				nvidia,function = "vi";
+
+			/* Colibri I2C */
+			i2c {
+				nvidia,pins = "rm";
+				nvidia,function = "i2c1";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
-			vi_sc {
+
+			/*
+			 * Colibri L_BIAS, LCD_M1 is muxed with LCD_DE
+			 * today's display need DE, disable LCD_M1
+			 */
+			lm1 {
+				nvidia,pins = "lm1";
+				nvidia,function = "rsvd3";
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri LCD (L_* resp. LDD<*>) */
+			lcd {
+				nvidia,pins = "ld0", "ld1", "ld2", "ld3",
+					      "ld4", "ld5", "ld6", "ld7",
+					      "ld8", "ld9", "ld10", "ld11",
+					      "ld12", "ld13", "ld14", "ld15",
+					      "ld16", "ld17", "lhs", "lsc0",
+					      "lspi", "lvs";
+				nvidia,function = "displaya";
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+			/* Colibri LCD (Optional 24 BPP Support) */
+			lcd-24 {
+				nvidia,pins = "ldi", "lhp0", "lhp1", "lhp2",
+					      "lpp", "lvp1";
+				nvidia,function = "displaya";
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri MMC */
+			mmc {
+				nvidia,pins = "atb", "gma";
+				nvidia,function = "sdio4";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri MMCCD */
+			mmccd {
+				nvidia,pins = "gmb";
+				nvidia,function = "gmi_int";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri MMC (Optional 8-bit) */
+			mmc-8bit {
+				nvidia,pins = "gme";
+				nvidia,function = "sdio4";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/*
+			 * Colibri Parallel Camera (Optional)
+			 * pins multiplexed with others and therefore disabled
+			 * Note: dta used for BL_ON by default
+			 */
+			cif-mclk {
 				nvidia,pins = "csus";
 				nvidia,function = "vi_sensor_clk";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
+			cif {
+				nvidia,pins = "dtb", "dtc", "dtd";
+				nvidia,function = "vi";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri PWM<C>, PWM<D> */
+			pwm-c-d {
+				nvidia,pins = "sdb", "sdd";
+				nvidia,function = "pwm";
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri SSP */
+			ssp {
+				nvidia,pins = "slxa", "slxc", "slxd", "slxk";
+				nvidia,function = "spi4";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri UART-A */
+			uart-a {
+				nvidia,pins = "sdio1";
+				nvidia,function = "uarta";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+			uart-a-dsr {
+				nvidia,pins = "lpw1";
+				nvidia,function = "rsvd3";
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+			uart-a-dcd {
+				nvidia,pins = "lpw2";
+				nvidia,function = "hdmi";
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri UART-B */
+			uart-b {
+				nvidia,pins = "gmc";
+				nvidia,function = "uartd";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri UART-C */
+			uart-c {
+				nvidia,pins = "uad";
+				nvidia,function = "irda";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri USB_CDET */
+			usb-cdet {
+				nvidia,pins = "spdo";
+				nvidia,function = "rsvd2";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri USBH_OC */
+			usbh-oc {
+				nvidia,pins = "spih";
+				nvidia,function = "spi2_alt";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri USBH_PEN */
+			usbh-pen {
+				nvidia,pins = "spig";
+				nvidia,function = "spi2_alt";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Colibri VGA not supported */
+			vga {
+				nvidia,pins = "crtp";
+				nvidia,function = "crt";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* I2C3 (Optional) */
+			i2c3 {
+				nvidia,pins = "dtf";
+				nvidia,function = "i2c3";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* JTAG_RTCK */
+			jtag-rtck {
+				nvidia,pins = "gpu7";
+				nvidia,function = "rtck";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/*
+			 * LAN_RESET, LAN_EXT_WAKEUP and LAN_PME
+			 * (All On-module)
+			 */
+			gpio-gpv {
+				nvidia,pins = "gpv";
+				nvidia,function = "rsvd2";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			/*
+			 * LAN_V_BUS, VDD_FAULT, BATT_FAULT, WM9712 PENDOWN
+			 * (All On-module); Colibri CAN_INT
+			 */
+			gpio-dte {
+				nvidia,pins = "dte";
+				nvidia,function = "rsvd1";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			/* NAND (On-module) */
+			nand {
+				nvidia,pins = "kbca", "kbcb", "kbcc", "kbcd",
+					      "kbce", "kbcf";
+				nvidia,function = "nand";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			/* Onewire (Optional) */
+			owr {
+				nvidia,pins = "owc";
+				nvidia,function = "owr";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* Power I2C (On-module) */
+			i2cp {
+				nvidia,pins = "i2cp";
+				nvidia,function = "i2cp";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			/* RESET_OUT */
+			reset-out {
+				nvidia,pins = "ata";
+				nvidia,function = "gmi";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			/*
+			 * SPI1 (Optional)
+			 * Note: spid and spie used for Colibri Address/Data
+			 *       Bus (GMI)
+			 */
+			spi1 {
+				nvidia,pins = "spid", "spie", "spif";
+				nvidia,function = "spi1";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			/*
+			 * THERMD_ALERT# (On-module), unlatched I2C address pin
+			 * of LM95245 temperature sensor therefore requires
+			 * disabling for now
+			 */
+			lvp0 {
+				nvidia,pins = "lvp0";
+				nvidia,function = "rsvd3";
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
 		};
 	};
 
-	ac97: ac97@70002000 {
+	tegra_ac97: ac97@70002000 {
 		status = "okay";
-		nvidia,codec-reset-gpio = <&gpio TEGRA_GPIO(V, 0)
-			GPIO_ACTIVE_HIGH>;
-		nvidia,codec-sync-gpio = <&gpio TEGRA_GPIO(P, 0)
-			GPIO_ACTIVE_HIGH>;
+		nvidia,codec-reset-gpio =
+			<&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_HIGH>;
+		nvidia,codec-sync-gpio =
+			<&gpio TEGRA_GPIO(P, 0) GPIO_ACTIVE_HIGH>;
+	};
+
+	serial@70006040 {
+		compatible = "nvidia,tegra20-hsuart";
+	};
+
+	serial@70006300 {
+		compatible = "nvidia,tegra20-hsuart";
 	};
 
 	nand-controller@70008000 {
@@ -243,7 +459,7 @@
 	};
 
 	/* DDC_SCL/SDA on X3 pin 15/16 (e.g. display EDID) */
-	i2c_ddc: i2c@7000c400 {
+	hdmi_ddc: i2c@7000c400 {
 		clock-frequency = <10000>;
 	};
 
@@ -256,59 +472,45 @@
 		status = "okay";
 		clock-frequency = <100000>;
 
-		pmic: tps6586x@34 {
+		pmic@34 {
 			compatible = "ti,tps6586x";
 			reg = <0x34>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
-
 			ti,system-power-controller;
-
 			#gpio-cells = <2>;
 			gpio-controller;
-
-			sys-supply = <&vdd_3v3_reg>;
-			vin-sm0-supply = <&sys_reg>;
-			vin-sm1-supply = <&sys_reg>;
-			vin-sm2-supply = <&sys_reg>;
-			vinldo01-supply = <&sm2_reg>;
-			vinldo23-supply = <&vdd_3v3_reg>;
-			vinldo4-supply = <&vdd_3v3_reg>;
-			vinldo678-supply = <&vdd_3v3_reg>;
-			vinldo9-supply = <&vdd_3v3_reg>;
+			sys-supply = <&reg_module_3v3>;
+			vin-sm0-supply = <&reg_3v3_vsys>;
+			vin-sm1-supply = <&reg_3v3_vsys>;
+			vin-sm2-supply = <&reg_3v3_vsys>;
+			vinldo01-supply = <&reg_1v8_vdd_ddr2>;
+			vinldo23-supply = <&reg_module_3v3>;
+			vinldo4-supply = <&reg_module_3v3>;
+			vinldo678-supply = <&reg_module_3v3>;
+			vinldo9-supply = <&reg_module_3v3>;
 
 			regulators {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				sys_reg: regulator@0 {
-					reg = <0>;
-					regulator-compatible = "sys";
-					regulator-name = "vdd_sys";
+				reg_3v3_vsys: sys {
+					regulator-name = "VSYS_3.3V";
 					regulator-always-on;
 				};
 
-				regulator@1 {
-					reg = <1>;
-					regulator-compatible = "sm0";
-					regulator-name = "vdd_sm0,vdd_core";
+				sm0 {
+					regulator-name = "VDD_CORE_1.2V";
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
 					regulator-always-on;
 				};
 
-				regulator@2 {
-					reg = <2>;
-					regulator-compatible = "sm1";
-					regulator-name = "vdd_sm1,vdd_cpu";
+				sm1 {
+					regulator-name = "VDD_CPU_1.0V";
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1000000>;
 					regulator-always-on;
 				};
 
-				sm2_reg: regulator@3 {
-					reg = <3>;
-					regulator-compatible = "sm2";
-					regulator-name = "vdd_sm2,vin_ldo*";
+				reg_1v8_vdd_ddr2: sm2 {
+					regulator-name = "VDD_DDR2_1.8V";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 					regulator-always-on;
@@ -316,80 +518,68 @@
 
 				/* LDO0 is not connected to anything */
 
-				regulator@5 {
-					reg = <5>;
-					regulator-compatible = "ldo1";
-					regulator-name = "vdd_ldo1,avdd_pll*";
+				/*
+				 * +3.3V_ENABLE_N switching via FET:
+				 * AVDD_AUDIO_S and +3.3V
+				 * see also +3.3V fixed supply
+				 */
+				ldo1 {
+					regulator-name = "AVDD_PLL_1.1V";
 					regulator-min-microvolt = <1100000>;
 					regulator-max-microvolt = <1100000>;
 					regulator-always-on;
 				};
 
-				regulator@6 {
-					reg = <6>;
-					regulator-compatible = "ldo2";
-					regulator-name = "vdd_ldo2,vdd_rtc";
+				ldo2 {
+					regulator-name = "VDD_RTC_1.2V";
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
 				};
 
 				/* LDO3 is not connected to anything */
 
-				regulator@8 {
-					reg = <8>;
-					regulator-compatible = "ldo4";
-					regulator-name = "vdd_ldo4,avdd_osc,vddio_sys";
+				ldo4 {
+					regulator-name = "VDDIO_SYS_1.8V";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 					regulator-always-on;
 				};
 
-				ldo5_reg: regulator@9 {
-					reg = <9>;
-					regulator-compatible = "ldo5";
-					regulator-name = "vdd_ldo5,vdd_fuse";
+				/* Switched via FET from regular +3.3V */
+				ldo5 {
+					regulator-name = "+3.3V_USB";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 					regulator-always-on;
 				};
 
-				regulator@10 {
-					reg = <10>;
-					regulator-compatible = "ldo6";
-					regulator-name = "vdd_ldo6,avdd_vdac,vddio_vi,vddio_cam";
+				ldo6 {
+					regulator-name = "AVDD_VDAC_2.85V";
 					regulator-min-microvolt = <2850000>;
 					regulator-max-microvolt = <2850000>;
 				};
 
-				hdmi_vdd_reg: regulator@11 {
-					reg = <11>;
-					regulator-compatible = "ldo7";
-					regulator-name = "vdd_ldo7,avdd_hdmi";
+				reg_3v3_avdd_hdmi: ldo7 {
+					regulator-name = "AVDD_HDMI_3.3V";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 				};
 
-				hdmi_pll_reg: regulator@12 {
-					reg = <12>;
-					regulator-compatible = "ldo8";
-					regulator-name = "vdd_ldo8,avdd_hdmi_pll";
+				reg_1v8_avdd_hdmi_pll: ldo8 {
+					regulator-name = "AVDD_HDMI_PLL_1.8V";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 				};
 
-				regulator@13 {
-					reg = <13>;
-					regulator-compatible = "ldo9";
-					regulator-name = "vdd_ldo9,avdd_2v85,vdd_ddr_rx";
+				ldo9 {
+					regulator-name = "VDDIO_RX_DDR_2.85V";
 					regulator-min-microvolt = <2850000>;
 					regulator-max-microvolt = <2850000>;
 					regulator-always-on;
 				};
 
-				regulator@14 {
-					reg = <14>;
-					regulator-compatible = "ldo_rtc";
-					regulator-name = "vdd_rtc_out,vdd_cell";
+				ldo_rtc {
+					regulator-name = "VCC_BATT";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 					regulator-always-on;
@@ -397,7 +587,8 @@
 			};
 		};
 
-		temperature-sensor@4c {
+		/* LM95245 temperature sensor */
+		temp-sensor@4c {
 			compatible = "national,lm95245";
 			reg = <0x4c>;
 		};
@@ -410,6 +601,14 @@
 		nvidia,core-pwr-good-time = <3845 3845>;
 		nvidia,core-pwr-off-time = <3875>;
 		nvidia,sys-clock-req-active-high;
+
+		/* Set SLEEP MODE bit in SUPPLYENE register of TPS658643 PMIC */
+		i2c-thermtrip {
+			nvidia,i2c-controller-id = <3>;
+			nvidia,bus-addr = <0x34>;
+			nvidia,reg-addr = <0x14>;
+			nvidia,reg-data = <0x8>;
+		};
 	};
 
 	memory-controller@7000f400 {
@@ -483,79 +682,87 @@
 		};
 	};
 
+	/* EHCI instance 1: ULPI PHY -> AX88772B (On-module) */
 	usb@c5004000 {
 		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
-			GPIO_ACTIVE_LOW>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		asix@1 {
+			reg = <1>;
+			local-mac-address = [00 00 00 00 00 00];
+		};
 	};
 
 	usb-phy@c5004000 {
 		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
-			GPIO_ACTIVE_LOW>;
+		nvidia,phy-reset-gpio =
+			<&gpio TEGRA_GPIO(V, 1) GPIO_ACTIVE_LOW>;
+		vbus-supply = <&reg_lan_v_bus>;
 	};
 
-	sdhci@c8000600 {
-		cd-gpios = <&gpio TEGRA_GPIO(C, 7) GPIO_ACTIVE_LOW>;
+	clk32k_in: xtal3 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
 	};
 
-	clocks {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		clk32k_in: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-		};
+	reg_lan_v_bus: regulator-lan-v-bus {
+		compatible = "regulator-fixed";
+		regulator-name = "LAN_V_BUS";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio TEGRA_GPIO(BB, 1) GPIO_ACTIVE_HIGH>;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		vdd_3v3_reg: regulator@100 {
-			compatible = "regulator-fixed";
-			reg = <100>;
-			regulator-name = "vdd_3v3";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-		};
-
-		regulator@101 {
-			compatible = "regulator-fixed";
-			reg = <101>;
-			regulator-name = "internal_usb";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			enable-active-high;
-			regulator-boot-on;
-			regulator-always-on;
-			gpio = <&gpio TEGRA_GPIO(BB, 1) GPIO_ACTIVE_HIGH>;
-		};
+	reg_module_3v3: regulator-module-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "+V3.3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
 	};
 
 	sound {
 		compatible = "nvidia,tegra-audio-wm9712-colibri_t20",
-			         "nvidia,tegra-audio-wm9712";
-		nvidia,model = "Colibri T20 AC97 Audio";
-
+			     "nvidia,tegra-audio-wm9712";
+		nvidia,model = "Toradex Colibri T20";
 		nvidia,audio-routing =
 			"Headphone", "HPOUTL",
 			"Headphone", "HPOUTR",
 			"LineIn", "LINEINL",
 			"LineIn", "LINEINR",
 			"Mic", "MIC1";
-
-		nvidia,ac97-controller = <&ac97>;
-
+		nvidia,ac97-controller = <&tegra_ac97>;
 		clocks = <&tegra_car TEGRA20_CLK_PLL_A>,
 			 <&tegra_car TEGRA20_CLK_PLL_A_OUT0>,
 			 <&tegra_car TEGRA20_CLK_CDEV1>;
 		clock-names = "pll_a", "pll_a_out0", "mclk";
+	};
+};
+
+&gpio {
+	lan-reset-n {
+		gpio-hog;
+		gpios = <TEGRA_GPIO(V, 4) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "LAN_RESET#";
+	};
+
+	/* Tri-stating GMI_WR_N on SODIMM pin 99 nPWE */
+	npwe {
+		gpio-hog;
+		gpios = <TEGRA_GPIO(T, 5) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "Tri-state nPWE";
+	};
+
+	/* Not tri-stating GMI_WR_N on SODIMM pin 93 RDnWR */
+	rdnwr {
+		gpio-hog;
+		gpios = <TEGRA_GPIO(T, 6) GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "Not tri-state RDnWR";
 	};
 };

@@ -1,21 +1,21 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /dts-v1/;
 
 #include <dt-bindings/input/input.h>
-#include "tegra30-colibri.dtsi"
+#include "tegra20-colibri.dtsi"
 
 / {
-	model = "Toradex Colibri T30 on Colibri Evaluation Board";
-	compatible = "toradex,colibri_t30-eval-v3", "toradex,colibri_t30",
-		     "nvidia,tegra30";
+	model = "Toradex Colibri T20 on Colibri Evaluation Board";
+	compatible = "toradex,colibri_t20-eval-v3", "toradex,colibri_t20",
+		     "nvidia,tegra20";
 
 	aliases {
 		rtc0 = "/i2c@7000c000/rtc@68";
-		rtc1 = "/i2c@7000d000/pmic@2d";
+		rtc1 = "/i2c@7000d000/pmic@34";
 		rtc2 = "/rtc@7000e000";
 		serial0 = &uarta;
-		serial1 = &uartb;
-		serial2 = &uartd;
+		serial1 = &uartd;
+		serial2 = &uartb;
 	};
 
 	chosen {
@@ -33,6 +33,70 @@
 		hdmi@54280000 {
 			status = "okay";
 			hdmi-supply = <&reg_5v0>;
+		};
+	};
+
+	pinmux@70000014 {
+		state_default: pinmux {
+			bl-on {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			ddc {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			hotplug-detect {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			i2c {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			lcd {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			lm1 {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			mmc {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			mmccd {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			pwm-a-b {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			pwm-c-d {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			ssp {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			uart-a {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			uart-b {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			uart-c {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			usbh-pen {
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
 		};
 	};
 
@@ -75,12 +139,33 @@
 	/* CAM_I2C (I2C3): unused */
 
 	/* DDC_CLOCK/DATA on X3 pin 15/16 (e.g. display EDID) */
-	i2c@7000c700 {
+	i2c@7000c400 {
 		status = "okay";
 	};
 
-	/* SPI1: Colibri SSP */
-	spi@7000d400 {
+	/* EHCI instance 0: USB1_DP/N -> USBC_P/N */
+	usb@c5000000 {
+		status = "okay";
+		dr_mode = "otg";
+	};
+
+	usb-phy@c5000000 {
+		status = "okay";
+		vbus-supply = <&reg_usbc_vbus>;
+	};
+
+	/* EHCI instance 2: USB3_DP/N -> USBH_P/N */
+	usb@c5008000 {
+		status = "okay";
+	};
+
+	usb-phy@c5008000 {
+		status = "okay";
+		vbus-supply = <&reg_usbh_vbus>;
+	};
+
+	/* SPI4: Colibri SSP */
+	spi@7000da00 {
 		status = "okay";
 		spi-max-frequency = <25000000>;
 
@@ -90,7 +175,7 @@
 			clocks = <&clk16m>;
 			interrupt-parent = <&gpio>;
 			/* CAN_INT */
-			interrupts = <TEGRA_GPIO(S, 0) IRQ_TYPE_EDGE_FALLING>;
+			interrupts = <TEGRA_GPIO(A, 0) IRQ_TYPE_EDGE_FALLING>;
 			spi-max-frequency = <10000000>;
 			vdd-supply = <&reg_3v3>;
 			xceiver-supply = <&reg_5v0>;
@@ -98,32 +183,11 @@
 	};
 
 	/* SD/MMC */
-	sdhci@78000200 {
+	sdhci@c8000600 {
 		status = "okay";
 		bus-width = <4>;
 		cd-gpios = <&gpio TEGRA_GPIO(C, 7) GPIO_ACTIVE_LOW>; /* MMCD */
 		no-1-8-v;
-	};
-
-	/* EHCI instance 0: USB1_DP/N -> USBC_P/N */
-	usb@7d000000 {
-		status = "okay";
-		dr_mode = "otg";
-	};
-
-	usb-phy@7d000000 {
-		status = "okay";
-		vbus-supply = <&reg_usbc_vbus>;
-	};
-
-	/* EHCI instance 2: USB3_DP/N -> USBH_P/N */
-	usb@7d008000 {
-		status = "okay";
-	};
-
-	usb-phy@7d008000 {
-		status = "okay";
-		vbus-supply = <&reg_usbh_vbus>;
 	};
 
 	backlight: backlight {
@@ -131,7 +195,7 @@
 		brightness-levels = <255 128 64 32 16 8 4 0>;
 		default-brightness-level = <6>;
 		/* BL_ON */
-		enable-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio TEGRA_GPIO(T, 4) GPIO_ACTIVE_HIGH>;
 		power-supply = <&reg_3v3>;
 		pwms = <&pwm 0 5000000>; /* PWM<A> */
 	};
@@ -147,7 +211,7 @@
 
 		wakeup {
 			label = "SODIMM pin 45 wakeup";
-			gpios = <&gpio TEGRA_GPIO(V, 1) GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_WAKEUP>;
 			debounce-interval = <10>;
 			wakeup-source;
