@@ -119,6 +119,7 @@
  *
  *  7.28
  *  - add FUSE_COPY_FILE_RANGE
+ *  - add FOPEN_CACHE_DIR
  */
 
 #ifndef _LINUX_FUSE_H
@@ -222,10 +223,12 @@ struct fuse_file_lock {
  * FOPEN_DIRECT_IO: bypass page cache for this open file
  * FOPEN_KEEP_CACHE: don't invalidate the data cache on open
  * FOPEN_NONSEEKABLE: the file is not seekable
+ * FOPEN_CACHE_DIR: allow caching this directory
  */
 #define FOPEN_DIRECT_IO		(1 << 0)
 #define FOPEN_KEEP_CACHE	(1 << 1)
 #define FOPEN_NONSEEKABLE	(1 << 2)
+#define FOPEN_CACHE_DIR		(1 << 3)
 
 /**
  * INIT request/reply flags
