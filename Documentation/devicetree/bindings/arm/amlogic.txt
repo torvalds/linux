@@ -63,6 +63,7 @@ Board compatible values (alphabetically, grouped by SoC):
 
   - "minix,neo-x8" (Meson8)
 
+  - "endless,ec100" (Meson8b)
   - "hardkernel,odroid-c1" (Meson8b)
   - "tronfy,mxq" (Meson8b)
 
