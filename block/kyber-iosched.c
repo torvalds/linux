@@ -79,9 +79,9 @@ static const unsigned int kyber_depth[] = {
  * Default latency targets for each scheduling domain.
  */
 static const u64 kyber_latency_targets[] = {
-	[KYBER_READ] = 2 * NSEC_PER_MSEC,
-	[KYBER_WRITE] = 10 * NSEC_PER_MSEC,
-	[KYBER_DISCARD] = 5 * NSEC_PER_SEC,
+	[KYBER_READ] = 2ULL * NSEC_PER_MSEC,
+	[KYBER_WRITE] = 10ULL * NSEC_PER_MSEC,
+	[KYBER_DISCARD] = 5ULL * NSEC_PER_SEC,
 };
 
 /*
