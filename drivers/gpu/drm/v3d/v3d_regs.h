@@ -267,6 +267,36 @@
 # define V3D_PTB_BXCF_RWORDERDISA                      BIT(1)
 # define V3D_PTB_BXCF_CLIPDISA                         BIT(0)
 
+#define V3D_V3_PCTR_0_EN                               0x00674
+#define V3D_V3_PCTR_0_EN_ENABLE                        BIT(31)
+#define V3D_V4_PCTR_0_EN                               0x00650
+/* When a bit is set, resets the counter to 0. */
+#define V3D_V3_PCTR_0_CLR                              0x00670
+#define V3D_V4_PCTR_0_CLR                              0x00654
+#define V3D_PCTR_0_OVERFLOW                            0x00658
+
+#define V3D_V3_PCTR_0_PCTRS0                           0x00684
+#define V3D_V3_PCTR_0_PCTRS15                          0x00660
+#define V3D_V3_PCTR_0_PCTRSX(x)                        (V3D_V3_PCTR_0_PCTRS0 + \
+							4 * (x))
+/* Each src reg muxes four counters each. */
+#define V3D_V4_PCTR_0_SRC_0_3                          0x00660
+#define V3D_V4_PCTR_0_SRC_28_31                        0x0067c
+# define V3D_PCTR_S0_MASK                              V3D_MASK(6, 0)
+# define V3D_PCTR_S0_SHIFT                             0
+# define V3D_PCTR_S1_MASK                              V3D_MASK(14, 8)
+# define V3D_PCTR_S1_SHIFT                             8
+# define V3D_PCTR_S2_MASK                              V3D_MASK(22, 16)
+# define V3D_PCTR_S2_SHIFT                             16
+# define V3D_PCTR_S3_MASK                              V3D_MASK(30, 24)
+# define V3D_PCTR_S3_SHIFT                             24
+# define V3D_PCTR_CYCLE_COUNT                          32
+
+/* Output values of the counters. */
+#define V3D_PCTR_0_PCTR0                               0x00680
+#define V3D_PCTR_0_PCTR31                              0x006fc
+#define V3D_PCTR_0_PCTRX(x)                            (V3D_PCTR_0_PCTR0 + \
+							4 * (x))
 #define V3D_GMP_STATUS                                 0x00800
 # define V3D_GMP_STATUS_GMPRST                         BIT(31)
 # define V3D_GMP_STATUS_WR_COUNT_MASK                  V3D_MASK(30, 24)
