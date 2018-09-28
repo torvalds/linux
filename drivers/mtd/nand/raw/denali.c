@@ -28,6 +28,7 @@
 MODULE_LICENSE("GPL");
 
 #define DENALI_NAND_NAME    "denali-nand"
+#define DENALI_DEFAULT_OOB_SKIP_BYTES	8
 
 /* for Indexed Addressing */
 #define DENALI_INDEXED_CTRL	0x00
@@ -1105,12 +1106,17 @@ static void denali_hw_init(struct denali_nand_info *denali)
 		denali->revision = swab16(ioread32(denali->reg + REVISION));
 
 	/*
-	 * tell driver how many bit controller will skip before
-	 * writing ECC code in OOB, this register may be already
-	 * set by firmware. So we read this value out.
-	 * if this value is 0, just let it be.
+	 * Set how many bytes should be skipped before writing data in OOB.
+	 * If a non-zero value has already been set (by firmware or something),
+	 * just use it.  Otherwise, set the driver default.
 	 */
 	denali->oob_skip_bytes = ioread32(denali->reg + SPARE_AREA_SKIP_BYTES);
+	if (!denali->oob_skip_bytes) {
+		denali->oob_skip_bytes = DENALI_DEFAULT_OOB_SKIP_BYTES;
+		iowrite32(denali->oob_skip_bytes,
+			  denali->reg + SPARE_AREA_SKIP_BYTES);
+	}
+
 	denali_detect_max_banks(denali);
 	iowrite32(0x0F, denali->reg + RB_PIN_ENABLED);
 	iowrite32(CHIP_EN_DONT_CARE__FLAG, denali->reg + CHIP_ENABLE_DONT_CARE);
