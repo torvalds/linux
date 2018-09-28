@@ -14,6 +14,7 @@
 enum tb_tunnel_type {
 	TB_TUNNEL_PCI,
 	TB_TUNNEL_DP,
+	TB_TUNNEL_DMA,
 };
 
 /**
@@ -47,6 +48,10 @@ struct tb_tunnel *tb_tunnel_alloc_pci(struct tb *tb, struct tb_port *up,
 struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in);
 struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
 				     struct tb_port *out);
+struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
+				      struct tb_port *dst, int transmit_ring,
+				      int transmit_path, int receive_ring,
+				      int receive_path);
 
 void tb_tunnel_free(struct tb_tunnel *tunnel);
 int tb_tunnel_activate(struct tb_tunnel *tunnel);
@@ -62,6 +67,11 @@ static inline bool tb_tunnel_is_pci(const struct tb_tunnel *tunnel)
 static inline bool tb_tunnel_is_dp(const struct tb_tunnel *tunnel)
 {
 	return tunnel->type == TB_TUNNEL_DP;
+}
+
+static inline bool tb_tunnel_is_dma(const struct tb_tunnel *tunnel)
+{
+	return tunnel->type == TB_TUNNEL_DMA;
 }
 
 #endif

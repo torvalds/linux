@@ -341,7 +341,8 @@ static void __tb_path_deallocate_nfc(struct tb_path *path, int first_hop)
 	}
 }
 
-static int __tb_path_deactivate_hop(struct tb_port *port, int hop_index)
+static int __tb_path_deactivate_hop(struct tb_port *port, int hop_index,
+				    bool clear_fc)
 {
 	struct tb_regs_hop hop;
 	ktime_t timeout;
@@ -369,8 +370,20 @@ static int __tb_path_deactivate_hop(struct tb_port *port, int hop_index)
 		if (ret)
 			return ret;
 
-		if (!hop.pending)
+		if (!hop.pending) {
+			if (clear_fc) {
+				/* Clear flow control */
+				hop.ingress_fc = 0;
+				hop.egress_fc = 0;
+				hop.ingress_shared_buffer = 0;
+				hop.egress_shared_buffer = 0;
+
+				return tb_port_write(port, &hop, TB_CFG_HOPS,
+						     2 * hop_index, 2);
+			}
+
 			return 0;
+		}
 
 		usleep_range(10, 20);
 	} while (ktime_before(ktime_get(), timeout));
@@ -384,7 +397,8 @@ static void __tb_path_deactivate_hops(struct tb_path *path, int first_hop)
 
 	for (i = first_hop; i < path->path_length; i++) {
 		res = __tb_path_deactivate_hop(path->hops[i].in_port,
-					       path->hops[i].in_hop_index);
+					       path->hops[i].in_hop_index,
+					       path->clear_fc);
 		if (res && res != -ENODEV)
 			tb_port_warn(path->hops[i].in_port,
 				     "hop deactivation failed for hop %d, index %d\n",
@@ -459,7 +473,7 @@ int tb_path_activate(struct tb_path *path)
 
 		/* If it is left active deactivate it first */
 		__tb_path_deactivate_hop(path->hops[i].in_port,
-				path->hops[i].in_hop_index);
+				path->hops[i].in_hop_index, path->clear_fc);
 
 		/* dword 0 */
 		hop.next_hop = path->hops[i].next_hop_index;

@@ -556,6 +556,28 @@ int tb_port_add_nfc_credits(struct tb_port *port, int credits)
 }
 
 /**
+ * tb_port_set_initial_credits() - Set initial port link credits allocated
+ * @port: Port to set the initial credits
+ * @credits: Number of credits to to allocate
+ *
+ * Set initial credits value to be used for ingress shared buffering.
+ */
+int tb_port_set_initial_credits(struct tb_port *port, u32 credits)
+{
+	u32 data;
+	int ret;
+
+	ret = tb_port_read(port, &data, TB_CFG_PORT, 5, 1);
+	if (ret)
+		return ret;
+
+	data &= ~TB_PORT_LCA_MASK;
+	data |= (credits << TB_PORT_LCA_SHIFT) & TB_PORT_LCA_MASK;
+
+	return tb_port_write(port, &data, TB_CFG_PORT, 5, 1);
+}
+
+/**
  * tb_port_clear_counter() - clear a counter in TB_CFG_COUNTER
  *
  * Return: Returns 0 on success or an error code on failure.

@@ -27,7 +27,10 @@
 #define TB_DP_AUX_PATH_OUT		1
 #define TB_DP_AUX_PATH_IN		2
 
-static const char * const tb_tunnel_names[] = { "PCI", "DP" };
+#define TB_DMA_PATH_OUT			0
+#define TB_DMA_PATH_IN			1
+
+static const char * const tb_tunnel_names[] = { "PCI", "DP", "DMA" };
 
 #define __TB_TUNNEL_PRINT(level, tunnel, fmt, arg...)                   \
 	do {                                                            \
@@ -469,6 +472,94 @@ struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
 err_free:
 	tb_tunnel_free(tunnel);
 	return NULL;
+}
+
+static u32 tb_dma_credits(struct tb_port *nhi)
+{
+	u32 max_credits;
+
+	max_credits = (nhi->config.nfc_credits & TB_PORT_MAX_CREDITS_MASK) >>
+		TB_PORT_MAX_CREDITS_SHIFT;
+	return min(max_credits, 13U);
+}
+
+static int tb_dma_activate(struct tb_tunnel *tunnel, bool active)
+{
+	struct tb_port *nhi = tunnel->src_port;
+	u32 credits;
+
+	credits = active ? tb_dma_credits(nhi) : 0;
+	return tb_port_set_initial_credits(nhi, credits);
+}
+
+static void tb_dma_init_path(struct tb_path *path, unsigned int isb,
+			     unsigned int efc, u32 credits)
+{
+	int i;
+
+	path->egress_fc_enable = efc;
+	path->ingress_fc_enable = TB_PATH_ALL;
+	path->egress_shared_buffer = TB_PATH_NONE;
+	path->ingress_shared_buffer = isb;
+	path->priority = 5;
+	path->weight = 1;
+	path->clear_fc = true;
+
+	for (i = 0; i < path->path_length; i++)
+		path->hops[i].initial_credits = credits;
+}
+
+/**
+ * tb_tunnel_alloc_dma() - allocate a DMA tunnel
+ * @tb: Pointer to the domain structure
+ * @nhi: Host controller port
+ * @dst: Destination null port which the other domain is connected to
+ * @transmit_ring: NHI ring number used to send packets towards the
+ *		   other domain
+ * @transmit_path: HopID used for transmitting packets
+ * @receive_ring: NHI ring number used to receive packets from the
+ *		  other domain
+ * @reveive_path: HopID used for receiving packets
+ *
+ * Return: Returns a tb_tunnel on success or NULL on failure.
+ */
+struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
+				      struct tb_port *dst, int transmit_ring,
+				      int transmit_path, int receive_ring,
+				      int receive_path)
+{
+	struct tb_tunnel *tunnel;
+	struct tb_path *path;
+	u32 credits;
+
+	tunnel = tb_tunnel_alloc(tb, 2, TB_TUNNEL_DMA);
+	if (!tunnel)
+		return NULL;
+
+	tunnel->activate = tb_dma_activate;
+	tunnel->src_port = nhi;
+	tunnel->dst_port = dst;
+
+	credits = tb_dma_credits(nhi);
+
+	path = tb_path_alloc(tb, dst, receive_path, nhi, receive_ring, 0, "DMA RX");
+	if (!path) {
+		tb_tunnel_free(tunnel);
+		return NULL;
+	}
+	tb_dma_init_path(path, TB_PATH_NONE, TB_PATH_SOURCE | TB_PATH_INTERNAL,
+			 credits);
+	tunnel->paths[TB_DMA_PATH_IN] = path;
+
+	path = tb_path_alloc(tb, nhi, transmit_ring, dst, transmit_path, 0, "DMA TX");
+	if (!path) {
+		tb_tunnel_free(tunnel);
+		return NULL;
+	}
+	tb_dma_init_path(path, TB_PATH_SOURCE, TB_PATH_ALL, credits);
+	tunnel->paths[TB_DMA_PATH_OUT] = path;
+
+	return tunnel;
 }
 
 /**

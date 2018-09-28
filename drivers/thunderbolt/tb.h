@@ -207,6 +207,8 @@ enum tb_path_port {
  * @weight: Weight of the path inside the priority group
  * @drop_packages: Drop packages from queue tail or head
  * @activated: Is the path active
+ * @clear_fc: Clear all flow control from the path config space entries
+ *	      when deactivating this path
  * @hops: Path hops
  * @path_length: How many hops the path uses
  *
@@ -227,6 +229,7 @@ struct tb_path {
 	int weight:4;
 	bool drop_packages;
 	bool activated;
+	bool clear_fc;
 	struct tb_path_hop *hops;
 	int path_length;
 };
@@ -583,6 +586,7 @@ static inline bool tb_switch_is_fr(const struct tb_switch *sw)
 
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
 int tb_port_add_nfc_credits(struct tb_port *port, int credits);
+int tb_port_set_initial_credits(struct tb_port *port, u32 credits);
 int tb_port_clear_counter(struct tb_port *port, int counter);
 int tb_port_alloc_in_hopid(struct tb_port *port, int hopid, int max_hopid);
 void tb_port_release_in_hopid(struct tb_port *port, int hopid);
