@@ -19,6 +19,7 @@
 #include "trace.h"
 #include "mcu.h"
 #include "../mt76x02_util.h"
+#include "../mt76x02_dma.h"
 
 #include "initvals.h"
 
@@ -273,8 +274,7 @@ int mt76x0_mac_start(struct mt76x0_dev *dev)
 {
 	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
 
-	if (!mt76_poll(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
-		       MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 200000))
+	if (!mt76x02_wait_for_wpdma(&dev->mt76, 200000))
 		return -ETIMEDOUT;
 
 	dev->mt76.rxfilter = MT_RX_FILTR_CFG_CRC_ERR |
@@ -287,13 +287,9 @@ int mt76x0_mac_start(struct mt76x0_dev *dev)
 	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
 
 	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		   MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
+		MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
 
-	if (!mt76_poll(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
-		       MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 50))
-		return -ETIMEDOUT;
-
-	return 0;
+	return !mt76x02_wait_for_wpdma(&dev->mt76, 50) ? -ETIMEDOUT : 0;
 }
 
 static void mt76x0_mac_stop_hw(struct mt76x0_dev *dev)
@@ -357,9 +353,7 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 {
 	int ret;
 
-	if (!mt76_poll_msec(dev, MT_WPDMA_GLO_CFG,
-			    MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
-			    MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 100))
+	if (!mt76x02_wait_for_wpdma(&dev->mt76, 1000))
 		return -EIO;
 
 	/* Wait for ASIC ready after FW load. */
@@ -378,8 +372,7 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 
 	mt76x0_init_mac_registers(dev);
 
-	if (!mt76_poll_msec(dev, MT_MAC_STATUS,
-			    MT_MAC_STATUS_TX | MT_MAC_STATUS_RX, 0, 1000))
+	if (!mt76x02_wait_for_txrx_idle(&dev->mt76))
 		return -EIO;
 
 	ret = mt76x0_init_bbp(dev);
