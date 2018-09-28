@@ -33,7 +33,7 @@ static const struct xvip_video_format xvip_video_formats[] = {
 	{ XVIP_VF_MONO_SENSOR, 8, "mono", MEDIA_BUS_FMT_Y8_1X8,
 	  1, V4L2_PIX_FMT_GREY, "Greyscale 8-bit" },
 	{ XVIP_VF_MONO_SENSOR, 8, "rggb", MEDIA_BUS_FMT_SRGGB8_1X8,
-	  1, V4L2_PIX_FMT_SGRBG8, "Bayer 8-bit RGGB" },
+	  1, V4L2_PIX_FMT_SRGGB8, "Bayer 8-bit RGGB" },
 	{ XVIP_VF_MONO_SENSOR, 8, "grbg", MEDIA_BUS_FMT_SGRBG8_1X8,
 	  1, V4L2_PIX_FMT_SGRBG8, "Bayer 8-bit GRBG" },
 	{ XVIP_VF_MONO_SENSOR, 8, "gbrg", MEDIA_BUS_FMT_SGBRG8_1X8,
