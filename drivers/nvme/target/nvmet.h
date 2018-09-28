@@ -264,6 +264,7 @@ struct nvmet_fabrics_ops {
 };
 
 #define NVMET_MAX_INLINE_BIOVEC	8
+#define NVMET_MAX_INLINE_DATA_LEN NVMET_MAX_INLINE_BIOVEC * PAGE_SIZE
 
 struct nvmet_req {
 	struct nvme_command	*cmd;
