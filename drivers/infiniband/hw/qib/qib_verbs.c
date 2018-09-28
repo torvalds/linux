@@ -1716,14 +1716,14 @@ void qib_unregister_ib_device(struct qib_devdata *dd)
  * It is only used in post send, which doesn't hold
  * the s_lock.
  */
-void _qib_schedule_send(struct rvt_qp *qp)
+bool _qib_schedule_send(struct rvt_qp *qp)
 {
 	struct qib_ibport *ibp =
 		to_iport(qp->ibqp.device, qp->port_num);
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 	struct qib_qp_priv *priv = qp->priv;
 
-	queue_work(ppd->qib_wq, &priv->s_work);
+	return queue_work(ppd->qib_wq, &priv->s_work);
 }
 
 /**
@@ -1733,8 +1733,9 @@ void _qib_schedule_send(struct rvt_qp *qp)
  * This schedules qp progress.  The s_lock
  * should be held.
  */
-void qib_schedule_send(struct rvt_qp *qp)
+bool qib_schedule_send(struct rvt_qp *qp)
 {
 	if (qib_send_ok(qp))
-		_qib_schedule_send(qp);
+		return _qib_schedule_send(qp);
+	return false;
 }

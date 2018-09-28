@@ -166,11 +166,13 @@ struct hfi1_qp_priv {
  * This structure is used to hold commonly lookedup and computed values during
  * the send engine progress.
  */
+struct iowait_work;
 struct hfi1_pkt_state {
 	struct hfi1_ibdev *dev;
 	struct hfi1_ibport *ibp;
 	struct hfi1_pportdata *ppd;
 	struct verbs_txreq *s_txreq;
+	struct iowait_work *wait;
 	unsigned long flags;
 	unsigned long timeout;
 	unsigned long timeout_int;
@@ -247,7 +249,7 @@ static inline struct hfi1_ibdev *to_idev(struct ib_device *ibdev)
 	return container_of(rdi, struct hfi1_ibdev, rdi);
 }
 
-static inline struct rvt_qp *iowait_to_qp(struct  iowait *s_iowait)
+static inline struct rvt_qp *iowait_to_qp(struct iowait *s_iowait)
 {
 	struct hfi1_qp_priv *priv;
 

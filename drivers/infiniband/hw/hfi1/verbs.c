@@ -737,7 +737,7 @@ static int wait_kmem(struct hfi1_ibdev *dev,
 	if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) {
 		write_seqlock(&dev->iowait_lock);
 		list_add_tail(&ps->s_txreq->txreq.list,
-			      &priv->s_iowait.tx_head);
+			      &ps->wait->tx_head);
 		if (list_empty(&priv->s_iowait.list)) {
 			if (list_empty(&dev->memwait))
 				mod_timer(&dev->mem_timer, jiffies + 1);
@@ -748,7 +748,7 @@ static int wait_kmem(struct hfi1_ibdev *dev,
 			rvt_get_qp(qp);
 		}
 		write_sequnlock(&dev->iowait_lock);
-		qp->s_flags &= ~RVT_S_BUSY;
+		hfi1_qp_unbusy(qp, ps->wait);
 		ret = -EBUSY;
 	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);
@@ -950,8 +950,7 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		if (unlikely(ret))
 			goto bail_build;
 	}
-	ret =  sdma_send_txreq(tx->sde, &priv->s_iowait, &tx->txreq,
-			       ps->pkts_sent);
+	ret =  sdma_send_txreq(tx->sde, ps->wait, &tx->txreq, ps->pkts_sent);
 	if (unlikely(ret < 0)) {
 		if (ret == -ECOMM)
 			goto bail_ecomm;
@@ -1001,7 +1000,7 @@ static int pio_wait(struct rvt_qp *qp,
 	if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) {
 		write_seqlock(&dev->iowait_lock);
 		list_add_tail(&ps->s_txreq->txreq.list,
-			      &priv->s_iowait.tx_head);
+			      &ps->wait->tx_head);
 		if (list_empty(&priv->s_iowait.list)) {
 			struct hfi1_ibdev *dev = &dd->verbs_dev;
 			int was_empty;
@@ -1020,7 +1019,7 @@ static int pio_wait(struct rvt_qp *qp,
 				hfi1_sc_wantpiobuf_intr(sc, 1);
 		}
 		write_sequnlock(&dev->iowait_lock);
-		qp->s_flags &= ~RVT_S_BUSY;
+		hfi1_qp_unbusy(qp, ps->wait);
 		ret = -EBUSY;
 	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);

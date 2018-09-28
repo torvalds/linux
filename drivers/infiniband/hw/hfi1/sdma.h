@@ -1,7 +1,7 @@
 #ifndef _HFI1_SDMA_H
 #define _HFI1_SDMA_H
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -840,14 +840,14 @@ static inline int sdma_txadd_kvaddr(
 			dd, SDMA_MAP_SINGLE, tx, addr, len);
 }
 
-struct iowait;
+struct iowait_work;
 
 int sdma_send_txreq(struct sdma_engine *sde,
-		    struct iowait *wait,
+		    struct iowait_work *wait,
 		    struct sdma_txreq *tx,
 		    bool pkts_sent);
 int sdma_send_txlist(struct sdma_engine *sde,
-		     struct iowait *wait,
+		     struct iowait_work *wait,
 		     struct list_head *tx_list,
 		     u16 *count_out);
 

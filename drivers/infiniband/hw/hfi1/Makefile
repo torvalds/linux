@@ -20,6 +20,7 @@ hfi1-y := \
 	firmware.o \
 	init.o \
 	intr.o \
+	iowait.o \
 	mad.o \
 	mmu_rb.o \
 	msix.o \

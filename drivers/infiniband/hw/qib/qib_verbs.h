@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 - 2017 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012 - 2018 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -223,8 +223,8 @@ static inline int qib_send_ok(struct rvt_qp *qp)
 		 !(qp->s_flags & RVT_S_ANY_WAIT_SEND));
 }
 
-void _qib_schedule_send(struct rvt_qp *qp);
-void qib_schedule_send(struct rvt_qp *qp);
+bool _qib_schedule_send(struct rvt_qp *qp);
+bool qib_schedule_send(struct rvt_qp *qp);
 
 static inline int qib_pkey_ok(u16 pkey1, u16 pkey2)
 {

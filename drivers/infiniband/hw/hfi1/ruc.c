@@ -825,8 +825,8 @@ void hfi1_do_send_from_rvt(struct rvt_qp *qp)
 
 void _hfi1_do_send(struct work_struct *work)
 {
-	struct iowait *wait = container_of(work, struct iowait, iowork);
-	struct rvt_qp *qp = iowait_to_qp(wait);
+	struct iowait_work *w = container_of(work, struct iowait_work, iowork);
+	struct rvt_qp *qp = iowait_to_qp(w->iow);
 
 	hfi1_do_send(qp, true);
 }
@@ -850,6 +850,7 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 	ps.ibp = to_iport(qp->ibqp.device, qp->port_num);
 	ps.ppd = ppd_from_ibp(ps.ibp);
 	ps.in_thread = in_thread;
+	ps.wait = iowait_get_ib_work(&priv->s_iowait);
 
 	trace_hfi1_rc_do_send(qp, in_thread);
 
@@ -883,6 +884,8 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 
 	/* Return if we are already busy processing a work request. */
 	if (!hfi1_send_ok(qp)) {
+		if (qp->s_flags & HFI1_S_ANY_WAIT_IO)
+			iowait_set_flag(&priv->s_iowait, IOWAIT_PENDING_IB);
 		spin_unlock_irqrestore(&qp->s_lock, ps.flags);
 		return;
 	}
@@ -896,7 +899,7 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 	ps.pkts_sent = false;
 
 	/* insure a pre-built packet is handled  */
-	ps.s_txreq = get_waiting_verbs_txreq(qp);
+	ps.s_txreq = get_waiting_verbs_txreq(ps.wait);
 	do {
 		/* Check for a constructed packet to be sent. */
 		if (ps.s_txreq) {
@@ -907,6 +910,7 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 			 */
 			if (hfi1_verbs_send(qp, &ps))
 				return;
+
 			/* allow other tasks to run */
 			if (schedule_send_yield(qp, &ps))
 				return;

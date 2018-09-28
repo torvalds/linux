@@ -211,8 +211,8 @@ struct rvt_driver_provided {
 	 * version requires the s_lock not to be held. The other assumes the
 	 * s_lock is held.
 	 */
-	void (*schedule_send)(struct rvt_qp *qp);
-	void (*schedule_send_no_lock)(struct rvt_qp *qp);
+	bool (*schedule_send)(struct rvt_qp *qp);
+	bool (*schedule_send_no_lock)(struct rvt_qp *qp);
 
 	/*
 	 * Driver specific work request setup and checking.
