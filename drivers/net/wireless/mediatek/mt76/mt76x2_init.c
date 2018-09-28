@@ -188,17 +188,7 @@ int mt76x2_mac_start(struct mt76x2_dev *dev)
 		mt76_rr(dev, MT_TX_STAT_FIFO);
 
 	memset(dev->aggr_stats, 0, sizeof(dev->aggr_stats));
-
-	mt76x02_dma_enable(&dev->mt76);
-	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
-
-	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		MT_MAC_SYS_CTRL_ENABLE_TX |
-		MT_MAC_SYS_CTRL_ENABLE_RX);
-
-	mt76x02_irq_enable(&dev->mt76,
-			   MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_ALL |
-			   MT_INT_TX_STAT);
+	mt76x02_mac_start(&dev->mt76);
 
 	return 0;
 }

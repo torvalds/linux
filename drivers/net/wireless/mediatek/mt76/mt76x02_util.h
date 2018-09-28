@@ -55,6 +55,7 @@ bool mt76x02_tx_status_data(struct mt76_dev *dev, u8 *update);
 extern const u16 mt76x02_beacon_offsets[16];
 void mt76x02_set_beacon_offsets(struct mt76_dev *dev);
 void mt76x02_set_irq_mask(struct mt76_dev *dev, u32 clear, u32 set);
+void mt76x02_mac_start(struct mt76_dev *dev);
 
 static inline void mt76x02_irq_enable(struct mt76_dev *dev, u32 mask)
 {

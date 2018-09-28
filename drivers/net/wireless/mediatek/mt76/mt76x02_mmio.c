@@ -146,3 +146,16 @@ void mt76x02_dma_disable(struct mt76_dev *dev)
 	__mt76_wr(dev, MT_WPDMA_GLO_CFG, val);
 }
 EXPORT_SYMBOL_GPL(mt76x02_dma_disable);
+
+void mt76x02_mac_start(struct mt76_dev *dev)
+{
+	mt76x02_dma_enable(dev);
+	__mt76_wr(dev, MT_RX_FILTR_CFG, dev->rxfilter);
+	__mt76_wr(dev, MT_MAC_SYS_CTRL,
+		  MT_MAC_SYS_CTRL_ENABLE_TX |
+		  MT_MAC_SYS_CTRL_ENABLE_RX);
+	mt76x02_irq_enable(dev,
+			   MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_ALL |
+			   MT_INT_TX_STAT);
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_start);
