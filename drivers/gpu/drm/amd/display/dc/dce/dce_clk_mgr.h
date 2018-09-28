@@ -27,7 +27,8 @@
 #ifndef _DCE_CLK_MGR_H_
 #define _DCE_CLK_MGR_H_
 
-#include "../inc/hw/clk_mgr.h"
+#include "clk_mgr.h"
+#include "dccg.h"
 
 #define MEMORY_TYPE_MULTIPLIER_CZ 4
 
@@ -78,6 +79,8 @@ struct dce_clk_mgr {
 	const struct clk_mgr_registers *regs;
 	const struct clk_mgr_shift *clk_mgr_shift;
 	const struct clk_mgr_mask *clk_mgr_mask;
+
+	struct dccg *dccg;
 
 	struct state_dependent_clocks max_clks_by_state[DM_PP_CLOCKS_MAX_STATES];
 
@@ -160,6 +163,6 @@ struct clk_mgr *dce112_clk_mgr_create(
 
 struct clk_mgr *dce120_clk_mgr_create(struct dc_context *ctx);
 
-void dce_clk_mgr_destroy(struct clk_mgr **dccg);
+void dce_clk_mgr_destroy(struct clk_mgr **clk_mgr);
 
 #endif /* _DCE_CLK_MGR_H_ */

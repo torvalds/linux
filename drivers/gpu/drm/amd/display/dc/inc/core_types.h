@@ -170,6 +170,7 @@ struct resource_pool {
 	struct audio_support audio_support;
 
 	struct clk_mgr *clk_mgr;
+	struct dccg *dccg;
 	struct irq_service *irqs;
 
 	struct abm *abm;

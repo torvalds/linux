@@ -45,6 +45,7 @@
 #include "dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
 #include "dc_link_dp.h"
+#include "dccg.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -2059,7 +2060,13 @@ void update_dchubp_dpp(
 				should_divided_by_2,
 				true);
 
-		dc->res_pool->clk_mgr->clks.dppclk_khz = should_divided_by_2 ?
+		if (dc->res_pool->dccg)
+			dc->res_pool->dccg->funcs->update_dpp_dto(
+					dc->res_pool->dccg,
+					dpp->inst,
+					pipe_ctx->plane_res.bw.calc.dppclk_khz);
+		else
+			dc->res_pool->clk_mgr->clks.dppclk_khz = should_divided_by_2 ?
 						dc->res_pool->clk_mgr->clks.dispclk_khz / 2 :
 							dc->res_pool->clk_mgr->clks.dispclk_khz;
 	}
