@@ -1351,24 +1351,26 @@ void do_user_addr_fault(struct pt_regs *regs,
 		flags |= FAULT_FLAG_INSTRUCTION;
 
 	/*
-	 * When running in the kernel we expect faults to occur only to
-	 * addresses in user space.  All other faults represent errors in
-	 * the kernel and should generate an OOPS.  Unfortunately, in the
-	 * case of an erroneous fault occurring in a code path which already
-	 * holds mmap_sem we will deadlock attempting to validate the fault
-	 * against the address space.  Luckily the kernel only validly
-	 * references user space from well defined areas of code, which are
-	 * listed in the exceptions table.
+	 * Kernel-mode access to the user address space should only occur
+	 * on well-defined single instructions listed in the exception
+	 * tables.  But, an erroneous kernel fault occurring outside one of
+	 * those areas which also holds mmap_sem might deadlock attempting
+	 * to validate the fault against the address space.
 	 *
-	 * As the vast majority of faults will be valid we will only perform
-	 * the source reference check when there is a possibility of a
-	 * deadlock. Attempt to lock the address space, if we cannot we then
-	 * validate the source. If this is invalid we can skip the address
-	 * space check, thus avoiding the deadlock:
+	 * Only do the expensive exception table search when we might be at
+	 * risk of a deadlock.  This happens if we
+	 * 1. Failed to acquire mmap_sem, and
+	 * 2. The access did not originate in userspace.  Note: either the
+	 *    hardware or earlier page fault code may set X86_PF_USER
+	 *    in sw_error_code.
 	 */
 	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
 		if (!(sw_error_code & X86_PF_USER) &&
 		    !search_exception_tables(regs->ip)) {
+			/*
+			 * Fault from code in kernel from
+			 * which we do not expect faults.
+			 */
 			bad_area_nosemaphore(regs, sw_error_code, address, NULL);
 			return;
 		}
