@@ -797,8 +797,8 @@ enum qeth_ipa_arp_return_codes {
 	QETH_IPA_ARP_RC_Q_NO_DATA    = 0x0008,
 };
 
-extern char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc);
-extern char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
+extern const char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc);
+extern const char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
 
 #define QETH_SETASS_BASE_LEN (sizeof(struct qeth_ipacmd_hdr) + \
 			       sizeof(struct qeth_ipacmd_setassparms_hdr))
