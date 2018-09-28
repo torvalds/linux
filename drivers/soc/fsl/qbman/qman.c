@@ -1012,6 +1012,37 @@ static inline void put_affine_portal(void)
 
 static struct workqueue_struct *qm_portal_wq;
 
+void qman_dqrr_set_ithresh(struct qman_portal *portal, u8 ithresh)
+{
+	if (!portal)
+		return;
+
+	qm_dqrr_set_ithresh(&portal->p, ithresh);
+	portal->p.dqrr.ithresh = ithresh;
+}
+EXPORT_SYMBOL(qman_dqrr_set_ithresh);
+
+void qman_dqrr_get_ithresh(struct qman_portal *portal, u8 *ithresh)
+{
+	if (portal && ithresh)
+		*ithresh = portal->p.dqrr.ithresh;
+}
+EXPORT_SYMBOL(qman_dqrr_get_ithresh);
+
+void qman_portal_get_iperiod(struct qman_portal *portal, u32 *iperiod)
+{
+	if (portal && iperiod)
+		*iperiod = qm_in(&portal->p, QM_REG_ITPR);
+}
+EXPORT_SYMBOL(qman_portal_get_iperiod);
+
+void qman_portal_set_iperiod(struct qman_portal *portal, u32 iperiod)
+{
+	if (portal)
+		qm_out(&portal->p, QM_REG_ITPR, iperiod);
+}
+EXPORT_SYMBOL(qman_portal_set_iperiod);
+
 int qman_wq_alloc(void)
 {
 	qm_portal_wq = alloc_workqueue("qman_portal_wq", 0, 1);
