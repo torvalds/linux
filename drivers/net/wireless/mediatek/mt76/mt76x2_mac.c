@@ -100,7 +100,7 @@ void mt76x2_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 static int
 mt76_write_beacon(struct mt76x2_dev *dev, int offset, struct sk_buff *skb)
 {
-	int beacon_len = dev->beacon_offsets[1] - dev->beacon_offsets[0];
+	int beacon_len = mt76x02_beacon_offsets[1] - mt76x02_beacon_offsets[0];
 	struct mt76x02_txwi txwi;
 
 	if (WARN_ON_ONCE(beacon_len < skb->len + sizeof(struct mt76x02_txwi)))
@@ -118,8 +118,8 @@ mt76_write_beacon(struct mt76x2_dev *dev, int offset, struct sk_buff *skb)
 static int
 __mt76x2_mac_set_beacon(struct mt76x2_dev *dev, u8 bcn_idx, struct sk_buff *skb)
 {
-	int beacon_len = dev->beacon_offsets[1] - dev->beacon_offsets[0];
-	int beacon_addr = dev->beacon_offsets[bcn_idx];
+	int beacon_len = mt76x02_beacon_offsets[1] - mt76x02_beacon_offsets[0];
+	int beacon_addr = mt76x02_beacon_offsets[bcn_idx];
 	int ret = 0;
 	int i;
 

@@ -87,8 +87,6 @@ struct mt76x0_dev {
 
 	spinlock_t mac_lock;
 
-	const u16 *beacon_offsets;
-
 	struct mt76x0_caldata caldata;
 
 	struct mutex reg_atomic_mutex;

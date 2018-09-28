@@ -165,20 +165,11 @@ static void mt76x2u_init_beacon_offsets(struct mt76x2_dev *dev)
 
 int mt76x2u_init_hardware(struct mt76x2_dev *dev)
 {
-	static const u16 beacon_offsets[] = {
-		/* 512 byte per beacon */
-		0xc000, 0xc200, 0xc400, 0xc600,
-		0xc800, 0xca00, 0xcc00, 0xce00,
-		0xd000, 0xd200, 0xd400, 0xd600,
-		0xd800, 0xda00, 0xdc00, 0xde00
-	};
 	const struct mt76_wcid_addr addr = {
 		.macaddr = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 		.ba_mask = 0,
 	};
 	int i, err;
-
-	dev->beacon_offsets = beacon_offsets;
 
 	mt76x2_reset_wlan(dev, true);
 	mt76x2u_power_on(dev);

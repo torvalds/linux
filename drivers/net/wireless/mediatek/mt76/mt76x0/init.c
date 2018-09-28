@@ -168,30 +168,13 @@ static int mt76x0_init_bbp(struct mt76x0_dev *dev)
 	return 0;
 }
 
-static void
-mt76_init_beacon_offsets(struct mt76x0_dev *dev)
-{
-	u16 base = MT_BEACON_BASE;
-	u32 regs[4] = {};
-	int i;
-
-	for (i = 0; i < 16; i++) {
-		u16 addr = dev->beacon_offsets[i];
-
-		regs[i / 4] |= ((addr - base) / 64) << (8 * (i % 4));
-	}
-
-	for (i = 0; i < 4; i++)
-		mt76_wr(dev, MT_BCN_OFFSET(i), regs[i]);
-}
-
 static void mt76x0_init_mac_registers(struct mt76x0_dev *dev)
 {
 	u32 reg;
 
 	RANDOM_WRITE(dev, common_mac_reg_table);
 
-	mt76_init_beacon_offsets(dev);
+	mt76x02_set_beacon_offsets(&dev->mt76);
 
 	/* Enable PBF and MAC clock SYS_CTRL[11:10] = 0x3 */
 	RANDOM_WRITE(dev, mt76x0_mac_reg_table);
@@ -372,16 +355,7 @@ EXPORT_SYMBOL_GPL(mt76x0_mac_stop);
 
 int mt76x0_init_hardware(struct mt76x0_dev *dev)
 {
-	static const u16 beacon_offsets[16] = {
-		/* 512 byte per beacon */
-		0xc000,	0xc200,	0xc400,	0xc600,
-		0xc800,	0xca00,	0xcc00,	0xce00,
-		0xd000,	0xd200,	0xd400,	0xd600,
-		0xd800,	0xda00,	0xdc00,	0xde00
-	};
 	int ret;
-
-	dev->beacon_offsets = beacon_offsets;
 
 	if (!mt76_poll_msec(dev, MT_WPDMA_GLO_CFG,
 			    MT_WPDMA_GLO_CFG_TX_DMA_BUSY |

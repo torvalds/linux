@@ -79,23 +79,6 @@ mt76x2_fixup_xtal(struct mt76x2_dev *dev)
 	}
 }
 
-static void
-mt76x2_init_beacon_offsets(struct mt76x2_dev *dev)
-{
-	u16 base = MT_BEACON_BASE;
-	u32 regs[4] = {};
-	int i;
-
-	for (i = 0; i < 16; i++) {
-		u16 addr = dev->beacon_offsets[i];
-
-		regs[i / 4] |= ((addr - base) / 64) << (8 * (i % 4));
-	}
-
-	for (i = 0; i < 4; i++)
-		mt76_wr(dev, MT_BCN_OFFSET(i), regs[i]);
-}
-
 static int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
 {
 	static const u8 null_addr[ETH_ALEN] = {};
@@ -187,7 +170,7 @@ static int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
 		MT_CH_TIME_CFG_EIFS_AS_BUSY |
 		FIELD_PREP(MT_CH_TIME_CFG_CH_TIMER_CLR, 1));
 
-	mt76x2_init_beacon_offsets(dev);
+	mt76x02_set_beacon_offsets(&dev->mt76);
 
 	mt76x2_set_tx_ackto(dev);
 
@@ -325,30 +308,8 @@ void mt76x2_set_tx_ackto(struct mt76x2_dev *dev)
 
 int mt76x2_init_hardware(struct mt76x2_dev *dev)
 {
-	static const u16 beacon_offsets[16] = {
-		/* 1024 byte per beacon */
-		0xc000,
-		0xc400,
-		0xc800,
-		0xcc00,
-		0xd000,
-		0xd400,
-		0xd800,
-		0xdc00,
-
-		/* BSS idx 8-15 not used for beacons */
-		0xc000,
-		0xc000,
-		0xc000,
-		0xc000,
-		0xc000,
-		0xc000,
-		0xc000,
-		0xc000,
-	};
 	int ret;
 
-	dev->beacon_offsets = beacon_offsets;
 	tasklet_init(&dev->pre_tbtt_tasklet, mt76x2_pre_tbtt_tasklet,
 		     (unsigned long) dev);
 

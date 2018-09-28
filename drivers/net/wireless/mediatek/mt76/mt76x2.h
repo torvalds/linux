@@ -78,8 +78,6 @@ struct mt76x2_dev {
 
 	struct mutex mutex;
 
-	const u16 *beacon_offsets;
-
 	u8 txdone_seq;
 	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);
 

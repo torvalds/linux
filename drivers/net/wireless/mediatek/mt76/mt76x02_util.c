@@ -454,4 +454,42 @@ bool mt76x02_tx_status_data(struct mt76_dev *dev, u8 *update)
 }
 EXPORT_SYMBOL_GPL(mt76x02_tx_status_data);
 
+const u16 mt76x02_beacon_offsets[16] = {
+	/* 1024 byte per beacon */
+	0xc000,
+	0xc400,
+	0xc800,
+	0xcc00,
+	0xd000,
+	0xd400,
+	0xd800,
+	0xdc00,
+	/* BSS idx 8-15 not used for beacons */
+	0xc000,
+	0xc000,
+	0xc000,
+	0xc000,
+	0xc000,
+	0xc000,
+	0xc000,
+	0xc000,
+};
+EXPORT_SYMBOL_GPL(mt76x02_beacon_offsets);
+
+void mt76x02_set_beacon_offsets(struct mt76_dev *dev)
+{
+	u16 val, base = MT_BEACON_BASE;
+	u32 regs[4] = {};
+	int i;
+
+	for (i = 0; i < 16; i++) {
+		val = mt76x02_beacon_offsets[i] - base;
+		regs[i / 4] |= (val / 64) << (8 * (i % 4));
+	}
+
+	for (i = 0; i < 4; i++)
+		__mt76_wr(dev, MT_BCN_OFFSET(i), regs[i]);
+}
+EXPORT_SYMBOL_GPL(mt76x02_set_beacon_offsets);
+
 MODULE_LICENSE("Dual BSD/GPL");
