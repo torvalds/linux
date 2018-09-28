@@ -255,7 +255,7 @@ static void scale_cookie_change(struct blk_iolatency *blkiolat,
 				struct child_latency_info *lat_info,
 				bool up)
 {
-	unsigned long qd = blk_queue_depth(blkiolat->rqos.q);
+	unsigned long qd = blkiolat->rqos.q->nr_requests;
 	unsigned long scale = scale_amount(qd, up);
 	unsigned long old = atomic_read(&lat_info->scale_cookie);
 	unsigned long max_scale = qd << 1;
@@ -295,7 +295,7 @@ static void scale_cookie_change(struct blk_iolatency *blkiolat,
  */
 static void scale_change(struct iolatency_grp *iolat, bool up)
 {
-	unsigned long qd = blk_queue_depth(iolat->blkiolat->rqos.q);
+	unsigned long qd = iolat->blkiolat->rqos.q->nr_requests;
 	unsigned long scale = scale_amount(qd, up);
 	unsigned long old = iolat->rq_depth.max_depth;
 
@@ -857,7 +857,7 @@ static void iolatency_pd_init(struct blkg_policy_data *pd)
 
 	rq_wait_init(&iolat->rq_wait);
 	spin_lock_init(&iolat->child_lat.lock);
-	iolat->rq_depth.queue_depth = blk_queue_depth(blkg->q);
+	iolat->rq_depth.queue_depth = blkg->q->nr_requests;
 	iolat->rq_depth.max_depth = UINT_MAX;
 	iolat->rq_depth.default_depth = iolat->rq_depth.queue_depth;
 	iolat->blkiolat = blkiolat;
