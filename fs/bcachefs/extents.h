@@ -182,12 +182,24 @@ static inline size_t extent_entry_u64s(const union bch_extent_entry *entry)
 
 static inline bool extent_entry_is_ptr(const union bch_extent_entry *e)
 {
-	return extent_entry_type(e) == BCH_EXTENT_ENTRY_ptr;
+	switch (extent_entry_type(e)) {
+	case BCH_EXTENT_ENTRY_ptr:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static inline bool extent_entry_is_crc(const union bch_extent_entry *e)
 {
-	return !extent_entry_is_ptr(e);
+	switch (extent_entry_type(e)) {
+	case BCH_EXTENT_ENTRY_crc32:
+	case BCH_EXTENT_ENTRY_crc64:
+	case BCH_EXTENT_ENTRY_crc128:
+		return true;
+	default:
+		return false;
+	}
 }
 
 union bch_extent_crc {
@@ -310,23 +322,25 @@ bch2_extent_crc_unpack(const struct bkey *k, const union bch_extent_crc *crc)
 #define extent_for_each_entry(_e, _entry)				\
 	extent_for_each_entry_from(_e, _entry, (_e).v->start)
 
-/* Iterate over crcs only: */
+/* Iterate over pointers only: */
 
-#define __extent_crc_next(_e, _p)					\
+#define extent_ptr_next(_e, _ptr)					\
 ({									\
-	typeof(&(_e).v->start[0]) _entry = _p;				\
+	typeof(&(_e).v->start[0]) _entry;				\
 									\
-	while ((_entry) < extent_entry_last(_e) &&			\
-	       !extent_entry_is_crc(_entry))				\
-		(_entry) = extent_entry_next(_entry);			\
+	extent_for_each_entry_from(_e, _entry, to_entry(_ptr))		\
+		if (extent_entry_is_ptr(_entry))			\
+			break;						\
 									\
-	entry_to_crc(_entry < extent_entry_last(_e) ? _entry : NULL);	\
+	_entry < extent_entry_last(_e) ? entry_to_ptr(_entry) : NULL;	\
 })
 
-#define __extent_for_each_crc(_e, _crc)					\
-	for ((_crc) = __extent_crc_next(_e, (_e).v->start);		\
-	     (_crc);							\
-	     (_crc) = __extent_crc_next(_e, extent_entry_next(to_entry(_crc))))
+#define extent_for_each_ptr(_e, _ptr)					\
+	for ((_ptr) = &(_e).v->start->ptr;				\
+	     ((_ptr) = extent_ptr_next(_e, _ptr));			\
+	     (_ptr)++)
+
+/* Iterate over crcs only: */
 
 #define extent_crc_next(_e, _crc, _iter)				\
 ({									\
@@ -347,43 +361,44 @@ bch2_extent_crc_unpack(const struct bkey *k, const union bch_extent_crc *crc)
 
 /* Iterate over pointers, with crcs: */
 
-#define extent_ptr_crc_next(_e, _ptr, _crc)				\
+static inline struct extent_ptr_decoded
+__extent_ptr_decoded_init(const struct bkey *k)
+{
+	return (struct extent_ptr_decoded) {
+		.crc		= bch2_extent_crc_unpack(k, NULL),
+	};
+}
+
+#define EXTENT_ITERATE_EC		(1 << 0)
+
+#define __extent_ptr_next_decode(_e, _ptr, _entry)			\
 ({									\
 	__label__ out;							\
-	typeof(&(_e).v->start[0]) _entry;				\
 									\
-	extent_for_each_entry_from(_e, _entry, to_entry(_ptr))		\
-		if (extent_entry_is_crc(_entry)) {			\
-			(_crc) = bch2_extent_crc_unpack((_e).k, entry_to_crc(_entry));\
-		} else {						\
-			_ptr = entry_to_ptr(_entry);			\
+	extent_for_each_entry_from(_e, _entry, _entry)			\
+		switch (extent_entry_type(_entry)) {			\
+		case BCH_EXTENT_ENTRY_ptr:				\
+			(_ptr).ptr		= _entry->ptr;		\
 			goto out;					\
+		case BCH_EXTENT_ENTRY_crc32:				\
+		case BCH_EXTENT_ENTRY_crc64:				\
+		case BCH_EXTENT_ENTRY_crc128:				\
+			(_ptr).crc = bch2_extent_crc_unpack((_e).k,	\
+					entry_to_crc(_entry));		\
+			break;						\
 		}							\
 									\
-	_ptr = NULL;							\
 out:									\
-	_ptr;								\
+	_entry < extent_entry_last(_e);					\
 })
 
-#define extent_for_each_ptr_crc(_e, _ptr, _crc)				\
-	for ((_crc) = bch2_extent_crc_unpack((_e).k, NULL),		\
-	     (_ptr) = &(_e).v->start->ptr;				\
-	     ((_ptr) = extent_ptr_crc_next(_e, _ptr, _crc));		\
-	     (_ptr)++)
+#define extent_for_each_ptr_decode(_e, _ptr, _entry)			\
+	for ((_ptr) = __extent_ptr_decoded_init((_e).k),		\
+	     (_entry) = (_e).v->start;					\
+	     __extent_ptr_next_decode(_e, _ptr, _entry);		\
+	     (_entry) = extent_entry_next(_entry))
 
-/* Iterate over pointers only, and from a given position: */
-
-#define extent_ptr_next(_e, _ptr)					\
-({									\
-	struct bch_extent_crc_unpacked _crc;				\
-									\
-	extent_ptr_crc_next(_e, _ptr, _crc);				\
-})
-
-#define extent_for_each_ptr(_e, _ptr)					\
-	for ((_ptr) = &(_e).v->start->ptr;				\
-	     ((_ptr) = extent_ptr_next(_e, _ptr));			\
-	     (_ptr)++)
+/* Iterate over pointers backwards: */
 
 #define extent_ptr_prev(_e, _ptr)					\
 ({									\

@@ -920,12 +920,12 @@ static void bchfs_read(struct bch_fs *c, struct btree_iter *iter,
 
 			if (bkey_extent_is_data(k.k)) {
 				struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
-				struct bch_extent_crc_unpacked crc;
 				const union bch_extent_entry *i;
+				struct extent_ptr_decoded p;
 
-				extent_for_each_crc(e, crc, i)
-					want_full_extent |= ((crc.csum_type != 0) |
-							     (crc.compression_type != 0));
+				extent_for_each_ptr_decode(e, p, i)
+					want_full_extent |= ((p.crc.csum_type != 0) |
+							     (p.crc.compression_type != 0));
 			}
 
 			readpage_bio_extend(readpages_iter,

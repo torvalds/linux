@@ -1053,27 +1053,27 @@ static int bch2_fill_extent(struct fiemap_extent_info *info,
 {
 	if (bkey_extent_is_data(&k->k)) {
 		struct bkey_s_c_extent e = bkey_i_to_s_c_extent(k);
-		const struct bch_extent_ptr *ptr;
-		struct bch_extent_crc_unpacked crc;
+		const union bch_extent_entry *entry;
+		struct extent_ptr_decoded p;
 		int ret;
 
-		extent_for_each_ptr_crc(e, ptr, crc) {
+		extent_for_each_ptr_decode(e, p, entry) {
 			int flags2 = 0;
-			u64 offset = ptr->offset;
+			u64 offset = p.ptr.offset;
 
-			if (crc.compression_type)
+			if (p.crc.compression_type)
 				flags2 |= FIEMAP_EXTENT_ENCODED;
 			else
-				offset += crc.offset;
+				offset += p.crc.offset;
 
 			if ((offset & (PAGE_SECTORS - 1)) ||
 			    (e.k->size & (PAGE_SECTORS - 1)))
 				flags2 |= FIEMAP_EXTENT_NOT_ALIGNED;
 
 			ret = fiemap_fill_next_extent(info,
-						      bkey_start_offset(e.k) << 9,
-						      offset << 9,
-						      e.k->size << 9, flags|flags2);
+						bkey_start_offset(e.k) << 9,
+						offset << 9,
+						e.k->size << 9, flags|flags2);
 			if (ret)
 				return ret;
 		}

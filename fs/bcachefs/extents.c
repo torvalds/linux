@@ -231,21 +231,21 @@ unsigned bch2_extent_durability(struct bch_fs *c, struct bkey_s_c_extent e)
 
 unsigned bch2_extent_is_compressed(struct bkey_s_c k)
 {
-	struct bkey_s_c_extent e;
-	const struct bch_extent_ptr *ptr;
-	struct bch_extent_crc_unpacked crc;
 	unsigned ret = 0;
 
 	switch (k.k->type) {
 	case BCH_EXTENT:
-	case BCH_EXTENT_CACHED:
-		e = bkey_s_c_to_extent(k);
+	case BCH_EXTENT_CACHED: {
+		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
+		const union bch_extent_entry *entry;
+		struct extent_ptr_decoded p;
 
-		extent_for_each_ptr_crc(e, ptr, crc)
-			if (!ptr->cached &&
-			    crc.compression_type != BCH_COMPRESSION_NONE &&
-			    crc.compressed_size < crc.live_size)
-				ret = max_t(unsigned, ret, crc.compressed_size);
+		extent_for_each_ptr_decode(e, p, entry)
+			if (!p.ptr.cached &&
+			    p.crc.compression_type != BCH_COMPRESSION_NONE &&
+			    p.crc.compressed_size < p.crc.live_size)
+				ret = max_t(unsigned, ret, p.crc.compressed_size);
+	}
 	}
 
 	return ret;
@@ -254,17 +254,17 @@ unsigned bch2_extent_is_compressed(struct bkey_s_c k)
 bool bch2_extent_matches_ptr(struct bch_fs *c, struct bkey_s_c_extent e,
 			     struct bch_extent_ptr m, u64 offset)
 {
-	const struct bch_extent_ptr *ptr;
-	struct bch_extent_crc_unpacked crc;
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
 
-	extent_for_each_ptr_crc(e, ptr, crc)
-		if (ptr->dev	== m.dev &&
-		    ptr->gen	== m.gen &&
-		    (s64) ptr->offset + crc.offset - bkey_start_offset(e.k) ==
+	extent_for_each_ptr_decode(e, p, entry)
+		if (p.ptr.dev	== m.dev &&
+		    p.ptr.gen	== m.gen &&
+		    (s64) p.ptr.offset + p.crc.offset - bkey_start_offset(e.k) ==
 		    (s64) m.offset  - offset)
-			return ptr;
+			return true;
 
-	return NULL;
+	return false;
 }
 
 /* Doesn't cleanup redundant crcs */
@@ -323,7 +323,7 @@ bool bch2_extent_narrow_crcs(struct bkey_i_extent *e,
 			     struct bch_extent_crc_unpacked n)
 {
 	struct bch_extent_crc_unpacked u;
-	struct bch_extent_ptr *ptr;
+	struct extent_ptr_decoded p;
 	union bch_extent_entry *i;
 
 	/* Find a checksum entry that covers only live data: */
@@ -345,11 +345,11 @@ bool bch2_extent_narrow_crcs(struct bkey_i_extent *e,
 
 	bch2_extent_crc_append(e, n);
 restart_narrow_pointers:
-	extent_for_each_ptr_crc(extent_i_to_s(e), ptr, u)
-		if (can_narrow_crc(u, n)) {
-			ptr->offset += u.offset;
-			extent_ptr_append(e, *ptr);
-			__bch2_extent_drop_ptr(extent_i_to_s(e), ptr);
+	extent_for_each_ptr_decode(extent_i_to_s(e), p, i)
+		if (can_narrow_crc(p.crc, n)) {
+			i->ptr.offset += p.crc.offset;
+			extent_ptr_append(e, i->ptr);
+			__bch2_extent_drop_ptr(extent_i_to_s(e), &i->ptr);
 			goto restart_narrow_pointers;
 		}
 
@@ -475,6 +475,8 @@ void bch2_ptr_swab(const struct bkey_format *f, struct bkey_packed *k)
 		     entry < (union bch_extent_entry *) (d + bkeyp_val_u64s(f, k));
 		     entry = extent_entry_next(entry)) {
 			switch (extent_entry_type(entry)) {
+			case BCH_EXTENT_ENTRY_ptr:
+				break;
 			case BCH_EXTENT_ENTRY_crc32:
 				entry->crc32.csum = swab32(entry->crc32.csum);
 				break;
@@ -487,8 +489,6 @@ void bch2_ptr_swab(const struct bkey_format *f, struct bkey_packed *k)
 					swab64((__force u64) entry->crc128.csum.hi);
 				entry->crc128.csum.lo = (__force __le64)
 					swab64((__force u64) entry->crc128.csum.lo);
-				break;
-			case BCH_EXTENT_ENTRY_ptr:
 				break;
 			}
 		}
@@ -605,28 +605,28 @@ static int extent_pick_read_device(struct bch_fs *c,
 				   struct bch_devs_mask *avoid,
 				   struct extent_ptr_decoded *pick)
 {
-	const struct bch_extent_ptr *ptr;
-	struct bch_extent_crc_unpacked crc;
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
 	struct bch_dev *ca;
 	int ret = 0;
 
-	extent_for_each_ptr_crc(e, ptr, crc) {
-		ca = bch_dev_bkey_exists(c, ptr->dev);
+	extent_for_each_ptr_decode(e, p, entry) {
+		ca = bch_dev_bkey_exists(c, p.ptr.dev);
 
-		if (ptr->cached && ptr_stale(ca, ptr))
+		if (p.ptr.cached && ptr_stale(ca, &p.ptr))
 			continue;
 
-		if (avoid && test_bit(ptr->dev, avoid->d))
+		/*
+		 * XXX: need to make avoid work correctly for stripe ptrs
+		 */
+
+		if (avoid && test_bit(p.ptr.dev, avoid->d))
 			continue;
 
-		if (ret && !dev_latency_better(c, ptr, &pick->ptr))
+		if (ret && !dev_latency_better(c, &p.ptr, &pick->ptr))
 			continue;
 
-		*pick = (struct extent_ptr_decoded) {
-			.ptr	= *ptr,
-			.crc	= crc,
-		};
-
+		*pick = p;
 		ret = 1;
 	}
 

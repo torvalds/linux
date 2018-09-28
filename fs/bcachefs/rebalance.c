@@ -18,17 +18,16 @@
 #include <linux/sched/cputime.h>
 
 static inline bool rebalance_ptr_pred(struct bch_fs *c,
-				      const struct bch_extent_ptr *ptr,
-				      struct bch_extent_crc_unpacked crc,
+				      struct extent_ptr_decoded p,
 				      struct bch_io_opts *io_opts)
 {
 	if (io_opts->background_target &&
-	    !bch2_dev_in_target(c, ptr->dev, io_opts->background_target) &&
-	    !ptr->cached)
+	    !bch2_dev_in_target(c, p.ptr.dev, io_opts->background_target) &&
+	    !p.ptr.cached)
 		return true;
 
 	if (io_opts->background_compression &&
-	    crc.compression_type !=
+	    p.crc.compression_type !=
 	    bch2_compression_opt_to_type[io_opts->background_compression])
 		return true;
 
@@ -39,8 +38,8 @@ void bch2_rebalance_add_key(struct bch_fs *c,
 			    struct bkey_s_c k,
 			    struct bch_io_opts *io_opts)
 {
-	const struct bch_extent_ptr *ptr;
-	struct bch_extent_crc_unpacked crc;
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
 	struct bkey_s_c_extent e;
 
 	if (!bkey_extent_is_data(k.k))
@@ -52,13 +51,13 @@ void bch2_rebalance_add_key(struct bch_fs *c,
 
 	e = bkey_s_c_to_extent(k);
 
-	extent_for_each_ptr_crc(e, ptr, crc)
-		if (rebalance_ptr_pred(c, ptr, crc, io_opts)) {
-			struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+	extent_for_each_ptr_decode(e, p, entry)
+		if (rebalance_ptr_pred(c, p, io_opts)) {
+			struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 
-			if (atomic64_add_return(crc.compressed_size,
+			if (atomic64_add_return(p.crc.compressed_size,
 						&ca->rebalance_work) ==
-			    crc.compressed_size)
+			    p.crc.compressed_size)
 				rebalance_wakeup(c);
 		}
 }
@@ -76,16 +75,16 @@ static enum data_cmd rebalance_pred(struct bch_fs *c, void *arg,
 				    struct bch_io_opts *io_opts,
 				    struct data_opts *data_opts)
 {
-	const struct bch_extent_ptr *ptr;
-	struct bch_extent_crc_unpacked crc;
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
 
 	/* Make sure we have room to add a new pointer: */
 	if (bkey_val_u64s(e.k) + BKEY_EXTENT_PTR_U64s_MAX >
 	    BKEY_EXTENT_VAL_U64s_MAX)
 		return DATA_SKIP;
 
-	extent_for_each_ptr_crc(e, ptr, crc)
-		if (rebalance_ptr_pred(c, ptr, crc, io_opts))
+	extent_for_each_ptr_decode(e, p, entry)
+		if (rebalance_ptr_pred(c, p, io_opts))
 			goto found;
 
 	return DATA_SKIP;

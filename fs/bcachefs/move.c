@@ -67,8 +67,8 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 		struct bkey_i_extent *insert, *new =
 			bkey_i_to_extent(bch2_keylist_front(keys));
 		BKEY_PADDED(k) _new, _insert;
-		struct bch_extent_ptr *ptr;
-		struct bch_extent_crc_unpacked crc;
+		const union bch_extent_entry *entry;
+		struct extent_ptr_decoded p;
 		bool did_work = false;
 		int nr;
 
@@ -99,14 +99,15 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 		bch2_cut_back(insert->k.p, &new->k);
 
 		if (m->data_cmd == DATA_REWRITE) {
-			ptr = (struct bch_extent_ptr *)
+			struct bch_extent_ptr *ptr = (void *)
 				bch2_extent_has_device(extent_i_to_s_c(insert),
 						       m->data_opts.rewrite_dev);
+			BUG_ON(!ptr);
 			bch2_extent_drop_ptr(extent_i_to_s(insert), ptr);
 		}
 
-		extent_for_each_ptr_crc(extent_i_to_s(new), ptr, crc) {
-			if (bch2_extent_has_device(extent_i_to_s_c(insert), ptr->dev)) {
+		extent_for_each_ptr_decode(extent_i_to_s(new), p, entry) {
+			if (bch2_extent_has_device(extent_i_to_s_c(insert), p.ptr.dev)) {
 				/*
 				 * raced with another move op? extent already
 				 * has a pointer to the device we just wrote
@@ -115,8 +116,8 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 				continue;
 			}
 
-			bch2_extent_crc_append(insert, crc);
-			extent_ptr_append(insert, *ptr);
+			bch2_extent_crc_append(insert, p.crc);
+			extent_ptr_append(insert, p.ptr);
 			did_work = true;
 		}
 
@@ -379,8 +380,8 @@ static int bch2_move_extent(struct bch_fs *c,
 			    struct data_opts data_opts)
 {
 	struct moving_io *io;
-	const struct bch_extent_ptr *ptr;
-	struct bch_extent_crc_unpacked crc;
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
 	unsigned sectors = e.k->size, pages;
 	int ret = -ENOMEM;
 
@@ -393,8 +394,8 @@ static int bch2_move_extent(struct bch_fs *c,
 		SECTORS_IN_FLIGHT_PER_DEVICE);
 
 	/* write path might have to decompress data: */
-	extent_for_each_ptr_crc(e, ptr, crc)
-		sectors = max_t(unsigned, sectors, crc.uncompressed_size);
+	extent_for_each_ptr_decode(e, p, entry)
+		sectors = max_t(unsigned, sectors, p.crc.uncompressed_size);
 
 	pages = DIV_ROUND_UP(sectors, PAGE_SECTORS);
 	io = kzalloc(sizeof(struct moving_io) +

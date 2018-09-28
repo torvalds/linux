@@ -546,20 +546,19 @@ static int __disk_sectors(struct bch_extent_crc_unpacked crc, unsigned sectors)
  */
 static void bch2_mark_pointer(struct bch_fs *c,
 			      struct bkey_s_c_extent e,
-			      const struct bch_extent_ptr *ptr,
-			      struct bch_extent_crc_unpacked crc,
+			      struct extent_ptr_decoded p,
 			      s64 sectors, enum bch_data_type data_type,
 			      unsigned replicas,
 			      struct bch_fs_usage *fs_usage,
 			      u64 journal_seq, unsigned flags)
 {
 	struct bucket_mark old, new;
-	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-	struct bucket *g = PTR_BUCKET(ca, ptr);
+	struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
+	struct bucket *g = PTR_BUCKET(ca, &p.ptr);
 	s64 uncompressed_sectors = sectors;
 	u64 v;
 
-	if (crc.compression_type) {
+	if (p.crc.compression_type) {
 		unsigned old_sectors, new_sectors;
 
 		if (sectors > 0) {
@@ -570,8 +569,8 @@ static void bch2_mark_pointer(struct bch_fs *c,
 			new_sectors = e.k->size + sectors;
 		}
 
-		sectors = -__disk_sectors(crc, old_sectors)
-			  +__disk_sectors(crc, new_sectors);
+		sectors = -__disk_sectors(p.crc, old_sectors)
+			  +__disk_sectors(p.crc, new_sectors);
 	}
 
 	/*
@@ -584,8 +583,8 @@ static void bch2_mark_pointer(struct bch_fs *c,
 	 * caller's responsibility to not apply @fs_usage if gc is in progress.
 	 */
 	fs_usage->replicas
-		[!ptr->cached && replicas ? replicas - 1 : 0].data
-		[!ptr->cached ? data_type : BCH_DATA_CACHED] +=
+		[!p.ptr.cached && replicas ? replicas - 1 : 0].data
+		[!p.ptr.cached ? data_type : BCH_DATA_CACHED] +=
 			uncompressed_sectors;
 
 	if (flags & BCH_BUCKET_MARK_GC_WILL_VISIT) {
@@ -607,14 +606,14 @@ static void bch2_mark_pointer(struct bch_fs *c,
 		 * the allocator invalidating a bucket after we've already
 		 * checked the gen
 		 */
-		if (gen_after(new.gen, ptr->gen)) {
+		if (gen_after(new.gen, p.ptr.gen)) {
 			BUG_ON(!test_bit(BCH_FS_ALLOC_READ_DONE, &c->flags));
-			EBUG_ON(!ptr->cached &&
+			EBUG_ON(!p.ptr.cached &&
 				test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags));
 			return;
 		}
 
-		if (!ptr->cached)
+		if (!p.ptr.cached)
 			checked_add(new.dirty_sectors, sectors);
 		else
 			checked_add(new.cached_sectors, sectors);
@@ -695,13 +694,13 @@ void bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 	case BCH_EXTENT:
 	case BCH_EXTENT_CACHED: {
 		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
-		const struct bch_extent_ptr *ptr;
-		struct bch_extent_crc_unpacked crc;
+		const union bch_extent_entry *entry;
+		struct extent_ptr_decoded p;
 
 		BUG_ON(!sectors);
 
-		extent_for_each_ptr_crc(e, ptr, crc)
-			bch2_mark_pointer(c, e, ptr, crc, sectors, data_type,
+		extent_for_each_ptr_decode(e, p, entry)
+			bch2_mark_pointer(c, e, p, sectors, data_type,
 					  replicas, stats, journal_seq, flags);
 		break;
 	}
