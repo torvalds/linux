@@ -416,7 +416,7 @@ static int cifisp_dpcc_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->other_cfgs.module_actives,
 		CIFISP_MODULE_DPCC)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -499,7 +499,7 @@ static int cifisp_bls_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->other_cfgs.module_actives,
 		CIFISP_MODULE_BLS)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -576,7 +576,7 @@ static int cifisp_lsc_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->other_cfgs.module_actives,
 		CIFISP_MODULE_LSC)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -673,7 +673,7 @@ static int cifisp_flt_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->other_cfgs.module_actives,
 		CIFISP_MODULE_FLT)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -747,7 +747,7 @@ static int cifisp_bdm_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->other_cfgs.module_actives,
 		CIFISP_MODULE_BDM)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -801,7 +801,7 @@ static int cifisp_sdg_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->other_cfgs.module_actives,
 		CIFISP_MODULE_SDG)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -873,7 +873,7 @@ static int cifisp_goc_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->other_cfgs.module_actives,
 		CIFISP_MODULE_GOC)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -934,7 +934,7 @@ static int cifisp_ctk_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->other_cfgs.module_actives,
 		CIFISP_MODULE_CTK)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -1006,7 +1006,7 @@ static int cifisp_awb_meas_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->meas_cfgs.module_actives,
 		CIFISP_MODULE_AWB)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -1070,7 +1070,7 @@ static int cifisp_awb_gain_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->other_cfgs.module_actives,
 		CIFISP_MODULE_AWB_GAIN)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -1132,7 +1132,7 @@ static int cifisp_aec_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->meas_cfgs.module_actives,
 		CIFISP_MODULE_AEC)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -1184,7 +1184,7 @@ static int cifisp_cproc_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->other_cfgs.module_actives,
 		CIFISP_MODULE_CPROC)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -1250,7 +1250,7 @@ static int cifisp_hst_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->meas_cfgs.module_actives,
 		CIFISP_MODULE_HST)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -1326,7 +1326,7 @@ static int cifisp_afc_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->meas_cfgs.module_actives,
 		CIFISP_MODULE_AFC)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -1402,7 +1402,7 @@ static int cifisp_ie_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->other_cfgs.module_actives,
 		CIFISP_MODULE_IE)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -1470,7 +1470,7 @@ static int cifisp_dpf_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->other_cfgs.module_actives,
 		CIFISP_MODULE_DPF)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -1584,7 +1584,7 @@ static int cifisp_dpf_strength_param(struct cif_isp10_isp_dev *isp_dev,
 
 	if (CIFISP_MODULE_IS_UNACTIVE(isp_dev->other_cfgs.module_actives,
 		CIFISP_MODULE_DPF_STRENGTH)) {
-		CIFISP_DPRINT(CIFISP_ERROR,
+		CIFISP_DPRINT(CIFISP_DEBUG,
 			      "module is unactive in function: %s\n", __func__);
 		goto end;
 	}
@@ -3541,7 +3541,7 @@ static void cifisp_set_isp_modules_actives(struct cif_isp10_isp_dev *isp_dev,
 	isp_dev->meas_cfgs.module_actives = 0;
 	if (CIF_ISP10_PIX_FMT_IS_RAW_BAYER(in_pix_fmt)) {
 		/* unlimited */
-	} else if (in_pix_fmt == CIF_Y10) {
+	} else if (CIF_ISP10_PIX_FMT_IS_Y_ONLY(in_pix_fmt)) {
 		CIFISP_MODULE_UNACTIVE(
 			isp_dev->other_cfgs.module_actives,
 			CIFISP_MODULE_LSC |

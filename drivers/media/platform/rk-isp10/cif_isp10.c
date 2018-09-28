@@ -687,6 +687,8 @@ static const char *cif_isp10_pix_fmt_string(int pixfmt)
 		return "JPEG";
 	case CIF_Y10:
 		return "Y10";
+	case CIF_Y12:
+		return "Y12";
 	default:
 		return "unknown/unsupported";
 	}
@@ -1634,7 +1636,7 @@ static int cif_isp10_config_isp(
 	cam_itf = &dev->config.cam_itf;
 
 	if (CIF_ISP10_PIX_FMT_IS_RAW_BAYER(in_pix_fmt) ||
-		(in_pix_fmt == CIF_Y10)) {
+		CIF_ISP10_PIX_FMT_IS_Y_ONLY(in_pix_fmt)) {
 		if (!dev->config.mi_config.raw_enable) {
 			output->pix_fmt = CIF_YUV422I;
 
@@ -1659,9 +1661,6 @@ static int cif_isp10_config_isp(
 			if (dev->sp_stream.state == CIF_ISP10_STATE_READY) {
 				output->quantization =
 				dev->config.mi_config.sp.output.quantization;
-
-				if (in_pix_fmt == CIF_Y10)
-					output->pix_fmt = CIF_YUV400;
 			}
 
 			if (dev->mp_stream.state == CIF_ISP10_STATE_READY) {
@@ -1669,7 +1668,7 @@ static int cif_isp10_config_isp(
 				dev->config.mi_config.mp.output.quantization;
 			}
 
-			if (in_pix_fmt == CIF_Y10) {
+			if (CIF_ISP10_PIX_FMT_IS_Y_ONLY(in_pix_fmt)) {
 				cif_iowrite32(0x40c,
 					dev->config.base_addr + CIF_ISP_DEMOSAIC);
 			} else {
@@ -2034,8 +2033,12 @@ static int cif_isp10_config_mipi(
 			(CIF_ISP10_PIX_FMT_YUV_GET_Y_SUBS(in_pix_fmt) == 4) &&
 			(CIF_ISP10_PIX_FMT_GET_BPP(in_pix_fmt) == 20))
 			data_type = CSI2_DT_YUV422_10b;
+		else if (in_pix_fmt == CIF_YUV400)
+			data_type = CSI2_DT_RAW8;
 		else if (in_pix_fmt == CIF_Y10)
 			data_type = CSI2_DT_RAW10;
+		else if (in_pix_fmt == CIF_Y12)
+			data_type = CSI2_DT_RAW12;
 		else {
 			cif_isp10_pltfrm_pr_err(dev->dev,
 				"unsupported format %s\n",
@@ -2316,6 +2319,9 @@ static int cif_isp10_config_mi_sp(
 	u32 output_format;
 	u32 burst_len;
 	u32 mi_ctrl;
+
+	if (out_pix_fmt == CIF_YUV400)
+		in_pix_fmt = CIF_YUV400;
 
 	dev->config.mi_config.sp.input =
 		&dev->config.sp_config.rsz_config.output;

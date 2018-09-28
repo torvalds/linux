@@ -332,6 +332,8 @@ static enum cif_isp10_pix_fmt cif_isp10_v4l2_pix_fmt2cif_isp10_pix_fmt(
 		return CIF_YUV400;
 	case V4L2_PIX_FMT_Y10:
 		return CIF_Y10;
+	case V4L2_PIX_FMT_Y12:
+		return CIF_Y12;
 	case V4L2_PIX_FMT_YUV420:
 		return CIF_YUV420P;
 	case V4L2_PIX_FMT_YVU420:

@@ -68,6 +68,8 @@ static enum cif_isp10_pix_fmt img_src_v4l2_subdev_pix_fmt2cif_isp10_pix_fmt(
 		return CIF_YUV400;
 	case MEDIA_BUS_FMT_Y10_1X10:
 		return CIF_Y10;
+	case MEDIA_BUS_FMT_Y12_1X12:
+		return CIF_Y12;
 	case MEDIA_BUS_FMT_YUYV8_1_5X8:
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 	case MEDIA_BUS_FMT_YUYV10_2X10:
@@ -142,6 +144,8 @@ static int cif_isp10_pix_fmt2img_src_v4l2_subdev_pix_fmt(
 	switch (cif_isp10_pix_fmt) {
 	case CIF_Y10:
 		return MEDIA_BUS_FMT_Y10_1X10;
+	case CIF_Y12:
+		return MEDIA_BUS_FMT_Y12_1X12;
 	case CIF_YUV400:
 		return MEDIA_BUS_FMT_Y8_1X8;
 	case CIF_YUV422I:

@@ -242,6 +242,12 @@ enum cif_isp10_image_effect {
 	(!CIF_ISP10_PIX_FMT_IS_YUV(pix_fmt) ||\
 	!CIF_ISP10_PIX_FMT_YUV_GET_NUM_CPLANES(pix_fmt))
 
+#define CIF_ISP10_PIX_FMT_IS_Y_ONLY(pix_fmt) \
+	((CIF_ISP10_PIX_FMT_IS_YUV(pix_fmt) == 1) && \
+	(CIF_ISP10_PIX_FMT_YUV_GET_X_SUBS(pix_fmt) == 0) && \
+	(CIF_ISP10_PIX_FMT_YUV_GET_Y_SUBS(pix_fmt) == 0) && \
+	(CIF_ISP10_PIX_FMT_YUV_IS_YC_SWAPPED(pix_fmt) == 0))
+
 #define CIF_ISP10_IMG_SRC_DATA_NUM	6
 
 enum cif_isp10_pix_fmt {
@@ -249,6 +255,7 @@ enum cif_isp10_pix_fmt {
 	CIF_YUV400			= 0x10008000,
 	CIF_YVU400			= 0x10008004,
 	CIF_Y10				= 0x1000a000,
+	CIF_Y12				= 0x10010000,
 
 	CIF_YUV420I			= 0x1000c220,
 	CIF_YUV420SP			= 0x1000c221,	/* NV12 */
