@@ -172,7 +172,7 @@ enum {
 	NLA_FLAG,
 	NLA_MSECS,
 	NLA_NESTED,
-	NLA_NESTED_COMPAT,
+	NLA_NESTED_ARRAY,
 	NLA_NUL_STRING,
 	NLA_BINARY,
 	NLA_S8,
@@ -201,9 +201,11 @@ enum {
  *    NLA_NUL_STRING       Maximum length of string (excluding NUL)
  *    NLA_FLAG             Unused
  *    NLA_BINARY           Maximum length of attribute payload
- *    NLA_NESTED           Don't use `len' field -- length verification is
- *                         done by checking len of nested header (or empty)
- *    NLA_NESTED_COMPAT    Minimum length of structure payload
+ *    NLA_NESTED,
+ *    NLA_NESTED_ARRAY     Length verification is done by checking len of
+ *                         nested header (or empty); len field is used if
+ *                         validation_data is also used, for the max attr
+ *                         number in the nested policy.
  *    NLA_U8, NLA_U16,
  *    NLA_U32, NLA_U64,
  *    NLA_S8, NLA_S16,
@@ -226,6 +228,16 @@ enum {
  *    NLA_REJECT           This attribute is always rejected and validation data
  *                         may point to a string to report as the error instead
  *                         of the generic one in extended ACK.
+ *    NLA_NESTED           Points to a nested policy to validate, must also set
+ *                         `len' to the max attribute number.
+ *                         Note that nla_parse() will validate, but of course not
+ *                         parse, the nested sub-policies.
+ *    NLA_NESTED_ARRAY     Points to a nested policy to validate, must also set
+ *                         `len' to the max attribute number. The difference to
+ *                         NLA_NESTED is the structure - NLA_NESTED has the
+ *                         nested attributes directly inside, while an array has
+ *                         the nested attributes at another level down and the
+ *                         attributes directly in the nesting don't matter.
  *    All other            Unused
  *
  * Example:
@@ -239,7 +251,7 @@ enum {
 struct nla_policy {
 	u16		type;
 	u16		len;
-	void            *validation_data;
+	const void     *validation_data;
 };
 
 #define NLA_POLICY_EXACT_LEN(_len)	{ .type = NLA_EXACT_LEN, .len = _len }
@@ -248,6 +260,11 @@ struct nla_policy {
 
 #define NLA_POLICY_ETH_ADDR		NLA_POLICY_EXACT_LEN(ETH_ALEN)
 #define NLA_POLICY_ETH_ADDR_COMPAT	NLA_POLICY_EXACT_LEN_WARN(ETH_ALEN)
+
+#define NLA_POLICY_NESTED(maxattr, policy) \
+	{ .type = NLA_NESTED, .validation_data = policy, .len = maxattr }
+#define NLA_POLICY_NESTED_ARRAY(maxattr, policy) \
+	{ .type = NLA_NESTED_ARRAY, .validation_data = policy, .len = maxattr }
 
 /**
  * struct nl_info - netlink source information
