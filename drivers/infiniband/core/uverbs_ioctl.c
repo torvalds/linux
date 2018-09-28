@@ -386,8 +386,7 @@ static int uverbs_set_attr(struct bundle_priv *pbundle,
 			return -EPROTONOSUPPORT;
 		return 0;
 	}
-	attr = srcu_dereference(
-		*slot, &pbundle->bundle.ufile->device->disassociate_srcu);
+	attr = rcu_dereference_protected(*slot, true);
 
 	/* Reject duplicate attributes from user-space */
 	if (test_bit(attr_bkey, pbundle->bundle.attr_present))
@@ -498,9 +497,7 @@ static int bundle_destroy(struct bundle_priv *pbundle, bool commit)
 		if (WARN_ON(!slot))
 			continue;
 
-		attr_uapi = srcu_dereference(
-			*slot,
-			&pbundle->bundle.ufile->device->disassociate_srcu);
+		attr_uapi = rcu_dereference_protected(*slot, true);
 
 		if (attr_uapi->spec.type == UVERBS_ATTR_TYPE_IDRS_ARRAY) {
 			current_ret = uverbs_free_idrs_array(
@@ -542,7 +539,7 @@ static int ib_uverbs_cmd_verbs(struct ib_uverbs_file *ufile,
 			uapi_key_ioctl_method(hdr->method_id));
 	if (unlikely(!slot))
 		return -EPROTONOSUPPORT;
-	method_elm = srcu_dereference(*slot, &ufile->device->disassociate_srcu);
+	method_elm = rcu_dereference_protected(*slot, true);
 
 	if (!method_elm->use_stack) {
 		pbundle = kmalloc(method_elm->bundle_size, GFP_KERNEL);
