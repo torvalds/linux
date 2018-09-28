@@ -1898,10 +1898,8 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 		if (tb[IFLA_IF_NETNSID]) {
 			netnsid = nla_get_s32(tb[IFLA_IF_NETNSID]);
 			tgt_net = get_target_net(skb->sk, netnsid);
-			if (IS_ERR(tgt_net)) {
-				tgt_net = net;
-				netnsid = -1;
-			}
+			if (IS_ERR(tgt_net))
+				return PTR_ERR(tgt_net);
 		}
 
 		if (tb[IFLA_EXT_MASK])
