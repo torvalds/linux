@@ -969,6 +969,16 @@ static int analogix_dp_enable_scramble(struct analogix_dp_device *dp,
 	return ret < 0 ? ret : 0;
 }
 
+static irqreturn_t analogix_dp_hpd_irq_handler(int irq, void *arg)
+{
+	struct analogix_dp_device *dp = arg;
+
+	if (dp->drm_dev)
+		drm_helper_hpd_irq_event(dp->drm_dev);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t analogix_dp_hardirq(int irq, void *arg)
 {
 	struct analogix_dp_device *dp = arg;
@@ -1542,7 +1552,6 @@ analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct analogix_dp_device *dp;
 	struct resource *res;
-	unsigned int irq_flags;
 	int ret;
 
 	if (!plat_data) {
@@ -1615,20 +1624,21 @@ analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 	}
 
 	if (dp->hpd_gpiod) {
-		/*
-		 * Set up the hotplug GPIO from the device tree as an interrupt.
-		 * Simply specifying a different interrupt in the device tree
-		 * doesn't work since we handle hotplug rather differently when
-		 * using a GPIO.  We also need the actual GPIO specifier so
-		 * that we can get the current state of the GPIO.
-		 */
-		dp->irq = gpiod_to_irq(dp->hpd_gpiod);
-		irq_flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;
-	} else {
-		dp->irq = platform_get_irq(pdev, 0);
-		irq_flags = 0;
+		ret = devm_request_threaded_irq(dev,
+						gpiod_to_irq(dp->hpd_gpiod),
+						NULL,
+						analogix_dp_hpd_irq_handler,
+						IRQF_TRIGGER_RISING |
+						IRQF_TRIGGER_FALLING |
+						IRQF_ONESHOT,
+						"analogix-hpd", dp);
+		if (ret) {
+			dev_err(dev, "failed to request hpd IRQ: %d\n", ret);
+			return ERR_PTR(ret);
+		}
 	}
 
+	dp->irq = platform_get_irq(pdev, 0);
 	if (dp->irq == -ENXIO) {
 		dev_err(&pdev->dev, "failed to get irq\n");
 		return ERR_PTR(-ENODEV);
@@ -1638,7 +1648,7 @@ analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 	ret = devm_request_threaded_irq(&pdev->dev, dp->irq,
 					analogix_dp_hardirq,
 					analogix_dp_irq_thread,
-					irq_flags, "analogix-dp", dp);
+					0, "analogix-dp", dp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
 		goto err_disable_pm_runtime;
