@@ -1276,9 +1276,17 @@ void do_user_addr_fault(struct pt_regs *regs,
 	if (unlikely(kprobes_fault(regs)))
 		return;
 
+	/*
+	 * Reserved bits are never expected to be set on
+	 * entries in the user portion of the page tables.
+	 */
 	if (unlikely(hw_error_code & X86_PF_RSVD))
 		pgtable_bad(regs, hw_error_code, address);
 
+	/*
+	 * Check for invalid kernel (supervisor) access to user
+	 * pages in the user address space.
+	 */
 	if (unlikely(smap_violation(hw_error_code, regs))) {
 		bad_area_nosemaphore(regs, hw_error_code, address, NULL);
 		return;
