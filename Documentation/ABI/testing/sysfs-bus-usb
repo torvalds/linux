@@ -189,6 +189,16 @@ Description:
 		The file will read "hotplug", "wired" and "not used" if the
 		information is available, and "unknown" otherwise.
 
+What:		/sys/bus/usb/devices/.../(hub interface)/portX/location
+Date:		October 2018
+Contact:	Bjørn Mork <bjorn@mork.no>
+Description:
+		Some platforms provide usb port physical location through
+		firmware. This is used by the kernel to pair up logical ports
+		mapping to the same physical connector. The attribute exposes the
+		raw location value as a hex integer.
+
+
 What:		/sys/bus/usb/devices/.../(hub interface)/portX/quirks
 Date:		May 2018
 Contact:	Nicolas Boichat <drinkcat@chromium.org>
