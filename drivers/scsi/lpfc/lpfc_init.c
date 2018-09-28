@@ -11329,10 +11329,6 @@ lpfc_io_resume_s3(struct pci_dev *pdev)
 
 	/* Bring device online, it will be no-op for non-fatal error resume */
 	lpfc_online(phba);
-
-	/* Clean up Advanced Error Reporting (AER) if needed */
-	if (phba->hba_flag & HBA_AER_ENABLED)
-		pci_cleanup_aer_uncorrect_error_status(pdev);
 }
 
 /**
@@ -12144,10 +12140,6 @@ lpfc_io_resume_s4(struct pci_dev *pdev)
 		/* Bring the device back online */
 		lpfc_online(phba);
 	}
-
-	/* Clean up Advanced Error Reporting (AER) if needed */
-	if (phba->hba_flag & HBA_AER_ENABLED)
-		pci_cleanup_aer_uncorrect_error_status(pdev);
 }
 
 /**
