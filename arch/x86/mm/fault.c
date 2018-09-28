@@ -846,7 +846,7 @@ show_signal_msg(struct pt_regs *regs, unsigned long error_code,
  */
 static bool is_vsyscall_vaddr(unsigned long vaddr)
 {
-	return (vaddr & PAGE_MASK) == VSYSCALL_ADDR;
+	return unlikely((vaddr & PAGE_MASK) == VSYSCALL_ADDR);
 }
 
 static void
@@ -871,18 +871,6 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 
 		if (is_errata100(regs, address))
 			return;
-
-#ifdef CONFIG_X86_64
-		/*
-		 * Instruction fetch faults in the vsyscall page might need
-		 * emulation.
-		 */
-		if (unlikely((error_code & X86_PF_INSTR) &&
-			     is_vsyscall_vaddr(address))) {
-			if (emulate_vsyscall(regs, address))
-				return;
-		}
-#endif
 
 		/*
 		 * To avoid leaking information about the kernel page table
@@ -1192,6 +1180,14 @@ access_error(unsigned long error_code, struct vm_area_struct *vma)
 
 static int fault_in_kernel_space(unsigned long address)
 {
+	/*
+	 * On 64-bit systems, the vsyscall page is at an address above
+	 * TASK_SIZE_MAX, but is not considered part of the kernel
+	 * address space.
+	 */
+	if (IS_ENABLED(CONFIG_X86_64) && is_vsyscall_vaddr(address))
+		return false;
+
 	return address >= TASK_SIZE_MAX;
 }
 
@@ -1358,6 +1354,22 @@ void do_user_addr_fault(struct pt_regs *regs,
 		flags |= FAULT_FLAG_WRITE;
 	if (sw_error_code & X86_PF_INSTR)
 		flags |= FAULT_FLAG_INSTRUCTION;
+
+#ifdef CONFIG_X86_64
+	/*
+	 * Instruction fetch faults in the vsyscall page might need
+	 * emulation.  The vsyscall page is at a high address
+	 * (>PAGE_OFFSET), but is considered to be part of the user
+	 * address space.
+	 *
+	 * The vsyscall page does not have a "real" VMA, so do this
+	 * emulation before we go searching for VMAs.
+	 */
+	if ((sw_error_code & X86_PF_INSTR) && is_vsyscall_vaddr(address)) {
+		if (emulate_vsyscall(regs, address))
+			return;
+	}
+#endif
 
 	/*
 	 * Kernel-mode access to the user address space should only occur
