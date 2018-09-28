@@ -277,24 +277,54 @@ void mt76x0_get_power_info(struct mt76x0_dev *dev, u8 *info)
 		info[1] = 5;
 }
 
+static int mt76x0_check_eeprom(struct mt76x0_dev *dev)
+{
+	u16 val;
+
+	val = get_unaligned_le16(dev->mt76.eeprom.data);
+	if (!val)
+		val = get_unaligned_le16(dev->mt76.eeprom.data +
+					 MT_EE_PCI_ID);
+
+	switch (val) {
+	case 0x7650:
+	case 0x7610:
+		return 0;
+	default:
+		dev_err(dev->mt76.dev, "EEPROM data check failed: %04x\n",
+			val);
+		return -EINVAL;
+	}
+}
+
+static int mt76x0_load_eeprom(struct mt76x0_dev *dev)
+{
+	int found;
+
+	found = mt76_eeprom_init(&dev->mt76, MT76X0_EEPROM_SIZE);
+	if (found < 0)
+		return found;
+
+	if (found && !mt76x0_check_eeprom(dev))
+		return 0;
+
+	found = mt76x0_efuse_physical_size_check(dev);
+	if (found < 0)
+		return found;
+
+	return mt76x02_get_efuse_data(&dev->mt76, 0, dev->mt76.eeprom.data,
+				      MT76X0_EEPROM_SIZE, MT_EE_READ);
+}
+
 int mt76x0_eeprom_init(struct mt76x0_dev *dev)
 {
 	u8 version, fae;
 	u16 data;
-	int ret;
+	int err;
 
-	ret = mt76x0_efuse_physical_size_check(dev);
-	if (ret)
-		return ret;
-
-	ret = mt76_eeprom_init(&dev->mt76, MT76X0_EEPROM_SIZE);
-	if (ret < 0)
-		return ret;
-
-	ret = mt76x02_get_efuse_data(&dev->mt76, 0, dev->mt76.eeprom.data,
-				     MT76X0_EEPROM_SIZE, MT_EE_READ);
-	if (ret)
-		return ret;
+	err = mt76x0_load_eeprom(dev);
+	if (err < 0)
+		return err;
 
 	data = mt76x02_eeprom_get(&dev->mt76, MT_EE_VERSION);
 	version = data >> 8;
