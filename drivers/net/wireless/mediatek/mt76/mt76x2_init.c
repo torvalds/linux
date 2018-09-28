@@ -19,6 +19,7 @@
 #include "mt76x2_eeprom.h"
 #include "mt76x2_mcu.h"
 #include "mt76x02_util.h"
+#include "mt76x02_dma.h"
 
 static void
 mt76x2_mac_pbf_init(struct mt76x2_dev *dev)
@@ -206,7 +207,7 @@ int mt76x2_mac_start(struct mt76x2_dev *dev)
 	memset(dev->aggr_stats, 0, sizeof(dev->aggr_stats));
 
 	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
-	wait_for_wpdma(dev);
+	mt76x02_wait_for_wpdma(&dev->mt76, 1000);
 	usleep_range(50, 100);
 
 	mt76_set(dev, MT_WPDMA_GLO_CFG,

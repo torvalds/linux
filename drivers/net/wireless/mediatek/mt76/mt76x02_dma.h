@@ -18,6 +18,7 @@
 #define __MT76x02_DMA_H
 
 #include "dma.h"
+#include "mt76x02_regs.h"
 
 #define MT_TXD_INFO_LEN			GENMASK(15, 0)
 #define MT_TXD_INFO_NEXT_VLD		BIT(16)
@@ -56,5 +57,14 @@ enum dma_msg_port {
 	VIRTUAL_CPU_TX_PORT,
 	DISCARD,
 };
+
+static inline bool
+mt76x02_wait_for_wpdma(struct mt76_dev *dev, int timeout)
+{
+	return __mt76_poll(dev, MT_WPDMA_GLO_CFG,
+			   MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
+			   MT_WPDMA_GLO_CFG_RX_DMA_BUSY,
+			   0, timeout);
+}
 
 #endif /* __MT76x02_DMA_H */
