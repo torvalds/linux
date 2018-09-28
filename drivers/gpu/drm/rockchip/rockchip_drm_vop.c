@@ -1429,7 +1429,7 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 		vop->is_iommu_enabled = false;
 	}
 
-	pm_runtime_put(vop->dev);
+	pm_runtime_put_sync(vop->dev);
 	clk_disable_unprepare(vop->dclk);
 	clk_disable_unprepare(vop->aclk);
 	clk_disable_unprepare(vop->hclk);
