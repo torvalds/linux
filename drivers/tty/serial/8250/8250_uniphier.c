@@ -12,9 +12,6 @@
 
 #include "8250.h"
 
-/* Most (but not all) of UniPhier UART devices have 64-depth FIFO. */
-#define UNIPHIER_UART_DEFAULT_FIFO_SIZE	64
-
 /*
  * This hardware is similar to 8250, but its register map is a bit different:
  *   - MMIO32 (regshift = 2)
@@ -185,12 +182,6 @@ static int uniphier_of_serial_setup(struct device *dev, struct uart_port *port,
 
 	port->uartclk = clk_get_rate(priv->clk);
 
-	/* Check for fifo size */
-	if (of_property_read_u32(np, "fifo-size", &prop) == 0)
-		port->fifosize = prop;
-	else
-		port->fifosize = UNIPHIER_UART_DEFAULT_FIFO_SIZE;
-
 	return 0;
 }
 
@@ -241,6 +232,7 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 
 	up.port.type = PORT_16550A;
 	up.port.iotype = UPIO_MEM32;
+	up.port.fifosize = 64;
 	up.port.regshift = UNIPHIER_UART_REGSHIFT;
 	up.port.flags = UPF_FIXED_PORT | UPF_FIXED_TYPE;
 	up.capabilities = UART_CAP_FIFO;
