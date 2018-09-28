@@ -118,21 +118,25 @@ int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 static int
 psp_cmd_submit_buf(struct psp_context *psp,
 		   struct amdgpu_firmware_info *ucode,
-		   struct psp_gfx_cmd_resp *cmd, uint64_t fence_mc_addr,
-		   int index)
+		   struct psp_gfx_cmd_resp *cmd, uint64_t fence_mc_addr)
 {
 	int ret;
+	int index;
 
 	memset(psp->cmd_buf_mem, 0, PSP_CMD_BUFFER_SIZE);
 
 	memcpy(psp->cmd_buf_mem, cmd, sizeof(struct psp_gfx_cmd_resp));
 
+	index = atomic_inc_return(&psp->fence_value);
 	ret = psp_cmd_submit(psp, ucode, psp->cmd_buf_mc_addr,
 			     fence_mc_addr, index);
-
-	while (*((unsigned int *)psp->fence_buf) != index) {
-		msleep(1);
+	if (ret) {
+		atomic_dec(&psp->fence_value);
+		return ret;
 	}
+
+	while (*((unsigned int *)psp->fence_buf) != index)
+		msleep(1);
 
 	/* the status field must be 0 after FW is loaded */
 	if (ucode && psp->cmd_buf_mem->resp.status) {
@@ -191,7 +195,7 @@ static int psp_tmr_load(struct psp_context *psp)
 			PSP_TMR_SIZE, psp->tmr_mc_addr);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
-				 psp->fence_buf_mc_addr, 1);
+				 psp->fence_buf_mc_addr);
 	if (ret)
 		goto failed;
 
@@ -258,7 +262,7 @@ static int psp_asd_load(struct psp_context *psp)
 			     psp->asd_ucode_size, PSP_ASD_SHARED_MEM_SIZE);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
-				 psp->fence_buf_mc_addr, 2);
+				 psp->fence_buf_mc_addr);
 
 	kfree(cmd);
 
@@ -321,7 +325,7 @@ static int psp_np_fw_load(struct psp_context *psp)
 			return ret;
 
 		ret = psp_cmd_submit_buf(psp, ucode, psp->cmd,
-					 psp->fence_buf_mc_addr, i + 3);
+					 psp->fence_buf_mc_addr);
 		if (ret)
 			return ret;
 

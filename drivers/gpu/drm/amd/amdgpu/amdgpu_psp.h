@@ -96,7 +96,7 @@ struct psp_context
 
 	const struct psp_funcs		*funcs;
 
-	/* fence buffer */
+	/* firmware buffer */
 	struct amdgpu_bo		*fw_pri_bo;
 	uint64_t			fw_pri_mc_addr;
 	void				*fw_pri_buf;
@@ -134,6 +134,9 @@ struct psp_context
 	struct amdgpu_bo		*cmd_buf_bo;
 	uint64_t			cmd_buf_mc_addr;
 	struct psp_gfx_cmd_resp		*cmd_buf_mem;
+
+	/* fence value associated with cmd buffer */
+	atomic_t			fence_value;
 };
 
 struct amdgpu_psp_funcs {
