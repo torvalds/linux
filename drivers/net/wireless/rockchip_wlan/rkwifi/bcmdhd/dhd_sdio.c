@@ -79,6 +79,10 @@
 #include <dhd_bt_interface.h>
 #endif /* BT_OVER_SDIO */
 
+#include <linux/mmc/sdio_func.h>
+#include <linux/mmc/host.h>
+#include "bcmsdh_sdmmc.h"
+
 bool dhd_mp_halting(dhd_pub_t *dhdp);
 extern void bcmsdh_waitfor_iodrain(void *sdh);
 extern void bcmsdh_reject_ioreqs(void *sdh, bool reject);
@@ -1038,6 +1042,12 @@ dhdsdio_clk_kso_enab(dhd_bus_t *bus, bool on)
 	uint8 wr_val = 0, rd_val, cmp_val, bmask;
 	int err = 0;
 	int try_cnt = 0;
+	struct mmc_host *host;
+	struct sdioh_info *sd = (struct sdioh_info *)(bus->sdh->sdioh);
+	struct sdio_func *func = sd->func[SDIO_FUNC_0];
+
+	host = func->card->host;
+	mmc_retune_disable(host);
 
 	KSO_DBG(("%s> op:%s\n", __FUNCTION__, (on ? "KSO_SET" : "KSO_CLR")));
 
@@ -1051,6 +1061,7 @@ dhdsdio_clk_kso_enab(dhd_bus_t *bus, bool on)
 	 * after clearing KSO bit, to avoid polling of KSO bit.
 	 */
 	if ((!on) && (bus->sih->chip == BCM43012_CHIP_ID)) {
+		mmc_retune_enable(host);
 		return err;
 	}
 
@@ -1090,6 +1101,8 @@ dhdsdio_clk_kso_enab(dhd_bus_t *bus, bool on)
 		DHD_ERROR(("%s> op:%s, ERROR: try_cnt:%d, rd_val:%x, ERR:%x \n",
 			__FUNCTION__, (on ? "KSO_SET" : "KSO_CLR"), try_cnt, rd_val, err));
 	}
+
+	mmc_retune_enable(host);
 
 	return err;
 }
