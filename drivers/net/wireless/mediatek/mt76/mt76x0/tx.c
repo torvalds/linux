@@ -17,10 +17,10 @@
 #include "../mt76x02_util.h"
 #include "../mt76x02_usb.h"
 
-static struct mt76x02_txwi *
+struct mt76x02_txwi *
 mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
-		  struct ieee80211_sta *sta, struct mt76_wcid *wcid,
-		  int pkt_len)
+		 struct ieee80211_sta *sta, struct mt76_wcid *wcid,
+		 int pkt_len)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *rate = &info->control.rates[0];
@@ -53,6 +53,7 @@ mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
 
 	return txwi;
 }
+EXPORT_SYMBOL_GPL(mt76x0_push_txwi);
 
 void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	       struct sk_buff *skb)
@@ -82,22 +83,6 @@ void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	mt76_tx(&dev->mt76, control->sta, wcid, skb);
 }
 EXPORT_SYMBOL_GPL(mt76x0_tx);
-
-int mt76x0_tx_prepare_skb(struct mt76_dev *mdev, void *data,
-			  struct sk_buff *skb, struct mt76_queue *q,
-			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
-			  u32 *tx_info)
-{
-	struct mt76x0_dev *dev = container_of(mdev, struct mt76x0_dev, mt76);
-	struct mt76x02_txwi *txwi;
-	int len = skb->len;
-
-	mt76x02_insert_hdr_pad(skb);
-	txwi = mt76x0_push_txwi(dev, skb, sta, wcid, len);
-
-	return mt76x02u_set_txinfo(skb, wcid, q2ep(q->hw_idx));
-}
-EXPORT_SYMBOL_GPL(mt76x0_tx_prepare_skb);
 
 void mt76x0_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb)

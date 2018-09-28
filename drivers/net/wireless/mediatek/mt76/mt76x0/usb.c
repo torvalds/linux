@@ -159,6 +159,21 @@ static const struct ieee80211_ops mt76x0u_ops = {
 	.wake_tx_queue = mt76_wake_tx_queue,
 };
 
+static int mt76x0u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
+				  struct sk_buff *skb, struct mt76_queue *q,
+				  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
+				  u32 *tx_info)
+{
+	struct mt76x0_dev *dev = container_of(mdev, struct mt76x0_dev, mt76);
+	struct mt76x02_txwi *txwi;
+	int len = skb->len;
+
+	mt76x02_insert_hdr_pad(skb);
+	txwi = mt76x0_push_txwi(dev, skb, sta, wcid, len);
+
+	return mt76x02u_set_txinfo(skb, wcid, q2ep(q->hw_idx));
+}
+
 static int mt76x0u_register_device(struct mt76x0_dev *dev)
 {
 	struct ieee80211_hw *hw = dev->mt76.hw;
@@ -215,7 +230,7 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 			 const struct usb_device_id *id)
 {
 	static const struct mt76_driver_ops drv_ops = {
-		.tx_prepare_skb = mt76x0_tx_prepare_skb,
+		.tx_prepare_skb = mt76x0u_tx_prepare_skb,
 		.tx_complete_skb = mt76x02_tx_complete_skb,
 		.tx_status_data = mt76x02_tx_status_data,
 		.rx_skb = mt76x0_queue_rx_skb,

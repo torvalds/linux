@@ -168,12 +168,12 @@ void mt76x0_mac_set_ampdu_factor(struct mt76x0_dev *dev);
 /* TX */
 void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		struct sk_buff *skb);
+struct mt76x02_txwi *
+mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
+		 struct ieee80211_sta *sta, struct mt76_wcid *wcid,
+		 int pkt_len);
 
 void mt76x0_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb);
 
-int mt76x0_tx_prepare_skb(struct mt76_dev *mdev, void *data,
-			  struct sk_buff *skb, struct mt76_queue *q,
-			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
-			  u32 *tx_info);
 #endif
