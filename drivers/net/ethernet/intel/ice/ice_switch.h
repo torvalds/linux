@@ -140,7 +140,8 @@ struct ice_fltr_list_entry {
 /* This defines an entry in the list that maintains MAC or VLAN membership
  * to HW list mapping, since multiple VSIs can subscribe to the same MAC or
  * VLAN. As an optimization the VSI list should be created only when a
- * second VSI becomes a subscriber to the VLAN address.
+ * second VSI becomes a subscriber to the same MAC address. VSI lists are always
+ * used for VLAN membership.
  */
 struct ice_fltr_mgmt_list_entry {
 	/* back pointer to VSI list id to VSI list mapping */

@@ -1451,7 +1451,7 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
  * @hw: pointer to the hw struct
  * @buf: a virtual buffer to hold the capabilities
  * @buf_size: Size of the virtual buffer
- * @data_size: Size of the returned data, or buf size needed if AQ err==ENOMEM
+ * @cap_count: cap count needed if AQ err==ENOMEM
  * @opc: capabilities type to discover - pass in the command opcode
  * @cd: pointer to command details structure or NULL
  *
@@ -1459,7 +1459,7 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
  * the firmware.
  */
 static enum ice_status
-ice_aq_discover_caps(struct ice_hw *hw, void *buf, u16 buf_size, u16 *data_size,
+ice_aq_discover_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
 		     enum ice_adminq_opc opc, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_list_caps *cmd;
@@ -1477,7 +1477,57 @@ ice_aq_discover_caps(struct ice_hw *hw, void *buf, u16 buf_size, u16 *data_size,
 	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
 	if (!status)
 		ice_parse_caps(hw, buf, le32_to_cpu(cmd->count), opc);
-	*data_size = le16_to_cpu(desc.datalen);
+	else if (hw->adminq.sq_last_status == ICE_AQ_RC_ENOMEM)
+		*cap_count =
+			DIV_ROUND_UP(le16_to_cpu(desc.datalen),
+				     sizeof(struct ice_aqc_list_caps_elem));
+	return status;
+}
+
+/**
+ * ice_discover_caps - get info about the HW
+ * @hw: pointer to the hardware structure
+ * @opc: capabilities type to discover - pass in the command opcode
+ */
+static enum ice_status ice_discover_caps(struct ice_hw *hw,
+					 enum ice_adminq_opc opc)
+{
+	enum ice_status status;
+	u32 cap_count;
+	u16 cbuf_len;
+	u8 retries;
+
+	/* The driver doesn't know how many capabilities the device will return
+	 * so the buffer size required isn't known ahead of time. The driver
+	 * starts with cbuf_len and if this turns out to be insufficient, the
+	 * device returns ICE_AQ_RC_ENOMEM and also the cap_count it needs.
+	 * The driver then allocates the buffer based on the count and retries
+	 * the operation. So it follows that the retry count is 2.
+	 */
+#define ICE_GET_CAP_BUF_COUNT	40
+#define ICE_GET_CAP_RETRY_COUNT	2
+
+	cap_count = ICE_GET_CAP_BUF_COUNT;
+	retries = ICE_GET_CAP_RETRY_COUNT;
+
+	do {
+		void *cbuf;
+
+		cbuf_len = (u16)(cap_count *
+				 sizeof(struct ice_aqc_list_caps_elem));
+		cbuf = devm_kzalloc(ice_hw_to_dev(hw), cbuf_len, GFP_KERNEL);
+		if (!cbuf)
+			return ICE_ERR_NO_MEMORY;
+
+		status = ice_aq_discover_caps(hw, cbuf, cbuf_len, &cap_count,
+					      opc, NULL);
+		devm_kfree(ice_hw_to_dev(hw), cbuf);
+
+		if (!status || hw->adminq.sq_last_status != ICE_AQ_RC_ENOMEM)
+			break;
+
+		/* If ENOMEM is returned, try again with bigger buffer */
+	} while (--retries);
 
 	return status;
 }
@@ -1489,42 +1539,10 @@ ice_aq_discover_caps(struct ice_hw *hw, void *buf, u16 buf_size, u16 *data_size,
 enum ice_status ice_get_caps(struct ice_hw *hw)
 {
 	enum ice_status status;
-	u16 data_size = 0;
-	u16 cbuf_len;
-	u8 retries;
 
-	/* The driver doesn't know how many capabilities the device will return
-	 * so the buffer size required isn't known ahead of time. The driver
-	 * starts with cbuf_len and if this turns out to be insufficient, the
-	 * device returns ICE_AQ_RC_ENOMEM and also the buffer size it needs.
-	 * The driver then allocates the buffer of this size and retries the
-	 * operation. So it follows that the retry count is 2.
-	 */
-#define ICE_GET_CAP_BUF_COUNT	40
-#define ICE_GET_CAP_RETRY_COUNT	2
-
-	cbuf_len = ICE_GET_CAP_BUF_COUNT *
-		sizeof(struct ice_aqc_list_caps_elem);
-
-	retries = ICE_GET_CAP_RETRY_COUNT;
-
-	do {
-		void *cbuf;
-
-		cbuf = devm_kzalloc(ice_hw_to_dev(hw), cbuf_len, GFP_KERNEL);
-		if (!cbuf)
-			return ICE_ERR_NO_MEMORY;
-
-		status = ice_aq_discover_caps(hw, cbuf, cbuf_len, &data_size,
-					      ice_aqc_opc_list_func_caps, NULL);
-		devm_kfree(ice_hw_to_dev(hw), cbuf);
-
-		if (!status || hw->adminq.sq_last_status != ICE_AQ_RC_ENOMEM)
-			break;
-
-		/* If ENOMEM is returned, try again with bigger buffer */
-		cbuf_len = data_size;
-	} while (--retries);
+	status = ice_discover_caps(hw, ice_aqc_opc_list_dev_caps);
+	if (!status)
+		status = ice_discover_caps(hw, ice_aqc_opc_list_func_caps);
 
 	return status;
 }
