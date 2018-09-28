@@ -1932,6 +1932,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		return ret;
 	}
 
+	btrfs_trans_release_metadata(trans);
+	trans->block_rsv = NULL;
+
 	/* make a pass through all the delayed refs we have so far
 	 * any runnings procs may add more while we are here
 	 */
@@ -1940,9 +1943,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		btrfs_end_transaction(trans);
 		return ret;
 	}
-
-	btrfs_trans_release_metadata(trans);
-	trans->block_rsv = NULL;
 
 	cur_trans = trans->transaction;
 
