@@ -540,6 +540,11 @@
 	vccio5-supply = <&vcca_1v8>;
 };
 
+&npu {
+	npu-supply = <&vdd_npu>;
+	status = "okay";
+};
+
 &pmu_io_domains {
 	status = "okay";
 
