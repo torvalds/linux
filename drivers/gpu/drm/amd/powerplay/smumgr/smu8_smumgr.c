@@ -664,6 +664,8 @@ static int smu8_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 	if (!hwmgr->reload_fw)
 		return 0;
 
+	amdgpu_ucode_init_bo(hwmgr->adev);
+
 	smu8_smu_populate_firmware_entries(hwmgr);
 
 	smu8_smu_construct_toc(hwmgr);

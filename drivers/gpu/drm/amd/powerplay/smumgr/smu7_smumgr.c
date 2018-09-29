@@ -346,6 +346,8 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 	if (!hwmgr->reload_fw)
 		return 0;
 
+	amdgpu_ucode_init_bo(hwmgr->adev);
+
 	if (smu_data->soft_regs_start)
 		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
 					smu_data->soft_regs_start + smum_get_offsetof(hwmgr,

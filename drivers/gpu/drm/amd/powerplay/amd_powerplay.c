@@ -124,9 +124,6 @@ static int pp_hw_init(void *handle)
 	struct amdgpu_device *adev = handle;
 	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_SMU)
-		amdgpu_ucode_init_bo(adev);
-
 	ret = hwmgr_hw_init(hwmgr);
 
 	if (ret)
