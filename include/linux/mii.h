@@ -335,6 +335,25 @@ static inline void mii_adv_to_linkmode_adv_t(unsigned long *advertising,
 }
 
 /**
+ * ethtool_adv_to_lcl_adv_t
+ * @advertising:pointer to ethtool advertising
+ *
+ * A small helper function that translates ethtool advertising to LVL
+ * pause capabilities.
+ */
+static inline u32 ethtool_adv_to_lcl_adv_t(u32 advertising)
+{
+	u32 lcl_adv = 0;
+
+	if (advertising & ADVERTISED_Pause)
+		lcl_adv |= ADVERTISE_PAUSE_CAP;
+	if (advertising & ADVERTISED_Asym_Pause)
+		lcl_adv |= ADVERTISE_PAUSE_ASYM;
+
+	return lcl_adv;
+}
+
+/**
  * mii_advertise_flowctrl - get flow control advertisement flags
  * @cap: Flow control capabilities (FLOW_CTRL_RX, FLOW_CTRL_TX or both)
  */

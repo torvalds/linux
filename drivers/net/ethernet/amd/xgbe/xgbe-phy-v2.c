@@ -1495,10 +1495,7 @@ static void xgbe_phy_phydev_flowctrl(struct xgbe_prv_data *pdata)
 	if (!phy_data->phydev)
 		return;
 
-	if (phy_data->phydev->advertising & ADVERTISED_Pause)
-		lcl_adv |= ADVERTISE_PAUSE_CAP;
-	if (phy_data->phydev->advertising & ADVERTISED_Asym_Pause)
-		lcl_adv |= ADVERTISE_PAUSE_ASYM;
+	lcl_adv = ethtool_adv_to_lcl_adv_t(phy_data->phydev->advertising);
 
 	if (phy_data->phydev->pause) {
 		XGBE_SET_LP_ADV(lks, Pause);
