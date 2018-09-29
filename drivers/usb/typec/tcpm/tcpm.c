@@ -2237,7 +2237,7 @@ static unsigned int tcpm_pd_select_pps_apdo(struct tcpm_port *port)
 {
 	unsigned int i, j, max_mw = 0, max_mv = 0;
 	unsigned int min_src_mv, max_src_mv, src_ma, src_mw;
-	unsigned int min_snk_mv, max_snk_mv, snk_ma;
+	unsigned int min_snk_mv, max_snk_mv;
 	u32 pdo;
 	unsigned int src_pdo = 0, snk_pdo = 0;
 
@@ -2281,8 +2281,6 @@ static unsigned int tcpm_pd_select_pps_apdo(struct tcpm_port *port)
 						pdo_pps_apdo_min_voltage(pdo);
 					max_snk_mv =
 						pdo_pps_apdo_max_voltage(pdo);
-					snk_ma =
-						pdo_pps_apdo_max_current(pdo);
 					break;
 				default:
 					tcpm_log(port,
@@ -2430,7 +2428,7 @@ static int tcpm_pd_send_request(struct tcpm_port *port)
 
 static int tcpm_pd_build_pps_request(struct tcpm_port *port, u32 *rdo)
 {
-	unsigned int out_mv, op_ma, op_mw, min_mv, max_mv, max_ma, flags;
+	unsigned int out_mv, op_ma, op_mw, max_mv, max_ma, flags;
 	enum pd_pdo_type type;
 	unsigned int src_pdo_index;
 	u32 pdo;
@@ -2448,7 +2446,6 @@ static int tcpm_pd_build_pps_request(struct tcpm_port *port, u32 *rdo)
 			tcpm_log(port, "Invalid APDO selected!");
 			return -EINVAL;
 		}
-		min_mv = port->pps_data.min_volt;
 		max_mv = port->pps_data.max_volt;
 		max_ma = port->pps_data.max_curr;
 		out_mv = port->pps_data.out_volt;
