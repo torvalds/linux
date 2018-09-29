@@ -553,16 +553,17 @@ static void enable_status_frames(struct phy_device *phydev, bool on)
 	mutex_unlock(&clock->extreg_lock);
 
 	if (!phydev->attached_dev) {
-		pr_warn("expected to find an attached netdevice\n");
+		phydev_warn(phydev,
+			    "expected to find an attached netdevice\n");
 		return;
 	}
 
 	if (on) {
 		if (dev_mc_add(phydev->attached_dev, status_frame_dst))
-			pr_warn("failed to add mc address\n");
+			phydev_warn(phydev, "failed to add mc address\n");
 	} else {
 		if (dev_mc_del(phydev->attached_dev, status_frame_dst))
-			pr_warn("failed to delete mc address\n");
+			phydev_warn(phydev, "failed to delete mc address\n");
 	}
 }
 

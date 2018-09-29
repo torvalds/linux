@@ -638,7 +638,7 @@ static void marvell_config_led(struct phy_device *phydev)
 	err = phy_write_paged(phydev, MII_MARVELL_LED_PAGE, MII_PHY_LED_CTRL,
 			      def_config);
 	if (err < 0)
-		pr_warn("Fail to config marvell phy LED.\n");
+		phydev_warn(phydev, "Fail to config marvell phy LED.\n");
 }
 
 static int marvell_config_init(struct phy_device *phydev)
