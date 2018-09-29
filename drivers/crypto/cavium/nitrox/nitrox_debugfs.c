@@ -59,10 +59,12 @@ static int stats_show(struct seq_file *s, void *v)
 	struct nitrox_device *ndev = s->private;
 
 	seq_printf(s, "NITROX [%d] Request Statistics\n", ndev->idx);
-	seq_printf(s, "  Posted: %lld\n", atomic64_read(&ndev->stats.posted));
-	seq_printf(s, "  Completed: %lld\n",
-		   atomic64_read(&ndev->stats.completed));
-	seq_printf(s, "  Dropped: %lld\n", atomic64_read(&ndev->stats.dropped));
+	seq_printf(s, "  Posted: %llu\n",
+		   (u64)atomic64_read(&ndev->stats.posted));
+	seq_printf(s, "  Completed: %llu\n",
+		   (u64)atomic64_read(&ndev->stats.completed));
+	seq_printf(s, "  Dropped: %llu\n",
+		   (u64)atomic64_read(&ndev->stats.dropped));
 
 	return 0;
 }
