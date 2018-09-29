@@ -581,13 +581,20 @@ static int psp_v11_0_xgmi_set_topology_info(struct psp_context *psp,
 
 static u64 psp_v11_0_xgmi_get_hive_id(struct psp_context *psp)
 {
-	u64 hive_id = 0;
+	struct ta_xgmi_shared_memory *xgmi_cmd;
+	int ret;
 
-	/* Remove me when we can get correct hive_id through PSP */
-	if (psp->adev->gmc.xgmi.num_physical_nodes)
-		hive_id = 0x123456789abcdef;
+	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
 
-	return hive_id;
+	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_HIVE_ID;
+
+	/* Invoke xgmi ta to get hive id */
+	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
+	if (ret)
+		return 0;
+	else
+		return xgmi_cmd->xgmi_out_message.get_hive_id.hive_id;
 }
 
 static u64 psp_v11_0_xgmi_get_node_id(struct psp_context *psp)
