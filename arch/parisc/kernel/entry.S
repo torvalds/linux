@@ -431,8 +431,6 @@
 	extru		\va,31-PAGE_SHIFT,ASM_BITS_PER_PTE,\index
 	dep		%r0,31,PAGE_SHIFT,\pmd  /* clear offset */
 	shladd		\index,BITS_PER_PTE_ENTRY,\pmd,\pmd /* pmd is now pte */
-	LDREG		%r0(\pmd),\pte
-	bb,>=,n		\pte,_PAGE_PRESENT_BIT,\fault
 	.endm
 
 	/* Look up PTE in a 3-Level scheme.
@@ -463,7 +461,7 @@
 	L2_ptep		\pgd,\pte,\index,\va,\fault
 	.endm
 
-	/* Acquire pa_tlb_lock lock and recheck page is still present. */
+	/* Acquire pa_tlb_lock lock and check page is present. */
 	.macro		tlb_lock	spc,ptp,pte,tmp,tmp1,fault
 #ifdef CONFIG_SMP
 	cmpib,COND(=),n	0,\spc,2f
@@ -472,11 +470,13 @@
 	cmpib,COND(=)	0,\tmp1,1b
 	nop
 	LDREG		0(\ptp),\pte
-	bb,<,n		\pte,_PAGE_PRESENT_BIT,2f
+	bb,<,n		\pte,_PAGE_PRESENT_BIT,3f
 	b		\fault
-	stw		 \spc,0(\tmp)
-2:
+	stw,ma		\spc,0(\tmp)
 #endif
+2:	LDREG		0(\ptp),\pte
+	bb,>=,n		\pte,_PAGE_PRESENT_BIT,\fault
+3:
 	.endm
 
 	/* Release pa_tlb_lock lock without reloading lock address. */
