@@ -692,7 +692,7 @@ static int zoran_jpg_queue_frame(struct zoran_fh *fh, int num,
 		case BUZ_STATE_DONE:
 			dprintk(2,
 				KERN_WARNING
-				"%s: %s - queing frame in BUZ_STATE_DONE state!?\n",
+				"%s: %s - queuing frame in BUZ_STATE_DONE state!?\n",
 				ZR_DEVNAME(zr), __func__);
 			/* fall through */
 		case BUZ_STATE_USER:
