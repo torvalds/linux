@@ -434,7 +434,7 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 		return 0;
 	}
 
-	if (!adev->in_gpu_reset) {
+	if (!adev->in_gpu_reset && !adev->in_suspend) {
 		err = amdgpu_bo_create_kernel(adev, adev->firmware.fw_size, PAGE_SIZE,
 					amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
 					&adev->firmware.fw_buf,
