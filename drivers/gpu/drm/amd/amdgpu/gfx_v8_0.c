@@ -4175,9 +4175,20 @@ static void gfx_v8_0_rlc_start(struct amdgpu_device *adev)
 
 static int gfx_v8_0_rlc_resume(struct amdgpu_device *adev)
 {
+	int r;
+
 	gfx_v8_0_rlc_stop(adev);
 	gfx_v8_0_rlc_reset(adev);
 	gfx_v8_0_init_pg(adev);
+
+	if (adev->powerplay.pp_funcs->load_firmware) {
+		r = adev->powerplay.pp_funcs->load_firmware(adev->powerplay.pp_handle);
+		if (r) {
+			pr_err("firmware loading failed\n");
+			return r;
+		}
+	}
+
 	gfx_v8_0_rlc_start(adev);
 
 	return 0;
