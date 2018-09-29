@@ -359,32 +359,24 @@ __v4l2_async_notifier_has_async_subdev(struct v4l2_async_notifier *notifier,
 /*
  * Find out whether an async sub-device was set up already or
  * whether it exists in a given notifier before @this_index.
+ * If @this_index < 0, search the notifier's entire @asd_list.
  */
 static bool
 v4l2_async_notifier_has_async_subdev(struct v4l2_async_notifier *notifier,
 				     struct v4l2_async_subdev *asd,
-				     unsigned int this_index)
+				     int this_index)
 {
 	struct v4l2_async_subdev *asd_y;
-	unsigned int j;
+	int j = 0;
 
 	lockdep_assert_held(&list_lock);
 
 	/* Check that an asd is not being added more than once. */
-	if (notifier->subdevs) {
-		for (j = 0; j < this_index; j++) {
-			asd_y = notifier->subdevs[j];
-			if (asd_equal(asd, asd_y))
-				return true;
-		}
-	} else {
-		j = 0;
-		list_for_each_entry(asd_y, &notifier->asd_list, asd_list) {
-			if (j++ >= this_index)
-				break;
-			if (asd_equal(asd, asd_y))
-				return true;
-		}
+	list_for_each_entry(asd_y, &notifier->asd_list, asd_list) {
+		if (this_index >= 0 && j++ >= this_index)
+			break;
+		if (asd_equal(asd, asd_y))
+			return true;
 	}
 
 	/* Check that an asd does not exist in other notifiers. */
@@ -397,7 +389,7 @@ v4l2_async_notifier_has_async_subdev(struct v4l2_async_notifier *notifier,
 
 static int v4l2_async_notifier_asd_valid(struct v4l2_async_notifier *notifier,
 					 struct v4l2_async_subdev *asd,
-					 unsigned int this_index)
+					 int this_index)
 {
 	struct device *dev =
 		notifier->v4l2_dev ? notifier->v4l2_dev->dev : NULL;
@@ -438,36 +430,19 @@ EXPORT_SYMBOL(v4l2_async_notifier_init);
 static int __v4l2_async_notifier_register(struct v4l2_async_notifier *notifier)
 {
 	struct v4l2_async_subdev *asd;
-	int ret;
-	int i;
-
-	if (notifier->num_subdevs > V4L2_MAX_SUBDEVS)
-		return -EINVAL;
+	int ret, i = 0;
 
 	INIT_LIST_HEAD(&notifier->waiting);
 	INIT_LIST_HEAD(&notifier->done);
 
 	mutex_lock(&list_lock);
 
-	if (notifier->subdevs) {
-		for (i = 0; i < notifier->num_subdevs; i++) {
-			asd = notifier->subdevs[i];
+	list_for_each_entry(asd, &notifier->asd_list, asd_list) {
+		ret = v4l2_async_notifier_asd_valid(notifier, asd, i++);
+		if (ret)
+			goto err_unlock;
 
-			ret = v4l2_async_notifier_asd_valid(notifier, asd, i);
-			if (ret)
-				goto err_unlock;
-
-			list_add_tail(&asd->list, &notifier->waiting);
-		}
-	} else {
-		i = 0;
-		list_for_each_entry(asd, &notifier->asd_list, asd_list) {
-			ret = v4l2_async_notifier_asd_valid(notifier, asd, i++);
-			if (ret)
-				goto err_unlock;
-
-			list_add_tail(&asd->list, &notifier->waiting);
-		}
+		list_add_tail(&asd->list, &notifier->waiting);
 	}
 
 	ret = v4l2_async_notifier_try_all_subdevs(notifier);
@@ -560,45 +535,22 @@ EXPORT_SYMBOL(v4l2_async_notifier_unregister);
 static void __v4l2_async_notifier_cleanup(struct v4l2_async_notifier *notifier)
 {
 	struct v4l2_async_subdev *asd, *tmp;
-	unsigned int i;
 
 	if (!notifier)
 		return;
 
-	if (notifier->subdevs) {
-		for (i = 0; i < notifier->num_subdevs; i++) {
-			asd = notifier->subdevs[i];
-
-			switch (asd->match_type) {
-			case V4L2_ASYNC_MATCH_FWNODE:
-				fwnode_handle_put(asd->match.fwnode);
-				break;
-			default:
-				break;
-			}
-
-			kfree(asd);
+	list_for_each_entry_safe(asd, tmp, &notifier->asd_list, asd_list) {
+		switch (asd->match_type) {
+		case V4L2_ASYNC_MATCH_FWNODE:
+			fwnode_handle_put(asd->match.fwnode);
+			break;
+		default:
+			break;
 		}
 
-		kvfree(notifier->subdevs);
-		notifier->subdevs = NULL;
-	} else {
-		list_for_each_entry_safe(asd, tmp,
-					 &notifier->asd_list, asd_list) {
-			switch (asd->match_type) {
-			case V4L2_ASYNC_MATCH_FWNODE:
-				fwnode_handle_put(asd->match.fwnode);
-				break;
-			default:
-				break;
-			}
-
-			list_del(&asd->asd_list);
-			kfree(asd);
-		}
+		list_del(&asd->asd_list);
+		kfree(asd);
 	}
-
-	notifier->num_subdevs = 0;
 }
 
 void v4l2_async_notifier_cleanup(struct v4l2_async_notifier *notifier)
@@ -618,27 +570,11 @@ int v4l2_async_notifier_add_subdev(struct v4l2_async_notifier *notifier,
 
 	mutex_lock(&list_lock);
 
-	if (notifier->num_subdevs >= V4L2_MAX_SUBDEVS) {
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	/*
-	 * If caller uses this function, it cannot also allocate and
-	 * place asd's in the notifier->subdevs array.
-	 */
-	if (WARN_ON(notifier->subdevs)) {
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	ret = v4l2_async_notifier_asd_valid(notifier, asd,
-					    notifier->num_subdevs);
+	ret = v4l2_async_notifier_asd_valid(notifier, asd, -1);
 	if (ret)
 		goto unlock;
 
 	list_add_tail(&asd->asd_list, &notifier->asd_list);
-	notifier->num_subdevs++;
 
 unlock:
 	mutex_unlock(&list_lock);
