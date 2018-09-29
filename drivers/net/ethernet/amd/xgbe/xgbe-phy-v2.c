@@ -878,8 +878,9 @@ static bool xgbe_phy_finisar_phy_quirks(struct xgbe_prv_data *pdata)
 	phy_write(phy_data->phydev, 0x04, 0x0d01);
 	phy_write(phy_data->phydev, 0x00, 0x9140);
 
-	phy_data->phydev->supported = PHY_GBIT_FEATURES;
-	phy_data->phydev->advertising = phy_data->phydev->supported;
+	phy_data->phydev->supported = PHY_10BT_FEATURES |
+				      PHY_100BT_FEATURES |
+				      PHY_1000BT_FEATURES;
 	phy_support_asym_pause(phy_data->phydev);
 
 	netif_dbg(pdata, drv, pdata->netdev,
@@ -950,8 +951,9 @@ static bool xgbe_phy_belfuse_phy_quirks(struct xgbe_prv_data *pdata)
 	reg = phy_read(phy_data->phydev, 0x00);
 	phy_write(phy_data->phydev, 0x00, reg & ~0x00800);
 
-	phy_data->phydev->supported = PHY_GBIT_FEATURES;
-	phy_data->phydev->advertising = phy_data->phydev->supported;
+	phy_data->phydev->supported = (PHY_10BT_FEATURES |
+				       PHY_100BT_FEATURES |
+				       PHY_1000BT_FEATURES);
 	phy_support_asym_pause(phy_data->phydev);
 
 	netif_dbg(pdata, drv, pdata->netdev,
