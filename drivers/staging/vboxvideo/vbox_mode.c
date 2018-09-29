@@ -153,7 +153,7 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 
 		if (!fb1) {
 			fb1 = fb;
-			if (to_vbox_framebuffer(fb1) == &vbox->fbdev->afb)
+			if (to_vbox_framebuffer(fb1) == &vbox->afb)
 				break;
 		} else if (fb != fb1) {
 			single_framebuffer = false;

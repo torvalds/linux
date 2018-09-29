@@ -322,18 +322,6 @@ void vbox_hw_fini(struct vbox_private *vbox)
 	pci_iounmap(vbox->ddev.pdev, vbox->guest_heap);
 }
 
-/**
- * @note this is described in the DRM framework documentation.  AST does not
- * have it, but we get an oops on driver unload if it is not present.
- */
-void vbox_driver_lastclose(struct drm_device *dev)
-{
-	struct vbox_private *vbox = dev->dev_private;
-
-	if (vbox->fbdev)
-		drm_fb_helper_restore_fbdev_mode_unlocked(&vbox->fbdev->helper);
-}
-
 int vbox_gem_create(struct vbox_private *vbox,
 		    u32 size, bool iskernel, struct drm_gem_object **obj)
 {

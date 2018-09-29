@@ -66,13 +66,11 @@ static struct fb_ops vboxfb_ops = {
 	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
-static int vboxfb_create(struct drm_fb_helper *helper,
-			 struct drm_fb_helper_surface_size *sizes)
+int vboxfb_create(struct drm_fb_helper *helper,
+		  struct drm_fb_helper_surface_size *sizes)
 {
-	struct vbox_fbdev *fbdev =
-	    container_of(helper, struct vbox_fbdev, helper);
-	struct vbox_private *vbox = container_of(fbdev->helper.dev,
-						 struct vbox_private, ddev);
+	struct vbox_private *vbox =
+		container_of(helper, struct vbox_private, fb_helper);
 	struct pci_dev *pdev = vbox->ddev.pdev;
 	struct DRM_MODE_FB_CMD mode_cmd;
 	struct drm_framebuffer *fb;
@@ -98,7 +96,7 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 		return ret;
 	}
 
-	ret = vbox_framebuffer_init(vbox, &fbdev->afb, &mode_cmd, gobj);
+	ret = vbox_framebuffer_init(vbox, &vbox->afb, &mode_cmd, gobj);
 	if (ret)
 		return ret;
 
@@ -117,12 +115,10 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 	if (IS_ERR(info->screen_base))
 		return PTR_ERR(info->screen_base);
 
-	info->par = fbdev;
+	info->par = helper;
 
-	fbdev->size = size;
-
-	fb = &fbdev->afb.base;
-	fbdev->helper.fb = fb;
+	fb = &vbox->afb.base;
+	helper->fb = fb;
 
 	strcpy(info->fix.id, "vboxdrmfb");
 
@@ -142,7 +138,7 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 	info->apertures->ranges[0].size = pci_resource_len(pdev, 0);
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
-	drm_fb_helper_fill_var(info, &fbdev->helper, sizes->fb_width,
+	drm_fb_helper_fill_var(info, helper, sizes->fb_width,
 			       sizes->fb_height);
 
 	gpu_addr = vbox_bo_gpu_offset(bo);
@@ -161,21 +157,16 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 	return 0;
 }
 
-static struct drm_fb_helper_funcs vbox_fb_helper_funcs = {
-	.fb_probe = vboxfb_create,
-};
-
 void vbox_fbdev_fini(struct vbox_private *vbox)
 {
-	struct vbox_fbdev *fbdev = vbox->fbdev;
-	struct vbox_framebuffer *afb = &fbdev->afb;
+	struct vbox_framebuffer *afb = &vbox->afb;
 
 #ifdef CONFIG_DRM_KMS_FB_HELPER
-	if (fbdev->helper.fbdev && fbdev->helper.fbdev->fbdefio)
-		fb_deferred_io_cleanup(fbdev->helper.fbdev);
+	if (vbox->fb_helper.fbdev && vbox->fb_helper.fbdev->fbdefio)
+		fb_deferred_io_cleanup(vbox->fb_helper.fbdev);
 #endif
 
-	drm_fb_helper_unregister_fbi(&fbdev->helper);
+	drm_fb_helper_unregister_fbi(&vbox->fb_helper);
 
 	if (afb->obj) {
 		struct vbox_bo *bo = gem_to_vbox_bo(afb->obj);
@@ -188,41 +179,8 @@ void vbox_fbdev_fini(struct vbox_private *vbox)
 		drm_gem_object_put_unlocked(afb->obj);
 		afb->obj = NULL;
 	}
-	drm_fb_helper_fini(&fbdev->helper);
+	drm_fb_helper_fini(&vbox->fb_helper);
 
 	drm_framebuffer_unregister_private(&afb->base);
 	drm_framebuffer_cleanup(&afb->base);
-}
-
-int vbox_fbdev_init(struct vbox_private *vbox)
-{
-	struct drm_device *dev = &vbox->ddev;
-	struct vbox_fbdev *fbdev;
-	int ret;
-
-	fbdev = devm_kzalloc(dev->dev, sizeof(*fbdev), GFP_KERNEL);
-	if (!fbdev)
-		return -ENOMEM;
-
-	vbox->fbdev = fbdev;
-	spin_lock_init(&fbdev->dirty_lock);
-
-	drm_fb_helper_prepare(dev, &fbdev->helper, &vbox_fb_helper_funcs);
-	ret = drm_fb_helper_init(dev, &fbdev->helper, vbox->num_crtcs);
-	if (ret)
-		return ret;
-
-	ret = drm_fb_helper_single_add_all_connectors(&fbdev->helper);
-	if (ret)
-		goto err_fini;
-
-	ret = drm_fb_helper_initial_config(&fbdev->helper, 32);
-	if (ret)
-		goto err_fini;
-
-	return 0;
-
-err_fini:
-	drm_fb_helper_fini(&fbdev->helper);
-	return ret;
 }

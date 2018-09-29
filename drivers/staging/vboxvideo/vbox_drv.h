@@ -72,11 +72,16 @@
 				sizeof(struct hgsmi_host_flags))
 #define HOST_FLAGS_OFFSET GUEST_HEAP_USABLE_SIZE
 
-struct vbox_fbdev;
+struct vbox_framebuffer {
+	struct drm_framebuffer base;
+	struct drm_gem_object *obj;
+};
 
 struct vbox_private {
 	/* Must be first; or we must define our own release callback */
 	struct drm_device ddev;
+	struct drm_fb_helper fb_helper;
+	struct vbox_framebuffer afb;
 
 	u8 __iomem *guest_heap;
 	u8 __iomem *vbva_buffers;
@@ -90,8 +95,6 @@ struct vbox_private {
 	u32 available_vram_size;
 	/** Array of structures for receiving mode hints. */
 	struct vbva_modehint *last_mode_hints;
-
-	struct vbox_fbdev *fbdev;
 
 	int fb_mtrr;
 
@@ -121,8 +124,6 @@ struct vbox_private {
 
 #undef CURSOR_PIXEL_COUNT
 #undef CURSOR_DATA_SIZE
-
-void vbox_driver_lastclose(struct drm_device *dev);
 
 struct vbox_gem_object;
 
@@ -171,20 +172,6 @@ struct vbox_encoder {
 	struct drm_encoder base;
 };
 
-struct vbox_framebuffer {
-	struct drm_framebuffer base;
-	struct drm_gem_object *obj;
-};
-
-struct vbox_fbdev {
-	struct drm_fb_helper helper;
-	struct vbox_framebuffer afb;
-	int size;
-	struct ttm_bo_kmap_obj mapping;
-	int x1, y1, x2, y2;	/* dirty rect */
-	spinlock_t dirty_lock;
-};
-
 #define to_vbox_crtc(x) container_of(x, struct vbox_crtc, base)
 #define to_vbox_connector(x) container_of(x, struct vbox_connector, base)
 #define to_vbox_encoder(x) container_of(x, struct vbox_encoder, base)
@@ -212,7 +199,8 @@ int vbox_framebuffer_init(struct vbox_private *vbox,
 			  const struct DRM_MODE_FB_CMD *mode_cmd,
 			  struct drm_gem_object *obj);
 
-int vbox_fbdev_init(struct vbox_private *vbox);
+int vboxfb_create(struct drm_fb_helper *helper,
+		  struct drm_fb_helper_surface_size *sizes);
 void vbox_fbdev_fini(struct vbox_private *vbox);
 
 struct vbox_bo {

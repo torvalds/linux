@@ -49,6 +49,10 @@ static const struct pci_device_id pciidlist[] = {
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
+static struct drm_fb_helper_funcs vbox_fb_helper_funcs = {
+	.fb_probe = vboxfb_create,
+};
+
 static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct vbox_private *vbox;
@@ -92,7 +96,9 @@ static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto err_mode_fini;
 
-	ret = vbox_fbdev_init(vbox);
+	ret = drm_fb_helper_fbdev_setup(&vbox->ddev, &vbox->fb_helper,
+					&vbox_fb_helper_funcs, 32,
+					vbox->num_crtcs);
 	if (ret)
 		goto err_irq_fini;
 
@@ -257,7 +263,7 @@ static struct drm_driver driver = {
 	    DRIVER_PRIME | DRIVER_ATOMIC,
 	.dev_priv_size = 0,
 
-	.lastclose = vbox_driver_lastclose,
+	.lastclose = drm_fb_helper_lastclose,
 	.master_set = vbox_master_set,
 	.master_drop = vbox_master_drop,
 
