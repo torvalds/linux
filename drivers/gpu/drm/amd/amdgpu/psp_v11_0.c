@@ -615,7 +615,29 @@ static int psp_v11_0_xgmi_get_topology_info(struct psp_context *psp,
 static int psp_v11_0_xgmi_set_topology_info(struct psp_context *psp,
 	int number_devices, struct psp_xgmi_topology_info *topology)
 {
-	return 0;
+	struct ta_xgmi_shared_memory *xgmi_cmd;
+	struct ta_xgmi_cmd_get_topology_info_input *topology_info_input;
+	int i;
+
+	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
+		return -EINVAL;
+
+	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
+
+	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
+	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__SET_TOPOLOGY_INFO;
+	topology_info_input->num_nodes = number_devices;
+
+	for (i = 0; i < topology_info_input->num_nodes; i++) {
+		topology_info_input->nodes[i].node_id = topology->nodes[i].node_id;
+		topology_info_input->nodes[i].num_hops = topology->nodes[i].num_hops;
+		topology_info_input->nodes[i].is_sharing_enabled = topology->nodes[i].is_sharing_enabled;
+		topology_info_input->nodes[i].sdma_engine = topology->nodes[i].sdma_engine;
+	}
+
+	/* Invoke xgmi ta to set topology information */
+	return psp_xgmi_invoke(psp, TA_COMMAND_XGMI__SET_TOPOLOGY_INFO);
 }
 
 static u64 psp_v11_0_xgmi_get_hive_id(struct psp_context *psp)
