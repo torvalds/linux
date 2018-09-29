@@ -887,6 +887,24 @@ static int xilinx_dma_alloc_chan_resources(struct dma_chan *dchan)
 				chan->id);
 			return -ENOMEM;
 		}
+		/*
+		 * For cyclic DMA mode we need to program the tail Descriptor
+		 * register with a value which is not a part of the BD chain
+		 * so allocating a desc segment during channel allocation for
+		 * programming tail descriptor.
+		 */
+		chan->cyclic_seg_v = dma_zalloc_coherent(chan->dev,
+					sizeof(*chan->cyclic_seg_v),
+					&chan->cyclic_seg_p, GFP_KERNEL);
+		if (!chan->cyclic_seg_v) {
+			dev_err(chan->dev,
+				"unable to allocate desc segment for cyclic DMA\n");
+			dma_free_coherent(chan->dev, sizeof(*chan->seg_v) *
+				XILINX_DMA_NUM_DESCS, chan->seg_v,
+				chan->seg_p);
+			return -ENOMEM;
+		}
+		chan->cyclic_seg_v->phys = chan->cyclic_seg_p;
 
 		for (i = 0; i < XILINX_DMA_NUM_DESCS; i++) {
 			chan->seg_v[i].hw.next_desc =
@@ -920,24 +938,6 @@ static int xilinx_dma_alloc_chan_resources(struct dma_chan *dchan)
 			"unable to allocate channel %d descriptor pool\n",
 			chan->id);
 		return -ENOMEM;
-	}
-
-	if (chan->xdev->dma_config->dmatype == XDMA_TYPE_AXIDMA) {
-		/*
-		 * For cyclic DMA mode we need to program the tail Descriptor
-		 * register with a value which is not a part of the BD chain
-		 * so allocating a desc segment during channel allocation for
-		 * programming tail descriptor.
-		 */
-		chan->cyclic_seg_v = dma_zalloc_coherent(chan->dev,
-					sizeof(*chan->cyclic_seg_v),
-					&chan->cyclic_seg_p, GFP_KERNEL);
-		if (!chan->cyclic_seg_v) {
-			dev_err(chan->dev,
-				"unable to allocate desc segment for cyclic DMA\n");
-			return -ENOMEM;
-		}
-		chan->cyclic_seg_v->phys = chan->cyclic_seg_p;
 	}
 
 	dma_cookie_init(dchan);
