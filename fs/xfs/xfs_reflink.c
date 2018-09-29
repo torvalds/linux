@@ -693,14 +693,12 @@ xfs_reflink_end_cow(
 		if (!del.br_blockcount)
 			goto prev_extent;
 
-		ASSERT(!isnullstartblock(got.br_startblock));
-
 		/*
-		 * Don't remap unwritten extents; these are
-		 * speculatively preallocated CoW extents that have been
-		 * allocated but have not yet been involved in a write.
+		 * Only remap real extent that contain data.  With AIO
+		 * speculatively preallocations can leak into the range we
+		 * are called upon, and we need to skip them.
 		 */
-		if (got.br_state == XFS_EXT_UNWRITTEN)
+		if (!xfs_bmap_is_real_extent(&got))
 			goto prev_extent;
 
 		/* Unmap the old blocks in the data fork. */
