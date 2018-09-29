@@ -42,13 +42,21 @@
 #define PHY_1000BT_FEATURES	(SUPPORTED_1000baseT_Half | \
 				 SUPPORTED_1000baseT_Full)
 
-#define PHY_BASIC_FEATURES	(PHY_10BT_FEATURES | \
-				 PHY_100BT_FEATURES | \
-				 PHY_DEFAULT_FEATURES)
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_basic_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_basic_t1_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_fibre_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_all_ports_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_full_features) __ro_after_init;
 
-#define PHY_GBIT_FEATURES	(PHY_BASIC_FEATURES | \
-				 PHY_1000BT_FEATURES)
-
+#define PHY_BASIC_FEATURES ((unsigned long *)&phy_basic_features)
+#define PHY_BASIC_T1_FEATURES ((unsigned long *)&phy_basic_t1_features)
+#define PHY_GBIT_FEATURES ((unsigned long *)&phy_gbit_features)
+#define PHY_GBIT_FIBRE_FEATURES ((unsigned long *)&phy_gbit_fibre_features)
+#define PHY_GBIT_ALL_PORTS_FEATURES ((unsigned long *)&phy_gbit_all_ports_features)
+#define PHY_10GBIT_FEATURES ((unsigned long *)&phy_10gbit_features)
+#define PHY_10GBIT_FULL_FEATURES ((unsigned long *)&phy_10gbit_full_features)
 
 /*
  * Set phydev->irq to PHY_POLL if interrupts are not supported,
@@ -510,7 +518,7 @@ struct phy_driver {
 	u32 phy_id;
 	char *name;
 	u32 phy_id_mask;
-	u32 features;
+	const unsigned long * const features;
 	u32 flags;
 	const void *driver_data;
 

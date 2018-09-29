@@ -43,6 +43,15 @@ static inline void linkmode_set_bit(int nr, volatile unsigned long *addr)
 	__set_bit(nr, addr);
 }
 
+static inline void linkmode_set_bit_array(const int *array, int array_size,
+					  unsigned long *addr)
+{
+	int i;
+
+	for (i = 0; i < array_size; i++)
+		linkmode_set_bit(array[i], addr);
+}
+
 static inline void linkmode_clear_bit(int nr, volatile unsigned long *addr)
 {
 	__clear_bit(nr, addr);

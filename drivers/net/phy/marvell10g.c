@@ -535,16 +535,7 @@ static struct phy_driver mv3310_drivers[] = {
 		.phy_id		= 0x002b09aa,
 		.phy_id_mask	= MARVELL_PHY_ID_MASK,
 		.name		= "mv88x3310",
-		.features	= SUPPORTED_10baseT_Full |
-				  SUPPORTED_10baseT_Half |
-				  SUPPORTED_100baseT_Full |
-				  SUPPORTED_100baseT_Half |
-				  SUPPORTED_1000baseT_Full |
-				  SUPPORTED_Autoneg |
-				  SUPPORTED_TP |
-				  SUPPORTED_FIBRE |
-				  SUPPORTED_10000baseT_Full |
-				  SUPPORTED_Backplane,
+		.features	= PHY_10GBIT_FEATURES,
 		.soft_reset	= gen10g_no_soft_reset,
 		.config_init	= mv3310_config_init,
 		.probe		= mv3310_probe,
