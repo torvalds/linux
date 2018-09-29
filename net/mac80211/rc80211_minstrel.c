@@ -632,7 +632,7 @@ minstrel_init_cck_rates(struct minstrel_priv *mp)
 	if (!sband)
 		return;
 
-	for (i = 0, j = 0; i < sband->n_bitrates; i++) {
+	for (i = 0; i < sband->n_bitrates; i++) {
 		struct ieee80211_rate *rate = &sband->bitrates[i];
 
 		if (rate->flags & IEEE80211_RATE_ERP_G)
