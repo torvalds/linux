@@ -466,39 +466,6 @@ static const struct drm_encoder_funcs vbox_enc_funcs = {
 	.destroy = vbox_encoder_destroy,
 };
 
-static void vbox_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-}
-
-static bool vbox_mode_fixup(struct drm_encoder *encoder,
-			    const struct drm_display_mode *mode,
-			    struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
-static void vbox_encoder_mode_set(struct drm_encoder *encoder,
-				  struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
-{
-}
-
-static void vbox_encoder_prepare(struct drm_encoder *encoder)
-{
-}
-
-static void vbox_encoder_commit(struct drm_encoder *encoder)
-{
-}
-
-static const struct drm_encoder_helper_funcs vbox_enc_helper_funcs = {
-	.dpms = vbox_encoder_dpms,
-	.mode_fixup = vbox_mode_fixup,
-	.prepare = vbox_encoder_prepare,
-	.commit = vbox_encoder_commit,
-	.mode_set = vbox_encoder_mode_set,
-};
-
 static struct drm_encoder *vbox_encoder_init(struct drm_device *dev,
 					     unsigned int i)
 {
@@ -510,7 +477,6 @@ static struct drm_encoder *vbox_encoder_init(struct drm_device *dev,
 
 	drm_encoder_init(dev, &vbox_encoder->base, &vbox_enc_funcs,
 			 DRM_MODE_ENCODER_DAC, NULL);
-	drm_encoder_helper_add(&vbox_encoder->base, &vbox_enc_helper_funcs);
 
 	vbox_encoder->base.possible_crtcs = 1 << i;
 	return &vbox_encoder->base;
