@@ -148,13 +148,6 @@ static void vbox_crtc_dpms(struct drm_crtc *crtc, int mode)
 	mutex_unlock(&vbox->hw_mutex);
 }
 
-static bool vbox_crtc_mode_fixup(struct drm_crtc *crtc,
-				 const struct drm_display_mode *mode,
-				 struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 /*
  * Try to map the layout of virtual screens to the range of the input device.
  * Return true if we need to re-set the crtc modes due to screen offset
@@ -260,17 +253,8 @@ static void vbox_crtc_disable(struct drm_crtc *crtc)
 {
 }
 
-static void vbox_crtc_prepare(struct drm_crtc *crtc)
-{
-}
-
 static void vbox_crtc_commit(struct drm_crtc *crtc)
 {
-}
-
-static void vbox_crtc_mode_set_nofb(struct drm_crtc *crtc)
-{
-	/* We always set the mode when we set the fb/base */
 }
 
 static void vbox_crtc_atomic_flush(struct drm_crtc *crtc,
@@ -291,11 +275,7 @@ static void vbox_crtc_atomic_flush(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs vbox_crtc_helper_funcs = {
 	.dpms = vbox_crtc_dpms,
-	.mode_fixup = vbox_crtc_mode_fixup,
-	.mode_set = drm_helper_crtc_mode_set,
-	.mode_set_nofb = vbox_crtc_mode_set_nofb,
 	.disable = vbox_crtc_disable,
-	.prepare = vbox_crtc_prepare,
 	.commit = vbox_crtc_commit,
 	.atomic_flush = vbox_crtc_atomic_flush,
 };
@@ -307,7 +287,7 @@ static void vbox_crtc_destroy(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_funcs vbox_crtc_funcs = {
-	.set_config = drm_crtc_helper_set_config,
+	.set_config = drm_atomic_helper_set_config,
 	/* .gamma_set = vbox_crtc_gamma_set, */
 	.destroy = vbox_crtc_destroy,
 	.reset = drm_atomic_helper_crtc_reset,
@@ -521,8 +501,8 @@ static const struct drm_plane_helper_funcs vbox_cursor_helper_funcs = {
 };
 
 static const struct drm_plane_funcs vbox_cursor_plane_funcs = {
-	.update_plane	= drm_plane_helper_update,
-	.disable_plane	= drm_plane_helper_disable,
+	.update_plane	= drm_atomic_helper_update_plane,
+	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= drm_primary_helper_destroy,
 	.reset		= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
@@ -543,8 +523,8 @@ static const struct drm_plane_helper_funcs vbox_primary_helper_funcs = {
 };
 
 static const struct drm_plane_funcs vbox_primary_plane_funcs = {
-	.update_plane	= drm_plane_helper_update,
-	.disable_plane	= drm_primary_helper_disable,
+	.update_plane	= drm_atomic_helper_update_plane,
+	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= drm_primary_helper_destroy,
 	.reset		= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
@@ -882,6 +862,9 @@ static const struct drm_connector_funcs vbox_connector_funcs = {
 	.detect = vbox_connector_detect,
 	.fill_modes = vbox_fill_modes,
 	.destroy = vbox_connector_destroy,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static int vbox_connector_init(struct drm_device *dev,
@@ -950,6 +933,8 @@ err_unref_obj:
 
 static const struct drm_mode_config_funcs vbox_mode_funcs = {
 	.fb_create = vbox_user_framebuffer_create,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 int vbox_mode_init(struct vbox_private *vbox)

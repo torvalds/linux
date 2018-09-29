@@ -132,35 +132,16 @@ static void vbox_pci_remove(struct pci_dev *pdev)
 	drm_dev_put(&vbox->ddev);
 }
 
-static int vbox_drm_freeze(struct vbox_private *vbox)
-{
-	drm_kms_helper_poll_disable(&vbox->ddev);
-
-	pci_save_state(vbox->ddev.pdev);
-
-	drm_fb_helper_set_suspend_unlocked(&vbox->fbdev->helper, true);
-
-	return 0;
-}
-
-static int vbox_drm_thaw(struct vbox_private *vbox)
-{
-	drm_mode_config_reset(&vbox->ddev);
-	drm_helper_resume_force_mode(&vbox->ddev);
-	drm_fb_helper_set_suspend_unlocked(&vbox->fbdev->helper, false);
-
-	return 0;
-}
-
 static int vbox_pm_suspend(struct device *dev)
 {
 	struct vbox_private *vbox = dev_get_drvdata(dev);
 	int error;
 
-	error = vbox_drm_freeze(vbox);
+	error = drm_mode_config_helper_suspend(&vbox->ddev);
 	if (error)
 		return error;
 
+	pci_save_state(vbox->ddev.pdev);
 	pci_disable_device(vbox->ddev.pdev);
 	pci_set_power_state(vbox->ddev.pdev, PCI_D3hot);
 
@@ -170,39 +151,32 @@ static int vbox_pm_suspend(struct device *dev)
 static int vbox_pm_resume(struct device *dev)
 {
 	struct vbox_private *vbox = dev_get_drvdata(dev);
-	int ret;
 
 	if (pci_enable_device(vbox->ddev.pdev))
 		return -EIO;
 
-	ret = vbox_drm_thaw(vbox);
-	if (ret)
-		return ret;
-
-	drm_kms_helper_poll_enable(&vbox->ddev);
-
-	return 0;
+	return drm_mode_config_helper_resume(&vbox->ddev);
 }
 
 static int vbox_pm_freeze(struct device *dev)
 {
 	struct vbox_private *vbox = dev_get_drvdata(dev);
 
-	return vbox_drm_freeze(vbox);
+	return drm_mode_config_helper_suspend(&vbox->ddev);
 }
 
 static int vbox_pm_thaw(struct device *dev)
 {
 	struct vbox_private *vbox = dev_get_drvdata(dev);
 
-	return vbox_drm_thaw(vbox);
+	return drm_mode_config_helper_resume(&vbox->ddev);
 }
 
 static int vbox_pm_poweroff(struct device *dev)
 {
 	struct vbox_private *vbox = dev_get_drvdata(dev);
 
-	return vbox_drm_freeze(vbox);
+	return drm_mode_config_helper_suspend(&vbox->ddev);
 }
 
 static const struct dev_pm_ops vbox_pm_ops = {
@@ -280,7 +254,7 @@ static void vbox_master_drop(struct drm_device *dev, struct drm_file *file_priv)
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_MODESET | DRIVER_GEM | DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
-	    DRIVER_PRIME,
+	    DRIVER_PRIME | DRIVER_ATOMIC,
 	.dev_priv_size = 0,
 
 	.lastclose = vbox_driver_lastclose,
