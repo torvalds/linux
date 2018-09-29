@@ -234,22 +234,12 @@ static int iceland_start_smu(struct pp_hwmgr *hwmgr)
 {
 	int result;
 
-	result = iceland_smu_upload_firmware_image(hwmgr);
-	if (result)
-		return result;
-	result = iceland_smu_start_smc(hwmgr);
-	if (result)
-		return result;
-
 	if (!smu7_is_smc_ram_running(hwmgr)) {
-		pr_info("smu not running, upload firmware again \n");
 		result = iceland_smu_upload_firmware_image(hwmgr);
 		if (result)
 			return result;
 
-		result = iceland_smu_start_smc(hwmgr);
-		if (result)
-			return result;
+		iceland_smu_start_smc(hwmgr);
 	}
 
 	result = smu7_request_smu_load_fw(hwmgr);
