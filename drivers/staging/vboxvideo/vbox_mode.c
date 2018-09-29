@@ -34,15 +34,11 @@
 #include <linux/export.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "vbox_drv.h"
 #include "vboxvideo.h"
 #include "hgsmi_channels.h"
-
-static int vbox_cursor_set2(struct drm_crtc *crtc, struct drm_file *file_priv,
-			    u32 handle, u32 width, u32 height,
-			    s32 hot_x, s32 hot_y);
-static int vbox_cursor_move(struct drm_crtc *crtc, int x, int y);
 
 /**
  * Set a graphics mode.  Poke any required values into registers, do an HGSMI
@@ -318,12 +314,164 @@ static void vbox_crtc_destroy(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_funcs vbox_crtc_funcs = {
-	.cursor_move = vbox_cursor_move,
-	.cursor_set2 = vbox_cursor_set2,
 	.reset = vbox_crtc_reset,
 	.set_config = drm_crtc_helper_set_config,
 	/* .gamma_set = vbox_crtc_gamma_set, */
 	.destroy = vbox_crtc_destroy,
+};
+
+static int vbox_cursor_atomic_check(struct drm_plane *plane,
+				    struct drm_plane_state *new_state)
+{
+	u32 width = new_state->crtc_w;
+	u32 height = new_state->crtc_h;
+
+	if (!new_state->fb)
+		return 0;
+
+	if (width > VBOX_MAX_CURSOR_WIDTH || height > VBOX_MAX_CURSOR_HEIGHT ||
+	    width == 0 || height == 0)
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
+ * Copy the ARGB image and generate the mask, which is needed in case the host
+ * does not support ARGB cursors.  The mask is a 1BPP bitmap with the bit set
+ * if the corresponding alpha value in the ARGB image is greater than 0xF0.
+ */
+static void copy_cursor_image(u8 *src, u8 *dst, u32 width, u32 height,
+			      size_t mask_size)
+{
+	size_t line_size = (width + 7) / 8;
+	u32 i, j;
+
+	memcpy(dst + mask_size, src, width * height * 4);
+	for (i = 0; i < height; ++i)
+		for (j = 0; j < width; ++j)
+			if (((u32 *)src)[i * width + j] > 0xf0000000)
+				dst[i * line_size + j / 8] |= (0x80 >> (j % 8));
+}
+
+static void vbox_cursor_atomic_update(struct drm_plane *plane,
+				      struct drm_plane_state *old_state)
+{
+	struct vbox_private *vbox =
+		container_of(plane->dev, struct vbox_private, ddev);
+	struct vbox_crtc *vbox_crtc = to_vbox_crtc(plane->state->crtc);
+	struct drm_framebuffer *fb = plane->state->fb;
+	struct vbox_bo *bo = gem_to_vbox_bo(to_vbox_framebuffer(fb)->obj);
+	u32 width = plane->state->crtc_w;
+	u32 height = plane->state->crtc_h;
+	size_t data_size, mask_size;
+	u32 flags;
+	u8 *src;
+
+	/*
+	 * VirtualBox uses the host windowing system to draw the cursor so
+	 * moves are a no-op, we only need to upload new cursor sprites.
+	 */
+	if (fb == old_state->fb)
+		return;
+
+	mutex_lock(&vbox->hw_mutex);
+
+	vbox_crtc->cursor_enabled = true;
+
+	/* pinning is done in prepare/cleanup framebuffer */
+	src = vbox_bo_kmap(bo);
+	if (IS_ERR(src)) {
+		DRM_WARN("Could not kmap cursor bo, skipping update\n");
+		return;
+	}
+
+	/*
+	 * The mask must be calculated based on the alpha
+	 * channel, one bit per ARGB word, and must be 32-bit
+	 * padded.
+	 */
+	mask_size = ((width + 7) / 8 * height + 3) & ~3;
+	data_size = width * height * 4 + mask_size;
+
+	copy_cursor_image(src, vbox->cursor_data, width, height, mask_size);
+	vbox_bo_kunmap(bo);
+
+	flags = VBOX_MOUSE_POINTER_VISIBLE | VBOX_MOUSE_POINTER_SHAPE |
+		VBOX_MOUSE_POINTER_ALPHA;
+	hgsmi_update_pointer_shape(vbox->guest_pool, flags,
+				   min_t(u32, max(fb->hot_x, 0), width),
+				   min_t(u32, max(fb->hot_y, 0), height),
+				   width, height, vbox->cursor_data, data_size);
+
+	mutex_unlock(&vbox->hw_mutex);
+}
+
+void vbox_cursor_atomic_disable(struct drm_plane *plane,
+				struct drm_plane_state *old_state)
+{
+	struct vbox_private *vbox =
+		container_of(plane->dev, struct vbox_private, ddev);
+	struct vbox_crtc *vbox_crtc = to_vbox_crtc(old_state->crtc);
+	bool cursor_enabled = false;
+	struct drm_crtc *crtci;
+
+	mutex_lock(&vbox->hw_mutex);
+
+	vbox_crtc->cursor_enabled = false;
+
+	list_for_each_entry(crtci, &vbox->ddev.mode_config.crtc_list, head) {
+		if (to_vbox_crtc(crtci)->cursor_enabled)
+			cursor_enabled = true;
+	}
+
+	if (!cursor_enabled)
+		hgsmi_update_pointer_shape(vbox->guest_pool, 0, 0, 0,
+					   0, 0, NULL, 0);
+
+	mutex_unlock(&vbox->hw_mutex);
+}
+
+static int vbox_cursor_prepare_fb(struct drm_plane *plane,
+				  struct drm_plane_state *new_state)
+{
+	struct vbox_bo *bo;
+
+	if (!new_state->fb)
+		return 0;
+
+	bo = gem_to_vbox_bo(to_vbox_framebuffer(new_state->fb)->obj);
+	return vbox_bo_pin(bo, TTM_PL_FLAG_SYSTEM);
+}
+
+static void vbox_cursor_cleanup_fb(struct drm_plane *plane,
+				   struct drm_plane_state *old_state)
+{
+	struct vbox_bo *bo;
+
+	if (!plane->state->fb)
+		return;
+
+	bo = gem_to_vbox_bo(to_vbox_framebuffer(plane->state->fb)->obj);
+	vbox_bo_unpin(bo);
+}
+
+static const uint32_t vbox_cursor_plane_formats[] = {
+	DRM_FORMAT_ARGB8888,
+};
+
+static const struct drm_plane_helper_funcs vbox_cursor_helper_funcs = {
+	.atomic_check	= vbox_cursor_atomic_check,
+	.atomic_update	= vbox_cursor_atomic_update,
+	.atomic_disable	= vbox_cursor_atomic_disable,
+	.prepare_fb	= vbox_cursor_prepare_fb,
+	.cleanup_fb	= vbox_cursor_cleanup_fb,
+};
+
+static const struct drm_plane_funcs vbox_cursor_plane_funcs = {
+	.update_plane	= drm_plane_helper_update,
+	.disable_plane	= drm_plane_helper_disable,
+	.destroy	= drm_primary_helper_destroy,
 };
 
 static const uint32_t vbox_primary_plane_formats[] = {
@@ -352,6 +500,11 @@ static struct drm_plane *vbox_create_plane(struct vbox_private *vbox,
 		funcs = &vbox_primary_plane_funcs;
 		formats = vbox_primary_plane_formats;
 		num_formats = ARRAY_SIZE(vbox_primary_plane_formats);
+	} else if (type == DRM_PLANE_TYPE_CURSOR) {
+		funcs = &vbox_cursor_plane_funcs;
+		formats = vbox_cursor_plane_formats;
+		helper_funcs = &vbox_cursor_helper_funcs;
+		num_formats = ARRAY_SIZE(vbox_cursor_plane_formats);
 	} else {
 		return ERR_PTR(-EINVAL);
 	}
@@ -379,9 +532,16 @@ static struct vbox_crtc *vbox_crtc_init(struct drm_device *dev, unsigned int i)
 {
 	struct vbox_private *vbox =
 		container_of(dev, struct vbox_private, ddev);
+	struct drm_plane *cursor = NULL;
 	struct vbox_crtc *vbox_crtc;
 	struct drm_plane *primary;
+	u32 caps = 0;
 	int ret;
+
+	ret = hgsmi_query_conf(vbox->guest_pool,
+			       VBOX_VBVA_CONF32_CURSOR_CAPABILITIES, &caps);
+	if (ret)
+		return ERR_PTR(ret);
 
 	vbox_crtc = kzalloc(sizeof(*vbox_crtc), GFP_KERNEL);
 	if (!vbox_crtc)
@@ -393,18 +553,33 @@ static struct vbox_crtc *vbox_crtc_init(struct drm_device *dev, unsigned int i)
 		goto free_mem;
 	}
 
+	if ((caps & VBOX_VBVA_CURSOR_CAPABILITY_HARDWARE)) {
+		cursor = vbox_create_plane(vbox, 1 << i, DRM_PLANE_TYPE_CURSOR);
+		if (IS_ERR(cursor)) {
+			ret = PTR_ERR(cursor);
+			goto clean_primary;
+		}
+	} else {
+		DRM_WARN("VirtualBox host is too old, no cursor support\n");
+	}
+
 	vbox_crtc->crtc_id = i;
 
-	ret = drm_crtc_init_with_planes(dev, &vbox_crtc->base, primary, NULL,
+	ret = drm_crtc_init_with_planes(dev, &vbox_crtc->base, primary, cursor,
 					&vbox_crtc_funcs, NULL);
 	if (ret)
-		goto clean_primary;
+		goto clean_cursor;
 
 	drm_mode_crtc_set_gamma_size(&vbox_crtc->base, 256);
 	drm_crtc_helper_add(&vbox_crtc->base, &vbox_crtc_helper_funcs);
 
 	return vbox_crtc;
 
+clean_cursor:
+	if (cursor) {
+		drm_plane_cleanup(cursor);
+		kfree(cursor);
+	}
 clean_primary:
 	drm_plane_cleanup(primary);
 	kfree(primary);
@@ -721,13 +896,12 @@ int vbox_mode_init(struct vbox_private *vbox)
 	drm_mode_config_init(dev);
 
 	dev->mode_config.funcs = (void *)&vbox_mode_funcs;
-	dev->mode_config.min_width = 64;
-	dev->mode_config.min_height = 64;
+	dev->mode_config.min_width = 0;
+	dev->mode_config.min_height = 0;
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.max_width = VBE_DISPI_MAX_XRES;
 	dev->mode_config.max_height = VBE_DISPI_MAX_YRES;
 
-	/* vbox_cursor_init(dev); */
 	for (i = 0; i < vbox->num_crtcs; ++i) {
 		vbox_crtc = vbox_crtc_init(dev, i);
 		if (IS_ERR(vbox_crtc)) {
@@ -754,192 +928,4 @@ err_drm_mode_cleanup:
 void vbox_mode_fini(struct vbox_private *vbox)
 {
 	drm_mode_config_cleanup(&vbox->ddev);
-	/* vbox_cursor_fini(dev); */
-}
-
-/**
- * Copy the ARGB image and generate the mask, which is needed in case the host
- * does not support ARGB cursors.  The mask is a 1BPP bitmap with the bit set
- * if the corresponding alpha value in the ARGB image is greater than 0xF0.
- */
-static void copy_cursor_image(u8 *src, u8 *dst, u32 width, u32 height,
-			      size_t mask_size)
-{
-	size_t line_size = (width + 7) / 8;
-	u32 i, j;
-
-	memcpy(dst + mask_size, src, width * height * 4);
-	for (i = 0; i < height; ++i)
-		for (j = 0; j < width; ++j)
-			if (((u32 *)src)[i * width + j] > 0xf0000000)
-				dst[i * line_size + j / 8] |= (0x80 >> (j % 8));
-}
-
-static int vbox_cursor_set2(struct drm_crtc *crtc, struct drm_file *file_priv,
-			    u32 handle, u32 width, u32 height,
-			    s32 hot_x, s32 hot_y)
-{
-	struct vbox_private *vbox = crtc->dev->dev_private;
-	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
-	struct ttm_bo_kmap_obj uobj_map;
-	size_t data_size, mask_size;
-	struct drm_gem_object *obj;
-	u32 flags, caps = 0;
-	struct vbox_bo *bo;
-	bool src_isiomem;
-	u8 *dst = NULL;
-	u8 *src;
-	int ret;
-
-	/*
-	 * Re-set this regularly as in 5.0.20 and earlier the information was
-	 * lost on save and restore.
-	 */
-	hgsmi_update_input_mapping(vbox->guest_pool, 0, 0,
-				   vbox->input_mapping_width,
-				   vbox->input_mapping_height);
-	if (!handle) {
-		bool cursor_enabled = false;
-		struct drm_crtc *crtci;
-
-		/* Hide cursor. */
-		vbox_crtc->cursor_enabled = false;
-		list_for_each_entry(crtci, &vbox->ddev.mode_config.crtc_list,
-				    head) {
-			if (to_vbox_crtc(crtci)->cursor_enabled)
-				cursor_enabled = true;
-		}
-
-		if (!cursor_enabled)
-			hgsmi_update_pointer_shape(vbox->guest_pool, 0, 0, 0,
-						   0, 0, NULL, 0);
-		return 0;
-	}
-
-	vbox_crtc->cursor_enabled = true;
-
-	if (width > VBOX_MAX_CURSOR_WIDTH || height > VBOX_MAX_CURSOR_HEIGHT ||
-	    width == 0 || height == 0)
-		return -EINVAL;
-
-	ret = hgsmi_query_conf(vbox->guest_pool,
-			       VBOX_VBVA_CONF32_CURSOR_CAPABILITIES, &caps);
-	if (ret)
-		return ret;
-
-	if (!(caps & VBOX_VBVA_CURSOR_CAPABILITY_HARDWARE)) {
-		/*
-		 * -EINVAL means cursor_set2() not supported, -EAGAIN means
-		 * retry at once.
-		 */
-		return -EBUSY;
-	}
-
-	obj = drm_gem_object_lookup(file_priv, handle);
-	if (!obj) {
-		DRM_ERROR("Cannot find cursor object %x for crtc\n", handle);
-		return -ENOENT;
-	}
-
-	bo = gem_to_vbox_bo(obj);
-	ret = vbox_bo_reserve(bo, false);
-	if (ret)
-		goto out_unref_obj;
-
-	/*
-	 * The mask must be calculated based on the alpha
-	 * channel, one bit per ARGB word, and must be 32-bit
-	 * padded.
-	 */
-	mask_size = ((width + 7) / 8 * height + 3) & ~3;
-	data_size = width * height * 4 + mask_size;
-	vbox->cursor_hot_x = min_t(u32, max(hot_x, 0), width);
-	vbox->cursor_hot_y = min_t(u32, max(hot_y, 0), height);
-	vbox->cursor_width = width;
-	vbox->cursor_height = height;
-	vbox->cursor_data_size = data_size;
-	dst = vbox->cursor_data;
-
-	ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &uobj_map);
-	if (ret) {
-		vbox->cursor_data_size = 0;
-		goto out_unreserve_bo;
-	}
-
-	src = ttm_kmap_obj_virtual(&uobj_map, &src_isiomem);
-	if (src_isiomem) {
-		DRM_ERROR("src cursor bo not in main memory\n");
-		ret = -EIO;
-		goto out_unmap_bo;
-	}
-
-	copy_cursor_image(src, dst, width, height, mask_size);
-
-	flags = VBOX_MOUSE_POINTER_VISIBLE | VBOX_MOUSE_POINTER_SHAPE |
-		VBOX_MOUSE_POINTER_ALPHA;
-	ret = hgsmi_update_pointer_shape(vbox->guest_pool, flags,
-					 vbox->cursor_hot_x, vbox->cursor_hot_y,
-					 width, height, dst, data_size);
-out_unmap_bo:
-	ttm_bo_kunmap(&uobj_map);
-out_unreserve_bo:
-	vbox_bo_unreserve(bo);
-out_unref_obj:
-	drm_gem_object_put_unlocked(obj);
-
-	return ret;
-}
-
-static int vbox_cursor_move(struct drm_crtc *crtc, int x, int y)
-{
-	struct vbox_private *vbox = crtc->dev->dev_private;
-	u32 flags = VBOX_MOUSE_POINTER_VISIBLE |
-	    VBOX_MOUSE_POINTER_SHAPE | VBOX_MOUSE_POINTER_ALPHA;
-	s32 crtc_x =
-	    vbox->single_framebuffer ? crtc->x : to_vbox_crtc(crtc)->x_hint;
-	s32 crtc_y =
-	    vbox->single_framebuffer ? crtc->y : to_vbox_crtc(crtc)->y_hint;
-	u32 host_x, host_y;
-	u32 hot_x = 0;
-	u32 hot_y = 0;
-	int ret;
-
-	/*
-	 * We compare these to unsigned later and don't
-	 * need to handle negative.
-	 */
-	if (x + crtc_x < 0 || y + crtc_y < 0 || vbox->cursor_data_size == 0)
-		return 0;
-
-	ret = hgsmi_cursor_position(vbox->guest_pool, true, x + crtc_x,
-				    y + crtc_y, &host_x, &host_y);
-
-	/*
-	 * The only reason we have vbox_cursor_move() is that some older clients
-	 * might use DRM_IOCTL_MODE_CURSOR instead of DRM_IOCTL_MODE_CURSOR2 and
-	 * use DRM_MODE_CURSOR_MOVE to set the hot-spot.
-	 *
-	 * However VirtualBox 5.0.20 and earlier has a bug causing it to return
-	 * 0,0 as host cursor location after a save and restore.
-	 *
-	 * To work around this we ignore a 0, 0 return, since missing the odd
-	 * time when it legitimately happens is not going to hurt much.
-	 */
-	if (ret || (host_x == 0 && host_y == 0))
-		return ret;
-
-	if (x + crtc_x < host_x)
-		hot_x = min(host_x - x - crtc_x, vbox->cursor_width);
-	if (y + crtc_y < host_y)
-		hot_y = min(host_y - y - crtc_y, vbox->cursor_height);
-
-	if (hot_x == vbox->cursor_hot_x && hot_y == vbox->cursor_hot_y)
-		return 0;
-
-	vbox->cursor_hot_x = hot_x;
-	vbox->cursor_hot_y = hot_y;
-
-	return hgsmi_update_pointer_shape(vbox->guest_pool, flags,
-			hot_x, hot_y, vbox->cursor_width, vbox->cursor_height,
-			vbox->cursor_data, vbox->cursor_data_size);
 }

@@ -116,11 +116,6 @@ struct vbox_private {
 	 * encompassing all screen ones or is the fbdev console active?
 	 */
 	bool single_framebuffer;
-	u32 cursor_width;
-	u32 cursor_height;
-	u32 cursor_hot_x;
-	u32 cursor_hot_y;
-	size_t cursor_data_size;
 	u8 cursor_data[CURSOR_DATA_SIZE];
 };
 
