@@ -216,9 +216,6 @@ int vbox_fbdev_init(struct vbox_private *vbox)
 	if (ret)
 		goto err_fini;
 
-	/* disable all the possible outputs/crtcs before entering KMS mode */
-	drm_helper_disable_unused_functions(dev);
-
 	ret = drm_fb_helper_initial_config(&fbdev->helper, 32);
 	if (ret)
 		goto err_fini;

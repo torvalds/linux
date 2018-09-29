@@ -301,10 +301,6 @@ static const struct drm_crtc_helper_funcs vbox_crtc_helper_funcs = {
 	.atomic_flush = vbox_crtc_atomic_flush,
 };
 
-static void vbox_crtc_reset(struct drm_crtc *crtc)
-{
-}
-
 static void vbox_crtc_destroy(struct drm_crtc *crtc)
 {
 	drm_crtc_cleanup(crtc);
@@ -312,10 +308,12 @@ static void vbox_crtc_destroy(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_funcs vbox_crtc_funcs = {
-	.reset = vbox_crtc_reset,
 	.set_config = drm_crtc_helper_set_config,
 	/* .gamma_set = vbox_crtc_gamma_set, */
 	.destroy = vbox_crtc_destroy,
+	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
 static int vbox_primary_atomic_check(struct drm_plane *plane,
@@ -527,6 +525,9 @@ static const struct drm_plane_funcs vbox_cursor_plane_funcs = {
 	.update_plane	= drm_plane_helper_update,
 	.disable_plane	= drm_plane_helper_disable,
 	.destroy	= drm_primary_helper_destroy,
+	.reset		= drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
 static const uint32_t vbox_primary_plane_formats[] = {
@@ -546,6 +547,9 @@ static const struct drm_plane_funcs vbox_primary_plane_funcs = {
 	.update_plane	= drm_plane_helper_update,
 	.disable_plane	= drm_primary_helper_disable,
 	.destroy	= drm_primary_helper_destroy,
+	.reset		= drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
 static struct drm_plane *vbox_create_plane(struct vbox_private *vbox,
@@ -982,6 +986,7 @@ int vbox_mode_init(struct vbox_private *vbox)
 			goto err_drm_mode_cleanup;
 	}
 
+	drm_mode_config_reset(dev);
 	return 0;
 
 err_drm_mode_cleanup:
