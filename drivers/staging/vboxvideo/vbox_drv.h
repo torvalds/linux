@@ -151,6 +151,26 @@ struct vbox_crtc {
 	bool cursor_enabled;
 	u32 x_hint;
 	u32 y_hint;
+	/*
+	 * When setting a mode we not only pass the mode to the hypervisor,
+	 * but also information on how to map / translate input coordinates
+	 * for the emulated USB tablet.  This input-mapping may change when
+	 * the mode on *another* crtc changes.
+	 *
+	 * This means that sometimes we must do a modeset on other crtc-s then
+	 * the one being changed to update the input-mapping. Including crtc-s
+	 * which may be disabled inside the guest (shown as a black window
+	 * on the host unless closed by the user).
+	 *
+	 * With atomic modesetting the mode-info of disabled crtcs gets zeroed
+	 * yet we need it when updating the input-map to avoid resizing the
+	 * window as a side effect of a mode_set on another crtc. Therefor we
+	 * cache the info of the last mode below.
+	 */
+	u32 width;
+	u32 height;
+	u32 x;
+	u32 y;
 };
 
 struct vbox_encoder {

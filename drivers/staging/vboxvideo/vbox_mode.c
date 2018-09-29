@@ -48,8 +48,7 @@ static int vbox_cursor_move(struct drm_crtc *crtc, int x, int y);
  * Set a graphics mode.  Poke any required values into registers, do an HGSMI
  * mode set and tell the host we support advanced graphics functions.
  */
-static void vbox_do_modeset(struct drm_crtc *crtc,
-			    const struct drm_display_mode *mode)
+static void vbox_do_modeset(struct drm_crtc *crtc)
 {
 	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
 	struct vbox_private *vbox;
@@ -58,12 +57,12 @@ static void vbox_do_modeset(struct drm_crtc *crtc,
 	s32 x_offset, y_offset;
 
 	vbox = crtc->dev->dev_private;
-	width = mode->hdisplay ? mode->hdisplay : 640;
-	height = mode->vdisplay ? mode->vdisplay : 480;
+	width = vbox_crtc->width ? vbox_crtc->width : 640;
+	height = vbox_crtc->height ? vbox_crtc->height : 480;
 	bpp = crtc->enabled ? CRTC_FB(crtc)->format->cpp[0] * 8 : 32;
 	pitch = crtc->enabled ? CRTC_FB(crtc)->pitches[0] : width * bpp / 8;
-	x_offset = vbox->single_framebuffer ? crtc->x : vbox_crtc->x_hint;
-	y_offset = vbox->single_framebuffer ? crtc->y : vbox_crtc->y_hint;
+	x_offset = vbox->single_framebuffer ? vbox_crtc->x : vbox_crtc->x_hint;
+	y_offset = vbox->single_framebuffer ? vbox_crtc->y : vbox_crtc->y_hint;
 
 	/*
 	 * This is the old way of setting graphics modes.  It assumed one screen
@@ -82,9 +81,9 @@ static void vbox_do_modeset(struct drm_crtc *crtc,
 		vbox_write_ioport(VBE_DISPI_INDEX_ENABLE, VBE_DISPI_ENABLED);
 		vbox_write_ioport(
 			VBE_DISPI_INDEX_X_OFFSET,
-			vbox_crtc->fb_offset % pitch / bpp * 8 + crtc->x);
+			vbox_crtc->fb_offset % pitch / bpp * 8 + vbox_crtc->x);
 		vbox_write_ioport(VBE_DISPI_INDEX_Y_OFFSET,
-				  vbox_crtc->fb_offset / pitch + crtc->y);
+				  vbox_crtc->fb_offset / pitch + vbox_crtc->y);
 	}
 
 	flags = VBVA_SCREEN_F_ACTIVE;
@@ -93,7 +92,8 @@ static void vbox_do_modeset(struct drm_crtc *crtc,
 	flags |= vbox_crtc->disconnected ? VBVA_SCREEN_F_DISABLED : 0;
 	hgsmi_process_display_info(vbox->guest_pool, vbox_crtc->crtc_id,
 				   x_offset, y_offset,
-				   crtc->x * bpp / 8 + crtc->y * pitch,
+				   vbox_crtc->x * bpp / 8 +
+							vbox_crtc->y * pitch,
 				   pitch, width, height,
 				   vbox_crtc->blanked ? 0 : bpp, flags);
 }
@@ -149,7 +149,7 @@ static void vbox_crtc_dpms(struct drm_crtc *crtc, int mode)
 	}
 
 	mutex_lock(&vbox->hw_mutex);
-	vbox_do_modeset(crtc, &crtc->hwmode);
+	vbox_do_modeset(crtc);
 	mutex_unlock(&vbox->hw_mutex);
 }
 
@@ -232,6 +232,10 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 
 	mutex_lock(&vbox->hw_mutex);
 
+	vbox_crtc->width = mode->hdisplay;
+	vbox_crtc->height = mode->vdisplay;
+	vbox_crtc->x = x;
+	vbox_crtc->y = y;
 	vbox_crtc->fb_offset = vbox_bo_gpu_offset(bo);
 
 	/* vbox_do_modeset() checks vbox->single_framebuffer so update it now */
@@ -242,12 +246,12 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 				    head) {
 			if (crtci == crtc)
 				continue;
-			vbox_do_modeset(crtci, &crtci->mode);
+			vbox_do_modeset(crtci);
 		}
 	}
 
 	vbox_set_view(crtc);
-	vbox_do_modeset(crtc, mode ? mode : &crtc->mode);
+	vbox_do_modeset(crtc);
 
 	if (mode)
 		hgsmi_update_input_mapping(vbox->guest_pool, 0, 0,
