@@ -493,7 +493,7 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 	if (stringset == ETH_SS_TEST) {
 		/* clear loopback bit flags at first */
 		handle->flags = (handle->flags & (~HCLGE_LOOPBACK_TEST_FLAGS));
-		if (hdev->pdev->revision >= HNAE3_REVISION_ID_21 ||
+		if (hdev->pdev->revision >= 0x21 ||
 		    hdev->hw.mac.speed == HCLGE_MAC_SPEED_10M ||
 		    hdev->hw.mac.speed == HCLGE_MAC_SPEED_100M ||
 		    hdev->hw.mac.speed == HCLGE_MAC_SPEED_1G) {
