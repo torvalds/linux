@@ -304,6 +304,37 @@ static inline u32 mii_lpa_to_ethtool_lpa_x(u32 lpa)
 }
 
 /**
+ * mii_adv_to_linkmode_adv_t
+ * @advertising:pointer to destination link mode.
+ * @adv: value of the MII_ADVERTISE register
+ *
+ * A small helper function that translates MII_ADVERTISE bits
+ * to linkmode advertisement settings.
+ */
+static inline void mii_adv_to_linkmode_adv_t(unsigned long *advertising,
+					     u32 adv)
+{
+	linkmode_zero(advertising);
+
+	if (adv & ADVERTISE_10HALF)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+				 advertising);
+	if (adv & ADVERTISE_10FULL)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
+				 advertising);
+	if (adv & ADVERTISE_100HALF)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+				 advertising);
+	if (adv & ADVERTISE_100FULL)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+				 advertising);
+	if (adv & ADVERTISE_PAUSE_CAP)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, advertising);
+	if (adv & ADVERTISE_PAUSE_ASYM)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, advertising);
+}
+
+/**
  * mii_advertise_flowctrl - get flow control advertisement flags
  * @cap: Flow control capabilities (FLOW_CTRL_RX, FLOW_CTRL_TX or both)
  */
