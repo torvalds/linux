@@ -1565,26 +1565,6 @@ netvsc_set_rxnfc(struct net_device *ndev, struct ethtool_rxnfc *info)
 	return -EOPNOTSUPP;
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void netvsc_poll_controller(struct net_device *dev)
-{
-	struct net_device_context *ndc = netdev_priv(dev);
-	struct netvsc_device *ndev;
-	int i;
-
-	rcu_read_lock();
-	ndev = rcu_dereference(ndc->nvdev);
-	if (ndev) {
-		for (i = 0; i < ndev->num_chn; i++) {
-			struct netvsc_channel *nvchan = &ndev->chan_table[i];
-
-			napi_schedule(&nvchan->napi);
-		}
-	}
-	rcu_read_unlock();
-}
-#endif
-
 static u32 netvsc_get_rxfh_key_size(struct net_device *dev)
 {
 	return NETVSC_HASH_KEYLEN;
@@ -1812,9 +1792,6 @@ static const struct net_device_ops device_ops = {
 	.ndo_set_mac_address =		netvsc_set_mac_addr,
 	.ndo_select_queue =		netvsc_select_queue,
 	.ndo_get_stats64 =		netvsc_get_stats64,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller =		netvsc_poll_controller,
-#endif
 };
 
 /*
