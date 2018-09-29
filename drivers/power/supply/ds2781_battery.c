@@ -772,21 +772,13 @@ static int ds2781_battery_probe(struct platform_device *pdev)
 	psy_cfg.drv_data		= dev_info;
 	psy_cfg.attr_grp		= ds2781_sysfs_groups;
 
-	dev_info->bat = power_supply_register(&pdev->dev, &dev_info->bat_desc,
-						&psy_cfg);
+	dev_info->bat = devm_power_supply_register(&pdev->dev,
+						   &dev_info->bat_desc,
+						   &psy_cfg);
 	if (IS_ERR(dev_info->bat)) {
 		dev_err(dev_info->dev, "failed to register battery\n");
 		return PTR_ERR(dev_info->bat);
 	}
-
-	return 0;
-}
-
-static int ds2781_battery_remove(struct platform_device *pdev)
-{
-	struct ds2781_device_info *dev_info = platform_get_drvdata(pdev);
-
-	power_supply_unregister(dev_info->bat);
 
 	return 0;
 }
@@ -796,7 +788,6 @@ static struct platform_driver ds2781_battery_driver = {
 		.name = "ds2781-battery",
 	},
 	.probe	  = ds2781_battery_probe,
-	.remove   = ds2781_battery_remove,
 };
 module_platform_driver(ds2781_battery_driver);
 
