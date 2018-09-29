@@ -270,8 +270,23 @@ const struct amdgpu_ip_block_version pp_smu_ip_block =
 	.funcs = &pp_ip_funcs,
 };
 
+/* This interface only be supported On Vi,
+ * because only smu7/8 can help to load gfx/sdma fw,
+ * smu need to be enabled before load other ip's fw.
+ * so call start smu to load smu7 fw and other ip's fw
+ */
 static int pp_dpm_load_fw(void *handle)
 {
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr || !hwmgr->smumgr_funcs || !hwmgr->smumgr_funcs->start_smu)
+		return -EINVAL;
+
+	if (hwmgr->smumgr_funcs->start_smu(hwmgr)) {
+		pr_err("fw load failed\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
