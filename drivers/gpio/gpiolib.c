@@ -2920,12 +2920,11 @@ int gpiod_get_array_value_complex(bool raw, bool can_sleep,
 			int hwgpio = gpio_chip_hwgpio(desc);
 
 			__set_bit(hwgpio, mask);
+			i++;
 
 			if (array_info)
 				i = find_next_zero_bit(array_info->get_mask,
 						       array_size, i);
-			else
-				i++;
 		} while ((i < array_size) &&
 			 (desc_array[i]->gdev->chip == chip));
 
@@ -2945,12 +2944,11 @@ int gpiod_get_array_value_complex(bool raw, bool can_sleep,
 				value = !value;
 			__assign_bit(j, value_bitmap, value);
 			trace_gpio_value(desc_to_gpio(desc), 1, value);
+			j++;
 
 			if (array_info)
 				j = find_next_zero_bit(array_info->get_mask, i,
 						       j);
-			else
-				j++;
 		}
 
 		if (mask != fastpath)
@@ -3233,12 +3231,11 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 					__clear_bit(hwgpio, bits);
 				count++;
 			}
+			i++;
 
 			if (array_info)
 				i = find_next_zero_bit(array_info->set_mask,
 						       array_size, i);
-			else
-				i++;
 		} while ((i < array_size) &&
 			 (desc_array[i]->gdev->chip == chip));
 		/* push collected bits to outputs */
