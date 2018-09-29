@@ -4511,7 +4511,7 @@ M:	Sakari Ailus <sakari.ailus@linux.intel.com>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
-F:	drivers/media/i2c/dw9807.c
+F:	drivers/media/i2c/dw9807-vcm.c
 F:	Documentation/devicetree/bindings/media/i2c/dongwoon,dw9807-vcm.txt
 
 DOUBLETALK DRIVER
