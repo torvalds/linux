@@ -771,21 +771,25 @@ static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 
 	of_node_put(ep);
 
-	priv->notifier.subdevs = devm_kzalloc(priv->dev,
-					      sizeof(*priv->notifier.subdevs),
-					      GFP_KERNEL);
-	if (!priv->notifier.subdevs)
-		return -ENOMEM;
+	v4l2_async_notifier_init(&priv->notifier);
 
-	priv->notifier.num_subdevs = 1;
-	priv->notifier.subdevs[0] = &priv->asd;
+	ret = v4l2_async_notifier_add_subdev(&priv->notifier, &priv->asd);
+	if (ret) {
+		fwnode_handle_put(priv->asd.match.fwnode);
+		return ret;
+	}
+
 	priv->notifier.ops = &rcar_csi2_notify_ops;
 
 	dev_dbg(priv->dev, "Found '%pOF'\n",
 		to_of_node(priv->asd.match.fwnode));
 
-	return v4l2_async_subdev_notifier_register(&priv->subdev,
-						   &priv->notifier);
+	ret = v4l2_async_subdev_notifier_register(&priv->subdev,
+						  &priv->notifier);
+	if (ret)
+		v4l2_async_notifier_cleanup(&priv->notifier);
+
+	return ret;
 }
 
 /* -----------------------------------------------------------------------------

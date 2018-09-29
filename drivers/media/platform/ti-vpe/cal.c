@@ -270,7 +270,6 @@ struct cal_ctx {
 	struct v4l2_fwnode_endpoint	endpoint;
 
 	struct v4l2_async_subdev asd;
-	struct v4l2_async_subdev *asd_list[1];
 
 	struct v4l2_fh		fh;
 	struct cal_dev		*dev;
@@ -1735,16 +1734,29 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	ctx_dbg(1, ctx, "Port: %d found sub-device %pOFn\n",
 		inst, sensor_node);
 
-	ctx->asd_list[0] = asd;
-	ctx->notifier.subdevs = ctx->asd_list;
-	ctx->notifier.num_subdevs = 1;
+	v4l2_async_notifier_init(&ctx->notifier);
+
+	ret = v4l2_async_notifier_add_subdev(&ctx->notifier, asd);
+	if (ret) {
+		ctx_err(ctx, "Error adding asd\n");
+		goto cleanup_exit;
+	}
+
 	ctx->notifier.ops = &cal_async_ops;
 	ret = v4l2_async_notifier_register(&ctx->v4l2_dev,
 					   &ctx->notifier);
 	if (ret) {
 		ctx_err(ctx, "Error registering async notifier\n");
+		v4l2_async_notifier_cleanup(&ctx->notifier);
 		ret = -EINVAL;
 	}
+
+	/*
+	 * On success we need to keep reference on sensor_node, or
+	 * if notifier_cleanup was called above, sensor_node was
+	 * already put.
+	 */
+	sensor_node = NULL;
 
 cleanup_exit:
 	of_node_put(remote_ep);
@@ -1806,8 +1818,10 @@ err_exit:
 static int cal_probe(struct platform_device *pdev)
 {
 	struct cal_dev *dev;
+	struct cal_ctx *ctx;
 	int ret;
 	int irq;
+	int i;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -1875,6 +1889,16 @@ static int cal_probe(struct platform_device *pdev)
 
 runtime_disable:
 	pm_runtime_disable(&pdev->dev);
+	for (i = 0; i < CAL_NUM_CONTEXT; i++) {
+		ctx = dev->ctx[i];
+		if (ctx) {
+			v4l2_async_notifier_unregister(&ctx->notifier);
+			v4l2_async_notifier_cleanup(&ctx->notifier);
+			v4l2_ctrl_handler_free(&ctx->ctrl_handler);
+			v4l2_device_unregister(&ctx->v4l2_dev);
+		}
+	}
+
 	return ret;
 }
 
@@ -1896,6 +1920,7 @@ static int cal_remove(struct platform_device *pdev)
 				video_device_node_name(&ctx->vdev));
 			camerarx_phy_disable(ctx);
 			v4l2_async_notifier_unregister(&ctx->notifier);
+			v4l2_async_notifier_cleanup(&ctx->notifier);
 			v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 			v4l2_device_unregister(&ctx->v4l2_dev);
 			video_unregister_device(&ctx->vdev);

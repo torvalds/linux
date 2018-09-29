@@ -1300,6 +1300,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 		goto vpif_unregister;
 	}
 
+	v4l2_async_notifier_init(&vpif_obj.notifier);
+
 	if (!vpif_obj.config->asd_sizes) {
 		i2c_adap = i2c_get_adapter(vpif_obj.config->i2c_adapter_id);
 		for (i = 0; i < subdev_count; i++) {
@@ -1323,20 +1325,27 @@ static __init int vpif_probe(struct platform_device *pdev)
 			goto probe_subdev_out;
 		}
 	} else {
-		vpif_obj.notifier.subdevs = vpif_obj.config->asd;
-		vpif_obj.notifier.num_subdevs = vpif_obj.config->asd_sizes[0];
+		for (i = 0; i < vpif_obj.config->asd_sizes[0]; i++) {
+			err = v4l2_async_notifier_add_subdev(
+				&vpif_obj.notifier, vpif_obj.config->asd[i]);
+			if (err)
+				goto probe_cleanup;
+		}
+
 		vpif_obj.notifier.ops = &vpif_async_ops;
 		err = v4l2_async_notifier_register(&vpif_obj.v4l2_dev,
 						   &vpif_obj.notifier);
 		if (err) {
 			vpif_err("Error registering async notifier\n");
 			err = -EINVAL;
-			goto probe_subdev_out;
+			goto probe_cleanup;
 		}
 	}
 
 	return 0;
 
+probe_cleanup:
+	v4l2_async_notifier_cleanup(&vpif_obj.notifier);
 probe_subdev_out:
 	kfree(vpif_obj.sd);
 vpif_unregister:
@@ -1354,6 +1363,11 @@ static int vpif_remove(struct platform_device *device)
 {
 	struct channel_obj *ch;
 	int i;
+
+	if (vpif_obj.config->asd_sizes) {
+		v4l2_async_notifier_unregister(&vpif_obj.notifier);
+		v4l2_async_notifier_cleanup(&vpif_obj.notifier);
+	}
 
 	v4l2_device_unregister(&vpif_obj.v4l2_dev);
 

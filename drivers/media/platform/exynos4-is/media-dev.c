@@ -457,11 +457,16 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 
 	fmd->sensor[index].asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
 	fmd->sensor[index].asd.match.fwnode = of_fwnode_handle(rem);
-	fmd->async_subdevs[index] = &fmd->sensor[index].asd;
+
+	ret = v4l2_async_notifier_add_subdev(&fmd->subdev_notifier,
+					     &fmd->sensor[index].asd);
+	if (ret) {
+		of_node_put(rem);
+		return ret;
+	}
 
 	fmd->num_sensors++;
 
-	of_node_put(rem);
 	return 0;
 }
 
@@ -500,7 +505,7 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 		ret = fimc_md_parse_port_node(fmd, port, index);
 		if (ret < 0) {
 			of_node_put(node);
-			goto rpm_put;
+			goto cleanup;
 		}
 		index++;
 	}
@@ -514,11 +519,17 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 		ret = fimc_md_parse_port_node(fmd, node, index);
 		if (ret < 0) {
 			of_node_put(node);
-			break;
+			goto cleanup;
 		}
 		index++;
 	}
+
 rpm_put:
+	pm_runtime_put(fmd->pmf);
+	return 0;
+
+cleanup:
+	v4l2_async_notifier_cleanup(&fmd->subdev_notifier);
 	pm_runtime_put(fmd->pmf);
 	return ret;
 }
@@ -1460,6 +1471,8 @@ static int fimc_md_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, fmd);
 
+	v4l2_async_notifier_init(&fmd->subdev_notifier);
+
 	ret = fimc_md_register_platform_entities(fmd, dev->of_node);
 	if (ret)
 		goto err_clk;
@@ -1470,7 +1483,7 @@ static int fimc_md_probe(struct platform_device *pdev)
 
 	ret = device_create_file(&pdev->dev, &dev_attr_subdev_conf_mode);
 	if (ret)
-		goto err_m_ent;
+		goto err_cleanup;
 	/*
 	 * FIMC platform devices need to be registered before the sclk_cam
 	 * clocks provider, as one of these devices needs to be activated
@@ -1483,8 +1496,6 @@ static int fimc_md_probe(struct platform_device *pdev)
 	}
 
 	if (fmd->num_sensors > 0) {
-		fmd->subdev_notifier.subdevs = fmd->async_subdevs;
-		fmd->subdev_notifier.num_subdevs = fmd->num_sensors;
 		fmd->subdev_notifier.ops = &subdev_notifier_ops;
 		fmd->num_sensors = 0;
 
@@ -1500,10 +1511,12 @@ err_clk_p:
 	fimc_md_unregister_clk_provider(fmd);
 err_attr:
 	device_remove_file(&pdev->dev, &dev_attr_subdev_conf_mode);
-err_clk:
-	fimc_md_put_clocks(fmd);
+err_cleanup:
+	v4l2_async_notifier_cleanup(&fmd->subdev_notifier);
 err_m_ent:
 	fimc_md_unregister_entities(fmd);
+err_clk:
+	fimc_md_put_clocks(fmd);
 err_md:
 	media_device_cleanup(&fmd->media_dev);
 	v4l2_device_unregister(&fmd->v4l2_dev);
@@ -1519,6 +1532,7 @@ static int fimc_md_remove(struct platform_device *pdev)
 
 	fimc_md_unregister_clk_provider(fmd);
 	v4l2_async_notifier_unregister(&fmd->subdev_notifier);
+	v4l2_async_notifier_cleanup(&fmd->subdev_notifier);
 
 	v4l2_device_unregister(&fmd->v4l2_dev);
 	device_remove_file(&pdev->dev, &dev_attr_subdev_conf_mode);

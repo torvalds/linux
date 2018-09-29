@@ -1506,7 +1506,7 @@ static int cio2_notifier_init(struct cio2_device *cio2)
 	if (ret < 0)
 		return ret;
 
-	if (!cio2->notifier.num_subdevs)
+	if (list_empty(&cio2->notifier.asd_list))
 		return -ENODEV;	/* no endpoint */
 
 	cio2->notifier.ops = &cio2_async_ops;

@@ -827,7 +827,7 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 
 	mutex_unlock(&vin->group->lock);
 
-	if (!vin->group->notifier.num_subdevs)
+	if (list_empty(&vin->group->notifier.asd_list))
 		return 0;
 
 	vin->group->notifier.ops = &rvin_group_notify_ops;
