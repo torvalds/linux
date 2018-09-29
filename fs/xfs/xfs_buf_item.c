@@ -556,73 +556,66 @@ xfs_buf_item_unlock(
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 	struct xfs_buf		*bp = bip->bli_buf;
+	bool			freed;
 	bool			aborted;
-	bool			hold = !!(bip->bli_flags & XFS_BLI_HOLD);
-	bool			dirty = !!(bip->bli_flags & XFS_BLI_DIRTY);
+	bool			hold = bip->bli_flags & XFS_BLI_HOLD;
+	bool			dirty = bip->bli_flags & XFS_BLI_DIRTY;
+	bool			stale = bip->bli_flags & XFS_BLI_STALE;
 #if defined(DEBUG) || defined(XFS_WARN)
-	bool			ordered = !!(bip->bli_flags & XFS_BLI_ORDERED);
+	bool			ordered = bip->bli_flags & XFS_BLI_ORDERED;
 #endif
-
-	aborted = test_bit(XFS_LI_ABORTED, &lip->li_flags);
-
-	/* Clear the buffer's association with this transaction. */
-	bp->b_transp = NULL;
-
-	/*
-	 * The per-transaction state has been copied above so clear it from the
-	 * bli.
-	 */
-	bip->bli_flags &= ~(XFS_BLI_LOGGED | XFS_BLI_HOLD | XFS_BLI_ORDERED);
-
-	/*
-	 * If the buf item is marked stale, then don't do anything.  We'll
-	 * unlock the buffer and free the buf item when the buffer is unpinned
-	 * for the last time.
-	 */
-	if (bip->bli_flags & XFS_BLI_STALE) {
-		trace_xfs_buf_item_unlock_stale(bip);
-		ASSERT(bip->__bli_format.blf_flags & XFS_BLF_CANCEL);
-		if (!aborted) {
-			atomic_dec(&bip->bli_refcount);
-			return;
-		}
-	}
 
 	trace_xfs_buf_item_unlock(bip);
 
 	/*
-	 * If the buf item isn't tracking any data, free it, otherwise drop the
-	 * reference we hold to it. If we are aborting the transaction, this may
-	 * be the only reference to the buf item, so we free it anyway
-	 * regardless of whether it is dirty or not. A dirty abort implies a
-	 * shutdown, anyway.
-	 *
 	 * The bli dirty state should match whether the blf has logged segments
 	 * except for ordered buffers, where only the bli should be dirty.
 	 */
 	ASSERT((!ordered && dirty == xfs_buf_item_dirty_format(bip)) ||
 	       (ordered && dirty && !xfs_buf_item_dirty_format(bip)));
+	ASSERT(!stale || (bip->__bli_format.blf_flags & XFS_BLF_CANCEL));
+
+	aborted = test_bit(XFS_LI_ABORTED, &lip->li_flags);
 
 	/*
-	 * Clean buffers, by definition, cannot be in the AIL. However, aborted
-	 * buffers may be in the AIL regardless of dirty state. An aborted
-	 * transaction that invalidates a buffer already in the AIL may have
-	 * marked it stale and cleared the dirty state, for example.
-	 *
-	 * Therefore if we are aborting a buffer and we've just taken the last
-	 * reference away, we have to check if it is in the AIL before freeing
-	 * it. We need to free it in this case, because an aborted transaction
-	 * has already shut the filesystem down and this is the last chance we
-	 * will have to do so.
+	 * Clear the buffer's association with this transaction and
+	 * per-transaction state from the bli, which has been copied above.
 	 */
-	if (atomic_dec_and_test(&bip->bli_refcount)) {
-		if (aborted) {
-			ASSERT(XFS_FORCED_SHUTDOWN(lip->li_mountp));
+	bp->b_transp = NULL;
+	bip->bli_flags &= ~(XFS_BLI_LOGGED | XFS_BLI_HOLD | XFS_BLI_ORDERED);
+
+	/*
+	 * Drop the transaction's bli reference and deal with the item if we had
+	 * the last one. We must free the item if clean or aborted since it
+	 * wasn't pinned by the log and this is the last chance to do so. If the
+	 * bli is freed and dirty (but non-aborted), the buffer was not dirty in
+	 * this transaction but modified by a previous one and still awaiting
+	 * writeback. In that case, the bli is freed on buffer writeback
+	 * completion.
+	 */
+	freed = atomic_dec_and_test(&bip->bli_refcount);
+	if (freed) {
+		ASSERT(!aborted || XFS_FORCED_SHUTDOWN(lip->li_mountp));
+		/*
+		 * An aborted item may be in the AIL regardless of dirty state.
+		 * For example, consider an aborted transaction that invalidated
+		 * a dirty bli and cleared the dirty state.
+		 */
+		if (aborted)
 			xfs_trans_ail_remove(lip, SHUTDOWN_LOG_IO_ERROR);
+		if (aborted || !dirty)
 			xfs_buf_item_relse(bp);
-		} else if (!dirty)
-			xfs_buf_item_relse(bp);
+	} else if (stale) {
+		/*
+		 * Stale buffers remain locked until final unpin unless the bli
+		 * was freed in the branch above. A freed stale bli implies an
+		 * abort because buffer invalidation dirties the bli and
+		 * transaction.
+		 */
+		ASSERT(!freed);
+		return;
 	}
+	ASSERT(!stale || (aborted && freed));
 
 	if (!hold)
 		xfs_buf_relse(bp);
