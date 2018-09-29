@@ -169,7 +169,7 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 {
 	struct drm_crtc *crtci;
 	struct drm_connector *connectori;
-	struct drm_framebuffer *fb1 = NULL;
+	struct drm_framebuffer *fb, *fb1 = NULL;
 	bool single_framebuffer = true;
 	bool old_single_framebuffer = vbox->single_framebuffer;
 	u16 width = 0, height = 0;
@@ -180,25 +180,25 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 	 * Same fall-back if this is the fbdev frame-buffer.
 	 */
 	list_for_each_entry(crtci, &vbox->ddev.mode_config.crtc_list, head) {
+		fb = CRTC_FB(crtci);
+		if (!fb)
+			continue;
+
 		if (!fb1) {
-			fb1 = CRTC_FB(crtci);
+			fb1 = fb;
 			if (to_vbox_framebuffer(fb1) == &vbox->fbdev->afb)
 				break;
-		} else if (CRTC_FB(crtci) && fb1 != CRTC_FB(crtci)) {
+		} else if (fb != fb1) {
 			single_framebuffer = false;
 		}
 	}
+	if (!fb1)
+		return false;
+
 	if (single_framebuffer) {
 		vbox->single_framebuffer = true;
-		list_for_each_entry(crtci, &vbox->ddev.mode_config.crtc_list,
-				    head) {
-			if (!CRTC_FB(crtci))
-				continue;
-
-			vbox->input_mapping_width = CRTC_FB(crtci)->width;
-			vbox->input_mapping_height = CRTC_FB(crtci)->height;
-			break;
-		}
+		vbox->input_mapping_width = fb1->width;
+		vbox->input_mapping_height = fb1->height;
 		return old_single_framebuffer != vbox->single_framebuffer;
 	}
 	/* Otherwise calculate the total span of all screens. */
