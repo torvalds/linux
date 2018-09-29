@@ -84,14 +84,13 @@ static void vbox_do_modeset(struct drm_crtc *crtc)
 	}
 
 	flags = VBVA_SCREEN_F_ACTIVE;
-	flags |= (fb && !vbox_crtc->blanked) ? 0 : VBVA_SCREEN_F_BLANK;
+	flags |= (fb && crtc->state->active) ? 0 : VBVA_SCREEN_F_BLANK;
 	flags |= vbox_crtc->disconnected ? VBVA_SCREEN_F_DISABLED : 0;
 	hgsmi_process_display_info(vbox->guest_pool, vbox_crtc->crtc_id,
 				   x_offset, y_offset,
 				   vbox_crtc->x * bpp / 8 +
 							vbox_crtc->y * pitch,
-				   pitch, width, height,
-				   vbox_crtc->blanked ? 0 : bpp, flags);
+				   pitch, width, height, bpp, flags);
 }
 
 static int vbox_set_view(struct drm_crtc *crtc)
@@ -126,27 +125,6 @@ static int vbox_set_view(struct drm_crtc *crtc)
 	hgsmi_buffer_free(vbox->guest_pool, p);
 
 	return 0;
-}
-
-static void vbox_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
-	struct vbox_private *vbox = crtc->dev->dev_private;
-
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		vbox_crtc->blanked = false;
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		vbox_crtc->blanked = true;
-		break;
-	}
-
-	mutex_lock(&vbox->hw_mutex);
-	vbox_do_modeset(crtc);
-	mutex_unlock(&vbox->hw_mutex);
 }
 
 /*
@@ -276,7 +254,6 @@ static void vbox_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs vbox_crtc_helper_funcs = {
-	.dpms = vbox_crtc_dpms,
 	.disable = vbox_crtc_disable,
 	.commit = vbox_crtc_commit,
 	.atomic_flush = vbox_crtc_atomic_flush,
@@ -861,7 +838,6 @@ static const struct drm_connector_helper_funcs vbox_connector_helper_funcs = {
 };
 
 static const struct drm_connector_funcs vbox_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
 	.detect = vbox_connector_detect,
 	.fill_modes = vbox_fill_modes,
 	.destroy = vbox_connector_destroy,

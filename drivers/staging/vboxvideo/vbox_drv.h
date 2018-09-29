@@ -139,7 +139,6 @@ struct vbox_connector {
 
 struct vbox_crtc {
 	struct drm_crtc base;
-	bool blanked;
 	bool disconnected;
 	unsigned int crtc_id;
 	u32 fb_offset;
