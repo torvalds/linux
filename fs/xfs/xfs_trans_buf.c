@@ -339,8 +339,6 @@ xfs_trans_brelse(
 	struct xfs_buf		*bp)
 {
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
-	bool			freed;
-	bool			dirty;
 
 	ASSERT(bp->b_transp == tp);
 
@@ -379,25 +377,8 @@ xfs_trans_brelse(
 	xfs_trans_del_item(&bip->bli_item);
 	bip->bli_flags &= ~XFS_BLI_HOLD;
 
-	/*
-	 * Drop the reference to the bli. At this point, the bli must be either
-	 * freed or dirty (or both). If freed, there are a couple cases where we
-	 * are responsible to free the item. If the bli is clean, we're the last
-	 * user of it. If the fs has shut down, the bli may be dirty and AIL
-	 * resident, but won't ever be written back. We therefore may also need
-	 * to remove it from the AIL before freeing it.
-	 */
-	freed = atomic_dec_and_test(&bip->bli_refcount);
-	dirty = bip->bli_flags & XFS_BLI_DIRTY;
-	ASSERT(freed || dirty);
-	if (freed) {
-		bool abort = XFS_FORCED_SHUTDOWN(tp->t_mountp);
-		ASSERT(abort || !test_bit(XFS_LI_IN_AIL, &bip->bli_item.li_flags));
-		if (abort)
-			xfs_trans_ail_remove(&bip->bli_item, SHUTDOWN_LOG_IO_ERROR);
-		if (!dirty || abort)
-			xfs_buf_item_relse(bp);
-	}
+	/* drop the reference to the bli */
+	xfs_buf_item_put(bip);
 
 	bp->b_transp = NULL;
 	xfs_buf_relse(bp);
