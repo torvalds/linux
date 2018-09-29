@@ -1584,7 +1584,7 @@ xfs_swap_extent_rmap(
 					tirec.br_blockcount, &irec,
 					&nimaps, 0);
 			if (error)
-				goto out_defer;
+				goto out;
 			ASSERT(nimaps == 1);
 			ASSERT(tirec.br_startoff == irec.br_startoff);
 			trace_xfs_swap_extent_rmap_remap_piece(ip, &irec);
@@ -1599,22 +1599,22 @@ xfs_swap_extent_rmap(
 			/* Remove the mapping from the donor file. */
 			error = xfs_bmap_unmap_extent(tp, tip, &uirec);
 			if (error)
-				goto out_defer;
+				goto out;
 
 			/* Remove the mapping from the source file. */
 			error = xfs_bmap_unmap_extent(tp, ip, &irec);
 			if (error)
-				goto out_defer;
+				goto out;
 
 			/* Map the donor file's blocks into the source file. */
 			error = xfs_bmap_map_extent(tp, ip, &uirec);
 			if (error)
-				goto out_defer;
+				goto out;
 
 			/* Map the source file's blocks into the donor file. */
 			error = xfs_bmap_map_extent(tp, tip, &irec);
 			if (error)
-				goto out_defer;
+				goto out;
 
 			error = xfs_defer_finish(tpp);
 			tp = *tpp;
@@ -1636,8 +1636,6 @@ xfs_swap_extent_rmap(
 	tip->i_d.di_flags2 = tip_flags2;
 	return 0;
 
-out_defer:
-	xfs_defer_cancel(tp);
 out:
 	trace_xfs_swap_extent_rmap_error(ip, error, _RET_IP_);
 	tip->i_d.di_flags2 = tip_flags2;
