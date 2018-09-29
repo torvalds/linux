@@ -138,7 +138,6 @@ static void nandc_xfer_start(u8 chip_sel,
 {
 	union BCH_CTL_T bch_reg;
 	union FL_CTL_T fl_reg;
-	u8 bus_mode = (p_spare || p_data);
 	u32 i;
 	union MTRANS_CFG_T master_reg;
 	u16 *p_spare_tmp = (u16 *)p_spare;
@@ -159,7 +158,7 @@ static void nandc_xfer_start(u8 chip_sel,
 	master_reg.d32 = nandc_readl(NANDC_MTRANS_CFG);
 	master_reg.V6.bus_mode = 0;
 	#ifdef NANDC_MASTER_EN
-	if (bus_mode != 0 && dir != 0) {
+	if (dir != 0) {
 		u32 spare_sz = 64;
 
 		for (i = 0; i < sector_count / 2; i++) {
@@ -219,7 +218,8 @@ static void nandc_xfer_comp(u8 chip_sel)
 			do {
 				fl_reg.d32 = nandc_readl(NANDC_FLCTL);
 				stat_reg.d32 = nandc_readl(NANDC_MTRANS_STAT);
-			} while (stat_reg.V6.mtrans_cnt < fl_reg.V6.page_num);
+			} while (stat_reg.V6.mtrans_cnt < fl_reg.V6.page_num ||
+				 fl_reg.V6.tr_rdy == 0);
 
 			if (master.mapped) {
 				rknandc_dma_unmap_single((u64)master.page_phy,
@@ -233,7 +233,16 @@ static void nandc_xfer_comp(u8 chip_sel)
 			do {
 				fl_reg.d32 = nandc_readl(NANDC_FLCTL);
 			} while (fl_reg.V6.tr_rdy == 0);
+			if (master.mapped) {
+				rknandc_dma_unmap_single(
+					(unsigned long)(master.page_phy),
+					fl_reg.V6.page_num * 1024, 1);
+				rknandc_dma_unmap_single(
+					(unsigned long)(master.spare_phy),
+					fl_reg.V6.page_num * 64, 1);
+			}
 		}
+		master.mapped = 0;
 	} else {
 		do {
 			fl_reg.d32 = nandc_readl(NANDC_FLCTL);
@@ -256,19 +265,6 @@ u32 nandc_xfer_data(u8 chip_sel, u8 dir, u8 sector_count,
 	nandc_xfer_start(chip_sel, dir, sector_count, 0, p_data, p_spare);
 	nandc_xfer_comp(chip_sel);
 	if (dir == NANDC_READ) {
-		if (p_spare) {
-			u32 spare_sz = 64;
-			u32 temp_data;
-			u8 *p_spare_temp = (u8 *)p_spare;
-
-			for (i = 0; i < sector_count / 2; i++) {
-				temp_data = master.spare_buf[i * spare_sz / 4];
-				*p_spare_temp++ = (u8)temp_data;
-				*p_spare_temp++ = (u8)(temp_data >> 8);
-				*p_spare_temp++ = (u8)(temp_data >> 16);
-				*p_spare_temp++ = (u8)(temp_data >> 24);
-			}
-		}
 		for (i = 0; i < sector_count / 4 ; i++) {
 			bch_st_reg.d32 = nandc_readl(NANDC_BCHST(i));
 			if (bch_st_reg.V6.fail0 || bch_st_reg.V6.fail1) {
@@ -282,6 +278,19 @@ u32 nandc_xfer_data(u8 chip_sel, u8 dir, u8 sector_count,
 				    bch_st_reg.V6.err_bits1 |
 				    ((u32)bch_st_reg.V6.err_bits1_5 << 5));
 				status = max(tmp, status);
+			}
+		}
+		if (p_spare) {
+			u32 spare_sz = 64;
+			u32 temp_data;
+			u8 *p_spare_temp = (u8 *)p_spare;
+
+			for (i = 0; i < sector_count / 2; i++) {
+				temp_data = master.spare_buf[i * spare_sz / 4];
+				*p_spare_temp++ = (u8)temp_data;
+				*p_spare_temp++ = (u8)(temp_data >> 8);
+				*p_spare_temp++ = (u8)(temp_data >> 16);
+				*p_spare_temp++ = (u8)(temp_data >> 24);
 			}
 		}
 	}

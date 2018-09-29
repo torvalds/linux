@@ -94,6 +94,11 @@ int snor_vendor_write(u32 sec, u32 n_sec, void *p_data)
 	return (u32)ret == n_sec ? 0 : ret;
 }
 
+int snor_gc(void)
+{
+	return 0;
+}
+
 unsigned int snor_capacity(void)
 {
 	return snor_get_capacity(&sfnor_dev);
