@@ -301,6 +301,7 @@ int hwmgr_suspend(struct pp_hwmgr *hwmgr)
 	if (!hwmgr || !hwmgr->pm_en)
 		return 0;
 
+	hwmgr->reload_fw = true;
 	phm_disable_smc_firmware_ctf(hwmgr);
 	ret = psm_set_boot_states(hwmgr);
 	if (ret)
