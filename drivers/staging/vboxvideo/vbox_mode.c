@@ -229,11 +229,13 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 	mutex_unlock(&vbox->hw_mutex);
 }
 
-static void vbox_crtc_disable(struct drm_crtc *crtc)
+static void vbox_crtc_atomic_enable(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_crtc_state)
 {
 }
 
-static void vbox_crtc_commit(struct drm_crtc *crtc)
+static void vbox_crtc_atomic_disable(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_crtc_state)
 {
 }
 
@@ -254,8 +256,8 @@ static void vbox_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs vbox_crtc_helper_funcs = {
-	.disable = vbox_crtc_disable,
-	.commit = vbox_crtc_commit,
+	.atomic_enable = vbox_crtc_atomic_enable,
+	.atomic_disable = vbox_crtc_atomic_disable,
 	.atomic_flush = vbox_crtc_atomic_flush,
 };
 
