@@ -32,6 +32,7 @@
  *          Hans de Goede <hdegoede@redhat.com>
  */
 #include <linux/export.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic_helper.h>
@@ -217,6 +218,7 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 	struct vbox_bo *bo = gem_to_vbox_bo(to_vbox_framebuffer(fb)->obj);
 	struct vbox_private *vbox = crtc->dev->dev_private;
 	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
+	bool needs_modeset = drm_atomic_crtc_needs_modeset(crtc->state);
 
 	mutex_lock(&vbox->hw_mutex);
 
@@ -227,7 +229,7 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 	vbox_crtc->fb_offset = vbox_bo_gpu_offset(bo);
 
 	/* vbox_do_modeset() checks vbox->single_framebuffer so update it now */
-	if (mode && vbox_set_up_input_mapping(vbox)) {
+	if (needs_modeset && vbox_set_up_input_mapping(vbox)) {
 		struct drm_crtc *crtci;
 
 		list_for_each_entry(crtci, &vbox->ddev.mode_config.crtc_list,
@@ -241,7 +243,7 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 	vbox_set_view(crtc);
 	vbox_do_modeset(crtc);
 
-	if (mode)
+	if (needs_modeset)
 		hgsmi_update_input_mapping(vbox->guest_pool, 0, 0,
 					   vbox->input_mapping_width,
 					   vbox->input_mapping_height);
@@ -288,6 +290,7 @@ static void vbox_crtc_destroy(struct drm_crtc *crtc)
 
 static const struct drm_crtc_funcs vbox_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
+	.page_flip = drm_atomic_helper_page_flip,
 	/* .gamma_set = vbox_crtc_gamma_set, */
 	.destroy = vbox_crtc_destroy,
 	.reset = drm_atomic_helper_crtc_reset,
