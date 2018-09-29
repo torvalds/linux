@@ -335,7 +335,7 @@ static int nitrox_setup_pkt_slc_bh(struct nitrox_device *ndev)
 		offset = NPS_PKT_SLC_CNTSX(i);
 		/* pre calculate completion count address */
 		bh->completion_cnt_csr_addr = NITROX_CSR_ADDR(ndev, offset);
-		bh->cmdq = &ndev->pkt_cmdqs[i];
+		bh->cmdq = &ndev->pkt_inq[i];
 
 		tasklet_init(&bh->resp_handler, pkt_slc_resp_handler,
 			     (unsigned long)bh);

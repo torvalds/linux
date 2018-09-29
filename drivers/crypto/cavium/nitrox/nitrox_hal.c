@@ -119,7 +119,7 @@ void nitrox_config_pkt_input_rings(struct nitrox_device *ndev)
 	int i;
 
 	for (i = 0; i < ndev->nr_queues; i++) {
-		struct nitrox_cmdq *cmdq = &ndev->pkt_cmdqs[i];
+		struct nitrox_cmdq *cmdq = &ndev->pkt_inq[i];
 		union nps_pkt_in_instr_rsize pkt_in_rsize;
 		u64 offset;
 

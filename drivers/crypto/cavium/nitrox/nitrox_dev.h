@@ -9,44 +9,51 @@
 
 #define VERSION_LEN 32
 
+/**
+ * struct nitrox_cmdq - NITROX command queue
+ * @cmd_qlock: command queue lock
+ * @resp_qlock: response queue lock
+ * @backlog_qlock: backlog queue lock
+ * @ndev: NITROX device
+ * @response_head: submitted request list
+ * @backlog_head: backlog queue
+ * @dbell_csr_addr: doorbell register address for this queue
+ * @base: command queue base address
+ * @dma: dma address of the base
+ * @pending_count: request pending at device
+ * @backlog_count: backlog request count
+ * @write_idx: next write index for the command
+ * @instr_size: command size
+ * @qno: command queue number
+ * @qsize: command queue size
+ * @unalign_base: unaligned base address
+ * @unalign_dma: unaligned dma address
+ */
 struct nitrox_cmdq {
-	/* command queue lock */
-	spinlock_t cmdq_lock;
-	/* response list lock */
-	spinlock_t response_lock;
-	/* backlog list lock */
-	spinlock_t backlog_lock;
-
-	/* request submitted to chip, in progress */
-	struct list_head response_head;
-	/* hw queue full, hold in backlog list */
-	struct list_head backlog_head;
-
-	/* doorbell address */
-	u8 __iomem *dbell_csr_addr;
-	/* base address of the queue */
-	u8 *head;
+	spinlock_t cmd_qlock;
+	spinlock_t resp_qlock;
+	spinlock_t backlog_qlock;
 
 	struct nitrox_device *ndev;
-	/* flush pending backlog commands */
+	struct list_head response_head;
+	struct list_head backlog_head;
+
+	u8 __iomem *dbell_csr_addr;
+	u8 *base;
+	dma_addr_t dma;
+
 	struct work_struct backlog_qflush;
 
-	/* requests posted waiting for completion */
 	atomic_t pending_count;
-	/* requests in backlog queues */
 	atomic_t backlog_count;
 
 	int write_idx;
-	/* command size 32B/64B */
 	u8 instr_size;
 	u8 qno;
 	u32 qsize;
 
-	/* unaligned addresses */
-	u8 *head_unaligned;
-	dma_addr_t dma_unaligned;
-	/* dma address of the base */
-	dma_addr_t dma;
+	u8 *unalign_base;
+	dma_addr_t unalign_dma;
 };
 
 /**
@@ -152,7 +159,7 @@ enum vf_mode {
  * @nr_queues: Number of command queues
  * @mode: Device mode PF/VF
  * @ctx_pool: DMA pool for crypto context
- * @pkt_cmdqs: SE Command queues
+ * @pkt_inq: Packet input rings
  * @msix: MSI-X information
  * @bh: post processing work
  * @hw: hardware information
@@ -177,7 +184,7 @@ struct nitrox_device {
 	enum vf_mode mode;
 
 	struct dma_pool *ctx_pool;
-	struct nitrox_cmdq *pkt_cmdqs;
+	struct nitrox_cmdq *pkt_inq;
 
 	struct nitrox_msix msix;
 	struct nitrox_bh bh;
