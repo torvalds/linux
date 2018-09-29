@@ -10,6 +10,7 @@
 
 
 #include <linux/if.h>
+#include <linux/linkmode.h>
 #include <uapi/linux/mii.h>
 
 struct ethtool_cmd;

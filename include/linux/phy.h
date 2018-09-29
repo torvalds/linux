@@ -19,6 +19,7 @@
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
+#include <linux/linkmode.h>
 #include <linux/mdio.h>
 #include <linux/mii.h>
 #include <linux/module.h>
