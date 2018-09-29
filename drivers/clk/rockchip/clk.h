@@ -87,9 +87,23 @@ struct clk;
 #define PX30_PMU_MODE			0x0020
 
 /*
- * register positions shared by RK1808 RK2928, RK3036,
+ * register positions shared by RV1108, RK1808 RK2928, RK3036,
  * RK3066, RK3188 and RK3228
  */
+
+#define RV1108_PLL_CON(x)		((x) * 0x4)
+#define RV1108_CLKSEL_CON(x)		((x) * 0x4 + 0x60)
+#define RV1108_CLKGATE_CON(x)		((x) * 0x4 + 0x120)
+#define RV1108_SOFTRST_CON(x)		((x) * 0x4 + 0x180)
+#define RV1108_GLB_SRST_FST		0x1c0
+#define RV1108_GLB_SRST_SND		0x1c4
+#define RV1108_MISC_CON			0x1cc
+#define RV1108_SDMMC_CON0		0x1d8
+#define RV1108_SDMMC_CON1		0x1dc
+#define RV1108_SDIO_CON0		0x1e0
+#define RV1108_SDIO_CON1		0x1e4
+#define RV1108_EMMC_CON0		0x1e8
+#define RV1108_EMMC_CON1		0x1ec
 
 #define RK1808_PLL_CON(x)		((x) * 0x4)
 #define RK1808_MODE_CON			0xa0
