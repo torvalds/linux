@@ -232,6 +232,7 @@ static int iceland_request_smu_load_specific_fw(struct pp_hwmgr *hwmgr,
 
 static int iceland_start_smu(struct pp_hwmgr *hwmgr)
 {
+	struct iceland_smumgr *priv = hwmgr->smu_backend;
 	int result;
 
 	if (!smu7_is_smc_ram_running(hwmgr)) {
@@ -241,6 +242,14 @@ static int iceland_start_smu(struct pp_hwmgr *hwmgr)
 
 		iceland_smu_start_smc(hwmgr);
 	}
+
+	/* Setup SoftRegsStart here to visit the register UcodeLoadStatus
+	 * to check fw loading state
+	 */
+	smu7_read_smc_sram_dword(hwmgr,
+			SMU71_FIRMWARE_HEADER_LOCATION +
+			offsetof(SMU71_Firmware_Header, SoftRegisters),
+			&(priv->smu7_data.soft_regs_start), 0x40000);
 
 	result = smu7_request_smu_load_fw(hwmgr);
 
@@ -2652,7 +2661,7 @@ const struct pp_smumgr_func iceland_smu_funcs = {
 	.smu_fini = &smu7_smu_fini,
 	.start_smu = &iceland_start_smu,
 	.check_fw_load_finish = &smu7_check_fw_load_finish,
-	.request_smu_load_fw = &smu7_reload_firmware,
+	.request_smu_load_fw = &smu7_request_smu_load_fw,
 	.request_smu_load_specific_fw = &iceland_request_smu_load_specific_fw,
 	.send_msg_to_smc = &smu7_send_msg_to_smc,
 	.send_msg_to_smc_with_parameter = &smu7_send_msg_to_smc_with_parameter,

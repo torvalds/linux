@@ -192,6 +192,7 @@ static int tonga_start_in_non_protection_mode(struct pp_hwmgr *hwmgr)
 
 static int tonga_start_smu(struct pp_hwmgr *hwmgr)
 {
+	struct tonga_smumgr *priv = hwmgr->smu_backend;
 	int result;
 
 	/* Only start SMC if SMC RAM is not running */
@@ -208,6 +209,14 @@ static int tonga_start_smu(struct pp_hwmgr *hwmgr)
 				return result;
 		}
 	}
+
+	/* Setup SoftRegsStart here to visit the register UcodeLoadStatus
+	 * to check fw loading state
+	 */
+	smu7_read_smc_sram_dword(hwmgr,
+			SMU72_FIRMWARE_HEADER_LOCATION +
+			offsetof(SMU72_Firmware_Header, SoftRegisters),
+			&(priv->smu7_data.soft_regs_start), 0x40000);
 
 	result = smu7_request_smu_load_fw(hwmgr);
 
