@@ -4872,7 +4872,7 @@ static int gfx_v8_0_kcq_init_queue(struct amdgpu_ring *ring)
 	struct vi_mqd *mqd = ring->mqd_ptr;
 	int mqd_idx = ring - &adev->gfx.compute_ring[0];
 
-	if (!adev->in_gpu_reset && !adev->gfx.in_suspend) {
+	if (!adev->in_gpu_reset && !adev->in_suspend) {
 		memset((void *)mqd, 0, sizeof(struct vi_mqd_allocation));
 		((struct vi_mqd_allocation *)mqd)->dynamic_cu_mask = 0xFFFFFFFF;
 		((struct vi_mqd_allocation *)mqd)->dynamic_rb_mask = 0xFFFFFFFF;
@@ -5142,19 +5142,12 @@ static int gfx_v8_0_hw_fini(void *handle)
 
 static int gfx_v8_0_suspend(void *handle)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	adev->gfx.in_suspend = true;
-	return gfx_v8_0_hw_fini(adev);
+	return gfx_v8_0_hw_fini(handle);
 }
 
 static int gfx_v8_0_resume(void *handle)
 {
-	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	r = gfx_v8_0_hw_init(adev);
-	adev->gfx.in_suspend = false;
-	return r;
+	return gfx_v8_0_hw_init(handle);
 }
 
 static bool gfx_v8_0_check_soft_reset(void *handle)

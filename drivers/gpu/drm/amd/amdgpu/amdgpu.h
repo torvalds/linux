@@ -1015,6 +1015,9 @@ struct amdgpu_device {
 	bool has_hw_reset;
 	u8				reset_magic[AMDGPU_RESET_MAGIC_NUM];
 
+	/* s3/s4 mask */
+	bool                            in_suspend;
+
 	/* record last mm index being written through WREG32*/
 	unsigned long last_mm_index;
 	bool                            in_gpu_reset;
