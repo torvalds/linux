@@ -190,6 +190,8 @@
 /* AXI CDMA Specific Masks */
 #define XILINX_CDMA_CR_SGMODE          BIT(3)
 
+#define xilinx_prep_dma_addr_t(addr)	\
+	((dma_addr_t)((u64)addr##_##msb << 32 | (addr)))
 /**
  * struct xilinx_vdma_desc_hw - Hardware Descriptor
  * @next_desc: Next Descriptor Pointer @0x00
