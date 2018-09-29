@@ -282,40 +282,6 @@ static int vbox_crtc_mode_set(struct drm_crtc *crtc,
 	return 0;
 }
 
-static int vbox_crtc_page_flip(struct drm_crtc *crtc,
-			       struct drm_framebuffer *fb,
-			       struct drm_pending_vblank_event *event,
-			       uint32_t page_flip_flags,
-			       struct drm_modeset_acquire_ctx *ctx)
-{
-	struct vbox_bo *bo = gem_to_vbox_bo(to_vbox_framebuffer(fb)->obj);
-	struct drm_framebuffer *old_fb = CRTC_FB(crtc);
-	unsigned long flags;
-	int rc;
-
-	rc = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM);
-	if (rc) {
-		DRM_WARN("Error %d pinning new fb, out of video mem?\n", rc);
-		return rc;
-	}
-
-	vbox_crtc_set_base_and_mode(crtc, fb, NULL, 0, 0);
-
-	if (old_fb) {
-		bo = gem_to_vbox_bo(to_vbox_framebuffer(old_fb)->obj);
-		vbox_bo_unpin(bo);
-	}
-
-	spin_lock_irqsave(&crtc->dev->event_lock, flags);
-
-	if (event)
-		drm_crtc_send_vblank_event(crtc, event);
-
-	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-
-	return 0;
-}
-
 static void vbox_crtc_disable(struct drm_crtc *crtc)
 {
 }
@@ -353,7 +319,6 @@ static const struct drm_crtc_funcs vbox_crtc_funcs = {
 	.reset = vbox_crtc_reset,
 	.set_config = drm_crtc_helper_set_config,
 	/* .gamma_set = vbox_crtc_gamma_set, */
-	.page_flip = vbox_crtc_page_flip,
 	.destroy = vbox_crtc_destroy,
 };
 
