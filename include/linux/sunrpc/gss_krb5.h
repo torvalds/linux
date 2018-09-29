@@ -118,7 +118,8 @@ struct krb5_ctx {
 	u8			acceptor_integ[GSS_KRB5_MAX_KEYLEN];
 };
 
-extern spinlock_t krb5_seq_lock;
+extern u32 gss_seq_send_fetch_and_inc(struct krb5_ctx *ctx);
+extern u64 gss_seq_send64_fetch_and_inc(struct krb5_ctx *ctx);
 
 /* The length of the Kerberos GSS token header */
 #define GSS_KRB5_TOK_HDR_LEN	(16)
