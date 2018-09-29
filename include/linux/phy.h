@@ -968,6 +968,9 @@ static inline void phy_device_reset(struct phy_device *phydev, int value)
 #define phydev_err(_phydev, format, args...)	\
 	dev_err(&_phydev->mdio.dev, format, ##args)
 
+#define phydev_info(_phydev, format, args...)	\
+	dev_info(&_phydev->mdio.dev, format, ##args)
+
 #define phydev_warn(_phydev, format, args...)	\
 	dev_warn(&_phydev->mdio.dev, format, ##args)
 
